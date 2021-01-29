@@ -28,6 +28,29 @@ tree (say, assigned to a struct field or appended to a slice that was part of
 the ownership tree prior to the transaction), but those that don't get garbage
 collected and forgotten.
 
+```go
+type Node interface {
+    ...
+}
+
+type InnerNode struct {
+	Key       Key
+	LeftNode  Node `gno:owned`
+	RightNode Node `gno:owned`
+}
+
+type LeafNode struct {
+	Key       Key  `gno:owned`
+	Value     interface{}
+}
+```
+
+In the above example, some fields are tagged as owned, and some are not.  An
+InnerNode structure may own a LeftNode and a RightNode, and it may reference or
+own a Key.  The Key is already owned by the left most LeafNode of the right
+tree, so the InnerNode cannot own it.  The LeafNode can contain a reference or
+own any value.  In other words, if nobody else owns a value, the LeafNode will.
+
 We get a lack-of-owner problem when the ownership tree detaches an object
 referred elsewhere (after running a statement or set of statements):
 
