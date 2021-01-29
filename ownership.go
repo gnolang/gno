@@ -42,6 +42,8 @@ type Object interface {
 	SetIsDirty(bool)
 	GetIsDeleted() bool
 	SetIsDeleted(bool)
+
+	ValuePreimage(rlm *Realm, owned bool) ValuePreimage
 }
 
 var _ Object = &ArrayValue{}

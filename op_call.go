@@ -151,15 +151,21 @@ func (m *Machine) doOpCallNativeBody() {
 func (m *Machine) doOpReturn() {
 	fr := m.LastFrame()
 	// See if we are exiting a realm boundary.
-	crlm := m.Package.GetRealm()
+	crlm := m.Realm
 	if crlm != nil {
-		lrlm := fr.LastPackage.GetRealm()
+		lrlm := fr.LastRealm
+		finalize := false
 		if m.NumFrames() == 1 {
 			// We are exiting the machine's realm.
-			fmt.Println("DO SOMETHING")
+			finalize = true
 		} else if crlm != lrlm {
 			// We are changing realms or exiting a realm.
-			fmt.Println("DO SOMETHING")
+			finalize = true
+		}
+		if finalize {
+			// Finalize realm updates!
+			// NOTE: This is a resource intensive undertaking.
+			crlm.FinalizeRealmTransaction()
 		}
 	}
 	// finalize

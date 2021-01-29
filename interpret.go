@@ -25,6 +25,7 @@ type Machine struct {
 	Blocks    []*Block      // block (scope) stack
 	Frames    []Frame       // func call stack
 	Package   *PackageValue // active package
+	Realm     *Realm        // active realm
 
 	// Volatile State
 	NumResults int // number of results returned
@@ -64,6 +65,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		pn := NewPackageNode("main", ".main", &FileSet{})
 		pkg = pn.NewPackage(nil) // no realm by default.
 	}
+	rlm := pkg.GetRealm()
 	checkTypes := opts.CheckTypes
 	output := opts.Output
 	if output == nil {
@@ -83,6 +85,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		NumValues:  0,
 		Blocks:     blocks,
 		Package:    pkg,
+		Realm:      rlm,
 		CheckTypes: checkTypes,
 		Output:     output,
 		Importer:   importer,
@@ -344,7 +347,7 @@ func (m *Machine) runDeclaration(d Decl) {
 			tv.T = t
 			tv.V = defaultValue(t)
 		}
-		last.GetValueRefAt(d.Path).Assign(tv)
+		last.GetValueRefAtForAssign2(m.Realm, d.Path).Assign(tv)
 	case *TypeDecl:
 		var t Type
 		if false {
@@ -934,6 +937,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv Value) {
 		IsVarg:      cx.Varg,
 		Defers:      nil,
 		LastPackage: m.Package,
+		LastRealm:   m.Realm,
 	}
 	if debug {
 		if m.Package == nil {
@@ -951,6 +955,10 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv Value) {
 		}
 	}
 	m.Package = pkg
+	rlm := pkg.GetRealm()
+	if rlm != nil && m.Realm != rlm {
+		m.Realm = rlm // enter new realm
+	}
 }
 
 func (m *Machine) PushFrameGoNative(cx *CallExpr, fv *nativeValue) {
@@ -969,6 +977,7 @@ func (m *Machine) PushFrameGoNative(cx *CallExpr, fv *nativeValue) {
 		IsVarg:      cx.Varg,
 		Defers:      nil,
 		LastPackage: m.Package,
+		LastRealm:   m.Realm,
 	}
 	if debug {
 		m.Printf("+F %#v\n", fr)

@@ -25,11 +25,12 @@ type Frame struct {
 	IsVarg      bool          // is form fncall(???, vargs...)
 	Defers      []Defer       // deferred calls
 	LastPackage *PackageValue // previous package context
+	LastRealm   *Realm        // previous realm context
 }
 
 func (fr Frame) String() string {
 	if fr.Func != nil {
-		return fmt.Sprintf("[FRAME FUNC:%v RECV:%s (%d args) %d/%d/%d/%d/%d LASTPKG:%s]",
+		return fmt.Sprintf("[FRAME FUNC:%v RECV:%s (%d args) %d/%d/%d/%d/%d LASTPKG:%s LASTRLM:%v]",
 			fr.Func,
 			fr.Receiver,
 			fr.NumArgs,
@@ -38,7 +39,8 @@ func (fr Frame) String() string {
 			fr.NumExprs,
 			fr.NumStmts,
 			fr.NumBlocks,
-			fr.LastPackage.PkgPath)
+			fr.LastPackage.PkgPath,
+			fr.LastRealm)
 	} else if fr.GoFunc != nil {
 		return fmt.Sprintf("[FRAME GOFUNC:%v RECV:%s (%d args) %d/%d/%d/%d/%d]",
 			fr.GoFunc.Value,

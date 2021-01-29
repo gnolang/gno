@@ -355,6 +355,14 @@ func (pv *PackageValue) GetRealm() *Realm {
 
 func (pv *PackageValue) SetRealm(rlm *Realm) {
 	pv.realm = rlm
+	if !pv.Block.ObjectInfo.ID.IsZero() {
+		panic("should not happen")
+	}
+	// Set the package's ObjectInfo.ID, thereby making it real.
+	pv.Block.ObjectInfo.ID = ObjectID{
+		RealmID: rlm.ID,
+		Ordinal: 0, // 0 reserved for package block.
+	}
 }
 
 type nativeValue struct {
@@ -1056,7 +1064,9 @@ TYPE_SWITCH:
 			panic("unexpected selector base typeval.")
 		}
 	case *PackageType:
-		return v.(*PackageValue).GetValueRefAt(path)
+		pv := v.(*PackageValue)
+		// XXX mark with realm.
+		return pv.GetValueRefAt(path)
 	case *nativeType:
 		// Special case if tv.T.(PointerType):
 		// we may need to treat this as a native pointer
@@ -1616,6 +1626,27 @@ LOOP:
 		b = b.Parent
 		i++
 		goto LOOP
+	}
+	return &b.Values[path.Index]
+}
+
+// Returns a reference to the value for assigning.
+// XXX use this everywhere necessary.
+func (b *Block) GetValueRefAtForAssign2(rlm *Realm, path ValuePath) (tv *TypedValue) {
+	// NOTE: For most block paths, Depth starts at 1, but the
+	// generation for uverse is 0.  If path.Depth is 0, it
+	// implies that b == uverse, and loop will break.
+	i := uint16(1)
+LOOP:
+	if i < path.Depth {
+		b = b.Parent
+		i++
+		goto LOOP
+	}
+	if rlm != nil {
+		// NOTE: b is maybe no longer the block we started
+		// out with. This is a key security concern.
+		rlm.DidUpdate(b)
 	}
 	return &b.Values[path.Index]
 }

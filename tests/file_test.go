@@ -49,8 +49,6 @@ func runCheck(t *testing.T, path string) {
 		// to be imported in testfiles.
 		panic("TODO")
 	}
-	resWanted = strings.TrimSpace(resWanted)
-	errWanted = strings.TrimSpace(errWanted)
 	pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
 	pv := pn.NewPackage(realmer)
 
@@ -154,10 +152,13 @@ func wantedFromComment(p string) (pkgPath, goPath, res, err, rops string) {
 			goPath = strings.TrimSpace(strings.TrimPrefix(line, "GOPATH:"))
 		} else if strings.HasPrefix(text, "Output:\n") {
 			res = strings.TrimPrefix(text, "Output:\n")
+			res = strings.TrimSpace(res)
 		} else if strings.HasPrefix(text, "Error:\n") {
 			err = strings.TrimPrefix(text, "Error:\n")
+			err = strings.TrimSpace(err)
 		} else if strings.HasPrefix(text, "Realm:\n") {
 			rops = strings.TrimPrefix(text, "Realm:\n")
+			rops = strings.TrimSpace(rops)
 		} else {
 			// ignore unexpected.
 		}

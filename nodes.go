@@ -913,7 +913,7 @@ func (pn *PackageNode) NewPackage(rlmr Realmer) *PackageValue {
 	if IsRealmPath(pn.PkgPath) {
 		rlm := rlmr(pn.PkgPath)
 		pv.SetRealm(rlm)
-		rlm.Initialize(pv)
+		rlm.pkg = pv // TODO
 	}
 	pn.UpdatePackage(pv)
 	return pv

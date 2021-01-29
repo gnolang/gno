@@ -27,10 +27,11 @@ type Realm struct {
 	Path    string
 	Counter uint64
 
-	created []Object  // new objects attached to real object.
-	updated []Object  // real objects that were modified.
-	deleted []Object  // real objects that became deleted.
-	ropslog []RealmOp // for debugging.
+	created []Object      // new objects attached to real.
+	updated []Object      // real objects that were modified.
+	deleted []Object      // real objects that became deleted.
+	ropslog []RealmOp     // for debugging.
+	pkg     *PackageValue // associated package if any.
 }
 
 // Creates a blank new realm with counter 0.
@@ -39,24 +40,6 @@ func NewRealm(path string) *Realm {
 		ID:      RealmIDFromPath(path),
 		Path:    path,
 		Counter: 0,
-	}
-}
-
-func (rlm *Realm) Initialize(pkg *PackageValue) {
-	if rlm.Counter != 0 {
-		// need to load values into pkg.
-		panic("not yet implemented")
-	} else {
-		// set pkg.root.
-		pn := pkg.Source.(*PackageNode)
-		tv := pn.GetValueRef(Name("root"))
-		if !tv.IsUndefined() {
-			panic("unexpected realm root value")
-		}
-		*tv = TypedValue{
-			T: escapeType{},
-			V: escapeValue{}, // XXX
-		}
 	}
 }
 
@@ -122,6 +105,7 @@ func (rlm *Realm) DidUpdate(oo Object) {
 		}
 	}
 	if oo.GetIsReal() {
+		fmt.Println("QQQ")
 		rlm.MarkDirty(oo)
 	}
 }
@@ -238,6 +222,7 @@ func (rlm *Realm) CompressMarks() {
 
 // OpReturn calls this when exiting a realm transaction.
 func (rlm *Realm) FinalizeRealmTransaction() {
+	// Process changes in created/updated/deleted.
 	rlm.CompressMarks()
 	rlm.ProcessCreatedObjects()
 	rlm.ProcessUpdatedObjects()
@@ -254,7 +239,16 @@ func (rlm *Realm) ProcessCreatedObjects() {
 // crawls marked updated objects up the ownership chain
 // to update the merkle hash.
 func (rlm *Realm) ProcessUpdatedObjects() {
-	// XXX actually create
+	for _, uo := range rlm.updated {
+		// XXX actually update.
+		if rlm.ropslog != nil {
+			rlm.ropslog = append(rlm.ropslog,
+				RealmOp{
+					Type:   RealmOpMod,
+					Object: uo,
+				})
+		}
+	}
 }
 
 // crawls marked deleted objects, recursively.
@@ -312,19 +306,20 @@ type RealmOp struct {
 // used by the tests/file_test system to check
 // veracity of realm operations.
 func (rop RealmOp) String() string {
-	return "NOTYETIMPLEMENTED"
-	/*
-		switch rop.Type {
-		case RealmOpNew:
-			return fmt.Sprintf("+[%X]=%X",
-				rop.Object.GetObjectID(),
-				rop.Object.
-		case RealmOpMod:
-		case RealmOpDel:
-		default:
-			panic("should not happen")
-		}
-	*/
+	switch rop.Type {
+	case RealmOpNew:
+		return "NOTYETIMPL"
+	case RealmOpMod:
+		// NOTE: assumes *Realm is no longer needed.
+		var rlm *Realm = nil
+		return fmt.Sprintf("u[%X]=%v",
+			rop.Object.GetObjectID(),
+			rop.Object.ValuePreimage(rlm, true).String())
+	case RealmOpDel:
+		return "NOTYETIMPL"
+	default:
+		panic("should not happen")
+	}
 }
 
 // for test/file_test.go, to test realm changes.

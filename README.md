@@ -1,8 +1,15 @@
-# Gno: a Language for Resistance.
+# Gno: Language of Resistance.
 
  * Like interpreted Go, but more ambitious.
  * Completely deterministic, for complete accountability.
  * Transactional persistence across data realms.
+ * Designed for concurrent blockchain smart contracts systems.
+ 
+## Status
+
+This is a still a work in a progress, though much of the structure of the interpreter
+and AST have taken place.  Work is ongoing now to demonstrate the Realm concept before
+continuing to make the tests/files/\*.go tests pass.
 
 ## Ownership 
 
@@ -62,3 +69,63 @@ based on other conditions possibly including storage rent payment.
    - within a realm, refcounted garbage collection is sufficient.
    - automatic ownership transfers across realms may be desirable.
    - requires bidirectional reference tracking.
+
+## Realms
+
+Gno is designed with blockchain smart contract programming in mind.  A
+smart-contract enabled blockchain is like a massive-multiuser-online
+operating-system (MMO-OS). Each user is provided a home package, for example
+"gno.land/r/username". This is not just a regular package but a "realm
+package", and functions and methods declared there have special privileges.
+
+Every "realm package" should define at last one package-level variable:
+
+```go
+// PKGPATH: gno.land/r/alice
+package alice
+var root interface{}
+
+func UpdateRoot(...) error {
+  root = ...
+}
+```
+
+Here, the root variable can be any object, and indicates the root node in
+the data realm identified by the package path "gno.land/r/alice".
+
+Any number of package-level values may be declared in a realm; they are
+all owned by the package and get merkle-hashed into a single root hash for
+the package realm.
+
+## Concurrency
+
+Initially, we don't need to implement routines because realm package functions
+provide all the inter-realm functionality we need to implement rich smart
+contract programming systems.  But later, for various reasons including
+long-running background jobs, and parallel concurrency, Gno will implement
+deterministic concurrency as well.
+
+Determinism is supported by including a deterministic timestamp with each
+channel message as well as periodic heartbeat messages even with no sends, so
+that select/receive operations can behave deterministically even in the
+presence of multiple channels to select from.
+
+## Contributing
+
+Contributions in the form of completed work in a pull request or issue
+or comments are welcome and encouraged, especially if you are interested
+in joining the project.
+
+The biggest bottleneck in these sorts of projects is finding the right people
+with the right skillset and character; and my highest priority besides coding,
+is to find the right contributors.  If you can grok the complexities of this
+and related projects without hand holding, and you understand the implications
+of this project and are aligned with its mission, keep in touch.
+
+## Updates
+
+If you can read this, the project is evolving (fast) every day.  Check
+"github.com/gnolang/gno" and @jaekwon frequently.
+
+The best way to reach out right now is to create an issue on github, but this
+will change soon.
