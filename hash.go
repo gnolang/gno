@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
+	"strings"
 )
 
 const HashSize = 20
@@ -24,7 +25,8 @@ func leafHash(bz []byte) (res Hashlet) {
 	buf := make([]byte, 1+len(bz))
 	buf[0] = 0x00
 	copy(buf[1:], bz)
-	return HashBytes(buf)
+	res = HashBytes(buf)
+	return
 }
 
 func innerHash(h1, h2 Hashlet) (res Hashlet) {
@@ -32,7 +34,8 @@ func innerHash(h1, h2 Hashlet) (res Hashlet) {
 	buf[0] = 0x01
 	copy(buf[1:1+HashSize], h1[:])
 	copy(buf[1+HashSize:], h2[:])
-	return HashBytes(buf)
+	res = HashBytes(buf)
+	return
 }
 
 //----------------------------------------
@@ -61,6 +64,7 @@ func innerHash(h1, h2 Hashlet) (res Hashlet) {
 // `ValuePreimage := 0x03,sz(data)` if byte-array.
 // `ValuePreimage := 0x04,sz(ElemsHash)` if non-nil object.
 // `ValuePreimage := 0x05,sz(vp(base)),off,len,max if slice.
+// `ValuePreimage := 0x06,sz(TypeID)` if type.
 //
 // `ElemsHash := lh(TypedElemPreimage)` if object w/ 1 elem.
 // `ElemsHash := ih(eh(Left),eh(Right))` if object w/ 2+ elems.
@@ -132,6 +136,7 @@ const (
 	ValTypeData      = ValType(0x03)
 	ValTypeObject    = ValType(0x04)
 	ValTypeSlice     = ValType(0x05)
+	ValTypeType      = ValType(0x06)
 )
 
 func (tvp *TypedValuePreimage) Bytes() []byte {
@@ -141,13 +146,44 @@ func (tvp *TypedValuePreimage) Bytes() []byte {
 }
 
 func (vp ValuePreimage) String() string {
-	return fmt.Sprintf("ValuePreimage{%X:%X:%d,%d,%d}",
-		vp.ValType,
-		vp.Data,
-		vp.Offset,
-		vp.Length,
-		vp.Maxcap,
-	)
+	switch vp.ValType {
+	case ValTypeNil:
+		return "VP[nil]"
+	case ValTypePrimitive:
+		return fmt.Sprintf("VP[0x%X]",
+			vp.Data,
+		)
+	case ValTypePointer:
+		return fmt.Sprintf("VP[*%X]",
+			vp.Data,
+		)
+	case ValTypeData:
+		return fmt.Sprintf("VP[0x%X]",
+			vp.Data,
+		)
+	case ValTypeObject:
+		pz := []string{}
+		for _, preimage := range vp.preimages {
+			pz = append(pz, "- "+preimage.String())
+		}
+		return fmt.Sprintf("VP[O#%X]:\n%s",
+			vp.Data,
+			strings.Join(pz, "\n"),
+		)
+	case ValTypeSlice:
+		return fmt.Sprintf("VP[S#%X:%d,%d,%d]",
+			vp.Data,
+			vp.Offset,
+			vp.Length,
+			vp.Maxcap,
+		)
+	case ValTypeType:
+		return fmt.Sprintf("VP[T#%X]",
+			vp.Data,
+		)
+	default:
+		panic("should not happen")
+	}
 }
 
 func (vp *ValuePreimage) Bytes() []byte {
@@ -170,6 +206,9 @@ func (vp *ValuePreimage) Bytes() []byte {
 		buf = append(buf, uvarintBytes(uint64(vp.Length))...)
 		buf = append(buf, uvarintBytes(uint64(vp.Maxcap))...)
 		return buf
+	case ValTypeType:
+		buf = append(buf, sizedBytes(vp.Data)...)
+		return buf
 	default:
 		panic("should not happen")
 	}
@@ -183,20 +222,50 @@ func (tvp *TypedValuePreimage) ValueHash() ValueHash {
 // ElemPreimage
 
 type TypedElemPreimage struct {
-	TypeID    // never nil
+	TypeID    // unless nil
 	ElemType  // 0x10:typed-nil,0x11:brwd,0x12:owned,0x13:other
 	ObjectID  // if ElemType=borrowed,owned
-	ValueHash // if ElemType=other (valuehash)
+	ValueHash // if ElemType=owned,other
 }
 
 type ElemType byte
 
 const (
+	ElemTypeNil      = ElemType(0x00) // if not set
 	ElemTypeTypedNil = ElemType(0x10)
 	ElemTypeBorrowed = ElemType(0x11)
 	ElemTypeOwned    = ElemType(0x12)
 	ElemTypeOther    = ElemType(0x13)
 )
+
+func (tep *TypedElemPreimage) String() string {
+	switch tep.ElemType {
+	case ElemTypeNil:
+		return "TEP(nil)"
+	case ElemTypeTypedNil:
+		return fmt.Sprintf(
+			"TEP[%s:nil]",
+			tep.TypeID.String())
+	case ElemTypeBorrowed:
+		return fmt.Sprintf(
+			"TEP[%s:%s]",
+			tep.TypeID.String(),
+			tep.ObjectID.String())
+	case ElemTypeOwned:
+		return fmt.Sprintf(
+			"TEP[%s:%s#%X]",
+			tep.TypeID.String(),
+			tep.ObjectID.String(),
+			tep.ValueHash)
+	case ElemTypeOther:
+		return fmt.Sprintf(
+			"TEP[%s:#%X]",
+			tep.TypeID.String(),
+			tep.ValueHash)
+	default:
+		panic("should not happen")
+	}
+}
 
 func (tep *TypedElemPreimage) Bytes() []byte {
 	if tep.TypeID.IsZero() {
@@ -455,6 +524,16 @@ func (mv *MapValue) TypedElemPreimages(
 	return tvpz
 }
 
+func (tv *TypeValue) ValuePreimage(
+	rlm *Realm, owned bool) ValuePreimage {
+
+	// `ValuePreimage := 0x06,sz(TypeID)` if type.
+	return ValuePreimage{
+		ValType: ValTypeType,
+		Data:    tv.Type.TypeID().Bytes(),
+	}
+}
+
 // XXX dry code or something.
 func (b *Block) ValuePreimage(
 	rlm *Realm, owned bool) ValuePreimage {
@@ -539,6 +618,16 @@ func (tv *TypedValue) TypedValuePreimage(rlm *Realm, owned bool) TypedValuePreim
 		}
 	} else { // non-nil object.
 		switch baseOf(tv.T).(type) {
+		case PrimitiveType:
+			// `ValuePreimage := 0x01,sz(pb(.))` if primitive.
+			pbz := tv.PrimitiveBytes()
+			return TypedValuePreimage{
+				TypeID: tid,
+				ValuePreimage: ValuePreimage{
+					ValType: ValTypePrimitive,
+					Data:    pbz,
+				},
+			}
 		case PointerType:
 			pv := tv.V.(PointerValue)
 			if pv.TypedValue == nil {
@@ -594,6 +683,17 @@ func (tv *TypedValue) TypedValuePreimage(rlm *Realm, owned bool) TypedValuePreim
 				TypeID:        tid,
 				ValuePreimage: mv.ValuePreimage(rlm, owned),
 			}
+		case *TypeType:
+			t := tv.GetType()
+			// `ValuePreimage := 0x06,sz(TypeID)` if type.
+			return TypedValuePreimage{
+				TypeID: tid,
+				ValuePreimage: ValuePreimage{
+					ValType: ValTypeType,
+					Data:    t.TypeID().Bytes(),
+				},
+			}
+
 		default:
 			panic(fmt.Sprintf(
 				"unexpected type for TypedValuePreimage(): %s",
@@ -614,7 +714,7 @@ func (tv *TypedValue) TypedElemPreimage(rlm *Realm, owned bool) TypedElemPreimag
 	tid := tv.T.TypeID()
 	if tv.V == nil {
 		if _, ok := baseOf(tv.T).(PrimitiveType); ok {
-			// `ElemPreimage := 0x13,sz(nil),sz(vh(.))` prim/ptr/slice.
+			// `ElemPreimage := 0x13,sz(nil),sz(vh(.))` if primitive.
 			// `ValueHash := lh(TypedValuePreimage)` ...
 			tvp := tv.TypedValuePreimage(rlm, owned)
 			vh := tvp.ValueHash()
@@ -632,6 +732,23 @@ func (tv *TypedValue) TypedElemPreimage(rlm *Realm, owned bool) TypedElemPreimag
 		}
 	} else {
 		switch baseOf(tv.T).(type) {
+		case PrimitiveType:
+			switch bt := baseOf(tv.T); bt {
+			case StringType:
+				// `ElemPreimage := 0x13,sz(nil),sz(vh(.))` if primitive.
+				// `ValueHash := lh(TypedValuePreimage)` ...
+				tvp := tv.TypedValuePreimage(rlm, owned)
+				vh := tvp.ValueHash()
+				return TypedElemPreimage{
+					TypeID:    tid,
+					ElemType:  ElemTypeOther,
+					ValueHash: vh,
+				}
+			default:
+				panic(fmt.Sprintf(
+					"unexpected primitive type for elem preimage %s",
+					bt.String()))
+			}
 		case PointerType, *SliceType:
 			// `ElemPreimage := 0x13,sz(nil),sz(vh(.))`
 			// 	 if prim/ptr/slice.
@@ -657,6 +774,10 @@ func (tv *TypedValue) TypedElemPreimage(rlm *Realm, owned bool) TypedElemPreimag
 				}
 			}
 			oid := obj.GetObjectID()
+			if oid.IsZero() {
+				// XXX do we want the hash function to persist along the
+				// way?
+			}
 			if owned {
 				// `ElemPreimage := 0x12,sz(ObjectID),sz(vh(.))` if owned.
 				tvp := tv.TypedValuePreimage(rlm, owned)
@@ -675,9 +796,19 @@ func (tv *TypedValue) TypedElemPreimage(rlm *Realm, owned bool) TypedElemPreimag
 					ObjectID: oid,
 				}
 			}
+		case *TypeType:
+			// `ElemPreimage := 0x13,sz(nil),sz(vh(.))` if other.
+			// `ValueHash := lh(TypedValuePreimage)` ...
+			tvp := tv.TypedValuePreimage(rlm, owned)
+			vh := tvp.ValueHash()
+			return TypedElemPreimage{
+				TypeID:    tid,
+				ElemType:  ElemTypeOther,
+				ValueHash: vh,
+			}
 		default:
 			panic(fmt.Sprintf(
-				"unexpected type for elem preimaging: %s",
+				"unexpected type for elem preimage: %s",
 				tv.T.String()))
 		}
 	}

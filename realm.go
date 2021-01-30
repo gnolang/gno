@@ -12,6 +12,10 @@ type RealmID struct {
 	Hashlet
 }
 
+func (rid RealmID) String() string {
+	return fmt.Sprintf("RID%X", rid.Hashlet[:])
+}
+
 func (rid RealmID) Bytes() []byte {
 	return rid.Hashlet[:]
 }
@@ -312,7 +316,7 @@ func (rop RealmOp) String() string {
 	case RealmOpMod:
 		// NOTE: assumes *Realm is no longer needed.
 		var rlm *Realm = nil
-		return fmt.Sprintf("u[%X]=%v",
+		return fmt.Sprintf("u[%v]=%v",
 			rop.Object.GetObjectID(),
 			rop.Object.ValuePreimage(rlm, true).String())
 	case RealmOpDel:

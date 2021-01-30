@@ -411,6 +411,14 @@ func (tv *TypedValue) IsUndefined() bool {
 	return false
 }
 
+func (tv *TypedValue) HasKind(k Kind) bool {
+	if tv.T == nil {
+		return false
+	} else {
+		return tv.T.Kind() == k
+	}
+}
+
 // for debugging, returns true if V or N is not zero.  just because V and N are
 // zero doesn't mean it didn't get a value set.
 func (tv *TypedValue) DebugHasValue() bool {

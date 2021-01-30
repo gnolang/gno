@@ -446,7 +446,7 @@ func (m *Machine) doOpStructLit() {
 				}
 			}
 			fs[fnx.Path.Index] = ftv
-			if ftv.T.Kind() == StructKind {
+			if ftv.HasKind(StructKind) {
 				// flatten fields
 				fsv := ftv.V.(*StructValue)
 				if debug {

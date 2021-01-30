@@ -2,11 +2,17 @@ package gno
 
 import (
 	"encoding/binary"
+	"fmt"
 )
 
 type ObjectID struct {
 	RealmID        // base
 	Ordinal uint64 // counter
+}
+
+func (oid ObjectID) String() string {
+	return fmt.Sprintf("OID%X:%d",
+		oid.RealmID.Bytes(), oid.Ordinal)
 }
 
 func (oid ObjectID) Bytes() []byte {
