@@ -64,11 +64,11 @@ var _ Object = &Block{}
 
 type ObjectInfo struct {
 	ID        ObjectID  // set if real.
-	Hash      ValueHash // if dirty, outdated.
+	Hash      ValueHash // zero if dirty.
 	Owner     Object    // parent in the ownership tree.
 	RefCount  int       // deleted/gc'd if 0.
 	IsNewReal bool      // if new and owner is real.
-	IsDirty   bool      // if real but modified; hash is outdated if true.
+	IsDirty   bool      // if real but modified
 	IsDeleted bool      // if real but no longer referenced.
 }
 
@@ -140,6 +140,9 @@ func (oi *ObjectInfo) GetIsDirty() bool {
 }
 
 func (oi *ObjectInfo) SetIsDirty(x bool) {
+	if x {
+		oi.Hash = ValueHash{}
+	}
 	oi.IsDirty = x
 }
 

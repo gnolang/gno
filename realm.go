@@ -103,7 +103,7 @@ func (rlm *Realm) DidAttachTo(co, po Object) {
 			// new-real and get saved anyways if it is  real
 			// post tx.
 		}
-	} else if co.GetOwner() == po { // ?!! XXX
+	} else if co.GetOwner() == po {
 		// already owned by po but mark co as dirty (refcount).
 		// e.g. `a.bar = a.foo`
 		if co.GetIsReal() {
@@ -118,14 +118,22 @@ func (rlm *Realm) DidAttachTo(co, po Object) {
 		// Conflicts will cause a panic upon transaction
 		// finalization, when owner's owned value doesn't match
 		// co's Owner.
-		ex := co.GetOwner()
 		co.SetOwner(po)
 		if co.GetIsReal() {
 			rlm.MarkDirty(co) // since refcount incremented
 		}
-		if ex.GetIsReal() {
-			rlm.MarkDirty(ex) // since elem changed ?!! XXX
-		}
+		// NOTE: This is wrong, must call DidDetachFrom
+		// separately; attaching an object does not immediately
+		// detach it from the previous owner.  The previous
+		// reference must be overwritten, or the previous owner
+		// must become garbage collected; and DidDetachFrom
+		// gets called therefrom..
+		/*
+			ex := co.GetOwner()
+			if ex.GetIsReal() {
+				rlm.MarkDirty(ex) // ?!!
+			}
+		*/
 		if po.GetIsReal() {
 			rlm.MarkDirty(po) // since elem changed
 		}
@@ -153,11 +161,16 @@ func (rlm *Realm) DidDetachFrom(co, po Object) {
 		}
 	}
 	ex := co.GetOwner()
-	co.SetOwner(nil) // ??! XXX
 	if ex.GetIsReal() {
 		rlm.MarkDirty(ex)
 	}
 	if co.DecRefCount() == 0 {
+		if debug {
+			if co.GetOwner() != po {
+				panic("unexpected owner for deleted object")
+			}
+		}
+		co.SetOwner(nil)
 		if co.GetIsNewReal() || co.GetIsReal() {
 			rlm.MarkDeleted(co)
 		}
@@ -440,7 +453,11 @@ type RealmOp struct {
 func (rop RealmOp) String() string {
 	switch rop.Type {
 	case RealmOpNew:
-		return "NOTYETIMPL"
+		// NOTE: assumes *Realm is no longer needed.
+		var rlm *Realm = nil
+		return fmt.Sprintf("c[%v]=%v",
+			rop.Object.GetObjectID(),
+			rop.Object.ValuePreimage(rlm, true).String())
 	case RealmOpMod:
 		// NOTE: assumes *Realm is no longer needed.
 		var rlm *Realm = nil
@@ -448,7 +465,8 @@ func (rop RealmOp) String() string {
 			rop.Object.GetObjectID(),
 			rop.Object.ValuePreimage(rlm, true).String())
 	case RealmOpDel:
-		return "NOTYETIMPL"
+		return fmt.Sprintf("d[%v]",
+			rop.Object.GetObjectID())
 	default:
 		panic("should not happen")
 	}
