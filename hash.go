@@ -76,7 +76,7 @@ func innerHash(h1, h2 Hashlet) (res Hashlet) {
 // `ElemPreimage := 0x10` if typed-nil.
 // `ElemPreimage := 0x11,sz(ObjectID)` if borrowed.
 // `ElemPreimage := 0x12,sz(ObjectID),sz(vh(.))` if owned.
-// `ElemPreimage := 0x13,sz(nil),sz(vh(.))` prim/ptr/slice.
+// `ElemPreimage := 0x13,sz(nil),sz(vh(.))` if prim/ptr/slice.
 //  * ownership passed through for pointers/slices/arrays.
 //
 // * sz() means (uvarint) size-prefixed bytes.
@@ -357,27 +357,36 @@ func ElemsHashFromElements(tepz []TypedElemPreimage) Hashlet {
 }
 
 //----------------------------------------
-// Value.ValuePreimage
-// Value.TypedElemPreimages
+// Object.ValuePreimage
+// Object.TypedElemPreimages
 
 func (av *ArrayValue) ValuePreimage(
-	rlm *Realm, owned bool) ValuePreimage {
+	rlm *Realm, owned bool) (vp ValuePreimage) {
 
+	// Create or update when deriving
+	// the value preimage of an owned object.
+	if owned {
+		defer func() {
+			rlm.maybeSaveObject(av, vp)
+		}()
+	}
+	// `ValuePreimage := 0x03,sz(data)` if byte-array.
 	if av.Data != nil {
-		// `ValuePreimage := 0x03,sz(data)` if byte-array.
-		return ValuePreimage{
+		vp = ValuePreimage{
 			ValType: ValTypeData,
 			Data:    av.Data,
 		}
+		return
 	}
 	// `ValuePreimage := 0x04,sz(ElemsHash)` if non-nil object.
 	tepz := av.TypedElemPreimages(rlm, owned)
 	eh := ElemsHashFromElements(tepz)
-	return ValuePreimage{
+	vp = ValuePreimage{
 		ValType:   ValTypeObject,
 		Data:      eh[:],
 		preimages: tepz,
 	}
+	return
 }
 
 func (av *ArrayValue) TypedElemPreimages(
@@ -455,16 +464,24 @@ func (sv *SliceValue) ValuePreimage(
 }
 
 func (sv *StructValue) ValuePreimage(
-	rlm *Realm, owned bool) ValuePreimage {
+	rlm *Realm, owned bool) (vp ValuePreimage) {
 
+	// Create or update when deriving
+	// the value preimage of an owned object.
+	if owned {
+		defer func() {
+			rlm.maybeSaveObject(sv, vp)
+		}()
+	}
 	// `ValuePreimage := 0x04,sz(ElemsHash)` if object.
 	tepz := sv.TypedElemPreimages(rlm, owned)
 	eh := ElemsHashFromElements(tepz)
-	return ValuePreimage{
+	vp = ValuePreimage{
 		ValType:   ValTypeObject,
 		Data:      eh[:],
 		preimages: tepz,
 	}
+	return
 }
 
 func (sv *StructValue) TypedElemPreimages(
@@ -483,8 +500,15 @@ func (sv *StructValue) TypedElemPreimages(
 }
 
 func (mv *MapValue) ValuePreimage(
-	rlm *Realm, owned bool) ValuePreimage {
+	rlm *Realm, owned bool) (vp ValuePreimage) {
 
+	// Create or update when deriving
+	// the value preimage of an owned object.
+	if owned {
+		defer func() {
+			rlm.maybeSaveObject(mv, vp)
+		}()
+	}
 	// `ValuePreimage := 0x04,sz(ElemsHash)` if object.
 	tepz := mv.TypedElemPreimages(rlm, owned)
 	eh := ElemsHashFromElements(tepz)
@@ -536,16 +560,24 @@ func (tv *TypeValue) ValuePreimage(
 
 // XXX dry code or something.
 func (b *Block) ValuePreimage(
-	rlm *Realm, owned bool) ValuePreimage {
+	rlm *Realm, owned bool) (vp ValuePreimage) {
 
+	// Create or update when deriving
+	// the value preimage of an owned object.
+	if owned {
+		defer func() {
+			rlm.maybeSaveObject(b, vp)
+		}()
+	}
 	// `ValuePreimage := 0x04,sz(ElemsHash)` if object.
 	tepz := b.TypedElemPreimages(rlm, owned)
 	eh := ElemsHashFromElements(tepz)
-	return ValuePreimage{
+	vp = ValuePreimage{
 		ValType:   ValTypeObject,
 		Data:      eh[:],
 		preimages: tepz,
 	}
+	return
 }
 
 // XXX dry code, probably a method on TypedValuesList.
@@ -591,6 +623,7 @@ func (tv *TypedValue) ValueHash(rlm *Realm, owned bool) ValueHash {
 	}
 }
 
+// Any dirty or new-real value will be saved to realm.
 func (tv *TypedValue) TypedValuePreimage(rlm *Realm, owned bool) TypedValuePreimage {
 	if tv.IsUndefined() {
 		panic("undefined value has no TypedValuePreimage")
@@ -663,8 +696,8 @@ func (tv *TypedValue) TypedValuePreimage(rlm *Realm, owned bool) TypedValuePreim
 			// `ValuePreimage :=
 			//    0x05,sz(vh(base)),off,len,max if slice.
 			//  * TypeID is a byte-slice if byte-array.  NOTE:
-			//  Slices do not have access to an underlying array's
-			//  *DeclaredType if any.
+			//  Slices do not have access to an underlying
+			//  array's *DeclaredType if any.
 			return TypedValuePreimage{
 				TypeID:        tid,
 				ValuePreimage: sv.ValuePreimage(rlm, owned),
@@ -702,6 +735,8 @@ func (tv *TypedValue) TypedValuePreimage(rlm *Realm, owned bool) TypedValuePreim
 	}
 }
 
+// Main entrypoint for objects to get the TEP of elements.
+// Any dirty or new-real elements will be saved to realm.
 func (tv *TypedValue) TypedElemPreimage(rlm *Realm, owned bool) TypedElemPreimage {
 	if tv.IsUndefined() {
 		// `TypedElemPreimage := nil` if nil interface.
@@ -714,7 +749,8 @@ func (tv *TypedValue) TypedElemPreimage(rlm *Realm, owned bool) TypedElemPreimag
 	tid := tv.T.TypeID()
 	if tv.V == nil {
 		if _, ok := baseOf(tv.T).(PrimitiveType); ok {
-			// `ElemPreimage := 0x13,sz(nil),sz(vh(.))` if primitive.
+			// `ElemPreimage :=
+			//    0x13,sz(nil),sz(vh(.))` if prim/ptr/slice.
 			// `ValueHash := lh(TypedValuePreimage)` ...
 			tvp := tv.TypedValuePreimage(rlm, owned)
 			vh := tvp.ValueHash()
@@ -735,7 +771,8 @@ func (tv *TypedValue) TypedElemPreimage(rlm *Realm, owned bool) TypedElemPreimag
 		case PrimitiveType:
 			switch bt := baseOf(tv.T); bt {
 			case StringType:
-				// `ElemPreimage := 0x13,sz(nil),sz(vh(.))` if primitive.
+				// `ElemPreimage :=
+				//    0x13,sz(nil),sz(vh(.))` if prim/ptr/slice.
 				// `ValueHash := lh(TypedValuePreimage)` ...
 				tvp := tv.TypedValuePreimage(rlm, owned)
 				vh := tvp.ValueHash()
@@ -750,8 +787,8 @@ func (tv *TypedValue) TypedElemPreimage(rlm *Realm, owned bool) TypedElemPreimag
 					bt.String()))
 			}
 		case PointerType, *SliceType:
-			// `ElemPreimage := 0x13,sz(nil),sz(vh(.))`
-			// 	 if prim/ptr/slice.
+			// `ElemPreimage :=
+			//    0x13,sz(nil),sz(vh(.))` if prim/ptr/slice.
 			// `ValueHash := lh(TypedValuePreimage)`
 			tvp := tv.TypedValuePreimage(rlm, owned)
 			vh := tvp.ValueHash()
@@ -773,31 +810,29 @@ func (tv *TypedValue) TypedElemPreimage(rlm *Realm, owned bool) TypedElemPreimag
 					owned = true
 				}
 			}
-			oid := obj.GetObjectID()
-			if oid.IsZero() {
-				// XXX do we want the hash function to persist along the
-				// way?
-			}
 			if owned {
-				// `ElemPreimage := 0x12,sz(ObjectID),sz(vh(.))` if owned.
+				// `ElemPreimage :=
+				//    0x12,sz(ObjectID),sz(vh(.))` if owned.
 				tvp := tv.TypedValuePreimage(rlm, owned)
 				vh := tvp.ValueHash()
 				return TypedElemPreimage{
 					TypeID:    tid,
 					ElemType:  ElemTypeOwned,
-					ObjectID:  oid,
+					ObjectID:  obj.MustGetObjectID(),
 					ValueHash: vh,
 				}
 			} else {
-				// `ElemPreimage := 0x11,sz(ObjectID)` if borrowed.
+				// `ElemPreimage :=
+				//    0x11,sz(ObjectID)` if borrowed.
 				return TypedElemPreimage{
 					TypeID:   tid,
 					ElemType: ElemTypeBorrowed,
-					ObjectID: oid,
+					ObjectID: obj.MustGetObjectID(),
 				}
 			}
 		case *TypeType:
-			// `ElemPreimage := 0x13,sz(nil),sz(vh(.))` if other.
+			// `ElemPreimage :=
+			//    0x13,sz(nil),sz(vh(.))` if other.
 			// `ValueHash := lh(TypedValuePreimage)` ...
 			tvp := tv.TypedValuePreimage(rlm, owned)
 			vh := tvp.ValueHash()

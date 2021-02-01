@@ -35,6 +35,8 @@ func (oid ObjectID) IsZero() bool {
 type Object interface {
 	GetObjectInfo() *ObjectInfo
 	GetObjectID() ObjectID
+	MustGetObjectID() ObjectID
+	SetObjectID(oid ObjectID)
 	GetOwner() Object
 	SetOwner(Object)
 	GetIsOwned() bool
@@ -49,7 +51,10 @@ type Object interface {
 	GetIsDeleted() bool
 	SetIsDeleted(bool)
 
+	// Saves to realm along the way if owned, and also (dirty
+	// or new).
 	ValuePreimage(rlm *Realm, owned bool) ValuePreimage
+	TypedElemPreimages(rlm *Realm, owned bool) []TypedElemPreimage
 }
 
 var _ Object = &ArrayValue{}
@@ -73,6 +78,17 @@ func (oi *ObjectInfo) GetObjectInfo() *ObjectInfo {
 
 func (oi *ObjectInfo) GetObjectID() ObjectID {
 	return oi.ID
+}
+
+func (oi *ObjectInfo) MustGetObjectID() ObjectID {
+	if oi.ID.IsZero() {
+		panic("unexpected zero object id")
+	}
+	return oi.ID
+}
+
+func (oi *ObjectInfo) SetObjectID(oid ObjectID) {
+	oi.ID = oid
 }
 
 func (oi *ObjectInfo) GetOwner() Object {

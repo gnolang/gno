@@ -26,6 +26,11 @@ func RealmIDFromPath(path string) RealmID {
 
 type Realmer func(pkgPath string) *Realm
 
+// A nil realm is special and has limited functionality; enough
+// to support methods that don't require persistence. This is
+// the default realm when a machine starts with a non-realm
+// package.  It could be said that pre-existing Go code runs in
+// the nil realm and that no packages are realm packages.
 type Realm struct {
 	ID      RealmID
 	Path    string
@@ -48,8 +53,13 @@ func NewRealm(path string) *Realm {
 }
 
 func (rlm *Realm) String() string {
-	return fmt.Sprintf("Realm{Path:%q:Counter:%d}#%X",
-		rlm.Path, rlm.Counter, rlm.ID.Bytes())
+	if rlm == nil {
+		return "Realm(nil)"
+	} else {
+		return fmt.Sprintf(
+			"Realm{Path:%q:Counter:%d}#%X",
+			rlm.Path, rlm.Counter, rlm.ID.Bytes())
+	}
 }
 
 func (rlm *Realm) SetLogRealmOps(enabled bool) {
@@ -59,6 +69,9 @@ func (rlm *Realm) SetLogRealmOps(enabled bool) {
 		rlm.ropslog = nil
 	}
 }
+
+//----------------------------------------
+// ownership hooks
 
 // object co attached to po
 func (rlm *Realm) DidAttachTo(co, po Object) {
@@ -79,25 +92,42 @@ func (rlm *Realm) DidAttachTo(co, po Object) {
 		if po.GetIsReal() {
 			rlm.MarkNewReal(co)
 			rlm.MarkDirty(po)
+		} else {
+			// Object may become new-real after tx if it is
+			// indirectly owned by something real.  We don't
+			// know yet, but we will mark it later when we do
+			// after assigning it an ObjectID()..
+			//
+			// Also, if po isn't real, don't bother to mark it
+			// dirty, since it will already become marked as
+			// new-real and get saved anyways if it is  real
+			// post tx.
 		}
-	} else if co.GetOwner() == po {
-		// already owned by po but inc owncount and mark dirty.
+	} else if co.GetOwner() == po { // ?!! XXX
+		// already owned by po but mark co as dirty (refcount).
 		// e.g. `a.bar = a.foo`
+		if co.GetIsReal() {
+			rlm.MarkDirty(co) // since refcount incremented
+		}
 		if po.GetIsReal() {
-			rlm.MarkDirty(po)
+			rlm.MarkDirty(po) // since elem changed
 		}
 	} else {
-		// owner conflict allowed within a transaction.
+		// Owner conflict allowed within a transaction.
 		// e.g. `b.foo = a.foo; a.foo = nil`
-		// conflicts will cause a panic upon transaction finalization,
-		// when owner's owned value doesn't match co's Owner.
+		// Conflicts will cause a panic upon transaction
+		// finalization, when owner's owned value doesn't match
+		// co's Owner.
 		ex := co.GetOwner()
 		co.SetOwner(po)
+		if co.GetIsReal() {
+			rlm.MarkDirty(co) // since refcount incremented
+		}
 		if ex.GetIsReal() {
-			rlm.MarkDirty(ex)
+			rlm.MarkDirty(ex) // since elem changed ?!! XXX
 		}
 		if po.GetIsReal() {
-			rlm.MarkDirty(po)
+			rlm.MarkDirty(po) // since elem changed
 		}
 	}
 }
@@ -109,31 +139,33 @@ func (rlm *Realm) DidUpdate(oo Object) {
 		}
 	}
 	if oo.GetIsReal() {
-		fmt.Println("QQQ")
 		rlm.MarkDirty(oo)
 	}
 }
 
-func (rlm *Realm) DidDetach(oo Object) {
+func (rlm *Realm) DidDetachFrom(co, po Object) {
 	if debug {
-		if oo.GetOwner() == nil {
+		if co.GetOwner() == nil {
 			panic("should not happen")
 		}
-		if oo.GetIsDeleted() {
+		if co.GetIsDeleted() {
 			panic("cannot delete a deleted object")
 		}
 	}
-	ex := oo.GetOwner()
-	oo.SetOwner(nil)
+	ex := co.GetOwner()
+	co.SetOwner(nil) // ??! XXX
 	if ex.GetIsReal() {
 		rlm.MarkDirty(ex)
 	}
-	if oo.DecRefCount() == 0 {
-		if oo.GetIsNewReal() || oo.GetIsReal() {
-			rlm.MarkDeleted(oo)
+	if co.DecRefCount() == 0 {
+		if co.GetIsNewReal() || co.GetIsReal() {
+			rlm.MarkDeleted(co)
 		}
 	}
 }
+
+//----------------------------------------
+// mark*
 
 func (rlm *Realm) MarkNewReal(oo Object) {
 	if debug {
@@ -223,6 +255,7 @@ func (rlm *Realm) CompressMarks() {
 }
 
 //----------------------------------------
+// transactions
 
 // OpReturn calls this when exiting a realm transaction.
 func (rlm *Realm) FinalizeRealmTransaction() {
@@ -237,27 +270,37 @@ func (rlm *Realm) FinalizeRealmTransaction() {
 // crawls marked created objects and finalizes ownership
 // by assigning it an ObjectID, recursively.
 func (rlm *Realm) ProcessCreatedObjects() {
-	// XXX actually create
+	// XXX Update
+	for _, uo := range rlm.created {
+		// Save created object, and recursively
+		// save new or updated children.
+		_ = uo.ValuePreimage(rlm, true)
+		// There is no need to call save separately,
+		// ValuePreimage() saves.
+		// rlm.SaveCreatedObject(co, vp)
+	}
 }
 
 // crawls marked updated objects up the ownership chain
 // to update the merkle hash.
 func (rlm *Realm) ProcessUpdatedObjects() {
 	for _, uo := range rlm.updated {
-		// XXX actually update.
-		if rlm.ropslog != nil {
-			rlm.ropslog = append(rlm.ropslog,
-				RealmOp{
-					Type:   RealmOpMod,
-					Object: uo,
-				})
-		}
+		// Save updated object, and recursively
+		// save new or updated children.
+		_ = uo.ValuePreimage(rlm, true)
+		// There is no need to call save separately,
+		// ValuePreimage() saves.
+		// rlm.SaveUpdatedObject(uo, vp)
 	}
 }
 
 // crawls marked deleted objects, recursively.
 func (rlm *Realm) ProcessDeletedObjects() {
-	// XXX actually delete.
+	for _, do := range rlm.deleted {
+		// Remove deleted object, and recursively
+		// delete objects no longer referenced.
+		rlm.RemoveDeletedObject(do)
+	}
 }
 
 func (rlm *Realm) ClearMarks() {
@@ -267,6 +310,91 @@ func (rlm *Realm) ClearMarks() {
 }
 
 //----------------------------------------
+// persistence
+
+func (rlm *Realm) nextObjectID() ObjectID {
+	if rlm == nil {
+		panic("should not happen")
+	}
+	if rlm.ID.IsZero() {
+		panic("should not happen")
+	}
+	rlm.Counter++
+	return ObjectID{
+		RealmID: rlm.ID,
+		Ordinal: rlm.Counter, // starts at 1.
+	}
+}
+
+// Object gets its id set (panics if already set), and becomes
+// marked as new and real.
+func (rlm *Realm) AssignObjectID(oo Object) ObjectID {
+	oid := oo.GetObjectID()
+	if !oid.IsZero() {
+		panic("unexpected non-zero object id")
+	}
+	noid := rlm.nextObjectID()
+	oo.SetObjectID(noid)
+	oo.SetIsNewReal(true)
+	return noid
+}
+
+// NOTE: vp should be of owned type.
+func (rlm *Realm) SaveCreatedObject(oo Object, vp ValuePreimage) {
+	if debug {
+		if !oo.GetIsNewReal() {
+			panic("should not happen")
+		}
+	}
+	rlm.saveObject(oo, vp)
+	rlm.ropslog = append(rlm.ropslog,
+		RealmOp{RealmOpNew, oo})
+	oo.SetIsNewReal(false)
+	oo.SetIsDirty(false)
+}
+
+// NOTE: vp should be of owned type.
+func (rlm *Realm) SaveUpdatedObject(oo Object, vp ValuePreimage) {
+	if debug {
+		if oo.GetIsNewReal() {
+			panic("should not happen")
+		}
+		if !oo.GetIsDirty() {
+			panic("should not happen")
+		}
+	}
+	rlm.saveObject(oo, vp)
+	rlm.ropslog = append(rlm.ropslog,
+		RealmOp{RealmOpMod, oo})
+	oo.SetIsDirty(false)
+}
+
+func (rlm *Realm) maybeSaveObject(oo Object, vp ValuePreimage) {
+	if oo.GetObjectID().IsZero() {
+		// This sets oo.IsNewReal if not already set.
+		rlm.AssignObjectID(oo)
+	}
+	if oo.GetIsNewReal() {
+		rlm.SaveCreatedObject(oo, vp)
+	} else if oo.GetIsDirty() {
+		rlm.SaveUpdatedObject(oo, vp)
+	}
+}
+
+func (rlm *Realm) saveObject(oo Object, vp ValuePreimage) {
+	oid := oo.GetObjectID()
+	if oid.IsZero() {
+		panic("unexpected zero object id")
+	}
+	fmt.Printf("XXX WOULD SAVE: %v=%v\n", oid, vp)
+}
+
+func (rlm *Realm) RemoveDeletedObject(oo Object) {
+	fmt.Printf("XXX WOULD DELETE: %v\n", oo)
+}
+
+//----------------------------------------
+// misc
 
 func ensureUniq(ooz []Object) {
 	om := make(map[Object]struct{}, len(ooz))
