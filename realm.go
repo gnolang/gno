@@ -287,10 +287,10 @@ func (rlm *Realm) ProcessCreatedObjects() {
 	for _, uo := range rlm.created {
 		// Save created object, and recursively
 		// save new or updated children.
-		_ = uo.ValuePreimage(rlm, true)
+		_ = uo.ValueImage(rlm, true)
 		// There is no need to call save separately,
-		// ValuePreimage() saves.
-		// rlm.SaveCreatedObject(co, vp)
+		// ValueImage() saves.
+		// rlm.SaveCreatedObject(co, vi)
 	}
 }
 
@@ -300,10 +300,10 @@ func (rlm *Realm) ProcessUpdatedObjects() {
 	for _, uo := range rlm.updated {
 		// Save updated object, and recursively
 		// save new or updated children.
-		_ = uo.ValuePreimage(rlm, true)
+		_ = uo.ValueImage(rlm, true)
 		// There is no need to call save separately,
-		// ValuePreimage() saves.
-		// rlm.SaveUpdatedObject(uo, vp)
+		// ValueImage() saves.
+		// rlm.SaveUpdatedObject(uo, vi)
 	}
 }
 
@@ -352,22 +352,22 @@ func (rlm *Realm) AssignObjectID(oo Object) ObjectID {
 	return noid
 }
 
-// NOTE: vp should be of owned type.
-func (rlm *Realm) SaveCreatedObject(oo Object, vp ValuePreimage) {
+// NOTE: vi should be of owned type.
+func (rlm *Realm) SaveCreatedObject(oo Object, vi *ValueImage) {
 	if debug {
 		if !oo.GetIsNewReal() {
 			panic("should not happen")
 		}
 	}
-	rlm.saveObject(oo, vp)
+	rlm.saveObject(oo, vi)
 	rlm.ropslog = append(rlm.ropslog,
-		RealmOp{RealmOpNew, oo})
+		RealmOp{RealmOpNew, oo, vi})
 	oo.SetIsNewReal(false)
 	oo.SetIsDirty(false)
 }
 
-// NOTE: vp should be of owned type.
-func (rlm *Realm) SaveUpdatedObject(oo Object, vp ValuePreimage) {
+// NOTE: vi should be of owned type.
+func (rlm *Realm) SaveUpdatedObject(oo Object, vi *ValueImage) {
 	if debug {
 		if oo.GetIsNewReal() {
 			panic("should not happen")
@@ -376,30 +376,30 @@ func (rlm *Realm) SaveUpdatedObject(oo Object, vp ValuePreimage) {
 			panic("should not happen")
 		}
 	}
-	rlm.saveObject(oo, vp)
+	rlm.saveObject(oo, vi)
 	rlm.ropslog = append(rlm.ropslog,
-		RealmOp{RealmOpMod, oo})
+		RealmOp{RealmOpMod, oo, vi})
 	oo.SetIsDirty(false)
 }
 
-func (rlm *Realm) maybeSaveObject(oo Object, vp ValuePreimage) {
+func (rlm *Realm) maybeSaveObject(oo Object, vi *ValueImage) {
 	if oo.GetObjectID().IsZero() {
 		// This sets oo.IsNewReal if not already set.
 		rlm.AssignObjectID(oo)
 	}
 	if oo.GetIsNewReal() {
-		rlm.SaveCreatedObject(oo, vp)
+		rlm.SaveCreatedObject(oo, vi)
 	} else if oo.GetIsDirty() {
-		rlm.SaveUpdatedObject(oo, vp)
+		rlm.SaveUpdatedObject(oo, vi)
 	}
 }
 
-func (rlm *Realm) saveObject(oo Object, vp ValuePreimage) {
+func (rlm *Realm) saveObject(oo Object, vi *ValueImage) {
 	oid := oo.GetObjectID()
 	if oid.IsZero() {
 		panic("unexpected zero object id")
 	}
-	fmt.Printf("XXX WOULD SAVE: %v=%v\n", oid, vp)
+	fmt.Printf("XXX WOULD SAVE: %v=%v\n", oid, vi)
 }
 
 func (rlm *Realm) RemoveDeletedObject(oo Object) {
@@ -446,6 +446,7 @@ const (
 type RealmOp struct {
 	Type RealmOpType
 	Object
+	*ValueImage
 }
 
 // used by the tests/file_test system to check
@@ -453,17 +454,13 @@ type RealmOp struct {
 func (rop RealmOp) String() string {
 	switch rop.Type {
 	case RealmOpNew:
-		// NOTE: assumes *Realm is no longer needed.
-		var rlm *Realm = nil
 		return fmt.Sprintf("c[%v]=%v",
 			rop.Object.GetObjectID(),
-			rop.Object.ValuePreimage(rlm, true).String())
+			rop.ValueImage.String())
 	case RealmOpMod:
-		// NOTE: assumes *Realm is no longer needed.
-		var rlm *Realm = nil
 		return fmt.Sprintf("u[%v]=%v",
 			rop.Object.GetObjectID(),
-			rop.Object.ValuePreimage(rlm, true).String())
+			rop.ValueImage.String())
 	case RealmOpDel:
 		return fmt.Sprintf("d[%v]",
 			rop.Object.GetObjectID())

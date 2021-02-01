@@ -1,7 +1,6 @@
 package gno
 
 import (
-	"encoding/binary"
 	"fmt"
 	"math/big"
 	"reflect"
@@ -506,58 +505,41 @@ func (tv TypedValue) Copy() (cp TypedValue) {
 	return
 }
 
-// Returns the canonical byte form for primitive/numeric types
-// that don't use .V, but instead the .N byte buffer.  These
-// bytes are used for both value hashes as well as hash key
-// bytes.
-func (tv *TypedValue) PrimitiveBytes() []byte {
+// Returns varint encoded bytes (and true) for numeric types and arbitrary
+// bytes (and false) for variable-length byte types.  These bytes are used for
+// both value hashes as well as hash key bytes.
+func (tv *TypedValue) PrimitiveBytes() (data []byte, varint bool) {
 	switch bt := baseOf(tv.T); bt {
 	case BoolType:
 		if tv.GetBool() {
-			return []byte{0x01}
+			return []byte{0x02}, true // varint(1)
 		} else {
-			return []byte{0x00}
+			return []byte{0x00}, true // varint(0)
 		}
 	case StringType:
-		return []byte(tv.GetString())
+		return sizedBytes([]byte(tv.GetString())), false
 	case IntType:
-		b := make([]byte, 8)
-		binary.BigEndian.PutUint64(b, uint64(tv.GetInt()))
-		return b
+		return varintBytes(int64(tv.GetInt())), true
 	case Int8Type:
-		return []byte{byte(tv.GetInt8())}
+		return varintBytes(int64(tv.GetInt8())), true
 	case Int16Type:
-		b := make([]byte, 2)
-		binary.BigEndian.PutUint16(b, uint16(tv.GetInt16()))
-		return b
+		return varintBytes(int64(tv.GetInt16())), true
 	case Int32Type:
-		b := make([]byte, 4)
-		binary.BigEndian.PutUint32(b, uint32(tv.GetInt32()))
-		return b
+		return varintBytes(int64(tv.GetInt32())), true
 	case Int64Type:
-		b := make([]byte, 8)
-		binary.BigEndian.PutUint64(b, uint64(tv.GetInt64()))
-		return b
+		return varintBytes(int64(tv.GetInt64())), true
 	case UintType:
-		b := make([]byte, 8)
-		binary.BigEndian.PutUint64(b, uint64(tv.GetUint()))
-		return b
+		return varintBytes(int64(tv.GetUint())), true
 	case Uint8Type:
-		return []byte{byte(tv.GetUint8())}
+		return varintBytes(int64(tv.GetUint8())), true
 	case Uint16Type:
-		b := make([]byte, 2)
-		binary.BigEndian.PutUint16(b, uint16(tv.GetUint16()))
-		return b
+		return varintBytes(int64(tv.GetUint16())), true
 	case Uint32Type:
-		b := make([]byte, 4)
-		binary.BigEndian.PutUint32(b, uint32(tv.GetUint32()))
-		return b
+		return varintBytes(int64(tv.GetUint32())), true
 	case Uint64Type:
-		b := make([]byte, 8)
-		binary.BigEndian.PutUint64(b, uint64(tv.GetUint64()))
-		return b
+		return varintBytes(int64(tv.GetUint64())), true
 	case BigintType:
-		return tv.V.(BigintValue).V.Bytes()
+		return sizedBytes(tv.V.(BigintValue).V.Bytes()), false
 	default:
 		panic(fmt.Sprintf(
 			"unexpected primitive value type: %s",
@@ -888,7 +870,7 @@ func (tv *TypedValue) ComputeMapKey(omitType bool) MapKey {
 	}
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
-		pbz := tv.PrimitiveBytes()
+		pbz, _ := tv.PrimitiveBytes()
 		bz = append(bz, pbz...)
 	case PointerType:
 		ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TypedValue))

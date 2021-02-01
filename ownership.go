@@ -53,8 +53,8 @@ type Object interface {
 
 	// Saves to realm along the way if owned, and also (dirty
 	// or new).
-	ValuePreimage(rlm *Realm, owned bool) ValuePreimage
-	TypedElemPreimages(rlm *Realm, owned bool) []TypedElemPreimage
+	ValueImage(rlm *Realm, owned bool) *ValueImage
+	ElemImages(rlm *Realm, owned bool) []ElemImage
 }
 
 var _ Object = &ArrayValue{}
