@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/traefik/yaegi/_test/ct1"
+	"github.com/gnolang/gno/_test/ct1"
 )
 
 type T struct {

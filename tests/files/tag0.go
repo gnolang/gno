@@ -3,7 +3,7 @@
 
 package main
 
-import _ "github.com/traefik/yaegi/_test/ct"
+import _ "github.com/gnolang/gno/_test/ct"
 
 func main() {
 	println("bye")

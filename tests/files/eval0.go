@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/traefik/yaegi/interp"
+	"github.com/gnolang/gno/interp"
 )
 
 func main() {

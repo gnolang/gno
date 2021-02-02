@@ -1,6 +1,6 @@
 package main
 
-import "github.com/traefik/yaegi/_test/vars"
+import "github.com/gnolang/gno/_test/vars"
 
 func main() {
 	println(vars.A)

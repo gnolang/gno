@@ -1,5 +1,5 @@
 package foo
 
-import "github.com/traefik/yaegi/_test/foo/boo"
+import "github.com/gnolang/gno/_test/foo/boo"
 
 var Bir = boo.Boo + "22"

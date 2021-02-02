@@ -103,8 +103,7 @@ func runCheck(t *testing.T, path string) {
 		if resWanted != "" {
 			if res != resWanted {
 				// panic so tests immediately fail (for now).
-				// t.Fatalf("\ngot:  %q,\nwant: %q", res, resWanted)
-				panic(fmt.Sprintf("ngot:  %q,\nwant: %q", res, resWanted))
+				panic(fmt.Sprintf("got:\n%s\n\nwant:\n%s\n", res, resWanted))
 			}
 		} else {
 			if res != "" {
@@ -119,7 +118,7 @@ func runCheck(t *testing.T, path string) {
 			}
 			rops2 := rlm.SprintRealmOps()
 			if rops != rops2 {
-				panic(fmt.Sprintf("got %q, want: %q", rops2, rops))
+				panic(fmt.Sprintf("got:\n%s\n\nwant:\n%s\n", rops2, rops))
 			}
 		}
 	}
@@ -128,7 +127,6 @@ func runCheck(t *testing.T, path string) {
 	err = m.CheckEmpty()
 	if err != nil {
 		t.Log("last state: \n", m.String())
-		//t.Fatalf("machine not empty after main: %v", err)
 		panic(fmt.Sprintf("machine not empty after main: %v", err))
 	}
 }

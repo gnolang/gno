@@ -46,42 +46,33 @@ func innerHash(h1, h2 Hashlet) (res Hashlet) {
 // to prove the value or any part of its value which is
 // accessible from the Gno language.
 //
-// For example, the ValueHash of a primitive value is simply
-// the "leaf hash" of its TypedValueImage. The ValueHash of
-// a non-primitive object is the merkle root hash of its
-// elements' ElemImage's.  The ValueHash of a nil
-// interface value is zero.
-//
-// `ValueHash := lh(TypedValueImage)`
-// `ValueHash := zero` if nil interface.
-//
-// `TypedValueImage := sz(TypeID),ValueImage`
-// `TypedValueImage := 0x00` if nil interface.
-//
+// `ValueHash := lh(ValueImage)`
 // `ValueImage := 0x00` if nil value.
 // `ValueImage := 0x01,varint(.) if fixed-numeric.
 // `ValueImage := 0x02,sz(bytes)` if variable length bytes.
 // `ValueImage := 0x03,sz(TypeID),vi(*ptr)` if non-nil ptr.
-// `ValueImage := 0x04,sz(ElemsHash)` if object.
+// `ValueImage := 0x04,sz(OwnerID),sz(ElemsHash),ref` if object.
 // `ValueImage := 0x05,vi(base),off,len,max if slice.
 // `ValueImage := 0x06,sz(TypeID)` if type.
 //
 // `ElemsHash := lh(ElemImage)` if object w/ 1 elem.
 // `ElemsHash := ih(eh(Left),eh(Right))` if object w/ 2+ elems.
 //
-// `ElemImage := 0x10` if nil interface.
-// `ElemImage := 0x11,sz(ObjectID),sz(TypeID)` if borrowed.
-// `ElemImage := 0x12,sz(ObjectID),vh(.)` if owned.
-// `ElemImage := 0x13,tvi(.)` if other.
-//  * other: prim/ptr/slice/type/typed-nil.
-//  * ownership passed through for pointers/slices/arrays.
+// `ElemImage:`
+//   `= 0x10` if nil interface.
+//   `= 0x11,sz(ObjectID),sz(TypeID)` if borrowed.
+//   `= 0x12,sz(ObjectID),sz(TypedValueHash)` if owned.
+//   `= 0x13,sz(TypeID),sz(ValueHash)` if other.
+//    - other: prim/ptr/slice/type/typed-nil.
+//    - ownership passed through for pointers/slices/arrays.
+//
+// `TypedValueHash := lh(sz(TypeID),sz(ValueHash))`
 //
 // * eh() are inner ElemsHashs.
 // * lh() means leafHash(x) := hash(0x00,x)
 // * ih() means innerHash(x,y) := hash(0x01,x,y)
 // * pb() means .PrimitiveBytes().
 // * sz() means (varint) size-prefixed bytes.
-// * tvi() means .TypedValueImage().Bytes().
 // * vi() means .ValueImage().Bytes().
 // * off,len,max and other integers are varint encoded.
 // * len(Left) is always 2^x, x=0,1,2,...
@@ -114,24 +105,24 @@ func (vh ValueHash) Bytes() []byte {
 	return vh[:]
 }
 
+type TypedValueHash Hashlet
+
+func (tvh TypedValueHash) IsZero() bool {
+	return tvh == (TypedValueHash{})
+}
+
+func (tvh TypedValueHash) Bytes() []byte {
+	return tvh[:]
+}
+
+func DeriveTypedValueHash(typeID TypeID, vh ValueHash) TypedValueHash {
+	bz := sizedBytes(typeID.Bytes())
+	bz = append(bz, sizedBytes(vh.Bytes())...)
+	return TypedValueHash(leafHash(bz))
+}
+
 //----------------------------------------
-// TypedValueImage
-
-type TypedValueImage struct {
-	TypeID // never nil
-	*ValueImage
-}
-
-type ValueImage struct {
-	ValType                // 1:num,2:bz,3:ptr,4:obj,5:sli,6:ty
-	Data       []byte      // if primitive, data-array, obj
-	TypeID                 // if non-nil ptr or type
-	Base       *ValueImage // if non-nil ptr or slice
-	Offset     int         // if slice
-	Length     int         // if slice
-	Maxcap     int         // if slice
-	ElemImages []ElemImage // if obj; for persistence
-}
+// ValueImage
 
 type ValType byte
 
@@ -145,10 +136,17 @@ const (
 	ValTypeType    = ValType(0x06)
 )
 
-func (tvi *TypedValueImage) Bytes() []byte {
-	buf := sizedBytes(tvi.TypeID[:])
-	buf = append(buf, tvi.ValueImage.Bytes()...)
-	return buf
+type ValueImage struct {
+	ValType                // 1:num,2:bz,3:ptr,4:obj,5:sli,6:ty
+	Data       []byte      // if primitive, data-array, obj
+	TypeID                 // if non-nil ptr or type
+	Base       *ValueImage // if non-nil ptr or slice
+	Offset     int         // if slice
+	Length     int         // if slice
+	Maxcap     int         // if slice
+	OwnerID    ObjectID    // if obj
+	ElemImages []ElemImage // if obj; for persistence
+	RefCount   int         // if obj
 }
 
 func (vi *ValueImage) IsZero() bool {
@@ -183,13 +181,17 @@ func (vi *ValueImage) StringWithElems(withElems bool) string {
 			for _, image := range vi.ElemImages {
 				pz = append(pz, "- "+image.String())
 			}
-			return fmt.Sprintf("VI[object:#%X]:\n%s",
+			return fmt.Sprintf("VI[object:%s#%X&%d]:\n%s",
+				vi.OwnerID.String(),
 				vi.Data,
+				vi.RefCount,
 				strings.Join(pz, "\n"),
 			)
 		} else {
-			return fmt.Sprintf("VI[object:#%X]",
-				vi.Data)
+			return fmt.Sprintf("VI[object:%s#%X&%d]",
+				vi.OwnerID.String(),
+				vi.Data,
+				vi.RefCount)
 		}
 	case ValTypeSlice:
 		return fmt.Sprintf("VI[slice:%s[%d,%d,%d]]",
@@ -199,7 +201,7 @@ func (vi *ValueImage) StringWithElems(withElems bool) string {
 			vi.Maxcap,
 		)
 	case ValTypeType:
-		return fmt.Sprintf("VI[type:%X]",
+		return fmt.Sprintf("VI[type:%s]",
 			vi.TypeID.String(),
 		)
 	default:
@@ -216,12 +218,17 @@ func (vi *ValueImage) Bytes() []byte {
 	case ValTypeNumeric:
 		buf = append(buf, vi.Data...)
 		return buf
-	case ValTypeBytes, ValTypeObject:
+	case ValTypeBytes:
 		buf = append(buf, sizedBytes(vi.Data)...)
 		return buf
 	case ValTypePointer:
 		buf = append(buf, sizedBytes(vi.TypeID.Bytes())...)
 		buf = append(buf, vi.Base.Bytes()...)
+		return buf
+	case ValTypeObject:
+		buf = append(buf, sizedBytes(vi.OwnerID.Bytes())...)
+		buf = append(buf, sizedBytes(vi.Data)...)
+		buf = append(buf, varintBytes(int64(vi.RefCount))...)
 		return buf
 	case ValTypeSlice:
 		buf = append(buf, vi.Base.Bytes()...)
@@ -237,19 +244,20 @@ func (vi *ValueImage) Bytes() []byte {
 	}
 }
 
-func (tvi *TypedValueImage) ValueHash() ValueHash {
-	return ValueHash(leafHash(tvi.Bytes()))
+func (vi *ValueImage) ValueHash() ValueHash {
+	return ValueHash(leafHash(vi.Bytes()))
 }
 
 //----------------------------------------
 // ElemImage
 
 type ElemImage struct {
-	ElemType    // 0x10:nil,0x11:brwd,0x12:owned,0x13:other
-	ObjectID    // if borrowed or owned
-	TypeID      // unless nil
-	ValueHash   // if owned
-	*ValueImage // if owned or other (prim/ptr/slice/typed-nil)
+	ElemType       // 0x10:nil,0x11:brwd,0x12:owned,0x13:other
+	ObjectID       // if borrowed or owned
+	TypedValueHash // if owned
+	TypeID         // if borrowed or other
+	ValueHash      // if other (prim/ptr/slice/typed-nil)
+	*ValueImage    // if owned or other
 }
 
 type ElemType byte
@@ -268,19 +276,21 @@ func (ei *ElemImage) String() string {
 		return "EI[nil]"
 	case ElemTypeBorrowed:
 		return fmt.Sprintf(
-			"EI[%s:%s(nil)]",
+			"EI[%s:%s(.)]",
 			ei.ObjectID.String(),
 			ei.TypeID.String())
 	case ElemTypeOwned:
 		return fmt.Sprintf(
-			"EI[%s:%s#%X]",
+			"EI[%s:#%X] // TypeID:%s %s",
 			ei.ObjectID.String(),
+			ei.TypedValueHash.Bytes(),
 			ei.TypeID.String(),
-			ei.ValueHash.Bytes())
+			ei.ValueImage.StringWithElems(false))
 	case ElemTypeOther:
 		return fmt.Sprintf(
-			"EI[%s(%s)]",
+			"EI[:%s(#%X)] // %s",
 			ei.TypeID.String(),
+			ei.ValueHash.Bytes(),
 			ei.ValueImage.StringWithElems(false))
 	default:
 		panic("should not happen")
@@ -295,7 +305,13 @@ func (ei *ElemImage) Bytes() []byte {
 			if !ei.ObjectID.IsZero() {
 				panic("should not happen")
 			}
+			if !ei.TypedValueHash.IsZero() {
+				panic("should not happen")
+			}
 			if !ei.TypeID.IsZero() {
+				panic("should not happen")
+			}
+			if !ei.ValueHash.IsZero() {
 				panic("should not happen")
 			}
 			if !ei.ValueImage.IsZero() {
@@ -308,7 +324,13 @@ func (ei *ElemImage) Bytes() []byte {
 			if ei.ObjectID.IsZero() {
 				panic("should not happen")
 			}
+			if !ei.TypedValueHash.IsZero() {
+				panic("should not happen")
+			}
 			if ei.TypeID.IsZero() {
+				panic("should not happen")
+			}
+			if !ei.ValueHash.IsZero() {
 				panic("should not happen")
 			}
 			if !ei.ValueImage.IsZero() {
@@ -323,13 +345,16 @@ func (ei *ElemImage) Bytes() []byte {
 			if ei.ObjectID.IsZero() {
 				panic("should not happen")
 			}
-			if !ei.TypeID.IsZero() {
+			if ei.TypedValueHash.IsZero() {
 				panic("should not happen")
 			}
-			if !ei.ValueImage.IsZero() {
+			if ei.TypeID.IsZero() {
 				panic("should not happen")
 			}
 			if ei.ValueHash.IsZero() {
+				panic("should not happen")
+			}
+			if ei.ValueImage.IsZero() {
 				panic("should not happen")
 			}
 		}
@@ -342,7 +367,13 @@ func (ei *ElemImage) Bytes() []byte {
 			if !ei.ObjectID.IsZero() {
 				panic("should not happen")
 			}
+			if !ei.TypedValueHash.IsZero() {
+				panic("should not happen")
+			}
 			if ei.TypeID.IsZero() {
+				panic("should not happen")
+			}
+			if ei.ValueHash.IsZero() {
 				panic("should not happen")
 			}
 			if ei.ValueImage.IsZero() {
@@ -412,15 +443,17 @@ func (av *ArrayValue) ValueImage(
 		}
 		return
 	}
-	// `ValueImage := 0x04,sz(ElemsHash)` if object.
+	// `ValueImage :=
+	//   0x04,sz(OwnerID),sz(ElemsHash),ref` if object.
 	eiz := av.ElemImages(rlm, owned)
 	eh := ElemsHashFromElements(eiz)
-	vi = &ValueImage{
+	return &ValueImage{
 		ValType:    ValTypeObject,
+		OwnerID:    av.GetOwnerID(),
 		Data:       eh[:],
+		RefCount:   av.GetRefCount(),
 		ElemImages: eiz,
 	}
-	return
 }
 
 func (av *ArrayValue) ElemImages(
@@ -507,12 +540,15 @@ func (sv *StructValue) ValueImage(
 			rlm.maybeSaveObject(sv, vi)
 		}()
 	}
-	// `ValueImage := 0x04,sz(ElemsHash)` if object.
+	// `ValueImage :=
+	//   0x04,sz(OwnerID),sz(ElemsHash),ref` if object.
 	eiz := sv.ElemImages(rlm, owned)
 	eh := ElemsHashFromElements(eiz)
-	vi = &ValueImage{
+	return &ValueImage{
 		ValType:    ValTypeObject,
+		RefCount:   sv.GetRefCount(),
 		Data:       eh[:],
+		OwnerID:    sv.GetOwnerID(),
 		ElemImages: eiz,
 	}
 	return
@@ -543,12 +579,15 @@ func (mv *MapValue) ValueImage(
 			rlm.maybeSaveObject(mv, vi)
 		}()
 	}
-	// `ValueImage := 0x04,sz(ElemsHash)` if object.
+	// `ValueImage :=
+	//   0x04,sz(OwnerID),sz(ElemsHash),ref` if object.
 	eiz := mv.ElemImages(rlm, owned)
 	eh := ElemsHashFromElements(eiz)
 	return &ValueImage{
 		ValType:    ValTypeObject,
+		OwnerID:    mv.GetOwnerID(),
 		Data:       eh[:],
+		RefCount:   mv.GetRefCount(),
 		ElemImages: eiz,
 	}
 }
@@ -603,15 +642,17 @@ func (b *Block) ValueImage(
 			rlm.maybeSaveObject(b, vi)
 		}()
 	}
-	// `ValueImage := 0x04,sz(ElemsHash)` if object.
+	// `ValueImage :=
+	//   0x04,sz(ObjectInfo),sz(ElemsHash)` if object.
 	eiz := b.ElemImages(rlm, owned)
 	eh := ElemsHashFromElements(eiz)
-	vi = &ValueImage{
+	return &ValueImage{
 		ValType:    ValTypeObject,
+		OwnerID:    b.GetOwnerID(),
 		Data:       eh[:],
+		RefCount:   b.GetRefCount(),
 		ElemImages: eiz,
 	}
-	return
 }
 
 // XXX dry code, probably a method on TypedValuesList.
@@ -652,18 +693,18 @@ func (tv *TypedValue) ValueHash(rlm *Realm, owned bool) ValueHash {
 		// `ValueHash := zero` if nil interface.
 		return ValueHash{}
 	} else {
-		tvi := tv.TypedValueImage(rlm, owned)
-		// `ValueHash := lh(TypedValueImage)`
-		return tvi.ValueHash()
+		vi := tv.ValueImage(rlm, owned)
+		// `ValueHash := lh(ValueImage)`
+		return vi.ValueHash()
 	}
 }
 
 // Any dirty or new-real value will be saved to realm.
-func (tv *TypedValue) TypedValueImage(rlm *Realm, owned bool) TypedValueImage {
+func (tv *TypedValue) ValueImage(rlm *Realm, owned bool) *ValueImage {
 	if tv.IsUndefined() {
-		panic("undefined value has no TypedValueImage")
+		// `ValueImage := 0x00` if nil value.
+		return nil
 	}
-	tid := tv.T.TypeID()
 	if tv.V == nil { // primitive or nil
 		if _, ok := baseOf(tv.T).(PrimitiveType); ok {
 			pbz, isVarint := tv.PrimitiveBytes()
@@ -671,19 +712,13 @@ func (tv *TypedValue) TypedValueImage(rlm *Realm, owned bool) TypedValueImage {
 				panic("should not happen")
 			}
 			// `ValueImage := 0x01,varint(.) if fixed-numeric.
-			return TypedValueImage{
-				TypeID: tid,
-				ValueImage: &ValueImage{
-					ValType: ValTypeNumeric,
-					Data:    pbz,
-				},
+			return &ValueImage{
+				ValType: ValTypeNumeric,
+				Data:    pbz,
 			}
 		} else {
 			// `ValueImage := 0x00` if nil value.
-			return TypedValueImage{
-				TypeID:     tid,
-				ValueImage: nil, // 0x00 signified with nil *ValueIamge.
-			}
+			return nil // 0x00 signified with nil *ValueIamge.
 		}
 	} else { // non-nil object.
 		switch baseOf(tv.T).(type) {
@@ -693,79 +728,46 @@ func (tv *TypedValue) TypedValueImage(rlm *Realm, owned bool) TypedValueImage {
 				panic("should not happen")
 			}
 			// `ValueImage := 0x02,sz(bytes)` if size-prefixed bytes.
-			return TypedValueImage{
-				TypeID: tid,
-				ValueImage: &ValueImage{
-					ValType: ValTypeBytes,
-					Data:    pbz,
-				},
+			return &ValueImage{
+				ValType: ValTypeBytes,
+				Data:    pbz,
 			}
 		case PointerType:
 			pv := tv.V.(PointerValue)
 			if pv.TypedValue == nil {
 				panic("should not happen")
-				/* XXX reconsider
-				// `ValueImage := 0x00` if nil value.
-				return TypedValueImage{
-					TypeID: tid,
-					ValueImage: &ValueImage{
-						ValType: ValTypeNil,
-					},
-				}
-				*/
 			} else {
-				// `ValueImage := 0x03,sz(TypeID),vi(*ptr)` if non-nil ptr.
-				tvi := tv.TypedValueImage(rlm, owned)
-				return TypedValueImage{
-					TypeID: tid,
-					ValueImage: &ValueImage{
-						ValType: ValTypePointer,
-						TypeID:  tvi.TypeID,
-						Base:    tvi.ValueImage,
-					},
+				// vi := 0x03,sz(TypeID),vi(*ptr) if non-nil ptr.
+				pvi := pv.ValueImage(rlm, owned)
+				ptid := tv.T.TypeID()
+				return &ValueImage{
+					ValType: ValTypePointer,
+					TypeID:  ptid,
+					Base:    pvi,
 				}
 			}
 		case *ArrayType:
 			av := tv.V.(*ArrayValue)
-			// `ValueImage := 0x04,sz(ElemsHash)` if object.
-			return TypedValueImage{
-				TypeID:     tid,
-				ValueImage: av.ValueImage(rlm, owned),
-			}
+			return av.ValueImage(rlm, owned)
 		case *SliceType:
 			sv := tv.V.(*SliceValue)
-			// `ValueImage := 0x05,vi(base),off,len,max if slice.
-			return TypedValueImage{
-				TypeID:     tid,
-				ValueImage: sv.ValueImage(rlm, owned),
-			}
+			return sv.ValueImage(rlm, owned)
 		case *StructType:
 			sv := tv.V.(*StructValue)
-			// `ValueImage := 0x04,sz(ElemsHash)` if object.
-			return TypedValueImage{
-				TypeID:     tid,
-				ValueImage: sv.ValueImage(rlm, owned),
-			}
+			return sv.ValueImage(rlm, owned)
 		case *MapType:
 			mv := tv.V.(*StructValue)
-			// `ValueImage := 0x04,sz(ElemsHash)` if object.
-			return TypedValueImage{
-				TypeID:     tid,
-				ValueImage: mv.ValueImage(rlm, owned),
-			}
+			return mv.ValueImage(rlm, owned)
 		case *TypeType:
 			t := tv.GetType()
 			// `ValueImage := 0x06,sz(TypeID)` if type.
-			return TypedValueImage{
-				TypeID: tid,
-				ValueImage: &ValueImage{
-					ValType: ValTypeType,
-					TypeID:  t.TypeID(),
-				},
+			return &ValueImage{
+				ValType: ValTypeType,
+				TypeID:  t.TypeID(),
 			}
 		default:
 			panic(fmt.Sprintf(
-				"unexpected type for TypedValueImage(): %s",
+				"unexpected type for ValueImage(): %s",
 				tv.T.String()))
 		}
 	}
@@ -785,46 +787,24 @@ func (tv *TypedValue) ElemImage(rlm *Realm, owned bool) ElemImage {
 		}
 	}
 	if tv.V == nil {
-		if _, ok := baseOf(tv.T).(PrimitiveType); ok {
-			// `ElemImage := 0x13,tvi(.)` if other.
-			tvi := tv.TypedValueImage(rlm, owned)
-			return ElemImage{
-				ElemType:   ElemTypeOther,
-				TypeID:     tvi.TypeID,
-				ValueImage: tvi.ValueImage,
-			}
-		} else {
-			// `ElemImage := 0x13,tvi(.)` if other.
-			return ElemImage{
-				ElemType:   ElemTypeOther,
-				TypeID:     tv.T.TypeID(),
-				ValueImage: nil,
-			}
+		// 0x13,sz(TypeID),sz(ValueHash) if other.
+		vi := tv.ValueImage(rlm, owned)
+		return ElemImage{
+			ElemType:   ElemTypeOther,
+			TypeID:     tv.T.TypeID(),
+			ValueHash:  vi.ValueHash(),
+			ValueImage: vi,
 		}
 	} else {
 		switch baseOf(tv.T).(type) {
 		case PrimitiveType:
-			switch bt := baseOf(tv.T); bt {
-			case StringType:
-				// `ElemImage := 0x13,tvi(.)` if other.
-				tvi := tv.TypedValueImage(rlm, owned)
-				return ElemImage{
-					ElemType:   ElemTypeOther,
-					TypeID:     tvi.TypeID,
-					ValueImage: tvi.ValueImage,
-				}
-			default:
-				panic(fmt.Sprintf(
-					"unexpected primitive type for elem images %s",
-					bt.String()))
-			}
-		case PointerType, *SliceType:
-			// `ElemImage := 0x13,tvi(.)` if other.
-			tvi := tv.TypedValueImage(rlm, owned)
+			// 0x13,sz(TypeID),sz(ValueHash) if other.
+			vi := tv.ValueImage(rlm, owned)
 			return ElemImage{
 				ElemType:   ElemTypeOther,
-				TypeID:     tvi.TypeID,
-				ValueImage: tvi.ValueImage,
+				TypeID:     tv.T.TypeID(),
+				ValueHash:  vi.ValueHash(),
+				ValueImage: vi,
 			}
 		case *ArrayType, *StructType, *MapType:
 			var obj Object = tv.V.(Object)
@@ -840,29 +820,36 @@ func (tv *TypedValue) ElemImage(rlm *Realm, owned bool) ElemImage {
 				}
 			}
 			if owned {
-				// `ElemImage := 0x12,sz(ObjectID),vh(.)` if owned.
-				vh := tv.ValueHash(rlm, owned)
+				// 0x12,sz(ObjectID),sz(TypedValueHash)` if owned
+				// TypedValueHash := lh(sz(TypeID),sz(ValueHash))
+				tid := tv.T.TypeID()
+				vi := tv.ValueImage(rlm, owned)
+				vh := vi.ValueHash()
+				tvh := DeriveTypedValueHash(tid, vh)
 				return ElemImage{
-					ElemType:  ElemTypeOwned,
-					ObjectID:  obj.MustGetObjectID(),
-					ValueHash: vh,
+					ElemType:       ElemTypeOwned,
+					ObjectID:       obj.MustGetObjectID(),
+					TypeID:         tid,
+					TypedValueHash: tvh,
+					ValueHash:      vh,
+					ValueImage:     vi,
 				}
 			} else {
-				// `ElemImage := 0x11,sz(ObjectID),sz(TypeID)` if borrowed.
+				// 0x11,sz(ObjectID),sz(TypeID) if borrowed.
 				return ElemImage{
 					ElemType: ElemTypeBorrowed,
 					ObjectID: obj.MustGetObjectID(),
 					TypeID:   tv.T.TypeID(),
 				}
 			}
-		case *TypeType:
-			// `ElemImage := 0x13,tvi(.)` if other.
-			// `ValueHash := lh(TypedValueImage)` ...
-			tvi := tv.TypedValueImage(rlm, owned)
+		case PointerType, *SliceType, *TypeType:
+			// 0x13,sz(TypeID),sz(ValueHash) if other.
+			vi := tv.ValueImage(rlm, owned)
 			return ElemImage{
 				ElemType:   ElemTypeOther,
-				TypeID:     tvi.TypeID,
-				ValueImage: tvi.ValueImage,
+				TypeID:     tv.T.TypeID(),
+				ValueHash:  vi.ValueHash(),
+				ValueImage: vi,
 			}
 		default:
 			panic(fmt.Sprintf(

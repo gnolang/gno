@@ -11,8 +11,13 @@ type ObjectID struct {
 }
 
 func (oid ObjectID) String() string {
-	return fmt.Sprintf("OID%X:%d",
-		oid.RealmID.Bytes(), oid.Ordinal)
+	if oid.RealmID.IsZero() {
+		// XXX what's at the very top?
+		return fmt.Sprintf("OIDNONE:%d", oid.Ordinal)
+	} else {
+		return fmt.Sprintf("OID%X:%d",
+			oid.RealmID.Bytes(), oid.Ordinal)
+	}
 }
 
 func (oid ObjectID) Bytes() []byte {
@@ -38,6 +43,7 @@ type Object interface {
 	MustGetObjectID() ObjectID
 	SetObjectID(oid ObjectID)
 	GetOwner() Object
+	GetOwnerID() ObjectID
 	SetOwner(Object)
 	GetIsOwned() bool
 	GetIsReal() bool
@@ -65,11 +71,46 @@ var _ Object = &Block{}
 type ObjectInfo struct {
 	ID        ObjectID  // set if real.
 	Hash      ValueHash // zero if dirty.
-	Owner     Object    // parent in the ownership tree.
+	OwnerID   ObjectID  // parent in the ownership tree.
 	RefCount  int       // deleted/gc'd if 0.
-	IsNewReal bool      // if new and owner is real.
-	IsDirty   bool      // if real but modified
-	IsDeleted bool      // if real but no longer referenced.
+	isNewReal bool
+	isDirty   bool
+	isDeleted bool
+
+	owner Object // mem reference to owner.
+}
+
+func (oi *ObjectInfo) String() string {
+	return fmt.Sprintf(
+		"OI[%s#%X,owner=%s,refs=%d,new:%v,drt:%v,del:%v]",
+		oi.ID.String(),
+		oi.Hash.Bytes(),
+		oi.OwnerID.String(),
+		oi.RefCount,
+		oi.GetIsNewReal(),
+		oi.GetIsDirty(),
+		oi.GetIsDeleted(),
+	)
+}
+
+func (oi *ObjectInfo) Bytes() []byte {
+	if debug {
+		if oi.ID.IsZero() {
+			panic("should not happen")
+		}
+		if oi.Hash.IsZero() {
+			panic("should not happen")
+		}
+		if oi.OwnerID.IsZero() {
+			panic("should not happen")
+		}
+	}
+	bz := make([]byte, 0, 100)
+	bz = append(bz, sizedBytes(oi.ID.Bytes())...)
+	bz = append(bz, sizedBytes(oi.Hash.Bytes())...)
+	bz = append(bz, sizedBytes(oi.OwnerID.Bytes())...)
+	bz = append(bz, varintBytes(int64(oi.RefCount))...)
+	return bz
 }
 
 func (oi *ObjectInfo) GetObjectInfo() *ObjectInfo {
@@ -91,16 +132,33 @@ func (oi *ObjectInfo) SetObjectID(oid ObjectID) {
 	oi.ID = oid
 }
 
+func (oi *ObjectInfo) GetValueHash() ValueHash {
+	return oi.Hash
+}
+
+func (oi *ObjectInfo) SetValueHash(vh ValueHash) {
+	oi.Hash = vh
+}
+
 func (oi *ObjectInfo) GetOwner() Object {
-	return oi.Owner
+	return oi.owner
 }
 
 func (oi *ObjectInfo) SetOwner(po Object) {
-	oi.Owner = po
+	oi.OwnerID = po.GetObjectID()
+	oi.owner = po
+}
+
+func (oi *ObjectInfo) GetOwnerID() ObjectID {
+	if oi.owner == nil {
+		return ObjectID{}
+	} else {
+		return oi.owner.GetObjectID()
+	}
 }
 
 func (oi *ObjectInfo) GetIsOwned() bool {
-	return oi.Owner != nil
+	return !oi.OwnerID.IsZero()
 }
 
 // NOTE: does not return true for new reals.
@@ -128,28 +186,28 @@ func (oi *ObjectInfo) GetRefCount() int {
 }
 
 func (oi *ObjectInfo) GetIsNewReal() bool {
-	return oi.IsNewReal
+	return oi.isNewReal
 }
 
 func (oi *ObjectInfo) SetIsNewReal(x bool) {
-	oi.IsNewReal = x
+	oi.isNewReal = x
 }
 
 func (oi *ObjectInfo) GetIsDirty() bool {
-	return oi.IsDirty
+	return oi.isDirty
 }
 
 func (oi *ObjectInfo) SetIsDirty(x bool) {
 	if x {
 		oi.Hash = ValueHash{}
 	}
-	oi.IsDirty = x
+	oi.isDirty = x
 }
 
 func (oi *ObjectInfo) GetIsDeleted() bool {
-	return oi.IsDeleted
+	return oi.isDeleted
 }
 
 func (oi *ObjectInfo) SetIsDeleted(x bool) {
-	oi.IsDeleted = x
+	oi.isDirty = x
 }
