@@ -374,6 +374,28 @@ type CompositeLitExpr struct {
 	Elts KeyValueExprs // list of struct fields; if any
 }
 
+// Returns true if any elements are keyed.
+// Panics if inconsistent.
+func (clx *CompositeLitExpr) IsKeyed() bool {
+	if len(clx.Elts) == 0 {
+		return false
+	} else if clx.Elts[0].Key == nil {
+		for i := 1; i < len(clx.Elts); i++ {
+			if clx.Elts[i].Key != nil {
+				panic("mixed keyed and unkeyed elements")
+			}
+		}
+		return false
+	} else {
+		for i := 1; i < len(clx.Elts); i++ {
+			if clx.Elts[i].Key == nil {
+				panic("mixed keyed and unkeyed elements")
+			}
+		}
+		return true
+	}
+}
+
 // A KeyValueExpr represents a single key-value pair in
 // struct, array, slice, and map expressions.
 type KeyValueExpr struct {
@@ -919,7 +941,8 @@ func (pn *PackageNode) NewPackage(rlmr Realmer) *PackageValue {
 	return pv
 }
 
-func (pn *PackageNode) UpdatePackage(pv *PackageValue) {
+// Returns a slice of new PackageValue.Values.
+func (pn *PackageNode) UpdatePackage(pv *PackageValue) []TypedValue {
 	if pv.Source != pn {
 		panic("PackageNode.UpdatePackage() package mismatch")
 	}
@@ -985,10 +1008,12 @@ func (pn *PackageNode) UpdatePackage(pv *PackageValue) {
 			}
 		}
 		pv.Values = append(pv.Values, nvs...)
+		return pv.Values[pvl:]
 	} else if pvl > pnl {
 		panic("package size error")
 	} else {
 		// nothing to do
+		return nil
 	}
 }
 

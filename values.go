@@ -392,6 +392,10 @@ type TypedValue struct {
 	N [8]byte // numeric bytes
 }
 
+func (tv *TypedValue) IsDefined() bool {
+	return !tv.IsUndefined()
+}
+
 func (tv *TypedValue) IsUndefined() bool {
 	if debug {
 		if tv == nil {
@@ -506,8 +510,8 @@ func (tv TypedValue) Copy() (cp TypedValue) {
 }
 
 // Returns varint encoded bytes (and true) for numeric types and arbitrary
-// bytes (and false) for variable-length byte types.  These bytes are used for
-// both value hashes as well as hash key bytes.
+// bytes (and false) for variable-length byte types.  These bytes are used
+// for both value hashes as well as hash key bytes.
 func (tv *TypedValue) PrimitiveBytes() (data []byte, varint bool) {
 	switch bt := baseOf(tv.T); bt {
 	case BoolType:
@@ -517,7 +521,7 @@ func (tv *TypedValue) PrimitiveBytes() (data []byte, varint bool) {
 			return []byte{0x00}, true // varint(0)
 		}
 	case StringType:
-		return sizedBytes([]byte(tv.GetString())), false
+		return []byte(tv.GetString()), false
 	case IntType:
 		return varintBytes(int64(tv.GetInt())), true
 	case Int8Type:
@@ -539,7 +543,7 @@ func (tv *TypedValue) PrimitiveBytes() (data []byte, varint bool) {
 	case Uint64Type:
 		return varintBytes(int64(tv.GetUint64())), true
 	case BigintType:
-		return sizedBytes(tv.V.(BigintValue).V.Bytes()), false
+		return tv.V.(BigintValue).V.Bytes(), false
 	default:
 		panic(fmt.Sprintf(
 			"unexpected primitive value type: %s",

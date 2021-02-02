@@ -360,8 +360,10 @@ func (rlm *Realm) SaveCreatedObject(oo Object, vi *ValueImage) {
 		}
 	}
 	rlm.saveObject(oo, vi)
-	rlm.ropslog = append(rlm.ropslog,
-		RealmOp{RealmOpNew, oo, vi})
+	if rlm.ropslog != nil {
+		rlm.ropslog = append(rlm.ropslog,
+			RealmOp{RealmOpNew, oo, vi})
+	}
 	oo.SetIsNewReal(false)
 	oo.SetIsDirty(false)
 }
@@ -377,8 +379,10 @@ func (rlm *Realm) SaveUpdatedObject(oo Object, vi *ValueImage) {
 		}
 	}
 	rlm.saveObject(oo, vi)
-	rlm.ropslog = append(rlm.ropslog,
-		RealmOp{RealmOpMod, oo, vi})
+	if rlm.ropslog != nil {
+		rlm.ropslog = append(rlm.ropslog,
+			RealmOp{RealmOpMod, oo, vi})
+	}
 	oo.SetIsDirty(false)
 }
 

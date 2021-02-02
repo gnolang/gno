@@ -82,6 +82,11 @@ func runCheck(t *testing.T, path string) {
 			}()
 			n := gno.MustParseFile(path, string(bz))
 			m.RunFiles(n)
+			if rops != "" {
+				// clear rlm.ropslog from init funtion(s).
+				rlm := pv.GetRealm()
+				rlm.SetLogRealmOps(true) // resets.
+			}
 			m.RunMain()
 		}()
 		// check errors

@@ -192,10 +192,10 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 						Source:     n,
 						Name:       n.Name,
 						Body:       n.Body,
-						Closure:    nil, // set later.
+						Closure:    nil, // set later, see UpdatePackage().
 						NativeBody: nil,
 						FileName:   filenameOf(last),
-						pkg:        nil, // set later.
+						pkg:        nil, // set later, see UpdatePackage().
 					})
 				} else {
 					// type fills in @ predefineNow().
@@ -655,10 +655,19 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 			CLT_TYPE_SWITCH:
 				switch cclt := baseOf(clt).(type) {
 				case *StructType:
-					for i := 0; i < len(n.Elts); i++ {
-						flat := cclt.Mapping[i]
-						ft := cclt.Fields[flat].Type
-						convertIfConst(last, n.Elts[i].Value, ft)
+					if n.IsKeyed() {
+						for i := 0; i < len(n.Elts); i++ {
+							key := n.Elts[i].Key.(*NameExpr).Name
+							path := cclt.GetPathForName(key)
+							ft := cclt.GetStaticTypeOfAt(path)
+							convertIfConst(last, n.Elts[i].Value, ft)
+						}
+					} else {
+						for i := 0; i < len(n.Elts); i++ {
+							flat := cclt.Mapping[i]
+							ft := cclt.Fields[flat].Type
+							convertIfConst(last, n.Elts[i].Value, ft)
+						}
 					}
 				case *ArrayType:
 					for i := 0; i < len(n.Elts); i++ {
@@ -1228,8 +1237,7 @@ func convertIfConst(last BlockNode, x Expr, t Type) {
 		return
 	}
 	if t != nil && t.Kind() == InterfaceKind {
-		// TODO type check?
-		return
+		t = nil // signifies to convert to default type.
 	}
 	if cx, ok := x.(*constExpr); ok {
 		if isUntyped(cx.T) {
@@ -1554,8 +1562,8 @@ func tryPredefine(imp Importer, last BlockNode, d Decl) (un Name) {
 		if un != "" {
 			return
 		}
-		// define function name.
 		if d.IsMethod {
+			// define method.
 			// methods are defined as struct fields, not
 			// in the last block.  receiver isn't
 			// processed until FuncDecl:BLOCK.
@@ -1564,10 +1572,19 @@ func tryPredefine(imp Importer, last BlockNode, d Decl) (un Name) {
 				return
 			}
 		} else {
-			// define a FuncValue w/ above type as d.Name.
-			// fill in later during *FuncDecl:BLOCK.
+			// define package-level function.
 			var ft = &FuncType{}
 			pkg := skipFile(last).(*PackageNode)
+			// special case: if d.Name == "init", assign unique suffix.
+			if d.Name == "init" {
+				idx := pkg.GetNumNames()
+				// NOTE: use a dot for init func suffixing.
+				// this also makes them unreferenceable.
+				dname := Name(fmt.Sprintf("init.%d", idx))
+				d.Name = dname
+			}
+			// define a FuncValue w/ above type as d.Name.
+			// fill in later during *FuncDecl:BLOCK.
 			pkg.Define(d.Name, TypedValue{
 				T: ft,
 				V: &FuncValue{
@@ -1576,13 +1593,17 @@ func tryPredefine(imp Importer, last BlockNode, d Decl) (un Name) {
 					Source:     d,
 					Name:       d.Name,
 					Body:       d.Body,
-					Closure:    nil, // set later.
+					Closure:    nil, // set later, see UpdatePackage().
 					NativeBody: nil,
 					FileName:   filenameOf(last),
-					pkg:        nil, // set later.
+					pkg:        nil, // set later, see UpdatePackage().
 				},
 			})
-			d.Path = last.GetPathForName(d.Name)
+			if d.Name == "init" {
+				// init functions can't be referenced.
+			} else {
+				d.Path = last.GetPathForName(d.Name)
+			}
 		}
 	default:
 		panic(fmt.Sprintf(

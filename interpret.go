@@ -96,6 +96,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 // top level Run* methods.
 
 // Add files to the package's *FileSet and run them.
+// This will also run each init function encountered.
 func (m *Machine) RunFiles(fns ...*FileNode) {
 	// Files' package names must match the machine's active one.
 	// if there is one.
@@ -132,13 +133,34 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 		copy(fb.Values, fn.StaticBlock.Values)
 		m.PushBlock(fb)
 		pv.AddFileBlock(fn.Name, fb)
-		pn.UpdatePackage(pv) // with fb.
+		updates := pn.UpdatePackage(pv) // with fb.
 		// Run declarations.
 		for _, d := range fn.Body {
 			m.runDeclaration(d)
 		}
+		// Run new init functions.
+		for i := 0; i < len(updates); i++ {
+			tv := &updates[i]
+			if tv.IsDefined() && tv.T.Kind() == FuncKind {
+				fn := tv.V.(*FuncValue).Name
+				if strings.HasPrefix(string(fn), "init.") {
+					m.RunFunc(fn)
+				}
+			}
+		}
 		m.PopBlock()
 	}
+}
+
+func (m *Machine) RunFunc(fn Name) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("Machine.RunFunc(%q) panic: %v\n%s\n",
+				fn, r, m.String())
+			panic(r)
+		}
+	}()
+	m.RunStatement(S(Call(Nx(fn))))
 }
 
 func (m *Machine) RunMain() {
@@ -258,10 +280,8 @@ func (m *Machine) StaticEvalTypeOf(last BlockNode, x Expr) Type {
 }
 
 func (m *Machine) RunStatement(s Stmt) {
-	// Preprocess input using package block.  There should only
-	// be one block right now, and it's a *PackageNode.
-	pn := m.LastBlock().Source.(*PackageNode)
-	s = Preprocess(m.Importer, pn, s).(Stmt)
+	sn := m.LastBlock().Source
+	s = Preprocess(m.Importer, sn, s).(Stmt)
 	m.PushOp(OpHalt)
 	m.PushStmt(s)
 	m.PushOp(OpExec)

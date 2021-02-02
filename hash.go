@@ -167,9 +167,15 @@ func (vi *ValueImage) StringWithElems(withElems bool) string {
 			vi.Data,
 		)
 	case ValTypeBytes:
-		return fmt.Sprintf("VI[data:0x%X]",
-			vi.Data,
-		)
+		if isASCIIText(vi.Data) {
+			return fmt.Sprintf("VI[text:%q]",
+				vi.Data,
+			)
+		} else {
+			return fmt.Sprintf("VI[data:0x%X]",
+				vi.Data,
+			)
+		}
 	case ValTypePointer:
 		return fmt.Sprintf("VI[pointer:%s,%s]",
 			vi.TypeID.String(),
@@ -873,4 +879,18 @@ func sizedBytes(bz []byte) []byte {
 	n := binary.PutVarint(bz2[:10], int64(len(bz)))
 	copy(bz2[n:n+len(bz)], bz)
 	return bz2[:n+len(bz)]
+}
+
+func isASCIIText(bz []byte) bool {
+	if len(bz) == 0 {
+		return false
+	}
+	for _, b := range bz {
+		if 32 <= b && b <= 126 {
+			// good
+		} else {
+			return false
+		}
+	}
+	return true
 }
