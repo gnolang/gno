@@ -1,17 +1,28 @@
-Gno (anti) License Version 1.0-alpha.
+Gno License and Agreement Version 1.0-alpha.
 All rights reserved unless explicitly granted here.
-Owned and maintained by Jae Kwon.
+This Gno Project owned and maintained currently by Jae Kwon.
 
 Contributions welcome under the following agreement:
 
- * You agree to keep rights to the contributed work and ideas with no encumberances.
- * The project's owners and maintainers are given the right to publish your
-   contribution with attribution under any non-exclusive license of our choosing.
+ * You agree to keep ownership and rights to your contributions with no
+   encumberances except those mentioned here, so as to fulfill the terms of
+this agreement.
 
-A contribution is defined to include any work and ideas made available to view
-by this project's owners and maintainers, directly or indrectly, planned or
-not, about this project that are material to its completion, improvement, and
-innovation; including, but not limited to:
+ * You agree to give the listed owner(s) and maintainer(s) of this project the
+   right to publish your contributions (with attribution) under any
+non-exclusive license of our choosing.
+
+FOR THE SCOPE OF THIS AGREEMENT, A CONTRIBUTION IS DEFINED TO INCLUDE ANY
+WORKS, IDEAS, CODE, PROCESSES, AND APIS MADE AVAILABLE TO VIEW BY THE GENERAL
+PUBLIC (INCLUDING ANY PUBLICLY ACCESSIBLE INTERNET FORUMS AND CHAT SERVERS
+WHERE ACCESS IS AVAILABLE FOR FREE WITH REGISTRATION) OR PRIVATELY TO THIS
+PROJECT'S OWNERS AND MAINTAINERS; INCLUDING WORKS, IDEAS, CODE, PROCESSES, AND
+APIS THAT ARE ABOUT THIS PROJECT AND ITS CONTRIBUTIONS, OR MENTIONED IN
+REFERENCE TO THE PROJECT, WHERE SUCH WORKS, IDEAS, CODE, PROCESSES, AND APIS
+ARE MATERIAL TO THE SUCCESS, IMPROVEMENT, OR COMPLETION OF THIS PROJECT, AS
+JUDGED BY THE OWNERS OF THIS PROJECT.
+
+Contributions may come in any form, and include (but are not limited to):
 
  * pull requests
  * diff patches
@@ -19,13 +30,17 @@ innovation; including, but not limited to:
  * example code
 
 If you do not want your work and ideas to become incorporated into Gno, do not
-make contributions to this project, or make work and ideas that reference them
-secret. The creation of contributions that may in the future become known to
-this project's owners and maintainers constitutes a willing contribution to
-this project in accordance with this agreement.
+make contributions to this project; or keep such work and ideas secret. The
+creation of contributions that may in the future become known to this project's
+owners and maintainers constitutes a willing contribution to this project in
+accordance with this agreement.
 
-You may keep any number of copies of this project for your personal
-non-commercial reasons.
+You may keep any number of copies of this project for your personal purposes as
+long as it isn't for any for-profit, commercial, religious, government, NGO, or
+public blockchain purposes.
 
-Usage, viewing, and holding a copy of this project may be harmful or even
-fatal, with or without any license granted here or elsewhere.
+THE WORKS ARE PROVIDED WITHOUT WARRANTY OF CORRECTNESS. IN NO EVENT SHALL THE
+AUTHORS, COPYRIGHT HOLDERS, OWNERS, OR MAINTAINERS BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE WORK OR THE USE OR
+OTHER DEALINGS IN THE WORK.
