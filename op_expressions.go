@@ -14,16 +14,16 @@ func (m *Machine) doOpIndex() {
 		m.PopExpr()
 	}
 	iv := m.PopValue()   // index
-	xv := m.PeekValue(1) // x; reuse as result
-	res := xv.GetValueAtIndex(iv)
-	*xv = res
+	xv := m.PeekValue(1) // x
+	res := xv.GetPointerAtIndex(iv)
+	*xv = res.Deref() // reuse as result
 }
 
 func (m *Machine) doOpSelector() {
 	sx := m.PopExpr().(*SelectorExpr)
-	xv := m.PeekValue(1) // reuse as result
-	res := xv.GetValueRefAt(sx.Path)
-	*xv = *res
+	xv := m.PeekValue(1)
+	res := xv.GetPointerTo(sx.Path)
+	*xv = res.Deref() // reuse as result
 }
 
 func (m *Machine) doOpSlice() {
@@ -105,11 +105,11 @@ func (m *Machine) doOpStar() {
 
 func (m *Machine) doOpRef() {
 	rx := m.PopExpr().(*RefExpr)
-	xv := m.PopForAssign(rx.X)
+	xv := m.PopAsPointer(rx.X)
 	if nv, ok := xv.V.(*nativeValue); ok {
-		// If a native pointer, ensure it is addressable.  This way,
-		// PointerValue{*nativeValue{rv}} can be converted to/from
-		// *nativeValue{rv.Addr()}.
+		// If a native pointer, ensure it is addressable.  This
+		// way, PointerValue{*nativeValue{rv}} can be converted
+		// to/from *nativeValue{rv.Addr()}.
 		if !nv.Value.CanAddr() {
 			rv := nv.Value
 			rt := rv.Type()
@@ -120,7 +120,7 @@ func (m *Machine) doOpRef() {
 	}
 	m.PushValue(TypedValue{
 		T: PointerType{Elt: xv.T},
-		V: PointerValue{TypedValue: xv},
+		V: xv,
 	})
 }
 
@@ -360,8 +360,8 @@ func (m *Machine) doOpMapLit() {
 		for i := 0; i < ne; i++ {
 			ktv := &kvs[i*2]
 			vtv := kvs[i*2+1]
-			slottv := mv.GetValueRefForKeyForAssign(ktv)
-			*slottv = vtv // not .Assign()
+			ptr := mv.GetPointerForKey(ktv)
+			*ptr.TypedValue = vtv
 		}
 	}
 	// pop map type.

@@ -437,6 +437,9 @@ func (av *ArrayValue) ValueImage(
 	// Create or update when deriving
 	// the value images of an owned object.
 	if owned {
+		if av.GetObjectID().IsZero() {
+			rlm.AssignObjectID(av) // and set IsNewReal
+		}
 		defer func() {
 			rlm.maybeSaveObject(av, vi)
 		}()
@@ -542,6 +545,9 @@ func (sv *StructValue) ValueImage(
 	// Create or update when deriving
 	// the value images of an owned object.
 	if owned {
+		if sv.GetObjectID().IsZero() {
+			rlm.AssignObjectID(sv) // and set IsNewReal
+		}
 		defer func() {
 			rlm.maybeSaveObject(sv, vi)
 		}()
@@ -581,6 +587,9 @@ func (mv *MapValue) ValueImage(
 	// Create or update when deriving
 	// the value images of an owned object.
 	if owned {
+		if mv.GetObjectID().IsZero() {
+			rlm.AssignObjectID(mv) // and set IsNewReal
+		}
 		defer func() {
 			rlm.maybeSaveObject(mv, vi)
 		}()
@@ -644,6 +653,9 @@ func (b *Block) ValueImage(
 	// Create or update when deriving
 	// the value images of an owned object.
 	if owned {
+		if b.GetObjectID().IsZero() {
+			rlm.AssignObjectID(b) // and set IsNewReal
+		}
 		defer func() {
 			rlm.maybeSaveObject(b, vi)
 		}()

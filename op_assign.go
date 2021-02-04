@@ -12,23 +12,25 @@ func (m *Machine) doOpDefine() {
 		nx := s.Lhs[i].(*NameExpr)
 		rv := rvs[i]
 		if debug {
-			// This is how run-time untyped const
-			// conversions would work, but we
-			// expect the preprocessor to convert
-			// these to *constExpr.
-			/*
-				// Convert if untyped const.
-				if isUntyped(rv.T) {
-					ConvertUntypedTo(&rv, defaultTypeOf(rv.T))
-				}
-			*/
 			if isUntyped(rv.T) {
 				panic("unexpected untyped const type for assign during runtime")
 			}
 		}
-		// Define in block in forward order.
-		lv := m.LastBlock().GetValueRefAt(nx.Path)
-		lv.Assign(rv)
+		/*
+			This is how run-time untyped const
+			conversions would work, but we
+			expect the preprocessor to convert
+			these to *constExpr.
+
+			// Convert if untyped const.
+			if isUntyped(rv.T) {
+				ConvertUntypedTo(&rv, defaultTypeOf(rv.T))
+			}
+		*/
+		// Finally, define (or assign if loop block).
+		lb := m.LastBlock()
+		ptr := lb.GetPointerTo(nx.Path)
+		ptr.Assign2(m.Realm, rv)
 	}
 }
 
@@ -41,134 +43,123 @@ func (m *Machine) doOpAssign() {
 	rvs := m.PopValues(len(s.Rhs))
 	for i := len(s.Rhs) - 1; 0 <= i; i-- {
 		rv := rvs[i]
-		// Pop lhs value and desired type.
-		lv := m.PopForAssign(s.Lhs[i])
 		if debug {
-			// This is how run-time untyped const
-			// conversions would work, but we
-			// expect the preprocessor to convert
-			// these to *constExpr.
-			/*
-				// Convert if untyped const.
-				if isUntyped(rv.T) {
-					ConvertUntypedTo(&rv, lt)
-				}
-			*/
 			if isUntyped(rv.T) {
 				panic("unexpected untyped const type for assign during runtime")
 			}
 		}
-		// Finally, assign.
-		lv.Assign(rv)
+		// Pop lhs value and desired type.
+		lv := m.PopAsPointer(s.Lhs[i])
+		lv.Assign2(m.Realm, rv)
 	}
 }
 
 func (m *Machine) doOpAddAssign() {
 	s := m.PopStmt().(*AssignStmt)
 	rv := m.PopValue() // only one.
-	lv := m.PopForAssign(s.Lhs[0])
+	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
 		assertTypes(lv.T, rv.T)
 	}
 
 	// add rv to lv.
-	addAssign(lv, rv)
+	addAssign(lv.TypedValue, rv)
 }
 
 func (m *Machine) doOpSubAssign() {
 	s := m.PopStmt().(*AssignStmt)
 	rv := m.PopValue() // only one.
-	lv := m.PopForAssign(s.Lhs[0])
+	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
 		assertTypes(lv.T, rv.T)
 	}
 
 	// sub rv from lv.
-	subAssign(lv, rv)
+	subAssign(lv.TypedValue, rv)
 }
 
 func (m *Machine) doOpMulAssign() {
 	s := m.PopStmt().(*AssignStmt)
 	rv := m.PopValue() // only one.
-	lv := m.PopForAssign(s.Lhs[0])
+	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
 		assertTypes(lv.T, rv.T)
 	}
 
 	// lv *= rv
-	mulAssign(lv, rv)
+	mulAssign(lv.TypedValue, rv)
 }
 
 func (m *Machine) doOpQuoAssign() {
 	s := m.PopStmt().(*AssignStmt)
 	rv := m.PopValue() // only one.
-	lv := m.PopForAssign(s.Lhs[0])
+	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
 		assertTypes(lv.T, rv.T)
 	}
 
 	// lv /= rv
-	quoAssign(lv, rv)
+	quoAssign(lv.TypedValue, rv)
 }
 
 func (m *Machine) doOpRemAssign() {
 	s := m.PopStmt().(*AssignStmt)
 	rv := m.PopValue() // only one.
-	lv := m.PopForAssign(s.Lhs[0])
+	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
 		assertTypes(lv.T, rv.T)
 	}
 
 	// lv %= rv
-	remAssign(lv, rv)
+	remAssign(lv.TypedValue, rv)
 }
 
 func (m *Machine) doOpBandAssign() {
 	s := m.PopStmt().(*AssignStmt)
 	rv := m.PopValue() // only one.
-	lv := m.PopForAssign(s.Lhs[0])
+	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
 		assertTypes(lv.T, rv.T)
 	}
 
 	// lv &= rv
-	bandAssign(lv, rv)
+	bandAssign(lv.TypedValue, rv)
 }
 
 func (m *Machine) doOpBandnAssign() {
 	s := m.PopStmt().(*AssignStmt)
 	rv := m.PopValue() // only one.
-	lv := m.PopForAssign(s.Lhs[0])
+	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
 		assertTypes(lv.T, rv.T)
 	}
 
 	// lv &^= rv
-	bandnAssign(lv, rv)
+	bandnAssign(lv.TypedValue, rv)
 }
 
 func (m *Machine) doOpBorAssign() {
 	s := m.PopStmt().(*AssignStmt)
 	rv := m.PopValue() // only one.
-	lv := m.PopForAssign(s.Lhs[0])
+	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
 		assertTypes(lv.T, rv.T)
 	}
 
 	// lv |= rv
-	borAssign(lv, rv)
+	borAssign(lv.TypedValue, rv)
 }
 
 func (m *Machine) doOpXorAssign() {
 	s := m.PopStmt().(*AssignStmt)
 	rv := m.PopValue() // only one.
-	lv := m.PopForAssign(s.Lhs[0])
+	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
 		assertTypes(lv.T, rv.T)
 	}
 
 	// lv ^= rv
-	xorAssign(lv, rv)
+	xorAssign(lv.TypedValue, rv)
 }
 
 func (m *Machine) doOpShlAssign() {

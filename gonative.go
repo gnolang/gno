@@ -226,13 +226,13 @@ func go2GnoValue(rv reflect.Value) (tv TypedValue) {
 	return
 }
 
-// Given rv which may have been updated by a go-native function, and the
-// corresponding (original) input value tv, scan for changes and update tv
-// recursively as needed.
-// An additional side effect is that uninitialized input values become
-// initialized.
-// Due to limitations of Go 1.15 reflection, any child Gno declared types
-// cannot change types.
+// Given rv which may have been updated by a go-native
+// function, and the corresponding (original) input value tv,
+// scan for changes and update tv recursively as needed.
+// An additional side effect is that uninitialized input values
+// become initialized.  Due to limitations of Go 1.15
+// reflection, any child Gno declared types cannot change
+// types.
 func go2GnoValueUpdate(lvl int, tv *TypedValue, rv reflect.Value) {
 	// Special case if native type:
 	if _, ok := tv.T.(*nativeType); ok {

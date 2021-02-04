@@ -18,15 +18,15 @@ func (m *Machine) doOpEval() {
 		m.PopExpr()
 		if nx.Path.Depth == 0 {
 			// Name is in uverse (global).
-			gv := Uverse().GetValueRefAt(nx.Path)
-			m.PushValue(*gv)
+			gv := Uverse().GetPointerTo(nx.Path)
+			m.PushValue(gv.Deref())
 			return
 		} else {
 			// Get value from scope.
 			lb := m.LastBlock()
 			// Push value, done.
-			tv := lb.GetValueRefAt(nx.Path)
-			m.PushValue(*tv)
+			ptr := lb.GetPointerTo(nx.Path)
+			m.PushValue(ptr.Deref())
 			return
 		}
 	}
@@ -149,7 +149,7 @@ func (m *Machine) doOpEval() {
 		// continuation
 		m.PushOp(OpRef)
 		// evaluate x
-		m.PushForAssign(x.X)
+		m.PushForPointer(x.X)
 	case *UnaryExpr:
 		// continuation
 		op := word2UnaryOp(x.Op)

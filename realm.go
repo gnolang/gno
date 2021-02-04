@@ -73,106 +73,77 @@ func (rlm *Realm) SetLogRealmOps(enabled bool) {
 //----------------------------------------
 // ownership hooks
 
-// object co attached to po
-func (rlm *Realm) DidAttachTo(co, po Object) {
+// po's old value is xo, will become co.
+// po, xo, and co may each be nil.
+// if rlm or po is nil, do nothing.
+// xo or co is nil if the element value is undefined or has no
+// associated object.
+func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	if debug {
-		if po == nil {
-			panic("should not happen")
-		}
-		if co.GetIsDeleted() {
+		if co != nil && co.GetIsDeleted() {
 			panic("cannot attach a deleted object")
 		}
-		if po.GetIsDeleted() {
+		if po != nil && po.GetIsDeleted() {
 			panic("cannot attach to a deleted object")
 		}
 	}
-	co.IncRefCount()
-	if !co.GetIsOwned() {
-		co.SetOwner(po)
-		if po.GetIsReal() {
+	if po == nil {
+		return
+	}
+	if co != nil {
+		co.IncRefCount()
+	}
+	if xo != nil {
+		xo.DecRefCount()
+	}
+	if !po.GetIsReal() {
+		// Object may become new-real after tx if it is
+		// indirectly owned by something real.  We don't
+		// know yet, but we will mark it later when we do
+		// after assigning it an ObjectID()..
+		//
+		// Also, if po isn't real, don't bother to mark it
+		// dirty, since it will already become marked as
+		// new-real and get saved anyways if it is  real
+		// post tx.
+		return // do nothing.
+	}
+	rlm.MarkDirty(po)
+	if co != nil {
+		if !co.GetIsOwned() {
+			co.SetOwner(po)
 			rlm.MarkNewReal(co)
-			rlm.MarkDirty(po)
+		} else if co.GetOwner() == po {
+			// already owned by po but mark co as dirty (refcount).
+			// e.g. `a.bar = a.foo`
+			if co.GetIsReal() {
+				rlm.MarkDirty(co) // since refcount incremented
+			}
 		} else {
-			// Object may become new-real after tx if it is
-			// indirectly owned by something real.  We don't
-			// know yet, but we will mark it later when we do
-			// after assigning it an ObjectID()..
-			//
-			// Also, if po isn't real, don't bother to mark it
-			// dirty, since it will already become marked as
-			// new-real and get saved anyways if it is  real
-			// post tx.
-		}
-	} else if co.GetOwner() == po {
-		// already owned by po but mark co as dirty (refcount).
-		// e.g. `a.bar = a.foo`
-		if co.GetIsReal() {
-			rlm.MarkDirty(co) // since refcount incremented
-		}
-		if po.GetIsReal() {
-			rlm.MarkDirty(po) // since elem changed
-		}
-	} else {
-		// Owner conflict allowed within a transaction.
-		// e.g. `b.foo = a.foo; a.foo = nil`
-		// Conflicts will cause a panic upon transaction
-		// finalization, when owner's owned value doesn't match
-		// co's Owner.
-		co.SetOwner(po)
-		if co.GetIsReal() {
-			rlm.MarkDirty(co) // since refcount incremented
-		}
-		// NOTE: This is wrong, must call DidDetachFrom
-		// separately; attaching an object does not immediately
-		// detach it from the previous owner.  The previous
-		// reference must be overwritten, or the previous owner
-		// must become garbage collected; and DidDetachFrom
-		// gets called therefrom..
-		/*
-			ex := co.GetOwner()
-			if ex.GetIsReal() {
-				rlm.MarkDirty(ex) // ?!!
-			}
-		*/
-		if po.GetIsReal() {
-			rlm.MarkDirty(po) // since elem changed
-		}
-	}
-}
-
-func (rlm *Realm) DidUpdate(oo Object) {
-	if debug {
-		if oo.GetIsDeleted() {
-			panic("cannot update to a deleted object")
-		}
-	}
-	if oo.GetIsReal() {
-		rlm.MarkDirty(oo)
-	}
-}
-
-func (rlm *Realm) DidDetachFrom(co, po Object) {
-	if debug {
-		if co.GetOwner() == nil {
-			panic("should not happen")
-		}
-		if co.GetIsDeleted() {
-			panic("cannot delete a deleted object")
-		}
-	}
-	ex := co.GetOwner()
-	if ex.GetIsReal() {
-		rlm.MarkDirty(ex)
-	}
-	if co.DecRefCount() == 0 {
-		if debug {
-			if co.GetOwner() != po {
-				panic("unexpected owner for deleted object")
+			// Owner conflict allowed within a transaction.
+			// e.g. `b.foo = a.foo; a.foo = nil`
+			// Conflicts will cause a panic upon transaction
+			// finalization, when owner's owned value doesn't match
+			// co's Owner.
+			// Corrolarily, there is no need to mark the previous
+			// owner as dirty here.
+			co.SetOwner(po)
+			if co.GetIsReal() {
+				rlm.MarkDirty(co) // since refcount incremented
 			}
 		}
-		co.SetOwner(nil)
-		if co.GetIsNewReal() || co.GetIsReal() {
-			rlm.MarkDeleted(co)
+	}
+	if xo != nil {
+		if xo.GetRefCount() == 0 {
+			if debug {
+				if xo.GetOwner() != po {
+					panic("unexpected owner for deleted object")
+				}
+			}
+			// xo.Owner becomes previous owner.
+			if xo.GetIsNewReal() || xo.GetIsReal() {
+				rlm.MarkDeleted(xo)
+			}
 		}
 	}
 }
@@ -194,6 +165,11 @@ func (rlm *Realm) MarkNewReal(oo Object) {
 	} else {
 		oo.SetIsNewReal(true)
 	}
+	if rlm == nil {
+		return
+	}
+	//----------------------------------------
+	// rlm != nil
 	// append to .created
 	if rlm.created == nil {
 		rlm.created = make([]Object, 0, 256)
@@ -213,6 +189,11 @@ func (rlm *Realm) MarkDirty(oo Object) {
 	} else {
 		oo.SetIsDirty(true)
 	}
+	if rlm == nil {
+		return
+	}
+	//----------------------------------------
+	// rlm != nil
 	// append to .updated
 	if rlm.updated == nil {
 		rlm.updated = make([]Object, 0, 256)
@@ -230,6 +211,11 @@ func (rlm *Realm) MarkDeleted(oo Object) {
 		}
 	}
 	oo.SetIsDeleted(true)
+	if rlm == nil {
+		return
+	}
+	//----------------------------------------
+	// rlm != nil
 	// append to .deleted
 	if rlm.deleted == nil {
 		rlm.deleted = make([]Object, 0, 256)
@@ -387,9 +373,11 @@ func (rlm *Realm) SaveUpdatedObject(oo Object, vi *ValueImage) {
 }
 
 func (rlm *Realm) maybeSaveObject(oo Object, vi *ValueImage) {
-	if oo.GetObjectID().IsZero() {
-		// This sets oo.IsNewReal if not already set.
-		rlm.AssignObjectID(oo)
+	if debug {
+		if oo.GetObjectID().IsZero() {
+			// object should already have ID set.
+			panic("should not happen")
+		}
 	}
 	if oo.GetIsNewReal() {
 		rlm.SaveCreatedObject(oo, vi)

@@ -332,6 +332,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 				// specific and general cases
 				switch n.Name {
 				case "_":
+					n.Path.Name = "_"
 					return n, TRANS_CONTINUE
 				case "iota":
 					pd := lastDecl(ns)
@@ -1526,7 +1527,7 @@ func tryPredefine(imp Importer, last BlockNode, d Decl) (un Name) {
 			case *NameExpr:
 				if idx, ok := UverseNode().GetLocalIndex(tx.Name); ok {
 					// uverse name
-					tv := Uverse().GetValueRefAt(NewValuePath(tx.Name, 0, idx))
+					tv := Uverse().GetPointerTo(NewValuePath(tx.Name, 0, idx))
 					t = tv.GetType()
 				} else if tv := last.GetValueRef(tx.Name); tv != nil {
 					// block name

@@ -367,7 +367,8 @@ func (m *Machine) runDeclaration(d Decl) {
 			tv.T = t
 			tv.V = defaultValue(t)
 		}
-		last.GetValueRefAtForAssign2(m.Realm, d.Path).Assign(tv)
+		ptr := last.GetPointerTo(d.Path)
+		ptr.Assign2(m.Realm, tv)
 	case *TypeDecl:
 		var t Type
 		if false {
@@ -402,10 +403,9 @@ func (m *Machine) runDeclaration(d Decl) {
 			// (from preprocessor)
 			t = d.Type.(*constTypeExpr).Type
 		}
-
-		// set type.
-		last.GetValueRefAt(d.Path).Assign(asValue(t))
-
+		tv := asValue(t)
+		ptr := last.GetPointerTo(d.Path)
+		ptr.Assign2(m.Realm, tv)
 	default:
 		// Do nothing for package constants.
 	}
@@ -1081,7 +1081,7 @@ func (m *Machine) LastFrame() *Frame {
 	return &m.Frames[len(m.Frames)-1]
 }
 
-func (m *Machine) PushForAssign(lx Expr) {
+func (m *Machine) PushForPointer(lx Expr) {
 	switch lx := lx.(type) {
 	case *NameExpr:
 		// no Lhs eval needed.
@@ -1111,37 +1111,29 @@ func (m *Machine) PushForAssign(lx Expr) {
 	}
 }
 
-func (m *Machine) PopForAssign(lx Expr) *TypedValue {
+func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	switch lx := lx.(type) {
 	case *NameExpr:
-		if lx.Path.IsZero() {
-			if debug {
-				if lx.Name != "_" {
-					panic(fmt.Sprintf(
-						"zero value path is reserved for \"_\", but got %s",
-						lx.Name))
-				}
-			}
-			return m.LastBlock().GetBlankRef()
-		} else {
-			return m.LastBlock().GetValueRefAt(lx.Path)
-		}
+		lb := m.LastBlock()
+		return lb.GetPointerTo(lx.Path)
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()
 		// NOTE: cannot get reference &x[key];
 		// for maps, an empty slot is created.
-		return xv.GetValueRefAtIndexForAssign(iv)
+		return xv.GetPointerAtIndex(iv)
 	case *SelectorExpr:
 		xv := m.PopValue()
-		return xv.GetValueRefAtForAssign(lx.Path)
+		return xv.GetPointerTo(lx.Path)
 	case *StarExpr:
 		ptr := m.PopValue().V.(PointerValue)
-		return ptr.TypedValue
+		return ptr
 	case *CompositeLitExpr: // for *RefExpr
-		tv := m.PopValue()
-		tv2 := *tv
-		return &tv2 // heap alloc
+		tv := *m.PopValue()
+		return PointerValue{
+			TypedValue: &tv, // heap alloc
+			Base:       nil,
+		}
 	default:
 		panic("should not happen")
 	}

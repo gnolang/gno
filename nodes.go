@@ -1141,7 +1141,7 @@ func (sb *StaticBlock) GetStaticTypeOf(n Name) Type {
 
 // Implements BlockNode.
 func (sb *StaticBlock) GetStaticTypeOfAt(path ValuePath) Type {
-	return sb.Block.GetValueRefAt(path).T
+	return sb.Block.GetPointerTo(path).T
 }
 
 // Implements BlockNode.

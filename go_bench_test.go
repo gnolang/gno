@@ -297,3 +297,123 @@ func BenchmarkReflectTypeOf(b *testing.B) {
 	}
 	fmt.Println(x, rt)
 }
+
+func BenchmarkInterfaceEquality(b *testing.B) {
+	ctr := 0
+	var x interface{}
+	var y interface{}
+	for i := 0; i < b.N; i++ {
+		if x == y {
+			ctr++
+		}
+	}
+	fmt.Println(ctr)
+}
+
+func BenchmarkPointerEquality(b *testing.B) {
+	ctr := 0
+	a := 1
+	c := 2
+	x := &a
+	y := &c
+	for i := 0; i < b.N; i++ {
+		if x == y {
+			ctr++
+		}
+	}
+	fmt.Println(ctr)
+}
+
+func BenchmarkPointerDerefEquality(b *testing.B) {
+	ctr := 0
+	a := 1
+	c := 2
+	x := &a
+	y := &c
+	for i := 0; i < b.N; i++ {
+		if *x == *y {
+			ctr++
+		}
+	}
+	fmt.Println(ctr)
+}
+
+func BenchmarkArrayEquality(b *testing.B) {
+	b.Run("ArrayEquality[1]", func(b *testing.B) {
+		ctr := 0
+		x := [1]byte{0x00}
+		y := [1]byte{0x00}
+		for i := 0; i < b.N; i++ {
+			if x == y {
+				ctr++
+			}
+		}
+		fmt.Println(ctr)
+	})
+	b.Run("ArrayEquality[8]", func(b *testing.B) {
+		ctr := 0
+		x := [8]byte{}
+		y := [8]byte{}
+		for i := 0; i < b.N; i++ {
+			if x == y {
+				ctr++
+			}
+		}
+		fmt.Println(ctr)
+	})
+	b.Run("ArrayEquality[16]", func(b *testing.B) {
+		ctr := 0
+		x := [16]byte{}
+		y := [16]byte{}
+		for i := 0; i < b.N; i++ {
+			if x == y {
+				ctr++
+			}
+		}
+		fmt.Println(ctr)
+	})
+	b.Run("ArrayEquality[20]", func(b *testing.B) {
+		ctr := 0
+		x := [20]byte{}
+		y := [20]byte{}
+		for i := 0; i < b.N; i++ {
+			if x == y {
+				ctr++
+			}
+		}
+		fmt.Println(ctr)
+	})
+	b.Run("ArrayEquality[32]", func(b *testing.B) {
+		ctr := 0
+		x := [32]byte{}
+		y := [32]byte{}
+		for i := 0; i < b.N; i++ {
+			if x == y {
+				ctr++
+			}
+		}
+		fmt.Println(ctr)
+	})
+	b.Run("ArrayEquality[64]", func(b *testing.B) {
+		ctr := 0
+		x := [64]byte{}
+		y := [64]byte{}
+		for i := 0; i < b.N; i++ {
+			if x == y {
+				ctr++
+			}
+		}
+		fmt.Println(ctr)
+	})
+	b.Run("ArrayEquality[256]", func(b *testing.B) {
+		ctr := 0
+		x := [256]byte{}
+		y := [256]byte{}
+		for i := 0; i < b.N; i++ {
+			if x == y {
+				ctr++
+			}
+		}
+		fmt.Println(ctr)
+	})
+}

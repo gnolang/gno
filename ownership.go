@@ -28,6 +28,8 @@ func (oid ObjectID) Bytes() []byte {
 	return bz
 }
 
+// TODO: make faster by making RealmID a pointer
+// and enforcing that the value of RealmID is never zero.
 func (oid ObjectID) IsZero() bool {
 	if debug {
 		if oid.RealmID.IsZero() && oid.Ordinal != 0 {
@@ -210,4 +212,44 @@ func (oi *ObjectInfo) GetIsDeleted() bool {
 
 func (oi *ObjectInfo) SetIsDeleted(x bool) {
 	oi.isDirty = x
+}
+
+// Returns the value as an object if it is an object,
+// or is a pointer or slice of an object.
+func (tv *TypedValue) GetObject() Object {
+	switch cv := tv.V.(type) {
+	case PointerValue:
+		return cv.Base
+	case *ArrayValue:
+		return cv
+	case *SliceValue:
+		if cv.Base == nil {
+			// otherwise `return cv.Base` returns a typed-nil.
+			return nil
+		} else {
+			return cv.Base
+		}
+	case *StructValue:
+		return cv
+	case *FuncValue:
+		return nil
+	case *MapValue:
+		return cv
+	case BoundMethodValue:
+		rov, ok := cv.Receiver.(Object)
+		if ok {
+			return rov
+		} else {
+			return nil
+		}
+	case nativeValue:
+		panic("native not compatible with realm logic")
+	case blockValue:
+		if cv.Block == nil {
+			panic("should not happen")
+		}
+		return cv.Block
+	default:
+		return nil
+	}
 }

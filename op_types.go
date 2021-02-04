@@ -169,12 +169,12 @@ func (m *Machine) doOpTypeOf() {
 		// NOTE: duplicated from doOpEval
 		if x.Path.Depth == 0 {
 			// Name is in uverse (global).
-			gv := Uverse().GetValueRefAt(x.Path)
+			gv := Uverse().GetPointerTo(x.Path)
 			m.PushValue(asValue(gv.T))
 		} else {
 			// Get value from scope.
 			lb := m.LastBlock()
-			tv := lb.GetValueRefAt(x.Path)
+			tv := lb.GetPointerTo(x.Path)
 			m.PushValue(asValue(tv.T))
 		}
 	case *BasicLitExpr:

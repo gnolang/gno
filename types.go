@@ -57,7 +57,6 @@ func (*DeclaredType) assertType()  {}
 func (*PackageType) assertType()   {}
 func (*ChanType) assertType()      {}
 func (*nativeType) assertType()    {}
-func (escapeType) assertType()     {}
 func (blockType) assertType()      {}
 
 //----------------------------------------
@@ -1061,38 +1060,6 @@ func (nt *nativeType) GnoType() Type {
 		nt.gnoType = go2GnoType2(nt.Type, false)
 	}
 	return nt.gnoType
-}
-
-//----------------------------------------
-// escapeType
-//
-// escapeType is a placeholder type that refers to a
-// "heap-escaped" block value.  Upon escaping, the block value
-// is replaced with this escape type and escape value which
-// holds the escaped object's id. Escape values only exist
-// within *Block.Values (for now).
-//
-// NOTE: Blocks must "weakly owns" objects for closures to
-// become persisted, but must give up ownership upon escaping.
-// This will be implemented in this project with non-owning
-// blocks and special logic for block persistence.
-
-type escapeType struct{} // no data
-
-func (ot escapeType) Kind() Kind {
-	panic("escapeType is a placeholder")
-}
-
-func (ot escapeType) TypeID() TypeID {
-	panic("escapeType is a placeholder")
-}
-
-func (ot escapeType) String() string {
-	return "<escaped-object>"
-}
-
-func (ot escapeType) Elem() Type {
-	panic("escapeType is a placeholder")
 }
 
 //----------------------------------------

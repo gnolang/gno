@@ -32,7 +32,6 @@ func (BoundMethodValue) assertValue() {}
 func (TypeValue) assertValue()        {}
 func (*PackageValue) assertValue()    {}
 func (nativeValue) assertValue()      {}
-func (escapeValue) assertValue()      {}
 func (blockValue) assertValue()       {}
 
 var _ Value = StringValue("")
@@ -48,7 +47,6 @@ var _ Value = BoundMethodValue{}
 var _ Value = TypeValue{}
 var _ Value = &PackageValue{}
 var _ Value = nativeValue{}
-var _ Value = escapeValue{}
 var _ Value = blockValue{}
 
 type StringValue string
@@ -62,7 +60,8 @@ func (bv BigintValue) Copy() BigintValue {
 }
 
 type DataByteValue struct {
-	Ref *byte
+	Ref      *byte
+	ElemType Type // is Uint8Kind.
 }
 
 // Base is set if the pointer refers to an array index or
@@ -72,10 +71,36 @@ type DataByteValue struct {
 // have nil Base.
 // A pointer to a block var may end up pointing to an escape
 // value after a block var escapes "to the heap".
+// *(PointerValue.TypedValue) must have already become
+// initialized, namely T set if a typed-nil.
 type PointerValue struct {
-	*TypedValue             // escape val if pointer to var.
-	Base        *TypedValue // array/struct/block.
-	Index       int         // list/fields/values index.
+	*TypedValue        // escape val if pointer to var.
+	Base        Object // array/struct/block.
+	Index       int    // list/fields/values index.
+}
+
+func (pv PointerValue) Assign2(rlm *Realm, tv2 TypedValue) {
+	oo1 := pv.GetObject()
+	pv.Assign(tv2)
+	oo2 := pv.GetObject()
+	rlm.DidUpdate(pv.Base, oo1, oo2)
+}
+
+func (pv PointerValue) Deref() (tv TypedValue) {
+	if pv.T == DataByteType {
+		dbv := pv.V.(DataByteValue)
+		tv.T = dbv.ElemType
+		tv.SetUint8(*dbv.Ref)
+		return
+	} else if nv, ok := pv.V.(*nativeValue); ok {
+		rv := nv.Value
+		tv.T = &nativeType{Type: rv.Type()}
+		tv.V = &nativeValue{Value: rv}
+		return
+	} else {
+		tv = *pv.TypedValue
+		return
+	}
 }
 
 type ArrayValue struct {
@@ -101,6 +126,9 @@ func (av *ArrayValue) GetLength() int {
 }
 
 func (av *ArrayValue) Copy() *ArrayValue {
+	if av.GetRefCount() == 0 {
+		return av
+	}
 	if av.Data == nil {
 		list := make([]TypedValue, len(av.List))
 		copy(list, av.List)
@@ -140,7 +168,7 @@ type StructValue struct {
 // If value is undefined at path, sets default value before
 // returning.  TODO handle unexported fields in debug,
 // and also ensure in the preprocessor.
-func (sv *StructValue) GetValueRefAt2(path ValuePath, st *StructType) *TypedValue {
+func (sv *StructValue) GetPointerTo2(st *StructType, path ValuePath) PointerValue {
 	if debug {
 		if path.Depth != 1 {
 			panic(fmt.Sprintf(
@@ -161,10 +189,17 @@ func (sv *StructValue) GetValueRefAt2(path ValuePath, st *StructType) *TypedValu
 			}
 		}
 	}
-	return fv
+	return PointerValue{
+		TypedValue: fv,
+		Base:       sv,
+		Index:      int(path.Index),
+	}
 }
 
 func (sv *StructValue) Copy() *StructValue {
+	if sv.GetRefCount() == 0 {
+		return sv
+	}
 	fields := make([]TypedValue, len(sv.Fields))
 	copy(fields, sv.Fields)
 	return &StructValue{
@@ -292,21 +327,31 @@ func (mv *MapValue) GetLength() int {
 	return mv.List.Size // panics if uninitialized
 }
 
-// Caller must write to the result immediately with a star-expression
-// rather than .Assign().
-func (mv *MapValue) GetValueRefForKeyForAssign(key *TypedValue) *TypedValue {
+// NOTE: Go doesn't support referencing into maps, and maybe
+// Gno will, but here we just use this method signature as we
+// do for structs and arrays for assigning new entries.  If key
+// doesn't exist, a new slot is created.
+func (mv *MapValue) GetPointerForKey(key *TypedValue) PointerValue {
 	kmk := key.ComputeMapKey(false)
 	if mli, ok := mv.vmap[kmk]; ok {
-		// clear slot for assignment.
-		mli.Value = TypedValue{}
-		return &mli.Value
+		return PointerValue{
+			TypedValue: &mli.Value,
+			Base:       mv,
+			Index:      -1, // no index value.
+		}
 	} else {
 		mli := mv.List.Append(*key)
 		mv.vmap[kmk] = mli
-		return &mli.Value
+		return PointerValue{
+			TypedValue: &mli.Value,
+			Base:       mv,
+			Index:      -1, // no index value.
+		}
 	}
 }
 
+// Like GetPointerForKey, but does not create a slot if key
+// doesn't exist.
 func (mv *MapValue) GetValueForKey(key *TypedValue) (val TypedValue, ok bool) {
 	kmk := key.ComputeMapKey(false)
 	if mli, exists := mv.vmap[kmk]; exists {
@@ -368,14 +413,11 @@ type nativeValue struct {
 	Value reflect.Value
 }
 
-type escapeValue struct {
-	RemoteID ObjectID
-
-	// Locally cached ref to value referred to by
-	// escapeValue.ID.  This lets previously constructed
-	// PointerValue{} instances quickly resolve to the new
-	// value location.
-	cacheref *TypedValue
+func (nv nativeValue) Copy() nativeValue {
+	nt := nv.Value.Type()
+	nv2 := reflect.New(nt).Elem()
+	nv2.Set(nv.Value)
+	return nativeValue{Value: nv2}
 }
 
 // Only exists as PointerValue.Base.V.
@@ -503,15 +545,19 @@ func (tv TypedValue) Copy() (cp TypedValue) {
 	case *StructValue:
 		cp.T = tv.T
 		cp.V = cv.Copy()
+	case nativeValue:
+		cp.T = tv.T
+		cp.V = cv.Copy()
 	default:
 		cp = tv
 	}
 	return
 }
 
-// Returns varint encoded bytes (and true) for numeric types and arbitrary
-// bytes (and false) for variable-length byte types.  These bytes are used
-// for both value hashes as well as hash key bytes.
+// Returns varint encoded bytes (and true) for numeric types
+// and arbitrary bytes (and false) for variable-length byte
+// types.  These bytes are used for both value hashes as well
+// as hash key bytes.
 func (tv *TypedValue) PrimitiveBytes() (data []byte, varint bool) {
 	switch bt := baseOf(tv.T); bt {
 	case BoolType:
@@ -982,18 +1028,10 @@ func (tv *TypedValue) Assign(tv2 TypedValue) {
 	}
 }
 
-func (tv *TypedValue) GetValueRefAt(path ValuePath) *TypedValue {
-	return tv.getValueRefAt(path, false)
-}
-
-func (tv *TypedValue) GetValueRefAtForAssign(path ValuePath) *TypedValue {
-	return tv.getValueRefAt(path, true)
-}
-
-func (tv *TypedValue) getValueRefAt(path ValuePath, forAssign bool) *TypedValue {
+func (tv *TypedValue) GetPointerTo(path ValuePath) PointerValue {
 	if debug {
 		if tv.IsUndefined() {
-			panic("GetValueRefAt() on undefined value")
+			panic("GetPointerTo() on undefined value")
 		}
 	}
 	t, v := tv.T, tv.V
@@ -1007,13 +1045,16 @@ TYPE_SWITCH:
 				Func:     fv,
 				Receiver: tv.V, // use original v
 			}
-			// TODO: this means all method selectors are slow and incur
-			// extra overhead.  To prevent this extra overhead, CallExpr
-			// evaluation should keep into X and call
-			// *DeclaredType.GetMethodAt() directly.
-			return &TypedValue{
-				T: fv.Type.BoundType(),
-				V: mv,
+			// TODO: this means all method selectors are slow
+			// and incur extra overhead.  To prevent this extra
+			// overhead, CallExpr evaluation should keep into X
+			// and call *DeclaredType.GetMethodAt() directly.
+			return PointerValue{
+				TypedValue: &TypedValue{
+					T: fv.Type.BoundType(),
+					V: mv,
+				},
+				Base: nil, // a bound method is free floating.
 			}
 		} else {
 			// NOTE could work with nested *DeclaredTypes,
@@ -1036,11 +1077,14 @@ TYPE_SWITCH:
 				ct.String()))
 		}
 	case *StructType:
-		return v.(*StructValue).GetValueRefAt2(path, ct)
+		return v.(*StructValue).GetPointerTo2(ct, path)
 	case *TypeType:
 		switch t := v.(TypeValue).Type.(type) {
 		case *DeclaredType:
-			return t.GetValueRefAt(path)
+			return PointerValue{
+				TypedValue: t.GetValueRefAt(path),
+				Base:       nil, // TODO: make TypeValue an object.
+			}
 		case *nativeType:
 			rt := t.Type
 			mt, ok := rt.MethodByName(string(path.Name))
@@ -1053,14 +1097,16 @@ TYPE_SWITCH:
 				panic("unknown native method selector")
 			}
 			mtv := go2GnoValue(mt.Func)
-			return &mtv // heap alloc
+			return PointerValue{
+				TypedValue: &mtv, // heap alloc
+				Base:       nil,
+			}
 		default:
 			panic("unexpected selector base typeval.")
 		}
 	case *PackageType:
 		pv := v.(*PackageValue)
-		// XXX mark with realm.
-		return pv.GetValueRefAt(path)
+		return pv.GetPointerTo(path)
 	case *nativeType:
 		// Special case if tv.T.(PointerType):
 		// we may need to treat this as a native pointer
@@ -1082,29 +1128,24 @@ TYPE_SWITCH:
 			fv = rv.FieldByName(string(path.Name))
 		}
 		if fv.IsValid() {
-			if forAssign {
-				ft := fv.Type()
-				return &TypedValue{ // heap alloc
-					T: &nativeType{Type: ft},
+			return PointerValue{
+				TypedValue: &TypedValue{ // heap alloc
+					T: &nativeType{Type: fv.Type()},
 					V: &nativeValue{Value: fv},
-				}
-			} else {
-				ftv := go2GnoValue(fv)
-				return &ftv // heap alloc
+				},
+				Base: nil,
 			}
 		}
 		// Then, try to get method.
 		mv := rv.MethodByName(string(path.Name))
 		if mv.IsValid() {
-			if forAssign {
-				mt := mv.Type()
-				return &TypedValue{ // heap alloc
+			mt := mv.Type()
+			return PointerValue{
+				TypedValue: &TypedValue{ // heap alloc
 					T: &nativeType{Type: mt},
 					V: &nativeValue{Value: mv},
-				}
-			} else {
-				mtv := go2GnoValue(mv)
-				return &mtv // heap alloc
+				},
+				Base: nil,
 			}
 		} else {
 			// If isGnoPtr, try to get method from pointer type.
@@ -1118,9 +1159,12 @@ TYPE_SWITCH:
 			mv := rv.Addr().MethodByName(string(path.Name))
 			if mv.IsValid() {
 				mt := mv.Type()
-				return &TypedValue{ // heap alloc
-					T: &nativeType{Type: mt},
-					V: &nativeValue{Value: mv},
+				return PointerValue{
+					TypedValue: &TypedValue{ // heap alloc
+						T: &nativeType{Type: mt},
+						V: &nativeValue{Value: mv},
+					},
+					Base: nil,
 				}
 			}
 
@@ -1136,16 +1180,15 @@ TYPE_SWITCH:
 }
 
 // Convenience for GetValueAtIndex().
-func (tv *TypedValue) GetValueAtIndexInt(ii int) TypedValue {
+func (tv *TypedValue) GetPointerAtIndexInt(ii int) PointerValue {
 	iv := TypedValue{T: IntType}
 	iv.SetInt(ii)
-	return tv.GetValueAtIndex(&iv)
+	return tv.GetPointerAtIndex(&iv)
 }
 
 // If element value is undefined and the array/slice is not of
 // interfaces, the appropriate type is first set.
-// NOTE: keep in sync with GetValueAtIndexForAssign()
-func (tv *TypedValue) GetValueAtIndex(iv *TypedValue) TypedValue {
+func (tv *TypedValue) GetPointerAtIndex(iv *TypedValue) PointerValue {
 	switch t := baseOf(tv.T).(type) {
 	case PrimitiveType:
 		if t == StringType {
@@ -1159,16 +1202,31 @@ func (tv *TypedValue) GetValueAtIndex(iv *TypedValue) TypedValue {
 		av := tv.V.(*ArrayValue)
 		ii := iv.ConvertGetInt()
 		if av.Data == nil {
-			ev := av.List[ii] // copy, leave av alone
-			if ev.IsUndefined() && t.Elt.Kind() != InterfaceKind {
+			ev := &av.List[ii] // by reference
+			if ev.IsUndefined() &&
+				t.Elt.Kind() != InterfaceKind {
+				// initialize typed-nil element.
 				ev.T = t.Elt
 				ev.V = defaultValue(t.Elt)
 			}
-			return ev
+			return PointerValue{
+				TypedValue: ev,
+				Base:       av,
+				Index:      ii,
+			}
 		} else {
-			tv := TypedValue{T: t.Elt}
-			tv.SetUint8(av.Data[ii])
-			return tv
+			bv := &TypedValue{ // heap alloc
+				T: DataByteType,
+				V: DataByteValue{
+					Ref:      &av.Data[ii],
+					ElemType: t.Elem(),
+				},
+			}
+			return PointerValue{
+				TypedValue: bv,
+				Base:       av,
+				Index:      ii,
+			}
 		}
 	case *SliceType:
 		if tv.V == nil {
@@ -1186,128 +1244,59 @@ func (tv *TypedValue) GetValueAtIndex(iv *TypedValue) TypedValue {
 				ii, sv.Length))
 		}
 		if sv.Base.Data == nil {
-			ev := sv.Base.List[sv.Offset+ii] // copy, leave sv alone
-			if ev.IsUndefined() && t.Elt.Kind() != InterfaceKind {
+			ev := &sv.Base.List[sv.Offset+ii] // by reference
+			if ev.IsUndefined() &&
+				t.Elt.Kind() != InterfaceKind {
+				// initialize typed-nil element.
 				ev.T = t.Elt
 				ev.V = defaultValue(t.Elt)
 			}
-			return ev
+			return PointerValue{
+				TypedValue: ev,
+				Base:       sv.Base,
+				Index:      sv.Offset + ii,
+			}
 		} else {
-			tv := TypedValue{T: t.Elt}
-			tv.SetUint8(sv.Base.Data[sv.Offset+ii])
-			return tv
+			bv := &TypedValue{ // by reference
+				T: DataByteType,
+				V: DataByteValue{
+					Ref:      &sv.Base.Data[sv.Offset+ii],
+					ElemType: t.Elem(),
+				},
+			}
+			return PointerValue{
+				TypedValue: bv,
+				Base:       sv.Base,
+				Index:      sv.Offset + ii,
+			}
 		}
 	case *MapType:
 		if tv.V == nil {
 			panic("uninitialized map index")
 		}
 		mv := tv.V.(*MapValue)
+		pv := mv.GetPointerForKey(iv)
 		// XXX implement x, ok := m[idx]
-		val, ok := mv.GetValueForKey(iv)
-		if !ok {
-			kt := baseOf(tv.T).(*MapType).Key
-			if kt.Kind() != InterfaceKind {
-				val.T = kt // typed-nil
+		if pv.TypedValue.IsUndefined() {
+			vt := baseOf(tv.T).(*MapType).Value
+			if vt.Kind() != InterfaceKind {
+				// initialize typed-nil key.
+				pv.TypedValue.T = vt
 			}
 		}
-		return val
+		return pv
 	case *nativeType:
 		rv := tv.V.(*nativeValue).Value
 		ii := iv.ConvertGetInt()
 		ev := rv.Index(ii)
 		etv := go2GnoValue(ev)
-		return etv
+		return PointerValue{
+			TypedValue: &etv,
+			Base:       nil,
+		}
 	default:
 		panic(fmt.Sprintf(
 			"unexpected index base type %s",
-			tv.T.String()))
-	}
-}
-
-// Like GetValueAtIndex(), except for assigning to or for
-// creating a pointer reference to.  For the latter case,
-// the value gets initialized via defaultValue().
-// NOTE: keep in sync with GetValueAtIndex()
-func (tv *TypedValue) GetValueRefAtIndexForAssign(iv *TypedValue) *TypedValue {
-	switch t := baseOf(tv.T).(type) {
-	case PrimitiveType:
-		if t == StringType {
-			panic("string value not mutable")
-		} else {
-			panic(fmt.Sprintf(
-				"primitive type %s not mutable",
-				tv.T.String()))
-		}
-	case *ArrayType:
-		if tv.V == nil {
-			panic("unexpected uninitialized array value")
-		}
-		av := tv.V.(*ArrayValue)
-		ii := iv.ConvertGetInt()
-		if av.Data == nil {
-			ev := &(tv.V.(*ArrayValue).List[ii])
-			// in case reference escapes via PointerKind,
-			// set type if array elements are of concrete type.
-			if ev.IsUndefined() && t.Elt.Kind() != InterfaceKind {
-				ev.T = t.Elt
-				ev.V = defaultValue(t.Elt)
-			}
-			return ev
-		} else {
-			return &TypedValue{ // heap allocation
-				T: DataByteType,
-				V: DataByteValue{
-					Ref: &(tv.V.(*ArrayValue).Data[ii]),
-				},
-			}
-		}
-	case *SliceType:
-		if tv.V == nil {
-			panic("nil slice index (out of bounds)")
-		}
-		sv := tv.V.(*SliceValue)
-		ii := iv.ConvertGetInt()
-		// Necessary run-time slice bounds check
-		if ii < 0 {
-			panic(fmt.Sprintf(
-				"slice index out of bounds: %d", ii))
-		} else if sv.Length <= ii {
-			panic(fmt.Sprintf(
-				"slice index out of bounds: %d (len=%d)",
-				ii, sv.Length))
-		}
-		if sv.Base.Data == nil {
-			ev := &sv.Base.List[sv.Offset+ii]
-			// in case reference escapes via PointerKind,
-			// set type if array elements are of concrete type.
-			if ev.IsUndefined() && t.Elt.Kind() != InterfaceKind {
-				ev.T = t.Elt
-				ev.V = defaultValue(t.Elt)
-			}
-			return ev
-		} else {
-			return &TypedValue{ // heap allocation
-				T: DataByteType,
-				V: DataByteValue{
-					Ref: &sv.Base.Data[sv.Offset+ii],
-				},
-			}
-		}
-	case *MapType:
-		if tv.V == nil {
-			panic("uninitialized map index")
-		}
-		mv := tv.V.(*MapValue)
-		return mv.GetValueRefForKeyForAssign(iv)
-	case *nativeType:
-		rv := tv.V.(*nativeValue).Value
-		ii := iv.ConvertGetInt()
-		ev := rv.Index(ii)
-		etv := go2GnoValue(ev)
-		return &etv // heap allocation
-	default:
-		panic(fmt.Sprintf(
-			"unexpected index base type %s for assign",
 			tv.T.String()))
 	}
 }
@@ -1558,6 +1547,12 @@ TYPE_SWITCH:
 // future, the same mechanism may be used to support
 // inheritance or prototype-like functionality for structs
 // and packages.)
+//
+// When a block would otherwise become gc'd because it is no
+// longer used except for escaped reference pointers to
+// variables, and there are no closures that reference the
+// block, the remaining references to objects become detached
+// from the block and become ownerless.
 
 type Block struct {
 	ObjectInfo // for closures
@@ -1607,9 +1602,21 @@ func (b *Block) StringIndented(indent string) string {
 	return strings.Join(lines, "\n")
 }
 
-// Returns a reference to the value.
-// TODO try returning by value?
-func (b *Block) GetValueRefAt(path ValuePath) (tv *TypedValue) {
+func (b *Block) GetPointerTo(path ValuePath) PointerValue {
+	if path.IsZero() {
+		if debug {
+			if path.Name != "_" {
+				panic(fmt.Sprintf(
+					"zero value path is reserved for \"_\", but got %s",
+					path.Name))
+			}
+		}
+		return PointerValue{
+			TypedValue: b.GetBlankRef(),
+			Base:       b,
+			Index:      -1,
+		}
+	}
 	// NOTE: For most block paths, Depth starts at 1, but
 	// the generation for uverse is 0.  If path.Depth is
 	// 0, it implies that b == uverse, and the condition
@@ -1621,28 +1628,11 @@ LOOP:
 		i++
 		goto LOOP
 	}
-	return &b.Values[path.Index]
-}
-
-// Returns a reference to the value for assigning.
-// XXX use this everywhere necessary.
-func (b *Block) GetValueRefAtForAssign2(rlm *Realm, path ValuePath) (tv *TypedValue) {
-	// NOTE: For most block paths, Depth starts at 1, but the
-	// generation for uverse is 0.  If path.Depth is 0, it
-	// implies that b == uverse, and loop will break.
-	i := uint16(1)
-LOOP:
-	if i < path.Depth {
-		b = b.Parent
-		i++
-		goto LOOP
+	return PointerValue{
+		TypedValue: &b.Values[path.Index],
+		Base:       b,
+		Index:      int(path.Index),
 	}
-	if rlm != nil {
-		// NOTE: b is maybe no longer the block we started
-		// out with. This is a key security concern.
-		rlm.DidUpdate(b)
-	}
-	return &b.Values[path.Index]
 }
 
 // Result is used has lhs for any assignments to "_".
@@ -1651,23 +1641,23 @@ func (b *Block) GetBlankRef() *TypedValue {
 }
 
 // Convenience for implementing nativeBody functions.
-func (b *Block) GetParams1() (tv1 *TypedValue) {
-	tv1 = b.GetValueRefAt(ValuePath{Depth: 1, Index: 0})
+func (b *Block) GetParams1() (pv1 PointerValue) {
+	pv1 = b.GetPointerTo(ValuePath{Depth: 1, Index: 0})
 	return
 }
 
 // Convenience for implementing nativeBody functions.
-func (b *Block) GetParams2() (tv1, tv2 *TypedValue) {
-	tv1 = b.GetValueRefAt(ValuePath{Depth: 1, Index: 0})
-	tv2 = b.GetValueRefAt(ValuePath{Depth: 1, Index: 1})
+func (b *Block) GetParams2() (pv1, pv2 PointerValue) {
+	pv1 = b.GetPointerTo(ValuePath{Depth: 1, Index: 0})
+	pv2 = b.GetPointerTo(ValuePath{Depth: 1, Index: 1})
 	return
 }
 
 // Convenience for implementing nativeBody functions.
-func (b *Block) GetParams3() (tv1, tv2, tv3 *TypedValue) {
-	tv1 = b.GetValueRefAt(ValuePath{Depth: 1, Index: 0})
-	tv2 = b.GetValueRefAt(ValuePath{Depth: 1, Index: 1})
-	tv2 = b.GetValueRefAt(ValuePath{Depth: 1, Index: 2})
+func (b *Block) GetParams3() (pv1, pv2, pv3 PointerValue) {
+	pv1 = b.GetPointerTo(ValuePath{Depth: 1, Index: 0})
+	pv2 = b.GetPointerTo(ValuePath{Depth: 1, Index: 1})
+	pv2 = b.GetPointerTo(ValuePath{Depth: 1, Index: 2})
 	return
 }
 

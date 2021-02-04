@@ -412,7 +412,7 @@ func UverseNode() *PackageNode {
 			switch bt := baseOf(xt).(type) {
 			case *SliceType:
 				if vargsl == 1 {
-					lv := vargs.GetValueAtIndexInt(0)
+					lv := vargs.GetPointerAtIndexInt(0).Deref()
 					li := lv.GetInt()
 					list := make([]TypedValue, li)
 					if et := bt.Elem(); et.Kind() == InterfaceKind {
@@ -430,9 +430,9 @@ func UverseNode() *PackageNode {
 					})
 					return
 				} else if vargsl == 2 {
-					lv := vargs.GetValueAtIndexInt(0)
+					lv := vargs.GetPointerAtIndexInt(0).Deref()
 					li := lv.GetInt()
-					cv := vargs.GetValueAtIndexInt(1)
+					cv := vargs.GetPointerAtIndexInt(1).Deref()
 					ci := cv.GetInt()
 					list := make([]TypedValue, li, ci)
 					if et := bt.Elem(); et.Kind() == InterfaceKind {
@@ -492,7 +492,7 @@ func UverseNode() *PackageNode {
 			xvl := xv.GetLength()
 			ss := make([]string, xvl)
 			for i := 0; i < xvl; i++ {
-				ev := xv.GetValueAtIndexInt(i)
+				ev := xv.GetPointerAtIndexInt(i).Deref()
 				ss[i] = printString(&ev)
 			}
 			rs := strings.Join(ss, " ")
@@ -510,7 +510,7 @@ func UverseNode() *PackageNode {
 			xvl := xv.GetLength()
 			ss := make([]string, xvl)
 			for i := 0; i < xvl; i++ {
-				ev := xv.GetValueAtIndexInt(i)
+				ev := xv.GetPointerAtIndexInt(i).Deref()
 				ss[i] = printString(&ev)
 			}
 			rs := strings.Join(ss, " ") + "\n"

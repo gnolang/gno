@@ -131,11 +131,6 @@ func (v nativeValue) String() string {
 	)
 }
 
-func (v escapeValue) String() string {
-	return fmt.Sprintf("<escaped @%X>",
-		v.RemoteID)
-}
-
 func (v blockValue) String() string {
 	return fmt.Sprintf("block(%v)",
 		v.Block)

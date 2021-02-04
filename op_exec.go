@@ -84,35 +84,37 @@ func (m *Machine) doOpExec(op Op) {
 				if ls.ListIndex == 0 {
 					switch rs.Op {
 					case ASSIGN:
-						m.PopForAssign(rs.Key).Assign(iv)
+						m.PopAsPointer(rs.Key).Assign(iv)
 					case DEFINE:
 						knxp := rs.Key.(*NameExpr).Path
-						*m.LastBlock().GetValueRefAt(knxp) = iv
+						ptr := m.LastBlock().GetPointerTo(knxp)
+						ptr.Assign(iv)
 					default:
 						panic("should not happen")
 					}
 				} else {
 					// Already defined, use assign.
-					m.PopForAssign(rs.Key).Assign(iv)
+					m.PopAsPointer(rs.Key).Assign(iv)
 				}
 			}
 			if rs.Value != nil {
 				iv := TypedValue{T: IntType}
 				iv.SetInt(ls.ListIndex)
-				ev := xv.GetValueAtIndex(&iv)
+				ev := xv.GetPointerAtIndex(&iv).Deref()
 				if ls.ListIndex == 0 {
 					switch rs.Op {
 					case ASSIGN:
-						m.PopForAssign(rs.Value).Assign(ev)
+						m.PopAsPointer(rs.Value).Assign(ev)
 					case DEFINE:
 						vnxp := rs.Value.(*NameExpr).Path
-						*m.LastBlock().GetValueRefAt(vnxp) = ev
+						ptr := m.LastBlock().GetPointerTo(vnxp)
+						ptr.Assign(ev)
 					default:
 						panic("should not happen")
 					}
 				} else {
 					// Already defined, use assign.
-					m.PopForAssign(rs.Value).Assign(ev)
+					m.PopAsPointer(rs.Value).Assign(ev)
 				}
 			}
 			ls.BodyIndex++
@@ -133,10 +135,10 @@ func (m *Machine) doOpExec(op Op) {
 						// XXX this is maybe wrong,
 						// don't we re-use parts of base?
 						if rs.Key != nil {
-							m.PushForAssign(rs.Key)
+							m.PushForPointer(rs.Key)
 						}
 						if rs.Value != nil {
-							m.PushForAssign(rs.Value)
+							m.PushForPointer(rs.Value)
 						}
 					case DEFINE:
 						// do nothing
@@ -195,7 +197,7 @@ EXEC_SWITCH:
 			// For each Lhs, push eval operation if needed.
 			for i := len(cs.Lhs) - 1; 0 <= i; i-- {
 				lx := cs.Lhs[i]
-				m.PushForAssign(lx)
+				m.PushForPointer(lx)
 			}
 		}
 	case *ExprStmt:
@@ -256,7 +258,7 @@ EXEC_SWITCH:
 			panic("unexpected inc/dec operation")
 		}
 		// Push eval operations if needed.
-		m.PushForAssign(cs.X)
+		m.PushForPointer(cs.X)
 	case *ReturnStmt:
 		m.PopStmt()
 		fr := m.LastFrame()
@@ -302,10 +304,10 @@ EXEC_SWITCH:
 		switch cs.Op {
 		case ASSIGN:
 			if cs.Key != nil {
-				m.PushForAssign(cs.Key)
+				m.PushForPointer(cs.Key)
 			}
 			if cs.Value != nil {
-				m.PushForAssign(cs.Value)
+				m.PushForPointer(cs.Value)
 			}
 		case DEFINE:
 			// do nothing
