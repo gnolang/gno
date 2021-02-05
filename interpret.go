@@ -1119,8 +1119,6 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()
-		// NOTE: cannot get reference &x[key];
-		// for maps, an empty slot is created.
 		return xv.GetPointerAtIndex(iv)
 	case *SelectorExpr:
 		xv := m.PopValue()

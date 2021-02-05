@@ -405,7 +405,7 @@ func (pv *PackageValue) SetRealm(rlm *Realm) {
 	// Set the package's ObjectInfo.ID, thereby making it real.
 	pv.Block.ObjectInfo.ID = ObjectID{
 		RealmID: rlm.ID,
-		Ordinal: 0, // 0 reserved for package block.
+		NewTime: 0, // 0 reserved for package block.
 	}
 }
 

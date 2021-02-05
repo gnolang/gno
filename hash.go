@@ -47,16 +47,18 @@ func innerHash(h1, h2 Hashlet) (res Hashlet) {
 // accessible from the Gno language.
 //
 // `ValueHash := lh(ValueImage)`
-// `ValueImage := 0x00` if nil value.
-// `ValueImage := 0x01,varint(.) if fixed-numeric.
-// `ValueImage := 0x02,sz(bytes)` if variable length bytes.
-// `ValueImage := 0x03,sz(TypeID),vi(*ptr)` if non-nil ptr.
-// `ValueImage := 0x04,sz(OwnerID),sz(ElemsHash),ref` if object.
-// `ValueImage := 0x05,vi(base),off,len,max if slice.
-// `ValueImage := 0x06,sz(TypeID)` if type.
+// `ValueImage:`
+//   `= 0x00` if nil value.
+//   `= 0x01,varint(.) if fixed-numeric.
+//   `= 0x02,sz(bytes)` if variable length bytes.
+//   `= 0x03,sz(TypeID),vi(*ptr)` if non-nil ptr.
+//   `= 0x04,sz(OwnerID),sz(ElemsHash),mod,ref` if object.
+//   `= 0x05,vi(base),off,len,max if slice.
+//   `= 0x06,sz(TypeID)` if type.
 //
-// `ElemsHash := lh(ElemImage)` if object w/ 1 elem.
-// `ElemsHash := ih(eh(Left),eh(Right))` if object w/ 2+ elems.
+// `ElemsHash:`
+//   `= lh(ElemImage)` if object w/ 1 elem.
+//   `= ih(eh(Left),eh(Right))` if object w/ 2+ elems.
 //
 // `ElemImage:`
 //   `= 0x10` if nil interface.
@@ -146,6 +148,7 @@ type ValueImage struct {
 	Maxcap     int         // if slice
 	OwnerID    ObjectID    // if obj
 	ElemImages []ElemImage // if obj; for persistence
+	ModTime    uint64      // if obj
 	RefCount   int         // if obj
 }
 
@@ -187,16 +190,18 @@ func (vi *ValueImage) StringWithElems(withElems bool) string {
 			for _, image := range vi.ElemImages {
 				pz = append(pz, "- "+image.String())
 			}
-			return fmt.Sprintf("VI[object:%s#%X&%d]:\n%s",
+			return fmt.Sprintf("VI[object:%s#%X@%d&%d]:\n%s",
 				vi.OwnerID.String(),
 				vi.Data,
+				vi.ModTime,
 				vi.RefCount,
 				strings.Join(pz, "\n"),
 			)
 		} else {
-			return fmt.Sprintf("VI[object:%s#%X&%d]",
+			return fmt.Sprintf("VI[object:%s#%X@%d&%d]",
 				vi.OwnerID.String(),
 				vi.Data,
+				vi.ModTime,
 				vi.RefCount)
 		}
 	case ValTypeSlice:
@@ -234,6 +239,7 @@ func (vi *ValueImage) Bytes() []byte {
 	case ValTypeObject:
 		buf = append(buf, sizedBytes(vi.OwnerID.Bytes())...)
 		buf = append(buf, sizedBytes(vi.Data)...)
+		buf = append(buf, varintBytes(int64(vi.ModTime))...)
 		buf = append(buf, varintBytes(int64(vi.RefCount))...)
 		return buf
 	case ValTypeSlice:
@@ -460,6 +466,7 @@ func (av *ArrayValue) ValueImage(
 		ValType:    ValTypeObject,
 		OwnerID:    av.GetOwnerID(),
 		Data:       eh[:],
+		ModTime:    av.GetModTime(),
 		RefCount:   av.GetRefCount(),
 		ElemImages: eiz,
 	}
@@ -558,9 +565,10 @@ func (sv *StructValue) ValueImage(
 	eh := ElemsHashFromElements(eiz)
 	return &ValueImage{
 		ValType:    ValTypeObject,
-		RefCount:   sv.GetRefCount(),
-		Data:       eh[:],
 		OwnerID:    sv.GetOwnerID(),
+		Data:       eh[:],
+		ModTime:    sv.GetModTime(),
+		RefCount:   sv.GetRefCount(),
 		ElemImages: eiz,
 	}
 	return
@@ -602,6 +610,7 @@ func (mv *MapValue) ValueImage(
 		ValType:    ValTypeObject,
 		OwnerID:    mv.GetOwnerID(),
 		Data:       eh[:],
+		ModTime:    mv.GetModTime(),
 		RefCount:   mv.GetRefCount(),
 		ElemImages: eiz,
 	}
@@ -668,6 +677,7 @@ func (b *Block) ValueImage(
 		ValType:    ValTypeObject,
 		OwnerID:    b.GetOwnerID(),
 		Data:       eh[:],
+		ModTime:    b.GetModTime(),
 		RefCount:   b.GetRefCount(),
 		ElemImages: eiz,
 	}

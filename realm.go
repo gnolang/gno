@@ -32,9 +32,9 @@ type Realmer func(pkgPath string) *Realm
 // package.  It could be said that pre-existing Go code runs in
 // the nil realm and that no packages are realm packages.
 type Realm struct {
-	ID      RealmID
-	Path    string
-	Counter uint64
+	ID   RealmID
+	Path string
+	Time uint64
 
 	created []Object      // new objects attached to real.
 	updated []Object      // real objects that were modified.
@@ -46,9 +46,9 @@ type Realm struct {
 // Creates a blank new realm with counter 0.
 func NewRealm(path string) *Realm {
 	return &Realm{
-		ID:      RealmIDFromPath(path),
-		Path:    path,
-		Counter: 0,
+		ID:   RealmIDFromPath(path),
+		Path: path,
+		Time: 0,
 	}
 }
 
@@ -57,8 +57,8 @@ func (rlm *Realm) String() string {
 		return "Realm(nil)"
 	} else {
 		return fmt.Sprintf(
-			"Realm{Path:%q:Counter:%d}#%X",
-			rlm.Path, rlm.Counter, rlm.ID.Bytes())
+			"Realm{Path:%q:Time:%d}#%X",
+			rlm.Path, rlm.Time, rlm.ID.Bytes())
 	}
 }
 
@@ -114,8 +114,8 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 			co.SetOwner(po)
 			rlm.MarkNewReal(co)
 		} else if co.GetOwner() == po {
-			// already owned by po but mark co as dirty (refcount).
-			// e.g. `a.bar = a.foo`
+			// already owned by po but mark co as dirty
+			// (refcount).  e.g. `a.bar = a.foo`
 			if co.GetIsReal() {
 				rlm.MarkDirty(co) // since refcount incremented
 			}
@@ -123,10 +123,10 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 			// Owner conflict allowed within a transaction.
 			// e.g. `b.foo = a.foo; a.foo = nil`
 			// Conflicts will cause a panic upon transaction
-			// finalization, when owner's owned value doesn't match
-			// co's Owner.
-			// Corrolarily, there is no need to mark the previous
-			// owner as dirty here.
+			// finalization, when owner's owned value doesn't
+			// match co's Owner.
+			// Corrolarily, there is no need to mark the
+			// previous owner as dirty here.
 			co.SetOwner(po)
 			if co.GetIsReal() {
 				rlm.MarkDirty(co) // since refcount incremented
@@ -187,7 +187,8 @@ func (rlm *Realm) MarkDirty(oo Object) {
 	if oo.GetIsDirty() {
 		return // already marked.
 	} else {
-		oo.SetIsDirty(true)
+		rlm.Time++
+		oo.SetIsDirty(true, rlm.Time)
 	}
 	if rlm == nil {
 		return
@@ -210,7 +211,9 @@ func (rlm *Realm) MarkDeleted(oo Object) {
 			panic("should not happen")
 		}
 	}
-	oo.SetIsDeleted(true)
+	// NOTE: do not increment rlm.Time.
+	// rlm.Time is passed in for debugging purposes.
+	oo.SetIsDeleted(true, rlm.Time)
 	if rlm == nil {
 		return
 	}
@@ -318,10 +321,10 @@ func (rlm *Realm) nextObjectID() ObjectID {
 	if rlm.ID.IsZero() {
 		panic("should not happen")
 	}
-	rlm.Counter++
+	rlm.Time++
 	return ObjectID{
 		RealmID: rlm.ID,
-		Ordinal: rlm.Counter, // starts at 1.
+		NewTime: rlm.Time, // starts at 1.
 	}
 }
 
@@ -351,7 +354,7 @@ func (rlm *Realm) SaveCreatedObject(oo Object, vi *ValueImage) {
 			RealmOp{RealmOpNew, oo, vi})
 	}
 	oo.SetIsNewReal(false)
-	oo.SetIsDirty(false)
+	oo.SetIsDirty(false, 0)
 }
 
 // NOTE: vi should be of owned type.
@@ -369,7 +372,7 @@ func (rlm *Realm) SaveUpdatedObject(oo Object, vi *ValueImage) {
 		rlm.ropslog = append(rlm.ropslog,
 			RealmOp{RealmOpMod, oo, vi})
 	}
-	oo.SetIsDirty(false)
+	oo.SetIsDirty(false, 0)
 }
 
 func (rlm *Realm) maybeSaveObject(oo Object, vi *ValueImage) {

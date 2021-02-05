@@ -7,16 +7,16 @@ import (
 
 type ObjectID struct {
 	RealmID        // base
-	Ordinal uint64 // counter
+	NewTime uint64 // time created
 }
 
 func (oid ObjectID) String() string {
 	if oid.RealmID.IsZero() {
 		// XXX what's at the very top?
-		return fmt.Sprintf("OIDNONE:%d", oid.Ordinal)
+		return fmt.Sprintf("OIDNONE:%d", oid.NewTime)
 	} else {
 		return fmt.Sprintf("OID%X:%d",
-			oid.RealmID.Bytes(), oid.Ordinal)
+			oid.RealmID.Bytes(), oid.NewTime)
 	}
 }
 
@@ -24,7 +24,7 @@ func (oid ObjectID) Bytes() []byte {
 	bz := make([]byte, HashSize+8)
 	copy(bz[:HashSize], oid.RealmID.Bytes())
 	binary.BigEndian.PutUint64(
-		bz[HashSize:], uint64(oid.Ordinal))
+		bz[HashSize:], uint64(oid.NewTime))
 	return bz
 }
 
@@ -32,7 +32,7 @@ func (oid ObjectID) Bytes() []byte {
 // and enforcing that the value of RealmID is never zero.
 func (oid ObjectID) IsZero() bool {
 	if debug {
-		if oid.RealmID.IsZero() && oid.Ordinal != 0 {
+		if oid.RealmID.IsZero() && oid.NewTime != 0 {
 			panic("should not happen")
 		}
 	}
@@ -49,15 +49,16 @@ type Object interface {
 	SetOwner(Object)
 	GetIsOwned() bool
 	GetIsReal() bool
+	GetModTime() uint64
 	IncRefCount() int
 	DecRefCount() int
 	GetRefCount() int
 	GetIsNewReal() bool
 	SetIsNewReal(bool)
 	GetIsDirty() bool
-	SetIsDirty(bool)
+	SetIsDirty(bool, uint64)
 	GetIsDeleted() bool
-	SetIsDeleted(bool)
+	SetIsDeleted(bool, uint64)
 
 	// Saves to realm along the way if owned, and also (dirty
 	// or new).
@@ -74,6 +75,7 @@ type ObjectInfo struct {
 	ID        ObjectID  // set if real.
 	Hash      ValueHash // zero if dirty.
 	OwnerID   ObjectID  // parent in the ownership tree.
+	ModTime   uint64    // time last updated.
 	RefCount  int       // deleted/gc'd if 0.
 	isNewReal bool
 	isDirty   bool
@@ -111,6 +113,7 @@ func (oi *ObjectInfo) Bytes() []byte {
 	bz = append(bz, sizedBytes(oi.ID.Bytes())...)
 	bz = append(bz, sizedBytes(oi.Hash.Bytes())...)
 	bz = append(bz, sizedBytes(oi.OwnerID.Bytes())...)
+	bz = append(bz, varintBytes(int64(oi.ModTime))...)
 	bz = append(bz, varintBytes(int64(oi.RefCount))...)
 	return bz
 }
@@ -168,6 +171,10 @@ func (oi *ObjectInfo) GetIsReal() bool {
 	return !oi.ID.IsZero()
 }
 
+func (oi *ObjectInfo) GetModTime() uint64 {
+	return oi.ModTime
+}
+
 func (oi *ObjectInfo) IncRefCount() int {
 	oi.RefCount++
 	return oi.RefCount
@@ -199,9 +206,10 @@ func (oi *ObjectInfo) GetIsDirty() bool {
 	return oi.isDirty
 }
 
-func (oi *ObjectInfo) SetIsDirty(x bool) {
+func (oi *ObjectInfo) SetIsDirty(x bool, mt uint64) {
 	if x {
 		oi.Hash = ValueHash{}
+		oi.ModTime = mt
 	}
 	oi.isDirty = x
 }
@@ -210,7 +218,10 @@ func (oi *ObjectInfo) GetIsDeleted() bool {
 	return oi.isDeleted
 }
 
-func (oi *ObjectInfo) SetIsDeleted(x bool) {
+func (oi *ObjectInfo) SetIsDeleted(x bool, mt uint64) {
+	// NOTE: Don't over-write modtime.
+	// Consider adding a DelTime, or just log it somewhere, or
+	// continue to ignore it.
 	oi.isDirty = x
 }
 
