@@ -39,7 +39,7 @@ func TestNewPageSprint(t *testing.T) {
 		this is a
 		new string
 	*/
-	bpv := NewBufferedPageView(page)
+	bpv := NewBufferedPageView(page, Size{})
 	out := bpv.Sprint() // unrendered.
 	require.Equal(t, out, "          \n          ")
 	bpv.Render()

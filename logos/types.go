@@ -3,7 +3,7 @@ package logos
 import (
 	"fmt"
 
-	"github.com/gdamore/tcell"
+	"github.com/gdamore/tcell/v2"
 )
 
 //----------------------------------------
@@ -39,6 +39,7 @@ func NewPage(s string, width int, isCode bool, style Style) *Page {
 	if isCode {
 		for _, line := range lines {
 			te := NewTextElem(line, style)
+			te.Coord = Coord{X: xpos, Y: ypos}
 			elems = append(elems, te)
 			ypos++
 			xpos = 0
@@ -239,17 +240,7 @@ func (tel *TextElem) Render() {
 		}
 		cell := tel.Buffer.GetCell(i, 0)
 		cell.SetValue(s, w, tel.Style, tel)
-		if 1 < w {
-			for j := 1; j < w; j++ {
-				i++
-				// TODO: do we need to set background color etc?
-				// cell := tel.Buffer.GetCell(i, 0)
-				// cell.SetCharacter(" ", 1)
-			}
-			continue
-		} else {
-			i++
-		}
+		i += w
 	}
 	if i != tel.Buffer.Width {
 		panic(fmt.Sprintf(
@@ -367,6 +358,10 @@ func (pd Padding) GetPadding() Padding {
 type Size struct {
 	Width  int
 	Height int // -1 if not set.
+}
+
+func (sz Size) IsZero() bool {
+	return sz.Width == 0 && sz.Height == 0
 }
 
 func (sz Size) GetSize() Size {

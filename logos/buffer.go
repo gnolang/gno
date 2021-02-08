@@ -3,6 +3,8 @@ package logos
 import (
 	"fmt"
 	"strings"
+
+	"github.com/gdamore/tcell/v2"
 )
 
 //----------------------------------------
@@ -52,6 +54,27 @@ func (bb *Buffer) Sprint() string {
 		lines = append(lines, line)
 	}
 	return strings.Join(lines, "\n")
+}
+
+func (bb *Buffer) DrawToScreen(s tcell.Screen) {
+	sw, sh := s.Size()
+	if bb.Size.Width != sw || bb.Size.Height != sh {
+		panic("buffer doesn't match screen size")
+	}
+	var st tcell.Style = tcell.StyleDefault.
+		Foreground(tcell.ColorBlack).
+		Background(tcell.ColorWhite)
+	for y := 0; y < sh; y++ {
+		for x := 0; x < sw; x++ {
+			cell := bb.GetCell(x, y)
+			if cell.Width == 0 {
+				s.SetContent(x, y, '.', nil, st)
+			} else {
+				rz := toRunes(cell.Character)
+				s.SetContent(x, y, rz[0], rz[1:], st)
+			}
+		}
+	}
 }
 
 //----------------------------------------
@@ -144,11 +167,12 @@ type BufferedPageView struct {
 }
 
 // Returns a new *BufferedPageView that spans the whole page.
-// The page is measured first to get the full buffer size.
-// If a smaller buffer is desired, use a different constructor.
-// The result must still be rendered before drawing.
-func NewBufferedPageView(page *Page) *BufferedPageView {
-	size := page.Measure()
+// If size is zero, the page is measured first to get the full buffer
+// size. The result must still be rendered before drawing.
+func NewBufferedPageView(page *Page, size Size) *BufferedPageView {
+	if size.IsZero() {
+		size = page.Measure()
+	}
 	return &BufferedPageView{
 		Size:   size,
 		Style:  page.Style, // TODO
