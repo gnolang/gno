@@ -366,29 +366,33 @@ type KVAttr struct {
 // maxX and maxY are exclusive.
 func computeIntersection(els Size, elo Coord, vws Size) (minX, maxX, minY, maxY int) {
 	if elo.X < 0 {
-		/*	View
+		/*
+			View
 			+----------+
 			|   [Elem__|____]
 			+----------+       */
 		minX = 0
 	} else {
-		/* 	 View
-			 +----------+
-		[____|__Elem]   |
-			 +----------+      */
+		/*
+			     View
+			     +----------+
+			[____|__Elem]   |
+			     +----------+  */
 		minX = elo.X
 	}
 	if vws.Width < elo.X+els.Width {
-		/*	View
+		/*
+			View
 			+----------+
 			|   [Elem__|____]
 			+----------+       */
 		maxX = vws.Width - elo.X
 	} else {
-		/*  View
-			 +----------+
-		[____|__Elem]   |
-			 +----------+      */
+		/*
+			     View
+			     +----------+
+			[____|__Elem]   |
+			     +----------+  */
 		maxX = els.Width
 	}
 	if elo.Y < 0 {
