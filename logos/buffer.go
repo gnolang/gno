@@ -71,7 +71,14 @@ func (bb *Buffer) DrawToScreen(s tcell.Screen) {
 				s.SetContent(x, y, '.', nil, st)
 			} else {
 				rz := toRunes(cell.Character)
-				s.SetContent(x, y, rz[0], rz[1:], st)
+				st2 := st
+				if cell.Foreground.Valid() {
+					st2 = st2.Foreground(cell.Foreground)
+				}
+				if cell.Background.Valid() {
+					st2 = st2.Background(cell.Background)
+				}
+				s.SetContent(x, y, rz[0], rz[1:], st2)
 			}
 		}
 	}
@@ -86,8 +93,8 @@ type Cell struct {
 	Width      int
 	Foreground Color
 	Background Color
-	Flags      Flags
-	Elem       Elem // reference to element
+	StyleFlags
+	Elem // reference to element
 }
 
 func (cc *Cell) SetCell(oc *Cell) {
@@ -102,7 +109,7 @@ func (cc *Cell) SetValue(chs string, w int, st Style, el Elem) {
 	cc.Width = w
 	cc.Foreground = st.Foreground
 	cc.Background = st.Background
-	cc.Flags = st.Flags
+	cc.StyleFlags = st.StyleFlags
 	cc.Elem = el
 }
 
@@ -161,7 +168,8 @@ type BufferedPageView struct {
 	Coord
 	Size
 	Style
-	*Page
+	Attrs         // e.g. to focus on a scrollbar
+	*Page         // the underlying page
 	Offset  Coord // within page for pagination
 	*Buffer       // view's internal draw screen
 }
@@ -195,7 +203,7 @@ func (bpv *BufferedPageView) Render() {
 			cell := buffer.GetCell(x, y)
 			cell.Foreground = style.Foreground
 			cell.Background = style.Foreground
-			cell.Flags = style.Flags
+			cell.StyleFlags = style.StyleFlags
 		}
 	}
 	// Then, render and draw page.

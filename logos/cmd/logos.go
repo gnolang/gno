@@ -52,11 +52,16 @@ func main() {
 			switch ev := ev.(type) {
 			case *tcell.EventKey:
 				switch ev.Key() {
-				case tcell.KeyEscape, tcell.KeyEnter:
+				case tcell.KeyCtrlQ:
 					close(quit)
 					return
-				case tcell.KeyCtrlL:
+				case tcell.KeyCtrlR:
+					// TODO somehow make it clearer that it happened.
+					bpv.Render()
+					bpv.DrawToScreen(s)
 					s.Sync()
+				default:
+					page.ProcessEventKey(ev)
 				}
 			case *tcell.EventResize:
 				s.Sync()
@@ -67,6 +72,8 @@ func main() {
 	// wait to quit
 	<-quit
 	s.Fini()
+	fmt.Println("charset:", s.CharacterSet())
+	fmt.Println("goodbye!")
 }
 
 func makeTestString() string {
@@ -74,8 +81,8 @@ func makeTestString() string {
 	putln := func(l string) {
 		s += "\n" + l
 	}
-	// putln("Press ESC to Exit")
 	// putln("Character set: " + s.CharacterSet())
+	putln("Press Ctrl-Q to Exit")
 	putln("English:   October")
 	putln("Icelandic: október")
 	putln("Arabic:    أكتوبر")

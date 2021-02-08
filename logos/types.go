@@ -2,6 +2,7 @@ package logos
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -13,7 +14,9 @@ import (
 type Page struct {
 	Size
 	Style
-	Elems []Elem
+	Attrs
+	Elems  []Elem
+	Cursor int // selected cursor element index, or -1.
 }
 
 // An elem is something that can draw a portion of itself onto a view.
@@ -24,6 +27,9 @@ type Elem interface {
 	Render()
 	Draw(offset Coord, dst View)
 	GetCoord() Coord
+	GetStyle() *Style
+	GetAttrs() *Attrs
+	SetIsCursor(bool)
 	GetSize() Size
 	Measure() Size
 }
@@ -68,7 +74,8 @@ func NewPage(s string, width int, isCode bool, style Style) *Page {
 			Width:  width,
 			Height: -1, // not set
 		},
-		Elems: elems,
+		Elems:  elems,
+		Cursor: -1,
 	}
 	page.Measure()
 	return page
@@ -172,6 +179,10 @@ func (pg *Page) Render() {
 	for _, elem := range pg.Elems {
 		elem.Render()
 	}
+	if debug {
+		debug.Println("sleeping after rendering page elements")
+		time.Sleep(time.Second)
+	}
 }
 
 // Draw the rendered page elements onto the view.
@@ -183,7 +194,7 @@ func (pg *Page) Draw(offset Coord, view View) {
 			cell := view.GetCell(x, y)
 			cell.Foreground = style.Foreground
 			cell.Background = style.Foreground
-			cell.Flags = style.Flags
+			cell.StyleFlags = style.StyleFlags
 		}
 	}
 	// Then, draw elems.
@@ -191,12 +202,53 @@ func (pg *Page) Draw(offset Coord, view View) {
 		eoffset := offset.Sub(elem.GetCoord())
 		elem.Draw(eoffset, view)
 	}
+	if debug {
+		debug.Println("sleeping after drawing page")
+		time.Sleep(time.Second)
+	}
 }
+
+type EventKey = tcell.EventKey
+
+func (pg *Page) ProcessEventKey(ev *EventKey) {
+	switch ev.Key() {
+	case tcell.KeyEsc:
+	case tcell.KeyUp:
+	case tcell.KeyDown:
+		pg.IncCursor()
+	case tcell.KeyLeft:
+	case tcell.KeyRight:
+	case tcell.KeyEnter:
+	default:
+	}
+}
+
+func (pg *Page) IncCursor() {
+	if pg.Cursor == -1 {
+		if len(pg.Elems) == 0 {
+			// nothing to select.
+		} else {
+			pg.Cursor = 0
+			pg.Elems[pg.Cursor].SetIsCursor(true)
+		}
+	} else {
+		pg.Elems[pg.Cursor].SetIsCursor(false)
+		pg.Cursor++
+		if pg.Cursor == len(pg.Elems) {
+			pg.Cursor = 0 // roll back.
+		}
+		pg.Elems[pg.Cursor].SetIsCursor(true)
+	}
+}
+
+//----------------------------------------
+// TextElem
 
 type TextElem struct {
 	Coord
 	Size
 	Style
+	Attrs
 	Text string
 	*Buffer
 }
@@ -227,6 +279,7 @@ func (tel *TextElem) Render() {
 	if tel.Height != 1 {
 		panic("should not happen")
 	}
+	style := tel.Style.WithAttrs(&tel.Attrs)
 	runes := toRunes(tel.Text)
 	i := 0
 	for 0 < len(runes) {
@@ -239,7 +292,7 @@ func (tel *TextElem) Render() {
 			runes = runes[n:]
 		}
 		cell := tel.Buffer.GetCell(i, 0)
-		cell.SetValue(s, w, tel.Style, tel)
+		cell.SetValue(s, w, style, tel)
 		i += w
 	}
 	if i != tel.Buffer.Width {
@@ -265,26 +318,73 @@ func (tel *TextElem) Draw(offset Coord, view View) {
 
 type Color = tcell.Color
 
+// Style is purely visual and has no side effects.
 type Style struct {
 	Foreground Color
 	Background Color
 	Padding    Padding
-	Flags      Flags
-	Other      []KVAttr
+	StyleFlags
+	Other []KVPair
 }
 
-type Flags uint32
+func (st *Style) GetStyle() *Style {
+	return st
+}
+
+func (stv Style) WithAttrs(attrs *Attrs) Style {
+	if attrs.GetIsCursor() {
+		stv.Background = tcell.ColorYellow
+		return stv
+	} else {
+		return stv
+	}
+}
+
+type StyleFlags uint32
 
 const (
-	FlagNone Flags = 0
-	FlagBold Flags = 1 << iota
-	FlagBlink
-	FlagUnderline
-	FlagItalic
-	FlagStrikeThrough
+	StyleFlagNone StyleFlags = 0
+	StyleFlagBold StyleFlags = 1 << iota
+	StyleFlagBlink
+	StyleFlagUnderline
+	StyleFlagItalic
+	StyleFlagStrikeThrough
 )
 
-type KVAttr struct {
+// Attrs have side effects in the Logos system;
+// for example, the lone cursor element (one with AttrFlagIsCursor set)
+// is where most key events are sent to.
+type Attrs struct {
+	AttrFlags
+	Other []KVPair
+}
+
+func (tt *Attrs) GetAttrs() *Attrs {
+	return tt
+}
+
+func (tt *Attrs) GetIsCursor() bool {
+	return (tt.AttrFlags & AttrFlagIsCursor) != 0
+}
+
+func (tt *Attrs) SetIsCursor(c bool) {
+	if c {
+		tt.AttrFlags |= AttrFlagIsCursor
+	} else {
+		tt.AttrFlags &= ^AttrFlagIsCursor
+	}
+}
+
+type AttrFlags uint32
+
+const (
+	AttrFlagNone       AttrFlags = 0
+	AttrFlagIsCursor   AttrFlags = 1 << iota // is current cursor
+	AttrFlagIsSelected                       // is selected (among possibly others)
+	AttrFlagIsDirty                          // is dirty (not yet used)
+)
+
+type KVPair struct {
 	Key   string
 	Value interface{}
 }
