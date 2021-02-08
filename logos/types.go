@@ -95,6 +95,51 @@ type Elem interface {
 	Measure() Size
 }
 
+// produces a page from a string.
+// width is the width of the page.
+// if isCode, width is ignored.
+func NewPage(s string, width int, isCode bool, style Style) *Page {
+	elems := []Elem{}
+	ypos := 0
+	xpos := 0
+	lines := splitLines(s)
+	if isCode {
+		for _, line := range lines {
+			te := NewTextElem(line, style)
+			elems = append(elems, te)
+			ypos++
+			xpos = 0
+		}
+	} else {
+		for _, line := range lines {
+			words := splitSpaces(line)
+			for _, word := range words {
+				wd := widthOf(word)
+				if width < xpos+wd {
+					if xpos != 0 {
+						ypos++
+						xpos = 0
+					}
+				}
+				te := NewTextElem(word, style)
+				te.Coord = Coord{X: xpos, Y: ypos}
+				elems = append(elems, te)
+				xpos += te.Width // size of word
+				xpos += 1        // space after each word (not written)
+			}
+		}
+	}
+	page := &Page{
+		Size: Size{
+			Width:  width,
+			Height: -1, // not set
+		},
+		Elems: elems,
+	}
+	page.Measure()
+	return page
+}
+
 // Assumes page starts at 0,0.
 func (pg *Page) Measure() Size {
 	maxX := 0
@@ -102,14 +147,17 @@ func (pg *Page) Measure() Size {
 	for _, view := range pg.Elems {
 		coord := view.GetCoord()
 		size := view.GetSize()
-		if maxX < coord.X+size.Height {
-			maxX = coord.X + size.Height
+		if maxX < coord.X+size.Width {
+			maxX = coord.X + size.Width
 		}
-		if maxY < coord.Y+size.Width {
-			maxY = coord.Y + size.Width
+		if maxY < coord.Y+size.Height {
+			maxY = coord.Y + size.Height
 		}
 	}
-	size := Size{Width: maxX, Height: maxY}
+	size := Size{
+		Width:  maxX,
+		Height: maxY,
+	}
 	pg.Size = size
 	return size
 }
@@ -215,9 +263,12 @@ type TextElem struct {
 
 func NewTextElem(text string, style Style) *TextElem {
 	te := &TextElem{
-		Style:  style,
-		Text:   text,
-		Buffer: NewBuffer(Size{widthOf(text), 1}),
+		Style: style,
+		Text:  text,
+		Buffer: NewBuffer(Size{
+			Height: 1,
+			Width:  widthOf(text),
+		}),
 	}
 	te.Measure()
 	return te

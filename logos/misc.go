@@ -7,49 +7,6 @@ import (
 	runewidth "github.com/mattn/go-runewidth"
 )
 
-// produces a page from a string.
-// width is the width of the page.
-// if isCode, width is ignored.
-func makePage(s string, width int, isCode bool, style Style) *Page {
-	elems := []Elem{}
-	ypos := 0
-	xpos := 0
-	lines := splitLines(s)
-	if isCode {
-		for _, line := range lines {
-			te := NewTextElem(line, style)
-			elems = append(elems, te)
-			ypos++
-			xpos = 0
-		}
-	} else {
-		for _, line := range lines {
-			words := splitSpaces(line)
-			for _, word := range words {
-				wd := widthOf(word)
-				if width <= xpos+wd {
-					if xpos != 0 {
-						ypos++
-						xpos = 0
-					}
-				}
-				te := NewTextElem(word, style)
-				elems = append(elems, te)
-				xpos += 1 // space after each word
-			}
-		}
-	}
-	page := &Page{
-		Size: Size{
-			Width:  width,
-			Height: -1, // not set
-		},
-		Elems: elems,
-	}
-	page.Measure()
-	return page
-}
-
 // splits a string into lines by newline.
 func splitLines(s string) (ss []string) {
 	return strings.Split(s, "\n")
@@ -63,6 +20,7 @@ func splitSpaces(s string) (ss []string) {
 			// continue
 			if len(buf) > 0 {
 				ss = append(ss, string(buf))
+				buf = nil
 			}
 		} else {
 			buf = append(buf, r)
@@ -70,6 +28,7 @@ func splitSpaces(s string) (ss []string) {
 	}
 	if len(buf) > 0 {
 		ss = append(ss, string(buf))
+		// buf = nil
 	}
 	return ss
 }
@@ -84,7 +43,6 @@ func widthOf(s string) (l int) {
 			continue
 		}
 		if zwj {
-			l++
 			zwj = false
 			continue
 		}
@@ -95,6 +53,8 @@ func widthOf(s string) (l int) {
 			l++
 		case 2:
 			l += 2
+		default:
+			panic("should not happen")
 		}
 	}
 	return l
