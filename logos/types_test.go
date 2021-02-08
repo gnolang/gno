@@ -30,3 +30,19 @@ func TestNewPage2(t *testing.T) {
 	require.Equal(t, page.Elems[4].GetCoord(), Coord{4, 1})
 	require.Equal(t, len(page.Elems), 5)
 }
+
+func TestNewPageSprint(t *testing.T) {
+	page := NewPage("this is a new string", 10, false, Style{})
+	require.NotNil(t, page)
+	/*
+		0123456789
+		this is a
+		new string
+	*/
+	bpv := NewBufferedPageView(page)
+	out := bpv.Sprint() // unrendered.
+	require.Equal(t, out, "          \n          ")
+	bpv.Render()
+	out = bpv.Sprint()
+	require.Equal(t, out, "this is a \nnew string")
+}

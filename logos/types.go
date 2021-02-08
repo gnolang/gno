@@ -7,73 +7,6 @@ import (
 )
 
 //----------------------------------------
-// Buffer & View
-
-// A Buffer is a buffer area in which to draw.
-type Buffer struct {
-	Size
-	Cells []Cell
-}
-
-func NewBuffer(sz Size) *Buffer {
-	return &Buffer{
-		Size:  sz,
-		Cells: make([]Cell, sz.Width*sz.Height),
-	}
-}
-
-// offset elements must be 0 or positive.
-func (bb *Buffer) NewView(offset Coord) View {
-	if !offset.IsNonNegative() {
-		panic("should not happen")
-	}
-	return View{
-		Base:   bb,
-		Offset: offset,
-		Size:   bb.Size,
-	}
-}
-
-func (bb *Buffer) GetCell(x, y int) *Cell {
-	if bb.Size.Width <= x {
-		panic("should not happen")
-	}
-	if bb.Size.Height <= y {
-		panic("should not happen")
-	}
-	return &bb.Cells[y*bb.Size.Width*x]
-}
-
-// Offset and Size must be within bounds of *Buffer.
-// Here is an analogy: "Buffer:View :: array:slice".
-type View struct {
-	Base   *Buffer
-	Offset Coord // offset within Buffer
-	Size         // total size of slice
-}
-
-func (bs View) NewView(offset Coord) View {
-	return View{
-		Base:   bs.Base,
-		Offset: bs.Offset.Add(offset),
-		Size:   bs.Size.SubCoord(offset),
-	}
-}
-
-func (bs View) GetCell(x, y int) *Cell {
-	if bs.Size.Width <= x {
-		panic("should not happen")
-	}
-	if bs.Size.Height <= y {
-		panic("should not happen")
-	}
-	return bs.Base.GetCell(
-		bs.Offset.X+x,
-		bs.Offset.Y+y,
-	)
-}
-
-//----------------------------------------
 // Page
 
 // A Page has renderable Elem(ents).
@@ -164,15 +97,15 @@ func (pg *Page) Measure() Size {
 
 /*
    Page draw logic:
-   Let's say we want to draw a Page.  We want to draw it onto some buffer,
-   or more specially some "view" of a buffer (as a slice of an array is
-   a view into an array buffer).
+   Let's say we want to draw a Page.  We want to draw it onto
+   some buffer, or more specially some "view" of a buffer (as
+   a slice of an array is a view into an array buffer).
 
      Page virtual bounds:
      0 - - - - - - - - - - +
      :\                    :
      : \ (3,3)             :
-     :  P-----------+      :
+     :  @-----------+      :
      :  |View       |      :
      :  |           |      :
      :  +-----------+      :
@@ -180,12 +113,15 @@ func (pg *Page) Measure() Size {
      + - - - - - - - - - - +
 
    0 is the origin point for the Page.
-   P is an offset within the page.  P here is (3,3).
+   @ is an offset within the page. @ here is (3,3).
+   It is where the View is conceptually placed, but
+   otherwise the View isn't aware where @ is.
    This offset is passed in as an argument 'offset'.
 
-   NOTE: Offset is relative in the base page.  To offset the drawing position
-   in the view (e.g. to only write on the right half of the buffer view),
-   derive another view from the original.
+   NOTE: Offset is relative in the base page.  To offset the
+   drawing position in the view (e.g. to only write on the
+   right half of the buffer view), derive another view from
+   the original.
 
    The View is associated with an underlying (base) buffer.
 
@@ -193,7 +129,7 @@ func (pg *Page) Measure() Size {
        0 - - - - - - - - - - +
      +=:=====================:===+ <-- underlying Buffer
      | :                     :   |
-     | :  P-------------+    :   |
+     | :  @-------------+    :   |
      | :  |View         |    :   |
      | :  |.Offset=(5,2)|    :   |
      | :  +-------------+    :   |
@@ -201,14 +137,14 @@ func (pg *Page) Measure() Size {
      | + - - - - - - - - - - +   |
      +===========================+
 
-   Each element must be drawn onto the buffer view with the right offset
-   algebra applied.  Here is a related diagram showing the buffer in relation
-   to page elements.
+   Each element must be drawn onto the buffer view with the
+   right offset algebra applied.  Here is a related diagram
+   showing the buffer in relation to page elements.
 
       Page virtual bounds:
       0 - - - - - - - - - - - +
       :elem 1     |elem 2     :
-      :       P------------+  :
+      :       @------------+  :
       :       |View        |  :
       + - - - | - E - - - -|- +
       :elem 3 |   |elem 4  |  :
@@ -216,18 +152,21 @@ func (pg *Page) Measure() Size {
       :           |           :
       + - - - - - - - - - - - +
 
-   In this example the page is composed of four element tiles.  E is elem-4's
-   offset relative to 0, the page's origin.  To draw the top-left portion of
-   elem-4 onto the buffer slice as shown, the element is drawn with an offset
-   of P-E, which is negative and indicates that the element should be drawn
-   offset positively (right and bottom) from P.
+   In this example the page is composed of four element tiles.
+   E is elem-4's offset relative to 0, the page's origin.  To
+   draw the top-left portion of elem-4 onto the buffer slice
+   as shown, the element is drawn with an offset of @-E, which
+   is negative and indicates that the element should be drawn
+   offset positively (right and bottom) from @.
 */
 
-// Unlike TextElem or BufferedPageView, a Page doesn't keep its own buffer.
-// Its render function calls the elements' render functions, and the element
-// buffers are combined during Draw(). There is a need for distinction because
-// Draw() can't be too slow, so Render() is about optimizing Draw() calls.
-// The distinction between *Page and BufferedPageView gives the user more flexibility.
+// Unlike TextElem or BufferedPageView, a Page doesn't keep
+// its own buffer.  Its render function calls the elements'
+// render functions, and the element buffers are combined
+// during Draw(). There is a need for distinction because
+// Draw() can't be too slow, so Render() is about optimizing
+// Draw() calls.  The distinction between *Page and
+// BufferedPageView gives the user more flexibility.
 func (pg *Page) Render() {
 	for _, elem := range pg.Elems {
 		elem.Render()
@@ -238,8 +177,8 @@ func (pg *Page) Render() {
 func (pg *Page) Draw(offset Coord, view View) {
 	// First, draw page background style.
 	style := pg.Style
-	for x := 0; x < view.Size.Width; x++ {
-		for y := 0; y < view.Size.Height; y++ {
+	for x := 0; x < view.Bounds.Width; x++ {
+		for y := 0; y < view.Bounds.Height; y++ {
 			cell := view.GetCell(x, y)
 			cell.Foreground = style.Foreground
 			cell.Background = style.Foreground
@@ -288,20 +227,23 @@ func (tel *TextElem) Render() {
 		panic("should not happen")
 	}
 	runes := toRunes(tel.Text)
-	x, y := tel.X, tel.Y
 	i := 0
-	for {
+	for 0 < len(runes) {
 		s, w, n := nextCharacter(runes)
 		if n == 0 {
-			panic("should not happen")
+			panic(fmt.Sprintf(
+				"unexpected error reading next character from runes %v",
+				runes))
+		} else {
+			runes = runes[n:]
 		}
-		cell := tel.Buffer.GetCell(x+i, y)
+		cell := tel.Buffer.GetCell(i, 0)
 		cell.SetValue(s, w, tel.Style, tel)
 		if 1 < w {
 			for j := 1; j < w; j++ {
 				i++
 				// TODO: do we need to set background color etc?
-				// cell := tel.Buffer.GetCell(x+i, y)
+				// cell := tel.Buffer.GetCell(i, 0)
 				// cell.SetCharacter(" ", 1)
 			}
 			continue
@@ -311,20 +253,20 @@ func (tel *TextElem) Render() {
 	}
 	if i != tel.Buffer.Width {
 		panic(fmt.Sprintf(
-			"wrote %d cells but there are %d in buffer",
-			i, tel.Buffer.Width))
+			"wrote %d cells but there are %d in buffer with text %q",
+			i, tel.Buffer.Width, tel.Text))
 	}
 }
 
 func (tel *TextElem) Draw(offset Coord, view View) {
-	minX, maxX, minY, maxY := computeIntersection(tel.Size, offset, view.Size)
+	minX, maxX, minY, maxY := computeIntersection(tel.Size, offset, view.Bounds)
 	for y := minY; y < maxY; y++ {
 		if minY != 0 {
 			panic("should not happen")
 		}
 		for x := minX; x < maxX; x++ {
 			bcell := tel.Buffer.GetCell(x, y)
-			vcell := view.GetCell(x-minX, y-minY)
+			vcell := view.GetCell(x-offset.X, y-offset.Y)
 			vcell.SetCell(bcell)
 		}
 	}
