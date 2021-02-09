@@ -1,0 +1,12 @@
+name: test realm
+on: [push, pull_request]
+
+jobs:
+  realm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup go
+        uses: actions/setup-go@v1.1.3
+      - name: test realms
+        run: go test tests/\*.go -v -run="Test/realm.go"
