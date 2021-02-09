@@ -10,7 +10,7 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: '^1.15'
-      - name: test realms
+      - name: logos
         run: |
           go mod download github.com/davecgh/go-spew
           go mod download
