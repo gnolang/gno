@@ -177,38 +177,52 @@ type BufferedPageView struct {
 // Returns a new *BufferedPageView that spans the whole page.
 // If size is zero, the page is measured first to get the full buffer
 // size. The result must still be rendered before drawing.
+// The *BufferedPageView inherits the coordinate of the page,
+// and the page's coord is otherwise ignored.
 func NewBufferedPageView(page *Page, size Size) *BufferedPageView {
 	if size.IsZero() {
 		size = page.Measure()
 	}
-	return &BufferedPageView{
+	bpv := &BufferedPageView{
 		Size:   size,
 		Style:  page.Style, // TODO
 		Page:   page,
 		Offset: Coord{0, 0},
 		Buffer: NewBuffer(size),
 	}
+	bpv.SetCoord(page.Coord)
+	page.SetParent(bpv)
+	bpv.SetIsDirty(true)
+	return bpv
 }
 
 // Renders the page onto the internal buffer.
 // Assumes buffered page view's page was already rendered.
 // TODO: this function could be optimized to reduce
 // redundant background cell modifications.
-func (bpv *BufferedPageView) Render() {
-	// First, draw page background style.
-	style := bpv.Style
+func (bpv *BufferedPageView) Render() (updated bool) {
+	if !bpv.GetIsDirty() {
+		return
+	} else {
+		defer bpv.SetIsDirty(false)
+	}
 	buffer := bpv.Buffer
-	for x := 0; x < buffer.Size.Width; x++ {
-		for y := 0; y < buffer.Size.Height; y++ {
-			cell := buffer.GetCell(x, y)
-			cell.Foreground = style.Foreground
-			cell.Background = style.Foreground
-			cell.StyleFlags = style.StyleFlags
+	// First, draw page background style.
+	if true {
+		style := bpv.Style
+		for x := 0; x < buffer.Size.Width; x++ {
+			for y := 0; y < buffer.Size.Height; y++ {
+				cell := buffer.GetCell(x, y)
+				cell.Foreground = style.Foreground
+				cell.Background = style.Foreground
+				cell.StyleFlags = style.StyleFlags
+			}
 		}
 	}
 	// Then, render and draw page.
 	bpv.Page.Render()
 	bpv.Page.Draw(bpv.Offset, buffer.NewView(Coord{}))
+	return true
 }
 
 func (bpv *BufferedPageView) Draw(offset Coord, view View) {
@@ -220,4 +234,8 @@ func (bpv *BufferedPageView) Draw(offset Coord, view View) {
 			vcell.SetCell(bcell)
 		}
 	}
+}
+
+func (bpv *BufferedPageView) ProcessEventKey(ev *EventKey) {
+	bpv.Page.ProcessEventKey(ev)
 }

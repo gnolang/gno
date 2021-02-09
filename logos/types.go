@@ -12,6 +12,7 @@ import (
 
 // A Page has renderable Elem(ents).
 type Page struct {
+	Coord
 	Size
 	Style
 	Attrs
@@ -24,20 +25,38 @@ type Page struct {
 // Before it is drawn, it is rendered.
 // Measure will update its size, while GetSize() returns the cached size.
 type Elem interface {
-	Render()
-	Draw(offset Coord, dst View)
+	GetParent() Elem
+	SetParent(Elem)
 	GetCoord() Coord
+	SetCoord(Coord)
 	GetStyle() *Style
 	GetAttrs() *Attrs
+	GetIsCursor() bool
 	SetIsCursor(bool)
+	GetIsDirty() bool
+	SetIsDirty(bool)
 	GetSize() Size
 	Measure() Size
+	Render() bool
+	Draw(offset Coord, dst View)
 }
+
+var _ Elem = &Page{}
+var _ Elem = &BufferedPageView{}
+var _ Elem = &TextElem{}
 
 // produces a page from a string.
 // width is the width of the page.
 // if isCode, width is ignored.
 func NewPage(s string, width int, isCode bool, style Style) *Page {
+	page := &Page{
+		Size: Size{
+			Width:  width,
+			Height: -1, // not set
+		},
+		Elems:  nil, // will set
+		Cursor: -1,
+	}
 	elems := []Elem{}
 	ypos := 0
 	xpos := 0
@@ -45,7 +64,8 @@ func NewPage(s string, width int, isCode bool, style Style) *Page {
 	if isCode {
 		for _, line := range lines {
 			te := NewTextElem(line, style)
-			te.Coord = Coord{X: xpos, Y: ypos}
+			te.SetParent(page)
+			te.SetCoord(Coord{X: xpos, Y: ypos})
 			elems = append(elems, te)
 			ypos++
 			xpos = 0
@@ -62,22 +82,19 @@ func NewPage(s string, width int, isCode bool, style Style) *Page {
 					}
 				}
 				te := NewTextElem(word, style)
-				te.Coord = Coord{X: xpos, Y: ypos}
+				te.SetParent(page)
+				te.SetCoord(Coord{X: xpos, Y: ypos})
 				elems = append(elems, te)
 				xpos += te.Width // size of word
 				xpos += 1        // space after each word (not written)
 			}
+			ypos++
+			xpos = 0
 		}
 	}
-	page := &Page{
-		Size: Size{
-			Width:  width,
-			Height: -1, // not set
-		},
-		Elems:  elems,
-		Cursor: -1,
-	}
+	page.Elems = elems
 	page.Measure()
+	page.SetIsDirty(true)
 	return page
 }
 
@@ -175,7 +192,12 @@ func (pg *Page) Measure() Size {
 // Draw() can't be too slow, so Render() is about optimizing
 // Draw() calls.  The distinction between *Page and
 // BufferedPageView gives the user more flexibility.
-func (pg *Page) Render() {
+func (pg *Page) Render() (updated bool) {
+	if !pg.GetIsDirty() {
+		return
+	} else {
+		defer pg.SetIsDirty(false)
+	}
 	for _, elem := range pg.Elems {
 		elem.Render()
 	}
@@ -183,6 +205,7 @@ func (pg *Page) Render() {
 		debug.Println("sleeping after rendering page elements")
 		time.Sleep(time.Second)
 	}
+	return true
 }
 
 // Draw the rendered page elements onto the view.
@@ -214,16 +237,19 @@ func (pg *Page) ProcessEventKey(ev *EventKey) {
 	switch ev.Key() {
 	case tcell.KeyEsc:
 	case tcell.KeyUp:
+		pg.DecCursor(true)
 	case tcell.KeyDown:
-		pg.IncCursor()
+		pg.IncCursor(true)
 	case tcell.KeyLeft:
+		pg.DecCursor(false)
 	case tcell.KeyRight:
+		pg.IncCursor(false)
 	case tcell.KeyEnter:
 	default:
 	}
 }
 
-func (pg *Page) IncCursor() {
+func (pg *Page) IncCursor(isVertical bool) {
 	if pg.Cursor == -1 {
 		if len(pg.Elems) == 0 {
 			// nothing to select.
@@ -236,6 +262,24 @@ func (pg *Page) IncCursor() {
 		pg.Cursor++
 		if pg.Cursor == len(pg.Elems) {
 			pg.Cursor = 0 // roll back.
+		}
+		pg.Elems[pg.Cursor].SetIsCursor(true)
+	}
+}
+
+func (pg *Page) DecCursor(isVertical bool) {
+	if pg.Cursor == -1 {
+		if len(pg.Elems) == 0 {
+			// nothing to select.
+		} else {
+			pg.Cursor = len(pg.Elems) - 1
+			pg.Elems[pg.Cursor].SetIsCursor(true)
+		}
+	} else {
+		pg.Elems[pg.Cursor].SetIsCursor(false)
+		pg.Cursor--
+		if pg.Cursor == -1 {
+			pg.Cursor = len(pg.Elems) - 1 // roll forward.
 		}
 		pg.Elems[pg.Cursor].SetIsCursor(true)
 	}
@@ -263,6 +307,7 @@ func NewTextElem(text string, style Style) *TextElem {
 		}),
 	}
 	te.Measure()
+	te.SetIsDirty(true)
 	return te
 }
 
@@ -275,9 +320,14 @@ func (tel *TextElem) Measure() Size {
 	return size
 }
 
-func (tel *TextElem) Render() {
+func (tel *TextElem) Render() (updated bool) {
 	if tel.Height != 1 {
 		panic("should not happen")
+	}
+	if !tel.GetIsDirty() {
+		return
+	} else {
+		defer tel.SetIsDirty(false)
 	}
 	style := tel.Style.WithAttrs(&tel.Attrs)
 	runes := toRunes(tel.Text)
@@ -300,6 +350,7 @@ func (tel *TextElem) Render() {
 			"wrote %d cells but there are %d in buffer with text %q",
 			i, tel.Buffer.Width, tel.Text))
 	}
+	return true
 }
 
 func (tel *TextElem) Draw(offset Coord, view View) {
@@ -355,6 +406,7 @@ const (
 // for example, the lone cursor element (one with AttrFlagIsCursor set)
 // is where most key events are sent to.
 type Attrs struct {
+	Parent Elem
 	AttrFlags
 	Other []KVPair
 }
@@ -363,15 +415,42 @@ func (tt *Attrs) GetAttrs() *Attrs {
 	return tt
 }
 
+func (tt *Attrs) GetParent() Elem {
+	return tt.Parent
+}
+
+func (tt *Attrs) SetParent(p Elem) {
+	if tt.Parent != nil && tt.Parent != p {
+		panic("parent already set")
+	}
+	tt.Parent = p
+}
+
 func (tt *Attrs) GetIsCursor() bool {
 	return (tt.AttrFlags & AttrFlagIsCursor) != 0
 }
 
-func (tt *Attrs) SetIsCursor(c bool) {
-	if c {
+func (tt *Attrs) SetIsCursor(ic bool) {
+	if ic {
 		tt.AttrFlags |= AttrFlagIsCursor
 	} else {
 		tt.AttrFlags &= ^AttrFlagIsCursor
+	}
+	tt.SetIsDirty(true)
+}
+
+func (tt *Attrs) GetIsDirty() bool {
+	return (tt.AttrFlags & AttrFlagIsDirty) != 0
+}
+
+func (tt *Attrs) SetIsDirty(id bool) {
+	if id {
+		tt.AttrFlags |= AttrFlagIsDirty
+		if tt.Parent != nil {
+			tt.Parent.SetIsDirty(true)
+		}
+	} else {
+		tt.AttrFlags &= ^AttrFlagIsDirty
 	}
 }
 
@@ -498,6 +577,10 @@ type Coord struct {
 
 func (crd Coord) GetCoord() Coord {
 	return crd
+}
+
+func (crd *Coord) SetCoord(nc Coord) {
+	*crd = nc
 }
 
 func (crd Coord) IsNonNegative() bool {

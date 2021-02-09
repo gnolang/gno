@@ -36,7 +36,7 @@ func main() {
 
 	// construct a page
 	ts := makeTestString()
-	page := logos.NewPage(ts, 80, true, logos.Style{}) // TODO width shouldn't matter.
+	page := logos.NewPage(ts, 20, true, logos.Style{}) // TODO width shouldn't matter.
 	sw, sh := s.Size()
 	size := logos.Size{Width: sw, Height: sh}
 	bpv := logos.NewBufferedPageView(page, size)
@@ -57,11 +57,14 @@ func main() {
 					return
 				case tcell.KeyCtrlR:
 					// TODO somehow make it clearer that it happened.
-					bpv.Render()
 					bpv.DrawToScreen(s)
 					s.Sync()
 				default:
-					page.ProcessEventKey(ev)
+					bpv.ProcessEventKey(ev)
+					if bpv.Render() {
+						bpv.DrawToScreen(s)
+						s.Sync()
+					}
 				}
 			case *tcell.EventResize:
 				s.Sync()
