@@ -15,6 +15,7 @@ jobs:
           go mod download github.com/davecgh/go-spew
           go mod download
           cd logos/cmd
+          go get .
           go build .
           ls -a
-          go run logos.go
+          
