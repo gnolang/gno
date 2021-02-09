@@ -20,10 +20,11 @@ type Page struct {
 	Cursor int // selected cursor element index, or -1.
 }
 
-// An elem is something that can draw a portion of itself onto a view.
-// It has a relative coord and a size.
-// Before it is drawn, it is rendered.
-// Measure will update its size, while GetSize() returns the cached size.
+// An elem is something that can draw a portion of itself onto
+// a view.  It has a relative coord and a size.  Before it is
+// drawn, it is rendered.  Measure will update its size, while
+// GetSize() returns the cached size.  ProcessEventKey()
+// returns true if event was consumed.
 type Elem interface {
 	GetParent() Elem
 	SetParent(Elem)
@@ -39,10 +40,16 @@ type Elem interface {
 	Measure() Size
 	Render() bool
 	Draw(offset Coord, dst View)
+	ProcessEventKey(*EventKey) bool
+	// NOTE: SetSize(Size) isn't an elem interface, as
+	// containers in general can't force elements to be of a
+	// certain size, but rather prefers drawing out of bounds;
+	// this opinion may distinguishes Logos from other most gui
+	// frameworks.
 }
 
 var _ Elem = &Page{}
-var _ Elem = &BufferedPageView{}
+var _ Elem = &BufferedElemView{}
 var _ Elem = &TextElem{}
 
 // produces a page from a string.
@@ -98,6 +105,11 @@ func NewPage(s string, width int, isCode bool, style Style) *Page {
 	page.Measure()
 	page.SetIsDirty(true)
 	return page
+}
+
+func (pg *Page) String() string {
+	return fmt.Sprintf("Page%v{%d}@%p",
+		pg.Size, len(pg.Elems), pg)
 }
 
 // Assumes page starts at 0,0.
@@ -188,13 +200,13 @@ func (pg *Page) Measure() Size {
    offset positively (right and bottom) from @.
 */
 
-// Unlike TextElem or BufferedPageView, a Page doesn't keep
+// Unlike TextElem or BufferedElemView, a Page doesn't keep
 // its own buffer.  Its render function calls the elements'
 // render functions, and the element buffers are combined
 // during Draw(). There is a need for distinction because
 // Draw() can't be too slow, so Render() is about optimizing
 // Draw() calls.  The distinction between *Page and
-// BufferedPageView gives the user more flexibility.
+// BufferedElemView gives the user more flexibility.
 func (pg *Page) Render() (updated bool) {
 	if !pg.GetIsDirty() {
 		return
@@ -221,27 +233,33 @@ func (pg *Page) Draw(offset Coord, view View) {
 		for x := minX; x < maxX; x++ {
 			xo, yo := x-offset.X, y-offset.Y
 			vcell := view.GetCell(xo, yo)
-			if xo == 0 {
-				if yo == 0 {
-					vcell.SetValue(string(tcell.RuneULCorner), 1, style, nil)
-				} else if yo == pg.Size.Height-1 {
-					vcell.SetValue(string(tcell.RuneLLCorner), 1, style, nil)
+			if style.Border.HasBorder {
+				// draw area and border
+				if x == 0 {
+					if y == 0 {
+						vcell.SetValue(string(tcell.RuneULCorner), 1, style, nil)
+					} else if y == pg.Size.Height-1 {
+						vcell.SetValue(string(tcell.RuneLLCorner), 1, style, nil)
+					} else {
+						vcell.SetValue(string(tcell.RuneVLine), 1, style, nil)
+					}
+				} else if x == pg.Size.Width-1 {
+					if y == 0 {
+						vcell.SetValue(string(tcell.RuneURCorner), 1, style, nil)
+					} else if y == pg.Size.Height-1 {
+						vcell.SetValue(string(tcell.RuneLRCorner), 1, style, nil)
+					} else {
+						vcell.SetValue(string(tcell.RuneVLine), 1, style, nil)
+					}
+				} else if y == 0 {
+					vcell.SetValue(string(tcell.RuneHLine), 1, style, nil)
+				} else if y == pg.Size.Height-1 {
+					vcell.SetValue(string(tcell.RuneHLine), 1, style, nil)
 				} else {
-					vcell.SetValue(string(tcell.RuneVLine), 1, style, nil)
+					vcell.SetValue(" ", 1, style, nil)
 				}
-			} else if xo == pg.Size.Width-1 {
-				if yo == 0 {
-					vcell.SetValue(string(tcell.RuneURCorner), 1, style, nil)
-				} else if yo == pg.Size.Height-1 {
-					vcell.SetValue(string(tcell.RuneLRCorner), 1, style, nil)
-				} else {
-					vcell.SetValue(string(tcell.RuneVLine), 1, style, nil)
-				}
-			} else if yo == 0 {
-				vcell.SetValue(string(tcell.RuneHLine), 1, style, nil)
-			} else if yo == pg.Size.Height-1 {
-				vcell.SetValue(string(tcell.RuneHLine), 1, style, nil)
 			} else {
+				// draw area but no border.
 				vcell.SetValue(" ", 1, style, nil)
 			}
 		}
@@ -259,7 +277,7 @@ func (pg *Page) Draw(offset Coord, view View) {
 
 type EventKey = tcell.EventKey
 
-func (pg *Page) ProcessEventKey(ev *EventKey) {
+func (pg *Page) ProcessEventKey(ev *EventKey) bool {
 	switch ev.Key() {
 	case tcell.KeyEsc:
 	case tcell.KeyUp:
@@ -271,8 +289,24 @@ func (pg *Page) ProcessEventKey(ev *EventKey) {
 	case tcell.KeyRight:
 		pg.IncCursor(false)
 	case tcell.KeyEnter:
+		if pg.Cursor == -1 {
+			// as if pressed down
+			pg.IncCursor(true)
+			return true
+		}
+		// XXX this is a test.
+		celem := pg.Elems[pg.Cursor]
+		coord := celem.GetCoord()
+		st := StackOf(pg)
+		page := NewPage("this is a test", 80, false, pg.Style)
+		coord.Y += 2 // XXX make it relative to something else.
+		coord.X += 2
+		page.SetCoord(coord)
+		st.PushLayer(page)
 	default:
+		return false
 	}
+	return true
 }
 
 func (pg *Page) IncCursor(isVertical bool) {
@@ -337,6 +371,10 @@ func NewTextElem(text string, style Style) *TextElem {
 	return te
 }
 
+func (tel *TextElem) String() string {
+	return fmt.Sprintf("Text{%q}", tel.Text)
+}
+
 func (tel *TextElem) Measure() Size {
 	size := Size{
 		Height: 1,
@@ -398,6 +436,13 @@ func (tel *TextElem) Draw(offset Coord, view View) {
 	}
 }
 
+func (tel *TextElem) ProcessEventKey(ev *EventKey) bool {
+	return false // TODO: clipboard.
+}
+
+//----------------------------------------
+// misc.
+
 type Color = tcell.Color
 
 // Style is purely visual and has no side effects.
@@ -425,9 +470,35 @@ func (stv Style) WithAttrs(attrs *Attrs) Style {
 
 type StyleFlags uint32
 
+func (sf StyleFlags) GetIsDim() bool {
+	return (sf & StyleFlagDim) != 0
+}
+
+func (sf *StyleFlags) SetIsDim(id bool) {
+	if id {
+		*sf |= StyleFlagDim
+	} else {
+		*sf &= ^StyleFlagDim
+	}
+}
+
+func (sf StyleFlags) GetIsShaded() bool {
+	return (sf & StyleFlagShaded) != 0
+}
+
+func (sf *StyleFlags) SetIsShaded(id bool) {
+	if id {
+		*sf |= StyleFlagShaded
+	} else {
+		*sf &= ^StyleFlagShaded
+	}
+}
+
 const (
 	StyleFlagNone StyleFlags = 0
 	StyleFlagBold StyleFlags = 1 << iota
+	StyleFlagDim
+	StyleFlagShaded
 	StyleFlagBlink
 	StyleFlagUnderline
 	StyleFlagItalic
@@ -573,6 +644,10 @@ func (pd Padding) GetPadding() Padding {
 type Size struct {
 	Width  int
 	Height int // -1 if not set.
+}
+
+func (sz Size) String() string {
+	return fmt.Sprintf("{%d,%d}", sz.Width, sz.Height)
 }
 
 func (sz Size) IsZero() bool {

@@ -33,19 +33,19 @@ func main() {
 		Foreground(tcell.ColorBlack).
 		Background(tcell.ColorWhite))
 	s.Clear()
-
-	// construct a page
-	ts := makeTestString()
-	style := logos.Style{
-		Padding: logos.Padding{2, 2, 2, 2},
-		Border:  logos.Border{HasBorder: true},
-	}
-	page := logos.NewPage(ts, 20, true, style) // TODO width shouldn't matter.
 	sw, sh := s.Size()
 	size := logos.Size{Width: sw, Height: sh}
-	bpv := logos.NewBufferedPageView(page, size)
-	bpv.Render()
-	bpv.DrawToScreen(s)
+
+	// make a buffered stack.
+	stack := logos.NewStack(size)
+	bpv := makeTestPage()
+	bpv.SetSize(size)
+	//bpv.Render()
+	//bpv.DrawToScreen(s)
+	stack.PushLayer(bpv)
+	bstack := logos.NewBufferedElemView(stack, size)
+	bstack.Render()
+	bstack.DrawToScreen(s)
 
 	// show the screen
 	quit := make(chan struct{})
@@ -61,12 +61,12 @@ func main() {
 					return
 				case tcell.KeyCtrlR:
 					// TODO somehow make it clearer that it happened.
-					bpv.DrawToScreen(s)
+					bstack.DrawToScreen(s)
 					s.Sync()
 				default:
-					bpv.ProcessEventKey(ev)
-					if bpv.Render() {
-						bpv.DrawToScreen(s)
+					bstack.ProcessEventKey(ev)
+					if bstack.Render() {
+						bstack.DrawToScreen(s)
 						s.Sync()
 					}
 				}
@@ -81,7 +81,7 @@ func main() {
 	s.Fini()
 	fmt.Println("charset:", s.CharacterSet())
 	fmt.Println("goodbye!")
-	fmt.Println(bpv.Sprint())
+	fmt.Println(bstack.Sprint())
 }
 
 func makeTestString() string {
@@ -144,4 +144,16 @@ func makeTestString() string {
 		tcell.RuneLRCorner,
 	}))
 	return s
+}
+
+func makeTestPage() *logos.BufferedElemView {
+	// make a buffered page.
+	ts := makeTestString()
+	style := logos.Style{
+		Padding: logos.Padding{2, 2, 2, 2},
+		Border:  logos.Border{HasBorder: true},
+	}
+	page := logos.NewPage(ts, 84, true, style) // TODO width shouldn't matter.
+	bpv := logos.NewBufferedElemView(page, logos.Size{})
+	return bpv
 }

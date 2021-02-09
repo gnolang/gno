@@ -59,12 +59,14 @@ func (bb *Buffer) DrawToScreen(s tcell.Screen) {
 	var st tcell.Style = tcell.StyleDefault.
 		Foreground(tcell.ColorBlack).
 		Background(tcell.ColorWhite)
+	bgst := st.Dim(true).
+		Background(tcell.ColorGrey)
 	for y := 0; y < sh; y++ {
 		for x := 0; x < sw; x++ {
 			cell := bb.GetCell(x, y)
 			if cell.Width == 0 {
 				// For debugging.
-				s.SetContent(x, y, '.', nil, st)
+				s.SetContent(x, y, '.', nil, bgst)
 			} else {
 				rz := toRunes(cell.Character)
 				st2 := st
@@ -73,6 +75,13 @@ func (bb *Buffer) DrawToScreen(s tcell.Screen) {
 				}
 				if cell.Background.Valid() {
 					st2 = st2.Background(cell.Background)
+				}
+				if cell.GetIsShaded() {
+					// XXX some bug when this is true,
+					// some cells won't have gray background.
+					// why is that?
+					// st2 = st2.Dim(true)
+					st2 = st2.Background(tcell.ColorGray)
 				}
 				s.SetContent(x, y, rz[0], rz[1:], st2)
 			}
@@ -151,56 +160,79 @@ func (bs View) GetCell(x, y int) *Cell {
 }
 
 //----------------------------------------
-// BufferedPageView
+// BufferedView
 
-// A view onto a page.
+// A view onto an element.
 // Somewhat like a slice onto an array
-// (as a view is onto a page),
+// (as a view is onto an elem),
 // except cells are allocated here.
-type BufferedPageView struct {
+type BufferedElemView struct {
 	Coord
 	Size
 	Style
 	Attrs         // e.g. to focus on a scrollbar
-	*Page         // the underlying page
-	Offset  Coord // within page for pagination
+	Base    Elem  // the underlying elem
+	Offset  Coord // within elem for pagination
 	*Buffer       // view's internal draw screen
 }
 
-// Returns a new *BufferedPageView that spans the whole page.
-// If size is zero, the page is measured first to get the full buffer
+// Returns a new *BufferedElemView that spans the whole elem.
+// If size is zero, the elem is measured first to get the full buffer
 // size. The result must still be rendered before drawing.
-// The *BufferedPageView inherits the coordinate of the page,
-// and the page's coord is otherwise ignored.
-func NewBufferedPageView(page *Page, size Size) *BufferedPageView {
+// The *BufferedElemView inherits the coordinate of the elem,
+// and the elem's coord is otherwise ignored.
+func NewBufferedElemView(elem Elem, size Size) *BufferedElemView {
 	if size.IsZero() {
-		size = page.Measure()
+		size = elem.Measure()
 	}
-	bpv := &BufferedPageView{
+	bpv := &BufferedElemView{
 		Size:   size,
-		Style:  page.Style, // TODO
-		Page:   page,
+		Style:  *elem.GetStyle(), // TODO
+		Base:   elem,
 		Offset: Coord{0, 0},
-		Buffer: NewBuffer(size),
+		// NOTE: be lazy, size may change.
+		// Buffer: NewBuffer(size),
 	}
-	bpv.SetCoord(page.Coord)
-	page.SetParent(bpv)
+	bpv.SetCoord(elem.GetCoord())
+	elem.SetParent(bpv)
 	bpv.SetIsDirty(true)
 	return bpv
 }
 
-// Renders the page onto the internal buffer.
-// Assumes buffered page view's page was already rendered.
+func (bpv *BufferedElemView) String() string {
+	return fmt.Sprintf("Buffered%v{%v}@%p",
+		bpv.Size,
+		bpv.Base,
+		bpv)
+}
+
+func (bpv *BufferedElemView) SetSize(size Size) {
+	bpv.Size = size
+	bpv.Buffer = nil
+	bpv.SetIsDirty(true)
+}
+
+// BufferedElemView's size is simply defined by .Size.
+func (bpv *BufferedElemView) Measure() Size {
+	return bpv.Size
+}
+
+// Renders the elem onto the internal buffer.
+// Assumes buffered elem view's elem was already rendered.
 // TODO: this function could be optimized to reduce
 // redundant background cell modifications.
-func (bpv *BufferedPageView) Render() (updated bool) {
+func (bpv *BufferedElemView) Render() (updated bool) {
 	if !bpv.GetIsDirty() {
 		return
 	} else {
 		defer bpv.SetIsDirty(false)
 	}
 	buffer := bpv.Buffer
-	// First, draw page background style.
+	if buffer == nil {
+		buffer = NewBuffer(bpv.Size)
+		bpv.Buffer = buffer
+	}
+	// First, draw buffer background style.
 	if true {
 		style := bpv.Style
 		for x := 0; x < buffer.Size.Width; x++ {
@@ -212,13 +244,13 @@ func (bpv *BufferedPageView) Render() (updated bool) {
 			}
 		}
 	}
-	// Then, render and draw page.
-	bpv.Page.Render()
-	bpv.Page.Draw(bpv.Offset, buffer.NewView(Coord{}))
+	// Then, render and draw elem.
+	bpv.Base.Render()
+	bpv.Base.Draw(bpv.Offset, buffer.NewView(Coord{}))
 	return true
 }
 
-func (bpv *BufferedPageView) Draw(offset Coord, view View) {
+func (bpv *BufferedElemView) Draw(offset Coord, view View) {
 	minX, maxX, minY, maxY := computeIntersection(bpv.Size, offset, view.Bounds)
 	for y := minY; y < maxY; y++ {
 		for x := minX; x < maxX; x++ {
@@ -229,6 +261,7 @@ func (bpv *BufferedPageView) Draw(offset Coord, view View) {
 	}
 }
 
-func (bpv *BufferedPageView) ProcessEventKey(ev *EventKey) {
-	bpv.Page.ProcessEventKey(ev)
+func (bpv *BufferedElemView) ProcessEventKey(ev *EventKey) bool {
+	// TODO pagination
+	return bpv.Base.ProcessEventKey(ev)
 }
