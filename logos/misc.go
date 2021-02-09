@@ -111,3 +111,13 @@ func nextCharacter(rz []rune) (s string, w int, n int) {
 	}
 	return
 }
+
+//----------------------------------------
+
+func AbsCoord(elem Elem) (crd Coord) {
+	for elem != nil {
+		crd = crd.Add(elem.GetCoord())
+		elem = elem.GetParent()
+	}
+	return
+}

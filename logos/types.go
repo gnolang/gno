@@ -51,6 +51,7 @@ type Elem interface {
 var _ Elem = &Page{}
 var _ Elem = &BufferedElemView{}
 var _ Elem = &TextElem{}
+var _ Elem = &Stack{}
 
 // produces a page from a string.
 // width is the width of the page.
@@ -280,6 +281,7 @@ type EventKey = tcell.EventKey
 func (pg *Page) ProcessEventKey(ev *EventKey) bool {
 	switch ev.Key() {
 	case tcell.KeyEsc:
+		return false
 	case tcell.KeyUp:
 		pg.DecCursor(true)
 	case tcell.KeyDown:
@@ -295,9 +297,9 @@ func (pg *Page) ProcessEventKey(ev *EventKey) bool {
 			return true
 		}
 		// XXX this is a test.
-		celem := pg.Elems[pg.Cursor]
-		coord := celem.GetCoord()
 		st := StackOf(pg)
+		celem := pg.Elems[pg.Cursor]
+		coord := AbsCoord(celem).Sub(AbsCoord(st))
 		page := NewPage("this is a test", 80, false, pg.Style)
 		coord.Y += 2 // XXX make it relative to something else.
 		coord.X += 2
@@ -306,6 +308,8 @@ func (pg *Page) ProcessEventKey(ev *EventKey) bool {
 	default:
 		return false
 	}
+	// Leave as true for convenience in cases above.
+	// If a key event wasn't consumed, return false.
 	return true
 }
 

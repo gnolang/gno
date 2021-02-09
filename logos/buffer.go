@@ -77,9 +77,9 @@ func (bb *Buffer) DrawToScreen(s tcell.Screen) {
 					st2 = st2.Background(cell.Background)
 				}
 				if cell.GetIsShaded() {
-					// XXX some bug when this is true,
-					// some cells won't have gray background.
-					// why is that?
+					// XXX some bug when this is true, some
+					// cells won't have gray background.  why
+					// is that?
 					// st2 = st2.Dim(true)
 					st2 = st2.Background(tcell.ColorGray)
 				}
@@ -177,10 +177,10 @@ type BufferedElemView struct {
 }
 
 // Returns a new *BufferedElemView that spans the whole elem.
-// If size is zero, the elem is measured first to get the full buffer
-// size. The result must still be rendered before drawing.
-// The *BufferedElemView inherits the coordinate of the elem,
-// and the elem's coord is otherwise ignored.
+// If size is zero, the elem is measured first to get the full
+// buffer size. The result must still be rendered before
+// drawing.  The *BufferedElemView inherits the coordinate of
+// the elem, and the elem's coord is set to zero.
 func NewBufferedElemView(elem Elem, size Size) *BufferedElemView {
 	if size.IsZero() {
 		size = elem.Measure()
@@ -194,8 +194,9 @@ func NewBufferedElemView(elem Elem, size Size) *BufferedElemView {
 		// Buffer: NewBuffer(size),
 	}
 	bpv.SetCoord(elem.GetCoord())
-	elem.SetParent(bpv)
 	bpv.SetIsDirty(true)
+	elem.SetParent(bpv)
+	elem.SetCoord(Coord{}) // required for abs calc.
 	return bpv
 }
 

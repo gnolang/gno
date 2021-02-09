@@ -127,12 +127,31 @@ func (st *Stack) Draw(offset Coord, view View) {
 }
 
 func (st *Stack) ProcessEventKey(ev *EventKey) bool {
+	// An empty *Stack is inert.
 	if len(st.Page.Elems) == 0 {
 		return false
 	}
-	// XXX layer operations.
+	// Try to let the top layer handle it.
 	last := st.Page.Elems[len(st.Page.Elems)-1]
-	return last.ProcessEventKey(ev)
+	if last.ProcessEventKey(ev) {
+		return true
+	}
+	// Maybe it's something for the stack.
+	switch ev.Key() {
+	case tcell.KeyEsc:
+		if 1 < len(st.Page.Elems) {
+			// Pop the top-most layer.
+			st.Elems = st.Elems[:len(st.Elems)-1]
+			st.Cursor--
+			st.SetIsDirty(true)
+			return true
+		} else {
+			// Let the last layer stick around.
+			return false
+		}
+	default:
+		return false
+	}
 }
 
 // Traverses the inclusive ancestors of elem and returns the
