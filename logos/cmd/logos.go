@@ -36,7 +36,11 @@ func main() {
 
 	// construct a page
 	ts := makeTestString()
-	page := logos.NewPage(ts, 20, true, logos.Style{}) // TODO width shouldn't matter.
+	style := logos.Style{
+		Padding: logos.Padding{2, 2, 2, 2},
+		Border:  logos.Border{HasBorder: true},
+	}
+	page := logos.NewPage(ts, 20, true, style) // TODO width shouldn't matter.
 	sw, sh := s.Size()
 	size := logos.Size{Width: sw, Height: sh}
 	bpv := logos.NewBufferedPageView(page, size)
@@ -77,12 +81,13 @@ func main() {
 	s.Fini()
 	fmt.Println("charset:", s.CharacterSet())
 	fmt.Println("goodbye!")
+	fmt.Println(bpv.Sprint())
 }
 
 func makeTestString() string {
 	s := ""
 	putln := func(l string) {
-		s += "\n" + l
+		s += l + "\n"
 	}
 	// putln("Character set: " + s.CharacterSet())
 	putln("Press Ctrl-Q to Exit")

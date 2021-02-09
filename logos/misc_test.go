@@ -33,7 +33,7 @@ func TestStringWidthSlow(t *testing.T) {
 }
 
 // Same as above but for longer pseudo-random strings.
-func TestStringWidthFast(t *testing.T) {
+func TestStringWidthRandom(t *testing.T) {
 	max := 10 * 1024 * 1024
 	for i := 0; i < max; i++ {
 		if i%(max/80) == 0 {
@@ -71,6 +71,20 @@ func TestStringWidthDummy(t *testing.T) {
 	} else {
 		require.True(t, 0 < width1, "got zero width for bytes %X", bz)
 	}
+	require.Equal(t, width2, width1,
+		"want %d but got %d the slow way: %X",
+		width1, width2, bz)
+}
+
+// For debugging.
+func TestStringWidthDummy2(t *testing.T) {
+	// NOTE: this is broken in the OSX terminal.  This should print a USA flag
+	// and have width 2, or possibly default to two block letters "U" and "S",
+	// but my terminal prints a flag of width 1.
+	bz := []byte("\U0001f1fa\U0001f1f8")
+	width1 := widthOf(string(bz))
+	width2 := widthOfSlow(string(bz))
+	require.Equal(t, width1, 1)
 	require.Equal(t, width2, width1,
 		"want %d but got %d the slow way: %X",
 		width1, width2, bz)

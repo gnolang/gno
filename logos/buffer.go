@@ -43,12 +43,7 @@ func (bb *Buffer) Sprint() string {
 		parts := []string{}
 		for x := 0; x < bb.Width; x++ {
 			cell := bb.GetCell(x, y)
-			if cell.Width == 0 {
-				// an uninitialized cell still takes space.
-				parts = append(parts, " ")
-			} else {
-				parts = append(parts, cell.Character)
-			}
+			parts = append(parts, cell.Character)
 		}
 		line := strings.Join(parts, "")
 		lines = append(lines, line)
@@ -68,6 +63,7 @@ func (bb *Buffer) DrawToScreen(s tcell.Screen) {
 		for x := 0; x < sw; x++ {
 			cell := bb.GetCell(x, y)
 			if cell.Width == 0 {
+				// For debugging.
 				s.SetContent(x, y, '.', nil, st)
 			} else {
 				rz := toRunes(cell.Character)
@@ -102,9 +98,6 @@ func (cc *Cell) SetCell(oc *Cell) {
 }
 
 func (cc *Cell) SetValue(chs string, w int, st Style, el Elem) {
-	if w == 0 {
-		panic("should not happen")
-	}
 	cc.Character = chs
 	cc.Width = w
 	cc.Foreground = st.Foreground

@@ -54,12 +54,14 @@ func NewPage(s string, width int, isCode bool, style Style) *Page {
 			Width:  width,
 			Height: -1, // not set
 		},
+		Style:  style,
 		Elems:  nil, // will set
 		Cursor: -1,
 	}
+	pad := style.Padding
 	elems := []Elem{}
-	ypos := 0
-	xpos := 0
+	ypos := 0 + pad.Top
+	xpos := 0 + pad.Left
 	lines := splitLines(s)
 	if isCode {
 		for _, line := range lines {
@@ -68,17 +70,17 @@ func NewPage(s string, width int, isCode bool, style Style) *Page {
 			te.SetCoord(Coord{X: xpos, Y: ypos})
 			elems = append(elems, te)
 			ypos++
-			xpos = 0
+			xpos = 0 + pad.Left
 		}
 	} else {
 		for _, line := range lines {
 			words := splitSpaces(line)
 			for _, word := range words {
 				wd := widthOf(word)
-				if width < xpos+wd {
-					if xpos != 0 {
+				if width < xpos+wd+pad.Left+pad.Right {
+					if xpos != 0+pad.Left {
 						ypos++
-						xpos = 0
+						xpos = 0 + pad.Left
 					}
 				}
 				te := NewTextElem(word, style)
@@ -89,7 +91,7 @@ func NewPage(s string, width int, isCode bool, style Style) *Page {
 				xpos += 1        // space after each word (not written)
 			}
 			ypos++
-			xpos = 0
+			xpos = 0 + pad.Left
 		}
 	}
 	page.Elems = elems
@@ -100,8 +102,9 @@ func NewPage(s string, width int, isCode bool, style Style) *Page {
 
 // Assumes page starts at 0,0.
 func (pg *Page) Measure() Size {
-	maxX := 0
-	maxY := 0
+	pad := pg.Padding
+	maxX := pad.Left
+	maxY := pad.Top
 	for _, view := range pg.Elems {
 		coord := view.GetCoord()
 		size := view.GetSize()
@@ -113,8 +116,8 @@ func (pg *Page) Measure() Size {
 		}
 	}
 	size := Size{
-		Width:  maxX,
-		Height: maxY,
+		Width:  maxX + pad.Right,
+		Height: maxY + pad.Top,
 	}
 	pg.Size = size
 	return size
@@ -210,14 +213,37 @@ func (pg *Page) Render() (updated bool) {
 
 // Draw the rendered page elements onto the view.
 func (pg *Page) Draw(offset Coord, view View) {
-	// First, draw page background style.
 	style := pg.Style
-	for x := 0; x < view.Bounds.Width; x++ {
-		for y := 0; y < view.Bounds.Height; y++ {
-			cell := view.GetCell(x, y)
-			cell.Foreground = style.Foreground
-			cell.Background = style.Foreground
-			cell.StyleFlags = style.StyleFlags
+	minX, maxX, minY, maxY :=
+		computeIntersection(pg.Size, offset, view.Bounds)
+	// First, draw page background style.
+	for y := minY; y < maxY; y++ {
+		for x := minX; x < maxX; x++ {
+			xo, yo := x-offset.X, y-offset.Y
+			vcell := view.GetCell(xo, yo)
+			if xo == 0 {
+				if yo == 0 {
+					vcell.SetValue(string(tcell.RuneULCorner), 1, style, nil)
+				} else if yo == pg.Size.Height-1 {
+					vcell.SetValue(string(tcell.RuneLLCorner), 1, style, nil)
+				} else {
+					vcell.SetValue(string(tcell.RuneVLine), 1, style, nil)
+				}
+			} else if xo == pg.Size.Width-1 {
+				if yo == 0 {
+					vcell.SetValue(string(tcell.RuneURCorner), 1, style, nil)
+				} else if yo == pg.Size.Height-1 {
+					vcell.SetValue(string(tcell.RuneLRCorner), 1, style, nil)
+				} else {
+					vcell.SetValue(string(tcell.RuneVLine), 1, style, nil)
+				}
+			} else if yo == 0 {
+				vcell.SetValue(string(tcell.RuneHLine), 1, style, nil)
+			} else if yo == pg.Size.Height-1 {
+				vcell.SetValue(string(tcell.RuneHLine), 1, style, nil)
+			} else {
+				vcell.SetValue(" ", 1, style, nil)
+			}
 		}
 	}
 	// Then, draw elems.
@@ -291,7 +317,7 @@ func (pg *Page) DecCursor(isVertical bool) {
 type TextElem struct {
 	Coord
 	Size
-	Style
+	Style // ignores padding.
 	Attrs
 	Text string
 	*Buffer
@@ -343,6 +369,10 @@ func (tel *TextElem) Render() (updated bool) {
 		}
 		cell := tel.Buffer.GetCell(i, 0)
 		cell.SetValue(s, w, style, tel)
+		for j := 1; j < w; j++ {
+			cell := tel.Buffer.GetCell(i+j, 0)
+			cell.SetValue("", 0, Style{}, tel) // clear next cells
+		}
 		i += w
 	}
 	if i != tel.Buffer.Width {
@@ -354,7 +384,8 @@ func (tel *TextElem) Render() (updated bool) {
 }
 
 func (tel *TextElem) Draw(offset Coord, view View) {
-	minX, maxX, minY, maxY := computeIntersection(tel.Size, offset, view.Bounds)
+	minX, maxX, minY, maxY :=
+		computeIntersection(tel.Size, offset, view.Bounds)
 	for y := minY; y < maxY; y++ {
 		if minY != 0 {
 			panic("should not happen")
@@ -374,6 +405,7 @@ type Style struct {
 	Foreground Color
 	Background Color
 	Padding    Padding
+	Border     Border
 	StyleFlags
 	Other []KVPair
 }
@@ -528,6 +560,10 @@ type Padding struct {
 	Left   int
 	Right  int
 	Bottom int
+}
+
+type Border struct {
+	HasBorder bool
 }
 
 func (pd Padding) GetPadding() Padding {
