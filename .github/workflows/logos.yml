@@ -7,7 +7,7 @@ jobs:
     strategy:
       matrix:
         build-os: [ubuntu-latest, macos-latest, windows-latest]
-        arch: [amd64, arm64, riscv]
+        arch: [amd64, arm64, riscv64]
     runs-on: ${{ matrix.build-os }}
     steps:
       - uses: actions/checkout@v2
