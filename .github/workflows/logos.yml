@@ -1,9 +1,14 @@
+# TODO: Add target OS
 name: logos
 on: [push, pull_request]
 
 jobs:
   realm:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        build-os: [ubuntu-latest, macos-latest, windows-latest]
+        arch: [amd64, arm64, riscv64]
+    runs-on: ${{ matrix.build-os }}
     steps:
       - uses: actions/checkout@v2
       - name: Setup go
@@ -11,11 +16,10 @@ jobs:
         with:
           go-version: '^1.15'
       - name: logos
+        env:
+          GOARCH ${{ matrix.arch }}
         run: |
-          go mod download github.com/davecgh/go-spew
           go mod download
           cd logos/cmd
-          go get .
           go build .
-          ls -a
           
