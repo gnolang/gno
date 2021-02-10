@@ -2,7 +2,6 @@ package logos
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -12,7 +11,7 @@ import (
 
 // A Page has renderable Elem(ents).
 type Page struct {
-	Coord
+	Coord // used by parent only. TODO document.
 	Size
 	Style
 	Attrs
@@ -217,10 +216,6 @@ func (pg *Page) Render() (updated bool) {
 	for _, elem := range pg.Elems {
 		elem.Render()
 	}
-	if debug {
-		debug.Println("sleeping after rendering page elements")
-		time.Sleep(time.Second)
-	}
 	return true
 }
 
@@ -270,10 +265,6 @@ func (pg *Page) Draw(offset Coord, view View) {
 		eoffset := offset.Sub(elem.GetCoord())
 		elem.Draw(eoffset, view)
 	}
-	if debug {
-		debug.Println("sleeping after drawing page")
-		time.Sleep(time.Second)
-	}
 }
 
 type EventKey = tcell.EventKey
@@ -301,7 +292,7 @@ func (pg *Page) ProcessEventKey(ev *EventKey) bool {
 		celem := pg.Elems[pg.Cursor]
 		coord := AbsCoord(celem).Sub(AbsCoord(st))
 		page := NewPage("this is a test", 80, false, pg.Style)
-		coord.Y += 2 // XXX make it relative to something else.
+		coord.Y += 1
 		coord.X += 2
 		page.SetCoord(coord)
 		st.PushLayer(page)
@@ -589,40 +580,48 @@ func computeIntersection(els Size, elo Coord, vws Size) (minX, maxX, minY, maxY 
 			View
 			+----------+
 			|   [Elem__|____]
-			+----------+       */
+			+----------+
+			x   0
+		*/
 		minX = 0
 	} else {
 		/*
 			     View
 			     +----------+
 			[____|__Elem]   |
-			     +----------+  */
+			     +----------+
+			0    x
+		*/
 		minX = elo.X
 	}
-	if vws.Width < elo.X+els.Width {
-		/*
-			View
-			+----------+
-			|   [Elem__|____]
-			+----------+       */
-		maxX = vws.Width - elo.X
-	} else {
+	if els.Width <= vws.Width+elo.X {
 		/*
 			     View
 			     +----------+
 			[____|__Elem]   |
-			     +----------+  */
+			     +----------+
+				        W   w+x
+		*/
 		maxX = els.Width
+	} else {
+		/*
+			View
+			+----------+
+			|   [Elem__|____]
+			+----------+
+			           w+x  W
+		*/
+		maxX = vws.Width + elo.X
 	}
 	if elo.Y < 0 {
 		minY = 0
 	} else {
 		minY = elo.Y
 	}
-	if vws.Height < elo.Y+els.Height {
-		maxY = vws.Height - elo.Y
-	} else {
+	if els.Height <= vws.Height+elo.Y {
 		maxY = els.Height
+	} else {
+		maxY = vws.Height + elo.Y
 	}
 	return
 }

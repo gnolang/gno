@@ -2,7 +2,6 @@ package logos
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -55,74 +54,32 @@ func (st *Stack) Render() (updated bool) {
 	return st.Page.Render()
 }
 
-// Draw the rendered layers onto the view.
+// Draw the rendered layers onto the view.  Any dimming of
+// occluded layers must actually stretch in all directions
+// infinitely (since we can scroll beyond the bounds of any
+// view and we expect the dimming effect to carry while we
+// scroll), so the entire view is dimmed first, and then the
+// upper-most layer is drawn.
 func (st *Stack) Draw(offset Coord, view View) {
-	style := st.Style
-	minX, maxX, minY, maxY :=
-		computeIntersection(st.Size, offset, view.Bounds)
-	// First, draw page background style.
-	for y := minY; y < maxY; y++ {
-		for x := minX; x < maxX; x++ {
-			xo, yo := x-offset.X, y-offset.Y
-			vcell := view.GetCell(xo, yo)
-			if style.Border.HasBorder {
-				// draw area and border
-				if x == 0 {
-					if y == 0 {
-						vcell.SetValue(string(tcell.RuneULCorner), 1, style, nil)
-					} else if y == st.Size.Height-1 {
-						vcell.SetValue(string(tcell.RuneLLCorner), 1, style, nil)
-					} else {
-						vcell.SetValue(string(tcell.RuneVLine), 1, style, nil)
-					}
-				} else if x == st.Size.Width-1 {
-					if y == 0 {
-						vcell.SetValue(string(tcell.RuneURCorner), 1, style, nil)
-					} else if y == st.Size.Height-1 {
-						vcell.SetValue(string(tcell.RuneLRCorner), 1, style, nil)
-					} else {
-						vcell.SetValue(string(tcell.RuneVLine), 1, style, nil)
-					}
-				} else if y == 0 {
-					vcell.SetValue(string(tcell.RuneHLine), 1, style, nil)
-				} else if y == st.Size.Height-1 {
-					vcell.SetValue(string(tcell.RuneHLine), 1, style, nil)
-				} else {
-					vcell.SetValue(" ", 1, style, nil)
-				}
-			} else {
-				// draw area but no border.
-				vcell.SetValue(" ", 1, style, nil)
-			}
+	// Draw bottom layers.
+	if 1 < len(st.Elems) {
+		for _, elem := range st.Elems[:len(st.Elems)-1] {
+			loffset := offset.Sub(elem.GetCoord())
+			elem.Draw(loffset, view)
 		}
 	}
-	// Then, draw layers.
-	if len(st.Elems) > 0 {
-		if true {
-			// Draw bottom layers.
-			if len(st.Elems) > 1 {
-				for _, layer := range st.Elems[:len(st.Elems)-1] {
-					loffset := offset.Sub(layer.GetCoord())
-					layer.Draw(loffset, view)
-				}
-			}
-			// Draw occlusion layer.
-			for y := minY; y < maxY; y++ {
-				for x := minX; x < maxX; x++ {
-					xo, yo := x-offset.X, y-offset.Y
-					vcell := view.GetCell(xo, yo)
-					vcell.SetIsShaded(true)
-				}
-			}
+	// Draw occlusion screen.
+	for y := 0; y < view.Bounds.Height; y++ {
+		for x := 0; x < view.Bounds.Width; x++ {
+			vcell := view.GetCell(x, y)
+			vcell.SetIsShaded(true)
 		}
-		// Draw top layer.
-		llayer := st.Elems[len(st.Elems)-1]
-		loffset := offset.Sub(llayer.GetCoord())
-		llayer.Draw(loffset, view)
 	}
-	if debug {
-		debug.Println("sleeping after drawing page")
-		time.Sleep(time.Second)
+	// Draw last (top) layer.
+	if 0 < len(st.Elems) {
+		last := st.Elems[len(st.Elems)-1]
+		loffset := offset.Sub(last.GetCoord())
+		last.Draw(loffset, view)
 	}
 }
 
@@ -131,7 +88,7 @@ func (st *Stack) ProcessEventKey(ev *EventKey) bool {
 	if len(st.Page.Elems) == 0 {
 		return false
 	}
-	// Try to let the top layer handle it.
+	// Try to let the last layer handle it.
 	last := st.Page.Elems[len(st.Page.Elems)-1]
 	if last.ProcessEventKey(ev) {
 		return true
@@ -140,7 +97,7 @@ func (st *Stack) ProcessEventKey(ev *EventKey) bool {
 	switch ev.Key() {
 	case tcell.KeyEsc:
 		if 1 < len(st.Page.Elems) {
-			// Pop the top-most layer.
+			// Pop the last layer.
 			st.Elems = st.Elems[:len(st.Elems)-1]
 			st.Cursor--
 			st.SetIsDirty(true)

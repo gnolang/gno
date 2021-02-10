@@ -64,6 +64,12 @@ func (bb *Buffer) DrawToScreen(s tcell.Screen) {
 	for y := 0; y < sh; y++ {
 		for x := 0; x < sw; x++ {
 			cell := bb.GetCell(x, y)
+			if x == 0 && y == 0 {
+				// XXX
+				// NOTE: to thwart some inexplicable bugs.
+				s.SetContent(0, 0, tcell.RunePlus, nil, st)
+				continue
+			}
 			if cell.Width == 0 {
 				// For debugging.
 				s.SetContent(x, y, '.', nil, bgst)
@@ -77,10 +83,7 @@ func (bb *Buffer) DrawToScreen(s tcell.Screen) {
 					st2 = st2.Background(cell.Background)
 				}
 				if cell.GetIsShaded() {
-					// XXX some bug when this is true, some
-					// cells won't have gray background.  why
-					// is that?
-					// st2 = st2.Dim(true)
+					st2 = st2.Dim(true)
 					st2 = st2.Background(tcell.ColorGray)
 				}
 				s.SetContent(x, y, rz[0], rz[1:], st2)
@@ -228,6 +231,7 @@ func (bpv *BufferedElemView) Render() (updated bool) {
 	} else {
 		defer bpv.SetIsDirty(false)
 	}
+	// Get or initialize buffer.
 	buffer := bpv.Buffer
 	if buffer == nil {
 		buffer = NewBuffer(bpv.Size)
@@ -239,9 +243,7 @@ func (bpv *BufferedElemView) Render() (updated bool) {
 		for x := 0; x < buffer.Size.Width; x++ {
 			for y := 0; y < buffer.Size.Height; y++ {
 				cell := buffer.GetCell(x, y)
-				cell.Foreground = style.Foreground
-				cell.Background = style.Foreground
-				cell.StyleFlags = style.StyleFlags
+				cell.SetValue("\u2606", 1, style, nil) // clear
 			}
 		}
 	}
@@ -256,13 +258,35 @@ func (bpv *BufferedElemView) Draw(offset Coord, view View) {
 	for y := minY; y < maxY; y++ {
 		for x := minX; x < maxX; x++ {
 			bcell := bpv.Buffer.GetCell(x, y)
-			vcell := view.GetCell(x-minX, y-minY)
+			vcell := view.GetCell(x-offset.X, y-offset.Y)
 			vcell.SetCell(bcell)
 		}
 	}
 }
 
 func (bpv *BufferedElemView) ProcessEventKey(ev *EventKey) bool {
-	// TODO pagination
-	return bpv.Base.ProcessEventKey(ev)
+	// Pagination is outer-greedy, and so Logos
+	// generally just likes infinite areas.
+	switch evr := ev.Rune(); evr {
+	case 'a': // left
+		bpv.Scroll(Coord{-24, 0})
+	case 's': // down
+		bpv.Scroll(Coord{0, 16})
+	case 'd': // right
+		bpv.Scroll(Coord{24, 0})
+	case 'w': // up
+		bpv.Scroll(Coord{0, -16})
+	default:
+		// Try to get the base to handle it.
+		if bpv.Base.ProcessEventKey(ev) {
+			return true
+		}
+		return false
+	}
+	return true // convenience for cases.
+}
+
+func (bpv *BufferedElemView) Scroll(dir Coord) {
+	bpv.Offset = bpv.Offset.Add(dir)
+	bpv.SetIsDirty(true)
 }

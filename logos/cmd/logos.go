@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime/debug"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/gdamore/tcell/v2/encoding"
@@ -27,8 +28,6 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%v\n", e)
 		os.Exit(1)
 	}
-	// plain := tcell.StyleDefault
-	// bold := style.Bold(true)
 	s.SetStyle(tcell.StyleDefault.
 		Foreground(tcell.ColorBlack).
 		Background(tcell.ColorWhite))
@@ -38,19 +37,28 @@ func main() {
 
 	// make a buffered stack.
 	stack := logos.NewStack(size)
-	bpv := makeTestPage()
-	bpv.SetSize(size)
-	//bpv.Render()
-	//bpv.DrawToScreen(s)
-	stack.PushLayer(bpv)
+	stack.PushLayer(makeTestPage())
 	bstack := logos.NewBufferedElemView(stack, size)
 	bstack.Render()
 	bstack.DrawToScreen(s)
+
+	// recover any panics.
+	var rec interface{}
+	var recStack []byte
 
 	// show the screen
 	quit := make(chan struct{})
 	s.Show()
 	go func() {
+		// capture panics to print error better.
+		defer func() {
+			if rec = recover(); rec != nil {
+				recStack = debug.Stack()
+				close(quit)
+				return
+			}
+		}()
+		// handle event
 		for {
 			ev := s.PollEvent()
 			switch ev := ev.(type) {
@@ -82,6 +90,13 @@ func main() {
 	fmt.Println("charset:", s.CharacterSet())
 	fmt.Println("goodbye!")
 	fmt.Println(bstack.Sprint())
+
+	if rec != nil {
+		fmt.Println("====================")
+		fmt.Println("panic:", rec)
+		fmt.Println("stacktrace:\n", string(recStack))
+		fmt.Println("====================")
+	}
 }
 
 func makeTestString() string {
@@ -105,7 +120,8 @@ func makeTestString() string {
 	putln("ZWJ:       \U0001f9db\u200d\u2640 (female vampire)")
 	putln("ZWJ:       \U0001f9db\u200d\u2642 (male vampire)")
 	putln("Family:    \U0001f469\u200d\U0001f467\u200d\U0001f467 (woman girl girl)\n")
-	putln("Region:    \U0001f1fa\U0001f1f8 (USA! USA!)\n")
+	// XXX why is this broken?
+	// putln("Region:    \U0001f1fa\U0001f1f8 (USA! USA!)\n")
 	putln("")
 	putln("Box:")
 	putln(string([]rune{
@@ -153,7 +169,8 @@ func makeTestPage() *logos.BufferedElemView {
 		Padding: logos.Padding{2, 2, 2, 2},
 		Border:  logos.Border{HasBorder: true},
 	}
-	page := logos.NewPage(ts, 84, true, style) // TODO width shouldn't matter.
+	// TODO width shouldn't matter.
+	page := logos.NewPage(ts, 84, true, style)
 	bpv := logos.NewBufferedElemView(page, logos.Size{})
 	return bpv
 }
