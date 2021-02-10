@@ -98,7 +98,24 @@ func MakeValueElem(value gno.Value, style logos.Style) logos.Elem {
 			page.AppendElem(eleme)
 		}
 	case *gno.StructValue:
-		// add heading.
+		oinfo := cv.GetObjectInfo()
+		// add object id.
+		elemo := logos.NewTextElem("ObjectID: "+
+			oinfo.GetObjectID().String(), zstyle)
+		page.AppendElem(elemo)
+		// add owner id.
+		elemow := logos.NewTextElem("Owner: "+
+			oinfo.GetOwnerID().String(), zstyle)
+		page.AppendElem(elemow)
+		// add mod time.
+		elemfz := logos.NewTextElem(
+			fmt.Sprintf(
+				"ModTime: %d, RefCount: %d",
+				oinfo.GetModTime(),
+				oinfo.GetRefCount()),
+			zstyle)
+		page.AppendElem(elemfz)
+		// add fields heading.
 		elemt := logos.NewTextElem("Fields:", zstyle)
 		page.AppendElem(elemt)
 		// add struct fields.
