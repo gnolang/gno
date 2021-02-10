@@ -210,6 +210,13 @@ func (bpv *BufferedElemView) String() string {
 		bpv)
 }
 
+// Pass on style to the base elem.
+func (bpv *BufferedElemView) SetStyle(style Style) {
+	bpv.Style = style
+	bpv.Base.SetStyle(style)
+	bpv.SetIsDirty(true)
+}
+
 func (bpv *BufferedElemView) SetSize(size Size) {
 	bpv.Size = size
 	bpv.Buffer = nil
@@ -269,13 +276,13 @@ func (bpv *BufferedElemView) ProcessEventKey(ev *EventKey) bool {
 	// generally just likes infinite areas.
 	switch evr := ev.Rune(); evr {
 	case 'a': // left
-		bpv.Scroll(Coord{-24, 0})
+		bpv.Scroll(Coord{16, 0})
 	case 's': // down
-		bpv.Scroll(Coord{0, 16})
+		bpv.Scroll(Coord{0, -8})
 	case 'd': // right
-		bpv.Scroll(Coord{24, 0})
+		bpv.Scroll(Coord{-16, 0})
 	case 'w': // up
-		bpv.Scroll(Coord{0, -16})
+		bpv.Scroll(Coord{0, 8})
 	default:
 		// Try to get the base to handle it.
 		if bpv.Base.ProcessEventKey(ev) {

@@ -871,6 +871,10 @@ func declareWith(pkgPath string, name Name, b Type) *DeclaredType {
 	return dt
 }
 
+func BaseOf(t Type) Type {
+	return baseOf(t)
+}
+
 func baseOf(t Type) Type {
 	if dt, ok := t.(*DeclaredType); ok {
 		return dt.Base

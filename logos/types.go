@@ -30,6 +30,7 @@ type Elem interface {
 	GetCoord() Coord
 	SetCoord(Coord)
 	GetStyle() *Style
+	SetStyle(Style)
 	GetAttrs() *Attrs
 	GetIsCursor() bool
 	SetIsCursor(bool)
@@ -65,40 +66,42 @@ func NewPage(s string, width int, isCode bool, style Style) *Page {
 		Elems:  nil, // will set
 		Cursor: -1,
 	}
-	pad := style.Padding
 	elems := []Elem{}
-	ypos := 0 + pad.Top
-	xpos := 0 + pad.Left
-	lines := splitLines(s)
-	if isCode {
-		for _, line := range lines {
-			te := NewTextElem(line, style)
-			te.SetParent(page)
-			te.SetCoord(Coord{X: xpos, Y: ypos})
-			elems = append(elems, te)
-			ypos++
-			xpos = 0 + pad.Left
-		}
-	} else {
-		for _, line := range lines {
-			words := splitSpaces(line)
-			for _, word := range words {
-				wd := widthOf(word)
-				if width < xpos+wd+pad.Left+pad.Right {
-					if xpos != 0+pad.Left {
-						ypos++
-						xpos = 0 + pad.Left
-					}
-				}
-				te := NewTextElem(word, style)
+	if s != "" {
+		pad := style.Padding
+		ypos := 0 + pad.Top
+		xpos := 0 + pad.Left
+		lines := splitLines(s)
+		if isCode {
+			for _, line := range lines {
+				te := NewTextElem(line, style)
 				te.SetParent(page)
 				te.SetCoord(Coord{X: xpos, Y: ypos})
 				elems = append(elems, te)
-				xpos += te.Width // size of word
-				xpos += 1        // space after each word (not written)
+				ypos++
+				xpos = 0 + pad.Left
 			}
-			ypos++
-			xpos = 0 + pad.Left
+		} else {
+			for _, line := range lines {
+				words := splitSpaces(line)
+				for _, word := range words {
+					wd := widthOf(word)
+					if width < xpos+wd+pad.Left+pad.Right {
+						if xpos != 0+pad.Left {
+							ypos++
+							xpos = 0 + pad.Left
+						}
+					}
+					te := NewTextElem(word, style)
+					te.SetParent(page)
+					te.SetCoord(Coord{X: xpos, Y: ypos})
+					elems = append(elems, te)
+					xpos += te.Width // size of word
+					xpos += 1        // space after each word (not written)
+				}
+				ypos++
+				xpos = 0 + pad.Left
+			}
 		}
 	}
 	page.Elems = elems
@@ -110,6 +113,31 @@ func NewPage(s string, width int, isCode bool, style Style) *Page {
 func (pg *Page) String() string {
 	return fmt.Sprintf("Page%v{%d}@%p",
 		pg.Size, len(pg.Elems), pg)
+}
+
+func (pg *Page) NextCoord() Coord {
+	if len(pg.Elems) == 0 {
+		return Coord{X: pg.Padding.Left, Y: pg.Padding.Top}
+	} else {
+		last := pg.Elems[len(pg.Elems)-1]
+		last.Measure()
+		lcoord := last.GetCoord()
+		lsize := last.GetSize()
+		return Coord{
+			X: pg.Padding.Left,
+			Y: lcoord.Y + lsize.Height, // no spacers by spec.
+		}
+	}
+}
+
+// Measures the size of elem and appends to page below the last element,
+// or if empty, the top-leftmost coordinate exclusive of padding cells.
+func (pg *Page) AppendElem(elem Elem) {
+	ncoord := pg.NextCoord()
+	elem.SetParent(pg)
+	elem.SetCoord(ncoord)
+	pg.Elems = append(pg.Elems, elem)
+	pg.SetIsDirty(true)
 }
 
 // Assumes page starts at 0,0.
@@ -129,7 +157,7 @@ func (pg *Page) Measure() Size {
 	}
 	size := Size{
 		Width:  maxX + pad.Right,
-		Height: maxY + pad.Top,
+		Height: maxY + pad.Bottom,
 	}
 	pg.Size = size
 	return size
@@ -229,33 +257,31 @@ func (pg *Page) Draw(offset Coord, view View) {
 		for x := minX; x < maxX; x++ {
 			xo, yo := x-offset.X, y-offset.Y
 			vcell := view.GetCell(xo, yo)
-			if style.Border.HasBorder {
-				// draw area and border
-				if x == 0 {
-					if y == 0 {
-						vcell.SetValue(string(tcell.RuneULCorner), 1, style, nil)
-					} else if y == pg.Size.Height-1 {
-						vcell.SetValue(string(tcell.RuneLLCorner), 1, style, nil)
-					} else {
-						vcell.SetValue(string(tcell.RuneVLine), 1, style, nil)
-					}
-				} else if x == pg.Size.Width-1 {
-					if y == 0 {
-						vcell.SetValue(string(tcell.RuneURCorner), 1, style, nil)
-					} else if y == pg.Size.Height-1 {
-						vcell.SetValue(string(tcell.RuneLRCorner), 1, style, nil)
-					} else {
-						vcell.SetValue(string(tcell.RuneVLine), 1, style, nil)
-					}
+			// Draw area and border.
+			if x == 0 {
+				if y == pg.Size.Height-1 {
+					// handle this case first so if height is 1,
+					// this corner is preferred.
+					vcell.SetValue(style.BLCorner(), 1, style, nil)
 				} else if y == 0 {
-					vcell.SetValue(string(tcell.RuneHLine), 1, style, nil)
-				} else if y == pg.Size.Height-1 {
-					vcell.SetValue(string(tcell.RuneHLine), 1, style, nil)
+					vcell.SetValue(style.TLCorner(), 1, style, nil)
 				} else {
-					vcell.SetValue(" ", 1, style, nil)
+					vcell.SetValue(style.LeftBorder(y), 1, style, nil)
 				}
-			} else {
-				// draw area but no border.
+			} else if x == pg.Size.Width-1 {
+				if y == pg.Size.Height-1 {
+					// ditto for future left-right language support.
+					vcell.SetValue(style.BRCorner(), 1, style, nil)
+				} else if y == 0 {
+					vcell.SetValue(style.TRCorner(), 1, style, nil)
+				} else {
+					vcell.SetValue(style.RightBorder(y), 1, style, nil)
+				}
+			} else if y == 0 {
+				vcell.SetValue(style.TopBorder(x), 1, style, nil)
+			} else if y == pg.Size.Height-1 {
+				vcell.SetValue(style.BottomBorder(x), 1, style, nil)
+			} else { // Draw area.
 				vcell.SetValue(" ", 1, style, nil)
 			}
 		}
@@ -444,14 +470,18 @@ type Color = tcell.Color
 type Style struct {
 	Foreground Color
 	Background Color
-	Padding    Padding
-	Border     Border
+	Padding
+	Border
 	StyleFlags
 	Other []KVPair
 }
 
 func (st *Style) GetStyle() *Style {
 	return st
+}
+
+func (st *Style) SetStyle(st2 Style) {
+	*st = st2
 }
 
 func (stv Style) WithAttrs(attrs *Attrs) Style {
@@ -630,18 +660,109 @@ func computeIntersection(els Size, elo Coord, vws Size) (minX, maxX, minY, maxY 
 // Misc simple types
 
 type Padding struct {
-	Top    int
 	Left   int
+	Top    int
 	Right  int
 	Bottom int
 }
 
-type Border struct {
-	HasBorder bool
-}
-
 func (pd Padding) GetPadding() Padding {
 	return pd
+}
+
+// A border can only have width 0 or 1, and is part of the padding.
+// Each string should represent a character of width 1.
+type Border struct {
+	Corners   [4]string // starts upper-left and clockwise, "" draws no corner.
+	TopLine   []string  // nil if no top border.
+	BotLine   []string  // nil if no bottom border.
+	LeftLine  []string  // nil if no left border.
+	RightLine []string  // nil if no right border.
+}
+
+func DefaultBorder() Border {
+	return Border{
+		Corners: [4]string{
+			string(tcell.RuneULCorner),
+			string(tcell.RuneURCorner),
+			string(tcell.RuneLRCorner),
+			string(tcell.RuneLLCorner),
+		},
+		TopLine:   []string{string(tcell.RuneHLine)},
+		BotLine:   []string{string(tcell.RuneHLine)},
+		LeftLine:  []string{string(tcell.RuneVLine)},
+		RightLine: []string{string(tcell.RuneVLine)},
+	}
+}
+
+func LeftBorder() Border {
+	return Border{
+		Corners: [4]string{
+			string("\u2553"),
+			"",
+			"",
+			string("\u2559"),
+		},
+		LeftLine: []string{
+			string("\u2551"),
+		},
+	}
+}
+
+func orSpace(chr string) string {
+	if chr == "" {
+		return " "
+	} else {
+		return chr
+	}
+}
+
+func (br *Border) TLCorner() string {
+	return orSpace(br.Corners[0])
+}
+
+func (br *Border) TRCorner() string {
+	return orSpace(br.Corners[1])
+}
+
+func (br *Border) BRCorner() string {
+	return orSpace(br.Corners[2])
+}
+
+func (br *Border) BLCorner() string {
+	return orSpace(br.Corners[3])
+}
+
+func (br *Border) TopBorder(x int) string {
+	if br.TopLine == nil {
+		return " "
+	} else {
+		return br.TopLine[x%len(br.TopLine)]
+	}
+}
+
+func (br *Border) BottomBorder(x int) string {
+	if br.BotLine == nil {
+		return " "
+	} else {
+		return br.BotLine[x%len(br.BotLine)]
+	}
+}
+
+func (br *Border) LeftBorder(y int) string {
+	if br.LeftLine == nil {
+		return " "
+	} else {
+		return br.LeftLine[y%len(br.LeftLine)]
+	}
+}
+
+func (br *Border) RightBorder(y int) string {
+	if br.RightLine == nil {
+		return " "
+	} else {
+		return br.RightLine[y%len(br.RightLine)]
+	}
 }
 
 type Size struct {
