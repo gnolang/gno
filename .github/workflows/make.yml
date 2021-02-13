@@ -3,7 +3,7 @@ name: logos
 on: [push, pull_request]
 
 jobs:
-  logos:
+  goscan:
     strategy:
       fail-fast: false
       matrix:
@@ -15,5 +15,5 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: '^1.15'
-      - name: make
-        run: make
+      - name: goscan
+        run: make goscan
