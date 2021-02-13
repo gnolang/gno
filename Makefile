@@ -38,8 +38,12 @@ deps:
 	go mod download
 
 
+
+test:
+	go test tests/*.go -v -run="Test/realm.go"
+
 all:
-	deps goscan logos
+	deps test goscan logos
 
 
 
