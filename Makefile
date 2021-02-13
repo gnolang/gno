@@ -2,12 +2,12 @@
 gnoland:
 	echo "Building Gnoland for a wide range of systems"
 	mkdir build || true
-	GOOS=darwin GOARCH=amd64 go build -o build/gno-darwin-amd64 cmd/main.go
-	GOOS=darwin GOARCH=arm64 go build -o build/gno-darwin-arm64 cmd/main.go
-	GOOS=linux GOARCH=amd64 go build -o build/gno-linux-amd64 cmd/main.go
-	GOOS=linux GOARCH=arm64 go build -o build/gno-linux-arm64 cmd/main.go
-	GOOS=windows GOARCH=amd64 go build -o build/gno-win-amd64 cmd/main.go
-	GOOS=windows GOARCH=amd64 go build -o build/gno-win-arm64 cmd/main.go
+	GOOS=darwin GOARCH=amd64 go build -o build/gno-darwin-amd64 cmd/gnoland/main.go
+	GOOS=darwin GOARCH=arm64 go build -o build/gno-darwin-arm64 cmd/gnoland/main.go
+	GOOS=linux GOARCH=amd64 go build -o build/gno-linux-amd64 cmd/gnoland/main.go
+	GOOS=linux GOARCH=arm64 go build -o build/gno-linux-arm64 cmd/gnoland/main.go
+	GOOS=windows GOARCH=amd64 go build -o build/gno-win-amd64 cmd/gnoland/main.go
+	GOOS=windows GOARCH=amd64 go build -o build/gno-win-arm64 cmd/gnoland/main.go
 
 # goscan scans go code
 goscan:
@@ -33,9 +33,12 @@ logos:
 	GOOS=windows GOARCH=amd64 go build -o build/logos-win-arm64 logos/cmd/logos.go
 
 
+deps:
+	go mod download
+
 
 all:
-	gnoland goscan logos
+	deps gnoland goscan logos
 
 
 
