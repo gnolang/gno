@@ -1,4 +1,3 @@
-# TODO: Add target OS
 name: logos
 on: [push, pull_request]
 
