@@ -4,6 +4,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/gdamore/tcell/v2"
 	runewidth "github.com/mattn/go-runewidth"
 )
 
@@ -120,4 +121,35 @@ func AbsCoord(elem Elem) (crd Coord) {
 		elem = elem.GetParent()
 	}
 	return
+}
+
+var randColors []Color = []Color{
+	tcell.ColorAliceBlue,
+	tcell.ColorAntiqueWhite,
+	tcell.ColorAquaMarine,
+	tcell.ColorAzure,
+	tcell.ColorBeige,
+	tcell.ColorBisque,
+	tcell.ColorBlanchedAlmond,
+	tcell.ColorBlueViolet,
+	tcell.ColorBrown,
+	tcell.ColorBurlyWood,
+}
+
+var rctr = 0
+
+func RandColor() Color {
+	rctr++
+	return randColors[rctr%len(randColors)]
+}
+
+func IsInBounds(x, y int, origin Coord, size Size) bool {
+	if x < origin.X || y < origin.Y {
+		return false
+	}
+	if origin.X+size.Width <= x ||
+		origin.Y+size.Height <= y {
+		return false
+	}
+	return true
 }

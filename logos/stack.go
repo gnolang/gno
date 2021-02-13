@@ -2,6 +2,7 @@ package logos
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -27,6 +28,18 @@ func NewStack(size Size) *Stack {
 			Cursor: -1,
 		},
 	}
+}
+
+func (st *Stack) StringIndented(indent string) string {
+	elines := []string{}
+	eindent := indent + "    "
+	for _, elem := range st.Elems {
+		elines = append(elines, eindent+elem.StringIndented(eindent))
+	}
+	return fmt.Sprintf("Stack%v@%p\n%s",
+		st.Size,
+		st,
+		strings.Join(elines, "\n"))
 }
 
 func (st *Stack) String() string {
@@ -68,18 +81,37 @@ func (st *Stack) Draw(offset Coord, view View) {
 			elem.Draw(loffset, view)
 		}
 	}
-	// Draw occlusion screen.
-	for y := 0; y < view.Bounds.Height; y++ {
-		for x := 0; x < view.Bounds.Width; x++ {
-			vcell := view.GetCell(x, y)
-			vcell.SetIsShaded(true)
-		}
-	}
-	// Draw last (top) layer.
 	if 0 < len(st.Elems) {
 		last := st.Elems[len(st.Elems)-1]
 		loffset := offset.Sub(last.GetCoord())
+		// Draw occlusion screen on view.
+		for y := 0; y < view.Bounds.Height; y++ {
+			for x := 0; x < view.Bounds.Width; x++ {
+				vcell := view.GetCell(x, y)
+				inBounds := IsInBounds(x, y,
+					loffset.Neg(),
+					last.GetSize())
+				if inBounds {
+					// Reset unsets residual "occluded",
+					// "cursor", and other attributes from the
+					// previous layer which are no longer
+					// relevant.
+					vcell.Reset()
+				} else {
+					vcell.SetIsOccluded(true)
+				}
+			}
+		}
+		// Draw last (top) layer.
 		last.Draw(loffset, view)
+	} else {
+		// Draw occlusion screen on view.
+		for y := 0; y < view.Bounds.Height; y++ {
+			for x := 0; x < view.Bounds.Width; x++ {
+				vcell := view.GetCell(x, y)
+				vcell.SetIsOccluded(true)
+			}
+		}
 	}
 }
 

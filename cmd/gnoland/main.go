@@ -90,6 +90,8 @@ func main() {
 	stack.PushLayer(makeMainPage(pv))
 	bstack := logos.NewBufferedElemView(stack, size)
 	bstack.Render()
+	// fmt.Println(bstack.Sprint())
+	// return
 	bstack.DrawToScreen(s)
 
 	// recover any panics.
@@ -146,7 +148,16 @@ func main() {
 		fmt.Println("stacktrace:\n", string(recStack))
 	}
 	fmt.Println("====================")
-	//fmt.Println(bstack.Sprint())
+	fmt.Println(bstack.StringIndented("  "))
+	fmt.Println(bstack.Base.(*logos.Stack).
+		Elems[0].(*logos.BufferedElemView).
+		Base.(*logos.Page).
+		Elems[0].(*logos.TextElem).
+		Buffer.Sprint())
+
+	fmt.Println(bstack.Base.(*logos.Stack).
+		Elems[0].(*logos.BufferedElemView).
+		Buffer.Sprint())
 }
 
 func makeRealmer() gno.Realmer {
@@ -198,7 +209,7 @@ func makeMainPage2() *logos.BufferedElemView {
 	ts := `testing
 this is a test string.
 testing.`
-	tc_style := logos.Style{
+	tc_style := &logos.Style{
 		Padding: logos.Padding{2, 2, 2, 2},
 		Border:  logos.DefaultBorder(),
 	}
