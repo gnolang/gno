@@ -119,9 +119,10 @@ func makeTestString() string {
 	putln("Enclose:   !\u20e3 (should be enclosed exclamation)")
 	putln("ZWJ:       \U0001f9db\u200d\u2640 (female vampire)")
 	putln("ZWJ:       \U0001f9db\u200d\u2642 (male vampire)")
-	putln("Family:    \U0001f469\u200d\U0001f467\u200d\U0001f467 (woman girl girl)\n")
+	putln("Family:    \U0001f469\u200d\U0001f467\u200d\U0001f467 (woman girl girl)")
 	// XXX why is this broken?
-	// putln("Region:    \U0001f1fa\U0001f1f8 (USA! USA!)\n")
+	putln("Region:    \U0001f1fa\U0001f1f8 (USA! USA!)\n")
+	// Perhaps bad governance broke it.
 	putln("")
 	putln("Box:")
 	putln(string([]rune{
@@ -166,7 +167,7 @@ func makeTestPage() *logos.BufferedElemView {
 	// make a buffered page.
 	ts := makeTestString()
 	style := logos.Style{
-		Padding: logos.Padding{2, 2, 2, 2},
+		Padding: logos.Padding{Left: 2, Top: 2, Right: 2, Bottom: 2},
 		Border:  logos.Border{HasBorder: true},
 	}
 	// TODO width shouldn't matter.
