@@ -8,7 +8,7 @@ Among these was Tendermint and Cosmos to engineer robust PoS and IBC.
 Then came Gno upon Cosmos and there spring forth Gnoland,
 simulated by the Gnomes of the Greater Resistance.
 
-## Features
+## Language Features
 
  * Like interpreted Go, but more ambitious.
  * Completely deterministic, for complete accountability.
