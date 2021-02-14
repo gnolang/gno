@@ -258,7 +258,7 @@ is to find the right contributors.  If you can grok the complexities of this
 and related projects without hand holding, and you understand the implications
 of this project and are aligned with its mission, read on.
 
-The Gno Foundation is a non-profit with missions already stated in the Virgo Project.
+The Gno Foundation is a non-profit with missions originally stated in the [Virgo Project](https://github.com/virgo-project/virgo).
 The Gno Foundation, which owns the IP to the Gno Works, proposes the following:
 
 * The Gno Foundation permits the Gnoland chain the usage of the Gno Works.
