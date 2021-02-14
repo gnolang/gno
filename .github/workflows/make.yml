@@ -14,5 +14,5 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: '^1.15'
-      - name: goscan
-        run: make goscan
+      - name: build
+        run: make
