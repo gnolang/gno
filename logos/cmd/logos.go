@@ -99,6 +99,8 @@ func main() {
 	}
 }
 
+
+// makeTestString constructs the string that is displayed to test Logos
 func makeTestString() string {
 	s := ""
 	putln := func(l string) {
@@ -163,6 +165,8 @@ func makeTestString() string {
 	return s
 }
 
+
+// makeTestPage gets the test string and returns a Buffered Page View, the TUI of Logos
 func makeTestPage() *logos.BufferedElemView {
 	// make a buffered page.
 	ts := makeTestString()
