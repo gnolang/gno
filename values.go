@@ -162,7 +162,6 @@ func (sv *SliceValue) GetLength() int {
 type StructValue struct {
 	ObjectInfo
 	Fields []TypedValue // flattened
-
 }
 
 // If value is undefined at path, sets default value before
@@ -984,10 +983,6 @@ func (tv *TypedValue) ComputeMapKey(omitType bool) MapKey {
 //----------------------------------------
 // Value utility/manipulation functions.
 
-// This function should be a fast and simple struct copy.
-// There are two exceptions: one for DataByte types and
-// another for *nativeValue, which require additional
-// logic.
 func (tv *TypedValue) Assign(tv2 TypedValue) {
 	if debug {
 		if tv2.T == DataByteType {
@@ -996,13 +991,18 @@ func (tv *TypedValue) Assign(tv2 TypedValue) {
 			panic("should not happen")
 		}
 	}
-	if tv.T == DataByteType {
-		tv.SetDataByte(tv2.GetUint8())
-	} else if nt, ok := tv.T.(*nativeType); ok {
+	switch ct := baseOf(tv.T).(type) {
+	case PrimitiveType:
+		if ct == DataByteType {
+			tv.SetDataByte(tv2.GetUint8())
+		} else {
+			*tv = tv2.Copy()
+		}
+	case *nativeType:
 		nv1 := tv.V.(*nativeValue)
 		switch v2 := tv2.V.(type) {
 		case PointerValue:
-			if nt.Type.Kind() != reflect.Ptr {
+			if ct.Type.Kind() != reflect.Ptr {
 				panic("should not happen")
 			}
 			if nv2, ok := v2.TypedValue.V.(*nativeValue); ok {
@@ -1023,7 +1023,43 @@ func (tv *TypedValue) Assign(tv2 TypedValue) {
 		default:
 			panic("should not happen")
 		}
-	} else {
+	case *StructType:
+		if tv2.IsUndefined() {
+			*tv = TypedValue{}
+		} else if ct.TypeID() == tv2.T.TypeID() {
+			// In case of embedded struct, must copy flat
+			// fields to the old buffer, and retain old
+			// buffer slice.
+			// TODO: optimize this further by distinguishing
+			// between embedded and standalone structs.
+			sv1 := tv.V.(*StructValue)
+			sv2 := tv2.V.(*StructValue)
+			fs1 := sv1.Fields // remember old slice
+			fs2 := sv2.Fields
+			if debug {
+				if len(fs1) != len(fs2) {
+					panic(fmt.Sprintf(
+						"fields len mismatch during copy: %v vs %v",
+						len(fs1), len(fs2)))
+				}
+			}
+			*tv = tv2.Copy()
+			sv1b := tv.V.(*StructValue)
+			fs1b := sv1b.Fields
+			if debug {
+				if len(fs1) != len(fs1b) {
+					panic(fmt.Sprintf(
+						"fields len mismatch during copy: %v vs %v",
+						len(fs1),
+						len(fs1b)))
+				}
+			}
+			copy(fs1, fs1b)
+			sv1b.Fields = fs1 // keep old slice.
+		} else {
+			*tv = tv2.Copy()
+		}
+	default:
 		*tv = tv2.Copy()
 	}
 }
@@ -1303,6 +1339,10 @@ func (tv *TypedValue) GetPointerAtIndex(iv *TypedValue) PointerValue {
 
 func (tv *TypedValue) GetType() Type {
 	return tv.V.(TypeValue).Type
+}
+
+func (tv *TypedValue) GetFunc() *FuncValue {
+	return tv.V.(*FuncValue)
 }
 
 func (tv *TypedValue) GetLength() int {
@@ -1603,7 +1643,7 @@ func (b *Block) StringIndented(indent string) string {
 }
 
 func (b *Block) GetPointerTo(path ValuePath) PointerValue {
-	if path.IsZero() {
+	if path.IsZeroPath() {
 		if debug {
 			if path.Name != "_" {
 				panic(fmt.Sprintf(
@@ -1621,7 +1661,7 @@ func (b *Block) GetPointerTo(path ValuePath) PointerValue {
 	// the generation for uverse is 0.  If path.Depth is
 	// 0, it implies that b == uverse, and the condition
 	// would fail as if it were 1.
-	i := uint16(1)
+	i := uint8(1)
 LOOP:
 	if i < path.Depth {
 		b = b.Parent
@@ -1642,22 +1682,22 @@ func (b *Block) GetBlankRef() *TypedValue {
 
 // Convenience for implementing nativeBody functions.
 func (b *Block) GetParams1() (pv1 PointerValue) {
-	pv1 = b.GetPointerTo(ValuePath{Depth: 1, Index: 0})
+	pv1 = b.GetPointerTo(NewValuePathDefault(1, 0, ""))
 	return
 }
 
 // Convenience for implementing nativeBody functions.
 func (b *Block) GetParams2() (pv1, pv2 PointerValue) {
-	pv1 = b.GetPointerTo(ValuePath{Depth: 1, Index: 0})
-	pv2 = b.GetPointerTo(ValuePath{Depth: 1, Index: 1})
+	pv1 = b.GetPointerTo(NewValuePathDefault(1, 0, ""))
+	pv2 = b.GetPointerTo(NewValuePathDefault(1, 1, ""))
 	return
 }
 
 // Convenience for implementing nativeBody functions.
 func (b *Block) GetParams3() (pv1, pv2, pv3 PointerValue) {
-	pv1 = b.GetPointerTo(ValuePath{Depth: 1, Index: 0})
-	pv2 = b.GetPointerTo(ValuePath{Depth: 1, Index: 1})
-	pv2 = b.GetPointerTo(ValuePath{Depth: 1, Index: 2})
+	pv1 = b.GetPointerTo(NewValuePathDefault(1, 0, ""))
+	pv2 = b.GetPointerTo(NewValuePathDefault(1, 1, ""))
+	pv3 = b.GetPointerTo(NewValuePathDefault(1, 2, ""))
 	return
 }
 

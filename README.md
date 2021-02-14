@@ -1,4 +1,14 @@
-# Gno: Language of Resistance.
+# Gno
+
+At first, there was Bitcoin, out of entropy soup of the greater All.
+Then, there was Ethereum, which was created in the likeness of Bitcoin,
+but made Turing complete.
+
+Among these were Tendermint and Cosmos to engineer robust PoS and IBC.
+Then came Gno upon Cosmos and there spring forth Gnoland,
+simulated by the Gnomes of the Greater Resistance.
+
+## Language Features
 
  * Like interpreted Go, but more ambitious.
  * Completely deterministic, for complete accountability.
@@ -7,13 +17,19 @@
  
 ## Status
 
+_Update Feb 13th, 2021: Implemented Logos UI framework._
+
 This is a still a work in a progress, though much of the structure of the interpreter
 and AST have taken place.  Work is ongoing now to demonstrate the Realm concept before
 continuing to make the tests/files/\*.go tests pass.
 
-Try this: 
+Make sure you have >=[go1.15](https://golang.org/doc/install) installed, and then try this: 
+
 ```bash
-> go test tests/\*.go -v -run="Test/realm.go"
+> git clone git@github.com:gnolang/gno.git
+> cd gno
+> go mod download github.com/davecgh/go-spew
+> go test tests/*.go -v -run="Test/realm.go"
 ```
 
 ## Ownership 
@@ -125,6 +141,89 @@ Any number of package-level values may be declared in a realm; they are
 all owned by the package and get merkle-hashed into a single root hash for
 the package realm.
 
+The gas cost of transactions that modify state are paid for by whoever
+submits the transaction, but the storage rent is paid for by the realm.
+Anyone can pay the storage upkeep of a realm to keep it alive.
+
+## Merkle Proofs
+
+Ultimately, there is a single root hash for all the realms.
+
+From hash.go:
+
+```
+//----------------------------------------
+// ValueHash
+//
+// The ValueHash of a typed value is a unique deterministic
+// accountable fingerprint of that typed value, and can be used
+// to prove the value or any part of its value which is
+// accessible from the Gno language.
+//
+// `ValueHash := lh(ValueImage)`
+// `ValueImage:`
+//   `= 0x00` if nil value.
+//   `= 0x01,varint(.) if fixed-numeric.
+//   `= 0x02,sz(bytes)` if variable length bytes.
+//   `= 0x03,sz(TypeID),vi(*ptr)` if non-nil ptr.
+//   `= 0x04,sz(OwnerID),sz(ElemsHash),mod,ref` if object.
+//   `= 0x05,vi(base),off,len,max if slice.
+//   `= 0x06,sz(TypeID)` if type.
+//
+// `ElemsHash:`
+//   `= lh(ElemImage)` if object w/ 1 elem.
+//   `= ih(eh(Left),eh(Right))` if object w/ 2+ elems.
+//
+// `ElemImage:`
+//   `= 0x10` if nil interface.
+//   `= 0x11,sz(ObjectID),sz(TypeID)` if borrowed.
+//   `= 0x12,sz(ObjectID),sz(TypedValueHash)` if owned.
+//   `= 0x13,sz(TypeID),sz(ValueHash)` if other.
+//    - other: prim/ptr/slice/type/typed-nil.
+//    - ownership passed through for pointers/slices/arrays.
+//
+// `TypedValueHash := lh(sz(TypeID),sz(ValueHash))`
+//
+// * eh() are inner ElemsHashs.
+// * lh() means leafHash(x) := hash(0x00,x)
+// * ih() means innerHash(x,y) := hash(0x01,x,y)
+// * pb() means .PrimitiveBytes().
+// * sz() means (varint) size-prefixed bytes.
+// * vi() means .ValueImage().Bytes().
+// * off,len,max and other integers are varint encoded.
+// * len(Left) is always 2^x, x=0,1,2,...
+// * Right may be zero (if len(Left+Right) not 2^x)
+//
+// If a pointer value is owned (e.g. field tagged "owned"), the
+// pointer's base if present must not already be owned.  If a
+// pointer value is not owned, but refers to a value that has a
+// refcount of 1, it is called "run-time" owned, and the value
+// bytes include the hash of the referred value or object as if
+// owned; the value bytes also include the object-id of the
+// "run-time" owned object as if it were persisted separately
+// from its base object, but implementations may choose to
+// inline the serialization of "run-time" owned objects anyway.
+//
+// If an object is owned, the value hash of elements is
+// included, otherwise, the value hash of elements is not
+// included except for objects with refcount=1.  If owned but
+// any of the elements are already owned, or if not owned but
+// any of the elements have refcount>1, image derivation
+// panics.
+```
+
+## Logos Browser
+
+[Logos](/logos) is a Gno object browser.  The modern browser as well as the
+modern javascript ecosystem is from a security point of view, completely fucked.
+The entire paradigm of continuously updating browsers with incrementally added
+features is a security nightmare.
+
+The Logos browser is based on a new model that is vastly simpler than HTML.
+The purpose of Logos is to become a fully expressive web API and implementation
+standard that does most of what HTML and the World Wide Web originally intended
+to do, but without becoming more complex than necessary.
+
 ## Concurrency
 
 Initially, we don't need to implement routines because realm package functions
@@ -138,7 +237,16 @@ channel message as well as periodic heartbeat messages even with no sends, so
 that select/receive operations can behave deterministically even in the
 presence of multiple channels to select from.
 
-## Contributing
+## Completeness
+
+Software projects that don't become complete are projects that are forever
+vulnerable.  One of the requisite goals of the Gno language and related 
+software libraries like Logos is to become finished within a reasonable timeframe.
+
+## How to become a Gnome
+
+First, read the license.  The license doesn't take away any of your rights,
+but it gives the Gno project rights to your contributions.
 
 Contributions in the form of completed work in a pull request or issue
 or comments are welcome and encouraged, especially if you are interested
@@ -148,9 +256,37 @@ The biggest bottleneck in these sorts of projects is finding the right people
 with the right skillset and character; and my highest priority besides coding,
 is to find the right contributors.  If you can grok the complexities of this
 and related projects without hand holding, and you understand the implications
-of this project and are aligned with its mission, keep in touch.
+of this project and are aligned with its mission, read on.
 
-## Updates
+The Gno Foundation is a non-profit with missions originally stated in the [Virgo Project](https://github.com/virgo-project/virgo).
+The Gno Foundation, which owns the IP to the Gno Works, proposes the following:
+
+* The Gno Foundation permits the Gnoland chain the usage of the Gno Works.
+* The Gnoland chain's staking token is given equally to three bodies:
+
+  - 1/3 of GNOTs to the Gno Foundation.
+  - 1/3 of GNOTs to the Gno Community.
+  - 1/3 of GNOTs to an opinionated spoonful of ATOMs.
+  
+Spoonful of atoms to be weighted according to voting history, such that those
+who voted in favor of good proposals and against bad proposals as judged by the
+Gno Foundation, as well as those who were active in voting, are given favor.
+The weighting may be such that some ATOM holders receive no GNOTs.
+This is not a fork of the Cosmos Hub, but a new chain, so the distribution is
+entirely at the Gno Foundation's discretion, and the foundation has strong opinions.
+
+The Gno Community is determined by the creation and finalization of the project,
+as determined by the Gno Foundation according to community contributions.
+
+## Reading the code
+
+Gno's code has been written with extensive comments that explain what each 
+file does. Eventually, each function will be commented in the same manner. 
+
+You can learn a great deal from reading Gnocode, and it's recommended that
+both users and developers have a look.
+
+## Contact
 
 If you can read this, the project is evolving (fast) every day.  Check
 "github.com/gnolang/gno" and @jaekwon frequently.

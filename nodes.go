@@ -1105,19 +1105,24 @@ func (sb *StaticBlock) GetPathForName(n Name) ValuePath {
 			panic("should not happen")
 		}
 	}
-	gen := uint16(1)
-	idx, ok := sb.GetLocalIndex(n)
-	bp := sb.GetParent()
-	for {
-		if ok {
-			return NewValuePath(n, gen, idx)
-		} else if bp != nil {
-			idx, ok = bp.GetLocalIndex(n)
-			bp = bp.GetParent()
-			gen++
-		} else {
-			panic(fmt.Sprintf("name %s not declared", n))
+	gen := 1
+	if idx, ok := sb.GetLocalIndex(n); ok {
+		return NewValuePathDefault(uint8(gen), idx, n)
+	} else {
+		gen++
+		bp := sb.GetParent()
+		for bp != nil {
+			if idx, ok = bp.GetLocalIndex(n); ok {
+				return NewValuePathDefault(uint8(gen), idx, n)
+			} else {
+				bp = bp.GetParent()
+				gen++
+				if 0xff < gen {
+					panic("value path depth overflow")
+				}
+			}
 		}
+		panic(fmt.Sprintf("name %s not declared", n))
 	}
 }
 
@@ -1267,42 +1272,106 @@ var _ BlockNode = &PackageNode{}
 //  (c) a DeclaredType method
 //  (d) a PackageNode declaration
 //
-// It is not used for interface methods, they are looked up by
-// name, and thus is slower.
+// Type is:
+//  * 0x00 for uverse constants. Depth is 0.
+//  * 0x01 for struct fields, package and block variables,
+//    and declared type methods.  In this case, the Depth determines
+//    how to traverse the value and its parents to find the right type
+//    to base the path for.  Depth starts at 1.
+//  * 0x02 for interface methods.  Depth is 0. Methods are looked up
+//    by their name, so is slower than using value paths with type 0x00 or
+//    0x01.
+//  * 0x03 for native fields and methods. experimental.
 //
-// Depth 0 is reserved for the global uverse namespace, so
-// local names have generation 1 and so on.  Depth 0 and index
-// 0 refers to the untyped nil value (as first defined in
-// uverse.go).
-//
-// In declared types, the methods have generation 1 and if the
-// underlying type is a struct, the fields of that have
-// generation 2.  For undeclared structs, the fields have
-// generation 1.  There is currently no javascript prototype or
-// inheritance, so generation 3 and above are illegal (though
-// could may change in the future).  In all cases, generation 0
-// is reserved for global fields, such as x.type. Embedded
-// structs are always flattened for efficient access.
+// For concrete (non-interface) declared types, the methods have
+// generation 1 and if the underlying type is a struct, the fields of that
+// have generation 2.  For concrete undeclared structs, the fields have
+// generation 1.  There is no javascript-like prototype inheritance, so
+// generation 3 and above are illegal (though could may change in the
+// future).
 //
 type ValuePath struct {
-	// 0 for uverse, or num parents to traverse +1.
-	Depth uint16
-	// index of TV in aforementioned
-	// block/struct/package/declared-type.
-	Index uint16
-	Name  Name
+	Type  VPType // 0x00: uverse, 0x01: field/variable/method, 0x02: iface.
+	Depth uint8  // to traverse parent chain, from 1.
+	Index uint16 // index of value in block/package/struct/declaredtype.
+	Name  Name   // name of variable/field/method.
 }
 
-func NewValuePath(n Name, depth, index uint16) ValuePath {
-	return ValuePath{
+type VPType uint8
+
+const (
+	VPTypeUverse    VPType = 0x00
+	VPTypeDefault   VPType = 0x01
+	VPTypeFlat      VPType = 0x02
+	VPTypeInterface VPType = 0x03
+	VPTypeNative    VPType = 0x04
+)
+
+func NewValuePath(t VPType, depth uint8, index uint16, n Name) ValuePath {
+	vp := ValuePath{
+		Type:  t,
 		Depth: depth,
 		Index: index,
 		Name:  n,
 	}
+	vp.Validate()
+	return vp
 }
 
-func (vp ValuePath) IsZero() bool {
+func NewValuePathUverse(index uint16, n Name) ValuePath {
+	return NewValuePath(VPTypeUverse, 0x00, uint16(index), n)
+}
+
+func NewValuePathDefault(depth uint8, index uint16, n Name) ValuePath {
+	return NewValuePath(VPTypeDefault, depth, index, n)
+}
+
+func NewValuePathFlat(depth uint8, index uint16, n Name) ValuePath {
+	return NewValuePath(VPTypeFlat, depth, index, n)
+}
+
+func NewValuePathInterface(n Name) ValuePath {
+	return NewValuePath(VPTypeInterface, 0, 0, n)
+}
+
+func NewValuePathNative(n Name) ValuePath {
+	return NewValuePath(VPTypeNative, 0, 0, n)
+}
+
+func (vp ValuePath) Validate() {
+	switch vp.Type {
+	case VPTypeUverse:
+		if vp.Depth != 0 {
+			panic("uverse value path must have depth 0")
+		}
+	case VPTypeDefault, VPTypeFlat:
+		if vp.Depth == 0 {
+			panic("general value path cannot have depth 0")
+		}
+	case VPTypeInterface:
+		if vp.Depth != 0 {
+			panic("interface value path must have depth 0")
+		}
+		if vp.Name == "" {
+			panic("interface value path must have name")
+		}
+	case VPTypeNative:
+		if vp.Depth != 0 {
+			panic("native value path must have depth 0")
+		}
+		if vp.Name == "" {
+			panic("native value path must have name")
+		}
+	default:
+		panic(fmt.Sprintf(
+			"unexpected value path type %X",
+			vp.Type))
+	}
+}
+
+func (vp ValuePath) IsZeroPath() bool {
 	return vp.Depth == 0 && vp.Index == 0
+	//== ValuePath{}
 }
 
 type ValuePather interface {

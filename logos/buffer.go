@@ -23,6 +23,11 @@ func NewBuffer(sz Size) *Buffer {
 	}
 }
 
+func (bb *Buffer) Reset() {
+	sz := bb.Size
+	bb.Cells = make([]Cell, sz.Width*sz.Height)
+}
+
 func (bb *Buffer) GetCell(x, y int) *Cell {
 	if bb.Width <= x {
 		panic(fmt.Sprintf(
@@ -44,6 +49,13 @@ func (bb *Buffer) Sprint() string {
 		for x := 0; x < bb.Width; x++ {
 			cell := bb.GetCell(x, y)
 			parts = append(parts, cell.Character)
+			// NOTE: hacky way to debug.
+			if true {
+				attrs := cell.GetAttrs()
+				flags := attrs.GetAttrFlags()
+				parts = append(parts,
+					fmt.Sprintf("%X", flags))
+			}
 		}
 		line := strings.Join(parts, "")
 		lines = append(lines, line)
@@ -56,37 +68,15 @@ func (bb *Buffer) DrawToScreen(s tcell.Screen) {
 	if bb.Size.Width != sw || bb.Size.Height != sh {
 		panic("buffer doesn't match screen size")
 	}
-	var st tcell.Style = tcell.StyleDefault.
-		Foreground(tcell.ColorBlack).
-		Background(tcell.ColorWhite)
-	bgst := st.Dim(true).
-		Background(tcell.ColorGrey)
 	for y := 0; y < sh; y++ {
 		for x := 0; x < sw; x++ {
 			cell := bb.GetCell(x, y)
 			if x == 0 && y == 0 {
-				// XXX
 				// NOTE: to thwart some inexplicable bugs.
-				s.SetContent(0, 0, tcell.RunePlus, nil, st)
-				continue
-			}
-			if cell.Width == 0 {
-				// For debugging.
-				s.SetContent(x, y, '.', nil, bgst)
+				s.SetContent(0, 0, tcell.RunePlus, nil, gDefaultSpaceTStyle)
 			} else {
-				rz := toRunes(cell.Character)
-				st2 := st
-				if cell.Foreground.Valid() {
-					st2 = st2.Foreground(cell.Foreground)
-				}
-				if cell.Background.Valid() {
-					st2 = st2.Background(cell.Background)
-				}
-				if cell.GetIsShaded() {
-					st2 = st2.Dim(true)
-					st2 = st2.Background(tcell.ColorGray)
-				}
-				s.SetContent(x, y, rz[0], rz[1:], st2)
+				mainc, combc, tstyle := cell.GetTCellContent()
+				s.SetContent(x, y, mainc, combc, tstyle)
 			}
 		}
 	}
@@ -97,25 +87,78 @@ func (bb *Buffer) DrawToScreen(s tcell.Screen) {
 
 // A terminal character cell.
 type Cell struct {
-	Character  string // 1 unicode character, or " ".
-	Width      int
-	Foreground Color
-	Background Color
-	StyleFlags
-	Elem // reference to element
+	Character string // 1 unicode character, or " ".
+	Width     int
+	*Style
+	Attrs
+	Ref Elem // reference to element
 }
 
-func (cc *Cell) SetCell(oc *Cell) {
-	*cc = *oc
+// NOTE: there is a difference in behavior
+// from SetValue(...,c2) when c2 has
+// attributes not present in c2.Ref, so the
+// two are not equivalent.
+func (cc *Cell) SetValueFromCell(c2 *Cell) {
+	cc.SetValue(c2.Character, c2.Width, c2.Style, c2.Ref)
+	cc.Character = c2.Character
+	cc.Width = c2.Width
+	if c2.Style != nil {
+		cc.Style = c2.Style
+	}
+	cc.Attrs.Merge(c2.GetAttrs())
+	if c2.Ref != nil {
+		cc.Ref = c2.Ref
+	}
 }
 
-func (cc *Cell) SetValue(chs string, w int, st Style, el Elem) {
+func (cc *Cell) SetValue(chs string, w int, st *Style, el Elem) {
 	cc.Character = chs
 	cc.Width = w
-	cc.Foreground = st.Foreground
-	cc.Background = st.Background
-	cc.StyleFlags = st.StyleFlags
-	cc.Elem = el
+	if st != nil {
+		cc.Style = st
+	}
+	if el != nil {
+		cc.Attrs.Merge(el.GetAttrs())
+		cc.Ref = el
+	}
+}
+
+func (cc *Cell) Reset() {
+	*cc = Cell{}
+}
+
+var gDefaultSpaceTStyle = tcell.StyleDefault.
+	Dim(true).
+	Background(tcell.ColorGray)
+
+var gDefaultTStyle = gDefaultStyle.GetTStyle().
+	Foreground(gDefaultForeground).
+	Background(gDefaultBackground)
+
+// This is where a bit of dynamic logic is performed,
+// namely where the attr is used to derive the final style.
+func (cc *Cell) GetTCellContent() (mainc rune, combc []rune, tstyle tcell.Style) {
+	style := cc.Style
+	attrs := &cc.Attrs
+	if cc.Character == "" {
+		mainc = '?' // for debugging
+		if style == nil {
+			// special case
+			tstyle = gDefaultSpaceTStyle
+		} else {
+			tstyle = style.WithAttrs(attrs).GetTStyle()
+		}
+	} else {
+		rz := toRunes(cc.Character)
+		mainc = rz[0]
+		combc = rz[1:]
+		if style == nil {
+			tstyle = gDefaultStyle.WithAttrs(attrs).GetTStyle()
+		} else {
+			tstyle = style.WithAttrs(attrs).GetTStyle()
+		}
+	}
+	return
 }
 
 //----------------------------------------
@@ -172,7 +215,7 @@ func (bs View) GetCell(x, y int) *Cell {
 type BufferedElemView struct {
 	Coord
 	Size
-	Style
+	*Style
 	Attrs         // e.g. to focus on a scrollbar
 	Base    Elem  // the underlying elem
 	Offset  Coord // within elem for pagination
@@ -181,16 +224,16 @@ type BufferedElemView struct {
 
 // Returns a new *BufferedElemView that spans the whole elem.
 // If size is zero, the elem is measured first to get the full
-// buffer size. The result must still be rendered before
-// drawing.  The *BufferedElemView inherits the coordinate of
-// the elem, and the elem's coord is set to zero.
+// buffer size. The result must still be rendered before drawing.  The
+// *BufferedElemView inherits the style and coordinates of the elem, and
+// the elem's coord is set to zero.
 func NewBufferedElemView(elem Elem, size Size) *BufferedElemView {
 	if size.IsZero() {
 		size = elem.Measure()
 	}
 	bpv := &BufferedElemView{
 		Size:   size,
-		Style:  *elem.GetStyle(), // TODO
+		Style:  elem.GetStyle(),
 		Base:   elem,
 		Offset: Coord{0, 0},
 		// NOTE: be lazy, size may change.
@@ -203,6 +246,14 @@ func NewBufferedElemView(elem Elem, size Size) *BufferedElemView {
 	return bpv
 }
 
+func (bpv *BufferedElemView) StringIndented(indent string) string {
+	return fmt.Sprintf("Buffered%v@%p\n%s    %s",
+		bpv.Size,
+		bpv,
+		indent,
+		bpv.Base.StringIndented(indent+"    "))
+}
+
 func (bpv *BufferedElemView) String() string {
 	return fmt.Sprintf("Buffered%v{%v}@%p",
 		bpv.Size,
@@ -211,7 +262,7 @@ func (bpv *BufferedElemView) String() string {
 }
 
 // Pass on style to the base elem.
-func (bpv *BufferedElemView) SetStyle(style Style) {
+func (bpv *BufferedElemView) SetStyle(style *Style) {
 	bpv.Style = style
 	bpv.Base.SetStyle(style)
 	bpv.SetIsDirty(true)
@@ -221,6 +272,13 @@ func (bpv *BufferedElemView) SetSize(size Size) {
 	bpv.Size = size
 	bpv.Buffer = nil
 	bpv.SetIsDirty(true)
+}
+
+// Cursor status pierces the buffered elem view;
+// but a few key events are still consumed before the base.
+func (bpv *BufferedElemView) SetIsCursor(ic bool) {
+	bpv.Attrs.SetIsCursor(ic)
+	bpv.Base.SetIsCursor(ic)
 }
 
 // BufferedElemView's size is simply defined by .Size.
@@ -244,14 +302,16 @@ func (bpv *BufferedElemView) Render() (updated bool) {
 		buffer = NewBuffer(bpv.Size)
 		bpv.Buffer = buffer
 	}
-	// First, draw buffer background style.
-	if true {
-		style := bpv.Style
-		for x := 0; x < buffer.Size.Width; x++ {
-			for y := 0; y < buffer.Size.Height; y++ {
-				cell := buffer.GetCell(x, y)
-				cell.SetValue("\u2606", 1, style, nil) // clear
-			}
+	// Reset the buffer's cells.  We could
+	// use Buffer.Reset(), but this helps
+	// distinguish between undefined cells
+	// and those of an empty buffer.
+	for x := 0; x < buffer.Size.Width; x++ {
+		for y := 0; y < buffer.Size.Height; y++ {
+			cell := buffer.GetCell(x, y)
+			cell.Reset()
+			// Draw Logos star background.
+			cell.SetValue("\u2606", 1, bpv.Style, bpv)
 		}
 	}
 	// Then, render and draw elem.
@@ -266,7 +326,7 @@ func (bpv *BufferedElemView) Draw(offset Coord, view View) {
 		for x := minX; x < maxX; x++ {
 			bcell := bpv.Buffer.GetCell(x, y)
 			vcell := view.GetCell(x-offset.X, y-offset.Y)
-			vcell.SetCell(bcell)
+			vcell.SetValueFromCell(bcell)
 		}
 	}
 }

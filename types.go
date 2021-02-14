@@ -534,20 +534,12 @@ func (st *StructType) GetPathForName(n Name) ValuePath {
 			if i > 2<<16-1 {
 				panic("too many fields")
 			}
-			return ValuePath{
-				Depth: 1,
-				Index: uint16(i),
-				Name:  n,
-			}
+			return NewValuePathDefault(1, uint16(i), n)
 		} else if ft.Embedded == n {
 			if i > 2<<16-1 {
 				panic("too many fields")
 			}
-			return ValuePath{
-				Depth: 1,
-				Index: uint16(i),
-				Name:  n,
-			}
+			return NewValuePathDefault(1, uint16(i), n)
 		}
 		if st, ok := ft.Type.(*StructType); ok {
 			if ft.Name != "" {
@@ -673,6 +665,10 @@ func (it *InterfaceType) Implements(ot *InterfaceType) bool {
 		}
 	}
 	return true
+}
+
+func (it *InterfaceType) GetPathForName(n Name) ValuePath {
+	return NewValuePathInterface(n)
 }
 
 //----------------------------------------
@@ -912,11 +908,7 @@ func (dt *DeclaredType) GetPathForName(n Name) ValuePath {
 			if i > 2<<16-1 {
 				panic("too many methods")
 			}
-			return ValuePath{
-				Depth: 1,
-				Index: uint16(i),
-				Name:  n,
-			}
+			return NewValuePathDefault(1, uint16(i), n)
 		}
 	}
 	// Otherwise it is underlying.
@@ -926,12 +918,41 @@ func (dt *DeclaredType) GetPathForName(n Name) ValuePath {
 }
 
 func (dt *DeclaredType) GetValueRefAt(path ValuePath) *TypedValue {
-	if path.Depth == 0 {
-		panic("*DeclaredType global fields not yet implemented")
-	} else if path.Depth == 1 {
-		return &dt.Methods[path.Index]
+	if path.Type == VPTypeInterface {
+		mv := dt.GetValueRef(path.Name)
+		return mv
+	} else if path.Type == VPTypeDefault {
+		if path.Depth == 0 {
+			panic("*DeclaredType global fields not yet implemented")
+		} else if path.Depth == 1 {
+			return &dt.Methods[path.Index]
+		} else {
+			panic("DeclaredType.GetValueRefAt() expects generation <= 1")
+		}
 	} else {
-		panic("DeclaredType.GetValueRefAt() expects generation <= 1")
+		panic(fmt.Sprintf(
+			"unexpected value path type %X",
+			path.Type))
+	}
+}
+
+// TODO: optimize
+func (dt *DeclaredType) GetValueRef(n Name) *TypedValue {
+	for i := 0; i < len(dt.Methods); i++ {
+		mv := &dt.Methods[i]
+		if fv := mv.V.(*FuncValue); fv.Name == n {
+			return mv
+		}
+	}
+	return nil
+}
+
+func (dt *DeclaredType) GetMethod(n Name) *FuncValue {
+	mv := dt.GetValueRef(n)
+	if mv == nil {
+		return nil
+	} else {
+		return mv.GetFunc()
 	}
 }
 
@@ -940,30 +961,6 @@ func (dt *DeclaredType) DefineMethod(fv *FuncValue) {
 		T: fv.Type,
 		V: fv,
 	})
-}
-
-// Returns any methods defined for this declared type.
-// TODO call this from op_eval:*CallExpr to prevent
-// heap allocation upon getting bound method.
-func (dt *DeclaredType) GetMethodAt(path ValuePath) *FuncValue {
-	if debug {
-		if path.Depth == 0 {
-			panic("DeclaredType global method/field not yet implemented")
-		} else if path.Depth > 1 {
-			panic("DeclaredType expects generation 1")
-		}
-	}
-	return dt.Methods[path.Index].V.(*FuncValue)
-}
-
-// TODO: optimize
-func (dt *DeclaredType) GetMethod(n Name) *FuncValue {
-	for _, mtv := range dt.Methods {
-		if fv := mtv.V.(*FuncValue); fv.Name == n {
-			return fv
-		}
-	}
-	return nil
 }
 
 // For run-time type assertion.

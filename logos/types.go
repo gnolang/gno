@@ -2,6 +2,7 @@ package logos
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -13,7 +14,7 @@ import (
 type Page struct {
 	Coord // used by parent only. TODO document.
 	Size
-	Style
+	*Style
 	Attrs
 	Elems  []Elem
 	Cursor int // selected cursor element index, or -1.
@@ -30,22 +31,26 @@ type Elem interface {
 	GetCoord() Coord
 	SetCoord(Coord)
 	GetStyle() *Style
-	SetStyle(Style)
+	SetStyle(*Style)
 	GetAttrs() *Attrs
 	GetIsCursor() bool
 	SetIsCursor(bool)
 	GetIsDirty() bool
 	SetIsDirty(bool)
+	GetIsOccluded() bool
+	SetIsOccluded(bool)
 	GetSize() Size
 	Measure() Size
 	Render() bool
 	Draw(offset Coord, dst View)
 	ProcessEventKey(*EventKey) bool
+	String() string
+	StringIndented(indent string) string
 	// NOTE: SetSize(Size) isn't an elem interface, as
 	// containers in general can't force elements to be of a
-	// certain size, but rather prefers drawing out of bounds;
-	// this opinion may distinguishes Logos from other most gui
-	// frameworks.
+	// certain size, but rather prefers drawing out of
+	// bounds; this opinion may distinguishes Logos from
+	// other most gui frameworks.
 }
 
 var _ Elem = &Page{}
@@ -56,7 +61,7 @@ var _ Elem = &Stack{}
 // produces a page from a string.
 // width is the width of the page.
 // if isCode, width is ignored.
-func NewPage(s string, width int, isCode bool, style Style) *Page {
+func NewPage(s string, width int, isCode bool, style *Style) *Page {
 	page := &Page{
 		Size: Size{
 			Width:  width,
@@ -68,7 +73,7 @@ func NewPage(s string, width int, isCode bool, style Style) *Page {
 	}
 	elems := []Elem{}
 	if s != "" {
-		pad := style.Padding
+		pad := style.GetPadding()
 		ypos := 0 + pad.Top
 		xpos := 0 + pad.Left
 		lines := splitLines(s)
@@ -110,6 +115,18 @@ func NewPage(s string, width int, isCode bool, style Style) *Page {
 	return page
 }
 
+func (pg *Page) StringIndented(indent string) string {
+	elines := []string{}
+	eindent := indent + "    "
+	for _, elem := range pg.Elems {
+		elines = append(elines, eindent+elem.StringIndented(eindent))
+	}
+	return fmt.Sprintf("Page%v@%p\n%s",
+		pg.Size,
+		pg,
+		strings.Join(elines, "\n"))
+}
+
 func (pg *Page) String() string {
 	return fmt.Sprintf("Page%v{%d}@%p",
 		pg.Size, len(pg.Elems), pg)
@@ -117,17 +134,21 @@ func (pg *Page) String() string {
 
 func (pg *Page) NextCoord() Coord {
 	if len(pg.Elems) == 0 {
-		return Coord{X: pg.Padding.Left, Y: pg.Padding.Top}
+		return Coord{X: pg.GetPadding().Left, Y: pg.GetPadding().Top}
 	} else {
 		last := pg.Elems[len(pg.Elems)-1]
 		last.Measure()
 		lcoord := last.GetCoord()
 		lsize := last.GetSize()
 		return Coord{
-			X: pg.Padding.Left,
+			X: pg.GetPadding().Left,
 			Y: lcoord.Y + lsize.Height, // no spacers by spec.
 		}
 	}
+}
+
+func (pg *Page) SetStyle(style *Style) {
+	pg.Style = style
 }
 
 // Measures the size of elem and appends to page below the last element,
@@ -142,7 +163,7 @@ func (pg *Page) AppendElem(elem Elem) {
 
 // Assumes page starts at 0,0.
 func (pg *Page) Measure() Size {
-	pad := pg.Padding
+	pad := pg.GetPadding()
 	maxX := pad.Left
 	maxY := pad.Top
 	for _, view := range pg.Elems {
@@ -249,7 +270,8 @@ func (pg *Page) Render() (updated bool) {
 
 // Draw the rendered page elements onto the view.
 func (pg *Page) Draw(offset Coord, view View) {
-	style := pg.Style
+	style := pg.GetStyle()
+	border := style.GetBorder()
 	minX, maxX, minY, maxY :=
 		computeIntersection(pg.Size, offset, view.Bounds)
 	// First, draw page background style.
@@ -262,27 +284,27 @@ func (pg *Page) Draw(offset Coord, view View) {
 				if y == pg.Size.Height-1 {
 					// handle this case first so if height is 1,
 					// this corner is preferred.
-					vcell.SetValue(style.BLCorner(), 1, style, nil)
+					vcell.SetValue(border.BLCorner(), 1, style, pg)
 				} else if y == 0 {
-					vcell.SetValue(style.TLCorner(), 1, style, nil)
+					vcell.SetValue(border.TLCorner(), 1, style, pg)
 				} else {
-					vcell.SetValue(style.LeftBorder(y), 1, style, nil)
+					vcell.SetValue(border.LeftBorder(y), 1, style, pg)
 				}
 			} else if x == pg.Size.Width-1 {
 				if y == pg.Size.Height-1 {
 					// ditto for future left-right language support.
-					vcell.SetValue(style.BRCorner(), 1, style, nil)
+					vcell.SetValue(border.BRCorner(), 1, style, pg)
 				} else if y == 0 {
-					vcell.SetValue(style.TRCorner(), 1, style, nil)
+					vcell.SetValue(border.TRCorner(), 1, style, pg)
 				} else {
-					vcell.SetValue(style.RightBorder(y), 1, style, nil)
+					vcell.SetValue(border.RightBorder(y), 1, style, pg)
 				}
 			} else if y == 0 {
-				vcell.SetValue(style.TopBorder(x), 1, style, nil)
+				vcell.SetValue(border.TopBorder(x), 1, style, pg)
 			} else if y == pg.Size.Height-1 {
-				vcell.SetValue(style.BottomBorder(x), 1, style, nil)
+				vcell.SetValue(border.BottomBorder(x), 1, style, pg)
 			} else { // Draw area.
-				vcell.SetValue(" ", 1, style, nil)
+				vcell.SetValue(" ", 1, style, pg)
 			}
 		}
 	}
@@ -372,13 +394,13 @@ func (pg *Page) DecCursor(isVertical bool) {
 type TextElem struct {
 	Coord
 	Size
-	Style // ignores padding.
+	*Style // ignores padding.
 	Attrs
 	Text string
 	*Buffer
 }
 
-func NewTextElem(text string, style Style) *TextElem {
+func NewTextElem(text string, style *Style) *TextElem {
 	te := &TextElem{
 		Style: style,
 		Text:  text,
@@ -390,6 +412,14 @@ func NewTextElem(text string, style Style) *TextElem {
 	te.Measure()
 	te.SetIsDirty(true)
 	return te
+}
+
+func (tel *TextElem) SetStyle(style *Style) {
+	tel.Style = style
+}
+
+func (tel *TextElem) StringIndented(indent string) string {
+	return tel.String()
 }
 
 func (tel *TextElem) String() string {
@@ -414,7 +444,8 @@ func (tel *TextElem) Render() (updated bool) {
 	} else {
 		defer tel.SetIsDirty(false)
 	}
-	style := tel.Style.WithAttrs(&tel.Attrs)
+	tel.Buffer.Reset()
+	style := tel.GetStyle()
 	runes := toRunes(tel.Text)
 	i := 0
 	for 0 < len(runes) {
@@ -430,7 +461,7 @@ func (tel *TextElem) Render() (updated bool) {
 		cell.SetValue(s, w, style, tel)
 		for j := 1; j < w; j++ {
 			cell := tel.Buffer.GetCell(i+j, 0)
-			cell.SetValue("", 0, Style{}, tel) // clear next cells
+			cell.SetValue("", 0, style, tel) // clear next cells
 		}
 		i += w
 	}
@@ -442,6 +473,8 @@ func (tel *TextElem) Render() (updated bool) {
 	return true
 }
 
+var ctr = 0
+
 func (tel *TextElem) Draw(offset Coord, view View) {
 	minX, maxX, minY, maxY :=
 		computeIntersection(tel.Size, offset, view.Bounds)
@@ -452,7 +485,7 @@ func (tel *TextElem) Draw(offset Coord, view View) {
 		for x := minX; x < maxX; x++ {
 			bcell := tel.Buffer.GetCell(x, y)
 			vcell := view.GetCell(x-offset.X, y-offset.Y)
-			vcell.SetCell(bcell)
+			vcell.SetValueFromCell(bcell)
 		}
 	}
 }
@@ -467,30 +500,119 @@ func (tel *TextElem) ProcessEventKey(ev *EventKey) bool {
 type Color = tcell.Color
 
 // Style is purely visual and has no side effects.
+// It is generally referred to by pointer; you may need to copy before
+// modifying.
 type Style struct {
 	Foreground Color
 	Background Color
-	Padding
-	Border
+	Padding    Padding
+	Border     Border
 	StyleFlags
-	Other []KVPair
+	Other       []KVPair
+	CursorStyle *Style
+}
+
+func DefaultStyle() *Style {
+	return &Style{
+		Foreground: gDefaultForeground,
+		Background: gDefaultBackground,
+		CursorStyle: &Style{
+			Background: tcell.ColorYellow,
+		},
+	}
+}
+
+var gDefaultStyle = DefaultStyle()
+var gDefaultForeground = tcell.ColorBlack
+var gDefaultBackground = tcell.ColorLightBlue
+
+func (st *Style) Copy() *Style {
+	st2 := *st
+	return &st2
 }
 
 func (st *Style) GetStyle() *Style {
 	return st
 }
 
-func (st *Style) SetStyle(st2 Style) {
-	*st = st2
+func (st *Style) GetForeground() Color {
+	if st == nil {
+		return gDefaultStyle.Foreground
+	} else {
+		return st.Foreground
+	}
 }
 
-func (stv Style) WithAttrs(attrs *Attrs) Style {
-	if attrs.GetIsCursor() {
-		stv.Background = tcell.ColorYellow
-		return stv
+func (st *Style) GetBackground() Color {
+	if st == nil {
+		return gDefaultStyle.Background
 	} else {
-		return stv
+		return st.Background
 	}
+}
+
+func (st *Style) GetPadding() Padding {
+	if st == nil {
+		return gDefaultStyle.Padding
+	} else {
+		return st.Padding
+	}
+}
+
+func (st *Style) GetBorder() *Border {
+	if st == nil {
+		return &gDefaultStyle.Border
+	} else {
+		return &st.Border
+	}
+}
+
+func (st *Style) GetCursorStyle() *Style {
+	if st == nil {
+		return gDefaultStyle.CursorStyle
+	} else if st.CursorStyle == nil {
+		return st
+	} else {
+		return st.CursorStyle
+	}
+}
+
+// NOTE: this should only be called during the last step when
+// writing to screen.  The receiver must not be nil and must
+// not be modified, and the result is a value, not the style
+// of any particular element.
+func (st *Style) WithAttrs(attrs *Attrs) (res Style) {
+	if st == nil {
+		panic("unexpected nil style")
+	}
+	if attrs.GetIsCursor() {
+		res = *st.GetCursorStyle()
+	} else {
+		res = *st
+	}
+	if attrs.GetIsOccluded() {
+		res.SetIsShaded(true)
+	}
+	return
+}
+
+func (st Style) GetTStyle() (tst tcell.Style) {
+	if st.Foreground.Valid() {
+		tst = tst.Foreground(st.Foreground)
+	} else {
+		tst = tst.Foreground(gDefaultForeground)
+	}
+	if st.Background.Valid() {
+		tst = tst.Background(st.Background)
+	} else {
+		tst = tst.Background(gDefaultBackground)
+	}
+	if st.GetIsShaded() {
+		tst = tst.Dim(true)
+		tst = tst.Background(tcell.ColorGray)
+	}
+	// TODO StyleFlags
+	return tst
 }
 
 type StyleFlags uint32
@@ -519,8 +641,9 @@ func (sf *StyleFlags) SetIsShaded(id bool) {
 	}
 }
 
+const StyleFlagNone StyleFlags = 0
+
 const (
-	StyleFlagNone StyleFlags = 0
 	StyleFlagBold StyleFlags = 1 << iota
 	StyleFlagDim
 	StyleFlagShaded
@@ -582,12 +705,43 @@ func (tt *Attrs) SetIsDirty(id bool) {
 	}
 }
 
+func (tt *Attrs) GetIsOccluded() bool {
+	return (tt.AttrFlags & AttrFlagIsOccluded) != 0
+}
+
+func (tt *Attrs) SetIsOccluded(ic bool) {
+	if ic {
+		tt.AttrFlags |= AttrFlagIsOccluded
+	} else {
+		tt.AttrFlags &= ^AttrFlagIsOccluded
+	}
+	tt.SetIsDirty(true)
+}
+
+func (tt *Attrs) Merge(ot *Attrs) {
+	if ot.Parent != nil {
+		tt.Parent = ot.Parent
+	}
+	tt.AttrFlags |= ot.AttrFlags
+	tt.Other = ot.Other // TODO merge by key.
+}
+
+//----------------------------------------
+// AttrFlags
+
+// NOTE: AttrFlags are merged with a simple or-assign op.
 type AttrFlags uint32
 
+func (af AttrFlags) GetAttrFlags() AttrFlags {
+	return af
+}
+
+const AttrFlagNone AttrFlags = 0
+
 const (
-	AttrFlagNone       AttrFlags = 0
 	AttrFlagIsCursor   AttrFlags = 1 << iota // is current cursor
 	AttrFlagIsSelected                       // is selected (among possibly others)
+	AttrFlagIsOccluded                       // is hidden due to stack
 	AttrFlagIsDirty                          // is dirty (not yet used)
 )
 
@@ -720,24 +874,32 @@ func orSpace(chr string) string {
 	}
 }
 
+func (br *Border) GetCorner(i int) string {
+	if br == nil {
+		return " "
+	} else {
+		return orSpace(br.Corners[i])
+	}
+}
+
 func (br *Border) TLCorner() string {
-	return orSpace(br.Corners[0])
+	return br.GetCorner(0)
 }
 
 func (br *Border) TRCorner() string {
-	return orSpace(br.Corners[1])
+	return br.GetCorner(1)
 }
 
 func (br *Border) BRCorner() string {
-	return orSpace(br.Corners[2])
+	return br.GetCorner(2)
 }
 
 func (br *Border) BLCorner() string {
-	return orSpace(br.Corners[3])
+	return br.GetCorner(3)
 }
 
 func (br *Border) TopBorder(x int) string {
-	if br.TopLine == nil {
+	if br == nil || br.TopLine == nil {
 		return " "
 	} else {
 		return br.TopLine[x%len(br.TopLine)]
@@ -745,7 +907,7 @@ func (br *Border) TopBorder(x int) string {
 }
 
 func (br *Border) BottomBorder(x int) string {
-	if br.BotLine == nil {
+	if br == nil || br.BotLine == nil {
 		return " "
 	} else {
 		return br.BotLine[x%len(br.BotLine)]
@@ -753,7 +915,7 @@ func (br *Border) BottomBorder(x int) string {
 }
 
 func (br *Border) LeftBorder(y int) string {
-	if br.LeftLine == nil {
+	if br == nil || br.LeftLine == nil {
 		return " "
 	} else {
 		return br.LeftLine[y%len(br.LeftLine)]
@@ -761,7 +923,7 @@ func (br *Border) LeftBorder(y int) string {
 }
 
 func (br *Border) RightBorder(y int) string {
-	if br.RightLine == nil {
+	if br == nil || br.RightLine == nil {
 		return " "
 	} else {
 		return br.RightLine[y%len(br.RightLine)]
@@ -823,6 +985,13 @@ func (crd *Coord) SetCoord(nc Coord) {
 
 func (crd Coord) IsNonNegative() bool {
 	return 0 <= crd.X && 0 <= crd.Y
+}
+
+func (crd Coord) Neg() Coord {
+	return Coord{
+		X: -crd.X,
+		Y: -crd.Y,
+	}
 }
 
 func (crd Coord) Add(crd2 Coord) Coord {

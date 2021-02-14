@@ -66,10 +66,17 @@ func (w Word) TokenString() string {
 // Node.String()
 
 func (p ValuePath) String() string {
-	if p.Depth == 0 {
+	switch p.Type {
+	case VPTypeUverse:
 		return fmt.Sprintf("#%d", p.Index)
-	} else {
+	case VPTypeDefault:
 		return fmt.Sprintf("%s%d", strings.Repeat("@", int(p.Depth)), p.Index)
+	case VPTypeInterface:
+		return fmt.Sprintf("@%s", p.Name)
+	case VPTypeNative:
+		return fmt.Sprintf("@%s", p.Name)
+	default:
+		panic("illegal_value_type")
 	}
 }
 

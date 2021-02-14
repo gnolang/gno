@@ -317,7 +317,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 							// simplicity and some degree of flexibility,
 							// do not use path indices for Go native
 							// types, but use the name.
-							n.Path = NewValuePath(n.Name, 0, 0)
+							n.Path = NewValuePathNative(n.Name)
 							return n, TRANS_CONTINUE
 						case reflect.Array, reflect.Slice:
 							// Replace n with *constExpr.
@@ -821,7 +821,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 					}
 				case *nativeType:
 					// native types don't use path indices.
-					n.Path = NewValuePath(n.Sel, 0, 0)
+					n.Path = NewValuePathNative(n.Sel)
 				default:
 					panic(fmt.Sprintf(
 						"unexpected selector expression type %s",
@@ -1527,7 +1527,7 @@ func tryPredefine(imp Importer, last BlockNode, d Decl) (un Name) {
 			case *NameExpr:
 				if idx, ok := UverseNode().GetLocalIndex(tx.Name); ok {
 					// uverse name
-					tv := Uverse().GetPointerTo(NewValuePath(tx.Name, 0, idx))
+					tv := Uverse().GetPointerTo(NewValuePathUverse(idx, tx.Name))
 					t = tv.GetType()
 				} else if tv := last.GetValueRef(tx.Name); tv != nil {
 					// block name
