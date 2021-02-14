@@ -1,5 +1,4 @@
-all:
-	xgo test gnoland goscan logos
+all: xgo test gnoland goscan logos
 
 # gnoland is the main executable of gnolang
 # bring this back when ready
