@@ -1,9 +1,9 @@
 # gnoland is the main executable of gnolang
 # bring this back when ready
-# gnoland:
-#	echo "Building Gnoland for a wide range of systems"
-#	mkdir build || true
-#	go build -o build/gno-darwin-amd64 cmd/gnoland/main.go
+gnoland:
+	echo "Building Gnoland for a wide range of systems"
+	mkdir build || true
+	go build -o build/gno-darwin-amd64 cmd/gnoland/main.go
 #	GOOS=darwin GOARCH=arm64 go build -o build/gno-darwin-arm64 cmd/gnoland/main.go
 #	GOOS=linux GOARCH=amd64 go build -o build/gno-linux-amd64 cmd/gnoland/main.go
 #	GOOS=linux GOARCH=arm64 go build -o build/gno-linux-arm64 cmd/gnoland/main.go
@@ -43,7 +43,7 @@ test:
 	go test tests/*.go -v -run="Test/realm.go"
 
 all:
-	deps test goscan logos
+	deps test gnoland goscan logos
 
 
 
