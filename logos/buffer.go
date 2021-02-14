@@ -155,7 +155,7 @@ func (cc *Cell) GetTCellContent() (mainc rune, combc []rune, tstyle tcell.Style)
 		if style == nil {
 			tstyle = gDefaultStyle.WithAttrs(attrs).GetTStyle()
 		} else {
-			tstyle = style.WithAttrs(attrs).GetTStyle2()
+			tstyle = style.WithAttrs(attrs).GetTStyle()
 		}
 	}
 	return

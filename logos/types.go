@@ -524,7 +524,7 @@ func DefaultStyle() *Style {
 
 var gDefaultStyle = DefaultStyle()
 var gDefaultForeground = tcell.ColorBlack
-var gDefaultBackground = tcell.ColorWhite
+var gDefaultBackground = tcell.ColorLightBlue
 
 func (st *Style) Copy() *Style {
 	st2 := *st
@@ -594,25 +594,6 @@ func (st *Style) WithAttrs(attrs *Attrs) (res Style) {
 		res.SetIsShaded(true)
 	}
 	return
-}
-
-func (st Style) GetTStyle2() (tst tcell.Style) {
-	if st.Foreground.Valid() {
-		tst = tst.Foreground(st.Foreground)
-	} else {
-		tst = tst.Foreground(gDefaultForeground)
-	}
-	if st.Background.Valid() {
-		tst = tst.Background(st.Background)
-	} else {
-		tst = tst.Background(tcell.ColorBlue)
-	}
-	if st.GetIsShaded() {
-		tst = tst.Dim(true)
-		tst = tst.Background(tcell.ColorGray)
-	}
-	// TODO StyleFlags
-	return tst
 }
 
 func (st Style) GetTStyle() (tst tcell.Style) {
