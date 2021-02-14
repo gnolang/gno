@@ -1,7 +1,4 @@
-all: xgo test gnoland goscan logos
-
-build-dir:
-	mkdir build || echo "Build folder is already present."
+all: xgo gnoland goscan logos
 
 # gnoland is the main executable of gnolang
 # bring this back when ready
@@ -15,7 +12,7 @@ goscan:
 	xgo ./cmd/goscan
 
 
-# Is logos test code or will it be a part of the system?
+# Logos is the interface to Gnoland
 logos:
 	echo "building logos"
 	xgo ./logos/cmd
@@ -29,7 +26,7 @@ xgo:
 	echo "installing xgo"
 	go get src.techknowlogick.com/xgo
 
-
+# NB: Binaries will output in the folder github.com/gnoland
 
 # TODO stringer -type=Op
 # Unsure what the above refers to. Created a basic Makefile.
