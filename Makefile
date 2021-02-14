@@ -1,5 +1,6 @@
 all: build-dir gnoland goscan logos
 
+.PHONY: logos
 
 build-dir:
 	mkdir build || true
