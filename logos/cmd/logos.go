@@ -170,7 +170,7 @@ func makeTestPage() *logos.BufferedElemView {
 		Border:  logos.Border{HasBorder: true},
 	}
 	// TODO width shouldn't matter.
-	page := logos.NewPage(ts, 84, true, style)
+	page := logos.NewPage(ts, 84, true, &style)
 	bpv := logos.NewBufferedElemView(page, logos.Size{})
 	return bpv
 }
