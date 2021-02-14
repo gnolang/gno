@@ -154,6 +154,14 @@ is to find the right contributors.  If you can grok the complexities of this
 and related projects without hand holding, and you understand the implications
 of this project and are aligned with its mission, keep in touch.
 
+## Reading the code
+
+Gno's code has been written with extensive comments that explain what each 
+file does. Eventually, each function will be commented in the same manner. 
+
+You can learn a great deal from reading Gnocode, and it's recommended that
+both users and developers have a look. 
+
 ## Updates
 
 If you can read this, the project is evolving (fast) every day.  Check
