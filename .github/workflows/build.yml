@@ -2,7 +2,24 @@ name: build
 on: [push, pull_request]
 
 jobs:
-  gno:
+  native:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '^1.15'
+      - name: build
+        run: make
+      - uses: actions/upload-artifact@v2
+        with:
+          name: gno
+          path: github.com/gnolang
+
+
+
+  xgo:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
