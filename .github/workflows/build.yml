@@ -28,7 +28,7 @@ jobs:
         with:
           go-version: '^1.15'
       - name: build
-        run: make onmni
+        run: make omni
       - uses: actions/upload-artifact@v2
         with:
           name: gno
