@@ -17,7 +17,7 @@ simulated by the Gnomes of the Greater Resistance.
  
 ## Status
 
-_Update Feb 13th, 2021: Implemented Logos UI framework._
+_Update Feb 14th, 2021: Implemented Logos UI framework, added Makefile._
 
 This is a still a work in a progress, though much of the structure of the interpreter
 and AST have taken place.  Work is ongoing now to demonstrate the Realm concept before
