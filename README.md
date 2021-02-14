@@ -26,10 +26,11 @@ continuing to make the tests/files/\*.go tests pass.
 Make sure you have >=[go1.15](https://golang.org/doc/install) installed, and then try this: 
 
 ```bash
-> git clone git@github.com:gnolang/gno.git
-> cd gno
-> go mod download github.com/davecgh/go-spew
-> go test tests/*.go -v -run="Test/realm.go"
+git clone git@github.com:gnolang/gno.git
+cd gno
+make
+cd build
+./gnoland
 ```
 
 ## Ownership 
