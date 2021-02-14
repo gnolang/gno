@@ -1,3 +1,6 @@
+all:
+	xgo test gnoland goscan logos
+
 # gnoland is the main executable of gnolang
 # bring this back when ready
 gnoland:
@@ -24,10 +27,6 @@ test:
 
 xgo:
 	go get src.techknowlogick.com/xgo
-
-
-all:
-	xgo test gnoland goscan logos
 
 
 
