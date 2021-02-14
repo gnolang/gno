@@ -11,9 +11,13 @@ This is a still a work in a progress, though much of the structure of the interp
 and AST have taken place.  Work is ongoing now to demonstrate the Realm concept before
 continuing to make the tests/files/\*.go tests pass.
 
-Try this: 
+Make sure you have >=[go1.15](https://golang.org/doc/install) installed, and then try this: 
+
 ```bash
-> go test tests/\*.go -v -run="Test/realm.go"
+> git clone git@github.com:gnolang/gno.git
+> cd gno
+> go mod download github.com/davecgh/go-spew
+> go test tests/*.go -v -run="Test/realm.go"
 ```
 
 ## Ownership 
