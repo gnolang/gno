@@ -445,16 +445,27 @@ func (m *Machine) doOpStructLit() {
 					panic("unexpected struct composite lit key path generation value")
 				}
 			}
-			fs[fnx.Path.Index] = ftv
-			if ftv.HasKind(StructKind) {
-				// flatten fields
+			if fnx.Path.Type == VPTypeFlat {
+				// copy struct "head" TypedValue.
+				fs[fnx.Path.Index] = ftv.Copy()
+				// copy struct "flat" fields.
 				fsv := ftv.V.(*StructValue)
+				ffi := int(fnx.Path.Index) + 1 // flat field #0
 				if debug {
-					if len(st.Fields) < int(fnx.Path.Index)+1+len(fsv.Fields) {
-						panic("struct field buffer overflow")
+					if len(st.Fields) < ffi+len(fsv.Fields) {
+						panic(fmt.Sprintf(
+							"struct field buffer overflow, "+
+								"%d < %d+1+%d",
+							len(st.Fields),
+							ffi,
+							len(fsv.Fields)))
 					}
 				}
-				copy(fs[int(fnx.Path.Index)+1:], fsv.Fields)
+				copy(fs[ffi:], fsv.Fields)
+				// reslice head.Fields to point to fs.
+				fsv.Fields = fs[ffi : ffi+len(fsv.Fields)]
+			} else {
+				fs[fnx.Path.Index] = ftv
 			}
 		}
 	}

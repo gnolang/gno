@@ -24,7 +24,7 @@ func TestGoNativeDefine(t *testing.T) {
 	nt := pkg.GetValueRef(Name("Foo")).GetType().(*nativeType)
 	assert.Equal(t, nt.Type, rt)
 	path := pkg.GetPathForName(Name("Foo"))
-	assert.Equal(t, path.Depth, uint16(1))
+	assert.Equal(t, path.Depth, uint8(1))
 	assert.Equal(t, path.Index, uint16(0))
 	pv := pkg.NewPackage(nil)
 	nt = pv.GetPointerTo(path).GetType().(*nativeType)
