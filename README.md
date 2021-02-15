@@ -19,7 +19,7 @@ simulated by the Gnomes of the Greater Resistance.
 
 _Update Feb 13th, 2021: Implemented Logos UI framework._
 
-This is a still a work in a progress, though much of the structure of the interpreter
+This is still a work in a progress, though much of the structure of the interpreter
 and AST have taken place.  Work is ongoing now to demonstrate the Realm concept before
 continuing to make the tests/files/\*.go tests pass.
 
@@ -35,7 +35,7 @@ Make sure you have >=[go1.15](https://golang.org/doc/install) installed, and the
 ## Ownership 
 
 In Gno, all objects are automatically persisted to disk after every atomic
-"transaction" (a function call that must return immediately.) when new objects
+"transaction" (a function call that must return immediately). When new objects
 are associated with a "ownership tree" which is maintained overlaying the
 possibly cyclic object graph.  The ownership tree is composed of objects
 (arrays, structs, maps, and blocks) and derivatives (pointers, slices, and so
@@ -122,7 +122,7 @@ operating-system (MMO-OS). Each user is provided a home package, for example
 "gno.land/r/username". This is not just a regular package but a "realm
 package", and functions and methods declared there have special privileges.
 
-Every "realm package" should define at last one package-level variable:
+Every "realm package" should define at least one package-level variable:
 
 ```go
 // PKGPATH: gno.land/r/alice
