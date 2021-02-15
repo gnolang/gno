@@ -1,9 +1,7 @@
-all: build-dir gnoland goscan logos
+all: gnoland goscan logos
 
 .PHONY: logos
 
-build-dir:
-	mkdir build || true
 
 # Uses xgo to compile gnoland, gnoscan and logos
 # NB: Binaries will output in the folder github.com/gnoland
@@ -18,18 +16,18 @@ omni: xgo
 # The main show
 gnoland:
 	echo "Building gnoland"
-	go build -o build/gnoland ./cmd/gnoland
+	go build -o gnoland ./cmd/gnoland
 
 # goscan scans go code to determine its AST
 goscan:
 	echo "Building goscan"
-	go build -o build/goscan ./cmd/goscan
+	go build -o goscan ./cmd/goscan
 
 
 # Logos is the interface to Gnoland
 logos:
 	echo "building logos"
-	go build -o build/logos ./logos/cmd/logos.go
+	go build -o logos ./logos/cmd/logos.go
 
 clean:
 	rm -rf build
