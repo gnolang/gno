@@ -14,8 +14,11 @@ jobs:
         run: make
       - uses: actions/upload-artifact@v2
         with:
-          name: gno
-          path: github.com/gnolang
+          name: gnoland
+          path: |
+            gnoland
+            goscan
+            logos
 
 
 
