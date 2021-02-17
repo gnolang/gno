@@ -27,10 +27,10 @@ goscan:
 # Logos is the interface to Gnoland
 logos:
 	echo "building logos"
-	go build -o logos ./logos/cmd/logos.go
+	go build -o ./logos ./cmd/logos
 
 clean:
-	rm -rf build
+	rm logos gnoland goscan
 
 test:
 	echo "Running tests"
