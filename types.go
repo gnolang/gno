@@ -1058,7 +1058,7 @@ func (nt *nativeType) Elem() Type {
 
 func (nt *nativeType) GnoType() Type {
 	if nt.gnoType == nil {
-		nt.gnoType = go2GnoType2(nt.Type, false)
+		nt.gnoType = go2GnoType2(nt.Type)
 	}
 	return nt.gnoType
 }
