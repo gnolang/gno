@@ -74,9 +74,8 @@ func go2GnoBaseType(rt reflect.Type) Type {
 // See go2GnoValue2(). Like go2GnoType() but also converts any
 // top-level complex types (or pointers to them).  The result gets
 // memoized in *nativeType.GnoType() for type inference in the
-// preprocessor.  If strict is true, panics on unexported/private
-// fields.
-func go2GnoType2(rt reflect.Type, strict bool) Type {
+// preprocessor.
+func go2GnoType2(rt reflect.Type) Type {
 	switch rk := rt.Kind(); rk {
 	case reflect.Bool:
 		return BoolType
@@ -128,7 +127,7 @@ func go2GnoType2(rt reflect.Type, strict bool) Type {
 	case reflect.Ptr:
 		return PointerType{
 			// this is the only recursive call to go2GnoType2().
-			Elt: go2GnoType2(rt.Elem(), strict),
+			Elt: go2GnoType2(rt.Elem()),
 		}
 	case reflect.Struct:
 		nf := rt.NumField()
@@ -139,12 +138,6 @@ func go2GnoType2(rt reflect.Type, strict bool) Type {
 		// referred to explicitly.
 		for i := 0; i < nf; i++ {
 			sf := rt.Field(i)
-			if strict && sf.PkgPath != "" {
-				panic(fmt.Sprintf(
-					"native struct type has unexported (private) field %s",
-					sf.Name))
-
-			}
 			fs[i] = FieldType{
 				Name: Name(sf.Name),
 				Type: go2GnoType(sf.Type),
@@ -395,7 +388,7 @@ func go2GnoValueUpdate(lvl int, tv *TypedValue, rv reflect.Value) {
 // type/value, or a pointer to that type/value.  Some types that cannot
 // be converted remain native.
 func go2GnoValue2(rv reflect.Value) (tv TypedValue) {
-	tv.T = go2GnoType2(rv.Type(), true)
+	tv.T = go2GnoType2(rv.Type())
 	switch rk := rv.Kind(); rk {
 	case reflect.Bool:
 		tv.SetBool(rv.Bool())
@@ -447,7 +440,7 @@ func go2GnoValue2(rv reflect.Value) (tv TypedValue) {
 	case reflect.Map:
 		panic("not yet implemented")
 	case reflect.Ptr:
-		tv.T = PointerType{Elt: go2GnoType2(rv.Type().Elem(), true)}
+		tv.T = PointerType{Elt: go2GnoType2(rv.Type().Elem())}
 		val := go2GnoValue2(rv.Elem())
 		tv.V = PointerValue{TypedValue: &val} // heap alloc
 	case reflect.Struct:
@@ -547,12 +540,13 @@ func gno2GoType(t Type) reflect.Type {
 			if fn == "" {
 				fn = string(field.Embedded)
 			}
+			pkgPath := ""
 			if !isUpper(fn) {
-				panic("gonative doesn't support unexported fields")
+				pkgPath = ct.PkgPath
 			}
 			gfs[i] = reflect.StructField{
 				Name:      fn,
-				PkgPath:   "", // blank means exported.
+				PkgPath:   pkgPath,
 				Type:      gft,
 				Tag:       reflect.StructTag(field.Tag),
 				Anonymous: field.Name == "",
@@ -562,7 +556,9 @@ func gno2GoType(t Type) reflect.Type {
 		}
 		return reflect.StructOf(gfs)
 	case *MapType:
-		panic("not yet implemented")
+		kt := gno2GoType(ct.Key)
+		vt := gno2GoType(ct.Value)
+		return reflect.MapOf(kt, vt)
 	case *FuncType:
 		panic("should not happen")
 	case *InterfaceType:
@@ -606,68 +602,38 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) reflect.Value {
 		}
 		return rv
 	}
-	switch ct := baseOf(tv.T).(type) {
+	bt := baseOf(tv.T)
+	var rt reflect.Type
+	if !rv.IsValid() {
+		rt = gno2GoType(bt)
+		rv = reflect.New(rt).Elem()
+	}
+	switch ct := bt.(type) {
 	case PrimitiveType:
 		switch ct {
 		case BoolType, UntypedBoolType:
-			if !rv.IsValid() {
-				rv = reflect.New(reflect.TypeOf(false)).Elem()
-			}
 			rv.SetBool(tv.GetBool())
 		case StringType, UntypedStringType:
-			if !rv.IsValid() {
-				rv = reflect.New(reflect.TypeOf("")).Elem()
-			}
 			rv.SetString(string(tv.GetString()))
 		case IntType:
-			if !rv.IsValid() {
-				rv = reflect.New(reflect.TypeOf(int(0))).Elem()
-			}
 			rv.SetInt(int64(tv.GetInt()))
 		case Int8Type:
-			if !rv.IsValid() {
-				rv = reflect.New(reflect.TypeOf(int8(0))).Elem()
-			}
 			rv.SetInt(int64(tv.GetInt8()))
 		case Int16Type:
-			if !rv.IsValid() {
-				rv = reflect.New(reflect.TypeOf(int16(0))).Elem()
-			}
 			rv.SetInt(int64(tv.GetInt16()))
 		case Int32Type, UntypedRuneType:
-			if !rv.IsValid() {
-				rv = reflect.New(reflect.TypeOf(int32(0))).Elem()
-			}
 			rv.SetInt(int64(tv.GetInt32()))
 		case Int64Type:
-			if !rv.IsValid() {
-				rv = reflect.New(reflect.TypeOf(int64(0))).Elem()
-			}
 			rv.SetInt(int64(tv.GetInt64()))
 		case UintType:
-			if !rv.IsValid() {
-				rv = reflect.New(reflect.TypeOf(uint(0))).Elem()
-			}
 			rv.SetUint(uint64(tv.GetUint()))
 		case Uint8Type:
-			if !rv.IsValid() {
-				rv = reflect.New(reflect.TypeOf(uint8(0))).Elem()
-			}
 			rv.SetUint(uint64(tv.GetUint8()))
 		case Uint16Type:
-			if !rv.IsValid() {
-				rv = reflect.New(reflect.TypeOf(uint16(0))).Elem()
-			}
 			rv.SetUint(uint64(tv.GetUint16()))
 		case Uint32Type:
-			if !rv.IsValid() {
-				rv = reflect.New(reflect.TypeOf(uint32(0))).Elem()
-			}
 			rv.SetUint(uint64(tv.GetUint32()))
 		case Uint64Type:
-			if !rv.IsValid() {
-				rv = reflect.New(reflect.TypeOf(uint64(0))).Elem()
-			}
 			rv.SetUint(uint64(tv.GetUint64()))
 		default:
 			panic(fmt.Sprintf(
@@ -678,10 +644,6 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) reflect.Value {
 		// This doesn't take into account pointer relativity, or even
 		// identical pointers -- every non-nil gno pointer type results in a
 		// new addressable value in go.
-		if !rv.IsValid() {
-			pt := gno2GoType(ct)
-			rv = reflect.New(pt).Elem()
-		}
 		rv2 := gno2GoValue(tv.V.(PointerValue).TypedValue, reflect.Value{})
 		rv.Set(rv2.Addr())
 	case *ArrayType:
@@ -691,10 +653,6 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) reflect.Value {
 				// should have been initialized if not already so.
 				panic("unexpected uninitialized array")
 			}
-		}
-		if !rv.IsValid() {
-			rt := gno2GoType(ct)
-			rv = reflect.New(rt).Elem()
 		}
 		// General case.
 		av := tv.V.(*ArrayValue)
@@ -718,9 +676,6 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) reflect.Value {
 		}
 	case *SliceType:
 		st := gno2GoType(ct)
-		if !rv.IsValid() {
-			rv = reflect.New(st).Elem()
-		}
 		// If uninitialized slice, return zero value.
 		if tv.V == nil {
 			return rv
@@ -745,10 +700,6 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) reflect.Value {
 			rv.Set(reflect.ValueOf(data))
 		}
 	case *StructType:
-		if !rv.IsValid() {
-			st := gno2GoType(ct)
-			rv = reflect.New(st).Elem()
-		}
 		// If uninitialized struct, return zero value.
 		if tv.V == nil {
 			return rv
@@ -763,11 +714,22 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) reflect.Value {
 			}
 			gno2GoValue(ftv, rv.Field(orig))
 		}
-	case *nativeType:
-		if !rv.IsValid() {
-			rt := ct.Type
-			rv = reflect.New(rt).Elem()
+	case *MapType:
+		// If uninitialized map, return zero value.
+		if tv.V == nil {
+			return rv
 		}
+		// General case.
+		mv := tv.V.(*MapValue)
+		head := mv.List.Head
+		for head != nil {
+			ktv, vtv := &head.Key, &head.Value
+			krv := gno2GoValue(ktv, reflect.Value{})
+			vrv := gno2GoValue(vtv, reflect.Value{})
+			rv.SetMapIndex(krv, vrv)
+			head = head.Next
+		}
+	case *nativeType:
 		// If uninitialized native type, leave rv uninitialized.
 		if tv.V == nil {
 			return rv

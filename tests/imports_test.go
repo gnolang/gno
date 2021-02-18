@@ -8,6 +8,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"image"
+	"image/color"
 	"io"
 	"math"
 	"net"
@@ -86,6 +87,10 @@ func testImporter(out io.Writer) gno.Importer {
 		case "image":
 			pkg := gno.NewPackageNode("image", "image", nil)
 			pkg.DefineGoNativeType(reflect.TypeOf(image.Point{}))
+			return pkg.NewPackage(nil)
+		case "image/color":
+			pkg := gno.NewPackageNode("color", "color", nil)
+			pkg.DefineGoNativeType(reflect.TypeOf(color.NRGBA64{}))
 			return pkg.NewPackage(nil)
 		default:
 			panic("unknown package path " + pkgPath)
