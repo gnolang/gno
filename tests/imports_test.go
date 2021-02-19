@@ -92,6 +92,17 @@ func testImporter(out io.Writer) gno.Importer {
 			pkg := gno.NewPackageNode("color", "color", nil)
 			pkg.DefineGoNativeType(reflect.TypeOf(color.NRGBA64{}))
 			return pkg.NewPackage(nil)
+		case "github.com/gnolang/gno/_test/ct1":
+			pkg := gno.NewPackageNode("ct1", "ct1", nil)
+			pv := pkg.NewPackage(nil)
+			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+				Package: pv,
+			})
+			files := []*gno.FileNode{
+				gno.MustReadFile("./files/ct1/ct1.go"),
+			}
+			m2.RunFiles(files...)
+			return pv
 		default:
 			panic("unknown package path " + pkgPath)
 		}

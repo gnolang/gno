@@ -35,11 +35,20 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io/ioutil"
 	"reflect"
 	"strconv"
 
 	"github.com/davecgh/go-spew/spew"
 )
+
+func MustReadFile(path string) *FileNode {
+	n, err := ReadFile(path)
+	if err != nil {
+		panic(err)
+	}
+	return n
+}
 
 func MustParseFile(filename string, body string) *FileNode {
 	n, err := ParseFile(filename, body)
@@ -47,6 +56,14 @@ func MustParseFile(filename string, body string) *FileNode {
 		panic(err)
 	}
 	return n
+}
+
+func ReadFile(path string) (*FileNode, error) {
+	bz, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return ParseFile(path, string(bz))
 }
 
 // filename must not include the path.
