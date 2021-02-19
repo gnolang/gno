@@ -681,8 +681,8 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		}
 	case *constExpr, *constTypeExpr: // leaf nodes
 		// These nodes get created by the preprocessor while leaving the
-		// type expression of a composite lit, before visiting the key value
-		// elements of the composite lit.
+		// type expression of a composite lit, before visiting the key
+		// value elements of the composite lit.
 	default:
 		if n == nil {
 			panic(fmt.Sprintf("node missing for %v", ftype))

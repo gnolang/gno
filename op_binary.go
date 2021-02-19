@@ -686,7 +686,8 @@ func quoAssign(lv, rv *TypedValue) {
 	case Uint64Kind:
 		lv.SetUint64(lv.GetUint64() / rv.GetUint64())
 	case BigintKind:
-		panic("not yet implemented")
+		lb := lv.GetBig()
+		lb.Quo(lb, rv.GetBig())
 	default:
 		panic(fmt.Sprintf(
 			"operators / and /= not defined for %s",
@@ -721,7 +722,8 @@ func remAssign(lv, rv *TypedValue) {
 	case Uint64Kind:
 		lv.SetUint64(lv.GetUint64() % rv.GetUint64())
 	case BigintKind:
-		panic("not yet implemented")
+		lb := lv.GetBig()
+		lb.Rem(lb, rv.GetBig())
 	default:
 		panic(fmt.Sprintf(
 			"operators %% and %%= not defined for %s",
@@ -756,7 +758,8 @@ func bandAssign(lv, rv *TypedValue) {
 	case Uint64Kind:
 		lv.SetUint64(lv.GetUint64() & rv.GetUint64())
 	case BigintKind:
-		panic("not yet implemented")
+		lb := lv.GetBig()
+		lb.And(lb, rv.GetBig())
 	default:
 		panic(fmt.Sprintf(
 			"operators & and &= not defined for %s",
@@ -791,7 +794,8 @@ func bandnAssign(lv, rv *TypedValue) {
 	case Uint64Kind:
 		lv.SetUint64(lv.GetUint64() &^ rv.GetUint64())
 	case BigintKind:
-		panic("not yet implemented")
+		lb := lv.GetBig()
+		lb.AndNot(lb, rv.GetBig())
 	default:
 		panic(fmt.Sprintf(
 			"operators &^ and &^= not defined for %s",
@@ -826,7 +830,8 @@ func borAssign(lv, rv *TypedValue) {
 	case Uint64Kind:
 		lv.SetUint64(lv.GetUint64() | rv.GetUint64())
 	case BigintKind:
-		panic("not yet implemented")
+		lb := lv.GetBig()
+		lb.Or(lb, rv.GetBig())
 	default:
 		panic(fmt.Sprintf(
 			"operators | and |= not defined for %s",
@@ -861,7 +866,8 @@ func xorAssign(lv, rv *TypedValue) {
 	case Uint64Kind:
 		lv.SetUint64(lv.GetUint64() ^ rv.GetUint64())
 	case BigintKind:
-		panic("not yet implemented")
+		lb := lv.GetBig()
+		lb.Xor(lb, rv.GetBig())
 	default:
 		panic(fmt.Sprintf(
 			"operators ^ and ^= not defined for %s",

@@ -182,9 +182,12 @@ func (oi *ObjectInfo) IncRefCount() int {
 
 func (oi *ObjectInfo) DecRefCount() int {
 	oi.RefCount--
-	if debug {
-		if oi.RefCount < 0 {
-			panic("should not happen")
+	if oi.RefCount < 0 {
+		// This may happen for uninitialized values.
+		if debug {
+			if oi.GetIsReal() {
+				panic("should not happen")
+			}
 		}
 	}
 	return oi.RefCount

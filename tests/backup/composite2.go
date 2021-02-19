@@ -1,12 +1,14 @@
 package main
 
+import "fmt"
+
 var a = &[]*T{{"hello"}}
 
 type T struct{ name string }
 
 func main() {
-	println((*a)[0])
+	fmt.Println((*a)[0])
 }
 
 // Output:
-// &(struct{("hello" string)} main.T)
+// &{hello}

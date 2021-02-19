@@ -997,6 +997,10 @@ func (tv *TypedValue) Assign(tv2 TypedValue) {
 			tv.SetDataByte(tv2.GetUint8())
 		} else {
 			*tv = tv2.Copy()
+			// Convert if untyped const.
+			if isUntyped(tv.T) {
+				ConvertUntypedTo(tv, defaultTypeOf(tv.T))
+			}
 		}
 	case *nativeType:
 		nv1 := tv.V.(*nativeValue)

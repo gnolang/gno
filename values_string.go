@@ -43,7 +43,7 @@ func (v *SliceValue) String() string {
 }
 
 func (v PointerValue) String() string {
-	return fmt.Sprintf("*%s", v.TypedValue.String())
+	return fmt.Sprintf("&%s", v.TypedValue.String())
 }
 
 func (v *StructValue) String() string {
