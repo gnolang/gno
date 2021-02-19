@@ -56,10 +56,11 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 					for _, lx := range n.Lhs {
 						ln := lx.(*NameExpr).Name
 						if ln == "_" {
-							panic("cannot define special name \"_\"")
+							// ignore.
+						} else {
+							// initial declaration to be re-defined.
+							last.Define(ln, anyValue(nil))
 						}
-						// initial declaration to be re-defined.
-						last.Define(ln, anyValue(nil))
 					}
 				} else {
 					// nothing defined.
@@ -238,13 +239,36 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 				// only for imports.
 				pushBlock(n, &last, &stack)
 				{
-					// support out-of-order declarations.  this is required
-					// separately from the direct predefineNow() entry
-					// callbacks above, for otherwise out-of-order declarations
-					// would not get pre-defined before (say) the body of a
-					// function declaration or literl can refer to it.
-					// (this must happen after pushBlock above, otherwise it
-					// would happen @ *FileNode:ENTER)
+					// This logic supports out-of-order declarations.  this is
+					// required separately from the direct predefineNow()
+					// entry callbacks above, for otherwise out-of-order
+					// declarations would not get pre-defined before (say) the
+					// body of a function declaration or literl can refer to
+					// it.  (this must happen after pushBlock above, otherwise
+					// it would happen @ *FileNode:ENTER)
+
+					// First, predefine all type decls and import decls..
+					for _, d := range n.Body {
+						switch d.(type) {
+						case *ImportDecl, *TypeDecl:
+							if d.GetAttribute(ATTR_PREDEFINED) == true {
+								// skip declarations already predefined
+								// (e.g. through recursion for a dependent)
+							} else {
+								// recursively predefine dependencies.
+								predefineNow(imp, n, d)
+							}
+						}
+					}
+					// Then, preprocess all type decls and import decls.
+					for i := 0; i < len(n.Body); i++ {
+						d := n.Body[i]
+						switch d.(type) {
+						case *ImportDecl, *TypeDecl:
+							n.Body[i] = Preprocess(imp, last, d).(Decl) // recursive
+						}
+					}
+					// Then, predefine other decls.
 					for _, d := range n.Body {
 						if d.GetAttribute(ATTR_PREDEFINED) == true {
 							// skip declarations already predefined
@@ -254,6 +278,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 							predefineNow(imp, n, d)
 						}
 					}
+					// After return, the other decls get preprocessed.
 				}
 
 			// TRANS_BLOCK -----------------------
@@ -889,22 +914,33 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 						if len(n.Rhs) != 1 {
 							panic("should not happen")
 						}
-						cx, ok := n.Rhs[0].(*CallExpr)
-						if !ok {
+						switch cx := n.Rhs[0].(type) {
+						case *CallExpr:
+							ft := gnoTypeOf(evalTypeOf(last, cx.Func)).(*FuncType)
+							if len(n.Lhs) != len(ft.Results) {
+								panic(fmt.Sprintf(
+									"assignment mismatch: "+
+										"%d variables but %s returns %d values",
+									len(n.Lhs), cx.Func.String(), len(ft.Results)))
+							}
+							for i, lx := range n.Lhs {
+								ln := lx.(*NameExpr).Name
+								rt := ft.Results[i]
+								// re-definition
+								last.Define(ln, anyValue(rt))
+							}
+						case *TypeAssertExpr:
+							if len(n.Lhs) != 2 {
+								panic("should not happen")
+							}
+							lhs0 := n.Lhs[0].(*NameExpr).Name
+							lhs1 := n.Lhs[1].(*NameExpr).Name
+							tt := evalTypeOf(last, cx.Type)
+							// re-definitions
+							last.Define(lhs0, anyValue(tt))
+							last.Define(lhs1, anyValue(UntypedBoolType))
+						default:
 							panic("should not happen")
-						}
-						ft := gnoTypeOf(evalTypeOf(last, cx.Func)).(*FuncType)
-						if len(n.Lhs) != len(ft.Results) {
-							panic(fmt.Sprintf(
-								"assignment mismatch: "+
-									"%d variables but %s returns %d values",
-								len(n.Lhs), cx.Func.String(), len(ft.Results)))
-						}
-						for i, lx := range n.Lhs {
-							ln := lx.(*NameExpr).Name
-							rt := ft.Results[i]
-							// re-definition
-							last.Define(ln, anyValue(rt))
 						}
 					} else {
 						for i, lx := range n.Lhs {
@@ -922,18 +958,24 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 						if len(n.Rhs) != 1 {
 							panic("should not happen")
 						}
-						cx, ok := n.Rhs[0].(*CallExpr)
-						if !ok {
+						switch cx := n.Rhs[0].(type) {
+						case *CallExpr:
+							ft := gnoTypeOf(evalTypeOf(last, cx.Func)).(*FuncType)
+							if len(n.Lhs) != len(ft.Results) {
+								panic(fmt.Sprintf(
+									"assignment mismatch: "+
+										"%d variables but %s returns %d values",
+									len(n.Lhs), cx.Func.String(), len(ft.Results)))
+							}
+							// No conversion to do.
+						case *TypeAssertExpr:
+							if len(n.Lhs) != 2 {
+								panic("should not happen")
+							}
+							// No conversion to do.
+						default:
 							panic("should not happen")
 						}
-						ft := gnoTypeOf(evalTypeOf(last, cx.Func)).(*FuncType)
-						if len(n.Lhs) != len(ft.Results) {
-							panic(fmt.Sprintf(
-								"assignment mismatch: "+
-									"%d variables but %s returns %d values",
-								len(n.Lhs), cx.Func.String(), len(ft.Results)))
-						}
-						// No conversion to do.
 					} else {
 						for i, lx := range n.Lhs {
 							lt := evalTypeOf(last, lx)
@@ -1310,9 +1352,10 @@ func findUndefined2(imp Importer, last BlockNode, x Expr, t Type) (un Name) {
 				return
 			}
 			// preprocess now for eliding purposes.
-			// TODO recursive preprocessing here is hacky, find a better way.
-			// This cannot be done asynchronously, cuz undefined names ought to
-			// be returned immediately to let the caller predefine it.
+			// TODO recursive preprocessing here is hacky, find a better
+			// way.  This cannot be done asynchronously, cuz undefined
+			// names ought to be returned immediately to let the caller
+			// predefine it.
 			cx.Type = Preprocess(imp, last, cx.Type).(Expr) // recursive
 			ct = evalType(last, cx.Type)
 			// elide composite lit element (nested) composite types.
@@ -1406,14 +1449,14 @@ func findUndefined2(imp Importer, last BlockNode, x Expr, t Type) (un Name) {
 	return
 }
 
-// The purpose of this function is to split declarations into two parts; the
-// first part creates empty placeholder type instances, and the second part
-// to fill in the details while supporting recursive and cyclic definitions.
-// preedefineNow handles the first part while the Preprocessor handles the
-// rest.
+// The purpose of this function is to split declarations into two parts;
+// the first part creates empty placeholder type instances, and the second
+// part to fill in the details while supporting recursive and cyclic
+// definitions.  preedefineNow handles the first part while the
+// Preprocessor handles the rest.
 // The exception to this separation is for *ValueDecls, which get
-// preprocessed immediately, recursively, and also the function signature of
-// any function or method declarations.
+// preprocessed immediately, recursively, and also the function signature
+// of any function or method declarations.
 func predefineNow(imp Importer, last BlockNode, d Decl) Decl {
 	pkg := packageOf(last)
 	// recursively predefine dependencies.
@@ -1433,8 +1476,8 @@ func predefineNow(imp Importer, last BlockNode, d Decl) Decl {
 		}
 	}
 	if fd, ok := d.(*FuncDecl); ok {
-		// *FuncValue/*FuncType is mostly empty still; here we just fill the
-		// func type.
+		// *FuncValue/*FuncType is mostly empty still; here we just fill
+		// the func type.
 		// NOTE: unlike the *ValueDecl case, this case doesn't preprocess d
 		// itself (only d.Type).
 		if !fd.IsMethod {
@@ -1449,13 +1492,13 @@ func predefineNow(imp Importer, last BlockNode, d Decl) Decl {
 	return d
 }
 
-// If a dependent name is not yet defined, that name is returned; this return
-// value is used by the caller to enforce declaration order.  If a dependent
-// type is not yet defined (preprocessed), that type is fully preprocessed.
-// Besides defining the type (and immediate dependent types of d) onto last
-// (or packageOf(last)), there are no other side effects.  This function works
-// for all block nodes and must be called for name declarations within
-// (non-file, non-package) stmt bodies.
+// If a dependent name is not yet defined, that name is returned; this
+// return value is used by the caller to enforce declaration order.  If a
+// dependent type is not yet defined (preprocessed), that type is fully
+// preprocessed.  Besides defining the type (and immediate dependent types
+// of d) onto last (or packageOf(last)), there are no other side effects.
+// This function works for all block nodes and must be called for name
+// declarations within (non-file, non-package) stmt bodies.
 func tryPredefine(imp Importer, last BlockNode, d Decl) (un Name) {
 	if d.GetAttribute(ATTR_PREDEFINED) == true {
 		panic("decl node already predefined!")
