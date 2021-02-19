@@ -573,7 +573,11 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 					if len(n.Args) != 1 {
 						panic("type conversion requires single argument")
 					}
-					convertIfConst(last, n.Args[0], nil)
+					if _, ok := n.Args[0].(*constExpr); ok {
+						convertIfConst(last, n.Args[0], nil)
+						cv := evalConst(last, n)
+						return cv, TRANS_CONTINUE
+					}
 					return n, TRANS_CONTINUE
 				default:
 					panic(fmt.Sprintf(
@@ -584,16 +588,20 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 				hasVarg := ft.HasVarg()
 				isVargX := n.Varg
 				for i, arg := range n.Args {
-					if hasVarg && (len(ft.Params)-1) <= i {
-						if isVargX {
-							if len(ft.Params) <= i {
-								panic("expected final vargs slice but got many")
+					if hasVarg {
+						if (len(ft.Params) - 1) <= i {
+							if isVargX {
+								if len(ft.Params) <= i {
+									panic("expected final vargs slice but got many")
+								}
+								convertIfConst(last, arg,
+									ft.Params[i].Type)
+							} else {
+								convertIfConst(last, arg,
+									ft.Params[len(ft.Params)-1].Type.Elem())
 							}
-							convertIfConst(last, arg,
-								ft.Params[i].Type)
 						} else {
-							convertIfConst(last, arg,
-								ft.Params[len(ft.Params)-1].Type.Elem())
+							convertIfConst(last, arg, ft.Params[i].Type)
 						}
 					} else {
 						convertIfConst(last, arg, ft.Params[i].Type)

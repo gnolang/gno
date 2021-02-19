@@ -333,9 +333,15 @@ func (m *Machine) doOpTypeOf() {
 			}
 			rmt, ok := rt.MethodByName(string(x.Sel))
 			if ok {
-				mt := go2GnoType(rmt.Type)
-				m.PushValue(asValue(mt))
-				return
+				mt := go2GnoFuncType(rmt.Type)
+				if rt.Kind() == reflect.Interface {
+					m.PushValue(asValue(mt))
+					return
+				} else {
+					bmt := mt.BoundType()
+					m.PushValue(asValue(bmt))
+					return
+				}
 			}
 			panic(fmt.Sprintf(
 				"native type %s has no method or field %s",
