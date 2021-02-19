@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/gnolang/gno/_test/ct1"
 )
 
@@ -11,8 +13,8 @@ type T struct {
 var t = T{1 << ct1.R}
 
 func main() {
-	println(t)
+	fmt.Println(t)
 }
 
 // Output:
-// struct{(2 untyped-const)}
+// {2}

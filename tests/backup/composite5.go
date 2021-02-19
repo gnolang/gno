@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 type T struct {
 	m uint16
 }
@@ -7,7 +9,7 @@ type T struct {
 var t = T{1<<2 | 1<<3}
 
 func main() {
-	println(t)
+	fmt.Println(t)
 }
 
 // Output:
