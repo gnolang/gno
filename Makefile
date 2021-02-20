@@ -34,6 +34,7 @@ clean:
 
 test:
 	echo "Running tests"
+	go test
 	go test tests/*.go -v -run="Test/realm.go"
 
 xgo:
