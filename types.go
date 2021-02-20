@@ -283,7 +283,7 @@ func (l FieldTypeList) TypeID() TypeID {
 		if ft.Name == "" {
 			s += ft.Type.TypeID().String()
 		} else {
-			s += string(ft.Name) + ":" + ft.Type.TypeID().String()
+			s += string(ft.Name) + "#" + ft.Type.TypeID().String()
 		}
 		if i != ll-1 {
 			s += ","
@@ -301,9 +301,9 @@ func (l FieldTypeList) TypeIDForPackage(pkgPath string) TypeID {
 	for i, ft := range l {
 		fn := ft.Name
 		if isUpper(string(fn)) {
-			s += string(fn) + ":" + ft.Type.TypeID().String()
+			s += string(fn) + "#" + ft.Type.TypeID().String()
 		} else {
-			s += pkgPath + "." + string(fn) + ":" + ft.Type.TypeID().String()
+			s += pkgPath + "." + string(fn) + "#" + ft.Type.TypeID().String()
 		}
 		if i != ll-1 {
 			s += ","
@@ -325,7 +325,7 @@ func (l FieldTypeList) String() string {
 	ll := len(l)
 	s := ""
 	for i, ft := range l {
-		s += string(ft.Name) + ":" + ft.Type.TypeID().String()
+		s += string(ft.Name) + "#" + ft.Type.TypeID().String()
 		if i != ll-1 {
 			s += ";"
 		}
@@ -337,7 +337,7 @@ func (l FieldTypeList) StringWithCommas() string {
 	ll := len(l)
 	s := ""
 	for i, ft := range l {
-		s += string(ft.Name) + ":" + ft.Type.TypeID().String()
+		s += string(ft.Name) + "#" + ft.Type.TypeID().String()
 		if i != ll-1 {
 			s += ","
 		}
@@ -1058,7 +1058,7 @@ func (nt *nativeType) Elem() Type {
 
 func (nt *nativeType) GnoType() Type {
 	if nt.gnoType == nil {
-		nt.gnoType = go2GnoType2(nt.Type, false)
+		nt.gnoType = go2GnoType2(nt.Type)
 	}
 	return nt.gnoType
 }

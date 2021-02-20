@@ -457,10 +457,25 @@ func UverseNode() *PackageNode {
 					panic("make() of slice type takes 2 or 3 arguments")
 				}
 			case *MapType:
+				// NOTE: the type is not used.
 				if vargsl == 0 {
-					panic("not yet implemented")
+					mv := &MapValue{}
+					mv.MakeMap(0)
+					m.PushValue(TypedValue{
+						T: xt,
+						V: mv,
+					})
+					return
 				} else if vargsl == 1 {
-					panic("not yet implemented")
+					lv := vargs.GetPointerAtIndexInt(0).Deref()
+					li := lv.GetInt()
+					mv := &MapValue{}
+					mv.MakeMap(li)
+					m.PushValue(TypedValue{
+						T: xt,
+						V: mv,
+					})
+					return
 				} else {
 					panic("make() of map type takes 1 or 2 arguments")
 				}

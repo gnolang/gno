@@ -35,11 +35,20 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io/ioutil"
 	"reflect"
 	"strconv"
 
 	"github.com/davecgh/go-spew/spew"
 )
+
+func MustReadFile(path string) *FileNode {
+	n, err := ReadFile(path)
+	if err != nil {
+		panic(err)
+	}
+	return n
+}
 
 func MustParseFile(filename string, body string) *FileNode {
 	n, err := ParseFile(filename, body)
@@ -47,6 +56,14 @@ func MustParseFile(filename string, body string) *FileNode {
 		panic(err)
 	}
 	return n
+}
+
+func ReadFile(path string) (*FileNode, error) {
+	bz, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return ParseFile(path, string(bz))
 }
 
 // filename must not include the path.
@@ -448,7 +465,15 @@ func toDecl(god ast.Decl) Decl {
 
 func toDecls(gd *ast.GenDecl) (ds Decls) {
 	ds = make([]Decl, 0, len(gd.Specs))
-	var lastValues Exprs // (see Go iota spec)
+	/*
+		Within a parenthesized const declaration list the
+		expression list may be omitted from any but the first
+		ConstSpec. Such an empty list is equivalent to the textual
+		substitution of the first preceding non-empty expression
+		list and its type if any.
+	*/
+	var lastValues Exprs // (see Go iota spec above)
+	var lastType Expr    // (see Go iota spec above)
 	for si, s := range gd.Specs {
 
 		switch s := s.(type) {
@@ -464,16 +489,22 @@ func toDecls(gd *ast.GenDecl) (ds Decls) {
 		case *ast.ValueSpec:
 			if gd.Tok == token.CONST {
 				var values Exprs
+				var tipe Expr
 				if s.Values == nil {
 					values = copyExprs(lastValues)
 				} else {
 					values = toExprs(s.Values)
 					lastValues = values
 				}
+				if s.Type == nil {
+					tipe = lastType
+				} else {
+					tipe = toExpr(s.Type)
+					lastType = tipe
+				}
 				for i, id := range s.Names {
 					name := toName(id)
 					valu := values[i]
-					tipe := toExpr(s.Type)
 					cd := &ValueDecl{
 						NameExpr: NameExpr{Name: name},
 						Type:     tipe,

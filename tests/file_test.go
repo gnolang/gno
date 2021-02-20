@@ -16,10 +16,12 @@ import (
 	"github.com/gnolang/gno"
 )
 
-func TestFile(t *testing.T) {
+func TestFileStr(t *testing.T) {
 	filePath := "./files/str.go"
 	runCheck(t, filePath)
+}
 
+func TestFiles(t *testing.T) {
 	baseDir := filepath.Join(".", "files")
 	files, err := ioutil.ReadDir(baseDir)
 	if err != nil {

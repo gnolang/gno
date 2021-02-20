@@ -992,12 +992,12 @@ func (pn *PackageNode) UpdatePackage(pv *PackageValue) []TypedValue {
 				if dt, ok := nt.(*DeclaredType); ok {
 					for i := 0; i < len(dt.Methods); i++ {
 						mv := dt.Methods[i].V.(*FuncValue)
+						if mv.Closure != nil {
+							// This happens with alias declarations.
+						}
 						// set mv.pkg.
 						mv.pkg = pv
 						// set mv.Closure.
-						if mv.Closure != nil {
-							panic("expected nil closure for static method")
-						}
 						fn, _ := pn.GetDeclFor(dt.Name)
 						fb := pv.FBlocks[fn.Name]
 						mv.Closure = fb

@@ -170,7 +170,7 @@ func (m *Machine) doOpTypeAssert1() {
 
 func (m *Machine) doOpTypeAssert2() {
 	m.PopExpr()
-	// pop type
+	// peek type for re-use
 	tv := m.PeekValue(1)
 	t := tv.GetType()
 	// peek x for re-use
