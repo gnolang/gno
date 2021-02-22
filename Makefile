@@ -1,6 +1,6 @@
 all: gnoland goscan logos
 
-.PHONY: logos
+.PHONY: logos goscan gnoland
 
 
 # Uses xgo to compile gnoland, gnoscan and logos
