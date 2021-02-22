@@ -46,16 +46,16 @@ func (m *Machine) doOpEval() {
 				V: BigintValue{V: bi},
 			})
 		case FLOAT:
-			// NOTE: I suspect we won't get hardware-level consistency
-			// (determinism) in floating point numbers yet, so hold off
-			// on this until we master this.
+			// NOTE: I suspect we won't get hardware-level
+			// consistency (determinism) in floating point numbers
+			// yet, so hold off on this until we master this.
 			panic("floats are not supported")
 		case IMAG:
-			// NOTE: this is a syntax and grammar problem, not an AST
-			// one.  Imaginaries should get evaluated as a type like any
-			// other.  See
-			// https://github.com/Quasilyte/go-complex-nums-emulation and
-			// https://github.com/golang/go/issues/19921
+			// NOTE: this is a syntax and grammar problem, not an
+			// AST one.  Imaginaries should get evaluated as a
+			// type like any other.  See
+			// github.com/Quasilyte/go-complex-nums-emulation
+			// and github.com/golang/go/issues/19921
 			panic("imaginaries are not supported")
 		case CHAR:
 			cstr, err := strconv.Unquote(x.Value)

@@ -3,6 +3,7 @@ package interp_test
 import (
 	"bufio"
 	"bytes"
+	"compress/flate"
 	"crypto/sha1"
 	"encoding/binary"
 	"encoding/xml"
@@ -70,6 +71,9 @@ func testImporter(out io.Writer) gno.Importer {
 		case "time":
 			pkg := gno.NewPackageNode("time", "time", nil)
 			pkg.DefineGoNativeValue("Second", time.Second)
+			pkg.DefineGoNativeValue("Minute", time.Minute)
+			pkg.DefineGoNativeValue("Hour", time.Hour)
+			pkg.DefineGoNativeType(reflect.TypeOf(time.Duration(0)))
 			return pkg.NewPackage(nil)
 		case "strings":
 			pkg := gno.NewPackageNode("strings", "strings", nil)
@@ -103,6 +107,10 @@ func testImporter(out io.Writer) gno.Importer {
 			}
 			m2.RunFiles(files...)
 			return pv
+		case "compress/flate":
+			pkg := gno.NewPackageNode("flate", "flate", nil)
+			pkg.DefineGoNativeValue("BestSpeed", flate.BestSpeed)
+			return pkg.NewPackage(nil)
 		default:
 			panic("unknown package path " + pkgPath)
 		}

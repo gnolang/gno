@@ -315,7 +315,6 @@ func (m *Machine) runDeclaration(d Decl) {
 		// closure and package already set
 		// during PackageNode.NewPackage().
 	case *ValueDecl:
-		// TODO make use of .Const.
 		// XXX Use async w/ ops.
 		var tv TypedValue
 		var t Type
@@ -336,7 +335,17 @@ func (m *Machine) runDeclaration(d Decl) {
 			m.Run()
 			tv = *m.PopValue()
 			if isUntyped(tv.T) {
-				ConvertUntypedTo(&tv, t)
+				if d.Const {
+					// const x t? = y;
+					// if t isn't nil, convert.
+					if t != nil {
+						ConvertUntypedTo(&tv, t)
+					}
+				} else {
+					// var x t? = y;
+					// whether t is nil or nit, convert.
+					ConvertUntypedTo(&tv, t)
+				}
 			} else if t != nil {
 				if t.Kind() == InterfaceKind {
 					// keep tv as is.
@@ -445,7 +454,6 @@ const (
 	OpUneg  Op = 0x21 // - (unary)
 	OpUnot  Op = 0x22 // ! (unary)
 	OpUxor  Op = 0x23 // ^ (unary)
-	OpUstar Op = 0x24 // * (unary)
 	OpUrecv Op = 0x25 // <- (unary) // TODO make expr
 	OpLor   Op = 0x26 // ||
 	OpLand  Op = 0x27 // &&
@@ -580,6 +588,12 @@ func (m *Machine) Run() {
 			m.doOpUpos()
 		case OpUneg:
 			m.doOpUneg()
+		case OpUnot:
+			m.doOpUnot()
+		case OpUxor:
+			m.doOpUxor()
+		case OpUrecv:
+			m.doOpUrecv()
 		/* Binary operators */
 		case OpLor:
 			m.doOpLor()

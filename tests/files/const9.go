@@ -14,4 +14,4 @@ func main() {
 }
 
 // Error:
-// 5:2: constant definition loop
+// constant definition loop
