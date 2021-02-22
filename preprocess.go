@@ -1513,26 +1513,36 @@ func findUndefined2(imp Importer, last BlockNode, x Expr, t Type) (un Name) {
 	return
 }
 
-// The purpose of this function is to split declarations into two parts; the
-// first part creates empty placeholder type instances, and the second part
-// to execute the rest while supporting recursive and cyclic definitions.
+// The purpose of this function is to split declarations into two
+// parts; the first part creates empty placeholder type instances,
+// and the second part to execute the rest while supporting
+// recursive and cyclic definitions.
 //
-// predefineNow() completes preprocessing (recursive!) if d is a ValueDecl,
-// as well as any function or method type expressions. Returns true
-// if decl was completey preprocessed, i.e. if it was a ValueDecl.
+// predefineNow() completes preprocessing (recursive!) if d is a
+// ValueDecl, as well as any function or method type expressions.
+// Returns true if decl was completey preprocessed, i.e. if it was
+// a ValueDecl.
 func predefineNow(imp Importer, last BlockNode, d Decl) (Decl, bool) {
-	if d.String() == "var key [32]byte#0" {
-		//panic("QWE")
-	}
+	m := make(map[Name]struct{})
+	return predefineNow2(imp, last, d, m)
+}
+
+func predefineNow2(imp Importer, last BlockNode, d Decl, m map[Name]struct{}) (Decl, bool) {
 	pkg := packageOf(last)
+	// pre-register d.GetName() to detect circular definition.
+	m[d.GetName()] = struct{}{}
 	// recursively predefine dependencies.
 	for {
 		un := tryPredefine(imp, last, d)
 		if un != "" {
+			// check circularity.
+			if _, ok := m[un]; ok {
+				panic("constant definition loop")
+			}
 			// look up dependency declaration from fileset.
 			file, decl := pkg.FileSet.GetDeclFor(un)
 			// predefine dependency (recursive).
-			*decl, _ = predefineNow(imp, file, *decl)
+			*decl, _ = predefineNow2(imp, file, *decl, m)
 		} else {
 			break
 		}

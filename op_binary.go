@@ -2,6 +2,7 @@ package gno
 
 import (
 	"fmt"
+	"math/big"
 )
 
 //----------------------------------------
@@ -579,7 +580,8 @@ func addAssign(lv, rv *TypedValue) {
 		lv.SetUint64(lv.GetUint64() + rv.GetUint64())
 	case BigintKind:
 		lb := lv.GetBig()
-		lb.Add(lb, rv.GetBig())
+		lb = big.NewInt(0).Add(lb, rv.GetBig())
+		lv.V = BigintValue{V: lb}
 	default:
 		panic(fmt.Sprintf(
 			"operator + not defined for %s",
@@ -615,7 +617,8 @@ func subAssign(lv, rv *TypedValue) {
 		lv.SetUint64(lv.GetUint64() - rv.GetUint64())
 	case BigintKind:
 		lb := lv.GetBig()
-		lb.Sub(lb, rv.GetBig())
+		lb = big.NewInt(0).Sub(lb, rv.GetBig())
+		lv.V = BigintValue{V: lb}
 	default:
 		panic(fmt.Sprintf(
 			"operators - and -= not defined for %s",
@@ -651,7 +654,8 @@ func mulAssign(lv, rv *TypedValue) {
 		lv.SetUint64(lv.GetUint64() * rv.GetUint64())
 	case BigintKind:
 		lb := lv.GetBig()
-		lb.Mul(lb, rv.GetBig())
+		lb = big.NewInt(0).Mul(lb, rv.GetBig())
+		lv.V = BigintValue{V: lb}
 	default:
 		panic(fmt.Sprintf(
 			"operators * and *= not defined for %s",
@@ -687,7 +691,8 @@ func quoAssign(lv, rv *TypedValue) {
 		lv.SetUint64(lv.GetUint64() / rv.GetUint64())
 	case BigintKind:
 		lb := lv.GetBig()
-		lb.Quo(lb, rv.GetBig())
+		lb = big.NewInt(0).Quo(lb, rv.GetBig())
+		lv.V = BigintValue{V: lb}
 	default:
 		panic(fmt.Sprintf(
 			"operators / and /= not defined for %s",
@@ -723,7 +728,8 @@ func remAssign(lv, rv *TypedValue) {
 		lv.SetUint64(lv.GetUint64() % rv.GetUint64())
 	case BigintKind:
 		lb := lv.GetBig()
-		lb.Rem(lb, rv.GetBig())
+		lb = big.NewInt(0).Rem(lb, rv.GetBig())
+		lv.V = BigintValue{V: lb}
 	default:
 		panic(fmt.Sprintf(
 			"operators %% and %%= not defined for %s",
@@ -759,7 +765,8 @@ func bandAssign(lv, rv *TypedValue) {
 		lv.SetUint64(lv.GetUint64() & rv.GetUint64())
 	case BigintKind:
 		lb := lv.GetBig()
-		lb.And(lb, rv.GetBig())
+		lb = big.NewInt(0).And(lb, rv.GetBig())
+		lv.V = BigintValue{V: lb}
 	default:
 		panic(fmt.Sprintf(
 			"operators & and &= not defined for %s",
@@ -795,7 +802,8 @@ func bandnAssign(lv, rv *TypedValue) {
 		lv.SetUint64(lv.GetUint64() &^ rv.GetUint64())
 	case BigintKind:
 		lb := lv.GetBig()
-		lb.AndNot(lb, rv.GetBig())
+		lb = big.NewInt(0).AndNot(lb, rv.GetBig())
+		lv.V = BigintValue{V: lb}
 	default:
 		panic(fmt.Sprintf(
 			"operators &^ and &^= not defined for %s",
@@ -831,7 +839,8 @@ func borAssign(lv, rv *TypedValue) {
 		lv.SetUint64(lv.GetUint64() | rv.GetUint64())
 	case BigintKind:
 		lb := lv.GetBig()
-		lb.Or(lb, rv.GetBig())
+		lb = big.NewInt(0).Or(lb, rv.GetBig())
+		lv.V = BigintValue{V: lb}
 	default:
 		panic(fmt.Sprintf(
 			"operators | and |= not defined for %s",
@@ -867,7 +876,8 @@ func xorAssign(lv, rv *TypedValue) {
 		lv.SetUint64(lv.GetUint64() ^ rv.GetUint64())
 	case BigintKind:
 		lb := lv.GetBig()
-		lb.Xor(lb, rv.GetBig())
+		lb = big.NewInt(0).Xor(lb, rv.GetBig())
+		lv.V = BigintValue{V: lb}
 	default:
 		panic(fmt.Sprintf(
 			"operators ^ and ^= not defined for %s",
@@ -902,8 +912,9 @@ func shlAssign(lv, rv *TypedValue) {
 	case Uint64Kind:
 		lv.SetUint64(lv.GetUint64() << rv.GetUint())
 	case BigintKind:
-		lbi := lv.V.(BigintValue).V
-		lbi.Lsh(lbi, rv.GetUint())
+		lb := lv.GetBig()
+		lb = big.NewInt(0).Lsh(lb, rv.GetUint())
+		lv.V = BigintValue{V: lb}
 	default:
 		panic(fmt.Sprintf(
 			"operators << and <<= not defined for %s",
@@ -938,8 +949,9 @@ func shrAssign(lv, rv *TypedValue) {
 	case Uint64Kind:
 		lv.SetUint64(lv.GetUint64() >> rv.GetUint())
 	case BigintKind:
-		lbi := lv.V.(BigintValue).V
-		lbi.Rsh(lbi, rv.GetUint())
+		lb := lv.GetBig()
+		lb = big.NewInt(0).Rsh(lb, rv.GetUint())
+		lv.V = BigintValue{V: lb}
 	default:
 		panic(fmt.Sprintf(
 			"operators >> and >>= not defined for %s",
