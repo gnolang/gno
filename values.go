@@ -451,6 +451,24 @@ func (tv *TypedValue) IsUndefined() bool {
 			}
 		}
 		return true
+	} else {
+		return tv.IsNilInterface()
+	}
+}
+
+func (tv *TypedValue) IsNilInterface() bool {
+	if tv.T != nil && tv.T.Kind() == InterfaceKind {
+		if tv.V == nil {
+			return true
+		} else {
+			if debug {
+				if tv.N != [8]byte{} {
+					panic(fmt.Sprintf(
+						"corrupted TypeValue (nil interface)"))
+				}
+			}
+			return false
+		}
 	}
 	return false
 }
@@ -622,7 +640,7 @@ func (tv *TypedValue) GetBool() bool {
 	return *(*bool)(unsafe.Pointer(&tv.N))
 }
 
-func (tv *TypedValue) GetString() StringValue {
+func (tv *TypedValue) GetString() string {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != StringKind {
 			panic(fmt.Sprintf(
@@ -631,9 +649,9 @@ func (tv *TypedValue) GetString() StringValue {
 		}
 	}
 	if tv.V == nil {
-		return StringValue("")
+		return ""
 	} else {
-		return tv.V.(StringValue)
+		return string(tv.V.(StringValue))
 	}
 }
 
