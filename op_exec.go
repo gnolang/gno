@@ -48,9 +48,10 @@ func (m *Machine) doOpExec(op Op) {
 			goto EXEC_SWITCH
 		} else if ls.BodyIndex == ls.BodyLen {
 			// (queue to) go back.
-			// XXX consider.
-			m.PushExpr(fs.Cond)
-			m.PushOp(OpEval)
+			if fs.Cond != nil {
+				m.PushExpr(fs.Cond)
+				m.PushOp(OpEval)
+			}
 			ls.BodyIndex = -1
 			if next := fs.Post; next == nil {
 				ls.Active = nil
