@@ -1490,6 +1490,17 @@ func findUndefined2(imp Importer, last BlockNode, x Expr, t Type) (un Name) {
 				return
 			}
 		}
+	case *CallExpr:
+		un = findUndefined(imp, last, cx.Func)
+		if un != "" {
+			return
+		}
+		for i := range cx.Args {
+			un = findUndefined(imp, last, cx.Args[i])
+			if un != "" {
+				return
+			}
+		}
 	case *constTypeExpr:
 		return
 	case *constExpr:

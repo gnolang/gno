@@ -454,7 +454,6 @@ const (
 	OpUneg  Op = 0x21 // - (unary)
 	OpUnot  Op = 0x22 // ! (unary)
 	OpUxor  Op = 0x23 // ^ (unary)
-	OpUstar Op = 0x24 // * (unary)
 	OpUrecv Op = 0x25 // <- (unary) // TODO make expr
 	OpLor   Op = 0x26 // ||
 	OpLand  Op = 0x27 // &&
@@ -589,6 +588,12 @@ func (m *Machine) Run() {
 			m.doOpUpos()
 		case OpUneg:
 			m.doOpUneg()
+		case OpUnot:
+			m.doOpUnot()
+		case OpUxor:
+			m.doOpUxor()
+		case OpUrecv:
+			m.doOpUrecv()
 		/* Binary operators */
 		case OpLor:
 			m.doOpLor()
