@@ -169,6 +169,7 @@ func go2GnoValue(rv reflect.Value) (tv TypedValue) {
 		tv.V = &nativeValue{Value: rv}
 		return
 	}
+REFLECT_KIND_SWITCH:
 	tv.T = go2GnoType(rv.Type())
 	switch rk := rv.Kind(); rk {
 	case reflect.Bool:
@@ -204,7 +205,12 @@ func go2GnoValue(rv reflect.Value) (tv TypedValue) {
 	case reflect.Func:
 		tv.V = &nativeValue{rv}
 	case reflect.Interface:
-		tv.V = &nativeValue{rv}
+		if rv.IsNil() {
+			tv.V = nil // nil-interface, "undefined".
+		} else {
+			rv = rv.Elem()
+			goto REFLECT_KIND_SWITCH
+		}
 	case reflect.Map:
 		tv.V = &nativeValue{rv}
 	case reflect.Ptr:
@@ -594,7 +600,11 @@ func gno2GoType(t Type) reflect.Type {
 // gno.PointerValue.  If rv is nil, an addressable one will be
 // constructed and returned, otherwise returns rv.
 func gno2GoValue(tv *TypedValue, rv reflect.Value) reflect.Value {
-	if tv.IsUndefined() {
+	if tv.IsNilInterface() {
+		rt := gno2GoType(tv.T)
+		rv = reflect.New(rt).Elem()
+		return rv
+	} else if tv.IsUndefined() {
 		if debug {
 			if !rv.IsValid() {
 				panic("unexpected undefined gno value")

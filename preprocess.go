@@ -526,7 +526,13 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 								assertTypes(lt, rt)
 							}
 						}
-						if lnt, ok := lt.(*nativeType); ok {
+						if n.Op == EQL || n.Op == NEQ {
+							// If == or !=, no conversions.
+						} else if lnt, ok := lt.(*nativeType); ok {
+							// If left and right are native type,
+							// convert left and right to gno, then
+							// convert result back to native.
+							//
 							// get concrete native base type.
 							pt := go2GnoBaseType(lnt.Type).(PrimitiveType)
 							// convert n.Left to (gno) pt type,
@@ -545,7 +551,8 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 								Source: n,
 								Type:   lnt,
 							}
-							// reset/create n2 to preprocess children.
+							// reset/create n2 to preprocess
+							// children.
 							n2 := &BinaryExpr{
 								Left:  ln,
 								Op:    n.Op,
@@ -554,8 +561,9 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 							resn := Node(Call(tx, n2))
 							resn = Preprocess(imp, last, resn)
 							return resn, TRANS_CONTINUE
-							// NOTE: binary operations are always computed in
-							// gno, never with reflect.
+							// NOTE: binary operations are always
+							// computed in gno, never with
+							// reflect.
 						} else {
 							// nothing to do.
 						}

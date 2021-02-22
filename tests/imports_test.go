@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"compress/flate"
+	"context"
 	"crypto/sha1"
 	"encoding/binary"
 	"encoding/xml"
@@ -110,6 +111,12 @@ func testImporter(out io.Writer) gno.Importer {
 		case "compress/flate":
 			pkg := gno.NewPackageNode("flate", "flate", nil)
 			pkg.DefineGoNativeValue("BestSpeed", flate.BestSpeed)
+			return pkg.NewPackage(nil)
+		case "context":
+			pkg := gno.NewPackageNode("context", "context", nil)
+			pkg.DefineGoNativeType(reflect.TypeOf((*context.Context)(nil)).Elem())
+			pkg.DefineGoNativeValue("WithValue", context.WithValue)
+			pkg.DefineGoNativeValue("Background", context.Background)
 			return pkg.NewPackage(nil)
 		default:
 			panic("unknown package path " + pkgPath)

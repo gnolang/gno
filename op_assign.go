@@ -22,7 +22,7 @@ func (m *Machine) doOpAssign() {
 	// NOTE: PopValues() returns a slice in
 	// forward order, not the usual reverse.
 	rvs := m.PopValues(len(s.Lhs))
-	for i := len(s.Rhs) - 1; 0 <= i; i-- {
+	for i := len(s.Lhs) - 1; 0 <= i; i-- {
 		// Pop lhs value and desired type.
 		lv := m.PopAsPointer(s.Lhs[i])
 		lv.Assign2(m.Realm, rvs[i])
