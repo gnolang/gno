@@ -332,7 +332,7 @@ func (m *Machine) doOpBandn() {
 // others serve as empty values.  See doOpAdd()
 func assertTypes(lt, rt Type) {
 	if lt == nil && rt == nil {
-		panic("assertTypes() requires at least one type")
+		// both are nil.
 	} else if lt == nil || rt == nil {
 		// one is nil.
 	} else if lt.Kind() == rt.Kind() &&

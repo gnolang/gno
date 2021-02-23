@@ -962,7 +962,9 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 						switch cx := n.Rhs[0].(type) {
 						case *CallExpr:
 							// Call case : a, b := x(...)
-							ft := gnoTypeOf(evalTypeOf(last, cx.Func)).(*FuncType)
+							ct := evalTypeOf(last, cx.Func)
+							bt := baseOf(ct)
+							ft := gnoTypeOf(bt).(*FuncType)
 							if len(n.Lhs) != len(ft.Results) {
 								panic(fmt.Sprintf(
 									"assignment mismatch: "+
@@ -1008,7 +1010,9 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 						}
 						switch cx := n.Rhs[0].(type) {
 						case *CallExpr:
-							ft := gnoTypeOf(evalTypeOf(last, cx.Func)).(*FuncType)
+							ct := evalTypeOf(last, cx.Func)
+							bt := baseOf(ct)
+							ft := gnoTypeOf(bt).(*FuncType)
 							if len(n.Lhs) != len(ft.Results) {
 								panic(fmt.Sprintf(
 									"assignment mismatch: "+
