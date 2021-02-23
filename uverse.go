@@ -377,7 +377,37 @@ func UverseNode() *PackageNode {
 	)
 	def("close", undefined)
 	def("complex", undefined)
-	def("copy", undefined)
+	defNative("copy",
+		Flds( // params
+			"dst", InterfaceT(nil),
+			"src", InterfaceT(nil),
+		),
+		nil, // results
+		func(m *Machine) {
+			arg0, arg1 := m.LastBlock().GetParams2()
+			dst, src := arg0, arg1
+			switch bdt := baseOf(dst.T).(type) {
+			case *SliceType:
+				switch bst := baseOf(src.T).(type) {
+				case PrimitiveType:
+					if debug {
+						debug.Println("copy(<%s>,<%s>)", bdt.String(), bst.String())
+					}
+					if bst.Kind() == StringKind {
+						panic("not yet implemented")
+					} else {
+						panic("should not happen")
+					}
+				case *SliceType:
+					panic("not yet implemented XXX")
+				default:
+					panic("should not happen")
+				}
+			default:
+				panic("should not happen")
+			}
+		},
+	)
 	def("delete", undefined)
 	defNative("len",
 		Flds( // params
