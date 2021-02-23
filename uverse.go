@@ -382,7 +382,9 @@ func UverseNode() *PackageNode {
 			"dst", InterfaceT(nil),
 			"src", InterfaceT(nil),
 		),
-		nil, // results
+		Flds( // results
+			"", "int",
+		),
 		func(m *Machine) {
 			arg0, arg1 := m.LastBlock().GetParams2()
 			dst, src := arg0, arg1
@@ -399,7 +401,28 @@ func UverseNode() *PackageNode {
 						panic("should not happen")
 					}
 				case *SliceType:
-					panic("not yet implemented XXX")
+					dstl := dst.GetLength()
+					srcl := src.GetLength()
+					minl := dstl
+					if srcl < dstl {
+						minl = srcl
+					}
+					if minl == 0 {
+						return // do nothing.
+					}
+					dstv := dst.V.(*SliceValue)
+					srcv := src.V.(*SliceValue)
+					for i := 0; i < minl; i++ {
+						dstev := dstv.GetPointerAtIndexInt2(i, bdt)
+						srcev := srcv.GetPointerAtIndexInt2(i, bst)
+						dstev.Assign(srcev.Deref())
+					}
+					res0 := TypedValue{
+						T: IntType,
+						V: nil,
+					}
+					res0.SetInt(minl)
+					m.PushValue(res0)
 				default:
 					panic("should not happen")
 				}
