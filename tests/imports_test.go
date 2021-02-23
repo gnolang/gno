@@ -16,6 +16,7 @@ import (
 	"net"
 	"net/http"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -64,6 +65,7 @@ func testImporter(out io.Writer) gno.Importer {
 		case "bufio":
 			pkg := gno.NewPackageNode("bufio", "bufio", nil)
 			pkg.DefineGoNativeValue("NewScanner", bufio.NewScanner)
+			pkg.DefineGoNativeType(reflect.TypeOf(bufio.SplitFunc(nil)))
 			return pkg.NewPackage(nil)
 		case "bytes":
 			pkg := gno.NewPackageNode("bytes", "bytes", nil)
@@ -117,6 +119,11 @@ func testImporter(out io.Writer) gno.Importer {
 			pkg.DefineGoNativeType(reflect.TypeOf((*context.Context)(nil)).Elem())
 			pkg.DefineGoNativeValue("WithValue", context.WithValue)
 			pkg.DefineGoNativeValue("Background", context.Background)
+			return pkg.NewPackage(nil)
+		case "strconv":
+			pkg := gno.NewPackageNode("strconv", "strconv", nil)
+			pkg.DefineGoNativeValue("Atoi", strconv.Atoi)
+			pkg.DefineGoNativeValue("Itoa", strconv.Itoa)
 			return pkg.NewPackage(nil)
 		default:
 			panic("unknown package path " + pkgPath)

@@ -495,7 +495,17 @@ func UverseNode() *PackageNode {
 		},
 	)
 	def("new", undefined)
-	def("panic", undefined)
+	defNative("panic",
+		Flds( // params
+			"err", InterfaceT(nil), // args[0]
+		),
+		nil, // results
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1()
+			xv := arg0.Deref()
+			panic(sprintString(&xv))
+		},
+	)
 	defNative("print",
 		Flds( // params
 			"xs", Vrd(InterfaceT(nil)), // args[0]
@@ -508,7 +518,7 @@ func UverseNode() *PackageNode {
 			ss := make([]string, xvl)
 			for i := 0; i < xvl; i++ {
 				ev := xv.GetPointerAtIndexInt(i).Deref()
-				ss[i] = printString(&ev)
+				ss[i] = sprintString(&ev)
 			}
 			rs := strings.Join(ss, " ")
 			m.Output.Write([]byte(rs))
@@ -526,7 +536,7 @@ func UverseNode() *PackageNode {
 			ss := make([]string, xvl)
 			for i := 0; i < xvl; i++ {
 				ev := xv.GetPointerAtIndexInt(i).Deref()
-				ss[i] = printString(&ev)
+				ss[i] = sprintString(&ev)
 			}
 			rs := strings.Join(ss, " ") + "\n"
 			m.Output.Write([]byte(rs))
@@ -536,9 +546,9 @@ func UverseNode() *PackageNode {
 	return uverseNode
 }
 
-// printString returns the string to be printed for tv from
+// sprintString returns the string to be printed for tv from
 // print() and println().
-func printString(tv *TypedValue) string {
+func sprintString(tv *TypedValue) string {
 	if tv.T == nil {
 		return "undefined"
 	}
