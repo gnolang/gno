@@ -15,8 +15,18 @@ func (m *Machine) doOpIndex() {
 	}
 	iv := m.PopValue()   // index
 	xv := m.PeekValue(1) // x
-	res := xv.GetPointerAtIndex(iv)
-	*xv = res.Deref() // reuse as result
+	// if a is a pointer to an array, a[low : high : max] is
+	// shorthand for (*a)[low : high : max]
+	if xv.T.Kind() == PointerKind &&
+		xv.T.Elem().Kind() == ArrayKind {
+		// simply deref xv.
+		xv2 := xv.V.(PointerValue).Deref()
+		res := xv2.GetPointerAtIndex(iv)
+		*xv = res.Deref() // reuse as result
+	} else {
+		res := xv.GetPointerAtIndex(iv)
+		*xv = res.Deref() // reuse as result
+	}
 }
 
 func (m *Machine) doOpSelector() {
@@ -45,6 +55,13 @@ func (m *Machine) doOpSlice() {
 	}
 	// slice base x
 	xv := m.PopValue()
+	// if a is a pointer to an array, a[low : high : max] is
+	// shorthand for (*a)[low : high : max]
+	if xv.T.Kind() == PointerKind &&
+		xv.T.Elem().Kind() == ArrayKind {
+		// simply deref xv.
+		*xv = xv.V.(PointerValue).Deref()
+	}
 	// fill default based on xv
 	if sx.High == nil {
 		high = xv.GetLength()
