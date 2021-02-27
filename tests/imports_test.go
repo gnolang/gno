@@ -18,6 +18,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gnolang/gno"
@@ -70,6 +71,7 @@ func testImporter(out io.Writer) gno.Importer {
 		case "bytes":
 			pkg := gno.NewPackageNode("bytes", "bytes", nil)
 			pkg.DefineGoNativeValue("NewReader", bytes.NewReader)
+			pkg.DefineGoNativeValue("NewBuffer", bytes.NewBuffer)
 			return pkg.NewPackage(nil)
 		case "time":
 			pkg := gno.NewPackageNode("time", "time", nil)
@@ -124,6 +126,10 @@ func testImporter(out io.Writer) gno.Importer {
 			pkg := gno.NewPackageNode("strconv", "strconv", nil)
 			pkg.DefineGoNativeValue("Atoi", strconv.Atoi)
 			pkg.DefineGoNativeValue("Itoa", strconv.Itoa)
+			return pkg.NewPackage(nil)
+		case "sync":
+			pkg := gno.NewPackageNode("sync", "sync", nil)
+			pkg.DefineGoNativeType(reflect.TypeOf(sync.RWMutex{}))
 			return pkg.NewPackage(nil)
 		default:
 			panic("unknown package path " + pkgPath)

@@ -375,6 +375,18 @@ EXEC_SWITCH:
 		for _, d := range cs.Decls {
 			m.runDeclaration(d)
 		}
+	case *DeferStmt:
+		// continuation
+		m.PushOp(OpDefer)
+		// evaluate args
+		args := cs.Call.Args
+		for i := len(args) - 1; 0 <= i; i-- {
+			m.PushExpr(args[i])
+			m.PushOp(OpEval)
+		}
+		// evaluate func
+		m.PushExpr(cs.Call.Func)
+		m.PushOp(OpEval)
 	default:
 		panic(fmt.Sprintf("unexpected statement %#v", s))
 	}
