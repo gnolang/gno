@@ -13,9 +13,11 @@ import (
 	"image/color"
 	"io"
 	"math"
+	"math/big"
 	"net"
 	"net/http"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -130,6 +132,14 @@ func testImporter(out io.Writer) gno.Importer {
 		case "sync":
 			pkg := gno.NewPackageNode("sync", "sync", nil)
 			pkg.DefineGoNativeType(reflect.TypeOf(sync.RWMutex{}))
+			return pkg.NewPackage(nil)
+		case "math/big":
+			pkg := gno.NewPackageNode("big", "big", nil)
+			pkg.DefineGoNativeValue("NewInt", big.NewInt)
+			return pkg.NewPackage(nil)
+		case "sort":
+			pkg := gno.NewPackageNode("sort", "sort", nil)
+			pkg.DefineGoNativeValue("Strings", sort.Strings)
 			return pkg.NewPackage(nil)
 		default:
 			panic("unknown package path " + pkgPath)
