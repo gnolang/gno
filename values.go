@@ -1289,7 +1289,16 @@ func (tv *TypedValue) GetPointerAtIndex(iv *TypedValue) PointerValue {
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
 		if bt == StringType {
-			panic("not yet implemented")
+			sv := tv.GetString()
+			ii := iv.ConvertGetInt()
+			bv := &TypedValue{ // heap alloc
+				T: Uint8Type,
+			}
+			bv.SetUint8(sv[ii])
+			return PointerValue{
+				TypedValue: bv,
+				Base:       nil, // free floating
+			}
 		} else {
 			panic(fmt.Sprintf(
 				"primitive type %s cannot be indexed",
@@ -1395,6 +1404,8 @@ func (tv *TypedValue) GetLength() int {
 	case *ArrayValue:
 		return cv.GetLength()
 	case *SliceValue:
+		return cv.GetLength()
+	case *MapValue:
 		return cv.GetLength()
 	default:
 		panic(fmt.Sprintf("unexpected type for len(): %s",

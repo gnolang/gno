@@ -194,12 +194,16 @@ func UverseNode() *PackageNode {
 					} else {
 						// append(*SliceValue, *SliceValue) new list ---------
 						list := make([]TypedValue, xvl+argsl)
-						copy(
-							list[:xvl],
-							xv.Base.List[xvo:xvo+xvl])
-						copy(
-							list[xvl:xvl+argsl],
-							args.Base.List[argso:argso+argsl])
+						if 0 < xvl {
+							copy(
+								list[:xvl],
+								xv.Base.List[xvo:xvo+xvl])
+						}
+						if 0 < argsl {
+							copy(
+								list[xvl:xvl+argsl],
+								args.Base.List[argso:argso+argsl])
+						}
 						m.PushValue(TypedValue{
 							T: xt,
 							V: newSliceFromList(list),
