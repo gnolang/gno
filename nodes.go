@@ -683,6 +683,7 @@ type RangeStmt struct {
 	Op         Word // ASSIGN or DEFINE
 	Body       Stmts
 	IsMap      bool // if X is map type
+	IsString   bool // if X is string type
 }
 
 type ReturnStmt struct {
@@ -736,7 +737,10 @@ type loopStmt struct {
 	RangeStmt *RangeStmt
 	ListLen   int          // for RangeStmt only
 	ListIndex int          // for RangeStmt only
-	Next      *MapListItem // fpr RangeStmt w/ maps only
+	NextItem  *MapListItem // fpr RangeStmt w/ maps only
+	StrLen    int          // for RangeStmt w/ strings only
+	StrIndex  int          // for RangeStmt w/ strings only
+	NextRune  rune         // for RangeStmt w/ strings only
 	BodyLen   int          // for continue
 	BodyIndex int          // init:-2, cond/elem:-1, body:0..., post:n
 	Active    Stmt         // for PopStmt().

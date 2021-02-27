@@ -111,8 +111,11 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 			// TRANS_BLOCK -----------------------
 			case *RangeStmt:
 				xt := evalTypeOf(last, n.X)
-				if xt.Kind() == MapKind {
+				switch xt.Kind() {
+				case MapKind:
 					n.IsMap = true
+				case StringKind:
+					n.IsString = true
 				}
 				pushBlock(n, &last, &stack)
 				// key value if define.
@@ -135,10 +138,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 							last.Define(kn, anyValue(it))
 						}
 						if n.Value != nil {
-							// NOTE: maybe
-							// StringType.Elem() should
-							// be Uint8Type.
-							et := Uint8Type
+							et := Int32Type
 							vn := n.Value.(*NameExpr).Name
 							last.Define(vn, anyValue(et))
 						}

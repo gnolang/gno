@@ -672,7 +672,7 @@ func (tv *TypedValue) GetBool() bool {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != BoolKind {
 			panic(fmt.Sprintf(
-				"TypedValue.GetBool() on type %s",
+				"%s used as bool",
 				tv.T.String()))
 		}
 	}
@@ -1770,6 +1770,12 @@ func defaultValue(t Type) Value {
 func untypedBool(b bool) TypedValue {
 	tv := TypedValue{T: UntypedBoolType}
 	tv.SetBool(b)
+	return tv
+}
+
+func typedRune(r rune) TypedValue {
+	tv := TypedValue{T: Int32Type}
+	tv.SetInt32(int32(r))
 	return tv
 }
 

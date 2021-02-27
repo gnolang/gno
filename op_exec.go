@@ -2,6 +2,7 @@ package gno
 
 import (
 	"fmt"
+	"unicode/utf8"
 )
 
 //----------------------------------------
@@ -161,23 +162,125 @@ func (m *Machine) doOpExec(op Op) {
 				panic("should not happen")
 			}
 		}
+	case OpRangeIterString:
+		ls := s.(*loopStmt)
+		rs := ls.RangeStmt
+		// loopStmt is for RangeStmt.
+		xv := m.PeekValue(1)
+		sv := xv.GetString()
+		switch ls.BodyIndex {
+		case -2: // init.
+			// We decode utf8 runes in order --
+			// we don't yet know the number of runes.
+			ls.StrLen = xv.GetLength()
+			r, size := utf8.DecodeRuneInString(sv)
+			ls.NextRune = r
+			ls.StrIndex += size
+			b := NewBlock(ls.RangeStmt, m.LastBlock())
+			m.PushBlock(b)
+			ls.BodyIndex++
+			fallthrough
+		case -1: // assign list element.
+			if rs.Key != nil {
+				iv := TypedValue{T: IntType}
+				iv.SetInt(ls.ListIndex)
+				if ls.ListIndex == 0 {
+					switch rs.Op {
+					case ASSIGN:
+						m.PopAsPointer(rs.Key).Assign(iv)
+					case DEFINE:
+						knxp := rs.Key.(*NameExpr).Path
+						ptr := m.LastBlock().GetPointerTo(knxp)
+						ptr.Assign(iv)
+					default:
+						panic("should not happen")
+					}
+				} else {
+					// Already defined, use assign.
+					m.PopAsPointer(rs.Key).Assign(iv)
+				}
+			}
+			if rs.Value != nil {
+				ev := typedRune(ls.NextRune)
+				if ls.ListIndex == 0 {
+					switch rs.Op {
+					case ASSIGN:
+						m.PopAsPointer(rs.Value).Assign(ev)
+					case DEFINE:
+						vnxp := rs.Value.(*NameExpr).Path
+						ptr := m.LastBlock().GetPointerTo(vnxp)
+						ptr.Assign(ev)
+					default:
+						panic("should not happen")
+					}
+				} else {
+					// Already defined, use assign.
+					m.PopAsPointer(rs.Value).Assign(ev)
+				}
+			}
+			ls.BodyIndex++
+			fallthrough
+		default:
+			// NOTE: duplicated for OpRangeIterMap,
+			// but without tracking Next.
+			if ls.BodyIndex < ls.BodyLen {
+				next := rs.Body[ls.BodyIndex]
+				ls.BodyIndex++
+				// continue onto exec stmt.
+				ls.Active = next
+				s = next // switch on ls.Active
+				goto EXEC_SWITCH
+			} else if ls.BodyIndex == ls.BodyLen {
+				if ls.StrIndex < ls.StrLen {
+					// set up next assign if needed.
+					switch rs.Op {
+					case ASSIGN:
+						if rs.Key != nil {
+							m.PushForPointer(rs.Key)
+						}
+						if rs.Value != nil {
+							m.PushForPointer(rs.Value)
+						}
+					case DEFINE:
+						// do nothing
+					case ILLEGAL:
+						// do nothing, no assignment
+					default:
+						panic("should not happen")
+					}
+					rsv := sv[ls.StrIndex:]
+					r, size := utf8.DecodeRuneInString(rsv)
+					ls.NextRune = r
+					ls.StrIndex += size
+					ls.ListIndex++
+					ls.BodyIndex = -1
+					ls.Active = nil
+					return // redo doOpExec:*loopStmt
+				} else {
+					// done with range.
+					m.PopFrameAndReset()
+					return
+				}
+			} else {
+				panic("should not happen")
+			}
+		}
 	case OpRangeIterMap:
 		ls := s.(*loopStmt)
 		rs := ls.RangeStmt
 		// loopStmt is for RangeStmt.
 		xv := m.PeekValue(1)
 		mv := xv.V.(*MapValue)
-		// TODO check length.
 		switch ls.BodyIndex {
 		case -2: // init.
 			// ls.ListLen = xv.GetLength()
-			ls.Next = mv.List.Head
+			ls.NextItem = mv.List.Head
 			b := NewBlock(ls.RangeStmt, m.LastBlock())
 			m.PushBlock(b)
 			ls.BodyIndex++
 			fallthrough
 		case -1: // assign list element.
-			next := ls.Next
+			next := ls.NextItem
 			if rs.Key != nil {
 				kv := next.Key
 				if ls.ListIndex == 0 {
@@ -227,7 +330,7 @@ func (m *Machine) doOpExec(op Op) {
 				s = next // switch on ls.Active
 				goto EXEC_SWITCH
 			} else if ls.BodyIndex == ls.BodyLen {
-				nnext := ls.Next.Next
+				nnext := ls.NextItem.Next
 				if nnext == nil {
 					// done with range.
 					m.PopFrameAndReset()
@@ -249,7 +352,7 @@ func (m *Machine) doOpExec(op Op) {
 					default:
 						panic("should not happen")
 					}
-					ls.Next = nnext
+					ls.NextItem = nnext
 					ls.ListIndex++
 					ls.BodyIndex = -1
 					ls.Active = nil
@@ -394,6 +497,8 @@ EXEC_SWITCH:
 		// continuation (persistent)
 		if cs.IsMap {
 			m.PushOp(OpRangeIterMap)
+		} else if cs.IsString {
+			m.PushOp(OpRangeIterString)
 		} else {
 			m.PushOp(OpRangeIter)
 		}
