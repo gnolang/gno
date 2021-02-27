@@ -534,8 +534,9 @@ const (
 	OpSticky           Op = 0xD0 // not a real op.
 	OpForLoop2         Op = 0xD0
 	OpRangeIter        Op = 0xD1
-	OpRangeIterMap     Op = 0xD2
-	OpReturnCallDefers Op = 0xD3
+	OpRangeIterString  Op = 0xD2
+	OpRangeIterMap     Op = 0xD3
+	OpReturnCallDefers Op = 0xD4
 )
 
 //----------------------------------------
@@ -729,6 +730,8 @@ func (m *Machine) Run() {
 		case OpForLoop2:
 			m.doOpExec(op)
 		case OpRangeIter:
+			m.doOpExec(op)
+		case OpRangeIterString:
 			m.doOpExec(op)
 		case OpRangeIterMap:
 			m.doOpExec(op)
