@@ -736,7 +736,9 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) reflect.Value {
 			return rv
 		}
 		// General case.
+		mt := gno2GoType(ct)
 		mv := tv.V.(*MapValue)
+		rv.Set(reflect.MakeMapWithSize(mt, mv.List.Size))
 		head := mv.List.Head
 		for head != nil {
 			ktv, vtv := &head.Key, &head.Value

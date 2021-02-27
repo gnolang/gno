@@ -1,15 +1,13 @@
 package main
 
 import (
-	"net/http"
-	"net/http/httptest"
+	"bytes"
 )
 
 func main() {
 	println("hello")
-	mux := http.NewServeMux()
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	buf := bytes.NewBuffer(nil)
+	defer buf.Reset()
 }
 
 // Output:

@@ -314,15 +314,18 @@ func (m *Machine) doOpTypeOf() {
 			return
 		case *nativeType:
 			rt := ct.Type
+			// switch on type and maybe match field.
 			if rt.Kind() == reflect.Ptr {
-				if rt.Elem().Kind() == reflect.Struct {
-					rft, ok := rt.Elem().FieldByName(string(x.Sel))
-					if ok {
-						ft := go2GnoType(rft.Type)
-						m.PushValue(asValue(ft))
-						return
-					}
+				ert := rt.Elem()
+				rft, ok := ert.FieldByName(string(x.Sel))
+				if ok {
+					ft := go2GnoType(rft.Type)
+					m.PushValue(asValue(ft))
+					return
 				}
+				// keep rt as is.
+			} else if rt.Kind() == reflect.Interface {
+				// keep rt as is.
 			} else if rt.Kind() == reflect.Struct {
 				rft, ok := rt.FieldByName(string(x.Sel))
 				if ok {
@@ -330,7 +333,13 @@ func (m *Machine) doOpTypeOf() {
 					m.PushValue(asValue(ft))
 					return
 				}
+				// make rt ptr.
+				rt = reflect.PtrTo(rt)
+			} else {
+				// make rt ptr.
+				rt = reflect.PtrTo(rt)
 			}
+			// match method.
 			rmt, ok := rt.MethodByName(string(x.Sel))
 			if ok {
 				mt := go2GnoFuncType(rmt.Type)

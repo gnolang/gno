@@ -431,7 +431,30 @@ func UverseNode() *PackageNode {
 			}
 		},
 	)
-	def("delete", undefined)
+	defNative("delete",
+		Flds( // params
+			"m", InterfaceT(nil), // map type
+			"k", InterfaceT(nil), // map key
+		),
+		nil, // results
+		func(m *Machine) {
+			arg0, arg1 := m.LastBlock().GetParams2()
+			itv := arg1.Deref()
+			switch baseOf(arg0.T).(type) {
+			case *MapType:
+				mv := arg0.V.(*MapValue)
+				mv.DeleteForKey(&itv)
+			case *nativeType:
+				krv := gno2GoValue(&itv, reflect.Value{})
+				mrv := arg0.V.(*nativeValue).Value
+				mrv.SetMapIndex(krv, reflect.Value{})
+			default:
+				panic(fmt.Sprintf(
+					"unexpected map type %s",
+					arg0.T.String()))
+			}
+		},
+	)
 	defNative("len",
 		Flds( // params
 			"x", InterfaceT(nil),
