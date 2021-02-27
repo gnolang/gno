@@ -110,17 +110,49 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 
 			// TRANS_BLOCK -----------------------
 			case *RangeStmt:
+				xt := evalTypeOf(last, n.X)
+				if xt.Kind() == MapKind {
+					n.IsMap = true
+				}
 				pushBlock(n, &last, &stack)
 				// key value if define.
 				if n.Op == DEFINE {
-					if n.Key != nil {
-						kn := n.Key.(*NameExpr).Name
-						last.Define(kn, anyValue(IntType))
-					}
-					if n.Value != nil {
-						// initial declaration to be re-defined.
-						vn := n.Value.(*NameExpr).Name
-						last.Define(vn, anyValue(nil))
+					if xt.Kind() == MapKind {
+						if n.Key != nil {
+							kt := baseOf(xt).(*MapType).Key
+							kn := n.Key.(*NameExpr).Name
+							last.Define(kn, anyValue(kt))
+						}
+						if n.Value != nil {
+							vt := baseOf(xt).(*MapType).Value
+							vn := n.Value.(*NameExpr).Name
+							last.Define(vn, anyValue(vt))
+						}
+					} else if xt.Kind() == StringKind {
+						if n.Key != nil {
+							it := IntType
+							kn := n.Key.(*NameExpr).Name
+							last.Define(kn, anyValue(it))
+						}
+						if n.Value != nil {
+							// NOTE: maybe
+							// StringType.Elem() should
+							// be Uint8Type.
+							et := Uint8Type
+							vn := n.Value.(*NameExpr).Name
+							last.Define(vn, anyValue(et))
+						}
+					} else {
+						if n.Key != nil {
+							it := IntType
+							kn := n.Key.(*NameExpr).Name
+							last.Define(kn, anyValue(it))
+						}
+						if n.Value != nil {
+							et := xt.Elem()
+							vn := n.Value.(*NameExpr).Name
+							last.Define(vn, anyValue(et))
+						}
 					}
 				}
 
@@ -649,6 +681,8 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 			case *IndexExpr:
 				xt := evalTypeOf(last, n.X)
 				switch xt.Kind() {
+				case StringKind:
+					convertIfConst(last, n.Index, IntType)
 				case ArrayKind:
 					convertIfConst(last, n.Index, IntType)
 				case SliceKind:
@@ -1051,20 +1085,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *RangeStmt:
-				// key value if define.
-				if n.Op == DEFINE {
-					if n.Key != nil {
-						// already defined @TRANS_BLOCK.
-					}
-					if n.Value != nil {
-						vn := n.Value.(*NameExpr).Name
-						pb := last.GetParent()
-						xt := evalTypeOf(pb, n.X)
-						et := xt.Elem()
-						// re-definition.
-						last.Define(vn, anyValue(et))
-					}
-				}
+				// NOTE: k,v already defined @ TRANS_BLOCK.
 
 			// TRANS_LEAVE -----------------------
 			case *ReturnStmt:

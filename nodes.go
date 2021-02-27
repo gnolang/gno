@@ -682,6 +682,7 @@ type RangeStmt struct {
 	Key, Value Expr // Key, Value may be nil
 	Op         Word // ASSIGN or DEFINE
 	Body       Stmts
+	IsMap      bool // if X is map type
 }
 
 type ReturnStmt struct {
@@ -733,11 +734,12 @@ type loopStmt struct {
 	Attributes
 	ForStmt   *ForStmt
 	RangeStmt *RangeStmt
-	ListLen   int  // for RangeStmt only
-	ListIndex int  // for RangeStmt only
-	BodyLen   int  // for continue
-	BodyIndex int  // init:-2, cond/elem:-1, body:0..., post:n
-	Active    Stmt // for PopStmt().
+	ListLen   int          // for RangeStmt only
+	ListIndex int          // for RangeStmt only
+	Next      *MapListItem // fpr RangeStmt w/ maps only
+	BodyLen   int          // for continue
+	BodyIndex int          // init:-2, cond/elem:-1, body:0..., post:n
+	Active    Stmt         // for PopStmt().
 }
 
 func (s *loopStmt) PopActiveStmt() (as Stmt) {
