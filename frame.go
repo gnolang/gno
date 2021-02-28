@@ -62,6 +62,19 @@ func (fr Frame) String() string {
 	}
 }
 
+func (fr *Frame) PushDefer(dfr Defer) {
+	fr.Defers = append(fr.Defers, dfr)
+}
+
+func (fr *Frame) PopDefer() (res Defer, ok bool) {
+	if len(fr.Defers) > 0 {
+		ok = true
+		res = fr.Defers[len(fr.Defers)-1]
+		fr.Defers = fr.Defers[:len(fr.Defers)-1]
+	}
+	return
+}
+
 //----------------------------------------
 // Defer
 
@@ -69,4 +82,5 @@ type Defer struct {
 	Func   *FuncValue   // function value
 	GoFunc *nativeValue // go function value
 	Args   []TypedValue // arguments
+	Source *DeferStmt   // source
 }

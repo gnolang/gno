@@ -56,6 +56,8 @@ func (m *Machine) doOpPrecall() {
 	}
 }
 
+var gReturnStmt = &ReturnStmt{}
+
 func (m *Machine) doOpCall() {
 	// NOTE: Frame won't be popped until the statement is complete, to
 	// discard the correct number of results for func calls in ExprStmts.
@@ -67,11 +69,13 @@ func (m *Machine) doOpCall() {
 	isMethod := 0 // 1 if true
 	// continuation
 	if fv.NativeBody == nil {
-		// If a function has return values, this is not necessary.
-		// TODO: transform in preprocessor instead.
 		if len(ft.Results) == 0 {
-			// no return exprs, safe to skip OpEval.
-			m.PushOp(OpReturn)
+			// Push final empty *ReturnStmt;
+			// TODO: transform in preprocessor instead to return only
+			// when necessary.
+			// NOTE: m.PushOp(OpReturn) doesn't handle defers.
+			m.PushStmt(gReturnStmt)
+			m.PushOp(OpExec)
 		}
 		// Queue body statements.
 		for i := len(fv.Body) - 1; 0 <= i; i-- {
@@ -80,7 +84,8 @@ func (m *Machine) doOpCall() {
 			m.PushOp(OpExec)
 		}
 	} else {
-		// No return exprs, safe to skip OpEval.
+		// No return exprs and no defers, safe to skip OpEval.
+		// NOTE: m.PushOp(OpReturn) doesn't handle defers.
 		m.PushOp(OpReturn)
 		// Call native function.
 		// It reads the native function from the frame,
@@ -98,14 +103,21 @@ func (m *Machine) doOpCall() {
 			V: fr.Receiver,
 		}
 		isMethod = 1
+
 	}
 	// Convert variadic argument.
 	// TODO: more optimizations may be possible here if varg is unescaping.
+	// NOTE: this logic is somwhat duplicated for doOpReturnCallDefers().
 	if ft.HasVarg() {
 		nvar := fr.NumArgs - isMethod - (numParams - 1)
-		if nvar == 1 && fr.IsVarg {
+		if fr.IsVarg {
 			// do nothing, last arg type is already slice type
 			// called with form fncall(?, vargs...)
+			if debug {
+				if nvar != 1 {
+					panic("should not happen")
+				}
+			}
 		} else {
 			list := make([]TypedValue, nvar)
 			copy(list, m.PopValues(nvar))
@@ -147,6 +159,11 @@ func (m *Machine) doOpCallNativeBody() {
 	m.LastFrame().Func.NativeBody(m)
 }
 
+func (m *Machine) doOpCallDeferNativeBody() {
+	fv := m.PopValue().V.(*FuncValue)
+	fv.NativeBody(m)
+}
+
 // Assumes that result values are pushed onto the Values stack.
 func (m *Machine) doOpReturn() {
 	fr := m.LastFrame()
@@ -172,7 +189,8 @@ func (m *Machine) doOpReturn() {
 	m.PopFrameAndReturn()
 }
 
-// Like doOpReturn after pushing results to values stack.
+// Like doOpReturn, but with results from the block;
+// i.e. named result vars declared in func signatures.
 func (m *Machine) doOpReturnFromBlock() {
 	// copy results from block
 	fr := m.LastFrame()
@@ -187,7 +205,7 @@ func (m *Machine) doOpReturnFromBlock() {
 	m.PopFrameAndReturn()
 }
 
-// Before defers during return, pop results to block so that
+// Before defers during return, move results to block so that
 // deferred statements can refer to results with name
 // expressions.
 func (m *Machine) doOpReturnToBlock() {
@@ -203,7 +221,125 @@ func (m *Machine) doOpReturnToBlock() {
 }
 
 func (m *Machine) doOpReturnCallDefers() {
-	panic("not yet implemented")
-	// TODO sticky, so force pop once
-	// deferred statements are gone.
+	fr := m.LastFrame()
+	dfr, ok := fr.PopDefer()
+	if !ok {
+		// Done with defers.
+		m.ForcePopOp()
+		return
+	}
+	// Call last deferred call.
+	// Get block of parent function.
+	fb := m.Blocks[fr.NumBlocks]
+	// NOTE: the following logic is largely duplicated in doOpCall().
+	// Convert if variadic argument.
+	if dfr.Func != nil {
+		fv := dfr.Func
+		ft := fv.Type
+		pts := ft.Params
+		numParams := len(ft.Params)
+		if fv.NativeBody == nil {
+			// Queue body statements.
+			for i := len(fv.Body) - 1; 0 <= i; i-- {
+				s := fv.Body[i]
+				m.PushStmt(s)
+				m.PushOp(OpExec)
+			}
+		} else {
+			// Call native function.
+			m.PushValue(TypedValue{
+				T: fv.Type,
+				V: fv,
+			})
+			m.PushOp(OpCallDeferNativeBody)
+		}
+		// Create new block scope for defer.
+		b := NewBlock(fv.Source, fb)
+		m.PushBlock(b)
+		if ft.HasVarg() {
+			numArgs := len(dfr.Args)
+			nvar := numArgs - (numParams - 1)
+			if dfr.Source.Call.Varg {
+				if debug {
+					if nvar != 1 {
+						panic("should not happen")
+					}
+				}
+				// do nothing, last arg type is already slice type
+				// called with form fncall(?, vargs...)
+			} else {
+				// convert last nvar to slice.
+				vart := pts[len(pts)-1].Type.(*SliceType)
+				vargs := make([]TypedValue, nvar)
+				copy(vargs, dfr.Args[numArgs-nvar:numArgs])
+				varg := newSliceFromList(vargs)
+				dfr.Args = dfr.Args[:numArgs-nvar]
+				dfr.Args = append(dfr.Args, TypedValue{
+					T: vart,
+					V: varg,
+				})
+			}
+		}
+		b.Values = dfr.Args
+	} else if dfr.GoFunc != nil {
+		fv := dfr.GoFunc
+		ptvs := dfr.Args
+		prvs := make([]reflect.Value, len(ptvs))
+		for i := 0; i < len(prvs); i++ {
+			// TODO consider when declared types can be
+			// converted, e.g. fmt.Println. See GoValue.
+			prvs[i] = gno2GoValue(&ptvs[i], reflect.Value{})
+		}
+		// call and ignore results.
+		fv.Value.Call(prvs)
+		// cleanup
+		m.NumResults = 0
+	} else {
+		panic("should not happen")
+	}
+}
+
+func (m *Machine) doOpDefer() {
+	fr := m.LastFrame()
+	ds := m.PopStmt().(*DeferStmt)
+	// pop arguments
+	numArgs := len(ds.Call.Args)
+	args0 := m.PopValues(numArgs)
+	args := make([]TypedValue, len(args0))
+	copy(args, args0)
+	// pop func
+	ftv := m.PopValue()
+	// push defer.
+	// NOTE: we let type be FuncValue and value nativeValue,
+	// because native funcs can't be converted to gno anyways.
+	switch cv := ftv.V.(type) {
+	case *FuncValue:
+		// TODO what if value is nativeValue?
+		fr.PushDefer(Defer{
+			Func:   cv,
+			Args:   args,
+			Source: ds,
+		})
+	case BoundMethodValue:
+		args2 := make([]TypedValue, len(args)+1)
+		args2[0] = TypedValue{
+			T: cv.Func.Type.Params[0],
+			V: cv.Receiver,
+		}
+		copy(args2[1:], args)
+		fr.PushDefer(Defer{
+			Func:   cv.Func,
+			Args:   args2,
+			Source: ds,
+		})
+	case *nativeValue:
+		fr.PushDefer(Defer{
+			GoFunc: cv,
+			Args:   args,
+			Source: ds,
+		})
+	default:
+		panic("should not happen")
+	}
+
 }

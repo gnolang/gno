@@ -314,6 +314,11 @@ func Go2Gno(gon ast.Node) (n Node) {
 			Type: *type_,
 			Body: toBody(gon.Body),
 		}
+	case *ast.DeferStmt:
+		cx := toExpr(gon.Call).(*CallExpr)
+		return &DeferStmt{
+			Call: *cx,
+		}
 	default:
 		panic(fmt.Sprintf("unknown Go type %v: %s\n",
 			reflect.TypeOf(gon),

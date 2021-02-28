@@ -428,26 +428,27 @@ type Op uint8
 const (
 
 	/* Control operators */
-	OpInvalid         Op = 0x00 // invalid
-	OpHalt            Op = 0x01 // halt (e.g. last statement)
-	OpNoop            Op = 0x02 // no-op
-	OpExec            Op = 0x03 // exec next statement
-	OpPrecall         Op = 0x04 // sets X (func) to frame
-	OpCall            Op = 0x05 // call(Frame.Func, [...])
-	OpCallNativeBody  Op = 0x06 // call body is native
-	OpReturn          Op = 0x07 // return ...
-	OpReturnFromBlock Op = 0x08 // return results (after defers)
-	OpReturnToBlock   Op = 0x09 // copy results to block (before defer)
-	OpDefer           Op = 0x0A // defer call(X, [...])
-	OpGo              Op = 0x0B // go call(X, [...])
-	OpSelectCase      Op = 0x0C // exec next select case
-	OpSwitchCase      Op = 0x0D // exec next switch case
-	OpTypeSwitchCase  Op = 0x0E // exec next type switch case
-	OpForLoop1        Op = 0x0F // body and post if X, else break
-	OpIfCond          Op = 0x10 // body if X, else else
-	OpPopValue        Op = 0x11 // pop X
-	OpPopResults      Op = 0x12 // pop n call results
-	OpPopBlock        Op = 0x13 // pop block NOTE breaks certain invariants.
+	OpInvalid             Op = 0x00 // invalid
+	OpHalt                Op = 0x01 // halt (e.g. last statement)
+	OpNoop                Op = 0x02 // no-op
+	OpExec                Op = 0x03 // exec next statement
+	OpPrecall             Op = 0x04 // sets X (func) to frame
+	OpCall                Op = 0x05 // call(Frame.Func, [...])
+	OpCallNativeBody      Op = 0x06 // call body is native
+	OpReturn              Op = 0x07 // return ...
+	OpReturnFromBlock     Op = 0x08 // return results (after defers)
+	OpReturnToBlock       Op = 0x09 // copy results to block (before defer)
+	OpDefer               Op = 0x0A // defer call(X, [...])
+	OpCallDeferNativeBody Op = 0x0B // call body is native
+	OpGo                  Op = 0x0C // go call(X, [...])
+	OpSelectCase          Op = 0x0D // exec next select case
+	OpSwitchCase          Op = 0x0E // exec next switch case
+	OpTypeSwitchCase      Op = 0x0F // exec next type switch case
+	OpForLoop1            Op = 0x10 // body and post if X, else break
+	OpIfCond              Op = 0x11 // body if X, else else
+	OpPopValue            Op = 0x12 // pop X
+	OpPopResults          Op = 0x13 // pop n call results
+	OpPopBlock            Op = 0x14 // pop block NOTE breaks certain invariants.
 
 	/* Unary & binary operators */
 	OpUpos  Op = 0x20 // + (unary)
@@ -533,7 +534,9 @@ const (
 	OpSticky           Op = 0xD0 // not a real op.
 	OpForLoop2         Op = 0xD0
 	OpRangeIter        Op = 0xD1
-	OpReturnCallDefers Op = 0xD2
+	OpRangeIterString  Op = 0xD2
+	OpRangeIterMap     Op = 0xD3
+	OpReturnCallDefers Op = 0xD4
 )
 
 //----------------------------------------
@@ -564,7 +567,9 @@ func (m *Machine) Run() {
 		case OpReturnToBlock:
 			m.doOpReturnToBlock()
 		case OpDefer:
-			panic("not yet implemented")
+			m.doOpDefer()
+		case OpCallDeferNativeBody:
+			m.doOpCallDeferNativeBody()
 		case OpGo:
 			panic("not yet implemented")
 		case OpSelectCase:
@@ -725,6 +730,10 @@ func (m *Machine) Run() {
 		case OpForLoop2:
 			m.doOpExec(op)
 		case OpRangeIter:
+			m.doOpExec(op)
+		case OpRangeIterString:
+			m.doOpExec(op)
+		case OpRangeIterMap:
 			m.doOpExec(op)
 		case OpReturnCallDefers:
 			m.doOpReturnCallDefers()

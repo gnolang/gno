@@ -3,6 +3,7 @@ package interp_test
 import (
 	"bytes"
 	"fmt"
+	"regexp"
 
 	//"go/build"
 	"go/parser"
@@ -100,6 +101,7 @@ func runCheck(t *testing.T, path string) {
 			if !strings.Contains(err, errWanted) {
 				panic(fmt.Sprintf("got %q, want: %q", err, errWanted))
 			}
+			return // nothing more to do.
 		} else {
 			if pnc != nil {
 				panic(fmt.Sprintf("got unexpected error: %v", pnc))
@@ -161,6 +163,10 @@ func wantedFromComment(p string) (pkgPath, goPath, res, err, rops string) {
 		} else if strings.HasPrefix(text, "Error:\n") {
 			err = strings.TrimPrefix(text, "Error:\n")
 			err = strings.TrimSpace(err)
+			// XXX temporary until we support line:column.
+			// If error starts with line:column, trim it.
+			re := regexp.MustCompile(`^[0-9]+:[0-9]+: `)
+			err = re.ReplaceAllString(err, "")
 		} else if strings.HasPrefix(text, "Realm:\n") {
 			rops = strings.TrimPrefix(text, "Realm:\n")
 			rops = strings.TrimSpace(rops)
