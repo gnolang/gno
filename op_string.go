@@ -19,15 +19,16 @@ func _() {
 	_ = x[OpReturnFromBlock-8]
 	_ = x[OpReturnToBlock-9]
 	_ = x[OpDefer-10]
-	_ = x[OpGo-11]
-	_ = x[OpSelectCase-12]
-	_ = x[OpSwitchCase-13]
-	_ = x[OpTypeSwitchCase-14]
-	_ = x[OpForLoop1-15]
-	_ = x[OpIfCond-16]
-	_ = x[OpPopValue-17]
-	_ = x[OpPopResults-18]
-	_ = x[OpPopBlock-19]
+	_ = x[OpCallDeferNativeBody-11]
+	_ = x[OpGo-12]
+	_ = x[OpSelectCase-13]
+	_ = x[OpSwitchCase-14]
+	_ = x[OpTypeSwitchCase-15]
+	_ = x[OpForLoop1-16]
+	_ = x[OpIfCond-17]
+	_ = x[OpPopValue-18]
+	_ = x[OpPopResults-19]
+	_ = x[OpPopBlock-20]
 	_ = x[OpUpos-32]
 	_ = x[OpUneg-33]
 	_ = x[OpUnot-34]
@@ -99,11 +100,13 @@ func _() {
 	_ = x[OpSticky-208]
 	_ = x[OpForLoop2-208]
 	_ = x[OpRangeIter-209]
-	_ = x[OpReturnCallDefers-210]
+	_ = x[OpRangeIterString-210]
+	_ = x[OpRangeIterMap-211]
+	_ = x[OpReturnCallDefers-212]
 }
 
 const (
-	_Op_name_0 = "OpInvalidOpHaltOpNoopOpExecOpPrecallOpCallOpCallNativeBodyOpReturnOpReturnFromBlockOpReturnToBlockOpDeferOpGoOpSelectCaseOpSwitchCaseOpTypeSwitchCaseOpForLoop1OpIfCondOpPopValueOpPopResultsOpPopBlock"
+	_Op_name_0 = "OpInvalidOpHaltOpNoopOpExecOpPrecallOpCallOpCallNativeBodyOpReturnOpReturnFromBlockOpReturnToBlockOpDeferOpCallDeferNativeBodyOpGoOpSelectCaseOpSwitchCaseOpTypeSwitchCaseOpForLoop1OpIfCondOpPopValueOpPopResultsOpPopBlock"
 	_Op_name_1 = "OpUposOpUnegOpUnotOpUxor"
 	_Op_name_2 = "OpUrecvOpLorOpLandOpEqlOpNeqOpLssOpLeqOpGtrOpGeqOpAddOpSubOpBorOpXorOpMulOpQuoOpRemOpShlOpShrOpBandOpBandn"
 	_Op_name_3 = "OpEvalOpBinary1OpIndexOpSelectorOpSliceOpStarOpRefOpTypeAssert1OpTypeAssert2OpTypeOfOpCompositeLitOpArrayLitOpSliceLitOpMapLitOpStructLitOpFuncLitOpConvert"
@@ -111,23 +114,23 @@ const (
 	_Op_name_5 = "OpFieldTypeOpArrayTypeOpSliceTypeOpPointerTypeOpInterfaceTypeOpChanTypeOpFuncTypeOpMapTypeOpStructType"
 	_Op_name_6 = "OpAssignOpAddAssignOpSubAssignOpMulAssignOpQuoAssignOpRemAssignOpBandAssignOpBandnAssignOpBorAssignOpXorAssignOpShlAssignOpShrAssignOpDefineOpIncOpDec"
 	_Op_name_7 = "OpValueDecl"
-	_Op_name_8 = "OpStickyOpRangeIterOpReturnCallDefers"
+	_Op_name_8 = "OpStickyOpRangeIterOpRangeIterStringOpRangeIterMapOpReturnCallDefers"
 )
 
 var (
-	_Op_index_0 = [...]uint8{0, 9, 15, 21, 27, 36, 42, 58, 66, 83, 98, 105, 109, 121, 133, 149, 159, 167, 177, 189, 199}
+	_Op_index_0 = [...]uint8{0, 9, 15, 21, 27, 36, 42, 58, 66, 83, 98, 105, 126, 130, 142, 154, 170, 180, 188, 198, 210, 220}
 	_Op_index_1 = [...]uint8{0, 6, 12, 18, 24}
 	_Op_index_2 = [...]uint8{0, 7, 12, 18, 23, 28, 33, 38, 43, 48, 53, 58, 63, 68, 73, 78, 83, 88, 93, 99, 106}
 	_Op_index_3 = [...]uint8{0, 6, 15, 22, 32, 39, 45, 50, 63, 76, 84, 98, 108, 118, 126, 137, 146, 155}
 	_Op_index_4 = [...]uint8{0, 19, 33}
 	_Op_index_5 = [...]uint8{0, 11, 22, 33, 46, 61, 71, 81, 90, 102}
 	_Op_index_6 = [...]uint8{0, 8, 19, 30, 41, 52, 63, 75, 88, 99, 110, 121, 132, 140, 145, 150}
-	_Op_index_8 = [...]uint8{0, 8, 19, 37}
+	_Op_index_8 = [...]uint8{0, 8, 19, 36, 50, 68}
 )
 
 func (i Op) String() string {
 	switch {
-	case 0 <= i && i <= 19:
+	case 0 <= i && i <= 20:
 		return _Op_name_0[_Op_index_0[i]:_Op_index_0[i+1]]
 	case 32 <= i && i <= 35:
 		i -= 32
@@ -149,7 +152,7 @@ func (i Op) String() string {
 		return _Op_name_6[_Op_index_6[i]:_Op_index_6[i+1]]
 	case i == 144:
 		return _Op_name_7
-	case 208 <= i && i <= 210:
+	case 208 <= i && i <= 212:
 		i -= 208
 		return _Op_name_8[_Op_index_8[i]:_Op_index_8[i+1]]
 	default:

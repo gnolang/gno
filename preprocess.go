@@ -110,17 +110,49 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 
 			// TRANS_BLOCK -----------------------
 			case *RangeStmt:
+				xt := evalTypeOf(last, n.X)
+				switch xt.Kind() {
+				case MapKind:
+					n.IsMap = true
+				case StringKind:
+					n.IsString = true
+				}
 				pushBlock(n, &last, &stack)
 				// key value if define.
 				if n.Op == DEFINE {
-					if n.Key != nil {
-						kn := n.Key.(*NameExpr).Name
-						last.Define(kn, anyValue(IntType))
-					}
-					if n.Value != nil {
-						// initial declaration to be re-defined.
-						vn := n.Value.(*NameExpr).Name
-						last.Define(vn, anyValue(nil))
+					if xt.Kind() == MapKind {
+						if n.Key != nil {
+							kt := baseOf(xt).(*MapType).Key
+							kn := n.Key.(*NameExpr).Name
+							last.Define(kn, anyValue(kt))
+						}
+						if n.Value != nil {
+							vt := baseOf(xt).(*MapType).Value
+							vn := n.Value.(*NameExpr).Name
+							last.Define(vn, anyValue(vt))
+						}
+					} else if xt.Kind() == StringKind {
+						if n.Key != nil {
+							it := IntType
+							kn := n.Key.(*NameExpr).Name
+							last.Define(kn, anyValue(it))
+						}
+						if n.Value != nil {
+							et := Int32Type
+							vn := n.Value.(*NameExpr).Name
+							last.Define(vn, anyValue(et))
+						}
+					} else {
+						if n.Key != nil {
+							it := IntType
+							kn := n.Key.(*NameExpr).Name
+							last.Define(kn, anyValue(it))
+						}
+						if n.Value != nil {
+							et := xt.Elem()
+							vn := n.Value.(*NameExpr).Name
+							last.Define(vn, anyValue(et))
+						}
 					}
 				}
 
@@ -526,7 +558,13 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 								assertTypes(lt, rt)
 							}
 						}
-						if lnt, ok := lt.(*nativeType); ok {
+						if n.Op == EQL || n.Op == NEQ {
+							// If == or !=, no conversions.
+						} else if lnt, ok := lt.(*nativeType); ok {
+							// If left and right are native type,
+							// convert left and right to gno, then
+							// convert result back to native.
+							//
 							// get concrete native base type.
 							pt := go2GnoBaseType(lnt.Type).(PrimitiveType)
 							// convert n.Left to (gno) pt type,
@@ -545,7 +583,8 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 								Source: n,
 								Type:   lnt,
 							}
-							// reset/create n2 to preprocess children.
+							// reset/create n2 to preprocess
+							// children.
 							n2 := &BinaryExpr{
 								Left:  ln,
 								Op:    n.Op,
@@ -554,8 +593,9 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 							resn := Node(Call(tx, n2))
 							resn = Preprocess(imp, last, resn)
 							return resn, TRANS_CONTINUE
-							// NOTE: binary operations are always computed in
-							// gno, never with reflect.
+							// NOTE: binary operations are always
+							// computed in gno, never with
+							// reflect.
 						} else {
 							// nothing to do.
 						}
@@ -641,6 +681,8 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 			case *IndexExpr:
 				xt := evalTypeOf(last, n.X)
 				switch xt.Kind() {
+				case StringKind:
+					convertIfConst(last, n.Index, IntType)
 				case ArrayKind:
 					convertIfConst(last, n.Index, IntType)
 				case SliceKind:
@@ -954,7 +996,9 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 						switch cx := n.Rhs[0].(type) {
 						case *CallExpr:
 							// Call case : a, b := x(...)
-							ft := gnoTypeOf(evalTypeOf(last, cx.Func)).(*FuncType)
+							ct := evalTypeOf(last, cx.Func)
+							bt := baseOf(ct)
+							ft := gnoTypeOf(bt).(*FuncType)
 							if len(n.Lhs) != len(ft.Results) {
 								panic(fmt.Sprintf(
 									"assignment mismatch: "+
@@ -1000,7 +1044,9 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 						}
 						switch cx := n.Rhs[0].(type) {
 						case *CallExpr:
-							ft := gnoTypeOf(evalTypeOf(last, cx.Func)).(*FuncType)
+							ct := evalTypeOf(last, cx.Func)
+							bt := baseOf(ct)
+							ft := gnoTypeOf(bt).(*FuncType)
 							if len(n.Lhs) != len(ft.Results) {
 								panic(fmt.Sprintf(
 									"assignment mismatch: "+
@@ -1039,20 +1085,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *RangeStmt:
-				// key value if define.
-				if n.Op == DEFINE {
-					if n.Key != nil {
-						// already defined @TRANS_BLOCK.
-					}
-					if n.Value != nil {
-						vn := n.Value.(*NameExpr).Name
-						pb := last.GetParent()
-						xt := evalTypeOf(pb, n.X)
-						et := xt.Elem()
-						// re-definition.
-						last.Define(vn, anyValue(et))
-					}
-				}
+				// NOTE: k,v already defined @ TRANS_BLOCK.
 
 			// TRANS_LEAVE -----------------------
 			case *ReturnStmt:

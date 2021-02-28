@@ -257,7 +257,9 @@ func (tv *TypedValue) GetObject() Object {
 			return nil
 		}
 	case nativeValue:
-		panic("native not compatible with realm logic")
+		// native values don't work with realms,
+		// but this function shouldn't happen.
+		return nil
 	case blockValue:
 		if cv.Block == nil {
 			panic("should not happen")

@@ -169,6 +169,7 @@ func go2GnoValue(rv reflect.Value) (tv TypedValue) {
 		tv.V = &nativeValue{Value: rv}
 		return
 	}
+REFLECT_KIND_SWITCH:
 	tv.T = go2GnoType(rv.Type())
 	switch rk := rv.Kind(); rk {
 	case reflect.Bool:
@@ -204,7 +205,12 @@ func go2GnoValue(rv reflect.Value) (tv TypedValue) {
 	case reflect.Func:
 		tv.V = &nativeValue{rv}
 	case reflect.Interface:
-		tv.V = &nativeValue{rv}
+		if rv.IsNil() {
+			tv.V = nil // nil-interface, "undefined".
+		} else {
+			rv = rv.Elem()
+			goto REFLECT_KIND_SWITCH
+		}
 	case reflect.Map:
 		tv.V = &nativeValue{rv}
 	case reflect.Ptr:
@@ -434,7 +440,13 @@ func go2GnoValue2(rv reflect.Value) (tv TypedValue) {
 	case reflect.Chan:
 		panic("not yet implemented")
 	case reflect.Func:
-		panic("not yet implemented")
+		// NOTE: the type may be a full gno type, either a
+		// *FuncType or *DeclaredType.  The value may still be a
+		// *nativeValue though, and the function can be called
+		// regardless.
+		tv.V = &nativeValue{
+			Value: rv,
+		}
 	case reflect.Interface:
 		panic("not yet implemented")
 	case reflect.Map:
@@ -594,7 +606,11 @@ func gno2GoType(t Type) reflect.Type {
 // gno.PointerValue.  If rv is nil, an addressable one will be
 // constructed and returned, otherwise returns rv.
 func gno2GoValue(tv *TypedValue, rv reflect.Value) reflect.Value {
-	if tv.IsUndefined() {
+	if tv.IsNilInterface() {
+		rt := gno2GoType(tv.T)
+		rv = reflect.New(rt).Elem()
+		return rv
+	} else if tv.IsUndefined() {
 		if debug {
 			if !rv.IsValid() {
 				panic("unexpected undefined gno value")
@@ -720,7 +736,9 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) reflect.Value {
 			return rv
 		}
 		// General case.
+		mt := gno2GoType(ct)
 		mv := tv.V.(*MapValue)
+		rv.Set(reflect.MakeMapWithSize(mt, mv.List.Size))
 		head := mv.List.Head
 		for head != nil {
 			ktv, vtv := &head.Key, &head.Value
@@ -739,6 +757,10 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) reflect.Value {
 	case *DeclaredType:
 		// See corresponding note on gno2GoType().
 		panic("should not happen") // we switch on baseOf().
+	case *FuncType:
+		// TODO: if tv.V.(*nativeValue), just return.
+		// TODO: otherwise, set rv to wrapper.
+		panic("gno2Go not supported for gno functions yet")
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %s",

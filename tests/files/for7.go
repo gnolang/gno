@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// 4:14: non-bool used as for condition
+// 4:14: int used as bool

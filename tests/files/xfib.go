@@ -12,3 +12,6 @@ func main() {
 	println(fib(35))
 	//println(fib(10))
 }
+
+// Output:
+// 9227465

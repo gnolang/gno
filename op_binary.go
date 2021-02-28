@@ -332,7 +332,7 @@ func (m *Machine) doOpBandn() {
 // others serve as empty values.  See doOpAdd()
 func assertTypes(lt, rt Type) {
 	if lt == nil && rt == nil {
-		panic("assertTypes() requires at least one type")
+		// both are nil.
 	} else if lt == nil || rt == nil {
 		// one is nil.
 	} else if lt.Kind() == rt.Kind() &&
@@ -351,11 +351,14 @@ func assertTypes(lt, rt Type) {
 
 // TODO: can be much faster.
 func isEql(lv, rv *TypedValue) bool {
+	if lv.IsUndefined() {
+		return rv.IsUndefined()
+	}
 	switch lv.T.Kind() {
 	case BoolKind:
 		return (lv.GetBool() == rv.GetBool())
 	case StringKind:
-		return (lv.V.(StringValue) == rv.V.(StringValue))
+		return (lv.GetString() == rv.GetString())
 	case IntKind:
 		return (lv.GetInt() == rv.GetInt())
 	case Int8Kind:
@@ -557,7 +560,7 @@ func addAssign(lv, rv *TypedValue) {
 	// NOTE this block is replicated in op_assign.go
 	switch lv.T.Kind() {
 	case StringKind:
-		lv.V = lv.GetString() + rv.GetString()
+		lv.V = StringValue(lv.GetString() + rv.GetString())
 	case IntKind:
 		lv.SetInt(lv.GetInt() + rv.GetInt())
 	case Int8Kind:

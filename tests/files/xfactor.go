@@ -5,6 +5,8 @@ import (
 	"math/big"
 )
 
+var ctr = 0
+
 func main() {
 	// 157 bit n = pq with p ~= 78 bits
 	n := big.NewInt(0)
@@ -19,6 +21,11 @@ func main() {
 	// Avoid creating the new bigint each time
 	two := big.NewInt(2)
 	for {
+		// Sanity check
+		ctr++
+		if ctr == 5000100 {
+			panic("oops")
+		}
 		// Check if the odd number is a divisor of n
 		temp.Mod(n, i)
 		if temp.Sign() == 0 {
@@ -29,3 +36,6 @@ func main() {
 		i.Add(i, two)
 	}
 }
+
+// Output:
+// 496968652506233122158689

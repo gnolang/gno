@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"compress/flate"
+	"context"
 	"crypto/sha1"
 	"encoding/binary"
 	"encoding/xml"
@@ -12,10 +13,14 @@ import (
 	"image/color"
 	"io"
 	"math"
+	"math/big"
 	"net"
 	"net/http"
 	"reflect"
+	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gnolang/gno"
@@ -63,10 +68,12 @@ func testImporter(out io.Writer) gno.Importer {
 		case "bufio":
 			pkg := gno.NewPackageNode("bufio", "bufio", nil)
 			pkg.DefineGoNativeValue("NewScanner", bufio.NewScanner)
+			pkg.DefineGoNativeType(reflect.TypeOf(bufio.SplitFunc(nil)))
 			return pkg.NewPackage(nil)
 		case "bytes":
 			pkg := gno.NewPackageNode("bytes", "bytes", nil)
 			pkg.DefineGoNativeValue("NewReader", bytes.NewReader)
+			pkg.DefineGoNativeValue("NewBuffer", bytes.NewBuffer)
 			return pkg.NewPackage(nil)
 		case "time":
 			pkg := gno.NewPackageNode("time", "time", nil)
@@ -110,6 +117,29 @@ func testImporter(out io.Writer) gno.Importer {
 		case "compress/flate":
 			pkg := gno.NewPackageNode("flate", "flate", nil)
 			pkg.DefineGoNativeValue("BestSpeed", flate.BestSpeed)
+			return pkg.NewPackage(nil)
+		case "context":
+			pkg := gno.NewPackageNode("context", "context", nil)
+			pkg.DefineGoNativeType(reflect.TypeOf((*context.Context)(nil)).Elem())
+			pkg.DefineGoNativeValue("WithValue", context.WithValue)
+			pkg.DefineGoNativeValue("Background", context.Background)
+			return pkg.NewPackage(nil)
+		case "strconv":
+			pkg := gno.NewPackageNode("strconv", "strconv", nil)
+			pkg.DefineGoNativeValue("Atoi", strconv.Atoi)
+			pkg.DefineGoNativeValue("Itoa", strconv.Itoa)
+			return pkg.NewPackage(nil)
+		case "sync":
+			pkg := gno.NewPackageNode("sync", "sync", nil)
+			pkg.DefineGoNativeType(reflect.TypeOf(sync.RWMutex{}))
+			return pkg.NewPackage(nil)
+		case "math/big":
+			pkg := gno.NewPackageNode("big", "big", nil)
+			pkg.DefineGoNativeValue("NewInt", big.NewInt)
+			return pkg.NewPackage(nil)
+		case "sort":
+			pkg := gno.NewPackageNode("sort", "sort", nil)
+			pkg.DefineGoNativeValue("Strings", sort.Strings)
 			return pkg.NewPackage(nil)
 		default:
 			panic("unknown package path " + pkgPath)

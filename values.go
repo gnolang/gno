@@ -159,6 +159,45 @@ func (sv *SliceValue) GetLength() int {
 	return sv.Length
 }
 
+func (sv *SliceValue) GetPointerAtIndexInt2(ii int, st *SliceType) PointerValue {
+	// Necessary run-time slice bounds check
+	if ii < 0 {
+		panic(fmt.Sprintf(
+			"slice index out of bounds: %d", ii))
+	} else if sv.Length <= ii {
+		panic(fmt.Sprintf(
+			"slice index out of bounds: %d (len=%d)",
+			ii, sv.Length))
+	}
+	if sv.Base.Data == nil {
+		ev := &sv.Base.List[sv.Offset+ii] // by reference
+		if ev.IsUndefined() &&
+			st.Elt.Kind() != InterfaceKind {
+			// initialize typed-nil element.
+			ev.T = st.Elt
+			ev.V = defaultValue(st.Elt)
+		}
+		return PointerValue{
+			TypedValue: ev,
+			Base:       sv.Base,
+			Index:      sv.Offset + ii,
+		}
+	} else {
+		bv := &TypedValue{ // by reference
+			T: DataByteType,
+			V: DataByteValue{
+				Ref:      &sv.Base.Data[sv.Offset+ii],
+				ElemType: st.Elt,
+			},
+		}
+		return PointerValue{
+			TypedValue: bv,
+			Base:       sv.Base,
+			Index:      sv.Offset + ii,
+		}
+	}
+}
+
 type StructValue struct {
 	ObjectInfo
 	Fields []TypedValue // flattened
@@ -451,6 +490,24 @@ func (tv *TypedValue) IsUndefined() bool {
 			}
 		}
 		return true
+	} else {
+		return tv.IsNilInterface()
+	}
+}
+
+func (tv *TypedValue) IsNilInterface() bool {
+	if tv.T != nil && tv.T.Kind() == InterfaceKind {
+		if tv.V == nil {
+			return true
+		} else {
+			if debug {
+				if tv.N != [8]byte{} {
+					panic(fmt.Sprintf(
+						"corrupted TypeValue (nil interface)"))
+				}
+			}
+			return false
+		}
 	}
 	return false
 }
@@ -615,14 +672,14 @@ func (tv *TypedValue) GetBool() bool {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != BoolKind {
 			panic(fmt.Sprintf(
-				"TypedValue.GetBool() on type %s",
+				"%s used as bool",
 				tv.T.String()))
 		}
 	}
 	return *(*bool)(unsafe.Pointer(&tv.N))
 }
 
-func (tv *TypedValue) GetString() StringValue {
+func (tv *TypedValue) GetString() string {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != StringKind {
 			panic(fmt.Sprintf(
@@ -631,9 +688,9 @@ func (tv *TypedValue) GetString() StringValue {
 		}
 	}
 	if tv.V == nil {
-		return StringValue("")
+		return ""
 	} else {
-		return tv.V.(StringValue)
+		return string(tv.V.(StringValue))
 	}
 }
 
@@ -1219,7 +1276,7 @@ TYPE_SWITCH:
 	}
 }
 
-// Convenience for GetValueAtIndex().
+// Convenience for GetPointerAtIndex().  Slow.
 func (tv *TypedValue) GetPointerAtIndexInt(ii int) PointerValue {
 	iv := TypedValue{T: IntType}
 	iv.SetInt(ii)
@@ -1229,10 +1286,19 @@ func (tv *TypedValue) GetPointerAtIndexInt(ii int) PointerValue {
 // If element value is undefined and the array/slice is not of
 // interfaces, the appropriate type is first set.
 func (tv *TypedValue) GetPointerAtIndex(iv *TypedValue) PointerValue {
-	switch t := baseOf(tv.T).(type) {
+	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
-		if t == StringType {
-			panic("not yet implemented")
+		if bt == StringType {
+			sv := tv.GetString()
+			ii := iv.ConvertGetInt()
+			bv := &TypedValue{ // heap alloc
+				T: Uint8Type,
+			}
+			bv.SetUint8(sv[ii])
+			return PointerValue{
+				TypedValue: bv,
+				Base:       nil, // free floating
+			}
 		} else {
 			panic(fmt.Sprintf(
 				"primitive type %s cannot be indexed",
@@ -1244,10 +1310,10 @@ func (tv *TypedValue) GetPointerAtIndex(iv *TypedValue) PointerValue {
 		if av.Data == nil {
 			ev := &av.List[ii] // by reference
 			if ev.IsUndefined() &&
-				t.Elt.Kind() != InterfaceKind {
+				bt.Elt.Kind() != InterfaceKind {
 				// initialize typed-nil element.
-				ev.T = t.Elt
-				ev.V = defaultValue(t.Elt)
+				ev.T = bt.Elt
+				ev.V = defaultValue(bt.Elt)
 			}
 			return PointerValue{
 				TypedValue: ev,
@@ -1259,7 +1325,7 @@ func (tv *TypedValue) GetPointerAtIndex(iv *TypedValue) PointerValue {
 				T: DataByteType,
 				V: DataByteValue{
 					Ref:      &av.Data[ii],
-					ElemType: t.Elem(),
+					ElemType: bt.Elem(),
 				},
 			}
 			return PointerValue{
@@ -1274,42 +1340,7 @@ func (tv *TypedValue) GetPointerAtIndex(iv *TypedValue) PointerValue {
 		}
 		sv := tv.V.(*SliceValue)
 		ii := iv.ConvertGetInt()
-		// Necessary run-time slice bounds check
-		if ii < 0 {
-			panic(fmt.Sprintf(
-				"slice index out of bounds: %d", ii))
-		} else if sv.Length <= ii {
-			panic(fmt.Sprintf(
-				"slice index out of bounds: %d (len=%d)",
-				ii, sv.Length))
-		}
-		if sv.Base.Data == nil {
-			ev := &sv.Base.List[sv.Offset+ii] // by reference
-			if ev.IsUndefined() &&
-				t.Elt.Kind() != InterfaceKind {
-				// initialize typed-nil element.
-				ev.T = t.Elt
-				ev.V = defaultValue(t.Elt)
-			}
-			return PointerValue{
-				TypedValue: ev,
-				Base:       sv.Base,
-				Index:      sv.Offset + ii,
-			}
-		} else {
-			bv := &TypedValue{ // by reference
-				T: DataByteType,
-				V: DataByteValue{
-					Ref:      &sv.Base.Data[sv.Offset+ii],
-					ElemType: t.Elem(),
-				},
-			}
-			return PointerValue{
-				TypedValue: bv,
-				Base:       sv.Base,
-				Index:      sv.Offset + ii,
-			}
-		}
+		return sv.GetPointerAtIndexInt2(ii, bt)
 	case *MapType:
 		if tv.V == nil {
 			panic("uninitialized map index")
@@ -1373,6 +1404,8 @@ func (tv *TypedValue) GetLength() int {
 	case *ArrayValue:
 		return cv.GetLength()
 	case *SliceValue:
+		return cv.GetLength()
+	case *MapValue:
 		return cv.GetLength()
 	default:
 		panic(fmt.Sprintf("unexpected type for len(): %s",
@@ -1737,6 +1770,12 @@ func defaultValue(t Type) Value {
 func untypedBool(b bool) TypedValue {
 	tv := TypedValue{T: UntypedBoolType}
 	tv.SetBool(b)
+	return tv
+}
+
+func typedRune(r rune) TypedValue {
+	tv := TypedValue{T: Int32Type}
+	tv.SetInt32(int32(r))
 	return tv
 }
 

@@ -194,12 +194,16 @@ func UverseNode() *PackageNode {
 					} else {
 						// append(*SliceValue, *SliceValue) new list ---------
 						list := make([]TypedValue, xvl+argsl)
-						copy(
-							list[:xvl],
-							xv.Base.List[xvo:xvo+xvl])
-						copy(
-							list[xvl:xvl+argsl],
-							args.Base.List[argso:argso+argsl])
+						if 0 < xvl {
+							copy(
+								list[:xvl],
+								xv.Base.List[xvo:xvo+xvl])
+						}
+						if 0 < argsl {
+							copy(
+								list[xvl:xvl+argsl],
+								args.Base.List[argso:argso+argsl])
+						}
 						m.PushValue(TypedValue{
 							T: xt,
 							V: newSliceFromList(list),
@@ -377,8 +381,84 @@ func UverseNode() *PackageNode {
 	)
 	def("close", undefined)
 	def("complex", undefined)
-	def("copy", undefined)
-	def("delete", undefined)
+	defNative("copy",
+		Flds( // params
+			"dst", InterfaceT(nil),
+			"src", InterfaceT(nil),
+		),
+		Flds( // results
+			"", "int",
+		),
+		func(m *Machine) {
+			arg0, arg1 := m.LastBlock().GetParams2()
+			dst, src := arg0, arg1
+			switch bdt := baseOf(dst.T).(type) {
+			case *SliceType:
+				switch bst := baseOf(src.T).(type) {
+				case PrimitiveType:
+					if debug {
+						debug.Println("copy(<%s>,<%s>)", bdt.String(), bst.String())
+					}
+					if bst.Kind() == StringKind {
+						panic("not yet implemented")
+					} else {
+						panic("should not happen")
+					}
+				case *SliceType:
+					dstl := dst.GetLength()
+					srcl := src.GetLength()
+					minl := dstl
+					if srcl < dstl {
+						minl = srcl
+					}
+					if minl == 0 {
+						return // do nothing.
+					}
+					dstv := dst.V.(*SliceValue)
+					srcv := src.V.(*SliceValue)
+					for i := 0; i < minl; i++ {
+						dstev := dstv.GetPointerAtIndexInt2(i, bdt)
+						srcev := srcv.GetPointerAtIndexInt2(i, bst)
+						dstev.Assign(srcev.Deref())
+					}
+					res0 := TypedValue{
+						T: IntType,
+						V: nil,
+					}
+					res0.SetInt(minl)
+					m.PushValue(res0)
+				default:
+					panic("should not happen")
+				}
+			default:
+				panic("should not happen")
+			}
+		},
+	)
+	defNative("delete",
+		Flds( // params
+			"m", InterfaceT(nil), // map type
+			"k", InterfaceT(nil), // map key
+		),
+		nil, // results
+		func(m *Machine) {
+			arg0, arg1 := m.LastBlock().GetParams2()
+			itv := arg1.Deref()
+			switch baseOf(arg0.T).(type) {
+			case *MapType:
+				mv := arg0.V.(*MapValue)
+				mv.DeleteForKey(&itv)
+			case *nativeType:
+				krv := gno2GoValue(&itv, reflect.Value{})
+				mrv := arg0.V.(*nativeValue).Value
+				mrv.SetMapIndex(krv, reflect.Value{})
+			default:
+				panic(fmt.Sprintf(
+					"unexpected map type %s",
+					arg0.T.String()))
+			}
+		},
+	)
 	defNative("len",
 		Flds( // params
 			"x", InterfaceT(nil),
@@ -495,7 +575,17 @@ func UverseNode() *PackageNode {
 		},
 	)
 	def("new", undefined)
-	def("panic", undefined)
+	defNative("panic",
+		Flds( // params
+			"err", InterfaceT(nil), // args[0]
+		),
+		nil, // results
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1()
+			xv := arg0.Deref()
+			panic(sprintString(&xv))
+		},
+	)
 	defNative("print",
 		Flds( // params
 			"xs", Vrd(InterfaceT(nil)), // args[0]
@@ -508,7 +598,7 @@ func UverseNode() *PackageNode {
 			ss := make([]string, xvl)
 			for i := 0; i < xvl; i++ {
 				ev := xv.GetPointerAtIndexInt(i).Deref()
-				ss[i] = printString(&ev)
+				ss[i] = sprintString(&ev)
 			}
 			rs := strings.Join(ss, " ")
 			m.Output.Write([]byte(rs))
@@ -526,7 +616,7 @@ func UverseNode() *PackageNode {
 			ss := make([]string, xvl)
 			for i := 0; i < xvl; i++ {
 				ev := xv.GetPointerAtIndexInt(i).Deref()
-				ss[i] = printString(&ev)
+				ss[i] = sprintString(&ev)
 			}
 			rs := strings.Join(ss, " ") + "\n"
 			m.Output.Write([]byte(rs))
@@ -536,9 +626,9 @@ func UverseNode() *PackageNode {
 	return uverseNode
 }
 
-// printString returns the string to be printed for tv from
+// sprintString returns the string to be printed for tv from
 // print() and println().
-func printString(tv *TypedValue) string {
+func sprintString(tv *TypedValue) string {
 	if tv.T == nil {
 		return "undefined"
 	}
