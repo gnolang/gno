@@ -736,42 +736,6 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 	}
 }
 
-// XXX remove?
-// TODO: move this down.
-// If only one is untyped, it is converted.
-// In all other cases, the types must match exactly.
-// If 'checkTypes' is true, panics if types don't match.
-// Returns the result type.
-func ConvertBinary(lv, rv *TypedValue, checkTypes bool) Type {
-	var luc, ruc bool = isUntyped(lv.T), isUntyped(rv.T)
-	if luc {
-		if ruc {
-			return lv.T
-		} else {
-			// Convert left to right.
-			ConvertUntypedTo(lv, rv.T)
-			return rv.T
-		}
-	} else {
-		if ruc {
-			// Convert right to left.
-			ConvertUntypedTo(rv, lv.T)
-			return lv.T
-		} else {
-			// Check for equality.
-			if checkTypes {
-				// types should be equal.
-				ltID := lv.T.TypeID()
-				rtID := rv.T.TypeID()
-				if ltID != rtID {
-					panic(fmt.Sprintf("incompatible types: %#v vs %#v", lv.T, rv.T))
-				}
-			}
-			return lv.T
-		}
-	}
-}
-
 // All fields may be modified to complete the conversion.
 func ConvertRuneTo(dst *TypedValue, t Type) {
 	sv := dst.GetInt32()

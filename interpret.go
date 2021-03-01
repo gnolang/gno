@@ -141,7 +141,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 		// Run new init functions.
 		for i := 0; i < len(updates); i++ {
 			tv := &updates[i]
-			if tv.IsDefined() && tv.T.Kind() == FuncKind {
+			if tv.IsDefined() && tv.T.Kind() == FuncKind && tv.V != nil {
 				fn := tv.V.(*FuncValue).Name
 				if strings.HasPrefix(string(fn), "init.") {
 					m.RunFunc(fn)

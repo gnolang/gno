@@ -677,12 +677,17 @@ func sprintString(tv *TypedValue) string {
 		//return tv.V.(*MapValue).String()
 	case *FuncType:
 		switch fv := tv.V.(type) {
+		case nil:
+			ft := tv.T.String()
+			return "nil " + ft
 		case *FuncValue:
 			return fv.String()
 		case BoundMethodValue:
 			return fv.String()
 		default:
-			panic("shoult not happen")
+			panic(fmt.Sprintf(
+				"unexpected func type %v",
+				reflect.TypeOf(tv.V)))
 		}
 	case *InterfaceType:
 		if debug {
