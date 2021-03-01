@@ -401,6 +401,27 @@ func isEql(lv, rv *TypedValue) bool {
 			}
 		}
 		return true
+	case MapKind:
+		if debug {
+			if lv.V != nil && rv.V != nil {
+				panic("map can only be compared with `nil`")
+			}
+		}
+		return lv.V == rv.V
+	case SliceKind:
+		if debug {
+			if lv.V != nil && rv.V != nil {
+				panic("slice can only be compared with `nil`")
+			}
+		}
+		return lv.V == rv.V
+	case FuncKind:
+		if debug {
+			if lv.V != nil && rv.V != nil {
+				panic("function can only be compared with `nil`")
+			}
+		}
+		return lv.V == rv.V
 	default:
 		panic(fmt.Sprintf(
 			"comparison operator == not defined for %s",

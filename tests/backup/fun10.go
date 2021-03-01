@@ -1,17 +1,19 @@
 package main
 
+import "fmt"
+
 func f() func() {
 	return nil
 }
 
 func main() {
 	g := f()
-	println(g)
+	fmt.Printf("%T %v\n", g, g)
 	if g == nil {
-		println("nil func")
+		fmt.Println("nil func")
 	}
 }
 
 // Output:
-// nil func@main()()
+// func() <nil>
 // nil func

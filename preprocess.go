@@ -86,6 +86,15 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 					}
 				}
 
+			// TRANS_ENTER -----------------------
+			case *FuncTypeExpr:
+				for i, _ := range n.Params {
+					p := &n.Params[i]
+					if p.Name == "" {
+						p.Name = "_"
+					}
+				}
+
 			}
 
 			// TRANS_ENTER -----------------------
@@ -167,14 +176,14 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 					last.Define(p.Name, anyValue(p.Type))
 				}
 				// define results in new block.
-				for i, r := range ft.Results {
-					if 0 < len(r.Name) {
-						last.Define(r.Name, anyValue(r.Type))
+				for i, rf := range ft.Results {
+					if 0 < len(rf.Name) {
+						last.Define(rf.Name, anyValue(rf.Type))
 					} else {
 						// create a hidden var with leading dot.
 						// NOTE: document somewhere.
 						rn := fmt.Sprintf(".res_%d", i)
-						last.Define(Name(rn), anyValue(r.Type))
+						last.Define(Name(rn), anyValue(rf.Type))
 					}
 				}
 
@@ -262,13 +271,13 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 					last.Define(p.Name, anyValue(p.Type))
 				}
 				// define results in new block.
-				for i, r := range ft.Results {
-					if 0 < len(r.Name) {
-						last.Define(r.Name, anyValue(r.Type))
+				for i, rf := range ft.Results {
+					if 0 < len(rf.Name) {
+						last.Define(rf.Name, anyValue(rf.Type))
 					} else {
 						// create a hidden var with leading dot.
 						rn := fmt.Sprintf(".res_%d", i)
-						last.Define(Name(rn), anyValue(r.Type))
+						last.Define(Name(rn), anyValue(rf.Type))
 					}
 				}
 
@@ -453,10 +462,10 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *BinaryExpr:
-				// Replace with *constExpr if const operands.
-				isShift := n.Op == SHL || n.Op == SHR
+				lt := evalTypeOf(last, n.Left)
 				rt := evalTypeOf(last, n.Right)
 				// Special (recursive) case if shift and right isn't uint.
+				isShift := n.Op == SHL || n.Op == SHR
 				if isShift && baseOf(rt) != UintType {
 					// convert n.Right to (gno) uint type,
 					rn := Expr(Call("uint", n.Right))
@@ -474,9 +483,12 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 				rcx, ric := n.Right.(*constExpr)
 				if lic {
 					if ric {
+						// Left const, Right const ----------------------
+						// Replace with *constExpr if const operands.
 						cv := evalConst(last, n)
 						return cv, TRANS_CONTINUE
 					} else if isUntyped(lcx.T) {
+						// Left untyped const, Right not ----------------
 						if rnt, ok := rt.(*nativeType); ok {
 							if isShift {
 								panic("should not happen")
@@ -511,9 +523,13 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 								convertIfConst(last, n.Left, rt)
 							}
 						}
+					} else if lcx.T == nil {
+						// convert n.Left to typed-nil type.
+						convertIfConst(last, n.Left, rt)
 					}
-				} else {
-					if ric && isUntyped(rcx.T) {
+				} else if ric {
+					if isUntyped(rcx.T) {
+						// Left not, Right untyped const ----------------
 						if isShift {
 							if baseOf(rt) != UintType {
 								// convert n.Right to (gno) uint type.
@@ -522,7 +538,6 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 								// leave n.Left as is and baseOf(n.Right) as UintType.
 							}
 						} else {
-							lt := evalTypeOf(last, n.Left)
 							if lnt, ok := lt.(*nativeType); ok {
 								// get concrete native base type.
 								pt := go2GnoBaseType(lnt.Type).(PrimitiveType)
@@ -551,54 +566,57 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 								convertIfConst(last, n.Right, lt)
 							}
 						}
-					} else {
-						lt := evalTypeOf(last, n.Left)
-						if debug {
-							if !isShift {
-								assertTypes(lt, rt)
-							}
+					} else if rcx.T == nil {
+						// convert n.Right to typed-nil type.
+						convertIfConst(last, n.Right, lt)
+					}
+				} else {
+					// Left not const, Right not const ------------------
+					if debug {
+						if !isShift {
+							assertTypes(lt, rt)
 						}
-						if n.Op == EQL || n.Op == NEQ {
-							// If == or !=, no conversions.
-						} else if lnt, ok := lt.(*nativeType); ok {
-							// If left and right are native type,
-							// convert left and right to gno, then
-							// convert result back to native.
-							//
-							// get concrete native base type.
-							pt := go2GnoBaseType(lnt.Type).(PrimitiveType)
-							// convert n.Left to (gno) pt type,
-							ln := Expr(Call(pt.String(), n.Left))
-							// convert n.Right to pt or uint type,
-							rn := n.Right
-							if isShift {
-								if baseOf(rt) != UintType {
-									rn = Expr(Call("uint", n.Right))
-								}
-							} else {
-								rn = Expr(Call(pt.String(), n.Right))
+					}
+					if n.Op == EQL || n.Op == NEQ {
+						// If == or !=, no conversions.
+					} else if lnt, ok := lt.(*nativeType); ok {
+						// If left and right are native type,
+						// convert left and right to gno, then
+						// convert result back to native.
+						//
+						// get concrete native base type.
+						pt := go2GnoBaseType(lnt.Type).(PrimitiveType)
+						// convert n.Left to (gno) pt type,
+						ln := Expr(Call(pt.String(), n.Left))
+						// convert n.Right to pt or uint type,
+						rn := n.Right
+						if isShift {
+							if baseOf(rt) != UintType {
+								rn = Expr(Call("uint", n.Right))
 							}
-							// and convert result back.
-							tx := &constTypeExpr{
-								Source: n,
-								Type:   lnt,
-							}
-							// reset/create n2 to preprocess
-							// children.
-							n2 := &BinaryExpr{
-								Left:  ln,
-								Op:    n.Op,
-								Right: rn,
-							}
-							resn := Node(Call(tx, n2))
-							resn = Preprocess(imp, last, resn)
-							return resn, TRANS_CONTINUE
-							// NOTE: binary operations are always
-							// computed in gno, never with
-							// reflect.
 						} else {
-							// nothing to do.
+							rn = Expr(Call(pt.String(), n.Right))
 						}
+						// and convert result back.
+						tx := &constTypeExpr{
+							Source: n,
+							Type:   lnt,
+						}
+						// reset/create n2 to preprocess
+						// children.
+						n2 := &BinaryExpr{
+							Left:  ln,
+							Op:    n.Op,
+							Right: rn,
+						}
+						resn := Node(Call(tx, n2))
+						resn = Preprocess(imp, last, resn)
+						return resn, TRANS_CONTINUE
+						// NOTE: binary operations are always
+						// computed in gno, never with
+						// reflect.
+					} else {
+						// nothing to do.
 					}
 				}
 
@@ -1007,9 +1025,9 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 							}
 							for i, lx := range n.Lhs {
 								ln := lx.(*NameExpr).Name
-								rt := ft.Results[i]
+								rf := ft.Results[i]
 								// re-definition
-								last.Define(ln, anyValue(rt))
+								last.Define(ln, anyValue(rf.Type))
 							}
 						case *TypeAssertExpr:
 							// Type-assert case : a, ok := x.(type)
@@ -1917,5 +1935,22 @@ func elideCompositeExpr(vx *Expr, vt Type) {
 				}
 			}
 		}
+	}
+}
+
+// returns true of x is exactly `nil`.
+func isNilExpr(x Expr) bool {
+	if nx, ok := x.(*NameExpr); ok {
+		return nx.Name == "nil"
+	}
+	return false
+}
+
+func isNilComparableKind(k Kind) bool {
+	switch k {
+	case SliceKind, MapKind, FuncKind:
+		return true
+	default:
+		return false
 	}
 }
