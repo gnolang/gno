@@ -5,7 +5,14 @@ import (
 	"reflect"
 )
 
-// NOTE: gonative, *nativeType, and *nativeValue are experimental and subject to change.
+// NOTE
+//
+// GoNative, *nativeType, and *nativeValue are experimental and subject to
+// change.
+//
+// Go 1.15 reflect has a bug in creating new types with methods -- namely, it
+// cannot, and so you cannot create types through reflection that obey any
+// interface but the empty interface.
 
 //----------------------------------------
 // Go to Gno conversion
@@ -602,9 +609,9 @@ func gno2GoType(t Type) reflect.Type {
 	}
 }
 
-// rv must be addressable or nil, in case tv is referred to from a
-// gno.PointerValue.  If rv is nil, an addressable one will be
-// constructed and returned, otherwise returns rv.
+// rv must be addressable, or zero (invalid) if tv is referred to from a
+// gno.PointerValue.  If rv is zero, an addressable one will be constructed and
+// returned, otherwise returns rv.
 func gno2GoValue(tv *TypedValue, rv reflect.Value) reflect.Value {
 	if tv.IsNilInterface() {
 		rt := gno2GoType(tv.T)
@@ -875,13 +882,28 @@ func (m *Machine) doOpStructLitGoNative() {
 func (m *Machine) doOpCallGoNative() {
 	fr := m.LastFrame()
 	fv := fr.GoFunc
+	ft := fv.Value.Type()
+	hasVarg := ft.IsVariadic()
+	numParams := ft.NumIn()
+	isVarg := fr.IsVarg
 	// pop and convert params.
 	ptvs := m.PopValues(fr.NumArgs)
 	prvs := make([]reflect.Value, len(ptvs))
 	for i := 0; i < fr.NumArgs; i++ {
-		// TODO consider when declared types can be
-		// converted, e.g. fmt.Println. See GoValue.
-		prvs[i] = gno2GoValue(&ptvs[i], reflect.Value{})
+		ptv := &ptvs[i]
+		if ptv.IsUndefined() {
+			var it reflect.Type
+			if hasVarg && numParams-1 <= i && !isVarg {
+				it = ft.In(numParams - 1)
+				it = it.Elem()
+			} else {
+				it = ft.In(i)
+			}
+			erv := reflect.New(it).Elem()
+			prvs[i] = gno2GoValue(ptv, erv)
+		} else {
+			prvs[i] = gno2GoValue(ptv, reflect.Value{})
+		}
 	}
 	// call and get results.
 	rrvs := fv.Value.Call(prvs)
@@ -900,14 +922,6 @@ func (m *Machine) doOpCallGoNative() {
 	m.NumResults = fv.Value.Type().NumOut()
 	m.PopFrame()
 }
-
-//----------------------------------------
-// GoValue
-//
-// Go 1.15 reflect has a bug in creating new types with methods -- namely, it
-// cannot, and so you cannot create types through reflection that obey any
-// interface but the empty interface.
-// TODO
 
 //----------------------------------------
 // misc
