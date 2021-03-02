@@ -42,6 +42,7 @@ func testImporter(out io.Writer) gno.Importer {
 				return out.Write([]byte(res))
 			})
 			pkg.DefineGoNativeFunc("Sprintf", fmt.Sprintf)
+			pkg.DefineGoNativeFunc("Errorf", fmt.Errorf)
 			return pkg.NewPackage(nil)
 		case "encoding/binary":
 			pkg := gno.NewPackageNode("binary", "encoding/binary", nil)
