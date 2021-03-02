@@ -680,8 +680,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 								if len(ft.Params) <= i {
 									panic("expected final vargs slice but got many")
 								}
-								convertIfConst(last, arg,
-									ft.Params[i].Type)
+								convertIfConst(last, arg, ft.Params[i].Type)
 							} else {
 								convertIfConst(last, arg,
 									ft.Params[len(ft.Params)-1].Type.Elem())
