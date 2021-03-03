@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// 4:2: not enough arguments to return
+// 4:2: expected 1 return values; got 0

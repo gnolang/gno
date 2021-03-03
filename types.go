@@ -209,7 +209,12 @@ func (pt PrimitiveType) String() string {
 }
 
 func (pt PrimitiveType) Elem() Type {
-	panic("primitive types have no elements")
+	if pt.Kind() == StringKind {
+		// NOTE: this is different than Go1.
+		return Uint8Type
+	} else {
+		panic("non-string primitive types have no elements")
+	}
 }
 
 //----------------------------------------

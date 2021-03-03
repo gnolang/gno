@@ -197,9 +197,9 @@ func (m *Machine) doOpTypeOf() {
 		m.PushOp(OpTypeOf)
 		m.Run() // XXX replace
 		t := m.ReapValues(start)[0].GetType()
-		switch ct := t.(type) {
+		switch bft := baseOf(t).(type) {
 		case *FuncType:
-			rs := ct.Results
+			rs := bft.Results
 			if len(rs) != 1 {
 				panic(fmt.Sprintf(
 					"cannot get type of function call with %d results",
@@ -215,13 +215,13 @@ func (m *Machine) doOpTypeOf() {
 			t := m.ReapValues(start)[0].GetType()
 			m.PushValue(asValue(t))
 		case *nativeType:
-			numRes := ct.Type.NumOut()
+			numRes := bft.Type.NumOut()
 			if numRes != 1 {
 				panic(fmt.Sprintf(
 					"cannot get type of (native) function call with %d results",
 					numRes))
 			}
-			res0 := ct.Type.Out(0)
+			res0 := bft.Type.Out(0)
 			m.PushValue(asValue(&nativeType{Type: res0}))
 		default:
 			panic(fmt.Sprintf(
@@ -367,7 +367,7 @@ func (m *Machine) doOpTypeOf() {
 		m.Run() // XXX replace
 		xt := m.ReapValues(start)[0].V.(TypeValue).Type
 		m.PushValue(asValue(&SliceType{
-			Elt: xt,
+			Elt: xt.Elem(),
 		}))
 	case *StarExpr:
 		start := m.NumValues
@@ -386,7 +386,12 @@ func (m *Machine) doOpTypeOf() {
 		xt := m.ReapValues(start)[0].GetType()
 		m.PushValue(asValue(PointerType{Elt: xt}))
 	case *TypeAssertExpr:
-		panic("type assert expressions return 2 values, thus have no type")
+		if x.HasOK {
+			panic("type assert assignment used with return 2 values; has no type")
+		} else {
+			m.PushExpr(x.Type)
+			m.PushOp(OpEval)
+		}
 	case *UnaryExpr:
 		m.PushExpr(x.X)
 		m.PushOp(OpTypeOf)

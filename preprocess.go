@@ -630,7 +630,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 						if debug {
 							if st.Kind() != SliceKind {
 								panic(fmt.Sprintf(
-									"cannot append to non-slice kind %s",
+									"cannot append to non-slice %s",
 									st.Kind()))
 							}
 						}
@@ -670,9 +670,28 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 						"unexpected func type %v (%v)",
 						ift, reflect.TypeOf(ift)))
 				}
-				// Replace const Args with *constExpr.
 				hasVarg := ft.HasVarg()
 				isVargX := n.Varg
+				// Check input arg count.
+				if !hasVarg {
+					if len(n.Args) != len(ft.Params) {
+						panic(fmt.Sprintf(
+							"wrong argument count in call to %s; want %d got %d",
+							n.Func.String(),
+							len(ft.Params),
+							len(n.Args),
+						))
+					}
+				} else if hasVarg && !isVargX {
+					if len(n.Args) < len(ft.Params)-1 {
+						panic(fmt.Sprintf(
+							"not enough arguments in call to %s; want %d (besides variadic) got %d",
+							n.Func.String(),
+							len(ft.Params)-1,
+							len(n.Args)))
+					}
+				}
+				// Replace const Args with *constExpr.
 				for i, arg := range n.Args {
 					if hasVarg {
 						if (len(ft.Params) - 1) <= i {
@@ -1107,11 +1126,47 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *ReturnStmt:
 				fnode, ft := funcNodeOf(last)
-				// Results consts become default *constExprs.
-				for i, rx := range n.Results {
-					rtx := ft.Results[i].Type
-					rt := evalType(fnode.GetParent(), rtx)
-					convertIfConst(last, rx, rt)
+				// Check number of return arguments.
+				if len(n.Results) != len(ft.Results) {
+					if len(n.Results) == 0 {
+						if ft.Results.IsNamed() {
+							// ok, results already named.
+						} else {
+							panic(fmt.Sprintf("expected %d return values; got %d",
+								len(ft.Results),
+								len(n.Results),
+							))
+						}
+					} else if len(n.Results) == 1 {
+						if cx, ok := n.Results[0].(*CallExpr); ok {
+							rft := evalTypeOf(last, cx.Func).(*FuncType)
+							if len(rft.Results) != len(ft.Results) {
+								panic(fmt.Sprintf("expected %d return values; got %d",
+									len(ft.Results),
+									len(rft.Results),
+								))
+							} else {
+								// nothing more to do.
+							}
+						} else {
+							panic(fmt.Sprintf("expected %d return values; got %d",
+								len(ft.Results),
+								len(n.Results),
+							))
+						}
+					} else {
+						panic(fmt.Sprintf("expected %d return values; got %d",
+							len(ft.Results),
+							len(n.Results),
+						))
+					}
+				} else {
+					// Results consts become default *constExprs.
+					for i, rx := range n.Results {
+						rtx := ft.Results[i].Type
+						rt := evalType(fnode.GetParent(), rtx)
+						convertIfConst(last, rx, rt)
+					}
 				}
 
 			// TRANS_LEAVE -----------------------
@@ -1378,6 +1433,13 @@ func isConst(x Expr) bool {
 func convertIfConst(last BlockNode, x Expr, t Type) {
 	if cx, ok := x.(*constExpr); ok {
 		convertConst(last, cx, t)
+	} else if x != nil && t != nil {
+		// check type.
+		xt := evalTypeOf(last, x)
+		if xt.String() != t.String() {
+			fmt.Println("XXX", xt, t)
+		}
+		// XXX actually check type.
 	}
 }
 
