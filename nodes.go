@@ -485,6 +485,22 @@ type FieldTypeExpr struct {
 
 type FieldTypeExprs []FieldTypeExpr
 
+func (ftxz FieldTypeExprs) IsNamed() bool {
+	named := false
+	for i, ftx := range ftxz {
+		if i == 0 {
+			named = ftx.Name != ""
+		} else {
+			if named && ftx.Name == "" {
+				panic("[]FieldTypeExpr has inconsistent namedness (starts named)")
+			} else if !named && ftx.Name != "" {
+				panic("[]FieldTypeExpr has inconsistent namedness (starts unnamed)")
+			}
+		}
+	}
+	return named
+}
+
 type ArrayTypeExpr struct {
 	Attributes
 	Len Expr // if nil, variadic array lit

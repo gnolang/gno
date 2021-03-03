@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// cannot use "foo" (type stringT) as type intT in return argument
+// cannot convert StringKind to IntKind

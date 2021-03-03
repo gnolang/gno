@@ -129,7 +129,7 @@ GNO_CASE:
 			tv.V = StringValue(string(rune(tv.GetInt())))
 		default:
 			panic(fmt.Sprintf(
-				"cannot convert %s kind to %s kind",
+				"cannot convert %s to %s",
 				tvk.String(), k.String()))
 		}
 	case Int8Kind:
@@ -180,7 +180,7 @@ GNO_CASE:
 			tv.V = StringValue(string(rune(tv.GetInt8())))
 		default:
 			panic(fmt.Sprintf(
-				"cannot convert %s kind to %s kind",
+				"cannot convert %s to %s",
 				tvk.String(), k.String()))
 		}
 	case Int16Kind:
@@ -231,7 +231,7 @@ GNO_CASE:
 			tv.V = StringValue(string(rune(tv.GetInt16())))
 		default:
 			panic(fmt.Sprintf(
-				"cannot convert %s kind to %s kind",
+				"cannot convert %s to %s",
 				tvk.String(), k.String()))
 		}
 	case Int32Kind:
@@ -282,7 +282,7 @@ GNO_CASE:
 			tv.V = StringValue(string(rune(tv.GetInt32())))
 		default:
 			panic(fmt.Sprintf(
-				"cannot convert %s kind to %s kind",
+				"cannot convert %s to %s",
 				tvk.String(), k.String()))
 		}
 	case Int64Kind:
@@ -333,7 +333,7 @@ GNO_CASE:
 			tv.V = StringValue(string(rune(tv.GetInt64())))
 		default:
 			panic(fmt.Sprintf(
-				"cannot convert %s kind to %s kind",
+				"cannot convert %s to %s",
 				tvk.String(), k.String()))
 		}
 	case UintKind:
@@ -384,7 +384,7 @@ GNO_CASE:
 			tv.V = StringValue(string(rune(tv.GetUint())))
 		default:
 			panic(fmt.Sprintf(
-				"cannot convert %s kind to %s kind",
+				"cannot convert %s to %s",
 				tvk.String(), k.String()))
 		}
 	case Uint8Kind:
@@ -435,7 +435,7 @@ GNO_CASE:
 			tv.V = StringValue(string(rune(tv.GetUint8())))
 		default:
 			panic(fmt.Sprintf(
-				"cannot convert %s kind to %s kind",
+				"cannot convert %s to %s",
 				tvk.String(), k.String()))
 		}
 	case Uint16Kind:
@@ -486,7 +486,7 @@ GNO_CASE:
 			tv.V = StringValue(string(rune(tv.GetUint16())))
 		default:
 			panic(fmt.Sprintf(
-				"cannot convert %s kind to %s kind",
+				"cannot convert %s to %s",
 				tvk.String(), k.String()))
 		}
 	case Uint32Kind:
@@ -537,7 +537,7 @@ GNO_CASE:
 			tv.V = StringValue(string(rune(tv.GetUint32())))
 		default:
 			panic(fmt.Sprintf(
-				"cannot convert %s kind to %s kind",
+				"cannot convert %s to %s",
 				tvk.String(), k.String()))
 		}
 	case Uint64Kind:
@@ -588,7 +588,7 @@ GNO_CASE:
 			tv.V = StringValue(string(rune(tv.GetUint64())))
 		default:
 			panic(fmt.Sprintf(
-				"cannot convert %s kind to %s kind",
+				"cannot convert %s to %s",
 				tvk.String(), k.String()))
 		}
 	case StringKind:
@@ -603,7 +603,7 @@ GNO_CASE:
 				panic("not yet implemented")
 			default:
 				panic(fmt.Sprintf(
-					"cannot convert %s kind to %s",
+					"cannot convert %s to %s",
 					tvk.String(), t.String()))
 			}
 		case *nativeType:
@@ -626,12 +626,12 @@ GNO_CASE:
 				tv.T = StringType
 			default:
 				panic(fmt.Sprintf(
-					"cannot convert %s kind to %s",
+					"cannot convert %s to %s",
 					tvk.String(), t.String()))
 			}
 		default:
 			panic(fmt.Sprintf(
-				"cannot convert %s kind to %s kind",
+				"cannot convert %s to %s",
 				tvk.String(), k.String()))
 		}
 	case SliceKind:
@@ -669,12 +669,12 @@ GNO_CASE:
 			}
 		} else {
 			panic(fmt.Sprintf(
-				"cannot convert %s to %s kind ",
+				"cannot convert %s to %s",
 				tv.T.String(), k.String()))
 		}
 	default:
 		panic(fmt.Sprintf(
-			"cannot convert %s kind to any other kind",
+			"cannot convert %s to any other kind",
 			tvk.String()))
 	}
 }
@@ -682,8 +682,8 @@ GNO_CASE:
 // TODO: move untyped const stuff to preprocess.go
 // Convert the untyped const tv to the t type.
 // If t is nil, the default type is used.
+// Panics if conversion is illegal.
 // TODO: method on TypedValue?
-// TODO: ensure conversion is legal.
 func ConvertUntypedTo(tv *TypedValue, t Type) {
 	if debug {
 		if !isUntyped(tv.T) {
@@ -708,7 +708,7 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 		}
 		if debug {
 			if t.Kind() != BoolKind {
-				panic("bool can only be converted to bool kind type")
+				panic("untyped bool can only be converted to bool kind")
 			}
 		}
 		tv.T = t
@@ -716,15 +716,18 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 		if t == nil {
 			t = Int32Type
 		}
-		ConvertRuneTo(tv, t)
+		ConvertUntypedRuneTo(tv, t)
 	case UntypedBigintType:
 		if t == nil {
 			t = IntType
 		}
-		ConvertBigintTo(tv, tv.V.(BigintValue), t)
+		ConvertUntypedBigintTo(tv, tv.V.(BigintValue), t)
 	case UntypedStringType:
 		if t == nil {
-			tv.T = StringType
+			t = StringType
+		}
+		if t.Kind() == StringKind {
+			tv.T = t
 			return
 		} else {
 			ConvertTo(tv, t)
@@ -737,7 +740,7 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 }
 
 // All fields may be modified to complete the conversion.
-func ConvertRuneTo(dst *TypedValue, t Type) {
+func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 	sv := dst.GetInt32()
 	k := t.Kind()
 	switch k {
@@ -813,13 +816,13 @@ func ConvertRuneTo(dst *TypedValue, t Type) {
 	case StringKind:
 		panic("not yet implemented")
 	default:
-		panic(fmt.Sprintf("unexpected target kind %v", k))
+		panic(fmt.Sprintf("unexpected target %v", k))
 
 	}
 }
 
 // All fields may be modified to complete the conversion.
-func ConvertBigintTo(dst *TypedValue, bv BigintValue, t Type) {
+func ConvertUntypedBigintTo(dst *TypedValue, bv BigintValue, t Type) {
 	k := t.Kind()
 	bi := bv.V
 	var sv int64 = 0  // if signed.
@@ -939,7 +942,7 @@ func ConvertBigintTo(dst *TypedValue, bv BigintValue, t Type) {
 	case StringKind:
 		panic("not yet implemented")
 	default:
-		panic(fmt.Sprintf("unexpected target kind %v", k))
+		panic(fmt.Sprintf("cannot convert untyped bigint to %v", k))
 
 	}
 }

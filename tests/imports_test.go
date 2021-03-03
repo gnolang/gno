@@ -78,6 +78,7 @@ func testImporter(out io.Writer) gno.Importer {
 			return pkg.NewPackage(nil)
 		case "time":
 			pkg := gno.NewPackageNode("time", "time", nil)
+			pkg.DefineGoNativeValue("Date", time.Date)
 			pkg.DefineGoNativeValue("Second", time.Second)
 			pkg.DefineGoNativeValue("Minute", time.Minute)
 			pkg.DefineGoNativeValue("Hour", time.Hour)

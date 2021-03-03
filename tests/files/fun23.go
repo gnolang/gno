@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// 3:17: too many arguments to return
+// 3:17: expected 0 return values; got 1
