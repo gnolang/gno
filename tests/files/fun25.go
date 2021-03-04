@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// cannot use x (type stringT) as type intT in return argument
+// string used as int
