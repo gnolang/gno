@@ -8,6 +8,7 @@ import (
 	"crypto/sha1"
 	"encoding/binary"
 	"encoding/xml"
+	"flag"
 	"fmt"
 	"image"
 	"image/color"
@@ -134,6 +135,7 @@ func testImporter(out io.Writer) gno.Importer {
 		case "sync":
 			pkg := gno.NewPackageNode("sync", "sync", nil)
 			pkg.DefineGoNativeType(reflect.TypeOf(sync.RWMutex{}))
+			pkg.DefineGoNativeType(reflect.TypeOf(sync.Pool{}))
 			return pkg.NewPackage(nil)
 		case "math/big":
 			pkg := gno.NewPackageNode("big", "big", nil)
@@ -142,6 +144,10 @@ func testImporter(out io.Writer) gno.Importer {
 		case "sort":
 			pkg := gno.NewPackageNode("sort", "sort", nil)
 			pkg.DefineGoNativeValue("Strings", sort.Strings)
+			return pkg.NewPackage(nil)
+		case "flag":
+			pkg := gno.NewPackageNode("flag", "flag", nil)
+			pkg.DefineGoNativeType(reflect.TypeOf(flag.Flag{}))
 			return pkg.NewPackage(nil)
 		default:
 			panic("unknown package path " + pkgPath)
