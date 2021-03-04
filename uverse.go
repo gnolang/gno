@@ -103,11 +103,11 @@ func UverseNode() *PackageNode {
 	// Functions
 	defNative("append",
 		Flds( // params
-			"x", InterfaceT(nil), // args[0]
-			"args", Vrd(InterfaceT(nil)), // args[1]
+			"x", AnyT(nil), // args[0]
+			"args", Vrd(AnyT(nil)), // args[1]
 		),
 		Flds( // results
-			"res", InterfaceT(nil), // res
+			"res", AnyT(nil), // res
 		),
 		func(m *Machine) {
 			arg0, arg1 := m.LastBlock().GetParams2()
@@ -364,7 +364,7 @@ func UverseNode() *PackageNode {
 	)
 	defNative("cap",
 		Flds( // params
-			"x", InterfaceT(nil),
+			"x", AnyT(nil),
 		),
 		Flds( // results
 			"", "int",
@@ -383,8 +383,8 @@ func UverseNode() *PackageNode {
 	def("complex", undefined)
 	defNative("copy",
 		Flds( // params
-			"dst", InterfaceT(nil),
-			"src", InterfaceT(nil),
+			"dst", AnyT(nil),
+			"src", AnyT(nil),
 		),
 		Flds( // results
 			"", "int",
@@ -437,8 +437,8 @@ func UverseNode() *PackageNode {
 	)
 	defNative("delete",
 		Flds( // params
-			"m", InterfaceT(nil), // map type
-			"k", InterfaceT(nil), // map key
+			"m", AnyT(nil), // map type
+			"k", AnyT(nil), // map key
 		),
 		nil, // results
 		func(m *Machine) {
@@ -461,7 +461,7 @@ func UverseNode() *PackageNode {
 	)
 	defNative("len",
 		Flds( // params
-			"x", InterfaceT(nil),
+			"x", AnyT(nil),
 		),
 		Flds( // results
 			"", "int",
@@ -478,11 +478,11 @@ func UverseNode() *PackageNode {
 	)
 	defNative("make",
 		Flds( // params
-			"x", InterfaceT(nil),
+			"x", AnyT(nil),
 			"z", Vrd("int"),
 		),
 		Flds( // results
-			"", InterfaceT(nil),
+			"", AnyT(nil),
 		),
 		func(m *Machine) {
 			arg0, arg1 := m.LastBlock().GetParams2()
@@ -577,7 +577,7 @@ func UverseNode() *PackageNode {
 	def("new", undefined)
 	defNative("panic",
 		Flds( // params
-			"err", InterfaceT(nil), // args[0]
+			"err", AnyT(nil), // args[0]
 		),
 		nil, // results
 		func(m *Machine) {
@@ -588,7 +588,7 @@ func UverseNode() *PackageNode {
 	)
 	defNative("print",
 		Flds( // params
-			"xs", Vrd(InterfaceT(nil)), // args[0]
+			"xs", Vrd(AnyT(nil)), // args[0]
 		),
 		nil, // results
 		func(m *Machine) {
@@ -606,7 +606,7 @@ func UverseNode() *PackageNode {
 	)
 	defNative("println",
 		Flds( // param
-			"xs", Vrd(InterfaceT(nil)),
+			"xs", Vrd(AnyT(nil)),
 		),
 		nil, // results
 		func(m *Machine) {

@@ -342,7 +342,7 @@ func (l FieldTypeList) StringWithCommas() string {
 	ll := len(l)
 	s := ""
 	for i, ft := range l {
-		s += string(ft.Name) + "#" + ft.Type.TypeID().String()
+		s += string(ft.Name) + "#" + ft.Type.String()
 		if i != ll-1 {
 			s += ","
 		}
@@ -605,13 +605,18 @@ func (pt *PackageType) Elem() Type {
 // Interface type
 
 type InterfaceType struct {
-	PkgPath string
-	Methods []FieldType
+	PkgPath   string
+	Methods   []FieldType
+	IsUntyped bool // for uverse "generics"
 
 	typeid TypeID
 }
 
+// General empty interface.
 var gEmptyInterfaceType *InterfaceType = &InterfaceType{}
+
+// Special untyped type for uverse functions.
+var gAnyInterfaceType *InterfaceType = &InterfaceType{IsUntyped: true}
 
 func (it *InterfaceType) IsEmptyInterface() bool {
 	return len(it.Methods) == 0
@@ -622,6 +627,11 @@ func (it *InterfaceType) Kind() Kind {
 }
 
 func (it *InterfaceType) TypeID() TypeID {
+	if debug {
+		if it.IsUntyped {
+			panic("untyped interface type has no TypeID")
+		}
+	}
 	if it.typeid.IsZero() {
 		// NOTE Interface types expressed or declared in different
 		// packages may have the same TypeID if and only if neither
@@ -636,8 +646,13 @@ func (it *InterfaceType) TypeID() TypeID {
 }
 
 func (it *InterfaceType) String() string {
-	return fmt.Sprintf("interface{%s}",
-		FieldTypeList(it.Methods).String())
+	if it.IsUntyped {
+		return fmt.Sprintf("any{%s}",
+			FieldTypeList(it.Methods).String())
+	} else {
+		return fmt.Sprintf("interface{%s}",
+			FieldTypeList(it.Methods).String())
+	}
 }
 
 func (it *InterfaceType) Elem() Type {

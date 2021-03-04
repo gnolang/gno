@@ -496,7 +496,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 							// get concrete native base type.
 							pt := go2GnoBaseType(rnt.Type).(PrimitiveType)
 							// convert n.Left to pt type,
-							convertIfConst(last, n.Left, pt)
+							checkOrConvertType(last, n.Left, pt)
 							// convert n.Right to (gno) pt type,
 							rn := Expr(Call(pt.String(), n.Right))
 							// and convert result back.
@@ -520,12 +520,12 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 								// nothing to do, right type is (already) uint type.
 							} else {
 								// convert n.Left to right type.
-								convertIfConst(last, n.Left, rt)
+								checkOrConvertType(last, n.Left, rt)
 							}
 						}
 					} else if lcx.T == nil {
 						// convert n.Left to typed-nil type.
-						convertIfConst(last, n.Left, rt)
+						checkOrConvertType(last, n.Left, rt)
 					}
 				} else if ric {
 					if isUntyped(rcx.T) {
@@ -533,7 +533,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 						if isShift {
 							if baseOf(rt) != UintType {
 								// convert n.Right to (gno) uint type.
-								convertIfConst(last, n.Right, UintType)
+								checkOrConvertType(last, n.Right, UintType)
 							} else {
 								// leave n.Left as is and baseOf(n.Right) as UintType.
 							}
@@ -544,7 +544,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 								// convert n.Left to (gno) pt type,
 								ln := Expr(Call(pt.String(), n.Left))
 								// convert n.Right to pt type,
-								convertIfConst(last, n.Right, pt)
+								checkOrConvertType(last, n.Right, pt)
 								// and convert result back.
 								tx := &constTypeExpr{
 									Source: n,
@@ -563,12 +563,12 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 								// gno, never with reflect.
 							} else {
 								// convert n.Right to left type.
-								convertIfConst(last, n.Right, lt)
+								checkOrConvertType(last, n.Right, lt)
 							}
 						}
 					} else if rcx.T == nil {
 						// convert n.Right to typed-nil type.
-						convertIfConst(last, n.Right, lt)
+						checkOrConvertType(last, n.Right, lt)
 					}
 				} else {
 					// Left not const, Right not const ------------------
@@ -639,9 +639,9 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 						for i := 1; i < len(n.Args); i++ {
 							arg := n.Args[i]
 							if n.Varg && i == len(n.Args)-1 {
-								convertIfConst(last, arg, nil)
+								checkOrConvertType(last, arg, nil)
 							} else {
-								convertIfConst(last, arg, set)
+								checkOrConvertType(last, arg, set)
 							}
 						}
 						break // done with "append" special case.
@@ -660,7 +660,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 						panic("type conversion requires single argument")
 					}
 					if _, ok := n.Args[0].(*constExpr); ok {
-						convertIfConst(last, n.Args[0], nil)
+						checkOrConvertType(last, n.Args[0], nil)
 						cv := evalConst(last, n)
 						return cv, TRANS_CONTINUE
 					}
@@ -699,16 +699,16 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 								if len(ft.Params) <= i {
 									panic("expected final vargs slice but got many")
 								}
-								convertIfConst(last, arg, ft.Params[i].Type)
+								checkOrConvertType(last, arg, ft.Params[i].Type)
 							} else {
-								convertIfConst(last, arg,
+								checkOrConvertType(last, arg,
 									ft.Params[len(ft.Params)-1].Type.Elem())
 							}
 						} else {
-							convertIfConst(last, arg, ft.Params[i].Type)
+							checkOrConvertType(last, arg, ft.Params[i].Type)
 						}
 					} else {
-						convertIfConst(last, arg, ft.Params[i].Type)
+						checkOrConvertType(last, arg, ft.Params[i].Type)
 					}
 				}
 				// TODO in the future, pure results
@@ -718,14 +718,14 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 				xt := evalTypeOf(last, n.X)
 				switch xt.Kind() {
 				case StringKind:
-					convertIfConst(last, n.Index, IntType)
+					checkOrConvertType(last, n.Index, nil)
 				case ArrayKind:
-					convertIfConst(last, n.Index, IntType)
+					checkOrConvertType(last, n.Index, nil)
 				case SliceKind:
-					convertIfConst(last, n.Index, IntType)
+					checkOrConvertType(last, n.Index, nil)
 				case MapKind:
 					mt := baseOf(gnoTypeOf(xt)).(*MapType)
-					convertIfConst(last, n.Index, mt.Key)
+					checkOrConvertType(last, n.Index, mt.Key)
 				default:
 					panic(fmt.Sprintf(
 						"unexpected index base kind for type %s",
@@ -736,9 +736,9 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *SliceExpr:
 				// Replace const L/H/M with int *constExpr.
-				convertIfConst(last, n.Low, IntType)
-				convertIfConst(last, n.High, IntType)
-				convertIfConst(last, n.Max, IntType)
+				checkOrConvertType(last, n.Low, IntType)
+				checkOrConvertType(last, n.High, IntType)
+				checkOrConvertType(last, n.Max, IntType)
 
 			// TRANS_LEAVE -----------------------
 			case *TypeAssertExpr:
@@ -800,29 +800,29 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 							key := n.Elts[i].Key.(*NameExpr).Name
 							path := cclt.GetPathForName(key)
 							ft := cclt.GetStaticTypeOfAt(path)
-							convertIfConst(last, n.Elts[i].Value, ft)
+							checkOrConvertType(last, n.Elts[i].Value, ft)
 						}
 					} else {
 						for i := 0; i < len(n.Elts); i++ {
 							flat := cclt.Mapping[i]
 							ft := cclt.Fields[flat].Type
-							convertIfConst(last, n.Elts[i].Value, ft)
+							checkOrConvertType(last, n.Elts[i].Value, ft)
 						}
 					}
 				case *ArrayType:
 					for i := 0; i < len(n.Elts); i++ {
-						convertIfConst(last, n.Elts[i].Key, IntType)
-						convertIfConst(last, n.Elts[i].Value, cclt.Elt)
+						checkOrConvertType(last, n.Elts[i].Key, IntType)
+						checkOrConvertType(last, n.Elts[i].Value, cclt.Elt)
 					}
 				case *SliceType:
 					for i := 0; i < len(n.Elts); i++ {
-						convertIfConst(last, n.Elts[i].Key, IntType)
-						convertIfConst(last, n.Elts[i].Value, cclt.Elt)
+						checkOrConvertType(last, n.Elts[i].Key, IntType)
+						checkOrConvertType(last, n.Elts[i].Value, cclt.Elt)
 					}
 				case *MapType:
 					for i := 0; i < len(n.Elts); i++ {
-						convertIfConst(last, n.Elts[i].Key, cclt.Key)
-						convertIfConst(last, n.Elts[i].Value, cclt.Value)
+						checkOrConvertType(last, n.Elts[i].Key, cclt.Key)
+						checkOrConvertType(last, n.Elts[i].Value, cclt.Value)
 					}
 				case *nativeType:
 					clt = cclt.GnoType()
@@ -970,7 +970,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *FieldTypeExpr:
 				// Replace const Tag with default *constExpr.
-				convertIfConst(last, n.Tag, nil)
+				checkOrConvertType(last, n.Tag, nil)
 
 			// TRANS_LEAVE -----------------------
 			case *ArrayTypeExpr:
@@ -1022,7 +1022,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 					// Rhs consts become default *constExprs.
 					for _, rx := range n.Rhs {
 						// NOTE: does nothing if rx is "nil".
-						convertIfConst(last, rx, nil)
+						checkOrConvertType(last, rx, nil)
 					}
 					if len(n.Lhs) > len(n.Rhs) {
 						// Unpack n.Rhs[0] to n.Lhs[:]
@@ -1104,7 +1104,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 							lt := evalTypeOf(last, lx)
 							rx := n.Rhs[i]
 							// converts if rx is "nil".
-							convertIfConst(last, rx, lt)
+							checkOrConvertType(last, rx, lt)
 						}
 					}
 				}
@@ -1112,12 +1112,12 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *ForStmt:
 				// Cond consts become bool *constExprs.
-				convertIfConst(last, n.Cond, BoolType)
+				checkOrConvertType(last, n.Cond, BoolType)
 
 			// TRANS_LEAVE -----------------------
 			case *IfStmt:
 				// Cond consts become bool *constExprs.
-				convertIfConst(last, n.Cond, BoolType)
+				checkOrConvertType(last, n.Cond, BoolType)
 
 			// TRANS_LEAVE -----------------------
 			case *RangeStmt:
@@ -1165,14 +1165,14 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 					for i, rx := range n.Results {
 						rtx := ft.Results[i].Type
 						rt := evalType(fnode.GetParent(), rtx)
-						convertIfConst(last, rx, rt)
+						checkOrConvertType(last, rx, rt)
 					}
 				}
 
 			// TRANS_LEAVE -----------------------
 			case *SendStmt:
 				// Value consts become default *constExprs.
-				convertIfConst(last, n.Value, nil)
+				checkOrConvertType(last, n.Value, nil)
 
 			// TRANS_LEAVE -----------------------
 			case *SelectCaseStmt:
@@ -1201,12 +1201,12 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 				if n.Type != nil {
 					// convert if const to type t.
 					t = evalType(last, n.Type)
-					convertIfConst(last, n.Value, t)
+					checkOrConvertType(last, n.Value, t)
 				} else if n.Const {
 					// leave n.Value as is.
 				} else {
 					// convert n.Value to default type.
-					convertIfConst(last, n.Value, nil)
+					checkOrConvertType(last, n.Value, nil)
 					t = evalTypeOf(last, n.Value)
 				}
 				// evaluate typed value for static definition.
@@ -1430,16 +1430,105 @@ func isConst(x Expr) bool {
 }
 
 // isConstDecl is true for `const x t = y` constructions.
-func convertIfConst(last BlockNode, x Expr, t Type) {
+func checkOrConvertType(last BlockNode, x Expr, t Type) {
 	if cx, ok := x.(*constExpr); ok {
 		convertConst(last, cx, t)
 	} else if x != nil && t != nil {
 		// check type.
 		xt := evalTypeOf(last, x)
-		if xt.String() != t.String() {
-			fmt.Println("XXX", xt, t)
+		if t.Kind() == InterfaceKind {
+			if it, ok := baseOf(t).(*InterfaceType); ok && it.IsEmptyInterface() {
+				// ok
+			} else if it, ok := baseOf(t).(*nativeType); ok && it.Type.NumMethod() == 0 {
+				// ok
+			} else if xt, ok := baseOf(xt).(*nativeType); ok {
+				if xt.Type.AssignableTo(t.(*nativeType).Type) {
+					// ok
+				} else {
+					panic(fmt.Sprintf(
+						"cannot assign %s to %s",
+						xt.String(), t.String()))
+				}
+			}
+		} else if xt.Kind() == FuncKind {
+			if baseOf(xt).TypeID() == baseOf(t).TypeID() {
+				// ok
+			} else {
+				panic(fmt.Sprintf(
+					"cannot assign %s to %s",
+					xt.String(),
+					t.String()))
+			}
+		} else if isUntyped(xt) {
+			switch xt {
+			case UntypedBoolType:
+				switch t.Kind() {
+				case BoolKind:
+					// ok
+				default:
+					panic(fmt.Sprintf(
+						"cannot assign untyped bool to %s",
+						t.Kind()))
+				}
+			case UntypedStringType:
+				switch t.Kind() {
+				case StringKind:
+					// ok
+				default:
+					panic(fmt.Sprintf(
+						"cannot assign untyped string to %s",
+						t.Kind()))
+				}
+			case UntypedRuneType, UntypedBigintType:
+				switch t.Kind() {
+				case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind,
+					UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
+					// ok
+				default:
+					panic(fmt.Sprintf(
+						"cannot assign untyped rune to %s",
+						t.Kind()))
+				}
+			default:
+				panic("should not happen")
+			}
+		} else {
+			if xt.String() != t.String() {
+				if it, ok := xt.(*InterfaceType); ok {
+					if it.IsUntyped {
+						// ok
+					} else {
+						panic(fmt.Sprintf(
+							"cannot assign %s to %s",
+							xt.String(),
+							t.String()))
+					}
+				} else {
+					xt2, t2 := xt, t
+					if nxt, ok := xt.(*nativeType); ok {
+						xt2 = go2GnoType2(nxt.Type)
+					} else if pxt, ok := xt.(PointerType); ok {
+						// *gonative{x} is gonative{*x}
+						if enxt, ok := pxt.Elt.(*nativeType); ok {
+							xt2 = PointerType{Elt: go2GnoType2(enxt.Type)}
+						}
+					}
+					if nt, ok := t.(*nativeType); ok {
+						t2 = go2GnoType2(nt.Type)
+					} else if pt, ok := t.(PointerType); ok {
+						// *gonative{x} is gonative{*x}
+						if ent, ok := pt.Elt.(*nativeType); ok {
+							t2 = PointerType{Elt: go2GnoType2(ent.Type)}
+						}
+					}
+					if xt2.TypeID() != t2.TypeID() {
+						panic(fmt.Sprintf(
+							"%s used as %s",
+							xt2, t2))
+					}
+				}
+			}
 		}
-		// XXX actually check type.
 	}
 }
 

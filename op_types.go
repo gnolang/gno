@@ -150,8 +150,9 @@ func (m *Machine) doOpInterfaceType() {
 	}
 	// push interface type
 	it := &InterfaceType{
-		PkgPath: m.Package.PkgPath,
-		Methods: methods,
+		PkgPath:   m.Package.PkgPath,
+		Methods:   methods,
+		IsUntyped: x.IsUntyped,
 	}
 	m.PushValue(TypedValue{
 		T: gTypeType,

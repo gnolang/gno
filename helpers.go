@@ -53,6 +53,13 @@ func InterfaceT(methods FieldTypeExprs) *InterfaceTypeExpr {
 	}
 }
 
+func AnyT(methods FieldTypeExprs) *InterfaceTypeExpr {
+	return &InterfaceTypeExpr{
+		Methods:   methods,
+		IsUntyped: true,
+	}
+}
+
 func FuncT(params, results FieldTypeExprs) *FuncTypeExpr {
 	return &FuncTypeExpr{
 		Params:  params,
