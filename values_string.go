@@ -55,28 +55,14 @@ func (v *StructValue) String() string {
 }
 
 func (v *FuncValue) String() string {
-	recv := ""
 	name := ""
-	params := ""
 	if v.Name != "" {
 		name = string(v.Name)
 	}
 	if v.Type == nil {
 		return fmt.Sprintf("incomplete-func ?%s(?)?", name)
 	}
-	if v.IsMethod {
-		recv = "(" + v.Type.Params[0].String() + ") "
-		params = FieldTypeList(v.Type.Params[1:]).StringWithCommas()
-	} else {
-		params = FieldTypeList(v.Type.Params).StringWithCommas()
-	}
-	results := ""
-	if len(results) > 0 {
-		results = FieldTypeList(v.Type.Results).StringWithCommas()
-		results = "(" + results + ")"
-	}
-	return fmt.Sprintf("func %s%s(%s)%s",
-		recv, name, params, results)
+	return name
 }
 
 func (v BoundMethodValue) String() string {

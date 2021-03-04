@@ -479,3 +479,7 @@ func (ds SimpleDecls) String() string {
 	}
 	return str
 }
+
+func (cx constExpr) String() string {
+	return fmt.Sprintf("(const %s)", cx.TypedValue.String())
+}

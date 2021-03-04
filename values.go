@@ -672,7 +672,7 @@ func (tv *TypedValue) GetBool() bool {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != BoolKind {
 			panic(fmt.Sprintf(
-				"%s used as bool",
+				"TypedValue.GetBool() on type %s",
 				tv.T.String()))
 		}
 	}

@@ -515,7 +515,8 @@ type SliceTypeExpr struct {
 
 type InterfaceTypeExpr struct {
 	Attributes
-	Methods FieldTypeExprs // list of methods
+	Methods   FieldTypeExprs // list of methods
+	IsUntyped bool           // for uverse generics
 }
 
 type ChanDir int
