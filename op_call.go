@@ -67,6 +67,9 @@ func (m *Machine) doOpCall() {
 	pts := ft.Params
 	numParams := len(pts)
 	isMethod := 0 // 1 if true
+	// Create new block scope
+	b := NewBlock(fr.Func.Source, fr.Func.Closure)
+	m.PushBlock(b)
 	// continuation
 	if fv.NativeBody == nil {
 		if len(ft.Results) == 0 {
@@ -77,12 +80,14 @@ func (m *Machine) doOpCall() {
 			m.PushStmt(gReturnStmt)
 			m.PushOp(OpExec)
 		}
-		// Queue body statements.
-		for i := len(fv.Body) - 1; 0 <= i; i-- {
-			s := fv.Body[i]
-			m.PushStmt(s)
-			m.PushOp(OpExec)
+		// Exec body.
+		b.bodyStmt = bodyStmt{
+			Body:      fv.Body,
+			BodyLen:   len(fv.Body),
+			BodyIndex: 0,
 		}
+		m.PushOp(OpBody)
+		m.PushStmt(b.GetBodyStmt())
 	} else {
 		// No return exprs and no defers, safe to skip OpEval.
 		// NOTE: m.PushOp(OpReturn) doesn't handle defers.
@@ -92,9 +97,6 @@ func (m *Machine) doOpCall() {
 		// so this op follows (this) OpCall.
 		m.PushOp(OpCallNativeBody)
 	}
-	// Create new block scope
-	b := NewBlock(fr.Func.Source, fr.Func.Closure)
-	m.PushBlock(b)
 	// Assign receiver as first parameter, if any.
 	if fr.Receiver != nil {
 		pt := pts[0]
@@ -238,13 +240,19 @@ func (m *Machine) doOpReturnCallDefers() {
 		ft := fv.Type
 		pts := ft.Params
 		numParams := len(ft.Params)
+		// Create new block scope for defer.
+		b := NewBlock(fv.Source, fb)
+		m.PushBlock(b)
+		// continuation
 		if fv.NativeBody == nil {
-			// Queue body statements.
-			for i := len(fv.Body) - 1; 0 <= i; i-- {
-				s := fv.Body[i]
-				m.PushStmt(s)
-				m.PushOp(OpExec)
+			// Exec body.
+			b.bodyStmt = bodyStmt{
+				Body:      fv.Body,
+				BodyLen:   len(fv.Body),
+				BodyIndex: 0,
 			}
+			m.PushOp(OpBody)
+			m.PushStmt(b.GetBodyStmt())
 		} else {
 			// Call native function.
 			m.PushValue(TypedValue{
@@ -253,9 +261,6 @@ func (m *Machine) doOpReturnCallDefers() {
 			})
 			m.PushOp(OpCallDeferNativeBody)
 		}
-		// Create new block scope for defer.
-		b := NewBlock(fv.Source, fb)
-		m.PushBlock(b)
 		if ft.HasVarg() {
 			numArgs := len(dfr.Args)
 			nvar := numArgs - (numParams - 1)

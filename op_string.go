@@ -98,11 +98,12 @@ func _() {
 	_ = x[OpDec-142]
 	_ = x[OpValueDecl-144]
 	_ = x[OpSticky-208]
-	_ = x[OpForLoop2-208]
-	_ = x[OpRangeIter-209]
-	_ = x[OpRangeIterString-210]
-	_ = x[OpRangeIterMap-211]
-	_ = x[OpReturnCallDefers-212]
+	_ = x[OpBody-209]
+	_ = x[OpForLoop2-210]
+	_ = x[OpRangeIter-211]
+	_ = x[OpRangeIterString-212]
+	_ = x[OpRangeIterMap-213]
+	_ = x[OpReturnCallDefers-214]
 }
 
 const (
@@ -114,7 +115,7 @@ const (
 	_Op_name_5 = "OpFieldTypeOpArrayTypeOpSliceTypeOpPointerTypeOpInterfaceTypeOpChanTypeOpFuncTypeOpMapTypeOpStructType"
 	_Op_name_6 = "OpAssignOpAddAssignOpSubAssignOpMulAssignOpQuoAssignOpRemAssignOpBandAssignOpBandnAssignOpBorAssignOpXorAssignOpShlAssignOpShrAssignOpDefineOpIncOpDec"
 	_Op_name_7 = "OpValueDecl"
-	_Op_name_8 = "OpStickyOpRangeIterOpRangeIterStringOpRangeIterMapOpReturnCallDefers"
+	_Op_name_8 = "OpStickyOpBodyOpForLoop2OpRangeIterOpRangeIterStringOpRangeIterMapOpReturnCallDefers"
 )
 
 var (
@@ -125,7 +126,7 @@ var (
 	_Op_index_4 = [...]uint8{0, 19, 33}
 	_Op_index_5 = [...]uint8{0, 11, 22, 33, 46, 61, 71, 81, 90, 102}
 	_Op_index_6 = [...]uint8{0, 8, 19, 30, 41, 52, 63, 75, 88, 99, 110, 121, 132, 140, 145, 150}
-	_Op_index_8 = [...]uint8{0, 8, 19, 36, 50, 68}
+	_Op_index_8 = [...]uint8{0, 8, 14, 24, 35, 52, 66, 84}
 )
 
 func (i Op) String() string {
@@ -152,7 +153,7 @@ func (i Op) String() string {
 		return _Op_name_6[_Op_index_6[i]:_Op_index_6[i+1]]
 	case i == 144:
 		return _Op_name_7
-	case 208 <= i && i <= 212:
+	case 208 <= i && i <= 214:
 		i -= 208
 		return _Op_name_8[_Op_index_8[i]:_Op_index_8[i+1]]
 	default:

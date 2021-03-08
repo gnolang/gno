@@ -5,6 +5,42 @@ import (
 	"unicode/utf8"
 )
 
+/*
+State transition map.
+NOTE: does not show frames. We use frames for each of
+these except IfStmt to support break/continue branch
+statements. Omitting frames requires more complex logic
+during break/continue and results in brittle code, so we
+choose to use frames for all but IfStmt block nodes.
+
+CallExpr ->
+  OpPrecall->
+    OpCall-> +block
+	  OpReturn?,OpExec.*
+	  OpReturn,OpCallNativeBody
+    OpCallGoNative
+	OpConvert
+
+ForStmt ->
+  OpForLoop2 +block
+
+RangeStmt ->
+  OpRangeIterList +block
+  OpRangeIterMap +block
+  OpRangeIterString +block
+
+IfStmt ->
+  OpIfCond -> +block
+    OpPopBlock
+
+SwitchStmt -> +block
+  OpSwitchCase
+
+SelectStmt ->
+  OpSelectCase +block
+
+*/
+
 //----------------------------------------
 // doOpExec
 //
@@ -23,6 +59,20 @@ func (m *Machine) doOpExec(op Op) {
 	// loops are so common that this is likely faster overall, as the type
 	// switch is slower than this type assertion conditional.
 	switch op {
+	case OpBody:
+		bs := m.LastBlock().GetBodyStmt()
+		if bs.BodyIndex < bs.BodyLen {
+			next := bs.Body[bs.BodyIndex]
+			bs.BodyIndex++
+			// continue onto exec stmt.
+			bs.Active = next
+			s = next
+			goto EXEC_SWITCH
+		} else {
+			m.ForcePopOp()
+			m.ForcePopStmt()
+			return
+		}
 	case OpForLoop2:
 		bs := m.LastBlock().GetBodyStmt()
 		// evaluate .Cond.
@@ -594,5 +644,35 @@ EXEC_SWITCH:
 		m.PushOp(OpEval)
 	default:
 		panic(fmt.Sprintf("unexpected statement %#v", s))
+	}
+}
+
+func (m *Machine) doOpIfCond() {
+	is := m.PopStmt().(*IfStmt)
+	b := m.LastBlock()
+	// final continuation
+	m.PushOp(OpPopBlock)
+	// Test cond and run Body or Else.
+	cond := m.PopValue()
+	if cond.GetBool() {
+		if len(is.Body) != 0 {
+			b.bodyStmt = bodyStmt{
+				Body:      is.Body,
+				BodyLen:   len(is.Body),
+				BodyIndex: 0,
+			}
+			m.PushOp(OpBody)
+			m.PushStmt(b.GetBodyStmt())
+		}
+	} else {
+		if len(is.Else) != 0 {
+			b.bodyStmt = bodyStmt{
+				Body:      is.Else,
+				BodyLen:   len(is.Else),
+				BodyIndex: 0,
+			}
+			m.PushOp(OpBody)
+			m.PushStmt(b.GetBodyStmt())
+		}
 	}
 }
