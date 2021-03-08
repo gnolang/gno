@@ -20,7 +20,9 @@ ForStmt ->
   OpForLoop2 +block
 
 RangeStmt ->
-  OpRangeIter +block
+  OpRangeIterList +block
+  OpRangeIterMap +block
+  OpRangeIterString +block
 
 IfStmt ->
   OpIfCond -> +block

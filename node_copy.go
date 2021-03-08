@@ -3,7 +3,7 @@ package gno
 // Copy should happen before any preprocessing.
 // * Attributes are not copied.
 // * Paths are not copied.
-// * *constExpr, *constTypeExpr, *loopStmt not yet supported.
+// * *constExpr, *constTypeExpr, *bodyStmt not yet supported.
 
 func (x *constExpr) Copy() Node {
 	panic("*constExpr.Copy() not yet implemented")
@@ -13,8 +13,8 @@ func (x *constTypeExpr) Copy() Node {
 	panic("*constTypeExpr.Copy() not yet implemented")
 }
 
-func (x *loopStmt) Copy() Node {
-	panic("*loopStmt.Copy() not yet implemented")
+func (x *bodyStmt) Copy() Node {
+	panic("*bodyStmt.Copy() not yet implemented")
 }
 
 func (x *NameExpr) Copy() Node {

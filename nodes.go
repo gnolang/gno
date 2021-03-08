@@ -180,7 +180,7 @@ func (_ *SendStmt) assertNode()          {}
 func (_ *SwitchStmt) assertNode()        {}
 func (_ *SwitchCaseStmt) assertNode()    {}
 func (_ *EmptyStmt) assertNode()         {}
-func (_ *loopStmt) assertNode()          {}
+func (_ *bodyStmt) assertNode()          {}
 func (_ *FuncDecl) assertNode()          {}
 func (_ *ImportDecl) assertNode()        {}
 func (_ *ValueDecl) assertNode()         {}
@@ -231,7 +231,7 @@ var _ = &SendStmt{}
 var _ = &SwitchStmt{}
 var _ = &SwitchCaseStmt{}
 var _ = &EmptyStmt{}
-var _ = &loopStmt{}
+var _ = &bodyStmt{}
 var _ = &FuncDecl{}
 var _ = &ImportDecl{}
 var _ = &ValueDecl{}
@@ -591,7 +591,7 @@ func (*SelectCaseStmt) assertStmt() {}
 func (*SendStmt) assertStmt()       {}
 func (*SwitchStmt) assertStmt()     {}
 func (*SwitchCaseStmt) assertStmt() {}
-func (*loopStmt) assertStmt()       {}
+func (*bodyStmt) assertStmt()       {}
 
 var _ Stmt = &AssignStmt{}
 var _ Stmt = &BlockStmt{}
@@ -612,7 +612,7 @@ var _ Stmt = &SelectCaseStmt{}
 var _ Stmt = &SendStmt{}
 var _ Stmt = &SwitchStmt{}
 var _ Stmt = &SwitchCaseStmt{}
-var _ Stmt = &loopStmt{}
+var _ Stmt = &bodyStmt{}
 
 type AssignStmt struct {
 	Attributes
@@ -746,41 +746,39 @@ type SwitchCaseStmt struct {
 }
 
 //----------------------------------------
-// Loop Statement (persistent)
+// bodyStmt (persistent)
 
-type loopStmt struct {
+// NOTE: embedded in Block.
+type bodyStmt struct {
 	Attributes
-	ForStmt   *ForStmt
-	RangeStmt *RangeStmt
+	Body      Stmts        // for non-loop stmts
+	BodyLen   int          // for for-continue
+	BodyIndex int          // init:-2, cond/elem:-1, body:0..., post:n
+	Cond      Expr         // for ForStmt
+	Post      Stmt         // for ForStmt
+	Active    Stmt         // for PopStmt()
+	Key       Expr         // for RangeStmt
+	Value     Expr         // for RangeStmt
+	Op        Word         // for RangeStmt
 	ListLen   int          // for RangeStmt only
 	ListIndex int          // for RangeStmt only
 	NextItem  *MapListItem // fpr RangeStmt w/ maps only
 	StrLen    int          // for RangeStmt w/ strings only
 	StrIndex  int          // for RangeStmt w/ strings only
 	NextRune  rune         // for RangeStmt w/ strings only
-	BodyLen   int          // for continue
-	BodyIndex int          // init:-2, cond/elem:-1, body:0..., post:n
-	Active    Stmt         // for PopStmt().
 }
 
-func (s *loopStmt) PopActiveStmt() (as Stmt) {
+func (s *bodyStmt) PopActiveStmt() (as Stmt) {
 	as = s.Active
 	s.Active = nil
 	return
 }
 
-func (s *loopStmt) String() string {
-	if s.ForStmt != nil {
-		return fmt.Sprintf("loopStmt[%s %d]",
-			s.ForStmt.String(),
-			s.BodyIndex)
-	} else {
-		return fmt.Sprintf("loopStmt[%s %d/%d/%d]",
-			s.RangeStmt.String(),
-			s.ListLen,
-			s.ListIndex,
-			s.BodyIndex)
-	}
+func (s *bodyStmt) String() string {
+	return fmt.Sprintf("bodyStmt[%d/%d/%d]",
+		s.ListLen,
+		s.ListIndex,
+		s.BodyIndex)
 }
 
 //----------------------------------------

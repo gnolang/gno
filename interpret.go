@@ -802,7 +802,7 @@ func (m *Machine) PopStmt() Stmt {
 	if debug {
 		m.Printf("-s %v\n", s)
 	}
-	if as, ok := s.(*loopStmt); ok {
+	if as, ok := s.(*bodyStmt); ok {
 		return as.PopActiveStmt()
 	} else {
 		// general case.
@@ -1081,7 +1081,7 @@ func (m *Machine) PeekFrameAndContinueFor() {
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts+1]
 	m.Blocks = m.Blocks[:fr.NumBlocks+1]
-	ls := m.PeekStmt(1).(*loopStmt)
+	ls := m.PeekStmt(1).(*bodyStmt)
 	ls.BodyIndex = ls.BodyLen
 }
 
@@ -1092,7 +1092,7 @@ func (m *Machine) PeekFrameAndContinueRange() {
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts+1]
 	m.Blocks = m.Blocks[:fr.NumBlocks+1]
-	ls := m.PeekStmt(1).(*loopStmt)
+	ls := m.PeekStmt(1).(*bodyStmt)
 	ls.BodyIndex = ls.BodyLen
 }
 
