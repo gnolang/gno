@@ -445,7 +445,7 @@ const (
 	OpSwitchCase          Op = 0x0E // exec next switch case
 	OpTypeSwitchCase      Op = 0x0F // exec next type switch case
 	OpForLoop1            Op = 0x10 // body and post if X, else break
-	OpIfCond              Op = 0x11 // body if X, else else
+	OpIfCond              Op = 0x11 // eval cond
 	OpPopValue            Op = 0x12 // pop X
 	OpPopResults          Op = 0x13 // pop n call results
 	OpPopBlock            Op = 0x14 // pop block NOTE breaks certain invariants.
@@ -532,11 +532,12 @@ const (
 
 	/* Loop (sticky) operators (>= 0xD0) */
 	OpSticky           Op = 0xD0 // not a real op.
-	OpForLoop2         Op = 0xD0
-	OpRangeIter        Op = 0xD1
-	OpRangeIterString  Op = 0xD2
-	OpRangeIterMap     Op = 0xD3
-	OpReturnCallDefers Op = 0xD4
+	OpBody             Op = 0xD1 // if/block/switch/select.
+	OpForLoop2         Op = 0xD2
+	OpRangeIter        Op = 0xD3
+	OpRangeIterString  Op = 0xD4
+	OpRangeIterMap     Op = 0xD5
+	OpReturnCallDefers Op = 0xD6
 )
 
 //----------------------------------------
@@ -727,6 +728,8 @@ func (m *Machine) Run() {
 		/* Decl operators */
 		// TODO
 		/* Loop (sticky) operators */
+		case OpBody:
+			m.doOpExec(op)
 		case OpForLoop2:
 			m.doOpExec(op)
 		case OpRangeIter:
