@@ -24,12 +24,10 @@ func (m *Machine) doOpExec(op Op) {
 	// switch is slower than this type assertion conditional.
 	switch op {
 	case OpForLoop2:
-		ls := s.(*loopStmt)
-		fs := ls.ForStmt
-		// loopStmt is for ForStmt.
+		bs := m.LastBlock().GetBodyStmt()
 		// evaluate .Cond.
-		if ls.BodyIndex == -1 {
-			if fs.Cond != nil {
+		if bs.BodyIndex == -1 {
+			if bs.Cond != nil {
 				cond := m.PopValue()
 				if !cond.GetBool() {
 					// done with loop.
@@ -37,29 +35,33 @@ func (m *Machine) doOpExec(op Op) {
 					return
 				}
 			}
-			ls.BodyIndex++ // TODO remove
+			bs.BodyIndex++ // TODO remove
 		}
 		// execute body statement.
-		if ls.BodyIndex < ls.BodyLen {
-			next := fs.Body[ls.BodyIndex]
-			ls.BodyIndex++
+		if bs.BodyIndex < bs.BodyLen {
+			next := bs.Body[bs.BodyIndex]
+			bs.BodyIndex++
 			// continue onto exec stmt.
-			ls.Active = next
+			bs.Active = next
 			s = next
 			goto EXEC_SWITCH
-		} else if ls.BodyIndex == ls.BodyLen {
+		} else if bs.BodyIndex == bs.BodyLen {
 			// (queue to) go back.
-			if fs.Cond != nil {
-				m.PushExpr(fs.Cond)
+			if bs.Cond != nil {
+				m.PushExpr(bs.Cond)
 				m.PushOp(OpEval)
 			}
-			ls.BodyIndex = -1
-			if next := fs.Post; next == nil {
-				ls.Active = nil
+			bs.BodyIndex = -1
+			if next := bs.Post; next == nil {
+				bs.Active = nil
 				return // go back now.
 			} else {
 				// continue onto post stmt.
-				ls.Active = next
+				// XXX this is a kind of excewption....
+				// that is, this needs to run after
+				// the bodyStmt is force popped?
+				// or uh...
+				bs.Active = next
 				s = next
 				goto EXEC_SWITCH
 			}
@@ -67,28 +69,24 @@ func (m *Machine) doOpExec(op Op) {
 			panic("should not happen")
 		}
 	case OpRangeIter:
-		ls := s.(*loopStmt)
-		rs := ls.RangeStmt
-		// loopStmt is for RangeStmt.
+		bs := s.(*bodyStmt)
 		xv := m.PeekValue(1)
 		// TODO check length.
-		switch ls.BodyIndex {
+		switch bs.BodyIndex {
 		case -2: // init.
-			ls.ListLen = xv.GetLength()
-			b := NewBlock(ls.RangeStmt, m.LastBlock())
-			m.PushBlock(b)
-			ls.BodyIndex++
+			bs.ListLen = xv.GetLength()
+			bs.BodyIndex++
 			fallthrough
 		case -1: // assign list element.
-			if rs.Key != nil {
+			if bs.Key != nil {
 				iv := TypedValue{T: IntType}
-				iv.SetInt(ls.ListIndex)
-				if ls.ListIndex == 0 {
-					switch rs.Op {
+				iv.SetInt(bs.ListIndex)
+				if bs.ListIndex == 0 {
+					switch bs.Op {
 					case ASSIGN:
-						m.PopAsPointer(rs.Key).Assign(iv)
+						m.PopAsPointer(bs.Key).Assign(iv)
 					case DEFINE:
-						knxp := rs.Key.(*NameExpr).Path
+						knxp := bs.Key.(*NameExpr).Path
 						ptr := m.LastBlock().GetPointerTo(knxp)
 						ptr.Assign(iv)
 					default:
@@ -96,19 +94,19 @@ func (m *Machine) doOpExec(op Op) {
 					}
 				} else {
 					// Already defined, use assign.
-					m.PopAsPointer(rs.Key).Assign(iv)
+					m.PopAsPointer(bs.Key).Assign(iv)
 				}
 			}
-			if rs.Value != nil {
+			if bs.Value != nil {
 				iv := TypedValue{T: IntType}
-				iv.SetInt(ls.ListIndex)
+				iv.SetInt(bs.ListIndex)
 				ev := xv.GetPointerAtIndex(&iv).Deref()
-				if ls.ListIndex == 0 {
-					switch rs.Op {
+				if bs.ListIndex == 0 {
+					switch bs.Op {
 					case ASSIGN:
-						m.PopAsPointer(rs.Value).Assign(ev)
+						m.PopAsPointer(bs.Value).Assign(ev)
 					case DEFINE:
-						vnxp := rs.Value.(*NameExpr).Path
+						vnxp := bs.Value.(*NameExpr).Path
 						ptr := m.LastBlock().GetPointerTo(vnxp)
 						ptr.Assign(ev)
 					default:
@@ -116,31 +114,31 @@ func (m *Machine) doOpExec(op Op) {
 					}
 				} else {
 					// Already defined, use assign.
-					m.PopAsPointer(rs.Value).Assign(ev)
+					m.PopAsPointer(bs.Value).Assign(ev)
 				}
 			}
-			ls.BodyIndex++
+			bs.BodyIndex++
 			fallthrough
 		default:
 			// NOTE: duplicated for OpRangeIterMap,
 			// but without tracking Next.
-			if ls.BodyIndex < ls.BodyLen {
-				next := rs.Body[ls.BodyIndex]
-				ls.BodyIndex++
+			if bs.BodyIndex < bs.BodyLen {
+				next := bs.Body[bs.BodyIndex]
+				bs.BodyIndex++
 				// continue onto exec stmt.
-				ls.Active = next
-				s = next // switch on ls.Active
+				bs.Active = next
+				s = next // switch on bs.Active
 				goto EXEC_SWITCH
-			} else if ls.BodyIndex == ls.BodyLen {
-				if ls.ListIndex < ls.ListLen-1 {
+			} else if bs.BodyIndex == bs.BodyLen {
+				if bs.ListIndex < bs.ListLen-1 {
 					// set up next assign if needed.
-					switch rs.Op {
+					switch bs.Op {
 					case ASSIGN:
-						if rs.Key != nil {
-							m.PushForPointer(rs.Key)
+						if bs.Key != nil {
+							m.PushForPointer(bs.Key)
 						}
-						if rs.Value != nil {
-							m.PushForPointer(rs.Value)
+						if bs.Value != nil {
+							m.PushForPointer(bs.Value)
 						}
 					case DEFINE:
 						// do nothing
@@ -149,10 +147,10 @@ func (m *Machine) doOpExec(op Op) {
 					default:
 						panic("should not happen")
 					}
-					ls.ListIndex++
-					ls.BodyIndex = -1
-					ls.Active = nil
-					return // redo doOpExec:*loopStmt
+					bs.ListIndex++
+					bs.BodyIndex = -1
+					bs.Active = nil
+					return // redo doOpExec:*bodyStmt
 				} else {
 					// done with range.
 					m.PopFrameAndReset()
@@ -163,33 +161,29 @@ func (m *Machine) doOpExec(op Op) {
 			}
 		}
 	case OpRangeIterString:
-		ls := s.(*loopStmt)
-		rs := ls.RangeStmt
-		// loopStmt is for RangeStmt.
+		bs := s.(*bodyStmt)
 		xv := m.PeekValue(1)
 		sv := xv.GetString()
-		switch ls.BodyIndex {
+		switch bs.BodyIndex {
 		case -2: // init.
 			// We decode utf8 runes in order --
 			// we don't yet know the number of runes.
-			ls.StrLen = xv.GetLength()
+			bs.StrLen = xv.GetLength()
 			r, size := utf8.DecodeRuneInString(sv)
-			ls.NextRune = r
-			ls.StrIndex += size
-			b := NewBlock(ls.RangeStmt, m.LastBlock())
-			m.PushBlock(b)
-			ls.BodyIndex++
+			bs.NextRune = r
+			bs.StrIndex += size
+			bs.BodyIndex++
 			fallthrough
 		case -1: // assign list element.
-			if rs.Key != nil {
+			if bs.Key != nil {
 				iv := TypedValue{T: IntType}
-				iv.SetInt(ls.ListIndex)
-				if ls.ListIndex == 0 {
-					switch rs.Op {
+				iv.SetInt(bs.ListIndex)
+				if bs.ListIndex == 0 {
+					switch bs.Op {
 					case ASSIGN:
-						m.PopAsPointer(rs.Key).Assign(iv)
+						m.PopAsPointer(bs.Key).Assign(iv)
 					case DEFINE:
-						knxp := rs.Key.(*NameExpr).Path
+						knxp := bs.Key.(*NameExpr).Path
 						ptr := m.LastBlock().GetPointerTo(knxp)
 						ptr.Assign(iv)
 					default:
@@ -197,17 +191,17 @@ func (m *Machine) doOpExec(op Op) {
 					}
 				} else {
 					// Already defined, use assign.
-					m.PopAsPointer(rs.Key).Assign(iv)
+					m.PopAsPointer(bs.Key).Assign(iv)
 				}
 			}
-			if rs.Value != nil {
-				ev := typedRune(ls.NextRune)
-				if ls.ListIndex == 0 {
-					switch rs.Op {
+			if bs.Value != nil {
+				ev := typedRune(bs.NextRune)
+				if bs.ListIndex == 0 {
+					switch bs.Op {
 					case ASSIGN:
-						m.PopAsPointer(rs.Value).Assign(ev)
+						m.PopAsPointer(bs.Value).Assign(ev)
 					case DEFINE:
-						vnxp := rs.Value.(*NameExpr).Path
+						vnxp := bs.Value.(*NameExpr).Path
 						ptr := m.LastBlock().GetPointerTo(vnxp)
 						ptr.Assign(ev)
 					default:
@@ -215,31 +209,31 @@ func (m *Machine) doOpExec(op Op) {
 					}
 				} else {
 					// Already defined, use assign.
-					m.PopAsPointer(rs.Value).Assign(ev)
+					m.PopAsPointer(bs.Value).Assign(ev)
 				}
 			}
-			ls.BodyIndex++
+			bs.BodyIndex++
 			fallthrough
 		default:
 			// NOTE: duplicated for OpRangeIterMap,
 			// but without tracking Next.
-			if ls.BodyIndex < ls.BodyLen {
-				next := rs.Body[ls.BodyIndex]
-				ls.BodyIndex++
+			if bs.BodyIndex < bs.BodyLen {
+				next := bs.Body[bs.BodyIndex]
+				bs.BodyIndex++
 				// continue onto exec stmt.
-				ls.Active = next
-				s = next // switch on ls.Active
+				bs.Active = next
+				s = next // switch on bs.Active
 				goto EXEC_SWITCH
-			} else if ls.BodyIndex == ls.BodyLen {
-				if ls.StrIndex < ls.StrLen {
+			} else if bs.BodyIndex == bs.BodyLen {
+				if bs.StrIndex < bs.StrLen {
 					// set up next assign if needed.
-					switch rs.Op {
+					switch bs.Op {
 					case ASSIGN:
-						if rs.Key != nil {
-							m.PushForPointer(rs.Key)
+						if bs.Key != nil {
+							m.PushForPointer(bs.Key)
 						}
-						if rs.Value != nil {
-							m.PushForPointer(rs.Value)
+						if bs.Value != nil {
+							m.PushForPointer(bs.Value)
 						}
 					case DEFINE:
 						// do nothing
@@ -248,14 +242,14 @@ func (m *Machine) doOpExec(op Op) {
 					default:
 						panic("should not happen")
 					}
-					rsv := sv[ls.StrIndex:]
+					rsv := sv[bs.StrIndex:]
 					r, size := utf8.DecodeRuneInString(rsv)
-					ls.NextRune = r
-					ls.StrIndex += size
-					ls.ListIndex++
-					ls.BodyIndex = -1
-					ls.Active = nil
-					return // redo doOpExec:*loopStmt
+					bs.NextRune = r
+					bs.StrIndex += size
+					bs.ListIndex++
+					bs.BodyIndex = -1
+					bs.Active = nil
+					return // redo doOpExec:*bodyStmt
 				} else {
 					// done with range.
 					m.PopFrameAndReset()
@@ -266,29 +260,25 @@ func (m *Machine) doOpExec(op Op) {
 			}
 		}
 	case OpRangeIterMap:
-		ls := s.(*loopStmt)
-		rs := ls.RangeStmt
-		// loopStmt is for RangeStmt.
+		bs := s.(*bodyStmt)
 		xv := m.PeekValue(1)
 		mv := xv.V.(*MapValue)
-		switch ls.BodyIndex {
+		switch bs.BodyIndex {
 		case -2: // init.
-			// ls.ListLen = xv.GetLength()
-			ls.NextItem = mv.List.Head
-			b := NewBlock(ls.RangeStmt, m.LastBlock())
-			m.PushBlock(b)
-			ls.BodyIndex++
+			// bs.ListLen = xv.GetLength()
+			bs.NextItem = mv.List.Head
+			bs.BodyIndex++
 			fallthrough
 		case -1: // assign list element.
-			next := ls.NextItem
-			if rs.Key != nil {
+			next := bs.NextItem
+			if bs.Key != nil {
 				kv := next.Key
-				if ls.ListIndex == 0 {
-					switch rs.Op {
+				if bs.ListIndex == 0 {
+					switch bs.Op {
 					case ASSIGN:
-						m.PopAsPointer(rs.Key).Assign(kv)
+						m.PopAsPointer(bs.Key).Assign(kv)
 					case DEFINE:
-						knxp := rs.Key.(*NameExpr).Path
+						knxp := bs.Key.(*NameExpr).Path
 						ptr := m.LastBlock().GetPointerTo(knxp)
 						ptr.Assign(kv)
 					default:
@@ -296,17 +286,17 @@ func (m *Machine) doOpExec(op Op) {
 					}
 				} else {
 					// Already defined, use assign.
-					m.PopAsPointer(rs.Key).Assign(kv)
+					m.PopAsPointer(bs.Key).Assign(kv)
 				}
 			}
-			if rs.Value != nil {
+			if bs.Value != nil {
 				vv := next.Value
-				if ls.ListIndex == 0 {
-					switch rs.Op {
+				if bs.ListIndex == 0 {
+					switch bs.Op {
 					case ASSIGN:
-						m.PopAsPointer(rs.Value).Assign(vv)
+						m.PopAsPointer(bs.Value).Assign(vv)
 					case DEFINE:
-						vnxp := rs.Value.(*NameExpr).Path
+						vnxp := bs.Value.(*NameExpr).Path
 						ptr := m.LastBlock().GetPointerTo(vnxp)
 						ptr.Assign(vv)
 					default:
@@ -314,36 +304,36 @@ func (m *Machine) doOpExec(op Op) {
 					}
 				} else {
 					// Already defined, use assign.
-					m.PopAsPointer(rs.Value).Assign(vv)
+					m.PopAsPointer(bs.Value).Assign(vv)
 				}
 			}
-			ls.BodyIndex++
+			bs.BodyIndex++
 			fallthrough
 		default:
 			// NOTE: duplicated for OpRangeIter,
 			// with slight modification to track Next.
-			if ls.BodyIndex < ls.BodyLen {
-				next := rs.Body[ls.BodyIndex]
-				ls.BodyIndex++
+			if bs.BodyIndex < bs.BodyLen {
+				next := bs.Body[bs.BodyIndex]
+				bs.BodyIndex++
 				// continue onto exec stmt.
-				ls.Active = next
-				s = next // switch on ls.Active
+				bs.Active = next
+				s = next // switch on bs.Active
 				goto EXEC_SWITCH
-			} else if ls.BodyIndex == ls.BodyLen {
-				nnext := ls.NextItem.Next
+			} else if bs.BodyIndex == bs.BodyLen {
+				nnext := bs.NextItem.Next
 				if nnext == nil {
 					// done with range.
 					m.PopFrameAndReset()
 					return
 				} else {
 					// set up next assign if needed.
-					switch rs.Op {
+					switch bs.Op {
 					case ASSIGN:
-						if rs.Key != nil {
-							m.PushForPointer(rs.Key)
+						if bs.Key != nil {
+							m.PushForPointer(bs.Key)
 						}
-						if rs.Value != nil {
-							m.PushForPointer(rs.Value)
+						if bs.Value != nil {
+							m.PushForPointer(bs.Value)
 						}
 					case DEFINE:
 						// do nothing
@@ -352,11 +342,11 @@ func (m *Machine) doOpExec(op Op) {
 					default:
 						panic("should not happen")
 					}
-					ls.NextItem = nnext
-					ls.ListIndex++
-					ls.BodyIndex = -1
-					ls.Active = nil
-					return // redo doOpExec:*loopStmt
+					bs.NextItem = nnext
+					bs.ListIndex++
+					bs.BodyIndex = -1
+					bs.Active = nil
+					return // redo doOpExec:*bodyStmt
 				}
 			} else {
 				panic("should not happen")
@@ -417,14 +407,17 @@ EXEC_SWITCH:
 	case *ForStmt:
 		m.PushFrameBasic(cs)
 		b := NewBlock(cs, m.LastBlock())
+		b.bodyStmt = bodyStmt{
+			Body:      cs.Body,
+			BodyLen:   len(cs.Body),
+			BodyIndex: -1,
+			Cond:      cs.Cond,
+			Post:      cs.Post,
+		}
 		m.PushBlock(b)
 		// continuation (persistent)
 		m.PushOp(OpForLoop2)
-		m.PushStmt(&loopStmt{
-			ForStmt:   cs,
-			BodyLen:   len(cs.Body),
-			BodyIndex: -1,
-		})
+		m.PushStmt(b.GetBodyStmt())
 		// evaluate condition
 		if cs.Cond != nil {
 			m.PushExpr(cs.Cond)
@@ -494,6 +487,16 @@ EXEC_SWITCH:
 		}
 	case *RangeStmt:
 		m.PushFrameBasic(cs)
+		b := NewBlock(cs, m.LastBlock())
+		b.bodyStmt = bodyStmt{
+			Body:      cs.Body,
+			BodyLen:   len(cs.Body),
+			BodyIndex: -2,
+			Key:       cs.Key,
+			Value:     cs.Value,
+			Op:        cs.Op,
+		}
+		m.PushBlock(b)
 		// continuation (persistent)
 		if cs.IsMap {
 			m.PushOp(OpRangeIterMap)
@@ -502,13 +505,7 @@ EXEC_SWITCH:
 		} else {
 			m.PushOp(OpRangeIter)
 		}
-		m.PushStmt(&loopStmt{
-			RangeStmt: cs,
-			ListLen:   0, // set later
-			ListIndex: 0, // set later
-			BodyLen:   len(cs.Body),
-			BodyIndex: -2,
-		})
+		m.PushStmt(b.GetBodyStmt())
 		// evaluate eval for assign if needed.
 		switch cs.Op {
 		case ASSIGN:

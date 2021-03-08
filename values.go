@@ -1637,6 +1637,7 @@ type Block struct {
 	Values     []TypedValue
 	Parent     *Block
 	Blank      TypedValue // captures "_"
+	bodyStmt
 }
 
 func NewBlock(source BlockNode, parent *Block) *Block {
@@ -1736,6 +1737,10 @@ func (b *Block) GetParams3() (pv1, pv2, pv3 PointerValue) {
 	pv2 = b.GetPointerTo(NewValuePathDefault(1, 1, ""))
 	pv3 = b.GetPointerTo(NewValuePathDefault(1, 2, ""))
 	return
+}
+
+func (b *Block) GetBodyStmt() *bodyStmt {
+	return &b.bodyStmt
 }
 
 //----------------------------------------

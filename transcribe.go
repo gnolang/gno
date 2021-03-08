@@ -487,16 +487,16 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			return
 		}
 	case *RangeStmt:
-		cnn.X = transcribe(t, nns, TRANS_RANGE_X, 0, cnn.X, &c).(Expr)
-		if isStopOrSkip(nc, c) {
-			return
-		}
 		cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
 		if isStopOrSkip(nc, c2) {
 			nn = cnn2
 			return
 		} else {
 			cnn = cnn2.(*RangeStmt)
+		}
+		cnn.X = transcribe(t, nns, TRANS_RANGE_X, 0, cnn.X, &c).(Expr)
+		if isStopOrSkip(nc, c) {
+			return
 		}
 		if cnn.Key != nil {
 			cnn.Key = transcribe(t, nns, TRANS_RANGE_KEY, 0, cnn.Key, &c).(Expr)

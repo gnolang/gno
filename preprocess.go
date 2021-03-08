@@ -119,6 +119,11 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 
 			// TRANS_BLOCK -----------------------
 			case *RangeStmt:
+				pushBlock(n, &last, &stack)
+				// NOTE: preprocess it here, so type can
+				// be used to set n.IsMap/IsString and
+				// define key/value.
+				n.X = Preprocess(imp, last, n.X).(Expr)
 				xt := evalTypeOf(last, n.X)
 				switch xt.Kind() {
 				case MapKind:
@@ -126,7 +131,6 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 				case StringKind:
 					n.IsString = true
 				}
-				pushBlock(n, &last, &stack)
 				// key value if define.
 				if n.Op == DEFINE {
 					if xt.Kind() == MapKind {
