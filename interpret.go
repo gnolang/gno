@@ -142,9 +142,11 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 		for i := 0; i < len(updates); i++ {
 			tv := &updates[i]
 			if tv.IsDefined() && tv.T.Kind() == FuncKind && tv.V != nil {
-				fn := tv.V.(*FuncValue).Name
-				if strings.HasPrefix(string(fn), "init.") {
-					m.RunFunc(fn)
+				if fv, ok := tv.V.(*FuncValue); ok {
+					fn := fv.Name
+					if strings.HasPrefix(string(fn), "init.") {
+						m.RunFunc(fn)
+					}
 				}
 			}
 		}

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/flate"
 	"context"
+	crand "crypto/rand"
 	"crypto/sha1"
 	"encoding/binary"
 	"encoding/xml"
@@ -13,10 +14,13 @@ import (
 	"image"
 	"image/color"
 	"io"
+	"io/ioutil"
 	"math"
 	"math/big"
+	"math/rand"
 	"net"
 	"net/http"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strconv"
@@ -28,8 +32,45 @@ import (
 )
 
 // NOTE: this isn't safe.
-func testImporter(out io.Writer) gno.Importer {
-	return func(pkgPath string) *gno.PackageValue {
+func testImporter(out io.Writer) (imp gno.Importer) {
+	cache := make(map[string]*gno.PackageValue)
+	imp = func(pkgPath string) (pv *gno.PackageValue) {
+		// look up cache.
+		if pv, exists := cache[pkgPath]; exists {
+			return pv
+		}
+		// defer: save to cache.
+		defer func() {
+			cache[pkgPath] = pv
+		}()
+		// construct test package value.
+		const testPath = "github.com/gnolang/gno/_test/"
+		if strings.HasPrefix(pkgPath, testPath) {
+			baseDir := filepath.Join("./files/extern", pkgPath[len(testPath):])
+			pkgName := defaultPkgName(pkgPath)
+			pkg := gno.NewPackageNode(pkgName, pkgPath, nil)
+			pv := pkg.NewPackage(nil)
+			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+				Package:  pv,
+				Output:   out,
+				Importer: imp,
+			})
+			files, err := ioutil.ReadDir(baseDir)
+			if err != nil {
+				panic(err)
+			}
+			fnodes := []*gno.FileNode{}
+			for _, file := range files {
+				if filepath.Ext(file.Name()) != ".go" {
+					continue
+				}
+				fpath := filepath.Join(baseDir, file.Name())
+				fnodes = append(fnodes, gno.MustReadFile(fpath))
+			}
+			m2.RunFiles(fnodes...)
+			return pv
+		}
+		// construct built-in package value.
 		switch pkgPath {
 		case "fmt":
 			pkg := gno.NewPackageNode("fmt", "fmt", nil)
@@ -90,13 +131,22 @@ func testImporter(out io.Writer) gno.Importer {
 			pkg.DefineGoNativeValue("SplitN", strings.SplitN)
 			pkg.DefineGoNativeValue("HasPrefix", strings.HasPrefix)
 			return pkg.NewPackage(nil)
-		case "crypto/sha1":
-			pkg := gno.NewPackageNode("sha1", "crypto/sha1", nil)
-			pkg.DefineGoNativeValue("New", sha1.New)
-			return pkg.NewPackage(nil)
 		case "math":
 			pkg := gno.NewPackageNode("math", "math", nil)
 			pkg.DefineGoNativeValue("Abs", math.Abs)
+			return pkg.NewPackage(nil)
+		case "math/rand":
+			pkg := gno.NewPackageNode("rand", "math/rand", nil)
+			pkg.DefineGoNativeValue("Uint32", rand.Uint32)
+			pkg.DefineGoNativeValue("Seed", rand.Seed)
+			return pkg.NewPackage(nil)
+		case "crypto/rand":
+			pkg := gno.NewPackageNode("rand", "crypto/rand", nil)
+			pkg.DefineGoNativeValue("Prime", crand.Prime)
+			return pkg.NewPackage(nil)
+		case "crypto/sha1":
+			pkg := gno.NewPackageNode("sha1", "crypto/sha1", nil)
+			pkg.DefineGoNativeValue("New", sha1.New)
 			return pkg.NewPackage(nil)
 		case "image":
 			pkg := gno.NewPackageNode("image", "image", nil)
@@ -106,17 +156,6 @@ func testImporter(out io.Writer) gno.Importer {
 			pkg := gno.NewPackageNode("color", "color", nil)
 			pkg.DefineGoNativeType(reflect.TypeOf(color.NRGBA64{}))
 			return pkg.NewPackage(nil)
-		case "github.com/gnolang/gno/_test/ct1":
-			pkg := gno.NewPackageNode("ct1", "ct1", nil)
-			pv := pkg.NewPackage(nil)
-			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-				Package: pv,
-			})
-			files := []*gno.FileNode{
-				gno.MustReadFile("./files/ct1/ct1.go"),
-			}
-			m2.RunFiles(files...)
-			return pv
 		case "compress/flate":
 			pkg := gno.NewPackageNode("flate", "flate", nil)
 			pkg.DefineGoNativeValue("BestSpeed", flate.BestSpeed)
@@ -153,4 +192,5 @@ func testImporter(out io.Writer) gno.Importer {
 			panic("unknown package path " + pkgPath)
 		}
 	}
+	return
 }

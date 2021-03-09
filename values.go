@@ -1060,9 +1060,9 @@ func (tv *TypedValue) Assign(tv2 TypedValue) {
 			}
 		}
 	case *nativeType:
-		nv1 := tv.V.(*nativeValue)
 		switch v2 := tv2.V.(type) {
 		case PointerValue:
+			nv1 := tv.V.(*nativeValue)
 			if ct.Type.Kind() != reflect.Ptr {
 				panic("should not happen")
 			}
@@ -1080,7 +1080,23 @@ func (tv *TypedValue) Assign(tv2 TypedValue) {
 				panic("not yet implemented")
 			}
 		case *nativeValue:
-			nv1.Value.Set(v2.Value)
+			if tv.V == nil {
+				if debug {
+					// tv.V is a native function type.
+					if tv.T.Kind() != FuncKind ||
+						tv2.T.Kind() != FuncKind {
+						panic("should not happen")
+					}
+					if nv, ok := tv2.V.(*nativeValue); !ok ||
+						nv.Value.Kind() != reflect.Func {
+						panic("should not happen")
+					}
+				}
+				tv.V = v2
+			} else {
+				nv1 := tv.V.(*nativeValue)
+				nv1.Value.Set(v2.Value)
+			}
 		default:
 			panic("should not happen")
 		}
