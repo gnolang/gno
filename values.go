@@ -1637,7 +1637,7 @@ type Block struct {
 	Values     []TypedValue
 	Parent     *Block
 	Blank      TypedValue // captures "_"
-	bodyStmt
+	bodyStmt   bodyStmt
 }
 
 func NewBlock(source BlockNode, parent *Block) *Block {

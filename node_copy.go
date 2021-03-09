@@ -233,7 +233,7 @@ func (x *IfStmt) Copy() Node {
 	return &IfStmt{
 		Init: copyStmt(x.Init),
 		Cond: copyExpr(x.Cond),
-		Body: *copyStmt(&x.Body).(*IfCaseStmt),
+		Then: *copyStmt(&x.Then).(*IfCaseStmt),
 		Else: *copyStmt(&x.Else).(*IfCaseStmt),
 	}
 }
@@ -364,7 +364,7 @@ func (fs *FileSet) CopyFileSet() *FileSet {
 func (x *FileNode) Copy() Node {
 	return &FileNode{
 		PkgName: x.PkgName,
-		Body:    copyDecls(x.Body),
+		Decls:   copyDecls(x.Decls),
 	}
 }
 

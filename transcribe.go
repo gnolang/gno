@@ -464,7 +464,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		if isStopOrSkip(nc, c) {
 			return
 		}
-		cnn.Body = *transcribe(t, nns, TRANS_IF_BODY, 0, &cnn.Body, &c).(*IfCaseStmt)
+		cnn.Then = *transcribe(t, nns, TRANS_IF_BODY, 0, &cnn.Then, &c).(*IfCaseStmt)
 		if isStopOrSkip(nc, c) {
 			return
 		}
@@ -689,8 +689,8 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		} else {
 			cnn = cnn2.(*FileNode)
 		}
-		for idx, _ := range cnn.Body {
-			cnn.Body[idx] = transcribe(t, nns, TRANS_FILE_BODY, idx, cnn.Body[idx], &c).(Decl)
+		for idx, _ := range cnn.Decls {
+			cnn.Decls[idx] = transcribe(t, nns, TRANS_FILE_BODY, idx, cnn.Decls[idx], &c).(Decl)
 			if isBreak(c) {
 				break
 			} else if isStopOrSkip(nc, c) {

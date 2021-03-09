@@ -135,8 +135,8 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 		pv.AddFileBlock(fn.Name, fb)
 		updates := pn.UpdatePackage(pv) // with fb.
 		// Run declarations.
-		for _, d := range fn.Body {
-			m.runDeclaration(d)
+		for _, decl := range fn.Decls {
+			m.runDeclaration(decl)
 		}
 		// Run new init functions.
 		for i := 0; i < len(updates); i++ {
@@ -199,7 +199,7 @@ func (m *Machine) Eval(x Expr) TypedValue {
 	// context (ie **PackageNode) doesn't get modified.
 	if _, ok := x.(*CallExpr); !ok {
 		x = Call(Fn(nil, Flds("x", InterfaceT(nil)),
-			Body(
+			Ss(
 				Return(x),
 			)))
 	} else {
