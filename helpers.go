@@ -429,7 +429,7 @@ func lowestMatch(op string) int {
 	return -1
 }
 
-func Body(b ...Stmt) []Stmt {
+func Ss(b ...Stmt) []Stmt {
 	return b
 }
 
@@ -565,7 +565,7 @@ func Ptr(x interface{}) *StarExpr {
 func If(cond Expr, b ...Stmt) *IfStmt {
 	return &IfStmt{
 		Cond: cond,
-		Body: IfCaseStmt{Body: b},
+		Then: IfCaseStmt{Body: b},
 	}
 }
 
@@ -584,7 +584,7 @@ func IfElse(cond Expr, bdy, els Stmt) *IfStmt {
 	}
 	return &IfStmt{
 		Cond: cond,
-		Body: IfCaseStmt{Body: body},
+		Then: IfCaseStmt{Body: body},
 		Else: IfCaseStmt{Body: els_},
 	}
 }

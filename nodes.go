@@ -415,7 +415,7 @@ type FuncLitExpr struct {
 	Attributes
 	StaticBlock
 	Type FuncTypeExpr // function type
-	Body Stmts        // function body
+	Body              // function body
 }
 
 // The preprocessor replaces const expressions
@@ -571,9 +571,13 @@ type Stmt interface {
 	assertStmt()
 }
 
-type Stmts []Stmt
+type Body []Stmt
 
-func (ss Stmts) GetLabeledStmt(label Name) (Stmt, int) {
+func (ss Body) GetBody() Body {
+	return ss
+}
+
+func (ss Body) GetLabeledStmt(label Name) (Stmt, int) {
 	for i, stmt := range ss {
 		if ls, ok := stmt.(*LabeledStmt); ok {
 			return ls.Stmt, i
@@ -639,7 +643,7 @@ type AssignStmt struct {
 type BlockStmt struct {
 	Attributes
 	StaticBlock
-	Body Stmts
+	Body
 }
 
 type BranchStmt struct {
@@ -675,7 +679,7 @@ type ForStmt struct {
 	Init Stmt // initialization (simple) statement; or nil
 	Cond Expr // condition; or nil
 	Post Stmt // post iteration (simple) statement; or nil
-	Body Stmts
+	Body
 }
 
 type GoStmt struct {
@@ -691,14 +695,14 @@ type IfStmt struct {
 	StaticBlock
 	Init Stmt       // initialization (simple) statement; or nil
 	Cond Expr       // condition; or nil
-	Body IfCaseStmt // body statements
+	Then IfCaseStmt // body statements
 	Else IfCaseStmt // else statements
 }
 
 type IfCaseStmt struct {
 	Attributes
 	StaticBlock
-	Body Stmts
+	Body
 }
 
 type IncDecStmt struct {
@@ -719,9 +723,9 @@ type RangeStmt struct {
 	X          Expr // value to range over
 	Key, Value Expr // Key, Value may be nil
 	Op         Word // ASSIGN or DEFINE
-	Body       Stmts
-	IsMap      bool // if X is map type
-	IsString   bool // if X is string type
+	Body
+	IsMap    bool // if X is map type
+	IsString bool // if X is string type
 }
 
 type ReturnStmt struct {
@@ -738,7 +742,7 @@ type SelectCaseStmt struct {
 	Attributes
 	StaticBlock
 	Comm Stmt // send or receive statement; nil means default case
-	Body Stmts
+	Body
 }
 
 type SendStmt struct {
@@ -763,7 +767,7 @@ type SwitchCaseStmt struct {
 	Attributes
 	StaticBlock
 	Cases Exprs // list of expressions or types; nil means default case
-	Body  Stmts
+	Body
 }
 
 //----------------------------------------
@@ -772,7 +776,7 @@ type SwitchCaseStmt struct {
 // NOTE: embedded in Block.
 type bodyStmt struct {
 	Attributes
-	Body      Stmts        // for non-loop stmts
+	Body                   // for non-loop stmts
 	BodyLen   int          // for for-continue
 	BodyIndex int          // init:-2, cond/elem:-1, body:0..., post:n
 	Cond      Expr         // for ForStmt
@@ -851,7 +855,7 @@ type FuncDecl struct {
 	IsMethod bool
 	Recv     FieldTypeExpr // receiver (if method); or empty (if function)
 	Type     FuncTypeExpr  // function signature: parameters and results
-	Body     Stmts         // function body; or empty for external (non-Go) function
+	Body                   // function body; or empty for external (non-Go) function
 }
 
 type ImportDecl struct {
@@ -921,13 +925,13 @@ func (fs *FileSet) GetFileByName(n Name) *FileNode {
 func (fs *FileSet) GetDeclFor(n Name) (*FileNode, *Decl) {
 	// XXX index to bound to linear time.
 	for _, fn := range fs.Files {
-		for i, dn := range fn.Body {
+		for i, dn := range fn.Decls {
 			if _, isImport := dn.(*ImportDecl); isImport {
 				continue
 			}
 			if dn.GetName() == n {
 				// found the decl that declares n.
-				return fn, &fn.Body[i]
+				return fn, &fn.Decls[i]
 			}
 		}
 	}
@@ -944,7 +948,7 @@ type FileNode struct {
 	StaticBlock
 	Name
 	PkgName Name
-	Body    Decls
+	Decls
 }
 
 type PackageNode struct {
@@ -1078,6 +1082,7 @@ type BlockNode interface {
 	GetStaticTypeOf(Name) Type
 	GetStaticTypeOfAt(ValuePath) Type
 	Define(Name, TypedValue)
+	GetBody() Body
 }
 
 //----------------------------------------
@@ -1297,13 +1302,31 @@ func (sb *StaticBlock) SetStaticBlock(osb StaticBlock) {
 var _ BlockNode = &FuncLitExpr{}
 var _ BlockNode = &BlockStmt{}
 var _ BlockNode = &ForStmt{}
+var _ BlockNode = &IfStmt{} // faux block node
 var _ BlockNode = &IfCaseStmt{}
 var _ BlockNode = &RangeStmt{}
 var _ BlockNode = &SelectCaseStmt{}
+var _ BlockNode = &SwitchStmt{} // faux block node
 var _ BlockNode = &SwitchCaseStmt{}
 var _ BlockNode = &FuncDecl{}
 var _ BlockNode = &FileNode{}
 var _ BlockNode = &PackageNode{}
+
+func (ifs *IfStmt) GetBody() Body {
+	panic("IfStmt has no body (but .Then and .Else do)")
+}
+
+func (ifs *SwitchStmt) GetBody() Body {
+	panic("SwitchStmt has no body (but its cases do)")
+}
+
+func (fn *FileNode) GetBody() Body {
+	panic("FileNode has no body (but it does have .Decls)")
+}
+
+func (pn *PackageNode) GetBody() Body {
+	panic("PackageNode has no body")
+}
 
 //----------------------------------------
 // Value Path

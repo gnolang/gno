@@ -317,8 +317,8 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 					// *FileNode:ENTER)
 
 					// Predefine all type decls and import decls.
-					for i := 0; i < len(n.Body); i++ {
-						d := n.Body[i]
+					for i := 0; i < len(n.Decls); i++ {
+						d := n.Decls[i]
 						switch d.(type) {
 						case *ImportDecl, *TypeDecl:
 							if d.GetAttribute(ATTR_PREDEFINED) == true {
@@ -329,23 +329,23 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 								// recursively predefine
 								// dependencies.
 								d2, _ := predefineNow(imp, n, d)
-								n.Body[i] = d2
+								n.Decls[i] = d2
 							}
 						}
 					}
 					// Then, preprocess all type decls.
-					for i := 0; i < len(n.Body); i++ {
-						d := n.Body[i]
+					for i := 0; i < len(n.Decls); i++ {
+						d := n.Decls[i]
 						switch d.(type) {
 						case *TypeDecl:
 							d2 := Preprocess(imp, last, d).(Decl)
-							n.Body[i] = d2
+							n.Decls[i] = d2
 						}
 					}
 					// Finally, predefine other decls and preprocess
 					// ValueDecls..
-					for i := 0; i < len(n.Body); i++ {
-						d := n.Body[i]
+					for i := 0; i < len(n.Decls); i++ {
+						d := n.Decls[i]
 						if d.GetAttribute(ATTR_PREDEFINED) == true {
 							// skip declarations already
 							// predefined (e.g. through
@@ -354,7 +354,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 							// recursively predefine
 							// dependencies.
 							d2, _ := predefineNow(imp, n, d)
-							n.Body[i] = d2
+							n.Decls[i] = d2
 						}
 					}
 					// After return, the other decls get preprocessed.
@@ -1441,18 +1441,16 @@ func funcNodeOf(last BlockNode) (BlockNode, *FuncTypeExpr) {
 
 func ofLabel(last BlockNode, label Name) (BlockNode, int) {
 	for {
-		// XXX
-		switch last.(type) {
-		case *FuncLitExpr:
-		case *BlockStmt:
-		case *ForStmt:
-		case *IfStmt:
-		case *RangeStmt:
-		case *SelectCaseStmt:
-		case *SwitchCaseStmt:
-		case *FuncDecl:
-		case *FileNode:
-		case *PackageNode:
+		switch bn := last.(type) {
+		case *IfStmt, *SwitchStmt:
+			// These are faux blocks -- ignore.
+		case *FuncLitExpr,
+			*BlockStmt, *ForStmt, *IfCaseStmt, *RangeStmt,
+			*SelectCaseStmt, *SwitchCaseStmt, *FuncDecl,
+			*FileNode, *PackageNode:
+			// These are relevant blocks.
+			body := bn.GetBody()
+			fmt.Println(body)
 		default:
 			panic("unexpected block node")
 		}

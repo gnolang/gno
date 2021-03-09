@@ -260,13 +260,13 @@ func (n IfStmt) String() string {
 		init = n.Init.String() + "; "
 	}
 	cond := n.Cond.String()
-	body := n.Body.String()
+	then := n.Then.String()
 	els_ := n.Else.String()
 	if n.Else.Body == nil {
-		return fmt.Sprintf("if %s%s { %s }", init, cond, body)
+		return fmt.Sprintf("if %s%s { %s }", init, cond, then)
 	} else {
 		return fmt.Sprintf("if %s%s { %s } else { %s }",
-			init, cond, body, els_)
+			init, cond, then, els_)
 	}
 }
 
@@ -401,7 +401,7 @@ func (n TypeDecl) String() string {
 }
 
 func (n FileNode) String() string {
-	return fmt.Sprintf("file{ package %s; %s }", n.PkgName, n.Body.String())
+	return fmt.Sprintf("file{ package %s; %s }", n.PkgName, n.Decls.String())
 }
 
 func (n PackageNode) String() string {
@@ -448,7 +448,7 @@ func (kvs KeyValueExprs) String() string {
 	return str
 }
 
-func (ss Stmts) String() string {
+func (ss Body) String() string {
 	str := ""
 	for i, s := range ss {
 		if i == 0 {

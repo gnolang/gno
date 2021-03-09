@@ -90,18 +90,18 @@ func Go2Gno(gon ast.Node) (n Node) {
 	switch gon := gon.(type) {
 	case *ast.File:
 		pkgName := Name(gon.Name.Name)
-		body := make([]Decl, 0, len(gon.Decls))
+		decls := make([]Decl, 0, len(gon.Decls))
 		for _, d := range gon.Decls {
 			if gd, ok := d.(*ast.GenDecl); ok {
-				body = append(body, toDecls(gd)...)
+				decls = append(decls, toDecls(gd)...)
 			} else {
-				body = append(body, toDecl(d))
+				decls = append(decls, toDecl(d))
 			}
 		}
 		return &FileNode{
 			Name:    "", // filled later.
 			PkgName: pkgName,
-			Body:    body,
+			Decls:   decls,
 		}
 	case *ast.FuncDecl:
 		isMethod := gon.Recv != nil
@@ -177,7 +177,7 @@ func Go2Gno(gon ast.Node) (n Node) {
 		return &IfStmt{
 			Init: toSimp(gon.Init),
 			Cond: toExpr(gon.Cond),
-			Body: IfCaseStmt{
+			Then: IfCaseStmt{
 				Body: toStmts(gon.Body.List),
 			},
 			Else: IfCaseStmt{
@@ -444,7 +444,7 @@ func toStmt(gos ast.Stmt) Stmt {
 	}
 }
 
-func toStmts(goss []ast.Stmt) (gnoss Stmts) {
+func toStmts(goss []ast.Stmt) (gnoss Body) {
 	gnoss = make([]Stmt, len(goss))
 	for i, x := range goss {
 		gnoss[i] = toStmt(x)
@@ -452,7 +452,7 @@ func toStmts(goss []ast.Stmt) (gnoss Stmts) {
 	return
 }
 
-func toBody(body *ast.BlockStmt) Stmts {
+func toBody(body *ast.BlockStmt) Body {
 	if body == nil {
 		return nil
 	}
