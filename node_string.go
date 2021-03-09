@@ -262,12 +262,16 @@ func (n IfStmt) String() string {
 	cond := n.Cond.String()
 	body := n.Body.String()
 	els_ := n.Else.String()
-	if n.Else == nil {
+	if n.Else.Body == nil {
 		return fmt.Sprintf("if %s%s { %s }", init, cond, body)
 	} else {
 		return fmt.Sprintf("if %s%s { %s } else { %s }",
 			init, cond, body, els_)
 	}
+}
+
+func (n IfCaseStmt) String() string {
+	return n.Body.String()
 }
 
 func (n IncDecStmt) String() string {

@@ -115,7 +115,21 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 
 			// TRANS_BLOCK -----------------------
 			case *IfStmt:
+				// create faux block to store .Init.
+				// the contents are copied onto the case block
+				// in the if case below for .Body and .Else.
 				pushBlock(n, &last, &stack)
+
+			// TRANS_BLOCK -----------------------
+			case *IfCaseStmt:
+				pushRealBlock(n, &last, &stack)
+				// parent if statement.
+				ifs := ns[len(ns)-1].(*IfStmt)
+				// anything declared in ifs are copied.
+				for _, n := range ifs.GetNames() {
+					tv := ifs.GetValueRef(n)
+					last.Define(n, *tv)
+				}
 
 			// TRANS_BLOCK -----------------------
 			case *RangeStmt:
@@ -204,7 +218,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 
 			// TRANS_BLOCK -----------------------
 			case *SwitchCaseStmt:
-				pushBlock(n, &last, &stack)
+				pushRealBlock(n, &last, &stack)
 				// parent switch statement.
 				ss := ns[len(ns)-1].(*SwitchStmt)
 				// anything declared in ss are copied.
@@ -1114,6 +1128,18 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 				}
 
 			// TRANS_LEAVE -----------------------
+			case *BranchStmt:
+				switch n.Op {
+				case BREAK:
+				case CONTINUE:
+				case GOTO:
+
+				case FALLTHROUGH:
+				default:
+					panic("should not happen")
+				}
+
+			// TRANS_LEAVE -----------------------
 			case *ForStmt:
 				// Cond consts become bool *constExprs.
 				checkOrConvertType(last, n.Cond, BoolType)
@@ -1303,6 +1329,14 @@ func pushBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
 	*stack = append(*stack, bn)
 }
 
+// like pushBlock(), but when the last block is a faux block,
+// namely after SwitchStmt and IfStmt.
+func pushRealBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
+	bn.InitStaticBlock(bn, (*last).GetParent())
+	*last = bn
+	*stack = append(*stack, bn)
+}
+
 // Evaluates the value of x which is expected to be a typeval.
 // Caches the result as an attribute of x.
 // To discourage mis-use, expects x to already be
@@ -1402,6 +1436,26 @@ func funcNodeOf(last BlockNode) (BlockNode, *FuncTypeExpr) {
 			return fd, &fd.Type
 		}
 		last = last.GetParent()
+	}
+}
+
+func ofLabel(last BlockNode, label Name) (BlockNode, int) {
+	for {
+		// XXX
+		switch last.(type) {
+		case *FuncLitExpr:
+		case *BlockStmt:
+		case *ForStmt:
+		case *IfStmt:
+		case *RangeStmt:
+		case *SelectCaseStmt:
+		case *SwitchCaseStmt:
+		case *FuncDecl:
+		case *FileNode:
+		case *PackageNode:
+		default:
+			panic("unexpected block node")
+		}
 	}
 }
 

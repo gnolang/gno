@@ -177,8 +177,12 @@ func Go2Gno(gon ast.Node) (n Node) {
 		return &IfStmt{
 			Init: toSimp(gon.Init),
 			Cond: toExpr(gon.Cond),
-			Body: toStmts(gon.Body.List),
-			Else: ess,
+			Body: IfCaseStmt{
+				Body: toStmts(gon.Body.List),
+			},
+			Else: IfCaseStmt{
+				Body: ess,
+			},
 		}
 	case *ast.UnaryExpr:
 		if gon.Op == token.AND {
@@ -318,6 +322,11 @@ func Go2Gno(gon ast.Node) (n Node) {
 		cx := toExpr(gon.Call).(*CallExpr)
 		return &DeferStmt{
 			Call: *cx,
+		}
+	case *ast.LabeledStmt:
+		return &LabeledStmt{
+			Label: toName(gon.Label),
+			Stmt:  toStmt(gon.Stmt),
 		}
 	default:
 		panic(fmt.Sprintf("unknown Go type %v: %s\n",

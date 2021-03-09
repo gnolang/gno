@@ -565,7 +565,7 @@ func Ptr(x interface{}) *StarExpr {
 func If(cond Expr, b ...Stmt) *IfStmt {
 	return &IfStmt{
 		Cond: cond,
-		Body: b,
+		Body: IfCaseStmt{Body: b},
 	}
 }
 
@@ -584,8 +584,8 @@ func IfElse(cond Expr, bdy, els Stmt) *IfStmt {
 	}
 	return &IfStmt{
 		Cond: cond,
-		Body: body,
-		Else: els_,
+		Body: IfCaseStmt{Body: body},
+		Else: IfCaseStmt{Body: els_},
 	}
 }
 
