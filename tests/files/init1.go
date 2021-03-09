@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// _test/init1.go:8:2: undefined: init
+// 8:2: name init not declared

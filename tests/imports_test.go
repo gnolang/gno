@@ -37,8 +37,15 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 	imp = func(pkgPath string) (pv *gno.PackageValue) {
 		// look up cache.
 		if pv, exists := cache[pkgPath]; exists {
+			if pv == nil {
+				panic(fmt.Sprintf(
+					"import cycle detected: %q",
+					pkgPath))
+			}
 			return pv
 		}
+		// set entry to detect import cycles.
+		cache[pkgPath] = nil
 		// defer: save to cache.
 		defer func() {
 			cache[pkgPath] = pv
@@ -48,6 +55,27 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 		if strings.HasPrefix(pkgPath, testPath) {
 			baseDir := filepath.Join("./files/extern", pkgPath[len(testPath):])
 			pkgName := defaultPkgName(pkgPath)
+			files, err := ioutil.ReadDir(baseDir)
+			if err != nil {
+				panic(err)
+			}
+			fnodes := []*gno.FileNode{}
+			for i, file := range files {
+				if filepath.Ext(file.Name()) != ".go" {
+					continue
+				}
+				fpath := filepath.Join(baseDir, file.Name())
+				fnode := gno.MustReadFile(fpath)
+				if i == 0 {
+					pkgName = fnode.PkgName
+				} else if fnode.PkgName != pkgName {
+					panic(fmt.Sprintf(
+						"expected package name %q but got %v",
+						pkgName,
+						fnode.PkgName))
+				}
+				fnodes = append(fnodes, fnode)
+			}
 			pkg := gno.NewPackageNode(pkgName, pkgPath, nil)
 			pv := pkg.NewPackage(nil)
 			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
@@ -55,18 +83,6 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 				Output:   out,
 				Importer: imp,
 			})
-			files, err := ioutil.ReadDir(baseDir)
-			if err != nil {
-				panic(err)
-			}
-			fnodes := []*gno.FileNode{}
-			for _, file := range files {
-				if filepath.Ext(file.Name()) != ".go" {
-					continue
-				}
-				fpath := filepath.Join(baseDir, file.Name())
-				fnodes = append(fnodes, gno.MustReadFile(fpath))
-			}
 			m2.RunFiles(fnodes...)
 			return pv
 		}

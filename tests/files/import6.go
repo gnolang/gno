@@ -7,5 +7,4 @@ func main() {
 }
 
 // Error:
-// import cycle not allowed
-//	imports github.com/gnolang/gno/_test/c1
+// import cycle detected: "github.com/gnolang/gno/_test/c1"
