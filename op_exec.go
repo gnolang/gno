@@ -54,13 +54,19 @@ func (m *Machine) doOpExec(op Op) {
 		debug.Printf("EXEC: %v\n", s)
 	}
 
-	// NOTE this could go in the switch statement, and we could use the
-	// EXEC_SWITCH to jump back, rather than putting this in front like so, but
-	// loops are so common that this is likely faster overall, as the type
-	// switch is slower than this type assertion conditional.
+	// NOTE this could go in the switch statement, and we could
+	// use the EXEC_SWITCH to jump back, rather than putting this
+	// in front like so, but loops are so common that this is
+	// likely faster overall, as the type switch is slower than
+	// this type assertion conditional.
 	switch op {
 	case OpBody:
 		bs := m.LastBlock().GetBodyStmt()
+		if bs.BodyIndex == -2 { // init
+			bs.NumOps = m.NumOps
+			bs.NumStmts = len(m.Stmts)
+			bs.BodyIndex = 0
+		}
 		if bs.BodyIndex < bs.BodyLen {
 			next := bs.Body[bs.BodyIndex]
 			bs.BodyIndex++
@@ -76,6 +82,11 @@ func (m *Machine) doOpExec(op Op) {
 	case OpForLoop2:
 		bs := m.LastBlock().GetBodyStmt()
 		// evaluate .Cond.
+		if bs.BodyIndex == -2 { // init
+			bs.NumOps = m.NumOps
+			bs.NumStmts = len(m.Stmts)
+			bs.BodyIndex = -1
+		}
 		if bs.BodyIndex == -1 {
 			if bs.Cond != nil {
 				cond := m.PopValue()
@@ -125,6 +136,8 @@ func (m *Machine) doOpExec(op Op) {
 		switch bs.BodyIndex {
 		case -2: // init.
 			bs.ListLen = xv.GetLength()
+			bs.NumOps = m.NumOps
+			bs.NumStmts = len(m.Stmts)
 			bs.BodyIndex++
 			fallthrough
 		case -1: // assign list element.
@@ -222,6 +235,8 @@ func (m *Machine) doOpExec(op Op) {
 			r, size := utf8.DecodeRuneInString(sv)
 			bs.NextRune = r
 			bs.StrIndex += size
+			bs.NumOps = m.NumOps
+			bs.NumStmts = len(m.Stmts)
 			bs.BodyIndex++
 			fallthrough
 		case -1: // assign list element.
@@ -317,6 +332,8 @@ func (m *Machine) doOpExec(op Op) {
 		case -2: // init.
 			// bs.ListLen = xv.GetLength()
 			bs.NextItem = mv.List.Head
+			bs.NumOps = m.NumOps
+			bs.NumStmts = len(m.Stmts)
 			bs.BodyIndex++
 			fallthrough
 		case -1: // assign list element.
@@ -619,7 +636,17 @@ EXEC_SWITCH:
 				}
 			}
 		case GOTO:
-			panic("not yet implemented")
+			for i := uint8(0); i < cs.Depth; i++ {
+				m.PopBlock()
+			}
+			last := m.LastBlock()
+			bs := last.GetBodyStmt()
+			m.NumOps = bs.NumOps
+			m.NumValues = 0
+			m.Exprs = nil
+			m.Stmts = m.Stmts[:bs.NumStmts]
+			bs.BodyIndex = cs.BodyIndex
+			bs.Active = bs.Body[cs.BodyIndex]
 		case FALLTHROUGH:
 			panic("not yet implemented")
 		default:
@@ -642,6 +669,9 @@ EXEC_SWITCH:
 		// evaluate func
 		m.PushExpr(cs.Call.Func)
 		m.PushOp(OpEval)
+	case *LabeledStmt:
+		s = cs.Stmt
+		goto EXEC_SWITCH
 	default:
 		panic(fmt.Sprintf("unexpected statement %#v", s))
 	}
@@ -659,7 +689,7 @@ func (m *Machine) doOpIfCond() {
 			b.bodyStmt = bodyStmt{
 				Body:      is.Then.Body,
 				BodyLen:   len(is.Then.Body),
-				BodyIndex: 0,
+				BodyIndex: -2,
 			}
 			m.PushOp(OpBody)
 			m.PushStmt(b.GetBodyStmt())
@@ -669,7 +699,7 @@ func (m *Machine) doOpIfCond() {
 			b.bodyStmt = bodyStmt{
 				Body:      is.Else.Body,
 				BodyLen:   len(is.Else.Body),
-				BodyIndex: 0,
+				BodyIndex: -2,
 			}
 			m.PushOp(OpBody)
 			m.PushStmt(b.GetBodyStmt())

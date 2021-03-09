@@ -648,8 +648,10 @@ type BlockStmt struct {
 
 type BranchStmt struct {
 	Attributes
-	Op    Word // keyword word (BREAK, CONTINUE, GOTO, FALLTHROUGH)
-	Label Name // label name; or empty
+	Op        Word  // keyword word (BREAK, CONTINUE, GOTO, FALLTHROUGH)
+	Label     Name  // label name; or empty
+	Depth     uint8 // blocks to pop
+	BodyIndex int   // index of statement of body
 }
 
 type DeclStmt struct {
@@ -779,6 +781,8 @@ type bodyStmt struct {
 	Body                   // for non-loop stmts
 	BodyLen   int          // for for-continue
 	BodyIndex int          // init:-2, cond/elem:-1, body:0..., post:n
+	NumOps    int          // number of Ops, for goto
+	NumStmts  int          // number of Stmts, for goto
 	Cond      Expr         // for ForStmt
 	Post      Stmt         // for ForStmt
 	Active    Stmt         // for PopStmt()
