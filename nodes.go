@@ -170,6 +170,7 @@ func (_ *ExprStmt) assertNode()          {}
 func (_ *ForStmt) assertNode()           {}
 func (_ *GoStmt) assertNode()            {}
 func (_ *IfStmt) assertNode()            {}
+func (_ *IfCaseStmt) assertNode()        {}
 func (_ *IncDecStmt) assertNode()        {}
 func (_ *LabeledStmt) assertNode()       {}
 func (_ *RangeStmt) assertNode()         {}
@@ -221,6 +222,7 @@ var _ = &ExprStmt{}
 var _ = &ForStmt{}
 var _ = &GoStmt{}
 var _ = &IfStmt{}
+var _ = &IfCaseStmt{}
 var _ = &IncDecStmt{}
 var _ = &LabeledStmt{}
 var _ = &RangeStmt{}
@@ -571,6 +573,17 @@ type Stmt interface {
 
 type Stmts []Stmt
 
+func (ss Stmts) GetLabeledStmt(label Name) (Stmt, int) {
+	for i, stmt := range ss {
+		if ls, ok := stmt.(*LabeledStmt); ok {
+			return ls.Stmt, i
+		}
+	}
+	return nil, -1
+}
+
+//----------------------------------------
+
 // non-pointer receiver to help make immutable.
 func (*AssignStmt) assertStmt()     {}
 func (*BlockStmt) assertStmt()      {}
@@ -582,6 +595,7 @@ func (*ExprStmt) assertStmt()       {}
 func (*ForStmt) assertStmt()        {}
 func (*GoStmt) assertStmt()         {}
 func (*IfStmt) assertStmt()         {}
+func (*IfCaseStmt) assertStmt()     {}
 func (*IncDecStmt) assertStmt()     {}
 func (*LabeledStmt) assertStmt()    {}
 func (*RangeStmt) assertStmt()      {}
@@ -603,6 +617,7 @@ var _ Stmt = &ExprStmt{}
 var _ Stmt = &ForStmt{}
 var _ Stmt = &GoStmt{}
 var _ Stmt = &IfStmt{}
+var _ Stmt = &IfCaseStmt{}
 var _ Stmt = &IncDecStmt{}
 var _ Stmt = &LabeledStmt{}
 var _ Stmt = &RangeStmt{}
@@ -674,10 +689,16 @@ type GoStmt struct {
 type IfStmt struct {
 	Attributes
 	StaticBlock
-	Init Stmt  // initialization (simple) statement; or nil
-	Cond Expr  // condition; or nil
-	Body Stmts // body statements
-	Else Stmts // else statements
+	Init Stmt       // initialization (simple) statement; or nil
+	Cond Expr       // condition; or nil
+	Body IfCaseStmt // body statements
+	Else IfCaseStmt // else statements
+}
+
+type IfCaseStmt struct {
+	Attributes
+	StaticBlock
+	Body Stmts
 }
 
 type IncDecStmt struct {
@@ -1276,7 +1297,7 @@ func (sb *StaticBlock) SetStaticBlock(osb StaticBlock) {
 var _ BlockNode = &FuncLitExpr{}
 var _ BlockNode = &BlockStmt{}
 var _ BlockNode = &ForStmt{}
-var _ BlockNode = &IfStmt{}
+var _ BlockNode = &IfCaseStmt{}
 var _ BlockNode = &RangeStmt{}
 var _ BlockNode = &SelectCaseStmt{}
 var _ BlockNode = &SwitchCaseStmt{}

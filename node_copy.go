@@ -233,8 +233,14 @@ func (x *IfStmt) Copy() Node {
 	return &IfStmt{
 		Init: copyStmt(x.Init),
 		Cond: copyExpr(x.Cond),
+		Body: *copyStmt(&x.Body).(*IfCaseStmt),
+		Else: *copyStmt(&x.Else).(*IfCaseStmt),
+	}
+}
+
+func (x *IfCaseStmt) Copy() Node {
+	return &IfCaseStmt{
 		Body: copyStmts(x.Body),
-		Else: copyStmts(x.Else),
 	}
 }
 

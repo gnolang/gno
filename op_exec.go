@@ -655,20 +655,20 @@ func (m *Machine) doOpIfCond() {
 	// Test cond and run Body or Else.
 	cond := m.PopValue()
 	if cond.GetBool() {
-		if len(is.Body) != 0 {
+		if len(is.Body.Body) != 0 {
 			b.bodyStmt = bodyStmt{
-				Body:      is.Body,
-				BodyLen:   len(is.Body),
+				Body:      is.Body.Body,
+				BodyLen:   len(is.Body.Body),
 				BodyIndex: 0,
 			}
 			m.PushOp(OpBody)
 			m.PushStmt(b.GetBodyStmt())
 		}
 	} else {
-		if len(is.Else) != 0 {
+		if len(is.Else.Body) != 0 {
 			b.bodyStmt = bodyStmt{
-				Body:      is.Else,
-				BodyLen:   len(is.Else),
+				Body:      is.Else.Body,
+				BodyLen:   len(is.Else.Body),
 				BodyIndex: 0,
 			}
 			m.PushOp(OpBody)

@@ -108,8 +108,9 @@ func (m *Machine) doOpCall() {
 
 	}
 	// Convert variadic argument.
-	// TODO: more optimizations may be possible here if varg is unescaping.
-	// NOTE: this logic is somwhat duplicated for doOpReturnCallDefers().
+	// TODO: more optimizations may be possible here if varg is
+	// unescaping.  NOTE: this logic is somwhat duplicated for
+	// doOpReturnCallDefers().
 	if ft.HasVarg() {
 		nvar := fr.NumArgs - isMethod - (numParams - 1)
 		if fr.IsVarg {

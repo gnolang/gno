@@ -74,6 +74,7 @@ const (
 	TRANS_IF_COND
 	TRANS_IF_BODY
 	TRANS_IF_ELSE
+	TRANS_IF_CASE_BODY
 	TRANS_INCDEC_X
 	TRANS_LABELED_STMT
 	TRANS_RANGE_X
@@ -443,6 +444,9 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			return
 		}
 	case *IfStmt:
+		// NOTE: like switch stmts, both if statements AND
+		// contained cases visit with the TRANS_BLOCK stage, even
+		// though during runtime only one block is created.
 		cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
 		if isStopOrSkip(nc, c2) {
 			nn = cnn2
@@ -460,16 +464,24 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		if isStopOrSkip(nc, c) {
 			return
 		}
-		for idx, _ := range cnn.Body {
-			cnn.Body[idx] = transcribe(t, nns, TRANS_IF_BODY, idx, cnn.Body[idx], &c).(Stmt)
-			if isBreak(c) {
-				break
-			} else if isStopOrSkip(nc, c) {
-				return
-			}
+		cnn.Body = *transcribe(t, nns, TRANS_IF_BODY, 0, &cnn.Body, &c).(*IfCaseStmt)
+		if isStopOrSkip(nc, c) {
+			return
 		}
-		for idx, _ := range cnn.Else {
-			cnn.Else[idx] = transcribe(t, nns, TRANS_IF_ELSE, idx, cnn.Else[idx], &c).(Stmt)
+		cnn.Else = *transcribe(t, nns, TRANS_IF_ELSE, 0, &cnn.Else, &c).(*IfCaseStmt)
+		if isStopOrSkip(nc, c) {
+			return
+		}
+	case *IfCaseStmt:
+		cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
+		if isStopOrSkip(nc, c2) {
+			nn = cnn2
+			return
+		} else {
+			cnn = cnn2.(*IfCaseStmt)
+		}
+		for idx, _ := range cnn.Body {
+			cnn.Body[idx] = transcribe(t, nns, TRANS_IF_CASE_BODY, idx, cnn.Body[idx], &c).(Stmt)
 			if isBreak(c) {
 				break
 			} else if isStopOrSkip(nc, c) {
@@ -566,10 +578,10 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			return
 		}
 	case *SwitchStmt:
-		// NOTE: unlike the select case, both switch
-		// statements AND switch cases visit with the
-		// TRANS_BLOCK stage, even though during runtime
-		// only one block is created.
+		// NOTE: unlike the select case, and like if stmts, both
+		// switch statements AND contained cases visit with the
+		// TRANS_BLOCK stage, even though during runtime only one
+		// block is created.
 		cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
 		if isStopOrSkip(nc, c2) {
 			nn = cnn2
