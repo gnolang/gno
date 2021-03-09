@@ -805,8 +805,8 @@ func (m *Machine) PopStmt() Stmt {
 	if debug {
 		m.Printf("-s %v\n", s)
 	}
-	if as, ok := s.(*bodyStmt); ok {
-		return as.PopActiveStmt()
+	if bs, ok := s.(*bodyStmt); ok {
+		return bs.PopActiveStmt()
 	} else {
 		// general case.
 		m.Stmts = m.Stmts[:numStmts-1]
@@ -975,7 +975,6 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv Value) {
 		NumExprs:    len(m.Exprs),
 		NumStmts:    len(m.Stmts),
 		NumBlocks:   len(m.Blocks),
-		BodyIndex:   0,
 		Func:        fv,
 		GoFunc:      nil,
 		Receiver:    recv,
@@ -1015,7 +1014,6 @@ func (m *Machine) PushFrameGoNative(cx *CallExpr, fv *nativeValue) {
 		NumExprs:    len(m.Exprs),
 		NumStmts:    len(m.Stmts),
 		NumBlocks:   len(m.Blocks),
-		BodyIndex:   0,
 		Func:        nil,
 		GoFunc:      fv,
 		Receiver:    nil,

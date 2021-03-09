@@ -15,7 +15,6 @@ type Frame struct {
 	NumExprs  int  // number of exprs in stack
 	NumStmts  int  // number of statements in stack
 	NumBlocks int  // number of blocks in stack
-	BodyIndex int  // for call and for stmts
 
 	// call frame
 	Func        *FuncValue    // function value

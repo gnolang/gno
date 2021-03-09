@@ -1133,7 +1133,9 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 				case BREAK:
 				case CONTINUE:
 				case GOTO:
-
+					_, depth, index := findLabel(last, n.Label)
+					n.Depth = depth
+					n.BodyIndex = index
 				case FALLTHROUGH:
 				default:
 					panic("should not happen")
@@ -1439,18 +1441,28 @@ func funcNodeOf(last BlockNode) (BlockNode, *FuncTypeExpr) {
 	}
 }
 
-func ofLabel(last BlockNode, label Name) (BlockNode, int) {
+func findLabel(last BlockNode, label Name) (
+	bn BlockNode, depth uint8, bodyIdx int) {
+
 	for {
-		switch bn := last.(type) {
+		switch cbn := last.(type) {
 		case *IfStmt, *SwitchStmt:
-			// These are faux blocks -- ignore.
+			// These are faux blocks -- shouldn't happen.
+			panic("unexpected faux blocknode")
 		case *FuncLitExpr,
 			*BlockStmt, *ForStmt, *IfCaseStmt, *RangeStmt,
 			*SelectCaseStmt, *SwitchCaseStmt, *FuncDecl,
 			*FileNode, *PackageNode:
-			// These are relevant blocks.
-			body := bn.GetBody()
-			fmt.Println(body)
+
+			body := cbn.GetBody()
+			_, bodyIdx = body.GetLabeledStmt(label)
+			if bodyIdx != -1 {
+				bn = cbn
+				return
+			} else {
+				last = cbn.GetParent()
+				depth += 1
+			}
 		default:
 			panic("unexpected block node")
 		}

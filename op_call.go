@@ -84,7 +84,7 @@ func (m *Machine) doOpCall() {
 		b.bodyStmt = bodyStmt{
 			Body:      fv.Body,
 			BodyLen:   len(fv.Body),
-			BodyIndex: 0,
+			BodyIndex: -2,
 		}
 		m.PushOp(OpBody)
 		m.PushStmt(b.GetBodyStmt())
@@ -250,7 +250,7 @@ func (m *Machine) doOpReturnCallDefers() {
 			b.bodyStmt = bodyStmt{
 				Body:      fv.Body,
 				BodyLen:   len(fv.Body),
-				BodyIndex: 0,
+				BodyIndex: -2,
 			}
 			m.PushOp(OpBody)
 			m.PushStmt(b.GetBodyStmt())
