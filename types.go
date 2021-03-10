@@ -984,7 +984,7 @@ func (dt *DeclaredType) DefineMethod(fv *FuncValue) {
 func (dt *DeclaredType) Implements(ot *InterfaceType) bool {
 	for _, om := range ot.Methods {
 		if dm := dt.GetMethod(om.Name); dm != nil {
-			dmtid := dm.Type.TypeID()
+			dmtid := dm.Type.BoundType().TypeID()
 			omtid := om.Type.TypeID()
 			if dmtid != omtid {
 				return false
