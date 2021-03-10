@@ -225,7 +225,7 @@ type Tag string
 type FieldType struct {
 	Name     Name
 	Type     Type
-	Embedded Name
+	Embedded bool
 	Tag      Tag
 }
 
@@ -536,11 +536,6 @@ func (st *StructType) GetPathForName(n Name) ValuePath {
 	for i := 0; i < len(st.Fields); i++ {
 		ft := st.Fields[i]
 		if ft.Name == n {
-			if i > 2<<16-1 {
-				panic("too many fields")
-			}
-			return NewValuePathDefault(1, uint16(i), n)
-		} else if ft.Embedded == n {
 			if i > 2<<16-1 {
 				panic("too many fields")
 			}
@@ -969,10 +964,10 @@ func (dt *DeclaredType) GetValueRef(n Name) *TypedValue {
 
 func (dt *DeclaredType) GetMethod(n Name) *FuncValue {
 	mv := dt.GetValueRef(n)
-	if mv == nil {
-		return nil
-	} else {
+	if mv != nil {
 		return mv.GetFunc()
+	} else {
+		return nil
 	}
 }
 
@@ -1249,7 +1244,7 @@ func fillEmbeddedName(ft *FieldType) {
 		// dereference one level
 		switch ct := ct.Elt.(type) {
 		case *DeclaredType:
-			ft.Embedded = ct.Name
+			ft.Name = ct.Name
 			return
 		case *nativeType:
 			panic("native type cannot be embedded")
@@ -1257,36 +1252,36 @@ func fillEmbeddedName(ft *FieldType) {
 			panic("should not happen")
 		}
 	case *DeclaredType:
-		ft.Embedded = ct.Name
+		ft.Name = ct.Name
 		return
 	case PrimitiveType:
 		switch ct {
 		case BoolType:
-			ft.Embedded = Name("bool")
+			ft.Name = Name("bool")
 		case StringType:
-			ft.Embedded = Name("string")
+			ft.Name = Name("string")
 		case IntType:
-			ft.Embedded = Name("int")
+			ft.Name = Name("int")
 		case Int8Type:
-			ft.Embedded = Name("int8")
+			ft.Name = Name("int8")
 		case Int16Type:
-			ft.Embedded = Name("int16")
+			ft.Name = Name("int16")
 		case Int32Type:
-			ft.Embedded = Name("int32")
+			ft.Name = Name("int32")
 		case Int64Type:
-			ft.Embedded = Name("int64")
+			ft.Name = Name("int64")
 		case UintType:
-			ft.Embedded = Name("uint")
+			ft.Name = Name("uint")
 		case Uint8Type:
-			ft.Embedded = Name("uint8")
+			ft.Name = Name("uint8")
 		case Uint16Type:
-			ft.Embedded = Name("uint16")
+			ft.Name = Name("uint16")
 		case Uint32Type:
-			ft.Embedded = Name("uint32")
+			ft.Name = Name("uint32")
 		case Uint64Type:
-			ft.Embedded = Name("uint64")
+			ft.Name = Name("uint64")
 		case BigintType:
-			ft.Embedded = Name("bigint")
+			ft.Name = Name("bigint")
 		default:
 			panic("should not happen")
 		}
@@ -1297,4 +1292,5 @@ func fillEmbeddedName(ft *FieldType) {
 			"unexpected field type %s",
 			ft.Type.String()))
 	}
+	ft.Embedded = true
 }

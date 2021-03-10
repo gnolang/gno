@@ -556,9 +556,6 @@ func gno2GoType(t Type) reflect.Type {
 		for i, field := range ct.Fields {
 			gft := gno2GoType(field.Type)
 			fn := string(field.Name)
-			if fn == "" {
-				fn = string(field.Embedded)
-			}
 			pkgPath := ""
 			if !isUpper(fn) {
 				pkgPath = ct.PkgPath

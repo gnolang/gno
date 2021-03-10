@@ -200,13 +200,23 @@ func Go2Gno(gon ast.Node) (n Node) {
 			Results: toExprs(gon.Results),
 		}
 	case *ast.Field:
-		if len(gon.Names) != 1 {
-			panic("expected a Go Field with 1 name. maybe call toFields")
-		}
-		return &FieldTypeExpr{
-			Name: toName(gon.Names[0]),
-			Type: toExpr(gon.Type),
-			Tag:  toExpr(gon.Tag),
+		if len(gon.Names) == 0 {
+			return &FieldTypeExpr{
+				Name: "",
+				Type: toExpr(gon.Type),
+				Tag:  toExpr(gon.Tag),
+			}
+		} else if len(gon.Names) == 1 {
+			return &FieldTypeExpr{
+				Name: toName(gon.Names[0]),
+				Type: toExpr(gon.Type),
+				Tag:  toExpr(gon.Tag),
+			}
+		} else {
+			panic(fmt.Sprintf(
+				"expected a Go Field with 1 name but got %v.\n"+
+					"maybe call toFields",
+				gon.Names))
 		}
 	case *ast.StructType:
 		return &StructTypeExpr{

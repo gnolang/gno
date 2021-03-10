@@ -242,6 +242,9 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 				// retrieve cached function type.
 				ft := evalType(last, &n.Type).(*FuncType)
 				if n.IsMethod {
+					if n.Recv.Name == "" {
+						n.Recv.Name = "_"
+					}
 					// set method onto declared type.
 					rft := evalType(last, &n.Recv).(FieldType)
 					ft = ft.UnboundType(rft)

@@ -249,10 +249,15 @@ func (m *Machine) doOpTypeOf() {
 		switch ct := xt.(type) {
 		case *DeclaredType:
 			if path.Depth <= 1 {
-				ftv := ct.GetValueRefAt(path)
-				ft := ftv.T.(*FuncType)
-				t := ft.BoundType()
-				m.PushValue(asValue(t))
+				if ct.Base.Kind() == InterfaceKind {
+					ft := ct.Base.(*InterfaceType).GetMethodType(path.Name)
+					m.PushValue(asValue(ft))
+				} else {
+					ftv := ct.GetValueRefAt(path)
+					ft := ftv.T.(*FuncType)
+					t := ft.BoundType()
+					m.PushValue(asValue(t))
+				}
 			} else {
 				xt = ct.Base
 				goto TYPE_SWITCH
