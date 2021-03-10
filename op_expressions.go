@@ -149,7 +149,7 @@ func (m *Machine) doOpTypeAssert1() {
 	xv := m.PeekValue(1)
 	xt := xv.T
 
-	if it, ok := t.(*InterfaceType); ok { // is interface assert
+	if it, ok := baseOf(t).(*InterfaceType); ok { // is interface assert
 		// assert that x implements type.
 		impl := false
 		switch cxt := xt.(type) {
