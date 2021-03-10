@@ -8,6 +8,8 @@ import (
 
 var uverseNode *PackageNode
 
+const uversePkgPath = ".uverse"
+
 // Always returns a new copy from the latest state of source.
 func Uverse() *PackageValue {
 	pn := UverseNode()
@@ -24,7 +26,7 @@ func UverseNode() *PackageNode {
 	fmt.Println("baking uverse...")
 
 	// NOTE: uverse node is hidden, thus the leading dot in pkgPath=".uverse".
-	uverseNode = NewPackageNode("uverse", ".uverse", nil)
+	uverseNode = NewPackageNode("uverse", uversePkgPath, nil)
 
 	// temporary convenience function.
 	def := func(n Name, tv TypedValue) {
@@ -94,7 +96,13 @@ func UverseNode() *PackageNode {
 	// represents the TypeType type is not "type" but "typeval".  The
 	// value of a "typeval" value is represented by a TypeValue.
 	def("typeval", asValue(gTypeType))
-	def("error", asValue(&InterfaceType{})) // XXX define somehow.
+	def("error", asValue(
+		&DeclaredType{
+			PkgPath: uversePkgPath,
+			Name:    "error",
+			Base:    &InterfaceType{}, // XXX error() string
+			Methods: nil,
+		}))
 
 	// Values
 	def("true", untypedBool(true))
