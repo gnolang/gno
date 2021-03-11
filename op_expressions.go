@@ -154,9 +154,9 @@ func (m *Machine) doOpTypeAssert1() {
 		impl := false
 		switch cxt := xt.(type) {
 		case *InterfaceType:
-			impl = cxt.Implements(it)
+			impl = it.IsImplementedBy(cxt)
 		case *DeclaredType:
-			impl = cxt.Implements(it)
+			impl = it.IsImplementedBy(cxt)
 		default:
 			impl = it.IsEmptyInterface()
 		}
@@ -199,9 +199,9 @@ func (m *Machine) doOpTypeAssert2() {
 		impl := false
 		switch cxt := xt.(type) {
 		case *InterfaceType:
-			impl = cxt.Implements(it)
+			impl = it.IsImplementedBy(cxt)
 		case *DeclaredType:
-			impl = cxt.Implements(it)
+			impl = it.IsImplementedBy(cxt)
 		default:
 			impl = it.IsEmptyInterface()
 		}
