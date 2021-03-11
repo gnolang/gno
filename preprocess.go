@@ -593,14 +593,14 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 					}
 				} else {
 					// Left not const, Right not const ------------------
-					if debug {
-						if !isShift {
-							assertTypes(lt, rt)
-						}
-					}
 					if n.Op == EQL || n.Op == NEQ {
 						// If == or !=, no conversions.
 					} else if lnt, ok := lt.(*nativeType); ok {
+						if debug {
+							if !isShift {
+								assertSameTypes(lt, rt)
+							}
+						}
 						// If left and right are native type,
 						// convert left and right to gno, then
 						// convert result back to native.

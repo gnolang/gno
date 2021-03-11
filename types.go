@@ -666,20 +666,48 @@ func (it *InterfaceType) GetMethodType(n Name) *FuncType {
 
 // For run-time type assertion.
 // TODO: optimize somehow.
-// NOTE: also see *DeclaredType.Implements.
-func (it *InterfaceType) Implements(ot *InterfaceType) bool {
-	for _, om := range ot.Methods {
-		if imt := it.GetMethodType(om.Name); imt != nil {
-			imtid := imt.TypeID()
-			omtid := om.Type.TypeID()
-			if imtid != omtid {
+func (it *InterfaceType) IsImplementedBy(ot Type) bool {
+	isPtr := false
+	if pt, ok := ot.(PointerType); ok {
+		ot = pt.Elt
+		isPtr = true
+	}
+	switch ct := ot.(type) {
+	case *DeclaredType:
+		for _, im := range it.Methods {
+			if dm := ct.GetMethod(im.Name); dm != nil {
+				_, ptrRcvr := dm.Type.Params[0].Type.(PointerType)
+				if ptrRcvr && !isPtr {
+					return false
+				}
+				dmtid := dm.Type.BoundType().TypeID()
+				imtid := im.Type.TypeID()
+				if dmtid != imtid {
+					return false
+				}
+			} else {
 				return false
 			}
-		} else {
-			return false
 		}
+		return true
+	case *InterfaceType:
+		for _, im := range it.Methods {
+			if omt := ct.GetMethodType(im.Name); omt != nil {
+				omtid := omt.TypeID()
+				imtid := im.Type.TypeID()
+				if omtid != imtid {
+					return false
+				}
+			} else {
+				return false
+			}
+		}
+		return true
+	default:
+		panic(fmt.Sprintf(
+			"unexpected type %s does not implement %s",
+			ot.String(), it.String()))
 	}
-	return true
 }
 
 func (it *InterfaceType) GetPathForName(n Name) ValuePath {
@@ -976,24 +1004,6 @@ func (dt *DeclaredType) DefineMethod(fv *FuncValue) {
 		T: fv.Type,
 		V: fv,
 	})
-}
-
-// For run-time type assertion.
-// TODO: optimize somehow.
-// NOTE: also see *InterfaceType.Implements.
-func (dt *DeclaredType) Implements(ot *InterfaceType) bool {
-	for _, om := range ot.Methods {
-		if dm := dt.GetMethod(om.Name); dm != nil {
-			dmtid := dm.Type.BoundType().TypeID()
-			omtid := om.Type.TypeID()
-			if dmtid != omtid {
-				return false
-			}
-		} else {
-			return false
-		}
-	}
-	return true
 }
 
 //----------------------------------------
@@ -1293,4 +1303,8 @@ func fillEmbeddedName(ft *FieldType) {
 			ft.Type.String()))
 	}
 	ft.Embedded = true
+}
+
+func IsImplementedBy(it Type, ot Type) bool {
+	return baseOf(it).(*InterfaceType).IsImplementedBy(ot)
 }

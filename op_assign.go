@@ -34,7 +34,7 @@ func (m *Machine) doOpAddAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// add rv to lv.
@@ -46,7 +46,7 @@ func (m *Machine) doOpSubAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// sub rv from lv.
@@ -58,7 +58,7 @@ func (m *Machine) doOpMulAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// lv *= rv
@@ -70,7 +70,7 @@ func (m *Machine) doOpQuoAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// lv /= rv
@@ -82,7 +82,7 @@ func (m *Machine) doOpRemAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// lv %= rv
@@ -94,7 +94,7 @@ func (m *Machine) doOpBandAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// lv &= rv
@@ -106,7 +106,7 @@ func (m *Machine) doOpBandnAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// lv &^= rv
@@ -118,7 +118,7 @@ func (m *Machine) doOpBorAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// lv |= rv
@@ -130,7 +130,7 @@ func (m *Machine) doOpXorAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// lv ^= rv
