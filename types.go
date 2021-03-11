@@ -668,14 +668,22 @@ func (it *InterfaceType) GetMethodType(n Name) *FuncType {
 // TODO: optimize somehow.
 func (it *InterfaceType) IsImplementedBy(ot Type) bool {
 	isPtr := false
+	dot := ot
 	if pt, ok := ot.(PointerType); ok {
-		ot = pt.Elt
+		dot = pt.Elt
 		isPtr = true
 	}
-	switch ct := ot.(type) {
+	switch ct := dot.(type) {
 	case *DeclaredType:
 		for _, im := range it.Methods {
-			if dm := ct.GetMethod(im.Name); dm != nil {
+			if im.Type.Kind() == InterfaceKind {
+				// field is embedded interface...
+				im2 := baseOf(im.Type).(*InterfaceType)
+				if !im2.IsImplementedBy(ot) {
+					return false
+				}
+			} else if dm := ct.GetMethod(im.Name); dm != nil {
+				// ... or, field is method.
 				_, ptrRcvr := dm.Type.Params[0].Type.(PointerType)
 				if ptrRcvr && !isPtr {
 					return false
@@ -799,7 +807,7 @@ func (ft *FuncType) TypeID() TypeID {
 }
 
 func (ft *FuncType) String() string {
-	return fmt.Sprintf("func@%s(%s)(%s)",
+	return fmt.Sprintf("%s.func(%s)(%s)",
 		ft.PkgPath,
 		FieldTypeList(ft.Params).StringWithCommas(),
 		FieldTypeList(ft.Results).StringWithCommas())

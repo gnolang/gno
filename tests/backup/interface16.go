@@ -1,11 +1,9 @@
 package main
 
-type Stringer interface {
-	String() string
-}
+import "fmt"
 
 type Barer interface {
-	Stringer
+	fmt.Stringer
 	Bar()
 }
 
