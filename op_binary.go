@@ -368,7 +368,7 @@ func assertEqualityTypes(lt, rt Type) {
 		// non-nil types are identical.
 	} else {
 		panic(fmt.Sprintf(
-			"incompatible operands in binary expression: %s and %s",
+			"incompatible operands in binary (eql/neq) expression: %s and %s",
 			lt.String(),
 			rt.String(),
 		))

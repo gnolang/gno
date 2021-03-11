@@ -25,8 +25,7 @@ func main() {
 	fmt.Println(s.String())
 	fmt.Println(t.(fmt.Stringer).String())
 	bType := reflect.TypeOf(time.Nanosecond)
-	fmt.Println(bType.Implements(aType))
-
+	fmt.Println(aType.IsImplementedBy(bType))
 
 	t = 42
 	foo, ok := t.(fmt.Stringer)
@@ -48,7 +47,7 @@ func main() {
 	fmt.Println(tt.(fmt.Stringer).String())
 	// TODO(mpl): uncomment when fixed
 	// cType := reflect.TypeOf(TestStruct{})
-	// fmt.Println(cType.Implements(aType))
+	// fmt.Println(aType.IsImplementedBy(cType))
 }
 
 // Output:

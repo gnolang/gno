@@ -46,7 +46,7 @@ func main() {
 	n, _ := t.(MyWriter).Write([]byte("hello world"))
 	fmt.Println(n)
 	bType := reflect.TypeOf(TestStruct{})
-	fmt.Println(bType.Implements(aType))
+	fmt.Println(aType.IsImplementedBy(bType))
 
 	t = 42
 	foo, ok := t.(MyWriter)
@@ -70,7 +70,7 @@ func main() {
 	fmt.Println(tt.(MyStringer).String())
 	cType := reflect.TypeOf((*MyStringer)(nil)).Elem()
 	dType := reflect.TypeOf(time.Nanosecond)
-	fmt.Println(dType.Implements(cType))
+	fmt.Println(cType.IsImplementedBy(dType))
 
 	tt = 42
 	bar, ok := tt.(MyStringer)
