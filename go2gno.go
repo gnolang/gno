@@ -338,6 +338,26 @@ func Go2Gno(gon ast.Node) (n Node) {
 			Label: toName(gon.Label),
 			Stmt:  toStmt(gon.Stmt),
 		}
+	case *ast.TypeSwitchStmt:
+		if as, ok := gon.Assign.(*ast.AssignStmt); ok {
+			return &SwitchStmt{
+				Init:    toStmt(gon.Init),
+				X:       toExpr(as.Rhs[0]),
+				Cases:   toCases(gon.Body.List),
+				VarName: toName(as.Lhs[0].(*ast.Ident)),
+			}
+		} else if tax, ok := gon.Assign.(*ast.ExprStmt); ok {
+			return &SwitchStmt{
+				Init:    toStmt(gon.Init),
+				X:       toExpr(tax.X),
+				Cases:   toCases(gon.Body.List),
+				VarName: "",
+			}
+		} else {
+			panic(fmt.Sprintf(
+				"unexpected *ast.TypeSwitchStmt.Assign type %s",
+				reflect.TypeOf(gon.Assign).String()))
+		}
 	default:
 		panic(fmt.Sprintf("unknown Go type %v: %s\n",
 			reflect.TypeOf(gon),
@@ -630,4 +650,19 @@ func toKeyValueExprs(elts []ast.Expr) (kvxs KeyValueExprs) {
 		}
 	}
 	return
+}
+
+func toCases(csz []ast.Stmt) []SwitchCaseStmt {
+	res := make([]SwitchCaseStmt, len(csz))
+	for i, cs := range csz {
+		res[i] = toSwitchCaseStmt(cs.(*ast.CaseClause))
+	}
+	return res
+}
+
+func toSwitchCaseStmt(cc *ast.CaseClause) SwitchCaseStmt {
+	return SwitchCaseStmt{
+		Cases: toExprs(cc.List),
+		Body:  toStmts(cc.Body),
+	}
 }

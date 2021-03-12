@@ -222,9 +222,11 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		if isStopOrSkip(nc, c) {
 			return
 		}
-		cnn.Type = transcribe(t, nns, TRANS_TYPEASSERT_TYPE, 0, cnn.Type, &c).(Expr)
-		if isStopOrSkip(nc, c) {
-			return
+		if cnn.Type != nil {
+			cnn.Type = transcribe(t, nns, TRANS_TYPEASSERT_TYPE, 0, cnn.Type, &c).(Expr)
+			if isStopOrSkip(nc, c) {
+				return
+			}
 		}
 	case *UnaryExpr:
 		cnn.X = transcribe(t, nns, TRANS_UNARY_X, 0, cnn.X, &c).(Expr)
