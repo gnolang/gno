@@ -228,14 +228,19 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 				}
 				// maybe type-switch def.
 				if 0 < len(ss.VarName) {
-					// if there is only 1 case, the define
-					// applies.  if there are multiple, the
-					// definition is void(?), TODO
-					// TestSwitchDefine
 					if len(n.Cases) == 1 {
-						// XXX error, not yet preprocessed.
+						// If there is only 1 case, the define
+						// applies.  if there are multiple, the
+						// definition is void(?).
+						// TODO make TestSwitchDefine case.
+						n.Cases[0] =
+							Preprocess(imp, last, n.Cases[0]).(Expr)
 						ct := evalType(last, n.Cases[0])
 						last.Define(ss.VarName, anyValue(ct))
+					} else if len(n.Cases) == 0 {
+						// If there are 0 cases, it is the default
+						// case.
+						last.Define(ss.VarName, anyValue(nil))
 					}
 				}
 
@@ -347,8 +352,8 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 							n.Decls[i] = d2
 						}
 					}
-					// Finally, predefine other decls and preprocess
-					// ValueDecls..
+					// Finally, predefine other decls and
+					// preprocess ValueDecls..
 					for i := 0; i < len(n.Decls); i++ {
 						d := n.Decls[i]
 						if d.GetAttribute(ATTR_PREDEFINED) == true {
@@ -377,20 +382,21 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 			// in evalType().
 			n.SetAttribute(ATTR_PREPROCESSED, true)
 
-			//-There is still work to be done while leaving, but once the
-			//logic of that is done, we will have to perform additionally
-			//deferred logic that is best handled with orthogonal switch
-			//conditions.
-			//-For example, while leaving nodes w/ TRANS_COMPOSITE_TYPE,
-			//(regardless of whether name or literal), any elided type
-			//names are inserted. (This works because the transcriber
-			//leaves the composite type before entering the kv elements.)
+			//-There is still work to be done while leaving, but
+			//once the logic of that is done, we will have to
+			//perform additionally deferred logic that is best
+			//handled with orthogonal switch conditions.
+			//-For example, while leaving nodes w/
+			//TRANS_COMPOSITE_TYPE, (regardless of whether name or
+			//literal), any elided type names are inserted. (This
+			//works because the transcriber leaves the composite
+			//type before entering the kv elements.)
 			defer func() {
 				switch ftype {
 
 				// TRANS_LEAVE (deferred)---------
 				case TRANS_COMPOSITE_TYPE:
-					// fill elided element composite lit type exprs.
+					// fill elided element composite lit type exprs
 					clx := ns[len(ns)-1].(*CompositeLitExpr)
 					// get or evaluate composite type.
 					clt := evalType(last, n.(Expr))
@@ -450,9 +456,9 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 					cx := constUntypedBigint(n, int64(io))
 					return cx, TRANS_CONTINUE
 				case "nil":
-					// nil will be converted to typed-nils when appropriate
-					// upon leaving the expression nodes that contain nil
-					// nodes.
+					// nil will be converted to typed-nils when
+					// appropriate upon leaving the expression
+					// nodes that contain nil nodes.
 					fallthrough
 				default:
 					fillNameExprPath(last, n)

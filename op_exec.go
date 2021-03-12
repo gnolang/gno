@@ -672,6 +672,8 @@ EXEC_SWITCH:
 	case *LabeledStmt:
 		s = cs.Stmt
 		goto EXEC_SWITCH
+	case *SwitchStmt:
+		// XXX
 	default:
 		panic(fmt.Sprintf("unexpected statement %#v", s))
 	}
