@@ -125,7 +125,11 @@ func (n RefExpr) String() string {
 }
 
 func (n TypeAssertExpr) String() string {
-	return fmt.Sprintf("%s.(%s)", n.X, n.Type)
+	if n.Type == nil {
+		return fmt.Sprintf("%s.(%s)", n.X, n.Type)
+	} else {
+		return fmt.Sprintf("%s.(type)", n.X)
+	}
 }
 
 func (n UnaryExpr) String() string {

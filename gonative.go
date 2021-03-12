@@ -375,7 +375,11 @@ func go2GnoValueUpdate(lvl int, tv *TypedValue, rv reflect.Value) {
 	case PackageKind:
 		panic("not yet implemented")
 	case InterfaceKind:
-		panic("not yet implemented")
+		if debug {
+			if !tv.IsNilInterface() {
+				panic("should not happen")
+			}
+		}
 	case ChanKind:
 		panic("not yet implemented")
 	case FuncKind:
@@ -390,16 +394,16 @@ func go2GnoValueUpdate(lvl int, tv *TypedValue, rv reflect.Value) {
 	return
 }
 
-// This function is like go2GnoValue() but less lazy (but still not
-// recursive/eager). It is for converting Go types to Gno types upon
-// an explicit conversion (via ConvertTo).  Panics on
-// unexported/private fields.
-// Due to limitations of Go1.15, the namedness is dropped rather than
-// converted.  This lets users convert go-native types to named or unnamed Gno
-// types (sans private fields) via conversion.  The conversion is not
-// recursive, and the extra conversion works on the top-level complex
-// type/value, or a pointer to that type/value.  Some types that cannot
-// be converted remain native.
+// This function is like go2GnoValue() but less lazy (but still
+// not recursive/eager). It is for converting Go types to Gno
+// types upon an explicit conversion (via ConvertTo).  Panics on
+// unexported/private fields.  Due to limitations of Go1.15, the
+// namedness is dropped rather than converted.  This lets users
+// convert go-native types to named or unnamed Gno types (sans
+// private fields) via conversion.  The conversion is not
+// recursive, and the extra conversion works on the top-level
+// complex type/value, or a pointer to that type/value.  Some
+// types that cannot be converted remain native.
 func go2GnoValue2(rv reflect.Value) (tv TypedValue) {
 	tv.T = go2GnoType2(rv.Type())
 	switch rk := rv.Kind(); rk {

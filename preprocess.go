@@ -228,10 +228,12 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 				}
 				// maybe type-switch def.
 				if 0 < len(ss.VarName) {
-					// if there is only 1 case, the define applies.  if
-					// there are multiple, the definition is void(?),
-					// TODO TestSwitchDefine
+					// if there is only 1 case, the define
+					// applies.  if there are multiple, the
+					// definition is void(?), TODO
+					// TestSwitchDefine
 					if len(n.Cases) == 1 {
+						// XXX error, not yet preprocessed.
 						ct := evalType(last, n.Cases[0])
 						last.Define(ss.VarName, anyValue(ct))
 					}
@@ -763,18 +765,25 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *TypeAssertExpr:
-				n.Type = evalConst(last, n.Type)
-				if ftype == TRANS_ASSIGN_RHS {
-					as := ns[len(ns)-1].(*AssignStmt)
-					if len(as.Lhs) == 1 {
-						n.HasOK = false
-					} else if len(as.Lhs) == 2 {
-						n.HasOK = true
-					} else {
-						panic(fmt.Sprintf(
-							"type assert assignment takes 1 or 2 lhs operands, got %v",
-							len(as.Lhs),
-						))
+				if n.Type == nil {
+					// part of type-switch of the form
+					// `switch ... x.(type) {}`.
+				} else {
+					// either as ExprStmt of form `x.(<type>)`,
+					// or special case form `c, ok := x.(<type>)`.
+					n.Type = evalConst(last, n.Type)
+					if ftype == TRANS_ASSIGN_RHS {
+						as := ns[len(ns)-1].(*AssignStmt)
+						if len(as.Lhs) == 1 {
+							n.HasOK = false
+						} else if len(as.Lhs) == 2 {
+							n.HasOK = true
+						} else {
+							panic(fmt.Sprintf(
+								"type assert assignment takes 1 or 2 lhs operands, got %v",
+								len(as.Lhs),
+							))
+						}
 					}
 				}
 
