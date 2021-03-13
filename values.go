@@ -1759,6 +1759,18 @@ func (b *Block) GetBodyStmt() *bodyStmt {
 	return &b.bodyStmt
 }
 
+// Used by SwitchStmt upon clause match.
+func (b *Block) ExpandToSize(size uint16) {
+	if debug {
+		if len(b.Values) >= int(size) {
+			panic("unexpected block size shrinkage")
+		}
+	}
+	values := make([]TypedValue, int(size))
+	copy(values, b.Values)
+	b.Values = values
+}
+
 //----------------------------------------
 
 func defaultValue(t Type) Value {

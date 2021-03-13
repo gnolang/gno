@@ -22,8 +22,8 @@ func _() {
 	_ = x[OpCallDeferNativeBody-11]
 	_ = x[OpGo-12]
 	_ = x[OpSelect-13]
-	_ = x[OpSwitch-14]
-	_ = x[OpTypeSwitch-15]
+	_ = x[OpSwitchClause-14]
+	_ = x[OpTypeSwitchClause-15]
 	_ = x[OpForLoop1-16]
 	_ = x[OpIfCond-17]
 	_ = x[OpPopValue-18]
@@ -107,7 +107,7 @@ func _() {
 }
 
 const (
-	_Op_name_0 = "OpInvalidOpHaltOpNoopOpExecOpPrecallOpCallOpCallNativeBodyOpReturnOpReturnFromBlockOpReturnToBlockOpDeferOpCallDeferNativeBodyOpGoOpSelectOpSwitchOpTypeSwitchOpForLoop1OpIfCondOpPopValueOpPopResultsOpPopBlock"
+	_Op_name_0 = "OpInvalidOpHaltOpNoopOpExecOpPrecallOpCallOpCallNativeBodyOpReturnOpReturnFromBlockOpReturnToBlockOpDeferOpCallDeferNativeBodyOpGoOpSelectOpSwitchClauseOpTypeSwitchClauseOpForLoop1OpIfCondOpPopValueOpPopResultsOpPopBlock"
 	_Op_name_1 = "OpUposOpUnegOpUnotOpUxor"
 	_Op_name_2 = "OpUrecvOpLorOpLandOpEqlOpNeqOpLssOpLeqOpGtrOpGeqOpAddOpSubOpBorOpXorOpMulOpQuoOpRemOpShlOpShrOpBandOpBandn"
 	_Op_name_3 = "OpEvalOpBinary1OpIndexOpSelectorOpSliceOpStarOpRefOpTypeAssert1OpTypeAssert2OpTypeOfOpCompositeLitOpArrayLitOpSliceLitOpMapLitOpStructLitOpFuncLitOpConvert"
@@ -119,7 +119,7 @@ const (
 )
 
 var (
-	_Op_index_0 = [...]uint8{0, 9, 15, 21, 27, 36, 42, 58, 66, 83, 98, 105, 126, 130, 138, 146, 158, 168, 176, 186, 198, 208}
+	_Op_index_0 = [...]uint8{0, 9, 15, 21, 27, 36, 42, 58, 66, 83, 98, 105, 126, 130, 138, 152, 170, 180, 188, 198, 210, 220}
 	_Op_index_1 = [...]uint8{0, 6, 12, 18, 24}
 	_Op_index_2 = [...]uint8{0, 7, 12, 18, 23, 28, 33, 38, 43, 48, 53, 58, 63, 68, 73, 78, 83, 88, 93, 99, 106}
 	_Op_index_3 = [...]uint8{0, 6, 15, 22, 32, 39, 45, 50, 63, 76, 84, 98, 108, 118, 126, 137, 146, 155}
