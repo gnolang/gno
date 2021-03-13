@@ -601,15 +601,15 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		if isStopOrSkip(nc, c) {
 			return
 		}
-		for idx, _ := range cnn.Cases {
-			cnn.Cases[idx] = *transcribe(t, nns, TRANS_SWITCH_CASE, idx, &cnn.Cases[idx], &c).(*SwitchCaseStmt)
+		for idx, _ := range cnn.Clauses {
+			cnn.Clauses[idx] = *transcribe(t, nns, TRANS_SWITCH_CASE, idx, &cnn.Clauses[idx], &c).(*SwitchClauseStmt)
 			if isBreak(c) {
 				break
 			} else if isStopOrSkip(nc, c) {
 				return
 			}
 		}
-	case *SwitchCaseStmt:
+	case *SwitchClauseStmt:
 		// NOTE: unlike the select case, both switch
 		// statements AND switch cases visit with the
 		// TRANS_BLOCK stage, even though during runtime
@@ -619,7 +619,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			nn = cnn2
 			return
 		} else {
-			cnn = cnn2.(*SwitchCaseStmt)
+			cnn = cnn2.(*SwitchClauseStmt)
 		}
 		for idx, _ := range cnn.Cases {
 			cnn.Cases[idx] = transcribe(t, nns, TRANS_SWITCHCASE_CASE, idx, cnn.Cases[idx], &c).(Expr)

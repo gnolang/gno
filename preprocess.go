@@ -217,7 +217,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 				pushBlock(n, &last, &stack)
 
 			// TRANS_BLOCK -----------------------
-			case *SwitchCaseStmt:
+			case *SwitchClauseStmt:
 				pushRealBlock(n, &last, &stack)
 				// parent switch statement.
 				ss := ns[len(ns)-1].(*SwitchStmt)
@@ -772,24 +772,22 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *TypeAssertExpr:
 				if n.Type == nil {
-					// part of type-switch of the form
-					// `switch ... x.(type) {}`.
-				} else {
-					// either as ExprStmt of form `x.(<type>)`,
-					// or special case form `c, ok := x.(<type>)`.
-					n.Type = evalConst(last, n.Type)
-					if ftype == TRANS_ASSIGN_RHS {
-						as := ns[len(ns)-1].(*AssignStmt)
-						if len(as.Lhs) == 1 {
-							n.HasOK = false
-						} else if len(as.Lhs) == 2 {
-							n.HasOK = true
-						} else {
-							panic(fmt.Sprintf(
-								"type assert assignment takes 1 or 2 lhs operands, got %v",
-								len(as.Lhs),
-							))
-						}
+					panic("should not happen")
+				}
+				// ExprStmt of form `x.(<type>)`,
+				// or special case form `c, ok := x.(<type>)`.
+				n.Type = evalConst(last, n.Type)
+				if ftype == TRANS_ASSIGN_RHS {
+					as := ns[len(ns)-1].(*AssignStmt)
+					if len(as.Lhs) == 1 {
+						n.HasOK = false
+					} else if len(as.Lhs) == 2 {
+						n.HasOK = true
+					} else {
+						panic(fmt.Sprintf(
+							"type assert assignment takes 1 or 2 lhs operands, got %v",
+							len(as.Lhs),
+						))
 					}
 				}
 
@@ -1469,7 +1467,7 @@ func findLabel(last BlockNode, label Name) (
 			panic("unexpected faux blocknode")
 		case *FuncLitExpr,
 			*BlockStmt, *ForStmt, *IfCaseStmt, *RangeStmt,
-			*SelectCaseStmt, *SwitchCaseStmt, *FuncDecl,
+			*SelectCaseStmt, *SwitchClauseStmt, *FuncDecl,
 			*FileNode, *PackageNode:
 
 			body := cbn.GetBody()

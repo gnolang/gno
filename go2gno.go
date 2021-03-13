@@ -341,17 +341,19 @@ func Go2Gno(gon ast.Node) (n Node) {
 	case *ast.TypeSwitchStmt:
 		if as, ok := gon.Assign.(*ast.AssignStmt); ok {
 			return &SwitchStmt{
-				Init:    toStmt(gon.Init),
-				X:       toExpr(as.Rhs[0]),
-				Cases:   toCases(gon.Body.List),
-				VarName: toName(as.Lhs[0].(*ast.Ident)),
+				Init:         toStmt(gon.Init),
+				X:            toExpr(as.Rhs[0].(*ast.TypeAssertExpr).X),
+				IsTypeSwitch: true,
+				Clauses:      toClauses(gon.Body.List),
+				VarName:      toName(as.Lhs[0].(*ast.Ident)),
 			}
 		} else if tax, ok := gon.Assign.(*ast.ExprStmt); ok {
 			return &SwitchStmt{
-				Init:    toStmt(gon.Init),
-				X:       toExpr(tax.X),
-				Cases:   toCases(gon.Body.List),
-				VarName: "",
+				Init:         toStmt(gon.Init),
+				X:            toExpr(tax.X.(*ast.TypeAssertExpr).X),
+				IsTypeSwitch: true,
+				Clauses:      toClauses(gon.Body.List),
+				VarName:      "",
 			}
 		} else {
 			panic(fmt.Sprintf(
@@ -652,16 +654,16 @@ func toKeyValueExprs(elts []ast.Expr) (kvxs KeyValueExprs) {
 	return
 }
 
-func toCases(csz []ast.Stmt) []SwitchCaseStmt {
-	res := make([]SwitchCaseStmt, len(csz))
+func toClauses(csz []ast.Stmt) []SwitchClauseStmt {
+	res := make([]SwitchClauseStmt, len(csz))
 	for i, cs := range csz {
-		res[i] = toSwitchCaseStmt(cs.(*ast.CaseClause))
+		res[i] = toSwitchClauseStmt(cs.(*ast.CaseClause))
 	}
 	return res
 }
 
-func toSwitchCaseStmt(cc *ast.CaseClause) SwitchCaseStmt {
-	return SwitchCaseStmt{
+func toSwitchClauseStmt(cc *ast.CaseClause) SwitchClauseStmt {
+	return SwitchClauseStmt{
 		Cases: toExprs(cc.List),
 		Body:  toStmts(cc.Body),
 	}

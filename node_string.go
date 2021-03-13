@@ -348,7 +348,7 @@ func (n SwitchStmt) String() string {
 		varName = string(n.VarName) + ":="
 	}
 	cases := ""
-	for i, s := range n.Cases {
+	for i, s := range n.Clauses {
 		if i == 0 {
 			cases += s.String()
 		} else {
@@ -359,8 +359,12 @@ func (n SwitchStmt) String() string {
 		init, varName, n.X.String(), cases)
 }
 
-func (n SwitchCaseStmt) String() string {
-	return fmt.Sprintf("case %v: %s", n.Cases, n.Body.String())
+func (n SwitchClauseStmt) String() string {
+	if len(n.Cases) == 0 {
+		return fmt.Sprintf("default: %s", n.Body.String())
+	} else {
+		return fmt.Sprintf("case %v: %s", n.Cases, n.Body.String())
+	}
 }
 
 func (n FuncDecl) String() string {
