@@ -37,7 +37,7 @@ accordance with this agreement.
 
 You may keep any number of copies of this project for your personal purposes as
 long as it isn't for any for-profit, commercial, religious, government, NGO, or
-public blockchain purposes.
+distributed ledger (blockchain) purposes.
 
 THE WORKS ARE PROVIDED WITHOUT WARRANTY OF CORRECTNESS. IN NO EVENT SHALL THE
 AUTHORS, COPYRIGHT HOLDERS, OWNERS, OR MAINTAINERS BE LIABLE FOR ANY CLAIM,
