@@ -179,7 +179,7 @@ func (_ *SelectStmt) assertNode()        {}
 func (_ *SelectCaseStmt) assertNode()    {}
 func (_ *SendStmt) assertNode()          {}
 func (_ *SwitchStmt) assertNode()        {}
-func (_ *SwitchCaseStmt) assertNode()    {}
+func (_ *SwitchClauseStmt) assertNode()  {}
 func (_ *EmptyStmt) assertNode()         {}
 func (_ *bodyStmt) assertNode()          {}
 func (_ *FuncDecl) assertNode()          {}
@@ -231,7 +231,7 @@ var _ = &SelectStmt{}
 var _ = &SelectCaseStmt{}
 var _ = &SendStmt{}
 var _ = &SwitchStmt{}
-var _ = &SwitchCaseStmt{}
+var _ = &SwitchClauseStmt{}
 var _ = &EmptyStmt{}
 var _ = &bodyStmt{}
 var _ = &FuncDecl{}
@@ -353,9 +353,9 @@ type RefExpr struct { // &X
 
 type TypeAssertExpr struct { // X.(Type)
 	Attributes
-	X     Expr // expression
-	Type  Expr // asserted type; nil means type switch X.(type)
-	HasOK bool // if true, is form: `_, ok := <X>.(<Type>)`
+	X     Expr // expression.
+	Type  Expr // asserted type, never nil.
+	HasOK bool // if true, is form: `_, ok := <X>.(<Type>)`.
 }
 
 // A UnaryExpr node represents a unary expression. Unary
@@ -589,27 +589,27 @@ func (ss Body) GetLabeledStmt(label Name) (Stmt, int) {
 //----------------------------------------
 
 // non-pointer receiver to help make immutable.
-func (*AssignStmt) assertStmt()     {}
-func (*BlockStmt) assertStmt()      {}
-func (*BranchStmt) assertStmt()     {}
-func (*DeclStmt) assertStmt()       {}
-func (*DeferStmt) assertStmt()      {}
-func (*EmptyStmt) assertStmt()      {} // useful for _ctif
-func (*ExprStmt) assertStmt()       {}
-func (*ForStmt) assertStmt()        {}
-func (*GoStmt) assertStmt()         {}
-func (*IfStmt) assertStmt()         {}
-func (*IfCaseStmt) assertStmt()     {}
-func (*IncDecStmt) assertStmt()     {}
-func (*LabeledStmt) assertStmt()    {}
-func (*RangeStmt) assertStmt()      {}
-func (*ReturnStmt) assertStmt()     {}
-func (*SelectStmt) assertStmt()     {}
-func (*SelectCaseStmt) assertStmt() {}
-func (*SendStmt) assertStmt()       {}
-func (*SwitchStmt) assertStmt()     {}
-func (*SwitchCaseStmt) assertStmt() {}
-func (*bodyStmt) assertStmt()       {}
+func (*AssignStmt) assertStmt()       {}
+func (*BlockStmt) assertStmt()        {}
+func (*BranchStmt) assertStmt()       {}
+func (*DeclStmt) assertStmt()         {}
+func (*DeferStmt) assertStmt()        {}
+func (*EmptyStmt) assertStmt()        {} // useful for _ctif
+func (*ExprStmt) assertStmt()         {}
+func (*ForStmt) assertStmt()          {}
+func (*GoStmt) assertStmt()           {}
+func (*IfStmt) assertStmt()           {}
+func (*IfCaseStmt) assertStmt()       {}
+func (*IncDecStmt) assertStmt()       {}
+func (*LabeledStmt) assertStmt()      {}
+func (*RangeStmt) assertStmt()        {}
+func (*ReturnStmt) assertStmt()       {}
+func (*SelectStmt) assertStmt()       {}
+func (*SelectCaseStmt) assertStmt()   {}
+func (*SendStmt) assertStmt()         {}
+func (*SwitchStmt) assertStmt()       {}
+func (*SwitchClauseStmt) assertStmt() {}
+func (*bodyStmt) assertStmt()         {}
 
 var _ Stmt = &AssignStmt{}
 var _ Stmt = &BlockStmt{}
@@ -630,7 +630,7 @@ var _ Stmt = &SelectStmt{}
 var _ Stmt = &SelectCaseStmt{}
 var _ Stmt = &SendStmt{}
 var _ Stmt = &SwitchStmt{}
-var _ Stmt = &SwitchCaseStmt{}
+var _ Stmt = &SwitchClauseStmt{}
 var _ Stmt = &bodyStmt{}
 
 type AssignStmt struct {
@@ -759,13 +759,14 @@ type SendStmt struct {
 type SwitchStmt struct {
 	Attributes
 	StaticBlock
-	Init    Stmt             // initialization (simple) statement; or nil.
-	X       Expr             // tag or _.(type) expression; or nil.
-	Cases   []SwitchCaseStmt // cases
-	VarName Name             // tag or type-switched value.
+	Init         Stmt               // init (simple) stmt; or nil.
+	X            Expr               // tag or _.(type) expr; or nil.
+	IsTypeSwitch bool               // true iff X is .(type) expr.
+	Clauses      []SwitchClauseStmt // cases
+	VarName      Name               // tag or type-switched value.
 }
 
-type SwitchCaseStmt struct {
+type SwitchClauseStmt struct {
 	Attributes
 	StaticBlock
 	Cases Exprs // list of expressions or types; nil means default case
@@ -1311,7 +1312,7 @@ var _ BlockNode = &IfCaseStmt{}
 var _ BlockNode = &RangeStmt{}
 var _ BlockNode = &SelectCaseStmt{}
 var _ BlockNode = &SwitchStmt{} // faux block node
-var _ BlockNode = &SwitchCaseStmt{}
+var _ BlockNode = &SwitchClauseStmt{}
 var _ BlockNode = &FuncDecl{}
 var _ BlockNode = &FileNode{}
 var _ BlockNode = &PackageNode{}

@@ -298,13 +298,13 @@ func (x *SwitchStmt) Copy() Node {
 	return &SwitchStmt{
 		Init:    copyStmt(x.Init),
 		X:       x.X.Copy().(Expr),
-		Cases:   copySwitchCases(x.Cases),
+		Clauses: copyCaseClauses(x.Clauses),
 		VarName: x.VarName,
 	}
 }
 
-func (x *SwitchCaseStmt) Copy() Node {
-	return &SwitchCaseStmt{
+func (x *SwitchClauseStmt) Copy() Node {
+	return &SwitchClauseStmt{
 		Cases: copyExprs(x.Cases),
 		Body:  copyStmts(x.Body),
 	}
@@ -443,10 +443,10 @@ func copySelectCases(scs []SelectCaseStmt) []SelectCaseStmt {
 	return res
 }
 
-func copySwitchCases(scs []SwitchCaseStmt) []SwitchCaseStmt {
-	res := make([]SwitchCaseStmt, len(scs))
+func copyCaseClauses(scs []SwitchClauseStmt) []SwitchClauseStmt {
+	res := make([]SwitchClauseStmt, len(scs))
 	for i, sc := range scs {
-		res[i] = *(sc.Copy().(*SwitchCaseStmt))
+		res[i] = *(sc.Copy().(*SwitchClauseStmt))
 	}
 	return res
 }

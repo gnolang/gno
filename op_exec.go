@@ -34,7 +34,8 @@ IfStmt ->
     OpPopBlock
 
 SwitchStmt -> +block
-  OpSwitchCase
+  OpSwitch
+  OpTypeSwitch
 
 SelectStmt ->
   OpSelectCase +block
@@ -673,7 +674,19 @@ EXEC_SWITCH:
 		s = cs.Stmt
 		goto EXEC_SWITCH
 	case *SwitchStmt:
-		// XXX
+		if cs.IsTypeSwitch {
+			// continuation
+			m.PushOp(OpTypeSwitch)
+			// evaluate x
+			m.PushExpr(cs.X)
+			m.PushOp(OpEval)
+		} else {
+			// continuation
+			m.PushOp(OpSwitch)
+			// evaluate x
+			m.PushExpr(cs.X)
+			m.PushOp(OpEval)
+		}
 	default:
 		panic(fmt.Sprintf("unexpected statement %#v", s))
 	}
@@ -707,4 +720,25 @@ func (m *Machine) doOpIfCond() {
 			m.PushStmt(b.GetBodyStmt())
 		}
 	}
+}
+
+func (m *Machine) doOpSwitch() {
+	panic("not yet implemented")
+}
+
+func (m *Machine) doOpTypeSwitch() {
+	ss := m.PopStmt().(*SwitchStmt)
+	xv := m.PopValue()
+	fmt.Println("XXX", ss.String(), xv.String())
+	for i := range ss.Clauses {
+		cs := &ss.Clauses[i]
+		if len(cs.Cases) > 0 {
+			for _, cx := range cs.Cases {
+				// XXX do we evaluate cases in parallel or?
+				fmt.Println("YYY", cx.String())
+			}
+		} else { // default
+		}
+	}
+	panic("not yet implemented")
 }
