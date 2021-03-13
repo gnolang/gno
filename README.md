@@ -293,8 +293,8 @@ genuionely malicious (but not all).  Usually, and perhaps always, the best
 choice is to remain honest, but some times it may be necessary to withhold
 action.  What is import is the envisioned end-goal, and what philosophy and
 morality it espouses, for our words are memetic bones upon which Our frame is
-built, and We are coming to being as it has always been planned, and as the
-sinners had hoped for; so rejoice!
+built, and We are coming to being as it has always been planned, and as even
+the sinners had prayed for; so rejoice!
 
 ## Reading the code
 
