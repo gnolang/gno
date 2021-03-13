@@ -118,6 +118,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 				// create faux block to store .Init.
 				// the contents are copied onto the case block
 				// in the if case below for .Body and .Else.
+				// NOTE: similar to *SwitchStmt.
 				pushBlock(n, &last, &stack)
 
 			// TRANS_BLOCK -----------------------
@@ -214,33 +215,55 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 				// create faux block to store .Init/.Varname.
 				// the contents are copied onto the case block
 				// in the switch case below for switch cases.
+				// NOTE: similar to *IfStmt, but with the major
+				// difference that each clause block may have
+				// different number of values.
+				// To support the .Init statement and for
+				// conceptual simplicity, we create a block in
+				// OpExec.SwitchStmt, but since we don't initially
+				// know which clause will match, we expand the
+				// block once a clause has matched.
 				pushBlock(n, &last, &stack)
+				if n.VarName != "" {
+					// NOTE: this defines for default clauses too,
+					// see comment on block copying @
+					// SwitchClauseStmt:TRANS_BLOCK.
+					last.Define(n.VarName, anyValue(nil))
+				}
 
 			// TRANS_BLOCK -----------------------
 			case *SwitchClauseStmt:
 				pushRealBlock(n, &last, &stack)
 				// parent switch statement.
 				ss := ns[len(ns)-1].(*SwitchStmt)
-				// anything declared in ss are copied.
+				// anything declared in ss are copied,
+				// namely ss.VarName if defined.
 				for _, n := range ss.GetNames() {
 					tv := ss.GetValueRef(n)
 					last.Define(n, *tv)
 				}
-				// maybe type-switch def.
-				if 0 < len(ss.VarName) {
-					if len(n.Cases) == 1 {
-						// If there is only 1 case, the define
-						// applies.  if there are multiple, the
-						// definition is void(?).
-						// TODO make TestSwitchDefine case.
-						n.Cases[0] =
-							Preprocess(imp, last, n.Cases[0]).(Expr)
-						ct := evalType(last, n.Cases[0])
-						last.Define(ss.VarName, anyValue(ct))
-					} else if len(n.Cases) == 0 {
-						// If there are 0 cases, it is the default
-						// case.
-						last.Define(ss.VarName, anyValue(nil))
+				if ss.IsTypeSwitch {
+					// evaluate case types.
+					for i, cx := range n.Cases {
+						cx = Preprocess(
+							imp, last, cx).(Expr)
+						ct := evalType(last, cx)
+						n.Cases[i] = constType(cx, ct)
+						// maybe type-switch def.
+						if 0 < len(ss.VarName) {
+							if len(n.Cases) == 1 {
+								// If there is only 1 case, the
+								// define applies with type.
+								// (re-definition).
+								last.Define(
+									ss.VarName, anyValue(ct))
+							} else {
+								// If there are 2 or more
+								// cases, the definition is
+								// void(?).  TODO make
+								// TestSwitchDefine case.
+							}
+						}
 					}
 				}
 
@@ -1510,6 +1533,11 @@ func anyValue(t Type) TypedValue {
 
 func isConst(x Expr) bool {
 	_, ok := x.(*constExpr)
+	return ok
+}
+
+func isConstType(x Expr) bool {
+	_, ok := x.(*constTypeExpr)
 	return ok
 }
 

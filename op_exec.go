@@ -2,6 +2,7 @@ package gno
 
 import (
 	"fmt"
+	"reflect"
 	"unicode/utf8"
 )
 
@@ -34,8 +35,8 @@ IfStmt ->
     OpPopBlock
 
 SwitchStmt -> +block
-  OpSwitch
-  OpTypeSwitch
+  OpSwitchClause
+  OpTypeSwitchClause
 
 SelectStmt ->
   OpSelectCase +block
@@ -674,15 +675,17 @@ EXEC_SWITCH:
 		s = cs.Stmt
 		goto EXEC_SWITCH
 	case *SwitchStmt:
+		b := NewBlock(cs, m.LastBlock())
+		m.PushBlock(b)
 		if cs.IsTypeSwitch {
 			// continuation
-			m.PushOp(OpTypeSwitch)
+			m.PushOp(OpTypeSwitchClause)
 			// evaluate x
 			m.PushExpr(cs.X)
 			m.PushOp(OpEval)
 		} else {
 			// continuation
-			m.PushOp(OpSwitch)
+			m.PushOp(OpSwitchClause)
 			// evaluate x
 			m.PushExpr(cs.X)
 			m.PushOp(OpEval)
@@ -722,23 +725,80 @@ func (m *Machine) doOpIfCond() {
 	}
 }
 
-func (m *Machine) doOpSwitch() {
+func (m *Machine) doOpSwitchClause() {
 	panic("not yet implemented")
 }
 
-func (m *Machine) doOpTypeSwitch() {
+func (m *Machine) doOpTypeSwitchClause() {
 	ss := m.PopStmt().(*SwitchStmt)
 	xv := m.PopValue()
-	fmt.Println("XXX", ss.String(), xv.String())
+	xtid := TypeID{}
+	if xv.T != nil {
+		xtid = xv.T.TypeID()
+	}
+	// NOTE: all cases should be *constTypeExprs, which
+	// lets us optimize the implementation by
+	// iterating over all clauses and cases here.
 	for i := range ss.Clauses {
+		match := false
 		cs := &ss.Clauses[i]
 		if len(cs.Cases) > 0 {
+			// see if any clause cases match.
 			for _, cx := range cs.Cases {
-				// XXX do we evaluate cases in parallel or?
-				fmt.Println("YYY", cx.String())
+				if debug {
+					if !isConstType(cx) {
+						panic(fmt.Sprintf(
+							"should not happen, expected const type expr for case(s) but got %s",
+							reflect.TypeOf(cx)))
+					}
+				}
+				ct := cx.(*constTypeExpr).Type
+				if ct.Kind() == InterfaceKind {
+					if baseOf(ct).(*InterfaceType).IsImplementedBy(xv.T) {
+						// match
+						match = true
+					}
+				} else {
+					ctid := TypeID{}
+					if ct != nil {
+						ctid = ct.TypeID()
+					}
+					if xtid == ctid {
+						// match
+						match = true
+					}
+				}
 			}
 		} else { // default
+			match = true
+		}
+		if match { // did match
+			// final continuation
+			m.PushOp(OpPopBlock)
+			if len(cs.Body) != 0 {
+				b := m.LastBlock()
+				// define if varname
+				if ss.VarName != "" && len(cs.Cases) <= 1 {
+					// NOTE: assumes the var is first in block.
+					vp := NewValuePath(
+						VPTypeDefault, 1, 0, ss.VarName)
+					ptr := b.GetPointerTo(vp)
+					ptr.Assign(*xv)
+				}
+				// expand block size
+				if nn := cs.GetNumNames(); nn > 1 {
+					b.ExpandToSize(nn)
+				}
+				// exec clause body
+				b.bodyStmt = bodyStmt{
+					Body:      cs.Body,
+					BodyLen:   len(cs.Body),
+					BodyIndex: -2,
+				}
+				m.PushOp(OpBody)
+				m.PushStmt(b.GetBodyStmt())
+			}
+			return // done!
 		}
 	}
-	panic("not yet implemented")
 }

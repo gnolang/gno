@@ -444,8 +444,8 @@ const (
 	OpCallDeferNativeBody Op = 0x0B // call body is native
 	OpGo                  Op = 0x0C // go call(X, [...])
 	OpSelect              Op = 0x0D // exec next select case
-	OpSwitch              Op = 0x0E // exec switch case clause
-	OpTypeSwitch          Op = 0x0F // exec type switch case clause
+	OpSwitchClause        Op = 0x0E // exec next switch clause
+	OpTypeSwitchClause    Op = 0x0F // exec next type switch clause
 	OpForLoop1            Op = 0x10 // body and post if X, else break
 	OpIfCond              Op = 0x11 // eval cond
 	OpPopValue            Op = 0x12 // pop X
@@ -577,10 +577,10 @@ func (m *Machine) Run() {
 			panic("not yet implemented")
 		case OpSelect:
 			panic("not yet implemented")
-		case OpSwitch:
-			m.doOpSwitch()
-		case OpTypeSwitch:
-			m.doOpTypeSwitch()
+		case OpSwitchClause:
+			m.doOpSwitchClause()
+		case OpTypeSwitchClause:
+			m.doOpTypeSwitchClause()
 		case OpForLoop1:
 			m.doOpForLoop1()
 		case OpIfCond:
