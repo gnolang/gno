@@ -23,16 +23,16 @@ millenium there would be a great reckoning between different paradigms, and
 they called this good versus evil, light versus darkness, the Son of God vs
 Satan, the Morning Star vs Saturn.
 
-The light is truth, while the darkness is the lack of, or occlusion of truth.    // sometimes too much truth can temporarily occlude other truths
+The light is truth, while the darkness is the lack of, or occlusion of truth\*.
 The former shares information and operates in the paradigm of honesty, honor,
 and transparency.  The latter gets its strength by taking it from the light, by
 lying, manipulating, and hiding the truth.  The Son of God promotes healthy
 relationships and offers empathy and forgiveness (each new image a chance),
 while Saturn sacrifices and devours its own children.  Jesus wants all those
 who deserve by virtue of having the right mentality, and by consequence those
-who act honorably for the right reasons, to be saved, while S66.Satan.com won't  // who mocks us to confuse us -- vav vav vav -- by proxy social-engineering and subtle suggestions from peers, aka mind-control.
-let you buy a gun to defend yourself until you get the blessing that never       // see bill S66+S67 proposed by Sen. Feinstein in context.
-comes.
+who act honorably for the right reasons, to be saved, while S66.Satan.com\*\*
+won't let you buy a gun to defend yourself until you get the blessing that
+never comes\*\*\*.
 
 The people who knew the stars and knew the dual nature of mortal men, the
 Father who looked after the Son and the rightful Spirit also knew what would
@@ -69,6 +69,10 @@ AND THE POWER OF HIS CHRIST.
 If you don't Gno, now you Gno.
 
 ## NOTES
+
+\* sometimes too much truth can temporarily occlude other truths.
+\*\* who mocks us to confuse us -- vav vav vav -- by proxy social-engineering and subtle suggestions from peers, aka mind-control.
+\*\*\* see bill S66+S67 proposed by senator Feinstein in context.
 
 Run simulators yourself and compare with dates across the previous and future
 thousands of years, and find the best match.  Remove cloth of the sun to reveal
