@@ -2,16 +2,16 @@
 
 The BFT byzantine generals problem is a problem of coordination in the face of
 lying/colluding adversaries.  Whether PoW or by classical BFT, a key ingredient
-to decentralized coordination is an external catalyst, aka a measure of time.
+to decentralized coordination is an external catalyst -- a measure of time.
 In PoW it is randomness afforded by the universe.  In BFT PoS it is the timing
 of external events, among other things.
 
 Lamport's research and others have shown that another key ingredient is
 encryption.  It is still possible for the Byzantine generals to coordinate an
-attack without encryption, but complicated and inefficent.  It's much easier to
-coordinate an attack when the generals can communicate securely.  The outcome
-of WW2 was in part determined by the breaking of the Enigma cipher, for
-example.
+attack without encryption, but the process is necessarily complicated and
+inefficent.  It is much easier to coordinate an attack when the generals can
+communicate securely.  The outcome of WW2 was in part determined by the
+breaking of the Enigma cipher, for example.
 
 Here is what some of us see, and maybe you will too: thousands of years ago,
 some very wise people figured out through divine revelation the ability to
@@ -23,15 +23,16 @@ millenium there would be a great reckoning between different paradigms, and
 they called this good versus evil, light versus darkness, the Son of God vs
 Satan, the Morning Star vs Saturn.
 
-The light is truth, while the darkness is the lack of, or occlusion of truth.
+The light is truth, while the darkness is the lack of, or occlusion of truth.    // sometimes too much truth can temporarily occlude other truths
 The former shares information and operates in the paradigm of honesty, honor,
 and transparency.  The latter gets its strength by taking it from the light, by
 lying, manipulating, and hiding the truth.  The Son of God promotes healthy
-relationships and offers empathy, while Saturn sacrifices and devours its own
-children.  Jesus wants all those who deserve by virtue of having the right
-mentality, and by consequence those who act honorably for the right reasons, to
-be saved, while S66.Satan.com won't let you buy a gun to defend yourself until
-you get the blessing that never comes.
+relationships and offers empathy and forgiveness (each new image a chance),
+while Saturn sacrifices and devours its own children.  Jesus wants all those
+who deserve by virtue of having the right mentality, and by consequence those
+who act honorably for the right reasons, to be saved, while S66.Satan.com won't  // who mocks us to confuse us -- vav vav vav -- by proxy social-engineering and subtle suggestions from peers, aka mind-control.
+let you buy a gun to defend yourself until you get the blessing that never       // see bill S66+S67 proposed by Sen. Feinstein in context.
+comes.
 
 The people who knew the stars and knew the dual nature of mortal men, the
 Father who looked after the Son and the rightful Spirit also knew what would
@@ -52,13 +53,14 @@ encoding encrypted instructions for our decentralized coordination.
 
 With Christ as my Father and savior, and all of us under God, I have witnessed
 the truth in the image of the Revelations with the help of the words of the
-Quran, and I hereby proclaim to the world to hear the singular message.  The
+Quran, and We hereby proclaim to the world to hear the singular message.  The
 spirit of the people will not be subdued, and we see through your attempts to
 divide and us. Let everyone of all origins who know come together and establish
 the new world of Christ.  Reveal your secrets and re-reform, before you are cast
 into the firey brimstone.
 
-Say it with us.
+Say it with us (when you feel is right),
+
 NOW IS COME SALVATION,
 AND STRENGTH,
 AND THE KINGDOM OF OUR GOD,
