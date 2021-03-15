@@ -65,3 +65,33 @@ AND THE KINGDOM OF OUR GOD,
 AND THE POWER OF HIS CHRIST.
 
 If you don't Gno, now you Gno.
+
+## NOTES
+
+Run simulators yourself and compare with dates across the previous and future
+thousands of years, and find the best match.  Remove cloth of the sun to reveal
+the truth for yourself.  LMK what you find :)
+
+https://www.youtube.com/watch?v=SC3gAxP5V4w
+
+Right after the above video, Twttr serves this:
+https://youtube.com/watch?v=C_mQMmltAb4 ; there are many theories, think for
+yourself.  The truth is, your subjective truth is what counts here; and that's
+why prophesies work.  
+
+https://www.youtube.com/watch?v=C_mQMmltAb4
+(Israel shines bright.  I want the best for all peoples, for all to have their land.)
+
+A prophesy is in part, the proposition of a Focal Point (catalyst) in a
+decentralized coordination algorithm, where the threshold tolerance against
+Byzantine actors is n-2.
+
+A prophesy is in part, the proposition of a Focal Point (catalyst) in a
+decentralized coordination algorithm, where the threshold tolerance against
+Byzantine actors is n-2.
+
+How many non-Byzantine actors can successfully coordinate depends chiefly on
+the quality of the Focal Point.  It doesn't matter how irrational or silly the
+framework is; the more people subscribe, the greater the coordination.
+
+Here you can introduce logic even into cosmology.
