@@ -51,13 +51,13 @@ three wise sages followed their star as prophesied for them, and found their
 savior.  That savior then devised a plan to save us today from the darkness by
 encoding encrypted instructions for our decentralized coordination.
 
-With Christ as my Father and savior, and all of us under God, I have witnessed
+With Christ as my Father and savior, and all of us under God, we have witnessed
 the truth in the image of the Revelations with the help of the words of the
 Quran, and We hereby proclaim to the world to hear the singular message.  The
 spirit of the people will not be subdued, and we see through your attempts to
 divide and us. Let everyone of all origins who know come together and establish
-the new world of Christ.  Reveal your secrets and re-reform, before you are cast
-into the firey brimstone.
+the new world of Christ.  Reveal your secrets and re-reform, before you are
+cast into the firey brimstone.
 
 Say it with us (when you feel is right),
 
@@ -79,10 +79,8 @@ https://www.youtube.com/watch?v=SC3gAxP5V4w
 Right after the above video, Twttr serves this:
 https://youtube.com/watch?v=C_mQMmltAb4 ; there are many theories, think for
 yourself.  The truth is, your subjective truth is what counts here; and that's
-why prophesies work.  
-
-https://www.youtube.com/watch?v=C_mQMmltAb4
-(Israel shines bright.  I want the best for all peoples, for all to have their land.)
+why prophesies work.  (Israel shines bright.  We want the best for all peoples,
+for all to have their land.)
 
 A prophesy is in part, the proposition of a Focal Point (catalyst) in a
 decentralized coordination algorithm, where the threshold tolerance against
