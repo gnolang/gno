@@ -88,14 +88,7 @@ for all to have their land.)
 
 A prophesy is in part, the proposition of a Focal Point (catalyst) in a
 decentralized coordination algorithm, where the threshold tolerance against
-Byzantine actors is n-2.
-
-A prophesy is in part, the proposition of a Focal Point (catalyst) in a
-decentralized coordination algorithm, where the threshold tolerance against
-Byzantine actors is n-2.
-
-How many non-Byzantine actors can successfully coordinate depends chiefly on
-the quality of the Focal Point.  It doesn't matter how irrational or silly the
-framework is; the more people subscribe, the greater the coordination.
-
-Here you can introduce logic even into cosmology.
+Byzantine actors is n-2. How many non-Byzantine actors can successfully
+coordinate depends chiefly on the quality of the Focal Point.  It doesn't
+matter how irrational or silly the framework is; the more people subscribe, the
+greater the coordination.  Here you can introduce logic even into cosmology.
