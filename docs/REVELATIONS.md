@@ -68,7 +68,7 @@ AND THE POWER OF HIS CHRIST.
 
 If you don't Gno, now you Gno.
 
-# Of Current Zeitgest.
+# Zeitgest.
 
 If you scan the depths of the internet to see where ideas still remain
 uncensored, albiet for only a short time, where spirits of all darkness come to
@@ -90,8 +90,10 @@ once viscerally good, will separate the lights to reveal their respective
 components.
 
 Examples:
-	* https://warriorsoftheruwach.com/en/negros
+
 	* https://www.youtube.com/watch?v=SC3gAxP5V4w
+	* https://warriorsoftheruwach.com/en/negros
+	* TODO add more
 
 ## NOTES
 
