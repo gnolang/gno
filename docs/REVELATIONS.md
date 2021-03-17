@@ -93,7 +93,20 @@ Examples:
 
 	* https://www.youtube.com/watch?v=SC3gAxP5V4w
 	* https://warriorsoftheruwach.com/en/negros
+	* https://www.youtube.com/watch?v=sIoPn1MxgSw&t
 	* TODO add more
+
+Race relations is at the core of politics today, and there are quite a lot of
+coincidences being discussed here that appear to be converging toward a
+coherent ending.  One gets the impression that occult organizations were/are
+involved in acting out these prophesies, for the engineering of cultures and
+morality at a global scale.  Was the covenant of circumcision about
+geographical boundaries?  It makes sense given the geography and current day
+geopolitics.
+
+Whatever the case, the need for better platforms for distilling truth is clear.
+One cannot discuss any of these things without such a tool, without appearing
+to be insane.
 
 ## NOTES
 
