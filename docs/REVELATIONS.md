@@ -68,6 +68,31 @@ AND THE POWER OF HIS CHRIST.
 
 If you don't Gno, now you Gno.
 
+# Of Current Zeitgest.
+
+If you scan the depths of the internet to see where ideas still remain
+uncensored, albiet for only a short time, where spirits of all darkness come to
+try to spoil the readers minds with dangerous lies, sex, and gore -- to slide
+the truth -- you will find the secrets becoming revealed.  There, the soul gets
+hardened into black rock or red steel, and each element congeal to form new
+planets.  Who can prove legibly that anyone can do better?
+
+There, one of the planets being formed, above others seeks to ground claims
+with reason; without projection, but with conviction, formed by the striking of
+the mallet of hollywood against the heads of viewers and hearts of victims.
+And the fire enters their spirit and comes forth as fire of the mouth.
+
+A good platform will investigate the claims that are being brought forth, and
+will tally all the evidence available, massive and small, and use the kernel of
+Bayesian logic from all proposed set of models to reveal the most likely truth
+that can explain all the facts available; and this, like PageRank made Google
+once viscerally good, will separate the lights to reveal their respective
+components.
+
+Examples:
+	* https://warriorsoftheruwach.com/en/negros
+	* https://www.youtube.com/watch?v=SC3gAxP5V4w
+
 ## NOTES
 
 \* sometimes too much truth can temporarily occlude other truths.
@@ -91,4 +116,5 @@ decentralized coordination algorithm, where the threshold tolerance against
 Byzantine actors is n-2. How many non-Byzantine actors can successfully
 coordinate depends chiefly on the quality of the Focal Point.  It doesn't
 matter how irrational or silly the framework is; the more people subscribe, the
-greater the coordination.  Here you can introduce logic even into cosmology.
+greater the coordination.  Here you can introduce engineering into cosmology,
+and even and especially astrology.
