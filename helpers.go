@@ -40,6 +40,13 @@ func SliceT(elt interface{}) *SliceTypeExpr {
 	}
 }
 
+func MapT(key, value interface{}) *MapTypeExpr {
+	return &MapTypeExpr{
+		Key:   X(key),
+		Value: X(value),
+	}
+}
+
 func Vrd(elt interface{}) *SliceTypeExpr {
 	return &SliceTypeExpr{
 		Elt: X(elt),
@@ -53,10 +60,14 @@ func InterfaceT(methods FieldTypeExprs) *InterfaceTypeExpr {
 	}
 }
 
-func AnyT(methods FieldTypeExprs) *InterfaceTypeExpr {
+func AnyT() *InterfaceTypeExpr {
+	return InterfaceT(nil)
+}
+
+func GenT(generic Name, methods FieldTypeExprs) *InterfaceTypeExpr {
 	return &InterfaceTypeExpr{
-		Methods:   methods,
-		IsUntyped: true,
+		Generic: generic,
+		Methods: methods,
 	}
 }
 

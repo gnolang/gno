@@ -577,8 +577,8 @@ func (tv TypedValue) String() string {
 	ts := ""
 	if tv.T == nil {
 		ts = "invalid-type"
-	} else if isUntyped(tv.T) {
-		ts = "untyped-const"
+		//} else if isUntyped(tv.T) {
+		//	ts = "untyped-const"
 	} else {
 		ts = tv.T.String()
 	}

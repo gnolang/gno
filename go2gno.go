@@ -339,7 +339,8 @@ func Go2Gno(gon ast.Node) (n Node) {
 			Stmt:  toStmt(gon.Stmt),
 		}
 	case *ast.TypeSwitchStmt:
-		if as, ok := gon.Assign.(*ast.AssignStmt); ok {
+		switch as := gon.Assign.(type) {
+		case *ast.AssignStmt:
 			return &SwitchStmt{
 				Init:         toStmt(gon.Init),
 				X:            toExpr(as.Rhs[0].(*ast.TypeAssertExpr).X),
@@ -347,15 +348,15 @@ func Go2Gno(gon ast.Node) (n Node) {
 				Clauses:      toClauses(gon.Body.List),
 				VarName:      toName(as.Lhs[0].(*ast.Ident)),
 			}
-		} else if tax, ok := gon.Assign.(*ast.ExprStmt); ok {
+		case *ast.ExprStmt:
 			return &SwitchStmt{
 				Init:         toStmt(gon.Init),
-				X:            toExpr(tax.X.(*ast.TypeAssertExpr).X),
+				X:            toExpr(as.X.(*ast.TypeAssertExpr).X),
 				IsTypeSwitch: true,
 				Clauses:      toClauses(gon.Body.List),
 				VarName:      "",
 			}
-		} else {
+		default:
 			panic(fmt.Sprintf(
 				"unexpected *ast.TypeSwitchStmt.Assign type %s",
 				reflect.TypeOf(gon.Assign).String()))

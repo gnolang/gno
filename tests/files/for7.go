@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// 4:14: int used as bool
+// 4:14: cannot use int as bool
