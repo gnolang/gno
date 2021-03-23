@@ -150,9 +150,9 @@ func (m *Machine) doOpInterfaceType() {
 	}
 	// push interface type
 	it := &InterfaceType{
-		PkgPath:   m.Package.PkgPath,
-		Methods:   methods,
-		IsUntyped: x.IsUntyped,
+		PkgPath: m.Package.PkgPath,
+		Methods: methods,
+		Generic: x.Generic,
 	}
 	m.PushValue(TypedValue{
 		T: gTypeType,
@@ -192,43 +192,8 @@ func (m *Machine) doOpTypeOf() {
 			m.PushValue(asValue(UntypedBoolType))
 		}
 	case *CallExpr:
-		start := m.NumValues
-		m.PushOp(OpHalt)
-		m.PushExpr(x.Func)
-		m.PushOp(OpTypeOf)
-		m.Run() // XXX replace
-		t := m.ReapValues(start)[0].GetType()
-		switch bft := baseOf(t).(type) {
-		case *FuncType:
-			rs := bft.Results
-			if len(rs) != 1 {
-				panic(fmt.Sprintf(
-					"cannot get type of function call with %d results",
-					len(rs)))
-			}
-			m.PushValue(asValue(rs[0].Type))
-		case *TypeType:
-			start := m.NumValues
-			m.PushOp(OpHalt)
-			m.PushExpr(x.Func)
-			m.PushOp(OpEval)
-			m.Run() // XXX replace
-			t := m.ReapValues(start)[0].GetType()
-			m.PushValue(asValue(t))
-		case *nativeType:
-			numRes := bft.Type.NumOut()
-			if numRes != 1 {
-				panic(fmt.Sprintf(
-					"cannot get type of (native) function call with %d results",
-					numRes))
-			}
-			res0 := bft.Type.Out(0)
-			m.PushValue(asValue(&nativeType{Type: res0}))
-		default:
-			panic(fmt.Sprintf(
-				"unexpected call of expression type %s",
-				t.String()))
-		}
+		t := getTypeOf(x)
+		m.PushValue(asValue(t))
 	case *IndexExpr:
 		start := m.NumValues
 		m.PushOp(OpHalt)
@@ -372,9 +337,15 @@ func (m *Machine) doOpTypeOf() {
 		m.PushOp(OpTypeOf)
 		m.Run() // XXX replace
 		xt := m.ReapValues(start)[0].V.(TypeValue).Type
-		m.PushValue(asValue(&SliceType{
-			Elt: xt.Elem(),
-		}))
+		if pt, ok := xt.(PointerType); ok {
+			m.PushValue(asValue(&SliceType{
+				Elt: pt.Elt.Elem(),
+			}))
+		} else {
+			m.PushValue(asValue(&SliceType{
+				Elt: xt.Elem(),
+			}))
+		}
 	case *StarExpr:
 		start := m.NumValues
 		m.PushOp(OpHalt)

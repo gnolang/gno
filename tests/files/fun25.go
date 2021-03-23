@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// string used as int
+// cannot use string as int

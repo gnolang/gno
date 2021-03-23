@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// 7:5: int used as bool
+// 7:5: cannot use int as bool

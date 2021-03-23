@@ -83,18 +83,20 @@ func UverseNode() *PackageNode {
 	def("uint32", asValue(Uint32Type))
 	def("uint64", asValue(Uint64Type))
 	def("bigint", asValue(BigintType))
-	// NOTE on 'typeval': We can't call the type of a TypeValue a "type",
-	// even though we want to, because it conflicts with the pre-existing
-	// syntax for type-switching, `switch x.(type) {case SomeType:...}`,
-	// for if x.(type) were not a type-switch but a type-assertion, and
-	// the resulting value could be any type, such as an IntType; whereas
-	// as the .X of a SwitchStmt, the type of an IntType value is not
-	// IntType but always a TypeType (all types are of type TypeType).
+	// NOTE on 'typeval': We can't call the type of a TypeValue a
+	// "type", even though we want to, because it conflicts with
+	// the pre-existing syntax for type-switching, `switch
+	// x.(type) {case SomeType:...}`, for if x.(type) were not a
+	// type-switch but a type-assertion, and the resulting value
+	// could be any type, such as an IntType; whereas as the .X of
+	// a SwitchStmt, the type of an IntType value is not IntType
+	// but always a TypeType (all types are of type TypeType).
 	//
 	// The ideal solution is to keep the syntax consistent for
-	// type-assertions, but for backwards compatibility, the keyword that
-	// represents the TypeType type is not "type" but "typeval".  The
-	// value of a "typeval" value is represented by a TypeValue.
+	// type-assertions, but for backwards compatibility, the
+	// keyword that represents the TypeType type is not "type" but
+	// "typeval".  The value of a "typeval" value is represented
+	// by a TypeValue.
 	def("typeval", asValue(gTypeType))
 	def("error", asValue(
 		&DeclaredType{
@@ -111,11 +113,11 @@ func UverseNode() *PackageNode {
 	// Functions
 	defNative("append",
 		Flds( // params
-			"x", AnyT(nil), // args[0]
-			"args", Vrd(AnyT(nil)), // args[1]
+			"x", SliceT(GenT("X", nil)), // args[0]
+			"args", Vrd(GenT("X", nil)), // args[1]
 		),
 		Flds( // results
-			"res", AnyT(nil), // res
+			"res", SliceT(GenT("X", nil)), // res
 		),
 		func(m *Machine) {
 			arg0, arg1 := m.LastBlock().GetParams2()
@@ -372,7 +374,7 @@ func UverseNode() *PackageNode {
 	)
 	defNative("cap",
 		Flds( // params
-			"x", AnyT(nil),
+			"x", AnyT(),
 		),
 		Flds( // results
 			"", "int",
@@ -391,8 +393,8 @@ func UverseNode() *PackageNode {
 	def("complex", undefined)
 	defNative("copy",
 		Flds( // params
-			"dst", AnyT(nil),
-			"src", AnyT(nil),
+			"dst", GenT("X", nil),
+			"src", GenT("X", nil),
 		),
 		Flds( // results
 			"", "int",
@@ -445,8 +447,8 @@ func UverseNode() *PackageNode {
 	)
 	defNative("delete",
 		Flds( // params
-			"m", AnyT(nil), // map type
-			"k", AnyT(nil), // map key
+			"m", MapT(GenT("K", nil), GenT("V", nil)), // map type
+			"k", GenT("K", nil), // map key
 		),
 		nil, // results
 		func(m *Machine) {
@@ -469,7 +471,7 @@ func UverseNode() *PackageNode {
 	)
 	defNative("len",
 		Flds( // params
-			"x", AnyT(nil),
+			"x", AnyT(),
 		),
 		Flds( // results
 			"", "int",
@@ -486,18 +488,18 @@ func UverseNode() *PackageNode {
 	)
 	defNative("make",
 		Flds( // params
-			"x", AnyT(nil),
+			"t", GenT("T.(type)", nil),
 			"z", Vrd("int"),
 		),
 		Flds( // results
-			"", AnyT(nil),
+			"", GenT("T", nil),
 		),
 		func(m *Machine) {
 			arg0, arg1 := m.LastBlock().GetParams2()
 			vargs := arg1
 			vargsl := vargs.GetLength()
-			xt := arg0.GetType()
-			switch bt := baseOf(xt).(type) {
+			tt := arg0.GetType()
+			switch bt := baseOf(tt).(type) {
 			case *SliceType:
 				if vargsl == 1 {
 					lv := vargs.GetPointerAtIndexInt(0).Deref()
@@ -513,7 +515,7 @@ func UverseNode() *PackageNode {
 						}
 					}
 					m.PushValue(TypedValue{
-						T: xt,
+						T: tt,
 						V: newSliceFromList(list),
 					})
 					return
@@ -537,7 +539,7 @@ func UverseNode() *PackageNode {
 						}
 					}
 					m.PushValue(TypedValue{
-						T: xt,
+						T: tt,
 						V: newSliceFromList(list),
 					})
 					return
@@ -550,7 +552,7 @@ func UverseNode() *PackageNode {
 					mv := &MapValue{}
 					mv.MakeMap(0)
 					m.PushValue(TypedValue{
-						T: xt,
+						T: tt,
 						V: mv,
 					})
 					return
@@ -560,7 +562,7 @@ func UverseNode() *PackageNode {
 					mv := &MapValue{}
 					mv.MakeMap(li)
 					m.PushValue(TypedValue{
-						T: xt,
+						T: tt,
 						V: mv,
 					})
 					return
@@ -578,14 +580,14 @@ func UverseNode() *PackageNode {
 			default:
 				panic(fmt.Sprintf(
 					"cannot make type %s kind %v",
-					xt.String(), xt.Kind()))
+					tt.String(), tt.Kind()))
 			}
 		},
 	)
 	def("new", undefined)
 	defNative("panic",
 		Flds( // params
-			"err", AnyT(nil), // args[0]
+			"err", AnyT(), // args[0]
 		),
 		nil, // results
 		func(m *Machine) {
@@ -596,7 +598,7 @@ func UverseNode() *PackageNode {
 	)
 	defNative("print",
 		Flds( // params
-			"xs", Vrd(AnyT(nil)), // args[0]
+			"xs", Vrd(AnyT()), // args[0]
 		),
 		nil, // results
 		func(m *Machine) {
@@ -614,7 +616,7 @@ func UverseNode() *PackageNode {
 	)
 	defNative("println",
 		Flds( // param
-			"xs", Vrd(AnyT(nil)),
+			"xs", Vrd(AnyT()), // args[0]
 		),
 		nil, // results
 		func(m *Machine) {

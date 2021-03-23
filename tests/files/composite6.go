@@ -15,4 +15,4 @@ func main() {
 }
 
 // Output:
-// struct{(2 untyped-const)}
+// struct{(2 <untyped> bigint)}

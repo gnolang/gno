@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 //----------------------------------------
@@ -58,6 +59,7 @@ func (*PackageType) assertType()   {}
 func (*ChanType) assertType()      {}
 func (*nativeType) assertType()    {}
 func (blockType) assertType()      {}
+func (*tupleType) assertType()     {}
 
 //----------------------------------------
 // Primitive types
@@ -185,7 +187,9 @@ func (pt PrimitiveType) String() string {
 		return string("int8")
 	case Int16Type:
 		return string("int16")
-	case UntypedRuneType, Int32Type:
+	case UntypedRuneType:
+		return string("<untyped> int32")
+	case Int32Type:
 		return string("int32")
 	case Int64Type:
 		return string("int64")
@@ -362,6 +366,14 @@ func (l FieldTypeList) UnnamedTypeID() TypeID {
 		}
 	}
 	return typeid(s)
+}
+
+func (l FieldTypeList) Types() []Type {
+	res := make([]Type, len(l))
+	for i, ft := range l {
+		res[i] = ft.Type
+	}
+	return res
 }
 
 //----------------------------------------
@@ -600,18 +612,15 @@ func (pt *PackageType) Elem() Type {
 // Interface type
 
 type InterfaceType struct {
-	PkgPath   string
-	Methods   []FieldType
-	IsUntyped bool // for uverse "generics"
+	PkgPath string
+	Methods []FieldType
+	Generic Name // for uverse "generics"
 
 	typeid TypeID
 }
 
 // General empty interface.
 var gEmptyInterfaceType *InterfaceType = &InterfaceType{}
-
-// Special untyped type for uverse functions.
-var gAnyInterfaceType *InterfaceType = &InterfaceType{IsUntyped: true}
 
 func (it *InterfaceType) IsEmptyInterface() bool {
 	return len(it.Methods) == 0
@@ -623,15 +632,15 @@ func (it *InterfaceType) Kind() Kind {
 
 func (it *InterfaceType) TypeID() TypeID {
 	if debug {
-		if it.IsUntyped {
-			panic("untyped interface type has no TypeID")
+		if it.Generic != "" {
+			panic("generic type has no TypeID")
 		}
 	}
 	if it.typeid.IsZero() {
 		// NOTE Interface types expressed or declared in different
-		// packages may have the same TypeID if and only if neither
-		// have unexported fields.  pt.Path is only included in field
-		// names that are not uppercase.
+		// packages may have the same TypeID if and only if
+		// neither have unexported fields.  pt.Path is only
+		// included in field names that are not uppercase.
 		ms := FieldTypeList(it.Methods)
 		// XXX pre-sort.
 		sort.Sort(ms)
@@ -641,8 +650,9 @@ func (it *InterfaceType) TypeID() TypeID {
 }
 
 func (it *InterfaceType) String() string {
-	if it.IsUntyped {
-		return fmt.Sprintf("any{%s}",
+	if it.Generic != "" {
+		return fmt.Sprintf("<%s>{%s}",
+			it.Generic,
 			FieldTypeList(it.Methods).String())
 	} else {
 		return fmt.Sprintf("interface{%s}",
@@ -673,7 +683,7 @@ func (it *InterfaceType) IsImplementedBy(ot Type) bool {
 		dot = pt.Elt
 		isPtr = true
 	}
-	switch ct := dot.(type) {
+	switch cot := dot.(type) {
 	case *DeclaredType:
 		for _, im := range it.Methods {
 			if im.Type.Kind() == InterfaceKind {
@@ -682,7 +692,7 @@ func (it *InterfaceType) IsImplementedBy(ot Type) bool {
 				if !im2.IsImplementedBy(ot) {
 					return false
 				}
-			} else if dm := ct.GetMethod(im.Name); dm != nil {
+			} else if dm := cot.GetMethod(im.Name); dm != nil {
 				// ... or, field is method.
 				_, ptrRcvr := dm.Type.Params[0].Type.(PointerType)
 				if ptrRcvr && !isPtr {
@@ -700,7 +710,7 @@ func (it *InterfaceType) IsImplementedBy(ot Type) bool {
 		return true
 	case *InterfaceType:
 		for _, im := range it.Methods {
-			if omt := ct.GetMethodType(im.Name); omt != nil {
+			if omt := cot.GetMethodType(im.Name); omt != nil {
 				omtid := omt.TypeID()
 				imtid := im.Type.TypeID()
 				if omtid != imtid {
@@ -782,6 +792,106 @@ func (ft *FuncType) UnboundType(rft FieldType) *FuncType {
 		PkgPath: ft.PkgPath,
 		Params:  append([]FieldType{rft}, ft.Params...),
 		Results: ft.Results,
+	}
+}
+
+// given the call arg types (and whether is ...varg), specify any
+// generic types to return the ultimate specified func type.
+// Any untyped arg types are first converted to its default type.
+// NOTE: if ft.HasVarg() and !isVarg, argTVs[len(ft.Params):]
+// are ignored (since they are of the same type as
+// argTVs[len(ft.Params)-1]).
+func (ft *FuncType) Specify(argTVs []TypedValue, isVarg bool) *FuncType {
+	hasGenericParams := false
+	hasGenericResults := false
+	for _, pf := range ft.Params {
+		if isGeneric(pf.Type) {
+			hasGenericParams = true
+			break
+		}
+	}
+	for _, rf := range ft.Results {
+		if isGeneric(rf.Type) {
+			hasGenericResults = true
+			break
+		}
+	}
+	if !hasGenericParams && hasGenericResults {
+		panic("function with generic results require matching generic params")
+	}
+	if !hasGenericParams && !hasGenericResults {
+		return ft // no changes.
+	}
+	lookup := map[Name]Type{}
+	hasVarg := ft.HasVarg()
+	if hasVarg && !isVarg {
+		if isGeneric(ft.Params[len(ft.Params)-1].Type) {
+			// consolidate vargs into slice.
+			var nvarg int
+			var vargt Type
+			for i := len(ft.Params) - 1; i < len(argTVs); i++ {
+				nvarg++
+				varg := argTVs[i]
+				if varg.T == nil {
+					continue
+				} else if vargt == nil {
+					vargt = varg.T
+				} else if vargt.TypeID() != varg.T.TypeID() {
+					panic(fmt.Sprintf(
+						"uncompatible varg types: expected %v, got %s",
+						vargt.String(),
+						varg.T.String()))
+				}
+			}
+			if nvarg > 0 && vargt == nil {
+				panic(fmt.Sprintf(
+					"unspecified generic varg %s",
+					ft.Params[len(ft.Params)-1].String()))
+			}
+			argTVs = argTVs[:len(ft.Params)-1]
+			argTVs = append(argTVs, TypedValue{
+				T: &SliceType{Elt: vargt, Vrd: true},
+				V: nil,
+			})
+		} else {
+			// just use already specific type.
+			argTVs = argTVs[:len(ft.Params)-1]
+			argTVs = append(argTVs, TypedValue{
+				T: ft.Params[len(ft.Params)-1].Type,
+				V: nil,
+			})
+		}
+	}
+	// specify generic types from args.
+	for i, pf := range ft.Params {
+		arg := &argTVs[i]
+		if arg.T.Kind() == TypeKind {
+			specifyType(lookup, pf.Type, arg.T, arg.GetType())
+		} else {
+			specifyType(lookup, pf.Type, arg.T, nil)
+		}
+	}
+	// apply specifics to generic params and results.
+	pfts := make([]FieldType, len(ft.Params))
+	rfts := make([]FieldType, len(ft.Results))
+	for i, pft := range ft.Params {
+		pt, _ := applySpecifics(lookup, pft.Type)
+		pfts[i] = FieldType{
+			Name: pft.Name,
+			Type: pt,
+		}
+	}
+	for i, rft := range ft.Results {
+		rt, _ := applySpecifics(lookup, rft.Type)
+		rfts[i] = FieldType{
+			Name: rft.Name,
+			Type: rt,
+		}
+	}
+	return &FuncType{
+		PkgPath: ft.PkgPath,
+		Params:  pfts,
+		Results: rfts,
 	}
 }
 
@@ -1118,6 +1228,52 @@ func (bt blockType) Elem() Type {
 }
 
 //----------------------------------------
+// tupleType
+
+type tupleType struct {
+	Elts []Type
+
+	typeid TypeID
+}
+
+func (tt *tupleType) Kind() Kind {
+	return TupleKind
+}
+
+func (tt *tupleType) TypeID() TypeID {
+	if tt.typeid.IsZero() {
+		ell := len(tt.Elts)
+		s := "("
+		for i, et := range tt.Elts {
+			s += et.TypeID().String()
+			if i != ell-1 {
+				s += ","
+			}
+		}
+		s += ")"
+		tt.typeid = typeid(s)
+	}
+	return tt.typeid
+}
+
+func (tt *tupleType) String() string {
+	ell := len(tt.Elts)
+	s := "("
+	for i, et := range tt.Elts {
+		s += et.String()
+		if i != ell-1 {
+			s += ","
+		}
+	}
+	s += ")"
+	return s
+}
+
+func (tt *tupleType) Elem() Type {
+	panic("tupleType has no singular elem type")
+}
+
+//----------------------------------------
 // Kind
 
 type Kind uint
@@ -1150,6 +1306,7 @@ const (
 	TypeKind // not in go.
 	// UnsafePointerKind
 	BlockKind // not in go.
+	TupleKind // not in go.
 )
 
 // This is generally slower than switching on baseOf(t).
@@ -1216,6 +1373,8 @@ func KindOf(t Type) Kind {
 		return t.Kind()
 	case blockType:
 		return BlockKind
+	case *tupleType:
+		return TupleKind
 	default:
 		panic(fmt.Sprintf("unexpected type %#v", t))
 	}
@@ -1284,7 +1443,8 @@ func isUntyped(t Type) bool {
 	}
 }
 
-// TODO move untyped const stuff to preprocess.go
+// TODO move untyped const stuff to preprocess.go.
+// TODO associate with ConvertTo() in documentation.
 func defaultTypeOf(t Type) Type {
 	switch t {
 	case UntypedBoolType:
@@ -1366,4 +1526,230 @@ func fillEmbeddedName(ft *FieldType) {
 
 func IsImplementedBy(it Type, ot Type) bool {
 	return baseOf(it).(*InterfaceType).IsImplementedBy(ot)
+}
+
+// given a map of generic type names, match the tmpl type which
+// might include generics with the spec type which is concrete
+// with no generics, and update the lookup map or panic if error.
+// specTypeval is Type if spec is TypeKind.
+func specifyType(lookup map[Name]Type, tmpl Type, spec Type, specTypeval Type) {
+	if isGeneric(spec) {
+		panic("spec must not be generic")
+	}
+	switch ct := tmpl.(type) {
+	case PointerType:
+		switch pt := baseOf(spec).(type) {
+		case PointerType:
+			specifyType(lookup, ct.Elt, pt.Elt, nil)
+		case *nativeType:
+			et := &nativeType{Type: pt.Type.Elem()}
+			specifyType(lookup, ct.Elt, et, nil)
+		default:
+			panic(fmt.Sprintf(
+				"expected pointer kind but got %s",
+				spec.Kind()))
+		}
+	case *ArrayType:
+		switch at := baseOf(spec).(type) {
+		case *ArrayType:
+			specifyType(lookup, ct.Elt, at.Elt, nil)
+		case *nativeType:
+			et := &nativeType{Type: at.Type.Elem()}
+			specifyType(lookup, ct.Elt, et, nil)
+		default:
+			panic(fmt.Sprintf(
+				"expected array kind but got %s",
+				spec.Kind()))
+		}
+	case *SliceType:
+		switch st := baseOf(spec).(type) {
+		case PrimitiveType:
+			if isGeneric(ct.Elt) {
+				if st.Kind() == StringKind {
+					specifyType(lookup, ct.Elt, Uint8Type, nil)
+				} else {
+					panic(fmt.Sprintf(
+						"expected slice kind but got %s",
+						spec.Kind()))
+				}
+			} else if ct.Elt != Uint8Type {
+				panic(fmt.Sprintf(
+					"expected slice kind but got %s",
+					spec.Kind()))
+			} else if st != StringType {
+				panic(fmt.Sprintf(
+					"expected slice kind (or string type) but got %s",
+					spec.Kind()))
+			}
+		case *SliceType:
+			specifyType(lookup, ct.Elt, st.Elt, nil)
+		case *nativeType:
+			et := &nativeType{Type: st.Type.Elem()}
+			specifyType(lookup, ct.Elt, et, nil)
+		default:
+			panic(fmt.Sprintf(
+				"expected slice kind but got %s",
+				spec.Kind()))
+		}
+	case *MapType:
+		switch mt := baseOf(spec).(type) {
+		case *MapType:
+			specifyType(lookup, ct.Key, mt.Key, nil)
+			specifyType(lookup, ct.Value, mt.Value, nil)
+		case *nativeType:
+			kt := &nativeType{Type: mt.Type.Key()}
+			vt := &nativeType{Type: mt.Type.Elem()}
+			specifyType(lookup, ct.Key, kt, nil)
+			specifyType(lookup, ct.Value, vt, nil)
+		default:
+			panic(fmt.Sprintf(
+				"expected map kind but got %s",
+				spec.Kind()))
+		}
+	case *InterfaceType:
+		if ct.Generic != "" {
+			// tmpl is generic, so replace from lookup.
+			if strings.HasSuffix(string(ct.Generic), ".(type)") {
+				if spec.Kind() != TypeKind {
+					panic(fmt.Sprintf(
+						"generic <%s> requires type kind, got %v",
+						ct.Generic,
+						spec.Kind()))
+				}
+				generic := ct.Generic[:len(ct.Generic)-len(".(type)")]
+				match, ok := lookup[generic]
+				if ok {
+					if match.TypeID() != specTypeval.TypeID() {
+						panic(fmt.Sprintf(
+							"expected %s for <%s> but got %s",
+							match.String(),
+							ct.Generic,
+							specTypeval.String()))
+					} else {
+						return // ok
+					}
+				} else {
+					lookup[generic] = specTypeval
+					return // ok
+				}
+			} else {
+				match, ok := lookup[ct.Generic]
+				if ok {
+					checkType(spec, match)
+					return // ok
+					/*
+						if match.TypeID() != spec.TypeID() {
+							panic(fmt.Sprintf(
+								"expected %s for <%s> but got %s",
+								match.String(),
+								ct.Generic,
+								spec.String()))
+						} else {
+							return // ok
+						}
+					*/
+				} else {
+					if isUntyped(spec) {
+						spec = defaultTypeOf(spec)
+					}
+					lookup[ct.Generic] = spec
+					return // ok
+				}
+			}
+		} else {
+			// TODO: handle generics in method signatures
+			return // nothing to do
+		}
+	default:
+		// ignore, no generics.
+	}
+}
+
+// given the lookup map accumulated w/ specifyType(), apply the
+// lookup map to derive the specific (composite) type from a
+// generic template.  if the input tmpl has no generics, it is
+// simply returned.  if a generic is not yet specified, panics.
+func applySpecifics(lookup map[Name]Type, tmpl Type) (Type, bool) {
+	switch ct := tmpl.(type) {
+	case PointerType:
+		pte, ok := applySpecifics(lookup, ct.Elt)
+		if !ok { // simply return
+			return tmpl, false
+		}
+		return PointerType{
+			Elt: pte,
+		}, true
+	case *ArrayType:
+		ate, ok := applySpecifics(lookup, ct.Elt)
+		if !ok { // simply return
+			return tmpl, false
+		}
+		return &ArrayType{
+			Len: ct.Len,
+			Elt: ate,
+			Vrd: ct.Vrd,
+		}, true
+	case *SliceType:
+		ste, ok := applySpecifics(lookup, ct.Elt)
+		if !ok { // simply return
+			return tmpl, false
+		}
+		return &SliceType{
+			Elt: ste,
+			Vrd: ct.Vrd,
+		}, true
+	case *MapType:
+		mtk, okk := applySpecifics(lookup, ct.Key)
+		mtv, okv := applySpecifics(lookup, ct.Value)
+		if !okk && !okv { // simply return
+			return tmpl, false
+		}
+		return &MapType{
+			Key:   mtk,
+			Value: mtv,
+		}, true
+	case *InterfaceType:
+		if ct.Generic != "" {
+			if strings.HasSuffix(string(ct.Generic), ".(type)") {
+				return gTypeType, true
+			} else {
+				match, ok := lookup[ct.Generic]
+				if ok {
+					return match, true
+				} else {
+					panic(fmt.Sprintf(
+						"unspecified generic type <%s>",
+						ct.Generic))
+				}
+			}
+		} else { // simply return
+			// TODO: handle generics in method signatures
+			return tmpl, false
+		}
+	default:
+		// ignore, no generics.
+		return tmpl, false
+	}
+}
+
+// returns true if t is generic or has generic component.
+func isGeneric(t Type) bool {
+	switch ct := t.(type) {
+	case FieldType:
+		return isGeneric(ct.Type)
+	case PointerType:
+		return isGeneric(ct.Elt)
+	case *ArrayType:
+		return isGeneric(ct.Elt)
+	case *SliceType:
+		return isGeneric(ct.Elt)
+	case *MapType:
+		return isGeneric(ct.Key) ||
+			isGeneric(ct.Value)
+	case *InterfaceType:
+		// TODO: handle generics in method signatures
+		return ct.Generic != ""
+	default:
+		return false
+	}
 }
