@@ -2208,7 +2208,11 @@ func tryPredefine(imp Importer, last BlockNode, d Decl) (un Name) {
 		}
 		last2 := skipFile(last)
 		last2.Define(d.Name, anyValue(nil))
-		d.Path = last.GetPathForName(d.Name)
+		if d.Name == "_" {
+			d.Path.Name = "_"
+		} else {
+			d.Path = last.GetPathForName(d.Name)
+		}
 	case *TypeDecl:
 		// before looking for dependencies, predefine empty type.
 		last2 := skipFile(last)
