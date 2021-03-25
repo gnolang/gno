@@ -683,8 +683,7 @@ func sprintString(tv *TypedValue) string {
 	case *StructType:
 		return tv.V.(*StructValue).String()
 	case *MapType:
-		panic("not yet implemented")
-		//return tv.V.(*MapValue).String()
+		return tv.V.(*MapValue).String()
 	case *FuncType:
 		switch fv := tv.V.(type) {
 		case nil:

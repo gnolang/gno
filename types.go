@@ -37,7 +37,8 @@ func (tid TypeID) String() string {
 func typeid(f string, args ...interface{}) (tid TypeID) {
 	fs := fmt.Sprintf(f, args...)
 	hb := HashBytes([]byte(fs))
-	return TypeID(hb)
+	x := TypeID(hb)
+	return x
 }
 
 // Complex types are pointers, but due to the design goal

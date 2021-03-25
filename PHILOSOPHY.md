@@ -3,6 +3,8 @@
 To avoid subversion, create an objective bar of competency and character.
 Do not create a "team" to jointly create something when it can be done alone.
 Require technical contributions that are well designed and encapsulated.
+Let the light shine through, and let the chips fall where they may,
+for the basis of accountability is the light, is transparency.
 
 ## Technical Philosophy
 

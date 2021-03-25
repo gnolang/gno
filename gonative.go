@@ -610,15 +610,12 @@ func gno2GoType(t Type) reflect.Type {
 	}
 }
 
-// rv must be addressable, or zero (invalid) if tv is referred to from a
-// gno.PointerValue.  If rv is zero, an addressable one will be constructed and
-// returned, otherwise returns rv.
-func gno2GoValue(tv *TypedValue, rv reflect.Value) reflect.Value {
-	if tv.IsNilInterface() {
-		rt := gno2GoType(tv.T)
-		rv = reflect.New(rt).Elem()
-		return rv
-	} else if tv.IsUndefined() {
+// rv must be addressable, or zero (invalid) (say if tv is referred to from a
+// gno.PointerValue). In the latter case, an addressable one will be
+// constructed and returned, otherwise returns rv.  if tv is undefined, rv must
+// be valid.
+func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
+	if tv.IsUndefined() {
 		if debug {
 			if !rv.IsValid() {
 				panic("unexpected undefined gno value")
@@ -627,10 +624,21 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) reflect.Value {
 		return rv
 	}
 	bt := baseOf(tv.T)
-	var rt reflect.Type
 	if !rv.IsValid() {
-		rt = gno2GoType(bt)
+		rt := gno2GoType(bt)
 		rv = reflect.New(rt).Elem()
+		ret = rv
+	} else if rv.Kind() == reflect.Interface && rv.IsZero() {
+		rt := gno2GoType(bt)
+		rv1 := rv
+		rv2 := reflect.New(rt).Elem()
+		rv = rv2       // swaparoo
+		defer func() { // TODO: improve?
+			rv1.Set(rv2)
+			ret = rv
+		}()
+	} else {
+		ret = rv
 	}
 	switch ct := bt.(type) {
 	case PrimitiveType:
@@ -702,7 +710,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) reflect.Value {
 		st := gno2GoType(ct)
 		// If uninitialized slice, return zero value.
 		if tv.V == nil {
-			return rv
+			return
 		}
 		// General case.
 		sv := tv.V.(*SliceValue)
@@ -726,7 +734,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) reflect.Value {
 	case *StructType:
 		// If uninitialized struct, return zero value.
 		if tv.V == nil {
-			return rv
+			return
 		}
 		// General case.
 		sv := tv.V.(*StructValue)
@@ -741,24 +749,30 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) reflect.Value {
 	case *MapType:
 		// If uninitialized map, return zero value.
 		if tv.V == nil {
-			return rv
+			return
 		}
 		// General case.
 		mt := gno2GoType(ct)
 		mv := tv.V.(*MapValue)
 		rv.Set(reflect.MakeMapWithSize(mt, mv.List.Size))
 		head := mv.List.Head
+		vrt := mt.Elem()
 		for head != nil {
 			ktv, vtv := &head.Key, &head.Value
 			krv := gno2GoValue(ktv, reflect.Value{})
-			vrv := gno2GoValue(vtv, reflect.Value{})
-			rv.SetMapIndex(krv, vrv)
+			if vtv.IsUndefined() {
+				vrv := reflect.New(vrt).Elem()
+				rv.SetMapIndex(krv, vrv)
+			} else {
+				vrv := gno2GoValue(vtv, reflect.Value{})
+				rv.SetMapIndex(krv, vrv)
+			}
 			head = head.Next
 		}
 	case *nativeType:
 		// If uninitialized native type, leave rv uninitialized.
 		if tv.V == nil {
-			return rv
+			return
 		}
 		// General case.
 		rv.Set(tv.V.(*nativeValue).Value)
@@ -774,7 +788,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) reflect.Value {
 			"unexpected type %s",
 			tv.T.String()))
 	}
-	return rv
+	return
 }
 
 //----------------------------------------
