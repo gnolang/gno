@@ -268,11 +268,11 @@ subverted.
 Finally, a note concerning this material for those who may be offended by it:
 I'm not a martyr, I know how to forgive, how to identify and construct win-win
 scenarios, and I know how to build tools for societal scale coordination.
-Beware of the karmic repercussions of silencing my work, which is all in the
-name of good human progress.  So, leave me the fuck alone, because crypto isn't
-going back in the bottle, and we all need a reasonable transition to prevent
-global calamaity, from which even your underground bases and mountains won't
-defend you.
+Beware of the karmic repercussions of silencing my work, which is all
+inevitable and in the name of good human progress.  So, leave me the fuck
+alone, because crypto isn't going back in the bottle, and we all need a
+reasonable transition to prevent global calamaity, from which even your
+underground bases and mountains won't defend you.
 
 ## Covid19
 
