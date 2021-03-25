@@ -228,6 +228,52 @@ It is consistent with what appears to be the destruction of legitimacy of the
 USA by both Trump, Dr Fauci, and Biden, who all have received Jesuit education.
 There is much to be explored here.
 
+## Connection to Banking
+
+	* "Permit me to issue and control the money of a nation, and I care not who
+	  makes its laws!" - Mayer Armschel Rothschild.
+	* The Rothschilds lent money to the Holy See about a decade prior to the US
+	  civil war.
+	* "Meanwhile the Nationalist and Reactionary parties in France desired to
+	  counterbalance the "Semitic" influence of the Rothschilds by establishing
+a banking concern which should be essentially Catholic. Accordingly in 1876 the
+Union Générale was founded with a capital of 4,000,000 francs, increased to
+25,000, 000 fraces in 1878 under the direction of a certain Bontoux. After
+various vicissitudes, graphically described by Zola in his novel "L'Argent,"
+the Union failed, and brought many of the Catholic nobility of France to ruin,
+leaving the Rothschilds still more absolutely the undisputed leaders of French
+finance, but leaving also a legacy of hatred which had much influence on the
+growth of the anti-Semitic movement in France. Something analogous occurred in
+England when the century-long competition of the Barings and the Rothschilds
+culminated in the failure of the former in 1893; but in this case the
+Rothschilds came to the rescue of their rivals and prevented a universal
+financial catastrophe. **It is a somewhat curious sequel to the attempt to set up
+a Catholic competitor to the Roths-childs that at the present time the latter
+are the guardians of the papal treasure.**" - The Jewish Encyclopedia
+https://jewishencyclopedia.com/articles/12909-rothschild
+	* "[my ancestors] helped pave the way for the creation of Israel" - Lord
+	  Jacob Rothschild
+	* There is some connection in regards to the founding of Switzerland as
+	  well, between the Rothschilds in the Congress of Vienna.
+
+Tendermint, Cosmos, the SDK, and this project in particular, Gnolang, was
+created to give the power of banking and coordination to the people, so that
+local communities can become sovereign.  I resigned from the Swiss ICF because
+I no longer believe in "neutral" sovereignties and "neutral" board members.
+
+It is better to work alone, and to develop methods of coordinating in a
+decentralized way without depending on anyone, because EVERYTHING is already
+subverted.
+
+Finally, a note concerning this material for those who may be offended by it:
+I'm not a martyr, I know how to forgive, how to identify and construct win-win
+scenarios, and I know how to build tools for societal scale coordination.
+Beware of the karmic repercussions of silencing my work, which is all in the
+name of good human progress.  So, leave me the fuck alone, because crypto isn't
+going back in the bottle, and we all need a reasonable transition to prevent
+global calamaity, from which even your underground bases and mountains won't
+defend you.
+
 ## Covid19
 
 The alternative view of Covid19 is that it is pushed by the deep state to
