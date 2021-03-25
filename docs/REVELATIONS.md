@@ -98,11 +98,11 @@ components.
 
 Examples:
 
-	* https://www.youtube.com/watch?v=SC3gAxP5V4w
-	* https://warriorsoftheruwach.com/en/negros
-	* https://www.youtube.com/watch?v=sIoPn1MxgSw&t
-	* https://www.youtube.com/watch?v=eDrscByKEUQ \*\*
-	* TODO add more
+  * https://www.youtube.com/watch?v=eDrscByKEUQ **
+  * https://www.youtube.com/watch?v=SC3gAxP5V4w
+  * https://warriorsoftheruwach.com/en/negros
+  * https://www.youtube.com/watch?v=sIoPn1MxgSw&t
+  * TODO add more
 
 Race relations is at the core of politics today, and there are quite a lot of
 coincidences being discussed here that appear to be converging toward a
@@ -125,7 +125,7 @@ who then later pressured me to leave said organization.  Interesting
 coincidence.  I harbor no grudge against these individuals, and I cannot prove
 anything further anyways.  None of this is intended to place blame or fault
 with anyone at the ICF.  Surely, it is fair for me to reveal these facts, for I
-have made no promises or oaths to anyone that prevents me from saying so.
+have made no promises or oaths to anyone that prevent me from doing so.
 
 ### Religion - Jesuit Oath
 
@@ -242,11 +242,11 @@ There is much to be explored here.
 
 ## Connection to Banking
 
-	* "Permit me to issue and control the money of a nation, and I care not who
+  * "Permit me to issue and control the money of a nation, and I care not who
 	  makes its laws!" - Mayer Armschel Rothschild.
-	* The Rothschilds lent money to the Holy See about a decade prior to the US
+  * The Rothschilds lent money to the Holy See about a decade prior to the US
 	  civil war.
-	* "Meanwhile the Nationalist and Reactionary parties in France desired to
+  * "Meanwhile the Nationalist and Reactionary parties in France desired to
 	  counterbalance the "Semitic" influence of the Rothschilds by establishing
 a banking concern which should be essentially Catholic. Accordingly in 1876 the
 Union Générale was founded with a capital of 4,000,000 francs, increased to
@@ -263,10 +263,10 @@ financial catastrophe. **It is a somewhat curious sequel to the attempt to set u
 a Catholic competitor to the Roths-childs that at the present time the latter
 are the guardians of the papal treasure.**" - The Jewish Encyclopedia
 https://jewishencyclopedia.com/articles/12909-rothschild
-	* "[my ancestors] helped pave the way for the creation of Israel" - Lord
-	  Jacob Rothschild
-	* There is some connection in regards to the founding of Switzerland as
-	  well, between the Rothschilds in the Congress of Vienna.
+  * "[my ancestors] helped pave the way for the creation of Israel" - Lord
+    Jacob Rothschild
+  * There is some connection in regards to the founding of Switzerland as well,
+    between the Rothschilds in the Congress of Vienna.
 
 Tendermint, Cosmos, the SDK, and this project in particular, Gnolang, was
 created to give the power of banking and coordination to the people, so that
@@ -292,26 +292,26 @@ The alternative view of Covid19 is that it is pushed by the deep state to
 control the population with regards to fertility, quality of life, the
 livelihood of local businesses, and of course, corporate profits.
 
-	* https://www.deblauwetijger.com/wp-content/uploads/2021/03/Geert-vanden-Bossche-2.pdf
-	* https://www.youtube.com/watch?v=ZJZxiNxYLpc (clarifying the above)
-	* https://www.youtube.com/watch?v=WMsn0bj_P6o
+  * https://www.deblauwetijger.com/wp-content/uploads/2021/03/Geert-vanden-Bossche-2.pdf
+  * https://www.youtube.com/watch?v=ZJZxiNxYLpc (clarifying the above)
+  * https://www.youtube.com/watch?v=WMsn0bj_P6o
 
 Here are some facts regarding Bill Gates and his role in the Covid19 crisis:
 
-	* Bill Gates's stated reason for vaccine research, is ultimately population control (see old TED talk).
-	* His father was on the board of Planned Parenthood which was founded by a eugenicist.
-	* Microsoft was made with the son of IBM's founder's Watson, who provided the machines to Adolf Hitler.
-	* Bill Gates funds the WHO on par with countries such as the USA and China.
-	* Bill Gates has made donations into mRNA vaccines.
+  * Bill Gates's stated reason for vaccine research, is ultimately population control (see old TED talk).
+  * His father was on the board of Planned Parenthood which was founded by a eugenicist.
+  * Microsoft was made with the son of IBM's founder's Watson, who provided the machines to Adolf Hitler.
+  * Bill Gates funds the WHO on par with countries such as the USA and China.
+  * Bill Gates has made donations into mRNA vaccines.
 
 Some more facts:
 
-	* These are "vaccines"; they don't make you immune, they are experimental gene therapies.
-	* Manufacturers have no liability for these "vaccines", as they have no test data.
-	* Dr. Fauci was head of the organization that provided funding to the Wuhan laboratory which is accused of engineering the COVID19 virus.
-	* The Pfizer CEO couldn't travel to Israel because he didn't receive the vaccine himself.
-	* The Tanzanian president has died mysteriously just after refusing the vaccine for Tanzanians.
-	* The list goes on and on.
+  * These are "vaccines"; they don't make you immune, they are experimental gene therapies.
+  * Manufacturers have no liability for these "vaccines", as they have no test data.
+  * Dr. Fauci was head of the organization that provided funding to the Wuhan laboratory which is accused of engineering the COVID19 virus.
+  * The Pfizer CEO couldn't travel to Israel because he didn't receive the vaccine himself.
+  * The Tanzanian president has died mysteriously just after refusing the vaccine for Tanzanians.
+  * The list goes on and on.
 
 In the very least, it is clear that COVID19 is being used to destroy
 livelihoods for the benefit of the few.  It appears likely that these mRNA
