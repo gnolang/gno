@@ -101,6 +101,7 @@ Examples:
 	* https://www.youtube.com/watch?v=SC3gAxP5V4w
 	* https://warriorsoftheruwach.com/en/negros
 	* https://www.youtube.com/watch?v=sIoPn1MxgSw&t
+	* https://www.youtube.com/watch?v=eDrscByKEUQ \*\*
 	* TODO add more
 
 Race relations is at the core of politics today, and there are quite a lot of
@@ -114,6 +115,17 @@ geopolitics.
 Whatever the case, the need for better platforms for distilling truth is clear.
 One cannot discuss any of these things without such a tool, without appearing
 to be insane.
+
+\*\* Is Jupiter really the planet of Death?  They also mention the second
+dubious Jesuit Oath quote (see below), so some of the points may be dubious.
+Regarding "The Order", It's interesting that a certain "magical" individual, an
+Oxford valedictorian, self professed MI5 agent who worked with Soros introduced
+me to my ex co-founder, who I brought into the ICF, and this said ex co-founder
+who then later pressured me to leave said organization.  Interesting
+coincidence.  I harbor no grudge against these individuals, and I cannot prove
+anything further anyways.  None of this is intended to place blame or fault
+with anyone at the ICF.  Surely, it is fair for me to reveal these facts, for I
+have made no promises or oaths to anyone that prevents me from saying so.
 
 ### Religion - Jesuit Oath
 

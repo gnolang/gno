@@ -1,4 +1,4 @@
-For this speech, and for daring to challenge the petro-dollar, and for the
+For this speech, and for daring to challenge the petro-dollar, and by the
 cunning of Kissinger against Assad, Gaddafi was murdered in the streets.
 Emphasis my own.  I don't claim that all of this speech is true; only that
 truth eventually prevails.
