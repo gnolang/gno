@@ -102,6 +102,9 @@ Examples:
   * https://www.youtube.com/watch?v=SC3gAxP5V4w
   * https://warriorsoftheruwach.com/en/negros
   * https://www.youtube.com/watch?v=sIoPn1MxgSw&t
+  * https://www.youtube.com/watch?v=QCmSBfVXEmA
+  * TODO transcribe all such videos into text,
+  * then create a platform for discussion of points.
   * TODO add more
 
 Race relations is at the core of politics today, and there are quite a lot of
@@ -321,6 +324,29 @@ very powers that have been in power since the days of Rome, and are opposed to
 the spirit of democracy of the USA.
 
 We desperately need clarification.
+
+## Thesis
+
+The world stage is mostly manipulated by powerful insiders who have secret
+knowledge, maintain secret connections, and promote each other; all in order to
+dominate and control the rest of the world, through the most complex means of
+mind control and propaganda that cannot be fathomed in its entirety by the vast
+majority of people, if any.
+
+We are all playing part of a global narrative executively directed by secret
+societies, that are now becoming widely known.
+
+Yet, as my forefather who received the name Kwon worked with the Muslim Jang to
+create a unified Korea, and as a follower of the faith of the power of love and
+compassion, I believe we can unite world faiths to work together to heal
+ourselves and our ecosystem; without war, but through a means that would be
+acceptable to all peoples of all ethnicities and faiths.
+
+## Mission
+
+Create a platform for discussion to facilitate the quest for knowledge and wisdom.
+Enable discussion across all fields of the sciences, politics, and religions,
+such that truth and peace may prosper.
 
 ## NOTES
 
