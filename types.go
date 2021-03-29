@@ -38,6 +38,9 @@ func typeid(f string, args ...interface{}) (tid TypeID) {
 	fs := fmt.Sprintf(f, args...)
 	hb := HashBytes([]byte(fs))
 	x := TypeID(hb)
+	if debug {
+		debug.Println("TYPEID", fs, "->", x.String())
+	}
 	return x
 }
 
@@ -1013,18 +1016,16 @@ type DeclaredType struct {
 	Methods []TypedValue // {T:*FuncType,V:*FuncValue}...
 
 	typeid TypeID
+	sealed bool
 }
 
-var x = 0
-
+// returns an unsealed *DeclaredType.
 func declareWith(pkgPath string, name Name, b Type) *DeclaredType {
 	dt := &DeclaredType{
 		PkgPath: pkgPath,
 		Name:    name,
 		Base:    baseOf(b),
-	}
-	x++
-	if x == 3 {
+		sealed:  false,
 	}
 	return dt
 }
@@ -1046,9 +1047,23 @@ func (dt *DeclaredType) Kind() Kind {
 	return dt.Base.Kind()
 }
 
+func (dt *DeclaredType) Seal() {
+	if dt.sealed {
+		panic(fmt.Sprintf(
+			"*DeclaredType %s already sealed",
+			dt.Name))
+	}
+	dt.sealed = true
+}
+
 func (dt *DeclaredType) TypeID() TypeID {
+	if !dt.sealed {
+		panic(fmt.Sprintf(
+			"*DeclaredType %s not yet sealed",
+			dt.Name))
+	}
 	if dt.typeid.IsZero() {
-		dt.typeid = typeid("%s.%s=%s",
+		dt.typeid = typeid("%s.%s:=%s",
 			dt.PkgPath, dt.Name, dt.Base.TypeID().String())
 	}
 	return dt.typeid
