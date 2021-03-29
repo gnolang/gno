@@ -104,6 +104,7 @@ func UverseNode() *PackageNode {
 			Name:    "error",
 			Base:    &InterfaceType{}, // XXX error() string
 			Methods: nil,
+			sealed:  true,
 		}))
 
 	// Values

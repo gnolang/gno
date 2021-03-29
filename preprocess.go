@@ -1335,45 +1335,47 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *TypeDecl:
-				// Construct new Type, where any recursive references
-				// refer to the old Type declared during
-				// *TypeDecl:ENTER.  Then, copy over the values,
-				// completing the recursion.
-				temp := evalType(last, n.Type)
-				tipe := last.GetValueRef(n.Name).GetType()
-				switch oldt := tipe.(type) {
+				// Construct new Type, where any recursive
+				// references refer to the old Type declared
+				// during *TypeDecl:ENTER.  Then, copy over the
+				// values, completing the recursion.
+				tmp := evalType(last, n.Type)
+				dst := last.GetValueRef(n.Name).GetType()
+				switch dst := dst.(type) {
 				case *FuncType:
-					*oldt = *(temp.(*FuncType))
+					*dst = *(tmp.(*FuncType))
 				case *ArrayType:
-					*oldt = *(temp.(*ArrayType))
+					*dst = *(tmp.(*ArrayType))
 				case *SliceType:
-					*oldt = *(temp.(*SliceType))
+					*dst = *(tmp.(*SliceType))
 				case *InterfaceType:
-					*oldt = *(temp.(*InterfaceType))
+					*dst = *(tmp.(*InterfaceType))
 				case *ChanType:
-					*oldt = *(temp.(*ChanType))
+					*dst = *(tmp.(*ChanType))
 				case *MapType:
-					*oldt = *(temp.(*MapType))
+					*dst = *(tmp.(*MapType))
 				case *StructType:
-					*oldt = *(temp.(*StructType))
+					*dst = *(tmp.(*StructType))
 				case *DeclaredType:
 					pn := packageOf(last)
-					// XXX this is wrong,
-					// this makes static type and runtime
-					// type be different somehow.
-					// this makes a differnt one
-					dt := declareWith(pn.PkgPath, n.Name, temp)
-					*oldt = *dt
+					// NOTE: this is where declared types are
+					// actually instantiated, not in
+					// interpret.go:runDeclaration().
+					dt := declareWith(pn.PkgPath, n.Name, tmp)
+					if !n.IsAlias {
+						dt.Seal()
+					}
+					*dst = *dt
 				default:
 					panic(fmt.Sprintf("unexpected type declaration type %v",
-						reflect.TypeOf(tipe)))
+						reflect.TypeOf(dst)))
 				}
 				// We need to replace all references of the new
 				// Type with old Type, including in attributes.
-				n.Type.SetAttribute(ATTR_TYPE_VALUE, tipe)
+				n.Type.SetAttribute(ATTR_TYPE_VALUE, dst)
 				// Replace the type with *constTypeExpr{},
 				// otherwise methods would be un at runtime.
-				n.Type = constType(n.Type, tipe)
+				n.Type = constType(n.Type, dst)
 			}
 			// end type switch statement
 
@@ -1785,7 +1787,11 @@ func checkType(xt Type, dt Type) {
 	if dxt, ok := xt.(*DeclaredType); ok {
 		if ddt, ok := dt.(*DeclaredType); ok {
 			// types must match exactly.
-			if dxt.TypeID() == ddt.TypeID() {
+			if !dxt.sealed && !ddt.sealed &&
+				dxt.PkgPath == ddt.PkgPath &&
+				dxt.Name == ddt.Name { // not yet sealed
+				return // ok
+			} else if dxt.TypeID() == ddt.TypeID() {
 				return // ok
 			} else {
 				panic(fmt.Sprintf(
