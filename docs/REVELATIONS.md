@@ -1,3 +1,14 @@
+These thoughts are intended to become of a future platform for publishing and
+discussing such thoughts.  Originally, I wanted to wait until the platform
+existed before publishing these, but I've since changed my mind, and decided to
+re-embrace transparency; for the solution to our present day problems cannot be
+found in secrecy (we've already tried that), but instead in (politically safe)
+transparency.
+
+This document is a work in progress, and is published for my edification.  I'm
+open to feedback, but at this present time it may be best for you to compile
+your own, if you are interested in this bold experiment.
+
 # Of Decentralized Coordination, and Christ.
 
 The BFT byzantine generals problem is a problem of coordination in the face of
@@ -68,26 +79,12 @@ AND THE POWER OF HIS CHRIST.
 
 If you don't Gno, now you Gno.
 
-# Zeitgeist.
+# The Times.
 
 Here is some detail on "conspiracy theories" that are being censored from the
 mainstream. I don't claim any of these to be true, only that these claims are
 made, and that these are fueling the conversations in the fringes, not
 shackled from censorship.
-
-## Religion
-
-If you scan the depths of the internet to see where ideas still remain
-uncensored, albiet for only a short time, where spirits of all darkness come to
-try to spoil the readers minds with dangerous lies, sex, and gore -- to slide
-the truth -- you will find the secrets becoming revealed.  There, the soul gets
-hardened into black rock or red steel, and each element congeal to form new
-planets.  Who can prove legibly that anyone can do better?
-
-There, one of the planets being formed, above others seeks to ground claims
-with reason; without projection, but with conviction, formed by the striking of
-the mallet of hollywood against the heads of viewers and hearts of victims.
-And the fire enters their spirit and comes forth as fire of the mouth.
 
 A good platform will investigate the claims that are being brought forth, and
 will tally all the evidence available, massive and small, and use the kernel of
@@ -95,6 +92,128 @@ Bayesian logic from all proposed set of models to reveal the most likely truth
 that can explain all the facts available; and this, like PageRank made Google
 once viscerally good, will separate the lights to reveal their respective
 components.
+
+DISCLAIMER: I DO NOT (AND I CANNOT, AND WE YET CANNOT) ATTEST FOR THE VERACITY
+OF THE FOLLOWING INFORMATION, BUT ONLY INCLUDE THEM HERE AS REFERENCE FOR
+FUTURE DISCUSSION IN THE FUTURE PLATFORM FOR TRUTH DISCOVERY.
+
+## Religion - [TRIGGER WARNING] Institutional Rape driving Atheism
+
+Quite simply, institutional rape, including paedophilia, is rampant among in
+many if not most of the world's religious organizations.  To my eyes, it
+appears to me to be the primary driver of atheism today.
+
+ * https://atheistmilitantsrising.home.blog/2020/02/22/pedophilia-is-rampant-in-the-christian-religion/ [TRIGGER WARNING]
+ * https://wikiislam.github.io/wiki/Islam_and_Pedophilia.html
+ * TODO include charts of denominations over time.
+ * TODO find more sources besides those shown here.
+ * TODO distil the information to remove aspects of hate, while acknowleding it.
+
+NOTE: as previously disclaimed, I DO NOT (AND I CANNOT, AND WE YET CANNOT)
+ATTEST FOR THE VERACITY OF THE FOLLOWING INFORMATION, BUT ONLY INCLUDE THEM
+HERE AS REFERENCE FOR FUTURE DISCUSSION IN THE FUTURE PLATFORM FOR TRUTH
+DISCOVERY.
+
+When combined with the nature of secret societies, and how some are connected
+to university "fraternities" with abominable hazing rituals, how criminal
+organizations have always worked with blackmail material, and how absolute
+power always begets absolute corruption, and how secret societies operate by
+way of heirarchy of rings (like the rings of an onion) for intelligence
+gathering, such systems by nature becoming heirarchical sooner or later; it
+isn't difficult to piece together what the general picture looks like (once you
+can see the genesis of the problem, and the current state of the problem).
+
+(For why else would Pizzagate and Q have been concocted, the spirit of which
+was proven true, but the details of which have been proven false time and time
+again, if not as controlled opposition?)
+
+The natural response to these revelations is to blame the religions themselves,
+including the Old and New Testaments and the Quran, and to beecome staunch
+athiests.  I would fully support this position if I could be convinced that the
+natural response is sufficient in reducing harm and suffering.
+
+But I cannot state with confidence that man without at least some of the
+elements of scripture will be safe. Of course, subverted media and AI bots will
+shame me for thinking such heresy, but I also see what degeneracy the subverted
+media and AI bots are shilling with their other hand.  I think civilizations
+require "canonical text and practice for a common society", including stories
+of morality and the genesis of humankind that can be explained to all people
+(especially those beginning to learn such concepts -- children), so as to
+provide a basic foundational narrative upon which the nuances of ethical
+morality and societal survival can be taught and practiced.  If the reader
+thinks that they do not need such a thing, perhaps they can understand that
+some others may need it, for (obviously) not everyone is born or raised to have
+the same capability.
+
+Otherwise, without a stable "canonical text", a civilization will surely soon
+drift from where it was, and necessarily devolve into all the vices that sell
+(and there are many). So while the population becomes athiest in response to
+institutionalized exploitation, it further becomes lost, and susceptible to the
+very things that scripture warns us about -- the death of civilizations.
+
+Meanwhile, Lil Nas X sells shoes with human sacrificial blood while giving a
+lap dance to Satan and says,:
+
+>> “I spent my entire teenage years hating myself because of the [s—] y’all
+>> preached would happen to me because i was gay,” he tweeted. “So i hope u are
+>> mad, stay mad, feel the same anger you teach us to have towards ourselves.”
+>> - Lil Nas X
+
+Well of course.  In the light of Lil Nas X's words, one can understand why he
+adopted the Satanic motif.  There is a raging debate in Christianity about
+homosexuality, to what degree the books condemn it, and it appears to the
+Western audience that some or most Islamic societies condemn homosexuality to
+death.  Certainly in the present, and the past, institutional religion
+condemned and persecuted homosexual people excessively in their words and
+actions.  But it seems that if one looks at the content of the books, both
+Christianity and Islam teaches empathy and understanding:
+
+> To be clear: according to the Qur’an male homosexuality is not merely a
+> lifestyle choice, it is a sin; it is not an intrinsic condition, it is a
+> perversion of the natural condition. It is a condition of excess, ignorance and
+> lust; something a godly society restrains, constrains and does not promote. But
+> it is not a sin beyond redemption, and it is certainly not a sin worthy of
+> death – and those who take it upon themselves to mete out mortal punishments
+> are guilty of murder. The Qur’anic position in such a case is unequivocal:
+> - https://www.quranite.com/homosexuality-in-the-quran/
+
+> [4:16] And the two who commit it among you, dishonor them both. But if they
+> repent and correct themselves, leave them alone. Indeed, Allah is ever
+> Accepting of repentance and Merciful. - Quran
+
+And if we imagine that Christianity should be no more intolerant of
+homosexuality than Islam preached by the Quran, but rather should be most
+tolerant and empathetic of their predicament, it shouldn't be difficult to
+imagine a common denominator that is acceptable to all, including followers of
+Jesus, of the Quran, and homosexual people, or more generally, LGBQ.  The
+forcing function is the need to address and enforce the importance of the role
+of good functional mother+father+child relationships, which these scriptures
+are telling us are the core bedrock of civilization.
+
+But not everyone agrees, and so we are being led into rejecting canon and
+further, inverting it, in response to the corruption/subversion of the current
+state of being.  So by influencing the Torah with the Talmud, the Testaments
+with secret societies and empires, and the Quran with false Hadiths, we have
+six factions that are mutually opposed to four while being dependent on one
+other, creating a ring of distraction (much like a global hex/curse), while the
+rapists, pedophiles, assassins, and whatnot continue to go largely unpunished,
+and the world is heading toward anarchy and confusion by inversion.
+
+What now?  I don't know, but from what I know, we need to:
+
+ * abolish or reform forms of spiritual practice and ritual that lead to exploitation
+ * make clear in canonical text in all major languages (more rosetta stone,
+   less Georgia guidestone) what we largely already know to be very wrong, and
+   how to accept that which is less clear.
+ * as Islam says, stop using the sign of crucifixion and guilt -- the cross --
+   as representative of Jesus, regardless of whether he died on the cross or
+   not.
+ * make this system in such a way that the vast majority of people will find
+   legitimacy in the way consensus is achieved, without central authorities.
+
+## Religion - Of Diaspora.
+
+TODO: of elitism and diaspora.
 
 Examples:
 
@@ -323,9 +442,13 @@ perhaps all of this is being orchestrated by the NWO globalists, funded by the
 very powers that have been in power since the days of Rome, and are opposed to
 the spirit of democracy of the USA.
 
-We desperately need clarification.
-
 ## Thesis
+
+We desperately need clarification.  We need a tool that evolves beyond Google
+and Wikipedia (both susceptible to capture from within the organization, though
+in theory they are impartial, and in practice neither are), so that we can have
+better understanding of the world, so that we may improve it for future
+generations.
 
 The world stage is mostly manipulated by powerful insiders who have secret
 knowledge, maintain secret connections, and promote each other; all in order to
@@ -336,11 +459,22 @@ majority of people, if any.
 We are all playing part of a global narrative executively directed by secret
 societies, that are now becoming widely known.
 
-Yet, as my forefather who received the name Kwon worked with the Muslim Jang to
+(Yet, as my forefather who received the name Kwon worked with the Muslim Jang to
 create a unified Korea, and as a follower of the faith of the power of love and
 compassion, I believe we can unite world faiths to work together to heal
 ourselves and our ecosystem; without war, but through a means that would be
-acceptable to all peoples of all ethnicities and faiths.
+acceptable to all peoples of all ethnicities and faiths.)
+
+Without a tool of open constructive dialog and debate, the world appears
+destined to world conflict of biblical proportions, and it may be in part or in
+while by "intelligent design".  In other words, if we fail to create a system
+that can shed light into what has happened, what is going on, and is about to
+happen, by default we will enter an age of great occlusion; one where the truth
+may be kept hidden indefinitely, and the promise of human enlightenment
+extinguished yet again.
+
+Or, we can transcend the obvious false choices thrust upon us, and create the
+platform of light to ensure perpetual wisdom for our descendants.
 
 ## Mission
 
