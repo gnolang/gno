@@ -507,3 +507,8 @@ coordinate depends chiefly on the quality of the Focal Point.  It doesn't
 matter how irrational or silly the framework is; the more people subscribe, the
 greater the coordination.  Here you can introduce engineering into cosmology,
 and even and especially astrology.
+
+I do not know about whether the Book of Dzyan is real, but I know that the
+Tibetans are persecuted, and that Blavatsky shares much of these themes in
+Theology.  Even her words on reincarnation, rationalized, fits well with the
+notion of the return of Isa or the coming of the messiah(s) in scriptures.
