@@ -1322,13 +1322,17 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 					tv = anyValue(t)
 				}
 				// define.
-				if fn, ok := last.(*FileNode); ok {
-					pn := fn.GetParent().(*PackageNode)
-					pn.Define(n.Name, tv)
+				if n.Name == "_" {
+					n.Path.Name = "_"
 				} else {
-					last.Define(n.Name, tv)
+					if fn, ok := last.(*FileNode); ok {
+						pn := fn.GetParent().(*PackageNode)
+						pn.Define(n.Name, tv)
+					} else {
+						last.Define(n.Name, tv)
+					}
+					n.Path = last.GetPathForName(n.Name)
 				}
-				n.Path = last.GetPathForName(n.Name)
 				// TODO make note of constance in static block for future
 				// use, or consider "const paths".
 				// set as preprocessed.
@@ -2212,11 +2216,11 @@ func tryPredefine(imp Importer, last BlockNode, d Decl) (un Name) {
 		if un != "" {
 			return
 		}
-		last2 := skipFile(last)
-		last2.Define(d.Name, anyValue(nil))
 		if d.Name == "_" {
 			d.Path.Name = "_"
 		} else {
+			last2 := skipFile(last)
+			last2.Define(d.Name, anyValue(nil))
 			d.Path = last.GetPathForName(d.Name)
 		}
 	case *TypeDecl:

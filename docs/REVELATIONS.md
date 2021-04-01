@@ -211,6 +211,27 @@ What now?  I don't know, but from what I know, we need to:
  * make this system in such a way that the vast majority of people will find
    legitimacy in the way consensus is achieved, without central authorities.
 
+## Religion - Of Patriarchy and Feminism.
+
+The oppression of women had been institutionalized, perhaps since the genesis
+of the written word.  Whatever the source of this difference, it's clear that
+women have time and time again proven capable in all fields as the best of men
+in the persuit of intellectual persuits.  
+
+https://en.wikipedia.org/wiki/Cynthia_Dwork
+https://en.wikipedia.org/wiki/Nancy_Lynch
+https://en.wikipedia.org/wiki/Larry_Stockmeyer
+
+Two of three were women, who authored the seminal paper on consensus theory,
+"Consensus in the Presence of Partial Synchrony", without which Tendermint
+would not have been made.
+
+I imagine one day soon, Jesus as Father and Mohammad as friend would be
+conversing with (Mary?) as Mother, discussing the nuances of our new collective
+morality; so that man and woman are different but peers.  The day will come
+when agreements can be had among characters, with specific rules for civility,
+and with option and space for fair competition and experimentation.
+
 ## Religion - Of Diaspora.
 
 TODO: of elitism and diaspora.
