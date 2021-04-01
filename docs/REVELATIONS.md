@@ -270,6 +270,17 @@ anything further anyways.  None of this is intended to place blame or fault
 with anyone at the ICF.  Surely, it is fair for me to reveal these facts, for I
 have made no promises or oaths to anyone that prevent me from doing so.
 
+## Religion - Of the Name of God.
+
+Some say Jehovah, some say Yahweh, and some say Yahusha, Yashua, or just Yah.
+When you point out that Jupiter is short for JOVE-pitar, or JOVE-father, and
+that JOVE was IOVE and in latin this is pronounced like Yahwee, they will say
+that Yahweh and Jove have completely different origins.
+
+But then all babies say Mom, or similar, and Dad or Pop or Father or similar.
+And what do we all say when we see something good?  Yes, Yeah, and even in
+Korean, "Yeh"!
+
 ### Religion - Jesuit Oath
 
 Here is one Jesuit Oath, allegedly on record in Paris:
