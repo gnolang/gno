@@ -1056,6 +1056,11 @@ func (dt *DeclaredType) Seal() {
 	dt.sealed = true
 }
 
+// NOTE: it is difficult to do otherwise than to hash the package name and type
+// name, because types may be recursive in complex ways.  This appears related
+// to the graph homomorphism problem.  So, beware.  For now, we require the
+// user to verify the definition of declared types in a separate request or
+// piece of data.
 func (dt *DeclaredType) TypeID() TypeID {
 	if !dt.sealed {
 		panic(fmt.Sprintf(
@@ -1063,8 +1068,8 @@ func (dt *DeclaredType) TypeID() TypeID {
 			dt.Name))
 	}
 	if dt.typeid.IsZero() {
-		dt.typeid = typeid("%s.%s:=%s",
-			dt.PkgPath, dt.Name, dt.Base.TypeID().String())
+		dt.typeid = typeid("%s.%s",
+			dt.PkgPath, dt.Name)
 	}
 	return dt.typeid
 }
