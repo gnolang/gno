@@ -1,7 +1,5 @@
 package main
 
-import "fmt"
-
 type foo struct {
 	bar string
 }
@@ -10,10 +8,16 @@ func (f foo) String() string {
 	return "Hello from " + f.bar
 }
 
+type Stringer interface {
+	String() string
+}
+
 func main() {
-	var f fmt.Stringer = foo{bar: "bar"}
-	fmt.Println(f)
+	var f Stringer = foo{bar: "bar"}
+	println(f)
 }
 
 // Output:
-// Hello from bar
+// struct{("bar" string)}
+
+// NOTE: print() and println() does not care about Stringer.

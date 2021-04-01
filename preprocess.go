@@ -1720,7 +1720,7 @@ func checkType(xt Type, dt Type) {
 				panic(fmt.Sprintf(
 					"%s does not implement %s",
 					xt.String(),
-					idt.String()))
+					dt.String()))
 			}
 		} else if ndt, ok := baseOf(dt).(*nativeType); ok {
 			nidt := ndt.Type
@@ -1742,7 +1742,7 @@ func checkType(xt Type, dt Type) {
 				if !ok {
 					panic(fmt.Sprintf(
 						"pointer to non-native type cannot satisfy non-empty native interface; %s doesn't implmeent %s",
-						nxt.String(),
+						pxt.String(),
 						nidt.String()))
 				}
 				// if xt has native base, do the naive native.

@@ -279,7 +279,11 @@ that Yahweh and Jove have completely different origins.
 
 But then all babies say Mom, or similar, and Dad or Pop or Father or similar.
 And what do we all say when we see something good?  Yes, Yeah, and even in
-Korean, "Yeh"!
+Korean, "Yeh"!  In Islam, "Ya" like "Oh" grabs your attention, as does "Yah" in
+Korean, and many names of Allah in the Quran start with "Ya", like "Ya Haeeyu"
+And HalleluJAH means "praise be the lord"!
+
+Isn't that interesting?  Yeah!
 
 ### Religion - Jesuit Oath
 
