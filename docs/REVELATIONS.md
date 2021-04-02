@@ -453,6 +453,8 @@ livelihood of local businesses, and of course, corporate profits.
   * https://www.deblauwetijger.com/wp-content/uploads/2021/03/Geert-vanden-Bossche-2.pdf
   * https://www.youtube.com/watch?v=ZJZxiNxYLpc (clarifying the above)
   * https://www.youtube.com/watch?v=WMsn0bj_P6o
+  * https://www.americasfrontlinedoctors.com/exclusive-former-pfizer-vp-to-aflds-entirely-possible-this-will-be-used-for-massive-scale-depopulation/
+  * https://www.reuters.com/investigates/special-report/health-coronavirus-vaccines-skeptic/ (earlier article from same)
 
 Here are some facts regarding Bill Gates and his role in the Covid19 crisis:
 
