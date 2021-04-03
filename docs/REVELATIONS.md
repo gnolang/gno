@@ -99,6 +99,14 @@ FUTURE DISCUSSION IN THE FUTURE PLATFORM FOR TRUTH DISCOVERY.
 
 ## Religion - [TRIGGER WARNING] Institutional Rape driving Atheism
 
+Update w/ context:
+
+ * https://web.archive.org/web/20210403041151/https://www.theamericanconservative.com/state-of-the-union/leaked-texts-from-israeli-consular-official-show-more-details-in-gaetz-levinson-funding-scheme/
+ * https://web.archive.org/web/20210124055655/https://www.cnn.com/2020/09/30/us/bronfman-nxivm-sentenced/index.html
+ * https://web.archive.org/save/https://nworeport.me/2019/02/14/partners-of-the-rothschild-family-implicated-in-elitist-nxivm-sex-cult/
+
+---------
+
 Quite simply, institutional rape, including paedophilia, is rampant among in
 many if not most of the world's religious organizations.  To my eyes, it
 appears to me to be the primary driver of atheism today.
