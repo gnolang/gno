@@ -1,3 +1,13 @@
+## TODO
+
+ * Keep simplifying aggressively.
+ * Consult history to get a sense of direction and what there is left to do.
+   - currently left off at completing the serial even system, but with Gno interpretation for filtering.
+   - then, wrap up Tendermint (propbably replace/remove most of LCD) and move onto the SDK.
+ * SDK: remove all but the minimal basics (close to launch) so as to support Gno smart contracts.
+ * Remove all complex dependencies such as Protobuf.
+ * Make everything run on Gno itself.
+
 # Tendermint Classic
 
 The design goals for Tendermint Classic (and the SDK and related libraries) are:
