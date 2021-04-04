@@ -10,7 +10,6 @@ require (
 	github.com/jaekwon/testify v1.6.1
 	github.com/mattn/go-runewidth v0.0.10
 	github.com/stretchr/testify v1.6.1
-	src.techknowlogick.com/xgo v1.2.1-0.20210207204503-1ea8454a58df // indirect
 )
 
 replace github.com/gdamore/tcell => github.com/gnolang/tcell v1.4.0

@@ -287,6 +287,10 @@ file does. Eventually, each function will be commented in the same manner.
 You can learn a great deal from reading Gnocode, and it's recommended that
 both users and developers have a look.
 
+## Guidelines
+* Jae's BDFL, this is his design.
+* No dependencies on anything precompiled.
+
 ## Contact
 
 If you can read this, the project is evolving (fast) every day.  Check

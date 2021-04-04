@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - First commits
 - Logos browser
 - Tests from Yagi
-- xgo cross compilation support
 - Makefile
 - Github action
 - Expanded Readme with information about the project
