@@ -1020,12 +1020,26 @@ type DeclaredType struct {
 }
 
 // returns an unsealed *DeclaredType.
+// do not use for aliases.
 func declareWith(pkgPath string, name Name, b Type) *DeclaredType {
 	dt := &DeclaredType{
 		PkgPath: pkgPath,
 		Name:    name,
 		Base:    baseOf(b),
 		sealed:  false,
+	}
+	switch ct := b.(type) {
+	case *StructType:
+		for _, field := range ct.Fields {
+			if field.Embedded {
+				switch cft := field.Type.(type) {
+				case *DeclaredType:
+					ct.EmbedMethods(cft)
+				default:
+					panic("should not happen")
+				}
+			}
+		}
 	}
 	return dt
 }
@@ -1099,6 +1113,37 @@ func (dt *DeclaredType) GetPathForName(n Name) ValuePath {
 	return path
 }
 
+// XXX
+// The Preprocesses uses *DT.GetPathForName(name) to set the path, and also
+// *DT.GetMethod(name) to consult the type.  OpSelector uses
+// *DT.GetPointerTo(path), and for declared types, in turn uses
+// *DT.GetValueRefAt(path) to find any methods (see values.go).
+//
+// If the method is embedded (as a method of an embedded struct, or the
+// method of an embedded interface), then the current implementation in
+// preprocessor doesn't work, as it uses *DT.GetMethod(name), which uses
+// *DT.GetValueRef(name).
+//
+// i.e.,
+//  preprocessor: *DT.GetPathForName(name)
+//                *DT.GetMethod(name)
+//                 -> *DT.GetValueRef(name)
+//
+//       runtime: *DT.GetPointerTo(path)
+//                 -> *DT.GetValueRefAt(path)
+//
+// The runtime function *DT.GetValueRefAt(path) must return the index of
+// the embedded field so that *DT.GetPointerTo(path) can return the right
+// bound method.
+// XXX to support that, should we add a field to path?
+// XXX no, preferably, we can make this work without modifying the path,
+// XXX but we will need to do:
+// XXX 1. simplify StructValue a bit so that inner struct fields
+// XXX    are resliced each time accessed by selector rather than
+// XXX    what it is now, where the inner field refers to the outer ffields.
+// XXX 2. when checking interface implementation, look up on *DT fields
+// XXX 3. when calling an embedded *DT method (interface or other),
+// XXX    have preprocessor replace elided selectors with explicit ones.
 func (dt *DeclaredType) GetValueRefAt(path ValuePath) *TypedValue {
 	if path.Type == VPTypeInterface {
 		mv := dt.GetValueRef(path.Name)
@@ -1143,6 +1188,15 @@ func (dt *DeclaredType) DefineMethod(fv *FuncValue) {
 		T: fv.Type,
 		V: fv,
 	})
+}
+
+func (dt *DeclaredType) EmbedType(dt2 *DeclaredType) {
+	// XXX this is wrong, fix.
+	// XXX see *DT.GetValueRefAt() comments.
+	panic("not yet implemented")
+	for _, mthd := range dt2.Methods {
+		dt.Methods = append(dt.Methods, mthd)
+	}
 }
 
 //----------------------------------------
@@ -1495,7 +1549,6 @@ func fillEmbeddedName(ft *FieldType) {
 		switch ct := ct.Elt.(type) {
 		case *DeclaredType:
 			ft.Name = ct.Name
-			return
 		case *nativeType:
 			panic("native type cannot be embedded")
 		default:
@@ -1503,7 +1556,6 @@ func fillEmbeddedName(ft *FieldType) {
 		}
 	case *DeclaredType:
 		ft.Name = ct.Name
-		return
 	case PrimitiveType:
 		switch ct {
 		case BoolType:
