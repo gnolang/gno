@@ -478,45 +478,9 @@ func (pt PointerType) Elem() Type {
 //----------------------------------------
 // Struct type
 
-// Struct fields are flattened.
-// All non-pointer (embedded and named) inner struct fields get
-// appended (flattened) to the outer struct's fields buffer.
-// Each non-pointer inner-struct's fields are preceded by the
-// type of inner-struct.
-//
-// Mapping contains the original field index to the translated
-// index in Fields. The value is always greater than or equal
-// to the key.
-//
-// Example:
-// type Foo struct {
-//   A int
-//   *Foo
-// }
-// type Bar struct {
-//   B int
-//   X Foo
-//   C int
-// }
-// StructType{Bar}.Fields = []FieldType{
-//   {"B", IntType},
-//   {"X", StructType{Foo}},
-//   {"A", IntType},
-//   {"Foo", PointerType{StructType{Foo}}},
-//   {"C", IntType},
-// }
-// StructType{Bar}.Mapping = []int{0, 1, 4}
-//
-// The type of non-pointer inner struct fields have as their
-// fields slices of the container struct type's field buffer.
-// StructValues are similar in structure.  Mapping
-// contains a mapping from the top-level declared field
-// index to the corresponding entry in the flat buffer
-// Fields.  i.e., len(Mapping) <= len(Fields) and Mapping[x] >= x.
 type StructType struct {
 	PkgPath string
-	Fields  []FieldType // flattened
-	Mapping []int       // map[Orig]:Flat
+	Fields  []FieldType
 
 	typeid TypeID
 }
@@ -1028,19 +992,21 @@ func declareWith(pkgPath string, name Name, b Type) *DeclaredType {
 		Base:    baseOf(b),
 		sealed:  false,
 	}
-	switch ct := b.(type) {
-	case *StructType:
-		for _, field := range ct.Fields {
-			if field.Embedded {
-				switch cft := field.Type.(type) {
-				case *DeclaredType:
-					ct.EmbedMethods(cft)
-				default:
-					panic("should not happen")
+	/*
+		switch ct := b.(type) {
+		case *StructType:
+			for _, field := range ct.Fields {
+				if field.Embedded {
+					switch cft := field.Type.(type) {
+					case *DeclaredType:
+						ct.EmbedMethods(cft)
+					default:
+						panic("should not happen")
+					}
 				}
 			}
 		}
-	}
+	*/
 	return dt
 }
 
@@ -1144,6 +1110,7 @@ func (dt *DeclaredType) GetPathForName(n Name) ValuePath {
 // XXX 2. when checking interface implementation, look up on *DT fields
 // XXX 3. when calling an embedded *DT method (interface or other),
 // XXX    have preprocessor replace elided selectors with explicit ones.
+// XXX ^^^ may be outdated due to removal of flat fields.
 func (dt *DeclaredType) GetValueRefAt(path ValuePath) *TypedValue {
 	if path.Type == VPTypeInterface {
 		mv := dt.GetValueRef(path.Name)

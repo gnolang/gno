@@ -112,25 +112,18 @@ func (m *Machine) doOpStructType() {
 	x := m.PopExpr().(*StructTypeExpr)
 	// pop fields
 	ftvs := m.PopValues(len(x.Fields))
-	// allocate (minimum) space for flat fields
-	ffields := make([]FieldType, 0, len(x.Fields))
-	mapping := make([]int, len(x.Fields))
-	// populate ffields
-	for i, ftv := range ftvs {
-		mapping[i] = len(ffields)
+	// allocate (minimum) space for fields
+	fields := make([]FieldType, 0, len(x.Fields))
+	// populate fields
+	for _, ftv := range ftvs {
 		ft := ftv.V.(TypeValue).Type.(FieldType)
 		fillEmbeddedName(&ft)
-		ffields = append(ffields, ft)
-		if ftv.T.Kind() == StructKind { // flatten
-			st := baseOf(ft.Type).(*StructType)
-			ffields = append(ffields, st.Fields...)
-		}
+		fields = append(fields, ft)
 	}
 	// push struct type
 	st := &StructType{
 		PkgPath: m.Package.PkgPath,
-		Fields:  ffields,
-		Mapping: mapping,
+		Fields:  fields,
 	}
 	m.PushValue(TypedValue{
 		T: gTypeType,

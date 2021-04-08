@@ -139,22 +139,16 @@ func go2GnoType2(rt reflect.Type) Type {
 	case reflect.Struct:
 		nf := rt.NumField()
 		fs := make([]FieldType, nf)
-		mp := make([]int, nf)
-		// NOTE: go-native struct fields don't stack/flatten like
-		// nested gno struct fields, but embedded fields must be
-		// referred to explicitly.
 		for i := 0; i < nf; i++ {
 			sf := rt.Field(i)
 			fs[i] = FieldType{
 				Name: Name(sf.Name),
 				Type: go2GnoType(sf.Type),
 			}
-			mp[i] = i // see note
 		}
 		return &StructType{
 			PkgPath: rt.PkgPath(),
 			Fields:  fs,
-			Mapping: mp,
 		}
 	case reflect.UnsafePointer:
 		panic("not yet implemented")
@@ -360,16 +354,16 @@ func go2GnoValueUpdate(lvl int, tv *TypedValue, rv reflect.Value) {
 	case StructKind:
 		st := baseOf(tv.T).(*StructType)
 		sv := tv.V.(*StructValue)
-		for orig, flat := range st.Mapping {
-			ft := st.Fields[flat].Type
-			ftv := &sv.Fields[flat]
+		for i := range st.Fields {
+			ft := st.Fields[i].Type
+			ftv := &sv.Fields[i]
 			if ftv.T == nil && ft.Kind() != InterfaceKind {
 				ftv.T = ft
 			}
 			if ftv.V == nil {
 				ftv.V = defaultValue(ft)
 			}
-			frv := rv.Field(orig)
+			frv := rv.Field(i)
 			go2GnoValueUpdate(lvl+1, ftv, frv)
 		}
 	case PackageKind:
@@ -738,13 +732,12 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		}
 		// General case.
 		sv := tv.V.(*StructValue)
-		// Use st.Mapping to translate from Go to Gno field numbers.
-		for orig, flat := range ct.Mapping {
-			ftv := &(sv.Fields[flat])
+		for i := range ct.Fields {
+			ftv := &(sv.Fields[i])
 			if ftv.IsUndefined() {
 				continue
 			}
-			gno2GoValue(ftv, rv.Field(orig))
+			gno2GoValue(ftv, rv.Field(i))
 		}
 	case *MapType:
 		// If uninitialized map, return zero value.
