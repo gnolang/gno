@@ -436,13 +436,9 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 					case *nativeType:
 						switch bt.Type.Kind() {
 						case reflect.Struct:
-							// NOTE Gno embedded fields are
-							// flattened, whereas in Go fields are
-							// nested, and a complete index is a
-							// slice of indices.  For simplicity
-							// and some degree of flexibility, do
-							// not use path indices for Go native
-							// types, but use the name.
+							// NOTE: For simplicity and some degree of
+							// flexibility, do not use path indices for Go
+							// native types, but use the name.
 							n.Path = NewValuePathNative(n.Name)
 							return n, TRANS_CONTINUE
 						case reflect.Array, reflect.Slice:
@@ -887,8 +883,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 						}
 					} else {
 						for i := 0; i < len(n.Elts); i++ {
-							flat := cclt.Mapping[i]
-							ft := cclt.Fields[flat].Type
+							ft := cclt.Fields[i].Type
 							checkOrConvertType(last, n.Elts[i].Value, ft)
 						}
 					}

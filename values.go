@@ -200,7 +200,7 @@ func (sv *SliceValue) GetPointerAtIndexInt2(ii int, st *SliceType) PointerValue 
 
 type StructValue struct {
 	ObjectInfo
-	Fields []TypedValue // flattened
+	Fields []TypedValue
 }
 
 // If value is undefined at path, sets default value before
@@ -1100,40 +1100,17 @@ func (tv *TypedValue) Assign(tv2 TypedValue) {
 		default:
 			panic("should not happen")
 		}
-	case *StructType:
+	case *StructType: // XXX path index+other.
 		if tv2.IsUndefined() {
 			*tv = TypedValue{}
-		} else if ct.TypeID() == tv2.T.TypeID() {
-			// In case of embedded struct, must copy flat
-			// fields to the old buffer, and retain old
-			// buffer slice.
-			// TODO: optimize this further by distinguishing
-			// between embedded and standalone structs.
-			sv1 := tv.V.(*StructValue)
-			sv2 := tv2.V.(*StructValue)
-			fs1 := sv1.Fields // remember old slice
-			fs2 := sv2.Fields
-			if debug {
-				if len(fs1) != len(fs2) {
-					panic(fmt.Sprintf(
-						"fields len mismatch during copy: %v vs %v",
-						len(fs1), len(fs2)))
-				}
-			}
-			*tv = tv2.Copy()
-			sv1b := tv.V.(*StructValue)
-			fs1b := sv1b.Fields
-			if debug {
-				if len(fs1) != len(fs1b) {
-					panic(fmt.Sprintf(
-						"fields len mismatch during copy: %v vs %v",
-						len(fs1),
-						len(fs1b)))
-				}
-			}
-			copy(fs1, fs1b)
-			sv1b.Fields = fs1 // keep old slice.
 		} else {
+			if debug {
+				if tv.T.TypeID() != tv2.T.TypeID() {
+					panic(fmt.Sprintf("mismatched types: cannot assign %v to %v",
+						tv2.String(), tv.T.String()))
+				}
+			}
+			// XXX fix realm refcount logic.
 			*tv = tv2.Copy()
 		}
 	default:
