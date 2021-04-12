@@ -1187,10 +1187,10 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 							}
 							lhs0 := n.Lhs[0].(*NameExpr).Name
 							lhs1 := n.Lhs[1].(*NameExpr).Name
-							tt := evalTypeOf(last, cx.Type)
+							tt := evalType(last, cx.Type)
 							// re-definitions
 							last.Define(lhs0, anyValue(tt))
-							last.Define(lhs1, anyValue(UntypedBoolType))
+							last.Define(lhs1, anyValue(BoolType))
 						default:
 							panic("should not happen")
 						}
@@ -1201,7 +1201,12 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 							rx := n.Rhs[i]
 							rt := evalTypeOf(last, rx)
 							// re-definition
-							last.Define(ln, anyValue(rt))
+							if rt == nil {
+								// e.g. (interface{})(nil), becomes constExpr(undefined).
+								// last.Define(ln, undefined) complains, since redefinition.
+							} else {
+								last.Define(ln, anyValue(rt))
+							}
 						}
 					}
 				} else {

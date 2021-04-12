@@ -79,9 +79,10 @@ type PointerValue struct {
 	Index       int    // list/fields/values index.
 }
 
-func (pv PointerValue) Assign2(rlm *Realm, tv2 TypedValue) {
+// cu: convert untyped; pass false for const definitions
+func (pv PointerValue) Assign2(rlm *Realm, tv2 TypedValue, cu bool) {
 	oo1 := pv.GetObject()
-	pv.Assign(tv2)
+	pv.Assign(tv2, cu)
 	oo2 := pv.GetObject()
 	rlm.DidUpdate(pv.Base, oo1, oo2)
 }
@@ -1040,7 +1041,9 @@ func (tv *TypedValue) ComputeMapKey(omitType bool) MapKey {
 //----------------------------------------
 // Value utility/manipulation functions.
 
-func (tv *TypedValue) Assign(tv2 TypedValue) {
+// cu: convert untyped after assignment. pass false
+// for const definitions, but true for all else.
+func (tv *TypedValue) Assign(tv2 TypedValue, cu bool) {
 	if debug {
 		if tv2.T == DataByteType {
 			// tv2 will never be a DataByte, as it is
@@ -1054,8 +1057,7 @@ func (tv *TypedValue) Assign(tv2 TypedValue) {
 			tv.SetDataByte(tv2.GetUint8())
 		} else {
 			*tv = tv2.Copy()
-			// Convert if untyped const.
-			if isUntyped(tv.T) {
+			if cu && isUntyped(tv.T) {
 				ConvertUntypedTo(tv, defaultTypeOf(tv.T))
 			}
 		}
@@ -1113,8 +1115,21 @@ func (tv *TypedValue) Assign(tv2 TypedValue) {
 			// XXX fix realm refcount logic.
 			*tv = tv2.Copy()
 		}
+	case nil:
+		*tv = tv2.Copy()
+		if cu && isUntyped(tv.T) {
+			ConvertUntypedTo(tv, defaultTypeOf(tv.T))
+		} else {
+			// pass cu=false for const definitions.
+		}
 	default:
 		*tv = tv2.Copy()
+	}
+}
+
+func (tv *TypedValue) ConvertUntyped() {
+	if isUntyped(tv.T) {
+		ConvertUntypedTo(tv, defaultTypeOf(tv.T))
 	}
 }
 
