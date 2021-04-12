@@ -541,6 +541,37 @@ func (st *StructType) GetStaticTypeOfAt(path ValuePath) Type {
 	return st.Fields[path.Index].Type
 }
 
+// Searches embedded fields to find matching method or field, which may be
+// embedded. This function is slow. DeclaredType uses this. There is probably
+// no need to cache positive results here; it may be better to implement it on
+// DeclaredType. The resulting ValuePaths may be modified.
+// If not found, all returned values are nil; for consistency, check the trail.
+func (st *StructType) FindEmbeddedFieldType(n Name) (
+	trail []ValuePath, hasPtr bool, rcvr Type, field Type) {
+	// Search fields.
+	for i := 0; i < len(st.Fields); i++ {
+		sf := &st.Fields[i]
+		// Maybe a field of the struct.
+		if sf.Name == n {
+			vp := NewValuePathDefault(1, uint16(i), n)
+			return []ValuePath{vp}, false, nil, sf.Type
+		}
+		// XXX handle embedded pointer fields.
+		// if pt, ok := sf.Type.(PointerType); ok {...}
+		// XXX
+		// Maybe an embedded field or method.
+		if dt, ok := sf.Type.(*DeclaredType); ok {
+			tr, hp, rt, ft := dt.FindEmbeddedFieldType(n)
+			if tr != nil {
+				vp2 := NewValuePathDefault(1, uint16(i), n)
+				return append([]ValuePath{vp2}, tr...), hp, rt, ft
+			}
+		}
+	}
+	// Otherwise, it doesn't exist.
+	return nil, false, nil, nil
+}
+
 //----------------------------------------
 // Package type
 
@@ -660,13 +691,14 @@ func (it *InterfaceType) IsImplementedBy(ot Type) bool {
 				if !im2.IsImplementedBy(ot) {
 					return false
 				}
-			} else if dm := cot.GetMethod(im.Name); dm != nil {
+			} else if tr, hp, rt, ft := cot.FindEmbeddedFieldType(im.Name); tr != nil {
 				// ... or, field is method.
-				_, ptrRcvr := dm.Type.Params[0].Type.(PointerType)
-				if ptrRcvr && !isPtr {
+				_, ptrRcvr := rt.(PointerType) // rt may be nil if embedded interface.
+				if ptrRcvr && !hp && !isPtr {
 					return false
 				}
-				dmtid := dm.Type.BoundType().TypeID()
+				mt := ft.(*FuncType)
+				dmtid := mt.TypeID()
 				imtid := im.Type.TypeID()
 				if dmtid != imtid {
 					return false
@@ -992,21 +1024,6 @@ func declareWith(pkgPath string, name Name, b Type) *DeclaredType {
 		Base:    baseOf(b),
 		sealed:  false,
 	}
-	/*
-		switch ct := b.(type) {
-		case *StructType:
-			for _, field := range ct.Fields {
-				if field.Embedded {
-					switch cft := field.Type.(type) {
-					case *DeclaredType:
-						ct.EmbedMethods(cft)
-					default:
-						panic("should not happen")
-					}
-				}
-			}
-		}
-	*/
 	return dt
 }
 
@@ -1036,11 +1053,11 @@ func (dt *DeclaredType) Seal() {
 	dt.sealed = true
 }
 
-// NOTE: it is difficult to do otherwise than to hash the package name and type
-// name, because types may be recursive in complex ways.  This appears related
-// to the graph homomorphism problem.  So, beware.  For now, we require the
-// user to verify the definition of declared types in a separate request or
-// piece of data.
+// NOTE: it is difficult to do otherwise than to hash the package name and
+// type name, because types may be recursive in complex ways.  This appears
+// related to the graph homomorphism problem.  So, beware.  For now, we
+// require the user to verify the definition of declared types in a
+// separate request or piece of data.
 func (dt *DeclaredType) TypeID() TypeID {
 	if !dt.sealed {
 		panic(fmt.Sprintf(
@@ -1062,6 +1079,14 @@ func (dt *DeclaredType) Elem() Type {
 	return dt.Base.Elem()
 }
 
+func (dt *DeclaredType) DefineMethod(fv *FuncValue) {
+	dt.Methods = append(dt.Methods, TypedValue{
+		T: fv.Type,
+		V: fv,
+	})
+}
+
+// XXX this function isn't used?!
 func (dt *DeclaredType) GetPathForName(n Name) ValuePath {
 	// May be a method.
 	for i, tv := range dt.Methods {
@@ -1079,10 +1104,60 @@ func (dt *DeclaredType) GetPathForName(n Name) ValuePath {
 	return path
 }
 
-// XXX
+// Returns the method declared onto dt.
+// For embedded field methods, use FindEmbeddedFieldType().
+func (dt *DeclaredType) GetMethod(n Name) *FuncValue {
+	for i := 0; i < len(dt.Methods); i++ {
+		mv := &dt.Methods[i]
+		if fv := mv.GetFunc(); fv.Name == n {
+			return fv
+		}
+	}
+	return nil
+}
+
+// Searches embedded fields to find matching field or method.
+// This function is slow.
+// TODO: consider memoizing for successful matches.
+func (dt *DeclaredType) FindEmbeddedFieldType(n Name) (
+	trail []ValuePath, hasPtr bool, rcvr Type, field Type) {
+
+	// Search direct methods.
+	for i := 0; i < len(dt.Methods); i++ {
+		mv := &dt.Methods[i]
+		if fv := mv.GetFunc(); fv.Name == n {
+			vp := NewValuePathDefault(1, uint16(i), n)
+			rt := fv.Type.Params[0].Type
+			bt := fv.Type.BoundType()
+			return []ValuePath{vp}, false, rt, bt
+		}
+	}
+	// Otherwise, search base.
+	switch ct := dt.Base.(type) {
+	case *StructType:
+		tr, hp, rt, ft := ct.FindEmbeddedFieldType(n)
+		if tr != nil {
+			tr[0].Depth += 1
+			return tr, hp, rt, ft
+		} else {
+			return nil, false, nil, nil
+		}
+	case *InterfaceType:
+		mt := ct.GetMethodType(n)
+		if mt != nil {
+			vp := NewValuePathInterface(n)
+			return []ValuePath{vp}, false, nil, mt
+		} else {
+			return nil, false, nil, nil
+		}
+	default:
+		panic("should not happen")
+	}
+}
+
 // The Preprocesses uses *DT.GetPathForName(name) to set the path, and also
 // *DT.GetMethod(name) to consult the type.  OpSelector uses
-// *DT.GetPointerTo(path), and for declared types, in turn uses
+// *TV.GetPointerTo(path), and for declared types, in turn uses
 // *DT.GetValueRefAt(path) to find any methods (see values.go).
 //
 // If the method is embedded (as a method of an embedded struct, or the
@@ -1094,27 +1169,21 @@ func (dt *DeclaredType) GetPathForName(n Name) ValuePath {
 //  preprocessor: *DT.GetPathForName(name)
 //                *DT.GetMethod(name)
 //                 -> *DT.GetValueRef(name)
+//                *DT.GetValueRefAt(path) // from op_type/evalTypeOf()
 //
-//       runtime: *DT.GetPointerTo(path)
+//       runtime: *TV.GetPointerTo(path)
 //                 -> *DT.GetValueRefAt(path)
+//                     -> *DT.GetValueRef(name) // if interface
+//                     -> *DT.FindEmbeddedFieldType(name) // proposed
+// TODO: update above to visualize flow chart.
 //
-// The runtime function *DT.GetValueRefAt(path) must return the index of
-// the embedded field so that *DT.GetPointerTo(path) can return the right
-// bound method.
-// XXX to support that, should we add a field to path?
-// XXX no, preferably, we can make this work without modifying the path,
-// XXX but we will need to do:
-// XXX 1. simplify StructValue a bit so that inner struct fields
-// XXX    are resliced each time accessed by selector rather than
-// XXX    what it is now, where the inner field refers to the outer ffields.
-// XXX 2. when checking interface implementation, look up on *DT fields
-// XXX 3. when calling an embedded *DT method (interface or other),
-// XXX    have preprocessor replace elided selectors with explicit ones.
-// XXX ^^^ may be outdated due to removal of flat fields.
+// NOTE: The preprocessor expands (elided) embedded field selectors.
+// NOTE: only works for local methods.
 func (dt *DeclaredType) GetValueRefAt(path ValuePath) *TypedValue {
 	if path.Type == VPTypeInterface {
-		mv := dt.GetValueRef(path.Name)
-		return mv
+		panic("should not happen")
+		// should call *DT.FindEmbeddedFieldType(name) instead.
+		// tr, hp, rt, ft := dt.FindEmbeddedFieldType(n)
 	} else if path.Type == VPTypeDefault {
 		if path.Depth == 0 {
 			panic("*DeclaredType global fields not yet implemented")
@@ -1127,42 +1196,6 @@ func (dt *DeclaredType) GetValueRefAt(path ValuePath) *TypedValue {
 		panic(fmt.Sprintf(
 			"unexpected value path type %X",
 			path.Type))
-	}
-}
-
-// TODO: optimize
-func (dt *DeclaredType) GetValueRef(n Name) *TypedValue {
-	for i := 0; i < len(dt.Methods); i++ {
-		mv := &dt.Methods[i]
-		if fv := mv.V.(*FuncValue); fv.Name == n {
-			return mv
-		}
-	}
-	return nil
-}
-
-func (dt *DeclaredType) GetMethod(n Name) *FuncValue {
-	mv := dt.GetValueRef(n)
-	if mv != nil {
-		return mv.GetFunc()
-	} else {
-		return nil
-	}
-}
-
-func (dt *DeclaredType) DefineMethod(fv *FuncValue) {
-	dt.Methods = append(dt.Methods, TypedValue{
-		T: fv.Type,
-		V: fv,
-	})
-}
-
-func (dt *DeclaredType) EmbedType(dt2 *DeclaredType) {
-	// XXX this is wrong, fix.
-	// XXX see *DT.GetValueRefAt() comments.
-	panic("not yet implemented")
-	for _, mthd := range dt2.Methods {
-		dt.Methods = append(dt.Methods, mthd)
 	}
 }
 

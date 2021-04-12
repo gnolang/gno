@@ -207,19 +207,47 @@ func (m *Machine) doOpTypeOf() {
 		switch ct := xt.(type) {
 		case *DeclaredType:
 			if path.Depth <= 1 {
-				if ct.Base.Kind() == InterfaceKind {
-					ft := ct.Base.(*InterfaceType).GetMethodType(path.Name)
+				switch path.Type {
+				case VPTypeInterface:
+					if debug {
+						if ct.Base.Kind() != InterfaceKind {
+							panic("should not happen")
+						}
+					}
+					// If xt is a declared interface type, look the type
+					// up from the interface.
+					// NOTE: It wouldn't work to set depth > 1 because
+					// in this case the runtime type is concrete, so the
+					// method must be looked up by name anyways.
+					ft := ct.Base.(*InterfaceType).
+						GetMethodType(path.Name)
 					m.PushValue(asValue(ft))
-				} else {
+				case VPTypeDefault:
+					if debug {
+						if ct.Base.Kind() == InterfaceKind {
+							panic("should not happen")
+						}
+					}
 					ftv := ct.GetValueRefAt(path)
-					ft := ftv.T.(*FuncType)
-					t := ft.BoundType()
-					m.PushValue(asValue(t))
+					ft := ftv.GetFunc().Type
+					mt := ft.BoundType()
+					m.PushValue(asValue(mt))
+				default:
+					panic("should not happen")
 				}
 			} else {
+				path.Depth--
 				xt = ct.Base
 				goto TYPE_SWITCH
 			}
+		case *InterfaceType:
+			if debug {
+				if path.Depth != 1 {
+					panic("should not happen")
+				}
+			}
+			ft := ct.GetMethodType(path.Name)
+			m.PushValue(asValue(ft))
 		case PointerType:
 			if dt, ok := ct.Elt.(*DeclaredType); ok {
 				xt = dt
@@ -228,6 +256,11 @@ func (m *Machine) doOpTypeOf() {
 				panic("should not happen")
 			}
 		case *StructType:
+			if debug {
+				if path.Depth != 1 {
+					panic("should not happen")
+				}
+			}
 			for _, ft := range ct.Fields {
 				if ft.Name == x.Sel {
 					m.PushValue(asValue(ft.Type))
@@ -321,7 +354,7 @@ func (m *Machine) doOpTypeOf() {
 				ct.String(), x.Sel))
 		default:
 			panic(fmt.Sprintf("selector expression invalid for type %v",
-				reflect.TypeOf(baseOf(xt))))
+				reflect.TypeOf(xt)))
 		}
 	case *SliceExpr:
 		start := m.NumValues
