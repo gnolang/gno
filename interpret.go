@@ -379,7 +379,7 @@ func (m *Machine) runDeclaration(d Decl) {
 			tv.V = defaultValue(t)
 		}
 		ptr := last.GetPointerTo(d.Path)
-		ptr.Assign2(m.Realm, tv)
+		ptr.Assign2(m.Realm, tv, false)
 	case *TypeDecl:
 		var t Type
 		if false {
@@ -416,7 +416,7 @@ func (m *Machine) runDeclaration(d Decl) {
 		}
 		tv := asValue(t)
 		ptr := last.GetPointerTo(d.Path)
-		ptr.Assign2(m.Realm, tv)
+		ptr.Assign2(m.Realm, tv, false)
 	default:
 		// Do nothing for package constants.
 	}

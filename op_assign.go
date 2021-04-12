@@ -1,5 +1,7 @@
 package gno
 
+import "fmt"
+
 func (m *Machine) doOpDefine() {
 	s := m.PopStmt().(*AssignStmt)
 	// Define each value evaluated for Lhs.
@@ -12,7 +14,7 @@ func (m *Machine) doOpDefine() {
 		// Finally, define (or assign if loop block).
 		lb := m.LastBlock()
 		ptr := lb.GetPointerTo(nx.Path)
-		ptr.Assign2(m.Realm, rvs[i])
+		ptr.Assign2(m.Realm, rvs[i], true)
 	}
 }
 
@@ -25,7 +27,7 @@ func (m *Machine) doOpAssign() {
 	for i := len(s.Lhs) - 1; 0 <= i; i-- {
 		// Pop lhs value and desired type.
 		lv := m.PopAsPointer(s.Lhs[i])
-		lv.Assign2(m.Realm, rvs[i])
+		lv.Assign2(m.Realm, rvs[i], true)
 	}
 }
 

@@ -430,7 +430,7 @@ func UverseNode() *PackageNode {
 					for i := 0; i < minl; i++ {
 						dstev := dstv.GetPointerAtIndexInt2(i, bdt)
 						srcev := srcv.GetPointerAtIndexInt2(i, bst)
-						dstev.Assign(srcev.Deref())
+						dstev.Assign(srcev.Deref(), false)
 					}
 					res0 := TypedValue{
 						T: IntType,
