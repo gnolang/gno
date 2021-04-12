@@ -64,14 +64,14 @@ func ConvertTo(tv *TypedValue, t Type) {
 		}
 	}
 GNO_CASE:
-	// special case for undefined/nil
+	// special case for interface target
+	if t.Kind() == InterfaceKind {
+		return
+	}
+	// special case for undefined/nil source
 	if tv.IsUndefined() {
-		if t.Kind() == InterfaceKind {
-			return
-		} else {
-			tv.T = t
-			return
-		}
+		tv.T = t
+		return
 	}
 	// general case
 	tvk := tv.T.Kind()
