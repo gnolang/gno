@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// 6:2: not enough arguments in call to time.Date
+// 6:2: wrong argument count in call to time@@0.Date; want 8 got 0

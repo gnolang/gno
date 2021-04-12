@@ -120,7 +120,7 @@ func BenchmarkPreprocess(b *testing.B) {
 			FileSet: nil,
 		}
 		pkg.InitStaticBlock(pkg, nil)
-		main := FuncD("main", nil, nil, Body(
+		main := FuncD("main", nil, nil, Ss(
 			A("mx", ":=", "1000000"),
 			For(
 				A("i", ":=", "0"),
@@ -136,7 +136,7 @@ func BenchmarkPreprocess(b *testing.B) {
 
 func BenchmarkLoopyMain(b *testing.B) {
 	m := NewMachine("test")
-	main := FuncD("main", nil, nil, Body(
+	main := FuncD("main", nil, nil, Ss(
 		A("mx", ":=", "10000000"),
 		For(
 			A("i", ":=", "0"),

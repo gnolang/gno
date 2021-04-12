@@ -149,14 +149,14 @@ func (m *Machine) doOpTypeAssert1() {
 	xv := m.PeekValue(1)
 	xt := xv.T
 
-	if it, ok := t.(*InterfaceType); ok { // is interface assert
+	if it, ok := baseOf(t).(*InterfaceType); ok { // is interface assert
 		// assert that x implements type.
 		impl := false
 		switch cxt := xt.(type) {
 		case *InterfaceType:
-			impl = cxt.Implements(it)
+			impl = it.IsImplementedBy(cxt)
 		case *DeclaredType:
-			impl = cxt.Implements(it)
+			impl = it.IsImplementedBy(cxt)
 		default:
 			impl = it.IsEmptyInterface()
 		}
@@ -199,9 +199,9 @@ func (m *Machine) doOpTypeAssert2() {
 		impl := false
 		switch cxt := xt.(type) {
 		case *InterfaceType:
-			impl = cxt.Implements(it)
+			impl = it.IsImplementedBy(cxt)
 		case *DeclaredType:
-			impl = cxt.Implements(it)
+			impl = it.IsImplementedBy(cxt)
 		default:
 			impl = it.IsEmptyInterface()
 		}
@@ -228,14 +228,6 @@ func (m *Machine) doOpTypeAssert2() {
 	}
 }
 
-// NOTE: While struct fields are flattened, each composite
-// literal does result in field allocation, and embedded
-// composite literals thus result in the copying of fields.
-// This might be optimizeable, but is probably best done with a
-// tweak to the AST to denote embedded composite literals
-// (rather than checking at run-time).  Meanwhile, within a
-// struct composite literal fields can refer to embedded fields,
-// so benefits from flatted fields optimization.
 func (m *Machine) doOpCompositeLit() {
 	// composite lit expr
 	x := m.PeekExpr(1).(*CompositeLitExpr)
@@ -403,7 +395,7 @@ func (m *Machine) doOpStructLit() {
 	// peek struct type.
 	xt := m.PeekValue(1 + el).V.(TypeValue).Type
 	st := baseOf(xt).(*StructType)
-	nf := len(st.Mapping)
+	nf := len(st.Fields)
 	fs := []TypedValue(nil)
 	// NOTE includes embedded fields.
 	if el == 0 {
@@ -433,17 +425,8 @@ func (m *Machine) doOpStructLit() {
 			}
 		}
 		ftvs := m.PopValues(el)
-		for i, ftv := range ftvs {
-			if debug {
-				if st.Mapping[i] != len(fs) {
-					panic("struct field buffer fault")
-				}
-			}
+		for _, ftv := range ftvs {
 			fs = append(fs, ftv)
-			if ftv.T.Kind() == StructKind {
-				// flatten fields.
-				fs = append(fs, ftv.V.(*StructValue).Fields...)
-			}
 		}
 		if debug {
 			if len(fs) != cap(fs) {
@@ -462,28 +445,7 @@ func (m *Machine) doOpStructLit() {
 					panic("unexpected struct composite lit key path generation value")
 				}
 			}
-			if fnx.Path.Type == VPTypeFlat {
-				// copy struct "head" TypedValue.
-				fs[fnx.Path.Index] = ftv.Copy()
-				// copy struct "flat" fields.
-				fsv := ftv.V.(*StructValue)
-				ffi := int(fnx.Path.Index) + 1 // flat field #0
-				if debug {
-					if len(st.Fields) < ffi+len(fsv.Fields) {
-						panic(fmt.Sprintf(
-							"struct field buffer overflow, "+
-								"%d < %d+1+%d",
-							len(st.Fields),
-							ffi,
-							len(fsv.Fields)))
-					}
-				}
-				copy(fs[ffi:], fsv.Fields)
-				// reslice head.Fields to point to fs.
-				fsv.Fields = fs[ffi : ffi+len(fsv.Fields)]
-			} else {
-				fs[fnx.Path.Index] = ftv
-			}
+			fs[fnx.Path.Index] = ftv
 		}
 	}
 	// construct and push value.

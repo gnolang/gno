@@ -125,7 +125,11 @@ func (n RefExpr) String() string {
 }
 
 func (n TypeAssertExpr) String() string {
-	return fmt.Sprintf("%s.(%s)", n.X, n.Type)
+	if n.Type == nil {
+		return fmt.Sprintf("%s.(%s)", n.X, n.Type)
+	} else {
+		return fmt.Sprintf("%s.(type)", n.X)
+	}
 }
 
 func (n UnaryExpr) String() string {
@@ -260,14 +264,18 @@ func (n IfStmt) String() string {
 		init = n.Init.String() + "; "
 	}
 	cond := n.Cond.String()
-	body := n.Body.String()
+	then := n.Then.String()
 	els_ := n.Else.String()
-	if n.Else == nil {
-		return fmt.Sprintf("if %s%s { %s }", init, cond, body)
+	if n.Else.Body == nil {
+		return fmt.Sprintf("if %s%s { %s }", init, cond, then)
 	} else {
 		return fmt.Sprintf("if %s%s { %s } else { %s }",
-			init, cond, body, els_)
+			init, cond, then, els_)
 	}
+}
+
+func (n IfCaseStmt) String() string {
+	return n.Body.String()
 }
 
 func (n IncDecStmt) String() string {
@@ -340,7 +348,7 @@ func (n SwitchStmt) String() string {
 		varName = string(n.VarName) + ":="
 	}
 	cases := ""
-	for i, s := range n.Cases {
+	for i, s := range n.Clauses {
 		if i == 0 {
 			cases += s.String()
 		} else {
@@ -351,8 +359,12 @@ func (n SwitchStmt) String() string {
 		init, varName, n.X.String(), cases)
 }
 
-func (n SwitchCaseStmt) String() string {
-	return fmt.Sprintf("case %v: %s", n.Cases, n.Body.String())
+func (n SwitchClauseStmt) String() string {
+	if len(n.Cases) == 0 {
+		return fmt.Sprintf("default: %s", n.Body.String())
+	} else {
+		return fmt.Sprintf("case %v: %s", n.Cases, n.Body.String())
+	}
 }
 
 func (n FuncDecl) String() string {
@@ -397,7 +409,7 @@ func (n TypeDecl) String() string {
 }
 
 func (n FileNode) String() string {
-	return fmt.Sprintf("file{ package %s; %s }", n.PkgName, n.Body.String())
+	return fmt.Sprintf("file{ package %s; %s }", n.PkgName, n.Decls.String())
 }
 
 func (n PackageNode) String() string {
@@ -444,7 +456,7 @@ func (kvs KeyValueExprs) String() string {
 	return str
 }
 
-func (ss Stmts) String() string {
+func (ss Body) String() string {
 	str := ""
 	for i, s := range ss {
 		if i == 0 {
@@ -478,4 +490,8 @@ func (ds SimpleDecls) String() string {
 		}
 	}
 	return str
+}
+
+func (cx constExpr) String() string {
+	return fmt.Sprintf("(const %s)", cx.TypedValue.String())
 }

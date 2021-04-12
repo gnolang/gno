@@ -45,7 +45,7 @@ func (m *Machine) doOpLor() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// set result in lv.
@@ -57,7 +57,7 @@ func (m *Machine) doOpLand() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// set result in lv.
@@ -71,7 +71,7 @@ func (m *Machine) doOpEql() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertEqualityTypes(lv.T, rv.T)
 	}
 
 	// set result in lv.
@@ -88,7 +88,7 @@ func (m *Machine) doOpNeq() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertEqualityTypes(lv.T, rv.T)
 	}
 
 	// set result in lv.
@@ -105,7 +105,7 @@ func (m *Machine) doOpLss() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// set the result in lv.
@@ -122,7 +122,7 @@ func (m *Machine) doOpLeq() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// set the result in lv.
@@ -139,7 +139,7 @@ func (m *Machine) doOpGtr() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// set the result in lv.
@@ -156,7 +156,7 @@ func (m *Machine) doOpGeq() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// set the result in lv.
@@ -173,7 +173,7 @@ func (m *Machine) doOpAdd() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// add rv to lv.
@@ -187,7 +187,7 @@ func (m *Machine) doOpSub() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// sub rv from lv.
@@ -201,7 +201,7 @@ func (m *Machine) doOpBor() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// lv | rv
@@ -215,7 +215,7 @@ func (m *Machine) doOpXor() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// lv ^ rv
@@ -229,7 +229,7 @@ func (m *Machine) doOpMul() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// lv * rv
@@ -243,7 +243,7 @@ func (m *Machine) doOpQuo() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// lv / rv
@@ -257,7 +257,7 @@ func (m *Machine) doOpRem() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// lv % rv
@@ -303,7 +303,7 @@ func (m *Machine) doOpBand() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// lv & rv
@@ -317,7 +317,7 @@ func (m *Machine) doOpBandn() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// lv &^ rv
@@ -326,28 +326,6 @@ func (m *Machine) doOpBandn() {
 
 //----------------------------------------
 // logic functions
-
-// TODO: document what class of problems its for.
-// One of them can be nil, and this lets uninitialized primitives and
-// others serve as empty values.  See doOpAdd()
-func assertTypes(lt, rt Type) {
-	if lt == nil && rt == nil {
-		// both are nil.
-	} else if lt == nil || rt == nil {
-		// one is nil.
-	} else if lt.Kind() == rt.Kind() &&
-		isUntyped(lt) || isUntyped(rt) {
-		// one is untyped of same kind.
-	} else if lt.TypeID() != rt.TypeID() {
-		panic(fmt.Sprintf(
-			"incompatible operands in binary expression: %s and %s",
-			lt.String(),
-			rt.String(),
-		))
-	} else {
-		// non-nil types are identical.
-	}
-}
 
 // TODO: can be much faster.
 func isEql(lv, rv *TypedValue) bool {
@@ -401,6 +379,27 @@ func isEql(lv, rv *TypedValue) bool {
 			}
 		}
 		return true
+	case MapKind:
+		if debug {
+			if lv.V != nil && rv.V != nil {
+				panic("map can only be compared with `nil`")
+			}
+		}
+		return lv.V == rv.V
+	case SliceKind:
+		if debug {
+			if lv.V != nil && rv.V != nil {
+				panic("slice can only be compared with `nil`")
+			}
+		}
+		return lv.V == rv.V
+	case FuncKind:
+		if debug {
+			if lv.V != nil && rv.V != nil {
+				panic("function can only be compared with `nil`")
+			}
+		}
+		return lv.V == rv.V
 	default:
 		panic(fmt.Sprintf(
 			"comparison operator == not defined for %s",

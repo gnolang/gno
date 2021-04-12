@@ -79,9 +79,10 @@ type PointerValue struct {
 	Index       int    // list/fields/values index.
 }
 
-func (pv PointerValue) Assign2(rlm *Realm, tv2 TypedValue) {
+// cu: convert untyped; pass false for const definitions
+func (pv PointerValue) Assign2(rlm *Realm, tv2 TypedValue, cu bool) {
 	oo1 := pv.GetObject()
-	pv.Assign(tv2)
+	pv.Assign(tv2, cu)
 	oo2 := pv.GetObject()
 	rlm.DidUpdate(pv.Base, oo1, oo2)
 }
@@ -200,7 +201,7 @@ func (sv *SliceValue) GetPointerAtIndexInt2(ii int, st *SliceType) PointerValue 
 
 type StructValue struct {
 	ObjectInfo
-	Fields []TypedValue // flattened
+	Fields []TypedValue
 }
 
 // If value is undefined at path, sets default value before
@@ -577,8 +578,8 @@ func (tv TypedValue) String() string {
 	ts := ""
 	if tv.T == nil {
 		ts = "invalid-type"
-	} else if isUntyped(tv.T) {
-		ts = "untyped-const"
+		//} else if isUntyped(tv.T) {
+		//	ts = "untyped-const"
 	} else {
 		ts = tv.T.String()
 	}
@@ -672,7 +673,7 @@ func (tv *TypedValue) GetBool() bool {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != BoolKind {
 			panic(fmt.Sprintf(
-				"%s used as bool",
+				"TypedValue.GetBool() on type %s",
 				tv.T.String()))
 		}
 	}
@@ -1040,7 +1041,9 @@ func (tv *TypedValue) ComputeMapKey(omitType bool) MapKey {
 //----------------------------------------
 // Value utility/manipulation functions.
 
-func (tv *TypedValue) Assign(tv2 TypedValue) {
+// cu: convert untyped after assignment. pass false
+// for const definitions, but true for all else.
+func (tv *TypedValue) Assign(tv2 TypedValue, cu bool) {
 	if debug {
 		if tv2.T == DataByteType {
 			// tv2 will never be a DataByte, as it is
@@ -1054,15 +1057,14 @@ func (tv *TypedValue) Assign(tv2 TypedValue) {
 			tv.SetDataByte(tv2.GetUint8())
 		} else {
 			*tv = tv2.Copy()
-			// Convert if untyped const.
-			if isUntyped(tv.T) {
+			if cu && isUntyped(tv.T) {
 				ConvertUntypedTo(tv, defaultTypeOf(tv.T))
 			}
 		}
 	case *nativeType:
-		nv1 := tv.V.(*nativeValue)
 		switch v2 := tv2.V.(type) {
 		case PointerValue:
+			nv1 := tv.V.(*nativeValue)
 			if ct.Type.Kind() != reflect.Ptr {
 				panic("should not happen")
 			}
@@ -1080,48 +1082,54 @@ func (tv *TypedValue) Assign(tv2 TypedValue) {
 				panic("not yet implemented")
 			}
 		case *nativeValue:
-			nv1.Value.Set(v2.Value)
+			if tv.V == nil {
+				if debug {
+					// tv.V is a native function type.
+					if tv.T.Kind() != FuncKind ||
+						tv2.T.Kind() != FuncKind {
+						panic("should not happen")
+					}
+					if nv, ok := tv2.V.(*nativeValue); !ok ||
+						nv.Value.Kind() != reflect.Func {
+						panic("should not happen")
+					}
+				}
+				tv.V = v2
+			} else {
+				nv1 := tv.V.(*nativeValue)
+				nv1.Value.Set(v2.Value)
+			}
 		default:
 			panic("should not happen")
 		}
-	case *StructType:
+	case *StructType: // XXX path index+other.
 		if tv2.IsUndefined() {
 			*tv = TypedValue{}
-		} else if ct.TypeID() == tv2.T.TypeID() {
-			// In case of embedded struct, must copy flat
-			// fields to the old buffer, and retain old
-			// buffer slice.
-			// TODO: optimize this further by distinguishing
-			// between embedded and standalone structs.
-			sv1 := tv.V.(*StructValue)
-			sv2 := tv2.V.(*StructValue)
-			fs1 := sv1.Fields // remember old slice
-			fs2 := sv2.Fields
-			if debug {
-				if len(fs1) != len(fs2) {
-					panic(fmt.Sprintf(
-						"fields len mismatch during copy: %v vs %v",
-						len(fs1), len(fs2)))
-				}
-			}
-			*tv = tv2.Copy()
-			sv1b := tv.V.(*StructValue)
-			fs1b := sv1b.Fields
-			if debug {
-				if len(fs1) != len(fs1b) {
-					panic(fmt.Sprintf(
-						"fields len mismatch during copy: %v vs %v",
-						len(fs1),
-						len(fs1b)))
-				}
-			}
-			copy(fs1, fs1b)
-			sv1b.Fields = fs1 // keep old slice.
 		} else {
+			if debug {
+				if tv.T.TypeID() != tv2.T.TypeID() {
+					panic(fmt.Sprintf("mismatched types: cannot assign %v to %v",
+						tv2.String(), tv.T.String()))
+				}
+			}
+			// XXX fix realm refcount logic.
 			*tv = tv2.Copy()
+		}
+	case nil:
+		*tv = tv2.Copy()
+		if cu && isUntyped(tv.T) {
+			ConvertUntypedTo(tv, defaultTypeOf(tv.T))
+		} else {
+			// pass cu=false for const definitions.
 		}
 	default:
 		*tv = tv2.Copy()
+	}
+}
+
+func (tv *TypedValue) ConvertUntyped() {
+	if isUntyped(tv.T) {
+		ConvertUntypedTo(tv, defaultTypeOf(tv.T))
 	}
 }
 
@@ -1136,22 +1144,46 @@ TYPE_SWITCH:
 	switch ct := t.(type) {
 	case *DeclaredType:
 		if path.Depth <= 1 {
-			ftv := ct.GetValueRefAt(path)
-			fv := ftv.V.(*FuncValue)
-			mv := BoundMethodValue{
-				Func:     fv,
-				Receiver: tv.V, // use original v
-			}
-			// TODO: this means all method selectors are slow
-			// and incur extra overhead.  To prevent this extra
-			// overhead, CallExpr evaluation should keep into X
-			// and call *DeclaredType.GetMethodAt() directly.
-			return PointerValue{
-				TypedValue: &TypedValue{
-					T: fv.Type.BoundType(),
-					V: mv,
-				},
-				Base: nil, // a bound method is free floating.
+			switch path.Type {
+			case VPTypeDefault:
+				/*
+					main.Bir struct{(struct{("foo" string)} main.Boo)} @Hello
+					PATH=gno.ValuePath{Type:0x2, Depth:0x1, Index:0x0, Name:"Hello"}
+				*/
+				ftv := ct.GetValueRefAt(path)
+				fv := ftv.GetFunc()
+				mv := BoundMethodValue{
+					Func:     fv,
+					Receiver: tv.V, // use original v
+				}
+				// TODO: this means all method selectors are slow
+				// and incur extra overhead.  To prevent this extra
+				// overhead, CallExpr evaluation should keep into X
+				// and call *DeclaredType.GetMethodAt() directly.
+				return PointerValue{
+					TypedValue: &TypedValue{
+						T: fv.Type.BoundType(),
+						V: mv,
+					},
+					Base: nil, // a bound method is free floating.
+				}
+			case VPTypeInterface:
+				tr, _, _, _ := ct.FindEmbeddedFieldType(path.Name)
+				if len(tr) == 0 {
+					panic("should not happen")
+				}
+				bv := tv
+				for i, path := range tr {
+					ptr := bv.GetPointerTo(path)
+					if i == len(tr)-1 {
+						return ptr // done
+					} else {
+						bv = ptr.TypedValue // deref
+					}
+				}
+				panic("should not happen")
+			default:
+				panic("should not happen")
 			}
 		} else {
 			// NOTE could work with nested *DeclaredTypes,
@@ -1164,9 +1196,11 @@ TYPE_SWITCH:
 		switch cet := ct.Elt.(type) {
 		case *DeclaredType:
 			t = cet
+			v = v.(PointerValue).V
 			goto TYPE_SWITCH
 		case *nativeType:
 			t = cet
+			v = v.(PointerValue).V
 			goto TYPE_SWITCH
 		default:
 			panic(fmt.Sprintf(
@@ -1637,6 +1671,7 @@ type Block struct {
 	Values     []TypedValue
 	Parent     *Block
 	Blank      TypedValue // captures "_"
+	bodyStmt   bodyStmt
 }
 
 func NewBlock(source BlockNode, parent *Block) *Block {
@@ -1736,6 +1771,22 @@ func (b *Block) GetParams3() (pv1, pv2, pv3 PointerValue) {
 	pv2 = b.GetPointerTo(NewValuePathDefault(1, 1, ""))
 	pv3 = b.GetPointerTo(NewValuePathDefault(1, 2, ""))
 	return
+}
+
+func (b *Block) GetBodyStmt() *bodyStmt {
+	return &b.bodyStmt
+}
+
+// Used by SwitchStmt upon clause match.
+func (b *Block) ExpandToSize(size uint16) {
+	if debug {
+		if len(b.Values) >= int(size) {
+			panic("unexpected block size shrinkage")
+		}
+	}
+	values := make([]TypedValue, int(size))
+	copy(values, b.Values)
+	b.Values = values
 }
 
 //----------------------------------------

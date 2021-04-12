@@ -279,6 +279,24 @@ entirely at the Gno Foundation's discretion, and the foundation has strong opini
 The Gno Community is determined by the creation and finalization of the project,
 as determined by the Gno Foundation according to community contributions.
 
+This is merely a proposal, but the most canonical up-to-date proposal as set
+forth by the Gnomes.  This Proposal, after sufficient review (some weeks or
+months after the completion of version 0 of Gnolang, defined to be when all the
+test files pass), will become a Plan, and then the Plan may become fulfilled by
+Your actions, if You Will it.  Who knows what will come to pass?
+
+We should all hold our selves accountable, if able, to make choices that we
+believe will benefit our selves, and consequently if able to then benefit
+others through our actions.  We won't agree on what the best course of action
+is, nor will we all agree on what occurred, because fundamentally we can't know
+with complete certainty, though some of us know that *some* trolls are
+genuionely malicious (but not all).  Usually, and perhaps always, the best
+choice is to remain honest, but some times it may be necessary to withhold
+action.  What is import is the envisioned end-goal, and what philosophy and
+morality it espouses, for our words are memetic bones upon which Our frame is
+built, and We are coming to being as it has always been planned, and as even
+the sinners had prayed for; so rejoice!
+
 ## Reading the code
 
 Gno's code has been written with extensive comments that explain what each 

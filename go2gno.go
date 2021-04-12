@@ -90,18 +90,18 @@ func Go2Gno(gon ast.Node) (n Node) {
 	switch gon := gon.(type) {
 	case *ast.File:
 		pkgName := Name(gon.Name.Name)
-		body := make([]Decl, 0, len(gon.Decls))
+		decls := make([]Decl, 0, len(gon.Decls))
 		for _, d := range gon.Decls {
 			if gd, ok := d.(*ast.GenDecl); ok {
-				body = append(body, toDecls(gd)...)
+				decls = append(decls, toDecls(gd)...)
 			} else {
-				body = append(body, toDecl(d))
+				decls = append(decls, toDecl(d))
 			}
 		}
 		return &FileNode{
 			Name:    "", // filled later.
 			PkgName: pkgName,
-			Body:    body,
+			Decls:   decls,
 		}
 	case *ast.FuncDecl:
 		isMethod := gon.Recv != nil
@@ -177,8 +177,12 @@ func Go2Gno(gon ast.Node) (n Node) {
 		return &IfStmt{
 			Init: toSimp(gon.Init),
 			Cond: toExpr(gon.Cond),
-			Body: toStmts(gon.Body.List),
-			Else: ess,
+			Then: IfCaseStmt{
+				Body: toStmts(gon.Body.List),
+			},
+			Else: IfCaseStmt{
+				Body: ess,
+			},
 		}
 	case *ast.UnaryExpr:
 		if gon.Op == token.AND {
@@ -196,13 +200,23 @@ func Go2Gno(gon ast.Node) (n Node) {
 			Results: toExprs(gon.Results),
 		}
 	case *ast.Field:
-		if len(gon.Names) != 1 {
-			panic("expected a Go Field with 1 name. maybe call toFields")
-		}
-		return &FieldTypeExpr{
-			Name: toName(gon.Names[0]),
-			Type: toExpr(gon.Type),
-			Tag:  toExpr(gon.Tag),
+		if len(gon.Names) == 0 {
+			return &FieldTypeExpr{
+				Name: "",
+				Type: toExpr(gon.Type),
+				Tag:  toExpr(gon.Tag),
+			}
+		} else if len(gon.Names) == 1 {
+			return &FieldTypeExpr{
+				Name: toName(gon.Names[0]),
+				Type: toExpr(gon.Type),
+				Tag:  toExpr(gon.Tag),
+			}
+		} else {
+			panic(fmt.Sprintf(
+				"expected a Go Field with 1 name but got %v.\n"+
+					"maybe call toFields",
+				gon.Names))
 		}
 	case *ast.StructType:
 		return &StructTypeExpr{
@@ -318,6 +332,34 @@ func Go2Gno(gon ast.Node) (n Node) {
 		cx := toExpr(gon.Call).(*CallExpr)
 		return &DeferStmt{
 			Call: *cx,
+		}
+	case *ast.LabeledStmt:
+		return &LabeledStmt{
+			Label: toName(gon.Label),
+			Stmt:  toStmt(gon.Stmt),
+		}
+	case *ast.TypeSwitchStmt:
+		switch as := gon.Assign.(type) {
+		case *ast.AssignStmt:
+			return &SwitchStmt{
+				Init:         toStmt(gon.Init),
+				X:            toExpr(as.Rhs[0].(*ast.TypeAssertExpr).X),
+				IsTypeSwitch: true,
+				Clauses:      toClauses(gon.Body.List),
+				VarName:      toName(as.Lhs[0].(*ast.Ident)),
+			}
+		case *ast.ExprStmt:
+			return &SwitchStmt{
+				Init:         toStmt(gon.Init),
+				X:            toExpr(as.X.(*ast.TypeAssertExpr).X),
+				IsTypeSwitch: true,
+				Clauses:      toClauses(gon.Body.List),
+				VarName:      "",
+			}
+		default:
+			panic(fmt.Sprintf(
+				"unexpected *ast.TypeSwitchStmt.Assign type %s",
+				reflect.TypeOf(gon.Assign).String()))
 		}
 	default:
 		panic(fmt.Sprintf("unknown Go type %v: %s\n",
@@ -435,7 +477,7 @@ func toStmt(gos ast.Stmt) Stmt {
 	}
 }
 
-func toStmts(goss []ast.Stmt) (gnoss Stmts) {
+func toStmts(goss []ast.Stmt) (gnoss Body) {
 	gnoss = make([]Stmt, len(goss))
 	for i, x := range goss {
 		gnoss[i] = toStmt(x)
@@ -443,7 +485,7 @@ func toStmts(goss []ast.Stmt) (gnoss Stmts) {
 	return
 }
 
-func toBody(body *ast.BlockStmt) Stmts {
+func toBody(body *ast.BlockStmt) Body {
 	if body == nil {
 		return nil
 	}
@@ -611,4 +653,19 @@ func toKeyValueExprs(elts []ast.Expr) (kvxs KeyValueExprs) {
 		}
 	}
 	return
+}
+
+func toClauses(csz []ast.Stmt) []SwitchClauseStmt {
+	res := make([]SwitchClauseStmt, len(csz))
+	for i, cs := range csz {
+		res[i] = toSwitchClauseStmt(cs.(*ast.CaseClause))
+	}
+	return res
+}
+
+func toSwitchClauseStmt(cc *ast.CaseClause) SwitchClauseStmt {
+	return SwitchClauseStmt{
+		Cases: toExprs(cc.List),
+		Body:  toStmts(cc.Body),
+	}
 }

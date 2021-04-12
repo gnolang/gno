@@ -135,16 +135,18 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 		pv.AddFileBlock(fn.Name, fb)
 		updates := pn.UpdatePackage(pv) // with fb.
 		// Run declarations.
-		for _, d := range fn.Body {
-			m.runDeclaration(d)
+		for _, decl := range fn.Decls {
+			m.runDeclaration(decl)
 		}
 		// Run new init functions.
 		for i := 0; i < len(updates); i++ {
 			tv := &updates[i]
-			if tv.IsDefined() && tv.T.Kind() == FuncKind {
-				fn := tv.V.(*FuncValue).Name
-				if strings.HasPrefix(string(fn), "init.") {
-					m.RunFunc(fn)
+			if tv.IsDefined() && tv.T.Kind() == FuncKind && tv.V != nil {
+				if fv, ok := tv.V.(*FuncValue); ok {
+					fn := fv.Name
+					if strings.HasPrefix(string(fn), "init.") {
+						m.RunFunc(fn)
+					}
 				}
 			}
 		}
@@ -199,7 +201,7 @@ func (m *Machine) Eval(x Expr) TypedValue {
 	// context (ie **PackageNode) doesn't get modified.
 	if _, ok := x.(*CallExpr); !ok {
 		x = Call(Fn(nil, Flds("x", InterfaceT(nil)),
-			Body(
+			Ss(
 				Return(x),
 			)))
 	} else {
@@ -377,7 +379,7 @@ func (m *Machine) runDeclaration(d Decl) {
 			tv.V = defaultValue(t)
 		}
 		ptr := last.GetPointerTo(d.Path)
-		ptr.Assign2(m.Realm, tv)
+		ptr.Assign2(m.Realm, tv, false)
 	case *TypeDecl:
 		var t Type
 		if false {
@@ -414,7 +416,7 @@ func (m *Machine) runDeclaration(d Decl) {
 		}
 		tv := asValue(t)
 		ptr := last.GetPointerTo(d.Path)
-		ptr.Assign2(m.Realm, tv)
+		ptr.Assign2(m.Realm, tv, false)
 	default:
 		// Do nothing for package constants.
 	}
@@ -441,11 +443,11 @@ const (
 	OpDefer               Op = 0x0A // defer call(X, [...])
 	OpCallDeferNativeBody Op = 0x0B // call body is native
 	OpGo                  Op = 0x0C // go call(X, [...])
-	OpSelectCase          Op = 0x0D // exec next select case
-	OpSwitchCase          Op = 0x0E // exec next switch case
-	OpTypeSwitchCase      Op = 0x0F // exec next type switch case
+	OpSelect              Op = 0x0D // exec next select case
+	OpSwitchClause        Op = 0x0E // exec next switch clause
+	OpTypeSwitchClause    Op = 0x0F // exec next type switch clause
 	OpForLoop1            Op = 0x10 // body and post if X, else break
-	OpIfCond              Op = 0x11 // body if X, else else
+	OpIfCond              Op = 0x11 // eval cond
 	OpPopValue            Op = 0x12 // pop X
 	OpPopResults          Op = 0x13 // pop n call results
 	OpPopBlock            Op = 0x14 // pop block NOTE breaks certain invariants.
@@ -532,11 +534,12 @@ const (
 
 	/* Loop (sticky) operators (>= 0xD0) */
 	OpSticky           Op = 0xD0 // not a real op.
-	OpForLoop2         Op = 0xD0
-	OpRangeIter        Op = 0xD1
-	OpRangeIterString  Op = 0xD2
-	OpRangeIterMap     Op = 0xD3
-	OpReturnCallDefers Op = 0xD4
+	OpBody             Op = 0xD1 // if/block/switch/select.
+	OpForLoop2         Op = 0xD2
+	OpRangeIter        Op = 0xD3
+	OpRangeIterString  Op = 0xD4
+	OpRangeIterMap     Op = 0xD5
+	OpReturnCallDefers Op = 0xD6
 )
 
 //----------------------------------------
@@ -572,12 +575,12 @@ func (m *Machine) Run() {
 			m.doOpCallDeferNativeBody()
 		case OpGo:
 			panic("not yet implemented")
-		case OpSelectCase:
+		case OpSelect:
 			panic("not yet implemented")
-		case OpSwitchCase:
-			panic("not yet implemented")
-		case OpTypeSwitchCase:
-			panic("not yet implemented")
+		case OpSwitchClause:
+			m.doOpSwitchClause()
+		case OpTypeSwitchClause:
+			m.doOpTypeSwitchClause()
 		case OpForLoop1:
 			m.doOpForLoop1()
 		case OpIfCond:
@@ -727,6 +730,8 @@ func (m *Machine) Run() {
 		/* Decl operators */
 		// TODO
 		/* Loop (sticky) operators */
+		case OpBody:
+			m.doOpExec(op)
 		case OpForLoop2:
 			m.doOpExec(op)
 		case OpRangeIter:
@@ -802,8 +807,8 @@ func (m *Machine) PopStmt() Stmt {
 	if debug {
 		m.Printf("-s %v\n", s)
 	}
-	if as, ok := s.(*loopStmt); ok {
-		return as.PopActiveStmt()
+	if bs, ok := s.(*bodyStmt); ok {
+		return bs.PopActiveStmt()
 	} else {
 		// general case.
 		m.Stmts = m.Stmts[:numStmts-1]
@@ -972,7 +977,6 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv Value) {
 		NumExprs:    len(m.Exprs),
 		NumStmts:    len(m.Stmts),
 		NumBlocks:   len(m.Blocks),
-		BodyIndex:   0,
 		Func:        fv,
 		GoFunc:      nil,
 		Receiver:    recv,
@@ -1012,7 +1016,6 @@ func (m *Machine) PushFrameGoNative(cx *CallExpr, fv *nativeValue) {
 		NumExprs:    len(m.Exprs),
 		NumStmts:    len(m.Stmts),
 		NumBlocks:   len(m.Blocks),
-		BodyIndex:   0,
 		Func:        nil,
 		GoFunc:      fv,
 		Receiver:    nil,
@@ -1081,7 +1084,7 @@ func (m *Machine) PeekFrameAndContinueFor() {
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts+1]
 	m.Blocks = m.Blocks[:fr.NumBlocks+1]
-	ls := m.PeekStmt(1).(*loopStmt)
+	ls := m.PeekStmt(1).(*bodyStmt)
 	ls.BodyIndex = ls.BodyLen
 }
 
@@ -1092,7 +1095,7 @@ func (m *Machine) PeekFrameAndContinueRange() {
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts+1]
 	m.Blocks = m.Blocks[:fr.NumBlocks+1]
-	ls := m.PeekStmt(1).(*loopStmt)
+	ls := m.PeekStmt(1).(*bodyStmt)
 	ls.BodyIndex = ls.BodyLen
 }
 

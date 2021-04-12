@@ -5,7 +5,14 @@ import (
 	"reflect"
 )
 
-// NOTE: gonative, *nativeType, and *nativeValue are experimental and subject to change.
+// NOTE
+//
+// GoNative, *nativeType, and *nativeValue are experimental and subject to
+// change.
+//
+// Go 1.15 reflect has a bug in creating new types with methods -- namely, it
+// cannot, and so you cannot create types through reflection that obey any
+// interface but the empty interface.
 
 //----------------------------------------
 // Go to Gno conversion
@@ -132,22 +139,16 @@ func go2GnoType2(rt reflect.Type) Type {
 	case reflect.Struct:
 		nf := rt.NumField()
 		fs := make([]FieldType, nf)
-		mp := make([]int, nf)
-		// NOTE: go-native struct fields don't stack/flatten like
-		// nested gno struct fields, but embedded fields must be
-		// referred to explicitly.
 		for i := 0; i < nf; i++ {
 			sf := rt.Field(i)
 			fs[i] = FieldType{
 				Name: Name(sf.Name),
 				Type: go2GnoType(sf.Type),
 			}
-			mp[i] = i // see note
 		}
 		return &StructType{
 			PkgPath: rt.PkgPath(),
 			Fields:  fs,
-			Mapping: mp,
 		}
 	case reflect.UnsafePointer:
 		panic("not yet implemented")
@@ -353,22 +354,26 @@ func go2GnoValueUpdate(lvl int, tv *TypedValue, rv reflect.Value) {
 	case StructKind:
 		st := baseOf(tv.T).(*StructType)
 		sv := tv.V.(*StructValue)
-		for orig, flat := range st.Mapping {
-			ft := st.Fields[flat].Type
-			ftv := &sv.Fields[flat]
+		for i := range st.Fields {
+			ft := st.Fields[i].Type
+			ftv := &sv.Fields[i]
 			if ftv.T == nil && ft.Kind() != InterfaceKind {
 				ftv.T = ft
 			}
 			if ftv.V == nil {
 				ftv.V = defaultValue(ft)
 			}
-			frv := rv.Field(orig)
+			frv := rv.Field(i)
 			go2GnoValueUpdate(lvl+1, ftv, frv)
 		}
 	case PackageKind:
 		panic("not yet implemented")
 	case InterfaceKind:
-		panic("not yet implemented")
+		if debug {
+			if !tv.IsNilInterface() {
+				panic("should not happen")
+			}
+		}
 	case ChanKind:
 		panic("not yet implemented")
 	case FuncKind:
@@ -383,16 +388,16 @@ func go2GnoValueUpdate(lvl int, tv *TypedValue, rv reflect.Value) {
 	return
 }
 
-// This function is like go2GnoValue() but less lazy (but still not
-// recursive/eager). It is for converting Go types to Gno types upon
-// an explicit conversion (via ConvertTo).  Panics on
-// unexported/private fields.
-// Due to limitations of Go1.15, the namedness is dropped rather than
-// converted.  This lets users convert go-native types to named or unnamed Gno
-// types (sans private fields) via conversion.  The conversion is not
-// recursive, and the extra conversion works on the top-level complex
-// type/value, or a pointer to that type/value.  Some types that cannot
-// be converted remain native.
+// This function is like go2GnoValue() but less lazy (but still
+// not recursive/eager). It is for converting Go types to Gno
+// types upon an explicit conversion (via ConvertTo).  Panics on
+// unexported/private fields.  Due to limitations of Go1.15, the
+// namedness is dropped rather than converted.  This lets users
+// convert go-native types to named or unnamed Gno types (sans
+// private fields) via conversion.  The conversion is not
+// recursive, and the extra conversion works on the top-level
+// complex type/value, or a pointer to that type/value.  Some
+// types that cannot be converted remain native.
 func go2GnoValue2(rv reflect.Value) (tv TypedValue) {
 	tv.T = go2GnoType2(rv.Type())
 	switch rk := rv.Kind(); rk {
@@ -549,9 +554,6 @@ func gno2GoType(t Type) reflect.Type {
 		for i, field := range ct.Fields {
 			gft := gno2GoType(field.Type)
 			fn := string(field.Name)
-			if fn == "" {
-				fn = string(field.Embedded)
-			}
 			pkgPath := ""
 			if !isUpper(fn) {
 				pkgPath = ct.PkgPath
@@ -602,15 +604,12 @@ func gno2GoType(t Type) reflect.Type {
 	}
 }
 
-// rv must be addressable or nil, in case tv is referred to from a
-// gno.PointerValue.  If rv is nil, an addressable one will be
-// constructed and returned, otherwise returns rv.
-func gno2GoValue(tv *TypedValue, rv reflect.Value) reflect.Value {
-	if tv.IsNilInterface() {
-		rt := gno2GoType(tv.T)
-		rv = reflect.New(rt).Elem()
-		return rv
-	} else if tv.IsUndefined() {
+// rv must be addressable, or zero (invalid) (say if tv is referred to from a
+// gno.PointerValue). In the latter case, an addressable one will be
+// constructed and returned, otherwise returns rv.  if tv is undefined, rv must
+// be valid.
+func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
+	if tv.IsUndefined() {
 		if debug {
 			if !rv.IsValid() {
 				panic("unexpected undefined gno value")
@@ -619,10 +618,21 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) reflect.Value {
 		return rv
 	}
 	bt := baseOf(tv.T)
-	var rt reflect.Type
 	if !rv.IsValid() {
-		rt = gno2GoType(bt)
+		rt := gno2GoType(bt)
 		rv = reflect.New(rt).Elem()
+		ret = rv
+	} else if rv.Kind() == reflect.Interface && rv.IsZero() {
+		rt := gno2GoType(bt)
+		rv1 := rv
+		rv2 := reflect.New(rt).Elem()
+		rv = rv2       // swaparoo
+		defer func() { // TODO: improve?
+			rv1.Set(rv2)
+			ret = rv
+		}()
+	} else {
+		ret = rv
 	}
 	switch ct := bt.(type) {
 	case PrimitiveType:
@@ -694,7 +704,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) reflect.Value {
 		st := gno2GoType(ct)
 		// If uninitialized slice, return zero value.
 		if tv.V == nil {
-			return rv
+			return
 		}
 		// General case.
 		sv := tv.V.(*SliceValue)
@@ -718,39 +728,44 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) reflect.Value {
 	case *StructType:
 		// If uninitialized struct, return zero value.
 		if tv.V == nil {
-			return rv
+			return
 		}
 		// General case.
 		sv := tv.V.(*StructValue)
-		// Use st.Mapping to translate from Go to Gno field numbers.
-		for orig, flat := range ct.Mapping {
-			ftv := &(sv.Fields[flat])
+		for i := range ct.Fields {
+			ftv := &(sv.Fields[i])
 			if ftv.IsUndefined() {
 				continue
 			}
-			gno2GoValue(ftv, rv.Field(orig))
+			gno2GoValue(ftv, rv.Field(i))
 		}
 	case *MapType:
 		// If uninitialized map, return zero value.
 		if tv.V == nil {
-			return rv
+			return
 		}
 		// General case.
 		mt := gno2GoType(ct)
 		mv := tv.V.(*MapValue)
 		rv.Set(reflect.MakeMapWithSize(mt, mv.List.Size))
 		head := mv.List.Head
+		vrt := mt.Elem()
 		for head != nil {
 			ktv, vtv := &head.Key, &head.Value
 			krv := gno2GoValue(ktv, reflect.Value{})
-			vrv := gno2GoValue(vtv, reflect.Value{})
-			rv.SetMapIndex(krv, vrv)
+			if vtv.IsUndefined() {
+				vrv := reflect.New(vrt).Elem()
+				rv.SetMapIndex(krv, vrv)
+			} else {
+				vrv := gno2GoValue(vtv, reflect.Value{})
+				rv.SetMapIndex(krv, vrv)
+			}
 			head = head.Next
 		}
 	case *nativeType:
 		// If uninitialized native type, leave rv uninitialized.
 		if tv.V == nil {
-			return rv
+			return
 		}
 		// General case.
 		rv.Set(tv.V.(*nativeValue).Value)
@@ -766,7 +781,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) reflect.Value {
 			"unexpected type %s",
 			tv.T.String()))
 	}
-	return rv
+	return
 }
 
 //----------------------------------------
@@ -875,13 +890,28 @@ func (m *Machine) doOpStructLitGoNative() {
 func (m *Machine) doOpCallGoNative() {
 	fr := m.LastFrame()
 	fv := fr.GoFunc
+	ft := fv.Value.Type()
+	hasVarg := ft.IsVariadic()
+	numParams := ft.NumIn()
+	isVarg := fr.IsVarg
 	// pop and convert params.
 	ptvs := m.PopValues(fr.NumArgs)
 	prvs := make([]reflect.Value, len(ptvs))
 	for i := 0; i < fr.NumArgs; i++ {
-		// TODO consider when declared types can be
-		// converted, e.g. fmt.Println. See GoValue.
-		prvs[i] = gno2GoValue(&ptvs[i], reflect.Value{})
+		ptv := &ptvs[i]
+		if ptv.IsUndefined() {
+			var it reflect.Type
+			if hasVarg && numParams-1 <= i && !isVarg {
+				it = ft.In(numParams - 1)
+				it = it.Elem()
+			} else {
+				it = ft.In(i)
+			}
+			erv := reflect.New(it).Elem()
+			prvs[i] = gno2GoValue(ptv, erv)
+		} else {
+			prvs[i] = gno2GoValue(ptv, reflect.Value{})
+		}
 	}
 	// call and get results.
 	rrvs := fv.Value.Call(prvs)
@@ -900,14 +930,6 @@ func (m *Machine) doOpCallGoNative() {
 	m.NumResults = fv.Value.Type().NumOut()
 	m.PopFrame()
 }
-
-//----------------------------------------
-// GoValue
-//
-// Go 1.15 reflect has a bug in creating new types with methods -- namely, it
-// cannot, and so you cannot create types through reflection that obey any
-// interface but the empty interface.
-// TODO
 
 //----------------------------------------
 // misc

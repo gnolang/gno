@@ -74,6 +74,7 @@ const (
 	TRANS_IF_COND
 	TRANS_IF_BODY
 	TRANS_IF_ELSE
+	TRANS_IF_CASE_BODY
 	TRANS_INCDEC_X
 	TRANS_LABELED_STMT
 	TRANS_RANGE_X
@@ -221,9 +222,11 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		if isStopOrSkip(nc, c) {
 			return
 		}
-		cnn.Type = transcribe(t, nns, TRANS_TYPEASSERT_TYPE, 0, cnn.Type, &c).(Expr)
-		if isStopOrSkip(nc, c) {
-			return
+		if cnn.Type != nil {
+			cnn.Type = transcribe(t, nns, TRANS_TYPEASSERT_TYPE, 0, cnn.Type, &c).(Expr)
+			if isStopOrSkip(nc, c) {
+				return
+			}
 		}
 	case *UnaryExpr:
 		cnn.X = transcribe(t, nns, TRANS_UNARY_X, 0, cnn.X, &c).(Expr)
@@ -443,6 +446,9 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			return
 		}
 	case *IfStmt:
+		// NOTE: like switch stmts, both if statements AND
+		// contained cases visit with the TRANS_BLOCK stage, even
+		// though during runtime only one block is created.
 		cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
 		if isStopOrSkip(nc, c2) {
 			nn = cnn2
@@ -460,16 +466,24 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		if isStopOrSkip(nc, c) {
 			return
 		}
-		for idx, _ := range cnn.Body {
-			cnn.Body[idx] = transcribe(t, nns, TRANS_IF_BODY, idx, cnn.Body[idx], &c).(Stmt)
-			if isBreak(c) {
-				break
-			} else if isStopOrSkip(nc, c) {
-				return
-			}
+		cnn.Then = *transcribe(t, nns, TRANS_IF_BODY, 0, &cnn.Then, &c).(*IfCaseStmt)
+		if isStopOrSkip(nc, c) {
+			return
 		}
-		for idx, _ := range cnn.Else {
-			cnn.Else[idx] = transcribe(t, nns, TRANS_IF_ELSE, idx, cnn.Else[idx], &c).(Stmt)
+		cnn.Else = *transcribe(t, nns, TRANS_IF_ELSE, 0, &cnn.Else, &c).(*IfCaseStmt)
+		if isStopOrSkip(nc, c) {
+			return
+		}
+	case *IfCaseStmt:
+		cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
+		if isStopOrSkip(nc, c2) {
+			nn = cnn2
+			return
+		} else {
+			cnn = cnn2.(*IfCaseStmt)
+		}
+		for idx, _ := range cnn.Body {
+			cnn.Body[idx] = transcribe(t, nns, TRANS_IF_CASE_BODY, idx, cnn.Body[idx], &c).(Stmt)
 			if isBreak(c) {
 				break
 			} else if isStopOrSkip(nc, c) {
@@ -487,16 +501,16 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			return
 		}
 	case *RangeStmt:
-		cnn.X = transcribe(t, nns, TRANS_RANGE_X, 0, cnn.X, &c).(Expr)
-		if isStopOrSkip(nc, c) {
-			return
-		}
 		cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
 		if isStopOrSkip(nc, c2) {
 			nn = cnn2
 			return
 		} else {
 			cnn = cnn2.(*RangeStmt)
+		}
+		cnn.X = transcribe(t, nns, TRANS_RANGE_X, 0, cnn.X, &c).(Expr)
+		if isStopOrSkip(nc, c) {
+			return
 		}
 		if cnn.Key != nil {
 			cnn.Key = transcribe(t, nns, TRANS_RANGE_KEY, 0, cnn.Key, &c).(Expr)
@@ -566,10 +580,10 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			return
 		}
 	case *SwitchStmt:
-		// NOTE: unlike the select case, both switch
-		// statements AND switch cases visit with the
-		// TRANS_BLOCK stage, even though during runtime
-		// only one block is created.
+		// NOTE: unlike the select case, and like if stmts, both
+		// switch statements AND contained cases visit with the
+		// TRANS_BLOCK stage, even though during runtime only one
+		// block is created.
 		cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
 		if isStopOrSkip(nc, c2) {
 			nn = cnn2
@@ -587,15 +601,15 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		if isStopOrSkip(nc, c) {
 			return
 		}
-		for idx, _ := range cnn.Cases {
-			cnn.Cases[idx] = *transcribe(t, nns, TRANS_SWITCH_CASE, idx, &cnn.Cases[idx], &c).(*SwitchCaseStmt)
+		for idx, _ := range cnn.Clauses {
+			cnn.Clauses[idx] = *transcribe(t, nns, TRANS_SWITCH_CASE, idx, &cnn.Clauses[idx], &c).(*SwitchClauseStmt)
 			if isBreak(c) {
 				break
 			} else if isStopOrSkip(nc, c) {
 				return
 			}
 		}
-	case *SwitchCaseStmt:
+	case *SwitchClauseStmt:
 		// NOTE: unlike the select case, both switch
 		// statements AND switch cases visit with the
 		// TRANS_BLOCK stage, even though during runtime
@@ -605,7 +619,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			nn = cnn2
 			return
 		} else {
-			cnn = cnn2.(*SwitchCaseStmt)
+			cnn = cnn2.(*SwitchClauseStmt)
 		}
 		for idx, _ := range cnn.Cases {
 			cnn.Cases[idx] = transcribe(t, nns, TRANS_SWITCHCASE_CASE, idx, cnn.Cases[idx], &c).(Expr)
@@ -677,8 +691,8 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		} else {
 			cnn = cnn2.(*FileNode)
 		}
-		for idx, _ := range cnn.Body {
-			cnn.Body[idx] = transcribe(t, nns, TRANS_FILE_BODY, idx, cnn.Body[idx], &c).(Decl)
+		for idx, _ := range cnn.Decls {
+			cnn.Decls[idx] = transcribe(t, nns, TRANS_FILE_BODY, idx, cnn.Decls[idx], &c).(Decl)
 			if isBreak(c) {
 				break
 			} else if isStopOrSkip(nc, c) {

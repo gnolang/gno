@@ -40,6 +40,13 @@ func SliceT(elt interface{}) *SliceTypeExpr {
 	}
 }
 
+func MapT(key, value interface{}) *MapTypeExpr {
+	return &MapTypeExpr{
+		Key:   X(key),
+		Value: X(value),
+	}
+}
+
 func Vrd(elt interface{}) *SliceTypeExpr {
 	return &SliceTypeExpr{
 		Elt: X(elt),
@@ -49,6 +56,17 @@ func Vrd(elt interface{}) *SliceTypeExpr {
 
 func InterfaceT(methods FieldTypeExprs) *InterfaceTypeExpr {
 	return &InterfaceTypeExpr{
+		Methods: methods,
+	}
+}
+
+func AnyT() *InterfaceTypeExpr {
+	return InterfaceT(nil)
+}
+
+func GenT(generic Name, methods FieldTypeExprs) *InterfaceTypeExpr {
+	return &InterfaceTypeExpr{
+		Generic: generic,
 		Methods: methods,
 	}
 }
@@ -422,7 +440,7 @@ func lowestMatch(op string) int {
 	return -1
 }
 
-func Body(b ...Stmt) []Stmt {
+func Ss(b ...Stmt) []Stmt {
 	return b
 }
 
@@ -558,7 +576,7 @@ func Ptr(x interface{}) *StarExpr {
 func If(cond Expr, b ...Stmt) *IfStmt {
 	return &IfStmt{
 		Cond: cond,
-		Body: b,
+		Then: IfCaseStmt{Body: b},
 	}
 }
 
@@ -577,8 +595,8 @@ func IfElse(cond Expr, bdy, els Stmt) *IfStmt {
 	}
 	return &IfStmt{
 		Cond: cond,
-		Body: body,
-		Else: els_,
+		Then: IfCaseStmt{Body: body},
+		Else: IfCaseStmt{Body: els_},
 	}
 }
 

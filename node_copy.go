@@ -3,7 +3,7 @@ package gno
 // Copy should happen before any preprocessing.
 // * Attributes are not copied.
 // * Paths are not copied.
-// * *constExpr, *constTypeExpr, *loopStmt not yet supported.
+// * *constExpr, *constTypeExpr, *bodyStmt not yet supported.
 
 func (x *constExpr) Copy() Node {
 	panic("*constExpr.Copy() not yet implemented")
@@ -13,8 +13,8 @@ func (x *constTypeExpr) Copy() Node {
 	panic("*constTypeExpr.Copy() not yet implemented")
 }
 
-func (x *loopStmt) Copy() Node {
-	panic("*loopStmt.Copy() not yet implemented")
+func (x *bodyStmt) Copy() Node {
+	panic("*bodyStmt.Copy() not yet implemented")
 }
 
 func (x *NameExpr) Copy() Node {
@@ -233,8 +233,14 @@ func (x *IfStmt) Copy() Node {
 	return &IfStmt{
 		Init: copyStmt(x.Init),
 		Cond: copyExpr(x.Cond),
+		Then: *copyStmt(&x.Then).(*IfCaseStmt),
+		Else: *copyStmt(&x.Else).(*IfCaseStmt),
+	}
+}
+
+func (x *IfCaseStmt) Copy() Node {
+	return &IfCaseStmt{
 		Body: copyStmts(x.Body),
-		Else: copyStmts(x.Else),
 	}
 }
 
@@ -292,13 +298,13 @@ func (x *SwitchStmt) Copy() Node {
 	return &SwitchStmt{
 		Init:    copyStmt(x.Init),
 		X:       x.X.Copy().(Expr),
-		Cases:   copySwitchCases(x.Cases),
+		Clauses: copyCaseClauses(x.Clauses),
 		VarName: x.VarName,
 	}
 }
 
-func (x *SwitchCaseStmt) Copy() Node {
-	return &SwitchCaseStmt{
+func (x *SwitchClauseStmt) Copy() Node {
+	return &SwitchClauseStmt{
 		Cases: copyExprs(x.Cases),
 		Body:  copyStmts(x.Body),
 	}
@@ -358,7 +364,7 @@ func (fs *FileSet) CopyFileSet() *FileSet {
 func (x *FileNode) Copy() Node {
 	return &FileNode{
 		PkgName: x.PkgName,
-		Body:    copyDecls(x.Body),
+		Decls:   copyDecls(x.Decls),
 	}
 }
 
@@ -437,10 +443,10 @@ func copySelectCases(scs []SelectCaseStmt) []SelectCaseStmt {
 	return res
 }
 
-func copySwitchCases(scs []SwitchCaseStmt) []SwitchCaseStmt {
-	res := make([]SwitchCaseStmt, len(scs))
+func copyCaseClauses(scs []SwitchClauseStmt) []SwitchClauseStmt {
+	res := make([]SwitchClauseStmt, len(scs))
 	for i, sc := range scs {
-		res[i] = *(sc.Copy().(*SwitchCaseStmt))
+		res[i] = *(sc.Copy().(*SwitchClauseStmt))
 	}
 	return res
 }

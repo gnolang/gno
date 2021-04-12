@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// 7:5: non-bool used as if condition
+// 7:5: cannot use int as bool

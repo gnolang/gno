@@ -112,25 +112,18 @@ func (m *Machine) doOpStructType() {
 	x := m.PopExpr().(*StructTypeExpr)
 	// pop fields
 	ftvs := m.PopValues(len(x.Fields))
-	// allocate (minimum) space for flat fields
-	ffields := make([]FieldType, 0, len(x.Fields))
-	mapping := make([]int, len(x.Fields))
-	// populate ffields
-	for i, ftv := range ftvs {
-		mapping[i] = len(ffields)
+	// allocate (minimum) space for fields
+	fields := make([]FieldType, 0, len(x.Fields))
+	// populate fields
+	for _, ftv := range ftvs {
 		ft := ftv.V.(TypeValue).Type.(FieldType)
 		fillEmbeddedName(&ft)
-		ffields = append(ffields, ft)
-		if ftv.T.Kind() == StructKind { // flatten
-			st := baseOf(ft.Type).(*StructType)
-			ffields = append(ffields, st.Fields...)
-		}
+		fields = append(fields, ft)
 	}
 	// push struct type
 	st := &StructType{
 		PkgPath: m.Package.PkgPath,
-		Fields:  ffields,
-		Mapping: mapping,
+		Fields:  fields,
 	}
 	m.PushValue(TypedValue{
 		T: gTypeType,
@@ -152,6 +145,7 @@ func (m *Machine) doOpInterfaceType() {
 	it := &InterfaceType{
 		PkgPath: m.Package.PkgPath,
 		Methods: methods,
+		Generic: x.Generic,
 	}
 	m.PushValue(TypedValue{
 		T: gTypeType,
@@ -191,43 +185,8 @@ func (m *Machine) doOpTypeOf() {
 			m.PushValue(asValue(UntypedBoolType))
 		}
 	case *CallExpr:
-		start := m.NumValues
-		m.PushOp(OpHalt)
-		m.PushExpr(x.Func)
-		m.PushOp(OpTypeOf)
-		m.Run() // XXX replace
-		t := m.ReapValues(start)[0].GetType()
-		switch ct := t.(type) {
-		case *FuncType:
-			rs := ct.Results
-			if len(rs) != 1 {
-				panic(fmt.Sprintf(
-					"cannot get type of function call with %d results",
-					len(rs)))
-			}
-			m.PushValue(asValue(rs[0].Type))
-		case *TypeType:
-			start := m.NumValues
-			m.PushOp(OpHalt)
-			m.PushExpr(x.Func)
-			m.PushOp(OpEval)
-			m.Run() // XXX replace
-			t := m.ReapValues(start)[0].GetType()
-			m.PushValue(asValue(t))
-		case *nativeType:
-			numRes := ct.Type.NumOut()
-			if numRes != 1 {
-				panic(fmt.Sprintf(
-					"cannot get type of (native) function call with %d results",
-					numRes))
-			}
-			res0 := ct.Type.Out(0)
-			m.PushValue(asValue(&nativeType{Type: res0}))
-		default:
-			panic(fmt.Sprintf(
-				"unexpected call of expression type %s",
-				t.String()))
-		}
+		t := getTypeOf(x)
+		m.PushValue(asValue(t))
 	case *IndexExpr:
 		start := m.NumValues
 		m.PushOp(OpHalt)
@@ -248,14 +207,47 @@ func (m *Machine) doOpTypeOf() {
 		switch ct := xt.(type) {
 		case *DeclaredType:
 			if path.Depth <= 1 {
-				ftv := ct.GetValueRefAt(path)
-				ft := ftv.T.(*FuncType)
-				t := ft.BoundType()
-				m.PushValue(asValue(t))
+				switch path.Type {
+				case VPTypeInterface:
+					if debug {
+						if ct.Base.Kind() != InterfaceKind {
+							panic("should not happen")
+						}
+					}
+					// If xt is a declared interface type, look the type
+					// up from the interface.
+					// NOTE: It wouldn't work to set depth > 1 because
+					// in this case the runtime type is concrete, so the
+					// method must be looked up by name anyways.
+					ft := ct.Base.(*InterfaceType).
+						GetMethodType(path.Name)
+					m.PushValue(asValue(ft))
+				case VPTypeDefault:
+					if debug {
+						if ct.Base.Kind() == InterfaceKind {
+							panic("should not happen")
+						}
+					}
+					ftv := ct.GetValueRefAt(path)
+					ft := ftv.GetFunc().Type
+					mt := ft.BoundType()
+					m.PushValue(asValue(mt))
+				default:
+					panic("should not happen")
+				}
 			} else {
+				path.Depth--
 				xt = ct.Base
 				goto TYPE_SWITCH
 			}
+		case *InterfaceType:
+			if debug {
+				if path.Depth != 1 {
+					panic("should not happen")
+				}
+			}
+			ft := ct.GetMethodType(path.Name)
+			m.PushValue(asValue(ft))
 		case PointerType:
 			if dt, ok := ct.Elt.(*DeclaredType); ok {
 				xt = dt
@@ -264,6 +256,11 @@ func (m *Machine) doOpTypeOf() {
 				panic("should not happen")
 			}
 		case *StructType:
+			if debug {
+				if path.Depth != 1 {
+					panic("should not happen")
+				}
+			}
 			for _, ft := range ct.Fields {
 				if ft.Name == x.Sel {
 					m.PushValue(asValue(ft.Type))
@@ -357,7 +354,7 @@ func (m *Machine) doOpTypeOf() {
 				ct.String(), x.Sel))
 		default:
 			panic(fmt.Sprintf("selector expression invalid for type %v",
-				reflect.TypeOf(baseOf(xt))))
+				reflect.TypeOf(xt)))
 		}
 	case *SliceExpr:
 		start := m.NumValues
@@ -366,9 +363,15 @@ func (m *Machine) doOpTypeOf() {
 		m.PushOp(OpTypeOf)
 		m.Run() // XXX replace
 		xt := m.ReapValues(start)[0].V.(TypeValue).Type
-		m.PushValue(asValue(&SliceType{
-			Elt: xt,
-		}))
+		if pt, ok := xt.(PointerType); ok {
+			m.PushValue(asValue(&SliceType{
+				Elt: pt.Elt.Elem(),
+			}))
+		} else {
+			m.PushValue(asValue(&SliceType{
+				Elt: xt.Elem(),
+			}))
+		}
 	case *StarExpr:
 		start := m.NumValues
 		m.PushOp(OpHalt)
@@ -386,7 +389,12 @@ func (m *Machine) doOpTypeOf() {
 		xt := m.ReapValues(start)[0].GetType()
 		m.PushValue(asValue(PointerType{Elt: xt}))
 	case *TypeAssertExpr:
-		panic("type assert expressions return 2 values, thus have no type")
+		if x.HasOK {
+			panic("type assert assignment used with return 2 values; has no type")
+		} else {
+			m.PushExpr(x.Type)
+			m.PushOp(OpEval)
+		}
 	case *UnaryExpr:
 		m.PushExpr(x.X)
 		m.PushOp(OpTypeOf)

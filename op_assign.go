@@ -1,5 +1,7 @@
 package gno
 
+import "fmt"
+
 func (m *Machine) doOpDefine() {
 	s := m.PopStmt().(*AssignStmt)
 	// Define each value evaluated for Lhs.
@@ -12,7 +14,7 @@ func (m *Machine) doOpDefine() {
 		// Finally, define (or assign if loop block).
 		lb := m.LastBlock()
 		ptr := lb.GetPointerTo(nx.Path)
-		ptr.Assign2(m.Realm, rvs[i])
+		ptr.Assign2(m.Realm, rvs[i], true)
 	}
 }
 
@@ -25,7 +27,7 @@ func (m *Machine) doOpAssign() {
 	for i := len(s.Lhs) - 1; 0 <= i; i-- {
 		// Pop lhs value and desired type.
 		lv := m.PopAsPointer(s.Lhs[i])
-		lv.Assign2(m.Realm, rvs[i])
+		lv.Assign2(m.Realm, rvs[i], true)
 	}
 }
 
@@ -34,7 +36,7 @@ func (m *Machine) doOpAddAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// add rv to lv.
@@ -46,7 +48,7 @@ func (m *Machine) doOpSubAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// sub rv from lv.
@@ -58,7 +60,7 @@ func (m *Machine) doOpMulAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// lv *= rv
@@ -70,7 +72,7 @@ func (m *Machine) doOpQuoAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// lv /= rv
@@ -82,7 +84,7 @@ func (m *Machine) doOpRemAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// lv %= rv
@@ -94,7 +96,7 @@ func (m *Machine) doOpBandAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// lv &= rv
@@ -106,7 +108,7 @@ func (m *Machine) doOpBandnAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// lv &^= rv
@@ -118,7 +120,7 @@ func (m *Machine) doOpBorAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// lv |= rv
@@ -130,7 +132,7 @@ func (m *Machine) doOpXorAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertTypes(lv.T, rv.T)
+		assertSameTypes(lv.T, rv.T)
 	}
 
 	// lv ^= rv
