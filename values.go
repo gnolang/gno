@@ -1129,22 +1129,46 @@ TYPE_SWITCH:
 	switch ct := t.(type) {
 	case *DeclaredType:
 		if path.Depth <= 1 {
-			ftv := ct.GetValueRefAt(path)
-			fv := ftv.V.(*FuncValue)
-			mv := BoundMethodValue{
-				Func:     fv,
-				Receiver: tv.V, // use original v
-			}
-			// TODO: this means all method selectors are slow
-			// and incur extra overhead.  To prevent this extra
-			// overhead, CallExpr evaluation should keep into X
-			// and call *DeclaredType.GetMethodAt() directly.
-			return PointerValue{
-				TypedValue: &TypedValue{
-					T: fv.Type.BoundType(),
-					V: mv,
-				},
-				Base: nil, // a bound method is free floating.
+			switch path.Type {
+			case VPTypeDefault:
+				/*
+					main.Bir struct{(struct{("foo" string)} main.Boo)} @Hello
+					PATH=gno.ValuePath{Type:0x2, Depth:0x1, Index:0x0, Name:"Hello"}
+				*/
+				ftv := ct.GetValueRefAt(path)
+				fv := ftv.GetFunc()
+				mv := BoundMethodValue{
+					Func:     fv,
+					Receiver: tv.V, // use original v
+				}
+				// TODO: this means all method selectors are slow
+				// and incur extra overhead.  To prevent this extra
+				// overhead, CallExpr evaluation should keep into X
+				// and call *DeclaredType.GetMethodAt() directly.
+				return PointerValue{
+					TypedValue: &TypedValue{
+						T: fv.Type.BoundType(),
+						V: mv,
+					},
+					Base: nil, // a bound method is free floating.
+				}
+			case VPTypeInterface:
+				tr, _, _, _ := ct.FindEmbeddedFieldType(path.Name)
+				if len(tr) == 0 {
+					panic("should not happen")
+				}
+				bv := tv
+				for i, path := range tr {
+					ptr := bv.GetPointerTo(path)
+					if i == len(tr)-1 {
+						return ptr // done
+					} else {
+						bv = ptr.TypedValue // deref
+					}
+				}
+				panic("should not happen")
+			default:
+				panic("should not happen")
 			}
 		} else {
 			// NOTE could work with nested *DeclaredTypes,
@@ -1157,9 +1181,11 @@ TYPE_SWITCH:
 		switch cet := ct.Elt.(type) {
 		case *DeclaredType:
 			t = cet
+			v = v.(PointerValue).V
 			goto TYPE_SWITCH
 		case *nativeType:
 			t = cet
+			v = v.(PointerValue).V
 			goto TYPE_SWITCH
 		default:
 			panic(fmt.Sprintf(

@@ -945,70 +945,126 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *SelectorExpr:
 				xt := evalTypeOf(last, n.X)
-				if pt, ok := xt.(PointerType); ok {
-					if dt, ok := pt.Elt.(*DeclaredType); ok {
-						mthd := dt.GetMethod(n.Sel)
-						if mthd == nil {
-							// Go spec: "if the type of x is a
-							// defined pointer type and (*x).f is a
-							// valid selector expression denoting a
-							// field (but not a method), x.f is
-							// shorthand for (*x).f."
+				xIsPointer := false
+
+				// Set selector path based on xt's type.
+			X_TYPE_SWITCH:
+				switch cxt := xt.(type) {
+				case PointerType:
+					xIsPointer = true
+					dxt := cxt.Elt
+					if dt, ok := dxt.(*DeclaredType); ok {
+						_, hp, rt, mt := dt.FindEmbeddedFieldType(n.Sel)
+						if mt == nil {
+							// Go spec: "if the type of x is a defined
+							// pointer type and (*x).f is a valid selector
+							// expression denoting a field (but not a
+							// method), x.f is shorthand for (*x).f."
+							//
+							// convert to (*x).f.
+							if !hp {
+								n.X = &StarExpr{X: n.X}
+								n.X.SetAttribute(ATTR_PREPROCESSED, true)
+							}
+							// continue on with xt = dxt
+							xt = dxt
+							goto X_TYPE_SWITCH
 						} else {
-							if _, ok := mthd.Type.Params[0].Type.(PointerType); ok {
-								xt = xt.Elem()
-								goto SEL_TYPE_SWITCH
+							// Is a method call, and is pointer too.
+							if _, ok := rt.(PointerType); ok {
+								// Do not convert to (*x).f, but do get path
+								// on receiver's deref type (dxt is where
+								// the path is defined).
+								// continue on with xt = dxt
+								xt = dxt
+								goto X_TYPE_SWITCH
 							} else {
-								// Go spec: "As with selectors,
-								// a reference to a
-								// non-interface method with a
-								// value receiver using a
-								// pointer will automatically
-								// dereference that pointer:
-								// pt.Mv is equivalent to
-								// (*pt).Mv."
+								// Go spec: "As with selectors, a reference
+								// to a non-interface method with a value
+								// receiver using a pointer will
+								// automatically dereference that pointer:
+								// pt.Mv is equivalent to (*pt).Mv."
+								//
+								// convert to (*x).f.
+								if !hp {
+									n.X = &StarExpr{X: n.X}
+									n.X.SetAttribute(ATTR_PREPROCESSED, true)
+								}
+								// continue on with xt = dxt
+								xt = dxt
+								goto X_TYPE_SWITCH
 							}
 						}
-					}
-					// convert to (*x).f.
-					n.X = &StarExpr{X: n.X}
-					n.X.SetAttribute(ATTR_PREPROCESSED, true)
-					xt = xt.Elem()
-				} else if dt, ok := xt.(*DeclaredType); ok {
-					mthd := dt.GetMethod(n.Sel)
-					if mthd != nil {
-						if _, ok := mthd.Type.Params[0].Type.(PointerType); ok {
-							// Go spec: "If x is addressable
-							// and &x's method set contains
-							// m, x.m() is shorthand for
-							// (&x).m()"
-							// Go spec: "As with method
-							// calls, a reference to a
-							// non-interface method with a
-							// pointer receiver using an
-							// addressable value will
-							// automatically take the
-							// address of that value: t.Mp
-							// is equivalent to (&t).Mp."
-						} else {
-							goto SEL_TYPE_SWITCH
-						}
-						// convert to (&x).m.
-						n.X = &RefExpr{X: n.X}
+					} else {
+						// Go spec: "if the type of x is a defined pointer
+						// type and (*x).f is a valid selector expression
+						// denoting a field (but not a method), x.f is
+						// shorthand for (*x).f."
+						//
+						// convert to (*x).f.
+						n.X = &StarExpr{X: n.X}
 						n.X.SetAttribute(ATTR_PREPROCESSED, true)
+						// continue on with xt = dxt
+						xt = dxt
+						goto X_TYPE_SWITCH
 					}
-				}
-			SEL_TYPE_SWITCH:
-				// Set selector path.
-				switch xt := xt.(type) {
+
 				case *DeclaredType:
-					// bound method or underlying.
-					// TODO check for unexported fields.
-					n.Path = xt.GetPathForName(n.Sel)
+					// hp short for has pointer, whether there is a pointer
+					// field along the trail, e.g.
+					// `type struct { *Foo }`,
+					// determines whether n.X must be replaced by a
+					// reference.
+					tr, hp, rt, _ := cxt.FindEmbeddedFieldType(n.Sel)
+					if tr != nil {
+						if len(tr) > 1 {
+							// replace n.X w/ tr[:len-1] selectors applied.
+							// (the last vp, tr[len(tr)-1], is for n.Sel)
+							if debug {
+								if tr[len(tr)-1].Name != n.Sel {
+									panic("should not happen")
+								}
+							}
+							nx2 := n.X
+							for _, vp := range tr[:len(tr)-1] {
+								nx2 = &SelectorExpr{
+									X:    nx2,
+									Path: vp,
+									Sel:  vp.Name,
+								}
+							}
+							// recursively preprocess new n.X.
+							n.X = Preprocess(imp, last, nx2).(Expr)
+						}
+						if rt != nil && rt.Kind() == PointerKind &&
+							!xIsPointer && !hp {
+							// Go spec: "If x is addressable and &x's
+							// method set contains m, x.m() is shorthand
+							// for (&x).m()"
+							// Go spec: "As with method calls, a reference
+							// to a non-interface method with a pointer
+							// receiver using an addressable value will
+							// automatically take the address of that
+							// value: t.Mp is equivalent to (&t).Mp."
+							//
+							// convert to (&x).m, but leave xt as is.
+							n.X = &RefExpr{X: n.X}
+							n.X.SetAttribute(ATTR_PREPROCESSED, true)
+						}
+						// bound method or underlying.
+						// TODO check for unexported fields.
+						n.Path = tr[len(tr)-1]
+						// n.Path = cxt.GetPathForName(n.Sel)
+					} else {
+						panic(fmt.Sprintf(
+							"missing field %s in %s",
+							n.Sel,
+							cxt.String()))
+					}
 				case *StructType:
 					// struct field
 					// TODO check for unexported fields.
-					n.Path = xt.GetPathForName(n.Sel)
+					n.Path = cxt.GetPathForName(n.Sel)
 				case *PackageType:
 					// packages can only be referred to by
 					// *NameExprs, and cannot be copied.

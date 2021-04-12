@@ -1343,15 +1343,18 @@ func (pn *PackageNode) GetBody() Body {
 //  (d) a PackageNode declaration
 //
 // Type is:
-//  * 0x00 for uverse constants. Depth is 0.
-//  * 0x01 for default struct fields, package and block variables,
-//    and declared type methods.  In this case, the Depth determines
-//    how to traverse the value and its parents to find the right type
-//    to base the path for.  Depth starts at 1.
-//  * 0x02 for interface methods.  Depth is 0. Methods are looked up
-//    by their name, so is slower than using value paths with type 0x00 or
-//    0x01.
+//  * 0x00 for uverse constants. Depth == 0.
+//  * 0x01 for default struct fields, package and block variables, and
+//  declared type methods. Depth >= 1.
+//  * 0x02 for interface methods. Methods are looked up by their name, so is
+//  slower than using value paths with type 0x00 or 0x01. Depth == 1.
 //  * 0x03 for native fields and methods. experimental.
+//
+// Depth tells how many layers of access should be unvealed before arriving
+// at the ultimate handler type.  For example, the direct method of a
+// *DeclaredType has depth 1, but any field of the underlying base type
+// would have depth 2 or more.  In the case of Blocks, the depth tells how
+// many layers of ancestry to ascend before arriving at the target block.
 //
 // For concrete (non-interface) declared types, the methods have
 // generation 1 and if the underlying type is a struct, the fields of that
@@ -1362,7 +1365,7 @@ func (pn *PackageNode) GetBody() Body {
 //
 type ValuePath struct {
 	Type  VPType // see VPType* consts.
-	Depth uint8  // to traverse parent chain, from 1.
+	Depth uint8  // see doc for ValuePath.
 	Index uint16 // index of value in block/package/struct/declaredtype.
 	Name  Name   // name of variable/field/method.
 }
@@ -1374,6 +1377,7 @@ const (
 	VPTypeDefault   VPType = 0x01
 	VPTypeInterface VPType = 0x02
 	VPTypeNative    VPType = 0x03
+	// TODO: consider VPTypeDeclared (method)
 )
 
 func NewValuePath(t VPType, depth uint8, index uint16, n Name) ValuePath {
@@ -1396,7 +1400,7 @@ func NewValuePathDefault(depth uint8, index uint16, n Name) ValuePath {
 }
 
 func NewValuePathInterface(n Name) ValuePath {
-	return NewValuePath(VPTypeInterface, 0, 0, n)
+	return NewValuePath(VPTypeInterface, 1, 0, n)
 }
 
 func NewValuePathNative(n Name) ValuePath {
@@ -1414,8 +1418,8 @@ func (vp ValuePath) Validate() {
 			panic("general value path cannot have depth 0")
 		}
 	case VPTypeInterface:
-		if vp.Depth != 0 {
-			panic("interface value path must have depth 0")
+		if vp.Depth != 1 {
+			panic("interface value path must have depth 1")
 		}
 		if vp.Name == "" {
 			panic("interface value path must have name")
