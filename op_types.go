@@ -378,8 +378,14 @@ func (m *Machine) doOpTypeOf() {
 		m.PushExpr(x.X)
 		m.PushOp(OpTypeOf)
 		m.Run() // XXX replace
-		xt := m.ReapValues(start)[0].GetType().(PointerType)
-		m.PushValue(asValue(xt.Elt))
+		xt := m.ReapValues(start)[0].GetType()
+		if pt, ok := xt.(PointerType); ok {
+			m.PushValue(asValue(pt.Elt))
+		} else if _, ok := xt.(*TypeType); ok {
+			m.PushValue(asValue(gTypeType))
+		} else {
+			panic("should not happen")
+		}
 	case *RefExpr:
 		start := m.NumValues
 		m.PushOp(OpHalt)

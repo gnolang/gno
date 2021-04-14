@@ -102,9 +102,25 @@ func UverseNode() *PackageNode {
 		&DeclaredType{
 			PkgPath: uversePkgPath,
 			Name:    "error",
-			Base:    &InterfaceType{}, // XXX error() string
-			Methods: nil,
-			sealed:  true,
+			Base: &InterfaceType{
+				PkgPath: uversePkgPath,
+				Methods: []FieldType{
+					FieldType{
+						Name: "Error",
+						Type: &FuncType{
+							PkgPath: uversePkgPath,
+							Params:  nil,
+							Results: []FieldType{
+								FieldType{
+									//Name: "",
+									Type: StringType,
+								},
+							},
+						},
+					},
+				},
+			},
+			sealed: true,
 		}))
 
 	// Values
