@@ -250,7 +250,7 @@ func (tv *TypedValue) GetObject() Object {
 	case *MapValue:
 		return cv
 	case BoundMethodValue:
-		rov, ok := cv.Receiver.(Object)
+		rov, ok := cv.Receiver.V.(Object)
 		if ok {
 			return rov
 		} else {

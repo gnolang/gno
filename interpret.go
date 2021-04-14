@@ -969,7 +969,7 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // TODO: track breaks/panics/returns on frame and
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
-func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv Value) {
+func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 	fr := Frame{
 		Source:      cx,
 		NumOps:      m.NumOps,
@@ -1018,7 +1018,7 @@ func (m *Machine) PushFrameGoNative(cx *CallExpr, fv *nativeValue) {
 		NumBlocks:   len(m.Blocks),
 		Func:        nil,
 		GoFunc:      fv,
-		Receiver:    nil,
+		Receiver:    TypedValue{},
 		NumArgs:     len(cx.Args),
 		IsVarg:      cx.Varg,
 		Defers:      nil,

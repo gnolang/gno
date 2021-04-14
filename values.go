@@ -296,7 +296,7 @@ type BoundMethodValue struct {
 
 	// This becomes the first arg.
 	// The type is .Func.Type.Params[0].
-	Receiver Value
+	Receiver TypedValue
 }
 
 type MapValue struct {
@@ -1154,7 +1154,7 @@ TYPE_SWITCH:
 				fv := ftv.GetFunc()
 				mv := BoundMethodValue{
 					Func:     fv,
-					Receiver: tv.V, // use original v
+					Receiver: *tv,
 				}
 				// TODO: this means all method selectors are slow
 				// and incur extra overhead.  To prevent this extra

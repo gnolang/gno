@@ -222,7 +222,10 @@ func (m *Machine) doOpTypeAssert2() {
 			// *xv = *xv
 			*tv = untypedBool(true)
 		} else {
-			*xv = TypedValue{}
+			*xv = TypedValue{
+				T: t,
+				V: defaultValue(t),
+			}
 			*tv = untypedBool(false)
 		}
 	}

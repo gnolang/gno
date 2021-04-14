@@ -19,7 +19,7 @@ type Frame struct {
 	// call frame
 	Func        *FuncValue    // function value
 	GoFunc      *nativeValue  // go function value
-	Receiver    Value         // if bound method
+	Receiver    TypedValue    // if bound method
 	NumArgs     int           // number of arguments in call
 	IsVarg      bool          // is form fncall(???, vargs...)
 	Defers      []Defer       // deferred calls

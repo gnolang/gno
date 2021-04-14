@@ -327,6 +327,12 @@ func (l FieldTypeList) TypeIDForPackage(pkgPath string) TypeID {
 
 func (l FieldTypeList) HasUnexported() bool {
 	for _, ft := range l {
+		if debug {
+			if ft.Name == "" {
+				// incorrect usage.
+				panic("should not happen")
+			}
+		}
 		if !isUpper(string(ft.Name)) {
 			return true
 		}
@@ -678,6 +684,12 @@ func (it *InterfaceType) GetMethodType(n Name) *FuncType {
 func (it *InterfaceType) IsImplementedBy(ot Type) bool {
 	isPtr := false
 	dot := ot
+	/*
+		XXX this would be nice, but there are issues converting native interfaces to gno interfaces.
+		if nt, ok := ot.(*nativeType); ok {
+			dot = nt.GnoType()
+		}
+	*/
 	if pt, ok := ot.(PointerType); ok {
 		dot = pt.Elt
 		isPtr = true
@@ -901,14 +913,16 @@ func (ft *FuncType) TypeID() TypeID {
 	// this exchangeability is useful to denote type semantics.
 	ps := FieldTypeList(ft.Params)
 	rs := FieldTypeList(ft.Results)
-	pp := ""
-	if ps.HasUnexported() || rs.HasUnexported() {
-		pp = fmt.Sprintf("@%q", ft.PkgPath)
-	}
+	/*
+		pp := ""
+		if ps.HasUnexported() || rs.HasUnexported() {
+			pp = fmt.Sprintf("@%q", ft.PkgPath)
+		}
+	*/
 	if ft.typeid.IsZero() {
 		ft.typeid = typeid(
-			"f%s(%s)(%s)",
-			pp,
+			"func(%s)(%s)",
+			//pp,
 			ps.UnnamedTypeID(),
 			rs.UnnamedTypeID(),
 		)
