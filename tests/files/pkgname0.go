@@ -1,8 +1,8 @@
 package main
 
 import (
-	"guthib.com/bar" // pkg name is actually quux
-	baz "guthib.com/baz" // pkg name is also quux, force it to baz.
+	"github.com/gnolang/gno/_test/bar"     // pkg name is actually quux
+	baz "github.com/gnolang/gno/_test/baz" // pkg name is also quux, force it to be baz.
 )
 
 func main() {
@@ -10,7 +10,6 @@ func main() {
 	println("Hello", baz.Quux())
 }
 
-// GOPATH:testdata/redeclaration-global7
 // Output:
 // Hello bar
 // Hello baz

@@ -217,6 +217,7 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 		case "io":
 			pkg := gno.NewPackageNode("io", "io", nil)
 			pkg.DefineGoNativeValue("ReadFull", io.ReadFull)
+			pkg.DefineGoNativeType(reflect.TypeOf((*io.ReadCloser)(nil)).Elem())
 			return pkg.NewPackage(nil)
 		case "io/ioutil":
 			pkg := gno.NewPackageNode("ioutil", "io/ioutil", nil)
