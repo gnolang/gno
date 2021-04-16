@@ -113,7 +113,21 @@ func (n SelectorExpr) String() string {
 }
 
 func (n SliceExpr) String() string {
-	return fmt.Sprintf("%s[%s:%s:%s]", n.X, n.Low, n.High, n.Max)
+	ls, hs, ms := "", "", ""
+	if n.Low != nil {
+		ls = n.Low.String()
+	}
+	if n.High != nil {
+		hs = n.High.String()
+	}
+	if n.Max != nil {
+		ms = n.Max.String()
+	}
+	if ms == "" {
+		return fmt.Sprintf("%s[%s:%s]", n.X, ls, hs)
+	} else {
+		return fmt.Sprintf("%s[%s:%s:%s]", n.X, ls, hs, ms)
+	}
 }
 
 func (n StarExpr) String() string {

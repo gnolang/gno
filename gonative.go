@@ -294,7 +294,7 @@ func go2GnoValueUpdate(lvl int, tv *TypedValue, rv reflect.Value) {
 		av := tv.V.(*ArrayValue)
 		rvl := rv.Len()
 		if debug {
-			if rvl != tv.T.(*ArrayType).Len {
+			if rvl != baseOf(tv.T).(*ArrayType).Len {
 				panic("go-native update error: array length mismmatch")
 			}
 		}
@@ -319,8 +319,16 @@ func go2GnoValueUpdate(lvl int, tv *TypedValue, rv reflect.Value) {
 			}
 		}
 	case SliceKind:
-		sv := tv.V.(*SliceValue)
 		rvl := rv.Len()
+		if rvl == 0 {
+			if debug {
+				if tv.V != nil && tv.V.(*SliceValue).GetLength() != 0 {
+					panic("should not happen")
+				}
+			}
+			return // do nothing
+		}
+		sv := tv.V.(*SliceValue)
 		if debug {
 			if rvl != sv.GetLength() {
 				panic("go-native update error: slice length mismmatch")
@@ -347,6 +355,9 @@ func go2GnoValueUpdate(lvl int, tv *TypedValue, rv reflect.Value) {
 			}
 		}
 	case PointerKind:
+		if tv.V == nil {
+			return // do nothing
+		}
 		pv := tv.V.(PointerValue)
 		etv := pv.TypedValue
 		erv := rv.Elem()
@@ -379,7 +390,33 @@ func go2GnoValueUpdate(lvl int, tv *TypedValue, rv reflect.Value) {
 	case FuncKind:
 		panic("not yet implemented")
 	case MapKind:
-		panic("not yet implemented")
+		// mt := baseOf(tv.T).(*MapType)
+		mv := tv.V.(*MapValue)
+		//rv.Set(reflect.MakeMapWithSize(mt, mv.List.Size))
+		if rv.Len() != mv.List.Size {
+			// XXX New or deleted key modifications not yet supported.  this is
+			// complicated by the fact that conversion of new keys to gno
+			// values is ambiguous; a lazy go2GnoValue() may be sufficient, but
+			// this may create inconsistencies, or allow duplicate keys of the
+			// eager (non-native) gno value.  Ergo, we iterate over the gno map
+			// to convert keys to go as the same way as gno2GoValue(), but how
+			// can we efficiently filter new native keys?
+			panic("not yet implemented")
+		}
+		head := mv.List.Head
+		// vrt := mt.Elem()
+		for head != nil {
+			ktv, vtv := &head.Key, &head.Value
+			krv := gno2GoValue(ktv, reflect.Value{})
+			vrv := rv.MapIndex(krv)
+			if vrv.IsZero() {
+				// XXX remove key from mv. see comment above.
+				panic("not yet implemented")
+			} else {
+				go2GnoValueUpdate(lvl+1, vtv, vrv)
+			}
+			head = head.Next
+		}
 	case TypeKind:
 		panic("not yet implemented")
 	default:
@@ -895,7 +932,7 @@ func (m *Machine) doOpCallGoNative() {
 	numParams := ft.NumIn()
 	isVarg := fr.IsVarg
 	// pop and convert params.
-	ptvs := m.PopValues(fr.NumArgs)
+	ptvs := m.PopCopyValues(fr.NumArgs)
 	prvs := make([]reflect.Value, len(ptvs))
 	for i := 0; i < fr.NumArgs; i++ {
 		ptv := &ptvs[i]
@@ -924,7 +961,9 @@ func (m *Machine) doOpCallGoNative() {
 	for i := 0; i < fr.NumArgs; i++ {
 		ptv := &ptvs[i]
 		prv := prvs[i]
-		go2GnoValueUpdate(0, ptv, prv)
+		if !ptv.IsUndefined() {
+			go2GnoValueUpdate(0, ptv, prv)
+		}
 	}
 	// cleanup
 	m.NumResults = fv.Value.Type().NumOut()

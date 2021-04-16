@@ -7,6 +7,7 @@ import (
 	"context"
 	crand "crypto/rand"
 	"crypto/sha1"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/xml"
 	"flag"
@@ -15,6 +16,7 @@ import (
 	"image/color"
 	"io"
 	"io/ioutil"
+	"log"
 	"math"
 	"math/big"
 	"math/rand"
@@ -102,6 +104,10 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 			pkg.DefineGoNativeFunc("Sprintf", fmt.Sprintf)
 			pkg.DefineGoNativeFunc("Errorf", fmt.Errorf)
 			return pkg.NewPackage(nil)
+		case "encoding/base64":
+			pkg := gno.NewPackageNode("base64", "encoding/base64", nil)
+			pkg.DefineGoNativeValue("RawStdEncoding", base64.RawStdEncoding)
+			return pkg.NewPackage(nil)
 		case "encoding/binary":
 			pkg := gno.NewPackageNode("binary", "encoding/binary", nil)
 			pkg.DefineGoNativeValue("LittleEndian", binary.LittleEndian)
@@ -146,6 +152,7 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 			pkg := gno.NewPackageNode("strings", "strings", nil)
 			pkg.DefineGoNativeValue("SplitN", strings.SplitN)
 			pkg.DefineGoNativeValue("HasPrefix", strings.HasPrefix)
+			pkg.DefineGoNativeValue("NewReader", strings.NewReader)
 			return pkg.NewPackage(nil)
 		case "math":
 			pkg := gno.NewPackageNode("math", "math", nil)
@@ -159,6 +166,9 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 		case "crypto/rand":
 			pkg := gno.NewPackageNode("rand", "crypto/rand", nil)
 			pkg.DefineGoNativeValue("Prime", crand.Prime)
+			// for determinism:
+			// pkg.DefineGoNativeValue("Reader", crand.Reader)
+			pkg.DefineGoNativeValue("Reader", &dummyReader{})
 			return pkg.NewPackage(nil)
 		case "crypto/sha1":
 			pkg := gno.NewPackageNode("sha1", "crypto/sha1", nil)
@@ -204,9 +214,32 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 			pkg := gno.NewPackageNode("flag", "flag", nil)
 			pkg.DefineGoNativeType(reflect.TypeOf(flag.Flag{}))
 			return pkg.NewPackage(nil)
+		case "io":
+			pkg := gno.NewPackageNode("io", "io", nil)
+			pkg.DefineGoNativeValue("ReadFull", io.ReadFull)
+			return pkg.NewPackage(nil)
+		case "io/ioutil":
+			pkg := gno.NewPackageNode("ioutil", "io/ioutil", nil)
+			pkg.DefineGoNativeValue("ReadAll", ioutil.ReadAll)
+			return pkg.NewPackage(nil)
+		case "log":
+			pkg := gno.NewPackageNode("log", "log", nil)
+			pkg.DefineGoNativeValue("Fatal", log.Fatal)
+			return pkg.NewPackage(nil)
 		default:
 			panic("unknown package path " + pkgPath)
 		}
 	}
 	return
+}
+
+//----------------------------------------
+
+type dummyReader struct{}
+
+func (*dummyReader) Read(b []byte) (n int, err error) {
+	for i := 0; i < len(b); i++ {
+		b[i] = byte((100 + i) % 256)
+	}
+	return len(b), nil
 }
