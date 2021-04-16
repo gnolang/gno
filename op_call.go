@@ -128,8 +128,7 @@ func (m *Machine) doOpCall() {
 				}
 			}
 		} else {
-			list := make([]TypedValue, nvar)
-			copy(list, m.PopValues(nvar))
+			list := m.PopCopyValues(nvar)
 			vart := pts[numParams-1].Type.(*SliceType)
 			varg := newSliceFromList(list)
 			m.PushValue(TypedValue{
@@ -316,9 +315,7 @@ func (m *Machine) doOpDefer() {
 	ds := m.PopStmt().(*DeferStmt)
 	// pop arguments
 	numArgs := len(ds.Call.Args)
-	args0 := m.PopValues(numArgs)
-	args := make([]TypedValue, len(args0))
-	copy(args, args0)
+	args := m.PopCopyValues(numArgs)
 	// pop func
 	ftv := m.PopValue()
 	// push defer.

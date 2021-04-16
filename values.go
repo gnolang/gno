@@ -112,9 +112,13 @@ type ArrayValue struct {
 
 func (av *ArrayValue) GetCapacity() int {
 	if av.Data == nil {
-		return cap(av.List)
+		// not cap(av.List) for simplicity.
+		// extra capacity is ignored.
+		return len(av.List)
 	} else {
-		return cap(av.Data)
+		// not cap(av.Data) for simplicity.
+		// extra capacity is ignored.
+		return len(av.Data)
 	}
 }
 
@@ -1831,9 +1835,10 @@ func typedRune(r rune) TypedValue {
 }
 
 func newSliceFromList(list []TypedValue) *SliceValue {
+	fullList := list[:cap(list)]
 	return &SliceValue{
 		Base: &ArrayValue{
-			List: list,
+			List: fullList,
 		},
 		Offset: 0,
 		Length: len(list),
@@ -1842,9 +1847,10 @@ func newSliceFromList(list []TypedValue) *SliceValue {
 }
 
 func newSliceFromData(data []byte) *SliceValue {
+	fullData := data[:cap(data)]
 	return &SliceValue{
 		Base: &ArrayValue{
-			Data: data,
+			Data: fullData,
 		},
 		Offset: 0,
 		Length: len(data),

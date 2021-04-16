@@ -884,10 +884,11 @@ func (m *Machine) PopValue() (tv *TypedValue) {
 	return tv
 }
 
-// Returns a slice of n values in the stack
-// and decrements NumValues.
-// The results are on the values stack, so they must be copied immediately.
-// NOTE the values are in stack order, oldest first, the opposite order of
+// Returns a slice of n values in the stack and decrements NumValues.
+// NOTE: The results are on the values stack, so they must be copied or used
+// immediately.  If you need to use the machine before or during usage,
+// consider using PopCopyValues().
+// NOTE: the values are in stack order, oldest first, the opposite order of
 // multiple pop calls.  This is used for params assignment, for example.
 func (m *Machine) PopValues(n int) []TypedValue {
 	if debug {
@@ -898,6 +899,14 @@ func (m *Machine) PopValues(n int) []TypedValue {
 	}
 	m.NumValues -= n
 	return m.Values[m.NumValues : m.NumValues+n]
+}
+
+// Like PopValues(), but copies the values onto a new slice.
+func (m *Machine) PopCopyValues(n int) []TypedValue {
+	res := make([]TypedValue, n)
+	ptvs := m.PopValues(n)
+	copy(res, ptvs)
+	return res
 }
 
 // Decrements NumValues by number of last results.
