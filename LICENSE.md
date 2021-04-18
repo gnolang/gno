@@ -45,7 +45,9 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE WORK OR THE USE OR
 OTHER DEALINGS IN THE WORK.
 
-In the case that all of the owners as stated by this project become
-incapacitated, the rights of all the works is to be transferred and assigned to
-Richard Stallman of the Gnu Project (if he accepts), unless this clause is
-updated by the owners.
+In the case that (and only if) all of the owners as stated by this project
+become incapacitated, the rights of all the works is to be published under the
+AGPL3.0 license, and remaining rights assigned and transferred to Richard
+Stallman of the GNU Project (if he accepts), otherwise the FSF foundation if
+RMS explicitly rejects.  This clause may be updated by the project owners at
+any time.
