@@ -53,7 +53,7 @@ SelectStmt ->
 func (m *Machine) doOpExec(op Op) {
 	s := m.PeekStmt(1)
 	if debug {
-		debug.Printf("EXEC: %v\n", s)
+		debug.Printf("PEEK STMT: %v\n", s)
 	}
 
 	// NOTE this could go in the switch statement, and we could
@@ -424,6 +424,9 @@ func (m *Machine) doOpExec(op Op) {
 	}
 
 EXEC_SWITCH:
+	if debug {
+		debug.Printf("EXEC: %v\n", s)
+	}
 	switch cs := s.(type) {
 	case *AssignStmt:
 		// continuation
@@ -525,7 +528,7 @@ EXEC_SWITCH:
 		m.PushForPointer(cs.X)
 	case *ReturnStmt:
 		m.PopStmt()
-		fr := m.LastFrame()
+		fr := m.PopUntilLastCallFrame()
 		hasDefers := 0 < len(fr.Defers)
 		hasResults := 0 < len(fr.Func.Type.Results)
 		// If has defers, return from the block stack.

@@ -684,13 +684,10 @@ func (it *InterfaceType) GetMethodType(n Name) *FuncType {
 func (it *InterfaceType) IsImplementedBy(ot Type) bool {
 	isPtr := false
 	dot := ot
-	/*
-		XXX this would be nice, but there are issues converting native interfaces to gno interfaces.
-		if nt, ok := ot.(*nativeType); ok {
-			dot = nt.GnoType()
-		}
-	*/
-	if pt, ok := ot.(PointerType); ok {
+	if not, ok := ot.(*nativeType); ok {
+		dot = not.GnoType()
+	}
+	if pt, ok := dot.(PointerType); ok {
 		dot = pt.Elt
 		isPtr = true
 	}
@@ -1360,6 +1357,28 @@ func (tt *tupleType) String() string {
 
 func (tt *tupleType) Elem() Type {
 	panic("tupleType has no singular elem type")
+}
+
+//----------------------------------------
+// Float64
+
+var Float64Type *StructType
+
+// NOTE: this path is used to identify the struct type as a Float64.
+const float64PkgPath = uversePkgPath + "#float64"
+
+func init() {
+	Float64Type = &StructType{
+		PkgPath: uversePkgPath,
+		Fields: []FieldType{
+			FieldType{
+				Name:     "Value",
+				Type:     Uint64Type,
+				Embedded: false,
+				Tag:      "",
+			},
+		},
+	}
 }
 
 //----------------------------------------

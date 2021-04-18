@@ -805,10 +805,11 @@ func (s *bodyStmt) PopActiveStmt() (as Stmt) {
 }
 
 func (s *bodyStmt) String() string {
-	return fmt.Sprintf("bodyStmt[%d/%d/%d]",
+	return fmt.Sprintf("bodyStmt[%d/%d/%d]=%v",
 		s.ListLen,
 		s.ListIndex,
-		s.BodyIndex)
+		s.BodyIndex,
+		s.Active)
 }
 
 //----------------------------------------

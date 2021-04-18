@@ -1103,6 +1103,14 @@ func (tv *TypedValue) Assign(tv2 TypedValue, cu bool) {
 				nv1 := tv.V.(*nativeValue)
 				nv1.Value.Set(v2.Value)
 			}
+		case nil:
+			if debug {
+				if tv2.T != nil && tv.T.TypeID() != tv2.T.TypeID() {
+					panic(fmt.Sprintf("mismatched types: cannot assign %v to %v",
+						tv2.String(), tv.T.String()))
+				}
+			}
+			*tv = tv2.Copy()
 		default:
 			panic("should not happen")
 		}
@@ -1127,6 +1135,14 @@ func (tv *TypedValue) Assign(tv2 TypedValue, cu bool) {
 			// pass cu=false for const definitions.
 		}
 	default:
+		if debug {
+			if tv.T.Kind() != InterfaceKind &&
+				tv2.T != nil &&
+				baseOf(tv.T).TypeID() != baseOf(tv2.T).TypeID() {
+				panic(fmt.Sprintf("mismatched types: cannot assign %v to %v",
+					tv2.String(), tv.T.String()))
+			}
+		}
 		*tv = tv2.Copy()
 	}
 }

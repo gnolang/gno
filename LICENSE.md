@@ -44,3 +44,8 @@ AUTHORS, COPYRIGHT HOLDERS, OWNERS, OR MAINTAINERS BE LIABLE FOR ANY CLAIM,
 DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE WORK OR THE USE OR
 OTHER DEALINGS IN THE WORK.
+
+In the case that all of the owners as stated by this project become
+incapacitated, the rights of all the works is to be transferred and assigned to
+Richard Stallman of the Gnu Project (if he accepts), unless this clause is
+updated by the owners.

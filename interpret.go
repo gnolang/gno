@@ -1061,8 +1061,15 @@ func (m *Machine) PopFrameAndReset() {
 	m.PopStmt() // may be sticky
 }
 
+// TODO: optimize by passing in last frame.
 func (m *Machine) PopFrameAndReturn() {
 	fr := m.PopFrame()
+	if debug {
+		// TODO: optimize with fr.IsCall
+		if fr.Func == nil && fr.GoFunc == nil {
+			panic("unexpected non-call (loop) frame")
+		}
+	}
 	rtypes := fr.Func.Type.Results
 	numRes := len(rtypes)
 	m.NumOps = fr.NumOps
@@ -1114,6 +1121,20 @@ func (m *Machine) NumFrames() int {
 
 func (m *Machine) LastFrame() *Frame {
 	return &m.Frames[len(m.Frames)-1]
+}
+
+// pops the last non-call (loop) frames
+// and returns the last call frame (which is left on stack).
+func (m *Machine) PopUntilLastCallFrame() *Frame {
+	for i := len(m.Frames) - 1; i >= 0; i-- {
+		fr := &m.Frames[i]
+		if fr.Func != nil || fr.GoFunc != nil {
+			// TODO: optimize with fr.IsCall
+			m.Frames = m.Frames[:i+1]
+			return fr
+		}
+	}
+	panic("missing call frame")
 }
 
 func (m *Machine) PushForPointer(lx Expr) {
