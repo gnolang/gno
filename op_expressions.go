@@ -149,26 +149,49 @@ func (m *Machine) doOpTypeAssert1() {
 	xv := m.PeekValue(1)
 	xt := xv.T
 
-	if it, ok := baseOf(t).(*InterfaceType); ok { // is interface assert
-		// assert that x implements type.
-		impl := false
-		switch cxt := xt.(type) {
-		case *InterfaceType:
-			impl = it.IsImplementedBy(cxt)
-		case *DeclaredType:
-			impl = it.IsImplementedBy(cxt)
-		default:
-			impl = it.IsEmptyInterface()
+	if t.Kind() == InterfaceKind { // is interface assert
+		if it, ok := baseOf(t).(*InterfaceType); ok {
+			// t is Gno interface.
+			// assert that x implements type.
+			impl := false
+			switch cxt := xt.(type) {
+			case *InterfaceType:
+				panic("should not happen")
+				// impl = it.IsImplementedBy(cxt)
+			case *DeclaredType:
+				impl = it.IsImplementedBy(cxt)
+			default:
+				impl = it.IsEmptyInterface()
+			}
+			if !impl {
+				panic(fmt.Sprintf(
+					"%s doesn't implement %s",
+					xt.String(),
+					it.String()))
+			}
+			// NOTE: consider ability to push an
+			// interface-restricted form
+			// *xv = *xv
+		} else if nt, ok := baseOf(t).(*nativeType); ok {
+			// t is Go interface.
+			// assert that x implements type.
+			impl := false
+			if nxt, ok := xt.(*nativeType); ok {
+				impl = nxt.Type.Implements(nt.Type)
+			} else {
+				impl = false
+			}
+			if !impl {
+				panic(fmt.Sprintf(
+					"%s doesn't implement %s",
+					xt.String(),
+					nt.String()))
+			}
+			// keep xv as is.
+			// *xv = *xv
+		} else {
+			panic("should not happen")
 		}
-		if !impl {
-			panic(fmt.Sprintf(
-				"%s doesn't implement %s",
-				xt.String(),
-				it.String()))
-		}
-		// keep cxt as is.
-		// NOTE: consider ability to push an interface-restricted form
-		// *xv = *xv
 	} else { // is concrete assert
 		tid := t.TypeID()
 		xtid := xt.TypeID()
@@ -194,24 +217,46 @@ func (m *Machine) doOpTypeAssert2() {
 	xv := m.PeekValue(2)
 	xt := xv.T
 
-	if it, ok := t.(*InterfaceType); ok { // is interface assert
-		// assert that x implements type.
-		impl := false
-		switch cxt := xt.(type) {
-		case *InterfaceType:
-			impl = it.IsImplementedBy(cxt)
-		case *DeclaredType:
-			impl = it.IsImplementedBy(cxt)
-		default:
-			impl = it.IsEmptyInterface()
-		}
-		if impl {
-			// *xv = *xv
-			*tv = untypedBool(true)
+	if t.Kind() == InterfaceKind { // is interface assert
+		if it, ok := t.(*InterfaceType); ok {
+			// assert that x implements type.
+			impl := false
+			switch cxt := xt.(type) {
+			case *InterfaceType:
+				panic("should not happen")
+				// impl = it.IsImplementedBy(cxt)
+			case *DeclaredType:
+				impl = it.IsImplementedBy(cxt)
+			default:
+				impl = it.IsEmptyInterface()
+			}
+			if impl {
+				// *xv = *xv
+				*tv = untypedBool(true)
+			} else {
+				// NOTE: consider ability to push an
+				// interface-restricted form
+				*xv = TypedValue{}
+				*tv = untypedBool(false)
+			}
+		} else if nt, ok := baseOf(t).(*nativeType); ok {
+			// t is Go interface.
+			// assert that x implements type.
+			impl := false
+			if nxt, ok := xt.(*nativeType); ok {
+				impl = nxt.Type.Implements(nt.Type)
+			} else {
+				impl = false
+			}
+			if impl {
+				// *xv = *xv
+				*tv = untypedBool(true)
+			} else {
+				*xv = TypedValue{}
+				*tv = untypedBool(false)
+			}
 		} else {
-			// NOTE: consider ability to push an interface-restricted form
-			*xv = TypedValue{}
-			*tv = untypedBool(false)
+			panic("should not happen")
 		}
 	} else { // is concrete assert
 		tid := t.TypeID()
@@ -429,6 +474,11 @@ func (m *Machine) doOpStructLit() {
 		}
 		ftvs := m.PopValues(el)
 		for _, ftv := range ftvs {
+			if debug {
+				if !ftv.IsUndefined() && ftv.T.Kind() == InterfaceKind {
+					panic("should not happen")
+				}
+			}
 			fs = append(fs, ftv)
 		}
 		if debug {
@@ -446,6 +496,9 @@ func (m *Machine) doOpStructLit() {
 			if debug {
 				if fnx.Path.Depth != 1 {
 					panic("unexpected struct composite lit key path generation value")
+				}
+				if !ftv.IsUndefined() && ftv.T.Kind() == InterfaceKind {
+					panic("should not happen")
 				}
 			}
 			fs[fnx.Path.Index] = ftv
