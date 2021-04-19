@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
+	"strings"
 )
 
 func (m *Machine) doOpEval() {
@@ -40,7 +41,22 @@ func (m *Machine) doOpEval() {
 			bi := big.NewInt(0)
 			// TODO optimize.
 			// TODO deal with base.
-			bi.SetString(x.Value, 10)
+			if len(x.Value) > 2 && x.Value[0] == '0' &&
+				strings.ContainsAny(x.Value[1:2], "bBoOxX") {
+				_, ok := bi.SetString(x.Value[2:], 16)
+				if !ok {
+					panic(fmt.Sprintf(
+						"invalid integer constant: %s",
+						x.Value))
+				}
+			} else {
+				_, ok := bi.SetString(x.Value, 10)
+				if !ok {
+					panic(fmt.Sprintf(
+						"invalid integer constant: %s",
+						x.Value))
+				}
+			}
 			m.PushValue(TypedValue{
 				T: UntypedBigintType,
 				V: BigintValue{V: bi},
