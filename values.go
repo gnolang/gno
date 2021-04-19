@@ -1823,8 +1823,9 @@ func defaultValue(t Type) Value {
 			Base: nil,
 		}
 	case *MapType:
-		// zero uninitialized maps are not valid.
-		panic("should not happen")
+		return &MapValue{
+			List: nil, // uninitialized.
+		}
 	case *StructType:
 		return &StructValue{
 			Fields: make([]TypedValue, len(ct.Fields)),

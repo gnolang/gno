@@ -196,6 +196,7 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 			pkg := gno.NewPackageNode("strconv", "strconv", nil)
 			pkg.DefineGoNativeValue("Atoi", strconv.Atoi)
 			pkg.DefineGoNativeValue("Itoa", strconv.Itoa)
+			pkg.DefineGoNativeValue("ParseInt", strconv.ParseInt)
 			return pkg.NewPackage(nil)
 		case "sync":
 			pkg := gno.NewPackageNode("sync", "sync", nil)

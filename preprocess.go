@@ -791,12 +791,10 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 			case *IndexExpr:
 				xt := evalTypeOf(last, n.X)
 				switch xt.Kind() {
-				case StringKind:
-					checkOrConvertType(last, n.Index, nil)
-				case ArrayKind:
-					checkOrConvertType(last, n.Index, nil)
-				case SliceKind:
-					checkOrConvertType(last, n.Index, nil)
+				case StringKind, ArrayKind, SliceKind:
+					// Replace const index with int *constExpr,
+					// or if not const, assert integer type..
+					checkOrConvertIntegerType(last, n.Index)
 				case MapKind:
 					mt := baseOf(gnoTypeOf(xt)).(*MapType)
 					checkOrConvertType(last, n.Index, mt.Key)
@@ -809,10 +807,11 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *SliceExpr:
-				// Replace const L/H/M with int *constExpr.
-				checkOrConvertType(last, n.Low, IntType)
-				checkOrConvertType(last, n.High, IntType)
-				checkOrConvertType(last, n.Max, IntType)
+				// Replace const L/H/M with int *constExpr,
+				// or if not const, assert integer type..
+				checkOrConvertIntegerType(last, n.Low)
+				checkOrConvertIntegerType(last, n.High)
+				checkOrConvertIntegerType(last, n.Max)
 
 			// TRANS_LEAVE -----------------------
 			case *TypeAssertExpr:
@@ -1738,6 +1737,7 @@ func isConstType(x Expr) bool {
 
 // 1. convert x to t if x is *constExpr.
 // 2. otherwise, assert that x can be coerced to t.
+// NOTE: also see checkOrConvertIntegerType()
 func checkOrConvertType(last BlockNode, x Expr, t Type) {
 	if cx, ok := x.(*constExpr); ok {
 		convertConst(last, cx, t)
@@ -1871,42 +1871,41 @@ func checkType(xt Type, dt Type) {
 	// General cases.
 	switch cxt := xt.(type) {
 	case PrimitiveType:
-		if isUntyped(xt) {
-			// if xt is untyped, ensure dt is compatible.
-			switch xt {
-			case UntypedBoolType:
-				switch dt.Kind() {
-				case BoolKind:
-					return // ok
-				default:
-					panic(fmt.Sprintf(
-						"cannot use untyped bool as %s",
-						dt.Kind()))
-				}
-			case UntypedStringType:
-				switch dt.Kind() {
-				case StringKind:
-					return // ok
-				default:
-					panic(fmt.Sprintf(
-						"cannot use untyped string as %s",
-						dt.Kind()))
-				}
-			case UntypedRuneType, UntypedBigintType:
-				switch dt.Kind() {
-				case IntKind, Int8Kind, Int16Kind, Int32Kind,
-					Int64Kind, UintKind, Uint8Kind, Uint16Kind,
-					Uint32Kind, Uint64Kind:
-					return // ok
-				default:
-					panic(fmt.Sprintf(
-						"cannot use untyped rune as %s",
-						dt.Kind()))
-				}
+		// if xt is untyped, ensure dt is compatible.
+		switch xt {
+		case UntypedBoolType:
+			switch dt.Kind() {
+			case BoolKind:
+				return // ok
 			default:
-				panic("should not happen")
+				panic(fmt.Sprintf(
+					"cannot use untyped bool as %s",
+					dt.Kind()))
 			}
-		} else {
+		case UntypedStringType:
+			switch dt.Kind() {
+			case StringKind:
+				return // ok
+			default:
+				panic(fmt.Sprintf(
+					"cannot use untyped string as %s",
+					dt.Kind()))
+			}
+		case UntypedRuneType, UntypedBigintType:
+			switch dt.Kind() {
+			case IntKind, Int8Kind, Int16Kind, Int32Kind,
+				Int64Kind, UintKind, Uint8Kind, Uint16Kind,
+				Uint32Kind, Uint64Kind:
+				return // ok
+			default:
+				panic(fmt.Sprintf(
+					"cannot use untyped rune as %s",
+					dt.Kind()))
+			}
+		default:
+			if isUntyped(xt) {
+				panic("unexpected untyped type")
+			}
 			if cxt.TypeID() == bdt.TypeID() {
 				return // ok
 			}
@@ -2133,6 +2132,30 @@ func findUndefined2(imp Importer, last BlockNode, x Expr, t Type) (un Name) {
 			x, reflect.TypeOf(x)))
 	}
 	return
+}
+
+// like checkOrConvertType() but for any integer type.
+func checkOrConvertIntegerType(last BlockNode, x Expr) {
+	if cx, ok := x.(*constExpr); ok {
+		convertConst(last, cx, IntType)
+	} else if x != nil {
+		xt := evalTypeOf(last, x)
+		checkIntegerType(xt)
+	}
+}
+
+// assert that xt can be assigned as an integer type.
+func checkIntegerType(xt Type) {
+	switch xt.Kind() {
+	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind,
+		UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind,
+		BigintKind:
+		return // ok
+	default:
+		panic(fmt.Sprintf(
+			"expected integer type, but got %v",
+			xt.Kind()))
+	}
 }
 
 // The purpose of this function is to split declarations into two
