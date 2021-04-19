@@ -101,6 +101,10 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 				res := fmt.Sprintf(format, a...)
 				return out.Write([]byte(res))
 			})
+			pkg.DefineGoNativeFunc("Print", func(a ...interface{}) (n int, err error) {
+				res := fmt.Sprint(a...)
+				return out.Write([]byte(res))
+			})
 			pkg.DefineGoNativeFunc("Sprintf", fmt.Sprintf)
 			pkg.DefineGoNativeFunc("Errorf", fmt.Errorf)
 			return pkg.NewPackage(nil)

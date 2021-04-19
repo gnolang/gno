@@ -137,7 +137,12 @@ func (m *Machine) doOpExec(op Op) {
 		// TODO check length.
 		switch bs.BodyIndex {
 		case -2: // init.
-			bs.ListLen = xv.GetLength()
+			ll := xv.GetLength()
+			if ll == 0 { // early termination
+				m.PopFrameAndReset()
+				return
+			}
+			bs.ListLen = ll
 			bs.NumOps = m.NumOps
 			bs.NumStmts = len(m.Stmts)
 			bs.BodyIndex++
