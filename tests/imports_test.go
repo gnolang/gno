@@ -21,7 +21,6 @@ import (
 	"math/big"
 	"math/rand"
 	"net"
-	"net/http"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -129,11 +128,14 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 		case "net/http":
 			// XXX UNSAFE
 			// There's no reason why we can't replace these with safer alternatives.
-			pkg := gno.NewPackageNode("http", "net/http", nil)
-			pkg.DefineGoNativeType(reflect.TypeOf(http.Request{}))
-			pkg.DefineGoNativeValue("DefaultClient", http.DefaultClient)
-			pkg.DefineGoNativeType(reflect.TypeOf(http.Client{}))
-			return pkg.NewPackage(nil)
+			panic("just say gno")
+			/*
+				pkg := gno.NewPackageNode("http", "net/http", nil)
+				pkg.DefineGoNativeType(reflect.TypeOf(http.Request{}))
+				pkg.DefineGoNativeValue("DefaultClient", http.DefaultClient)
+				pkg.DefineGoNativeType(reflect.TypeOf(http.Client{}))
+				return pkg.NewPackage(nil)
+			*/
 		case "bufio":
 			pkg := gno.NewPackageNode("bufio", "bufio", nil)
 			pkg.DefineGoNativeValue("NewScanner", bufio.NewScanner)
@@ -150,6 +152,7 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 			pkg.DefineGoNativeValue("Second", time.Second)
 			pkg.DefineGoNativeValue("Minute", time.Minute)
 			pkg.DefineGoNativeValue("Hour", time.Hour)
+			pkg.DefineGoNativeType(reflect.TypeOf(time.Time{}))
 			pkg.DefineGoNativeType(reflect.TypeOf(time.Duration(0)))
 			return pkg.NewPackage(nil)
 		case "strings":

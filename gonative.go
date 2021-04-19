@@ -348,6 +348,10 @@ func go2GnoValue(rv reflect.Value) (tv TypedValue) {
 // reflection, any child Gno declared types cannot change
 // types.
 func go2GnoValueUpdate(lvl int, tv *TypedValue, rv reflect.Value) {
+	// Special case if nil:
+	if tv.IsUndefined() {
+		return // do nothing
+	}
 	// Special case if native type:
 	if _, ok := tv.T.(*nativeType); ok {
 		return // do nothing
@@ -520,10 +524,18 @@ func go2GnoValueUpdate(lvl int, tv *TypedValue, rv reflect.Value) {
 	case FuncKind:
 		panic("not yet implemented")
 	case MapKind:
-		// mt := baseOf(tv.T).(*MapType)
+		rvl := rv.Len()
+		// If uninitialized map, return zero value.
+		if tv.V == nil {
+			if rvl != 0 {
+				panic("not yet implemented")
+			}
+			return
+		}
+		// General case.
 		mv := tv.V.(*MapValue)
-		//rv.Set(reflect.MakeMapWithSize(mt, mv.List.Size))
-		if rv.Len() != mv.List.Size {
+		mvl := mv.List.Size
+		if rvl != mvl {
 			// XXX New or deleted key modifications not yet supported.  this is
 			// complicated by the fact that conversion of new keys to gno
 			// values is ambiguous; a lazy go2GnoValue() may be sufficient, but
@@ -848,8 +860,12 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		// This doesn't take into account pointer relativity, or even
 		// identical pointers -- every non-nil gno pointer type results in a
 		// new addressable value in go.
-		rv2 := gno2GoValue(tv.V.(PointerValue).TypedValue, reflect.Value{})
-		rv.Set(rv2.Addr())
+		if tv.V == nil {
+			// do nothing
+		} else {
+			rv2 := gno2GoValue(tv.V.(PointerValue).TypedValue, reflect.Value{})
+			rv.Set(rv2.Addr())
+		}
 	case *ArrayType:
 		if debug {
 			if tv.V == nil {
@@ -923,8 +939,8 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 			return
 		}
 		// General case.
-		mt := gno2GoType(ct)
 		mv := tv.V.(*MapValue)
+		mt := gno2GoType(ct)
 		rv.Set(reflect.MakeMapWithSize(mt, mv.List.Size))
 		head := mv.List.Head
 		vrt := mt.Elem()
