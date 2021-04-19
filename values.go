@@ -1818,14 +1818,6 @@ func defaultValue(t Type) Value {
 		return &ArrayValue{
 			List: tvs,
 		}
-	case *SliceType:
-		return &SliceValue{
-			Base: nil,
-		}
-	case *MapType:
-		return &MapValue{
-			List: nil, // uninitialized.
-		}
 	case *StructType:
 		return &StructValue{
 			Fields: make([]TypedValue, len(ct.Fields)),
@@ -1834,6 +1826,10 @@ func defaultValue(t Type) Value {
 		return &nativeValue{
 			Value: reflect.New(ct.Type).Elem(),
 		}
+	case *SliceType:
+		return nil
+	case *MapType:
+		return nil
 	default:
 		return nil
 	}
