@@ -657,7 +657,7 @@ func UverseNode() *PackageNode {
 			case *SliceType:
 				if vargsl == 1 {
 					lv := vargs.GetPointerAtIndexInt(0).Deref()
-					li := lv.GetInt()
+					li := lv.ConvertGetInt()
 					list := make([]TypedValue, li)
 					if et := bt.Elem(); et.Kind() == InterfaceKind {
 						// leave as is
@@ -675,9 +675,9 @@ func UverseNode() *PackageNode {
 					return
 				} else if vargsl == 2 {
 					lv := vargs.GetPointerAtIndexInt(0).Deref()
-					li := lv.GetInt()
+					li := lv.ConvertGetInt()
 					cv := vargs.GetPointerAtIndexInt(1).Deref()
-					ci := cv.GetInt()
+					ci := cv.ConvertGetInt()
 					list := make([]TypedValue, li, ci)
 					if et := bt.Elem(); et.Kind() == InterfaceKind {
 						// leave as is
@@ -712,7 +712,7 @@ func UverseNode() *PackageNode {
 					return
 				} else if vargsl == 1 {
 					lv := vargs.GetPointerAtIndexInt(0).Deref()
-					li := lv.GetInt()
+					li := lv.ConvertGetInt()
 					mv := &MapValue{}
 					mv.MakeMap(li)
 					m.PushValue(TypedValue{

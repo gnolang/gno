@@ -11,7 +11,7 @@ func (m *Machine) doOpEval() {
 	x := m.PeekExpr(1)
 	if debug {
 		debug.Printf("EVAL: %v\n", x)
-		fmt.Println(m.String())
+		//fmt.Println(m.String())
 	}
 	// This case moved out of switch for performance.
 	// TODO: understand this better.
@@ -120,7 +120,11 @@ func (m *Machine) doOpEval() {
 		m.PushOp(OpEval)
 	case *IndexExpr:
 		// continuation
-		m.PushOp(OpIndex)
+		if x.HasOK {
+			m.PushOp(OpIndex2)
+		} else {
+			m.PushOp(OpIndex1)
+		}
 		// evalaute index
 		m.PushExpr(x.Index)
 		m.PushOp(OpEval)

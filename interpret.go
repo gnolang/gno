@@ -481,21 +481,22 @@ const (
 	/* Other expression operators */
 	OpEval         Op = 0x40 // eval next expression
 	OpBinary1      Op = 0x41 // X op ?
-	OpIndex        Op = 0x42 // X[Y]
-	OpSelector     Op = 0x43 // X.Y
-	OpSlice        Op = 0x44 // X[Low:High:Max]
-	OpStar         Op = 0x45 // *X (deref or pointer-to)
-	OpRef          Op = 0x46 // &X
-	OpTypeAssert1  Op = 0x47 // X.(Type)
-	OpTypeAssert2  Op = 0x48 // (_, ok :=) X.(Type)
-	OpTypeOf       Op = 0x49 // X.(type)
-	OpCompositeLit Op = 0x4A // X{???}
-	OpArrayLit     Op = 0x4B // [Len]{...}
-	OpSliceLit     Op = 0x4C // []{...}
-	OpMapLit       Op = 0x4D // X{...}
-	OpStructLit    Op = 0x4E // X{...}
-	OpFuncLit      Op = 0x4F // func(T){Body}
-	OpConvert      Op = 0x50 // Y(X)
+	OpIndex1       Op = 0x42 // X[Y]
+	OpIndex2       Op = 0x43 // (_, ok :=) X[Y]
+	OpSelector     Op = 0x44 // X.Y
+	OpSlice        Op = 0x45 // X[Low:High:Max]
+	OpStar         Op = 0x46 // *X (deref or pointer-to)
+	OpRef          Op = 0x47 // &X
+	OpTypeAssert1  Op = 0x48 // X.(Type)
+	OpTypeAssert2  Op = 0x49 // (_, ok :=) X.(Type)
+	OpTypeOf       Op = 0x4A // X.(type)
+	OpCompositeLit Op = 0x4B // X{???}
+	OpArrayLit     Op = 0x4C // [Len]{...}
+	OpSliceLit     Op = 0x4D // []{...}
+	OpMapLit       Op = 0x4E // X{...}
+	OpStructLit    Op = 0x4F // X{...}
+	OpFuncLit      Op = 0x50 // func(T){Body}
+	OpConvert      Op = 0x51 // Y(X)
 
 	/* Native operators */
 	OpStructLitGoNative Op = 0x60
@@ -646,8 +647,10 @@ func (m *Machine) Run() {
 			m.doOpEval()
 		case OpBinary1:
 			m.doOpBinary1()
-		case OpIndex:
-			m.doOpIndex()
+		case OpIndex1:
+			m.doOpIndex1()
+		case OpIndex2:
+			m.doOpIndex2()
 		case OpSelector:
 			m.doOpSelector()
 		case OpSlice:
