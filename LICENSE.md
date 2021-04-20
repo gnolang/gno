@@ -46,8 +46,9 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE WORK OR THE USE OR
 OTHER DEALINGS IN THE WORK.
 
 In the case that (and only if) all of the owners as stated by this project
-become incapacitated, the rights of all the works is to be published under the
-AGPL3.0 license, and remaining rights assigned and transferred to Richard
-Stallman of the GNU Project (if he accepts), otherwise the FSF foundation if
-RMS explicitly rejects.  This clause may be updated by the project owners at
+become incapacitated, the rights of all the works is to be published under a
+modified version of the AGPL3.0 license (ONLY) where the "Free Software
+Foundation" is replaced with the "Gno Foundation" as defined by the heirs of
+the works, and the "GNU Affero General Public License" replaced with the "GNO
+General Public License".  This clause may be updated by the project owners at
 any time.
