@@ -51,4 +51,4 @@ modified version of the AGPL3.0 license (ONLY) where the "Free Software
 Foundation" is replaced with the "Gno Foundation" as defined by the heirs of
 the works, and the "GNU Affero General Public License" replaced with the "GNO
 General Public License".  This clause may be updated by the project owners at
-any time.
+any time, but not its heirs.
