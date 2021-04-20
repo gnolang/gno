@@ -347,7 +347,7 @@ func go2GnoValue(rv reflect.Value) (tv TypedValue) {
 // become initialized.  Due to limitations of Go 1.15
 // reflection, any child Gno declared types cannot change
 // types.
-func go2GnoValueUpdate(lvl int, tv *TypedValue, rv reflect.Value) {
+func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 	// Special case if nil:
 	if tv.IsUndefined() {
 		return // do nothing
@@ -355,6 +355,10 @@ func go2GnoValueUpdate(lvl int, tv *TypedValue, rv reflect.Value) {
 	// Special case if native type:
 	if _, ok := tv.T.(*nativeType); ok {
 		return // do nothing
+	}
+	// De-interface if interface.
+	if rv.Kind() == reflect.Interface {
+		rv = rv.Elem()
 	}
 	// General case:
 	switch tvk := tv.T.Kind(); tvk {
@@ -422,13 +426,14 @@ func go2GnoValueUpdate(lvl int, tv *TypedValue, rv reflect.Value) {
 			for i := 0; i < rvl; i++ {
 				erv := rv.Index(i)
 				etv := &av.List[i]
+				// XXX use Assign and Realm?
 				if etv.T == nil && et.Kind() != InterfaceKind {
 					etv.T = et
 				}
 				if etv.V == nil {
 					etv.V = defaultValue(et)
 				}
-				go2GnoValueUpdate(lvl+1, etv, erv)
+				go2GnoValueUpdate(rlm, lvl+1, etv, erv)
 			}
 		} else {
 			for i := 0; i < rvl; i++ {
@@ -460,13 +465,14 @@ func go2GnoValueUpdate(lvl int, tv *TypedValue, rv reflect.Value) {
 			for i := 0; i < rvl; i++ {
 				erv := rv.Index(i)
 				etv := &sv.Base.List[svo+i]
+				// XXX use Assign and Realm?
 				if etv.T == nil && et.Kind() != InterfaceKind {
 					etv.T = et
 				}
 				if etv.V == nil {
 					etv.V = defaultValue(et)
 				}
-				go2GnoValueUpdate(lvl+1, etv, erv)
+				go2GnoValueUpdate(rlm, lvl+1, etv, erv)
 			}
 		} else {
 			for i := 0; i < rvl; i++ {
@@ -481,7 +487,7 @@ func go2GnoValueUpdate(lvl int, tv *TypedValue, rv reflect.Value) {
 		pv := tv.V.(PointerValue)
 		etv := pv.TypedValue
 		erv := rv.Elem()
-		go2GnoValueUpdate(lvl+1, etv, erv)
+		go2GnoValueUpdate(rlm, lvl+1, etv, erv)
 	case StructKind:
 		st := baseOf(tv.T).(*StructType)
 		sv := tv.V.(*StructValue)
@@ -501,6 +507,7 @@ func go2GnoValueUpdate(lvl int, tv *TypedValue, rv reflect.Value) {
 			for i := range st.Fields {
 				ft := st.Fields[i].Type
 				ftv := &sv.Fields[i]
+				// XXX use Assign and Realm?
 				if ftv.T == nil && ft.Kind() != InterfaceKind {
 					ftv.T = ft
 				}
@@ -508,7 +515,7 @@ func go2GnoValueUpdate(lvl int, tv *TypedValue, rv reflect.Value) {
 					ftv.V = defaultValue(ft)
 				}
 				frv := rv.Field(i)
-				go2GnoValueUpdate(lvl+1, ftv, frv)
+				go2GnoValueUpdate(rlm, lvl+1, ftv, frv)
 			}
 		}
 	case PackageKind:
@@ -535,29 +542,46 @@ func go2GnoValueUpdate(lvl int, tv *TypedValue, rv reflect.Value) {
 		// General case.
 		mv := tv.V.(*MapValue)
 		mvl := mv.List.Size
-		if rvl != mvl {
-			// XXX New or deleted key modifications not yet supported.  this is
-			// complicated by the fact that conversion of new keys to gno
-			// values is ambiguous; a lazy go2GnoValue() may be sufficient, but
-			// this may create inconsistencies, or allow duplicate keys of the
-			// eager (non-native) gno value.  Ergo, we iterate over the gno map
-			// to convert keys to go as the same way as gno2GoValue(), but how
-			// can we efficiently filter new native keys?
-			panic("not yet implemented")
+		// Copy map to new map for destructive iteration of items.
+		rt := rv.Type()
+		rv2 := reflect.MakeMapWithSize(rt, mvl)
+		rvi := rv.MapRange()
+		for rvi.Next() {
+			k, v := rvi.Key(), rvi.Value()
+			rv2.SetMapIndex(k, v)
 		}
+		// Iterate over mv (gno map) and update,
+		// and also remove encountered items from rv2.
 		head := mv.List.Head
-		// vrt := mt.Elem()
 		for head != nil {
 			ktv, vtv := &head.Key, &head.Value
+			// Update in place.
 			krv := gno2GoValue(ktv, reflect.Value{})
 			vrv := rv.MapIndex(krv)
 			if vrv.IsZero() {
-				// XXX remove key from mv. see comment above.
+				// XXX remove key from mv
 				panic("not yet implemented")
 			} else {
-				go2GnoValueUpdate(lvl+1, vtv, vrv)
+				go2GnoValueUpdate(rlm, lvl+1, vtv, vrv)
 			}
+			// Delete from rv2
+			rv2.SetMapIndex(krv, reflect.Value{})
+			// Continue
 			head = head.Next
+		}
+		// Add remaining items from rv2 to map.
+		rv2i := rv2.MapRange()
+		for rv2i.Next() {
+			k, v := rv2i.Key(), rv2i.Value()
+			ktv := go2GnoValue(k)
+			vtv := go2GnoValue(v)
+			ptr := mv.GetPointerForKey(&ktv)
+			if debug {
+				if !ptr.TypedValue.IsUndefined() {
+					panic("should not happen")
+				}
+			}
+			ptr.Assign2(rlm, vtv, false) // document false
 		}
 	case TypeKind:
 		panic("not yet implemented")
@@ -692,6 +716,9 @@ func go2GnoFuncType(rt reflect.Type) *FuncType {
 //----------------------------------------
 // Gno to Go conversion
 
+// NOTE: Recursive types are not supported, as named types are not
+// supported.  See https://github.com/golang/go/issues/20013 and
+// https://github.com/golang/go/issues/39717.
 func gno2GoType(t Type) reflect.Type {
 	// special case if t == Float64Type
 	if t == Float64Type {
@@ -1121,7 +1148,7 @@ func (m *Machine) doOpCallGoNative() {
 		ptv := &ptvs[i]
 		prv := prvs[i]
 		if !ptv.IsUndefined() {
-			go2GnoValueUpdate(0, ptv, prv)
+			go2GnoValueUpdate(m.Realm, 0, ptv, prv)
 		}
 	}
 	// cleanup

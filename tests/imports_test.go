@@ -9,6 +9,7 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/json"
 	"encoding/xml"
 	"flag"
 	"fmt"
@@ -27,6 +28,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"text/template"
 	"time"
 
 	"github.com/gnolang/gno"
@@ -115,6 +117,10 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 			pkg := gno.NewPackageNode("binary", "encoding/binary", nil)
 			pkg.DefineGoNativeValue("LittleEndian", binary.LittleEndian)
 			pkg.DefineGoNativeValue("BigEndian", binary.BigEndian)
+			return pkg.NewPackage(nil)
+		case "encoding/json":
+			pkg := gno.NewPackageNode("json", "encoding/json", nil)
+			pkg.DefineGoNativeValue("Unmarshal", json.Unmarshal)
 			return pkg.NewPackage(nil)
 		case "encoding/xml":
 			pkg := gno.NewPackageNode("xml", "encoding/xml", nil)
@@ -238,6 +244,10 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 		case "log":
 			pkg := gno.NewPackageNode("log", "log", nil)
 			pkg.DefineGoNativeValue("Fatal", log.Fatal)
+			return pkg.NewPackage(nil)
+		case "text/template":
+			pkg := gno.NewPackageNode("template", "template", nil)
+			pkg.DefineGoNativeType(reflect.TypeOf(template.FuncMap{}))
 			return pkg.NewPackage(nil)
 		default:
 			panic("unknown package path " + pkgPath)

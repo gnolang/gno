@@ -2137,6 +2137,15 @@ func findUndefined2(imp Importer, last BlockNode, x Expr, t Type) (un Name) {
 				return
 			}
 		}
+	case *IndexExpr:
+		un = findUndefined(imp, last, cx.X)
+		if un != "" {
+			return
+		}
+		un = findUndefined(imp, last, cx.Index)
+		if un != "" {
+			return
+		}
 	case *constTypeExpr:
 		return
 	case *constExpr:
