@@ -523,6 +523,38 @@ extinguished yet again.
 Or, we can transcend the obvious false choices thrust upon us, and create the
 platform of light to ensure perpetual wisdom for our descendants.
 
+In the afterglow of the French Revolution, the freemasons planned to create a
+new world in America.  George Washington, an Anglican (reformist Christian) had
+already joined the masonic order well before the French Revolution took its
+toll.  Much later after the American Civil War, the masonic order split into
+two -- the "Anglo-American", and the "Continental" based on the Grand Orient de
+France.  Arguably, there were elements of both in early freemasonry.
+Ango-American freemasonry admits no women, and the discussion of religion and
+politics is banned.  Continental freemasonry is more liberal in this regard,
+but is also "anti-clerical", which appears to mean that it is mostly against
+the Roman Catholic order.
+
+Now later some freemasons in Chicago created the Rotary Club.  The Rotary Club
+appears to be a society for doing public good, but is also an invite-only
+exclusive organization that caters to influencers and people of means.  Like
+the Anglo-American freemason order, they are against divisive political and
+religious discussion.
+
+It appears that there is a pattern of exclusive societies that feed off of the
+goodwill of well intentioned people, to bring them into the fold of power.
+Sometimes, these groups splinter on moral and principle grounds, when the
+elitism (in the form of barring a gender, or only admitting influencers)
+becomes too much to bear.  Then there is a shedding of old associations, and
+the creation of a new brand, as the freemasons created the Rotary Club.  Some
+say that one of the mystery teachings since the days of the pharaoh Thoth (or
+Hermes) of Egypt is the pattern of rings of secrecy, the older one bearing a
+new secret order which becomes indirectly subjugated to the prior.
+
+Clearly what is needed is a way to coordinate without becoming trapped by the
+Old World Order (OWO).  Let peace prevail on earth, not with exclusivity,
+secrecy, and elitism, but rather with transparency, accountability, and good
+protocol design.
+
 ## Mission
 
 Create a platform for discussion to facilitate the quest for knowledge and wisdom.
