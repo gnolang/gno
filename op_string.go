@@ -55,21 +55,22 @@ func _() {
 	_ = x[OpBandn-56]
 	_ = x[OpEval-64]
 	_ = x[OpBinary1-65]
-	_ = x[OpIndex-66]
-	_ = x[OpSelector-67]
-	_ = x[OpSlice-68]
-	_ = x[OpStar-69]
-	_ = x[OpRef-70]
-	_ = x[OpTypeAssert1-71]
-	_ = x[OpTypeAssert2-72]
-	_ = x[OpTypeOf-73]
-	_ = x[OpCompositeLit-74]
-	_ = x[OpArrayLit-75]
-	_ = x[OpSliceLit-76]
-	_ = x[OpMapLit-77]
-	_ = x[OpStructLit-78]
-	_ = x[OpFuncLit-79]
-	_ = x[OpConvert-80]
+	_ = x[OpIndex1-66]
+	_ = x[OpIndex2-67]
+	_ = x[OpSelector-68]
+	_ = x[OpSlice-69]
+	_ = x[OpStar-70]
+	_ = x[OpRef-71]
+	_ = x[OpTypeAssert1-72]
+	_ = x[OpTypeAssert2-73]
+	_ = x[OpTypeOf-74]
+	_ = x[OpCompositeLit-75]
+	_ = x[OpArrayLit-76]
+	_ = x[OpSliceLit-77]
+	_ = x[OpMapLit-78]
+	_ = x[OpStructLit-79]
+	_ = x[OpFuncLit-80]
+	_ = x[OpConvert-81]
 	_ = x[OpStructLitGoNative-96]
 	_ = x[OpCallGoNative-97]
 	_ = x[OpFieldType-112]
@@ -110,7 +111,7 @@ const (
 	_Op_name_0 = "OpInvalidOpHaltOpNoopOpExecOpPrecallOpCallOpCallNativeBodyOpReturnOpReturnFromBlockOpReturnToBlockOpDeferOpCallDeferNativeBodyOpGoOpSelectOpSwitchClauseOpTypeSwitchClauseOpForLoop1OpIfCondOpPopValueOpPopResultsOpPopBlock"
 	_Op_name_1 = "OpUposOpUnegOpUnotOpUxor"
 	_Op_name_2 = "OpUrecvOpLorOpLandOpEqlOpNeqOpLssOpLeqOpGtrOpGeqOpAddOpSubOpBorOpXorOpMulOpQuoOpRemOpShlOpShrOpBandOpBandn"
-	_Op_name_3 = "OpEvalOpBinary1OpIndexOpSelectorOpSliceOpStarOpRefOpTypeAssert1OpTypeAssert2OpTypeOfOpCompositeLitOpArrayLitOpSliceLitOpMapLitOpStructLitOpFuncLitOpConvert"
+	_Op_name_3 = "OpEvalOpBinary1OpIndex1OpIndex2OpSelectorOpSliceOpStarOpRefOpTypeAssert1OpTypeAssert2OpTypeOfOpCompositeLitOpArrayLitOpSliceLitOpMapLitOpStructLitOpFuncLitOpConvert"
 	_Op_name_4 = "OpStructLitGoNativeOpCallGoNative"
 	_Op_name_5 = "OpFieldTypeOpArrayTypeOpSliceTypeOpPointerTypeOpInterfaceTypeOpChanTypeOpFuncTypeOpMapTypeOpStructType"
 	_Op_name_6 = "OpAssignOpAddAssignOpSubAssignOpMulAssignOpQuoAssignOpRemAssignOpBandAssignOpBandnAssignOpBorAssignOpXorAssignOpShlAssignOpShrAssignOpDefineOpIncOpDec"
@@ -122,7 +123,7 @@ var (
 	_Op_index_0 = [...]uint8{0, 9, 15, 21, 27, 36, 42, 58, 66, 83, 98, 105, 126, 130, 138, 152, 170, 180, 188, 198, 210, 220}
 	_Op_index_1 = [...]uint8{0, 6, 12, 18, 24}
 	_Op_index_2 = [...]uint8{0, 7, 12, 18, 23, 28, 33, 38, 43, 48, 53, 58, 63, 68, 73, 78, 83, 88, 93, 99, 106}
-	_Op_index_3 = [...]uint8{0, 6, 15, 22, 32, 39, 45, 50, 63, 76, 84, 98, 108, 118, 126, 137, 146, 155}
+	_Op_index_3 = [...]uint8{0, 6, 15, 23, 31, 41, 48, 54, 59, 72, 85, 93, 107, 117, 127, 135, 146, 155, 164}
 	_Op_index_4 = [...]uint8{0, 19, 33}
 	_Op_index_5 = [...]uint8{0, 11, 22, 33, 46, 61, 71, 81, 90, 102}
 	_Op_index_6 = [...]uint8{0, 8, 19, 30, 41, 52, 63, 75, 88, 99, 110, 121, 132, 140, 145, 150}
@@ -139,7 +140,7 @@ func (i Op) String() string {
 	case 37 <= i && i <= 56:
 		i -= 37
 		return _Op_name_2[_Op_index_2[i]:_Op_index_2[i+1]]
-	case 64 <= i && i <= 80:
+	case 64 <= i && i <= 81:
 		i -= 64
 		return _Op_name_3[_Op_index_3[i]:_Op_index_3[i+1]]
 	case 96 <= i && i <= 97:

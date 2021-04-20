@@ -7,7 +7,8 @@ import (
 
 // OpBinary1 defined in op_binary.go
 
-func (m *Machine) doOpIndex() {
+// NOTE: keep in sync with doOpIndex2.
+func (m *Machine) doOpIndex1() {
 	if debug {
 		_ = m.PopExpr().(*IndexExpr)
 	} else {
@@ -20,12 +21,41 @@ func (m *Machine) doOpIndex() {
 	if xv.T.Kind() == PointerKind &&
 		xv.T.Elem().Kind() == ArrayKind {
 		// simply deref xv.
-		xv2 := xv.V.(PointerValue).Deref()
-		res := xv2.GetPointerAtIndex(iv)
-		*xv = res.Deref() // reuse as result
+		xv = xv.V.(PointerValue).TypedValue
+	}
+	res := xv.GetPointerAtIndex(iv)
+	*xv = res.Deref() // reuse as result
+}
+
+// NOTE: keep in sync with doOpIndex1.
+func (m *Machine) doOpIndex2() {
+	if debug {
+		_ = m.PopExpr().(*IndexExpr)
 	} else {
-		res := xv.GetPointerAtIndex(iv)
-		*xv = res.Deref() // reuse as result
+		m.PopExpr()
+	}
+	iv := m.PeekValue(1) // index
+	xv := m.PeekValue(2) // x
+	vt := xv.T.(*MapType).Value
+	if xv.V == nil { // uninitialized map
+		*xv = TypedValue{ // reuse as result
+			T: vt,
+			V: defaultValue(vt),
+		}
+		*iv = untypedBool(false) // reuse as result
+	} else {
+		mv := xv.V.(*MapValue)
+		vv, exists := mv.GetValueForKey(iv)
+		if exists {
+			*xv = vv                // reuse as result
+			*iv = untypedBool(true) // reuse as result
+		} else {
+			*xv = TypedValue{ // reuse as result
+				T: vt,
+				V: defaultValue(vt),
+			}
+			*iv = untypedBool(false) // reuse as result
+		}
 	}
 }
 
@@ -141,6 +171,7 @@ func (m *Machine) doOpRef() {
 	})
 }
 
+// NOTE: keep in sync with doOpTypeAssert2.
 func (m *Machine) doOpTypeAssert1() {
 	m.PopExpr()
 	// pop type
@@ -208,6 +239,7 @@ func (m *Machine) doOpTypeAssert1() {
 	}
 }
 
+// NOTE: keep in sync with doOpTypeAssert1.
 func (m *Machine) doOpTypeAssert2() {
 	m.PopExpr()
 	// peek type for re-use
@@ -219,6 +251,7 @@ func (m *Machine) doOpTypeAssert2() {
 
 	if t.Kind() == InterfaceKind { // is interface assert
 		if it, ok := t.(*InterfaceType); ok {
+			// t is Gno interface.
 			// assert that x implements type.
 			impl := false
 			switch cxt := xt.(type) {

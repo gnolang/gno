@@ -670,7 +670,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 						panic("type conversion requires single argument")
 					}
 					if _, ok := n.Args[0].(*constExpr); ok {
-						checkOrConvertType(last, n.Args[0], nil)
+						convertIfConst(last, n.Args[0])
 						cv := evalConst(last, n)
 						return cv, TRANS_CONTINUE
 					} else {
@@ -821,19 +821,6 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 				// ExprStmt of form `x.(<type>)`,
 				// or special case form `c, ok := x.(<type>)`.
 				n.Type = evalConst(last, n.Type)
-				if ftype == TRANS_ASSIGN_RHS {
-					as := ns[len(ns)-1].(*AssignStmt)
-					if len(as.Lhs) == 1 {
-						n.HasOK = false
-					} else if len(as.Lhs) == 2 {
-						n.HasOK = true
-					} else {
-						panic(fmt.Sprintf(
-							"type assert assignment takes 1 or 2 lhs operands, got %v",
-							len(as.Lhs),
-						))
-					}
-				}
 
 			// TRANS_LEAVE -----------------------
 			case *UnaryExpr:
@@ -1103,7 +1090,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *FieldTypeExpr:
 				// Replace const Tag with default *constExpr.
-				checkOrConvertType(last, n.Tag, nil)
+				convertIfConst(last, n.Tag)
 
 			// TRANS_LEAVE -----------------------
 			case *ArrayTypeExpr:
@@ -1150,12 +1137,12 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *AssignStmt:
+				// NOTE: keep DEFINE and ASSIGN in sync.
 				if n.Op == DEFINE {
-					// Handle definitions.
 					// Rhs consts become default *constExprs.
 					for _, rx := range n.Rhs {
 						// NOTE: does nothing if rx is "nil".
-						checkOrConvertType(last, rx, nil)
+						convertIfConst(last, rx)
 					}
 					if len(n.Lhs) > len(n.Rhs) {
 						// Unpack n.Rhs[0] to n.Lhs[:]
@@ -1164,7 +1151,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 						}
 						switch cx := n.Rhs[0].(type) {
 						case *CallExpr:
-							// Call case : a, b := x(...)
+							// Call case: a, b := x(...)
 							ift := evalTypeOf(last, cx.Func)
 							cft := getGnoFuncTypeOf(ift)
 							if len(n.Lhs) != len(cft.Results) {
@@ -1180,15 +1167,28 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 								last.Define(ln, anyValue(rf.Type))
 							}
 						case *TypeAssertExpr:
-							// Type-assert case : a, ok := x.(type)
+							// Type-assert case: a, ok := x.(type)
 							if len(n.Lhs) != 2 {
 								panic("should not happen")
 							}
+							cx.HasOK = true
 							lhs0 := n.Lhs[0].(*NameExpr).Name
 							lhs1 := n.Lhs[1].(*NameExpr).Name
 							tt := evalType(last, cx.Type)
 							// re-definitions
 							last.Define(lhs0, anyValue(tt))
+							last.Define(lhs1, anyValue(BoolType))
+						case *IndexExpr:
+							// Index case: v, ok := x[k], x is map.
+							if len(n.Lhs) != 2 {
+								panic("should not happen")
+							}
+							cx.HasOK = true
+							lhs0 := n.Lhs[0].(*NameExpr).Name
+							lhs1 := n.Lhs[1].(*NameExpr).Name
+							mt := evalTypeOf(last, cx.X).(*MapType)
+							// re-definitions
+							last.Define(lhs0, anyValue(mt.Value))
 							last.Define(lhs1, anyValue(BoolType))
 						default:
 							panic("should not happen")
@@ -1208,7 +1208,8 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 							}
 						}
 					}
-				} else {
+				} else { // ASSIGN.
+					// NOTE: Keep in sync with DEFINE above.
 					if len(n.Lhs) > len(n.Rhs) {
 						// TODO dry code w/ above.
 						// Unpack n.Rhs[0] to n.Lhs[:]
@@ -1217,6 +1218,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 						}
 						switch cx := n.Rhs[0].(type) {
 						case *CallExpr:
+							// Call case: a, b = x(...)
 							ift := evalTypeOf(last, cx.Func)
 							cft := getGnoFuncTypeOf(ift)
 							if len(n.Lhs) != len(cft.Results) {
@@ -1225,12 +1227,18 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 										"%d variables but %s returns %d values",
 									len(n.Lhs), cx.Func.String(), len(cft.Results)))
 							}
-							// No conversion to do.
 						case *TypeAssertExpr:
+							// Type-assert case: a, ok := x.(type)
 							if len(n.Lhs) != 2 {
 								panic("should not happen")
 							}
-							// No conversion to do.
+							cx.HasOK = true
+						case *IndexExpr:
+							// Index case: v, ok := x[k], x is map.
+							if len(n.Lhs) != 2 {
+								panic("should not happen")
+							}
+							cx.HasOK = true
 						default:
 							panic("should not happen")
 						}
@@ -1364,7 +1372,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 					// leave n.Value as is.
 				} else {
 					// convert n.Value to default type.
-					checkOrConvertType(last, n.Value, nil)
+					convertIfConst(last, n.Value)
 					t = evalTypeOf(last, n.Value)
 				}
 				// evaluate typed value for static definition.
@@ -1744,6 +1752,13 @@ func checkOrConvertType(last BlockNode, x Expr, t Type) {
 	} else if x != nil && t != nil {
 		xt := evalTypeOf(last, x)
 		checkType(xt, t)
+	}
+}
+
+// like checkOrConvertType(last, x, nil)
+func convertIfConst(last BlockNode, x Expr) {
+	if cx, ok := x.(*constExpr); ok {
+		convertConst(last, cx, nil)
 	}
 }
 

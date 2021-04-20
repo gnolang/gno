@@ -541,7 +541,7 @@ func (tv *TypedValue) DebugHasValue() bool {
 }
 
 func (tv TypedValue) String() string {
-	if tv.T == nil {
+	if tv.IsUndefined() {
 		return "(undefined)"
 	}
 	vs := ""
@@ -579,16 +579,8 @@ func (tv TypedValue) String() string {
 	} else {
 		vs = fmt.Sprintf("%v", tv.V) // reflect.TypeOf(tv.V))
 	}
-	ts := ""
-	if tv.T == nil {
-		ts = "invalid-type"
-		//} else if isUntyped(tv.T) {
-		//	ts = "untyped-const"
-	} else {
-		ts = tv.T.String()
-	}
-	// TODO improve.
-	return fmt.Sprintf("(%s %s)", vs, ts)
+	ts := tv.T.String()
+	return fmt.Sprintf("(%s %s)", vs, ts) // TODO improve
 }
 
 func (tv *TypedValue) ClearNum() {
@@ -1401,7 +1393,6 @@ func (tv *TypedValue) GetPointerAtIndex(iv *TypedValue) PointerValue {
 		}
 		mv := tv.V.(*MapValue)
 		pv := mv.GetPointerForKey(iv)
-		// XXX implement x, ok := m[idx]
 		if pv.TypedValue.IsUndefined() {
 			vt := baseOf(tv.T).(*MapType).Value
 			if vt.Kind() != InterfaceKind {
@@ -1823,8 +1814,12 @@ func defaultValue(t Type) Value {
 			Fields: make([]TypedValue, len(ct.Fields)),
 		}
 	case *nativeType:
-		return &nativeValue{
-			Value: reflect.New(ct.Type).Elem(),
+		if t.Kind() == InterfaceKind {
+			return nil
+		} else {
+			return &nativeValue{
+				Value: reflect.New(ct.Type).Elem(),
+			}
 		}
 	case *SliceType:
 		return nil

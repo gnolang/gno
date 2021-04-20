@@ -93,3 +93,9 @@ type PushOptions struct {
 	Method string
 	Header Header
 }
+
+type ResponseWriter interface {
+	Header() Header
+	Write([]byte) (int, error)
+	WriteHeader(statusCode int)
+}
