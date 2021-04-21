@@ -731,6 +731,34 @@ func UverseNode() *PackageNode {
 				} else {
 					panic("make() of chan type takes 1 or 2 arguments")
 				}
+			case *nativeType:
+				switch bt.Type.Kind() {
+				case reflect.Map:
+					if vargsl == 0 {
+						m.PushValue(TypedValue{
+							T: tt,
+							V: &nativeValue{
+								Value: reflect.MakeMap(bt.Type),
+							},
+						})
+						return
+					} else if vargsl == 1 {
+						sv := vargs.GetPointerAtIndexInt(0).Deref()
+						si := sv.ConvertGetInt()
+						m.PushValue(TypedValue{
+							T: tt,
+							V: &nativeValue{
+								Value: reflect.MakeMapWithSize(
+									bt.Type, si),
+							},
+						})
+						return
+					} else {
+						panic("make() of map type takes 1 or 2 arguments")
+					}
+				default:
+					panic("not yet implemented")
+				}
 			default:
 				panic(fmt.Sprintf(
 					"cannot make type %s kind %v",
