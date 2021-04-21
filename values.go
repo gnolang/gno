@@ -1402,13 +1402,27 @@ func (tv *TypedValue) GetPointerAtIndex(iv *TypedValue) PointerValue {
 		}
 		return pv
 	case *nativeType:
+		rt := tv.T.(*nativeType).Type
 		rv := tv.V.(*nativeValue).Value
-		ii := iv.ConvertGetInt()
-		ev := rv.Index(ii)
-		etv := go2GnoValue(ev)
-		return PointerValue{
-			TypedValue: &etv,
-			Base:       nil,
+		switch rt.Kind() {
+		case reflect.Array, reflect.Slice, reflect.String:
+			ii := iv.ConvertGetInt()
+			erv := rv.Index(ii)
+			etv := go2GnoValue(erv)
+			return PointerValue{
+				TypedValue: &etv,
+				Base:       nil, // XXX native isn't Object
+			}
+		case reflect.Map:
+			krv := gno2GoValue(iv, reflect.Value{})
+			vrv := rv.MapIndex(krv)
+			etv := go2GnoValue(vrv)
+			return PointerValue{
+				TypedValue: &etv, // XXX native doesn't use slots for assign
+				Base:       nil,  // XXX native isn't Object
+			}
+		default:
+			panic("should not happen")
 		}
 	default:
 		panic(fmt.Sprintf(

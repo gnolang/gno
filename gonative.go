@@ -96,6 +96,9 @@ func go2GnoType2(rt reflect.Type) (t Type) {
 		return gnot
 	}
 	defer func() {
+		if r := recover(); r != nil {
+			panic(r) // do not run the below logic upon panic.
+		}
 		// regardless of rt kind, if rt.PkgPath() is set,
 		// wrap t with declared type.
 		pkgPath := rt.PkgPath()
@@ -220,7 +223,13 @@ func go2GnoType2(rt reflect.Type) (t Type) {
 		it.Methods = fs
 		return it
 	case reflect.Map:
-		panic("not yet immplemented")
+		// predefine gno type
+		mt := &MapType{}
+		go2GnoCache[rt] = mt
+		// define gno type
+		mt.Key = go2GnoType(rt.Key())
+		mt.Value = go2GnoType(rt.Elem())
+		return mt
 	case reflect.Ptr:
 		return PointerType{
 			// this is the only recursive call to go2GnoType2().
@@ -256,7 +265,11 @@ func go2GnoType2(rt reflect.Type) (t Type) {
 // speed.  To force translation to Gno canonical types for unnamed complex
 // types, call go2GnoValue2(), which is used by the implementation of
 // ConvertTo().
+// Unlike go2GnoValue2(), rv may be invalid.
 func go2GnoValue(rv reflect.Value) (tv TypedValue) {
+	if !rv.IsValid() {
+		return
+	}
 	if rv.Kind() == reflect.Interface {
 		if rv.IsNil() {
 			return TypedValue{}
@@ -601,7 +614,13 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 // recursive, and the extra conversion works on the top-level
 // complex type/value, or a pointer to that type/value.  Some
 // types that cannot be converted remain native.
+// Unlike go2GnoValue(), rv must be valid.
 func go2GnoValue2(rv reflect.Value) (tv TypedValue) {
+	if debug {
+		if rv.IsValid() {
+			panic("go2GnoValue2() requires valid rv")
+		}
+	}
 	tv.T = go2GnoType2(rv.Type())
 	switch rk := rv.Kind(); rk {
 	case reflect.Bool:
