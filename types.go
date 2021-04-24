@@ -554,6 +554,7 @@ func (st *StructType) GetStaticTypeOfAt(path ValuePath) Type {
 // If not found, all returned values are nil; for consistency, check the trail.
 func (st *StructType) FindEmbeddedFieldType(n Name) (
 	trail []ValuePath, hasPtr bool, rcvr Type, field Type) {
+
 	// Search fields.
 	for i := 0; i < len(st.Fields); i++ {
 		sf := &st.Fields[i]
@@ -569,7 +570,7 @@ func (st *StructType) FindEmbeddedFieldType(n Name) (
 		if dt, ok := sf.Type.(*DeclaredType); ok {
 			tr, hp, rt, ft := dt.FindEmbeddedFieldType(n)
 			if tr != nil {
-				vp2 := NewValuePathDefault(1, uint16(i), n)
+				vp2 := NewValuePathDefault(1, uint16(i), sf.Name)
 				return append([]ValuePath{vp2}, tr...), hp, rt, ft
 			}
 		}
