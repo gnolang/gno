@@ -1162,7 +1162,9 @@ func (dt *DeclaredType) FindEmbeddedFieldType(n Name) (
 			return nil, false, nil, nil
 		}
 	default:
-		panic("should not happen")
+		panic(fmt.Sprintf(
+			"field or method %q not found in %s",
+			n, dt.String()))
 	}
 }
 

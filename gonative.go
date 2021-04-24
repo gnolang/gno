@@ -617,7 +617,7 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 // Unlike go2GnoValue(), rv must be valid.
 func go2GnoValue2(rv reflect.Value) (tv TypedValue) {
 	if debug {
-		if rv.IsValid() {
+		if !rv.IsValid() {
 			panic("go2GnoValue2() requires valid rv")
 		}
 	}
