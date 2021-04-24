@@ -1362,16 +1362,29 @@ func (tt *tupleType) Elem() Type {
 }
 
 //----------------------------------------
-// Float64
+// Float32 and Float64
 
+var Float32Type *StructType
 var Float64Type *StructType
 
 // NOTE: this path is used to identify the struct type as a Float64.
+const float32PkgPath = uversePkgPath + "#float32"
 const float64PkgPath = uversePkgPath + "#float64"
 
 func init() {
+	Float32Type = &StructType{
+		PkgPath: float32PkgPath,
+		Fields: []FieldType{
+			FieldType{
+				Name:     "Value",
+				Type:     Uint32Type,
+				Embedded: false,
+				Tag:      "",
+			},
+		},
+	}
 	Float64Type = &StructType{
-		PkgPath: uversePkgPath,
+		PkgPath: float64PkgPath,
 		Fields: []FieldType{
 			FieldType{
 				Name:     "Value",

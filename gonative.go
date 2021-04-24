@@ -61,6 +61,8 @@ func go2GnoBaseType(rt reflect.Type) Type {
 		return Uint32Type
 	case reflect.Uint64:
 		return Uint64Type
+	case reflect.Float32:
+		return Float32Type
 	case reflect.Float64:
 		return Float64Type
 	case reflect.Array:
@@ -178,6 +180,8 @@ func go2GnoType2(rt reflect.Type) (t Type) {
 		return Uint32Type
 	case reflect.Uint64:
 		return Uint64Type
+	case reflect.Float32:
+		return Float32Type
 	case reflect.Float64:
 		return Float64Type
 	case reflect.Array:
@@ -309,6 +313,26 @@ func go2GnoValue(rv reflect.Value) (tv TypedValue) {
 		tv.SetUint32(uint32(rv.Uint()))
 	case reflect.Uint64:
 		tv.SetUint64(uint64(rv.Uint()))
+	case reflect.Float32:
+		fl := float32(rv.Float())
+		u32 := math.Float32bits(fl)
+		if sv, ok := tv.V.(*StructValue); ok { // update
+			if debug {
+				if len(sv.Fields) != 1 {
+					panic("should not happen")
+				}
+				if sv.Fields[0].T != Uint32Type {
+					panic("invalid Float32Type, expected Uint32 field")
+				}
+			}
+			sv.Fields[0].SetUint32(u32)
+		} else { // create
+			ftv := TypedValue{T: Uint32Type}
+			ftv.SetUint32(u32)
+			tv.V = &StructValue{
+				Fields: []TypedValue{ftv},
+			}
+		}
 	case reflect.Float64:
 		fl := rv.Float()
 		u64 := math.Float64bits(fl)
@@ -504,7 +528,20 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 	case StructKind:
 		st := baseOf(tv.T).(*StructType)
 		sv := tv.V.(*StructValue)
-		if st.PkgPath == float64PkgPath {
+		switch st.PkgPath {
+		case float32PkgPath: // Special case if Float32.
+			fl := float32(rv.Float())
+			u32 := math.Float32bits(fl)
+			if debug {
+				if len(sv.Fields) != 1 {
+					panic("should not happen")
+				}
+				if sv.Fields[0].T != Uint32Type {
+					panic("invalid Float32Type, expected Uint32 field")
+				}
+			}
+			sv.Fields[0].SetUint32(u32)
+		case float64PkgPath: // Special case if Float64.
 			fl := rv.Float()
 			u64 := math.Float64bits(fl)
 			if debug {
@@ -516,7 +553,7 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 				}
 			}
 			sv.Fields[0].SetUint64(u64)
-		} else {
+		default: // General case.
 			for i := range st.Fields {
 				ft := st.Fields[i].Type
 				ftv := &sv.Fields[i]
@@ -647,6 +684,10 @@ func go2GnoValue2(rv reflect.Value) (tv TypedValue) {
 		tv.SetUint32(uint32(rv.Uint()))
 	case reflect.Uint64:
 		tv.SetUint64(uint64(rv.Uint()))
+	case reflect.Float32:
+		fl := float32(rv.Float())
+		u32 := math.Float32bits(fl)
+		tv.SetUint32(u32)
 	case reflect.Float64:
 		fl := rv.Float()
 		u64 := math.Float64bits(fl)
@@ -739,8 +780,10 @@ func go2GnoFuncType(rt reflect.Type) *FuncType {
 // supported.  See https://github.com/golang/go/issues/20013 and
 // https://github.com/golang/go/issues/39717.
 func gno2GoType(t Type) reflect.Type {
-	// special case if t == Float64Type
-	if t == Float64Type {
+	// special case if t == Float32Type or Float64Type
+	if t == Float32Type {
+		return reflect.TypeOf(float32(0.0))
+	} else if t == Float64Type {
 		return reflect.TypeOf(float64(0.0))
 	}
 	switch ct := baseOf(t).(type) {
@@ -972,12 +1015,42 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		}
 		// General case.
 		sv := tv.V.(*StructValue)
-		for i := range ct.Fields {
-			ftv := &(sv.Fields[i])
-			if ftv.IsUndefined() {
-				continue
+		switch ct.PkgPath {
+		case float32PkgPath:
+			// Special case if Float32.
+			if debug {
+				if len(sv.Fields) != 1 {
+					panic("should not happen")
+				}
+				if sv.Fields[0].T != Uint32Type {
+					panic("invalid Float32Type, expected Uint32 field")
+				}
 			}
-			gno2GoValue(ftv, rv.Field(i))
+			u32 := sv.Fields[0].GetUint32()
+			fl := math.Float32frombits(u32)
+			rv.SetFloat(float64(fl))
+		case float64PkgPath:
+			// Special case if Float64.
+			if debug {
+				if len(sv.Fields) != 1 {
+					panic("should not happen")
+				}
+				if sv.Fields[0].T != Uint64Type {
+					panic("invalid Float64Type, expected Uint64 field")
+				}
+			}
+			u64 := sv.Fields[0].GetUint64()
+			fl := math.Float64frombits(u64)
+			rv.SetFloat(fl)
+		default:
+			// General case.
+			for i := range ct.Fields {
+				ftv := &(sv.Fields[i])
+				if ftv.IsUndefined() {
+					continue
+				}
+				gno2GoValue(ftv, rv.Field(i))
+			}
 		}
 	case *MapType:
 		// If uninitialized map, return zero value.

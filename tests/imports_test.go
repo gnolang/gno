@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/flate"
 	"context"
+	"crypto/md5"
 	crand "crypto/rand"
 	"crypto/sha1"
 	"encoding/base64"
@@ -175,6 +176,9 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 		case "math":
 			pkg := gno.NewPackageNode("math", "math", nil)
 			pkg.DefineGoNativeValue("Abs", math.Abs)
+			pkg.DefineGoNativeValue("Cos", math.Cos)
+			pkg.DefineGoNativeValue("Pi", math.Pi)
+			pkg.DefineGoNativeValue("MaxFloat32", math.MaxFloat32)
 			return pkg.NewPackage(nil)
 		case "math/rand":
 			pkg := gno.NewPackageNode("rand", "math/rand", nil)
@@ -187,6 +191,10 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 			// for determinism:
 			// pkg.DefineGoNativeValue("Reader", crand.Reader)
 			pkg.DefineGoNativeValue("Reader", &dummyReader{})
+			return pkg.NewPackage(nil)
+		case "crypto/md5":
+			pkg := gno.NewPackageNode("md5", "crypto/md5", nil)
+			pkg.DefineGoNativeValue("New", md5.New)
 			return pkg.NewPackage(nil)
 		case "crypto/sha1":
 			pkg := gno.NewPackageNode("sha1", "crypto/sha1", nil)

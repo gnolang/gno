@@ -83,6 +83,7 @@ func UverseNode() *PackageNode {
 	def("uint32", asValue(Uint32Type))
 	def("uint64", asValue(Uint64Type))
 	def("bigint", asValue(BigintType))
+	def("float32", asValue(Float32Type))
 	def("float64", asValue(Float64Type))
 	// NOTE on 'typeval': We can't call the type of a TypeValue a
 	// "type", even though we want to, because it conflicts with
