@@ -73,14 +73,40 @@ type DataByteValue struct {
 // value after a block var escapes "to the heap".
 // *(PointerValue.TypedValue) must have already become
 // initialized, namely T set if a typed-nil.
+// Index is -1 for the shared "_" block var,
+// and -2 for (gno and native) map items.
 type PointerValue struct {
 	*TypedValue        // escape val if pointer to var.
 	Base        Object // array/struct/block.
-	Index       int    // list/fields/values index.
+	Index       int    // list/fields/values index, or -1 or -2 (see below).
 }
+
+const (
+	PointerIndexBlockBlank     = -1 // for the "_" identifier in blocks
+	PointerIndexExtendedObject = -2 // Base is ExtendedObject
+)
 
 // cu: convert untyped; pass false for const definitions
 func (pv PointerValue) Assign2(rlm *Realm, tv2 TypedValue, cu bool) {
+	// Special case if extended object && native.
+	if pv.Index == PointerIndexExtendedObject {
+		eo := pv.Base.(ExtendedObject)
+		if eo.BaseMap != nil { // gno map
+			// continue
+		} else {
+			rv := eo.BaseNative.Value
+			if rv.Kind() == reflect.Map { // go native object
+				// assign value to map directly.
+				krv := gno2GoValue(&eo.Index, reflect.Value{})
+				vrv := gno2GoValue(&tv2, reflect.Value{})
+				rv.SetMapIndex(krv, vrv)
+			} else {
+				pv.Assign(tv2, cu)
+			}
+			return
+		}
+	}
+	// General case
 	oo1 := pv.GetObject()
 	pv.Assign(tv2, cu)
 	oo2 := pv.GetObject()
@@ -379,16 +405,22 @@ func (mv *MapValue) GetPointerForKey(key *TypedValue) PointerValue {
 	if mli, ok := mv.vmap[kmk]; ok {
 		return PointerValue{
 			TypedValue: &mli.Value,
-			Base:       mv,
-			Index:      -1, // no index value.
+			Base: ExtendedObject{
+				BaseMap: mv,
+				Index:   key.Copy(),
+			},
+			Index: PointerIndexExtendedObject,
 		}
 	} else {
 		mli := mv.List.Append(*key)
 		mv.vmap[kmk] = mli
 		return PointerValue{
 			TypedValue: &mli.Value,
-			Base:       mv,
-			Index:      -1, // no index value.
+			Base: ExtendedObject{
+				BaseMap: mv,
+				Index:   key.Copy(),
+			},
+			Index: PointerIndexExtendedObject,
 		}
 	}
 }
@@ -1058,6 +1090,8 @@ func (tv *TypedValue) Assign(tv2 TypedValue, cu bool) {
 			}
 		}
 	case *nativeType:
+		// XXX what about assigning primitive/string/other-gno types
+		// to say, native slices, arrays, structs, maps?
 		switch v2 := tv2.V.(type) {
 		case PointerValue:
 			nv1 := tv.V.(*nativeValue)
@@ -1254,12 +1288,13 @@ TYPE_SWITCH:
 		// Special case if tv.T.(PointerType):
 		// we may need to treat this as a native pointer
 		// to get the correct pointer-receiver value.
-		var rv reflect.Value
+		var nv *nativeValue
 		if pv, isGnoPtr := v.(PointerValue); isGnoPtr {
-			rv = pv.TypedValue.V.(*nativeValue).Value
+			nv = pv.TypedValue.V.(*nativeValue)
 		} else {
-			rv = v.(*nativeValue).Value
+			nv = v.(*nativeValue)
 		}
+		var rv = nv.Value
 		rt := rv.Type()
 		// First, try to get field.
 		var fv reflect.Value
@@ -1276,7 +1311,11 @@ TYPE_SWITCH:
 					T: &nativeType{Type: fv.Type()},
 					V: &nativeValue{Value: fv},
 				},
-				Base: nil,
+				Base: ExtendedObject{
+					BaseNative: nv,
+					Path:       path,
+				},
+				Index: PointerIndexExtendedObject,
 			}
 		}
 		// Then, try to get method.
@@ -1288,7 +1327,11 @@ TYPE_SWITCH:
 					T: &nativeType{Type: mt},
 					V: &nativeValue{Value: mv},
 				},
-				Base: nil,
+				Base: ExtendedObject{
+					BaseNative: nv,
+					Path:       path,
+				},
+				Index: PointerIndexExtendedObject,
 			}
 		} else {
 			// If isGnoPtr, try to get method from pointer type.
@@ -1307,7 +1350,11 @@ TYPE_SWITCH:
 						T: &nativeType{Type: mt},
 						V: &nativeValue{Value: mv},
 					},
-					Base: nil,
+					Base: ExtendedObject{
+						BaseNative: nv,
+						Path:       path,
+					},
+					Index: PointerIndexExtendedObject,
 				}
 			}
 
@@ -1403,7 +1450,8 @@ func (tv *TypedValue) GetPointerAtIndex(iv *TypedValue) PointerValue {
 		return pv
 	case *nativeType:
 		rt := tv.T.(*nativeType).Type
-		rv := tv.V.(*nativeValue).Value
+		nv := tv.V.(*nativeValue)
+		rv := nv.Value
 		switch rt.Kind() {
 		case reflect.Array, reflect.Slice, reflect.String:
 			ii := iv.ConvertGetInt()
@@ -1411,15 +1459,23 @@ func (tv *TypedValue) GetPointerAtIndex(iv *TypedValue) PointerValue {
 			etv := go2GnoValue(erv)
 			return PointerValue{
 				TypedValue: &etv,
-				Base:       nil, // XXX native isn't Object
+				Base: ExtendedObject{
+					BaseNative: nv,
+					Index:      iv.Copy(),
+				},
+				Index: PointerIndexExtendedObject,
 			}
 		case reflect.Map:
 			krv := gno2GoValue(iv, reflect.Value{})
 			vrv := rv.MapIndex(krv)
-			etv := go2GnoValue(vrv)
+			etv := go2GnoValue(vrv) // NOTE: lazy, often native.
 			return PointerValue{
-				TypedValue: &etv, // XXX native doesn't use slots for assign
-				Base:       nil,  // XXX native isn't Object
+				TypedValue: &etv, // TODO not needed for assignment.
+				Base: ExtendedObject{
+					BaseNative: nv,
+					Index:      iv.Copy(),
+				},
+				Index: PointerIndexExtendedObject,
 			}
 		default:
 			panic("should not happen")
@@ -1751,7 +1807,7 @@ func (b *Block) GetPointerTo(path ValuePath) PointerValue {
 		return PointerValue{
 			TypedValue: b.GetBlankRef(),
 			Base:       b,
-			Index:      -1,
+			Index:      PointerIndexBlockBlank, // -1
 		}
 	}
 	// NOTE: For most block paths, Depth starts at 1, but

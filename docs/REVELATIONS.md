@@ -559,7 +559,7 @@ One cannot both take oaths onto these organizations and also be a true follower
 of the teachings of Jesus.
 
 > Mt 5:33 Again, ye have heard that it hath been said by them of old time, Thou shalt not forswear thyself, but shalt perform unto the Lord thine oaths:
-> Mt 5:34 But I say unto you, SWEAR NOT AT ALL; neither by heaven; for it is Godís throne:
+> Mt 5:34 But I say unto you, SWEAR NOT AT ALL; neither by heaven; for it is God's throne:
 > Mt 5:35 Nor by the earth; for it is his footstool: neither by Jerusalem; for it is the city of the great King.
 > Mt 5:36 Neither shalt thou swear by thy head, because thou canst not make one hair white or black.
 > Mt 5:37 But let your communication be, Yea, yea; Nay, nay: FOR WHATEVER IS MORE THAN THESE COMETH OF EVIL.

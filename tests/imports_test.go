@@ -22,6 +22,7 @@ import (
 	"math/big"
 	"math/rand"
 	"net"
+	"net/url"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -142,6 +143,10 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 				pkg.DefineGoNativeType(reflect.TypeOf(http.Client{}))
 				return pkg.NewPackage(nil)
 			*/
+		case "net/url":
+			pkg := gno.NewPackageNode("url", "net/url", nil)
+			pkg.DefineGoNativeType(reflect.TypeOf(url.Values{}))
+			return pkg.NewPackage(nil)
 		case "bufio":
 			pkg := gno.NewPackageNode("bufio", "bufio", nil)
 			pkg.DefineGoNativeValue("NewScanner", bufio.NewScanner)
