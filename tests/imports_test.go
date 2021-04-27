@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"compress/flate"
+	"compress/gzip"
 	"context"
 	"crypto/md5"
 	crand "crypto/rand"
@@ -94,7 +95,7 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 		// construct built-in package value.
 		switch pkgPath {
 		case "fmt":
-			pkg := gno.NewPackageNode("fmt", "fmt", nil)
+			pkg := gno.NewPackageNode("fmt", pkgPath, nil)
 			pkg.DefineGoNativeType(reflect.TypeOf((*fmt.Stringer)(nil)).Elem())
 			pkg.DefineGoNativeFunc("Println", func(a ...interface{}) (n int, err error) {
 				res := fmt.Sprintln(a...)
@@ -112,24 +113,24 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 			pkg.DefineGoNativeFunc("Errorf", fmt.Errorf)
 			return pkg.NewPackage(nil)
 		case "encoding/base64":
-			pkg := gno.NewPackageNode("base64", "encoding/base64", nil)
+			pkg := gno.NewPackageNode("base64", pkgPath, nil)
 			pkg.DefineGoNativeValue("RawStdEncoding", base64.RawStdEncoding)
 			return pkg.NewPackage(nil)
 		case "encoding/binary":
-			pkg := gno.NewPackageNode("binary", "encoding/binary", nil)
+			pkg := gno.NewPackageNode("binary", pkgPath, nil)
 			pkg.DefineGoNativeValue("LittleEndian", binary.LittleEndian)
 			pkg.DefineGoNativeValue("BigEndian", binary.BigEndian)
 			return pkg.NewPackage(nil)
 		case "encoding/json":
-			pkg := gno.NewPackageNode("json", "encoding/json", nil)
+			pkg := gno.NewPackageNode("json", pkgPath, nil)
 			pkg.DefineGoNativeValue("Unmarshal", json.Unmarshal)
 			return pkg.NewPackage(nil)
 		case "encoding/xml":
-			pkg := gno.NewPackageNode("xml", "encoding/xml", nil)
+			pkg := gno.NewPackageNode("xml", pkgPath, nil)
 			pkg.DefineGoNativeValue("Unmarshal", xml.Unmarshal)
 			return pkg.NewPackage(nil)
 		case "net":
-			pkg := gno.NewPackageNode("net", "net", nil)
+			pkg := gno.NewPackageNode("net", pkgPath, nil)
 			pkg.DefineGoNativeType(reflect.TypeOf(net.TCPAddr{}))
 			pkg.DefineGoNativeValue("IPv4", net.IPv4)
 			return pkg.NewPackage(nil)
@@ -138,28 +139,28 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 			// There's no reason why we can't replace these with safer alternatives.
 			panic("just say gno")
 			/*
-				pkg := gno.NewPackageNode("http", "net/http", nil)
+				pkg := gno.NewPackageNode("http", pkgPath, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf(http.Request{}))
 				pkg.DefineGoNativeValue("DefaultClient", http.DefaultClient)
 				pkg.DefineGoNativeType(reflect.TypeOf(http.Client{}))
 				return pkg.NewPackage(nil)
 			*/
 		case "net/url":
-			pkg := gno.NewPackageNode("url", "net/url", nil)
+			pkg := gno.NewPackageNode("url", pkgPath, nil)
 			pkg.DefineGoNativeType(reflect.TypeOf(url.Values{}))
 			return pkg.NewPackage(nil)
 		case "bufio":
-			pkg := gno.NewPackageNode("bufio", "bufio", nil)
+			pkg := gno.NewPackageNode("bufio", pkgPath, nil)
 			pkg.DefineGoNativeValue("NewScanner", bufio.NewScanner)
 			pkg.DefineGoNativeType(reflect.TypeOf(bufio.SplitFunc(nil)))
 			return pkg.NewPackage(nil)
 		case "bytes":
-			pkg := gno.NewPackageNode("bytes", "bytes", nil)
+			pkg := gno.NewPackageNode("bytes", pkgPath, nil)
 			pkg.DefineGoNativeValue("NewReader", bytes.NewReader)
 			pkg.DefineGoNativeValue("NewBuffer", bytes.NewBuffer)
 			return pkg.NewPackage(nil)
 		case "time":
-			pkg := gno.NewPackageNode("time", "time", nil)
+			pkg := gno.NewPackageNode("time", pkgPath, nil)
 			pkg.DefineGoNativeValue("Date", time.Date)
 			pkg.DefineGoNativeValue("Second", time.Second)
 			pkg.DefineGoNativeValue("Minute", time.Minute)
@@ -168,81 +169,86 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 			pkg.DefineGoNativeType(reflect.TypeOf(time.Duration(0)))
 			return pkg.NewPackage(nil)
 		case "strings":
-			pkg := gno.NewPackageNode("strings", "strings", nil)
+			pkg := gno.NewPackageNode("strings", pkgPath, nil)
 			pkg.DefineGoNativeValue("SplitN", strings.SplitN)
 			pkg.DefineGoNativeValue("HasPrefix", strings.HasPrefix)
 			pkg.DefineGoNativeValue("NewReader", strings.NewReader)
 			return pkg.NewPackage(nil)
 		case "math":
-			pkg := gno.NewPackageNode("math", "math", nil)
+			pkg := gno.NewPackageNode("math", pkgPath, nil)
 			pkg.DefineGoNativeValue("Abs", math.Abs)
 			pkg.DefineGoNativeValue("Cos", math.Cos)
 			pkg.DefineGoNativeValue("Pi", math.Pi)
 			pkg.DefineGoNativeValue("MaxFloat32", math.MaxFloat32)
 			return pkg.NewPackage(nil)
 		case "math/rand":
-			pkg := gno.NewPackageNode("rand", "math/rand", nil)
+			pkg := gno.NewPackageNode("rand", pkgPath, nil)
 			pkg.DefineGoNativeValue("Uint32", rand.Uint32)
 			pkg.DefineGoNativeValue("Seed", rand.Seed)
 			return pkg.NewPackage(nil)
 		case "crypto/rand":
-			pkg := gno.NewPackageNode("rand", "crypto/rand", nil)
+			pkg := gno.NewPackageNode("rand", pkgPath, nil)
 			pkg.DefineGoNativeValue("Prime", crand.Prime)
 			// for determinism:
 			// pkg.DefineGoNativeValue("Reader", crand.Reader)
 			pkg.DefineGoNativeValue("Reader", &dummyReader{})
 			return pkg.NewPackage(nil)
 		case "crypto/md5":
-			pkg := gno.NewPackageNode("md5", "crypto/md5", nil)
+			pkg := gno.NewPackageNode("md5", pkgPath, nil)
 			pkg.DefineGoNativeValue("New", md5.New)
 			return pkg.NewPackage(nil)
 		case "crypto/sha1":
-			pkg := gno.NewPackageNode("sha1", "crypto/sha1", nil)
+			pkg := gno.NewPackageNode("sha1", pkgPath, nil)
 			pkg.DefineGoNativeValue("New", sha1.New)
 			return pkg.NewPackage(nil)
 		case "image":
-			pkg := gno.NewPackageNode("image", "image", nil)
+			pkg := gno.NewPackageNode("image", pkgPath, nil)
 			pkg.DefineGoNativeType(reflect.TypeOf(image.Point{}))
 			return pkg.NewPackage(nil)
 		case "image/color":
-			pkg := gno.NewPackageNode("color", "color", nil)
+			pkg := gno.NewPackageNode("color", pkgPath, nil)
 			pkg.DefineGoNativeType(reflect.TypeOf(color.NRGBA64{}))
 			return pkg.NewPackage(nil)
 		case "compress/flate":
-			pkg := gno.NewPackageNode("flate", "flate", nil)
+			pkg := gno.NewPackageNode("flate", pkgPath, nil)
 			pkg.DefineGoNativeValue("BestSpeed", flate.BestSpeed)
 			return pkg.NewPackage(nil)
+		case "compress/gzip":
+			pkg := gno.NewPackageNode("gzip", pkgPath, nil)
+			pkg.DefineGoNativeType(reflect.TypeOf(gzip.Writer{}))
+			return pkg.NewPackage(nil)
 		case "context":
-			pkg := gno.NewPackageNode("context", "context", nil)
+			pkg := gno.NewPackageNode("context", pkgPath, nil)
 			pkg.DefineGoNativeType(reflect.TypeOf((*context.Context)(nil)).Elem())
 			pkg.DefineGoNativeValue("WithValue", context.WithValue)
 			pkg.DefineGoNativeValue("Background", context.Background)
 			return pkg.NewPackage(nil)
 		case "strconv":
-			pkg := gno.NewPackageNode("strconv", "strconv", nil)
+			pkg := gno.NewPackageNode("strconv", pkgPath, nil)
 			pkg.DefineGoNativeValue("Atoi", strconv.Atoi)
 			pkg.DefineGoNativeValue("Itoa", strconv.Itoa)
 			pkg.DefineGoNativeValue("ParseInt", strconv.ParseInt)
 			return pkg.NewPackage(nil)
 		case "sync":
-			pkg := gno.NewPackageNode("sync", "sync", nil)
+			pkg := gno.NewPackageNode("sync", pkgPath, nil)
+			pkg.DefineGoNativeType(reflect.TypeOf(sync.Mutex{}))
 			pkg.DefineGoNativeType(reflect.TypeOf(sync.RWMutex{}))
 			pkg.DefineGoNativeType(reflect.TypeOf(sync.Pool{}))
 			return pkg.NewPackage(nil)
 		case "math/big":
-			pkg := gno.NewPackageNode("big", "big", nil)
+			pkg := gno.NewPackageNode("big", pkgPath, nil)
 			pkg.DefineGoNativeValue("NewInt", big.NewInt)
 			return pkg.NewPackage(nil)
 		case "sort":
-			pkg := gno.NewPackageNode("sort", "sort", nil)
+			pkg := gno.NewPackageNode("sort", pkgPath, nil)
 			pkg.DefineGoNativeValue("Strings", sort.Strings)
 			return pkg.NewPackage(nil)
 		case "flag":
-			pkg := gno.NewPackageNode("flag", "flag", nil)
+			pkg := gno.NewPackageNode("flag", pkgPath, nil)
 			pkg.DefineGoNativeType(reflect.TypeOf(flag.Flag{}))
 			return pkg.NewPackage(nil)
 		case "io":
-			pkg := gno.NewPackageNode("io", "io", nil)
+			pkg := gno.NewPackageNode("io", pkgPath, nil)
 			pkg.DefineGoNativeValue("EOF", io.EOF)
 			pkg.DefineGoNativeValue("ReadFull", io.ReadFull)
 			pkg.DefineGoNativeType(reflect.TypeOf((*io.ReadCloser)(nil)).Elem())
@@ -250,16 +256,16 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 			pkg.DefineGoNativeType(reflect.TypeOf((*io.Reader)(nil)).Elem())
 			return pkg.NewPackage(nil)
 		case "io/ioutil":
-			pkg := gno.NewPackageNode("ioutil", "io/ioutil", nil)
+			pkg := gno.NewPackageNode("ioutil", pkgPath, nil)
 			pkg.DefineGoNativeValue("NopCloser", ioutil.NopCloser)
 			pkg.DefineGoNativeValue("ReadAll", ioutil.ReadAll)
 			return pkg.NewPackage(nil)
 		case "log":
-			pkg := gno.NewPackageNode("log", "log", nil)
+			pkg := gno.NewPackageNode("log", pkgPath, nil)
 			pkg.DefineGoNativeValue("Fatal", log.Fatal)
 			return pkg.NewPackage(nil)
 		case "text/template":
-			pkg := gno.NewPackageNode("template", "template", nil)
+			pkg := gno.NewPackageNode("template", pkgPath, nil)
 			pkg.DefineGoNativeType(reflect.TypeOf(template.FuncMap{}))
 			return pkg.NewPackage(nil)
 		default:

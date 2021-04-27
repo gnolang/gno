@@ -508,7 +508,7 @@ const (
 	OpSliceType     Op = 0x72 // []X{}
 	OpPointerType   Op = 0x73 // *X
 	OpInterfaceType Op = 0x74 // interface{...}
-	OpChanType      Op = 0x75 // chan[X]
+	OpChanType      Op = 0x75 // [<-]chan[<-]X
 	OpFuncType      Op = 0x76 // func(params...)results...
 	OpMapType       Op = 0x77 // map[X]Y
 	OpStructType    Op = 0x78 // struct{...}
@@ -691,6 +691,8 @@ func (m *Machine) Run() {
 			m.doOpArrayType()
 		case OpSliceType:
 			m.doOpSliceType()
+		case OpChanType:
+			m.doOpChanType()
 		case OpFuncType:
 			m.doOpFuncType()
 		case OpMapType:

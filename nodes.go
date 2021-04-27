@@ -1377,9 +1377,10 @@ type VPType uint8
 const (
 	VPTypeUverse    VPType = 0x00
 	VPTypeDefault   VPType = 0x01
-	VPTypeInterface VPType = 0x02
-	VPTypeNative    VPType = 0x03
-	// TODO: consider VPTypeDeclared (method)
+	VPTypeDeref     VPType = 0x02
+	VPTypeMethod    VPType = 0x03
+	VPTypeInterface VPType = 0x04
+	VPTypeNative    VPType = 0x05
 )
 
 func NewValuePath(t VPType, depth uint8, index uint16, n Name) ValuePath {
@@ -1401,6 +1402,14 @@ func NewValuePathDefault(depth uint8, index uint16, n Name) ValuePath {
 	return NewValuePath(VPTypeDefault, depth, index, n)
 }
 
+func NewValuePathDeref(depth uint8, index uint16, n Name) ValuePath {
+	return NewValuePath(VPTypeDeref, depth, index, n)
+}
+
+func NewValuePathMethod(index uint16, n Name) ValuePath {
+	return NewValuePath(VPTypeMethod, 1, index, n)
+}
+
 func NewValuePathInterface(n Name) ValuePath {
 	return NewValuePath(VPTypeInterface, 1, 0, n)
 }
@@ -1418,6 +1427,14 @@ func (vp ValuePath) Validate() {
 	case VPTypeDefault:
 		if vp.Depth == 0 {
 			panic("general value path cannot have depth 0")
+		}
+	case VPTypeDeref:
+		if vp.Depth == 0 {
+			panic("dereference value path cannot have depth 0")
+		}
+	case VPTypeMethod:
+		if vp.Depth != 1 {
+			panic("method value path must have depth 1")
 		}
 	case VPTypeInterface:
 		if vp.Depth != 1 {

@@ -124,10 +124,10 @@ func (m *Machine) doOpSlice() {
 func (m *Machine) doOpStar() {
 	xv := m.PopValue()
 	switch bt := baseOf(xv.T).(type) {
-	case PointerType:
+	case *PointerType:
 		pv := xv.V.(PointerValue)
 		if pv.T == DataByteType {
-			tv := TypedValue{T: xv.T.(PointerType).Elt}
+			tv := TypedValue{T: xv.T.(*PointerType).Elt}
 			tv.SetUint8(*(pv.V.(DataByteValue).Ref))
 			m.PushValue(tv)
 		} else {
@@ -140,7 +140,7 @@ func (m *Machine) doOpStar() {
 		}
 	case *TypeType:
 		t := xv.GetType()
-		m.PushValue(asValue(PointerType{Elt: t}))
+		m.PushValue(asValue(&PointerType{Elt: t}))
 	case *nativeType:
 		panic("not yet implemented")
 	default:
@@ -166,7 +166,7 @@ func (m *Machine) doOpRef() {
 		}
 	}
 	m.PushValue(TypedValue{
-		T: PointerType{Elt: xv.T},
+		T: &PointerType{Elt: xv.T},
 		V: xv,
 	})
 }

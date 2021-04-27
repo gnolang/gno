@@ -235,7 +235,7 @@ func go2GnoType2(rt reflect.Type) (t Type) {
 		mt.Value = go2GnoType(rt.Elem())
 		return mt
 	case reflect.Ptr:
-		return PointerType{
+		return &PointerType{
 			// this is the only recursive call to go2GnoType2().
 			Elt: go2GnoType2(rt.Elem()),
 		}
@@ -724,7 +724,7 @@ func go2GnoValue2(rv reflect.Value) (tv TypedValue) {
 	case reflect.Map:
 		panic("not yet implemented")
 	case reflect.Ptr:
-		tv.T = PointerType{Elt: go2GnoType2(rv.Type().Elem())}
+		tv.T = &PointerType{Elt: go2GnoType2(rv.Type().Elem())}
 		val := go2GnoValue2(rv.Elem())
 		tv.V = PointerValue{TypedValue: &val} // heap alloc
 	case reflect.Struct:
@@ -818,7 +818,7 @@ func gno2GoType(t Type) reflect.Type {
 		default:
 			panic("should not happen")
 		}
-	case PointerType:
+	case *PointerType:
 		et := gno2GoType(ct.Elem())
 		return reflect.PtrTo(et)
 	case *ArrayType:
@@ -945,7 +945,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 				"unexpected type %s",
 				tv.T.String()))
 		}
-	case PointerType:
+	case *PointerType:
 		// This doesn't take into account pointer relativity, or even
 		// identical pointers -- every non-nil gno pointer type results in a
 		// new addressable value in go.

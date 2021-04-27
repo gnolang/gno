@@ -931,13 +931,11 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *SelectorExpr:
 				xt := evalTypeOf(last, n.X)
-				xIsPointer := false
 
 				// Set selector path based on xt's type.
 			X_TYPE_SWITCH:
 				switch cxt := xt.(type) {
-				case PointerType:
-					xIsPointer = true
+				case *PointerType:
 					dxt := cxt.Elt
 					if dt, ok := dxt.(*DeclaredType); ok {
 						_, hp, rt, mt := dt.FindEmbeddedFieldType(n.Sel)
@@ -957,7 +955,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 							goto X_TYPE_SWITCH
 						} else {
 							// Is a method call, and is pointer too.
-							if _, ok := rt.(PointerType); ok {
+							if _, ok := rt.(*PointerType); ok {
 								// Do not convert to (*x).f, but do get path
 								// on receiver's deref type (dxt is where
 								// the path is defined).
@@ -1001,7 +999,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 					// `type struct { *Foo }`,
 					// determines whether n.X must be replaced by a
 					// reference.
-					tr, hp, rt, _ := cxt.FindEmbeddedFieldType(n.Sel)
+					tr, _, rt, _ := cxt.FindEmbeddedFieldType(n.Sel)
 					if tr != nil {
 						if len(tr) > 1 {
 							// replace n.X w/ tr[:len-1] selectors applied.
@@ -1022,8 +1020,14 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 							// recursively preprocess new n.X.
 							n.X = Preprocess(imp, last, nx2).(Expr)
 						}
-						if rt != nil && rt.Kind() == PointerKind &&
-							!xIsPointer && !hp {
+						// nxt2 may not be xt anymore.
+						// (even the dereferenced of xt and nxt2 may not
+						// be the same, with embedded fields)
+						nxt2 := evalTypeOf(last, n.X)
+						// If receiver is pointer type but n.X is not:
+						if rt != nil &&
+							rt.Kind() == PointerKind &&
+							nxt2.Kind() != PointerKind {
 							// Go spec: "If x is addressable and &x's
 							// method set contains m, x.m() is shorthand
 							// for (&x).m()"
@@ -1064,10 +1068,18 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 					panic("not yet implemented")
 				case *TypeType:
 					// unbound method
-					xv := evalType(last, n.X)
-					switch xv := xv.(type) {
+					xt := evalType(last, n.X)
+					switch ct := xt.(type) {
+					case *PointerType:
+						dt := ct.Elt.(*DeclaredType)
+						n.Path = dt.GetPathForName(n.Sel)
+						if n.Path.Depth > 1 {
+							panic(fmt.Sprintf(
+								"DeclaredType has no method %s",
+								n.Sel))
+						}
 					case *DeclaredType:
-						n.Path = xv.GetPathForName(n.Sel)
+						n.Path = ct.GetPathForName(n.Sel)
 						if n.Path.Depth > 1 {
 							panic(fmt.Sprintf(
 								"DeclaredType has no method %s",
@@ -1076,7 +1088,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 					default:
 						panic(fmt.Sprintf(
 							"unexpected selector expression type value %s",
-							xv.String()))
+							xt.String()))
 					}
 				case *nativeType:
 					// native types don't use path indices.
@@ -1808,7 +1820,7 @@ func checkType(xt Type, dt Type) {
 						nxt.String(),
 						nidt.String()))
 				}
-			} else if pxt, ok := baseOf(xt).(PointerType); ok {
+			} else if pxt, ok := baseOf(xt).(*PointerType); ok {
 				nxt, ok := pxt.Elt.(*nativeType)
 				if !ok {
 					panic(fmt.Sprintf(
@@ -1840,21 +1852,21 @@ func checkType(xt Type, dt Type) {
 	if nxt, ok := xt.(*nativeType); ok {
 		xt = go2GnoType2(nxt.Type)
 		dt = baseOf(dt)
-	} else if pxt, ok := xt.(PointerType); ok {
+	} else if pxt, ok := xt.(*PointerType); ok {
 		// *gonative{x} is gonative{*x}
 		if enxt, ok := pxt.Elt.(*nativeType); ok {
-			xt = PointerType{Elt: go2GnoType2(enxt.Type)}
+			xt = &PointerType{Elt: go2GnoType2(enxt.Type)}
 			dt = baseOf(dt)
 		}
 	}
 	if nt, ok := dt.(*nativeType); ok {
 		xt = baseOf(xt)
 		dt = go2GnoType2(nt.Type)
-	} else if pt, ok := dt.(PointerType); ok {
+	} else if pt, ok := dt.(*PointerType); ok {
 		// *gonative{x} is gonative{*x}
 		if ent, ok := pt.Elt.(*nativeType); ok {
 			xt = baseOf(xt)
-			dt = PointerType{Elt: go2GnoType2(ent.Type)}
+			dt = &PointerType{Elt: go2GnoType2(ent.Type)}
 		}
 	}
 	// Special case of xt or dt is *DeclaredType,
@@ -1925,8 +1937,8 @@ func checkType(xt Type, dt Type) {
 				return // ok
 			}
 		}
-	case PointerType:
-		if pt, ok := bdt.(PointerType); ok {
+	case *PointerType:
+		if pt, ok := bdt.(*PointerType); ok {
 			checkType(cxt.Elt, pt.Elt)
 			return // ok
 		}
@@ -2235,7 +2247,7 @@ func predefineNow2(imp Importer, last BlockNode, d Decl, m map[Name]struct{}) (D
 			ft := evalType(last, &cd.Type).(*FuncType)
 			ft = ft.UnboundType(rft)
 			dt := (*DeclaredType)(nil)
-			if pt, ok := rt.(PointerType); ok {
+			if pt, ok := rt.(*PointerType); ok {
 				dt = pt.Elem().(*DeclaredType)
 			} else {
 				dt = rt.(*DeclaredType)
@@ -2498,7 +2510,7 @@ func filenameOf(n BlockNode) Name {
 func elideCompositeElements(clx *CompositeLitExpr, clt Type) {
 	switch clt := baseOf(clt).(type) {
 	/*
-		case PointerType:
+		case *PointerType:
 			det := clt.Elt.Elt
 			for _, ex := range clx.Elts {
 				vx := evx.Value
