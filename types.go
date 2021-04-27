@@ -49,7 +49,7 @@ func typeid(f string, args ...interface{}) (tid TypeID) {
 // cannot use pointer equality to test for type equality.
 // Instead, for checking equalty use the TypeID.
 func (PrimitiveType) assertType()  {}
-func (PointerType) assertType()    {}
+func (*PointerType) assertType()   {}
 func (FieldType) assertType()      {}
 func (*ArrayType) assertType()     {}
 func (*SliceType) assertType()     {}
@@ -462,22 +462,22 @@ type PointerType struct {
 	typeid TypeID
 }
 
-func (pt PointerType) Kind() Kind {
+func (pt *PointerType) Kind() Kind {
 	return PointerKind
 }
 
-func (pt PointerType) TypeID() TypeID {
+func (pt *PointerType) TypeID() TypeID {
 	if pt.typeid.IsZero() {
 		pt.typeid = typeid("*%s", pt.Elt.TypeID().String())
 	}
 	return pt.typeid
 }
 
-func (pt PointerType) String() string {
+func (pt *PointerType) String() string {
 	return fmt.Sprintf("*%s", pt.Elt.String())
 }
 
-func (pt PointerType) Elem() Type {
+func (pt *PointerType) Elem() Type {
 	return pt.Elt
 }
 
@@ -567,11 +567,22 @@ func (st *StructType) FindEmbeddedFieldType(n Name) (
 		// if pt, ok := sf.Type.(PointerType); ok {...}
 		// XXX
 		// Maybe an embedded field or method.
-		if dt, ok := sf.Type.(*DeclaredType); ok {
-			tr, hp, rt, ft := dt.FindEmbeddedFieldType(n)
-			if tr != nil {
-				vp2 := NewValuePathDefault(1, uint16(i), sf.Name)
-				return append([]ValuePath{vp2}, tr...), hp, rt, ft
+		if pt, ok := sf.Type.(*PointerType); ok {
+			if dt, ok := pt.Elt.(*DeclaredType); ok {
+				tr, _, rt, ft := dt.FindEmbeddedFieldType(n)
+				if tr != nil {
+					// XXX but is this right?!
+					vp2 := NewValuePathDeref(1, uint16(i), sf.Name)
+					return append([]ValuePath{vp2}, tr...), true, rt, ft
+				}
+			}
+		} else {
+			if dt, ok := sf.Type.(*DeclaredType); ok {
+				tr, hp, rt, ft := dt.FindEmbeddedFieldType(n)
+				if tr != nil {
+					vp2 := NewValuePathDefault(1, uint16(i), sf.Name)
+					return append([]ValuePath{vp2}, tr...), hp, rt, ft
+				}
 			}
 		}
 	}
@@ -688,7 +699,7 @@ func (it *InterfaceType) IsImplementedBy(ot Type) bool {
 	if not, ok := ot.(*nativeType); ok {
 		dot = not.GnoType()
 	}
-	if pt, ok := dot.(PointerType); ok {
+	if pt, ok := dot.(*PointerType); ok {
 		dot = pt.Elt
 		isPtr = true
 	}
@@ -703,7 +714,7 @@ func (it *InterfaceType) IsImplementedBy(ot Type) bool {
 				}
 			} else if tr, hp, rt, ft := cot.FindEmbeddedFieldType(im.Name); tr != nil {
 				// ... or, field is method.
-				_, ptrRcvr := rt.(PointerType) // rt may be nil if embedded interface.
+				_, ptrRcvr := rt.(*PointerType) // rt may be nil if embedded interface.
 				if ptrRcvr && !hp && !isPtr {
 					return false
 				}
@@ -757,11 +768,32 @@ func (ct *ChanType) Kind() Kind {
 }
 
 func (ct *ChanType) TypeID() TypeID {
-	panic("not yet implemented")
+	if ct.typeid.IsZero() {
+		switch ct.Dir {
+		case SEND | RECV:
+			ct.typeid = typeid("chan{%s}" + ct.Elt.TypeID().String())
+		case SEND:
+			ct.typeid = typeid("<-chan{%s}" + ct.Elt.TypeID().String())
+		case RECV:
+			ct.typeid = typeid("chan<-{%s}" + ct.Elt.TypeID().String())
+		default:
+			panic("should not happen")
+		}
+	}
+	return ct.typeid
 }
 
 func (ct *ChanType) String() string {
-	panic("not yet implemented")
+	switch ct.Dir {
+	case SEND | RECV:
+		return "chan " + ct.Elt.String()
+	case SEND:
+		return "<-chan " + ct.Elt.String()
+	case RECV:
+		return "chan<- " + ct.Elt.String()
+	default:
+		panic("should not happen")
+	}
 }
 
 func (ct *ChanType) Elem() Type {
@@ -778,6 +810,16 @@ type FuncType struct {
 
 	typeid TypeID
 	bound  *FuncType
+}
+
+// if ft is a method, returns whether method takes a pointer receiver.
+func (ft *FuncType) HasPointerReceiver() bool {
+	if debug {
+		if len(ft.Params) == 0 {
+			panic("expected unbound method function type, but found no receiver parameter.")
+		}
+	}
+	return ft.Params[0].Type.Kind() == PointerKind
 }
 
 func (ft *FuncType) Kind() Kind {
@@ -1098,7 +1140,6 @@ func (dt *DeclaredType) DefineMethod(fv *FuncValue) {
 	})
 }
 
-// XXX this function isn't used?!
 func (dt *DeclaredType) GetPathForName(n Name) ValuePath {
 	// May be a method.
 	for i, tv := range dt.Methods {
@@ -1107,7 +1148,7 @@ func (dt *DeclaredType) GetPathForName(n Name) ValuePath {
 			if i > 2<<16-1 {
 				panic("too many methods")
 			}
-			return NewValuePathDefault(1, uint16(i), n)
+			return NewValuePathMethod(uint16(i), n)
 		}
 	}
 	// Otherwise it is underlying.
@@ -1138,7 +1179,7 @@ func (dt *DeclaredType) FindEmbeddedFieldType(n Name) (
 	for i := 0; i < len(dt.Methods); i++ {
 		mv := &dt.Methods[i]
 		if fv := mv.GetFunc(); fv.Name == n {
-			vp := NewValuePathDefault(1, uint16(i), n)
+			vp := NewValuePathMethod(uint16(i), n)
 			rt := fv.Type.Params[0].Type
 			bt := fv.Type.BoundType()
 			return []ValuePath{vp}, false, rt, bt
@@ -1198,7 +1239,7 @@ func (dt *DeclaredType) GetValueRefAt(path ValuePath) *TypedValue {
 		panic("should not happen")
 		// should call *DT.FindEmbeddedFieldType(name) instead.
 		// tr, hp, rt, ft := dt.FindEmbeddedFieldType(n)
-	} else if path.Type == VPTypeDefault {
+	} else if path.Type == VPTypeMethod {
 		if path.Depth == 0 {
 			panic("*DeclaredType global fields not yet implemented")
 		} else if path.Depth == 1 {
@@ -1477,7 +1518,7 @@ func KindOf(t Type) Kind {
 		return ArrayKind
 	case *SliceType:
 		return SliceKind
-	case PointerType:
+	case *PointerType:
 		return PointerKind
 	case *StructType:
 		return StructKind
@@ -1593,7 +1634,7 @@ func fillEmbeddedName(ft *FieldType) {
 		return
 	}
 	switch ct := ft.Type.(type) {
-	case PointerType:
+	case *PointerType:
 		// dereference one level
 		switch ct := ct.Elt.(type) {
 		case *DeclaredType:
@@ -1659,9 +1700,9 @@ func specifyType(lookup map[Name]Type, tmpl Type, spec Type, specTypeval Type) {
 		panic("spec must not be generic")
 	}
 	switch ct := tmpl.(type) {
-	case PointerType:
+	case *PointerType:
 		switch pt := baseOf(spec).(type) {
-		case PointerType:
+		case *PointerType:
 			specifyType(lookup, ct.Elt, pt.Elt, nil)
 		case *nativeType:
 			et := &nativeType{Type: pt.Type.Elem()}
@@ -1793,12 +1834,12 @@ func specifyType(lookup map[Name]Type, tmpl Type, spec Type, specTypeval Type) {
 // simply returned.  if a generic is not yet specified, panics.
 func applySpecifics(lookup map[Name]Type, tmpl Type) (Type, bool) {
 	switch ct := tmpl.(type) {
-	case PointerType:
+	case *PointerType:
 		pte, ok := applySpecifics(lookup, ct.Elt)
 		if !ok { // simply return
 			return tmpl, false
 		}
-		return PointerType{
+		return &PointerType{
 			Elt: pte,
 		}, true
 	case *ArrayType:
@@ -1859,7 +1900,7 @@ func isGeneric(t Type) bool {
 	switch ct := t.(type) {
 	case FieldType:
 		return isGeneric(ct.Type)
-	case PointerType:
+	case *PointerType:
 		return isGeneric(ct.Elt)
 	case *ArrayType:
 		return isGeneric(ct.Elt)

@@ -760,7 +760,7 @@ func (tv *TypedValue) ValueImage(rlm *Realm, owned bool) *ValueImage {
 				ValType: ValTypeBytes,
 				Data:    pbz,
 			}
-		case PointerType:
+		case *PointerType:
 			pv := tv.V.(PointerValue)
 			if pv.TypedValue == nil {
 				panic("should not happen")
@@ -870,7 +870,7 @@ func (tv *TypedValue) ElemImage(rlm *Realm, owned bool) ElemImage {
 					TypeID:   tv.T.TypeID(),
 				}
 			}
-		case PointerType, *SliceType, *TypeType:
+		case *PointerType, *SliceType, *TypeType:
 			// 0x13,sz(TypeID),sz(ValueHash) if other.
 			vi := tv.ValueImage(rlm, owned)
 			return ElemImage{

@@ -361,6 +361,18 @@ func Go2Gno(gon ast.Node) (n Node) {
 				"unexpected *ast.TypeSwitchStmt.Assign type %s",
 				reflect.TypeOf(gon.Assign).String()))
 		}
+	case *ast.ChanType:
+		var dir ChanDir
+		if gon.Dir&ast.SEND > 0 {
+			dir |= SEND
+		}
+		if gon.Dir&ast.RECV > 0 {
+			dir |= RECV
+		}
+		return &ChanTypeExpr{
+			Dir:   dir,
+			Value: toExpr(gon.Value),
+		}
 	default:
 		panic(fmt.Sprintf("unknown Go type %v: %s\n",
 			reflect.TypeOf(gon),

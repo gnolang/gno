@@ -3,7 +3,7 @@ package main
 import (
 	"compress/gzip"
 	"fmt"
-	"net/http"
+	"github.com/gnolang/gno/_test/net/http"
 )
 
 type GzipResponseWriter struct {

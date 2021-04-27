@@ -857,7 +857,7 @@ func sprintString(tv *TypedValue) string {
 		default:
 			panic("should not happen")
 		}
-	case PointerType:
+	case *PointerType:
 		return tv.V.(PointerValue).String()
 	case *ArrayType:
 		return tv.V.(*ArrayValue).String()

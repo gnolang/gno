@@ -412,6 +412,9 @@ func isEql(lv, rv *TypedValue) bool {
 			}
 		}
 		return lv.V == rv.V
+	case PointerKind:
+		// TODO: assumes runtime instance normalization.
+		return lv.V == rv.V
 	case StructKind:
 		panic("NOT YET IMPLEMENTED")
 	default:

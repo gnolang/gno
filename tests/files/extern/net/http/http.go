@@ -11,6 +11,11 @@ import (
 
 type Header map[string][]string
 
+// XXX dummy
+func (h Header) Get(key string) string {
+	return ""
+}
+
 type Values map[string][]string
 
 type Request struct {
@@ -30,6 +35,10 @@ type Request struct {
 	RemoteAddr       string
 	RequestURI       string
 	Response         *Response // Go 1.7
+}
+
+func (r *Request) UserAgent() string {
+	return r.Header.Get("User-Agent")
 }
 
 type Response struct {
@@ -98,4 +107,8 @@ type ResponseWriter interface {
 	Header() Header
 	Write([]byte) (int, error)
 	WriteHeader(statusCode int)
+}
+
+type CloseNotifier interface {
+	CloseNotify() <-chan bool
 }

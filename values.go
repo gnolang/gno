@@ -1007,7 +1007,7 @@ func (tv *TypedValue) ComputeMapKey(omitType bool) MapKey {
 	case PrimitiveType:
 		pbz, _ := tv.PrimitiveBytes()
 		bz = append(bz, pbz...)
-	case PointerType:
+	case *PointerType:
 		ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TypedValue))
 		bz = append(bz, uintptrToBytes(&ptr)...)
 	case FieldType:
@@ -1185,27 +1185,34 @@ func (tv *TypedValue) GetPointerTo(path ValuePath) PointerValue {
 			panic("GetPointerTo() on undefined value")
 		}
 	}
-	t, v := tv.T, tv.V
+	t, v := tv.T, tv.V // tv is original, t, v are mutable.
 TYPE_SWITCH:
 	switch ct := t.(type) {
 	case *DeclaredType:
 		if path.Depth <= 1 {
 			switch path.Type {
-			case VPTypeDefault:
+			case VPTypeMethod:
 				/*
+					e.g.:
 					main.Bir struct{(struct{("foo" string)} main.Boo)} @Hello
 					PATH=gno.ValuePath{Type:0x2, Depth:0x1, Index:0x0, Name:"Hello"}
 				*/
 				ftv := ct.GetValueRefAt(path)
 				fv := ftv.GetFunc()
+				if debug {
+					if fv.Type.HasPointerReceiver() &&
+						tv.T.Kind() != PointerKind {
+						panic("should not happen")
+					}
+				}
 				mv := BoundMethodValue{
 					Func:     fv,
 					Receiver: *tv,
 				}
-				// TODO: this means all method selectors are slow
-				// and incur extra overhead.  To prevent this extra
-				// overhead, CallExpr evaluation should keep into X
-				// and call *DeclaredType.GetMethodAt() directly.
+				// TODO: this means all method selectors are slow and incur
+				// extra overhead.  To prevent this extra overhead, CallExpr
+				// evaluation should peek into X and call
+				// *DeclaredType.GetMethodAt() directly somehow.
 				return PointerValue{
 					TypedValue: &TypedValue{
 						T: fv.Type.BoundType(),
@@ -1238,7 +1245,17 @@ TYPE_SWITCH:
 			t = ct.Base
 			goto TYPE_SWITCH
 		}
-	case PointerType:
+	case *PointerType:
+		if debug {
+			if path.Type != VPTypeDeref &&
+				path.Type != VPTypeMethod &&
+				path.Type != VPTypeInterface &&
+				path.Type != VPTypeNative {
+				panic(fmt.Sprintf(
+					"expected VPTypeDeref, VPTypeMethod, VPTypeInterface, or VPTypeNative but got %v",
+					path.Type))
+			}
+		}
 		switch cet := ct.Elt.(type) {
 		case *DeclaredType:
 			t = cet
@@ -1257,6 +1274,12 @@ TYPE_SWITCH:
 		return v.(*StructValue).GetPointerTo2(ct, path)
 	case *TypeType:
 		switch t := v.(TypeValue).Type.(type) {
+		case *PointerType:
+			dt := t.Elt.(*DeclaredType)
+			return PointerValue{
+				TypedValue: dt.GetValueRefAt(path),
+				Base:       nil, // TODO: make TypeValue an object.
+			}
 		case *DeclaredType:
 			return PointerValue{
 				TypedValue: t.GetValueRefAt(path),

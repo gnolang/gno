@@ -153,6 +153,19 @@ func (m *Machine) doOpInterfaceType() {
 	})
 }
 
+func (m *Machine) doOpChanType() {
+	x := m.PopExpr().(*ChanTypeExpr)
+	tv := m.PeekValue(1) // re-use as result.
+	ct := &ChanType{
+		Dir: x.Dir,
+		Elt: tv.GetType(),
+	}
+	*tv = TypedValue{
+		T: gTypeType,
+		V: TypeValue{Type: ct},
+	}
+}
+
 // Evaluate the type of a typed (i.e. not untyped) value.
 // This function expects const expressions to have been
 // already swapped for *constExpr in the preprocessor.  If not, panics.
@@ -222,7 +235,7 @@ func (m *Machine) doOpTypeOf() {
 					ft := ct.Base.(*InterfaceType).
 						GetMethodType(path.Name)
 					m.PushValue(asValue(ft))
-				case VPTypeDefault:
+				case VPTypeMethod:
 					if debug {
 						if ct.Base.Kind() == InterfaceKind {
 							panic("should not happen")
@@ -248,8 +261,14 @@ func (m *Machine) doOpTypeOf() {
 			}
 			ft := ct.GetMethodType(path.Name)
 			m.PushValue(asValue(ft))
-		case PointerType:
+		case *PointerType:
 			if dt, ok := ct.Elt.(*DeclaredType); ok {
+				if debug {
+					if path.Type != VPTypeDeref &&
+						path.Type != VPTypeMethod {
+						panic("should not happen")
+					}
+				}
 				xt = dt
 				goto TYPE_SWITCH
 			} else {
@@ -277,6 +296,11 @@ func (m *Machine) doOpTypeOf() {
 			m.Run() // XXX replace
 			xv := m.ReapValues(start)[0]
 			switch t := xv.GetType().(type) {
+			case *PointerType:
+				dt := t.Elt.(*DeclaredType)
+				t2 := dt.GetValueRefAt(path).T
+				m.PushValue(asValue(t2))
+				return
 			case *DeclaredType:
 				t2 := t.GetValueRefAt(path).T
 				m.PushValue(asValue(t2))
@@ -296,7 +320,10 @@ func (m *Machine) doOpTypeOf() {
 				m.PushValue(asValue(t2))
 				return
 			default:
-				panic("unexpected selector base typeval.")
+				panic(fmt.Sprintf(
+					"unexpected selector base typeval: %s of kind %s.",
+					xv.GetType().String(),
+					xv.GetType().Kind().String()))
 			}
 		case *PackageType:
 			start := m.NumValues
@@ -363,7 +390,7 @@ func (m *Machine) doOpTypeOf() {
 		m.PushOp(OpTypeOf)
 		m.Run() // XXX replace
 		xt := m.ReapValues(start)[0].V.(TypeValue).Type
-		if pt, ok := xt.(PointerType); ok {
+		if pt, ok := xt.(*PointerType); ok {
 			m.PushValue(asValue(&SliceType{
 				Elt: pt.Elt.Elem(),
 			}))
@@ -379,7 +406,7 @@ func (m *Machine) doOpTypeOf() {
 		m.PushOp(OpTypeOf)
 		m.Run() // XXX replace
 		xt := m.ReapValues(start)[0].GetType()
-		if pt, ok := xt.(PointerType); ok {
+		if pt, ok := xt.(*PointerType); ok {
 			m.PushValue(asValue(pt.Elt))
 		} else if _, ok := xt.(*TypeType); ok {
 			m.PushValue(asValue(gTypeType))
@@ -393,7 +420,7 @@ func (m *Machine) doOpTypeOf() {
 		m.PushOp(OpTypeOf)
 		m.Run() // XXX replace
 		xt := m.ReapValues(start)[0].GetType()
-		m.PushValue(asValue(PointerType{Elt: xt}))
+		m.PushValue(asValue(&PointerType{Elt: xt}))
 	case *TypeAssertExpr:
 		if x.HasOK {
 			panic("type assert assignment used with return 2 values; has no type")
