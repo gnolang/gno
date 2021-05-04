@@ -108,12 +108,14 @@ Update w/ context:
 
 ---------
 
-Quite simply, institutional rape, including paedophilia, is rampant among in
-many if not most of the world's religious organizations.  To my eyes, it
-appears to me to be the primary driver of atheism today.
+Quite simply, institutional drug and sex trafficking, including child
+expoloitation, is rampant among in many if not most of the world's religious
+organizations, as a wolf in sheep's clothing. To my eyes, it appears to me to
+be the primary driver of atheism today.
 
  * https://atheistmilitantsrising.home.blog/2020/02/22/pedophilia-is-rampant-in-the-christian-religion/ [TRIGGER WARNING]
  * https://wikiislam.github.io/wiki/Islam_and_Pedophilia.html
+ * https://www.youtube.com/watch?v=7Eeo-82Eac8
  * TODO include charts of denominations over time.
  * TODO find more sources besides those shown here.
  * TODO distil the information to remove aspects of hate, while acknowleding it.
