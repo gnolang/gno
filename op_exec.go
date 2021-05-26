@@ -789,7 +789,7 @@ func (m *Machine) doOpTypeSwitchClause() {
 				if ss.VarName != "" && len(cs.Cases) <= 1 {
 					// NOTE: assumes the var is first in block.
 					vp := NewValuePath(
-						VPTypeDefault, 1, 0, ss.VarName)
+						VPBlock, 1, 0, ss.VarName)
 					ptr := b.GetPointerTo(vp)
 					ptr.Assign(*xv, false)
 				}

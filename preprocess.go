@@ -454,7 +454,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 				// specific and general cases
 				switch n.Name {
 				case "_":
-					n.Path.Name = "_"
+					n.Path = NewValuePathBlock(0, 0, "_")
 					return n, TRANS_CONTINUE
 				case "iota":
 					pd := lastDecl(ns)
@@ -933,128 +933,80 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 				xt := evalTypeOf(last, n.X)
 
 				// Set selector path based on xt's type.
-			X_TYPE_SWITCH:
 				switch cxt := xt.(type) {
-				case *PointerType:
-					dxt := cxt.Elt
-					if dt, ok := dxt.(*DeclaredType); ok {
-						_, hp, rt, mt := dt.FindEmbeddedFieldType(n.Sel)
-						if mt == nil {
-							// Go spec: "if the type of x is a defined
-							// pointer type and (*x).f is a valid selector
-							// expression denoting a field (but not a
-							// method), x.f is shorthand for (*x).f."
-							//
-							// convert to (*x).f.
-							if !hp {
-								n.X = &StarExpr{X: n.X}
-								n.X.SetAttribute(ATTR_PREPROCESSED, true)
-							}
-							// continue on with xt = dxt
-							xt = dxt
-							goto X_TYPE_SWITCH
-						} else {
-							// Is a method call, and is pointer too.
-							if _, ok := rt.(*PointerType); ok {
-								// Do not convert to (*x).f, but do get path
-								// on receiver's deref type (dxt is where
-								// the path is defined).
-								// continue on with xt = dxt
-								xt = dxt
-								goto X_TYPE_SWITCH
-							} else {
-								// Go spec: "As with selectors, a reference
-								// to a non-interface method with a value
-								// receiver using a pointer will
-								// automatically dereference that pointer:
-								// pt.Mv is equivalent to (*pt).Mv."
-								//
-								// convert to (*x).f.
-								if !hp {
-									n.X = &StarExpr{X: n.X}
-									n.X.SetAttribute(ATTR_PREPROCESSED, true)
-								}
-								// continue on with xt = dxt
-								xt = dxt
-								goto X_TYPE_SWITCH
-							}
-						}
-					} else {
-						// Go spec: "if the type of x is a defined pointer
-						// type and (*x).f is a valid selector expression
-						// denoting a field (but not a method), x.f is
-						// shorthand for (*x).f."
-						//
-						// convert to (*x).f.
-						n.X = &StarExpr{X: n.X}
-						n.X.SetAttribute(ATTR_PREPROCESSED, true)
-						// continue on with xt = dxt
-						xt = dxt
-						goto X_TYPE_SWITCH
-					}
-
-				case *DeclaredType:
-					// hp short for has pointer, whether there is a pointer
-					// field along the trail, e.g.
-					// `type struct { *Foo }`,
-					// determines whether n.X must be replaced by a
-					// reference.
-					tr, _, rt, _ := cxt.FindEmbeddedFieldType(n.Sel)
-					if tr != nil {
-						if len(tr) > 1 {
-							// replace n.X w/ tr[:len-1] selectors applied.
-							// (the last vp, tr[len(tr)-1], is for n.Sel)
-							if debug {
-								if tr[len(tr)-1].Name != n.Sel {
-									panic("should not happen")
-								}
-							}
-							nx2 := n.X
-							for _, vp := range tr[:len(tr)-1] {
-								nx2 = &SelectorExpr{
-									X:    nx2,
-									Path: vp,
-									Sel:  vp.Name,
-								}
-							}
-							// recursively preprocess new n.X.
-							n.X = Preprocess(imp, last, nx2).(Expr)
-						}
-						// nxt2 may not be xt anymore.
-						// (even the dereferenced of xt and nxt2 may not
-						// be the same, with embedded fields)
-						nxt2 := evalTypeOf(last, n.X)
-						// If receiver is pointer type but n.X is not:
-						if rt != nil &&
-							rt.Kind() == PointerKind &&
-							nxt2.Kind() != PointerKind {
-							// Go spec: "If x is addressable and &x's
-							// method set contains m, x.m() is shorthand
-							// for (&x).m()"
-							// Go spec: "As with method calls, a reference
-							// to a non-interface method with a pointer
-							// receiver using an addressable value will
-							// automatically take the address of that
-							// value: t.Mp is equivalent to (&t).Mp."
-							//
-							// convert to (&x).m, but leave xt as is.
-							n.X = &RefExpr{X: n.X}
-							n.X.SetAttribute(ATTR_PREPROCESSED, true)
-						}
-						// bound method or underlying.
-						// TODO check for unexported fields.
-						n.Path = tr[len(tr)-1]
-						// n.Path = cxt.GetPathForName(n.Sel)
-					} else {
-						panic(fmt.Sprintf(
-							"missing field %s in %s",
-							n.Sel,
+				case *PointerType, *DeclaredType, *StructType, *InterfaceType:
+					tr, _, rcvr, _ := findEmbeddedFieldType(cxt, n.Sel)
+					if tr == nil {
+						panic(fmt.Sprintf("missing field %s in %s", n.Sel,
 							cxt.String()))
 					}
-				case *StructType:
-					// struct field
+					if len(tr) > 1 {
+						// (the last vp, tr[len(tr)-1], is for n.Sel)
+						if debug {
+							if tr[len(tr)-1].Name != n.Sel {
+								panic("should not happen")
+							}
+						}
+						// replace n.X w/ tr[:len-1] selectors applied.
+						nx2 := n.X
+						for _, vp := range tr[:len(tr)-1] {
+							nx2 = &SelectorExpr{
+								X:    nx2,
+								Path: vp,
+								Sel:  vp.Name,
+							}
+						}
+						// recursively preprocess new n.X.
+						n.X = Preprocess(imp, last, nx2).(Expr)
+					}
+					// nxt2 may not be xt anymore.
+					// (even the dereferenced of xt and nxt2 may not
+					// be the same, with embedded fields)
+					nxt2 := evalTypeOf(last, n.X)
+					// If receiver is pointer type but n.X is not:
+					if rcvr != nil &&
+						rcvr.Kind() == PointerKind &&
+						nxt2.Kind() != PointerKind {
+						// Go spec: "If x is addressable and &x's
+						// method set contains m, x.m() is shorthand
+						// for (&x).m()"
+						// Go spec: "As with method calls, a reference
+						// to a non-interface method with a pointer
+						// receiver using an addressable value will
+						// automatically take the address of that
+						// value: t.Mp is equivalent to (&t).Mp."
+						//
+						// convert to (&x).m, but leave xt as is.
+						n.X = &RefExpr{X: n.X}
+						n.X.SetAttribute(ATTR_PREPROCESSED, true)
+						if debug {
+							if len(tr) != 1 {
+								panic(fmt.Sprintf(
+									"expected trail of length 1 but got %v",
+									tr))
+							}
+						}
+						switch tr[len(tr)-1].Type {
+						case VPPtrMethod:
+							tr[len(tr)-1].Type = VPDerefPtrMethod
+						default:
+							panic(fmt.Sprintf(
+								"expected ultimate VPPtrMethod but got %v",
+								tr[len(tr)-1].Type,
+							))
+						}
+					} else if len(tr) > 0 &&
+						tr[len(tr)-1].IsDerefType() &&
+						nxt2.Kind() != PointerKind {
+						// If tr[0] is deref type, but xt is not pointer type,
+						// replace n.X with &RefExpr{X: n.X}.
+						n.X = &RefExpr{X: n.X}
+						n.X.SetAttribute(ATTR_PREPROCESSED, true)
+					}
+					// bound method or underlying.
 					// TODO check for unexported fields.
-					n.Path = cxt.GetPathForName(n.Sel)
+					n.Path = tr[len(tr)-1]
+					// n.Path = cxt.GetPathForName(n.Sel)
 				case *PackageType:
 					// packages can only be referred to by
 					// *NameExprs, and cannot be copied.
@@ -1062,35 +1014,25 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 					pv := last.GetValueRef(nx.Name)
 					pn := pv.V.(*PackageValue).Source
 					n.Path = pn.GetPathForName(n.Sel)
-				case *InterfaceType:
-					// first implement interfaaces
-					// TODO check for unexported fields.
-					panic("not yet implemented")
 				case *TypeType:
 					// unbound method
 					xt := evalType(last, n.X)
 					switch ct := xt.(type) {
 					case *PointerType:
 						dt := ct.Elt.(*DeclaredType)
-						n.Path = dt.GetPathForName(n.Sel)
-						if n.Path.Depth > 1 {
-							panic(fmt.Sprintf(
-								"DeclaredType has no method %s",
-								n.Sel))
-						}
+						n.Path = dt.GetUnboundPathForName(n.Sel)
 					case *DeclaredType:
-						n.Path = ct.GetPathForName(n.Sel)
-						if n.Path.Depth > 1 {
-							panic(fmt.Sprintf(
-								"DeclaredType has no method %s",
-								n.Sel))
-						}
+						n.Path = ct.GetUnboundPathForName(n.Sel)
 					default:
 						panic(fmt.Sprintf(
 							"unexpected selector expression type value %s",
 							xt.String()))
 					}
 				case *nativeType:
+					// NOTE: if type of n.X is native type, as in a native
+					// interface method, n.Path may be VPNative but at
+					// runtime, the value's type may be *gno.PointerType.
+					//
 					// native types don't use path indices.
 					n.Path = NewValuePathNative(n.Sel)
 				default:
@@ -1398,7 +1340,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 				}
 				// define.
 				if n.Name == "_" {
-					n.Path.Name = "_"
+					n.Path = NewValuePathBlock(0, 0, "_")
 				} else {
 					if fn, ok := last.(*FileNode); ok {
 						pn := fn.GetParent().(*PackageNode)

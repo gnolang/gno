@@ -239,9 +239,9 @@ type StructValue struct {
 // and also ensure in the preprocessor.
 func (sv *StructValue) GetPointerTo2(st *StructType, path ValuePath) PointerValue {
 	if debug {
-		if path.Depth != 1 {
+		if path.Depth != 0 {
 			panic(fmt.Sprintf(
-				"expected path.Depth of 1 but got %s %s",
+				"expected path.Depth of 0 but got %s %s",
 				path.Name, path))
 		}
 	}
@@ -1185,137 +1185,191 @@ func (tv *TypedValue) GetPointerTo(path ValuePath) PointerValue {
 			panic("GetPointerTo() on undefined value")
 		}
 	}
-	t, v := tv.T, tv.V // tv is original, t, v are mutable.
-TYPE_SWITCH:
-	switch ct := t.(type) {
-	case *DeclaredType:
-		if path.Depth <= 1 {
-			switch path.Type {
-			case VPTypeMethod:
-				/*
-					e.g.:
-					main.Bir struct{(struct{("foo" string)} main.Boo)} @Hello
-					PATH=gno.ValuePath{Type:0x2, Depth:0x1, Index:0x0, Name:"Hello"}
-				*/
-				ftv := ct.GetValueRefAt(path)
-				fv := ftv.GetFunc()
-				if debug {
-					if fv.Type.HasPointerReceiver() &&
-						tv.T.Kind() != PointerKind {
-						panic("should not happen")
-					}
-				}
-				mv := BoundMethodValue{
-					Func:     fv,
-					Receiver: *tv,
-				}
-				// TODO: this means all method selectors are slow and incur
-				// extra overhead.  To prevent this extra overhead, CallExpr
-				// evaluation should peek into X and call
-				// *DeclaredType.GetMethodAt() directly somehow.
+
+	// NOTE: path will be mutated.
+	// NOTE: this code segment similar to that in op_types.go
+	var dtv TypedValue
+	var isPtr bool = false
+	switch path.Type {
+	case VPField:
+		switch path.Depth {
+		case 0:
+			dtv = *tv
+		case 1:
+			dtv = *tv
+			dtv.T = baseOf(tv.T)
+			path.Depth = 0
+		default:
+			panic("should not happen")
+		}
+	case VPDerefField:
+		switch path.Depth {
+		case 0:
+			dtv = *tv.V.(PointerValue).TypedValue
+			isPtr = true
+			path.Type = VPField
+		case 1:
+			dtv = *tv.V.(PointerValue).TypedValue
+			isPtr = true
+			path.Type = VPField
+			path.Depth = 0
+		case 2:
+			dtv = *tv.V.(PointerValue).TypedValue
+			dtv.T = baseOf(dtv.T)
+			isPtr = true
+			path.Type = VPField
+			path.Depth = 0
+		case 3:
+			dtv = *tv.V.(PointerValue).TypedValue
+			dtv.T = baseOf(dtv.T)
+			isPtr = true
+			path.Type = VPField
+			path.Depth = 0
+		default:
+			panic("should not happen")
+		}
+	case VPDerefValMethod:
+		dtv = *tv.V.(PointerValue).TypedValue
+		isPtr = true
+		path.Type = VPValMethod
+	case VPDerefPtrMethod:
+		dtv = *tv.V.(PointerValue).TypedValue
+		isPtr = true
+		path.Type = VPPtrMethod // XXX pseudo
+	case VPDerefInterface:
+		dtv = *tv.V.(PointerValue).TypedValue
+		isPtr = true
+		path.Type = VPInterface
+	default:
+		dtv = *tv
+	}
+	if debug {
+		path.Validate()
+	}
+
+	switch path.Type {
+	case VPBlock:
+		switch dtv.T.(type) {
+		case *PackageType:
+			pv := dtv.V.(*PackageValue)
+			return pv.GetPointerTo(path)
+		default:
+			panic("should not happen")
+		}
+	case VPField:
+		switch ct := dtv.T.(type) {
+		case *StructType:
+			return dtv.V.(*StructValue).GetPointerTo2(ct, path)
+		case *TypeType:
+			switch t := dtv.V.(TypeValue).Type.(type) {
+			case *PointerType:
+				dt := t.Elt.(*DeclaredType)
 				return PointerValue{
-					TypedValue: &TypedValue{
-						T: fv.Type.BoundType(),
-						V: mv,
-					},
-					Base: nil, // a bound method is free floating.
+					TypedValue: dt.GetValueRefAt(path),
+					Base:       nil, // TODO: make TypeValue an object.
 				}
-			case VPTypeInterface:
-				tr, _, _, _ := ct.FindEmbeddedFieldType(path.Name)
-				if len(tr) == 0 {
-					panic("should not happen")
+			case *DeclaredType:
+				return PointerValue{
+					TypedValue: t.GetValueRefAt(path),
+					Base:       nil, // TODO: make TypeValue an object.
 				}
-				bv := tv
-				for i, path := range tr {
-					ptr := bv.GetPointerTo(path)
-					if i == len(tr)-1 {
-						return ptr // done
-					} else {
-						bv = ptr.TypedValue // deref
+			case *nativeType:
+				rt := t.Type
+				mt, ok := rt.MethodByName(string(path.Name))
+				if !ok {
+					if debug {
+						panic(fmt.Sprintf(
+							"native type %s has no method %s",
+							rt.String(), path.Name))
 					}
+					panic("unknown native method selector")
 				}
-				panic("should not happen")
+				mtv := go2GnoValue(mt.Func)
+				return PointerValue{
+					TypedValue: &mtv, // heap alloc
+					Base:       nil,
+				}
 			default:
+				panic("unexpected selector base typeval.")
+			}
+		default:
+			panic("should not happen")
+		}
+	case VPValMethod:
+		dt := dtv.T.(*DeclaredType)
+		mtv := dt.GetValueRefAt(path)
+		mv := mtv.GetFunc()
+		if debug {
+			if mv.Type.HasPointerReceiver() {
 				panic("should not happen")
 			}
-		} else {
-			// NOTE could work with nested *DeclaredTypes,
-			// though we don't yet allow that.
-			path.Depth--
-			t = ct.Base
-			goto TYPE_SWITCH
 		}
-	case *PointerType:
+		bmv := BoundMethodValue{
+			Func:     mv,
+			Receiver: dtv,
+		}
+		return PointerValue{
+			TypedValue: &TypedValue{
+				T: mv.Type.BoundType(),
+				V: bmv,
+			},
+			Base: nil, // a bound method is free floating.
+		}
+	case VPPtrMethod:
+		dt := dtv.T.(*DeclaredType)
+		mtv := dt.GetValueRefAt(path)
+		mv := mtv.GetFunc()
 		if debug {
-			if path.Type != VPTypeDeref &&
-				path.Type != VPTypeMethod &&
-				path.Type != VPTypeInterface &&
-				path.Type != VPTypeNative {
-				panic(fmt.Sprintf(
-					"expected VPTypeDeref, VPTypeMethod, VPTypeInterface, or VPTypeNative but got %v",
-					path.Type))
+			if !mv.Type.HasPointerReceiver() {
+				panic("should not happen")
+			}
+			if !isPtr {
+				panic("should not happen")
+			}
+			if tv.T.Kind() != PointerKind {
+				panic("should not happen")
 			}
 		}
-		switch cet := ct.Elt.(type) {
-		case *DeclaredType:
-			t = cet
-			v = v.(PointerValue).V
-			goto TYPE_SWITCH
-		case *nativeType:
-			t = cet
-			v = v.(PointerValue).V
-			goto TYPE_SWITCH
-		default:
-			panic(fmt.Sprintf(
-				"unexpected pointer type: %v",
-				ct.String()))
+		bmv := BoundMethodValue{
+			Func:     mv,
+			Receiver: *tv, // bound to ptr, not dtv.
 		}
-	case *StructType:
-		return v.(*StructValue).GetPointerTo2(ct, path)
-	case *TypeType:
-		switch t := v.(TypeValue).Type.(type) {
-		case *PointerType:
-			dt := t.Elt.(*DeclaredType)
-			return PointerValue{
-				TypedValue: dt.GetValueRefAt(path),
-				Base:       nil, // TODO: make TypeValue an object.
-			}
-		case *DeclaredType:
-			return PointerValue{
-				TypedValue: t.GetValueRefAt(path),
-				Base:       nil, // TODO: make TypeValue an object.
-			}
-		case *nativeType:
-			rt := t.Type
-			mt, ok := rt.MethodByName(string(path.Name))
-			if !ok {
-				if debug {
-					panic(fmt.Sprintf(
-						"native type %s has no method %s",
-						rt.String(), path.Name))
-				}
-				panic("unknown native method selector")
-			}
-			mtv := go2GnoValue(mt.Func)
-			return PointerValue{
-				TypedValue: &mtv, // heap alloc
-				Base:       nil,
-			}
-		default:
-			panic("unexpected selector base typeval.")
+		return PointerValue{
+			TypedValue: &TypedValue{
+				T: mv.Type.BoundType(),
+				V: bmv,
+			},
+			Base: nil, // a bound method is free floating.
 		}
-	case *PackageType:
-		pv := v.(*PackageValue)
-		return pv.GetPointerTo(path)
-	case *nativeType:
+	case VPInterface:
+		if dtv.IsUndefined() {
+			panic("interface method call on undefined value")
+		}
+		tr, _, _, _ := findEmbeddedFieldType(dtv.T, path.Name)
+		if len(tr) == 0 {
+			panic(fmt.Sprintf("method %s not found in type %s",
+				path.Name, dtv.T.String()))
+		}
+		bv := dtv
+		for i, path := range tr {
+			ptr := bv.GetPointerTo(path)
+			if i == len(tr)-1 {
+				return ptr // done
+			} else {
+				bv = ptr.Deref() // deref
+			}
+		}
+		panic("should not happen")
+	case VPNative:
+		var nv *nativeValue
 		// Special case if tv.T.(PointerType):
 		// we may need to treat this as a native pointer
 		// to get the correct pointer-receiver value.
-		var nv *nativeValue
-		if pv, isGnoPtr := v.(PointerValue); isGnoPtr {
-			nv = pv.TypedValue.V.(*nativeValue)
+		if _, ok := dtv.T.(*PointerType); ok {
+			pv := dtv.V.(PointerValue)
+			nv = pv.V.(*nativeValue)
 		} else {
-			nv = v.(*nativeValue)
+			nv = dtv.V.(*nativeValue)
 		}
 		var rv = nv.Value
 		rt := rv.Type()
@@ -1357,7 +1411,7 @@ TYPE_SWITCH:
 				Index: PointerIndexExtendedObject,
 			}
 		} else {
-			// If isGnoPtr, try to get method from pointer type.
+			// Always try to get method from pointer type.
 			if !rv.CanAddr() {
 				// Replace rv with addressable value.
 				rv2 := reflect.New(rt).Elem()
@@ -1384,11 +1438,9 @@ TYPE_SWITCH:
 		}
 		panic(fmt.Sprintf(
 			"native type %s has no method or field %s",
-			ct.String(), path.Name))
+			dtv.T.String(), path.Name))
 	default:
-		panic(fmt.Sprintf(
-			"unexpected selector base type for mutation: %s.",
-			t.String()))
+		panic("should not happen")
 	}
 }
 
@@ -1819,7 +1871,7 @@ func (b *Block) StringIndented(indent string) string {
 }
 
 func (b *Block) GetPointerTo(path ValuePath) PointerValue {
-	if path.IsZeroPath() {
+	if path.IsBlockBlankPath() {
 		if debug {
 			if path.Name != "_" {
 				panic(fmt.Sprintf(
@@ -1858,22 +1910,22 @@ func (b *Block) GetBlankRef() *TypedValue {
 
 // Convenience for implementing nativeBody functions.
 func (b *Block) GetParams1() (pv1 PointerValue) {
-	pv1 = b.GetPointerTo(NewValuePathDefault(1, 0, ""))
+	pv1 = b.GetPointerTo(NewValuePathBlock(1, 0, ""))
 	return
 }
 
 // Convenience for implementing nativeBody functions.
 func (b *Block) GetParams2() (pv1, pv2 PointerValue) {
-	pv1 = b.GetPointerTo(NewValuePathDefault(1, 0, ""))
-	pv2 = b.GetPointerTo(NewValuePathDefault(1, 1, ""))
+	pv1 = b.GetPointerTo(NewValuePathBlock(1, 0, ""))
+	pv2 = b.GetPointerTo(NewValuePathBlock(1, 1, ""))
 	return
 }
 
 // Convenience for implementing nativeBody functions.
 func (b *Block) GetParams3() (pv1, pv2, pv3 PointerValue) {
-	pv1 = b.GetPointerTo(NewValuePathDefault(1, 0, ""))
-	pv2 = b.GetPointerTo(NewValuePathDefault(1, 1, ""))
-	pv3 = b.GetPointerTo(NewValuePathDefault(1, 2, ""))
+	pv1 = b.GetPointerTo(NewValuePathBlock(1, 0, ""))
+	pv2 = b.GetPointerTo(NewValuePathBlock(1, 1, ""))
+	pv3 = b.GetPointerTo(NewValuePathBlock(1, 2, ""))
 	return
 }
 
