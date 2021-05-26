@@ -215,130 +215,151 @@ func (m *Machine) doOpTypeOf() {
 		m.PushOp(OpTypeOf)
 		m.Run() // XXX replace
 		xt := m.ReapValues(start)[0].GetType()
-		path := x.Path
-	TYPE_SWITCH:
-		switch ct := xt.(type) {
-		case *DeclaredType:
-			if path.Depth <= 1 {
-				switch path.Type {
-				case VPTypeInterface:
-					if debug {
-						if ct.Base.Kind() != InterfaceKind {
-							panic("should not happen")
-						}
-					}
-					// If xt is a declared interface type, look the type
-					// up from the interface.
-					// NOTE: It wouldn't work to set depth > 1 because
-					// in this case the runtime type is concrete, so the
-					// method must be looked up by name anyways.
-					ft := ct.Base.(*InterfaceType).
-						GetMethodType(path.Name)
-					m.PushValue(asValue(ft))
-				case VPTypeMethod:
-					if debug {
-						if ct.Base.Kind() == InterfaceKind {
-							panic("should not happen")
-						}
-					}
-					ftv := ct.GetValueRefAt(path)
-					ft := ftv.GetFunc().Type
-					mt := ft.BoundType()
-					m.PushValue(asValue(mt))
-				default:
-					panic("should not happen")
-				}
-			} else {
-				path.Depth--
-				xt = ct.Base
-				goto TYPE_SWITCH
-			}
-		case *InterfaceType:
-			if debug {
-				if path.Depth != 1 {
-					panic("should not happen")
-				}
-			}
-			ft := ct.GetMethodType(path.Name)
-			m.PushValue(asValue(ft))
-		case *PointerType:
-			if dt, ok := ct.Elt.(*DeclaredType); ok {
-				if debug {
-					if path.Type != VPTypeDeref &&
-						path.Type != VPTypeMethod {
-						panic("should not happen")
-					}
-				}
-				xt = dt
-				goto TYPE_SWITCH
-			} else {
+
+		// NOTE: this code segment similar to that in op_types.go
+		var dxt Type
+		var path = x.Path // mutable
+		switch path.Type {
+		case VPField:
+			switch path.Depth { // see tests/selector_test.go for cases.
+			case 0:
+				dxt = xt
+			case 1:
+				dxt = baseOf(xt)
+				path.Depth = 0
+			default:
 				panic("should not happen")
 			}
-		case *StructType:
-			if debug {
-				if path.Depth != 1 {
-					panic("should not happen")
-				}
+		case VPDerefField:
+			switch path.Depth {
+			case 0:
+				dxt = xt.Elem()
+				path.Type = VPField
+				path.Depth = 0
+			case 1:
+				dxt = xt.Elem()
+				path.Type = VPField
+				path.Depth = 0
+			case 2:
+				dxt = baseOf(xt.Elem())
+				path.Type = VPField
+				path.Depth = 0
+			case 3:
+				dxt = baseOf(xt.Elem())
+				path.Type = VPField
+				path.Depth = 0
+			default:
+				panic("should not happen")
 			}
-			for _, ft := range ct.Fields {
-				if ft.Name == x.Sel {
-					m.PushValue(asValue(ft.Type))
-					return
-				}
-			}
-			panic(fmt.Sprintf("struct type %v has no field %s",
-				reflect.TypeOf(baseOf(xt)), x.Sel))
-		case *TypeType:
-			start := m.NumValues
-			m.PushOp(OpHalt)
-			m.PushExpr(x.X)
-			m.PushOp(OpEval)
-			m.Run() // XXX replace
-			xv := m.ReapValues(start)[0]
-			switch t := xv.GetType().(type) {
-			case *PointerType:
-				dt := t.Elt.(*DeclaredType)
-				t2 := dt.GetValueRefAt(path).T
-				m.PushValue(asValue(t2))
-				return
-			case *DeclaredType:
-				t2 := t.GetValueRefAt(path).T
-				m.PushValue(asValue(t2))
-				return
-			case *nativeType:
-				rt := t.Type
-				mt, ok := rt.MethodByName(string(x.Sel))
-				if !ok {
-					if debug {
-						panic(fmt.Sprintf(
-							"native type %s has no method %s",
-							rt.String(), x.Sel))
-					}
-					panic("unknown native method selector")
-				}
-				t2 := go2GnoType(mt.Type)
-				m.PushValue(asValue(t2))
+		case VPDerefValMethod:
+			dxt = xt.Elem()
+			path.Type = VPValMethod
+		case VPDerefPtrMethod:
+			dxt = xt.Elem()
+			path.Type = VPPtrMethod // XXX pseudo
+		case VPDerefInterface:
+			dxt = xt.Elem()
+			path.Type = VPInterface
+		default:
+			dxt = xt
+		}
+		if debug {
+			path.Validate()
+		}
+
+		switch path.Type {
+		case VPBlock:
+			switch dxt.(type) {
+			case *PackageType:
+				start := m.NumValues
+				m.PushOp(OpHalt)
+				m.PushExpr(x.X)
+				m.PushOp(OpEval)
+				m.Run() // XXX replace
+				xv := m.ReapValues(start)[0]
+				pv := xv.V.(*PackageValue)
+				t := pv.Source.GetStaticTypeOfAt(x.Path)
+				m.PushValue(asValue(t))
 				return
 			default:
-				panic(fmt.Sprintf(
-					"unexpected selector base typeval: %s of kind %s.",
-					xv.GetType().String(),
-					xv.GetType().Kind().String()))
+				panic("should not happen")
 			}
-		case *PackageType:
-			start := m.NumValues
-			m.PushOp(OpHalt)
-			m.PushExpr(x.X)
-			m.PushOp(OpEval)
-			m.Run() // XXX replace
-			xv := m.ReapValues(start)[0]
-			pv := xv.V.(*PackageValue)
-			t := pv.Source.GetStaticTypeOfAt(x.Path)
-			m.PushValue(asValue(t))
-			return
-		case *nativeType:
-			rt := ct.Type
+		case VPField:
+			switch path.Depth {
+			case 0:
+				// dxt is *StructType or *TypeType
+			case 1:
+				// dxt is *DeclaredType > *StructType
+				dxt = dxt.(*DeclaredType).Base
+				path.Depth = 0
+			default:
+				panic("should not happen")
+			}
+			switch cxt := dxt.(type) {
+			case *StructType:
+				for _, ft := range cxt.Fields {
+					if ft.Name == x.Sel {
+						m.PushValue(asValue(ft.Type))
+						return
+					}
+				}
+				panic(fmt.Sprintf("struct type %v has no field %s",
+					reflect.TypeOf(baseOf(xt)), x.Sel))
+			case *TypeType:
+				start := m.NumValues
+				m.PushOp(OpHalt)
+				m.PushExpr(x.X)
+				m.PushOp(OpEval)
+				m.Run() // XXX replace
+				xt := m.ReapValues(start)[0].GetType()
+				switch cxt := xt.(type) {
+				case *PointerType:
+					dt := cxt.Elt.(*DeclaredType)
+					t2 := dt.GetValueRefAt(path).T
+					m.PushValue(asValue(t2))
+					return
+				case *DeclaredType:
+					t2 := cxt.GetValueRefAt(path).T
+					m.PushValue(asValue(t2))
+					return
+				case *nativeType:
+					rt := cxt.Type
+					mt, ok := rt.MethodByName(string(x.Sel))
+					if !ok {
+						if debug {
+							panic(fmt.Sprintf(
+								"native type %s has no method %s",
+								rt.String(), x.Sel))
+						}
+						panic("unknown native method selector")
+					}
+					t2 := go2GnoType(mt.Type)
+					m.PushValue(asValue(t2))
+					return
+				default:
+					panic(fmt.Sprintf(
+						"unexpected selector base typeval: %s of kind %s",
+						xt.String(),
+						xt.Kind().String())) // XXX kind?
+				}
+			default:
+				panic(fmt.Sprintf(
+					"unexpected selector base type: %s (%s) of kind %s",
+					dxt.String(),
+					reflect.TypeOf(dxt),
+					dxt.Kind().String()))
+			}
+		case VPValMethod, VPPtrMethod:
+			ftv := dxt.(*DeclaredType).GetValueRefAt(path)
+			ft := ftv.GetFunc().Type
+			mt := ft.BoundType()
+			m.PushValue(asValue(mt))
+		case VPInterface:
+			_, _, _, ft := findEmbeddedFieldType(dxt, path.Name)
+			m.PushValue(asValue(ft))
+		case VPNative:
 			// switch on type and maybe match field.
+			rt := dxt.(*nativeType).Type
 			if rt.Kind() == reflect.Ptr {
 				ert := rt.Elem()
 				rft, ok := ert.FieldByName(string(x.Sel))
@@ -378,11 +399,15 @@ func (m *Machine) doOpTypeOf() {
 			}
 			panic(fmt.Sprintf(
 				"native type %s has no method or field %s",
-				ct.String(), x.Sel))
+				dxt.String(), x.Sel))
 		default:
-			panic(fmt.Sprintf("selector expression invalid for type %v",
-				reflect.TypeOf(xt)))
+			panic(fmt.Sprintf(
+				"unknown value path type %v in selector %s (path %s)",
+				path.Type,
+				x.String(),
+				path.String()))
 		}
+
 	case *SliceExpr:
 		start := m.NumValues
 		m.PushOp(OpHalt)

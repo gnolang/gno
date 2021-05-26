@@ -2,7 +2,6 @@ package gno
 
 import (
 	"fmt"
-	"strings"
 )
 
 //----------------------------------------
@@ -67,21 +66,35 @@ func (w Word) TokenString() string {
 
 func (p ValuePath) String() string {
 	switch p.Type {
-	case VPTypeUverse:
-		return fmt.Sprintf("#%d", p.Index)
-	case VPTypeDefault:
-		return fmt.Sprintf("%s%d", strings.Repeat("@", int(p.Depth)), p.Index)
-	case VPTypeInterface:
-		return fmt.Sprintf("@%s", p.Name)
-	case VPTypeNative:
-		return fmt.Sprintf("@%s", p.Name)
+	case VPUverse:
+		return fmt.Sprintf("VPUverse(%d)", p.Index)
+	case VPBlock:
+		return fmt.Sprintf("VPBlock(%d,%d)", p.Depth, p.Index)
+	case VPField:
+		return fmt.Sprintf("VPField(%d,%d,%s)", p.Depth, p.Index, p.Name)
+	case VPValMethod:
+		return fmt.Sprintf("VPValMethod(%d,%s)", p.Index, p.Name)
+	case VPPtrMethod:
+		return fmt.Sprintf("VPPtrMethod(%d,%s)", p.Index, p.Name)
+	case VPInterface:
+		return fmt.Sprintf("VPInterface(%s)", p.Name)
+	case VPDerefField:
+		return fmt.Sprintf("VPDerefField(%d,%d,%s)", p.Depth, p.Index, p.Name)
+	case VPDerefValMethod:
+		return fmt.Sprintf("VPDerefValMethod(%d,%s)", p.Index, p.Name)
+	case VPDerefPtrMethod:
+		return fmt.Sprintf("VPDerefPtrMethod(%d,%s)", p.Index, p.Name)
+	case VPDerefInterface:
+		return fmt.Sprintf("VPDerefInterface(%s)", p.Name)
+	case VPNative:
+		return fmt.Sprintf("VPNative(%s)", p.Name)
 	default:
 		panic("illegal_value_type")
 	}
 }
 
 func (n NameExpr) String() string {
-	return fmt.Sprintf("%s%s", n.Name, n.Path.String())
+	return fmt.Sprintf("%s<%s>", n.Name, n.Path.String())
 }
 
 func (n BasicLitExpr) String() string {
@@ -131,11 +144,11 @@ func (n SliceExpr) String() string {
 }
 
 func (n StarExpr) String() string {
-	return fmt.Sprintf("*%s", n.X)
+	return fmt.Sprintf("*(%s)", n.X)
 }
 
 func (n RefExpr) String() string {
-	return fmt.Sprintf("&%s", n.X)
+	return fmt.Sprintf("&(%s)", n.X)
 }
 
 func (n TypeAssertExpr) String() string {

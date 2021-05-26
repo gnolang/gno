@@ -1,4 +1,4 @@
-package interp_test
+package tests
 
 import (
 	"bytes"
