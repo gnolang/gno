@@ -111,16 +111,6 @@ func TestSelectors(t *testing.T) {
 	_printValue(x10.Bye) //     (*PT>)*ST.S1 > *DT(S1).Bye
 	//                           +S     F:0    +1   *M:1
 	//                          VPSubrefField{depth:0,index:0} > VPDerefPtrField{index:1}
-	var x11 S7 = S7{S1{1}}
-	_printValue(x11.F0) //      *DT(S7)>*ST.S1 > *DT(S1)>*ST.F0 NOTE same as x7.
-	//                          +1        F:0    +1        F:0
-	//                          VPField{depth:1,index:0} > VPField{depth:1,index:0}
-	_printValue(x11.Hello) //   *DT(S7)>*ST.S1 > *DT(S1)>*ST.Hello
-	//                          +1        F:0    +1        M:0
-	//                          VPField{depth:1,index:0} > VPValMethod{index:0}
-	_printValue(x11.Bye) //     (*PT>)*DT(S7)>*ST.S1 > *DT(S1).Bye
-	//                           +S   +1        F:0    +1   *M:1
-	//                          VPSubrefField{depth:2,index:0} > VPDerefPtrMethod{index:1}
 	x10p := &x10
 	_printValue(x10p.F0) //     *PT>*ST.S1 > *DT(S1)>*ST.F0
 	//                          +D    F:0    +1        F:0
@@ -141,6 +131,16 @@ func TestSelectors(t *testing.T) {
 	_printValue(x10p.Bye) //    *DT(S10PD)>*PT>*ST.S1 > *DT(S1).Bye
 	//                          +1         +D    F:0    +1   *M:1
 	//                          VPSubrefField{depth:1,index:0} > VPDerefPtrMethod{index:1}
+	var x11 S7 = S7{S1{1}}
+	_printValue(x11.F0) //      *DT(S7)>*ST.S1 > *DT(S1)>*ST.F0 NOTE same as x7.
+	//                          +1        F:0    +1        F:0
+	//                          VPField{depth:1,index:0} > VPField{depth:1,index:0}
+	_printValue(x11.Hello) //   *DT(S7)>*ST.S1 > *DT(S1)>*ST.Hello
+	//                          +1        F:0    +1        M:0
+	//                          VPField{depth:1,index:0} > VPValMethod{index:0}
+	_printValue(x11.Bye) //     (*PT>)*DT(S7)>*ST.S1 > *DT(S1).Bye
+	//                           +S   +1        F:0    +1   *M:1
+	//                          VPSubrefField{depth:2,index:0} > VPDerefPtrMethod{index:1}
 	var x11p *S7 = &S7{S1{1}}
 	_printValue(x11p.F0) //     *PT>*DT(S7)>*ST.S1 > *DT(S1)>*ST.F0
 	//                          +1            F:0    +1        F:0
