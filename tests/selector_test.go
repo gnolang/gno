@@ -39,6 +39,10 @@ type S9 struct {
 	*S1
 }
 
+type S10PD *struct {
+	S1
+}
+
 func _printValue(x interface{}) {
 	if reflect.TypeOf(x).Kind() == reflect.Func {
 		fmt.Println("function")
@@ -116,27 +120,37 @@ func TestSelectors(t *testing.T) {
 	//                          VPField{depth:1,index:0} > VPValMethod{index:0}
 	_printValue(x11.Bye) //     (*PT>)*DT(S7)>*ST.S1 > *DT(S1).Bye
 	//                           +S   +1        F:0    +1   *M:1
-	//                          VPSubrefField{depth:1,index:0} > VPDerefPtrMethod{index:1}
+	//                          VPSubrefField{depth:2,index:0} > VPDerefPtrMethod{index:1}
 	x10p := &x10
 	_printValue(x10p.F0) //     *PT>*ST.S1 > *DT(S1)>*ST.F0
 	//                          +D    F:0    +1        F:0
-	//                          VPDerefField{depth:1,index:0} > VPField{depth:1,index:0}
+	//                          VPDerefField{depth:0,index:0} > VPField{depth:1,index:0}
 	_printValue(x10p.Hello) //  *PT>*ST.S1 > *DT(S1).Hello
 	//                          +D    F:0    +1    M:0
-	//                          VPDerefField{depth:1,index:0} > VPValMethod{index:0}
+	//                          VPDerefField{depth:0,index:0} > VPValMethod{index:0}
 	_printValue(x10p.Bye) //    *PT>*ST.S1 > *DT(S1).Bye
 	//                          +D    F:0    +1   *M:1
+	//                          VPSubrefField{depth:0,index:0} > VPDerefPtrMethod{index:1}
+	var x10pd S10PD = &struct{ S1 }{S1{1}}
+	_printValue(x10pd.F0) //    *DT(S10PD)>*PT>*ST.S1 > *DT(S1)>*ST.F0
+	//                          +1         +D    F:0    +1        F:0
+	//                          VPDerefField{depth:1,index:0} > VPField{depth:1,index:0}
+	// _printValue(x10pd.Hello) *DT(S10PD)>*PT>*ST.S1 > *DT(S1).Hello XXX weird, doesn't work.
+	//                          +1         +D    F:0    +1    M:0
+	//                          VPDerefField{depth:1,index:0} > VPValMethod{index:0}
+	_printValue(x10p.Bye) //    *DT(S10PD)>*PT>*ST.S1 > *DT(S1).Bye
+	//                          +1         +D    F:0    +1   *M:1
 	//                          VPSubrefField{depth:1,index:0} > VPDerefPtrMethod{index:1}
 	var x11p *S7 = &S7{S1{1}}
 	_printValue(x11p.F0) //     *PT>*DT(S7)>*ST.S1 > *DT(S1)>*ST.F0
 	//                          +1            F:0    +1        F:0
-	//                          VPDerefField{depth:1,index:0} > VPField{depth:1,index:0}
+	//                          VPDerefField{depth:2,index:0} > VPField{depth:1,index:0}
 	_printValue(x11p.Hello) //  *PT>*DT(S7)>*ST.S1 > *DT(S1).Hello
 	//                          +1            F:0    +1    M:0
-	//                          VPDerefField{depth:1,index:0} > VPValMethod{index:0}
+	//                          VPDerefField{depth:2,index:0} > VPValMethod{index:0}
 	_printValue(x11p.Bye) //    *PT>*DT(S7)>*ST.S1 > *DT(S1).Bye
 	//                          +1            F:0    +1   *M:1
-	//                          VPSubrefField{depth:1,index:0} > VPDerefPtrMethod{index:1}
+	//                          VPSubrefField{depth:2,index:0} > VPDerefPtrMethod{index:1}
 	var x12 struct {
 		*S1
 	} = struct{ *S1 }{&S1{1}}
