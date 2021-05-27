@@ -72,6 +72,8 @@ func (p ValuePath) String() string {
 		return fmt.Sprintf("VPBlock(%d,%d)", p.Depth, p.Index)
 	case VPField:
 		return fmt.Sprintf("VPField(%d,%d,%s)", p.Depth, p.Index, p.Name)
+	case VPSubrefField:
+		return fmt.Sprintf("VPSubrefField(%d,%d,%s)", p.Depth, p.Index, p.Name)
 	case VPValMethod:
 		return fmt.Sprintf("VPValMethod(%d,%s)", p.Index, p.Name)
 	case VPPtrMethod:

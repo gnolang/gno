@@ -1367,6 +1367,7 @@ const (
 	VPValMethod      VPType = 0x03
 	VPPtrMethod      VPType = 0x04
 	VPInterface      VPType = 0x05
+	VPSubrefField    VPType = 0x06 // not deref type
 	VPDerefField     VPType = 0x12 // 0x10 + VPField
 	VPDerefValMethod VPType = 0x13 // 0x10 + VPValMethod
 	VPDerefPtrMethod VPType = 0x14 // 0x10 + VPPtrMethod
@@ -1413,6 +1414,10 @@ func NewValuePathInterface(n Name) ValuePath {
 	return NewValuePath(VPInterface, 0, 0, n)
 }
 
+func NewValuePathSubrefField(depth uint8, index uint16, n Name) ValuePath {
+	return NewValuePath(VPSubrefField, depth, index, n)
+}
+
 func NewValuePathDerefField(depth uint8, index uint16, n Name) ValuePath {
 	return NewValuePath(VPDerefField, depth, index, n)
 }
@@ -1442,7 +1447,9 @@ func (vp ValuePath) Validate() {
 	case VPBlock:
 		// 0 ok ("_" blank)
 	case VPField:
-		// 0 ok
+		if vp.Depth > 1 {
+			panic("field value path must have depth 0 or 1")
+		}
 	case VPValMethod:
 		if vp.Depth != 0 {
 			panic("method value path must have depth 0")
@@ -1458,8 +1465,14 @@ func (vp ValuePath) Validate() {
 		if vp.Name == "" {
 			panic("interface value path must have name")
 		}
+	case VPSubrefField:
+		if vp.Depth > 3 {
+			panic("subref field value path must have depth 0, 1, 2, or 3")
+		}
 	case VPDerefField:
-		// 0 ok
+		if vp.Depth > 3 {
+			panic("deref field value path must have depth 0, 1, 2, or 3")
+		}
 	case VPDerefValMethod:
 		if vp.Depth != 0 {
 			panic("(deref) method value path must have depth 0")
