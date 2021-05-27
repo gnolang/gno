@@ -494,24 +494,52 @@ func (pt *PointerType) FindEmbeddedFieldType(n Name) (
 			hasPtr = true // pt *is* a pointer.
 			switch trail[0].Type {
 			case VPField:
-				trail[0].Type = VPDerefField
-				switch trail[0].Depth {
-				case 0:
-					// *PointerType > *StructType.Field has depth 0.
-				case 1:
-					// *DeclaredType > *StructType.Field has depth 1 (& type VPField).
-					// *PointerType > *DeclaredType > *StructType.Field has depth 2.
-					trail[0].Depth = 2
-					/*
-						// If trail[-1].Type == VPPtrMethod, set VPDerefPtrMethod.
-						if len(trail) > 1 && trail[1].Type == VPPtrMethod {
-							trail[1].Type = VPDerefPtrMethod
+				// Case 1: If trail is of form [VPField, VPField, ... VPPtrMethod],
+				// that is, one or more fields followed by a pointer method,
+				// convert to [VPSubrefField, VPSubrefField, ... VPDerefPtrMethod].
+				if func() bool {
+					for i, path := range trail {
+						if i < len(trail)-1 {
+							if path.Type != VPField {
+								return false
+							}
+						} else {
+							if path.Type != VPPtrMethod {
+								return false
+							}
 						}
-					*/
-				default:
-					panic("should not happen")
+					}
+					return true
+				}() {
+					for i, _ := range trail {
+						if i < len(trail)-1 {
+							trail[i].Type = VPSubrefField
+						} else {
+							trail[i].Type = VPDerefPtrMethod
+						}
+					}
+					return
+				} else {
+					// Case 2: otherwise, is just a deref field.
+					trail[0].Type = VPDerefField
+					switch trail[0].Depth {
+					case 0:
+						// *PointerType > *StructType.Field has depth 0.
+					case 1:
+						// *DeclaredType > *StructType.Field has depth 1 (& type VPField).
+						// *PointerType > *DeclaredType > *StructType.Field has depth 2.
+						trail[0].Depth = 2
+						/*
+							// If trail[-1].Type == VPPtrMethod, set VPDerefPtrMethod.
+							if len(trail) > 1 && trail[1].Type == VPPtrMethod {
+								trail[1].Type = VPDerefPtrMethod
+							}
+						*/
+					default:
+						panic("should not happen")
+					}
+					return
 				}
-				return
 			case VPValMethod:
 				trail[0].Type = VPDerefValMethod
 				return
