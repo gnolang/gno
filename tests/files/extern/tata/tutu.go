@@ -1,6 +1,6 @@
 package tutu
 
-import "guthib.com/baz"
+import "github.com/gnolang/gno/_test/baz"
 
 func Quux() string {
 	return quux.Quux()

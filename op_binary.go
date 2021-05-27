@@ -332,6 +332,18 @@ func isEql(lv, rv *TypedValue) bool {
 	if lv.IsUndefined() {
 		return rv.IsUndefined()
 	}
+	if lnt, ok := lv.T.(*nativeType); ok {
+		if rnt, ok := rv.T.(*nativeType); ok {
+			if lnt.Type != rnt.Type {
+				return false
+			}
+			lrv := lv.V.(*nativeValue).Value.Interface()
+			rrv := rv.V.(*nativeValue).Value.Interface()
+			return lrv == rrv
+		} else {
+			return false
+		}
+	}
 	switch lv.T.Kind() {
 	case BoolKind:
 		return (lv.GetBool() == rv.GetBool())
@@ -400,6 +412,11 @@ func isEql(lv, rv *TypedValue) bool {
 			}
 		}
 		return lv.V == rv.V
+	case PointerKind:
+		// TODO: assumes runtime instance normalization.
+		return lv.V == rv.V
+	case StructKind:
+		panic("NOT YET IMPLEMENTED")
 	default:
 		panic(fmt.Sprintf(
 			"comparison operator == not defined for %s",

@@ -7,7 +7,8 @@ import (
 
 // OpBinary1 defined in op_binary.go
 
-func (m *Machine) doOpIndex() {
+// NOTE: keep in sync with doOpIndex2.
+func (m *Machine) doOpIndex1() {
 	if debug {
 		_ = m.PopExpr().(*IndexExpr)
 	} else {
@@ -20,12 +21,41 @@ func (m *Machine) doOpIndex() {
 	if xv.T.Kind() == PointerKind &&
 		xv.T.Elem().Kind() == ArrayKind {
 		// simply deref xv.
-		xv2 := xv.V.(PointerValue).Deref()
-		res := xv2.GetPointerAtIndex(iv)
-		*xv = res.Deref() // reuse as result
+		xv = xv.V.(PointerValue).TypedValue
+	}
+	res := xv.GetPointerAtIndex(iv)
+	*xv = res.Deref() // reuse as result
+}
+
+// NOTE: keep in sync with doOpIndex1.
+func (m *Machine) doOpIndex2() {
+	if debug {
+		_ = m.PopExpr().(*IndexExpr)
 	} else {
-		res := xv.GetPointerAtIndex(iv)
-		*xv = res.Deref() // reuse as result
+		m.PopExpr()
+	}
+	iv := m.PeekValue(1) // index
+	xv := m.PeekValue(2) // x
+	vt := xv.T.(*MapType).Value
+	if xv.V == nil { // uninitialized map
+		*xv = TypedValue{ // reuse as result
+			T: vt,
+			V: defaultValue(vt),
+		}
+		*iv = untypedBool(false) // reuse as result
+	} else {
+		mv := xv.V.(*MapValue)
+		vv, exists := mv.GetValueForKey(iv)
+		if exists {
+			*xv = vv                // reuse as result
+			*iv = untypedBool(true) // reuse as result
+		} else {
+			*xv = TypedValue{ // reuse as result
+				T: vt,
+				V: defaultValue(vt),
+			}
+			*iv = untypedBool(false) // reuse as result
+		}
 	}
 }
 
@@ -94,10 +124,10 @@ func (m *Machine) doOpSlice() {
 func (m *Machine) doOpStar() {
 	xv := m.PopValue()
 	switch bt := baseOf(xv.T).(type) {
-	case PointerType:
+	case *PointerType:
 		pv := xv.V.(PointerValue)
 		if pv.T == DataByteType {
-			tv := TypedValue{T: xv.T.(PointerType).Elt}
+			tv := TypedValue{T: xv.T.(*PointerType).Elt}
 			tv.SetUint8(*(pv.V.(DataByteValue).Ref))
 			m.PushValue(tv)
 		} else {
@@ -110,7 +140,7 @@ func (m *Machine) doOpStar() {
 		}
 	case *TypeType:
 		t := xv.GetType()
-		m.PushValue(asValue(PointerType{Elt: t}))
+		m.PushValue(asValue(&PointerType{Elt: t}))
 	case *nativeType:
 		panic("not yet implemented")
 	default:
@@ -136,11 +166,12 @@ func (m *Machine) doOpRef() {
 		}
 	}
 	m.PushValue(TypedValue{
-		T: PointerType{Elt: xv.T},
+		T: &PointerType{Elt: xv.T},
 		V: xv,
 	})
 }
 
+// NOTE: keep in sync with doOpTypeAssert2.
 func (m *Machine) doOpTypeAssert1() {
 	m.PopExpr()
 	// pop type
@@ -149,26 +180,49 @@ func (m *Machine) doOpTypeAssert1() {
 	xv := m.PeekValue(1)
 	xt := xv.T
 
-	if it, ok := baseOf(t).(*InterfaceType); ok { // is interface assert
-		// assert that x implements type.
-		impl := false
-		switch cxt := xt.(type) {
-		case *InterfaceType:
-			impl = it.IsImplementedBy(cxt)
-		case *DeclaredType:
-			impl = it.IsImplementedBy(cxt)
-		default:
-			impl = it.IsEmptyInterface()
+	if t.Kind() == InterfaceKind { // is interface assert
+		if it, ok := baseOf(t).(*InterfaceType); ok {
+			// t is Gno interface.
+			// assert that x implements type.
+			impl := false
+			switch cxt := xt.(type) {
+			case *InterfaceType:
+				panic("should not happen")
+				// impl = it.IsImplementedBy(cxt)
+			case *DeclaredType, *PointerType:
+				impl = it.IsImplementedBy(cxt)
+			default:
+				impl = it.IsEmptyInterface()
+			}
+			if !impl {
+				panic(fmt.Sprintf(
+					"%s doesn't implement %s",
+					xt.String(),
+					it.String()))
+			}
+			// NOTE: consider ability to push an
+			// interface-restricted form
+			// *xv = *xv
+		} else if nt, ok := baseOf(t).(*nativeType); ok {
+			// t is Go interface.
+			// assert that x implements type.
+			impl := false
+			if nxt, ok := xt.(*nativeType); ok {
+				impl = nxt.Type.Implements(nt.Type)
+			} else {
+				impl = false
+			}
+			if !impl {
+				panic(fmt.Sprintf(
+					"%s doesn't implement %s",
+					xt.String(),
+					nt.String()))
+			}
+			// keep xv as is.
+			// *xv = *xv
+		} else {
+			panic("should not happen")
 		}
-		if !impl {
-			panic(fmt.Sprintf(
-				"%s doesn't implement %s",
-				xt.String(),
-				it.String()))
-		}
-		// keep cxt as is.
-		// NOTE: consider ability to push an interface-restricted form
-		// *xv = *xv
 	} else { // is concrete assert
 		tid := t.TypeID()
 		xtid := xt.TypeID()
@@ -185,6 +239,7 @@ func (m *Machine) doOpTypeAssert1() {
 	}
 }
 
+// NOTE: keep in sync with doOpTypeAssert1.
 func (m *Machine) doOpTypeAssert2() {
 	m.PopExpr()
 	// peek type for re-use
@@ -194,24 +249,47 @@ func (m *Machine) doOpTypeAssert2() {
 	xv := m.PeekValue(2)
 	xt := xv.T
 
-	if it, ok := t.(*InterfaceType); ok { // is interface assert
-		// assert that x implements type.
-		impl := false
-		switch cxt := xt.(type) {
-		case *InterfaceType:
-			impl = it.IsImplementedBy(cxt)
-		case *DeclaredType:
-			impl = it.IsImplementedBy(cxt)
-		default:
-			impl = it.IsEmptyInterface()
-		}
-		if impl {
-			// *xv = *xv
-			*tv = untypedBool(true)
+	if t.Kind() == InterfaceKind { // is interface assert
+		if it, ok := t.(*InterfaceType); ok {
+			// t is Gno interface.
+			// assert that x implements type.
+			impl := false
+			switch cxt := xt.(type) {
+			case *InterfaceType:
+				panic("should not happen")
+				// impl = it.IsImplementedBy(cxt)
+			case *DeclaredType:
+				impl = it.IsImplementedBy(cxt)
+			default:
+				impl = it.IsEmptyInterface()
+			}
+			if impl {
+				// *xv = *xv
+				*tv = untypedBool(true)
+			} else {
+				// NOTE: consider ability to push an
+				// interface-restricted form
+				*xv = TypedValue{}
+				*tv = untypedBool(false)
+			}
+		} else if nt, ok := baseOf(t).(*nativeType); ok {
+			// t is Go interface.
+			// assert that x implements type.
+			impl := false
+			if nxt, ok := xt.(*nativeType); ok {
+				impl = nxt.Type.Implements(nt.Type)
+			} else {
+				impl = false
+			}
+			if impl {
+				// *xv = *xv
+				*tv = untypedBool(true)
+			} else {
+				*xv = TypedValue{}
+				*tv = untypedBool(false)
+			}
 		} else {
-			// NOTE: consider ability to push an interface-restricted form
-			*xv = TypedValue{}
-			*tv = untypedBool(false)
+			panic("should not happen")
 		}
 	} else { // is concrete assert
 		tid := t.TypeID()
@@ -222,7 +300,10 @@ func (m *Machine) doOpTypeAssert2() {
 			// *xv = *xv
 			*tv = untypedBool(true)
 		} else {
-			*xv = TypedValue{}
+			*xv = TypedValue{
+				T: t,
+				V: defaultValue(t),
+			}
 			*tv = untypedBool(false)
 		}
 	}
@@ -426,6 +507,11 @@ func (m *Machine) doOpStructLit() {
 		}
 		ftvs := m.PopValues(el)
 		for _, ftv := range ftvs {
+			if debug {
+				if !ftv.IsUndefined() && ftv.T.Kind() == InterfaceKind {
+					panic("should not happen")
+				}
+			}
 			fs = append(fs, ftv)
 		}
 		if debug {
@@ -441,8 +527,11 @@ func (m *Machine) doOpStructLit() {
 			fnx := x.Elts[i].Key.(*NameExpr)
 			ftv := ftvs[i]
 			if debug {
-				if fnx.Path.Depth != 1 {
+				if fnx.Path.Depth != 0 {
 					panic("unexpected struct composite lit key path generation value")
+				}
+				if !ftv.IsUndefined() && ftv.T.Kind() == InterfaceKind {
+					panic("should not happen")
 				}
 			}
 			fs[fnx.Path.Index] = ftv

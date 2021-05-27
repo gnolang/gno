@@ -108,12 +108,14 @@ Update w/ context:
 
 ---------
 
-Quite simply, institutional rape, including paedophilia, is rampant among in
-many if not most of the world's religious organizations.  To my eyes, it
-appears to me to be the primary driver of atheism today.
+Quite simply, institutional drug and sex trafficking, including child
+expoloitation, is rampant among in many if not most of the world's religious
+organizations, as a wolf in sheep's clothing. To my eyes, it appears to me to
+be the primary driver of atheism today.
 
  * https://atheistmilitantsrising.home.blog/2020/02/22/pedophilia-is-rampant-in-the-christian-religion/ [TRIGGER WARNING]
  * https://wikiislam.github.io/wiki/Islam_and_Pedophilia.html
+ * https://www.youtube.com/watch?v=7Eeo-82Eac8
  * TODO include charts of denominations over time.
  * TODO find more sources besides those shown here.
  * TODO distil the information to remove aspects of hate, while acknowleding it.
@@ -522,6 +524,51 @@ extinguished yet again.
 
 Or, we can transcend the obvious false choices thrust upon us, and create the
 platform of light to ensure perpetual wisdom for our descendants.
+
+In the afterglow of the French Revolution, the freemasons planned to create a
+new world in America.  George Washington, an Anglican (reformist Christian) had
+already joined the masonic order well before the French Revolution took its
+toll.  Much later after the American Civil War, the masonic order split into
+two -- the "Anglo-American", and the "Continental" based on the Grand Orient de
+France.  Arguably, there were elements of both in early freemasonry.
+Ango-American freemasonry admits no women, and the discussion of religion and
+politics is banned.  Continental freemasonry is more liberal in this regard,
+but is also "anti-clerical", which appears to mean that it is mostly against
+the Roman Catholic order.
+
+Now later some freemasons in Chicago created the Rotary Club.  The Rotary Club
+appears to be a society for doing public good, but is also an invite-only
+exclusive organization that caters to influencers and people of means.  Like
+the Anglo-American freemason order, they are against divisive political and
+religious discussion.
+
+It appears that there is a pattern of exclusive societies that feed off of the
+goodwill of well intentioned people, to bring them into the fold of power.
+Sometimes, these groups splinter on moral and principle grounds, when the
+elitism (in the form of barring a gender, or only admitting influencers)
+becomes too much to bear.  Then there is a shedding of old associations, and
+the creation of a new brand, as the freemasons created the Rotary Club.  Some
+say that one of the mystery teachings since the days of the pharaoh Thoth (or
+Hermes) of Egypt is the pattern of rings of secrecy, the older one bearing a
+new secret order which becomes indirectly subjugated to the prior.
+
+Clearly what is needed is a way to coordinate without becoming trapped by the
+Old World Order (OWO).  Let peace prevail on earth, not with exclusivity,
+secrecy, and elitism, but rather with transparency, accountability, and good
+protocol design.
+
+One cannot both take oaths onto these organizations and also be a true follower
+of the teachings of Jesus.
+
+> Mt 5:33 Again, ye have heard that it hath been said by them of old time, Thou shalt not forswear thyself, but shalt perform unto the Lord thine oaths:
+> Mt 5:34 But I say unto you, SWEAR NOT AT ALL; neither by heaven; for it is God's throne:
+> Mt 5:35 Nor by the earth; for it is his footstool: neither by Jerusalem; for it is the city of the great King.
+> Mt 5:36 Neither shalt thou swear by thy head, because thou canst not make one hair white or black.
+> Mt 5:37 But let your communication be, Yea, yea; Nay, nay: FOR WHATEVER IS MORE THAN THESE COMETH OF EVIL.
+
+SWEAR (oaths) NOT AT ALL. The only exception is in testimony, in answering
+simple questions with binary answers. Secret societies are either born of evil,
+or by its nature eventually invites it. We must coordinate differently.
 
 ## Mission
 

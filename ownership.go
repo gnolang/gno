@@ -59,6 +59,7 @@ type Object interface {
 	SetIsDirty(bool, uint64)
 	GetIsDeleted() bool
 	SetIsDeleted(bool, uint64)
+	GetIsTransient() bool
 
 	// Saves to realm along the way if owned, and also (dirty
 	// or new).
@@ -228,6 +229,10 @@ func (oi *ObjectInfo) SetIsDeleted(x bool, mt uint64) {
 	oi.isDirty = x
 }
 
+func (oi *ObjectInfo) GetIsTransient() bool {
+	return false
+}
+
 // Returns the value as an object if it is an object,
 // or is a pointer or slice of an object.
 func (tv *TypedValue) GetObject() Object {
@@ -250,7 +255,7 @@ func (tv *TypedValue) GetObject() Object {
 	case *MapValue:
 		return cv
 	case BoundMethodValue:
-		rov, ok := cv.Receiver.(Object)
+		rov, ok := cv.Receiver.V.(Object)
 		if ok {
 			return rov
 		} else {
@@ -259,6 +264,7 @@ func (tv *TypedValue) GetObject() Object {
 	case nativeValue:
 		// native values don't work with realms,
 		// but this function shouldn't happen.
+		// XXX panic?
 		return nil
 	case blockValue:
 		if cv.Block == nil {
@@ -267,5 +273,196 @@ func (tv *TypedValue) GetObject() Object {
 		return cv.Block
 	default:
 		return nil
+	}
+}
+
+//----------------------------------------
+// ExtendedObject
+// ExtendedObject is for storing native arrays, slices, structs, maps, as
+// well as Gno maps. It implements Object for gno maps, but not for native
+// types which are not supported by realm persistence.  ExtendedObject is
+// required for *MapValue for the machine state to be persistable between
+// slot access and assignment to said slot.
+
+type ExtendedObject struct {
+	BaseMap    *MapValue    // if base is gno map
+	BaseNative *nativeValue // if base is native array/slice/struct/map.
+	Index      TypedValue   // integer index or arbitrary map key
+	Path       ValuePath    // value path for (native) selectors
+}
+
+func (eo ExtendedObject) GetObjectInfo() *ObjectInfo {
+	if eo.BaseMap != nil {
+		return eo.BaseMap.GetObjectInfo()
+	} else {
+		panic("native values are not realm compatible")
+	}
+}
+
+func (eo ExtendedObject) GetObjectID() ObjectID {
+	if eo.BaseMap != nil {
+		return eo.BaseMap.GetObjectID()
+	} else {
+		panic("native values are not realm compatible")
+	}
+}
+
+func (eo ExtendedObject) MustGetObjectID() ObjectID {
+	if eo.BaseMap != nil {
+		return eo.BaseMap.MustGetObjectID()
+	} else {
+		panic("native values are not realm compatible")
+	}
+}
+
+func (eo ExtendedObject) SetObjectID(oid ObjectID) {
+	if eo.BaseMap != nil {
+		eo.BaseMap.SetObjectID(oid)
+	} else {
+		panic("native values are not realm compatible")
+	}
+}
+
+func (eo ExtendedObject) GetOwner() Object {
+	if eo.BaseMap != nil {
+		return eo.BaseMap.GetOwner()
+	} else {
+		panic("native values are not realm compatible")
+	}
+}
+
+func (eo ExtendedObject) GetOwnerID() ObjectID {
+	if eo.BaseMap != nil {
+		return eo.BaseMap.GetOwnerID()
+	} else {
+		panic("native values are not realm compatible")
+	}
+}
+
+func (eo ExtendedObject) SetOwner(obj Object) {
+	if eo.BaseMap != nil {
+		eo.BaseMap.SetOwner(obj)
+	} else {
+		panic("native values are not realm compatible")
+	}
+}
+
+func (eo ExtendedObject) GetIsOwned() bool {
+	if eo.BaseMap != nil {
+		return eo.BaseMap.GetIsOwned()
+	} else {
+		panic("native values are not realm compatible")
+	}
+}
+
+func (eo ExtendedObject) GetIsReal() bool {
+	if eo.BaseMap != nil {
+		return eo.BaseMap.GetIsReal()
+	} else {
+		panic("native values are not realm compatible")
+	}
+}
+
+func (eo ExtendedObject) GetModTime() uint64 {
+	if eo.BaseMap != nil {
+		return eo.BaseMap.GetModTime()
+	} else {
+		panic("native values are not realm compatible")
+	}
+}
+
+func (eo ExtendedObject) IncRefCount() int {
+	if eo.BaseMap != nil {
+		return eo.BaseMap.IncRefCount()
+	} else {
+		panic("native values are not realm compatible")
+	}
+}
+
+func (eo ExtendedObject) DecRefCount() int {
+	if eo.BaseMap != nil {
+		return eo.BaseMap.DecRefCount()
+	} else {
+		panic("native values are not realm compatible")
+	}
+}
+
+func (eo ExtendedObject) GetRefCount() int {
+	if eo.BaseMap != nil {
+		return eo.BaseMap.GetRefCount()
+	} else {
+		panic("native values are not realm compatible")
+	}
+}
+
+func (eo ExtendedObject) GetIsNewReal() bool {
+	if eo.BaseMap != nil {
+		return eo.BaseMap.GetIsNewReal()
+	} else {
+		panic("native values are not realm compatible")
+	}
+}
+
+func (eo ExtendedObject) SetIsNewReal(b bool) {
+	if eo.BaseMap != nil {
+		eo.BaseMap.SetIsNewReal(b)
+	} else {
+		panic("native values are not realm compatible")
+	}
+}
+
+func (eo ExtendedObject) GetIsDirty() bool {
+	if eo.BaseMap != nil {
+		return eo.BaseMap.GetIsDirty()
+	} else {
+		panic("native values are not realm compatible")
+	}
+}
+
+func (eo ExtendedObject) SetIsDirty(b bool, mt uint64) {
+	if eo.BaseMap != nil {
+		eo.BaseMap.SetIsDirty(b, mt)
+	} else {
+		panic("native values are not realm compatible")
+	}
+}
+
+func (eo ExtendedObject) GetIsDeleted() bool {
+	if eo.BaseMap != nil {
+		return eo.BaseMap.GetIsDeleted()
+	} else {
+		panic("native values are not realm compatible")
+	}
+}
+
+func (eo ExtendedObject) SetIsDeleted(b bool, mt uint64) {
+	if eo.BaseMap != nil {
+		eo.BaseMap.SetIsDeleted(b, mt)
+	} else {
+		panic("native values are not realm compatible")
+	}
+}
+
+func (eo ExtendedObject) GetIsTransient() bool {
+	if eo.BaseMap != nil {
+		return false
+	} else {
+		return true // native values cannot be realm persisted.
+	}
+}
+
+func (eo ExtendedObject) ValueImage(rlm *Realm, owned bool) *ValueImage {
+	if eo.BaseMap != nil {
+		return eo.BaseMap.ValueImage(rlm, owned)
+	} else {
+		panic("native values are not realm compatible")
+	}
+}
+
+func (eo ExtendedObject) ElemImages(rlm *Realm, owned bool) []ElemImage {
+	if eo.BaseMap != nil {
+		return eo.BaseMap.ElemImages(rlm, owned)
+	} else {
+		panic("native values are not realm compatible")
 	}
 }

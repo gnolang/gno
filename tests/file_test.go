@@ -1,4 +1,4 @@
-package interp_test
+package tests
 
 import (
 	"bytes"
@@ -40,18 +40,12 @@ func TestFiles(t *testing.T) {
 }
 
 func runCheck(t *testing.T, path string) {
-	pkgPath, goPath, resWanted, errWanted, rops := wantedFromComment(path)
+	pkgPath, resWanted, errWanted, rops := wantedFromComment(path)
 	if pkgPath == "" {
 		pkgPath = "main"
 	}
 	realmer := testRealmer(pkgPath) // may be nil.
 	pkgName := defaultPkgName(pkgPath)
-	if goPath != "" {
-		// See original Yaegi repo;
-		// used to import the files in the goPath
-		// to be imported in testfiles.
-		panic("TODO")
-	}
 	pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
 	pv := pn.NewPackage(realmer)
 
@@ -140,7 +134,7 @@ func runCheck(t *testing.T, path string) {
 	}
 }
 
-func wantedFromComment(p string) (pkgPath, goPath, res, err, rops string) {
+func wantedFromComment(p string) (pkgPath, res, err, rops string) {
 	fset := token.NewFileSet()
 	f, err2 := parser.ParseFile(fset, p, nil, parser.ParseComments)
 	if err2 != nil {
@@ -156,7 +150,10 @@ func wantedFromComment(p string) (pkgPath, goPath, res, err, rops string) {
 			pkgPath = strings.TrimSpace(strings.TrimPrefix(line, "PKGPATH:"))
 		} else if strings.HasPrefix(text, "GOPATH:") {
 			line := strings.SplitN(text, "\n", 2)[0]
-			goPath = strings.TrimSpace(strings.TrimPrefix(line, "GOPATH:"))
+			goPath := strings.TrimSpace(strings.TrimPrefix(line, "GOPATH:"))
+			panic(fmt.Sprintf(
+				"GOPATH directive not supported -- move %s to extern",
+				goPath))
 		} else if strings.HasPrefix(text, "Output:\n") {
 			res = strings.TrimPrefix(text, "Output:\n")
 			res = strings.TrimSpace(res)

@@ -1,6 +1,6 @@
 package main
 
-import "net/http"
+import "github.com/gnolang/gno/_test/net/http"
 
 type T struct {
 	header string

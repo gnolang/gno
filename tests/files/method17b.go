@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"time"
+	"github.com/gnolang/gno/_test/time"
 )
 
 type MyTime struct {
@@ -29,6 +29,6 @@ func main() {
 }
 
 // Output:
-// minute: 4
-// second: 5
-// second: 5
+// minute: 1111
+// second: 2222
+// second: 2222

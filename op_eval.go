@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
+	"strings"
 )
 
 func (m *Machine) doOpEval() {
 	x := m.PeekExpr(1)
 	if debug {
 		debug.Printf("EVAL: %v\n", x)
-		fmt.Println(m.String())
+		//fmt.Println(m.String())
 	}
 	// This case moved out of switch for performance.
 	// TODO: understand this better.
@@ -40,7 +41,22 @@ func (m *Machine) doOpEval() {
 			bi := big.NewInt(0)
 			// TODO optimize.
 			// TODO deal with base.
-			bi.SetString(x.Value, 10)
+			if len(x.Value) > 2 && x.Value[0] == '0' &&
+				strings.ContainsAny(x.Value[1:2], "bBoOxX") {
+				_, ok := bi.SetString(x.Value[2:], 16)
+				if !ok {
+					panic(fmt.Sprintf(
+						"invalid integer constant: %s",
+						x.Value))
+				}
+			} else {
+				_, ok := bi.SetString(x.Value, 10)
+				if !ok {
+					panic(fmt.Sprintf(
+						"invalid integer constant: %s",
+						x.Value))
+				}
+			}
 			m.PushValue(TypedValue{
 				T: UntypedBigintType,
 				V: BigintValue{V: bi},
@@ -104,7 +120,11 @@ func (m *Machine) doOpEval() {
 		m.PushOp(OpEval)
 	case *IndexExpr:
 		// continuation
-		m.PushOp(OpIndex)
+		if x.HasOK {
+			m.PushOp(OpIndex2)
+		} else {
+			m.PushOp(OpIndex1)
+		}
 		// evalaute index
 		m.PushExpr(x.Index)
 		m.PushOp(OpEval)
@@ -259,6 +279,11 @@ func (m *Machine) doOpEval() {
 		// evaluate x
 		m.PushExpr(x.X)
 		m.PushOp(OpEval)
+	case *ChanTypeExpr:
+		m.PushOp(OpChanType)
+		// continuation
+		m.PushExpr(x.Value)
+		m.PushOp(OpEval) // OpEvalType?
 	default:
 		panic(fmt.Sprintf("unexpected expression %#v", x))
 	}

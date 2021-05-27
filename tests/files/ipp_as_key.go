@@ -1,8 +1,8 @@
 package main
 
 import (
-	"guthib.com/toto" // pkg name is actually titi
-	"guthib.com/tata" // pkg name is actually tutu
+	"github.com/gnolang/gno/_test/tata" // pkg name is actually tutu
+	"github.com/gnolang/gno/_test/toto" // pkg name is actually titi
 )
 
 func main() {
@@ -10,7 +10,6 @@ func main() {
 	println("Hello", tutu.Quux())
 }
 
-// GOPATH:testdata/redeclaration-global7
 // Output:
 // Hello bar
 // Hello baz

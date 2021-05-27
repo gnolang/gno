@@ -20,7 +20,7 @@ func (m *Machine) doOpPrecall() {
 	switch fv := v.(type) {
 	case *FuncValue:
 		m.PopValue()
-		m.PushFrameCall(cx, fv, nil)
+		m.PushFrameCall(cx, fv, TypedValue{})
 		// continuation #2
 		m.PushOp(OpCall)
 	case BoundMethodValue:
@@ -98,12 +98,18 @@ func (m *Machine) doOpCall() {
 		m.PushOp(OpCallNativeBody)
 	}
 	// Assign receiver as first parameter, if any.
-	if fr.Receiver != nil {
-		pt := pts[0]
-		b.Values[0] = TypedValue{
-			T: pt.Type,
-			V: fr.Receiver,
+	if !fr.Receiver.IsUndefined() {
+		if debug {
+			pt := pts[0].Type
+			rt := fr.Receiver.T
+			if pt.TypeID() != rt.TypeID() {
+				panic(fmt.Sprintf(
+					"expected %s but got %s",
+					pt.String(),
+					rt.String()))
+			}
 		}
+		b.Values[0] = fr.Receiver
 		isMethod = 1
 
 	}
@@ -122,8 +128,7 @@ func (m *Machine) doOpCall() {
 				}
 			}
 		} else {
-			list := make([]TypedValue, nvar)
-			copy(list, m.PopValues(nvar))
+			list := m.PopCopyValues(nvar)
 			vart := pts[numParams-1].Type.(*SliceType)
 			varg := newSliceFromList(list)
 			m.PushValue(TypedValue{
@@ -310,9 +315,7 @@ func (m *Machine) doOpDefer() {
 	ds := m.PopStmt().(*DeferStmt)
 	// pop arguments
 	numArgs := len(ds.Call.Args)
-	args0 := m.PopValues(numArgs)
-	args := make([]TypedValue, len(args0))
-	copy(args, args0)
+	args := m.PopCopyValues(numArgs)
 	// pop func
 	ftv := m.PopValue()
 	// push defer.
@@ -327,11 +330,18 @@ func (m *Machine) doOpDefer() {
 			Source: ds,
 		})
 	case BoundMethodValue:
-		args2 := make([]TypedValue, len(args)+1)
-		args2[0] = TypedValue{
-			T: cv.Func.Type.Params[0],
-			V: cv.Receiver,
+		if debug {
+			pt := cv.Func.Type.Params[0]
+			rt := cv.Receiver.T
+			if pt.TypeID() != rt.TypeID() {
+				panic(fmt.Sprintf(
+					"expected %s but got %s",
+					pt.String(),
+					rt.String()))
+			}
 		}
+		args2 := make([]TypedValue, len(args)+1)
+		args2[0] = cv.Receiver
 		copy(args2[1:], args)
 		fr.PushDefer(Defer{
 			Func:   cv.Func,

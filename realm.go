@@ -83,6 +83,9 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		if co != nil && co.GetIsDeleted() {
 			panic("cannot attach a deleted object")
 		}
+		if po != nil && po.GetIsTransient() {
+			panic("should not happen")
+		}
 		if po != nil && po.GetIsDeleted() {
 			panic("cannot attach to a deleted object")
 		}

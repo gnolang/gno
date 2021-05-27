@@ -3,6 +3,7 @@ package gno
 import (
 	"fmt"
 	"reflect"
+	rdebug "runtime/debug"
 	"strconv"
 )
 
@@ -321,6 +322,7 @@ type IndexExpr struct { // X[Index]
 	Attributes
 	X     Expr // expression
 	Index Expr // index expression
+	HasOK bool // if true, is form: `value, ok := <X>[<Key>]
 }
 
 type SelectorExpr struct { // X.Sel
@@ -805,10 +807,11 @@ func (s *bodyStmt) PopActiveStmt() (as Stmt) {
 }
 
 func (s *bodyStmt) String() string {
-	return fmt.Sprintf("bodyStmt[%d/%d/%d]",
+	return fmt.Sprintf("bodyStmt[%d/%d/%d]=%v",
 		s.ListLen,
 		s.ListIndex,
-		s.BodyIndex)
+		s.BodyIndex,
+		s.Active)
 }
 
 //----------------------------------------
@@ -1159,13 +1162,13 @@ func (sb *StaticBlock) GetPathForName(n Name) ValuePath {
 	}
 	gen := 1
 	if idx, ok := sb.GetLocalIndex(n); ok {
-		return NewValuePathDefault(uint8(gen), idx, n)
+		return NewValuePathBlock(uint8(gen), idx, n)
 	} else {
 		gen++
 		bp := sb.GetParent()
 		for bp != nil {
 			if idx, ok = bp.GetLocalIndex(n); ok {
-				return NewValuePathDefault(uint8(gen), idx, n)
+				return NewValuePathBlock(uint8(gen), idx, n)
 			} else {
 				bp = bp.GetParent()
 				gen++
@@ -1342,45 +1345,40 @@ func (pn *PackageNode) GetBody() Body {
 //  (c) a DeclaredType method
 //  (d) a PackageNode declaration
 //
-// Type is:
-//  * 0x00 for uverse constants. Depth == 0.
-//  * 0x01 for default struct fields, package and block variables, and
-//  declared type methods. Depth >= 1.
-//  * 0x02 for interface methods. Methods are looked up by their name, so is
-//  slower than using value paths with type 0x00 or 0x01. Depth == 1.
-//  * 0x03 for native fields and methods. experimental.
-//
-// Depth tells how many layers of access should be unvealed before arriving
-// at the ultimate handler type.  For example, the direct method of a
-// *DeclaredType has depth 1, but any field of the underlying base type
-// would have depth 2 or more.  In the case of Blocks, the depth tells how
-// many layers of ancestry to ascend before arriving at the target block.
-//
-// For concrete (non-interface) declared types, the methods have
-// generation 1 and if the underlying type is a struct, the fields of that
-// have generation 2.  For concrete undeclared structs, the fields have
-// generation 1.  There is no javascript-like prototype inheritance, so
-// generation 3 and above are illegal (though could may change in the
-// future).
-//
+// Depth tells how many layers of access should be unvealed before
+// arriving at the ultimate handler type.  In the case of Blocks,
+// the depth tells how many layers of ancestry to ascend before
+// arriving at the target block.  For other selector expr paths
+// such as those for *DeclaredType methods or *StructType fields,
+// see tests/selector_test.go.
 type ValuePath struct {
 	Type  VPType // see VPType* consts.
 	Depth uint8  // see doc for ValuePath.
-	Index uint16 // index of value in block/package/struct/declaredtype.
-	Name  Name   // name of variable/field/method.
+	Index uint16 // index of value, field, or method.
+	Name  Name   // name of value, field, or method.
 }
 
 type VPType uint8
 
 const (
-	VPTypeUverse    VPType = 0x00
-	VPTypeDefault   VPType = 0x01
-	VPTypeInterface VPType = 0x02
-	VPTypeNative    VPType = 0x03
-	// TODO: consider VPTypeDeclared (method)
+	VPUverse         VPType = 0x00
+	VPBlock          VPType = 0x01 // blocks and packages
+	VPField          VPType = 0x02
+	VPValMethod      VPType = 0x03
+	VPPtrMethod      VPType = 0x04
+	VPInterface      VPType = 0x05
+	VPDerefField     VPType = 0x12 // 0x10 + VPField
+	VPDerefValMethod VPType = 0x13 // 0x10 + VPValMethod
+	VPDerefPtrMethod VPType = 0x14 // 0x10 + VPPtrMethod
+	VPDerefInterface VPType = 0x15 // 0x10 + VPInterface
+	VPNative         VPType = 0x20
+	// 0x3X, 0x5X, 0x7X, 0x9X, 0xAX, 0xCX, 0xEX reserved.
 )
 
 func NewValuePath(t VPType, depth uint8, index uint16, n Name) ValuePath {
+	if t == VPField && n == "Root" {
+		rdebug.PrintStack()
+	}
 	vp := ValuePath{
 		Type:  t,
 		Depth: depth,
@@ -1392,39 +1390,92 @@ func NewValuePath(t VPType, depth uint8, index uint16, n Name) ValuePath {
 }
 
 func NewValuePathUverse(index uint16, n Name) ValuePath {
-	return NewValuePath(VPTypeUverse, 0x00, uint16(index), n)
+	return NewValuePath(VPUverse, 0, uint16(index), n)
 }
 
-func NewValuePathDefault(depth uint8, index uint16, n Name) ValuePath {
-	return NewValuePath(VPTypeDefault, depth, index, n)
+func NewValuePathBlock(depth uint8, index uint16, n Name) ValuePath {
+	return NewValuePath(VPBlock, depth, index, n)
+}
+
+func NewValuePathField(depth uint8, index uint16, n Name) ValuePath {
+	return NewValuePath(VPField, depth, index, n)
+}
+
+func NewValuePathValMethod(index uint16, n Name) ValuePath {
+	return NewValuePath(VPValMethod, 0, index, n)
+}
+
+func NewValuePathPtrMethod(index uint16, n Name) ValuePath {
+	return NewValuePath(VPPtrMethod, 0, index, n)
 }
 
 func NewValuePathInterface(n Name) ValuePath {
-	return NewValuePath(VPTypeInterface, 1, 0, n)
+	return NewValuePath(VPInterface, 0, 0, n)
+}
+
+func NewValuePathDerefField(depth uint8, index uint16, n Name) ValuePath {
+	return NewValuePath(VPDerefField, depth, index, n)
+}
+
+func NewValuePathDerefValMethod(index uint16, n Name) ValuePath {
+	return NewValuePath(VPDerefValMethod, 0, index, n)
+}
+
+func NewValuePathDerefPtrMethod(index uint16, n Name) ValuePath {
+	return NewValuePath(VPDerefPtrMethod, 0, index, n)
+}
+
+func NewValuePathDerefInterface(n Name) ValuePath {
+	return NewValuePath(VPDerefInterface, 0, 0, n)
 }
 
 func NewValuePathNative(n Name) ValuePath {
-	return NewValuePath(VPTypeNative, 0, 0, n)
+	return NewValuePath(VPNative, 0, 0, n)
 }
 
 func (vp ValuePath) Validate() {
 	switch vp.Type {
-	case VPTypeUverse:
+	case VPUverse:
 		if vp.Depth != 0 {
 			panic("uverse value path must have depth 0")
 		}
-	case VPTypeDefault:
-		if vp.Depth == 0 {
-			panic("general value path cannot have depth 0")
+	case VPBlock:
+		// 0 ok ("_" blank)
+	case VPField:
+		// 0 ok
+	case VPValMethod:
+		if vp.Depth != 0 {
+			panic("method value path must have depth 0")
 		}
-	case VPTypeInterface:
-		if vp.Depth != 1 {
-			panic("interface value path must have depth 1")
+	case VPPtrMethod:
+		if vp.Depth != 0 {
+			panic("ptr receiver method value path must have depth 0")
+		}
+	case VPInterface:
+		if vp.Depth != 0 {
+			panic("interface method value path must have depth 0")
 		}
 		if vp.Name == "" {
 			panic("interface value path must have name")
 		}
-	case VPTypeNative:
+	case VPDerefField:
+		// 0 ok
+	case VPDerefValMethod:
+		if vp.Depth != 0 {
+			panic("(deref) method value path must have depth 0")
+		}
+	case VPDerefPtrMethod:
+		if vp.Depth != 0 {
+			panic("(deref) ptr receiver method value path must have depth 0")
+		}
+	case VPDerefInterface:
+		if vp.Depth != 0 {
+			panic("(deref) interface method value path must have depth 0")
+		}
+		if vp.Name == "" {
+			panic("(deref) interface value path must have name")
+		}
+	case VPNative:
 		if vp.Depth != 0 {
 			panic("native value path must have depth 0")
 		}
@@ -1438,9 +1489,12 @@ func (vp ValuePath) Validate() {
 	}
 }
 
-func (vp ValuePath) IsZeroPath() bool {
-	return vp.Depth == 0 && vp.Index == 0
-	//== ValuePath{}
+func (vp ValuePath) IsBlockBlankPath() bool {
+	return vp.Type == VPBlock && vp.Depth == 0 && vp.Index == 0
+}
+
+func (vp ValuePath) IsDerefType() bool {
+	return vp.Type&0x10 > 0
 }
 
 type ValuePather interface {

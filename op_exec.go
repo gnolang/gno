@@ -53,7 +53,7 @@ SelectStmt ->
 func (m *Machine) doOpExec(op Op) {
 	s := m.PeekStmt(1)
 	if debug {
-		debug.Printf("EXEC: %v\n", s)
+		debug.Printf("PEEK STMT: %v\n", s)
 	}
 
 	// NOTE this could go in the switch statement, and we could
@@ -137,7 +137,12 @@ func (m *Machine) doOpExec(op Op) {
 		// TODO check length.
 		switch bs.BodyIndex {
 		case -2: // init.
-			bs.ListLen = xv.GetLength()
+			ll := xv.GetLength()
+			if ll == 0 { // early termination
+				m.PopFrameAndReset()
+				return
+			}
+			bs.ListLen = ll
 			bs.NumOps = m.NumOps
 			bs.NumStmts = len(m.Stmts)
 			bs.BodyIndex++
@@ -424,6 +429,9 @@ func (m *Machine) doOpExec(op Op) {
 	}
 
 EXEC_SWITCH:
+	if debug {
+		debug.Printf("EXEC: %v\n", s)
+	}
 	switch cs := s.(type) {
 	case *AssignStmt:
 		// continuation
@@ -525,7 +533,7 @@ EXEC_SWITCH:
 		m.PushForPointer(cs.X)
 	case *ReturnStmt:
 		m.PopStmt()
-		fr := m.LastFrame()
+		fr := m.PopUntilLastCallFrame()
 		hasDefers := 0 < len(fr.Defers)
 		hasResults := 0 < len(fr.Func.Type.Results)
 		// If has defers, return from the block stack.
@@ -781,7 +789,7 @@ func (m *Machine) doOpTypeSwitchClause() {
 				if ss.VarName != "" && len(cs.Cases) <= 1 {
 					// NOTE: assumes the var is first in block.
 					vp := NewValuePath(
-						VPTypeDefault, 1, 0, ss.VarName)
+						VPBlock, 1, 0, ss.VarName)
 					ptr := b.GetPointerTo(vp)
 					ptr.Assign(*xv, false)
 				}
