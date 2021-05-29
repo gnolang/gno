@@ -1431,8 +1431,17 @@ func (nt *nativeType) String() string {
 	return fmt.Sprintf("gonative{%s}", nt.Type.String())
 }
 
+// TODO: memoize?
 func (nt *nativeType) Elem() Type {
-	return nt.GnoType().Elem() // XXX why .GnoType().Elem()? what uses this?
+	switch nt.Type.Kind() {
+	case reflect.Ptr, reflect.Array, reflect.Slice, reflect.Map:
+		return &nativeType{
+			Type: nt.Type.Elem(),
+		}
+	default:
+		panic(fmt.Sprintf("unexpected native type %v for .Elem",
+			nt.Type.String()))
+	}
 }
 
 func (nt *nativeType) GnoType() Type {
