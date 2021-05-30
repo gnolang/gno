@@ -2059,16 +2059,25 @@ func applySpecifics(lookup map[Name]Type, tmpl Type) (Type, bool) {
 	case *InterfaceType:
 		if ct.Generic != "" {
 			if strings.HasSuffix(string(ct.Generic), ".(type)") {
+				// used for defining types by name via arg matching.
 				return gTypeType, true
 			} else {
-				match, ok := lookup[ct.Generic]
-				if ok {
-					return match, true
-				} else {
-					panic(fmt.Sprintf(
-						"unspecified generic type <%s>",
-						ct.Generic))
+				// Construct BlockStmt from map.
+				// TODO: make arg type be this
+				// to reduce redundant steps.
+				pn := NewPackageNode("", "", nil)
+				bs := new(BlockStmt)
+				bs.InitStaticBlock(bs, pn)
+				for n, t := range lookup {
+					bs.Define(n, asValue(t))
 				}
+				// Parse generic to expr.
+				gx := MustParseExpr(string(ct.Generic))
+				gx = Preprocess(nil, bs, gx).(Expr)
+				// Evalute type from generic expression.
+				m := NewMachine("")
+				tv := m.StaticEval(bs, gx)
+				return tv.GetType(), true
 			}
 		} else { // simply return
 			// TODO: handle generics in method signatures
