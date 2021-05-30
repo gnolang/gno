@@ -66,6 +66,22 @@ func ReadFile(path string) (*FileNode, error) {
 	return ParseFile(path, string(bz))
 }
 
+func ParseExpr(expr string) (Expr, error) {
+	x, err := parser.ParseExpr(expr)
+	if err != nil {
+		return nil, err
+	}
+	return Go2Gno(x).(Expr), nil
+}
+
+func MustParseExpr(expr string) Expr {
+	x, err := ParseExpr(expr)
+	if err != nil {
+		panic(err)
+	}
+	return x
+}
+
 // filename must not include the path.
 func ParseFile(filename string, body string) (*FileNode, error) {
 

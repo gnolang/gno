@@ -6,9 +6,9 @@ import (
 	"reflect"
 )
 
-// The ctx passed in may be mutated if there are any statements or
-// declarations.  The file or package which contains ctx may be mutated if
-// there are any file-level declarations.
+// The ctx passed in may be mutated if there are any statements
+// or declarations.  The file or package which contains ctx may
+// be mutated if there are any file-level declarations.
 //
 // List of what Preprocess() does:
 //  * Assigns BlockValuePath to NameExprs.
