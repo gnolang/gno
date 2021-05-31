@@ -1238,18 +1238,18 @@ func (sb *StaticBlock) GetValueRef(n Name) *TypedValue {
 
 // Implements BlockNode
 // Statically declares a name definition.
-// At runtime, use *Block.GetValueRef() etc which take
-// path values, which are pre-computeed in the
-// preprocessor.  tv.Type is always set unless the type is
-// unknown during transcription, in which case initially
-// tv must be empty, then Define(n,tv) called again once
-// more with tv.Type set.
-// Currently tv.V is only set when the value represents a
-// TypedValue.  The intent of tv is to describe the invariant
-// of a named value, at the minimum its type, but also
-// sometimes the typeval value; but we could go further and
-// store preprocessed constant results here too.  See
-// "anyValue()" and "asValue()" for usage.
+// At runtime, use *Block.GetValueRef() etc which take path
+// values, which are pre-computeed in the preprocessor.
+// Undefined values may become defined once, so
+// TypedValue{} may be used as a reservation value,
+// but once a typed value is set, it cannot be changed.
+//
+// NOTE: Currently tv.V is only set when the value
+// represents a TypedValue. The intent of tv is to describe
+// the invariant of a named value, at the minimum its type,
+// but also sometimes the typeval value; but we could go
+// further and store preprocessed constant results here
+// too.  See "anyValue()" and "asValue()" for usage.
 func (sb *StaticBlock) Define(n Name, tv TypedValue) {
 	if debug {
 		debug.Printf(
@@ -1269,29 +1269,17 @@ func (sb *StaticBlock) Define(n Name, tv TypedValue) {
 		panic("StaticBlock.Define() requires .T if .V is set")
 	}
 	if idx, exists := sb.Names[n]; exists {
-		// Re-definitions cases are limited.
-		if tv.T == nil {
-			panic("StaticBlock.Define() the second time requires .T")
-		}
+		// Is re-defining.
 		old := sb.Block.Values[idx]
-		if old.T != nil && tv.T != old.T {
-			panic(fmt.Sprintf(
-				"StaticBlock.Define() cannot change .T; was %v, new %v",
-				old.T, tv.T))
-		}
-		if old.V != nil && tv.V != old.V {
-			// NOTE This case exists to alert of a more
-			// egregious error than the case below it where the
-			// same thing is re-defined. After fixing this
-			// immediate issue, the re-definition issue will
-			// probably surface, as there are possibly two
-			// bugs.
-			panic("StaticBlock.Define() cannot change .V")
-		}
-		if old.T != nil && old.V != nil {
-			panic(fmt.Sprintf(
-				"StaticBlock.Define(`%s`) already defined as %s",
-				n, old.String()))
+		if !old.IsUndefined() {
+			if tv.T != old.T {
+				panic(fmt.Sprintf(
+					"StaticBlock.Define() cannot change .T; was %v, new %v",
+					old.T, tv.T))
+			}
+			if tv.V != old.V {
+				panic("StaticBlock.Define() cannot change .V")
+			}
 		}
 		sb.Block.Values[idx] = tv
 	} else {
