@@ -62,7 +62,7 @@ func (m *Machine) doOpUnot() {
 
 	// Switch on the base type.
 	switch baseOf(xv.T) {
-	case BoolType:
+	case BoolType, UntypedBoolType:
 		xv.SetBool(!xv.GetBool())
 	default:
 		panic(fmt.Sprintf("unexpected type %s in operation",

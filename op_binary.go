@@ -49,7 +49,10 @@ func (m *Machine) doOpLor() {
 	}
 
 	// set result in lv.
-	lv.SetBool(rv.GetBool())
+	if isUntyped(lv.T) {
+		lv.T = rv.T
+	}
+	lv.SetBool(lv.GetBool() || rv.GetBool())
 }
 
 func (m *Machine) doOpLand() {
@@ -61,7 +64,10 @@ func (m *Machine) doOpLand() {
 	}
 
 	// set result in lv.
-	lv.SetBool(rv.GetBool())
+	if isUntyped(lv.T) {
+		lv.T = rv.T
+	}
+	lv.SetBool(lv.GetBool() && rv.GetBool())
 }
 
 func (m *Machine) doOpEql() {
