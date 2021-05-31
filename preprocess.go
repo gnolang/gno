@@ -1342,8 +1342,9 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 				}
 				// evaluate typed value for static definition.
 				var tv TypedValue
-				if cx, ok := n.Value.(*constExpr); ok {
-					// if value is const expr; const and var decls.
+				if cx, ok := n.Value.(*constExpr); ok &&
+					!cx.TypedValue.IsUndefined() {
+					// if value is non-nil const expr:
 					tv = cx.TypedValue
 				} else {
 					// for var decls of non-const expr.
