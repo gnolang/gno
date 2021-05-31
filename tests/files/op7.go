@@ -14,4 +14,4 @@ func main() {
 }
 
 // Error:
-// _test/op7.go:11:5: invalid operation: operator > not defined on error
+// comparison operator > not defined for InterfaceKind
