@@ -442,6 +442,16 @@ EXEC_SWITCH:
 			m.PushOp(OpAddAssign)
 		case SUB_ASSIGN:
 			m.PushOp(OpSubAssign)
+		case MUL_ASSIGN:
+			m.PushOp(OpMulAssign)
+		case QUO_ASSIGN:
+			m.PushOp(OpQuoAssign)
+		case REM_ASSIGN:
+			m.PushOp(OpRemAssign)
+		case BAND_ASSIGN:
+			m.PushOp(OpBandAssign)
+		case BOR_ASSIGN:
+			m.PushOp(OpBorAssign)
 		case XOR_ASSIGN:
 			m.PushOp(OpXorAssign)
 		case SHL_ASSIGN:
@@ -453,7 +463,10 @@ EXEC_SWITCH:
 		case DEFINE:
 			m.PushOp(OpDefine)
 		default:
-			panic("unexpected assign type")
+			panic(fmt.Sprintf(
+				"unexpected assign type %s",
+				cs.Op,
+			))
 		}
 		// For each Rhs, push eval operation.
 		for i := len(cs.Rhs) - 1; 0 <= i; i-- {
