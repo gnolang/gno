@@ -494,24 +494,52 @@ func (pt *PointerType) FindEmbeddedFieldType(n Name) (
 			hasPtr = true // pt *is* a pointer.
 			switch trail[0].Type {
 			case VPField:
-				trail[0].Type = VPDerefField
-				switch trail[0].Depth {
-				case 0:
-					// *PointerType > *StructType.Field has depth 0.
-				case 1:
-					// *DeclaredType > *StructType.Field has depth 1 (& type VPField).
-					// *PointerType > *DeclaredType > *StructType.Field has depth 2.
-					trail[0].Depth = 2
-					/*
-						// If trail[-1].Type == VPPtrMethod, set VPDerefPtrMethod.
-						if len(trail) > 1 && trail[1].Type == VPPtrMethod {
-							trail[1].Type = VPDerefPtrMethod
+				// Case 1: If trail is of form [VPField, VPField, ... VPPtrMethod],
+				// that is, one or more fields followed by a pointer method,
+				// convert to [VPSubrefField, VPSubrefField, ... VPDerefPtrMethod].
+				if func() bool {
+					for i, path := range trail {
+						if i < len(trail)-1 {
+							if path.Type != VPField {
+								return false
+							}
+						} else {
+							if path.Type != VPPtrMethod {
+								return false
+							}
 						}
-					*/
-				default:
-					panic("should not happen")
+					}
+					return true
+				}() {
+					for i, _ := range trail {
+						if i < len(trail)-1 {
+							trail[i].Type = VPSubrefField
+						} else {
+							trail[i].Type = VPDerefPtrMethod
+						}
+					}
+					return
+				} else {
+					// Case 2: otherwise, is just a deref field.
+					trail[0].Type = VPDerefField
+					switch trail[0].Depth {
+					case 0:
+						// *PointerType > *StructType.Field has depth 0.
+					case 1:
+						// *DeclaredType > *StructType.Field has depth 1 (& type VPField).
+						// *PointerType > *DeclaredType > *StructType.Field has depth 2.
+						trail[0].Depth = 2
+						/*
+							// If trail[-1].Type == VPPtrMethod, set VPDerefPtrMethod.
+							if len(trail) > 1 && trail[1].Type == VPPtrMethod {
+								trail[1].Type = VPDerefPtrMethod
+							}
+						*/
+					default:
+						panic("should not happen")
+					}
+					return
 				}
-				return
 			case VPValMethod:
 				trail[0].Type = VPDerefValMethod
 				return
@@ -1403,8 +1431,17 @@ func (nt *nativeType) String() string {
 	return fmt.Sprintf("gonative{%s}", nt.Type.String())
 }
 
+// TODO: memoize?
 func (nt *nativeType) Elem() Type {
-	return nt.GnoType().Elem() // XXX why .GnoType().Elem()? what uses this?
+	switch nt.Type.Kind() {
+	case reflect.Ptr, reflect.Array, reflect.Slice, reflect.Map:
+		return &nativeType{
+			Type: nt.Type.Elem(),
+		}
+	default:
+		panic(fmt.Sprintf("unexpected native type %v for .Elem",
+			nt.Type.String()))
+	}
 }
 
 func (nt *nativeType) GnoType() Type {
@@ -2022,16 +2059,25 @@ func applySpecifics(lookup map[Name]Type, tmpl Type) (Type, bool) {
 	case *InterfaceType:
 		if ct.Generic != "" {
 			if strings.HasSuffix(string(ct.Generic), ".(type)") {
+				// used for defining types by name via arg matching.
 				return gTypeType, true
 			} else {
-				match, ok := lookup[ct.Generic]
-				if ok {
-					return match, true
-				} else {
-					panic(fmt.Sprintf(
-						"unspecified generic type <%s>",
-						ct.Generic))
+				// Construct BlockStmt from map.
+				// TODO: make arg type be this
+				// to reduce redundant steps.
+				pn := NewPackageNode("", "", nil)
+				bs := new(BlockStmt)
+				bs.InitStaticBlock(bs, pn)
+				for n, t := range lookup {
+					bs.Define(n, asValue(t))
 				}
+				// Parse generic to expr.
+				gx := MustParseExpr(string(ct.Generic))
+				gx = Preprocess(nil, bs, gx).(Expr)
+				// Evalute type from generic expression.
+				m := NewMachine("")
+				tv := m.StaticEval(bs, gx)
+				return tv.GetType(), true
 			}
 		} else { // simply return
 			// TODO: handle generics in method signatures

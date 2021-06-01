@@ -265,6 +265,43 @@ func (sv *StructValue) GetPointerTo2(st *StructType, path ValuePath) PointerValu
 	}
 }
 
+// Like GetPointerTo*, but returns (a pointer of) a reference to field.
+func (sv *StructValue) GetSubrefPointerTo(st *StructType, path ValuePath) PointerValue {
+	if debug {
+		if path.Depth != 0 {
+			panic(fmt.Sprintf(
+				"expected path.Depth of 0 but got %s %s",
+				path.Name, path))
+		}
+	}
+	fv := &sv.Fields[path.Index]
+	ft := st.GetStaticTypeOfAt(path)
+	if fv.IsUndefined() {
+		if ft.Kind() == InterfaceKind {
+			// Keep as undefined.
+		} else {
+			// Set as ft type.
+			*fv = TypedValue{
+				T: ft,
+				V: defaultValue(ft),
+			}
+		}
+	}
+	return PointerValue{
+		TypedValue: &TypedValue{ // TODO: optimize
+			T: &PointerType{ // TODO: optimize (cont)
+				Elt: ft,
+			},
+			V: PointerValue{
+				TypedValue: fv,
+				Base:       sv,
+				Index:      int(path.Index),
+			},
+		},
+		Base: nil, // free floating
+	}
+}
+
 func (sv *StructValue) Copy() *StructValue {
 	if sv.GetRefCount() == 0 {
 		return sv
@@ -1202,6 +1239,28 @@ func (tv *TypedValue) GetPointerTo(path ValuePath) PointerValue {
 		default:
 			panic("should not happen")
 		}
+	case VPSubrefField:
+		switch path.Depth {
+		case 0:
+			dtv = *tv.V.(PointerValue).TypedValue
+			isPtr = true
+		case 1:
+			dtv = *tv.V.(PointerValue).TypedValue
+			isPtr = true
+			path.Depth = 0
+		case 2:
+			dtv = *tv.V.(PointerValue).TypedValue
+			dtv.T = baseOf(dtv.T)
+			isPtr = true
+			path.Depth = 0
+		case 3:
+			dtv = *tv.V.(PointerValue).TypedValue
+			dtv.T = baseOf(dtv.T)
+			isPtr = true
+			path.Depth = 0
+		default:
+			panic("should not happen")
+		}
 	case VPDerefField:
 		switch path.Depth {
 		case 0:
@@ -1293,7 +1352,16 @@ func (tv *TypedValue) GetPointerTo(path ValuePath) PointerValue {
 				panic("unexpected selector base typeval.")
 			}
 		default:
-			panic("should not happen")
+			panic(fmt.Sprintf("unexpected selector base type %s (%s)",
+				dtv.T.String(), reflect.TypeOf(dtv.T)))
+		}
+	case VPSubrefField:
+		switch ct := baseOf(dtv.T).(type) {
+		case *StructType:
+			return dtv.V.(*StructValue).GetSubrefPointerTo(ct, path)
+		default:
+			panic(fmt.Sprintf("unexpected (subref) selector base type %s (%s)",
+				dtv.T.String(), reflect.TypeOf(dtv.T)))
 		}
 	case VPValMethod:
 		dt := dtv.T.(*DeclaredType)

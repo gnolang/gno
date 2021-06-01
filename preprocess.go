@@ -6,9 +6,9 @@ import (
 	"reflect"
 )
 
-// The ctx passed in may be mutated if there are any statements or
-// declarations.  The file or package which contains ctx may be mutated if
-// there are any file-level declarations.
+// The ctx passed in may be mutated if there are any statements
+// or declarations.  The file or package which contains ctx may
+// be mutated if there are any file-level declarations.
 //
 // List of what Preprocess() does:
 //  * Assigns BlockValuePath to NameExprs.
@@ -963,7 +963,8 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 					// (even the dereferenced of xt and nxt2 may not
 					// be the same, with embedded fields)
 					nxt2 := evalTypeOf(last, n.X)
-					// If receiver is pointer type but n.X is not:
+					// Case 1: If receiver is pointer type but n.X is
+					// not:
 					if rcvr != nil &&
 						rcvr.Kind() == PointerKind &&
 						nxt2.Kind() != PointerKind {
@@ -987,19 +988,29 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 							}
 						}
 						switch tr[len(tr)-1].Type {
+						case VPDerefPtrMethod:
+							// When ptr method was called like x.y.z(), where x
+							// is a pointer, y is an embedded struct, and z
+							// takes a pointer receiver.  That becomes
+							// &(x.y).z().
+							// The x.y receiver wasn't originally a pointer,
+							// yet the trail was
+							// [VPSubrefField,VPDerefPtrMethod].
 						case VPPtrMethod:
 							tr[len(tr)-1].Type = VPDerefPtrMethod
 						default:
 							panic(fmt.Sprintf(
-								"expected ultimate VPPtrMethod but got %v",
+								"expected ultimate VPPtrMethod but got %v in trail %v",
 								tr[len(tr)-1].Type,
+								tr,
 							))
 						}
 					} else if len(tr) > 0 &&
 						tr[len(tr)-1].IsDerefType() &&
 						nxt2.Kind() != PointerKind {
-						// If tr[0] is deref type, but xt is not pointer type,
-						// replace n.X with &RefExpr{X: n.X}.
+						// Case 2: If tr[0] is deref type, but xt
+						// is not pointer type, replace n.X with
+						// &RefExpr{X: n.X}.
 						n.X = &RefExpr{X: n.X}
 						n.X.SetAttribute(ATTR_PREPROCESSED, true)
 					}
@@ -1331,8 +1342,9 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 				}
 				// evaluate typed value for static definition.
 				var tv TypedValue
-				if cx, ok := n.Value.(*constExpr); ok {
-					// if value is const expr; const and var decls.
+				if cx, ok := n.Value.(*constExpr); ok &&
+					!cx.TypedValue.IsUndefined() {
+					// if value is non-nil const expr:
 					tv = cx.TypedValue
 				} else {
 					// for var decls of non-const expr.

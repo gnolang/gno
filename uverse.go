@@ -767,7 +767,31 @@ func UverseNode() *PackageNode {
 			}
 		},
 	)
-	def("new", undefined)
+	defNative("new",
+		Flds( // params
+			"t", GenT("T.(type)", nil),
+		),
+		Flds( // results
+			"", GenT("*T", nil),
+		),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1()
+			tt := arg0.GetType()
+			vv := defaultValue(tt)
+			m.PushValue(TypedValue{
+				T: &PointerType{
+					Elt: tt,
+				},
+				V: PointerValue{
+					TypedValue: &TypedValue{
+						T: tt,
+						V: vv,
+					},
+					Base: nil,
+				},
+			})
+		},
+	)
 	defNative("panic",
 		Flds( // params
 			"err", AnyT(), // args[0]

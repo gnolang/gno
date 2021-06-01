@@ -110,7 +110,7 @@ func TestSelectors(t *testing.T) {
 	//                          VPField{depth:0,index:0} > VPValMethod{index:0}
 	_printValue(x10.Bye) //     (*PT>)*ST.S1 > *DT(S1).Bye
 	//                           +S     F:0    +1   *M:1
-	//                          VPSubrefField{depth:0,index:0} > VPDerefPtrField{index:1}
+	//                          VPSubrefField{depth:0,index:0} > VPDerefPtrMethod{index:1}
 	x10p := &x10
 	_printValue(x10p.F0) //     *PT>*ST.S1 > *DT(S1)>*ST.F0
 	//                          +D    F:0    +1        F:0

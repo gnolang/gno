@@ -112,7 +112,7 @@ func (m *Machine) doOpSlice() {
 //
 // NOTE: OpStar is ambiguous -- it either means to
 // dereference a pointer value, or to refer to the referred
-// value in lhs, , or it means to get the pointer-of a
+// value in lhs, or it means to get the pointer-of a
 // type. The fact that the same symbol is used to refer to
 // both dereferencing (values) as well as referencing
 // (types) may be a confusing factor for those new to
@@ -140,7 +140,13 @@ func (m *Machine) doOpStar() {
 		}
 	case *TypeType:
 		t := xv.GetType()
-		m.PushValue(asValue(&PointerType{Elt: t}))
+		var pt Type
+		if nt, ok := t.(*nativeType); ok {
+			pt = &nativeType{Type: reflect.PtrTo(nt.Type)}
+		} else {
+			pt = &PointerType{Elt: t}
+		}
+		m.PushValue(asValue(pt))
 	case *nativeType:
 		panic("not yet implemented")
 	default:

@@ -230,6 +230,23 @@ func (m *Machine) doOpTypeOf() {
 			default:
 				panic("should not happen")
 			}
+		case VPSubrefField:
+			switch path.Depth {
+			case 0:
+				dxt = xt.Elem()
+				path.Depth = 0
+			case 1:
+				dxt = xt.Elem()
+				path.Depth = 0
+			case 2:
+				dxt = baseOf(xt.Elem())
+				path.Depth = 0
+			case 3:
+				dxt = baseOf(xt.Elem())
+				path.Depth = 0
+			default:
+				panic("should not happen")
+			}
 		case VPDerefField:
 			switch path.Depth {
 			case 0:
@@ -285,16 +302,6 @@ func (m *Machine) doOpTypeOf() {
 				panic("should not happen")
 			}
 		case VPField:
-			switch path.Depth {
-			case 0:
-				// dxt is *StructType or *TypeType
-			case 1:
-				// dxt is *DeclaredType > *StructType
-				dxt = dxt.(*DeclaredType).Base
-				path.Depth = 0
-			default:
-				panic("should not happen")
-			}
 			switch cxt := dxt.(type) {
 			case *StructType:
 				for _, ft := range cxt.Fields {
@@ -345,6 +352,26 @@ func (m *Machine) doOpTypeOf() {
 			default:
 				panic(fmt.Sprintf(
 					"unexpected selector base type: %s (%s) of kind %s",
+					dxt.String(),
+					reflect.TypeOf(dxt),
+					dxt.Kind().String()))
+			}
+		case VPSubrefField:
+			switch cxt := dxt.(type) {
+			case *StructType:
+				for _, ft := range cxt.Fields {
+					if ft.Name == x.Sel {
+						m.PushValue(asValue(
+							&PointerType{Elt: ft.Type},
+						))
+						return
+					}
+				}
+				panic(fmt.Sprintf("struct type %v has no field %s",
+					reflect.TypeOf(baseOf(xt)), x.Sel))
+			default:
+				panic(fmt.Sprintf(
+					"unexpected (subref) selector base type: %s (%s) of kind %s",
 					dxt.String(),
 					reflect.TypeOf(dxt),
 					dxt.Kind().String()))

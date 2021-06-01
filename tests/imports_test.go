@@ -225,6 +225,7 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 			return pkg.NewPackage(nil)
 		case "strconv":
 			pkg := gno.NewPackageNode("strconv", pkgPath, nil)
+			pkg.DefineGoNativeType(reflect.TypeOf(strconv.NumError{}))
 			pkg.DefineGoNativeValue("Atoi", strconv.Atoi)
 			pkg.DefineGoNativeValue("Itoa", strconv.Itoa)
 			pkg.DefineGoNativeValue("ParseInt", strconv.ParseInt)
