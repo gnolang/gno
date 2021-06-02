@@ -335,8 +335,14 @@ func (m *Machine) doOpBandn() {
 
 // TODO: can be much faster.
 func isEql(lv, rv *TypedValue) bool {
-	if lv.IsUndefined() {
-		return rv.IsUndefined()
+	// If one is undefined, the other must be as well.
+	// Fields/items are set to defaultValue along the way.
+	lvu := lv.IsUndefined()
+	rvu := rv.IsUndefined()
+	if lvu {
+		return rvu
+	} else if rvu {
+		return false
 	}
 	if lnt, ok := lv.T.(*nativeType); ok {
 		if rnt, ok := rv.T.(*nativeType); ok {
@@ -397,6 +403,25 @@ func isEql(lv, rv *TypedValue) bool {
 			}
 		}
 		return true
+	case StructKind:
+		lf := lv.V.(*StructValue).Fields
+		rf := rv.V.(*StructValue).Fields
+		if debug {
+			lt := baseOf(lv.T).(*StructType)
+			rt := baseOf(rv.T).(*StructType)
+			if lt.TypeID() != rt.TypeID() {
+				panic("comparison on structs of unequal types")
+			}
+			if len(lf) != len(rf) {
+				panic("comparison on structs of unequal size")
+			}
+		}
+		for i := 0; i < len(lf); i++ {
+			if !isEql(&lf[i], &rf[i]) {
+				return false
+			}
+		}
+		return true
 	case MapKind:
 		if debug {
 			if lv.V != nil && rv.V != nil {
@@ -421,8 +446,6 @@ func isEql(lv, rv *TypedValue) bool {
 	case PointerKind:
 		// TODO: assumes runtime instance normalization.
 		return lv.V == rv.V
-	case StructKind:
-		panic("NOT YET IMPLEMENTED")
 	default:
 		panic(fmt.Sprintf(
 			"comparison operator == not defined for %s",
