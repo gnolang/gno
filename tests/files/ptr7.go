@@ -1,8 +1,7 @@
 package main
 
 import (
-	"fmt"
-	"net"
+	"github.com/gnolang/gno/_test/net"
 	"strings"
 )
 
@@ -19,8 +18,8 @@ func (ipnet *ipNetValue) Set(value string) error {
 
 func main() {
 	v := ipNetValue{}
-	fmt.Println(v)
+	println(v)
 }
 
 // Output:
-// {<nil> <nil>}
+// struct{(undefined),(undefined)}

@@ -27,3 +27,17 @@ func (r *Resolver) LookupHost(ctx context.Context, host string) (addrs []string,
 }
 
 var DefaultResolver = &Resolver{}
+
+type IPNet struct {
+	IP   IP     // network number
+	Mask IPMask // network mask
+}
+
+type IP []byte
+
+type IPMask []byte
+
+// XXX dummy
+func ParseCIDR(s string) (IP, *IPNet, error) {
+	return nil, nil, nil
+}

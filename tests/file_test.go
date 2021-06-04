@@ -32,6 +32,10 @@ func TestFiles(t *testing.T) {
 		if filepath.Ext(file.Name()) != ".go" {
 			continue
 		}
+		if testing.Short() && strings.Contains(file.Name(), "_long") {
+			t.Log(fmt.Sprintf("skipping test %s in short mode.", file.Name()))
+			continue
+		}
 		file := file
 		t.Run(file.Name(), func(t *testing.T) {
 			runCheck(t, filepath.Join(baseDir, file.Name()))
@@ -95,10 +99,15 @@ func runCheck(t *testing.T, path string) {
 			if !strings.Contains(err, errWanted) {
 				panic(fmt.Sprintf("got %q, want: %q", err, errWanted))
 			}
+			// NOTE: ignores any gno.GetDebugErrors().
+			gno.ClearDebugErrors()
 			return // nothing more to do.
 		} else {
 			if pnc != nil {
 				panic(fmt.Sprintf("got unexpected error: %v", pnc))
+			}
+			if gno.HasDebugErrors() {
+				panic(fmt.Sprintf("got unexpected debug error(s): %v", gno.GetDebugErrors()))
 			}
 		}
 		// check result

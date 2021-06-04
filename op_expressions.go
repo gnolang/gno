@@ -16,15 +16,9 @@ func (m *Machine) doOpIndex1() {
 	}
 	iv := m.PopValue()   // index
 	xv := m.PeekValue(1) // x
-	// if a is a pointer to an array, a[low : high : max] is
-	// shorthand for (*a)[low : high : max]
-	if xv.T.Kind() == PointerKind &&
-		xv.T.Elem().Kind() == ArrayKind {
-		// simply deref xv.
-		xv = xv.V.(PointerValue).TypedValue
-	}
+	dst := xv
 	res := xv.GetPointerAtIndex(iv)
-	*xv = res.Deref() // reuse as result
+	*dst = res.Deref() // reuse as result
 }
 
 // NOTE: keep in sync with doOpIndex1.

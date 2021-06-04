@@ -14,8 +14,8 @@ type Stringer interface {
 
 func main() {
 	var f Stringer = &foo{bar: "bar"}
-	println(f)
+	println(*((*foo)(f)))
 }
 
 // Output:
-// &(struct{("bar" string)} main.foo)
+// struct{("bar" string)}

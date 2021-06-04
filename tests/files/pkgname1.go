@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// ../_test/pkgname1.go:8:19: undefined: bar
+// name bar not declared

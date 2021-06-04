@@ -1736,6 +1736,7 @@ func KindOf(t Type) Kind {
 // TODO: document what class of problems its for.
 // One of them can be nil, and this lets uninitialized primitives
 // and others serve as empty values.  See doOpAdd()
+// usage: if debug { assertSameTypes() }
 func assertSameTypes(lt, rt Type) {
 	if lt == nil && rt == nil {
 		// both are nil.
@@ -1747,11 +1748,11 @@ func assertSameTypes(lt, rt Type) {
 	} else if lt.TypeID() == rt.TypeID() {
 		// non-nil types are identical.
 	} else {
-		panic(fmt.Sprintf(
+		debug.Errorf(
 			"incompatible operands in binary expression: %s and %s",
 			lt.String(),
 			rt.String(),
-		))
+		)
 	}
 }
 
@@ -1773,11 +1774,11 @@ func assertEqualityTypes(lt, rt Type) {
 	} else if lt.TypeID() == rt.TypeID() {
 		// non-nil types are identical.
 	} else {
-		panic(fmt.Sprintf(
+		debug.Errorf(
 			"incompatible operands in binary (eql/neq) expression: %s and %s",
 			lt.String(),
 			rt.String(),
-		))
+		)
 	}
 }
 
@@ -1806,11 +1807,7 @@ func defaultTypeOf(t Type) Type {
 	case UntypedStringType:
 		return StringType
 	default:
-		if debug {
-			panic(fmt.Sprintf("unexpected type for default untyped const conversion: %s", t.String()))
-		} else {
-			panic("unexpected type for default untyped const conversion")
-		}
+		panic("unexpected type for default untyped const conversion")
 	}
 }
 

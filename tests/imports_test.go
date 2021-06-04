@@ -171,6 +171,7 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 		case "strings":
 			pkg := gno.NewPackageNode("strings", pkgPath, nil)
 			pkg.DefineGoNativeValue("SplitN", strings.SplitN)
+			pkg.DefineGoNativeValue("TrimSpace", strings.TrimSpace)
 			pkg.DefineGoNativeValue("HasPrefix", strings.HasPrefix)
 			pkg.DefineGoNativeValue("NewReader", strings.NewReader)
 			return pkg.NewPackage(nil)
