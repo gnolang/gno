@@ -43,7 +43,10 @@ func (v *SliceValue) String() string {
 }
 
 func (v PointerValue) String() string {
-	return fmt.Sprintf("&%s", v.TypedValue.String())
+	// NOTE: cannot do below, due to recursion problems.
+	// TODO: create a different String2(...) function.
+	// return fmt.Sprintf("&%s", v.TypedValue.String())
+	return fmt.Sprintf("&%p", v.TypedValue)
 }
 
 func (v *StructValue) String() string {
@@ -107,7 +110,7 @@ func (v TypeValue) String() string {
 }
 
 func (v *PackageValue) String() string {
-	return fmt.Sprintf("package(%s)", v.PkgPath)
+	return fmt.Sprintf("package(%s %s)", v.PkgName, v.PkgPath)
 }
 
 func (v nativeValue) String() string {

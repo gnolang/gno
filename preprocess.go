@@ -140,11 +140,18 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 				// define key/value.
 				n.X = Preprocess(imp, last, n.X).(Expr)
 				xt := evalTypeOf(last, n.X)
+				if xt.Kind() == PointerKind {
+					xt = xt.Elem()
+					n.X = &StarExpr{X: n.X}
+					n.X.SetAttribute(ATTR_PREPROCESSED, true)
+				}
 				switch xt.Kind() {
 				case MapKind:
 					n.IsMap = true
 				case StringKind:
 					n.IsString = true
+				case PointerKind:
+					panic("cannot iterate over pointers to pointers")
 				}
 				// key value if define.
 				if n.Op == DEFINE {
@@ -789,19 +796,27 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *IndexExpr:
-				xt := evalTypeOf(last, n.X)
-				switch xt.Kind() {
+				dt := evalTypeOf(last, n.X)
+				if dt.Kind() == PointerKind {
+					// if a is a pointer to an array,
+					// a[low : high : max] is shorthand
+					// for (*a)[low : high : max]
+					dt = dt.Elem()
+					n.X = &StarExpr{X: n.X}
+					n.X.SetAttribute(ATTR_PREPROCESSED, true)
+				}
+				switch dt.Kind() {
 				case StringKind, ArrayKind, SliceKind:
 					// Replace const index with int *constExpr,
 					// or if not const, assert integer type..
 					checkOrConvertIntegerType(last, n.Index)
 				case MapKind:
-					mt := baseOf(gnoTypeOf(xt)).(*MapType)
+					mt := baseOf(gnoTypeOf(dt)).(*MapType)
 					checkOrConvertType(last, n.Index, mt.Key)
 				default:
 					panic(fmt.Sprintf(
 						"unexpected index base kind for type %s",
-						xt.String()))
+						dt.String()))
 
 				}
 
@@ -980,13 +995,6 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 						// convert to (&x).m, but leave xt as is.
 						n.X = &RefExpr{X: n.X}
 						n.X.SetAttribute(ATTR_PREPROCESSED, true)
-						if debug {
-							if len(tr) != 1 {
-								panic(fmt.Sprintf(
-									"expected trail of length 1 but got %v",
-									tr))
-							}
-						}
 						switch tr[len(tr)-1].Type {
 						case VPDerefPtrMethod:
 							// When ptr method was called like x.y.z(), where x
@@ -2327,6 +2335,27 @@ func tryPredefine(imp Importer, last BlockNode, d Decl) (un Name) {
 					un = tx.Name
 					return
 				}
+			case *SelectorExpr:
+				// get package value.
+				un = findUndefined(imp, last, tx.X)
+				if un != "" {
+					return
+				}
+				pkgName := tx.X.(*NameExpr).Name
+				tv := last.GetValueRef(pkgName)
+				pv, ok := tv.V.(*PackageValue)
+				if !ok {
+					panic(fmt.Sprintf(
+						"unknown package name %s in %s",
+						pkgName,
+						tx.String(),
+					))
+				}
+				// check package node for name.
+				pn := pv.Source.(*PackageNode)
+				tx.Path = pn.GetPathForName(tx.Sel)
+				ptr := pv.Block.GetPointerTo(tx.Path)
+				t = ptr.TypedValue.T
 			default:
 				panic(fmt.Sprintf(
 					"unexpected type declaration type %v",

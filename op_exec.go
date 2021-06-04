@@ -54,6 +54,7 @@ func (m *Machine) doOpExec(op Op) {
 	s := m.PeekStmt(1)
 	if debug {
 		debug.Printf("PEEK STMT: %v\n", s)
+		//debug.Println(m.String())
 	}
 
 	// NOTE this could go in the switch statement, and we could
