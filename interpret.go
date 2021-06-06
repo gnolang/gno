@@ -534,13 +534,14 @@ const (
 	OpValueDecl Op = 0x90 // (var|const) Name X = Y
 
 	/* Loop (sticky) operators (>= 0xD0) */
-	OpSticky           Op = 0xD0 // not a real op.
-	OpBody             Op = 0xD1 // if/block/switch/select.
-	OpForLoop2         Op = 0xD2
-	OpRangeIter        Op = 0xD3
-	OpRangeIterString  Op = 0xD4
-	OpRangeIterMap     Op = 0xD5
-	OpReturnCallDefers Op = 0xD6
+	OpSticky            Op = 0xD0 // not a real op.
+	OpBody              Op = 0xD1 // if/block/switch/select.
+	OpForLoop2          Op = 0xD2
+	OpRangeIter         Op = 0xD3
+	OpRangeIterString   Op = 0xD4
+	OpRangeIterMap      Op = 0xD5
+	OpRangeIterArrayPtr Op = 0xD6
+	OpReturnCallDefers  Op = 0xD7
 )
 
 //----------------------------------------
@@ -739,7 +740,7 @@ func (m *Machine) Run() {
 			m.doOpExec(op)
 		case OpForLoop2:
 			m.doOpExec(op)
-		case OpRangeIter:
+		case OpRangeIter, OpRangeIterArrayPtr:
 			m.doOpExec(op)
 		case OpRangeIterString:
 			m.doOpExec(op)

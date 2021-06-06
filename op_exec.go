@@ -54,7 +54,7 @@ func (m *Machine) doOpExec(op Op) {
 	s := m.PeekStmt(1)
 	if debug {
 		debug.Printf("PEEK STMT: %v\n", s)
-		//debug.Println(m.String())
+		debug.Println(m.String())
 	}
 
 	// NOTE this could go in the switch statement, and we could
@@ -132,13 +132,22 @@ func (m *Machine) doOpExec(op Op) {
 		} else {
 			panic("should not happen")
 		}
-	case OpRangeIter:
+	case OpRangeIter, OpRangeIterArrayPtr:
 		bs := s.(*bodyStmt)
 		xv := m.PeekValue(1)
 		// TODO check length.
 		switch bs.BodyIndex {
 		case -2: // init.
-			ll := xv.GetLength()
+			var ll int
+			var dv *TypedValue
+			if op == OpRangeIterArrayPtr {
+				dv = xv.V.(PointerValue).TypedValue
+				*xv = *dv
+			} else {
+				dv = xv
+				*xv = xv.Copy()
+			}
+			ll = dv.GetLength()
 			if ll == 0 { // early termination
 				m.PopFrameAndReset()
 				return
@@ -589,10 +598,13 @@ EXEC_SWITCH:
 		}
 		m.PushBlock(b)
 		// continuation (persistent)
+		// TODO: replace with "cs.Op".
 		if cs.IsMap {
 			m.PushOp(OpRangeIterMap)
 		} else if cs.IsString {
 			m.PushOp(OpRangeIterString)
+		} else if cs.IsArrayPtr {
+			m.PushOp(OpRangeIterArrayPtr)
 		} else {
 			m.PushOp(OpRangeIter)
 		}
