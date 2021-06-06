@@ -140,18 +140,17 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 				// define key/value.
 				n.X = Preprocess(imp, last, n.X).(Expr)
 				xt := evalTypeOf(last, n.X)
-				if xt.Kind() == PointerKind {
-					xt = xt.Elem()
-					n.X = &StarExpr{X: n.X}
-					n.X.SetAttribute(ATTR_PREPROCESSED, true)
-				}
 				switch xt.Kind() {
 				case MapKind:
 					n.IsMap = true
 				case StringKind:
 					n.IsString = true
 				case PointerKind:
-					panic("cannot iterate over pointers to pointers")
+					if xt.Elem().Kind() != ArrayKind {
+						panic("range iteration over pointer requires array elem type")
+					}
+					xt = xt.Elem()
+					n.IsArrayPtr = true
 				}
 				// key value if define.
 				if n.Op == DEFINE {

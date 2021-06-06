@@ -728,8 +728,9 @@ type RangeStmt struct {
 	Key, Value Expr // Key, Value may be nil
 	Op         Word // ASSIGN or DEFINE
 	Body
-	IsMap    bool // if X is map type
-	IsString bool // if X is string type
+	IsMap      bool // if X is map type
+	IsString   bool // if X is string type
+	IsArrayPtr bool // if X is array-pointer type
 }
 
 type ReturnStmt struct {
