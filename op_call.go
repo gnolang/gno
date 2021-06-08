@@ -209,6 +209,24 @@ func (m *Machine) doOpReturnFromBlock() {
 		rtv := fblock.Values[i+numParams]
 		m.PushValue(rtv)
 	}
+	// See if we are exiting a realm boundary.
+	crlm := m.Realm
+	if crlm != nil {
+		lrlm := fr.LastRealm
+		finalize := false
+		if m.NumFrames() == 1 {
+			// We are exiting the machine's realm.
+			finalize = true
+		} else if crlm != lrlm {
+			// We are changing realms or exiting a realm.
+			finalize = true
+		}
+		if finalize {
+			// Finalize realm updates!
+			// NOTE: This is a resource intensive undertaking.
+			crlm.FinalizeRealmTransaction()
+		}
+	}
 	// finalize
 	m.PopFrameAndReturn()
 }
