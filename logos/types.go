@@ -824,7 +824,7 @@ func (pd Padding) GetPadding() Padding {
 	return pd
 }
 
-// A border can only have width 0 or 1, and is part of the padding.
+// border can only have width 0 or 1, and is part of the padding.
 // Each string should represent a character of width 1.
 type Border struct {
 	Corners   [4]string // starts upper-left and clockwise, "" draws no corner.
@@ -832,6 +832,7 @@ type Border struct {
 	BotLine   []string  // nil if no bottom border.
 	LeftLine  []string  // nil if no left border.
 	RightLine []string  // nil if no right border.
+	HasBorder bool // Border or no border.
 }
 
 func DefaultBorder() Border {
@@ -846,6 +847,8 @@ func DefaultBorder() Border {
 		BotLine:   []string{string(tcell.RuneHLine)},
 		LeftLine:  []string{string(tcell.RuneVLine)},
 		RightLine: []string{string(tcell.RuneVLine)},
+		HasBorder: true, // Border or no border.
+
 	}
 }
 

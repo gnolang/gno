@@ -17,7 +17,7 @@ simulated by the Gnomes of the Greater Resistance.
  
 ## Status
 
-_Update Feb 13th, 2021: Implemented Logos UI framework._
+_Update Feb 14th, 2021: Implemented Logos UI framework, added Makefile._
 
 This is a still a work in a progress, though much of the structure of the interpreter
 and AST have taken place.  Work is ongoing now to demonstrate the Realm concept before
@@ -26,10 +26,11 @@ continuing to make the tests/files/\*.go tests pass.
 Make sure you have >=[go1.15](https://golang.org/doc/install) installed, and then try this: 
 
 ```bash
-> git clone git@github.com:gnolang/gno.git
-> cd gno
-> go mod download github.com/davecgh/go-spew
-> go test tests/*.go -v -run="Test/realm.go"
+git clone git@github.com:gnolang/gno.git
+cd gno
+make
+cd build
+./gnoland
 ```
 
 ## Ownership 
@@ -303,6 +304,10 @@ file does. Eventually, each function will be commented in the same manner.
 
 You can learn a great deal from reading Gnocode, and it's recommended that
 both users and developers have a look.
+
+## Guidelines
+* Jae's BDFL, this is his design.
+* No dependencies on anything precompiled.
 
 ## Contact
 
