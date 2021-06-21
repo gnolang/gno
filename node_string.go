@@ -347,6 +347,10 @@ func (n ReturnStmt) String() string {
 	}
 }
 
+func (n PanicStmt) String() string {
+	return fmt.Sprintf("panic(%s)", n.Exception.String())
+}
+
 func (n SelectStmt) String() string {
 	cases := ""
 	for i, s := range n.Cases {

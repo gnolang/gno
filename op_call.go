@@ -7,7 +7,6 @@ import (
 
 func (m *Machine) doOpPrecall() {
 	cx := m.PopExpr().(*CallExpr)
-	//fr := m.LastFrame()
 	v := m.PeekValue(1).V
 	if debug {
 		if v == nil {
@@ -174,7 +173,7 @@ func (m *Machine) doOpCallDeferNativeBody() {
 
 // Assumes that result values are pushed onto the Values stack.
 func (m *Machine) doOpReturn() {
-	fr := m.LastFrame()
+	fr := m.PopUntilLastCallFrame()
 	// See if we are exiting a realm boundary.
 	crlm := m.Realm
 	if crlm != nil {
@@ -201,7 +200,7 @@ func (m *Machine) doOpReturn() {
 // i.e. named result vars declared in func signatures.
 func (m *Machine) doOpReturnFromBlock() {
 	// copy results from block
-	fr := m.LastFrame()
+	fr := m.PopUntilLastCallFrame()
 	numParams := len(fr.Func.Type.Params)
 	numResults := len(fr.Func.Type.Results)
 	fblock := m.Blocks[fr.NumBlocks] // frame +1
@@ -309,7 +308,7 @@ func (m *Machine) doOpReturnCallDefers() {
 				})
 			}
 		}
-		b.Values = dfr.Args
+		copy(b.Values, dfr.Args)
 	} else if dfr.GoFunc != nil {
 		fv := dfr.GoFunc
 		ptvs := dfr.Args
@@ -375,5 +374,27 @@ func (m *Machine) doOpDefer() {
 	default:
 		panic("should not happen")
 	}
+}
 
+func (m *Machine) doOpPanic1() {
+	// pop exception
+	var ex TypedValue = m.PopValue().Copy()
+	m.Exception = &ex
+	// start panicking
+	m.PopUntilLastCallFrame()
+	m.PushOp(OpPanic2)
+	m.PushOp(OpReturnCallDefers) // XXX rename, not return?
+}
+
+func (m *Machine) doOpPanic2() {
+	if m.Exception == nil {
+		// recovered from panic
+		m.PushOp(OpReturnFromBlock)
+		m.PushOp(OpReturnCallDefers)
+	} else {
+		// keep panicking
+		m.PopUntilLastCallFrame()
+		m.PushOp(OpPanic2)
+		m.PushOp(OpReturnCallDefers) // XXX rename, not return?
+	}
 }

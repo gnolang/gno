@@ -1846,32 +1846,6 @@ func (tv *TypedValue) GetSlice2(low, high, max int) TypedValue {
 	}
 }
 
-// Returns the field type of container type.
-// This is distinct from tv.GetValueRefAt(path).T for:
-// * uninitialized struct, package fields
-// * interface fields
-func (tv *TypedValue) GetStaticTypeOfAt(path ValuePath) Type {
-	t := tv.T
-TYPE_SWITCH:
-	switch ct := t.(type) {
-	case *DeclaredType:
-		if path.Depth <= 1 {
-			ftv := ct.GetValueRefAt(path)
-			return ftv.T.(*FuncType).BoundType()
-		} else {
-			path.Depth--
-			t = ct.Base
-			goto TYPE_SWITCH
-		}
-	case *StructType:
-		return ct.GetStaticTypeOfAt(path)
-	case *PackageType:
-		return tv.V.(*PackageValue).Source.GetStaticTypeOfAt(path)
-	default:
-		panic("should not happen")
-	}
-}
-
 //----------------------------------------
 // Block
 //

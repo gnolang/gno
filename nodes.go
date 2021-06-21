@@ -176,6 +176,7 @@ func (_ *IncDecStmt) assertNode()        {}
 func (_ *LabeledStmt) assertNode()       {}
 func (_ *RangeStmt) assertNode()         {}
 func (_ *ReturnStmt) assertNode()        {}
+func (_ *PanicStmt) assertNode()         {}
 func (_ *SelectStmt) assertNode()        {}
 func (_ *SelectCaseStmt) assertNode()    {}
 func (_ *SendStmt) assertNode()          {}
@@ -228,6 +229,7 @@ var _ = &IncDecStmt{}
 var _ = &LabeledStmt{}
 var _ = &RangeStmt{}
 var _ = &ReturnStmt{}
+var _ = &PanicStmt{}
 var _ = &SelectStmt{}
 var _ = &SelectCaseStmt{}
 var _ = &SendStmt{}
@@ -606,6 +608,7 @@ func (*IncDecStmt) assertStmt()       {}
 func (*LabeledStmt) assertStmt()      {}
 func (*RangeStmt) assertStmt()        {}
 func (*ReturnStmt) assertStmt()       {}
+func (*PanicStmt) assertStmt()        {}
 func (*SelectStmt) assertStmt()       {}
 func (*SelectCaseStmt) assertStmt()   {}
 func (*SendStmt) assertStmt()         {}
@@ -628,6 +631,7 @@ var _ Stmt = &IncDecStmt{}
 var _ Stmt = &LabeledStmt{}
 var _ Stmt = &RangeStmt{}
 var _ Stmt = &ReturnStmt{}
+var _ Stmt = &PanicStmt{}
 var _ Stmt = &SelectStmt{}
 var _ Stmt = &SelectCaseStmt{}
 var _ Stmt = &SendStmt{}
@@ -736,6 +740,11 @@ type RangeStmt struct {
 type ReturnStmt struct {
 	Attributes
 	Results Exprs // result expressions; or nil
+}
+
+type PanicStmt struct {
+	Attributes
+	Exception Expr // panic expression; not nil
 }
 
 type SelectStmt struct {
@@ -1091,6 +1100,7 @@ type BlockNode interface {
 	GetStaticTypeOf(Name) Type
 	GetStaticTypeOfAt(ValuePath) Type
 	Define(Name, TypedValue)
+	Define2(Name, Type, TypedValue)
 	GetBody() Body
 }
 
@@ -1101,6 +1111,7 @@ type BlockNode interface {
 // TODO rename to StaticBlock
 type StaticBlock struct {
 	Block
+	Types    []Type
 	NumNames uint16
 	Names    map[Name]uint16
 }
@@ -1185,14 +1196,14 @@ func (sb *StaticBlock) GetPathForName(n Name) ValuePath {
 // Implements BlockNode.
 func (sb *StaticBlock) GetStaticTypeOf(n Name) Type {
 	idx, ok := sb.GetLocalIndex(n)
-	vs := sb.Block.Values
+	ts := sb.Types
 	bp := sb.GetParent()
 	for {
 		if ok {
-			return vs[idx].T
+			return ts[idx]
 		} else if bp != nil {
 			idx, ok = bp.GetLocalIndex(n)
-			vs = bp.GetStaticBlock().GetBlock().Values
+			ts = bp.GetStaticBlock().Types
 			bp = bp.GetParent()
 		} else {
 			panic(fmt.Sprintf("name %s not declared", n))
@@ -1202,7 +1213,23 @@ func (sb *StaticBlock) GetStaticTypeOf(n Name) Type {
 
 // Implements BlockNode.
 func (sb *StaticBlock) GetStaticTypeOfAt(path ValuePath) Type {
-	return sb.Block.GetPointerTo(path).T
+	if debug {
+		if path.Type != VPBlock {
+			panic("should not happen")
+		}
+		if path.Depth == 0 {
+			panic("should not happen")
+		}
+	}
+	for {
+		if path.Depth == 1 {
+			return sb.Types[path.Index]
+		} else {
+			sb = sb.GetParent().GetStaticBlock()
+			path.Depth -= 1
+		}
+	}
+	panic("should not happen")
 }
 
 // Implements BlockNode.
@@ -1241,22 +1268,25 @@ func (sb *StaticBlock) GetValueRef(n Name) *TypedValue {
 // Statically declares a name definition.
 // At runtime, use *Block.GetValueRef() etc which take path
 // values, which are pre-computeed in the preprocessor.
-// Undefined values may become defined once, so
-// TypedValue{} may be used as a reservation value,
-// but once a typed value is set, it cannot be changed.
+// Once a typed value is defined, it cannot be changed.
 //
 // NOTE: Currently tv.V is only set when the value
-// represents a TypedValue. The intent of tv is to describe
+// represents a Type(Value). The purpose of tv is to describe
 // the invariant of a named value, at the minimum its type,
 // but also sometimes the typeval value; but we could go
 // further and store preprocessed constant results here
 // too.  See "anyValue()" and "asValue()" for usage.
 func (sb *StaticBlock) Define(n Name, tv TypedValue) {
+	sb.Define2(n, tv.T, tv)
+}
+
+func (sb *StaticBlock) Define2(n Name, st Type, tv TypedValue) {
 	if debug {
 		debug.Printf(
 			"StaticBlock.Define(%s, %v)\n",
 			n, tv)
 	}
+	// TODO check that tv.T implements st.
 	if len(n) == 0 {
 		panic("name cannot be zero")
 	}
@@ -1283,11 +1313,13 @@ func (sb *StaticBlock) Define(n Name, tv TypedValue) {
 			}
 		}
 		sb.Block.Values[idx] = tv
+		sb.Types[idx] = st
 	} else {
 		// The general case without re-definition.
 		sb.Names[n] = sb.NumNames
 		sb.NumNames++
 		sb.Block.Values = append(sb.Block.Values, tv)
+		sb.Types = append(sb.Types, st)
 	}
 }
 

@@ -1335,17 +1335,18 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 					// runDeclaration(), as this uses OpTypeOf.
 				}
 				// convert and evaluate type.
-				var t Type
+				var st Type
 				if n.Type != nil {
 					// convert if const to type t.
-					t = evalType(last, n.Type)
-					checkOrConvertType(last, n.Value, t)
+					st = evalType(last, n.Type)
+					checkOrConvertType(last, n.Value, st)
 				} else if n.Const {
 					// leave n.Value as is.
+					st = evalTypeOf(last, n.Value)
 				} else {
 					// convert n.Value to default type.
 					convertIfConst(last, n.Value)
-					t = evalTypeOf(last, n.Value)
+					st = evalTypeOf(last, n.Value)
 				}
 				// evaluate typed value for static definition.
 				var tv TypedValue
@@ -1355,7 +1356,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 					tv = cx.TypedValue
 				} else {
 					// for var decls of non-const expr.
-					tv = anyValue(t)
+					tv = anyValue(st)
 				}
 				// define.
 				if n.Name == "_" {
@@ -1363,9 +1364,9 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 				} else {
 					if fn, ok := last.(*FileNode); ok {
 						pn := fn.GetParent().(*PackageNode)
-						pn.Define(n.Name, tv)
+						pn.Define2(n.Name, st, tv)
 					} else {
-						last.Define(n.Name, tv)
+						last.Define2(n.Name, st, tv)
 					}
 					n.Path = last.GetPathForName(n.Name)
 				}

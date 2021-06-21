@@ -179,10 +179,10 @@ func (m *Machine) doOpTypeOf() {
 			gv := Uverse().GetPointerTo(x.Path)
 			m.PushValue(asValue(gv.T))
 		} else {
-			// Get value from scope.
+			// Get static type from source.
 			lb := m.LastBlock()
-			tv := lb.GetPointerTo(x.Path)
-			m.PushValue(asValue(tv.T))
+			st := lb.Source.GetStaticTypeOfAt(x.Path)
+			m.PushValue(asValue(st))
 		}
 	case *BasicLitExpr:
 		// Should already be swapped for *constExpr.
