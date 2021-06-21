@@ -839,7 +839,22 @@ func UverseNode() *PackageNode {
 			m.Output.Write([]byte(rs))
 		},
 	)
-	def("recover", undefined)
+	defNative("recover",
+		nil, // params
+		Flds( // results
+			"exception", AnyT(),
+		),
+		func(m *Machine) {
+			fmt.Println("RECOVERRR", m.String())
+			fmt.Println("RECOVERRR", m.Exception)
+			if m.Exception == nil {
+				m.PushValue(TypedValue{})
+			} else {
+				m.PushValue(*m.Exception)
+				m.Exception = nil
+			}
+		},
+	)
 	return uverseNode
 }
 

@@ -82,6 +82,7 @@ const (
 	TRANS_RANGE_VALUE
 	TRANS_RANGE_BODY
 	TRANS_RETURN_RESULT
+	TRANS_PANIC_EXCEPTION
 	TRANS_SELECT_CASE
 	TRANS_SELECTCASE_COMM
 	TRANS_SELECTCASE_BODY
@@ -541,6 +542,8 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 				return
 			}
 		}
+	case *PanicStmt:
+		cnn.Exception = transcribe(t, nns, TRANS_PANIC_EXCEPTION, 0, cnn.Exception, &c).(Expr)
 	case *SelectStmt:
 		for idx, _ := range cnn.Cases {
 			cnn.Cases[idx] = *transcribe(t, nns, TRANS_SELECT_CASE, idx, &cnn.Cases[idx], &c).(*SelectCaseStmt)

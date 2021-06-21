@@ -556,7 +556,7 @@ EXEC_SWITCH:
 		m.PushForPointer(cs.X)
 	case *ReturnStmt:
 		m.PopStmt()
-		fr := m.PopUntilLastCallFrame()
+		fr := m.LastCallFrame()
 		hasDefers := 0 < len(fr.Defers)
 		hasResults := 0 < len(fr.Func.Type.Results)
 		// If has defers, return from the block stack.
@@ -585,6 +585,13 @@ EXEC_SWITCH:
 			m.PushExpr(res)
 			m.PushOp(OpEval)
 		}
+	case *PanicStmt:
+		m.PopStmt()
+		// continuation
+		m.PushOp(OpPanic1)
+		// evaluate exception
+		m.PushExpr(cs.Exception)
+		m.PushOp(OpEval)
 	case *RangeStmt:
 		m.PushFrameBasic(cs)
 		b := NewBlock(cs, m.LastBlock())
