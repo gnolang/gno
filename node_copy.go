@@ -274,6 +274,12 @@ func (x *ReturnStmt) Copy() Node {
 	}
 }
 
+func (x *PanicStmt) Copy() Node {
+	return &PanicStmt{
+		Exception: x.Exception.Copy().(Expr),
+	}
+}
+
 func (x *SelectStmt) Copy() Node {
 	return &SelectStmt{
 		Cases: copySelectCases(x.Cases),

@@ -26,6 +26,7 @@ type Machine struct {
 	Frames    []Frame       // func call stack
 	Package   *PackageValue // active package
 	Realm     *Realm        // active realm
+	Exception *TypedValue   // if panic'd unless recovered
 
 	// Volatile State
 	NumResults int // number of results returned
@@ -451,6 +452,8 @@ const (
 	OpPopValue            Op = 0x12 // pop X
 	OpPopResults          Op = 0x13 // pop n call results
 	OpPopBlock            Op = 0x14 // pop block NOTE breaks certain invariants.
+	OpPanic1              Op = 0x15 // pop exception and pop call frames.
+	OpPanic2              Op = 0x16 // pop call frames.
 
 	/* Unary & binary operators */
 	OpUpos  Op = 0x20 // + (unary)
@@ -573,6 +576,10 @@ func (m *Machine) Run() {
 			m.doOpReturnToBlock()
 		case OpDefer:
 			m.doOpDefer()
+		case OpPanic1:
+			m.doOpPanic1()
+		case OpPanic2:
+			m.doOpPanic2()
 		case OpCallDeferNativeBody:
 			m.doOpCallDeferNativeBody()
 		case OpGo:
@@ -1095,10 +1102,6 @@ func (m *Machine) PopFrameAndReturn() {
 	m.Package = fr.LastPackage
 }
 
-func (m *Machine) PopFrameForPanic() {
-	panic("not yet implemented")
-}
-
 func (m *Machine) PeekFrameAndContinueFor() {
 	fr := m.LastFrame()
 	m.NumOps = fr.NumOps + 1
@@ -1127,6 +1130,19 @@ func (m *Machine) NumFrames() int {
 
 func (m *Machine) LastFrame() *Frame {
 	return &m.Frames[len(m.Frames)-1]
+}
+
+// TODO: this function and PopUntilLastCallFrame() is used in conjunction
+// spanning two disjoint operations upon return. Optimize.
+func (m *Machine) LastCallFrame() *Frame {
+	for i := len(m.Frames) - 1; i >= 0; i-- {
+		fr := &m.Frames[i]
+		if fr.Func != nil || fr.GoFunc != nil {
+			// TODO: optimize with fr.IsCall
+			return fr
+		}
+	}
+	panic("missing call frame")
 }
 
 // pops the last non-call (loop) frames
@@ -1306,6 +1322,8 @@ func (m *Machine) String() string {
 	Blocks (other):
 %s
 	Frames:
+%s
+	Exception:
 %s`,
 		m.CheckTypes,
 		m.Ops[:m.NumOps],
@@ -1316,5 +1334,6 @@ func (m *Machine) String() string {
 		strings.Join(bs, "\n"),
 		strings.Join(obs, "\n"),
 		strings.Join(fs, "\n"),
+		m.Exception,
 	)
 }
