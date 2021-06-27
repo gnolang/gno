@@ -112,15 +112,16 @@ func (m *Machine) doOpCall() {
 		isMethod = 1
 
 	}
-	// Convert variadic argument.
-	// TODO: more optimizations may be possible here if varg is
-	// unescaping.  NOTE: this logic is somwhat duplicated for
+	// Convert variadic argument to slice argument.
+	// TODO: more optimizations may be possible here if
+	// varg is unescaping.
+	// NOTE: this logic is somewhat duplicated for
 	// doOpReturnCallDefers().
 	if ft.HasVarg() {
 		nvar := fr.NumArgs - isMethod - (numParams - 1)
 		if fr.IsVarg {
-			// do nothing, last arg type is already slice type
-			// called with form fncall(?, vargs...)
+			// do nothing, last arg type is already slice
+			// type called with form fncall(?, vargs...)
 			if debug {
 				if nvar != 1 {
 					panic("should not happen")

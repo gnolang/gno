@@ -1,7 +1,5 @@
 package main
 
-import "fmt"
-
 type T struct {
 	a []T
 	b []*T
@@ -30,10 +28,10 @@ type U struct {
 func main() {
 	t := T{}
 	u := U{}
-	fmt.Println(t)
-	fmt.Println(u)
+	println(t)
+	println(u)
 }
 
 // Output:
-// {[] [] map[] map[] <nil> <nil> <nil> <nil> <nil> {[] [] map[] map[] <nil> <nil> <nil> <nil> <nil>}}
-// {[] [] map[] map[] <nil> <nil> <nil> <nil> <nil>}
+// struct{(undefined),(undefined),(undefined),(undefined),(undefined),(undefined),(undefined),(undefined),(undefined),(undefined)}
+// struct{(undefined),(undefined),(undefined),(undefined),(undefined),(undefined),(undefined),(undefined),(undefined)}

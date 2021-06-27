@@ -10,5 +10,5 @@ func main() {
 }
 
 // Error:
-// ../_test/redeclaration-global0.go:5:5: time redeclared in this block
-//	previous declaration at ../_test/redeclaration-global0.go:3:6
+// files/redeclaration-global0.go:5:5: time redeclared in this block
+//	previous declaration at files/redeclaration-global0.go:3:6

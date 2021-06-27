@@ -169,7 +169,7 @@ func (m *Machine) doOpChanType() {
 // Evaluate the type of a typed (i.e. not untyped) value.
 // This function expects const expressions to have been
 // already swapped for *constExpr in the preprocessor.  If not, panics.
-func (m *Machine) doOpTypeOf() {
+func (m *Machine) doOpStaticTypeOf() {
 	x := m.PopExpr()
 	switch x := x.(type) {
 	case *NameExpr:
@@ -187,13 +187,13 @@ func (m *Machine) doOpTypeOf() {
 	case *BasicLitExpr:
 		// Should already be swapped for *constExpr.
 		// Also, this isn't needed.
-		panic("*BasicLitExpr not supported with OpTypeOf")
+		panic("*BasicLitExpr not supported with OpStaticTypeOf")
 	case *BinaryExpr:
 		switch x.Op {
 		case ADD, SUB, MUL, QUO, REM, BAND, BOR, XOR,
 			SHL, SHR, BAND_NOT, LAND, LOR:
 			m.PushExpr(x.Left)
-			m.PushOp(OpTypeOf)
+			m.PushOp(OpStaticTypeOf)
 		case EQL, LSS, GTR, NEQ, LEQ, GEQ:
 			m.PushValue(asValue(UntypedBoolType))
 		}
@@ -204,7 +204,7 @@ func (m *Machine) doOpTypeOf() {
 		start := m.NumValues
 		m.PushOp(OpHalt)
 		m.PushExpr(x.X)
-		m.PushOp(OpTypeOf)
+		m.PushOp(OpStaticTypeOf)
 		m.Run() // XXX replace
 		xt := m.ReapValues(start)[0].GetType()
 		m.PushValue(asValue(xt.Elem()))
@@ -212,7 +212,7 @@ func (m *Machine) doOpTypeOf() {
 		start := m.NumValues
 		m.PushOp(OpHalt)
 		m.PushExpr(x.X)
-		m.PushOp(OpTypeOf)
+		m.PushOp(OpStaticTypeOf)
 		m.Run() // XXX replace
 		xt := m.ReapValues(start)[0].GetType()
 
@@ -439,7 +439,7 @@ func (m *Machine) doOpTypeOf() {
 		start := m.NumValues
 		m.PushOp(OpHalt)
 		m.PushExpr(x.X)
-		m.PushOp(OpTypeOf)
+		m.PushOp(OpStaticTypeOf)
 		m.Run() // XXX replace
 		xt := m.ReapValues(start)[0].V.(TypeValue).Type
 		if pt, ok := xt.(*PointerType); ok {
@@ -455,7 +455,7 @@ func (m *Machine) doOpTypeOf() {
 		start := m.NumValues
 		m.PushOp(OpHalt)
 		m.PushExpr(x.X)
-		m.PushOp(OpTypeOf)
+		m.PushOp(OpStaticTypeOf)
 		m.Run() // XXX replace
 		xt := m.ReapValues(start)[0].GetType()
 		if pt, ok := xt.(*PointerType); ok {
@@ -469,7 +469,7 @@ func (m *Machine) doOpTypeOf() {
 		start := m.NumValues
 		m.PushOp(OpHalt)
 		m.PushExpr(x.X)
-		m.PushOp(OpTypeOf)
+		m.PushOp(OpStaticTypeOf)
 		m.Run() // XXX replace
 		xt := m.ReapValues(start)[0].GetType()
 		m.PushValue(asValue(&PointerType{Elt: xt}))
@@ -482,7 +482,7 @@ func (m *Machine) doOpTypeOf() {
 		}
 	case *UnaryExpr:
 		m.PushExpr(x.X)
-		m.PushOp(OpTypeOf)
+		m.PushOp(OpStaticTypeOf)
 	case *CompositeLitExpr:
 		m.PushExpr(x.Type)
 		m.PushOp(OpEval)

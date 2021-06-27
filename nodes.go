@@ -315,9 +315,10 @@ type BinaryExpr struct { // (Left Op Right)
 
 type CallExpr struct { // Func(Args<Varg?...>)
 	Attributes
-	Func Expr  // function expression
-	Args Exprs // function arguments, if any.
-	Varg bool  // if true, final arg is variadic.
+	Func    Expr  // function expression
+	Args    Exprs // function arguments, if any.
+	Varg    bool  // if true, final arg is variadic.
+	NumArgs int   // len(Args) or len(Args[0].Results)
 }
 
 type IndexExpr struct { // X[Index]
@@ -1122,9 +1123,17 @@ func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 		panic("StaticBlock.Names already initalized")
 	}
 	if parent == nil {
-		sb.Block = *NewBlock(source, nil)
+		sb.Block = Block{
+			Source: source,
+			Values: nil,
+			Parent: nil,
+		}
 	} else {
-		sb.Block = *NewBlock(source, parent.GetStaticBlock().GetBlock())
+		sb.Block = Block{
+			Source: source,
+			Values: nil,
+			Parent: parent.GetStaticBlock().GetBlock(),
+		}
 	}
 	sb.NumNames = 0
 	sb.Names = make(map[Name]uint16)
@@ -1286,7 +1295,7 @@ func (sb *StaticBlock) Define2(n Name, st Type, tv TypedValue) {
 			"StaticBlock.Define(%s, %v)\n",
 			n, tv)
 	}
-	// TODO check that tv.T implements st.
+	// TODO check that tv.T implements t.
 	if len(n) == 0 {
 		panic("name cannot be zero")
 	}

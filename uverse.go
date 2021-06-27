@@ -38,7 +38,7 @@ func UverseNode() *PackageNode {
 		fd := FuncD(n, ps, rs, nil)
 		// Preprocess sets v.Source.Name on .Source.StaticBlock.
 		fd = Preprocess(nil, uverseNode, fd).(*FuncDecl)
-		ft := evalType(uverseNode, &fd.Type).(*FuncType)
+		ft := evalStaticType(uverseNode, &fd.Type).(*FuncType)
 		if debug {
 			if ft == nil {
 				panic("should not happen")

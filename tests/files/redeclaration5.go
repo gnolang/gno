@@ -1,7 +1,7 @@
 package main
 
 func main() {
-	type foo struct{
+	type foo struct {
 		yolo string
 	}
 
@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// ../_test/redeclaration5.go:8:7: foo redeclared in this block
+// files/redeclaration5.go:8:7: foo redeclared in this block
