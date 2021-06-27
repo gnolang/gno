@@ -9,4 +9,6 @@ func main() {
 	println(t)
 }
 
-// TODO: expected redeclaration error.
+// Error:
+// files/redeclaration-global1.go:5:6: time redeclared in this block
+//	previous declaration at files/redeclaration-global1.go:3:5

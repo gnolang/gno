@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// ../_test/redeclaration1.go:6:6: foo redeclared in this block
+// files/redeclaration1.go:6:6: foo redeclared in this block
