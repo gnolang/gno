@@ -100,6 +100,7 @@ func _() {
 	_ = x[OpInc-141]
 	_ = x[OpDec-142]
 	_ = x[OpValueDecl-144]
+	_ = x[OpTypeDecl-145]
 	_ = x[OpSticky-208]
 	_ = x[OpBody-209]
 	_ = x[OpForLoop2-210]
@@ -118,7 +119,7 @@ const (
 	_Op_name_4 = "OpStructLitGoNativeOpCallGoNative"
 	_Op_name_5 = "OpFieldTypeOpArrayTypeOpSliceTypeOpPointerTypeOpInterfaceTypeOpChanTypeOpFuncTypeOpMapTypeOpStructType"
 	_Op_name_6 = "OpAssignOpAddAssignOpSubAssignOpMulAssignOpQuoAssignOpRemAssignOpBandAssignOpBandnAssignOpBorAssignOpXorAssignOpShlAssignOpShrAssignOpDefineOpIncOpDec"
-	_Op_name_7 = "OpValueDecl"
+	_Op_name_7 = "OpValueDeclOpTypeDecl"
 	_Op_name_8 = "OpStickyOpBodyOpForLoop2OpRangeIterOpRangeIterStringOpRangeIterMapOpRangeIterArrayPtrOpReturnCallDefers"
 )
 
@@ -130,6 +131,7 @@ var (
 	_Op_index_4 = [...]uint8{0, 19, 33}
 	_Op_index_5 = [...]uint8{0, 11, 22, 33, 46, 61, 71, 81, 90, 102}
 	_Op_index_6 = [...]uint8{0, 8, 19, 30, 41, 52, 63, 75, 88, 99, 110, 121, 132, 140, 145, 150}
+	_Op_index_7 = [...]uint8{0, 11, 21}
 	_Op_index_8 = [...]uint8{0, 8, 14, 24, 35, 52, 66, 85, 103}
 )
 
@@ -155,8 +157,9 @@ func (i Op) String() string {
 	case 128 <= i && i <= 142:
 		i -= 128
 		return _Op_name_6[_Op_index_6[i]:_Op_index_6[i+1]]
-	case i == 144:
-		return _Op_name_7
+	case 144 <= i && i <= 145:
+		i -= 144
+		return _Op_name_7[_Op_index_7[i]:_Op_index_7[i+1]]
 	case 208 <= i && i <= 215:
 		i -= 208
 		return _Op_name_8[_Op_index_8[i]:_Op_index_8[i+1]]

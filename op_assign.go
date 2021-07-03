@@ -6,11 +6,11 @@ func (m *Machine) doOpDefine() {
 	// NOTE: PopValues() returns a slice in
 	// forward order, not the usual reverse.
 	rvs := m.PopValues(len(s.Lhs))
+	lb := m.LastBlock()
 	for i := 0; i < len(s.Lhs); i++ {
 		// Get name and value of i'th term.
 		nx := s.Lhs[i].(*NameExpr)
 		// Finally, define (or assign if loop block).
-		lb := m.LastBlock()
 		ptr := lb.GetPointerTo(nx.Path)
 		ptr.Assign2(m.Realm, rvs[i], true)
 	}

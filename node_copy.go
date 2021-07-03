@@ -194,7 +194,7 @@ func (x *BranchStmt) Copy() Node {
 
 func (x *DeclStmt) Copy() Node {
 	return &DeclStmt{
-		Decls: copyDecls(x.Decls),
+		Body: copyStmts(x.Body),
 	}
 }
 
@@ -344,10 +344,10 @@ func (x *ImportDecl) Copy() Node {
 
 func (x *ValueDecl) Copy() Node {
 	return &ValueDecl{
-		NameExpr: *(x.NameExpr.Copy().(*NameExpr)),
-		Type:     copyExpr(x.Type),
-		Value:    copyExpr(x.Value),
-		Const:    x.Const,
+		NameExprs: copyNameExprs(x.NameExprs),
+		Type:      copyExpr(x.Type),
+		Values:    copyExprs(x.Values),
+		Const:     x.Const,
 	}
 }
 
@@ -397,6 +397,14 @@ func copyExprs(xs []Expr) []Expr {
 	res := make([]Expr, len(xs))
 	for i, x := range xs {
 		res[i] = x.Copy().(Expr)
+	}
+	return res
+}
+
+func copyNameExprs(nxs NameExprs) NameExprs {
+	res := make([]NameExpr, len(nxs))
+	for i, nx := range nxs {
+		res[i] = *(nx.Copy().(*NameExpr))
 	}
 	return res
 }

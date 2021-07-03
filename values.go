@@ -1625,8 +1625,9 @@ func (tv *TypedValue) GetPointerAtIndex(iv *TypedValue) PointerValue {
 		}
 	default:
 		panic(fmt.Sprintf(
-			"unexpected index base type %s",
-			tv.T.String()))
+			"unexpected index base type %s (%v)",
+			tv.T.String(),
+			reflect.TypeOf(tv.T)))
 	}
 }
 
@@ -1898,7 +1899,7 @@ func (b *Block) StringIndented(indent string) string {
 		fmt.Sprintf("Block(Addr:%p,Source:%s,Parent:%p)",
 			b, source, b.Parent))
 	if b.Source != nil {
-		for i, n := range b.Source.GetNames() {
+		for i, n := range b.Source.GetBlockNames() {
 			if len(b.Values) <= i {
 				lines = append(lines,
 					fmt.Sprintf("%s%s: undefined", indent, n))
@@ -1991,6 +1992,8 @@ func (b *Block) ExpandToSize(size uint16) {
 
 func defaultValue(t Type) Value {
 	switch ct := baseOf(t).(type) {
+	case nil:
+		panic("unexpected nil type")
 	case *ArrayType:
 		tvs := make([]TypedValue, ct.Len)
 		return &ArrayValue{
