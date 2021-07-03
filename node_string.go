@@ -155,9 +155,9 @@ func (n RefExpr) String() string {
 
 func (n TypeAssertExpr) String() string {
 	if n.Type == nil {
-		return fmt.Sprintf("%s.(%s)", n.X, n.Type)
-	} else {
 		return fmt.Sprintf("%s.(type)", n.X)
+	} else {
+		return fmt.Sprintf("%s.(%s)", n.X, n.Type)
 	}
 }
 
@@ -263,7 +263,7 @@ func (n BranchStmt) String() string {
 }
 
 func (n DeclStmt) String() string {
-	return n.Decls.String()
+	return n.Body.String()
 }
 
 func (n DeferStmt) String() string {
@@ -422,15 +422,16 @@ func (n ValueDecl) String() string {
 	if n.Const {
 		mod = "const"
 	}
+	names := n.NameExprs.String()
 	type_ := ""
 	if n.Type != nil {
 		type_ = " " + n.Type.String()
 	}
 	value := ""
-	if n.Value != nil {
-		value = " = " + n.Value.String()
+	if n.Values != nil {
+		value = " = " + n.Values.String()
 	}
-	return fmt.Sprintf("%s %s%s%s", mod, n.Name, type_, value)
+	return fmt.Sprintf("%s %s%s%s", mod, names, type_, value)
 }
 
 func (n TypeDecl) String() string {
@@ -460,6 +461,18 @@ func (xs Exprs) String() string {
 			str += x.String()
 		} else {
 			str += ", " + x.String()
+		}
+	}
+	return str
+}
+
+func (nxs NameExprs) String() string {
+	str := ""
+	for i, nx := range nxs {
+		if i == 0 {
+			str += nx.String()
+		} else {
+			str += ", " + nx.String()
 		}
 	}
 	return str
@@ -513,18 +526,10 @@ func (ds Decls) String() string {
 	return str
 }
 
-func (ds SimpleDecls) String() string {
-	str := ""
-	for i, s := range ds {
-		if i == 0 {
-			str += s.String()
-		} else {
-			str += "; " + s.String()
-		}
-	}
-	return str
-}
-
 func (cx constExpr) String() string {
 	return fmt.Sprintf("(const %s)", cx.TypedValue.String())
+}
+
+func (ctx constTypeExpr) String() string {
+	return fmt.Sprintf("(const-type %s)", ctx.Type.String())
 }

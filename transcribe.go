@@ -62,7 +62,7 @@ const (
 	TRANS_ASSIGN_LHS
 	TRANS_ASSIGN_RHS
 	TRANS_BLOCK_BODY
-	TRANS_DECL_DECL
+	TRANS_DECL_BODY
 	TRANS_DEFER_CALL
 	TRANS_EXPR_X
 	TRANS_FOR_INIT
@@ -388,8 +388,9 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		}
 	case *BranchStmt:
 	case *DeclStmt:
-		for idx, _ := range cnn.Decls {
-			cnn.Decls[idx] = transcribe(t, nns, TRANS_DECL_DECL, idx, cnn.Decls[idx], &c).(SimpleDecl)
+		for idx, _ := range cnn.Body {
+			cnn.Body[idx] =
+				transcribe(t, nns, TRANS_DECL_BODY, idx, cnn.Body[idx], &c).(SimpleDeclStmt)
 			if isBreak(c) {
 				break
 			} else if isStopOrSkip(nc, c) {
@@ -675,9 +676,11 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 				return
 			}
 		}
-		if cnn.Value != nil {
-			cnn.Value = transcribe(t, nns, TRANS_VAR_VALUE, 0, cnn.Value, &c).(Expr)
-			if isStopOrSkip(nc, c) {
+		for idx, _ := range cnn.Values {
+			cnn.Values[idx] = transcribe(t, nns, TRANS_VAR_VALUE, idx, cnn.Values[idx], &c).(Expr)
+			if isBreak(c) {
+				break
+			} else if isStopOrSkip(nc, c) {
 				return
 			}
 		}

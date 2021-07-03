@@ -323,7 +323,7 @@ func Go2Gno(gon ast.Node) (n Node) {
 		}
 	case *ast.DeclStmt:
 		return &DeclStmt{
-			Decls: toSimpleDecls(gon.Decl.(*ast.GenDecl)),
+			Body: toSimpleDeclStmts(gon.Decl.(*ast.GenDecl)),
 		}
 	case *ast.SliceExpr:
 		return &SliceExpr{
@@ -552,10 +552,10 @@ func toDecls(gd *ast.GenDecl) (ds Decls) {
 	ds = make([]Decl, 0, len(gd.Specs))
 	/*
 		Within a parenthesized const declaration list the
-		expression list may be omitted from any but the first
-		ConstSpec. Such an empty list is equivalent to the textual
-		substitution of the first preceding non-empty expression
-		list and its type if any.
+		expression list may be omitted from any but the
+		first ConstSpec. Such an empty list is equivalent
+		to the textual substitution of the first preceding
+		non-empty expression list and its type if any.
 	*/
 	var lastValues Exprs // (see Go iota spec above)
 	var lastType Expr    // (see Go iota spec above)
@@ -573,13 +573,11 @@ func toDecls(gd *ast.GenDecl) (ds Decls) {
 			})
 		case *ast.ValueSpec:
 			if gd.Tok == token.CONST {
-				var values Exprs
+				var names []NameExpr
 				var tipe Expr
-				if s.Values == nil {
-					values = copyExprs(lastValues)
-				} else {
-					values = toExprs(s.Values)
-					lastValues = values
+				var values Exprs
+				for _, id := range s.Names {
+					names = append(names, *Nx(toName(id)))
 				}
 				if s.Type == nil {
 					tipe = lastType
@@ -587,33 +585,38 @@ func toDecls(gd *ast.GenDecl) (ds Decls) {
 					tipe = toExpr(s.Type)
 					lastType = tipe
 				}
-				for i, id := range s.Names {
-					name := toName(id)
-					valu := values[i]
-					cd := &ValueDecl{
-						NameExpr: NameExpr{Name: name},
-						Type:     tipe,
-						Value:    valu,
-						Const:    true,
-					}
-					cd.SetAttribute(ATTR_IOTA, si)
-					ds = append(ds, cd)
+				if s.Values == nil {
+					values = copyExprs(lastValues)
+				} else {
+					values = toExprs(s.Values)
+					lastValues = values
 				}
+				cd := &ValueDecl{
+					NameExprs: names,
+					Type:      tipe,
+					Values:    values,
+					Const:     true,
+				}
+				cd.SetAttribute(ATTR_IOTA, si)
+				ds = append(ds, cd)
 			} else {
-				for i, id := range s.Names {
-					name := toName(id)
-					valu := Expr(nil)
-					if s.Values != nil {
-						valu = toExpr(s.Values[i])
-					}
-					tipe := toExpr(s.Type)
-					ds = append(ds, &ValueDecl{
-						NameExpr: NameExpr{Name: name},
-						Type:     tipe,
-						Value:    valu,
-						Const:    false,
-					})
+				var names []NameExpr
+				var tipe Expr
+				var values Exprs
+				for _, id := range s.Names {
+					names = append(names, *Nx(toName(id)))
 				}
+				tipe = toExpr(s.Type)
+				if s.Values != nil {
+					values = toExprs(s.Values)
+				}
+				vd := &ValueDecl{
+					NameExprs: names,
+					Type:      tipe,
+					Values:    values,
+					Const:     false,
+				}
+				ds = append(ds, vd)
 			}
 		case *ast.ImportSpec:
 			path, err := strconv.Unquote(s.Path.Value)
@@ -621,7 +624,7 @@ func toDecls(gd *ast.GenDecl) (ds Decls) {
 				panic("unexpected import spec path type")
 			}
 			ds = append(ds, &ImportDecl{
-				NameExpr: NameExpr{Name: toName(s.Name)},
+				NameExpr: *Nx(toName(s.Name)),
 				PkgPath:  path,
 			})
 		default:
@@ -633,11 +636,11 @@ func toDecls(gd *ast.GenDecl) (ds Decls) {
 	return ds
 }
 
-func toSimpleDecls(gd *ast.GenDecl) (sds Decls) {
+func toSimpleDeclStmts(gd *ast.GenDecl) (sds []Stmt) {
 	ds := toDecls(gd)
-	sds = make([]Decl, len(ds))
+	sds = make([]Stmt, len(ds))
 	for i, d := range ds {
-		sds[i] = d.(SimpleDecl).(Decl)
+		sds[i] = d.(SimpleDeclStmt).(Stmt)
 	}
 	return
 }
