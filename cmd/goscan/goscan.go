@@ -10,10 +10,16 @@ import (
 	"github.com/davecgh/go-spew/spew"
 )
 
+/*
+Goscan:
+
+
+ */
+
 func main() {
 	fset := token.NewFileSet() // positions are relative to fset
 
-	filename := os.Args[1]
+	filename := os.Args[1] // Take a filename as an argument.
 	bz, err := ioutil.ReadFile(filename)
 	if err != nil {
 		panic(err)
@@ -27,6 +33,7 @@ func main() {
 	}
 
 	// Print the imports from the file's AST.
+	// AST: https://en.wikipedia.org/wiki/Abstract_syntax_tree
 	spew.Dump(f)
 
 }
