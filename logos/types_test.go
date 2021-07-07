@@ -7,14 +7,14 @@ import (
 )
 
 func TestNewPage1(t *testing.T) {
-	page := NewPage("this is a new string", 40, false, Style{})
+	page := NewPage("this is a new string", 40, false, nil)
 	require.NotNil(t, page)
 	size := page.Size
 	require.Equal(t, size, Size{Width: 20, Height: 1})
 }
 
 func TestNewPage2(t *testing.T) {
-	page := NewPage("this is a new string", 10, false, Style{})
+	page := NewPage("this is a new string", 10, false, nil)
 	require.NotNil(t, page)
 	size := page.Size
 	/*
@@ -32,17 +32,15 @@ func TestNewPage2(t *testing.T) {
 }
 
 func TestNewPageSprint(t *testing.T) {
-	page := NewPage("this is a new string", 10, false, Style{})
+	page := NewPage("this is a new string", 10, false, nil)
 	require.NotNil(t, page)
 	/*
 		0123456789
 		this is a
 		new string
 	*/
-	bpv := NewBufferedPageView(page, Size{})
-	out := bpv.Sprint() // unrendered.
-	require.Equal(t, out, "          \n          ")
+	bpv := NewBufferedElemView(page, Size{})
 	bpv.Render()
-	out = bpv.Sprint()
+	out := bpv.Sprint()
 	require.Equal(t, out, "this is a \nnew string")
 }

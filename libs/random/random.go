@@ -1,6 +1,6 @@
 // From AllInBits, Inc, TendermintClassic: github.com/tendermint/classic.
 // License: Apache2.0.
-package libs
+package random
 
 import (
 	crand "crypto/rand"
