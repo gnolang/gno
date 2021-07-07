@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/gnolang/gno/libs"
+	"github.com/gnolang/gno/libs/random"
 	require "github.com/jaekwon/testify/require"
 )
 
@@ -39,7 +39,7 @@ func TestStringWidthRandom(t *testing.T) {
 		if i%(max/80) == 0 {
 			fmt.Print(".")
 		}
-		bz := libs.RandBytes(12)
+		bz := random.RandBytes(12)
 		width1 := widthOf(string(bz))
 		width2 := widthOfSlow(string(bz))
 		if width1 == 0 {
