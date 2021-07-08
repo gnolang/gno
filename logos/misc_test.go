@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/gnolang/gno/libs/random"
+	"github.com/gnolang/gno/pkgs/random"
 	require "github.com/jaekwon/testify/require"
 )
 
