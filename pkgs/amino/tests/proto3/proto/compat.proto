@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package proto3tests;
+
+import "google/protobuf/timestamp.proto";
+
+message TestInt32Varint {
+    sint32 Int32 = 1;
+}
+
+message TestInt32Fixed {
+    fixed32 Fixed32 = 1;
+}
+
+message Test32 {
+    fixed32 foo = 1;
+    sint32 bar = 2;
+}
+
+message TestFixedInt64 {
+    fixed64 Int64 = 1;
+}
+
+message TestSFixedSInt64 {
+    sfixed64 SInt64 = 1;
+}
+
+message EmbeddedStruct {
+    sfixed64 somethingFixedLen = 1;
+}
+
+message SomeStruct {
+    // proto3 autom. turns this into a pointer ...
+    EmbeddedStruct emb = 1;
+}
+
+message ProtoGotTime {
+    google.protobuf.Timestamp T = 1;
+}
+
+message TestInt32 {
+    int32 Int32 = 1;
+}
+
+
+message TestInts {
+    int32 Int32 = 1;
+    int64 Int64 = 2;
+}
+
+message IntDef {
+    int64 val = 1;
+}
+
+message IntArr {
+    repeated int64 val = 1;
+}
+
+message PrimitivesStruct {
+    int32 Int32 = 3;
+    int64 Int64 = 4;
+    int64 Varint = 5;
+    // int     int
+    // Byte    byte = 4; // this just another varint
+    // Uint8   uint8 // another varint
+    // Uint16  uint16 // another one, also the following
+    // Uint32  uint32
+    // Uint64  uint64
+    // Uvarint uint64 `binary:"varint"`
+    // Uint    uint
+    string String = 14;
+    bytes Bytes = 15;
+    google.protobuf.Timestamp Time = 16;
+}
+
+message PrimitivesStructSl {
+    repeated PrimitivesStruct Structs = 1;
+}
