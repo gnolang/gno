@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/tendermint/classic/sdk/types"
-
-	bip39 "github.com/cosmos/go-bip39"
+	"github.com/gnolang/gno/pkgs/crypto/bip39"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -30,11 +28,17 @@ func ExampleStringifyPathParams() {
 	// 44'/33'/7'/1/9
 }
 
+// from cosmos-sdk/types/address.go
+const (
+	testCoinType           = 118
+	testFullFundraiserPath = "44'/118'/0'/0/0"
+)
+
 func TestStringifyFundraiserPathParams(t *testing.T) {
-	path := NewFundraiserParams(4, types.CoinType, 22)
+	path := NewFundraiserParams(4, testCoinType, 22)
 	require.Equal(t, "44'/118'/4'/0/22", path.String())
 
-	path = NewFundraiserParams(4, types.CoinType, 57)
+	path = NewFundraiserParams(4, testCoinType, 57)
 	require.Equal(t, "44'/118'/4'/0/57", path.String())
 
 	path = NewFundraiserParams(4, 12345, 57)
@@ -110,7 +114,7 @@ func ExampleSomeBIP32TestVecs() {
 	fmt.Println("keys from fundraiser test-vector (cosmos, bitcoin, ether)")
 	fmt.Println()
 	// cosmos
-	priv, err := DerivePrivateKeyForPath(master, ch, types.FullFundraiserPath)
+	priv, err := DerivePrivateKeyForPath(master, ch, testFullFundraiserPath)
 	if err != nil {
 		fmt.Println("INVALID")
 	} else {
