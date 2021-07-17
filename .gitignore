@@ -1,3 +1,4 @@
 *.sw[pon]
 cmd/foo.go
 unsorted.*
+.DS_Store

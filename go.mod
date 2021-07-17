@@ -13,6 +13,7 @@ require (
 	github.com/jaekwon/testify v1.6.1
 	github.com/mattn/go-runewidth v0.0.10
 	github.com/stretchr/testify v1.6.1
+	github.com/syndtr/goleveldb v1.0.0 // indirect
 	golang.org/x/crypto v0.0.0-20200115085410-6d4e4cb37c7d
 	google.golang.org/protobuf v1.25.0
 )

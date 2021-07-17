@@ -701,7 +701,7 @@ func pb2goStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 			_a(typeUrl_, ":=", _sel(pbo, "TypeUrl")),
 			_a(bz_, ":=", _sel(pbo, "Value")),
 			_a(goorp_, ":=", _ref(goor)), // goor is addressable. NOTE &*a == a if a != nil.
-			_a("err", "=", _x("cdc.UnmarshalAny~(~%v,%v,%v~)",
+			_a("err", "=", _x("cdc.UnmarshalAny2~(~%v,%v,%v~)",
 				typeUrl_, bz_, goorp_)),
 			_if(_x("err__!=__nil"),
 				_return(),

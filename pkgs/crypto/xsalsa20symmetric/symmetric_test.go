@@ -6,9 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"golang.org/x/crypto/bcrypt"
-
 	"github.com/gnolang/gno/pkgs/crypto"
+	"github.com/gnolang/gno/pkgs/crypto/bcrypt"
 )
 
 func TestSimple(t *testing.T) {
@@ -24,9 +23,10 @@ func TestSimple(t *testing.T) {
 
 func TestSimpleWithKDF(t *testing.T) {
 
+	salt := []byte("1234567890123456")
 	plaintext := []byte("sometext")
 	secretPass := []byte("somesecret")
-	secret, err := bcrypt.GenerateFromPassword(secretPass, 12)
+	secret, err := bcrypt.GenerateFromPassword(salt, secretPass, 12)
 	if err != nil {
 		t.Error(err)
 	}
