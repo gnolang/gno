@@ -1,13 +1,13 @@
 package tests
 
 import (
-	proto "google.golang.org/protobuf/proto"
 	amino "github.com/gnolang/gno/pkgs/amino"
 	testspb "github.com/gnolang/gno/pkgs/amino/tests/pb"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
-	durationpb "google.golang.org/protobuf/types/known/durationpb"
-	time "time"
+	proto "google.golang.org/protobuf/proto"
 	anypb "google.golang.org/protobuf/types/known/anypb"
+	durationpb "google.golang.org/protobuf/types/known/durationpb"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	time "time"
 )
 
 func (goo EmptyStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
@@ -7767,7 +7767,7 @@ func (goo *ReprElem2) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err er
 				typeUrl := pbo.Value.TypeUrl
 				bz := pbo.Value.Value
 				goorp := &(*goo).Value
-				err = cdc.UnmarshalAny(typeUrl, bz, goorp)
+				err = cdc.UnmarshalAny2(typeUrl, bz, goorp)
 				if err != nil {
 					return
 				}
@@ -9193,7 +9193,7 @@ func (goo *InterfaceFieldsStruct) FromPBMessage(cdc *amino.Codec, msg proto.Mess
 				typeUrl := pbo.F1.TypeUrl
 				bz := pbo.F1.Value
 				goorp := &(*goo).F1
-				err = cdc.UnmarshalAny(typeUrl, bz, goorp)
+				err = cdc.UnmarshalAny2(typeUrl, bz, goorp)
 				if err != nil {
 					return
 				}
@@ -9202,7 +9202,7 @@ func (goo *InterfaceFieldsStruct) FromPBMessage(cdc *amino.Codec, msg proto.Mess
 				typeUrl := pbo.F2.TypeUrl
 				bz := pbo.F2.Value
 				goorp := &(*goo).F2
-				err = cdc.UnmarshalAny(typeUrl, bz, goorp)
+				err = cdc.UnmarshalAny2(typeUrl, bz, goorp)
 				if err != nil {
 					return
 				}
@@ -9211,7 +9211,7 @@ func (goo *InterfaceFieldsStruct) FromPBMessage(cdc *amino.Codec, msg proto.Mess
 				typeUrl := pbo.F3.TypeUrl
 				bz := pbo.F3.Value
 				goorp := &(*goo).F3
-				err = cdc.UnmarshalAny(typeUrl, bz, goorp)
+				err = cdc.UnmarshalAny2(typeUrl, bz, goorp)
 				if err != nil {
 					return
 				}
@@ -9220,7 +9220,7 @@ func (goo *InterfaceFieldsStruct) FromPBMessage(cdc *amino.Codec, msg proto.Mess
 				typeUrl := pbo.F4.TypeUrl
 				bz := pbo.F4.Value
 				goorp := &(*goo).F4
-				err = cdc.UnmarshalAny(typeUrl, bz, goorp)
+				err = cdc.UnmarshalAny2(typeUrl, bz, goorp)
 				if err != nil {
 					return
 				}

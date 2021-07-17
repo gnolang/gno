@@ -1,11 +1,11 @@
 package multisig
 
 import (
-	proto "google.golang.org/protobuf/proto"
 	amino "github.com/gnolang/gno/pkgs/amino"
-	multisigpb "github.com/gnolang/gno/pkgs/crypto/multisig/pb"
-	anypb "google.golang.org/protobuf/types/known/anypb"
 	crypto "github.com/gnolang/gno/pkgs/crypto"
+	multisigpb "github.com/gnolang/gno/pkgs/crypto/multisig/pb"
+	proto "google.golang.org/protobuf/proto"
+	anypb "google.golang.org/protobuf/types/known/anypb"
 )
 
 func (goo PubKeyMultisigThreshold) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
@@ -78,7 +78,7 @@ func (goo *PubKeyMultisigThreshold) FromPBMessage(cdc *amino.Codec, msg proto.Me
 								typeUrl := pboev.TypeUrl
 								bz := pboev.Value
 								goorp := &goors[i]
-								err = cdc.UnmarshalAny(typeUrl, bz, goorp)
+								err = cdc.UnmarshalAny2(typeUrl, bz, goorp)
 								if err != nil {
 									return
 								}

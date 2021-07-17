@@ -48,6 +48,16 @@ func init() {
 	}
 }
 
+// XXX reorder global and cdc methods for consistency and logic.
+
+func Marshal(o interface{}) ([]byte, error) {
+	return gcdc.Marshal(o)
+}
+
+func MustMarshal(o interface{}) []byte {
+	return gcdc.MustMarshal(o)
+}
+
 func MarshalSized(o interface{}) ([]byte, error) {
 	return gcdc.MarshalSized(o)
 }
@@ -58,6 +68,14 @@ func MarshalSizedWriter(w io.Writer, o interface{}) (n int64, err error) {
 
 func MustMarshalSized(o interface{}) []byte {
 	return gcdc.MustMarshalSized(o)
+}
+
+func MarshalAny(o interface{}) ([]byte, error) {
+	return gcdc.MarshalAny(o)
+}
+
+func MustMarshalAny(o interface{}) []byte {
+	return gcdc.MustMarshalAny(o)
 }
 
 func MarshalAnySized(o interface{}) ([]byte, error) {
@@ -72,20 +90,12 @@ func MarshalAnySizedWriter(w io.Writer, o interface{}) (n int64, err error) {
 	return gcdc.MarshalAnySizedWriter(w, o)
 }
 
-func Marshal(o interface{}) ([]byte, error) {
-	return gcdc.Marshal(o)
+func Unmarshal(bz []byte, ptr interface{}) error {
+	return gcdc.Unmarshal(bz, ptr)
 }
 
-func MustMarshal(o interface{}) []byte {
-	return gcdc.MustMarshal(o)
-}
-
-func MarshalAny(o interface{}) ([]byte, error) {
-	return gcdc.MarshalAny(o)
-}
-
-func MustMarshalAny(o interface{}) []byte {
-	return gcdc.MustMarshalAny(o)
+func MustUnmarshal(bz []byte, ptr interface{}) {
+	gcdc.MustUnmarshal(bz, ptr)
 }
 
 func UnmarshalSized(bz []byte, ptr interface{}) error {
@@ -100,20 +110,20 @@ func MustUnmarshalSized(bz []byte, ptr interface{}) {
 	gcdc.MustUnmarshalSized(bz, ptr)
 }
 
-func Unmarshal(bz []byte, ptr interface{}) error {
-	return gcdc.Unmarshal(bz, ptr)
+func UnmarshalAny(bz []byte, ptr interface{}) error {
+	return gcdc.UnmarshalAny(bz, ptr)
 }
 
-func MustUnmarshal(bz []byte, ptr interface{}) {
-	gcdc.MustUnmarshal(bz, ptr)
+func UnmarshalAny2(typeURL string, value []byte, ptr interface{}) error {
+	return gcdc.UnmarshalAny2(typeURL, value, ptr)
 }
 
-func UnmarshalAny(typeURL string, value []byte, ptr interface{}) error {
-	return gcdc.UnmarshalAny(typeURL, value, ptr)
+func MustUnmarshalAny(bz []byte, ptr interface{}) {
+	gcdc.MustUnmarshalAny(bz, ptr)
 }
 
-func MustUnmarshalAny(typeURL string, value []byte, ptr interface{}) {
-	gcdc.MustUnmarshalAny(typeURL, value, ptr)
+func UnmarshalAnySized(bz []byte, ptr interface{}) error {
+	return gcdc.UnmarshalAnySized(bz, ptr)
 }
 
 func MarshalJSON(o interface{}) ([]byte, error) {
@@ -550,6 +560,30 @@ func (cdc *Codec) MustUnmarshalSized(bz []byte, ptr interface{}) {
 	}
 }
 
+// Like UnmarshalAny, but will first decode the byte-length prefix.
+func (cdc *Codec) UnmarshalAnySized(bz []byte, ptr interface{}) error {
+	if len(bz) == 0 {
+		return errors.New("unmarshalSized cannot decode empty bytes")
+	}
+
+	// Read byte-length prefix.
+	u64, n := binary.Uvarint(bz)
+	if n < 0 {
+		return errors.New("Error reading msg byte-length prefix: got code %v", n)
+	}
+	if u64 > uint64(len(bz)-n) {
+		return errors.New("Not enough bytes to read in UnmarshalAnySized, want %v more bytes but only have %v",
+			u64, len(bz)-n)
+	} else if u64 < uint64(len(bz)-n) {
+		return errors.New("Bytes left over in UnmarshalAnySized, should read %v more bytes but have %v",
+			u64, len(bz)-n)
+	}
+	bz = bz[n:]
+
+	// Decode.
+	return cdc.UnmarshalAny(bz, ptr)
+}
+
 // Unmarshal will panic if ptr is a nil-pointer.
 func (cdc *Codec) Unmarshal(bz []byte, ptr interface{}) error {
 	cdc.doAutoseal()
@@ -663,8 +697,29 @@ func (cdc *Codec) MustUnmarshal(bz []byte, ptr interface{}) {
 }
 
 // UnmarshalAny decodes the registered object
-// from the Any fields.
-func (cdc *Codec) UnmarshalAny(typeURL string, value []byte, ptr interface{}) (err error) {
+// from an Any.
+func (cdc *Codec) UnmarshalAny(bz []byte, ptr interface{}) (err error) {
+	cdc.doAutoseal()
+
+	// Dereference ptr which must be pointer to interface.
+	rv := reflect.ValueOf(ptr)
+	if rv.Kind() != reflect.Ptr {
+		return ErrNoPointer
+	}
+	rv = rv.Elem()
+
+	// Get interface *TypeInfo.
+	iinfo, err := cdc.getTypeInfoWLock(rv.Type())
+	if err != nil {
+		return err
+	}
+
+	_, err = cdc.decodeReflectBinaryInterface(bz, iinfo, rv, FieldOptions{}, true)
+	return
+}
+
+// like UnmarshalAny() but with typeURL and value destructured.
+func (cdc *Codec) UnmarshalAny2(typeURL string, value []byte, ptr interface{}) (err error) {
 	cdc.doAutoseal()
 
 	rv := reflect.ValueOf(ptr)
@@ -676,8 +731,8 @@ func (cdc *Codec) UnmarshalAny(typeURL string, value []byte, ptr interface{}) (e
 	return
 }
 
-func (cdc *Codec) MustUnmarshalAny(typeURL string, value []byte, ptr interface{}) {
-	err := cdc.UnmarshalAny(typeURL, value, ptr)
+func (cdc *Codec) MustUnmarshalAny(bz []byte, ptr interface{}) {
+	err := cdc.UnmarshalAny(bz, ptr)
 	if err != nil {
 		panic(err)
 	}

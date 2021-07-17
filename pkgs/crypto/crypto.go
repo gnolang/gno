@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/gnolang/gno/pkgs/crypto/tmhash"
 	"github.com/gnolang/gno/pkgs/bech32"
+	"github.com/gnolang/gno/pkgs/crypto/tmhash"
 )
 
 //----------------------------------------
@@ -57,14 +57,7 @@ func (addr Address) IsZero() bool {
 }
 
 func (addr Address) String() string {
-	// The "c" bech32 is intended to be constant,
-	// and enforced upon all users of the tendermint/classic repo
-	// and derivations of tendermint/classic.
-	bech32Addr, err := bech32.Encode("c", addr[:])
-	if err != nil {
-		panic(err)
-	}
-	return bech32Addr
+	return AddressToBech32(addr)
 }
 
 func (addr Address) Bytes() []byte {
@@ -78,7 +71,7 @@ func (addr *Address) DecodeString(str string) error {
 	if err != nil {
 		return err
 	}
-	if pre != "c" {
+	if pre != Bech32AddrPrefix {
 		return fmt.Errorf("unexpected bech32 prefix for address. expected \"c\", got %v", pre)
 	}
 	if len(bz) != AddressSize {
@@ -91,7 +84,7 @@ func (addr *Address) DecodeString(str string) error {
 //----------------------------------------
 // ID
 
-// The bech32 representation w/ prefix "c".
+// The bech32 representation w/ bech32 prefix.
 type ID string
 
 func (id ID) IsZero() bool {
