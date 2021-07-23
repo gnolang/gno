@@ -1,13 +1,10 @@
 package keys
 
 import (
-	"bufio"
 	"fmt"
-	"os"
 	"reflect"
 	"strings"
 
-	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/crypto"
 	"github.com/gnolang/gno/pkgs/crypto/bip39"
 	"github.com/gnolang/gno/pkgs/crypto/hd"
@@ -251,28 +248,8 @@ func (kb dbKeybase) Sign(name, passphrase string, msg []byte) (sig []byte, pub c
 		}
 
 	case offlineInfo, multiInfo:
-		_, err := fmt.Fprintf(os.Stderr, "Message to sign:\n\n%s\n", msg)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		buf := bufio.NewReader(os.Stdin)
-		_, err = fmt.Fprintf(os.Stderr, "\nEnter Amino-encoded signature:\n")
-		if err != nil {
-			return nil, nil, err
-		}
-
-		// Will block until user inputs the signature
-		signed, err := buf.ReadString('\n')
-		if err != nil {
-			return nil, nil, err
-		}
-
-		if err := amino.UnmarshalSized([]byte(signed), sig); err != nil {
-			return nil, nil, errors.Wrap(err, "failed to decode signature")
-		}
-
-		return sig, info.GetPubKey(), nil
+		err = fmt.Errorf("cannot sign with key %s", name)
+		return
 	}
 
 	sig, err = priv.Sign(msg)
@@ -282,6 +259,22 @@ func (kb dbKeybase) Sign(name, passphrase string, msg []byte) (sig []byte, pub c
 
 	pub = priv.PubKey()
 	return sig, pub, nil
+}
+
+// Verify verifies the sig+msg with the named key.
+// It returns an error if the key doesn't exist or verification fails.
+func (kb dbKeybase) Verify(name string, msg []byte, sig []byte) (err error) {
+	info, err := kb.Get(name)
+	if err != nil {
+		return
+	}
+
+	var pub crypto.PubKey
+	pub = info.GetPubKey()
+	if !pub.VerifyBytes(msg, sig) {
+		return errors.New("invalid signature")
+	}
+	return nil
 }
 
 func (kb dbKeybase) ExportPrivateKeyObject(name string, passphrase string) (crypto.PrivKey, error) {
