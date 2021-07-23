@@ -5,6 +5,7 @@ import (
 )
 
 // Contract: !bytes.Equal(input, output) && len(input) >= len(output)
+// TODO: keep output size the same; search all usage first.
 func MutateByteSlice(bytez []byte) []byte {
 	// If bytez is empty, panic
 	if len(bytez) == 0 {

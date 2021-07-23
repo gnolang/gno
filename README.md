@@ -17,6 +17,12 @@ simulated by the Gnomes of the Greater Resistance.
  
 ## Status
 
+_Update Jul 22nd, 2021: create pkgs/crypto/keys/client as crypto wallet._
+
+The new wallet will be used for signed communications.
+
+_Update Jul ?, 2021: Public invited to contribute to Gnolang/files tests.
+
 _Update Feb 13th, 2021: Implemented Logos UI framework._
 
 This is a still a work in a progress, though much of the structure of the interpreter

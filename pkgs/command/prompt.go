@@ -6,24 +6,14 @@ import (
 	"strings"
 )
 
-// MinPassLength is the minimum acceptable password length
-const MinPassLength = 8
-
-// GetPassword will prompt for a password one-time (to sign a tx)
-// It enforces the password length
+// GetPassword will prompt for a password one-time (to sign a tx).
+// Passwords may be blank; user must validate.
 func (cmd *Command) GetPassword(prompt string) (pass string, err error) {
 	pass, err = cmd.readLineFromInBuf()
 
 	if err != nil {
 		return "", err
 	}
-
-	if len(pass) < MinPassLength {
-		// Return the given password to the upstream client so it can handle a
-		// non-STDIN failure gracefully.
-		return pass, fmt.Errorf("password must be at least %d characters", MinPassLength)
-	}
-
 	return pass, nil
 }
 

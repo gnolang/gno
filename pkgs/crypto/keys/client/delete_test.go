@@ -54,8 +54,8 @@ func Test_runDeleteCmd(t *testing.T) {
 		_, err = kb.Get(fakeKeyName1)
 		require.NoError(t, err)
 
-		// Now there is a confirmation
-		cmd.SetIn(strings.NewReader("y\n"))
+		// Now there is a blank password followed by a confirmation.
+		cmd.SetIn(strings.NewReader("\ny\n"))
 		cmd.Args = []string{fakeKeyName1}
 		err = runDeleteCmd(cmd)
 		require.NoError(t, err)
@@ -75,8 +75,8 @@ func Test_runDeleteCmd(t *testing.T) {
 	_, err = kb.Get(fakeKeyName2)
 	require.NoError(t, err)
 
-	// Run again with no input
-	cmd.SetIn(strings.NewReader(""))
+	// Run again with blank password followed by eof.
+	cmd.SetIn(strings.NewReader("\n"))
 	cmd.Args = []string{fakeKeyName2}
 	err = runDeleteCmd(cmd)
 	require.NoError(t, err)
