@@ -75,6 +75,16 @@ func (lkb lazyKeybase) Sign(name, passphrase string, msg []byte) ([]byte, crypto
 	return NewDBKeybase(db).Sign(name, passphrase, msg)
 }
 
+func (lkb lazyKeybase) Verify(name string, msg, sig []byte) error {
+	db, err := dbm.NewGoLevelDB(lkb.name, lkb.dir)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	return NewDBKeybase(db).Verify(name, msg, sig)
+}
+
 func (lkb lazyKeybase) CreateMnemonic(name string, language Language, passwd string, algo SigningAlgo) (info Info, seed string, err error) {
 	db, err := dbm.NewGoLevelDB(lkb.name, lkb.dir)
 	if err != nil {
