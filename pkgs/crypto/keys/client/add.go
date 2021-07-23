@@ -1,5 +1,7 @@
 package client
 
+// XXX TODO consider removing args in favor of options only.
+
 import (
 	"errors"
 	"fmt"
@@ -155,10 +157,6 @@ func runAddCmd(cmd *command.Command) error {
 
 	if opts.Recover {
 		bip39Message := "Enter your bip39 mnemonic"
-		if !opts.Recover {
-			bip39Message = "Enter your bip39 mnemonic, or hit enter to generate one."
-		}
-
 		mnemonic, err = cmd.GetString(bip39Message)
 		if err != nil {
 			return err
