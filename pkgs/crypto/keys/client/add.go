@@ -22,7 +22,6 @@ type AddOptions struct {
 	MultisigThreshold int      // K out of N required signatures. For use in conjunction with --multisig
 	NoSort            bool     // Keys passed to --multisig are taken in the order they're supplied
 	PublicKey         string   // Parse a public key in bech32 format and save it to disk
-	Interactive       bool     // Interactively prompt user for BIP39 passphrase and mnemonic
 	UseLedger         bool     // Store a local reference to a private key on a Ledger device
 	Recover           bool     // Provide seed phrase to recover existing key instead of creating
 	NoBackup          bool     // Don't print out seed phrase (if others are watching the terminal)
@@ -55,8 +54,6 @@ func runAddCmd(cmd *command.Command) error {
 	var args = cmd.Args
 
 	name := args[0]
-
-	interactive := opts.Interactive
 	showMnemonic := !opts.NoBackup
 
 	if opts.DryRun {
@@ -154,9 +151,9 @@ func runAddCmd(cmd *command.Command) error {
 
 	// Get bip39 mnemonic
 	var mnemonic string
-	var bip39Passphrase string
+	const bip39Passphrase string = "" // XXX research.
 
-	if interactive || opts.Recover {
+	if opts.Recover {
 		bip39Message := "Enter your bip39 mnemonic"
 		if !opts.Recover {
 			bip39Message = "Enter your bip39 mnemonic, or hit enter to generate one."
@@ -182,28 +179,6 @@ func runAddCmd(cmd *command.Command) error {
 		mnemonic, err = bip39.NewMnemonic(entropySeed[:])
 		if err != nil {
 			return err
-		}
-	}
-
-	// override bip39 passphrase
-	if interactive {
-		bip39Passphrase, err = cmd.GetString(
-			"Enter your bip39 passphrase. This is combined with the mnemonic to derive the seed. " +
-				"Most users should just hit enter to use the default, \"\"")
-		if err != nil {
-			return err
-		}
-
-		// if they use one, make them re-enter it
-		if len(bip39Passphrase) != 0 {
-			p2, err := cmd.GetString("Repeat the passphrase:")
-			if err != nil {
-				return err
-			}
-
-			if bip39Passphrase != p2 {
-				return errors.New("passphrases don't match")
-			}
 		}
 	}
 
