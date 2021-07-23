@@ -1,14 +1,9 @@
-package input
+package command
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
-
-	"github.com/bgentry/speakeasy"
-	isatty "github.com/mattn/go-isatty"
 )
 
 // MinPassLength is the minimum acceptable password length
@@ -16,12 +11,8 @@ const MinPassLength = 8
 
 // GetPassword will prompt for a password one-time (to sign a tx)
 // It enforces the password length
-func GetPassword(prompt string, buf *bufio.Reader) (pass string, err error) {
-	if inputIsTty() {
-		pass, err = speakeasy.FAsk(os.Stderr, prompt)
-	} else {
-		pass, err = readLineFromBuf(buf)
-	}
+func (cmd *Command) GetPassword(prompt string) (pass string, err error) {
+	pass, err = cmd.readLineFromInBuf()
 
 	if err != nil {
 		return "", err
@@ -40,18 +31,12 @@ func GetPassword(prompt string, buf *bufio.Reader) (pass string, err error) {
 // match (for creating a new password).
 // It enforces the password length. Only parses password once if
 // input is piped in.
-func GetCheckPassword(prompt, prompt2 string, buf *bufio.Reader) (string, error) {
-	// simple read on no-tty
-	if !inputIsTty() {
-		return GetPassword(prompt, buf)
-	}
-
-	// TODO: own function???
-	pass, err := GetPassword(prompt, buf)
+func (cmd *Command) GetCheckPassword(prompt, prompt2 string) (string, error) {
+	pass, err := cmd.GetPassword(prompt)
 	if err != nil {
 		return "", err
 	}
-	pass2, err := GetPassword(prompt2, buf)
+	pass2, err := cmd.GetPassword(prompt2)
 	if err != nil {
 		return "", err
 	}
@@ -64,12 +49,10 @@ func GetCheckPassword(prompt, prompt2 string, buf *bufio.Reader) (string, error)
 // GetConfirmation will request user give the confirmation from stdin.
 // "y", "Y", "yes", "YES", and "Yes" all count as confirmations.
 // If the input is not recognized, it returns false and a nil error.
-func GetConfirmation(prompt string, buf *bufio.Reader) (bool, error) {
-	if inputIsTty() {
-		fmt.Print(fmt.Sprintf("%s [y/N]: ", prompt))
-	}
+func (cmd *Command) GetConfirmation(prompt string) (bool, error) {
+	cmd.OutBuf.WriteString(fmt.Sprintf("%s [y/N]: ", prompt))
 
-	response, err := readLineFromBuf(buf)
+	response, err := cmd.readLineFromInBuf()
 	if err != nil {
 		return false, err
 	}
@@ -88,29 +71,23 @@ func GetConfirmation(prompt string, buf *bufio.Reader) (bool, error) {
 }
 
 // GetString simply returns the trimmed string output of a given reader.
-func GetString(prompt string, buf *bufio.Reader) (string, error) {
-	if inputIsTty() && prompt != "" {
-		PrintPrefixed(prompt)
+func (cmd *Command) GetString(prompt string) (string, error) {
+	if prompt != "" {
+		cmd.PrintPrefixed(prompt)
 	}
 
-	out, err := readLineFromBuf(buf)
+	out, err := cmd.readLineFromInBuf()
 	if err != nil {
 		return "", err
 	}
 	return strings.TrimSpace(out), nil
 }
 
-// inputIsTty returns true iff we have an interactive prompt,
-// where we can disable echo and request to repeat the password.
-// If false, we can optimize for piped input from another command
-func inputIsTty() bool {
-	return isatty.IsTerminal(os.Stdin.Fd()) || isatty.IsCygwinTerminal(os.Stdin.Fd())
-}
-
-// readLineFromBuf reads one line from stdin.
+// readLineFromInBuf reads one line from stdin.
 // Subsequent calls reuse the same buffer, so we don't lose
 // any input when reading a password twice (to verify)
-func readLineFromBuf(buf *bufio.Reader) (string, error) {
+func (cmd *Command) readLineFromInBuf() (string, error) {
+	buf := cmd.InBuf
 	pass, err := buf.ReadString('\n')
 	if err != nil {
 		return "", err
@@ -119,7 +96,40 @@ func readLineFromBuf(buf *bufio.Reader) (string, error) {
 }
 
 // PrintPrefixed prints a string with > prefixed for use in prompts.
-func PrintPrefixed(msg string) {
+func (cmd *Command) PrintPrefixed(msg string) {
 	msg = fmt.Sprintf("> %s\n", msg)
-	fmt.Fprint(os.Stderr, msg)
+	fmt.Fprint(cmd.OutBuf, msg)
+	cmd.OutBuf.Flush()
+}
+
+// Println prints a line terminated by a newline.
+func (cmd *Command) Println(line string) {
+	fmt.Fprint(cmd.OutBuf, line+"\n")
+	cmd.OutBuf.Flush()
+}
+
+// Printfln prints a formatted string terminated by a newline.
+func (cmd *Command) Printfln(format string, args ...interface{}) {
+	fmt.Fprintf(cmd.OutBuf, format+"\n", args...)
+	cmd.OutBuf.Flush()
+}
+
+// ErrPrintPrefixed prints a string with > prefixed for use in prompts to cmd.Err(Buf).
+func (cmd *Command) ErrPrintPrefixed(msg string) {
+	msg = fmt.Sprintf("> %s\n", msg)
+	fmt.Fprint(cmd.ErrBuf, msg)
+	cmd.ErrBuf.Flush()
+}
+
+// ErrPrintln prints a line terminated by a newline to
+// cmd.Err(Buf).
+func (cmd *Command) ErrPrintln(line string) {
+	fmt.Fprint(cmd.ErrBuf, line+"\n")
+	cmd.ErrBuf.Flush()
+}
+
+// ErrPrintfln prints a formatted string terminated by a newline to cmd.Err(Buf).
+func (cmd *Command) ErrPrintfln(format string, args ...interface{}) {
+	fmt.Fprintf(cmd.ErrBuf, format+"\n", args...)
+	cmd.ErrBuf.Flush()
 }

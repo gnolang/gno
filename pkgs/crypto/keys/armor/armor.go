@@ -1,4 +1,4 @@
-package mintkey
+package armor
 
 import (
 	"encoding/hex"

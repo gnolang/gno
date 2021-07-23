@@ -11,10 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNew(t *testing.T) {
+func TestNewLazyDBKeybase(t *testing.T) {
 	dir, cleanup := testutils.NewTestCaseDir(t)
 	defer cleanup()
-	kb := New("keybasename", dir)
+	kb := NewLazyDBKeybase("keybasename", dir)
 	lazykb, ok := kb.(lazyKeybase)
 	require.True(t, ok)
 	require.Equal(t, lazykb.name, "keybasename")
@@ -24,7 +24,7 @@ func TestNew(t *testing.T) {
 func TestLazyKeyManagement(t *testing.T) {
 	dir, cleanup := testutils.NewTestCaseDir(t)
 	defer cleanup()
-	kb := New("keybasename", dir)
+	kb := NewLazyDBKeybase("keybasename", dir)
 
 	algo := Secp256k1
 	n1, n2, n3 := "personal", "business", "other"
@@ -107,7 +107,7 @@ func TestLazyKeyManagement(t *testing.T) {
 func TestLazySignVerify(t *testing.T) {
 	dir, cleanup := testutils.NewTestCaseDir(t)
 	defer cleanup()
-	kb := New("keybasename", dir)
+	kb := NewLazyDBKeybase("keybasename", dir)
 	algo := Secp256k1
 
 	n1, n2, n3 := "some dude", "a dudette", "dude-ish"
@@ -182,7 +182,7 @@ func TestLazySignVerify(t *testing.T) {
 func TestLazyExportImport(t *testing.T) {
 	dir, cleanup := testutils.NewTestCaseDir(t)
 	defer cleanup()
-	kb := New("keybasename", dir)
+	kb := NewLazyDBKeybase("keybasename", dir)
 
 	info, _, err := kb.CreateMnemonic("john", English, "secretcpw", Secp256k1)
 	require.NoError(t, err)
@@ -210,7 +210,7 @@ func TestLazyExportImport(t *testing.T) {
 func TestLazyExportImportPrivKey(t *testing.T) {
 	dir, cleanup := testutils.NewTestCaseDir(t)
 	defer cleanup()
-	kb := New("keybasename", dir)
+	kb := NewLazyDBKeybase("keybasename", dir)
 
 	info, _, err := kb.CreateMnemonic("john", English, "secretcpw", Secp256k1)
 	require.NoError(t, err)
@@ -239,7 +239,7 @@ func TestLazyExportImportPrivKey(t *testing.T) {
 func TestLazyExportImportPubKey(t *testing.T) {
 	dir, cleanup := testutils.NewTestCaseDir(t)
 	defer cleanup()
-	kb := New("keybasename", dir)
+	kb := NewLazyDBKeybase("keybasename", dir)
 
 	// CreateMnemonic a private-public key pair and ensure consistency
 	notPasswd := "n9y25ah7"
@@ -278,7 +278,7 @@ func TestLazyExportImportPubKey(t *testing.T) {
 func TestLazyExportPrivateKeyObject(t *testing.T) {
 	dir, cleanup := testutils.NewTestCaseDir(t)
 	defer cleanup()
-	kb := New("keybasename", dir)
+	kb := NewLazyDBKeybase("keybasename", dir)
 
 	info, _, err := kb.CreateMnemonic("john", English, "secretcpw", Secp256k1)
 	require.NoError(t, err)
@@ -295,7 +295,7 @@ func TestLazyExportPrivateKeyObject(t *testing.T) {
 func TestLazyAdvancedKeyManagement(t *testing.T) {
 	dir, cleanup := testutils.NewTestCaseDir(t)
 	defer cleanup()
-	kb := New("keybasename", dir)
+	kb := NewLazyDBKeybase("keybasename", dir)
 
 	algo := Secp256k1
 	n1, n2 := "old-name", "new name"
@@ -343,7 +343,7 @@ func TestLazyAdvancedKeyManagement(t *testing.T) {
 func TestLazySeedPhrase(t *testing.T) {
 	dir, cleanup := testutils.NewTestCaseDir(t)
 	defer cleanup()
-	kb := New("keybasename", dir)
+	kb := NewLazyDBKeybase("keybasename", dir)
 
 	algo := Secp256k1
 	n1, n2 := "lost-key", "found-again"
