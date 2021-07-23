@@ -1,4 +1,4 @@
-package mintkey_test
+package armor_test
 
 import (
 	"testing"
@@ -7,16 +7,16 @@ import (
 
 	"github.com/gnolang/gno/pkgs/crypto"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
-	"github.com/gnolang/gno/pkgs/crypto/keys/mintkey"
+	"github.com/gnolang/gno/pkgs/crypto/keys/armor"
 	"github.com/gnolang/gno/pkgs/crypto/secp256k1"
 )
 
 func TestArmorUnarmorPrivKey(t *testing.T) {
 	priv := secp256k1.GenPrivKey()
-	armor := mintkey.EncryptArmorPrivKey(priv, "passphrase")
-	_, err := mintkey.UnarmorDecryptPrivKey(armor, "wrongpassphrase")
+	astr := armor.EncryptArmorPrivKey(priv, "passphrase")
+	_, err := armor.UnarmorDecryptPrivKey(astr, "wrongpassphrase")
 	require.Error(t, err)
-	decrypted, err := mintkey.UnarmorDecryptPrivKey(armor, "passphrase")
+	decrypted, err := armor.UnarmorDecryptPrivKey(astr, "passphrase")
 	require.NoError(t, err)
 	require.True(t, priv.Equals(decrypted))
 }
@@ -28,8 +28,8 @@ func TestArmorUnarmorPubKey(t *testing.T) {
 	// Add keys and see they return in alphabetical order
 	info, _, err := cstore.CreateMnemonic("Bob", keys.English, "passphrase", keys.Secp256k1)
 	require.NoError(t, err)
-	armor := mintkey.ArmorPubKeyBytes(info.GetPubKey().Bytes())
-	pubBytes, err := mintkey.UnarmorPubKeyBytes(armor)
+	astr := armor.ArmorPubKeyBytes(info.GetPubKey().Bytes())
+	pubBytes, err := armor.UnarmorPubKeyBytes(astr)
 	require.NoError(t, err)
 	pub, err := crypto.PubKeyFromBytes(pubBytes)
 	require.NoError(t, err)

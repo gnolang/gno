@@ -11,8 +11,8 @@ import (
 	"github.com/gnolang/gno/pkgs/crypto"
 	"github.com/gnolang/gno/pkgs/crypto/bip39"
 	"github.com/gnolang/gno/pkgs/crypto/hd"
+	"github.com/gnolang/gno/pkgs/crypto/keys/armor"
 	"github.com/gnolang/gno/pkgs/crypto/keys/keyerror"
-	"github.com/gnolang/gno/pkgs/crypto/keys/mintkey"
 	"github.com/gnolang/gno/pkgs/crypto/ledger"
 	"github.com/gnolang/gno/pkgs/crypto/secp256k1"
 	dbm "github.com/gnolang/gno/pkgs/db"
@@ -73,8 +73,8 @@ type dbKeybase struct {
 	db dbm.DB
 }
 
-// newDbKeybase creates a new keybase instance using the passed DB for reading and writing keys.
-func newDbKeybase(db dbm.DB) Keybase {
+// NewDBKeybase creates a new keybase instance using the passed DB for reading and writing keys.
+func NewDBKeybase(db dbm.DB) Keybase {
 	return dbKeybase{
 		db: db,
 	}
@@ -238,7 +238,7 @@ func (kb dbKeybase) Sign(name, passphrase string, msg []byte) (sig []byte, pub c
 			return
 		}
 
-		priv, err = mintkey.UnarmorDecryptPrivKey(linfo.PrivKeyArmor, passphrase)
+		priv, err = armor.UnarmorDecryptPrivKey(linfo.PrivKeyArmor, passphrase)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -299,7 +299,7 @@ func (kb dbKeybase) ExportPrivateKeyObject(name string, passphrase string) (cryp
 			err = fmt.Errorf("private key not available")
 			return nil, err
 		}
-		priv, err = mintkey.UnarmorDecryptPrivKey(linfo.PrivKeyArmor, passphrase)
+		priv, err = armor.UnarmorDecryptPrivKey(linfo.PrivKeyArmor, passphrase)
 		if err != nil {
 			return nil, err
 		}
@@ -311,18 +311,18 @@ func (kb dbKeybase) ExportPrivateKeyObject(name string, passphrase string) (cryp
 	return priv, nil
 }
 
-func (kb dbKeybase) Export(name string) (armor string, err error) {
+func (kb dbKeybase) Export(name string) (astr string, err error) {
 	bz := kb.db.Get(infoKey(name))
 	if bz == nil {
 		return "", fmt.Errorf("no key to export with name %s", name)
 	}
-	return mintkey.ArmorInfoBytes(bz), nil
+	return armor.ArmorInfoBytes(bz), nil
 }
 
 // ExportPubKey returns public keys in ASCII armored format.
 // Retrieve a Info object by its name and return the public key in
 // a portable format.
-func (kb dbKeybase) ExportPubKey(name string) (armor string, err error) {
+func (kb dbKeybase) ExportPubKey(name string) (astr string, err error) {
 	bz := kb.db.Get(infoKey(name))
 	if bz == nil {
 		return "", fmt.Errorf("no key to export with name %s", name)
@@ -331,30 +331,30 @@ func (kb dbKeybase) ExportPubKey(name string) (armor string, err error) {
 	if err != nil {
 		return
 	}
-	return mintkey.ArmorPubKeyBytes(info.GetPubKey().Bytes()), nil
+	return armor.ArmorPubKeyBytes(info.GetPubKey().Bytes()), nil
 }
 
 // ExportPrivKey returns a private key in ASCII armored format.
 // It returns an error if the key does not exist or a wrong encryption passphrase is supplied.
 func (kb dbKeybase) ExportPrivKey(name string, decryptPassphrase string,
-	encryptPassphrase string) (armor string, err error) {
+	encryptPassphrase string) (astr string, err error) {
 	priv, err := kb.ExportPrivateKeyObject(name, decryptPassphrase)
 	if err != nil {
 		return "", err
 	}
 
-	return mintkey.EncryptArmorPrivKey(priv, encryptPassphrase), nil
+	return armor.EncryptArmorPrivKey(priv, encryptPassphrase), nil
 }
 
 // ImportPrivKey imports a private key in ASCII armor format.
 // It returns an error if a key with the same name exists or a wrong encryption passphrase is
 // supplied.
-func (kb dbKeybase) ImportPrivKey(name string, armor string, passphrase string) error {
+func (kb dbKeybase) ImportPrivKey(name string, astr string, passphrase string) error {
 	if _, err := kb.Get(name); err == nil {
 		return errors.New("Cannot overwrite key " + name)
 	}
 
-	privKey, err := mintkey.UnarmorDecryptPrivKey(armor, passphrase)
+	privKey, err := armor.UnarmorDecryptPrivKey(astr, passphrase)
 	if err != nil {
 		return errors.Wrap(err, "couldn't import private key")
 	}
@@ -363,12 +363,12 @@ func (kb dbKeybase) ImportPrivKey(name string, armor string, passphrase string) 
 	return nil
 }
 
-func (kb dbKeybase) Import(name string, armor string) (err error) {
+func (kb dbKeybase) Import(name string, astr string) (err error) {
 	bz := kb.db.Get(infoKey(name))
 	if len(bz) > 0 {
 		return errors.New("Cannot overwrite data for name " + name)
 	}
-	infoBytes, err := mintkey.UnarmorInfoBytes(armor)
+	infoBytes, err := armor.UnarmorInfoBytes(astr)
 	if err != nil {
 		return
 	}
@@ -379,12 +379,12 @@ func (kb dbKeybase) Import(name string, armor string) (err error) {
 // ImportPubKey imports ASCII-armored public keys.
 // Store a new Info object holding a public key only, i.e. it will
 // not be possible to sign with it as it lacks the secret key.
-func (kb dbKeybase) ImportPubKey(name string, armor string) (err error) {
+func (kb dbKeybase) ImportPubKey(name string, astr string) (err error) {
 	bz := kb.db.Get(infoKey(name))
 	if len(bz) > 0 {
 		return errors.New("Cannot overwrite data for name " + name)
 	}
-	pubBytes, err := mintkey.UnarmorPubKeyBytes(armor)
+	pubBytes, err := armor.UnarmorPubKeyBytes(astr)
 	if err != nil {
 		return
 	}
@@ -409,7 +409,7 @@ func (kb dbKeybase) Delete(name, passphrase string, skipPass bool) error {
 		return err
 	}
 	if linfo, ok := info.(localInfo); ok && !skipPass {
-		if _, err = mintkey.UnarmorDecryptPrivKey(linfo.PrivKeyArmor, passphrase); err != nil {
+		if _, err = armor.UnarmorDecryptPrivKey(linfo.PrivKeyArmor, passphrase); err != nil {
 			return err
 		}
 	}
@@ -432,7 +432,7 @@ func (kb dbKeybase) Update(name, oldpass string, getNewpass func() (string, erro
 	switch info.(type) {
 	case localInfo:
 		linfo := info.(localInfo)
-		key, err := mintkey.UnarmorDecryptPrivKey(linfo.PrivKeyArmor, oldpass)
+		key, err := armor.UnarmorDecryptPrivKey(linfo.PrivKeyArmor, oldpass)
 		if err != nil {
 			return err
 		}
@@ -454,7 +454,7 @@ func (kb dbKeybase) CloseDB() {
 
 func (kb dbKeybase) writeLocalKey(name string, priv crypto.PrivKey, passphrase string) Info {
 	// encrypt private key using passphrase
-	privArmor := mintkey.EncryptArmorPrivKey(priv, passphrase)
+	privArmor := armor.EncryptArmorPrivKey(priv, passphrase)
 	// make Info
 	pub := priv.PubKey()
 	info := newLocalInfo(name, pub, privArmor)

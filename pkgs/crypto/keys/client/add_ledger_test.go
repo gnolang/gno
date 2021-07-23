@@ -1,7 +1,8 @@
 //+build ledger test_ledger_mock
 
-package keys
+package client
 
+/*
 import (
 	"testing"
 
@@ -102,3 +103,4 @@ func Test_runAddCmdLedger(t *testing.T) {
 		"cosmospub1addwnpepqd87l8xhcnrrtzxnkql7k55ph8fr9jarf4hn6udwukfprlalu8lgw0urza0",
 		sdk.MustBech32ifyAccPub(key1.GetPubKey()))
 }
+*/
