@@ -4,19 +4,38 @@ import (
 	"bufio"
 	"bytes"
 	"io"
+	"reflect"
 	"strings"
+
+	"github.com/gnolang/gno/pkgs/amino"
 )
 
 type Command struct {
-	Options interface{}
-	Args    []string
-	In      io.Reader
-	InBuf   *bufio.Reader
-	Out     io.WriteCloser
-	OutBuf  *bufio.Writer
-	Err     io.WriteCloser
-	ErrBuf  *bufio.Writer
-	Error   error
+	In     io.Reader
+	InBuf  *bufio.Reader
+	Out    io.WriteCloser
+	OutBuf *bufio.Writer
+	Err    io.WriteCloser
+	ErrBuf *bufio.Writer
+	Error  error
+}
+
+// An App does something with the *Command inputs and outputs.
+// cmd: Command context.
+// args: args to app.
+// defaults: default options to app.
+type App func(cmd *Command, args []string, defaults interface{}) error
+
+// NOTE: defaults is first copied.
+func (cmd *Command) Run(app App, args []string, defaults interface{}) error {
+	args, flags := ParseArgs(args)
+	ptr := amino.DeepCopyToPtr(defaults)
+	err := applyFlags(ptr, flags)
+	if err != nil {
+		return err
+	}
+	opts := reflect.ValueOf(ptr).Elem().Interface()
+	return app(cmd, args, opts)
 }
 
 func (cmd *Command) SetIn(in io.Reader) {

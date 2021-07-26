@@ -25,6 +25,18 @@ func DeepCopy(o interface{}) (r interface{}) {
 	return dst.Interface()
 }
 
+// Like DeepCopy, but returns a pointer to the copy.
+func DeepCopyToPtr(o interface{}) (ptr interface{}) {
+	if o == nil {
+		return nil
+	}
+	src := reflect.ValueOf(o)
+	dst := reflect.New(src.Type())
+	elm := dst.Elem()
+	deepCopy(src, elm)
+	return dst.Interface()
+}
+
 func deepCopy(src, dst reflect.Value) {
 	if isNil(src) {
 		return

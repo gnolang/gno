@@ -9,7 +9,7 @@ import (
 	"github.com/jaekwon/testify/assert"
 )
 
-func Test_runListCmd(t *testing.T) {
+func Test_listApp(t *testing.T) {
 	cmd := command.NewMockCommand()
 	assert.NotNil(t, cmd)
 
@@ -39,14 +39,14 @@ func Test_runListCmd(t *testing.T) {
 	for _, tt := range testData {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set current home
-			cmd.Options = ListOptions{
+			opts := ListOptions{
 				BaseOptions: BaseOptions{
 					Home: tt.kbDir,
 				},
 			}
-			cmd.Args = tt.args
-			if err := runListCmd(cmd); (err != nil) != tt.wantErr {
-				t.Errorf("runListCmd() error = %v, wantErr %v", err, tt.wantErr)
+			args := tt.args
+			if err := listApp(cmd, args, opts); (err != nil) != tt.wantErr {
+				t.Errorf("listApp() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

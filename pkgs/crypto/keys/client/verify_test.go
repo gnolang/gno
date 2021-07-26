@@ -12,7 +12,7 @@ import (
 	"github.com/jaekwon/testify/assert"
 )
 
-func Test_runVerifyCmdBasic(t *testing.T) {
+func Test_verifyAppBasic(t *testing.T) {
 	cmd := command.NewMockCommand()
 	assert.NotNil(t, cmd)
 
@@ -28,9 +28,8 @@ func Test_runVerifyCmdBasic(t *testing.T) {
 		},
 		DocPath: "",
 	}
-	cmd.Options = opts
 
-	fakeKeyName1 := "runVerifyCmd_Key1"
+	fakeKeyName1 := "verifyApp_Key1"
 	// encPassword := "12345678"
 	encPassword := ""
 	testMsg := "some message"
@@ -51,8 +50,8 @@ func Test_runVerifyCmdBasic(t *testing.T) {
 	// good signature passes test.
 	cmd.SetIn(strings.NewReader(fmt.Sprintf(
 		"%s\n", testMsg)))
-	cmd.Args = []string{fakeKeyName1, testSigHex}
-	err = runVerifyCmd(cmd)
+	args := []string{fakeKeyName1, testSigHex}
+	err = verifyApp(cmd, args, opts)
 	assert.NoError(t, err)
 
 	// mutated bad signature fails test.
@@ -60,7 +59,7 @@ func Test_runVerifyCmdBasic(t *testing.T) {
 	testBadSigHex := hex.EncodeToString(testBadSig)
 	cmd.SetIn(strings.NewReader(fmt.Sprintf(
 		"%s\n", testMsg)))
-	cmd.Args = []string{fakeKeyName1, testBadSigHex}
-	err = runVerifyCmd(cmd)
+	args = []string{fakeKeyName1, testBadSigHex}
+	err = verifyApp(cmd, args, opts)
 	assert.Error(t, err)
 }

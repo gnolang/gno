@@ -9,11 +9,11 @@ import (
 )
 
 type GenerateOptions struct {
-	CustomEntropy bool
+	CustomEntropy bool `flag:"entropy",help:"custom entropy"`
 }
 
-func runGenerateCmd(cmd *command.Command) error {
-	opts := cmd.Options.(GenerateOptions)
+func generateApp(cmd *command.Command, args []string, iopts interface{}) error {
+	opts := iopts.(GenerateOptions)
 	customEntropy := opts.CustomEntropy
 
 	var entropySeed []byte

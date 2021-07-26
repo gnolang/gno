@@ -11,7 +11,7 @@ import (
 	"github.com/jaekwon/testify/require"
 )
 
-func Test_runDeleteCmd(t *testing.T) {
+func Test_deleteApp(t *testing.T) {
 	cmd := command.NewMockCommand()
 	assert.NotNil(t, cmd)
 
@@ -25,10 +25,9 @@ func Test_runDeleteCmd(t *testing.T) {
 			Home: kbHome,
 		},
 	}
-	cmd.Options = opts
 
-	fakeKeyName1 := "runDeleteCmd_Key1"
-	fakeKeyName2 := "runDeleteCmd_Key2"
+	fakeKeyName1 := "deleteApp_Key1"
+	fakeKeyName2 := "deleteApp_Key2"
 
 	// Add test accounts to keybase.
 	kb, err := keys.NewKeyBaseFromDir(opts.Home)
@@ -39,14 +38,14 @@ func Test_runDeleteCmd(t *testing.T) {
 	assert.NoError(t, err)
 
 	// test: Key not found
-	cmd.Args = []string{"blah"}
-	err = runDeleteCmd(cmd)
+	args := []string{"blah"}
+	err = deleteApp(cmd, args, opts)
 	require.Error(t, err)
 	require.Equal(t, err.Error(), "Key blah not found")
 
 	// test: User confirmation missing
-	cmd.Args = []string{fakeKeyName1}
-	err = runDeleteCmd(cmd)
+	args = []string{fakeKeyName1}
+	err = deleteApp(cmd, args, opts)
 	require.Error(t, err)
 	require.Equal(t, err.Error(), "EOF")
 
@@ -56,8 +55,8 @@ func Test_runDeleteCmd(t *testing.T) {
 
 		// Now there is a blank password followed by a confirmation.
 		cmd.SetIn(strings.NewReader("\ny\n"))
-		cmd.Args = []string{fakeKeyName1}
-		err = runDeleteCmd(cmd)
+		args := []string{fakeKeyName1}
+		err = deleteApp(cmd, args, opts)
 		require.NoError(t, err)
 
 		_, err = kb.Get(fakeKeyName1)
@@ -65,7 +64,7 @@ func Test_runDeleteCmd(t *testing.T) {
 	}
 
 	// Set DeleteOptions.Yes = true
-	cmd.Options = DeleteOptions{
+	opts = DeleteOptions{
 		BaseOptions: BaseOptions{
 			Home: kbHome,
 		},
@@ -77,8 +76,8 @@ func Test_runDeleteCmd(t *testing.T) {
 
 	// Run again with blank password followed by eof.
 	cmd.SetIn(strings.NewReader("\n"))
-	cmd.Args = []string{fakeKeyName2}
-	err = runDeleteCmd(cmd)
+	args = []string{fakeKeyName2}
+	err = deleteApp(cmd, args, opts)
 	require.NoError(t, err)
 	_, err = kb.Get(fakeKeyName2)
 	require.Error(t, err) // Key2 is gone

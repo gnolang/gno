@@ -9,18 +9,17 @@ import (
 
 type SignOptions struct {
 	BaseOptions        // home,...
-	DocPath     string // path of document file to sign
+	DocPath     string `flag:"docpath", help:"path of document file to sign"`
 }
 
 var DefaultSignOptions = SignOptions{
 	DocPath: "", // read from stdin.
 }
 
-func runSignCmd(cmd *command.Command) error {
+func signApp(cmd *command.Command, args []string, iopts interface{}) error {
 	var kb keys.Keybase
 	var err error
-	var opts SignOptions = cmd.Options.(SignOptions)
-	var args = cmd.Args
+	var opts SignOptions = iopts.(SignOptions)
 
 	name := args[0]
 	docpath := opts.DocPath

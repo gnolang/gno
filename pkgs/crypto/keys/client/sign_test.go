@@ -11,7 +11,7 @@ import (
 	"github.com/jaekwon/testify/assert"
 )
 
-func Test_runSignCmdBasic(t *testing.T) {
+func Test_signAppBasic(t *testing.T) {
 	cmd := command.NewMockCommand()
 	assert.NotNil(t, cmd)
 
@@ -27,10 +27,9 @@ func Test_runSignCmdBasic(t *testing.T) {
 		},
 		DocPath: "",
 	}
-	cmd.Options = opts
 
-	fakeKeyName1 := "runSignCmd_Key1"
-	fakeKeyName2 := "runSignCmd_Key2"
+	fakeKeyName1 := "signApp_Key1"
+	fakeKeyName2 := "signApp_Key2"
 	encPassword := "12345678"
 
 	// add test account to keybase.
@@ -40,13 +39,13 @@ func Test_runSignCmdBasic(t *testing.T) {
 	assert.NoError(t, err)
 
 	cmd.SetIn(strings.NewReader("XXXDOC"))
-	cmd.Args = []string{fakeKeyName1}
-	err = runSignCmd(cmd)
+	args := []string{fakeKeyName1}
+	err = signApp(cmd, args, opts)
 	assert.Error(t, err)
 
 	cmd.SetIn(strings.NewReader("XXXDOC\n"))
-	cmd.Args = []string{fakeKeyName1}
-	err = runSignCmd(cmd)
+	args = []string{fakeKeyName1}
+	err = signApp(cmd, args, opts)
 	assert.Error(t, err)
 
 	cmd.SetIn(strings.NewReader(
@@ -54,8 +53,8 @@ func Test_runSignCmdBasic(t *testing.T) {
 			encPassword,
 		),
 	))
-	cmd.Args = []string{fakeKeyName2}
-	err = runSignCmd(cmd)
+	args = []string{fakeKeyName2}
+	err = signApp(cmd, args, opts)
 	assert.Error(t, err)
 
 	cmd.SetIn(strings.NewReader(
@@ -63,7 +62,7 @@ func Test_runSignCmdBasic(t *testing.T) {
 			encPassword,
 		),
 	))
-	cmd.Args = []string{fakeKeyName1}
-	err = runSignCmd(cmd)
+	args = []string{fakeKeyName1}
+	err = signApp(cmd, args, opts)
 	assert.NoError(t, err)
 }
