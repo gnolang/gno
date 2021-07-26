@@ -13,8 +13,8 @@ type ListOptions struct {
 
 var DefaultListOptions = ListOptions{}
 
-func runListCmd(cmd *command.Command) error {
-	opts := cmd.Options.(ListOptions)
+func listApp(cmd *command.Command, args []string, iopts interface{}) error {
+	opts := iopts.(ListOptions)
 	kb, err := keys.NewKeyBaseFromDir(opts.Home)
 	if err != nil {
 		return err

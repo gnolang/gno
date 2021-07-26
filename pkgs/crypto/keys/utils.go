@@ -5,11 +5,11 @@ import (
 	"path/filepath"
 )
 
-const defaultKeyDBName = "keys.db"
+const defaultKeyDBName = "keys"
 
 // NewKeyBaseFromDir initializes a keybase at a particular dir.
 func NewKeyBaseFromDir(rootDir string) (Keybase, error) {
-	return NewLazyDBKeybase(defaultKeyDBName, filepath.Join(rootDir, "keys")), nil
+	return NewLazyDBKeybase(defaultKeyDBName, filepath.Join(rootDir, "data")), nil
 }
 
 // NewInMemoryKeyBase returns a storage-less keybase.

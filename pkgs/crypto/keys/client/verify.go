@@ -9,19 +9,18 @@ import (
 )
 
 type VerifyOptions struct {
-	BaseOptions        // home,...
-	DocPath     string // path of document file to verify
+	BaseOptions
+	DocPath string `flag:"docpath", help:"path of document file to verify"`
 }
 
 var DefaultVerifyOptions = VerifyOptions{
 	DocPath: "", // read from stdin.
 }
 
-func runVerifyCmd(cmd *command.Command) error {
+func verifyApp(cmd *command.Command, args []string, iopts interface{}) error {
 	var kb keys.Keybase
 	var err error
-	var opts VerifyOptions = cmd.Options.(VerifyOptions)
-	var args = cmd.Args
+	var opts VerifyOptions = iopts.(VerifyOptions)
 
 	name := args[0]
 	sig, err := parseSignature(args[1])

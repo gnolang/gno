@@ -9,7 +9,7 @@ import (
 	"github.com/jaekwon/testify/assert"
 )
 
-func Test_runAddCmdBasic(t *testing.T) {
+func Test_addAppBasic(t *testing.T) {
 	cmd := command.NewMockCommand()
 	assert.NotNil(t, cmd)
 
@@ -19,24 +19,21 @@ func Test_runAddCmdBasic(t *testing.T) {
 	defer kbCleanUp()
 
 	// initialize test options
-	cmd.Options = AddOptions{
+	opts := AddOptions{
 		BaseOptions: BaseOptions{
 			Home: kbHome,
 		},
 	}
 
 	cmd.SetIn(strings.NewReader("test1234\ntest1234\n"))
-	cmd.Args = []string{"keyname1"}
-	err := runAddCmd(cmd)
+	err := addApp(cmd, []string{"keyname1"}, opts)
 	assert.NoError(t, err)
 
 	cmd.SetIn(strings.NewReader("test1234\ntest1234\n"))
-	cmd.Args = []string{"keyname1"}
-	err = runAddCmd(cmd)
+	err = addApp(cmd, []string{"keyname1"}, opts)
 	assert.Error(t, err)
 
 	cmd.SetIn(strings.NewReader("y\ntest1234\ntest1234\n"))
-	cmd.Args = []string{"keyname1"}
-	err = runAddCmd(cmd)
+	err = addApp(cmd, []string{"keyname1"}, opts)
 	assert.NoError(t, err)
 }

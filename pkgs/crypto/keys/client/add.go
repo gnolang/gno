@@ -1,7 +1,5 @@
 package client
 
-// XXX TODO consider removing args in favor of options only.
-
 import (
 	"errors"
 	"fmt"
@@ -15,21 +13,22 @@ import (
 )
 
 type BaseOptions struct {
-	Home string
+	Config func(s string) error `flag:"config" help:"config file" no-ini:"true"`
+	Home   string               `flag:"home" help:"home directory"`
 }
 
 type AddOptions struct {
-	BaseOptions                // home,...
-	Multisig          []string // construct and store a multisig public key (implies --pubkey)
-	MultisigThreshold int      // K out of N required signatures. For use in conjunction with --multisig
-	NoSort            bool     // Keys passed to --multisig are taken in the order they're supplied
-	PublicKey         string   // Parse a public key in bech32 format and save it to disk
-	UseLedger         bool     // Store a local reference to a private key on a Ledger device
-	Recover           bool     // Provide seed phrase to recover existing key instead of creating
-	NoBackup          bool     // Don't print out seed phrase (if others are watching the terminal)
-	DryRun            bool     // Perform action, but don't add key to local keystore
-	Account           uint32   // Account number for HD derivation
-	Index             uint32   // Address index number for HD derivation
+	BaseOptions
+	Multisig          []string `flag:"multisig" help:"Construct and store a multisig public key (implies --pubkey)"`
+	MultisigThreshold int      `flag:"threshold" help:"K out of N required signatures. For use in conjunction with --multisig"`
+	NoSort            bool     `flag:"nosort" help:"Keys passed to --multisig are taken in the order they're supplied"`
+	PublicKey         string   `flag:"pubkey" help:"Parse a public key in bech32 format and save it to disk"`
+	UseLedger         bool     `flag:"ledger" help:"Store a local reference to a private key on a Ledger device"`
+	Recover           bool     `flag:"recover" help:"Provide seed phrase to recover existing key instead of creating"`
+	NoBackup          bool     `flag:"nobackup" help:"Don't print out seed phrase (if others are watching the terminal)"`
+	DryRun            bool     `flag:"dryrun" help:"Perform action, but don't add key to local keystore"`
+	Account           uint32   `flag:"account" help:"Account number for HD derivation"`
+	Index             uint32   `flag:"index" description:"Address index number for HD derivation"`
 }
 
 var DefaultAddOptions = AddOptions{
@@ -48,12 +47,11 @@ input
 output
 	- armor encrypted private key (saved to file)
 */
-func runAddCmd(cmd *command.Command) error {
+func addApp(cmd *command.Command, args []string, iopts interface{}) error {
 	var kb keys.Keybase
 	var err error
 	var encryptPassword string
-	var opts AddOptions = cmd.Options.(AddOptions)
-	var args = cmd.Args
+	var opts AddOptions = iopts.(AddOptions)
 
 	name := args[0]
 	showMnemonic := !opts.NoBackup

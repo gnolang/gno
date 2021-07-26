@@ -8,16 +8,15 @@ import (
 )
 
 type DeleteOptions struct {
-	BaseOptions      // home, ...
-	Yes         bool // skip confirmation prompt
-	Force       bool // remove key unconditionally
+	BaseOptions
+	Yes   bool `flag:"yes", help:"skip confirmation prompt"`
+	Force bool `flag:"force", help:"remove key unconditionally"`
 }
 
 var DefaultDeleteOptions = DeleteOptions{}
 
-func runDeleteCmd(cmd *command.Command) error {
-	var opts DeleteOptions = cmd.Options.(DeleteOptions)
-	var args = cmd.Args
+func deleteApp(cmd *command.Command, args []string, iopts interface{}) error {
+	var opts DeleteOptions = iopts.(DeleteOptions)
 
 	name := args[0]
 

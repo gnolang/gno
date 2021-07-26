@@ -14,3 +14,10 @@ The (virtual) machine is designed to interpret an immutable AST which matches th
 The interpreter is meant to become independent of the host language, Go.
 After the Gno interpreter can interpret itself, we will implement bytecode compilation.
 
+### Command-line Philosophy
+
+ * No envs.
+ * No short flags.
+ * No /bin/ calls.
+ * No process forks.
+ * Struct-based command options.

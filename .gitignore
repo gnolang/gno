@@ -2,3 +2,4 @@
 cmd/foo.go
 unsorted.*
 .DS_Store
+data/*
