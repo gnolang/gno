@@ -410,12 +410,12 @@ func WriteProto3Schema(pkg *amino.Package) {
 	p3c := NewP3Context()
 	p3c.RegisterPackage(pkg)
 	p3c.ValidateBasic()
-	filename := path.Join(pkg.DirName, "types.proto")
+	filename := path.Join(pkg.DirName, pkg.GoPkgName+".proto")
 	p3c.WriteProto3SchemaForTypes(filename, pkg, pkg.ReflectTypes()...)
 }
 
 // Symlinks .proto files from pkg info to dirname, keeping the go path
-// structure as expected, <dirName>/path/to/gopkg/types.proto.
+// structure as expected, <dirName>/path/to/gopkg/<gopkgName>.proto.
 // If Pkg.DirName is empty, the package is considered "well known", and
 // the mapping is not made.
 func MakeProtoFolder(pkg *amino.Package, dirName string) {
@@ -425,8 +425,8 @@ func MakeProtoFolder(pkg *amino.Package, dirName string) {
 
 	// Populate mapping.
 	// p3 import path -> p3 import file (abs path).
-	// e.g. "github.com/.../types.proto" ->
-	// "/gopath/pkg/mod/.../types.proto"
+	// e.g. "github.com/.../mygopkg.proto" ->
+	// "/gopath/pkg/mod/.../mygopkg.proto"
 	var p3imports = map[string]string{}
 	for _, dpkg := range p3c.GetAllPackages() {
 		if dpkg.P3SchemaFile == "" {
