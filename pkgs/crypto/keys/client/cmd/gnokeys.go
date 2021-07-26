@@ -9,11 +9,7 @@ import (
 
 func main() {
 
-	// TODO: refactor to pkgs/command NewOSCommand
-	cmd := new(command.Command)
-	cmd.SetIn(os.Stdin)
-	cmd.SetOut(os.Stdout)
-	cmd.SetErr(os.Stderr)
+	cmd := command.NewStdCommand()
 
 	// set default options.
 

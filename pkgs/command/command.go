@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"io"
+	"os"
 	"reflect"
 	"strings"
 
@@ -18,6 +19,14 @@ type Command struct {
 	Err    io.WriteCloser
 	ErrBuf *bufio.Writer
 	Error  error
+}
+
+func NewStdCommand() *Command {
+	cmd := new(Command)
+	cmd.SetIn(os.Stdin) // needed for **** GetPassword().
+	cmd.SetOut(os.Stdout)
+	cmd.SetErr(os.Stderr)
+	return cmd
 }
 
 // An App does something with the *Command inputs and outputs.
