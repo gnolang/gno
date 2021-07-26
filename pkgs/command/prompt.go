@@ -3,13 +3,18 @@ package command
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
+	"syscall"
+
+	"golang.org/x/term"
 )
 
 // GetPassword will prompt for a password one-time (to sign a tx).
 // Passwords may be blank; user must validate.
 func (cmd *Command) GetPassword(prompt string) (pass string, err error) {
-	pass, err = cmd.readLineFromInBuf()
+	cmd.Println(prompt)
+	pass, err = cmd.readPasswordFromInBuf()
 
 	if err != nil {
 		return "", err
@@ -40,7 +45,7 @@ func (cmd *Command) GetCheckPassword(prompt, prompt2 string) (string, error) {
 // "y", "Y", "yes", "YES", and "Yes" all count as confirmations.
 // If the input is not recognized, it returns false and a nil error.
 func (cmd *Command) GetConfirmation(prompt string) (bool, error) {
-	cmd.OutBuf.WriteString(fmt.Sprintf("%s [y/N]: ", prompt))
+	cmd.Printfln("%s [y/n]:", prompt)
 
 	response, err := cmd.readLineFromInBuf()
 	if err != nil {
@@ -77,12 +82,32 @@ func (cmd *Command) GetString(prompt string) (string, error) {
 // Subsequent calls reuse the same buffer, so we don't lose
 // any input when reading a password twice (to verify)
 func (cmd *Command) readLineFromInBuf() (string, error) {
-	buf := cmd.InBuf
-	pass, err := buf.ReadString('\n')
+	pass, err := cmd.InBuf.ReadString('\n')
 	if err != nil {
 		return "", err
 	}
 	return strings.TrimSpace(pass), nil
+}
+
+func (cmd *Command) readPasswordFromInBuf() (string, error) {
+	var fd int
+	var pass string
+	if cmd.In == os.Stdin {
+		fd = syscall.Stdin
+		inputPass, err := term.ReadPassword(fd)
+		if err != nil {
+			return "", err
+		}
+		pass = string(inputPass)
+	} else {
+		s, err := cmd.InBuf.ReadString('\n')
+		if err != nil {
+			return "", err
+		}
+		pass = s
+	}
+
+	return pass, nil
 }
 
 // PrintPrefixed prints a string with > prefixed for use in prompts.
