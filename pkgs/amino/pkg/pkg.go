@@ -53,7 +53,7 @@ type Package struct {
 // overridden with WithGoPkgName().
 //
 // P3ImportPath is what is imported in the p3 import spec.  Generally
-// this is GoPkgPath + "/types.proto", but packages can override this
+// this is GoPkgPath + "/" + GoPkgName + ".proto", but packages can override this
 // behavior, and sometimes (e.g. for google.protobuf.Any) it is
 // necessary to provide fixed values.  This is not the absolute path to
 // the actual file.  That is P3SchemaFile.
@@ -71,17 +71,18 @@ func NewPackage(gopkgPath string, p3pkgName string, dirName string) *Package {
 		assertValidP3PkgName(p3pkgName)
 	}
 	assertValidDirName(dirName)
+	gopkgName := DefaultPkgName(gopkgPath)
 	if gopkgPath != "" {
 		pkg := &Package{
 			GoPkgPath:    gopkgPath,
-			GoPkgName:    DefaultPkgName(gopkgPath),
+			GoPkgName:    gopkgName,
 			DirName:      dirName,
 			Dependencies: nil,
 			Types:        nil,
 			P3GoPkgPath:  path.Join(gopkgPath, "pb"),
 			P3PkgName:    p3pkgName,
-			P3ImportPath: path.Join(gopkgPath, "types.proto"),
-			P3SchemaFile: path.Join(dirName, "types.proto"),
+			P3ImportPath: path.Join(gopkgPath, gopkgName+".proto"),
+			P3SchemaFile: path.Join(dirName, gopkgName+".proto"),
 		}
 		return pkg
 	} else {
