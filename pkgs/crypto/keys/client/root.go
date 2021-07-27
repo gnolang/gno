@@ -2,26 +2,48 @@ package client
 
 import (
 	"github.com/gnolang/gno/pkgs/command"
+	"github.com/gnolang/gno/pkgs/errors"
 )
 
-func RunMain(cmd *command.Command, args []string) error {
+type AppItem struct {
+	App      command.App
+	Name     string      // arg name
+	Desc     string      // short (single line) description of app
+	Defaults interface{} // default options
+	// Help string // long form help
+}
 
-	// pop first argument.
-	arg0 := args[0]
+type AppList []AppItem
+
+var mainApp AppList = []AppItem{
+	{addApp, "add", "add key to keybase", DefaultAddOptions},
+	{deleteApp, "delete", "delete key from keybase", DefaultDeleteOptions},
+	{generateApp, "generate", "generate a new private key", DefaultGenerateOptions},
+	{listApp, "list", "list all known keys", DefaultListOptions},
+	{signApp, "sign", "sign a document", DefaultSignOptions},
+	{verifyApp, "verify", "verify a document signature", DefaultVerifyOptions},
+}
+
+func RunMain(cmd *command.Command, exec string, args []string) error {
+
+	// show help message.
+	if len(args) == 0 || args[0] == "help" || args[0] == "--help" {
+		cmd.Println("available subcommands:")
+		for _, appItem := range mainApp {
+			cmd.Printf("  %s - %s\n", appItem.Name, appItem.Desc)
+		}
+		return nil
+	}
 
 	// switch on first argument.
-	switch arg0 {
-	case "add":
-		return cmd.Run(addApp, args[1:], DefaultAddOptions)
-	case "delete":
-		return cmd.Run(deleteApp, args[1:], DefaultDeleteOptions)
-	case "list":
-		return cmd.Run(listApp, args[1:], DefaultListOptions)
-	case "sign":
-		return cmd.Run(signApp, args[1:], DefaultSignOptions)
-	case "verify":
-		return cmd.Run(verifyApp, args[1:], DefaultVerifyOptions)
-	default:
-		panic("unknown command " + arg0)
+	for _, appItem := range mainApp {
+		if appItem.Name == args[0] {
+			err := cmd.Run(appItem.App, args[1:], appItem.Defaults)
+			return err // done
+		}
 	}
+
+	// unknown app command!
+	return errors.New("unknown command " + args[0])
+
 }

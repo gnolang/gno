@@ -12,6 +12,8 @@ type GenerateOptions struct {
 	CustomEntropy bool `flag:"entropy",help:"custom entropy"`
 }
 
+var DefaultGenerateOptions = GenerateOptions{}
+
 func generateApp(cmd *command.Command, args []string, iopts interface{}) error {
 	opts := iopts.(GenerateOptions)
 	customEntropy := opts.CustomEntropy

@@ -17,10 +17,12 @@ func main() {
 	// insert args and options here.
 	// TODO: use flags or */pflags.
 
+	exec := os.Args[0]
 	args := os.Args[1:]
 
-	err := client.RunMain(cmd, args)
+	err := client.RunMain(cmd, exec, args)
 	if err != nil {
-		panic(err)
+		cmd.ErrPrintln(err.Error())
+		return // exit
 	}
 }

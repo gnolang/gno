@@ -33,18 +33,64 @@ func NewStdCommand() *Command {
 // cmd: Command context.
 // args: args to app.
 // defaults: default options to app.
-type App func(cmd *Command, args []string, defaults interface{}) error
+type App func(cmd *Command, args []string, opts interface{}) error
 
-// NOTE: defaults is first copied.
+// defaults must be supplied for terminal apps only.
+// NOTE: defaults is first copied, if provided.
 func (cmd *Command) Run(app App, args []string, defaults interface{}) error {
-	args, flags := ParseArgs(args)
-	ptr := amino.DeepCopyToPtr(defaults)
-	err := applyFlags(ptr, flags)
-	if err != nil {
-		return err
+	if defaults == nil {
+		// for root/multi apps.
+		return app(cmd, args, nil)
+	} else {
+		// for terminal apps.
+		args, flags := ParseArgs(args)
+		if help, ok := flags["help"]; ok && help == "y" {
+			// print help.
+			rt := reflect.TypeOf(defaults)
+			cmd.printHelpFromDefaults(rt)
+			return nil
+		}
+		// apply flags to defaults.
+		ptr := amino.DeepCopyToPtr(defaults)
+		err := applyFlags(ptr, flags)
+		if err != nil {
+			return err
+		}
+		opts := reflect.ValueOf(ptr).Elem().Interface()
+		return app(cmd, args, opts)
 	}
-	opts := reflect.ValueOf(ptr).Elem().Interface()
-	return app(cmd, args, opts)
+}
+
+func (cmd *Command) printHelpFromDefaults(rt reflect.Type) {
+	num := rt.NumField()
+
+	// print anonymous embedded struct options
+	for i := 0; i < num; i++ {
+		rtf := rt.Field(i)
+		if rtf.Anonymous {
+			cmd.printHelpFromDefaults(rtf.Type)
+			cmd.Println("")
+		} else {
+			continue
+		}
+	}
+
+	// print remaining options
+	cmd.Println("#", rt.Name(), "options")
+	for i := 0; i < num; i++ {
+		rtf := rt.Field(i)
+		ffn := rtf.Tag.Get("flag")
+		if rtf.Anonymous {
+			continue
+		} else if ffn == "" {
+			// ignore fields with no flags field.
+		} else {
+			frt := rtf.Type
+			help := rtf.Tag.Get("help")
+			cmd.Println("-", ffn, "("+frt.String()+")", "-", help)
+		}
+	}
+
 }
 
 func (cmd *Command) SetIn(in io.Reader) {
