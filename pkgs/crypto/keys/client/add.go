@@ -13,8 +13,7 @@ import (
 )
 
 type BaseOptions struct {
-	Config func(s string) error `flag:"config" help:"config file" no-ini:"true"`
-	Home   string               `flag:"home" help:"home directory"`
+	Home string `flag:"home" help:"home directory"`
 }
 
 type AddOptions struct {

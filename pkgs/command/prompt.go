@@ -118,8 +118,14 @@ func (cmd *Command) PrintPrefixed(msg string) {
 }
 
 // Println prints a line terminated by a newline.
-func (cmd *Command) Println(line string) {
-	fmt.Fprint(cmd.OutBuf, line+"\n")
+func (cmd *Command) Println(args ...interface{}) {
+	fmt.Fprintln(cmd.OutBuf, args...)
+	cmd.OutBuf.Flush()
+}
+
+// Printf prints a formatted string without trailing newline.
+func (cmd *Command) Printf(format string, args ...interface{}) {
+	fmt.Fprintf(cmd.OutBuf, format, args...)
 	cmd.OutBuf.Flush()
 }
 
@@ -138,8 +144,8 @@ func (cmd *Command) ErrPrintPrefixed(msg string) {
 
 // ErrPrintln prints a line terminated by a newline to
 // cmd.Err(Buf).
-func (cmd *Command) ErrPrintln(line string) {
-	fmt.Fprint(cmd.ErrBuf, line+"\n")
+func (cmd *Command) ErrPrintln(args ...interface{}) {
+	fmt.Fprintln(cmd.ErrBuf, args...)
 	cmd.ErrBuf.Flush()
 }
 
