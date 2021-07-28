@@ -9,20 +9,7 @@ import (
 
 	"github.com/gnolang/gno/pkgs/crypto"
 	"github.com/gnolang/gno/pkgs/crypto/ed25519"
-	"github.com/gnolang/gno/pkgs/crypto/hd"
-	"github.com/gnolang/gno/pkgs/crypto/keys/mintkey"
 )
-
-func init() {
-	mintkey.BcryptSecurityParameter = 1
-}
-
-func TestLanguage(t *testing.T) {
-	kb := NewInMemory()
-	_, _, err := kb.CreateMnemonic("something", Japanese, "no_pass", Secp256k1)
-	assert.Error(t, err)
-	assert.Equal(t, "unsupported language: only english is supported", err.Error())
-}
 
 func TestCreateAccountInvalidMnemonic(t *testing.T) {
 	kb := NewInMemory()
@@ -82,26 +69,24 @@ func TestKeyManagement(t *testing.T) {
 	// make the storage with reasonable defaults
 	cstore := NewInMemory()
 
-	algo := Secp256k1
 	n1, n2, n3 := "personal", "business", "other"
 	p1, p2 := "1234", "really-secure!@#$"
+	mn1 := `lounge napkin all odor tilt dove win inject sleep jazz uncover traffic hint require cargo arm rocket round scan bread report squirrel step lake`
+	mn2 := `lecture salt about avocado smooth height escape general arch head barrel clutch dismiss supply doctor project cat truck fruit abuse gorilla symbol portion glare`
+	bip39Passphrase := ""
 
 	// Check empty state
 	l, err := cstore.List()
 	require.Nil(t, err)
 	assert.Empty(t, l)
 
-	_, _, err = cstore.CreateMnemonic(n1, English, p1, Ed25519)
-	require.Error(t, err, "ed25519 keys are currently not supported by keybase")
-
 	// create some keys
 	_, err = cstore.Get(n1)
 	require.Error(t, err)
-	i, _, err := cstore.CreateMnemonic(n1, English, p1, algo)
-
+	i, err := cstore.CreateAccount(n1, mn1, bip39Passphrase, p1, 0, 0)
 	require.NoError(t, err)
 	require.Equal(t, n1, i.GetName())
-	_, _, err = cstore.CreateMnemonic(n2, English, p2, algo)
+	_, err = cstore.CreateAccount(n2, mn2, bip39Passphrase, p2, 0, 0)
 	require.NoError(t, err)
 
 	// we can get these keys
@@ -164,16 +149,18 @@ func TestKeyManagement(t *testing.T) {
 // signatures
 func TestSignVerify(t *testing.T) {
 	cstore := NewInMemory()
-	algo := Secp256k1
 
 	n1, n2, n3 := "some dude", "a dudette", "dude-ish"
 	p1, p2, p3 := "1234", "foobar", "foobar"
+	mn1 := `lounge napkin all odor tilt dove win inject sleep jazz uncover traffic hint require cargo arm rocket round scan bread report squirrel step lake`
+	mn2 := `lecture salt about avocado smooth height escape general arch head barrel clutch dismiss supply doctor project cat truck fruit abuse gorilla symbol portion glare`
+	bip39Passphrase := ""
 
 	// create two users and get their info
-	i1, _, err := cstore.CreateMnemonic(n1, English, p1, algo)
+	i1, err := cstore.CreateAccount(n1, mn1, bip39Passphrase, p1, 0, 0)
 	require.Nil(t, err)
 
-	i2, _, err := cstore.CreateMnemonic(n2, English, p2, algo)
+	i2, err := cstore.CreateAccount(n2, mn2, bip39Passphrase, p2, 0, 0)
 	require.Nil(t, err)
 
 	// Import a public key
@@ -248,7 +235,10 @@ func TestExportImport(t *testing.T) {
 	// make the storage with reasonable defaults
 	cstore := NewInMemory()
 
-	info, _, err := cstore.CreateMnemonic("john", English, "secretcpw", Secp256k1)
+	mn1 := `lounge napkin all odor tilt dove win inject sleep jazz uncover traffic hint require cargo arm rocket round scan bread report squirrel step lake`
+	bip39Passphrase := ""
+
+	info, err := cstore.CreateAccount("john", mn1, bip39Passphrase, "secretcpw", 0, 0)
 	require.NoError(t, err)
 	require.Equal(t, info.GetName(), "john")
 
@@ -276,9 +266,11 @@ func TestExportImportPubKey(t *testing.T) {
 	// make the storage with reasonable defaults
 	cstore := NewInMemory()
 
-	// CreateMnemonic a private-public key pair and ensure consistency
+	// CreateAccount a private-public key pair and ensure consistency
+	mn1 := `lounge napkin all odor tilt dove win inject sleep jazz uncover traffic hint require cargo arm rocket round scan bread report squirrel step lake`
+	bip39Passphrase := ""
 	notPasswd := "n9y25ah7"
-	info, _, err := cstore.CreateMnemonic("john", English, notPasswd, Secp256k1)
+	info, err := cstore.CreateAccount("john", mn1, bip39Passphrase, notPasswd, 0, 0)
 	require.Nil(t, err)
 	require.NotEqual(t, info, "")
 	require.Equal(t, info.GetName(), "john")
@@ -315,12 +307,13 @@ func TestAdvancedKeyManagement(t *testing.T) {
 	// make the storage with reasonable defaults
 	cstore := NewInMemory()
 
-	algo := Secp256k1
 	n1, n2 := "old-name", "new name"
 	p1, p2 := "1234", "foobar"
+	mn1 := `lounge napkin all odor tilt dove win inject sleep jazz uncover traffic hint require cargo arm rocket round scan bread report squirrel step lake`
+	bip39Passphrase := ""
 
 	// make sure key works with initial password
-	_, _, err := cstore.CreateMnemonic(n1, English, p1, algo)
+	_, err := cstore.CreateAccount(n1, mn1, bip39Passphrase, p1, 0, 0)
 	require.Nil(t, err, "%+v", err)
 	assertPassword(t, cstore, n1, p1, p2)
 
@@ -363,40 +356,34 @@ func TestSeedPhrase(t *testing.T) {
 	// make the storage with reasonable defaults
 	cstore := NewInMemory()
 
-	algo := Secp256k1
-	n1, n2 := "lost-key", "found-again"
-	p1, p2 := "1234", "foobar"
+	n1 := "lost-key"
+	p1 := "1234"
+	mn1 := `lounge napkin all odor tilt dove win inject sleep jazz uncover traffic hint require cargo arm rocket round scan bread report squirrel step lake`
+	bip39Passphrase := ""
 
 	// make sure key works with initial password
-	info, mnemonic, err := cstore.CreateMnemonic(n1, English, p1, algo)
+	info, err := cstore.CreateAccount(n1, mn1, bip39Passphrase, p1, 0, 0)
 	require.Nil(t, err, "%+v", err)
 	require.Equal(t, n1, info.GetName())
-	assert.NotEmpty(t, mnemonic)
 
 	// now, let us delete this key
 	err = cstore.Delete(n1, p1, false)
 	require.Nil(t, err, "%+v", err)
 	_, err = cstore.Get(n1)
 	require.NotNil(t, err)
-
-	// let us re-create it from the mnemonic-phrase
-	testCoinType := uint32(118)
-	params := *hd.NewFundraiserParams(0, testCoinType, 0)
-	newInfo, err := cstore.Derive(n2, mnemonic, DefaultBIP39Passphrase, p2, params)
-	require.NoError(t, err)
-	require.Equal(t, n2, newInfo.GetName())
-	require.Equal(t, info.GetPubKey().Address(), newInfo.GetPubKey().Address())
-	require.Equal(t, info.GetPubKey(), newInfo.GetPubKey())
 }
 
 func ExampleNew() {
 	// Select the encryption and storage for your cryptostore
 	cstore := NewInMemory()
 
-	sec := Secp256k1
+	mn1 := `lounge napkin all odor tilt dove win inject sleep jazz uncover traffic hint require cargo arm rocket round scan bread report squirrel step lake`
+	mn2 := `lecture salt about avocado smooth height escape general arch head barrel clutch dismiss supply doctor project cat truck fruit abuse gorilla symbol portion glare`
+	mn3 := `jar nest rug lion shallow spring abuse west gravity skin project comic again dirt pelican better galaxy click hold lottery swap solution census own`
+	bip39Passphrase := ""
 
 	// Add keys and see they return in alphabetical order
-	bob, _, err := cstore.CreateMnemonic("Bob", English, "friend", sec)
+	bob, err := cstore.CreateAccount("Bob", mn1, bip39Passphrase, "friend", 0, 0)
 	if err != nil {
 		// this should never happen
 		fmt.Println(err)
@@ -404,8 +391,8 @@ func ExampleNew() {
 		// return info here just like in List
 		fmt.Println(bob.GetName())
 	}
-	_, _, _ = cstore.CreateMnemonic("Alice", English, "secret", sec)
-	_, _, _ = cstore.CreateMnemonic("Carl", English, "mitm", sec)
+	_, _ = cstore.CreateAccount("Alice", mn2, bip39Passphrase, "secret", 0, 0)
+	_, _ = cstore.CreateAccount("Carl", mn3, bip39Passphrase, "mitm", 0, 0)
 	info, _ := cstore.List()
 	for _, i := range info {
 		fmt.Println(i.GetName())

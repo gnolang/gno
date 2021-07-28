@@ -81,45 +81,19 @@ func NewDBKeybase(db dbm.DB) Keybase {
 // instance useful for testing purposes and on-the-fly key generation.
 func NewInMemory() Keybase { return dbKeybase{dbm.NewMemDB()} }
 
-// CreateMnemonic generates a new key and persists it to storage, encrypted
-// using the provided password.
-// It returns the generated mnemonic and the key Info.
-// It returns an error if it fails to
-// generate a key for the given algo type, or if another key is
-// already stored under the same name.
-func (kb dbKeybase) CreateMnemonic(name string, language Language, passwd string, algo SigningAlgo) (info Info, mnemonic string, err error) {
-	if language != English {
-		return nil, "", ErrUnsupportedLanguage
-	}
-	if algo != Secp256k1 {
-		err = ErrUnsupportedSigningAlgo
-		return
-	}
-
-	// default number of words (24):
-	// this generates a mnemonic directly from the number of words by reading system entropy.
-	entropy, err := bip39.NewEntropy(defaultEntropySize)
-	if err != nil {
-		return
-	}
-	mnemonic, err = bip39.NewMnemonic(entropy)
-	if err != nil {
-		return
-	}
-
-	seed := bip39.NewSeed(mnemonic, DefaultBIP39Passphrase)
-	info, err = kb.persistDerivedKey(seed, passwd, name, crypto.Bip44DefaultPath)
-	return
-}
-
 // CreateAccount converts a mnemonic to a private key and persists it, encrypted with the given password.
+// XXX Info could include the separately derived ed25519 key,
+// XXX and a signature from the sec2561key as certificate.
+// XXX NOTE: we are not saving the derivation path.
+// XXX but this doesn't help encrypted commnuication.
+// XXX also there is no document structure.
 func (kb dbKeybase) CreateAccount(name, mnemonic, bip39Passwd, encryptPasswd string, account uint32, index uint32) (Info, error) {
 	coinType := crypto.CoinType
 	hdPath := hd.NewFundraiserParams(account, coinType, index)
-	return kb.Derive(name, mnemonic, bip39Passwd, encryptPasswd, *hdPath)
+	return kb.CreateAccountBip44(name, mnemonic, bip39Passwd, encryptPasswd, *hdPath)
 }
 
-func (kb dbKeybase) Derive(name, mnemonic, bip39Passphrase, encryptPasswd string, params hd.BIP44Params) (info Info, err error) {
+func (kb dbKeybase) CreateAccountBip44(name, mnemonic, bip39Passphrase, encryptPasswd string, params hd.BIP44Params) (info Info, err error) {
 	seed, err := bip39.NewSeedWithErrorChecking(mnemonic, bip39Passphrase)
 	if err != nil {
 		return
