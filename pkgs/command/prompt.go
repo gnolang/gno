@@ -68,7 +68,7 @@ func (cmd *Command) GetConfirmation(prompt string) (bool, error) {
 // GetString simply returns the trimmed string output of a given reader.
 func (cmd *Command) GetString(prompt string) (string, error) {
 	if prompt != "" {
-		cmd.PrintPrefixed(prompt)
+		cmd.Println(prompt)
 	}
 
 	out, err := cmd.readLineFromInBuf()
@@ -110,13 +110,6 @@ func (cmd *Command) readPasswordFromInBuf() (string, error) {
 	return pass, nil
 }
 
-// PrintPrefixed prints a string with > prefixed for use in prompts.
-func (cmd *Command) PrintPrefixed(msg string) {
-	msg = fmt.Sprintf("> %s\n", msg)
-	fmt.Fprint(cmd.OutBuf, msg)
-	cmd.OutBuf.Flush()
-}
-
 // Println prints a line terminated by a newline.
 func (cmd *Command) Println(args ...interface{}) {
 	fmt.Fprintln(cmd.OutBuf, args...)
@@ -133,13 +126,6 @@ func (cmd *Command) Printf(format string, args ...interface{}) {
 func (cmd *Command) Printfln(format string, args ...interface{}) {
 	fmt.Fprintf(cmd.OutBuf, format+"\n", args...)
 	cmd.OutBuf.Flush()
-}
-
-// ErrPrintPrefixed prints a string with > prefixed for use in prompts to cmd.Err(Buf).
-func (cmd *Command) ErrPrintPrefixed(msg string) {
-	msg = fmt.Sprintf("> %s\n", msg)
-	fmt.Fprint(cmd.ErrBuf, msg)
-	cmd.ErrBuf.Flush()
 }
 
 // ErrPrintln prints a line terminated by a newline to

@@ -3,7 +3,6 @@ package ed25519
 import (
 	"bytes"
 	"crypto/subtle"
-	"fmt"
 	"io"
 
 	"golang.org/x/crypto/ed25519"
@@ -139,7 +138,7 @@ func (pubKey PubKeyEd25519) VerifyBytes(msg []byte, sig []byte) bool {
 }
 
 func (pubKey PubKeyEd25519) String() string {
-	return fmt.Sprintf("PubKeyEd25519{%X}", pubKey[:])
+	return crypto.PubKeyToBech32(pubKey)
 }
 
 // nolint: golint

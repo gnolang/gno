@@ -5,6 +5,7 @@ import (
 
 	"github.com/gnolang/gno/pkgs/command"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
+	"github.com/gnolang/gno/pkgs/errors"
 )
 
 type SignOptions struct {
@@ -21,6 +22,11 @@ func signApp(cmd *command.Command, args []string, iopts interface{}) error {
 	var err error
 	var opts SignOptions = iopts.(SignOptions)
 
+	if len(args) != 1 {
+		cmd.ErrPrintfln("Usage: sign <keyname>")
+		return errors.New("invalid args")
+	}
+
 	name := args[0]
 	docpath := opts.DocPath
 	kb, err = keys.NewKeyBaseFromDir(opts.Home)
@@ -31,7 +37,7 @@ func signApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 	// read document to sign
 	if docpath == "" { // from stdin.
-		msgstr, err := cmd.GetString("enter document to sign.")
+		msgstr, err := cmd.GetString("Enter document to sign.")
 		if err != nil {
 			return err
 		}
@@ -46,7 +52,7 @@ func signApp(cmd *command.Command, args []string, iopts interface{}) error {
 	// validate document to sign.
 	// XXX
 
-	pass, err := cmd.GetPassword("enter password.")
+	pass, err := cmd.GetPassword("Enter password.")
 	if err != nil {
 		return err
 	}
@@ -55,6 +61,6 @@ func signApp(cmd *command.Command, args []string, iopts interface{}) error {
 		return err
 	}
 
-	cmd.Printfln("signature: %v\npub: %v", sig, pub)
+	cmd.Printfln("Signature: %X\nPub: %v", sig, pub)
 	return nil
 }

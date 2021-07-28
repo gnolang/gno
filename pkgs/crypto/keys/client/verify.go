@@ -6,6 +6,7 @@ import (
 
 	"github.com/gnolang/gno/pkgs/command"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
+	"github.com/gnolang/gno/pkgs/errors"
 )
 
 type VerifyOptions struct {
@@ -22,6 +23,11 @@ func verifyApp(cmd *command.Command, args []string, iopts interface{}) error {
 	var err error
 	var opts VerifyOptions = iopts.(VerifyOptions)
 
+	if len(args) != 2 {
+		cmd.ErrPrintfln("Usage: verify <keyname> <signature>")
+		return errors.New("invalid args")
+	}
+
 	name := args[0]
 	sig, err := parseSignature(args[1])
 	if err != nil {
@@ -36,7 +42,7 @@ func verifyApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 	// read document to sign
 	if docpath == "" { // from stdin.
-		msgstr, err := cmd.GetString("enter document to sign.")
+		msgstr, err := cmd.GetString("Enter document to sign.")
 		if err != nil {
 			return err
 		}
@@ -53,6 +59,9 @@ func verifyApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 	// verify signature.
 	err = kb.Verify(name, msg, sig)
+	if err == nil {
+		cmd.Println("Valid signature!")
+	}
 	return err
 }
 

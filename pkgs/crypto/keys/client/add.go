@@ -1,7 +1,6 @@
 package client
 
 import (
-	"errors"
 	"fmt"
 	"sort"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/gnolang/gno/pkgs/crypto/bip39"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
 	"github.com/gnolang/gno/pkgs/crypto/multisig"
+	"github.com/gnolang/gno/pkgs/errors"
 )
 
 type BaseOptions struct {
@@ -52,6 +52,11 @@ func addApp(cmd *command.Command, args []string, iopts interface{}) error {
 	var encryptPassword string
 	var opts AddOptions = iopts.(AddOptions)
 
+	if len(args) != 1 {
+		cmd.ErrPrintfln("Usage: add <keyname>")
+		return errors.New("invalid args")
+	}
+
 	name := args[0]
 	showMnemonic := !opts.NoBackup
 
@@ -69,7 +74,7 @@ func addApp(cmd *command.Command, args []string, iopts interface{}) error {
 		_, err = kb.Get(name)
 		if err == nil {
 			// account exists, ask for user confirmation
-			response, err2 := cmd.GetConfirmation(fmt.Sprintf("override the existing name %s", name))
+			response, err2 := cmd.GetConfirmation(fmt.Sprintf("Override the existing name %s", name))
 			if err2 != nil {
 				return err2
 			}
@@ -193,17 +198,28 @@ func addApp(cmd *command.Command, args []string, iopts interface{}) error {
 }
 
 func printCreate(cmd *command.Command, info keys.Info, showMnemonic bool, mnemonic string) error {
-	cmd.Printfln("\n%#v", info)
+	cmd.Println("")
+	printNewInfo(cmd, info)
 
 	// print mnemonic unless requested not to.
 	if showMnemonic {
-		cmd.Printfln(
-			`**Important** write this mnemonic phrase in a safe place.
-				It is the only way to recover your account if you ever forget your password.
-				
-				%v
-				`, mnemonic)
+		cmd.Printfln(`
+**IMPORTANT** write this mnemonic phrase in a safe place.
+It is the only way to recover your account if you ever forget your password.
+
+%v
+`, mnemonic)
 	}
 
 	return nil
+}
+
+func printNewInfo(cmd *command.Command, info keys.Info) {
+	keyname := info.GetName()
+	keytype := info.GetType()
+	keypub := info.GetPubKey()
+	keyaddr := info.GetAddress()
+	keypath, _ := info.GetPath()
+	cmd.Printfln("* %s (%s) - addr: %v pub: %v, path: %v",
+		keyname, keytype, keyaddr, keypub, keypath)
 }
