@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/jaekwon/testify/assert"
 	sm1 "github.com/gnolang/gno/pkgs/amino/genproto/example/submodule"
+	"github.com/jaekwon/testify/assert"
 )
 
 func TestBasic(t *testing.T) {
@@ -25,7 +25,7 @@ func TestBasic(t *testing.T) {
 package test;
 
 // imports
-import "github.com/gnolang/gno/pkgs/amino/genproto/example/submodule2/types.proto";`)
+import "github.com/gnolang/gno/pkgs/amino/genproto/example/submodule2/submodule2.proto";`)
 
 	p3doc = p3c.GenerateProto3SchemaForTypes(sm1.Package, reflect.TypeOf(obj))
 	assert.Equal(t, p3doc.Print(), `syntax = "proto3";
@@ -34,7 +34,7 @@ package submodule;
 option go_package = "github.com/gnolang/gno/pkgs/amino/genproto/example/submodule/pb";
 
 // imports
-import "github.com/gnolang/gno/pkgs/amino/genproto/example/submodule2/types.proto";
+import "github.com/gnolang/gno/pkgs/amino/genproto/example/submodule2/submodule2.proto";
 
 // messages
 message StructSM {
