@@ -21,18 +21,13 @@ type Keybase interface {
 	Sign(name, passphrase string, msg []byte) ([]byte, crypto.PubKey, error)
 	Verify(name string, msg, sig []byte) error
 
-	// CreateMnemonic creates a new mnemonic, and derives a hierarchical deterministic
-	// key from that.
-	CreateMnemonic(name string, language Language, passwd string, algo SigningAlgo) (info Info, seed string, err error)
-
 	// CreateAccount creates an account based using the BIP44 path (44'/118'/{account}'/0/{index}
-	CreateAccount(name, mnemonic, bip39Passwd, encryptPasswd string, account uint32, index uint32) (Info, error)
-
-	// Derive computes a BIP39 seed from th mnemonic and bip39Passwd.
-	// Derive private key from the seed using the BIP44 params.
 	// Encrypt the key to disk using encryptPasswd.
 	// See https://github.com/tendermint/classic/sdk/issues/2095
-	Derive(name, mnemonic, bip39Passwd, encryptPasswd string, params hd.BIP44Params) (Info, error)
+	CreateAccount(name, mnemonic, bip39Passwd, encryptPasswd string, account uint32, index uint32) (Info, error)
+
+	// Like CreateAccount but from general bip44 params.
+	CreateAccountBip44(name, mnemonic, bip39Passwd, encryptPasswd string, params hd.BIP44Params) (Info, error)
 
 	// CreateLedger creates, stores, and returns a new Ledger key reference
 	CreateLedger(name string, algo SigningAlgo, hrp string, account, index uint32) (info Info, err error)

@@ -86,7 +86,7 @@ func (cmd *Command) readLineFromInBuf() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(pass), nil
+	return pass[:len(pass)-1], nil
 }
 
 func (cmd *Command) readPasswordFromInBuf() (string, error) {
@@ -104,7 +104,7 @@ func (cmd *Command) readPasswordFromInBuf() (string, error) {
 		if err != nil {
 			return "", err
 		}
-		pass = s
+		pass = s[:len(s)-1]
 	}
 
 	return pass, nil
