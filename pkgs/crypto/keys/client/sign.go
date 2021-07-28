@@ -37,7 +37,7 @@ func signApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 	// read document to sign
 	if docpath == "" { // from stdin.
-		msgstr, err := cmd.GetString("Enter document to sign.")
+		msgstr, err := cmd.GetString("Enter document text to sign, terminated by a newline.")
 		if err != nil {
 			return err
 		}

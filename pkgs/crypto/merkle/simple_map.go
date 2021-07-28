@@ -3,16 +3,16 @@ package merkle
 import (
 	"bytes"
 
-	cmn "github.com/gnolang/gno/pkgs/common"
-	"github.com/gnolang/gno/pkgs/crypto/tmhash"
 	amino "github.com/gnolang/gno/pkgs/amino"
+	"github.com/gnolang/gno/pkgs/crypto/tmhash"
+	"github.com/gnolang/gno/pkgs/std"
 )
 
 // Merkle tree from a map.
 // Leaves are `hash(key) | hash(value)`.
 // Leaves are sorted before Merkle hashing.
 type simpleMap struct {
-	kvs    cmn.KVPairs
+	kvs    std.KVPairs
 	sorted bool
 }
 
