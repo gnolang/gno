@@ -9,6 +9,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/gdamore/tcell v1.4.0
 	github.com/gdamore/tcell/v2 v2.1.0
+	github.com/gnolang/overflow v0.0.0-20170615021017-4d914c927216 // indirect
 	github.com/golang/protobuf v1.5.0
 	github.com/google/gofuzz v1.0.0
 	github.com/jaekwon/testify v1.6.1

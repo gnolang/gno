@@ -1,4 +1,4 @@
-package common
+package std
 
 import (
 	"bytes"
