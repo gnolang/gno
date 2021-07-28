@@ -1,10 +1,9 @@
 package client
 
 import (
-	"errors"
-
 	"github.com/gnolang/gno/pkgs/command"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
+	"github.com/gnolang/gno/pkgs/errors"
 )
 
 type DeleteOptions struct {
@@ -17,6 +16,11 @@ var DefaultDeleteOptions = DeleteOptions{}
 
 func deleteApp(cmd *command.Command, args []string, iopts interface{}) error {
 	var opts DeleteOptions = iopts.(DeleteOptions)
+
+	if len(args) != 1 {
+		cmd.ErrPrintfln("Usage: delete <keyname>")
+		return errors.New("invalid args")
+	}
 
 	name := args[0]
 
@@ -57,7 +61,7 @@ func deleteApp(cmd *command.Command, args []string, iopts interface{}) error {
 	if err != nil {
 		return err
 	}
-	cmd.ErrPrintln("Key deleted forever (uh oh!)")
+	cmd.ErrPrintln("Key deleted")
 	return nil
 }
 

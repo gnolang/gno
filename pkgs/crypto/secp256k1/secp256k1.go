@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"crypto/subtle"
-	"fmt"
 	"io"
 	"math/big"
 
@@ -136,7 +135,7 @@ func (pubKey PubKeySecp256k1) Bytes() []byte {
 }
 
 func (pubKey PubKeySecp256k1) String() string {
-	return fmt.Sprintf("PubKeySecp256k1{%X}", pubKey[:])
+	return crypto.PubKeyToBech32(pubKey)
 }
 
 func (pubKey PubKeySecp256k1) Equals(other crypto.PubKey) bool {

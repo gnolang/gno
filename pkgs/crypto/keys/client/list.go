@@ -1,10 +1,9 @@
 package client
 
 import (
-	"fmt"
-
 	"github.com/gnolang/gno/pkgs/command"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
+	"github.com/gnolang/gno/pkgs/errors"
 )
 
 type ListOptions struct {
@@ -14,6 +13,12 @@ type ListOptions struct {
 var DefaultListOptions = ListOptions{}
 
 func listApp(cmd *command.Command, args []string, iopts interface{}) error {
+
+	if len(args) != 0 {
+		cmd.ErrPrintfln("Usage: list (no args)")
+		return errors.New("invalid args")
+	}
+
 	opts := iopts.(ListOptions)
 	kb, err := keys.NewKeyBaseFromDir(opts.Home)
 	if err != nil {
@@ -22,13 +27,19 @@ func listApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 	infos, err := kb.List()
 	if err == nil {
-		printInfos(infos)
+		printInfos(cmd, infos)
 	}
 	return err
 }
 
-func printInfos(infos []keys.Info) {
+func printInfos(cmd *command.Command, infos []keys.Info) {
 	for i, info := range infos {
-		fmt.Println(">>> [XXX TODO IMPROVE LISTING]", i, info)
+		keyname := info.GetName()
+		keytype := info.GetType()
+		keypub := info.GetPubKey()
+		keyaddr := info.GetAddress()
+		keypath, _ := info.GetPath()
+		cmd.Printfln("%d. %s (%s) - addr: %v pub: %v, path: %v",
+			i, keyname, keytype, keyaddr, keypub, keypath)
 	}
 }
