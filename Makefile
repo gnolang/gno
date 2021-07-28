@@ -28,5 +28,6 @@ test:
 
 
 # TODO stringer -type=Op
-# Unsure what the above refers to. Created a basic Makefile.
-
+# $ find pkgs/crypto/ | grep "pbbindings" | xargs rm
+# $ find pkgs/crypto/ | grep "pb.go" | xargs rm
+# $ go run cmd/genproto/genproto.go

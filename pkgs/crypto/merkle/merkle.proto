@@ -1,0 +1,15 @@
+syntax = "proto3";
+package tm;
+
+option go_package = "github.com/gnolang/gno/pkgs/crypto/merkle/pb";
+
+// messages
+message ProofOp {
+	string Type = 1;
+	bytes Key = 2;
+	bytes Data = 3;
+}
+
+message Proof {
+	repeated ProofOp Ops = 1;
+}

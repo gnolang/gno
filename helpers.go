@@ -665,11 +665,11 @@ func Len(x Expr) *CallExpr {
 
 func Var(name interface{}, typ Expr, value Expr) *DeclStmt {
 	return &DeclStmt{
-		Decls: []Decl{&ValueDecl{
-			NameExpr: *Nx(name),
-			Type:     typ,
-			Value:    value,
-			Const:    false,
+		Body: []Stmt{&ValueDecl{
+			NameExprs: []NameExpr{*Nx(name)},
+			Type:      typ,
+			Values:    []Expr{value},
+			Const:     false,
 		}},
 	}
 }

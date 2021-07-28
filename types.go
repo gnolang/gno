@@ -2073,7 +2073,7 @@ func applySpecifics(lookup map[Name]Type, tmpl Type) (Type, bool) {
 				gx = Preprocess(nil, bs, gx).(Expr)
 				// Evalute type from generic expression.
 				m := NewMachine("")
-				tv := m.StaticEval(bs, gx)
+				tv := m.EvalStatic(bs, gx)
 				return tv.GetType(), true
 			}
 		} else { // simply return

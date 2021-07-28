@@ -102,11 +102,6 @@ const (
 
 type Name string
 
-// Lets Name be embedded and become "nameful".
-func (n Name) GetName() Name {
-	return n
-}
-
 //----------------------------------------
 // Attributes
 // All nodes have attributes for general analysis purposes.
@@ -297,6 +292,8 @@ type NameExpr struct {
 	Name
 }
 
+type NameExprs []NameExpr
+
 type BasicLitExpr struct {
 	Attributes
 	// INT, FLOAT, IMAG, CHAR, or STRING
@@ -315,9 +312,10 @@ type BinaryExpr struct { // (Left Op Right)
 
 type CallExpr struct { // Func(Args<Varg?...>)
 	Attributes
-	Func Expr  // function expression
-	Args Exprs // function arguments, if any.
-	Varg bool  // if true, final arg is variadic.
+	Func    Expr  // function expression
+	Args    Exprs // function arguments, if any.
+	Varg    bool  // if true, final arg is variadic.
+	NumArgs int   // len(Args) or len(Args[0].Results)
 }
 
 type IndexExpr struct { // X[Index]
@@ -562,7 +560,7 @@ type StructTypeExpr struct {
 type constTypeExpr struct {
 	Attributes
 	Source Expr
-	Type
+	Type   Type
 }
 
 //----------------------------------------
@@ -662,7 +660,7 @@ type BranchStmt struct {
 
 type DeclStmt struct {
 	Attributes
-	Decls Decls // (simple) ValueDecl or TypeDecl
+	Body // (simple) ValueDecl or TypeDecl
 }
 
 type DeferStmt struct {
@@ -817,11 +815,30 @@ func (s *bodyStmt) PopActiveStmt() (as Stmt) {
 }
 
 func (s *bodyStmt) String() string {
-	return fmt.Sprintf("bodyStmt[%d/%d/%d]=%v",
+	next := ""
+	if s.BodyIndex < 0 {
+		next = "(init)"
+	} else if s.BodyIndex == len(s.Body) {
+		next = "(end)"
+	} else {
+		next = s.Body[s.BodyIndex].String()
+	}
+	active := ""
+	if s.Active != nil {
+		if s.BodyIndex < 0 || s.BodyIndex == len(s.Body) {
+			// none
+		} else if s.Body[s.BodyIndex] == s.Active {
+			active = "*"
+		} else {
+			active = fmt.Sprintf(" unexpected active: %v", s.Active)
+		}
+	}
+	return fmt.Sprintf("bodyStmt[%d/%d/%d]=%s%s",
 		s.ListLen,
 		s.ListIndex,
 		s.BodyIndex,
-		s.Active)
+		next,
+		active)
 }
 
 //----------------------------------------
@@ -849,7 +866,7 @@ func (*AssignStmt) assertSimpleStmt() {}
 
 type Decl interface {
 	Node
-	GetName() Name
+	GetDeclNames() []Name
 	assertDecl()
 }
 
@@ -876,18 +893,42 @@ type FuncDecl struct {
 	Body                   // function body; or empty for external (non-Go) function
 }
 
+func (fd *FuncDecl) GetDeclNames() []Name {
+	return []Name{fd.NameExpr.Name}
+}
+
 type ImportDecl struct {
 	Attributes
 	NameExpr // local package name, or ".". required.
 	PkgPath  string
 }
 
+func (id *ImportDecl) GetDeclNames() []Name {
+	if id.NameExpr.Name == "." {
+		return nil // ignore
+	} else {
+		return []Name{id.NameExpr.Name}
+	}
+}
+
 type ValueDecl struct {
 	Attributes
-	NameExpr
-	Type  Expr // value type; or nil
-	Value Expr // initial value; or nil (unless const).
-	Const bool
+	NameExprs
+	Type   Expr  // value type; or nil
+	Values Exprs // initial value; or nil (unless const).
+	Const  bool
+}
+
+func (vd *ValueDecl) GetDeclNames() []Name {
+	ns := make([]Name, 0, len(vd.NameExprs))
+	for _, nx := range vd.NameExprs {
+		if nx.Name == "_" {
+			// ignore
+		} else {
+			ns = append(ns, nx.Name)
+		}
+	}
+	return ns
 }
 
 type TypeDecl struct {
@@ -897,21 +938,46 @@ type TypeDecl struct {
 	IsAlias bool // type alias since Go 1.9
 }
 
-//----------------------------------------
-// SimpleDecl
-
-type SimpleDecl interface {
-	Decl
-	assertSimpleDecl()
+func (td *TypeDecl) GetDeclNames() []Name {
+	if td.NameExpr.Name == "_" {
+		return nil // ignore
+	} else {
+		return []Name{td.NameExpr.Name}
+	}
 }
 
-type SimpleDecls []SimpleDecl
+func HasDeclName(d Decl, n2 Name) bool {
+	ns := d.GetDeclNames()
+	for _, n := range ns {
+		if n == n2 {
+			return true
+		}
+	}
+	return false
+}
 
-func (_ *ValueDecl) assertSimpleDecl() {}
-func (_ *TypeDecl) assertSimpleDecl()  {}
+//----------------------------------------
+// SimpleDeclStmt
+//
+// These are elements of DeclStmt, and get pushed to m.Stmts.
 
-var _ SimpleDecl = &ValueDecl{}
-var _ SimpleDecl = &TypeDecl{}
+type SimpleDeclStmt interface {
+	Decl
+	Stmt
+	assertSimpleDeclStmt()
+}
+
+// not used to avoid itable costs.
+// type SimpleDeclStmts []SimpleDeclStmt
+
+func (_ *ValueDecl) assertSimpleDeclStmt() {}
+func (_ *TypeDecl) assertSimpleDeclStmt()  {}
+
+func (_ *ValueDecl) assertStmt() {}
+func (_ *TypeDecl) assertStmt()  {}
+
+var _ SimpleDeclStmt = &ValueDecl{}
+var _ SimpleDeclStmt = &TypeDecl{}
 
 //----------------------------------------
 // *FileSet
@@ -947,7 +1013,7 @@ func (fs *FileSet) GetDeclFor(n Name) (*FileNode, *Decl) {
 			if _, isImport := dn.(*ImportDecl); isImport {
 				continue
 			}
-			if dn.GetName() == n {
+			if HasDeclName(dn, n) {
 				// found the decl that declares n.
 				return fn, &fn.Decls[i]
 			}
@@ -1091,7 +1157,7 @@ type BlockNode interface {
 	GetStaticBlock() *StaticBlock
 
 	// StaticBlock promoted methods
-	GetNames() []Name
+	GetBlockNames() []Name
 	GetNumNames() uint16
 	GetParent() BlockNode
 	GetPathForName(Name) ValuePath
@@ -1122,9 +1188,17 @@ func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 		panic("StaticBlock.Names already initalized")
 	}
 	if parent == nil {
-		sb.Block = *NewBlock(source, nil)
+		sb.Block = Block{
+			Source: source,
+			Values: nil,
+			Parent: nil,
+		}
 	} else {
-		sb.Block = *NewBlock(source, parent.GetStaticBlock().GetBlock())
+		sb.Block = Block{
+			Source: source,
+			Values: nil,
+			Parent: parent.GetStaticBlock().GetBlock(),
+		}
 	}
 	sb.NumNames = 0
 	sb.Names = make(map[Name]uint16)
@@ -1143,7 +1217,7 @@ func (sb *StaticBlock) GetBlock() *Block {
 }
 
 // Implements BlockNode.
-func (sb *StaticBlock) GetNames() (ns []Name) {
+func (sb *StaticBlock) GetBlockNames() (ns []Name) {
 	ns = make([]Name, sb.NumNames)
 	for n, idx := range sb.Names {
 		ns[int(idx)] = n
@@ -1286,7 +1360,7 @@ func (sb *StaticBlock) Define2(n Name, st Type, tv TypedValue) {
 			"StaticBlock.Define(%s, %v)\n",
 			n, tv)
 	}
-	// TODO check that tv.T implements st.
+	// TODO check that tv.T implements t.
 	if len(n) == 0 {
 		panic("name cannot be zero")
 	}

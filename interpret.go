@@ -226,14 +226,14 @@ func (m *Machine) Eval(x Expr) TypedValue {
 // Evaluate any preprocessed expression statically.
 // This is primiarily used by the preprocessor to evaluate
 // static types and values.
-func (m *Machine) StaticEval(last BlockNode, x Expr) TypedValue {
+func (m *Machine) EvalStatic(last BlockNode, x Expr) TypedValue {
 	if debug {
-		m.Printf("Machine.StaticEval(%v, %v)\n", last, x)
+		m.Printf("Machine.EvalStatic(%v, %v)\n", last, x)
 	}
 	// X must have been preprocessed.
 	if x.GetAttribute(ATTR_PREPROCESSED) == nil {
 		panic(fmt.Sprintf(
-			"Machine.StaticEval(x) expression not yet preprocessed: %s",
+			"Machine.EvalStatic(x) expression not yet preprocessed: %s",
 			x.String()))
 	}
 	// Temporarily push last to m.Blocks.
@@ -255,14 +255,14 @@ func (m *Machine) StaticEval(last BlockNode, x Expr) TypedValue {
 // Evaluate the type of any preprocessed expression statically.
 // This is primiarily used by the preprocessor to evaluate
 // static types of nodes.
-func (m *Machine) StaticEvalTypeOf(last BlockNode, x Expr) Type {
+func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 	if debug {
-		m.Printf("Machine.StaticEvalTypeOf(%v, %v)\n", last, x)
+		m.Printf("Machine.EvalStaticTypeOf(%v, %v)\n", last, x)
 	}
 	// X must have been preprocessed.
 	if x.GetAttribute(ATTR_PREPROCESSED) == nil {
 		panic(fmt.Sprintf(
-			"Machine.StaticEvalTypeOf(x) expression not yet preprocessed: %s",
+			"Machine.EvalStaticTypeOf(x) expression not yet preprocessed: %s",
 			x.String()))
 	}
 	// Temporarily push last to m.Blocks.
@@ -272,7 +272,7 @@ func (m *Machine) StaticEvalTypeOf(last BlockNode, x Expr) Type {
 	m.PushOp(OpHalt)
 	m.PushOp(OpPopBlock)
 	m.PushExpr(x)
-	m.PushOp(OpTypeOf)
+	m.PushOp(OpStaticTypeOf)
 	m.Run()
 	res := m.ReapValues(start)
 	if len(res) != 1 {
@@ -311,113 +311,21 @@ func (m *Machine) RunDeclaration(d Decl) {
 // package level, for which evaluations happen during
 // preprocessing).
 func (m *Machine) runDeclaration(d Decl) {
-	last := m.LastBlock()
 	switch d := d.(type) {
 	case *FuncDecl:
 		// nothing to do.
 		// closure and package already set
 		// during PackageNode.NewPackage().
 	case *ValueDecl:
-		// XXX Use async w/ ops.
-		var tv TypedValue
-		var t Type
-		// Sync-evaluate Expr.
-		// Evaluate .Type if set.
-		if d.Type != nil {
-			m.PushOp(OpHalt)
-			m.PushExpr(d.Type)
-			m.PushOp(OpEval)
-			m.Run()
-			t = m.PopValue().GetType()
-		}
-		// Evaluate .Value.
-		if d.Value != nil {
-			m.PushOp(OpHalt)
-			m.PushExpr(d.Value)
-			m.PushOp(OpEval)
-			m.Run()
-			tv = *m.PopValue()
-			if isUntyped(tv.T) {
-				if d.Const {
-					// const x t? = y;
-					// if t isn't nil, convert.
-					if t != nil {
-						ConvertUntypedTo(&tv, t)
-					}
-				} else {
-					// var x t? = y;
-					// whether t is nil or nit, convert.
-					ConvertUntypedTo(&tv, t)
-				}
-			} else if t != nil {
-				if t.Kind() == InterfaceKind {
-					// keep tv as is.
-				} else {
-					if debug {
-						if isConst(d.Value) {
-							if t.TypeID() != tv.T.TypeID() {
-								panic(fmt.Sprintf(
-									"type mismatch: %s vs %s "+
-										"(const expr type should be exact)",
-									t.TypeID(),
-									tv.T.TypeID(),
-								))
-							}
-						} else if baseOf(t).TypeID() != tv.T.TypeID() {
-							panic(fmt.Sprintf(
-								"type mismatch: %s vs %s",
-								t.TypeID(),
-								tv.T.TypeID(),
-							))
-						}
-					}
-					// convert type to t.
-					tv.T = t
-				}
-			}
-		} else { // initialize zero .Value.
-			tv.T = t
-			tv.V = defaultValue(t)
-		}
-		ptr := last.GetPointerTo(d.Path)
-		ptr.Assign2(m.Realm, tv, false)
+		m.PushOp(OpHalt)
+		m.PushStmt(d)
+		m.PushOp(OpExec)
+		m.Run()
 	case *TypeDecl:
-		var t Type
-		if false {
-			// This is how a type decl would be implemented.
-			// It works, but not in conjuction with those Type
-			// instances created already by the preprocessor.
-			// Since the preprocessor needed to compute (some)
-			// types without this function anyways (for this
-			// one is optimized and requires the preprocessor),
-			// those ones are used instead.
-			// XXX use async w/ ops.
-			m.PushOp(OpHalt)
-			m.PushExpr(d.Type)
-			m.PushOp(OpEval)
-			m.Run()
-			t = m.PopValue().GetType()
-			if d.IsAlias {
-				// Just use t.
-			} else {
-				// XXX If there are any unexported fields, we
-				// need to filter them.  This probalby means we
-				// should always copy the type regardless, to
-				// keep things consistent, for otherwise say
-				// StructType.PkgPath issues will emerge.  XXX
-				// include more info in pkgpath to distinguish
-				// between inner scope type decls of the same
-				// name.
-				bt := baseOf(m.PopValue().GetType())
-				t = declareWith(m.Package.PkgPath, d.Name, bt)
-			}
-		} else {
-			// (from preprocessor)
-			t = d.Type.(*constTypeExpr).Type
-		}
-		tv := asValue(t)
-		ptr := last.GetPointerTo(d.Path)
-		ptr.Assign2(m.Realm, tv, false)
+		m.PushOp(OpHalt)
+		m.PushStmt(d)
+		m.PushOp(OpExec)
+		m.Run()
 	default:
 		// Do nothing for package constants.
 	}
@@ -492,7 +400,7 @@ const (
 	OpRef          Op = 0x47 // &X
 	OpTypeAssert1  Op = 0x48 // X.(Type)
 	OpTypeAssert2  Op = 0x49 // (_, ok :=) X.(Type)
-	OpTypeOf       Op = 0x4A // X.(type)
+	OpStaticTypeOf Op = 0x4A // static type of X
 	OpCompositeLit Op = 0x4B // X{???}
 	OpArrayLit     Op = 0x4C // [Len]{...}
 	OpSliceLit     Op = 0x4D // []{...}
@@ -534,7 +442,8 @@ const (
 	OpDec         Op = 0x8E // X--
 
 	/* Decl operators */
-	OpValueDecl Op = 0x90 // (var|const) Name X = Y
+	OpValueDecl Op = 0x90 // var/const ...
+	OpTypeDecl  Op = 0x91 // type ...
 
 	/* Loop (sticky) operators (>= 0xD0) */
 	OpSticky            Op = 0xD0 // not a real op.
@@ -671,8 +580,8 @@ func (m *Machine) Run() {
 			m.doOpTypeAssert1()
 		case OpTypeAssert2:
 			m.doOpTypeAssert2()
-		case OpTypeOf:
-			m.doOpTypeOf()
+		case OpStaticTypeOf:
+			m.doOpStaticTypeOf()
 		case OpCompositeLit:
 			m.doOpCompositeLit()
 		case OpArrayLit:
@@ -741,7 +650,10 @@ func (m *Machine) Run() {
 		case OpDec:
 			m.doOpDec()
 		/* Decl operators */
-		// TODO
+		case OpValueDecl:
+			m.doOpValueDecl()
+		case OpTypeDecl:
+			m.doOpTypeDecl()
 		/* Loop (sticky) operators */
 		case OpBody:
 			m.doOpExec(op)
@@ -1002,7 +914,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 		Func:        fv,
 		GoFunc:      nil,
 		Receiver:    recv,
-		NumArgs:     len(cx.Args),
+		NumArgs:     cx.NumArgs,
 		IsVarg:      cx.Varg,
 		Defers:      nil,
 		LastPackage: m.Package,
@@ -1041,7 +953,7 @@ func (m *Machine) PushFrameGoNative(cx *CallExpr, fv *nativeValue) {
 		Func:        nil,
 		GoFunc:      fv,
 		Receiver:    TypedValue{},
-		NumArgs:     len(cx.Args),
+		NumArgs:     cx.NumArgs,
 		IsVarg:      cx.Varg,
 		Defers:      nil,
 		LastPackage: m.Package,
@@ -1090,7 +1002,7 @@ func (m *Machine) PopFrameAndReturn() {
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts]
 	m.Blocks = m.Blocks[:fr.NumBlocks]
-	// convert results to typed-nil if undefined
+	// convert results to typed-nil if undefined and not iface kind.
 	// and not func result type isn't interface kind.
 	for i := 0; i < numRes; i++ {
 		rtv := &m.Values[m.NumValues+i]
@@ -1288,8 +1200,10 @@ func (m *Machine) String() string {
 			b.StringIndented("            ")))
 		if b.Source != nil {
 			sb := b.Source.GetStaticBlock().GetBlock()
-			bs = append(bs, fmt.Sprintf(" (static) %s(%d) %s", gens, gen,
+			bs = append(bs, fmt.Sprintf(" (static values) %s(%d) %s", gens, gen,
 				sb.StringIndented("            ")))
+			sts := b.Source.GetStaticBlock().Types
+			bs = append(bs, fmt.Sprintf(" (static types) %s(%d) %s", gens, gen, sts))
 		}
 	}
 	obs := []string{}

@@ -697,9 +697,24 @@ EXEC_SWITCH:
 		}
 	case *DeclStmt:
 		m.PopStmt()
-		for _, d := range cs.Decls {
-			m.runDeclaration(d)
+		for i := len(cs.Body) - 1; 0 <= i; i-- {
+			m.PushStmt(cs.Body[i])
+			m.PushOp(OpExec)
 		}
+	case *ValueDecl: // SimpleDeclStmt
+		m.PushOp(OpValueDecl)
+		if cs.Type != nil {
+			m.PushExpr(cs.Type)
+			m.PushOp(OpEval)
+		}
+		for i := len(cs.Values) - 1; 0 <= i; i-- {
+			m.PushExpr(cs.Values[i])
+			m.PushOp(OpEval)
+		}
+	case *TypeDecl: // SimpleDeclStmt
+		m.PushOp(OpTypeDecl)
+		m.PushExpr(cs.Type)
+		m.PushOp(OpEval)
 	case *DeferStmt:
 		// continuation
 		m.PushOp(OpDefer)

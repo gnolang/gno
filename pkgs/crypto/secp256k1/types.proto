@@ -1,0 +1,13 @@
+syntax = "proto3";
+package tm;
+
+option go_package = "github.com/gnolang/gno/pkgs/crypto/secp256k1/pb";
+
+// messages
+message PubKeySecp256k1 {
+	bytes Value = 1;
+}
+
+message PrivKeySecp256k1 {
+	bytes Value = 1;
+}

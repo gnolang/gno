@@ -150,6 +150,7 @@ func (m *Machine) doOpStar() {
 	}
 }
 
+// XXX this is wrong, for var i interface{}; &i is *interface{}.
 func (m *Machine) doOpRef() {
 	rx := m.PopExpr().(*RefExpr)
 	xv := m.PopAsPointer(rx.X)
@@ -165,6 +166,8 @@ func (m *Machine) doOpRef() {
 			nv.Value = rv2
 		}
 	}
+	// XXX this is wrong, if rx.X is interface type,
+	// XXX then the type should be &PointerType{Elt: staticTypeOf(xv)}
 	m.PushValue(TypedValue{
 		T: &PointerType{Elt: xv.T},
 		V: xv,

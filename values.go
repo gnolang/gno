@@ -66,9 +66,9 @@ type DataByteValue struct {
 
 // Base is set if the pointer refers to an array index or
 // struct field or block var.
-// A pointer constructed via a &x{} composite lit expression or
-// constructed via new() or make() are independent objects, and
-// have nil Base.
+// A pointer constructed via a &x{} composite lit
+// expression or constructed via new() or make() are
+// independent objects, and have nil Base.
 // A pointer to a block var may end up pointing to an escape
 // value after a block var escapes "to the heap".
 // *(PointerValue.TypedValue) must have already become
@@ -1116,6 +1116,7 @@ func (tv *TypedValue) Assign(tv2 TypedValue, cu bool) {
 			panic("should not happen")
 		}
 	}
+	// XXX make this faster and dryer.
 	switch ct := baseOf(tv.T).(type) {
 	case PrimitiveType:
 		if ct == DataByteType {
@@ -1127,8 +1128,9 @@ func (tv *TypedValue) Assign(tv2 TypedValue, cu bool) {
 			}
 		}
 	case *nativeType:
-		// XXX what about assigning primitive/string/other-gno types
-		// to say, native slices, arrays, structs, maps?
+		// XXX what about assigning
+		// primitive/string/other-gno types to say, native
+		// slices, arrays, structs, maps?
 		switch v2 := tv2.V.(type) {
 		case PointerValue:
 			nv1 := tv.V.(*nativeValue)
@@ -1178,18 +1180,16 @@ func (tv *TypedValue) Assign(tv2 TypedValue, cu bool) {
 			panic("should not happen")
 		}
 	case *StructType: // XXX path index+other.
-		if tv2.IsUndefined() {
-			*tv = TypedValue{}
-		} else {
+		if !tv2.IsUndefined() {
 			if debug {
 				if tv.T.TypeID() != tv2.T.TypeID() {
 					panic(fmt.Sprintf("mismatched types: cannot assign %v to %v",
 						tv2.String(), tv.T.String()))
 				}
 			}
-			// XXX fix realm refcount logic.
-			*tv = tv2.Copy()
 		}
+		// XXX fix realm refcount logic.
+		*tv = tv2.Copy()
 	case nil:
 		*tv = tv2.Copy()
 		if cu && isUntyped(tv.T) {
@@ -1625,8 +1625,9 @@ func (tv *TypedValue) GetPointerAtIndex(iv *TypedValue) PointerValue {
 		}
 	default:
 		panic(fmt.Sprintf(
-			"unexpected index base type %s",
-			tv.T.String()))
+			"unexpected index base type %s (%v)",
+			tv.T.String(),
+			reflect.TypeOf(tv.T)))
 	}
 }
 
@@ -1898,7 +1899,7 @@ func (b *Block) StringIndented(indent string) string {
 		fmt.Sprintf("Block(Addr:%p,Source:%s,Parent:%p)",
 			b, source, b.Parent))
 	if b.Source != nil {
-		for i, n := range b.Source.GetNames() {
+		for i, n := range b.Source.GetBlockNames() {
 			if len(b.Values) <= i {
 				lines = append(lines,
 					fmt.Sprintf("%s%s: undefined", indent, n))
@@ -1991,6 +1992,8 @@ func (b *Block) ExpandToSize(size uint16) {
 
 func defaultValue(t Type) Value {
 	switch ct := baseOf(t).(type) {
+	case nil:
+		panic("unexpected nil type")
 	case *ArrayType:
 		tvs := make([]TypedValue, ct.Len)
 		return &ArrayValue{
@@ -2000,6 +2003,10 @@ func defaultValue(t Type) Value {
 		return &StructValue{
 			Fields: make([]TypedValue, len(ct.Fields)),
 		}
+	case *SliceType:
+		return nil
+	case *MapType:
+		return nil
 	case *nativeType:
 		if t.Kind() == InterfaceKind {
 			return nil
@@ -2008,10 +2015,6 @@ func defaultValue(t Type) Value {
 				Value: reflect.New(ct.Type).Elem(),
 			}
 		}
-	case *SliceType:
-		return nil
-	case *MapType:
-		return nil
 	default:
 		return nil
 	}

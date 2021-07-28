@@ -1,7 +1,7 @@
 package main
 
 func main() {
-	var foo struct{
+	var foo struct {
 		yolo string
 	}
 
@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// ../_test/redeclaration4.go:8:7: foo redeclared in this block
+// files/redeclaration4.go:8:7: foo redeclared in this block

@@ -165,10 +165,9 @@ func makeTestString() string {
 func makeTestPage() *logos.BufferedElemView {
 	// make a buffered page.
 	ts := makeTestString()
-	style := logos.Style{
-		Padding: logos.Padding{2, 2, 2, 2},
-		Border:  logos.Border{HasBorder: true},
-	}
+	style := logos.DefaultStyle()
+	style.Padding = logos.Padding{2, 2, 2, 2}
+	style.Border = logos.DefaultBorder()
 	// TODO width shouldn't matter.
 	page := logos.NewPage(ts, 84, true, style)
 	bpv := logos.NewBufferedElemView(page, logos.Size{})
