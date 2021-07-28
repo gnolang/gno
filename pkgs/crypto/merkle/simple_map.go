@@ -33,7 +33,7 @@ func (sm *simpleMap) Set(key string, value []byte) {
 	// and make a determination to fetch or not.
 	vhash := tmhash.Sum(value)
 
-	sm.kvs = append(sm.kvs, cmn.KVPair{
+	sm.kvs = append(sm.kvs, std.KVPair{
 		Key:   []byte(key),
 		Value: vhash,
 	})
@@ -56,9 +56,9 @@ func (sm *simpleMap) Sort() {
 
 // Returns a copy of sorted KVPairs.
 // NOTE these contain the hashed key and value.
-func (sm *simpleMap) KVPairs() cmn.KVPairs {
+func (sm *simpleMap) KVPairs() std.KVPairs {
 	sm.Sort()
-	kvs := make(cmn.KVPairs, len(sm.kvs))
+	kvs := make(std.KVPairs, len(sm.kvs))
 	copy(kvs, sm.kvs)
 	return kvs
 }
@@ -68,7 +68,7 @@ func (sm *simpleMap) KVPairs() cmn.KVPairs {
 // A local extension to KVPair that can be hashed.
 // Key and value are length prefixed and concatenated,
 // then hashed.
-type KVPair cmn.KVPair
+type KVPair std.KVPair
 
 // Bytes returns key || value, with both the
 // key and value length prefixed.
@@ -85,7 +85,7 @@ func (kv KVPair) Bytes() []byte {
 	return b.Bytes()
 }
 
-func hashKVPairs(kvs cmn.KVPairs) []byte {
+func hashKVPairs(kvs std.KVPairs) []byte {
 	kvsH := make([][]byte, len(kvs))
 	for i, kvp := range kvs {
 		kvsH[i] = KVPair(kvp).Bytes()

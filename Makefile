@@ -24,10 +24,17 @@ clean:
 test:
 	echo "Running tests"
 	go test
-	go test tests/*.go -v -run="Test/realm.go"
+	go test tests/*.go -v -test.short
 
+test2:
+	# -p 1 shows test failures as they come
+	# maybe another way to do this?
+	go test ./pkgs/... -v -p 1
 
-# TODO stringer -type=Op
-# TODO $ find pkgs/crypto/ | grep "pbbindings" | xargs rm
-#      $ find pkgs/crypto/ | grep "pb.go" | xargs rm
-#      $ go run cmd/genproto/genproto.go
+stringer:
+	stringer -type=Op
+
+genproto:
+	find pkgs/crypto/ | grep "pbbindings" | xargs rm
+	find pkgs/crypto/ | grep "pb.go" | xargs rm
+	go run cmd/genproto/genproto.go
