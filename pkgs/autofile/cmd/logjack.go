@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	auto "github.com/tendermint/classic/libs/autofile"
-	cmn "github.com/tendermint/classic/libs/common"
+	auto "github.com/gnolang/gno/pkgs/autofile"
+	osm "github.com/gnolang/gno/pkgs/os"
 )
 
 const Version = "0.0.1"
@@ -41,7 +41,7 @@ func (fmtLogger) Info(msg string, keyvals ...interface{}) {
 
 func main() {
 	// Stop upon receiving SIGTERM or CTRL-C.
-	cmn.TrapSignal(fmtLogger{}, func() {
+	osm.TrapSignal(fmtLogger{}, func() {
 		fmt.Println("logjack shutting down")
 	})
 
