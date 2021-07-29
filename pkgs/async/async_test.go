@@ -1,13 +1,14 @@
-package common
+package async
 
 import (
-	"errors"
 	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/gnolang/gno/pkgs/errors"
 )
 
 func TestParallel(t *testing.T) {
@@ -138,7 +139,7 @@ func checkResult(t *testing.T, taskResultSet *TaskResultSet, index int, val inte
 	case err != nil:
 		assert.Equal(t, err, taskResult.Error, taskName)
 	case pnk != nil:
-		assert.Equal(t, pnk, taskResult.Error.(Error).Data(), taskName)
+		assert.Equal(t, pnk, taskResult.Error.(errors.Error).Data(), taskName)
 	default:
 		assert.Nil(t, taskResult.Error, taskName)
 	}

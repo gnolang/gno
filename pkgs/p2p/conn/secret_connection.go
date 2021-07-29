@@ -14,16 +14,16 @@ import (
 	"time"
 
 	pool "github.com/libp2p/go-buffer-pool"
-	"github.com/pkg/errors"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/curve25519"
 	"golang.org/x/crypto/hkdf"
 	"golang.org/x/crypto/nacl/box"
 
-	"github.com/tendermint/classic/crypto"
-	"github.com/tendermint/classic/crypto/ed25519"
-	cmn "github.com/tendermint/classic/libs/common"
-	"github.com/tendermint/go-amino-x"
+	"github.com/gnolang/gno/pkgs/amino"
+	"github.com/gnolang/gno/pkgs/async"
+	"github.com/gnolang/gno/pkgs/crypto"
+	"github.com/gnolang/gno/pkgs/crypto/ed25519"
+	"github.com/gnolang/gno/pkgs/errors"
 )
 
 // 4 + 1024 == 1028 total frame size
@@ -137,7 +137,7 @@ func MakeSecretConnection(conn io.ReadWriteCloser, locPrivKey crypto.PrivKey) (*
 	remPubKey, remSignature := authSigMsg.Key, authSigMsg.Sig
 
 	if _, ok := remPubKey.(ed25519.PubKeyEd25519); !ok {
-		return nil, errors.Errorf("expected ed25519 pubkey, got %T", remPubKey)
+		return nil, errors.New("expected ed25519 pubkey, got %T", remPubKey)
 	}
 
 	if !remPubKey.VerifyBytes(challenge[:], remSignature) {
@@ -272,7 +272,7 @@ func genEphKeys() (ephPub, ephPriv *[32]byte) {
 func shareEphPubKey(conn io.ReadWriteCloser, locEphPub *[32]byte) (remEphPub *[32]byte, err error) {
 
 	// Send our pubkey and receive theirs in tandem.
-	var trs, _ = cmn.Parallel(
+	var trs, _ = async.Parallel(
 		func(_ int) (val interface{}, err error, abort bool) {
 			var _, err1 = amino.MarshalSizedWriter(conn, locEphPub)
 			if err1 != nil {
@@ -426,7 +426,7 @@ type authSigMessage struct {
 func shareAuthSignature(sc *SecretConnection, pubKey crypto.PubKey, signature []byte) (recvMsg authSigMessage, err error) {
 
 	// Send our info and receive theirs in tandem.
-	var trs, _ = cmn.Parallel(
+	var trs, _ = async.Parallel(
 		func(_ int) (val interface{}, err error, abort bool) {
 			var _, err1 = amino.MarshalSizedWriter(sc, authSigMessage{pubKey, signature})
 			if err1 != nil {

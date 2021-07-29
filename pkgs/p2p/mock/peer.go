@@ -3,14 +3,14 @@ package mock
 import (
 	"net"
 
-	"github.com/tendermint/classic/crypto/ed25519"
-	cmn "github.com/tendermint/classic/libs/common"
-	"github.com/tendermint/classic/p2p"
-	"github.com/tendermint/classic/p2p/conn"
+	"github.com/gnolang/gno/pkgs/crypto/ed25519"
+	"github.com/gnolang/gno/pkgs/p2p"
+	"github.com/gnolang/gno/pkgs/p2p/conn"
+	"github.com/gnolang/gno/pkgs/service"
 )
 
 type Peer struct {
-	*cmn.BaseService
+	*service.BaseService
 	ip                   net.IP
 	id                   p2p.ID
 	addr                 *p2p.NetAddress
@@ -35,7 +35,7 @@ func NewPeer(ip net.IP) *Peer {
 		addr: netAddr,
 		kv:   make(map[string]interface{}),
 	}
-	mp.BaseService = cmn.NewBaseService(nil, "MockPeer", mp)
+	mp.BaseService = service.NewBaseService(nil, "MockPeer", mp)
 	mp.Start()
 	return mp
 }

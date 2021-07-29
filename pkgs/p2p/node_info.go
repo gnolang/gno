@@ -3,8 +3,8 @@ package p2p
 import (
 	"fmt"
 
-	cmn "github.com/tendermint/classic/libs/common"
-	"github.com/tendermint/classic/libs/versionset"
+	"github.com/gnolang/gno/pkgs/strings"
+	"github.com/gnolang/gno/pkgs/versionset"
 )
 
 const (
@@ -75,7 +75,7 @@ func (info NodeInfo) Validate() error {
 
 	// Validate Version
 	if len(info.Version) > 0 &&
-		(!cmn.IsASCIIText(info.Version) || cmn.ASCIITrim(info.Version) == "") {
+		(!strings.IsASCIIText(info.Version) || strings.ASCIITrim(info.Version) == "") {
 
 		return fmt.Errorf("info.Version must be valid ASCII text without tabs, but got %v", info.Version)
 	}
@@ -94,7 +94,7 @@ func (info NodeInfo) Validate() error {
 	}
 
 	// Validate Moniker.
-	if !cmn.IsASCIIText(info.Moniker) || cmn.ASCIITrim(info.Moniker) == "" {
+	if !strings.IsASCIIText(info.Moniker) || strings.ASCIITrim(info.Moniker) == "" {
 		return fmt.Errorf("info.Moniker must be valid non-empty ASCII text without tabs, but got %v", info.Moniker)
 	}
 
@@ -108,7 +108,7 @@ func (info NodeInfo) Validate() error {
 	}
 	// XXX: Should we be more strict about address formats?
 	rpcAddr := other.RPCAddress
-	if len(rpcAddr) > 0 && (!cmn.IsASCIIText(rpcAddr) || cmn.ASCIITrim(rpcAddr) == "") {
+	if len(rpcAddr) > 0 && (!strings.IsASCIIText(rpcAddr) || strings.ASCIITrim(rpcAddr) == "") {
 		return fmt.Errorf("info.Other.RPCAddress=%v must be valid ASCII text without tabs", rpcAddr)
 	}
 

@@ -1,11 +1,11 @@
-package common
+package service
 
 import (
 	"errors"
 	"fmt"
 	"sync/atomic"
 
-	"github.com/tendermint/classic/libs/log"
+	"github.com/gnolang/gno/pkgs/log"
 )
 
 var (

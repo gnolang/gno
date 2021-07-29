@@ -14,10 +14,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tendermint/classic/config"
-	"github.com/tendermint/classic/crypto/ed25519"
-	"github.com/tendermint/classic/libs/log"
-	"github.com/tendermint/classic/p2p/conn"
+	"github.com/gnolang/gno/pkgs/crypto/ed25519"
+	"github.com/gnolang/gno/pkgs/log"
+	"github.com/gnolang/gno/pkgs/p2p/config"
+	"github.com/gnolang/gno/pkgs/p2p/conn"
 )
 
 var (

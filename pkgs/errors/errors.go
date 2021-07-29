@@ -21,6 +21,14 @@ func Wrap(cause interface{}, format string, args ...interface{}) Error {
 	}
 }
 
+func Cause(err error) error {
+	if cerr, ok := err.(*cmnError); ok {
+		return cerr.Data().(error)
+	} else {
+		return err
+	}
+}
+
 //----------------------------------------
 // Error & cmnError
 

@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/tendermint/classic/crypto"
-	"github.com/tendermint/classic/crypto/ed25519"
-	cmn "github.com/tendermint/classic/libs/common"
-	"github.com/tendermint/go-amino-x"
+	"github.com/gnolang/gno/pkgs/amino"
+	"github.com/gnolang/gno/pkgs/crypto"
+	"github.com/gnolang/gno/pkgs/crypto/ed25519"
+	osm "github.com/gnolang/gno/pkgs/os"
 )
 
 //------------------------------------------------------------------------------
@@ -28,7 +28,7 @@ func (nk NodeKey) ID() ID {
 // LoadOrGenNodeKey attempts to load the NodeKey from the given filePath.
 // If the file does not exist, it generates and saves a new NodeKey.
 func LoadOrGenNodeKey(filePath string) (*NodeKey, error) {
-	if cmn.FileExists(filePath) {
+	if osm.FileExists(filePath) {
 		nodeKey, err := LoadNodeKey(filePath)
 		if err != nil {
 			return nil, err

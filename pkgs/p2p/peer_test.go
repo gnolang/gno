@@ -7,16 +7,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tendermint/classic/crypto"
-	"github.com/tendermint/classic/crypto/ed25519"
-	"github.com/tendermint/classic/libs/log"
-
-	"github.com/tendermint/classic/config"
-	tmconn "github.com/tendermint/classic/p2p/conn"
+	"github.com/gnolang/gno/pkgs/crypto"
+	"github.com/gnolang/gno/pkgs/crypto/ed25519"
+	"github.com/gnolang/gno/pkgs/errors"
+	"github.com/gnolang/gno/pkgs/log"
+	"github.com/gnolang/gno/pkgs/p2p/config"
+	"github.com/gnolang/gno/pkgs/p2p/conn"
 )
 
 func TestPeerBasic(t *testing.T) {
@@ -27,7 +26,7 @@ func TestPeerBasic(t *testing.T) {
 	rp.Start()
 	defer rp.Stop()
 
-	p, err := createOutboundPeerAndPerformHandshake(rp.Addr(), cfg, tmconn.DefaultMConnConfig())
+	p, err := createOutboundPeerAndPerformHandshake(rp.Addr(), cfg, conn.DefaultMConnConfig())
 	require.Nil(err)
 
 	err = p.Start()
@@ -53,7 +52,7 @@ func TestPeerSend(t *testing.T) {
 	rp.Start()
 	defer rp.Stop()
 
-	p, err := createOutboundPeerAndPerformHandshake(rp.Addr(), config, tmconn.DefaultMConnConfig())
+	p, err := createOutboundPeerAndPerformHandshake(rp.Addr(), config, conn.DefaultMConnConfig())
 	require.Nil(err)
 
 	err = p.Start()
@@ -68,9 +67,9 @@ func TestPeerSend(t *testing.T) {
 func createOutboundPeerAndPerformHandshake(
 	addr *NetAddress,
 	config *config.P2PConfig,
-	mConfig tmconn.MConnConfig,
+	mConfig conn.MConnConfig,
 ) (*peer, error) {
-	chDescs := []*tmconn.ChannelDescriptor{
+	chDescs := []*conn.ChannelDescriptor{
 		{ID: testCh, Priority: 1},
 	}
 	reactorsByCh := map[byte]Reactor{testCh: NewTestReactor(chDescs, true)}

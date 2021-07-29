@@ -5,16 +5,15 @@ import (
 	"net"
 	"time"
 
-	"github.com/pkg/errors"
-
-	"github.com/tendermint/classic/crypto"
-	"github.com/tendermint/classic/crypto/ed25519"
-	cmn "github.com/tendermint/classic/libs/common"
-	"github.com/tendermint/classic/libs/log"
-	"github.com/tendermint/classic/libs/versionset"
-
-	"github.com/tendermint/classic/config"
-	"github.com/tendermint/classic/p2p/conn"
+	"github.com/gnolang/gno/pkgs/crypto"
+	"github.com/gnolang/gno/pkgs/crypto/ed25519"
+	"github.com/gnolang/gno/pkgs/errors"
+	"github.com/gnolang/gno/pkgs/log"
+	osm "github.com/gnolang/gno/pkgs/os"
+	"github.com/gnolang/gno/pkgs/p2p/config"
+	"github.com/gnolang/gno/pkgs/p2p/conn"
+	"github.com/gnolang/gno/pkgs/random"
+	"github.com/gnolang/gno/pkgs/versionset"
 )
 
 const testCh = 0x01
@@ -43,7 +42,7 @@ func CreateRoutableAddr() (addr string, netAddr *NetAddress) {
 	for {
 		var id crypto.ID = ed25519.GenPrivKey().PubKey().Address().ID()
 		var err error
-		addr = fmt.Sprintf("%s@%v.%v.%v.%v:26656", id, cmn.RandInt()%256, cmn.RandInt()%256, cmn.RandInt()%256, cmn.RandInt()%256)
+		addr = fmt.Sprintf("%s@%v.%v.%v.%v:26656", id, random.RandInt()%256, random.RandInt()%256, random.RandInt()%256, random.RandInt()%256)
 		netAddr, err = NewNetAddressFromString(addr)
 		if err != nil {
 			panic(err)
@@ -259,7 +258,7 @@ func testNodeInfoWithNetwork(id ID, name, network string) NodeInfo {
 }
 
 func getFreePort() uint16 {
-	port, err := cmn.GetFreePort()
+	port, err := osm.GetFreePort()
 	if err != nil {
 		panic(err)
 	}

@@ -6,11 +6,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
-
-	"github.com/tendermint/classic/config"
-	cmn "github.com/tendermint/classic/libs/common"
-	"github.com/tendermint/classic/p2p/conn"
+	"github.com/gnolang/gno/pkgs/cmap"
+	"github.com/gnolang/gno/pkgs/errors"
+	"github.com/gnolang/gno/pkgs/p2p/config"
+	"github.com/gnolang/gno/pkgs/p2p/conn"
+	"github.com/gnolang/gno/pkgs/random"
+	"github.com/gnolang/gno/pkgs/service"
 )
 
 const (
@@ -65,15 +66,15 @@ type PeerFilterFunc func(IPeerSet, Peer) error
 // or more `Channels`.  So while sending outgoing messages is typically performed on the peer,
 // incoming messages are received on the reactor.
 type Switch struct {
-	cmn.BaseService
+	service.BaseService
 
 	config       *config.P2PConfig
 	reactors     map[string]Reactor
 	chDescs      []*conn.ChannelDescriptor
 	reactorsByCh map[byte]Reactor
 	peers        *PeerSet
-	dialing      *cmn.CMap
-	reconnecting *cmn.CMap
+	dialing      *cmap.CMap
+	reconnecting *cmap.CMap
 	nodeInfo     NodeInfo // our node info
 	nodeKey      *NodeKey // our node privkey
 	addrBook     AddrBook
@@ -85,7 +86,7 @@ type Switch struct {
 	filterTimeout time.Duration
 	peerFilters   []PeerFilterFunc
 
-	rng *cmn.Rand // seed for randomizing dial times and orders
+	rng *random.Rand // seed for randomizing dial times and orders
 }
 
 // NetAddress returns the address the switch is listening on.
@@ -109,17 +110,17 @@ func NewSwitch(
 		chDescs:              make([]*conn.ChannelDescriptor, 0),
 		reactorsByCh:         make(map[byte]Reactor),
 		peers:                NewPeerSet(),
-		dialing:              cmn.NewCMap(),
-		reconnecting:         cmn.NewCMap(),
+		dialing:              cmap.NewCMap(),
+		reconnecting:         cmap.NewCMap(),
 		transport:            transport,
 		filterTimeout:        defaultFilterTimeout,
 		persistentPeersAddrs: make([]*NetAddress, 0),
 	}
 
 	// Ensure we have a completely undeterministic PRNG.
-	sw.rng = cmn.NewRand()
+	sw.rng = random.NewRand()
 
-	sw.BaseService = *cmn.NewBaseService(nil, "P2P Switch", sw)
+	sw.BaseService = *service.NewBaseService(nil, "P2P Switch", sw)
 
 	for _, option := range options {
 		option(sw)
@@ -214,7 +215,7 @@ func (sw *Switch) OnStart() error {
 	for _, reactor := range sw.reactors {
 		err := reactor.Start()
 		if err != nil {
-			return errors.Wrapf(err, "failed to start %v", reactor)
+			return errors.Wrap(err, "failed to start %v", reactor)
 		}
 	}
 

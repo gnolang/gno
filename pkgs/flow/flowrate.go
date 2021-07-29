@@ -2,9 +2,9 @@
 // Written by Maxim Khitrov (November 2012)
 //
 
-// Package flowrate provides the tools for monitoring and limiting the flow rate
+// Package flow provides the tools for monitoring and limiting the flow rate
 // of an arbitrary data stream.
-package flowrate
+package flow
 
 import (
 	"math"

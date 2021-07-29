@@ -13,12 +13,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/pkg/errors"
-
-	cmn "github.com/tendermint/classic/libs/common"
-	flow "github.com/tendermint/classic/libs/flowrate"
-	"github.com/tendermint/classic/libs/log"
-	amino "github.com/tendermint/go-amino-x"
+	"github.com/gnolang/gno/pkgs/amino"
+	"github.com/gnolang/gno/pkgs/errors"
+	"github.com/gnolang/gno/pkgs/flow"
+	"github.com/gnolang/gno/pkgs/log"
+	"github.com/gnolang/gno/pkgs/maths"
+	"github.com/gnolang/gno/pkgs/service"
+	"github.com/gnolang/gno/pkgs/timer"
 )
 
 const (
@@ -72,7 +73,7 @@ channel's queue is full.
 Inbound message bytes are handled with an onReceive callback function.
 */
 type MConnection struct {
-	cmn.BaseService
+	service.BaseService
 
 	conn          net.Conn
 	bufConnReader *bufio.Reader
@@ -100,8 +101,8 @@ type MConnection struct {
 	// are safe to call concurrently.
 	stopMtx sync.Mutex
 
-	flushTimer *cmn.ThrottleTimer // flush writes as necessary but throttled.
-	pingTimer  *time.Ticker       // send pings periodically
+	flushTimer *timer.ThrottleTimer // flush writes as necessary but throttled.
+	pingTimer  *time.Ticker         // send pings periodically
 
 	// close conn if pong is not received in pongTimeout
 	pongTimer     *time.Timer
@@ -185,7 +186,7 @@ func NewMConnectionWithConfig(conn net.Conn, chDescs []*ChannelDescriptor, onRec
 	mconn.channels = channels
 	mconn.channelsIdx = channelsIdx
 
-	mconn.BaseService = *cmn.NewBaseService(nil, "MConnection", mconn)
+	mconn.BaseService = *service.NewBaseService(nil, "MConnection", mconn)
 
 	// maxPacketMsgSize() is a bit heavy, so call just once
 	mconn._maxPacketMsgSize = mconn.maxPacketMsgSize()
@@ -205,7 +206,7 @@ func (c *MConnection) OnStart() error {
 	if err := c.BaseService.OnStart(); err != nil {
 		return err
 	}
-	c.flushTimer = cmn.NewThrottleTimer("flush", c.config.FlushThrottle)
+	c.flushTimer = timer.NewThrottleTimer("flush", c.config.FlushThrottle)
 	c.pingTimer = time.NewTicker(c.config.PingInterval)
 	c.pongTimeoutCh = make(chan bool, 1)
 	c.chStatsTimer = time.NewTicker(updateStats)
@@ -316,7 +317,7 @@ func (c *MConnection) flush() {
 func (c *MConnection) _recover() {
 	if r := recover(); r != nil {
 		c.Logger.Error("MConnection panicked", "err", r, "stack", string(debug.Stack()))
-		c.stopForError(errors.Errorf("recovered from panic: %v", r))
+		c.stopForError(errors.New("recovered from panic: %v", r))
 	}
 }
 
@@ -546,7 +547,7 @@ FOR_LOOP:
 		// Peek into bufConnReader for debugging
 		/*
 			if numBytes := c.bufConnReader.Buffered(); numBytes > 0 {
-				bz, err := c.bufConnReader.Peek(cmn.MinInt(numBytes, 100))
+				bz, err := c.bufConnReader.Peek(maths.MinInt(numBytes, 100))
 				if err == nil {
 					// return
 				} else {
@@ -804,14 +805,14 @@ func (ch *Channel) nextPacketMsg() PacketMsg {
 	packet := PacketMsg{}
 	packet.ChannelID = ch.desc.ID
 	maxSize := ch.maxPacketMsgPayloadSize
-	packet.Bytes = ch.sending[:cmn.MinInt(maxSize, len(ch.sending))]
+	packet.Bytes = ch.sending[:maths.MinInt(maxSize, len(ch.sending))]
 	if len(ch.sending) <= maxSize {
 		packet.EOF = byte(0x01)
 		ch.sending = nil
 		atomic.AddInt32(&ch.sendQueueSize, -1) // decrement sendQueueSize
 	} else {
 		packet.EOF = byte(0x00)
-		ch.sending = ch.sending[cmn.MinInt(maxSize, len(ch.sending)):]
+		ch.sending = ch.sending[maths.MinInt(maxSize, len(ch.sending)):]
 	}
 	return packet
 }
