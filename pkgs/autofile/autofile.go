@@ -7,7 +7,7 @@ import (
 	"syscall"
 	"time"
 
-	cmn "github.com/tendermint/classic/libs/common"
+	"github.com/gnolang/gno/pkgs/random"
 )
 
 /* AutoFile usage
@@ -58,7 +58,7 @@ type AutoFile struct {
 // permissions got changed (should be 0600)).
 func OpenAutoFile(path string) (*AutoFile, error) {
 	af := &AutoFile{
-		ID:               cmn.RandStr(12) + ":" + path,
+		ID:               random.RandStr(12) + ":" + path,
 		Path:             path,
 		closeTicker:      time.NewTicker(autoFileClosePeriod),
 		closeTickerStopc: make(chan struct{}),
