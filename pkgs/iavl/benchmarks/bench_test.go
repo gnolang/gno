@@ -7,8 +7,8 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/tendermint/classic/iavl"
-	db "github.com/tendermint/classic/db"
+	"github.com/gnolang/gno/pkgs/db"
+	"github.com/gnolang/gno/pkgs/iavl"
 )
 
 const historySize = 20
@@ -158,7 +158,7 @@ func BenchmarkRandomBytes(b *testing.B) {
 }
 
 type benchmark struct {
-	dbType              db.DBBackendType
+	dbType              db.BackendType
 	initSize, blockSize int
 	keyLen, dataLen     int
 }

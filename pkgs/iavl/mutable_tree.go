@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/pkg/errors"
-
-	dbm "github.com/tendermint/classic/db"
+	dbm "github.com/gnolang/gno/pkgs/db"
+	"github.com/gnolang/gno/pkgs/errors"
 )
 
 // ErrVersionDoesNotExist is returned if a requested version does not exist.
@@ -431,7 +430,7 @@ func (tree *MutableTree) DeleteVersion(version int64) error {
 		return errors.New("version must be greater than 0")
 	}
 	if version == tree.version {
-		return errors.Errorf("cannot delete latest saved version (%d)", version)
+		return errors.New("cannot delete latest saved version (%d)", version)
 	}
 	if _, ok := tree.versions[version]; !ok {
 		return errors.Wrap(ErrVersionDoesNotExist, "")
@@ -455,7 +454,7 @@ func (tree *MutableTree) deleteVersionsFrom(version int64) error {
 	lastestVersion := tree.ndb.getLatestVersion()
 	for ; version <= lastestVersion; version++ {
 		if version == tree.version {
-			return errors.Errorf("cannot delete latest saved version (%d)", version)
+			return errors.New("cannot delete latest saved version (%d)", version)
 		}
 		if _, ok := tree.versions[version]; !ok {
 			return errors.Wrap(ErrVersionDoesNotExist, "")

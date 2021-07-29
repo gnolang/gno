@@ -12,6 +12,34 @@ import (
 //----------------------------------------
 // Signed
 
+func EncodeVarint8(w io.Writer, i int8) (err error) {
+	var buf [2]byte
+	n := binary.PutVarint(buf[:], int64(i))
+	_, err = w.Write(buf[0:n])
+	return
+}
+
+func EncodeVarint16(w io.Writer, i int16) (err error) {
+	var buf [3]byte
+	n := binary.PutVarint(buf[:], int64(i))
+	_, err = w.Write(buf[0:n])
+	return
+}
+
+func EncodeVarint32(w io.Writer, i int32) (err error) {
+	var buf [5]byte
+	n := binary.PutVarint(buf[:], int64(i))
+	_, err = w.Write(buf[0:n])
+	return
+}
+
+func EncodeVarint(w io.Writer, i int64) (err error) {
+	var buf [10]byte
+	n := binary.PutVarint(buf[:], i)
+	_, err = w.Write(buf[0:n])
+	return
+}
+
 func EncodeInt32(w io.Writer, i int32) (err error) {
 	var buf [4]byte
 	binary.LittleEndian.PutUint32(buf[:], uint32(i))
@@ -24,13 +52,6 @@ func EncodeInt64(w io.Writer, i int64) (err error) {
 	binary.LittleEndian.PutUint64(buf[:], uint64(i))
 	_, err = w.Write(buf[:])
 	return err
-}
-
-func EncodeVarint(w io.Writer, i int64) (err error) {
-	var buf [10]byte
-	n := binary.PutVarint(buf[:], i)
-	_, err = w.Write(buf[0:n])
-	return
 }
 
 func VarintSize(i int64) int {
@@ -46,6 +67,34 @@ func EncodeByte(w io.Writer, b byte) (err error) {
 	return
 }
 
+func EncodeUvarint8(w io.Writer, i uint8) (err error) {
+	var buf [2]byte
+	n := binary.PutUvarint(buf[:], uint64(i))
+	_, err = w.Write(buf[0:n])
+	return
+}
+
+func EncodeUvarint16(w io.Writer, i uint16) (err error) {
+	var buf [3]byte
+	n := binary.PutUvarint(buf[:], uint64(i))
+	_, err = w.Write(buf[0:n])
+	return
+}
+
+func EncodeUvarint32(w io.Writer, i uint32) (err error) {
+	var buf [5]byte
+	n := binary.PutUvarint(buf[:], uint64(i))
+	_, err = w.Write(buf[0:n])
+	return
+}
+
+func EncodeUvarint(w io.Writer, u uint64) (err error) {
+	var buf [10]byte
+	n := binary.PutUvarint(buf[:], u)
+	_, err = w.Write(buf[0:n])
+	return
+}
+
 func EncodeUint32(w io.Writer, u uint32) (err error) {
 	var buf [4]byte
 	binary.LittleEndian.PutUint32(buf[:], u)
@@ -57,13 +106,6 @@ func EncodeUint64(w io.Writer, u uint64) (err error) {
 	var buf [8]byte
 	binary.LittleEndian.PutUint64(buf[:], u)
 	_, err = w.Write(buf[:])
-	return
-}
-
-func EncodeUvarint(w io.Writer, u uint64) (err error) {
-	var buf [10]byte
-	n := binary.PutUvarint(buf[:], u)
-	_, err = w.Write(buf[0:n])
 	return
 }
 

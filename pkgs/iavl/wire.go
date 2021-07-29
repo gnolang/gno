@@ -1,7 +1,7 @@
 package iavl
 
 import (
-	"github.com/tendermint/go-amino-x"
+	"github.com/gnolang/gno/pkgs/amino"
 )
 
 var cdc = amino.NewCodec()

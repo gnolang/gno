@@ -4,11 +4,9 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/pkg/errors"
-
-	"github.com/tendermint/go-amino-x"
-	cmn "github.com/tendermint/classic/iavl/common"
-	"github.com/tendermint/classic/crypto/tmhash"
+	"github.com/gnolang/gno/pkgs/amino"
+	"github.com/gnolang/gno/pkgs/crypto/tmhash"
+	"github.com/gnolang/gno/pkgs/errors"
 )
 
 var (
@@ -56,7 +54,7 @@ func (pin proofInnerNode) Hash(childHash []byte) []byte {
 	hasher := tmhash.New()
 	buf := new(bytes.Buffer)
 
-	err := amino.EncodeInt8(buf, pin.Height)
+	err := amino.EncodeVarint8(buf, pin.Height)
 	if err == nil {
 		err = amino.EncodeVarint(buf, pin.Size)
 	}
@@ -92,7 +90,7 @@ func (pin proofInnerNode) Hash(childHash []byte) []byte {
 type proofLeafNode struct {
 	Key       []byte `json:"key"`
 	ValueHash []byte `json:"value"`
-	Version   int64        `json:"version"`
+	Version   int64  `json:"version"`
 }
 
 func (pln proofLeafNode) String() string {
@@ -115,7 +113,7 @@ func (pln proofLeafNode) Hash() []byte {
 	hasher := tmhash.New()
 	buf := new(bytes.Buffer)
 
-	err := amino.EncodeInt8(buf, 0)
+	err := amino.EncodeVarint8(buf, 0)
 	if err == nil {
 		err = amino.EncodeVarint(buf, 1)
 	}

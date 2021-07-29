@@ -5,8 +5,8 @@ import (
 	"math/rand"
 	"testing"
 
-	cmn "github.com/tendermint/classic/iavl/common"
-	db "github.com/tendermint/classic/db"
+	"github.com/gnolang/gno/pkgs/db"
+	"github.com/gnolang/gno/pkgs/random"
 )
 
 // This file implement fuzz testing by generating programs and then running
@@ -84,7 +84,7 @@ func genRandomProgram(size int) *program {
 	nextVersion := 1
 
 	for p.size() < size {
-		k, v := []byte(cmn.RandStr(1)), []byte(cmn.RandStr(1))
+		k, v := []byte(random.RandStr(1)), []byte(random.RandStr(1))
 
 		switch rand.Int() % 7 { //nolint: gosec Turn off gosec here because this is for testing
 		case 0, 1, 2:

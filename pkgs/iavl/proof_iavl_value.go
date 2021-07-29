@@ -3,9 +3,8 @@ package iavl
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-
-	"github.com/tendermint/classic/crypto/merkle"
+	"github.com/gnolang/gno/pkgs/crypto/merkle"
+	"github.com/gnolang/gno/pkgs/errors"
 )
 
 const ProofOpIAVLValue = "iavl:v"
@@ -36,7 +35,7 @@ func NewIAVLValueOp(key []byte, proof *RangeProof) IAVLValueOp {
 
 func IAVLValueOpDecoder(pop merkle.ProofOp) (merkle.ProofOperator, error) {
 	if pop.Type != ProofOpIAVLValue {
-		return nil, errors.Errorf("unexpected ProofOp.Type; got %v, want %v", pop.Type, ProofOpIAVLValue)
+		return nil, errors.New("unexpected ProofOp.Type; got %v, want %v", pop.Type, ProofOpIAVLValue)
 	}
 	var op IAVLValueOp // a bit strange as we'll discard this, but it works.
 	err := cdc.UnmarshalSized(pop.Data, &op)

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
+	"github.com/gnolang/gno/pkgs/errors"
 )
 
 // pathWithLeaf is a path to a leaf node and the leaf node itself.
