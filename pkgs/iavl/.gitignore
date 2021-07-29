@@ -1,8 +1,3 @@
-vendor
-.glide
-*.swp
-*.swo
-
 # created in test code
 test.db
 
