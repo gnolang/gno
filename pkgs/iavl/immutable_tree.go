@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	dbm "github.com/tendermint/classic/db"
+	dbm "github.com/gnolang/gno/pkgs/db"
 )
 
 // ImmutableTree is a container for an immutable AVL+ ImmutableTree. Changes are performed by

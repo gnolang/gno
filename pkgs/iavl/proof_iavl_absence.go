@@ -3,9 +3,8 @@ package iavl
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-
-	"github.com/tendermint/classic/crypto/merkle"
+	"github.com/gnolang/gno/pkgs/crypto/merkle"
+	"github.com/gnolang/gno/pkgs/errors"
 )
 
 const ProofOpIAVLAbsence = "iavl:a"
@@ -35,7 +34,7 @@ func NewIAVLAbsenceOp(key []byte, proof *RangeProof) IAVLAbsenceOp {
 
 func IAVLAbsenceOpDecoder(pop merkle.ProofOp) (merkle.ProofOperator, error) {
 	if pop.Type != ProofOpIAVLAbsence {
-		return nil, errors.Errorf("unexpected ProofOp.Type; got %v, want %v", pop.Type, ProofOpIAVLAbsence)
+		return nil, errors.New("unexpected ProofOp.Type; got %v, want %v", pop.Type, ProofOpIAVLAbsence)
 	}
 	var op IAVLAbsenceOp // a bit strange as we'll discard this, but it works.
 	err := cdc.UnmarshalSized(pop.Data, &op)
@@ -60,7 +59,7 @@ func (op IAVLAbsenceOp) String() string {
 
 func (op IAVLAbsenceOp) Run(args [][]byte) ([][]byte, error) {
 	if len(args) != 0 {
-		return nil, errors.Errorf("expected 0 args, got %v", len(args))
+		return nil, errors.New("expected 0 args, got %v", len(args))
 	}
 	// If the tree is nil, the proof is nil, and all keys are absent.
 	if op.Proof == nil {

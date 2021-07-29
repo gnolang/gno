@@ -12,7 +12,6 @@ import (
 // Signed
 
 func DecodeVarint8(bz []byte) (i int8, n int, err error) {
-
 	i64, n, err := DecodeVarint(bz)
 	if err != nil {
 		return
@@ -39,6 +38,20 @@ func DecodeVarint16(bz []byte) (i int16, n int, err error) {
 	return
 }
 
+func DecodeVarint(bz []byte) (i int64, n int, err error) {
+	i, n = binary.Varint(bz)
+	if n == 0 {
+		// buf too small
+		err = errors.New("buffer too small")
+	} else if n < 0 {
+		// value larger than 64 bits (overflow)
+		// and -n is the number of bytes read
+		n = -n
+		err = errors.New("EOF decoding varint")
+	}
+	return
+}
+
 func DecodeInt32(bz []byte) (i int32, n int, err error) {
 	const size int = 4
 	if len(bz) < size {
@@ -58,20 +71,6 @@ func DecodeInt64(bz []byte) (i int64, n int, err error) {
 	}
 	i = int64(binary.LittleEndian.Uint64(bz[:size]))
 	n = size
-	return
-}
-
-func DecodeVarint(bz []byte) (i int64, n int, err error) {
-	i, n = binary.Varint(bz)
-	if n == 0 {
-		// buf too small
-		err = errors.New("buffer too small")
-	} else if n < 0 {
-		// value larger than 64 bits (overflow)
-		// and -n is the number of bytes read
-		n = -n
-		err = errors.New("EOF decoding varint")
-	}
 	return
 }
 
@@ -113,6 +112,33 @@ func DecodeUvarint16(bz []byte) (u uint16, n int, err error) {
 	return
 }
 
+func DecodeUvarint32(bz []byte) (u uint32, n int, err error) {
+	u64, n, err := DecodeUvarint(bz)
+	if err != nil {
+		return
+	}
+	if u64 > uint64(math.MaxUint32) {
+		err = errors.New("EOF decoding uint32")
+		return
+	}
+	u = uint32(u64)
+	return
+}
+
+func DecodeUvarint(bz []byte) (u uint64, n int, err error) {
+	u, n = binary.Uvarint(bz)
+	if n == 0 {
+		// buf too small
+		err = errors.New("buffer too small")
+	} else if n < 0 {
+		// value larger than 64 bits (overflow)
+		// and -n is the number of bytes read
+		n = -n
+		err = errors.New("EOF decoding uvarint")
+	}
+	return
+}
+
 func DecodeUint32(bz []byte) (u uint32, n int, err error) {
 	const size int = 4
 	if len(bz) < size {
@@ -132,20 +158,6 @@ func DecodeUint64(bz []byte) (u uint64, n int, err error) {
 	}
 	u = binary.LittleEndian.Uint64(bz[:size])
 	n = size
-	return
-}
-
-func DecodeUvarint(bz []byte) (u uint64, n int, err error) {
-	u, n = binary.Uvarint(bz)
-	if n == 0 {
-		// buf too small
-		err = errors.New("buffer too small")
-	} else if n < 0 {
-		// value larger than 64 bits (overflow)
-		// and -n is the number of bytes read
-		n = -n
-		err = errors.New("EOF decoding uvarint")
-	}
 	return
 }
 

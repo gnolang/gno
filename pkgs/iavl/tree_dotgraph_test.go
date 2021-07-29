@@ -4,7 +4,7 @@ import (
 	"io/ioutil"
 	"testing"
 
-	db "github.com/tendermint/classic/db"
+	db "github.com/gnolang/gno/pkgs/db"
 )
 
 func TestWriteDOTGraph(t *testing.T) {

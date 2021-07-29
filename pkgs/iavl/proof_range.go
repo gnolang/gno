@@ -6,9 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pkg/errors"
-
-	"github.com/tendermint/classic/crypto/tmhash"
+	"github.com/gnolang/gno/pkgs/crypto/tmhash"
+	"github.com/gnolang/gno/pkgs/errors"
 )
 
 type RangeProof struct {
@@ -277,7 +276,7 @@ func (proof *RangeProof) _computeRootHash() (rootHash []byte, treeEnd bool, err 
 				return nil, treeEnd, false, errors.Wrap(err, "recursive COMPUTEHASH call")
 			}
 			if !bytes.Equal(derivedRoot, lpath.Right) {
-				return nil, treeEnd, false, errors.Wrapf(ErrInvalidRoot, "intermediate root hash %X doesn't match, got %X", lpath.Right, derivedRoot)
+				return nil, treeEnd, false, errors.Wrap(ErrInvalidRoot, "intermediate root hash %X doesn't match, got %X", lpath.Right, derivedRoot)
 			}
 			if done {
 				return hash, treeEnd, true, nil

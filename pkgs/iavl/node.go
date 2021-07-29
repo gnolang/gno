@@ -8,10 +8,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/pkg/errors"
-
-	amino "github.com/tendermint/go-amino-x"
-	"github.com/tendermint/classic/crypto/tmhash"
+	"github.com/gnolang/gno/pkgs/amino"
+	"github.com/gnolang/gno/pkgs/crypto/tmhash"
+	"github.com/gnolang/gno/pkgs/errors"
 )
 
 // Node represents a node in a Tree.
@@ -47,7 +46,7 @@ func NewNode(key []byte, value []byte, version int64) *Node {
 func MakeNode(buf []byte) (*Node, error) {
 
 	// Read node header (height, size, version, key).
-	height, n, cause := amino.DecodeInt8(buf)
+	height, n, cause := amino.DecodeVarint8(buf)
 	if cause != nil {
 		return nil, errors.Wrap(cause, "decoding node.height")
 	}
@@ -233,7 +232,7 @@ func (node *Node) hashWithCount() ([]byte, int64) {
 // Writes the node's hash to the given io.Writer. This function expects
 // child hashes to be already set.
 func (node *Node) writeHashBytes(w io.Writer) error {
-	err := amino.EncodeInt8(w, node.height)
+	err := amino.EncodeVarint8(w, node.height)
 	if err != nil {
 		return errors.Wrap(err, "writing height")
 	}
@@ -298,7 +297,7 @@ func (node *Node) writeHashBytesRecursively(w io.Writer) (hashCount int64, err e
 // Writes the node as a serialized byte slice to the supplied io.Writer.
 func (node *Node) writeBytes(w io.Writer) error {
 	var cause error
-	cause = amino.EncodeInt8(w, node.height)
+	cause = amino.EncodeVarint8(w, node.height)
 	if cause != nil {
 		return errors.Wrap(cause, "writing height")
 	}
