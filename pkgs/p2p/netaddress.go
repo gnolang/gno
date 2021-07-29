@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-	"github.com/tendermint/classic/crypto"
+	"github.com/gnolang/gno/pkgs/crypto"
+	"github.com/gnolang/gno/pkgs/errors"
 )
 
 type ID = crypto.ID

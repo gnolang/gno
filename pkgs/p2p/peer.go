@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"net"
 
-	cmn "github.com/tendermint/classic/libs/common"
-	"github.com/tendermint/classic/libs/log"
-
-	tmconn "github.com/tendermint/classic/p2p/conn"
+	"github.com/gnolang/gno/pkgs/cmap"
+	"github.com/gnolang/gno/pkgs/log"
+	connm "github.com/gnolang/gno/pkgs/p2p/conn"
+	"github.com/gnolang/gno/pkgs/service"
 )
 
 // Peer is an interface representing a peer connected on a reactor.
 type Peer interface {
-	cmn.Service
+	service.Service
 	FlushStop()
 
 	ID() ID               // peer's cryptographic ID
@@ -25,7 +25,7 @@ type Peer interface {
 	CloseConn() error // close original connection
 
 	NodeInfo() NodeInfo // peer's info
-	Status() tmconn.ConnectionStatus
+	Status() connm.ConnectionStatus
 	SocketAddr() *NetAddress // actual address of the socket
 
 	Send(byte, []byte) bool
@@ -66,7 +66,7 @@ func newPeerConn(
 // ID only exists for SecretConnection.
 // NOTE: Will panic if conn is not *SecretConnection.
 func (pc peerConn) ID() ID {
-	return (pc.conn.(*tmconn.SecretConnection).RemotePubKey()).Address().ID()
+	return (pc.conn.(*connm.SecretConnection).RemotePubKey()).Address().ID()
 }
 
 // Return the IP from the connection RemoteAddr
@@ -94,11 +94,11 @@ func (pc peerConn) RemoteIP() net.IP {
 //
 // Before using a peer, you will need to perform a handshake on connection.
 type peer struct {
-	cmn.BaseService
+	service.BaseService
 
 	// raw peerConn and the multiplex connection
 	peerConn
-	mconn *tmconn.MConnection
+	mconn *connm.MConnection
 
 	// peer's node info and the channel it knows about
 	// channels = nodeInfo.Channels
@@ -107,17 +107,17 @@ type peer struct {
 	channels []byte
 
 	// User data
-	Data *cmn.CMap
+	Data *cmap.CMap
 }
 
 type PeerOption func(*peer)
 
 func newPeer(
 	pc peerConn,
-	mConfig tmconn.MConnConfig,
+	mConfig connm.MConnConfig,
 	nodeInfo NodeInfo,
 	reactorsByCh map[byte]Reactor,
-	chDescs []*tmconn.ChannelDescriptor,
+	chDescs []*connm.ChannelDescriptor,
 	onPeerError func(Peer, interface{}),
 	options ...PeerOption,
 ) *peer {
@@ -125,7 +125,7 @@ func newPeer(
 		peerConn: pc,
 		nodeInfo: nodeInfo,
 		channels: nodeInfo.Channels, // TODO
-		Data:     cmn.NewCMap(),
+		Data:     cmap.NewCMap(),
 	}
 
 	p.mconn = createMConnection(
@@ -136,7 +136,7 @@ func newPeer(
 		onPeerError,
 		mConfig,
 	)
-	p.BaseService = *cmn.NewBaseService(nil, "Peer", p)
+	p.BaseService = *service.NewBaseService(nil, "Peer", p)
 	for _, option := range options {
 		option(p)
 	}
@@ -154,7 +154,7 @@ func (p *peer) String() string {
 }
 
 //---------------------------------------------------
-// Implements cmn.Service
+// Implements service.Service
 
 // SetLogger implements BaseService.
 func (p *peer) SetLogger(l log.Logger) {
@@ -221,7 +221,7 @@ func (p *peer) SocketAddr() *NetAddress {
 }
 
 // Status returns the peer's ConnectionStatus.
-func (p *peer) Status() tmconn.ConnectionStatus {
+func (p *peer) Status() connm.ConnectionStatus {
 	return p.mconn.Status()
 }
 
@@ -315,15 +315,15 @@ func createMConnection(
 	conn net.Conn,
 	p *peer,
 	reactorsByCh map[byte]Reactor,
-	chDescs []*tmconn.ChannelDescriptor,
+	chDescs []*connm.ChannelDescriptor,
 	onPeerError func(Peer, interface{}),
-	config tmconn.MConnConfig,
-) *tmconn.MConnection {
+	config connm.MConnConfig,
+) *connm.MConnection {
 
 	onReceive := func(chID byte, msgBytes []byte) {
 		reactor := reactorsByCh[chID]
 		if reactor == nil {
-			// Note that its ok to panic here as it's caught in the conn._recover,
+			// Note that its ok to panic here as it's caught in the connm._recover,
 			// which does onPeerError.
 			panic(fmt.Sprintf("Unknown channel %X", chID))
 		}
@@ -334,7 +334,7 @@ func createMConnection(
 		onPeerError(p, r)
 	}
 
-	return tmconn.NewMConnectionWithConfig(
+	return connm.NewMConnectionWithConfig(
 		conn,
 		chDescs,
 		onReceive,

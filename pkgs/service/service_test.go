@@ -1,10 +1,10 @@
-package common
+package service
 
 import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
+	"github.com/jaekwon/testify/require"
 )
 
 type testService struct {

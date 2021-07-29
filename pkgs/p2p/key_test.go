@@ -6,12 +6,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/gnolang/gno/pkgs/random"
 	"github.com/stretchr/testify/assert"
-	cmn "github.com/tendermint/classic/libs/common"
 )
 
 func TestLoadOrGenNodeKey(t *testing.T) {
-	filePath := filepath.Join(os.TempDir(), cmn.RandStr(12)+"_peer_id.json")
+	filePath := filepath.Join(os.TempDir(), random.RandStr(12)+"_peer_id.json")
 
 	nodeKey, err := LoadOrGenNodeKey(filePath)
 	assert.Nil(t, err)

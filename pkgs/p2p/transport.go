@@ -6,11 +6,10 @@ import (
 	"net"
 	"time"
 
-	"github.com/pkg/errors"
-
-	"github.com/tendermint/classic/crypto"
-	"github.com/tendermint/classic/p2p/conn"
-	"github.com/tendermint/go-amino-x"
+	"github.com/gnolang/gno/pkgs/amino"
+	"github.com/gnolang/gno/pkgs/crypto"
+	"github.com/gnolang/gno/pkgs/errors"
+	"github.com/gnolang/gno/pkgs/p2p/conn"
 )
 
 const (
@@ -276,7 +275,7 @@ func (mt *MultiplexTransport) acceptPeers() {
 				if r := recover(); r != nil {
 					err := ErrRejected{
 						conn:          c,
-						err:           errors.Errorf("recovered from panic: %v", r),
+						err:           errors.New("recovered from panic: %v", r),
 						isAuthFailure: true,
 					}
 					select {

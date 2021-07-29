@@ -7,13 +7,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/tendermint/classic/crypto/ed25519"
-	cmn "github.com/tendermint/classic/libs/common"
+	"github.com/gnolang/gno/pkgs/crypto/ed25519"
+	"github.com/gnolang/gno/pkgs/service"
 )
 
 // mockPeer for testing the PeerSet
 type mockPeer struct {
-	cmn.BaseService
+	service.BaseService
 	ip net.IP
 	id ID
 }

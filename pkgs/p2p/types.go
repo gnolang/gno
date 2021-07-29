@@ -1,7 +1,7 @@
 package p2p
 
 import (
-	"github.com/tendermint/classic/p2p/conn"
+	"github.com/gnolang/gno/pkgs/p2p/conn"
 )
 
 type ChannelDescriptor = conn.ChannelDescriptor
