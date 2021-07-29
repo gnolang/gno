@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tendermint/classic/libs/log"
+	"github.com/gnolang/gno/pkgs/log"
 )
 
 func TestLoggerLogsItsErrors(t *testing.T) {
@@ -16,7 +16,7 @@ func TestLoggerLogsItsErrors(t *testing.T) {
 	logger.Info("foo", "baz baz", "bar")
 	msg := strings.TrimSpace(buf.String())
 	if !strings.Contains(msg, "foo") {
-		t.Errorf("Expected logger msg to contain ErrInvalidKey, got %s", msg)
+		t.Errorf("Expected logger msg to contain foo, got %s", msg)
 	}
 }
 

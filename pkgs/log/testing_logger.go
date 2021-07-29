@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/go-kit/kit/log/term"
+	"github.com/gnolang/gno/pkgs/colors"
 )
 
 var (
@@ -45,7 +45,7 @@ func TestingLoggerWithOutput(w io.Writer) Logger {
 
 // TestingLoggerWithColorFn allow you to provide your own color function. See
 // TestingLogger for documentation.
-func TestingLoggerWithColorFn(colorFn func(keyvals ...interface{}) term.FgBgColor) Logger {
+func TestingLoggerWithColorFn(colorFn func(keyvals ...interface{}) colors.Color) Logger {
 	if _testingLogger != nil {
 		return _testingLogger
 	}
