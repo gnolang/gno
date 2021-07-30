@@ -1,11 +1,11 @@
 package mempool
 
 import (
-	"github.com/tendermint/go-amino-x"
+	"github.com/gnolang/gno/pkgs/amino"
 )
 
 var Package = amino.RegisterPackage(amino.NewPackage(
-	"github.com/tendermint/classic/mempool",
+	"github.com/gnolang/gno/pkgs/bft/mempool",
 	"tm",
 	amino.GetCallersDirname(),
 ).WithDependencies().WithTypes(

@@ -7,13 +7,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tendermint/go-amino-x"
-
-	cfg "github.com/tendermint/classic/config"
-	"github.com/tendermint/classic/libs/clist"
-	"github.com/tendermint/classic/libs/log"
-	"github.com/tendermint/classic/p2p"
-	"github.com/tendermint/classic/types"
+	"github.com/gnolang/gno/pkgs/amino"
+	cfg "github.com/gnolang/gno/pkgs/bft/mempool/config"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	"github.com/gnolang/gno/pkgs/clist"
+	"github.com/gnolang/gno/pkgs/log"
+	"github.com/gnolang/gno/pkgs/p2p"
 )
 
 const (
