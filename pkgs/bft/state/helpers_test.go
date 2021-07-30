@@ -4,14 +4,14 @@ import (
 	"bytes"
 	"fmt"
 
-	abci "github.com/tendermint/classic/abci/types"
-	"github.com/tendermint/classic/crypto"
-	"github.com/tendermint/classic/crypto/ed25519"
-	dbm "github.com/tendermint/classic/db"
-	"github.com/tendermint/classic/proxy"
-	sm "github.com/tendermint/classic/state"
-	"github.com/tendermint/classic/types"
-	tmtime "github.com/tendermint/classic/types/time"
+	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
+	"github.com/gnolang/gno/pkgs/bft/proxy"
+	sm "github.com/gnolang/gno/pkgs/bft/state"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	tmtime "github.com/gnolang/gno/pkgs/bft/types/time"
+	"github.com/gnolang/gno/pkgs/crypto"
+	"github.com/gnolang/gno/pkgs/crypto/ed25519"
+	dbm "github.com/gnolang/gno/pkgs/db"
 )
 
 type paramsChangeTestCase struct {

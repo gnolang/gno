@@ -1,7 +1,7 @@
 package state
 
 import (
-	"github.com/tendermint/classic/types"
+	"github.com/gnolang/gno/pkgs/bft/types"
 )
 
 //------------------------------------------------------

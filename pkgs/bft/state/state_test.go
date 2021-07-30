@@ -10,13 +10,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	abci "github.com/tendermint/classic/abci/types"
-	cfg "github.com/tendermint/classic/config"
-	"github.com/tendermint/classic/crypto/ed25519"
-	dbm "github.com/tendermint/classic/db"
-	cmn "github.com/tendermint/classic/libs/common"
-	sm "github.com/tendermint/classic/state"
-	"github.com/tendermint/classic/types"
+	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
+	cfg "github.com/gnolang/gno/pkgs/bft/config"
+	sm "github.com/gnolang/gno/pkgs/bft/state"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	"github.com/gnolang/gno/pkgs/crypto/ed25519"
+	dbm "github.com/gnolang/gno/pkgs/db"
+	"github.com/gnolang/gno/pkgs/random"
 )
 
 // setupTestCase does setup common to all test cases.
@@ -349,17 +349,17 @@ func TestProposerFrequency(t *testing.T) {
 	maxPower := 1000
 	nTestCases := 5
 	for i := 0; i < nTestCases; i++ {
-		N := cmn.RandInt()%maxVals + 1
+		N := random.RandInt()%maxVals + 1
 		vals := make([]*types.Validator, N)
 		totalVotePower := int64(0)
 		for j := 0; j < N; j++ {
 			// make sure votePower > 0
-			votePower := int64(cmn.RandInt()%maxPower) + 1
+			votePower := int64(random.RandInt()%maxPower) + 1
 			totalVotePower += votePower
 			privVal := types.NewMockPV()
 			pubKey := privVal.GetPubKey()
 			val := types.NewValidator(pubKey, votePower)
-			val.ProposerPriority = cmn.RandInt64()
+			val.ProposerPriority = random.RandInt64()
 			vals[j] = val
 		}
 		valSet := types.NewValidatorSet(vals)
@@ -376,7 +376,7 @@ func genValSetWithPowers(powers []int64) *types.ValidatorSet {
 	for i := 0; i < size; i++ {
 		totalVotePower += powers[i]
 		val := types.NewValidator(ed25519.GenPrivKey().PubKey(), powers[i])
-		val.ProposerPriority = cmn.RandInt64()
+		val.ProposerPriority = random.RandInt64()
 		vals[i] = val
 	}
 	valSet := types.NewValidatorSet(vals)

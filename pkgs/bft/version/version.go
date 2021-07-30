@@ -1,9 +1,9 @@
 package version
 
 import (
-	abciver "github.com/tendermint/classic/abci/version"
-	bcver "github.com/tendermint/classic/blockchain/version"
-	p2pver "github.com/tendermint/classic/p2p/version"
+	abciver "github.com/gnolang/gno/pkgs/bft/abci/version"
+	bcver "github.com/gnolang/gno/pkgs/bft/blockchain/version"
+	p2pver "github.com/gnolang/gno/pkgs/p2p/version"
 )
 
 var (

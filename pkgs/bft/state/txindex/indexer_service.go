@@ -1,13 +1,13 @@
 package txindex
 
 import (
-	cmn "github.com/tendermint/classic/libs/common"
+	"github.com/gnolang/gno/pkgs/service"
 )
 
 // IndexerService connects event bus and transaction indexer together in order
 // to index transactions coming from event bus.
 type IndexerService struct {
-	cmn.BaseService
+	service.BaseService
 
 	idr TxIndexer
 }
@@ -15,7 +15,7 @@ type IndexerService struct {
 // NewIndexerService returns a new service instance.
 func NewIndexerService(idr TxIndexer) *IndexerService {
 	is := &IndexerService{idr: idr}
-	is.BaseService = *cmn.NewBaseService(nil, "IndexerService", is)
+	is.BaseService = *service.NewBaseService(nil, "IndexerService", is)
 	return is
 }
 

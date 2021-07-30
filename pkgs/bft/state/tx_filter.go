@@ -1,8 +1,8 @@
 package state
 
 import (
-	mempl "github.com/tendermint/classic/mempool"
-	"github.com/tendermint/classic/types"
+	mempl "github.com/gnolang/gno/pkgs/bft/mempool"
+	"github.com/gnolang/gno/pkgs/bft/types"
 )
 
 // TxPreCheck returns a function to filter transactions before processing.

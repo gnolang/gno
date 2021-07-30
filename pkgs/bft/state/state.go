@@ -6,13 +6,13 @@ import (
 	"io/ioutil"
 	"time"
 
-	abci "github.com/tendermint/classic/abci/types"
-	"github.com/tendermint/classic/crypto"
-	"github.com/tendermint/classic/types"
-	tmtime "github.com/tendermint/classic/types/time"
-	typesver "github.com/tendermint/classic/types/version"
-	tmver "github.com/tendermint/classic/version"
-	"github.com/tendermint/go-amino-x"
+	"github.com/gnolang/gno/pkgs/amino"
+	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	tmtime "github.com/gnolang/gno/pkgs/bft/types/time"
+	typesver "github.com/gnolang/gno/pkgs/bft/types/version"
+	tmver "github.com/gnolang/gno/pkgs/bft/version"
+	"github.com/gnolang/gno/pkgs/crypto"
 )
 
 // database keys
