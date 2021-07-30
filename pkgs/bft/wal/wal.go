@@ -10,13 +10,13 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/pkg/errors"
-
-	auto "github.com/tendermint/classic/libs/autofile"
-	cmn "github.com/tendermint/classic/libs/common"
-	"github.com/tendermint/classic/libs/log"
-	tmtime "github.com/tendermint/classic/types/time"
-	"github.com/tendermint/go-amino-x"
+	"github.com/gnolang/gno/pkgs/amino"
+	auto "github.com/gnolang/gno/pkgs/autofile"
+	tmtime "github.com/gnolang/gno/pkgs/bft/types/time"
+	"github.com/gnolang/gno/pkgs/errors"
+	"github.com/gnolang/gno/pkgs/log"
+	osm "github.com/gnolang/gno/pkgs/os"
+	"github.com/gnolang/gno/pkgs/service"
 )
 
 const (
@@ -81,7 +81,7 @@ type WAL interface {
 // so it's either reading or appending - must read to end to start appending
 // again.
 type baseWAL struct {
-	cmn.BaseService
+	service.BaseService
 
 	group *auto.Group
 
@@ -99,7 +99,7 @@ var _ WAL = &baseWAL{}
 // `maxSize` is the maximum allowable amino bytes of a TimedWALMessage
 // including the amino (byte) size prefix, but excluding any crc checks.
 func NewWAL(walFile string, maxSize int64, groupOptions ...func(*auto.Group)) (*baseWAL, error) {
-	err := cmn.EnsureDir(filepath.Dir(walFile), 0700)
+	err := osm.EnsureDir(filepath.Dir(walFile), 0700)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to ensure WAL directory is in place")
 	}
@@ -114,7 +114,7 @@ func NewWAL(walFile string, maxSize int64, groupOptions ...func(*auto.Group)) (*
 		enc:           NewWALWriter(group, maxSize),
 		flushInterval: walDefaultFlushInterval,
 	}
-	wal.BaseService = *cmn.NewBaseService(nil, "baseWAL", wal)
+	wal.BaseService = *service.NewBaseService(nil, "baseWAL", wal)
 	return wal, nil
 }
 

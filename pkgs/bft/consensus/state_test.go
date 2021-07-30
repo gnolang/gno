@@ -9,11 +9,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	cstypes "github.com/tendermint/classic/consensus/types"
-	cmn "github.com/tendermint/classic/libs/common"
-	"github.com/tendermint/classic/libs/events"
-	p2pmock "github.com/tendermint/classic/p2p/mock"
-	"github.com/tendermint/classic/types"
+	cstypes "github.com/gnolang/gno/pkgs/bft/consensus/types"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	"github.com/gnolang/gno/pkgs/events"
+	p2pmock "github.com/gnolang/gno/pkgs/p2p/mock"
+	"github.com/gnolang/gno/pkgs/random"
 )
 
 /*
@@ -1656,7 +1656,7 @@ func TestStateOutputsBlockPartsStats(t *testing.T) {
 	peer := p2pmock.NewPeer(nil)
 
 	// 1) new block part
-	parts := types.NewPartSetFromData(cmn.RandBytes(100), 10)
+	parts := types.NewPartSetFromData(random.RandBytes(100), 10)
 	msg := &BlockPartMessage{
 		Height: 1,
 		Round:  0,

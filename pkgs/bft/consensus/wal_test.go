@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	auto "github.com/tendermint/classic/libs/autofile"
-	"github.com/tendermint/classic/libs/log"
-	walm "github.com/tendermint/classic/wal"
+	auto "github.com/gnolang/gno/pkgs/autofile"
+	walm "github.com/gnolang/gno/pkgs/bft/wal"
+	"github.com/gnolang/gno/pkgs/log"
 )
 
 const (

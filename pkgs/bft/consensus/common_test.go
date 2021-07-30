@@ -5,34 +5,32 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/go-kit/kit/log/term"
-
-	"path"
-
-	abcicli "github.com/tendermint/classic/abci/client"
-	"github.com/tendermint/classic/abci/example/counter"
-	"github.com/tendermint/classic/abci/example/kvstore"
-	abci "github.com/tendermint/classic/abci/types"
-	cfg "github.com/tendermint/classic/config"
-	cstypes "github.com/tendermint/classic/consensus/types"
-	"github.com/tendermint/classic/crypto"
-	dbm "github.com/tendermint/classic/db"
-	cmn "github.com/tendermint/classic/libs/common"
-	"github.com/tendermint/classic/libs/events"
-	"github.com/tendermint/classic/libs/log"
-	mempl "github.com/tendermint/classic/mempool"
-	"github.com/tendermint/classic/p2p"
-	"github.com/tendermint/classic/privval"
-	sm "github.com/tendermint/classic/state"
-	"github.com/tendermint/classic/store"
-	"github.com/tendermint/classic/types"
-	tmtime "github.com/tendermint/classic/types/time"
+	abcicli "github.com/gnolang/gno/pkgs/bft/abci/client"
+	"github.com/gnolang/gno/pkgs/bft/abci/example/counter"
+	"github.com/gnolang/gno/pkgs/bft/abci/example/kvstore"
+	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
+	cfg "github.com/gnolang/gno/pkgs/bft/config"
+	cstypes "github.com/gnolang/gno/pkgs/bft/consensus/types"
+	mempl "github.com/gnolang/gno/pkgs/bft/mempool"
+	"github.com/gnolang/gno/pkgs/bft/privval"
+	sm "github.com/gnolang/gno/pkgs/bft/state"
+	"github.com/gnolang/gno/pkgs/bft/store"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	tmtime "github.com/gnolang/gno/pkgs/bft/types/time"
+	"github.com/gnolang/gno/pkgs/colors"
+	"github.com/gnolang/gno/pkgs/crypto"
+	dbm "github.com/gnolang/gno/pkgs/db"
+	"github.com/gnolang/gno/pkgs/events"
+	"github.com/gnolang/gno/pkgs/log"
+	osm "github.com/gnolang/gno/pkgs/os"
+	"github.com/gnolang/gno/pkgs/p2p"
 )
 
 const (
@@ -49,7 +47,7 @@ var consensusReplayConfig *cfg.Config
 var ensureTimeout = time.Millisecond * 5000
 
 func ensureDir(dir string, mode os.FileMode) {
-	if err := cmn.EnsureDir(dir, mode); err != nil {
+	if err := osm.EnsureDir(dir, mode); err != nil {
 		panic(err)
 	}
 }
@@ -371,7 +369,7 @@ func ensureNoNewTimeout(stepCh <-chan events.Event, timeout int64) {
 func ensureNewEvent(ch <-chan events.Event, height int64, round int, timeout time.Duration, errorMessage string) {
 	select {
 	case <-time.After(timeout):
-		cmn.PrintAllGoroutines()
+		osm.PrintAllGoroutines()
 		panic(errorMessage)
 	case msg := <-ch:
 		csevent, ok := msg.(cstypes.ConsensusEvent)
@@ -409,7 +407,7 @@ func ensureNewRound(roundCh <-chan events.Event, height int64, round int) {
 }
 
 func ensureNewTimeout(timeoutCh <-chan events.Event, height int64, round int, timeout int64) {
-	timeoutDuration := (time.Duration(timeout))*time.Nanosecond + 5*time.Second
+	timeoutDuration := (time.Duration(timeout))*time.Nanosecond + 20*time.Second
 	ensureNewEvent(timeoutCh, height, round, timeoutDuration,
 		"Timeout expired while waiting for NewTimeout event")
 }
@@ -546,14 +544,35 @@ func ensureNewEventOnChannel(ch <-chan events.Event) {
 // consensusLogger is a TestingLogger which uses a different
 // color for each validator ("validator" key must exist).
 func consensusLogger() log.Logger {
-	return log.TestingLoggerWithColorFn(func(keyvals ...interface{}) term.FgBgColor {
+	return log.TestingLoggerWithColorFn(func(keyvals ...interface{}) colors.Color {
 		for i := 0; i < len(keyvals)-1; i += 2 {
 			if keyvals[i] == "validator" {
-				return term.FgBgColor{Fg: term.Color(uint8(keyvals[i+1].(int) + 1))}
+				num := keyvals[i+1].(int)
+				switch num % 8 {
+				case 0:
+					return colors.Red
+				case 1:
+					return colors.Green
+				case 2:
+					return colors.Yellow
+				case 3:
+					return colors.Blue
+				case 4:
+					return colors.Magenta
+				case 5:
+					return colors.Cyan
+				case 6:
+					return colors.White
+				case 7:
+					return colors.Gray
+				default:
+					panic("should not happen")
+				}
 			}
 		}
-		return term.FgBgColor{}
+		return colors.None
 	}).With("module", "consensus")
+
 }
 
 func randConsensusNet(nValidators int, testName string, tickerFunc func() TimeoutTicker,
