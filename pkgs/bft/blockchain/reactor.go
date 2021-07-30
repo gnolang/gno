@@ -6,13 +6,12 @@ import (
 	"reflect"
 	"time"
 
-	amino "github.com/tendermint/go-amino-x"
-
-	"github.com/tendermint/classic/libs/log"
-	"github.com/tendermint/classic/p2p"
-	sm "github.com/tendermint/classic/state"
-	"github.com/tendermint/classic/store"
-	"github.com/tendermint/classic/types"
+	"github.com/gnolang/gno/pkgs/amino"
+	sm "github.com/gnolang/gno/pkgs/bft/state"
+	"github.com/gnolang/gno/pkgs/bft/store"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	"github.com/gnolang/gno/pkgs/log"
+	"github.com/gnolang/gno/pkgs/p2p"
 )
 
 const (
