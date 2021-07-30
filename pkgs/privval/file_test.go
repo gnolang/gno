@@ -10,10 +10,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/classic/crypto/ed25519"
-	"github.com/tendermint/classic/types"
-	tmtime "github.com/tendermint/classic/types/time"
-	"github.com/tendermint/go-amino-x"
+
+	"github.com/gnolang/gno/pkgs/amino"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	tmtime "github.com/gnolang/gno/pkgs/bft/types/time"
+	"github.com/gnolang/gno/pkgs/crypto/ed25519"
 )
 
 func TestGenLoadValidator(t *testing.T) {

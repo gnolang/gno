@@ -1,4 +1,4 @@
-package common
+package os
 
 // Need access to internal variables, so can't use _test package
 

@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tendermint/classic/libs/common"
-	"github.com/tendermint/classic/types"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	"github.com/gnolang/gno/pkgs/random"
 )
 
 type signerTestCase struct {
@@ -24,7 +24,7 @@ func getSignerTestCases(t *testing.T) []signerTestCase {
 
 	// Get test cases for each possible dialer (DialTCP / DialUnix / etc)
 	for _, dtc := range getDialerTestCases(t) {
-		chainID := common.RandStr(12)
+		chainID := random.RandStr(12)
 		mockPV := types.NewMockPV()
 
 		// get a pair of signer listener, signer dialer endpoints

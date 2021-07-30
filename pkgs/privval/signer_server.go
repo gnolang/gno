@@ -4,8 +4,8 @@ import (
 	"io"
 	"sync"
 
-	cmn "github.com/tendermint/classic/libs/common"
-	"github.com/tendermint/classic/types"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	"github.com/gnolang/gno/pkgs/service"
 )
 
 // ValidationRequestHandlerFunc handles different remoteSigner requests
@@ -15,7 +15,7 @@ type ValidationRequestHandlerFunc func(
 	chainID string) (SignerMessage, error)
 
 type SignerServer struct {
-	cmn.BaseService
+	service.BaseService
 
 	endpoint *SignerDialerEndpoint
 	chainID  string
@@ -33,18 +33,18 @@ func NewSignerServer(endpoint *SignerDialerEndpoint, chainID string, privVal typ
 		validationRequestHandler: DefaultValidationRequestHandler,
 	}
 
-	ss.BaseService = *cmn.NewBaseService(endpoint.Logger, "SignerServer", ss)
+	ss.BaseService = *service.NewBaseService(endpoint.Logger, "SignerServer", ss)
 
 	return ss
 }
 
-// OnStart implements cmn.Service.
+// OnStart implements service.Service.
 func (ss *SignerServer) OnStart() error {
 	go ss.serviceLoop()
 	return nil
 }
 
-// OnStop implements cmn.Service.
+// OnStop implements service.Service.
 func (ss *SignerServer) OnStop() {
 	ss.endpoint.Logger.Debug("SignerServer: OnStop calling Close")
 	_ = ss.endpoint.Close()

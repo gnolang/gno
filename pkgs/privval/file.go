@@ -7,12 +7,12 @@ import (
 	"io/ioutil"
 	"time"
 
-	"github.com/tendermint/classic/crypto"
-	"github.com/tendermint/classic/crypto/ed25519"
-	cmn "github.com/tendermint/classic/libs/common"
-	"github.com/tendermint/classic/types"
-	tmtime "github.com/tendermint/classic/types/time"
-	"github.com/tendermint/go-amino-x"
+	"github.com/gnolang/gno/pkgs/amino"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	tmtime "github.com/gnolang/gno/pkgs/bft/types/time"
+	"github.com/gnolang/gno/pkgs/crypto"
+	"github.com/gnolang/gno/pkgs/crypto/ed25519"
+	osm "github.com/gnolang/gno/pkgs/os"
 )
 
 // TODO: type ?
@@ -57,7 +57,7 @@ func (pvKey FilePVKey) Save() {
 	if err != nil {
 		panic(err)
 	}
-	err = cmn.WriteFileAtomic(outFile, jsonBytes, 0600)
+	err = osm.WriteFileAtomic(outFile, jsonBytes, 0600)
 	if err != nil {
 		panic(err)
 	}
@@ -122,7 +122,7 @@ func (lss *FilePVLastSignState) Save() {
 	if err != nil {
 		panic(err)
 	}
-	err = cmn.WriteFileAtomic(outFile, jsonBytes, 0600)
+	err = osm.WriteFileAtomic(outFile, jsonBytes, 0600)
 	if err != nil {
 		panic(err)
 	}
@@ -176,12 +176,12 @@ func LoadFilePVEmptyState(keyFilePath, stateFilePath string) *FilePV {
 func loadFilePV(keyFilePath, stateFilePath string, loadState bool) *FilePV {
 	keyJSONBytes, err := ioutil.ReadFile(keyFilePath)
 	if err != nil {
-		cmn.Exit(err.Error())
+		osm.Exit(err.Error())
 	}
 	pvKey := FilePVKey{}
 	err = amino.UnmarshalJSON(keyJSONBytes, &pvKey)
 	if err != nil {
-		cmn.Exit(fmt.Sprintf("Error reading PrivValidator key from %v: %v\n", keyFilePath, err))
+		osm.Exit(fmt.Sprintf("Error reading PrivValidator key from %v: %v\n", keyFilePath, err))
 	}
 
 	// overwrite pubkey and address for convenience
@@ -193,11 +193,11 @@ func loadFilePV(keyFilePath, stateFilePath string, loadState bool) *FilePV {
 	if loadState {
 		stateJSONBytes, err := ioutil.ReadFile(stateFilePath)
 		if err != nil {
-			cmn.Exit(err.Error())
+			osm.Exit(err.Error())
 		}
 		err = amino.UnmarshalJSON(stateJSONBytes, &pvState)
 		if err != nil {
-			cmn.Exit(fmt.Sprintf("Error reading PrivValidator state from %v: %v\n", stateFilePath, err))
+			osm.Exit(fmt.Sprintf("Error reading PrivValidator state from %v: %v\n", stateFilePath, err))
 		}
 	}
 
@@ -213,7 +213,7 @@ func loadFilePV(keyFilePath, stateFilePath string, loadState bool) *FilePV {
 // or else generates a new one and saves it to the filePaths.
 func LoadOrGenFilePV(keyFilePath, stateFilePath string) *FilePV {
 	var pv *FilePV
-	if cmn.FileExists(keyFilePath) {
+	if osm.FileExists(keyFilePath) {
 		pv = LoadFilePV(keyFilePath, stateFilePath)
 	} else {
 		pv = GenFilePV(keyFilePath, stateFilePath)

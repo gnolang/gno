@@ -8,10 +8,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tendermint/classic/crypto/ed25519"
-	cmn "github.com/tendermint/classic/libs/common"
-	"github.com/tendermint/classic/libs/log"
-	"github.com/tendermint/classic/types"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	"github.com/gnolang/gno/pkgs/crypto/ed25519"
+	"github.com/gnolang/gno/pkgs/log"
+	osm "github.com/gnolang/gno/pkgs/os"
+	"github.com/gnolang/gno/pkgs/random"
 )
 
 var (
@@ -66,7 +67,7 @@ func TestSignerRemoteRetryTCPOnly(t *testing.T) {
 	SignerDialerEndpointTimeoutReadWrite(time.Millisecond)(dialerEndpoint)
 	SignerDialerEndpointConnRetries(retries)(dialerEndpoint)
 
-	chainId := cmn.RandStr(12)
+	chainId := random.RandStr(12)
 	mockPV := types.NewMockPV()
 	signerServer := NewSignerServer(dialerEndpoint, chainId, mockPV)
 
@@ -86,7 +87,7 @@ func TestRetryConnToRemoteSigner(t *testing.T) {
 	for _, tc := range getDialerTestCases(t) {
 		var (
 			logger           = log.TestingLogger()
-			chainID          = cmn.RandStr(12)
+			chainID          = random.RandStr(12)
 			mockPV           = types.NewMockPV()
 			endpointIsOpenCh = make(chan struct{})
 			thisConnTimeout  = testTimeoutReadWrite
@@ -133,7 +134,7 @@ func TestRetryConnToRemoteSigner(t *testing.T) {
 ///////////////////////////////////
 
 func newSignerListenerEndpoint(logger log.Logger, addr string, timeoutReadWrite time.Duration) *SignerListenerEndpoint {
-	proto, address := cmn.ProtocolAndAddress(addr)
+	proto, address := osm.ProtocolAndAddress(addr)
 
 	ln, err := net.Listen(proto, address)
 	logger.Info("SignerListener: Listening", "proto", proto, "address", address)
