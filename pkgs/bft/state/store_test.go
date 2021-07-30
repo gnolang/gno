@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	cfg "github.com/tendermint/classic/config"
-	dbm "github.com/tendermint/classic/db"
-	sm "github.com/tendermint/classic/state"
-	"github.com/tendermint/classic/types"
+	cfg "github.com/gnolang/gno/pkgs/bft/config"
+	sm "github.com/gnolang/gno/pkgs/bft/state"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	dbm "github.com/gnolang/gno/pkgs/db"
 )
 
 func TestStoreLoadValidators(t *testing.T) {

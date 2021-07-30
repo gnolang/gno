@@ -7,19 +7,19 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tendermint/classic/abci/example/kvstore"
-	abci "github.com/tendermint/classic/abci/types"
-	"github.com/tendermint/classic/crypto/ed25519"
-	"github.com/tendermint/classic/crypto/secp256k1"
-	cmn "github.com/tendermint/classic/libs/common"
-	"github.com/tendermint/classic/libs/events"
-	"github.com/tendermint/classic/libs/log"
-	"github.com/tendermint/classic/mempool/mock"
-	"github.com/tendermint/classic/proxy"
-	sm "github.com/tendermint/classic/state"
-	"github.com/tendermint/classic/types"
-	tmtime "github.com/tendermint/classic/types/time"
-	"github.com/tendermint/go-amino-x"
+	"github.com/gnolang/gno/pkgs/amino"
+	"github.com/gnolang/gno/pkgs/async"
+	"github.com/gnolang/gno/pkgs/bft/abci/example/kvstore"
+	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
+	"github.com/gnolang/gno/pkgs/bft/mempool/mock"
+	"github.com/gnolang/gno/pkgs/bft/proxy"
+	sm "github.com/gnolang/gno/pkgs/bft/state"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	tmtime "github.com/gnolang/gno/pkgs/bft/types/time"
+	"github.com/gnolang/gno/pkgs/crypto/ed25519"
+	"github.com/gnolang/gno/pkgs/crypto/secp256k1"
+	"github.com/gnolang/gno/pkgs/events"
+	"github.com/gnolang/gno/pkgs/log"
 )
 
 var (
@@ -280,7 +280,7 @@ func TestEndBlockValidatorUpdates(t *testing.T) {
 	}
 
 	// Run in goroutine.
-	done := cmn.Routine(func() {
+	done := async.Routine(func() {
 		state, err := blockExec.ApplyBlock(state, blockID, block)
 		require.Nil(t, err)
 

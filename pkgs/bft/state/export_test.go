@@ -1,9 +1,9 @@
 package state
 
 import (
-	abci "github.com/tendermint/classic/abci/types"
-	dbm "github.com/tendermint/classic/db"
-	"github.com/tendermint/classic/types"
+	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	dbm "github.com/gnolang/gno/pkgs/db"
 )
 
 //

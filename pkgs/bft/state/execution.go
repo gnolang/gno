@@ -3,18 +3,18 @@ package state
 import (
 	"fmt"
 
-	abci "github.com/tendermint/classic/abci/types"
-	"github.com/tendermint/classic/crypto"
-	dbm "github.com/tendermint/classic/db"
-	"github.com/tendermint/classic/libs/events"
-	"github.com/tendermint/classic/libs/fail"
-	"github.com/tendermint/classic/libs/log"
-	mempl "github.com/tendermint/classic/mempool"
-	"github.com/tendermint/classic/proxy"
-	"github.com/tendermint/classic/types"
-	typesver "github.com/tendermint/classic/types/version"
-	tmver "github.com/tendermint/classic/version"
-	"github.com/tendermint/go-amino-x"
+	"github.com/gnolang/gno/pkgs/amino"
+	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
+	"github.com/gnolang/gno/pkgs/bft/fail"
+	mempl "github.com/gnolang/gno/pkgs/bft/mempool"
+	"github.com/gnolang/gno/pkgs/bft/proxy"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	typesver "github.com/gnolang/gno/pkgs/bft/types/version"
+	tmver "github.com/gnolang/gno/pkgs/bft/version"
+	"github.com/gnolang/gno/pkgs/crypto"
+	dbm "github.com/gnolang/gno/pkgs/db"
+	"github.com/gnolang/gno/pkgs/events"
+	"github.com/gnolang/gno/pkgs/log"
 )
 
 //-----------------------------------------------------------------------------

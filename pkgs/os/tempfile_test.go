@@ -4,18 +4,20 @@ package os
 
 import (
 	"bytes"
-	fmt "fmt"
+	"fmt"
 	"io/ioutil"
 	"os"
-	testing "testing"
+	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/gnolang/gno/pkgs/random"
 )
 
 func TestWriteFileAtomic(t *testing.T) {
 	var (
-		data             = []byte(RandStr(RandIntn(2048)))
-		old              = RandBytes(RandIntn(2048))
+		data             = []byte(random.RandStr(random.RandIntn(2048)))
+		old              = random.RandBytes(random.RandIntn(2048))
 		perm os.FileMode = 0600
 	)
 
