@@ -44,7 +44,7 @@ type cleanupFunc func()
 // genesis, chain_id, priv_val
 var config *cfg.Config // NOTE: must be reset for each _test.go file
 var consensusReplayConfig *cfg.Config
-var ensureTimeout = time.Millisecond * 5000
+var ensureTimeout = time.Millisecond * 20000
 
 func ensureDir(dir string, mode os.FileMode) {
 	if err := osm.EnsureDir(dir, mode); err != nil {
@@ -407,7 +407,7 @@ func ensureNewRound(roundCh <-chan events.Event, height int64, round int) {
 }
 
 func ensureNewTimeout(timeoutCh <-chan events.Event, height int64, round int, timeout int64) {
-	timeoutDuration := (time.Duration(timeout))*time.Nanosecond + 20*time.Second
+	timeoutDuration := (time.Duration(timeout))*time.Nanosecond + ensureTimeout
 	ensureNewEvent(timeoutCh, height, round, timeoutDuration,
 		"Timeout expired while waiting for NewTimeout event")
 }
