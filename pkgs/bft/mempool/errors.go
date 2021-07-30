@@ -3,7 +3,7 @@ package mempool
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
+	"github.com/gnolang/gno/pkgs/errors"
 )
 
 var (

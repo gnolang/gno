@@ -9,16 +9,16 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/pkg/errors"
-
-	abci "github.com/tendermint/classic/abci/types"
-	cfg "github.com/tendermint/classic/config"
-	auto "github.com/tendermint/classic/libs/autofile"
-	"github.com/tendermint/classic/libs/clist"
-	cmn "github.com/tendermint/classic/libs/common"
-	"github.com/tendermint/classic/libs/log"
-	"github.com/tendermint/classic/proxy"
-	"github.com/tendermint/classic/types"
+	auto "github.com/gnolang/gno/pkgs/autofile"
+	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
+	cfg "github.com/gnolang/gno/pkgs/bft/mempool/config"
+	"github.com/gnolang/gno/pkgs/bft/proxy"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	"github.com/gnolang/gno/pkgs/clist"
+	"github.com/gnolang/gno/pkgs/errors"
+	"github.com/gnolang/gno/pkgs/log"
+	"github.com/gnolang/gno/pkgs/maths"
+	osm "github.com/gnolang/gno/pkgs/os"
 )
 
 //--------------------------------------------------------------------------------
@@ -132,7 +132,7 @@ func WithPostCheck(f PostCheckFunc) CListMempoolOption {
 // *not thread safe*
 func (mem *CListMempool) InitWAL() {
 	walDir := mem.config.WalDir()
-	err := cmn.EnsureDir(walDir, 0700)
+	err := osm.EnsureDir(walDir, 0700)
 	if err != nil {
 		panic(errors.Wrap(err, "Error ensuring WAL dir"))
 	}
@@ -472,7 +472,7 @@ func (mem *CListMempool) ReapMaxBytesMaxGas(maxDataBytes, maxGas int64) types.Tx
 	var totalGas int64
 	// TODO: we will get a performance boost if we have a good estimate of avg
 	// size per tx, and set the initial capacity based off of that.
-	// txs := make([]types.Tx, 0, cmn.MinInt(mem.txs.Len(), max/mem.avgTxSize))
+	// txs := make([]types.Tx, 0, maths.MinInt(mem.txs.Len(), max/mem.avgTxSize))
 	txs := make([]types.Tx, 0, mem.txs.Len())
 	for e := mem.txs.Front(); e != nil; e = e.Next() {
 		memTx := e.Value.(*mempoolTx)
@@ -508,7 +508,7 @@ func (mem *CListMempool) ReapMaxTxs(max int) types.Txs {
 		time.Sleep(time.Millisecond * 10)
 	}
 
-	txs := make([]types.Tx, 0, cmn.MinInt(mem.txs.Len(), max))
+	txs := make([]types.Tx, 0, maths.MinInt(mem.txs.Len(), max))
 	for e := mem.txs.Front(); e != nil && len(txs) <= max; e = e.Next() {
 		memTx := e.Value.(*mempoolTx)
 		txs = append(txs, memTx.tx)

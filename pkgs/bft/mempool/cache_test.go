@@ -7,9 +7,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tendermint/classic/abci/example/kvstore"
-	"github.com/tendermint/classic/proxy"
-	"github.com/tendermint/classic/types"
+	"github.com/gnolang/gno/pkgs/bft/abci/example/kvstore"
+	"github.com/gnolang/gno/pkgs/bft/proxy"
+	"github.com/gnolang/gno/pkgs/bft/types"
 )
 
 func TestCacheRemove(t *testing.T) {

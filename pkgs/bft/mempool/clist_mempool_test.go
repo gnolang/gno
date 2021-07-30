@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io/ioutil"
-	mrand "math/rand"
 	"os"
 	"path/filepath"
 	"testing"
@@ -15,15 +14,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tendermint/classic/abci/example/counter"
-	"github.com/tendermint/classic/abci/example/kvstore"
-	abciserver "github.com/tendermint/classic/abci/server"
-	abci "github.com/tendermint/classic/abci/types"
-	cfg "github.com/tendermint/classic/config"
-	cmn "github.com/tendermint/classic/libs/common"
-	"github.com/tendermint/classic/libs/log"
-	"github.com/tendermint/classic/proxy"
-	"github.com/tendermint/classic/types"
+	"github.com/gnolang/gno/pkgs/bft/abci/example/counter"
+	"github.com/gnolang/gno/pkgs/bft/abci/example/kvstore"
+	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
+	cfg "github.com/gnolang/gno/pkgs/bft/mempool/config"
+	"github.com/gnolang/gno/pkgs/bft/proxy"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	"github.com/gnolang/gno/pkgs/log"
+	"github.com/gnolang/gno/pkgs/random"
 )
 
 // A cleanupFunc cleans up any config / test files created for a particular
@@ -33,19 +31,23 @@ type cleanupFunc func()
 const testMaxTxBytes int64 = 1024
 
 func newMempoolWithApp(cc proxy.ClientCreator) (*CListMempool, cleanupFunc) {
-	return newMempoolWithAppAndConfig(cc, cfg.ResetTestRoot("mempool_test"))
+	return newMempoolWithAppAndConfig(cc, cfg.TestMempoolConfig())
 }
 
-func newMempoolWithAppAndConfig(cc proxy.ClientCreator, config *cfg.Config) (*CListMempool, cleanupFunc) {
+func newMempoolWithAppAndConfig(cc proxy.ClientCreator, config *cfg.MempoolConfig) (*CListMempool, cleanupFunc) {
 	appConnMem, _ := cc.NewABCIClient()
 	appConnMem.SetLogger(log.TestingLogger().With("module", "abci-client", "connection", "mempool"))
 	err := appConnMem.Start()
 	if err != nil {
 		panic(err)
 	}
-	mempool := NewCListMempool(config.Mempool, appConnMem, 0, testMaxTxBytes)
+	mempool := NewCListMempool(config, appConnMem, 0, testMaxTxBytes)
 	mempool.SetLogger(log.TestingLogger())
-	return mempool, func() { os.RemoveAll(config.RootDir) }
+	return mempool, func() {
+		if config.RootDir != "" {
+			os.RemoveAll(config.RootDir)
+		}
+	}
 }
 
 func ensureNoFire(t *testing.T, ch <-chan struct{}, timeoutMS int) {
@@ -376,8 +378,8 @@ func TestMempoolCloseWAL(t *testing.T) {
 	require.Equal(t, 0, len(m1), "no matches yet")
 
 	// 3. Create the mempool
-	wcfg := cfg.DefaultConfig()
-	wcfg.Mempool.RootDir = rootDir
+	wcfg := cfg.TestMempoolConfig()
+	wcfg.RootDir = rootDir
 	app := kvstore.NewKVStoreApplication()
 	cc := proxy.NewLocalClientCreator(app)
 	mempool, cleanup := newMempoolWithAppAndConfig(cc, wcfg)
@@ -443,7 +445,7 @@ func TestMempoolMaxMsgSize(t *testing.T) {
 	for i, testCase := range testCases {
 		caseString := fmt.Sprintf("case %d, len %d", i, testCase.len)
 
-		tx := cmn.RandBytes(testCase.len)
+		tx := random.RandBytes(testCase.len)
 		err := mempl.CheckTx(tx, nil)
 		if !testCase.err {
 			require.True(t, len(tx) <= maxTxSize, caseString)
@@ -459,8 +461,8 @@ func TestMempoolMaxMsgSize(t *testing.T) {
 func TestMempoolMaxPendingTxsBytes(t *testing.T) {
 	app := kvstore.NewKVStoreApplication()
 	cc := proxy.NewLocalClientCreator(app)
-	config := cfg.ResetTestRoot("mempool_test")
-	config.Mempool.MaxPendingTxsBytes = 10
+	config := cfg.TestMempoolConfig()
+	config.MaxPendingTxsBytes = 10
 	mempool, cleanup := newMempoolWithAppAndConfig(cc, config)
 	defer cleanup()
 
@@ -522,54 +524,6 @@ func TestMempoolMaxPendingTxsBytes(t *testing.T) {
 	assert.EqualValues(t, 0, mempool.TxsBytes())
 }
 
-// This will non-deterministically catch some concurrency failures like
-// https://github.com/tendermint/classic/issues/3509
-// TODO: all of the tests should probably also run using the remote proxy app
-// since otherwise we're not actually testing the concurrency of the mempool here!
-func TestMempoolRemoteAppConcurrency(t *testing.T) {
-	sockPath := fmt.Sprintf("unix:///tmp/echo_%v.sock", cmn.RandStr(6))
-	app := kvstore.NewKVStoreApplication()
-	cc, server := newRemoteApp(t, sockPath, app)
-	defer server.Stop()
-	config := cfg.ResetTestRoot("mempool_test")
-	mempool, cleanup := newMempoolWithAppAndConfig(cc, config)
-	defer cleanup()
-
-	// generate small number of txs
-	nTxs := 10
-	txLen := 200
-	txs := make([]types.Tx, nTxs)
-	for i := 0; i < nTxs; i++ {
-		txs[i] = cmn.RandBytes(txLen)
-	}
-
-	// simulate a group of peers sending them over and over
-	N := config.Mempool.Size
-	maxPeers := 5
-	for i := 0; i < N; i++ {
-		peerID := mrand.Intn(maxPeers)
-		txNum := mrand.Intn(nTxs)
-		tx := txs[txNum]
-
-		// this will err with ErrTxInCache many times ...
-		mempool.CheckTxWithInfo(tx, nil, TxInfo{SenderID: uint16(peerID)})
-	}
-	err := mempool.FlushAppConn()
-	require.NoError(t, err)
-}
-
-// caller must close server
-func newRemoteApp(t *testing.T, addr string, app abci.Application) (clientCreator proxy.ClientCreator, server cmn.Service) {
-	clientCreator = proxy.NewRemoteClientCreator(addr, "socket", true)
-
-	// Start server
-	server = abciserver.NewSocketServer(addr, app)
-	server.SetLogger(log.TestingLogger().With("module", "abci-server"))
-	if err := server.Start(); err != nil {
-		t.Fatalf("Error starting socket server: %v", err.Error())
-	}
-	return clientCreator, server
-}
 func checksumIt(data []byte) string {
 	h := sha256.New()
 	h.Write(data)

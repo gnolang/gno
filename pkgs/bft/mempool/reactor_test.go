@@ -7,17 +7,18 @@ import (
 	"time"
 
 	"github.com/fortytw2/leaktest"
-	"github.com/go-kit/kit/log/term"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/tendermint/classic/abci/example/kvstore"
-	cfg "github.com/tendermint/classic/config"
-	"github.com/tendermint/classic/libs/log"
-	"github.com/tendermint/classic/p2p"
-	"github.com/tendermint/classic/p2p/mock"
-	"github.com/tendermint/classic/proxy"
-	"github.com/tendermint/classic/types"
+	"github.com/gnolang/gno/pkgs/bft/abci/example/kvstore"
+	memcfg "github.com/gnolang/gno/pkgs/bft/mempool/config"
+	"github.com/gnolang/gno/pkgs/bft/proxy"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	"github.com/gnolang/gno/pkgs/colors"
+	"github.com/gnolang/gno/pkgs/errors"
+	"github.com/gnolang/gno/pkgs/log"
+	"github.com/gnolang/gno/pkgs/p2p"
+	p2pcfg "github.com/gnolang/gno/pkgs/p2p/config"
+	"github.com/gnolang/gno/pkgs/p2p/mock"
 )
 
 type peerState struct {
@@ -31,18 +32,38 @@ func (ps peerState) GetHeight() int64 {
 // mempoolLogger is a TestingLogger which uses a different
 // color for each validator ("validator" key must exist).
 func mempoolLogger() log.Logger {
-	return log.TestingLoggerWithColorFn(func(keyvals ...interface{}) term.FgBgColor {
+	return log.TestingLoggerWithColorFn(func(keyvals ...interface{}) colors.Color {
 		for i := 0; i < len(keyvals)-1; i += 2 {
 			if keyvals[i] == "validator" {
-				return term.FgBgColor{Fg: term.Color(uint8(keyvals[i+1].(int) + 1))}
+				num := keyvals[i+1].(int)
+				switch num % 8 {
+				case 0:
+					return colors.Red
+				case 1:
+					return colors.Green
+				case 2:
+					return colors.Yellow
+				case 3:
+					return colors.Blue
+				case 4:
+					return colors.Magenta
+				case 5:
+					return colors.Cyan
+				case 6:
+					return colors.White
+				case 7:
+					return colors.Gray
+				default:
+					panic("should not happen")
+				}
 			}
 		}
-		return term.FgBgColor{}
+		return colors.None
 	})
 }
 
 // connect N mempool reactors through N switches
-func makeAndConnectReactors(config *cfg.Config, n int) []*Reactor {
+func makeAndConnectReactors(mconfig *memcfg.MempoolConfig, pconfig *p2pcfg.P2PConfig, n int) []*Reactor {
 	reactors := make([]*Reactor, n)
 	logger := mempoolLogger()
 	for i := 0; i < n; i++ {
@@ -51,11 +72,11 @@ func makeAndConnectReactors(config *cfg.Config, n int) []*Reactor {
 		mempool, cleanup := newMempoolWithApp(cc)
 		defer cleanup()
 
-		reactors[i] = NewReactor(config.Mempool, mempool) // so we dont start the consensus states
+		reactors[i] = NewReactor(mconfig, mempool) // so we dont start the consensus states
 		reactors[i].SetLogger(logger.With("validator", i))
 	}
 
-	p2p.MakeConnectedSwitches(config.P2P, n, func(i int, s *p2p.Switch) *p2p.Switch {
+	p2p.MakeConnectedSwitches(pconfig, n, func(i int, s *p2p.Switch) *p2p.Switch {
 		s.AddReactor("MEMPOOL", reactors[i])
 		return s
 
@@ -113,9 +134,10 @@ const (
 )
 
 func TestReactorBroadcastTxMessage(t *testing.T) {
-	config := cfg.TestConfig()
+	mconfig := memcfg.TestMempoolConfig()
+	pconfig := p2pcfg.TestP2PConfig()
 	const N = 4
-	reactors := makeAndConnectReactors(config, N)
+	reactors := makeAndConnectReactors(mconfig, pconfig, N)
 	defer func() {
 		for _, r := range reactors {
 			r.Stop()
@@ -134,9 +156,10 @@ func TestReactorBroadcastTxMessage(t *testing.T) {
 }
 
 func TestReactorNoBroadcastToSender(t *testing.T) {
-	config := cfg.TestConfig()
+	mconfig := memcfg.TestMempoolConfig()
+	pconfig := p2pcfg.TestP2PConfig()
 	const N = 2
-	reactors := makeAndConnectReactors(config, N)
+	reactors := makeAndConnectReactors(mconfig, pconfig, N)
 	defer func() {
 		for _, r := range reactors {
 			r.Stop()
@@ -154,9 +177,10 @@ func TestBroadcastTxForPeerStopsWhenPeerStops(t *testing.T) {
 		t.Skip("skipping test in short mode.")
 	}
 
-	config := cfg.TestConfig()
+	mconfig := memcfg.TestMempoolConfig()
+	pconfig := p2pcfg.TestP2PConfig()
 	const N = 2
-	reactors := makeAndConnectReactors(config, N)
+	reactors := makeAndConnectReactors(mconfig, pconfig, N)
 	defer func() {
 		for _, r := range reactors {
 			r.Stop()
@@ -177,9 +201,10 @@ func TestBroadcastTxForPeerStopsWhenReactorStops(t *testing.T) {
 		t.Skip("skipping test in short mode.")
 	}
 
-	config := cfg.TestConfig()
+	mconfig := memcfg.TestMempoolConfig()
+	pconfig := p2pcfg.TestP2PConfig()
 	const N = 2
-	reactors := makeAndConnectReactors(config, N)
+	reactors := makeAndConnectReactors(mconfig, pconfig, N)
 
 	// stop reactors
 	for _, r := range reactors {
