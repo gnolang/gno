@@ -9,18 +9,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	cfg "github.com/tendermint/classic/config"
-	db "github.com/tendermint/classic/db"
-	dbm "github.com/tendermint/classic/db"
-	"github.com/tendermint/classic/libs/log"
-	sm "github.com/tendermint/classic/state"
-	"github.com/tendermint/classic/types"
-	tmtime "github.com/tendermint/classic/types/time"
-	"github.com/tendermint/go-amino-x"
+	"github.com/gnolang/gno/pkgs/amino"
+	cfg "github.com/gnolang/gno/pkgs/bft/config"
+	sm "github.com/gnolang/gno/pkgs/bft/state"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	tmtime "github.com/gnolang/gno/pkgs/bft/types/time"
+	dbm "github.com/gnolang/gno/pkgs/db"
+	"github.com/gnolang/gno/pkgs/errors"
+	"github.com/gnolang/gno/pkgs/log"
 )
 
 // A cleanupFunc cleans up any config / test files created for a particular
@@ -59,7 +58,7 @@ func makeStateAndBlockStore(logger log.Logger) (sm.State, *BlockStore, cleanupFu
 }
 
 func TestLoadBlockStoreStateJSON(t *testing.T) {
-	db := db.NewMemDB()
+	db := dbm.NewMemDB()
 
 	bsj := &BlockStoreStateJSON{Height: 1000}
 	bsj.Save(db)
@@ -70,7 +69,7 @@ func TestLoadBlockStoreStateJSON(t *testing.T) {
 }
 
 func TestNewBlockStore(t *testing.T) {
-	db := db.NewMemDB()
+	db := dbm.NewMemDB()
 	db.Set(blockStoreKey, []byte(`{"height": "10000"}`))
 	bs := NewBlockStore(db)
 	require.Equal(t, int64(10000), bs.Height(), "failed to properly parse blockstore")
@@ -100,8 +99,8 @@ func TestNewBlockStore(t *testing.T) {
 	assert.Equal(t, bs.Height(), int64(0), "expecting nil bytes to be unmarshaled alright")
 }
 
-func freshBlockStore() (*BlockStore, db.DB) {
-	db := db.NewMemDB()
+func freshBlockStore() (*BlockStore, dbm.DB) {
+	db := dbm.NewMemDB()
 	return NewBlockStore(db), db
 }
 
