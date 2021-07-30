@@ -3,12 +3,12 @@ package types
 import (
 	"testing"
 
-	"github.com/tendermint/classic/crypto"
-	"github.com/tendermint/classic/crypto/ed25519"
-	cmn "github.com/tendermint/classic/libs/common"
-	"github.com/tendermint/classic/types"
-	tmtime "github.com/tendermint/classic/types/time"
-	amino "github.com/tendermint/go-amino-x"
+	amino "github.com/gnolang/gno/pkgs/amino"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	tmtime "github.com/gnolang/gno/pkgs/bft/types/time"
+	"github.com/gnolang/gno/pkgs/crypto"
+	"github.com/gnolang/gno/pkgs/crypto/ed25519"
+	"github.com/gnolang/gno/pkgs/random"
 )
 
 func BenchmarkRoundStateDeepCopy(b *testing.B) {
@@ -19,15 +19,15 @@ func BenchmarkRoundStateDeepCopy(b *testing.B) {
 	vset, _ := types.RandValidatorSet(nval, 1)
 	precommits := make([]*types.CommitSig, nval)
 	blockID := types.BlockID{
-		Hash: cmn.RandBytes(20),
+		Hash: random.RandBytes(20),
 		PartsHeader: types.PartSetHeader{
-			Hash: cmn.RandBytes(20),
+			Hash: random.RandBytes(20),
 		},
 	}
 	sig := make([]byte, ed25519.SignatureSize)
 	for i := 0; i < nval; i++ {
 		precommits[i] = (&types.Vote{
-			ValidatorAddress: crypto.AddressFromBytes(cmn.RandBytes(20)),
+			ValidatorAddress: crypto.AddressFromBytes(random.RandBytes(20)),
 			Timestamp:        tmtime.Now(),
 			BlockID:          blockID,
 			Signature:        sig,
@@ -35,20 +35,20 @@ func BenchmarkRoundStateDeepCopy(b *testing.B) {
 	}
 	txs := make([]types.Tx, ntxs)
 	for i := 0; i < ntxs; i++ {
-		txs[i] = cmn.RandBytes(100)
+		txs[i] = random.RandBytes(100)
 	}
 	// Random block
 	block := &types.Block{
 		Header: types.Header{
-			ChainID:         cmn.RandStr(12),
+			ChainID:         random.RandStr(12),
 			Time:            tmtime.Now(),
 			LastBlockID:     blockID,
-			LastCommitHash:  cmn.RandBytes(20),
-			DataHash:        cmn.RandBytes(20),
-			ValidatorsHash:  cmn.RandBytes(20),
-			ConsensusHash:   cmn.RandBytes(20),
-			AppHash:         cmn.RandBytes(20),
-			LastResultsHash: cmn.RandBytes(20),
+			LastCommitHash:  random.RandBytes(20),
+			DataHash:        random.RandBytes(20),
+			ValidatorsHash:  random.RandBytes(20),
+			ConsensusHash:   random.RandBytes(20),
+			AppHash:         random.RandBytes(20),
+			LastResultsHash: random.RandBytes(20),
 		},
 		Data: types.Data{
 			Txs: txs,

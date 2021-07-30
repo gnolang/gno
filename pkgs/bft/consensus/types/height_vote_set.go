@@ -6,9 +6,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/tendermint/classic/p2p"
-	"github.com/tendermint/classic/types"
-	"github.com/tendermint/go-amino-x"
+	"github.com/gnolang/gno/pkgs/amino"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	"github.com/gnolang/gno/pkgs/p2p"
 )
 
 type RoundVoteSet struct {

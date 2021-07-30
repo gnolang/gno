@@ -6,23 +6,18 @@ import (
 	"hash/crc32"
 	"io"
 	"reflect"
-
-	//"strconv"
-	//"strings"
 	"time"
 
-	abci "github.com/tendermint/classic/abci/types"
-	//auto "github.com/tendermint/classic/libs/autofile"
-	dbm "github.com/tendermint/classic/db"
-
-	cstypes "github.com/tendermint/classic/consensus/types"
-	"github.com/tendermint/classic/libs/events"
-	"github.com/tendermint/classic/libs/log"
-	"github.com/tendermint/classic/mempool/mock"
-	"github.com/tendermint/classic/proxy"
-	sm "github.com/tendermint/classic/state"
-	"github.com/tendermint/classic/types"
-	walm "github.com/tendermint/classic/wal"
+	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
+	cstypes "github.com/gnolang/gno/pkgs/bft/consensus/types"
+	"github.com/gnolang/gno/pkgs/bft/mempool/mock"
+	"github.com/gnolang/gno/pkgs/bft/proxy"
+	sm "github.com/gnolang/gno/pkgs/bft/state"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	walm "github.com/gnolang/gno/pkgs/bft/wal"
+	dbm "github.com/gnolang/gno/pkgs/db"
+	"github.com/gnolang/gno/pkgs/events"
+	"github.com/gnolang/gno/pkgs/log"
 )
 
 var crc32c = crc32.MakeTable(crc32.Castagnoli)

@@ -11,11 +11,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	auto "github.com/tendermint/classic/libs/autofile"
-	cmn "github.com/tendermint/classic/libs/common"
-	"github.com/tendermint/classic/libs/log"
-	tmtime "github.com/tendermint/classic/types/time"
-	"github.com/tendermint/go-amino-x"
+	"github.com/gnolang/gno/pkgs/amino"
+	auto "github.com/gnolang/gno/pkgs/autofile"
+	tmtime "github.com/gnolang/gno/pkgs/bft/types/time"
+	"github.com/gnolang/gno/pkgs/log"
+	"github.com/gnolang/gno/pkgs/random"
 )
 
 const (
@@ -32,7 +32,7 @@ type TestMessage struct {
 func (_ TestMessage) AssertWALMessage() {}
 
 var testPackage = amino.RegisterPackage(amino.NewPackage(
-	"github.com/tendermint/classic/wal",
+	"github.com/gnolang/gno/pkgs/bft/wal",
 	"wal",
 	amino.GetCallersDirname(),
 ).
@@ -110,7 +110,7 @@ func TestWALWrite(t *testing.T) {
 
 	// 1) Write returns an error if msg is too big
 	msg := TestMessage{
-		Data: cmn.RandBytes(int(maxTestMsgSize)),
+		Data: random.RandBytes(int(maxTestMsgSize)),
 	}
 	err := wal.Write(msg)
 	if assert.Error(t, err) {
@@ -120,7 +120,7 @@ func TestWALWrite(t *testing.T) {
 	// 2) Write returns no error if msg is not too big.
 	overhead := 1024 // sufficiently large.
 	msg = TestMessage{
-		Data: cmn.RandBytes(int(maxTestMsgSize) - overhead),
+		Data: random.RandBytes(int(maxTestMsgSize) - overhead),
 	}
 	err = wal.Write(msg)
 	assert.NoError(t, err)
@@ -142,7 +142,7 @@ func TestWALSearchForHeight(t *testing.T) {
 		err := wal.WriteMetaSync(MetaMessage{Height: int64(h)})
 		assert.NoError(t, err)
 		for r := 1; r < numRounds; r++ {
-			err := wal.Write(TestMessage{Height: int64(h), Round: int64(r), Data: cmn.RandBytes(dataSize)})
+			err := wal.Write(TestMessage{Height: int64(h), Round: int64(r), Data: random.RandBytes(dataSize)})
 			assert.NoError(t, err)
 		}
 	}
@@ -195,7 +195,7 @@ func TestWALPeriodicSync(t *testing.T) {
 		err := wal.WriteMetaSync(MetaMessage{Height: int64(h)})
 		assert.NoError(t, err)
 		for r := 1; r < numRounds; r++ {
-			err := wal.Write(TestMessage{Height: int64(h), Round: int64(r), Data: cmn.RandBytes(dataSize)})
+			err := wal.Write(TestMessage{Height: int64(h), Round: int64(r), Data: random.RandBytes(dataSize)})
 			assert.NoError(t, err)
 		}
 	}
@@ -246,7 +246,7 @@ func benchmarkWalRead(b *testing.B, n int) {
 	msg := TestMessage{
 		Height: 1,
 		Round:  1,
-		Data:   cmn.RandBytes(n),
+		Data:   random.RandBytes(n),
 	}
 	enc.Write(TimedWALMessage{Msg: msg, Time: time.Now().Round(time.Second).UTC()})
 

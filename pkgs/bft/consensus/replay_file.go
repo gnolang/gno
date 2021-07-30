@@ -8,19 +8,19 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
-	dbm "github.com/tendermint/classic/db"
-
-	cfg "github.com/tendermint/classic/config"
-	cstypes "github.com/tendermint/classic/consensus/types"
-	cmn "github.com/tendermint/classic/libs/common"
-	"github.com/tendermint/classic/libs/events"
-	"github.com/tendermint/classic/libs/log"
-	"github.com/tendermint/classic/mempool/mock"
-	"github.com/tendermint/classic/proxy"
-	sm "github.com/tendermint/classic/state"
-	"github.com/tendermint/classic/store"
-	walm "github.com/tendermint/classic/wal"
+	cfg "github.com/gnolang/gno/pkgs/bft/config"
+	cnscfg "github.com/gnolang/gno/pkgs/bft/consensus/config"
+	cstypes "github.com/gnolang/gno/pkgs/bft/consensus/types"
+	"github.com/gnolang/gno/pkgs/bft/mempool/mock"
+	"github.com/gnolang/gno/pkgs/bft/proxy"
+	sm "github.com/gnolang/gno/pkgs/bft/state"
+	"github.com/gnolang/gno/pkgs/bft/store"
+	walm "github.com/gnolang/gno/pkgs/bft/wal"
+	dbm "github.com/gnolang/gno/pkgs/db"
+	"github.com/gnolang/gno/pkgs/errors"
+	"github.com/gnolang/gno/pkgs/events"
+	"github.com/gnolang/gno/pkgs/log"
+	osm "github.com/gnolang/gno/pkgs/os"
 )
 
 const (
@@ -32,11 +32,11 @@ const (
 // replay messages interactively or all at once
 
 // replay the wal file
-func RunReplayFile(config cfg.BaseConfig, csConfig *cfg.ConsensusConfig, console bool) {
+func RunReplayFile(config cfg.BaseConfig, csConfig *cnscfg.ConsensusConfig, console bool) {
 	consensusState := newConsensusStateForReplay(config, csConfig)
 
 	if err := consensusState.ReplayFile(csConfig.WalFile(), console); err != nil {
-		cmn.Exit(fmt.Sprintf("Error during consensus replay: %v", err))
+		osm.Exit(fmt.Sprintf("Error during consensus replay: %v", err))
 	}
 }
 
@@ -179,9 +179,9 @@ func (pb *playback) replayConsoleLoop() int {
 		bufReader := bufio.NewReader(os.Stdin)
 		line, more, err := bufReader.ReadLine()
 		if more {
-			cmn.Exit("input is too long")
+			osm.Exit("input is too long")
 		} else if err != nil {
-			cmn.Exit(err.Error())
+			osm.Exit(err.Error())
 		}
 
 		tokens := strings.Split(string(line), " ")
@@ -269,7 +269,7 @@ func (pb *playback) replayConsoleLoop() int {
 //--------------------------------------------------------------------------------
 
 // convenience for replay mode
-func newConsensusStateForReplay(config cfg.BaseConfig, csConfig *cfg.ConsensusConfig) *ConsensusState {
+func newConsensusStateForReplay(config cfg.BaseConfig, csConfig *cnscfg.ConsensusConfig) *ConsensusState {
 	dbType := dbm.BackendType(config.DBBackend)
 	// Get BlockStore
 	blockStoreDB := dbm.NewDB("blockstore", dbType, config.DBDir())
@@ -279,11 +279,11 @@ func newConsensusStateForReplay(config cfg.BaseConfig, csConfig *cfg.ConsensusCo
 	stateDB := dbm.NewDB("state", dbType, config.DBDir())
 	gdoc, err := sm.MakeGenesisDocFromFile(config.GenesisFile())
 	if err != nil {
-		cmn.Exit(err.Error())
+		osm.Exit(err.Error())
 	}
 	state, err := sm.MakeGenesisState(gdoc)
 	if err != nil {
-		cmn.Exit(err.Error())
+		osm.Exit(err.Error())
 	}
 
 	// Create proxyAppConn connection (consensus, mempool, query)
@@ -291,19 +291,19 @@ func newConsensusStateForReplay(config cfg.BaseConfig, csConfig *cfg.ConsensusCo
 	proxyApp := proxy.NewAppConns(clientCreator)
 	err = proxyApp.Start()
 	if err != nil {
-		cmn.Exit(fmt.Sprintf("Error starting proxy app conns: %v", err))
+		osm.Exit(fmt.Sprintf("Error starting proxy app conns: %v", err))
 	}
 
 	evsw := events.NewEventSwitch()
 	if err := evsw.Start(); err != nil {
-		cmn.Exit(fmt.Sprintf("Failed to start event bus: %v", err))
+		osm.Exit(fmt.Sprintf("Failed to start event bus: %v", err))
 	}
 
 	handshaker := NewHandshaker(stateDB, state, blockStore, gdoc)
 	handshaker.SetEventSwitch(evsw)
 	err = handshaker.Handshake(proxyApp)
 	if err != nil {
-		cmn.Exit(fmt.Sprintf("Error on handshake: %v", err))
+		osm.Exit(fmt.Sprintf("Error on handshake: %v", err))
 	}
 
 	mempool := mock.Mempool{}

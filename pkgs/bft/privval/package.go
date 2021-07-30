@@ -5,7 +5,7 @@ import (
 )
 
 var Package = amino.RegisterPackage(amino.NewPackage(
-	"github.com/gnolang/gno/pkgs/privval",
+	"github.com/gnolang/gno/pkgs/bft/privval",
 	"tm.remotesigner",
 	amino.GetCallersDirname(),
 ).

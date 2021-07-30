@@ -3,8 +3,8 @@ package types
 import (
 	"fmt"
 
-	cmn "github.com/tendermint/classic/libs/common"
-	"github.com/tendermint/classic/types"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	"github.com/gnolang/gno/pkgs/bitarray"
 )
 
 type ConsensusEvent interface {
@@ -49,7 +49,7 @@ type EventNewValidBlock struct {
 	HRS `json:"hrs"`
 
 	BlockPartsHeader types.PartSetHeader `json:"block_parts_header"`
-	BlockParts       *cmn.BitArray       `json:"block_parts"`
+	BlockParts       *bitarray.BitArray  `json:"block_parts"`
 	IsCommit         bool                `json:"is_commit"`
 }
 

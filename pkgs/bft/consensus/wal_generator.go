@@ -9,21 +9,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pkg/errors"
-
-	"github.com/tendermint/classic/abci/example/kvstore"
-	cfg "github.com/tendermint/classic/config"
-	db "github.com/tendermint/classic/db"
-	cmn "github.com/tendermint/classic/libs/common"
-	"github.com/tendermint/classic/libs/events"
-	"github.com/tendermint/classic/libs/log"
-	"github.com/tendermint/classic/mempool/mock"
-	"github.com/tendermint/classic/privval"
-	"github.com/tendermint/classic/proxy"
-	sm "github.com/tendermint/classic/state"
-	"github.com/tendermint/classic/store"
-	"github.com/tendermint/classic/types"
-	walm "github.com/tendermint/classic/wal"
+	"github.com/gnolang/gno/pkgs/bft/abci/example/kvstore"
+	cfg "github.com/gnolang/gno/pkgs/bft/config"
+	"github.com/gnolang/gno/pkgs/bft/mempool/mock"
+	"github.com/gnolang/gno/pkgs/bft/privval"
+	"github.com/gnolang/gno/pkgs/bft/proxy"
+	sm "github.com/gnolang/gno/pkgs/bft/state"
+	"github.com/gnolang/gno/pkgs/bft/store"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	walm "github.com/gnolang/gno/pkgs/bft/wal"
+	db "github.com/gnolang/gno/pkgs/db"
+	"github.com/gnolang/gno/pkgs/errors"
+	"github.com/gnolang/gno/pkgs/events"
+	"github.com/gnolang/gno/pkgs/log"
+	"github.com/gnolang/gno/pkgs/random"
 )
 
 // WALGenerateNBlocks generates a consensus WAL. It does this by spinning up a
@@ -123,7 +122,7 @@ func WALWithNBlocks(t *testing.T, numBlocks int) (data []byte, err error) {
 func randPort() int {
 	// returns between base and base + spread
 	base, spread := 20000, 20000
-	return base + cmn.RandIntn(spread)
+	return base + random.RandIntn(spread)
 }
 
 func makeAddrs() (string, string, string) {

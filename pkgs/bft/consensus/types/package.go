@@ -1,12 +1,12 @@
 package types
 
 import (
-	"github.com/tendermint/classic/abci/types"
-	"github.com/tendermint/go-amino-x"
+	"github.com/gnolang/gno/pkgs/amino"
+	"github.com/gnolang/gno/pkgs/bft/abci/types"
 )
 
 var Package = amino.RegisterPackage(amino.NewPackage(
-	"github.com/tendermint/classic/consensus/types",
+	"github.com/gnolang/gno/pkgs/bft/consensus/types",
 	"tm",
 	amino.GetCallersDirname(),
 ).

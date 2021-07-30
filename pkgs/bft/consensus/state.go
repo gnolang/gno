@@ -8,22 +8,22 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
-
-	cfg "github.com/tendermint/classic/config"
-	cstypes "github.com/tendermint/classic/consensus/types"
-	"github.com/tendermint/classic/crypto"
-	cmn "github.com/tendermint/classic/libs/common"
-	"github.com/tendermint/classic/libs/events"
-	tmevents "github.com/tendermint/classic/libs/events"
-	"github.com/tendermint/classic/libs/fail"
-	"github.com/tendermint/classic/libs/log"
-	"github.com/tendermint/classic/p2p"
-	sm "github.com/tendermint/classic/state"
-	"github.com/tendermint/classic/types"
-	tmtime "github.com/tendermint/classic/types/time"
-	walm "github.com/tendermint/classic/wal"
-	"github.com/tendermint/go-amino-x"
+	"github.com/gnolang/gno/pkgs/amino"
+	cnscfg "github.com/gnolang/gno/pkgs/bft/consensus/config"
+	cstypes "github.com/gnolang/gno/pkgs/bft/consensus/types"
+	"github.com/gnolang/gno/pkgs/bft/fail"
+	sm "github.com/gnolang/gno/pkgs/bft/state"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	tmtime "github.com/gnolang/gno/pkgs/bft/types/time"
+	walm "github.com/gnolang/gno/pkgs/bft/wal"
+	"github.com/gnolang/gno/pkgs/crypto"
+	"github.com/gnolang/gno/pkgs/errors"
+	"github.com/gnolang/gno/pkgs/events"
+	tmevents "github.com/gnolang/gno/pkgs/events"
+	"github.com/gnolang/gno/pkgs/log"
+	osm "github.com/gnolang/gno/pkgs/os"
+	"github.com/gnolang/gno/pkgs/p2p"
+	"github.com/gnolang/gno/pkgs/service"
 )
 
 //-----------------------------------------------------------------------------
@@ -86,10 +86,10 @@ type txNotifier interface {
 // commits blocks to the chain and executes them against the application.
 // The internal state machine receives input from peers, the internal validator, and from a timer.
 type ConsensusState struct {
-	cmn.BaseService
+	service.BaseService
 
 	// config details
-	config        *cfg.ConsensusConfig
+	config        *cnscfg.ConsensusConfig
 	privValidator types.PrivValidator // for signing votes
 
 	// store blocks and commits
@@ -144,7 +144,7 @@ type StateOption func(*ConsensusState)
 
 // NewConsensusState returns a new ConsensusState.
 func NewConsensusState(
-	config *cfg.ConsensusConfig,
+	config *cnscfg.ConsensusConfig,
 	state sm.State,
 	blockExec *sm.BlockExecutor,
 	blockStore sm.BlockStore,
@@ -175,7 +175,7 @@ func NewConsensusState(
 	// Don't call scheduleRound0 yet.
 	// We do that upon Start().
 	cs.reconstructLastCommit(state)
-	cs.BaseService = *cmn.NewBaseService(nil, "ConsensusState", cs)
+	cs.BaseService = *service.NewBaseService(nil, "ConsensusState", cs)
 	for _, option := range options {
 		option(cs)
 	}
@@ -277,12 +277,12 @@ func (cs *ConsensusState) LoadCommit(height int64) *types.Commit {
 	return cs.blockStore.LoadBlockCommit(height)
 }
 
-// OnStart implements cmn.Service.
+// OnStart implements service.Service.
 // It loads the latest state via the WAL, and starts the timeout and receive routines.
 func (cs *ConsensusState) OnStart() error {
 	cs.done = make(chan struct{})
 
-	if err := cs.evsw.Start(); err != nil && err != cmn.ErrAlreadyStarted {
+	if err := cs.evsw.Start(); err != nil && err != service.ErrAlreadyStarted {
 		return err
 	}
 
@@ -350,7 +350,7 @@ func (cs *ConsensusState) StartWithoutWALCatchup() {
 	cs.Start()
 }
 
-// OnStop implements cmn.Service.
+// OnStop implements service.Service.
 func (cs *ConsensusState) OnStop() {
 	cs.evsw.Stop()
 	cs.timeoutTicker.Stop()
@@ -1344,7 +1344,7 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 	stateCopy, err = cs.blockExec.ApplyBlock(stateCopy, types.BlockID{Hash: block.Hash(), PartsHeader: blockParts.Header()}, block)
 	if err != nil {
 		cs.Logger.Error("Error on ApplyBlock. Did the application crash? Please restart tendermint", "err", err)
-		err := cmn.Kill()
+		err := osm.Kill()
 		if err != nil {
 			cs.Logger.Error("Failed to kill this process - please do so manually", "err", err)
 		}

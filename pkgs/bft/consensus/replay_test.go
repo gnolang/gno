@@ -9,30 +9,29 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"sort"
-
-	"github.com/tendermint/classic/abci/example/kvstore"
-	abci "github.com/tendermint/classic/abci/types"
-	cfg "github.com/tendermint/classic/config"
-	cstypes "github.com/tendermint/classic/consensus/types"
-	"github.com/tendermint/classic/crypto"
-	dbm "github.com/tendermint/classic/db"
-	cmn "github.com/tendermint/classic/libs/common"
-	"github.com/tendermint/classic/libs/events"
-	"github.com/tendermint/classic/libs/log"
-	"github.com/tendermint/classic/mempool/mock"
-	"github.com/tendermint/classic/privval"
-	"github.com/tendermint/classic/proxy"
-	sm "github.com/tendermint/classic/state"
-	"github.com/tendermint/classic/types"
-	walm "github.com/tendermint/classic/wal"
-	"github.com/tendermint/go-amino-x"
+	"github.com/gnolang/gno/pkgs/amino"
+	"github.com/gnolang/gno/pkgs/bft/abci/example/kvstore"
+	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
+	cfg "github.com/gnolang/gno/pkgs/bft/config"
+	cstypes "github.com/gnolang/gno/pkgs/bft/consensus/types"
+	"github.com/gnolang/gno/pkgs/bft/mempool/mock"
+	"github.com/gnolang/gno/pkgs/bft/privval"
+	"github.com/gnolang/gno/pkgs/bft/proxy"
+	sm "github.com/gnolang/gno/pkgs/bft/state"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	walm "github.com/gnolang/gno/pkgs/bft/wal"
+	"github.com/gnolang/gno/pkgs/crypto"
+	dbm "github.com/gnolang/gno/pkgs/db"
+	"github.com/gnolang/gno/pkgs/events"
+	"github.com/gnolang/gno/pkgs/log"
+	"github.com/gnolang/gno/pkgs/random"
 )
 
 func TestMain(m *testing.M) {
@@ -900,13 +899,13 @@ func (app *badApp) Commit() (res abci.ResponseCommit) {
 	app.height++
 	if app.onlyLastHashIsWrong {
 		if app.height == app.numBlocks {
-			res.Data = cmn.RandBytes(8)
+			res.Data = random.RandBytes(8)
 			return
 		}
 		res.Data = []byte{app.height}
 		return
 	} else if app.allHashesAreWrong {
-		res.Data = cmn.RandBytes(8)
+		res.Data = random.RandBytes(8)
 		return
 	}
 

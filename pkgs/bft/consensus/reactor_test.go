@@ -8,18 +8,19 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/tendermint/classic/abci/example/kvstore"
-	cfg "github.com/tendermint/classic/config"
-	cstypes "github.com/tendermint/classic/consensus/types"
-	"github.com/tendermint/classic/crypto/tmhash"
-	cmn "github.com/tendermint/classic/libs/common"
-	"github.com/tendermint/classic/libs/events"
-	"github.com/tendermint/classic/libs/log"
-	"github.com/tendermint/classic/p2p"
-	"github.com/tendermint/classic/p2p/mock"
-	sm "github.com/tendermint/classic/state"
-	"github.com/tendermint/classic/types"
-	"github.com/tendermint/go-amino-x"
+	"github.com/gnolang/gno/pkgs/amino"
+	"github.com/gnolang/gno/pkgs/bft/abci/example/kvstore"
+	cfg "github.com/gnolang/gno/pkgs/bft/config"
+	cstypes "github.com/gnolang/gno/pkgs/bft/consensus/types"
+	sm "github.com/gnolang/gno/pkgs/bft/state"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	"github.com/gnolang/gno/pkgs/bitarray"
+	"github.com/gnolang/gno/pkgs/crypto/tmhash"
+	"github.com/gnolang/gno/pkgs/events"
+	"github.com/gnolang/gno/pkgs/log"
+	osm "github.com/gnolang/gno/pkgs/os"
+	"github.com/gnolang/gno/pkgs/p2p"
+	"github.com/gnolang/gno/pkgs/p2p/mock"
 )
 
 //----------------------------------------------
@@ -496,7 +497,7 @@ func timeoutWaitGroup(t *testing.T, n int, f func(int), css []*ConsensusState) {
 			t.Log(cs.GetRoundState())
 			t.Log("")
 		}
-		cmn.PrintAllGoroutines()
+		osm.PrintAllGoroutines()
 		panic("Timed out waiting for all validators to commit a block")
 	}
 }
@@ -549,11 +550,14 @@ func TestNewValidBlockMessageValidateBasic(t *testing.T) {
 			"BlockParts bit array size 1 not equal to BlockPartsHeader.Total 2",
 		},
 		{
-			func(msg *NewValidBlockMessage) { msg.BlockPartsHeader.Total = 0; msg.BlockParts = cmn.NewBitArray(0) },
+			func(msg *NewValidBlockMessage) {
+				msg.BlockPartsHeader.Total = 0
+				msg.BlockParts = bitarray.NewBitArray(0)
+			},
 			"Empty BlockParts",
 		},
 		{
-			func(msg *NewValidBlockMessage) { msg.BlockParts = cmn.NewBitArray(types.MaxBlockPartsCount + 1) },
+			func(msg *NewValidBlockMessage) { msg.BlockParts = bitarray.NewBitArray(types.MaxBlockPartsCount + 1) },
 			"BlockParts bit array size 1602 not equal to BlockPartsHeader.Total 1",
 		},
 	}
@@ -567,7 +571,7 @@ func TestNewValidBlockMessageValidateBasic(t *testing.T) {
 				BlockPartsHeader: types.PartSetHeader{
 					Total: 1,
 				},
-				BlockParts: cmn.NewBitArray(1),
+				BlockParts: bitarray.NewBitArray(1),
 			}
 
 			tc.malleateFn(msg)
@@ -587,8 +591,8 @@ func TestProposalPOLMessageValidateBasic(t *testing.T) {
 		{func(msg *ProposalPOLMessage) {}, ""},
 		{func(msg *ProposalPOLMessage) { msg.Height = -1 }, "Negative Height"},
 		{func(msg *ProposalPOLMessage) { msg.ProposalPOLRound = -1 }, "Negative ProposalPOLRound"},
-		{func(msg *ProposalPOLMessage) { msg.ProposalPOL = cmn.NewBitArray(0) }, "Empty ProposalPOL bit array"},
-		{func(msg *ProposalPOLMessage) { msg.ProposalPOL = cmn.NewBitArray(types.MaxVotesCount + 1) },
+		{func(msg *ProposalPOLMessage) { msg.ProposalPOL = bitarray.NewBitArray(0) }, "Empty ProposalPOL bit array"},
+		{func(msg *ProposalPOLMessage) { msg.ProposalPOL = bitarray.NewBitArray(types.MaxVotesCount + 1) },
 			"ProposalPOL bit array is too big: 10001, max: 10000"},
 	}
 
@@ -598,7 +602,7 @@ func TestProposalPOLMessageValidateBasic(t *testing.T) {
 			msg := &ProposalPOLMessage{
 				Height:           1,
 				ProposalPOLRound: 1,
-				ProposalPOL:      cmn.NewBitArray(1),
+				ProposalPOL:      bitarray.NewBitArray(1),
 			}
 
 			tc.malleateFn(msg)
@@ -743,7 +747,7 @@ func TestVoteSetBitsMessageValidateBasic(t *testing.T) {
 				},
 			}
 		}, "Wrong BlockID: Wrong PartsHeader: Negative Total"},
-		{func(msg *VoteSetBitsMessage) { msg.Votes = cmn.NewBitArray(types.MaxVotesCount + 1) },
+		{func(msg *VoteSetBitsMessage) { msg.Votes = bitarray.NewBitArray(types.MaxVotesCount + 1) },
 			"Votes bit array is too big: 10001, max: 10000"},
 	}
 
@@ -754,7 +758,7 @@ func TestVoteSetBitsMessageValidateBasic(t *testing.T) {
 				Height:  1,
 				Round:   0,
 				Type:    0x01,
-				Votes:   cmn.NewBitArray(1),
+				Votes:   bitarray.NewBitArray(1),
 				BlockID: types.BlockID{},
 			}
 

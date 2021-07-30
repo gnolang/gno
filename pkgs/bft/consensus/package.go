@@ -1,12 +1,12 @@
 package consensus
 
 import (
-	"github.com/tendermint/classic/types"
-	"github.com/tendermint/go-amino-x"
+	"github.com/gnolang/gno/pkgs/amino"
+	"github.com/gnolang/gno/pkgs/bft/types"
 )
 
 var Package = amino.RegisterPackage(amino.NewPackage(
-	"github.com/tendermint/classic/consensus",
+	"github.com/gnolang/gno/pkgs/bft/consensus",
 	"tm",
 	amino.GetCallersDirname(),
 ).
