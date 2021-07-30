@@ -5,8 +5,8 @@ import (
 	"github.com/gnolang/gno/pkgs/amino/genproto"
 
 	// TODO: move these out.
-	// abci "github.com/gnolang/gno/classic/abci/types"
 	// "github.com/gnolang/gno/pkgs/classic/types"
+	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
 	"github.com/gnolang/gno/pkgs/crypto/ed25519"
 	"github.com/gnolang/gno/pkgs/crypto/merkle"
 	"github.com/gnolang/gno/pkgs/crypto/multisig"
@@ -19,7 +19,7 @@ func main() {
 		secp256k1.Package,
 		multisig.Package,
 		merkle.Package,
-		//abci.Package,
+		abci.Package,
 		//types.Package,
 	}
 	for _, pkg := range pkgs {
