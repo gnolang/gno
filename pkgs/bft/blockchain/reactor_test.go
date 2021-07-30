@@ -6,21 +6,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pkg/errors"
-	"github.com/tendermint/classic/store"
-
 	"github.com/stretchr/testify/assert"
 
-	abci "github.com/tendermint/classic/abci/types"
-	cfg "github.com/tendermint/classic/config"
-	dbm "github.com/tendermint/classic/db"
-	"github.com/tendermint/classic/libs/log"
-	"github.com/tendermint/classic/mempool/mock"
-	"github.com/tendermint/classic/p2p"
-	"github.com/tendermint/classic/proxy"
-	sm "github.com/tendermint/classic/state"
-	"github.com/tendermint/classic/types"
-	tmtime "github.com/tendermint/classic/types/time"
+	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
+	cfg "github.com/gnolang/gno/pkgs/bft/config"
+	"github.com/gnolang/gno/pkgs/bft/mempool/mock"
+	"github.com/gnolang/gno/pkgs/bft/proxy"
+	sm "github.com/gnolang/gno/pkgs/bft/state"
+	"github.com/gnolang/gno/pkgs/bft/store"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	tmtime "github.com/gnolang/gno/pkgs/bft/types/time"
+	dbm "github.com/gnolang/gno/pkgs/db"
+	"github.com/gnolang/gno/pkgs/errors"
+	"github.com/gnolang/gno/pkgs/log"
+	"github.com/gnolang/gno/pkgs/p2p"
 )
 
 var config *cfg.Config
@@ -77,8 +76,7 @@ func newBlockchainReactor(logger log.Logger, genDoc *types.GenesisDoc, privVals 
 	// pool.height is determined from the store.
 	fastSync := true
 	db := dbm.NewMemDB()
-	blockExec := sm.NewBlockExecutor(db, log.TestingLogger(), proxyApp.Consensus(),
-		mock.Mempool{}, sm.MockEvidencePool{})
+	blockExec := sm.NewBlockExecutor(db, log.TestingLogger(), proxyApp.Consensus(), mock.Mempool{})
 	sm.SaveState(db, state)
 
 	// let's add some blocks in
@@ -337,7 +335,7 @@ func makeTxs(height int64) (txs []types.Tx) {
 }
 
 func makeBlock(height int64, state sm.State, lastCommit *types.Commit) *types.Block {
-	block, _ := state.MakeBlock(height, makeTxs(height), lastCommit, nil, state.Validators.GetProposer().Address)
+	block, _ := state.MakeBlock(height, makeTxs(height), lastCommit, state.Validators.GetProposer().Address)
 	return block
 }
 
@@ -360,7 +358,7 @@ func (app *testApp) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 }
 
 func (app *testApp) DeliverTx(req abci.RequestDeliverTx) abci.ResponseDeliverTx {
-	return abci.ResponseDeliverTx{Events: []abci.Event{}}
+	return abci.ResponseDeliverTx{ResponseBase: abci.ResponseBase{Events: []abci.Event{}}}
 }
 
 func (app *testApp) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
