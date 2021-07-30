@@ -448,6 +448,7 @@ func MakeProtoFolder(pkg *amino.Package, dirName string) {
 
 	// Make symlinks.
 	for p3path, p3file := range p3imports {
+		fmt.Println("p3path", p3path, "p3file", p3file)
 		loc := path.Join(dirName, p3path)
 		locdir := path.Dir(loc)
 		// Ensure that paths exist.

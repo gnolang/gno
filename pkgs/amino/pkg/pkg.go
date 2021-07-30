@@ -105,6 +105,11 @@ func (pkg *Package) WithP3GoPkgPath(p3gopkg string) *Package {
 
 func (pkg *Package) WithGoPkgName(name string) *Package {
 	pkg.GoPkgName = name
+	// The following fields must also be updated.
+	// TODO: make P3ImportPath and P3SchemaFile lazy,
+	// so it never gets out of sync.
+	pkg.P3ImportPath = path.Join(pkg.GoPkgPath, name+".proto")
+	pkg.P3SchemaFile = path.Join(pkg.DirName, name+".proto")
 	return pkg
 }
 
