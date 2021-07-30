@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/pkg/errors"
-
-	dbm "github.com/tendermint/classic/db"
-	"github.com/tendermint/classic/types"
-	"github.com/tendermint/go-amino-x"
+	"github.com/gnolang/gno/pkgs/amino"
+	"github.com/gnolang/gno/pkgs/bft/types"
+	dbm "github.com/gnolang/gno/pkgs/db"
+	"github.com/gnolang/gno/pkgs/errors"
 )
 
 /*
