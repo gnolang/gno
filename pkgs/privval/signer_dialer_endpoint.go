@@ -3,8 +3,8 @@ package privval
 import (
 	"time"
 
-	cmn "github.com/tendermint/classic/libs/common"
-	"github.com/tendermint/classic/libs/log"
+	"github.com/gnolang/gno/pkgs/log"
+	"github.com/gnolang/gno/pkgs/service"
 )
 
 const (
@@ -51,7 +51,7 @@ func NewSignerDialerEndpoint(
 		maxConnRetries: defaultMaxDialRetries,
 	}
 
-	sd.BaseService = *cmn.NewBaseService(logger, "SignerDialerEndpoint", sd)
+	sd.BaseService = *service.NewBaseService(logger, "SignerDialerEndpoint", sd)
 	sd.signerEndpoint.timeoutReadWrite = defaultTimeoutReadWriteSeconds * time.Second
 
 	return sd

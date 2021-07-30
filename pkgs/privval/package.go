@@ -1,11 +1,11 @@
 package privval
 
 import (
-	"github.com/tendermint/go-amino-x"
+	"github.com/gnolang/gno/pkgs/amino"
 )
 
 var Package = amino.RegisterPackage(amino.NewPackage(
-	"github.com/tendermint/classic/privval",
+	"github.com/gnolang/gno/pkgs/privval",
 	"tm.remotesigner",
 	amino.GetCallersDirname(),
 ).

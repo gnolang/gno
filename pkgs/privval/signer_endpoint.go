@@ -6,10 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
-
-	cmn "github.com/tendermint/classic/libs/common"
-	"github.com/tendermint/go-amino-x"
+	"github.com/gnolang/gno/pkgs/amino"
+	"github.com/gnolang/gno/pkgs/errors"
+	"github.com/gnolang/gno/pkgs/service"
 )
 
 const (
@@ -17,7 +16,7 @@ const (
 )
 
 type signerEndpoint struct {
-	cmn.BaseService
+	service.BaseService
 
 	connMtx sync.Mutex
 	conn    net.Conn

@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/pkg/errors"
-
-	"github.com/tendermint/classic/crypto/ed25519"
-	cmn "github.com/tendermint/classic/libs/common"
-	"github.com/tendermint/classic/libs/log"
+	"github.com/gnolang/gno/pkgs/crypto/ed25519"
+	"github.com/gnolang/gno/pkgs/errors"
+	"github.com/gnolang/gno/pkgs/log"
+	osm "github.com/gnolang/gno/pkgs/os"
 )
 
 // IsConnTimeout returns a boolean indicating whether the error is known to
@@ -29,7 +28,7 @@ func IsConnTimeout(err error) bool {
 func NewSignerListener(listenAddr string, logger log.Logger) (*SignerListenerEndpoint, error) {
 	var listener net.Listener
 
-	protocol, address := cmn.ProtocolAndAddress(listenAddr)
+	protocol, address := osm.ProtocolAndAddress(listenAddr)
 	ln, err := net.Listen(protocol, address)
 	if err != nil {
 		return nil, err
@@ -54,7 +53,7 @@ func NewSignerListener(listenAddr string, logger log.Logger) (*SignerListenerEnd
 
 // GetFreeLocalhostAddrPort returns a free localhost:port address
 func GetFreeLocalhostAddrPort() string {
-	port, err := cmn.GetFreePort()
+	port, err := osm.GetFreePort()
 	if err != nil {
 		panic(err)
 	}

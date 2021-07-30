@@ -4,10 +4,10 @@ import (
 	"net"
 	"time"
 
-	"github.com/pkg/errors"
-	"github.com/tendermint/classic/crypto/ed25519"
-	cmn "github.com/tendermint/classic/libs/common"
-	p2pconn "github.com/tendermint/classic/p2p/conn"
+	"github.com/gnolang/gno/pkgs/crypto/ed25519"
+	"github.com/gnolang/gno/pkgs/errors"
+	osm "github.com/gnolang/gno/pkgs/os"
+	p2pconn "github.com/gnolang/gno/pkgs/p2p/conn"
 )
 
 // Socket errors.
@@ -22,7 +22,7 @@ type SocketDialer func() (net.Conn, error)
 // privKey for the authenticated encryption handshake.
 func DialTCPFn(addr string, timeoutReadWrite time.Duration, privKey ed25519.PrivKeyEd25519) SocketDialer {
 	return func() (net.Conn, error) {
-		conn, err := cmn.Connect(addr)
+		conn, err := osm.Connect(addr)
 		if err == nil {
 			deadline := time.Now().Add(timeoutReadWrite)
 			err = conn.SetDeadline(deadline)
