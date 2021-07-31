@@ -32,11 +32,11 @@ RangeStmt ->
 
 IfStmt ->
   OpIfCond -> +block
-    OpPopBlock
 
 SwitchStmt -> +block
   OpSwitchClause
-  OpTypeSwitchClause
+    OpSwitchClauseCase
+  OpTypeSwitch
 
 SelectStmt ->
   OpSelectCase +block
@@ -51,7 +51,7 @@ SelectStmt ->
 // operation is that the value of the expression is pushed onto the stack.
 
 func (m *Machine) doOpExec(op Op) {
-	s := m.PeekStmt(1)
+	s := m.PeekStmt(1) // TODO: PeekStmt1()?
 	if debug {
 		debug.Printf("PEEK STMT: %v\n", s)
 		debug.Println(m.String())
@@ -121,7 +121,7 @@ func (m *Machine) doOpExec(op Op) {
 				return // go back now.
 			} else {
 				// continue onto post stmt.
-				// XXX this is a kind of excewption....
+				// XXX this is a kind of exception....
 				// that is, this needs to run after
 				// the bodyStmt is force popped?
 				// or uh...
@@ -531,6 +531,7 @@ EXEC_SWITCH:
 	case *IfStmt:
 		b := NewBlock(cs, m.LastBlock())
 		m.PushBlock(b)
+		m.PushOp(OpPopBlock)
 		// continuation
 		m.PushOp(OpIfCond)
 		// evaluate condition
@@ -733,15 +734,20 @@ EXEC_SWITCH:
 	case *SwitchStmt:
 		b := NewBlock(cs, m.LastBlock())
 		m.PushBlock(b)
+		m.PushOp(OpPopBlock)
 		if cs.IsTypeSwitch {
 			// continuation
-			m.PushOp(OpTypeSwitchClause)
+			m.PushOp(OpTypeSwitch)
 			// evaluate x
 			m.PushExpr(cs.X)
 			m.PushOp(OpEval)
 		} else {
 			// continuation
 			m.PushOp(OpSwitchClause)
+			// push clause index 0
+			m.PushValue(typedInt(0))
+			// push clause case index 0
+			m.PushValue(typedInt(0))
 			// evaluate x
 			m.PushExpr(cs.X)
 			m.PushOp(OpEval)
@@ -765,8 +771,6 @@ EXEC_SWITCH:
 func (m *Machine) doOpIfCond() {
 	is := m.PopStmt().(*IfStmt)
 	b := m.LastBlock()
-	// final continuation
-	m.PushOp(OpPopBlock)
 	// Test cond and run Body or Else.
 	cond := m.PopValue()
 	if cond.GetBool() {
@@ -792,11 +796,7 @@ func (m *Machine) doOpIfCond() {
 	}
 }
 
-func (m *Machine) doOpSwitchClause() {
-	panic("not yet implemented")
-}
-
-func (m *Machine) doOpTypeSwitchClause() {
+func (m *Machine) doOpTypeSwitch() {
 	ss := m.PopStmt().(*SwitchStmt)
 	xv := m.PopValue()
 	xtid := TypeID{}
@@ -840,8 +840,6 @@ func (m *Machine) doOpTypeSwitchClause() {
 			match = true
 		}
 		if match { // did match
-			// final continuation
-			m.PushOp(OpPopBlock)
 			if len(cs.Body) != 0 {
 				b := m.LastBlock()
 				// define if varname
@@ -866,6 +864,95 @@ func (m *Machine) doOpTypeSwitchClause() {
 				m.PushStmt(b.GetBodyStmt())
 			}
 			return // done!
+		}
+	}
+}
+
+func (m *Machine) doOpSwitchClause() {
+	ss := m.PeekStmt1().(*SwitchStmt)
+	// tv := m.PeekValue(1) // switch tag value
+	// caiv := m.PeekValue(2) // switch clause case index (reuse)
+	cliv := m.PeekValue(3) // switch clause index (reuse)
+	idx := cliv.GetInt()
+	if idx >= len(ss.Clauses) {
+		// no clauses matched: do nothing.
+		m.PopStmt()  // pop switch stmt
+		m.PopValue() // pop switch tag value
+		m.PopValue() // pop clause case index
+		m.PopValue() // pop clause index
+		// done!
+	} else {
+		clause := ss.Clauses[idx]
+		if len(clause.Cases) == 0 {
+			// default clause
+			m.PopStmt()  // pop switch stmt
+			m.PopValue() // pop switch tag value
+			m.PopValue() // clause case index no longer needed
+			m.PopValue() // clause index no longer needed
+			// exec clause body
+			lb := m.LastBlock()
+			lb.bodyStmt = bodyStmt{
+				Body:      clause.Body,
+				BodyLen:   len(clause.Body),
+				BodyIndex: -2,
+			}
+			m.PushOp(OpBody)
+			m.PushStmt(lb.GetBodyStmt())
+		} else {
+			// continuation
+			m.PushOp(OpSwitchClauseCase)
+			// push first case expr
+			m.PushOp(OpEval)
+			m.PushExpr(clause.Cases[0])
+		}
+	}
+}
+
+func (m *Machine) doOpSwitchClauseCase() {
+	cv := m.PopValue()     // switch case value
+	tv := m.PeekValue(1)   // switch tag value
+	caiv := m.PeekValue(2) // clause case index (reuse)
+	cliv := m.PeekValue(3) // clause index (reuse)
+
+	// eval whether cv == tv.
+	if debug {
+		assertEqualityTypes(cv.T, tv.T)
+	}
+	match := isEql(cv, tv)
+	if match {
+		// matched clause
+		ss := m.PopStmt().(*SwitchStmt) // pop switch stmt
+		m.PopValue()                    // pop switch tag value
+		m.PopValue()                    // pop clause case index
+		m.PopValue()                    // pop clause index
+		// exec clause body
+		clidx := cliv.GetInt()
+		clause := ss.Clauses[clidx]
+		lb := m.LastBlock()
+		lb.bodyStmt = bodyStmt{
+			Body:      clause.Body,
+			BodyLen:   len(clause.Body),
+			BodyIndex: -2,
+		}
+		m.PushOp(OpBody)
+		m.PushStmt(lb.GetBodyStmt())
+	} else {
+		// try next case or clause.
+		ss := m.PeekStmt1().(*SwitchStmt) // peek switch stmt
+		clidx := cliv.GetInt()
+		clause := ss.Clauses[clidx]
+		caidx := caiv.GetInt()
+		if (caidx + 1) < len(clause.Cases) {
+			// try next clause case.
+			m.PushOp(OpSwitchClauseCase) // TODO consider sticky
+			caiv.SetInt(caidx + 1)
+			m.PushOp(OpEval)
+			m.PushExpr(clause.Cases[caidx+1])
+		} else {
+			// no more cases: next clause.
+			m.PushOp(OpSwitchClause) // TODO make sticky
+			cliv.SetInt(clidx + 1)
+			caiv.SetInt(0)
 		}
 	}
 }

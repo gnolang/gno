@@ -387,6 +387,13 @@ func Go2Gno(gon ast.Node) (n Node) {
 				"unexpected *ast.TypeSwitchStmt.Assign type %s",
 				reflect.TypeOf(gon.Assign).String()))
 		}
+	case *ast.SwitchStmt:
+		return &SwitchStmt{
+			Init:         toStmt(gon.Init),
+			X:            toExpr(gon.Tag),
+			IsTypeSwitch: false,
+			Clauses:      toClauses(gon.Body.List),
+		}
 	case *ast.ChanType:
 		var dir ChanDir
 		if gon.Dir&ast.SEND > 0 {
@@ -696,10 +703,26 @@ func toKeyValueExprs(elts []ast.Expr) (kvxs KeyValueExprs) {
 	return
 }
 
+// NOTE: moves the default clause to last.
 func toClauses(csz []ast.Stmt) []SwitchClauseStmt {
-	res := make([]SwitchClauseStmt, len(csz))
-	for i, cs := range csz {
-		res[i] = toSwitchClauseStmt(cs.(*ast.CaseClause))
+	res := make([]SwitchClauseStmt, 0, len(csz))
+	var dclause *SwitchClauseStmt
+	for _, cs := range csz {
+		clause := toSwitchClauseStmt(cs.(*ast.CaseClause))
+		if len(clause.Cases) == 0 {
+			if dclause != nil {
+				panic("duplicate default clause")
+			}
+			dclause = &clause
+		} else {
+			res = append(res, clause)
+		}
+	}
+	if dclause != nil {
+		res = append(res, *dclause)
+	}
+	if len(res) != len(csz) {
+		panic("should not happen")
 	}
 	return res
 }

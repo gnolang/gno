@@ -354,14 +354,15 @@ const (
 	OpGo                  Op = 0x0C // go call(X, [...])
 	OpSelect              Op = 0x0D // exec next select case
 	OpSwitchClause        Op = 0x0E // exec next switch clause
-	OpTypeSwitchClause    Op = 0x0F // exec next type switch clause
-	OpForLoop1            Op = 0x10 // body and post if X, else break
-	OpIfCond              Op = 0x11 // eval cond
-	OpPopValue            Op = 0x12 // pop X
-	OpPopResults          Op = 0x13 // pop n call results
-	OpPopBlock            Op = 0x14 // pop block NOTE breaks certain invariants.
-	OpPanic1              Op = 0x15 // pop exception and pop call frames.
-	OpPanic2              Op = 0x16 // pop call frames.
+	OpSwitchClauseCase    Op = 0x0F // exec next switch clause case
+	OpTypeSwitch          Op = 0x10 // exec type switch clauses (all)
+	OpForLoop1            Op = 0x11 // body and post if X, else break
+	OpIfCond              Op = 0x12 // eval cond
+	OpPopValue            Op = 0x13 // pop X
+	OpPopResults          Op = 0x14 // pop n call results
+	OpPopBlock            Op = 0x15 // pop block NOTE breaks certain invariants.
+	OpPanic1              Op = 0x16 // pop exception and pop call frames.
+	OpPanic2              Op = 0x17 // pop call frames.
 
 	/* Unary & binary operators */
 	OpUpos  Op = 0x20 // + (unary)
@@ -497,8 +498,10 @@ func (m *Machine) Run() {
 			panic("not yet implemented")
 		case OpSwitchClause:
 			m.doOpSwitchClause()
-		case OpTypeSwitchClause:
-			m.doOpTypeSwitchClause()
+		case OpSwitchClauseCase:
+			m.doOpSwitchClauseCase()
+		case OpTypeSwitch:
+			m.doOpTypeSwitch()
 		case OpForLoop1:
 			m.doOpForLoop1()
 		case OpIfCond:
@@ -706,8 +709,24 @@ func (m *Machine) ForcePopOp() {
 }
 
 // Offset starts at 1.
+// DEPRECATED use PeekStmt1() instead.
 func (m *Machine) PeekStmt(offset int) Stmt {
+	if debug {
+		if offset != 1 {
+			panic("should not happen")
+		}
+	}
 	return m.Stmts[len(m.Stmts)-offset]
+}
+
+func (m *Machine) PeekStmt1() Stmt {
+	numStmts := len(m.Stmts)
+	s := m.Stmts[numStmts-1]
+	if bs, ok := s.(*bodyStmt); ok {
+		return bs.Active
+	} else {
+		return m.Stmts[numStmts-1]
+	}
 }
 
 func (m *Machine) PushStmt(s Stmt) {

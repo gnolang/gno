@@ -769,11 +769,11 @@ type SendStmt struct {
 type SwitchStmt struct {
 	Attributes
 	StaticBlock
-	Init         Stmt               // init (simple) stmt; or nil.
-	X            Expr               // tag or _.(type) expr; or nil.
-	IsTypeSwitch bool               // true iff X is .(type) expr.
-	Clauses      []SwitchClauseStmt // cases
-	VarName      Name               // tag or type-switched value.
+	Init         Stmt               // init (simple) stmt; or nil
+	X            Expr               // tag or _.(type) expr; or nil
+	IsTypeSwitch bool               // true iff X is .(type) expr
+	Clauses      []SwitchClauseStmt // case clauses
+	VarName      Name               // type-switched value; or ""
 }
 
 type SwitchClauseStmt struct {

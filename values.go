@@ -2020,6 +2020,12 @@ func defaultValue(t Type) Value {
 	}
 }
 
+func typedInt(i int) TypedValue {
+	tv := TypedValue{T: IntType}
+	tv.SetInt(i)
+	return tv
+}
+
 func untypedBool(b bool) TypedValue {
 	tv := TypedValue{T: UntypedBoolType}
 	tv.SetBool(b)
