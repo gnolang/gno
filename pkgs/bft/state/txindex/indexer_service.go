@@ -1,6 +1,7 @@
 package txindex
 
 import (
+	"github.com/gnolang/gno/pkgs/events"
 	"github.com/gnolang/gno/pkgs/service"
 )
 
@@ -9,12 +10,13 @@ import (
 type IndexerService struct {
 	service.BaseService
 
-	idr TxIndexer
+	idr  TxIndexer
+	evsw events.EventSwitch
 }
 
 // NewIndexerService returns a new service instance.
-func NewIndexerService(idr TxIndexer) *IndexerService {
-	is := &IndexerService{idr: idr}
+func NewIndexerService(idr TxIndexer, evsw events.EventSwitch) *IndexerService {
+	is := &IndexerService{idr: idr, evsw: evsw}
 	is.BaseService = *service.NewBaseService(nil, "IndexerService", is)
 	return is
 }

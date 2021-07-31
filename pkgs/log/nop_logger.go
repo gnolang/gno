@@ -15,3 +15,5 @@ func (nopLogger) Error(string, ...interface{}) {}
 func (l *nopLogger) With(...interface{}) Logger {
 	return l
 }
+
+func (l *nopLogger) SetLevel(LogLevel) {}

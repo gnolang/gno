@@ -1188,6 +1188,7 @@ func (cs *ConsensusState) enterPrecommitWait(height int64, round int) {
 	defer func() {
 		// Done enterPrecommitWait:
 		cs.TriggeredTimeoutPrecommit = true
+		cs.updateRoundStep(cs.Round, cstypes.RoundStepPrecommitWait)
 		cs.newStep()
 	}()
 

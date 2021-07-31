@@ -67,7 +67,7 @@ func (info NodeInfo) Validate() error {
 	if info.NetAddress == nil {
 		return fmt.Errorf("info.NetAddress cannot be nil")
 	}
-	if err := info.NetAddress.Validate(); err != nil {
+	if err := info.NetAddress.ValidateLocal(); err != nil {
 		return err
 	}
 

@@ -825,11 +825,13 @@ func (conR *ConsensusReactor) peerStatsRoutine() {
 			switch msg.Msg.(type) {
 			case *VoteMessage:
 				if numVotes := ps.RecordVote(); numVotes%votesToContributeToBecomeGoodPeer == 0 {
-					conR.Switch.MarkPeerAsGood(peer)
+					// TODO: peer metrics.
+					// conR.Switch.MarkPeerAsGood(peer)
 				}
 			case *BlockPartMessage:
 				if numParts := ps.RecordBlockPart(); numParts%blocksToContributeToBecomeGoodPeer == 0 {
-					conR.Switch.MarkPeerAsGood(peer)
+					// TODO: peer metrics.
+					// conR.Switch.MarkPeerAsGood(peer)
 				}
 			}
 		case <-conR.conS.Quit():

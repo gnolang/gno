@@ -1,11 +1,9 @@
 package config
 
 import (
-	"path/filepath"
 	"time"
 
 	"github.com/gnolang/gno/pkgs/errors"
-	osm "github.com/gnolang/gno/pkgs/os"
 )
 
 //-----------------------------------------------------------------------------
@@ -19,9 +17,7 @@ const (
 )
 
 var (
-	defaultConfigDir    = "config" // duplicate across module configs?
-	defaultAddrBookName = "addrbook.json"
-	defaultAddrBookPath = filepath.Join(defaultConfigDir, defaultAddrBookName)
+	defaultConfigDir = "config" // duplicate across module configs?
 )
 
 // P2PConfig defines the configuration options for the Tendermint peer-to-peer networking layer
@@ -35,7 +31,6 @@ type P2PConfig struct {
 	ExternalAddress string `mapstructure:"external_address"`
 
 	// Comma separated list of seed nodes to connect to
-	// We only use these if we can’t connect to peers in the addrbook
 	Seeds string `mapstructure:"seeds"`
 
 	// Comma separated list of nodes to keep persistent connections to
@@ -43,13 +38,6 @@ type P2PConfig struct {
 
 	// UPNP port forwarding
 	UPNP bool `mapstructure:"upnp"`
-
-	// Path to address book
-	AddrBook string `mapstructure:"addr_book_file"`
-
-	// Set true for strict address routability rules
-	// Set false for private or local networks
-	AddrBookStrict bool `mapstructure:"addr_book_strict"`
 
 	// Maximum number of inbound peers
 	MaxNumInboundPeers int `mapstructure:"max_num_inbound_peers"`
@@ -103,8 +91,6 @@ func DefaultP2PConfig() *P2PConfig {
 		ListenAddress:           "tcp://0.0.0.0:26656",
 		ExternalAddress:         "",
 		UPNP:                    false,
-		AddrBook:                defaultAddrBookPath,
-		AddrBookStrict:          true,
 		MaxNumInboundPeers:      40,
 		MaxNumOutboundPeers:     10,
 		FlushThrottleTimeout:    100 * time.Millisecond,
@@ -129,11 +115,6 @@ func TestP2PConfig() *P2PConfig {
 	cfg.FlushThrottleTimeout = 10 * time.Millisecond
 	cfg.AllowDuplicateIP = true
 	return cfg
-}
-
-// AddrBookFile returns the full path to the address book
-func (cfg *P2PConfig) AddrBookFile() string {
-	return osm.MakeAbs(cfg.AddrBook, cfg.RootDir)
 }
 
 // ValidateBasic performs basic validation (checking param bounds, etc.) and

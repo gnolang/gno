@@ -41,20 +41,6 @@ func MConnConfig(cfg *config.P2PConfig) conn.MConnConfig {
 	return mConfig
 }
 
-//-----------------------------------------------------------------------------
-
-// An AddrBook represents an address book from the pex package, which is used
-// to store peer addresses.
-type AddrBook interface {
-	AddAddress(addr *NetAddress, src *NetAddress) error
-	AddOurAddress(*NetAddress)
-	OurAddress(*NetAddress) bool
-	MarkGood(ID)
-	RemoveAddress(*NetAddress)
-	HasAddress(*NetAddress) bool
-	Save()
-}
-
 // PeerFilterFunc to be implemented by filter hooks after a new Peer has been
 // fully setup.
 type PeerFilterFunc func(IPeerSet, Peer) error
@@ -77,7 +63,6 @@ type Switch struct {
 	reconnecting *cmap.CMap
 	nodeInfo     NodeInfo // our node info
 	nodeKey      *NodeKey // our node privkey
-	addrBook     AddrBook
 	// peers addresses with whom we'll maintain constant connection
 	persistentPeersAddrs []*NetAddress
 
@@ -346,12 +331,10 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 
 // reconnectToPeer tries to reconnect to the addr, first repeatedly
 // with a fixed interval, then with exponential backoff.
-// If no success after all that, it stops trying, and leaves it
-// to the PEX/Addrbook to find the peer with the addr again
+// If no success after all that, it stops trying.
 // NOTE: this will keep trying even if the handshake or auth fails.
 // TODO: be more explicit with error types so we only retry on certain failures
 //  - ie. if we're getting ErrDuplicatePeer we can stop
-//  	because the addrbook got us the peer back already
 func (sw *Switch) reconnectToPeer(addr *NetAddress) {
 	if sw.reconnecting.Has(addr.ID.String()) {
 		return
@@ -401,19 +384,6 @@ func (sw *Switch) reconnectToPeer(addr *NetAddress) {
 	sw.Logger.Error("Failed to reconnect to peer. Giving up", "addr", addr, "elapsed", time.Since(start))
 }
 
-// SetAddrBook allows to set address book on Switch.
-func (sw *Switch) SetAddrBook(addrBook AddrBook) {
-	sw.addrBook = addrBook
-}
-
-// MarkPeerAsGood marks the given peer as good when it did something useful
-// like contributed to consensus.
-func (sw *Switch) MarkPeerAsGood(peer Peer) {
-	if sw.addrBook != nil {
-		sw.addrBook.MarkGood(peer.ID())
-	}
-}
-
 //---------------------------------------------------------------------
 // Dialing
 
@@ -450,29 +420,6 @@ func (sw *Switch) DialPeersAsync(peers []string) error {
 
 func (sw *Switch) dialPeersAsync(netAddrs []*NetAddress) {
 	ourAddr := sw.NetAddress()
-
-	// TODO: this code feels like it's in the wrong place.
-	// The integration tests depend on the addrBook being saved
-	// right away but maybe we can change that. Recall that
-	// the addrBook is only written to disk every 2min
-	if sw.addrBook != nil {
-		// add peers to `addrBook`
-		for _, netAddr := range netAddrs {
-			// do not add our address or ID
-			if !netAddr.Same(ourAddr) {
-				if err := sw.addrBook.AddAddress(netAddr, ourAddr); err != nil {
-					if isPrivateAddr(err) {
-						sw.Logger.Debug("Won't add peer's address to addrbook", "err", err)
-					} else {
-						sw.Logger.Error("Can't add peer's address to addrbook", "err", err)
-					}
-				}
-			}
-		}
-		// Persist some peers to disk right away.
-		// NOTE: integration tests depend on this
-		sw.addrBook.Save()
-	}
 
 	// permute the list, dial them in random order.
 	perm := sw.rng.Perm(len(netAddrs))
@@ -574,11 +521,7 @@ func (sw *Switch) acceptRoutine() {
 			switch err := err.(type) {
 			case ErrRejected:
 				if err.IsSelf() {
-					// Remove the given address from the address book and add to our addresses
-					// to avoid dialing in the future.
-					addr := err.Addr()
-					sw.addrBook.RemoveAddress(&addr)
-					sw.addrBook.AddOurAddress(&addr)
+					// TODO: warn?
 				}
 
 				sw.Logger.Info(
@@ -672,11 +615,7 @@ func (sw *Switch) addOutboundPeerWithConfig(
 	if err != nil {
 		if e, ok := err.(ErrRejected); ok {
 			if e.IsSelf() {
-				// Remove the given address from the address book and add to our addresses
-				// to avoid dialing in the future.
-				sw.addrBook.RemoveAddress(addr)
-				sw.addrBook.AddOurAddress(addr)
-
+				// TODO: warn?
 				return err
 			}
 		}

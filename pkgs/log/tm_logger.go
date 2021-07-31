@@ -20,7 +20,7 @@ type tmLogger struct {
 
 var _ Logger = (*tmLogger)(nil)
 
-func NewTMLogger(w io.Writer) Logger {
+func NewTMLogger(w io.Writer) *tmLogger {
 	// Color by level value
 	colorFn := func(keyvals ...interface{}) colors.Color {
 		if keyvals[0] != logKeyLevel {
@@ -43,12 +43,16 @@ func NewTMLogger(w io.Writer) Logger {
 }
 
 // NewTMLoggerWithColorFn allows you to provide your own color function.
-func NewTMLoggerWithColorFn(w io.Writer, colorFn func(keyvals ...interface{}) colors.Color) Logger {
+func NewTMLoggerWithColorFn(w io.Writer, colorFn func(keyvals ...interface{}) colors.Color) *tmLogger {
 	return &tmLogger{
 		level:   LevelDebug,
 		colorFn: colorFn,
 		writer:  w,
 	}
+}
+
+func (l *tmLogger) SetLevel(lvl LogLevel) {
+	l.level = lvl
 }
 
 // Debug logs a message at level Debug.
@@ -111,6 +115,10 @@ func (l *withLogger) Error(msg string, keyvals ...interface{}) {
 
 func (l *withLogger) With(keyvals ...interface{}) Logger {
 	return newWithLogger(l, keyvals)
+}
+
+func (l *withLogger) SetLevel(LogLevel) {
+	panic("SetLevel not supported on derived WithLogger")
 }
 
 //----------------------------------------
