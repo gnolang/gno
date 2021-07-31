@@ -80,7 +80,7 @@ func NewCListMempool(
 	maxTxBytes int64,
 	options ...CListMempoolOption,
 ) *CListMempool {
-	if maxTxBytes < 0 {
+	if maxTxBytes <= 0 {
 		panic("maxTxBytes must be positive")
 	}
 	mempool := &CListMempool{

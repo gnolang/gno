@@ -406,6 +406,28 @@ func ensureNewRound(roundCh <-chan events.Event, height int64, round int) {
 	}
 }
 
+func ensureNewRoundStep(stepCh <-chan events.Event, height int64, round int, step cstypes.RoundStepType) {
+	select {
+	case <-time.After(ensureTimeout):
+		panic("Timeout expired while waiting for NewRoundStep event")
+	case msg := <-stepCh:
+		newStepEvent, ok := msg.(cstypes.EventNewRoundStep)
+		if !ok {
+			panic(fmt.Sprintf("expected a EventNewRound, got %T. Wrong subscription channel?",
+				msg))
+		}
+		if newStepEvent.Height != height {
+			panic(fmt.Sprintf("expected height %v, got %v", height, newStepEvent.Height))
+		}
+		if newStepEvent.Round != round {
+			panic(fmt.Sprintf("expected round %v, got %v", round, newStepEvent.Round))
+		}
+		if newStepEvent.Step != step {
+			panic(fmt.Sprintf("expected step %v, got %v", step, newStepEvent.Step))
+		}
+	}
+}
+
 func ensureNewTimeout(timeoutCh <-chan events.Event, height int64, round int, timeout int64) {
 	timeoutDuration := (time.Duration(timeout))*time.Nanosecond + ensureTimeout
 	ensureNewEvent(timeoutCh, height, round, timeoutDuration,

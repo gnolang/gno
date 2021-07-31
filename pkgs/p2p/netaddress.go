@@ -240,8 +240,22 @@ func (na *NetAddress) Routable() bool {
 		na.RFC4193() || na.RFC4843() || na.Local())
 }
 
-// For IPv4 these are either a 0 or all bits set address. For IPv6 a zero
-// address or one that matches the RFC3849 documentation address format.
+func (na *NetAddress) ValidateLocal() error {
+	if err := na.ID.Validate(); err != nil {
+		return err
+	}
+	if na.IP == nil {
+		return errors.New("no IP")
+	}
+	if len(na.IP) != 4 && len(na.IP) != 16 {
+		return fmt.Errorf("invalid IP bytes: %v", len(na.IP))
+	}
+	if na.RFC3849() || na.IP.Equal(net.IPv4bcast) {
+		return errors.New("invalid IP", na.IP.IsUnspecified())
+	}
+	return nil
+}
+
 func (na *NetAddress) Validate() error {
 	if err := na.ID.Validate(); err != nil {
 		return err
@@ -253,7 +267,7 @@ func (na *NetAddress) Validate() error {
 		return fmt.Errorf("invalid IP bytes: %v", len(na.IP))
 	}
 	if na.IP.IsUnspecified() || na.RFC3849() || na.IP.Equal(net.IPv4bcast) {
-		return errors.New("invalid IP")
+		return errors.New("invalid IP", na.IP.IsUnspecified())
 	}
 	return nil
 }

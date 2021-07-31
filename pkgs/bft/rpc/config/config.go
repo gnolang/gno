@@ -56,20 +56,10 @@ type RPCConfig struct {
 	// 1024 - 40 - 10 - 50 = 924 = ~900
 	MaxOpenConnections int `mapstructure:"max_open_connections"`
 
-	// Maximum number of unique clientIDs that can /subscribe
-	// If you're using /broadcast_tx_commit, set to the estimated maximum number
-	// of broadcast_tx_commit calls per block.
-	MaxSubscriptionClients int `mapstructure:"max_subscription_clients"`
-
-	// Maximum number of unique queries a given client can /subscribe to
-	// If you're using GRPC (or Local RPC client) and /broadcast_tx_commit, set
-	// to the estimated maximum number of broadcast_tx_commit calls per block.
-	MaxSubscriptionsPerClient int `mapstructure:"max_subscriptions_per_client"`
-
 	// How long to wait for a tx to be committed during /broadcast_tx_commit
 	// WARNING: Using a value larger than 10s will result in increasing the
 	// global HTTP write timeout, which applies to all connections and endpoints.
-	// See https://github.com/tendermint/classic/issues/3435
+	// See https://github.com/gnolang/gno/pkgs/bft/issues/3435
 	TimeoutBroadcastTxCommit time.Duration `mapstructure:"timeout_broadcast_tx_commit"`
 
 	// Maximum size of request body, in bytes
@@ -108,9 +98,7 @@ func DefaultRPCConfig() *RPCConfig {
 		Unsafe:             false,
 		MaxOpenConnections: 900,
 
-		MaxSubscriptionClients:    100,
-		MaxSubscriptionsPerClient: 5,
-		TimeoutBroadcastTxCommit:  10 * time.Second,
+		TimeoutBroadcastTxCommit: 10 * time.Second,
 
 		MaxBodyBytes:   int64(1000000), // 1MB
 		MaxHeaderBytes: 1 << 20,        // same as the net/http default
@@ -137,12 +125,6 @@ func (cfg *RPCConfig) ValidateBasic() error {
 	}
 	if cfg.MaxOpenConnections < 0 {
 		return errors.New("max_open_connections can't be negative")
-	}
-	if cfg.MaxSubscriptionClients < 0 {
-		return errors.New("max_subscription_clients can't be negative")
-	}
-	if cfg.MaxSubscriptionsPerClient < 0 {
-		return errors.New("max_subscriptions_per_client can't be negative")
 	}
 	if cfg.TimeoutBroadcastTxCommit < 0 {
 		return errors.New("timeout_broadcast_tx_commit can't be negative")

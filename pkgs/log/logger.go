@@ -19,6 +19,8 @@ type Logger interface {
 	Error(msg string, keyvals ...interface{})
 
 	With(keyvals ...interface{}) Logger
+
+	SetLevel(LogLevel)
 }
 
 //----------------------------------------

@@ -29,7 +29,7 @@ test:
 test2:
 	# -p 1 shows test failures as they come
 	# maybe another way to do this?
-	go test ./pkgs/... -v -p 1
+	go test ./pkgs/... -p 1 -count 1
 
 stringer:
 	stringer -type=Op

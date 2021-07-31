@@ -80,7 +80,7 @@ func TestMempoolProgressInHigherRound(t *testing.T) {
 	assertMempool(cs.txNotifier).EnableTxsAvailable()
 	height, round := cs.Height, cs.Round
 	newBlockCh := subscribe(cs.evsw, types.EventNewBlock{})
-	newRoundCh := subscribe(cs.evsw, cstypes.EventNewRound{})
+	newStepCh := subscribe(cs.evsw, cstypes.EventNewRoundStep{})
 	timeoutCh := subscribe(cs.evsw, cstypes.EventTimeoutPropose{})
 	cs.setProposal = func(proposal *types.Proposal) error {
 		if cs.Height == 2 && cs.Round == 0 {
@@ -98,19 +98,31 @@ func TestMempoolProgressInHigherRound(t *testing.T) {
 		app.Close()
 	}()
 
-	ensureNewRound(newRoundCh, height, round) // first round at first height
-	ensureNewEventOnChannel(newBlockCh)       // first block gets committed
+	ensureNewRoundStep(newStepCh, height, round, cstypes.RoundStepPropose)   // first round at first height
+	ensureNewRoundStep(newStepCh, height, round, cstypes.RoundStepPrevote)   // ...
+	ensureNewRoundStep(newStepCh, height, round, cstypes.RoundStepPrecommit) // ...
+	ensureNewRoundStep(newStepCh, height, round, cstypes.RoundStepCommit)    // ...
+	ensureNewEventOnChannel(newBlockCh)                                      // first block gets committed
 
 	height++ // moving to the next height
 	round = 0
 
-	ensureNewRound(newRoundCh, height, round) // first round at next height
-	deliverTxsRange(cs, 0, 1)                 // we deliver txs, but dont set a proposal so we get the next round
+	ensureNewRoundStep(newStepCh, height, round, cstypes.RoundStepNewHeight) // new height
+	deliverTxsRange(cs, 0, 1)                                                // we deliver txs, but dont set a proposal so we get the next round
+	ensureNewRoundStep(newStepCh, height, round, cstypes.RoundStepPropose)   // first round at next height
+
 	ensureNewTimeout(timeoutCh, height, round, cs.config.TimeoutPropose.Nanoseconds())
 
-	round++                                   // moving to the next round
-	ensureNewRound(newRoundCh, height, round) // wait for the next round
-	ensureNewEventOnChannel(newBlockCh)       // now we can commit the block
+	ensureNewRoundStep(newStepCh, height, round, cstypes.RoundStepPrevote)       // ...
+	ensureNewRoundStep(newStepCh, height, round, cstypes.RoundStepPrecommit)     // ...
+	ensureNewRoundStep(newStepCh, height, round, cstypes.RoundStepPrecommitWait) // ...
+
+	round++                                                                  // moving to the next round
+	ensureNewRoundStep(newStepCh, height, round, cstypes.RoundStepPropose)   // wait for the next round
+	ensureNewRoundStep(newStepCh, height, round, cstypes.RoundStepPrevote)   // ...
+	ensureNewRoundStep(newStepCh, height, round, cstypes.RoundStepPrecommit) // ...
+	ensureNewRoundStep(newStepCh, height, round, cstypes.RoundStepCommit)    // ...
+	ensureNewEventOnChannel(newBlockCh)                                      // now we can commit the block
 }
 
 func deliverTxsRange(cs *ConsensusState, start, end int) {
