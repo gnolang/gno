@@ -2,11 +2,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/gnolang/gno/_test/net/http"
 )
 
+type ResponseWriter interface {
+	FooBar()
+}
+
 type Fromage struct {
-	http.ResponseWriter
+	ResponseWriter
 }
 
 func main() {

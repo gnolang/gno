@@ -53,14 +53,24 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 			// TRANS_ENTER -----------------------
 			case *AssignStmt:
 				if n.Op == DEFINE {
+					var defined bool
 					for _, lx := range n.Lhs {
 						ln := lx.(*NameExpr).Name
 						if ln == "_" {
 							// ignore.
 						} else {
-							// initial declaration to be re-defined.
-							last.Define(ln, anyValue(nil))
+							_, ok := last.GetLocalIndex(ln)
+							if !ok {
+								// initial declaration to be re-defined.
+								last.Define(ln, anyValue(nil))
+								defined = true
+							} else {
+								// do not redeclare.
+							}
 						}
+					}
+					if !defined {
+						panic(fmt.Sprintf("nothing defined in asssignment %s", n.String()))
 					}
 				} else {
 					// nothing defined.

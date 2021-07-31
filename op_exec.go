@@ -746,6 +746,17 @@ EXEC_SWITCH:
 			m.PushExpr(cs.X)
 			m.PushOp(OpEval)
 		}
+	case *BlockStmt:
+		b := NewBlock(cs, m.LastBlock())
+		m.PushBlock(b)
+		m.PushOp(OpPopBlock)
+		b.bodyStmt = bodyStmt{
+			Body:      cs.Body,
+			BodyLen:   len(cs.Body),
+			BodyIndex: -2,
+		}
+		m.PushOp(OpBody)
+		m.PushStmt(b.GetBodyStmt())
 	default:
 		panic(fmt.Sprintf("unexpected statement %#v", s))
 	}

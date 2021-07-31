@@ -1524,7 +1524,7 @@ func (tv *TypedValue) GetPointerAtIndexInt(ii int) PointerValue {
 func (tv *TypedValue) GetPointerAtIndex(iv *TypedValue) PointerValue {
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
-		if bt == StringType {
+		if bt == StringType || bt == UntypedStringType {
 			sv := tv.GetString()
 			ii := iv.ConvertGetInt()
 			bv := &TypedValue{ // heap alloc

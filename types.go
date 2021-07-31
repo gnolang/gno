@@ -646,11 +646,13 @@ func (st *StructType) FindEmbeddedFieldType(n Name) (
 			return []ValuePath{vp}, false, nil, sf.Type
 		}
 		// Maybe is embedded within a field.
-		st := sf.Type
-		trail, hasPtr, rcvr, field = findEmbeddedFieldType(st, n)
-		if trail != nil {
-			vp := NewValuePathField(0, uint16(i), sf.Name)
-			return append([]ValuePath{vp}, trail...), hasPtr, rcvr, field
+		if sf.Embedded {
+			st := sf.Type
+			trail, hasPtr, rcvr, field = findEmbeddedFieldType(st, n)
+			if trail != nil {
+				vp := NewValuePathField(0, uint16(i), sf.Name)
+				return append([]ValuePath{vp}, trail...), hasPtr, rcvr, field
+			}
 		}
 	}
 	// Otherwise, it doesn't exist.
