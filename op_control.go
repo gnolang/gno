@@ -4,7 +4,7 @@ package gno
 // This is a simple/naive way to implement a for-loop.
 // Instead, we use Block.bodyStmts{}.
 func (m *Machine) doOpForLoop1() {
-	fs := m.PeekStmt(1).(*ForStmt)
+	fs := m.PeekStmt1().(*ForStmt)
 	cond := m.PopValue()
 	if cond.GetBool() {
 		// Run loop instance.

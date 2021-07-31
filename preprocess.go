@@ -252,6 +252,8 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 				pushRealBlock(n, &last, &stack)
 				// parent switch statement.
 				ss := ns[len(ns)-1].(*SwitchStmt)
+				// evalualte tag type
+				tt := evalStaticTypeOf(last, ss.X)
 				// anything declared in ss are copied,
 				// namely ss.VarName if defined.
 				for _, n := range ss.GetBlockNames() {
@@ -280,6 +282,14 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 								// TestSwitchDefine case.
 							}
 						}
+					}
+				} else {
+					// check or convert case types to tt.
+					for i, cx := range n.Cases {
+						cx = Preprocess(
+							imp, last, cx).(Expr)
+						n.Cases[i] = cx
+						checkOrConvertType(last, cx, tt)
 					}
 				}
 
