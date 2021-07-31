@@ -1,6 +1,7 @@
 package http
 
 import (
+	"errors"
 	"github.com/gnolang/gno/_test/net/url"
 	"io"
 	"time"
@@ -54,6 +55,11 @@ type Client struct {
 	//CheckRedirect func(req *Request, via []*Request) error
 	Jar     CookieJar
 	Timeout time.Duration // Go 1.3
+}
+
+// XXX dummy
+func (c *Client) Get(url string) (resp *Response, err error) {
+	return nil, errors.New("unsupported protocol scheme")
 }
 
 type RoundTripper interface {
@@ -111,4 +117,19 @@ type ResponseWriter interface {
 
 type CloseNotifier interface {
 	CloseNotify() <-chan bool
+}
+
+// XXX dummy
+type Server struct {
+	// Addr optionally specifies the TCP address for the server to listen on,
+	// in the form "host:port". If empty, ":http" (port 80) is used.
+	// The service names are defined in RFC 6335 and assigned by IANA.
+	// See net.Dial for details of the address format.
+	Addr string
+
+	// WriteTimeout is the maximum duration before timing out
+	// writes of the response. It is reset whenever a new
+	// request's header is read. Like ReadTimeout, it does not
+	// let Handlers make decisions on a per-request basis.
+	WriteTimeout time.Duration
 }

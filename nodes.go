@@ -1174,7 +1174,6 @@ type BlockNode interface {
 // StaticBlock
 
 // Embed in node to make it a BlockNode.
-// TODO rename to StaticBlock
 type StaticBlock struct {
 	Block
 	Types    []Type

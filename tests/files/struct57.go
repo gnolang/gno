@@ -20,4 +20,4 @@ func main() {
 }
 
 // Output:
-// {"Timestamp":0}
+// {"InnerA":{"Timestamp":0}}

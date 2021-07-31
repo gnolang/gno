@@ -1,7 +1,7 @@
 package main
 
 import (
-	"net/http"
+	"github.com/gnolang/gno/_test/net/http"
 	"strings"
 )
 

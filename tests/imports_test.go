@@ -13,6 +13,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"flag"
 	"fmt"
 	"image"
@@ -33,6 +34,7 @@ import (
 	"sync"
 	"text/template"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gnolang/gno"
 )
@@ -124,6 +126,7 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 		case "encoding/json":
 			pkg := gno.NewPackageNode("json", pkgPath, nil)
 			pkg.DefineGoNativeValue("Unmarshal", json.Unmarshal)
+			pkg.DefineGoNativeValue("Marshal", json.Marshal)
 			return pkg.NewPackage(nil)
 		case "encoding/xml":
 			pkg := gno.NewPackageNode("xml", pkgPath, nil)
@@ -165,12 +168,14 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 			pkg.DefineGoNativeValue("Second", time.Second)
 			pkg.DefineGoNativeValue("Minute", time.Minute)
 			pkg.DefineGoNativeValue("Hour", time.Hour)
+			pkg.DefineGoNativeValue("Now", time.Now)
 			pkg.DefineGoNativeType(reflect.TypeOf(time.Time{}))
 			pkg.DefineGoNativeType(reflect.TypeOf(time.Duration(0)))
 			return pkg.NewPackage(nil)
 		case "strings":
 			pkg := gno.NewPackageNode("strings", pkgPath, nil)
 			pkg.DefineGoNativeValue("SplitN", strings.SplitN)
+			pkg.DefineGoNativeValue("Contains", strings.Contains)
 			pkg.DefineGoNativeValue("TrimSpace", strings.TrimSpace)
 			pkg.DefineGoNativeValue("HasPrefix", strings.HasPrefix)
 			pkg.DefineGoNativeValue("NewReader", strings.NewReader)
@@ -269,6 +274,17 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 		case "text/template":
 			pkg := gno.NewPackageNode("template", pkgPath, nil)
 			pkg.DefineGoNativeType(reflect.TypeOf(template.FuncMap{}))
+			return pkg.NewPackage(nil)
+		case "unicode/utf8":
+			pkg := gno.NewPackageNode("utf8", pkgPath, nil)
+			pkg.DefineGoNativeValue("DecodeRuneInString", utf8.DecodeRuneInString)
+			tv := gno.TypedValue{T: gno.UntypedRuneType} // TODO dry
+			tv.SetInt32(utf8.RuneSelf)                   // ..
+			pkg.Define("RuneSelf", tv)                   // ..
+			return pkg.NewPackage(nil)
+		case "errors":
+			pkg := gno.NewPackageNode("errors", pkgPath, nil)
+			pkg.DefineGoNativeValue("New", errors.New)
 			return pkg.NewPackage(nil)
 		default:
 			panic("unknown package path " + pkgPath)
