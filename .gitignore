@@ -4,3 +4,4 @@ unsorted.*
 .DS_Store
 data/*
 proto/*
+build/*
