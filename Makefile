@@ -1,22 +1,26 @@
-all: gnoland goscan logos
+all: gnoland goscan logos gnokey
 
-.PHONY: logos goscan gnoland
+.PHONY: logos goscan gnoland gnokey
 
 # The main show
-gnoland:
+gnoland: folder
 	echo "Building gnoland"
-	go build -o gnoland ./cmd/gnoland
+	go build -o build/gnoland ./cmd/gnoland
 
 # goscan scans go code to determine its AST
-goscan:
+goscan: folder
 	echo "Building goscan"
-	go build -o goscan ./cmd/goscan
+	go build -o build/goscan ./cmd/goscan
 
 
 # Logos is the interface to Gnoland
-logos:
+logos: folder
 	echo "building logos"
-	go build -o logos ./logos/cmd/logos.go
+	go build -o build/logos ./logos/cmd/logos.go
+
+gnokey: folder
+	echo "building gnokey"
+	go build -o build/gnokey ./cmd/gnokey/
 
 clean:
 	rm -rf build
@@ -43,3 +47,6 @@ genproto:
 	find pkgs/bft/ | grep "pbbindings" | xargs rm
 	find pkgs/bft/ | grep "pb.go" | xargs rm
 	go run cmd/genproto/genproto.go
+
+folder:
+	mkdir build
