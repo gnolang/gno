@@ -571,7 +571,6 @@ func (sv *StructValue) ValueImage(
 		RefCount:   sv.GetRefCount(),
 		ElemImages: eiz,
 	}
-	return
 }
 
 func (sv *StructValue) ElemImages(
