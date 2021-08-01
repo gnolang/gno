@@ -531,5 +531,9 @@ func (cx constExpr) String() string {
 }
 
 func (ctx constTypeExpr) String() string {
-	return fmt.Sprintf("(const-type %s)", ctx.Type.String())
+	if ctx.Type == nil { // type switch case
+		return fmt.Sprintf("(const-type nil)")
+	} else {
+		return fmt.Sprintf("(const-type %s)", ctx.Type.String())
+	}
 }

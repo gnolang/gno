@@ -79,6 +79,12 @@ func runCheck(t *testing.T, path string) {
 						// unexpected: print stack.
 						rtdb.PrintStack()
 					}
+					err := strings.TrimSpace(fmt.Sprintf("%v", pnc))
+					if !strings.Contains(err, errWanted) {
+						// error didn't match: print stack
+						// NOTE: will fail testcase later.
+						rtdb.PrintStack()
+					}
 				}
 			}()
 			n := gno.MustParseFile(path, string(bz))

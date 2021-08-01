@@ -99,6 +99,7 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 		case "fmt":
 			pkg := gno.NewPackageNode("fmt", pkgPath, nil)
 			pkg.DefineGoNativeType(reflect.TypeOf((*fmt.Stringer)(nil)).Elem())
+			pkg.DefineGoNativeType(reflect.TypeOf((*fmt.Formatter)(nil)).Elem())
 			pkg.DefineGoNativeFunc("Println", func(a ...interface{}) (n int, err error) {
 				res := fmt.Sprintln(a...)
 				return out.Write([]byte(res))

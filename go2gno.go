@@ -388,9 +388,14 @@ func Go2Gno(gon ast.Node) (n Node) {
 				reflect.TypeOf(gon.Assign).String()))
 		}
 	case *ast.SwitchStmt:
+		x := toExpr(gon.Tag)
+		if x == nil {
+			// if tag is nil, default to "true"
+			x = Nx(Name("true"))
+		}
 		return &SwitchStmt{
 			Init:         toStmt(gon.Init),
-			X:            toExpr(gon.Tag),
+			X:            x,
 			IsTypeSwitch: false,
 			Clauses:      toClauses(gon.Body.List),
 		}

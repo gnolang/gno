@@ -692,7 +692,8 @@ EXEC_SWITCH:
 			bs.BodyIndex = cs.BodyIndex
 			bs.Active = bs.Body[cs.BodyIndex]
 		case FALLTHROUGH:
-			panic("not yet implemented")
+			// TODO CHALLENGE implement fallthrough
+			panic("not yet implemented (CHALLENGE)")
 		default:
 			panic("unknown branch op")
 		}
@@ -751,6 +752,11 @@ EXEC_SWITCH:
 			// evaluate x
 			m.PushExpr(cs.X)
 			m.PushOp(OpEval)
+		}
+		// exec init
+		if cs.Init != nil {
+			m.PushOp(OpExec)
+			m.PushStmt(cs.Init)
 		}
 	case *BlockStmt:
 		b := NewBlock(cs, m.LastBlock())
@@ -820,8 +826,19 @@ func (m *Machine) doOpTypeSwitch() {
 					}
 				}
 				ct := cx.(*constTypeExpr).Type
-				if ct.Kind() == InterfaceKind {
-					if baseOf(ct).(*InterfaceType).IsImplementedBy(xv.T) {
+				if ct == nil {
+					if xv.IsUndefined() {
+						// match nil type with undefined
+						match = true
+					}
+				} else if ct.Kind() == InterfaceKind {
+					var gnot Type
+					if not, ok := ct.(*nativeType); ok {
+						gnot = not.GnoType()
+					} else {
+						gnot = ct
+					}
+					if baseOf(gnot).(*InterfaceType).IsImplementedBy(xv.T) {
 						// match
 						match = true
 					}
@@ -843,7 +860,7 @@ func (m *Machine) doOpTypeSwitch() {
 			if len(cs.Body) != 0 {
 				b := m.LastBlock()
 				// define if varname
-				if ss.VarName != "" && len(cs.Cases) <= 1 {
+				if ss.VarName != "" {
 					// NOTE: assumes the var is first in block.
 					vp := NewValuePath(
 						VPBlock, 1, 0, ss.VarName)
@@ -851,7 +868,7 @@ func (m *Machine) doOpTypeSwitch() {
 					ptr.Assign(*xv, false)
 				}
 				// expand block size
-				if nn := cs.GetNumNames(); nn > 1 {
+				if nn := cs.GetNumNames(); int(nn) > len(b.Values) {
 					b.ExpandToSize(nn)
 				}
 				// exec clause body

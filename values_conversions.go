@@ -124,9 +124,9 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
+			tv.V = StringValue(string(rune(tv.GetInt())))
 			tv.T = t
 			tv.ClearNum()
-			tv.V = StringValue(string(rune(tv.GetInt())))
 		default:
 			panic(fmt.Sprintf(
 				"cannot convert %s to %s",
@@ -175,9 +175,9 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
+			tv.V = StringValue(string(rune(tv.GetInt8())))
 			tv.T = t
 			tv.ClearNum()
-			tv.V = StringValue(string(rune(tv.GetInt8())))
 		default:
 			panic(fmt.Sprintf(
 				"cannot convert %s to %s",
@@ -226,9 +226,9 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
+			tv.V = StringValue(string(rune(tv.GetInt16())))
 			tv.T = t
 			tv.ClearNum()
-			tv.V = StringValue(string(rune(tv.GetInt16())))
 		default:
 			panic(fmt.Sprintf(
 				"cannot convert %s to %s",
@@ -277,9 +277,9 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
+			tv.V = StringValue(string(rune(tv.GetInt32())))
 			tv.T = t
 			tv.ClearNum()
-			tv.V = StringValue(string(rune(tv.GetInt32())))
 		default:
 			panic(fmt.Sprintf(
 				"cannot convert %s to %s",
@@ -328,9 +328,9 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
+			tv.V = StringValue(string(rune(tv.GetInt64())))
 			tv.T = t
 			tv.ClearNum()
-			tv.V = StringValue(string(rune(tv.GetInt64())))
 		default:
 			panic(fmt.Sprintf(
 				"cannot convert %s to %s",
@@ -379,9 +379,9 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
+			tv.V = StringValue(string(rune(tv.GetUint())))
 			tv.T = t
 			tv.ClearNum()
-			tv.V = StringValue(string(rune(tv.GetUint())))
 		default:
 			panic(fmt.Sprintf(
 				"cannot convert %s to %s",
@@ -430,9 +430,9 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
+			tv.V = StringValue(string(rune(tv.GetUint8())))
 			tv.T = t
 			tv.ClearNum()
-			tv.V = StringValue(string(rune(tv.GetUint8())))
 		default:
 			panic(fmt.Sprintf(
 				"cannot convert %s to %s",
@@ -481,9 +481,9 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
+			tv.V = StringValue(string(rune(tv.GetUint16())))
 			tv.T = t
 			tv.ClearNum()
-			tv.V = StringValue(string(rune(tv.GetUint16())))
 		default:
 			panic(fmt.Sprintf(
 				"cannot convert %s to %s",
@@ -532,9 +532,9 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
+			tv.V = StringValue(string(rune(tv.GetUint32())))
 			tv.T = t
 			tv.ClearNum()
-			tv.V = StringValue(string(rune(tv.GetUint32())))
 		default:
 			panic(fmt.Sprintf(
 				"cannot convert %s to %s",
@@ -583,9 +583,9 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
+			tv.V = StringValue(string(rune(tv.GetUint64())))
 			tv.T = t
 			tv.ClearNum()
-			tv.V = StringValue(string(rune(tv.GetUint64())))
 		default:
 			panic(fmt.Sprintf(
 				"cannot convert %s to %s",

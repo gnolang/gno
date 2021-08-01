@@ -246,14 +246,17 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 					// SwitchClauseStmt:TRANS_BLOCK.
 					last.Define(n.VarName, anyValue(nil))
 				}
+				// Preprocess and convert tag if const.
+				if n.X != nil {
+					n.X = Preprocess(imp, last, n.X).(Expr)
+					convertIfConst(last, n.X)
+				}
 
 			// TRANS_BLOCK -----------------------
 			case *SwitchClauseStmt:
 				pushRealBlock(n, &last, &stack)
 				// parent switch statement.
 				ss := ns[len(ns)-1].(*SwitchStmt)
-				// evalualte tag type
-				tt := evalStaticTypeOf(last, ss.X)
 				// anything declared in ss are copied,
 				// namely ss.VarName if defined.
 				for _, n := range ss.GetBlockNames() {
@@ -265,7 +268,16 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 					for i, cx := range n.Cases {
 						cx = Preprocess(
 							imp, last, cx).(Expr)
-						ct := evalStaticType(last, cx)
+						var ct Type
+						if cxx, ok := cx.(*constExpr); ok {
+							if !cxx.IsUndefined() {
+								panic("should not happen")
+							}
+							// only in type switch cases, nil type allowed.
+							ct = nil
+						} else {
+							ct = evalStaticType(last, cx)
+						}
 						n.Cases[i] = constType(cx, ct)
 						// maybe type-switch def.
 						if 0 < len(ss.VarName) {
@@ -277,13 +289,16 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 									ss.VarName, anyValue(ct))
 							} else {
 								// If there are 2 or more
-								// cases, the definition is
-								// void(?).  TODO make
-								// TestSwitchDefine case.
+								// cases, the type is the tag type.
+								tt := evalStaticTypeOf(last, ss.X)
+								last.Define(
+									ss.VarName, anyValue(tt))
 							}
 						}
 					}
 				} else {
+					// evalualte tag type
+					tt := evalStaticTypeOf(last, ss.X)
 					// check or convert case types to tt.
 					for i, cx := range n.Cases {
 						cx = Preprocess(
@@ -1237,6 +1252,7 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 					n.Depth = depth
 					n.BodyIndex = index
 				case FALLTHROUGH:
+					// TODO CHALLENGE implement fallthrough
 				default:
 					panic("should not happen")
 				}
@@ -1320,6 +1336,31 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 				// if as, ok := n.Comm.(*AssignStmt); ok {
 				//     handled by case *AssignStmt.
 				// }
+
+			// TRANS_LEAVE -----------------------
+			case *SwitchStmt:
+				// Ensure type switch cases are unique.
+				if n.IsTypeSwitch {
+					types := map[string]struct{}{}
+					for _, clause := range n.Clauses {
+						for _, casetype := range clause.Cases {
+							var ctstr string
+							ctype := casetype.(*constTypeExpr).Type
+							if ctype == nil {
+								ctstr = "nil"
+							} else {
+								ctstr = casetype.(*constTypeExpr).Type.String()
+							}
+							if _, exists := types[ctstr]; exists {
+								panic(fmt.Sprintf(
+									"duplicate type %s in type switch",
+									ctstr))
+							}
+							types[ctstr] = struct{}{}
+						}
+					}
+					fmt.Println(types)
+				}
 
 			// TRANS_LEAVE -----------------------
 			case *ValueDecl:
@@ -1506,9 +1547,16 @@ func pushBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
 // like pushBlock(), but when the last block is a faux block,
 // namely after SwitchStmt and IfStmt.
 func pushRealBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
+	orig := *last
+	// skip the faux block for parent of bn.
 	bn.InitStaticBlock(bn, (*last).GetParent())
 	*last = bn
 	*stack = append(*stack, bn)
+	// anything declared in orig are copied.
+	for _, n := range orig.GetBlockNames() {
+		tv := orig.GetValueRef(n)
+		bn.Define(n, *tv)
+	}
 }
 
 // Evaluates the value of x which is expected to be a typeval.
@@ -1523,6 +1571,9 @@ func evalStaticType(last BlockNode, x Expr) Type {
 	}
 	pn := packageOf(last)
 	tv := NewMachine(pn.PkgPath).EvalStatic(last, x)
+	if _, ok := tv.V.(TypeValue); !ok {
+		panic(fmt.Sprintf("%s is not a type", x.String()))
+	}
 	t := tv.GetType()
 	x.SetAttribute(ATTR_TYPE_VALUE, t)
 	return t

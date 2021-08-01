@@ -48,4 +48,4 @@ func main() {
 }
 
 // Error:
-// 37:2: duplicate case Bir in type switch
+// duplicate type main.Bir in type switch

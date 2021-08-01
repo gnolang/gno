@@ -14,4 +14,4 @@ func main() {
 }
 
 // Error:
-// 9:2: i is not a type
+// i<VPBlock(2,0)> is not a type

@@ -1980,7 +1980,9 @@ func (b *Block) GetBodyStmt() *bodyStmt {
 func (b *Block) ExpandToSize(size uint16) {
 	if debug {
 		if len(b.Values) >= int(size) {
-			panic("unexpected block size shrinkage")
+			panic(fmt.Sprintf(
+				"unexpected block size shrinkage: %v vs %v",
+				len(b.Values), size))
 		}
 	}
 	values := make([]TypedValue, int(size))
