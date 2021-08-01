@@ -638,7 +638,6 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 	default:
 		panic("should not happen: unexpected gno kind")
 	}
-	return
 }
 
 // This function is like go2GnoValue() but less lazy (but still

@@ -58,7 +58,7 @@ func assertOutput(t *testing.T, input string, output string) {
 	n := MustParseFile("main.go", input)
 	m.RunFiles(n)
 	m.RunMain()
-	assert.Equal(t, string(buf.Bytes()), output)
+	assert.Equal(t, string(buf.String()), output)
 	err := m.CheckEmpty()
 	assert.Nil(t, err)
 }

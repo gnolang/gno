@@ -79,7 +79,7 @@ func main() {
 	n := MustParseFile("main.go", c)
 	m.RunFiles(n)
 	m.RunMain()
-	assert.Equal(t, string(out.Bytes()), `A: 1
+	assert.Equal(t, string(out.String()), `A: 1
 B: 0
 C: 0
 D: 
@@ -121,7 +121,7 @@ func main() {
 	n := MustParseFile("main.go", c)
 	m.RunFiles(n)
 	m.RunMain()
-	assert.Equal(t, string(out.Bytes()), `A: 1
+	assert.Equal(t, string(out.String()), `A: 1
 B: 0
 C: 0
 D: 

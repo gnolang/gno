@@ -815,7 +815,6 @@ func (m *Machine) PushValue(tv TypedValue) {
 	}
 	m.Values[m.NumValues] = tv
 	m.NumValues++
-	return
 }
 
 // Resulting reference is volatile.
