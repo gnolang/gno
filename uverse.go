@@ -845,8 +845,6 @@ func UverseNode() *PackageNode {
 			"exception", AnyT(),
 		),
 		func(m *Machine) {
-			fmt.Println("RECOVERRR", m.String())
-			fmt.Println("RECOVERRR", m.Exception)
 			if m.Exception == nil {
 				m.PushValue(TypedValue{})
 			} else {

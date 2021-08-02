@@ -34,6 +34,7 @@ func go2GnoType(rt reflect.Type) Type {
 
 // like go2GnoType() but ignores name declaration.
 // for native type unary/binary expression conversion.
+// also used for untyped gno -> native conversion intermediary.
 // XXX support unary conversions as we did for binary.
 func go2GnoBaseType(rt reflect.Type) Type {
 	switch rk := rt.Kind(); rk {

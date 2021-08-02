@@ -11,13 +11,10 @@ func (m *Machine) doOpValueDecl() {
 	if s.Type != nil {
 		nt = m.PopValue().GetType()
 	}
-	fmt.Println("RRR s", s)
-	fmt.Println("RRR nt", nt)
 	var rvs []TypedValue
 	if s.Values != nil {
 		rvs = m.PopValues(len(s.NameExprs))
 	}
-	fmt.Println("RRR rvs", rvs)
 	for i := 0; i < len(s.NameExprs); i++ {
 		var tv TypedValue
 		if rvs == nil {
@@ -25,10 +22,8 @@ func (m *Machine) doOpValueDecl() {
 			// implicit interface casting could
 			// requiring the consideration of the typed-nil case.
 			if nt == nil {
-				fmt.Println("RRR1", nt, nt == nil)
 				tv = TypedValue{}
 			} else {
-				fmt.Println("RRR2", nt, nt == nil)
 				tv = TypedValue{T: nt, V: defaultValue(nt)}
 			}
 		} else {
@@ -46,9 +41,6 @@ func (m *Machine) doOpValueDecl() {
 					ConvertUntypedTo(&tv, nt)
 				} else {
 					if debug {
-						fmt.Println("RRR nt", nt)
-						fmt.Println("RRR baseOf(nt)", baseOf(nt))
-						fmt.Println("RRR tv.T", tv.T)
 						if nt.TypeID() != tv.T.TypeID() &&
 							baseOf(nt).TypeID() != tv.T.TypeID() {
 							panic(fmt.Sprintf(

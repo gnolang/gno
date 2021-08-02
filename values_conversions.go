@@ -606,29 +606,31 @@ GNO_CASE:
 					"cannot convert %s to %s",
 					tvk.String(), t.String()))
 			}
-		case *nativeType:
-			switch cbt.Kind() {
-			case StringKind:
-				tv.V = &nativeValue{
-					Value: reflect.ValueOf(
-						string(tv.GetString()),
-					),
+			/* TODO deleteme, native types handled above.
+			case *nativeType:
+				switch cbt.Kind() {
+				case StringKind:
+					tv.V = &nativeValue{
+						Value: reflect.ValueOf(
+							string(tv.GetString()),
+						),
+					}
+					tv.T = t // after tv.GetString()
+				case SliceKind:
+					tv.V = &nativeValue{
+						Value: reflect.ValueOf(
+							[]byte(tv.GetString()),
+						),
+					}
+					tv.T = t // after tv.GetString()
+				case InterfaceKind:
+					tv.T = StringType
+				default:
+					panic(fmt.Sprintf(
+						"cannot convert %s to %s",
+						tvk.String(), t.String()))
 				}
-				tv.T = t // after tv.GetString()
-			case SliceKind:
-				tv.V = &nativeValue{
-					Value: reflect.ValueOf(
-						[]byte(tv.GetString()),
-					),
-				}
-				tv.T = t // after tv.GetString()
-			case InterfaceKind:
-				tv.T = StringType
-			default:
-				panic(fmt.Sprintf(
-					"cannot convert %s to %s",
-					tvk.String(), t.String()))
-			}
+			*/
 		default:
 			panic(fmt.Sprintf(
 				"cannot convert %s to %s",
@@ -659,11 +661,13 @@ GNO_CASE:
 					tv.T = t
 					tv.V = strv
 				}
-			case *nativeValue:
-				data := sv.Value.Bytes()
-				strv := StringValue(string(data))
-				tv.T = t
-				tv.V = strv
+				/* TODO deleteme, native types handled above
+				case *nativeValue:
+					data := sv.Value.Bytes()
+					strv := StringValue(string(data))
+					tv.T = t
+					tv.V = strv
+				*/
 			default:
 				panic("should not happen")
 			}
@@ -697,10 +701,25 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 				t.String()))
 		}
 	}
+	// special case: native
+	if nt, ok := t.(*nativeType); ok {
+		// first convert untyped to typed gno value.
+		gnot := go2GnoBaseType(nt.Type)
+		if debug {
+			if _, ok := gnot.(*nativeType); ok {
+				panic("should not happen")
+			}
+		}
+		ConvertUntypedTo(tv, gnot)
+		// then convert to native value.
+		ConvertTo(tv, t)
+	}
+	// special case: simple conversion
 	if t != nil && tv.T.Kind() == t.Kind() {
-		tv.T = t // simple conversion
+		tv.T = t
 		return
 	}
+	// general case
 	switch tv.T {
 	case UntypedBoolType:
 		if t == nil {

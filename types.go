@@ -2132,3 +2132,11 @@ func findEmbeddedFieldType(t Type, n Name) (
 		return nil, false, nil, nil
 	}
 }
+
+func isNative(t Type) bool {
+	if _, ok := t.(*nativeType); ok {
+		return true
+	} else {
+		return false
+	}
+}

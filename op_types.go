@@ -385,15 +385,28 @@ func (m *Machine) doOpStaticTypeOf() {
 			_, _, _, ft := findEmbeddedFieldType(dxt, path.Name)
 			m.PushValue(asValue(ft))
 		case VPNative:
+			// if dxt is *PointerType, convert to *nativeType.
+			if pt, ok := dxt.(*PointerType); ok {
+				net, ok := pt.Elt.(*nativeType)
+				if !ok {
+					panic(fmt.Sprintf(
+						"VPNative access on pointer to non-native value %v", pt.Elt))
+				}
+				dxt = &nativeType{
+					Type: reflect.PtrTo(net.Type),
+				}
+			}
 			// switch on type and maybe match field.
 			rt := dxt.(*nativeType).Type
 			if rt.Kind() == reflect.Ptr {
-				ert := rt.Elem()
-				rft, ok := ert.FieldByName(string(x.Sel))
-				if ok {
-					ft := go2GnoType(rft.Type)
-					m.PushValue(asValue(ft))
-					return
+				if rt.Elem().Kind() == reflect.Struct {
+					ert := rt.Elem()
+					rft, ok := ert.FieldByName(string(x.Sel))
+					if ok {
+						ft := go2GnoType(rft.Type)
+						m.PushValue(asValue(ft))
+						return
+					}
 				}
 				// keep rt as is.
 			} else if rt.Kind() == reflect.Interface {

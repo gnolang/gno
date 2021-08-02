@@ -27,6 +27,11 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 	// BlockValuePath for each NameExpr.
 	nn := Transcribe(n, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 
+		// if already preprocessed, skip it.
+		if n.GetAttribute(ATTR_PREPROCESSED) == true {
+			return n, TRANS_SKIP
+		}
+
 		defer func() {
 			if r := recover(); r != nil {
 				for i, sbn := range stack {
@@ -37,11 +42,6 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 		}()
 		if debug {
 			debug.Printf("Transcribe %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
-		}
-
-		// if already preprocessed, skip it.
-		if n.GetAttribute(ATTR_PREPROCESSED) == true {
-			return n, TRANS_SKIP
 		}
 
 		switch stage {
@@ -1359,7 +1359,6 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 							types[ctstr] = struct{}{}
 						}
 					}
-					fmt.Println(types)
 				}
 
 			// TRANS_LEAVE -----------------------
@@ -2394,6 +2393,8 @@ func tryPredefine(imp Importer, last BlockNode, d Decl) (un Name) {
 		}
 		if d.Name == "" { // use default
 			d.Name = pv.PkgName
+		} else if d.Name == "_" { // no definition
+			return
 		}
 		// NOTE imports usually must happen with a file,
 		// and so last is usually a *FileNode, but for

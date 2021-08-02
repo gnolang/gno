@@ -169,8 +169,12 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 			pkg.DefineGoNativeValue("Second", time.Second)
 			pkg.DefineGoNativeValue("Minute", time.Minute)
 			pkg.DefineGoNativeValue("Hour", time.Hour)
-			pkg.DefineGoNativeValue("Now", time.Now)
+			pkg.DefineGoNativeValue("Now", func() time.Time { return time.Unix(0, 0) }) // deterministic
+			pkg.DefineGoNativeValue("November", time.November)
+			pkg.DefineGoNativeValue("UTC", time.UTC)
+			pkg.DefineGoNativeValue("Unix", time.Unix)
 			pkg.DefineGoNativeType(reflect.TypeOf(time.Time{}))
+			pkg.DefineGoNativeType(reflect.TypeOf(time.Month(0)))
 			pkg.DefineGoNativeType(reflect.TypeOf(time.Duration(0)))
 			return pkg.NewPackage(nil)
 		case "strings":
@@ -223,6 +227,8 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 		case "compress/gzip":
 			pkg := gno.NewPackageNode("gzip", pkgPath, nil)
 			pkg.DefineGoNativeType(reflect.TypeOf(gzip.Writer{}))
+			pkg.DefineGoNativeValue("BestCompression", gzip.BestCompression)
+			pkg.DefineGoNativeValue("BestSpeed", gzip.BestSpeed)
 			return pkg.NewPackage(nil)
 		case "context":
 			pkg := gno.NewPackageNode("context", pkgPath, nil)

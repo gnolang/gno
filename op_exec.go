@@ -645,7 +645,7 @@ EXEC_SWITCH:
 			for {
 				fr := m.LastFrame()
 				switch fr.Source.(type) {
-				case *ForStmt, *RangeStmt:
+				case *ForStmt, *RangeStmt, *SwitchStmt:
 					if cs.Label != "" && cs.Label != fr.Label {
 						m.PopFrame()
 					} else {
@@ -733,6 +733,7 @@ EXEC_SWITCH:
 		s = cs.Stmt
 		goto EXEC_SWITCH
 	case *SwitchStmt:
+		m.PushFrameBasic(cs)
 		b := NewBlock(cs, m.LastBlock())
 		m.PushBlock(b)
 		m.PushOp(OpPopBlock)

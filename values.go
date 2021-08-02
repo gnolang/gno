@@ -725,7 +725,7 @@ func (tv *TypedValue) PrimitiveBytes() (data []byte, varint bool) {
 
 func (tv *TypedValue) SetBool(b bool) {
 	if debug {
-		if tv.T.Kind() != BoolKind {
+		if tv.T.Kind() != BoolKind || isNative(tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.SetBool() on type %s",
 				tv.T.String()))
@@ -762,7 +762,7 @@ func (tv *TypedValue) GetString() string {
 
 func (tv *TypedValue) SetInt(n int) {
 	if debug {
-		if tv.T.Kind() != IntKind {
+		if tv.T.Kind() != IntKind || isNative(tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.SetInt() on type %s",
 				tv.T.String()))
@@ -789,7 +789,7 @@ func (tv *TypedValue) GetInt() int {
 
 func (tv *TypedValue) SetInt8(n int8) {
 	if debug {
-		if tv.T.Kind() != Int8Kind {
+		if tv.T.Kind() != Int8Kind || isNative(tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.SetInt8() on type %s",
 				tv.T.String()))
@@ -811,7 +811,7 @@ func (tv *TypedValue) GetInt8() int8 {
 
 func (tv *TypedValue) SetInt16(n int16) {
 	if debug {
-		if tv.T.Kind() != Int16Kind {
+		if tv.T.Kind() != Int16Kind || isNative(tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.SetInt16() on type %s",
 				tv.T.String()))
@@ -833,7 +833,7 @@ func (tv *TypedValue) GetInt16() int16 {
 
 func (tv *TypedValue) SetInt32(n int32) {
 	if debug {
-		if tv.T.Kind() != Int32Kind {
+		if tv.T.Kind() != Int32Kind || isNative(tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.SetInt32() on type %s",
 				tv.T.String()))
@@ -855,7 +855,7 @@ func (tv *TypedValue) GetInt32() int32 {
 
 func (tv *TypedValue) SetInt64(n int64) {
 	if debug {
-		if tv.T.Kind() != Int64Kind {
+		if tv.T.Kind() != Int64Kind || isNative(tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.SetInt64() on type %s",
 				tv.T.String()))
@@ -877,7 +877,7 @@ func (tv *TypedValue) GetInt64() int64 {
 
 func (tv *TypedValue) SetUint(n uint) {
 	if debug {
-		if tv.T.Kind() != UintKind {
+		if tv.T.Kind() != UintKind || isNative(tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.SetUint() on type %s",
 				tv.T.String()))
@@ -899,7 +899,7 @@ func (tv *TypedValue) GetUint() uint {
 
 func (tv *TypedValue) SetUint8(n uint8) {
 	if debug {
-		if tv.T.Kind() != Uint8Kind {
+		if tv.T.Kind() != Uint8Kind || isNative(tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.SetUint8() on type %s",
 				tv.T.String()))
@@ -927,7 +927,7 @@ func (tv *TypedValue) GetUint8() uint8 {
 
 func (tv *TypedValue) SetDataByte(n uint8) {
 	if debug {
-		if tv.T != DataByteType {
+		if tv.T != DataByteType || isNative(tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.SetDataByte() on type %s",
 				tv.T.String()))
@@ -949,7 +949,7 @@ func (tv *TypedValue) GetDataByte() uint8 {
 
 func (tv *TypedValue) SetUint16(n uint16) {
 	if debug {
-		if tv.T.Kind() != Uint16Kind {
+		if tv.T.Kind() != Uint16Kind || isNative(tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.SetUint16() on type %s",
 				tv.T.String()))
@@ -971,7 +971,7 @@ func (tv *TypedValue) GetUint16() uint16 {
 
 func (tv *TypedValue) SetUint32(n uint32) {
 	if debug {
-		if tv.T.Kind() != Uint32Kind {
+		if tv.T.Kind() != Uint32Kind || isNative(tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.SetUint32() on type %s",
 				tv.T.String()))
@@ -993,7 +993,7 @@ func (tv *TypedValue) GetUint32() uint32 {
 
 func (tv *TypedValue) SetUint64(n uint64) {
 	if debug {
-		if tv.T.Kind() != Uint64Kind {
+		if tv.T.Kind() != Uint64Kind || isNative(tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.SetUint64() on type %s",
 				tv.T.String()))
@@ -1152,18 +1152,25 @@ func (tv *TypedValue) Assign(tv2 TypedValue, cu bool) {
 			}
 		case *nativeValue:
 			if tv.V == nil {
-				if debug {
-					// tv.V is a native function type.
-					if tv.T.Kind() != FuncKind ||
-						tv2.T.Kind() != FuncKind {
-						panic("should not happen")
+				// tv.V is a native function type.
+				// there is no default value, so just assign
+				// rather than .Value.Set().
+				if tv.T.Kind() == FuncKind {
+					if debug {
+						if tv2.T.Kind() != FuncKind {
+							panic("should not happen")
+						}
+						if nv, ok := tv2.V.(*nativeValue); !ok ||
+							nv.Value.Kind() != reflect.Func {
+							panic("should not happen")
+						}
 					}
-					if nv, ok := tv2.V.(*nativeValue); !ok ||
-						nv.Value.Kind() != reflect.Func {
-						panic("should not happen")
-					}
+					tv.V = v2
+				} else {
+					tv.V = defaultValue(tv.T)
+					nv1 := tv.V.(*nativeValue)
+					nv1.Value.Set(v2.Value)
 				}
-				tv.V = v2
 			} else {
 				nv1 := tv.V.(*nativeValue)
 				nv1.Value.Set(v2.Value)
@@ -1292,7 +1299,8 @@ func (tv *TypedValue) GetPointerTo(path ValuePath) PointerValue {
 		isPtr = true
 		path.Type = VPValMethod
 	case VPDerefPtrMethod:
-		dtv = *tv.V.(PointerValue).TypedValue
+		// dtv = *tv.V.(PointerValue).TypedValue
+		// dtv not needed for nil receivers.
 		isPtr = true
 		path.Type = VPPtrMethod // XXX pseudo
 	case VPDerefInterface:
@@ -1384,7 +1392,9 @@ func (tv *TypedValue) GetPointerTo(path ValuePath) PointerValue {
 			Base: nil, // a bound method is free floating.
 		}
 	case VPPtrMethod:
-		dt := dtv.T.(*DeclaredType)
+		dt := tv.T.(*PointerType).Elt.(*DeclaredType)
+		// ^ support nil receivers, vs:
+		// dt := dtv.T.(*DeclaredType)
 		mtv := dt.GetValueRefAt(path)
 		mv := mtv.GetFunc()
 		if debug {
