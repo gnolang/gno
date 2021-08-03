@@ -554,6 +554,11 @@ func (pt *PointerType) FindEmbeddedFieldType(n Name) (
 		} else { // not found
 			return
 		}
+	case *nativeType:
+		npt := &nativeType{
+			Type: reflect.PtrTo(cet.Type),
+		}
+		return npt.FindEmbeddedFieldType(n)
 	default:
 		// nester pointers or pointer to interfaces
 		// and other pointer types do not expose their methods.
