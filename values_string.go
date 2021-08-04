@@ -114,7 +114,7 @@ func (v *PackageValue) String() string {
 }
 
 func (v nativeValue) String() string {
-	return fmt.Sprintf("<go-native %v (%s)>",
+	return fmt.Sprintf("<gonative %v (%s)>",
 		v.Value.Interface(),
 		v.Value.String(),
 	)

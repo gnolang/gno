@@ -854,7 +854,7 @@ func gno2GoType(t Type) reflect.Type {
 		vt := gno2GoType(ct.Value)
 		return reflect.MapOf(kt, vt)
 	case *FuncType:
-		panic("should not happen")
+		panic("not yet supported")
 	case *InterfaceType:
 		if ct.IsEmptyInterface() {
 			// XXX move out

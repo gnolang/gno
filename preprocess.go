@@ -377,15 +377,6 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 							}
 						}
 					}
-					// Then, preprocess all type decls.
-					for i := 0; i < len(n.Decls); i++ {
-						d := n.Decls[i]
-						switch d.(type) {
-						case *TypeDecl:
-							d2 := Preprocess(imp, last, d).(Decl)
-							n.Decls[i] = d2
-						}
-					}
 					// Then, predefine all func/method decls.
 					for i := 0; i < len(n.Decls); i++ {
 						d := n.Decls[i]
@@ -1438,6 +1429,8 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 							!cx.TypedValue.IsUndefined() {
 							// if value is non-nil const expr:
 							tvs[i] = cx.TypedValue
+							//} else if isFileOrPackage(last) {
+							//	tvs[i] = evalFileVar(last, vx)
 						} else {
 							// for var decls of non-const expr.
 							st := sts[i]
@@ -1501,9 +1494,9 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 					// actually instantiated, not in
 					// interpret.go:runDeclaration().
 					dt := declareWith(pn.PkgPath, n.Name, tmp)
-					if !n.IsAlias {
-						dt.Seal()
-					}
+					// if !n.IsAlias { // not sure why this was here.
+					dt.Seal()
+					//}
 					*dst = *dt
 				default:
 					panic(fmt.Sprintf("unexpected type declaration type %v",
@@ -1734,6 +1727,15 @@ func evalConst(last BlockNode, x Expr) *constExpr {
 	setConstAttrs(cx)
 	return cx
 }
+
+/*
+func evalFileVar(last BlockNode, x Expr) TypedValue {
+	// TODO: some check or verification for ensuring x
+	// is constant?  From the machine?
+	pn := packageOf(last)
+	return NewMachine(pn.PkgPath).EvalStatic(pn, x)
+}
+*/
 
 func constType(source Expr, t Type) *constTypeExpr {
 	cx := &constTypeExpr{Source: source}
@@ -2273,15 +2275,21 @@ func checkIntegerType(xt Type) {
 	}
 }
 
-// The purpose of this function is to split declarations into two
-// parts; the first part creates empty placeholder type instances,
-// and the second part to execute the rest while supporting
-// recursive and cyclic definitions.
+// predefineNow() pre-defines (with empty placeholders) all
+// declaration names, and then preprocesses all type/value decls, and
+// partially processes func decls.
 //
-// predefineNow() completes preprocessing (recursive!) if d is a
-// ValueDecl, as well as any function or method type expressions.
-// Returns true if decl was completey preprocessed, i.e. if it was
-// a ValueDecl.
+// The recursive base procedure is split into two parts:
+//
+// First, tryPredefine(), which first predefines with placeholder
+// values/types to support recursive types, then returns yet
+// un-predefined dependencies.
+//
+// Second, which immediately preprocesses type/value declarations
+// after dependencies have first been predefined, or partially
+// preprocesses function declarations (which may not be completely
+// preprocess-able before other file-level declarations are
+// preprocessed).
 func predefineNow(imp Importer, last BlockNode, d Decl) (Decl, bool) {
 	m := make(map[Name]struct{})
 	return predefineNow2(imp, last, d, m)
@@ -2351,9 +2359,12 @@ func predefineNow2(imp Importer, last BlockNode, d Decl, m map[Name]struct{}) (D
 			ft2 := evalStaticType(last, &cd.Type).(*FuncType)
 			*ft = *ft2
 			// XXX replace attr w/ ft?
+			// return Preprocess(imp, last, cd).(Decl), true
 		}
 		return d, false
 	case *ValueDecl:
+		return Preprocess(imp, last, cd).(Decl), true
+	case *TypeDecl:
 		return Preprocess(imp, last, cd).(Decl), true
 	default:
 		return d, false
@@ -2454,8 +2465,17 @@ func tryPredefine(imp Importer, last BlockNode, d Decl) (un Name) {
 					tv := Uverse().GetPointerTo(NewValuePathUverse(idx, tx.Name))
 					t = tv.GetType()
 				} else if tv := last.GetValueRef(tx.Name); tv != nil {
-					// block name
+					// (file) block name
 					t = tv.GetType()
+					if dt, ok := t.(*DeclaredType); ok {
+						if !dt.sealed {
+							// predefineNow preprocessed dependent types.
+							panic("should not happen")
+						}
+					} else {
+						// all names are declared types.
+						panic("should not happen")
+					}
 				} else {
 					// yet undefined
 					un = tx.Name
@@ -2589,6 +2609,16 @@ func fillNameExprPath(last BlockNode, nx *NameExpr) {
 	} else {
 		// Set path for name.
 		nx.Path = last.GetPathForName(nx.Name)
+	}
+}
+
+func isFileOrPackage(n BlockNode) bool {
+	if _, ok := n.(*FileNode); ok {
+		return true
+	} else if _, ok := n.(*PackageNode); ok {
+		return true
+	} else {
+		return false
 	}
 }
 

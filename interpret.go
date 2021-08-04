@@ -454,7 +454,7 @@ const (
 	OpRangeIterString   Op = 0xD4
 	OpRangeIterMap      Op = 0xD5
 	OpRangeIterArrayPtr Op = 0xD6
-	OpReturnCallDefers  Op = 0xD7
+	OpReturnCallDefers  Op = 0xD7 // TODO rename?
 )
 
 //----------------------------------------
@@ -1178,6 +1178,14 @@ func (m *Machine) CheckEmpty() error {
 	}
 }
 
+func (m *Machine) Panic(ex TypedValue) {
+	// TODO: chain exceptions if preexisting unrecovered exception.
+	m.Exception = &ex
+	m.PopUntilLastCallFrame()
+	m.PushOp(OpPanic2)
+	m.PushOp(OpReturnCallDefers)
+}
+
 //----------------------------------------
 // inspection methods
 
@@ -1257,7 +1265,7 @@ func (m *Machine) String() string {
 	Frames:
 %s
 	Exception:
-%s`,
+	  %s`,
 		m.CheckTypes,
 		m.Ops[:m.NumOps],
 		m.NumValues,

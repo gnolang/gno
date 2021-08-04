@@ -109,6 +109,10 @@ type PushOptions struct {
 	Header Header
 }
 
+type Pusher interface {
+	Push(target string, opts *PushOptions) error
+}
+
 type ResponseWriter interface {
 	Header() Header
 	Write([]byte) (int, error)

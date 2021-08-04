@@ -252,6 +252,11 @@ func (m *Machine) doOpReturnCallDefers() {
 	if !ok {
 		// Done with defers.
 		m.ForcePopOp()
+		if m.Exception != nil {
+			// In a state of panic (not return).
+			// Pop the containing function frame.
+			m.PopFrame()
+		}
 		return
 	}
 	// Call last deferred call.
@@ -380,11 +385,8 @@ func (m *Machine) doOpDefer() {
 func (m *Machine) doOpPanic1() {
 	// pop exception
 	var ex TypedValue = m.PopValue().Copy()
-	m.Exception = &ex
-	// start panicking
-	m.PopUntilLastCallFrame()
-	m.PushOp(OpPanic2)
-	m.PushOp(OpReturnCallDefers) // XXX rename, not return?
+	// panic
+	m.Panic(ex)
 }
 
 func (m *Machine) doOpPanic2() {

@@ -32,6 +32,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"text/template"
 	"time"
 	"unicode/utf8"
@@ -162,6 +163,7 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 			pkg := gno.NewPackageNode("bytes", pkgPath, nil)
 			pkg.DefineGoNativeValue("NewReader", bytes.NewReader)
 			pkg.DefineGoNativeValue("NewBuffer", bytes.NewBuffer)
+			pkg.DefineGoNativeType(reflect.TypeOf(bytes.Buffer{}))
 			return pkg.NewPackage(nil)
 		case "time":
 			pkg := gno.NewPackageNode("time", pkgPath, nil)
@@ -248,6 +250,10 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 			pkg.DefineGoNativeType(reflect.TypeOf(sync.Mutex{}))
 			pkg.DefineGoNativeType(reflect.TypeOf(sync.RWMutex{}))
 			pkg.DefineGoNativeType(reflect.TypeOf(sync.Pool{}))
+			return pkg.NewPackage(nil)
+		case "sync/atomic":
+			pkg := gno.NewPackageNode("atomic", pkgPath, nil)
+			pkg.DefineGoNativeType(reflect.TypeOf(atomic.Value{}))
 			return pkg.NewPackage(nil)
 		case "math/big":
 			pkg := gno.NewPackageNode("big", pkgPath, nil)

@@ -2050,6 +2050,12 @@ func typedRune(r rune) TypedValue {
 	return tv
 }
 
+func typedString(s string) TypedValue {
+	tv := TypedValue{T: StringType}
+	tv.V = StringValue(s)
+	return tv
+}
+
 func newSliceFromList(list []TypedValue) *SliceValue {
 	fullList := list[:cap(list)]
 	return &SliceValue{

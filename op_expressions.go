@@ -198,10 +198,13 @@ func (m *Machine) doOpTypeAssert1() {
 				impl = it.IsEmptyInterface()
 			}
 			if !impl {
-				panic(fmt.Sprintf(
+				// TODO: default panic type?
+				ex := fmt.Sprintf(
 					"%s doesn't implement %s",
 					xt.String(),
-					it.String()))
+					it.String())
+				m.Panic(typedString(ex))
+				return
 			}
 			// NOTE: consider ability to push an
 			// interface-restricted form
@@ -216,10 +219,13 @@ func (m *Machine) doOpTypeAssert1() {
 				impl = false
 			}
 			if !impl {
-				panic(fmt.Sprintf(
+				// TODO: default panic type?
+				ex := fmt.Sprintf(
 					"%s doesn't implement %s",
 					xt.String(),
-					nt.String()))
+					nt.String())
+				m.Panic(typedString(ex))
+				return
 			}
 			// keep xv as is.
 			// *xv = *xv
@@ -232,10 +238,13 @@ func (m *Machine) doOpTypeAssert1() {
 		// assert that x is of type.
 		same := tid == xtid
 		if !same {
-			panic(fmt.Sprintf(
+			// TODO: default panic type?
+			ex := fmt.Sprintf(
 				"%s is not of type %s",
 				xt.String(),
-				t.String()))
+				t.String())
+			m.Panic(typedString(ex))
+			return
 		}
 		// keep cxt as is.
 		// *xv = *xv
@@ -253,7 +262,7 @@ func (m *Machine) doOpTypeAssert2() {
 	xt := xv.T
 
 	if t.Kind() == InterfaceKind { // is interface assert
-		if it, ok := t.(*InterfaceType); ok {
+		if it, ok := baseOf(t).(*InterfaceType); ok {
 			// t is Gno interface.
 			// assert that x implements type.
 			impl := false
