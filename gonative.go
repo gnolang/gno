@@ -1212,7 +1212,7 @@ func (m *Machine) doOpCallGoNative() {
 	isVarg := fr.IsVarg
 	// pop and convert params.
 	ptvs := m.PopCopyValues(fr.NumArgs)
-	prvs := make([]reflect.Value, len(ptvs))
+	prvs := make([]reflect.Value, 0, len(ptvs))
 	for i := 0; i < fr.NumArgs; i++ {
 		ptv := &ptvs[i]
 		if ptv.IsUndefined() {
@@ -1224,9 +1224,13 @@ func (m *Machine) doOpCallGoNative() {
 				it = ft.In(i)
 			}
 			erv := reflect.New(it).Elem()
-			prvs[i] = gno2GoValue(ptv, erv)
+			prvs = append(prvs, gno2GoValue(ptv, erv))
 		} else {
-			prvs[i] = gno2GoValue(ptv, reflect.Value{})
+			if hasVarg && isVarg && numParams-1 == i {
+				panic("not yet supported")
+			} else {
+				prvs = append(prvs, gno2GoValue(ptv, reflect.Value{}))
+			}
 		}
 	}
 	// call and get results.

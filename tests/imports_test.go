@@ -114,6 +114,7 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 				return out.Write([]byte(res))
 			})
 			pkg.DefineGoNativeFunc("Sprintf", fmt.Sprintf)
+			pkg.DefineGoNativeFunc("Sscanf", fmt.Sscanf)
 			pkg.DefineGoNativeFunc("Errorf", fmt.Errorf)
 			return pkg.NewPackage(nil)
 		case "encoding/base64":

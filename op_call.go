@@ -118,7 +118,7 @@ func (m *Machine) doOpCall() {
 	// NOTE: this logic is somewhat duplicated for
 	// doOpReturnCallDefers().
 	if ft.HasVarg() {
-		nvar := fr.NumArgs - isMethod - (numParams - 1)
+		nvar := fr.NumArgs - (numParams - 1 - isMethod)
 		if fr.IsVarg {
 			// do nothing, last arg type is already slice
 			// type called with form fncall(?, vargs...)
