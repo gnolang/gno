@@ -95,13 +95,11 @@ func (m *Machine) doOpEval() {
 	case *BinaryExpr:
 		switch x.Op {
 		case LAND, LOR:
-			// continuation
 			m.PushOp(OpBinary1)
 			// evaluate left
 			m.PushExpr(x.Left)
 			m.PushOp(OpEval)
 		default:
-			// continuation
 			op := word2BinaryOp(x.Op)
 			m.PushOp(op)
 			// alt: m.PushOp(OpBinary2)
@@ -113,13 +111,11 @@ func (m *Machine) doOpEval() {
 			m.PushOp(OpEval)
 		}
 	case *CallExpr:
-		// continuation #1
 		m.PushOp(OpPrecall)
 		// evaluate func
 		m.PushExpr(x.Func)
 		m.PushOp(OpEval)
 	case *IndexExpr:
-		// continuation
 		if x.HasOK {
 			m.PushOp(OpIndex2)
 		} else {
@@ -132,13 +128,11 @@ func (m *Machine) doOpEval() {
 		m.PushExpr(x.X)
 		m.PushOp(OpEval)
 	case *SelectorExpr:
-		// continuation
 		m.PushOp(OpSelector)
 		// evaluate x
 		m.PushExpr(x.X)
 		m.PushOp(OpEval)
 	case *SliceExpr:
-		// continuation
 		m.PushOp(OpSlice)
 		// evalaute max
 		if x.Max != nil {
@@ -160,31 +154,26 @@ func (m *Machine) doOpEval() {
 		m.PushOp(OpEval)
 	case *StarExpr:
 		m.PopExpr()
-		// continuation
 		m.PushOp(OpStar)
 		// evaluate x.
 		m.PushExpr(x.X)
 		m.PushOp(OpEval)
 	case *RefExpr:
-		// continuation
 		m.PushOp(OpRef)
 		// evaluate x
 		m.PushForPointer(x.X)
 	case *UnaryExpr:
-		// continuation
 		op := word2UnaryOp(x.Op)
 		m.PushOp(op)
 		// evaluate x
 		m.PushExpr(x.X)
 		m.PushOp(OpEval)
 	case *CompositeLitExpr:
-		// continuation
 		m.PushOp(OpCompositeLit)
 		// evaluate type
 		m.PushExpr(x.Type)
 		m.PushOp(OpEval)
 	case *FuncLitExpr:
-		// continuation
 		m.PushOp(OpFuncLit)
 		// evaluate func type
 		m.PushExpr(&x.Type)
@@ -198,7 +187,6 @@ func (m *Machine) doOpEval() {
 		// push preprocessed type as value
 		m.PushValue(asValue(x.Type))
 	case *FieldTypeExpr:
-		// continuation
 		m.PushOp(OpFieldType)
 		// evaluate field type
 		m.PushExpr(x.Type)
@@ -209,7 +197,6 @@ func (m *Machine) doOpEval() {
 			m.PushOp(OpEval)
 		}
 	case *ArrayTypeExpr:
-		// continuation
 		m.PushOp(OpArrayType)
 		// evaluate length if set
 		if x.Len != nil {
@@ -220,13 +207,11 @@ func (m *Machine) doOpEval() {
 		m.PushExpr(x.Elt)
 		m.PushOp(OpEval) // OpEvalType?
 	case *SliceTypeExpr:
-		// continuation
 		m.PushOp(OpSliceType)
 		// evaluate elem type
 		m.PushExpr(x.Elt)
 		m.PushOp(OpEval) // OpEvalType?
 	case *InterfaceTypeExpr:
-		// continuation
 		m.PushOp(OpInterfaceType)
 		// evaluate methods
 		for i := len(x.Methods) - 1; 0 <= i; i-- {
@@ -236,7 +221,6 @@ func (m *Machine) doOpEval() {
 	case *FuncTypeExpr:
 		// NOTE params and results are evaluated in
 		// the parent scope.
-		// continuation
 		m.PushOp(OpFuncType)
 		// evaluate results (after params)
 		for i := len(x.Results) - 1; 0 <= i; i-- {
@@ -250,7 +234,6 @@ func (m *Machine) doOpEval() {
 		}
 	case *MapTypeExpr:
 		m.PopExpr()
-		// continuation
 		m.PushOp(OpMapType)
 		// evaluate value type
 		m.PushExpr(x.Value)
@@ -259,7 +242,6 @@ func (m *Machine) doOpEval() {
 		m.PushExpr(x.Key)
 		m.PushOp(OpEval) // OpEvalType?
 	case *StructTypeExpr:
-		// continuation
 		m.PushOp(OpStructType)
 		// evaluate fields
 		for i := len(x.Fields) - 1; 0 <= i; i-- {
@@ -267,7 +249,6 @@ func (m *Machine) doOpEval() {
 			m.PushOp(OpEval)
 		}
 	case *TypeAssertExpr:
-		// continuation
 		if x.HasOK {
 			m.PushOp(OpTypeAssert2)
 		} else {
@@ -281,7 +262,6 @@ func (m *Machine) doOpEval() {
 		m.PushOp(OpEval)
 	case *ChanTypeExpr:
 		m.PushOp(OpChanType)
-		// continuation
 		m.PushExpr(x.Value)
 		m.PushOp(OpEval) // OpEvalType?
 	default:

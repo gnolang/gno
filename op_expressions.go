@@ -329,7 +329,6 @@ func (m *Machine) doOpCompositeLit() {
 	// push elements
 	switch baseOf(t).(type) {
 	case *ArrayType:
-		// continuation
 		m.PushOp(OpArrayLit)
 		// evalaute field values
 		for i := len(x.Elts) - 1; 0 <= i; i-- {
@@ -337,7 +336,6 @@ func (m *Machine) doOpCompositeLit() {
 			m.PushOp(OpEval)
 		}
 	case *SliceType:
-		// continuation
 		m.PushOp(OpSliceLit)
 		// evalaute field values
 		for i := len(x.Elts) - 1; 0 <= i; i-- {
@@ -348,7 +346,6 @@ func (m *Machine) doOpCompositeLit() {
 			m.PushOp(OpEval)
 		}
 	case *MapType:
-		// continuation
 		m.PushOp(OpMapLit)
 		// evalaute map items
 		for i := len(x.Elts) - 1; 0 <= i; i-- {
@@ -360,7 +357,6 @@ func (m *Machine) doOpCompositeLit() {
 			m.PushOp(OpEval)
 		}
 	case *StructType:
-		// continuation
 		m.PushOp(OpStructLit)
 		// evaluate field values
 		for i := len(x.Elts) - 1; 0 <= i; i-- {
@@ -368,7 +364,6 @@ func (m *Machine) doOpCompositeLit() {
 			m.PushOp(OpEval)
 		}
 	case *nativeType:
-		// continuation
 		m.PushOp(OpStructLitGoNative)
 		// evaluate field values
 		for i := len(x.Elts) - 1; 0 <= i; i-- {

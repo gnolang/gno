@@ -415,13 +415,12 @@ const (
 	OpSwitchClause        Op = 0x0E // exec next switch clause
 	OpSwitchClauseCase    Op = 0x0F // exec next switch clause case
 	OpTypeSwitch          Op = 0x10 // exec type switch clauses (all)
-	OpForLoop1            Op = 0x11 // body and post if X, else break
-	OpIfCond              Op = 0x12 // eval cond
-	OpPopValue            Op = 0x13 // pop X
-	OpPopResults          Op = 0x14 // pop n call results
-	OpPopBlock            Op = 0x15 // pop block NOTE breaks certain invariants.
-	OpPanic1              Op = 0x16 // pop exception and pop call frames.
-	OpPanic2              Op = 0x17 // pop call frames.
+	OpIfCond              Op = 0x11 // eval cond
+	OpPopValue            Op = 0x12 // pop X
+	OpPopResults          Op = 0x13 // pop n call results
+	OpPopBlock            Op = 0x14 // pop block NOTE breaks certain invariants.
+	OpPanic1              Op = 0x15 // pop exception and pop call frames.
+	OpPanic2              Op = 0x16 // pop call frames.
 
 	/* Unary & binary operators */
 	OpUpos  Op = 0x20 // + (unary)
@@ -508,7 +507,7 @@ const (
 	/* Loop (sticky) operators (>= 0xD0) */
 	OpSticky            Op = 0xD0 // not a real op.
 	OpBody              Op = 0xD1 // if/block/switch/select.
-	OpForLoop2          Op = 0xD2
+	OpForLoop           Op = 0xD2
 	OpRangeIter         Op = 0xD3
 	OpRangeIterString   Op = 0xD4
 	OpRangeIterMap      Op = 0xD5
@@ -561,8 +560,6 @@ func (m *Machine) Run() {
 			m.doOpSwitchClauseCase()
 		case OpTypeSwitch:
 			m.doOpTypeSwitch()
-		case OpForLoop1:
-			m.doOpForLoop1()
 		case OpIfCond:
 			m.doOpIfCond()
 		case OpPopValue:
@@ -719,7 +716,7 @@ func (m *Machine) Run() {
 		/* Loop (sticky) operators */
 		case OpBody:
 			m.doOpExec(op)
-		case OpForLoop2:
+		case OpForLoop:
 			m.doOpExec(op)
 		case OpRangeIter, OpRangeIterArrayPtr:
 			m.doOpExec(op)

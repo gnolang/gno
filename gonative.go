@@ -738,7 +738,7 @@ func go2GnoValue2(rv reflect.Value) (tv TypedValue) {
 	return
 }
 
-// converts native go function type to gno *FuncType,
+// Converts native go function type to gno *FuncType,
 // for the preprocessor to infer types of arguments.
 func go2GnoFuncType(rt reflect.Type) *FuncType {
 	// prewdefine func type
@@ -1201,7 +1201,7 @@ func (m *Machine) doOpStructLitGoNative() {
 	})
 }
 
-// NOTE: unlike doOpCall(), doOpCallGoNative() also handles
+// NOTE: Unlike doOpCall(), doOpCallGoNative() also handles
 // conversions, similarly to doOpConvert().
 func (m *Machine) doOpCallGoNative() {
 	fr := m.LastFrame()

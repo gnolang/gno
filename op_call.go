@@ -10,7 +10,7 @@ func (m *Machine) doOpPrecall() {
 	v := m.PeekValue(1).V
 	if debug {
 		if v == nil {
-			// this may happen due to an undefined uverse or closure value
+			// This may happen due to an undefined uverse or closure value
 			// (which isn't supposed to happen but may happen due to
 			// incomplete initialization).
 			panic("should not happen")
@@ -20,17 +20,14 @@ func (m *Machine) doOpPrecall() {
 	case *FuncValue:
 		m.PopValue()
 		m.PushFrameCall(cx, fv, TypedValue{})
-		// continuation #2
 		m.PushOp(OpCall)
 	case BoundMethodValue:
 		m.PopValue()
 		m.PushFrameCall(cx, fv.Func, fv.Receiver)
-		// continuation #2
 		m.PushOp(OpCall)
 	case TypeValue:
-		// do not pop type yet.
-		// no need for frames.
-		// continuation #2
+		// Do not pop type yet.
+		// No need for frames.
 		m.PushOp(OpConvert)
 		if debug {
 			if len(cx.Args) != 1 {
@@ -40,14 +37,13 @@ func (m *Machine) doOpPrecall() {
 	case *nativeValue:
 		m.PopValue()
 		m.PushFrameGoNative(cx, fv)
-		// continuation #2
 		m.PushOp(OpCallGoNative)
 	default:
 		panic(fmt.Sprintf(
 			"unexpected function value type %s",
 			reflect.TypeOf(v).String()))
 	}
-	// eval args
+	// Eval args.
 	args := cx.Args
 	for i := len(args) - 1; 0 <= i; i-- {
 		m.PushExpr(args[i])
@@ -66,10 +62,9 @@ func (m *Machine) doOpCall() {
 	pts := ft.Params
 	numParams := len(pts)
 	isMethod := 0 // 1 if true
-	// Create new block scope
+	// Create new block scope.
 	b := NewBlock(fr.Func.Source, fr.Func.Closure)
 	m.PushBlock(b)
-	// continuation
 	if fv.NativeBody == nil {
 		if len(ft.Results) == 0 {
 			// Push final empty *ReturnStmt;
@@ -120,7 +115,7 @@ func (m *Machine) doOpCall() {
 	if ft.HasVarg() {
 		nvar := fr.NumArgs - (numParams - 1 - isMethod)
 		if fr.IsVarg {
-			// do nothing, last arg type is already slice
+			// Do nothing, last arg type is already slice
 			// type called with form fncall(?, vargs...)
 			if debug {
 				if nvar != 1 {
@@ -140,7 +135,6 @@ func (m *Machine) doOpCall() {
 	// Assign non-receiver parameters in forward order.
 	pvs := m.PopValues(numParams - isMethod)
 	for i := isMethod; i < numParams; i++ {
-		// pt := pts[i]
 		pv := pvs[i-isMethod]
 		if debug {
 			// This is how run-time untyped const
@@ -200,7 +194,7 @@ func (m *Machine) doOpReturn() {
 // Like doOpReturn, but with results from the block;
 // i.e. named result vars declared in func signatures.
 func (m *Machine) doOpReturnFromBlock() {
-	// copy results from block
+	// Copy results from block.
 	fr := m.PopUntilLastCallFrame()
 	numParams := len(fr.Func.Type.Params)
 	numResults := len(fr.Func.Type.Results)
@@ -272,7 +266,6 @@ func (m *Machine) doOpReturnCallDefers() {
 		// Create new block scope for defer.
 		b := NewBlock(fv.Source, fb)
 		m.PushBlock(b)
-		// continuation
 		if fv.NativeBody == nil {
 			// Exec body.
 			b.bodyStmt = bodyStmt{
@@ -299,10 +292,10 @@ func (m *Machine) doOpReturnCallDefers() {
 						panic("should not happen")
 					}
 				}
-				// do nothing, last arg type is already slice type
+				// Do nothing, last arg type is already slice type
 				// called with form fncall(?, vargs...)
 			} else {
-				// convert last nvar to slice.
+				// Convert last nvar to slice.
 				vart := pts[len(pts)-1].Type.(*SliceType)
 				vargs := make([]TypedValue, nvar)
 				copy(vargs, dfr.Args[numArgs-nvar:numArgs])
@@ -324,9 +317,9 @@ func (m *Machine) doOpReturnCallDefers() {
 			// converted, e.g. fmt.Println. See GoValue.
 			prvs[i] = gno2GoValue(&ptvs[i], reflect.Value{})
 		}
-		// call and ignore results.
+		// Call and ignore results.
 		fv.Value.Call(prvs)
-		// cleanup
+		// Cleanup.
 		m.NumResults = 0
 	} else {
 		panic("should not happen")
@@ -336,12 +329,12 @@ func (m *Machine) doOpReturnCallDefers() {
 func (m *Machine) doOpDefer() {
 	fr := m.LastFrame()
 	ds := m.PopStmt().(*DeferStmt)
-	// pop arguments
+	// Pop arguments
 	numArgs := len(ds.Call.Args)
 	args := m.PopCopyValues(numArgs)
-	// pop func
+	// Pop func
 	ftv := m.PopValue()
-	// push defer.
+	// Push defer.
 	// NOTE: we let type be FuncValue and value nativeValue,
 	// because native funcs can't be converted to gno anyways.
 	switch cv := ftv.V.(type) {
@@ -383,19 +376,19 @@ func (m *Machine) doOpDefer() {
 }
 
 func (m *Machine) doOpPanic1() {
-	// pop exception
+	// Pop exception
 	var ex TypedValue = m.PopValue().Copy()
-	// panic
+	// Panic
 	m.Panic(ex)
 }
 
 func (m *Machine) doOpPanic2() {
 	if m.Exception == nil {
-		// recovered from panic
+		// Recovered from panic
 		m.PushOp(OpReturnFromBlock)
 		m.PushOp(OpReturnCallDefers)
 	} else {
-		// keep panicking
+		// Keep panicking
 		m.PopUntilLastCallFrame()
 		m.PushOp(OpPanic2)
 		m.PushOp(OpReturnCallDefers) // XXX rename, not return?

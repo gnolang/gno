@@ -14,7 +14,6 @@ func (m *Machine) doOpBinary1() {
 	case LAND:
 		res := m.PeekValue(1) // re-use
 		if res.GetBool() {
-			// continuation
 			m.PushOp(OpLand)
 			// evaluate right
 			m.PushExpr(bx.Right)
@@ -27,7 +26,6 @@ func (m *Machine) doOpBinary1() {
 		if res.GetBool() {
 			return // done, already true.
 		} else {
-			// continuation
 			m.PushOp(OpLor)
 			// evaluate right
 			m.PushExpr(bx.Right)

@@ -23,7 +23,7 @@ CallExpr ->
 	OpConvert
 
 ForStmt ->
-  OpForLoop2 +block
+  OpForLoop +block
 
 RangeStmt ->
   OpRangeIterList +block
@@ -82,7 +82,7 @@ func (m *Machine) doOpExec(op Op) {
 			m.ForcePopStmt()
 			return
 		}
-	case OpForLoop2:
+	case OpForLoop:
 		bs := m.LastBlock().GetBodyStmt()
 		// evaluate .Cond.
 		if bs.BodyIndex == -2 { // init
@@ -444,7 +444,6 @@ EXEC_SWITCH:
 	}
 	switch cs := s.(type) {
 	case *AssignStmt:
-		// continuation
 		switch cs.Op {
 		case ASSIGN:
 			m.PushOp(OpAssign)
@@ -515,8 +514,7 @@ EXEC_SWITCH:
 			Post:      cs.Post,
 		}
 		m.PushBlock(b)
-		// continuation (persistent)
-		m.PushOp(OpForLoop2)
+		m.PushOp(OpForLoop)
 		m.PushStmt(b.GetBodyStmt())
 		// evaluate condition
 		if cs.Cond != nil {
@@ -532,7 +530,6 @@ EXEC_SWITCH:
 		b := NewBlock(cs, m.LastBlock())
 		m.PushBlock(b)
 		m.PushOp(OpPopBlock)
-		// continuation
 		m.PushOp(OpIfCond)
 		// evaluate condition
 		m.PushExpr(cs.Cond)
@@ -545,10 +542,8 @@ EXEC_SWITCH:
 	case *IncDecStmt:
 		switch cs.Op {
 		case INC:
-			// continuation
 			m.PushOp(OpInc)
 		case DEC:
-			// continuation
 			m.PushOp(OpDec)
 		default:
 			panic("unexpected inc/dec operation")
@@ -588,7 +583,6 @@ EXEC_SWITCH:
 		}
 	case *PanicStmt:
 		m.PopStmt()
-		// continuation
 		m.PushOp(OpPanic1)
 		// evaluate exception
 		m.PushExpr(cs.Exception)
@@ -605,7 +599,6 @@ EXEC_SWITCH:
 			Op:        cs.Op,
 		}
 		m.PushBlock(b)
-		// continuation (persistent)
 		// TODO: replace with "cs.Op".
 		if cs.IsMap {
 			m.PushOp(OpRangeIterMap)
@@ -718,7 +711,6 @@ EXEC_SWITCH:
 		m.PushExpr(cs.Type)
 		m.PushOp(OpEval)
 	case *DeferStmt:
-		// continuation
 		m.PushOp(OpDefer)
 		// evaluate args
 		args := cs.Call.Args
@@ -738,13 +730,11 @@ EXEC_SWITCH:
 		m.PushBlock(b)
 		m.PushOp(OpPopBlock)
 		if cs.IsTypeSwitch {
-			// continuation
 			m.PushOp(OpTypeSwitch)
 			// evaluate x
 			m.PushExpr(cs.X)
 			m.PushOp(OpEval)
 		} else {
-			// continuation
 			m.PushOp(OpSwitchClause)
 			// push clause index 0
 			m.PushValue(typedInt(0))
@@ -917,7 +907,6 @@ func (m *Machine) doOpSwitchClause() {
 			m.PushOp(OpBody)
 			m.PushStmt(lb.GetBodyStmt())
 		} else {
-			// continuation
 			m.PushOp(OpSwitchClauseCase)
 			// push first case expr
 			m.PushOp(OpEval)
