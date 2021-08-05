@@ -104,62 +104,8 @@ func Go2Gno(gon ast.Node) (n Node) {
 		return nil
 	}
 	switch gon := gon.(type) {
-	case *ast.File:
-		pkgName := Name(gon.Name.Name)
-		decls := make([]Decl, 0, len(gon.Decls))
-		for _, d := range gon.Decls {
-			if gd, ok := d.(*ast.GenDecl); ok {
-				decls = append(decls, toDecls(gd)...)
-			} else {
-				decls = append(decls, toDecl(d))
-			}
-		}
-		return &FileNode{
-			Name:    "", // filled later.
-			PkgName: pkgName,
-			Decls:   decls,
-		}
-	case *ast.FuncDecl:
-		isMethod := gon.Recv != nil
-		recv := FieldTypeExpr{}
-		if isMethod {
-			if len(gon.Recv.List) > 1 {
-				panic("*ast.FuncDecl cannot have multiple receivers")
-			}
-			recv = *Go2Gno(gon.Recv.List[0]).(*FieldTypeExpr)
-		}
-		name := toName(gon.Name)
-		type_ := Go2Gno(gon.Type).(*FuncTypeExpr)
-		body := Go2Gno(gon.Body).(*BlockStmt).Body
-		return &FuncDecl{
-			IsMethod: isMethod,
-			Recv:     recv,
-			NameExpr: NameExpr{Name: name},
-			Type:     *type_,
-			Body:     body,
-		}
-	case *ast.FuncType:
-		return &FuncTypeExpr{
-			Params:  toFieldsFromList(gon.Params),
-			Results: toFieldsFromList(gon.Results),
-		}
-	case *ast.BlockStmt:
-		return &BlockStmt{
-			Body: toStmts(gon.List),
-		}
-	case *ast.ForStmt:
-		return &ForStmt{
-			Init: toSimp(gon.Init),
-			Cond: toExpr(gon.Cond),
-			Post: toSimp(gon.Post),
-			Body: toStmts(gon.Body.List),
-		}
-	case *ast.AssignStmt:
-		return &AssignStmt{
-			Lhs: toExprs(gon.Lhs),
-			Op:  toWord(gon.Tok),
-			Rhs: toExprs(gon.Rhs),
-		}
+	case *ast.ParenExpr:
+		return toExpr(gon.X)
 	case *ast.Ident:
 		return Nx(toName(gon))
 	case *ast.BasicLit:
@@ -176,29 +122,37 @@ func Go2Gno(gon ast.Node) (n Node) {
 			Op:    toWord(gon.Op),
 			Right: toExpr(gon.Y),
 		}
-	case *ast.IncDecStmt:
-		return &IncDecStmt{
-			X:  toExpr(gon.X),
-			Op: toWord(gon.Tok),
+	case *ast.CallExpr:
+		return &CallExpr{
+			Func: toExpr(gon.Fun),
+			Args: toExprs(gon.Args),
+			Varg: gon.Ellipsis.IsValid(),
 		}
-	case *ast.IfStmt:
-		ess := []Stmt(nil)
-		if gon.Else != nil {
-			if _, ok := gon.Else.(*ast.BlockStmt); ok {
-				ess = Go2Gno(gon.Else).(*BlockStmt).Body
-			} else {
-				ess = []Stmt{toStmt(gon.Else)}
-			}
+	case *ast.IndexExpr:
+		return &IndexExpr{
+			X:     toExpr(gon.X),
+			Index: toExpr(gon.Index),
 		}
-		return &IfStmt{
-			Init: toSimp(gon.Init),
-			Cond: toExpr(gon.Cond),
-			Then: IfCaseStmt{
-				Body: toStmts(gon.Body.List),
-			},
-			Else: IfCaseStmt{
-				Body: ess,
-			},
+	case *ast.SelectorExpr:
+		return &SelectorExpr{
+			X:   toExpr(gon.X),
+			Sel: toName(gon.Sel),
+		}
+	case *ast.SliceExpr:
+		return &SliceExpr{
+			X:    toExpr(gon.X),
+			Low:  toExpr(gon.Low),
+			High: toExpr(gon.High),
+			Max:  toExpr(gon.Max),
+		}
+	case *ast.StarExpr:
+		return &StarExpr{
+			X: toExpr(gon.X),
+		}
+	case *ast.TypeAssertExpr:
+		return &TypeAssertExpr{
+			X:    toExpr(gon.X),
+			Type: toExpr(gon.Type),
 		}
 	case *ast.UnaryExpr:
 		if gon.Op == token.AND {
@@ -211,9 +165,23 @@ func Go2Gno(gon ast.Node) (n Node) {
 				Op: toWord(gon.Op),
 			}
 		}
-	case *ast.ReturnStmt:
-		return &ReturnStmt{
-			Results: toExprs(gon.Results),
+	case *ast.CompositeLit:
+		// If ArrayType with ellipsis for length,
+		// just figure out the length here.
+		return &CompositeLitExpr{
+			Type: toExpr(gon.Type),
+			Elts: toKeyValueExprs(gon.Elts),
+		}
+	case *ast.KeyValueExpr:
+		return &KeyValueExpr{
+			Key:   toExpr(gon.Key),
+			Value: toExpr(gon.Value),
+		}
+	case *ast.FuncLit:
+		type_ := Go2Gno(gon.Type).(*FuncTypeExpr)
+		return &FuncLitExpr{
+			Type: *type_,
+			Body: toBody(gon.Body),
 		}
 	case *ast.Field:
 		if len(gon.Names) == 0 {
@@ -234,58 +202,6 @@ func Go2Gno(gon ast.Node) (n Node) {
 					"maybe call toFields",
 				gon.Names))
 		}
-	case *ast.StructType:
-		return &StructTypeExpr{
-			Fields: toFieldsFromList(gon.Fields),
-		}
-	case *ast.InterfaceType:
-		return &InterfaceTypeExpr{
-			Methods: toFieldsFromList(gon.Methods),
-		}
-	case *ast.GenDecl:
-		panic("unexpected *ast.GenDecl; use toDecls() instead")
-	case *ast.CompositeLit:
-		// If ArrayType with ellipsis for length,
-		// just figure out the length here.
-		return &CompositeLitExpr{
-			Type: toExpr(gon.Type),
-			Elts: toKeyValueExprs(gon.Elts),
-		}
-	case *ast.ExprStmt:
-		if cx, ok := gon.X.(*ast.CallExpr); ok {
-			if ix, ok := cx.Fun.(*ast.Ident); ok && ix.Name == "panic" {
-				if len(cx.Args) != 1 {
-					panic("expected panic statement to have single exception value")
-				}
-				return &PanicStmt{
-					Exception: toExpr(cx.Args[0]),
-				}
-			}
-		}
-		return &ExprStmt{
-			X: toExpr(gon.X),
-		}
-	case *ast.CallExpr:
-		return &CallExpr{
-			Func: toExpr(gon.Fun),
-			Args: toExprs(gon.Args),
-			Varg: gon.Ellipsis.IsValid(),
-		}
-	case *ast.KeyValueExpr:
-		return &KeyValueExpr{
-			Key:   toExpr(gon.Key),
-			Value: toExpr(gon.Value),
-		}
-	case *ast.SelectorExpr:
-		return &SelectorExpr{
-			X:   toExpr(gon.X),
-			Sel: toName(gon.Sel),
-		}
-	case *ast.Ellipsis:
-		return &SliceTypeExpr{
-			Elt: toExpr(gon.Elt),
-			Vrd: true,
-		}
 	case *ast.ArrayType:
 		if _, ok := gon.Len.(*ast.Ellipsis); ok {
 			return &ArrayTypeExpr{
@@ -303,18 +219,50 @@ func Go2Gno(gon ast.Node) (n Node) {
 				Elt: toExpr(gon.Elt),
 			}
 		}
-	case *ast.IndexExpr:
-		return &IndexExpr{
-			X:     toExpr(gon.X),
-			Index: toExpr(gon.Index),
+	case *ast.Ellipsis:
+		return &SliceTypeExpr{
+			Elt: toExpr(gon.Elt),
+			Vrd: true,
 		}
-	case *ast.RangeStmt:
-		return &RangeStmt{
-			X:     toExpr(gon.X),
+	case *ast.InterfaceType:
+		return &InterfaceTypeExpr{
+			Methods: toFieldsFromList(gon.Methods),
+		}
+	case *ast.ChanType:
+		var dir ChanDir
+		if gon.Dir&ast.SEND > 0 {
+			dir |= SEND
+		}
+		if gon.Dir&ast.RECV > 0 {
+			dir |= RECV
+		}
+		return &ChanTypeExpr{
+			Dir:   dir,
+			Value: toExpr(gon.Value),
+		}
+	case *ast.FuncType:
+		return &FuncTypeExpr{
+			Params:  toFieldsFromList(gon.Params),
+			Results: toFieldsFromList(gon.Results),
+		}
+	case *ast.MapType:
+		return &MapTypeExpr{
 			Key:   toExpr(gon.Key),
 			Value: toExpr(gon.Value),
-			Op:    toWord(gon.Tok),
-			Body:  toBody(gon.Body),
+		}
+	case *ast.StructType:
+		return &StructTypeExpr{
+			Fields: toFieldsFromList(gon.Fields),
+		}
+	case *ast.AssignStmt:
+		return &AssignStmt{
+			Lhs: toExprs(gon.Lhs),
+			Op:  toWord(gon.Tok),
+			Rhs: toExprs(gon.Rhs),
+		}
+	case *ast.BlockStmt:
+		return &BlockStmt{
+			Body: toStmts(gon.List),
 		}
 	case *ast.BranchStmt:
 		return &BranchStmt{
@@ -325,44 +273,72 @@ func Go2Gno(gon ast.Node) (n Node) {
 		return &DeclStmt{
 			Body: toSimpleDeclStmts(gon.Decl.(*ast.GenDecl)),
 		}
-	case *ast.SliceExpr:
-		return &SliceExpr{
-			X:    toExpr(gon.X),
-			Low:  toExpr(gon.Low),
-			High: toExpr(gon.High),
-			Max:  toExpr(gon.Max),
-		}
-	case *ast.StarExpr:
-		return &StarExpr{
-			X: toExpr(gon.X),
-		}
-	case *ast.TypeAssertExpr:
-		return &TypeAssertExpr{
-			X:    toExpr(gon.X),
-			Type: toExpr(gon.Type),
-		}
-	case *ast.ParenExpr:
-		return toExpr(gon.X)
-	case *ast.MapType:
-		return &MapTypeExpr{
-			Key:   toExpr(gon.Key),
-			Value: toExpr(gon.Value),
-		}
-	case *ast.FuncLit:
-		type_ := Go2Gno(gon.Type).(*FuncTypeExpr)
-		return &FuncLitExpr{
-			Type: *type_,
-			Body: toBody(gon.Body),
-		}
 	case *ast.DeferStmt:
 		cx := toExpr(gon.Call).(*CallExpr)
 		return &DeferStmt{
 			Call: *cx,
 		}
+	case *ast.ExprStmt:
+		if cx, ok := gon.X.(*ast.CallExpr); ok {
+			if ix, ok := cx.Fun.(*ast.Ident); ok && ix.Name == "panic" {
+				if len(cx.Args) != 1 {
+					panic("expected panic statement to have single exception value")
+				}
+				return &PanicStmt{
+					Exception: toExpr(cx.Args[0]),
+				}
+			}
+		}
+		return &ExprStmt{
+			X: toExpr(gon.X),
+		}
+	case *ast.ForStmt:
+		return &ForStmt{
+			Init: toSimp(gon.Init),
+			Cond: toExpr(gon.Cond),
+			Post: toSimp(gon.Post),
+			Body: toStmts(gon.Body.List),
+		}
+	case *ast.IfStmt:
+		ess := []Stmt(nil)
+		if gon.Else != nil {
+			if _, ok := gon.Else.(*ast.BlockStmt); ok {
+				ess = Go2Gno(gon.Else).(*BlockStmt).Body
+			} else {
+				ess = []Stmt{toStmt(gon.Else)}
+			}
+		}
+		return &IfStmt{
+			Init: toSimp(gon.Init),
+			Cond: toExpr(gon.Cond),
+			Then: IfCaseStmt{
+				Body: toStmts(gon.Body.List),
+			},
+			Else: IfCaseStmt{
+				Body: ess,
+			},
+		}
+	case *ast.IncDecStmt:
+		return &IncDecStmt{
+			X:  toExpr(gon.X),
+			Op: toWord(gon.Tok),
+		}
 	case *ast.LabeledStmt:
 		return &LabeledStmt{
 			Label: toName(gon.Label),
 			Stmt:  toStmt(gon.Stmt),
+		}
+	case *ast.RangeStmt:
+		return &RangeStmt{
+			X:     toExpr(gon.X),
+			Key:   toExpr(gon.Key),
+			Value: toExpr(gon.Value),
+			Op:    toWord(gon.Tok),
+			Body:  toBody(gon.Body),
+		}
+	case *ast.ReturnStmt:
+		return &ReturnStmt{
+			Results: toExprs(gon.Results),
 		}
 	case *ast.TypeSwitchStmt:
 		switch as := gon.Assign.(type) {
@@ -399,17 +375,41 @@ func Go2Gno(gon ast.Node) (n Node) {
 			IsTypeSwitch: false,
 			Clauses:      toClauses(gon.Body.List),
 		}
-	case *ast.ChanType:
-		var dir ChanDir
-		if gon.Dir&ast.SEND > 0 {
-			dir |= SEND
+	case *ast.FuncDecl:
+		isMethod := gon.Recv != nil
+		recv := FieldTypeExpr{}
+		if isMethod {
+			if len(gon.Recv.List) > 1 {
+				panic("*ast.FuncDecl cannot have multiple receivers")
+			}
+			recv = *Go2Gno(gon.Recv.List[0]).(*FieldTypeExpr)
 		}
-		if gon.Dir&ast.RECV > 0 {
-			dir |= RECV
+		name := toName(gon.Name)
+		type_ := Go2Gno(gon.Type).(*FuncTypeExpr)
+		body := Go2Gno(gon.Body).(*BlockStmt).Body
+		return &FuncDecl{
+			IsMethod: isMethod,
+			Recv:     recv,
+			NameExpr: NameExpr{Name: name},
+			Type:     *type_,
+			Body:     body,
 		}
-		return &ChanTypeExpr{
-			Dir:   dir,
-			Value: toExpr(gon.Value),
+	case *ast.GenDecl:
+		panic("unexpected *ast.GenDecl; use toDecls() instead")
+	case *ast.File:
+		pkgName := Name(gon.Name.Name)
+		decls := make([]Decl, 0, len(gon.Decls))
+		for _, d := range gon.Decls {
+			if gd, ok := d.(*ast.GenDecl); ok {
+				decls = append(decls, toDecls(gd)...)
+			} else {
+				decls = append(decls, toDecl(d))
+			}
+		}
+		return &FileNode{
+			Name:    "", // filled later.
+			PkgName: pkgName,
+			Decls:   decls,
 		}
 	default:
 		panic(fmt.Sprintf("unknown Go type %v: %s\n",
