@@ -1697,6 +1697,8 @@ func (tv *TypedValue) GetCapacity() int {
 		return 0
 	}
 	switch cv := tv.V.(type) {
+	case StringValue:
+		return len(string(cv))
 	case *ArrayValue:
 		return cv.GetCapacity()
 	case *SliceValue:

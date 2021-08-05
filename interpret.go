@@ -114,9 +114,10 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 		pn.FileSet = &FileSet{}
 	}
 	pn.FileSet.AddFiles(fns...)
+	fileupdates := make([][]TypedValue, len(fns))
 
-	// Run each new file.
-	for _, fn := range fns {
+	// Preprocess each new file.
+	for i, fn := range fns {
 		// Preprocess file.
 		// NOTE: Most of the declaration is handled by
 		// Preprocess and any constant values set on
@@ -132,14 +133,72 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 		fb := NewBlock(fn, &pv.Block)
 		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
 		copy(fb.Values, fn.StaticBlock.Values)
-		m.PushBlock(fb)
 		pv.AddFileBlock(fn.Name, fb)
-		updates := pn.UpdatePackage(pv) // with fb.
+		updates := pn.UpdatePackage(pv) // with fb
+		fileupdates[i] = updates
+	}
+
+	// exists if declaration run.
+	var fdeclared = map[Name]struct{}{}
+	// to detect loops in var declarations.
+	var loopfindr = []Name{}
+	// recursive function for var declarations.
+	var runDeclarationFor func(fn *FileNode, decl Decl)
+	runDeclarationFor = func(fn *FileNode, decl Decl) {
+		// get dependencies of decl.
+		deps := make(map[Name]struct{})
+		findDependentNames(decl, deps)
+		for dep, _ := range deps {
+			// if dep already in fdeclared, skip.
+			if _, ok := fdeclared[dep]; ok {
+				continue
+			}
+			fn, depdecl := pn.FileSet.GetDeclFor(dep)
+			// if dep already in loopfindr, abort.
+			if hasName(dep, loopfindr) {
+				if _, ok := (*depdecl).(*FuncDecl); ok {
+					// recursive function dependencies
+					// are OK with func decls.
+					continue
+				} else {
+					panic(fmt.Sprintf(
+						"loop in variable initialization: dependency trail %v circularly depends on %s", loopfindr, dep))
+				}
+			}
+			// run dependecy declaration
+			loopfindr = append(loopfindr, dep)
+			runDeclarationFor(fn, *depdecl)
+			loopfindr = loopfindr[:len(loopfindr)-1]
+		}
+		// run declaration
+		fb := pv.FBlocks[fn.Name]
+		m.PushBlock(fb)
+		m.runDeclaration(decl)
+		m.PopBlock()
+		for _, n := range decl.GetDeclNames() {
+			fdeclared[n] = struct{}{}
+		}
+	}
+
+	// Variable initialization.  This must happen after all
+	// files are preprocessed, because value decl may be
+	// out of order and depend on other files.
+	for _, fn := range fns {
 		// Run declarations.
 		for _, decl := range fn.Decls {
-			m.runDeclaration(decl)
+			runDeclarationFor(fn, decl)
 		}
-		// Run new init functions.
+	}
+
+	// Run new init functions.
+	// Go spec: "To ensure reproducible initialization
+	// behavior, build systems are encouraged to present
+	// multiple files belonging to the same package in
+	// lexical file name order to a compiler."
+	for i, fn := range fns {
+		updates := fileupdates[i]
+		fb := pv.FBlocks[fn.Name]
+		m.PushBlock(fb)
 		for i := 0; i < len(updates); i++ {
 			tv := &updates[i]
 			if tv.IsDefined() && tv.T.Kind() == FuncKind && tv.V != nil {
@@ -1277,4 +1336,15 @@ func (m *Machine) String() string {
 		strings.Join(fs, "\n"),
 		m.Exception,
 	)
+}
+
+//----------------------------------------
+
+func hasName(n Name, ns []Name) bool {
+	for _, n2 := range ns {
+		if n == n2 {
+			return true
+		}
+	}
+	return false
 }

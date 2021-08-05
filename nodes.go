@@ -1158,6 +1158,7 @@ type BlockNode interface {
 
 	// StaticBlock promoted methods
 	GetBlockNames() []Name
+	GetExternNames() []Name
 	GetNumNames() uint16
 	GetParent() BlockNode
 	GetPathForName(Name) ValuePath
@@ -1179,6 +1180,7 @@ type StaticBlock struct {
 	Types    []Type
 	NumNames uint16
 	Names    map[Name]uint16
+	Extern   map[Name]struct{}
 }
 
 // Implements BlockNode
@@ -1201,6 +1203,7 @@ func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 	}
 	sb.NumNames = 0
 	sb.Names = make(map[Name]uint16)
+	sb.Extern = make(map[Name]struct{})
 	return
 }
 
@@ -1225,6 +1228,15 @@ func (sb *StaticBlock) GetBlockNames() (ns []Name) {
 }
 
 // Implements BlockNode.
+func (sb *StaticBlock) GetExternNames() (ns []Name) {
+	ns = make([]Name, 0, len(sb.Extern))
+	for n, _ := range sb.Extern {
+		ns = append(ns, n)
+	}
+	return ns
+}
+
+// Implements BlockNode.
 func (sb *StaticBlock) GetNumNames() (nn uint16) {
 	return sb.NumNames
 }
@@ -1239,6 +1251,7 @@ func (sb *StaticBlock) GetParent() BlockNode {
 }
 
 // Implements BlockNode.
+// As a side effect, notes externally defined names.
 func (sb *StaticBlock) GetPathForName(n Name) ValuePath {
 	if debug {
 		if n == "_" {
@@ -1249,12 +1262,18 @@ func (sb *StaticBlock) GetPathForName(n Name) ValuePath {
 	if idx, ok := sb.GetLocalIndex(n); ok {
 		return NewValuePathBlock(uint8(gen), idx, n)
 	} else {
+		if !isFile(sb.Source) {
+			sb.Extern[n] = struct{}{}
+		}
 		gen++
 		bp := sb.GetParent()
 		for bp != nil {
 			if idx, ok = bp.GetLocalIndex(n); ok {
 				return NewValuePathBlock(uint8(gen), idx, n)
 			} else {
+				if !isFile(bp) {
+					bp.GetStaticBlock().Extern[n] = struct{}{}
+				}
 				bp = bp.GetParent()
 				gen++
 				if 0xff < gen {

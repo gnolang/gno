@@ -459,6 +459,8 @@ func (m *Machine) doOpStaticTypeOf() {
 			m.PushValue(asValue(&SliceType{
 				Elt: pt.Elt.Elem(),
 			}))
+		} else if xt.Kind() == StringKind {
+			m.PushValue(asValue(StringType))
 		} else {
 			m.PushValue(asValue(&SliceType{
 				Elt: xt.Elem(),

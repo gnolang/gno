@@ -409,7 +409,6 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 							n.Decls[i] = d2
 						}
 					}
-					// After return, the other decls get preprocessed.
 				}
 
 			// TRANS_BLOCK -----------------------
@@ -1429,8 +1428,6 @@ func Preprocess(imp Importer, ctx BlockNode, n Node) Node {
 							!cx.TypedValue.IsUndefined() {
 							// if value is non-nil const expr:
 							tvs[i] = cx.TypedValue
-							//} else if isFileOrPackage(last) {
-							//	tvs[i] = evalFileVar(last, vx)
 						} else {
 							// for var decls of non-const expr.
 							st := sts[i]
@@ -1727,15 +1724,6 @@ func evalConst(last BlockNode, x Expr) *constExpr {
 	setConstAttrs(cx)
 	return cx
 }
-
-/*
-func evalFileVar(last BlockNode, x Expr) TypedValue {
-	// TODO: some check or verification for ensuring x
-	// is constant?  From the machine?
-	pn := packageOf(last)
-	return NewMachine(pn.PkgPath).EvalStatic(pn, x)
-}
-*/
 
 func constType(source Expr, t Type) *constTypeExpr {
 	cx := &constTypeExpr{Source: source}
@@ -2109,6 +2097,29 @@ func findUndefined2(imp Importer, last BlockNode, x Expr, t Type) (un Name) {
 		}
 	case *SelectorExpr:
 		return findUndefined(imp, last, cx.X)
+	case *SliceExpr:
+		un = findUndefined(imp, last, cx.X)
+		if un != "" {
+			return
+		}
+		if cx.Low != nil {
+			un = findUndefined(imp, last, cx.Low)
+			if un != "" {
+				return
+			}
+		}
+		if cx.High != nil {
+			un = findUndefined(imp, last, cx.High)
+			if un != "" {
+				return
+			}
+		}
+		if cx.Max != nil {
+			un = findUndefined(imp, last, cx.Max)
+			if un != "" {
+				return
+			}
+		}
 	case *StarExpr:
 		return findUndefined(imp, last, cx.X)
 	case *RefExpr:
@@ -2128,6 +2139,7 @@ func findUndefined2(imp Importer, last BlockNode, x Expr, t Type) (un Name) {
 				panic("cannot elide unknown composite type")
 			}
 			ct = t
+			cx.Type = constType(nil, t)
 		} else {
 			un = findUndefined(imp, last, cx.Type)
 			if un != "" {
@@ -2311,8 +2323,13 @@ func predefineNow2(imp Importer, last BlockNode, d Decl, m map[Name]struct{}) (D
 			}
 			// look up dependency declaration from fileset.
 			file, decl := pkg.FileSet.GetDeclFor(un)
-			// predefine dependency (recursive).
-			*decl, _ = predefineNow2(imp, file, *decl, m)
+			// preprocess if not already preprocessed.
+			if file.GetParent() == nil {
+				file = Preprocess(imp, pkg, file).(*FileNode)
+			} else {
+				// predefine dependency (recursive).
+				*decl, _ = predefineNow2(imp, file, *decl, m)
+			}
 		} else {
 			break
 		}
@@ -2612,10 +2629,8 @@ func fillNameExprPath(last BlockNode, nx *NameExpr) {
 	}
 }
 
-func isFileOrPackage(n BlockNode) bool {
+func isFile(n BlockNode) bool {
 	if _, ok := n.(*FileNode); ok {
-		return true
-	} else if _, ok := n.(*PackageNode); ok {
 		return true
 	} else {
 		return false
@@ -2766,5 +2781,145 @@ func countNumArgs(last BlockNode, n *CallExpr) (numArgs int) {
 		}
 	} else {
 		return 1
+	}
+}
+
+func mergeNames(a, b []Name) []Name {
+	c := make([]Name, len(a)+len(b))
+	copy(c, a)
+	copy(c[len(a):], b)
+	return c
+}
+
+// This is to be run *after* preprocessing is done,
+// to determine the order of var decl execution
+// (which may include functions which may refer to package vars).
+func findDependentNames(n Node, dst map[Name]struct{}) {
+	switch cn := n.(type) {
+	case *NameExpr:
+		if _, ok := UverseNode().GetLocalIndex(cn.Name); ok {
+			// skip global name
+		} else {
+			dst[cn.Name] = struct{}{}
+		}
+	case *BasicLitExpr:
+	case *BinaryExpr:
+		findDependentNames(cn.Left, dst)
+		findDependentNames(cn.Right, dst)
+	case *SelectorExpr:
+		findDependentNames(cn.X, dst)
+	case *SliceExpr:
+		findDependentNames(cn.X, dst)
+		if cn.Low != nil {
+			findDependentNames(cn.Low, dst)
+		}
+		if cn.High != nil {
+			findDependentNames(cn.High, dst)
+		}
+		if cn.Max != nil {
+			findDependentNames(cn.Max, dst)
+		}
+	case *StarExpr:
+		findDependentNames(cn.X, dst)
+	case *RefExpr:
+		findDependentNames(cn.X, dst)
+	case *TypeAssertExpr:
+		findDependentNames(cn.X, dst)
+		findDependentNames(cn.Type, dst)
+	case *UnaryExpr:
+		findDependentNames(cn.X, dst)
+	case *CompositeLitExpr:
+		findDependentNames(cn.Type, dst)
+		ct := getType(cn.Type)
+		switch ct.Kind() {
+		case ArrayKind, SliceKind, MapKind:
+			for _, kvx := range cn.Elts {
+				if kvx.Key != nil {
+					findDependentNames(kvx.Key, dst)
+				}
+				findDependentNames(kvx.Value, dst)
+			}
+		case StructKind:
+			for _, kvx := range cn.Elts {
+				findDependentNames(kvx.Value, dst)
+			}
+		default:
+			panic(fmt.Sprintf(
+				"unexpected composite lit type %s",
+				ct.String()))
+		}
+	case *FuncLitExpr:
+		findDependentNames(&cn.Type, dst)
+	case *FieldTypeExpr:
+		findDependentNames(cn.Type, dst)
+	case *ArrayTypeExpr:
+		findDependentNames(cn.Elt, dst)
+		if cn.Len != nil {
+			findDependentNames(cn.Len, dst)
+		}
+	case *SliceTypeExpr:
+		findDependentNames(cn.Elt, dst)
+	case *InterfaceTypeExpr:
+		for i := range cn.Methods {
+			findDependentNames(&cn.Methods[i], dst)
+		}
+	case *ChanTypeExpr:
+		findDependentNames(cn.Value, dst)
+	case *FuncTypeExpr:
+		for i := range cn.Params {
+			findDependentNames(&cn.Params[i], dst)
+		}
+		for i := range cn.Results {
+			findDependentNames(&cn.Results[i], dst)
+		}
+	case *MapTypeExpr:
+		findDependentNames(cn.Key, dst)
+		findDependentNames(cn.Value, dst)
+	case *StructTypeExpr:
+		for i := range cn.Fields {
+			findDependentNames(&cn.Fields[i], dst)
+		}
+	case *CallExpr:
+		findDependentNames(cn.Func, dst)
+		for i := range cn.Args {
+			findDependentNames(cn.Args[i], dst)
+		}
+	case *IndexExpr:
+		findDependentNames(cn.X, dst)
+		findDependentNames(cn.Index, dst)
+	case *constTypeExpr:
+	case *constExpr:
+	case *ImportDecl:
+	case *ValueDecl:
+		if cn.Type != nil {
+			findDependentNames(cn.Type, dst)
+		}
+		for _, vx := range cn.Values {
+			findDependentNames(vx, dst)
+		}
+	case *TypeDecl:
+		findDependentNames(cn.Type, dst)
+	case *FuncDecl:
+		findDependentNames(&cn.Type, dst)
+		if cn.IsMethod {
+			findDependentNames(&cn.Recv, dst)
+			for _, n := range cn.GetExternNames() {
+				dst[n] = struct{}{}
+			}
+		} else {
+			for _, n := range cn.GetExternNames() {
+				if n == cn.Name {
+					// top-level function can
+					// refer to itself without
+					// depending on itself.
+				} else {
+					dst[n] = struct{}{}
+				}
+			}
+		}
+	default:
+		panic(fmt.Sprintf(
+			"unexpected node: %v (%v)",
+			n, reflect.TypeOf(n)))
 	}
 }
