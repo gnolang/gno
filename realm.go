@@ -73,7 +73,7 @@ func (rlm *Realm) SetLogRealmOps(enabled bool) {
 //----------------------------------------
 // ownership hooks
 
-// po's old value is xo, will become co.
+// po's old elem value is xo, will become co.
 // po, xo, and co may each be nil.
 // if rlm or po is nil, do nothing.
 // xo or co is nil if the element value is undefined or has no
@@ -143,7 +143,6 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 					panic("unexpected owner for deleted object")
 				}
 			}
-			// xo.Owner becomes previous owner.
 			if xo.GetIsNewReal() || xo.GetIsReal() {
 				rlm.MarkDeleted(xo)
 			}
@@ -276,27 +275,27 @@ func (rlm *Realm) FinalizeRealmTransaction() {
 // by assigning it an ObjectID, recursively.
 func (rlm *Realm) ProcessCreatedObjects() {
 	// XXX Update
-	for _, uo := range rlm.created {
-		// Save created object, and recursively
-		// save new or updated children.
-		_ = uo.ValueImage(rlm, true)
-		// There is no need to call save separately,
-		// ValueImage() saves.
-		// rlm.SaveCreatedObject(co, vi)
-	}
+	//for _, uo := range rlm.created {
+	// Save created object, and recursively
+	// save new or updated children.
+	// _ = uo.ValueImage(rlm, true) XXX
+	// There is no need to call save separately,
+	// ValueImage() saves.
+	// rlm.SaveCreatedObject(co, vi)
+	//}
 }
 
 // crawls marked updated objects up the ownership chain
 // to update the merkle hash.
 func (rlm *Realm) ProcessUpdatedObjects() {
-	for _, uo := range rlm.updated {
-		// Save updated object, and recursively
-		// save new or updated children.
-		_ = uo.ValueImage(rlm, true)
-		// There is no need to call save separately,
-		// ValueImage() saves.
-		// rlm.SaveUpdatedObject(uo, vi)
-	}
+	//for _, uo := range rlm.updated {
+	// Save updated object, and recursively
+	// save new or updated children.
+	// _ = uo.ValueImage(rlm, true) XXX
+	// There is no need to call save separately,
+	// ValueImage() saves.
+	// rlm.SaveUpdatedObject(uo, vi)
+	//}
 }
 
 // crawls marked deleted objects, recursively.
@@ -345,7 +344,7 @@ func (rlm *Realm) AssignObjectID(oo Object) ObjectID {
 }
 
 // NOTE: vi should be of owned type.
-func (rlm *Realm) SaveCreatedObject(oo Object, vi *ValueImage) {
+func (rlm *Realm) SaveCreatedObject(oo Object, vi ValueImage) {
 	if debug {
 		if !oo.GetIsNewReal() {
 			panic("should not happen")
@@ -361,7 +360,7 @@ func (rlm *Realm) SaveCreatedObject(oo Object, vi *ValueImage) {
 }
 
 // NOTE: vi should be of owned type.
-func (rlm *Realm) SaveUpdatedObject(oo Object, vi *ValueImage) {
+func (rlm *Realm) SaveUpdatedObject(oo Object, vi ValueImage) {
 	if debug {
 		if oo.GetIsNewReal() {
 			panic("should not happen")
@@ -378,7 +377,7 @@ func (rlm *Realm) SaveUpdatedObject(oo Object, vi *ValueImage) {
 	oo.SetIsDirty(false, 0)
 }
 
-func (rlm *Realm) maybeSaveObject(oo Object, vi *ValueImage) {
+func (rlm *Realm) maybeSaveObject(oo Object, vi ValueImage) {
 	if debug {
 		if oo.GetObjectID().IsZero() {
 			// object should already have ID set.
@@ -392,7 +391,7 @@ func (rlm *Realm) maybeSaveObject(oo Object, vi *ValueImage) {
 	}
 }
 
-func (rlm *Realm) saveObject(oo Object, vi *ValueImage) {
+func (rlm *Realm) saveObject(oo Object, vi ValueImage) {
 	oid := oo.GetObjectID()
 	if oid.IsZero() {
 		panic("unexpected zero object id")
@@ -401,7 +400,10 @@ func (rlm *Realm) saveObject(oo Object, vi *ValueImage) {
 }
 
 func (rlm *Realm) RemoveDeletedObject(oo Object) {
-	fmt.Printf("XXX WOULD DELETE: %v\n", oo)
+	if rlm.ropslog != nil {
+		rlm.ropslog = append(rlm.ropslog,
+			RealmOp{RealmOpDel, oo, nil})
+	}
 }
 
 //----------------------------------------
@@ -444,7 +446,7 @@ const (
 type RealmOp struct {
 	Type RealmOpType
 	Object
-	*ValueImage
+	ValueImage
 }
 
 // used by the tests/file_test system to check

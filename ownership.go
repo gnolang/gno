@@ -63,8 +63,7 @@ type Object interface {
 
 	// Saves to realm along the way if owned, and also (dirty
 	// or new).
-	ValueImage(rlm *Realm, owned bool) *ValueImage
-	ElemImages(rlm *Realm, owned bool) []ElemImage
+	// ValueImage(rlm *Realm, owned bool) *ValueImage
 }
 
 var _ Object = &ArrayValue{}
@@ -451,6 +450,7 @@ func (eo ExtendedObject) GetIsTransient() bool {
 	}
 }
 
+/*
 func (eo ExtendedObject) ValueImage(rlm *Realm, owned bool) *ValueImage {
 	if eo.BaseMap != nil {
 		return eo.BaseMap.ValueImage(rlm, owned)
@@ -458,11 +458,4 @@ func (eo ExtendedObject) ValueImage(rlm *Realm, owned bool) *ValueImage {
 		panic("native values are not realm compatible")
 	}
 }
-
-func (eo ExtendedObject) ElemImages(rlm *Realm, owned bool) []ElemImage {
-	if eo.BaseMap != nil {
-		return eo.BaseMap.ElemImages(rlm, owned)
-	} else {
-		panic("native values are not realm compatible")
-	}
-}
+*/
