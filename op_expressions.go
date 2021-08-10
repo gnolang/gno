@@ -122,7 +122,8 @@ func (m *Machine) doOpStar() {
 		pv := xv.V.(PointerValue)
 		if pv.T == DataByteType {
 			tv := TypedValue{T: xv.T.(*PointerType).Elt}
-			tv.SetUint8(*(pv.V.(DataByteValue).Ref))
+			dbv := pv.V.(DataByteValue)
+			tv.SetUint8(dbv.GetByte())
 			m.PushValue(tv)
 		} else {
 			if pv.TypedValue.IsUndefined() && bt.Elt.Kind() != InterfaceKind {

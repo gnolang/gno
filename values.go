@@ -60,8 +60,17 @@ func (bv BigintValue) Copy() BigintValue {
 }
 
 type DataByteValue struct {
-	Ref      *byte
-	ElemType Type // is Uint8Kind.
+	Base     *ArrayValue // base array.
+	Index    int         // base.Data index.
+	ElemType Type        // is Uint8Kind.
+}
+
+func (dbv DataByteValue) GetByte() byte {
+	return dbv.Base.Data[dbv.Index]
+}
+
+func (dbv DataByteValue) SetByte(b byte) {
+	dbv.Base.Data[dbv.Index] = b
 }
 
 // Base is set if the pointer refers to an array index or
@@ -117,7 +126,7 @@ func (pv PointerValue) Deref() (tv TypedValue) {
 	if pv.T == DataByteType {
 		dbv := pv.V.(DataByteValue)
 		tv.T = dbv.ElemType
-		tv.SetUint8(*dbv.Ref)
+		tv.SetUint8(dbv.GetByte())
 		return
 	} else if nv, ok := pv.V.(*nativeValue); ok {
 		rv := nv.Value
@@ -217,7 +226,8 @@ func (sv *SliceValue) GetPointerAtIndexInt2(ii int, st *SliceType) PointerValue 
 		bv := &TypedValue{ // by reference
 			T: DataByteType,
 			V: DataByteValue{
-				Ref:      &sv.Base.Data[sv.Offset+ii],
+				Base:     sv.Base,
+				Index:    sv.Offset + ii,
 				ElemType: st.Elt,
 			},
 		}
@@ -933,7 +943,8 @@ func (tv *TypedValue) SetDataByte(n uint8) {
 				tv.T.String()))
 		}
 	}
-	*(tv.V.(DataByteValue).Ref) = n
+	dbv := tv.V.(DataByteValue)
+	dbv.SetByte(n)
 }
 
 func (tv *TypedValue) GetDataByte() uint8 {
@@ -944,7 +955,8 @@ func (tv *TypedValue) GetDataByte() uint8 {
 				tv.T.String()))
 		}
 	}
-	return *(tv.V.(DataByteValue).Ref)
+	dbv := tv.V.(DataByteValue)
+	return dbv.GetByte()
 }
 
 func (tv *TypedValue) SetUint16(n uint16) {
@@ -1570,7 +1582,8 @@ func (tv *TypedValue) GetPointerAtIndex(iv *TypedValue) PointerValue {
 			bv := &TypedValue{ // heap alloc
 				T: DataByteType,
 				V: DataByteValue{
-					Ref:      &av.Data[ii],
+					Base:     av,
+					Index:    ii,
 					ElemType: bt.Elem(),
 				},
 			}

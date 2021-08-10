@@ -75,6 +75,12 @@ type NumValueImage [8]byte
 
 type StringValueImage string
 
+type DataByteValueImage struct {
+	BaseID ObjectID
+	Index  int
+	// XXX weak? owned?
+}
+
 type PointerValueImage struct {
 	BaseID          ObjectID // if weak
 	Index           int      // if weak

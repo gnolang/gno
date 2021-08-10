@@ -16,7 +16,7 @@ func (v BigintValue) String() string {
 }
 
 func (v DataByteValue) String() string {
-	return fmt.Sprintf("(%0X)", *(v.Ref))
+	return fmt.Sprintf("(%0X)", (v.GetByte()))
 }
 
 func (v *ArrayValue) String() string {
