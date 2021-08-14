@@ -54,8 +54,22 @@ type ValueHash struct {
 
 type ValueImage interface {
 	assertValueImage()
-	String() string
+	//String() string
 }
+
+func (_ ObjectInfoImage) assertValueImage()       {}
+func (_ WeakRefValueImage) assertValueImage()     {}
+func (_ PrimitiveValueImage) assertValueImage()   {}
+func (_ PointerValueImage) assertValueImage()     {}
+func (_ ArrayValueImage) assertValueImage()       {}
+func (_ SliceValueImage) assertValueImage()       {}
+func (_ StructValueImage) assertValueImage()      {}
+func (_ FuncValueImage) assertValueImage()        {}
+func (_ BoundMethodValueImage) assertValueImage() {}
+func (_ MapValueImage) assertValueImage()         {}
+func (_ TypeValueImage) assertValueImage()        {}
+func (_ PackageValueImage) assertValueImage()     {}
+func (_ BlockValueImage) assertValueImage()       {}
 
 type ObjectInfoImage struct {
 	ID       ObjectID
@@ -64,27 +78,16 @@ type ObjectInfoImage struct {
 	RefCount int
 }
 
-// XXX DataByte:
-// XXX is a reference to ArrayValue.Data[i],
-// XXX in place of what would usually be a Uint8Kind.
-// XXX this works at runtime, but at persist time,
-// XXX we would need to know the source/base ArrayValue
-// XXX and index.  So, how?
-
-type NumValueImage [8]byte
-
-type StringValueImage string
-
-type DataByteValueImage struct {
-	BaseID ObjectID
-	Index  int
-	// XXX weak? owned?
+type WeakRefValueImage struct {
+	ID ObjectID
 }
 
+type PrimitiveValueImage []byte
+
 type PointerValueImage struct {
-	BaseID          ObjectID // if weak
-	Index           int      // if weak
-	TypedValueImage          // if owned
+	// BaseID           ObjectID // if weak
+	// Index            int      // if weak
+	*TypedValueImage // if owned
 }
 
 type ArrayValueImage struct {
@@ -94,11 +97,11 @@ type ArrayValueImage struct {
 }
 
 type SliceValueImage struct {
-	BaseID          ObjectID // if weak
-	ArrayValueImage          // if owned
-	Offset          int
-	Length          int
-	Maxcap          int
+	// BaseID           ObjectID // if weak
+	*ArrayValueImage // if owned
+	Offset           int
+	Length           int
+	Maxcap           int
 }
 
 type StructValueImage struct {
@@ -112,6 +115,12 @@ type FuncValueImage struct {
 	Name     Name
 	Closure  BlockValueImage
 	FileName Name
+	PkgPath  string
+}
+
+type BoundMethodValueImage struct {
+	Func     FuncValueImage
+	Receiver TypedValueImage
 }
 
 type MapValueImage struct {
@@ -136,19 +145,148 @@ type PackageValueImage struct {
 
 type BlockValueImage struct {
 	ObjectInfo ObjectInfoImage
-	Values     []TypedValueImage
 	ParentID   ObjectID
+	Values     []TypedValueImage
 }
 
 //----------------------------------------
 
-type TypeLookup func(TypeID) Type
-
-func EncodeTypedValueImage(tv TypedValue) TypedValueImage {
-	return TypedValueImage{}
+type ImageEncoder struct {
+	TypeLookup    func(TypeID) Type
+	PackageLookup func(pkgPath string) *PackageValue
 }
 
-func DecodeTypedValueImage(tl TypeLookup, tvi TypedValueImage) TypedValue {
+func (ie ImageEncoder) EncodeTypedValueImage(tv TypedValue) TypedValueImage {
+	typeid := tv.T.TypeID()
+	valimg := ie.EncodeValueImage(tv)
+	return TypedValueImage{
+		TypeID:     typeid,
+		ValueImage: valimg,
+	}
+}
+
+func (ie ImageEncoder) EncodeValueImage(tv TypedValue) ValueImage {
+	switch baseOf(tv.T).(type) {
+	case PrimitiveType:
+		return PrimitiveValueImage(tv.PrimitiveBytes())
+	case *PointerType:
+		if tv.V == nil {
+			return PointerValueImage{}
+		} else {
+			val := tv.V.(PointerValue)
+			tvi := ie.EncodeTypedValueImage(*val.TypedValue)
+			return PointerValueImage{
+				TypedValueImage: &tvi,
+			}
+		}
+	case *ArrayType:
+		if tv.V == nil {
+			return ArrayValueImage{}
+		} else {
+			val := tv.V.(*ArrayValue)
+			valimg := ArrayValueImage{}
+			valimg.ObjectInfo = encodeObjectInfo(val.ObjectInfo)
+			if val.Data == nil {
+				valimg.List = make([]TypedValueImage, len(val.List))
+				for i, item := range val.List {
+					valimg.List[i] = ie.EncodeTypedValueImage(item)
+				}
+			} else {
+				valimg.Data = make([]byte, len(val.Data))
+				copy(valimg.Data, val.Data)
+			}
+			return valimg
+		}
+	case *SliceType:
+		if tv.V == nil {
+			return SliceValueImage{}
+		} else {
+			val := tv.V.(*SliceValue)
+			valimg := SliceValueImage{}
+			avi := ie.EncodeValueImage(TypedValue{
+				T: &ArrayType{}, // XXX hack
+				V: val.Base,
+			}).(ArrayValueImage)
+			valimg.ArrayValueImage = &avi
+			valimg.Offset = val.Offset
+			valimg.Length = val.Length
+			valimg.Maxcap = val.Maxcap
+			return valimg
+		}
+	case *StructType:
+		if tv.V == nil {
+			return StructValueImage{}
+		} else {
+			val := tv.V.(*StructValue)
+			valimg := StructValueImage{}
+			valimg.ObjectInfo = encodeObjectInfo(val.ObjectInfo)
+			valimg.Fields = make([]TypedValueImage, len(val.Fields))
+			for i, field := range val.Fields {
+				valimg.Fields[i] = ie.EncodeTypedValueImage(field)
+			}
+			return valimg
+		}
+	case *FuncType:
+		panic("not yet supported")
+	case *MapType:
+		if tv.V == nil {
+			return MapValueImage{}
+		} else {
+			val := tv.V.(*MapValue)
+			valimg := MapValueImage{}
+			valimg.ObjectInfo = encodeObjectInfo(val.ObjectInfo)
+			valimg.List = make([]MapItemImage, 0, val.List.Size)
+			for cur := val.List.Head; cur != nil; cur = cur.Next {
+				valimg.List = append(valimg.List, MapItemImage{
+					Key:   ie.EncodeTypedValueImage(cur.Key),
+					Value: ie.EncodeTypedValueImage(cur.Value),
+				})
+			}
+			return valimg
+		}
+	case *InterfaceType:
+		panic("should not happen")
+	case *TypeType:
+		panic("not yet supported")
+	case *PackageType:
+		val := tv.V.(*PackageValue)
+		valimg := PackageValueImage{}
+		valimg.Block = ie.EncodeValueImage(TypedValue{
+			T: &blockType{},
+			V: blockValue{&val.Block},
+		}).(BlockValueImage)
+		valimg.PkgName = val.PkgName
+		valimg.PkgPath = val.PkgPath
+		return valimg
+	case *ChanType:
+		panic("not yet supported")
+	case *nativeType:
+		panic("not yet supported") // maybe never will.
+	case blockType:
+		val := tv.V.(blockValue)
+		valimg := BlockValueImage{}
+		valimg.ObjectInfo = encodeObjectInfo(val.ObjectInfo)
+		valimg.ParentID = val.Parent.ID
+		valimg.Values = make([]TypedValueImage, len(val.Values))
+		for i, tv := range val.Values {
+			valimg.Values[i] = ie.EncodeTypedValueImage(tv)
+		}
+		return valimg
+	default:
+		panic("should not happen")
+	}
+}
+
+func encodeObjectInfo(oi ObjectInfo) ObjectInfoImage {
+	return ObjectInfoImage{
+		ID:       oi.ID,
+		OwnerID:  oi.OwnerID,
+		ModTime:  oi.ModTime,
+		RefCount: oi.RefCount,
+	}
+}
+
+func (ie ImageEncoder) DecodeTypedValueImage(tvi TypedValueImage) TypedValue {
 	// XXX what else?
 	return TypedValue{}
 }

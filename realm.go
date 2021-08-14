@@ -456,11 +456,11 @@ func (rop RealmOp) String() string {
 	case RealmOpNew:
 		return fmt.Sprintf("c[%v]=%v",
 			rop.Object.GetObjectID(),
-			rop.ValueImage.String())
+			rop.ValueImage)
 	case RealmOpMod:
 		return fmt.Sprintf("u[%v]=%v",
 			rop.Object.GetObjectID(),
-			rop.ValueImage.String())
+			rop.ValueImage)
 	case RealmOpDel:
 		return fmt.Sprintf("d[%v]",
 			rop.Object.GetObjectID())
