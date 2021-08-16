@@ -331,7 +331,8 @@ func go2GnoValue(rv reflect.Value) (tv TypedValue) {
 			ftv := TypedValue{T: Uint32Type}
 			ftv.SetUint32(u32)
 			tv.V = &StructValue{
-				Fields: []TypedValue{ftv},
+				StructType: Float32Type,
+				Fields:     []TypedValue{ftv},
 			}
 		}
 	case reflect.Float64:
@@ -351,7 +352,8 @@ func go2GnoValue(rv reflect.Value) (tv TypedValue) {
 			ftv := TypedValue{T: Uint64Type}
 			ftv.SetUint64(u64)
 			tv.V = &StructValue{
-				Fields: []TypedValue{ftv},
+				StructType: Float64Type,
+				Fields:     []TypedValue{ftv},
 			}
 		}
 	case reflect.Array:

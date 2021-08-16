@@ -25,15 +25,128 @@ func main() {
 }
 
 // Realm:
-// c[OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:4]=VI[object:OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:0#2BD52F9554F3B7B6E6A9D6FBE712582C4EF1A11D@0&1]:
-// - EI[:473287F8298DBA7163A897908958F7C0EAE733E2(#446806BE59543A39AA964C697DE6DC782353521F)] // VI[text:"new"]
-// - EI[nil]
-// - EI[nil]
-// u[OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:0]=VI[object:OIDNONE:0#DE92C66FDB89D1722320389DA3C856262931328C@3&0]:
-// - EI[:1AF40977153D0FABAB9803BF33EDEBA8EB420CC5(#B08F44B4D7ADAD0809ACB2E4B589E637EA8E8B7B)] // VI[type:8F3FCA65F6CA73D096C06F68E24FF93EA462D350]
-// - EI[:1AF40977153D0FABAB9803BF33EDEBA8EB420CC5(#BB5BCA5DA6CB223D32B3048CDEEAF1CC2AACAFC6)] // VI[type:B06B716FF82D41A482D5C1CC3711002B74717639]
-// - EI[:1AF40977153D0FABAB9803BF33EDEBA8EB420CC5(#F52342BA8498FFBDEEE8F47F7499976DE115FE50)] // VI[type:CE75E799ED699FE6A487D6CA237759F5F203BEE0]
-// - EI[nil]
-// - EI[nil]
-// - EI[OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:4:#8B93A133731039D620FC1EA06C12F4E6481ACE22] // TypeID:CE75E799ED699FE6A487D6CA237759F5F203BEE0 VI[object:OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:0#2BD52F9554F3B7B6E6A9D6FBE712582C4EF1A11D@0&1]
+// c[OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:4]=(gno.StructValueImage) {
+//  ObjectInfo: (gno.ObjectInfoImage) {
+//   ID: (gno.ObjectID) OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:4,
+//   OwnerID: (gno.ObjectID) OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:0,
+//   ModTime: (uint64) 0,
+//   RefCount: (int) 1
+//  },
+//  Fields: ([]gno.TypedValueImage) (len=3 cap=3) {
+//   (gno.TypedValueImage) {
+//    TypeID: (gno.TypeID) (len=20 cap=20) 473287F8298DBA7163A897908958F7C0EAE733E2,
+//    ValueImage: (gno.PrimitiveValueImage) (len=3 cap=8) {
+//     00000000  6e 65 77                                          |new|
+//    }
+//   },
+//   (gno.TypedValueImage) {
+//    TypeID: (gno.TypeID) (len=20 cap=20) 0000000000000000000000000000000000000000,
+//    ValueImage: (gno.ValueImage) <nil>
+//   },
+//   (gno.TypedValueImage) {
+//    TypeID: (gno.TypeID) (len=20 cap=20) 0000000000000000000000000000000000000000,
+//    ValueImage: (gno.ValueImage) <nil>
+//   }
+//  }
+// }
+//
+// u[OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:0]=(gno.BlockValueImage) {
+//  ObjectInfo: (gno.ObjectInfoImage) {
+//   ID: (gno.ObjectID) OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:0,
+//   OwnerID: (gno.ObjectID) OIDNONE:0,
+//   ModTime: (uint64) 3,
+//   RefCount: (int) 0
+//  },
+//  ParentID: (gno.ObjectID) OIDNONE:0,
+//  Values: ([]gno.TypedValueImage) (len=6 cap=6) {
+//   (gno.TypedValueImage) {
+//    TypeID: (gno.TypeID) (len=20 cap=20) 1AF40977153D0FABAB9803BF33EDEBA8EB420CC5,
+//    ValueImage: (gno.TypeValueImage) {
+//     TypeID: (gno.TypeID) (len=20 cap=20) 8F3FCA65F6CA73D096C06F68E24FF93EA462D350
+//    }
+//   },
+//   (gno.TypedValueImage) {
+//    TypeID: (gno.TypeID) (len=20 cap=20) 1AF40977153D0FABAB9803BF33EDEBA8EB420CC5,
+//    ValueImage: (gno.TypeValueImage) {
+//     TypeID: (gno.TypeID) (len=20 cap=20) B06B716FF82D41A482D5C1CC3711002B74717639
+//    }
+//   },
+//   (gno.TypedValueImage) {
+//    TypeID: (gno.TypeID) (len=20 cap=20) 1AF40977153D0FABAB9803BF33EDEBA8EB420CC5,
+//    ValueImage: (gno.TypeValueImage) {
+//     TypeID: (gno.TypeID) (len=20 cap=20) CE75E799ED699FE6A487D6CA237759F5F203BEE0
+//    }
+//   },
+//   (gno.TypedValueImage) {
+//    TypeID: (gno.TypeID) (len=20 cap=20) 0BA050DA455A6AAD7074EB2148D53ECD5BECC26D,
+//    ValueImage: (gno.FuncValueImage) {
+//     TypeID: (gno.TypeID) (len=20 cap=20) 0BA050DA455A6AAD7074EB2148D53ECD5BECC26D,
+//     IsMethod: (bool) false,
+//     Name: (gno.Name) (len=6) "init.3",
+//     Closure: (gno.BlockValueImage) {
+//      ObjectInfo: (gno.ObjectInfoImage) {
+//       ID: (gno.ObjectID) OIDNONE:0,
+//       OwnerID: (gno.ObjectID) OIDNONE:0,
+//       ModTime: (uint64) 0,
+//       RefCount: (int) 0
+//      },
+//      ParentID: (gno.ObjectID) OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:0,
+//      Values: ([]gno.TypedValueImage) {
+//      }
+//     },
+//     FileName: (gno.Name) (len=16) "files/zrealm2.go",
+//     PkgPath: (string) (len=15) "gno.land/r/test"
+//    }
+//   },
+//   (gno.TypedValueImage) {
+//    TypeID: (gno.TypeID) (len=20 cap=20) 0BA050DA455A6AAD7074EB2148D53ECD5BECC26D,
+//    ValueImage: (gno.FuncValueImage) {
+//     TypeID: (gno.TypeID) (len=20 cap=20) 0BA050DA455A6AAD7074EB2148D53ECD5BECC26D,
+//     IsMethod: (bool) false,
+//     Name: (gno.Name) (len=4) "main",
+//     Closure: (gno.BlockValueImage) {
+//      ObjectInfo: (gno.ObjectInfoImage) {
+//       ID: (gno.ObjectID) OIDNONE:0,
+//       OwnerID: (gno.ObjectID) OIDNONE:0,
+//       ModTime: (uint64) 0,
+//       RefCount: (int) 0
+//      },
+//      ParentID: (gno.ObjectID) OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:0,
+//      Values: ([]gno.TypedValueImage) {
+//      }
+//     },
+//     FileName: (gno.Name) (len=16) "files/zrealm2.go",
+//     PkgPath: (string) (len=15) "gno.land/r/test"
+//    }
+//   },
+//   (gno.TypedValueImage) {
+//    TypeID: (gno.TypeID) (len=20 cap=20) CE75E799ED699FE6A487D6CA237759F5F203BEE0,
+//    ValueImage: (gno.StructValueImage) {
+//     ObjectInfo: (gno.ObjectInfoImage) {
+//      ID: (gno.ObjectID) OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:4,
+//      OwnerID: (gno.ObjectID) OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:0,
+//      ModTime: (uint64) 0,
+//      RefCount: (int) 1
+//     },
+//     Fields: ([]gno.TypedValueImage) (len=3 cap=3) {
+//      (gno.TypedValueImage) {
+//       TypeID: (gno.TypeID) (len=20 cap=20) 473287F8298DBA7163A897908958F7C0EAE733E2,
+//       ValueImage: (gno.PrimitiveValueImage) (len=3 cap=8) {
+//        00000000  6e 65 77                                          |new|
+//       }
+//      },
+//      (gno.TypedValueImage) {
+//       TypeID: (gno.TypeID) (len=20 cap=20) 0000000000000000000000000000000000000000,
+//       ValueImage: (gno.ValueImage) <nil>
+//      },
+//      (gno.TypedValueImage) {
+//       TypeID: (gno.TypeID) (len=20 cap=20) 0000000000000000000000000000000000000000,
+//       ValueImage: (gno.ValueImage) <nil>
+//      }
+//     }
+//    }
+//   }
+//  }
+// }
+//
 // d[OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:2]

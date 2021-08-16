@@ -3,6 +3,8 @@ package gno
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"fmt"
+	"reflect"
 )
 
 const HashSize = 20
@@ -44,8 +46,8 @@ func innerHash(h1, h2 Hashlet) (res Hashlet) {
 // TypedValueImage, etc.
 
 type TypedValueImage struct {
-	TypeID
-	ValueImage
+	TypeID     TypeID
+	ValueImage ValueImage
 }
 
 type ValueHash struct {
@@ -87,7 +89,7 @@ type PrimitiveValueImage []byte
 type PointerValueImage struct {
 	// BaseID           ObjectID // if weak
 	// Index            int      // if weak
-	*TypedValueImage // if owned
+	TypedValue TypedValueImage // if owned
 }
 
 type ArrayValueImage struct {
@@ -98,10 +100,10 @@ type ArrayValueImage struct {
 
 type SliceValueImage struct {
 	// BaseID           ObjectID // if weak
-	*ArrayValueImage // if owned
-	Offset           int
-	Length           int
-	Maxcap           int
+	ArrayValue ArrayValueImage // if owned
+	Offset     int
+	Length     int
+	Maxcap     int
 }
 
 type StructValueImage struct {
@@ -110,7 +112,7 @@ type StructValueImage struct {
 }
 
 type FuncValueImage struct {
-	Type     TypeID
+	TypeID   TypeID
 	IsMethod bool
 	Name     Name
 	Closure  BlockValueImage
@@ -134,7 +136,7 @@ type MapItemImage struct {
 }
 
 type TypeValueImage struct {
-	TypeID
+	TypeID TypeID
 }
 
 type PackageValueImage struct {
@@ -151,21 +153,79 @@ type BlockValueImage struct {
 
 //----------------------------------------
 
-type ImageEncoder struct {
+type ImageCodec struct {
 	TypeLookup    func(TypeID) Type
 	PackageLookup func(pkgPath string) *PackageValue
 }
 
-func (ie ImageEncoder) EncodeTypedValueImage(tv TypedValue) TypedValueImage {
-	typeid := tv.T.TypeID()
-	valimg := ie.EncodeValueImage(tv)
-	return TypedValueImage{
-		TypeID:     typeid,
-		ValueImage: valimg,
+func (ic ImageCodec) EncodeTypedValueImage(tv TypedValue) TypedValueImage {
+	if tv.IsUndefined() {
+		return TypedValueImage{}
+	} else {
+		typeid := tv.T.TypeID()
+		valimg := ic.EncodeValueImage(tv)
+		return TypedValueImage{
+			TypeID:     typeid,
+			ValueImage: valimg,
+		}
 	}
 }
 
-func (ie ImageEncoder) EncodeValueImage(tv TypedValue) ValueImage {
+func (ic ImageCodec) EncodeObjectImage(oo Object) ValueImage {
+	switch val := oo.(type) {
+	case nil:
+		panic("should not happen")
+	case *ArrayValue:
+		valimg := ArrayValueImage{}
+		valimg.ObjectInfo = encodeObjectInfo(val.ObjectInfo)
+		if val.Data == nil {
+			valimg.List = make([]TypedValueImage, len(val.List))
+			for i, item := range val.List {
+				valimg.List[i] = ic.EncodeTypedValueImage(item)
+			}
+		} else {
+			valimg.Data = make([]byte, len(val.Data))
+			copy(valimg.Data, val.Data)
+		}
+		return valimg
+	case *StructValue:
+		valimg := StructValueImage{}
+		valimg.ObjectInfo = encodeObjectInfo(val.ObjectInfo)
+		valimg.Fields = make([]TypedValueImage, len(val.Fields))
+		for i, field := range val.Fields {
+			valimg.Fields[i] = ic.EncodeTypedValueImage(field)
+		}
+		return valimg
+	case *MapValue:
+		valimg := MapValueImage{}
+		valimg.ObjectInfo = encodeObjectInfo(val.ObjectInfo)
+		valimg.List = make([]MapItemImage, 0, val.List.Size)
+		for cur := val.List.Head; cur != nil; cur = cur.Next {
+			valimg.List = append(valimg.List, MapItemImage{
+				Key:   ic.EncodeTypedValueImage(cur.Key),
+				Value: ic.EncodeTypedValueImage(cur.Value),
+			})
+		}
+		return valimg
+	case *Block:
+		valimg := BlockValueImage{}
+		valimg.ObjectInfo = encodeObjectInfo(val.ObjectInfo)
+		if val.Parent != nil {
+			valimg.ParentID = val.Parent.ID
+		}
+		valimg.Values = make([]TypedValueImage, len(val.Values))
+		for i, tv := range val.Values {
+			valimg.Values[i] = ic.EncodeTypedValueImage(tv)
+		}
+		return valimg
+	default:
+		panic(fmt.Sprintf(
+			"unexpected value type %v",
+			reflect.TypeOf(oo)))
+	}
+}
+
+func (ic ImageCodec) EncodeValueImage(tv TypedValue) ValueImage {
 	switch baseOf(tv.T).(type) {
 	case PrimitiveType:
 		return PrimitiveValueImage(tv.PrimitiveBytes())
@@ -174,28 +234,10 @@ func (ie ImageEncoder) EncodeValueImage(tv TypedValue) ValueImage {
 			return PointerValueImage{}
 		} else {
 			val := tv.V.(PointerValue)
-			tvi := ie.EncodeTypedValueImage(*val.TypedValue)
+			tvi := ic.EncodeTypedValueImage(*val.TypedValue)
 			return PointerValueImage{
-				TypedValueImage: &tvi,
+				TypedValue: tvi,
 			}
-		}
-	case *ArrayType:
-		if tv.V == nil {
-			return ArrayValueImage{}
-		} else {
-			val := tv.V.(*ArrayValue)
-			valimg := ArrayValueImage{}
-			valimg.ObjectInfo = encodeObjectInfo(val.ObjectInfo)
-			if val.Data == nil {
-				valimg.List = make([]TypedValueImage, len(val.List))
-				for i, item := range val.List {
-					valimg.List[i] = ie.EncodeTypedValueImage(item)
-				}
-			} else {
-				valimg.Data = make([]byte, len(val.Data))
-				copy(valimg.Data, val.Data)
-			}
-			return valimg
 		}
 	case *SliceType:
 		if tv.V == nil {
@@ -203,55 +245,42 @@ func (ie ImageEncoder) EncodeValueImage(tv TypedValue) ValueImage {
 		} else {
 			val := tv.V.(*SliceValue)
 			valimg := SliceValueImage{}
-			avi := ie.EncodeValueImage(TypedValue{
-				T: &ArrayType{}, // XXX hack
-				V: val.Base,
-			}).(ArrayValueImage)
-			valimg.ArrayValueImage = &avi
+			avi := ic.EncodeObjectImage(val.Base).(ArrayValueImage)
+			valimg.ArrayValue = avi
 			valimg.Offset = val.Offset
 			valimg.Length = val.Length
 			valimg.Maxcap = val.Maxcap
 			return valimg
 		}
-	case *StructType:
-		if tv.V == nil {
-			return StructValueImage{}
-		} else {
-			val := tv.V.(*StructValue)
-			valimg := StructValueImage{}
-			valimg.ObjectInfo = encodeObjectInfo(val.ObjectInfo)
-			valimg.Fields = make([]TypedValueImage, len(val.Fields))
-			for i, field := range val.Fields {
-				valimg.Fields[i] = ie.EncodeTypedValueImage(field)
-			}
-			return valimg
-		}
 	case *FuncType:
-		panic("not yet supported")
-	case *MapType:
 		if tv.V == nil {
-			return MapValueImage{}
+			return FuncValueImage{}
 		} else {
-			val := tv.V.(*MapValue)
-			valimg := MapValueImage{}
-			valimg.ObjectInfo = encodeObjectInfo(val.ObjectInfo)
-			valimg.List = make([]MapItemImage, 0, val.List.Size)
-			for cur := val.List.Head; cur != nil; cur = cur.Next {
-				valimg.List = append(valimg.List, MapItemImage{
-					Key:   ie.EncodeTypedValueImage(cur.Key),
-					Value: ie.EncodeTypedValueImage(cur.Value),
-				})
+			val := tv.V.(*FuncValue)
+			valimg := FuncValueImage{}
+			valimg.TypeID = val.Type.TypeID()
+			valimg.IsMethod = val.IsMethod
+			valimg.Name = val.Name
+			if val.Closure != nil {
+				cvi := ic.EncodeObjectImage(val.Closure).(BlockValueImage)
+				valimg.Closure = cvi
 			}
+			valimg.FileName = val.FileName
+			valimg.PkgPath = val.pkg.PkgPath
 			return valimg
 		}
 	case *InterfaceType:
 		panic("should not happen")
 	case *TypeType:
-		panic("not yet supported")
+		if tv.V == nil {
+			return TypeValueImage{}
+		} else {
+			return TypeValueImage{TypeID: tv.GetType().TypeID()}
+		}
 	case *PackageType:
 		val := tv.V.(*PackageValue)
 		valimg := PackageValueImage{}
-		valimg.Block = ie.EncodeValueImage(TypedValue{
+		valimg.Block = ic.EncodeValueImage(TypedValue{
 			T: &blockType{},
 			V: blockValue{&val.Block},
 		}).(BlockValueImage)
@@ -262,16 +291,30 @@ func (ie ImageEncoder) EncodeValueImage(tv TypedValue) ValueImage {
 		panic("not yet supported")
 	case *nativeType:
 		panic("not yet supported") // maybe never will.
-	case blockType:
-		val := tv.V.(blockValue)
-		valimg := BlockValueImage{}
-		valimg.ObjectInfo = encodeObjectInfo(val.ObjectInfo)
-		valimg.ParentID = val.Parent.ID
-		valimg.Values = make([]TypedValueImage, len(val.Values))
-		for i, tv := range val.Values {
-			valimg.Values[i] = ie.EncodeTypedValueImage(tv)
+	case *ArrayType:
+		if tv.V == nil {
+			return ArrayValueImage{}
+		} else {
+			return ic.EncodeObjectImage(tv.V.(Object))
 		}
-		return valimg
+	case *StructType:
+		if tv.V == nil {
+			return StructValueImage{}
+		} else {
+			return ic.EncodeObjectImage(tv.V.(Object))
+		}
+	case *MapType:
+		if tv.V == nil {
+			return MapValueImage{}
+		} else {
+			return ic.EncodeObjectImage(tv.V.(Object))
+		}
+	case blockType:
+		if tv.V == nil {
+			return BlockValueImage{}
+		} else {
+			return ic.EncodeObjectImage(tv.V.(Object))
+		}
 	default:
 		panic("should not happen")
 	}
@@ -286,7 +329,7 @@ func encodeObjectInfo(oi ObjectInfo) ObjectInfoImage {
 	}
 }
 
-func (ie ImageEncoder) DecodeTypedValueImage(tvi TypedValueImage) TypedValue {
+func (ic ImageCodec) DecodeTypedValueImage(tvi TypedValueImage) TypedValue {
 	// XXX what else?
 	return TypedValue{}
 }

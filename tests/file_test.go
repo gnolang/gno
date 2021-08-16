@@ -134,7 +134,7 @@ func runCheck(t *testing.T, path string) {
 			if rlm == nil {
 				panic("expected realm but got none")
 			}
-			rops2 := rlm.SprintRealmOps()
+			rops2 := strings.TrimSpace(rlm.SprintRealmOps())
 			if rops != rops2 {
 				panic(fmt.Sprintf("got:\n%s\n\nwant:\n%s\n", rops2, rops))
 			}

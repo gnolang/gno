@@ -548,7 +548,8 @@ func (m *Machine) doOpStructLit() {
 	// construct and push value.
 	m.PopValue() // baseOf() is st
 	sv := &StructValue{
-		Fields: fs,
+		StructType: st,
+		Fields:     fs,
 	}
 	m.PushValue(TypedValue{
 		T: xt,

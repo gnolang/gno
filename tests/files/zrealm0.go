@@ -13,12 +13,47 @@ func main() {
 // nil
 // 1
 
-// Realm:
-// u[OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:0]=VI[object:OIDNONE:0#905B893E53B6333B757E3F3221C57137AF6481EF@1&0]:
-// - EI[nil]
-// - EI[:6DA88C34BA124C41F977DB66A4FC5C1A951708D2(#AE4B3280E56E2FAF83F414A6E3DABE9D5FBE1897)] // VI[numeric:02]
+// The below tests that the realm's block (of 1 variable) changed.  The first
+// element image in the package (block) is for the "main" function, which
+// appears first because function declarations are defined in a file before
+// vars.
 
-// The above is showing that the realm's block (of 1 variable) changed.  The
-// first EI (element image) is for the "main" function, which appears first
-// because function declarations are defined in a file before vars, and is nil
-// because functions don't have any image value.
+// Realm:
+// u[OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:0]=(gno.BlockValueImage) {
+//  ObjectInfo: (gno.ObjectInfoImage) {
+//   ID: (gno.ObjectID) OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:0,
+//   OwnerID: (gno.ObjectID) OIDNONE:0,
+//   ModTime: (uint64) 1,
+//   RefCount: (int) 0
+//  },
+//  ParentID: (gno.ObjectID) OIDNONE:0,
+//  Values: ([]gno.TypedValueImage) (len=2 cap=2) {
+//   (gno.TypedValueImage) {
+//    TypeID: (gno.TypeID) (len=20 cap=20) 0BA050DA455A6AAD7074EB2148D53ECD5BECC26D,
+//    ValueImage: (gno.FuncValueImage) {
+//     TypeID: (gno.TypeID) (len=20 cap=20) 0BA050DA455A6AAD7074EB2148D53ECD5BECC26D,
+//     IsMethod: (bool) false,
+//     Name: (gno.Name) (len=4) "main",
+//     Closure: (gno.BlockValueImage) {
+//      ObjectInfo: (gno.ObjectInfoImage) {
+//       ID: (gno.ObjectID) OIDNONE:0,
+//       OwnerID: (gno.ObjectID) OIDNONE:0,
+//       ModTime: (uint64) 0,
+//       RefCount: (int) 0
+//      },
+//      ParentID: (gno.ObjectID) OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:0,
+//      Values: ([]gno.TypedValueImage) {
+//      }
+//     },
+//     FileName: (gno.Name) (len=16) "files/zrealm0.go",
+//     PkgPath: (string) (len=15) "gno.land/r/test"
+//    }
+//   },
+//   (gno.TypedValueImage) {
+//    TypeID: (gno.TypeID) (len=20 cap=20) 6DA88C34BA124C41F977DB66A4FC5C1A951708D2,
+//    ValueImage: (gno.PrimitiveValueImage) (len=8 cap=8) {
+//     00000000  01 00 00 00 00 00 00 00                           |........|
+//    }
+//   }
+//  }
+// }
