@@ -2,6 +2,7 @@ package gno
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/davecgh/go-spew/spew"
@@ -278,29 +279,49 @@ func (rlm *Realm) FinalizeRealmTransaction() {
 // crawls marked created objects and finalizes ownership
 // by assigning it an ObjectID, recursively.
 func (rlm *Realm) ProcessCreatedObjects() {
-	todo := rlm.created
-	next := make([]Object, 0, 128)
-	for len(todo) > 0 {
-		for _, obj := range todo {
-			// get fields/items/values that have been modified.
-			more := getCreatedChildren(obj)
-			next = append(next, more...)
-			// actually process obj.
-			rlm.SaveCreatedObject(obj)
-		}
-		todo = next
-		next = make([]Object, 0, 128)
+	for _, oo := range rlm.created {
+		rlm.processCreatedOrUpdatedObject(oo)
 	}
 }
 
-func getCreatedChildren(obj Object) []Object {
+func (rlm *Realm) processCreatedOrUpdatedObject(oo Object) {
+	if debug {
+		if oo.GetIsProcessing() {
+			panic("should not happen")
+		}
+		if oo.GetIsReal() && !oo.GetIsDirty() {
+			panic("should not happen")
+		}
+	}
+	oo.SetIsProcessing(true)
+	defer oo.SetIsProcessing(false)
+	// first process children
+	more := getCreatedOrUpdatedChildren(oo)
+	for _, child := range more {
+		if child.GetIsProcessing() {
+			// NOTE: circular references not yet supported.
+			panic("should not happen")
+		} else {
+			rlm.processCreatedOrUpdatedObject(child)
+		}
+	}
+	// save or update object
+	if oo.GetIsDirty() {
+		rlm.SaveUpdatedObject(oo)
+	} else {
+		rlm.SaveCreatedObject(oo)
+	}
+}
+
+func getCreatedOrUpdatedChildren(obj Object) []Object {
 	switch co := obj.(type) {
 	case *ArrayValue:
 		more := make([]Object, 0, len(co.List))
 		for _, ctv := range co.List {
 			if cobj, ok := ctv.V.(Object); ok {
-				if !cobj.GetIsReal() &&
-					!cobj.GetIsNewReal() {
+				if !cobj.GetIsReal() {
+					more = append(more, cobj)
+				} else if cobj.GetIsDirty() {
 					more = append(more, cobj)
 				}
 			}
@@ -310,8 +331,9 @@ func getCreatedChildren(obj Object) []Object {
 		more := make([]Object, 0, len(co.Fields))
 		for _, ctv := range co.Fields {
 			if cobj, ok := ctv.V.(Object); ok {
-				if !cobj.GetIsReal() &&
-					!cobj.GetIsNewReal() {
+				if !cobj.GetIsReal() {
+					more = append(more, cobj)
+				} else if cobj.GetIsDirty() {
 					more = append(more, cobj)
 				}
 			}
@@ -321,40 +343,45 @@ func getCreatedChildren(obj Object) []Object {
 		more := make([]Object, 0, 2*co.List.Size)
 		for cur := co.List.Head; cur != nil; cur = cur.Next {
 			if cobj, ok := cur.Key.V.(Object); ok {
-				if !cobj.GetIsReal() &&
-					!cobj.GetIsNewReal() {
+				if !cobj.GetIsReal() {
+					more = append(more, cobj)
+				} else if cobj.GetIsDirty() {
 					more = append(more, cobj)
 				}
 			}
 			if cobj, ok := cur.Value.V.(Object); ok {
-				if !cobj.GetIsReal() &&
-					!cobj.GetIsNewReal() {
+				if !cobj.GetIsReal() {
+					more = append(more, cobj)
+				} else if cobj.GetIsDirty() {
 					more = append(more, cobj)
 				}
 			}
 		}
 		return more
-	case blockValue:
+	case *Block:
 		more := make([]Object, 0, len(co.Values))
 		for _, ctv := range co.Values {
 			if cobj, ok := ctv.V.(Object); ok {
-				if !cobj.GetIsReal() &&
-					!cobj.GetIsNewReal() {
+				if !cobj.GetIsReal() {
+					more = append(more, cobj)
+				} else if cobj.GetIsDirty() {
 					more = append(more, cobj)
 				}
 			}
 		}
 		return more
 	default:
-		panic("should not happen")
+		panic(fmt.Sprintf(
+			"unexpected type %v",
+			reflect.TypeOf(obj)))
 	}
 }
 
 // crawls marked updated objects up the ownership chain
 // to update the merkle hash.
 func (rlm *Realm) ProcessUpdatedObjects() {
-	for _, obj := range rlm.updated {
-		rlm.SaveUpdatedObject(obj)
+	for _, oo := range rlm.updated {
+		rlm.processCreatedOrUpdatedObject(oo)
 	}
 }
 
@@ -406,6 +433,7 @@ func (rlm *Realm) AssignObjectID(oo Object) ObjectID {
 func (rlm *Realm) SaveCreatedObject(oo Object) {
 	rlm.AssignObjectID(oo)
 	oi := rlm.EncodeObjectImage(oo)
+	oo.SetHash(hashValueImage(oi))
 	rlm.saveObject(oo, oi)
 	if rlm.ropslog != nil {
 		rlm.ropslog = append(rlm.ropslog,
@@ -428,6 +456,7 @@ func (rlm *Realm) SaveUpdatedObject(oo Object) {
 		}
 	}
 	oi := rlm.EncodeObjectImage(oo)
+	oo.SetHash(hashValueImage(oi))
 	rlm.saveObject(oo, oi)
 	if rlm.ropslog != nil {
 		rlm.ropslog = append(rlm.ropslog,

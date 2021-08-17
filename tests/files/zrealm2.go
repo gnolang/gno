@@ -83,15 +83,13 @@ func main() {
 //     TypeID: (gno.TypeID) (len=20 cap=20) 0BA050DA455A6AAD7074EB2148D53ECD5BECC26D,
 //     IsMethod: (bool) false,
 //     Name: (gno.Name) (len=6) "init.3",
-//     Closure: (gno.BlockValueImage) {
-//      ObjectInfo: (gno.ObjectInfoImage) {
-//       ID: (gno.ObjectID) OIDNONE:0,
-//       OwnerID: (gno.ObjectID) OIDNONE:0,
-//       ModTime: (uint64) 0,
-//       RefCount: (int) 0
-//      },
-//      ParentID: (gno.ObjectID) OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:0,
-//      Values: ([]gno.TypedValueImage) {
+//     ClosureRef: (gno.RefImage) {
+//      _ID: (gno.ObjectID) OIDNONE:0,
+//      Hash: (gno.ValueHash) {
+//       Hashlet: (gno.Hashlet) (len=20 cap=20) {
+//        00000000  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+//        00000010  00 00 00 00                                       |....|
+//       }
 //      }
 //     },
 //     FileName: (gno.Name) (len=16) "files/zrealm2.go",
@@ -104,15 +102,13 @@ func main() {
 //     TypeID: (gno.TypeID) (len=20 cap=20) 0BA050DA455A6AAD7074EB2148D53ECD5BECC26D,
 //     IsMethod: (bool) false,
 //     Name: (gno.Name) (len=4) "main",
-//     Closure: (gno.BlockValueImage) {
-//      ObjectInfo: (gno.ObjectInfoImage) {
-//       ID: (gno.ObjectID) OIDNONE:0,
-//       OwnerID: (gno.ObjectID) OIDNONE:0,
-//       ModTime: (uint64) 0,
-//       RefCount: (int) 0
-//      },
-//      ParentID: (gno.ObjectID) OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:0,
-//      Values: ([]gno.TypedValueImage) {
+//     ClosureRef: (gno.RefImage) {
+//      _ID: (gno.ObjectID) OIDNONE:0,
+//      Hash: (gno.ValueHash) {
+//       Hashlet: (gno.Hashlet) (len=20 cap=20) {
+//        00000000  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+//        00000010  00 00 00 00                                       |....|
+//       }
 //      }
 //     },
 //     FileName: (gno.Name) (len=16) "files/zrealm2.go",

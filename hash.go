@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"reflect"
+
+	"github.com/gnolang/gno/pkgs/amino"
 )
 
 const HashSize = 20
@@ -60,7 +62,7 @@ type ValueImage interface {
 }
 
 func (_ ObjectInfoImage) assertValueImage()       {}
-func (_ WeakRefValueImage) assertValueImage()     {}
+func (_ RefImage) assertValueImage()              {}
 func (_ PrimitiveValueImage) assertValueImage()   {}
 func (_ PointerValueImage) assertValueImage()     {}
 func (_ ArrayValueImage) assertValueImage()       {}
@@ -80,8 +82,9 @@ type ObjectInfoImage struct {
 	RefCount int
 }
 
-type WeakRefValueImage struct {
-	ID ObjectID
+type RefImage struct {
+	_ID  ObjectID
+	Hash ValueHash // if owned
 }
 
 type PrimitiveValueImage []byte
@@ -100,10 +103,10 @@ type ArrayValueImage struct {
 
 type SliceValueImage struct {
 	// BaseID           ObjectID // if weak
-	ArrayValue ArrayValueImage // if owned
-	Offset     int
-	Length     int
-	Maxcap     int
+	ArrayRef RefImage // if owned
+	Offset   int
+	Length   int
+	Maxcap   int
 }
 
 type StructValueImage struct {
@@ -112,12 +115,12 @@ type StructValueImage struct {
 }
 
 type FuncValueImage struct {
-	TypeID   TypeID
-	IsMethod bool
-	Name     Name
-	Closure  BlockValueImage
-	FileName Name
-	PkgPath  string
+	TypeID     TypeID
+	IsMethod   bool
+	Name       Name
+	ClosureRef RefImage
+	FileName   Name
+	PkgPath    string
 }
 
 type BoundMethodValueImage struct {
@@ -153,6 +156,14 @@ type BlockValueImage struct {
 
 //----------------------------------------
 
+func hashValueImage(vi ValueImage) ValueHash {
+	bz := amino.MustMarshal(vi)
+	return ValueHash{HashBytes(bz)}
+}
+
+//----------------------------------------
+// ImageCodec
+
 type ImageCodec struct {
 	TypeLookup    func(TypeID) Type
 	PackageLookup func(pkgPath string) *PackageValue
@@ -168,6 +179,37 @@ func (ic ImageCodec) EncodeTypedValueImage(tv TypedValue) TypedValueImage {
 			TypeID:     typeid,
 			ValueImage: valimg,
 		}
+	}
+}
+
+func (ic ImageCodec) EncodeTypedRefImage(tv TypedValue) TypedValueImage {
+	typeid := tv.T.TypeID()
+	refimg := ic.EncodeRefImage(tv.V.(Object))
+	return TypedValueImage{
+		TypeID:     typeid,
+		ValueImage: refimg,
+	}
+}
+
+func (ic ImageCodec) EncodeRefImage(oo Object) RefImage {
+	if oo == nil {
+		panic("should not happen")
+	}
+	oi := oo.GetObjectInfo()
+	if debug {
+		if oi.ID.IsZero() {
+			panic("should not happen")
+		}
+		if oi.Hash.IsZero() {
+			panic("should not happen")
+		}
+		if oi.RefCount != 1 {
+			panic("should not happen")
+		}
+	}
+	return RefImage{
+		_ID:  oi.ID,
+		Hash: oi.Hash,
 	}
 }
 
@@ -234,7 +276,7 @@ func (ic ImageCodec) EncodeValueImage(tv TypedValue) ValueImage {
 			return PointerValueImage{}
 		} else {
 			val := tv.V.(PointerValue)
-			tvi := ic.EncodeTypedValueImage(*val.TypedValue)
+			tvi := ic.EncodeTypedRefImage(*val.TypedValue)
 			return PointerValueImage{
 				TypedValue: tvi,
 			}
@@ -245,8 +287,7 @@ func (ic ImageCodec) EncodeValueImage(tv TypedValue) ValueImage {
 		} else {
 			val := tv.V.(*SliceValue)
 			valimg := SliceValueImage{}
-			avi := ic.EncodeObjectImage(val.Base).(ArrayValueImage)
-			valimg.ArrayValue = avi
+			valimg.ArrayRef = ic.EncodeRefImage(val.Base)
 			valimg.Offset = val.Offset
 			valimg.Length = val.Length
 			valimg.Maxcap = val.Maxcap
@@ -262,8 +303,7 @@ func (ic ImageCodec) EncodeValueImage(tv TypedValue) ValueImage {
 			valimg.IsMethod = val.IsMethod
 			valimg.Name = val.Name
 			if val.Closure != nil {
-				cvi := ic.EncodeObjectImage(val.Closure).(BlockValueImage)
-				valimg.Closure = cvi
+				valimg.ClosureRef = ic.EncodeRefImage(val.Closure)
 			}
 			valimg.FileName = val.FileName
 			valimg.PkgPath = val.pkg.PkgPath

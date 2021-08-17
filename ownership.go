@@ -44,6 +44,8 @@ type Object interface {
 	GetObjectID() ObjectID
 	MustGetObjectID() ObjectID
 	SetObjectID(oid ObjectID)
+	GetHash() ValueHash
+	SetHash(ValueHash)
 	GetOwner() Object
 	GetOwnerID() ObjectID
 	SetOwner(Object)
@@ -59,6 +61,8 @@ type Object interface {
 	SetIsDirty(bool, uint64)
 	GetIsDeleted() bool
 	SetIsDeleted(bool, uint64)
+	GetIsProcessing() bool
+	SetIsProcessing(bool)
 	GetIsTransient() bool
 
 	// Saves to realm along the way if owned, and also (dirty
@@ -72,14 +76,15 @@ var _ Object = &MapValue{}
 var _ Object = &Block{}
 
 type ObjectInfo struct {
-	ID        ObjectID  // set if real.
-	Hash      ValueHash // zero if dirty.
-	OwnerID   ObjectID  // parent in the ownership tree.
-	ModTime   uint64    // time last updated.
-	RefCount  int       // deleted/gc'd if 0.
-	isNewReal bool
-	isDirty   bool
-	isDeleted bool
+	ID           ObjectID  // set if real.
+	Hash         ValueHash // zero if dirty.
+	OwnerID      ObjectID  // parent in the ownership tree.
+	ModTime      uint64    // time last updated.
+	RefCount     int       // deleted/gc'd if 0.
+	isNewReal    bool
+	isDirty      bool
+	isDeleted    bool
+	isProcessing bool
 
 	owner Object // mem reference to owner.
 }
@@ -137,11 +142,11 @@ func (oi *ObjectInfo) SetObjectID(oid ObjectID) {
 	oi.ID = oid
 }
 
-func (oi *ObjectInfo) GetValueHash() ValueHash {
+func (oi *ObjectInfo) GetHash() ValueHash {
 	return oi.Hash
 }
 
-func (oi *ObjectInfo) SetValueHash(vh ValueHash) {
+func (oi *ObjectInfo) SetHash(vh ValueHash) {
 	oi.Hash = vh
 }
 
@@ -228,6 +233,14 @@ func (oi *ObjectInfo) SetIsDeleted(x bool, mt uint64) {
 	oi.isDirty = x
 }
 
+func (oi *ObjectInfo) GetIsProcessing() bool {
+	return oi.isProcessing
+}
+
+func (oi *ObjectInfo) SetIsProcessing(x bool) {
+	oi.isProcessing = x
+}
+
 func (oi *ObjectInfo) GetIsTransient() bool {
 	return false
 }
@@ -237,7 +250,7 @@ func (oi *ObjectInfo) GetIsTransient() bool {
 func (tv *TypedValue) GetObject() Object {
 	switch cv := tv.V.(type) {
 	case PointerValue:
-		return cv.Base
+		return cv.TypedValue.GetObject()
 	case *ArrayValue:
 		return cv
 	case *SliceValue:
@@ -317,6 +330,22 @@ func (eo ExtendedObject) MustGetObjectID() ObjectID {
 func (eo ExtendedObject) SetObjectID(oid ObjectID) {
 	if eo.BaseMap != nil {
 		eo.BaseMap.SetObjectID(oid)
+	} else {
+		panic("native values are not realm compatible")
+	}
+}
+
+func (eo ExtendedObject) GetHash() ValueHash {
+	if eo.BaseMap != nil {
+		return eo.BaseMap.GetHash()
+	} else {
+		panic("native values are not realm compatible")
+	}
+}
+
+func (eo ExtendedObject) SetHash(vh ValueHash) {
+	if eo.BaseMap != nil {
+		eo.BaseMap.SetHash(vh)
 	} else {
 		panic("native values are not realm compatible")
 	}
@@ -437,6 +466,22 @@ func (eo ExtendedObject) GetIsDeleted() bool {
 func (eo ExtendedObject) SetIsDeleted(b bool, mt uint64) {
 	if eo.BaseMap != nil {
 		eo.BaseMap.SetIsDeleted(b, mt)
+	} else {
+		panic("native values are not realm compatible")
+	}
+}
+
+func (eo ExtendedObject) GetIsProcessing() bool {
+	if eo.BaseMap != nil {
+		return eo.BaseMap.GetIsProcessing()
+	} else {
+		panic("native values are not realm compatible")
+	}
+}
+
+func (eo ExtendedObject) SetIsProcessing(b bool) {
+	if eo.BaseMap != nil {
+		eo.BaseMap.SetIsProcessing(b)
 	} else {
 		panic("native values are not realm compatible")
 	}

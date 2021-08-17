@@ -172,7 +172,7 @@ func BenchmarkTypeAssertionMethodCall(b *testing.B) {
 			case Int32k:
 				x += v.Int32() + 11
 			default:
-				panic("QWE")
+				panic("should not happen")
 			}
 		}
 	})
