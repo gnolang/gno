@@ -17,6 +17,10 @@ simulated by the Gnomes of the Greater Resistance.
  
 ## Status
 
+_Update Aug 16th, 2021: basic file tests pass_
+
+Basic Go file tests now pass.  Working on realm/ownership logic under tests/files/zrealm\*.go.
+
 _Update Jul 22nd, 2021: create pkgs/crypto/keys/client as crypto wallet._
 
 The new wallet will be used for signed communications.
@@ -34,18 +38,20 @@ Make sure you have >=[go1.15](https://golang.org/doc/install) installed, and the
 ```bash
 > git clone git@github.com:gnolang/gno.git
 > cd gno
-> go mod download github.com/davecgh/go-spew
-> go test tests/*.go -v -run="Test/realm.go"
+> make test
 ```
 
 ## Ownership 
 
+_TODO: update documentation on ownership, which is being worked on now_
+
 In Gno, all objects are automatically persisted to disk after every atomic
 "transaction" (a function call that must return immediately.) when new objects
 are associated with a "ownership tree" which is maintained overlaying the
-possibly cyclic object graph.  The ownership tree is composed of objects
-(arrays, structs, maps, and blocks) and derivatives (pointers, slices, and so
-on) with struct-tag annotations to declare the ownership tree.
+possibly cyclic object graph (NOTE: cyclic references for persistence not
+supported at this stage).  The ownership tree is composed of objects (arrays,
+structs, maps, and blocks) and derivatives (pointers, slices, and so on) with
+optional struct-tag annotations to define the ownership tree.
 
 If an object hangs off of the ownership tree, it becomes included in the Merkle
 root, and is said to be "real".  The Merkle-ized state of reality gets updated
@@ -55,70 +61,13 @@ tree (say, assigned to a struct field or appended to a slice that was part of
 the ownership tree prior to the transaction), but those that don't get garbage
 collected and forgotten.
 
-```go
-type Node interface {
-    ...
-}
-
-type InnerNode struct {
-	Key       Key
-	LeftNode  Node `gno:owned`
-	RightNode Node `gno:owned`
-}
-
-type LeafNode struct {
-	Key       Key  `gno:owned`
-	Value     interface{}
-}
-```
-
-In the above example, some fields are tagged as owned, and some are not.  An
-InnerNode structure may own a LeftNode and a RightNode, and it may reference or
-own a Key.  The Key is already owned by the left most LeafNode of the right
-tree, so the InnerNode cannot own it.  The LeafNode can contain a reference or
-own any value.  In other words, if nobody else owns a value, the LeafNode will.
+In the first release of Gno, all fields are owned in the same realm, and no
+cyclic dependencies are allowed outside the bounds of a realm transaction (this
+will change in phase 2, where ref-counted references and weak references will
+be supported).
 
 We get a lack-of-owner problem when the ownership tree detaches an object
 referred elsewhere (after running a statement or set of statements):
-
-```
-    A, A.B, A.C, and D are owned objects.
-    D doesn't own C but refers to it.
-
-	   (A)   (D)
-	   / \   ,
-	  /   \ ,
-	(B)   (C)
-
-    > A.C = nil
-
-	   (A)       (D)
-	   / \       ,
-	  /   \     ,
-	(B)    _   C <-- ?
-```
-
-Options:
-
- 1. unaccounted object error (default)
-   - can't detach object unless refcount is 0.
-   - pushes problem to ownership tree manipulation logic.
-   - various models are possible for maintaining the ownership tree, including
-     reference-counting (e.g. by only deleting objects from a balanced search
-tree when refcount reaches 1 using a destroy callback call); or more lazily
-based on other conditions possibly including storage rent payment.
-   - unaccounted object error detection is deferred until after the
-     transaction, allowing objects to be temporarily unaccounted for.
-
- 2. Invalid pointer
-   - basically "weak reference pointers" -- OK if explicit and exceptional.
-   - across realms it becomes a necessary construct.
-   - will implement for inter-realm pointers.
-
- 3. Auto-Inter-Realm-Ownership-Transfer (AIR-OT)
-   - within a realm, refcounted garbage collection is sufficient.
-   - automatic ownership transfers across realms may be desirable.
-   - requires bidirectional reference tracking.
 
 ## Realms
 
@@ -151,18 +100,6 @@ The gas cost of transactions that modify state are paid for by whoever
 submits the transaction, but the storage rent is paid for by the realm.
 Anyone can pay the storage upkeep of a realm to keep it alive.
 
-## Logos Browser
-
-[Logos](/logos) is a Gno object browser.  The modern browser as well as the
-modern javascript ecosystem is from a security point of view, completely fucked.
-The entire paradigm of continuously updating browsers with incrementally added
-features is a security nightmare.
-
-The Logos browser is based on a new model that is vastly simpler than HTML.
-The purpose of Logos is to become a fully expressive web API and implementation
-standard that does most of what HTML and the World Wide Web originally intended
-to do, but without becoming more complex than necessary.
-
 ## Concurrency
 
 Initially, we don't need to implement routines because realm package functions
@@ -176,6 +113,18 @@ channel message as well as periodic heartbeat messages even with no sends, so
 that select/receive operations can behave deterministically even in the
 presence of multiple channels to select from.
 
+## Logos Browser
+
+[Logos](/logos) is a Gno object browser.  The modern browser as well as the
+modern javascript ecosystem is from a security point of view, completely fucked.
+The entire paradigm of continuously updating browsers with incrementally added
+features is a security nightmare.
+
+The Logos browser is based on a new model that is vastly simpler than HTML.
+The purpose of Logos is to become a fully expressive web API and implementation
+standard that does most of what HTML and the World Wide Web originally intended
+to do, but without becoming more complex than necessary.
+
 ## Completeness
 
 Software projects that don't become complete are projects that are forever
@@ -184,12 +133,12 @@ software libraries like Logos is to become finished within a reasonable timefram
 
 ## How to become a Gnome
 
-First, read the license.  The license doesn't take away any of your rights,
-but it gives the Gno project rights to your contributions.
+First, read the license.  The license doesn't take away any of your rights, but
+it gives the Gno project rights to your contributions.
 
-Contributions in the form of completed work in a pull request or issue
-or comments are welcome and encouraged, especially if you are interested
-in joining the project.
+Contributions in the form of completed work in a pull request or issue or
+comments are welcome and encouraged, especially if you are interested in
+joining the project.
 
 The biggest bottleneck in these sorts of projects is finding the right people
 with the right skillset and character; and my highest priority besides coding,
@@ -197,51 +146,10 @@ is to find the right contributors.  If you can grok the complexities of this
 and related projects without hand holding, and you understand the implications
 of this project and are aligned with its mission, read on.
 
-The Gno Foundation is a non-profit with missions originally stated in the [Virgo Project](https://github.com/virgo-project/virgo).
-The Gno Foundation, which owns the IP to the Gno Works, proposes the following:
-
-* The Gno Foundation permits the Gnoland chain the usage of the Gno Works.
-* The Gnoland chain's staking token is given equally to three bodies:
-
-  - 1/3 of GNOTs to the Gno Foundation.
-  - 1/3 of GNOTs to the Gno Community.
-  - 1/3 of GNOTs to an opinionated spoonful of ATOMs.
-  
-Spoonful of atoms to be weighted according to voting history, such that those
-who voted in favor of good proposals and against bad proposals as judged by the
-Gno Foundation, as well as those who were active in voting, are given favor.
-The weighting may be such that some ATOM holders receive no GNOTs.
-This is not a fork of the Cosmos Hub, but a new chain, so the distribution is
-entirely at the Gno Foundation's discretion, and the foundation has strong opinions.
-
-The Gno Community is determined by the creation and finalization of the project,
-as determined by the Gno Foundation according to community contributions.
-
-This is merely a proposal, but the most canonical up-to-date proposal as set
-forth by the Gnomes.  This Proposal, after sufficient review (some weeks or
-months after the completion of version 0 of Gnolang, defined to be when all the
-test files pass), will become a Plan, and then the Plan may become fulfilled by
-Your actions, if You Will it.  Who knows what will come to pass?
-
-We should all hold our selves accountable, if able, to make choices that we
-believe will benefit our selves, and consequently if able to then benefit
-others through our actions.  We won't agree on what the best course of action
-is, nor will we all agree on what occurred, because fundamentally we can't know
-with complete certainty, though some of us know that *some* trolls are
-genuionely malicious (but not all).  Usually, and perhaps always, the best
-choice is to remain honest, but some times it may be necessary to withhold
-action.  What is import is the envisioned end-goal, and what philosophy and
-morality it espouses, for our words are memetic bones upon which Our frame is
-built, and We are coming to being as it has always been planned, and as even
-the sinners had prayed for; so rejoice!
-
-## Reading the code
-
-Gno's code has been written with extensive comments that explain what each 
-file does. Eventually, each function will be commented in the same manner. 
-
-You can learn a great deal from reading Gnocode, and it's recommended that
-both users and developers have a look.
+The Gno Foundation is a non-profit with missions originally stated in the
+[Virgo Project](https://github.com/virgo-project/virgo).  The Gno Foundation,
+which owns the IP to the Gno Works, proposes the plan as laid out in the plan
+file.
 
 ## Contact
 
