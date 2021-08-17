@@ -772,6 +772,11 @@ func (m *Machine) doOpIfCond() {
 	cond := m.PopValue()
 	if cond.GetBool() {
 		if len(is.Then.Body) != 0 {
+			// expand block size
+			if nn := is.Then.GetNumNames(); int(nn) > len(b.Values) {
+				b.ExpandToSize(nn)
+			}
+			// exec then body
 			b.bodyStmt = bodyStmt{
 				Body:          is.Then.Body,
 				BodyLen:       len(is.Then.Body),
@@ -782,6 +787,11 @@ func (m *Machine) doOpIfCond() {
 		}
 	} else {
 		if len(is.Else.Body) != 0 {
+			// expand block size
+			if nn := is.Else.GetNumNames(); int(nn) > len(b.Values) {
+				b.ExpandToSize(nn)
+			}
+			// exec then body
 			b.bodyStmt = bodyStmt{
 				Body:          is.Else.Body,
 				BodyLen:       len(is.Else.Body),

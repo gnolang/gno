@@ -1932,8 +1932,8 @@ func (b *Block) String() string {
 
 func (b *Block) StringIndented(indent string) string {
 	source := toString(b.Source)
-	if len(source) > 16 {
-		source = source[:14] + "..."
+	if len(source) > 32 {
+		source = source[:32] + "..."
 	}
 	lines := []string{}
 	lines = append(lines,

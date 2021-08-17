@@ -16,6 +16,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"hash/fnv"
 	"image"
 	"image/color"
 	"io"
@@ -164,6 +165,8 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 			return pkg.NewPackage(nil)
 		case "bytes":
 			pkg := gno.NewPackageNode("bytes", pkgPath, nil)
+			pkg.DefineGoNativeValue("Equal", bytes.Equal)
+			pkg.DefineGoNativeValue("Compare", bytes.Compare)
 			pkg.DefineGoNativeValue("NewReader", bytes.NewReader)
 			pkg.DefineGoNativeValue("NewBuffer", bytes.NewBuffer)
 			pkg.DefineGoNativeType(reflect.TypeOf(bytes.Buffer{}))
@@ -301,6 +304,10 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 		case "errors":
 			pkg := gno.NewPackageNode("errors", pkgPath, nil)
 			pkg.DefineGoNativeValue("New", errors.New)
+			return pkg.NewPackage(nil)
+		case "hash/fnv":
+			pkg := gno.NewPackageNode("fnv", pkgPath, nil)
+			pkg.DefineGoNativeValue("New32a", fnv.New32a)
 			return pkg.NewPackage(nil)
 		default:
 			panic("unknown package path " + pkgPath)
