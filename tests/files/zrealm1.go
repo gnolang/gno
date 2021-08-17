@@ -8,8 +8,8 @@ type Key interface{}
 
 type InnerNode struct {
 	Key   Key
-	Left  Node `gno:owned`
-	Right Node `gno:owned`
+	Left  Node
+	Right Node
 }
 
 func main() {
