@@ -1,6 +1,9 @@
 package gno
 
-import "fmt"
+import (
+	"fmt"
+	"math/big"
+)
 
 func (m *Machine) doOpUpos() {
 	ux := m.PopExpr().(*UnaryExpr)
@@ -42,11 +45,11 @@ func (m *Machine) doOpUneg() {
 		xv.SetUint64(-xv.GetUint64())
 	case UntypedBigintType, BigintType:
 		bv := xv.V.(BigintValue)
-		bv.V.Neg(bv.V)
+		xv.V = BigintValue{V: new(big.Int).Neg(bv.V)}
 	case nil:
 		// NOTE: for now only BigintValue is possible.
 		bv := xv.V.(BigintValue)
-		bv.V.Neg(bv.V)
+		xv.V = BigintValue{V: new(big.Int).Neg(bv.V)}
 	default:
 		panic(fmt.Sprintf("unexpected type %s in operation",
 			baseOf(xv.T)))

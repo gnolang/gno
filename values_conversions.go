@@ -600,7 +600,13 @@ GNO_CASE:
 				tv.V = newSliceFromData([]byte(tv.GetString()))
 				tv.T = t // after tv.GetString()
 			case Int32Kind:
-				panic("not yet implemented")
+				runes := []TypedValue{}
+				str := tv.GetString()
+				for _, r := range str {
+					runes = append(runes, typedRune(r))
+				}
+				tv.V = newSliceFromList(runes)
+				tv.T = t // after tv.GetString()
 			default:
 				panic(fmt.Sprintf(
 					"cannot convert %s to %s",
@@ -638,7 +644,8 @@ GNO_CASE:
 		}
 	case SliceKind:
 		if t.Kind() == StringKind {
-			if tv.T.Elem().Kind() != Uint8Kind {
+			tk := tv.T.Elem().Kind()
+			if tk != Uint8Kind && tk != Int32Kind {
 				panic(fmt.Sprintf(
 					"cannot convert %s to %s",
 					tv.T.String(), t.String()))
@@ -648,13 +655,25 @@ GNO_CASE:
 				svo := sv.Offset
 				svl := sv.Length
 				if sv.Base.Data == nil {
-					data := make([]byte, svl)
-					copyListToData(
-						data[:svl],
-						sv.Base.List[svo:svo+svl])
-					strv := StringValue(string(data))
-					tv.T = t
-					tv.V = strv
+					if tk == Uint8Kind {
+						data := make([]byte, svl)
+						copyListToData(
+							data[:svl],
+							sv.Base.List[svo:svo+svl])
+						strv := StringValue(string(data))
+						tv.T = t
+						tv.V = strv
+					} else if tk == Int32Kind {
+						runes := make([]rune, svl)
+						copyListToRunes(
+							runes[:svl],
+							sv.Base.List[svo:svo+svl])
+						strv := StringValue(string(runes))
+						tv.T = t
+						tv.V = strv
+					} else {
+						panic("should not happen")
+					}
 				} else {
 					data := sv.Base.Data[svo : svo+svl]
 					strv := StringValue(string(data))

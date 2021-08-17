@@ -78,11 +78,12 @@ func (m *Machine) doOpEval() {
 			if err != nil {
 				panic("error in parsing character literal: " + err.Error())
 			}
-			if len(cstr) != 1 {
-				panic(fmt.Sprintf("error in parsing character literal: 1 character found, but got %v", len(cstr)))
+			runes := []rune(cstr)
+			if len(runes) != 1 {
+				panic(fmt.Sprintf("error in parsing character literal: 1 rune expected, but got %v (%s)", len(runes), cstr))
 			}
 			tv := TypedValue{T: UntypedRuneType}
-			tv.SetInt32(int32(rune(cstr[0])))
+			tv.SetInt32(int32(rune(runes[0])))
 			m.PushValue(tv)
 		case STRING:
 			m.PushValue(TypedValue{

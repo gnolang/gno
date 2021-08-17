@@ -961,6 +961,12 @@ func copyListToData(dst []byte, tvs []TypedValue) {
 	}
 }
 
+func copyListToRunes(dst []rune, tvs []TypedValue) {
+	for i := 0; i < len(tvs); i++ {
+		dst[i] = tvs[i].GetInt32()
+	}
+}
+
 func copyNativeToList(dst []TypedValue, rv reflect.Value, rvl int) {
 	// TODO: redundant go2GnoType() conversions.
 	for i := 0; i < rvl; i++ {
