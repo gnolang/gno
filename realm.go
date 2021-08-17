@@ -49,10 +49,16 @@ type Realm struct {
 
 // Creates a blank new realm with counter 0.
 func NewRealm(path string) *Realm {
+	id := RealmIDFromPath(path)
 	return &Realm{
-		ID:   RealmIDFromPath(path),
+		ID:   id,
 		Path: path,
 		Time: 0,
+		ImageCodec: ImageCodec{
+			RealmID:       id,
+			TypeLookup:    nil,
+			PackageLookup: nil,
+		},
 	}
 }
 

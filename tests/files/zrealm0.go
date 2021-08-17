@@ -21,10 +21,11 @@ func main() {
 // Realm:
 // u[OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:0]=(gno.BlockValueImage) {
 //  ObjectInfo: (gno.ObjectInfoImage) {
-//   ID: (gno.ObjectID) OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:0,
-//   OwnerID: (gno.ObjectID) OIDNONE:0,
-//   ModTime: (uint64) 1,
-//   RefCount: (int) 0
+//   _RealmID: (gno.RealmID) RIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30,
+//   NewTime: (uint64) 0,
+//   _OwnerNewTime: (uint64) 0,
+//   _ModTime: (uint64) 1,
+//   _RefCount: (int) 0
 //  },
 //  ParentID: (gno.ObjectID) OIDNONE:0,
 //  Values: ([]gno.TypedValueImage) (len=2 cap=2) {
@@ -35,7 +36,8 @@ func main() {
 //     IsMethod: (bool) false,
 //     Name: (gno.Name) (len=4) "main",
 //     ClosureRef: (gno.RefImage) {
-//      _ID: (gno.ObjectID) OIDNONE:0,
+//      RealmID: (gno.RealmID) RID0000000000000000000000000000000000000000,
+//      NewTime: (uint64) 0,
 //      Hash: (gno.ValueHash) {
 //       Hashlet: (gno.Hashlet) (len=20 cap=20) {
 //        00000000  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|

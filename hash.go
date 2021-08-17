@@ -76,15 +76,17 @@ func (_ PackageValueImage) assertValueImage()     {}
 func (_ BlockValueImage) assertValueImage()       {}
 
 type ObjectInfoImage struct {
-	ID       ObjectID
-	OwnerID  ObjectID
-	ModTime  uint64
-	RefCount int
+	_RealmID      RealmID
+	NewTime       uint64 // of ID
+	_OwnerNewTime uint64 // of ID
+	_ModTime      uint64
+	_RefCount     int
 }
 
 type RefImage struct {
-	_ID  ObjectID
-	Hash ValueHash // if owned
+	RealmID RealmID   // if cross-realm
+	NewTime uint64    // required
+	Hash    ValueHash // if owned
 }
 
 type PrimitiveValueImage []byte
@@ -165,6 +167,7 @@ func hashValueImage(vi ValueImage) ValueHash {
 // ImageCodec
 
 type ImageCodec struct {
+	RealmID       RealmID
 	TypeLookup    func(TypeID) Type
 	PackageLookup func(pkgPath string) *PackageValue
 }
@@ -192,6 +195,11 @@ func (ic ImageCodec) EncodeTypedRefImage(tv TypedValue) TypedValueImage {
 }
 
 func (ic ImageCodec) EncodeRefImage(oo Object) RefImage {
+	if debug {
+		if ic.RealmID.IsZero() {
+			panic("should not happen")
+		}
+	}
 	if oo == nil {
 		panic("should not happen")
 	}
@@ -207,9 +215,17 @@ func (ic ImageCodec) EncodeRefImage(oo Object) RefImage {
 			panic("should not happen")
 		}
 	}
-	return RefImage{
-		_ID:  oi.ID,
-		Hash: oi.Hash,
+	if oi.ID.RealmID == ic.RealmID {
+		return RefImage{
+			NewTime: oi.ID.NewTime,
+			Hash:    oi.Hash,
+		}
+	} else {
+		return RefImage{
+			RealmID: oi.ID.RealmID,
+			NewTime: oi.ID.NewTime,
+			Hash:    oi.Hash,
+		}
 	}
 }
 
@@ -362,10 +378,11 @@ func (ic ImageCodec) EncodeValueImage(tv TypedValue) ValueImage {
 
 func encodeObjectInfo(oi ObjectInfo) ObjectInfoImage {
 	return ObjectInfoImage{
-		ID:       oi.ID,
-		OwnerID:  oi.OwnerID,
-		ModTime:  oi.ModTime,
-		RefCount: oi.RefCount,
+		_RealmID:      oi.ID.RealmID,
+		NewTime:       oi.ID.NewTime,
+		_OwnerNewTime: oi.OwnerID.NewTime,
+		_ModTime:      oi.ModTime,
+		_RefCount:     oi.RefCount,
 	}
 }
 

@@ -24,10 +24,11 @@ func main() {
 // Realm:
 // c[OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:2]=(gno.StructValueImage) {
 //  ObjectInfo: (gno.ObjectInfoImage) {
-//   ID: (gno.ObjectID) OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:2,
-//   OwnerID: (gno.ObjectID) OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:0,
-//   ModTime: (uint64) 0,
-//   RefCount: (int) 1
+//   _RealmID: (gno.RealmID) RIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30,
+//   NewTime: (uint64) 2,
+//   _OwnerNewTime: (uint64) 0,
+//   _ModTime: (uint64) 0,
+//   _RefCount: (int) 1
 //  },
 //  Fields: ([]gno.TypedValueImage) (len=3 cap=3) {
 //   (gno.TypedValueImage) {
@@ -49,10 +50,11 @@ func main() {
 //
 // u[OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:0]=(gno.BlockValueImage) {
 //  ObjectInfo: (gno.ObjectInfoImage) {
-//   ID: (gno.ObjectID) OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:0,
-//   OwnerID: (gno.ObjectID) OIDNONE:0,
-//   ModTime: (uint64) 1,
-//   RefCount: (int) 0
+//   _RealmID: (gno.RealmID) RIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30,
+//   NewTime: (uint64) 0,
+//   _OwnerNewTime: (uint64) 0,
+//   _ModTime: (uint64) 1,
+//   _RefCount: (int) 0
 //  },
 //  ParentID: (gno.ObjectID) OIDNONE:0,
 //  Values: ([]gno.TypedValueImage) (len=5 cap=5) {
@@ -81,7 +83,8 @@ func main() {
 //     IsMethod: (bool) false,
 //     Name: (gno.Name) (len=4) "main",
 //     ClosureRef: (gno.RefImage) {
-//      _ID: (gno.ObjectID) OIDNONE:0,
+//      RealmID: (gno.RealmID) RID0000000000000000000000000000000000000000,
+//      NewTime: (uint64) 0,
 //      Hash: (gno.ValueHash) {
 //       Hashlet: (gno.Hashlet) (len=20 cap=20) {
 //        00000000  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
@@ -97,10 +100,11 @@ func main() {
 //    TypeID: (gno.TypeID) (len=20 cap=20) CE75E799ED699FE6A487D6CA237759F5F203BEE0,
 //    ValueImage: (gno.StructValueImage) {
 //     ObjectInfo: (gno.ObjectInfoImage) {
-//      ID: (gno.ObjectID) OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:2,
-//      OwnerID: (gno.ObjectID) OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:0,
-//      ModTime: (uint64) 0,
-//      RefCount: (int) 1
+//      _RealmID: (gno.RealmID) RIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30,
+//      NewTime: (uint64) 2,
+//      _OwnerNewTime: (uint64) 0,
+//      _ModTime: (uint64) 0,
+//      _RefCount: (int) 1
 //     },
 //     Fields: ([]gno.TypedValueImage) (len=3 cap=3) {
 //      (gno.TypedValueImage) {
