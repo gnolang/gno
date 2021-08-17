@@ -148,8 +148,8 @@ of this project and are aligned with its mission, read on.
 
 The Gno Foundation is a non-profit with missions originally stated in the
 [Virgo Project](https://github.com/virgo-project/virgo).  The Gno Foundation,
-which owns the IP to the Gno Works, proposes the plan as laid out in the plan
-file.
+which owns the IP to the Gno Works, proposes the plan as laid out in the [plan
+doc](/PLAN.md).
 
 ## Contact
 
