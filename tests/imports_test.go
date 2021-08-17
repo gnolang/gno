@@ -103,7 +103,7 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 			pkg.DefineGoNativeType(reflect.TypeOf((*fmt.Formatter)(nil)).Elem())
 			pkg.DefineGoNativeFunc("Println", func(a ...interface{}) (n int, err error) {
 				// NOTE: uncomment to debug long running tests
-				// fmt.Println(a...)
+				fmt.Println(a...)
 				res := fmt.Sprintln(a...)
 				return out.Write([]byte(res))
 			})

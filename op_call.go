@@ -76,9 +76,9 @@ func (m *Machine) doOpCall() {
 		}
 		// Exec body.
 		b.bodyStmt = bodyStmt{
-			Body:      fv.Body,
-			BodyLen:   len(fv.Body),
-			BodyIndex: -2,
+			Body:          fv.Body,
+			BodyLen:       len(fv.Body),
+			NextBodyIndex: -2,
 		}
 		m.PushOp(OpBody)
 		m.PushStmt(b.GetBodyStmt())
@@ -269,9 +269,9 @@ func (m *Machine) doOpReturnCallDefers() {
 		if fv.NativeBody == nil {
 			// Exec body.
 			b.bodyStmt = bodyStmt{
-				Body:      fv.Body,
-				BodyLen:   len(fv.Body),
-				BodyIndex: -2,
+				Body:          fv.Body,
+				BodyLen:       len(fv.Body),
+				NextBodyIndex: -2,
 			}
 			m.PushOp(OpBody)
 			m.PushStmt(b.GetBodyStmt())

@@ -1077,13 +1077,15 @@ func (m *Machine) PopFrameAndReturn() {
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts]
 	m.Blocks = m.Blocks[:fr.NumBlocks]
-	// convert results to typed-nil if undefined and not iface kind.
+	// shift and convert results to typed-nil if undefined and not iface kind.
 	// and not func result type isn't interface kind.
+	resStart := m.NumValues - numRes
 	for i := 0; i < numRes; i++ {
-		rtv := &m.Values[m.NumValues+i]
-		if rtv.IsUndefined() && rtypes[i].Type.Kind() != InterfaceKind {
-			rtv.T = rtypes[i].Type
+		res := m.Values[resStart+i]
+		if res.IsUndefined() && rtypes[i].Type.Kind() != InterfaceKind {
+			res.T = rtypes[i].Type
 		}
+		m.Values[fr.NumValues+i] = res
 	}
 	m.NumValues = fr.NumValues + numRes
 	m.Package = fr.LastPackage
@@ -1097,7 +1099,7 @@ func (m *Machine) PeekFrameAndContinueFor() {
 	m.Stmts = m.Stmts[:fr.NumStmts+1]
 	m.Blocks = m.Blocks[:fr.NumBlocks+1]
 	ls := m.PeekStmt(1).(*bodyStmt)
-	ls.BodyIndex = ls.BodyLen
+	ls.NextBodyIndex = ls.BodyLen
 }
 
 func (m *Machine) PeekFrameAndContinueRange() {
@@ -1108,7 +1110,7 @@ func (m *Machine) PeekFrameAndContinueRange() {
 	m.Stmts = m.Stmts[:fr.NumStmts+1]
 	m.Blocks = m.Blocks[:fr.NumBlocks+1]
 	ls := m.PeekStmt(1).(*bodyStmt)
-	ls.BodyIndex = ls.BodyLen
+	ls.NextBodyIndex = ls.BodyLen
 }
 
 func (m *Machine) NumFrames() int {

@@ -89,7 +89,7 @@ func solve() bool {
 					// see if this new board has a solution
 					if solve() {
 						unmove(pos, dir)
-						fmt.Println(string(board))
+						//fmt.Println(string(board))
 						return true
 					}
 					unmove(pos, dir)
@@ -102,7 +102,7 @@ func solve() bool {
 	// tried each possible move
 	if n == 1 && (center < 0 || last == center) {
 		// there's only one peg left
-		fmt.Println(string(board))
+		//fmt.Println(string(board))
 		return true
 	}
 	// no solution found for this board
@@ -115,3 +115,6 @@ func main() {
 	}
 	fmt.Println(moves, "moves tried")
 }
+
+// Output:
+// 391865 moves tried

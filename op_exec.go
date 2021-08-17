@@ -65,14 +65,14 @@ func (m *Machine) doOpExec(op Op) {
 	switch op {
 	case OpBody:
 		bs := m.LastBlock().GetBodyStmt()
-		if bs.BodyIndex == -2 { // init
+		if bs.NextBodyIndex == -2 { // init
 			bs.NumOps = m.NumOps
 			bs.NumStmts = len(m.Stmts)
-			bs.BodyIndex = 0
+			bs.NextBodyIndex = 0
 		}
-		if bs.BodyIndex < bs.BodyLen {
-			next := bs.Body[bs.BodyIndex]
-			bs.BodyIndex++
+		if bs.NextBodyIndex < bs.BodyLen {
+			next := bs.Body[bs.NextBodyIndex]
+			bs.NextBodyIndex++
 			// continue onto exec stmt.
 			bs.Active = next
 			s = next
@@ -85,12 +85,12 @@ func (m *Machine) doOpExec(op Op) {
 	case OpForLoop:
 		bs := m.LastBlock().GetBodyStmt()
 		// evaluate .Cond.
-		if bs.BodyIndex == -2 { // init
+		if bs.NextBodyIndex == -2 { // init
 			bs.NumOps = m.NumOps
 			bs.NumStmts = len(m.Stmts)
-			bs.BodyIndex = -1
+			bs.NextBodyIndex = -1
 		}
-		if bs.BodyIndex == -1 {
+		if bs.NextBodyIndex == -1 {
 			if bs.Cond != nil {
 				cond := m.PopValue()
 				if !cond.GetBool() {
@@ -99,23 +99,23 @@ func (m *Machine) doOpExec(op Op) {
 					return
 				}
 			}
-			bs.BodyIndex++ // TODO remove
+			bs.NextBodyIndex++ // TODO remove
 		}
 		// execute body statement.
-		if bs.BodyIndex < bs.BodyLen {
-			next := bs.Body[bs.BodyIndex]
-			bs.BodyIndex++
+		if bs.NextBodyIndex < bs.BodyLen {
+			next := bs.Body[bs.NextBodyIndex]
+			bs.NextBodyIndex++
 			// continue onto exec stmt.
 			bs.Active = next
 			s = next
 			goto EXEC_SWITCH
-		} else if bs.BodyIndex == bs.BodyLen {
+		} else if bs.NextBodyIndex == bs.BodyLen {
 			// (queue to) go back.
 			if bs.Cond != nil {
 				m.PushExpr(bs.Cond)
 				m.PushOp(OpEval)
 			}
-			bs.BodyIndex = -1
+			bs.NextBodyIndex = -1
 			if next := bs.Post; next == nil {
 				bs.Active = nil
 				return // go back now.
@@ -136,7 +136,7 @@ func (m *Machine) doOpExec(op Op) {
 		bs := s.(*bodyStmt)
 		xv := m.PeekValue(1)
 		// TODO check length.
-		switch bs.BodyIndex {
+		switch bs.NextBodyIndex {
 		case -2: // init.
 			var ll int
 			var dv *TypedValue
@@ -155,7 +155,7 @@ func (m *Machine) doOpExec(op Op) {
 			bs.ListLen = ll
 			bs.NumOps = m.NumOps
 			bs.NumStmts = len(m.Stmts)
-			bs.BodyIndex++
+			bs.NextBodyIndex++
 			fallthrough
 		case -1: // assign list element.
 			if bs.Key != nil {
@@ -197,19 +197,19 @@ func (m *Machine) doOpExec(op Op) {
 					m.PopAsPointer(bs.Value).Assign(ev, false)
 				}
 			}
-			bs.BodyIndex++
+			bs.NextBodyIndex++
 			fallthrough
 		default:
 			// NOTE: duplicated for OpRangeIterMap,
 			// but without tracking Next.
-			if bs.BodyIndex < bs.BodyLen {
-				next := bs.Body[bs.BodyIndex]
-				bs.BodyIndex++
+			if bs.NextBodyIndex < bs.BodyLen {
+				next := bs.Body[bs.NextBodyIndex]
+				bs.NextBodyIndex++
 				// continue onto exec stmt.
 				bs.Active = next
 				s = next // switch on bs.Active
 				goto EXEC_SWITCH
-			} else if bs.BodyIndex == bs.BodyLen {
+			} else if bs.NextBodyIndex == bs.BodyLen {
 				if bs.ListIndex < bs.ListLen-1 {
 					// set up next assign if needed.
 					switch bs.Op {
@@ -228,7 +228,7 @@ func (m *Machine) doOpExec(op Op) {
 						panic("should not happen")
 					}
 					bs.ListIndex++
-					bs.BodyIndex = -1
+					bs.NextBodyIndex = -1
 					bs.Active = nil
 					return // redo doOpExec:*bodyStmt
 				} else {
@@ -244,7 +244,7 @@ func (m *Machine) doOpExec(op Op) {
 		bs := s.(*bodyStmt)
 		xv := m.PeekValue(1)
 		sv := xv.GetString()
-		switch bs.BodyIndex {
+		switch bs.NextBodyIndex {
 		case -2: // init.
 			// We decode utf8 runes in order --
 			// we don't yet know the number of runes.
@@ -254,7 +254,7 @@ func (m *Machine) doOpExec(op Op) {
 			bs.StrIndex += size
 			bs.NumOps = m.NumOps
 			bs.NumStmts = len(m.Stmts)
-			bs.BodyIndex++
+			bs.NextBodyIndex++
 			fallthrough
 		case -1: // assign list element.
 			if bs.Key != nil {
@@ -294,19 +294,19 @@ func (m *Machine) doOpExec(op Op) {
 					m.PopAsPointer(bs.Value).Assign(ev, false)
 				}
 			}
-			bs.BodyIndex++
+			bs.NextBodyIndex++
 			fallthrough
 		default:
 			// NOTE: duplicated for OpRangeIterMap,
 			// but without tracking Next.
-			if bs.BodyIndex < bs.BodyLen {
-				next := bs.Body[bs.BodyIndex]
-				bs.BodyIndex++
+			if bs.NextBodyIndex < bs.BodyLen {
+				next := bs.Body[bs.NextBodyIndex]
+				bs.NextBodyIndex++
 				// continue onto exec stmt.
 				bs.Active = next
 				s = next // switch on bs.Active
 				goto EXEC_SWITCH
-			} else if bs.BodyIndex == bs.BodyLen {
+			} else if bs.NextBodyIndex == bs.BodyLen {
 				if bs.StrIndex < bs.StrLen {
 					// set up next assign if needed.
 					switch bs.Op {
@@ -329,7 +329,7 @@ func (m *Machine) doOpExec(op Op) {
 					bs.NextRune = r
 					bs.StrIndex += size
 					bs.ListIndex++
-					bs.BodyIndex = -1
+					bs.NextBodyIndex = -1
 					bs.Active = nil
 					return // redo doOpExec:*bodyStmt
 				} else {
@@ -345,13 +345,13 @@ func (m *Machine) doOpExec(op Op) {
 		bs := s.(*bodyStmt)
 		xv := m.PeekValue(1)
 		mv := xv.V.(*MapValue)
-		switch bs.BodyIndex {
+		switch bs.NextBodyIndex {
 		case -2: // init.
 			// bs.ListLen = xv.GetLength()
 			bs.NextItem = mv.List.Head
 			bs.NumOps = m.NumOps
 			bs.NumStmts = len(m.Stmts)
-			bs.BodyIndex++
+			bs.NextBodyIndex++
 			fallthrough
 		case -1: // assign list element.
 			next := bs.NextItem
@@ -391,19 +391,19 @@ func (m *Machine) doOpExec(op Op) {
 					m.PopAsPointer(bs.Value).Assign(vv, false)
 				}
 			}
-			bs.BodyIndex++
+			bs.NextBodyIndex++
 			fallthrough
 		default:
 			// NOTE: duplicated for OpRangeIter,
 			// with slight modification to track Next.
-			if bs.BodyIndex < bs.BodyLen {
-				next := bs.Body[bs.BodyIndex]
-				bs.BodyIndex++
+			if bs.NextBodyIndex < bs.BodyLen {
+				next := bs.Body[bs.NextBodyIndex]
+				bs.NextBodyIndex++
 				// continue onto exec stmt.
 				bs.Active = next
 				s = next // switch on bs.Active
 				goto EXEC_SWITCH
-			} else if bs.BodyIndex == bs.BodyLen {
+			} else if bs.NextBodyIndex == bs.BodyLen {
 				nnext := bs.NextItem.Next
 				if nnext == nil {
 					// done with range.
@@ -428,7 +428,7 @@ func (m *Machine) doOpExec(op Op) {
 					}
 					bs.NextItem = nnext
 					bs.ListIndex++
-					bs.BodyIndex = -1
+					bs.NextBodyIndex = -1
 					bs.Active = nil
 					return // redo doOpExec:*bodyStmt
 				}
@@ -507,11 +507,11 @@ EXEC_SWITCH:
 		m.PushFrameBasic(cs)
 		b := NewBlock(cs, m.LastBlock())
 		b.bodyStmt = bodyStmt{
-			Body:      cs.Body,
-			BodyLen:   len(cs.Body),
-			BodyIndex: -1,
-			Cond:      cs.Cond,
-			Post:      cs.Post,
+			Body:          cs.Body,
+			BodyLen:       len(cs.Body),
+			NextBodyIndex: -1,
+			Cond:          cs.Cond,
+			Post:          cs.Post,
 		}
 		m.PushBlock(b)
 		m.PushOp(OpForLoop)
@@ -591,12 +591,12 @@ EXEC_SWITCH:
 		m.PushFrameBasic(cs)
 		b := NewBlock(cs, m.LastBlock())
 		b.bodyStmt = bodyStmt{
-			Body:      cs.Body,
-			BodyLen:   len(cs.Body),
-			BodyIndex: -2,
-			Key:       cs.Key,
-			Value:     cs.Value,
-			Op:        cs.Op,
+			Body:          cs.Body,
+			BodyLen:       len(cs.Body),
+			NextBodyIndex: -2,
+			Key:           cs.Key,
+			Value:         cs.Value,
+			Op:            cs.Op,
 		}
 		m.PushBlock(b)
 		// TODO: replace with "cs.Op".
@@ -682,8 +682,8 @@ EXEC_SWITCH:
 			m.NumValues = 0
 			m.Exprs = nil
 			m.Stmts = m.Stmts[:bs.NumStmts]
-			bs.BodyIndex = cs.BodyIndex
-			bs.Active = bs.Body[cs.BodyIndex]
+			bs.NextBodyIndex = cs.BodyIndex
+			bs.Active = bs.Body[cs.BodyIndex] // prefill
 		case FALLTHROUGH:
 			// TODO CHALLENGE implement fallthrough
 			panic("not yet implemented (CHALLENGE)")
@@ -754,9 +754,9 @@ EXEC_SWITCH:
 		m.PushBlock(b)
 		m.PushOp(OpPopBlock)
 		b.bodyStmt = bodyStmt{
-			Body:      cs.Body,
-			BodyLen:   len(cs.Body),
-			BodyIndex: -2,
+			Body:          cs.Body,
+			BodyLen:       len(cs.Body),
+			NextBodyIndex: -2,
 		}
 		m.PushOp(OpBody)
 		m.PushStmt(b.GetBodyStmt())
@@ -773,9 +773,9 @@ func (m *Machine) doOpIfCond() {
 	if cond.GetBool() {
 		if len(is.Then.Body) != 0 {
 			b.bodyStmt = bodyStmt{
-				Body:      is.Then.Body,
-				BodyLen:   len(is.Then.Body),
-				BodyIndex: -2,
+				Body:          is.Then.Body,
+				BodyLen:       len(is.Then.Body),
+				NextBodyIndex: -2,
 			}
 			m.PushOp(OpBody)
 			m.PushStmt(b.GetBodyStmt())
@@ -783,9 +783,9 @@ func (m *Machine) doOpIfCond() {
 	} else {
 		if len(is.Else.Body) != 0 {
 			b.bodyStmt = bodyStmt{
-				Body:      is.Else.Body,
-				BodyLen:   len(is.Else.Body),
-				BodyIndex: -2,
+				Body:          is.Else.Body,
+				BodyLen:       len(is.Else.Body),
+				NextBodyIndex: -2,
 			}
 			m.PushOp(OpBody)
 			m.PushStmt(b.GetBodyStmt())
@@ -864,9 +864,9 @@ func (m *Machine) doOpTypeSwitch() {
 				}
 				// exec clause body
 				b.bodyStmt = bodyStmt{
-					Body:      cs.Body,
-					BodyLen:   len(cs.Body),
-					BodyIndex: -2,
+					Body:          cs.Body,
+					BodyLen:       len(cs.Body),
+					NextBodyIndex: -2,
 				}
 				m.PushOp(OpBody)
 				m.PushStmt(b.GetBodyStmt())
@@ -900,9 +900,9 @@ func (m *Machine) doOpSwitchClause() {
 			// exec clause body
 			lb := m.LastBlock()
 			lb.bodyStmt = bodyStmt{
-				Body:      clause.Body,
-				BodyLen:   len(clause.Body),
-				BodyIndex: -2,
+				Body:          clause.Body,
+				BodyLen:       len(clause.Body),
+				NextBodyIndex: -2,
 			}
 			m.PushOp(OpBody)
 			m.PushStmt(lb.GetBodyStmt())
@@ -937,9 +937,9 @@ func (m *Machine) doOpSwitchClauseCase() {
 		clause := ss.Clauses[clidx]
 		lb := m.LastBlock()
 		lb.bodyStmt = bodyStmt{
-			Body:      clause.Body,
-			BodyLen:   len(clause.Body),
-			BodyIndex: -2,
+			Body:          clause.Body,
+			BodyLen:       len(clause.Body),
+			NextBodyIndex: -2,
 		}
 		m.PushOp(OpBody)
 		m.PushStmt(lb.GetBodyStmt())

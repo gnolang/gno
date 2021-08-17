@@ -511,6 +511,9 @@ func toExpr(gox ast.Expr) Expr {
 }
 
 func toExprs(goxs []ast.Expr) (gnoxs Exprs) {
+	if len(goxs) == 0 {
+		return nil
+	}
 	gnoxs = make([]Expr, len(goxs))
 	for i, x := range goxs {
 		gnoxs[i] = toExpr(x)

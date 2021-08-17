@@ -789,23 +789,23 @@ type SwitchClauseStmt struct {
 // NOTE: embedded in Block.
 type bodyStmt struct {
 	Attributes
-	Body                   // for non-loop stmts
-	BodyLen   int          // for for-continue
-	BodyIndex int          // init:-2, cond/elem:-1, body:0..., post:n
-	NumOps    int          // number of Ops, for goto
-	NumStmts  int          // number of Stmts, for goto
-	Cond      Expr         // for ForStmt
-	Post      Stmt         // for ForStmt
-	Active    Stmt         // for PopStmt()
-	Key       Expr         // for RangeStmt
-	Value     Expr         // for RangeStmt
-	Op        Word         // for RangeStmt
-	ListLen   int          // for RangeStmt only
-	ListIndex int          // for RangeStmt only
-	NextItem  *MapListItem // fpr RangeStmt w/ maps only
-	StrLen    int          // for RangeStmt w/ strings only
-	StrIndex  int          // for RangeStmt w/ strings only
-	NextRune  rune         // for RangeStmt w/ strings only
+	Body                       // for non-loop stmts
+	BodyLen       int          // for for-continue
+	NextBodyIndex int          // init:-2, cond/elem:-1, body:0..., post:n
+	NumOps        int          // number of Ops, for goto
+	NumStmts      int          // number of Stmts, for goto
+	Cond          Expr         // for ForStmt
+	Post          Stmt         // for ForStmt
+	Active        Stmt         // for PopStmt()
+	Key           Expr         // for RangeStmt
+	Value         Expr         // for RangeStmt
+	Op            Word         // for RangeStmt
+	ListLen       int          // for RangeStmt only
+	ListIndex     int          // for RangeStmt only
+	NextItem      *MapListItem // fpr RangeStmt w/ maps only
+	StrLen        int          // for RangeStmt w/ strings only
+	StrIndex      int          // for RangeStmt w/ strings only
+	NextRune      rune         // for RangeStmt w/ strings only
 }
 
 func (s *bodyStmt) PopActiveStmt() (as Stmt) {
@@ -816,18 +816,18 @@ func (s *bodyStmt) PopActiveStmt() (as Stmt) {
 
 func (s *bodyStmt) String() string {
 	next := ""
-	if s.BodyIndex < 0 {
+	if s.NextBodyIndex < 0 {
 		next = "(init)"
-	} else if s.BodyIndex == len(s.Body) {
+	} else if s.NextBodyIndex == len(s.Body) {
 		next = "(end)"
 	} else {
-		next = s.Body[s.BodyIndex].String()
+		next = s.Body[s.NextBodyIndex].String()
 	}
 	active := ""
 	if s.Active != nil {
-		if s.BodyIndex < 0 || s.BodyIndex == len(s.Body) {
+		if s.NextBodyIndex < 0 || s.NextBodyIndex == len(s.Body) {
 			// none
-		} else if s.Body[s.BodyIndex] == s.Active {
+		} else if s.Body[s.NextBodyIndex-1] == s.Active {
 			active = "*"
 		} else {
 			active = fmt.Sprintf(" unexpected active: %v", s.Active)
@@ -836,7 +836,7 @@ func (s *bodyStmt) String() string {
 	return fmt.Sprintf("bodyStmt[%d/%d/%d]=%s%s",
 		s.ListLen,
 		s.ListIndex,
-		s.BodyIndex,
+		s.NextBodyIndex,
 		next,
 		active)
 }
