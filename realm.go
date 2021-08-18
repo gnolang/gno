@@ -301,15 +301,25 @@ func (rlm *Realm) processCreatedOrUpdatedObject(oo Object) {
 	}
 	oo.SetIsProcessing(true)
 	defer oo.SetIsProcessing(false)
-	// first process children
+	// first assign objectid if new
+	if oo.GetObjectID().IsZero() {
+		if debug {
+			if oo.GetIsDirty() {
+				panic("should not happen")
+			}
+		}
+		rlm.AssignObjectID(oo)
+	}
+	// then process children
 	more := getCreatedOrUpdatedChildren(oo)
 	for _, child := range more {
 		if child.GetIsProcessing() {
 			// NOTE: circular references not yet supported.
 			panic("should not happen")
-		} else {
-			rlm.processCreatedOrUpdatedObject(child)
 		}
+		// XXX check for conflict? or before?
+		child.SetOwner(oo)
+		rlm.processCreatedOrUpdatedObject(child)
 	}
 	// save or update object
 	if oo.GetIsDirty() {
@@ -324,7 +334,7 @@ func getCreatedOrUpdatedChildren(obj Object) []Object {
 	case *ArrayValue:
 		more := make([]Object, 0, len(co.List))
 		for _, ctv := range co.List {
-			if cobj, ok := ctv.V.(Object); ok {
+			if cobj := ctv.GetObject(); cobj != nil {
 				if !cobj.GetIsReal() {
 					more = append(more, cobj)
 				} else if cobj.GetIsDirty() {
@@ -336,7 +346,7 @@ func getCreatedOrUpdatedChildren(obj Object) []Object {
 	case *StructValue:
 		more := make([]Object, 0, len(co.Fields))
 		for _, ctv := range co.Fields {
-			if cobj, ok := ctv.V.(Object); ok {
+			if cobj := ctv.GetObject(); cobj != nil {
 				if !cobj.GetIsReal() {
 					more = append(more, cobj)
 				} else if cobj.GetIsDirty() {
@@ -348,14 +358,14 @@ func getCreatedOrUpdatedChildren(obj Object) []Object {
 	case *MapValue:
 		more := make([]Object, 0, 2*co.List.Size)
 		for cur := co.List.Head; cur != nil; cur = cur.Next {
-			if cobj, ok := cur.Key.V.(Object); ok {
+			if cobj := cur.Key.GetObject(); cobj != nil {
 				if !cobj.GetIsReal() {
 					more = append(more, cobj)
 				} else if cobj.GetIsDirty() {
 					more = append(more, cobj)
 				}
 			}
-			if cobj, ok := cur.Value.V.(Object); ok {
+			if cobj := cur.Value.GetObject(); cobj != nil {
 				if !cobj.GetIsReal() {
 					more = append(more, cobj)
 				} else if cobj.GetIsDirty() {
@@ -367,7 +377,7 @@ func getCreatedOrUpdatedChildren(obj Object) []Object {
 	case *Block:
 		more := make([]Object, 0, len(co.Values))
 		for _, ctv := range co.Values {
-			if cobj, ok := ctv.V.(Object); ok {
+			if cobj := ctv.GetObject(); cobj != nil {
 				if !cobj.GetIsReal() {
 					more = append(more, cobj)
 				} else if cobj.GetIsDirty() {
@@ -376,6 +386,16 @@ func getCreatedOrUpdatedChildren(obj Object) []Object {
 			}
 		}
 		return more
+		/* XXX FuncValue is not an object
+		case *FuncValue:
+			if cobj := co.Closure; cobj != nil {
+				if !cobj.GetIsReal() {
+					return []Object{cobj}
+				} else if cobj.GetIsDirty() {
+					return []Object{cobj}
+				}
+			}
+		*/
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %v",
@@ -437,7 +457,6 @@ func (rlm *Realm) AssignObjectID(oo Object) ObjectID {
 }
 
 func (rlm *Realm) SaveCreatedObject(oo Object) {
-	rlm.AssignObjectID(oo)
 	oi := rlm.EncodeObjectImage(oo)
 	oo.SetHash(hashValueImage(oi))
 	rlm.saveObject(oo, oi)

@@ -319,7 +319,8 @@ func (ic ImageCodec) EncodeValueImage(tv TypedValue) ValueImage {
 			valimg.IsMethod = val.IsMethod
 			valimg.Name = val.Name
 			if val.Closure != nil {
-				valimg.ClosureRef = ic.EncodeRefImage(val.Closure)
+				// XXX first make FuncValue an object
+				// valimg.ClosureRef = ic.EncodeRefImage(val.Closure)
 			}
 			valimg.FileName = val.FileName
 			valimg.PkgPath = val.pkg.PkgPath

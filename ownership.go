@@ -250,6 +250,12 @@ func (oi *ObjectInfo) GetIsTransient() bool {
 func (tv *TypedValue) GetObject() Object {
 	switch cv := tv.V.(type) {
 	case PointerValue:
+		// TODO: In terms of defining the object dependency graph,
+		// whether the relevant object is the pointer base or
+		// the pointed object (.base or .typedvalue) depends
+		// on the number of references to the base. In the future
+		// when supporting ref-counted and weak references,
+		// calculate this on the fly or with a pre-pass.
 		return cv.TypedValue.GetObject()
 	case *ArrayValue:
 		return cv
