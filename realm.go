@@ -100,26 +100,17 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 			panic("cannot attach to a deleted object")
 		}
 	}
+	if po == nil {
+		return
+	}
+	if !po.GetIsReal() && !po.GetIsNewReal() {
+		return // do nothing.
+	}
 	if co != nil {
 		co.IncRefCount()
 	}
 	if xo != nil {
 		xo.DecRefCount()
-	}
-	if po == nil {
-		return
-	}
-	if !po.GetIsReal() {
-		// Object may become new-real after tx if it is
-		// indirectly owned by something real.  We don't
-		// know yet, but we will mark it later when we do
-		// after assigning it an ObjectID()..
-		//
-		// Also, if po isn't real, don't bother to mark it
-		// dirty, since it will already become marked as
-		// new-real and get saved anyways if it is  real
-		// post tx.
-		return // do nothing.
 	}
 	rlm.MarkDirty(po)
 	if co != nil {
@@ -193,7 +184,7 @@ func (rlm *Realm) MarkNewReal(oo Object) {
 
 func (rlm *Realm) MarkDirty(oo Object) {
 	if debug {
-		if !oo.GetIsReal() {
+		if !oo.GetIsReal() && !oo.GetIsNewReal() {
 			panic("should not happen")
 		}
 	}
@@ -308,7 +299,7 @@ func (rlm *Realm) processCreatedOrUpdatedObject(oo Object) {
 				panic("should not happen")
 			}
 		}
-		rlm.AssignObjectID(oo)
+		rlm.AssignNewObjectID(oo)
 	}
 	// then process children
 	more := getCreatedOrUpdatedChildren(oo)
@@ -322,10 +313,10 @@ func (rlm *Realm) processCreatedOrUpdatedObject(oo Object) {
 		rlm.processCreatedOrUpdatedObject(child)
 	}
 	// save or update object
-	if oo.GetIsDirty() {
-		rlm.SaveUpdatedObject(oo)
-	} else {
+	if oo.GetIsNewReal() {
 		rlm.SaveCreatedObject(oo)
+	} else {
+		rlm.SaveUpdatedObject(oo)
 	}
 }
 
@@ -445,14 +436,14 @@ func (rlm *Realm) nextObjectID() ObjectID {
 
 // Object gets its id set (panics if already set), and becomes
 // marked as new and real.
-func (rlm *Realm) AssignObjectID(oo Object) ObjectID {
+func (rlm *Realm) AssignNewObjectID(oo Object) ObjectID {
 	oid := oo.GetObjectID()
 	if !oid.IsZero() {
 		panic("unexpected non-zero object id")
 	}
 	noid := rlm.nextObjectID()
 	oo.SetObjectID(noid)
-	oo.SetIsNewReal(true) // TODO remove?
+	oo.SetIsNewReal(true)
 	return noid
 }
 

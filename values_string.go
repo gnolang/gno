@@ -101,12 +101,14 @@ func (v TypeValue) String() string {
 	if reflect.TypeOf(v.Type).Kind() == reflect.Ptr {
 		ptr = fmt.Sprintf(" (%p)", v.Type)
 	}
-	mthds := ""
-	if d, ok := v.Type.(*DeclaredType); ok {
-		mthds = fmt.Sprintf(" %v", d.Methods)
-	}
-	return fmt.Sprintf("typeval{%s%s%s}",
-		v.Type.String(), ptr, mthds)
+	/*
+		mthds := ""
+		if d, ok := v.Type.(*DeclaredType); ok {
+			mthds = fmt.Sprintf(" %v", d.Methods)
+		}
+	*/
+	return fmt.Sprintf("typeval{%s%s}",
+		v.Type.String(), ptr)
 }
 
 func (v *PackageValue) String() string {

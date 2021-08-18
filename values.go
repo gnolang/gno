@@ -167,9 +167,11 @@ func (av *ArrayValue) GetLength() int {
 }
 
 func (av *ArrayValue) Copy() *ArrayValue {
+	/* TODO: consider second ref count field.
 	if av.GetRefCount() == 0 {
 		return av
 	}
+	*/
 	if av.Data == nil {
 		list := make([]TypedValue, len(av.List))
 		copy(list, av.List)
@@ -315,9 +317,11 @@ func (sv *StructValue) GetSubrefPointerTo(st *StructType, path ValuePath) Pointe
 }
 
 func (sv *StructValue) Copy() *StructValue {
+	/* TODO consider second refcount field
 	if sv.GetRefCount() == 0 {
 		return sv
 	}
+	*/
 	fields := make([]TypedValue, len(sv.Fields))
 	copy(fields, sv.Fields)
 	return &StructValue{
