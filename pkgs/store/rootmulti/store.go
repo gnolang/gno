@@ -284,10 +284,10 @@ func (ms *multiStore) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 
 	// trim the path and make the query
 	req.Path = subpath
-	resq := queryable.Query(req)
+	res = queryable.Query(req)
 
 	if !req.Prove {
-		return resq
+		return res
 	} else if res.Proof == nil || len(res.Proof.Ops) == 0 {
 		res.Error = serrors.ErrInternal("proof is unexpectedly empty; ensure height has not been pruned")
 		return
@@ -307,7 +307,7 @@ func (ms *multiStore) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 
 	// TODO: handle in another TM v0.26 update PR
 	// res.Proof = buildMultiStoreProof(res.Proof, storeName, commitInfo.StoreInfos)
-	return resq
+	return res
 }
 
 // parsePath expects a format like /<storeName>[/<subpath>]
