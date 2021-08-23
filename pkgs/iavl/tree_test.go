@@ -75,7 +75,7 @@ func TestVersionedRandomTree(t *testing.T) {
 	require.True(len(tree.ndb.nodes()) >= tree.nodeSize())
 
 	// Ensure it returns all versions in sorted order
-	available := tree.AvailableVersions()
+	available := zip(tree.AvailableVersions())
 	assert.Equal(t, versions, len(available))
 	assert.Equal(t, 1, available[0])
 	assert.Equal(t, versions, available[len(available)-1])
@@ -84,13 +84,13 @@ func TestVersionedRandomTree(t *testing.T) {
 		tree.DeleteVersion(int64(i))
 	}
 
-	require.Len(tree.versions, 1, "tree must have one version left")
+	require.Len(available, 1, "tree must have one version left")
 	tr, err := tree.GetImmutable(int64(versions))
 	require.NoError(err, "GetImmutable should not error for version %d", versions)
 	require.Equal(tr.root, tree.root)
 
 	// we should only have one available version now
-	available = tree.AvailableVersions()
+	available = zip(tree.AvailableVersions())
 	assert.Equal(t, 1, len(available))
 	assert.Equal(t, versions, available[0])
 
@@ -329,8 +329,9 @@ func TestVersionedTree(t *testing.T) {
 	tree = NewMutableTree(d, 100)
 	_, err = tree.Load()
 	require.NoError(err)
+	available := zip(tree.AvailableVersions())
 
-	require.Len(tree.versions, 2, "wrong number of versions")
+	require.Len(available, 2, "wrong number of versions")
 	require.EqualValues(v2, tree.Version())
 
 	// -----1-----
@@ -1328,4 +1329,12 @@ func BenchmarkTreeLoadAndDelete(b *testing.B) {
 			}
 		}
 	})
+}
+
+func zip(av <-chan int64) []int64 {
+	res := []int64{}
+	for ver := range av {
+		res = append(res, ver)
+	}
+	return res
 }

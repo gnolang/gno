@@ -154,7 +154,7 @@ func nodeEncoder(id []byte, depth int, isLeaf bool) string {
 func PrintVersions(tree *iavl.MutableTree) {
 	versions := tree.AvailableVersions()
 	fmt.Println("Available versions:")
-	for _, v := range versions {
+	for v := range versions {
 		fmt.Printf("  %d\n", v)
 	}
 }
