@@ -3,7 +3,6 @@ package iavl
 import (
 	"bytes"
 	"fmt"
-	"sort"
 
 	dbm "github.com/gnolang/gno/pkgs/db"
 	"github.com/gnolang/gno/pkgs/errors"
@@ -17,7 +16,6 @@ type MutableTree struct {
 	*ImmutableTree                  // The current, working tree.
 	lastSaved      *ImmutableTree   // The most recently saved tree.
 	orphans        map[string]int64 // Nodes removed by changes to working tree.
-	versions       map[int64]bool   // The previous, saved versions of the tree.
 	ndb            *nodeDB
 }
 
@@ -30,7 +28,6 @@ func NewMutableTree(db dbm.DB, cacheSize int) *MutableTree {
 		ImmutableTree: head,
 		lastSaved:     head.clone(),
 		orphans:       map[string]int64{},
-		versions:      map[int64]bool{},
 		ndb:           ndb,
 	}
 }
@@ -41,21 +38,19 @@ func (tree *MutableTree) IsEmpty() bool {
 	return tree.ImmutableTree.Size() == 0
 }
 
+// LatestVersion returns the latest version.
+func (tree *MutableTree) LatestVersion() int64 {
+	return tree.ndb.getLatestVersion()
+}
+
 // VersionExists returns whether or not a version exists.
 func (tree *MutableTree) VersionExists(version int64) bool {
-	return tree.versions[version]
+	return tree.ndb.getRoot(version) != nil
 }
 
 // AvailableVersions returns all available versions in ascending order
-func (tree *MutableTree) AvailableVersions() []int {
-	res := make([]int, 0, len(tree.versions))
-	for i, v := range tree.versions {
-		if v {
-			res = append(res, int(i))
-		}
-	}
-	sort.Sort(sort.IntSlice(res))
-	return res
+func (tree *MutableTree) AvailableVersions() <-chan int64 {
+	return tree.ndb.getRootsCh()
 }
 
 // Hash returns the hash of the latest saved version of the tree, as returned
@@ -265,8 +260,6 @@ func (tree *MutableTree) LazyLoadVersion(targetVersion int64) (int64, error) {
 		return latestVersion, ErrVersionDoesNotExist
 	}
 
-	tree.versions[targetVersion] = true
-
 	iTree := &ImmutableTree{
 		ndb:     tree.ndb,
 		version: targetVersion,
@@ -295,7 +288,6 @@ func (tree *MutableTree) LoadVersion(targetVersion int64) (int64, error) {
 
 	var latestRoot []byte
 	for version, r := range roots {
-		tree.versions[version] = true
 		if version > latestVersion && (targetVersion == 0 || version <= targetVersion) {
 			latestVersion = version
 			latestRoot = r
@@ -367,7 +359,7 @@ func (tree *MutableTree) Rollback() {
 func (tree *MutableTree) GetVersioned(key []byte, version int64) (
 	index int64, value []byte,
 ) {
-	if tree.versions[version] {
+	if tree.VersionExists(version) {
 		t, err := tree.GetImmutable(version)
 		if err != nil {
 			return -1, nil
@@ -382,7 +374,7 @@ func (tree *MutableTree) GetVersioned(key []byte, version int64) (
 func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
 	version := tree.version + 1
 
-	if tree.versions[version] {
+	if tree.VersionExists(version) {
 		//version already exists, throw an error if attempting to overwrite
 		// Same hash means idempotent.  Return success.
 		existingHash := tree.ndb.getRoot(version)
@@ -413,7 +405,6 @@ func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
 	}
 	tree.ndb.Commit()
 	tree.version = version
-	tree.versions[version] = true
 
 	// Set new working tree.
 	tree.ImmutableTree = tree.ImmutableTree.clone()
@@ -432,20 +423,18 @@ func (tree *MutableTree) DeleteVersion(version int64) error {
 	if version == tree.version {
 		return errors.New("cannot delete latest saved version (%d)", version)
 	}
-	if _, ok := tree.versions[version]; !ok {
+	if !tree.VersionExists(version) {
 		return errors.Wrap(ErrVersionDoesNotExist, "")
 	}
 
 	tree.ndb.DeleteVersion(version, true)
 	tree.ndb.Commit()
 
-	delete(tree.versions, version)
-
 	return nil
 }
 
-// deleteVersionsFrom deletes tree version from disk specified version to latest version. The version can then no
-// longer be accessed.
+// deleteVersionsFrom deletes tree version from disk specified version to the
+// latest version. The versions can then no longer be accessed.
 func (tree *MutableTree) deleteVersionsFrom(version int64) error {
 	if version <= 0 {
 		return errors.New("version must be greater than 0")
@@ -456,11 +445,10 @@ func (tree *MutableTree) deleteVersionsFrom(version int64) error {
 		if version == tree.version {
 			return errors.New("cannot delete latest saved version (%d)", version)
 		}
-		if _, ok := tree.versions[version]; !ok {
+		if !tree.VersionExists(version) {
 			return errors.Wrap(ErrVersionDoesNotExist, "")
 		}
 		tree.ndb.DeleteVersion(version, false)
-		delete(tree.versions, version)
 	}
 	tree.ndb.Commit()
 	tree.ndb.resetLatestVersion(newLatestVersion)
