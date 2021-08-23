@@ -77,12 +77,13 @@ func TestVersionedRandomTree(t *testing.T) {
 	// Ensure it returns all versions in sorted order
 	available := zip(tree.AvailableVersions())
 	assert.Equal(t, versions, len(available))
-	assert.Equal(t, 1, available[0])
-	assert.Equal(t, versions, available[len(available)-1])
+	assert.Equal(t, int64(1), available[0])
+	assert.Equal(t, int64(versions), available[len(available)-1])
 
 	for i := 1; i < versions; i++ {
 		tree.DeleteVersion(int64(i))
 	}
+	available = zip(tree.AvailableVersions())
 
 	require.Len(available, 1, "tree must have one version left")
 	tr, err := tree.GetImmutable(int64(versions))
@@ -92,7 +93,7 @@ func TestVersionedRandomTree(t *testing.T) {
 	// we should only have one available version now
 	available = zip(tree.AvailableVersions())
 	assert.Equal(t, 1, len(available))
-	assert.Equal(t, versions, available[0])
+	assert.Equal(t, int64(versions), available[0])
 
 	// After cleaning up all previous versions, we should have as many nodes
 	// in the db as in the current tree version.

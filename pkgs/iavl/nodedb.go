@@ -340,11 +340,14 @@ func (ndb *nodeDB) getRoot(version int64) []byte {
 
 func (ndb *nodeDB) getRootsCh() <-chan int64 {
 	ch := make(chan int64)
-	ndb.traversePrefix(rootKeyFormat.Key(), func(k, v []byte) {
-		var version int64
-		rootKeyFormat.Scan(k, &version)
-		ch <- version
-	})
+	go func() {
+		ndb.traversePrefix(rootKeyFormat.Key(), func(k, v []byte) {
+			var version int64
+			rootKeyFormat.Scan(k, &version)
+			ch <- version
+		})
+		close(ch)
+	}()
 	return ch
 }
 
