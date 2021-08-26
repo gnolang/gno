@@ -400,14 +400,14 @@ func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) (res abc
 		case "simulate":
 			txBytes := req.Data
 			var tx Tx
-			err := amino.UnmarshalJSON(txBytes, &tx)
+			err := amino.Unmarshal(txBytes, &tx)
 			if err != nil {
 				res.Error = toABCIError(std.ErrTxDecode(err.Error()))
 			} else {
 				result = app.Simulate(txBytes, tx)
 			}
 			res.Height = req.Height
-			res.Value = amino.MustMarshalSized(result)
+			res.Value = amino.MustMarshal(result)
 			return res
 		case "version":
 			res.Height = req.Height
@@ -551,9 +551,9 @@ func (app *BaseApp) BeginBlock(req abci.RequestBeginBlock) (res abci.ResponseBeg
 // NOTE:CheckTx does not run the actual Msg handler function(s).
 func (app *BaseApp) CheckTx(req abci.RequestCheckTx) (res abci.ResponseCheckTx) {
 	var tx Tx
-	err := amino.UnmarshalJSON(req.Tx, &tx)
+	err := amino.Unmarshal(req.Tx, &tx)
 	if err != nil {
-		res.Error = abci.StringError(err.Error())
+		res.Error = toABCIError(std.ErrTxDecode(err.Error()))
 		return
 	} else {
 		result := app.runTx(runTxModeCheck, req.Tx, tx)
@@ -567,9 +567,9 @@ func (app *BaseApp) CheckTx(req abci.RequestCheckTx) (res abci.ResponseCheckTx) 
 // DeliverTx implements the ABCI interface.
 func (app *BaseApp) DeliverTx(req abci.RequestDeliverTx) (res abci.ResponseDeliverTx) {
 	var tx Tx
-	err := amino.UnmarshalJSON(req.Tx, &tx)
+	err := amino.Unmarshal(req.Tx, &tx)
 	if err != nil {
-		res.Error = abci.StringError(err.Error())
+		res.Error = toABCIError(std.ErrTxDecode(err.Error()))
 		return
 	} else {
 		result := app.runTx(runTxModeDeliver, req.Tx, tx)
@@ -698,6 +698,14 @@ func (app *BaseApp) runTx(mode runTxMode, txBytes []byte, tx Tx) (result Result)
 	var gasWanted int64
 
 	ctx := app.getContextForTx(mode, txBytes)
+	ms := ctx.MultiStore()
+	if mode == runTxModeDeliver {
+		gasleft := ctx.BlockGasMeter().Remaining()
+		ctx = ctx.WithGasMeter(store.NewPassthroughGasMeter(
+			ctx.GasMeter(),
+			gasleft,
+		))
+	}
 
 	// only run the tx if there is block gas remaining
 	if mode == runTxModeDeliver && ctx.BlockGasMeter().IsOutOfGas() {
@@ -712,27 +720,29 @@ func (app *BaseApp) runTx(mode runTxMode, txBytes []byte, tx Tx) (result Result)
 
 	defer func() {
 		if r := recover(); r != nil {
-			var err error
-			var ok bool
-			if err, ok = r.(error); !ok {
-				err = errors.New("XXX %v", r)
-			}
-			switch cerr := toABCIError(err).(type) {
-			case std.OutOfGasError:
+			switch ex := r.(type) {
+			case store.OutOfGasException:
 				log := fmt.Sprintf(
-					"out of gas, gasWanted: %d, gasUsed: %d",
-					gasWanted, ctx.GasMeter().GasConsumed(),
+					"out of gas, gasWanted: %d, gasUsed: %d location: %v",
+					gasWanted,
+					ctx.GasMeter().GasConsumed(),
+					ex.Descriptor,
 				)
-				result.Error = cerr
+				result.Error = toABCIError(std.ErrOutOfGas(log))
 				result.Log = log
+				result.GasWanted = gasWanted
+				result.GasUsed = ctx.GasMeter().GasConsumed()
 				return
 			default:
 				log := fmt.Sprintf("recovered: %v\nstack:\n%v", r, string(debug.Stack()))
-				result.Error = cerr
+				result.Error = toABCIError(std.ErrInternal(log))
 				result.Log = log
+				result.GasWanted = gasWanted
+				result.GasUsed = ctx.GasMeter().GasConsumed()
 				return
 			}
 		}
+		// Whether AnteHandler panics or not.
 		result.GasWanted = gasWanted
 		result.GasUsed = ctx.GasMeter().GasConsumed()
 	}()
@@ -765,25 +775,40 @@ func (app *BaseApp) runTx(mode runTxMode, txBytes []byte, tx Tx) (result Result)
 		var anteCtx Context
 		var msCache store.MultiStore
 
-		// Cache wrap context before anteHandler call in case it aborts.
-		// This is required for both CheckTx and DeliverTx.
-		// Ref: https://github.com/tendermint/classic/sdk/issues/2772
+		// Cache wrap context before anteHandler call in case
+		// it aborts.  This is required for both CheckTx and
+		// DeliverTx.  Ref:
+		// https://github.com/tendermint/classic/sdk/issues/2772
 		//
-		// NOTE: Alternatively, we could require that anteHandler ensures that
-		// writes do not happen if aborted/failed.  This may have some
-		// performance benefits, but it'll be more difficult to get right.
+		// NOTE: Alternatively, we could require that
+		// anteHandler ensures that writes do not happen if
+		// aborted/failed.  This may have some performance
+		// benefits, but it'll be more difficult to get
+		// right.
 		anteCtx, msCache = app.cacheTxContext(ctx, txBytes)
-
+		// Call AnteHandler.
+		// NOTE: It is the responsibility of the anteHandler
+		// to use something like passthroughGasMeter to
+		// account for ante handler gas usage, despite
+		// OutOfGasExceptions.
 		newCtx, result, abort := app.anteHandler(anteCtx, tx, mode == runTxModeSimulate)
-		ctx = newCtx
-
-		gasWanted = result.GasWanted
-
-		if abort {
-			return result
+		if newCtx.IsZero() {
+			panic("newCtx must not be zero")
 		}
-
-		msCache.MultiWrite()
+		if abort && result.Error != nil {
+			panic("result.Error should be set for abort")
+		}
+		if abort {
+			// NOTE: first we must set ctx above,
+			// because a previous defer call sets
+			// result.GasUsed, regardless of error.
+			return result
+		} else {
+			// Revert cache wrapping of multistore.
+			ctx = newCtx.WithMultiStore(ms)
+			msCache.MultiWrite()
+			gasWanted = result.GasWanted
+		}
 	}
 
 	// Create a new context based off of the existing context with a cache wrapped

@@ -23,14 +23,17 @@ type (
 	Gas                    = types.Gas
 	GasMeter               = types.GasMeter
 	GasConfig              = types.GasConfig
+	OutOfGasException      = types.OutOfGasException
+	GasOverflowException   = types.GasOverflowException
 )
 
 // nolint - reexport
 var (
-	PruneNothing        = types.PruneNothing
-	PruneEverything     = types.PruneEverything
-	PruneSyncable       = types.PruneSyncable
-	NewInfiniteGasMeter = types.NewInfiniteGasMeter
-	NewGasMeter         = types.NewGasMeter
-	DefaultGasConfig    = types.DefaultGasConfig
+	PruneNothing           = types.PruneNothing
+	PruneEverything        = types.PruneEverything
+	PruneSyncable          = types.PruneSyncable
+	NewGasMeter            = types.NewGasMeter
+	NewInfiniteGasMeter    = types.NewInfiniteGasMeter
+	NewPassthroughGasMeter = types.NewPassthroughGasMeter
+	DefaultGasConfig       = types.DefaultGasConfig
 )

@@ -27,7 +27,7 @@ type Context struct {
 	txBytes       []byte
 	logger        log.Logger
 	voteInfo      []abci.VoteInfo
-	gasMeter      store.GasMeter
+	gasMeter      store.GasMeter // XXX make passthroughGasMeter w/ blockGasMeter?
 	blockGasMeter store.GasMeter
 	checkTx       bool
 	minGasPrices  []GasPrice
@@ -176,8 +176,13 @@ func (c Context) Store(key store.StoreKey) store.Store {
 // CacheContext returns a new Context with the multi-store cached and a new
 // EventLogger . The cached context is written to the context when writeCache
 // is called.
+// XXX remove?
 func (c Context) CacheContext() (cc Context, writeCache func()) {
 	cms := c.MultiStore().MultiCacheWrap()
 	cc = c.WithMultiStore(cms).WithEventLogger(NewEventLogger())
 	return cc, cms.MultiWrite
+}
+
+func (c Context) IsZero() bool {
+	return c.ms == nil
 }

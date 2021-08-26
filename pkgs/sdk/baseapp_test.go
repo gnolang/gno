@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,7 +16,6 @@ import (
 	bft "github.com/gnolang/gno/pkgs/bft/types"
 	"github.com/gnolang/gno/pkgs/crypto"
 	dbm "github.com/gnolang/gno/pkgs/db"
-	"github.com/gnolang/gno/pkgs/errors"
 	"github.com/gnolang/gno/pkgs/log"
 	"github.com/gnolang/gno/pkgs/std"
 	"github.com/gnolang/gno/pkgs/store/iavl"
@@ -258,7 +258,7 @@ func TestInitChainer(t *testing.T) {
 	app := NewBaseApp(name, logger, db)
 	capKey := store.NewStoreKey(MainStoreKey)
 	capKey2 := store.NewStoreKey("key2")
-	app.MountStoreWithDB(capKey1, iavl.StoreConstructor, nil)
+	app.MountStoreWithDB(capKey, iavl.StoreConstructor, nil)
 	app.MountStoreWithDB(capKey2, iavl.StoreConstructor, nil)
 
 	// set a value in the store on init chain
@@ -270,7 +270,7 @@ func TestInitChainer(t *testing.T) {
 	}
 
 	query := abci.RequestQuery{
-		Path: "/store/main/key",
+		Path: ".store/main/key",
 		Data: key,
 	}
 
@@ -336,6 +336,9 @@ func getFailOnAnte(tx Tx) bool {
 
 func setFailOnAnte(tx *Tx, fail bool) {
 	var testdata testTxData
+	if tx.Memo == "" {
+		tx.Memo = "{}"
+	}
 	amino.MustUnmarshalJSON([]byte(tx.Memo), &testdata)
 	testdata.FailOnAnte = fail
 	tx.Memo = string(amino.MustMarshalJSON(testdata))
@@ -349,6 +352,9 @@ func getCounter(tx Tx) int64 {
 
 func setCounter(tx *Tx, counter int64) {
 	var testdata testTxData
+	if tx.Memo == "" {
+		tx.Memo = "{}"
+	}
 	amino.MustUnmarshalJSON([]byte(tx.Memo), &testdata)
 	testdata.Counter = counter
 	tx.Memo = string(amino.MustMarshalJSON(testdata))
@@ -384,6 +390,9 @@ func (msg msgCounter) ValidateBasic() error {
 	return std.ErrInvalidSequence("counter should be a non-negative integer.")
 }
 
+// txInt: used as counter in incrementing counter tests,
+// or as how much gas will be consumed in antehandler
+// (depending on anteHandler used in tests)
 func newTxCounter(txInt int64, msgInts ...int64) std.Tx {
 	var msgs []Msg
 	for _, msgInt := range msgInts {
@@ -401,13 +410,6 @@ type msgNoRoute struct {
 }
 
 func (tx msgNoRoute) Route() string { return "noroute" }
-
-// a msg we dont know how to decode
-type msgNoDecode struct {
-	msgCounter
-}
-
-func (tx msgNoDecode) Route() string { return routeMsgCounter }
 
 // Another counter msg. Duplicate of msgCounter
 type msgCounter2 struct {
@@ -435,6 +437,7 @@ func anteHandlerTxTest(t *testing.T, capKey store.StoreKey, storeKey []byte) Ant
 		}
 
 		res = incrementingCounter(t, store, storeKey, getCounter(tx))
+		newCtx = ctx
 		return
 	}
 }
@@ -472,17 +475,17 @@ func (mch msgCounterHandler) Process(ctx Context, msg Msg) (res Result) {
 	store := ctx.Store(mch.capKey)
 	var msgCount int64
 	switch m := msg.(type) {
-	case *msgCounter:
+	case msgCounter:
 		if m.FailOnHandler {
 			res.Error = toABCIError(std.ErrInternal("message handler failure"))
 			return
 		}
-
 		msgCount = m.Counter
-	case *msgCounter2:
+	case msgCounter2:
 		msgCount = m.Counter
+	default:
+		panic(fmt.Sprint("unexpected msg type", reflect.TypeOf(msg)))
 	}
-
 	return incrementingCounter(mch.t, store, mch.deliverKey, msgCount)
 }
 
@@ -548,7 +551,7 @@ func TestCheckTx(t *testing.T) {
 
 	for i := int64(0); i < nTxs; i++ {
 		tx := newTxCounter(i, 0)
-		txBytes, err := amino.MarshalSized(tx)
+		txBytes, err := amino.Marshal(tx)
 		require.NoError(t, err)
 		r := app.CheckTx(abci.RequestCheckTx{Tx: txBytes})
 		assert.True(t, r.IsOK(), fmt.Sprintf("%v", r))
@@ -598,7 +601,7 @@ func TestDeliverTx(t *testing.T) {
 			counter := int64(blockN*txPerHeight + i)
 			tx := newTxCounter(counter, counter)
 
-			txBytes, err := amino.MarshalSized(tx)
+			txBytes, err := amino.Marshal(tx)
 			require.NoError(t, err)
 
 			res := app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
@@ -638,7 +641,7 @@ func TestMultiMsgDeliverTx(t *testing.T) {
 	header := &bft.Header{Height: 1}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 	tx := newTxCounter(0, 0, 1, 2)
-	txBytes, err := amino.MarshalSized(tx)
+	txBytes, err := amino.Marshal(tx)
 	require.NoError(t, err)
 	res := app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
 	require.True(t, res.IsOK(), fmt.Sprintf("%v", res))
@@ -658,7 +661,7 @@ func TestMultiMsgDeliverTx(t *testing.T) {
 	tx = newTxCounter(1, 3)
 	tx.Msgs = append(tx.Msgs, msgCounter2{0})
 	tx.Msgs = append(tx.Msgs, msgCounter2{1})
-	txBytes, err = amino.MarshalSized(tx)
+	txBytes, err = amino.Marshal(tx)
 	require.NoError(t, err)
 	res = app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
 	require.True(t, res.IsOK(), fmt.Sprintf("%v", res))
@@ -685,14 +688,15 @@ func TestConcurrentCheckDeliver(t *testing.T) {
 }
 
 // Simulate a transaction that uses gas to compute the gas.
-// Simulate() and Query("/app/simulate", txBytes) should give
+// Simulate() and Query(".app/simulate", txBytes) should give
 // the same results.
 func TestSimulateTx(t *testing.T) {
 	gasConsumed := int64(5)
 
 	anteOpt := func(bapp *BaseApp) {
 		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
-			newCtx = ctx.WithGasMeter(store.NewGasMeter(gasConsumed))
+			limit := gasConsumed
+			newCtx = ctx.WithGasMeter(store.NewGasMeter(limit))
 			return
 		})
 	}
@@ -715,7 +719,7 @@ func TestSimulateTx(t *testing.T) {
 		app.BeginBlock(abci.RequestBeginBlock{Header: header})
 
 		tx := newTxCounter(count, count)
-		txBytes, err := amino.MarshalSized(tx)
+		txBytes, err := amino.Marshal(tx)
 		require.Nil(t, err)
 
 		// simulate a message, check gas reported
@@ -730,14 +734,14 @@ func TestSimulateTx(t *testing.T) {
 
 		// simulate by calling Query with encoded tx
 		query := abci.RequestQuery{
-			Path: "/app/simulate",
+			Path: ".app/simulate",
 			Data: txBytes,
 		}
 		queryResult := app.Query(query)
 		require.True(t, queryResult.IsOK(), queryResult.Log)
 
 		var res Result
-		amino.MustUnmarshalSized(queryResult.Value, &res)
+		amino.MustUnmarshal(queryResult.Value, &res)
 		require.Nil(t, err, "Result unmarshalling failed")
 		require.True(t, res.IsOK(), res.Log)
 		require.Equal(t, gasConsumed, res.GasUsed, res.Log)
@@ -749,6 +753,7 @@ func TestSimulateTx(t *testing.T) {
 func TestRunInvalidTransaction(t *testing.T) {
 	anteOpt := func(bapp *BaseApp) {
 		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
+			newCtx = ctx
 			return
 		})
 	}
@@ -812,11 +817,7 @@ func TestRunInvalidTransaction(t *testing.T) {
 
 	// Transaction with an unregistered message
 	{
-		tx := newTxCounter(0, 0)
-		tx.Msgs = append(tx.Msgs, msgNoDecode{})
-
-		txBytes, err := amino.MarshalSized(tx)
-		require.NoError(t, err)
+		txBytes := []byte{0xFF, 0xFF, 0xFF}
 		res := app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
 		_, ok := res.Error.(std.TxDecodeError)
 		require.True(t, ok)
@@ -828,27 +829,11 @@ func TestTxGasLimits(t *testing.T) {
 	gasGranted := int64(10)
 	anteOpt := func(bapp *BaseApp) {
 		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
-			newCtx = ctx.WithGasMeter(store.NewGasMeter(gasGranted))
-
-			defer func() {
-				if r := recover(); r != nil {
-					var err error
-					var ok bool
-					if err, ok = r.(error); !ok {
-						err = errors.New("XXX %v", r)
-					}
-					switch cerr := toABCIError(err).(type) {
-					case std.OutOfGasError:
-						log := fmt.Sprintf("out of gas in location: %v", "unknown") // cerr.Descriptor)
-						res.Error = cerr
-						res.Log = log
-						res.GasWanted = gasGranted
-						res.GasUsed = newCtx.GasMeter().GasConsumed()
-					default:
-						panic(r)
-					}
-				}
-			}()
+			gmeter := store.NewPassthroughGasMeter(
+				ctx.GasMeter(),
+				gasGranted,
+			)
+			newCtx = ctx.WithGasMeter(gmeter)
 
 			count := getCounter(tx)
 			newCtx.GasMeter().ConsumeGas(int64(count), "counter-ante")
@@ -919,27 +904,11 @@ func TestMaxBlockGasLimits(t *testing.T) {
 	gasGranted := int64(10)
 	anteOpt := func(bapp *BaseApp) {
 		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
-			newCtx = ctx.WithGasMeter(store.NewGasMeter(gasGranted))
-
-			defer func() {
-				if r := recover(); r != nil {
-					var err error
-					var ok bool
-					if err, ok = r.(error); !ok {
-						err = errors.New("XXX %v", r)
-					}
-					switch cerr := toABCIError(err).(type) {
-					case std.OutOfGasError:
-						log := fmt.Sprintf("out of gas in location: %v", "unknown") // rType.Descriptor)
-						res.Error = cerr
-						res.Log = log
-						res.GasWanted = gasGranted
-						res.GasUsed = newCtx.GasMeter().GasConsumed()
-					default:
-						panic(r)
-					}
-				}
-			}()
+			gmeter := store.NewPassthroughGasMeter(
+				ctx.GasMeter(),
+				gasGranted,
+			)
+			newCtx = ctx.WithGasMeter(gmeter)
 
 			count := getCounter(tx)
 			newCtx.GasMeter().ConsumeGas(int64(count), "counter-ante")
@@ -1044,7 +1013,7 @@ func TestBaseAppAnteHandler(t *testing.T) {
 	// the next txs ante handler execution (anteHandlerTxTest).
 	tx := newTxCounter(0, 0)
 	setFailOnAnte(&tx, true)
-	txBytes, err := amino.MarshalSized(tx)
+	txBytes, err := amino.Marshal(tx)
 	require.NoError(t, err)
 	res := app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
 	require.False(t, res.IsOK(), fmt.Sprintf("%v", res))
@@ -1058,7 +1027,7 @@ func TestBaseAppAnteHandler(t *testing.T) {
 	tx = newTxCounter(0, 0)
 	setFailOnHandler(&tx, true)
 
-	txBytes, err = amino.MarshalSized(tx)
+	txBytes, err = amino.Marshal(tx)
 	require.NoError(t, err)
 
 	res = app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
@@ -1073,7 +1042,7 @@ func TestBaseAppAnteHandler(t *testing.T) {
 	// implicitly checked by previous tx executions
 	tx = newTxCounter(1, 0)
 
-	txBytes, err = amino.MarshalSized(tx)
+	txBytes, err = amino.Marshal(tx)
 	require.NoError(t, err)
 
 	res = app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
@@ -1093,27 +1062,11 @@ func TestGasConsumptionBadTx(t *testing.T) {
 	gasWanted := int64(5)
 	anteOpt := func(bapp *BaseApp) {
 		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
-			newCtx = ctx.WithGasMeter(store.NewGasMeter(gasWanted))
-
-			defer func() {
-				if r := recover(); r != nil {
-					var err error
-					var ok bool
-					if err, ok = r.(error); !ok {
-						err = errors.New("XXX %v", r)
-					}
-					switch cerr := toABCIError(err).(type) {
-					case std.OutOfGasError:
-						log := fmt.Sprintf("out of gas in location: %v", "unknown") // rType.Descriptor)
-						res.Error = cerr
-						res.Log = log
-						res.GasWanted = gasWanted
-						res.GasUsed = newCtx.GasMeter().GasConsumed()
-					default:
-						panic(r)
-					}
-				}
-			}()
+			gmeter := store.NewPassthroughGasMeter(
+				ctx.GasMeter(),
+				gasWanted,
+			)
+			newCtx = ctx.WithGasMeter(gmeter)
 
 			newCtx.GasMeter().ConsumeGas(int64(getCounter(tx)), "counter-ante")
 			if getFailOnAnte(tx) {
@@ -1152,7 +1105,7 @@ func TestGasConsumptionBadTx(t *testing.T) {
 
 	tx := newTxCounter(5, 0)
 	setFailOnAnte(&tx, true)
-	txBytes, err := amino.MarshalSized(tx)
+	txBytes, err := amino.Marshal(tx)
 	require.NoError(t, err)
 
 	res := app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
@@ -1160,7 +1113,7 @@ func TestGasConsumptionBadTx(t *testing.T) {
 
 	// require next tx to fail due to black gas limit
 	tx = newTxCounter(5, 0)
-	txBytes, err = amino.MarshalSized(tx)
+	txBytes, err = amino.Marshal(tx)
 	require.NoError(t, err)
 
 	res = app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
@@ -1172,6 +1125,7 @@ func TestQuery(t *testing.T) {
 	key, value := []byte("hello"), []byte("goodbye")
 	anteOpt := func(bapp *BaseApp) {
 		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
+			newCtx = ctx
 			store := ctx.Store(capKey1)
 			store.Set(key, value)
 			return
@@ -1194,7 +1148,7 @@ func TestQuery(t *testing.T) {
 	// and the final "/key" says to use the data as the
 	// key in the given Store ...
 	query := abci.RequestQuery{
-		Path: "/store/key1/key",
+		Path: ".store/key1/key",
 		Data: key,
 	}
 	tx := newTxCounter(0, 0)
@@ -1239,3 +1193,18 @@ func TestGetMaximumBlockGas(t *testing.T) {
 	app.setConsensusParams(&abci.ConsensusParams{Block: &abci.BlockParams{MaxGas: -5000000}})
 	require.Panics(t, func() { app.getMaximumBlockGas() })
 }
+
+//----------------------------------------
+// amino register
+
+var Package = amino.RegisterPackage(amino.NewPackage(
+	"github.com/gnolang/gno/pkgs/sdk",
+	"sdk_test",
+	amino.GetCallersDirname(),
+).
+	WithTypes(
+		msgCounter{},
+		msgNoRoute{},
+		msgCounter2{},
+		msgCounterHandler{},
+	))
