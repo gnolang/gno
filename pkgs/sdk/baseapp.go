@@ -538,7 +538,9 @@ func (app *BaseApp) BeginBlock(req abci.RequestBeginBlock) (res abci.ResponseBeg
 	}
 
 	// set the signed validators for addition to context in deliverTx
-	app.voteInfos = req.LastCommitInfo.Votes
+	if req.LastCommitInfo != nil {
+		app.voteInfos = req.LastCommitInfo.Votes
+	}
 	return
 }
 

@@ -73,7 +73,7 @@ func TestLoadVersion(t *testing.T) {
 	pruningOpt := SetPruningOptions(store.PruneSyncable)
 	db := dbm.NewMemDB()
 	name := t.Name()
-	app := NewBaseApp(name, logger, db, nil, pruningOpt)
+	app := NewBaseApp(name, logger, db, pruningOpt)
 
 	// make a cap key and mount the store
 	capKey := store.NewStoreKey(MainStoreKey)
@@ -102,7 +102,7 @@ func TestLoadVersion(t *testing.T) {
 	commitID2 := store.CommitID{2, res.Data}
 
 	// reload with LoadLatestVersion
-	app = NewBaseApp(name, logger, db, nil, pruningOpt)
+	app = NewBaseApp(name, logger, db, pruningOpt)
 	app.MountStoreWithDB(capKey, iavl.StoreConstructor, nil)
 	err = app.LoadLatestVersion(capKey)
 	require.Nil(t, err)
@@ -110,7 +110,7 @@ func TestLoadVersion(t *testing.T) {
 
 	// reload with LoadVersion, see if you can commit the same block and get
 	// the same result
-	app = NewBaseApp(name, logger, db, nil, pruningOpt)
+	app = NewBaseApp(name, logger, db, pruningOpt)
 	app.MountStoreWithDB(capKey, iavl.StoreConstructor, nil)
 	err = app.LoadVersion(1, capKey)
 	require.Nil(t, err)
@@ -125,17 +125,17 @@ func TestAppVersionSetterGetter(t *testing.T) {
 	pruningOpt := SetPruningOptions(store.PruneSyncable)
 	db := dbm.NewMemDB()
 	name := t.Name()
-	app := NewBaseApp(name, logger, db, nil, pruningOpt)
+	app := NewBaseApp(name, logger, db, pruningOpt)
 
 	require.Equal(t, "", app.AppVersion())
-	res := app.Query(abci.RequestQuery{Path: "app/version"})
+	res := app.Query(abci.RequestQuery{Path: ".app/version"})
 	require.True(t, res.IsOK())
 	require.Equal(t, "", string(res.Value))
 
 	versionString := "1.0.0"
 	app.SetAppVersion(versionString)
 	require.Equal(t, versionString, app.AppVersion())
-	res = app.Query(abci.RequestQuery{Path: "app/version"})
+	res = app.Query(abci.RequestQuery{Path: ".app/version"})
 	require.True(t, res.IsOK())
 	require.Equal(t, versionString, string(res.Value))
 }
@@ -145,7 +145,7 @@ func TestLoadVersionInvalid(t *testing.T) {
 	pruningOpt := SetPruningOptions(store.PruneSyncable)
 	db := dbm.NewMemDB()
 	name := t.Name()
-	app := NewBaseApp(name, logger, db, nil, pruningOpt)
+	app := NewBaseApp(name, logger, db, pruningOpt)
 
 	capKey := store.NewStoreKey(MainStoreKey)
 	app.MountStoreWithDB(capKey, iavl.StoreConstructor, nil)
@@ -162,7 +162,7 @@ func TestLoadVersionInvalid(t *testing.T) {
 	commitID1 := store.CommitID{1, res.Data}
 
 	// create a new app with the stores mounted under the same cap key
-	app = NewBaseApp(name, logger, db, nil, pruningOpt)
+	app = NewBaseApp(name, logger, db, pruningOpt)
 	app.MountStoreWithDB(capKey, iavl.StoreConstructor, nil)
 
 	// require we can load the latest version
@@ -185,7 +185,7 @@ func testLoadVersionHelper(t *testing.T, app *BaseApp, expectedHeight int64, exp
 func TestOptionFunction(t *testing.T) {
 	logger := defaultLogger()
 	db := dbm.NewMemDB()
-	bap := NewBaseApp("starting name", logger, db, nil, testChangeNameHelper("new name"))
+	bap := NewBaseApp("starting name", logger, db, testChangeNameHelper("new name"))
 	require.Equal(t, bap.name, "new name", "BaseApp should have had name changed via option function")
 }
 
@@ -205,7 +205,7 @@ func TestInfo(t *testing.T) {
 
 	// should be empty
 	assert.Equal(t, "", res.AppVersion)
-	assert.Equal(t, t.Name(), res.Data)
+	assert.Equal(t, t.Name(), string(res.Data))
 	assert.Equal(t, int64(0), res.LastBlockHeight)
 	require.Equal(t, []uint8(nil), res.LastBlockAppHash)
 
@@ -255,7 +255,7 @@ func TestInitChainer(t *testing.T) {
 	// we can reload the same  app later
 	db := dbm.NewMemDB()
 	logger := defaultLogger()
-	app := NewBaseApp(name, logger, db, nil)
+	app := NewBaseApp(name, logger, db)
 	capKey := store.NewStoreKey(MainStoreKey)
 	capKey2 := store.NewStoreKey("key2")
 	app.MountStoreWithDB(capKey1, iavl.StoreConstructor, nil)
@@ -302,7 +302,7 @@ func TestInitChainer(t *testing.T) {
 	require.Equal(t, value, res.Value)
 
 	// reload app
-	app = NewBaseApp(name, logger, db, nil)
+	app = NewBaseApp(name, logger, db)
 	app.SetInitChainer(initChainer)
 	app.MountStoreWithDB(capKey, iavl.StoreConstructor, nil)
 	app.MountStoreWithDB(capKey2, iavl.StoreConstructor, nil)
