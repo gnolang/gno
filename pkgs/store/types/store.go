@@ -77,6 +77,7 @@ type MultiStore interface { //nolint
 type Committer interface {
 	Commit() CommitID
 	LastCommitID() CommitID
+	GetStoreOptions() StoreOptions
 	SetStoreOptions(StoreOptions)
 	LoadLatestVersion() error
 
@@ -107,6 +108,12 @@ type CommitMultiStore interface {
 
 	// Panics on a nil key.
 	GetCommitStore(key StoreKey) CommitStore
+
+	// MultiImmutableCacheWrapWithVersion is analogous to MultiCacheWrap
+	// except that it attempts to load immutable stores at a given version
+	// (height). An error is returned if any store cannot be loaded. This
+	// should only be used for querying and iterating at past heights.
+	MultiImmutableCacheWrapWithVersion(version int64) (MultiStore, error)
 }
 
 // CommitID contains the tree version number and its merkle root.

@@ -108,6 +108,11 @@ func (st *Store) LastCommitID() types.CommitID {
 }
 
 // Implements Committer.
+func (st *Store) GetStoreOptions() types.StoreOptions {
+	return st.opts
+}
+
+// Implements Committer.
 func (st *Store) SetStoreOptions(opts2 types.StoreOptions) {
 	st.opts = opts2
 }

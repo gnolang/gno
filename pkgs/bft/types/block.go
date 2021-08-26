@@ -254,7 +254,11 @@ type Header struct {
 	ProposerAddress Address `json:"proposer_address"` // original proposer of the block
 }
 
-func (h *Header) AssertABCIHeader() {}
+// Implements abci.Header
+func (h *Header) AssertABCIHeader()  {}
+func (h *Header) GetChainID() string { return h.ChainID }
+func (h *Header) GetHeight() int64   { return h.Height }
+func (h *Header) GetTime() time.Time { return h.Time }
 
 // MakeBlock returns a new block with an empty header, except what can be
 // computed from itself.

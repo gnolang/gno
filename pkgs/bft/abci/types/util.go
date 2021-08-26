@@ -30,3 +30,16 @@ func (v ValidatorUpdates) Swap(i, j int) {
 	v[i] = v[j]
 	v[j] = v1
 }
+
+//----------------------------------------
+// ValidatorUpdate
+
+func (vu ValidatorUpdate) Equals(vu2 ValidatorUpdate) bool {
+	if vu.Address == vu2.Address &&
+		vu.PubKey.Equals(vu2.PubKey) &&
+		vu.Power == vu2.Power {
+		return true
+	} else {
+		return false
+	}
+}

@@ -48,6 +48,11 @@ func NewMultiStore(db dbm.DB) *multiStore {
 }
 
 // Implements CommitMultiStore
+func (ms *multiStore) GetStoreOptions() types.StoreOptions {
+	return ms.storeOpts
+}
+
+// Implements CommitMultiStore
 func (ms *multiStore) SetStoreOptions(opts types.StoreOptions) {
 	ms.storeOpts = opts
 	for _, store := range ms.stores {
@@ -205,11 +210,8 @@ func (ms *multiStore) MultiWrite() {
 	panic("unexpected .MultiWrite() on rootmulti.Store. Commit()?")
 }
 
-// CacheMultiStoreWithVersion is analogous to CacheMultiStore except that it
-// attempts to load stores at a given version (height). An error is returned if
-// any store cannot be loaded. This should only be used for querying and
-// iterating at past heights.
-func (ms *multiStore) MultiCacheWrapWithVersion(version int64) (types.MultiStore, error) {
+// Implements CommitMultiStore.
+func (ms *multiStore) MultiImmutableCacheWrapWithVersion(version int64) (types.MultiStore, error) {
 	ims := &multiStore{
 		db:           dbm.NewImmutableDB(ms.db),
 		storeOpts:    ms.storeOpts,

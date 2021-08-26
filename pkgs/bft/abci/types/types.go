@@ -198,6 +198,9 @@ type Event interface {
 }
 
 type Header interface {
+	GetChainID() string
+	GetHeight() int64
+	GetTime() time.Time
 	AssertABCIHeader()
 }
 

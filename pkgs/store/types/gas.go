@@ -1,6 +1,8 @@
 package types
 
-import "math"
+import (
+	"github.com/gnolang/overflow"
+)
 
 // Gas consumption descriptors.
 const (
@@ -15,7 +17,7 @@ const (
 )
 
 // Gas measured by the SDK
-type Gas = uint64
+type Gas = int64
 
 // ErrorOutOfGas defines an error thrown when an action results in out of gas.
 type ErrorOutOfGas struct {
@@ -66,28 +68,15 @@ func (g *basicGasMeter) GasConsumedToLimit() Gas {
 	return g.consumed
 }
 
-// addUint64Overflow performs the addition operation on two uint64 integers and
-// returns a boolean on whether or not the result overflows.
-func addUint64Overflow(a, b uint64) (uint64, bool) {
-	if math.MaxUint64-a < b {
-		return 0, true
-	}
-
-	return a + b, false
-}
-
 func (g *basicGasMeter) ConsumeGas(amount Gas, descriptor string) {
-	var overflow bool
-	// TODO: Should we set the consumed field after overflow checking?
-	g.consumed, overflow = addUint64Overflow(g.consumed, amount)
-	if overflow {
+	consumed, ok := overflow.Add64(g.consumed, amount)
+	if !ok {
 		panic(ErrorGasOverflow{descriptor})
 	}
-
-	if g.consumed > g.limit {
+	if consumed > g.limit {
 		panic(ErrorOutOfGas{descriptor})
 	}
-
+	g.consumed = consumed
 }
 
 func (g *basicGasMeter) IsPastLimit() bool {
@@ -122,12 +111,11 @@ func (g *infiniteGasMeter) Limit() Gas {
 }
 
 func (g *infiniteGasMeter) ConsumeGas(amount Gas, descriptor string) {
-	var overflow bool
-	// TODO: Should we set the consumed field after overflow checking?
-	g.consumed, overflow = addUint64Overflow(g.consumed, amount)
-	if overflow {
+	consumed, ok := overflow.Add64(g.consumed, amount)
+	if !ok {
 		panic(ErrorGasOverflow{descriptor})
 	}
+	g.consumed = consumed
 }
 
 func (g *infiniteGasMeter) IsPastLimit() bool {

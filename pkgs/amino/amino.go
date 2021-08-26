@@ -146,6 +146,10 @@ func UnmarshalJSON(bz []byte, ptr interface{}) error {
 	return gcdc.UnmarshalJSON(bz, ptr)
 }
 
+func MustUnmarshalJSON(bz []byte, ptr interface{}) {
+	gcdc.MustUnmarshalJSON(bz, ptr)
+}
+
 func MarshalJSONIndent(o interface{}, prefix, indent string) ([]byte, error) {
 	return gcdc.MarshalJSONIndent(o, prefix, indent)
 }
