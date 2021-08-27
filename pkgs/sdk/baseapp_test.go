@@ -432,7 +432,7 @@ func anteHandlerTxTest(t *testing.T, capKey store.StoreKey, storeKey []byte) Ant
 	return func(ctx Context, tx std.Tx, simulate bool) (newCtx Context, res Result, abort bool) {
 		store := ctx.Store(capKey)
 		if getFailOnAnte(tx) {
-			res.Error = toABCIError(std.ErrInternal("ante handler failure"))
+			res.Error = ABCIError(std.ErrInternal("ante handler failure"))
 			return newCtx, res, true
 		}
 
@@ -477,7 +477,7 @@ func (mch msgCounterHandler) Process(ctx Context, msg Msg) (res Result) {
 	switch m := msg.(type) {
 	case msgCounter:
 		if m.FailOnHandler {
-			res.Error = toABCIError(std.ErrInternal("message handler failure"))
+			res.Error = ABCIError(std.ErrInternal("message handler failure"))
 			return
 		}
 		msgCount = m.Counter
@@ -1070,7 +1070,7 @@ func TestGasConsumptionBadTx(t *testing.T) {
 
 			newCtx.GasMeter().ConsumeGas(int64(getCounter(tx)), "counter-ante")
 			if getFailOnAnte(tx) {
-				res.Error = toABCIError(std.ErrInternal("ante handler failure"))
+				res.Error = ABCIError(std.ErrInternal("ante handler failure"))
 				return newCtx, res, true
 			}
 

@@ -1,8 +1,12 @@
-## General Philosophy
+# Philosophy
 
- * Simplicity.
+ * Simplicity of design.
  * The code is the spec.
- * Minimize dependencies; all dependencies must get audited.
+ * Minimal dependencies - all dependencies must get audited.
+ * Completeness - software projects that don't become
+   complete are projects that are forever vulnerable.  One of
+the primary goals of the Gno language and related works is to
+become finished within a reasonable timeframe.
 
 ## Gno Philosophy
 

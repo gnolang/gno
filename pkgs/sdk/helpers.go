@@ -35,7 +35,7 @@ func (app *BaseApp) NewContext(isCheckTx bool, header abci.Header) Context {
 	return NewContext(app.deliverState.ms, header, false, app.logger)
 }
 
-func toABCIError(err error) abci.Error {
+func ABCIError(err error) abci.Error {
 	if err == nil {
 		return nil
 	}
@@ -46,4 +46,9 @@ func toABCIError(err error) abci.Error {
 	} else {
 		return abcierr
 	}
+}
+
+func ABCIResultFromError(err error) (res Result) {
+	res.Error = ABCIError(err)
+	return
 }

@@ -4,6 +4,7 @@ import (
 	"math"
 	"testing"
 
+	"github.com/gnolang/overflow"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,7 +23,7 @@ func TestGasMeter(t *testing.T) {
 
 	for tcnum, tc := range cases {
 		meter := NewGasMeter(tc.limit)
-		used := uint64(0)
+		used := int64(0)
 
 		for unum, usage := range tc.usage {
 			used += usage
@@ -47,25 +48,26 @@ func TestGasMeter(t *testing.T) {
 
 func TestAddUint64Overflow(t *testing.T) {
 	testCases := []struct {
-		a, b     uint64
-		result   uint64
+		a, b     int64
+		result   int64
 		overflow bool
 	}{
 		{0, 0, 0, false},
 		{100, 100, 200, false},
-		{math.MaxUint64 / 2, math.MaxUint64/2 + 1, math.MaxUint64, false},
-		{math.MaxUint64 / 2, math.MaxUint64/2 + 2, 0, true},
+		{math.MaxInt64 / 2, math.MaxInt64/2 + 1, math.MaxInt64, false},
+		{math.MaxInt64 / 2, math.MaxInt64/2 + 2, math.MinInt64, true},
 	}
 
 	for i, tc := range testCases {
-		res, overflow := addUint64Overflow(tc.a, tc.b)
+		res, ok := overflow.Add64(tc.a, tc.b)
+		overflow := !ok
 		require.Equal(
 			t, tc.overflow, overflow,
 			"invalid overflow result; tc: #%d, a: %d, b: %d", i, tc.a, tc.b,
 		)
 		require.Equal(
 			t, tc.result, res,
-			"invalid uint64 result; tc: #%d, a: %d, b: %d", i, tc.a, tc.b,
+			"invalid int64 result; tc: #%d, a: %d, b: %d", i, tc.a, tc.b,
 		)
 	}
 }

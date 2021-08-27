@@ -8,6 +8,43 @@ import (
 	"github.com/davecgh/go-spew/spew"
 )
 
+/*
+## Realms
+
+Gno is designed with blockchain smart contract programming in
+mind.  A smart-contract enabled blockchain is like a
+massive-multiuser-online operating-system (MMO-OS). Each user
+is provided a home package, for example
+"gno.land/r/username". This is not just a regular package but
+a "realm package", and functions and methods declared there
+have special privileges.
+
+Every "realm package" should define at last one package-level variable:
+
+```go
+// PKGPATH: gno.land/r/alice
+package alice
+var root interface{}
+
+func UpdateRoot(...) error {
+  root = ...
+}
+```
+
+Here, the root variable can be any object, and indicates the
+root node in the data realm identified by the package path
+"gno.land/r/alice".
+
+Any number of package-level values may be declared in a
+realm; they are all owned by the package and get
+merkle-hashed into a single root hash for the package realm.
+
+The gas cost of transactions that modify state are paid for
+by whoever submits the transaction, but the storage rent is
+paid for by the realm.  Anyone can pay the storage upkeep of
+a realm to keep it alive.
+*/
+
 //----------------------------------------
 // Realm
 

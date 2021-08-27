@@ -15,3 +15,15 @@ type MockHeader struct {
 }
 
 func (_ MockHeader) AssertABCIHeader() {}
+
+func (mh MockHeader) GetChainID() string {
+	return mh.ChainID
+}
+
+func (mh MockHeader) GetHeight() int64 {
+	return mh.Height
+}
+
+func (mh MockHeader) GetTime() time.Time {
+	return mh.Time
+}

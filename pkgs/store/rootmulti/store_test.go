@@ -54,11 +54,11 @@ func TestCacheMultiStoreWithVersion(t *testing.T) {
 	require.Equal(t, int64(1), cID.Version)
 
 	// require failure when given an invalid or pruned version
-	_, err = ms.MultiCacheWrapWithVersion(cID.Version + 1)
+	_, err = ms.MultiImmutableCacheWrapWithVersion(cID.Version + 1)
 	require.Error(t, err)
 
 	// require a valid version can be cache-loaded
-	cms, err := ms.MultiCacheWrapWithVersion(cID.Version)
+	cms, err := ms.MultiImmutableCacheWrapWithVersion(cID.Version)
 	require.NoError(t, err)
 
 	// require a valid key lookup yields the correct value
@@ -214,16 +214,16 @@ func TestMultiStoreQuery(t *testing.T) {
 	// Test bad path.
 	query := abci.RequestQuery{Path: "/key", Data: k, Height: ver}
 	qres := multi.Query(query)
-	require.True(t, strings.HasPrefix(qres.Error.Error(), "unknownrequest:"))
+	require.True(t, strings.HasPrefix(qres.Error.Error(), "unknownrequest error:"))
 
 	query.Path = "h897fy32890rf63296r92"
 	qres = multi.Query(query)
-	require.True(t, strings.HasPrefix(qres.Error.Error(), "unknownrequest:"))
+	require.True(t, strings.HasPrefix(qres.Error.Error(), "unknownrequest error:"))
 
 	// Test invalid store name.
 	query.Path = "/garbage/key"
 	qres = multi.Query(query)
-	require.True(t, strings.HasPrefix(qres.Error.Error(), "unknownrequest:"))
+	require.True(t, strings.HasPrefix(qres.Error.Error(), "unknownrequest error:"))
 
 	// Test valid query with data.
 	query.Path = "/store1/key"

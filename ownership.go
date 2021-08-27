@@ -5,6 +5,36 @@ import (
 	"fmt"
 )
 
+/*
+## Ownership
+
+In Gno, all objects are automatically persisted to disk after
+every atomic "transaction" (a function call that must return
+immediately.) when new objects are associated with a
+"ownership tree" which is maintained overlaying the possibly
+cyclic object graph (NOTE: cyclic references for persistence
+not supported at this stage).  The ownership tree is composed
+of objects (arrays, structs, maps, and blocks) and
+derivatives (pointers, slices, and so on) with optional
+struct-tag annotations to define the ownership tree.
+
+If an object hangs off of the ownership tree, it becomes
+included in the Merkle root, and is said to be "real".  The
+Merkle-ized state of reality gets updated with state
+transition transactions; during such a transaction, some new
+temporary objects may "become real" by becoming associated in
+the ownership tree (say, assigned to a struct field or
+appended to a slice that was part of the ownership tree prior
+to the transaction), but those that don't get garbage
+collected and forgotten.
+
+In the first release of Gno, all fields are owned in the same
+realm, and no cyclic dependencies are allowed outside the
+bounds of a realm transaction (this will change in phase 2,
+where ref-counted references and weak references will be
+supported).
+*/
+
 type ObjectID struct {
 	RealmID        // base
 	NewTime uint64 // time created

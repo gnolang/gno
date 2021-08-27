@@ -370,7 +370,7 @@ func (app *BaseApp) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 	path := splitPath(req.Path)
 	if len(path) == 0 {
 		msg := "no query path provided"
-		res.Error = toABCIError(std.ErrUnknownRequest(msg))
+		res.Error = ABCIError(std.ErrUnknownRequest(msg))
 		return
 	}
 
@@ -388,7 +388,7 @@ func (app *BaseApp) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 	}
 
 	msg := "unknown query path"
-	res.Error = toABCIError(std.ErrUnknownRequest(msg))
+	res.Error = ABCIError(std.ErrUnknownRequest(msg))
 	return
 }
 
@@ -402,7 +402,7 @@ func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) (res abc
 			var tx Tx
 			err := amino.Unmarshal(txBytes, &tx)
 			if err != nil {
-				res.Error = toABCIError(std.ErrTxDecode(err.Error()))
+				res.Error = ABCIError(std.ErrTxDecode(err.Error()))
 			} else {
 				result = app.Simulate(txBytes, tx)
 			}
@@ -414,11 +414,11 @@ func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) (res abc
 			res.Value = []byte(app.appVersion)
 			return res
 		default:
-			res.Error = toABCIError(std.ErrUnknownRequest(fmt.Sprintf("Unknown query: %s", path)))
+			res.Error = ABCIError(std.ErrUnknownRequest(fmt.Sprintf("Unknown query: %s", path)))
 			return
 		}
 	} else {
-		res.Error = toABCIError(std.ErrUnknownRequest(fmt.Sprintf("Unknown query: %s", path)))
+		res.Error = ABCIError(std.ErrUnknownRequest(fmt.Sprintf("Unknown query: %s", path)))
 		return
 	}
 }
@@ -428,7 +428,7 @@ func handleQueryStore(app *BaseApp, path []string, req abci.RequestQuery) (res a
 	queryable, ok := app.cms.(store.Queryable)
 	if !ok {
 		msg := "multistore doesn't support queries"
-		res.Error = toABCIError(std.ErrUnknownRequest(msg))
+		res.Error = ABCIError(std.ErrUnknownRequest(msg))
 		return
 	}
 
@@ -440,7 +440,7 @@ func handleQueryStore(app *BaseApp, path []string, req abci.RequestQuery) (res a
 	}
 
 	if req.Height <= 1 && req.Prove {
-		res.Error = toABCIError(std.ErrInternal("cannot query with proof when height <= 1; please provide a valid height"))
+		res.Error = ABCIError(std.ErrInternal("cannot query with proof when height <= 1; please provide a valid height"))
 		return
 	}
 
@@ -451,13 +451,13 @@ func handleQueryStore(app *BaseApp, path []string, req abci.RequestQuery) (res a
 
 func handleQueryCustom(app *BaseApp, path []string, req abci.RequestQuery) (res abci.ResponseQuery) {
 	if len(path) < 1 || path[0] == "" {
-		res.Error = toABCIError(std.ErrUnknownRequest("No route for custom query specified"))
+		res.Error = ABCIError(std.ErrUnknownRequest("No route for custom query specified"))
 		return
 	}
 
 	handler := app.router.Route(path[0])
 	if handler == nil {
-		res.Error = toABCIError(std.ErrUnknownRequest(fmt.Sprintf("no custom handler found for route %s", path[0])))
+		res.Error = ABCIError(std.ErrUnknownRequest(fmt.Sprintf("no custom handler found for route %s", path[0])))
 		return
 	}
 
@@ -467,13 +467,13 @@ func handleQueryCustom(app *BaseApp, path []string, req abci.RequestQuery) (res 
 	}
 
 	if req.Height <= 1 && req.Prove {
-		res.Error = toABCIError(std.ErrInternal("cannot query with proof when height <= 1; please provide a valid height"))
+		res.Error = ABCIError(std.ErrInternal("cannot query with proof when height <= 1; please provide a valid height"))
 		return
 	}
 
 	cacheMS, err := app.cms.MultiImmutableCacheWrapWithVersion(req.Height)
 	if err != nil {
-		res.Error = toABCIError(std.ErrInternal(
+		res.Error = ABCIError(std.ErrInternal(
 			fmt.Sprintf(
 				"failed to load state at height %d; %s (latest height: %d)",
 				req.Height, err, app.LastBlockHeight(),
@@ -553,7 +553,7 @@ func (app *BaseApp) CheckTx(req abci.RequestCheckTx) (res abci.ResponseCheckTx) 
 	var tx Tx
 	err := amino.Unmarshal(req.Tx, &tx)
 	if err != nil {
-		res.Error = toABCIError(std.ErrTxDecode(err.Error()))
+		res.Error = ABCIError(std.ErrTxDecode(err.Error()))
 		return
 	} else {
 		result := app.runTx(runTxModeCheck, req.Tx, tx)
@@ -569,7 +569,7 @@ func (app *BaseApp) DeliverTx(req abci.RequestDeliverTx) (res abci.ResponseDeliv
 	var tx Tx
 	err := amino.Unmarshal(req.Tx, &tx)
 	if err != nil {
-		res.Error = toABCIError(std.ErrTxDecode(err.Error()))
+		res.Error = ABCIError(std.ErrTxDecode(err.Error()))
 		return
 	} else {
 		result := app.runTx(runTxModeDeliver, req.Tx, tx)
@@ -625,7 +625,7 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode runTxMode) (result Res
 		msgRoute := msg.Route()
 		handler := app.router.Route(msgRoute)
 		if handler == nil {
-			result.Error = toABCIError(std.ErrUnknownRequest("unrecognized message type: " + msgRoute))
+			result.Error = ABCIError(std.ErrUnknownRequest("unrecognized message type: " + msgRoute))
 			return
 		}
 
@@ -658,7 +658,7 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode runTxMode) (result Res
 				i, true, msgResult.Log, events))
 	}
 
-	result.Error = toABCIError(err)
+	result.Error = ABCIError(err)
 	result.Data = data
 	result.Log = strings.Join(msgLogs, "\n")
 	result.GasUsed = ctx.GasMeter().GasConsumed()
@@ -709,7 +709,7 @@ func (app *BaseApp) runTx(mode runTxMode, txBytes []byte, tx Tx) (result Result)
 
 	// only run the tx if there is block gas remaining
 	if mode == runTxModeDeliver && ctx.BlockGasMeter().IsOutOfGas() {
-		result.Error = toABCIError(std.ErrOutOfGas("no block gas left to run tx"))
+		result.Error = ABCIError(std.ErrOutOfGas("no block gas left to run tx"))
 		return
 	}
 
@@ -728,14 +728,14 @@ func (app *BaseApp) runTx(mode runTxMode, txBytes []byte, tx Tx) (result Result)
 					ctx.GasMeter().GasConsumed(),
 					ex.Descriptor,
 				)
-				result.Error = toABCIError(std.ErrOutOfGas(log))
+				result.Error = ABCIError(std.ErrOutOfGas(log))
 				result.Log = log
 				result.GasWanted = gasWanted
 				result.GasUsed = ctx.GasMeter().GasConsumed()
 				return
 			default:
 				log := fmt.Sprintf("recovered: %v\nstack:\n%v", r, string(debug.Stack()))
-				result.Error = toABCIError(std.ErrInternal(log))
+				result.Error = ABCIError(std.ErrInternal(log))
 				result.Log = log
 				result.GasWanted = gasWanted
 				result.GasUsed = ctx.GasMeter().GasConsumed()
@@ -767,7 +767,7 @@ func (app *BaseApp) runTx(mode runTxMode, txBytes []byte, tx Tx) (result Result)
 
 	var msgs = tx.GetMsgs()
 	if err := validateBasicTxMsgs(msgs); err != nil {
-		result.Error = toABCIError(err)
+		result.Error = ABCIError(err)
 		return
 	}
 
