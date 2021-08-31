@@ -15,8 +15,12 @@ goscan:
 
 # Logos is the interface to Gnoland
 logos:
-	echo "building logos"
+	echo "Building logos"
 	go build -o logos ./logos/cmd/logos.go
+	
+gnokey:
+	echo "Building gnokey"
+	go build -o gnokey ./cmd/gnokey/
 
 clean:
 	rm -rf build
