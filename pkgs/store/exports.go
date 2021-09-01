@@ -36,4 +36,7 @@ var (
 	NewInfiniteGasMeter    = types.NewInfiniteGasMeter
 	NewPassthroughGasMeter = types.NewPassthroughGasMeter
 	DefaultGasConfig       = types.DefaultGasConfig
+	PrefixIterator         = types.PrefixIterator
+	ReversePrefixIterator  = types.ReversePrefixIterator
+	NewStoreKey            = types.NewStoreKey
 )

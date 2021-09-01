@@ -38,11 +38,11 @@ func (tx Tx) GetMsgs() []Msg { return tx.Msgs }
 func (tx Tx) ValidateBasic() error {
 	stdSigs := tx.GetSignatures()
 
-	if tx.Fee.Gas > maxGasWanted {
-		return ErrGasOverflow(fmt.Sprintf("invalid gas supplied; %d > %d", tx.Fee.Gas, maxGasWanted))
+	if tx.Fee.GasWanted > maxGasWanted {
+		return ErrGasOverflow(fmt.Sprintf("invalid gas supplied; %d > %d", tx.Fee.GasWanted, maxGasWanted))
 	}
-	if tx.Fee.Amount.IsAnyNegative() {
-		return ErrInsufficientFee(fmt.Sprintf("invalid fee %s amount provided", tx.Fee.Amount))
+	if !tx.Fee.GasFee.IsValid() {
+		return ErrInsufficientFee(fmt.Sprintf("invalid fee %s amount provided", tx.Fee.GasFee))
 	}
 	if len(stdSigs) == 0 {
 		return ErrNoSignatures("no signers")
@@ -107,27 +107,20 @@ func (tx Tx) GetSignatures() []Signature { return tx.Signatures }
 // gas to be used by the transaction. The ratio yields an effective "gasprice",
 // which must be above some miminum to be accepted into the mempool.
 type Fee struct {
-	Amount Coins `json:"amount" yaml:"amount"`
-	Gas    int64 `json:"gas" yaml:"gas"`
+	GasWanted int64 `json:"gas_wanted" yaml:"gas_wanted"`
+	GasFee    Coin  `json:"gas_fee" yaml:"gas_fee"`
 }
 
 // NewFee returns a new instance of Fee
-func NewFee(gas int64, amount Coins) Fee {
+func NewFee(gasWanted int64, gasFee Coin) Fee {
 	return Fee{
-		Amount: amount,
-		Gas:    gas,
+		GasWanted: gasWanted,
+		GasFee:    gasFee,
 	}
 }
 
 // Bytes for signing later
 func (fee Fee) Bytes() []byte {
-	// normalize. XXX
-	// this is a sign of something ugly
-	// (in the lcd_test, client side its null,
-	// server side its [])
-	if len(fee.Amount) == 0 {
-		fee.Amount = NewCoins()
-	}
 	bz, err := amino.MarshalJSON(fee) // TODO
 	if err != nil {
 		panic(err)
