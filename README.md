@@ -68,5 +68,5 @@ If you can read this, the project is evolving (fast) every day.  Check
 The best way to reach out right now is to create an issue on github, but this
 will change soon.
 
-Telegram: t.me/gnoland (info on gnoland)
-Telegram: t.me/gnolang (devs only -- invite only)
+ * Telegram: t.me/gnoland (info on gnoland)
+ * Telegram: t.me/gnolang (devs only -- invite only)
