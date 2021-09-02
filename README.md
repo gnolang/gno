@@ -9,6 +9,7 @@ Then came Gno upon Cosmos and there spring forth Gnoland,
 simulated by the Gnomes of the Greater Resistance.
 
 <b>This README is a placeholder, check back again for updates</b>
+<b>This is NOT the same project or token as the excellent Gnosis.io project.</b>
 
 ## Language Features
 
