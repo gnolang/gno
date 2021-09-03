@@ -22,67 +22,67 @@ var (
 
 // P2PConfig defines the configuration options for the Tendermint peer-to-peer networking layer
 type P2PConfig struct {
-	RootDir string `mapstructure:"home"`
+	RootDir string `toml:"home"`
 
 	// Address to listen for incoming connections
-	ListenAddress string `mapstructure:"laddr"`
+	ListenAddress string `toml:"laddr"`
 
 	// Address to advertise to peers for them to dial
-	ExternalAddress string `mapstructure:"external_address"`
+	ExternalAddress string `toml:"external_address"`
 
 	// Comma separated list of seed nodes to connect to
-	Seeds string `mapstructure:"seeds"`
+	Seeds string `toml:"seeds"`
 
 	// Comma separated list of nodes to keep persistent connections to
-	PersistentPeers string `mapstructure:"persistent_peers"`
+	PersistentPeers string `toml:"persistent_peers"`
 
 	// UPNP port forwarding
-	UPNP bool `mapstructure:"upnp"`
+	UPNP bool `toml:"upnp"`
 
 	// Maximum number of inbound peers
-	MaxNumInboundPeers int `mapstructure:"max_num_inbound_peers"`
+	MaxNumInboundPeers int `toml:"max_num_inbound_peers"`
 
 	// Maximum number of outbound peers to connect to, excluding persistent peers
-	MaxNumOutboundPeers int `mapstructure:"max_num_outbound_peers"`
+	MaxNumOutboundPeers int `toml:"max_num_outbound_peers"`
 
 	// Time to wait before flushing messages out on the connection
-	FlushThrottleTimeout time.Duration `mapstructure:"flush_throttle_timeout"`
+	FlushThrottleTimeout time.Duration `toml:"flush_throttle_timeout"`
 
 	// Maximum size of a message packet payload, in bytes
-	MaxPacketMsgPayloadSize int `mapstructure:"max_packet_msg_payload_size"`
+	MaxPacketMsgPayloadSize int `toml:"max_packet_msg_payload_size"`
 
 	// Rate at which packets can be sent, in bytes/second
-	SendRate int64 `mapstructure:"send_rate"`
+	SendRate int64 `toml:"send_rate"`
 
 	// Rate at which packets can be received, in bytes/second
-	RecvRate int64 `mapstructure:"recv_rate"`
+	RecvRate int64 `toml:"recv_rate"`
 
 	// Set true to enable the peer-exchange reactor
-	PexReactor bool `mapstructure:"pex"`
+	PexReactor bool `toml:"pex"`
 
 	// Seed mode, in which node constantly crawls the network and looks for
 	// peers. If another node asks it for addresses, it responds and disconnects.
 	//
 	// Does not work if the peer-exchange reactor is disabled.
-	SeedMode bool `mapstructure:"seed_mode"`
+	SeedMode bool `toml:"seed_mode"`
 
 	// Comma separated list of peer IDs to keep private (will not be gossiped to
 	// other peers)
-	PrivatePeerIDs string `mapstructure:"private_peer_ids"`
+	PrivatePeerIDs string `toml:"private_peer_ids"`
 
 	// Toggle to disable guard against peers connecting from the same ip.
-	AllowDuplicateIP bool `mapstructure:"allow_duplicate_ip"`
+	AllowDuplicateIP bool `toml:"allow_duplicate_ip"`
 
 	// Peer connection configuration.
-	HandshakeTimeout time.Duration `mapstructure:"handshake_timeout"`
-	DialTimeout      time.Duration `mapstructure:"dial_timeout"`
+	HandshakeTimeout time.Duration `toml:"handshake_timeout"`
+	DialTimeout      time.Duration `toml:"dial_timeout"`
 
 	// Testing params.
 	// Force dial to fail
-	TestDialFail bool `mapstructure:"test_dial_fail"`
+	TestDialFail bool `toml:"test_dial_fail"`
 	// FUzz connection
-	TestFuzz       bool            `mapstructure:"test_fuzz"`
-	TestFuzzConfig *FuzzConnConfig `mapstructure:"test_fuzz_config"`
+	TestFuzz       bool            `toml:"test_fuzz"`
+	TestFuzzConfig *FuzzConnConfig `toml:"test_fuzz_config"`
 }
 
 // DefaultP2PConfig returns a default configuration for the peer-to-peer layer

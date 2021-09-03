@@ -10,19 +10,20 @@ import (
 	mem "github.com/gnolang/gno/pkgs/bft/mempool/config"
 	rpc "github.com/gnolang/gno/pkgs/bft/rpc/config"
 	"github.com/gnolang/gno/pkgs/errors"
+	osm "github.com/gnolang/gno/pkgs/os"
 	p2p "github.com/gnolang/gno/pkgs/p2p/config"
 )
 
 // Config defines the top level configuration for a Tendermint node
 type Config struct {
 	// Top level options use an anonymous struct
-	BaseConfig `mapstructure:",squash"`
+	BaseConfig `toml:",squash"`
 
 	// Options for services
-	RPC       *rpc.RPCConfig       `mapstructure:"rpc"`
-	P2P       *p2p.P2PConfig       `mapstructure:"p2p"`
-	Mempool   *mem.MempoolConfig   `mapstructure:"mempool"`
-	Consensus *cns.ConsensusConfig `mapstructure:"consensus"`
+	RPC       *rpc.RPCConfig       `toml:"rpc"`
+	P2P       *p2p.P2PConfig       `toml:"p2p"`
+	Mempool   *mem.MempoolConfig   `toml:"mempool"`
+	Consensus *cns.ConsensusConfig `toml:"consensus"`
 }
 
 // DefaultConfig returns a default configuration for a Tendermint node
@@ -34,6 +35,25 @@ func DefaultConfig() *Config {
 		Mempool:    mem.DefaultMempoolConfig(),
 		Consensus:  cns.DefaultConsensusConfig(),
 	}
+}
+
+// LoadOrMakeDefaultConfig() loads configuration or saves a default one.
+func LoadOrMakeDefaultConfig(root string) (cfg *Config) {
+	configPath := rootify(defaultConfigFilePath, root)
+	if osm.FileExists(configPath) {
+		cfg = LoadConfigFile(configPath)
+		cfg.SetRootDir(root)
+		cfg.EnsureDirs()
+	} else {
+		cfg = DefaultConfig()
+		cfg.SetRootDir(root)
+		cfg.EnsureDirs()
+		WriteConfigFile(configPath, cfg)
+	}
+	if err := cfg.ValidateBasic(); err != nil {
+		panic(err)
+	}
+	return cfg
 }
 
 // TestConfig returns a configuration that can be used for testing
@@ -55,6 +75,20 @@ func (cfg *Config) SetRootDir(root string) *Config {
 	cfg.Mempool.RootDir = root
 	cfg.Consensus.RootDir = root
 	return cfg
+}
+
+// EnsureDirs ensures default directories in root dir (and root dir).
+func (cfg *Config) EnsureDirs() {
+	rootDir := cfg.BaseConfig.RootDir
+	if err := osm.EnsureDir(rootDir, DefaultDirPerm); err != nil {
+		panic(err.Error())
+	}
+	if err := osm.EnsureDir(filepath.Join(rootDir, defaultConfigDir), DefaultDirPerm); err != nil {
+		panic(err.Error())
+	}
+	if err := osm.EnsureDir(filepath.Join(rootDir, defaultDataDir), DefaultDirPerm); err != nil {
+		panic(err.Error())
+	}
 }
 
 // ValidateBasic performs basic validation (checking param bounds, etc.) and
@@ -112,23 +146,23 @@ type BaseConfig struct {
 
 	// The root directory for all data.
 	// This should be set in viper so it can unmarshal into this struct
-	RootDir string `mapstructure:"home"`
+	RootDir string `toml:"home"`
 
 	// TCP or UNIX socket address of the ABCI application,
 	// or the name of an ABCI application compiled in with the Tendermint binary,
 	// or empty if local application instance.
-	ProxyApp string `mapstructure:"proxy_app"`
+	ProxyApp string `toml:"proxy_app"`
 
 	// Local application instance in lieu of remote app.
 	LocalApp abci.Application
 
 	// A custom human readable name for this node
-	Moniker string `mapstructure:"moniker"`
+	Moniker string `toml:"moniker"`
 
 	// If this node is many blocks behind the tip of the chain, FastSync
 	// allows them to catchup quickly by downloading blocks in parallel
 	// and verifying their commits
-	FastSyncMode bool `mapstructure:"fast_sync"`
+	FastSyncMode bool `toml:"fast_sync"`
 
 	// Database backend: goleveldb | cleveldb | boltdb
 	// * goleveldb (github.com/syndtr/goleveldb - most popular implementation)
@@ -142,42 +176,42 @@ type BaseConfig struct {
 	//   - EXPERIMENTAL
 	//   - may be faster is some use-cases (random reads - indexer)
 	//   - use boltdb build tag (go build -tags boltdb)
-	DBBackend string `mapstructure:"db_backend"`
+	DBBackend string `toml:"db_backend"`
 
 	// Database directory
-	DBPath string `mapstructure:"db_dir"`
+	DBPath string `toml:"db_dir"`
 
 	// Output level for logging
-	LogLevel string `mapstructure:"log_level"`
+	LogLevel string `toml:"log_level"`
 
 	// Output format: 'plain' (colored text) or 'json'
-	LogFormat string `mapstructure:"log_format"`
+	LogFormat string `toml:"log_format"`
 
 	// Path to the JSON file containing the initial validator set and other meta data
-	Genesis string `mapstructure:"genesis_file"`
+	Genesis string `toml:"genesis_file"`
 
 	// Path to the JSON file containing the private key to use as a validator in the consensus protocol
-	PrivValidatorKey string `mapstructure:"priv_validator_key_file"`
+	PrivValidatorKey string `toml:"priv_validator_key_file"`
 
 	// Path to the JSON file containing the last sign state of a validator
-	PrivValidatorState string `mapstructure:"priv_validator_state_file"`
+	PrivValidatorState string `toml:"priv_validator_state_file"`
 
 	// TCP or UNIX socket address for Tendermint to listen on for
 	// connections from an external PrivValidator process
-	PrivValidatorListenAddr string `mapstructure:"priv_validator_laddr"`
+	PrivValidatorListenAddr string `toml:"priv_validator_laddr"`
 
 	// A JSON file containing the private key to use for p2p authenticated encryption
-	NodeKey string `mapstructure:"node_key_file"`
+	NodeKey string `toml:"node_key_file"`
 
 	// Mechanism to connect to the ABCI application: local | socket
-	ABCI string `mapstructure:"abci"`
+	ABCI string `toml:"abci"`
 
 	// TCP or UNIX socket address for the profiling server to listen on
-	ProfListenAddress string `mapstructure:"prof_laddr"`
+	ProfListenAddress string `toml:"prof_laddr"`
 
 	// If true, query the ABCI app on connecting to a new peer
 	// so the app can decide if we should keep the connection or not
-	FilterPeers bool `mapstructure:"filter_peers"` // false
+	FilterPeers bool `toml:"filter_peers"` // false
 }
 
 // DefaultBaseConfig returns a default base configuration for a Tendermint node

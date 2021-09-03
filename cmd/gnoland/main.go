@@ -18,10 +18,8 @@ import (
 
 func main() {
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
-	cfg := config.DefaultConfig()
 	rootDir := "testdir"
-	config.EnsureRoot(rootDir)
-	cfg.SetRootDir(rootDir)
+	cfg := config.LoadOrMakeDefaultConfig(rootDir)
 
 	// create priv validator first.
 	// need it to generate genesis.json
