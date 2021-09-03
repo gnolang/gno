@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/gnolang/gno/pkgs/bft/consensus"
+	cnscfg "github.com/gnolang/gno/pkgs/bft/consensus/config"
+	cstypes "github.com/gnolang/gno/pkgs/bft/consensus/types"
 	mempl "github.com/gnolang/gno/pkgs/bft/mempool"
 	"github.com/gnolang/gno/pkgs/bft/proxy"
 	cfg "github.com/gnolang/gno/pkgs/bft/rpc/config"
@@ -27,11 +29,12 @@ const (
 // These interfaces are used by RPC and must be thread safe
 
 type Consensus interface {
+	GetConfigDeepCopy() *cnscfg.ConsensusConfig
 	GetState() sm.State
 	GetValidators() (int64, []*types.Validator)
 	GetLastHeight() int64
-	GetRoundStateJSON() ([]byte, error)
-	GetRoundStateSimpleJSON() ([]byte, error)
+	GetRoundStateDeepCopy() *cstypes.RoundState
+	GetRoundStateSimple() cstypes.RoundStateSimple
 }
 
 type transport interface {

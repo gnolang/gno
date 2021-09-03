@@ -54,32 +54,17 @@ func InitChainer(authKpr auth.AccountKeeperI, bankKpr bank.BankKeeperI) func(sdk
 	return func(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
 		// Get genesis state.
 		genState := req.AppState.(GnoGenesisState)
-		// Parse genesis state balances.
+		// Parse and set genesis state balances.
 		for _, bal := range genState.Balances {
 			addr, coins := parseBalance(bal)
-			fmt.Println(">>", addr, coins)
 			err := bankKpr.SetCoins(ctx, addr, coins)
 			if err != nil {
 				panic(err)
 			}
 		}
-		//
-		panic("should set up initchainer genesis state")
-		/*
-			stateJSON := req.AppStateBytes
-			genesisState := new(GenesisJSON)
-			err := json.Unmarshal(stateJSON, genesisState)
-			if err != nil {
-				panic(err) // TODO https://github.com/tendermint/classic/sdk/issues/468
-				// return sdk.ErrGenesisParse("").TraceCause(err, "")
-			}
-
-			for _, val := range genesisState.Values {
-				store := ctx.Store(key)
-				store.Set([]byte(val.Key), []byte(val.Value))
-			}
-		*/
-		return abci.ResponseInitChain{}
+		return abci.ResponseInitChain{
+			Validators: req.Validators,
+		}
 	}
 }
 

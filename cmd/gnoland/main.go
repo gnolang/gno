@@ -4,10 +4,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/gnolang/gno/gnoland"
 	"github.com/gnolang/gno/pkgs/bft/config"
 	"github.com/gnolang/gno/pkgs/bft/node"
+	"github.com/gnolang/gno/pkgs/bft/privval"
+	bft "github.com/gnolang/gno/pkgs/bft/types"
+	"github.com/gnolang/gno/pkgs/crypto"
 	"github.com/gnolang/gno/pkgs/log"
 	osm "github.com/gnolang/gno/pkgs/os"
 )
@@ -19,10 +23,17 @@ func main() {
 	config.EnsureRoot(rootDir)
 	cfg.SetRootDir(rootDir)
 
+	// create priv validator first.
+	// need it to generate genesis.json
+	newPrivValKey := cfg.PrivValidatorKeyFile()
+	newPrivValState := cfg.PrivValidatorStateFile()
+	priv := privval.LoadOrGenFilePV(newPrivValKey, newPrivValState)
+
 	// write genesis file if missing.
 	genesisFilePath := filepath.Join(rootDir, cfg.Genesis)
 	if !osm.FileExists(genesisFilePath) {
-		writeGenesisFile(genesisFilePath)
+		genDoc := makeGenesisDoc(priv.GetPubKey())
+		writeGenesisFile(genDoc, genesisFilePath)
 	}
 
 	// create application and node.
@@ -48,28 +59,30 @@ func main() {
 	select {} // run forever
 }
 
-func writeGenesisFile(filePath string) {
-	osm.MustWriteFile(filePath, []byte(genesisJSON), 0644)
+// Makes a local test genesis doc with local privValidator.
+func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
+	gen := &bft.GenesisDoc{}
+	gen.GenesisTime = time.Now()
+	gen.ChainID = "testchain"
+	gen.Validators = []bft.GenesisValidator{
+		bft.GenesisValidator{
+			Address: pvPub.Address(),
+			PubKey:  pvPub,
+			Power:   10,
+			Name:    "testvalidator",
+		},
+	}
+	gen.AppState = gnoland.GnoGenesisState{
+		Balances: []string{
+			"g1luefaaj8sasunh3knlpr37wf0zlccz8n8ev2je=100gnot",
+		},
+	}
+	return gen
 }
 
-const genesisJSON = `{
-  "genesis_time": "2018-10-10T08:20:13.695936996Z",
-  "chain_id": "%s",
-  "validators": [
-    {
-      "pub_key": {
-        "@type": "/tm.PubKeyEd25519",
-        "value":"AT/+aaL1eB0477Mud9JMm8Sh8BIvOYlPGC9KkIUmFaE="
-      },
-      "power": "10",
-      "name": ""
-    }
-  ],
-  "app_hash": "",
-  "app_state": {
-    "@type": "/gno.GenesisState",
-    "balances": [
-	  "g1luefaaj8sasunh3knlpr37wf0zlccz8n8ev2je=100gnot"
-	]
-  }
-}`
+func writeGenesisFile(gen *bft.GenesisDoc, filePath string) {
+	err := gen.SaveAs(filePath)
+	if err != nil {
+		panic(err)
+	}
+}
