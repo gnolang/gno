@@ -184,6 +184,7 @@ func MakeGenesisStateFromFile(genDocFile string) (State, error) {
 }
 
 // MakeGenesisDocFromFile reads and unmarshals genesis doc from the given file.
+// XXX duplicated in bft/types/genesis.go, remove this.
 func MakeGenesisDocFromFile(genDocFile string) (*types.GenesisDoc, error) {
 	genDocJSON, err := ioutil.ReadFile(genDocFile)
 	if err != nil {

@@ -1,7 +1,6 @@
 package types
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"time"
@@ -40,7 +39,7 @@ type GenesisDoc struct {
 	ConsensusParams abci.ConsensusParams `json:"consensus_params,omitempty"`
 	Validators      []GenesisValidator   `json:"validators,omitempty"`
 	AppHash         []byte               `json:"app_hash"`
-	AppState        json.RawMessage      `json:"app_state,omitempty"`
+	AppState        interface{}          `json:"app_state,omitempty"`
 }
 
 // SaveAs is a utility method for saving GenensisDoc as a JSON file.

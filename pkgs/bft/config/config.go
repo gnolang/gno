@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
 	cns "github.com/gnolang/gno/pkgs/bft/consensus/config"
 	mem "github.com/gnolang/gno/pkgs/bft/mempool/config"
 	rpc "github.com/gnolang/gno/pkgs/bft/rpc/config"
@@ -46,8 +47,8 @@ func TestConfig() *Config {
 	}
 }
 
-// SetRoot sets the RootDir for all Config structs
-func (cfg *Config) SetRoot(root string) *Config {
+// SetRootDir sets the RootDir for all Config structs
+func (cfg *Config) SetRootDir(root string) *Config {
 	cfg.BaseConfig.RootDir = root
 	cfg.RPC.RootDir = root
 	cfg.P2P.RootDir = root
@@ -114,8 +115,12 @@ type BaseConfig struct {
 	RootDir string `mapstructure:"home"`
 
 	// TCP or UNIX socket address of the ABCI application,
-	// or the name of an ABCI application compiled in with the Tendermint binary
+	// or the name of an ABCI application compiled in with the Tendermint binary,
+	// or empty if local application instance.
 	ProxyApp string `mapstructure:"proxy_app"`
+
+	// Local application instance in lieu of remote app.
+	LocalApp abci.Application
 
 	// A custom human readable name for this node
 	Moniker string `mapstructure:"moniker"`
@@ -164,7 +169,7 @@ type BaseConfig struct {
 	// A JSON file containing the private key to use for p2p authenticated encryption
 	NodeKey string `mapstructure:"node_key_file"`
 
-	// Mechanism to connect to the ABCI application: socket | grpc
+	// Mechanism to connect to the ABCI application: local | socket
 	ABCI string `mapstructure:"abci"`
 
 	// TCP or UNIX socket address for the profiling server to listen on

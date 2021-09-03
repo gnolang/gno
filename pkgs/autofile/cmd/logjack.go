@@ -29,19 +29,9 @@ func parseFlags() (headPath string, chopSize int64, limitSize int64, version boo
 	return
 }
 
-type fmtLogger struct{}
-
-func (fmtLogger) Info(msg string, keyvals ...interface{}) {
-	strs := make([]string, len(keyvals))
-	for i, kv := range keyvals {
-		strs[i] = fmt.Sprintf("%v", kv)
-	}
-	fmt.Printf("%s %s\n", msg, strings.Join(strs, ","))
-}
-
 func main() {
 	// Stop upon receiving SIGTERM or CTRL-C.
-	osm.TrapSignal(fmtLogger{}, func() {
+	osm.TrapSignal(func() {
 		fmt.Println("logjack shutting down")
 	})
 

@@ -367,20 +367,14 @@ func (goo RequestInitChain) ToPBMessage(cdc *amino.Codec) (msg proto.Message, er
 			}
 		}
 		{
-			goorl := len(goo.AppStateBytes)
-			if goorl == 0 {
-				pbo.AppStateBytes = nil
-			} else {
-				var pbos = make([]uint8, goorl)
-				for i := 0; i < goorl; i += 1 {
-					{
-						goore := goo.AppStateBytes[i]
-						{
-							pbos[i] = byte(goore)
-						}
-					}
+			if goo.AppState != nil {
+				typeUrl := cdc.GetTypeURL(goo.AppState)
+				bz := []byte(nil)
+				bz, err = cdc.Marshal(goo.AppState)
+				if err != nil {
+					return
 				}
-				pbo.AppStateBytes = pbos
+				pbo.AppState = &anypb.Any{TypeUrl: typeUrl, Value: bz}
 			}
 		}
 	}
@@ -446,24 +440,12 @@ func (goo *RequestInitChain) FromPBMessage(cdc *amino.Codec, msg proto.Message) 
 				}
 			}
 			{
-				var pbol int = 0
-				if pbo.AppStateBytes != nil {
-					pbol = len(pbo.AppStateBytes)
-				}
-				if pbol == 0 {
-					(*goo).AppStateBytes = nil
-				} else {
-					var goors = make([]uint8, pbol)
-					for i := 0; i < pbol; i += 1 {
-						{
-							pboe := pbo.AppStateBytes[i]
-							{
-								pboev := pboe
-								goors[i] = uint8(uint8(pboev))
-							}
-						}
-					}
-					(*goo).AppStateBytes = goors
+				typeUrl := pbo.AppState.TypeUrl
+				bz := pbo.AppState.Value
+				goorp := &(*goo).AppState
+				err = cdc.UnmarshalAny2(typeUrl, bz, goorp)
+				if err != nil {
+					return
 				}
 			}
 		}
@@ -503,7 +485,7 @@ func IsRequestInitChainReprEmpty(goor RequestInitChain) (empty bool) {
 			}
 		}
 		{
-			if len(goor.AppStateBytes) != 0 {
+			if goor.AppState != nil {
 				return false
 			}
 		}

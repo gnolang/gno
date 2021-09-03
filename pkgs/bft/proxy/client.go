@@ -34,21 +34,30 @@ func (l *localClientCreator) NewABCIClient() (abcicli.Client, error) {
 }
 
 //-----------------------------------------------------------------
-// default
+// DefaultClientCreator
 
-func DefaultClientCreator(addr, transport, dbDir string) ClientCreator {
-	switch addr {
-	case "counter":
-		return NewLocalClientCreator(counter.NewCounterApplication(false))
-	case "counter_serial":
-		return NewLocalClientCreator(counter.NewCounterApplication(true))
-	case "kvstore":
-		return NewLocalClientCreator(kvstore.NewKVStoreApplication())
-	case "persistent_kvstore":
-		return NewLocalClientCreator(kvstore.NewPersistentKVStoreApplication(dbDir))
-	case "noop":
-		return NewLocalClientCreator(abci.NewBaseApplication())
-	default:
-		panic("unknown client " + addr)
+// Returns the local application, or constructs a new one via proxy.
+// This function is meant to work with config fields.
+func DefaultClientCreator(local abci.Application, proxy string, transport, dbDir string) ClientCreator {
+	if local != nil {
+		// local applications (ignores other arguments)
+		return NewLocalClientCreator(local)
+	} else {
+		switch proxy {
+		// default mock applications
+		case "mock://counter":
+			return NewLocalClientCreator(counter.NewCounterApplication(false))
+		case "mock://counter_serial":
+			return NewLocalClientCreator(counter.NewCounterApplication(true))
+		case "mock://kvstore":
+			return NewLocalClientCreator(kvstore.NewKVStoreApplication())
+		case "mock://persistent_kvstore":
+			return NewLocalClientCreator(kvstore.NewPersistentKVStoreApplication(dbDir))
+		case "mock://noop":
+			return NewLocalClientCreator(abci.NewBaseApplication())
+		default:
+			// socket transport applications
+			panic("proxy scheme not yet supported: " + proxy)
+		}
 	}
 }
