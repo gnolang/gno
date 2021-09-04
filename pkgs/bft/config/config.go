@@ -39,7 +39,7 @@ func DefaultConfig() *Config {
 
 // LoadOrMakeDefaultConfig() loads configuration or saves a default one.
 func LoadOrMakeDefaultConfig(root string) (cfg *Config) {
-	configPath := rootify(defaultConfigFilePath, root)
+	configPath := join(root, defaultConfigFilePath)
 	if osm.FileExists(configPath) {
 		cfg = LoadConfigFile(configPath)
 		cfg.SetRootDir(root)
@@ -238,7 +238,7 @@ func DefaultBaseConfig() BaseConfig {
 func TestBaseConfig() BaseConfig {
 	cfg := DefaultBaseConfig()
 	cfg.chainID = "tendermint_test"
-	cfg.ProxyApp = "kvstore"
+	cfg.ProxyApp = "mock://kvstore"
 	cfg.FastSyncMode = false
 	cfg.DBBackend = "memdb"
 	return cfg
@@ -250,27 +250,27 @@ func (cfg BaseConfig) ChainID() string {
 
 // GenesisFile returns the full path to the genesis.json file
 func (cfg BaseConfig) GenesisFile() string {
-	return rootify(cfg.Genesis, cfg.RootDir)
+	return join(cfg.RootDir, cfg.Genesis)
 }
 
 // PrivValidatorKeyFile returns the full path to the priv_validator_key.json file
 func (cfg BaseConfig) PrivValidatorKeyFile() string {
-	return rootify(cfg.PrivValidatorKey, cfg.RootDir)
+	return join(cfg.RootDir, cfg.PrivValidatorKey)
 }
 
 // PrivValidatorFile returns the full path to the priv_validator_state.json file
 func (cfg BaseConfig) PrivValidatorStateFile() string {
-	return rootify(cfg.PrivValidatorState, cfg.RootDir)
+	return join(cfg.RootDir, cfg.PrivValidatorState)
 }
 
 // NodeKeyFile returns the full path to the node_key.json file
 func (cfg BaseConfig) NodeKeyFile() string {
-	return rootify(cfg.NodeKey, cfg.RootDir)
+	return join(cfg.RootDir, cfg.NodeKey)
 }
 
 // DBDir returns the full path to the database directory
 func (cfg BaseConfig) DBDir() string {
-	return rootify(cfg.DBPath, cfg.RootDir)
+	return join(cfg.RootDir, cfg.DBPath)
 }
 
 // ValidateBasic performs basic validation (checking param bounds, etc.) and

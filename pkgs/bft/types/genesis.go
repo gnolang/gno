@@ -125,3 +125,10 @@ func GenesisDocFromFile(genDocFile string) (*GenesisDoc, error) {
 	}
 	return genDoc, nil
 }
+
+//----------------------------------------
+// Mock AppState (for testing)
+
+type MockAppState struct {
+	AccountOwner string `json:"account_owner"`
+}

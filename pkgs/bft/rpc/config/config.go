@@ -149,7 +149,7 @@ func (cfg RPCConfig) KeyFile() string {
 	if filepath.IsAbs(path) {
 		return path
 	}
-	return rootify(filepath.Join(defaultConfigDir, path), cfg.RootDir)
+	return join(cfg.RootDir, filepath.Join(defaultConfigDir, path))
 }
 
 func (cfg RPCConfig) CertFile() string {
@@ -157,7 +157,7 @@ func (cfg RPCConfig) CertFile() string {
 	if filepath.IsAbs(path) {
 		return path
 	}
-	return rootify(filepath.Join(defaultConfigDir, path), cfg.RootDir)
+	return join(cfg.RootDir, filepath.Join(defaultConfigDir, path))
 }
 
 func (cfg RPCConfig) IsTLSEnabled() bool {

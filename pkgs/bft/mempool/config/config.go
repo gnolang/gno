@@ -39,7 +39,7 @@ func TestMempoolConfig() *MempoolConfig {
 
 // WalDir returns the full path to the mempool's write-ahead log
 func (cfg *MempoolConfig) WalDir() string {
-	return rootify(cfg.WalPath, cfg.RootDir)
+	return join(cfg.RootDir, cfg.WalPath)
 }
 
 // WalEnabled returns true if the WAL is enabled.

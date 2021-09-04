@@ -31,7 +31,7 @@ func main() {
 	)
 
 	// Stop upon receiving SIGTERM or CTRL-C.
-	osm.TrapSignal(logger, func() {})
+	osm.TrapSignal(func() {})
 
 	rpcserver.RegisterRPCFuncs(mux, routes, logger)
 	config := rpcserver.DefaultConfig()

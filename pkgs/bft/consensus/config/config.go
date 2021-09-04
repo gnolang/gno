@@ -111,7 +111,7 @@ func (cfg *ConsensusConfig) WalFile() string {
 	if cfg.walFile != "" {
 		return cfg.walFile
 	}
-	return rootify(cfg.WalPath, cfg.RootDir)
+	return join(cfg.RootDir, cfg.WalPath)
 }
 
 // SetWalFile sets the path to the write-ahead log file

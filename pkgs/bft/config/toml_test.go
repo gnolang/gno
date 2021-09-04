@@ -3,7 +3,6 @@ package config
 import (
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -13,7 +12,7 @@ import (
 
 func ensureFiles(t *testing.T, rootDir string, files ...string) {
 	for _, f := range files {
-		p := rootify(rootDir, f)
+		p := join(f, rootDir)
 		_, err := os.Stat(p)
 		assert.Nil(t, err, p)
 	}
@@ -28,10 +27,14 @@ func TestEnsureRoot(t *testing.T) {
 	defer os.RemoveAll(tmpDir) // nolint: errcheck
 
 	// create root dir
-	EnsureRoot(tmpDir)
+	throwaway := DefaultConfig()
+	throwaway.SetRootDir(tmpDir)
+	throwaway.EnsureDirs()
+	configPath := join(tmpDir, defaultConfigFilePath)
+	WriteConfigFile(configPath, throwaway)
 
 	// make sure config is set properly
-	data, err := ioutil.ReadFile(filepath.Join(tmpDir, defaultConfigFilePath))
+	data, err := ioutil.ReadFile(join(tmpDir, defaultConfigFilePath))
 	require.Nil(err)
 
 	if !checkConfig(string(data)) {
@@ -52,7 +55,7 @@ func TestEnsureTestRoot(t *testing.T) {
 	rootDir := cfg.RootDir
 
 	// make sure config is set properly
-	data, err := ioutil.ReadFile(filepath.Join(rootDir, defaultConfigFilePath))
+	data, err := ioutil.ReadFile(join(rootDir, defaultConfigFilePath))
 	require.Nil(err)
 
 	if !checkConfig(string(data)) {
