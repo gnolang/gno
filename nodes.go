@@ -106,7 +106,14 @@ type Name string
 // Attributes
 // All nodes have attributes for general analysis purposes.
 
+type Location struct {
+	PkgPath string
+	File    string
+	Line    int
+}
+
 type Attributes struct {
+	Loc  Location
 	Data map[interface{}]interface{}
 }
 
@@ -1065,7 +1072,6 @@ func (pn *PackageNode) NewPackage(rlmr Realmer) *PackageValue {
 	if IsRealmPath(pn.PkgPath) {
 		rlm := rlmr(pn.PkgPath)
 		pv.SetRealm(rlm)
-		rlm.pkg = pv // TODO
 	}
 	pn.UpdatePackage(pv)
 	return pv

@@ -77,11 +77,10 @@ type Realm struct {
 	Time uint64
 	ImageCodec
 
-	created []Object      // new objects attached to real.
-	updated []Object      // real objects that were modified.
-	deleted []Object      // real objects that became deleted.
-	ropslog []RealmOp     // for debugging.
-	pkg     *PackageValue // associated package if any.
+	created []Object  // new objects attached to real.
+	updated []Object  // real objects that were modified.
+	deleted []Object  // real objects that became deleted.
+	ropslog []RealmOp // for debugging.
 }
 
 // Creates a blank new realm with counter 0.
@@ -111,7 +110,7 @@ func (rlm *Realm) String() string {
 
 func (rlm *Realm) SetLogRealmOps(enabled bool) {
 	if enabled {
-		rlm.ropslog = make([]RealmOp, 0, 1024)
+		rlm.ResetRealmOps()
 	} else {
 		rlm.ropslog = nil
 	}
@@ -594,6 +593,11 @@ func (rop RealmOp) String() string {
 	default:
 		panic("should not happen")
 	}
+}
+
+// resets .realmops.
+func (rlm *Realm) ResetRealmOps() {
+	rlm.ropslog = make([]RealmOp, 0, 1024)
 }
 
 // for test/file_test.go, to test realm changes.

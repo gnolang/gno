@@ -48,7 +48,7 @@ func innerHash(h1, h2 Hashlet) (res Hashlet) {
 // TypedValueImage, etc.
 
 type TypedValueImage struct {
-	TypeID     TypeID
+	Type       TypeID
 	ValueImage ValueImage
 }
 
@@ -92,9 +92,9 @@ type RefImage struct {
 type PrimitiveValueImage []byte
 
 type PointerValueImage struct {
+	TypedValue TypedValueImage // if owned
 	// BaseID           ObjectID // if weak
 	// Index            int      // if weak
-	TypedValue TypedValueImage // if owned
 }
 
 type ArrayValueImage struct {
@@ -105,10 +105,10 @@ type ArrayValueImage struct {
 
 type SliceValueImage struct {
 	// BaseID           ObjectID // if weak
-	ArrayRef RefImage // if owned
-	Offset   int
-	Length   int
-	Maxcap   int
+	Base   RefImage // if owned
+	Offset int
+	Length int
+	Maxcap int
 }
 
 type StructValueImage struct {
@@ -117,12 +117,14 @@ type StructValueImage struct {
 }
 
 type FuncValueImage struct {
-	TypeID     TypeID
-	IsMethod   bool
-	Name       Name
-	ClosureRef RefImage
-	FileName   Name
-	PkgPath    string
+	Type     TypeID
+	IsMethod bool
+	Source   Location // XXX
+	Name     Name
+	Body     []Stmt // XXX
+	Closure  RefImage
+	FileName Name
+	PkgPath  string
 }
 
 type BoundMethodValueImage struct {
@@ -141,13 +143,15 @@ type MapItemImage struct {
 }
 
 type TypeValueImage struct {
-	TypeID TypeID
+	Type TypeID
 }
 
 type PackageValueImage struct {
 	Block   BlockValueImage
 	PkgName Name
 	PkgPath string
+	FNames  []string
+	FBlocks []BlockValueImage
 }
 
 type BlockValueImage struct {
@@ -164,12 +168,122 @@ func hashValueImage(vi ValueImage) ValueHash {
 }
 
 //----------------------------------------
+// TypeImage
+
+type TypeImage interface {
+	assertTypeImage()
+}
+
+func (_ TypeRefImage) assertTypeImage()       {}
+func (_ PrimitiveTypeImage) assertTypeImage() {}
+func (_ PointerTypeImage) assertTypeImage()   {}
+func (_ FieldTypeImage) assertTypeImage()     {}
+func (_ ArrayTypeImage) assertTypeImage()     {}
+func (_ SliceTypeImage) assertTypeImage()     {}
+func (_ StructTypeImage) assertTypeImage()    {}
+func (_ PackageTypeImage) assertTypeImage()   {}
+func (_ InterfaceTypeImage) assertTypeImage() {}
+func (_ ChanTypeImage) assertTypeImage()      {}
+func (_ FuncTypeImage) assertTypeImage()      {}
+func (_ MapTypeImage) assertTypeImage()       {}
+func (_ TypeTypeImage) assertTypeImage()      {}
+func (_ DeclaredTypeImage) assertTypeImage()  {}
+func (_ BlockTypeImage) assertTypeImage()     {}
+func (_ TupleTypeImage) assertTypeImage()     {}
+
+type TypeRefImage struct {
+	TypeID TypeID
+	// XXX what about PkgPath etc?
+}
+
+type PrimitiveTypeImage struct {
+	PrimitiveType
+}
+
+type PointerTypeImage struct {
+	Elt TypeImage
+}
+
+type FieldTypeImage struct {
+	Name     Name
+	Type     TypeImage
+	Embedded bool
+	Tag      Tag
+}
+
+type ArrayTypeImage struct {
+	Len int
+	Elt TypeImage
+	Vrd bool
+}
+
+type SliceTypeImage struct {
+	Elt TypeImage
+	Vrd bool
+}
+
+type StructTypeImage struct {
+	PkgPath string
+	Fields  []FieldTypeImage
+}
+
+type PackageTypeImage struct {
+}
+
+type InterfaceTypeImage struct {
+	PkgPath string
+	Methods []FieldTypeImage
+	Generic Name
+}
+
+type ChanTypeImage struct {
+	Dir ChanDir
+	Elt TypeImage
+}
+
+type FuncTypeImage struct {
+	PkgPath string
+	Params  []FieldTypeImage
+	Results []FieldTypeImage
+}
+
+type MapTypeImage struct {
+	Key   TypeImage
+	Value TypeImage
+}
+
+type TypeTypeImage struct {
+}
+
+type DeclaredTypeImage struct {
+	PkgPath string
+	Name    Name
+	Base    TypeImage
+	Methods []TypedValueImage
+}
+
+type BlockTypeImage struct {
+}
+
+type TupleTypeImage struct {
+	Elts []TypeImage
+}
+
+//----------------------------------------
 // ImageCodec
 
 type ImageCodec struct {
 	RealmID       RealmID
 	TypeLookup    func(TypeID) Type
 	PackageLookup func(pkgPath string) *PackageValue
+}
+
+func (ic ImageCodec) EncodeTypedValueImages(tvs []TypedValue) []TypedValueImage {
+	res := make([]TypedValueImage, len(tvs))
+	for i, tv := range tvs {
+		res[i] = ic.EncodeTypedValueImage(tv)
+	}
+	return res
 }
 
 func (ic ImageCodec) EncodeTypedValueImage(tv TypedValue) TypedValueImage {
@@ -179,7 +293,7 @@ func (ic ImageCodec) EncodeTypedValueImage(tv TypedValue) TypedValueImage {
 		typeid := tv.T.TypeID()
 		valimg := ic.EncodeValueImage(tv)
 		return TypedValueImage{
-			TypeID:     typeid,
+			Type:       typeid,
 			ValueImage: valimg,
 		}
 	}
@@ -189,7 +303,7 @@ func (ic ImageCodec) EncodeTypedRefImage(tv TypedValue) TypedValueImage {
 	typeid := tv.T.TypeID()
 	refimg := ic.EncodeRefImage(tv.V.(Object))
 	return TypedValueImage{
-		TypeID:     typeid,
+		Type:       typeid,
 		ValueImage: refimg,
 	}
 }
@@ -303,7 +417,7 @@ func (ic ImageCodec) EncodeValueImage(tv TypedValue) ValueImage {
 		} else {
 			val := tv.V.(*SliceValue)
 			valimg := SliceValueImage{}
-			valimg.ArrayRef = ic.EncodeRefImage(val.Base)
+			valimg.Base = ic.EncodeRefImage(val.Base)
 			valimg.Offset = val.Offset
 			valimg.Length = val.Length
 			valimg.Maxcap = val.Maxcap
@@ -315,12 +429,12 @@ func (ic ImageCodec) EncodeValueImage(tv TypedValue) ValueImage {
 		} else {
 			val := tv.V.(*FuncValue)
 			valimg := FuncValueImage{}
-			valimg.TypeID = val.Type.TypeID()
+			valimg.Type = val.Type.TypeID()
 			valimg.IsMethod = val.IsMethod
 			valimg.Name = val.Name
 			if val.Closure != nil {
 				// XXX first make FuncValue an object
-				// valimg.ClosureRef = ic.EncodeRefImage(val.Closure)
+				// valimg.Closure = ic.EncodeRefImage(val.Closure)
 			}
 			valimg.FileName = val.FileName
 			valimg.PkgPath = val.pkg.PkgPath
@@ -332,7 +446,7 @@ func (ic ImageCodec) EncodeValueImage(tv TypedValue) ValueImage {
 		if tv.V == nil {
 			return TypeValueImage{}
 		} else {
-			return TypeValueImage{TypeID: tv.GetType().TypeID()}
+			return TypeValueImage{Type: tv.GetType().TypeID()}
 		}
 	case *PackageType:
 		val := tv.V.(*PackageValue)
@@ -374,6 +488,108 @@ func (ic ImageCodec) EncodeValueImage(tv TypedValue) ValueImage {
 		}
 	default:
 		panic("should not happen")
+	}
+}
+
+func (ic ImageCodec) EncodeTypeImages(ts []Type) []TypeImage {
+	res := make([]TypeImage, len(ts))
+	for i, t := range ts {
+		res[i] = ic.EncodeTypeImage(t)
+	}
+	return res
+}
+
+func (ic ImageCodec) EncodeTypeImage(t Type) TypeImage {
+	switch t := t.(type) {
+	case PrimitiveType:
+		return PrimitiveTypeImage{
+			PrimitiveType: t,
+		}
+	case *PointerType:
+		return PointerTypeImage{
+			Elt: ic.EncodeTypeImage(t.Elt),
+		}
+	case FieldType:
+		return FieldTypeImage{
+			Name:     t.Name,
+			Type:     ic.EncodeTypeImage(t.Type),
+			Embedded: t.Embedded,
+			Tag:      t.Tag,
+		}
+	case *ArrayType:
+		return ArrayTypeImage{
+			Len: t.Len,
+			Elt: ic.EncodeTypeImage(t.Elt),
+			Vrd: t.Vrd,
+		}
+	case *SliceType:
+		return SliceTypeImage{
+			Elt: ic.EncodeTypeImage(t.Elt),
+			Vrd: t.Vrd,
+		}
+	case *StructType:
+		return StructTypeImage{
+			PkgPath: t.PkgPath,
+			Fields:  ic.EncodeFieldTypeImages(t.Fields),
+		}
+	case *PackageType:
+		return PackageTypeImage{}
+	case *InterfaceType:
+		return InterfaceTypeImage{
+			PkgPath: t.PkgPath,
+			Methods: ic.EncodeFieldTypeImages(t.Methods),
+			Generic: t.Generic,
+		}
+	case *ChanType:
+		return ChanTypeImage{
+			Dir: t.Dir,
+			Elt: ic.EncodeTypeImage(t.Elt),
+		}
+	case *FuncType:
+		return FuncTypeImage{
+			PkgPath: t.PkgPath,
+			Params:  ic.EncodeFieldTypeImages(t.Params),
+			Results: ic.EncodeFieldTypeImages(t.Results),
+		}
+	case *MapType:
+		return MapTypeImage{
+			Key:   ic.EncodeTypeImage(t.Key),
+			Value: ic.EncodeTypeImage(t.Value),
+		}
+	case *TypeType:
+		return TypeTypeImage{}
+	case *DeclaredType:
+		return DeclaredTypeImage{
+			PkgPath: t.PkgPath,
+			Name:    t.Name,
+			Base:    ic.EncodeTypeImage(t.Base),
+			Methods: ic.EncodeTypedValueImages(t.Methods),
+		}
+	case blockType:
+		return BlockTypeImage{}
+	case *tupleType:
+		return TupleTypeImage{
+			Elts: ic.EncodeTypeImages(t.Elts),
+		}
+	default:
+		panic("should not happen")
+	}
+}
+
+func (ic ImageCodec) EncodeFieldTypeImages(fts []FieldType) []FieldTypeImage {
+	res := make([]FieldTypeImage, len(fts))
+	for i, ft := range fts {
+		res[i] = ic.EncodeFieldTypeImage(ft)
+	}
+	return res
+}
+
+func (ic ImageCodec) EncodeFieldTypeImage(ft FieldType) FieldTypeImage {
+	return FieldTypeImage{
+		Name:     ft.Name,
+		Type:     ic.EncodeTypeImage(ft.Type),
+		Embedded: ft.Embedded,
+		Tag:      ft.Tag,
 	}
 }
 

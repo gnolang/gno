@@ -244,7 +244,6 @@ func (sv *SliceValue) GetPointerAtIndexInt2(ii int, st *SliceType) PointerValue 
 
 type StructValue struct {
 	ObjectInfo
-	*StructType
 	Fields []TypedValue
 }
 
@@ -325,8 +324,7 @@ func (sv *StructValue) Copy() *StructValue {
 	fields := make([]TypedValue, len(sv.Fields))
 	copy(fields, sv.Fields)
 	return &StructValue{
-		StructType: sv.StructType,
-		Fields:     fields,
+		Fields: fields,
 	}
 }
 
@@ -2048,8 +2046,7 @@ func defaultValue(t Type) Value {
 		}
 	case *StructType:
 		return &StructValue{
-			StructType: ct,
-			Fields:     make([]TypedValue, len(ct.Fields)),
+			Fields: make([]TypedValue, len(ct.Fields)),
 		}
 	case *SliceType:
 		return nil
