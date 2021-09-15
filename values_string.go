@@ -20,25 +20,29 @@ func (v DataByteValue) String() string {
 }
 
 func (v *ArrayValue) String() string {
-	ss := make([]string, len(v.List))
-	for i, e := range v.List {
+	ss := make([]string, len(v.List__))
+	for i, e := range v.List__ {
 		ss[i] = e.String()
 	}
 	return "array[" + strings.Join(ss, ",") + "]"
 }
 
 func (v *SliceValue) String() string {
-	if v.Base == nil {
+	if v.Base__ == nil {
 		return "nil-slice"
 	}
-	if v.Base.Data == nil {
+	if ref, ok := v.Base__.(RefValue); ok {
+		return fmt.Sprintf("slice[%v]", ref)
+	}
+	vbase := v.Base__.(*ArrayValue)
+	if vbase.Data == nil {
 		ss := make([]string, v.Length)
-		for i, e := range v.Base.List[v.Offset : v.Offset+v.Length] {
+		for i, e := range vbase.List__[v.Offset : v.Offset+v.Length] {
 			ss[i] = e.String()
 		}
 		return "slice[" + strings.Join(ss, ",") + "]"
 	} else {
-		return fmt.Sprintf("slice[0x%X]", v.Base.Data[v.Offset:v.Offset+v.Length])
+		return fmt.Sprintf("slice[0x%X]", vbase.Data[v.Offset:v.Offset+v.Length])
 	}
 }
 
@@ -46,12 +50,12 @@ func (v PointerValue) String() string {
 	// NOTE: cannot do below, due to recursion problems.
 	// TODO: create a different String2(...) function.
 	// return fmt.Sprintf("&%s", v.TypedValue.String())
-	return fmt.Sprintf("&%p", v.TypedValue)
+	return fmt.Sprintf("&%p", v.TV__)
 }
 
 func (v *StructValue) String() string {
-	ss := make([]string, len(v.Fields))
-	for i, f := range v.Fields {
+	ss := make([]string, len(v.Fields__))
+	for i, f := range v.Fields__ {
 		ss[i] = f.String()
 	}
 	return "struct{" + strings.Join(ss, ",") + "}"
@@ -68,7 +72,7 @@ func (v *FuncValue) String() string {
 	return name
 }
 
-func (v BoundMethodValue) String() string {
+func (v *BoundMethodValue) String() string {
 	recvT := v.Func.Type.Params[0].Type.String()
 	name := v.Func.Name
 	params := FieldTypeList(v.Func.Type.Params).StringWithCommas()
@@ -89,8 +93,8 @@ func (v *MapValue) String() string {
 	next := v.List.Head
 	for next != nil {
 		ss = append(ss,
-			next.Key.String()+":"+
-				next.Value.String())
+			next.Key__.String()+":"+
+				next.Value__.String())
 		next = next.Next
 	}
 	return "map{" + strings.Join(ss, ",") + "}"
@@ -122,7 +126,7 @@ func (v nativeValue) String() string {
 	)
 }
 
-func (v blockValue) String() string {
-	return fmt.Sprintf("block(%v)",
-		v.Block)
+func (v RefValue) String() string {
+	return fmt.Sprintf("ref(%v)",
+		v.ObjectID)
 }

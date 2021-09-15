@@ -21,7 +21,7 @@ func (m *Machine) doOpPrecall() {
 		m.PopValue()
 		m.PushFrameCall(cx, fv, TypedValue{})
 		m.PushOp(OpCall)
-	case BoundMethodValue:
+	case *BoundMethodValue:
 		m.PopValue()
 		m.PushFrameCall(cx, fv.Func, fv.Receiver)
 		m.PushOp(OpCall)
@@ -63,7 +63,8 @@ func (m *Machine) doOpCall() {
 	numParams := len(pts)
 	isMethod := 0 // 1 if true
 	// Create new block scope.
-	b := NewBlock(fr.Func.Source, fr.Func.Closure)
+	clo := fr.Func.GetClosure(m.Store)
+	b := NewBlock(fr.Func.Source, clo)
 	m.PushBlock(b)
 	if fv.NativeBody == nil {
 		if len(ft.Results) == 0 {
@@ -103,7 +104,7 @@ func (m *Machine) doOpCall() {
 					rt.String()))
 			}
 		}
-		b.Values[0] = fr.Receiver
+		b.Values__[0] = fr.Receiver
 		isMethod = 1
 
 	}
@@ -153,7 +154,7 @@ func (m *Machine) doOpCall() {
 		}
 		// TODO: some more pt <> pv.Type
 		// reconciliations/conversions necessary.
-		b.Values[i] = pv
+		b.Values__[i] = pv
 	}
 }
 
@@ -184,7 +185,7 @@ func (m *Machine) doOpReturn() {
 		if finalize {
 			// Finalize realm updates!
 			// NOTE: This is a resource intensive undertaking.
-			crlm.FinalizeRealmTransaction()
+			crlm.FinalizeRealmTransaction(m.Store)
 		}
 	}
 	// finalize
@@ -200,8 +201,8 @@ func (m *Machine) doOpReturnFromBlock() {
 	numResults := len(fr.Func.Type.Results)
 	fblock := m.Blocks[fr.NumBlocks] // frame +1
 	for i := 0; i < numResults; i++ {
-		rtv := fblock.Values[i+numParams]
-		m.PushValue(rtv)
+		rtv := fillValue(m.Store, &fblock.Values__[i+numParams])
+		m.PushValue(*rtv)
 	}
 	// See if we are exiting a realm boundary.
 	crlm := m.Realm
@@ -218,7 +219,7 @@ func (m *Machine) doOpReturnFromBlock() {
 		if finalize {
 			// Finalize realm updates!
 			// NOTE: This is a resource intensive undertaking.
-			crlm.FinalizeRealmTransaction()
+			crlm.FinalizeRealmTransaction(m.Store)
 		}
 	}
 	// finalize
@@ -236,7 +237,7 @@ func (m *Machine) doOpReturnToBlock() {
 	results := m.PopValues(numResults)
 	for i := 0; i < numResults; i++ {
 		rtv := results[i]
-		fblock.Values[numParams+i] = rtv
+		fblock.Values__[numParams+i] = rtv
 	}
 }
 
@@ -307,7 +308,7 @@ func (m *Machine) doOpReturnCallDefers() {
 				})
 			}
 		}
-		copy(b.Values, dfr.Args)
+		copy(b.Values__, dfr.Args)
 	} else if dfr.GoFunc != nil {
 		fv := dfr.GoFunc
 		ptvs := dfr.Args
@@ -345,7 +346,7 @@ func (m *Machine) doOpDefer() {
 			Args:   args,
 			Source: ds,
 		})
-	case BoundMethodValue:
+	case *BoundMethodValue:
 		if debug {
 			pt := cv.Func.Type.Params[0]
 			rt := cv.Receiver.T

@@ -130,8 +130,9 @@ func go2GnoType2(rt reflect.Type) (t Type) {
 						Source:     nil,
 						Name:       Name(mthd.Name),
 						Body:       nil, // XXX
-						Closure:    nil,
+						Closure__:  nil,
 						NativeBody: nil,
+						PkgPath:    pkgPath,
 						pkg:        nil, // XXX
 					}
 					mtvs[i] = TypedValue{T: ft, V: fv}
@@ -319,19 +320,19 @@ func go2GnoValue(rv reflect.Value) (tv TypedValue) {
 		u32 := math.Float32bits(fl)
 		if sv, ok := tv.V.(*StructValue); ok { // update
 			if debug {
-				if len(sv.Fields) != 1 {
+				if len(sv.Fields__) != 1 {
 					panic("should not happen")
 				}
-				if sv.Fields[0].T != Uint32Type {
+				if sv.Fields__[0].T != Uint32Type {
 					panic("invalid Float32Type, expected Uint32 field")
 				}
 			}
-			sv.Fields[0].SetUint32(u32)
+			sv.Fields__[0].SetUint32(u32)
 		} else { // create
 			ftv := TypedValue{T: Uint32Type}
 			ftv.SetUint32(u32)
 			tv.V = &StructValue{
-				Fields: []TypedValue{ftv},
+				Fields__: []TypedValue{ftv},
 			}
 		}
 	case reflect.Float64:
@@ -339,19 +340,19 @@ func go2GnoValue(rv reflect.Value) (tv TypedValue) {
 		u64 := math.Float64bits(fl)
 		if sv, ok := tv.V.(*StructValue); ok { // update
 			if debug {
-				if len(sv.Fields) != 1 {
+				if len(sv.Fields__) != 1 {
 					panic("should not happen")
 				}
-				if sv.Fields[0].T != Uint64Type {
+				if sv.Fields__[0].T != Uint64Type {
 					panic("invalid Float64Type, expected Uint64 field")
 				}
 			}
-			sv.Fields[0].SetUint64(u64)
+			sv.Fields__[0].SetUint64(u64)
 		} else { // create
 			ftv := TypedValue{T: Uint64Type}
 			ftv.SetUint64(u64)
 			tv.V = &StructValue{
-				Fields: []TypedValue{ftv},
+				Fields__: []TypedValue{ftv},
 			}
 		}
 	case reflect.Array:
@@ -463,7 +464,7 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 			et := at.Elt
 			for i := 0; i < rvl; i++ {
 				erv := rv.Index(i)
-				etv := &av.List[i]
+				etv := &av.List__[i]
 				// XXX use Assign and Realm?
 				if etv.T == nil && et.Kind() != InterfaceKind {
 					etv.T = et
@@ -497,12 +498,12 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 				panic("go-native update error: slice length mismmatch")
 			}
 		}
-		if sv.Base.Data == nil {
+		if sv.GetBase(nil).Data == nil {
 			st := baseOf(tv.T).(*SliceType)
 			et := st.Elt
 			for i := 0; i < rvl; i++ {
 				erv := rv.Index(i)
-				etv := &sv.Base.List[svo+i]
+				etv := &sv.GetBase(nil).List__[svo+i]
 				// XXX use Assign and Realm?
 				if etv.T == nil && et.Kind() != InterfaceKind {
 					etv.T = et
@@ -515,7 +516,7 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 		} else {
 			for i := 0; i < rvl; i++ {
 				erv := rv.Index(i)
-				sv.Base.Data[svo+i] = uint8(erv.Uint())
+				sv.GetBase(nil).Data[svo+i] = uint8(erv.Uint())
 			}
 		}
 	case PointerKind:
@@ -523,7 +524,7 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 			return // do nothing
 		}
 		pv := tv.V.(PointerValue)
-		etv := pv.TypedValue
+		etv := pv.TV__
 		erv := rv.Elem()
 		go2GnoValueUpdate(rlm, lvl+1, etv, erv)
 	case StructKind:
@@ -534,30 +535,30 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 			fl := float32(rv.Float())
 			u32 := math.Float32bits(fl)
 			if debug {
-				if len(sv.Fields) != 1 {
+				if len(sv.Fields__) != 1 {
 					panic("should not happen")
 				}
-				if sv.Fields[0].T != Uint32Type {
+				if sv.Fields__[0].T != Uint32Type {
 					panic("invalid Float32Type, expected Uint32 field")
 				}
 			}
-			sv.Fields[0].SetUint32(u32)
+			sv.Fields__[0].SetUint32(u32)
 		case float64PkgPath: // Special case if Float64.
 			fl := rv.Float()
 			u64 := math.Float64bits(fl)
 			if debug {
-				if len(sv.Fields) != 1 {
+				if len(sv.Fields__) != 1 {
 					panic("should not happen")
 				}
-				if sv.Fields[0].T != Uint64Type {
+				if sv.Fields__[0].T != Uint64Type {
 					panic("invalid Float64Type, expected Uint64 field")
 				}
 			}
-			sv.Fields[0].SetUint64(u64)
+			sv.Fields__[0].SetUint64(u64)
 		default: // General case.
 			for i := range st.Fields {
 				ft := st.Fields[i].Type
-				ftv := &sv.Fields[i]
+				ftv := &sv.Fields__[i]
 				// XXX use Assign and Realm?
 				if ftv.T == nil && ft.Kind() != InterfaceKind {
 					ftv.T = ft
@@ -605,7 +606,7 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 		// and also remove encountered items from rv2.
 		head := mv.List.Head
 		for head != nil {
-			ktv, vtv := &head.Key, &head.Value
+			ktv, vtv := &head.Key__, &head.Value__
 			// Update in place.
 			krv := gno2GoValue(ktv, reflect.Value{})
 			vrv := rv.MapIndex(krv)
@@ -626,13 +627,13 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 			k, v := rv2i.Key(), rv2i.Value()
 			ktv := go2GnoValue(k)
 			vtv := go2GnoValue(v)
-			ptr := mv.GetPointerForKey(&ktv)
+			ptr := mv.GetPointerForKey(nil, &ktv)
 			if debug {
-				if !ptr.TypedValue.IsUndefined() {
+				if !ptr.TV__.IsUndefined() {
 					panic("should not happen")
 				}
 			}
-			ptr.Assign2(rlm, vtv, false) // document false
+			ptr.Assign2(nil, rlm, vtv, false) // document false
 		}
 	case TypeKind:
 		panic("not yet implemented")
@@ -700,7 +701,7 @@ func go2GnoValue2(rv reflect.Value) (tv TypedValue) {
 			list[i] = go2GnoValue(rv.Index(i))
 		}
 		tv.V = &ArrayValue{
-			List: list,
+			List__: list,
 		}
 	case reflect.Slice:
 		rvl := rv.Len()
@@ -727,7 +728,7 @@ func go2GnoValue2(rv reflect.Value) (tv TypedValue) {
 	case reflect.Ptr:
 		tv.T = &PointerType{Elt: go2GnoType2(rv.Type().Elem())}
 		val := go2GnoValue2(rv.Elem())
-		tv.V = PointerValue{TypedValue: &val} // heap alloc
+		tv.V = PointerValue{TV__: &val} // heap alloc
 	case reflect.Struct:
 		panic("not yet implemented")
 	case reflect.UnsafePointer:
@@ -768,7 +769,6 @@ func go2GnoFuncType(rt reflect.Type) *FuncType {
 			Type: ot,
 		}
 	}
-	ft.PkgPath = "" // dunno with native
 	ft.Params = ins
 	ft.Results = outs
 	return ft
@@ -953,7 +953,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		if tv.V == nil {
 			// do nothing
 		} else {
-			rv2 := gno2GoValue(tv.V.(PointerValue).TypedValue, reflect.Value{})
+			rv2 := gno2GoValue(tv.V.(PointerValue).TV__, reflect.Value{})
 			rv.Set(rv2.Addr())
 		}
 	case *ArrayType:
@@ -968,7 +968,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		av := tv.V.(*ArrayValue)
 		if av.Data == nil {
 			for i := 0; i < ct.Len; i++ {
-				etv := &av.List[i]
+				etv := &av.List__[i]
 				if etv.IsUndefined() {
 					continue
 				}
@@ -995,10 +995,10 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		svo := sv.Offset
 		svl := sv.Length
 		svc := sv.Maxcap
-		if sv.Base.Data == nil {
+		if sv.GetBase(nil).Data == nil {
 			rv.Set(reflect.MakeSlice(st, svl, svc))
 			for i := 0; i < svl; i++ {
-				etv := &(sv.Base.List[svo+i])
+				etv := &(sv.GetBase(nil).List__[svo+i])
 				if etv.IsUndefined() {
 					continue
 				}
@@ -1006,7 +1006,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 			}
 		} else {
 			data := make([]byte, svl, svc)
-			copy(data[:svc], sv.Base.Data[svo:svo+svc])
+			copy(data[:svc], sv.GetBase(nil).Data[svo:svo+svc])
 			rv.Set(reflect.ValueOf(data))
 		}
 	case *StructType:
@@ -1020,33 +1020,33 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		case float32PkgPath:
 			// Special case if Float32.
 			if debug {
-				if len(sv.Fields) != 1 {
+				if len(sv.Fields__) != 1 {
 					panic("should not happen")
 				}
-				if sv.Fields[0].T != Uint32Type {
+				if sv.Fields__[0].T != Uint32Type {
 					panic("invalid Float32Type, expected Uint32 field")
 				}
 			}
-			u32 := sv.Fields[0].GetUint32()
+			u32 := sv.Fields__[0].GetUint32()
 			fl := math.Float32frombits(u32)
 			rv.SetFloat(float64(fl))
 		case float64PkgPath:
 			// Special case if Float64.
 			if debug {
-				if len(sv.Fields) != 1 {
+				if len(sv.Fields__) != 1 {
 					panic("should not happen")
 				}
-				if sv.Fields[0].T != Uint64Type {
+				if sv.Fields__[0].T != Uint64Type {
 					panic("invalid Float64Type, expected Uint64 field")
 				}
 			}
-			u64 := sv.Fields[0].GetUint64()
+			u64 := sv.Fields__[0].GetUint64()
 			fl := math.Float64frombits(u64)
 			rv.SetFloat(fl)
 		default:
 			// General case.
 			for i := range ct.Fields {
-				ftv := &(sv.Fields[i])
+				ftv := &(sv.Fields__[i])
 				if ftv.IsUndefined() {
 					continue
 				}
@@ -1065,7 +1065,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		head := mv.List.Head
 		vrt := mt.Elem()
 		for head != nil {
-			ktv, vtv := &head.Key, &head.Value
+			ktv, vtv := &head.Key__, &head.Value__
 			krv := gno2GoValue(ktv, reflect.Value{})
 			if vtv.IsUndefined() {
 				vrv := reflect.New(vrt).Elem()

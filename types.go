@@ -890,7 +890,6 @@ func (ct *ChanType) Elem() Type {
 // Function type
 
 type FuncType struct {
-	PkgPath string // needed for realm enforcement.
 	Params  []FieldType
 	Results []FieldType
 
@@ -918,7 +917,6 @@ func (ft *FuncType) Kind() Kind {
 func (ft *FuncType) BoundType() *FuncType {
 	if ft.bound == nil {
 		ft.bound = &FuncType{
-			PkgPath: ft.PkgPath,
 			Params:  ft.Params[1:],
 			Results: ft.Results,
 		}
@@ -929,7 +927,6 @@ func (ft *FuncType) BoundType() *FuncType {
 // unbound function type
 func (ft *FuncType) UnboundType(rft FieldType) *FuncType {
 	return &FuncType{
-		PkgPath: ft.PkgPath,
 		Params:  append([]FieldType{rft}, ft.Params...),
 		Results: ft.Results,
 	}
@@ -1029,7 +1026,6 @@ func (ft *FuncType) Specify(argTVs []TypedValue, isVarg bool) *FuncType {
 		}
 	}
 	return &FuncType{
-		PkgPath: ft.PkgPath,
 		Params:  pfts,
 		Results: rfts,
 	}
@@ -1059,8 +1055,7 @@ func (ft *FuncType) TypeID() TypeID {
 }
 
 func (ft *FuncType) String() string {
-	return fmt.Sprintf("%s.func(%s)(%s)",
-		ft.PkgPath,
+	return fmt.Sprintf("func(%s)(%s)",
 		FieldTypeList(ft.Params).StringWithCommas(),
 		FieldTypeList(ft.Results).StringWithCommas())
 }
@@ -2079,7 +2074,7 @@ func applySpecifics(lookup map[Name]Type, tmpl Type) (Type, bool) {
 				gx := MustParseExpr(string(ct.Generic))
 				gx = Preprocess(nil, bs, gx).(Expr)
 				// Evalute type from generic expression.
-				m := NewMachine("")
+				m := NewMachine("", nil)
 				tv := m.EvalStatic(bs, gx)
 				return tv.GetType(), true
 			}

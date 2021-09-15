@@ -141,7 +141,7 @@ func (m *Machine) doOpExec(op Op) {
 			var ll int
 			var dv *TypedValue
 			if op == OpRangeIterArrayPtr {
-				dv = xv.V.(PointerValue).TypedValue
+				dv = xv.V.(PointerValue).TV__
 				*xv = *dv
 			} else {
 				dv = xv
@@ -164,37 +164,37 @@ func (m *Machine) doOpExec(op Op) {
 				if bs.ListIndex == 0 {
 					switch bs.Op {
 					case ASSIGN:
-						m.PopAsPointer(bs.Key).Assign(iv, false)
+						m.PopAsPointer(bs.Key).TV__.Assign(iv, false)
 					case DEFINE:
 						knxp := bs.Key.(*NameExpr).Path
-						ptr := m.LastBlock().GetPointerTo(knxp)
-						ptr.Assign(iv, false)
+						ptr := m.LastBlock().GetPointerTo(m.Store, knxp)
+						ptr.TV__.Assign(iv, false)
 					default:
 						panic("should not happen")
 					}
 				} else {
 					// Already defined, use assign.
-					m.PopAsPointer(bs.Key).Assign(iv, false)
+					m.PopAsPointer(bs.Key).TV__.Assign(iv, false)
 				}
 			}
 			if bs.Value != nil {
 				iv := TypedValue{T: IntType}
 				iv.SetInt(bs.ListIndex)
-				ev := xv.GetPointerAtIndex(&iv).Deref()
+				ev := xv.GetPointerAtIndex(m.Store, &iv).Deref()
 				if bs.ListIndex == 0 {
 					switch bs.Op {
 					case ASSIGN:
-						m.PopAsPointer(bs.Value).Assign(ev, false)
+						m.PopAsPointer(bs.Value).TV__.Assign(ev, false)
 					case DEFINE:
 						vnxp := bs.Value.(*NameExpr).Path
-						ptr := m.LastBlock().GetPointerTo(vnxp)
-						ptr.Assign(ev, false)
+						ptr := m.LastBlock().GetPointerTo(m.Store, vnxp)
+						ptr.TV__.Assign(ev, false)
 					default:
 						panic("should not happen")
 					}
 				} else {
 					// Already defined, use assign.
-					m.PopAsPointer(bs.Value).Assign(ev, false)
+					m.PopAsPointer(bs.Value).TV__.Assign(ev, false)
 				}
 			}
 			bs.NextBodyIndex++
@@ -263,17 +263,17 @@ func (m *Machine) doOpExec(op Op) {
 				if bs.ListIndex == 0 {
 					switch bs.Op {
 					case ASSIGN:
-						m.PopAsPointer(bs.Key).Assign(iv, false)
+						m.PopAsPointer(bs.Key).TV__.Assign(iv, false)
 					case DEFINE:
 						knxp := bs.Key.(*NameExpr).Path
-						ptr := m.LastBlock().GetPointerTo(knxp)
-						ptr.Assign(iv, false)
+						ptr := m.LastBlock().GetPointerTo(m.Store, knxp)
+						ptr.TV__.Assign(iv, false)
 					default:
 						panic("should not happen")
 					}
 				} else {
 					// Already defined, use assign.
-					m.PopAsPointer(bs.Key).Assign(iv, false)
+					m.PopAsPointer(bs.Key).TV__.Assign(iv, false)
 				}
 			}
 			if bs.Value != nil {
@@ -281,17 +281,17 @@ func (m *Machine) doOpExec(op Op) {
 				if bs.ListIndex == 0 {
 					switch bs.Op {
 					case ASSIGN:
-						m.PopAsPointer(bs.Value).Assign(ev, false)
+						m.PopAsPointer(bs.Value).TV__.Assign(ev, false)
 					case DEFINE:
 						vnxp := bs.Value.(*NameExpr).Path
-						ptr := m.LastBlock().GetPointerTo(vnxp)
-						ptr.Assign(ev, false)
+						ptr := m.LastBlock().GetPointerTo(m.Store, vnxp)
+						ptr.TV__.Assign(ev, false)
 					default:
 						panic("should not happen")
 					}
 				} else {
 					// Already defined, use assign.
-					m.PopAsPointer(bs.Value).Assign(ev, false)
+					m.PopAsPointer(bs.Value).TV__.Assign(ev, false)
 				}
 			}
 			bs.NextBodyIndex++
@@ -356,39 +356,39 @@ func (m *Machine) doOpExec(op Op) {
 		case -1: // assign list element.
 			next := bs.NextItem
 			if bs.Key != nil {
-				kv := next.Key
+				kv := *fillValue(m.Store, &next.Key__)
 				if bs.ListIndex == 0 {
 					switch bs.Op {
 					case ASSIGN:
-						m.PopAsPointer(bs.Key).Assign(kv, false)
+						m.PopAsPointer(bs.Key).TV__.Assign(kv, false)
 					case DEFINE:
 						knxp := bs.Key.(*NameExpr).Path
-						ptr := m.LastBlock().GetPointerTo(knxp)
-						ptr.Assign(kv, false)
+						ptr := m.LastBlock().GetPointerTo(m.Store, knxp)
+						ptr.TV__.Assign(kv, false)
 					default:
 						panic("should not happen")
 					}
 				} else {
 					// Already defined, use assign.
-					m.PopAsPointer(bs.Key).Assign(kv, false)
+					m.PopAsPointer(bs.Key).TV__.Assign(kv, false)
 				}
 			}
 			if bs.Value != nil {
-				vv := next.Value
+				vv := *fillValue(m.Store, &next.Value__)
 				if bs.ListIndex == 0 {
 					switch bs.Op {
 					case ASSIGN:
-						m.PopAsPointer(bs.Value).Assign(vv, false)
+						m.PopAsPointer(bs.Value).TV__.Assign(vv, false)
 					case DEFINE:
 						vnxp := bs.Value.(*NameExpr).Path
-						ptr := m.LastBlock().GetPointerTo(vnxp)
-						ptr.Assign(vv, false)
+						ptr := m.LastBlock().GetPointerTo(m.Store, vnxp)
+						ptr.TV__.Assign(vv, false)
 					default:
 						panic("should not happen")
 					}
 				} else {
 					// Already defined, use assign.
-					m.PopAsPointer(bs.Value).Assign(vv, false)
+					m.PopAsPointer(bs.Value).TV__.Assign(vv, false)
 				}
 			}
 			bs.NextBodyIndex++
@@ -773,7 +773,7 @@ func (m *Machine) doOpIfCond() {
 	if cond.GetBool() {
 		if len(is.Then.Body) != 0 {
 			// expand block size
-			if nn := is.Then.GetNumNames(); int(nn) > len(b.Values) {
+			if nn := is.Then.GetNumNames(); int(nn) > len(b.Values__) {
 				b.ExpandToSize(nn)
 			}
 			// exec then body
@@ -788,7 +788,7 @@ func (m *Machine) doOpIfCond() {
 	} else {
 		if len(is.Else.Body) != 0 {
 			// expand block size
-			if nn := is.Else.GetNumNames(); int(nn) > len(b.Values) {
+			if nn := is.Else.GetNumNames(); int(nn) > len(b.Values__) {
 				b.ExpandToSize(nn)
 			}
 			// exec then body
@@ -865,11 +865,11 @@ func (m *Machine) doOpTypeSwitch() {
 					// NOTE: assumes the var is first in block.
 					vp := NewValuePath(
 						VPBlock, 1, 0, ss.VarName)
-					ptr := b.GetPointerTo(vp)
-					ptr.Assign(*xv, false)
+					ptr := b.GetPointerTo(m.Store, vp)
+					ptr.TV__.Assign(*xv, false)
 				}
 				// expand block size
-				if nn := cs.GetNumNames(); int(nn) > len(b.Values) {
+				if nn := cs.GetNumNames(); int(nn) > len(b.Values__) {
 					b.ExpandToSize(nn)
 				}
 				// exec clause body
@@ -935,7 +935,7 @@ func (m *Machine) doOpSwitchClauseCase() {
 	if debug {
 		assertEqualityTypes(cv.T, tv.T)
 	}
-	match := isEql(cv, tv)
+	match := isEql(m.Store, cv, tv)
 	if match {
 		// matched clause
 		ss := m.PopStmt().(*SwitchStmt) // pop switch stmt

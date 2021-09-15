@@ -59,8 +59,8 @@ func (m *Machine) doOpValueDecl() {
 			ConvertUntypedTo(&tv, nil)
 		}
 		nx := s.NameExprs[i]
-		ptr := lb.GetPointerTo(nx.Path)
-		ptr.Assign2(m.Realm, tv, false)
+		ptr := lb.GetPointerTo(m.Store, nx.Path)
+		ptr.Assign2(m.Store, m.Realm, tv, false)
 	}
 }
 
@@ -69,6 +69,6 @@ func (m *Machine) doOpTypeDecl() {
 	t := m.PopValue().GetType()
 	tv := asValue(t)
 	last := m.LastBlock()
-	ptr := last.GetPointerTo(s.Path)
-	ptr.Assign2(m.Realm, tv, false)
+	ptr := last.GetPointerTo(m.Store, s.Path)
+	ptr.Assign2(m.Store, m.Realm, tv, false)
 }

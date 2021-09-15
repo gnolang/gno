@@ -17,7 +17,7 @@ func (m *Machine) doOpIndex1() {
 	iv := m.PopValue()   // index
 	xv := m.PeekValue(1) // x
 	dst := xv
-	res := xv.GetPointerAtIndex(iv)
+	res := xv.GetPointerAtIndex(m.Store, iv)
 	*dst = res.Deref() // reuse as result
 }
 
@@ -39,7 +39,7 @@ func (m *Machine) doOpIndex2() {
 		*iv = untypedBool(false) // reuse as result
 	} else {
 		mv := xv.V.(*MapValue)
-		vv, exists := mv.GetValueForKey(iv)
+		vv, exists := mv.GetValueForKey(m.Store, iv)
 		if exists {
 			*xv = vv                // reuse as result
 			*iv = untypedBool(true) // reuse as result
@@ -56,7 +56,7 @@ func (m *Machine) doOpIndex2() {
 func (m *Machine) doOpSelector() {
 	sx := m.PopExpr().(*SelectorExpr)
 	xv := m.PeekValue(1)
-	res := xv.GetPointerTo(sx.Path)
+	res := xv.GetPointerTo(m.Store, sx.Path)
 	*xv = res.Deref() // reuse as result
 }
 
@@ -120,17 +120,17 @@ func (m *Machine) doOpStar() {
 	switch bt := baseOf(xv.T).(type) {
 	case *PointerType:
 		pv := xv.V.(PointerValue)
-		if pv.T == DataByteType {
+		if pv.TV__.T == DataByteType {
 			tv := TypedValue{T: xv.T.(*PointerType).Elt}
-			dbv := pv.V.(DataByteValue)
+			dbv := pv.TV__.V.(DataByteValue)
 			tv.SetUint8(dbv.GetByte())
 			m.PushValue(tv)
 		} else {
-			if pv.TypedValue.IsUndefined() && bt.Elt.Kind() != InterfaceKind {
+			if pv.TV__.IsUndefined() && bt.Elt.Kind() != InterfaceKind {
 				refv := TypedValue{T: bt.Elt}
 				m.PushValue(refv)
 			} else {
-				m.PushValue(*pv.TypedValue)
+				m.PushValue(*pv.TV__)
 			}
 		}
 	case *TypeType:
@@ -155,7 +155,7 @@ func (m *Machine) doOpStar() {
 func (m *Machine) doOpRef() {
 	rx := m.PopExpr().(*RefExpr)
 	xv := m.PopAsPointer(rx.X)
-	if nv, ok := xv.V.(*nativeValue); ok {
+	if nv, ok := xv.TV__.V.(*nativeValue); ok {
 		// If a native pointer, ensure it is addressable.  This
 		// way, PointerValue{*nativeValue{rv}} can be converted
 		// to/from *nativeValue{rv.Addr()}.
@@ -170,7 +170,7 @@ func (m *Machine) doOpRef() {
 	// XXX this is wrong, if rx.X is interface type,
 	// XXX then the type should be &PointerType{Elt: staticTypeOf(xv)}
 	m.PushValue(TypedValue{
-		T: &PointerType{Elt: xv.T},
+		T: &PointerType{Elt: xv.TV__.T},
 		V: xv,
 	})
 }
@@ -386,7 +386,7 @@ func (m *Machine) doOpArrayLit() {
 	// construct array value.
 	av := defaultValue(at).(*ArrayValue)
 	if 0 < ne {
-		al := av.List
+		al := av.List__
 		vs := m.PopValues(ne)
 		idx := 0
 		for i, v := range vs {
@@ -458,8 +458,8 @@ func (m *Machine) doOpMapLit() {
 		for i := 0; i < ne; i++ {
 			ktv := &kvs[i*2]
 			vtv := kvs[i*2+1]
-			ptr := mv.GetPointerForKey(ktv)
-			*ptr.TypedValue = vtv
+			ptr := mv.GetPointerForKey(m.Store, ktv)
+			*ptr.TV__ = vtv
 		}
 	}
 	// pop map type.
@@ -548,7 +548,7 @@ func (m *Machine) doOpStructLit() {
 	// construct and push value.
 	m.PopValue() // baseOf() is st
 	sv := &StructValue{
-		Fields: fs,
+		Fields__: fs,
 	}
 	m.PushValue(TypedValue{
 		T: xt,
@@ -568,8 +568,9 @@ func (m *Machine) doOpFuncLit() {
 			Source:     x,
 			Name:       "",
 			Body:       x.Body,
-			Closure:    lb,
+			Closure__:  lb,
 			NativeBody: nil,
+			PkgPath:    m.Package.PkgPath,
 			pkg:        m.Package,
 		},
 	})
@@ -578,6 +579,6 @@ func (m *Machine) doOpFuncLit() {
 func (m *Machine) doOpConvert() {
 	xv := m.PopValue()
 	t := m.PopValue().GetType()
-	ConvertTo(xv, t)
+	ConvertTo(m.Store, xv, t)
 	m.PushValue(*xv)
 }

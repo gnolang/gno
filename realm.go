@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/gnolang/gno/pkgs/amino"
 )
 
 /*
@@ -75,7 +76,6 @@ type Realm struct {
 	ID   RealmID
 	Path string
 	Time uint64
-	ImageCodec
 
 	created []Object  // new objects attached to real.
 	updated []Object  // real objects that were modified.
@@ -90,11 +90,6 @@ func NewRealm(path string) *Realm {
 		ID:   id,
 		Path: path,
 		Time: 0,
-		ImageCodec: ImageCodec{
-			RealmID:       id,
-			TypeLookup:    nil,
-			PackageLookup: nil,
-		},
 	}
 }
 
@@ -300,24 +295,30 @@ func (rlm *Realm) CompressMarks() {
 // transactions
 
 // OpReturn calls this when exiting a realm transaction.
-func (rlm *Realm) FinalizeRealmTransaction() {
+// XXX don't need store because we don't need it when we save?
+// XXX we need it when we load.
+// XXX but this assumes no multiple references...
+// XXX that is X owned by Y isn't also owned by Z.
+// XXX unless we saved X but don't have reference to Y.
+// XXX
+func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 	// Process changes in created/updated/deleted.
 	rlm.CompressMarks()
-	rlm.ProcessCreatedObjects()
-	rlm.ProcessUpdatedObjects()
-	rlm.ProcessDeletedObjects()
+	rlm.ProcessCreatedObjects(store)
+	rlm.ProcessUpdatedObjects(store)
+	rlm.ProcessDeletedObjects(store)
 	rlm.ClearMarks()
 }
 
 // crawls marked created objects and finalizes ownership
 // by assigning it an ObjectID, recursively.
-func (rlm *Realm) ProcessCreatedObjects() {
+func (rlm *Realm) ProcessCreatedObjects(store Store) {
 	for _, oo := range rlm.created {
-		rlm.processCreatedOrUpdatedObject(oo)
+		rlm.saveUnsavedObject(store, oo)
 	}
 }
 
-func (rlm *Realm) processCreatedOrUpdatedObject(oo Object) {
+func (rlm *Realm) saveUnsavedObject(store Store, oo Object) {
 	if debug {
 		if oo.GetIsProcessing() {
 			panic("should not happen")
@@ -336,9 +337,13 @@ func (rlm *Realm) processCreatedOrUpdatedObject(oo Object) {
 			}
 		}
 		rlm.AssignNewObjectID(oo)
+		// In case something loaded oo from disk (within the same
+		// tx context), in-memory object oo must be linked for
+		// identity mapping (w/ referential loops)..
+		store.SetObject(oo)
 	}
 	// then process children
-	more := getCreatedOrUpdatedChildren(oo)
+	more := getUnsavedChildren(oo, nil)
 	for _, child := range more {
 		if child.GetIsProcessing() {
 			// NOTE: circular references not yet supported.
@@ -346,7 +351,7 @@ func (rlm *Realm) processCreatedOrUpdatedObject(oo Object) {
 		}
 		// XXX check for conflict? or before?
 		child.SetOwner(oo)
-		rlm.processCreatedOrUpdatedObject(child)
+		rlm.saveUnsavedObject(store, child)
 	}
 	// save or update object
 	if oo.GetIsNewReal() {
@@ -356,90 +361,260 @@ func (rlm *Realm) processCreatedOrUpdatedObject(oo Object) {
 	}
 }
 
-func getCreatedOrUpdatedChildren(obj Object) []Object {
-	switch co := obj.(type) {
-	case *ArrayValue:
-		more := make([]Object, 0, len(co.List))
-		for _, ctv := range co.List {
-			if cobj := ctv.GetObject(); cobj != nil {
-				if !cobj.GetIsReal() {
-					more = append(more, cobj)
-				} else if cobj.GetIsDirty() {
-					more = append(more, cobj)
-				}
-			}
+// get unsaved self or unsaved children.
+func getUnsaved(val Value, more []Object) []Object {
+	if obj, ok := val.(Object); ok {
+		if isUnsaved(obj) {
+			return append(more, obj)
+		} else {
+			// nothing unsaved.
+			return more
 		}
+	} else {
+		return getUnsavedChildren(val, more)
+	}
+}
+
+func getUnsavedChildren(val Value, more []Object) []Object {
+	switch cv := val.(type) {
+	case nil:
+		return nil
+	case StringValue:
+		return nil
+	case BigintValue:
+		return nil
+	case DataByteValue:
+		panic("should not happen")
+	case PointerValue:
+		if cv.Base__ != nil {
+			more = getUnsaved(cv.Base__, more)
+		} else {
+			// If cv.Base is non-nil,
+			// no need to append cv.Base's unsaved elements.
+			more = getUnsaved(cv.TV__.V, more)
+		}
+		return more
+	case *ArrayValue:
+		for _, ctv := range cv.List__ {
+			// NOTE: same as isUnsaved(ctv.GetFirstObject()).
+			more = getUnsaved(ctv.V, more)
+		}
+		return more
+	case *SliceValue:
+		more = getUnsaved(cv.Base__, more)
 		return more
 	case *StructValue:
-		more := make([]Object, 0, len(co.Fields))
-		for _, ctv := range co.Fields {
-			if cobj := ctv.GetObject(); cobj != nil {
-				if !cobj.GetIsReal() {
-					more = append(more, cobj)
-				} else if cobj.GetIsDirty() {
-					more = append(more, cobj)
-				}
-			}
+		for _, ctv := range cv.Fields__ {
+			// NOTE: same as isUnsaved(ctv.GetFirstObject()).
+			more = getUnsaved(ctv.V, more)
 		}
 		return more
+	case *FuncValue:
+		if bv, ok := cv.Closure__.(*Block); ok {
+			more = getUnsaved(bv, more)
+		}
+		return more
+	case *BoundMethodValue:
+		more = getUnsavedChildren(cv.Func, more)
+		more = getUnsaved(cv.Receiver.V, more)
+		return more
 	case *MapValue:
-		more := make([]Object, 0, 2*co.List.Size)
-		for cur := co.List.Head; cur != nil; cur = cur.Next {
-			if cobj := cur.Key.GetObject(); cobj != nil {
-				if !cobj.GetIsReal() {
-					more = append(more, cobj)
-				} else if cobj.GetIsDirty() {
-					more = append(more, cobj)
-				}
-			}
-			if cobj := cur.Value.GetObject(); cobj != nil {
-				if !cobj.GetIsReal() {
-					more = append(more, cobj)
-				} else if cobj.GetIsDirty() {
-					more = append(more, cobj)
-				}
-			}
+		for cur := cv.List.Head; cur != nil; cur = cur.Next {
+			// NOTE: same as isUnsaved(cur.Key.GetFirstObject()).
+			more = getUnsaved(cur.Key__.V, more)
+			more = getUnsaved(cur.Value__.V, more)
+		}
+		return more
+	case TypeValue:
+		return nil
+	case *PackageValue:
+		for _, ctv := range cv.Values__ {
+			// NOTE: same as isUnsaved(ctv.GetFirstObject()).
+			more = getUnsaved(ctv.V, more)
+		}
+		for _, fb := range cv.FBlocks__ {
+			more = getUnsaved(fb, more)
 		}
 		return more
 	case *Block:
-		more := make([]Object, 0, len(co.Values))
-		for _, ctv := range co.Values {
-			if cobj := ctv.GetObject(); cobj != nil {
-				if !cobj.GetIsReal() {
-					more = append(more, cobj)
-				} else if cobj.GetIsDirty() {
-					more = append(more, cobj)
-				}
-			}
+		for _, ctv := range cv.Values__ {
+			// NOTE: same as isUnsaved(ctv.GetFirstObject()).
+			more = getUnsaved(ctv.V, more)
 		}
+		more = getUnsaved(cv.Parent__, more)
 		return more
-		/* XXX FuncValue is not an object
-		case *FuncValue:
-			if cobj := co.Closure; cobj != nil {
-				if !cobj.GetIsReal() {
-					return []Object{cobj}
-				} else if cobj.GetIsDirty() {
-					return []Object{cobj}
-				}
-			}
-		*/
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %v",
-			reflect.TypeOf(obj)))
+			reflect.TypeOf(val)))
+	}
+}
+
+// Copies value but with references to objects; the result is suitable for
+// persistence bytes serialization.
+// Also checks for integrity of immediate children -- they must already be
+// persistend (real), and not dirty, or else this function panics.
+func copyWithRefs(val Value) Value {
+	switch cv := val.(type) {
+	case nil:
+		return nil
+	case StringValue:
+		return cv
+	case BigintValue:
+		return cv
+	case DataByteValue:
+		panic("should not happen")
+	case PointerValue:
+		if cv.Base__ != nil {
+			return PointerValue{
+				/*
+					already represented in .Base[Index]:
+					TypedValue: &TypedValue{
+						T: cv.TypedValue.T,
+						V: copyWithRefs(cv.TypedValue.V),
+					},
+				*/
+				Base__: ensureRefValue(cv.Base__),
+				Index:  cv.Index,
+			}
+		} else {
+			etv := refOrCopy(*cv.TV__)
+			return PointerValue{
+				TV__: &etv,
+				/*
+					Base:  nil,
+					Index: 0,
+				*/
+			}
+		}
+	case *ArrayValue:
+		if cv.Data == nil {
+			list := make([]TypedValue, len(cv.List__))
+			for i, etv := range cv.List__ {
+				list[i] = refOrCopy(etv)
+			}
+			return &ArrayValue{
+				ObjectInfo: cv.ObjectInfo.Copy(),
+				List__:     list,
+			}
+		} else {
+			return &ArrayValue{
+				ObjectInfo: cv.ObjectInfo.Copy(),
+				Data:       cp(cv.Data),
+			}
+		}
+	case *SliceValue:
+		return &SliceValue{
+			Base__: ensureRefValue(cv.Base__),
+			Offset: cv.Offset,
+			Length: cv.Length,
+			Maxcap: cv.Maxcap,
+		}
+	case *StructValue:
+		fields := make([]TypedValue, len(cv.Fields__))
+		for i, ftv := range cv.Fields__ {
+			fields[i] = refOrCopy(ftv)
+		}
+		return &StructValue{
+			ObjectInfo: cv.ObjectInfo.Copy(),
+			Fields__:   fields,
+		}
+	case *FuncValue:
+		var closure Value
+		if cv.Closure__ != nil {
+			closure = ensureRefValue(cv.Closure__)
+		}
+		if cv.NativeBody != nil {
+			panic("should not happen")
+		}
+		return &FuncValue{
+			Type:      cv.Type,
+			IsMethod:  cv.IsMethod,
+			Source:    cv.Source,
+			Name:      cv.Name,
+			Body:      cv.Body,
+			Closure__: closure,
+			FileName:  cv.FileName,
+			PkgPath:   cv.PkgPath,
+		}
+	case *BoundMethodValue:
+		fnc := copyWithRefs(cv.Func).(*FuncValue)
+		rtv := refOrCopy(cv.Receiver)
+		return &BoundMethodValue{
+			ObjectInfo: cv.ObjectInfo.Copy(), // XXX ???
+			Func:       fnc,
+			Receiver:   rtv,
+		}
+	case *MapValue:
+		list := &MapList{}
+		for cur := cv.List.Head; cur != nil; cur = cur.Next {
+			key2 := refOrCopy(cur.Key__)
+			val2 := refOrCopy(cur.Value__)
+			list.Append(key2).Value__ = val2
+		}
+		return &MapValue{
+			ObjectInfo: cv.ObjectInfo.Copy(),
+			List:       list,
+		}
+	case TypeValue:
+		return TypeValue{
+			Type: cv.Type,
+		}
+	case *PackageValue:
+		vals := make([]TypedValue, len(cv.Values__))
+		for i, tv := range cv.Values__ {
+			vals[i] = refOrCopy(tv)
+		}
+		fblocks := make([]Value, len(cv.FBlocks__))
+		for i, fb := range cv.FBlocks__ {
+			fblocks[i] = ensureRefValue(fb)
+		}
+		return &PackageValue{
+			Block: Block{
+				ObjectInfo: cv.Block.ObjectInfo.Copy(),
+				Source:     cv.Block.Source,
+				Values__:   vals,
+				Parent__:   nil,          // packages have no parent.
+				Blank:      TypedValue{}, // empty
+			},
+			PkgName:   cv.PkgName,
+			PkgPath:   cv.PkgPath,
+			FNames:    cv.FNames, // no copy
+			FBlocks__: fblocks,
+		}
+	case *Block:
+		vals := make([]TypedValue, len(cv.Values__))
+		for i, tv := range cv.Values__ {
+			vals[i] = refOrCopy(tv)
+		}
+		var parent RefValue
+		if cv.Parent__ != nil {
+			parent = ensureRefValue(cv.Parent__)
+		}
+		return &Block{
+			ObjectInfo: cv.ObjectInfo.Copy(),
+			Source:     cv.Source,
+			Values__:   vals,
+			Parent__:   parent,
+			Blank:      TypedValue{}, // empty
+		}
+	default:
+		panic(fmt.Sprintf(
+			"unexpected type %v",
+			reflect.TypeOf(val)))
 	}
 }
 
 // crawls marked updated objects up the ownership chain
 // to update the merkle hash.
-func (rlm *Realm) ProcessUpdatedObjects() {
+func (rlm *Realm) ProcessUpdatedObjects(store Store) {
 	for _, oo := range rlm.updated {
-		rlm.processCreatedOrUpdatedObject(oo)
+		rlm.saveUnsavedObject(store, oo)
 	}
 }
 
 // crawls marked deleted objects, recursively.
-func (rlm *Realm) ProcessDeletedObjects() {
+func (rlm *Realm) ProcessDeletedObjects(store Store) {
 	for _, do := range rlm.deleted {
 		// Remove deleted object, and recursively
 		// delete objects no longer referenced.
@@ -484,12 +659,10 @@ func (rlm *Realm) AssignNewObjectID(oo Object) ObjectID {
 }
 
 func (rlm *Realm) SaveCreatedObject(oo Object) {
-	oi := rlm.EncodeObjectImage(oo)
-	oo.SetHash(hashValueImage(oi))
-	rlm.saveObject(oo, oi)
+	rlm.saveObject(oo)
 	if rlm.ropslog != nil {
 		rlm.ropslog = append(rlm.ropslog,
-			RealmOp{RealmOpNew, oo, oi})
+			RealmOp{RealmOpNew, oo})
 	}
 	oo.SetIsNewReal(false)
 	oo.SetIsDirty(false, 0)
@@ -507,51 +680,38 @@ func (rlm *Realm) SaveUpdatedObject(oo Object) {
 			panic("should not happen")
 		}
 	}
-	oi := rlm.EncodeObjectImage(oo)
-	oo.SetHash(hashValueImage(oi))
-	rlm.saveObject(oo, oi)
+	rlm.saveObject(oo)
 	if rlm.ropslog != nil {
 		rlm.ropslog = append(rlm.ropslog,
-			RealmOp{RealmOpMod, oo, oi})
+			RealmOp{RealmOpMod, oo})
 	}
 	oo.SetIsDirty(false, 0)
 }
 
-func (rlm *Realm) saveObject(oo Object, vi ValueImage) {
+func (rlm *Realm) saveObject(oo Object) {
 	oid := oo.GetObjectID()
 	if oid.IsZero() {
 		panic("unexpected zero object id")
 	}
-	fmt.Printf("XXX WOULD SAVE: %v=%v\n", oid, vi)
+	// replace children/fields with Ref.
+	o2 := copyWithRefs(oo)
+	// marshal to binary
+	bz := amino.MustMarshal(o2)
+	// set hash.
+	hash := HashBytes(bz) // XXX objectHash(bz)???
+	oo.SetHash(ValueHash{hash})
+	// persist oid -> oo, bz(, hash???)
+	rlm.saveObjectBytes(oid, bz, hash)
+}
+
+func (rlm *Realm) saveObjectBytes(oid ObjectID, bz []byte, hash Hashlet) {
+	fmt.Println("XXX would save object bytes", oid, bz, hash)
 }
 
 func (rlm *Realm) RemoveDeletedObject(oo Object) {
 	if rlm.ropslog != nil {
 		rlm.ropslog = append(rlm.ropslog,
-			RealmOp{RealmOpDel, oo, nil})
-	}
-}
-
-//----------------------------------------
-// misc
-
-func ensureUniq(ooz []Object) {
-	om := make(map[Object]struct{}, len(ooz))
-	for _, uo := range ooz {
-		if _, ok := om[uo]; ok {
-			panic("duplicate object")
-		} else {
-			om[uo] = struct{}{}
-		}
-	}
-}
-
-func IsRealmPath(pkgPath string) bool {
-	// TODO: make it more distinct to distinguish from normal paths.
-	if strings.HasPrefix(pkgPath, "gno.land/r/") {
-		return true
-	} else {
-		return false
+			RealmOp{RealmOpDel, oo})
 	}
 }
 
@@ -572,7 +732,6 @@ const (
 type RealmOp struct {
 	Type RealmOpType
 	Object
-	ValueImage
 }
 
 // used by the tests/file_test system to check
@@ -582,11 +741,11 @@ func (rop RealmOp) String() string {
 	case RealmOpNew:
 		return fmt.Sprintf("c[%v]=%v",
 			rop.Object.GetObjectID(),
-			spew.Sdump(rop.ValueImage))
+			spew.Sdump(rop.Object))
 	case RealmOpMod:
 		return fmt.Sprintf("u[%v]=%v",
 			rop.Object.GetObjectID(),
-			spew.Sdump(rop.ValueImage))
+			spew.Sdump(rop.Object))
 	case RealmOpDel:
 		return fmt.Sprintf("d[%v]",
 			rop.Object.GetObjectID())
@@ -626,4 +785,58 @@ func NewMemRealmer() Realmer {
 			return rlm
 		}
 	})
+}
+
+//----------------------------------------
+// Misc.
+
+func ensureRefValue(val Value) RefValue {
+	if ref, ok := val.(RefValue); ok {
+		return ref
+	} else if oo, ok := val.(Object); ok {
+		if !oo.GetIsReal() {
+			panic("unexpected unreal object")
+		} else if oo.GetIsDirty() {
+			panic("unexpected dirty object")
+		}
+		return RefValue{
+			ObjectID: oo.GetObjectID(),
+		}
+	} else {
+		panic("should not happen")
+	}
+}
+
+func ensureUniq(ooz []Object) {
+	om := make(map[Object]struct{}, len(ooz))
+	for _, uo := range ooz {
+		if _, ok := om[uo]; ok {
+			panic("duplicate object")
+		} else {
+			om[uo] = struct{}{}
+		}
+	}
+}
+
+func refOrCopy(tv TypedValue) TypedValue {
+	if obj, ok := tv.V.(Object); ok {
+		tv.V = ensureRefValue(obj)
+		return tv
+	} else {
+		tv.V = copyWithRefs(tv.V)
+		return tv
+	}
+}
+
+func isUnsaved(oo Object) bool {
+	return !oo.GetIsReal() || oo.GetIsDirty()
+}
+
+func IsRealmPath(pkgPath string) bool {
+	// TODO: make it more distinct to distinguish from normal paths.
+	if strings.HasPrefix(pkgPath, "gno.land/r/") {
+		return true
+	} else {
+		return false
+	}
 }
