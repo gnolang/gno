@@ -350,17 +350,17 @@ func (sv *StructValue) Copy() *StructValue {
 // makes construction TypedValue{T:*FuncType{},V:*FuncValue{}}
 // faster.
 type FuncValue struct {
-	Type       *FuncType      // includes unbound receiver(s)
-	IsMethod   bool           // is an (unbound) method
-	Source     BlockNode      // for block mem allocation
-	Name       Name           // name of function/method
-	Body       []Stmt         // function body
-	Closure__  Value          // *Block or RefValue to closure (a file's Block for unbound methods).
-	NativeBody func(*Machine) // alternative to Body
-	FileName   Name           // file name where declared
-	PkgPath    string
+	Type      *FuncType // includes unbound receiver(s)
+	IsMethod  bool      // is an (unbound) method
+	Source    BlockNode // for block mem allocation
+	Name      Name      // name of function/method
+	Body      []Stmt    // function body
+	Closure__ Value     // *Block or RefValue to closure (a file's Block for unbound methods).
+	FileName  Name      // file name where declared
+	PkgPath   string
 
-	pkg *PackageValue
+	nativeBody func(*Machine) // alternative to Body
+	pkg        *PackageValue
 }
 
 func (fv *FuncValue) GetPackage() *PackageValue {
@@ -2095,9 +2095,9 @@ func defaultValue(t Type) Value {
 	case *StructType:
 		tvs := make([]TypedValue, len(ct.Fields))
 		for i, ft := range ct.Fields {
-			if ft.Kind() != InterfaceKind {
-				tvs[i].T = ft
-				tvs[i].V = defaultValue(ft)
+			if ft.Type.Kind() != InterfaceKind {
+				tvs[i].T = ft.Type
+				tvs[i].V = defaultValue(ft.Type)
 			}
 		}
 		return &StructValue{

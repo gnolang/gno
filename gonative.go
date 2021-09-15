@@ -131,8 +131,8 @@ func go2GnoType2(rt reflect.Type) (t Type) {
 						Name:       Name(mthd.Name),
 						Body:       nil, // XXX
 						Closure__:  nil,
-						NativeBody: nil,
 						PkgPath:    pkgPath,
+						nativeBody: nil,
 						pkg:        nil, // XXX
 					}
 					mtvs[i] = TypedValue{T: ft, V: fv}
@@ -880,7 +880,7 @@ func gno2GoType(t Type) reflect.Type {
 	case *nativeType:
 		return ct.Type
 	default:
-		panic("should not happen")
+		panic(fmt.Sprintf("unexpected type %v with base %v", t, baseOf(t)))
 	}
 }
 

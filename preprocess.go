@@ -2370,9 +2370,9 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 				Name:       cd.Name,
 				Body:       cd.Body,
 				Closure__:  nil, // set later, see UpdatePackage().
-				NativeBody: nil,
 				FileName:   filenameOf(last),
-				PkgPath:    "",  // set later, see UpdatePackage().
+				PkgPath:    "", // set later, see UpdatePackage().
+				nativeBody: nil,
 				pkg:        nil, // set later, see UpdatePackage().
 			})
 		} else {
@@ -2583,9 +2583,9 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 					Name:       d.Name,
 					Body:       d.Body,
 					Closure__:  nil, // set later, see UpdatePackage().
-					NativeBody: nil,
 					FileName:   filenameOf(last),
-					PkgPath:    "",  // set later, see UpdatePackage().
+					PkgPath:    "", // set later, see UpdatePackage().
+					nativeBody: nil,
 					pkg:        nil, // set later, see UpdatePackage().
 				},
 			})

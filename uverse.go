@@ -59,7 +59,7 @@ func UverseNode() *PackageNode {
 		// which doesn't get interpeted as it
 		// doesn't exist in the declaration node.
 		fv := uverseNode.GetValueRef(nil, n).V.(*FuncValue)
-		fv.NativeBody = native
+		fv.nativeBody = native
 		// fv.Closure, fv.pkg set during .NewPackage().
 	}
 

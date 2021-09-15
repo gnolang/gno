@@ -1257,7 +1257,11 @@ func (sb *StaticBlock) GetNumNames() (nn uint16) {
 // Implements BlockNode.
 func (sb *StaticBlock) GetParentNode(store Store) BlockNode {
 	pblock := sb.Block.GetParent(store)
-	return pblock.Source
+	if pblock == nil {
+		return nil
+	} else {
+		return pblock.Source
+	}
 }
 
 // Implements BlockNode.

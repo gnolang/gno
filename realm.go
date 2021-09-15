@@ -524,7 +524,7 @@ func copyWithRefs(val Value) Value {
 		if cv.Closure__ != nil {
 			closure = ensureRefValue(cv.Closure__)
 		}
-		if cv.NativeBody != nil {
+		if cv.nativeBody != nil {
 			panic("should not happen")
 		}
 		return &FuncValue{

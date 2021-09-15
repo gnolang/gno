@@ -66,7 +66,7 @@ func (m *Machine) doOpCall() {
 	clo := fr.Func.GetClosure(m.Store)
 	b := NewBlock(fr.Func.Source, clo)
 	m.PushBlock(b)
-	if fv.NativeBody == nil {
+	if fv.nativeBody == nil {
 		if len(ft.Results) == 0 {
 			// Push final empty *ReturnStmt;
 			// TODO: transform in preprocessor instead to return only
@@ -159,12 +159,12 @@ func (m *Machine) doOpCall() {
 }
 
 func (m *Machine) doOpCallNativeBody() {
-	m.LastFrame().Func.NativeBody(m)
+	m.LastFrame().Func.nativeBody(m)
 }
 
 func (m *Machine) doOpCallDeferNativeBody() {
 	fv := m.PopValue().V.(*FuncValue)
-	fv.NativeBody(m)
+	fv.nativeBody(m)
 }
 
 // Assumes that result values are pushed onto the Values stack.
@@ -267,7 +267,7 @@ func (m *Machine) doOpReturnCallDefers() {
 		// Create new block scope for defer.
 		b := NewBlock(fv.Source, fb)
 		m.PushBlock(b)
-		if fv.NativeBody == nil {
+		if fv.nativeBody == nil {
 			// Exec body.
 			b.bodyStmt = bodyStmt{
 				Body:          fv.Body,

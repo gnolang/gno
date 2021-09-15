@@ -1,11 +1,11 @@
 package gno
 
 type TestStore struct {
-	getPackage func(pkgPath string) *PackageValue
+	GetPackageFn func(pkgPath string) *PackageValue
 }
 
 func (ts TestStore) GetPackage(pkgPath string) *PackageValue {
-	return ts.getPackage(pkgPath)
+	return ts.GetPackageFn(pkgPath)
 }
 
 func (ts TestStore) SetPackage(*PackageValue) {

@@ -33,7 +33,7 @@ func TestGoNativeDefine(t *testing.T) {
 	// Import above package and evaluate foo.Foo.
 	m := NewMachineWithOptions(MachineOptions{
 		Store: TestStore{
-			getPackage: (func(pkgPath string) *PackageValue {
+			GetPackageFn: (func(pkgPath string) *PackageValue {
 				switch pkgPath {
 				case "test.foo":
 					return pv
@@ -60,7 +60,7 @@ func TestGoNativeDefine2(t *testing.T) {
 	m := NewMachineWithOptions(MachineOptions{
 		Output: out,
 		Store: TestStore{
-			getPackage: (func(pkgPath string) *PackageValue {
+			GetPackageFn: (func(pkgPath string) *PackageValue {
 				switch pkgPath {
 				case "test.foo":
 					return pv
@@ -107,7 +107,7 @@ func TestGoNativeDefine3(t *testing.T) {
 	m := NewMachineWithOptions(MachineOptions{
 		Output: out,
 		Store: TestStore{
-			getPackage: (func(pkgPath string) *PackageValue {
+			GetPackageFn: (func(pkgPath string) *PackageValue {
 				switch pkgPath {
 				case "test.foo":
 					return pv
