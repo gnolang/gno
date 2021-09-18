@@ -33,5 +33,5 @@ func main() {
 }
 
 // Output:
-// struct{(undefined),(undefined),(undefined),(undefined),(undefined),(undefined),(undefined),(undefined),(undefined),(undefined)}
-// struct{(undefined),(undefined),(undefined),(undefined),(undefined),(undefined),(undefined),(undefined),(undefined)}
+// struct{(nil []main.T),(nil []*main.T),(nil map[string]main.T),(nil map[string]*main.T),(nil chan main.T),(nil chan *main.T),(nil *main.T),(nil func(_#main.T)(#main.T)),(nil func(_#*main.T)(#*main.T)),(struct{(nil []main.T),(nil []*main.T),(nil map[string]main.T),(nil map[string]*main.T),(nil chan main.T),(nil chan *main.T),(nil *main.T),(nil func(_#main.T)(#main.T)),(nil func(_#*main.T)(#*main.T))} main.U)}
+// struct{(nil []main.T),(nil []*main.T),(nil map[string]main.T),(nil map[string]*main.T),(nil chan main.T),(nil chan *main.T),(nil *main.T),(nil func(_#main.T)(#main.T)),(nil func(_#*main.T)(#*main.T))}

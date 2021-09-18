@@ -139,7 +139,9 @@ func (pv PointerValue) Assign2(store Store, rlm *Realm, tv2 TypedValue, cu bool)
 	oo1 := pv.TV__.GetFirstObject(store)
 	pv.TV__.Assign(tv2, cu)
 	oo2 := pv.TV__.GetFirstObject(store)
-	rlm.DidUpdate(pv.Base__.(Object), oo1, oo2)
+	if pv.Base__ != nil {
+		rlm.DidUpdate(pv.Base__.(Object), oo1, oo2)
+	}
 }
 
 func (pv PointerValue) Deref() (tv TypedValue) {
