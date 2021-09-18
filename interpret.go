@@ -1280,8 +1280,8 @@ func (m *Machine) String() string {
 	for b := m.LastBlock(); b != nil; {
 		gen := len(bs)/2 + 1
 		gens := strings.Repeat("@", gen)
-		bs = append(bs, fmt.Sprintf("          %s(%d) %s", gens, gen,
-			b.StringIndented("            ")))
+		bsi := b.StringIndented("            ")
+		bs = append(bs, fmt.Sprintf("          %s(%d) %s", gens, gen, bsi))
 		if b.Source != nil {
 			sb := b.Source.GetStaticBlock().GetBlock()
 			bs = append(bs, fmt.Sprintf(" (static values) %s(%d) %s", gens, gen,
@@ -1291,12 +1291,17 @@ func (m *Machine) String() string {
 		}
 		// b = b.Parent.(*Block|RefValue)
 		switch bp := b.Parent__.(type) {
+		case nil:
+			b = nil
+			break
 		case *Block:
 			b = bp
 		case RefValue:
 			bs = append(bs, fmt.Sprintf("            (block ref %v)", bp.ObjectID))
 			b = nil
 			break
+		default:
+			panic("should not happen")
 		}
 	}
 	obs := []string{}

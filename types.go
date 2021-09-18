@@ -474,7 +474,13 @@ func (pt *PointerType) TypeID() TypeID {
 }
 
 func (pt *PointerType) String() string {
-	return fmt.Sprintf("*%s", pt.Elt.String())
+	if pt == nil {
+		panic("invalid nil pointer type")
+	} else if pt.Elt == nil {
+		panic("invalid nil pointer element type")
+	} else {
+		return fmt.Sprintf("*%v", pt.Elt)
+	}
 }
 
 func (pt *PointerType) Elem() Type {

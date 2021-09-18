@@ -2077,32 +2077,44 @@ type RefValue struct {
 
 //----------------------------------------
 
+func defaultStructFields(st *StructType) []TypedValue {
+	tvs := make([]TypedValue, len(st.Fields))
+	for i, ft := range st.Fields {
+		if ft.Type.Kind() != InterfaceKind {
+			tvs[i].T = ft.Type
+			tvs[i].V = defaultValue(ft.Type)
+		}
+	}
+	return tvs
+}
+
+func defaultStructValue(st *StructType) *StructValue {
+	return &StructValue{
+		Fields__: defaultStructFields(st),
+	}
+}
+
+func defaultArrayValue(at *ArrayType) *ArrayValue {
+	tvs := make([]TypedValue, at.Len)
+	if et := at.Elem(); et.Kind() != InterfaceKind {
+		for i := 0; i < at.Len; i++ {
+			tvs[i].T = et
+			tvs[i].V = defaultValue(et)
+		}
+	}
+	return &ArrayValue{
+		List__: tvs,
+	}
+}
+
 func defaultValue(t Type) Value {
 	switch ct := baseOf(t).(type) {
 	case nil:
 		panic("unexpected nil type")
 	case *ArrayType:
-		tvs := make([]TypedValue, ct.Len)
-		if et := ct.Elem(); et.Kind() != InterfaceKind {
-			for i := 0; i < ct.Len; i++ {
-				tvs[i].T = et
-				tvs[i].V = defaultValue(et)
-			}
-		}
-		return &ArrayValue{
-			List__: tvs,
-		}
+		return defaultArrayValue(ct)
 	case *StructType:
-		tvs := make([]TypedValue, len(ct.Fields))
-		for i, ft := range ct.Fields {
-			if ft.Type.Kind() != InterfaceKind {
-				tvs[i].T = ft.Type
-				tvs[i].V = defaultValue(ft.Type)
-			}
-		}
-		return &StructValue{
-			Fields__: tvs,
-		}
+		return defaultStructValue(ct)
 	case *SliceType:
 		return nil
 	case *MapType:

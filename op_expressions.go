@@ -382,9 +382,9 @@ func (m *Machine) doOpArrayLit() {
 	ne := len(x.Elts)
 	// peek array type.
 	at := m.PeekValue(1 + ne).V.(TypeValue).Type
-	// bt := baseOf(at).(*ArrayType)
+	bt := baseOf(at).(*ArrayType)
 	// construct array value.
-	av := defaultValue(at).(*ArrayValue)
+	av := defaultArrayValue(bt)
 	if 0 < ne {
 		al := av.List__
 		vs := m.PopValues(ne)
@@ -485,12 +485,16 @@ func (m *Machine) doOpStructLit() {
 	xt := m.PeekValue(1 + el).V.(TypeValue).Type
 	st := baseOf(xt).(*StructType)
 	nf := len(st.Fields)
+	sv := &StructValue{
+		// will replace this with fs below.
+		Fields__: nil, // becomes fs.
+	}
 	fs := []TypedValue(nil)
 	// NOTE includes embedded fields.
 	if el == 0 {
 		// zero struct with no fields set.
 		// TODO: optimize and allow nil.
-		fs = make([]TypedValue, len(st.Fields))
+		fs = defaultStructFields(st)
 	} else if x.Elts[0].Key == nil {
 		// field values are in order.
 		fs = make([]TypedValue, 0, len(st.Fields))
@@ -529,7 +533,7 @@ func (m *Machine) doOpStructLit() {
 		}
 	} else {
 		// field values are by name and may be out of order.
-		fs = make([]TypedValue, len(st.Fields))
+		fs = defaultStructFields(st)
 		ftvs := m.PopValues(el)
 		for i := 0; i < el; i++ {
 			fnx := x.Elts[i].Key.(*NameExpr)
@@ -547,9 +551,7 @@ func (m *Machine) doOpStructLit() {
 	}
 	// construct and push value.
 	m.PopValue() // baseOf() is st
-	sv := &StructValue{
-		Fields__: fs,
-	}
+	sv.Fields__ = fs
 	m.PushValue(TypedValue{
 		T: xt,
 		V: sv,
