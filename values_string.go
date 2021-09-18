@@ -50,7 +50,7 @@ func (v PointerValue) String() string {
 	// NOTE: cannot do below, due to recursion problems.
 	// TODO: create a different String2(...) function.
 	// return fmt.Sprintf("&%s", v.TypedValue.String())
-	return fmt.Sprintf("&%p", v.TV__)
+	return fmt.Sprintf("&%p (*%s)", v.TV__, v.TV__.T.String())
 }
 
 func (v *StructValue) String() string {
@@ -120,10 +120,14 @@ func (v *PackageValue) String() string {
 }
 
 func (v nativeValue) String() string {
-	return fmt.Sprintf("<gonative %v (%s)>",
-		v.Value.Interface(),
-		v.Value.String(),
-	)
+	return fmt.Sprintf("gonative{%v}",
+		v.Value.Interface())
+	/*
+		return fmt.Sprintf("gonative{%v (%s)}",
+			v.Value.Interface(),
+			v.Value.Type().String(),
+		)
+	*/
 }
 
 func (v RefValue) String() string {

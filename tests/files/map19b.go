@@ -14,4 +14,4 @@ func main() {
 }
 
 // Output:
-// struct{(undefined)}
+// struct{(nil map[int64]*main.server)}

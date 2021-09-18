@@ -3,6 +3,9 @@
   * Dry the code with select refactors.
   * Implement form of channel send/recv.
   * Complete float32/float64 implementation (as struct).
+  * Check parsed AST for compile-time errors.
+    - unused names,
+    - XXX
 
 # /pkgs
   * Replace testify with gnolang/gno/pkgs/testify

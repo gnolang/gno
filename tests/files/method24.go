@@ -6,7 +6,7 @@ import (
 )
 
 type Pool struct {
-	p *sync.Pool
+	P *sync.Pool
 }
 
 func (p Pool) Get() *Buffer { return &Buffer{} }
@@ -14,8 +14,8 @@ func (p Pool) Get() *Buffer { return &Buffer{} }
 func NewPool() Pool { return Pool{} }
 
 type Buffer struct {
-	bs   []byte
-	pool Pool
+	Bs   []byte
+	Pool Pool
 }
 
 var (
