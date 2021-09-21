@@ -17,6 +17,15 @@ type CacheStore struct {
 	Store        Store
 }
 
+func NewCacheStore(store Store) CacheStore {
+	return CacheStore{
+		CachePkgs:    make(map[string]*PackageValue),
+		CacheObjects: make(map[ObjectID]Object),
+		CacheTypes:   make(map[TypeID]Type),
+		Store:        store,
+	}
+}
+
 func (cs CacheStore) GetPackage(pkgPath string) *PackageValue {
 	if pv, exists := cs.CachePkgs[pkgPath]; exists {
 		return pv

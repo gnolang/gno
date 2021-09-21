@@ -346,8 +346,15 @@ func (rlm *Realm) saveUnsavedObject(store Store, oo Object) {
 	more := getUnsavedChildren(oo, nil)
 	for _, child := range more {
 		if child.GetIsProcessing() {
-			// NOTE: circular references not yet supported.
-			panic("should not happen")
+			// Circular reference examples:
+			// block -> fileblock -> fileblock.parent
+			// They are OK for certain objects,
+			// and are accounted for in RefCount.
+			if child.GetObjectID().IsZero() {
+				panic("should not happen")
+			} else {
+				break
+			}
 		}
 		// XXX check for conflict? or before?
 		child.SetOwner(oo)
@@ -378,11 +385,11 @@ func getUnsaved(val Value, more []Object) []Object {
 func getUnsavedChildren(val Value, more []Object) []Object {
 	switch cv := val.(type) {
 	case nil:
-		return nil
+		return more
 	case StringValue:
-		return nil
+		return more
 	case BigintValue:
-		return nil
+		return more
 	case DataByteValue:
 		panic("should not happen")
 	case PointerValue:
@@ -426,7 +433,7 @@ func getUnsavedChildren(val Value, more []Object) []Object {
 		}
 		return more
 	case TypeValue:
-		return nil
+		return more
 	case *PackageValue:
 		for _, ctv := range cv.Values__ {
 			// NOTE: same as isUnsaved(ctv.GetFirstObject()).
@@ -797,7 +804,9 @@ func ensureRefValue(val Value) RefValue {
 		if !oo.GetIsReal() {
 			panic("unexpected unreal object")
 		} else if oo.GetIsDirty() {
-			panic("unexpected dirty object")
+			// This can happen with some circular
+			// references.
+			// panic("unexpected dirty object")
 		}
 		return RefValue{
 			ObjectID: oo.GetObjectID(),

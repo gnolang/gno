@@ -105,6 +105,9 @@ type Name string
 //----------------------------------------
 // Attributes
 // All nodes have attributes for general analysis purposes.
+// Exported Attribute fields like Loc and Label are persisted
+// even after preprocessing.  Temporary attributes (e.g. those
+// for preprocessing) are stored in .data.
 
 type Location struct {
 	PkgPath string
@@ -113,19 +116,28 @@ type Location struct {
 }
 
 type Attributes struct {
-	Loc  Location
-	Data map[interface{}]interface{}
+	Loc   Location
+	Label Name
+	data  map[interface{}]interface{} // not persisted
+}
+
+func (a *Attributes) GetLocation() Location {
+	return a.Loc
+}
+
+func (a *Attributes) SetLocation(loc Location) {
+	a.Loc = loc
 }
 
 func (a *Attributes) GetAttribute(key interface{}) interface{} {
-	return a.Data[key]
+	return a.data[key]
 }
 
 func (a *Attributes) SetAttribute(key interface{}, value interface{}) {
-	if a.Data == nil {
-		a.Data = make(map[interface{}]interface{})
+	if a.data == nil {
+		a.data = make(map[interface{}]interface{})
 	}
-	a.Data[key] = value
+	a.data[key] = value
 }
 
 //----------------------------------------
@@ -135,6 +147,8 @@ type Node interface {
 	assertNode()
 	String() string
 	Copy() Node
+	GetLocation() Location
+	SetLocation(Location)
 	GetAttribute(key interface{}) interface{}
 	SetAttribute(key interface{}, value interface{})
 }
@@ -1075,14 +1089,18 @@ func (pn *PackageNode) NewPackage(rlmr Realmer) *PackageValue {
 		rlm := rlmr(pn.PkgPath)
 		pv.SetRealm(rlm)
 	}
-	pn.UpdatePackage(pv)
+	pn.PrepareNewValues(pv)
 	return pv
 }
 
+// Prepares new func and method values by attaching the proper file block.
 // Returns a slice of new PackageValue.Values.
-func (pn *PackageNode) UpdatePackage(pv *PackageValue) []TypedValue {
+// After return, *PackageNode.Values and *PackageValue.Values have the same
+// length.
+// TODO split logic and/or name resulting function(s) better. PrepareNewValues?
+func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 	if pv.Source != pn {
-		panic("PackageNode.UpdatePackage() package mismatch")
+		panic("PackageNode.PrepareNewValues() package mismatch")
 	}
 	pvl := len(pv.Values__)
 	pnl := len(pn.Values__)
@@ -1136,6 +1154,7 @@ func (pn *PackageNode) UpdatePackage(pv *PackageValue) []TypedValue {
 							// This happens with alias declarations.
 						}
 						// set mv.pkg.
+						mv.PkgPath = pv.PkgPath
 						mv.pkg = pv
 						// set mv.Closure.
 						fn, _ := pn.GetDeclFor(dt.Name)
@@ -1192,8 +1211,8 @@ type StaticBlock struct {
 	Block
 	Types    []Type
 	NumNames uint16
-	Names    map[Name]uint16
-	Extern   map[Name]struct{}
+	Names    []Name
+	Externs  []Name
 }
 
 // Implements BlockNode
@@ -1215,8 +1234,8 @@ func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 		}
 	}
 	sb.NumNames = 0
-	sb.Names = make(map[Name]uint16)
-	sb.Extern = make(map[Name]struct{})
+	sb.Names = make([]Name, 0, 16)
+	sb.Externs = make([]Name, 0, 16)
 	return
 }
 
@@ -1233,20 +1252,21 @@ func (sb *StaticBlock) GetBlock() *Block {
 
 // Implements BlockNode.
 func (sb *StaticBlock) GetBlockNames() (ns []Name) {
-	ns = make([]Name, sb.NumNames)
-	for n, idx := range sb.Names {
-		ns[int(idx)] = n
-	}
-	return ns
+	return sb.Names // copy?
 }
 
 // Implements BlockNode.
 func (sb *StaticBlock) GetExternNames() (ns []Name) {
-	ns = make([]Name, 0, len(sb.Extern))
-	for n, _ := range sb.Extern {
-		ns = append(ns, n)
+	return sb.Externs // copy?
+}
+
+func (sb *StaticBlock) addExternName(n Name) {
+	for _, extern := range sb.Externs {
+		if extern == n {
+			return
+		}
 	}
-	return ns
+	sb.Externs = append(sb.Externs, n)
 }
 
 // Implements BlockNode.
@@ -1277,7 +1297,7 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 		return NewValuePathBlock(uint8(gen), idx, n)
 	} else {
 		if !isFile(sb.Source) {
-			sb.Extern[n] = struct{}{}
+			sb.GetStaticBlock().addExternName(n)
 		}
 		gen++
 		bp := sb.GetParentNode(store)
@@ -1286,7 +1306,7 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 				return NewValuePathBlock(uint8(gen), idx, n)
 			} else {
 				if !isFile(bp) {
-					bp.GetStaticBlock().Extern[n] = struct{}{}
+					sb.GetStaticBlock().addExternName(n)
 				}
 				bp = bp.GetParentNode(store)
 				gen++
@@ -1340,13 +1360,22 @@ func (sb *StaticBlock) GetStaticTypeOfAt(store Store, path ValuePath) Type {
 
 // Implements BlockNode.
 func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
-	idx, ok := sb.Names[n]
+	for i, name := range sb.Names {
+		if name == n {
+			if debug {
+				nt := reflect.TypeOf(sb.Source).String()
+				debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = %v, %v\n",
+					sb, nt, n, i, name)
+			}
+			return uint16(i), true
+		}
+	}
 	if debug {
 		nt := reflect.TypeOf(sb.Source).String()
-		debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = %v, %v\n",
-			sb, nt, n, idx, ok)
+		debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = undefined\n",
+			sb, nt, n)
 	}
-	return idx, ok
+	return 0, false
 }
 
 // Implemented BlockNode.
@@ -1405,7 +1434,8 @@ func (sb *StaticBlock) Define2(n Name, st Type, tv TypedValue) {
 	if tv.T == nil && tv.V != nil {
 		panic("StaticBlock.Define() requires .T if .V is set")
 	}
-	if idx, exists := sb.Names[n]; exists {
+	idx, exists := sb.GetLocalIndex(n)
+	if exists {
 		// Is re-defining.
 		old := sb.Block.Values__[idx]
 		if !old.IsUndefined() {
@@ -1422,7 +1452,7 @@ func (sb *StaticBlock) Define2(n Name, st Type, tv TypedValue) {
 		sb.Types[idx] = st
 	} else {
 		// The general case without re-definition.
-		sb.Names[n] = sb.NumNames
+		sb.Names = append(sb.Names, n)
 		sb.NumNames++
 		sb.Block.Values__ = append(sb.Block.Values__, tv)
 		sb.Types = append(sb.Types, st)
@@ -1660,13 +1690,13 @@ func (blx *BasicLitExpr) GetInt() int {
 	return i
 }
 
-type GnoAttribute int
+type GnoAttribute string
 
 const (
-	ATTR_PREPROCESSED GnoAttribute = iota
-	ATTR_PREDEFINED
-	ATTR_TYPE_VALUE
-	ATTR_TYPEOF_VALUE
-	ATTR_LABEL
-	ATTR_IOTA
+	ATTR_PREPROCESSED GnoAttribute = "ATTR_PREPROCESSED"
+	ATTR_PREDEFINED   GnoAttribute = "ATTR_PREDEFINED"
+	ATTR_TYPE_VALUE   GnoAttribute = "ATTR_TYPE_VALUE"
+	ATTR_TYPEOF_VALUE GnoAttribute = "ATTR_TYPEOF_VALUE"
+	ATTR_LABEL        GnoAttribute = "ATTR_LABEL"
+	ATTR_IOTA         GnoAttribute = "ATTR_IOTA"
 )

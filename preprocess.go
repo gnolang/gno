@@ -2369,11 +2369,11 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 				Source:     cd,
 				Name:       cd.Name,
 				Body:       cd.Body,
-				Closure__:  nil, // set later, see UpdatePackage().
+				Closure__:  nil, // set later, see PrepareNewValues().
 				FileName:   filenameOf(last),
-				PkgPath:    "", // set later, see UpdatePackage().
+				PkgPath:    "", // set later, see PrepareNewValues().
 				nativeBody: nil,
-				pkg:        nil, // set later, see UpdatePackage().
+				pkg:        nil, // set later, see PrepareNewValues().
 			})
 		} else {
 			ftv := pkg.GetValueRef(store, cd.Name)
@@ -2582,11 +2582,11 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 					Source:     d,
 					Name:       d.Name,
 					Body:       d.Body,
-					Closure__:  nil, // set later, see UpdatePackage().
+					Closure__:  nil, // set later, see PrepareNewValues().
 					FileName:   filenameOf(last),
-					PkgPath:    "", // set later, see UpdatePackage().
+					PkgPath:    "", // set later, see PrepareNewValues().
 					nativeBody: nil,
-					pkg:        nil, // set later, see UpdatePackage().
+					pkg:        nil, // set later, see PrepareNewValues().
 				},
 			})
 			if d.Name == "init" {

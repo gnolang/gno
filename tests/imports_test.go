@@ -313,9 +313,11 @@ func testStore(out io.Writer) (store gno.Store) {
 			panic("unknown package path " + pkgPath)
 		}
 	}
-	return gno.TestStore{
+	tstore := gno.TestStore{
 		GetPackageFn: getPackage,
 	}
+	cstore := gno.NewCacheStore(tstore)
+	return cstore
 }
 
 //----------------------------------------

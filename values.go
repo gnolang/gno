@@ -412,25 +412,51 @@ type MapList struct {
 	Size int
 }
 
+type MapListImage struct {
+	List []*MapListItem
+}
+
+func (ml MapList) MarshalAmino() (MapListImage, error) {
+	mlimg := make([]*MapListItem, 0, ml.Size)
+	for head := ml.Head; head != nil; head = head.Next {
+		mlimg = append(mlimg, head)
+	}
+	return MapListImage{List: mlimg}, nil
+}
+
+func (ml *MapList) UnmarshalAmino(mlimg MapListImage) error {
+	for i, item := range mlimg.List {
+		if i == 0 {
+			// init case
+			ml.Head = item
+		}
+		item.Prev = ml.Tail
+		ml.Tail.Next = item
+		ml.Tail = item
+		ml.Size++
+	}
+	return nil
+}
+
 // NOTE: Value is undefined until assigned.
 func (ml *MapList) Append(key TypedValue) *MapListItem {
-	mli := &MapListItem{
+	item := &MapListItem{
 		Prev:  ml.Tail,
 		Next:  nil,
 		Key__: key,
 		// Value__: undefined,
 	}
 	if ml.Head == nil {
-		ml.Head = mli
+		ml.Head = item
 	} else {
 		// nothing
 	}
 	if ml.Tail != nil {
-		ml.Tail.Next = mli
+		ml.Tail.Next = item
 	}
-	ml.Tail = mli
+	ml.Tail = item
 	ml.Size++
-	return mli
+	return item
 }
 
 func (ml *MapList) Remove(mli *MapListItem) {
@@ -449,8 +475,8 @@ func (ml *MapList) Remove(mli *MapListItem) {
 }
 
 type MapListItem struct {
-	Prev    *MapListItem
-	Next    *MapListItem
+	Prev    *MapListItem `json:"-"`
+	Next    *MapListItem `json:"-"`
 	Key__   TypedValue
 	Value__ TypedValue
 }
@@ -530,6 +556,13 @@ type PackageValue struct {
 	realm      *Realm // if IsRealm(PkgPath)
 }
 
+func (pv *PackageValue) getFBlocksMap() map[Name]*Block {
+	if pv.fBlocksMap == nil {
+		pv.fBlocksMap = make(map[Name]*Block, len(pv.FNames))
+	}
+	return pv.fBlocksMap
+}
+
 // XXX
 func (pv *PackageValue) AddFileBlock(fn Name, fb *Block) {
 	for _, fname := range pv.FNames {
@@ -541,11 +574,11 @@ func (pv *PackageValue) AddFileBlock(fn Name, fb *Block) {
 	}
 	pv.FNames = append(pv.FNames, fn)
 	pv.FBlocks__ = append(pv.FBlocks__, fb)
-	pv.fBlocksMap[fn] = fb
+	pv.getFBlocksMap()[fn] = fb
 }
 
 func (pv *PackageValue) GetFileBlock(store Store, fname Name) *Block {
-	if fb, ex := pv.fBlocksMap[fname]; ex {
+	if fb, ex := pv.getFBlocksMap()[fname]; ex {
 		return fb
 	}
 	for i, fn := range pv.FNames {
@@ -554,10 +587,10 @@ func (pv *PackageValue) GetFileBlock(store Store, fname Name) *Block {
 			switch fbv := fbv.(type) {
 			case RefValue:
 				fb := store.GetObject(fbv.ObjectID).(*Block)
-				pv.fBlocksMap[fname] = fb
+				pv.getFBlocksMap()[fname] = fb
 				return fb
 			case *Block:
-				pv.fBlocksMap[fname] = fbv
+				pv.getFBlocksMap()[fname] = fbv
 				return fbv
 			default:
 				panic("should not happen")
@@ -1929,7 +1962,8 @@ func (tv *TypedValue) GetSlice2(low, high, max int) TypedValue {
 // TODO rename to BlockValue.
 type Block struct {
 	ObjectInfo // for closures
-	Source     BlockNode
+	SourceLoc  Location
+	Source     BlockNode `json:"-"` // unexpose?
 	Values__   []TypedValue
 	Parent__   Value
 	Blank      TypedValue // captures "_"
@@ -1937,14 +1971,17 @@ type Block struct {
 }
 
 func NewBlock(source BlockNode, parent *Block) *Block {
+	var loc Location
 	var values []TypedValue
 	if source != nil {
+		loc = source.GetLocation()
 		values = make([]TypedValue, source.GetNumNames())
 	}
 	return &Block{
-		Source:   source,
-		Values__: values,
-		Parent__: parent,
+		SourceLoc: loc,
+		Source:    source,
+		Values__:  values,
+		Parent__:  parent,
 	}
 }
 

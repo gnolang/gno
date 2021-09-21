@@ -121,7 +121,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 		// NOTE: Most of the declaration is handled by
 		// Preprocess and any constant values set on
 		// pn.StaticBlock, and those values are copied to the
-		// runtime package value via UpdatePacakge.  Then,
+		// runtime package value via PrepareNewValues.  Then,
 		// non-constant var declarations and file-level imports
 		// are re-set in runDeclaration(,true).
 		fn = Preprocess(m.Store, pn, fn).(*FileNode)
@@ -129,11 +129,14 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 			debug.Println("PREPROCESSED FILE: ", fn.String())
 		}
 		// Make block for fn.
+		// Each file for each *PackageValue gets its own file *Block,
+		// with values copied over from each file's
+		// *FileNode.StaticBlock.
 		fb := NewBlock(fn, &pv.Block)
 		fb.Values__ = make([]TypedValue, len(fn.StaticBlock.Values__))
 		copy(fb.Values__, fn.StaticBlock.Values__)
 		pv.AddFileBlock(fn.Name, fb)
-		updates := pn.UpdatePackage(pv) // with fb
+		updates := pn.PrepareNewValues(pv) // with fb
 		fileupdates[i] = updates
 	}
 
@@ -356,7 +359,7 @@ func (m *Machine) RunDeclaration(d Decl) {
 	// be one block right now, and it's a *PackageNode.
 	pn := m.LastBlock().Source.(*PackageNode)
 	d = Preprocess(m.Store, pn, d).(Decl)
-	pn.UpdatePackage(m.Package)
+	pn.PrepareNewValues(m.Package)
 	m.runDeclaration(d)
 	if debug {
 		if pn != m.Package.Source {
