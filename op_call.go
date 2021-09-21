@@ -58,7 +58,7 @@ func (m *Machine) doOpCall() {
 	// discard the correct number of results for func calls in ExprStmts.
 	fr := m.LastFrame()
 	fv := fr.Func
-	ft := fr.Func.Type
+	ft := fr.Func.GetType(m.Store)
 	pts := ft.Params
 	numParams := len(pts)
 	isMethod := 0 // 1 if true
@@ -197,8 +197,9 @@ func (m *Machine) doOpReturn() {
 func (m *Machine) doOpReturnFromBlock() {
 	// Copy results from block.
 	fr := m.PopUntilLastCallFrame()
-	numParams := len(fr.Func.Type.Params)
-	numResults := len(fr.Func.Type.Results)
+	ft := fr.Func.GetType(m.Store)
+	numParams := len(ft.Params)
+	numResults := len(ft.Results)
 	fblock := m.Blocks[fr.NumBlocks] // frame +1
 	for i := 0; i < numResults; i++ {
 		rtv := fillValue(m.Store, &fblock.Values__[i+numParams])
@@ -231,8 +232,9 @@ func (m *Machine) doOpReturnFromBlock() {
 // expressions.
 func (m *Machine) doOpReturnToBlock() {
 	fr := m.LastFrame()
-	numParams := len(fr.Func.Type.Params)
-	numResults := len(fr.Func.Type.Results)
+	ft := fr.Func.GetType(m.Store)
+	numParams := len(ft.Params)
+	numResults := len(ft.Results)
 	fblock := m.Blocks[fr.NumBlocks] // frame +1
 	results := m.PopValues(numResults)
 	for i := 0; i < numResults; i++ {
@@ -261,7 +263,7 @@ func (m *Machine) doOpReturnCallDefers() {
 	// Convert if variadic argument.
 	if dfr.Func != nil {
 		fv := dfr.Func
-		ft := fv.Type
+		ft := fv.GetType(m.Store)
 		pts := ft.Params
 		numParams := len(ft.Params)
 		// Create new block scope for defer.
@@ -279,7 +281,7 @@ func (m *Machine) doOpReturnCallDefers() {
 		} else {
 			// Call native function.
 			m.PushValue(TypedValue{
-				T: fv.Type,
+				T: ft,
 				V: fv,
 			})
 			m.PushOp(OpCallDeferNativeBody)
@@ -348,7 +350,7 @@ func (m *Machine) doOpDefer() {
 		})
 	case *BoundMethodValue:
 		if debug {
-			pt := cv.Func.Type.Params[0]
+			pt := cv.Func.GetType(m.Store).Params[0]
 			rt := cv.Receiver.T
 			if pt.TypeID() != rt.TypeID() {
 				panic(fmt.Sprintf(

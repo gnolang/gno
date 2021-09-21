@@ -553,8 +553,9 @@ EXEC_SWITCH:
 	case *ReturnStmt:
 		m.PopStmt()
 		fr := m.LastCallFrame()
+		ft := fr.Func.GetType(m.Store)
 		hasDefers := 0 < len(fr.Defers)
-		hasResults := 0 < len(fr.Func.Type.Results)
+		hasResults := 0 < len(ft.Results)
 		// If has defers, return from the block stack.
 		if hasDefers {
 			// NOTE: unnamed results are given hidden names

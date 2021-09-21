@@ -66,20 +66,28 @@ func (v *FuncValue) String() string {
 	if v.Name != "" {
 		name = string(v.Name)
 	}
-	if v.Type == nil {
+	if v.Type__ == nil {
 		return fmt.Sprintf("incomplete-func ?%s(?)?", name)
 	}
 	return name
 }
 
 func (v *BoundMethodValue) String() string {
-	recvT := v.Func.Type.Params[0].Type.String()
 	name := v.Func.Name
-	params := FieldTypeList(v.Func.Type.Params).StringWithCommas()
-	results := ""
-	if len(results) > 0 {
-		results = FieldTypeList(v.Func.Type.Results).StringWithCommas()
-		results = "(" + results + ")"
+	var recvT string
+	var params string
+	var results string
+	if ft, ok := v.Func.Type__.(*FuncType); ok {
+		recvT = ft.Params[0].Type.String()
+		params = FieldTypeList(ft.Params).StringWithCommas()
+		if len(results) > 0 {
+			results = FieldTypeList(ft.Results).StringWithCommas()
+			results = "(" + results + ")"
+		}
+	} else {
+		recvT = "?"
+		params = "?"
+		results = "(?)"
 	}
 	return fmt.Sprintf("<%s>.%s(%s)%s",
 		recvT, name, params, results)

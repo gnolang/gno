@@ -2,7 +2,12 @@ package gno
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
+	"strconv"
+	"strings"
+
+	"github.com/gnolang/gno/pkgs/errors"
 )
 
 /*
@@ -36,18 +41,35 @@ supported).
 */
 
 type ObjectID struct {
-	RealmID        // base
-	NewTime uint64 // time created
+	RealmID RealmID // base
+	NewTime uint64  // time created
+}
+
+func (oid ObjectID) MarshalAmino() (string, error) {
+	rid := hex.EncodeToString(oid.RealmID.Hashlet[:])
+	return fmt.Sprintf("%s:%d", rid, oid.NewTime), nil
+}
+
+func (oid *ObjectID) UnmarshalAmino(oids string) error {
+	parts := strings.Split(oids, ":")
+	if len(parts) != 2 {
+		return errors.New("invalid ObjectID %s", oids)
+	}
+	_, err := hex.Decode(oid.RealmID.Hashlet[:], []byte(parts[0]))
+	if err != nil {
+		return err
+	}
+	newTime, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return err
+	}
+	oid.NewTime = uint64(newTime)
+	return nil
 }
 
 func (oid ObjectID) String() string {
-	if oid.RealmID.IsZero() {
-		// XXX what's at the very top?
-		return fmt.Sprintf("OIDNONE:%d", oid.NewTime)
-	} else {
-		return fmt.Sprintf("OID%X:%d",
-			oid.RealmID.Bytes(), oid.NewTime)
-	}
+	oids, _ := oid.MarshalAmino()
+	return oids
 }
 
 func (oid ObjectID) Bytes() []byte {
@@ -109,8 +131,8 @@ var _ Object = &Block{}
 
 type ObjectInfo struct {
 	ID       ObjectID  // set if real.
-	Hash     ValueHash // zero if dirty.
-	OwnerID  ObjectID  // parent in the ownership tree.
+	Hash     ValueHash `json:",omitempty"` // zero if dirty.
+	OwnerID  ObjectID  `json:",omitempty"` // parent in the ownership tree.
 	ModTime  uint64    // time last updated.
 	RefCount int       // for persistence. deleted/gc'd if 0.
 	// MemRefCount int // consider for optimizations.

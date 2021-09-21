@@ -3,10 +3,20 @@ package gno
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 )
 
 type ValueHash struct {
 	Hashlet
+}
+
+func (vh ValueHash) MarshalAmino() (string, error) {
+	return hex.EncodeToString(vh.Hashlet[:]), nil
+}
+
+func (vh *ValueHash) UnmarshalAmino(h string) error {
+	_, err := hex.Decode(vh.Hashlet[:], []byte(h))
+	return err
 }
 
 func (vh ValueHash) Copy() ValueHash {

@@ -565,8 +565,9 @@ func (m *Machine) doOpFuncLit() {
 	m.PushValue(TypedValue{
 		T: ft,
 		V: &FuncValue{
-			Type:       ft,
+			Type__:     ft,
 			IsMethod:   false,
+			SourceLoc:  x.GetLocation(),
 			Source:     x,
 			Name:       "",
 			Body:       x.Body,

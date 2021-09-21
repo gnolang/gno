@@ -1665,7 +1665,7 @@ func evalStaticTypedValues(store Store, last BlockNode, xs ...Expr) []TypedValue
 			v := evalStaticType(store, last, x)
 			res[i] = TypedValue{
 				T: t,
-				V: TypeValue{Type: v},
+				V: toTypeValue(v),
 			}
 		} else {
 			res[i] = TypedValue{
@@ -1808,7 +1808,7 @@ func lastDecl(ns []Node) Decl {
 func asValue(t Type) TypedValue {
 	return TypedValue{
 		T: gTypeType,
-		V: TypeValue{t},
+		V: toTypeValue(t),
 	}
 }
 
@@ -2364,8 +2364,9 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 				dt = rt.(*DeclaredType)
 			}
 			dt.DefineMethod(&FuncValue{
-				Type:       ft,
+				Type__:     ft,
 				IsMethod:   true,
+				SourceLoc:  cd.GetLocation(),
 				Source:     cd,
 				Name:       cd.Name,
 				Body:       cd.Body,
@@ -2577,8 +2578,9 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			pkg.Define(d.Name, TypedValue{
 				T: ft,
 				V: &FuncValue{
-					Type:       ft,
+					Type__:     ft,
 					IsMethod:   false,
+					SourceLoc:  d.GetLocation(),
 					Source:     d,
 					Name:       d.Name,
 					Body:       d.Body,

@@ -1,11 +1,12 @@
 package gno
 
 import (
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gnolang/gno/pkgs/amino"
 )
 
@@ -51,6 +52,15 @@ a realm to keep it alive.
 
 type RealmID struct {
 	Hashlet
+}
+
+func (rid RealmID) MarshalAmino() (string, error) {
+	return hex.EncodeToString(rid.Hashlet[:]), nil
+}
+
+func (rid *RealmID) UnmarshalAmino(h string) error {
+	_, err := hex.Decode(rid.Hashlet[:], []byte(h))
+	return err
 }
 
 func (rid RealmID) String() string {
@@ -450,6 +460,8 @@ func getUnsavedChildren(val Value, more []Object) []Object {
 		}
 		more = getUnsaved(cv.Parent__, more)
 		return more
+	case *nativeValue:
+		return more // XXX ???
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %v",
@@ -461,7 +473,7 @@ func getUnsavedChildren(val Value, more []Object) []Object {
 // persistence bytes serialization.
 // Also checks for integrity of immediate children -- they must already be
 // persistend (real), and not dirty, or else this function panics.
-func copyWithRefs(val Value) Value {
+func copyWithRefs(parent Object, val Value) Value {
 	switch cv := val.(type) {
 	case nil:
 		return nil
@@ -481,11 +493,11 @@ func copyWithRefs(val Value) Value {
 						V: copyWithRefs(cv.TypedValue.V),
 					},
 				*/
-				Base__: ensureRefValue(cv.Base__),
+				Base__: ensureRefValue(parent, cv.Base__),
 				Index:  cv.Index,
 			}
 		} else {
-			etv := refOrCopy(*cv.TV__)
+			etv := refOrCopy(parent, *cv.TV__)
 			return PointerValue{
 				TV__: &etv,
 				/*
@@ -498,7 +510,7 @@ func copyWithRefs(val Value) Value {
 		if cv.Data == nil {
 			list := make([]TypedValue, len(cv.List__))
 			for i, etv := range cv.List__ {
-				list[i] = refOrCopy(etv)
+				list[i] = refOrCopy(cv, etv)
 			}
 			return &ArrayValue{
 				ObjectInfo: cv.ObjectInfo.Copy(),
@@ -512,7 +524,7 @@ func copyWithRefs(val Value) Value {
 		}
 	case *SliceValue:
 		return &SliceValue{
-			Base__: ensureRefValue(cv.Base__),
+			Base__: ensureRefValue(parent, cv.Base__),
 			Offset: cv.Offset,
 			Length: cv.Length,
 			Maxcap: cv.Maxcap,
@@ -520,7 +532,7 @@ func copyWithRefs(val Value) Value {
 	case *StructValue:
 		fields := make([]TypedValue, len(cv.Fields__))
 		for i, ftv := range cv.Fields__ {
-			fields[i] = refOrCopy(ftv)
+			fields[i] = refOrCopy(cv, ftv)
 		}
 		return &StructValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),
@@ -529,14 +541,16 @@ func copyWithRefs(val Value) Value {
 	case *FuncValue:
 		var closure Value
 		if cv.Closure__ != nil {
-			closure = ensureRefValue(cv.Closure__)
+			closure = ensureRefValue(parent, cv.Closure__)
 		}
 		if cv.nativeBody != nil {
 			panic("should not happen")
 		}
+		ft := RefType{ID: cv.Type__.TypeID()}
 		return &FuncValue{
-			Type:      cv.Type,
+			Type__:    ft,
 			IsMethod:  cv.IsMethod,
+			SourceLoc: cv.SourceLoc,
 			Source:    cv.Source,
 			Name:      cv.Name,
 			Body:      cv.Body,
@@ -545,8 +559,8 @@ func copyWithRefs(val Value) Value {
 			PkgPath:   cv.PkgPath,
 		}
 	case *BoundMethodValue:
-		fnc := copyWithRefs(cv.Func).(*FuncValue)
-		rtv := refOrCopy(cv.Receiver)
+		fnc := copyWithRefs(cv, cv.Func).(*FuncValue)
+		rtv := refOrCopy(cv, cv.Receiver)
 		return &BoundMethodValue{
 			ObjectInfo: cv.ObjectInfo.Copy(), // XXX ???
 			Func:       fnc,
@@ -555,8 +569,8 @@ func copyWithRefs(val Value) Value {
 	case *MapValue:
 		list := &MapList{}
 		for cur := cv.List.Head; cur != nil; cur = cur.Next {
-			key2 := refOrCopy(cur.Key__)
-			val2 := refOrCopy(cur.Value__)
+			key2 := refOrCopy(cv, cur.Key__)
+			val2 := refOrCopy(cv, cur.Value__)
 			list.Append(key2).Value__ = val2
 		}
 		return &MapValue{
@@ -564,17 +578,17 @@ func copyWithRefs(val Value) Value {
 			List:       list,
 		}
 	case TypeValue:
-		return TypeValue{
-			Type: cv.Type,
-		}
+		return toTypeValue(RefType{
+			ID: cv.Type.TypeID(),
+		})
 	case *PackageValue:
 		vals := make([]TypedValue, len(cv.Values__))
 		for i, tv := range cv.Values__ {
-			vals[i] = refOrCopy(tv)
+			vals[i] = refOrCopy(cv, tv)
 		}
 		fblocks := make([]Value, len(cv.FBlocks__))
 		for i, fb := range cv.FBlocks__ {
-			fblocks[i] = ensureRefValue(fb)
+			fblocks[i] = ensureRefValue(cv, fb)
 		}
 		return &PackageValue{
 			Block: Block{
@@ -592,19 +606,21 @@ func copyWithRefs(val Value) Value {
 	case *Block:
 		vals := make([]TypedValue, len(cv.Values__))
 		for i, tv := range cv.Values__ {
-			vals[i] = refOrCopy(tv)
+			vals[i] = refOrCopy(cv, tv)
 		}
-		var parent RefValue
+		var bparent Value
 		if cv.Parent__ != nil {
-			parent = ensureRefValue(cv.Parent__)
+			bparent = ensureRefValue(parent, cv.Parent__)
 		}
 		return &Block{
 			ObjectInfo: cv.ObjectInfo.Copy(),
 			Source:     cv.Source,
 			Values__:   vals,
-			Parent__:   parent,
+			Parent__:   bparent,
 			Blank:      TypedValue{}, // empty
 		}
+	case *nativeValue:
+		return RefValue{}
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %v",
@@ -666,11 +682,7 @@ func (rlm *Realm) AssignNewObjectID(oo Object) ObjectID {
 }
 
 func (rlm *Realm) SaveCreatedObject(oo Object) {
-	rlm.saveObject(oo)
-	if rlm.ropslog != nil {
-		rlm.ropslog = append(rlm.ropslog,
-			RealmOp{RealmOpNew, oo})
-	}
+	rlm.saveObject(oo, RealmOpNew)
 	oo.SetIsNewReal(false)
 	oo.SetIsDirty(false, 0)
 }
@@ -687,21 +699,17 @@ func (rlm *Realm) SaveUpdatedObject(oo Object) {
 			panic("should not happen")
 		}
 	}
-	rlm.saveObject(oo)
-	if rlm.ropslog != nil {
-		rlm.ropslog = append(rlm.ropslog,
-			RealmOp{RealmOpMod, oo})
-	}
+	rlm.saveObject(oo, RealmOpMod)
 	oo.SetIsDirty(false, 0)
 }
 
-func (rlm *Realm) saveObject(oo Object) {
+func (rlm *Realm) saveObject(oo Object, op RealmOpType) {
 	oid := oo.GetObjectID()
 	if oid.IsZero() {
 		panic("unexpected zero object id")
 	}
 	// replace children/fields with Ref.
-	o2 := copyWithRefs(oo)
+	o2 := copyWithRefs(nil, oo)
 	// marshal to binary
 	bz := amino.MustMarshal(o2)
 	// set hash.
@@ -709,10 +717,15 @@ func (rlm *Realm) saveObject(oo Object) {
 	oo.SetHash(ValueHash{hash})
 	// persist oid -> oo, bz(, hash???)
 	rlm.saveObjectBytes(oid, bz, hash)
+	// make realm op log entry
+	if rlm.ropslog != nil {
+		rlm.ropslog = append(rlm.ropslog,
+			RealmOp{op, o2.(Object)})
+	}
 }
 
 func (rlm *Realm) saveObjectBytes(oid ObjectID, bz []byte, hash Hashlet) {
-	fmt.Println("XXX would save object bytes", oid, bz, hash)
+	fmt.Println("XXX would save object bytes", oid) // , bz, hash)
 }
 
 func (rlm *Realm) RemoveDeletedObject(oo Object) {
@@ -746,13 +759,13 @@ type RealmOp struct {
 func (rop RealmOp) String() string {
 	switch rop.Type {
 	case RealmOpNew:
-		return fmt.Sprintf("c[%v]=%v",
+		return fmt.Sprintf("c[%v]=%s",
 			rop.Object.GetObjectID(),
-			spew.Sdump(rop.Object))
+			prettyJSON(amino.MustMarshalJSON(rop.Object)))
 	case RealmOpMod:
-		return fmt.Sprintf("u[%v]=%v",
+		return fmt.Sprintf("u[%v]=%s",
 			rop.Object.GetObjectID(),
-			spew.Sdump(rop.Object))
+			prettyJSON(amino.MustMarshalJSON(rop.Object)))
 	case RealmOpDel:
 		return fmt.Sprintf("d[%v]",
 			rop.Object.GetObjectID())
@@ -797,7 +810,7 @@ func NewMemRealmer() Realmer {
 //----------------------------------------
 // Misc.
 
-func ensureRefValue(val Value) RefValue {
+func ensureRefValue(parent Object, val Value) RefValue {
 	if ref, ok := val.(RefValue); ok {
 		return ref
 	} else if oo, ok := val.(Object); ok {
@@ -808,8 +821,24 @@ func ensureRefValue(val Value) RefValue {
 			// references.
 			// panic("unexpected dirty object")
 		}
-		return RefValue{
-			ObjectID: oo.GetObjectID(),
+		if oo.GetRefCount() > 1 {
+			parentID := parent.GetObjectID()
+			if parentID == oo.GetOwnerID() {
+				return RefValue{
+					ObjectID: oo.GetObjectID(),
+					Hash:     oo.GetHash(),
+				}
+			} else {
+				return RefValue{
+					ObjectID: oo.GetObjectID(),
+					// Hash: nil,
+				}
+			}
+		} else {
+			return RefValue{
+				ObjectID: oo.GetObjectID(),
+				Hash:     oo.GetHash(),
+			}
 		}
 	} else {
 		panic("should not happen")
@@ -827,12 +856,15 @@ func ensureUniq(ooz []Object) {
 	}
 }
 
-func refOrCopy(tv TypedValue) TypedValue {
+func refOrCopy(parent Object, tv TypedValue) TypedValue {
+	if tv.T != nil {
+		tv.T = RefType{tv.T.TypeID()}
+	}
 	if obj, ok := tv.V.(Object); ok {
-		tv.V = ensureRefValue(obj)
+		tv.V = ensureRefValue(parent, obj)
 		return tv
 	} else {
-		tv.V = copyWithRefs(tv.V)
+		tv.V = copyWithRefs(parent, tv.V)
 		return tv
 	}
 }
@@ -848,4 +880,18 @@ func IsRealmPath(pkgPath string) bool {
 	} else {
 		return false
 	}
+}
+
+func prettyJSON(jstr []byte) []byte {
+	var c interface{}
+	err := json.Unmarshal(jstr, &c)
+	if err != nil {
+		return nil
+	}
+	js, err := json.MarshalIndent(c, "", "    ")
+	if err != nil {
+		return nil
+	}
+	return js
+
 }

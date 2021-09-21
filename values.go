@@ -352,17 +352,33 @@ func (sv *StructValue) Copy() *StructValue {
 // makes construction TypedValue{T:*FuncType{},V:*FuncValue{}}
 // faster.
 type FuncValue struct {
-	Type      *FuncType // includes unbound receiver(s)
+	Type__    Type      // includes unbound receiver(s)
 	IsMethod  bool      // is an (unbound) method
-	Source    BlockNode // for block mem allocation
+	SourceLoc Location  // location for source
+	Source    BlockNode `json:"-"` // for block mem allocation
 	Name      Name      // name of function/method
-	Body      []Stmt    // function body
+	Body      []Stmt    `json:"-"` // function body
 	Closure__ Value     // *Block or RefValue to closure (a file's Block for unbound methods).
 	FileName  Name      // file name where declared
 	PkgPath   string
 
 	nativeBody func(*Machine) // alternative to Body
 	pkg        *PackageValue
+}
+
+func (fv *FuncValue) GetType(store Store) *FuncType {
+	switch ct := fv.Type__.(type) {
+	case nil:
+		return nil
+	case RefType:
+		typ := store.GetType(ct.ID).(*FuncType)
+		fv.Type__ = typ
+		return typ
+	case *FuncType:
+		return ct
+	default:
+		panic("should not happen")
+	}
 }
 
 func (fv *FuncValue) GetPackage() *PackageValue {
@@ -575,6 +591,9 @@ func (pv *PackageValue) AddFileBlock(fn Name, fb *Block) {
 	pv.FNames = append(pv.FNames, fn)
 	pv.FBlocks__ = append(pv.FBlocks__, fb)
 	pv.getFBlocksMap()[fn] = fb
+	// Increment fb refcount and set owner.
+	fb.SetOwner(pv)
+	fb.IncRefCount()
 }
 
 func (pv *PackageValue) GetFileBlock(store Store, fname Name) *Block {
@@ -634,9 +653,9 @@ func (nv nativeValue) Copy() nativeValue {
 // TypedValue
 
 type TypedValue struct {
-	T Type    // never nil
-	V Value   // an untyped value
-	N [8]byte // numeric bytes
+	T Type    `json:",omitempty"` // never nil
+	V Value   `json:",omitempty"` // an untyped value
+	N [8]byte `json:",omitempty"` // numeric bytes
 }
 
 func (tv *TypedValue) IsDefined() bool {
@@ -1484,8 +1503,9 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 		dt := dtv.T.(*DeclaredType)
 		mtv := dt.GetValueRefAt(path)
 		mv := mtv.GetFunc()
+		mt := mv.GetType(store)
 		if debug {
-			if mv.Type.HasPointerReceiver() {
+			if mt.HasPointerReceiver() {
 				panic("should not happen")
 			}
 		}
@@ -1495,7 +1515,7 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 		}
 		return PointerValue{
 			TV__: &TypedValue{
-				T: mv.Type.BoundType(),
+				T: mt.BoundType(),
 				V: bmv,
 			},
 			Base__: nil, // a bound method is free floating.
@@ -1506,8 +1526,9 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 		// dt := dtv.T.(*DeclaredType)
 		mtv := dt.GetValueRefAt(path)
 		mv := mtv.GetFunc()
+		mt := mv.GetType(store)
 		if debug {
-			if !mv.Type.HasPointerReceiver() {
+			if !mt.HasPointerReceiver() {
 				panic("should not happen")
 			}
 			if !isPtr {
@@ -1523,7 +1544,7 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 		}
 		return PointerValue{
 			TV__: &TypedValue{
-				T: mv.Type.BoundType(),
+				T: mt.BoundType(),
 				V: bmv,
 			},
 			Base__: nil, // a bound method is free floating.
@@ -2112,6 +2133,7 @@ func (b *Block) ExpandToSize(size uint16) {
 
 type RefValue struct {
 	ObjectID ObjectID
+	Hash     ValueHash `json:",omitempty"`
 }
 
 //----------------------------------------

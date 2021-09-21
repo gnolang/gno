@@ -1,6 +1,7 @@
 package gno
 
 import (
+	"encoding/hex"
 	"fmt"
 	"reflect"
 	"sort"
@@ -21,6 +22,15 @@ type Type interface {
 }
 
 type TypeID Hashlet
+
+func (tid TypeID) MarshalAmino() (string, error) {
+	return hex.EncodeToString(tid[:]), nil
+}
+
+func (tid *TypeID) UnmarshalAmino(h string) error {
+	_, err := hex.Decode(tid[:], []byte(h))
+	return err
+}
 
 func (tid TypeID) IsZero() bool {
 	return tid == (TypeID{})
@@ -64,6 +74,7 @@ func (*ChanType) assertType()      {}
 func (*nativeType) assertType()    {}
 func (blockType) assertType()      {}
 func (*tupleType) assertType()     {}
+func (RefType) assertType()        {}
 
 //----------------------------------------
 // Primitive types
@@ -242,7 +253,13 @@ func (ft FieldType) Kind() Kind {
 }
 
 func (ft FieldType) TypeID() TypeID {
-	panic("see FieldTypeList.TypeID()")
+	s := ""
+	if ft.Name == "" {
+		s += ft.Type.TypeID().String()
+	} else {
+		s += string(ft.Name) + "#" + ft.Type.TypeID().String()
+	}
+	return typeid(s)
 }
 
 func (ft FieldType) String() string {
@@ -1224,7 +1241,7 @@ func (dt *DeclaredType) Elem() Type {
 
 func (dt *DeclaredType) DefineMethod(fv *FuncValue) {
 	dt.Methods = append(dt.Methods, TypedValue{
-		T: fv.Type,
+		T: fv.Type__,
 		V: fv,
 	})
 }
@@ -1237,7 +1254,7 @@ func (dt *DeclaredType) GetPathForName(n Name) ValuePath {
 			if i > 2<<16-1 {
 				panic("too many methods")
 			}
-			if fv.Type.HasPointerReceiver() {
+			if fv.GetType(nil).HasPointerReceiver() {
 				return NewValuePathPtrMethod(uint16(i), n)
 			} else {
 				return NewValuePathValMethod(uint16(i), n)
@@ -1287,14 +1304,14 @@ func (dt *DeclaredType) FindEmbeddedFieldType(n Name) (
 	for i := 0; i < len(dt.Methods); i++ {
 		mv := &dt.Methods[i]
 		if fv := mv.GetFunc(); fv.Name == n {
-			rt := fv.Type.Params[0].Type
+			rt := fv.GetType(nil).Params[0].Type
 			vp := ValuePath{}
 			if _, ok := rt.(*PointerType); ok {
 				vp = NewValuePathPtrMethod(uint16(i), n)
 			} else {
 				vp = NewValuePathValMethod(uint16(i), n)
 			}
-			bt := fv.Type.BoundType()
+			bt := fv.GetType(nil).BoundType()
 			return []ValuePath{vp}, false, rt, bt
 		}
 	}
@@ -1594,6 +1611,29 @@ func (tt *tupleType) String() string {
 
 func (tt *tupleType) Elem() Type {
 	panic("tupleType has no singular elem type")
+}
+
+//----------------------------------------
+// RefType
+
+type RefType struct {
+	ID TypeID
+}
+
+func (_ RefType) Kind() Kind {
+	panic("should not happen")
+}
+
+func (rt RefType) TypeID() TypeID {
+	return rt.ID
+}
+
+func (rt RefType) String() string {
+	return fmt.Sprintf("RefType{%v}", rt.ID)
+}
+
+func (rt RefType) Elem() Type {
+	panic("should not happen")
 }
 
 //----------------------------------------

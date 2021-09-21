@@ -20,7 +20,7 @@ func (m *Machine) doOpFieldType() {
 	}
 	m.PushValue(TypedValue{
 		T: gTypeType,
-		V: TypeValue{Type: ft},
+		V: toTypeValue(ft),
 	})
 }
 
@@ -53,7 +53,7 @@ func (m *Machine) doOpArrayType() {
 	t.Elt = tv.GetType()
 	*tv = TypedValue{
 		T: gTypeType,
-		V: TypeValue{Type: t},
+		V: toTypeValue(t),
 	}
 }
 
@@ -66,7 +66,7 @@ func (m *Machine) doOpSliceType() {
 	}
 	*tv = TypedValue{
 		T: gTypeType,
-		V: TypeValue{Type: t},
+		V: toTypeValue(t),
 	}
 }
 
@@ -90,7 +90,7 @@ func (m *Machine) doOpFuncType() {
 	}
 	m.PushValue(TypedValue{
 		T: gTypeType,
-		V: TypeValue{Type: ft},
+		V: toTypeValue(ft),
 	})
 }
 
@@ -103,7 +103,7 @@ func (m *Machine) doOpMapType() {
 	}
 	*tv = TypedValue{
 		T: gTypeType,
-		V: TypeValue{Type: mt},
+		V: toTypeValue(mt),
 	}
 }
 
@@ -126,7 +126,7 @@ func (m *Machine) doOpStructType() {
 	}
 	m.PushValue(TypedValue{
 		T: gTypeType,
-		V: TypeValue{Type: st},
+		V: toTypeValue(st),
 	})
 }
 
@@ -148,7 +148,7 @@ func (m *Machine) doOpInterfaceType() {
 	}
 	m.PushValue(TypedValue{
 		T: gTypeType,
-		V: TypeValue{Type: it},
+		V: toTypeValue(it),
 	})
 }
 
@@ -161,7 +161,7 @@ func (m *Machine) doOpChanType() {
 	}
 	*tv = TypedValue{
 		T: gTypeType,
-		V: TypeValue{Type: ct},
+		V: toTypeValue(ct),
 	}
 }
 
@@ -377,7 +377,7 @@ func (m *Machine) doOpStaticTypeOf() {
 			}
 		case VPValMethod, VPPtrMethod:
 			ftv := dxt.(*DeclaredType).GetValueRefAt(path)
-			ft := ftv.GetFunc().Type
+			ft := ftv.GetFunc().GetType(m.Store)
 			mt := ft.BoundType()
 			m.PushValue(asValue(mt))
 		case VPInterface:

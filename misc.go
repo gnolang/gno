@@ -121,6 +121,15 @@ func defaultPkgName(gopkgPath string) Name {
 }
 
 //----------------------------------------
+// value convenience
+
+func toTypeValue(t Type) TypeValue {
+	return TypeValue{
+		Type: t,
+	}
+}
+
+//----------------------------------------
 // lazy values
 
 func fillValue(store Store, tv *TypedValue) *TypedValue {

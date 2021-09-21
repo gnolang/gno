@@ -49,6 +49,7 @@ func UverseNode() *PackageNode {
 				T: ft,
 				V: &FuncValue{
 					Type:       ft,
+					SourceLoc:  fd.GetLocation(),
 					Source:     fd,
 					Name:       n,
 					NativeBody: native,

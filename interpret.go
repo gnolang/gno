@@ -1072,7 +1072,7 @@ func (m *Machine) PopFrameAndReturn() {
 			panic("unexpected non-call (loop) frame")
 		}
 	}
-	rtypes := fr.Func.Type.Results
+	rtypes := fr.Func.GetType(m.Store).Results
 	numRes := len(rtypes)
 	m.NumOps = fr.NumOps
 	m.NumResults = numRes
