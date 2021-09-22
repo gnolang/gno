@@ -1254,6 +1254,8 @@ func (dt *DeclaredType) GetPathForName(n Name) ValuePath {
 			if i > 2<<16-1 {
 				panic("too many methods")
 			}
+			// NOTE: makes code simple but requires preprocessor's
+			// Store to pre-load method types.
 			if fv.GetType(nil).HasPointerReceiver() {
 				return NewValuePathPtrMethod(uint16(i), n)
 			} else {
@@ -1304,6 +1306,8 @@ func (dt *DeclaredType) FindEmbeddedFieldType(n Name) (
 	for i := 0; i < len(dt.Methods); i++ {
 		mv := &dt.Methods[i]
 		if fv := mv.GetFunc(); fv.Name == n {
+			// NOTE: makes code simple but requires preprocessor's
+			// Store to pre-load method types.
 			rt := fv.GetType(nil).Params[0].Type
 			vp := ValuePath{}
 			if _, ok := rt.(*PointerType); ok {
@@ -1311,6 +1315,8 @@ func (dt *DeclaredType) FindEmbeddedFieldType(n Name) (
 			} else {
 				vp = NewValuePathValMethod(uint16(i), n)
 			}
+			// NOTE: makes code simple but requires preprocessor's
+			// Store to pre-load method types.
 			bt := fv.GetType(nil).BoundType()
 			return []ValuePath{vp}, false, rt, bt
 		}
