@@ -21,24 +21,26 @@ func TestGoNativeDefine(t *testing.T) {
 	pkg := NewPackageNode("foo", "test.foo", nil)
 	rt := reflect.TypeOf(Foo{})
 	pkg.DefineGoNativeType(rt)
-	nt := pkg.GetValueRef(Name("Foo")).GetType().(*nativeType)
+	nt := pkg.GetValueRef(nil, Name("Foo")).GetType().(*nativeType)
 	assert.Equal(t, nt.Type, rt)
-	path := pkg.GetPathForName(Name("Foo"))
+	path := pkg.GetPathForName(nil, Name("Foo"))
 	assert.Equal(t, path.Depth, uint8(1))
 	assert.Equal(t, path.Index, uint16(0))
 	pv := pkg.NewPackage(nil)
-	nt = pv.GetPointerTo(path).GetType().(*nativeType)
+	nt = pv.GetPointerTo(nil, path).TV.GetType().(*nativeType)
 	assert.Equal(t, nt.Type, rt)
 
 	// Import above package and evaluate foo.Foo.
 	m := NewMachineWithOptions(MachineOptions{
-		Importer: func(pkgPath string) *PackageValue {
-			switch pkgPath {
-			case "test.foo":
-				return pv
-			default:
-				panic("unknown package path " + pkgPath)
-			}
+		Store: TestStore{
+			GetPackageFn: (func(pkgPath string) *PackageValue {
+				switch pkgPath {
+				case "test.foo":
+					return pv
+				default:
+					panic("unknown package path " + pkgPath)
+				}
+			}),
 		},
 	})
 	m.RunDeclaration(ImportD("foo", "test.foo"))
@@ -57,13 +59,15 @@ func TestGoNativeDefine2(t *testing.T) {
 	out := new(bytes.Buffer)
 	m := NewMachineWithOptions(MachineOptions{
 		Output: out,
-		Importer: func(pkgPath string) *PackageValue {
-			switch pkgPath {
-			case "test.foo":
-				return pv
-			default:
-				panic("unknown package path " + pkgPath)
-			}
+		Store: TestStore{
+			GetPackageFn: (func(pkgPath string) *PackageValue {
+				switch pkgPath {
+				case "test.foo":
+					return pv
+				default:
+					panic("unknown package path " + pkgPath)
+				}
+			}),
 		},
 	})
 
@@ -102,13 +106,15 @@ func TestGoNativeDefine3(t *testing.T) {
 	// Import above package and run file.
 	m := NewMachineWithOptions(MachineOptions{
 		Output: out,
-		Importer: func(pkgPath string) *PackageValue {
-			switch pkgPath {
-			case "test.foo":
-				return pv
-			default:
-				panic("unknown package path " + pkgPath)
-			}
+		Store: TestStore{
+			GetPackageFn: (func(pkgPath string) *PackageValue {
+				switch pkgPath {
+				case "test.foo":
+					return pv
+				default:
+					panic("unknown package path " + pkgPath)
+				}
+			}),
 		},
 	})
 

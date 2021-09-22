@@ -8,8 +8,6 @@ import (
 	"strings"
 )
 
-type Importer func(pkgPath string) *PackageValue
-
 //----------------------------------------
 // Machine
 
@@ -34,12 +32,12 @@ type Machine struct {
 	// Configuration
 	CheckTypes bool
 	Output     io.Writer
-	Importer   Importer
+	Store      Store
 }
 
 // Machine with new package of given path.
 // Creates a new MemRealmer for any new realms.
-func NewMachine(pkgPath string) *Machine {
+func NewMachine(pkgPath string, store Store) *Machine {
 	pkgName := defaultPkgName(pkgPath)
 	realmer := Realmer(nil)
 	if IsRealmPath(pkgPath) {
@@ -50,6 +48,7 @@ func NewMachine(pkgPath string) *Machine {
 	return NewMachineWithOptions(
 		MachineOptions{
 			Package: pv,
+			Store:   store,
 		})
 }
 
@@ -57,7 +56,7 @@ type MachineOptions struct {
 	Package    *PackageValue
 	CheckTypes bool
 	Output     io.Writer
-	Importer   Importer
+	Store      Store
 }
 
 func NewMachineWithOptions(opts MachineOptions) *Machine {
@@ -72,8 +71,8 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	if output == nil {
 		output = os.Stdout
 	}
-	importer := opts.Importer
-	if importer == nil {
+	store := opts.Store
+	if store == nil {
 		// bare machine, no stdlibs.
 	}
 	blocks := []*Block{
@@ -89,7 +88,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		Realm:      rlm,
 		CheckTypes: checkTypes,
 		Output:     output,
-		Importer:   importer,
+		Store:      store,
 	}
 }
 
@@ -122,19 +121,22 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 		// NOTE: Most of the declaration is handled by
 		// Preprocess and any constant values set on
 		// pn.StaticBlock, and those values are copied to the
-		// runtime package value via UpdatePacakge.  Then,
+		// runtime package value via PrepareNewValues.  Then,
 		// non-constant var declarations and file-level imports
 		// are re-set in runDeclaration(,true).
-		fn = Preprocess(m.Importer, pn, fn).(*FileNode)
+		fn = Preprocess(m.Store, pn, fn).(*FileNode)
 		if debug {
 			debug.Println("PREPROCESSED FILE: ", fn.String())
 		}
 		// Make block for fn.
+		// Each file for each *PackageValue gets its own file *Block,
+		// with values copied over from each file's
+		// *FileNode.StaticBlock.
 		fb := NewBlock(fn, &pv.Block)
 		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
 		copy(fb.Values, fn.StaticBlock.Values)
 		pv.AddFileBlock(fn.Name, fb)
-		updates := pn.UpdatePackage(pv) // with fb
+		updates := pn.PrepareNewValues(pv) // with fb
 		fileupdates[i] = updates
 	}
 
@@ -171,7 +173,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 			loopfindr = loopfindr[:len(loopfindr)-1]
 		}
 		// run declaration
-		fb := pv.FBlocks[fn.Name]
+		fb := pv.GetFileBlock(m.Store, fn.Name)
 		m.PushBlock(fb)
 		m.runDeclaration(decl)
 		m.PopBlock()
@@ -197,7 +199,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	// lexical file name order to a compiler."
 	for i, fn := range fns {
 		updates := fileupdates[i]
-		fb := pv.FBlocks[fn.Name]
+		fb := pv.GetFileBlock(m.Store, fn.Name)
 		m.PushBlock(fb)
 		for i := 0; i < len(updates); i++ {
 			tv := &updates[i]
@@ -268,7 +270,7 @@ func (m *Machine) Eval(x Expr) TypedValue {
 		// x already creates its own scope.
 	}
 	// Preprocess x.
-	x = Preprocess(m.Importer, pn, x).(Expr)
+	x = Preprocess(m.Store, pn, x).(Expr)
 	// Evaluate x.
 	start := m.NumValues
 	m.PushOp(OpHalt)
@@ -343,7 +345,7 @@ func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 
 func (m *Machine) RunStatement(s Stmt) {
 	sn := m.LastBlock().Source
-	s = Preprocess(m.Importer, sn, s).(Stmt)
+	s = Preprocess(m.Store, sn, s).(Stmt)
 	m.PushOp(OpHalt)
 	m.PushStmt(s)
 	m.PushOp(OpExec)
@@ -356,8 +358,8 @@ func (m *Machine) RunDeclaration(d Decl) {
 	// Preprocess input using package block.  There should only
 	// be one block right now, and it's a *PackageNode.
 	pn := m.LastBlock().Source.(*PackageNode)
-	d = Preprocess(m.Importer, pn, d).(Decl)
-	pn.UpdatePackage(m.Package)
+	d = Preprocess(m.Store, pn, d).(Decl)
+	pn.PrepareNewValues(m.Package)
 	m.runDeclaration(d)
 	if debug {
 		if pn != m.Package.Source {
@@ -1070,7 +1072,7 @@ func (m *Machine) PopFrameAndReturn() {
 			panic("unexpected non-call (loop) frame")
 		}
 	}
-	rtypes := fr.Func.Type.Results
+	rtypes := fr.Func.GetType(m.Store).Results
 	numRes := len(rtypes)
 	m.NumOps = fr.NumOps
 	m.NumResults = numRes
@@ -1182,22 +1184,22 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	switch lx := lx.(type) {
 	case *NameExpr:
 		lb := m.LastBlock()
-		return lb.GetPointerTo(lx.Path)
+		return lb.GetPointerTo(m.Store, lx.Path)
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()
-		return xv.GetPointerAtIndex(iv)
+		return xv.GetPointerAtIndex(m.Store, iv)
 	case *SelectorExpr:
 		xv := m.PopValue()
-		return xv.GetPointerTo(lx.Path)
+		return xv.GetPointerTo(m.Store, lx.Path)
 	case *StarExpr:
 		ptr := m.PopValue().V.(PointerValue)
 		return ptr
 	case *CompositeLitExpr: // for *RefExpr
 		tv := *m.PopValue()
 		return PointerValue{
-			TypedValue: &tv, // heap alloc
-			Base:       nil,
+			TV:   &tv, // heap alloc
+			Base: nil,
 		}
 	default:
 		panic("should not happen")
@@ -1278,17 +1280,31 @@ func (m *Machine) String() string {
 		xs = append(xs, fmt.Sprintf("          #%d %v", i, x))
 	}
 	bs := []string{}
-	for b := m.LastBlock(); b != nil; b = b.Parent {
+	for b := m.LastBlock(); b != nil; {
 		gen := len(bs)/2 + 1
 		gens := strings.Repeat("@", gen)
-		bs = append(bs, fmt.Sprintf("          %s(%d) %s", gens, gen,
-			b.StringIndented("            ")))
+		bsi := b.StringIndented("            ")
+		bs = append(bs, fmt.Sprintf("          %s(%d) %s", gens, gen, bsi))
 		if b.Source != nil {
 			sb := b.Source.GetStaticBlock().GetBlock()
 			bs = append(bs, fmt.Sprintf(" (static values) %s(%d) %s", gens, gen,
 				sb.StringIndented("            ")))
 			sts := b.Source.GetStaticBlock().Types
 			bs = append(bs, fmt.Sprintf(" (static types) %s(%d) %s", gens, gen, sts))
+		}
+		// b = b.Parent.(*Block|RefValue)
+		switch bp := b.Parent.(type) {
+		case nil:
+			b = nil
+			break
+		case *Block:
+			b = bp
+		case RefValue:
+			bs = append(bs, fmt.Sprintf("            (block ref %v)", bp.ObjectID))
+			b = nil
+			break
+		default:
+			panic("should not happen")
 		}
 	}
 	obs := []string{}

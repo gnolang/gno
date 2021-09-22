@@ -10,6 +10,12 @@ import (
 //----------------------------------------
 // Misc.
 
+func cp(bz []byte) (ret []byte) {
+	ret = make([]byte, len(bz))
+	copy(ret, bz)
+	return ret
+}
+
 // Returns the associated machine operation for binary AST operations.  TODO:
 // to make this faster and inlineable, remove the switch statement and create a
 // mathematical mapping between them.
@@ -112,4 +118,50 @@ func defaultPkgName(gopkgPath string) Name {
 	name := parts[len(parts)-1]
 	name = strings.ToLower(name)
 	return Name(name)
+}
+
+//----------------------------------------
+// value convenience
+
+func toTypeValue(t Type) TypeValue {
+	return TypeValue{
+		Type: t,
+	}
+}
+
+//----------------------------------------
+// lazy values
+
+func fillValue(store Store, tv *TypedValue) *TypedValue {
+	switch cv := tv.V.(type) {
+	case RefValue:
+		tv.V = store.GetObject(cv.ObjectID)
+	case PointerValue:
+		if ref, ok := cv.Base.(RefValue); ok {
+			base := store.GetObject(ref.ObjectID).(Value)
+			cv.Base = base
+			switch cb := base.(type) {
+			case *ArrayValue:
+				et := baseOf(tv.T).(*ArrayType).Elt
+				epv := cb.GetPointerAtIndexInt2(store, cv.Index, et)
+				cv.TV = epv.TV // TODO optimize? (epv.* ignored)
+			case *StructValue:
+				fpv := cb.GetPointerToInt(store, cv.Index)
+				cv.TV = fpv.TV // TODO optimize?
+			case *BoundMethodValue:
+				panic("should not happen")
+			case *MapValue:
+				panic("should not happen")
+			case *Block:
+				vpv := cb.GetPointerToInt(store, cv.Index)
+				cv.TV = vpv.TV // TODO optimize?
+			default:
+				panic("should not happen")
+			}
+			tv.V = cv
+		}
+	default:
+		// do nothing
+	}
+	return tv
 }

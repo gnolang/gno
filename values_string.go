@@ -31,14 +31,18 @@ func (v *SliceValue) String() string {
 	if v.Base == nil {
 		return "nil-slice"
 	}
-	if v.Base.Data == nil {
+	if ref, ok := v.Base.(RefValue); ok {
+		return fmt.Sprintf("slice[%v]", ref)
+	}
+	vbase := v.Base.(*ArrayValue)
+	if vbase.Data == nil {
 		ss := make([]string, v.Length)
-		for i, e := range v.Base.List[v.Offset : v.Offset+v.Length] {
+		for i, e := range vbase.List[v.Offset : v.Offset+v.Length] {
 			ss[i] = e.String()
 		}
 		return "slice[" + strings.Join(ss, ",") + "]"
 	} else {
-		return fmt.Sprintf("slice[0x%X]", v.Base.Data[v.Offset:v.Offset+v.Length])
+		return fmt.Sprintf("slice[0x%X]", vbase.Data[v.Offset:v.Offset+v.Length])
 	}
 }
 
@@ -46,7 +50,7 @@ func (v PointerValue) String() string {
 	// NOTE: cannot do below, due to recursion problems.
 	// TODO: create a different String2(...) function.
 	// return fmt.Sprintf("&%s", v.TypedValue.String())
-	return fmt.Sprintf("&%p", v.TypedValue)
+	return fmt.Sprintf("&%p (*%s)", v.TV, v.TV.T.String())
 }
 
 func (v *StructValue) String() string {
@@ -68,14 +72,22 @@ func (v *FuncValue) String() string {
 	return name
 }
 
-func (v BoundMethodValue) String() string {
-	recvT := v.Func.Type.Params[0].Type.String()
+func (v *BoundMethodValue) String() string {
 	name := v.Func.Name
-	params := FieldTypeList(v.Func.Type.Params).StringWithCommas()
-	results := ""
-	if len(results) > 0 {
-		results = FieldTypeList(v.Func.Type.Results).StringWithCommas()
-		results = "(" + results + ")"
+	var recvT string
+	var params string
+	var results string
+	if ft, ok := v.Func.Type.(*FuncType); ok {
+		recvT = ft.Params[0].Type.String()
+		params = FieldTypeList(ft.Params).StringWithCommas()
+		if len(results) > 0 {
+			results = FieldTypeList(ft.Results).StringWithCommas()
+			results = "(" + results + ")"
+		}
+	} else {
+		recvT = "?"
+		params = "?"
+		results = "(?)"
 	}
 	return fmt.Sprintf("<%s>.%s(%s)%s",
 		recvT, name, params, results)
@@ -116,13 +128,17 @@ func (v *PackageValue) String() string {
 }
 
 func (v nativeValue) String() string {
-	return fmt.Sprintf("<gonative %v (%s)>",
-		v.Value.Interface(),
-		v.Value.String(),
-	)
+	return fmt.Sprintf("gonative{%v}",
+		v.Value.Interface())
+	/*
+		return fmt.Sprintf("gonative{%v (%s)}",
+			v.Value.Interface(),
+			v.Value.Type().String(),
+		)
+	*/
 }
 
-func (v blockValue) String() string {
-	return fmt.Sprintf("block(%v)",
-		v.Block)
+func (v RefValue) String() string {
+	return fmt.Sprintf("ref(%v)",
+		v.ObjectID)
 }

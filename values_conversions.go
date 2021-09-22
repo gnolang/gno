@@ -9,7 +9,7 @@ import (
 
 // t cannot be nil or untyped or DataByteType.
 // the conversion is forced and overflow/underflow is ignored.
-func ConvertTo(tv *TypedValue, t Type) {
+func ConvertTo(store Store, tv *TypedValue, t Type) {
 	if debug {
 		if t == nil {
 			panic("ConvertTo() requires non-nil type")
@@ -39,7 +39,7 @@ func ConvertTo(tv *TypedValue, t Type) {
 		} else {
 			// convert go-native to gno type.
 			*tv = go2GnoValue2(tv.V.(*nativeValue).Value)
-			ConvertTo(tv, t)
+			ConvertTo(store, tv, t)
 			return
 		}
 	} else {
@@ -654,12 +654,13 @@ GNO_CASE:
 			case *SliceValue:
 				svo := sv.Offset
 				svl := sv.Length
-				if sv.Base.Data == nil {
+				svb := sv.GetBase(store)
+				if svb.Data == nil {
 					if tk == Uint8Kind {
 						data := make([]byte, svl)
 						copyListToData(
 							data[:svl],
-							sv.Base.List[svo:svo+svl])
+							svb.List[svo:svo+svl])
 						strv := StringValue(string(data))
 						tv.T = t
 						tv.V = strv
@@ -667,7 +668,7 @@ GNO_CASE:
 						runes := make([]rune, svl)
 						copyListToRunes(
 							runes[:svl],
-							sv.Base.List[svo:svo+svl])
+							svb.List[svo:svo+svl])
 						strv := StringValue(string(runes))
 						tv.T = t
 						tv.V = strv
@@ -675,7 +676,7 @@ GNO_CASE:
 						panic("should not happen")
 					}
 				} else {
-					data := sv.Base.Data[svo : svo+svl]
+					data := svb.Data[svo : svo+svl]
 					strv := StringValue(string(data))
 					tv.T = t
 					tv.V = strv
@@ -731,7 +732,7 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 		}
 		ConvertUntypedTo(tv, gnot)
 		// then convert to native value.
-		ConvertTo(tv, t)
+		ConvertTo(nil, tv, t)
 	}
 	// special case: simple conversion
 	if t != nil && tv.T.Kind() == t.Kind() {
@@ -768,7 +769,7 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 			tv.T = t
 			return
 		} else {
-			ConvertTo(tv, t)
+			ConvertTo(nil, tv, t)
 		}
 	default:
 		panic(fmt.Sprintf(

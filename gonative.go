@@ -127,11 +127,13 @@ func go2GnoType2(rt reflect.Type) (t Type) {
 					fv := &FuncValue{
 						Type:       ft,
 						IsMethod:   true,
+						SourceLoc:  Location{},
 						Source:     nil,
 						Name:       Name(mthd.Name),
 						Body:       nil, // XXX
 						Closure:    nil,
-						NativeBody: nil,
+						PkgPath:    pkgPath,
+						nativeBody: nil,
 						pkg:        nil, // XXX
 					}
 					mtvs[i] = TypedValue{T: ft, V: fv}
@@ -331,8 +333,7 @@ func go2GnoValue(rv reflect.Value) (tv TypedValue) {
 			ftv := TypedValue{T: Uint32Type}
 			ftv.SetUint32(u32)
 			tv.V = &StructValue{
-				StructType: Float32Type,
-				Fields:     []TypedValue{ftv},
+				Fields: []TypedValue{ftv},
 			}
 		}
 	case reflect.Float64:
@@ -352,8 +353,7 @@ func go2GnoValue(rv reflect.Value) (tv TypedValue) {
 			ftv := TypedValue{T: Uint64Type}
 			ftv.SetUint64(u64)
 			tv.V = &StructValue{
-				StructType: Float64Type,
-				Fields:     []TypedValue{ftv},
+				Fields: []TypedValue{ftv},
 			}
 		}
 	case reflect.Array:
@@ -499,12 +499,12 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 				panic("go-native update error: slice length mismmatch")
 			}
 		}
-		if sv.Base.Data == nil {
+		if sv.GetBase(nil).Data == nil {
 			st := baseOf(tv.T).(*SliceType)
 			et := st.Elt
 			for i := 0; i < rvl; i++ {
 				erv := rv.Index(i)
-				etv := &sv.Base.List[svo+i]
+				etv := &sv.GetBase(nil).List[svo+i]
 				// XXX use Assign and Realm?
 				if etv.T == nil && et.Kind() != InterfaceKind {
 					etv.T = et
@@ -517,7 +517,7 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 		} else {
 			for i := 0; i < rvl; i++ {
 				erv := rv.Index(i)
-				sv.Base.Data[svo+i] = uint8(erv.Uint())
+				sv.GetBase(nil).Data[svo+i] = uint8(erv.Uint())
 			}
 		}
 	case PointerKind:
@@ -525,7 +525,7 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 			return // do nothing
 		}
 		pv := tv.V.(PointerValue)
-		etv := pv.TypedValue
+		etv := pv.TV
 		erv := rv.Elem()
 		go2GnoValueUpdate(rlm, lvl+1, etv, erv)
 	case StructKind:
@@ -628,13 +628,13 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 			k, v := rv2i.Key(), rv2i.Value()
 			ktv := go2GnoValue(k)
 			vtv := go2GnoValue(v)
-			ptr := mv.GetPointerForKey(&ktv)
+			ptr := mv.GetPointerForKey(nil, &ktv)
 			if debug {
-				if !ptr.TypedValue.IsUndefined() {
+				if !ptr.TV.IsUndefined() {
 					panic("should not happen")
 				}
 			}
-			ptr.Assign2(rlm, vtv, false) // document false
+			ptr.Assign2(nil, rlm, vtv, false) // document false
 		}
 	case TypeKind:
 		panic("not yet implemented")
@@ -729,7 +729,7 @@ func go2GnoValue2(rv reflect.Value) (tv TypedValue) {
 	case reflect.Ptr:
 		tv.T = &PointerType{Elt: go2GnoType2(rv.Type().Elem())}
 		val := go2GnoValue2(rv.Elem())
-		tv.V = PointerValue{TypedValue: &val} // heap alloc
+		tv.V = PointerValue{TV: &val} // heap alloc
 	case reflect.Struct:
 		panic("not yet implemented")
 	case reflect.UnsafePointer:
@@ -770,7 +770,6 @@ func go2GnoFuncType(rt reflect.Type) *FuncType {
 			Type: ot,
 		}
 	}
-	ft.PkgPath = "" // dunno with native
 	ft.Params = ins
 	ft.Results = outs
 	return ft
@@ -882,7 +881,7 @@ func gno2GoType(t Type) reflect.Type {
 	case *nativeType:
 		return ct.Type
 	default:
-		panic("should not happen")
+		panic(fmt.Sprintf("unexpected type %v with base %v", t, baseOf(t)))
 	}
 }
 
@@ -955,7 +954,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		if tv.V == nil {
 			// do nothing
 		} else {
-			rv2 := gno2GoValue(tv.V.(PointerValue).TypedValue, reflect.Value{})
+			rv2 := gno2GoValue(tv.V.(PointerValue).TV, reflect.Value{})
 			rv.Set(rv2.Addr())
 		}
 	case *ArrayType:
@@ -997,10 +996,10 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		svo := sv.Offset
 		svl := sv.Length
 		svc := sv.Maxcap
-		if sv.Base.Data == nil {
+		if sv.GetBase(nil).Data == nil {
 			rv.Set(reflect.MakeSlice(st, svl, svc))
 			for i := 0; i < svl; i++ {
-				etv := &(sv.Base.List[svo+i])
+				etv := &(sv.GetBase(nil).List[svo+i])
 				if etv.IsUndefined() {
 					continue
 				}
@@ -1008,7 +1007,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 			}
 		} else {
 			data := make([]byte, svl, svc)
-			copy(data[:svc], sv.Base.Data[svo:svo+svc])
+			copy(data[:svc], sv.GetBase(nil).Data[svo:svo+svc])
 			rv.Set(reflect.ValueOf(data))
 		}
 	case *StructType:

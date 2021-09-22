@@ -20,7 +20,7 @@ func (m *Machine) doOpFieldType() {
 	}
 	m.PushValue(TypedValue{
 		T: gTypeType,
-		V: TypeValue{Type: ft},
+		V: toTypeValue(ft),
 	})
 }
 
@@ -53,7 +53,7 @@ func (m *Machine) doOpArrayType() {
 	t.Elt = tv.GetType()
 	*tv = TypedValue{
 		T: gTypeType,
-		V: TypeValue{Type: t},
+		V: toTypeValue(t),
 	}
 }
 
@@ -66,7 +66,7 @@ func (m *Machine) doOpSliceType() {
 	}
 	*tv = TypedValue{
 		T: gTypeType,
-		V: TypeValue{Type: t},
+		V: toTypeValue(t),
 	}
 }
 
@@ -85,13 +85,12 @@ func (m *Machine) doOpFuncType() {
 	}
 	// Push func type.
 	ft := &FuncType{
-		PkgPath: m.Package.PkgPath,
 		Params:  params,
 		Results: results,
 	}
 	m.PushValue(TypedValue{
 		T: gTypeType,
-		V: TypeValue{Type: ft},
+		V: toTypeValue(ft),
 	})
 }
 
@@ -104,7 +103,7 @@ func (m *Machine) doOpMapType() {
 	}
 	*tv = TypedValue{
 		T: gTypeType,
-		V: TypeValue{Type: mt},
+		V: toTypeValue(mt),
 	}
 }
 
@@ -127,7 +126,7 @@ func (m *Machine) doOpStructType() {
 	}
 	m.PushValue(TypedValue{
 		T: gTypeType,
-		V: TypeValue{Type: st},
+		V: toTypeValue(st),
 	})
 }
 
@@ -149,7 +148,7 @@ func (m *Machine) doOpInterfaceType() {
 	}
 	m.PushValue(TypedValue{
 		T: gTypeType,
-		V: TypeValue{Type: it},
+		V: toTypeValue(it),
 	})
 }
 
@@ -162,7 +161,7 @@ func (m *Machine) doOpChanType() {
 	}
 	*tv = TypedValue{
 		T: gTypeType,
-		V: TypeValue{Type: ct},
+		V: toTypeValue(ct),
 	}
 }
 
@@ -176,12 +175,12 @@ func (m *Machine) doOpStaticTypeOf() {
 		// NOTE: duplicated from doOpEval
 		if x.Path.Depth == 0 {
 			// Name is in uverse (global).
-			gv := Uverse().GetPointerTo(x.Path)
-			m.PushValue(asValue(gv.T))
+			gv := Uverse().GetPointerTo(nil, x.Path)
+			m.PushValue(asValue(gv.TV.T))
 		} else {
 			// Get static type from source.
 			lb := m.LastBlock()
-			st := lb.Source.GetStaticTypeOfAt(x.Path)
+			st := lb.Source.GetStaticTypeOfAt(m.Store, x.Path)
 			m.PushValue(asValue(st))
 		}
 	case *BasicLitExpr:
@@ -295,7 +294,7 @@ func (m *Machine) doOpStaticTypeOf() {
 				m.Run() // XXX replace
 				xv := m.ReapValues(start)[0]
 				pv := xv.V.(*PackageValue)
-				t := pv.Source.GetStaticTypeOfAt(x.Path)
+				t := pv.Source.GetStaticTypeOfAt(m.Store, x.Path)
 				m.PushValue(asValue(t))
 				return
 			default:
@@ -378,7 +377,7 @@ func (m *Machine) doOpStaticTypeOf() {
 			}
 		case VPValMethod, VPPtrMethod:
 			ftv := dxt.(*DeclaredType).GetValueRefAt(path)
-			ft := ftv.GetFunc().Type
+			ft := ftv.GetFunc().GetType(m.Store)
 			mt := ft.BoundType()
 			m.PushValue(asValue(mt))
 		case VPInterface:

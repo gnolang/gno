@@ -42,9 +42,9 @@ import (
 )
 
 // NOTE: this isn't safe.
-func testImporter(out io.Writer) (imp gno.Importer) {
+func testStore(out io.Writer) (store gno.Store) {
 	cache := make(map[string]*gno.PackageValue)
-	imp = func(pkgPath string) (pv *gno.PackageValue) {
+	getPackage := func(pkgPath string) (pv *gno.PackageValue) {
 		// look up cache.
 		if pv, exists := cache[pkgPath]; exists {
 			if pv == nil {
@@ -89,9 +89,9 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 			pkg := gno.NewPackageNode(pkgName, pkgPath, nil)
 			pv := pkg.NewPackage(nil)
 			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-				Package:  pv,
-				Output:   out,
-				Importer: imp,
+				Package: pv,
+				Output:  out,
+				Store:   store,
 			})
 			m2.RunFiles(fnodes...)
 			return pv
@@ -313,7 +313,11 @@ func testImporter(out io.Writer) (imp gno.Importer) {
 			panic("unknown package path " + pkgPath)
 		}
 	}
-	return
+	tstore := gno.TestStore{
+		GetPackageFn: getPackage,
+	}
+	cstore := gno.NewCacheStore(tstore)
+	return cstore
 }
 
 //----------------------------------------

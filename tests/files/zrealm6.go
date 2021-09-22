@@ -23,236 +23,274 @@ func main() {
 // false 3
 
 // Realm:
-// c[OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:8]=(gno.StructValueImage) {
-//  ObjectInfo: (gno.ObjectInfoImage) {
-//   _RealmID: (gno.RealmID) RIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30,
-//   NewTime: (uint64) 8,
-//   _OwnerNewTime: (uint64) 4,
-//   _ModTime: (uint64) 0,
-//   _RefCount: (int) 1
-//  },
-//  Fields: ([]gno.TypedValueImage) (len=5 cap=5) {
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) 63CDE69354F70377B65D4C6BDDBD1D23A8AF7217,
-//    ValueImage: (gno.PrimitiveValueImage) (len=4 cap=8) {
-//     00000000  6b 65 79 33                                       |key3|
-//    }
-//   },
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) 473287F8298DBA7163A897908958F7C0EAE733E2,
-//    ValueImage: (gno.PrimitiveValueImage) (len=6 cap=8) {
-//     00000000  76 61 6c 75 65 33                                 |value3|
-//    }
-//   },
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) 6DA88C34BA124C41F977DB66A4FC5C1A951708D2,
-//    ValueImage: (gno.PrimitiveValueImage) (len=8 cap=8) {
-//     00000000  01 00 00 00 00 00 00 00                           |........|
-//    }
-//   },
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) E6E0E2CE563ADB23D6A4822DD5FC346A5DE899A0,
-//    ValueImage: (gno.PointerValueImage) {
-//     TypedValue: (gno.TypedValueImage) {
-//      TypeID: (gno.TypeID) (len=20 cap=20) 0000000000000000000000000000000000000000,
-//      ValueImage: (gno.ValueImage) <nil>
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:21]={
+//     "Fields": [
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "63cde69354f70377b65d4c6bddbd1d23a8af7217"
+//             },
+//             "V": {
+//                 "@type": "/gno.st",
+//                 "value": "key3"
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "473287f8298dba7163a897908958f7c0eae733e2"
+//             },
+//             "V": {
+//                 "@type": "/gno.st",
+//                 "value": "value3"
+//             }
+//         },
+//         {
+//             "N": "AQAAAAAAAAA=",
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "6da88c34ba124c41f977db66a4fc5c1a951708d2"
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "e6e0e2ce563adb23d6a4822dd5fc346a5de899a0"
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "e6e0e2ce563adb23d6a4822dd5fc346a5de899a0"
+//             }
+//         }
+//     ],
+//     "ObjectInfo": {
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:21",
+//         "ModTime": "0",
+//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
+//         "RefCount": "1"
 //     }
-//    }
-//   },
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) E6E0E2CE563ADB23D6A4822DD5FC346A5DE899A0,
-//    ValueImage: (gno.PointerValueImage) {
-//     TypedValue: (gno.TypedValueImage) {
-//      TypeID: (gno.TypeID) (len=20 cap=20) 0000000000000000000000000000000000000000,
-//      ValueImage: (gno.ValueImage) <nil>
-//     }
-//    }
-//   }
-//  }
 // }
-//
-// u[OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:4]=(gno.StructValueImage) {
-//  ObjectInfo: (gno.ObjectInfoImage) {
-//   _RealmID: (gno.RealmID) RIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30,
-//   NewTime: (uint64) 4,
-//   _OwnerNewTime: (uint64) 3,
-//   _ModTime: (uint64) 5,
-//   _RefCount: (int) 1
-//  },
-//  Fields: ([]gno.TypedValueImage) (len=5 cap=5) {
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) 63CDE69354F70377B65D4C6BDDBD1D23A8AF7217,
-//    ValueImage: (gno.PrimitiveValueImage) (len=4 cap=8) {
-//     00000000  6b 65 79 31                                       |key1|
-//    }
-//   },
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) 473287F8298DBA7163A897908958F7C0EAE733E2,
-//    ValueImage: (gno.PrimitiveValueImage) (len=6 cap=8) {
-//     00000000  76 61 6c 75 65 31                                 |value1|
-//    }
-//   },
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) 6DA88C34BA124C41F977DB66A4FC5C1A951708D2,
-//    ValueImage: (gno.PrimitiveValueImage) (len=8 cap=8) {
-//     00000000  02 00 00 00 00 00 00 00                           |........|
-//    }
-//   },
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) E6E0E2CE563ADB23D6A4822DD5FC346A5DE899A0,
-//    ValueImage: (gno.PointerValueImage) {
-//     TypedValue: (gno.TypedValueImage) {
-//      TypeID: (gno.TypeID) (len=20 cap=20) 0000000000000000000000000000000000000000,
-//      ValueImage: (gno.ValueImage) <nil>
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4]={
+//     "Fields": [
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "63cde69354f70377b65d4c6bddbd1d23a8af7217"
+//             },
+//             "V": {
+//                 "@type": "/gno.st",
+//                 "value": "key1"
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "473287f8298dba7163a897908958f7c0eae733e2"
+//             },
+//             "V": {
+//                 "@type": "/gno.st",
+//                 "value": "value1"
+//             }
+//         },
+//         {
+//             "N": "AgAAAAAAAAA=",
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "6da88c34ba124c41f977db66a4fc5c1a951708d2"
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "e6e0e2ce563adb23d6a4822dd5fc346a5de899a0"
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "e6e0e2ce563adb23d6a4822dd5fc346a5de899a0"
+//             },
+//             "V": {
+//                 "@type": "/gno.ptr",
+//                 "Base": null,
+//                 "Index": "0",
+//                 "TV": {
+//                     "T": {
+//                         "@type": "/gno.rft",
+//                         "ID": "4af0f175d54357f0feeae4cf180a42be848369e8"
+//                     },
+//                     "V": {
+//                         "@type": "/gno.rfv",
+//                         "Hash": "17b8de84aea316513a064a72dc659ddaa162bbf4",
+//                         "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:21"
+//                     }
+//                 }
+//             }
+//         }
+//     ],
+//     "ObjectInfo": {
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
+//         "ModTime": "18",
+//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
+//         "RefCount": "1"
 //     }
-//    }
-//   },
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) E6E0E2CE563ADB23D6A4822DD5FC346A5DE899A0,
-//    ValueImage: (gno.PointerValueImage) {
-//     TypedValue: (gno.TypedValueImage) {
-//      TypeID: (gno.TypeID) (len=20 cap=20) 4AF0F175D54357F0FEEAE4CF180A42BE848369E8,
-//      ValueImage: (gno.RefImage) {
-//       RealmID: (gno.RealmID) RID0000000000000000000000000000000000000000,
-//       NewTime: (uint64) 8,
-//       Hash: (gno.ValueHash) {
-//        Hashlet: (gno.Hashlet) (len=20 cap=20) {
-//         00000000  52 b4 56 4d 4f d3 70 c9  a7 89 4b 7e 06 36 d7 42  |R.VMO.p...K~.6.B|
-//         00000010  d8 98 dc 0a                                       |....|
-//        }
-//       }
-//      }
-//     }
-//    }
-//   }
-//  }
 // }
-//
-// u[OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:3]=(gno.StructValueImage) {
-//  ObjectInfo: (gno.ObjectInfoImage) {
-//   _RealmID: (gno.RealmID) RIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30,
-//   NewTime: (uint64) 3,
-//   _OwnerNewTime: (uint64) 0,
-//   _ModTime: (uint64) 6,
-//   _RefCount: (int) 1
-//  },
-//  Fields: ([]gno.TypedValueImage) (len=5 cap=5) {
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) 63CDE69354F70377B65D4C6BDDBD1D23A8AF7217,
-//    ValueImage: (gno.PrimitiveValueImage) (len=4 cap=8) {
-//     00000000  6b 65 79 30                                       |key0|
-//    }
-//   },
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) 473287F8298DBA7163A897908958F7C0EAE733E2,
-//    ValueImage: (gno.PrimitiveValueImage) (len=6 cap=8) {
-//     00000000  76 61 6c 75 65 30                                 |value0|
-//    }
-//   },
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) 6DA88C34BA124C41F977DB66A4FC5C1A951708D2,
-//    ValueImage: (gno.PrimitiveValueImage) (len=8 cap=8) {
-//     00000000  03 00 00 00 00 00 00 00                           |........|
-//    }
-//   },
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) E6E0E2CE563ADB23D6A4822DD5FC346A5DE899A0,
-//    ValueImage: (gno.PointerValueImage) {
-//     TypedValue: (gno.TypedValueImage) {
-//      TypeID: (gno.TypeID) (len=20 cap=20) 0000000000000000000000000000000000000000,
-//      ValueImage: (gno.ValueImage) <nil>
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3]={
+//     "Fields": [
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "63cde69354f70377b65d4c6bddbd1d23a8af7217"
+//             },
+//             "V": {
+//                 "@type": "/gno.st",
+//                 "value": "key0"
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "473287f8298dba7163a897908958f7c0eae733e2"
+//             },
+//             "V": {
+//                 "@type": "/gno.st",
+//                 "value": "value0"
+//             }
+//         },
+//         {
+//             "N": "AwAAAAAAAAA=",
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "6da88c34ba124c41f977db66a4fc5c1a951708d2"
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "e6e0e2ce563adb23d6a4822dd5fc346a5de899a0"
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "e6e0e2ce563adb23d6a4822dd5fc346a5de899a0"
+//             },
+//             "V": {
+//                 "@type": "/gno.ptr",
+//                 "Base": null,
+//                 "Index": "0",
+//                 "TV": {
+//                     "T": {
+//                         "@type": "/gno.rft",
+//                         "ID": "4af0f175d54357f0feeae4cf180a42be848369e8"
+//                     },
+//                     "V": {
+//                         "@type": "/gno.rfv",
+//                         "Hash": "62da16e63707f3676ddfa98a1991263750bf76a7",
+//                         "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4"
+//                     }
+//                 }
+//             }
+//         }
+//     ],
+//     "ObjectInfo": {
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
+//         "ModTime": "19",
+//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:0",
+//         "RefCount": "1"
 //     }
-//    }
-//   },
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) E6E0E2CE563ADB23D6A4822DD5FC346A5DE899A0,
-//    ValueImage: (gno.PointerValueImage) {
-//     TypedValue: (gno.TypedValueImage) {
-//      TypeID: (gno.TypeID) (len=20 cap=20) 4AF0F175D54357F0FEEAE4CF180A42BE848369E8,
-//      ValueImage: (gno.RefImage) {
-//       RealmID: (gno.RealmID) RID0000000000000000000000000000000000000000,
-//       NewTime: (uint64) 4,
-//       Hash: (gno.ValueHash) {
-//        Hashlet: (gno.Hashlet) (len=20 cap=20) {
-//         00000000  20 75 46 62 fc a5 cf 7a  20 cb bd 03 67 4f b9 53  | uFb...z ...gO.S|
-//         00000010  67 f9 47 98                                       |g.G.|
-//        }
-//       }
-//      }
-//     }
-//    }
-//   }
-//  }
 // }
-//
-// u[OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:0]=(gno.BlockValueImage) {
-//  ObjectInfo: (gno.ObjectInfoImage) {
-//   _RealmID: (gno.RealmID) RIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30,
-//   NewTime: (uint64) 0,
-//   _OwnerNewTime: (uint64) 0,
-//   _ModTime: (uint64) 7,
-//   _RefCount: (int) 0
-//  },
-//  ParentID: (gno.ObjectID) OIDNONE:0,
-//  Values: ([]gno.TypedValueImage) (len=3 cap=3) {
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) 0BA050DA455A6AAD7074EB2148D53ECD5BECC26D,
-//    ValueImage: (gno.FuncValueImage) {
-//     TypeID: (gno.TypeID) (len=20 cap=20) 0BA050DA455A6AAD7074EB2148D53ECD5BECC26D,
-//     IsMethod: (bool) false,
-//     Name: (gno.Name) (len=6) "init.0",
-//     ClosureRef: (gno.RefImage) {
-//      RealmID: (gno.RealmID) RID0000000000000000000000000000000000000000,
-//      NewTime: (uint64) 0,
-//      Hash: (gno.ValueHash) {
-//       Hashlet: (gno.Hashlet) (len=20 cap=20) {
-//        00000000  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-//        00000010  00 00 00 00                                       |....|
-//       }
-//      }
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:0]={
+//     "Blank": {},
+//     "ObjectInfo": {
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:0",
+//         "ModTime": "20",
+//         "RefCount": "0"
 //     },
-//     FileName: (gno.Name) (len=16) "files/zrealm6.go",
-//     PkgPath: (string) (len=15) "gno.land/r/test"
-//    }
-//   },
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) 0BA050DA455A6AAD7074EB2148D53ECD5BECC26D,
-//    ValueImage: (gno.FuncValueImage) {
-//     TypeID: (gno.TypeID) (len=20 cap=20) 0BA050DA455A6AAD7074EB2148D53ECD5BECC26D,
-//     IsMethod: (bool) false,
-//     Name: (gno.Name) (len=4) "main",
-//     ClosureRef: (gno.RefImage) {
-//      RealmID: (gno.RealmID) RID0000000000000000000000000000000000000000,
-//      NewTime: (uint64) 0,
-//      Hash: (gno.ValueHash) {
-//       Hashlet: (gno.Hashlet) (len=20 cap=20) {
-//        00000000  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-//        00000010  00 00 00 00                                       |....|
-//       }
-//      }
+//     "Parent": null,
+//     "SourceLoc": {
+//         "File": "",
+//         "Line": "0",
+//         "PkgPath": ""
 //     },
-//     FileName: (gno.Name) (len=16) "files/zrealm6.go",
-//     PkgPath: (string) (len=15) "gno.land/r/test"
-//    }
-//   },
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) E6E0E2CE563ADB23D6A4822DD5FC346A5DE899A0,
-//    ValueImage: (gno.PointerValueImage) {
-//     TypedValue: (gno.TypedValueImage) {
-//      TypeID: (gno.TypeID) (len=20 cap=20) 4AF0F175D54357F0FEEAE4CF180A42BE848369E8,
-//      ValueImage: (gno.RefImage) {
-//       RealmID: (gno.RealmID) RID0000000000000000000000000000000000000000,
-//       NewTime: (uint64) 3,
-//       Hash: (gno.ValueHash) {
-//        Hashlet: (gno.Hashlet) (len=20 cap=20) {
-//         00000000  51 21 c7 7c 18 73 2a 69  1c 6b 2d ad d7 ee ba b5  |Q!.|.s*i.k-.....|
-//         00000010  f1 a2 b0 cd                                       |....|
-//        }
-//       }
-//      }
-//     }
-//    }
-//   }
-//  }
+//     "Values": [
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "0ba050da455a6aad7074eb2148d53ecd5becc26d"
+//             },
+//             "V": {
+//                 "@type": "/gno.fun",
+//                 "Closure": {
+//                     "@type": "/gno.rfv",
+//                     "Hash": "86a1d27523d1ba453c18f3b20d9802db0f82efa0",
+//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5"
+//                 },
+//                 "FileName": "files/zrealm6.go",
+//                 "IsMethod": false,
+//                 "Name": "init.0",
+//                 "PkgPath": "gno.land/r/test",
+//                 "SourceLoc": {
+//                     "File": "files/zrealm6.go",
+//                     "Line": "11",
+//                     "PkgPath": ""
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.rft",
+//                     "ID": "0ba050da455a6aad7074eb2148d53ecd5becc26d"
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "0ba050da455a6aad7074eb2148d53ecd5becc26d"
+//             },
+//             "V": {
+//                 "@type": "/gno.fun",
+//                 "Closure": {
+//                     "@type": "/gno.rfv",
+//                     "Hash": "86a1d27523d1ba453c18f3b20d9802db0f82efa0",
+//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5"
+//                 },
+//                 "FileName": "files/zrealm6.go",
+//                 "IsMethod": false,
+//                 "Name": "main",
+//                 "PkgPath": "gno.land/r/test",
+//                 "SourceLoc": {
+//                     "File": "files/zrealm6.go",
+//                     "Line": "16",
+//                     "PkgPath": ""
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.rft",
+//                     "ID": "0ba050da455a6aad7074eb2148d53ecd5becc26d"
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "e6e0e2ce563adb23d6a4822dd5fc346a5de899a0"
+//             },
+//             "V": {
+//                 "@type": "/gno.ptr",
+//                 "Base": null,
+//                 "Index": "0",
+//                 "TV": {
+//                     "T": {
+//                         "@type": "/gno.rft",
+//                         "ID": "4af0f175d54357f0feeae4cf180a42be848369e8"
+//                     },
+//                     "V": {
+//                         "@type": "/gno.rfv",
+//                         "Hash": "4fac53db35971b1cb9f33785b0684715f43482ee",
+//                         "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
+//                     }
+//                 }
+//             }
+//         }
+//     ]
 // }
-//

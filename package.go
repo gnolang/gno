@@ -9,16 +9,21 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	"gno",
 	amino.GetCallersDirname(),
 ).WithDependencies().WithTypes(
-	RefImage{}, "RefImg",
-	PrimitiveValueImage{}, "PriImg",
-	PointerValueImage{}, "PtrImg",
-	ArrayValueImage{}, "ArrImg",
-	SliceValueImage{}, "SliImg",
-	StructValueImage{}, "StrImg",
-	FuncValueImage{}, "FunImg",
-	BoundMethodValueImage{}, "BndImg",
-	MapValueImage{}, "MapImg",
-	TypeValueImage{}, "TypImg",
-	PackageValueImage{}, "PkgImg",
-	BlockValueImage{}, "BlkImg",
+
+	StringValue(""), "st",
+	BigintValue{}, "big",
+	// DataByteValue{}
+	PointerValue{}, "ptr",
+	&ArrayValue{}, "arr",
+	&SliceValue{}, "sli",
+	&StructValue{}, "str",
+	&FuncValue{}, "fun",
+	&MapValue{}, "map",
+	&BoundMethodValue{}, "bnd",
+	TypeValue{}, "typ",
+	&PackageValue{}, "pkg",
+	// nativeValue
+	&Block{}, "blk",
+	RefType{}, "rft",
+	RefValue{}, "rfv",
 ))

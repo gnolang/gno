@@ -19,41 +19,72 @@ func main() {
 // vars.
 
 // Realm:
-// u[OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:0]=(gno.BlockValueImage) {
-//  ObjectInfo: (gno.ObjectInfoImage) {
-//   _RealmID: (gno.RealmID) RIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30,
-//   NewTime: (uint64) 0,
-//   _OwnerNewTime: (uint64) 0,
-//   _ModTime: (uint64) 1,
-//   _RefCount: (int) 0
-//  },
-//  ParentID: (gno.ObjectID) OIDNONE:0,
-//  Values: ([]gno.TypedValueImage) (len=2 cap=2) {
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) 0BA050DA455A6AAD7074EB2148D53ECD5BECC26D,
-//    ValueImage: (gno.FuncValueImage) {
-//     TypeID: (gno.TypeID) (len=20 cap=20) 0BA050DA455A6AAD7074EB2148D53ECD5BECC26D,
-//     IsMethod: (bool) false,
-//     Name: (gno.Name) (len=4) "main",
-//     ClosureRef: (gno.RefImage) {
-//      RealmID: (gno.RealmID) RID0000000000000000000000000000000000000000,
-//      NewTime: (uint64) 0,
-//      Hash: (gno.ValueHash) {
-//       Hashlet: (gno.Hashlet) (len=20 cap=20) {
-//        00000000  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-//        00000010  00 00 00 00                                       |....|
-//       }
-//      }
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:2]={
+//     "Blank": {},
+//     "ObjectInfo": {
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
+//         "ModTime": "0",
+//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:0",
+//         "RefCount": "1"
 //     },
-//     FileName: (gno.Name) (len=16) "files/zrealm0.go",
-//     PkgPath: (string) (len=15) "gno.land/r/test"
-//    }
-//   },
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) 6DA88C34BA124C41F977DB66A4FC5C1A951708D2,
-//    ValueImage: (gno.PrimitiveValueImage) (len=8 cap=8) {
-//     00000000  01 00 00 00 00 00 00 00                           |........|
-//    }
-//   }
-//  }
+//     "Parent": {
+//         "@type": "/gno.rfv",
+//         "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:0"
+//     },
+//     "SourceLoc": {
+//         "File": "",
+//         "Line": "0",
+//         "PkgPath": ""
+//     },
+//     "Values": []
+// }
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:0]={
+//     "Blank": {},
+//     "ObjectInfo": {
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:0",
+//         "ModTime": "1",
+//         "RefCount": "0"
+//     },
+//     "Parent": null,
+//     "SourceLoc": {
+//         "File": "",
+//         "Line": "0",
+//         "PkgPath": ""
+//     },
+//     "Values": [
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "0ba050da455a6aad7074eb2148d53ecd5becc26d"
+//             },
+//             "V": {
+//                 "@type": "/gno.fun",
+//                 "Closure": {
+//                     "@type": "/gno.rfv",
+//                     "Hash": "95d127b138a078c9bea04f906ff4270a7297ed25",
+//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2"
+//                 },
+//                 "FileName": "files/zrealm0.go",
+//                 "IsMethod": false,
+//                 "Name": "main",
+//                 "PkgPath": "gno.land/r/test",
+//                 "SourceLoc": {
+//                     "File": "files/zrealm0.go",
+//                     "Line": "6",
+//                     "PkgPath": ""
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.rft",
+//                     "ID": "0ba050da455a6aad7074eb2148d53ecd5becc26d"
+//                 }
+//             }
+//         },
+//         {
+//             "N": "AQAAAAAAAAA=",
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "6da88c34ba124c41f977db66a4fc5c1a951708d2"
+//             }
+//         }
+//     ]
 // }

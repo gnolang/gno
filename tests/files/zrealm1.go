@@ -22,108 +22,138 @@ func main() {
 }
 
 // Realm:
-// c[OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:2]=(gno.StructValueImage) {
-//  ObjectInfo: (gno.ObjectInfoImage) {
-//   _RealmID: (gno.RealmID) RIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30,
-//   NewTime: (uint64) 2,
-//   _OwnerNewTime: (uint64) 0,
-//   _ModTime: (uint64) 0,
-//   _RefCount: (int) 1
-//  },
-//  Fields: ([]gno.TypedValueImage) (len=3 cap=3) {
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) 473287F8298DBA7163A897908958F7C0EAE733E2,
-//    ValueImage: (gno.PrimitiveValueImage) (len=7 cap=8) {
-//     00000000  73 6f 6d 65 6b 65 79                              |somekey|
-//    }
-//   },
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) 0000000000000000000000000000000000000000,
-//    ValueImage: (gno.ValueImage) <nil>
-//   },
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) 0000000000000000000000000000000000000000,
-//    ValueImage: (gno.ValueImage) <nil>
-//   }
-//  }
-// }
-//
-// u[OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:0]=(gno.BlockValueImage) {
-//  ObjectInfo: (gno.ObjectInfoImage) {
-//   _RealmID: (gno.RealmID) RIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30,
-//   NewTime: (uint64) 0,
-//   _OwnerNewTime: (uint64) 0,
-//   _ModTime: (uint64) 1,
-//   _RefCount: (int) 0
-//  },
-//  ParentID: (gno.ObjectID) OIDNONE:0,
-//  Values: ([]gno.TypedValueImage) (len=5 cap=5) {
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) 1AF40977153D0FABAB9803BF33EDEBA8EB420CC5,
-//    ValueImage: (gno.TypeValueImage) {
-//     TypeID: (gno.TypeID) (len=20 cap=20) 8F3FCA65F6CA73D096C06F68E24FF93EA462D350
-//    }
-//   },
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) 1AF40977153D0FABAB9803BF33EDEBA8EB420CC5,
-//    ValueImage: (gno.TypeValueImage) {
-//     TypeID: (gno.TypeID) (len=20 cap=20) B06B716FF82D41A482D5C1CC3711002B74717639
-//    }
-//   },
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) 1AF40977153D0FABAB9803BF33EDEBA8EB420CC5,
-//    ValueImage: (gno.TypeValueImage) {
-//     TypeID: (gno.TypeID) (len=20 cap=20) CE75E799ED699FE6A487D6CA237759F5F203BEE0
-//    }
-//   },
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) 0BA050DA455A6AAD7074EB2148D53ECD5BECC26D,
-//    ValueImage: (gno.FuncValueImage) {
-//     TypeID: (gno.TypeID) (len=20 cap=20) 0BA050DA455A6AAD7074EB2148D53ECD5BECC26D,
-//     IsMethod: (bool) false,
-//     Name: (gno.Name) (len=4) "main",
-//     ClosureRef: (gno.RefImage) {
-//      RealmID: (gno.RealmID) RID0000000000000000000000000000000000000000,
-//      NewTime: (uint64) 0,
-//      Hash: (gno.ValueHash) {
-//       Hashlet: (gno.Hashlet) (len=20 cap=20) {
-//        00000000  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-//        00000010  00 00 00 00                                       |....|
-//       }
-//      }
-//     },
-//     FileName: (gno.Name) (len=16) "files/zrealm1.go",
-//     PkgPath: (string) (len=15) "gno.land/r/test"
-//    }
-//   },
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) CE75E799ED699FE6A487D6CA237759F5F203BEE0,
-//    ValueImage: (gno.StructValueImage) {
-//     ObjectInfo: (gno.ObjectInfoImage) {
-//      _RealmID: (gno.RealmID) RIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30,
-//      NewTime: (uint64) 2,
-//      _OwnerNewTime: (uint64) 0,
-//      _ModTime: (uint64) 0,
-//      _RefCount: (int) 1
-//     },
-//     Fields: ([]gno.TypedValueImage) (len=3 cap=3) {
-//      (gno.TypedValueImage) {
-//       TypeID: (gno.TypeID) (len=20 cap=20) 473287F8298DBA7163A897908958F7C0EAE733E2,
-//       ValueImage: (gno.PrimitiveValueImage) (len=7 cap=8) {
-//        00000000  73 6f 6d 65 6b 65 79                              |somekey|
-//       }
-//      },
-//      (gno.TypedValueImage) {
-//       TypeID: (gno.TypeID) (len=20 cap=20) 0000000000000000000000000000000000000000,
-//       ValueImage: (gno.ValueImage) <nil>
-//      },
-//      (gno.TypedValueImage) {
-//       TypeID: (gno.TypeID) (len=20 cap=20) 0000000000000000000000000000000000000000,
-//       ValueImage: (gno.ValueImage) <nil>
-//      }
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:2]={
+//     "Fields": [
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "473287f8298dba7163a897908958f7c0eae733e2"
+//             },
+//             "V": {
+//                 "@type": "/gno.st",
+//                 "value": "somekey"
+//             }
+//         },
+//         {},
+//         {}
+//     ],
+//     "ObjectInfo": {
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
+//         "ModTime": "0",
+//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:0",
+//         "RefCount": "1"
 //     }
-//    }
-//   }
-//  }
+// }
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:3]={
+//     "Blank": {},
+//     "ObjectInfo": {
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
+//         "ModTime": "0",
+//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:0",
+//         "RefCount": "1"
+//     },
+//     "Parent": {
+//         "@type": "/gno.rfv",
+//         "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:0"
+//     },
+//     "SourceLoc": {
+//         "File": "",
+//         "Line": "0",
+//         "PkgPath": ""
+//     },
+//     "Values": []
+// }
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:0]={
+//     "Blank": {},
+//     "ObjectInfo": {
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:0",
+//         "ModTime": "1",
+//         "RefCount": "0"
+//     },
+//     "Parent": null,
+//     "SourceLoc": {
+//         "File": "",
+//         "Line": "0",
+//         "PkgPath": ""
+//     },
+//     "Values": [
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "1af40977153d0fabab9803bf33edeba8eb420cc5"
+//             },
+//             "V": {
+//                 "@type": "/gno.typ",
+//                 "Type": {
+//                     "@type": "/gno.rft",
+//                     "ID": "8f3fca65f6ca73d096c06f68e24ff93ea462d350"
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "1af40977153d0fabab9803bf33edeba8eb420cc5"
+//             },
+//             "V": {
+//                 "@type": "/gno.typ",
+//                 "Type": {
+//                     "@type": "/gno.rft",
+//                     "ID": "b06b716ff82d41a482d5c1cc3711002b74717639"
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "1af40977153d0fabab9803bf33edeba8eb420cc5"
+//             },
+//             "V": {
+//                 "@type": "/gno.typ",
+//                 "Type": {
+//                     "@type": "/gno.rft",
+//                     "ID": "ce75e799ed699fe6a487d6ca237759f5f203bee0"
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "0ba050da455a6aad7074eb2148d53ecd5becc26d"
+//             },
+//             "V": {
+//                 "@type": "/gno.fun",
+//                 "Closure": {
+//                     "@type": "/gno.rfv",
+//                     "Hash": "91894b5a6b21ea2caf3d7811643dba2672c4ac1c",
+//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
+//                 },
+//                 "FileName": "files/zrealm1.go",
+//                 "IsMethod": false,
+//                 "Name": "main",
+//                 "PkgPath": "gno.land/r/test",
+//                 "SourceLoc": {
+//                     "File": "files/zrealm1.go",
+//                     "Line": "15",
+//                     "PkgPath": ""
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.rft",
+//                     "ID": "0ba050da455a6aad7074eb2148d53ecd5becc26d"
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "ce75e799ed699fe6a487d6ca237759f5f203bee0"
+//             },
+//             "V": {
+//                 "@type": "/gno.rfv",
+//                 "Hash": "fab2520635e515b7fdd8454d0c9e8e90fd0b3431",
+//                 "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2"
+//             }
+//         }
+//     ]
 // }
 //

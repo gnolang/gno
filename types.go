@@ -1,6 +1,7 @@
 package gno
 
 import (
+	"encoding/hex"
 	"fmt"
 	"reflect"
 	"sort"
@@ -21,6 +22,15 @@ type Type interface {
 }
 
 type TypeID Hashlet
+
+func (tid TypeID) MarshalAmino() (string, error) {
+	return hex.EncodeToString(tid[:]), nil
+}
+
+func (tid *TypeID) UnmarshalAmino(h string) error {
+	_, err := hex.Decode(tid[:], []byte(h))
+	return err
+}
 
 func (tid TypeID) IsZero() bool {
 	return tid == (TypeID{})
@@ -64,6 +74,7 @@ func (*ChanType) assertType()      {}
 func (*nativeType) assertType()    {}
 func (blockType) assertType()      {}
 func (*tupleType) assertType()     {}
+func (RefType) assertType()        {}
 
 //----------------------------------------
 // Primitive types
@@ -242,7 +253,13 @@ func (ft FieldType) Kind() Kind {
 }
 
 func (ft FieldType) TypeID() TypeID {
-	panic("see FieldTypeList.TypeID()")
+	s := ""
+	if ft.Name == "" {
+		s += ft.Type.TypeID().String()
+	} else {
+		s += string(ft.Name) + "#" + ft.Type.TypeID().String()
+	}
+	return typeid(s)
 }
 
 func (ft FieldType) String() string {
@@ -474,7 +491,13 @@ func (pt *PointerType) TypeID() TypeID {
 }
 
 func (pt *PointerType) String() string {
-	return fmt.Sprintf("*%s", pt.Elt.String())
+	if pt == nil {
+		panic("invalid nil pointer type")
+	} else if pt.Elt == nil {
+		panic("invalid nil pointer element type")
+	} else {
+		return fmt.Sprintf("*%v", pt.Elt)
+	}
 }
 
 func (pt *PointerType) Elem() Type {
@@ -890,7 +913,6 @@ func (ct *ChanType) Elem() Type {
 // Function type
 
 type FuncType struct {
-	PkgPath string // needed for realm enforcement.
 	Params  []FieldType
 	Results []FieldType
 
@@ -918,7 +940,6 @@ func (ft *FuncType) Kind() Kind {
 func (ft *FuncType) BoundType() *FuncType {
 	if ft.bound == nil {
 		ft.bound = &FuncType{
-			PkgPath: ft.PkgPath,
 			Params:  ft.Params[1:],
 			Results: ft.Results,
 		}
@@ -929,7 +950,6 @@ func (ft *FuncType) BoundType() *FuncType {
 // unbound function type
 func (ft *FuncType) UnboundType(rft FieldType) *FuncType {
 	return &FuncType{
-		PkgPath: ft.PkgPath,
 		Params:  append([]FieldType{rft}, ft.Params...),
 		Results: ft.Results,
 	}
@@ -1029,7 +1049,6 @@ func (ft *FuncType) Specify(argTVs []TypedValue, isVarg bool) *FuncType {
 		}
 	}
 	return &FuncType{
-		PkgPath: ft.PkgPath,
 		Params:  pfts,
 		Results: rfts,
 	}
@@ -1059,8 +1078,7 @@ func (ft *FuncType) TypeID() TypeID {
 }
 
 func (ft *FuncType) String() string {
-	return fmt.Sprintf("%s.func(%s)(%s)",
-		ft.PkgPath,
+	return fmt.Sprintf("func(%s)(%s)",
 		FieldTypeList(ft.Params).StringWithCommas(),
 		FieldTypeList(ft.Results).StringWithCommas())
 }
@@ -1236,7 +1254,9 @@ func (dt *DeclaredType) GetPathForName(n Name) ValuePath {
 			if i > 2<<16-1 {
 				panic("too many methods")
 			}
-			if fv.Type.HasPointerReceiver() {
+			// NOTE: makes code simple but requires preprocessor's
+			// Store to pre-load method types.
+			if fv.GetType(nil).HasPointerReceiver() {
 				return NewValuePathPtrMethod(uint16(i), n)
 			} else {
 				return NewValuePathValMethod(uint16(i), n)
@@ -1286,14 +1306,18 @@ func (dt *DeclaredType) FindEmbeddedFieldType(n Name) (
 	for i := 0; i < len(dt.Methods); i++ {
 		mv := &dt.Methods[i]
 		if fv := mv.GetFunc(); fv.Name == n {
-			rt := fv.Type.Params[0].Type
+			// NOTE: makes code simple but requires preprocessor's
+			// Store to pre-load method types.
+			rt := fv.GetType(nil).Params[0].Type
 			vp := ValuePath{}
 			if _, ok := rt.(*PointerType); ok {
 				vp = NewValuePathPtrMethod(uint16(i), n)
 			} else {
 				vp = NewValuePathValMethod(uint16(i), n)
 			}
-			bt := fv.Type.BoundType()
+			// NOTE: makes code simple but requires preprocessor's
+			// Store to pre-load method types.
+			bt := fv.GetType(nil).BoundType()
 			return []ValuePath{vp}, false, rt, bt
 		}
 	}
@@ -1593,6 +1617,29 @@ func (tt *tupleType) String() string {
 
 func (tt *tupleType) Elem() Type {
 	panic("tupleType has no singular elem type")
+}
+
+//----------------------------------------
+// RefType
+
+type RefType struct {
+	ID TypeID
+}
+
+func (_ RefType) Kind() Kind {
+	panic("should not happen")
+}
+
+func (rt RefType) TypeID() TypeID {
+	return rt.ID
+}
+
+func (rt RefType) String() string {
+	return fmt.Sprintf("RefType{%v}", rt.ID)
+}
+
+func (rt RefType) Elem() Type {
+	panic("should not happen")
 }
 
 //----------------------------------------
@@ -2079,7 +2126,7 @@ func applySpecifics(lookup map[Name]Type, tmpl Type) (Type, bool) {
 				gx := MustParseExpr(string(ct.Generic))
 				gx = Preprocess(nil, bs, gx).(Expr)
 				// Evalute type from generic expression.
-				m := NewMachine("")
+				m := NewMachine("", nil)
 				tv := m.EvalStatic(bs, gx)
 				return tv.GetType(), true
 			}

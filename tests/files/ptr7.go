@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/gnolang/gno/_test/net"
 	"strings"
+
+	"github.com/gnolang/gno/_test/net"
 )
 
 type ipNetValue net.IPNet
@@ -22,4 +23,4 @@ func main() {
 }
 
 // Output:
-// struct{(undefined),(undefined)}
+// struct{(nil github.com/gnolang/gno/_test/net.IP),(nil github.com/gnolang/gno/_test/net.IPMask)}

@@ -10,12 +10,12 @@ func (p Pool) Get() *Buffer { return &Buffer{} }
 func NewPool() Pool { return Pool{} }
 
 type Buffer struct {
-	bs   []byte
-	pool Pool
+	Bs   []byte
+	Pool Pool
 }
 
 type Pool struct {
-	p *sync.Pool
+	P *sync.Pool
 }
 
 var (

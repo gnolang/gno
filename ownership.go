@@ -2,7 +2,12 @@ package gno
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
+	"strconv"
+	"strings"
+
+	"github.com/gnolang/gno/pkgs/errors"
 )
 
 /*
@@ -36,18 +41,35 @@ supported).
 */
 
 type ObjectID struct {
-	RealmID        // base
-	NewTime uint64 // time created
+	RealmID RealmID // base
+	NewTime uint64  // time created
+}
+
+func (oid ObjectID) MarshalAmino() (string, error) {
+	rid := hex.EncodeToString(oid.RealmID.Hashlet[:])
+	return fmt.Sprintf("%s:%d", rid, oid.NewTime), nil
+}
+
+func (oid *ObjectID) UnmarshalAmino(oids string) error {
+	parts := strings.Split(oids, ":")
+	if len(parts) != 2 {
+		return errors.New("invalid ObjectID %s", oids)
+	}
+	_, err := hex.Decode(oid.RealmID.Hashlet[:], []byte(parts[0]))
+	if err != nil {
+		return err
+	}
+	newTime, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return err
+	}
+	oid.NewTime = uint64(newTime)
+	return nil
 }
 
 func (oid ObjectID) String() string {
-	if oid.RealmID.IsZero() {
-		// XXX what's at the very top?
-		return fmt.Sprintf("OIDNONE:%d", oid.NewTime)
-	} else {
-		return fmt.Sprintf("OID%X:%d",
-			oid.RealmID.Bytes(), oid.NewTime)
-	}
+	oids, _ := oid.MarshalAmino()
+	return oids
 }
 
 func (oid ObjectID) Bytes() []byte {
@@ -70,6 +92,7 @@ func (oid ObjectID) IsZero() bool {
 }
 
 type Object interface {
+	Value
 	GetObjectInfo() *ObjectInfo
 	GetObjectID() ObjectID
 	MustGetObjectID() ObjectID
@@ -102,21 +125,40 @@ type Object interface {
 
 var _ Object = &ArrayValue{}
 var _ Object = &StructValue{}
+var _ Object = &BoundMethodValue{}
 var _ Object = &MapValue{}
 var _ Object = &Block{}
 
 type ObjectInfo struct {
-	ID           ObjectID  // set if real.
-	Hash         ValueHash // zero if dirty.
-	OwnerID      ObjectID  // parent in the ownership tree.
-	ModTime      uint64    // time last updated.
-	RefCount     int       // deleted/gc'd if 0.
+	ID       ObjectID  // set if real.
+	Hash     ValueHash `json:",omitempty"` // zero if dirty.
+	OwnerID  ObjectID  `json:",omitempty"` // parent in the ownership tree.
+	ModTime  uint64    // time last updated.
+	RefCount int       // for persistence. deleted/gc'd if 0.
+	// MemRefCount int // consider for optimizations.
 	isNewReal    bool
 	isDirty      bool
 	isDeleted    bool
 	isProcessing bool
 
+	// XXX huh?
 	owner Object // mem reference to owner.
+}
+
+// Copy used for serialization of objects.
+// Note that "owner" is nil.
+func (oi *ObjectInfo) Copy() ObjectInfo {
+	return ObjectInfo{
+		ID:           oi.ID,
+		Hash:         oi.Hash.Copy(),
+		OwnerID:      oi.OwnerID,
+		ModTime:      oi.ModTime,
+		RefCount:     oi.RefCount,
+		isNewReal:    oi.isNewReal,
+		isDirty:      oi.isDirty,
+		isDeleted:    oi.isDeleted,
+		isProcessing: oi.isProcessing,
+	}
 }
 
 func (oi *ObjectInfo) String() string {
@@ -275,50 +317,35 @@ func (oi *ObjectInfo) GetIsTransient() bool {
 	return false
 }
 
-// Returns the value as an object if it is an object,
-// or is a pointer or slice of an object.
-func (tv *TypedValue) GetObject() Object {
+func (tv *TypedValue) GetFirstObject(store Store) Object {
 	switch cv := tv.V.(type) {
 	case PointerValue:
-		// TODO: In terms of defining the object dependency graph,
-		// whether the relevant object is the pointer base or
-		// the pointed object (.base or .typedvalue) depends
-		// on the number of references to the base. In the future
-		// when supporting ref-counted and weak references,
-		// calculate this on the fly or with a pre-pass.
-		return cv.TypedValue.GetObject()
+		// TODO: in the future, consider skipping the base if persisted
+		// ref-count would be 1, e.g. only this pointer refers to
+		// something in it; in that case, ignore the base.  That will
+		// likely require maybe a preperation step in persistence
+		// ( or unlikely, a second type of ref-counting).
+		if cv.Base != nil {
+			return cv.Base.(Object)
+		} else {
+			return cv.TV.GetFirstObject(store)
+		}
 	case *ArrayValue:
 		return cv
 	case *SliceValue:
-		if cv.Base == nil {
-			// otherwise `return cv.Base` returns a typed-nil.
-			return nil
-		} else {
-			return cv.Base
-		}
+		return cv.GetBase(store)
 	case *StructValue:
 		return cv
 	case *FuncValue:
-		return nil
+		return cv.GetClosure(store)
 	case *MapValue:
 		return cv
-	case BoundMethodValue:
-		rov, ok := cv.Receiver.V.(Object)
-		if ok {
-			return rov
-		} else {
-			return nil
-		}
+	case *BoundMethodValue:
+		return cv
 	case nativeValue:
-		// native values don't work with realms,
-		// but this function shouldn't happen.
-		// XXX panic?
-		return nil
-	case blockValue:
-		if cv.Block == nil {
-			panic("should not happen")
-		}
-		return cv.Block
+		panic("realm logic for native values not supported")
+	case *Block:
+		return cv
 	default:
 		return nil
 	}
@@ -337,6 +364,19 @@ type ExtendedObject struct {
 	BaseNative *nativeValue // if base is native array/slice/struct/map.
 	Index      TypedValue   // integer index or arbitrary map key
 	Path       ValuePath    // value path for (native) selectors
+}
+
+// implements Value
+func (eo ExtendedObject) assertValue() {
+}
+
+// implements Value
+func (eo ExtendedObject) String() string {
+	if eo.BaseMap != nil {
+		return eo.BaseMap.String()
+	} else {
+		panic("native values are not realm compatible")
+	}
 }
 
 func (eo ExtendedObject) GetObjectInfo() *ObjectInfo {

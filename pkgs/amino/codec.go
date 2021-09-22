@@ -574,11 +574,11 @@ func (cdc *Codec) newTypeInfoUnregisteredWLock(rt reflect.Type) *TypeInfo {
 func (cdc *Codec) newTypeInfoUnregisteredWLocked(rt reflect.Type) *TypeInfo {
 	switch rt.Kind() {
 	case reflect.Ptr:
-		panic("unexpected pointer type") // should not happen.
+		panic(fmt.Sprintf("unexpected pointer type %v", rt)) // should not happen.
 	case reflect.Map:
-		panic("map type not supported")
+		panic(fmt.Sprintf("map type not supported %v", rt))
 	case reflect.Func:
-		panic("func type not supported")
+		panic(fmt.Sprintf("func type not supported %v", rt))
 	}
 	if _, exists := cdc.typeInfos[rt]; exists {
 		panic(fmt.Sprintf("type info already registered for %v", rt))
@@ -661,6 +661,12 @@ func (cdc *Codec) newTypeInfoUnregisteredWLocked(rt reflect.Type) *TypeInfo {
 // ...
 
 func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
+	defer func() {
+		if ex := recover(); ex != nil {
+			panic(fmt.Sprintf("panic parsing struct %v",
+				rt))
+		}
+	}()
 	if rt.Kind() != reflect.Struct {
 		panic("should not happen")
 	}

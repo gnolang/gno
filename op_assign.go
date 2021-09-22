@@ -11,8 +11,8 @@ func (m *Machine) doOpDefine() {
 		// Get name and value of i'th term.
 		nx := s.Lhs[i].(*NameExpr)
 		// Finally, define (or assign if loop block).
-		ptr := lb.GetPointerTo(nx.Path)
-		ptr.Assign2(m.Realm, rvs[i], true)
+		ptr := lb.GetPointerTo(m.Store, nx.Path)
+		ptr.Assign2(m.Store, m.Realm, rvs[i], true)
 	}
 }
 
@@ -25,7 +25,7 @@ func (m *Machine) doOpAssign() {
 	for i := len(s.Lhs) - 1; 0 <= i; i-- {
 		// Pop lhs value and desired type.
 		lv := m.PopAsPointer(s.Lhs[i])
-		lv.Assign2(m.Realm, rvs[i], true)
+		lv.Assign2(m.Store, m.Realm, rvs[i], true)
 	}
 }
 
@@ -34,11 +34,11 @@ func (m *Machine) doOpAddAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		assertSameTypes(lv.TV.T, rv.T)
 	}
 
 	// add rv to lv.
-	addAssign(lv.TypedValue, rv)
+	addAssign(lv.TV, rv)
 }
 
 func (m *Machine) doOpSubAssign() {
@@ -46,11 +46,11 @@ func (m *Machine) doOpSubAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		assertSameTypes(lv.TV.T, rv.T)
 	}
 
 	// sub rv from lv.
-	subAssign(lv.TypedValue, rv)
+	subAssign(lv.TV, rv)
 }
 
 func (m *Machine) doOpMulAssign() {
@@ -58,11 +58,11 @@ func (m *Machine) doOpMulAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		assertSameTypes(lv.TV.T, rv.T)
 	}
 
 	// lv *= rv
-	mulAssign(lv.TypedValue, rv)
+	mulAssign(lv.TV, rv)
 }
 
 func (m *Machine) doOpQuoAssign() {
@@ -70,11 +70,11 @@ func (m *Machine) doOpQuoAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		assertSameTypes(lv.TV.T, rv.T)
 	}
 
 	// lv /= rv
-	quoAssign(lv.TypedValue, rv)
+	quoAssign(lv.TV, rv)
 }
 
 func (m *Machine) doOpRemAssign() {
@@ -82,11 +82,11 @@ func (m *Machine) doOpRemAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		assertSameTypes(lv.TV.T, rv.T)
 	}
 
 	// lv %= rv
-	remAssign(lv.TypedValue, rv)
+	remAssign(lv.TV, rv)
 }
 
 func (m *Machine) doOpBandAssign() {
@@ -94,11 +94,11 @@ func (m *Machine) doOpBandAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		assertSameTypes(lv.TV.T, rv.T)
 	}
 
 	// lv &= rv
-	bandAssign(lv.TypedValue, rv)
+	bandAssign(lv.TV, rv)
 }
 
 func (m *Machine) doOpBandnAssign() {
@@ -106,11 +106,11 @@ func (m *Machine) doOpBandnAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		assertSameTypes(lv.TV.T, rv.T)
 	}
 
 	// lv &^= rv
-	bandnAssign(lv.TypedValue, rv)
+	bandnAssign(lv.TV, rv)
 }
 
 func (m *Machine) doOpBorAssign() {
@@ -118,11 +118,11 @@ func (m *Machine) doOpBorAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		assertSameTypes(lv.TV.T, rv.T)
 	}
 
 	// lv |= rv
-	borAssign(lv.TypedValue, rv)
+	borAssign(lv.TV, rv)
 }
 
 func (m *Machine) doOpXorAssign() {
@@ -130,11 +130,11 @@ func (m *Machine) doOpXorAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		assertSameTypes(lv.TV.T, rv.T)
 	}
 
 	// lv ^= rv
-	xorAssign(lv.TypedValue, rv)
+	xorAssign(lv.TV, rv)
 }
 
 func (m *Machine) doOpShlAssign() {

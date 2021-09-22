@@ -55,9 +55,9 @@ func runCheck(t *testing.T, path string) {
 
 	var output = new(bytes.Buffer)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		Package:  pv,
-		Output:   output,
-		Importer: testImporter(output),
+		Package: pv,
+		Output:  output,
+		Store:   testStore(output),
 	})
 	// TODO support stdlib groups, but make testing safe;
 	// e.g. not be able to make network connections.

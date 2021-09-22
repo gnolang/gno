@@ -22,122 +22,144 @@ func main() {
 // true 1
 
 // Realm:
-// u[OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:2]=(gno.StructValueImage) {
-//  ObjectInfo: (gno.ObjectInfoImage) {
-//   _RealmID: (gno.RealmID) RIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30,
-//   NewTime: (uint64) 2,
-//   _OwnerNewTime: (uint64) 0,
-//   _ModTime: (uint64) 3,
-//   _RefCount: (int) 1
-//  },
-//  Fields: ([]gno.TypedValueImage) (len=5 cap=5) {
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) 63CDE69354F70377B65D4C6BDDBD1D23A8AF7217,
-//    ValueImage: (gno.PrimitiveValueImage) (len=4 cap=8) {
-//     00000000  6b 65 79 30                                       |key0|
-//    }
-//   },
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) 473287F8298DBA7163A897908958F7C0EAE733E2,
-//    ValueImage: (gno.PrimitiveValueImage) (len=10 cap=16) {
-//     00000000  76 61 6c 75 65 30 2d 6e  65 77                    |value0-new|
-//    }
-//   },
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) 6DA88C34BA124C41F977DB66A4FC5C1A951708D2,
-//    ValueImage: (gno.PrimitiveValueImage) (len=8 cap=8) {
-//     00000000  01 00 00 00 00 00 00 00                           |........|
-//    }
-//   },
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) E6E0E2CE563ADB23D6A4822DD5FC346A5DE899A0,
-//    ValueImage: (gno.PointerValueImage) {
-//     TypedValue: (gno.TypedValueImage) {
-//      TypeID: (gno.TypeID) (len=20 cap=20) 0000000000000000000000000000000000000000,
-//      ValueImage: (gno.ValueImage) <nil>
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:2]={
+//     "Fields": [
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "63cde69354f70377b65d4c6bddbd1d23a8af7217"
+//             },
+//             "V": {
+//                 "@type": "/gno.st",
+//                 "value": "key0"
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "473287f8298dba7163a897908958f7c0eae733e2"
+//             },
+//             "V": {
+//                 "@type": "/gno.st",
+//                 "value": "value0-new"
+//             }
+//         },
+//         {
+//             "N": "AQAAAAAAAAA=",
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "6da88c34ba124c41f977db66a4fc5c1a951708d2"
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "e6e0e2ce563adb23d6a4822dd5fc346a5de899a0"
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "e6e0e2ce563adb23d6a4822dd5fc346a5de899a0"
+//             }
+//         }
+//     ],
+//     "ObjectInfo": {
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
+//         "ModTime": "16",
+//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:0",
+//         "RefCount": "1"
 //     }
-//    }
-//   },
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) E6E0E2CE563ADB23D6A4822DD5FC346A5DE899A0,
-//    ValueImage: (gno.PointerValueImage) {
-//     TypedValue: (gno.TypedValueImage) {
-//      TypeID: (gno.TypeID) (len=20 cap=20) 0000000000000000000000000000000000000000,
-//      ValueImage: (gno.ValueImage) <nil>
-//     }
-//    }
-//   }
-//  }
 // }
-//
-// u[OIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30:0]=(gno.BlockValueImage) {
-//  ObjectInfo: (gno.ObjectInfoImage) {
-//   _RealmID: (gno.RealmID) RIDA8ADA09DEE16D791FD406D629FE29BB0ED084A30,
-//   NewTime: (uint64) 0,
-//   _OwnerNewTime: (uint64) 0,
-//   _ModTime: (uint64) 4,
-//   _RefCount: (int) 0
-//  },
-//  ParentID: (gno.ObjectID) OIDNONE:0,
-//  Values: ([]gno.TypedValueImage) (len=3 cap=3) {
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) 0BA050DA455A6AAD7074EB2148D53ECD5BECC26D,
-//    ValueImage: (gno.FuncValueImage) {
-//     TypeID: (gno.TypeID) (len=20 cap=20) 0BA050DA455A6AAD7074EB2148D53ECD5BECC26D,
-//     IsMethod: (bool) false,
-//     Name: (gno.Name) (len=6) "init.0",
-//     ClosureRef: (gno.RefImage) {
-//      RealmID: (gno.RealmID) RID0000000000000000000000000000000000000000,
-//      NewTime: (uint64) 0,
-//      Hash: (gno.ValueHash) {
-//       Hashlet: (gno.Hashlet) (len=20 cap=20) {
-//        00000000  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-//        00000010  00 00 00 00                                       |....|
-//       }
-//      }
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:0]={
+//     "Blank": {},
+//     "ObjectInfo": {
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:0",
+//         "ModTime": "17",
+//         "RefCount": "0"
 //     },
-//     FileName: (gno.Name) (len=16) "files/zrealm4.go",
-//     PkgPath: (string) (len=15) "gno.land/r/test"
-//    }
-//   },
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) 0BA050DA455A6AAD7074EB2148D53ECD5BECC26D,
-//    ValueImage: (gno.FuncValueImage) {
-//     TypeID: (gno.TypeID) (len=20 cap=20) 0BA050DA455A6AAD7074EB2148D53ECD5BECC26D,
-//     IsMethod: (bool) false,
-//     Name: (gno.Name) (len=4) "main",
-//     ClosureRef: (gno.RefImage) {
-//      RealmID: (gno.RealmID) RID0000000000000000000000000000000000000000,
-//      NewTime: (uint64) 0,
-//      Hash: (gno.ValueHash) {
-//       Hashlet: (gno.Hashlet) (len=20 cap=20) {
-//        00000000  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-//        00000010  00 00 00 00                                       |....|
-//       }
-//      }
+//     "Parent": null,
+//     "SourceLoc": {
+//         "File": "",
+//         "Line": "0",
+//         "PkgPath": ""
 //     },
-//     FileName: (gno.Name) (len=16) "files/zrealm4.go",
-//     PkgPath: (string) (len=15) "gno.land/r/test"
-//    }
-//   },
-//   (gno.TypedValueImage) {
-//    TypeID: (gno.TypeID) (len=20 cap=20) E6E0E2CE563ADB23D6A4822DD5FC346A5DE899A0,
-//    ValueImage: (gno.PointerValueImage) {
-//     TypedValue: (gno.TypedValueImage) {
-//      TypeID: (gno.TypeID) (len=20 cap=20) 4AF0F175D54357F0FEEAE4CF180A42BE848369E8,
-//      ValueImage: (gno.RefImage) {
-//       RealmID: (gno.RealmID) RID0000000000000000000000000000000000000000,
-//       NewTime: (uint64) 2,
-//       Hash: (gno.ValueHash) {
-//        Hashlet: (gno.Hashlet) (len=20 cap=20) {
-//         00000000  2a 60 26 00 5b ea 60 b0  99 df c7 66 3f 8f 97 b1  |*`&.[.`....f?...|
-//         00000010  a9 80 60 e1                                       |..`.|
-//        }
-//       }
-//      }
-//     }
-//    }
-//   }
-//  }
+//     "Values": [
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "0ba050da455a6aad7074eb2148d53ecd5becc26d"
+//             },
+//             "V": {
+//                 "@type": "/gno.fun",
+//                 "Closure": {
+//                     "@type": "/gno.rfv",
+//                     "Hash": "42e9e4e40fe5ee7502316b710e9959d95fa865d9",
+//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
+//                 },
+//                 "FileName": "files/zrealm4.go",
+//                 "IsMethod": false,
+//                 "Name": "init.0",
+//                 "PkgPath": "gno.land/r/test",
+//                 "SourceLoc": {
+//                     "File": "files/zrealm4.go",
+//                     "Line": "11",
+//                     "PkgPath": ""
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.rft",
+//                     "ID": "0ba050da455a6aad7074eb2148d53ecd5becc26d"
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "0ba050da455a6aad7074eb2148d53ecd5becc26d"
+//             },
+//             "V": {
+//                 "@type": "/gno.fun",
+//                 "Closure": {
+//                     "@type": "/gno.rfv",
+//                     "Hash": "42e9e4e40fe5ee7502316b710e9959d95fa865d9",
+//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
+//                 },
+//                 "FileName": "files/zrealm4.go",
+//                 "IsMethod": false,
+//                 "Name": "main",
+//                 "PkgPath": "gno.land/r/test",
+//                 "SourceLoc": {
+//                     "File": "files/zrealm4.go",
+//                     "Line": "15",
+//                     "PkgPath": ""
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.rft",
+//                     "ID": "0ba050da455a6aad7074eb2148d53ecd5becc26d"
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.rft",
+//                 "ID": "e6e0e2ce563adb23d6a4822dd5fc346a5de899a0"
+//             },
+//             "V": {
+//                 "@type": "/gno.ptr",
+//                 "Base": null,
+//                 "Index": "0",
+//                 "TV": {
+//                     "T": {
+//                         "@type": "/gno.rft",
+//                         "ID": "4af0f175d54357f0feeae4cf180a42be848369e8"
+//                     },
+//                     "V": {
+//                         "@type": "/gno.rfv",
+//                         "Hash": "9ef11f2739c00e4c74b4551324055caf340a4fb1",
+//                         "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2"
+//                     }
+//                 }
+//             }
+//         }
+//     ]
 // }
-//

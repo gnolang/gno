@@ -79,7 +79,7 @@ func (m *Machine) doOpEql() {
 	}
 
 	// set result in lv.
-	res := isEql(lv, rv)
+	res := isEql(m.Store, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -96,7 +96,7 @@ func (m *Machine) doOpNeq() {
 	}
 
 	// set result in lv.
-	res := !isEql(lv, rv)
+	res := !isEql(m.Store, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -332,7 +332,7 @@ func (m *Machine) doOpBandn() {
 // logic functions
 
 // TODO: can be much faster.
-func isEql(lv, rv *TypedValue) bool {
+func isEql(store Store, lv, rv *TypedValue) bool {
 	// If one is undefined, the other must be as well.
 	// Fields/items are set to defaultValue along the way.
 	lvu := lv.IsUndefined()
@@ -384,38 +384,43 @@ func isEql(lv, rv *TypedValue) bool {
 		rb := rv.V.(BigintValue).V
 		return lb.Cmp(rb) == 0
 	case ArrayKind:
-		la := lv.V.(*ArrayValue).List
-		ra := rv.V.(*ArrayValue).List
+		la := lv.V.(*ArrayValue)
+		ra := rv.V.(*ArrayValue)
+		at := baseOf(lv.T).(*ArrayType)
 		if debug {
-			if len(la) != len(ra) {
+			if la.GetLength() != ra.GetLength() {
 				panic("comparison on arrays of unequal length")
 			}
-			if lv.T.(*ArrayType).Elt.TypeID() !=
-				rv.T.(*ArrayType).Elt.TypeID() {
+			rat := baseOf(lv.T).(*ArrayType)
+			if at.TypeID() != rat.TypeID() {
 				panic("comparison on arrays of unequal type")
 			}
 		}
-		for i := 0; i < len(la); i++ {
-			if !isEql(&la[i], &ra[i]) {
+		for i := 0; i < la.GetLength(); i++ {
+			li := la.GetPointerAtIndexInt2(store, i, at).Deref()
+			ri := ra.GetPointerAtIndexInt2(store, i, at).Deref()
+			if !isEql(store, &li, &ri) {
 				return false
 			}
 		}
 		return true
 	case StructKind:
-		lf := lv.V.(*StructValue).Fields
-		rf := rv.V.(*StructValue).Fields
+		ls := lv.V.(*StructValue)
+		rs := rv.V.(*StructValue)
 		if debug {
 			lt := baseOf(lv.T).(*StructType)
 			rt := baseOf(rv.T).(*StructType)
 			if lt.TypeID() != rt.TypeID() {
 				panic("comparison on structs of unequal types")
 			}
-			if len(lf) != len(rf) {
+			if len(ls.Fields) != len(rs.Fields) {
 				panic("comparison on structs of unequal size")
 			}
 		}
-		for i := 0; i < len(lf); i++ {
-			if !isEql(&lf[i], &rf[i]) {
+		for i := 0; i < len(ls.Fields); i++ {
+			lf := ls.GetPointerToInt(store, i).Deref()
+			rf := rs.GetPointerToInt(store, i).Deref()
+			if !isEql(store, &lf, &rf) {
 				return false
 			}
 		}
