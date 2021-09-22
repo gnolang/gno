@@ -120,17 +120,17 @@ func (m *Machine) doOpStar() {
 	switch bt := baseOf(xv.T).(type) {
 	case *PointerType:
 		pv := xv.V.(PointerValue)
-		if pv.TV__.T == DataByteType {
+		if pv.TV.T == DataByteType {
 			tv := TypedValue{T: xv.T.(*PointerType).Elt}
-			dbv := pv.TV__.V.(DataByteValue)
+			dbv := pv.TV.V.(DataByteValue)
 			tv.SetUint8(dbv.GetByte())
 			m.PushValue(tv)
 		} else {
-			if pv.TV__.IsUndefined() && bt.Elt.Kind() != InterfaceKind {
+			if pv.TV.IsUndefined() && bt.Elt.Kind() != InterfaceKind {
 				refv := TypedValue{T: bt.Elt}
 				m.PushValue(refv)
 			} else {
-				m.PushValue(*pv.TV__)
+				m.PushValue(*pv.TV)
 			}
 		}
 	case *TypeType:
@@ -155,7 +155,7 @@ func (m *Machine) doOpStar() {
 func (m *Machine) doOpRef() {
 	rx := m.PopExpr().(*RefExpr)
 	xv := m.PopAsPointer(rx.X)
-	if nv, ok := xv.TV__.V.(*nativeValue); ok {
+	if nv, ok := xv.TV.V.(*nativeValue); ok {
 		// If a native pointer, ensure it is addressable.  This
 		// way, PointerValue{*nativeValue{rv}} can be converted
 		// to/from *nativeValue{rv.Addr()}.
@@ -170,7 +170,7 @@ func (m *Machine) doOpRef() {
 	// XXX this is wrong, if rx.X is interface type,
 	// XXX then the type should be &PointerType{Elt: staticTypeOf(xv)}
 	m.PushValue(TypedValue{
-		T: &PointerType{Elt: xv.TV__.T},
+		T: &PointerType{Elt: xv.TV.T},
 		V: xv,
 	})
 }
@@ -386,7 +386,7 @@ func (m *Machine) doOpArrayLit() {
 	// construct array value.
 	av := defaultArrayValue(bt)
 	if 0 < ne {
-		al := av.List__
+		al := av.List
 		vs := m.PopValues(ne)
 		idx := 0
 		for i, v := range vs {
@@ -459,7 +459,7 @@ func (m *Machine) doOpMapLit() {
 			ktv := &kvs[i*2]
 			vtv := kvs[i*2+1]
 			ptr := mv.GetPointerForKey(m.Store, ktv)
-			*ptr.TV__ = vtv
+			*ptr.TV = vtv
 		}
 	}
 	// pop map type.
@@ -487,7 +487,7 @@ func (m *Machine) doOpStructLit() {
 	nf := len(st.Fields)
 	sv := &StructValue{
 		// will replace this with fs below.
-		Fields__: nil, // becomes fs.
+		Fields: nil, // becomes fs.
 	}
 	fs := []TypedValue(nil)
 	// NOTE includes embedded fields.
@@ -551,7 +551,7 @@ func (m *Machine) doOpStructLit() {
 	}
 	// construct and push value.
 	m.PopValue() // baseOf() is st
-	sv.Fields__ = fs
+	sv.Fields = fs
 	m.PushValue(TypedValue{
 		T: xt,
 		V: sv,
@@ -565,13 +565,13 @@ func (m *Machine) doOpFuncLit() {
 	m.PushValue(TypedValue{
 		T: ft,
 		V: &FuncValue{
-			Type__:     ft,
+			Type:       ft,
 			IsMethod:   false,
 			SourceLoc:  x.GetLocation(),
 			Source:     x,
 			Name:       "",
 			Body:       x.Body,
-			Closure__:  lb,
+			Closure:    lb,
 			PkgPath:    m.Package.PkgPath,
 			nativeBody: nil,
 			pkg:        m.Package,

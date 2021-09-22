@@ -2364,13 +2364,13 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 				dt = rt.(*DeclaredType)
 			}
 			dt.DefineMethod(&FuncValue{
-				Type__:     ft,
+				Type:       ft,
 				IsMethod:   true,
 				SourceLoc:  cd.GetLocation(),
 				Source:     cd,
 				Name:       cd.Name,
 				Body:       cd.Body,
-				Closure__:  nil, // set later, see PrepareNewValues().
+				Closure:    nil, // set later, see PrepareNewValues().
 				FileName:   filenameOf(last),
 				PkgPath:    "", // set later, see PrepareNewValues().
 				nativeBody: nil,
@@ -2487,7 +2487,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 				if idx, ok := UverseNode().GetLocalIndex(tx.Name); ok {
 					// uverse name
 					tv := Uverse().GetPointerTo(nil, NewValuePathUverse(idx, tx.Name))
-					t = tv.TV__.GetType()
+					t = tv.TV.GetType()
 				} else if tv := last.GetValueRef(store, tx.Name); tv != nil {
 					// (file) block name
 					t = tv.GetType()
@@ -2525,7 +2525,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 				pn := pv.Source.(*PackageNode)
 				tx.Path = pn.GetPathForName(store, tx.Sel)
 				ptr := pv.Block.GetPointerTo(store, tx.Path)
-				t = ptr.TV__.T
+				t = ptr.TV.T
 			default:
 				panic(fmt.Sprintf(
 					"unexpected type declaration type %v",
@@ -2578,13 +2578,13 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			pkg.Define(d.Name, TypedValue{
 				T: ft,
 				V: &FuncValue{
-					Type__:     ft,
+					Type:       ft,
 					IsMethod:   false,
 					SourceLoc:  d.GetLocation(),
 					Source:     d,
 					Name:       d.Name,
 					Body:       d.Body,
-					Closure__:  nil, // set later, see PrepareNewValues().
+					Closure:    nil, // set later, see PrepareNewValues().
 					FileName:   filenameOf(last),
 					PkgPath:    "", // set later, see PrepareNewValues().
 					nativeBody: nil,

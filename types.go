@@ -1241,7 +1241,7 @@ func (dt *DeclaredType) Elem() Type {
 
 func (dt *DeclaredType) DefineMethod(fv *FuncValue) {
 	dt.Methods = append(dt.Methods, TypedValue{
-		T: fv.Type__,
+		T: fv.Type,
 		V: fv,
 	})
 }

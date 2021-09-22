@@ -27,7 +27,7 @@ func TestGoNativeDefine(t *testing.T) {
 	assert.Equal(t, path.Depth, uint8(1))
 	assert.Equal(t, path.Index, uint16(0))
 	pv := pkg.NewPackage(nil)
-	nt = pv.GetPointerTo(nil, path).TV__.GetType().(*nativeType)
+	nt = pv.GetPointerTo(nil, path).TV.GetType().(*nativeType)
 	assert.Equal(t, nt.Type, rt)
 
 	// Import above package and evaluate foo.Foo.

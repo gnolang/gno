@@ -26,7 +26,7 @@ func main() {
 
 // Realm:
 // c[a8ada09dee16d791fd406d629fe29bb0ed084a30:5]={
-//     "Fields__": [
+//     "Fields": [
 //         {
 //             "T": {
 //                 "@type": "/gno.rft",
@@ -54,13 +54,13 @@ func main() {
 //         "ModTime": "4",
 //         "RefCount": "0"
 //     },
-//     "Parent__": null,
+//     "Parent": null,
 //     "SourceLoc": {
 //         "File": "",
 //         "Line": "0",
 //         "PkgPath": ""
 //     },
-//     "Values__": [
+//     "Values": [
 //         {
 //             "T": {
 //                 "@type": "/gno.rft",
@@ -107,7 +107,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.fun",
-//                 "Closure__": {
+//                 "Closure": {
 //                     "@type": "/gno.rfv",
 //                     "Hash": "063c7c870960cb00c27e2f51ba139fc1dd0d36fa",
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
@@ -121,7 +121,7 @@ func main() {
 //                     "Line": "15",
 //                     "PkgPath": ""
 //                 },
-//                 "Type__": {
+//                 "Type": {
 //                     "@type": "/gno.rft",
 //                     "ID": "0ba050da455a6aad7074eb2148d53ecd5becc26d"
 //                 }
@@ -134,7 +134,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.fun",
-//                 "Closure__": {
+//                 "Closure": {
 //                     "@type": "/gno.rfv",
 //                     "Hash": "063c7c870960cb00c27e2f51ba139fc1dd0d36fa",
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
@@ -148,7 +148,7 @@ func main() {
 //                     "Line": "21",
 //                     "PkgPath": ""
 //                 },
-//                 "Type__": {
+//                 "Type": {
 //                     "@type": "/gno.rft",
 //                     "ID": "0ba050da455a6aad7074eb2148d53ecd5becc26d"
 //                 }

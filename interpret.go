@@ -133,8 +133,8 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 		// with values copied over from each file's
 		// *FileNode.StaticBlock.
 		fb := NewBlock(fn, &pv.Block)
-		fb.Values__ = make([]TypedValue, len(fn.StaticBlock.Values__))
-		copy(fb.Values__, fn.StaticBlock.Values__)
+		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
+		copy(fb.Values, fn.StaticBlock.Values)
 		pv.AddFileBlock(fn.Name, fb)
 		updates := pn.PrepareNewValues(pv) // with fb
 		fileupdates[i] = updates
@@ -1198,8 +1198,8 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	case *CompositeLitExpr: // for *RefExpr
 		tv := *m.PopValue()
 		return PointerValue{
-			TV__:   &tv, // heap alloc
-			Base__: nil,
+			TV:   &tv, // heap alloc
+			Base: nil,
 		}
 	default:
 		panic("should not happen")
@@ -1293,7 +1293,7 @@ func (m *Machine) String() string {
 			bs = append(bs, fmt.Sprintf(" (static types) %s(%d) %s", gens, gen, sts))
 		}
 		// b = b.Parent.(*Block|RefValue)
-		switch bp := b.Parent__.(type) {
+		switch bp := b.Parent.(type) {
 		case nil:
 			b = nil
 			break

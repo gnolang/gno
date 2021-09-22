@@ -20,24 +20,24 @@ func (v DataByteValue) String() string {
 }
 
 func (v *ArrayValue) String() string {
-	ss := make([]string, len(v.List__))
-	for i, e := range v.List__ {
+	ss := make([]string, len(v.List))
+	for i, e := range v.List {
 		ss[i] = e.String()
 	}
 	return "array[" + strings.Join(ss, ",") + "]"
 }
 
 func (v *SliceValue) String() string {
-	if v.Base__ == nil {
+	if v.Base == nil {
 		return "nil-slice"
 	}
-	if ref, ok := v.Base__.(RefValue); ok {
+	if ref, ok := v.Base.(RefValue); ok {
 		return fmt.Sprintf("slice[%v]", ref)
 	}
-	vbase := v.Base__.(*ArrayValue)
+	vbase := v.Base.(*ArrayValue)
 	if vbase.Data == nil {
 		ss := make([]string, v.Length)
-		for i, e := range vbase.List__[v.Offset : v.Offset+v.Length] {
+		for i, e := range vbase.List[v.Offset : v.Offset+v.Length] {
 			ss[i] = e.String()
 		}
 		return "slice[" + strings.Join(ss, ",") + "]"
@@ -50,12 +50,12 @@ func (v PointerValue) String() string {
 	// NOTE: cannot do below, due to recursion problems.
 	// TODO: create a different String2(...) function.
 	// return fmt.Sprintf("&%s", v.TypedValue.String())
-	return fmt.Sprintf("&%p (*%s)", v.TV__, v.TV__.T.String())
+	return fmt.Sprintf("&%p (*%s)", v.TV, v.TV.T.String())
 }
 
 func (v *StructValue) String() string {
-	ss := make([]string, len(v.Fields__))
-	for i, f := range v.Fields__ {
+	ss := make([]string, len(v.Fields))
+	for i, f := range v.Fields {
 		ss[i] = f.String()
 	}
 	return "struct{" + strings.Join(ss, ",") + "}"
@@ -66,7 +66,7 @@ func (v *FuncValue) String() string {
 	if v.Name != "" {
 		name = string(v.Name)
 	}
-	if v.Type__ == nil {
+	if v.Type == nil {
 		return fmt.Sprintf("incomplete-func ?%s(?)?", name)
 	}
 	return name
@@ -77,7 +77,7 @@ func (v *BoundMethodValue) String() string {
 	var recvT string
 	var params string
 	var results string
-	if ft, ok := v.Func.Type__.(*FuncType); ok {
+	if ft, ok := v.Func.Type.(*FuncType); ok {
 		recvT = ft.Params[0].Type.String()
 		params = FieldTypeList(ft.Params).StringWithCommas()
 		if len(results) > 0 {
@@ -101,8 +101,8 @@ func (v *MapValue) String() string {
 	next := v.List.Head
 	for next != nil {
 		ss = append(ss,
-			next.Key__.String()+":"+
-				next.Value__.String())
+			next.Key.String()+":"+
+				next.Value.String())
 		next = next.Next
 	}
 	return "map{" + strings.Join(ss, ",") + "}"

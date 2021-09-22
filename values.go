@@ -88,9 +88,9 @@ func (dbv DataByteValue) SetByte(b byte) {
 // Index is -1 for the shared "_" block var,
 // and -2 for (gno and native) map items.
 type PointerValue struct {
-	TV__   *TypedValue // escape val if pointer to var.
-	Base__ Value       // array/struct/block.
-	Index  int         // list/fields/values index, or -1 or -2 (see below).
+	TV    *TypedValue // escape val if pointer to var.
+	Base  Value       // array/struct/block.
+	Index int         // list/fields/values index, or -1 or -2 (see below).
 }
 
 const (
@@ -105,7 +105,7 @@ func (pv *PointerValue) GetBase(store Store) Object {
 		return nil
 	case RefValue:
 		base := store.GetObject(cbase.ObjectID).(Object)
-		pv.Base__ = base
+		pv.Base = base
 		return base
 	case Object:
 		return cbase
@@ -119,7 +119,7 @@ func (pv *PointerValue) GetBase(store Store) Object {
 func (pv PointerValue) Assign2(store Store, rlm *Realm, tv2 TypedValue, cu bool) {
 	// Special case if extended object && native.
 	if pv.Index == PointerIndexExtendedObject {
-		eo := pv.Base__.(ExtendedObject)
+		eo := pv.Base.(ExtendedObject)
 		if eo.BaseMap != nil { // gno map
 			// continue
 		} else {
@@ -130,48 +130,48 @@ func (pv PointerValue) Assign2(store Store, rlm *Realm, tv2 TypedValue, cu bool)
 				vrv := gno2GoValue(&tv2, reflect.Value{})
 				rv.SetMapIndex(krv, vrv)
 			} else {
-				pv.TV__.Assign(tv2, cu)
+				pv.TV.Assign(tv2, cu)
 			}
 			return
 		}
 	}
 	// General case
-	oo1 := pv.TV__.GetFirstObject(store)
-	pv.TV__.Assign(tv2, cu)
-	oo2 := pv.TV__.GetFirstObject(store)
-	if pv.Base__ != nil {
-		rlm.DidUpdate(pv.Base__.(Object), oo1, oo2)
+	oo1 := pv.TV.GetFirstObject(store)
+	pv.TV.Assign(tv2, cu)
+	oo2 := pv.TV.GetFirstObject(store)
+	if pv.Base != nil {
+		rlm.DidUpdate(pv.Base.(Object), oo1, oo2)
 	}
 }
 
 func (pv PointerValue) Deref() (tv TypedValue) {
-	if pv.TV__.T == DataByteType {
-		dbv := pv.TV__.V.(DataByteValue)
+	if pv.TV.T == DataByteType {
+		dbv := pv.TV.V.(DataByteValue)
 		tv.T = dbv.ElemType
 		tv.SetUint8(dbv.GetByte())
 		return
-	} else if nv, ok := pv.TV__.V.(*nativeValue); ok {
+	} else if nv, ok := pv.TV.V.(*nativeValue); ok {
 		rv := nv.Value
 		tv.T = &nativeType{Type: rv.Type()}
 		tv.V = &nativeValue{Value: rv}
 		return
 	} else {
-		tv = *pv.TV__
+		tv = *pv.TV
 		return
 	}
 }
 
 type ArrayValue struct {
 	ObjectInfo
-	List__ []TypedValue
-	Data   []byte
+	List []TypedValue
+	Data []byte
 }
 
 func (av *ArrayValue) GetCapacity() int {
 	if av.Data == nil {
 		// not cap(av.List) for simplicity.
 		// extra capacity is ignored.
-		return len(av.List__)
+		return len(av.List)
 	} else {
 		// not cap(av.Data) for simplicity.
 		// extra capacity is ignored.
@@ -181,7 +181,7 @@ func (av *ArrayValue) GetCapacity() int {
 
 func (av *ArrayValue) GetLength() int {
 	if av.Data == nil {
-		return len(av.List__)
+		return len(av.List)
 	} else {
 		return len(av.Data)
 	}
@@ -189,11 +189,11 @@ func (av *ArrayValue) GetLength() int {
 
 func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) PointerValue {
 	if av.Data == nil {
-		ev := fillValue(store, &av.List__[ii]) // by reference
+		ev := fillValue(store, &av.List[ii]) // by reference
 		return PointerValue{
-			TV__:   ev,
-			Base__: av,
-			Index:  ii,
+			TV:    ev,
+			Base:  av,
+			Index: ii,
 		}
 	} else {
 		bv := &TypedValue{ // heap alloc
@@ -205,9 +205,9 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 			},
 		}
 		return PointerValue{
-			TV__:   bv,
-			Base__: av,
-			Index:  ii,
+			TV:    bv,
+			Base:  av,
+			Index: ii,
 		}
 	}
 }
@@ -219,10 +219,10 @@ func (av *ArrayValue) Copy() *ArrayValue {
 	}
 	*/
 	if av.Data == nil {
-		list := make([]TypedValue, len(av.List__))
-		copy(list, av.List__)
+		list := make([]TypedValue, len(av.List))
+		copy(list, av.List)
 		return &ArrayValue{
-			List__: list,
+			List: list,
 		}
 	} else {
 		data := make([]byte, len(av.Data))
@@ -234,19 +234,19 @@ func (av *ArrayValue) Copy() *ArrayValue {
 }
 
 type SliceValue struct {
-	Base__ Value
+	Base   Value
 	Offset int
 	Length int
 	Maxcap int
 }
 
 func (sv *SliceValue) GetBase(store Store) *ArrayValue {
-	switch cv := sv.Base__.(type) {
+	switch cv := sv.Base.(type) {
 	case nil:
 		return nil
 	case RefValue:
 		array := store.GetObject(cv.ObjectID).(*ArrayValue)
-		sv.Base__ = array
+		sv.Base = array
 		return array
 	case *ArrayValue:
 		return cv
@@ -278,7 +278,7 @@ func (sv *SliceValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 
 type StructValue struct {
 	ObjectInfo
-	Fields__ []TypedValue
+	Fields []TypedValue
 }
 
 // TODO handle unexported fields in debug, and also ensure in the preprocessor.
@@ -294,11 +294,11 @@ func (sv *StructValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 }
 
 func (sv *StructValue) GetPointerToInt(store Store, index int) PointerValue {
-	fv := fillValue(store, &sv.Fields__[index])
+	fv := fillValue(store, &sv.Fields[index])
 	return PointerValue{
-		TV__:   fv,
-		Base__: sv,
-		Index:  int(index),
+		TV:    fv,
+		Base:  sv,
+		Index: int(index),
 	}
 }
 
@@ -311,20 +311,20 @@ func (sv *StructValue) GetSubrefPointerTo(store Store, st *StructType, path Valu
 				path.Name, path))
 		}
 	}
-	fv := fillValue(store, &sv.Fields__[path.Index])
+	fv := fillValue(store, &sv.Fields[path.Index])
 	ft := st.GetStaticTypeOfAt(path)
 	return PointerValue{
-		TV__: &TypedValue{ // TODO: optimize
+		TV: &TypedValue{ // TODO: optimize
 			T: &PointerType{ // TODO: optimize (cont)
 				Elt: ft,
 			},
 			V: PointerValue{
-				TV__:   fv,
-				Base__: sv,
-				Index:  int(path.Index),
+				TV:    fv,
+				Base:  sv,
+				Index: int(path.Index),
 			},
 		},
-		Base__: nil, // free floating
+		Base: nil, // free floating
 	}
 }
 
@@ -334,10 +334,10 @@ func (sv *StructValue) Copy() *StructValue {
 		return sv
 	}
 	*/
-	fields := make([]TypedValue, len(sv.Fields__))
-	copy(fields, sv.Fields__)
+	fields := make([]TypedValue, len(sv.Fields))
+	copy(fields, sv.Fields)
 	return &StructValue{
-		Fields__: fields,
+		Fields: fields,
 	}
 }
 
@@ -352,13 +352,13 @@ func (sv *StructValue) Copy() *StructValue {
 // makes construction TypedValue{T:*FuncType{},V:*FuncValue{}}
 // faster.
 type FuncValue struct {
-	Type__    Type      // includes unbound receiver(s)
+	Type      Type      // includes unbound receiver(s)
 	IsMethod  bool      // is an (unbound) method
 	SourceLoc Location  // location for source
 	Source    BlockNode `json:"-"` // for block mem allocation
 	Name      Name      // name of function/method
 	Body      []Stmt    `json:"-"` // function body
-	Closure__ Value     // *Block or RefValue to closure (a file's Block for unbound methods).
+	Closure   Value     // *Block or RefValue to closure (a file's Block for unbound methods).
 	FileName  Name      // file name where declared
 	PkgPath   string
 
@@ -367,12 +367,12 @@ type FuncValue struct {
 }
 
 func (fv *FuncValue) GetType(store Store) *FuncType {
-	switch ct := fv.Type__.(type) {
+	switch ct := fv.Type.(type) {
 	case nil:
 		return nil
 	case RefType:
 		typ := store.GetType(ct.ID).(*FuncType)
-		fv.Type__ = typ
+		fv.Type = typ
 		return typ
 	case *FuncType:
 		return ct
@@ -386,12 +386,12 @@ func (fv *FuncValue) GetPackage() *PackageValue {
 }
 
 func (fv *FuncValue) GetClosure(store Store) *Block {
-	switch cv := fv.Closure__.(type) {
+	switch cv := fv.Closure.(type) {
 	case nil:
 		return nil
 	case RefValue:
 		block := store.GetObject(cv.ObjectID).(*Block)
-		fv.Closure__ = block
+		fv.Closure = block
 		return block
 	case *Block:
 		return cv
@@ -457,10 +457,10 @@ func (ml *MapList) UnmarshalAmino(mlimg MapListImage) error {
 // NOTE: Value is undefined until assigned.
 func (ml *MapList) Append(key TypedValue) *MapListItem {
 	item := &MapListItem{
-		Prev:  ml.Tail,
-		Next:  nil,
-		Key__: key,
-		// Value__: undefined,
+		Prev: ml.Tail,
+		Next: nil,
+		Key:  key,
+		// Value: undefined,
 	}
 	if ml.Head == nil {
 		ml.Head = item
@@ -491,10 +491,10 @@ func (ml *MapList) Remove(mli *MapListItem) {
 }
 
 type MapListItem struct {
-	Prev    *MapListItem `json:"-"`
-	Next    *MapListItem `json:"-"`
-	Key__   TypedValue
-	Value__ TypedValue
+	Prev  *MapListItem `json:"-"`
+	Next  *MapListItem `json:"-"`
+	Key   TypedValue
+	Value TypedValue
 }
 
 func (mv *MapValue) MakeMap(c int) {
@@ -514,8 +514,8 @@ func (mv *MapValue) GetPointerForKey(store Store, key *TypedValue) PointerValue 
 	kmk := key.ComputeMapKey(store, false)
 	if mli, ok := mv.vmap[kmk]; ok {
 		return PointerValue{
-			TV__: fillValue(store, &mli.Value__),
-			Base__: ExtendedObject{
+			TV: fillValue(store, &mli.Value),
+			Base: ExtendedObject{
 				BaseMap: mv,
 				Index:   key.Copy(),
 			},
@@ -525,8 +525,8 @@ func (mv *MapValue) GetPointerForKey(store Store, key *TypedValue) PointerValue 
 		mli := mv.List.Append(*key)
 		mv.vmap[kmk] = mli
 		return PointerValue{
-			TV__: fillValue(store, &mli.Value__),
-			Base__: ExtendedObject{
+			TV: fillValue(store, &mli.Value),
+			Base: ExtendedObject{
 				BaseMap: mv,
 				Index:   key.Copy(),
 			},
@@ -540,8 +540,8 @@ func (mv *MapValue) GetPointerForKey(store Store, key *TypedValue) PointerValue 
 func (mv *MapValue) GetValueForKey(store Store, key *TypedValue) (val TypedValue, ok bool) {
 	kmk := key.ComputeMapKey(store, false)
 	if mli, exists := mv.vmap[kmk]; exists {
-		fillValue(store, &mli.Value__)
-		val, ok = mli.Value__, true
+		fillValue(store, &mli.Value)
+		val, ok = mli.Value, true
 		return
 	} else {
 		return
@@ -563,10 +563,10 @@ type TypeValue struct {
 
 type PackageValue struct {
 	Block
-	PkgName   Name
-	PkgPath   string
-	FNames    []Name
-	FBlocks__ []Value
+	PkgName Name
+	PkgPath string
+	FNames  []Name
+	FBlocks []Value
 
 	fBlocksMap map[Name]*Block
 	realm      *Realm // if IsRealm(PkgPath)
@@ -589,7 +589,7 @@ func (pv *PackageValue) AddFileBlock(fn Name, fb *Block) {
 		}
 	}
 	pv.FNames = append(pv.FNames, fn)
-	pv.FBlocks__ = append(pv.FBlocks__, fb)
+	pv.FBlocks = append(pv.FBlocks, fb)
 	pv.getFBlocksMap()[fn] = fb
 	// Increment fb refcount and set owner.
 	fb.SetOwner(pv)
@@ -602,7 +602,7 @@ func (pv *PackageValue) GetFileBlock(store Store, fname Name) *Block {
 	}
 	for i, fn := range pv.FNames {
 		if fn == fname {
-			fbv := pv.FBlocks__[i]
+			fbv := pv.FBlocks[i]
 			switch fbv := fbv.(type) {
 			case RefValue:
 				fb := store.GetObject(fbv.ObjectID).(*Block)
@@ -1173,7 +1173,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		pbz := tv.PrimitiveBytes()
 		bz = append(bz, pbz...)
 	case *PointerType:
-		ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV__))
+		ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
 		bz = append(bz, uintptrToBytes(&ptr)...)
 	case FieldType:
 		panic("field (pseudo)type cannot be used as map key")
@@ -1184,7 +1184,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		if av.Data == nil {
 			omitTypes := bt.Elem().Kind() != InterfaceKind
 			for i := 0; i < al; i++ {
-				ev := fillValue(store, &av.List__[i])
+				ev := fillValue(store, &av.List[i])
 				bz = append(bz, ev.ComputeMapKey(store, omitTypes)...)
 				if i != al-1 {
 					bz = append(bz, ',')
@@ -1198,10 +1198,10 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		panic("slice type cannot be used as map key")
 	case *StructType:
 		sv := tv.V.(*StructValue)
-		sl := len(sv.Fields__)
+		sl := len(sv.Fields)
 		bz = append(bz, '{')
 		for i := 0; i < sl; i++ {
-			fv := fillValue(store, &sv.Fields__[i])
+			fv := fillValue(store, &sv.Fields[i])
 			ft := bt.Fields[i]
 			omitTypes := ft.Elem().Kind() != InterfaceKind
 			bz = append(bz, fv.ComputeMapKey(store, omitTypes)...)
@@ -1265,7 +1265,7 @@ func (tv *TypedValue) Assign(tv2 TypedValue, cu bool) {
 			if ct.Type.Kind() != reflect.Ptr {
 				panic("should not happen")
 			}
-			if nv2, ok := v2.TV__.V.(*nativeValue); ok {
+			if nv2, ok := v2.TV.V.(*nativeValue); ok {
 				nrv2 := nv2.Value
 				if nrv2.CanAddr() {
 					it := nrv2.Addr()
@@ -1377,19 +1377,19 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 	case VPSubrefField:
 		switch path.Depth {
 		case 0:
-			dtv = *tv.V.(PointerValue).TV__
+			dtv = *tv.V.(PointerValue).TV
 			isPtr = true
 		case 1:
-			dtv = *tv.V.(PointerValue).TV__
+			dtv = *tv.V.(PointerValue).TV
 			isPtr = true
 			path.Depth = 0
 		case 2:
-			dtv = *tv.V.(PointerValue).TV__
+			dtv = *tv.V.(PointerValue).TV
 			dtv.T = baseOf(dtv.T)
 			isPtr = true
 			path.Depth = 0
 		case 3:
-			dtv = *tv.V.(PointerValue).TV__
+			dtv = *tv.V.(PointerValue).TV
 			dtv.T = baseOf(dtv.T)
 			isPtr = true
 			path.Depth = 0
@@ -1399,22 +1399,22 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 	case VPDerefField:
 		switch path.Depth {
 		case 0:
-			dtv = *tv.V.(PointerValue).TV__
+			dtv = *tv.V.(PointerValue).TV
 			isPtr = true
 			path.Type = VPField
 		case 1:
-			dtv = *tv.V.(PointerValue).TV__
+			dtv = *tv.V.(PointerValue).TV
 			isPtr = true
 			path.Type = VPField
 			path.Depth = 0
 		case 2:
-			dtv = *tv.V.(PointerValue).TV__
+			dtv = *tv.V.(PointerValue).TV
 			dtv.T = baseOf(dtv.T)
 			isPtr = true
 			path.Type = VPField
 			path.Depth = 0
 		case 3:
-			dtv = *tv.V.(PointerValue).TV__
+			dtv = *tv.V.(PointerValue).TV
 			dtv.T = baseOf(dtv.T)
 			isPtr = true
 			path.Type = VPField
@@ -1423,16 +1423,16 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 			panic("should not happen")
 		}
 	case VPDerefValMethod:
-		dtv = *tv.V.(PointerValue).TV__
+		dtv = *tv.V.(PointerValue).TV
 		isPtr = true
 		path.Type = VPValMethod
 	case VPDerefPtrMethod:
-		// dtv = *tv.V.(PointerValue).TV__
+		// dtv = *tv.V.(PointerValue).TV
 		// dtv not needed for nil receivers.
 		isPtr = true
 		path.Type = VPPtrMethod // XXX pseudo
 	case VPDerefInterface:
-		dtv = *tv.V.(PointerValue).TV__
+		dtv = *tv.V.(PointerValue).TV
 		isPtr = true
 		path.Type = VPInterface
 	default:
@@ -1460,13 +1460,13 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 			case *PointerType:
 				dt := t.Elt.(*DeclaredType)
 				return PointerValue{
-					TV__:   dt.GetValueRefAt(path),
-					Base__: nil, // TODO: make TypeValue an object.
+					TV:   dt.GetValueRefAt(path),
+					Base: nil, // TODO: make TypeValue an object.
 				}
 			case *DeclaredType:
 				return PointerValue{
-					TV__:   t.GetValueRefAt(path),
-					Base__: nil, // TODO: make TypeValue an object.
+					TV:   t.GetValueRefAt(path),
+					Base: nil, // TODO: make TypeValue an object.
 				}
 			case *nativeType:
 				rt := t.Type
@@ -1481,8 +1481,8 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 				}
 				mtv := go2GnoValue(mt.Func)
 				return PointerValue{
-					TV__:   &mtv, // heap alloc
-					Base__: nil,
+					TV:   &mtv, // heap alloc
+					Base: nil,
 				}
 			default:
 				panic("unexpected selector base typeval.")
@@ -1514,11 +1514,11 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 			Receiver: dtv,
 		}
 		return PointerValue{
-			TV__: &TypedValue{
+			TV: &TypedValue{
 				T: mt.BoundType(),
 				V: bmv,
 			},
-			Base__: nil, // a bound method is free floating.
+			Base: nil, // a bound method is free floating.
 		}
 	case VPPtrMethod:
 		dt := tv.T.(*PointerType).Elt.(*DeclaredType)
@@ -1543,11 +1543,11 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 			Receiver: *tv, // bound to ptr, not dtv.
 		}
 		return PointerValue{
-			TV__: &TypedValue{
+			TV: &TypedValue{
 				T: mt.BoundType(),
 				V: bmv,
 			},
-			Base__: nil, // a bound method is free floating.
+			Base: nil, // a bound method is free floating.
 		}
 	case VPInterface:
 		if dtv.IsUndefined() {
@@ -1575,7 +1575,7 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 		// to get the correct pointer-receiver value.
 		if _, ok := dtv.T.(*PointerType); ok {
 			pv := dtv.V.(PointerValue)
-			nv = pv.TV__.V.(*nativeValue)
+			nv = pv.TV.V.(*nativeValue)
 		} else {
 			nv = dtv.V.(*nativeValue)
 		}
@@ -1592,11 +1592,11 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 		}
 		if fv.IsValid() {
 			return PointerValue{
-				TV__: &TypedValue{ // heap alloc
+				TV: &TypedValue{ // heap alloc
 					T: &nativeType{Type: fv.Type()},
 					V: &nativeValue{Value: fv},
 				},
-				Base__: ExtendedObject{
+				Base: ExtendedObject{
 					BaseNative: nv,
 					Path:       path,
 				},
@@ -1608,11 +1608,11 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 		if mv.IsValid() {
 			mt := mv.Type()
 			return PointerValue{
-				TV__: &TypedValue{ // heap alloc
+				TV: &TypedValue{ // heap alloc
 					T: &nativeType{Type: mt},
 					V: &nativeValue{Value: mv},
 				},
-				Base__: ExtendedObject{
+				Base: ExtendedObject{
 					BaseNative: nv,
 					Path:       path,
 				},
@@ -1631,11 +1631,11 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 			if mv.IsValid() {
 				mt := mv.Type()
 				return PointerValue{
-					TV__: &TypedValue{ // heap alloc
+					TV: &TypedValue{ // heap alloc
 						T: &nativeType{Type: mt},
 						V: &nativeValue{Value: mv},
 					},
-					Base__: ExtendedObject{
+					Base: ExtendedObject{
 						BaseNative: nv,
 						Path:       path,
 					},
@@ -1672,8 +1672,8 @@ func (tv *TypedValue) GetPointerAtIndex(store Store, iv *TypedValue) PointerValu
 			}
 			bv.SetUint8(sv[ii])
 			return PointerValue{
-				TV__:   bv,
-				Base__: nil, // free floating
+				TV:   bv,
+				Base: nil, // free floating
 			}
 		} else {
 			panic(fmt.Sprintf(
@@ -1697,11 +1697,11 @@ func (tv *TypedValue) GetPointerAtIndex(store Store, iv *TypedValue) PointerValu
 		}
 		mv := tv.V.(*MapValue)
 		pv := mv.GetPointerForKey(store, iv)
-		if pv.TV__.IsUndefined() {
+		if pv.TV.IsUndefined() {
 			vt := baseOf(tv.T).(*MapType).Value
 			if vt.Kind() != InterfaceKind {
 				// initialize typed-nil key.
-				pv.TV__.T = vt
+				pv.TV.T = vt
 			}
 		}
 		return pv
@@ -1715,8 +1715,8 @@ func (tv *TypedValue) GetPointerAtIndex(store Store, iv *TypedValue) PointerValu
 			erv := rv.Index(ii)
 			etv := go2GnoValue(erv)
 			return PointerValue{
-				TV__: &etv,
-				Base__: ExtendedObject{
+				TV: &etv,
+				Base: ExtendedObject{
 					BaseNative: nv,
 					Index:      iv.Copy(),
 				},
@@ -1727,8 +1727,8 @@ func (tv *TypedValue) GetPointerAtIndex(store Store, iv *TypedValue) PointerValu
 			vrv := rv.MapIndex(krv)
 			etv := go2GnoValue(vrv) // NOTE: lazy, often native.
 			return PointerValue{
-				TV__: &etv, // TODO not needed for assignment.
-				Base__: ExtendedObject{
+				TV: &etv, // TODO not needed for assignment.
+				Base: ExtendedObject{
 					BaseNative: nv,
 					Index:      iv.Copy(),
 				},
@@ -1853,7 +1853,7 @@ func (tv *TypedValue) GetSlice(low, high int) TypedValue {
 		return TypedValue{
 			T: st,
 			V: &SliceValue{
-				Base__: av,
+				Base:   av,
 				Offset: low,
 				Length: high - low,
 				Maxcap: av.GetCapacity() - low,
@@ -1873,7 +1873,7 @@ func (tv *TypedValue) GetSlice(low, high int) TypedValue {
 		return TypedValue{
 			T: tv.T,
 			V: &SliceValue{
-				Base__: sv.Base__,
+				Base:   sv.Base,
 				Offset: sv.Offset + low,
 				Length: sv.Offset + high - low,
 				Maxcap: sv.Maxcap - low,
@@ -1931,7 +1931,7 @@ func (tv *TypedValue) GetSlice2(low, high, max int) TypedValue {
 		return TypedValue{
 			T: st,
 			V: &SliceValue{
-				Base__: av,
+				Base:   av,
 				Offset: low,
 				Length: high - low,
 				Maxcap: max - low,
@@ -1951,7 +1951,7 @@ func (tv *TypedValue) GetSlice2(low, high, max int) TypedValue {
 		return TypedValue{
 			T: tv.T,
 			V: &SliceValue{
-				Base__: sv.Base__,
+				Base:   sv.Base,
 				Offset: sv.Offset + low,
 				Length: sv.Offset + high - low,
 				Maxcap: max - low,
@@ -1985,8 +1985,8 @@ type Block struct {
 	ObjectInfo // for closures
 	SourceLoc  Location
 	Source     BlockNode `json:"-"` // unexpose?
-	Values__   []TypedValue
-	Parent__   Value
+	Values     []TypedValue
+	Parent     Value
 	Blank      TypedValue // captures "_"
 	bodyStmt   bodyStmt
 }
@@ -2001,8 +2001,8 @@ func NewBlock(source BlockNode, parent *Block) *Block {
 	return &Block{
 		SourceLoc: loc,
 		Source:    source,
-		Values__:  values,
-		Parent__:  parent,
+		Values:    values,
+		Parent:    parent,
 	}
 }
 
@@ -2018,16 +2018,16 @@ func (b *Block) StringIndented(indent string) string {
 	lines := []string{}
 	lines = append(lines,
 		fmt.Sprintf("Block(Addr:%p,Source:%s,Parent:%p)",
-			b, source, b.Parent__)) // XXX Parent__ may be RefValue{}.
+			b, source, b.Parent)) // XXX Parent may be RefValue{}.
 	if b.Source != nil {
 		for i, n := range b.Source.GetBlockNames() {
-			if len(b.Values__) <= i {
+			if len(b.Values) <= i {
 				lines = append(lines,
 					fmt.Sprintf("%s%s: undefined", indent, n))
 			} else {
 				lines = append(lines,
 					fmt.Sprintf("%s%s: %s",
-						indent, n, b.Values__[i].String()))
+						indent, n, b.Values[i].String()))
 			}
 		}
 	}
@@ -2035,14 +2035,14 @@ func (b *Block) StringIndented(indent string) string {
 }
 
 func (b *Block) GetParent(store Store) *Block {
-	switch pb := b.Parent__.(type) {
+	switch pb := b.Parent.(type) {
 	case nil:
 		return nil
 	case *Block:
 		return pb
 	case RefValue:
 		block := store.GetObject(pb.ObjectID).(*Block)
-		b.Parent__ = block
+		b.Parent = block
 		return block
 	default:
 		panic("should not happen")
@@ -2050,11 +2050,11 @@ func (b *Block) GetParent(store Store) *Block {
 }
 
 func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
-	vv := fillValue(store, &b.Values__[index])
+	vv := fillValue(store, &b.Values[index])
 	return PointerValue{
-		TV__:   vv,
-		Base__: b,
-		Index:  int(index),
+		TV:    vv,
+		Base:  b,
+		Index: int(index),
 	}
 }
 
@@ -2068,9 +2068,9 @@ func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 			}
 		}
 		return PointerValue{
-			TV__:   b.GetBlankRef(),
-			Base__: b,
-			Index:  PointerIndexBlockBlank, // -1
+			TV:    b.GetBlankRef(),
+			Base:  b,
+			Index: PointerIndexBlockBlank, // -1
 		}
 	}
 	// NOTE: For most block paths, Depth starts at 1, but
@@ -2120,15 +2120,15 @@ func (b *Block) GetBodyStmt() *bodyStmt {
 // Used by SwitchStmt upon clause match.
 func (b *Block) ExpandToSize(size uint16) {
 	if debug {
-		if len(b.Values__) >= int(size) {
+		if len(b.Values) >= int(size) {
 			panic(fmt.Sprintf(
 				"unexpected block size shrinkage: %v vs %v",
-				len(b.Values__), size))
+				len(b.Values), size))
 		}
 	}
 	values := make([]TypedValue, int(size))
-	copy(values, b.Values__)
-	b.Values__ = values
+	copy(values, b.Values)
+	b.Values = values
 }
 
 type RefValue struct {
@@ -2151,7 +2151,7 @@ func defaultStructFields(st *StructType) []TypedValue {
 
 func defaultStructValue(st *StructType) *StructValue {
 	return &StructValue{
-		Fields__: defaultStructFields(st),
+		Fields: defaultStructFields(st),
 	}
 }
 
@@ -2164,7 +2164,7 @@ func defaultArrayValue(at *ArrayType) *ArrayValue {
 		}
 	}
 	return &ArrayValue{
-		List__: tvs,
+		List: tvs,
 	}
 }
 
@@ -2220,8 +2220,8 @@ func typedString(s string) TypedValue {
 func newSliceFromList(list []TypedValue) *SliceValue {
 	fullList := list[:cap(list)]
 	return &SliceValue{
-		Base__: &ArrayValue{
-			List__: fullList,
+		Base: &ArrayValue{
+			List: fullList,
 		},
 		Offset: 0,
 		Length: len(list),
@@ -2232,7 +2232,7 @@ func newSliceFromList(list []TypedValue) *SliceValue {
 func newSliceFromData(data []byte) *SliceValue {
 	fullData := data[:cap(data)]
 	return &SliceValue{
-		Base__: &ArrayValue{
+		Base: &ArrayValue{
 			Data: fullData,
 		},
 		Offset: 0,

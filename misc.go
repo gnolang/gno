@@ -137,24 +137,24 @@ func fillValue(store Store, tv *TypedValue) *TypedValue {
 	case RefValue:
 		tv.V = store.GetObject(cv.ObjectID)
 	case PointerValue:
-		if ref, ok := cv.Base__.(RefValue); ok {
+		if ref, ok := cv.Base.(RefValue); ok {
 			base := store.GetObject(ref.ObjectID).(Value)
-			cv.Base__ = base
+			cv.Base = base
 			switch cb := base.(type) {
 			case *ArrayValue:
 				et := baseOf(tv.T).(*ArrayType).Elt
 				epv := cb.GetPointerAtIndexInt2(store, cv.Index, et)
-				cv.TV__ = epv.TV__ // TODO optimize? (epv.* ignored)
+				cv.TV = epv.TV // TODO optimize? (epv.* ignored)
 			case *StructValue:
 				fpv := cb.GetPointerToInt(store, cv.Index)
-				cv.TV__ = fpv.TV__ // TODO optimize?
+				cv.TV = fpv.TV // TODO optimize?
 			case *BoundMethodValue:
 				panic("should not happen")
 			case *MapValue:
 				panic("should not happen")
 			case *Block:
 				vpv := cb.GetPointerToInt(store, cv.Index)
-				cv.TV__ = vpv.TV__ // TODO optimize?
+				cv.TV = vpv.TV // TODO optimize?
 			default:
 				panic("should not happen")
 			}

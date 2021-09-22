@@ -25,7 +25,7 @@ func main() {
 
 // Realm:
 // c[a8ada09dee16d791fd406d629fe29bb0ed084a30:5]={
-//     "Fields__": [
+//     "Fields": [
 //         {
 //             "T": {
 //                 "@type": "/gno.rft",
@@ -63,13 +63,13 @@ func main() {
 //         "ModTime": "4",
 //         "RefCount": "0"
 //     },
-//     "Parent__": null,
+//     "Parent": null,
 //     "SourceLoc": {
 //         "File": "",
 //         "Line": "0",
 //         "PkgPath": ""
 //     },
-//     "Values__": [
+//     "Values": [
 //         {
 //             "T": {
 //                 "@type": "/gno.rft",
@@ -103,7 +103,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.fun",
-//                 "Closure__": {
+//                 "Closure": {
 //                     "@type": "/gno.rfv",
 //                     "Hash": "063c7c870960cb00c27e2f51ba139fc1dd0d36fa",
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
@@ -117,7 +117,7 @@ func main() {
 //                     "Line": "14",
 //                     "PkgPath": ""
 //                 },
-//                 "Type__": {
+//                 "Type": {
 //                     "@type": "/gno.rft",
 //                     "ID": "0ba050da455a6aad7074eb2148d53ecd5becc26d"
 //                 }
@@ -130,7 +130,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.fun",
-//                 "Closure__": {
+//                 "Closure": {
 //                     "@type": "/gno.rfv",
 //                     "Hash": "063c7c870960cb00c27e2f51ba139fc1dd0d36fa",
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
@@ -144,7 +144,7 @@ func main() {
 //                     "Line": "20",
 //                     "PkgPath": ""
 //                 },
-//                 "Type__": {
+//                 "Type": {
 //                     "@type": "/gno.rft",
 //                     "ID": "0ba050da455a6aad7074eb2148d53ecd5becc26d"
 //                 }
@@ -157,9 +157,9 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.ptr",
-//                 "Base__": null,
+//                 "Base": null,
 //                 "Index": "0",
-//                 "TV__": {
+//                 "TV": {
 //                     "T": {
 //                         "@type": "/gno.rft",
 //                         "ID": "8f3fca65f6ca73d096c06f68e24ff93ea462d350"

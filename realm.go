@@ -403,31 +403,31 @@ func getUnsavedChildren(val Value, more []Object) []Object {
 	case DataByteValue:
 		panic("should not happen")
 	case PointerValue:
-		if cv.Base__ != nil {
-			more = getUnsaved(cv.Base__, more)
+		if cv.Base != nil {
+			more = getUnsaved(cv.Base, more)
 		} else {
 			// If cv.Base is non-nil,
 			// no need to append cv.Base's unsaved elements.
-			more = getUnsaved(cv.TV__.V, more)
+			more = getUnsaved(cv.TV.V, more)
 		}
 		return more
 	case *ArrayValue:
-		for _, ctv := range cv.List__ {
+		for _, ctv := range cv.List {
 			// NOTE: same as isUnsaved(ctv.GetFirstObject()).
 			more = getUnsaved(ctv.V, more)
 		}
 		return more
 	case *SliceValue:
-		more = getUnsaved(cv.Base__, more)
+		more = getUnsaved(cv.Base, more)
 		return more
 	case *StructValue:
-		for _, ctv := range cv.Fields__ {
+		for _, ctv := range cv.Fields {
 			// NOTE: same as isUnsaved(ctv.GetFirstObject()).
 			more = getUnsaved(ctv.V, more)
 		}
 		return more
 	case *FuncValue:
-		if bv, ok := cv.Closure__.(*Block); ok {
+		if bv, ok := cv.Closure.(*Block); ok {
 			more = getUnsaved(bv, more)
 		}
 		return more
@@ -438,27 +438,27 @@ func getUnsavedChildren(val Value, more []Object) []Object {
 	case *MapValue:
 		for cur := cv.List.Head; cur != nil; cur = cur.Next {
 			// NOTE: same as isUnsaved(cur.Key.GetFirstObject()).
-			more = getUnsaved(cur.Key__.V, more)
-			more = getUnsaved(cur.Value__.V, more)
+			more = getUnsaved(cur.Key.V, more)
+			more = getUnsaved(cur.Value.V, more)
 		}
 		return more
 	case TypeValue:
 		return more
 	case *PackageValue:
-		for _, ctv := range cv.Values__ {
+		for _, ctv := range cv.Values {
 			// NOTE: same as isUnsaved(ctv.GetFirstObject()).
 			more = getUnsaved(ctv.V, more)
 		}
-		for _, fb := range cv.FBlocks__ {
+		for _, fb := range cv.FBlocks {
 			more = getUnsaved(fb, more)
 		}
 		return more
 	case *Block:
-		for _, ctv := range cv.Values__ {
+		for _, ctv := range cv.Values {
 			// NOTE: same as isUnsaved(ctv.GetFirstObject()).
 			more = getUnsaved(ctv.V, more)
 		}
-		more = getUnsaved(cv.Parent__, more)
+		more = getUnsaved(cv.Parent, more)
 		return more
 	case *nativeValue:
 		return more // XXX ???
@@ -484,7 +484,7 @@ func copyWithRefs(parent Object, val Value) Value {
 	case DataByteValue:
 		panic("should not happen")
 	case PointerValue:
-		if cv.Base__ != nil {
+		if cv.Base != nil {
 			return PointerValue{
 				/*
 					already represented in .Base[Index]:
@@ -493,13 +493,13 @@ func copyWithRefs(parent Object, val Value) Value {
 						V: copyWithRefs(cv.TypedValue.V),
 					},
 				*/
-				Base__: ensureRefValue(parent, cv.Base__),
-				Index:  cv.Index,
+				Base:  ensureRefValue(parent, cv.Base),
+				Index: cv.Index,
 			}
 		} else {
-			etv := refOrCopy(parent, *cv.TV__)
+			etv := refOrCopy(parent, *cv.TV)
 			return PointerValue{
-				TV__: &etv,
+				TV: &etv,
 				/*
 					Base:  nil,
 					Index: 0,
@@ -508,13 +508,13 @@ func copyWithRefs(parent Object, val Value) Value {
 		}
 	case *ArrayValue:
 		if cv.Data == nil {
-			list := make([]TypedValue, len(cv.List__))
-			for i, etv := range cv.List__ {
+			list := make([]TypedValue, len(cv.List))
+			for i, etv := range cv.List {
 				list[i] = refOrCopy(cv, etv)
 			}
 			return &ArrayValue{
 				ObjectInfo: cv.ObjectInfo.Copy(),
-				List__:     list,
+				List:       list,
 			}
 		} else {
 			return &ArrayValue{
@@ -524,37 +524,37 @@ func copyWithRefs(parent Object, val Value) Value {
 		}
 	case *SliceValue:
 		return &SliceValue{
-			Base__: ensureRefValue(parent, cv.Base__),
+			Base:   ensureRefValue(parent, cv.Base),
 			Offset: cv.Offset,
 			Length: cv.Length,
 			Maxcap: cv.Maxcap,
 		}
 	case *StructValue:
-		fields := make([]TypedValue, len(cv.Fields__))
-		for i, ftv := range cv.Fields__ {
+		fields := make([]TypedValue, len(cv.Fields))
+		for i, ftv := range cv.Fields {
 			fields[i] = refOrCopy(cv, ftv)
 		}
 		return &StructValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),
-			Fields__:   fields,
+			Fields:     fields,
 		}
 	case *FuncValue:
 		var closure Value
-		if cv.Closure__ != nil {
-			closure = ensureRefValue(parent, cv.Closure__)
+		if cv.Closure != nil {
+			closure = ensureRefValue(parent, cv.Closure)
 		}
 		if cv.nativeBody != nil {
 			panic("should not happen")
 		}
-		ft := RefType{ID: cv.Type__.TypeID()}
+		ft := RefType{ID: cv.Type.TypeID()}
 		return &FuncValue{
-			Type__:    ft,
+			Type:      ft,
 			IsMethod:  cv.IsMethod,
 			SourceLoc: cv.SourceLoc,
 			Source:    cv.Source,
 			Name:      cv.Name,
 			Body:      cv.Body,
-			Closure__: closure,
+			Closure:   closure,
 			FileName:  cv.FileName,
 			PkgPath:   cv.PkgPath,
 		}
@@ -569,9 +569,9 @@ func copyWithRefs(parent Object, val Value) Value {
 	case *MapValue:
 		list := &MapList{}
 		for cur := cv.List.Head; cur != nil; cur = cur.Next {
-			key2 := refOrCopy(cv, cur.Key__)
-			val2 := refOrCopy(cv, cur.Value__)
-			list.Append(key2).Value__ = val2
+			key2 := refOrCopy(cv, cur.Key)
+			val2 := refOrCopy(cv, cur.Value)
+			list.Append(key2).Value = val2
 		}
 		return &MapValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),
@@ -582,41 +582,41 @@ func copyWithRefs(parent Object, val Value) Value {
 			ID: cv.Type.TypeID(),
 		})
 	case *PackageValue:
-		vals := make([]TypedValue, len(cv.Values__))
-		for i, tv := range cv.Values__ {
+		vals := make([]TypedValue, len(cv.Values))
+		for i, tv := range cv.Values {
 			vals[i] = refOrCopy(cv, tv)
 		}
-		fblocks := make([]Value, len(cv.FBlocks__))
-		for i, fb := range cv.FBlocks__ {
+		fblocks := make([]Value, len(cv.FBlocks))
+		for i, fb := range cv.FBlocks {
 			fblocks[i] = ensureRefValue(cv, fb)
 		}
 		return &PackageValue{
 			Block: Block{
 				ObjectInfo: cv.Block.ObjectInfo.Copy(),
 				Source:     cv.Block.Source,
-				Values__:   vals,
-				Parent__:   nil,          // packages have no parent.
+				Values:     vals,
+				Parent:     nil,          // packages have no parent.
 				Blank:      TypedValue{}, // empty
 			},
-			PkgName:   cv.PkgName,
-			PkgPath:   cv.PkgPath,
-			FNames:    cv.FNames, // no copy
-			FBlocks__: fblocks,
+			PkgName: cv.PkgName,
+			PkgPath: cv.PkgPath,
+			FNames:  cv.FNames, // no copy
+			FBlocks: fblocks,
 		}
 	case *Block:
-		vals := make([]TypedValue, len(cv.Values__))
-		for i, tv := range cv.Values__ {
+		vals := make([]TypedValue, len(cv.Values))
+		for i, tv := range cv.Values {
 			vals[i] = refOrCopy(cv, tv)
 		}
 		var bparent Value
-		if cv.Parent__ != nil {
-			bparent = ensureRefValue(parent, cv.Parent__)
+		if cv.Parent != nil {
+			bparent = ensureRefValue(parent, cv.Parent)
 		}
 		return &Block{
 			ObjectInfo: cv.ObjectInfo.Copy(),
 			Source:     cv.Source,
-			Values__:   vals,
-			Parent__:   bparent,
+			Values:     vals,
+			Parent:     bparent,
 			Blank:      TypedValue{}, // empty
 		}
 	case *nativeValue:

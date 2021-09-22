@@ -325,10 +325,10 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 		// something in it; in that case, ignore the base.  That will
 		// likely require maybe a preperation step in persistence
 		// ( or unlikely, a second type of ref-counting).
-		if cv.Base__ != nil {
-			return cv.Base__.(Object)
+		if cv.Base != nil {
+			return cv.Base.(Object)
 		} else {
-			return cv.TV__.GetFirstObject(store)
+			return cv.TV.GetFirstObject(store)
 		}
 	case *ArrayValue:
 		return cv

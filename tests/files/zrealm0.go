@@ -27,7 +27,7 @@ func main() {
 //         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:0",
 //         "RefCount": "1"
 //     },
-//     "Parent__": {
+//     "Parent": {
 //         "@type": "/gno.rfv",
 //         "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:0"
 //     },
@@ -36,7 +36,7 @@ func main() {
 //         "Line": "0",
 //         "PkgPath": ""
 //     },
-//     "Values__": []
+//     "Values": []
 // }
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:0]={
 //     "Blank": {},
@@ -45,13 +45,13 @@ func main() {
 //         "ModTime": "1",
 //         "RefCount": "0"
 //     },
-//     "Parent__": null,
+//     "Parent": null,
 //     "SourceLoc": {
 //         "File": "",
 //         "Line": "0",
 //         "PkgPath": ""
 //     },
-//     "Values__": [
+//     "Values": [
 //         {
 //             "T": {
 //                 "@type": "/gno.rft",
@@ -59,7 +59,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.fun",
-//                 "Closure__": {
+//                 "Closure": {
 //                     "@type": "/gno.rfv",
 //                     "Hash": "95d127b138a078c9bea04f906ff4270a7297ed25",
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2"
@@ -73,7 +73,7 @@ func main() {
 //                     "Line": "6",
 //                     "PkgPath": ""
 //                 },
-//                 "Type__": {
+//                 "Type": {
 //                     "@type": "/gno.rft",
 //                     "ID": "0ba050da455a6aad7074eb2148d53ecd5becc26d"
 //                 }

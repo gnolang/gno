@@ -104,7 +104,7 @@ func (m *Machine) doOpCall() {
 					rt.String()))
 			}
 		}
-		b.Values__[0] = fr.Receiver
+		b.Values[0] = fr.Receiver
 		isMethod = 1
 
 	}
@@ -154,7 +154,7 @@ func (m *Machine) doOpCall() {
 		}
 		// TODO: some more pt <> pv.Type
 		// reconciliations/conversions necessary.
-		b.Values__[i] = pv
+		b.Values[i] = pv
 	}
 }
 
@@ -202,7 +202,7 @@ func (m *Machine) doOpReturnFromBlock() {
 	numResults := len(ft.Results)
 	fblock := m.Blocks[fr.NumBlocks] // frame +1
 	for i := 0; i < numResults; i++ {
-		rtv := fillValue(m.Store, &fblock.Values__[i+numParams])
+		rtv := fillValue(m.Store, &fblock.Values[i+numParams])
 		m.PushValue(*rtv)
 	}
 	// See if we are exiting a realm boundary.
@@ -239,7 +239,7 @@ func (m *Machine) doOpReturnToBlock() {
 	results := m.PopValues(numResults)
 	for i := 0; i < numResults; i++ {
 		rtv := results[i]
-		fblock.Values__[numParams+i] = rtv
+		fblock.Values[numParams+i] = rtv
 	}
 }
 
@@ -310,7 +310,7 @@ func (m *Machine) doOpReturnCallDefers() {
 				})
 			}
 		}
-		copy(b.Values__, dfr.Args)
+		copy(b.Values, dfr.Args)
 	} else if dfr.GoFunc != nil {
 		fv := dfr.GoFunc
 		ptvs := dfr.Args

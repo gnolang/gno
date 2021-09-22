@@ -413,11 +413,11 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 			if lt.TypeID() != rt.TypeID() {
 				panic("comparison on structs of unequal types")
 			}
-			if len(ls.Fields__) != len(rs.Fields__) {
+			if len(ls.Fields) != len(rs.Fields) {
 				panic("comparison on structs of unequal size")
 			}
 		}
-		for i := 0; i < len(ls.Fields__); i++ {
+		for i := 0; i < len(ls.Fields); i++ {
 			lf := ls.GetPointerToInt(store, i).Deref()
 			rf := rs.GetPointerToInt(store, i).Deref()
 			if !isEql(store, &lf, &rf) {

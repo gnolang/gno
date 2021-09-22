@@ -24,7 +24,7 @@ func main() {
 
 // Realm:
 // c[a8ada09dee16d791fd406d629fe29bb0ed084a30:21]={
-//     "Fields__": [
+//     "Fields": [
 //         {
 //             "T": {
 //                 "@type": "/gno.rft",
@@ -73,7 +73,7 @@ func main() {
 //     }
 // }
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4]={
-//     "Fields__": [
+//     "Fields": [
 //         {
 //             "T": {
 //                 "@type": "/gno.rft",
@@ -114,9 +114,9 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.ptr",
-//                 "Base__": null,
+//                 "Base": null,
 //                 "Index": "0",
-//                 "TV__": {
+//                 "TV": {
 //                     "T": {
 //                         "@type": "/gno.rft",
 //                         "ID": "4af0f175d54357f0feeae4cf180a42be848369e8"
@@ -138,7 +138,7 @@ func main() {
 //     }
 // }
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3]={
-//     "Fields__": [
+//     "Fields": [
 //         {
 //             "T": {
 //                 "@type": "/gno.rft",
@@ -179,9 +179,9 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.ptr",
-//                 "Base__": null,
+//                 "Base": null,
 //                 "Index": "0",
-//                 "TV__": {
+//                 "TV": {
 //                     "T": {
 //                         "@type": "/gno.rft",
 //                         "ID": "4af0f175d54357f0feeae4cf180a42be848369e8"
@@ -209,13 +209,13 @@ func main() {
 //         "ModTime": "20",
 //         "RefCount": "0"
 //     },
-//     "Parent__": null,
+//     "Parent": null,
 //     "SourceLoc": {
 //         "File": "",
 //         "Line": "0",
 //         "PkgPath": ""
 //     },
-//     "Values__": [
+//     "Values": [
 //         {
 //             "T": {
 //                 "@type": "/gno.rft",
@@ -223,7 +223,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.fun",
-//                 "Closure__": {
+//                 "Closure": {
 //                     "@type": "/gno.rfv",
 //                     "Hash": "86a1d27523d1ba453c18f3b20d9802db0f82efa0",
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5"
@@ -237,7 +237,7 @@ func main() {
 //                     "Line": "11",
 //                     "PkgPath": ""
 //                 },
-//                 "Type__": {
+//                 "Type": {
 //                     "@type": "/gno.rft",
 //                     "ID": "0ba050da455a6aad7074eb2148d53ecd5becc26d"
 //                 }
@@ -250,7 +250,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.fun",
-//                 "Closure__": {
+//                 "Closure": {
 //                     "@type": "/gno.rfv",
 //                     "Hash": "86a1d27523d1ba453c18f3b20d9802db0f82efa0",
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5"
@@ -264,7 +264,7 @@ func main() {
 //                     "Line": "16",
 //                     "PkgPath": ""
 //                 },
-//                 "Type__": {
+//                 "Type": {
 //                     "@type": "/gno.rft",
 //                     "ID": "0ba050da455a6aad7074eb2148d53ecd5becc26d"
 //                 }
@@ -277,9 +277,9 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.ptr",
-//                 "Base__": null,
+//                 "Base": null,
 //                 "Index": "0",
-//                 "TV__": {
+//                 "TV": {
 //                     "T": {
 //                         "@type": "/gno.rft",
 //                         "ID": "4af0f175d54357f0feeae4cf180a42be848369e8"

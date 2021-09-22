@@ -176,7 +176,7 @@ func (m *Machine) doOpStaticTypeOf() {
 		if x.Path.Depth == 0 {
 			// Name is in uverse (global).
 			gv := Uverse().GetPointerTo(nil, x.Path)
-			m.PushValue(asValue(gv.TV__.T))
+			m.PushValue(asValue(gv.TV.T))
 		} else {
 			// Get static type from source.
 			lb := m.LastBlock()

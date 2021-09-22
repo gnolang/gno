@@ -660,7 +660,7 @@ GNO_CASE:
 						data := make([]byte, svl)
 						copyListToData(
 							data[:svl],
-							svb.List__[svo:svo+svl])
+							svb.List[svo:svo+svl])
 						strv := StringValue(string(data))
 						tv.T = t
 						tv.V = strv
@@ -668,7 +668,7 @@ GNO_CASE:
 						runes := make([]rune, svl)
 						copyListToRunes(
 							runes[:svl],
-							svb.List__[svo:svo+svl])
+							svb.List[svo:svo+svl])
 						strv := StringValue(string(runes))
 						tv.T = t
 						tv.V = strv

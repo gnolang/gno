@@ -1082,7 +1082,7 @@ func (pn *PackageNode) NewPackage(rlmr Realmer) *PackageValue {
 		PkgName:    pn.PkgName,
 		PkgPath:    pn.PkgPath,
 		FNames:     nil,
-		FBlocks__:  nil,
+		FBlocks:    nil,
 		fBlocksMap: make(map[Name]*Block),
 	}
 	if IsRealmPath(pn.PkgPath) {
@@ -1102,12 +1102,12 @@ func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 	if pv.Source != pn {
 		panic("PackageNode.PrepareNewValues() package mismatch")
 	}
-	pvl := len(pv.Values__)
-	pnl := len(pn.Values__)
+	pvl := len(pv.Values)
+	pnl := len(pn.Values)
 	if pvl < pnl {
 		// XXX: deep copy heap values
 		nvs := make([]TypedValue, pnl-pvl)
-		copy(nvs, pn.Values__[pvl:pnl])
+		copy(nvs, pn.Values[pvl:pnl])
 		for _, nv := range nvs {
 			if nv.IsUndefined() {
 				continue
@@ -1124,7 +1124,7 @@ func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 					case *FuncValue:
 						fv.PkgPath = pv.PkgPath
 						fv.pkg = pv
-						if fv.Closure__ != nil {
+						if fv.Closure != nil {
 							panic("expected nil closure for static func")
 						}
 						if fv.FileName == "" {
@@ -1138,7 +1138,7 @@ func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 						if fb == nil {
 							panic("should not happen")
 						}
-						fv.Closure__ = fb
+						fv.Closure = fb
 					case *nativeValue:
 						// do nothing for go native functions.
 					default:
@@ -1150,7 +1150,7 @@ func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 				if dt, ok := nt.(*DeclaredType); ok {
 					for i := 0; i < len(dt.Methods); i++ {
 						mv := dt.Methods[i].V.(*FuncValue)
-						if mv.Closure__ != nil {
+						if mv.Closure != nil {
 							// This happens with alias declarations.
 						}
 						// set mv.pkg.
@@ -1162,15 +1162,15 @@ func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 						if fb == nil {
 							panic("should not happen")
 						}
-						mv.Closure__ = fb
+						mv.Closure = fb
 					}
 				}
 			default:
 				// already shallowed copied.
 			}
 		}
-		pv.Values__ = append(pv.Values__, nvs...)
-		return pv.Values__[pvl:]
+		pv.Values = append(pv.Values, nvs...)
+		return pv.Values[pvl:]
 	} else if pvl > pnl {
 		panic("package size error")
 	} else {
@@ -1222,15 +1222,15 @@ func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 	}
 	if parent == nil {
 		sb.Block = Block{
-			Source:   source,
-			Values__: nil,
-			Parent__: nil,
+			Source: source,
+			Values: nil,
+			Parent: nil,
 		}
 	} else {
 		sb.Block = Block{
-			Source:   source,
-			Values__: nil,
-			Parent__: parent.GetStaticBlock().GetBlock(),
+			Source: source,
+			Values: nil,
+			Parent: parent.GetStaticBlock().GetBlock(),
 		}
 	}
 	sb.NumNames = 0
@@ -1388,7 +1388,7 @@ func (sb *StaticBlock) GetValueRef(store Store, n Name) *TypedValue {
 	bp := sb.GetParentNode(store)
 	for {
 		if ok {
-			return bb.GetPointerToInt(store, int(idx)).TV__
+			return bb.GetPointerToInt(store, int(idx)).TV
 		} else if bp != nil {
 			idx, ok = bp.GetLocalIndex(n)
 			bb = bp.GetStaticBlock().GetBlock()
@@ -1437,7 +1437,7 @@ func (sb *StaticBlock) Define2(n Name, st Type, tv TypedValue) {
 	idx, exists := sb.GetLocalIndex(n)
 	if exists {
 		// Is re-defining.
-		old := sb.Block.Values__[idx]
+		old := sb.Block.Values[idx]
 		if !old.IsUndefined() {
 			if tv.T != old.T {
 				panic(fmt.Sprintf(
@@ -1448,13 +1448,13 @@ func (sb *StaticBlock) Define2(n Name, st Type, tv TypedValue) {
 				panic("StaticBlock.Define() cannot change .V")
 			}
 		}
-		sb.Block.Values__[idx] = tv
+		sb.Block.Values[idx] = tv
 		sb.Types[idx] = st
 	} else {
 		// The general case without re-definition.
 		sb.Names = append(sb.Names, n)
 		sb.NumNames++
-		sb.Block.Values__ = append(sb.Block.Values__, tv)
+		sb.Block.Values = append(sb.Block.Values, tv)
 		sb.Types = append(sb.Types, st)
 	}
 }
