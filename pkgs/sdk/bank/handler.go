@@ -98,10 +98,8 @@ func (bh bankHandler) handleMsgMultiSend(ctx sdk.Context, msg MsgMultiSend) sdk.
 //----------------------------------------
 // Query
 
-const (
-	// query balance path
-	QueryBalance = "balances"
-)
+// query balance path
+const QueryBalance = "balances"
 
 func (bh bankHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	switch queryPath(req.Path) {

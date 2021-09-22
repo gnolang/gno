@@ -8,7 +8,7 @@ import (
 )
 
 func BenchmarkAccountMapperGetAccountFound(b *testing.B) {
-	input := setupTestInput()
+	env := setupTestEnv()
 
 	// assumes b.N < 2**24
 	for i := 0; i < b.N; i++ {
@@ -16,8 +16,8 @@ func BenchmarkAccountMapperGetAccountFound(b *testing.B) {
 		arr := []byte{byte((i & 0xFF0000) >> 16), byte((i & 0xFF00) >> 8), byte(i & 0xFF)}
 		copy(addr[:len(arr)], arr[:])
 		caddr := crypto.AddressFromBytes(addr)
-		acc := input.acck.NewAccountWithAddress(input.ctx, caddr)
-		input.acck.SetAccount(input.ctx, acc)
+		acc := env.acck.NewAccountWithAddress(env.ctx, caddr)
+		env.acck.SetAccount(env.ctx, acc)
 	}
 
 	b.ResetTimer()
@@ -26,12 +26,12 @@ func BenchmarkAccountMapperGetAccountFound(b *testing.B) {
 		arr := []byte{byte((i & 0xFF0000) >> 16), byte((i & 0xFF00) >> 8), byte(i & 0xFF)}
 		copy(addr[:len(arr)], arr[:])
 		caddr := crypto.AddressFromBytes(addr)
-		input.acck.GetAccount(input.ctx, caddr)
+		env.acck.GetAccount(env.ctx, caddr)
 	}
 }
 
 func BenchmarkAccountMapperGetAccountFoundWithCoins(b *testing.B) {
-	input := setupTestInput()
+	env := setupTestEnv()
 	coins := std.Coins{
 		std.NewCoin("LTC", int64(1000)),
 		std.NewCoin("BTC", int64(1000)),
@@ -47,9 +47,9 @@ func BenchmarkAccountMapperGetAccountFoundWithCoins(b *testing.B) {
 		arr := []byte{byte((i & 0xFF0000) >> 16), byte((i & 0xFF00) >> 8), byte(i & 0xFF)}
 		copy(addr[:len(arr)], arr[:])
 		caddr := crypto.AddressFromBytes(addr)
-		acc := input.acck.NewAccountWithAddress(input.ctx, caddr)
+		acc := env.acck.NewAccountWithAddress(env.ctx, caddr)
 		acc.SetCoins(coins)
-		input.acck.SetAccount(input.ctx, acc)
+		env.acck.SetAccount(env.ctx, acc)
 	}
 
 	b.ResetTimer()
@@ -58,12 +58,12 @@ func BenchmarkAccountMapperGetAccountFoundWithCoins(b *testing.B) {
 		arr := []byte{byte((i & 0xFF0000) >> 16), byte((i & 0xFF00) >> 8), byte(i & 0xFF)}
 		copy(addr[:len(arr)], arr[:])
 		caddr := crypto.AddressFromBytes(addr)
-		input.acck.GetAccount(input.ctx, caddr)
+		env.acck.GetAccount(env.ctx, caddr)
 	}
 }
 
 func BenchmarkAccountMapperSetAccount(b *testing.B) {
-	input := setupTestInput()
+	env := setupTestEnv()
 
 	b.ResetTimer()
 
@@ -73,13 +73,13 @@ func BenchmarkAccountMapperSetAccount(b *testing.B) {
 		arr := []byte{byte((i & 0xFF0000) >> 16), byte((i & 0xFF00) >> 8), byte(i & 0xFF)}
 		copy(addr[:len(arr)], arr[:])
 		caddr := crypto.AddressFromBytes(addr)
-		acc := input.acck.NewAccountWithAddress(input.ctx, caddr)
-		input.acck.SetAccount(input.ctx, acc)
+		acc := env.acck.NewAccountWithAddress(env.ctx, caddr)
+		env.acck.SetAccount(env.ctx, acc)
 	}
 }
 
 func BenchmarkAccountMapperSetAccountWithCoins(b *testing.B) {
-	input := setupTestInput()
+	env := setupTestEnv()
 	coins := std.Coins{
 		std.NewCoin("LTC", int64(1000)),
 		std.NewCoin("BTC", int64(1000)),
@@ -97,8 +97,8 @@ func BenchmarkAccountMapperSetAccountWithCoins(b *testing.B) {
 		arr := []byte{byte((i & 0xFF0000) >> 16), byte((i & 0xFF00) >> 8), byte(i & 0xFF)}
 		copy(addr[:len(arr)], arr[:])
 		caddr := crypto.AddressFromBytes(addr)
-		acc := input.acck.NewAccountWithAddress(input.ctx, caddr)
+		acc := env.acck.NewAccountWithAddress(env.ctx, caddr)
 		acc.SetCoins(coins)
-		input.acck.SetAccount(input.ctx, acc)
+		env.acck.SetAccount(env.ctx, acc)
 	}
 }

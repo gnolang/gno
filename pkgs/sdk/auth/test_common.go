@@ -12,7 +12,7 @@ import (
 	"github.com/gnolang/gno/pkgs/store/iavl"
 )
 
-type testInput struct {
+type testEnv struct {
 	ctx  sdk.Context
 	acck AccountKeeper
 	bank BankKeeperI
@@ -45,7 +45,7 @@ func (ma moduleAccount) GetPermissions() []string {
 	return ma.permissions
 }
 
-func setupTestInput() testInput {
+func setupTestEnv() testEnv {
 	db := dbm.NewMemDB()
 
 	authCapKey := store.NewStoreKey("authCapKey")
@@ -60,7 +60,7 @@ func setupTestInput() testInput {
 	ctx := sdk.NewContext(ms, &bft.Header{Height: 1, ChainID: "test-chain-id"}, false, log.NewNopLogger())
 	ctx = ctx.WithValue(AuthParamsContextKey{}, DefaultParams())
 
-	return testInput{ctx: ctx, acck: acck, bank: bank}
+	return testEnv{ctx: ctx, acck: acck, bank: bank}
 }
 
 // DummyBankKeeper defines a supply keeper used only for testing to avoid

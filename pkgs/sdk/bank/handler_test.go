@@ -23,19 +23,19 @@ func TestInvalidMsg(t *testing.T) {
 }
 
 func TestBalances(t *testing.T) {
-	input := setupTestInput()
-	h := NewHandler(input.bank)
+	env := setupTestEnv()
+	h := NewHandler(env.bank)
 	req := abci.RequestQuery{
 		Path: fmt.Sprintf("bank/%s", QueryBalance),
 		Data: []byte{},
 	}
 
-	res := h.Query(input.ctx, req)
+	res := h.Query(env.ctx, req)
 	require.NotNil(t, res.Error)
 
 	_, _, addr := tu.KeyTestPubAddr()
 	req.Data = amino.MustMarshalJSON(NewQueryBalanceParams(addr))
-	res = h.Query(input.ctx, req)
+	res = h.Query(env.ctx, req)
 	require.Nil(t, res.Error) // the account does not exist, no error returned anyway
 	require.NotNil(t, res)
 
@@ -43,10 +43,10 @@ func TestBalances(t *testing.T) {
 	require.NoError(t, amino.UnmarshalJSON(res.Data, &coins))
 	require.True(t, coins.IsZero())
 
-	acc := input.acck.NewAccountWithAddress(input.ctx, addr)
+	acc := env.acck.NewAccountWithAddress(env.ctx, addr)
 	acc.SetCoins(std.NewCoins(std.NewCoin("foo", 10)))
-	input.acck.SetAccount(input.ctx, acc)
-	res = h.Query(input.ctx, req)
+	env.acck.SetAccount(env.ctx, acc)
+	res = h.Query(env.ctx, req)
 	require.Nil(t, res.Error)
 	require.NotNil(t, res)
 	require.NoError(t, amino.UnmarshalJSON(res.Data, &coins))
@@ -54,12 +54,12 @@ func TestBalances(t *testing.T) {
 }
 
 func TestQuerierRouteNotFound(t *testing.T) {
-	input := setupTestInput()
-	h := NewHandler(input.bank)
+	env := setupTestEnv()
+	h := NewHandler(env.bank)
 	req := abci.RequestQuery{
 		Path: "bank/notfound",
 		Data: []byte{},
 	}
-	res := h.Query(input.ctx, req)
+	res := h.Query(env.ctx, req)
 	require.Error(t, res.Error)
 }

@@ -14,13 +14,13 @@ import (
 	"github.com/gnolang/gno/pkgs/store/iavl"
 )
 
-type testInput struct {
+type testEnv struct {
 	ctx  sdk.Context
 	bank BankKeeper
 	acck auth.AccountKeeper
 }
 
-func setupTestInput() testInput {
+func setupTestEnv() testEnv {
 	db := dbm.NewMemDB()
 
 	authCapKey := store.NewStoreKey("authCapKey")
@@ -36,5 +36,5 @@ func setupTestInput() testInput {
 
 	bank := NewBankKeeper(acck)
 
-	return testInput{ctx: ctx, bank: bank, acck: acck}
+	return testEnv{ctx: ctx, bank: bank, acck: acck}
 }
