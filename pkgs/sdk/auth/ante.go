@@ -335,7 +335,7 @@ func DeductFees(bank BankKeeperI, ctx sdk.Context, acc std.Account, fees std.Coi
 		))
 	}
 
-	err := bank.SendCoins(ctx, acc.GetAddress(), crypto.AddressFromPreimage([]byte(FeeCollectorName)), fees)
+	err := bank.SendCoins(ctx, acc.GetAddress(), FeeCollectorAddress(), fees)
 	if err != nil {
 		return abciResult(err)
 	}

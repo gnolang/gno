@@ -317,7 +317,7 @@ func TestAnteHandlerFees(t *testing.T) {
 	env.acck.SetAccount(ctx, acc1)
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.InsufficientFundsError{})
 
-	collector := env.bank.(DummyBankKeeper).acck.GetAccount(ctx, crypto.AddressFromPreimage([]byte(FeeCollectorName)))
+	collector := env.bank.(DummyBankKeeper).acck.GetAccount(ctx, FeeCollectorAddress())
 	require.Nil(t, collector)
 	require.Equal(t, env.acck.GetAccount(ctx, addr1).GetCoins().AmountOf("atom"), int64(149))
 
@@ -325,7 +325,7 @@ func TestAnteHandlerFees(t *testing.T) {
 	env.acck.SetAccount(ctx, acc1)
 	checkValidTx(t, anteHandler, ctx, tx, false)
 
-	require.Equal(t, env.bank.(DummyBankKeeper).acck.GetAccount(ctx, crypto.AddressFromPreimage([]byte(FeeCollectorName))).GetCoins().AmountOf("atom"), int64(150))
+	require.Equal(t, env.bank.(DummyBankKeeper).acck.GetAccount(ctx, FeeCollectorAddress()).GetCoins().AmountOf("atom"), int64(150))
 	require.Equal(t, env.acck.GetAccount(ctx, addr1).GetCoins().AmountOf("atom"), int64(0))
 }
 

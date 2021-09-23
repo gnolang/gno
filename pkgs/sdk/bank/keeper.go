@@ -35,7 +35,6 @@ type BankKeeper struct {
 
 // NewBankKeeper returns a new BankKeeper.
 func NewBankKeeper(acck auth.AccountKeeper) BankKeeper {
-
 	return BankKeeper{
 		ViewKeeper: NewViewKeeper(acck),
 		acck:       acck,
