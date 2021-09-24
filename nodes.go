@@ -1074,7 +1074,16 @@ func NewPackageNode(name Name, path string, fset *FileSet) *PackageNode {
 	return pn
 }
 
-func (pn *PackageNode) NewPackage(rlmr Realmer) *PackageValue {
+func (pn *PackageNode) NewPackage(rlm *Realm) *PackageValue {
+	if IsRealmPath(pn.PkgPath) {
+		if rlm == nil {
+			panic("should not happen")
+		}
+	} else {
+		if rlm != nil {
+			panic("should not happen")
+		}
+	}
 	pv := &PackageValue{
 		Block: Block{
 			Source: pn,
@@ -1085,8 +1094,7 @@ func (pn *PackageNode) NewPackage(rlmr Realmer) *PackageValue {
 		FBlocks:    nil,
 		fBlocksMap: make(map[Name]*Block),
 	}
-	if IsRealmPath(pn.PkgPath) {
-		rlm := rlmr(pn.PkgPath)
+	if rlm != nil {
 		pv.SetRealm(rlm)
 	}
 	pn.PrepareNewValues(pv)

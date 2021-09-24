@@ -30,9 +30,13 @@ func (cs CacheStore) GetPackage(pkgPath string) *PackageValue {
 	if pv, exists := cs.CachePkgs[pkgPath]; exists {
 		return pv
 	}
-	pv := cs.Store.GetPackage(pkgPath)
-	cs.CachePkgs[pkgPath] = pv
-	return pv
+	if cs.Store != nil {
+		pv := cs.Store.GetPackage(pkgPath)
+		cs.CachePkgs[pkgPath] = pv
+		return pv
+	} else {
+		return nil
+	}
 }
 
 func (cs CacheStore) SetPackage(pv *PackageValue) {
@@ -51,9 +55,13 @@ func (cs CacheStore) GetObject(oid ObjectID) Object {
 	if oo, exists := cs.CacheObjects[oid]; exists {
 		return oo
 	}
-	oo := cs.Store.GetObject(oid)
-	cs.CacheObjects[oid] = oo
-	return oo
+	if cs.Store != nil {
+		oo := cs.Store.GetObject(oid)
+		cs.CacheObjects[oid] = oo
+		return oo
+	} else {
+		return nil
+	}
 }
 
 func (cs CacheStore) SetObject(oo Object) {
@@ -75,9 +83,13 @@ func (cs CacheStore) GetType(tid TypeID) Type {
 	if tt, exists := cs.CacheTypes[tid]; exists {
 		return tt
 	}
-	tt := cs.Store.GetType(tid)
-	cs.CacheTypes[tid] = tt
-	return tt
+	if cs.Store != nil {
+		tt := cs.Store.GetType(tid)
+		cs.CacheTypes[tid] = tt
+		return tt
+	} else {
+		return nil
+	}
 }
 
 func (cs CacheStore) SetType(tt Type) {
@@ -90,4 +102,8 @@ func (cs CacheStore) SetType(tt Type) {
 		}
 	}
 	cs.CacheTypes[tid] = tt
+}
+
+func (cs CacheStore) Flush() {
+	// XXX
 }

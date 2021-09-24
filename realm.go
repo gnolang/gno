@@ -75,8 +75,6 @@ func RealmIDFromPath(path string) RealmID {
 	return RealmID{HashBytes([]byte(path))}
 }
 
-type Realmer func(pkgPath string) *Realm
-
 // A nil realm is special and has limited functionality; enough
 // to support methods that don't require persistence. This is
 // the default realm when a machine starts with a non-realm
@@ -786,25 +784,6 @@ func (rlm *Realm) SprintRealmOps() string {
 		ss = append(ss, rop.String())
 	}
 	return strings.Join(ss, "\n")
-}
-
-//----------------------------------------
-// MemRealmer
-
-func NewMemRealmer() Realmer {
-	rlms := make(map[string]*Realm)
-	return Realmer(func(pkgPath string) *Realm {
-		if !IsRealmPath(pkgPath) {
-			panic("should not happen")
-		}
-		if rlm, ok := rlms[pkgPath]; ok {
-			return rlm
-		} else {
-			rlm = NewRealm(pkgPath)
-			rlms[pkgPath] = rlm
-			return rlm
-		}
-	})
 }
 
 //----------------------------------------

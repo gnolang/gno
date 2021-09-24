@@ -5,3 +5,4 @@ unsorted.*
 data/*
 proto/*
 testdir
+pkgs/sdk/vm/_testdata

@@ -630,6 +630,14 @@ func ParseCoin(coinStr string) (coin Coin, err error) {
 	return NewCoin(denomStr, amount), nil
 }
 
+func MustParseCoins(coinsStr string) Coins {
+	coins, err := ParseCoins(coinsStr)
+	if err != nil {
+		panic(err)
+	}
+	return coins
+}
+
 // ParseCoins will parse out a list of coins separated by commas.
 // If nothing is provided, it returns nil Coins.
 // Returned coins are sorted.

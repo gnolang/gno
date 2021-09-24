@@ -25,8 +25,8 @@ func (vh vmHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 	switch msg := msg.(type) {
 	case MsgAddPackage:
 		return vh.handleMsgAddPackage(ctx, msg)
-	case MsgExec:
-		return vh.handleMsgExec(ctx, msg)
+	case MsgEval:
+		return vh.handleMsgEval(ctx, msg)
 	default:
 		errMsg := fmt.Sprintf("unrecognized vm message type: %T", msg)
 		return abciResult(std.ErrUnknownRequest(errMsg))
@@ -54,8 +54,8 @@ func (vh vmHandler) handleMsgAddPackage(ctx sdk.Context, msg MsgAddPackage) sdk.
 	return sdk.Result{}
 }
 
-// Handle MsgExec.
-func (vh vmHandler) handleMsgExec(ctx sdk.Context, msg MsgExec) sdk.Result {
+// Handle MsgEval.
+func (vh vmHandler) handleMsgEval(ctx sdk.Context, msg MsgEval) sdk.Result {
 	// TODO create new machine
 	// TODO with app common store
 	// TODO

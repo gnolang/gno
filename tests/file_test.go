@@ -48,10 +48,10 @@ func runCheck(t *testing.T, path string) {
 	if pkgPath == "" {
 		pkgPath = "main"
 	}
-	realmer := testRealmer(pkgPath) // may be nil.
+	rlm := testRealm(pkgPath) // may be nil.
 	pkgName := defaultPkgName(pkgPath)
 	pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
-	pv := pn.NewPackage(realmer)
+	pv := pn.NewPackage(rlm)
 
 	var output = new(bytes.Buffer)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
@@ -198,19 +198,13 @@ func defaultPkgName(gopkgPath string) gno.Name {
 	return gno.Name(name)
 }
 
-func testRealmer(testPkgPath string) gno.Realmer {
+func testRealm(testPkgPath string) *gno.Realm {
 	if gno.IsRealmPath(testPkgPath) {
 		// Start blank test realm.
 		rlm := gno.NewRealm(testPkgPath)
 		// Store realm ops in rlm.
 		rlm.SetLogRealmOps(true)
-		return gno.Realmer(func(pkgPath string) *gno.Realm {
-			if pkgPath == testPkgPath {
-				return rlm
-			} else {
-				panic("should not happen")
-			}
-		})
+		return rlm
 	} else {
 		// shouldn't need to request a realm.
 		return nil

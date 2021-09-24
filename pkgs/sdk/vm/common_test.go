@@ -17,7 +17,7 @@ import (
 
 type testEnv struct {
 	ctx  sdk.Context
-	vm   VMKeeper
+	vmk  VMKeeper
 	bank bankm.BankKeeper
 	acck authm.AccountKeeper
 }
@@ -34,7 +34,7 @@ func setupTestEnv() testEnv {
 	ctx := sdk.NewContext(ms, &bft.Header{ChainID: "test-chain-id"}, false, log.NewNopLogger())
 	acck := authm.NewAccountKeeper(authCapKey, std.ProtoBaseAccount)
 	bank := bankm.NewBankKeeper(acck)
-	vm := NewVMKeeper(authCapKey, acck, bank)
+	vmk := NewVMKeeper(authCapKey, acck, bank)
 
-	return testEnv{ctx: ctx, vm: vm, bank: bank, acck: acck}
+	return testEnv{ctx: ctx, vmk: vmk, bank: bank, acck: acck}
 }
