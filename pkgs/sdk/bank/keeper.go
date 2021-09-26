@@ -130,9 +130,10 @@ func (bank BankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt s
 
 	newCoins := oldCoins.SubUnsafe(amt)
 	if !newCoins.IsValid() {
-		return nil, std.ErrInsufficientCoins(
+		err := std.ErrInsufficientCoins(
 			fmt.Sprintf("insufficient account funds; %s < %s", oldCoins, amt),
 		)
+		return nil, err
 	}
 	err := bank.SetCoins(ctx, addr, newCoins)
 

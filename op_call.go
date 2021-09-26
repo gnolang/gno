@@ -34,7 +34,7 @@ func (m *Machine) doOpPrecall() {
 				panic("conversion expressions only take 1 argument")
 			}
 		}
-	case *nativeValue:
+	case *NativeValue:
 		m.PopValue()
 		m.PushFrameGoNative(cx, fv)
 		m.PushOp(OpCallGoNative)
@@ -338,11 +338,11 @@ func (m *Machine) doOpDefer() {
 	// Pop func
 	ftv := m.PopValue()
 	// Push defer.
-	// NOTE: we let type be FuncValue and value nativeValue,
+	// NOTE: we let type be FuncValue and value NativeValue,
 	// because native funcs can't be converted to gno anyways.
 	switch cv := ftv.V.(type) {
 	case *FuncValue:
-		// TODO what if value is nativeValue?
+		// TODO what if value is NativeValue?
 		fr.PushDefer(Defer{
 			Func:   cv,
 			Args:   args,
@@ -367,7 +367,7 @@ func (m *Machine) doOpDefer() {
 			Args:   args2,
 			Source: ds,
 		})
-	case *nativeValue:
+	case *NativeValue:
 		fr.PushDefer(Defer{
 			GoFunc: cv,
 			Args:   args,

@@ -1147,7 +1147,7 @@ func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 							panic("should not happen")
 						}
 						fv.Closure = fb
-					case *nativeValue:
+					case *NativeValue:
 						// do nothing for go native functions.
 					default:
 						panic("should not happen")
@@ -1185,6 +1185,29 @@ func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 		// nothing to do
 		return nil
 	}
+}
+
+// DefineNativeFunc defines a native function. This is not the
+// same as DefineGoNativeFunc, which DOES NOT give access to
+// the running machine.
+func (pn *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*Machine)) {
+	if debug {
+		debug.Printf("*PackageNode.DefineNative(%s,...)\n", n)
+	}
+	if native == nil {
+		panic("DefineNative expects a function, but got nil")
+	}
+	fd := FuncD(n, ps, rs, nil)
+	fd = Preprocess(nil, pn, fd).(*FuncDecl)
+	ft := evalStaticType(nil, pn, &fd.Type).(*FuncType)
+	if debug {
+		if ft == nil {
+			panic("should not happen")
+		}
+	}
+	fv := pn.GetValueRef(nil, n).V.(*FuncValue)
+	fv.nativeBody = native
+	// fv.Closure, fv.pkg set during .NewPackage().
 }
 
 //----------------------------------------

@@ -469,7 +469,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						fillNameExprPath(last, n)
 						cv := evalConst(store, last, n)
 						return cv, TRANS_CONTINUE
-					case *nativeType:
+					case *NativeType:
 						switch bt.Type.Kind() {
 						case reflect.Struct:
 							// NOTE: For simplicity and some degree of
@@ -563,7 +563,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						return cv, TRANS_CONTINUE
 					} else if isUntyped(lcx.T) {
 						// Left untyped const, Right not ----------------
-						if rnt, ok := rt.(*nativeType); ok {
+						if rnt, ok := rt.(*NativeType); ok {
 							if isShift {
 								panic("should not happen")
 							}
@@ -609,7 +609,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								// leave n.Left as is and baseOf(n.Right) as UintType.
 							}
 						} else {
-							if lnt, ok := lt.(*nativeType); ok {
+							if lnt, ok := lt.(*NativeType); ok {
 								// get concrete native base type.
 								pt := go2GnoBaseType(lnt.Type).(PrimitiveType)
 								// convert n.Left to (gno) pt type,
@@ -642,7 +642,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// Left not const, Right not const ------------------
 					if n.Op == EQL || n.Op == NEQ {
 						// If == or !=, no conversions.
-					} else if lnt, ok := lt.(*nativeType); ok {
+					} else if lnt, ok := lt.(*NativeType); ok {
 						if debug {
 							if !isShift {
 								assertSameTypes(lt, rt)
@@ -693,7 +693,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				switch cft := baseOf(ift).(type) {
 				case *FuncType:
 					ft = cft
-				case *nativeType:
+				case *NativeType:
 					ft = go2GnoFuncType(cft.Type)
 				case *TypeType:
 					if len(n.Args) != 1 {
@@ -858,7 +858,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *UnaryExpr:
 				xt := evalStaticTypeOf(store, last, n.X)
-				if xnt, ok := xt.(*nativeType); ok {
+				if xnt, ok := xt.(*NativeType); ok {
 					// get concrete native base type.
 					pt := go2GnoBaseType(xnt.Type).(PrimitiveType)
 					// convert n.X to gno type,
@@ -918,7 +918,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						checkOrConvertType(store, last, n.Elts[i].Key, cclt.Key)
 						checkOrConvertType(store, last, n.Elts[i].Value, cclt.Value)
 					}
-				case *nativeType:
+				case *NativeType:
 					clt = cclt.GnoType()
 					goto CLT_TYPE_SWITCH
 				default:
@@ -1062,7 +1062,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							"unexpected selector expression type value %s",
 							xt.String()))
 					}
-				case *nativeType:
+				case *NativeType:
 					// NOTE: if type of n.X is native type, as in a native
 					// interface method, n.Path may be VPNative but at
 					// runtime, the value's type may be *gno.PointerType.
@@ -1590,7 +1590,7 @@ func getType(x Expr) Type {
 
 // If t is a native type, returns the gno type.
 func gnoTypeOf(t Type) Type {
-	if nt, ok := t.(*nativeType); ok {
+	if nt, ok := t.(*NativeType); ok {
 		return nt.GnoType()
 	} else {
 		return t
@@ -1879,12 +1879,12 @@ func checkType(xt Type, dt Type) {
 					xt.String(),
 					dt.String()))
 			}
-		} else if ndt, ok := baseOf(dt).(*nativeType); ok {
+		} else if ndt, ok := baseOf(dt).(*NativeType); ok {
 			nidt := ndt.Type
 			if nidt.NumMethod() == 0 {
 				// if dt is an empty Go native interface, ditto.
 				return // ok
-			} else if nxt, ok := baseOf(xt).(*nativeType); ok {
+			} else if nxt, ok := baseOf(xt).(*NativeType); ok {
 				// if xt has native base, do the naive native.
 				if nxt.Type.AssignableTo(nidt) {
 					return // ok
@@ -1895,7 +1895,7 @@ func checkType(xt Type, dt Type) {
 						nidt.String()))
 				}
 			} else if pxt, ok := baseOf(xt).(*PointerType); ok {
-				nxt, ok := pxt.Elt.(*nativeType)
+				nxt, ok := pxt.Elt.(*NativeType)
 				if !ok {
 					panic(fmt.Sprintf(
 						"pointer to non-native type cannot satisfy non-empty native interface; %s doesn't implmeent %s",
@@ -1921,24 +1921,24 @@ func checkType(xt Type, dt Type) {
 			panic("should not happen")
 		}
 	}
-	// Special case if xt or dt is *nativeType,
+	// Special case if xt or dt is *NativeType,
 	// check with converted Gno type, and base of the other.
-	if nxt, ok := xt.(*nativeType); ok {
+	if nxt, ok := xt.(*NativeType); ok {
 		xt = go2GnoType2(nxt.Type)
 		dt = baseOf(dt)
 	} else if pxt, ok := xt.(*PointerType); ok {
 		// *gonative{x} is gonative{*x}
-		if enxt, ok := pxt.Elt.(*nativeType); ok {
+		if enxt, ok := pxt.Elt.(*NativeType); ok {
 			xt = &PointerType{Elt: go2GnoType2(enxt.Type)}
 			dt = baseOf(dt)
 		}
 	}
-	if nt, ok := dt.(*nativeType); ok {
+	if nt, ok := dt.(*NativeType); ok {
 		xt = baseOf(xt)
 		dt = go2GnoType2(nt.Type)
 	} else if pt, ok := dt.(*PointerType); ok {
 		// *gonative{x} is gonative{*x}
-		if ent, ok := pt.Elt.(*nativeType); ok {
+		if ent, ok := pt.Elt.(*NativeType); ok {
 			xt = baseOf(xt)
 			dt = &PointerType{Elt: go2GnoType2(ent.Type)}
 		}
@@ -2324,7 +2324,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 		if un != "" {
 			// check circularity.
 			if _, ok := m[un]; ok {
-				panic("constant definition loop")
+				panic(fmt.Sprintf("constant definition loop with %s", un))
 			}
 			// look up dependency declaration from fileset.
 			file, decl := pkg.FileSet.GetDeclFor(un)
@@ -2716,7 +2716,7 @@ func elideCompositeElements(clx *CompositeLitExpr, clt Type) {
 				}
 			}
 		}
-	case *nativeType:
+	case *NativeType:
 		// TODO: support eliding.
 		for _, kvx := range clx.Elts {
 			vx := kvx.Value

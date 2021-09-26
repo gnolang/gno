@@ -25,18 +25,31 @@ func TestVMKeeper(t *testing.T) {
 		{"init.go", `
 package test
 
+import "std"
+
 func init() {
 }
 
 func Echo(msg string) string {
-	return "echo:"+msg
+	ctx := std.GetContext()
+	addr := ctx.Msg.Caller
+	send := ctx.Msg.Send
+	err := std.Send(addr, send)
+	if err != nil {
+		return "error:"+err.Error()
+	} else {
+		return "echo:"+msg
+	}
 }`},
 	}
 	pkgPath := "gno.land/r/test"
 	err := env.vmk.AddPackage(ctx, addr, pkgPath, files)
 
 	// Run Echo function.
-	res, err := env.vmk.Eval(ctx, addr, pkgPath, `Echo("hello world")`)
+	msg := NewMsgEval(addr, pkgPath,
+		`Echo("hello world")`,
+		std.MustParseCoins("10gnot"))
+	res, err := env.vmk.Eval(ctx, msg)
 	assert.NoError(t, err)
 	assert.Equal(t, res, `("echo:hello world" string)`)
 	t.Log("result:", res)

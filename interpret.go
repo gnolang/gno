@@ -33,6 +33,7 @@ type Machine struct {
 	CheckTypes bool
 	Output     io.Writer
 	Store      Store
+	Context    interface{}
 }
 
 // Machine with new package of given path.
@@ -57,6 +58,7 @@ type MachineOptions struct {
 	CheckTypes bool
 	Output     io.Writer
 	Store      Store
+	Context    interface{}
 }
 
 func NewMachineWithOptions(opts MachineOptions) *Machine {
@@ -78,6 +80,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	blocks := []*Block{
 		&pkg.Block,
 	}
+	context := opts.Context
 	return &Machine{
 		Ops:        make([]Op, 1024),
 		NumOps:     0,
@@ -89,6 +92,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		CheckTypes: checkTypes,
 		Output:     output,
 		Store:      store,
+		Context:    context,
 	}
 }
 
@@ -1025,7 +1029,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 	}
 }
 
-func (m *Machine) PushFrameGoNative(cx *CallExpr, fv *nativeValue) {
+func (m *Machine) PushFrameGoNative(cx *CallExpr, fv *NativeValue) {
 	fr := Frame{
 		Source:      cx,
 		NumOps:      m.NumOps,

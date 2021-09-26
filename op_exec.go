@@ -835,7 +835,7 @@ func (m *Machine) doOpTypeSwitch() {
 					}
 				} else if ct.Kind() == InterfaceKind {
 					var gnot Type
-					if not, ok := ct.(*nativeType); ok {
+					if not, ok := ct.(*NativeType); ok {
 						gnot = not.GnoType()
 					} else {
 						gnot = ct

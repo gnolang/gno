@@ -136,13 +136,13 @@ func (m *Machine) doOpStar() {
 	case *TypeType:
 		t := xv.GetType()
 		var pt Type
-		if nt, ok := t.(*nativeType); ok {
-			pt = &nativeType{Type: reflect.PtrTo(nt.Type)}
+		if nt, ok := t.(*NativeType); ok {
+			pt = &NativeType{Type: reflect.PtrTo(nt.Type)}
 		} else {
 			pt = &PointerType{Elt: t}
 		}
 		m.PushValue(asValue(pt))
-	case *nativeType:
+	case *NativeType:
 		panic("not yet implemented")
 	default:
 		panic(fmt.Sprintf(
@@ -155,10 +155,10 @@ func (m *Machine) doOpStar() {
 func (m *Machine) doOpRef() {
 	rx := m.PopExpr().(*RefExpr)
 	xv := m.PopAsPointer(rx.X)
-	if nv, ok := xv.TV.V.(*nativeValue); ok {
+	if nv, ok := xv.TV.V.(*NativeValue); ok {
 		// If a native pointer, ensure it is addressable.  This
-		// way, PointerValue{*nativeValue{rv}} can be converted
-		// to/from *nativeValue{rv.Addr()}.
+		// way, PointerValue{*NativeValue{rv}} can be converted
+		// to/from *NativeValue{rv.Addr()}.
 		if !nv.Value.CanAddr() {
 			rv := nv.Value
 			rt := rv.Type()
@@ -210,11 +210,11 @@ func (m *Machine) doOpTypeAssert1() {
 			// NOTE: consider ability to push an
 			// interface-restricted form
 			// *xv = *xv
-		} else if nt, ok := baseOf(t).(*nativeType); ok {
+		} else if nt, ok := baseOf(t).(*NativeType); ok {
 			// t is Go interface.
 			// assert that x implements type.
 			impl := false
-			if nxt, ok := xt.(*nativeType); ok {
+			if nxt, ok := xt.(*NativeType); ok {
 				impl = nxt.Type.Implements(nt.Type)
 			} else {
 				impl = false
@@ -285,11 +285,11 @@ func (m *Machine) doOpTypeAssert2() {
 				*xv = TypedValue{}
 				*tv = untypedBool(false)
 			}
-		} else if nt, ok := baseOf(t).(*nativeType); ok {
+		} else if nt, ok := baseOf(t).(*NativeType); ok {
 			// t is Go interface.
 			// assert that x implements type.
 			impl := false
-			if nxt, ok := xt.(*nativeType); ok {
+			if nxt, ok := xt.(*NativeType); ok {
 				impl = nxt.Type.Implements(nt.Type)
 			} else {
 				impl = false
@@ -364,7 +364,7 @@ func (m *Machine) doOpCompositeLit() {
 			m.PushExpr(x.Elts[i].Value)
 			m.PushOp(OpEval)
 		}
-	case *nativeType:
+	case *NativeType:
 		switch bt.Type.Kind() {
 		case reflect.Array:
 			m.PushOp(OpArrayLitGoNative)

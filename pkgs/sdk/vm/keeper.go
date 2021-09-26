@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path"
 	"path/filepath"
+	"reflect"
 
 	"github.com/gnolang/gno"
 	"github.com/gnolang/gno/pkgs/crypto"
@@ -19,7 +20,7 @@ import (
 // smart contracts programming (scripting).
 type VMKeeperI interface {
 	AddPackage(ctx sdk.Context, creator crypto.Address, pkgPath string, files []NamedFile) error
-	Eval(ctx sdk.Context, caller crypto.Address, pkgPath string, expr string) (string, error)
+	Eval(ctx sdk.Context, msg MsgEval) (string, error)
 }
 
 var _ VMKeeperI = VMKeeper{}
@@ -40,12 +41,81 @@ type VMKeeper struct {
 func NewVMKeeper(key store.StoreKey, acck auth.AccountKeeper, bank bank.BankKeeper) VMKeeper {
 	fs := dbm.NewFSDB("_testdata")  // XXX hack
 	store := gno.NewCacheStore(nil) // XXX hack
-	return VMKeeper{
+
+	vmk := VMKeeper{
 		key:   key,
 		acck:  acck,
 		bank:  bank,
 		fs:    fs,
 		store: store,
+	}
+	// initialize built-in packages.
+	vmk.initBuiltinPackages(store)
+	return vmk
+}
+
+func (vmk VMKeeper) initBuiltinPackages(store gno.Store) {
+	{ // std
+		pkg := gno.NewPackageNode("std", "std", nil)
+		pkg.DefineGoNativeType(
+			reflect.TypeOf((*std.Coin)(nil)).Elem())
+		pkg.DefineGoNativeType(
+			reflect.TypeOf((*std.Coins)(nil)).Elem())
+		pkg.DefineGoNativeType(
+			reflect.TypeOf((*crypto.Address)(nil)).Elem())
+		pkg.DefineGoNativeType(
+			reflect.TypeOf((*crypto.PubKey)(nil)).Elem())
+		pkg.DefineGoNativeType(
+			reflect.TypeOf((*crypto.PrivKey)(nil)).Elem())
+		pkg.DefineGoNativeType(
+			reflect.TypeOf((*std.Msg)(nil)).Elem())
+		pkg.DefineGoNativeType(
+			reflect.TypeOf((*EvalContext)(nil)).Elem())
+		pkg.DefineNative("Send",
+			gno.Flds( // params
+				"toAddr", "Address",
+				"coins", "Coins",
+			),
+			gno.Flds( // results
+				"err", "error",
+			),
+			func(m *gno.Machine) {
+				arg0, arg1 := m.LastBlock().GetParams2()
+				toAddr := arg0.TV.V.(*gno.NativeValue).Value.Interface().(crypto.Address)
+				send := arg1.TV.V.(*gno.NativeValue).Value.Interface().(std.Coins)
+				//toAddr := arg0.TV.V.
+				ctx := m.Context.(EvalContext)
+				err := vmk.bank.SendCoins(
+					ctx.sdkCtx,
+					ctx.RealmAddr,
+					toAddr,
+					send,
+				)
+				if err != nil {
+					res0 := gno.Go2GnoValue(
+						reflect.ValueOf(err),
+					)
+					m.PushValue(res0)
+				} else {
+					m.PushValue(gno.TypedValue{})
+				}
+			},
+		)
+		pkg.DefineNative("GetContext",
+			gno.Flds( // params
+			),
+			gno.Flds( // results
+				"ctx", "EvalContext",
+			),
+			func(m *gno.Machine) {
+				ctx := m.Context.(EvalContext)
+				res0 := gno.Go2GnoValue(
+					reflect.ValueOf(ctx),
+				)
+				m.PushValue(res0)
+			},
+		)
+		store.SetPackage(pkg.NewPackage(nil))
 	}
 }
 
@@ -112,7 +182,9 @@ func (vm VMKeeper) AddPackage(ctx sdk.Context, creator crypto.Address, pkgPath s
 }
 
 // Eval evaluates gno expression.
-func (vm VMKeeper) Eval(ctx sdk.Context, caller crypto.Address, pkgPath string, expr string) (res string, err error) {
+func (vm VMKeeper) Eval(ctx sdk.Context, msg MsgEval) (res string, err error) {
+	pkgPath := msg.PkgPath
+	expr := msg.Expr
 	// Get Package.
 	pv := vm.store.GetPackage(pkgPath)
 	if pv == nil {
@@ -124,20 +196,42 @@ func (vm VMKeeper) Eval(ctx sdk.Context, caller crypto.Address, pkgPath string, 
 	if err != nil {
 		return "", err
 	}
+	// Send send-coins to realm from caller.
+	realmAddr := RealmAddress(pkgPath)
+	caller := msg.Caller
+	send := msg.Send
+	err = vm.bank.SendCoins(ctx, caller, realmAddr, send)
+	if err != nil {
+		return "", err
+	}
+
+	msgCtx := EvalContext{
+		ChainID:   ctx.ChainID(),
+		Height:    ctx.BlockHeight(),
+		Msg:       msg,
+		RealmAddr: realmAddr,
+		sdkCtx:    ctx,
+	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			Package: pv,
 			Output:  nil,
 			Store:   vm.store,
+			Context: msgCtx,
 		})
 	rtv := m.Eval(xx)
 	res = rtv.String()
 	return res, nil
 	// TODO pay for gas? TODO see context?
-	/*
-		_, err := vm.SubtractCoins(ctx, caller, amt)
-		if err != nil {
-			return err
-		}
-	*/
+}
+
+//----------------------------------------
+
+// For keeping record of realm coins.
+func RealmAddress(pkgPath string) crypto.Address {
+	if !gno.IsRealmPath(pkgPath) {
+		panic("should not happen; expected realm path, got " + pkgPath)
+	}
+	// NOTE: must not collide with pubkey addrs.
+	return crypto.AddressFromPreimage([]byte("pkgPath:" + pkgPath))
 }

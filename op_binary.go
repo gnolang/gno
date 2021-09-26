@@ -342,13 +342,13 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 	} else if rvu {
 		return false
 	}
-	if lnt, ok := lv.T.(*nativeType); ok {
-		if rnt, ok := rv.T.(*nativeType); ok {
+	if lnt, ok := lv.T.(*NativeType); ok {
+		if rnt, ok := rv.T.(*NativeType); ok {
 			if lnt.Type != rnt.Type {
 				return false
 			}
-			lrv := lv.V.(*nativeValue).Value.Interface()
-			rrv := rv.V.(*nativeValue).Value.Interface()
+			lrv := lv.V.(*NativeValue).Value.Interface()
+			rrv := rv.V.(*NativeValue).Value.Interface()
 			return lrv == rrv
 		} else {
 			return false

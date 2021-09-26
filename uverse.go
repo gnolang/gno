@@ -28,41 +28,11 @@ func UverseNode() *PackageNode {
 	// NOTE: uverse node is hidden, thus the leading dot in pkgPath=".uverse".
 	uverseNode = NewPackageNode("uverse", uversePkgPath, nil)
 
-	// temporary convenience function.
+	// temporary convenience functions.
 	def := func(n Name, tv TypedValue) {
 		uverseNode.Define(n, tv)
 	}
-
-	// temporary convenience function; type is filled later by caller.
-	defNative := func(n Name, ps, rs FieldTypeExprs, native func(*Machine)) {
-		fd := FuncD(n, ps, rs, nil)
-		// Preprocess sets v.Source.Name on .Source.StaticBlock.
-		fd = Preprocess(nil, uverseNode, fd).(*FuncDecl)
-		ft := evalStaticType(nil, uverseNode, &fd.Type).(*FuncType)
-		if debug {
-			if ft == nil {
-				panic("should not happen")
-			}
-		}
-		/*
-			tv := TypedValue{
-				T: ft,
-				V: &FuncValue{
-					Type:       ft,
-					SourceLoc:  fd.GetLocation(),
-					Source:     fd,
-					Name:       n,
-					NativeBody: native,
-				},
-			}
-		*/
-		// Set the native override function,
-		// which doesn't get interpeted as it
-		// doesn't exist in the declaration node.
-		fv := uverseNode.GetValueRef(nil, n).V.(*FuncValue)
-		fv.nativeBody = native
-		// fv.Closure, fv.pkg set during .NewPackage().
-	}
+	defNative := uverseNode.DefineNative
 
 	// Primitive types
 	undefined := TypedValue{}
@@ -198,8 +168,8 @@ func UverseNode() *PackageNode {
 					}
 
 				//------------------------------------------------------------
-				// append(nil, *nativeValue)
-				case *nativeValue:
+				// append(nil, *NativeValue)
+				case *NativeValue:
 					argsrv := args.Value
 					argsl := argsrv.Len()
 					if argsl == 0 { // no change
@@ -208,7 +178,7 @@ func UverseNode() *PackageNode {
 							V: nil,
 						})
 					} else if xt.Kind() == Uint8Kind {
-						// append(nil, *nativeValue) new data bytes --
+						// append(nil, *NativeValue) new data bytes --
 						data := make([]byte, argsl)
 						copyNativeToData(
 							data[:argsl],
@@ -218,7 +188,7 @@ func UverseNode() *PackageNode {
 							V: newSliceFromData(data),
 						})
 					} else {
-						// append(nil, *nativeValue) new list --------
+						// append(nil, *NativeValue) new list --------
 						list := make([]TypedValue, argsl)
 						if 0 < argsl {
 							copyNativeToList(
@@ -353,21 +323,21 @@ func UverseNode() *PackageNode {
 					}
 
 				//------------------------------------------------------------
-				// append(*SliceValue, *nativeValue)
-				case *nativeValue:
+				// append(*SliceValue, *NativeValue)
+				case *NativeValue:
 					argsrv := args.Value
 					argsl := argsrv.Len()
 					if xvl+argsl <= xvc {
-						// append(*SliceValue, *nativeValue) w/i capacity ----
+						// append(*SliceValue, *NativeValue) w/i capacity ----
 						if 0 < argsl { // implies 0 < xvc
 							if xvb.Data == nil {
-								// append(*SliceValue.List, *nativeValue) --------
+								// append(*SliceValue.List, *NativeValue) --------
 								list := xvb.List
 								copyNativeToList(
 									list[xvo:xvo+argsl],
 									argsrv, argsl)
 							} else {
-								// append(*SliceValue.Data, *nativeValue) --------
+								// append(*SliceValue.Data, *NativeValue) --------
 								data := xvb.Data
 								copyNativeToData(
 									data[xvo:xvo+argsl],
@@ -389,7 +359,7 @@ func UverseNode() *PackageNode {
 							})
 						}
 					} else if xt.Kind() == Uint8Kind {
-						// append(*SliceValue, *nativeValue) new data bytes --
+						// append(*SliceValue, *NativeValue) new data bytes --
 						data := make([]byte, xvl+argsl)
 						if 0 < xvl {
 							if xvb.Data == nil {
@@ -412,7 +382,7 @@ func UverseNode() *PackageNode {
 							V: newSliceFromData(data),
 						})
 					} else {
-						// append(*SliceValue, *nativeValue) new list --------
+						// append(*SliceValue, *NativeValue) new list --------
 						list := make([]TypedValue, xvl+argsl)
 						if 0 < xvl {
 							copy(
@@ -437,13 +407,13 @@ func UverseNode() *PackageNode {
 				}
 
 			//----------------------------------------------------------------
-			// append(*nativeValue, ???)
-			case *nativeValue:
+			// append(*NativeValue, ???)
+			case *NativeValue:
 				sv := xv.Value
 				switch args := arg1.TV.V.(type) {
 
 				//------------------------------------------------------------
-				// append(*nativeValue, nil)
+				// append(*NativeValue, nil)
 				case nil: // no change
 					m.PushValue(TypedValue{
 						T: xt,
@@ -451,7 +421,7 @@ func UverseNode() *PackageNode {
 					})
 
 				//------------------------------------------------------------
-				// append(*nativeValue, *SliceValue)
+				// append(*NativeValue, *SliceValue)
 				case *SliceValue:
 					st := sv.Type()
 					argso := args.Offset
@@ -477,7 +447,7 @@ func UverseNode() *PackageNode {
 						resrv := reflect.AppendSlice(sv, argsrv)
 						m.PushValue(TypedValue{
 							T: xt,
-							V: &nativeValue{Value: resrv},
+							V: &NativeValue{Value: resrv},
 						})
 					} else { // no change
 						m.PushValue(TypedValue{
@@ -487,17 +457,17 @@ func UverseNode() *PackageNode {
 					}
 
 				//------------------------------------------------------------
-				// append(*nativeValue, *nativeValue)
-				case *nativeValue:
+				// append(*NativeValue, *NativeValue)
+				case *NativeValue:
 					argsrv := args.Value
 					resrv := reflect.AppendSlice(sv, argsrv)
 					m.PushValue(TypedValue{
 						T: xt,
-						V: &nativeValue{Value: resrv},
+						V: &NativeValue{Value: resrv},
 					})
 
 				//------------------------------------------------------------
-				// append(*nativeValue, StringValue)
+				// append(*NativeValue, StringValue)
 				case StringValue:
 					if xt.Elem().Kind() == Uint8Kind {
 						// TODO this might be faster if reflect supports
@@ -506,7 +476,7 @@ func UverseNode() *PackageNode {
 						resrv := reflect.AppendSlice(sv, argrv)
 						m.PushValue(TypedValue{
 							T: xt,
-							V: &nativeValue{Value: resrv},
+							V: &NativeValue{Value: resrv},
 						})
 					} else {
 						panic(fmt.Sprintf(
@@ -515,7 +485,7 @@ func UverseNode() *PackageNode {
 					}
 
 				//------------------------------------------------------------
-				// append(*nativeValue, ???)
+				// append(*NativeValue, ???)
 				default:
 					panic(fmt.Sprintf(
 						"cannot append %s to %s",
@@ -617,9 +587,9 @@ func UverseNode() *PackageNode {
 			case *MapType:
 				mv := arg0.TV.V.(*MapValue)
 				mv.DeleteForKey(m.Store, &itv)
-			case *nativeType:
+			case *NativeType:
 				krv := gno2GoValue(&itv, reflect.Value{})
-				mrv := arg0.TV.V.(*nativeValue).Value
+				mrv := arg0.TV.V.(*NativeValue).Value
 				mrv.SetMapIndex(krv, reflect.Value{})
 			default:
 				panic(fmt.Sprintf(
@@ -736,13 +706,13 @@ func UverseNode() *PackageNode {
 				} else {
 					panic("make() of chan type takes 1 or 2 arguments")
 				}
-			case *nativeType:
+			case *NativeType:
 				switch bt.Type.Kind() {
 				case reflect.Map:
 					if vargsl == 0 {
 						m.PushValue(TypedValue{
 							T: tt,
-							V: &nativeValue{
+							V: &NativeValue{
 								Value: reflect.MakeMap(bt.Type),
 							},
 						})
@@ -752,7 +722,7 @@ func UverseNode() *PackageNode {
 						si := sv.ConvertGetInt()
 						m.PushValue(TypedValue{
 							T: tt,
-							V: &nativeValue{
+							V: &NativeValue{
 								Value: reflect.MakeMapWithSize(
 									bt.Type, si),
 							},
@@ -957,9 +927,9 @@ func sprintString(tv *TypedValue) string {
 	case *ChanType:
 		panic("not yet implemented")
 		//return tv.V.(*ChanValue).String()
-	case *nativeType:
+	case *NativeType:
 		return fmt.Sprintf("%v",
-			tv.V.(*nativeValue).Value.Interface())
+			tv.V.(*NativeValue).Value.Interface())
 	default:
 		if debug {
 			panic(fmt.Sprintf(

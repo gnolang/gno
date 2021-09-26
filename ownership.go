@@ -342,7 +342,7 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 		return cv
 	case *BoundMethodValue:
 		return cv
-	case nativeValue:
+	case NativeValue:
 		panic("realm logic for native values not supported")
 	case *Block:
 		return cv
@@ -361,7 +361,7 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 
 type ExtendedObject struct {
 	BaseMap    *MapValue    // if base is gno map
-	BaseNative *nativeValue // if base is native array/slice/struct/map.
+	BaseNative *NativeValue // if base is native array/slice/struct/map.
 	Index      TypedValue   // integer index or arbitrary map key
 	Path       ValuePath    // value path for (native) selectors
 }

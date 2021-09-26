@@ -454,6 +454,7 @@ func (coins Coins) IsEqual(coinsB Coins) bool {
 		return false
 	}
 
+	// XXX instead, consider IsValid() on both and panic if not.
 	coins = coins.Sort()
 	coinsB = coinsB.Sort()
 

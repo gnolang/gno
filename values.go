@@ -34,7 +34,7 @@ func (*MapValue) assertValue()         {}
 func (*BoundMethodValue) assertValue() {}
 func (TypeValue) assertValue()         {}
 func (*PackageValue) assertValue()     {}
-func (nativeValue) assertValue()       {}
+func (NativeValue) assertValue()       {}
 func (*Block) assertValue()            {}
 func (RefValue) assertValue()          {}
 
@@ -50,7 +50,7 @@ var _ Value = &MapValue{}
 var _ Value = &BoundMethodValue{}
 var _ Value = TypeValue{}
 var _ Value = &PackageValue{}
-var _ Value = nativeValue{}
+var _ Value = NativeValue{}
 var _ Value = &Block{}
 var _ Value = RefValue{}
 
@@ -152,10 +152,10 @@ func (pv PointerValue) Deref() (tv TypedValue) {
 		tv.T = dbv.ElemType
 		tv.SetUint8(dbv.GetByte())
 		return
-	} else if nv, ok := pv.TV.V.(*nativeValue); ok {
+	} else if nv, ok := pv.TV.V.(*NativeValue); ok {
 		rv := nv.Value
-		tv.T = &nativeType{Type: rv.Type()}
-		tv.V = &nativeValue{Value: rv}
+		tv.T = &NativeType{Type: rv.Type()}
+		tv.V = &NativeValue{Value: rv}
 		return
 	} else {
 		tv = *pv.TV
@@ -640,24 +640,24 @@ func (pv *PackageValue) SetRealm(rlm *Realm) {
 	}
 }
 
-type nativeValue struct {
+type NativeValue struct {
 	Value reflect.Value `json:"-"`
 	Bytes []byte
 }
 
-func (nv nativeValue) Copy() nativeValue {
+func (nv NativeValue) Copy() NativeValue {
 	nt := nv.Value.Type()
 	nv2 := reflect.New(nt).Elem()
 	nv2.Set(nv.Value)
-	return nativeValue{Value: nv2}
+	return NativeValue{Value: nv2}
 }
 
-func (nv nativeValue) ToAminoRepr() nativeValue {
+func (nv NativeValue) ToAminoRepr() NativeValue {
 	oo := nv.Value.Interface()
 	bz := amino.MustMarshal(oo)
 	// NOTE: type information is not included here,
-	// that gets serialized separately w/ *nativeType.
-	return nativeValue{
+	// that gets serialized separately w/ *NativeType.
+	return NativeValue{
 		Bytes: bz,
 	}
 }
@@ -792,7 +792,7 @@ func (tv TypedValue) Copy() (cp TypedValue) {
 	case *StructValue:
 		cp.T = tv.T
 		cp.V = cv.Copy()
-	case nativeValue:
+	case NativeValue:
 		cp.T = tv.T
 		cp.V = cv.Copy()
 	default:
@@ -1234,7 +1234,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		bz = append(bz, []byte(strconv.Quote(pv.PkgPath))...)
 	case *ChanType:
 		panic("not yet implemented")
-	case *nativeType:
+	case *NativeType:
 		panic("not yet implemented")
 	default:
 		panic(fmt.Sprintf(
@@ -1268,17 +1268,17 @@ func (tv *TypedValue) Assign(tv2 TypedValue, cu bool) {
 				ConvertUntypedTo(tv, defaultTypeOf(tv.T))
 			}
 		}
-	case *nativeType:
+	case *NativeType:
 		// XXX what about assigning
 		// primitive/string/other-gno types to say, native
 		// slices, arrays, structs, maps?
 		switch v2 := tv2.V.(type) {
 		case PointerValue:
-			nv1 := tv.V.(*nativeValue)
+			nv1 := tv.V.(*NativeValue)
 			if ct.Type.Kind() != reflect.Ptr {
 				panic("should not happen")
 			}
-			if nv2, ok := v2.TV.V.(*nativeValue); ok {
+			if nv2, ok := v2.TV.V.(*NativeValue); ok {
 				nrv2 := nv2.Value
 				if nrv2.CanAddr() {
 					it := nrv2.Addr()
@@ -1291,7 +1291,7 @@ func (tv *TypedValue) Assign(tv2 TypedValue, cu bool) {
 				// XXX think more
 				panic("not yet implemented")
 			}
-		case *nativeValue:
+		case *NativeValue:
 			if tv.V == nil {
 				// tv.V is a native function type.
 				// there is no default value, so just assign
@@ -1301,7 +1301,7 @@ func (tv *TypedValue) Assign(tv2 TypedValue, cu bool) {
 						if tv2.T.Kind() != FuncKind {
 							panic("should not happen")
 						}
-						if nv, ok := tv2.V.(*nativeValue); !ok ||
+						if nv, ok := tv2.V.(*NativeValue); !ok ||
 							nv.Value.Kind() != reflect.Func {
 							panic("should not happen")
 						}
@@ -1309,11 +1309,11 @@ func (tv *TypedValue) Assign(tv2 TypedValue, cu bool) {
 					tv.V = v2
 				} else {
 					tv.V = defaultValue(tv.T)
-					nv1 := tv.V.(*nativeValue)
+					nv1 := tv.V.(*NativeValue)
 					nv1.Value.Set(v2.Value)
 				}
 			} else {
-				nv1 := tv.V.(*nativeValue)
+				nv1 := tv.V.(*NativeValue)
 				nv1.Value.Set(v2.Value)
 			}
 		case nil:
@@ -1481,7 +1481,7 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 					TV:   t.GetValueRefAt(path),
 					Base: nil, // TODO: make TypeValue an object.
 				}
-			case *nativeType:
+			case *NativeType:
 				rt := t.Type
 				mt, ok := rt.MethodByName(string(path.Name))
 				if !ok {
@@ -1582,15 +1582,15 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 		}
 		panic("should not happen")
 	case VPNative:
-		var nv *nativeValue
+		var nv *NativeValue
 		// Special case if tv.T.(PointerType):
 		// we may need to treat this as a native pointer
 		// to get the correct pointer-receiver value.
 		if _, ok := dtv.T.(*PointerType); ok {
 			pv := dtv.V.(PointerValue)
-			nv = pv.TV.V.(*nativeValue)
+			nv = pv.TV.V.(*NativeValue)
 		} else {
-			nv = dtv.V.(*nativeValue)
+			nv = dtv.V.(*NativeValue)
 		}
 		var rv = nv.Value
 		rt := rv.Type()
@@ -1620,8 +1620,8 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 			mt := mv.Type()
 			return PointerValue{
 				TV: &TypedValue{ // heap alloc
-					T: &nativeType{Type: mt},
-					V: &nativeValue{Value: mv},
+					T: &NativeType{Type: mt},
+					V: &NativeValue{Value: mv},
 				},
 				Base: ExtendedObject{
 					BaseNative: nv,
@@ -1636,15 +1636,15 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 				rv2 := reflect.New(rt).Elem()
 				rv2.Set(rv)
 				rv = rv2
-				tv.V.(*nativeValue).Value = rv2 // replace rv
+				tv.V.(*NativeValue).Value = rv2 // replace rv
 			}
 			mv := rv.Addr().MethodByName(string(path.Name))
 			if mv.IsValid() {
 				mt := mv.Type()
 				return PointerValue{
 					TV: &TypedValue{ // heap alloc
-						T: &nativeType{Type: mt},
-						V: &nativeValue{Value: mv},
+						T: &NativeType{Type: mt},
+						V: &NativeValue{Value: mv},
 					},
 					Base: ExtendedObject{
 						BaseNative: nv,
@@ -1716,9 +1716,9 @@ func (tv *TypedValue) GetPointerAtIndex(store Store, iv *TypedValue) PointerValu
 			}
 		}
 		return pv
-	case *nativeType:
-		rt := tv.T.(*nativeType).Type
-		nv := tv.V.(*nativeValue)
+	case *NativeType:
+		rt := tv.T.(*NativeType).Type
+		nv := tv.V.(*NativeValue)
 		rv := nv.Value
 		switch rt.Kind() {
 		case reflect.Array, reflect.Slice, reflect.String:
@@ -2192,11 +2192,11 @@ func defaultValue(t Type) Value {
 		return nil
 	case *MapType:
 		return nil
-	case *nativeType:
+	case *NativeType:
 		if t.Kind() == InterfaceKind {
 			return nil
 		} else {
-			return &nativeValue{
+			return &NativeValue{
 				Value: reflect.New(ct.Type).Elem(),
 			}
 		}
