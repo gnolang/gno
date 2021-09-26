@@ -125,7 +125,7 @@ func main() {
 //                 "@type": "/gno.fun",
 //                 "Closure": {
 //                     "@type": "/gno.rfv",
-//                     "Hash": "91894b5a6b21ea2caf3d7811643dba2672c4ac1c",
+//                     "Hash": "c27b6100941ba806f78c163a3381c33cbeb17356",
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
 //                 },
 //                 "FileName": "files/zrealm1.go",
@@ -156,4 +156,3 @@ func main() {
 //         }
 //     ]
 // }
-//

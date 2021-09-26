@@ -857,6 +857,25 @@ func UverseNode() *PackageNode {
 			}
 		},
 	)
+	/*
+		//----------------------------------------
+		// functions for sdk/vm smart contracts.
+		// TODO: refactor these out of standard uverse somehow.
+		defNative("send",
+			nil, // params
+			Flds( // results
+				"exception", AnyT(),
+			),
+			func(m *Machine) {
+				if m.Exception == nil {
+					m.PushValue(TypedValue{})
+				} else {
+					m.PushValue(*m.Exception)
+					m.Exception = nil
+				}
+			},
+		)
+	*/
 	return uverseNode
 }
 

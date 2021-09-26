@@ -376,9 +376,17 @@ func (rlm *Realm) saveUnsavedObject(store Store, oo Object) {
 	}
 }
 
-// get unsaved self or unsaved children.
+// Get unsaved self or unsaved children.
+// This function ignores packages which have no
+// assigned object id (builtins like fmt), but does
+// assert that they are not dirty.
 func getUnsaved(val Value, more []Object) []Object {
-	if obj, ok := val.(Object); ok {
+	if pv, ok := val.(*PackageValue); ok {
+		if pv.GetIsDirty() {
+			panic("unexpected dirty package " + pv.PkgPath)
+		}
+		return more
+	} else if obj, ok := val.(Object); ok {
 		if isUnsaved(obj) {
 			return append(more, obj)
 		} else {
@@ -459,7 +467,10 @@ func getUnsavedChildren(val Value, more []Object) []Object {
 		more = getUnsaved(cv.Parent, more)
 		return more
 	case *nativeValue:
-		return more // XXX ???
+		// NOTE: assumes native values are
+		// amino encodeable, and that no
+		// gno values are contained.
+		return more
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %v",
@@ -580,6 +591,19 @@ func copyWithRefs(parent Object, val Value) Value {
 			ID: cv.Type.TypeID(),
 		})
 	case *PackageValue:
+		// If package is embedded (namely in a file block),
+		// just return the RefValue{PkgPath}.
+		if parent != nil {
+			if cv.GetRealm() != nil {
+				panic("should not happen -- dirty(?) referenced realm package")
+			}
+			if cv.GetIsDirty() {
+				panic("should not happen -- non-realm package should not have been modified")
+			}
+			return RefValue{
+				PkgPath: cv.PkgPath,
+			}
+		}
 		vals := make([]TypedValue, len(cv.Values))
 		for i, tv := range cv.Values {
 			vals[i] = refOrCopy(cv, tv)
@@ -618,7 +642,7 @@ func copyWithRefs(parent Object, val Value) Value {
 			Blank:      TypedValue{}, // empty
 		}
 	case *nativeValue:
-		return RefValue{}
+		return cv.ToAminoRepr() // RefValue{}
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %v",
@@ -790,10 +814,18 @@ func (rlm *Realm) SprintRealmOps() string {
 // Misc.
 
 func ensureRefValue(parent Object, val Value) RefValue {
+	// TODO use type switch stmt.
 	if ref, ok := val.(RefValue); ok {
 		return ref
 	} else if oo, ok := val.(Object); ok {
-		if !oo.GetIsReal() {
+		if pv, ok := val.(*PackageValue); ok {
+			if pv.GetIsDirty() {
+				panic("unexpected dirty package " + pv.PkgPath)
+			}
+			return RefValue{
+				PkgPath: pv.PkgPath,
+			}
+		} else if !oo.GetIsReal() {
 			panic("unexpected unreal object")
 		} else if oo.GetIsDirty() {
 			// This can happen with some circular

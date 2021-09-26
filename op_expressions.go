@@ -328,17 +328,17 @@ func (m *Machine) doOpCompositeLit() {
 	// composite type
 	t := m.PeekValue(1).V.(TypeValue).Type
 	// push elements
-	switch baseOf(t).(type) {
+	switch bt := baseOf(t).(type) {
 	case *ArrayType:
 		m.PushOp(OpArrayLit)
-		// evalaute field values
+		// evalaute item values
 		for i := len(x.Elts) - 1; 0 <= i; i-- {
 			m.PushExpr(x.Elts[i].Value)
 			m.PushOp(OpEval)
 		}
 	case *SliceType:
 		m.PushOp(OpSliceLit)
-		// evalaute field values
+		// evalaute item values
 		for i := len(x.Elts) - 1; 0 <= i; i-- {
 			if x.Elts[i].Key != nil {
 				panic("keys not yet supported in slice composite literals")
@@ -365,11 +365,32 @@ func (m *Machine) doOpCompositeLit() {
 			m.PushOp(OpEval)
 		}
 	case *nativeType:
-		m.PushOp(OpStructLitGoNative)
-		// evaluate field values
-		for i := len(x.Elts) - 1; 0 <= i; i-- {
-			m.PushExpr(x.Elts[i].Value)
-			m.PushOp(OpEval)
+		switch bt.Type.Kind() {
+		case reflect.Array:
+			m.PushOp(OpArrayLitGoNative)
+			// evaluate item values
+			for i := len(x.Elts) - 1; 0 <= i; i-- {
+				m.PushExpr(x.Elts[i].Value)
+				m.PushOp(OpEval)
+			}
+		case reflect.Slice:
+			m.PushOp(OpSliceLitGoNative)
+			// evaluate item values
+			for i := len(x.Elts) - 1; 0 <= i; i-- {
+				m.PushExpr(x.Elts[i].Value)
+				m.PushOp(OpEval)
+			}
+		case reflect.Struct:
+			m.PushOp(OpStructLitGoNative)
+			// evaluate field values
+			for i := len(x.Elts) - 1; 0 <= i; i-- {
+				m.PushExpr(x.Elts[i].Value)
+				m.PushOp(OpEval)
+			}
+		default:
+			panic(fmt.Sprintf(
+				"composite lit for native %v kind not yet supported",
+				bt.Type.Kind()))
 		}
 	default:
 		panic("not yet implemented")
@@ -420,7 +441,7 @@ func (m *Machine) doOpSliceLit() {
 	// assess performance TODO
 	x := m.PopExpr().(*CompositeLitExpr)
 	el := len(x.Elts)
-	// peek array type.
+	// peek slice type.
 	st := m.PeekValue(1 + el).V.(TypeValue).Type
 	// construct element buf slice.
 	es := make([]TypedValue, el)

@@ -357,21 +357,21 @@ func go2GnoValue(rv reflect.Value) (tv TypedValue) {
 			}
 		}
 	case reflect.Array:
-		tv.V = &nativeValue{rv}
+		tv.V = &nativeValue{Value: rv}
 	case reflect.Slice:
-		tv.V = &nativeValue{rv}
+		tv.V = &nativeValue{Value: rv}
 	case reflect.Chan:
-		tv.V = &nativeValue{rv}
+		tv.V = &nativeValue{Value: rv}
 	case reflect.Func:
-		tv.V = &nativeValue{rv}
+		tv.V = &nativeValue{Value: rv}
 	case reflect.Interface:
 		panic("should not happen")
 	case reflect.Map:
-		tv.V = &nativeValue{rv}
+		tv.V = &nativeValue{Value: rv}
 	case reflect.Ptr:
-		tv.V = &nativeValue{rv}
+		tv.V = &nativeValue{Value: rv}
 	case reflect.Struct:
-		tv.V = &nativeValue{rv}
+		tv.V = &nativeValue{Value: rv}
 	case reflect.UnsafePointer:
 		panic("not yet implemented")
 	default:
@@ -1157,6 +1157,87 @@ func (pn *PackageNode) DefineGoNativeFunc(n Name, fn interface{}) {
 
 //----------------------------------------
 // Machine methods
+
+func (m *Machine) doOpArrayLitGoNative() {
+	// assess performance TODO
+	x := m.PopExpr().(*CompositeLitExpr)
+	el := len(x.Elts) // may be incomplete
+	// peek array type.
+	xt := m.PeekValue(1 + el).V.(TypeValue).Type
+	nt := xt.(*nativeType)
+	rv := reflect.New(nt.Type).Elem()
+	// construct array value.
+	if 0 < el {
+		itvs := m.PopValues(el)
+		for i := 0; i < el; i++ {
+			if kx := x.Elts[i].Key; kx != nil {
+				// XXX why convert? (also see doOpArrayLit())
+				k := kx.(*constExpr).ConvertGetInt()
+				rf := rv.Index(k)
+				gno2GoValue(&itvs[i], rf)
+			} else {
+				rf := rv.Index(i)
+				gno2GoValue(&itvs[i], rf)
+			}
+		}
+	}
+	// construct and push value.
+	if debug {
+		if m.PopValue().V.(TypeValue).Type != nt {
+			panic("should not happen")
+		}
+	} else {
+		m.PopValue()
+	}
+	nv := &nativeValue{
+		Value: rv,
+	}
+	m.PushValue(TypedValue{
+		T: nt,
+		V: nv,
+	})
+}
+
+func (m *Machine) doOpSliceLitGoNative() {
+	// assess performance TODO
+	x := m.PopExpr().(*CompositeLitExpr)
+	el := len(x.Elts) // may be incomplete
+	// peek slice type.
+	xt := m.PeekValue(1 + el).V.(TypeValue).Type
+	nt := xt.(*nativeType)
+	at := reflect.ArrayOf(el, nt.Type.Elem())
+	rv := reflect.New(at).Elem()
+	// construct array value.
+	if 0 < el {
+		itvs := m.PopValues(el)
+		for i := 0; i < el; i++ {
+			if kx := x.Elts[i].Key; kx != nil {
+				// XXX why convert? (also see doOpArrayLit())
+				k := kx.(*constExpr).ConvertGetInt()
+				rf := rv.Index(k)
+				gno2GoValue(&itvs[i], rf)
+			} else {
+				rf := rv.Index(i)
+				gno2GoValue(&itvs[i], rf)
+			}
+		}
+	}
+	// construct and push value.
+	if debug {
+		if m.PopValue().V.(TypeValue).Type != nt {
+			panic("should not happen")
+		}
+	} else {
+		m.PopValue()
+	}
+	nv := &nativeValue{
+		Value: rv.Slice(0, el),
+	}
+	m.PushValue(TypedValue{
+		T: nt,
+		V: nv,
+	})
+}
 
 func (m *Machine) doOpStructLitGoNative() {
 	// assess performance TODO

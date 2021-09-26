@@ -471,8 +471,10 @@ const (
 	OpConvert      Op = 0x51 // Y(X)
 
 	/* Native operators */
-	OpStructLitGoNative Op = 0x60
-	OpCallGoNative      Op = 0x61
+	OpArrayLitGoNative  Op = 0x60
+	OpSliceLitGoNative  Op = 0x61
+	OpStructLitGoNative Op = 0x62
+	OpCallGoNative      Op = 0x63
 
 	/* Type operators */
 	OpFieldType     Op = 0x70 // Name: X `tag`
@@ -658,6 +660,10 @@ func (m *Machine) Run() {
 		case OpConvert:
 			m.doOpConvert()
 		/* GoNative Operators */
+		case OpArrayLitGoNative:
+			m.doOpArrayLitGoNative()
+		case OpSliceLitGoNative:
+			m.doOpSliceLitGoNative()
 		case OpStructLitGoNative:
 			m.doOpStructLitGoNative()
 		case OpCallGoNative:

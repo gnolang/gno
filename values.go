@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"unsafe"
+
+	"github.com/gnolang/gno/pkgs/amino"
 )
 
 //----------------------------------------
@@ -639,7 +641,8 @@ func (pv *PackageValue) SetRealm(rlm *Realm) {
 }
 
 type nativeValue struct {
-	Value reflect.Value
+	Value reflect.Value `json:"-"`
+	Bytes []byte
 }
 
 func (nv nativeValue) Copy() nativeValue {
@@ -647,6 +650,16 @@ func (nv nativeValue) Copy() nativeValue {
 	nv2 := reflect.New(nt).Elem()
 	nv2.Set(nv.Value)
 	return nativeValue{Value: nv2}
+}
+
+func (nv nativeValue) ToAminoRepr() nativeValue {
+	oo := nv.Value.Interface()
+	bz := amino.MustMarshal(oo)
+	// NOTE: type information is not included here,
+	// that gets serialized separately w/ *nativeType.
+	return nativeValue{
+		Bytes: bz,
+	}
 }
 
 //----------------------------------------
@@ -1591,11 +1604,9 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 			fv = rv.FieldByName(string(path.Name))
 		}
 		if fv.IsValid() {
+			ftv := go2GnoValue(fv)
 			return PointerValue{
-				TV: &TypedValue{ // heap alloc
-					T: &nativeType{Type: fv.Type()},
-					V: &nativeValue{Value: fv},
-				},
+				TV: &ftv, // heap alloc
 				Base: ExtendedObject{
 					BaseNative: nv,
 					Path:       path,
@@ -2132,7 +2143,8 @@ func (b *Block) ExpandToSize(size uint16) {
 }
 
 type RefValue struct {
-	ObjectID ObjectID
+	ObjectID ObjectID  `json:",omitempty"`
+	PkgPath  string    `json:",omitempty"`
 	Hash     ValueHash `json:",omitempty"`
 }
 
