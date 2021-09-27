@@ -19,7 +19,7 @@ import (
 // vm.VMKeeperI defines a module interface that supports Gno
 // smart contracts programming (scripting).
 type VMKeeperI interface {
-	AddPackage(ctx sdk.Context, creator crypto.Address, pkgPath string, files []NamedFile) error
+	AddPackage(ctx sdk.Context, msg MsgAddPackage) error
 	Eval(ctx sdk.Context, msg MsgEval) (string, error)
 }
 
@@ -120,7 +120,12 @@ func (vmk VMKeeper) initBuiltinPackages(store gno.Store) {
 }
 
 // AddPackage adds a package with given fileset.
-func (vm VMKeeper) AddPackage(ctx sdk.Context, creator crypto.Address, pkgPath string, files []NamedFile) error {
+func (vm VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
+	creator := msg.Creator
+	pkgPath := msg.PkgPath
+	files := msg.Files
+	deposit := msg.Deposit
+
 	// Validate arguments.
 	if creator.IsZero() {
 		return std.ErrInvalidAddress("missing creator address")
@@ -133,51 +138,52 @@ func (vm VMKeeper) AddPackage(ctx sdk.Context, creator crypto.Address, pkgPath s
 		return ErrInvalidPkgPath("missing package path")
 	}
 	if pv := vm.store.GetPackage(pkgPath); pv != nil {
-		// XXX hack, not immutable store.  For
-		// re-running txs from block 1, do nothing.
-		// In the future, this would return an error.
-	} else {
-		// TODO check to ensure that creator can pay.
-		// TODO deduct price from creator.
-		// Add files to global. NOTE: hack
-		for _, file := range files {
-			name := file.Name
-			body := file.Body
-			fpath := path.Join(pkgPath, name)
-			vm.fs.Set([]byte(fpath), []byte(body))
-		}
-		// Parse and run the files, construct *PV.
-		pkgName := gno.Name("")
-		fnodes := []*gno.FileNode{}
-		for i, file := range files {
-			if filepath.Ext(file.Name) != ".go" {
-				continue
-			}
-			fnode := gno.MustParseFile(file.Name, file.Body)
-			if i == 0 {
-				pkgName = fnode.PkgName
-			} else if fnode.PkgName != pkgName {
-				panic(fmt.Sprintf(
-					"expected package name %q but got %v",
-					pkgName,
-					fnode.PkgName))
-			}
-			fnodes = append(fnodes, fnode)
-		}
-		pkg := gno.NewPackageNode(pkgName, pkgPath, nil)
-		rlm := gno.NewRealm(pkgPath)
-		pv := pkg.NewPackage(rlm)
-		m2 := gno.NewMachineWithOptions(
-			gno.MachineOptions{
-				Package: pv,
-				Output:  nil, // XXX
-				Store:   vm.store,
-			})
-		m2.RunFiles(fnodes...)
-		// Set package to store.
-		vm.store.SetPackage(pv)
-		return nil
+		// TODO: return error instead of panicking?
+		panic("package already exists: " + pkgPath)
 	}
+	// Pay deposit from creator.
+	realmAddr := RealmAddress(pkgPath)
+	err := vm.bank.SendCoins(ctx, creator, realmAddr, deposit)
+	if err != nil {
+		return err
+	}
+	// Add files to global. NOTE: hack
+	for _, file := range files {
+		name := file.Name
+		body := file.Body
+		fpath := path.Join(pkgPath, name)
+		vm.fs.Set([]byte(fpath), []byte(body))
+	}
+	// Parse and run the files, construct *PV.
+	pkgName := gno.Name("")
+	fnodes := []*gno.FileNode{}
+	for i, file := range files {
+		if filepath.Ext(file.Name) != ".go" {
+			continue
+		}
+		fnode := gno.MustParseFile(file.Name, file.Body)
+		if i == 0 {
+			pkgName = fnode.PkgName
+		} else if fnode.PkgName != pkgName {
+			panic(fmt.Sprintf(
+				"expected package name %q but got %v",
+				pkgName,
+				fnode.PkgName))
+		}
+		fnodes = append(fnodes, fnode)
+	}
+	pkg := gno.NewPackageNode(pkgName, pkgPath, nil)
+	rlm := gno.NewRealm(pkgPath)
+	pv := pkg.NewPackage(rlm)
+	m2 := gno.NewMachineWithOptions(
+		gno.MachineOptions{
+			Package: pv,
+			Output:  nil, // XXX
+			Store:   vm.store,
+		})
+	m2.RunFiles(fnodes...)
+	// Set package to store.
+	vm.store.SetPackage(pv)
 	return nil
 }
 

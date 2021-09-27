@@ -10,7 +10,7 @@ import (
 )
 
 type GenerateOptions struct {
-	CustomEntropy bool `flag:"entropy",help:"custom entropy"`
+	CustomEntropy bool `flag:"entropy" help:"custom entropy"`
 }
 
 var DefaultGenerateOptions = GenerateOptions{}

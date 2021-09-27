@@ -2,21 +2,26 @@ all: gnoland goscan logos
 
 .PHONY: logos goscan gnoland
 
-# The main show
+# The main show (daemon)
 gnoland:
 	echo "Building gnoland"
-	go build -o gnoland ./cmd/gnoland
+	go build -o build/gnoland ./cmd/gnoland
+
+# The main show (client)
+gnokey:
+	echo "Building gnokey"
+	go build -o build/gnokey ./cmd/gnokey
 
 # goscan scans go code to determine its AST
 goscan:
 	echo "Building goscan"
-	go build -o goscan ./cmd/goscan
+	go build -o build/goscan ./cmd/goscan
 
 
 # Logos is the interface to Gnoland
 logos:
 	echo "building logos"
-	go build -o logos ./logos/cmd/logos.go
+	go build -o build/logos ./logos/cmd/logos.go
 
 clean:
 	rm -rf build

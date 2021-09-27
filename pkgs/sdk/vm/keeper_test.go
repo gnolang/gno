@@ -43,13 +43,14 @@ func Echo(msg string) string {
 }`},
 	}
 	pkgPath := "gno.land/r/test"
-	err := env.vmk.AddPackage(ctx, addr, pkgPath, files)
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg1)
 
 	// Run Echo function.
-	msg := NewMsgEval(addr, pkgPath,
+	msg2 := NewMsgEval(addr, pkgPath,
 		`Echo("hello world")`,
 		std.MustParseCoins("10gnot"))
-	res, err := env.vmk.Eval(ctx, msg)
+	res, err := env.vmk.Eval(ctx, msg2)
 	assert.NoError(t, err)
 	assert.Equal(t, res, `("echo:hello world" string)`)
 	t.Log("result:", res)

@@ -8,8 +8,8 @@ import (
 
 type DeleteOptions struct {
 	BaseOptions
-	Yes   bool `flag:"yes", help:"skip confirmation prompt"`
-	Force bool `flag:"force", help:"remove key unconditionally"`
+	Yes   bool `flag:"yes" help:"skip confirmation prompt"`
+	Force bool `flag:"force" help:"remove key unconditionally"`
 }
 
 var DefaultDeleteOptions = DeleteOptions{}

@@ -11,7 +11,7 @@ import (
 
 type VerifyOptions struct {
 	BaseOptions
-	DocPath string `flag:"docpath", help:"path of document file to verify"`
+	DocPath string `flag:"docpath" help:"path of document file to verify"`
 }
 
 var DefaultVerifyOptions = VerifyOptions{

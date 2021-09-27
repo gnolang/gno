@@ -35,14 +35,6 @@ func (vh vmHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 
 // Handle MsgAddPackage.
 func (vh vmHandler) handleMsgAddPackage(ctx sdk.Context, msg MsgAddPackage) sdk.Result {
-	// TODO record write new vm to disk fs
-	// TODO if already exists, vhoud fail. (one vhot write for now)
-	// TODO deduct coins from user for payment.
-	// TODO
-	err := vh.vm.AddPackage(ctx, msg.Creator, msg.PkgPath, msg.Files)
-	if err != nil {
-		return abciResult(err)
-	}
 	amount, err := std.ParseCoins("1gnot") // XXX calculate
 	if err != nil {
 		return abciResult(err)
@@ -51,14 +43,15 @@ func (vh vmHandler) handleMsgAddPackage(ctx sdk.Context, msg MsgAddPackage) sdk.
 	if err != nil {
 		return abciResult(err)
 	}
+	err = vh.vm.AddPackage(ctx, msg)
+	if err != nil {
+		return abciResult(err)
+	}
 	return sdk.Result{}
 }
 
 // Handle MsgEval.
 func (vh vmHandler) handleMsgEval(ctx sdk.Context, msg MsgEval) sdk.Result {
-	// TODO create new machine
-	// TODO with app common store
-	// TODO
 	amount, err := std.ParseCoins("1gnot") // XXX calculate
 	if err != nil {
 		return abciResult(err)

@@ -10,7 +10,7 @@ import (
 
 type SignOptions struct {
 	BaseOptions        // home,...
-	DocPath     string `flag:"docpath", help:"path of document file to sign"`
+	DocPath     string `flag:"docpath" help:"path of document file to sign"`
 }
 
 var DefaultSignOptions = SignOptions{
