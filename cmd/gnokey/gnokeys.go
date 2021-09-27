@@ -28,7 +28,7 @@ func main() {
 	exec := os.Args[0]
 	args := os.Args[1:]
 
-	client.AddApp(maketxApp, "maketx", "compose a tx document to sign", nil)
+	client.AddApp(makeTxApp, "maketx", "compose a tx document to sign", nil)
 	err := client.RunMain(cmd, exec, args)
 	if err != nil {
 		cmd.ErrPrintln(err.Error())
@@ -36,27 +36,27 @@ func main() {
 	}
 }
 
-var maketxApps client.AppList = []client.AppItem{
+var makeTxApps client.AppList = []client.AppItem{
 	{makeAddPackageTxApp,
 		"addpkg", "upload new package",
-		DefaultAddPackageTxOptions},
+		defaultMakeAddPackageTxOptions},
 	{makeEvalTxApp,
 		"eval", "evaluate expression",
-		DefaultEvalTxOptions},
+		defaultmakeEvalTxOptions},
 }
 
-func maketxApp(cmd *command.Command, args []string, iopts interface{}) error {
+func makeTxApp(cmd *command.Command, args []string, iopts interface{}) error {
 	// show help message.
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" {
 		cmd.Println("available subcommands:")
-		for _, appItem := range maketxApps {
+		for _, appItem := range makeTxApps {
 			cmd.Printf("  %s - %s\n", appItem.Name, appItem.Desc)
 		}
 		return nil
 	}
 
 	// switch on first argument.
-	for _, appItem := range maketxApps {
+	for _, appItem := range makeTxApps {
 		if appItem.Name == args[0] {
 			err := cmd.Run(appItem.App, args[1:], appItem.Defaults)
 			return err // done
@@ -70,21 +70,21 @@ func maketxApp(cmd *command.Command, args []string, iopts interface{}) error {
 //----------------------------------------
 // makeAddPackageTx
 
-type AddPackageTxOptions struct {
+type makeAddPackageTxOptions struct {
 	client.BaseOptions        // home,...
 	PkgPath            string `flag:"pkgpath" help:"package path (required)"`
 	PkgDir             string `flag:"pkgdir" help:"path to package files (required)"`
 	Deposit            string `flag:"deposit" help:"deposit coins"`
 }
 
-var DefaultAddPackageTxOptions = AddPackageTxOptions{
+var defaultMakeAddPackageTxOptions = makeAddPackageTxOptions{
 	PkgPath: "", // must override
 	PkgDir:  "", // must override
 	Deposit: "",
 }
 
 func makeAddPackageTxApp(cmd *command.Command, args []string, iopts interface{}) error {
-	opts := iopts.(AddPackageTxOptions)
+	opts := iopts.(makeAddPackageTxOptions)
 	if opts.PkgPath == "" {
 		return errors.New("pkgpath not specified")
 	}
@@ -158,21 +158,21 @@ func makeAddPackageTxApp(cmd *command.Command, args []string, iopts interface{})
 //----------------------------------------
 // makeEvalTxApp
 
-type EvalTxOptions struct {
+type makeEvalTxOptions struct {
 	client.BaseOptions        // home,...
 	PkgPath            string `flag:"pkgpath" help:"package path (required)"`
 	Expr               string `flag:"expr" help:"expression to evaluate" (required)"`
 	Send               string `flag:"send" help:"send coins"`
 }
 
-var DefaultEvalTxOptions = EvalTxOptions{
+var defaultmakeEvalTxOptions = makeEvalTxOptions{
 	PkgPath: "", // must override
 	Expr:    "", // must override
 	Send:    "",
 }
 
 func makeEvalTxApp(cmd *command.Command, args []string, iopts interface{}) error {
-	opts := iopts.(EvalTxOptions)
+	opts := iopts.(makeEvalTxOptions)
 	if opts.PkgPath == "" {
 		return errors.New("pkgpath not specified")
 	}
