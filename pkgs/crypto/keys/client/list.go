@@ -10,7 +10,9 @@ type ListOptions struct {
 	BaseOptions // home, ...
 }
 
-var DefaultListOptions = ListOptions{}
+var DefaultListOptions = ListOptions{
+	BaseOptions: DefaultBaseOptions,
+}
 
 func listApp(cmd *command.Command, args []string, iopts interface{}) error {
 

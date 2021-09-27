@@ -14,7 +14,9 @@ type BroadcastOptions struct {
 	BaseOptions
 }
 
-var DefaultBroadcastOptions = BroadcastOptions{}
+var DefaultBroadcastOptions = BroadcastOptions{
+	BaseOptions: DefaultBaseOptions,
+}
 
 func broadcastApp(cmd *command.Command, args []string, iopts interface{}) error {
 	var opts BroadcastOptions = iopts.(BroadcastOptions)
@@ -49,8 +51,10 @@ func broadcastApp(cmd *command.Command, args []string, iopts interface{}) error 
 	if err != nil {
 		return errors.Wrap(err, "broadcasting bytes")
 	}
-	if bres.CheckTx.IsErr() || bres.DeliverTx.IsErr() {
-		return errors.New("transaction failed %#v", bres)
+	if bres.CheckTx.IsErr() {
+		return errors.New("transaction failed %#v\nlog %s", bres, bres.CheckTx.Log)
+	} else if bres.DeliverTx.IsErr() {
+		return errors.New("transaction failed %#v\nlog %s", bres, bres.DeliverTx.Log)
 	}
 	return nil
 }

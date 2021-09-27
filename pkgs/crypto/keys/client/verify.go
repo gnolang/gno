@@ -15,7 +15,8 @@ type VerifyOptions struct {
 }
 
 var DefaultVerifyOptions = VerifyOptions{
-	DocPath: "", // read from stdin.
+	BaseOptions: DefaultBaseOptions,
+	DocPath:     "", // read from stdin.
 }
 
 func verifyApp(cmd *command.Command, args []string, iopts interface{}) error {

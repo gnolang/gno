@@ -19,7 +19,8 @@ type SignOptions struct {
 }
 
 var DefaultSignOptions = SignOptions{
-	TxPath: "-", // read from stdin.
+	BaseOptions: DefaultBaseOptions,
+	TxPath:      "-", // read from stdin.
 }
 
 func signApp(cmd *command.Command, args []string, iopts interface{}) error {
@@ -88,7 +89,12 @@ func signApp(cmd *command.Command, args []string, iopts interface{}) error {
 	sequence := opts.Sequence
 	signbz := tx.GetSignBytes(chainID, accountNumber, sequence)
 
-	pass, err := cmd.GetPassword("Enter password.")
+	pass, err := "", error(nil)
+	if opts.Quiet {
+		pass, err = cmd.GetPassword("")
+	} else {
+		pass, err = cmd.GetPassword("Enter password.")
+	}
 	if err != nil {
 		return err
 	}

@@ -9,6 +9,6 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	"gno",
 	amino.GetCallersDirname(),
 ).WithDependencies().WithTypes(
-	GnoAccount{}, "Account",
+	&GnoAccount{}, "Account",
 	GnoGenesisState{}, "GenesisState",
 ))

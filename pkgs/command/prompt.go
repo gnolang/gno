@@ -13,7 +13,10 @@ import (
 // GetPassword will prompt for a password one-time (to sign a tx).
 // Passwords may be blank; user must validate.
 func (cmd *Command) GetPassword(prompt string) (pass string, err error) {
-	cmd.Println(prompt)
+	if prompt != "" {
+		// On stderr so it isn't part of bash output.
+		cmd.ErrPrintln(prompt)
+	}
 	pass, err = cmd.readPasswordFromInBuf()
 
 	if err != nil {
@@ -45,7 +48,8 @@ func (cmd *Command) GetCheckPassword(prompt, prompt2 string) (string, error) {
 // "y", "Y", "yes", "YES", and "Yes" all count as confirmations.
 // If the input is not recognized, it returns false and a nil error.
 func (cmd *Command) GetConfirmation(prompt string) (bool, error) {
-	cmd.Printfln("%s [y/n]:", prompt)
+	// On stderr so it isn't part of bash output.
+	cmd.ErrPrintfln("%s [y/n]:", prompt)
 
 	response, err := cmd.readLineFromInBuf()
 	if err != nil {
@@ -68,7 +72,8 @@ func (cmd *Command) GetConfirmation(prompt string) (bool, error) {
 // GetString simply returns the trimmed string output of a given reader.
 func (cmd *Command) GetString(prompt string) (string, error) {
 	if prompt != "" {
-		cmd.Println(prompt)
+		// On stderr so it isn't part of bash output.
+		cmd.ErrPrintln(prompt)
 	}
 
 	out, err := cmd.readLineFromInBuf()

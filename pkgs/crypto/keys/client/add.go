@@ -27,6 +27,7 @@ type AddOptions struct {
 }
 
 var DefaultAddOptions = AddOptions{
+	BaseOptions:       DefaultBaseOptions,
 	MultisigThreshold: 1,
 }
 
