@@ -12,10 +12,6 @@ import (
 	"github.com/gnolang/gno/pkgs/errors"
 )
 
-type BaseOptions struct {
-	Home string `flag:"home" help:"home directory"`
-}
-
 type AddOptions struct {
 	BaseOptions
 	Multisig          []string `flag:"multisig" help:"Construct and store a multisig public key (implies --pubkey)"`

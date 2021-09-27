@@ -41,6 +41,7 @@ func (ak AccountKeeper) Logger(ctx sdk.Context) log.Logger {
 // NewAccountWithAddress implements AccountKeeper.
 func (ak AccountKeeper) NewAccountWithAddress(ctx sdk.Context, addr crypto.Address) std.Account {
 	acc := ak.proto()
+	acc.SetSequence(1) // start with 1.
 	err := acc.SetAddress(addr)
 	if err != nil {
 		// Handle w/ #870
@@ -49,14 +50,6 @@ func (ak AccountKeeper) NewAccountWithAddress(ctx sdk.Context, addr crypto.Addre
 	err = acc.SetAccountNumber(ak.GetNextAccountNumber(ctx))
 	if err != nil {
 		// Handle w/ #870
-		panic(err)
-	}
-	return acc
-}
-
-// NewAccount creates a new account
-func (ak AccountKeeper) NewAccount(ctx sdk.Context, acc std.Account) std.Account {
-	if err := acc.SetAccountNumber(ak.GetNextAccountNumber(ctx)); err != nil {
 		panic(err)
 	}
 	return acc
@@ -145,7 +138,7 @@ func (ak AccountKeeper) GetNextAccountNumber(ctx sdk.Context) uint64 {
 	stor := ctx.Store(ak.key)
 	bz := stor.Get([]byte(GlobalAccountNumberKey))
 	if bz == nil {
-		accNumber = 0
+		accNumber = 1 // start with 1.
 	} else {
 		err := amino.Unmarshal(bz, &accNumber)
 		if err != nil {

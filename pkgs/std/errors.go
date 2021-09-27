@@ -47,6 +47,8 @@ func (e TooManySignaturesError) Error() string { return "too many signatures err
 func (e NoSignaturesError) Error() string      { return "no signatures error" }
 func (e GasOverflowError) Error() string       { return "gas overflow error" }
 
+// NOTE also update pkg/std/package.go registrations.
+
 func ErrInternal(msg string) error {
 	return errors.Wrap(InternalError{}, msg)
 }

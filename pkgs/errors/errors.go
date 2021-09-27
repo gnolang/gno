@@ -90,7 +90,7 @@ func newCmnError(data interface{}) *cmnError {
 
 // Implements error.
 func (err *cmnError) Error() string {
-	return fmt.Sprintf("%v", err.data)
+	return fmt.Sprintf("%v", err)
 }
 
 // Captures a stacktrace if one was not already captured.

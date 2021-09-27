@@ -31,7 +31,8 @@ func main() {
 	client.AddApp(makeTxApp, "maketx", "compose a tx document to sign", nil)
 	err := client.RunMain(cmd, exec, args)
 	if err != nil {
-		cmd.ErrPrintln(err.Error())
+		cmd.ErrPrintfln("%s", err.Error())
+		cmd.ErrPrintfln("%#v", err)
 		return // exit
 	}
 }
@@ -67,11 +68,18 @@ func makeTxApp(cmd *command.Command, args []string, iopts interface{}) error {
 	return errors.New("unknown subcommand " + args[0])
 }
 
+type BaseTxOptions struct {
+	GasWanted int64  `flag:"gas-wanted" help:"gas requested for tx"`
+	GasFee    string `flag:"gas-fee" help:"gas payment fee"`
+	Memo      string `flag:"memo" help:"any descriptive text"`
+}
+
 //----------------------------------------
 // makeAddPackageTx
 
 type makeAddPackageTxOptions struct {
 	client.BaseOptions        // home,...
+	BaseTxOptions             // gas-wanted, gas-fee, memo, ...
 	PkgPath            string `flag:"pkgpath" help:"package path (required)"`
 	PkgDir             string `flag:"pkgdir" help:"path to package files (required)"`
 	Deposit            string `flag:"deposit" help:"deposit coins"`
@@ -109,7 +117,7 @@ func makeAddPackageTxApp(cmd *command.Command, args []string, iopts interface{})
 	creator := info.GetAddress()
 	// info.GetPubKey()
 
-	// Parse deposit.
+	// parse deposit.
 	deposit, err := std.ParseCoins(opts.Deposit)
 	if err != nil {
 		panic(err)
@@ -145,13 +153,26 @@ func makeAddPackageTxApp(cmd *command.Command, args []string, iopts interface{})
 		}
 	}
 
+	// parse gas wanted & fee.
+	gaswanted := opts.GasWanted
+	gasfee, err := std.ParseCoin(opts.GasFee)
+	if err != nil {
+		panic(err)
+	}
+	// construct msg & tx and marshal.
 	msg := vm.MsgAddPackage{
 		Creator: creator,
 		PkgPath: opts.PkgPath,
 		Files:   namedfiles,
 		Deposit: deposit,
 	}
-	fmt.Println(string(amino.MustMarshalJSONAny(msg)))
+	tx := std.Tx{
+		Msgs:       []std.Msg{msg},
+		Fee:        std.NewFee(gaswanted, gasfee),
+		Signatures: nil,
+		Memo:       opts.Memo,
+	}
+	fmt.Println(string(amino.MustMarshalJSON(tx)))
 	return nil
 }
 
@@ -160,6 +181,7 @@ func makeAddPackageTxApp(cmd *command.Command, args []string, iopts interface{})
 
 type makeEvalTxOptions struct {
 	client.BaseOptions        // home,...
+	BaseTxOptions             // gas-wanted, gas-fee, memo, ...
 	PkgPath            string `flag:"pkgpath" help:"package path (required)"`
 	Expr               string `flag:"expr" help:"expression to evaluate" (required)"`
 	Send               string `flag:"send" help:"send coins"`
@@ -183,6 +205,12 @@ func makeEvalTxApp(cmd *command.Command, args []string, iopts interface{}) error
 		cmd.ErrPrintfln("Usage: eval <keyname>")
 		return errors.New("invalid args")
 	}
+	if opts.GasWanted == 0 {
+		return errors.New("gas-wanted not specified")
+	}
+	if opts.GasFee == "" {
+		return errors.New("gas-fee not specified")
+	}
 
 	// read account pubkey.
 	name := args[0]
@@ -200,15 +228,29 @@ func makeEvalTxApp(cmd *command.Command, args []string, iopts interface{}) error
 	// Parse deposit.
 	send, err := std.ParseCoins(opts.Send)
 	if err != nil {
-		panic(err)
+		return errors.Wrap(err, "parsing send coins")
 	}
 
+	// parse gas wanted & fee.
+	gaswanted := opts.GasWanted
+	gasfee, err := std.ParseCoin(opts.GasFee)
+	if err != nil {
+		return errors.Wrap(err, "parsing gas fee coin")
+	}
+
+	// construct msg & tx and marshal.
 	msg := vm.MsgEval{
 		Caller:  caller,
 		PkgPath: opts.PkgPath,
 		Expr:    opts.Expr,
 		Send:    send,
 	}
-	fmt.Println(string(amino.MustMarshalJSONAny(msg)))
+	tx := std.Tx{
+		Msgs:       []std.Msg{msg},
+		Fee:        std.NewFee(gaswanted, gasfee),
+		Signatures: nil,
+		Memo:       opts.Memo,
+	}
+	fmt.Println(string(amino.MustMarshalJSON(tx)))
 	return nil
 }
