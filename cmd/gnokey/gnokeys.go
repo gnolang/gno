@@ -37,8 +37,12 @@ func main() {
 }
 
 var maketxApps client.AppList = []client.AppItem{
-	{makeAddPackageTxApp, "addpkg", "upload new package", DefaultAddPackageTxOptions},
-	{makeEvalTxApp, "eval", "evaluate expression", nil},
+	{makeAddPackageTxApp,
+		"addpkg", "upload new package",
+		DefaultAddPackageTxOptions},
+	{makeEvalTxApp,
+		"eval", "evaluate expression",
+		DefaultEvalTxOptions},
 }
 
 func maketxApp(cmd *command.Command, args []string, iopts interface{}) error {
@@ -62,6 +66,9 @@ func maketxApp(cmd *command.Command, args []string, iopts interface{}) error {
 	// unknown app subcommand!
 	return errors.New("unknown subcommand " + args[0])
 }
+
+//----------------------------------------
+// makeAddPackageTx
 
 type AddPackageTxOptions struct {
 	client.BaseOptions        // home,...
@@ -148,6 +155,60 @@ func makeAddPackageTxApp(cmd *command.Command, args []string, iopts interface{})
 	return nil
 }
 
+//----------------------------------------
+// makeEvalTxApp
+
+type EvalTxOptions struct {
+	client.BaseOptions        // home,...
+	PkgPath            string `flag:"pkgpath" help:"package path (required)"`
+	Expr               string `flag:"expr" help:"expression to evaluate" (required)"`
+	Send               string `flag:"send" help:"send coins"`
+}
+
+var DefaultEvalTxOptions = EvalTxOptions{
+	PkgPath: "", // must override
+	Expr:    "", // must override
+	Send:    "",
+}
+
 func makeEvalTxApp(cmd *command.Command, args []string, iopts interface{}) error {
-	panic("WOOT")
+	opts := iopts.(EvalTxOptions)
+	if opts.PkgPath == "" {
+		return errors.New("pkgpath not specified")
+	}
+	if opts.Expr == "" {
+		return errors.New("expr not specified")
+	}
+	if len(args) != 1 {
+		cmd.ErrPrintfln("Usage: eval <keyname>")
+		return errors.New("invalid args")
+	}
+
+	// read account pubkey.
+	name := args[0]
+	kb, err := keys.NewKeyBaseFromDir(opts.Home)
+	if err != nil {
+		return err
+	}
+	info, err := kb.Get(name)
+	if err != nil {
+		return err
+	}
+	caller := info.GetAddress()
+	// info.GetPubKey()
+
+	// Parse deposit.
+	send, err := std.ParseCoins(opts.Send)
+	if err != nil {
+		panic(err)
+	}
+
+	msg := vm.MsgEval{
+		Caller:  caller,
+		PkgPath: opts.PkgPath,
+		Expr:    opts.Expr,
+		Send:    send,
+	}
+	fmt.Println(string(amino.MustMarshalJSONAny(msg)))
+	return nil
 }
