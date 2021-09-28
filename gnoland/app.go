@@ -33,14 +33,30 @@ func NewApp(rootDir string, logger log.Logger) (abci.Application, error) {
 	baseApp.MountStoreWithDB(mainKey, iavl.StoreConstructor, db)
 
 	// Construct keepers.
-	authKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
-	bankKpr := bank.NewBankKeeper(authKpr)
-	vmKpr := vm.NewVMKeeper(mainKey, authKpr, bankKpr)
+	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
+	bankKpr := bank.NewBankKeeper(acctKpr)
+	vmKpr := vm.NewVMKeeper(mainKey, acctKpr, bankKpr)
 
 	// Configure InitChainer for genesis.
-	baseApp.SetInitChainer(InitChainer(authKpr, bankKpr))
+	baseApp.SetInitChainer(InitChainer(acctKpr, bankKpr))
+	authAnteHandler := auth.NewAnteHandler(
+		acctKpr, bankKpr, auth.DefaultSigVerificationGasConsumer)
+	baseApp.SetAnteHandler(
+		// Override default AnteHandler with custom logic.
+		func(ctx sdk.Context, tx std.Tx, simulate bool) (
+			newCtx sdk.Context, res sdk.Result, abort bool) {
+			// Override auth params.
+			ctx = ctx.WithValue(
+				auth.AuthParamsContextKey{}, auth.DefaultParams())
+			// Continue on with default auth ante handler.
+			newCtx, res, abort = authAnteHandler(ctx, tx, simulate)
+			return
+
+		},
+	)
 
 	// Set a handler Route.
+	baseApp.Router().AddRoute("auth", auth.NewHandler(acctKpr))
 	baseApp.Router().AddRoute("bank", bank.NewHandler(bankKpr))
 	baseApp.Router().AddRoute("vm", vm.NewHandler(vmKpr))
 
@@ -53,13 +69,15 @@ func NewApp(rootDir string, logger log.Logger) (abci.Application, error) {
 }
 
 // InitChainer returns a function that can initialize the chain with genesis.
-func InitChainer(authKpr auth.AccountKeeperI, bankKpr bank.BankKeeperI) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
+func InitChainer(acctKpr auth.AccountKeeperI, bankKpr bank.BankKeeperI) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
 	return func(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
 		// Get genesis state.
 		genState := req.AppState.(GnoGenesisState)
 		// Parse and set genesis state balances.
 		for _, bal := range genState.Balances {
 			addr, coins := parseBalance(bal)
+			acc := acctKpr.NewAccountWithAddress(ctx, addr)
+			acctKpr.SetAccount(ctx, acc)
 			err := bankKpr.SetCoins(ctx, addr, coins)
 			if err != nil {
 				panic(err)

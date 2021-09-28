@@ -48,7 +48,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		if ctx.IsCheckTx() && !simulate {
 			res := EnsureSufficientMempoolFees(ctx, tx.Fee)
 			if !res.IsOK() {
-				return newCtx, res, true
+				return ctx, res, true
 			}
 		}
 
@@ -128,8 +128,9 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			}
 
 			// check signature, return account with incremented nonce
-			signBytes := GetSignBytes(newCtx.ChainID(), tx, signerAccs[i], isGenesis)
-			signerAccs[i], res = processSig(newCtx, signerAccs[i], stdSigs[i], signBytes, simulate, params, sigGasConsumer)
+			sacc := signerAccs[i]
+			signBytes := GetSignBytes(newCtx.ChainID(), tx, sacc, isGenesis)
+			signerAccs[i], res = processSig(newCtx, sacc, stdSigs[i], signBytes, simulate, params, sigGasConsumer)
 			if !res.IsOK() {
 				return newCtx, res, true
 			}
@@ -172,11 +173,11 @@ func ValidateSigCount(tx std.Tx, params Params) sdk.Result {
 // ValidateMemo validates the memo size.
 func ValidateMemo(tx std.Tx, params Params) sdk.Result {
 	memoLength := len(tx.GetMemo())
-	if int64(memoLength) > params.MaxMemoCharacters {
+	if int64(memoLength) > params.MaxMemoBytes {
 		return abciResult(std.ErrMemoTooLarge(
 			fmt.Sprintf(
-				"maximum number of characters is %d but received %d characters",
-				params.MaxMemoCharacters, memoLength,
+				"maximum number of bytes is %d but received %d bytes",
+				params.MaxMemoBytes, memoLength,
 			),
 		))
 	}
@@ -275,9 +276,10 @@ func ProcessPubKey(acc std.Account, sig std.Signature, simulate bool) (crypto.Pu
 	return pubKey, sdk.Result{}
 }
 
-// DefaultSigVerificationGasConsumer is the default implementation of SignatureVerificationGasConsumer. It consumes gas
-// for signature verification based upon the public key type. The cost is fetched from the given params and is matched
-// by the concrete type.
+// DefaultSigVerificationGasConsumer is the default implementation of
+// SignatureVerificationGasConsumer. It consumes gas for signature verification
+// based upon the public key type. The cost is fetched from the given params
+// and is matched by the concrete type.
 func DefaultSigVerificationGasConsumer(
 	meter store.GasMeter, sig []byte, pubkey crypto.PubKey, params Params,
 ) sdk.Result {
@@ -351,7 +353,11 @@ func DeductFees(bank BankKeeperI, ctx sdk.Context, acc std.Account, fees std.Coi
 // consensus.
 func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 	minGasPrices := ctx.MinGasPrices()
-	if len(minGasPrices) != 0 {
+	if len(minGasPrices) == 0 {
+		// no minimum gas price (not recommended)
+		// TODO: allow for selective filtering of 0 fee txs.
+		return sdk.Result{}
+	} else {
 
 		fgw := big.NewInt(fee.GasWanted)
 		fga := big.NewInt(fee.GasFee.Amount)

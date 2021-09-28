@@ -102,40 +102,32 @@ func (bh bankHandler) handleMsgMultiSend(ctx sdk.Context, msg MsgMultiSend) sdk.
 const QueryBalance = "balances"
 
 func (bh bankHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	switch queryPath(req.Path) {
+	switch secondPart(req.Path) {
 	case QueryBalance:
 		return bh.queryBalance(ctx, req)
 	default:
-		res.Error = sdk.ABCIError(
+		res = sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest("unknown bank query endpoint"))
 		return
 	}
 }
 
-// QueryBalanceParams defines the params for querying an account balance.
-type QueryBalanceParams struct {
-	Address crypto.Address
-}
-
-// NewQueryBalanceParams creates a new instance of QueryBalanceParams.
-func NewQueryBalanceParams(addr crypto.Address) QueryBalanceParams {
-	return QueryBalanceParams{Address: addr}
-}
-
 // queryBalance fetch an account's balance for the supplied height.
-// Height and account address are passed as first and second path components respectively.
+// Account address is passed as path component.
 func (bh bankHandler) queryBalance(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	var params QueryBalanceParams
 
-	if err := amino.UnmarshalJSON(req.Data, &params); err != nil {
-		res.Error = sdk.ABCIError(
-			std.ErrInternal(fmt.Sprintf("failed to pare params: %s", err.Error())))
-		return
+	// parse addr from path.
+	b32addr := thirdPart(req.Path)
+	addr, err := crypto.AddressFromBech32(b32addr)
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(
+			std.ErrInvalidAddress("invalid query address " + b32addr))
 	}
 
-	bz, err := amino.MarshalJSONIndent(bh.bank.GetCoins(ctx, params.Address), "", "  ")
+	// get coins from addr.
+	bz, err := amino.MarshalJSONIndent(bh.bank.GetCoins(ctx, addr), "", "  ")
 	if err != nil {
-		res.Error = sdk.ABCIError(
+		res = sdk.ABCIResponseQueryFromError(
 			std.ErrInternal(fmt.Sprintf("could not marshal result to JSON: %s", err.Error())))
 		return
 	}
@@ -151,12 +143,22 @@ func abciResult(err error) sdk.Result {
 	return sdk.ABCIResultFromError(err)
 }
 
-// returns the second component of a query path.
-func queryPath(path string) string {
+// returns the second component of a path.
+func secondPart(path string) string {
 	parts := strings.Split(path, "/")
-	if len(parts) > 2 {
+	if len(parts) < 2 {
 		return ""
 	} else {
 		return parts[1]
+	}
+}
+
+// returns the third component of a path.
+func thirdPart(path string) string {
+	parts := strings.Split(path, "/")
+	if len(parts) < 3 {
+		return ""
+	} else {
+		return parts[2]
 	}
 }

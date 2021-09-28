@@ -23,6 +23,7 @@ var mainApps AppList = []AppItem{
 	{signApp, "sign", "sign a document", DefaultSignOptions},
 	{verifyApp, "verify", "verify a document signature", DefaultVerifyOptions},
 	{broadcastApp, "broadcast", "broadcast a signed document", DefaultBroadcastOptions},
+	{queryApp, "query", "make an ABCI query", DefaultQueryOptions},
 }
 
 // For clients that want to extend the functionality of the base client.

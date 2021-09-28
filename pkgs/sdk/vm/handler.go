@@ -81,13 +81,13 @@ const QueryPackage = "package"
 const QueryStore = "store"
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	switch queryPath(req.Path) {
+	switch secondPart(req.Path) {
 	case QueryPackage:
 		return vh.queryPackage(ctx, req)
 	case QueryStore:
 		return vh.queryStore(ctx, req)
 	default:
-		res.Error = sdk.ABCIError(
+		res = sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest("unknown vm query endpoint"))
 		return
 	}
@@ -120,10 +120,10 @@ func abciResult(err error) sdk.Result {
 	return sdk.ABCIResultFromError(err)
 }
 
-// returns the second component of a query path.
-func queryPath(path string) string {
+// returns the second component of a path.
+func secondPart(path string) string {
 	parts := strings.Split(path, "/")
-	if len(parts) > 2 {
+	if len(parts) < 2 {
 		return ""
 	} else {
 		return parts[1]
