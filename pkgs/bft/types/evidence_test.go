@@ -112,7 +112,7 @@ func TestEvidenceByteSize(t *testing.T) {
 	bz, err := amino.MarshalSized(ev)
 	require.NoError(t, err)
 
-	assert.EqualValues(t, 508, len(bz))
+	assert.EqualValues(t, 548, len(bz))
 }
 
 func randomDuplicatedVoteEvidence() *DuplicateVoteEvidence {

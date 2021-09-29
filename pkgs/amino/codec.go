@@ -675,7 +675,6 @@ func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 	for i := 0; i < rt.NumField(); i++ {
 		var field = rt.Field(i)
 		var ftype = field.Type
-		var unpackedList = false
 		if !isExported(field) {
 			continue // field is unexported
 		}
@@ -683,13 +682,22 @@ func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 		if skip {
 			continue // e.g. json:"-"
 		}
-		if ftype.Kind() == reflect.Array || ftype.Kind() == reflect.Slice {
-			if ftype.Elem().Kind() == reflect.Uint8 {
+		// NOTE: This is going to change a bit.
+		// NOTE: BinFieldNum starts with 1.
+		fopts.BinFieldNum = uint32(len(infos) + 1)
+		fieldTypeInfo, err := cdc.getTypeInfoWLocked(ftype)
+		if err != nil {
+			panic(err)
+		}
+		var frepr = fieldTypeInfo.ReprType.Type
+		var unpackedList = false
+		if frepr.Kind() == reflect.Array || frepr.Kind() == reflect.Slice {
+			if frepr.Elem().Kind() == reflect.Uint8 {
 				// These get handled by our optimized methods,
 				// encodeReflectBinaryByte[Slice/Array].
 				unpackedList = false
 			} else {
-				etype := ftype.Elem()
+				etype := frepr.Elem()
 				for etype.Kind() == reflect.Ptr {
 					etype = etype.Elem()
 				}
@@ -699,13 +707,7 @@ func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 				}
 			}
 		}
-		// NOTE: This is going to change a bit.
-		// NOTE: BinFieldNum starts with 1.
-		fopts.BinFieldNum = uint32(len(infos) + 1)
-		fieldTypeInfo, err := cdc.getTypeInfoWLocked(ftype)
-		if err != nil {
-			panic(err)
-		}
+
 		fieldInfo := FieldInfo{
 			Type:         ftype,
 			TypeInfo:     fieldTypeInfo,

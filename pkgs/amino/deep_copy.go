@@ -211,8 +211,6 @@ func callAminoCopy(src, dst reflect.Value) bool {
 	if !canAminoCopy(src) {
 		return false
 	}
-	cpy := reflect.New(src.Type().Elem())
-	dst.Set(cpy)
 	ma := src.MethodByName("MarshalAmino")
 	ua := dst.MethodByName("UnmarshalAmino")
 	outs := ma.Call(nil)

@@ -7,7 +7,6 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gnolang/gno/pkgs/errors"
 )
 
@@ -27,7 +26,7 @@ func (cdc *Codec) encodeReflectJSON(w io.Writer, info *TypeInfo, rv reflect.Valu
 		panic("should not happen")
 	}
 	if printLog {
-		spew.Printf("(E) encodeReflectJSON(info: %v, rv: %#v (%v), fopts: %v)\n",
+		fmt.Printf("(E) encodeReflectJSON(info: %v, rv: %#v (%v), fopts: %v)\n",
 			info, rv.Interface(), rv.Type(), fopts)
 		defer func() {
 			fmt.Printf("(E) -> err: %v\n", err)

@@ -44,6 +44,19 @@ func AddressFromBytes(bz []byte) (ret Address) {
 	return
 }
 
+func (addr Address) MarshalAmino() (string, error) {
+	return AddressToBech32(addr), nil
+}
+
+func (addr *Address) UnmarshalAmino(b32str string) (err error) {
+	addr2, err := AddressFromBech32(b32str)
+	if err != nil {
+		return err
+	}
+	copy(addr[:], addr2[:])
+	return nil
+}
+
 func (addr Address) Compare(other Address) int {
 	bz1 := make([]byte, len(addr))
 	bz2 := make([]byte, len(other))

@@ -341,7 +341,7 @@ var testGenesisFmt = `{
     {
       "pub_key": {
         "@type": "/tm.PubKeyEd25519",
-        "value":"AT/+aaL1eB0477Mud9JMm8Sh8BIvOYlPGC9KkIUmFaE="
+        "value": "cVt6w3C1DWYwwkAirnbsL49CoOe8T8ZR2BCB8MeOGRg="
       },
       "power": "10",
       "name": ""
@@ -351,14 +351,14 @@ var testGenesisFmt = `{
 }`
 
 var testPrivValidatorKey = `{
-  "address": "oyWNy/Rdyg3wUpgYcPLRRBo20UU=",
+  "address": "g1uvwz22t0l2fv9az93wutmlusrjv5zdwx2n32d5",
   "pub_key": {
     "@type": "/tm.PubKeyEd25519",
-    "value": "AT/+aaL1eB0477Mud9JMm8Sh8BIvOYlPGC9KkIUmFaE="
+    "value": "cVt6w3C1DWYwwkAirnbsL49CoOe8T8ZR2BCB8MeOGRg="
   },
   "priv_key": {
     "@type": "/tm.PrivKeyEd25519",
-    "value": "EVkqJO/jIXp3rkASXfh9YnyToYXRXhBr6g9cQVxPFnQBP/5povV4HTjvsy530kybxKHwEi85iU8YL0qQhSYVoQ=="
+    "value": "Qq4Q9QH2flPSIJShbXPIocbrQtQ4S7Kdn31uI3sKZoJxW3rDcLUNZjDCQCKuduwvj0Kg57xPxlHYEIHwx44ZGA=="
   }
 }`
 

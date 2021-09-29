@@ -225,7 +225,7 @@ func TestHeaderByteSize(t *testing.T) {
 	bz, err := amino.MarshalSized(h)
 	require.NoError(t, err)
 
-	assert.EqualValues(t, 627, len(bz))
+	assert.EqualValues(t, 647, len(bz))
 }
 
 func randCommit() *Commit {

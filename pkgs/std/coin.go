@@ -35,6 +35,21 @@ func NewCoin(denom string, amount int64) Coin {
 	}
 }
 
+/*
+func (coin Coin) MarshalAmino() (string, error) {
+	return coin.String(), nil
+}
+
+func (coin *Coin) UnmarshalAmino(coinstr string) (err error) {
+	coin2, err := ParseCoin(coinstr)
+	if err != nil {
+		return err
+	}
+	*coin = coin2
+	return nil
+}
+*/
+
 // String provides a human-readable representation of a coin
 func (coin Coin) String() string {
 	return fmt.Sprintf("%d%v", coin.Amount, coin.Denom)
@@ -177,7 +192,18 @@ func NewCoins(coins ...Coin) Coins {
 	return newCoins
 }
 
-type coinsJSON Coins
+func (coins Coins) MarshalAmino() (string, error) {
+	return coins.String(), nil
+}
+
+func (coins *Coins) UnmarshalAmino(coinsstr string) (err error) {
+	coins2, err := ParseCoins(coinsstr)
+	if err != nil {
+		return err
+	}
+	*coins = coins2
+	return nil
+}
 
 func (coins Coins) String() string {
 	if len(coins) == 0 {

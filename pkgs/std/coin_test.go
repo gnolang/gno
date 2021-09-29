@@ -646,9 +646,9 @@ func TestMarshalJSONCoins(t *testing.T) {
 		input     Coins
 		strOutput string
 	}{
-		{"nil coins", nil, `null`},
-		{"empty coins", Coins{}, `[]`},
-		{"non-empty coins", NewCoins(NewCoin("foo", 50)), `[{"denom":"foo","amount":"50"}]`},
+		{"nil coins", nil, `""`},
+		{"empty coins", Coins{}, `""`},
+		{"non-empty coins", NewCoins(NewCoin("foo", 50)), `"50foo"`},
 	}
 
 	for _, tc := range testCases {

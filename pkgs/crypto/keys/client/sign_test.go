@@ -5,8 +5,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/command"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
+	testutils2 "github.com/gnolang/gno/pkgs/sdk/testutils"
+	"github.com/gnolang/gno/pkgs/std"
 	"github.com/gnolang/gno/pkgs/testutils"
 	"github.com/jaekwon/testify/assert"
 )
@@ -25,7 +28,10 @@ func Test_signAppBasic(t *testing.T) {
 		BaseOptions: BaseOptions{
 			Home: kbHome,
 		},
-		TxPath: "",
+		TxPath:        "-", // stdin
+		ChainID:       "testchain",
+		AccountNumber: new(uint64),
+		Sequence:      new(uint64),
 	}
 
 	fakeKeyName1 := "signApp_Key1"
@@ -35,21 +41,29 @@ func Test_signAppBasic(t *testing.T) {
 	// add test account to keybase.
 	kb, err := keys.NewKeyBaseFromDir(opts.Home)
 	assert.NoError(t, err)
-	_, err = kb.CreateAccount(fakeKeyName1, testMnemonic, "", encPassword, 0, 0)
+	acc, err := kb.CreateAccount(fakeKeyName1, testMnemonic, "", encPassword, 0, 0)
+	addr := acc.GetAddress()
 	assert.NoError(t, err)
 
-	cmd.SetIn(strings.NewReader("XXXDOC"))
+	// create a tx to sign.
+	msg := testutils2.NewTestMsg(addr)
+	fee := std.NewFee(1, std.Coin{"gnot", 1})
+	tx := std.NewTx([]std.Msg{msg}, fee, nil, "")
+	txjson := string(amino.MustMarshalJSON(tx))
+
+	cmd.SetIn(strings.NewReader(txjson))
 	args := []string{fakeKeyName1}
 	err = signApp(cmd, args, opts)
 	assert.Error(t, err)
 
-	cmd.SetIn(strings.NewReader("XXXDOC\n"))
+	cmd.SetIn(strings.NewReader(txjson + "\n"))
 	args = []string{fakeKeyName1}
 	err = signApp(cmd, args, opts)
 	assert.Error(t, err)
 
 	cmd.SetIn(strings.NewReader(
-		fmt.Sprintf("XXXDOC\n%s\n",
+		fmt.Sprintf("%s\n%s\n",
+			txjson,
 			encPassword,
 		),
 	))
@@ -58,7 +72,8 @@ func Test_signAppBasic(t *testing.T) {
 	assert.Error(t, err)
 
 	cmd.SetIn(strings.NewReader(
-		fmt.Sprintf("XXXDOC\n%s\n",
+		fmt.Sprintf("%s\n%s\n",
+			txjson,
 			encPassword,
 		),
 	))

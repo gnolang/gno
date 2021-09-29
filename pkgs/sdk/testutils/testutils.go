@@ -4,7 +4,6 @@ import (
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/crypto"
 	"github.com/gnolang/gno/pkgs/crypto/secp256k1"
-	"github.com/gnolang/gno/pkgs/sdk"
 	"github.com/gnolang/gno/pkgs/std"
 )
 
@@ -55,10 +54,10 @@ func KeyTestPubAddr() (crypto.PrivKey, crypto.PubKey, crypto.Address) {
 	return key, pub, addr
 }
 
-func NewTestTx(ctx sdk.Context, msgs []std.Msg, privs []crypto.PrivKey, accNums []uint64, seqs []uint64, fee std.Fee) std.Tx {
+func NewTestTx(chainID string, msgs []std.Msg, privs []crypto.PrivKey, accNums []uint64, seqs []uint64, fee std.Fee) std.Tx {
 	sigs := make([]std.Signature, len(privs))
 	for i, priv := range privs {
-		signBytes := std.SignBytes(ctx.ChainID(), accNums[i], seqs[i], fee, msgs, "")
+		signBytes := std.SignBytes(chainID, accNums[i], seqs[i], fee, msgs, "")
 
 		sig, err := priv.Sign(signBytes)
 		if err != nil {
@@ -72,10 +71,10 @@ func NewTestTx(ctx sdk.Context, msgs []std.Msg, privs []crypto.PrivKey, accNums 
 	return tx
 }
 
-func NewTestTxWithMemo(ctx sdk.Context, msgs []std.Msg, privs []crypto.PrivKey, accNums []uint64, seqs []uint64, fee std.Fee, memo string) std.Tx {
+func NewTestTxWithMemo(chainID string, msgs []std.Msg, privs []crypto.PrivKey, accNums []uint64, seqs []uint64, fee std.Fee, memo string) std.Tx {
 	sigs := make([]std.Signature, len(privs))
 	for i, priv := range privs {
-		signBytes := std.SignBytes(ctx.ChainID(), accNums[i], seqs[i], fee, msgs, memo)
+		signBytes := std.SignBytes(chainID, accNums[i], seqs[i], fee, msgs, memo)
 
 		sig, err := priv.Sign(signBytes)
 		if err != nil {
