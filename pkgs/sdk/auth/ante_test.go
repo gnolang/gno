@@ -361,7 +361,7 @@ func TestAnteHandlerMemoGas(t *testing.T) {
 
 	// memo too large
 	fee = std.NewFee(9000, std.NewCoin("atom", 0))
-	tx = tu.NewTestTxWithMemo(ctx, []std.Msg{msg}, privs, accnums, seqs, fee, strings.Repeat("01234567890", 500))
+	tx = tu.NewTestTxWithMemo(ctx, []std.Msg{msg}, privs, accnums, seqs, fee, strings.Repeat("01234567890", 99000))
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.MemoTooLargeError{})
 
 	// tx with memo has enough gas

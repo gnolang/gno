@@ -25,7 +25,7 @@ func Test_signAppBasic(t *testing.T) {
 		BaseOptions: BaseOptions{
 			Home: kbHome,
 		},
-		DocPath: "",
+		TxPath: "",
 	}
 
 	fakeKeyName1 := "signApp_Key1"

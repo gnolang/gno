@@ -25,17 +25,14 @@ func TestInvalidMsg(t *testing.T) {
 func TestBalances(t *testing.T) {
 	env := setupTestEnv()
 	h := NewHandler(env.bank)
+	_, _, addr := tu.KeyTestPubAddr()
+
 	req := abci.RequestQuery{
-		Path: fmt.Sprintf("bank/%s", QueryBalance),
+		Path: fmt.Sprintf("bank/%s/%s", QueryBalance, addr.String()),
 		Data: []byte{},
 	}
 
 	res := h.Query(env.ctx, req)
-	require.NotNil(t, res.Error)
-
-	_, _, addr := tu.KeyTestPubAddr()
-	req.Data = amino.MustMarshalJSON(NewQueryBalanceParams(addr))
-	res = h.Query(env.ctx, req)
 	require.Nil(t, res.Error) // the account does not exist, no error returned anyway
 	require.NotNil(t, res)
 

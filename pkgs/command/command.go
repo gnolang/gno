@@ -19,6 +19,7 @@ type Command struct {
 	Err    io.WriteCloser
 	ErrBuf *bufio.Writer
 	Error  error
+	Flags  map[string]interface{}
 }
 
 func NewStdCommand() *Command {
@@ -50,6 +51,8 @@ func (cmd *Command) Run(app App, args []string, defaults interface{}) error {
 			cmd.printHelpFromDefaults(rt)
 			return nil
 		}
+		// store raw flags.
+		cmd.Flags = flags
 		// apply flags to defaults.
 		ptr := amino.DeepCopyToPtr(defaults)
 		err := applyFlags(ptr, flags)
@@ -110,6 +113,11 @@ func (cmd *Command) SetOut(out io.WriteCloser) {
 func (cmd *Command) SetErr(err io.WriteCloser) {
 	cmd.Err = err
 	cmd.ErrBuf = bufio.NewWriter(cmd.Err)
+}
+
+func (cmd *Command) HasFlag(name string) bool {
+	_, ok := cmd.Flags[name]
+	return ok
 }
 
 //----------------------------------------

@@ -11,11 +11,11 @@ import (
 )
 
 type SignOptions struct {
-	BaseOptions          // home,...
-	TxPath        string `flag:"txpath" help:"path to file of tx to sign"`
-	ChainID       string `flag:"chainid" help:"chainid to sign for"`
-	AccountNumber uint64 `flag:"number" help:"account number to sign with (required)"`
-	Sequence      uint64 `flag:"sequence" help:"sequence to sign with (required)"`
+	BaseOptions           // home,...
+	TxPath        string  `flag:"txpath" help:"path to file of tx to sign"`
+	ChainID       string  `flag:"chainid" help:"chainid to sign for"`
+	AccountNumber *uint64 `flag:"number" help:"account number to sign with (required)"`
+	Sequence      *uint64 `flag:"sequence" help:"sequence to sign with (required)"`
 }
 
 var DefaultSignOptions = SignOptions{
@@ -32,10 +32,10 @@ func signApp(cmd *command.Command, args []string, iopts interface{}) error {
 		cmd.ErrPrintfln("Usage: sign <keyname>")
 		return errors.New("invalid args")
 	}
-	if opts.AccountNumber == 0 {
+	if opts.AccountNumber == nil {
 		return errors.New("invalid account number")
 	}
-	if opts.Sequence == 0 {
+	if opts.Sequence == nil {
 		return errors.New("invalid sequence")
 	}
 
@@ -85,8 +85,8 @@ func signApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 	// derive sign doc bytes.
 	chainID := opts.ChainID
-	accountNumber := opts.AccountNumber
-	sequence := opts.Sequence
+	accountNumber := *opts.AccountNumber
+	sequence := *opts.Sequence
 	signbz := tx.GetSignBytes(chainID, accountNumber, sequence)
 
 	pass, err := "", error(nil)

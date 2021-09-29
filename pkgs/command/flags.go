@@ -99,6 +99,12 @@ func applyFlagToFieldReflect(frv reflect.Value, fvalue interface{}) error {
 func applyFlagToFieldReflectString(frv reflect.Value, fvalue string) error {
 	frt := frv.Type()
 	switch frt.Kind() {
+	case reflect.Ptr:
+		if frv.IsNil() {
+			frv.Set(reflect.New(frt.Elem()))
+		}
+		err := applyFlagToFieldReflectString(frv.Elem(), fvalue)
+		return err
 	case reflect.Array:
 		ert := frt.Elem()
 		if ert.Kind() == reflect.Uint8 {
