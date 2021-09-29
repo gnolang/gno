@@ -50,7 +50,7 @@ func next(i int) int {
 func assertOutput(t *testing.T, input string, output string) {
 	buf := new(bytes.Buffer)
 	pn := NewPackageNode("test", ".test", &FileSet{})
-	pkg := pn.NewPackage(nil)
+	pkg := pn.NewPackage()
 	m := NewMachineWithOptions(MachineOptions{
 		Package: pkg,
 		Output:  buf,

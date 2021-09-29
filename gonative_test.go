@@ -26,7 +26,7 @@ func TestGoNativeDefine(t *testing.T) {
 	path := pkg.GetPathForName(nil, Name("Foo"))
 	assert.Equal(t, path.Depth, uint8(1))
 	assert.Equal(t, path.Index, uint16(0))
-	pv := pkg.NewPackage(nil)
+	pv := pkg.NewPackage()
 	nt = pv.GetPointerTo(nil, path).TV.GetType().(*NativeType)
 	assert.Equal(t, nt.Type, rt)
 
@@ -53,7 +53,7 @@ func TestGoNativeDefine2(t *testing.T) {
 	pkg := NewPackageNode("foo", "test.foo", nil)
 	rt := reflect.TypeOf(Foo{})
 	pkg.DefineGoNativeType(rt)
-	pv := pkg.NewPackage(nil)
+	pv := pkg.NewPackage()
 
 	// Import above package and run file.
 	out := new(bytes.Buffer)
@@ -101,7 +101,7 @@ func TestGoNativeDefine3(t *testing.T) {
 		out.Write([]byte(fmt.Sprintf("C: %v\n", f.C)))
 		out.Write([]byte(fmt.Sprintf("D: %v\n", f.D)))
 	})
-	pv := pkg.NewPackage(nil)
+	pv := pkg.NewPackage()
 
 	// Import above package and run file.
 	m := NewMachineWithOptions(MachineOptions{

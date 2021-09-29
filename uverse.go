@@ -13,7 +13,7 @@ const uversePkgPath = ".uverse"
 // Always returns a new copy from the latest state of source.
 func Uverse() *PackageValue {
 	pn := UverseNode()
-	pv := pn.NewPackage(nil) // no realms in uverse.
+	pv := pn.NewPackage()
 	return pv
 }
 

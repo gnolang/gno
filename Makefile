@@ -1,6 +1,10 @@
-all: gnoland goscan logos
+all: gnoland gnokey goscan logos
 
-.PHONY: logos goscan gnoland
+.PHONY: logos goscan gnoland gnokey logos reset
+
+reset:
+	rm -rf testdir
+	make
 
 # The main show (daemon)
 gnoland:

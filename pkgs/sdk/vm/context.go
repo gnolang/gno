@@ -6,10 +6,10 @@ import (
 )
 
 type EvalContext struct {
-	ChainID   string
-	Height    int64
-	Msg       MsgEval
-	RealmAddr crypto.Address
+	ChainID string
+	Height  int64
+	Msg     MsgEval
+	PkgAddr crypto.Address
 
 	sdkCtx sdk.Context // TODO: ensure hidden or refactor.
 }

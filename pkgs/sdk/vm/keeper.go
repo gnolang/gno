@@ -87,7 +87,7 @@ func (vmk VMKeeper) initBuiltinPackages(store gno.Store) {
 				ctx := m.Context.(EvalContext)
 				err := vmk.bank.SendCoins(
 					ctx.sdkCtx,
-					ctx.RealmAddr,
+					ctx.PkgAddr,
 					toAddr,
 					send,
 				)
@@ -142,8 +142,8 @@ func (vm VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 		panic("package already exists: " + pkgPath)
 	}
 	// Pay deposit from creator.
-	realmAddr := RealmAddress(pkgPath)
-	err := vm.bank.SendCoins(ctx, creator, realmAddr, deposit)
+	pkgAddr := DerivePkgAddr(pkgPath)
+	err := vm.bank.SendCoins(ctx, creator, pkgAddr, deposit)
 	if err != nil {
 		return err
 	}
@@ -202,21 +202,21 @@ func (vm VMKeeper) Eval(ctx sdk.Context, msg MsgEval) (res string, err error) {
 	if err != nil {
 		return "", err
 	}
-	// Send send-coins to realm from caller.
-	realmAddr := RealmAddress(pkgPath)
+	// Send send-coins to pkg from caller.
+	pkgAddr := DerivePkgAddr(pkgPath)
 	caller := msg.Caller
 	send := msg.Send
-	err = vm.bank.SendCoins(ctx, caller, realmAddr, send)
+	err = vm.bank.SendCoins(ctx, caller, pkgAddr, send)
 	if err != nil {
 		return "", err
 	}
 
 	msgCtx := EvalContext{
-		ChainID:   ctx.ChainID(),
-		Height:    ctx.BlockHeight(),
-		Msg:       msg,
-		RealmAddr: realmAddr,
-		sdkCtx:    ctx,
+		ChainID: ctx.ChainID(),
+		Height:  ctx.BlockHeight(),
+		Msg:     msg,
+		PkgAddr: pkgAddr,
+		sdkCtx:  ctx,
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
@@ -233,11 +233,8 @@ func (vm VMKeeper) Eval(ctx sdk.Context, msg MsgEval) (res string, err error) {
 
 //----------------------------------------
 
-// For keeping record of realm coins.
-func RealmAddress(pkgPath string) crypto.Address {
-	if !gno.IsRealmPath(pkgPath) {
-		panic("should not happen; expected realm path, got " + pkgPath)
-	}
+// For keeping record of package & realm coins.
+func DerivePkgAddr(pkgPath string) crypto.Address {
 	// NOTE: must not collide with pubkey addrs.
 	return crypto.AddressFromPreimage([]byte("pkgPath:" + pkgPath))
 }

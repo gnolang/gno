@@ -40,12 +40,8 @@ type Machine struct {
 // Creates a new MemRealmer for any new realms.
 func NewMachine(pkgPath string, store Store) *Machine {
 	pkgName := defaultPkgName(pkgPath)
-	rlm := (*Realm)(nil)
-	if IsRealmPath(pkgPath) {
-		rlm = NewRealm(pkgPath)
-	}
 	pn := NewPackageNode(pkgName, pkgPath, &FileSet{})
-	pv := pn.NewPackage(rlm)
+	pv := pn.NewPackage()
 	return NewMachineWithOptions(
 		MachineOptions{
 			Package: pv,
@@ -65,7 +61,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	pkg := opts.Package
 	if pkg == nil {
 		pn := NewPackageNode("main", ".main", &FileSet{})
-		pkg = pn.NewPackage(nil) // no realm by default.
+		pkg = pn.NewPackage()
 	}
 	rlm := pkg.GetRealm()
 	checkTypes := opts.CheckTypes

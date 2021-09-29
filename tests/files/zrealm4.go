@@ -22,7 +22,7 @@ func main() {
 // true 1
 
 // Realm:
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:2]={
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:1]={
 //     "Fields": [
 //         {
 //             "T": {
@@ -65,8 +65,8 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
-//         "ModTime": "4",
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:1",
+//         "ModTime": "2",
 //         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:0",
 //         "RefCount": "1"
 //     }
@@ -75,7 +75,7 @@ func main() {
 //     "Blank": {},
 //     "ObjectInfo": {
 //         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:0",
-//         "ModTime": "5",
+//         "ModTime": "2",
 //         "RefCount": "0"
 //     },
 //     "Parent": null,
@@ -94,8 +94,8 @@ func main() {
 //                 "@type": "/gno.fun",
 //                 "Closure": {
 //                     "@type": "/gno.rfv",
-//                     "Hash": "1b7cff65e7c19ddef5180ad6beda7d7d1b722519",
-//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
+//                     "Hash": "dd56af4f33ec6280822a1c93a0ba6ec60ef51ddb",
+//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2"
 //                 },
 //                 "FileName": "files/zrealm4.go",
 //                 "IsMethod": false,
@@ -121,8 +121,8 @@ func main() {
 //                 "@type": "/gno.fun",
 //                 "Closure": {
 //                     "@type": "/gno.rfv",
-//                     "Hash": "1b7cff65e7c19ddef5180ad6beda7d7d1b722519",
-//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
+//                     "Hash": "dd56af4f33ec6280822a1c93a0ba6ec60ef51ddb",
+//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2"
 //                 },
 //                 "FileName": "files/zrealm4.go",
 //                 "IsMethod": false,
@@ -155,11 +155,12 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.rfv",
-//                         "Hash": "e437b42a348457653a9d71d1ab86842d32c3d947",
-//                         "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2"
+//                         "Hash": "10e8d4e65d2b268bb63941fa239e5f1a11d0d430",
+//                         "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:1"
 //                     }
 //                 }
 //             }
 //         }
 //     ]
 // }
+//

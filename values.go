@@ -569,9 +569,9 @@ type PackageValue struct {
 	PkgPath string
 	FNames  []Name
 	FBlocks []Value
+	Realm   *Realm // if IsRealm(PkgPath)
 
 	fBlocksMap map[Name]*Block
-	realm      *Realm // if IsRealm(PkgPath)
 }
 
 func (pv *PackageValue) getFBlocksMap() map[Name]*Block {
@@ -625,11 +625,11 @@ func (pv *PackageValue) GetFileBlock(store Store, fname Name) *Block {
 }
 
 func (pv *PackageValue) GetRealm() *Realm {
-	return pv.realm
+	return pv.Realm
 }
 
 func (pv *PackageValue) SetRealm(rlm *Realm) {
-	pv.realm = rlm
+	pv.Realm = rlm
 	if !pv.Block.ObjectInfo.ID.IsZero() {
 		panic("should not happen")
 	}

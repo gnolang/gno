@@ -128,6 +128,9 @@ func (rlm *Realm) SetLogRealmOps(enabled bool) {
 // xo or co is nil if the element value is undefined or has no
 // associated object.
 func (rlm *Realm) DidUpdate(po, xo, co Object) {
+	if rlm == nil {
+		return
+	}
 	if debug {
 		if co != nil && co.GetIsDeleted() {
 			panic("cannot attach a deleted object")
@@ -145,6 +148,9 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	if !po.GetIsReal() && !po.GetIsNewReal() {
 		return // do nothing.
 	}
+	// NOTE: if po is a non-realm *PackageValue (which shouldn't happen
+	// because they shouldn't have mutable state), the realm panics upon
+	// getUnsaved() during finalization.
 	if co != nil {
 		co.IncRefCount()
 	}
@@ -208,9 +214,6 @@ func (rlm *Realm) MarkNewReal(oo Object) {
 	} else {
 		oo.SetIsNewReal(true)
 	}
-	if rlm == nil {
-		return
-	}
 	//----------------------------------------
 	// rlm != nil
 	// append to .created
@@ -230,11 +233,7 @@ func (rlm *Realm) MarkDirty(oo Object) {
 	if oo.GetIsDirty() {
 		return // already marked.
 	} else {
-		rlm.Time++
 		oo.SetIsDirty(true, rlm.Time)
-	}
-	if rlm == nil {
-		return
 	}
 	//----------------------------------------
 	// rlm != nil
@@ -257,9 +256,6 @@ func (rlm *Realm) MarkDeleted(oo Object) {
 	// NOTE: do not increment rlm.Time.
 	// rlm.Time is passed in for debugging purposes.
 	oo.SetIsDeleted(true, rlm.Time)
-	if rlm == nil {
-		return
-	}
 	//----------------------------------------
 	// rlm != nil
 	// append to .deleted

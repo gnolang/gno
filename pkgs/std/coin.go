@@ -35,7 +35,6 @@ func NewCoin(denom string, amount int64) Coin {
 	}
 }
 
-/*
 func (coin Coin) MarshalAmino() (string, error) {
 	return coin.String(), nil
 }
@@ -48,7 +47,6 @@ func (coin *Coin) UnmarshalAmino(coinstr string) (err error) {
 	*coin = coin2
 	return nil
 }
-*/
 
 // String provides a human-readable representation of a coin
 func (coin Coin) String() string {
