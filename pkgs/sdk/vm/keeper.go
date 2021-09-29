@@ -115,7 +115,7 @@ func (vmk VMKeeper) initBuiltinPackages(store gno.Store) {
 				m.PushValue(res0)
 			},
 		)
-		store.SetPackage(pkg.NewPackage(nil))
+		store.SetPackage(pkg.NewPackage())
 	}
 }
 
@@ -173,8 +173,7 @@ func (vm VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 		fnodes = append(fnodes, fnode)
 	}
 	pkg := gno.NewPackageNode(pkgName, pkgPath, nil)
-	rlm := gno.NewRealm(pkgPath)
-	pv := pkg.NewPackage(rlm)
+	pv := pkg.NewPackage()
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			Package: pv,

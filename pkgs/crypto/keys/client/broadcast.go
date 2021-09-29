@@ -55,6 +55,9 @@ func broadcastApp(cmd *command.Command, args []string, iopts interface{}) error 
 		return errors.New("transaction failed %#v\nlog %s", bres, bres.CheckTx.Log)
 	} else if bres.DeliverTx.IsErr() {
 		return errors.New("transaction failed %#v\nlog %s", bres, bres.DeliverTx.Log)
+	} else {
+		cmd.Println(string(bres.DeliverTx.Data))
+		cmd.Println("OK!")
 	}
 	return nil
 }

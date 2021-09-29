@@ -51,7 +51,7 @@ func (vh vmHandler) handleMsgAddPackage(ctx sdk.Context, msg MsgAddPackage) sdk.
 }
 
 // Handle MsgEval.
-func (vh vmHandler) handleMsgEval(ctx sdk.Context, msg MsgEval) sdk.Result {
+func (vh vmHandler) handleMsgEval(ctx sdk.Context, msg MsgEval) (res sdk.Result) {
 	amount, err := std.ParseCoins("1gnot") // XXX calculate
 	if err != nil {
 		return abciResult(err)
@@ -60,6 +60,12 @@ func (vh vmHandler) handleMsgEval(ctx sdk.Context, msg MsgEval) sdk.Result {
 	if err != nil {
 		return abciResult(err)
 	}
+	out, err := vh.vm.Eval(ctx, msg)
+	if err != nil {
+		return abciResult(err)
+	}
+	res.Data = []byte(out)
+	return
 	/*
 		ctx.EventManager().EmitEvent(
 			sdk.NewEvent(
@@ -68,7 +74,6 @@ func (vh vmHandler) handleMsgEval(ctx sdk.Context, msg MsgEval) sdk.Result {
 			),
 		)
 	*/
-	return sdk.Result{}
 }
 
 //----------------------------------------
