@@ -79,11 +79,10 @@ func (vh vmHandler) handleMsgEval(ctx sdk.Context, msg MsgEval) (res sdk.Result)
 //----------------------------------------
 // Query
 
-// query package path
+// query paths
 const QueryPackage = "package"
-
-// query store path
 const QueryStore = "store"
+const QueryEval = "queryeval"
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	switch secondPart(req.Path) {
@@ -91,6 +90,8 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 		return vh.queryPackage(ctx, req)
 	case QueryStore:
 		return vh.queryStore(ctx, req)
+	case QueryEval:
+		return vh.queryEval(ctx, req)
 	default:
 		res = sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest("unknown vm query endpoint"))
@@ -102,7 +103,7 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 func (vh vmHandler) queryPackage(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	parts := strings.Split(req.Path, "/")
 	if parts[0] != "vm" {
-		panic("vhould not happen")
+		panic("should not happen")
 	}
 	res.Data = []byte(fmt.Sprintf("TODO: parse parts get or make fileset..."))
 	return
@@ -112,9 +113,31 @@ func (vh vmHandler) queryPackage(ctx sdk.Context, req abci.RequestQuery) (res ab
 func (vh vmHandler) queryStore(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	parts := strings.Split(req.Path, "/")
 	if parts[0] != "vm" {
-		panic("vhould not happen")
+		panic("should not happen")
 	}
-	res.Data = []byte(fmt.Sprintf("TODO: parse parts get or make fileset..."))
+	res.Data = []byte(fmt.Sprintf("TODO: fetch from store"))
+	return
+}
+
+// queryEval evaluates a pure readonly expression.
+func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	parts := strings.Split(req.Path, "/")
+	if parts[0] != "vm" {
+		panic("should not happen")
+	}
+	reqData := string(req.Data)
+	reqParts := strings.Split(reqData, "\n")
+	if len(reqParts) != 2 {
+		panic("expected two lines in query input data")
+	}
+	pkgPath := reqParts[0]
+	expr := reqParts[1]
+	result, err := vh.vm.QueryEval(ctx, pkgPath, expr)
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	res.Data = []byte(result)
 	return
 }
 

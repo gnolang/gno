@@ -9,10 +9,10 @@ import (
 )
 
 type QueryOptions struct {
-	BaseOptions
-	Data   []byte
-	Height int64 // not yet used
-	Prove  bool  // not yet used
+	BaseOptions        // home,remote,...
+	Data        []byte `flag:"data" help:"query data bytes"`                        // <pkgpath>\n<expr> for queryexprs.
+	Height      int64  `flag:"height" help:"query height (not yet supported)"`      // not yet used
+	Prove       bool   `flag:"prove" help:"prove query result (not yet supported)"` // not yet used
 }
 
 var DefaultQueryOptions = QueryOptions{

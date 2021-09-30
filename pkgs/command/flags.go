@@ -110,7 +110,9 @@ func applyFlagToFieldReflectString(frv reflect.Value, fvalue string) error {
 		if ert.Kind() == reflect.Uint8 {
 			bz, err := hex.DecodeString(fvalue)
 			if err != nil {
-				return errors.Wrap(err, "invalid hex")
+				// if not hex, try to use the fvalue directly.
+				bz = []byte(fvalue)
+				// return errors.Wrap(err, "invalid hex")
 			}
 			frv.SetBytes(bz)
 			return nil
@@ -130,7 +132,9 @@ func applyFlagToFieldReflectString(frv reflect.Value, fvalue string) error {
 		if ert.Kind() == reflect.Uint8 {
 			bz, err := hex.DecodeString(fvalue)
 			if err != nil {
-				return errors.Wrap(err, "invalid hex")
+				// if not hex, try to use the fvalue directly.
+				bz = []byte(fvalue)
+				// return errors.Wrap(err, "invalid hex")
 			}
 			frv.SetBytes(bz)
 			return nil

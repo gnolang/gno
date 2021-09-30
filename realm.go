@@ -305,9 +305,16 @@ func (rlm *Realm) CompressMarks() {
 // XXX that is X owned by Y isn't also owned by Z.
 // XXX unless we saved X but don't have reference to Y.
 // XXX
-func (rlm *Realm) FinalizeRealmTransaction(store Store) {
+func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 	// Process changes in created/updated/deleted.
 	rlm.CompressMarks()
+	if readonly {
+		if len(rlm.created) > 0 ||
+			len(rlm.updated) > 0 ||
+			len(rlm.deleted) > 0 {
+			panic("realm updates in readonly transaction")
+		}
+	}
 	rlm.ProcessCreatedObjects(store)
 	rlm.ProcessUpdatedObjects(store)
 	rlm.ProcessDeletedObjects(store)

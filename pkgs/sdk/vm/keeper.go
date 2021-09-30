@@ -80,6 +80,9 @@ func (vmk VMKeeper) initBuiltinPackages(store gno.Store) {
 				"err", "error",
 			),
 			func(m *gno.Machine) {
+				if m.ReadOnly {
+					panic("cannot send -- readonly")
+				}
 				arg0, arg1 := m.LastBlock().GetParams2()
 				toAddr := arg0.TV.V.(*gno.NativeValue).Value.Interface().(crypto.Address)
 				send := arg1.TV.V.(*gno.NativeValue).Value.Interface().(std.Coins)
@@ -186,7 +189,7 @@ func (vm VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	return nil
 }
 
-// Eval evaluates gno expression.
+// Eval evaluates gno expression (for delivertx).
 func (vm VMKeeper) Eval(ctx sdk.Context, msg MsgEval) (res string, err error) {
 	pkgPath := msg.PkgPath
 	expr := msg.Expr
@@ -210,6 +213,7 @@ func (vm VMKeeper) Eval(ctx sdk.Context, msg MsgEval) (res string, err error) {
 		return "", err
 	}
 
+	// Construct new machine.
 	msgCtx := EvalContext{
 		ChainID: ctx.ChainID(),
 		Height:  ctx.BlockHeight(),
@@ -228,6 +232,39 @@ func (vm VMKeeper) Eval(ctx sdk.Context, msg MsgEval) (res string, err error) {
 	res = rtv.String()
 	return res, nil
 	// TODO pay for gas? TODO see context?
+}
+
+// QueryEval evaluates gno expression (readonly, for ABCI queries).
+func (vm VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
+	// Get Package.
+	pv := vm.store.GetPackage(pkgPath)
+	if pv == nil {
+		err = ErrInvalidPkgPath("package not found")
+		return "", err
+	}
+	// Parse expression.
+	xx, err := gno.ParseExpr(expr)
+	if err != nil {
+		return "", err
+	}
+	// Construct new machine.
+	msgCtx := EvalContext{
+		ChainID: ctx.ChainID(),
+		Height:  ctx.BlockHeight(),
+		//Msg:     msg,
+		//PkgAddr: pkgAddr,
+		sdkCtx: ctx,
+	}
+	m := gno.NewMachineWithOptions(
+		gno.MachineOptions{
+			Package: pv,
+			Output:  nil,
+			Store:   vm.store,
+			Context: msgCtx,
+		})
+	rtv := m.Eval(xx)
+	res = rtv.String()
+	return res, nil
 }
 
 //----------------------------------------

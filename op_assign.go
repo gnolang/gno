@@ -12,6 +12,14 @@ func (m *Machine) doOpDefine() {
 		nx := s.Lhs[i].(*NameExpr)
 		// Finally, define (or assign if loop block).
 		ptr := lb.GetPointerTo(m.Store, nx.Path)
+		// XXX HACK (until value persistence impl'd)
+		if m.ReadOnly {
+			if oo, ok := ptr.Base.(Object); ok {
+				if oo.GetIsReal() {
+					panic("readonly violation")
+				}
+			}
+		}
 		ptr.Assign2(m.Store, m.Realm, rvs[i], true)
 	}
 }
@@ -25,6 +33,14 @@ func (m *Machine) doOpAssign() {
 	for i := len(s.Lhs) - 1; 0 <= i; i-- {
 		// Pop lhs value and desired type.
 		lv := m.PopAsPointer(s.Lhs[i])
+		// XXX HACK (until value persistence impl'd)
+		if m.ReadOnly {
+			if oo, ok := lv.Base.(Object); ok {
+				if oo.GetIsReal() {
+					panic("readonly violation")
+				}
+			}
+		}
 		lv.Assign2(m.Store, m.Realm, rvs[i], true)
 	}
 }
@@ -37,8 +53,19 @@ func (m *Machine) doOpAddAssign() {
 		assertSameTypes(lv.TV.T, rv.T)
 	}
 
+	// XXX HACK (until value persistence impl'd)
+	if m.ReadOnly {
+		if oo, ok := lv.Base.(Object); ok {
+			if oo.GetIsReal() {
+				panic("readonly violation")
+			}
+		}
+	}
 	// add rv to lv.
 	addAssign(lv.TV, rv)
+	if lv.Base != nil {
+		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
+	}
 }
 
 func (m *Machine) doOpSubAssign() {
@@ -49,8 +76,19 @@ func (m *Machine) doOpSubAssign() {
 		assertSameTypes(lv.TV.T, rv.T)
 	}
 
+	// XXX HACK (until value persistence impl'd)
+	if m.ReadOnly {
+		if oo, ok := lv.Base.(Object); ok {
+			if oo.GetIsReal() {
+				panic("readonly violation")
+			}
+		}
+	}
 	// sub rv from lv.
 	subAssign(lv.TV, rv)
+	if lv.Base != nil {
+		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
+	}
 }
 
 func (m *Machine) doOpMulAssign() {
@@ -61,8 +99,19 @@ func (m *Machine) doOpMulAssign() {
 		assertSameTypes(lv.TV.T, rv.T)
 	}
 
+	// XXX HACK (until value persistence impl'd)
+	if m.ReadOnly {
+		if oo, ok := lv.Base.(Object); ok {
+			if oo.GetIsReal() {
+				panic("readonly violation")
+			}
+		}
+	}
 	// lv *= rv
 	mulAssign(lv.TV, rv)
+	if lv.Base != nil {
+		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
+	}
 }
 
 func (m *Machine) doOpQuoAssign() {
@@ -73,8 +122,19 @@ func (m *Machine) doOpQuoAssign() {
 		assertSameTypes(lv.TV.T, rv.T)
 	}
 
+	// XXX HACK (until value persistence impl'd)
+	if m.ReadOnly {
+		if oo, ok := lv.Base.(Object); ok {
+			if oo.GetIsReal() {
+				panic("readonly violation")
+			}
+		}
+	}
 	// lv /= rv
 	quoAssign(lv.TV, rv)
+	if lv.Base != nil {
+		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
+	}
 }
 
 func (m *Machine) doOpRemAssign() {
@@ -85,8 +145,19 @@ func (m *Machine) doOpRemAssign() {
 		assertSameTypes(lv.TV.T, rv.T)
 	}
 
+	// XXX HACK (until value persistence impl'd)
+	if m.ReadOnly {
+		if oo, ok := lv.Base.(Object); ok {
+			if oo.GetIsReal() {
+				panic("readonly violation")
+			}
+		}
+	}
 	// lv %= rv
 	remAssign(lv.TV, rv)
+	if lv.Base != nil {
+		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
+	}
 }
 
 func (m *Machine) doOpBandAssign() {
@@ -97,8 +168,19 @@ func (m *Machine) doOpBandAssign() {
 		assertSameTypes(lv.TV.T, rv.T)
 	}
 
+	// XXX HACK (until value persistence impl'd)
+	if m.ReadOnly {
+		if oo, ok := lv.Base.(Object); ok {
+			if oo.GetIsReal() {
+				panic("readonly violation")
+			}
+		}
+	}
 	// lv &= rv
 	bandAssign(lv.TV, rv)
+	if lv.Base != nil {
+		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
+	}
 }
 
 func (m *Machine) doOpBandnAssign() {
@@ -109,8 +191,19 @@ func (m *Machine) doOpBandnAssign() {
 		assertSameTypes(lv.TV.T, rv.T)
 	}
 
+	// XXX HACK (until value persistence impl'd)
+	if m.ReadOnly {
+		if oo, ok := lv.Base.(Object); ok {
+			if oo.GetIsReal() {
+				panic("readonly violation")
+			}
+		}
+	}
 	// lv &^= rv
 	bandnAssign(lv.TV, rv)
+	if lv.Base != nil {
+		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
+	}
 }
 
 func (m *Machine) doOpBorAssign() {
@@ -121,8 +214,19 @@ func (m *Machine) doOpBorAssign() {
 		assertSameTypes(lv.TV.T, rv.T)
 	}
 
+	// XXX HACK (until value persistence impl'd)
+	if m.ReadOnly {
+		if oo, ok := lv.Base.(Object); ok {
+			if oo.GetIsReal() {
+				panic("readonly violation")
+			}
+		}
+	}
 	// lv |= rv
 	borAssign(lv.TV, rv)
+	if lv.Base != nil {
+		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
+	}
 }
 
 func (m *Machine) doOpXorAssign() {
@@ -133,8 +237,19 @@ func (m *Machine) doOpXorAssign() {
 		assertSameTypes(lv.TV.T, rv.T)
 	}
 
+	// XXX HACK (until value persistence impl'd)
+	if m.ReadOnly {
+		if oo, ok := lv.Base.(Object); ok {
+			if oo.GetIsReal() {
+				panic("readonly violation")
+			}
+		}
+	}
 	// lv ^= rv
 	xorAssign(lv.TV, rv)
+	if lv.Base != nil {
+		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
+	}
 }
 
 func (m *Machine) doOpShlAssign() {

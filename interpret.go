@@ -30,7 +30,8 @@ type Machine struct {
 	NumResults int // number of results returned
 
 	// Configuration
-	CheckTypes bool
+	CheckTypes bool // not yet used
+	ReadOnly   bool
 	Output     io.Writer
 	Store      Store
 	Context    interface{}
@@ -51,7 +52,8 @@ func NewMachine(pkgPath string, store Store) *Machine {
 
 type MachineOptions struct {
 	Package    *PackageValue
-	CheckTypes bool
+	CheckTypes bool // not yet used
+	ReadOnly   bool
 	Output     io.Writer
 	Store      Store
 	Context    interface{}
@@ -65,6 +67,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	}
 	rlm := pkg.GetRealm()
 	checkTypes := opts.CheckTypes
+	readOnly := opts.ReadOnly
 	output := opts.Output
 	if output == nil {
 		output = os.Stdout
@@ -86,6 +89,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		Package:    pkg,
 		Realm:      rlm,
 		CheckTypes: checkTypes,
+		ReadOnly:   readOnly,
 		Output:     output,
 		Store:      store,
 		Context:    context,
