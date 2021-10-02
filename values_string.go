@@ -127,7 +127,7 @@ func (v *PackageValue) String() string {
 	return fmt.Sprintf("package(%s %s)", v.PkgName, v.PkgPath)
 }
 
-func (v NativeValue) String() string {
+func (v *NativeValue) String() string {
 	return fmt.Sprintf("gonative{%v}",
 		v.Value.Interface())
 	/*

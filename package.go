@@ -22,7 +22,7 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	&BoundMethodValue{}, "bnd",
 	TypeValue{}, "typ",
 	&PackageValue{}, "pkg",
-	// NativeValue
+	// &NativeValue{},
 	&Block{}, "blk",
 	RefType{}, "rft",
 	RefValue{}, "rfv",

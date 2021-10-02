@@ -470,10 +470,7 @@ func getUnsavedChildren(val Value, more []Object) []Object {
 		more = getUnsaved(cv.Parent, more)
 		return more
 	case *NativeValue:
-		// NOTE: assumes native values are
-		// amino encodeable, and that no
-		// gno values are contained.
-		return more
+		panic("native values not supported")
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %v",
@@ -645,7 +642,7 @@ func copyWithRefs(parent Object, val Value) Value {
 			Blank:      TypedValue{}, // empty
 		}
 	case *NativeValue:
-		return cv.ToAminoRepr() // RefValue{}
+		panic("native values not supported")
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %v",

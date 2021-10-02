@@ -8,8 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"unsafe"
-
-	"github.com/gnolang/gno/pkgs/amino"
 )
 
 //----------------------------------------
@@ -34,7 +32,7 @@ func (*MapValue) assertValue()         {}
 func (*BoundMethodValue) assertValue() {}
 func (TypeValue) assertValue()         {}
 func (*PackageValue) assertValue()     {}
-func (NativeValue) assertValue()       {}
+func (*NativeValue) assertValue()      {}
 func (*Block) assertValue()            {}
 func (RefValue) assertValue()          {}
 
@@ -50,7 +48,7 @@ var _ Value = &MapValue{}
 var _ Value = &BoundMethodValue{}
 var _ Value = TypeValue{}
 var _ Value = &PackageValue{}
-var _ Value = NativeValue{}
+var _ Value = &NativeValue{}
 var _ Value = &Block{}
 var _ Value = RefValue{}
 
@@ -93,11 +91,13 @@ type PointerValue struct {
 	TV    *TypedValue // escape val if pointer to var.
 	Base  Value       // array/struct/block.
 	Index int         // list/fields/values index, or -1 or -2 (see below).
+	Key   *TypedValue `json:",omitempty"` // for maps.
 }
 
 const (
-	PointerIndexBlockBlank     = -1 // for the "_" identifier in blocks
-	PointerIndexExtendedObject = -2 // Base is ExtendedObject
+	PointerIndexBlockBlank = -1 // for the "_" identifier in blocks
+	PointerIndexMap        = -2 // Base is Map, use Key.
+	PointerIndexNative     = -3 // Base is *NativeValue.
 )
 
 /*
@@ -120,29 +120,26 @@ func (pv *PointerValue) GetBase(store Store) Object {
 // cu: convert untyped; pass false for const definitions
 func (pv PointerValue) Assign2(store Store, rlm *Realm, tv2 TypedValue, cu bool) {
 	// Special case if extended object && native.
-	if pv.Index == PointerIndexExtendedObject {
-		eo := pv.Base.(ExtendedObject)
-		if eo.BaseMap != nil { // gno map
-			// continue
+	if pv.Index == PointerIndexNative {
+		rv := pv.Base.(*NativeValue).Value
+		if rv.Kind() == reflect.Map { // go native object
+			// assign value to map directly.
+			krv := gno2GoValue(pv.Key, reflect.Value{})
+			vrv := gno2GoValue(&tv2, reflect.Value{})
+			rv.SetMapIndex(krv, vrv)
 		} else {
-			rv := eo.BaseNative.Value
-			if rv.Kind() == reflect.Map { // go native object
-				// assign value to map directly.
-				krv := gno2GoValue(&eo.Index, reflect.Value{})
-				vrv := gno2GoValue(&tv2, reflect.Value{})
-				rv.SetMapIndex(krv, vrv)
-			} else {
-				pv.TV.Assign(tv2, cu)
-			}
-			return
+			pv.TV.Assign(tv2, cu)
 		}
+		return
 	}
 	// General case
-	oo1 := pv.TV.GetFirstObject(store)
-	pv.TV.Assign(tv2, cu)
-	oo2 := pv.TV.GetFirstObject(store)
-	if pv.Base != nil {
+	if rlm != nil && pv.Base != nil {
+		oo1 := pv.TV.GetFirstObject(store)
+		pv.TV.Assign(tv2, cu)
+		oo2 := pv.TV.GetFirstObject(store)
 		rlm.DidUpdate(pv.Base.(Object), oo1, oo2)
+	} else {
+		pv.TV.Assign(tv2, cu)
 	}
 }
 
@@ -515,24 +512,22 @@ func (mv *MapValue) GetLength() int {
 func (mv *MapValue) GetPointerForKey(store Store, key *TypedValue) PointerValue {
 	kmk := key.ComputeMapKey(store, false)
 	if mli, ok := mv.vmap[kmk]; ok {
+		key2 := key.Copy()
 		return PointerValue{
-			TV: fillValue(store, &mli.Value),
-			Base: ExtendedObject{
-				BaseMap: mv,
-				Index:   key.Copy(),
-			},
-			Index: PointerIndexExtendedObject,
+			TV:    fillValue(store, &mli.Value),
+			Base:  mv,
+			Key:   &key2,
+			Index: PointerIndexMap,
 		}
 	} else {
 		mli := mv.List.Append(*key)
 		mv.vmap[kmk] = mli
+		key2 := key.Copy()
 		return PointerValue{
-			TV: fillValue(store, &mli.Value),
-			Base: ExtendedObject{
-				BaseMap: mv,
-				Index:   key.Copy(),
-			},
-			Index: PointerIndexExtendedObject,
+			TV:    fillValue(store, &mli.Value),
+			Base:  mv,
+			Key:   &key2,
+			Index: PointerIndexMap,
 		}
 	}
 }
@@ -645,21 +640,11 @@ type NativeValue struct {
 	Bytes []byte
 }
 
-func (nv NativeValue) Copy() NativeValue {
+func (nv *NativeValue) Copy() *NativeValue {
 	nt := nv.Value.Type()
 	nv2 := reflect.New(nt).Elem()
 	nv2.Set(nv.Value)
-	return NativeValue{Value: nv2}
-}
-
-func (nv NativeValue) ToAminoRepr() NativeValue {
-	oo := nv.Value.Interface()
-	bz := amino.MustMarshal(oo)
-	// NOTE: type information is not included here,
-	// that gets serialized separately w/ *NativeType.
-	return NativeValue{
-		Bytes: bz,
-	}
+	return &NativeValue{Value: nv2}
 }
 
 //----------------------------------------
@@ -792,7 +777,7 @@ func (tv TypedValue) Copy() (cp TypedValue) {
 	case *StructValue:
 		cp.T = tv.T
 		cp.V = cv.Copy()
-	case NativeValue:
+	case *NativeValue:
 		cp.T = tv.T
 		cp.V = cv.Copy()
 	default:
@@ -1607,11 +1592,12 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 			ftv := go2GnoValue(fv)
 			return PointerValue{
 				TV: &ftv, // heap alloc
-				Base: ExtendedObject{
-					BaseNative: nv,
-					Path:       path,
-				},
-				Index: PointerIndexExtendedObject,
+				// TODO consider if needed for persistence:
+				/*
+					Base: nv,
+					Index: PointerIndexNative,
+					Key: pathValue{path},
+				*/
 			}
 		}
 		// Then, try to get method.
@@ -1623,11 +1609,12 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 					T: &NativeType{Type: mt},
 					V: &NativeValue{Value: mv},
 				},
-				Base: ExtendedObject{
-					BaseNative: nv,
-					Path:       path,
-				},
-				Index: PointerIndexExtendedObject,
+				// TODO consider if needed for persistence:
+				/*
+					Base: nv,
+					Index: PointerIndexNative,
+					Key: pathValue{path},
+				*/
 			}
 		} else {
 			// Always try to get method from pointer type.
@@ -1646,11 +1633,12 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 						T: &NativeType{Type: mt},
 						V: &NativeValue{Value: mv},
 					},
-					Base: ExtendedObject{
-						BaseNative: nv,
-						Path:       path,
-					},
-					Index: PointerIndexExtendedObject,
+					// TODO consider if needed for persistence:
+					/*
+						Base: nv,
+						Index: PointerIndexNative,
+						Key: pathValue{path},
+					*/
 				}
 			}
 
@@ -1727,23 +1715,25 @@ func (tv *TypedValue) GetPointerAtIndex(store Store, iv *TypedValue) PointerValu
 			etv := go2GnoValue(erv)
 			return PointerValue{
 				TV: &etv,
-				Base: ExtendedObject{
-					BaseNative: nv,
-					Index:      iv.Copy(),
-				},
-				Index: PointerIndexExtendedObject,
+				// TODO consider if needed for persistence:
+				/*
+					Base: nv,
+					Index: PointerIndexNative,
+					Key: pathValue{path},
+				*/
 			}
 		case reflect.Map:
 			krv := gno2GoValue(iv, reflect.Value{})
 			vrv := rv.MapIndex(krv)
 			etv := go2GnoValue(vrv) // NOTE: lazy, often native.
 			return PointerValue{
-				TV: &etv, // TODO not needed for assignment.
-				Base: ExtendedObject{
-					BaseNative: nv,
-					Index:      iv.Copy(),
+				TV:    &etv, // TODO not needed for assignment.
+				Base:  nv,
+				Index: PointerIndexNative,
+				Key: &TypedValue{
+					T: &NativeType{Type: krv.Type()},
+					V: &NativeValue{Value: krv},
 				},
-				Index: PointerIndexExtendedObject,
 			}
 		default:
 			panic("should not happen")
