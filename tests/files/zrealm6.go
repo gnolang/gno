@@ -225,7 +225,7 @@ func main() {
 //                 "@type": "/gno.fun",
 //                 "Closure": {
 //                     "@type": "/gno.rfv",
-//                     "Hash": "1b7cff65e7c19ddef5180ad6beda7d7d1b722519",
+//                     "Hash": "49bf71d512eb371983eb869d2c2115c2e89ad377",
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
 //                 },
 //                 "FileName": "files/zrealm6.go",
@@ -252,7 +252,7 @@ func main() {
 //                 "@type": "/gno.fun",
 //                 "Closure": {
 //                     "@type": "/gno.rfv",
-//                     "Hash": "1b7cff65e7c19ddef5180ad6beda7d7d1b722519",
+//                     "Hash": "49bf71d512eb371983eb869d2c2115c2e89ad377",
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
 //                 },
 //                 "FileName": "files/zrealm6.go",
@@ -294,3 +294,4 @@ func main() {
 //         }
 //     ]
 // }
+//

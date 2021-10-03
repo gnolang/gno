@@ -21,7 +21,14 @@ func NewTree(key string, value interface{}) *Tree {
 }
 
 func (tree *Tree) Size() int {
+	if tree == nil {
+		return 0
+	}
 	return tree.size
+}
+
+func (tree *Tree) Value() interface{} {
+	return tree.value
 }
 
 func (tree *Tree) _copy() *Tree {
@@ -38,6 +45,9 @@ func (tree *Tree) _copy() *Tree {
 }
 
 func (tree *Tree) Has(key string) (has bool) {
+	if tree == nil {
+		return false
+	}
 	if tree.key == key {
 		return true
 	}
@@ -53,6 +63,9 @@ func (tree *Tree) Has(key string) (has bool) {
 }
 
 func (tree *Tree) Get(key string) (index int, value interface{}, exists bool) {
+	if tree == nil {
+		return 0, nil, false
+	}
 	if tree.height == 0 {
 		if tree.key == key {
 			return 0, tree.value, true
@@ -137,6 +150,9 @@ func (tree *Tree) Set(key string, value interface{}) (newSelf *Tree, updated boo
 // value: removed value.
 func (tree *Tree) Remove(key string) (
 	newTree *Tree, newKey string, value interface{}, removed bool) {
+	if tree == nil {
+		return nil, "", nil, false
+	}
 	if tree.height == 0 {
 		if key == tree.key {
 			return nil, "", tree.value, true
@@ -269,6 +285,9 @@ func (tree *Tree) Traverse(ascending bool, cb func(*Tree) bool) bool {
 }
 
 func (tree *Tree) TraverseInRange(start, end string, ascending bool, cb func(*Tree) bool) bool {
+	if tree == nil {
+		return false
+	}
 	afterStart := (start == "" || start <= tree.key)
 	beforeEnd := (end == "" || tree.key <= end)
 

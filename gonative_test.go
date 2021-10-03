@@ -44,8 +44,9 @@ func TestGoNativeDefine(t *testing.T) {
 		},
 	})
 	m.RunDeclaration(ImportD("foo", "test.foo"))
-	tv := m.Eval(Sel(Nx("foo"), "Foo"))
-	assert.Equal(t, tv.V.(TypeValue).Type, nt)
+	tvs := m.Eval(Sel(Nx("foo"), "Foo"))
+	assert.Equal(t, len(tvs), 1)
+	assert.Equal(t, tvs[0].V.(TypeValue).Type, nt)
 }
 
 func TestGoNativeDefine2(t *testing.T) {

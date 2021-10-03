@@ -1217,12 +1217,14 @@ type BlockNode interface {
 	GetNumNames() uint16
 	GetParentNode(Store) BlockNode
 	GetPathForName(Store, Name) ValuePath
+	GetIsConst(Store, Name) bool
 	GetLocalIndex(Name) (uint16, bool)
 	GetValueRef(Store, Name) *TypedValue
 	GetStaticTypeOf(Store, Name) Type
 	GetStaticTypeOfAt(Store, ValuePath) Type
+	Predefine(bool, Name)
 	Define(Name, TypedValue)
-	Define2(Name, Type, TypedValue)
+	Define2(bool, Name, Type, TypedValue)
 	GetBody() Body
 }
 
@@ -1235,6 +1237,7 @@ type StaticBlock struct {
 	Types    []Type
 	NumNames uint16
 	Names    []Name
+	Consts   []Name // TODO consider merging with Names.
 	Externs  []Name
 }
 
@@ -1258,6 +1261,7 @@ func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 	}
 	sb.NumNames = 0
 	sb.Names = make([]Name, 0, 16)
+	sb.Consts = make([]Name, 0, 16)
 	sb.Externs = make([]Name, 0, 16)
 	return
 }
@@ -1340,6 +1344,36 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 		}
 		panic(fmt.Sprintf("name %s not declared", n))
 	}
+}
+
+// Returns whether a name defined here in in ancestry is a const.
+// This is not the same as whether a name's static type is
+// untyped -- as in c := a == b, a name may be an untyped non-const.
+// Implements BlockNode.
+func (sb *StaticBlock) GetIsConst(store Store, n Name) bool {
+	_, ok := sb.GetLocalIndex(n)
+	bp := sb.GetParentNode(store)
+	for {
+		if ok {
+			return sb.getLocalIsConst(n)
+		} else if bp != nil {
+			_, ok = bp.GetLocalIndex(n)
+			sb = bp.GetStaticBlock()
+			bp = bp.GetParentNode(store)
+		} else {
+			panic(fmt.Sprintf("name %s not declared", n))
+		}
+	}
+}
+
+// Returns true iff n is a local const defined name.
+func (sb *StaticBlock) getLocalIsConst(n Name) bool {
+	for _, name := range sb.Consts {
+		if name == n {
+			return true
+		}
+	}
+	return false
 }
 
 // Implements BlockNode.
@@ -1435,14 +1469,20 @@ func (sb *StaticBlock) GetValueRef(store Store, n Name) *TypedValue {
 // further and store preprocessed constant results here
 // too.  See "anyValue()" and "asValue()" for usage.
 func (sb *StaticBlock) Define(n Name, tv TypedValue) {
-	sb.Define2(n, tv.T, tv)
+	sb.Define2(false, n, tv.T, tv)
 }
 
-func (sb *StaticBlock) Define2(n Name, st Type, tv TypedValue) {
+func (sb *StaticBlock) Predefine(isConst bool, n Name) {
+	sb.Define2(isConst, n, nil, anyValue(nil))
+}
+
+// The declared type st may not be the same as the static tv;
+// e.g. var x MyInterface = MyStruct{}.
+func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 	if debug {
 		debug.Printf(
-			"StaticBlock.Define(%s, %v)\n",
-			n, tv)
+			"StaticBlock.Define2(%v, %s, %v, %v)\n",
+			isConst, n, st, tv)
 	}
 	// TODO check that tv.T implements t.
 	if len(n) == 0 {
@@ -1455,20 +1495,23 @@ func (sb *StaticBlock) Define2(n Name, st Type, tv TypedValue) {
 		panic("too many variables in block")
 	}
 	if tv.T == nil && tv.V != nil {
-		panic("StaticBlock.Define() requires .T if .V is set")
+		panic("StaticBlock.Define2() requires .T if .V is set")
 	}
 	idx, exists := sb.GetLocalIndex(n)
 	if exists {
 		// Is re-defining.
+		if isConst != sb.getLocalIsConst(n) {
+			panic("StaticBlock.Define2() cannot change const status")
+		}
 		old := sb.Block.Values[idx]
 		if !old.IsUndefined() {
 			if tv.T != old.T {
 				panic(fmt.Sprintf(
-					"StaticBlock.Define() cannot change .T; was %v, new %v",
+					"StaticBlock.Define2() cannot change .T; was %v, new %v",
 					old.T, tv.T))
 			}
 			if tv.V != old.V {
-				panic("StaticBlock.Define() cannot change .V")
+				panic("StaticBlock.Define2() cannot change .V")
 			}
 		}
 		sb.Block.Values[idx] = tv
@@ -1476,6 +1519,9 @@ func (sb *StaticBlock) Define2(n Name, st Type, tv TypedValue) {
 	} else {
 		// The general case without re-definition.
 		sb.Names = append(sb.Names, n)
+		if isConst {
+			sb.Consts = append(sb.Consts, n)
+		}
 		sb.NumNames++
 		sb.Block.Values = append(sb.Block.Values, tv)
 		sb.Types = append(sb.Types, st)

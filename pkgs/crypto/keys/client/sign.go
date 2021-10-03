@@ -122,6 +122,6 @@ func signApp(cmd *command.Command, args []string, iopts interface{}) error {
 	if err != nil {
 		return err
 	}
-	cmd.Printfln(string(txjson2))
+	cmd.Println(string(txjson2))
 	return nil
 }

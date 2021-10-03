@@ -159,7 +159,7 @@ func main() {
 //                 "@type": "/gno.fun",
 //                 "Closure": {
 //                     "@type": "/gno.rfv",
-//                     "Hash": "dd56af4f33ec6280822a1c93a0ba6ec60ef51ddb",
+//                     "Hash": "8479fb533a9c494d14fcbbf980862aec685627b3",
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2"
 //                 },
 //                 "FileName": "files/zrealm5.go",
@@ -186,7 +186,7 @@ func main() {
 //                 "@type": "/gno.fun",
 //                 "Closure": {
 //                     "@type": "/gno.rfv",
-//                     "Hash": "dd56af4f33ec6280822a1c93a0ba6ec60ef51ddb",
+//                     "Hash": "8479fb533a9c494d14fcbbf980862aec685627b3",
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2"
 //                 },
 //                 "FileName": "files/zrealm5.go",
@@ -228,3 +228,4 @@ func main() {
 //         }
 //     ]
 // }
+//

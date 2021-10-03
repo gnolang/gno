@@ -243,12 +243,11 @@ func (m *Machine) RunMain() {
 }
 
 // Evaluate throwaway expression in new block scope.
-// If x is a function call, it must return 1 result.
-// This function is mainly for debugging and testing,
-// but it could also be useful for a repl.
+// If x is a function call, it may return any number of
+// results including 0.  Otherwise it returns 1.
 // Input must not have been preprocessed, that is,
 // it should not be the child of any parent.
-func (m *Machine) Eval(x Expr) TypedValue {
+func (m *Machine) Eval(x Expr) []TypedValue {
 	if debug {
 		m.Printf("Machine.Eval(%v)\n", x)
 	}
@@ -282,10 +281,7 @@ func (m *Machine) Eval(x Expr) TypedValue {
 	m.PushOp(OpEval)
 	m.Run()
 	res := m.ReapValues(start)
-	if len(res) != 1 {
-		panic("should not happen")
-	}
-	return res[0]
+	return res
 }
 
 // Evaluate any preprocessed expression statically.

@@ -520,9 +520,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 						return cv, TRANS_CONTINUE
 					}
-					// If untyped const, return it as *constExpr.
-					nt := evalStaticTypeOf(store, last, n)
-					if isUntyped(nt) {
+					if last.GetIsConst(store, n.Name) {
 						cx := evalConst(store, last, n)
 						return cx, TRANS_CONTINUE
 					}
@@ -559,6 +557,24 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					if ric {
 						// Left const, Right const ----------------------
 						// Replace with *constExpr if const operands.
+						// First, convert untyped as necessary.
+						if !isShift {
+							cmp := cmpSpecificity(lcx.T, rcx.T)
+							if cmp < 0 {
+								// convert n.Left to right type.
+								checkOrConvertType(store, last, n.Left, rcx.T)
+							} else if cmp == 0 {
+								// NOTE: the following doesn't work.
+								// TODO: make it work.
+								// convert n.Left to right type,
+								// or check for compatibility.
+								// (the other way around would work too)
+								// checkOrConvertType(store, last, n.Left, rcx.T)
+							} else {
+								checkOrConvertType(store, last, n.Right, lcx.T)
+							}
+						}
+						// Then, evaluate the expression.
 						cv := evalConst(store, last, n)
 						return cv, TRANS_CONTINUE
 					} else if isUntyped(lcx.T) {
@@ -1448,7 +1464,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						if nx.Name == "_" {
 							nx.Path = NewValuePathBlock(0, 0, "_")
 						} else {
-							pn.Define2(nx.Name, sts[i], tvs[i])
+							pn.Define2(n.Const, nx.Name, sts[i], tvs[i])
 							nx.Path = last.GetPathForName(nil, nx.Name)
 						}
 					}
@@ -1458,7 +1474,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						if nx.Name == "_" {
 							nx.Path = NewValuePathBlock(0, 0, "_")
 						} else {
-							last.Define2(nx.Name, sts[i], tvs[i])
+							last.Define2(n.Const, nx.Name, sts[i], tvs[i])
 							nx.Path = last.GetPathForName(nil, nx.Name)
 						}
 					}
@@ -1704,18 +1720,18 @@ func getResultTypedValues(cx *CallExpr) []TypedValue {
 	}
 }
 
-// Evaluate constant expressions.  Assumes all operands are
-// already defined consts; the machine doesn't know whether a
-// value is const or not, so this function always returns a
-// *constExpr, even if the operands aren't actually consts in the
-// code.
+// Evaluate constant expressions. Assumes all operands are already defined
+// consts; the machine doesn't know whether a value is const or not, so this
+// function always returns a *constExpr, even if the operands aren't actually
+// consts in the code.
 //
-// No type conversion is done by the machine except as required by
-// the expression (but otherwise the context is not considered).
-// For example, untyped bigint types remain as untyped bigint
-// types after evaluation.  Conversion happens in a separate step
-// while leaving composite exprs/nodes that contain constant
-// expression nodes (e.g. const exprs in the rhs of AssignStmts).
+// No type conversion is done by the machine in general -- operands of
+// binary expressions should be converted to become compatible prior
+// to evaluation.
+//
+// NOTE: Generally, conversion happens in a separate step while leaving
+// composite exprs/nodes that contain constant expression nodes (e.g. const
+// exprs in the rhs of AssignStmts).
 func evalConst(store Store, last BlockNode, x Expr) *constExpr {
 	// TODO: some check or verification for ensuring x
 	// is constant?  From the machine?
@@ -1827,6 +1843,24 @@ func isConst(x Expr) bool {
 func isConstType(x Expr) bool {
 	_, ok := x.(*constTypeExpr)
 	return ok
+}
+
+func cmpSpecificity(t1, t2 Type) int {
+	t1s, t2s := 0, 0
+	if t1p, ok := t1.(PrimitiveType); ok {
+		t1s = t1p.Specificity()
+	}
+	if t2p, ok := t2.(PrimitiveType); ok {
+		t2s = t2p.Specificity()
+	}
+	if t1s < t2s {
+		// NOTE: higher specifity has lower value, so backwards.
+		return 1
+	} else if t1s == t2s {
+		return 0
+	} else {
+		return -1
+	}
 }
 
 // 1. convert x to t if x is *constExpr.
@@ -2424,7 +2458,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 		if pv == nil {
 			panic(fmt.Sprintf(
 				"unknown import path %s",
-				d.Path))
+				d.PkgPath))
 		}
 		if d.Name == "" { // use default
 			d.Name = pv.PkgName
@@ -2457,7 +2491,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 				nx.Path.Name = "_"
 			} else {
 				last2 := skipFile(last)
-				last2.Define(nx.Name, anyValue(nil))
+				last2.Predefine(d.Const, nx.Name)
 				nx.Path = last.GetPathForName(store, nx.Name)
 			}
 		}

@@ -334,9 +334,9 @@ func (rlm *Realm) saveUnsavedObject(store Store, oo Object) {
 		if oo.GetIsProcessing() {
 			panic("should not happen")
 		}
-		if oo.GetIsReal() && !oo.GetIsDirty() {
-			panic("should not happen")
-		}
+	}
+	if oo.GetIsReal() && !oo.GetIsDirty() {
+		return // already saved.
 	}
 	oo.SetIsProcessing(true)
 	defer oo.SetIsProcessing(false)

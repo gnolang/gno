@@ -409,9 +409,10 @@ func GetSignBytes(chainID string, tx std.Tx, acc std.Account, genesis bool) []by
 	if !genesis {
 		accNum = acc.GetAccountNumber()
 	}
-	return std.SignBytes(
+	signbz := std.SignBytes(
 		chainID, accNum, acc.GetSequence(), tx.Fee, tx.Msgs, tx.Memo,
 	)
+	return signbz
 }
 
 func abciResult(err error) sdk.Result {

@@ -5,6 +5,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"strconv"
 
 	"github.com/gnolang/gno"
 	"github.com/gnolang/gno/pkgs/crypto"
@@ -55,6 +56,13 @@ func NewVMKeeper(key store.StoreKey, acck auth.AccountKeeper, bank bank.BankKeep
 }
 
 func (vmk VMKeeper) initBuiltinPackages(store gno.Store) {
+	// NOTE: native functions/methods added here must be quick operations.
+	// TODO: define criteria for inclusion, and solve gas calculations.
+	{ // strconv
+		pkg := gno.NewPackageNode("strconv", "strconv", nil)
+		pkg.DefineGoNativeFunc("Itoa", strconv.Itoa)
+		store.SetPackage(pkg.NewPackage())
+	}
 	{ // std
 		pkg := gno.NewPackageNode("std", "std", nil)
 		pkg.DefineGoNativeType(
@@ -228,8 +236,13 @@ func (vm VMKeeper) Eval(ctx sdk.Context, msg MsgEval) (res string, err error) {
 			Store:   vm.store,
 			Context: msgCtx,
 		})
-	rtv := m.Eval(xx)
-	res = rtv.String()
+	rtvs := m.Eval(xx)
+	for i, rtv := range rtvs {
+		res = res + rtv.String()
+		if i < len(rtvs)-1 {
+			res += "\n"
+		}
+	}
 	return res, nil
 	// TODO pay for gas? TODO see context?
 }
@@ -239,7 +252,8 @@ func (vm VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res 
 	// Get Package.
 	pv := vm.store.GetPackage(pkgPath)
 	if pv == nil {
-		err = ErrInvalidPkgPath("package not found")
+		err = ErrInvalidPkgPath(fmt.Sprintf(
+			"package not found: %s", pkgPath))
 		return "", err
 	}
 	// Parse expression.
@@ -262,8 +276,13 @@ func (vm VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res 
 			Store:   vm.store,
 			Context: msgCtx,
 		})
-	rtv := m.Eval(xx)
-	res = rtv.String()
+	rtvs := m.Eval(xx)
+	for i, rtv := range rtvs {
+		res = res + rtv.String()
+		if i < len(rtvs)-1 {
+			res += "\n"
+		}
+	}
 	return res, nil
 }
 

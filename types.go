@@ -104,6 +104,56 @@ const (
 	BigintType
 )
 
+// Used for converting constant binary expressions.
+// Smaller number means more specific.
+// Spec: "If the untyped operands of a binary operation (other than a shift) are
+// of different kinds, the result is of the operand's kind that appears later
+// in this list: integer, rune, floating-point, complex. For example, an
+// untyped integer constant divided by an untyped complex constant yields an
+// untyped complex constant."
+func (pt PrimitiveType) Specificity() int {
+	switch pt {
+	case InvalidType:
+		panic("invalid type has no specificity")
+	case BoolType:
+		return 0
+	case StringType:
+		return 0
+	case IntType:
+		return 0
+	case Int8Type:
+		return 0
+	case Int16Type:
+		return 0
+	case Int32Type:
+		return 0
+	case Int64Type:
+		return 0
+	case UintType:
+		return 0
+	case Uint8Type, DataByteType:
+		return 0
+	case Uint16Type:
+		return 0
+	case Uint32Type:
+		return 0
+	case Uint64Type:
+		return 0
+	case BigintType:
+		return 1
+	case UntypedBoolType:
+		return 2
+	case UntypedRuneType:
+		return 3
+	case UntypedStringType:
+		return 4
+	case UntypedBigintType:
+		return 4
+	default:
+		panic(fmt.Sprintf("unexpected primitive type %v", pt))
+	}
+}
+
 func (pt PrimitiveType) Kind() Kind {
 	switch pt {
 	case InvalidType:

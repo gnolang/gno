@@ -82,7 +82,7 @@ func (vh vmHandler) handleMsgEval(ctx sdk.Context, msg MsgEval) (res sdk.Result)
 // query paths
 const QueryPackage = "package"
 const QueryStore = "store"
-const QueryEval = "queryeval"
+const QueryEval = "qeval"
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	switch secondPart(req.Path) {
@@ -94,7 +94,9 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 		return vh.queryEval(ctx, req)
 	default:
 		res = sdk.ABCIResponseQueryFromError(
-			std.ErrUnknownRequest("unknown vm query endpoint"))
+			std.ErrUnknownRequest(fmt.Sprintf(
+				"unknown vm query endpoint %s in %s",
+				secondPart(req.Path), req.Path)))
 		return
 	}
 }
