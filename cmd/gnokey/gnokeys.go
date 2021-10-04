@@ -41,9 +41,9 @@ var makeTxApps client.AppList = []client.AppItem{
 	{makeAddPackageTxApp,
 		"addpkg", "upload new package",
 		defaultMakeAddPackageTxOptions},
-	{makeEvalTxApp,
-		"eval", "evaluate expression",
-		defaultmakeEvalTxOptions},
+	{makeExecTxApp,
+		"exec", "execute statement",
+		defaultmakeExecTxOptions},
 }
 
 func makeTxApp(cmd *command.Command, args []string, iopts interface{}) error {
@@ -177,32 +177,32 @@ func makeAddPackageTxApp(cmd *command.Command, args []string, iopts interface{})
 }
 
 //----------------------------------------
-// makeEvalTxApp
+// makeExecTxApp
 
-type makeEvalTxOptions struct {
+type makeExecTxOptions struct {
 	client.BaseOptions        // home,...
 	BaseTxOptions             // gas-wanted, gas-fee, memo, ...
 	PkgPath            string `flag:"pkgpath" help:"package path (required)"`
-	Expr               string `flag:"expr" help:"expression to evaluate" (required)"`
+	Stmt               string `flag:"stmt" help:"statement to execute" (required)"`
 	Send               string `flag:"send" help:"send coins"`
 }
 
-var defaultmakeEvalTxOptions = makeEvalTxOptions{
+var defaultmakeExecTxOptions = makeExecTxOptions{
 	PkgPath: "", // must override
-	Expr:    "", // must override
+	Stmt:    "", // must override
 	Send:    "",
 }
 
-func makeEvalTxApp(cmd *command.Command, args []string, iopts interface{}) error {
-	opts := iopts.(makeEvalTxOptions)
+func makeExecTxApp(cmd *command.Command, args []string, iopts interface{}) error {
+	opts := iopts.(makeExecTxOptions)
 	if opts.PkgPath == "" {
 		return errors.New("pkgpath not specified")
 	}
-	if opts.Expr == "" {
-		return errors.New("expr not specified")
+	if opts.Stmt == "" {
+		return errors.New("stmt not specified")
 	}
 	if len(args) != 1 {
-		cmd.ErrPrintfln("Usage: eval <keyname>")
+		cmd.ErrPrintfln("Usage: exec <keyname>")
 		return errors.New("invalid args")
 	}
 	if opts.GasWanted == 0 {
@@ -239,10 +239,10 @@ func makeEvalTxApp(cmd *command.Command, args []string, iopts interface{}) error
 	}
 
 	// construct msg & tx and marshal.
-	msg := vm.MsgEval{
+	msg := vm.MsgExec{
 		Caller:  caller,
 		PkgPath: opts.PkgPath,
-		Expr:    opts.Expr,
+		Stmt:    opts.Stmt,
 		Send:    send,
 	}
 	tx := std.Tx{

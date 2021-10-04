@@ -5,10 +5,10 @@ import (
 	"github.com/gnolang/gno/pkgs/sdk"
 )
 
-type EvalContext struct {
+type ExecContext struct {
 	ChainID string
 	Height  int64
-	Msg     MsgEval
+	Msg     MsgExec
 	PkgAddr crypto.Address
 
 	sdkCtx sdk.Context // TODO: ensure hidden or refactor.

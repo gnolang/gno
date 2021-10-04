@@ -21,7 +21,7 @@ import (
 // smart contracts programming (scripting).
 type VMKeeperI interface {
 	AddPackage(ctx sdk.Context, msg MsgAddPackage) error
-	Eval(ctx sdk.Context, msg MsgEval) (string, error)
+	Exec(ctx sdk.Context, msg MsgExec) error
 }
 
 var _ VMKeeperI = VMKeeper{}
@@ -78,7 +78,7 @@ func (vmk VMKeeper) initBuiltinPackages(store gno.Store) {
 		pkg.DefineGoNativeType(
 			reflect.TypeOf((*std.Msg)(nil)).Elem())
 		pkg.DefineGoNativeType(
-			reflect.TypeOf((*EvalContext)(nil)).Elem())
+			reflect.TypeOf((*ExecContext)(nil)).Elem())
 		pkg.DefineNative("Send",
 			gno.Flds( // params
 				"toAddr", "Address",
@@ -95,7 +95,7 @@ func (vmk VMKeeper) initBuiltinPackages(store gno.Store) {
 				toAddr := arg0.TV.V.(*gno.NativeValue).Value.Interface().(crypto.Address)
 				send := arg1.TV.V.(*gno.NativeValue).Value.Interface().(std.Coins)
 				//toAddr := arg0.TV.V.
-				ctx := m.Context.(EvalContext)
+				ctx := m.Context.(ExecContext)
 				err := vmk.bank.SendCoins(
 					ctx.sdkCtx,
 					ctx.PkgAddr,
@@ -116,10 +116,10 @@ func (vmk VMKeeper) initBuiltinPackages(store gno.Store) {
 			gno.Flds( // params
 			),
 			gno.Flds( // results
-				"ctx", "EvalContext",
+				"ctx", "ExecContext",
 			),
 			func(m *gno.Machine) {
-				ctx := m.Context.(EvalContext)
+				ctx := m.Context.(ExecContext)
 				res0 := gno.Go2GnoValue(
 					reflect.ValueOf(ctx),
 				)
@@ -197,32 +197,34 @@ func (vm VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	return nil
 }
 
-// Eval evaluates gno expression (for delivertx).
-func (vm VMKeeper) Eval(ctx sdk.Context, msg MsgEval) (res string, err error) {
-	pkgPath := msg.PkgPath
-	expr := msg.Expr
-	// Get Package.
-	pv := vm.store.GetPackage(pkgPath)
-	if pv == nil {
-		err = ErrInvalidPkgPath("package not found")
-		return "", err
-	}
-	// Parse expression.
-	xx, err := gno.ParseExpr(expr)
-	if err != nil {
-		return "", err
-	}
+// Exec executes a Gno statement (for delivertx).
+func (vm VMKeeper) Exec(ctx sdk.Context, msg MsgExec) (err error) {
+	pkgPath := msg.PkgPath // to import
+	stmt := msg.Stmt
+	// Make blank main Package.
+	pn := gno.NewPackageNode("main", "main", nil)
+	pv := pn.NewPackage()
+	// Make and parse file.
+	// NOTE: this is temporary until we can optimize.
+	// Optimization requires go/parser.ParseStmt.
+	fbody := fmt.Sprintf(`package main
+import pkg %q
+
+func main() {
+	pkg.%s
+}`, pkgPath, stmt)
+	file := gno.MustParseFile("exec_main.go", fbody)
 	// Send send-coins to pkg from caller.
 	pkgAddr := DerivePkgAddr(pkgPath)
 	caller := msg.Caller
 	send := msg.Send
 	err = vm.bank.SendCoins(ctx, caller, pkgAddr, send)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	// Construct new machine.
-	msgCtx := EvalContext{
+	msgCtx := ExecContext{
 		ChainID: ctx.ChainID(),
 		Height:  ctx.BlockHeight(),
 		Msg:     msg,
@@ -236,18 +238,15 @@ func (vm VMKeeper) Eval(ctx sdk.Context, msg MsgEval) (res string, err error) {
 			Store:   vm.store,
 			Context: msgCtx,
 		})
-	rtvs := m.Eval(xx)
-	for i, rtv := range rtvs {
-		res = res + rtv.String()
-		if i < len(rtvs)-1 {
-			res += "\n"
-		}
-	}
-	return res, nil
+	m.RunFiles(file)
+	m.RunMain()
+	return nil
 	// TODO pay for gas? TODO see context?
 }
 
 // QueryEval evaluates gno expression (readonly, for ABCI queries).
+// TODO: modify query protocol to allow MsgEval.
+// TODO: then, rename to "Eval".
 func (vm VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
 	// Get Package.
 	pv := vm.store.GetPackage(pkgPath)
@@ -262,7 +261,7 @@ func (vm VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res 
 		return "", err
 	}
 	// Construct new machine.
-	msgCtx := EvalContext{
+	msgCtx := ExecContext{
 		ChainID: ctx.ChainID(),
 		Height:  ctx.BlockHeight(),
 		//Msg:     msg,

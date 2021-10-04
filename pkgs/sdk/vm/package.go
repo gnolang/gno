@@ -9,7 +9,7 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	"vm",
 	amino.GetCallersDirname(),
 ).WithDependencies().WithTypes(
-	MsgEval{}, "m_eval",
+	MsgExec{}, "m_exec",
 	MsgAddPackage{}, "m_addpkg", // TODO rename both to MsgAddPkg?
 
 	// errors

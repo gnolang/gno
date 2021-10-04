@@ -23,9 +23,9 @@
 ./build/gnokey sign test1 --txpath addrealm.unsigned.txt --chainid "testchain" --number 1 --sequence 2 > addrealm.signed.txt
 ./build/gnokey broadcast addrealm.signed.txt
 
-## sign an eval (expression evaluation) transaction.
+## sign a exec (statement execution) transaction.
 
-./build/gnokey maketx eval test1 --pkgpath "gno.land/r/example" --expr "AddPost(\"SUCCESS\", \"A POST BODY\")" --gas-fee 1gnot --gas-wanted 200000 > addpage.unsigned.txt
+./build/gnokey maketx exec test1 --pkgpath "gno.land/r/example" --stmt "AddPost(\"First Post\", \"This is the post body\")" --gas-fee 1gnot --gas-wanted 200000 > addpage.unsigned.txt
 ./build/gnokey query "auth/accounts/g17d0j59qka0d2vtp4l78w0c59uy34cwsdpfvk5l"
 ./build/gnokey sign test1 --txpath addpage.unsigned.txt --chainid "testchain" --number 1 --sequence 3 > addpage.signed.txt
 ./build/gnokey broadcast addpage.signed.txt

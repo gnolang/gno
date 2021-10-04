@@ -71,59 +71,58 @@ func (msg MsgAddPackage) GetReceived() std.Coins {
 }
 
 //----------------------------------------
-// MsgEval
+// MsgExec
 
-// MsgEval - evaluate a Gno expression.
-type MsgEval struct {
+// MsgExec - executes a Gno statement.
+type MsgExec struct {
 	Caller  crypto.Address `json:"caller" yaml:"caller"`
 	PkgPath string         `json:"pkg_path" yaml:"pkg_path"`
-	Expr    string         `json:"expr" yaml:"expr"`
+	Stmt    string         `json:"stmt" yaml:"stmt"`
 	Send    std.Coins      `json:"send" yaml:"send"`
 }
 
-var _ std.Msg = MsgEval{}
+var _ std.Msg = MsgExec{}
 
-// NewMsgEval - evaluate a Gno expression.
-func NewMsgEval(caller crypto.Address, pkgPath, expr string, send sdk.Coins) MsgEval {
-	return MsgEval{
+func NewMsgExec(caller crypto.Address, pkgPath, stmt string, send sdk.Coins) MsgExec {
+	return MsgExec{
 		Caller:  caller,
 		PkgPath: pkgPath,
-		Expr:    expr,
+		Stmt:    stmt,
 		Send:    send,
 	}
 }
 
 // Implements Msg.
-func (msg MsgEval) Route() string { return RouterKey }
+func (msg MsgExec) Route() string { return RouterKey }
 
 // Implements Msg.
-func (msg MsgEval) Type() string { return "exec" }
+func (msg MsgExec) Type() string { return "exec" }
 
 // Implements Msg.
-func (msg MsgEval) ValidateBasic() error {
+func (msg MsgExec) ValidateBasic() error {
 	if msg.Caller.IsZero() {
 		return std.ErrInvalidAddress("missing caller address")
 	}
 	if msg.PkgPath == "" { // XXX
 		return ErrInvalidPkgPath("missing package path")
 	}
-	if msg.Expr == "" { // XXX
+	if msg.Stmt == "" { // XXX
 		return ErrInvalidExpr("missing expression to evaluate")
 	}
 	return nil
 }
 
 // Implements Msg.
-func (msg MsgEval) GetSignBytes() []byte {
+func (msg MsgExec) GetSignBytes() []byte {
 	return std.MustSortJSON(amino.MustMarshalJSON(msg))
 }
 
 // Implements Msg.
-func (msg MsgEval) GetSigners() []crypto.Address {
+func (msg MsgExec) GetSigners() []crypto.Address {
 	return []crypto.Address{msg.Caller}
 }
 
 // Implements ReceiveMsg.
-func (msg MsgEval) GetReceived() std.Coins {
+func (msg MsgExec) GetReceived() std.Coins {
 	return msg.Send
 }

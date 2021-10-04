@@ -25,8 +25,8 @@ func (vh vmHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 	switch msg := msg.(type) {
 	case MsgAddPackage:
 		return vh.handleMsgAddPackage(ctx, msg)
-	case MsgEval:
-		return vh.handleMsgEval(ctx, msg)
+	case MsgExec:
+		return vh.handleMsgExec(ctx, msg)
 	default:
 		errMsg := fmt.Sprintf("unrecognized vm message type: %T", msg)
 		return abciResult(std.ErrUnknownRequest(errMsg))
@@ -50,8 +50,8 @@ func (vh vmHandler) handleMsgAddPackage(ctx sdk.Context, msg MsgAddPackage) sdk.
 	return sdk.Result{}
 }
 
-// Handle MsgEval.
-func (vh vmHandler) handleMsgEval(ctx sdk.Context, msg MsgEval) (res sdk.Result) {
+// Handle MsgExec.
+func (vh vmHandler) handleMsgExec(ctx sdk.Context, msg MsgExec) (res sdk.Result) {
 	amount, err := std.ParseCoins("1gnot") // XXX calculate
 	if err != nil {
 		return abciResult(err)
@@ -60,11 +60,11 @@ func (vh vmHandler) handleMsgEval(ctx sdk.Context, msg MsgEval) (res sdk.Result)
 	if err != nil {
 		return abciResult(err)
 	}
-	out, err := vh.vm.Eval(ctx, msg)
+	err = vh.vm.Exec(ctx, msg)
 	if err != nil {
 		return abciResult(err)
 	}
-	res.Data = []byte(out)
+	res.Data = []byte("OK!")
 	return
 	/*
 		ctx.EventManager().EmitEvent(
