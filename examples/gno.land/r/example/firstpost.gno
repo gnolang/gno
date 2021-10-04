@@ -1,3 +1,4 @@
+AddPost("Gno Demo!", `
 This is a demo of Gno smart contract programming.  This document was
 constructed by Gno. To see how it was done, follow the steps below.
 
@@ -39,3 +40,4 @@ https://github.com/gnolang/gno/tree/master/examples/gno.land
 
 ./build/gnokey query "vm/qeval" --data "gno.land/r/example
 Render()"
+`)

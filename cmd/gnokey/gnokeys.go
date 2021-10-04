@@ -1,7 +1,9 @@
+// Dedicated to my love, Lexi.
 package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -184,13 +186,15 @@ type makeExecTxOptions struct {
 	BaseTxOptions             // gas-wanted, gas-fee, memo, ...
 	PkgPath            string `flag:"pkgpath" help:"package path (required)"`
 	Stmt               string `flag:"stmt" help:"statement to execute" (required)"`
+	StmtFile           string `flag:"stmtfile" help:"statement file instead of inline"`
 	Send               string `flag:"send" help:"send coins"`
 }
 
 var defaultmakeExecTxOptions = makeExecTxOptions{
-	PkgPath: "", // must override
-	Stmt:    "", // must override
-	Send:    "",
+	PkgPath:  "", // must override
+	Stmt:     "", // must override
+	StmtFile: "", // must override
+	Send:     "",
 }
 
 func makeExecTxApp(cmd *command.Command, args []string, iopts interface{}) error {
@@ -198,8 +202,8 @@ func makeExecTxApp(cmd *command.Command, args []string, iopts interface{}) error
 	if opts.PkgPath == "" {
 		return errors.New("pkgpath not specified")
 	}
-	if opts.Stmt == "" {
-		return errors.New("stmt not specified")
+	if opts.Stmt == "" && opts.StmtFile == "" {
+		return errors.New("stmt (or stmtfile) not specified")
 	}
 	if len(args) != 1 {
 		cmd.ErrPrintfln("Usage: exec <keyname>")
@@ -210,6 +214,16 @@ func makeExecTxApp(cmd *command.Command, args []string, iopts interface{}) error
 	}
 	if opts.GasFee == "" {
 		return errors.New("gas-fee not specified")
+	}
+
+	// read statement.
+	stmt := opts.Stmt
+	if opts.StmtFile != "" {
+		bz, err := ioutil.ReadFile(opts.StmtFile)
+		if err != nil {
+			return errors.Wrap(err, "loading statement file")
+		}
+		stmt = string(bz)
 	}
 
 	// read account pubkey.
@@ -242,7 +256,7 @@ func makeExecTxApp(cmd *command.Command, args []string, iopts interface{}) error
 	msg := vm.MsgExec{
 		Caller:  caller,
 		PkgPath: opts.PkgPath,
-		Stmt:    opts.Stmt,
+		Stmt:    stmt,
 		Send:    send,
 	}
 	tx := std.Tx{
