@@ -9,13 +9,13 @@ import (
 var gPlot *dom.Plot
 
 func init() {
-	gPlot = &dom.Plot{Name: "my plot"}
+	gPlot = &dom.Plot{Name: "First Plot"}
 }
 
 func AddPost(title string, body string) {
 	gPlot.AddPost(title, body)
 }
 
-func RenderPlot() string {
+func Render() string {
 	return gPlot.String()
 }
