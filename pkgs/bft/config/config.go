@@ -37,8 +37,16 @@ func DefaultConfig() *Config {
 	}
 }
 
-// LoadOrMakeDefaultConfig() loads configuration or saves a default one.
+// Like LoadOrMakeConfigWithOptions() but without overriding any defaults.
 func LoadOrMakeDefaultConfig(root string) (cfg *Config) {
+	return LoadOrMakeConfigWithOptions(root, nil)
+}
+
+type ConfigOptions func(cfg *Config)
+
+// LoadOrMakeConfigWithOptions() loads configuration or saves one
+// made by modifying the default config with override options
+func LoadOrMakeConfigWithOptions(root string, options ConfigOptions) (cfg *Config) {
 	configPath := join(root, defaultConfigFilePath)
 	if osm.FileExists(configPath) {
 		cfg = LoadConfigFile(configPath)
@@ -46,6 +54,7 @@ func LoadOrMakeDefaultConfig(root string) (cfg *Config) {
 		cfg.EnsureDirs()
 	} else {
 		cfg = DefaultConfig()
+		options(cfg)
 		cfg.SetRootDir(root)
 		cfg.EnsureDirs()
 		WriteConfigFile(configPath, cfg)

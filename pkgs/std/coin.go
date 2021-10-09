@@ -40,6 +40,9 @@ func (coin Coin) MarshalAmino() (string, error) {
 }
 
 func (coin *Coin) UnmarshalAmino(coinstr string) (err error) {
+	if coinstr == "" {
+		return nil
+	}
 	coin2, err := ParseCoin(coinstr)
 	if err != nil {
 		return err
@@ -50,7 +53,11 @@ func (coin *Coin) UnmarshalAmino(coinstr string) (err error) {
 
 // String provides a human-readable representation of a coin
 func (coin Coin) String() string {
-	return fmt.Sprintf("%d%v", coin.Amount, coin.Denom)
+	if coin.IsZero() {
+		return ""
+	} else {
+		return fmt.Sprintf("%d%v", coin.Amount, coin.Denom)
+	}
 }
 
 // validate returns an error if the Coin has a negative amount or if

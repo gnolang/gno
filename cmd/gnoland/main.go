@@ -19,7 +19,10 @@ import (
 func main() {
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
 	rootDir := "testdir"
-	cfg := config.LoadOrMakeDefaultConfig(rootDir)
+	cfg := config.LoadOrMakeConfigWithOptions(rootDir, func(cfg *config.Config) {
+		cfg.Consensus.CreateEmptyBlocks = false
+		cfg.Consensus.CreateEmptyBlocksInterval = 60 * time.Second
+	})
 
 	// create priv validator first.
 	// need it to generate genesis.json
