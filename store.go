@@ -8,7 +8,10 @@ import (
 	dbm "github.com/gnolang/gno/pkgs/db"
 )
 
+type PackageGetter func(pkgPath string) *PackageValue
+
 type Store interface {
+	SetPackageGetter(PackageGetter)
 	GetPackage(pkgPath string) *PackageValue
 	SetPackage(*PackageValue)
 	GetObject(oid ObjectID) Object
@@ -17,62 +20,76 @@ type Store interface {
 	GetType(tid TypeID) Type
 	SetType(Type)
 	SetLogStoreOps(enabled bool)
+	SprintStoreOps() string
 }
 
 // Used to keep track of in-mem objects during tx.
 type defaultStore struct {
-	builtinPkgs  map[string]*PackageValue // TODO merge with cachePkgs map[string]StorePackageItem
+	pkgGetter    PackageGetter // non-realm packages
 	cachePkgs    map[string]*PackageValue
 	cacheObjects map[ObjectID]Object
 	cacheTypes   map[TypeID]Type
 	backend      dbm.DB
 
-	opslog []StoreOp // for debugging.
+	opslog  []StoreOp           // for debugging.
+	current map[string]struct{} // for detecting import cycles.
 }
 
 func NewStore(backend dbm.DB) *defaultStore {
 	return &defaultStore{
-		builtinPkgs:  make(map[string]*PackageValue),
+		pkgGetter:    nil,
 		cachePkgs:    make(map[string]*PackageValue),
 		cacheObjects: make(map[ObjectID]Object),
 		cacheTypes:   make(map[TypeID]Type),
 		backend:      backend,
+		current:      make(map[string]struct{}),
 	}
 }
 
+func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
+	ds.pkgGetter = pg
+}
+
 func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
-	if pv, exists := ds.builtinPkgs[pkgPath]; exists {
-		return pv
-	}
 	if pv, exists := ds.cachePkgs[pkgPath]; exists {
 		return pv
+	}
+	if ds.pkgGetter != nil {
+		if _, exists := ds.current[pkgPath]; exists {
+			panic(fmt.Sprintf("import cycle detected: %q", pkgPath))
+		}
+		ds.current[pkgPath] = struct{}{}
+		defer delete(ds.current, pkgPath)
+		if pv := ds.pkgGetter(pkgPath); pv != nil {
+			if pv.IsRealm() {
+				panic("realm packages cannot be gotten from pkgGetter")
+			}
+			ds.cachePkgs[pkgPath] = pv
+			return pv
+		}
 	}
 	if ds.backend != nil {
 		key := backendPackageKey(pkgPath)
 		bz := ds.backend.Get([]byte(key))
-		if bz == nil {
-			return nil
-		} else {
+		if bz != nil {
 			var pv = new(PackageValue)
 			amino.MustUnmarshal(bz, pv)
 			ds.cachePkgs[pkgPath] = pv
 			return pv
 		}
-	} else {
-		return nil
 	}
+	return nil
 }
 
+// Setting an already cached package (eg modifying it) fails unless realm package.
 func (ds *defaultStore) SetPackage(pv *PackageValue) {
 	pkgPath := pv.PkgPath
-	if debug {
-		if _, exists := ds.builtinPkgs[pkgPath]; exists {
-			panic("builtin packages should not be modified")
+	if pv2, exists := ds.cachePkgs[pkgPath]; exists {
+		if pv != pv2 {
+			panic("duplicate package value")
 		}
-		if pv2, exists := ds.cachePkgs[pkgPath]; exists {
-			if pv != pv2 {
-				panic("duplicate package value")
-			}
+		if !pv.IsRealm() {
+			panic("cannot modify non-realm package")
 		}
 	}
 	ds.cachePkgs[pkgPath] = pv
@@ -81,19 +98,6 @@ func (ds *defaultStore) SetPackage(pv *PackageValue) {
 		bz := amino.MustMarshal(pv)
 		ds.backend.Set([]byte(key), bz)
 	}
-}
-
-func (ds *defaultStore) SetBuiltinPackage(pv *PackageValue) {
-	pkgPath := pv.PkgPath
-	if pv2, exists := ds.builtinPkgs[pkgPath]; exists {
-		if pv != pv2 {
-			panic("duplicate (builtin) package value")
-		}
-	}
-	if _, exists := ds.cachePkgs[pkgPath]; exists {
-		panic("duplicate package value -- already cached")
-	}
-	ds.builtinPkgs[pkgPath] = pv
 }
 
 func (ds *defaultStore) GetObject(oid ObjectID) Object {
@@ -105,19 +109,18 @@ func (ds *defaultStore) GetObject(oid ObjectID) Object {
 	if ds.backend != nil {
 		key := backendObjectKey(oid)
 		bz := ds.backend.Get([]byte(key))
-		if bz == nil {
-			return nil
-		}
-		var oo Object
-		amino.MustUnmarshal(bz, &oo)
-		if debug {
-			if oo.GetObjectID() != oid {
-				panic(fmt.Sprintf("unexpected object id: expected %v but got %v",
-					oid, oo.GetObjectID()))
+		if bz != nil {
+			var oo Object
+			amino.MustUnmarshal(bz, &oo)
+			if debug {
+				if oo.GetObjectID() != oid {
+					panic(fmt.Sprintf("unexpected object id: expected %v but got %v",
+						oid, oo.GetObjectID()))
+				}
 			}
+			ds.cacheObjects[oid] = oo
+			return oo
 		}
-		ds.cacheObjects[oid] = oo
-		return oo
 	}
 	return nil
 }
@@ -189,19 +192,18 @@ func (ds *defaultStore) GetType(tid TypeID) Type {
 	if ds.backend != nil {
 		key := backendTypeKey(tid)
 		bz := ds.backend.Get([]byte(key))
-		if bz == nil {
-			return nil
-		}
-		var tt Type
-		amino.MustUnmarshal(bz, &tt)
-		if debug {
-			if tt.TypeID() != tid {
-				panic(fmt.Sprintf("unexpected type id: expected %v but got %v",
-					tid, tt.TypeID()))
+		if bz != nil {
+			var tt Type
+			amino.MustUnmarshal(bz, &tt)
+			if debug {
+				if tt.TypeID() != tid {
+					panic(fmt.Sprintf("unexpected type id: expected %v but got %v",
+						tid, tt.TypeID()))
+				}
 			}
+			ds.cacheTypes[tid] = tt
+			return tt
 		}
-		ds.cacheTypes[tid] = tt
-		return tt
 	}
 	return nil
 }

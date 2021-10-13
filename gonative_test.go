@@ -32,22 +32,11 @@ func TestGoNativeDefine(t *testing.T) {
 
 	// set packages to store.
 	store := NewStore(nil)
-	store.SetPackage(pkg)
-	// XXX XXX XXX replacing TestStore with SetPackage().
-	XXX
+	store.SetPackage(pv)
 
 	// Import above package and evaluate foo.Foo.
 	m := NewMachineWithOptions(MachineOptions{
-		Store: TestStore{
-			GetPackageFn: (func(pkgPath string) *PackageValue {
-				switch pkgPath {
-				case "test.foo":
-					return pv
-				default:
-					panic("unknown package path " + pkgPath)
-				}
-			}),
-		},
+		Store: store,
 	})
 	m.RunDeclaration(ImportD("foo", "test.foo"))
 	tvs := m.Eval(Sel(Nx("foo"), "Foo"))
@@ -62,20 +51,15 @@ func TestGoNativeDefine2(t *testing.T) {
 	pkg.DefineGoNativeType(rt)
 	pv := pkg.NewPackage()
 
+	// set packages to store.
+	store := NewStore(nil)
+	store.SetPackage(pv)
+
 	// Import above package and run file.
 	out := new(bytes.Buffer)
 	m := NewMachineWithOptions(MachineOptions{
 		Output: out,
-		Store: TestStore{
-			GetPackageFn: (func(pkgPath string) *PackageValue {
-				switch pkgPath {
-				case "test.foo":
-					return pv
-				default:
-					panic("unknown package path " + pkgPath)
-				}
-			}),
-		},
+		Store:  store,
 	})
 
 	c := `package main
@@ -110,19 +94,14 @@ func TestGoNativeDefine3(t *testing.T) {
 	})
 	pv := pkg.NewPackage()
 
+	// set packages to store.
+	store := NewStore(nil)
+	store.SetPackage(pv)
+
 	// Import above package and run file.
 	m := NewMachineWithOptions(MachineOptions{
 		Output: out,
-		Store: TestStore{
-			GetPackageFn: (func(pkgPath string) *PackageValue {
-				switch pkgPath {
-				case "test.foo":
-					return pv
-				default:
-					panic("unknown package path " + pkgPath)
-				}
-			}),
-		},
+		Store:  store,
 	})
 
 	c := `package main

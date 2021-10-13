@@ -43,24 +43,8 @@ import (
 
 // NOTE: this isn't safe.
 func testStore(out io.Writer) (store gno.Store) {
-	cache := make(map[string]*gno.PackageValue)
 	getPackage := func(pkgPath string) (pv *gno.PackageValue) {
-		// look up cache.
-		if pv, exists := cache[pkgPath]; exists {
-			if pv == nil {
-				panic(fmt.Sprintf(
-					"import cycle detected: %q",
-					pkgPath))
-			}
-			return pv
-		}
-		// set entry to detect import cycles.
-		cache[pkgPath] = nil
-		// defer: save to cache.
-		defer func() {
-			cache[pkgPath] = pv
-		}()
-		// construct test package value.
+		// if _test package...
 		const testPath = "github.com/gnolang/gno/_test/"
 		if strings.HasPrefix(pkgPath, testPath) {
 			baseDir := filepath.Join("./files/extern", pkgPath[len(testPath):])
@@ -96,7 +80,7 @@ func testStore(out io.Writer) (store gno.Store) {
 			m2.RunFiles(fnodes...)
 			return pv
 		}
-		// construct built-in package value.
+		// otherwise, built-in package value.
 		switch pkgPath {
 		case "fmt":
 			pkg := gno.NewPackageNode("fmt", pkgPath, nil)
@@ -313,11 +297,10 @@ func testStore(out io.Writer) (store gno.Store) {
 			panic("unknown package path " + pkgPath)
 		}
 	}
-	tstore := gno.TestStore{
-		GetPackageFn: getPackage,
-	}
-	cstore := gno.NewStore(tstore)
-	return cstore
+	// NOTE: store is also used in closure above.
+	store = gno.NewStore(nil)
+	store.SetPackageGetter(getPackage)
+	return
 }
 
 //----------------------------------------

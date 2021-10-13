@@ -564,9 +564,13 @@ type PackageValue struct {
 	PkgPath string
 	FNames  []Name
 	FBlocks []Value
-	Realm   *Realm // if IsRealm(PkgPath)
+	Realm   *Realm // if IsRealmPath(PkgPath), otherwise nil.
 
 	fBlocksMap map[Name]*Block
+}
+
+func (pv *PackageValue) IsRealm() bool {
+	return IsRealmPath(pv.PkgPath)
 }
 
 func (pv *PackageValue) getFBlocksMap() map[Name]*Block {

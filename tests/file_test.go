@@ -92,7 +92,7 @@ func runCheck(t *testing.T, path string) {
 			m.RunFiles(n)
 			if rops != "" {
 				// clear store.opslog from init funtion(s).
-				store.SetLogRealmOps(true) // resets.
+				store.SetLogStoreOps(true) // resets.
 			}
 			// XXX here, for realm tests,
 			// XXX reconstruct machine
