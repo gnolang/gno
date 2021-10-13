@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-
-	"github.com/gnolang/gno/pkgs/amino"
 )
 
 /*
@@ -85,10 +83,9 @@ type Realm struct {
 	Path string
 	Time uint64
 
-	created []Object  // new objects attached to real.
-	updated []Object  // real objects that were modified.
-	deleted []Object  // real objects that became deleted.
-	ropslog []RealmOp // for debugging.
+	created []Object // new objects attached to real.
+	updated []Object // real objects that were modified.
+	deleted []Object // real objects that became deleted.
 }
 
 // Creates a blank new realm with counter 0.
@@ -108,14 +105,6 @@ func (rlm *Realm) String() string {
 		return fmt.Sprintf(
 			"Realm{Path:%q:Time:%d}#%X",
 			rlm.Path, rlm.Time, rlm.ID.Bytes())
-	}
-}
-
-func (rlm *Realm) SetLogRealmOps(enabled bool) {
-	if enabled {
-		rlm.ResetRealmOps()
-	} else {
-		rlm.ropslog = nil
 	}
 }
 
@@ -265,8 +254,34 @@ func (rlm *Realm) MarkDeleted(oo Object) {
 	rlm.deleted = append(rlm.deleted, oo)
 }
 
+//----------------------------------------
+// transactions
+
+// OpReturn calls this when exiting a realm transaction.
+// XXX don't need store because we don't need it when we save?
+// XXX we need it when we load.
+// XXX but this assumes no multiple references...
+// XXX that is X owned by Y isn't also owned by Z.
+// XXX unless we saved X but don't have reference to Y.
+// XXX
+func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
+	// Process changes in created/updated/deleted.
+	rlm.compressMarks()
+	if readonly {
+		if len(rlm.created) > 0 ||
+			len(rlm.updated) > 0 ||
+			len(rlm.deleted) > 0 {
+			panic("realm updates in readonly transaction")
+		}
+	}
+	rlm.processCreatedObjects(store)
+	rlm.processUpdatedObjects(store)
+	rlm.processDeletedObjects(store)
+	rlm.clearMarks()
+}
+
 // removes deleted objects from created & updated.
-func (rlm *Realm) CompressMarks() {
+func (rlm *Realm) compressMarks() {
 
 	if debug {
 		ensureUniq(rlm.created)
@@ -295,41 +310,41 @@ func (rlm *Realm) CompressMarks() {
 	rlm.updated = u2
 }
 
-//----------------------------------------
-// transactions
-
-// OpReturn calls this when exiting a realm transaction.
-// XXX don't need store because we don't need it when we save?
-// XXX we need it when we load.
-// XXX but this assumes no multiple references...
-// XXX that is X owned by Y isn't also owned by Z.
-// XXX unless we saved X but don't have reference to Y.
-// XXX
-func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
-	// Process changes in created/updated/deleted.
-	rlm.CompressMarks()
-	if readonly {
-		if len(rlm.created) > 0 ||
-			len(rlm.updated) > 0 ||
-			len(rlm.deleted) > 0 {
-			panic("realm updates in readonly transaction")
-		}
-	}
-	rlm.ProcessCreatedObjects(store)
-	rlm.ProcessUpdatedObjects(store)
-	rlm.ProcessDeletedObjects(store)
-	rlm.ClearMarks()
-}
-
 // crawls marked created objects and finalizes ownership
 // by assigning it an ObjectID, recursively.
-func (rlm *Realm) ProcessCreatedObjects(store Store) {
+func (rlm *Realm) processCreatedObjects(store Store) {
 	for _, oo := range rlm.created {
-		rlm.saveUnsavedObject(store, oo)
+		rlm.saveUnsavedObjectRecursively(store, oo)
 	}
 }
 
-func (rlm *Realm) saveUnsavedObject(store Store, oo Object) {
+// crawls marked updated objects up the ownership chain
+// to update the merkle hash.
+func (rlm *Realm) processUpdatedObjects(store Store) {
+	for _, oo := range rlm.updated {
+		rlm.saveUnsavedObjectRecursively(store, oo)
+	}
+}
+
+// crawls marked deleted objects, recursively.
+func (rlm *Realm) processDeletedObjects(store Store) {
+	for _, do := range rlm.deleted {
+		// Remove deleted object, and recursively
+		// delete objects no longer referenced.
+		rlm.removeDeletedObjectRecursively(store, do)
+	}
+}
+
+func (rlm *Realm) clearMarks() {
+	rlm.created = nil
+	rlm.updated = nil
+	rlm.deleted = nil
+}
+
+//----------------------------------------
+// saveUnsavedObjectRecursively
+
+func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 	if debug {
 		if oo.GetIsProcessing() {
 			panic("should not happen")
@@ -347,11 +362,7 @@ func (rlm *Realm) saveUnsavedObject(store Store, oo Object) {
 				panic("should not happen")
 			}
 		}
-		rlm.AssignNewObjectID(oo)
-		// In case something loaded oo from disk (within the same
-		// tx context), in-memory object oo must be linked for
-		// identity mapping (w/ referential loops)..
-		store.SetObject(oo)
+		rlm.assignNewObjectID(oo)
 	}
 	// then process children
 	more := getUnsavedChildren(oo, nil)
@@ -369,13 +380,13 @@ func (rlm *Realm) saveUnsavedObject(store Store, oo Object) {
 		}
 		// XXX check for conflict? or before?
 		child.SetOwner(oo)
-		rlm.saveUnsavedObject(store, child)
+		rlm.saveUnsavedObjectRecursively(store, child)
 	}
 	// save or update object
 	if oo.GetIsNewReal() {
-		rlm.SaveCreatedObject(oo)
+		rlm.saveCreatedObjectAndReset(store, oo)
 	} else {
-		rlm.SaveUpdatedObject(oo)
+		rlm.saveUpdatedObjectAndReset(store, oo)
 	}
 }
 
@@ -502,7 +513,7 @@ func copyWithRefs(parent Object, val Value) Value {
 						V: copyWithRefs(cv.TypedValue.V),
 					},
 				*/
-				Base:  ensureRefValue(parent, cv.Base),
+				Base:  toRefValue(parent, cv.Base),
 				Index: cv.Index,
 			}
 		} else {
@@ -533,7 +544,7 @@ func copyWithRefs(parent Object, val Value) Value {
 		}
 	case *SliceValue:
 		return &SliceValue{
-			Base:   ensureRefValue(parent, cv.Base),
+			Base:   toRefValue(parent, cv.Base),
 			Offset: cv.Offset,
 			Length: cv.Length,
 			Maxcap: cv.Maxcap,
@@ -550,7 +561,7 @@ func copyWithRefs(parent Object, val Value) Value {
 	case *FuncValue:
 		var closure Value
 		if cv.Closure != nil {
-			closure = ensureRefValue(parent, cv.Closure)
+			closure = toRefValue(parent, cv.Closure)
 		}
 		if cv.nativeBody != nil {
 			panic("should not happen")
@@ -610,7 +621,7 @@ func copyWithRefs(parent Object, val Value) Value {
 		}
 		fblocks := make([]Value, len(cv.FBlocks))
 		for i, fb := range cv.FBlocks {
-			fblocks[i] = ensureRefValue(cv, fb)
+			fblocks[i] = toRefValue(cv, fb)
 		}
 		return &PackageValue{
 			Block: Block{
@@ -632,7 +643,7 @@ func copyWithRefs(parent Object, val Value) Value {
 		}
 		var bparent Value
 		if cv.Parent != nil {
-			bparent = ensureRefValue(parent, cv.Parent)
+			bparent = toRefValue(parent, cv.Parent)
 		}
 		return &Block{
 			ObjectInfo: cv.ObjectInfo.Copy(),
@@ -650,27 +661,12 @@ func copyWithRefs(parent Object, val Value) Value {
 	}
 }
 
-// crawls marked updated objects up the ownership chain
-// to update the merkle hash.
-func (rlm *Realm) ProcessUpdatedObjects(store Store) {
-	for _, oo := range rlm.updated {
-		rlm.saveUnsavedObject(store, oo)
-	}
-}
+//----------------------------------------
+// removeDeletedObjectRecursively
 
-// crawls marked deleted objects, recursively.
-func (rlm *Realm) ProcessDeletedObjects(store Store) {
-	for _, do := range rlm.deleted {
-		// Remove deleted object, and recursively
-		// delete objects no longer referenced.
-		rlm.RemoveDeletedObject(do)
-	}
-}
-
-func (rlm *Realm) ClearMarks() {
-	rlm.created = nil
-	rlm.updated = nil
-	rlm.deleted = nil
+func (rlm *Realm) removeDeletedObjectRecursively(store Store, do Object) {
+	// XXX actually delete objects recursively.
+	store.DelObject(do)
 }
 
 //----------------------------------------
@@ -692,7 +688,7 @@ func (rlm *Realm) nextObjectID() ObjectID {
 
 // Object gets its id set (panics if already set), and becomes
 // marked as new and real.
-func (rlm *Realm) AssignNewObjectID(oo Object) ObjectID {
+func (rlm *Realm) assignNewObjectID(oo Object) ObjectID {
 	oid := oo.GetObjectID()
 	if !oid.IsZero() {
 		panic("unexpected non-zero object id")
@@ -703,13 +699,13 @@ func (rlm *Realm) AssignNewObjectID(oo Object) ObjectID {
 	return noid
 }
 
-func (rlm *Realm) SaveCreatedObject(oo Object) {
-	rlm.saveObject(oo, RealmOpNew)
+func (rlm *Realm) saveCreatedObjectAndReset(store Store, oo Object) {
+	rlm.saveObject(store, oo)
 	oo.SetIsNewReal(false)
 	oo.SetIsDirty(false, 0)
 }
 
-func (rlm *Realm) SaveUpdatedObject(oo Object) {
+func (rlm *Realm) saveUpdatedObjectAndReset(store Store, oo Object) {
 	if debug {
 		if oo.GetIsNewReal() {
 			panic("should not happen")
@@ -721,99 +717,23 @@ func (rlm *Realm) SaveUpdatedObject(oo Object) {
 			panic("should not happen")
 		}
 	}
-	rlm.saveObject(oo, RealmOpMod)
+	rlm.saveObject(store, oo)
 	oo.SetIsDirty(false, 0)
 }
 
-func (rlm *Realm) saveObject(oo Object, op RealmOpType) {
+func (rlm *Realm) saveObject(store Store, oo Object) {
 	oid := oo.GetObjectID()
 	if oid.IsZero() {
 		panic("unexpected zero object id")
 	}
-	// replace children/fields with Ref.
-	o2 := copyWithRefs(nil, oo)
-	// marshal to binary
-	bz := amino.MustMarshal(o2)
-	// set hash.
-	hash := HashBytes(bz) // XXX objectHash(bz)???
-	oo.SetHash(ValueHash{hash})
-	// persist oid -> oo, bz(, hash???)
-	rlm.saveObjectBytes(oid, bz, hash)
-	// make realm op log entry
-	if rlm.ropslog != nil {
-		rlm.ropslog = append(rlm.ropslog,
-			RealmOp{op, o2.(Object)})
-	}
-}
-
-func (rlm *Realm) saveObjectBytes(oid ObjectID, bz []byte, hash Hashlet) {
-	fmt.Println("XXX would save object bytes", oid) // , bz, hash)
-}
-
-func (rlm *Realm) RemoveDeletedObject(oo Object) {
-	if rlm.ropslog != nil {
-		rlm.ropslog = append(rlm.ropslog,
-			RealmOp{RealmOpDel, oo})
-	}
-}
-
-//----------------------------------------
-// RealmOp
-//
-// At the end of a realm transaction, the operations
-// are gathered into a buffer of RealmOps.
-
-type RealmOpType uint8
-
-const (
-	RealmOpNew RealmOpType = iota
-	RealmOpMod
-	RealmOpDel
-)
-
-type RealmOp struct {
-	Type RealmOpType
-	Object
-}
-
-// used by the tests/file_test system to check
-// veracity of realm operations.
-func (rop RealmOp) String() string {
-	switch rop.Type {
-	case RealmOpNew:
-		return fmt.Sprintf("c[%v]=%s",
-			rop.Object.GetObjectID(),
-			prettyJSON(amino.MustMarshalJSON(rop.Object)))
-	case RealmOpMod:
-		return fmt.Sprintf("u[%v]=%s",
-			rop.Object.GetObjectID(),
-			prettyJSON(amino.MustMarshalJSON(rop.Object)))
-	case RealmOpDel:
-		return fmt.Sprintf("d[%v]",
-			rop.Object.GetObjectID())
-	default:
-		panic("should not happen")
-	}
-}
-
-// resets .realmops.
-func (rlm *Realm) ResetRealmOps() {
-	rlm.ropslog = make([]RealmOp, 0, 1024)
-}
-
-// for test/file_test.go, to test realm changes.
-func (rlm *Realm) SprintRealmOps() string {
-	ss := make([]string, 0, len(rlm.ropslog))
-	for _, rop := range rlm.ropslog {
-		ss = append(ss, rop.String())
-	}
-	return strings.Join(ss, "\n")
+	// set object to store.
+	store.SetObject(oo)
 }
 
 //----------------------------------------
 // Misc.
 
-func ensureRefValue(parent Object, val Value) RefValue {
+func toRefValue(parent Object, val Value) RefValue {
 	// TODO use type switch stmt.
 	if ref, ok := val.(RefValue); ok {
 		return ref
@@ -872,7 +792,7 @@ func refOrCopy(parent Object, tv TypedValue) TypedValue {
 		tv.T = RefType{tv.T.TypeID()}
 	}
 	if obj, ok := tv.V.(Object); ok {
-		tv.V = ensureRefValue(parent, obj)
+		tv.V = toRefValue(parent, obj)
 		return tv
 	} else {
 		tv.V = copyWithRefs(parent, tv.V)

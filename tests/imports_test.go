@@ -316,7 +316,7 @@ func testStore(out io.Writer) (store gno.Store) {
 	tstore := gno.TestStore{
 		GetPackageFn: getPackage,
 	}
-	cstore := gno.NewCacheStore(tstore)
+	cstore := gno.NewStore(tstore)
 	return cstore
 }
 

@@ -30,6 +30,12 @@ func TestGoNativeDefine(t *testing.T) {
 	nt = pv.GetPointerTo(nil, path).TV.GetType().(*NativeType)
 	assert.Equal(t, nt.Type, rt)
 
+	// set packages to store.
+	store := NewStore(nil)
+	store.SetPackage(pkg)
+	// XXX XXX XXX replacing TestStore with SetPackage().
+	XXX
+
 	// Import above package and evaluate foo.Foo.
 	m := NewMachineWithOptions(MachineOptions{
 		Store: TestStore{

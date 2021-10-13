@@ -51,16 +51,14 @@ func runCheck(t *testing.T, path string) {
 	pkgName := defaultPkgName(pkgPath)
 	pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
 	pv := pn.NewPackage()
-	rlm := pv.GetRealm()
-	if rlm != nil {
-		rlm.SetLogRealmOps(true)
-	}
 
-	var output = new(bytes.Buffer)
+	output := new(bytes.Buffer)
+	store := testStore(output)
+	store.SetLogStoreOps(true)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		Package: pv,
 		Output:  output,
-		Store:   testStore(output),
+		Store:   store,
 	})
 	// TODO support stdlib groups, but make testing safe;
 	// e.g. not be able to make network connections.
@@ -93,10 +91,12 @@ func runCheck(t *testing.T, path string) {
 			n := gno.MustParseFile(path, string(bz))
 			m.RunFiles(n)
 			if rops != "" {
-				// clear rlm.ropslog from init funtion(s).
-				rlm := pv.GetRealm()
-				rlm.SetLogRealmOps(true) // resets.
+				// clear store.opslog from init funtion(s).
+				store.SetLogRealmOps(true) // resets.
 			}
+			// XXX here, for realm tests,
+			// XXX reconstruct machine
+			// XXX but using the same store.
 			m.RunMain()
 		}()
 		// check errors
@@ -133,11 +133,7 @@ func runCheck(t *testing.T, path string) {
 		}
 		// check realm ops
 		if rops != "" {
-			rlm := pv.GetRealm()
-			if rlm == nil {
-				panic("expected realm but got none")
-			}
-			rops2 := strings.TrimSpace(rlm.SprintRealmOps())
+			rops2 := strings.TrimSpace(store.SprintStoreOps())
 			if rops != rops2 {
 				panic(fmt.Sprintf("got:\n%s\n\nwant:\n%s\n", rops2, rops))
 			}

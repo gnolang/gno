@@ -20,6 +20,10 @@ func (ts TestStore) SetObject(oo Object) {
 	panic("should not happen")
 }
 
+func (ts TestStore) DelObject(oo Object) {
+	panic("should not happen")
+}
+
 func (ts TestStore) GetType(tid TypeID) Type {
 	panic("should not happen")
 }
