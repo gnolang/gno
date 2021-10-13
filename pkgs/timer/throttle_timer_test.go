@@ -38,7 +38,7 @@ func (c *thCounter) Read() {
 func TestThrottle(test *testing.T) {
 	assert := asrt.New(test)
 
-	ms := 50
+	ms := 100
 	delay := time.Duration(ms) * time.Millisecond
 	longwait := time.Duration(2) * delay
 	t := NewThrottleTimer("foo", delay)
@@ -66,7 +66,7 @@ func TestThrottle(test *testing.T) {
 
 	// send 12, over 2 delay sections, adds 3
 	short := time.Duration(ms/5) * time.Millisecond
-	for i := 0; i < 13; i++ {
+	for i := 0; i < 12; i++ {
 		t.Set()
 		time.Sleep(short)
 	}
