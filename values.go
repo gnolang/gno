@@ -351,15 +351,14 @@ func (sv *StructValue) Copy() *StructValue {
 // makes construction TypedValue{T:*FuncType{},V:*FuncValue{}}
 // faster.
 type FuncValue struct {
-	Type      Type      // includes unbound receiver(s)
-	IsMethod  bool      // is an (unbound) method
-	SourceLoc Location  // location for source
-	Source    BlockNode `json:"-"` // for block mem allocation
-	Name      Name      // name of function/method
-	Body      []Stmt    `json:"-"` // function body
-	Closure   Value     // *Block or RefValue to closure (a file's Block for unbound methods).
-	FileName  Name      // file name where declared
-	PkgPath   string
+	Type     Type      // includes unbound receiver(s)
+	IsMethod bool      // is an (unbound) method
+	Source   BlockNode // for block mem allocation
+	Name     Name      // name of function/method
+	Body     []Stmt    `json:"-"` // function body
+	Closure  Value     // *Block or RefValue to closure (a file's Block for unbound methods).
+	FileName Name      // file name where declared
+	PkgPath  string
 
 	nativeBody func(*Machine) // alternative to Body
 	pkg        *PackageValue
@@ -380,7 +379,20 @@ func (fv *FuncValue) GetType(store Store) *FuncType {
 	}
 }
 
-func (fv *FuncValue) GetPackage() *PackageValue {
+func (fv *FuncValue) GetSource(store Store) BlockNode {
+	if rn, ok := fv.Source.(RefNode); ok {
+		source := store.GetBlockNode(rn.GetLocation())
+		fv.Source = source
+		return source
+	} else {
+		return fv.Source
+	}
+}
+
+func (fv *FuncValue) GetPackage(store Store) *PackageValue {
+	if fv.pkg == nil {
+		fv.pkg = store.GetPackage(fv.PkgPath)
+	}
 	return fv.pkg
 }
 
@@ -559,14 +571,25 @@ type TypeValue struct {
 }
 
 type PackageValue struct {
-	Block
-	PkgName Name
-	PkgPath string
-	FNames  []Name
-	FBlocks []Value
-	Realm   *Realm // if IsRealmPath(PkgPath), otherwise nil.
+	ObjectInfo // is a separate object from .Block.
+	Block      Value
+	PkgName    Name
+	PkgPath    string
+	FNames     []Name
+	FBlocks    []Value
+	Realm      *Realm `json:"-"` // if IsRealmPath(PkgPath), otherwise nil.
 
 	fBlocksMap map[Name]*Block
+}
+
+// Sets pv.ObjectInfo.ID.
+func (pv *PackageValue) Initialize() {
+	if !pv.ObjectInfo.ID.IsZero() {
+		panic("should not happen")
+	}
+	// Set the package's ObjectInfo.ID, thereby making it real.
+	oid := ObjectIDFromPkgPath(pv.PkgPath)
+	pv.ObjectInfo.ID = oid
 }
 
 func (pv *PackageValue) IsRealm() bool {
@@ -578,6 +601,20 @@ func (pv *PackageValue) getFBlocksMap() map[Name]*Block {
 		pv.fBlocksMap = make(map[Name]*Block, len(pv.FNames))
 	}
 	return pv.fBlocksMap
+}
+
+func (pv *PackageValue) GetBlock(store Store) *Block {
+	bv := pv.Block
+	switch bv := bv.(type) {
+	case RefValue:
+		bb := store.GetObject(bv.ObjectID).(*Block)
+		pv.Block = bb
+		return bb
+	case *Block:
+		return bv
+	default:
+		panic("should not happen")
+	}
 }
 
 // XXX
@@ -629,14 +666,6 @@ func (pv *PackageValue) GetRealm() *Realm {
 
 func (pv *PackageValue) SetRealm(rlm *Realm) {
 	pv.Realm = rlm
-	if !pv.Block.ObjectInfo.ID.IsZero() {
-		panic("should not happen")
-	}
-	// Set the package's ObjectInfo.ID, thereby making it real.
-	pv.Block.ObjectInfo.ID = ObjectID{
-		RealmID: rlm.ID,
-		NewTime: 0, // 0 reserved for package block.
-	}
 }
 
 type NativeValue struct {
@@ -1449,7 +1478,7 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 		switch dtv.T.(type) {
 		case *PackageType:
 			pv := dtv.V.(*PackageValue)
-			return pv.GetPointerTo(store, path)
+			return pv.GetBlock(store).GetPointerTo(store, path)
 		default:
 			panic("should not happen")
 		}
@@ -1988,8 +2017,7 @@ func (tv *TypedValue) GetSlice2(low, high, max int) TypedValue {
 // TODO rename to BlockValue.
 type Block struct {
 	ObjectInfo // for closures
-	SourceLoc  Location
-	Source     BlockNode `json:"-"` // unexpose?
+	Source     BlockNode
 	Values     []TypedValue
 	Parent     Value
 	Blank      TypedValue // captures "_"
@@ -1997,17 +2025,14 @@ type Block struct {
 }
 
 func NewBlock(source BlockNode, parent *Block) *Block {
-	var loc Location
 	var values []TypedValue
 	if source != nil {
-		loc = source.GetLocation()
 		values = make([]TypedValue, source.GetNumNames())
 	}
 	return &Block{
-		SourceLoc: loc,
-		Source:    source,
-		Values:    values,
-		Parent:    parent,
+		Source: source,
+		Values: values,
+		Parent: parent,
 	}
 }
 
@@ -2022,21 +2047,36 @@ func (b *Block) StringIndented(indent string) string {
 	}
 	lines := []string{}
 	lines = append(lines,
-		fmt.Sprintf("Block(Addr:%p,Source:%s,Parent:%p)",
-			b, source, b.Parent)) // XXX Parent may be RefValue{}.
+		fmt.Sprintf("Block(ID:%v,Addr:%p,Source:%s,Parent:%p)",
+			b.ObjectInfo.ID, b, source, b.Parent)) // XXX Parent may be RefValue{}.
 	if b.Source != nil {
-		for i, n := range b.Source.GetBlockNames() {
-			if len(b.Values) <= i {
-				lines = append(lines,
-					fmt.Sprintf("%s%s: undefined", indent, n))
-			} else {
-				lines = append(lines,
-					fmt.Sprintf("%s%s: %s",
-						indent, n, b.Values[i].String()))
+		if _, ok := b.Source.(RefNode); ok {
+			lines = append(lines,
+				fmt.Sprintf("%s(RefNode names not shown)", indent))
+		} else {
+			for i, n := range b.Source.GetBlockNames() {
+				if len(b.Values) <= i {
+					lines = append(lines,
+						fmt.Sprintf("%s%s: undefined", indent, n))
+				} else {
+					lines = append(lines,
+						fmt.Sprintf("%s%s: %s",
+							indent, n, b.Values[i].String()))
+				}
 			}
 		}
 	}
 	return strings.Join(lines, "\n")
+}
+
+func (b *Block) GetSource(store Store) BlockNode {
+	if rn, ok := b.Source.(RefNode); ok {
+		source := store.GetBlockNode(rn.GetLocation())
+		b.Source = source
+		return source
+	} else {
+		return b.Source
+	}
 }
 
 func (b *Block) GetParent(store Store) *Block {

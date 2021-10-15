@@ -55,6 +55,9 @@ func runCheck(t *testing.T, path string) {
 	output := new(bytes.Buffer)
 	store := testStore(output)
 	store.SetLogStoreOps(true)
+	// store.SetPackage(pv) // XXX this makes .Values[] zero!!!
+	// XXX
+	store.SetBlockNode(pn) // XXX needed?
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		Package: pv,
 		Output:  output,
@@ -94,10 +97,20 @@ func runCheck(t *testing.T, path string) {
 				// clear store.opslog from init funtion(s).
 				store.SetLogStoreOps(true) // resets.
 			}
-			// XXX here, for realm tests,
-			// XXX reconstruct machine
-			// XXX but using the same store.
-			m.RunMain()
+			// reconstruct machine and clear store cache.
+			// whether pv is realm or not, since non-realm
+			// may call realm packages too.
+			store.ClearCache()
+			pv2 := pv
+			if pv.IsRealm() {
+				pv2 = store.GetPackage(pkgPath) // load from backend
+			}
+			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+				Package: pv2,
+				Output:  output,
+				Store:   store,
+			})
+			m2.RunMain()
 		}()
 		// check errors
 		if errWanted != "" {

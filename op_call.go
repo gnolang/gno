@@ -64,7 +64,7 @@ func (m *Machine) doOpCall() {
 	isMethod := 0 // 1 if true
 	// Create new block scope.
 	clo := fr.Func.GetClosure(m.Store)
-	b := NewBlock(fr.Func.Source, clo)
+	b := NewBlock(fr.Func.GetSource(m.Store), clo)
 	m.PushBlock(b)
 	if fv.nativeBody == nil {
 		if len(ft.Results) == 0 {
@@ -171,6 +171,11 @@ func (m *Machine) doOpCallDeferNativeBody() {
 func (m *Machine) doOpReturn() {
 	fr := m.PopUntilLastCallFrame()
 	// See if we are exiting a realm boundary.
+	// NOTE: there are other ways to implement realm boundary transitions,
+	// e.g. with independent Machine instances per realm for example, or
+	// even only finalizing all realm transactions at the end of the
+	// original statement execution, but for now we handle them like this,
+	// per OpReturn*.
 	crlm := m.Realm
 	if crlm != nil {
 		lrlm := fr.LastRealm
@@ -267,7 +272,7 @@ func (m *Machine) doOpReturnCallDefers() {
 		pts := ft.Params
 		numParams := len(ft.Params)
 		// Create new block scope for defer.
-		b := NewBlock(fv.Source, fb)
+		b := NewBlock(fv.GetSource(m.Store), fb)
 		m.PushBlock(b)
 		if fv.nativeBody == nil {
 			// Exec body.

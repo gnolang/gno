@@ -115,6 +115,20 @@ type Location struct {
 	Line    int
 }
 
+func (loc Location) String() string {
+	return fmt.Sprintf("%s/%s:%d",
+		loc.PkgPath,
+		loc.File,
+		loc.Line,
+	)
+}
+
+func (loc Location) IsZero() bool {
+	return loc.PkgPath == "" &&
+		loc.File == "" &&
+		loc.Line == 0
+}
+
 type Attributes struct {
 	Loc   Location
 	Label Name
@@ -1070,13 +1084,18 @@ func NewPackageNode(name Name, path string, fset *FileSet) *PackageNode {
 		PkgName: Name(name),
 		FileSet: fset,
 	}
+	pn.SetLocation(Location{
+		PkgPath: path,
+		File:    "",
+		Line:    0,
+	})
 	pn.InitStaticBlock(pn, nil)
 	return pn
 }
 
 func (pn *PackageNode) NewPackage() *PackageValue {
 	pv := &PackageValue{
-		Block: Block{
+		Block: &Block{
 			Source: pn,
 		},
 		PkgName:    pn.PkgName,
@@ -1085,6 +1104,7 @@ func (pn *PackageNode) NewPackage() *PackageValue {
 		FBlocks:    nil,
 		fBlocksMap: make(map[Name]*Block),
 	}
+	pv.Initialize()
 	if IsRealmPath(pn.PkgPath) {
 		rlm := NewRealm(pn.PkgPath)
 		pv.SetRealm(rlm)
@@ -1099,10 +1119,12 @@ func (pn *PackageNode) NewPackage() *PackageValue {
 // length.
 // TODO split logic and/or name resulting function(s) better. PrepareNewValues?
 func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
-	if pv.Source != pn {
+	// should already exist.
+	block := pv.Block.(*Block)
+	if block.Source != pn {
 		panic("PackageNode.PrepareNewValues() package mismatch")
 	}
-	pvl := len(pv.Values)
+	pvl := len(block.Values)
 	pnl := len(pn.Values)
 	if pvl < pnl {
 		// XXX: deep copy heap values
@@ -1169,8 +1191,8 @@ func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 				// already shallowed copied.
 			}
 		}
-		pv.Values = append(pv.Values, nvs...)
-		return pv.Values[pvl:]
+		block.Values = append(block.Values, nvs...)
+		return block.Values[pvl:]
 	} else if pvl > pnl {
 		panic("package size error")
 	} else {
@@ -1200,6 +1222,19 @@ func (pn *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*
 	fv := pn.GetValueRef(nil, n).V.(*FuncValue)
 	fv.nativeBody = native
 	// fv.Closure, fv.pkg set during .NewPackage().
+}
+
+//----------------------------------------
+// RefNode
+
+// Reference to a node by its location.
+type RefNode struct {
+	Location  Location // location of node.
+	BlockNode          // convenience to implement BlockNode (nil).
+}
+
+func (rn RefNode) GetLocation() Location {
+	return rn.Location
 }
 
 //----------------------------------------
@@ -1307,7 +1342,7 @@ func (sb *StaticBlock) GetParentNode(store Store) BlockNode {
 	if pblock == nil {
 		return nil
 	} else {
-		return pblock.Source
+		return pblock.GetSource(store)
 	}
 }
 
@@ -1323,7 +1358,7 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 	if idx, ok := sb.GetLocalIndex(n); ok {
 		return NewValuePathBlock(uint8(gen), idx, n)
 	} else {
-		if !isFile(sb.Source) {
+		if !isFile(sb.GetSource(store)) {
 			sb.GetStaticBlock().addExternName(n)
 		}
 		gen++
@@ -1545,6 +1580,7 @@ var _ BlockNode = &SwitchClauseStmt{}
 var _ BlockNode = &FuncDecl{}
 var _ BlockNode = &FileNode{}
 var _ BlockNode = &PackageNode{}
+var _ BlockNode = RefNode{}
 
 func (ifs *IfStmt) GetBody() Body {
 	panic("IfStmt has no body (but .Then and .Else do)")

@@ -73,6 +73,13 @@ func RealmIDFromPath(path string) RealmID {
 	return RealmID{HashBytes([]byte(path))}
 }
 
+func ObjectIDFromPkgPath(path string) ObjectID {
+	return ObjectID{
+		RealmID: RealmIDFromPath(path),
+		NewTime: 0, // 0 reserved for package block.
+	}
+}
+
 // A nil realm is special and has limited functionality; enough
 // to support methods that don't require persistence. This is
 // the default realm when a machine starts with a non-realm
@@ -391,14 +398,15 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 }
 
 // Get unsaved self or unsaved children.
-// This function ignores packages which have no
-// assigned object id (builtins like fmt), but does
-// assert that they are not dirty.
 func getUnsaved(val Value, more []Object) []Object {
+	// sanity check:
 	if pv, ok := val.(*PackageValue); ok {
-		if pv.GetIsDirty() {
-			panic("unexpected dirty package " + pv.PkgPath)
+		if !pv.IsRealm() && pv.GetIsDirty() {
+			panic("unexpected dirty non-realm package " + pv.PkgPath)
 		}
+	}
+	if _, ok := val.(RefValue); ok {
+		// ref means unchanged from disk.
 		return more
 	} else if obj, ok := val.(Object); ok {
 		if isUnsaved(obj) {
@@ -465,10 +473,7 @@ func getUnsavedChildren(val Value, more []Object) []Object {
 	case TypeValue:
 		return more
 	case *PackageValue:
-		for _, ctv := range cv.Values {
-			// NOTE: same as isUnsaved(ctv.GetFirstObject()).
-			more = getUnsaved(ctv.V, more)
-		}
+		more = getUnsaved(cv.Block, more)
 		for _, fb := range cv.FBlocks {
 			more = getUnsaved(fb, more)
 		}
@@ -559,6 +564,7 @@ func copyWithRefs(parent Object, val Value) Value {
 			Fields:     fields,
 		}
 	case *FuncValue:
+		source := toRefNode(cv.Source)
 		var closure Value
 		if cv.Closure != nil {
 			closure = toRefValue(parent, cv.Closure)
@@ -568,15 +574,14 @@ func copyWithRefs(parent Object, val Value) Value {
 		}
 		ft := RefType{ID: cv.Type.TypeID()}
 		return &FuncValue{
-			Type:      ft,
-			IsMethod:  cv.IsMethod,
-			SourceLoc: cv.SourceLoc,
-			Source:    cv.Source,
-			Name:      cv.Name,
-			Body:      cv.Body,
-			Closure:   closure,
-			FileName:  cv.FileName,
-			PkgPath:   cv.PkgPath,
+			Type:     ft,
+			IsMethod: cv.IsMethod,
+			Source:   source,
+			Name:     cv.Name,
+			Body:     cv.Body,
+			Closure:  closure,
+			FileName: cv.FileName,
+			PkgPath:  cv.PkgPath,
 		}
 	case *BoundMethodValue:
 		fnc := copyWithRefs(cv, cv.Func).(*FuncValue)
@@ -602,41 +607,20 @@ func copyWithRefs(parent Object, val Value) Value {
 			ID: cv.Type.TypeID(),
 		})
 	case *PackageValue:
-		// If package is embedded (namely in a file block),
-		// just return the RefValue{PkgPath}.
-		if parent != nil {
-			if cv.GetRealm() != nil {
-				panic("should not happen -- dirty(?) referenced realm package")
-			}
-			if cv.GetIsDirty() {
-				panic("should not happen -- non-realm package should not have been modified")
-			}
-			return RefValue{
-				PkgPath: cv.PkgPath,
-			}
-		}
-		vals := make([]TypedValue, len(cv.Values))
-		for i, tv := range cv.Values {
-			vals[i] = refOrCopy(cv, tv)
-		}
+		block := toRefValue(cv, cv.Block)
 		fblocks := make([]Value, len(cv.FBlocks))
 		for i, fb := range cv.FBlocks {
 			fblocks[i] = toRefValue(cv, fb)
 		}
 		return &PackageValue{
-			Block: Block{
-				ObjectInfo: cv.Block.ObjectInfo.Copy(),
-				Source:     cv.Block.Source,
-				Values:     vals,
-				Parent:     nil,          // packages have no parent.
-				Blank:      TypedValue{}, // empty
-			},
+			Block:   block,
 			PkgName: cv.PkgName,
 			PkgPath: cv.PkgPath,
 			FNames:  cv.FNames, // no copy
 			FBlocks: fblocks,
 		}
 	case *Block:
+		source := toRefNode(cv.Source)
 		vals := make([]TypedValue, len(cv.Values))
 		for i, tv := range cv.Values {
 			vals[i] = refOrCopy(cv, tv)
@@ -647,7 +631,7 @@ func copyWithRefs(parent Object, val Value) Value {
 		}
 		return &Block{
 			ObjectInfo: cv.ObjectInfo.Copy(),
-			Source:     cv.Source,
+			Source:     source,
 			Values:     vals,
 			Parent:     bparent,
 			Blank:      TypedValue{}, // empty
@@ -732,6 +716,13 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 
 //----------------------------------------
 // Misc.
+
+func toRefNode(bn BlockNode) RefNode {
+	return RefNode{
+		Location:  bn.GetLocation(),
+		BlockNode: nil, // NOTE is always nil.
+	}
+}
 
 func toRefValue(parent Object, val Value) RefValue {
 	// TODO use type switch stmt.

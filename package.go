@@ -24,6 +24,7 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	&PackageValue{}, "pkg",
 	// &NativeValue{},
 	&Block{}, "blk",
+	RefNode{}, "rfn",
 	RefType{}, "rft",
 	RefValue{}, "rfv",
 ))

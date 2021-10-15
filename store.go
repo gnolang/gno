@@ -19,16 +19,19 @@ type Store interface {
 	DelObject(Object)
 	GetType(tid TypeID) Type
 	SetType(Type)
+	GetBlockNode(Location) BlockNode
+	SetBlockNode(BlockNode)
 	SetLogStoreOps(enabled bool)
 	SprintStoreOps() string
+	ClearCache()
 }
 
 // Used to keep track of in-mem objects during tx.
 type defaultStore struct {
 	pkgGetter    PackageGetter // non-realm packages
-	cachePkgs    map[string]*PackageValue
 	cacheObjects map[ObjectID]Object
 	cacheTypes   map[TypeID]Type
+	cacheNodes   map[Location]BlockNode
 	backend      dbm.DB
 
 	opslog  []StoreOp           // for debugging.
@@ -38,12 +41,19 @@ type defaultStore struct {
 func NewStore(backend dbm.DB) *defaultStore {
 	return &defaultStore{
 		pkgGetter:    nil,
-		cachePkgs:    make(map[string]*PackageValue),
 		cacheObjects: make(map[ObjectID]Object),
 		cacheTypes:   make(map[TypeID]Type),
+		cacheNodes:   make(map[Location]BlockNode),
 		backend:      backend,
 		current:      make(map[string]struct{}),
 	}
+}
+
+func (ds *defaultStore) ClearCache() {
+	ds.cacheObjects = make(map[ObjectID]Object)
+	// NOTE: types/nodes are not yet persisted, so keep cache.
+	// ds.cacheTypes = make(map[TypeID]Type)
+	// ds.cacheNodes = make(map[Location]BlockNode)
 }
 
 func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
@@ -51,9 +61,13 @@ func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
 }
 
 func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
-	if pv, exists := ds.cachePkgs[pkgPath]; exists {
+	oid := ObjectIDFromPkgPath(pkgPath)
+	// first, try to load (package) object as usual.
+	pvo := ds.GetObjectSafe(oid)
+	if pv, ok := pvo.(*PackageValue); ok {
 		return pv
 	}
+	// otherwise, fetch from pkgGetter.
 	if ds.pkgGetter != nil {
 		if _, exists := ds.current[pkgPath]; exists {
 			panic(fmt.Sprintf("import cycle detected: %q", pkgPath))
@@ -64,43 +78,32 @@ func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
 			if pv.IsRealm() {
 				panic("realm packages cannot be gotten from pkgGetter")
 			}
-			ds.cachePkgs[pkgPath] = pv
+			ds.cacheObjects[oid] = pv
 			return pv
 		}
 	}
-	if ds.backend != nil {
-		key := backendPackageKey(pkgPath)
-		bz := ds.backend.Get([]byte(key))
-		if bz != nil {
-			var pv = new(PackageValue)
-			amino.MustUnmarshal(bz, pv)
-			ds.cachePkgs[pkgPath] = pv
-			return pv
-		}
-	}
-	return nil
+	panic(fmt.Sprintf("unexpected package with path %q", pkgPath))
 }
 
 // Setting an already cached package (eg modifying it) fails unless realm package.
 func (ds *defaultStore) SetPackage(pv *PackageValue) {
-	pkgPath := pv.PkgPath
-	if pv2, exists := ds.cachePkgs[pkgPath]; exists {
-		if pv != pv2 {
-			panic("duplicate package value")
-		}
-		if !pv.IsRealm() {
-			panic("cannot modify non-realm package")
-		}
+	oid := pv.ObjectInfo.ID
+	if oid.IsZero() {
+		// .SetRealm() should have set object id.
+		panic("should not happen")
 	}
-	ds.cachePkgs[pkgPath] = pv
-	if ds.backend != nil {
-		key := backendPackageKey(pkgPath)
-		bz := amino.MustMarshal(pv)
-		ds.backend.Set([]byte(key), bz)
-	}
+	ds.SetObject(pv)
 }
 
 func (ds *defaultStore) GetObject(oid ObjectID) Object {
+	oo := ds.GetObjectSafe(oid)
+	if oo == nil {
+		panic(fmt.Sprintf("unexpected object with id %s", oid.String()))
+	}
+	return oo
+}
+
+func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 	// check cache.
 	if oo, exists := ds.cacheObjects[oid]; exists {
 		return oo
@@ -129,7 +132,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 	// replace children/fields with Ref.
 	o2 := copyWithRefs(nil, oo)
 	// marshal to binary.
-	bz := amino.MustMarshal(o2)
+	bz := amino.MustMarshalAny(o2)
 	// set hash.
 	hash := HashBytes(bz) // XXX objectHash(bz)???
 	oo.SetHash(ValueHash{hash})
@@ -205,7 +208,7 @@ func (ds *defaultStore) GetType(tid TypeID) Type {
 			return tt
 		}
 	}
-	return nil
+	panic(fmt.Sprintf("unexpected type with id %s", tid.String()))
 }
 
 // NOTE: not used quite yet.
@@ -221,12 +224,51 @@ func (ds *defaultStore) SetType(tt Type) {
 	// save type to backend.
 	if ds.backend != nil {
 		// TODO: implement copyWithRefs() for Types.
-		// TODO: for now,
 		// key := backendTypeKey(tid)
 		// ds.backend.Set([]byte(key), bz)
 	}
 	// save type to cache.
 	ds.cacheTypes[tid] = tt
+}
+
+func (ds *defaultStore) GetBlockNode(loc Location) BlockNode {
+	// check cache.
+	if bn, exists := ds.cacheNodes[loc]; exists {
+		return bn
+	}
+	// check backend.
+	if ds.backend != nil {
+		key := backendNodeKey(loc)
+		bz := ds.backend.Get([]byte(key))
+		if bz != nil {
+			var bn BlockNode
+			amino.MustUnmarshal(bz, &bn)
+			if debug {
+				if bn.GetLocation() != loc {
+					panic(fmt.Sprintf("unexpected node location: expected %v but got %v",
+						loc, bn.GetLocation()))
+				}
+			}
+			ds.cacheNodes[loc] = bn
+			return bn
+		}
+	}
+	panic(fmt.Sprintf("unexpected node with location %s", loc.String()))
+}
+
+func (ds *defaultStore) SetBlockNode(bn BlockNode) {
+	loc := bn.GetLocation()
+	if loc.IsZero() {
+		panic("should not happen")
+	}
+	// save node to backend.
+	if ds.backend != nil {
+		// TODO: implement copyWithRefs() for Nodes.
+		// key := backendNodeKey(loc)
+		// ds.backend.Set([]byte(key), bz)
+	}
+	// save node to cache.
+	ds.cacheNodes[loc] = bn
 }
 
 func (ds *defaultStore) Flush() {
@@ -304,4 +346,8 @@ func backendObjectKey(oid ObjectID) string {
 
 func backendTypeKey(tid TypeID) string {
 	return "tid:" + tid.String()
+}
+
+func backendNodeKey(loc Location) string {
+	return "node:" + loc.String()
 }

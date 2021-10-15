@@ -1062,7 +1062,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// *NameExprs, and cannot be copied.
 					nx := n.X.(*NameExpr)
 					pv := last.GetValueRef(nil, nx.Name)
-					pn := pv.V.(*PackageValue).Source
+					pn := pv.V.(*PackageValue).GetBlock(store).GetSource(store)
 					n.Path = pn.GetPathForName(store, n.Sel)
 				case *TypeType:
 					// unbound method
@@ -2400,7 +2400,6 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 			dt.DefineMethod(&FuncValue{
 				Type:       ft,
 				IsMethod:   true,
-				SourceLoc:  cd.GetLocation(),
 				Source:     cd,
 				Name:       cd.Name,
 				Body:       cd.Body,
@@ -2520,7 +2519,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			case *NameExpr:
 				if idx, ok := UverseNode().GetLocalIndex(tx.Name); ok {
 					// uverse name
-					tv := Uverse().GetPointerTo(nil, NewValuePathUverse(idx, tx.Name))
+					tv := Uverse().GetBlock(nil).GetPointerTo(nil, NewValuePathUverse(idx, tx.Name))
 					t = tv.TV.GetType()
 				} else if tv := last.GetValueRef(store, tx.Name); tv != nil {
 					// (file) block name
@@ -2556,9 +2555,9 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 					))
 				}
 				// check package node for name.
-				pn := pv.Source.(*PackageNode)
+				pn := pv.GetBlock(store).GetSource(store).(*PackageNode)
 				tx.Path = pn.GetPathForName(store, tx.Sel)
-				ptr := pv.Block.GetPointerTo(store, tx.Path)
+				ptr := pv.GetBlock(store).GetPointerTo(store, tx.Path)
 				t = ptr.TV.T
 			default:
 				panic(fmt.Sprintf(
@@ -2614,7 +2613,6 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 				V: &FuncValue{
 					Type:       ft,
 					IsMethod:   false,
-					SourceLoc:  d.GetLocation(),
 					Source:     d,
 					Name:       d.Name,
 					Body:       d.Body,

@@ -39,6 +39,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/gnolang/gno"
+	dbm "github.com/gnolang/gno/pkgs/db"
 )
 
 // NOTE: this isn't safe.
@@ -298,7 +299,8 @@ func testStore(out io.Writer) (store gno.Store) {
 		}
 	}
 	// NOTE: store is also used in closure above.
-	store = gno.NewStore(nil)
+	db := dbm.NewMemDB()
+	store = gno.NewStore(db)
 	store.SetPackageGetter(getPackage)
 	return
 }

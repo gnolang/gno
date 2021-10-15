@@ -127,7 +127,6 @@ func go2GnoType2(rt reflect.Type) (t Type) {
 					fv := &FuncValue{
 						Type:       ft,
 						IsMethod:   true,
-						SourceLoc:  Location{},
 						Source:     nil,
 						Name:       Name(mthd.Name),
 						Body:       nil, // XXX

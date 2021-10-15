@@ -588,7 +588,6 @@ func (m *Machine) doOpFuncLit() {
 		V: &FuncValue{
 			Type:       ft,
 			IsMethod:   false,
-			SourceLoc:  x.GetLocation(),
 			Source:     x,
 			Name:       "",
 			Body:       x.Body,
