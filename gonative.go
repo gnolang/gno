@@ -129,9 +129,9 @@ func go2GnoType2(rt reflect.Type) (t Type) {
 						IsMethod:   true,
 						Source:     nil,
 						Name:       Name(mthd.Name),
-						Body:       nil, // XXX
 						Closure:    nil,
 						PkgPath:    pkgPath,
+						body:       nil, // XXX
 						nativeBody: nil,
 						pkg:        nil, // XXX
 					}

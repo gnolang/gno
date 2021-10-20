@@ -9,16 +9,23 @@ import (
 	"strings"
 )
 
+// NOTE: TypeID() implementations are currently
+// experimental, and will probably get replaced with
+// some other system.  TypeID may become variable length,
+// rather than contain a single Hashlet.
+
 //----------------------------------------
 // (runtime) Type
 
 type Type interface {
 	assertType()
 
-	Kind() Kind     // penetrates *DeclaredType & *NativeType
-	TypeID() TypeID // deterministic
-	String() string // for dev/debugging
-	Elem() Type     // for TODO... types
+	Kind() Kind       // penetrates *DeclaredType & *NativeType
+	TypeID() TypeID   // deterministic
+	String() string   // for dev/debugging
+	Elem() Type       // for TODO... types
+	GetIsSaved() bool // true if persisted
+	SetIsSaved()      // set IsSaved to true
 }
 
 type TypeID Hashlet
@@ -286,6 +293,12 @@ func (pt PrimitiveType) Elem() Type {
 	}
 }
 
+func (pt PrimitiveType) GetIsSaved() bool {
+	return true // primitive types are already persisted.
+}
+
+func (pt PrimitiveType) SetIsSaved() {} // do nothing
+
 //----------------------------------------
 // Field type (partial)
 
@@ -326,6 +339,14 @@ func (ft FieldType) String() string {
 
 func (ft FieldType) Elem() Type {
 	panic("FieldType is a pseudotype with no elements")
+}
+
+func (ft FieldType) GetIsSaved() bool {
+	panic("FieldType is a pseudotype not persisted individually")
+}
+
+func (ft FieldType) SetIsSaved() {
+	panic("FieldType is a pseudotype not persisted individually")
 }
 
 //----------------------------------------
@@ -462,6 +483,7 @@ type ArrayType struct {
 	Vrd bool
 
 	typeid TypeID
+	saved  bool
 }
 
 func (at *ArrayType) Kind() Kind {
@@ -483,6 +505,14 @@ func (at *ArrayType) Elem() Type {
 	return at.Elt
 }
 
+func (at *ArrayType) GetIsSaved() bool {
+	return at.saved
+}
+
+func (at *ArrayType) SetIsSaved() {
+	at.saved = true
+}
+
 //----------------------------------------
 // Slice type
 
@@ -491,6 +521,7 @@ type SliceType struct {
 	Vrd bool // used for *FuncType.HasVarg()
 
 	typeid TypeID
+	saved  bool
 }
 
 func (st *SliceType) Kind() Kind {
@@ -520,6 +551,14 @@ func (st *SliceType) Elem() Type {
 	return st.Elt
 }
 
+func (st *SliceType) GetIsSaved() bool {
+	return st.saved
+}
+
+func (st *SliceType) SetIsSaved() {
+	st.saved = true
+}
+
 //----------------------------------------
 // Pointer type
 
@@ -527,6 +566,7 @@ type PointerType struct {
 	Elt Type
 
 	typeid TypeID
+	saved  bool
 }
 
 func (pt *PointerType) Kind() Kind {
@@ -552,6 +592,14 @@ func (pt *PointerType) String() string {
 
 func (pt *PointerType) Elem() Type {
 	return pt.Elt
+}
+
+func (pt *PointerType) GetIsSaved() bool {
+	return pt.saved
+}
+
+func (pt *PointerType) SetIsSaved() {
+	pt.saved = true
 }
 
 func (pt *PointerType) FindEmbeddedFieldType(n Name) (
@@ -647,6 +695,7 @@ type StructType struct {
 	Fields  []FieldType
 
 	typeid TypeID
+	saved  bool
 }
 
 func (st *StructType) Kind() Kind {
@@ -674,6 +723,14 @@ func (st *StructType) String() string {
 
 func (st *StructType) Elem() Type {
 	panic("struct types have no (universal) elements")
+}
+
+func (st *StructType) GetIsSaved() bool {
+	return st.saved
+}
+
+func (st *StructType) SetIsSaved() {
+	st.saved = true
 }
 
 // NOTE only works for exposed non-embedded fields.
@@ -772,6 +829,14 @@ func (pt *PackageType) Elem() Type {
 	panic("package types have no elements")
 }
 
+func (pt *PackageType) GetIsSaved() bool {
+	return true
+}
+
+func (pt *PackageType) SetIsSaved() {
+	panic("should not happen")
+}
+
 //----------------------------------------
 // Interface type
 
@@ -781,6 +846,7 @@ type InterfaceType struct {
 	Generic Name // for uverse "generics"
 
 	typeid TypeID
+	saved  bool
 }
 
 // General empty interface.
@@ -826,6 +892,14 @@ func (it *InterfaceType) String() string {
 
 func (it *InterfaceType) Elem() Type {
 	panic("interface types have no elements")
+}
+
+func (it *InterfaceType) GetIsSaved() bool {
+	return it.saved
+}
+
+func (it *InterfaceType) SetIsSaved() {
+	it.saved = true
 }
 
 // TODO: optimize
@@ -920,6 +994,7 @@ type ChanType struct {
 	Elt Type
 
 	typeid TypeID
+	saved  bool
 }
 
 func (ct *ChanType) Kind() Kind {
@@ -959,6 +1034,14 @@ func (ct *ChanType) Elem() Type {
 	return ct.Elt
 }
 
+func (ct *ChanType) GetIsSaved() bool {
+	return ct.saved
+}
+
+func (ct *ChanType) SetIsSaved() {
+	ct.saved = true
+}
+
 //----------------------------------------
 // Function type
 
@@ -968,6 +1051,7 @@ type FuncType struct {
 
 	typeid TypeID
 	bound  *FuncType
+	saved  bool
 }
 
 // if ft is a method, returns whether method takes a pointer receiver.
@@ -1137,6 +1221,14 @@ func (ft *FuncType) Elem() Type {
 	panic("function types have no elements")
 }
 
+func (ft *FuncType) GetIsSaved() bool {
+	return ft.saved
+}
+
+func (ft *FuncType) SetIsSaved() {
+	ft.saved = true
+}
+
 func (ft *FuncType) HasVarg() bool {
 	if numParams := len(ft.Params); numParams == 0 {
 		return false
@@ -1158,6 +1250,7 @@ type MapType struct {
 	Value Type
 
 	typeid TypeID
+	saved  bool
 }
 
 func (mt *MapType) Kind() Kind {
@@ -1185,6 +1278,14 @@ func (mt *MapType) Elem() Type {
 	return mt.Value
 }
 
+func (mt *MapType) GetIsSaved() bool {
+	return mt.saved
+}
+
+func (mt *MapType) SetIsSaved() {
+	mt.saved = true
+}
+
 //----------------------------------------
 // Type (typeval) type
 
@@ -1210,6 +1311,14 @@ func (tt *TypeType) Elem() Type {
 	panic("typeval types have no elements")
 }
 
+func (tt *TypeType) GetIsSaved() bool {
+	return true
+}
+
+func (tt *TypeType) SetIsSaved() {
+	panic("should not happen")
+}
+
 //----------------------------------------
 // Declared type
 // Declared types have a name, base (underlying) type,
@@ -1223,6 +1332,7 @@ type DeclaredType struct {
 
 	typeid TypeID
 	sealed bool
+	saved  bool
 }
 
 // returns an unsealed *DeclaredType.
@@ -1287,6 +1397,14 @@ func (dt *DeclaredType) String() string {
 
 func (dt *DeclaredType) Elem() Type {
 	return dt.Base.Elem()
+}
+
+func (dt *DeclaredType) GetIsSaved() bool {
+	return dt.saved
+}
+
+func (dt *DeclaredType) SetIsSaved() {
+	dt.saved = true
 }
 
 func (dt *DeclaredType) DefineMethod(fv *FuncValue) {
@@ -1525,6 +1643,14 @@ func (nt *NativeType) Elem() Type {
 	}
 }
 
+func (nt *NativeType) GetIsSaved() bool {
+	panic("native type cannot be persisted")
+}
+
+func (nt *NativeType) SetIsSaved() {
+	panic("native type cannot be persisted")
+}
+
 func (nt *NativeType) GnoType() Type {
 	if nt.gnoType == nil {
 		nt.gnoType = go2GnoType2(nt.Type)
@@ -1623,6 +1749,14 @@ func (bt blockType) Elem() Type {
 	panic("blockType has no elem type")
 }
 
+func (bt blockType) GetIsSaved() bool {
+	return true
+}
+
+func (bt blockType) SetIsSaved() {
+	panic("should not happen")
+}
+
 //----------------------------------------
 // tupleType
 
@@ -1630,6 +1764,7 @@ type tupleType struct {
 	Elts []Type
 
 	typeid TypeID
+	saved  bool
 }
 
 func (tt *tupleType) Kind() Kind {
@@ -1669,6 +1804,14 @@ func (tt *tupleType) Elem() Type {
 	panic("tupleType has no singular elem type")
 }
 
+func (tt *tupleType) GetIsSaved() bool {
+	return tt.saved
+}
+
+func (tt *tupleType) SetIsSaved() {
+	tt.saved = true
+}
+
 //----------------------------------------
 // RefType
 
@@ -1677,7 +1820,7 @@ type RefType struct {
 }
 
 func (_ RefType) Kind() Kind {
-	panic("should not happen")
+	return RefTypeKind
 }
 
 func (rt RefType) TypeID() TypeID {
@@ -1689,6 +1832,14 @@ func (rt RefType) String() string {
 }
 
 func (rt RefType) Elem() Type {
+	panic("should not happen")
+}
+
+func (rt RefType) GetIsSaved() bool {
+	return true
+}
+
+func (rt RefType) SetIsSaved() {
 	panic("should not happen")
 }
 
@@ -1759,8 +1910,9 @@ const (
 	MapKind
 	TypeKind // not in go.
 	// UnsafePointerKind
-	BlockKind // not in go.
-	TupleKind // not in go.
+	BlockKind   // not in go.
+	TupleKind   // not in go.
+	RefTypeKind // not in go.
 )
 
 // This is generally slower than switching on baseOf(t).
@@ -1829,6 +1981,8 @@ func KindOf(t Type) Kind {
 		return BlockKind
 	case *tupleType:
 		return TupleKind
+	case RefType:
+		return RefTypeKind
 	default:
 		panic(fmt.Sprintf("unexpected type %#v", t))
 	}

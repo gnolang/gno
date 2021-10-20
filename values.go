@@ -355,11 +355,11 @@ type FuncValue struct {
 	IsMethod bool      // is an (unbound) method
 	Source   BlockNode // for block mem allocation
 	Name     Name      // name of function/method
-	Body     []Stmt    `json:"-"` // function body
 	Closure  Value     // *Block or RefValue to closure (a file's Block for unbound methods).
 	FileName Name      // file name where declared
 	PkgPath  string
 
+	body       []Stmt         // function body
 	nativeBody func(*Machine) // alternative to Body
 	pkg        *PackageValue
 }
@@ -376,6 +376,16 @@ func (fv *FuncValue) GetType(store Store) *FuncType {
 		return ct
 	default:
 		panic("should not happen")
+	}
+}
+
+func (fv *FuncValue) GetBodyFromSource(store Store) []Stmt {
+	if fv.body != nil {
+		return fv.body
+	} else {
+		source := fv.GetSource(store)
+		fv.body = source.GetBody()
+		return fv.body
 	}
 }
 
@@ -577,7 +587,7 @@ type PackageValue struct {
 	PkgPath    string
 	FNames     []Name
 	FBlocks    []Value
-	Realm      *Realm `json:"-"` // if IsRealmPath(PkgPath), otherwise nil.
+	Realm      *Realm // if IsRealmPath(PkgPath), otherwise nil.
 
 	fBlocksMap map[Name]*Block
 }
@@ -2020,8 +2030,8 @@ type Block struct {
 	Source     BlockNode
 	Values     []TypedValue
 	Parent     Value
-	Blank      TypedValue // captures "_"
-	bodyStmt   bodyStmt
+	Blank      TypedValue // captures "_" // XXX remove and replace with global instance.
+	bodyStmt   bodyStmt   // XXX expose for persistence, not needed for MVP.
 }
 
 func NewBlock(source BlockNode, parent *Block) *Block {

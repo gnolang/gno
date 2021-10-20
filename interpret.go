@@ -133,6 +133,10 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 		if debug {
 			debug.Println("PREPROCESSED FILE: ", fn.String())
 		}
+		// After preprocessing, save blocknodes to store.
+		if m.Store != nil {
+			SaveBlockNodes(m.Store, fn)
+		}
 		// Make block for fn.
 		// Each file for each *PackageValue gets its own file *Block,
 		// with values copied over from each file's
@@ -363,11 +367,16 @@ func (m *Machine) RunStatement(s Stmt) {
 
 // Runs a declaration after preprocessing d.  If d was already
 // preprocessed, call runDeclaration() instead.
+// This function is primarily for testing, so no blocknodes are
+// saved to store, and declarations are not realm compatible.
+// NOTE: to support realm persistence of types, must
+// first require the validation of blocknode locations.
 func (m *Machine) RunDeclaration(d Decl) {
 	// Preprocess input using package block.  There should only
 	// be one block right now, and it's a *PackageNode.
 	pn := m.LastBlock().GetSource(m.Store).(*PackageNode)
 	d = Preprocess(m.Store, pn, d).(Decl)
+	// do not SaveBlockNodes(m.Store, d).
 	pn.PrepareNewValues(m.Package)
 	m.runDeclaration(d)
 	if debug {
@@ -1296,16 +1305,16 @@ func (m *Machine) String() string {
 	}
 	bs := []string{}
 	for b := m.LastBlock(); b != nil; {
-		gen := len(bs)/2 + 1
-		gens := strings.Repeat("@", gen)
+		gen := len(bs)/3 + 1
+		gens := "@" // strings.Repeat("@", gen)
 		bsi := b.StringIndented("            ")
 		bs = append(bs, fmt.Sprintf("          %s(%d) %s", gens, gen, bsi))
 		if b.Source != nil {
 			sb := b.GetSource(m.Store).GetStaticBlock().GetBlock()
-			bs = append(bs, fmt.Sprintf(" (static values) %s(%d) %s", gens, gen,
+			bs = append(bs, fmt.Sprintf(" (s vals) %s(%d) %s", gens, gen,
 				sb.StringIndented("            ")))
 			sts := b.GetSource(m.Store).GetStaticBlock().Types
-			bs = append(bs, fmt.Sprintf(" (static types) %s(%d) %s", gens, gen, sts))
+			bs = append(bs, fmt.Sprintf(" (s typs) %s(%d) %s", gens, gen, sts))
 		}
 		// b = b.Parent.(*Block|RefValue)
 		switch bp := b.Parent.(type) {

@@ -146,7 +146,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	}
 	// NOTE: if po is a non-realm *PackageValue (which shouldn't happen
 	// because they shouldn't have mutable state), the realm panics upon
-	// getUnsaved() during finalization.
+	// getUnsavedObjects() during finalization.
 	if co != nil {
 		co.IncRefCount()
 	}
@@ -372,7 +372,7 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		rlm.assignNewObjectID(oo)
 	}
 	// then process children
-	more := getUnsavedChildren(oo, nil)
+	more := getUnsavedObjectsOfDescendants(oo, nil)
 	for _, child := range more {
 		if child.GetIsProcessing() {
 			// Circular reference examples:
@@ -397,8 +397,8 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 	}
 }
 
-// Get unsaved self or unsaved children.
-func getUnsaved(val Value, more []Object) []Object {
+// Get unsaved self or all unsaved descendants (deep).
+func getUnsavedObjects(val Value, more []Object) []Object {
 	// sanity check:
 	if pv, ok := val.(*PackageValue); ok {
 		if !pv.IsRealm() && pv.GetIsDirty() {
@@ -416,11 +416,11 @@ func getUnsaved(val Value, more []Object) []Object {
 			return more
 		}
 	} else {
-		return getUnsavedChildren(val, more)
+		return getUnsavedObjectsOfDescendants(val, more)
 	}
 }
 
-func getUnsavedChildren(val Value, more []Object) []Object {
+func getUnsavedObjectsOfDescendants(val Value, more []Object) []Object {
 	switch cv := val.(type) {
 	case nil:
 		return more
@@ -432,58 +432,152 @@ func getUnsavedChildren(val Value, more []Object) []Object {
 		panic("should not happen")
 	case PointerValue:
 		if cv.Base != nil {
-			more = getUnsaved(cv.Base, more)
+			more = getUnsavedObjects(cv.Base, more)
 		} else {
-			// If cv.Base is non-nil,
-			// no need to append cv.Base's unsaved elements.
-			more = getUnsaved(cv.TV.V, more)
+			more = getUnsavedObjects(cv.TV.V, more)
 		}
 		return more
 	case *ArrayValue:
 		for _, ctv := range cv.List {
 			// NOTE: same as isUnsaved(ctv.GetFirstObject()).
-			more = getUnsaved(ctv.V, more)
+			more = getUnsavedObjects(ctv.V, more)
 		}
 		return more
 	case *SliceValue:
-		more = getUnsaved(cv.Base, more)
+		more = getUnsavedObjects(cv.Base, more)
 		return more
 	case *StructValue:
 		for _, ctv := range cv.Fields {
 			// NOTE: same as isUnsaved(ctv.GetFirstObject()).
-			more = getUnsaved(ctv.V, more)
+			more = getUnsavedObjects(ctv.V, more)
 		}
 		return more
 	case *FuncValue:
 		if bv, ok := cv.Closure.(*Block); ok {
-			more = getUnsaved(bv, more)
+			more = getUnsavedObjects(bv, more)
 		}
 		return more
 	case *BoundMethodValue:
-		more = getUnsavedChildren(cv.Func, more)
-		more = getUnsaved(cv.Receiver.V, more)
+		more = getUnsavedObjectsOfDescendants(cv.Func, more)
+		more = getUnsavedObjects(cv.Receiver.V, more)
 		return more
 	case *MapValue:
 		for cur := cv.List.Head; cur != nil; cur = cur.Next {
 			// NOTE: same as isUnsaved(cur.Key.GetFirstObject()).
-			more = getUnsaved(cur.Key.V, more)
-			more = getUnsaved(cur.Value.V, more)
+			more = getUnsavedObjects(cur.Key.V, more)
+			more = getUnsavedObjects(cur.Value.V, more)
 		}
 		return more
 	case TypeValue:
 		return more
 	case *PackageValue:
-		more = getUnsaved(cv.Block, more)
+		more = getUnsavedObjects(cv.Block, more)
 		for _, fb := range cv.FBlocks {
-			more = getUnsaved(fb, more)
+			more = getUnsavedObjects(fb, more)
 		}
 		return more
 	case *Block:
 		for _, ctv := range cv.Values {
 			// NOTE: same as isUnsaved(ctv.GetFirstObject()).
-			more = getUnsaved(ctv.V, more)
+			more = getUnsavedObjects(ctv.V, more)
 		}
-		more = getUnsaved(cv.Parent, more)
+		more = getUnsavedObjects(cv.Parent, more)
+		return more
+	case *NativeValue:
+		panic("native values not supported")
+	default:
+		panic(fmt.Sprintf(
+			"unexpected type %v",
+			reflect.TypeOf(val)))
+	}
+}
+
+func getUnsavedType(tt Type, more []Type) []Type {
+	if tt.GetIsSaved() {
+		return more
+	}
+	more = append(more, tt)
+	return more
+}
+
+func getUnsavedTypesTV(tv TypedValue, more []Type) []Type {
+	if tv.T != nil {
+		more = getUnsavedType(tv.T, more)
+	}
+	if tvv, ok := tv.V.(TypeValue); ok {
+		more = append(more, tvv.Type)
+	}
+	return more
+}
+
+// Get unsaved types from a value.
+// Unlike getUnsavedObjects(), only scans shallowly for types.
+func getUnsavedTypes(val Value, more []Type) []Type {
+	switch cv := val.(type) {
+	case nil:
+		return more
+	case StringValue:
+		return more
+	case BigintValue:
+		return more
+	case DataByteValue:
+		panic("should not happen")
+	case PointerValue:
+		if cv.Base != nil {
+			// cv.Base by reference.
+			// more = getUnsavedTypes(cv.Base, more) (wrong)
+		} else {
+			more = getUnsavedTypesTV(*cv.TV, more)
+		}
+		return more
+	case *ArrayValue:
+		for _, ctv := range cv.List {
+			more = getUnsavedTypesTV(ctv, more)
+		}
+		return more
+	case *SliceValue:
+		more = getUnsavedTypes(cv.Base, more)
+		return more
+	case *StructValue:
+		for _, ctv := range cv.Fields {
+			more = getUnsavedTypesTV(ctv, more)
+		}
+		return more
+	case *FuncValue:
+		more = getUnsavedType(cv.Type, more)
+		/* XXX prob wrong, as closure is object:
+		if bv, ok := cv.Closure.(*Block); ok {
+			more = getUnsavedTypes(bv, more)
+		}
+		*/
+		return more
+	case *BoundMethodValue:
+		more = getUnsavedTypes(cv.Func, more)
+		more = getUnsavedTypesTV(cv.Receiver, more)
+		return more
+	case *MapValue:
+		for cur := cv.List.Head; cur != nil; cur = cur.Next {
+			more = getUnsavedTypesTV(cur.Key, more)
+			more = getUnsavedTypesTV(cur.Value, more)
+		}
+		return more
+	case TypeValue:
+		more = getUnsavedType(cv.Type, more)
+		return more
+	case *PackageValue:
+		/* XXX prob wrong, as Block and FBlocks are objects:
+		more = getUnsavedTypes(cv.Block, more)
+		for _, fb := range cv.FBlocks {
+			more = getUnsavedTypes(fb, more)
+		}
+		*/
+		return more
+	case *Block:
+		for _, ctv := range cv.Values {
+			more = getUnsavedTypesTV(ctv, more)
+		}
+		// XXX prob wrong
+		// more = getUnsavedTypes(cv.Parent, more)
 		return more
 	case *NativeValue:
 		panic("native values not supported")
@@ -578,7 +672,6 @@ func copyWithRefs(parent Object, val Value) Value {
 			IsMethod: cv.IsMethod,
 			Source:   source,
 			Name:     cv.Name,
-			Body:     cv.Body,
 			Closure:  closure,
 			FileName: cv.FileName,
 			PkgPath:  cv.PkgPath,
@@ -613,11 +706,13 @@ func copyWithRefs(parent Object, val Value) Value {
 			fblocks[i] = toRefValue(cv, fb)
 		}
 		return &PackageValue{
-			Block:   block,
-			PkgName: cv.PkgName,
-			PkgPath: cv.PkgPath,
-			FNames:  cv.FNames, // no copy
-			FBlocks: fblocks,
+			ObjectInfo: cv.ObjectInfo.Copy(),
+			Block:      block,
+			PkgName:    cv.PkgName,
+			PkgPath:    cv.PkgPath,
+			FNames:     cv.FNames, // no copy
+			FBlocks:    fblocks,
+			Realm:      cv.Realm,
 		}
 	case *Block:
 		source := toRefNode(cv.Source)
@@ -635,6 +730,78 @@ func copyWithRefs(parent Object, val Value) Value {
 			Values:     vals,
 			Parent:     bparent,
 			Blank:      TypedValue{}, // empty
+		}
+	case *NativeValue:
+		panic("native values not supported")
+	default:
+		panic(fmt.Sprintf(
+			"unexpected type %v",
+			reflect.TypeOf(val)))
+	}
+}
+
+func fillType(store Store, ptr *Type) {
+	if *ptr != nil {
+		*ptr = store.GetType((*ptr).(RefType).TypeID())
+	}
+}
+
+func fillTypesTV(store Store, tv *TypedValue) {
+	if tv.T != nil {
+		rt := tv.T.(RefType)
+		tv.T = store.GetType(rt.TypeID())
+	}
+	if tvv, ok := tv.V.(TypeValue); ok {
+		fillType(store, &tvv.Type)
+		tv.V = tvv // since tvv is not addressable.
+	}
+}
+
+// Partially fills loaded objects shallowly, similarly to getUnsavedTypes.
+// Replaces all RefTypes with corresponding types.
+func fillTypes(store Store, val Value) {
+	switch cv := val.(type) {
+	case nil: // do nothing
+	case StringValue: // do nothing
+	case BigintValue: // do nothing
+	case DataByteValue: // do nothing
+	case PointerValue:
+		if cv.Base != nil {
+			// cv.Base is object.
+			// fillTypes(store, cv.Base) (wrong)
+		} else {
+			fillTypesTV(store, cv.TV)
+		}
+	case *ArrayValue:
+		for i := 0; i < len(cv.List); i++ {
+			ctv := &cv.List[i]
+			fillTypesTV(store, ctv)
+		}
+	case *SliceValue:
+		fillTypes(store, cv.Base)
+	case *StructValue:
+		for i := 0; i < len(cv.Fields); i++ {
+			ctv := &cv.Fields[i]
+			fillTypesTV(store, ctv)
+		}
+	case *FuncValue:
+		fillType(store, &cv.Type)
+		// XXX delete? (see GetUnsavedTypes()).
+		//fillTypes(store, cv.Closure)
+	case *BoundMethodValue:
+		fillTypes(store, cv.Func)
+		fillTypesTV(store, &cv.Receiver)
+	case *MapValue:
+		for cur := cv.List.Head; cur != nil; cur = cur.Next {
+			fillTypesTV(store, &cur.Key)
+			fillTypesTV(store, &cur.Value)
+		}
+	case TypeValue: // do nothing
+	case *PackageValue: // do nothing
+	case *Block:
+		for i := 0; i < len(cv.Values); i++ {
+			ctv := &cv.Values[i]
+			fillTypesTV(store, ctv)
 		}
 	case *NativeValue:
 		panic("native values not supported")
@@ -709,6 +876,11 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 	oid := oo.GetObjectID()
 	if oid.IsZero() {
 		panic("unexpected zero object id")
+	}
+	// scan for any types.
+	types := getUnsavedTypes(oo, nil)
+	for _, typ := range types {
+		store.SetType(typ)
 	}
 	// set object to store.
 	store.SetObject(oo)

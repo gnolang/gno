@@ -67,6 +67,7 @@ func (m *Machine) doOpCall() {
 	b := NewBlock(fr.Func.GetSource(m.Store), clo)
 	m.PushBlock(b)
 	if fv.nativeBody == nil {
+		fbody := fv.GetBodyFromSource(m.Store)
 		if len(ft.Results) == 0 {
 			// Push final empty *ReturnStmt;
 			// TODO: transform in preprocessor instead to return only
@@ -77,8 +78,8 @@ func (m *Machine) doOpCall() {
 		}
 		// Exec body.
 		b.bodyStmt = bodyStmt{
-			Body:          fv.Body,
-			BodyLen:       len(fv.Body),
+			Body:          fbody,
+			BodyLen:       len(fbody),
 			NextBodyIndex: -2,
 		}
 		m.PushOp(OpBody)
@@ -275,10 +276,11 @@ func (m *Machine) doOpReturnCallDefers() {
 		b := NewBlock(fv.GetSource(m.Store), fb)
 		m.PushBlock(b)
 		if fv.nativeBody == nil {
+			fbody := fv.GetBodyFromSource(m.Store)
 			// Exec body.
 			b.bodyStmt = bodyStmt{
-				Body:          fv.Body,
-				BodyLen:       len(fv.Body),
+				Body:          fbody,
+				BodyLen:       len(fbody),
 				NextBodyIndex: -2,
 			}
 			m.PushOp(OpBody)

@@ -103,55 +103,70 @@ const (
 type Name string
 
 //----------------------------------------
+// Location
+// Acts as an identifier for nodes.
+
+type Location struct {
+	PkgPath string
+	File    string
+	Line    int
+	Nonce   int
+}
+
+func (loc Location) String() string {
+	if loc.Nonce == 0 {
+		return fmt.Sprintf("%s/%s:%d",
+			loc.PkgPath,
+			loc.File,
+			loc.Line,
+		)
+	} else {
+		return fmt.Sprintf("%s/%s:%d#%d",
+			loc.PkgPath,
+			loc.File,
+			loc.Line,
+			loc.Nonce,
+		)
+	}
+}
+
+func (loc Location) IsZero() bool {
+	return loc.PkgPath == "" &&
+		loc.File == "" &&
+		loc.Line == 0 &&
+		loc.Nonce == 0
+}
+
+//----------------------------------------
 // Attributes
 // All nodes have attributes for general analysis purposes.
 // Exported Attribute fields like Loc and Label are persisted
 // even after preprocessing.  Temporary attributes (e.g. those
 // for preprocessing) are stored in .data.
 
-type Location struct {
-	PkgPath string
-	File    string
-	Line    int
-}
-
-func (loc Location) String() string {
-	return fmt.Sprintf("%s/%s:%d",
-		loc.PkgPath,
-		loc.File,
-		loc.Line,
-	)
-}
-
-func (loc Location) IsZero() bool {
-	return loc.PkgPath == "" &&
-		loc.File == "" &&
-		loc.Line == 0
-}
-
 type Attributes struct {
-	Loc   Location
+	Line  int
 	Label Name
 	data  map[interface{}]interface{} // not persisted
 }
 
-func (a *Attributes) GetLocation() Location {
-	return a.Loc
+func (attr *Attributes) GetLine() int {
+	return attr.Line
 }
 
-func (a *Attributes) SetLocation(loc Location) {
-	a.Loc = loc
+func (attr *Attributes) SetLine(line int) {
+	attr.Line = line
 }
 
-func (a *Attributes) GetAttribute(key interface{}) interface{} {
-	return a.data[key]
+func (attr *Attributes) GetAttribute(key interface{}) interface{} {
+	return attr.data[key]
 }
 
-func (a *Attributes) SetAttribute(key interface{}, value interface{}) {
-	if a.data == nil {
-		a.data = make(map[interface{}]interface{})
+func (attr *Attributes) SetAttribute(key interface{}, value interface{}) {
+	if attr.data == nil {
+		attr.data = make(map[interface{}]interface{})
 	}
-	a.data[key] = value
+	attr.data[key] = value
 }
 
 //----------------------------------------
@@ -161,8 +176,8 @@ type Node interface {
 	assertNode()
 	String() string
 	Copy() Node
-	GetLocation() Location
-	SetLocation(Location)
+	GetLine() int
+	SetLine(int)
 	GetAttribute(key interface{}) interface{}
 	SetAttribute(key interface{}, value interface{})
 }
@@ -1245,6 +1260,8 @@ type BlockNode interface {
 	Node
 	InitStaticBlock(BlockNode, BlockNode)
 	GetStaticBlock() *StaticBlock
+	GetLocation() Location
+	SetLocation(Location)
 
 	// StaticBlock promoted methods
 	GetBlockNames() []Name
@@ -1274,6 +1291,7 @@ type StaticBlock struct {
 	Names    []Name
 	Consts   []Name // TODO consider merging with Names.
 	Externs  []Name
+	Loc      Location
 }
 
 // Implements BlockNode
@@ -1304,6 +1322,16 @@ func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 // Implements BlockNode.
 func (sb *StaticBlock) GetStaticBlock() *StaticBlock {
 	return sb
+}
+
+// Implements BlockNode.
+func (sb *StaticBlock) GetLocation() Location {
+	return sb.Loc
+}
+
+// Implements BlockNode.
+func (sb *StaticBlock) SetLocation(loc Location) {
+	sb.Loc = loc
 }
 
 // Does not implement BlockNode to prevent confusion.

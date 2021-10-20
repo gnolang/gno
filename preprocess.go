@@ -46,7 +46,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			}
 		}()
 		if debug {
-			debug.Printf("Transcribe %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+			debug.Printf("Preprocess %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
@@ -2402,10 +2402,10 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 				IsMethod:   true,
 				Source:     cd,
 				Name:       cd.Name,
-				Body:       cd.Body,
 				Closure:    nil, // set later, see PrepareNewValues().
 				FileName:   filenameOf(last),
 				PkgPath:    "", // set later, see PrepareNewValues().
+				body:       cd.Body,
 				nativeBody: nil,
 				pkg:        nil, // set later, see PrepareNewValues().
 			})
@@ -2615,10 +2615,10 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 					IsMethod:   false,
 					Source:     d,
 					Name:       d.Name,
-					Body:       d.Body,
 					Closure:    nil, // set later, see PrepareNewValues().
 					FileName:   filenameOf(last),
 					PkgPath:    "", // set later, see PrepareNewValues().
+					body:       d.Body,
 					nativeBody: nil,
 					pkg:        nil, // set later, see PrepareNewValues().
 				},
@@ -2963,4 +2963,47 @@ func findDependentNames(n Node, dst map[Name]struct{}) {
 			"unexpected node: %v (%v)",
 			n, reflect.TypeOf(n)))
 	}
+}
+
+//----------------------------------------
+// SaveBlockNodes
+
+// Iterate over all block nodes recursively and saves them.
+// Ensures uniqueness of BlockNode.Locations.
+func SaveBlockNodes(store Store, fn *FileNode) {
+	// First, get the package and file names.
+	pn := packageOf(fn)
+	pkgPath := pn.PkgPath
+	fileName := string(fn.Name)
+	if pkgPath == "" || fileName == "" {
+		panic("missing package path or file name")
+	}
+	lastLine := 0
+	nextNonce := 0
+	Transcribe(fn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		if stage != TRANS_ENTER {
+			return n, TRANS_CONTINUE
+		}
+		// save node to store if blocknode.
+		if bn, ok := n.(BlockNode); ok {
+			// ensure unique location of blocknode.
+			line := bn.GetLine()
+			if line == lastLine {
+				nextNonce += 1
+			} else {
+				lastLine = line
+				nextNonce = 0
+			}
+			loc := Location{
+				PkgPath: pkgPath,
+				File:    fileName,
+				Line:    line,
+				Nonce:   nextNonce,
+			}
+			bn.SetLocation(loc)
+			// save blocknode.
+			store.SetBlockNode(bn)
+		}
+		return n, TRANS_CONTINUE
+	})
 }

@@ -24,6 +24,7 @@ type Store interface {
 	SetLogStoreOps(enabled bool)
 	SprintStoreOps() string
 	ClearCache()
+	Print()
 }
 
 // Used to keep track of in-mem objects during tx.
@@ -39,7 +40,7 @@ type defaultStore struct {
 }
 
 func NewStore(backend dbm.DB) *defaultStore {
-	return &defaultStore{
+	ds := &defaultStore{
 		pkgGetter:    nil,
 		cacheObjects: make(map[ObjectID]Object),
 		cacheTypes:   make(map[TypeID]Type),
@@ -47,13 +48,8 @@ func NewStore(backend dbm.DB) *defaultStore {
 		backend:      backend,
 		current:      make(map[string]struct{}),
 	}
-}
-
-func (ds *defaultStore) ClearCache() {
-	ds.cacheObjects = make(map[ObjectID]Object)
-	// NOTE: types/nodes are not yet persisted, so keep cache.
-	// ds.cacheTypes = make(map[TypeID]Type)
-	// ds.cacheNodes = make(map[Location]BlockNode)
+	SetBuiltinTypes(ds)
+	return ds
 }
 
 func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
@@ -121,6 +117,7 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 						oid, oo.GetObjectID()))
 				}
 			}
+			fillTypes(ds, oo)
 			ds.cacheObjects[oid] = oo
 			return oo
 		}
@@ -229,6 +226,10 @@ func (ds *defaultStore) SetType(tt Type) {
 	}
 	// save type to cache.
 	ds.cacheTypes[tid] = tt
+	// mark type as saved.
+	if !tt.GetIsSaved() {
+		tt.SetIsSaved()
+	}
 }
 
 func (ds *defaultStore) GetBlockNode(loc Location) BlockNode {
@@ -259,7 +260,7 @@ func (ds *defaultStore) GetBlockNode(loc Location) BlockNode {
 func (ds *defaultStore) SetBlockNode(bn BlockNode) {
 	loc := bn.GetLocation()
 	if loc.IsZero() {
-		panic("should not happen")
+		panic("unexpected zero location in blocknode")
 	}
 	// save node to backend.
 	if ds.backend != nil {
@@ -333,6 +334,18 @@ func (ds *defaultStore) SprintStoreOps() string {
 	return strings.Join(ss, "\n")
 }
 
+func (ds *defaultStore) ClearCache() {
+	ds.cacheObjects = make(map[ObjectID]Object)
+	// NOTE: types/nodes are not yet persisted, so keep cache.
+	// ds.cacheTypes = make(map[TypeID]Type)
+	// ds.cacheNodes = make(map[Location]BlockNode)
+}
+
+// for debugging
+func (ds *defaultStore) Print() {
+	ds.backend.Print()
+}
+
 //----------------------------------------
 // backend keys
 
@@ -350,4 +363,23 @@ func backendTypeKey(tid TypeID) string {
 
 func backendNodeKey(loc Location) string {
 	return "node:" + loc.String()
+}
+
+//----------------------------------------
+// builtin types
+
+func SetBuiltinTypes(store Store) {
+	types := []Type{
+		BoolType,
+		StringType,
+		IntType, Int8Type, Int16Type, Int32Type, Int64Type,
+		UintType, Uint8Type, Uint16Type, Uint32Type, Uint64Type,
+		BigintType,
+		gTypeType,
+		blockType{},
+		Float32Type, Float64Type,
+	}
+	for _, tt := range types {
+		store.SetType(tt)
+	}
 }

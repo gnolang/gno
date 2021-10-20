@@ -19,37 +19,24 @@ func main() {
 // vars.
 
 // Realm:
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:1]={
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:1]={
 //     "Blank": {},
 //     "ObjectInfo": {
 //         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:1",
-//         "ModTime": "0",
+//         "ModTime": "2",
 //         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:0",
-//         "RefCount": "1"
-//     },
-//     "Parent": {
-//         "@type": "/gno.rfv",
-//         "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:0"
-//     },
-//     "SourceLoc": {
-//         "File": "",
-//         "Line": "0",
-//         "PkgPath": ""
-//     },
-//     "Values": []
-// }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:0]={
-//     "Blank": {},
-//     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:0",
-//         "ModTime": "0",
 //         "RefCount": "0"
 //     },
 //     "Parent": null,
-//     "SourceLoc": {
-//         "File": "",
-//         "Line": "0",
-//         "PkgPath": ""
+//     "Source": {
+//         "@type": "/gno.rfn",
+//         "BlockNode": null,
+//         "Location": {
+//             "File": "",
+//             "Line": "0",
+//             "Nonce": "0",
+//             "PkgPath": "gno.land/r/test"
+//         }
 //     },
 //     "Values": [
 //         {
@@ -61,17 +48,21 @@ func main() {
 //                 "@type": "/gno.fun",
 //                 "Closure": {
 //                     "@type": "/gno.rfv",
-//                     "Hash": "3f345bd26f794e7a7e3569a22448c9c02224f267",
-//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:1"
+//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2"
 //                 },
 //                 "FileName": "files/zrealm0.go",
 //                 "IsMethod": false,
 //                 "Name": "main",
 //                 "PkgPath": "gno.land/r/test",
-//                 "SourceLoc": {
-//                     "File": "files/zrealm0.go",
-//                     "Line": "6",
-//                     "PkgPath": ""
+//                 "Source": {
+//                     "@type": "/gno.rfn",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "File": "files/zrealm0.go",
+//                         "Line": "6",
+//                         "Nonce": "0",
+//                         "PkgPath": "gno.land/r/test"
+//                     }
 //                 },
 //                 "Type": {
 //                     "@type": "/gno.rft",
