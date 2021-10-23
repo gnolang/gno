@@ -1,7 +1,6 @@
 package gno
 
 import (
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"strconv"
@@ -72,20 +71,14 @@ func (oid ObjectID) String() string {
 	return oids
 }
 
-func (oid ObjectID) Bytes() []byte {
-	bz := make([]byte, HashSize+8)
-	copy(bz[:HashSize], oid.RealmID.Bytes())
-	binary.BigEndian.PutUint64(
-		bz[HashSize:], uint64(oid.NewTime))
-	return bz
-}
-
 // TODO: make faster by making RealmID a pointer
 // and enforcing that the value of RealmID is never zero.
 func (oid ObjectID) IsZero() bool {
 	if debug {
-		if oid.RealmID.IsZero() && oid.NewTime != 0 {
-			panic("should not happen")
+		if oid.RealmID.IsZero() {
+			if oid.NewTime != 0 {
+				panic("should not happen")
+			}
 		}
 	}
 	return oid.RealmID.IsZero()
@@ -114,6 +107,8 @@ type Object interface {
 	SetIsDirty(bool, uint64)
 	GetIsDeleted() bool
 	SetIsDeleted(bool, uint64)
+	GetIsEscaped() bool
+	SetIsEscaped(bool)
 	GetIsProcessing() bool
 	SetIsProcessing(bool)
 	GetIsTransient() bool
@@ -139,6 +134,7 @@ type ObjectInfo struct {
 	isNewReal    bool
 	isDirty      bool
 	isDeleted    bool
+	isEscaped    bool
 	isProcessing bool
 
 	// XXX huh?
@@ -157,6 +153,7 @@ func (oi *ObjectInfo) Copy() ObjectInfo {
 		isNewReal:    oi.isNewReal,
 		isDirty:      oi.isDirty,
 		isDeleted:    oi.isDeleted,
+		isEscaped:    oi.isEscaped,
 		isProcessing: oi.isProcessing,
 	}
 }
@@ -172,27 +169,6 @@ func (oi *ObjectInfo) String() string {
 		oi.GetIsDirty(),
 		oi.GetIsDeleted(),
 	)
-}
-
-func (oi *ObjectInfo) Bytes() []byte {
-	if debug {
-		if oi.ID.IsZero() {
-			panic("should not happen")
-		}
-		if oi.Hash.IsZero() {
-			panic("should not happen")
-		}
-		if oi.OwnerID.IsZero() {
-			panic("should not happen")
-		}
-	}
-	bz := make([]byte, 0, 100)
-	bz = append(bz, sizedBytes(oi.ID.Bytes())...)
-	bz = append(bz, sizedBytes(oi.Hash.Bytes())...)
-	bz = append(bz, sizedBytes(oi.OwnerID.Bytes())...)
-	bz = append(bz, varintBytes(int64(oi.ModTime))...)
-	bz = append(bz, varintBytes(int64(oi.RefCount))...)
-	return bz
 }
 
 func (oi *ObjectInfo) GetObjectInfo() *ObjectInfo {
@@ -227,8 +203,13 @@ func (oi *ObjectInfo) GetOwner() Object {
 }
 
 func (oi *ObjectInfo) SetOwner(po Object) {
-	oi.OwnerID = po.GetObjectID()
-	oi.owner = po
+	if po == nil {
+		oi.OwnerID = ObjectID{}
+		oi.owner = nil
+	} else {
+		oi.OwnerID = po.GetObjectID()
+		oi.owner = po
+	}
 }
 
 func (oi *ObjectInfo) GetOwnerID() ObjectID {
@@ -303,6 +284,14 @@ func (oi *ObjectInfo) SetIsDeleted(x bool, mt uint64) {
 	// Consider adding a DelTime, or just log it somewhere, or
 	// continue to ignore it.
 	oi.isDirty = x
+}
+
+func (oi *ObjectInfo) GetIsEscaped() bool {
+	return oi.isEscaped
+}
+
+func (oi *ObjectInfo) SetIsEscaped(x bool) {
+	oi.isEscaped = x
 }
 
 func (oi *ObjectInfo) GetIsProcessing() bool {

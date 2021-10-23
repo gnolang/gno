@@ -641,7 +641,7 @@ func (pv *PackageValue) AddFileBlock(fn Name, fb *Block) {
 	pv.getFBlocksMap()[fn] = fb
 	// Increment fb refcount and set owner.
 	fb.SetOwner(pv)
-	fb.IncRefCount()
+	//fb.IncRefCount()
 }
 
 func (pv *PackageValue) GetFileBlock(store Store, fname Name) *Block {
@@ -2186,8 +2186,10 @@ func (b *Block) ExpandToSize(size uint16) {
 	b.Values = values
 }
 
+// NOTE: RefValue Object methods declared in ownership.go
 type RefValue struct {
 	ObjectID ObjectID  `json:",omitempty"`
+	Escaped  bool      `json:",omitempty"`
 	PkgPath  string    `json:",omitempty"`
 	Hash     ValueHash `json:",omitempty"`
 }
