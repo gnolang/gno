@@ -287,7 +287,7 @@ func TestInitChainer(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, int64(0), app.LastBlockHeight())
 
-	app.InitChain(abci.RequestInitChain{AppStateBytes: []byte("{}"), ChainID: "test-chain-id"}) // must have valid JSON genesis file, even if empty
+	app.InitChain(abci.RequestInitChain{AppState: nil, ChainID: "test-chain-id"}) // must have valid JSON genesis file, even if empty
 
 	// assert that chainID is set correctly in InitChain
 	chainID := app.deliverState.ctx.ChainID()

@@ -35,9 +35,29 @@ func NewCoin(denom string, amount int64) Coin {
 	}
 }
 
+func (coin Coin) MarshalAmino() (string, error) {
+	return coin.String(), nil
+}
+
+func (coin *Coin) UnmarshalAmino(coinstr string) (err error) {
+	if coinstr == "" {
+		return nil
+	}
+	coin2, err := ParseCoin(coinstr)
+	if err != nil {
+		return err
+	}
+	*coin = coin2
+	return nil
+}
+
 // String provides a human-readable representation of a coin
 func (coin Coin) String() string {
-	return fmt.Sprintf("%d%v", coin.Amount, coin.Denom)
+	if coin.IsZero() {
+		return ""
+	} else {
+		return fmt.Sprintf("%d%v", coin.Amount, coin.Denom)
+	}
 }
 
 // validate returns an error if the Coin has a negative amount or if
@@ -177,7 +197,18 @@ func NewCoins(coins ...Coin) Coins {
 	return newCoins
 }
 
-type coinsJSON Coins
+func (coins Coins) MarshalAmino() (string, error) {
+	return coins.String(), nil
+}
+
+func (coins *Coins) UnmarshalAmino(coinsstr string) (err error) {
+	coins2, err := ParseCoins(coinsstr)
+	if err != nil {
+		return err
+	}
+	*coins = coins2
+	return nil
+}
 
 func (coins Coins) String() string {
 	if len(coins) == 0 {
@@ -454,6 +485,7 @@ func (coins Coins) IsEqual(coinsB Coins) bool {
 		return false
 	}
 
+	// XXX instead, consider IsValid() on both and panic if not.
 	coins = coins.Sort()
 	coinsB = coinsB.Sort()
 
@@ -628,6 +660,14 @@ func ParseCoin(coinStr string) (coin Coin, err error) {
 	}
 
 	return NewCoin(denomStr, amount), nil
+}
+
+func MustParseCoins(coinsStr string) Coins {
+	coins, err := ParseCoins(coinsStr)
+	if err != nil {
+		panic(err)
+	}
+	return coins
 }
 
 // ParseCoins will parse out a list of coins separated by commas.

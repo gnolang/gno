@@ -129,5 +129,8 @@ func writeLog(w io.Writer, level LogLevel, colorFn func(keyvals ...interface{}) 
 		logKeyMsg, msg,
 	}, keyvals...)
 	color := colorFn(keyvals...)
-	fmt.Fprintln(w, color(keyvals...))
+	str := fmt.Sprintln(keyvals...)
+	str = str[:len(str)-1]
+	str = color(str)
+	fmt.Fprintln(w, str)
 }

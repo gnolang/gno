@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gnolang/gno/pkgs/errors"
 )
 
@@ -46,7 +45,7 @@ func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
 		panic("should not happen")
 	}
 	if printLog {
-		spew.Printf("(D) decodeReflectBinary(bz: %X, info: %v, rv: %#v (%v), fopts: %v)\n",
+		fmt.Printf("(D) decodeReflectBinary(bz: %X, info: %v, rv: %#v (%v), fopts: %v)\n",
 			bz, info, rv.Interface(), rv.Type(), fopts)
 		defer func() {
 			fmt.Printf("(D) -> n: %v, err: %v\n", n, err)
@@ -608,6 +607,9 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 				_n   int
 			)
 			fnum, typ, _n, err = decodeFieldNumberAndTyp3(bz)
+			if slide(&bz, &n, _n) && err != nil {
+				return
+			}
 			// Validate field number and typ3.
 			if fnum != fopts.BinFieldNum {
 				err = errors.New(fmt.Sprintf("expected repeated field number %v, got %v", fopts.BinFieldNum, fnum))
@@ -615,9 +617,6 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 			}
 			if typ != Typ3ByteLength {
 				err = errors.New(fmt.Sprintf("expected repeated field type %v, got %v", Typ3ByteLength, typ))
-				return
-			}
-			if slide(&bz, &n, _n) && err != nil {
 				return
 			}
 			// Decode the next ByteLength bytes into erv.
@@ -813,19 +812,19 @@ func (cdc *Codec) decodeReflectBinarySlice(bz []byte, info *TypeInfo, rv reflect
 				fnum uint32
 			)
 			fnum, typ, _n, err = decodeFieldNumberAndTyp3(bz)
+			if fnum > fopts.BinFieldNum {
+				break // before sliding...
+			}
+			if slide(&bz, &n, _n) && err != nil {
+				return
+			}
 			// Validate field number and typ3.
 			if fnum < fopts.BinFieldNum {
 				err = errors.New(fmt.Sprintf("expected repeated field number %v or greater, got %v", fopts.BinFieldNum, fnum))
 				return
 			}
-			if fnum > fopts.BinFieldNum {
-				break
-			}
 			if typ != Typ3ByteLength {
 				err = errors.New(fmt.Sprintf("expected repeated field type %v, got %v", Typ3ByteLength, typ))
-				return
-			}
-			if slide(&bz, &n, _n) && err != nil {
 				return
 			}
 			// Decode the next ByteLength bytes into erv.
@@ -932,6 +931,15 @@ func (cdc *Codec) decodeReflectBinaryStruct(bz []byte, info *TypeInfo, rv reflec
 		}
 
 		if field.UnpackedList {
+			// Skip unpacked list field if fnum is bigger.
+			var fnum uint32
+			fnum, _, _, err = decodeFieldNumberAndTyp3(bz)
+			if err != nil {
+				return
+			}
+			if field.BinFieldNum < fnum {
+				continue
+			}
 			// This is a list that was encoded unpacked, e.g.
 			// with repeated field entries for each list item.
 			_n, err = cdc.decodeReflectBinary(bz, finfo, frv, field.FieldOptions, true, 0)
@@ -948,20 +956,19 @@ func (cdc *Codec) decodeReflectBinaryStruct(bz []byte, info *TypeInfo, rv reflec
 			if field.BinFieldNum < fnum {
 				// Set zero field value.
 				frv.Set(defaultValue(frv.Type()))
-				continue
-				// Do not slide, we will read it again.
+				continue // before sliding...
 			}
-			if fnum <= lastFieldNum {
-				err = fmt.Errorf("encountered fieldnNum: %v, but we have already seen fnum: %v\nbytes:%X",
-					fnum, lastFieldNum, bz)
-				return
-			}
-			lastFieldNum = fnum
 			if slide(&bz, &n, _n) && err != nil {
 				return
 			}
 
 			// Validate fnum and typ.
+			if fnum <= lastFieldNum {
+				err = fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v\nbytes:%X",
+					fnum, lastFieldNum, bz)
+				return
+			}
+			lastFieldNum = fnum
 			// NOTE: In the future, we'll support upgradeability.
 			// So in the future, this may not match,
 			// so we will need to remove this sanity check.
@@ -995,7 +1002,7 @@ func (cdc *Codec) decodeReflectBinaryStruct(bz []byte, info *TypeInfo, rv reflec
 			return
 		}
 		if fnum <= lastFieldNum {
-			err = fmt.Errorf("encountered fieldnNum: %v, but we have already seen fnum: %v\nbytes:%X",
+			err = fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v\nbytes:%X",
 				fnum, lastFieldNum, bz)
 			return
 		}

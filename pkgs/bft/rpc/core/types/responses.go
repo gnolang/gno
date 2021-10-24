@@ -5,6 +5,8 @@ import (
 	"time"
 
 	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
+	cnscfg "github.com/gnolang/gno/pkgs/bft/consensus/config"
+	cstypes "github.com/gnolang/gno/pkgs/bft/consensus/types"
 	"github.com/gnolang/gno/pkgs/bft/state"
 	"github.com/gnolang/gno/pkgs/bft/types"
 	"github.com/gnolang/gno/pkgs/crypto"
@@ -124,10 +126,10 @@ type ResultConsensusParams struct {
 }
 
 // Info about the consensus state.
-// UNSTABLE
 type ResultDumpConsensusState struct {
-	RoundState json.RawMessage `json:"round_state"`
-	Peers      []PeerStateInfo `json:"peers"`
+	Config     *cnscfg.ConsensusConfig `json:"config"`
+	RoundState *cstypes.RoundState     `json:"round_state"`
+	Peers      []PeerStateInfo         `json:"peers"`
 }
 
 // UNSTABLE
@@ -136,9 +138,9 @@ type PeerStateInfo struct {
 	PeerState   json.RawMessage `json:"peer_state"`
 }
 
-// UNSTABLE
+// Info about (simplified) consensus state.
 type ResultConsensusState struct {
-	RoundState json.RawMessage `json:"round_state"`
+	RoundState cstypes.RoundStateSimple `json:"round_state"`
 }
 
 // CheckTx result

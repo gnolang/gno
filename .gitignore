@@ -4,3 +4,6 @@ unsorted.*
 .DS_Store
 data/*
 proto/*
+testdir
+pkgs/sdk/vm/_testdata
+build/*

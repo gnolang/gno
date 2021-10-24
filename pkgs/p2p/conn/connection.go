@@ -117,20 +117,20 @@ type MConnection struct {
 
 // MConnConfig is a MConnection configuration.
 type MConnConfig struct {
-	SendRate int64 `mapstructure:"send_rate"`
-	RecvRate int64 `mapstructure:"recv_rate"`
+	SendRate int64 `toml:"send_rate"`
+	RecvRate int64 `toml:"recv_rate"`
 
 	// Maximum payload size
-	MaxPacketMsgPayloadSize int `mapstructure:"max_packet_msg_payload_size"`
+	MaxPacketMsgPayloadSize int `toml:"max_packet_msg_payload_size"`
 
 	// Interval to flush writes (throttled)
-	FlushThrottle time.Duration `mapstructure:"flush_throttle"`
+	FlushThrottle time.Duration `toml:"flush_throttle"`
 
 	// Interval to send pings
-	PingInterval time.Duration `mapstructure:"ping_interval"`
+	PingInterval time.Duration `toml:"ping_interval"`
 
 	// Maximum wait time for pongs
-	PongTimeout time.Duration `mapstructure:"pong_timeout"`
+	PongTimeout time.Duration `toml:"pong_timeout"`
 }
 
 // DefaultMConnConfig returns the default config.

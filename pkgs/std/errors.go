@@ -38,6 +38,7 @@ func (e UnknownRequestError) Error() string    { return "unknown request error" 
 func (e InvalidAddressError) Error() string    { return "invalid address error" }
 func (e UnknownAddressError) Error() string    { return "unknown address error" }
 func (e InvalidPubKeyError) Error() string     { return "invalid pubkey error" }
+func (e InsufficientCoinsError) Error() string { return "insufficient coins error" }
 func (e InvalidCoinsError) Error() string      { return "invalid coins error" }
 func (e OutOfGasError) Error() string          { return "out of gas error" }
 func (e MemoTooLargeError) Error() string      { return "memo too large error" }
@@ -45,6 +46,8 @@ func (e InsufficientFeeError) Error() string   { return "insufficient fee error"
 func (e TooManySignaturesError) Error() string { return "too many signatures error" }
 func (e NoSignaturesError) Error() string      { return "no signatures error" }
 func (e GasOverflowError) Error() string       { return "gas overflow error" }
+
+// NOTE also update pkg/std/package.go registrations.
 
 func ErrInternal(msg string) error {
 	return errors.Wrap(InternalError{}, msg)

@@ -25,6 +25,7 @@ import (
 	sm "github.com/gnolang/gno/pkgs/bft/state"
 	"github.com/gnolang/gno/pkgs/bft/state/txindex"
 	"github.com/gnolang/gno/pkgs/events"
+
 	//"github.com/gnolang/gno/pkgs/bft/state/txindex/kv"
 	"github.com/gnolang/gno/pkgs/bft/state/txindex/null"
 	"github.com/gnolang/gno/pkgs/bft/store"
@@ -84,14 +85,22 @@ func DefaultNewNode(config *cfg.Config, logger log.Logger) (*Node, error) {
 		return nil, err
 	}
 
-	// Convert old PrivValidator if it exists.
+	// Get privValKeys.
 	newPrivValKey := config.PrivValidatorKeyFile()
 	newPrivValState := config.PrivValidatorStateFile()
+
+	// Get app client creator.
+	appClientCreator := proxy.DefaultClientCreator(
+		config.LocalApp,
+		config.ProxyApp,
+		config.ABCI,
+		config.DBDir(),
+	)
 
 	return NewNode(config,
 		privval.LoadOrGenFilePV(newPrivValKey, newPrivValState),
 		nodeKey,
-		proxy.DefaultClientCreator(config.ProxyApp, config.ABCI, config.DBDir()),
+		appClientCreator,
 		DefaultGenesisDocProviderFunc(config),
 		DefaultDBProvider,
 		logger,

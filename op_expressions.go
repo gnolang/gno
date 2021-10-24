@@ -17,7 +17,7 @@ func (m *Machine) doOpIndex1() {
 	iv := m.PopValue()   // index
 	xv := m.PeekValue(1) // x
 	dst := xv
-	res := xv.GetPointerAtIndex(iv)
+	res := xv.GetPointerAtIndex(m.Store, iv)
 	*dst = res.Deref() // reuse as result
 }
 
@@ -39,7 +39,7 @@ func (m *Machine) doOpIndex2() {
 		*iv = untypedBool(false) // reuse as result
 	} else {
 		mv := xv.V.(*MapValue)
-		vv, exists := mv.GetValueForKey(iv)
+		vv, exists := mv.GetValueForKey(m.Store, iv)
 		if exists {
 			*xv = vv                // reuse as result
 			*iv = untypedBool(true) // reuse as result
@@ -56,7 +56,7 @@ func (m *Machine) doOpIndex2() {
 func (m *Machine) doOpSelector() {
 	sx := m.PopExpr().(*SelectorExpr)
 	xv := m.PeekValue(1)
-	res := xv.GetPointerTo(sx.Path)
+	res := xv.GetPointerTo(m.Store, sx.Path)
 	*xv = res.Deref() // reuse as result
 }
 
@@ -120,29 +120,29 @@ func (m *Machine) doOpStar() {
 	switch bt := baseOf(xv.T).(type) {
 	case *PointerType:
 		pv := xv.V.(PointerValue)
-		if pv.T == DataByteType {
+		if pv.TV.T == DataByteType {
 			tv := TypedValue{T: xv.T.(*PointerType).Elt}
-			dbv := pv.V.(DataByteValue)
+			dbv := pv.TV.V.(DataByteValue)
 			tv.SetUint8(dbv.GetByte())
 			m.PushValue(tv)
 		} else {
-			if pv.TypedValue.IsUndefined() && bt.Elt.Kind() != InterfaceKind {
+			if pv.TV.IsUndefined() && bt.Elt.Kind() != InterfaceKind {
 				refv := TypedValue{T: bt.Elt}
 				m.PushValue(refv)
 			} else {
-				m.PushValue(*pv.TypedValue)
+				m.PushValue(*pv.TV)
 			}
 		}
 	case *TypeType:
 		t := xv.GetType()
 		var pt Type
-		if nt, ok := t.(*nativeType); ok {
-			pt = &nativeType{Type: reflect.PtrTo(nt.Type)}
+		if nt, ok := t.(*NativeType); ok {
+			pt = &NativeType{Type: reflect.PtrTo(nt.Type)}
 		} else {
 			pt = &PointerType{Elt: t}
 		}
 		m.PushValue(asValue(pt))
-	case *nativeType:
+	case *NativeType:
 		panic("not yet implemented")
 	default:
 		panic(fmt.Sprintf(
@@ -155,10 +155,10 @@ func (m *Machine) doOpStar() {
 func (m *Machine) doOpRef() {
 	rx := m.PopExpr().(*RefExpr)
 	xv := m.PopAsPointer(rx.X)
-	if nv, ok := xv.V.(*nativeValue); ok {
+	if nv, ok := xv.TV.V.(*NativeValue); ok {
 		// If a native pointer, ensure it is addressable.  This
-		// way, PointerValue{*nativeValue{rv}} can be converted
-		// to/from *nativeValue{rv.Addr()}.
+		// way, PointerValue{*NativeValue{rv}} can be converted
+		// to/from *NativeValue{rv.Addr()}.
 		if !nv.Value.CanAddr() {
 			rv := nv.Value
 			rt := rv.Type()
@@ -170,7 +170,7 @@ func (m *Machine) doOpRef() {
 	// XXX this is wrong, if rx.X is interface type,
 	// XXX then the type should be &PointerType{Elt: staticTypeOf(xv)}
 	m.PushValue(TypedValue{
-		T: &PointerType{Elt: xv.T},
+		T: &PointerType{Elt: xv.TV.T},
 		V: xv,
 	})
 }
@@ -210,11 +210,11 @@ func (m *Machine) doOpTypeAssert1() {
 			// NOTE: consider ability to push an
 			// interface-restricted form
 			// *xv = *xv
-		} else if nt, ok := baseOf(t).(*nativeType); ok {
+		} else if nt, ok := baseOf(t).(*NativeType); ok {
 			// t is Go interface.
 			// assert that x implements type.
 			impl := false
-			if nxt, ok := xt.(*nativeType); ok {
+			if nxt, ok := xt.(*NativeType); ok {
 				impl = nxt.Type.Implements(nt.Type)
 			} else {
 				impl = false
@@ -285,11 +285,11 @@ func (m *Machine) doOpTypeAssert2() {
 				*xv = TypedValue{}
 				*tv = untypedBool(false)
 			}
-		} else if nt, ok := baseOf(t).(*nativeType); ok {
+		} else if nt, ok := baseOf(t).(*NativeType); ok {
 			// t is Go interface.
 			// assert that x implements type.
 			impl := false
-			if nxt, ok := xt.(*nativeType); ok {
+			if nxt, ok := xt.(*NativeType); ok {
 				impl = nxt.Type.Implements(nt.Type)
 			} else {
 				impl = false
@@ -328,17 +328,17 @@ func (m *Machine) doOpCompositeLit() {
 	// composite type
 	t := m.PeekValue(1).V.(TypeValue).Type
 	// push elements
-	switch baseOf(t).(type) {
+	switch bt := baseOf(t).(type) {
 	case *ArrayType:
 		m.PushOp(OpArrayLit)
-		// evalaute field values
+		// evalaute item values
 		for i := len(x.Elts) - 1; 0 <= i; i-- {
 			m.PushExpr(x.Elts[i].Value)
 			m.PushOp(OpEval)
 		}
 	case *SliceType:
 		m.PushOp(OpSliceLit)
-		// evalaute field values
+		// evalaute item values
 		for i := len(x.Elts) - 1; 0 <= i; i-- {
 			if x.Elts[i].Key != nil {
 				panic("keys not yet supported in slice composite literals")
@@ -364,12 +364,33 @@ func (m *Machine) doOpCompositeLit() {
 			m.PushExpr(x.Elts[i].Value)
 			m.PushOp(OpEval)
 		}
-	case *nativeType:
-		m.PushOp(OpStructLitGoNative)
-		// evaluate field values
-		for i := len(x.Elts) - 1; 0 <= i; i-- {
-			m.PushExpr(x.Elts[i].Value)
-			m.PushOp(OpEval)
+	case *NativeType:
+		switch bt.Type.Kind() {
+		case reflect.Array:
+			m.PushOp(OpArrayLitGoNative)
+			// evaluate item values
+			for i := len(x.Elts) - 1; 0 <= i; i-- {
+				m.PushExpr(x.Elts[i].Value)
+				m.PushOp(OpEval)
+			}
+		case reflect.Slice:
+			m.PushOp(OpSliceLitGoNative)
+			// evaluate item values
+			for i := len(x.Elts) - 1; 0 <= i; i-- {
+				m.PushExpr(x.Elts[i].Value)
+				m.PushOp(OpEval)
+			}
+		case reflect.Struct:
+			m.PushOp(OpStructLitGoNative)
+			// evaluate field values
+			for i := len(x.Elts) - 1; 0 <= i; i-- {
+				m.PushExpr(x.Elts[i].Value)
+				m.PushOp(OpEval)
+			}
+		default:
+			panic(fmt.Sprintf(
+				"composite lit for native %v kind not yet supported",
+				bt.Type.Kind()))
 		}
 	default:
 		panic("not yet implemented")
@@ -382,9 +403,9 @@ func (m *Machine) doOpArrayLit() {
 	ne := len(x.Elts)
 	// peek array type.
 	at := m.PeekValue(1 + ne).V.(TypeValue).Type
-	// bt := baseOf(at).(*ArrayType)
+	bt := baseOf(at).(*ArrayType)
 	// construct array value.
-	av := defaultValue(at).(*ArrayValue)
+	av := defaultArrayValue(bt)
 	if 0 < ne {
 		al := av.List
 		vs := m.PopValues(ne)
@@ -420,7 +441,7 @@ func (m *Machine) doOpSliceLit() {
 	// assess performance TODO
 	x := m.PopExpr().(*CompositeLitExpr)
 	el := len(x.Elts)
-	// peek array type.
+	// peek slice type.
 	st := m.PeekValue(1 + el).V.(TypeValue).Type
 	// construct element buf slice.
 	es := make([]TypedValue, el)
@@ -458,8 +479,8 @@ func (m *Machine) doOpMapLit() {
 		for i := 0; i < ne; i++ {
 			ktv := &kvs[i*2]
 			vtv := kvs[i*2+1]
-			ptr := mv.GetPointerForKey(ktv)
-			*ptr.TypedValue = vtv
+			ptr := mv.GetPointerForKey(m.Store, ktv)
+			*ptr.TV = vtv
 		}
 	}
 	// pop map type.
@@ -485,12 +506,16 @@ func (m *Machine) doOpStructLit() {
 	xt := m.PeekValue(1 + el).V.(TypeValue).Type
 	st := baseOf(xt).(*StructType)
 	nf := len(st.Fields)
+	sv := &StructValue{
+		// will replace this with fs below.
+		Fields: nil, // becomes fs.
+	}
 	fs := []TypedValue(nil)
 	// NOTE includes embedded fields.
 	if el == 0 {
 		// zero struct with no fields set.
 		// TODO: optimize and allow nil.
-		fs = make([]TypedValue, len(st.Fields))
+		fs = defaultStructFields(st)
 	} else if x.Elts[0].Key == nil {
 		// field values are in order.
 		fs = make([]TypedValue, 0, len(st.Fields))
@@ -529,7 +554,7 @@ func (m *Machine) doOpStructLit() {
 		}
 	} else {
 		// field values are by name and may be out of order.
-		fs = make([]TypedValue, len(st.Fields))
+		fs = defaultStructFields(st)
 		ftvs := m.PopValues(el)
 		for i := 0; i < el; i++ {
 			fnx := x.Elts[i].Key.(*NameExpr)
@@ -547,10 +572,7 @@ func (m *Machine) doOpStructLit() {
 	}
 	// construct and push value.
 	m.PopValue() // baseOf() is st
-	sv := &StructValue{
-		StructType: st,
-		Fields:     fs,
-	}
+	sv.Fields = fs
 	m.PushValue(TypedValue{
 		T: xt,
 		V: sv,
@@ -566,11 +588,13 @@ func (m *Machine) doOpFuncLit() {
 		V: &FuncValue{
 			Type:       ft,
 			IsMethod:   false,
+			SourceLoc:  x.GetLocation(),
 			Source:     x,
 			Name:       "",
 			Body:       x.Body,
 			Closure:    lb,
-			NativeBody: nil,
+			PkgPath:    m.Package.PkgPath,
+			nativeBody: nil,
 			pkg:        m.Package,
 		},
 	})
@@ -579,6 +603,6 @@ func (m *Machine) doOpFuncLit() {
 func (m *Machine) doOpConvert() {
 	xv := m.PopValue()
 	t := m.PopValue().GetType()
-	ConvertTo(xv, t)
+	ConvertTo(m.Store, xv, t)
 	m.PushValue(*xv)
 }

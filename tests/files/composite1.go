@@ -4,7 +4,10 @@ import "fmt"
 
 var a = &[]*T{{}}
 
-type T struct{ name string }
+// NOTE:
+// lowercase fields don't work with native funcs.
+// see tests/files/composite1b.go for gno println.
+type T struct{ Name string }
 
 func main() {
 	fmt.Println((*a)[0])

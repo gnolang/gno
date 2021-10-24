@@ -534,7 +534,7 @@ func (cdc *Codec) getTypeInfoFromFullnameRLock(fullname string, fopts FieldOptio
 
 	info, ok := cdc.fullnameToTypeInfo[fullname]
 	if !ok {
-		err = fmt.Errorf("unrecognized concrete type full name %s", fullname)
+		err = fmt.Errorf("unrecognized concrete type full name %s of %v", fullname, cdc.fullnameToTypeInfo)
 		cdc.mtx.RUnlock()
 		return
 	}
@@ -574,11 +574,11 @@ func (cdc *Codec) newTypeInfoUnregisteredWLock(rt reflect.Type) *TypeInfo {
 func (cdc *Codec) newTypeInfoUnregisteredWLocked(rt reflect.Type) *TypeInfo {
 	switch rt.Kind() {
 	case reflect.Ptr:
-		panic("unexpected pointer type") // should not happen.
+		panic(fmt.Sprintf("unexpected pointer type %v", rt)) // should not happen.
 	case reflect.Map:
-		panic("map type not supported")
+		panic(fmt.Sprintf("map type not supported %v", rt))
 	case reflect.Func:
-		panic("func type not supported")
+		panic(fmt.Sprintf("func type not supported %v", rt))
 	}
 	if _, exists := cdc.typeInfos[rt]; exists {
 		panic(fmt.Sprintf("type info already registered for %v", rt))
@@ -661,6 +661,12 @@ func (cdc *Codec) newTypeInfoUnregisteredWLocked(rt reflect.Type) *TypeInfo {
 // ...
 
 func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
+	defer func() {
+		if ex := recover(); ex != nil {
+			panic(fmt.Sprintf("panic parsing struct %v",
+				rt))
+		}
+	}()
 	if rt.Kind() != reflect.Struct {
 		panic("should not happen")
 	}
@@ -669,7 +675,6 @@ func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 	for i := 0; i < rt.NumField(); i++ {
 		var field = rt.Field(i)
 		var ftype = field.Type
-		var unpackedList = false
 		if !isExported(field) {
 			continue // field is unexported
 		}
@@ -677,13 +682,22 @@ func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 		if skip {
 			continue // e.g. json:"-"
 		}
-		if ftype.Kind() == reflect.Array || ftype.Kind() == reflect.Slice {
-			if ftype.Elem().Kind() == reflect.Uint8 {
+		// NOTE: This is going to change a bit.
+		// NOTE: BinFieldNum starts with 1.
+		fopts.BinFieldNum = uint32(len(infos) + 1)
+		fieldTypeInfo, err := cdc.getTypeInfoWLocked(ftype)
+		if err != nil {
+			panic(err)
+		}
+		var frepr = fieldTypeInfo.ReprType.Type
+		var unpackedList = false
+		if frepr.Kind() == reflect.Array || frepr.Kind() == reflect.Slice {
+			if frepr.Elem().Kind() == reflect.Uint8 {
 				// These get handled by our optimized methods,
 				// encodeReflectBinaryByte[Slice/Array].
 				unpackedList = false
 			} else {
-				etype := ftype.Elem()
+				etype := frepr.Elem()
 				for etype.Kind() == reflect.Ptr {
 					etype = etype.Elem()
 				}
@@ -693,13 +707,7 @@ func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 				}
 			}
 		}
-		// NOTE: This is going to change a bit.
-		// NOTE: BinFieldNum starts with 1.
-		fopts.BinFieldNum = uint32(len(infos) + 1)
-		fieldTypeInfo, err := cdc.getTypeInfoWLocked(ftype)
-		if err != nil {
-			panic(err)
-		}
+
 		fieldInfo := FieldInfo{
 			Type:         ftype,
 			TypeInfo:     fieldTypeInfo,

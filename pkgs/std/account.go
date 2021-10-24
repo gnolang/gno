@@ -96,7 +96,7 @@ func (acc BaseAccount) GetAddress() crypto.Address {
 
 // SetAddress - Implements Account.
 func (acc *BaseAccount) SetAddress(addr crypto.Address) error {
-	if len(acc.Address) != 0 {
+	if !acc.Address.IsZero() {
 		return errors.New("cannot override BaseAccount address")
 	}
 	acc.Address = addr

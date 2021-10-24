@@ -9,7 +9,7 @@ import (
 
 // t cannot be nil or untyped or DataByteType.
 // the conversion is forced and overflow/underflow is ignored.
-func ConvertTo(tv *TypedValue, t Type) {
+func ConvertTo(store Store, tv *TypedValue, t Type) {
 	if debug {
 		if t == nil {
 			panic("ConvertTo() requires non-nil type")
@@ -22,11 +22,11 @@ func ConvertTo(tv *TypedValue, t Type) {
 		}
 	}
 	// special case for go-native conversions
-	ntv, tvIsNat := tv.T.(*nativeType)
-	nt, tIsNat := t.(*nativeType)
+	ntv, tvIsNat := tv.T.(*NativeType)
+	nt, tIsNat := t.(*NativeType)
 	if tvIsNat {
 		if tIsNat {
-			// both nativeType, use reflect to assert.
+			// both NativeType, use reflect to assert.
 			if debug {
 				if !ntv.Type.ConvertibleTo(nt.Type) {
 					panic(fmt.Sprintf(
@@ -38,8 +38,8 @@ func ConvertTo(tv *TypedValue, t Type) {
 			return
 		} else {
 			// convert go-native to gno type.
-			*tv = go2GnoValue2(tv.V.(*nativeValue).Value)
-			ConvertTo(tv, t)
+			*tv = go2GnoValue2(tv.V.(*NativeValue).Value)
+			ConvertTo(store, tv, t)
 			return
 		}
 	} else {
@@ -56,7 +56,7 @@ func ConvertTo(tv *TypedValue, t Type) {
 			}
 			*tv = TypedValue{
 				T: t,
-				V: &nativeValue{Value: rv},
+				V: &NativeValue{Value: rv},
 			}
 			return
 		} else {
@@ -613,17 +613,17 @@ GNO_CASE:
 					tvk.String(), t.String()))
 			}
 			/* TODO deleteme, native types handled above.
-			case *nativeType:
+			case *NativeType:
 				switch cbt.Kind() {
 				case StringKind:
-					tv.V = &nativeValue{
+					tv.V = &NativeValue{
 						Value: reflect.ValueOf(
 							string(tv.GetString()),
 						),
 					}
 					tv.T = t // after tv.GetString()
 				case SliceKind:
-					tv.V = &nativeValue{
+					tv.V = &NativeValue{
 						Value: reflect.ValueOf(
 							[]byte(tv.GetString()),
 						),
@@ -654,12 +654,13 @@ GNO_CASE:
 			case *SliceValue:
 				svo := sv.Offset
 				svl := sv.Length
-				if sv.Base.Data == nil {
+				svb := sv.GetBase(store)
+				if svb.Data == nil {
 					if tk == Uint8Kind {
 						data := make([]byte, svl)
 						copyListToData(
 							data[:svl],
-							sv.Base.List[svo:svo+svl])
+							svb.List[svo:svo+svl])
 						strv := StringValue(string(data))
 						tv.T = t
 						tv.V = strv
@@ -667,7 +668,7 @@ GNO_CASE:
 						runes := make([]rune, svl)
 						copyListToRunes(
 							runes[:svl],
-							sv.Base.List[svo:svo+svl])
+							svb.List[svo:svo+svl])
 						strv := StringValue(string(runes))
 						tv.T = t
 						tv.V = strv
@@ -675,13 +676,13 @@ GNO_CASE:
 						panic("should not happen")
 					}
 				} else {
-					data := sv.Base.Data[svo : svo+svl]
+					data := svb.Data[svo : svo+svl]
 					strv := StringValue(string(data))
 					tv.T = t
 					tv.V = strv
 				}
 				/* TODO deleteme, native types handled above
-				case *nativeValue:
+				case *NativeValue:
 					data := sv.Value.Bytes()
 					strv := StringValue(string(data))
 					tv.T = t
@@ -721,17 +722,17 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 		}
 	}
 	// special case: native
-	if nt, ok := t.(*nativeType); ok {
+	if nt, ok := t.(*NativeType); ok {
 		// first convert untyped to typed gno value.
 		gnot := go2GnoBaseType(nt.Type)
 		if debug {
-			if _, ok := gnot.(*nativeType); ok {
+			if _, ok := gnot.(*NativeType); ok {
 				panic("should not happen")
 			}
 		}
 		ConvertUntypedTo(tv, gnot)
 		// then convert to native value.
-		ConvertTo(tv, t)
+		ConvertTo(nil, tv, t)
 	}
 	// special case: simple conversion
 	if t != nil && tv.T.Kind() == t.Kind() {
@@ -768,7 +769,7 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 			tv.T = t
 			return
 		} else {
-			ConvertTo(tv, t)
+			ConvertTo(nil, tv, t)
 		}
 	default:
 		panic(fmt.Sprintf(

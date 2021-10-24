@@ -18,7 +18,7 @@ type Frame struct {
 
 	// call frame
 	Func        *FuncValue    // function value
-	GoFunc      *nativeValue  // go function value
+	GoFunc      *NativeValue  // go function value
 	Receiver    TypedValue    // if bound method
 	NumArgs     int           // number of arguments in call
 	IsVarg      bool          // is form fncall(???, vargs...)
@@ -79,7 +79,7 @@ func (fr *Frame) PopDefer() (res Defer, ok bool) {
 
 type Defer struct {
 	Func   *FuncValue   // function value
-	GoFunc *nativeValue // go function value
+	GoFunc *NativeValue // go function value
 	Args   []TypedValue // arguments
 	Source *DeferStmt   // source
 }

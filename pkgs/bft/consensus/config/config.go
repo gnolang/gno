@@ -16,28 +16,28 @@ const (
 // ConsensusConfig defines the configuration for the Tendermint consensus service,
 // including timeouts and details about the WAL and the block structure.
 type ConsensusConfig struct {
-	RootDir string `mapstructure:"home"`
-	WalPath string `mapstructure:"wal_file"`
+	RootDir string `toml:"home"`
+	WalPath string `toml:"wal_file"`
 	walFile string // overrides WalPath if set
 
-	TimeoutPropose        time.Duration `mapstructure:"timeout_propose"`
-	TimeoutProposeDelta   time.Duration `mapstructure:"timeout_propose_delta"`
-	TimeoutPrevote        time.Duration `mapstructure:"timeout_prevote"`
-	TimeoutPrevoteDelta   time.Duration `mapstructure:"timeout_prevote_delta"`
-	TimeoutPrecommit      time.Duration `mapstructure:"timeout_precommit"`
-	TimeoutPrecommitDelta time.Duration `mapstructure:"timeout_precommit_delta"`
-	TimeoutCommit         time.Duration `mapstructure:"timeout_commit"`
+	TimeoutPropose        time.Duration `toml:"timeout_propose"`
+	TimeoutProposeDelta   time.Duration `toml:"timeout_propose_delta"`
+	TimeoutPrevote        time.Duration `toml:"timeout_prevote"`
+	TimeoutPrevoteDelta   time.Duration `toml:"timeout_prevote_delta"`
+	TimeoutPrecommit      time.Duration `toml:"timeout_precommit"`
+	TimeoutPrecommitDelta time.Duration `toml:"timeout_precommit_delta"`
+	TimeoutCommit         time.Duration `toml:"timeout_commit"`
 
 	// Make progress as soon as we have all the precommits (as if TimeoutCommit = 0)
-	SkipTimeoutCommit bool `mapstructure:"skip_timeout_commit"`
+	SkipTimeoutCommit bool `toml:"skip_timeout_commit"`
 
 	// EmptyBlocks mode and possible interval between empty blocks
-	CreateEmptyBlocks         bool          `mapstructure:"create_empty_blocks"`
-	CreateEmptyBlocksInterval time.Duration `mapstructure:"create_empty_blocks_interval"`
+	CreateEmptyBlocks         bool          `toml:"create_empty_blocks"`
+	CreateEmptyBlocksInterval time.Duration `toml:"create_empty_blocks_interval"`
 
 	// Reactor sleep duration parameters
-	PeerGossipSleepDuration     time.Duration `mapstructure:"peer_gossip_sleep_duration"`
-	PeerQueryMaj23SleepDuration time.Duration `mapstructure:"peer_query_maj23_sleep_duration"`
+	PeerGossipSleepDuration     time.Duration `toml:"peer_gossip_sleep_duration"`
+	PeerQueryMaj23SleepDuration time.Duration `toml:"peer_query_maj23_sleep_duration"`
 }
 
 // DefaultConsensusConfig returns a default configuration for the consensus service
@@ -111,7 +111,7 @@ func (cfg *ConsensusConfig) WalFile() string {
 	if cfg.walFile != "" {
 		return cfg.walFile
 	}
-	return rootify(cfg.WalPath, cfg.RootDir)
+	return join(cfg.RootDir, cfg.WalPath)
 }
 
 // SetWalFile sets the path to the write-ahead log file

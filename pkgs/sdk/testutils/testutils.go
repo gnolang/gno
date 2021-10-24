@@ -1,0 +1,104 @@
+package testutils
+
+import (
+	"github.com/gnolang/gno/pkgs/amino"
+	"github.com/gnolang/gno/pkgs/crypto"
+	"github.com/gnolang/gno/pkgs/crypto/secp256k1"
+	"github.com/gnolang/gno/pkgs/std"
+)
+
+// msg type for testing
+type TestMsg struct {
+	Signers []crypto.Address
+}
+
+var _ std.Msg = &TestMsg{}
+
+func NewTestMsg(addrs ...crypto.Address) *TestMsg {
+	return &TestMsg{
+		Signers: addrs,
+	}
+}
+
+//nolint
+func (msg *TestMsg) Route() string { return "TestMsg" }
+func (msg *TestMsg) Type() string  { return "Test message" }
+func (msg *TestMsg) GetSignBytes() []byte {
+	bz, err := amino.MarshalJSON(msg.Signers)
+	if err != nil {
+		panic(err)
+	}
+	return std.MustSortJSON(bz)
+}
+func (msg *TestMsg) ValidateBasic() error { return nil }
+func (msg *TestMsg) GetSigners() []crypto.Address {
+	return msg.Signers
+}
+
+//----------------------------------------
+// Utility Methods
+
+func NewTestFee() std.Fee {
+	return std.NewFee(50000, std.NewCoin("atom", 150))
+}
+
+// coins to more than cover the fee
+func NewTestCoins() std.Coins {
+	return std.Coins{std.NewCoin("atom", 10000000)}
+}
+
+func KeyTestPubAddr() (crypto.PrivKey, crypto.PubKey, crypto.Address) {
+	key := secp256k1.GenPrivKey()
+	pub := key.PubKey()
+	addr := crypto.Address(pub.Address())
+	return key, pub, addr
+}
+
+func NewTestTx(chainID string, msgs []std.Msg, privs []crypto.PrivKey, accNums []uint64, seqs []uint64, fee std.Fee) std.Tx {
+	sigs := make([]std.Signature, len(privs))
+	for i, priv := range privs {
+		signBytes := std.SignBytes(chainID, accNums[i], seqs[i], fee, msgs, "")
+
+		sig, err := priv.Sign(signBytes)
+		if err != nil {
+			panic(err)
+		}
+
+		sigs[i] = std.Signature{PubKey: priv.PubKey(), Signature: sig}
+	}
+
+	tx := std.NewTx(msgs, fee, sigs, "")
+	return tx
+}
+
+func NewTestTxWithMemo(chainID string, msgs []std.Msg, privs []crypto.PrivKey, accNums []uint64, seqs []uint64, fee std.Fee, memo string) std.Tx {
+	sigs := make([]std.Signature, len(privs))
+	for i, priv := range privs {
+		signBytes := std.SignBytes(chainID, accNums[i], seqs[i], fee, msgs, memo)
+
+		sig, err := priv.Sign(signBytes)
+		if err != nil {
+			panic(err)
+		}
+
+		sigs[i] = std.Signature{PubKey: priv.PubKey(), Signature: sig}
+	}
+
+	tx := std.NewTx(msgs, fee, sigs, memo)
+	return tx
+}
+
+func NewTestTxWithSignBytes(msgs []std.Msg, privs []crypto.PrivKey, accNums []uint64, seqs []uint64, fee std.Fee, signBytes []byte, memo string) std.Tx {
+	sigs := make([]std.Signature, len(privs))
+	for i, priv := range privs {
+		sig, err := priv.Sign(signBytes)
+		if err != nil {
+			panic(err)
+		}
+
+		sigs[i] = std.Signature{PubKey: priv.PubKey(), Signature: sig}
+	}
+
+	tx := std.NewTx(msgs, fee, sigs, memo)
+	return tx
+}

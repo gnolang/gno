@@ -302,7 +302,7 @@ func (h *Handshaker) ReplayBlocks(
 			ChainID:         h.genDoc.ChainID,
 			ConsensusParams: &csParams,
 			Validators:      nextVals,
-			AppStateBytes:   h.genDoc.AppState,
+			AppState:        h.genDoc.AppState,
 		}
 		res, err := proxyApp.Consensus().InitChainSync(req)
 		if err != nil {

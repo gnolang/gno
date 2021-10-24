@@ -2,7 +2,12 @@ package gno
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
+	"strconv"
+	"strings"
+
+	"github.com/gnolang/gno/pkgs/errors"
 )
 
 /*
@@ -36,18 +41,35 @@ supported).
 */
 
 type ObjectID struct {
-	RealmID        // base
-	NewTime uint64 // time created
+	RealmID RealmID // base
+	NewTime uint64  // time created
+}
+
+func (oid ObjectID) MarshalAmino() (string, error) {
+	rid := hex.EncodeToString(oid.RealmID.Hashlet[:])
+	return fmt.Sprintf("%s:%d", rid, oid.NewTime), nil
+}
+
+func (oid *ObjectID) UnmarshalAmino(oids string) error {
+	parts := strings.Split(oids, ":")
+	if len(parts) != 2 {
+		return errors.New("invalid ObjectID %s", oids)
+	}
+	_, err := hex.Decode(oid.RealmID.Hashlet[:], []byte(parts[0]))
+	if err != nil {
+		return err
+	}
+	newTime, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return err
+	}
+	oid.NewTime = uint64(newTime)
+	return nil
 }
 
 func (oid ObjectID) String() string {
-	if oid.RealmID.IsZero() {
-		// XXX what's at the very top?
-		return fmt.Sprintf("OIDNONE:%d", oid.NewTime)
-	} else {
-		return fmt.Sprintf("OID%X:%d",
-			oid.RealmID.Bytes(), oid.NewTime)
-	}
+	oids, _ := oid.MarshalAmino()
+	return oids
 }
 
 func (oid ObjectID) Bytes() []byte {
@@ -70,6 +92,7 @@ func (oid ObjectID) IsZero() bool {
 }
 
 type Object interface {
+	Value
 	GetObjectInfo() *ObjectInfo
 	GetObjectID() ObjectID
 	MustGetObjectID() ObjectID
@@ -102,21 +125,40 @@ type Object interface {
 
 var _ Object = &ArrayValue{}
 var _ Object = &StructValue{}
+var _ Object = &BoundMethodValue{}
 var _ Object = &MapValue{}
 var _ Object = &Block{}
 
 type ObjectInfo struct {
-	ID           ObjectID  // set if real.
-	Hash         ValueHash // zero if dirty.
-	OwnerID      ObjectID  // parent in the ownership tree.
-	ModTime      uint64    // time last updated.
-	RefCount     int       // deleted/gc'd if 0.
+	ID       ObjectID  // set if real.
+	Hash     ValueHash `json:",omitempty"` // zero if dirty.
+	OwnerID  ObjectID  `json:",omitempty"` // parent in the ownership tree.
+	ModTime  uint64    // time last updated.
+	RefCount int       // for persistence. deleted/gc'd if 0.
+	// MemRefCount int // consider for optimizations.
 	isNewReal    bool
 	isDirty      bool
 	isDeleted    bool
 	isProcessing bool
 
+	// XXX huh?
 	owner Object // mem reference to owner.
+}
+
+// Copy used for serialization of objects.
+// Note that "owner" is nil.
+func (oi *ObjectInfo) Copy() ObjectInfo {
+	return ObjectInfo{
+		ID:           oi.ID,
+		Hash:         oi.Hash.Copy(),
+		OwnerID:      oi.OwnerID,
+		ModTime:      oi.ModTime,
+		RefCount:     oi.RefCount,
+		isNewReal:    oi.isNewReal,
+		isDirty:      oi.isDirty,
+		isDeleted:    oi.isDeleted,
+		isProcessing: oi.isProcessing,
+	}
 }
 
 func (oi *ObjectInfo) String() string {
@@ -275,268 +317,38 @@ func (oi *ObjectInfo) GetIsTransient() bool {
 	return false
 }
 
-// Returns the value as an object if it is an object,
-// or is a pointer or slice of an object.
-func (tv *TypedValue) GetObject() Object {
+func (tv *TypedValue) GetFirstObject(store Store) Object {
 	switch cv := tv.V.(type) {
 	case PointerValue:
-		// TODO: In terms of defining the object dependency graph,
-		// whether the relevant object is the pointer base or
-		// the pointed object (.base or .typedvalue) depends
-		// on the number of references to the base. In the future
-		// when supporting ref-counted and weak references,
-		// calculate this on the fly or with a pre-pass.
-		return cv.TypedValue.GetObject()
+		// TODO: in the future, consider skipping the base if persisted
+		// ref-count would be 1, e.g. only this pointer refers to
+		// something in it; in that case, ignore the base.  That will
+		// likely require maybe a preperation step in persistence
+		// ( or unlikely, a second type of ref-counting).
+		if cv.Base != nil {
+			return cv.Base.(Object)
+		} else {
+			return cv.TV.GetFirstObject(store)
+		}
 	case *ArrayValue:
 		return cv
 	case *SliceValue:
-		if cv.Base == nil {
-			// otherwise `return cv.Base` returns a typed-nil.
-			return nil
-		} else {
-			return cv.Base
-		}
+		return cv.GetBase(store)
 	case *StructValue:
 		return cv
 	case *FuncValue:
-		return nil
+		return cv.GetClosure(store)
 	case *MapValue:
 		return cv
-	case BoundMethodValue:
-		rov, ok := cv.Receiver.V.(Object)
-		if ok {
-			return rov
-		} else {
-			return nil
-		}
-	case nativeValue:
-		// native values don't work with realms,
-		// but this function shouldn't happen.
-		// XXX panic?
+	case *BoundMethodValue:
+		return cv
+	case *NativeValue:
+		// XXX allow PointerValue.Assign2 to pass nil for oo1/oo2.
+		// panic("realm logic for native values not supported")
 		return nil
-	case blockValue:
-		if cv.Block == nil {
-			panic("should not happen")
-		}
-		return cv.Block
+	case *Block:
+		return cv
 	default:
 		return nil
 	}
 }
-
-//----------------------------------------
-// ExtendedObject
-// ExtendedObject is for storing native arrays, slices, structs, maps, as
-// well as Gno maps. It implements Object for gno maps, but not for native
-// types which are not supported by realm persistence.  ExtendedObject is
-// required for *MapValue for the machine state to be persistable between
-// slot access and assignment to said slot.
-
-type ExtendedObject struct {
-	BaseMap    *MapValue    // if base is gno map
-	BaseNative *nativeValue // if base is native array/slice/struct/map.
-	Index      TypedValue   // integer index or arbitrary map key
-	Path       ValuePath    // value path for (native) selectors
-}
-
-func (eo ExtendedObject) GetObjectInfo() *ObjectInfo {
-	if eo.BaseMap != nil {
-		return eo.BaseMap.GetObjectInfo()
-	} else {
-		panic("native values are not realm compatible")
-	}
-}
-
-func (eo ExtendedObject) GetObjectID() ObjectID {
-	if eo.BaseMap != nil {
-		return eo.BaseMap.GetObjectID()
-	} else {
-		panic("native values are not realm compatible")
-	}
-}
-
-func (eo ExtendedObject) MustGetObjectID() ObjectID {
-	if eo.BaseMap != nil {
-		return eo.BaseMap.MustGetObjectID()
-	} else {
-		panic("native values are not realm compatible")
-	}
-}
-
-func (eo ExtendedObject) SetObjectID(oid ObjectID) {
-	if eo.BaseMap != nil {
-		eo.BaseMap.SetObjectID(oid)
-	} else {
-		panic("native values are not realm compatible")
-	}
-}
-
-func (eo ExtendedObject) GetHash() ValueHash {
-	if eo.BaseMap != nil {
-		return eo.BaseMap.GetHash()
-	} else {
-		panic("native values are not realm compatible")
-	}
-}
-
-func (eo ExtendedObject) SetHash(vh ValueHash) {
-	if eo.BaseMap != nil {
-		eo.BaseMap.SetHash(vh)
-	} else {
-		panic("native values are not realm compatible")
-	}
-}
-
-func (eo ExtendedObject) GetOwner() Object {
-	if eo.BaseMap != nil {
-		return eo.BaseMap.GetOwner()
-	} else {
-		panic("native values are not realm compatible")
-	}
-}
-
-func (eo ExtendedObject) GetOwnerID() ObjectID {
-	if eo.BaseMap != nil {
-		return eo.BaseMap.GetOwnerID()
-	} else {
-		panic("native values are not realm compatible")
-	}
-}
-
-func (eo ExtendedObject) SetOwner(obj Object) {
-	if eo.BaseMap != nil {
-		eo.BaseMap.SetOwner(obj)
-	} else {
-		panic("native values are not realm compatible")
-	}
-}
-
-func (eo ExtendedObject) GetIsOwned() bool {
-	if eo.BaseMap != nil {
-		return eo.BaseMap.GetIsOwned()
-	} else {
-		panic("native values are not realm compatible")
-	}
-}
-
-func (eo ExtendedObject) GetIsReal() bool {
-	if eo.BaseMap != nil {
-		return eo.BaseMap.GetIsReal()
-	} else {
-		panic("native values are not realm compatible")
-	}
-}
-
-func (eo ExtendedObject) GetModTime() uint64 {
-	if eo.BaseMap != nil {
-		return eo.BaseMap.GetModTime()
-	} else {
-		panic("native values are not realm compatible")
-	}
-}
-
-func (eo ExtendedObject) IncRefCount() int {
-	if eo.BaseMap != nil {
-		return eo.BaseMap.IncRefCount()
-	} else {
-		panic("native values are not realm compatible")
-	}
-}
-
-func (eo ExtendedObject) DecRefCount() int {
-	if eo.BaseMap != nil {
-		return eo.BaseMap.DecRefCount()
-	} else {
-		panic("native values are not realm compatible")
-	}
-}
-
-func (eo ExtendedObject) GetRefCount() int {
-	if eo.BaseMap != nil {
-		return eo.BaseMap.GetRefCount()
-	} else {
-		panic("native values are not realm compatible")
-	}
-}
-
-func (eo ExtendedObject) GetIsNewReal() bool {
-	if eo.BaseMap != nil {
-		return eo.BaseMap.GetIsNewReal()
-	} else {
-		panic("native values are not realm compatible")
-	}
-}
-
-func (eo ExtendedObject) SetIsNewReal(b bool) {
-	if eo.BaseMap != nil {
-		eo.BaseMap.SetIsNewReal(b)
-	} else {
-		panic("native values are not realm compatible")
-	}
-}
-
-func (eo ExtendedObject) GetIsDirty() bool {
-	if eo.BaseMap != nil {
-		return eo.BaseMap.GetIsDirty()
-	} else {
-		panic("native values are not realm compatible")
-	}
-}
-
-func (eo ExtendedObject) SetIsDirty(b bool, mt uint64) {
-	if eo.BaseMap != nil {
-		eo.BaseMap.SetIsDirty(b, mt)
-	} else {
-		panic("native values are not realm compatible")
-	}
-}
-
-func (eo ExtendedObject) GetIsDeleted() bool {
-	if eo.BaseMap != nil {
-		return eo.BaseMap.GetIsDeleted()
-	} else {
-		panic("native values are not realm compatible")
-	}
-}
-
-func (eo ExtendedObject) SetIsDeleted(b bool, mt uint64) {
-	if eo.BaseMap != nil {
-		eo.BaseMap.SetIsDeleted(b, mt)
-	} else {
-		panic("native values are not realm compatible")
-	}
-}
-
-func (eo ExtendedObject) GetIsProcessing() bool {
-	if eo.BaseMap != nil {
-		return eo.BaseMap.GetIsProcessing()
-	} else {
-		panic("native values are not realm compatible")
-	}
-}
-
-func (eo ExtendedObject) SetIsProcessing(b bool) {
-	if eo.BaseMap != nil {
-		eo.BaseMap.SetIsProcessing(b)
-	} else {
-		panic("native values are not realm compatible")
-	}
-}
-
-func (eo ExtendedObject) GetIsTransient() bool {
-	if eo.BaseMap != nil {
-		return false
-	} else {
-		return true // native values cannot be realm persisted.
-	}
-}
-
-/*
-func (eo ExtendedObject) ValueImage(rlm *Realm, owned bool) *ValueImage {
-	if eo.BaseMap != nil {
-		return eo.BaseMap.ValueImage(rlm, owned)
-	} else {
-		panic("native values are not realm compatible")
-	}
-}
-*/

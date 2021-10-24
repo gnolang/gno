@@ -47,4 +47,5 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 
 		// Misc.
 		TxResult{},
+		MockAppState{},
 	))

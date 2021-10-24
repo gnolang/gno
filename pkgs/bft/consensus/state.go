@@ -203,6 +203,13 @@ func (cs *ConsensusState) String() string {
 	return fmt.Sprintf("ConsensusState") //(H:%v R:%v S:%v", cs.Height, cs.Round, cs.Step)
 }
 
+// GetConfig returns a copy of the chain state.
+func (cs *ConsensusState) GetConfigDeepCopy() *cnscfg.ConsensusConfig {
+	cs.mtx.RLock()
+	defer cs.mtx.RUnlock()
+	return amino.DeepCopy(cs.config).(*cnscfg.ConsensusConfig)
+}
+
 // GetState returns a copy of the chain state.
 func (cs *ConsensusState) GetState() sm.State {
 	cs.mtx.RLock()
@@ -226,18 +233,19 @@ func (cs *ConsensusState) GetRoundState() *cstypes.RoundState {
 	return &rs
 }
 
-// GetRoundStateJSON returns a json of RoundState, marshalled using go-amino.
-func (cs *ConsensusState) GetRoundStateJSON() ([]byte, error) {
+// GetRoundStateDeepCopy returns a deep copy of the internal consensus state.
+func (cs *ConsensusState) GetRoundStateDeepCopy() *cstypes.RoundState {
 	cs.mtx.RLock()
 	defer cs.mtx.RUnlock()
-	return amino.MarshalJSON(cs.RoundState)
+	rs := amino.DeepCopy(cs.RoundState).(cstypes.RoundState)
+	return &rs
 }
 
-// GetRoundStateSimpleJSON returns a json of RoundStateSimple, marshalled using go-amino.
-func (cs *ConsensusState) GetRoundStateSimpleJSON() ([]byte, error) {
+// GetRoundStateSimple returns a simplified representation, RoundStateSimple.
+func (cs *ConsensusState) GetRoundStateSimple() cstypes.RoundStateSimple {
 	cs.mtx.RLock()
 	defer cs.mtx.RUnlock()
-	return amino.MarshalJSON(cs.RoundState.RoundStateSimple())
+	return cs.RoundState.RoundStateSimple()
 }
 
 func (cs *ConsensusState) GetHRS() cstypes.HRS {

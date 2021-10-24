@@ -10,10 +10,12 @@ import (
 )
 
 type GenerateOptions struct {
-	CustomEntropy bool `flag:"entropy",help:"custom entropy"`
+	CustomEntropy bool `flag:"entropy" help:"custom entropy"`
 }
 
-var DefaultGenerateOptions = GenerateOptions{}
+var DefaultGenerateOptions = GenerateOptions{
+	// BaseOptions: DefaultBaseOptions,
+}
 
 func generateApp(cmd *command.Command, args []string, iopts interface{}) error {
 	opts := iopts.(GenerateOptions)

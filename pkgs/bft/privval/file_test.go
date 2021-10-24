@@ -120,12 +120,13 @@ func TestUnmarshalValidatorKey(t *testing.T) {
 	privKey := ed25519.GenPrivKey()
 	pubKey := privKey.PubKey()
 	addr := pubKey.Address()
-	addrBytes := addr[:]
 	pubArray := [32]byte(pubKey.(ed25519.PubKeyEd25519))
 	pubBytes := pubArray[:]
 	privArray := [64]byte(privKey)
 	privBytes := privArray[:]
-	addrB64 := base64.StdEncoding.EncodeToString(addrBytes)
+	// addrBytes := addr[:]
+	// addrB64 := base64.StdEncoding.EncodeToString(addrBytes)
+	addrBech32 := addr.String()
 	pubB64 := base64.StdEncoding.EncodeToString(pubBytes)
 	privB64 := base64.StdEncoding.EncodeToString(privBytes)
 
@@ -139,7 +140,7 @@ func TestUnmarshalValidatorKey(t *testing.T) {
     "@type": "/tm.PrivKeyEd25519",
     "value": "%s"
   }
-}`, addrB64, pubB64, privB64)
+}`, addrBech32, pubB64, privB64)
 
 	val := FilePVKey{}
 	err := amino.UnmarshalJSON([]byte(serialized), &val)

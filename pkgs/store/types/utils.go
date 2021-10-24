@@ -5,12 +5,12 @@ import (
 )
 
 // Iterator over all the keys with a certain prefix in ascending order
-func StorePrefixIterator(kvs Store, prefix []byte) Iterator {
+func PrefixIterator(kvs Store, prefix []byte) Iterator {
 	return kvs.Iterator(prefix, PrefixEndBytes(prefix))
 }
 
 // Iterator over all the keys with a certain prefix in descending order.
-func StoreReversePrefixIterator(kvs Store, prefix []byte) Iterator {
+func ReversePrefixIterator(kvs Store, prefix []byte) Iterator {
 	return kvs.ReverseIterator(prefix, PrefixEndBytes(prefix))
 }
 

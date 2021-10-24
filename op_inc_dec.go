@@ -4,7 +4,7 @@ func (m *Machine) doOpInc() {
 	s := m.PopStmt().(*IncDecStmt)
 
 	// Get reference to lhs.
-	lv := m.PopAsPointer(s.X)
+	lv := m.PopAsPointer(s.X).TV
 
 	// Switch on the base type.  NOTE: this is faster
 	// than computing the kind of kv.T.  TODO: consider
@@ -50,7 +50,7 @@ func (m *Machine) doOpDec() {
 	s := m.PopStmt().(*IncDecStmt)
 
 	// Get result ptr depending on lhs.
-	lv := m.PopAsPointer(s.X)
+	lv := m.PopAsPointer(s.X).TV
 
 	// Switch on the base type.  NOTE: this is faster
 	// than computing the kind of kv.T.  TODO: consider

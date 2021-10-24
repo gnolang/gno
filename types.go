@@ -1,6 +1,7 @@
 package gno
 
 import (
+	"encoding/hex"
 	"fmt"
 	"reflect"
 	"sort"
@@ -14,13 +15,22 @@ import (
 type Type interface {
 	assertType()
 
-	Kind() Kind     // penetrates *DeclaredType & *nativeType
+	Kind() Kind     // penetrates *DeclaredType & *NativeType
 	TypeID() TypeID // deterministic
 	String() string // for dev/debugging
 	Elem() Type     // for TODO... types
 }
 
 type TypeID Hashlet
+
+func (tid TypeID) MarshalAmino() (string, error) {
+	return hex.EncodeToString(tid[:]), nil
+}
+
+func (tid *TypeID) UnmarshalAmino(h string) error {
+	_, err := hex.Decode(tid[:], []byte(h))
+	return err
+}
 
 func (tid TypeID) IsZero() bool {
 	return tid == (TypeID{})
@@ -61,9 +71,10 @@ func (*TypeType) assertType()      {}
 func (*DeclaredType) assertType()  {}
 func (*PackageType) assertType()   {}
 func (*ChanType) assertType()      {}
-func (*nativeType) assertType()    {}
+func (*NativeType) assertType()    {}
 func (blockType) assertType()      {}
 func (*tupleType) assertType()     {}
+func (RefType) assertType()        {}
 
 //----------------------------------------
 // Primitive types
@@ -92,6 +103,56 @@ const (
 	UntypedBigintType
 	BigintType
 )
+
+// Used for converting constant binary expressions.
+// Smaller number means more specific.
+// Spec: "If the untyped operands of a binary operation (other than a shift) are
+// of different kinds, the result is of the operand's kind that appears later
+// in this list: integer, rune, floating-point, complex. For example, an
+// untyped integer constant divided by an untyped complex constant yields an
+// untyped complex constant."
+func (pt PrimitiveType) Specificity() int {
+	switch pt {
+	case InvalidType:
+		panic("invalid type has no specificity")
+	case BoolType:
+		return 0
+	case StringType:
+		return 0
+	case IntType:
+		return 0
+	case Int8Type:
+		return 0
+	case Int16Type:
+		return 0
+	case Int32Type:
+		return 0
+	case Int64Type:
+		return 0
+	case UintType:
+		return 0
+	case Uint8Type, DataByteType:
+		return 0
+	case Uint16Type:
+		return 0
+	case Uint32Type:
+		return 0
+	case Uint64Type:
+		return 0
+	case BigintType:
+		return 1
+	case UntypedBoolType:
+		return 2
+	case UntypedRuneType:
+		return 3
+	case UntypedStringType:
+		return 4
+	case UntypedBigintType:
+		return 4
+	default:
+		panic(fmt.Sprintf("unexpected primitive type %v", pt))
+	}
+}
 
 func (pt PrimitiveType) Kind() Kind {
 	switch pt {
@@ -242,7 +303,13 @@ func (ft FieldType) Kind() Kind {
 }
 
 func (ft FieldType) TypeID() TypeID {
-	panic("see FieldTypeList.TypeID()")
+	s := ""
+	if ft.Name == "" {
+		s += ft.Type.TypeID().String()
+	} else {
+		s += string(ft.Name) + "#" + ft.Type.TypeID().String()
+	}
+	return typeid(s)
 }
 
 func (ft FieldType) String() string {
@@ -474,7 +541,13 @@ func (pt *PointerType) TypeID() TypeID {
 }
 
 func (pt *PointerType) String() string {
-	return fmt.Sprintf("*%s", pt.Elt.String())
+	if pt == nil {
+		panic("invalid nil pointer type")
+	} else if pt.Elt == nil {
+		panic("invalid nil pointer element type")
+	} else {
+		return fmt.Sprintf("*%v", pt.Elt)
+	}
 }
 
 func (pt *PointerType) Elem() Type {
@@ -554,8 +627,8 @@ func (pt *PointerType) FindEmbeddedFieldType(n Name) (
 		} else { // not found
 			return
 		}
-	case *nativeType:
-		npt := &nativeType{
+	case *NativeType:
+		npt := &NativeType{
 			Type: reflect.PtrTo(cet.Type),
 		}
 		return npt.FindEmbeddedFieldType(n)
@@ -802,7 +875,7 @@ func (it *InterfaceType) FindEmbeddedFieldType(n Name) (
 // TODO: optimize somehow.
 func (it *InterfaceType) IsImplementedBy(ot Type) bool {
 	gnot := ot
-	if not, ok := ot.(*nativeType); ok {
+	if not, ok := ot.(*NativeType); ok {
 		gnot = not.GnoType()
 	}
 	for _, im := range it.Methods {
@@ -890,7 +963,6 @@ func (ct *ChanType) Elem() Type {
 // Function type
 
 type FuncType struct {
-	PkgPath string // needed for realm enforcement.
 	Params  []FieldType
 	Results []FieldType
 
@@ -918,7 +990,6 @@ func (ft *FuncType) Kind() Kind {
 func (ft *FuncType) BoundType() *FuncType {
 	if ft.bound == nil {
 		ft.bound = &FuncType{
-			PkgPath: ft.PkgPath,
 			Params:  ft.Params[1:],
 			Results: ft.Results,
 		}
@@ -929,7 +1000,6 @@ func (ft *FuncType) BoundType() *FuncType {
 // unbound function type
 func (ft *FuncType) UnboundType(rft FieldType) *FuncType {
 	return &FuncType{
-		PkgPath: ft.PkgPath,
 		Params:  append([]FieldType{rft}, ft.Params...),
 		Results: ft.Results,
 	}
@@ -1029,7 +1099,6 @@ func (ft *FuncType) Specify(argTVs []TypedValue, isVarg bool) *FuncType {
 		}
 	}
 	return &FuncType{
-		PkgPath: ft.PkgPath,
 		Params:  pfts,
 		Results: rfts,
 	}
@@ -1059,8 +1128,7 @@ func (ft *FuncType) TypeID() TypeID {
 }
 
 func (ft *FuncType) String() string {
-	return fmt.Sprintf("%s.func(%s)(%s)",
-		ft.PkgPath,
+	return fmt.Sprintf("func(%s)(%s)",
 		FieldTypeList(ft.Params).StringWithCommas(),
 		FieldTypeList(ft.Results).StringWithCommas())
 }
@@ -1236,7 +1304,9 @@ func (dt *DeclaredType) GetPathForName(n Name) ValuePath {
 			if i > 2<<16-1 {
 				panic("too many methods")
 			}
-			if fv.Type.HasPointerReceiver() {
+			// NOTE: makes code simple but requires preprocessor's
+			// Store to pre-load method types.
+			if fv.GetType(nil).HasPointerReceiver() {
 				return NewValuePathPtrMethod(uint16(i), n)
 			} else {
 				return NewValuePathValMethod(uint16(i), n)
@@ -1286,14 +1356,18 @@ func (dt *DeclaredType) FindEmbeddedFieldType(n Name) (
 	for i := 0; i < len(dt.Methods); i++ {
 		mv := &dt.Methods[i]
 		if fv := mv.GetFunc(); fv.Name == n {
-			rt := fv.Type.Params[0].Type
+			// NOTE: makes code simple but requires preprocessor's
+			// Store to pre-load method types.
+			rt := fv.GetType(nil).Params[0].Type
 			vp := ValuePath{}
 			if _, ok := rt.(*PointerType); ok {
 				vp = NewValuePathPtrMethod(uint16(i), n)
 			} else {
 				vp = NewValuePathValMethod(uint16(i), n)
 			}
-			bt := fv.Type.BoundType()
+			// NOTE: makes code simple but requires preprocessor's
+			// Store to pre-load method types.
+			bt := fv.GetType(nil).BoundType()
 			return []ValuePath{vp}, false, rt, bt
 		}
 	}
@@ -1370,14 +1444,14 @@ func (dt *DeclaredType) GetValueRefAt(path ValuePath) *TypedValue {
 //----------------------------------------
 // Native type
 
-type nativeType struct {
+type NativeType struct {
 	Type reflect.Type // Go "native" type
 
 	typeid  TypeID
 	gnoType Type // Gno converted type
 }
 
-func (nt *nativeType) Kind() Kind {
+func (nt *NativeType) Kind() Kind {
 	switch nt.Type.Kind() {
 	case reflect.Bool:
 		return BoolKind
@@ -1426,7 +1500,7 @@ func (nt *nativeType) Kind() Kind {
 	}
 }
 
-func (nt *nativeType) TypeID() TypeID {
+func (nt *NativeType) TypeID() TypeID {
 	// like a DeclaredType, but different.
 	if nt.typeid.IsZero() {
 		nt.typeid = typeid("go:%s.%s", nt.Type.PkgPath(), nt.Type.Name())
@@ -1434,15 +1508,15 @@ func (nt *nativeType) TypeID() TypeID {
 	return nt.typeid
 }
 
-func (nt *nativeType) String() string {
+func (nt *NativeType) String() string {
 	return fmt.Sprintf("gonative{%s}", nt.Type.String())
 }
 
 // TODO: memoize?
-func (nt *nativeType) Elem() Type {
+func (nt *NativeType) Elem() Type {
 	switch nt.Type.Kind() {
 	case reflect.Ptr, reflect.Array, reflect.Slice, reflect.Map:
-		return &nativeType{
+		return &NativeType{
 			Type: nt.Type.Elem(),
 		}
 	default:
@@ -1451,14 +1525,14 @@ func (nt *nativeType) Elem() Type {
 	}
 }
 
-func (nt *nativeType) GnoType() Type {
+func (nt *NativeType) GnoType() Type {
 	if nt.gnoType == nil {
 		nt.gnoType = go2GnoType2(nt.Type)
 	}
 	return nt.gnoType
 }
 
-func (nt *nativeType) FindEmbeddedFieldType(n Name) (
+func (nt *NativeType) FindEmbeddedFieldType(n Name) (
 	trail []ValuePath, hasPtr bool, rcvr Type, field Type) {
 
 	// switch on type and maybe match field.
@@ -1514,7 +1588,7 @@ func (nt *nativeType) FindEmbeddedFieldType(n Name) (
 			rcvr = nt
 		} else {
 			if hasPtr {
-				rcvr = &nativeType{
+				rcvr = &NativeType{
 					Type: nt.Type.Elem(),
 				} // XXX inefficient new/alloc.
 			} else {
@@ -1593,6 +1667,29 @@ func (tt *tupleType) String() string {
 
 func (tt *tupleType) Elem() Type {
 	panic("tupleType has no singular elem type")
+}
+
+//----------------------------------------
+// RefType
+
+type RefType struct {
+	ID TypeID
+}
+
+func (_ RefType) Kind() Kind {
+	panic("should not happen")
+}
+
+func (rt RefType) TypeID() TypeID {
+	return rt.ID
+}
+
+func (rt RefType) String() string {
+	return fmt.Sprintf("RefType{%v}", rt.ID)
+}
+
+func (rt RefType) Elem() Type {
+	panic("should not happen")
 }
 
 //----------------------------------------
@@ -1726,7 +1823,7 @@ func KindOf(t Type) Kind {
 		return MapKind
 	case *TypeType:
 		return TypeKind
-	case *nativeType:
+	case *NativeType:
 		return t.Kind()
 	case blockType:
 		return BlockKind
@@ -1828,7 +1925,7 @@ func fillEmbeddedName(ft *FieldType) {
 		switch ct := ct.Elt.(type) {
 		case *DeclaredType:
 			ft.Name = ct.Name
-		case *nativeType:
+		case *NativeType:
 			panic("native type cannot be embedded")
 		default:
 			panic("should not happen")
@@ -1866,7 +1963,7 @@ func fillEmbeddedName(ft *FieldType) {
 		default:
 			panic("should not happen")
 		}
-	case *nativeType:
+	case *NativeType:
 		panic("native type cannot be embedded")
 	default:
 		panic(fmt.Sprintf(
@@ -1893,8 +1990,8 @@ func specifyType(lookup map[Name]Type, tmpl Type, spec Type, specTypeval Type) {
 		switch pt := baseOf(spec).(type) {
 		case *PointerType:
 			specifyType(lookup, ct.Elt, pt.Elt, nil)
-		case *nativeType:
-			et := &nativeType{Type: pt.Type.Elem()}
+		case *NativeType:
+			et := &NativeType{Type: pt.Type.Elem()}
 			specifyType(lookup, ct.Elt, et, nil)
 		default:
 			panic(fmt.Sprintf(
@@ -1905,8 +2002,8 @@ func specifyType(lookup map[Name]Type, tmpl Type, spec Type, specTypeval Type) {
 		switch at := baseOf(spec).(type) {
 		case *ArrayType:
 			specifyType(lookup, ct.Elt, at.Elt, nil)
-		case *nativeType:
-			et := &nativeType{Type: at.Type.Elem()}
+		case *NativeType:
+			et := &NativeType{Type: at.Type.Elem()}
 			specifyType(lookup, ct.Elt, et, nil)
 		default:
 			panic(fmt.Sprintf(
@@ -1935,8 +2032,8 @@ func specifyType(lookup map[Name]Type, tmpl Type, spec Type, specTypeval Type) {
 			}
 		case *SliceType:
 			specifyType(lookup, ct.Elt, st.Elt, nil)
-		case *nativeType:
-			et := &nativeType{Type: st.Type.Elem()}
+		case *NativeType:
+			et := &NativeType{Type: st.Type.Elem()}
 			specifyType(lookup, ct.Elt, et, nil)
 		default:
 			panic(fmt.Sprintf(
@@ -1948,9 +2045,9 @@ func specifyType(lookup map[Name]Type, tmpl Type, spec Type, specTypeval Type) {
 		case *MapType:
 			specifyType(lookup, ct.Key, mt.Key, nil)
 			specifyType(lookup, ct.Value, mt.Value, nil)
-		case *nativeType:
-			kt := &nativeType{Type: mt.Type.Key()}
-			vt := &nativeType{Type: mt.Type.Elem()}
+		case *NativeType:
+			kt := &NativeType{Type: mt.Type.Key()}
+			vt := &NativeType{Type: mt.Type.Elem()}
 			specifyType(lookup, ct.Key, kt, nil)
 			specifyType(lookup, ct.Value, vt, nil)
 		default:
@@ -2079,7 +2176,7 @@ func applySpecifics(lookup map[Name]Type, tmpl Type) (Type, bool) {
 				gx := MustParseExpr(string(ct.Generic))
 				gx = Preprocess(nil, bs, gx).(Expr)
 				// Evalute type from generic expression.
-				m := NewMachine("")
+				m := NewMachine("", nil)
 				tv := m.EvalStatic(bs, gx)
 				return tv.GetType(), true
 			}
@@ -2131,7 +2228,7 @@ func findEmbeddedFieldType(t Type, n Name) (
 		return ct.FindEmbeddedFieldType(n)
 	case *InterfaceType:
 		return ct.FindEmbeddedFieldType(n)
-	case *nativeType:
+	case *NativeType:
 		return ct.FindEmbeddedFieldType(n)
 	default:
 		return nil, false, nil, nil
@@ -2139,7 +2236,7 @@ func findEmbeddedFieldType(t Type, n Name) (
 }
 
 func isNative(t Type) bool {
-	if _, ok := t.(*nativeType); ok {
+	if _, ok := t.(*NativeType); ok {
 		return true
 	} else {
 		return false

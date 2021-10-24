@@ -14,5 +14,5 @@ func main() {
 }
 
 // Output:
-// struct{("hello" string),(slice[(struct{("world" string),(undefined)} main.Node)] []main.Node)}
-// struct{("hello" string),(slice[(struct{("world" string),(slice[(struct{("sunshine" string),(undefined)} main.Node)] []main.Node)} main.Node)] []main.Node)}
+// struct{("hello" string),(slice[(struct{("world" string),(nil []main.Node)} main.Node)] []main.Node)}
+// struct{("hello" string),(slice[(struct{("world" string),(slice[(struct{("sunshine" string),(nil []main.Node)} main.Node)] []main.Node)} main.Node)] []main.Node)}

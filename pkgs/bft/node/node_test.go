@@ -285,7 +285,7 @@ func TestNodeNewNodeCustomReactors(t *testing.T) {
 	n, err := NewNode(config,
 		privval.LoadOrGenFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile()),
 		nodeKey,
-		proxy.DefaultClientCreator(config.ProxyApp, config.ABCI, config.DBDir()),
+		proxy.DefaultClientCreator(nil, config.ProxyApp, config.ABCI, config.DBDir()),
 		DefaultGenesisDocProviderFunc(config),
 		DefaultDBProvider,
 		log.TestingLogger(),

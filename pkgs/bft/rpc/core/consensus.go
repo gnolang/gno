@@ -224,11 +224,10 @@ func DumpConsensusState(ctx *rpctypes.Context) (*ctypes.ResultDumpConsensusState
 		}
 	}
 	// Get self round state.
-	roundState, err := consensusState.GetRoundStateJSON()
-	if err != nil {
-		return nil, err
-	}
+	config := consensusState.GetConfigDeepCopy()
+	roundState := consensusState.GetRoundStateDeepCopy()
 	return &ctypes.ResultDumpConsensusState{
+		Config:     config,
 		RoundState: roundState,
 		Peers:      peerStates}, nil
 }
@@ -282,8 +281,8 @@ func DumpConsensusState(ctx *rpctypes.Context) (*ctypes.ResultDumpConsensusState
 //```
 func ConsensusState(ctx *rpctypes.Context) (*ctypes.ResultConsensusState, error) {
 	// Get self round state.
-	bz, err := consensusState.GetRoundStateSimpleJSON()
-	return &ctypes.ResultConsensusState{RoundState: bz}, err
+	rs := consensusState.GetRoundStateSimple()
+	return &ctypes.ResultConsensusState{RoundState: rs}, nil
 }
 
 // Get the consensus parameters  at the given block height.

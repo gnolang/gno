@@ -1,7 +1,6 @@
 package types
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -134,27 +133,23 @@ func (rs *RoundState) GetHRS() HRS {
 
 // Compressed version of the RoundState for use in RPC
 type RoundStateSimple struct {
-	HeightRoundStep   string          `json:"height/round/step"`
-	StartTime         time.Time       `json:"start_time"`
-	ProposalBlockHash []byte          `json:"proposal_block_hash"`
-	LockedBlockHash   []byte          `json:"locked_block_hash"`
-	ValidBlockHash    []byte          `json:"valid_block_hash"`
-	Votes             json.RawMessage `json:"height_vote_set"`
+	HeightRoundStep   string         `json:"height/round/step"`
+	StartTime         time.Time      `json:"start_time"`
+	ProposalBlockHash []byte         `json:"proposal_block_hash"`
+	LockedBlockHash   []byte         `json:"locked_block_hash"`
+	ValidBlockHash    []byte         `json:"valid_block_hash"`
+	Votes             *HeightVoteSet `json:"height_vote_set"`
 }
 
 // Compress the RoundState to RoundStateSimple
 func (rs *RoundState) RoundStateSimple() RoundStateSimple {
-	votesJSON, err := rs.Votes.MarshalJSON()
-	if err != nil {
-		panic(err)
-	}
 	return RoundStateSimple{
 		HeightRoundStep:   rs.GetHRS().String(),
 		StartTime:         rs.StartTime,
 		ProposalBlockHash: rs.ProposalBlock.Hash(),
 		LockedBlockHash:   rs.LockedBlock.Hash(),
 		ValidBlockHash:    rs.ValidBlock.Hash(),
-		Votes:             votesJSON,
+		Votes:             rs.Votes,
 	}
 }
 

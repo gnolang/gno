@@ -37,7 +37,7 @@ message RequestInitChain {
 	string ChainID = 3;
 	ConsensusParams ConsensusParams = 4;
 	repeated ValidatorUpdate Validators = 5;
-	bytes AppStateBytes = 6;
+	google.protobuf.Any AppState = 6;
 }
 
 message RequestQuery {

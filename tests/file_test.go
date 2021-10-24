@@ -48,16 +48,19 @@ func runCheck(t *testing.T, path string) {
 	if pkgPath == "" {
 		pkgPath = "main"
 	}
-	realmer := testRealmer(pkgPath) // may be nil.
 	pkgName := defaultPkgName(pkgPath)
 	pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
-	pv := pn.NewPackage(realmer)
+	pv := pn.NewPackage()
+	rlm := pv.GetRealm()
+	if rlm != nil {
+		rlm.SetLogRealmOps(true)
+	}
 
 	var output = new(bytes.Buffer)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		Package:  pv,
-		Output:   output,
-		Importer: testImporter(output),
+		Package: pv,
+		Output:  output,
+		Store:   testStore(output),
 	})
 	// TODO support stdlib groups, but make testing safe;
 	// e.g. not be able to make network connections.
@@ -196,23 +199,4 @@ func defaultPkgName(gopkgPath string) gno.Name {
 	name := parts[len(parts)-1]
 	name = strings.ToLower(name)
 	return gno.Name(name)
-}
-
-func testRealmer(testPkgPath string) gno.Realmer {
-	if gno.IsRealmPath(testPkgPath) {
-		// Start blank test realm.
-		rlm := gno.NewRealm(testPkgPath)
-		// Store realm ops in rlm.
-		rlm.SetLogRealmOps(true)
-		return gno.Realmer(func(pkgPath string) *gno.Realm {
-			if pkgPath == testPkgPath {
-				return rlm
-			} else {
-				panic("should not happen")
-			}
-		})
-	} else {
-		// shouldn't need to request a realm.
-		return nil
-	}
 }

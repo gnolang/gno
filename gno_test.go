@@ -13,7 +13,7 @@ import (
 
 // run empty main().
 func TestRunEmptyMain(t *testing.T) {
-	m := NewMachine("test")
+	m := NewMachine("test", nil)
 	main := FuncD("main", nil, nil, nil)
 	m.RunDeclaration(main)
 	m.RunMain()
@@ -21,7 +21,7 @@ func TestRunEmptyMain(t *testing.T) {
 
 // run main() with a for loop.
 func TestRunLoopyMain(t *testing.T) {
-	m := NewMachine("test")
+	m := NewMachine("test", nil)
 	c := `package test
 func main() {
 	for i:=0; i<1000; i++ {
@@ -36,7 +36,7 @@ func main() {
 }
 
 func TestEval(t *testing.T) {
-	m := NewMachine("test")
+	m := NewMachine("test", nil)
 	c := `package test
 func next(i int) int {
 	return i+1
@@ -50,7 +50,7 @@ func next(i int) int {
 func assertOutput(t *testing.T, input string, output string) {
 	buf := new(bytes.Buffer)
 	pn := NewPackageNode("test", ".test", &FileSet{})
-	pkg := pn.NewPackage(nil)
+	pkg := pn.NewPackage()
 	m := NewMachineWithOptions(MachineOptions{
 		Package: pkg,
 		Output:  buf,
@@ -135,7 +135,7 @@ func BenchmarkPreprocess(b *testing.B) {
 }
 
 func BenchmarkLoopyMain(b *testing.B) {
-	m := NewMachine("test")
+	m := NewMachine("test", nil)
 	main := FuncD("main", nil, nil, Ss(
 		A("mx", ":=", "10000000"),
 		For(

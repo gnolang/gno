@@ -252,7 +252,7 @@ func TestIAVLPrefixIterator(t *testing.T) {
 
 	var i int
 
-	iter := types.StorePrefixIterator(iavlStore, []byte("test"))
+	iter := types.PrefixIterator(iavlStore, []byte("test"))
 	expected := []string{"test1", "test2", "test3"}
 	for i = 0; iter.Valid(); iter.Next() {
 		expectedKey := expected[i]
@@ -264,7 +264,7 @@ func TestIAVLPrefixIterator(t *testing.T) {
 	iter.Close()
 	require.Equal(t, len(expected), i)
 
-	iter = types.StorePrefixIterator(iavlStore, []byte{byte(55), byte(255), byte(255)})
+	iter = types.PrefixIterator(iavlStore, []byte{byte(55), byte(255), byte(255)})
 	expected2 := [][]byte{
 		{byte(55), byte(255), byte(255), byte(0)},
 		{byte(55), byte(255), byte(255), byte(1)},
@@ -280,7 +280,7 @@ func TestIAVLPrefixIterator(t *testing.T) {
 	iter.Close()
 	require.Equal(t, len(expected), i)
 
-	iter = types.StorePrefixIterator(iavlStore, []byte{byte(255), byte(255)})
+	iter = types.PrefixIterator(iavlStore, []byte{byte(255), byte(255)})
 	expected2 = [][]byte{
 		{byte(255), byte(255), byte(0)},
 		{byte(255), byte(255), byte(1)},
@@ -314,7 +314,7 @@ func TestIAVLReversePrefixIterator(t *testing.T) {
 
 	var i int
 
-	iter := types.StoreReversePrefixIterator(iavlStore, []byte("test"))
+	iter := types.ReversePrefixIterator(iavlStore, []byte("test"))
 	expected := []string{"test3", "test2", "test1"}
 	for i = 0; iter.Valid(); iter.Next() {
 		expectedKey := expected[i]
@@ -325,7 +325,7 @@ func TestIAVLReversePrefixIterator(t *testing.T) {
 	}
 	require.Equal(t, len(expected), i)
 
-	iter = types.StoreReversePrefixIterator(iavlStore, []byte{byte(55), byte(255), byte(255)})
+	iter = types.ReversePrefixIterator(iavlStore, []byte{byte(55), byte(255), byte(255)})
 	expected2 := [][]byte{
 		{byte(55), byte(255), byte(255), byte(255)},
 		{byte(55), byte(255), byte(255), byte(1)},
@@ -340,7 +340,7 @@ func TestIAVLReversePrefixIterator(t *testing.T) {
 	}
 	require.Equal(t, len(expected), i)
 
-	iter = types.StoreReversePrefixIterator(iavlStore, []byte{byte(255), byte(255)})
+	iter = types.ReversePrefixIterator(iavlStore, []byte{byte(255), byte(255)})
 	expected2 = [][]byte{
 		{byte(255), byte(255), byte(255)},
 		{byte(255), byte(255), byte(1)},

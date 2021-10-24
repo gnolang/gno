@@ -8,7 +8,7 @@ import (
 func NewPool() Pool { return Pool{} }
 
 type Pool struct {
-	p *sync.Pool
+	P *sync.Pool
 }
 
 var _pool = NewPool()

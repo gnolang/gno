@@ -11,11 +11,12 @@ import (
 
 type VerifyOptions struct {
 	BaseOptions
-	DocPath string `flag:"docpath", help:"path of document file to verify"`
+	DocPath string `flag:"docpath" help:"path of document file to verify"`
 }
 
 var DefaultVerifyOptions = VerifyOptions{
-	DocPath: "", // read from stdin.
+	BaseOptions: DefaultBaseOptions,
+	DocPath:     "", // read from stdin.
 }
 
 func verifyApp(cmd *command.Command, args []string, iopts interface{}) error {

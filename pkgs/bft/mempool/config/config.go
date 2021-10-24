@@ -7,13 +7,13 @@ import "github.com/gnolang/gno/pkgs/errors"
 
 // MempoolConfig defines the configuration options for the Tendermint mempool
 type MempoolConfig struct {
-	RootDir            string `mapstructure:"home"`
-	Recheck            bool   `mapstructure:"recheck"`
-	Broadcast          bool   `mapstructure:"broadcast"`
-	WalPath            string `mapstructure:"wal_dir"`
-	Size               int    `mapstructure:"size"`
-	MaxPendingTxsBytes int64  `mapstructure:"max_pending_txs_bytes"`
-	CacheSize          int    `mapstructure:"cache_size"`
+	RootDir            string `toml:"home"`
+	Recheck            bool   `toml:"recheck"`
+	Broadcast          bool   `toml:"broadcast"`
+	WalPath            string `toml:"wal_dir"`
+	Size               int    `toml:"size"`
+	MaxPendingTxsBytes int64  `toml:"max_pending_txs_bytes"`
+	CacheSize          int    `toml:"cache_size"`
 }
 
 // DefaultMempoolConfig returns a default configuration for the Tendermint mempool
@@ -39,7 +39,7 @@ func TestMempoolConfig() *MempoolConfig {
 
 // WalDir returns the full path to the mempool's write-ahead log
 func (cfg *MempoolConfig) WalDir() string {
-	return rootify(cfg.WalPath, cfg.RootDir)
+	return join(cfg.RootDir, cfg.WalPath)
 }
 
 // WalEnabled returns true if the WAL is enabled.

@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"io"
 	"reflect"
-
-	"github.com/davecgh/go-spew/spew"
 )
 
 const be_option_byte = 0x01
@@ -55,7 +53,7 @@ func (cdc *Codec) encodeReflectBinary(w io.Writer, info *TypeInfo, rv reflect.Va
 		panic("not allowed to be called with invalid / zero Value")
 	}
 	if printLog {
-		spew.Printf("(E) encodeReflectBinary(info: %v, rv: %#v (%v), fopts: %v)\n",
+		fmt.Printf("(E) encodeReflectBinary(info: %v, rv: %#v (%v), fopts: %v)\n",
 			info, rv.Interface(), rv.Type(), fopts)
 		defer func() {
 			fmt.Printf("(E) -> err: %v\n", err)

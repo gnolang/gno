@@ -19,14 +19,14 @@ func (m *Machine) doOpEval() {
 		m.PopExpr()
 		if nx.Path.Depth == 0 {
 			// Name is in uverse (global).
-			gv := Uverse().GetPointerTo(nx.Path)
+			gv := Uverse().GetPointerTo(nil, nx.Path)
 			m.PushValue(gv.Deref())
 			return
 		} else {
 			// Get value from scope.
 			lb := m.LastBlock()
 			// Push value, done.
-			ptr := lb.GetPointerTo(nx.Path)
+			ptr := lb.GetPointerTo(m.Store, nx.Path)
 			m.PushValue(ptr.Deref())
 			return
 		}

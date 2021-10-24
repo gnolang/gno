@@ -14,4 +14,4 @@ func main() {
 }
 
 // Output:
-// struct{(undefined)}
+// struct{(struct{(nil *main.T1)} main.T2)}

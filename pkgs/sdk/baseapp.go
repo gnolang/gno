@@ -387,7 +387,7 @@ func (app *BaseApp) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 		return handleQueryCustom(app, path, req)
 	}
 
-	msg := "unknown query path"
+	msg := "unknown query path " + req.Path
 	res.Error = ABCIError(std.ErrUnknownRequest(msg))
 	return
 }
@@ -642,7 +642,7 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode runTxMode) (result Res
 		// each result.
 		data = append(data, msgResult.Data...)
 		events = append(events, msgResult.Events...)
-		// TODO append msgevent
+		// TODO append msgevent from ctx. XXX XXX
 
 		// stop execution and return on first failed message
 		if !msgResult.IsOK() {
@@ -795,7 +795,7 @@ func (app *BaseApp) runTx(mode runTxMode, txBytes []byte, tx Tx) (result Result)
 		if newCtx.IsZero() {
 			panic("newCtx must not be zero")
 		}
-		if abort && result.Error != nil {
+		if abort && result.Error == nil {
 			panic("result.Error should be set for abort")
 		}
 		if abort {

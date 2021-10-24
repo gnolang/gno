@@ -8,6 +8,7 @@ import (
 	"text/template"
 
 	osm "github.com/gnolang/gno/pkgs/os"
+	"github.com/pelletier/go-toml"
 )
 
 // DefaultDirPerm is the default permissions used when creating directories.
@@ -22,34 +23,20 @@ func init() {
 	}
 }
 
+func LoadConfigFile(configFilePath string) *Config {
+	bz, err := ioutil.ReadFile(configFilePath)
+	if err != nil {
+		panic(err)
+	}
+	var config Config
+	err = toml.Unmarshal(bz, &config)
+	if err != nil {
+		panic(err)
+	}
+	return &config
+}
+
 /****** these are for production settings ***********/
-
-// EnsureRoot creates the root, config, and data directories if they don't exist,
-// and panics if it fails.
-func EnsureRoot(rootDir string) {
-	if err := osm.EnsureDir(rootDir, DefaultDirPerm); err != nil {
-		panic(err.Error())
-	}
-	if err := osm.EnsureDir(filepath.Join(rootDir, defaultConfigDir), DefaultDirPerm); err != nil {
-		panic(err.Error())
-	}
-	if err := osm.EnsureDir(filepath.Join(rootDir, defaultDataDir), DefaultDirPerm); err != nil {
-		panic(err.Error())
-	}
-
-	configFilePath := filepath.Join(rootDir, defaultConfigFilePath)
-
-	// Write default config file if missing.
-	if !osm.FileExists(configFilePath) {
-		writeDefaultConfigFile(configFilePath)
-	}
-}
-
-// XXX: this func should probably be called by cmd/tendermint/commands/init.go
-// alongside the writing of the genesis.json and priv_validator.json
-func writeDefaultConfigFile(configFilePath string) {
-	WriteConfigFile(configFilePath, DefaultConfig())
-}
 
 // WriteConfigFile renders config using the template and writes it to configFilePath.
 func WriteConfigFile(configFilePath string, config *Config) {
@@ -62,7 +49,7 @@ func WriteConfigFile(configFilePath string, config *Config) {
 	osm.MustWriteFile(configFilePath, buffer.Bytes(), 0644)
 }
 
-// Note: any changes to the comments/variables/mapstructure
+// Note: any changes to the comments/variables/field-names
 // must be reflected in the appropriate struct in config/config.go
 const defaultConfigTemplate = `# This is a TOML config file.
 # For more information, see https://github.com/toml-lang/toml
@@ -330,7 +317,7 @@ func ResetTestRootWithChainID(testName string, chainID string) *Config {
 
 	// Write default config file if missing.
 	if !osm.FileExists(configFilePath) {
-		writeDefaultConfigFile(configFilePath)
+		WriteConfigFile(configFilePath, DefaultConfig())
 	}
 	if !osm.FileExists(genesisFilePath) {
 		if chainID == "" {
@@ -343,7 +330,7 @@ func ResetTestRootWithChainID(testName string, chainID string) *Config {
 	osm.MustWriteFile(privKeyFilePath, []byte(testPrivValidatorKey), 0644)
 	osm.MustWriteFile(privStateFilePath, []byte(testPrivValidatorState), 0644)
 
-	config := TestConfig().SetRoot(rootDir)
+	config := TestConfig().SetRootDir(rootDir)
 	return config
 }
 
@@ -354,7 +341,7 @@ var testGenesisFmt = `{
     {
       "pub_key": {
         "@type": "/tm.PubKeyEd25519",
-        "value":"AT/+aaL1eB0477Mud9JMm8Sh8BIvOYlPGC9KkIUmFaE="
+        "value": "cVt6w3C1DWYwwkAirnbsL49CoOe8T8ZR2BCB8MeOGRg="
       },
       "power": "10",
       "name": ""
@@ -364,14 +351,14 @@ var testGenesisFmt = `{
 }`
 
 var testPrivValidatorKey = `{
-  "address": "oyWNy/Rdyg3wUpgYcPLRRBo20UU=",
+  "address": "g1uvwz22t0l2fv9az93wutmlusrjv5zdwx2n32d5",
   "pub_key": {
     "@type": "/tm.PubKeyEd25519",
-    "value": "AT/+aaL1eB0477Mud9JMm8Sh8BIvOYlPGC9KkIUmFaE="
+    "value": "cVt6w3C1DWYwwkAirnbsL49CoOe8T8ZR2BCB8MeOGRg="
   },
   "priv_key": {
     "@type": "/tm.PrivKeyEd25519",
-    "value": "EVkqJO/jIXp3rkASXfh9YnyToYXRXhBr6g9cQVxPFnQBP/5povV4HTjvsy530kybxKHwEi85iU8YL0qQhSYVoQ=="
+    "value": "Qq4Q9QH2flPSIJShbXPIocbrQtQ4S7Kdn31uI3sKZoJxW3rDcLUNZjDCQCKuduwvj0Kg57xPxlHYEIHwx44ZGA=="
   }
 }`
 
