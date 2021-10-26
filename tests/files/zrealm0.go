@@ -19,13 +19,13 @@ func main() {
 // vars.
 
 // Realm:
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:1]={
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:2]={
 //     "Blank": {},
 //     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:1",
-//         "ModTime": "2",
-//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:0",
-//         "RefCount": "0"
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
+//         "ModTime": "3",
+//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:1",
+//         "RefCount": "1"
 //     },
 //     "Parent": null,
 //     "Source": {
@@ -48,7 +48,8 @@ func main() {
 //                 "@type": "/gno.fun",
 //                 "Closure": {
 //                     "@type": "/gno.rfv",
-//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2"
+//                     "Escaped": true,
+//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
 //                 },
 //                 "FileName": "files/zrealm0.go",
 //                 "IsMethod": false,

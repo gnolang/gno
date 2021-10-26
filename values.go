@@ -592,16 +592,6 @@ type PackageValue struct {
 	fBlocksMap map[Name]*Block
 }
 
-// Sets pv.ObjectInfo.ID.
-func (pv *PackageValue) Initialize() {
-	if !pv.ObjectInfo.ID.IsZero() {
-		panic("should not happen")
-	}
-	// Set the package's ObjectInfo.ID, thereby making it real.
-	oid := ObjectIDFromPkgPath(pv.PkgPath)
-	pv.ObjectInfo.ID = oid
-}
-
 func (pv *PackageValue) IsRealm() bool {
 	return IsRealmPath(pv.PkgPath)
 }

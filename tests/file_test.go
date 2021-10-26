@@ -101,6 +101,7 @@ func runCheck(t *testing.T, path string) {
 			// whether pv is realm or not, since non-realm
 			// may call realm packages too.
 			store.ClearCache()
+			store.Print()
 			pv2 := pv
 			if pv.IsRealm() {
 				pv2 = store.GetPackage(pkgPath) // load from backend

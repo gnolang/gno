@@ -76,7 +76,7 @@ func RealmIDFromPath(path string) RealmID {
 func ObjectIDFromPkgPath(path string) ObjectID {
 	return ObjectID{
 		RealmID: RealmIDFromPath(path),
-		NewTime: 0, // 0 reserved for package block.
+		NewTime: 1, // by realm logic.
 	}
 }
 
@@ -152,6 +152,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		} else if co.GetIsReal() {
 			rlm.MarkDirty(co)
 		} else {
+			co.SetOwner(po)
 			rlm.MarkNewReal(co)
 		}
 	}
@@ -170,11 +171,18 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 
 func (rlm *Realm) MarkNewReal(oo Object) {
 	if debug {
-		if oo.GetOwner() == nil {
-			panic("should not happen")
-		}
-		if !oo.GetOwner().GetIsReal() {
-			panic("should not happen")
+		if pv, ok := oo.(*PackageValue); ok {
+			// packages should have no owner.
+			if pv.GetOwner() != nil {
+				panic("should not happen")
+			}
+		} else {
+			if oo.GetOwner() == nil {
+				panic("should not happen")
+			}
+			if !oo.GetOwner().GetIsReal() {
+				panic("should not happen")
+			}
 		}
 	}
 	if oo.GetIsNewReal() {
@@ -197,6 +205,9 @@ func (rlm *Realm) MarkDirty(oo Object) {
 	}
 	if oo.GetIsDirty() {
 		return // already marked.
+	}
+	if oo.GetIsNewReal() {
+		return // treat as new-real.
 	}
 	oo.SetIsDirty(true, rlm.Time)
 	// append to .updated
@@ -240,16 +251,11 @@ func (rlm *Realm) MarkEscaped(oo Object) {
 		return // already marked.
 	}
 	oo.SetIsEscaped(true)
-	if oo.GetIsNewReal() {
-		// do not append to .escaped.
-		return
-	} else {
-		// append to .escaped.
-		if rlm.escaped == nil {
-			rlm.escaped = make([]Object, 0, 256)
-		}
-		rlm.escaped = append(rlm.escaped, oo)
+	// append to .escaped.
+	if rlm.escaped == nil {
+		rlm.escaped = make([]Object, 0, 256)
 	}
+	rlm.escaped = append(rlm.escaped, oo)
 }
 
 //----------------------------------------
@@ -284,17 +290,22 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 	rlm.removeDeletedMarksFromUpdated()
 	// at this point, all ref-counts are final.
 	// demote any escaped if ref-count is 1.
-	rlm.demoteEscapedMarks(store)
-	// remove remaining escaped from .created and .updated.
-	rlm.removeEscapedMarksFromUnsaved()
+	rlm.processEscapedMarks(store)
 	if debug {
-		ensureUniq(rlm.created, rlm.updated, rlm.deleted, rlm.escaped)
+		fmt.Println("created", rlm.created)
+		fmt.Println("updated", rlm.updated)
+		fmt.Println("deleted", rlm.deleted)
+		fmt.Println("escaped", rlm.escaped)
+		ensureUniq(rlm.created, rlm.updated, rlm.deleted)
+		ensureUniq(rlm.escaped)
 	}
 	// given created and updated objects,
 	// mark all owned-ancestors also as dirty.
 	rlm.markDirtyAncestors(store)
 	// save all the created and updated objects.
-	// hash calculation is done along the way.
+	// hash calculation is done along the way,
+	// or via escaped-object persistence in
+	// the iavl tree.
 	rlm.saveUnsavedObjects(store)
 	// delete all deleted objects.
 	rlm.removeDeletedObjects(store)
@@ -379,6 +390,15 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 			}
 			continue
 		}
+		if _, ok := child.(*PackageValue); ok {
+			// package values are skipped.
+			if debug {
+				if child.GetRefCount() != 0 {
+					panic("should not happen")
+				}
+				continue
+			}
+		}
 		// increment ref count.
 		child.IncRefCount()
 		// mark NewReal or Escaped.
@@ -394,7 +414,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 		} else if rc > 1 {
 			// NOTE: do not unset owner here,
 			// may become unescaped later
-			// in demoteEscapedMarks().
+			// in processEscapedMarks().
 			// NOTE: may already be escaped.
 			rlm.MarkEscaped(child)
 		} else {
@@ -457,21 +477,26 @@ func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
 }
 
 //----------------------------------------
-// demoteEscapedMarks, removeEscapedMarksFromUnsaved
+// processEscapedMarks
 
-// demotes escaped objects with refcount 0 or 1.
-// remaining objects get their original owners
-// marked dirty (to be further marked via
-// markDirtyAncestors).
-func (rlm *Realm) demoteEscapedMarks(store Store) {
+// demotes new-real escaped objects with refcount 0 or 1.  remaining
+// objects get their original owners marked dirty (to be further
+// marked via markDirtyAncestors).
+func (rlm *Realm) processEscapedMarks(store Store) {
 	e2 := make([]Object, 0, len(rlm.escaped))
+	// These are those marked by MarkEscaped(),
+	// regardless of whether new-real or was real,
+	// but is always newly escaped,
+	// (and never can be unescaped,)
+	// except for new-reals that get demoted
+	// because ref-count isn't >= 2.
 	for _, eo := range rlm.escaped {
 		if debug {
 			if !eo.GetIsEscaped() {
 				panic("should not happen")
 			}
 		}
-		if eo.GetRefCount() <= 1 {
+		if eo.GetIsNewReal() && eo.GetRefCount() <= 1 {
 			// demote; do not add to e2.
 			eo.SetIsEscaped(false)
 		} else {
@@ -496,27 +521,6 @@ func (rlm *Realm) demoteEscapedMarks(store Store) {
 	rlm.escaped = e2
 }
 
-func (rlm *Realm) removeEscapedMarksFromUnsaved() {
-	c2 := make([]Object, 0, len(rlm.created))
-	for _, co := range rlm.created {
-		if co.GetIsEscaped() {
-			// skip
-		} else {
-			c2 = append(c2, co)
-		}
-	}
-	u2 := make([]Object, 0, len(rlm.updated))
-	for _, uo := range rlm.updated {
-		if uo.GetIsEscaped() {
-			// skip
-		} else {
-			u2 = append(u2, uo)
-		}
-	}
-	rlm.created = c2
-	rlm.updated = u2
-}
-
 //----------------------------------------
 // markDirtyAncestors
 
@@ -526,6 +530,16 @@ func (rlm *Realm) removeEscapedMarksFromUnsaved() {
 func (rlm *Realm) markDirtyAncestors(store Store) {
 	markAncestorsOne := func(oo Object) {
 		for {
+			// XXX consider making packagevalue
+			// have refcount 1 by default.
+			if pv, ok := oo.(*PackageValue); ok {
+				if debug {
+					if pv.GetRefCount() != 0 {
+						panic("expected package value to have refcount 0")
+					}
+				}
+				break
+			}
 			rc := oo.GetRefCount()
 			if rc == 0 {
 				panic("should not happen")
@@ -569,15 +583,15 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 
 // Saves .created and .updated objects.
 func (rlm *Realm) saveUnsavedObjects(store Store) {
-	// NOTE: for hashing purposes, saving must happen backwards.
-	for i := len(rlm.updated) - 1; i > 0; i-- {
-		uo := rlm.updated[i]
-		rlm.saveUnsavedObject(store, uo)
-	}
 	// NOTE: doesn't need to happen backwards but we do anyways.
-	for i := len(rlm.created) - 1; i > 0; i-- {
+	for i := len(rlm.created) - 1; i >= 0; i-- {
 		co := rlm.created[i]
 		rlm.saveUnsavedObject(store, co)
+	}
+	// NOTE: for hashing purposes, saving must happen backwards.
+	for i := len(rlm.updated) - 1; i >= 0; i-- {
+		uo := rlm.updated[i]
+		rlm.saveUnsavedObject(store, uo)
 	}
 }
 
@@ -612,7 +626,7 @@ func (rlm *Realm) saveUnsavedObject(store Store, oo Object) {
 }
 
 //----------------------------------------
-// deleteDanglingObjects
+// removeDeletedObjects
 
 func (rlm *Realm) removeDeletedObjects(store Store) {
 	for _, do := range rlm.deleted {

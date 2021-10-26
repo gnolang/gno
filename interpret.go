@@ -228,7 +228,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	// XXX
 	if pv.IsRealm() {
 		rlm := pv.Realm
-		rlm.MarkDirty(pv)
+		rlm.MarkNewReal(pv)
 		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
 	}
 }
@@ -1314,7 +1314,8 @@ func (m *Machine) String() string {
 			bs = append(bs, fmt.Sprintf(" (s vals) %s(%d) %s", gens, gen,
 				sb.StringIndented("            ")))
 			sts := b.GetSource(m.Store).GetStaticBlock().Types
-			bs = append(bs, fmt.Sprintf(" (s typs) %s(%d) %s", gens, gen, sts))
+			bs = append(bs, fmt.Sprintf(" (s typs) %s(%d) %s", gens, gen,
+				sts))
 		}
 		// b = b.Parent.(*Block|RefValue)
 		switch bp := b.Parent.(type) {

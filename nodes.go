@@ -1119,7 +1119,6 @@ func (pn *PackageNode) NewPackage() *PackageValue {
 		FBlocks:    nil,
 		fBlocksMap: make(map[Name]*Block),
 	}
-	pv.Initialize()
 	if IsRealmPath(pn.PkgPath) {
 		rlm := NewRealm(pn.PkgPath)
 		pv.SetRealm(rlm)

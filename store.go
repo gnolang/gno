@@ -6,7 +6,10 @@ import (
 
 	"github.com/gnolang/gno/pkgs/amino"
 	dbm "github.com/gnolang/gno/pkgs/db"
+	"github.com/gnolang/gno/pkgs/iavl"
 )
+
+const iavlCacheSize = 1024 * 1024 // TODO increase and parameterize.
 
 type PackageGetter func(pkgPath string) *PackageValue
 
@@ -34,18 +37,28 @@ type defaultStore struct {
 	cacheTypes   map[TypeID]Type
 	cacheNodes   map[Location]BlockNode
 	backend      dbm.DB
+	iavldb       dbm.DB
+	iavltree     *iavl.MutableTree
 
 	opslog  []StoreOp           // for debugging.
 	current map[string]struct{} // for detecting import cycles.
 }
 
 func NewStore(backend dbm.DB) *defaultStore {
+	var iavldb dbm.DB
+	var iavltree *iavl.MutableTree
+	if backend != nil {
+		iavldb = dbm.NewPrefixDB(backend, []byte("iavl/"))
+		iavltree = iavl.NewMutableTree(iavldb, iavlCacheSize)
+	}
 	ds := &defaultStore{
 		pkgGetter:    nil,
 		cacheObjects: make(map[ObjectID]Object),
 		cacheTypes:   make(map[TypeID]Type),
 		cacheNodes:   make(map[Location]BlockNode),
 		backend:      backend,
+		iavldb:       iavldb,
+		iavltree:     iavltree,
 		current:      make(map[string]struct{}),
 	}
 	SetBuiltinTypes(ds)
@@ -126,6 +139,7 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 }
 
 func (ds *defaultStore) SetObject(oo Object) {
+	oid := oo.GetObjectID()
 	// replace children/fields with Ref.
 	o2 := copyWithRefs(nil, oo)
 	// marshal to binary.
@@ -135,11 +149,10 @@ func (ds *defaultStore) SetObject(oo Object) {
 	oo.SetHash(ValueHash{hash})
 	// save bytes to backend.
 	if ds.backend != nil {
-		key := backendObjectKey(oo.GetObjectID())
+		key := backendObjectKey(oid)
 		ds.backend.Set([]byte(key), bz)
 	}
 	// save object to cache.
-	oid := oo.GetObjectID()
 	if debug {
 		if oid.IsZero() {
 			panic("object id cannot be zero")
@@ -161,6 +174,13 @@ func (ds *defaultStore) SetObject(oo Object) {
 		}
 		ds.opslog = append(ds.opslog,
 			StoreOp{op, o2.(Object)})
+	}
+	// if escaped, add hash to iavl.
+	if oo.GetIsEscaped() {
+		var key, value []byte
+		key = []byte(oid.String())
+		value = hash.Bytes()
+		ds.iavltree.Set(key, value)
 	}
 }
 
@@ -211,11 +231,12 @@ func (ds *defaultStore) GetType(tid TypeID) Type {
 // NOTE: not used quite yet.
 func (ds *defaultStore) SetType(tt Type) {
 	tid := tt.TypeID()
-	if debug {
-		if tt2, exists := ds.cacheTypes[tid]; exists {
-			if tt != tt2 {
-				panic("duplicate type")
-			}
+	// return if tid already known.
+	if tt2, exists := ds.cacheTypes[tid]; exists {
+		if tt != tt2 {
+			// this can happen for a variety of reasons.
+			// TODO classify them and optimize.
+			return
 		}
 	}
 	// save type to backend.
@@ -376,6 +397,7 @@ func SetBuiltinTypes(store Store) {
 		UintType, Uint8Type, Uint16Type, Uint32Type, Uint64Type,
 		BigintType,
 		gTypeType,
+		gPackageType,
 		blockType{},
 		Float32Type, Float64Type,
 	}

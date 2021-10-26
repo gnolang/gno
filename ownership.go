@@ -125,16 +125,16 @@ var _ Object = &MapValue{}
 var _ Object = &Block{}
 
 type ObjectInfo struct {
-	ID       ObjectID  // set if real.
-	Hash     ValueHash `json:",omitempty"` // zero if dirty.
-	OwnerID  ObjectID  `json:",omitempty"` // parent in the ownership tree.
-	ModTime  uint64    // time last updated.
-	RefCount int       // for persistence. deleted/gc'd if 0.
+	ID        ObjectID  // set if real.
+	Hash      ValueHash `json:",omitempty"` // zero if dirty.
+	OwnerID   ObjectID  `json:",omitempty"` // parent in the ownership tree.
+	ModTime   uint64    // time last updated.
+	RefCount  int       // for persistence. deleted/gc'd if 0.
+	IsEscaped bool      `json:",omitempty"` // hash in iavl.
 	// MemRefCount int // consider for optimizations.
 	isNewReal    bool
 	isDirty      bool
 	isDeleted    bool
-	isEscaped    bool
 	isProcessing bool
 
 	// XXX huh?
@@ -150,10 +150,10 @@ func (oi *ObjectInfo) Copy() ObjectInfo {
 		OwnerID:      oi.OwnerID,
 		ModTime:      oi.ModTime,
 		RefCount:     oi.RefCount,
+		IsEscaped:    oi.IsEscaped,
 		isNewReal:    oi.isNewReal,
 		isDirty:      oi.isDirty,
 		isDeleted:    oi.isDeleted,
-		isEscaped:    oi.isEscaped,
 		isProcessing: oi.isProcessing,
 	}
 }
@@ -287,11 +287,11 @@ func (oi *ObjectInfo) SetIsDeleted(x bool, mt uint64) {
 }
 
 func (oi *ObjectInfo) GetIsEscaped() bool {
-	return oi.isEscaped
+	return oi.IsEscaped
 }
 
 func (oi *ObjectInfo) SetIsEscaped(x bool) {
-	oi.isEscaped = x
+	oi.IsEscaped = x
 }
 
 func (oi *ObjectInfo) GetIsProcessing() bool {
@@ -337,6 +337,10 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 		return nil
 	case *Block:
 		return cv
+	case RefValue:
+		oo := store.GetObject(cv.ObjectID)
+		tv.V = oo
+		return oo
 	default:
 		return nil
 	}
