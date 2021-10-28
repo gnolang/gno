@@ -208,7 +208,7 @@ func (m *Machine) doOpReturnFromBlock() {
 	numResults := len(ft.Results)
 	fblock := m.Blocks[fr.NumBlocks] // frame +1
 	for i := 0; i < numResults; i++ {
-		rtv := fillValue(m.Store, &fblock.Values[i+numParams])
+		rtv := fillValueTV(m.Store, &fblock.Values[i+numParams])
 		m.PushValue(*rtv)
 	}
 	// See if we are exiting a realm boundary.

@@ -148,7 +148,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	if co != nil {
 		co.IncRefCount()
 		if co.GetRefCount() > 1 {
-			rlm.MarkEscaped(co)
+			rlm.MarkNewEscaped(co)
 		} else if co.GetIsReal() {
 			rlm.MarkDirty(co)
 		} else {
@@ -238,7 +238,7 @@ func (rlm *Realm) MarkDeleted(oo Object) {
 	rlm.deleted = append(rlm.deleted, oo)
 }
 
-func (rlm *Realm) MarkEscaped(oo Object) {
+func (rlm *Realm) MarkNewEscaped(oo Object) {
 	if debug {
 		if !oo.GetIsNewReal() && !oo.GetIsReal() {
 			panic("should not happen")
@@ -247,10 +247,10 @@ func (rlm *Realm) MarkEscaped(oo Object) {
 			panic("should not happen")
 		}
 	}
-	if oo.GetIsEscaped() {
+	if oo.GetIsNewEscaped() {
 		return // already marked.
 	}
-	oo.SetIsEscaped(true)
+	oo.SetIsNewEscaped(true)
 	// append to .escaped.
 	if rlm.escaped == nil {
 		rlm.escaped = make([]Object, 0, 256)
@@ -391,13 +391,13 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 			continue
 		}
 		if _, ok := child.(*PackageValue); ok {
-			// package values are skipped.
 			if debug {
 				if child.GetRefCount() != 0 {
 					panic("should not happen")
 				}
-				continue
 			}
+			// package values are skipped.
+			continue
 		}
 		// increment ref count.
 		child.IncRefCount()
@@ -416,7 +416,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 			// may become unescaped later
 			// in processEscapedMarks().
 			// NOTE: may already be escaped.
-			rlm.MarkEscaped(child)
+			rlm.MarkNewEscaped(child)
 		} else {
 			panic("should not happen")
 		}
@@ -484,7 +484,7 @@ func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
 // marked via markDirtyAncestors).
 func (rlm *Realm) processEscapedMarks(store Store) {
 	e2 := make([]Object, 0, len(rlm.escaped))
-	// These are those marked by MarkEscaped(),
+	// These are those marked by MarkNewEscaped(),
 	// regardless of whether new-real or was real,
 	// but is always newly escaped,
 	// (and never can be unescaped,)
@@ -492,30 +492,36 @@ func (rlm *Realm) processEscapedMarks(store Store) {
 	// because ref-count isn't >= 2.
 	for _, eo := range rlm.escaped {
 		if debug {
-			if !eo.GetIsEscaped() {
+			if !eo.GetIsNewEscaped() {
 				panic("should not happen")
 			}
 		}
-		if eo.GetIsNewReal() && eo.GetRefCount() <= 1 {
+		eo.SetIsNewEscaped(false)
+		if !eo.GetIsEscaped() && eo.GetRefCount() <= 1 {
 			// demote; do not add to e2.
-			eo.SetIsEscaped(false)
+		} else if eo.GetIsEscaped() {
+			// already escaped, nothing to do.
 		} else {
-			// keep; add to e2,
-			// and also set previous owner as dirty.
+			// escape;
+			eo.SetIsEscaped(true)
+			// add to e2, and mark dirty previous owner.
 			po := getOwner(store, eo)
 			if po == nil {
-				panic("should not happen")
-			}
-			if po.GetRefCount() == 0 {
-				// is deleted, ignore.
+				// e.g. !eo.GetIsNewReal(),
+				// should have no parent.
+				continue
 			} else {
-				rlm.MarkDirty(po)
+				if po.GetRefCount() == 0 {
+					// is deleted, ignore.
+				} else {
+					rlm.MarkDirty(po)
+				}
+				if eo.GetObjectID().IsZero() {
+					panic("should not happen")
+				}
+				eo.SetOwner(nil)
+				e2 = append(e2, eo)
 			}
-			if eo.GetObjectID().IsZero() {
-				panic("should not happen")
-			}
-			eo.SetOwner(nil)
-			e2 = append(e2, eo)
 		}
 	}
 	rlm.escaped = e2
@@ -583,21 +589,34 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 
 // Saves .created and .updated objects.
 func (rlm *Realm) saveUnsavedObjects(store Store) {
-	// NOTE: doesn't need to happen backwards but we do anyways.
-	for i := len(rlm.created) - 1; i >= 0; i-- {
-		co := rlm.created[i]
-		rlm.saveUnsavedObject(store, co)
+	for _, co := range rlm.created {
+		// for i := len(rlm.created) - 1; i >= 0; i-- {
+		// co := rlm.created[i]
+		if !co.GetIsNewReal() {
+			// might have happened already as child
+			// of something else created.
+			continue
+		} else {
+			rlm.saveUnsavedObjectRecursively(store, co)
+		}
 	}
-	// NOTE: for hashing purposes, saving must happen backwards.
-	for i := len(rlm.updated) - 1; i >= 0; i-- {
-		uo := rlm.updated[i]
-		rlm.saveUnsavedObject(store, uo)
+	for _, uo := range rlm.updated {
+		// for i := len(rlm.updated) - 1; i >= 0; i-- {
+		// uo := rlm.updated[i]
+		if !uo.GetIsDirty() {
+			// might have happened already as child
+			// of something else created/dirty.
+			continue
+		} else {
+			rlm.saveUnsavedObjectRecursively(store, uo)
+		}
 	}
 }
 
-func (rlm *Realm) saveUnsavedObject(store Store, oo Object) {
+// store unsaved children first.
+func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 	if debug {
-		if !oo.GetIsReal() && !oo.GetIsDirty() {
+		if !oo.GetIsNewReal() && !oo.GetIsDirty() {
 			panic("should not happen")
 		}
 		// object id should have been assigned during incRefCreatedDescendantsAll.
@@ -605,6 +624,16 @@ func (rlm *Realm) saveUnsavedObject(store Store, oo Object) {
 			panic("should not happen")
 		}
 	}
+	// first, save unsaved children.
+	unsaved := getUnsavedChildObjects(oo)
+	for _, uch := range unsaved {
+		if uch.GetIsEscaped() {
+			// no need to save preemptively.
+		} else {
+			rlm.saveUnsavedObjectRecursively(store, uch)
+		}
+	}
+	// then, save self.
 	if oo.GetIsNewReal() {
 		// save created object.
 		rlm.saveObject(store, oo)
@@ -790,8 +819,10 @@ func getUnsavedTypesTV(tv TypedValue, more []Type) []Type {
 	if tv.T != nil {
 		more = getUnsavedType(tv.T, more)
 	}
-	if tvv, ok := tv.V.(TypeValue); ok {
-		more = append(more, tvv.Type)
+	if _, ok := tv.V.(Object); ok {
+		// do not recurse into objects.
+	} else {
+		more = getUnsavedTypes(tv.V, more)
 	}
 	return more
 }
@@ -1032,71 +1063,84 @@ func copyWithRefs(parent Object, val Value) Value {
 //----------------------------------------
 // fillTypes
 
-func fillType(store Store, ptr *Type) {
+func fillTypePtr(store Store, ptr *Type) {
 	if *ptr != nil {
 		*ptr = store.GetType((*ptr).(RefType).TypeID())
 	}
 }
 
 func fillTypesTV(store Store, tv *TypedValue) {
-	if tv.T != nil {
-		rt := tv.T.(RefType)
-		tv.T = store.GetType(rt.TypeID())
+	if tvt, ok := tv.T.(RefType); ok {
+		tv.T = store.GetType(tvt.TypeID())
 	}
-	if tvv, ok := tv.V.(TypeValue); ok {
-		fillType(store, &tvv.Type)
-		tv.V = tvv // since tvv is not addressable.
-	}
+	tv.V = fillTypes(store, tv.V)
 }
 
-// Partially fills loaded objects shallowly, similarly to getUnsavedTypes.
-// Replaces all RefTypes with corresponding types.
-func fillTypes(store Store, val Value) {
+// Partially fills loaded objects shallowly, similarly to
+// getUnsavedTypes.  Replaces all RefTypes with corresponding types.
+func fillTypes(store Store, val Value) Value {
 	switch cv := val.(type) {
 	case nil: // do nothing
+		return cv
 	case StringValue: // do nothing
+		return cv
 	case BigintValue: // do nothing
+		return cv
 	case DataByteValue: // do nothing
+		return cv
 	case PointerValue:
 		if cv.Base != nil {
 			// cv.Base is object.
 			// fillTypes(store, cv.Base) (wrong)
+			return cv
 		} else {
 			fillTypesTV(store, cv.TV)
+			return cv
 		}
 	case *ArrayValue:
 		for i := 0; i < len(cv.List); i++ {
 			ctv := &cv.List[i]
 			fillTypesTV(store, ctv)
 		}
+		return cv
 	case *SliceValue:
 		fillTypes(store, cv.Base)
+		return cv
 	case *StructValue:
 		for i := 0; i < len(cv.Fields); i++ {
 			ctv := &cv.Fields[i]
 			fillTypesTV(store, ctv)
 		}
+		return cv
 	case *FuncValue:
-		fillType(store, &cv.Type)
-		// XXX delete? (see GetUnsavedTypes()).
-		//fillTypes(store, cv.Closure)
+		fillTypePtr(store, &cv.Type)
+		return cv
 	case *BoundMethodValue:
 		fillTypes(store, cv.Func)
 		fillTypesTV(store, &cv.Receiver)
+		return cv
 	case *MapValue:
 		for cur := cv.List.Head; cur != nil; cur = cur.Next {
 			fillTypesTV(store, &cur.Key)
 			fillTypesTV(store, &cur.Value)
 		}
-	case TypeValue: // do nothing
-	case *PackageValue: // do nothing
+		return cv
+	case TypeValue:
+		fillTypePtr(store, &cv.Type)
+		return cv
+	case *PackageValue:
+		fillTypes(store, cv.Block)
+		return cv
 	case *Block:
 		for i := 0; i < len(cv.Values); i++ {
 			ctv := &cv.Values[i]
 			fillTypesTV(store, ctv)
 		}
+		return cv
 	case *NativeValue:
 		panic("native values not supported")
+	case RefValue: // do nothing
+		return cv
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %v",
@@ -1192,6 +1236,9 @@ func toRefValue(parent Object, val Value) RefValue {
 				if oo.GetRefCount() > 1 {
 					panic("should not happen")
 				}
+				if oo.GetHash().IsZero() {
+					panic("should not happen")
+				}
 			}
 			return RefValue{
 				ObjectID: oo.GetObjectID(),
@@ -1234,7 +1281,7 @@ func refOrCopy(parent Object, tv TypedValue) TypedValue {
 }
 
 func isUnsaved(oo Object) bool {
-	return !oo.GetIsReal() || oo.GetIsDirty()
+	return oo.GetIsNewReal() || oo.GetIsDirty()
 }
 
 func IsRealmPath(pkgPath string) bool {

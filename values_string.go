@@ -50,7 +50,7 @@ func (v PointerValue) String() string {
 	// NOTE: cannot do below, due to recursion problems.
 	// TODO: create a different String2(...) function.
 	// return fmt.Sprintf("&%s", v.TypedValue.String())
-	return fmt.Sprintf("&%p (*%s)", v.TV, v.TV.T.String())
+	return fmt.Sprintf("&%p.(*%s)", v.TV, v.TV.T.String())
 }
 
 func (v *StructValue) String() string {
@@ -139,6 +139,11 @@ func (v *NativeValue) String() string {
 }
 
 func (v RefValue) String() string {
-	return fmt.Sprintf("ref(%v)",
-		v.ObjectID)
+	if v.PkgPath == "" {
+		return fmt.Sprintf("ref(%v)",
+			v.ObjectID)
+	} else {
+		return fmt.Sprintf("ref(%s)",
+			v.PkgPath)
+	}
 }

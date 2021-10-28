@@ -356,7 +356,7 @@ func (m *Machine) doOpExec(op Op) {
 		case -1: // assign list element.
 			next := bs.NextItem
 			if bs.Key != nil {
-				kv := *fillValue(m.Store, &next.Key)
+				kv := *fillValueTV(m.Store, &next.Key)
 				if bs.ListIndex == 0 {
 					switch bs.Op {
 					case ASSIGN:
@@ -374,7 +374,7 @@ func (m *Machine) doOpExec(op Op) {
 				}
 			}
 			if bs.Value != nil {
-				vv := *fillValue(m.Store, &next.Value)
+				vv := *fillValueTV(m.Store, &next.Value)
 				if bs.ListIndex == 0 {
 					switch bs.Op {
 					case ASSIGN:

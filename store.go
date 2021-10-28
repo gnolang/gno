@@ -104,6 +104,9 @@ func (ds *defaultStore) SetPackage(pv *PackageValue) {
 	ds.SetObject(pv)
 }
 
+// NOTE: current implementation behavior requires
+// all []TypedValue types and TypeValue{} types to be
+// loaded (non-ref) types.
 func (ds *defaultStore) GetObject(oid ObjectID) Object {
 	oo := ds.GetObjectSafe(oid)
 	if oo == nil {
@@ -130,7 +133,7 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 						oid, oo.GetObjectID()))
 				}
 			}
-			fillTypes(ds, oo)
+			_ = fillTypes(ds, oo)
 			ds.cacheObjects[oid] = oo
 			return oo
 		}

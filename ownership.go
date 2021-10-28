@@ -109,6 +109,8 @@ type Object interface {
 	SetIsDeleted(bool, uint64)
 	GetIsEscaped() bool
 	SetIsEscaped(bool)
+	GetIsNewEscaped() bool
+	SetIsNewEscaped(bool)
 	GetIsProcessing() bool
 	SetIsProcessing(bool)
 	GetIsTransient() bool
@@ -135,6 +137,7 @@ type ObjectInfo struct {
 	isNewReal    bool
 	isDirty      bool
 	isDeleted    bool
+	isNewEscaped bool
 	isProcessing bool
 
 	// XXX huh?
@@ -154,6 +157,7 @@ func (oi *ObjectInfo) Copy() ObjectInfo {
 		isNewReal:    oi.isNewReal,
 		isDirty:      oi.isDirty,
 		isDeleted:    oi.isDeleted,
+		isNewEscaped: oi.isNewEscaped,
 		isProcessing: oi.isProcessing,
 	}
 }
@@ -292,6 +296,14 @@ func (oi *ObjectInfo) GetIsEscaped() bool {
 
 func (oi *ObjectInfo) SetIsEscaped(x bool) {
 	oi.IsEscaped = x
+}
+
+func (oi *ObjectInfo) GetIsNewEscaped() bool {
+	return oi.isNewEscaped
+}
+
+func (oi *ObjectInfo) SetIsNewEscaped(x bool) {
+	oi.isNewEscaped = x
 }
 
 func (oi *ObjectInfo) GetIsProcessing() bool {
