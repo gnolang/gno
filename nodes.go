@@ -1123,6 +1123,7 @@ func (pn *PackageNode) NewPackage() *PackageValue {
 		rlm := NewRealm(pn.PkgPath)
 		pv.SetRealm(rlm)
 	}
+	pv.IncRefCount() // all package values have starting ref count of 1.
 	pn.PrepareNewValues(pv)
 	return pv
 }

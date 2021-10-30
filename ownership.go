@@ -101,18 +101,18 @@ type Object interface {
 	IncRefCount() int
 	DecRefCount() int
 	GetRefCount() int
-	GetIsNewReal() bool
-	SetIsNewReal(bool)
 	GetIsDirty() bool
 	SetIsDirty(bool, uint64)
-	GetIsDeleted() bool
-	SetIsDeleted(bool, uint64)
 	GetIsEscaped() bool
 	SetIsEscaped(bool)
+	GetIsDeleted() bool
+	SetIsDeleted(bool, uint64)
+	GetIsNewReal() bool
+	SetIsNewReal(bool)
 	GetIsNewEscaped() bool
 	SetIsNewEscaped(bool)
-	GetIsProcessing() bool
-	SetIsProcessing(bool)
+	GetIsNewDeleted() bool
+	SetIsNewDeleted(bool)
 	GetIsTransient() bool
 
 	// Saves to realm along the way if owned, and also (dirty
@@ -134,11 +134,11 @@ type ObjectInfo struct {
 	RefCount  int       // for persistence. deleted/gc'd if 0.
 	IsEscaped bool      `json:",omitempty"` // hash in iavl.
 	// MemRefCount int // consider for optimizations.
-	isNewReal    bool
 	isDirty      bool
 	isDeleted    bool
+	isNewReal    bool
 	isNewEscaped bool
-	isProcessing bool
+	isNewDeleted bool
 
 	// XXX huh?
 	owner Object // mem reference to owner.
@@ -154,15 +154,16 @@ func (oi *ObjectInfo) Copy() ObjectInfo {
 		ModTime:      oi.ModTime,
 		RefCount:     oi.RefCount,
 		IsEscaped:    oi.IsEscaped,
-		isNewReal:    oi.isNewReal,
 		isDirty:      oi.isDirty,
 		isDeleted:    oi.isDeleted,
+		isNewReal:    oi.isNewReal,
 		isNewEscaped: oi.isNewEscaped,
-		isProcessing: oi.isProcessing,
+		isNewDeleted: oi.isNewDeleted,
 	}
 }
 
 func (oi *ObjectInfo) String() string {
+	// XXX update with new flags.
 	return fmt.Sprintf(
 		"OI[%s#%X,owner=%s,refs=%d,new:%v,drt:%v,del:%v]",
 		oi.ID.String(),
@@ -259,14 +260,6 @@ func (oi *ObjectInfo) GetRefCount() int {
 	return oi.RefCount
 }
 
-func (oi *ObjectInfo) GetIsNewReal() bool {
-	return oi.isNewReal
-}
-
-func (oi *ObjectInfo) SetIsNewReal(x bool) {
-	oi.isNewReal = x
-}
-
 func (oi *ObjectInfo) GetIsDirty() bool {
 	return oi.isDirty
 }
@@ -277,6 +270,14 @@ func (oi *ObjectInfo) SetIsDirty(x bool, mt uint64) {
 		oi.ModTime = mt
 	}
 	oi.isDirty = x
+}
+
+func (oi *ObjectInfo) GetIsEscaped() bool {
+	return oi.IsEscaped
+}
+
+func (oi *ObjectInfo) SetIsEscaped(x bool) {
+	oi.IsEscaped = x
 }
 
 func (oi *ObjectInfo) GetIsDeleted() bool {
@@ -290,12 +291,12 @@ func (oi *ObjectInfo) SetIsDeleted(x bool, mt uint64) {
 	oi.isDirty = x
 }
 
-func (oi *ObjectInfo) GetIsEscaped() bool {
-	return oi.IsEscaped
+func (oi *ObjectInfo) GetIsNewReal() bool {
+	return oi.isNewReal
 }
 
-func (oi *ObjectInfo) SetIsEscaped(x bool) {
-	oi.IsEscaped = x
+func (oi *ObjectInfo) SetIsNewReal(x bool) {
+	oi.isNewReal = x
 }
 
 func (oi *ObjectInfo) GetIsNewEscaped() bool {
@@ -306,12 +307,12 @@ func (oi *ObjectInfo) SetIsNewEscaped(x bool) {
 	oi.isNewEscaped = x
 }
 
-func (oi *ObjectInfo) GetIsProcessing() bool {
-	return oi.isProcessing
+func (oi *ObjectInfo) GetIsNewDeleted() bool {
+	return oi.isNewDeleted
 }
 
-func (oi *ObjectInfo) SetIsProcessing(x bool) {
-	oi.isProcessing = x
+func (oi *ObjectInfo) SetIsNewDeleted(x bool) {
+	oi.isNewDeleted = x
 }
 
 func (oi *ObjectInfo) GetIsTransient() bool {

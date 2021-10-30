@@ -225,7 +225,6 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	}
 
 	// Set realm package in store.
-	// XXX
 	if pv.IsRealm() {
 		rlm := pv.Realm
 		rlm.MarkNewReal(pv)

@@ -23,9 +23,9 @@ func main() {
 //     "Blank": {},
 //     "ObjectInfo": {
 //         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
+//         "IsEscaped": true,
 //         "ModTime": "3",
-//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:1",
-//         "RefCount": "1"
+//         "RefCount": "2"
 //     },
 //     "Parent": null,
 //     "Source": {

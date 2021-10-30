@@ -88,6 +88,10 @@ type Realm struct {
 	Path string
 	Time uint64
 
+	newCreated []Object
+	newEscaped []Object
+	newDeleted []Object
+
 	created []Object // about to become real.
 	updated []Object // real objects that were modified.
 	deleted []Object // real objects that became deleted.
@@ -141,14 +145,17 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		return // do nothing.
 	}
 	// From here on, po is real (not new-real).
-	// Updates to .created/.updated/.deleted here
-	// are called "first generation".
-	// More appends happen during FinalizeRealmTransactions().
+	// Updates to .newCreated/.newEscaped /.newDeleted made here. (first gen)
+	// More appends happen during FinalizeRealmTransactions(). (second+ gen)
 	rlm.MarkDirty(po)
 	if co != nil {
 		co.IncRefCount()
 		if co.GetRefCount() > 1 {
-			rlm.MarkNewEscaped(co)
+			if co.GetIsEscaped() {
+				// already escaped
+			} else {
+				rlm.MarkNewEscaped(co)
+			}
 		} else if co.GetIsReal() {
 			rlm.MarkDirty(co)
 		} else {
@@ -160,7 +167,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		xo.DecRefCount()
 		if xo.GetRefCount() == 0 {
 			if xo.GetIsNewReal() || xo.GetIsReal() {
-				rlm.MarkDeleted(xo)
+				rlm.MarkNewDeleted(xo)
 			}
 		}
 	}
@@ -176,6 +183,10 @@ func (rlm *Realm) MarkNewReal(oo Object) {
 			if pv.GetOwner() != nil {
 				panic("should not happen")
 			}
+			// packages should have ref-count 1.
+			if pv.GetRefCount() != 1 {
+				panic("should not happen")
+			}
 		} else {
 			if oo.GetOwner() == nil {
 				panic("should not happen")
@@ -189,11 +200,11 @@ func (rlm *Realm) MarkNewReal(oo Object) {
 		return // already marked.
 	}
 	oo.SetIsNewReal(true)
-	// append to .created
-	if rlm.created == nil {
-		rlm.created = make([]Object, 0, 256)
+	// append to .newCreated
+	if rlm.newCreated == nil {
+		rlm.newCreated = make([]Object, 0, 256)
 	}
-	rlm.created = append(rlm.created, oo)
+	rlm.newCreated = append(rlm.newCreated, oo)
 
 }
 
@@ -217,25 +228,24 @@ func (rlm *Realm) MarkDirty(oo Object) {
 	rlm.updated = append(rlm.updated, oo)
 }
 
-func (rlm *Realm) MarkDeleted(oo Object) {
+func (rlm *Realm) MarkNewDeleted(oo Object) {
 	if debug {
 		if !oo.GetIsNewReal() && !oo.GetIsReal() {
 			panic("should not happen")
 		}
+		if oo.GetIsDeleted() {
+			panic("should not happen")
+		}
 	}
-	if oo.GetIsDeleted() {
+	if oo.GetIsNewDeleted() {
 		return // already marked.
 	}
-	// NOTE: do not increment rlm.Time.
-	// rlm.Time is passed in for debugging purposes.
-	oo.SetIsDeleted(true, rlm.Time)
-	//----------------------------------------
-	// rlm != nil
-	// append to .deleted
-	if rlm.deleted == nil {
-		rlm.deleted = make([]Object, 0, 256)
+	oo.SetIsNewDeleted(true)
+	// append to .newDeleted
+	if rlm.newDeleted == nil {
+		rlm.newDeleted = make([]Object, 0, 256)
 	}
-	rlm.deleted = append(rlm.deleted, oo)
+	rlm.newDeleted = append(rlm.newDeleted, oo)
 }
 
 func (rlm *Realm) MarkNewEscaped(oo Object) {
@@ -246,16 +256,19 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 		if oo.GetIsDeleted() {
 			panic("should not happen")
 		}
+		if oo.GetIsEscaped() {
+			panic("should not happen")
+		}
 	}
 	if oo.GetIsNewEscaped() {
 		return // already marked.
 	}
 	oo.SetIsNewEscaped(true)
-	// append to .escaped.
-	if rlm.escaped == nil {
-		rlm.escaped = make([]Object, 0, 256)
+	// append to .newEscaped.
+	if rlm.newEscaped == nil {
+		rlm.newEscaped = make([]Object, 0, 256)
 	}
-	rlm.escaped = append(rlm.escaped, oo)
+	rlm.newEscaped = append(rlm.newEscaped, oo)
 }
 
 //----------------------------------------
@@ -264,7 +277,11 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 // OpReturn calls this when exiting a realm transaction.
 func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 	if readonly {
-		if len(rlm.created) > 0 ||
+		if true ||
+			len(rlm.newCreated) > 0 ||
+			len(rlm.newEscaped) > 0 ||
+			len(rlm.newDeleted) > 0 ||
+			len(rlm.created) > 0 ||
 			len(rlm.updated) > 0 ||
 			len(rlm.deleted) > 0 ||
 			len(rlm.escaped) > 0 {
@@ -273,25 +290,37 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 		return
 	}
 	if debug {
-		ensureUniq(rlm.created)
+		// * newCreated - may become created unless ancestor is deleted
+		// * newDeleted - may become deleted unless attached to new-real owner
+		// * newEscaped - may become escaped unless new-real and refcount 0 or 1.
+		// * updated - includes all real updated objects, and will be appended with ancestors
+		ensureUniq(rlm.newCreated)
+		ensureUniq(rlm.newEscaped)
+		ensureUniq(rlm.newDeleted)
 		ensureUniq(rlm.updated)
-		ensureUniq(rlm.deleted)
-		ensureUniq(rlm.escaped)
+		if false ||
+			rlm.created != nil ||
+			rlm.deleted != nil ||
+			rlm.escaped != nil {
+			panic("should not happen")
+		}
 	}
-	// remove (marked) deleted objects from .created.
-	rlm.removeDeletedMarksFromCreated()
+
 	// increment recursively for created descendants.
 	// also assigns object ids for all.
-	rlm.incRefCreatedDescendantsAll(store)
+	rlm.processNewCreatedMarks(store)
 	// decrement recursively for deleted descendants.
-	rlm.decRefDeletedDescendantsAll(store)
-	// remove (marked) deleted objects from .created and .updated.
-	rlm.removeDeletedMarksFromCreated()
-	rlm.removeDeletedMarksFromUpdated()
+	rlm.processNewDeletedMarks(store)
 	// at this point, all ref-counts are final.
 	// demote any escaped if ref-count is 1.
-	rlm.processEscapedMarks(store)
+	rlm.processNewEscapedMarks(store)
+	// given created and updated objects,
+	// mark all owned-ancestors also as dirty.
+	rlm.markDirtyAncestors(store)
 	if debug {
+		fmt.Println("newCreated", rlm.newCreated)
+		fmt.Println("newEscaped", rlm.newEscaped)
+		fmt.Println("newDeleted", rlm.newDeleted)
 		fmt.Println("created", rlm.created)
 		fmt.Println("updated", rlm.updated)
 		fmt.Println("deleted", rlm.deleted)
@@ -299,9 +328,6 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 		ensureUniq(rlm.created, rlm.updated, rlm.deleted)
 		ensureUniq(rlm.escaped)
 	}
-	// given created and updated objects,
-	// mark all owned-ancestors also as dirty.
-	rlm.markDirtyAncestors(store)
 	// save all the created and updated objects.
 	// hash calculation is done along the way,
 	// or via escaped-object persistence in
@@ -314,109 +340,95 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 }
 
 //----------------------------------------
-// removeDeletedMarksFrom(Created|Updated)
-
-// removes deleted objects from created.
-func (rlm *Realm) removeDeletedMarksFromCreated() {
-	c2 := make([]Object, 0, len(rlm.created))
-	for _, co := range rlm.created {
-		if co.GetIsDeleted() {
-			// ignore deleted.
-		} else {
-			c2 = append(c2, co)
-		}
-	}
-	rlm.created = c2
-}
-
-// removes deleted objects from updated.
-func (rlm *Realm) removeDeletedMarksFromUpdated() {
-	u2 := make([]Object, 0, len(rlm.updated))
-	for _, uo := range rlm.updated {
-		if uo.GetIsDeleted() {
-			// ignore deleted.
-		} else {
-			u2 = append(u2, uo)
-		}
-	}
-	rlm.updated = u2
-}
-
-//----------------------------------------
-// incRefCreatedDescendants(All)
+// processNewCreatedMarks
 
 // Crawls marked created children and increments ref counts,
 // finding more newly created objects recursively.
-// Recursively found newly created objects are appended to
-// rlm.created.
-func (rlm *Realm) incRefCreatedDescendantsAll(store Store) {
-	for _, oo := range rlm.created {
-		// NOTE: more elements will be appended to .created,
-		// but those are not encountered in this loop.
-		rlm.incRefCreatedDescendants(store, oo)
+// All newly created objects become appended to .created,
+// and get assigned ids.
+func (rlm *Realm) processNewCreatedMarks(store Store) {
+	for _, oo := range rlm.newCreated {
+		if debug {
+			if oo.GetIsDirty() {
+				panic("should not happen")
+			}
+		}
+		if oo.GetRefCount() == 0 {
+			if debug {
+				if !oo.GetIsNewDeleted() {
+					panic("should have been marked new-deleted")
+				}
+			}
+			// No need to unmark, will be garbage collected.
+			// oo.SetIsNewReal(false)
+			// skip if became deleted.
+			continue
+		} else {
+			rlm.incRefCreatedDescendants(store, oo)
+		}
 	}
 }
 
 // oo must be marked new-real, and ref-count already incremented.
 func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	if debug {
-		if oo.GetIsProcessing() {
-			panic("should not happen")
-		}
-		if !oo.GetIsNewReal() {
-			panic("should not happen")
-		}
-		if !oo.GetObjectID().IsZero() {
-			panic("should not happen")
-		}
 		if oo.GetIsDirty() {
 			panic("should not happen")
 		}
+		if oo.GetRefCount() <= 0 {
+			panic("should not happen")
+		}
 	}
-	oo.SetIsProcessing(true)
-	defer oo.SetIsProcessing(false)
-	// assign new object id.
+
+	// RECURSE GUARD
+	// if id already set, skip.
+	// this happens when a node marked created was already
+	// visited via recursion from a prior marked created.
+	if !oo.GetObjectID().IsZero() {
+		return
+	}
 	rlm.assignNewObjectID(oo)
+	rlm.created = append(rlm.created, oo)
+	// RECURSE GUARD END
+
 	// recurse for children.
 	more := getChildObjects2(store, oo)
 	for _, child := range more {
-		if child.GetIsProcessing() {
-			// Circular reference examples:
-			// block -> fileblock -> fileblock.parent
-			// They are OK for certain objects,
-			// and are accounted for in RefCount.
-			if child.GetObjectID().IsZero() {
-				panic("should not happen")
-			}
-			continue
-		}
 		if _, ok := child.(*PackageValue); ok {
 			if debug {
-				if child.GetRefCount() != 0 {
+				if child.GetRefCount() < 1 {
 					panic("should not happen")
 				}
 			}
 			// package values are skipped.
 			continue
 		}
-		// increment ref count.
 		child.IncRefCount()
-		// mark NewReal or Escaped.
 		rc := child.GetRefCount()
 		if rc == 1 {
-			// NOTE: may already be marked for first gen.
-			child.SetOwner(oo)
-			rlm.MarkNewReal(child)
-			// NOTE: recursion must happen after marking, so that
-			// hash calculation can be done by scanning
-			// .updated backwards (followed by .created).
-			rlm.incRefCreatedDescendants(store, child)
+			if child.GetIsReal() {
+				// a deleted real became undeleted.
+				child.SetOwner(oo)
+				rlm.MarkDirty(child)
+			} else {
+				// a (possibly pre-existing) new object
+				// became real (again).
+				// NOTE: may already be marked for first gen
+				// newCreated or updated.
+				child.SetOwner(oo)
+				rlm.incRefCreatedDescendants(store, child)
+				child.SetIsNewReal(true)
+			}
 		} else if rc > 1 {
-			// NOTE: do not unset owner here,
-			// may become unescaped later
-			// in processEscapedMarks().
-			// NOTE: may already be escaped.
-			rlm.MarkNewEscaped(child)
+			if child.GetIsEscaped() {
+				// already escaped, do nothing.
+			} else {
+				// NOTE: do not unset owner here,
+				// may become unescaped later
+				// in processNewEscapedMarks().
+				// NOTE: may already be escaped.
+				rlm.MarkNewEscaped(child)
+			}
 		} else {
 			panic("should not happen")
 		}
@@ -424,49 +436,56 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 }
 
 //----------------------------------------
-// decRefCreatedDescendants(All)
+// processNewDeletedMarks
 
 // Crawls marked deleted children and decrements ref counts,
 // finding more newly deleted objects, recursively.
 // Recursively found deleted objects are appended
 // to rlm.deleted.
-// Must run *after* incRefCreatedDescendantsAll().
-func (rlm *Realm) decRefDeletedDescendantsAll(store Store) {
-	for _, oo := range rlm.deleted {
-		// NOTE: more elements will be appended to .deleted,
-		// but those are not encountered in this loop.
-		rlm.decRefDeletedDescendants(store, oo)
+// Must run *after* processNewCreatedMarks().
+func (rlm *Realm) processNewDeletedMarks(store Store) {
+	for _, oo := range rlm.newDeleted {
+		if oo.GetRefCount() > 0 {
+			oo.SetIsNewDeleted(false)
+			// skip if became undeleted.
+			continue
+		} else {
+			rlm.decRefDeletedDescendants(store, oo)
+		}
 	}
 }
 
 // Like incRefCreatedDescendants but decrements.
 func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
 	if debug {
-		if oo.GetIsProcessing() {
-			panic("should not happen")
-		}
 		if oo.GetObjectID().IsZero() {
 			panic("should not happen")
 		}
+		if oo.GetRefCount() != 0 {
+			panic("should not happen")
+		}
 	}
-	oo.SetIsProcessing(true)
-	defer oo.SetIsProcessing(false)
+
+	// RECURSE GUARD
+	// if already deleted, skip.
+	// this happens when a node marked deleted was already
+	// deleted via recursion from a prior marked deleted.
+	if oo.GetIsDeleted() {
+		return
+	}
+	oo.SetIsNewDeleted(false)
+	oo.SetIsNewReal(false)
+	oo.SetIsNewEscaped(false)
+	oo.SetIsDeleted(true, rlm.Time)
+	rlm.deleted = append(rlm.deleted, oo)
+	// RECURSE GUARD END
+
 	// recurse for children
 	more := getChildObjects2(store, oo)
 	for _, child := range more {
-		if child.GetIsProcessing() {
-			// this circularity should not be true,
-			// otherwise refcount wouldn't be zero.
-			panic("should not happen")
-		}
-		// decrement ref count.
 		child.DecRefCount()
-		// mark deleted if deleted.
 		rc := child.GetRefCount()
 		if rc == 0 {
-			// NOTE: may already be marked for first gen.
-			// NOTE: may also be marked created or updated.
-			rlm.MarkDeleted(child)
 			rlm.decRefDeletedDescendants(store, child)
 		} else if rc > 0 {
 			// do nothing
@@ -477,34 +496,41 @@ func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
 }
 
 //----------------------------------------
-// processEscapedMarks
+// processNewEscapedMarks
 
 // demotes new-real escaped objects with refcount 0 or 1.  remaining
 // objects get their original owners marked dirty (to be further
 // marked via markDirtyAncestors).
-func (rlm *Realm) processEscapedMarks(store Store) {
-	e2 := make([]Object, 0, len(rlm.escaped))
+func (rlm *Realm) processNewEscapedMarks(store Store) {
+	escaped := make([]Object, 0, len(rlm.newEscaped))
 	// These are those marked by MarkNewEscaped(),
 	// regardless of whether new-real or was real,
 	// but is always newly escaped,
 	// (and never can be unescaped,)
 	// except for new-reals that get demoted
 	// because ref-count isn't >= 2.
-	for _, eo := range rlm.escaped {
+	for _, eo := range rlm.newEscaped {
 		if debug {
 			if !eo.GetIsNewEscaped() {
 				panic("should not happen")
 			}
+			if eo.GetIsEscaped() {
+				panic("should not happen")
+			}
 		}
-		eo.SetIsNewEscaped(false)
-		if !eo.GetIsEscaped() && eo.GetRefCount() <= 1 {
-			// demote; do not add to e2.
-		} else if eo.GetIsEscaped() {
-			// already escaped, nothing to do.
+		if eo.GetRefCount() <= 1 {
+			// demote; do not add to escaped.
+			eo.SetIsNewEscaped(false)
+			continue
 		} else {
 			// escape;
-			eo.SetIsEscaped(true)
-			// add to e2, and mark dirty previous owner.
+			// NOTE: do not unset new-escaped,
+			// we do that upon actually persisting
+			// the hash index.
+			// eo.SetIsNewEscaped(false)
+			escaped = append(escaped, eo)
+
+			// add to escaped, and mark dirty previous owner.
 			po := getOwner(store, eo)
 			if po == nil {
 				// e.g. !eo.GetIsNewReal(),
@@ -513,18 +539,21 @@ func (rlm *Realm) processEscapedMarks(store Store) {
 			} else {
 				if po.GetRefCount() == 0 {
 					// is deleted, ignore.
+				} else if po.GetIsNewReal() {
+					// will be saved regardless.
 				} else {
+					// exists, mark dirty.
 					rlm.MarkDirty(po)
 				}
 				if eo.GetObjectID().IsZero() {
 					panic("should not happen")
 				}
+				// escaped has no owner.
 				eo.SetOwner(nil)
-				e2 = append(e2, eo)
 			}
 		}
 	}
-	rlm.escaped = e2
+	rlm.escaped = escaped // XXX is this actually used?
 }
 
 //----------------------------------------
@@ -536,40 +565,53 @@ func (rlm *Realm) processEscapedMarks(store Store) {
 func (rlm *Realm) markDirtyAncestors(store Store) {
 	markAncestorsOne := func(oo Object) {
 		for {
-			// XXX consider making packagevalue
-			// have refcount 1 by default.
 			if pv, ok := oo.(*PackageValue); ok {
 				if debug {
-					if pv.GetRefCount() != 0 {
-						panic("expected package value to have refcount 0")
+					if pv.GetRefCount() < 1 {
+						panic("expected package value to have refcount 1 or greater")
 					}
 				}
+				// package values have no ancestors.
 				break
 			}
 			rc := oo.GetRefCount()
-			if rc == 0 {
-				panic("should not happen")
-			} else if rc > 1 {
-				// object is escaped, so
-				// it has no parent.
+			if debug {
+				if rc == 0 {
+					panic("should not happen")
+				}
+			}
+			if rc > 1 {
 				if debug {
-					if !oo.GetIsEscaped() {
+					if !oo.GetIsEscaped() && !oo.GetIsNewEscaped() {
 						panic("should not happen")
 					}
 					if !oo.GetOwnerID().IsZero() {
 						panic("should not happen")
 					}
 				}
+				// object is escaped, so
+				// it has no parent.
 				break
-			}
-			// rc == 1
+			} // else, rc == 1
+
 			po := getOwner(store, oo)
 			if po == nil {
 				break // no more owners.
+			} else if po.GetIsNewReal() {
+				// already will be marked
+				// via call to markAncestorsOne
+				// via .created.
+				break
+			} else if po.GetIsDirty() {
+				// already will be marked
+				// via call to markAncestorsOne
+				// via .updated.
+				break
+			} else {
+				rlm.MarkDirty(po)
+				// next case
+				oo = po
 			}
-			rlm.MarkDirty(po)
-			// next case
-			oo = po
 		}
 	}
 	// NOTE: newly dirty-marked owners get appended
@@ -619,15 +661,22 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		if !oo.GetIsNewReal() && !oo.GetIsDirty() {
 			panic("should not happen")
 		}
-		// object id should have been assigned during incRefCreatedDescendantsAll.
+		// object id should have been assigned during processNewCreatedMarks.
 		if oo.GetObjectID().IsZero() {
+			panic("should not happen")
+		}
+		// deleted objects should not have gotten here.
+		if false ||
+			oo.GetRefCount() <= 0 ||
+			oo.GetIsNewDeleted() ||
+			oo.GetIsDeleted() {
 			panic("should not happen")
 		}
 	}
 	// first, save unsaved children.
 	unsaved := getUnsavedChildObjects(oo)
 	for _, uch := range unsaved {
-		if uch.GetIsEscaped() {
+		if uch.GetIsEscaped() || uch.GetIsNewEscaped() {
 			// no need to save preemptively.
 		} else {
 			rlm.saveUnsavedObjectRecursively(store, uch)
@@ -636,9 +685,13 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 	// then, save self.
 	if oo.GetIsNewReal() {
 		// save created object.
+		if debug {
+			if oo.GetIsDirty() {
+				panic("should not happen")
+			}
+		}
 		rlm.saveObject(store, oo)
 		oo.SetIsNewReal(false)
-		oo.SetIsDirty(false, 0)
 	} else {
 		// update existing object.
 		if debug {
@@ -648,9 +701,38 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 			if !oo.GetIsReal() {
 				panic("should not happen")
 			}
+			if oo.GetIsNewReal() {
+				panic("should not happen")
+			}
 		}
 		rlm.saveObject(store, oo)
 		oo.SetIsDirty(false, 0)
+	}
+}
+
+func (rlm *Realm) saveObject(store Store, oo Object) {
+	oid := oo.GetObjectID()
+	if oid.IsZero() {
+		panic("unexpected zero object id")
+	}
+	// scan for any types.
+	types := getUnsavedTypes(oo, nil)
+	for _, typ := range types {
+		store.SetType(typ)
+	}
+	// set hash to escape index.
+	if oo.GetIsNewEscaped() {
+		oo.SetIsNewEscaped(false)
+		oo.SetIsEscaped(true)
+		// XXX anything else to do?
+	}
+	// set object to store.
+	// NOTE: also sets the hash to object.
+	store.SetObject(oo)
+	// set index.
+	if oo.GetIsEscaped() {
+		// XXX save iod->hash to iavl.
+		fmt.Println("XXX save hash to iavl")
 	}
 }
 
@@ -667,6 +749,28 @@ func (rlm *Realm) removeDeletedObjects(store Store) {
 // clearMarks
 
 func (rlm *Realm) clearMarks() {
+	// sanity check
+	if debug {
+		for _, oo := range rlm.newDeleted {
+			if oo.GetIsNewDeleted() {
+				panic("should not happen")
+			}
+		}
+		for _, oo := range rlm.newCreated {
+			if oo.GetIsNewReal() {
+				panic("should not happen")
+			}
+		}
+		for _, oo := range rlm.newEscaped {
+			if oo.GetIsNewEscaped() {
+				panic("should not happen")
+			}
+		}
+	}
+	// reset
+	rlm.newCreated = nil
+	rlm.newEscaped = nil
+	rlm.newDeleted = nil
 	rlm.created = nil
 	rlm.updated = nil
 	rlm.deleted = nil
@@ -1177,20 +1281,6 @@ func (rlm *Realm) assignNewObjectID(oo Object) ObjectID {
 	return noid
 }
 
-func (rlm *Realm) saveObject(store Store, oo Object) {
-	oid := oo.GetObjectID()
-	if oid.IsZero() {
-		panic("unexpected zero object id")
-	}
-	// scan for any types.
-	types := getUnsavedTypes(oo, nil)
-	for _, typ := range types {
-		store.SetType(typ)
-	}
-	// set object to store.
-	store.SetObject(oo)
-}
-
 //----------------------------------------
 // Misc.
 
@@ -1220,7 +1310,14 @@ func toRefValue(parent Object, val Value) RefValue {
 			// references.
 			// panic("unexpected dirty object")
 		}
-		if oo.GetIsEscaped() {
+		if oo.GetIsNewEscaped() {
+			// NOTE: oo.GetOwnerID() will become zero.
+			return RefValue{
+				ObjectID: oo.GetObjectID(),
+				Escaped:  true,
+				// Hash: nil,
+			}
+		} else if oo.GetIsEscaped() {
 			if debug {
 				if !oo.GetOwnerID().IsZero() {
 					panic("should not happen")

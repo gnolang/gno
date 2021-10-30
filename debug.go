@@ -9,7 +9,7 @@ import (
 // so it is still faster to first check the truth value
 // before calling debug.Println or debug.Printf.
 
-const debug debugging = false //false // or flip
+const debug debugging = true //false // or flip
 
 type debugging bool
 

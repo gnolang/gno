@@ -123,8 +123,10 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 	// check backend.
 	if ds.backend != nil {
 		key := backendObjectKey(oid)
-		bz := ds.backend.Get([]byte(key))
-		if bz != nil {
+		hashbz := ds.backend.Get([]byte(key))
+		if hashbz != nil {
+			hash := hashbz[:HashSize]
+			bz := hashbz[HashSize:]
 			var oo Object
 			amino.MustUnmarshal(bz, &oo)
 			if debug {
@@ -134,6 +136,7 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 				}
 			}
 			_ = fillTypes(ds, oo)
+			oo.SetHash(ValueHash{NewHashlet(hash)})
 			ds.cacheObjects[oid] = oo
 			return oo
 		}
@@ -149,11 +152,17 @@ func (ds *defaultStore) SetObject(oo Object) {
 	bz := amino.MustMarshalAny(o2)
 	// set hash.
 	hash := HashBytes(bz) // XXX objectHash(bz)???
+	if len(hash) != HashSize {
+		panic("should not happen")
+	}
 	oo.SetHash(ValueHash{hash})
 	// save bytes to backend.
 	if ds.backend != nil {
 		key := backendObjectKey(oid)
-		ds.backend.Set([]byte(key), bz)
+		hashbz := make([]byte, len(hash)+len(bz))
+		copy(hashbz, hash.Bytes())
+		copy(hashbz[HashSize:], bz)
+		ds.backend.Set([]byte(key), hashbz)
 	}
 	// save object to cache.
 	if debug {

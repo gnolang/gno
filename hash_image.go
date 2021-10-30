@@ -30,6 +30,15 @@ const HashSize = 20
 
 type Hashlet [HashSize]byte
 
+func NewHashlet(bz []byte) Hashlet {
+	res := Hashlet{}
+	if len(bz) != HashSize {
+		panic("invalid input size")
+	}
+	copy(res[:], bz)
+	return res
+}
+
 func (h Hashlet) Copy() Hashlet {
 	return h
 }
