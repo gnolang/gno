@@ -92,9 +92,11 @@ func runCheck(t *testing.T, path string) {
 				}
 			}()
 			n := gno.MustParseFile(path, string(bz))
-			fmt.Println("========================================")
-			fmt.Println("RUN FILES & INIT")
-			fmt.Println("========================================")
+			if testing.Verbose() {
+				t.Log("========================================")
+				t.Log("RUN FILES & INIT")
+				t.Log("========================================")
+			}
 			m.RunFiles(n)
 			if rops != "" {
 				// clear store.opslog from init funtion(s).
@@ -104,10 +106,12 @@ func runCheck(t *testing.T, path string) {
 			// whether pv is realm or not, since non-realm
 			// may call realm packages too.
 			store.ClearCache()
-			store.Print()
-			fmt.Println("========================================")
-			fmt.Println("RUN MAIN")
-			fmt.Println("========================================")
+			if testing.Verbose() {
+				store.Print()
+				t.Log("========================================")
+				t.Log("RUN MAIN")
+				t.Log("========================================")
+			}
 			pv2 := pv
 			if pv.IsRealm() {
 				pv2 = store.GetPackage(pkgPath) // load from backend
@@ -118,9 +122,11 @@ func runCheck(t *testing.T, path string) {
 				Store:   store,
 			})
 			m2.RunMain()
-			fmt.Println("========================================")
-			fmt.Println("RUN MAIN END")
-			fmt.Println("========================================")
+			if testing.Verbose() {
+				t.Log("========================================")
+				t.Log("RUN MAIN END")
+				t.Log("========================================")
+			}
 		}()
 		// check errors
 		if errWanted != "" {
