@@ -22,9 +22,11 @@ type Store interface {
 	GetPackage(pkgPath string) *PackageValue
 	SetPackage(*PackageValue)
 	GetObject(oid ObjectID) Object
+	GetObjectSafe(oid ObjectID) Object
 	SetObject(Object)
 	DelObject(Object)
 	GetType(tid TypeID) Type
+	GetTypeSafe(tid TypeID) Type
 	SetCacheType(Type)
 	SetType(Type)
 	GetBlockNode(Location) BlockNode
@@ -170,9 +172,9 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 						oid, oo.GetObjectID()))
 				}
 			}
-			_ = fillTypesOfValue(ds, oo)
 			oo.SetHash(ValueHash{NewHashlet(hash)})
 			ds.cacheObjects[oid] = oo
+			_ = fillTypesOfValue(ds, oo)
 			return oo
 		}
 	}
@@ -251,6 +253,15 @@ func (ds *defaultStore) DelObject(oo Object) {
 // NOTE: The implementation matches that of GetObject() in anticipation of what
 // the persistent type system might work like.
 func (ds *defaultStore) GetType(tid TypeID) Type {
+	tt := ds.GetTypeSafe(tid)
+	if tt == nil {
+		ds.Print()
+		panic(fmt.Sprintf("unexpected type with id %s", tid.String()))
+	}
+	return tt
+}
+
+func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 	// check cache.
 	if tt, exists := ds.cacheTypes[tid]; exists {
 		return tt
@@ -275,8 +286,7 @@ func (ds *defaultStore) GetType(tid TypeID) Type {
 			return tt
 		}
 	}
-	ds.Print()
-	panic(fmt.Sprintf("unexpected type with id %s", tid.String()))
+	return nil
 }
 
 func (ds *defaultStore) SetCacheType(tt Type) {

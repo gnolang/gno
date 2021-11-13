@@ -1187,6 +1187,8 @@ func (pn *PackageNode) NewPackage() *PackageValue {
 // After return, *PackageNode.Values and *PackageValue.Values have the same
 // length.
 // TODO split logic and/or name resulting function(s) better. PrepareNewValues?
+// XXX Wait, so PackageNode>*DeclarledType>Methods>*FuncValue.PkgPath etc doesn't
+// XXX get set until it's used via pn.NewPackage()?  Fix this sooner!
 func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 	// should already exist.
 	block := pv.Block.(*Block)

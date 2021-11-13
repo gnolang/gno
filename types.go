@@ -3,6 +3,7 @@ package gno
 import (
 	"fmt"
 	"reflect"
+	rdebug "runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -1228,6 +1229,11 @@ func declareWith(pkgPath string, name Name, b Type) *DeclaredType {
 		Base:    baseOf(b),
 		sealed:  false,
 	}
+	if strings.HasPrefix(
+		fmt.Sprintf("%v", dt),
+		"github.com/gnolang/gno/_test/timtadh/data-structures/tree/avl.AvlNode") {
+		rdebug.PrintStack()
+	}
 	return dt
 }
 
@@ -1259,10 +1265,13 @@ func (dt *DeclaredType) Seal() {
 
 func (dt *DeclaredType) TypeID() TypeID {
 	if dt.typeid.IsZero() {
-		dt.typeid = typeid("%s.%s",
-			dt.PkgPath, dt.Name)
+		dt.typeid = DeclaredTypeID(dt.PkgPath, dt.Name)
 	}
 	return dt.typeid
+}
+
+func DeclaredTypeID(pkgPath string, name Name) TypeID {
+	return typeid("%s.%s", pkgPath, name)
 }
 
 func (dt *DeclaredType) String() string {

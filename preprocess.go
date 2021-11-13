@@ -1507,15 +1507,28 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				case *StructType:
 					*dst = *(tmp.(*StructType))
 				case *DeclaredType:
+					// if store has this type, use that.
 					pn := packageOf(last)
-					// NOTE: this is where declared types are
-					// actually instantiated, not in
-					// interpret.go:runDeclaration().
-					dt := declareWith(pn.PkgPath, n.Name, tmp)
-					// if !n.IsAlias { // not sure why this was here.
-					dt.Seal()
-					//}
-					*dst = *dt
+					tid := DeclaredTypeID(pn.PkgPath, n.Name)
+					exists := false
+					if store != nil {
+						if dt := store.GetTypeSafe(tid); dt != nil {
+							dst = dt.(*DeclaredType)
+							last.GetValueRef(store, n.Name).SetType(dst)
+							exists = true
+						}
+					}
+					if !exists {
+						// otherwise construct new *DeclaredType.
+						// NOTE: this is where declared types are
+						// actually instantiated, not in
+						// interpret.go:runDeclaration().
+						dt2 := declareWith(pn.PkgPath, n.Name, tmp)
+						// if !n.IsAlias { // not sure why this was here.
+						dt2.Seal()
+						//}
+						*dst = *dt2
+					}
 				default:
 					panic(fmt.Sprintf("unexpected type declaration type %v",
 						reflect.TypeOf(dst)))
@@ -2365,6 +2378,11 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 			// preprocess if not already preprocessed.
 			if file.GetParentNode(nil) == nil {
 				file = Preprocess(store, pkg, file).(*FileNode)
+				if debug {
+					if file.GetParentNode(nil) == nil {
+						panic("expected Preprocess to set file.ParentNode.")
+					}
+				}
 			} else {
 				// predefine dependency (recursive).
 				*decl, _ = predefineNow2(store, file, *decl, m)

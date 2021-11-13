@@ -1115,12 +1115,13 @@ func copyTypeWithRefs(typ Type) Type {
 	case *TypeType:
 		return &TypeType{}
 	case *DeclaredType:
-		return &DeclaredType{
+		dt := &DeclaredType{
 			PkgPath: ct.PkgPath,
 			Name:    ct.Name,
 			Base:    copyTypeWithRefs(ct.Base),
 			Methods: copyMethods(ct.Methods),
 		}
+		return dt
 	case *PackageType:
 		return &PackageType{}
 	case *ChanType:

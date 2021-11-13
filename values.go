@@ -1781,6 +1781,12 @@ func (tv *TypedValue) GetPointerAtIndex(store Store, iv *TypedValue) PointerValu
 	}
 }
 
+func (tv *TypedValue) SetType(tt Type) {
+	tvv := tv.V.(TypeValue)
+	tvv.Type = tt
+	tv.V = tvv
+}
+
 func (tv *TypedValue) GetType() Type {
 	return tv.V.(TypeValue).Type
 }
