@@ -1,11 +1,16 @@
 package gno
 
+// XXX rename file to machine.go.
+
 import (
 	"fmt"
 	"io"
 	"os"
 	"reflect"
 	"strings"
+
+	"github.com/gnolang/gno/pkgs/errors"
+	"github.com/gnolang/gno/pkgs/std"
 )
 
 //----------------------------------------
@@ -32,9 +37,10 @@ type Machine struct {
 	// Configuration
 	CheckTypes bool // not yet used
 	ReadOnly   bool
-	Output     io.Writer
-	Store      Store
-	Context    interface{}
+
+	Output  io.Writer
+	Store   Store
+	Context interface{}
 }
 
 // Machine with new package of given path.
@@ -65,7 +71,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		pn := NewPackageNode("main", ".main", &FileSet{})
 		pv = pn.NewPackage()
 	}
-	rlm := pv.GetRealm()
+	//rlm := pv.GetRealm()
 	checkTypes := opts.CheckTypes
 	readOnly := opts.ReadOnly
 	output := opts.Output
@@ -76,32 +82,93 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	if store == nil {
 		// bare machine, no stdlibs.
 	}
-	blocks := []*Block{
-		pv.GetBlock(store),
-	}
+	//blocks := []*Block{
+	//	pv.GetBlock(store),
+	//}
 	context := opts.Context
-	return &Machine{
-		Ops:        make([]Op, 1024),
-		NumOps:     0,
-		Values:     make([]TypedValue, 1024),
-		NumValues:  0,
-		Blocks:     blocks,
-		Package:    pv,
-		Realm:      rlm,
+	mm := &Machine{
+		Ops:       make([]Op, 1024),
+		NumOps:    0,
+		Values:    make([]TypedValue, 1024),
+		NumValues: 0,
+		//Blocks:     blocks,
+		Package: pv,
+		//Realm:      rlm,
 		CheckTypes: checkTypes,
 		ReadOnly:   readOnly,
 		Output:     output,
 		Store:      store,
 		Context:    context,
 	}
+	mm.SetActivePackage(pv)
+	return mm
+}
+
+func (m *Machine) SetActivePackage(pv *PackageValue) {
+	if err := m.CheckEmpty(); err != nil {
+		panic(errors.Wrap(err, "set package when machine not empty"))
+	}
+	m.Package = pv
+	m.Realm = pv.GetRealm()
+	m.Blocks = []*Block{
+		pv.GetBlock(m.Store),
+	}
 }
 
 //----------------------------------------
 // top level Run* methods.
 
+// Upon restart, preprocess all MemPackage and save blocknodes.
+func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
+	ch := m.Store.IterMemPackage()
+	for memPkg := range ch {
+		fset := ParseMemPackage(memPkg)
+		pn := NewPackageNode(Name(memPkg.Name), memPkg.Path, fset)
+		for _, fn := range fset.Files {
+			// Save Types to m.Store (while preprocessing).
+			fn = Preprocess(m.Store, pn, fn).(*FileNode)
+			// Save BlockNodes to m.Store.
+			SaveBlockNodes(m.Store, fn)
+		}
+	}
+}
+
+//----------------------------------------
+// top level Run* methods.
+
+// First sets the active package to a new instance of memPkg's.
+// Parses files, sets the package, runs files, and saves mempkg.
+func (m *Machine) RunMemPackage(memPkg std.MemPackage, save bool) {
+	// parse files.
+	files := ParseMemPackage(memPkg)
+	// make and set package
+	pkg := NewPackageNode(Name(memPkg.Name), memPkg.Path, files)
+	pv := pkg.NewPackage()
+	m.SetActivePackage(pv)
+	if save {
+		// run files and save package
+		m.RunFilesAndSave(files.Files...)
+		// store mempkg
+		m.Store.AddMemPackage(memPkg)
+	} else {
+		// run files
+		m.RunFiles(files.Files...)
+	}
+}
+
 // Add files to the package's *FileSet and run them.
 // This will also run each init function encountered.
 func (m *Machine) RunFiles(fns ...*FileNode) {
+	m.runFiles(fns...)
+}
+
+// Like RunFiles, but also persists the resulting new package value.
+// Non-realm packages are persisted on a throwaway realm.
+func (m *Machine) RunFilesAndSave(fns ...*FileNode) {
+	m.runFiles(fns...)
+	m.savePackage()
+}
+func (m *Machine) runFiles(fns ...*FileNode) {
 	// Files' package names must match the machine's active one.
 	// if there is one.
 	for _, fn := range fns {
@@ -223,12 +290,33 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 		}
 		m.PopBlock()
 	}
+}
 
-	// Set realm package in store.
+// Save the machine's package using realm finalization deep crawl.
+// Also saves declared types.
+func (m *Machine) savePackage() {
+	// save package value and dependencies.
+	pv := m.Package
 	if pv.IsRealm() {
 		rlm := pv.Realm
 		rlm.MarkNewReal(pv)
 		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
+	} else if m.Store != nil { // use a throwaway realm.
+		rlm := NewRealm(pv.PkgPath)
+		rlm.MarkNewReal(pv)
+		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
+	}
+	// save declared types.
+	if m.Store != nil {
+		if bv, ok := pv.Block.(*Block); ok {
+			for _, tv := range bv.Values {
+				if tvv, ok := tv.V.(TypeValue); ok {
+					if dt, ok := tvv.Type.(*DeclaredType); ok {
+						m.Store.SetType(dt)
+					}
+				}
+			}
+		}
 	}
 }
 

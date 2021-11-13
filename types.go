@@ -1,7 +1,6 @@
 package gno
 
 import (
-	"encoding/hex"
 	"fmt"
 	"reflect"
 	"sort"
@@ -20,43 +19,31 @@ import (
 type Type interface {
 	assertType()
 
-	Kind() Kind       // penetrates *DeclaredType & *NativeType
-	TypeID() TypeID   // deterministic
-	String() string   // for dev/debugging
-	Elem() Type       // for TODO... types
-	GetIsSaved() bool // true if persisted
-	SetIsSaved()      // set IsSaved to true
+	Kind() Kind     // penetrates *DeclaredType & *NativeType
+	TypeID() TypeID // deterministic
+	String() string // for dev/debugging
+	Elem() Type     // for TODO... types
 }
 
-type TypeID Hashlet
-
-func (tid TypeID) MarshalAmino() (string, error) {
-	return hex.EncodeToString(tid[:]), nil
-}
-
-func (tid *TypeID) UnmarshalAmino(h string) error {
-	_, err := hex.Decode(tid[:], []byte(h))
-	return err
-}
+type TypeID string
 
 func (tid TypeID) IsZero() bool {
-	return tid == (TypeID{})
+	return tid == ""
 }
 
 func (tid TypeID) Bytes() []byte {
-	return tid[:]
+	return []byte(tid)
 }
 
 func (tid TypeID) String() string {
-	return fmt.Sprintf("%X", tid[:])
+	return string(tid)
 }
 
 func typeid(f string, args ...interface{}) (tid TypeID) {
 	fs := fmt.Sprintf(f, args...)
-	hb := HashBytes([]byte(fs))
-	x := TypeID(hb)
+	x := TypeID(fs)
 	if debug {
-		debug.Println("TYPEID", fs, "->", x.String())
+		debug.Println("TYPEID", fs)
 	}
 	return x
 }
@@ -201,11 +188,11 @@ func (pt PrimitiveType) TypeID() TypeID {
 	case InvalidType:
 		panic("invalid type has no typeid")
 	case UntypedBoolType:
-		panic("untyped bool type has no typeid")
+		return typeid("<untyped> bool")
 	case BoolType:
 		return typeid("bool")
 	case UntypedStringType:
-		panic("untyped string type has no typeid")
+		return typeid("<untyped> string")
 	case StringType:
 		return typeid("string")
 	case IntType:
@@ -215,7 +202,7 @@ func (pt PrimitiveType) TypeID() TypeID {
 	case Int16Type:
 		return typeid("int16")
 	case UntypedRuneType:
-		panic("untyped rune type has no typeid")
+		return typeid("<untyped> rune")
 	case Int32Type:
 		return typeid("int32")
 	case Int64Type:
@@ -233,7 +220,7 @@ func (pt PrimitiveType) TypeID() TypeID {
 	case Uint64Type:
 		return typeid("uint64")
 	case UntypedBigintType:
-		panic("untyped bigint type has no typeid")
+		return typeid("<untyped> bigint")
 	case BigintType:
 		return typeid("bigint")
 	default:
@@ -293,12 +280,6 @@ func (pt PrimitiveType) Elem() Type {
 	}
 }
 
-func (pt PrimitiveType) GetIsSaved() bool {
-	return true // primitive types are already persisted.
-}
-
-func (pt PrimitiveType) SetIsSaved() {} // do nothing
-
 //----------------------------------------
 // Field type (partial)
 
@@ -320,7 +301,7 @@ func (ft FieldType) TypeID() TypeID {
 	if ft.Name == "" {
 		s += ft.Type.TypeID().String()
 	} else {
-		s += string(ft.Name) + "#" + ft.Type.TypeID().String()
+		s += string(ft.Name) + " " + ft.Type.TypeID().String()
 	}
 	return typeid(s)
 }
@@ -339,14 +320,6 @@ func (ft FieldType) String() string {
 
 func (ft FieldType) Elem() Type {
 	panic("FieldType is a pseudotype with no elements")
-}
-
-func (ft FieldType) GetIsSaved() bool {
-	panic("FieldType is a pseudotype not persisted individually")
-}
-
-func (ft FieldType) SetIsSaved() {
-	panic("FieldType is a pseudotype not persisted individually")
 }
 
 //----------------------------------------
@@ -384,10 +357,10 @@ func (l FieldTypeList) TypeID() TypeID {
 		if ft.Name == "" {
 			s += ft.Type.TypeID().String()
 		} else {
-			s += string(ft.Name) + "#" + ft.Type.TypeID().String()
+			s += string(ft.Name) + " " + ft.Type.TypeID().String()
 		}
 		if i != ll-1 {
-			s += ","
+			s += ";"
 		}
 	}
 	return typeid(s)
@@ -402,12 +375,12 @@ func (l FieldTypeList) TypeIDForPackage(pkgPath string) TypeID {
 	for i, ft := range l {
 		fn := ft.Name
 		if isUpper(string(fn)) {
-			s += string(fn) + "#" + ft.Type.TypeID().String()
+			s += string(fn) + " " + ft.Type.TypeID().String()
 		} else {
-			s += pkgPath + "." + string(fn) + "#" + ft.Type.TypeID().String()
+			s += pkgPath + "." + string(fn) + " " + ft.Type.TypeID().String()
 		}
 		if i != ll-1 {
-			s += ","
+			s += ";"
 		}
 	}
 	return typeid(s)
@@ -432,7 +405,7 @@ func (l FieldTypeList) String() string {
 	ll := len(l)
 	s := ""
 	for i, ft := range l {
-		s += string(ft.Name) + "#" + ft.Type.TypeID().String()
+		s += string(ft.Name) + " " + ft.Type.TypeID().String()
 		if i != ll-1 {
 			s += ";"
 		}
@@ -444,7 +417,7 @@ func (l FieldTypeList) StringWithCommas() string {
 	ll := len(l)
 	s := ""
 	for i, ft := range l {
-		s += string(ft.Name) + "#" + ft.Type.String()
+		s += string(ft.Name) + " " + ft.Type.String()
 		if i != ll-1 {
 			s += ","
 		}
@@ -460,7 +433,7 @@ func (l FieldTypeList) UnnamedTypeID() TypeID {
 	for i, ft := range l {
 		s += ft.Type.TypeID().String()
 		if i != ll-1 {
-			s += ","
+			s += ";"
 		}
 	}
 	return typeid(s)
@@ -483,7 +456,6 @@ type ArrayType struct {
 	Vrd bool
 
 	typeid TypeID
-	saved  bool
 }
 
 func (at *ArrayType) Kind() Kind {
@@ -505,14 +477,6 @@ func (at *ArrayType) Elem() Type {
 	return at.Elt
 }
 
-func (at *ArrayType) GetIsSaved() bool {
-	return at.saved
-}
-
-func (at *ArrayType) SetIsSaved() {
-	at.saved = true
-}
-
 //----------------------------------------
 // Slice type
 
@@ -521,7 +485,6 @@ type SliceType struct {
 	Vrd bool // used for *FuncType.HasVarg()
 
 	typeid TypeID
-	saved  bool
 }
 
 func (st *SliceType) Kind() Kind {
@@ -551,14 +514,6 @@ func (st *SliceType) Elem() Type {
 	return st.Elt
 }
 
-func (st *SliceType) GetIsSaved() bool {
-	return st.saved
-}
-
-func (st *SliceType) SetIsSaved() {
-	st.saved = true
-}
-
 //----------------------------------------
 // Pointer type
 
@@ -566,7 +521,6 @@ type PointerType struct {
 	Elt Type
 
 	typeid TypeID
-	saved  bool
 }
 
 func (pt *PointerType) Kind() Kind {
@@ -592,14 +546,6 @@ func (pt *PointerType) String() string {
 
 func (pt *PointerType) Elem() Type {
 	return pt.Elt
-}
-
-func (pt *PointerType) GetIsSaved() bool {
-	return pt.saved
-}
-
-func (pt *PointerType) SetIsSaved() {
-	pt.saved = true
 }
 
 func (pt *PointerType) FindEmbeddedFieldType(n Name) (
@@ -695,7 +641,6 @@ type StructType struct {
 	Fields  []FieldType
 
 	typeid TypeID
-	saved  bool
 }
 
 func (st *StructType) Kind() Kind {
@@ -709,7 +654,7 @@ func (st *StructType) TypeID() TypeID {
 		// unexported fields.  st.PkgPath is only included in field
 		// names that are not uppercase.
 		st.typeid = typeid(
-			"s{%s}",
+			"struct{%s}",
 			FieldTypeList(st.Fields).TypeIDForPackage(st.PkgPath),
 		)
 	}
@@ -723,14 +668,6 @@ func (st *StructType) String() string {
 
 func (st *StructType) Elem() Type {
 	panic("struct types have no (universal) elements")
-}
-
-func (st *StructType) GetIsSaved() bool {
-	return st.saved
-}
-
-func (st *StructType) SetIsSaved() {
-	st.saved = true
 }
 
 // NOTE only works for exposed non-embedded fields.
@@ -816,7 +753,7 @@ func (pt *PackageType) TypeID() TypeID {
 		// TypeID if and only if neither have unexported fields.
 		// pt.Path is only included in field names that are not
 		// uppercase.
-		pt.typeid = typeid("pkg{}")
+		pt.typeid = typeid("package{}")
 	}
 	return pt.typeid
 }
@@ -829,14 +766,6 @@ func (pt *PackageType) Elem() Type {
 	panic("package types have no elements")
 }
 
-func (pt *PackageType) GetIsSaved() bool {
-	return true
-}
-
-func (pt *PackageType) SetIsSaved() {
-	panic("should not happen")
-}
-
 //----------------------------------------
 // Interface type
 
@@ -846,7 +775,6 @@ type InterfaceType struct {
 	Generic Name // for uverse "generics"
 
 	typeid TypeID
-	saved  bool
 }
 
 // General empty interface.
@@ -874,7 +802,7 @@ func (it *InterfaceType) TypeID() TypeID {
 		ms := FieldTypeList(it.Methods)
 		// XXX pre-sort.
 		sort.Sort(ms)
-		it.typeid = typeid("i{" + ms.TypeIDForPackage(it.PkgPath).String() + "}")
+		it.typeid = typeid("interface{" + ms.TypeIDForPackage(it.PkgPath).String() + "}")
 	}
 	return it.typeid
 }
@@ -892,14 +820,6 @@ func (it *InterfaceType) String() string {
 
 func (it *InterfaceType) Elem() Type {
 	panic("interface types have no elements")
-}
-
-func (it *InterfaceType) GetIsSaved() bool {
-	return it.saved
-}
-
-func (it *InterfaceType) SetIsSaved() {
-	it.saved = true
 }
 
 // TODO: optimize
@@ -994,7 +914,6 @@ type ChanType struct {
 	Elt Type
 
 	typeid TypeID
-	saved  bool
 }
 
 func (ct *ChanType) Kind() Kind {
@@ -1034,14 +953,6 @@ func (ct *ChanType) Elem() Type {
 	return ct.Elt
 }
 
-func (ct *ChanType) GetIsSaved() bool {
-	return ct.saved
-}
-
-func (ct *ChanType) SetIsSaved() {
-	ct.saved = true
-}
-
 //----------------------------------------
 // Function type
 
@@ -1051,7 +962,6 @@ type FuncType struct {
 
 	typeid TypeID
 	bound  *FuncType
-	saved  bool
 }
 
 // if ft is a method, returns whether method takes a pointer receiver.
@@ -1221,14 +1131,6 @@ func (ft *FuncType) Elem() Type {
 	panic("function types have no elements")
 }
 
-func (ft *FuncType) GetIsSaved() bool {
-	return ft.saved
-}
-
-func (ft *FuncType) SetIsSaved() {
-	ft.saved = true
-}
-
 func (ft *FuncType) HasVarg() bool {
 	if numParams := len(ft.Params); numParams == 0 {
 		return false
@@ -1250,7 +1152,6 @@ type MapType struct {
 	Value Type
 
 	typeid TypeID
-	saved  bool
 }
 
 func (mt *MapType) Kind() Kind {
@@ -1260,7 +1161,7 @@ func (mt *MapType) Kind() Kind {
 func (mt *MapType) TypeID() TypeID {
 	if mt.typeid.IsZero() {
 		mt.typeid = typeid(
-			"m[%s]%s",
+			"map[%s]%s",
 			mt.Key.TypeID().String(),
 			mt.Value.TypeID().String(),
 		)
@@ -1276,14 +1177,6 @@ func (mt *MapType) String() string {
 
 func (mt *MapType) Elem() Type {
 	return mt.Value
-}
-
-func (mt *MapType) GetIsSaved() bool {
-	return mt.saved
-}
-
-func (mt *MapType) SetIsSaved() {
-	mt.saved = true
 }
 
 //----------------------------------------
@@ -1311,14 +1204,6 @@ func (tt *TypeType) Elem() Type {
 	panic("typeval types have no elements")
 }
 
-func (tt *TypeType) GetIsSaved() bool {
-	return true
-}
-
-func (tt *TypeType) SetIsSaved() {
-	panic("should not happen")
-}
-
 //----------------------------------------
 // Declared type
 // Declared types have a name, base (underlying) type,
@@ -1332,7 +1217,6 @@ type DeclaredType struct {
 
 	typeid TypeID
 	sealed bool
-	saved  bool
 }
 
 // returns an unsealed *DeclaredType.
@@ -1373,17 +1257,7 @@ func (dt *DeclaredType) Seal() {
 	dt.sealed = true
 }
 
-// NOTE: it is difficult to do otherwise than to hash the package name and
-// type name, because types may be recursive in complex ways.  This appears
-// related to the graph homomorphism problem.  So, beware.  For now, we
-// require the user to verify the definition of declared types in a
-// separate request or piece of data.
 func (dt *DeclaredType) TypeID() TypeID {
-	if !dt.sealed {
-		panic(fmt.Sprintf(
-			"*DeclaredType %s not yet sealed",
-			dt.Name))
-	}
 	if dt.typeid.IsZero() {
 		dt.typeid = typeid("%s.%s",
 			dt.PkgPath, dt.Name)
@@ -1397,14 +1271,6 @@ func (dt *DeclaredType) String() string {
 
 func (dt *DeclaredType) Elem() Type {
 	return dt.Base.Elem()
-}
-
-func (dt *DeclaredType) GetIsSaved() bool {
-	return dt.saved
-}
-
-func (dt *DeclaredType) SetIsSaved() {
-	dt.saved = true
 }
 
 func (dt *DeclaredType) DefineMethod(fv *FuncValue) {
@@ -1643,14 +1509,6 @@ func (nt *NativeType) Elem() Type {
 	}
 }
 
-func (nt *NativeType) GetIsSaved() bool {
-	panic("native type cannot be persisted")
-}
-
-func (nt *NativeType) SetIsSaved() {
-	panic("native type cannot be persisted")
-}
-
 func (nt *NativeType) GnoType() Type {
 	if nt.gnoType == nil {
 		nt.gnoType = go2GnoType2(nt.Type)
@@ -1749,14 +1607,6 @@ func (bt blockType) Elem() Type {
 	panic("blockType has no elem type")
 }
 
-func (bt blockType) GetIsSaved() bool {
-	return true
-}
-
-func (bt blockType) SetIsSaved() {
-	panic("should not happen")
-}
-
 //----------------------------------------
 // tupleType
 
@@ -1764,7 +1614,6 @@ type tupleType struct {
 	Elts []Type
 
 	typeid TypeID
-	saved  bool
 }
 
 func (tt *tupleType) Kind() Kind {
@@ -1804,14 +1653,6 @@ func (tt *tupleType) Elem() Type {
 	panic("tupleType has no singular elem type")
 }
 
-func (tt *tupleType) GetIsSaved() bool {
-	return tt.saved
-}
-
-func (tt *tupleType) SetIsSaved() {
-	tt.saved = true
-}
-
 //----------------------------------------
 // RefType
 
@@ -1832,14 +1673,6 @@ func (rt RefType) String() string {
 }
 
 func (rt RefType) Elem() Type {
-	panic("should not happen")
-}
-
-func (rt RefType) GetIsSaved() bool {
-	return true
-}
-
-func (rt RefType) SetIsSaved() {
 	panic("should not happen")
 }
 

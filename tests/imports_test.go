@@ -43,44 +43,25 @@ import (
 )
 
 // NOTE: this isn't safe.
-func testStore(out io.Writer) (store gno.Store) {
+func testStore(out io.Writer, isRealm bool) (store gno.Store) {
 	getPackage := func(pkgPath string) (pv *gno.PackageValue) {
 		// if _test package...
 		const testPath = "github.com/gnolang/gno/_test/"
 		if strings.HasPrefix(pkgPath, testPath) {
 			baseDir := filepath.Join("./files/extern", pkgPath[len(testPath):])
-			pkgName := defaultPkgName(pkgPath)
-			files, err := ioutil.ReadDir(baseDir)
-			if err != nil {
-				panic(err)
-			}
-			fnodes := []*gno.FileNode{}
-			for i, file := range files {
-				if filepath.Ext(file.Name()) != ".go" {
-					continue
-				}
-				fpath := filepath.Join(baseDir, file.Name())
-				fnode := gno.MustReadFile(fpath)
-				if i == 0 {
-					pkgName = fnode.PkgName
-				} else if fnode.PkgName != pkgName {
-					panic(fmt.Sprintf(
-						"expected package name %q but got %v",
-						pkgName,
-						fnode.PkgName))
-				}
-				fnodes = append(fnodes, fnode)
-			}
-			pkg := gno.NewPackageNode(pkgName, pkgPath, nil)
-			pv := pkg.NewPackage()
+			memPkg := gno.ReadMemPackage(baseDir, pkgPath)
 			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-				Package: pv,
+				Package: nil,
 				Output:  out,
 				Store:   store,
 			})
-			m2.RunFiles(fnodes...)
-			return pv
+			// pkg := gno.NewPackageNode(gno.Name(memPkg.Name), memPkg.Path, nil)
+			// pv := pkg.NewPackage()
+			// m2.SetActivePackage(pv)
+			m2.RunMemPackage(memPkg, isRealm)
+			return m2.Package
 		}
+		// TODO: if isRealm, can we panic here?
 		// otherwise, built-in package value.
 		switch pkgPath {
 		case "fmt":

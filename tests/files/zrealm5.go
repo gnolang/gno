@@ -26,41 +26,47 @@ func main() {
 //     "Fields": [
 //         {
 //             "T": {
-//                 "@type": "/gno.rft",
-//                 "ID": "63cde69354f70377b65d4c6bddbd1d23a8af7217"
+//                 "@type": "/gno.tref",
+//                 "ID": "github.com/gnolang/gno/_test/timtadh/data-structures/types.String"
 //             },
 //             "V": {
-//                 "@type": "/gno.st",
+//                 "@type": "/gno.vstr",
 //                 "value": "key1"
 //             }
 //         },
 //         {
 //             "T": {
-//                 "@type": "/gno.rft",
-//                 "ID": "473287f8298dba7163a897908958f7c0eae733e2"
+//                 "@type": "/gno.tpri",
+//                 "value": "16"
 //             },
 //             "V": {
-//                 "@type": "/gno.st",
+//                 "@type": "/gno.vstr",
 //                 "value": "value1"
 //             }
 //         },
 //         {
 //             "N": "AQAAAAAAAAA=",
 //             "T": {
-//                 "@type": "/gno.rft",
-//                 "ID": "6da88c34ba124c41f977db66a4fc5c1a951708d2"
+//                 "@type": "/gno.tpri",
+//                 "value": "32"
 //             }
 //         },
 //         {
 //             "T": {
-//                 "@type": "/gno.rft",
-//                 "ID": "e6e0e2ce563adb23d6a4822dd5fc346a5de899a0"
+//                 "@type": "/gno.tptr",
+//                 "Elt": {
+//                     "@type": "/gno.tref",
+//                     "ID": "github.com/gnolang/gno/_test/timtadh/data-structures/tree/avl.AvlNode"
+//                 }
 //             }
 //         },
 //         {
 //             "T": {
-//                 "@type": "/gno.rft",
-//                 "ID": "e6e0e2ce563adb23d6a4822dd5fc346a5de899a0"
+//                 "@type": "/gno.tptr",
+//                 "Elt": {
+//                     "@type": "/gno.tref",
+//                     "ID": "github.com/gnolang/gno/_test/timtadh/data-structures/tree/avl.AvlNode"
+//                 }
 //             }
 //         }
 //     ],
@@ -75,54 +81,60 @@ func main() {
 //     "Fields": [
 //         {
 //             "T": {
-//                 "@type": "/gno.rft",
-//                 "ID": "63cde69354f70377b65d4c6bddbd1d23a8af7217"
+//                 "@type": "/gno.tref",
+//                 "ID": "github.com/gnolang/gno/_test/timtadh/data-structures/types.String"
 //             },
 //             "V": {
-//                 "@type": "/gno.st",
+//                 "@type": "/gno.vstr",
 //                 "value": "key0"
 //             }
 //         },
 //         {
 //             "T": {
-//                 "@type": "/gno.rft",
-//                 "ID": "473287f8298dba7163a897908958f7c0eae733e2"
+//                 "@type": "/gno.tpri",
+//                 "value": "16"
 //             },
 //             "V": {
-//                 "@type": "/gno.st",
+//                 "@type": "/gno.vstr",
 //                 "value": "value0"
 //             }
 //         },
 //         {
 //             "N": "AgAAAAAAAAA=",
 //             "T": {
-//                 "@type": "/gno.rft",
-//                 "ID": "6da88c34ba124c41f977db66a4fc5c1a951708d2"
+//                 "@type": "/gno.tpri",
+//                 "value": "32"
 //             }
 //         },
 //         {
 //             "T": {
-//                 "@type": "/gno.rft",
-//                 "ID": "e6e0e2ce563adb23d6a4822dd5fc346a5de899a0"
+//                 "@type": "/gno.tptr",
+//                 "Elt": {
+//                     "@type": "/gno.tref",
+//                     "ID": "github.com/gnolang/gno/_test/timtadh/data-structures/tree/avl.AvlNode"
+//                 }
 //             }
 //         },
 //         {
 //             "T": {
-//                 "@type": "/gno.rft",
-//                 "ID": "e6e0e2ce563adb23d6a4822dd5fc346a5de899a0"
+//                 "@type": "/gno.tptr",
+//                 "Elt": {
+//                     "@type": "/gno.tref",
+//                     "ID": "github.com/gnolang/gno/_test/timtadh/data-structures/tree/avl.AvlNode"
+//                 }
 //             },
 //             "V": {
-//                 "@type": "/gno.ptr",
+//                 "@type": "/gno.vptr",
 //                 "Base": null,
 //                 "Index": "0",
 //                 "TV": {
 //                     "T": {
-//                         "@type": "/gno.rft",
-//                         "ID": "4af0f175d54357f0feeae4cf180a42be848369e8"
+//                         "@type": "/gno.tref",
+//                         "ID": "github.com/gnolang/gno/_test/timtadh/data-structures/tree/avl.AvlNode"
 //                     },
 //                     "V": {
-//                         "@type": "/gno.rfv",
-//                         "Hash": "dc50045212407efd44f8b70519f837e434b68187",
+//                         "@type": "/gno.vref",
+//                         "Hash": "aa699cb8181069bf687326e10a2fe54c1a308fe3",
 //                         "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5"
 //                     }
 //                 }
@@ -146,7 +158,7 @@ func main() {
 //     },
 //     "Parent": null,
 //     "Source": {
-//         "@type": "/gno.rfn",
+//         "@type": "/gno.nref",
 //         "BlockNode": null,
 //         "Location": {
 //             "File": "",
@@ -158,85 +170,92 @@ func main() {
 //     "Values": [
 //         {
 //             "T": {
-//                 "@type": "/gno.rft",
-//                 "ID": "0ba050da455a6aad7074eb2148d53ecd5becc26d"
+//                 "@type": "/gno.tfun",
+//                 "Params": [],
+//                 "Results": []
 //             },
 //             "V": {
-//                 "@type": "/gno.fun",
+//                 "@type": "/gno.vfun",
 //                 "Closure": {
-//                     "@type": "/gno.rfv",
+//                     "@type": "/gno.vref",
 //                     "Escaped": true,
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
 //                 },
-//                 "FileName": "files/zrealm5.go",
+//                 "FileName": "main.go",
 //                 "IsMethod": false,
 //                 "Name": "init.0",
 //                 "PkgPath": "gno.land/r/test",
 //                 "Source": {
-//                     "@type": "/gno.rfn",
+//                     "@type": "/gno.nref",
 //                     "BlockNode": null,
 //                     "Location": {
-//                         "File": "files/zrealm5.go",
+//                         "File": "main.go",
 //                         "Line": "11",
 //                         "Nonce": "0",
 //                         "PkgPath": "gno.land/r/test"
 //                     }
 //                 },
 //                 "Type": {
-//                     "@type": "/gno.rft",
-//                     "ID": "0ba050da455a6aad7074eb2148d53ecd5becc26d"
+//                     "@type": "/gno.tfun",
+//                     "Params": [],
+//                     "Results": []
 //                 }
 //             }
 //         },
 //         {
 //             "T": {
-//                 "@type": "/gno.rft",
-//                 "ID": "0ba050da455a6aad7074eb2148d53ecd5becc26d"
+//                 "@type": "/gno.tfun",
+//                 "Params": [],
+//                 "Results": []
 //             },
 //             "V": {
-//                 "@type": "/gno.fun",
+//                 "@type": "/gno.vfun",
 //                 "Closure": {
-//                     "@type": "/gno.rfv",
+//                     "@type": "/gno.vref",
 //                     "Escaped": true,
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
 //                 },
-//                 "FileName": "files/zrealm5.go",
+//                 "FileName": "main.go",
 //                 "IsMethod": false,
 //                 "Name": "main",
 //                 "PkgPath": "gno.land/r/test",
 //                 "Source": {
-//                     "@type": "/gno.rfn",
+//                     "@type": "/gno.nref",
 //                     "BlockNode": null,
 //                     "Location": {
-//                         "File": "files/zrealm5.go",
+//                         "File": "main.go",
 //                         "Line": "15",
 //                         "Nonce": "0",
 //                         "PkgPath": "gno.land/r/test"
 //                     }
 //                 },
 //                 "Type": {
-//                     "@type": "/gno.rft",
-//                     "ID": "0ba050da455a6aad7074eb2148d53ecd5becc26d"
+//                     "@type": "/gno.tfun",
+//                     "Params": [],
+//                     "Results": []
 //                 }
 //             }
 //         },
 //         {
 //             "T": {
-//                 "@type": "/gno.rft",
-//                 "ID": "e6e0e2ce563adb23d6a4822dd5fc346a5de899a0"
+//                 "@type": "/gno.tptr",
+//                 "Elt": {
+//                     "@type": "/gno.tref",
+//                     "ID": "github.com/gnolang/gno/_test/timtadh/data-structures/tree/avl.AvlNode"
+//                 }
 //             },
 //             "V": {
-//                 "@type": "/gno.ptr",
+//                 "@type": "/gno.vptr",
 //                 "Base": null,
 //                 "Index": "0",
 //                 "TV": {
 //                     "T": {
-//                         "@type": "/gno.rft",
-//                         "ID": "4af0f175d54357f0feeae4cf180a42be848369e8"
+//                         "@type": "/gno.tref",
+//                         "ID": "github.com/gnolang/gno/_test/timtadh/data-structures/tree/avl.AvlNode"
 //                     },
 //                     "V": {
-//                         "@type": "/gno.rfv",
-//                         "Hash": "2e19f931758f3e80660527bb44a8a2c05b4da77f",
+//                         "@type": "/gno.vref",
+//                         "Hash": "783f716382050a055e22dd14e5e765f91f429e6e",
 //                         "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4"
 //                     }
 //                 }
@@ -244,3 +263,4 @@ func main() {
 //         }
 //     ]
 // }
+//

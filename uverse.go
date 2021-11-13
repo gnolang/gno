@@ -6,6 +6,35 @@ import (
 	"strings"
 )
 
+//----------------------------------------
+// non-primitive builtin types
+
+var gErrorType = &DeclaredType{
+	PkgPath: uversePkgPath,
+	Name:    "error",
+	Base: &InterfaceType{
+		PkgPath: uversePkgPath,
+		Methods: []FieldType{
+			FieldType{
+				Name: "Error",
+				Type: &FuncType{
+					Params: nil,
+					Results: []FieldType{
+						FieldType{
+							//Name: "",
+							Type: StringType,
+						},
+					},
+				},
+			},
+		},
+	},
+	sealed: true,
+}
+
+//----------------------------------------
+// Uverse package
+
 var uverseNode *PackageNode
 
 const uversePkgPath = ".uverse"
@@ -71,29 +100,7 @@ func UverseNode() *PackageNode {
 	// "typeval".  The value of a "typeval" value is represented
 	// by a TypeValue.
 	def("typeval", asValue(gTypeType))
-	def("error", asValue(
-		&DeclaredType{
-			PkgPath: uversePkgPath,
-			Name:    "error",
-			Base: &InterfaceType{
-				PkgPath: uversePkgPath,
-				Methods: []FieldType{
-					FieldType{
-						Name: "Error",
-						Type: &FuncType{
-							Params: nil,
-							Results: []FieldType{
-								FieldType{
-									//Name: "",
-									Type: StringType,
-								},
-							},
-						},
-					},
-				},
-			},
-			sealed: true,
-		}))
+	def("error", asValue(gErrorType))
 
 	// Values
 	def("true", untypedBool(true))

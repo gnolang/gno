@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno"
+	"github.com/gnolang/gno/pkgs/std"
 )
 
 func TestFileStr(t *testing.T) {
@@ -53,10 +54,9 @@ func runCheck(t *testing.T, path string) {
 	pv := pn.NewPackage()
 
 	output := new(bytes.Buffer)
-	store := testStore(output)
+	isRealm := rops != ""
+	store := testStore(output, isRealm)
 	store.SetLogStoreOps(true)
-	// store.SetPackage(pv) // XXX this makes .Values[] zero!!!
-	// XXX
 	store.SetBlockNode(pn) // XXX needed?
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		Package: pv,
@@ -91,41 +91,81 @@ func runCheck(t *testing.T, path string) {
 					}
 				}
 			}()
-			n := gno.MustParseFile(path, string(bz))
 			if testing.Verbose() {
 				t.Log("========================================")
 				t.Log("RUN FILES & INIT")
 				t.Log("========================================")
 			}
-			m.RunFiles(n)
-			if rops != "" {
-				// clear store.opslog from init funtion(s).
-				store.SetLogStoreOps(true) // resets.
-			}
-			// reconstruct machine and clear store cache.
-			// whether pv is realm or not, since non-realm
-			// may call realm packages too.
-			store.ClearCache()
-			if testing.Verbose() {
-				store.Print()
-				t.Log("========================================")
-				t.Log("RUN MAIN")
-				t.Log("========================================")
-			}
-			pv2 := pv
-			if pv.IsRealm() {
-				pv2 = store.GetPackage(pkgPath) // load from backend
-			}
-			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-				Package: pv2,
-				Output:  output,
-				Store:   store,
-			})
-			m2.RunMain()
-			if testing.Verbose() {
-				t.Log("========================================")
-				t.Log("RUN MAIN END")
-				t.Log("========================================")
+			if !pv.IsRealm() {
+				// simple case.
+				n := gno.MustParseFile(path, string(bz)) // "main.go", string(bz))
+				m.RunFiles(n)
+				if testing.Verbose() {
+					t.Log("========================================")
+					t.Log("RUN MAIN")
+					t.Log("========================================")
+				}
+				m.RunMain()
+				if testing.Verbose() {
+					t.Log("========================================")
+					t.Log("RUN MAIN END")
+					t.Log("========================================")
+				}
+			} else {
+				// realm case.
+				// save package using realm crawl procedure.
+				memPkg := std.MemPackage{
+					Name: string(pkgName),
+					Path: pkgPath,
+					Files: []std.MemFile{
+						{
+							Name: "main.go", // dontcare
+							Body: string(bz),
+						},
+					},
+				}
+				m.RunMemPackage(memPkg, true)
+				if rops != "" {
+					// clear store.opslog from init funtion(s).
+					store.SetLogStoreOps(true) // resets.
+				}
+				// reconstruct machine and clear store cache.
+				// whether pv is realm or not, since non-realm
+				// may call realm packages too.
+				if testing.Verbose() {
+					t.Log("========================================")
+					t.Log("CLEAR STORE CACHE")
+					t.Log("========================================")
+				}
+				store.ClearCache()
+				pv2 := pv
+				if pv.IsRealm() {
+					pv2 = store.GetPackage(pkgPath) // load from backend
+				}
+				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+					Package: pv2,
+					Output:  output,
+					Store:   store,
+				})
+				if testing.Verbose() {
+					store.Print()
+					t.Log("========================================")
+					t.Log("PREPROCESS ALL FILES")
+					t.Log("========================================")
+				}
+				m2.PreprocessAllFilesAndSaveBlockNodes()
+				if testing.Verbose() {
+					t.Log("========================================")
+					t.Log("RUN MAIN")
+					t.Log("========================================")
+					store.Print()
+				}
+				m2.RunMain()
+				if testing.Verbose() {
+					t.Log("========================================")
+					t.Log("RUN MAIN END")
+					t.Log("========================================")
+				}
 			}
 		}()
 		// check errors

@@ -46,36 +46,36 @@ a realm to keep it alive.
 */
 
 //----------------------------------------
-// Realm
+// PkgID & Realm
 
-type RealmID struct {
+type PkgID struct {
 	Hashlet
 }
 
-func (rid RealmID) MarshalAmino() (string, error) {
-	return hex.EncodeToString(rid.Hashlet[:]), nil
+func (pid PkgID) MarshalAmino() (string, error) {
+	return hex.EncodeToString(pid.Hashlet[:]), nil
 }
 
-func (rid *RealmID) UnmarshalAmino(h string) error {
-	_, err := hex.Decode(rid.Hashlet[:], []byte(h))
+func (pid *PkgID) UnmarshalAmino(h string) error {
+	_, err := hex.Decode(pid.Hashlet[:], []byte(h))
 	return err
 }
 
-func (rid RealmID) String() string {
-	return fmt.Sprintf("RID%X", rid.Hashlet[:])
+func (pid PkgID) String() string {
+	return fmt.Sprintf("RID%X", pid.Hashlet[:])
 }
 
-func (rid RealmID) Bytes() []byte {
-	return rid.Hashlet[:]
+func (pid PkgID) Bytes() []byte {
+	return pid.Hashlet[:]
 }
 
-func RealmIDFromPath(path string) RealmID {
-	return RealmID{HashBytes([]byte(path))}
+func PkgIDFromPkgPath(path string) PkgID {
+	return PkgID{HashBytes([]byte(path))}
 }
 
 func ObjectIDFromPkgPath(path string) ObjectID {
 	return ObjectID{
-		RealmID: RealmIDFromPath(path),
+		PkgID:   PkgIDFromPkgPath(path),
 		NewTime: 1, // by realm logic.
 	}
 }
@@ -84,7 +84,7 @@ func ObjectIDFromPkgPath(path string) ObjectID {
 // support methods that don't require persistence. This is the default realm
 // when a machine starts with a non-realm package.
 type Realm struct {
-	ID   RealmID
+	ID   PkgID
 	Path string
 	Time uint64
 
@@ -100,7 +100,7 @@ type Realm struct {
 
 // Creates a blank new realm with counter 0.
 func NewRealm(path string) *Realm {
-	id := RealmIDFromPath(path)
+	id := PkgIDFromPkgPath(path)
 	return &Realm{
 		ID:   id,
 		Path: path,
@@ -715,11 +715,18 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 	if oid.IsZero() {
 		panic("unexpected zero object id")
 	}
-	// scan for any types.
-	types := getUnsavedTypes(oo, nil)
-	for _, typ := range types {
-		store.SetType(typ)
+	/* XXX DELETE
+	// ensure all types were already saved (@ preprocessor).
+	if debug {
+		types := getUnsavedTypes(oo, nil)
+		for _, typ := range types {
+			tid := typ.TypeID()
+			if store.GetType(tid) == nil {
+				panic("missing type")
+			}
+		}
 	}
+	*/
 	// set hash to escape index.
 	if oo.GetIsNewEscaped() {
 		oo.SetIsNewEscaped(false)
@@ -731,7 +738,7 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 	store.SetObject(oo)
 	// set index.
 	if oo.GetIsEscaped() {
-		// XXX save iod->hash to iavl.
+		// XXX save oid->hash to iavl.
 		fmt.Println("XXX save hash to iavl")
 	}
 }
@@ -908,10 +915,20 @@ func getUnsavedChildObjects(val Value) []Object {
 	return unsaved
 }
 
+// XXX instead of below, save declared types after package save.
+// XXX and uh, maybe typeid in general?
+/* XXX DELETE
 //----------------------------------------
 // getUnsavedTypes
+// TODO if it's just used for debug/assertions, document so.
+// XXX REMOVE
 
 func getUnsavedType(tt Type, more []Type) []Type {
+	// XXX Wait
+	// XXX XXX UGH, copnsider just getting rid of this altogether?
+	// XXX cuz we can just save declaredtypes as refs,
+	// XXX
+	XXX
 	if tt.GetIsSaved() {
 		return more
 	}
@@ -966,11 +983,11 @@ func getUnsavedTypes(val Value, more []Type) []Type {
 		return more
 	case *FuncValue:
 		more = getUnsavedType(cv.Type, more)
-		/* XXX prob wrong, as closure is object:
+		/ * XXX prob wrong, as closure is object:
 		if bv, ok := cv.Closure.(*Block); ok {
 			more = getUnsavedTypes(bv, more)
 		}
-		*/
+		* /
 		return more
 	case *BoundMethodValue:
 		more = getUnsavedTypes(cv.Func, more)
@@ -986,12 +1003,12 @@ func getUnsavedTypes(val Value, more []Type) []Type {
 		more = getUnsavedType(cv.Type, more)
 		return more
 	case *PackageValue:
-		/* XXX prob wrong, as Block and FBlocks are objects:
+		/ * XXX prob wrong, as Block and FBlocks are objects:
 		more = getUnsavedTypes(cv.Block, more)
 		for _, fb := range cv.FBlocks {
 			more = getUnsavedTypes(fb, more)
 		}
-		*/
+		* /
 		return more
 	case *Block:
 		for _, ctv := range cv.Values {
@@ -1009,14 +1026,138 @@ func getUnsavedTypes(val Value, more []Type) []Type {
 	}
 }
 
+*/
+
 //----------------------------------------
-// copyWithRefs
+// copyTypeWithRefs
+
+func copyMethods(methods []TypedValue) []TypedValue {
+	res := make([]TypedValue, len(methods))
+	for i, mtv := range methods {
+		// NOTE: this works because copyMethods/copyTypeWithRefs
+		// gets called AFTER the file block (method closure)
+		// gets saved (e.g. from *Machine.savePackage()).
+		res[i] = TypedValue{
+			T: copyTypeWithRefs(mtv.T),
+			V: copyValueWithRefs(nil, mtv.V),
+		}
+	}
+	return res
+}
+
+func refOrCopyType(typ Type) Type {
+	if dt, ok := typ.(*DeclaredType); ok {
+		return RefType{ID: dt.TypeID()}
+	} else {
+		return copyTypeWithRefs(typ)
+	}
+}
+
+func copyFieldsWithRefs(fields []FieldType) []FieldType {
+	fieldsCpy := make([]FieldType, len(fields))
+	for i, field := range fields {
+		fieldsCpy[i] = FieldType{
+			Name:     field.Name,
+			Type:     refOrCopyType(field.Type),
+			Embedded: field.Embedded,
+			Tag:      field.Tag,
+		}
+	}
+	return fieldsCpy
+}
+
+// Copies type but with references to dependant types;
+// the result is suitable for persistence bytes serialization.
+func copyTypeWithRefs(typ Type) Type {
+	switch ct := typ.(type) {
+	case nil:
+		panic("should not happen")
+	case PrimitiveType:
+		return ct
+	case *PointerType:
+		return &PointerType{
+			Elt: refOrCopyType(ct.Elt),
+		}
+	case FieldType:
+		panic("should not happen")
+	case *ArrayType:
+		return &ArrayType{
+			Len: ct.Len,
+			Elt: refOrCopyType(ct.Elt),
+			Vrd: ct.Vrd,
+		}
+	case *SliceType:
+		return &SliceType{
+			Elt: refOrCopyType(ct.Elt),
+			Vrd: ct.Vrd,
+		}
+	case *StructType:
+		return &StructType{
+			PkgPath: ct.PkgPath,
+			Fields:  copyFieldsWithRefs(ct.Fields),
+		}
+	case *FuncType:
+		return &FuncType{
+			Params:  copyFieldsWithRefs(ct.Params),
+			Results: copyFieldsWithRefs(ct.Results),
+		}
+	case *MapType:
+		return &MapType{
+			Key:   refOrCopyType(ct.Key),
+			Value: refOrCopyType(ct.Value),
+		}
+	case *InterfaceType:
+		return &InterfaceType{
+			PkgPath: ct.PkgPath,
+			Methods: copyFieldsWithRefs(ct.Methods),
+			Generic: ct.Generic,
+		}
+	case *TypeType:
+		return &TypeType{}
+	case *DeclaredType:
+		return &DeclaredType{
+			PkgPath: ct.PkgPath,
+			Name:    ct.Name,
+			Base:    copyTypeWithRefs(ct.Base),
+			Methods: copyMethods(ct.Methods),
+		}
+	case *PackageType:
+		return &PackageType{}
+	case *ChanType:
+		return &ChanType{
+			Dir: ct.Dir,
+			Elt: refOrCopyType(ct.Elt),
+		}
+	case *NativeType:
+		panic("should not happen")
+	case blockType:
+		return blockType{}
+	case *tupleType:
+		elts2 := make([]Type, len(ct.Elts))
+		for i, elt := range ct.Elts {
+			elts2[i] = refOrCopyType(elt)
+		}
+		return &tupleType{
+			Elts: elts2,
+		}
+	case RefType:
+		return RefType{
+			ID: ct.ID,
+		}
+	default:
+		panic(fmt.Sprintf(
+			"unexpected type %v", typ))
+	}
+}
+
+//----------------------------------------
+// copyValueWithRefs
 
 // Copies value but with references to objects; the result is suitable for
 // persistence bytes serialization.
 // Also checks for integrity of immediate children -- they must already be
 // persistend (real), and not dirty, or else this function panics.
-func copyWithRefs(parent Object, val Value) Value {
+func copyValueWithRefs(parent Object, val Value) Value {
 	switch cv := val.(type) {
 	case nil:
 		return nil
@@ -1033,14 +1174,14 @@ func copyWithRefs(parent Object, val Value) Value {
 					already represented in .Base[Index]:
 					TypedValue: &TypedValue{
 						T: cv.TypedValue.T,
-						V: copyWithRefs(cv.TypedValue.V),
+						V: copyValueWithRefs(cv.TypedValue.V),
 					},
 				*/
 				Base:  toRefValue(parent, cv.Base),
 				Index: cv.Index,
 			}
 		} else {
-			etv := refOrCopy(parent, *cv.TV)
+			etv := refOrCopyValue(parent, *cv.TV)
 			return PointerValue{
 				TV: &etv,
 				/*
@@ -1053,7 +1194,7 @@ func copyWithRefs(parent Object, val Value) Value {
 		if cv.Data == nil {
 			list := make([]TypedValue, len(cv.List))
 			for i, etv := range cv.List {
-				list[i] = refOrCopy(cv, etv)
+				list[i] = refOrCopyValue(cv, etv)
 			}
 			return &ArrayValue{
 				ObjectInfo: cv.ObjectInfo.Copy(),
@@ -1075,7 +1216,7 @@ func copyWithRefs(parent Object, val Value) Value {
 	case *StructValue:
 		fields := make([]TypedValue, len(cv.Fields))
 		for i, ftv := range cv.Fields {
-			fields[i] = refOrCopy(cv, ftv)
+			fields[i] = refOrCopyValue(cv, ftv)
 		}
 		return &StructValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),
@@ -1090,7 +1231,7 @@ func copyWithRefs(parent Object, val Value) Value {
 		if cv.nativeBody != nil {
 			panic("should not happen")
 		}
-		ft := RefType{ID: cv.Type.TypeID()}
+		ft := copyTypeWithRefs(cv.Type)
 		return &FuncValue{
 			Type:     ft,
 			IsMethod: cv.IsMethod,
@@ -1101,8 +1242,8 @@ func copyWithRefs(parent Object, val Value) Value {
 			PkgPath:  cv.PkgPath,
 		}
 	case *BoundMethodValue:
-		fnc := copyWithRefs(cv, cv.Func).(*FuncValue)
-		rtv := refOrCopy(cv, cv.Receiver)
+		fnc := copyValueWithRefs(cv, cv.Func).(*FuncValue)
+		rtv := refOrCopyValue(cv, cv.Receiver)
 		return &BoundMethodValue{
 			ObjectInfo: cv.ObjectInfo.Copy(), // XXX ???
 			Func:       fnc,
@@ -1111,8 +1252,8 @@ func copyWithRefs(parent Object, val Value) Value {
 	case *MapValue:
 		list := &MapList{}
 		for cur := cv.List.Head; cur != nil; cur = cur.Next {
-			key2 := refOrCopy(cv, cur.Key)
-			val2 := refOrCopy(cv, cur.Value)
+			key2 := refOrCopyValue(cv, cur.Key)
+			val2 := refOrCopyValue(cv, cur.Value)
 			list.Append(key2).Value = val2
 		}
 		return &MapValue{
@@ -1120,9 +1261,7 @@ func copyWithRefs(parent Object, val Value) Value {
 			List:       list,
 		}
 	case TypeValue:
-		return toTypeValue(RefType{
-			ID: cv.Type.TypeID(),
-		})
+		return toTypeValue(copyTypeWithRefs(cv.Type))
 	case *PackageValue:
 		block := toRefValue(cv, cv.Block)
 		fblocks := make([]Value, len(cv.FBlocks))
@@ -1142,7 +1281,7 @@ func copyWithRefs(parent Object, val Value) Value {
 		source := toRefNode(cv.Source)
 		vals := make([]TypedValue, len(cv.Values))
 		for i, tv := range cv.Values {
-			vals[i] = refOrCopy(cv, tv)
+			vals[i] = refOrCopyValue(cv, tv)
 		}
 		var bparent Value
 		if cv.Parent != nil {
@@ -1167,22 +1306,98 @@ func copyWithRefs(parent Object, val Value) Value {
 //----------------------------------------
 // fillTypes
 
-func fillTypePtr(store Store, ptr *Type) {
-	if *ptr != nil {
-		*ptr = store.GetType((*ptr).(RefType).TypeID())
+// (fully) fills the type.
+func fillType(store Store, typ Type) Type {
+	switch ct := typ.(type) {
+	case nil:
+		return nil
+	case PrimitiveType:
+		return ct
+	case *PointerType:
+		ct.Elt = fillType(store, ct.Elt)
+		return ct
+	case FieldType:
+		panic("should not happen")
+	case *ArrayType:
+		ct.Elt = fillType(store, ct.Elt)
+		return ct
+	case *SliceType:
+		ct.Elt = fillType(store, ct.Elt)
+		return ct
+	case *StructType:
+		for i, field := range ct.Fields {
+			ct.Fields[i].Type = fillType(store, field.Type)
+		}
+		return ct
+	case *FuncType:
+		for i, param := range ct.Params {
+			ct.Params[i].Type = fillType(store, param.Type)
+		}
+		for i, result := range ct.Results {
+			ct.Results[i].Type = fillType(store, result.Type)
+		}
+		return ct
+	case *MapType:
+		ct.Key = fillType(store, ct.Key)
+		ct.Value = fillType(store, ct.Value)
+		return ct
+	case *InterfaceType:
+		for i, mthd := range ct.Methods {
+			ct.Methods[i].Type = fillType(store, mthd.Type)
+		}
+		return ct
+	case *TypeType:
+		return ct // nothing to do
+	case *DeclaredType:
+		// replace ct with store type.
+		tid := ct.TypeID()
+		ct = nil // defensive.
+		ct2 := store.GetType(tid).(*DeclaredType)
+		if ct2.sealed {
+			// recursion protection needed for methods that reference
+			// the declared type recursively (and ct != ct2).
+			// use the sealed flag for recursion protection.
+			return ct2
+		} else {
+			ct2.sealed = true
+			ct2.Base = fillType(store, ct2.Base)
+			for i, method := range ct2.Methods {
+				ct2.Methods[i].T = fillType(store, method.T)
+				mv := ct2.Methods[i].V.(*FuncValue)
+				mv.Type = fillType(store, mv.Type)
+			}
+			return ct2
+		}
+	case *PackageType:
+		return ct // nothing to do
+	case *ChanType:
+		ct.Elt = fillType(store, ct.Elt)
+		return ct
+	case *NativeType:
+		panic("should not happen")
+	case blockType:
+		return ct // nothing to do
+	case *tupleType:
+		for i, elt := range ct.Elts {
+			ct.Elts[i] = fillType(store, elt)
+		}
+		return ct
+	case RefType:
+		return store.GetType(ct.TypeID())
+	default:
+		panic(fmt.Sprintf(
+			"unexpected type %v", reflect.TypeOf(typ)))
 	}
 }
 
 func fillTypesTV(store Store, tv *TypedValue) {
-	if tvt, ok := tv.T.(RefType); ok {
-		tv.T = store.GetType(tvt.TypeID())
-	}
-	tv.V = fillTypes(store, tv.V)
+	tv.T = fillType(store, tv.T)
+	tv.V = fillTypesOfValue(store, tv.V)
 }
 
 // Partially fills loaded objects shallowly, similarly to
-// getUnsavedTypes.  Replaces all RefTypes with corresponding types.
-func fillTypes(store Store, val Value) Value {
+// getUnsavedTypes. Replaces all RefTypes with corresponding types.
+func fillTypesOfValue(store Store, val Value) Value {
 	switch cv := val.(type) {
 	case nil: // do nothing
 		return cv
@@ -1195,7 +1410,7 @@ func fillTypes(store Store, val Value) Value {
 	case PointerValue:
 		if cv.Base != nil {
 			// cv.Base is object.
-			// fillTypes(store, cv.Base) (wrong)
+			// fillTypesOfValue(store, cv.Base) (wrong)
 			return cv
 		} else {
 			fillTypesTV(store, cv.TV)
@@ -1208,7 +1423,7 @@ func fillTypes(store Store, val Value) Value {
 		}
 		return cv
 	case *SliceValue:
-		fillTypes(store, cv.Base)
+		fillTypesOfValue(store, cv.Base)
 		return cv
 	case *StructValue:
 		for i := 0; i < len(cv.Fields); i++ {
@@ -1217,10 +1432,10 @@ func fillTypes(store Store, val Value) Value {
 		}
 		return cv
 	case *FuncValue:
-		fillTypePtr(store, &cv.Type)
+		cv.Type = fillType(store, cv.Type)
 		return cv
 	case *BoundMethodValue:
-		fillTypes(store, cv.Func)
+		fillTypesOfValue(store, cv.Func)
 		fillTypesTV(store, &cv.Receiver)
 		return cv
 	case *MapValue:
@@ -1231,10 +1446,10 @@ func fillTypes(store Store, val Value) Value {
 		}
 		return cv
 	case TypeValue:
-		fillTypePtr(store, &cv.Type)
+		cv.Type = fillType(store, cv.Type)
 		return cv
 	case *PackageValue:
-		fillTypes(store, cv.Block)
+		fillTypesOfValue(store, cv.Block)
 		return cv
 	case *Block:
 		for i := 0; i < len(cv.Values); i++ {
@@ -1265,7 +1480,7 @@ func (rlm *Realm) nextObjectID() ObjectID {
 	}
 	rlm.Time++
 	return ObjectID{
-		RealmID: rlm.ID,
+		PkgID:   rlm.ID,
 		NewTime: rlm.Time, // starts at 1.
 	}
 }
@@ -1365,15 +1580,15 @@ func ensureUniq(oozz ...[]Object) {
 	}
 }
 
-func refOrCopy(parent Object, tv TypedValue) TypedValue {
+func refOrCopyValue(parent Object, tv TypedValue) TypedValue {
 	if tv.T != nil {
-		tv.T = RefType{tv.T.TypeID()}
+		tv.T = refOrCopyType(tv.T)
 	}
 	if obj, ok := tv.V.(Object); ok {
 		tv.V = toRefValue(parent, obj)
 		return tv
 	} else {
-		tv.V = copyWithRefs(parent, tv.V)
+		tv.V = copyValueWithRefs(parent, tv.V)
 		return tv
 	}
 }

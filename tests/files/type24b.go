@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/gnolang/gno/_test/net/http"
 	"github.com/gnolang/gno/_test/net/http/httptest"
 )
@@ -45,4 +46,4 @@ func assertValue() {
 // Output:
 // int is not of type string
 // interface{} is not of type string
-// *github.com/gnolang/gno/_test/net/http/httptest.ResponseRecorder doesn't implement interface{Push#581DCF94C557261E8D3369A703097601AF0E85A7}
+// *github.com/gnolang/gno/_test/net/http/httptest.ResponseRecorder doesn't implement interface{Push func(string;*github.com/gnolang/gno/_test/net/http.PushOptions)(.uverse.error)}

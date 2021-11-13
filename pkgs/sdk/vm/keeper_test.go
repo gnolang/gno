@@ -21,7 +21,7 @@ func TestVMKeeper(t *testing.T) {
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10gnot")))
 
 	// Create test package.
-	files := []NamedFile{
+	files := []std.MemFile{
 		{"init.go", `
 package test
 

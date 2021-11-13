@@ -807,7 +807,7 @@ func (m *Machine) doOpIfCond() {
 func (m *Machine) doOpTypeSwitch() {
 	ss := m.PopStmt().(*SwitchStmt)
 	xv := m.PopValue()
-	xtid := TypeID{}
+	xtid := TypeID("")
 	if xv.T != nil {
 		xtid = xv.T.TypeID()
 	}
@@ -845,7 +845,7 @@ func (m *Machine) doOpTypeSwitch() {
 						match = true
 					}
 				} else {
-					ctid := TypeID{}
+					ctid := TypeID("")
 					if ct != nil {
 						ctid = ct.TypeID()
 					}

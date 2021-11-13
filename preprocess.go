@@ -2973,6 +2973,7 @@ func findDependentNames(n Node, dst map[Name]struct{}) {
 func SaveBlockNodes(store Store, fn *FileNode) {
 	// First, get the package and file names.
 	pn := packageOf(fn)
+	store.SetBlockNode(pn)
 	pkgPath := pn.PkgPath
 	fileName := string(fn.Name)
 	if pkgPath == "" || fileName == "" {

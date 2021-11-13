@@ -40,13 +40,13 @@ supported).
 */
 
 type ObjectID struct {
-	RealmID RealmID // base
-	NewTime uint64  // time created
+	PkgID   PkgID  // base
+	NewTime uint64 // time created
 }
 
 func (oid ObjectID) MarshalAmino() (string, error) {
-	rid := hex.EncodeToString(oid.RealmID.Hashlet[:])
-	return fmt.Sprintf("%s:%d", rid, oid.NewTime), nil
+	pid := hex.EncodeToString(oid.PkgID.Hashlet[:])
+	return fmt.Sprintf("%s:%d", pid, oid.NewTime), nil
 }
 
 func (oid *ObjectID) UnmarshalAmino(oids string) error {
@@ -54,7 +54,7 @@ func (oid *ObjectID) UnmarshalAmino(oids string) error {
 	if len(parts) != 2 {
 		return errors.New("invalid ObjectID %s", oids)
 	}
-	_, err := hex.Decode(oid.RealmID.Hashlet[:], []byte(parts[0]))
+	_, err := hex.Decode(oid.PkgID.Hashlet[:], []byte(parts[0]))
 	if err != nil {
 		return err
 	}
@@ -71,17 +71,17 @@ func (oid ObjectID) String() string {
 	return oids
 }
 
-// TODO: make faster by making RealmID a pointer
-// and enforcing that the value of RealmID is never zero.
+// TODO: make faster by making PkgID a pointer
+// and enforcing that the value of PkgID is never zero.
 func (oid ObjectID) IsZero() bool {
 	if debug {
-		if oid.RealmID.IsZero() {
+		if oid.PkgID.IsZero() {
 			if oid.NewTime != 0 {
 				panic("should not happen")
 			}
 		}
 	}
-	return oid.RealmID.IsZero()
+	return oid.PkgID.IsZero()
 }
 
 type Object interface {

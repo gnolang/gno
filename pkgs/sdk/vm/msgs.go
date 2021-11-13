@@ -7,30 +7,26 @@ import (
 	"github.com/gnolang/gno/pkgs/std"
 )
 
-type NamedFile struct {
-	Name string
-	Body string
-}
-
 //----------------------------------------
 // MsgAddPackage
 
 // MsgAddPackage - create and initialize new package
 type MsgAddPackage struct {
-	Creator crypto.Address `json:"creator" yaml:"creator"`
-	PkgPath string         `json:"pkg_path" yaml:"pkg_path"`
-	Files   []NamedFile    `json:"files" yaml:"files"`
-	Deposit std.Coins      `json:"deposit" yaml:"deposit"`
+	Creator crypto.Address  `json:"creator" yaml:"creator"`
+	Package std.MemPkgFiles `json:"package" yaml:"package"`
+	Deposit std.Coins       `json:"deposit" yaml:"deposit"`
 }
 
 var _ std.Msg = MsgAddPackage{}
 
 // NewMsgAddPackage - upload a package with files.
-func NewMsgAddPackage(creator crypto.Address, pkgPath string, files []NamedFile) MsgAddPackage {
+func NewMsgAddPackage(creator crypto.Address, pkgPath string, files []std.MemFile) MsgAddPackage {
 	return MsgAddPackage{
 		Creator: creator,
-		PkgPath: pkgPath,
-		Files:   files,
+		Package: std.MemPkgFiles{
+			Path:  pkgPath,
+			Files: files,
+		},
 	}
 }
 
@@ -45,7 +41,7 @@ func (msg MsgAddPackage) ValidateBasic() error {
 	if msg.Creator.IsZero() {
 		return std.ErrInvalidAddress("missing creator address")
 	}
-	if msg.PkgPath == "" { // XXX
+	if msg.Package.Path == "" { // XXX
 		return ErrInvalidPkgPath("missing package path")
 	}
 	if !msg.Deposit.IsValid() {

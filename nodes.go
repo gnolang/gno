@@ -2,9 +2,14 @@ package gno
 
 import (
 	"fmt"
+	"io/ioutil"
+	"path/filepath"
 	"reflect"
 	rdebug "runtime/debug"
 	"strconv"
+	"strings"
+
+	"github.com/gnolang/gno/pkgs/std"
 )
 
 //----------------------------------------
@@ -1034,6 +1039,55 @@ var _ SimpleDeclStmt = &TypeDecl{}
 
 type FileSet struct {
 	Files []*FileNode
+}
+
+func ReadMemPackage(dir string, pkgPath string) std.MemPackage {
+	files, err := ioutil.ReadDir(dir)
+	if err != nil {
+		panic(err)
+	}
+	var memPkg = std.MemPackage{Path: pkgPath}
+	var pkgName Name
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		fpath := filepath.Join(dir, file.Name())
+		bz, err := ioutil.ReadFile(fpath)
+		if err != nil {
+			panic(err)
+		}
+		if pkgName == "" && strings.HasSuffix(file.Name(), ".go") {
+			// TODO replace with some more efficient method
+			// that doesn't involve parsing the whole file.
+			n := MustParseFile(file.Name(), string(bz))
+			pkgName = n.PkgName
+		}
+		memPkg.Files = append(memPkg.Files,
+			std.MemFile{
+				Name: file.Name(),
+				Body: string(bz),
+			})
+	}
+	memPkg.Name = string(pkgName)
+	return memPkg
+}
+
+func ParseMemPackage(memPkg std.MemPackage) (fset *FileSet) {
+	fset = &FileSet{}
+	for _, mfile := range memPkg.Files {
+		if !strings.HasSuffix(mfile.Name, ".go") {
+			continue // skip this file.
+		}
+		n := MustParseFile(mfile.Name, mfile.Body)
+		if memPkg.Name != string(n.PkgName) {
+			panic(fmt.Sprintf(
+				"expected package name [%s] but got [%s]",
+				memPkg.Name, n.PkgName))
+		}
+		fset.AddFiles(n)
+	}
+	return fset
 }
 
 func (fs *FileSet) AddFiles(fns ...*FileNode) {
