@@ -40,6 +40,9 @@ import (
 
 	"github.com/gnolang/gno"
 	dbm "github.com/gnolang/gno/pkgs/db"
+	"github.com/gnolang/gno/pkgs/store/dbadapter"
+	"github.com/gnolang/gno/pkgs/store/iavl"
+	stypes "github.com/gnolang/gno/pkgs/store/types"
 )
 
 // NOTE: this isn't safe.
@@ -281,7 +284,9 @@ func testStore(out io.Writer, isRealm bool) (store gno.Store) {
 	}
 	// NOTE: store is also used in closure above.
 	db := dbm.NewMemDB()
-	store = gno.NewStore(db)
+	baseStore := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
+	iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
+	store = gno.NewStore(baseStore, iavlStore)
 	store.SetPackageGetter(getPackage)
 	return
 }

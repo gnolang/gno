@@ -10,7 +10,7 @@ import (
 )
 
 func gonativeTestStore(pvs ...*PackageValue) Store {
-	store := NewStore(nil)
+	store := NewStore(nil, nil)
 	store.SetPackageGetter(func(pkgPath string) *PackageValue {
 		for _, pv := range pvs {
 			if pkgPath == pv.PkgPath {
