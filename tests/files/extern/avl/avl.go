@@ -24,6 +24,10 @@ func (tree *Tree) Size() int {
 	return tree.size
 }
 
+func (tree *Tree) Value() interface{} {
+	return tree.value
+}
+
 func (tree *Tree) _copy() *Tree {
 	if tree.height == 0 {
 		panic("Why are you copying a value tree?")
