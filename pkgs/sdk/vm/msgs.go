@@ -12,9 +12,9 @@ import (
 
 // MsgAddPackage - create and initialize new package
 type MsgAddPackage struct {
-	Creator crypto.Address  `json:"creator" yaml:"creator"`
-	Package std.MemPkgFiles `json:"package" yaml:"package"`
-	Deposit std.Coins       `json:"deposit" yaml:"deposit"`
+	Creator crypto.Address `json:"creator" yaml:"creator"`
+	Package std.MemPackage `json:"package" yaml:"package"`
+	Deposit std.Coins      `json:"deposit" yaml:"deposit"`
 }
 
 var _ std.Msg = MsgAddPackage{}
@@ -23,7 +23,7 @@ var _ std.Msg = MsgAddPackage{}
 func NewMsgAddPackage(creator crypto.Address, pkgPath string, files []std.MemFile) MsgAddPackage {
 	return MsgAddPackage{
 		Creator: creator,
-		Package: std.MemPkgFiles{
+		Package: std.MemPackage{
 			Path:  pkgPath,
 			Files: files,
 		},

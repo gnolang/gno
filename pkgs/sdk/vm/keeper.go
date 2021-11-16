@@ -21,35 +21,56 @@ type VMKeeperI interface {
 	Exec(ctx sdk.Context, msg MsgExec) error
 }
 
-var _ VMKeeperI = VMKeeper{}
+var _ VMKeeperI = &VMKeeper{}
 
 // VMKeeper holds all package code and store state.
 type VMKeeper struct {
-	key  store.StoreKey
-	acck auth.AccountKeeper
-	bank bank.BankKeeper
+	baseKey store.StoreKey
+	iavlKey store.StoreKey
+	acck    auth.AccountKeeper
+	bank    bank.BankKeeper
 
-	// TODO: remove these and fully implement persistence.
-	// For now, the whole chain must be re-run with each reboot.
-	store gno.Store // XXX hack -- in mem only.
+	// cached, the DeliverTx persistent state.
+	gnoStore gno.Store
 }
 
 // NewVMKeeper returns a new VMKeeper.
-func NewVMKeeper(key store.StoreKey, acck auth.AccountKeeper, bank bank.BankKeeper) VMKeeper {
-	store := gno.NewStore(nil) // XXX hack
-
-	vmk := VMKeeper{
-		key:   key,
-		acck:  acck,
-		bank:  bank,
-		store: store,
+func NewVMKeeper(baseKey store.StoreKey, iavlKey store.StoreKey, acck auth.AccountKeeper, bank bank.BankKeeper) *VMKeeper {
+	vmk := &VMKeeper{
+		baseKey: baseKey,
+		iavlKey: iavlKey,
+		acck:    acck,
+		bank:    bank,
 	}
-	// initialize built-in packages.
-	vmk.initBuiltinPackages(store)
 	return vmk
 }
 
-func (vmk VMKeeper) initBuiltinPackages(store gno.Store) {
+func (vmk *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
+	switch ctx.Mode() {
+	case sdk.RunTxModeDeliver:
+		// construct gnoStore if nil.
+		if vmk.gnoStore == nil {
+			baseSDKStore := ctx.Store(vmk.baseKey)
+			iavlSDKStore := ctx.Store(vmk.iavlKey)
+			vmk.gnoStore = gno.NewStore(baseSDKStore, iavlSDKStore)
+			vmk.initBuiltinPackages(vmk.gnoStore)
+		}
+		return vmk.gnoStore
+	case sdk.RunTxModeCheck:
+		panic("should not happen")
+	case sdk.RunTxModeSimulate:
+		// always make a new store for simualte for isolation.
+		baseSDKStore := ctx.Store(vmk.baseKey)
+		iavlSDKStore := ctx.Store(vmk.iavlKey)
+		simStore := gno.NewStore(baseSDKStore, iavlSDKStore)
+		vmk.initBuiltinPackages(simStore)
+		return simStore
+	default:
+		panic("should not happen")
+	}
+}
+
+func (vmk *VMKeeper) initBuiltinPackages(store gno.Store) {
 	// NOTE: native functions/methods added here must be quick operations.
 	// TODO: define criteria for inclusion, and solve gas calculations.
 	getPackage := func(pkgPath string) (pv *gno.PackageValue) {
@@ -131,11 +152,12 @@ func (vmk VMKeeper) initBuiltinPackages(store gno.Store) {
 }
 
 // AddPackage adds a package with given fileset.
-func (vm VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
+func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	creator := msg.Creator
 	pkgPath := msg.Package.Path
 	memPkg := msg.Package
 	deposit := msg.Deposit
+	store := vm.getGnoStore(ctx)
 
 	// Validate arguments.
 	if creator.IsZero() {
@@ -148,7 +170,7 @@ func (vm VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	if pkgPath == "" {
 		return ErrInvalidPkgPath("missing package path")
 	}
-	if pv := vm.store.GetPackage(pkgPath); pv != nil {
+	if pv := store.GetPackage(pkgPath); pv != nil {
 		// TODO: return error instead of panicking?
 		panic("package already exists: " + pkgPath)
 	}
@@ -163,16 +185,17 @@ func (vm VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 		gno.MachineOptions{
 			Package: nil,
 			Output:  nil, // XXX
-			Store:   vm.store,
+			Store:   store,
 		})
-	m2.RunMemPkgFilesAndSave(memPkg)
+	m2.RunMemPackage(memPkg, true)
 	return nil
 }
 
 // Exec executes a Gno statement (for delivertx).
-func (vm VMKeeper) Exec(ctx sdk.Context, msg MsgExec) (err error) {
+func (vm *VMKeeper) Exec(ctx sdk.Context, msg MsgExec) (err error) {
 	pkgPath := msg.PkgPath // to import
 	stmt := msg.Stmt
+	store := vm.getGnoStore(ctx)
 	// Make blank main Package.
 	pn := gno.NewPackageNode("main", "main", nil)
 	pv := pn.NewPackage()
@@ -207,7 +230,7 @@ func main() {
 		gno.MachineOptions{
 			Package: pv,
 			Output:  nil,
-			Store:   vm.store,
+			Store:   store,
 			Context: msgCtx,
 		})
 	m.RunFiles(file)
@@ -219,9 +242,10 @@ func main() {
 // QueryEval evaluates gno expression (readonly, for ABCI queries).
 // TODO: modify query protocol to allow MsgEval.
 // TODO: then, rename to "Eval".
-func (vm VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
+func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
+	store := vm.getGnoStore(ctx)
 	// Get Package.
-	pv := vm.store.GetPackage(pkgPath)
+	pv := store.GetPackage(pkgPath)
 	if pv == nil {
 		err = ErrInvalidPkgPath(fmt.Sprintf(
 			"package not found: %s", pkgPath))
@@ -244,7 +268,7 @@ func (vm VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res 
 		gno.MachineOptions{
 			Package: pv,
 			Output:  nil,
-			Store:   vm.store,
+			Store:   store,
 			Context: msgCtx,
 		})
 	rtvs := m.Eval(xx)

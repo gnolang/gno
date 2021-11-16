@@ -21,6 +21,7 @@ here would be better just to add to the Context struct
 */
 type Context struct {
 	ctx           context.Context
+	mode          RunTxMode
 	ms            store.MultiStore
 	header        abci.Header
 	chainID       string
@@ -40,6 +41,7 @@ type Request = Context
 
 // Read-only accessors
 func (c Context) Context() context.Context      { return c.ctx }
+func (c Context) Mode() RunTxMode               { return c.mode }
 func (c Context) MultiStore() store.MultiStore  { return c.ms }
 func (c Context) BlockHeight() int64            { return c.header.GetHeight() }
 func (c Context) BlockTime() time.Time          { return c.header.GetTime() }
@@ -80,6 +82,11 @@ func NewContext(ms store.MultiStore, header abci.Header, isCheckTx bool, logger 
 
 func (c Context) WithContext(ctx context.Context) Context {
 	c.ctx = ctx
+	return c
+}
+
+func (c Context) WithMode(mode RunTxMode) Context {
+	c.mode = mode
 	return c
 }
 

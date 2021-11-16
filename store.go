@@ -6,9 +6,8 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/pkgs/amino"
-	dbm "github.com/gnolang/gno/pkgs/db"
-	"github.com/gnolang/gno/pkgs/iavl"
 	"github.com/gnolang/gno/pkgs/std"
+	"github.com/gnolang/gno/pkgs/store"
 )
 
 const iavlCacheSize = 1024 * 1024 // TODO increase and parameterize.
@@ -45,51 +44,27 @@ type Store interface {
 	Print()
 }
 
-// XXX DELETE
-// XXX XXX ???
-// Maybe add GetFiles() GetAllFiles <- ... ?
-// Upon restart, we need to reconstruct the types.
-// the types are all computed during preprocess.
-// (that is the point of static types).
-// -> Upon restart, preprocess all files
-// -> that sets all tyeps.
-// -> refactor SetType() usage to check type instead.
-// That requires GetAllFiles() <- chan string
-// GetFiles(
-
 // Used to keep track of in-mem objects during tx.
 type defaultStore struct {
 	pkgGetter    PackageGetter // non-realm packages
 	cacheObjects map[ObjectID]Object
 	cacheTypes   map[TypeID]Type
 	cacheNodes   map[Location]BlockNode
-	backend      dbm.DB
-	pkgidxdb     dbm.DB
-	iavldb       dbm.DB
-	iavltree     *iavl.MutableTree
+	baseStore    store.Store // for objects, types, nodes
+	iavlStore    store.Store // for escaped object hashes
 
 	opslog  []StoreOp           // for debugging.
 	current map[string]struct{} // for detecting import cycles.
 }
 
-func NewStore(backend dbm.DB) *defaultStore {
-	var pkgidxdb dbm.DB
-	var iavldb dbm.DB
-	var iavltree *iavl.MutableTree
-	if backend != nil {
-		pkgidxdb = dbm.NewPrefixDB(backend, []byte("pkgidx/"))
-		iavldb = dbm.NewPrefixDB(backend, []byte("iavl/"))
-		iavltree = iavl.NewMutableTree(iavldb, iavlCacheSize)
-	}
+func NewStore(baseStore, iavlStore store.Store) *defaultStore {
 	ds := &defaultStore{
 		pkgGetter:    nil,
 		cacheObjects: make(map[ObjectID]Object),
 		cacheTypes:   make(map[TypeID]Type),
 		cacheNodes:   make(map[Location]BlockNode),
-		backend:      backend,
-		pkgidxdb:     pkgidxdb,
-		iavldb:       iavldb,
-		iavltree:     iavltree,
+		baseStore:    baseStore,
+		iavlStore:    iavlStore,
 		current:      make(map[string]struct{}),
 	}
 	SetCacheTypes(ds)
@@ -157,10 +132,10 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 	if oo, exists := ds.cacheObjects[oid]; exists {
 		return oo
 	}
-	// check backend.
-	if ds.backend != nil {
+	// check baseStore.
+	if ds.baseStore != nil {
 		key := backendObjectKey(oid)
-		hashbz := ds.backend.Get([]byte(key))
+		hashbz := ds.baseStore.Get([]byte(key))
 		if hashbz != nil {
 			hash := hashbz[:HashSize]
 			bz := hashbz[HashSize:]
@@ -194,12 +169,12 @@ func (ds *defaultStore) SetObject(oo Object) {
 	}
 	oo.SetHash(ValueHash{hash})
 	// save bytes to backend.
-	if ds.backend != nil {
+	if ds.baseStore != nil {
 		key := backendObjectKey(oid)
 		hashbz := make([]byte, len(hash)+len(bz))
 		copy(hashbz, hash.Bytes())
 		copy(hashbz[HashSize:], bz)
-		ds.backend.Set([]byte(key), hashbz)
+		ds.baseStore.Set([]byte(key), hashbz)
 	}
 	// save object to cache.
 	if debug {
@@ -225,11 +200,11 @@ func (ds *defaultStore) SetObject(oo Object) {
 			StoreOp{op, o2.(Object)})
 	}
 	// if escaped, add hash to iavl.
-	if oo.GetIsEscaped() && ds.iavltree != nil {
+	if oo.GetIsEscaped() && ds.iavlStore != nil {
 		var key, value []byte
 		key = []byte(oid.String())
 		value = hash.Bytes()
-		ds.iavltree.Set(key, value)
+		ds.iavlStore.Set(key, value)
 	}
 }
 
@@ -238,9 +213,9 @@ func (ds *defaultStore) DelObject(oo Object) {
 	// delete from cache.
 	delete(ds.cacheObjects, oid)
 	// delete from backend.
-	if ds.backend != nil {
+	if ds.baseStore != nil {
 		key := backendObjectKey(oid)
-		ds.backend.Delete([]byte(key))
+		ds.baseStore.Delete([]byte(key))
 	}
 	// make realm op log entry
 	if ds.opslog != nil {
@@ -267,9 +242,9 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 		return tt
 	}
 	// check backend.
-	if ds.backend != nil {
+	if ds.baseStore != nil {
 		key := backendTypeKey(tid)
-		bz := ds.backend.Get([]byte(key))
+		bz := ds.baseStore.Get([]byte(key))
 		if bz != nil {
 			var tt Type
 			amino.MustUnmarshal(bz, &tt)
@@ -314,11 +289,11 @@ func (ds *defaultStore) SetType(tt Type) {
 		}
 	}
 	// save type to backend.
-	if ds.backend != nil {
+	if ds.baseStore != nil {
 		key := backendTypeKey(tid)
 		tcopy := copyTypeWithRefs(tt)
 		bz := amino.MustMarshalAny(tcopy)
-		ds.backend.Set([]byte(key), bz)
+		ds.baseStore.Set([]byte(key), bz)
 	}
 	// save type to cache.
 	ds.cacheTypes[tid] = tt
@@ -330,9 +305,9 @@ func (ds *defaultStore) GetBlockNode(loc Location) BlockNode {
 		return bn
 	}
 	// check backend.
-	if ds.backend != nil {
+	if ds.baseStore != nil {
 		key := backendNodeKey(loc)
-		bz := ds.backend.Get([]byte(key))
+		bz := ds.baseStore.Get([]byte(key))
 		if bz != nil {
 			var bn BlockNode
 			amino.MustUnmarshal(bz, &bn)
@@ -355,7 +330,7 @@ func (ds *defaultStore) SetBlockNode(bn BlockNode) {
 		panic("unexpected zero location in blocknode")
 	}
 	// save node to backend.
-	if ds.backend != nil {
+	if ds.baseStore != nil {
 		// TODO: implement copyValueWithRefs() for Nodes.
 		// key := backendNodeKey(loc)
 		// ds.backend.Set([]byte(key), bz)
@@ -368,10 +343,10 @@ func (ds *defaultStore) SetBlockNode(bn BlockNode) {
 
 func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 	ctrkey := []byte(backendPackageIndexCtrKey())
-	ctrbz := ds.pkgidxdb.Get(ctrkey)
+	ctrbz := ds.iavlStore.Get(ctrkey)
 	if ctrbz == nil {
 		nextbz := strconv.Itoa(1)
-		ds.pkgidxdb.Set(ctrkey, []byte(nextbz))
+		ds.iavlStore.Set(ctrkey, []byte(nextbz))
 		return 1
 	} else {
 		ctr, err := strconv.Atoi(string(ctrbz))
@@ -379,7 +354,7 @@ func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 			panic(err)
 		}
 		nextbz := strconv.Itoa(ctr + 1)
-		ds.pkgidxdb.Set(ctrkey, []byte(nextbz))
+		ds.iavlStore.Set(ctrkey, []byte(nextbz))
 		return uint64(ctr) + 1
 	}
 }
@@ -388,12 +363,12 @@ func (ds *defaultStore) AddMemPackage(memPkg std.MemPackage) {
 	ctr := ds.incGetPackageIndexCounter()
 	key := []byte(backendPackageIndexKey(ctr))
 	bz := amino.MustMarshal(memPkg)
-	ds.pkgidxdb.Set(key, bz)
+	ds.iavlStore.Set(key, bz)
 }
 
 func (ds *defaultStore) IterMemPackage() <-chan std.MemPackage {
 	ctrkey := []byte(backendPackageIndexCtrKey())
-	ctrbz := ds.pkgidxdb.Get(ctrkey)
+	ctrbz := ds.iavlStore.Get(ctrkey)
 	if ctrbz == nil {
 		return nil
 	} else {
@@ -405,7 +380,7 @@ func (ds *defaultStore) IterMemPackage() <-chan std.MemPackage {
 		go func() {
 			for i := uint64(1); i <= uint64(ctr); i++ {
 				key := backendPackageIndexKey(i)
-				bz := ds.pkgidxdb.Get([]byte(key))
+				bz := ds.iavlStore.Get([]byte(key))
 				if bz == nil {
 					panic(fmt.Sprintf(
 						"missing package index %d", i))
@@ -493,8 +468,11 @@ func (ds *defaultStore) ClearCache() {
 // for debugging
 func (ds *defaultStore) Print() {
 	fmt.Println("//----------------------------------------")
-	fmt.Println("defaultStore:backend...")
-	ds.backend.Print()
+	fmt.Println("defaultStore:baseStore...")
+	store.Print(ds.baseStore)
+	fmt.Println("//----------------------------------------")
+	fmt.Println("defaultStore:iavlStore...")
+	store.Print(ds.iavlStore)
 	fmt.Println("//----------------------------------------")
 	fmt.Println("defaultStore:cacheTypes...")
 	for tid, typ := range ds.cacheTypes {
