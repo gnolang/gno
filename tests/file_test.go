@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno"
+	"github.com/gnolang/gno/pkgs/std"
 )
 
 func TestFileStr(t *testing.T) {
@@ -51,16 +52,16 @@ func runCheck(t *testing.T, path string) {
 	pkgName := defaultPkgName(pkgPath)
 	pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
 	pv := pn.NewPackage()
-	rlm := pv.GetRealm()
-	if rlm != nil {
-		rlm.SetLogRealmOps(true)
-	}
 
-	var output = new(bytes.Buffer)
+	output := new(bytes.Buffer)
+	isRealm := rops != ""
+	store := testStore(output, isRealm)
+	store.SetLogStoreOps(true)
+	store.SetBlockNode(pn) // XXX needed?
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		Package: pv,
 		Output:  output,
-		Store:   testStore(output),
+		Store:   store,
 	})
 	// TODO support stdlib groups, but make testing safe;
 	// e.g. not be able to make network connections.
@@ -90,14 +91,82 @@ func runCheck(t *testing.T, path string) {
 					}
 				}
 			}()
-			n := gno.MustParseFile(path, string(bz))
-			m.RunFiles(n)
-			if rops != "" {
-				// clear rlm.ropslog from init funtion(s).
-				rlm := pv.GetRealm()
-				rlm.SetLogRealmOps(true) // resets.
+			if testing.Verbose() {
+				t.Log("========================================")
+				t.Log("RUN FILES & INIT")
+				t.Log("========================================")
 			}
-			m.RunMain()
+			if !pv.IsRealm() {
+				// simple case.
+				n := gno.MustParseFile(path, string(bz)) // "main.go", string(bz))
+				m.RunFiles(n)
+				if testing.Verbose() {
+					t.Log("========================================")
+					t.Log("RUN MAIN")
+					t.Log("========================================")
+				}
+				m.RunMain()
+				if testing.Verbose() {
+					t.Log("========================================")
+					t.Log("RUN MAIN END")
+					t.Log("========================================")
+				}
+			} else {
+				// realm case.
+				// save package using realm crawl procedure.
+				memPkg := std.MemPackage{
+					Name: string(pkgName),
+					Path: pkgPath,
+					Files: []std.MemFile{
+						{
+							Name: "main.go", // dontcare
+							Body: string(bz),
+						},
+					},
+				}
+				m.RunMemPackage(memPkg, true)
+				if rops != "" {
+					// clear store.opslog from init funtion(s).
+					store.SetLogStoreOps(true) // resets.
+				}
+				// reconstruct machine and clear store cache.
+				// whether pv is realm or not, since non-realm
+				// may call realm packages too.
+				if testing.Verbose() {
+					t.Log("========================================")
+					t.Log("CLEAR STORE CACHE")
+					t.Log("========================================")
+				}
+				store.ClearCache()
+				pv2 := pv
+				if pv.IsRealm() {
+					pv2 = store.GetPackage(pkgPath) // load from backend
+				}
+				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+					Package: pv2,
+					Output:  output,
+					Store:   store,
+				})
+				if testing.Verbose() {
+					store.Print()
+					t.Log("========================================")
+					t.Log("PREPROCESS ALL FILES")
+					t.Log("========================================")
+				}
+				m2.PreprocessAllFilesAndSaveBlockNodes()
+				if testing.Verbose() {
+					t.Log("========================================")
+					t.Log("RUN MAIN")
+					t.Log("========================================")
+					store.Print()
+				}
+				m2.RunMain()
+				if testing.Verbose() {
+					t.Log("========================================")
+					t.Log("RUN MAIN END")
+					t.Log("========================================")
+				}
+			}
 		}()
 		// check errors
 		if errWanted != "" {
@@ -133,11 +202,7 @@ func runCheck(t *testing.T, path string) {
 		}
 		// check realm ops
 		if rops != "" {
-			rlm := pv.GetRealm()
-			if rlm == nil {
-				panic("expected realm but got none")
-			}
-			rops2 := strings.TrimSpace(rlm.SprintRealmOps())
+			rops2 := strings.TrimSpace(store.SprintStoreOps())
 			if rops != rops2 {
 				panic(fmt.Sprintf("got:\n%s\n\nwant:\n%s\n", rops2, rops))
 			}

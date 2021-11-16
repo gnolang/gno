@@ -10,20 +10,43 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	amino.GetCallersDirname(),
 ).WithDependencies().WithTypes(
 
-	StringValue(""), "st",
-	BigintValue{}, "big",
+	//----------------------------------------
+	// Values
+	StringValue(""), "vstr",
+	BigintValue{}, "vbig",
 	// DataByteValue{}
-	PointerValue{}, "ptr",
-	&ArrayValue{}, "arr",
-	&SliceValue{}, "sli",
-	&StructValue{}, "str",
-	&FuncValue{}, "fun",
-	&MapValue{}, "map",
-	&BoundMethodValue{}, "bnd",
-	TypeValue{}, "typ",
-	&PackageValue{}, "pkg",
+	PointerValue{}, "vptr",
+	&ArrayValue{}, "varr",
+	&SliceValue{}, "vsli",
+	&StructValue{}, "vstt",
+	&FuncValue{}, "vfun",
+	&MapValue{}, "vmap",
+	&BoundMethodValue{}, "vbnd",
+	TypeValue{}, "vtyp",
+	&PackageValue{}, "vpkg",
 	// &NativeValue{},
-	&Block{}, "blk",
-	RefType{}, "rft",
-	RefValue{}, "rfv",
+	&Block{}, "vblk",
+	RefValue{}, "vref",
+
+	//----------------------------------------
+	// Nodes
+	RefNode{}, "nref",
+
+	//----------------------------------------
+	// Types
+	PrimitiveType(0), "tpri",
+	&PointerType{}, "tptr",
+	&ArrayType{}, "tarr",
+	&SliceType{}, "tsli",
+	&StructType{}, "tstt",
+	&FuncType{}, "tfun",
+	&MapType{}, "tmap",
+	&InterfaceType{}, "tint",
+	&TypeType{}, "ttyp",
+	&DeclaredType{}, "tdec",
+	&PackageType{}, "tpkg",
+	&ChanType{}, "tchn",
+	blockType{}, "tblk",
+	&tupleType{}, "ttup",
+	RefType{}, "tref",
 ))

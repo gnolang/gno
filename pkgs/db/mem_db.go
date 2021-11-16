@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+
+	"github.com/gnolang/gno/pkgs/strings"
 )
 
 func init() {
@@ -123,7 +125,18 @@ func (db *MemDB) Print() {
 	defer db.mtx.Unlock()
 
 	for key, value := range db.db {
-		fmt.Printf("[%X]:\t[%X]\n", []byte(key), value)
+		var keystr, valstr string
+		if strings.IsASCIIText(key) {
+			keystr = string(key)
+		} else {
+			keystr = fmt.Sprintf("0x%X", []byte(key))
+		}
+		if strings.IsASCIIText(string(value)) {
+			valstr = string(value)
+		} else {
+			valstr = fmt.Sprintf("0x%X", []byte(value))
+		}
+		fmt.Printf("%s:\t%s\n", keystr, valstr)
 	}
 }
 

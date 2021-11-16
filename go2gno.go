@@ -99,6 +99,12 @@ func ParseFile(filename string, body string) (*FileNode, error) {
 	return fn, nil
 }
 
+func setLoc(fs *token.FileSet, pos token.Pos, n Node) Node {
+	posn := fs.Position(pos)
+	n.SetLine(posn.Line)
+	return n
+}
+
 // If gon is a *ast.File, the name must be filled later.
 func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 	if gon == nil {
@@ -107,12 +113,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 	if fs != nil {
 		defer func() {
 			if n != nil {
-				pos := fs.Position(gon.Pos())
-				n.SetLocation(Location{
-					PkgPath: "", // set in preprocessor.
-					File:    pos.Filename,
-					Line:    pos.Line,
-				})
+				setLoc(fs, gon.Pos(), n)
 			}
 		}()
 	}
@@ -313,6 +314,10 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			Body: toStmts(fs, gon.Body.List),
 		}
 	case *ast.IfStmt:
+		thenStmt := IfCaseStmt{
+			Body: toStmts(fs, gon.Body.List),
+		}
+		setLoc(fs, gon.Body.Pos(), &thenStmt)
 		ess := []Stmt(nil)
 		if gon.Else != nil {
 			if _, ok := gon.Else.(*ast.BlockStmt); ok {
@@ -321,15 +326,17 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 				ess = []Stmt{toStmt(fs, gon.Else)}
 			}
 		}
+		elseStmt := IfCaseStmt{
+			Body: ess,
+		}
+		if gon.Else != nil {
+			setLoc(fs, gon.Else.Pos(), &elseStmt)
+		}
 		return &IfStmt{
 			Init: toSimp(fs, gon.Init),
 			Cond: toExpr(fs, gon.Cond),
-			Then: IfCaseStmt{
-				Body: toStmts(fs, gon.Body.List),
-			},
-			Else: IfCaseStmt{
-				Body: ess,
-			},
+			Then: thenStmt,
+			Else: elseStmt,
 		}
 	case *ast.IncDecStmt:
 		return &IncDecStmt{

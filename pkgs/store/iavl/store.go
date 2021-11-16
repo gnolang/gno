@@ -21,6 +21,7 @@ const (
 	defaultIAVLCacheSize = 10000
 )
 
+// Implements store.CommitStoreConstructor.
 func StoreConstructor(db dbm.DB, opts types.StoreOptions) types.CommitStore {
 	tree := iavl.NewMutableTree(db, defaultIAVLCacheSize)
 	store := UnsafeNewStore(tree, opts)

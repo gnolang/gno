@@ -46,7 +46,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			}
 		}()
 		if debug {
-			debug.Printf("Transcribe %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+			debug.Printf("Preprocess %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
@@ -1062,7 +1062,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// *NameExprs, and cannot be copied.
 					nx := n.X.(*NameExpr)
 					pv := last.GetValueRef(nil, nx.Name)
-					pn := pv.V.(*PackageValue).Source
+					pn := pv.V.(*PackageValue).GetBlock(store).GetSource(store)
 					n.Path = pn.GetPathForName(store, n.Sel)
 				case *TypeType:
 					// unbound method
@@ -1507,15 +1507,28 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				case *StructType:
 					*dst = *(tmp.(*StructType))
 				case *DeclaredType:
+					// if store has this type, use that.
 					pn := packageOf(last)
-					// NOTE: this is where declared types are
-					// actually instantiated, not in
-					// interpret.go:runDeclaration().
-					dt := declareWith(pn.PkgPath, n.Name, tmp)
-					// if !n.IsAlias { // not sure why this was here.
-					dt.Seal()
-					//}
-					*dst = *dt
+					tid := DeclaredTypeID(pn.PkgPath, n.Name)
+					exists := false
+					if store != nil {
+						if dt := store.GetTypeSafe(tid); dt != nil {
+							dst = dt.(*DeclaredType)
+							last.GetValueRef(store, n.Name).SetType(dst)
+							exists = true
+						}
+					}
+					if !exists {
+						// otherwise construct new *DeclaredType.
+						// NOTE: this is where declared types are
+						// actually instantiated, not in
+						// interpret.go:runDeclaration().
+						dt2 := declareWith(pn.PkgPath, n.Name, tmp)
+						// if !n.IsAlias { // not sure why this was here.
+						dt2.Seal()
+						//}
+						*dst = *dt2
+					}
 				default:
 					panic(fmt.Sprintf("unexpected type declaration type %v",
 						reflect.TypeOf(dst)))
@@ -2365,6 +2378,11 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 			// preprocess if not already preprocessed.
 			if file.GetParentNode(nil) == nil {
 				file = Preprocess(store, pkg, file).(*FileNode)
+				if debug {
+					if file.GetParentNode(nil) == nil {
+						panic("expected Preprocess to set file.ParentNode.")
+					}
+				}
 			} else {
 				// predefine dependency (recursive).
 				*decl, _ = predefineNow2(store, file, *decl, m)
@@ -2400,13 +2418,12 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 			dt.DefineMethod(&FuncValue{
 				Type:       ft,
 				IsMethod:   true,
-				SourceLoc:  cd.GetLocation(),
 				Source:     cd,
 				Name:       cd.Name,
-				Body:       cd.Body,
 				Closure:    nil, // set later, see PrepareNewValues().
 				FileName:   filenameOf(last),
 				PkgPath:    "", // set later, see PrepareNewValues().
+				body:       cd.Body,
 				nativeBody: nil,
 				pkg:        nil, // set later, see PrepareNewValues().
 			})
@@ -2520,7 +2537,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			case *NameExpr:
 				if idx, ok := UverseNode().GetLocalIndex(tx.Name); ok {
 					// uverse name
-					tv := Uverse().GetPointerTo(nil, NewValuePathUverse(idx, tx.Name))
+					tv := Uverse().GetBlock(nil).GetPointerTo(nil, NewValuePathUverse(idx, tx.Name))
 					t = tv.TV.GetType()
 				} else if tv := last.GetValueRef(store, tx.Name); tv != nil {
 					// (file) block name
@@ -2556,9 +2573,9 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 					))
 				}
 				// check package node for name.
-				pn := pv.Source.(*PackageNode)
+				pn := pv.GetBlock(store).GetSource(store).(*PackageNode)
 				tx.Path = pn.GetPathForName(store, tx.Sel)
-				ptr := pv.Block.GetPointerTo(store, tx.Path)
+				ptr := pv.GetBlock(store).GetPointerTo(store, tx.Path)
 				t = ptr.TV.T
 			default:
 				panic(fmt.Sprintf(
@@ -2614,13 +2631,12 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 				V: &FuncValue{
 					Type:       ft,
 					IsMethod:   false,
-					SourceLoc:  d.GetLocation(),
 					Source:     d,
 					Name:       d.Name,
-					Body:       d.Body,
 					Closure:    nil, // set later, see PrepareNewValues().
 					FileName:   filenameOf(last),
 					PkgPath:    "", // set later, see PrepareNewValues().
+					body:       d.Body,
 					nativeBody: nil,
 					pkg:        nil, // set later, see PrepareNewValues().
 				},
@@ -2965,4 +2981,48 @@ func findDependentNames(n Node, dst map[Name]struct{}) {
 			"unexpected node: %v (%v)",
 			n, reflect.TypeOf(n)))
 	}
+}
+
+//----------------------------------------
+// SaveBlockNodes
+
+// Iterate over all block nodes recursively and saves them.
+// Ensures uniqueness of BlockNode.Locations.
+func SaveBlockNodes(store Store, fn *FileNode) {
+	// First, get the package and file names.
+	pn := packageOf(fn)
+	store.SetBlockNode(pn)
+	pkgPath := pn.PkgPath
+	fileName := string(fn.Name)
+	if pkgPath == "" || fileName == "" {
+		panic("missing package path or file name")
+	}
+	lastLine := 0
+	nextNonce := 0
+	Transcribe(fn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		if stage != TRANS_ENTER {
+			return n, TRANS_CONTINUE
+		}
+		// save node to store if blocknode.
+		if bn, ok := n.(BlockNode); ok {
+			// ensure unique location of blocknode.
+			line := bn.GetLine()
+			if line == lastLine {
+				nextNonce += 1
+			} else {
+				lastLine = line
+				nextNonce = 0
+			}
+			loc := Location{
+				PkgPath: pkgPath,
+				File:    fileName,
+				Line:    line,
+				Nonce:   nextNonce,
+			}
+			bn.SetLocation(loc)
+			// save blocknode.
+			store.SetBlockNode(bn)
+		}
+		return n, TRANS_CONTINUE
+	})
 }

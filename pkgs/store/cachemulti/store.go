@@ -1,10 +1,6 @@
 package cachemulti
 
 import (
-	dbm "github.com/gnolang/gno/pkgs/db"
-
-	"github.com/gnolang/gno/pkgs/store/cache"
-	"github.com/gnolang/gno/pkgs/store/dbadapter"
 	"github.com/gnolang/gno/pkgs/store/types"
 )
 
@@ -16,7 +12,6 @@ import (
 // NOTE: a Store (and MultiStores in general) should never expose the
 // keys for the substores.
 type Store struct {
-	main   types.Store
 	stores map[types.StoreKey]types.Store
 	keys   map[string]types.StoreKey
 }
@@ -24,12 +19,10 @@ type Store struct {
 var _ types.MultiStore = Store{}
 
 func NewFromStores(
-	main types.Store,
 	stores map[types.StoreKey]types.Store,
 	keys map[string]types.StoreKey,
 ) Store {
 	cms := Store{
-		main:   cache.New(main),
 		stores: make(map[types.StoreKey]types.Store, len(stores)),
 		keys:   keys,
 	}
@@ -42,11 +35,10 @@ func NewFromStores(
 }
 
 func New(
-	db dbm.DB,
 	stores map[types.StoreKey]types.Store,
 	keys map[string]types.StoreKey,
 ) Store {
-	return NewFromStores(dbadapter.Store{db}, stores, keys)
+	return NewFromStores(stores, keys)
 }
 
 func newStoreFromCMS(cms Store) Store {
@@ -54,12 +46,11 @@ func newStoreFromCMS(cms Store) Store {
 	for k, v := range cms.stores {
 		stores[k] = v
 	}
-	return NewFromStores(cms.main, stores, nil)
+	return NewFromStores(stores, nil)
 }
 
 // MultiWrite calls Write on each underlying store.
 func (cms Store) MultiWrite() {
-	cms.main.Write()
 	for _, store := range cms.stores {
 		store.Write()
 	}

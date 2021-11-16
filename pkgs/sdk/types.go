@@ -39,3 +39,17 @@ type GasPrice = std.GasPrice
 
 var ParseGasPrice = std.ParseGasPrice
 var ParseGasPrices = std.ParseGasPrices
+
+//----------------------------------------
+
+// Enum mode for app.runTx
+type RunTxMode uint8
+
+const (
+	// Check a transaction
+	RunTxModeCheck RunTxMode = iota
+	// Simulate a transaction
+	RunTxModeSimulate RunTxMode = iota
+	// Deliver a transaction
+	RunTxModeDeliver RunTxMode = iota
+)

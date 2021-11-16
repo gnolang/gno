@@ -35,6 +35,11 @@ test:
 	go test
 	go test tests/*.go -v -test.short
 
+testrealm:
+	echo "Running tests"
+	go test
+	go test tests/*.go -v -run "TestFiles/^zrealm"
+
 test2:
 	# -p 1 shows test failures as they come
 	# maybe another way to do this?

@@ -588,12 +588,11 @@ func (m *Machine) doOpFuncLit() {
 		V: &FuncValue{
 			Type:       ft,
 			IsMethod:   false,
-			SourceLoc:  x.GetLocation(),
 			Source:     x,
 			Name:       "",
-			Body:       x.Body,
 			Closure:    lb,
 			PkgPath:    m.Package.PkgPath,
+			body:       x.Body,
 			nativeBody: nil,
 			pkg:        m.Package,
 		},

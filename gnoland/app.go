@@ -15,6 +15,7 @@ import (
 	"github.com/gnolang/gno/pkgs/sdk/vm"
 	"github.com/gnolang/gno/pkgs/std"
 	"github.com/gnolang/gno/pkgs/store"
+	"github.com/gnolang/gno/pkgs/store/dbadapter"
 	"github.com/gnolang/gno/pkgs/store/iavl"
 )
 
@@ -23,19 +24,21 @@ func NewApp(rootDir string, logger log.Logger) (abci.Application, error) {
 	// Get main DB.
 	db := dbm.NewDB("gnolang", dbm.GoLevelDBBackend, filepath.Join(rootDir, "data"))
 
-	// Capabilities key to access the main Store.
+	// Capabilities keys.
 	mainKey := store.NewStoreKey(sdk.MainStoreKey)
+	baseKey := store.NewStoreKey("base")
 
 	// Create BaseApp.
 	baseApp := sdk.NewBaseApp("gnoland", logger, db)
 
 	// Set mounts for BaseApp's MultiStore.
 	baseApp.MountStoreWithDB(mainKey, iavl.StoreConstructor, db)
+	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, db)
 
 	// Construct keepers.
 	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
 	bankKpr := bank.NewBankKeeper(acctKpr)
-	vmKpr := vm.NewVMKeeper(mainKey, acctKpr, bankKpr)
+	vmKpr := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr)
 
 	// Configure InitChainer for genesis.
 	baseApp.SetInitChainer(InitChainer(acctKpr, bankKpr))

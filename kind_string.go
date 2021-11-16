@@ -34,11 +34,12 @@ func _() {
 	_ = x[TypeKind-23]
 	_ = x[BlockKind-24]
 	_ = x[TupleKind-25]
+	_ = x[RefTypeKind-26]
 }
 
-const _Kind_name = "InvalidKindBoolKindStringKindIntKindInt8KindInt16KindInt32KindInt64KindUintKindUint8KindUint16KindUint32KindUint64KindBigintKindArrayKindSliceKindPointerKindStructKindPackageKindInterfaceKindChanKindFuncKindMapKindTypeKindBlockKindTupleKind"
+const _Kind_name = "InvalidKindBoolKindStringKindIntKindInt8KindInt16KindInt32KindInt64KindUintKindUint8KindUint16KindUint32KindUint64KindBigintKindArrayKindSliceKindPointerKindStructKindPackageKindInterfaceKindChanKindFuncKindMapKindTypeKindBlockKindTupleKindRefTypeKind"
 
-var _Kind_index = [...]uint8{0, 11, 19, 29, 36, 44, 53, 62, 71, 79, 88, 98, 108, 118, 128, 137, 146, 157, 167, 178, 191, 199, 207, 214, 222, 231, 240}
+var _Kind_index = [...]uint8{0, 11, 19, 29, 36, 44, 53, 62, 71, 79, 88, 98, 108, 118, 128, 137, 146, 157, 167, 178, 191, 199, 207, 214, 222, 231, 240, 251}
 
 func (i Kind) String() string {
 	if i >= Kind(len(_Kind_index)-1) {

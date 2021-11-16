@@ -21,6 +21,7 @@ here would be better just to add to the Context struct
 */
 type Context struct {
 	ctx           context.Context
+	mode          RunTxMode
 	ms            store.MultiStore
 	header        abci.Header
 	chainID       string
@@ -40,6 +41,7 @@ type Request = Context
 
 // Read-only accessors
 func (c Context) Context() context.Context      { return c.ctx }
+func (c Context) Mode() RunTxMode               { return c.mode }
 func (c Context) MultiStore() store.MultiStore  { return c.ms }
 func (c Context) BlockHeight() int64            { return c.header.GetHeight() }
 func (c Context) BlockTime() time.Time          { return c.header.GetTime() }
@@ -65,6 +67,9 @@ func (c Context) ConsensusParams() *abci.ConsensusParams {
 
 // create a new context
 func NewContext(ms store.MultiStore, header abci.Header, isCheckTx bool, logger log.Logger) Context {
+	if header.GetChainID() == "" {
+		panic("header chain id cannot be empty")
+	}
 	return Context{
 		ctx:          context.Background(),
 		ms:           ms,
@@ -80,6 +85,11 @@ func NewContext(ms store.MultiStore, header abci.Header, isCheckTx bool, logger 
 
 func (c Context) WithContext(ctx context.Context) Context {
 	c.ctx = ctx
+	return c
+}
+
+func (c Context) WithMode(mode RunTxMode) Context {
+	c.mode = mode
 	return c
 }
 
@@ -168,7 +178,7 @@ func (c Context) Value(key interface{}) interface{} {
 // Store / Caching
 // ----------------------------------------------------------------------------
 
-// Store fetches a Store from the MultiStore.
+// Store fetches a Store from the MultiStore, but wrapped for gas calculation.
 func (c Context) Store(key store.StoreKey) store.Store {
 	return gas.New(c.MultiStore().GetStore(key), c.GasMeter(), store.DefaultGasConfig())
 }

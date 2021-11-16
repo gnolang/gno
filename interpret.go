@@ -1,11 +1,16 @@
 package gno
 
+// XXX rename file to machine.go.
+
 import (
 	"fmt"
 	"io"
 	"os"
 	"reflect"
 	"strings"
+
+	"github.com/gnolang/gno/pkgs/errors"
+	"github.com/gnolang/gno/pkgs/std"
 )
 
 //----------------------------------------
@@ -32,9 +37,10 @@ type Machine struct {
 	// Configuration
 	CheckTypes bool // not yet used
 	ReadOnly   bool
-	Output     io.Writer
-	Store      Store
-	Context    interface{}
+
+	Output  io.Writer
+	Store   Store
+	Context interface{}
 }
 
 // Machine with new package of given path.
@@ -60,12 +66,12 @@ type MachineOptions struct {
 }
 
 func NewMachineWithOptions(opts MachineOptions) *Machine {
-	pkg := opts.Package
-	if pkg == nil {
+	pv := opts.Package
+	if pv == nil {
 		pn := NewPackageNode("main", ".main", &FileSet{})
-		pkg = pn.NewPackage()
+		pv = pn.NewPackage()
 	}
-	rlm := pkg.GetRealm()
+	//rlm := pv.GetRealm()
 	checkTypes := opts.CheckTypes
 	readOnly := opts.ReadOnly
 	output := opts.Output
@@ -76,32 +82,93 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	if store == nil {
 		// bare machine, no stdlibs.
 	}
-	blocks := []*Block{
-		&pkg.Block,
-	}
+	//blocks := []*Block{
+	//	pv.GetBlock(store),
+	//}
 	context := opts.Context
-	return &Machine{
-		Ops:        make([]Op, 1024),
-		NumOps:     0,
-		Values:     make([]TypedValue, 1024),
-		NumValues:  0,
-		Blocks:     blocks,
-		Package:    pkg,
-		Realm:      rlm,
+	mm := &Machine{
+		Ops:       make([]Op, 1024),
+		NumOps:    0,
+		Values:    make([]TypedValue, 1024),
+		NumValues: 0,
+		//Blocks:     blocks,
+		Package: pv,
+		//Realm:      rlm,
 		CheckTypes: checkTypes,
 		ReadOnly:   readOnly,
 		Output:     output,
 		Store:      store,
 		Context:    context,
 	}
+	mm.SetActivePackage(pv)
+	return mm
+}
+
+func (m *Machine) SetActivePackage(pv *PackageValue) {
+	if err := m.CheckEmpty(); err != nil {
+		panic(errors.Wrap(err, "set package when machine not empty"))
+	}
+	m.Package = pv
+	m.Realm = pv.GetRealm()
+	m.Blocks = []*Block{
+		pv.GetBlock(m.Store),
+	}
 }
 
 //----------------------------------------
 // top level Run* methods.
 
+// Upon restart, preprocess all MemPackage and save blocknodes.
+func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
+	ch := m.Store.IterMemPackage()
+	for memPkg := range ch {
+		fset := ParseMemPackage(memPkg)
+		pn := NewPackageNode(Name(memPkg.Name), memPkg.Path, fset)
+		for _, fn := range fset.Files {
+			// Save Types to m.Store (while preprocessing).
+			fn = Preprocess(m.Store, pn, fn).(*FileNode)
+			// Save BlockNodes to m.Store.
+			SaveBlockNodes(m.Store, fn)
+		}
+	}
+}
+
+//----------------------------------------
+// top level Run* methods.
+
+// First sets the active package to a new instance of memPkg's.
+// Parses files, sets the package, runs files, and saves mempkg.
+func (m *Machine) RunMemPackage(memPkg std.MemPackage, save bool) {
+	// parse files.
+	files := ParseMemPackage(memPkg)
+	// make and set package
+	pkg := NewPackageNode(Name(memPkg.Name), memPkg.Path, files)
+	pv := pkg.NewPackage()
+	m.SetActivePackage(pv)
+	if save {
+		// run files and save package
+		m.RunFilesAndSave(files.Files...)
+		// store mempkg
+		m.Store.AddMemPackage(memPkg)
+	} else {
+		// run files
+		m.RunFiles(files.Files...)
+	}
+}
+
 // Add files to the package's *FileSet and run them.
 // This will also run each init function encountered.
 func (m *Machine) RunFiles(fns ...*FileNode) {
+	m.runFiles(fns...)
+}
+
+// Like RunFiles, but also persists the resulting new package value.
+// Non-realm packages are persisted on a throwaway realm.
+func (m *Machine) RunFilesAndSave(fns ...*FileNode) {
+	m.runFiles(fns...)
+	m.savePackage()
+}
+func (m *Machine) runFiles(fns ...*FileNode) {
 	// Files' package names must match the machine's active one.
 	// if there is one.
 	for _, fn := range fns {
@@ -112,7 +179,8 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	}
 	// Add files to *PackageNode.FileSet.
 	pv := m.Package
-	pn := pv.Source.(*PackageNode)
+	pb := pv.GetBlock(m.Store)
+	pn := pb.GetSource(m.Store).(*PackageNode)
 	if pn.FileSet == nil {
 		pn.FileSet = &FileSet{}
 	}
@@ -132,11 +200,15 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 		if debug {
 			debug.Println("PREPROCESSED FILE: ", fn.String())
 		}
+		// After preprocessing, save blocknodes to store.
+		if m.Store != nil {
+			SaveBlockNodes(m.Store, fn)
+		}
 		// Make block for fn.
 		// Each file for each *PackageValue gets its own file *Block,
 		// with values copied over from each file's
 		// *FileNode.StaticBlock.
-		fb := NewBlock(fn, &pv.Block)
+		fb := NewBlock(fn, pb)
 		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
 		copy(fb.Values, fn.StaticBlock.Values)
 		pv.AddFileBlock(fn.Name, fb)
@@ -220,6 +292,34 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	}
 }
 
+// Save the machine's package using realm finalization deep crawl.
+// Also saves declared types.
+func (m *Machine) savePackage() {
+	// save package value and dependencies.
+	pv := m.Package
+	if pv.IsRealm() {
+		rlm := pv.Realm
+		rlm.MarkNewReal(pv)
+		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
+	} else if m.Store != nil { // use a throwaway realm.
+		rlm := NewRealm(pv.PkgPath)
+		rlm.MarkNewReal(pv)
+		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
+	}
+	// save declared types.
+	if m.Store != nil {
+		if bv, ok := pv.Block.(*Block); ok {
+			for _, tv := range bv.Values {
+				if tvv, ok := tv.V.(TypeValue); ok {
+					if dt, ok := tvv.Type.(*DeclaredType); ok {
+						m.Store.SetType(dt)
+					}
+				}
+			}
+		}
+	}
+}
+
 func (m *Machine) RunFunc(fn Name) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -260,7 +360,7 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 	// Preprocess input using package block.
 	// There should only be one block, a *PackageNode.
 	// Other usage styles not yet supported.
-	pn := m.LastBlock().Source.(*PackageNode)
+	pn := m.LastBlock().GetSource(m.Store).(*PackageNode)
 	// Transform expression to ensure isolation.
 	// This is to ensure that the existing machine
 	// context (ie **PackageNode) doesn't get modified.
@@ -344,7 +444,7 @@ func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 }
 
 func (m *Machine) RunStatement(s Stmt) {
-	sn := m.LastBlock().Source
+	sn := m.LastBlock().GetSource(m.Store)
 	s = Preprocess(m.Store, sn, s).(Stmt)
 	m.PushOp(OpHalt)
 	m.PushStmt(s)
@@ -354,15 +454,20 @@ func (m *Machine) RunStatement(s Stmt) {
 
 // Runs a declaration after preprocessing d.  If d was already
 // preprocessed, call runDeclaration() instead.
+// This function is primarily for testing, so no blocknodes are
+// saved to store, and declarations are not realm compatible.
+// NOTE: to support realm persistence of types, must
+// first require the validation of blocknode locations.
 func (m *Machine) RunDeclaration(d Decl) {
 	// Preprocess input using package block.  There should only
 	// be one block right now, and it's a *PackageNode.
-	pn := m.LastBlock().Source.(*PackageNode)
+	pn := m.LastBlock().GetSource(m.Store).(*PackageNode)
 	d = Preprocess(m.Store, pn, d).(Decl)
+	// do not SaveBlockNodes(m.Store, d).
 	pn.PrepareNewValues(m.Package)
 	m.runDeclaration(d)
 	if debug {
-		if pn != m.Package.Source {
+		if pn != m.Package.GetBlock(m.Store).GetSource(m.Store) {
 			panic("package mismatch")
 		}
 	}
@@ -1012,14 +1117,14 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 		m.Printf("+F %#v\n", fr)
 	}
 	m.Frames = append(m.Frames, fr)
-	pkg := fv.GetPackage()
+	pv := fv.GetPackage(m.Store)
 	if debug {
-		if pkg == nil {
+		if pv == nil {
 			panic("should not happen")
 		}
 	}
-	m.Package = pkg
-	rlm := pkg.GetRealm()
+	m.Package = pv
+	rlm := pv.GetRealm()
 	if rlm != nil && m.Realm != rlm {
 		m.Realm = rlm // enter new realm
 	}
@@ -1225,7 +1330,7 @@ func (m *Machine) CheckEmpty() error {
 		found = "stmt"
 	} else if len(m.Blocks) > 0 {
 		for _, b := range m.Blocks {
-			_, isPkg := b.Source.(*PackageNode)
+			_, isPkg := b.GetSource(m.Store).(*PackageNode)
 			if isPkg {
 				// ok
 			} else {
@@ -1287,16 +1392,17 @@ func (m *Machine) String() string {
 	}
 	bs := []string{}
 	for b := m.LastBlock(); b != nil; {
-		gen := len(bs)/2 + 1
-		gens := strings.Repeat("@", gen)
+		gen := len(bs)/3 + 1
+		gens := "@" // strings.Repeat("@", gen)
 		bsi := b.StringIndented("            ")
 		bs = append(bs, fmt.Sprintf("          %s(%d) %s", gens, gen, bsi))
 		if b.Source != nil {
-			sb := b.Source.GetStaticBlock().GetBlock()
-			bs = append(bs, fmt.Sprintf(" (static values) %s(%d) %s", gens, gen,
+			sb := b.GetSource(m.Store).GetStaticBlock().GetBlock()
+			bs = append(bs, fmt.Sprintf(" (s vals) %s(%d) %s", gens, gen,
 				sb.StringIndented("            ")))
-			sts := b.Source.GetStaticBlock().Types
-			bs = append(bs, fmt.Sprintf(" (static types) %s(%d) %s", gens, gen, sts))
+			sts := b.GetSource(m.Store).GetStaticBlock().Types
+			bs = append(bs, fmt.Sprintf(" (s typs) %s(%d) %s", gens, gen,
+				sts))
 		}
 		// b = b.Parent.(*Block|RefValue)
 		switch bp := b.Parent.(type) {
@@ -1319,7 +1425,7 @@ func (m *Machine) String() string {
 		obs = append(obs, fmt.Sprintf("          #%d %s", i,
 			b.StringIndented("            ")))
 		if b.Source != nil {
-			sb := b.Source.GetStaticBlock().GetBlock()
+			sb := b.GetSource(m.Store).GetStaticBlock().GetBlock()
 			obs = append(obs, fmt.Sprintf(" (static) #%d %s", i,
 				sb.StringIndented("            ")))
 		}

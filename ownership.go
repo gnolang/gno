@@ -1,7 +1,6 @@
 package gno
 
 import (
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"strconv"
@@ -41,13 +40,13 @@ supported).
 */
 
 type ObjectID struct {
-	RealmID RealmID // base
-	NewTime uint64  // time created
+	PkgID   PkgID  // base
+	NewTime uint64 // time created
 }
 
 func (oid ObjectID) MarshalAmino() (string, error) {
-	rid := hex.EncodeToString(oid.RealmID.Hashlet[:])
-	return fmt.Sprintf("%s:%d", rid, oid.NewTime), nil
+	pid := hex.EncodeToString(oid.PkgID.Hashlet[:])
+	return fmt.Sprintf("%s:%d", pid, oid.NewTime), nil
 }
 
 func (oid *ObjectID) UnmarshalAmino(oids string) error {
@@ -55,7 +54,7 @@ func (oid *ObjectID) UnmarshalAmino(oids string) error {
 	if len(parts) != 2 {
 		return errors.New("invalid ObjectID %s", oids)
 	}
-	_, err := hex.Decode(oid.RealmID.Hashlet[:], []byte(parts[0]))
+	_, err := hex.Decode(oid.PkgID.Hashlet[:], []byte(parts[0]))
 	if err != nil {
 		return err
 	}
@@ -72,23 +71,17 @@ func (oid ObjectID) String() string {
 	return oids
 }
 
-func (oid ObjectID) Bytes() []byte {
-	bz := make([]byte, HashSize+8)
-	copy(bz[:HashSize], oid.RealmID.Bytes())
-	binary.BigEndian.PutUint64(
-		bz[HashSize:], uint64(oid.NewTime))
-	return bz
-}
-
-// TODO: make faster by making RealmID a pointer
-// and enforcing that the value of RealmID is never zero.
+// TODO: make faster by making PkgID a pointer
+// and enforcing that the value of PkgID is never zero.
 func (oid ObjectID) IsZero() bool {
 	if debug {
-		if oid.RealmID.IsZero() && oid.NewTime != 0 {
-			panic("should not happen")
+		if oid.PkgID.IsZero() {
+			if oid.NewTime != 0 {
+				panic("should not happen")
+			}
 		}
 	}
-	return oid.RealmID.IsZero()
+	return oid.PkgID.IsZero()
 }
 
 type Object interface {
@@ -108,14 +101,18 @@ type Object interface {
 	IncRefCount() int
 	DecRefCount() int
 	GetRefCount() int
-	GetIsNewReal() bool
-	SetIsNewReal(bool)
 	GetIsDirty() bool
 	SetIsDirty(bool, uint64)
+	GetIsEscaped() bool
+	SetIsEscaped(bool)
 	GetIsDeleted() bool
 	SetIsDeleted(bool, uint64)
-	GetIsProcessing() bool
-	SetIsProcessing(bool)
+	GetIsNewReal() bool
+	SetIsNewReal(bool)
+	GetIsNewEscaped() bool
+	SetIsNewEscaped(bool)
+	GetIsNewDeleted() bool
+	SetIsNewDeleted(bool)
 	GetIsTransient() bool
 
 	// Saves to realm along the way if owned, and also (dirty
@@ -130,16 +127,18 @@ var _ Object = &MapValue{}
 var _ Object = &Block{}
 
 type ObjectInfo struct {
-	ID       ObjectID  // set if real.
-	Hash     ValueHash `json:",omitempty"` // zero if dirty.
-	OwnerID  ObjectID  `json:",omitempty"` // parent in the ownership tree.
-	ModTime  uint64    // time last updated.
-	RefCount int       // for persistence. deleted/gc'd if 0.
+	ID        ObjectID  // set if real.
+	Hash      ValueHash `json:",omitempty"` // zero if dirty.
+	OwnerID   ObjectID  `json:",omitempty"` // parent in the ownership tree.
+	ModTime   uint64    // time last updated.
+	RefCount  int       // for persistence. deleted/gc'd if 0.
+	IsEscaped bool      `json:",omitempty"` // hash in iavl.
 	// MemRefCount int // consider for optimizations.
-	isNewReal    bool
 	isDirty      bool
 	isDeleted    bool
-	isProcessing bool
+	isNewReal    bool
+	isNewEscaped bool
+	isNewDeleted bool
 
 	// XXX huh?
 	owner Object // mem reference to owner.
@@ -154,14 +153,17 @@ func (oi *ObjectInfo) Copy() ObjectInfo {
 		OwnerID:      oi.OwnerID,
 		ModTime:      oi.ModTime,
 		RefCount:     oi.RefCount,
-		isNewReal:    oi.isNewReal,
+		IsEscaped:    oi.IsEscaped,
 		isDirty:      oi.isDirty,
 		isDeleted:    oi.isDeleted,
-		isProcessing: oi.isProcessing,
+		isNewReal:    oi.isNewReal,
+		isNewEscaped: oi.isNewEscaped,
+		isNewDeleted: oi.isNewDeleted,
 	}
 }
 
 func (oi *ObjectInfo) String() string {
+	// XXX update with new flags.
 	return fmt.Sprintf(
 		"OI[%s#%X,owner=%s,refs=%d,new:%v,drt:%v,del:%v]",
 		oi.ID.String(),
@@ -172,27 +174,6 @@ func (oi *ObjectInfo) String() string {
 		oi.GetIsDirty(),
 		oi.GetIsDeleted(),
 	)
-}
-
-func (oi *ObjectInfo) Bytes() []byte {
-	if debug {
-		if oi.ID.IsZero() {
-			panic("should not happen")
-		}
-		if oi.Hash.IsZero() {
-			panic("should not happen")
-		}
-		if oi.OwnerID.IsZero() {
-			panic("should not happen")
-		}
-	}
-	bz := make([]byte, 0, 100)
-	bz = append(bz, sizedBytes(oi.ID.Bytes())...)
-	bz = append(bz, sizedBytes(oi.Hash.Bytes())...)
-	bz = append(bz, sizedBytes(oi.OwnerID.Bytes())...)
-	bz = append(bz, varintBytes(int64(oi.ModTime))...)
-	bz = append(bz, varintBytes(int64(oi.RefCount))...)
-	return bz
 }
 
 func (oi *ObjectInfo) GetObjectInfo() *ObjectInfo {
@@ -227,8 +208,13 @@ func (oi *ObjectInfo) GetOwner() Object {
 }
 
 func (oi *ObjectInfo) SetOwner(po Object) {
-	oi.OwnerID = po.GetObjectID()
-	oi.owner = po
+	if po == nil {
+		oi.OwnerID = ObjectID{}
+		oi.owner = nil
+	} else {
+		oi.OwnerID = po.GetObjectID()
+		oi.owner = po
+	}
 }
 
 func (oi *ObjectInfo) GetOwnerID() ObjectID {
@@ -274,14 +260,6 @@ func (oi *ObjectInfo) GetRefCount() int {
 	return oi.RefCount
 }
 
-func (oi *ObjectInfo) GetIsNewReal() bool {
-	return oi.isNewReal
-}
-
-func (oi *ObjectInfo) SetIsNewReal(x bool) {
-	oi.isNewReal = x
-}
-
 func (oi *ObjectInfo) GetIsDirty() bool {
 	return oi.isDirty
 }
@@ -292,6 +270,14 @@ func (oi *ObjectInfo) SetIsDirty(x bool, mt uint64) {
 		oi.ModTime = mt
 	}
 	oi.isDirty = x
+}
+
+func (oi *ObjectInfo) GetIsEscaped() bool {
+	return oi.IsEscaped
+}
+
+func (oi *ObjectInfo) SetIsEscaped(x bool) {
+	oi.IsEscaped = x
 }
 
 func (oi *ObjectInfo) GetIsDeleted() bool {
@@ -305,12 +291,28 @@ func (oi *ObjectInfo) SetIsDeleted(x bool, mt uint64) {
 	oi.isDirty = x
 }
 
-func (oi *ObjectInfo) GetIsProcessing() bool {
-	return oi.isProcessing
+func (oi *ObjectInfo) GetIsNewReal() bool {
+	return oi.isNewReal
 }
 
-func (oi *ObjectInfo) SetIsProcessing(x bool) {
-	oi.isProcessing = x
+func (oi *ObjectInfo) SetIsNewReal(x bool) {
+	oi.isNewReal = x
+}
+
+func (oi *ObjectInfo) GetIsNewEscaped() bool {
+	return oi.isNewEscaped
+}
+
+func (oi *ObjectInfo) SetIsNewEscaped(x bool) {
+	oi.isNewEscaped = x
+}
+
+func (oi *ObjectInfo) GetIsNewDeleted() bool {
+	return oi.isNewDeleted
+}
+
+func (oi *ObjectInfo) SetIsNewDeleted(x bool) {
+	oi.isNewDeleted = x
 }
 
 func (oi *ObjectInfo) GetIsTransient() bool {
@@ -348,6 +350,10 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 		return nil
 	case *Block:
 		return cv
+	case RefValue:
+		oo := store.GetObject(cv.ObjectID)
+		tv.V = oo
+		return oo
 	default:
 		return nil
 	}

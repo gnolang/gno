@@ -64,9 +64,10 @@ func (m *Machine) doOpCall() {
 	isMethod := 0 // 1 if true
 	// Create new block scope.
 	clo := fr.Func.GetClosure(m.Store)
-	b := NewBlock(fr.Func.Source, clo)
+	b := NewBlock(fr.Func.GetSource(m.Store), clo)
 	m.PushBlock(b)
 	if fv.nativeBody == nil {
+		fbody := fv.GetBodyFromSource(m.Store)
 		if len(ft.Results) == 0 {
 			// Push final empty *ReturnStmt;
 			// TODO: transform in preprocessor instead to return only
@@ -77,8 +78,8 @@ func (m *Machine) doOpCall() {
 		}
 		// Exec body.
 		b.bodyStmt = bodyStmt{
-			Body:          fv.Body,
-			BodyLen:       len(fv.Body),
+			Body:          fbody,
+			BodyLen:       len(fbody),
 			NextBodyIndex: -2,
 		}
 		m.PushOp(OpBody)
@@ -171,6 +172,11 @@ func (m *Machine) doOpCallDeferNativeBody() {
 func (m *Machine) doOpReturn() {
 	fr := m.PopUntilLastCallFrame()
 	// See if we are exiting a realm boundary.
+	// NOTE: there are other ways to implement realm boundary transitions,
+	// e.g. with independent Machine instances per realm for example, or
+	// even only finalizing all realm transactions at the end of the
+	// original statement execution, but for now we handle them like this,
+	// per OpReturn*.
 	crlm := m.Realm
 	if crlm != nil {
 		lrlm := fr.LastRealm
@@ -202,7 +208,7 @@ func (m *Machine) doOpReturnFromBlock() {
 	numResults := len(ft.Results)
 	fblock := m.Blocks[fr.NumBlocks] // frame +1
 	for i := 0; i < numResults; i++ {
-		rtv := fillValue(m.Store, &fblock.Values[i+numParams])
+		rtv := fillValueTV(m.Store, &fblock.Values[i+numParams])
 		m.PushValue(*rtv)
 	}
 	// See if we are exiting a realm boundary.
@@ -267,13 +273,14 @@ func (m *Machine) doOpReturnCallDefers() {
 		pts := ft.Params
 		numParams := len(ft.Params)
 		// Create new block scope for defer.
-		b := NewBlock(fv.Source, fb)
+		b := NewBlock(fv.GetSource(m.Store), fb)
 		m.PushBlock(b)
 		if fv.nativeBody == nil {
+			fbody := fv.GetBodyFromSource(m.Store)
 			// Exec body.
 			b.bodyStmt = bodyStmt{
-				Body:          fv.Body,
-				BodyLen:       len(fv.Body),
+				Body:          fbody,
+				BodyLen:       len(fbody),
 				NextBodyIndex: -2,
 			}
 			m.PushOp(OpBody)

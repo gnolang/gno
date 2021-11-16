@@ -175,12 +175,12 @@ func (m *Machine) doOpStaticTypeOf() {
 		// NOTE: duplicated from doOpEval
 		if x.Path.Depth == 0 {
 			// Name is in uverse (global).
-			gv := Uverse().GetPointerTo(nil, x.Path)
+			gv := Uverse().GetBlock(nil).GetPointerTo(nil, x.Path)
 			m.PushValue(asValue(gv.TV.T))
 		} else {
 			// Get static type from source.
 			lb := m.LastBlock()
-			st := lb.Source.GetStaticTypeOfAt(m.Store, x.Path)
+			st := lb.GetSource(m.Store).GetStaticTypeOfAt(m.Store, x.Path)
 			m.PushValue(asValue(st))
 		}
 	case *BasicLitExpr:
@@ -294,7 +294,7 @@ func (m *Machine) doOpStaticTypeOf() {
 				m.Run() // XXX replace
 				xv := m.ReapValues(start)[0]
 				pv := xv.V.(*PackageValue)
-				t := pv.Source.GetStaticTypeOfAt(m.Store, x.Path)
+				t := pv.GetBlock(m.Store).GetSource(m.Store).GetStaticTypeOfAt(m.Store, x.Path)
 				m.PushValue(asValue(t))
 				return
 			default:

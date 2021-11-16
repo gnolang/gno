@@ -1,13 +1,18 @@
 package gno
 
 import (
-	"encoding/hex"
 	"fmt"
 	"reflect"
+	rdebug "runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
 )
+
+// NOTE: TypeID() implementations are currently
+// experimental, and will probably get replaced with
+// some other system.  TypeID may become variable length,
+// rather than contain a single Hashlet.
 
 //----------------------------------------
 // (runtime) Type
@@ -21,35 +26,25 @@ type Type interface {
 	Elem() Type     // for TODO... types
 }
 
-type TypeID Hashlet
-
-func (tid TypeID) MarshalAmino() (string, error) {
-	return hex.EncodeToString(tid[:]), nil
-}
-
-func (tid *TypeID) UnmarshalAmino(h string) error {
-	_, err := hex.Decode(tid[:], []byte(h))
-	return err
-}
+type TypeID string
 
 func (tid TypeID) IsZero() bool {
-	return tid == (TypeID{})
+	return tid == ""
 }
 
 func (tid TypeID) Bytes() []byte {
-	return tid[:]
+	return []byte(tid)
 }
 
 func (tid TypeID) String() string {
-	return fmt.Sprintf("%X", tid[:])
+	return string(tid)
 }
 
 func typeid(f string, args ...interface{}) (tid TypeID) {
 	fs := fmt.Sprintf(f, args...)
-	hb := HashBytes([]byte(fs))
-	x := TypeID(hb)
+	x := TypeID(fs)
 	if debug {
-		debug.Println("TYPEID", fs, "->", x.String())
+		debug.Println("TYPEID", fs)
 	}
 	return x
 }
@@ -194,11 +189,11 @@ func (pt PrimitiveType) TypeID() TypeID {
 	case InvalidType:
 		panic("invalid type has no typeid")
 	case UntypedBoolType:
-		panic("untyped bool type has no typeid")
+		return typeid("<untyped> bool")
 	case BoolType:
 		return typeid("bool")
 	case UntypedStringType:
-		panic("untyped string type has no typeid")
+		return typeid("<untyped> string")
 	case StringType:
 		return typeid("string")
 	case IntType:
@@ -208,7 +203,7 @@ func (pt PrimitiveType) TypeID() TypeID {
 	case Int16Type:
 		return typeid("int16")
 	case UntypedRuneType:
-		panic("untyped rune type has no typeid")
+		return typeid("<untyped> rune")
 	case Int32Type:
 		return typeid("int32")
 	case Int64Type:
@@ -226,7 +221,7 @@ func (pt PrimitiveType) TypeID() TypeID {
 	case Uint64Type:
 		return typeid("uint64")
 	case UntypedBigintType:
-		panic("untyped bigint type has no typeid")
+		return typeid("<untyped> bigint")
 	case BigintType:
 		return typeid("bigint")
 	default:
@@ -307,7 +302,7 @@ func (ft FieldType) TypeID() TypeID {
 	if ft.Name == "" {
 		s += ft.Type.TypeID().String()
 	} else {
-		s += string(ft.Name) + "#" + ft.Type.TypeID().String()
+		s += string(ft.Name) + " " + ft.Type.TypeID().String()
 	}
 	return typeid(s)
 }
@@ -363,10 +358,10 @@ func (l FieldTypeList) TypeID() TypeID {
 		if ft.Name == "" {
 			s += ft.Type.TypeID().String()
 		} else {
-			s += string(ft.Name) + "#" + ft.Type.TypeID().String()
+			s += string(ft.Name) + " " + ft.Type.TypeID().String()
 		}
 		if i != ll-1 {
-			s += ","
+			s += ";"
 		}
 	}
 	return typeid(s)
@@ -381,12 +376,12 @@ func (l FieldTypeList) TypeIDForPackage(pkgPath string) TypeID {
 	for i, ft := range l {
 		fn := ft.Name
 		if isUpper(string(fn)) {
-			s += string(fn) + "#" + ft.Type.TypeID().String()
+			s += string(fn) + " " + ft.Type.TypeID().String()
 		} else {
-			s += pkgPath + "." + string(fn) + "#" + ft.Type.TypeID().String()
+			s += pkgPath + "." + string(fn) + " " + ft.Type.TypeID().String()
 		}
 		if i != ll-1 {
-			s += ","
+			s += ";"
 		}
 	}
 	return typeid(s)
@@ -411,7 +406,7 @@ func (l FieldTypeList) String() string {
 	ll := len(l)
 	s := ""
 	for i, ft := range l {
-		s += string(ft.Name) + "#" + ft.Type.TypeID().String()
+		s += string(ft.Name) + " " + ft.Type.TypeID().String()
 		if i != ll-1 {
 			s += ";"
 		}
@@ -423,7 +418,7 @@ func (l FieldTypeList) StringWithCommas() string {
 	ll := len(l)
 	s := ""
 	for i, ft := range l {
-		s += string(ft.Name) + "#" + ft.Type.String()
+		s += string(ft.Name) + " " + ft.Type.String()
 		if i != ll-1 {
 			s += ","
 		}
@@ -439,7 +434,7 @@ func (l FieldTypeList) UnnamedTypeID() TypeID {
 	for i, ft := range l {
 		s += ft.Type.TypeID().String()
 		if i != ll-1 {
-			s += ","
+			s += ";"
 		}
 	}
 	return typeid(s)
@@ -660,7 +655,7 @@ func (st *StructType) TypeID() TypeID {
 		// unexported fields.  st.PkgPath is only included in field
 		// names that are not uppercase.
 		st.typeid = typeid(
-			"s{%s}",
+			"struct{%s}",
 			FieldTypeList(st.Fields).TypeIDForPackage(st.PkgPath),
 		)
 	}
@@ -759,7 +754,7 @@ func (pt *PackageType) TypeID() TypeID {
 		// TypeID if and only if neither have unexported fields.
 		// pt.Path is only included in field names that are not
 		// uppercase.
-		pt.typeid = typeid("pkg{}")
+		pt.typeid = typeid("package{}")
 	}
 	return pt.typeid
 }
@@ -808,7 +803,7 @@ func (it *InterfaceType) TypeID() TypeID {
 		ms := FieldTypeList(it.Methods)
 		// XXX pre-sort.
 		sort.Sort(ms)
-		it.typeid = typeid("i{" + ms.TypeIDForPackage(it.PkgPath).String() + "}")
+		it.typeid = typeid("interface{" + ms.TypeIDForPackage(it.PkgPath).String() + "}")
 	}
 	return it.typeid
 }
@@ -1167,7 +1162,7 @@ func (mt *MapType) Kind() Kind {
 func (mt *MapType) TypeID() TypeID {
 	if mt.typeid.IsZero() {
 		mt.typeid = typeid(
-			"m[%s]%s",
+			"map[%s]%s",
 			mt.Key.TypeID().String(),
 			mt.Value.TypeID().String(),
 		)
@@ -1234,6 +1229,11 @@ func declareWith(pkgPath string, name Name, b Type) *DeclaredType {
 		Base:    baseOf(b),
 		sealed:  false,
 	}
+	if strings.HasPrefix(
+		fmt.Sprintf("%v", dt),
+		"github.com/gnolang/gno/_test/timtadh/data-structures/tree/avl.AvlNode") {
+		rdebug.PrintStack()
+	}
 	return dt
 }
 
@@ -1263,22 +1263,15 @@ func (dt *DeclaredType) Seal() {
 	dt.sealed = true
 }
 
-// NOTE: it is difficult to do otherwise than to hash the package name and
-// type name, because types may be recursive in complex ways.  This appears
-// related to the graph homomorphism problem.  So, beware.  For now, we
-// require the user to verify the definition of declared types in a
-// separate request or piece of data.
 func (dt *DeclaredType) TypeID() TypeID {
-	if !dt.sealed {
-		panic(fmt.Sprintf(
-			"*DeclaredType %s not yet sealed",
-			dt.Name))
-	}
 	if dt.typeid.IsZero() {
-		dt.typeid = typeid("%s.%s",
-			dt.PkgPath, dt.Name)
+		dt.typeid = DeclaredTypeID(dt.PkgPath, dt.Name)
 	}
 	return dt.typeid
+}
+
+func DeclaredTypeID(pkgPath string, name Name) TypeID {
+	return typeid("%s.%s", pkgPath, name)
 }
 
 func (dt *DeclaredType) String() string {
@@ -1677,7 +1670,7 @@ type RefType struct {
 }
 
 func (_ RefType) Kind() Kind {
-	panic("should not happen")
+	return RefTypeKind
 }
 
 func (rt RefType) TypeID() TypeID {
@@ -1759,8 +1752,9 @@ const (
 	MapKind
 	TypeKind // not in go.
 	// UnsafePointerKind
-	BlockKind // not in go.
-	TupleKind // not in go.
+	BlockKind   // not in go.
+	TupleKind   // not in go.
+	RefTypeKind // not in go.
 )
 
 // This is generally slower than switching on baseOf(t).
@@ -1829,6 +1823,8 @@ func KindOf(t Type) Kind {
 		return BlockKind
 	case *tupleType:
 		return TupleKind
+	case RefType:
+		return RefTypeKind
 	default:
 		panic(fmt.Sprintf("unexpected type %#v", t))
 	}

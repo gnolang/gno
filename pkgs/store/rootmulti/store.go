@@ -202,7 +202,7 @@ func (ms *multiStore) MultiCacheWrap() types.MultiStore {
 		stores[k] = v
 	}
 
-	return cachemulti.New(ms.db, stores, ms.keysByName)
+	return cachemulti.New(stores, ms.keysByName)
 }
 
 // Implements MultiStore.
@@ -227,7 +227,7 @@ func (ms *multiStore) MultiImmutableCacheWrapWithVersion(version int64) (types.M
 	for storeKey, store := range ims.stores {
 		stores[storeKey] = immut.New(store)
 	}
-	return cachemulti.New(ims.db, stores, ims.keysByName), nil
+	return cachemulti.New(stores, ims.keysByName), nil
 }
 
 // Implements MultiStore.

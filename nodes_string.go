@@ -450,6 +450,10 @@ func (n PackageNode) String() string {
 	return fmt.Sprintf("package(%s)", n.PkgName)
 }
 
+func (n RefNode) String() string {
+	return fmt.Sprintf("ref(%s)", n.Location.String())
+}
+
 //----------------------------------------
 // Node slice strings
 // NOTE: interface-generics or?

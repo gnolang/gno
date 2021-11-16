@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
-	"strings"
 
+	"github.com/gnolang/gno"
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/command"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
@@ -125,35 +124,8 @@ func makeAddPackageTxApp(cmd *command.Command, args []string, iopts interface{})
 		panic(err)
 	}
 
-	// read all files.
-	dir, err := os.Open(opts.PkgDir)
-	if err != nil {
-		panic(err)
-	}
-	defer dir.Close()
-	entries, err := dir.Readdir(0)
-	if err != nil {
-		panic(err)
-	}
-
-	// For each file in the directory, filter by pattern
-	namedfiles := []vm.NamedFile{}
-	for _, entry := range entries {
-		name := entry.Name()
-		if strings.HasSuffix(name, ".go") {
-			fpath := filepath.Join(
-				opts.PkgDir, name)
-			body, err := os.ReadFile(fpath)
-			if err != nil {
-				return errors.Wrap(err, "reading gno file")
-			}
-			namedfiles = append(namedfiles,
-				vm.NamedFile{
-					Name: name,
-					Body: string(body),
-				})
-		}
-	}
+	// open files in directory as MemPackage.
+	memPkg := gno.ReadMemPackage(opts.PkgDir, opts.PkgPath)
 
 	// parse gas wanted & fee.
 	gaswanted := opts.GasWanted
@@ -164,8 +136,7 @@ func makeAddPackageTxApp(cmd *command.Command, args []string, iopts interface{})
 	// construct msg & tx and marshal.
 	msg := vm.MsgAddPackage{
 		Creator: creator,
-		PkgPath: opts.PkgPath,
-		Files:   namedfiles,
+		Package: memPkg,
 		Deposit: deposit,
 	}
 	tx := std.Tx{

@@ -19,7 +19,7 @@ func (m *Machine) doOpEval() {
 		m.PopExpr()
 		if nx.Path.Depth == 0 {
 			// Name is in uverse (global).
-			gv := Uverse().GetPointerTo(nil, nx.Path)
+			gv := Uverse().GetBlock(nil).GetPointerTo(nil, nx.Path)
 			m.PushValue(gv.Deref())
 			return
 		} else {

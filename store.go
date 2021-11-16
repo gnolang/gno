@@ -1,109 +1,559 @@
 package gno
 
+import (
+	"fmt"
+	"strconv"
+	"strings"
+
+	"github.com/gnolang/gno/pkgs/amino"
+	"github.com/gnolang/gno/pkgs/std"
+	"github.com/gnolang/gno/pkgs/store"
+)
+
+const iavlCacheSize = 1024 * 1024 // TODO increase and parameterize.
+
+// return nil if package doesn't exist.
+type PackageGetter func(pkgPath string) *PackageValue
+
 type Store interface {
+	// STABLE
+	SetPackageGetter(PackageGetter)
 	GetPackage(pkgPath string) *PackageValue
 	SetPackage(*PackageValue)
 	GetObject(oid ObjectID) Object
+	GetObjectSafe(oid ObjectID) Object
 	SetObject(Object)
+	DelObject(Object)
 	GetType(tid TypeID) Type
+	GetTypeSafe(tid TypeID) Type
+	SetCacheType(Type)
 	SetType(Type)
+	GetBlockNode(Location) BlockNode
+	SetBlockNode(BlockNode)
+	// UNSTABLE
+	// AddMemPackage:
+	// Upon restart, all packages will be re-preprocessed; This
+	// loads BlockNodes and Types onto the store for persistence
+	// version 1.
+	NumMemPackages() int64
+	AddMemPackage(memPkg std.MemPackage)
+	IterMemPackage() <-chan std.MemPackage
+	// This is needed due to gas wrappers.
+	SwapStores(baseStore, iavlStore store.Store)
+	// MISC
+	SetLogStoreOps(enabled bool)
+	SprintStoreOps() string
+	ClearCache()
+	Print()
 }
 
 // Used to keep track of in-mem objects during tx.
-type CacheStore struct {
-	CachePkgs    map[string]*PackageValue
-	CacheObjects map[ObjectID]Object
-	CacheTypes   map[TypeID]Type
-	Store        Store
+type defaultStore struct {
+	pkgGetter    PackageGetter // non-realm packages
+	cacheObjects map[ObjectID]Object
+	cacheTypes   map[TypeID]Type
+	cacheNodes   map[Location]BlockNode
+	baseStore    store.Store // for objects, types, nodes
+	iavlStore    store.Store // for escaped object hashes
+
+	opslog  []StoreOp           // for debugging.
+	current map[string]struct{} // for detecting import cycles.
 }
 
-func NewCacheStore(store Store) CacheStore {
-	return CacheStore{
-		CachePkgs:    make(map[string]*PackageValue),
-		CacheObjects: make(map[ObjectID]Object),
-		CacheTypes:   make(map[TypeID]Type),
-		Store:        store,
+func NewStore(baseStore, iavlStore store.Store) *defaultStore {
+	ds := &defaultStore{
+		pkgGetter:    nil,
+		cacheObjects: make(map[ObjectID]Object),
+		cacheTypes:   make(map[TypeID]Type),
+		cacheNodes:   make(map[Location]BlockNode),
+		baseStore:    baseStore,
+		iavlStore:    iavlStore,
+		current:      make(map[string]struct{}),
 	}
+	SetCacheTypes(ds)
+	return ds
 }
 
-func (cs CacheStore) GetPackage(pkgPath string) *PackageValue {
-	if pv, exists := cs.CachePkgs[pkgPath]; exists {
+func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
+	ds.pkgGetter = pg
+}
+
+func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
+	oid := ObjectIDFromPkgPath(pkgPath)
+	// first, try to load (package) object as usual.
+	pvo := ds.GetObjectSafe(oid)
+	if pv, ok := pvo.(*PackageValue); ok {
 		return pv
 	}
-	if cs.Store != nil {
-		pv := cs.Store.GetPackage(pkgPath)
-		cs.CachePkgs[pkgPath] = pv
-		return pv
-	} else {
-		return nil
-	}
-}
-
-func (cs CacheStore) SetPackage(pv *PackageValue) {
-	pkgPath := pv.PkgPath
-	if debug {
-		if pv2, ex := cs.CachePkgs[pkgPath]; ex {
-			if ex && pv != pv2 {
-				panic("duplicate package value")
+	// otherwise, fetch from pkgGetter.
+	if ds.pkgGetter != nil {
+		if _, exists := ds.current[pkgPath]; exists {
+			panic(fmt.Sprintf("import cycle detected: %q", pkgPath))
+		}
+		ds.current[pkgPath] = struct{}{}
+		defer delete(ds.current, pkgPath)
+		if pv := ds.pkgGetter(pkgPath); pv != nil {
+			if pv.IsRealm() {
+				panic("realm packages cannot be gotten from pkgGetter")
 			}
+			ds.cacheObjects[oid] = pv
+			return pv
 		}
 	}
-	cs.CachePkgs[pkgPath] = pv
+	// otherwise, package does not exist.
+	return nil
 }
 
-func (cs CacheStore) GetObject(oid ObjectID) Object {
-	if oo, exists := cs.CacheObjects[oid]; exists {
-		return oo
+// Packages can also be provided via .SetPackageGetter, but they will be
+// overridden by cached and persisted ones..
+// Setting an already cached package (eg modifying it) fails unless realm
+// package.
+func (ds *defaultStore) SetPackage(pv *PackageValue) {
+	// if pv.IsRealm() {
+	oid := pv.ObjectInfo.ID
+	if oid.IsZero() {
+		// .SetRealm() should have set object id.
+		panic("should not happen")
 	}
-	if cs.Store != nil {
-		oo := cs.Store.GetObject(oid)
-		cs.CacheObjects[oid] = oo
-		return oo
-	} else {
-		return nil
-	}
+	ds.SetObject(pv)
+	// }
 }
 
-func (cs CacheStore) SetObject(oo Object) {
+// NOTE: current implementation behavior requires
+// all []TypedValue types and TypeValue{} types to be
+// loaded (non-ref) types.
+func (ds *defaultStore) GetObject(oid ObjectID) Object {
+	oo := ds.GetObjectSafe(oid)
+	if oo == nil {
+		panic(fmt.Sprintf("unexpected object with id %s", oid.String()))
+	}
+	return oo
+}
+
+func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
+	// check cache.
+	if oo, exists := ds.cacheObjects[oid]; exists {
+		return oo
+	}
+	// check baseStore.
+	if ds.baseStore != nil {
+		key := backendObjectKey(oid)
+		hashbz := ds.baseStore.Get([]byte(key))
+		if hashbz != nil {
+			hash := hashbz[:HashSize]
+			bz := hashbz[HashSize:]
+			var oo Object
+			amino.MustUnmarshal(bz, &oo)
+			if debug {
+				if oo.GetObjectID() != oid {
+					panic(fmt.Sprintf("unexpected object id: expected %v but got %v",
+						oid, oo.GetObjectID()))
+				}
+			}
+			oo.SetHash(ValueHash{NewHashlet(hash)})
+			ds.cacheObjects[oid] = oo
+			_ = fillTypesOfValue(ds, oo)
+			return oo
+		}
+	}
+	return nil
+}
+
+func (ds *defaultStore) SetObject(oo Object) {
 	oid := oo.GetObjectID()
+	// replace children/fields with Ref.
+	o2 := copyValueWithRefs(nil, oo)
+	// marshal to binary.
+	bz := amino.MustMarshalAny(o2)
+	// set hash.
+	hash := HashBytes(bz) // XXX objectHash(bz)???
+	if len(hash) != HashSize {
+		panic("should not happen")
+	}
+	oo.SetHash(ValueHash{hash})
+	// save bytes to backend.
+	if ds.baseStore != nil {
+		key := backendObjectKey(oid)
+		hashbz := make([]byte, len(hash)+len(bz))
+		copy(hashbz, hash.Bytes())
+		copy(hashbz[HashSize:], bz)
+		ds.baseStore.Set([]byte(key), hashbz)
+	}
+	// save object to cache.
 	if debug {
 		if oid.IsZero() {
 			panic("object id cannot be zero")
 		}
-		if oo2, ex := cs.CacheObjects[oid]; ex {
-			if ex && oo != oo2 {
+		if oo2, exists := ds.cacheObjects[oid]; exists {
+			if oo != oo2 {
 				panic("duplicate object")
 			}
 		}
 	}
-	cs.CacheObjects[oid] = oo
+	ds.cacheObjects[oid] = oo
+	// make store op log entry
+	if ds.opslog != nil {
+		var op StoreOpType
+		if oo.GetIsNewReal() {
+			op = StoreOpNew
+		} else {
+			op = StoreOpMod
+		}
+		ds.opslog = append(ds.opslog,
+			StoreOp{op, o2.(Object)})
+	}
+	// if escaped, add hash to iavl.
+	if oo.GetIsEscaped() && ds.iavlStore != nil {
+		var key, value []byte
+		key = []byte(oid.String())
+		value = hash.Bytes()
+		ds.iavlStore.Set(key, value)
+	}
 }
 
-func (cs CacheStore) GetType(tid TypeID) Type {
-	if tt, exists := cs.CacheTypes[tid]; exists {
-		return tt
+func (ds *defaultStore) DelObject(oo Object) {
+	oid := oo.GetObjectID()
+	// delete from cache.
+	delete(ds.cacheObjects, oid)
+	// delete from backend.
+	if ds.baseStore != nil {
+		key := backendObjectKey(oid)
+		ds.baseStore.Delete([]byte(key))
 	}
-	if cs.Store != nil {
-		tt := cs.Store.GetType(tid)
-		cs.CacheTypes[tid] = tt
-		return tt
-	} else {
-		return nil
+	// make realm op log entry
+	if ds.opslog != nil {
+		ds.opslog = append(ds.opslog,
+			StoreOp{StoreOpDel, oo})
 	}
 }
 
-func (cs CacheStore) SetType(tt Type) {
-	tid := tt.TypeID()
-	if debug {
-		if tt2, ex := cs.CacheTypes[tid]; ex {
-			if ex && tt != tt2 {
-				panic("duplicate type")
+// NOTE: not used quite yet.
+// NOTE: The implementation matches that of GetObject() in anticipation of what
+// the persistent type system might work like.
+func (ds *defaultStore) GetType(tid TypeID) Type {
+	tt := ds.GetTypeSafe(tid)
+	if tt == nil {
+		ds.Print()
+		panic(fmt.Sprintf("unexpected type with id %s", tid.String()))
+	}
+	return tt
+}
+
+func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
+	// check cache.
+	if tt, exists := ds.cacheTypes[tid]; exists {
+		return tt
+	}
+	// check backend.
+	if ds.baseStore != nil {
+		key := backendTypeKey(tid)
+		bz := ds.baseStore.Get([]byte(key))
+		if bz != nil {
+			var tt Type
+			amino.MustUnmarshal(bz, &tt)
+			if debug {
+				if tt.TypeID() != tid {
+					panic(fmt.Sprintf("unexpected type id: expected %v but got %v",
+						tid, tt.TypeID()))
+				}
 			}
+			// set in cache.
+			ds.cacheTypes[tid] = tt
+			// after setting in cache, fill tt.
+			fillType(ds, tt)
+			return tt
 		}
 	}
-	cs.CacheTypes[tid] = tt
+	return nil
 }
 
-func (cs CacheStore) Flush() {
+func (ds *defaultStore) SetCacheType(tt Type) {
+	tid := tt.TypeID()
+	if tt2, exists := ds.cacheTypes[tid]; exists {
+		if tt != tt2 {
+			// NOTE: not sure why this would happen.
+			panic("should not happen")
+		} else {
+			// already set.
+		}
+	} else {
+		ds.cacheTypes[tid] = tt
+	}
+}
+
+func (ds *defaultStore) SetType(tt Type) {
+	tid := tt.TypeID()
+	// return if tid already known.
+	if tt2, exists := ds.cacheTypes[tid]; exists {
+		if tt != tt2 {
+			// this can happen for a variety of reasons.
+			// TODO classify them and optimize.
+			return
+		}
+	}
+	// save type to backend.
+	if ds.baseStore != nil {
+		key := backendTypeKey(tid)
+		tcopy := copyTypeWithRefs(tt)
+		bz := amino.MustMarshalAny(tcopy)
+		ds.baseStore.Set([]byte(key), bz)
+	}
+	// save type to cache.
+	ds.cacheTypes[tid] = tt
+}
+
+func (ds *defaultStore) GetBlockNode(loc Location) BlockNode {
+	// check cache.
+	if bn, exists := ds.cacheNodes[loc]; exists {
+		return bn
+	}
+	// check backend.
+	if ds.baseStore != nil {
+		key := backendNodeKey(loc)
+		bz := ds.baseStore.Get([]byte(key))
+		if bz != nil {
+			var bn BlockNode
+			amino.MustUnmarshal(bz, &bn)
+			if debug {
+				if bn.GetLocation() != loc {
+					panic(fmt.Sprintf("unexpected node location: expected %v but got %v",
+						loc, bn.GetLocation()))
+				}
+			}
+			ds.cacheNodes[loc] = bn
+			return bn
+		}
+	}
+	panic(fmt.Sprintf("unexpected node with location %s", loc.String()))
+}
+
+func (ds *defaultStore) SetBlockNode(bn BlockNode) {
+	loc := bn.GetLocation()
+	if loc.IsZero() {
+		panic("unexpected zero location in blocknode")
+	}
+	// save node to backend.
+	if ds.baseStore != nil {
+		// TODO: implement copyValueWithRefs() for Nodes.
+		// key := backendNodeKey(loc)
+		// ds.backend.Set([]byte(key), bz)
+	}
+	// save node to cache.
+	ds.cacheNodes[loc] = bn
+	// XXX duplicate?
 	// XXX
+}
+
+func (ds *defaultStore) NumMemPackages() int64 {
+	ctrkey := []byte(backendPackageIndexCtrKey())
+	ctrbz := ds.iavlStore.Get(ctrkey)
+	if ctrbz == nil {
+		return 0
+	} else {
+		ctr, err := strconv.Atoi(string(ctrbz))
+		if err != nil {
+			panic(err)
+		}
+		return int64(ctr)
+	}
+}
+
+func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
+	ctrkey := []byte(backendPackageIndexCtrKey())
+	ctrbz := ds.iavlStore.Get(ctrkey)
+	if ctrbz == nil {
+		nextbz := strconv.Itoa(1)
+		ds.iavlStore.Set(ctrkey, []byte(nextbz))
+		return 1
+	} else {
+		ctr, err := strconv.Atoi(string(ctrbz))
+		if err != nil {
+			panic(err)
+		}
+		nextbz := strconv.Itoa(ctr + 1)
+		ds.iavlStore.Set(ctrkey, []byte(nextbz))
+		return uint64(ctr) + 1
+	}
+}
+
+func (ds *defaultStore) AddMemPackage(memPkg std.MemPackage) {
+	ctr := ds.incGetPackageIndexCounter()
+	key := []byte(backendPackageIndexKey(ctr))
+	bz := amino.MustMarshal(memPkg)
+	ds.iavlStore.Set(key, bz)
+}
+
+func (ds *defaultStore) IterMemPackage() <-chan std.MemPackage {
+	ctrkey := []byte(backendPackageIndexCtrKey())
+	ctrbz := ds.iavlStore.Get(ctrkey)
+	if ctrbz == nil {
+		return nil
+	} else {
+		ctr, err := strconv.Atoi(string(ctrbz))
+		if err != nil {
+			panic(err)
+		}
+		ch := make(chan std.MemPackage, 0)
+		go func() {
+			for i := uint64(1); i <= uint64(ctr); i++ {
+				key := backendPackageIndexKey(i)
+				bz := ds.iavlStore.Get([]byte(key))
+				if bz == nil {
+					panic(fmt.Sprintf(
+						"missing package index %d", i))
+				}
+				var memPkg std.MemPackage
+				amino.MustUnmarshal(bz, &memPkg)
+				ch <- memPkg
+			}
+			close(ch)
+		}()
+		return ch
+	}
+}
+
+func (ds *defaultStore) Flush() {
+	// XXX
+}
+
+//----------------------------------------
+// StoreOp
+
+type StoreOpType uint8
+
+const (
+	StoreOpNew StoreOpType = iota
+	StoreOpMod
+	StoreOpDel
+)
+
+type StoreOp struct {
+	Type   StoreOpType
+	Object Object // ref'd objects
+}
+
+// used by the tests/file_test system to check
+// veracity of realm operations.
+func (sop StoreOp) String() string {
+	switch sop.Type {
+	case StoreOpNew:
+		return fmt.Sprintf("c[%v]=%s",
+			sop.Object.GetObjectID(),
+			prettyJSON(amino.MustMarshalJSON(sop.Object)))
+	case StoreOpMod:
+		return fmt.Sprintf("u[%v]=%s",
+			sop.Object.GetObjectID(),
+			prettyJSON(amino.MustMarshalJSON(sop.Object)))
+	case StoreOpDel:
+		return fmt.Sprintf("d[%v]",
+			sop.Object.GetObjectID())
+	default:
+		panic("should not happen")
+	}
+}
+
+// TODO: consider a better/faster/simpler way of achieving the overall same goal?
+func (ds *defaultStore) SwapStores(baseStore, iavlStore store.Store) {
+	ds.baseStore = baseStore
+	ds.iavlStore = iavlStore
+}
+
+func (ds *defaultStore) SetLogStoreOps(enabled bool) {
+	if enabled {
+		ds.ResetStoreOps()
+	} else {
+		ds.opslog = nil
+	}
+}
+
+// resets .realmops.
+func (ds *defaultStore) ResetStoreOps() {
+	ds.opslog = make([]StoreOp, 0, 1024)
+}
+
+// for test/file_test.go, to test realm changes.
+func (ds *defaultStore) SprintStoreOps() string {
+	ss := make([]string, 0, len(ds.opslog))
+	for _, sop := range ds.opslog {
+		ss = append(ss, sop.String())
+	}
+	return strings.Join(ss, "\n")
+}
+
+func (ds *defaultStore) ClearCache() {
+	ds.cacheObjects = make(map[ObjectID]Object)
+	ds.cacheTypes = make(map[TypeID]Type)
+	ds.cacheNodes = make(map[Location]BlockNode)
+	// restore builtin types to cache.
+	SetCacheTypes(ds)
+}
+
+// for debugging
+func (ds *defaultStore) Print() {
+	fmt.Println("//----------------------------------------")
+	fmt.Println("defaultStore:baseStore...")
+	store.Print(ds.baseStore)
+	fmt.Println("//----------------------------------------")
+	fmt.Println("defaultStore:iavlStore...")
+	store.Print(ds.iavlStore)
+	fmt.Println("//----------------------------------------")
+	fmt.Println("defaultStore:cacheTypes...")
+	for tid, typ := range ds.cacheTypes {
+		fmt.Printf("- %v: %v\n", tid, typ)
+	}
+	fmt.Println("//----------------------------------------")
+	fmt.Println("defaultStore:cacheNodes...")
+	for loc, bn := range ds.cacheNodes {
+		fmt.Printf("- %v: %v\n", loc, bn)
+	}
+}
+
+//----------------------------------------
+// backend keys
+
+func backendPackageKey(pkgPath string) string {
+	return "pkg:" + pkgPath
+}
+
+func backendObjectKey(oid ObjectID) string {
+	return "oid:" + oid.String()
+}
+
+func backendTypeKey(tid TypeID) string {
+	return "tid:" + tid.String()
+}
+
+func backendNodeKey(loc Location) string {
+	return "node:" + loc.String()
+}
+
+// NOTE: assumes prefix "pkgidx/"
+func backendPackageIndexCtrKey() string {
+	return fmt.Sprintf("counter")
+}
+
+// NOTE: assumes prefix "pkgidx/"
+func backendPackageIndexKey(index uint64) string {
+	return fmt.Sprintf("%020d", index)
+}
+
+//----------------------------------------
+// builtin types
+
+func SetCacheTypes(store Store) {
+	types := []Type{
+		BoolType, UntypedBoolType,
+		StringType, UntypedStringType,
+		IntType, Int8Type, Int16Type, Int32Type, Int64Type, UntypedRuneType,
+		UintType, Uint8Type, Uint16Type, Uint32Type, Uint64Type,
+		BigintType, UntypedBigintType,
+		gTypeType,
+		gPackageType,
+		blockType{},
+		Float32Type, Float64Type,
+		gErrorType, // from uverse.go
+	}
+	for _, tt := range types {
+		store.SetCacheType(tt)
+	}
 }

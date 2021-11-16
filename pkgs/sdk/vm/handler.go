@@ -11,11 +11,11 @@ import (
 )
 
 type vmHandler struct {
-	vm VMKeeper
+	vm *VMKeeper
 }
 
 // NewHandler returns a handler for "vm" type messages.
-func NewHandler(vm VMKeeper) vmHandler {
+func NewHandler(vm *VMKeeper) vmHandler {
 	return vmHandler{
 		vm: vm,
 	}
