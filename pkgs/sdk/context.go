@@ -67,6 +67,9 @@ func (c Context) ConsensusParams() *abci.ConsensusParams {
 
 // create a new context
 func NewContext(ms store.MultiStore, header abci.Header, isCheckTx bool, logger log.Logger) Context {
+	if header.GetChainID() == "" {
+		panic("header chain id cannot be empty")
+	}
 	return Context{
 		ctx:          context.Background(),
 		ms:           ms,
@@ -175,7 +178,7 @@ func (c Context) Value(key interface{}) interface{} {
 // Store / Caching
 // ----------------------------------------------------------------------------
 
-// Store fetches a Store from the MultiStore.
+// Store fetches a Store from the MultiStore, but wrapped for gas calculation.
 func (c Context) Store(key store.StoreKey) store.Store {
 	return gas.New(c.MultiStore().GetStore(key), c.GasMeter(), store.DefaultGasConfig())
 }

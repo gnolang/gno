@@ -35,8 +35,11 @@ type Store interface {
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
 	// version 1.
+	NumMemPackages() int64
 	AddMemPackage(memPkg std.MemPackage)
 	IterMemPackage() <-chan std.MemPackage
+	// This is needed due to gas wrappers.
+	SwapStores(baseStore, iavlStore store.Store)
 	// MISC
 	SetLogStoreOps(enabled bool)
 	SprintStoreOps() string
@@ -341,6 +344,20 @@ func (ds *defaultStore) SetBlockNode(bn BlockNode) {
 	// XXX
 }
 
+func (ds *defaultStore) NumMemPackages() int64 {
+	ctrkey := []byte(backendPackageIndexCtrKey())
+	ctrbz := ds.iavlStore.Get(ctrkey)
+	if ctrbz == nil {
+		return 0
+	} else {
+		ctr, err := strconv.Atoi(string(ctrbz))
+		if err != nil {
+			panic(err)
+		}
+		return int64(ctr)
+	}
+}
+
 func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.iavlStore.Get(ctrkey)
@@ -433,6 +450,12 @@ func (sop StoreOp) String() string {
 	default:
 		panic("should not happen")
 	}
+}
+
+// TODO: consider a better/faster/simpler way of achieving the overall same goal?
+func (ds *defaultStore) SwapStores(baseStore, iavlStore store.Store) {
+	ds.baseStore = baseStore
+	ds.iavlStore = iavlStore
 }
 
 func (ds *defaultStore) SetLogStoreOps(enabled bool) {

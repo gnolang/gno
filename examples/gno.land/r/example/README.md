@@ -35,14 +35,14 @@ Use this mnemonic:
 
 ## sign an addpkg (add example realm) transaction.
 
-> ./build/gnokey maketx addpkg test1 --pkgpath "gno.land/r/example" --pkgdir "examples/gno.land/r/example" --deposit 100gnot --gas-fee 1gnot --gas-wanted 3000000 > addrealm.unsigned.txt
+> ./build/gnokey maketx addpkg test1 --pkgpath "gno.land/r/example" --pkgdir "examples/gno.land/r/example" --deposit 100gnot --gas-fee 1gnot --gas-wanted 2000000 > addrealm.unsigned.txt
 > ./build/gnokey query "auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 > ./build/gnokey sign test1 --txpath addrealm.unsigned.txt --chainid "testchain" --number 0 --sequence 2 > addrealm.signed.txt
 > ./build/gnokey broadcast addrealm.signed.txt
 
 ## sign a exec (statement execution) transaction.
 
-> ./build/gnokey maketx exec test1 --pkgpath "gno.land/r/example" --stmtfile "examples/gno.land/r/example/firstpost.gno" --gas-fee 1gnot --gas-wanted 3000000 > addpage.unsigned.txt
+> ./build/gnokey maketx exec test1 --pkgpath "gno.land/r/example" --stmtfile "examples/gno.land/r/example/firstpost.gno" --gas-fee 1gnot --gas-wanted 2000000 > addpage.unsigned.txt
 > ./build/gnokey query "auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 > ./build/gnokey sign test1 --txpath addpage.unsigned.txt --chainid "testchain" --number 0 --sequence 3 > addpage.signed.txt
 > ./build/gnokey broadcast addpage.signed.txt

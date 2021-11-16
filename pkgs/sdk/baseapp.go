@@ -20,6 +20,7 @@ import (
 
 // Key to store the consensus params in the main store.
 var mainConsensusParamsKey = []byte("consensus_params")
+var mainLastHeaderKey = []byte("last_header")
 
 // MainStoreKey is the string representation of the main store
 const MainStoreKey = "main"
@@ -125,6 +126,7 @@ func (app *BaseApp) MountStore(key store.StoreKey, cons store.CommitStoreConstru
 
 // LoadLatestVersion loads the latest application version. It will panic if
 // called more than once on a running BaseApp.
+// This, or LoadVersion() MUST be called even after first init.
 func (app *BaseApp) LoadLatestVersion(baseKey store.StoreKey) error {
 	err := app.cms.LoadLatestVersion()
 	if err != nil {
@@ -135,6 +137,7 @@ func (app *BaseApp) LoadLatestVersion(baseKey store.StoreKey) error {
 
 // LoadVersion loads the BaseApp application version. It will panic if called
 // more than once on a running baseapp.
+// This, or LoadLatestVersion() MUST be called even after first init.
 func (app *BaseApp) LoadVersion(version int64, baseKey store.StoreKey) error {
 	err := app.cms.LoadVersion(version)
 	if err != nil {
@@ -181,8 +184,18 @@ func (app *BaseApp) initFromMainStore(baseKey store.StoreKey) error {
 		app.setConsensusParams(consensusParams)
 	}
 
-	// needed for the export command which inits from store but never calls initchain
-	app.setCheckState(&bft.Header{})
+	// Load the consensus header from the main store.
+	// This is needed to setCheckState with the right chainID etc.
+	lastHeaderBz := mainStore.Get(mainLastHeaderKey)
+	if lastHeaderBz != nil {
+		var lastHeader = &bft.Header{}
+		err := amino.Unmarshal(lastHeaderBz, lastHeader)
+		if err != nil {
+			panic(err)
+		}
+		app.setCheckState(lastHeader)
+	}
+	// Done.
 	app.Seal()
 
 	return nil
@@ -862,6 +875,15 @@ func (app *BaseApp) Commit() (res abci.ResponseCommit) {
 	app.deliverState.ms.MultiWrite()
 	commitID := app.cms.Commit()
 	app.logger.Debug("Commit synced", "commit", fmt.Sprintf("%X", commitID))
+
+	// Save this header.
+	mainStore := app.cms.GetStore(app.baseKey)
+	if mainStore == nil {
+		res.Error = ABCIError(errors.New("baseapp expects MultiStore with 'main' Store"))
+		return
+	}
+	headerBz := amino.MustMarshal(header)
+	mainStore.Set(mainLastHeaderKey, headerBz)
 
 	// Reset the Check state to the latest committed.
 	//

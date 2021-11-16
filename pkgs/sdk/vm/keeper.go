@@ -54,6 +54,24 @@ func (vmk *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 			iavlSDKStore := ctx.Store(vmk.iavlKey)
 			vmk.gnoStore = gno.NewStore(baseSDKStore, iavlSDKStore)
 			vmk.initBuiltinPackages(vmk.gnoStore)
+			if vmk.gnoStore.NumMemPackages() > 0 {
+				// for now, all mem packages must be re-run after reboot.
+				// TODO remove this, and generally solve for in-mem garbage collection
+				// and memory management across many objects/types/nodes/packages.
+				m2 := gno.NewMachineWithOptions(
+					gno.MachineOptions{
+						Package: nil,
+						Output:  nil, // XXX
+						Store:   vmk.gnoStore,
+					})
+				m2.PreprocessAllFilesAndSaveBlockNodes()
+			}
+		} else {
+			// otherwise, swap sdk store of existing gnoStore.
+			// this is needed due to e.g. gas wrappers.
+			baseStore := ctx.Store(vmk.baseKey)
+			iavlStore := ctx.Store(vmk.iavlKey)
+			vmk.gnoStore.SwapStores(baseStore, iavlStore)
 		}
 		return vmk.gnoStore
 	case sdk.RunTxModeCheck:
