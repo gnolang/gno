@@ -2300,7 +2300,11 @@ func newSliceFromData(data []byte) *SliceValue {
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 	switch cv := tv.V.(type) {
 	case RefValue:
-		tv.V = store.GetObject(cv.ObjectID)
+		if cv.PkgPath != "" { // load package
+			tv.V = store.GetPackage(cv.PkgPath)
+		} else { // load object
+			tv.V = store.GetObject(cv.ObjectID)
+		}
 	case PointerValue:
 		// As a special case, cv.Base is filled
 		// and cv.TV set appropriately.

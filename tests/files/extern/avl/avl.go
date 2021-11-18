@@ -21,6 +21,9 @@ func NewTree(key string, value interface{}) *Tree {
 }
 
 func (tree *Tree) Size() int {
+	if tree == nil {
+		return 0
+	}
 	return tree.size
 }
 

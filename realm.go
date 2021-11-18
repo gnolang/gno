@@ -1288,13 +1288,14 @@ func copyValueWithRefs(parent Object, val Value) Value {
 		if cv.Parent != nil {
 			bparent = toRefValue(parent, cv.Parent)
 		}
-		return &Block{
+		bl := &Block{
 			ObjectInfo: cv.ObjectInfo.Copy(),
 			Source:     source,
 			Values:     vals,
 			Parent:     bparent,
 			Blank:      TypedValue{}, // empty
 		}
+		return bl
 	case *NativeValue:
 		panic("native values not supported")
 	default:
