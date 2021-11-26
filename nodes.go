@@ -202,7 +202,7 @@ func (_ *UnaryExpr) assertNode()         {}
 func (_ *CompositeLitExpr) assertNode()  {}
 func (_ *KeyValueExpr) assertNode()      {}
 func (_ *FuncLitExpr) assertNode()       {}
-func (_ *constExpr) assertNode()         {}
+func (_ *ConstExpr) assertNode()         {}
 func (_ *FieldTypeExpr) assertNode()     {}
 func (_ *ArrayTypeExpr) assertNode()     {}
 func (_ *SliceTypeExpr) assertNode()     {}
@@ -255,7 +255,7 @@ var _ Node = &UnaryExpr{}
 var _ Node = &CompositeLitExpr{}
 var _ Node = &KeyValueExpr{}
 var _ Node = &FuncLitExpr{}
-var _ Node = &constExpr{}
+var _ Node = &ConstExpr{}
 var _ Node = &FieldTypeExpr{}
 var _ Node = &ArrayTypeExpr{}
 var _ Node = &SliceTypeExpr{}
@@ -322,7 +322,7 @@ func (*UnaryExpr) assertExpr()        {}
 func (*CompositeLitExpr) assertExpr() {}
 func (*KeyValueExpr) assertExpr()     {}
 func (*FuncLitExpr) assertExpr()      {}
-func (*constExpr) assertExpr()        {}
+func (*ConstExpr) assertExpr()        {}
 
 var _ Expr = &NameExpr{}
 var _ Expr = &BasicLitExpr{}
@@ -338,7 +338,7 @@ var _ Expr = &UnaryExpr{}
 var _ Expr = &CompositeLitExpr{}
 var _ Expr = &KeyValueExpr{}
 var _ Expr = &FuncLitExpr{}
-var _ Expr = &constExpr{}
+var _ Expr = &ConstExpr{}
 
 type NameExpr struct {
 	Attributes
@@ -476,8 +476,8 @@ type FuncLitExpr struct {
 }
 
 // The preprocessor replaces const expressions
-// with *constExpr nodes.
-type constExpr struct {
+// with *ConstExpr nodes.
+type ConstExpr struct {
 	Attributes
 	Source Expr // (preprocessed) source of this value.
 	TypedValue
@@ -611,7 +611,7 @@ type StructTypeExpr struct {
 	Fields FieldTypeExprs // list of field declarations
 }
 
-// Like constExpr but for types.
+// Like ConstExpr but for types.
 type constTypeExpr struct {
 	Attributes
 	Source Expr
@@ -1041,6 +1041,13 @@ type FileSet struct {
 	Files []*FileNode
 }
 
+// TODO replace with some more efficient method
+// that doesn't involve parsing the whole file.
+func PackageNameFromFileBody(body string) Name {
+	n := MustParseFile("dontcare.go", body)
+	return n.PkgName
+}
+
 func ReadMemPackage(dir string, pkgPath string) std.MemPackage {
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
@@ -1058,10 +1065,7 @@ func ReadMemPackage(dir string, pkgPath string) std.MemPackage {
 			panic(err)
 		}
 		if pkgName == "" && strings.HasSuffix(file.Name(), ".go") {
-			// TODO replace with some more efficient method
-			// that doesn't involve parsing the whole file.
-			n := MustParseFile(file.Name(), string(bz))
-			pkgName = n.PkgName
+			pkgName = PackageNameFromFileBody(string(bz))
 		}
 		memPkg.Files = append(memPkg.Files,
 			std.MemFile{
@@ -1147,17 +1151,21 @@ type PackageNode struct {
 	*FileSet
 }
 
+func PackageNodeLocation(path string) Location {
+	return Location{
+		PkgPath: path,
+		File:    "",
+		Line:    0,
+	}
+}
+
 func NewPackageNode(name Name, path string, fset *FileSet) *PackageNode {
 	pn := &PackageNode{
 		PkgPath: path,
 		PkgName: Name(name),
 		FileSet: fset,
 	}
-	pn.SetLocation(Location{
-		PkgPath: path,
-		File:    "",
-		Line:    0,
-	})
+	pn.SetLocation(PackageNodeLocation(path))
 	pn.InitStaticBlock(pn, nil)
 	return pn
 }

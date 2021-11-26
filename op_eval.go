@@ -179,7 +179,7 @@ func (m *Machine) doOpEval() {
 		// evaluate func type
 		m.PushExpr(&x.Type)
 		m.PushOp(OpEval)
-	case *constExpr:
+	case *ConstExpr:
 		m.PopExpr()
 		// push preprocessed value
 		m.PushValue(x.TypedValue)

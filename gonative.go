@@ -1179,7 +1179,7 @@ func (m *Machine) doOpArrayLitGoNative() {
 		for i := 0; i < el; i++ {
 			if kx := x.Elts[i].Key; kx != nil {
 				// XXX why convert? (also see doOpArrayLit())
-				k := kx.(*constExpr).ConvertGetInt()
+				k := kx.(*ConstExpr).ConvertGetInt()
 				rf := rv.Index(k)
 				gno2GoValue(&itvs[i], rf)
 			} else {
@@ -1220,7 +1220,7 @@ func (m *Machine) doOpSliceLitGoNative() {
 		for i := 0; i < el; i++ {
 			if kx := x.Elts[i].Key; kx != nil {
 				// XXX why convert? (also see doOpArrayLit())
-				k := kx.(*constExpr).ConvertGetInt()
+				k := kx.(*ConstExpr).ConvertGetInt()
 				rf := rv.Index(k)
 				gno2GoValue(&itvs[i], rf)
 			} else {

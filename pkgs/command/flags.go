@@ -3,6 +3,7 @@ package command
 import (
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"reflect"
 	"regexp"
@@ -13,10 +14,13 @@ import (
 )
 
 var (
-	reFlagName = regexp.MustCompile(`^--[a-z0-9.\-]+$`)
+	reFlagName = regexp.MustCompile(`^--[a-z0-9.\-]+(#[a-z0-9.\-]+)?$`)
 )
 
 // applies all flags to ptr to options.
+// --flag is short for --flag true for boolean flags.
+// consecutive flags can be used to populate arays or slices.
+// alternatively, a comma on a single flag can be used.
 func applyFlags(ptr interface{}, flags map[string]interface{}) error {
 	prv := reflect.ValueOf(ptr)
 	if prv.Type().Kind() != reflect.Ptr {
@@ -90,6 +94,8 @@ func applyFlagToFieldReflect(frv reflect.Value, fvalue interface{}) error {
 		return applyFlagsReflect(frv, cfvalue)
 	case string:
 		return applyFlagToFieldReflectString(frv, cfvalue)
+	case []string:
+		return applyFlagToFieldReflectStringSlice(frv, cfvalue)
 	default:
 		panic("should not happen")
 	}
@@ -140,7 +146,7 @@ func applyFlagToFieldReflectString(frv reflect.Value, fvalue string) error {
 			return nil
 		} else {
 			parts := strings.Split(fvalue, ",")
-			srv := reflect.MakeSlice(ert, len(parts), len(parts))
+			srv := reflect.MakeSlice(frt, len(parts), len(parts))
 			frv.Set(srv)
 			for i, part := range parts {
 				erv := frv.Index(i)
@@ -245,6 +251,37 @@ func applyFlagToFieldReflectString(frv reflect.Value, fvalue string) error {
 	}
 }
 
+func applyFlagToFieldReflectStringSlice(frv reflect.Value, fvalues []string) error {
+	frt := frv.Type()
+	switch frt.Kind() {
+	case reflect.Array:
+		for i, part := range fvalues {
+			erv := frv.Index(i)
+			err := applyFlagToFieldReflectString(erv, part)
+			if err != nil {
+				return errors.Wrap(err, "error parsing item")
+			}
+		}
+		return nil
+	case reflect.Slice:
+		srv := reflect.MakeSlice(frt, len(fvalues), len(fvalues))
+		frv.Set(srv)
+		for i, part := range fvalues {
+			erv := frv.Index(i)
+			err := applyFlagToFieldReflectString(erv, part)
+			if err != nil {
+				return errors.Wrap(err, "error parsing item")
+			}
+		}
+		return nil
+	default:
+		panic(fmt.Sprintf(
+			"flag values cannot be applied to field of type %s",
+			frt.String()))
+
+	}
+}
+
 // all flags follow non-flag args.
 func ParseArgs(oargs []string) (args []string, flags map[string]interface{}) {
 	for i, arg := range oargs {
@@ -264,12 +301,24 @@ func parseFlags(fargs []string) map[string]interface{} {
 		return nil
 	}
 	m := make(map[string]interface{}, len(fargs))
+	var fnamePrev string // for keeping track of repeated flags.
 	var fname string
 	for _, farg := range fargs {
 		if strings.HasPrefix(farg, "--") {
 			if fname != "" {
-				// previous --fname
-				setFlag(m, fname, "y") // y for yes
+				// is --flag shortform (like --flag true).
+				// this cannot happen with repeated flags.
+				if fnamePrev == fname {
+					panic(fmt.Sprintf(
+						"repeated flags cannot include implicit true boolean"))
+				}
+				// this cannot happen with file flags.
+				if strings.HasSuffix(fname, "#file") {
+					panic(fmt.Sprintf(
+						"file name not provided for " + fname))
+				}
+				// set y for yes.
+				setFlag(m, fname, "y", false)
 			}
 			fname = parseFlagName(farg)
 		} else {
@@ -278,33 +327,76 @@ func parseFlags(fargs []string) map[string]interface{} {
 					"dangling flag value in args: %s",
 					farg))
 			}
-			setFlag(m, fname, farg)
-			fname = "" // reset
+			// if a --flag#file <file_location> flag, read contents.
+			if strings.HasSuffix(fname, "#file") {
+				ffile := farg
+				fargbz, err := ioutil.ReadFile(ffile)
+				if err != nil {
+					panic(fmt.Sprintf(
+						"error reading file: %v", err))
+				}
+				// update fname and farg.
+				fname = fname[:len(fname)-len("#file")]
+				farg = string(fargbz)
+			}
+			repeat := fname == fnamePrev
+			setFlag(m, fname, farg, repeat)
+			fnamePrev = fname // remember
+			fname = ""        // reset
 		}
 	}
 	if fname != "" {
 		// trailing --fname
-		setFlag(m, fname, "y") // y for yes
+		repeat := fname == fnamePrev
+		setFlag(m, fname, "y", repeat) // y for yes
 	}
 	return m
 }
 
-func setFlag(m map[string]interface{}, fname string, fvalue string) {
+// Set the flag value of a key identified by fname to m.
+// If fname contains a dot, m will contain a nested map.
+// If repeat is true, fvalue will be appended to a slice of existing arg(s).
+// Otherwise, panics when encountering a pre-existing flag.
+func setFlag(m map[string]interface{}, fname string, fvalue string, repeat bool) {
 	parts := strings.Split(fname, ".")
-	setFlagWithParts(m, parts, fvalue)
+	setFlagWithParts(m, fname, parts, fvalue, repeat)
 }
 
-func setFlagWithParts(m map[string]interface{}, fparts []string, fvalue string) {
+// fname: the original flag name.
+func setFlagWithParts(m map[string]interface{}, fname string, fparts []string, fvalue string, repeat bool) {
 	if len(fparts) > 1 {
 		first := fparts[0]
-		if _, ok := m[first]; !ok {
+		if m2i, ok := m[first]; ok {
+			m2 := m2i.(map[string]interface{})
+			setFlagWithParts(m2, fname, fparts[1:], fvalue, repeat)
+		} else {
 			m2 := make(map[string]interface{})
-			setFlagWithParts(m2, fparts[1:], fvalue)
+			setFlagWithParts(m2, fname, fparts[1:], fvalue, repeat)
 			m[first] = m2
 		}
 	} else {
 		name := fparts[0]
-		m[name] = fvalue
+		if !repeat {
+			if _, exists := m[name]; exists {
+				panic(fmt.Sprintf(
+					"flag already set: %s (and repeated flags must be consecutive)", fname))
+			}
+			m[name] = fvalue
+		} else {
+			fvaluePrev, exists := m[name]
+			if !exists {
+				panic("should not happen")
+			}
+			switch fvaluePrev.(type) {
+			case string:
+				m[name] = []string{fvaluePrev.(string), fvalue}
+			case []string:
+				m[name] = append(fvaluePrev.([]string), fvalue)
+			default:
+				panic("should not happen")
+			}
+			m[name] = fvalue
+		}
 	}
 }
 

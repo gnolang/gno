@@ -413,7 +413,7 @@ func (m *Machine) doOpArrayLit() {
 		for i, v := range vs {
 			if kx := x.Elts[i].Key; kx != nil {
 				// XXX why convert?
-				k := kx.(*constExpr).ConvertGetInt()
+				k := kx.(*ConstExpr).ConvertGetInt()
 				al[k] = v
 				idx = k + 1
 			} else {

@@ -1,6 +1,9 @@
 package vm
 
 import (
+	"strings"
+
+	"github.com/gnolang/gno"
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/crypto"
 	"github.com/gnolang/gno/pkgs/sdk"
@@ -21,9 +24,17 @@ var _ std.Msg = MsgAddPackage{}
 
 // NewMsgAddPackage - upload a package with files.
 func NewMsgAddPackage(creator crypto.Address, pkgPath string, files []std.MemFile) MsgAddPackage {
+	var pkgName string
+	for _, file := range files {
+		if strings.HasSuffix(file.Name, ".go") {
+			pkgName = string(gno.PackageNameFromFileBody(file.Body))
+			break
+		}
+	}
 	return MsgAddPackage{
 		Creator: creator,
 		Package: std.MemPackage{
+			Name:  pkgName,
 			Path:  pkgPath,
 			Files: files,
 		},
@@ -72,19 +83,21 @@ func (msg MsgAddPackage) GetReceived() std.Coins {
 // MsgExec - executes a Gno statement.
 type MsgExec struct {
 	Caller  crypto.Address `json:"caller" yaml:"caller"`
-	PkgPath string         `json:"pkg_path" yaml:"pkg_path"`
-	Stmt    string         `json:"stmt" yaml:"stmt"`
 	Send    std.Coins      `json:"send" yaml:"send"`
+	PkgPath string         `json:"pkg_path" yaml:"pkg_path"`
+	Func    string         `json:"func" yaml:"func"`
+	Args    []string       `json:"args" yaml:"args"`
 }
 
 var _ std.Msg = MsgExec{}
 
-func NewMsgExec(caller crypto.Address, pkgPath, stmt string, send sdk.Coins) MsgExec {
+func NewMsgExec(caller crypto.Address, send sdk.Coins, pkgPath, fnc string, args []string) MsgExec {
 	return MsgExec{
 		Caller:  caller,
-		PkgPath: pkgPath,
-		Stmt:    stmt,
 		Send:    send,
+		PkgPath: pkgPath,
+		Func:    fnc,
+		Args:    args,
 	}
 }
 
@@ -102,8 +115,8 @@ func (msg MsgExec) ValidateBasic() error {
 	if msg.PkgPath == "" { // XXX
 		return ErrInvalidPkgPath("missing package path")
 	}
-	if msg.Stmt == "" { // XXX
-		return ErrInvalidExpr("missing expression to evaluate")
+	if msg.Func == "" { // XXX
+		return ErrInvalidExpr("missing function to call")
 	}
 	return nil
 }

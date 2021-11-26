@@ -6,6 +6,7 @@
   * Check parsed AST for compile-time errors.
     - unused names,
     - XXX
+  * Ensure determinism regarding 32 vs 64 bit for int/uint.
 
 # /pkgs
   * Replace testify with gnolang/gno/pkgs/testify

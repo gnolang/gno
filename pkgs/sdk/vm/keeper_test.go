@@ -47,9 +47,8 @@ func Echo(msg string) string {
 	err := env.vmk.AddPackage(ctx, msg1)
 
 	// Run Echo function.
-	msg2 := NewMsgExec(addr, pkgPath,
-		`Echo("hello world")`,
-		std.MustParseCoins("10gnot"))
+	coins := std.MustParseCoins("10gnot")
+	msg2 := NewMsgExec(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	err = env.vmk.Exec(ctx, msg2)
 	assert.NoError(t, err)
 	// assert.Equal(t, res, `("echo:hello world" string)`)

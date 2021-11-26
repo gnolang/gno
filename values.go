@@ -901,6 +901,17 @@ func (tv *TypedValue) GetBool() bool {
 	return *(*bool)(unsafe.Pointer(&tv.N))
 }
 
+func (tv *TypedValue) SetString(s string) {
+	if debug {
+		if tv.T.Kind() != StringKind || isNative(tv.T) {
+			panic(fmt.Sprintf(
+				"TypedValue.SetString() on type %s",
+				tv.T.String()))
+		}
+	}
+	tv.V = StringValue(s)
+}
+
 func (tv *TypedValue) GetString() string {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != StringKind {
@@ -924,6 +935,9 @@ func (tv *TypedValue) SetInt(n int) {
 				tv.T.String()))
 		}
 	}
+	// XXX probably should be coerced into int64 for determinism.
+	// XXX otherwise, all nodes must run in 64bit.
+	// XXX alternatively, require 64bit.
 	*(*int)(unsafe.Pointer(&tv.N)) = n
 }
 

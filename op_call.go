@@ -142,7 +142,7 @@ func (m *Machine) doOpCall() {
 			// This is how run-time untyped const
 			// conversions would work, but we
 			// expect the preprocessor to convert
-			// these to *constExpr.
+			// these to *ConstExpr.
 			/*
 				// Convert if untyped const.
 				if isUntyped(pv.T) {

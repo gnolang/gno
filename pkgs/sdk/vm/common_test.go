@@ -12,12 +12,13 @@ import (
 	bankm "github.com/gnolang/gno/pkgs/sdk/bank"
 	"github.com/gnolang/gno/pkgs/std"
 	"github.com/gnolang/gno/pkgs/store"
+	"github.com/gnolang/gno/pkgs/store/dbadapter"
 	"github.com/gnolang/gno/pkgs/store/iavl"
 )
 
 type testEnv struct {
 	ctx  sdk.Context
-	vmk  VMKeeper
+	vmk  *VMKeeper
 	bank bankm.BankKeeper
 	acck authm.AccountKeeper
 }
@@ -25,16 +26,18 @@ type testEnv struct {
 func setupTestEnv() testEnv {
 	db := dbm.NewMemDB()
 
-	authCapKey := store.NewStoreKey("authCapKey")
+	baseCapKey := store.NewStoreKey("baseCapKey")
+	iavlCapKey := store.NewStoreKey("iavlCapKey")
 
 	ms := store.NewCommitMultiStore(db)
-	ms.MountStoreWithDB(authCapKey, iavl.StoreConstructor, db)
+	ms.MountStoreWithDB(baseCapKey, dbadapter.StoreConstructor, db)
+	ms.MountStoreWithDB(iavlCapKey, iavl.StoreConstructor, db)
 	ms.LoadLatestVersion()
 
 	ctx := sdk.NewContext(ms, &bft.Header{ChainID: "test-chain-id"}, false, log.NewNopLogger())
-	acck := authm.NewAccountKeeper(authCapKey, std.ProtoBaseAccount)
+	acck := authm.NewAccountKeeper(iavlCapKey, std.ProtoBaseAccount)
 	bank := bankm.NewBankKeeper(acck)
-	vmk := NewVMKeeper(authCapKey, acck, bank)
+	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank)
 
 	return testEnv{ctx: ctx, vmk: vmk, bank: bank, acck: acck}
 }

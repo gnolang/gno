@@ -234,23 +234,34 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	return nil
 }
 
-// Exec executes a Gno statement (for delivertx).
+// Exec calls a Gno function (for delivertx).
+// XXX rename to Call?
 func (vm *VMKeeper) Exec(ctx sdk.Context, msg MsgExec) (err error) {
 	pkgPath := msg.PkgPath // to import
-	stmt := msg.Stmt
+	fnc := msg.Func
 	store := vm.getGnoStore(ctx)
+	// Get the function type.
+	pl := gno.PackageNodeLocation(pkgPath)
+	pn := store.GetBlockNode(pl).(*gno.PackageNode)
+	ft := pn.GetStaticTypeOf(store, gno.Name(fnc)).(*gno.FuncType)
 	// Make blank main Package.
-	pn := gno.NewPackageNode("main", "main", nil)
-	pv := pn.NewPackage()
+	mpn := gno.NewPackageNode("main", "main", nil)
+	mpv := mpn.NewPackage()
 	// Make and parse file.
-	// NOTE: this is temporary until we can optimize.
-	// Optimization requires go/parser.ParseStmt.
+	// TODO: optimize this so gno.MustParseFile() isn't called.
+	argslist := ""
+	for i, _ := range msg.Args {
+		if i > 0 {
+			argslist += ","
+		}
+		argslist += fmt.Sprintf("arg%d", i)
+	}
 	fbody := fmt.Sprintf(`package main
 import pkg %q
 
 func main() {
-	pkg.%s
-}`, pkgPath, stmt)
+	pkg.%s(%s)
+}`, pkgPath, fnc, argslist)
 	file := gno.MustParseFile("exec_main.go", fbody)
 	// Send send-coins to pkg from caller.
 	pkgAddr := DerivePkgAddr(pkgPath)
@@ -260,7 +271,22 @@ func main() {
 	if err != nil {
 		return err
 	}
-
+	// Convert Args to gno values.
+	fd := file.Decls[1].(*gno.FuncDecl)
+	if len(fd.Body) != 1 {
+		panic("should not happen")
+	}
+	cx := fd.Body[0].(*gno.ExprStmt).X.(*gno.CallExpr)
+	if cx.Varg {
+		panic("variadic calls not yet supported")
+	}
+	for i, arg := range msg.Args {
+		argType := ft.Params[i].Type
+		atv := convertArgToGno(arg, argType)
+		cx.Args[i] = &gno.ConstExpr{
+			TypedValue: atv,
+		}
+	}
 	// Construct new machine.
 	msgCtx := ExecContext{
 		ChainID: ctx.ChainID(),
@@ -271,7 +297,7 @@ func main() {
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			Package: pv,
+			Package: mpv,
 			Output:  nil,
 			Store:   store,
 			Context: msgCtx,
