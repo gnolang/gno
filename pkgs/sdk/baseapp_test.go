@@ -18,40 +18,34 @@ import (
 	dbm "github.com/gnolang/gno/pkgs/db"
 	"github.com/gnolang/gno/pkgs/log"
 	"github.com/gnolang/gno/pkgs/std"
+	"github.com/gnolang/gno/pkgs/store/dbadapter"
 	"github.com/gnolang/gno/pkgs/store/iavl"
 	store "github.com/gnolang/gno/pkgs/store/types"
 )
 
 var (
-	capKey1 = store.NewStoreKey("key1")
-	capKey2 = store.NewStoreKey("key2")
+	baseKey = store.NewStoreKey("base") // in all test apps
+	mainKey = store.NewStoreKey("main") // in all test apps
 )
 
 func defaultLogger() log.Logger {
 	return log.NewTMLogger(log.NewSyncWriter(os.Stdout)).With("module", "sdk/app")
 }
 
-func newBaseApp(name string, options ...func(*BaseApp)) *BaseApp {
+func newBaseApp(name string, db dbm.DB, options ...func(*BaseApp)) *BaseApp {
 	logger := defaultLogger()
-	db := dbm.NewMemDB()
-	return NewBaseApp(name, logger, db, options...)
+	app := NewBaseApp(name, logger, db, baseKey, mainKey, options...)
+	app.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, nil)
+	app.MountStoreWithDB(mainKey, iavl.StoreConstructor, nil)
+	return app
 }
 
 // simple one store baseapp
 func setupBaseApp(t *testing.T, options ...func(*BaseApp)) *BaseApp {
-	app := newBaseApp(t.Name(), options...)
+	db := dbm.NewMemDB()
+	app := newBaseApp(t.Name(), db, options...)
 	require.Equal(t, t.Name(), app.Name())
-
-	// no stores are mounted
-	require.Panics(t, func() {
-		app.LoadLatestVersion(capKey1)
-	})
-
-	app.MountStoreWithDB(capKey1, iavl.StoreConstructor, nil)
-	app.MountStoreWithDB(capKey2, iavl.StoreConstructor, nil)
-
-	// stores are mounted
-	err := app.LoadLatestVersion(capKey1)
+	err := app.LoadLatestVersion()
 	require.Nil(t, err)
 	return app
 }
@@ -60,25 +54,22 @@ func TestMountStores(t *testing.T) {
 	app := setupBaseApp(t)
 
 	// check both stores
-	store1 := app.cms.GetCommitStore(capKey1)
+	store1 := app.cms.GetCommitStore(baseKey)
 	require.NotNil(t, store1)
-	store2 := app.cms.GetCommitStore(capKey2)
+	store2 := app.cms.GetCommitStore(mainKey)
 	require.NotNil(t, store2)
 }
 
 // Test that we can make commits and then reload old versions.
 // Test that LoadLatestVersion actually does.
 func TestLoadVersion(t *testing.T) {
-	logger := defaultLogger()
 	pruningOpt := SetPruningOptions(store.PruneSyncable)
-	db := dbm.NewMemDB()
 	name := t.Name()
-	app := NewBaseApp(name, logger, db, pruningOpt)
+	db := dbm.NewMemDB()
+	app := newBaseApp(name, db, pruningOpt)
 
 	// make a cap key and mount the store
-	capKey := store.NewStoreKey(MainStoreKey)
-	app.MountStoreWithDB(capKey, iavl.StoreConstructor, nil)
-	err := app.LoadLatestVersion(capKey) // needed to make stores non-nil
+	err := app.LoadLatestVersion() // needed to make stores non-nil
 	require.Nil(t, err)
 
 	emptyCommitID := store.CommitID{}
@@ -90,29 +81,27 @@ func TestLoadVersion(t *testing.T) {
 	require.Equal(t, emptyCommitID, lastID)
 
 	// execute a block, collect commit ID
-	header := &bft.Header{Height: 1}
+	header := &bft.Header{ChainID: "test-chain", Height: 1}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 	res := app.Commit()
 	commitID1 := store.CommitID{1, res.Data}
 
 	// execute a block, collect commit ID
-	header = &bft.Header{Height: 2}
+	header = &bft.Header{ChainID: "test-chain", Height: 2}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 	res = app.Commit()
 	commitID2 := store.CommitID{2, res.Data}
 
 	// reload with LoadLatestVersion
-	app = NewBaseApp(name, logger, db, pruningOpt)
-	app.MountStoreWithDB(capKey, iavl.StoreConstructor, nil)
-	err = app.LoadLatestVersion(capKey)
+	app = newBaseApp(name, db, pruningOpt)
+	err = app.LoadLatestVersion()
 	require.Nil(t, err)
 	testLoadVersionHelper(t, app, int64(2), commitID2)
 
 	// reload with LoadVersion, see if you can commit the same block and get
 	// the same result
-	app = NewBaseApp(name, logger, db, pruningOpt)
-	app.MountStoreWithDB(capKey, iavl.StoreConstructor, nil)
-	err = app.LoadVersion(1, capKey)
+	app = newBaseApp(name, db, pruningOpt)
+	err = app.LoadVersion(1)
 	require.Nil(t, err)
 	testLoadVersionHelper(t, app, int64(1), commitID1)
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
@@ -121,11 +110,10 @@ func TestLoadVersion(t *testing.T) {
 }
 
 func TestAppVersionSetterGetter(t *testing.T) {
-	logger := defaultLogger()
 	pruningOpt := SetPruningOptions(store.PruneSyncable)
-	db := dbm.NewMemDB()
 	name := t.Name()
-	app := NewBaseApp(name, logger, db, pruningOpt)
+	db := dbm.NewMemDB()
+	app := newBaseApp(name, db, pruningOpt)
 
 	require.Equal(t, "", app.AppVersion())
 	res := app.Query(abci.RequestQuery{Path: ".app/version"})
@@ -141,37 +129,33 @@ func TestAppVersionSetterGetter(t *testing.T) {
 }
 
 func TestLoadVersionInvalid(t *testing.T) {
-	logger := log.NewNopLogger()
 	pruningOpt := SetPruningOptions(store.PruneSyncable)
-	db := dbm.NewMemDB()
 	name := t.Name()
-	app := NewBaseApp(name, logger, db, pruningOpt)
+	db := dbm.NewMemDB()
+	app := newBaseApp(name, db, pruningOpt)
 
-	capKey := store.NewStoreKey(MainStoreKey)
-	app.MountStoreWithDB(capKey, iavl.StoreConstructor, nil)
-	err := app.LoadLatestVersion(capKey)
+	err := app.LoadLatestVersion()
 	require.Nil(t, err)
 
 	// require error when loading an invalid version
-	err = app.LoadVersion(-1, capKey)
+	err = app.LoadVersion(-1)
 	require.Error(t, err)
 
-	header := &bft.Header{Height: 1}
+	header := &bft.Header{ChainID: "test-chain", Height: 1}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 	res := app.Commit()
 	commitID1 := store.CommitID{1, res.Data}
 
 	// create a new app with the stores mounted under the same cap key
-	app = NewBaseApp(name, logger, db, pruningOpt)
-	app.MountStoreWithDB(capKey, iavl.StoreConstructor, nil)
+	app = newBaseApp(name, db, pruningOpt)
 
 	// require we can load the latest version
-	err = app.LoadVersion(1, capKey)
+	err = app.LoadVersion(1)
 	require.Nil(t, err)
 	testLoadVersionHelper(t, app, int64(1), commitID1)
 
 	// require error when loading an invalid version
-	err = app.LoadVersion(2, capKey)
+	err = app.LoadVersion(2)
 	require.Error(t, err)
 }
 
@@ -183,9 +167,8 @@ func testLoadVersionHelper(t *testing.T, app *BaseApp, expectedHeight int64, exp
 }
 
 func TestOptionFunction(t *testing.T) {
-	logger := defaultLogger()
 	db := dbm.NewMemDB()
-	bap := NewBaseApp("starting name", logger, db, testChangeNameHelper("new name"))
+	bap := newBaseApp("starting name", db, testChangeNameHelper("new name"))
 	require.Equal(t, bap.name, "new name", "BaseApp should have had name changed via option function")
 }
 
@@ -197,7 +180,8 @@ func testChangeNameHelper(name string) func(*BaseApp) {
 
 // Test that Info returns the latest committed state.
 func TestInfo(t *testing.T) {
-	app := newBaseApp(t.Name())
+	db := dbm.NewMemDB()
+	app := newBaseApp(t.Name(), db)
 
 	// ----- test an empty response -------
 	reqInfo := abci.RequestInfo{}
@@ -245,7 +229,8 @@ func TestBaseAppOptionSeal(t *testing.T) {
 func TestSetMinGasPrices(t *testing.T) {
 	minGasPrices, err := ParseGasPrices("5000stake/10gas")
 	require.Nil(t, err)
-	app := newBaseApp(t.Name(), SetMinGasPrices("5000stake/10gas"))
+	db := dbm.NewMemDB()
+	app := newBaseApp(t.Name(), db, SetMinGasPrices("5000stake/10gas"))
 	require.Equal(t, minGasPrices, app.minGasPrices)
 }
 
@@ -254,17 +239,12 @@ func TestInitChainer(t *testing.T) {
 	// keep the db and logger ourselves so
 	// we can reload the same  app later
 	db := dbm.NewMemDB()
-	logger := defaultLogger()
-	app := NewBaseApp(name, logger, db)
-	capKey := store.NewStoreKey(MainStoreKey)
-	capKey2 := store.NewStoreKey("key2")
-	app.MountStoreWithDB(capKey, iavl.StoreConstructor, nil)
-	app.MountStoreWithDB(capKey2, iavl.StoreConstructor, nil)
+	app := newBaseApp(name, db)
 
 	// set a value in the store on init chain
 	key, value := []byte("hello"), []byte("goodbye")
 	var initChainer InitChainer = func(ctx Context, req abci.RequestInitChain) abci.ResponseInitChain {
-		store := ctx.Store(capKey)
+		store := ctx.Store(mainKey)
 		store.Set(key, value)
 		return abci.ResponseInitChain{}
 	}
@@ -275,7 +255,7 @@ func TestInitChainer(t *testing.T) {
 	}
 
 	// initChainer is nil - nothing happens
-	app.InitChain(abci.RequestInitChain{})
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
 	res := app.Query(query)
 	require.Equal(t, 0, len(res.Value))
 
@@ -283,7 +263,7 @@ func TestInitChainer(t *testing.T) {
 	app.SetInitChainer(initChainer)
 
 	// stores are mounted and private members are set - sealing baseapp
-	err := app.LoadLatestVersion(capKey) // needed to make stores non-nil
+	err := app.LoadLatestVersion() // needed to make stores non-nil
 	require.Nil(t, err)
 	require.Equal(t, int64(0), app.LastBlockHeight())
 
@@ -302,11 +282,9 @@ func TestInitChainer(t *testing.T) {
 	require.Equal(t, value, res.Value)
 
 	// reload app
-	app = NewBaseApp(name, logger, db)
+	app = newBaseApp(name, db)
 	app.SetInitChainer(initChainer)
-	app.MountStoreWithDB(capKey, iavl.StoreConstructor, nil)
-	app.MountStoreWithDB(capKey2, iavl.StoreConstructor, nil)
-	err = app.LoadLatestVersion(capKey) // needed to make stores non-nil
+	err = app.LoadLatestVersion() // needed to make stores non-nil
 	require.Nil(t, err)
 	require.Equal(t, int64(1), app.LastBlockHeight())
 
@@ -315,7 +293,7 @@ func TestInitChainer(t *testing.T) {
 	require.Equal(t, value, res.Value)
 
 	// commit and ensure we can still query
-	header := &bft.Header{Height: app.LastBlockHeight() + 1}
+	header := &bft.Header{ChainID: "test-chain", Height: app.LastBlockHeight() + 1}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 	app.Commit()
 
@@ -538,7 +516,7 @@ func TestCheckTx(t *testing.T) {
 	// This ensures changes to the kvstore persist across successive CheckTx.
 	counterKey := []byte("counter-key")
 
-	anteOpt := func(bapp *BaseApp) { bapp.SetAnteHandler(anteHandlerTxTest(t, capKey1, counterKey)) }
+	anteOpt := func(bapp *BaseApp) { bapp.SetAnteHandler(anteHandlerTxTest(t, mainKey, counterKey)) }
 	routerOpt := func(bapp *BaseApp) {
 		// TODO: can remove this once CheckTx doesnt process msgs.
 		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result { return Result{} }))
@@ -547,7 +525,7 @@ func TestCheckTx(t *testing.T) {
 	app := setupBaseApp(t, anteOpt, routerOpt)
 
 	nTxs := int64(5)
-	app.InitChain(abci.RequestInitChain{})
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
 
 	for i := int64(0); i < nTxs; i++ {
 		tx := newTxCounter(i, 0)
@@ -557,19 +535,19 @@ func TestCheckTx(t *testing.T) {
 		assert.True(t, r.IsOK(), fmt.Sprintf("%v", r))
 	}
 
-	checkStateStore := app.checkState.ctx.Store(capKey1)
+	checkStateStore := app.checkState.ctx.Store(mainKey)
 	storedCounter := getIntFromStore(checkStateStore, counterKey)
 
 	// Ensure AnteHandler ran
 	require.Equal(t, nTxs, storedCounter)
 
 	// If a block is committed, CheckTx state should be reset.
-	header := &bft.Header{Height: 1}
+	header := &bft.Header{ChainID: "test-chain", Height: 1}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 	app.EndBlock(abci.RequestEndBlock{})
 	app.Commit()
 
-	checkStateStore = app.checkState.ctx.Store(capKey1)
+	checkStateStore = app.checkState.ctx.Store(mainKey)
 	storedBytes := checkStateStore.Get(counterKey)
 	require.Nil(t, storedBytes)
 }
@@ -579,22 +557,22 @@ func TestCheckTx(t *testing.T) {
 func TestDeliverTx(t *testing.T) {
 	// test increments in the ante
 	anteKey := []byte("ante-key")
-	anteOpt := func(bapp *BaseApp) { bapp.SetAnteHandler(anteHandlerTxTest(t, capKey1, anteKey)) }
+	anteOpt := func(bapp *BaseApp) { bapp.SetAnteHandler(anteHandlerTxTest(t, mainKey, anteKey)) }
 
 	// test increments in the handler
 	deliverKey := []byte("deliver-key")
 	routerOpt := func(bapp *BaseApp) {
-		bapp.Router().AddRoute(routeMsgCounter, newMsgCounterHandler(t, capKey1, deliverKey))
+		bapp.Router().AddRoute(routeMsgCounter, newMsgCounterHandler(t, mainKey, deliverKey))
 	}
 
 	app := setupBaseApp(t, anteOpt, routerOpt)
-	app.InitChain(abci.RequestInitChain{})
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
 
 	nBlocks := 3
 	txPerHeight := 5
 
 	for blockN := 0; blockN < nBlocks; blockN++ {
-		header := &bft.Header{Height: int64(blockN) + 1}
+		header := &bft.Header{ChainID: "test-chain", Height: int64(blockN) + 1}
 		app.BeginBlock(abci.RequestBeginBlock{Header: header})
 
 		for i := 0; i < txPerHeight; i++ {
@@ -623,14 +601,14 @@ func TestMultiMsgCheckTx(t *testing.T) {
 func TestMultiMsgDeliverTx(t *testing.T) {
 	// increment the tx counter
 	anteKey := []byte("ante-key")
-	anteOpt := func(bapp *BaseApp) { bapp.SetAnteHandler(anteHandlerTxTest(t, capKey1, anteKey)) }
+	anteOpt := func(bapp *BaseApp) { bapp.SetAnteHandler(anteHandlerTxTest(t, mainKey, anteKey)) }
 
 	// increment the msg counter
 	deliverKey := []byte("deliver-key")
 	deliverKey2 := []byte("deliver-key2")
 	routerOpt := func(bapp *BaseApp) {
-		bapp.Router().AddRoute(routeMsgCounter, newMsgCounterHandler(t, capKey1, deliverKey))
-		bapp.Router().AddRoute(routeMsgCounter2, newMsgCounterHandler(t, capKey1, deliverKey2))
+		bapp.Router().AddRoute(routeMsgCounter, newMsgCounterHandler(t, mainKey, deliverKey))
+		bapp.Router().AddRoute(routeMsgCounter2, newMsgCounterHandler(t, mainKey, deliverKey2))
 	}
 
 	app := setupBaseApp(t, anteOpt, routerOpt)
@@ -638,7 +616,7 @@ func TestMultiMsgDeliverTx(t *testing.T) {
 	// run a multi-msg tx
 	// with all msgs the same route
 
-	header := &bft.Header{Height: 1}
+	header := &bft.Header{ChainID: "test-chain", Height: 1}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 	tx := newTxCounter(0, 0, 1, 2)
 	txBytes, err := amino.Marshal(tx)
@@ -646,7 +624,7 @@ func TestMultiMsgDeliverTx(t *testing.T) {
 	res := app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
 	require.True(t, res.IsOK(), fmt.Sprintf("%v", res))
 
-	store := app.deliverState.ctx.Store(capKey1)
+	store := app.deliverState.ctx.Store(mainKey)
 
 	// tx counter only incremented once
 	txCounter := getIntFromStore(store, anteKey)
@@ -666,7 +644,7 @@ func TestMultiMsgDeliverTx(t *testing.T) {
 	res = app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
 	require.True(t, res.IsOK(), fmt.Sprintf("%v", res))
 
-	store = app.deliverState.ctx.Store(capKey1)
+	store = app.deliverState.ctx.Store(mainKey)
 
 	// tx counter only incremented once
 	txCounter = getIntFromStore(store, anteKey)
@@ -710,12 +688,12 @@ func TestSimulateTx(t *testing.T) {
 
 	app := setupBaseApp(t, anteOpt, routerOpt)
 
-	app.InitChain(abci.RequestInitChain{})
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
 
 	nBlocks := 3
 	for blockN := 0; blockN < nBlocks; blockN++ {
 		count := int64(blockN + 1)
-		header := &bft.Header{Height: count}
+		header := &bft.Header{ChainID: "test-chain", Height: count}
 		app.BeginBlock(abci.RequestBeginBlock{Header: header})
 
 		tx := newTxCounter(count, count)
@@ -763,7 +741,7 @@ func TestRunInvalidTransaction(t *testing.T) {
 
 	app := setupBaseApp(t, anteOpt, routerOpt)
 
-	header := &bft.Header{Height: 1}
+	header := &bft.Header{ChainID: "test-chain", Height: 1}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 
 	// Transaction with no messages
@@ -855,7 +833,7 @@ func TestTxGasLimits(t *testing.T) {
 
 	app := setupBaseApp(t, anteOpt, routerOpt)
 
-	header := &bft.Header{Height: 1}
+	header := &bft.Header{ChainID: "test-chain", Height: 1}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 
 	testCases := []struct {
@@ -930,6 +908,7 @@ func TestMaxBlockGasLimits(t *testing.T) {
 
 	app := setupBaseApp(t, anteOpt, routerOpt)
 	app.InitChain(abci.RequestInitChain{
+		ChainID: "test-chain",
 		ConsensusParams: &abci.ConsensusParams{
 			Block: &abci.BlockParams{
 				MaxGas: 100,
@@ -961,7 +940,7 @@ func TestMaxBlockGasLimits(t *testing.T) {
 		tx := tc.tx
 
 		// reset the block gas
-		header := &bft.Header{Height: app.LastBlockHeight() + 1}
+		header := &bft.Header{ChainID: "test-chain", Height: app.LastBlockHeight() + 1}
 		app.BeginBlock(abci.RequestBeginBlock{Header: header})
 
 		// execute the transaction multiple times
@@ -992,19 +971,19 @@ func TestMaxBlockGasLimits(t *testing.T) {
 func TestBaseAppAnteHandler(t *testing.T) {
 	anteKey := []byte("ante-key")
 	anteOpt := func(bapp *BaseApp) {
-		bapp.SetAnteHandler(anteHandlerTxTest(t, capKey1, anteKey))
+		bapp.SetAnteHandler(anteHandlerTxTest(t, mainKey, anteKey))
 	}
 
 	deliverKey := []byte("deliver-key")
 	routerOpt := func(bapp *BaseApp) {
-		bapp.Router().AddRoute(routeMsgCounter, newMsgCounterHandler(t, capKey1, deliverKey))
+		bapp.Router().AddRoute(routeMsgCounter, newMsgCounterHandler(t, mainKey, deliverKey))
 	}
 
 	app := setupBaseApp(t, anteOpt, routerOpt)
 
-	app.InitChain(abci.RequestInitChain{})
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
 
-	header := &bft.Header{Height: app.LastBlockHeight() + 1}
+	header := &bft.Header{ChainID: "test-chain", Height: app.LastBlockHeight() + 1}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 
 	// execute a tx that will fail ante handler execution
@@ -1019,7 +998,7 @@ func TestBaseAppAnteHandler(t *testing.T) {
 	require.False(t, res.IsOK(), fmt.Sprintf("%v", res))
 
 	ctx := app.getState(RunTxModeDeliver).ctx
-	store := ctx.Store(capKey1)
+	store := ctx.Store(mainKey)
 	require.Equal(t, int64(0), getIntFromStore(store, anteKey))
 
 	// execute at tx that will pass the ante handler (the checkTx state should
@@ -1034,7 +1013,7 @@ func TestBaseAppAnteHandler(t *testing.T) {
 	require.False(t, res.IsOK(), fmt.Sprintf("%v", res))
 
 	ctx = app.getState(RunTxModeDeliver).ctx
-	store = ctx.Store(capKey1)
+	store = ctx.Store(mainKey)
 	require.Equal(t, int64(1), getIntFromStore(store, anteKey))
 	require.Equal(t, int64(0), getIntFromStore(store, deliverKey))
 
@@ -1049,7 +1028,7 @@ func TestBaseAppAnteHandler(t *testing.T) {
 	require.True(t, res.IsOK(), fmt.Sprintf("%v", res))
 
 	ctx = app.getState(RunTxModeDeliver).ctx
-	store = ctx.Store(capKey1)
+	store = ctx.Store(mainKey)
 	require.Equal(t, int64(2), getIntFromStore(store, anteKey))
 	require.Equal(t, int64(1), getIntFromStore(store, deliverKey))
 
@@ -1091,16 +1070,16 @@ func TestGasConsumptionBadTx(t *testing.T) {
 
 	app := setupBaseApp(t, anteOpt, routerOpt)
 	app.InitChain(abci.RequestInitChain{
+		ChainID: "test-chain",
 		ConsensusParams: &abci.ConsensusParams{
 			Block: &abci.BlockParams{
 				MaxGas: 9,
 			},
 		},
 	})
+	//app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
 
-	app.InitChain(abci.RequestInitChain{})
-
-	header := &bft.Header{Height: app.LastBlockHeight() + 1}
+	header := &bft.Header{ChainID: "test-chain", Height: app.LastBlockHeight() + 1}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 
 	tx := newTxCounter(5, 0)
@@ -1126,7 +1105,7 @@ func TestQuery(t *testing.T) {
 	anteOpt := func(bapp *BaseApp) {
 		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
 			newCtx = ctx
-			store := ctx.Store(capKey1)
+			store := ctx.Store(mainKey)
 			store.Set(key, value)
 			return
 		})
@@ -1134,7 +1113,7 @@ func TestQuery(t *testing.T) {
 
 	routerOpt := func(bapp *BaseApp) {
 		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
-			store := ctx.Store(capKey1)
+			store := ctx.Store(mainKey)
 			store.Set(key, value)
 			return Result{}
 		}))
@@ -1142,13 +1121,13 @@ func TestQuery(t *testing.T) {
 
 	app := setupBaseApp(t, anteOpt, routerOpt)
 
-	app.InitChain(abci.RequestInitChain{})
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
 
-	// NOTE: "/store/key1" tells us Store
+	// NOTE: "/store/main" tells us Store
 	// and the final "/key" says to use the data as the
 	// key in the given Store ...
 	query := abci.RequestQuery{
-		Path: ".store/key1/key",
+		Path: ".store/main/key",
 		Data: key,
 	}
 	tx := newTxCounter(0, 0)
@@ -1164,7 +1143,7 @@ func TestQuery(t *testing.T) {
 	require.Equal(t, 0, len(res.Value))
 
 	// query is still empty after a DeliverTx before we commit
-	header := &bft.Header{Height: app.LastBlockHeight() + 1}
+	header := &bft.Header{ChainID: "test-chain", Height: app.LastBlockHeight() + 1}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 
 	resTx = app.Deliver(tx)

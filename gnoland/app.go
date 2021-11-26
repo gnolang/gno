@@ -25,11 +25,11 @@ func NewApp(rootDir string, logger log.Logger) (abci.Application, error) {
 	db := dbm.NewDB("gnolang", dbm.GoLevelDBBackend, filepath.Join(rootDir, "data"))
 
 	// Capabilities keys.
-	mainKey := store.NewStoreKey(sdk.MainStoreKey)
+	mainKey := store.NewStoreKey("main")
 	baseKey := store.NewStoreKey("base")
 
 	// Create BaseApp.
-	baseApp := sdk.NewBaseApp("gnoland", logger, db)
+	baseApp := sdk.NewBaseApp("gnoland", logger, db, baseKey, mainKey)
 
 	// Set mounts for BaseApp's MultiStore.
 	baseApp.MountStoreWithDB(mainKey, iavl.StoreConstructor, db)
@@ -64,7 +64,7 @@ func NewApp(rootDir string, logger log.Logger) (abci.Application, error) {
 	baseApp.Router().AddRoute("vm", vm.NewHandler(vmKpr))
 
 	// Load latest version.
-	if err := baseApp.LoadLatestVersion(mainKey); err != nil {
+	if err := baseApp.LoadLatestVersion(); err != nil {
 		return nil, err
 	}
 

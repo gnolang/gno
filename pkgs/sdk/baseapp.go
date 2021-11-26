@@ -22,9 +22,6 @@ import (
 var mainConsensusParamsKey = []byte("consensus_params")
 var mainLastHeaderKey = []byte("last_header")
 
-// MainStoreKey is the string representation of the main store
-const MainStoreKey = "main"
-
 // BaseApp reflects the ABCI application implementation.
 type BaseApp struct {
 	// initialized on creation
@@ -35,7 +32,8 @@ type BaseApp struct {
 	router Router                 // handle any kind of message
 
 	// set upon LoadVersion or LoadLatestVersion.
-	baseKey store.StoreKey // Main Store in cms
+	baseKey store.StoreKey // Base Store in cms (raw db, not hashed)
+	mainKey store.StoreKey // Main Store in cms (e.g. iavl, merkle-ized)
 
 	anteHandler  AnteHandler  // ante handler for fee and auth
 	initChainer  InitChainer  // initialize state with validators and state blob
@@ -80,15 +78,17 @@ var _ abci.Application = (*BaseApp)(nil)
 //
 // NOTE: The db is used to store the version number for now.
 func NewBaseApp(
-	name string, logger log.Logger, db dbm.DB, options ...func(*BaseApp),
+	name string, logger log.Logger, db dbm.DB, baseKey store.StoreKey, mainKey store.StoreKey, options ...func(*BaseApp),
 ) *BaseApp {
 
 	app := &BaseApp{
-		logger: logger,
-		name:   name,
-		db:     db,
-		cms:    store.NewCommitMultiStore(db),
-		router: NewRouter(),
+		logger:  logger,
+		name:    name,
+		db:      db,
+		cms:     store.NewCommitMultiStore(db),
+		router:  NewRouter(),
+		baseKey: baseKey,
+		mainKey: mainKey,
 	}
 	for _, option := range options {
 		option(app)
@@ -127,23 +127,23 @@ func (app *BaseApp) MountStore(key store.StoreKey, cons store.CommitStoreConstru
 // LoadLatestVersion loads the latest application version. It will panic if
 // called more than once on a running BaseApp.
 // This, or LoadVersion() MUST be called even after first init.
-func (app *BaseApp) LoadLatestVersion(baseKey store.StoreKey) error {
+func (app *BaseApp) LoadLatestVersion() error {
 	err := app.cms.LoadLatestVersion()
 	if err != nil {
 		return err
 	}
-	return app.initFromMainStore(baseKey)
+	return app.initFromMainStore()
 }
 
 // LoadVersion loads the BaseApp application version. It will panic if called
 // more than once on a running baseapp.
 // This, or LoadLatestVersion() MUST be called even after first init.
-func (app *BaseApp) LoadVersion(version int64, baseKey store.StoreKey) error {
+func (app *BaseApp) LoadVersion(version int64) error {
 	err := app.cms.LoadVersion(version)
 	if err != nil {
 		return err
 	}
-	return app.initFromMainStore(baseKey)
+	return app.initFromMainStore()
 }
 
 // LastCommitID returns the last CommitID of the multistore.
@@ -156,18 +156,16 @@ func (app *BaseApp) LastBlockHeight() int64 {
 	return app.cms.LastCommitID().Version
 }
 
-// initializes the remaining logic from app.cms
-func (app *BaseApp) initFromMainStore(baseKey store.StoreKey) error {
-	mainStore := app.cms.GetStore(baseKey)
+// initializes the app from app.cms after loading.
+func (app *BaseApp) initFromMainStore() error {
+	baseStore := app.cms.GetStore(app.baseKey)
+	if baseStore == nil {
+		return errors.New("baseapp expects MultiStore with 'base' Store")
+	}
+	mainStore := app.cms.GetStore(app.mainKey)
 	if mainStore == nil {
 		return errors.New("baseapp expects MultiStore with 'main' Store")
 	}
-
-	// memoize baseKey
-	if app.baseKey != nil {
-		panic("app.baseKey expected to be nil; duplicate init?")
-	}
-	app.baseKey = baseKey
 
 	// Load the consensus params from the main store. If the consensus params are
 	// nil, it will be saved later during InitChain.
@@ -186,7 +184,7 @@ func (app *BaseApp) initFromMainStore(baseKey store.StoreKey) error {
 
 	// Load the consensus header from the main store.
 	// This is needed to setCheckState with the right chainID etc.
-	lastHeaderBz := mainStore.Get(mainLastHeaderKey)
+	lastHeaderBz := baseStore.Get(mainLastHeaderKey)
 	if lastHeaderBz != nil {
 		var lastHeader = &bft.Header{}
 		err := amino.Unmarshal(lastHeaderBz, lastHeader)
@@ -240,7 +238,7 @@ func (app *BaseApp) setCheckState(header abci.Header) {
 	}
 }
 
-// setCheckState sets checkState with the cached multistore and
+// setDeliverState sets deliverState with the cached multistore and
 // the context wrapping it.
 // It is called by InitChain() and BeginBlock(),
 // and deliverState is set nil on Commit().
@@ -263,7 +261,7 @@ func (app *BaseApp) storeConsensusParams(consensusParams *abci.ConsensusParams) 
 	if err != nil {
 		panic(err)
 	}
-	mainStore := app.cms.GetStore(app.baseKey)
+	mainStore := app.cms.GetStore(app.mainKey)
 	mainStore.Set(mainConsensusParamsKey, consensusParamsBz)
 }
 
@@ -877,13 +875,13 @@ func (app *BaseApp) Commit() (res abci.ResponseCommit) {
 	app.logger.Debug("Commit synced", "commit", fmt.Sprintf("%X", commitID))
 
 	// Save this header.
-	mainStore := app.cms.GetStore(app.baseKey)
-	if mainStore == nil {
-		res.Error = ABCIError(errors.New("baseapp expects MultiStore with 'main' Store"))
+	baseStore := app.cms.GetStore(app.baseKey)
+	if baseStore == nil {
+		res.Error = ABCIError(errors.New("baseapp expects MultiStore with 'base' Store"))
 		return
 	}
 	headerBz := amino.MustMarshal(header)
-	mainStore.Set(mainLastHeaderKey, headerBz)
+	baseStore.Set(mainLastHeaderKey, headerBz)
 
 	// Reset the Check state to the latest committed.
 	//
