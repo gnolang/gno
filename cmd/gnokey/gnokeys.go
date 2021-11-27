@@ -41,9 +41,9 @@ var makeTxApps client.AppList = []client.AppItem{
 	{makeAddPackageTxApp,
 		"addpkg", "upload new package",
 		defaultMakeAddPackageTxOptions},
-	{makeExecTxApp,
-		"exec", "execute statement",
-		defaultmakeExecTxOptions},
+	{makeCallTxApp,
+		"call", "call public function",
+		defaultmakeCallTxOptions},
 }
 
 func makeTxApp(cmd *command.Command, args []string, iopts interface{}) error {
@@ -149,9 +149,9 @@ func makeAddPackageTxApp(cmd *command.Command, args []string, iopts interface{})
 }
 
 //----------------------------------------
-// makeExecTxApp
+// makeCallTxApp
 
-type makeExecTxOptions struct {
+type makeCallTxOptions struct {
 	client.BaseOptions          // home,...
 	BaseTxOptions               // gas-wanted, gas-fee, memo, ...
 	Send               string   `flag:"send" help:"send coins"`
@@ -160,15 +160,15 @@ type makeExecTxOptions struct {
 	Args               []string `flag:"args" help:"arguments to contract"`
 }
 
-var defaultmakeExecTxOptions = makeExecTxOptions{
+var defaultmakeCallTxOptions = makeCallTxOptions{
 	PkgPath: "", // must override
 	Func:    "", // must override
 	Args:    nil,
 	Send:    "",
 }
 
-func makeExecTxApp(cmd *command.Command, args []string, iopts interface{}) error {
-	opts := iopts.(makeExecTxOptions)
+func makeCallTxApp(cmd *command.Command, args []string, iopts interface{}) error {
+	opts := iopts.(makeCallTxOptions)
 	if opts.PkgPath == "" {
 		return errors.New("pkgpath not specified")
 	}
@@ -216,7 +216,7 @@ func makeExecTxApp(cmd *command.Command, args []string, iopts interface{}) error
 	}
 
 	// construct msg & tx and marshal.
-	msg := vm.MsgExec{
+	msg := vm.MsgCall{
 		Caller:  caller,
 		Send:    send,
 		PkgPath: opts.PkgPath,

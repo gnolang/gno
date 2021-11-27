@@ -166,6 +166,27 @@ type ArrayValue struct {
 	Data []byte
 }
 
+// NOTE: Result should not be written to,
+// behavior is unexpected when .List bytes.
+func (av *ArrayValue) GetReadonlyBytes() []byte {
+	if av.Data == nil {
+		// NOTE: we cannot convert to .Data type bytearray here
+		// because there might be references to .List[x].
+		bz := make([]byte, len(av.List))
+		for i, tv := range av.List {
+			if tv.T != Uint8Type {
+				panic(fmt.Sprintf(
+					"expected byte type but got %v",
+					tv.T))
+			}
+			bz[i] = tv.GetUint8()
+		}
+		return bz
+	} else {
+		return av.Data
+	}
+}
+
 func (av *ArrayValue) GetCapacity() int {
 	if av.Data == nil {
 		// not cap(av.List) for simplicity.

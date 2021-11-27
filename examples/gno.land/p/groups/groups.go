@@ -1,4 +1,4 @@
-package dom
+package groups
 
 import (
 	"strconv"
@@ -7,28 +7,28 @@ import (
 	"gno.land/p/avl"
 )
 
-type Plot struct {
+type Group struct {
 	Name     string
 	Posts    *avl.Tree // postsCtr -> *Post
 	PostsCtr int
 }
 
-func (plot *Plot) AddPost(title string, body string) {
-	ctr := plot.PostsCtr
-	plot.PostsCtr++
+func (group *Group) AddPost(title string, body string) {
+	ctr := group.PostsCtr
+	group.PostsCtr++
 	key := strconv.Itoa(ctr)
 	post := &Post{
 		Title: title,
 		Body:  body,
 	}
-	posts2, _ := plot.Posts.Set(key, post)
-	plot.Posts = posts2
+	posts2, _ := group.Posts.Set(key, post)
+	group.Posts = posts2
 }
 
-func (plot *Plot) String() string {
-	str := "# [plot] " + plot.Name + "\n"
-	if plot.Posts.Size() > 0 {
-		plot.Posts.Traverse(true, func(n *avl.Tree) bool {
+func (group *Group) String() string {
+	str := "# [group] " + group.Name + "\n"
+	if group.Posts.Size() > 0 {
+		group.Posts.Traverse(true, func(n *avl.Tree) bool {
 			str += "\n"
 			str += n.Value().(*Post).String()
 			return false

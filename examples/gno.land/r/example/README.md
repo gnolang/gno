@@ -28,13 +28,13 @@ Use this mnemonic:
 ./build/gnokey broadcast addpkg.avl.signed.txt
 ```
 
-## sign an addpkg (add dom package) transaction.
+## sign an addpkg (add "gno.land/p/groups" package) transaction.
 
 ```bash
-./build/gnokey maketx addpkg test1 --pkgpath "gno.land/p/dom" --pkgdir "examples/gno.land/p/dom" --deposit 100gnot --gas-fee 1gnot --gas-wanted 2000000 > addpkg.dom.unsigned.txt
+./build/gnokey maketx addpkg test1 --pkgpath "gno.land/p/groups" --pkgdir "examples/gno.land/p/groups" --deposit 100gnot --gas-fee 1gnot --gas-wanted 2000000 > addpkg.groups.unsigned.txt
 ./build/gnokey query "auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
-./build/gnokey sign test1 --txpath addpkg.dom.unsigned.txt --chainid "testchain" --number 0 --sequence 1 > addpkg.dom.signed.txt
-./build/gnokey broadcast addpkg.dom.signed.txt
+./build/gnokey sign test1 --txpath addpkg.groups.unsigned.txt --chainid "testchain" --number 0 --sequence 1 > addpkg.groups.signed.txt
+./build/gnokey broadcast addpkg.groups.signed.txt
 ```
 
 ## sign an addpkg (add example realm) transaction.
@@ -46,10 +46,10 @@ Use this mnemonic:
 ./build/gnokey broadcast addrealm.signed.txt
 ```
 
-## sign a exec (contract call) transaction.
+## sign a (contract) function call transaction.
 
 ```bash
-./build/gnokey maketx exec test1 --pkgpath "gno.land/r/example" --func AddPost --args "Gno Demo" --args#file "./examples/gno.land/r/example/README.md" --gas-fee 1gnot --gas-wanted 2000000 > addpage.unsigned.txt
+./build/gnokey maketx call test1 --pkgpath "gno.land/r/example" --func AddPost --args "Gno Demo" --args#file "./examples/gno.land/r/example/README.md" --gas-fee 1gnot --gas-wanted 2000000 > addpage.unsigned.txt
 ./build/gnokey query "auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 ./build/gnokey sign test1 --txpath addpage.unsigned.txt --chainid "testchain" --number 0 --sequence 3 > addpage.signed.txt
 ./build/gnokey broadcast addpage.signed.txt

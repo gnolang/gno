@@ -8,7 +8,7 @@ import (
 type ExecContext struct {
 	ChainID string
 	Height  int64
-	Msg     MsgExec
+	Msg     MsgCall
 	PkgAddr crypto.Address
 
 	sdkCtx sdk.Context // TODO: ensure hidden or refactor.

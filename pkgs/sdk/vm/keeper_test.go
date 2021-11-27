@@ -48,9 +48,9 @@ func Echo(msg string) string {
 
 	// Run Echo function.
 	coins := std.MustParseCoins("10gnot")
-	msg2 := NewMsgExec(addr, coins, pkgPath, "Echo", []string{"hello world"})
-	err = env.vmk.Exec(ctx, msg2)
+	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
+	res, err := env.vmk.Call(ctx, msg2)
 	assert.NoError(t, err)
-	// assert.Equal(t, res, `("echo:hello world" string)`)
+	assert.Equal(t, res, `("echo:hello world" string)`)
 	// t.Log("result:", res)
 }

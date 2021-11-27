@@ -1,21 +1,21 @@
 package example
 
 import (
-	"gno.land/p/dom"
+	"gno.land/p/groups"
 	// TODO: make this manual switcharoo unnecessary.
-	// "github.com/gnolang/gno/examples/gno.land/p/dom"
+	// "github.com/gnolang/gno/examples/gno.land/p/groups"
 )
 
-var gPlot *dom.Plot
+var group *groups.Group
 
 func init() {
-	gPlot = &dom.Plot{Name: "First Plot"}
+	group = &groups.Group{Name: "First Group"}
 }
 
 func AddPost(title string, body string) {
-	gPlot.AddPost(title, body)
+	group.AddPost(title, body)
 }
 
 func Render() string {
-	return gPlot.String()
+	return group.String()
 }

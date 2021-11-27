@@ -18,7 +18,7 @@ import (
 // smart contracts programming (scripting).
 type VMKeeperI interface {
 	AddPackage(ctx sdk.Context, msg MsgAddPackage) error
-	Exec(ctx sdk.Context, msg MsgExec) error
+	Call(ctx sdk.Context, msg MsgCall) (res string, err error)
 }
 
 var _ VMKeeperI = &VMKeeper{}
@@ -114,7 +114,8 @@ func (vmk *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 }
 
 func (vmk *VMKeeper) initBuiltinPackages(store gno.Store) {
-	// NOTE: native functions/methods added here must be quick operations.
+	// NOTE: native functions/methods added here must be quick operations,
+	// or account for gas before operation.
 	// TODO: define criteria for inclusion, and solve gas calculations.
 	getPackage := func(pkgPath string) (pv *gno.PackageValue) {
 		// otherwise, built-in package value.
@@ -122,6 +123,7 @@ func (vmk *VMKeeper) initBuiltinPackages(store gno.Store) {
 		case "strconv":
 			pkg := gno.NewPackageNode("strconv", "strconv", nil)
 			pkg.DefineGoNativeFunc("Itoa", strconv.Itoa)
+			pkg.DefineGoNativeFunc("Atoi", strconv.Atoi)
 			return pkg.NewPackage()
 		case "std":
 			pkg := gno.NewPackageNode("std", "std", nil)
@@ -186,6 +188,28 @@ func (vmk *VMKeeper) initBuiltinPackages(store gno.Store) {
 					m.PushValue(res0)
 				},
 			)
+			pkg.DefineNative("Hash",
+				gno.Flds( // params
+					"bz", "[]byte",
+				),
+				gno.Flds( // results
+					"hash", "[20]byte",
+				),
+				func(m *gno.Machine) {
+					arg0 := m.LastBlock().GetParams1().TV
+					bz := []byte(nil)
+					if arg0.V != nil {
+						slice := arg0.V.(*gno.SliceValue)
+						array := slice.GetBase(m.Store)
+						bz = array.GetReadonlyBytes()
+					}
+					hash := gno.HashBytes(bz)
+					res0 := gno.Go2GnoValue(
+						reflect.ValueOf([20]byte(hash)),
+					)
+					m.PushValue(res0)
+				},
+			)
 			return pkg.NewPackage()
 		default:
 			return nil // does not exist.
@@ -234,21 +258,21 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	return nil
 }
 
-// Exec calls a Gno function (for delivertx).
-// XXX rename to Call?
-func (vm *VMKeeper) Exec(ctx sdk.Context, msg MsgExec) (err error) {
+// Calls calls a public Gno function (for delivertx).
+func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	pkgPath := msg.PkgPath // to import
 	fnc := msg.Func
 	store := vm.getGnoStore(ctx)
-	// Get the function type.
+	// Get the package and function type.
+	pv := store.GetPackage(pkgPath)
 	pl := gno.PackageNodeLocation(pkgPath)
 	pn := store.GetBlockNode(pl).(*gno.PackageNode)
 	ft := pn.GetStaticTypeOf(store, gno.Name(fnc)).(*gno.FuncType)
-	// Make blank main Package.
+	// Make main Package with imports.
 	mpn := gno.NewPackageNode("main", "main", nil)
+	mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})
 	mpv := mpn.NewPackage()
-	// Make and parse file.
-	// TODO: optimize this so gno.MustParseFile() isn't called.
+	// Parse expression.
 	argslist := ""
 	for i, _ := range msg.Args {
 		if i > 0 {
@@ -256,27 +280,18 @@ func (vm *VMKeeper) Exec(ctx sdk.Context, msg MsgExec) (err error) {
 		}
 		argslist += fmt.Sprintf("arg%d", i)
 	}
-	fbody := fmt.Sprintf(`package main
-import pkg %q
-
-func main() {
-	pkg.%s(%s)
-}`, pkgPath, fnc, argslist)
-	file := gno.MustParseFile("exec_main.go", fbody)
+	expr := fmt.Sprintf(`pkg.%s(%s)`, fnc, argslist)
+	xn := gno.MustParseExpr(expr)
 	// Send send-coins to pkg from caller.
 	pkgAddr := DerivePkgAddr(pkgPath)
 	caller := msg.Caller
 	send := msg.Send
 	err = vm.bank.SendCoins(ctx, caller, pkgAddr, send)
 	if err != nil {
-		return err
+		return "", err
 	}
 	// Convert Args to gno values.
-	fd := file.Decls[1].(*gno.FuncDecl)
-	if len(fd.Body) != 1 {
-		panic("should not happen")
-	}
-	cx := fd.Body[0].(*gno.ExprStmt).X.(*gno.CallExpr)
+	cx := xn.(*gno.CallExpr)
 	if cx.Varg {
 		panic("variadic calls not yet supported")
 	}
@@ -302,9 +317,14 @@ func main() {
 			Store:   store,
 			Context: msgCtx,
 		})
-	m.RunFiles(file)
-	m.RunMain()
-	return nil
+	rtvs := m.Eval(xn)
+	for i, rtv := range rtvs {
+		res = res + rtv.String()
+		if i < len(rtvs)-1 {
+			res += "\n"
+		}
+	}
+	return res, nil
 	// TODO pay for gas? TODO see context?
 }
 

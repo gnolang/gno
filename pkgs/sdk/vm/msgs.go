@@ -78,10 +78,10 @@ func (msg MsgAddPackage) GetReceived() std.Coins {
 }
 
 //----------------------------------------
-// MsgExec
+// MsgCall
 
-// MsgExec - executes a Gno statement.
-type MsgExec struct {
+// MsgCall - executes a Gno statement.
+type MsgCall struct {
 	Caller  crypto.Address `json:"caller" yaml:"caller"`
 	Send    std.Coins      `json:"send" yaml:"send"`
 	PkgPath string         `json:"pkg_path" yaml:"pkg_path"`
@@ -89,10 +89,10 @@ type MsgExec struct {
 	Args    []string       `json:"args" yaml:"args"`
 }
 
-var _ std.Msg = MsgExec{}
+var _ std.Msg = MsgCall{}
 
-func NewMsgExec(caller crypto.Address, send sdk.Coins, pkgPath, fnc string, args []string) MsgExec {
-	return MsgExec{
+func NewMsgCall(caller crypto.Address, send sdk.Coins, pkgPath, fnc string, args []string) MsgCall {
+	return MsgCall{
 		Caller:  caller,
 		Send:    send,
 		PkgPath: pkgPath,
@@ -102,13 +102,13 @@ func NewMsgExec(caller crypto.Address, send sdk.Coins, pkgPath, fnc string, args
 }
 
 // Implements Msg.
-func (msg MsgExec) Route() string { return RouterKey }
+func (msg MsgCall) Route() string { return RouterKey }
 
 // Implements Msg.
-func (msg MsgExec) Type() string { return "exec" }
+func (msg MsgCall) Type() string { return "exec" }
 
 // Implements Msg.
-func (msg MsgExec) ValidateBasic() error {
+func (msg MsgCall) ValidateBasic() error {
 	if msg.Caller.IsZero() {
 		return std.ErrInvalidAddress("missing caller address")
 	}
@@ -122,16 +122,16 @@ func (msg MsgExec) ValidateBasic() error {
 }
 
 // Implements Msg.
-func (msg MsgExec) GetSignBytes() []byte {
+func (msg MsgCall) GetSignBytes() []byte {
 	return std.MustSortJSON(amino.MustMarshalJSON(msg))
 }
 
 // Implements Msg.
-func (msg MsgExec) GetSigners() []crypto.Address {
+func (msg MsgCall) GetSigners() []crypto.Address {
 	return []crypto.Address{msg.Caller}
 }
 
 // Implements ReceiveMsg.
-func (msg MsgExec) GetReceived() std.Coins {
+func (msg MsgCall) GetReceived() std.Coins {
 	return msg.Send
 }
