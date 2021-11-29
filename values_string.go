@@ -21,10 +21,14 @@ func (v DataByteValue) String() string {
 
 func (v *ArrayValue) String() string {
 	ss := make([]string, len(v.List))
-	for i, e := range v.List {
-		ss[i] = e.String()
+	if v.Data == nil {
+		for i, e := range v.List {
+			ss[i] = e.String()
+		}
+		return "array[" + strings.Join(ss, ",") + "]"
+	} else {
+		return fmt.Sprintf("array[0x%X]", v.Data)
 	}
-	return "array[" + strings.Join(ss, ",") + "]"
 }
 
 func (v *SliceValue) String() string {

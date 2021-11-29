@@ -90,10 +90,11 @@ func go2GnoBaseType(rt reflect.Type) Type {
 	}
 }
 
-// See go2GnoValue2(). Like go2GnoType() but also converts any top-level
-// complex types (or pointers to them).  The result gets memoized in
-// *NativeType.GnoType() for type inference in the preprocessor, as well as in
-// the go2GnoCache lookup map to support recursive translations.
+// See go2GnoValue2(). Like go2GnoType() but also converts any
+// top-level complex types (or pointers to them).  The result gets
+// memoized in *NativeType.GnoType() for type inference in the
+// preprocessor, as well as in the go2GnoCache lookup map to
+// support recursive translations.
 func go2GnoType2(rt reflect.Type) (t Type) {
 	if gnot, ok := go2GnoCache[rt]; ok {
 		return gnot
@@ -265,16 +266,17 @@ func go2GnoType2(rt reflect.Type) (t Type) {
 	}
 }
 
-// NOTE: used by vm module.
+// NOTE: used by vm module.  Recursively converts.
 func Go2GnoValue(rv reflect.Value) (tv TypedValue) {
-	return go2GnoValue(rv)
+	return go2GnoValue2(rv, true)
 }
 
-// Default run-time representation of go-native values.  It is "lazy" in the
-// sense that unnamed complex types like arrays and slices aren't translated
-// to Gno canonical types except as *NativeType/*NativeValues, primarily for
-// speed.  To force translation to Gno canonical types for unnamed complex
-// types, call go2GnoValue2(), which is used by the implementation of
+// Default run-time representation of go-native values.  It is
+// "lazy" in the sense that unnamed complex types like arrays and
+// slices aren't translated to Gno canonical types except as
+// *NativeType/*NativeValues, primarily for speed.  To force
+// translation to Gno canonical types for unnamed complex types,
+// call go2GnoValue2(), which is used by the implementation of
 // ConvertTo().
 // Unlike go2GnoValue2(), rv may be invalid.
 func go2GnoValue(rv reflect.Value) (tv TypedValue) {
@@ -651,15 +653,9 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 // This function is like go2GnoValue() but less lazy (but still
 // not recursive/eager). It is for converting Go types to Gno
 // types upon an explicit conversion (via ConvertTo).  Panics on
-// unexported/private fields.  Due to limitations of Go1.15, the
-// namedness is dropped rather than converted.  This lets users
-// convert go-native types to named or unnamed Gno types (sans
-// private fields) via conversion.  The conversion is not
-// recursive, and the extra conversion works on the top-level
-// complex type/value, or a pointer to that type/value.  Some
-// types that cannot be converted remain native.
-// Unlike go2GnoValue(), rv must be valid.
-func go2GnoValue2(rv reflect.Value) (tv TypedValue) {
+// unexported/private fields. Some types that cannot be converted
+// remain native. Unlike go2GnoValue(), rv must be valid.
+func go2GnoValue2(rv reflect.Value, recursive bool) (tv TypedValue) {
 	if debug {
 		if !rv.IsValid() {
 			panic("go2GnoValue2() requires valid rv")
@@ -701,19 +697,35 @@ func go2GnoValue2(rv reflect.Value) (tv TypedValue) {
 		tv.SetUint64(u64)
 	case reflect.Array:
 		rvl := rv.Len()
-		list := make([]TypedValue, rvl)
-		for i := 0; i < rvl; i++ {
-			list[i] = go2GnoValue(rv.Index(i))
-		}
-		tv.V = &ArrayValue{
-			List: list,
+		if rv.Type().Elem().Kind() == reflect.Uint8 {
+			data := make([]byte, rvl)
+			reflect.Copy(reflect.ValueOf(data), rv)
+			tv.V = &ArrayValue{
+				Data: data,
+			}
+		} else {
+			list := make([]TypedValue, rvl)
+			for i := 0; i < rvl; i++ {
+				if recursive {
+					list[i] = go2GnoValue2(rv.Index(i), true)
+				} else {
+					list[i] = go2GnoValue(rv.Index(i))
+				}
+			}
+			tv.V = &ArrayValue{
+				List: list,
+			}
 		}
 	case reflect.Slice:
 		rvl := rv.Len()
 		rvc := rv.Cap()
 		list := make([]TypedValue, rvl, rvc)
 		for i := 0; i < rvl; i++ {
-			list[i] = go2GnoValue(rv.Index(i))
+			if recursive {
+				list[i] = go2GnoValue2(rv.Index(i), true)
+			} else {
+				list[i] = go2GnoValue(rv.Index(i))
+			}
 		}
 		tv.V = newSliceFromList(list)
 	case reflect.Chan:
@@ -731,11 +743,22 @@ func go2GnoValue2(rv reflect.Value) (tv TypedValue) {
 	case reflect.Map:
 		panic("not yet implemented")
 	case reflect.Ptr:
-		tv.T = &PointerType{Elt: go2GnoType2(rv.Type().Elem())}
-		val := go2GnoValue2(rv.Elem())
+		val := go2GnoValue2(rv.Elem(), recursive)
 		tv.V = PointerValue{TV: &val} // heap alloc
 	case reflect.Struct:
-		panic("not yet implemented")
+		nf := rv.NumField()
+		fs := make([]TypedValue, nf)
+		for i := 0; i < nf; i++ {
+			rv = rv.Field(i)
+			if recursive {
+				fs[i] = go2GnoValue2(rv, true)
+			} else {
+				fs[i] = go2GnoValue(rv)
+			}
+		}
+		tv.V = &StructValue{
+			Fields: fs,
+		}
 	case reflect.UnsafePointer:
 		panic("not yet implemented")
 	default:

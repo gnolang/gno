@@ -1,5 +1,5 @@
 # gnolang
-  * Finish passing gnolang files tests (public invited).
+  * Finish passing gnolang files tests (DONE).
   * Dry the code with select refactors.
   * Implement form of channel send/recv.
   * Complete float32/float64 implementation (as struct).
@@ -7,6 +7,7 @@
     - unused names,
     - XXX
   * Ensure determinism regarding 32 vs 64 bit for int/uint.
+  * Ensure non-realm paths cannot mutate state.
 
 # /pkgs
   * Replace testify with gnolang/gno/pkgs/testify

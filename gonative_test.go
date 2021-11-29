@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/gnolang/gno/pkgs/crypto"
 	"github.com/jaekwon/testify/assert"
 )
 
@@ -122,4 +123,11 @@ B: 0
 C: 0
 D: 
 `)
+}
+
+func TestCrypto(t *testing.T) {
+	addr := crypto.Address{}
+	tv := Go2GnoValue(reflect.ValueOf(addr))
+	assert.Equal(t, tv.String(),
+		`(array[0x0000000000000000000000000000000000000000] github.com/gnolang/gno/pkgs/crypto.Address)`)
 }

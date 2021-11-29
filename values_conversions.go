@@ -37,8 +37,8 @@ func ConvertTo(store Store, tv *TypedValue, t Type) {
 			tv.T = t
 			return
 		} else {
-			// convert go-native to gno type.
-			*tv = go2GnoValue2(tv.V.(*NativeValue).Value)
+			// convert go-native to gno type (shallow).
+			*tv = go2GnoValue2(tv.V.(*NativeValue).Value, false)
 			ConvertTo(store, tv, t)
 			return
 		}
