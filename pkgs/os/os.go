@@ -48,6 +48,12 @@ func EnsureDir(dir string, mode os.FileMode) error {
 	return nil
 }
 
+func DirExists(dirPath string) bool {
+	st, err := os.Stat(dirPath)
+	return !os.IsNotExist(err) && st.IsDir()
+}
+
+// Note: returns true for files and dirs.
 func FileExists(filePath string) bool {
 	_, err := os.Stat(filePath)
 	return !os.IsNotExist(err)

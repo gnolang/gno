@@ -30,7 +30,6 @@ type Context struct {
 	voteInfo      []abci.VoteInfo
 	gasMeter      store.GasMeter // XXX make passthroughGasMeter w/ blockGasMeter?
 	blockGasMeter store.GasMeter
-	checkTx       bool
 	minGasPrices  []GasPrice
 	consParams    *abci.ConsensusParams
 	eventLogger   *EventLogger
@@ -51,7 +50,7 @@ func (c Context) Logger() log.Logger            { return c.logger }
 func (c Context) VoteInfos() []abci.VoteInfo    { return c.voteInfo }
 func (c Context) GasMeter() store.GasMeter      { return c.gasMeter }
 func (c Context) BlockGasMeter() store.GasMeter { return c.blockGasMeter }
-func (c Context) IsCheckTx() bool               { return c.checkTx }
+func (c Context) IsCheckTx() bool               { return c.mode == RunTxModeCheck }
 func (c Context) MinGasPrices() []GasPrice      { return c.minGasPrices }
 func (c Context) EventLogger() *EventLogger     { return c.eventLogger }
 
@@ -66,16 +65,16 @@ func (c Context) ConsensusParams() *abci.ConsensusParams {
 }
 
 // create a new context
-func NewContext(ms store.MultiStore, header abci.Header, isCheckTx bool, logger log.Logger) Context {
+func NewContext(mode RunTxMode, ms store.MultiStore, header abci.Header, logger log.Logger) Context {
 	if header.GetChainID() == "" {
 		panic("header chain id cannot be empty")
 	}
 	return Context{
 		ctx:          context.Background(),
+		mode:         mode,
 		ms:           ms,
 		header:       header,
 		chainID:      header.GetChainID(),
-		checkTx:      isCheckTx,
 		logger:       logger,
 		gasMeter:     store.NewInfiniteGasMeter(),
 		minGasPrices: nil,
@@ -130,11 +129,6 @@ func (c Context) WithGasMeter(meter store.GasMeter) Context {
 
 func (c Context) WithBlockGasMeter(meter store.GasMeter) Context {
 	c.blockGasMeter = meter
-	return c
-}
-
-func (c Context) WithIsCheckTx(isCheckTx bool) Context {
-	c.checkTx = isCheckTx
 	return c
 }
 

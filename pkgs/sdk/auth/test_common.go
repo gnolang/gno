@@ -57,7 +57,7 @@ func setupTestEnv() testEnv {
 	acck := NewAccountKeeper(authCapKey, std.ProtoBaseAccount)
 	bank := NewDummyBankKeeper(acck)
 
-	ctx := sdk.NewContext(ms, &bft.Header{Height: 1, ChainID: "test-chain-id"}, false, log.NewNopLogger())
+	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{Height: 1, ChainID: "test-chain-id"}, log.NewNopLogger())
 	ctx = ctx.WithValue(AuthParamsContextKey{}, DefaultParams())
 
 	return testEnv{ctx: ctx, acck: acck, bank: bank}

@@ -207,6 +207,7 @@ func (av *ArrayValue) GetLength() int {
 	}
 }
 
+// et is only required for .List byte-arrays.
 func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) PointerValue {
 	if av.Data == nil {
 		ev := fillValueTV(store, &av.List[ii]) // by reference
@@ -283,6 +284,7 @@ func (sv *SliceValue) GetLength() int {
 	return sv.Length
 }
 
+// et is only required for .List byte-slices.
 func (sv *SliceValue) GetPointerAtIndexInt2(store Store, ii int, et Type) PointerValue {
 	// Necessary run-time slice bounds check
 	if ii < 0 {

@@ -201,7 +201,6 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		Height:  ctx.BlockHeight(),
 		Msg:     msg,
 		PkgAddr: pkgAddr,
-		Caller:  msg.Caller,
 		sdkCtx:  ctx,
 	}
 	m := gno.NewMachineWithOptions(

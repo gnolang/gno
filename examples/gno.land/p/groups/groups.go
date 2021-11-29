@@ -7,22 +7,27 @@ import (
 	"gno.land/p/avl"
 )
 
+//----------------------------------------
+// Group
+
 type Group struct {
 	Name     string
 	Posts    *avl.Tree // postsCtr -> *Post
-	PostsCtr int
+	PostsCtr uint64
 }
 
-func (group *Group) AddPost(title string, body string) {
+func (group *Group) AddPost(title string, body string) *Post {
 	ctr := group.PostsCtr
 	group.PostsCtr++
-	key := strconv.Itoa(ctr)
+	key := strconv.Itoa(int(ctr)) // TODO fix
 	post := &Post{
+		ID:    ctr,
 		Title: title,
 		Body:  body,
 	}
 	posts2, _ := group.Posts.Set(key, post)
 	group.Posts = posts2
+	return post
 }
 
 func (group *Group) String() string {
@@ -37,7 +42,11 @@ func (group *Group) String() string {
 	return str
 }
 
+//----------------------------------------
+// Post & Comment
+
 type Post struct {
+	ID       uint64
 	Title    string
 	Body     string
 	Comments *avl.Tree

@@ -10,7 +10,6 @@ type ExecContext struct {
 	Height  int64
 	Msg     MsgCall
 	PkgAddr crypto.Address
-	Caller  crypto.Address
 
 	sdkCtx sdk.Context // TODO: ensure hidden or refactor.
 }

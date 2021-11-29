@@ -2,7 +2,7 @@
 package test
 
 import (
-	"github.com/gnolang/gno/_test/avl"
+	"gno.land/p/avl"
 )
 
 var tree *avl.Tree
@@ -63,7 +63,7 @@ func main() {
 //                 "@type": "/gno.tptr",
 //                 "Elt": {
 //                     "@type": "/gno.tref",
-//                     "ID": "github.com/gnolang/gno/_test/avl.Tree"
+//                     "ID": "gno.land/p/avl.Tree"
 //                 }
 //             }
 //         },
@@ -72,7 +72,7 @@ func main() {
 //                 "@type": "/gno.tptr",
 //                 "Elt": {
 //                     "@type": "/gno.tref",
-//                     "ID": "github.com/gnolang/gno/_test/avl.Tree"
+//                     "ID": "gno.land/p/avl.Tree"
 //                 }
 //             }
 //         }
@@ -124,7 +124,7 @@ func main() {
 //                 "@type": "/gno.tptr",
 //                 "Elt": {
 //                     "@type": "/gno.tref",
-//                     "ID": "github.com/gnolang/gno/_test/avl.Tree"
+//                     "ID": "gno.land/p/avl.Tree"
 //                 }
 //             }
 //         },
@@ -133,7 +133,7 @@ func main() {
 //                 "@type": "/gno.tptr",
 //                 "Elt": {
 //                     "@type": "/gno.tref",
-//                     "ID": "github.com/gnolang/gno/_test/avl.Tree"
+//                     "ID": "gno.land/p/avl.Tree"
 //                 }
 //             }
 //         }
@@ -177,7 +177,7 @@ func main() {
 //                 "@type": "/gno.tptr",
 //                 "Elt": {
 //                     "@type": "/gno.tref",
-//                     "ID": "github.com/gnolang/gno/_test/avl.Tree"
+//                     "ID": "gno.land/p/avl.Tree"
 //                 }
 //             },
 //             "V": {
@@ -187,11 +187,11 @@ func main() {
 //                 "TV": {
 //                     "T": {
 //                         "@type": "/gno.tref",
-//                         "ID": "github.com/gnolang/gno/_test/avl.Tree"
+//                         "ID": "gno.land/p/avl.Tree"
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "f1f5df6f256909ea3e2a4f33737cecebb101d1bc",
+//                         "Hash": "dad1ead25639be165a9651ff9697a81479626746",
 //                         "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4"
 //                     }
 //                 }
@@ -202,7 +202,7 @@ func main() {
 //                 "@type": "/gno.tptr",
 //                 "Elt": {
 //                     "@type": "/gno.tref",
-//                     "ID": "github.com/gnolang/gno/_test/avl.Tree"
+//                     "ID": "gno.land/p/avl.Tree"
 //                 }
 //             },
 //             "V": {
@@ -212,11 +212,11 @@ func main() {
 //                 "TV": {
 //                     "T": {
 //                         "@type": "/gno.tref",
-//                         "ID": "github.com/gnolang/gno/_test/avl.Tree"
+//                         "ID": "gno.land/p/avl.Tree"
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "8ee1d22b501ab7429f6426f509726d11dc71412d",
+//                         "Hash": "5edaefe080dac9ede4748ae06bd88f9948c13419",
 //                         "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6"
 //                     }
 //                 }
@@ -323,7 +323,7 @@ func main() {
 //                 "@type": "/gno.tptr",
 //                 "Elt": {
 //                     "@type": "/gno.tref",
-//                     "ID": "github.com/gnolang/gno/_test/avl.Tree"
+//                     "ID": "gno.land/p/avl.Tree"
 //                 }
 //             },
 //             "V": {
@@ -333,11 +333,11 @@ func main() {
 //                 "TV": {
 //                     "T": {
 //                         "@type": "/gno.tref",
-//                         "ID": "github.com/gnolang/gno/_test/avl.Tree"
+//                         "ID": "gno.land/p/avl.Tree"
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "641103d465f86b8fe87ebeb6d354d1d7a9aeb592",
+//                         "Hash": "4bea59bafffc6c8dd1d226fc40e65b1e466b052c",
 //                         "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5"
 //                     }
 //                 }

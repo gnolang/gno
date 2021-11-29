@@ -40,9 +40,11 @@ import (
 
 	"github.com/gnolang/gno"
 	dbm "github.com/gnolang/gno/pkgs/db"
+	osm "github.com/gnolang/gno/pkgs/os"
 	"github.com/gnolang/gno/pkgs/store/dbadapter"
 	"github.com/gnolang/gno/pkgs/store/iavl"
 	stypes "github.com/gnolang/gno/pkgs/store/types"
+	"github.com/gnolang/gno/stdlibs"
 )
 
 // NOTE: this isn't safe.
@@ -279,8 +281,35 @@ func testStore(out io.Writer, isRealm bool) (store gno.Store) {
 			pkg.DefineGoNativeValue("New32a", fnv.New32a)
 			return pkg.NewPackage()
 		default:
-			panic("unknown package path " + pkgPath)
+			// continue on...
 		}
+		// if stdlibs package...
+		stdlibPath := filepath.Join("../stdlibs", pkgPath)
+		if osm.DirExists(stdlibPath) {
+			memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
+			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+				Package: nil,
+				Output:  out,
+				Store:   store,
+			})
+			m2.RunMemPackage(memPkg, isRealm)
+			pv := m2.Package
+			stdlibs.InjectNatives(store, pv)
+			return pv
+		}
+		// if examples package...
+		examplePath := filepath.Join("../examples", pkgPath)
+		if osm.DirExists(examplePath) {
+			memPkg := gno.ReadMemPackage(examplePath, pkgPath)
+			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+				Package: nil,
+				Output:  out,
+				Store:   store,
+			})
+			m2.RunMemPackage(memPkg, isRealm)
+			return m2.Package
+		}
+		panic("unknown package path " + pkgPath)
 	}
 	// NOTE: store is also used in closure above.
 	db := dbm.NewMemDB()

@@ -749,11 +749,11 @@ func go2GnoValue2(rv reflect.Value, recursive bool) (tv TypedValue) {
 		nf := rv.NumField()
 		fs := make([]TypedValue, nf)
 		for i := 0; i < nf; i++ {
-			rv = rv.Field(i)
+			frv := rv.Field(i)
 			if recursive {
-				fs[i] = go2GnoValue2(rv, true)
+				fs[i] = go2GnoValue2(frv, true)
 			} else {
-				fs[i] = go2GnoValue(rv)
+				fs[i] = go2GnoValue(frv)
 			}
 		}
 		tv.V = &StructValue{

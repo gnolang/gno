@@ -2,7 +2,7 @@
 package example
 
 import (
-	"github.com/gnolang/gno/_test/dom"
+	"gno.land/p/dom"
 )
 
 var gPlot *dom.Plot
@@ -50,7 +50,7 @@ func main() {
 //                 "@type": "/gno.tptr",
 //                 "Elt": {
 //                     "@type": "/gno.tref",
-//                     "ID": "github.com/gnolang/gno/_test/avl.Tree"
+//                     "ID": "gno.land/p/avl.Tree"
 //                 }
 //             }
 //         }
@@ -79,7 +79,7 @@ func main() {
 //                 "@type": "/gno.tptr",
 //                 "Elt": {
 //                     "@type": "/gno.tref",
-//                     "ID": "github.com/gnolang/gno/_test/dom.Post"
+//                     "ID": "gno.land/p/dom.Post"
 //                 }
 //             },
 //             "V": {
@@ -89,11 +89,11 @@ func main() {
 //                 "TV": {
 //                     "T": {
 //                         "@type": "/gno.tref",
-//                         "ID": "github.com/gnolang/gno/_test/dom.Post"
+//                         "ID": "gno.land/p/dom.Post"
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "56949f4645ad818c32322da042d702df2aeff934",
+//                         "Hash": "2af68ed35868e781e8996d4af6aafa2a28fd67de",
 //                         "ObjectID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:6"
 //                     }
 //                 }
@@ -117,7 +117,7 @@ func main() {
 //                 "@type": "/gno.tptr",
 //                 "Elt": {
 //                     "@type": "/gno.tref",
-//                     "ID": "github.com/gnolang/gno/_test/avl.Tree"
+//                     "ID": "gno.land/p/avl.Tree"
 //                 }
 //             }
 //         },
@@ -126,7 +126,7 @@ func main() {
 //                 "@type": "/gno.tptr",
 //                 "Elt": {
 //                     "@type": "/gno.tref",
-//                     "ID": "github.com/gnolang/gno/_test/avl.Tree"
+//                     "ID": "gno.land/p/avl.Tree"
 //                 }
 //             }
 //         }
@@ -155,7 +155,7 @@ func main() {
 //                 "@type": "/gno.tptr",
 //                 "Elt": {
 //                     "@type": "/gno.tref",
-//                     "ID": "github.com/gnolang/gno/_test/avl.Tree"
+//                     "ID": "gno.land/p/avl.Tree"
 //                 }
 //             },
 //             "V": {
@@ -165,11 +165,11 @@ func main() {
 //                 "TV": {
 //                     "T": {
 //                         "@type": "/gno.tref",
-//                         "ID": "github.com/gnolang/gno/_test/avl.Tree"
+//                         "ID": "gno.land/p/avl.Tree"
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "e724eb323aa6c5c750889322fc226b08a29ff106",
+//                         "Hash": "3ffd289b6834348ccea968f5b1ed21656135a9a0",
 //                         "ObjectID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:5"
 //                     }
 //                 }

@@ -3,7 +3,7 @@ package dom
 import (
 	"strconv"
 
-	"github.com/gnolang/gno/_test/avl"
+	"gno.land/p/avl"
 )
 
 type Plot struct {

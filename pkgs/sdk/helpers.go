@@ -27,13 +27,13 @@ func (app *BaseApp) Deliver(tx Tx) (result Result) {
 
 // Context with current {check, deliver}State of the app
 // used by tests
-func (app *BaseApp) NewContext(isCheckTx bool, header abci.Header) Context {
-	if isCheckTx {
-		return NewContext(app.checkState.ms, header, true, app.logger).
+func (app *BaseApp) NewContext(mode RunTxMode, header abci.Header) Context {
+	if mode == RunTxModeCheck {
+		return NewContext(mode, app.checkState.ms, header, app.logger).
 			WithMinGasPrices(app.minGasPrices)
 	}
 
-	return NewContext(app.deliverState.ms, header, false, app.logger)
+	return NewContext(mode, app.deliverState.ms, header, app.logger)
 }
 
 func ABCIError(err error) abci.Error {

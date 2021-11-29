@@ -234,7 +234,7 @@ func (app *BaseApp) setCheckState(header abci.Header) {
 	ms := app.cms.MultiCacheWrap()
 	app.checkState = &state{
 		ms:  ms,
-		ctx: NewContext(ms, header, true, app.logger).WithMinGasPrices(app.minGasPrices),
+		ctx: NewContext(RunTxModeCheck, ms, header, app.logger).WithMinGasPrices(app.minGasPrices),
 	}
 }
 
@@ -246,7 +246,7 @@ func (app *BaseApp) setDeliverState(header abci.Header) {
 	ms := app.cms.MultiCacheWrap()
 	app.deliverState = &state{
 		ms:  ms,
-		ctx: NewContext(ms, header, false, app.logger),
+		ctx: NewContext(RunTxModeDeliver, ms, header, app.logger),
 	}
 }
 
@@ -482,9 +482,7 @@ func handleQueryCustom(app *BaseApp, path []string, req abci.RequestQuery) (res 
 	}
 
 	// cache wrap the commit-multistore for safety
-	ctx := NewContext(
-		cacheMS, app.checkState.ctx.BlockHeader(), true, app.logger,
-	).WithMinGasPrices(app.minGasPrices)
+	ctx := NewContext(RunTxModeCheck, cacheMS, app.checkState.ctx.BlockHeader(), app.logger).WithMinGasPrices(app.minGasPrices)
 
 	// Passes the query to the handler.
 	res = handler.Query(ctx, req)

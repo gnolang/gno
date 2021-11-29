@@ -119,6 +119,7 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 // top level Run* methods.
 
 // Upon restart, preprocess all MemPackage and save blocknodes.
+// This is a temporary measure until we optimize/make-lazy.
 func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	ch := m.Store.IterMemPackage()
 	for memPkg := range ch {
@@ -137,12 +138,13 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // top level Run* methods.
 
 // First sets the active package to a new instance of memPkg's.
-// Parses files, sets the package, runs files, and saves mempkg.
+// Parses files, sets the package, runs files, and saves mempkg and corresponding package node to store.
 func (m *Machine) RunMemPackage(memPkg std.MemPackage, save bool) {
 	// parse files.
 	files := ParseMemPackage(memPkg)
 	// make and set package
 	pkg := NewPackageNode(Name(memPkg.Name), memPkg.Path, files)
+	m.Store.SetBlockNode(pkg)
 	pv := pkg.NewPackage()
 	m.SetActivePackage(pv)
 	if save {

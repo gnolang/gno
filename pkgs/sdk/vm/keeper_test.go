@@ -31,9 +31,8 @@ func init() {
 }
 
 func Echo(msg string) string {
-	ctx := std.GetContext()
-	addr := ctx.Msg.Caller
-	send := ctx.Msg.Send
+	addr := std.GetCaller()
+	send := std.GetSend()
 	err := std.Send(addr, send)
 	if err != nil {
 		return "error:"+err.Error()
