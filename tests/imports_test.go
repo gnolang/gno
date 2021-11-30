@@ -39,6 +39,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/gnolang/gno"
+	"github.com/gnolang/gno/pkgs/crypto"
 	dbm "github.com/gnolang/gno/pkgs/db"
 	osm "github.com/gnolang/gno/pkgs/os"
 	"github.com/gnolang/gno/pkgs/store/dbadapter"
@@ -215,13 +216,6 @@ func testStore(out io.Writer, isRealm bool) (store gno.Store) {
 			pkg.DefineGoNativeValue("WithValue", context.WithValue)
 			pkg.DefineGoNativeValue("Background", context.Background)
 			return pkg.NewPackage()
-		case "strconv":
-			pkg := gno.NewPackageNode("strconv", pkgPath, nil)
-			pkg.DefineGoNativeType(reflect.TypeOf(strconv.NumError{}))
-			pkg.DefineGoNativeValue("Atoi", strconv.Atoi)
-			pkg.DefineGoNativeValue("Itoa", strconv.Itoa)
-			pkg.DefineGoNativeValue("ParseInt", strconv.ParseInt)
-			return pkg.NewPackage()
 		case "sync":
 			pkg := gno.NewPackageNode("sync", pkgPath, nil)
 			pkg.DefineGoNativeType(reflect.TypeOf(sync.Mutex{}))
@@ -294,7 +288,6 @@ func testStore(out io.Writer, isRealm bool) (store gno.Store) {
 			})
 			m2.RunMemPackage(memPkg, isRealm)
 			pv := m2.Package
-			stdlibs.InjectNatives(store, pv)
 			return pv
 		}
 		// if examples package...
@@ -317,7 +310,48 @@ func testStore(out io.Writer, isRealm bool) (store gno.Store) {
 	iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
 	store = gno.NewStore(baseStore, iavlStore)
 	store.SetPackageGetter(getPackage)
+	store.SetPackageInjector(testPackageInjector)
 	return
+}
+
+//----------------------------------------
+// testInjectNatives
+// analogous to stdlibs.InjectNatives, but with
+// native methods suitable for the testing environment.
+
+func testPackageInjector(store gno.Store, pn *gno.PackageNode, pv *gno.PackageValue) {
+	// Also inject stdlibs native functions.
+	stdlibs.InjectPackage(store, pn, pv)
+	// Test specific injections:
+	switch pv.PkgPath {
+	case "strconv":
+		// NOTE: Itoa and Atoi are already injected
+		// from stdlibs.InjectNatives.
+		pn.DefineGoNativeType(reflect.TypeOf(strconv.NumError{}))
+		pn.DefineGoNativeValue("ParseInt", strconv.ParseInt)
+		pn.PrepareNewValues(pv)
+	case "std":
+		pn.DefineNative("GetCaller",
+			gno.Flds( // params
+			),
+			gno.Flds( // results
+				"", "Address",
+			),
+			func(m *gno.Machine) {
+				addr := crypto.Address{}
+				copy(addr[:], []byte("testaddrtestaddrtest"))
+				store.Print()
+				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
+				res0 := gno.TypedValue{}
+				res0.T = addrT
+				res0.V = &gno.ArrayValue{
+					Data: addr[:],
+				}
+				m.PushValue(res0)
+			},
+		)
+		pn.PrepareNewValues(pv)
+	}
 }
 
 //----------------------------------------

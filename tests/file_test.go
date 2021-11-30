@@ -52,12 +52,11 @@ func runCheck(t *testing.T, path string) {
 	pkgName := defaultPkgName(pkgPath)
 	pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
 	pv := pn.NewPackage()
+	isRealm := pv.IsRealm() // enable diff persistence.
 
 	output := new(bytes.Buffer)
-	isRealm := rops != ""
 	store := testStore(output, isRealm)
 	store.SetLogStoreOps(true)
-	store.SetBlockNode(pn) // XXX needed?
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		Package: pv,
 		Output:  output,

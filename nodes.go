@@ -1201,7 +1201,12 @@ func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 	// should already exist.
 	block := pv.Block.(*Block)
 	if block.Source != pn {
-		panic("PackageNode.PrepareNewValues() package mismatch")
+		// special case if block.Source is ref node
+		if ref, ok := block.Source.(RefNode); ok && ref.Location == PackageNodeLocation(pv.PkgPath) {
+			// this is fine
+		} else {
+			panic("PackageNode.PrepareNewValues() package mismatch")
+		}
 	}
 	pvl := len(block.Values)
 	pnl := len(pn.Values)

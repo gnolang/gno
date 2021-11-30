@@ -15,6 +15,9 @@ const iavlCacheSize = 1024 * 1024 // TODO increase and parameterize.
 // return nil if package doesn't exist.
 type PackageGetter func(pkgPath string) *PackageValue
 
+// inject natives into a new or loaded package (value and node)
+type PackageInjector func(store Store, pn *PackageNode, pv *PackageValue)
+
 type Store interface {
 	// STABLE
 	SetPackageGetter(PackageGetter)
@@ -29,6 +32,7 @@ type Store interface {
 	SetCacheType(Type)
 	SetType(Type)
 	GetBlockNode(Location) BlockNode
+	GetBlockNodeSafe(Location) BlockNode
 	SetBlockNode(BlockNode)
 	// UNSTABLE
 	// AddMemPackage:
@@ -38,8 +42,8 @@ type Store interface {
 	NumMemPackages() int64
 	AddMemPackage(memPkg std.MemPackage)
 	IterMemPackage() <-chan std.MemPackage
-	// This is needed due to gas wrappers.
-	SwapStores(baseStore, iavlStore store.Store)
+	SwapStores(baseStore, iavlStore store.Store) // for gas wrappers.
+	SetPackageInjector(PackageInjector)          // for natives
 	// MISC
 	SetLogStoreOps(enabled bool)
 	SprintStoreOps() string
@@ -53,10 +57,12 @@ type defaultStore struct {
 	cacheObjects map[ObjectID]Object
 	cacheTypes   map[TypeID]Type
 	cacheNodes   map[Location]BlockNode
-	baseStore    store.Store // for objects, types, nodes
-	iavlStore    store.Store // for escaped object hashes
+	baseStore    store.Store     // for objects, types, nodes
+	iavlStore    store.Store     // for escaped object hashes
+	pkgInjector  PackageInjector // for injecting natives
 
-	opslog  []StoreOp           // for debugging.
+	// transient
+	opslog  []StoreOp           // for debugging and testing.
 	current map[string]struct{} // for detecting import cycles.
 }
 
@@ -80,10 +86,29 @@ func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
 
 func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
 	oid := ObjectIDFromPkgPath(pkgPath)
-	// first, try to load (package) object as usual.
-	pvo := ds.GetObjectSafe(oid)
-	if pv, ok := pvo.(*PackageValue); ok {
+	// first, check cache.
+	if oo, exists := ds.cacheObjects[oid]; exists {
+		pv := oo.(*PackageValue)
 		return pv
+	}
+	// else, load package.
+	if ds.baseStore != nil {
+		if oo := ds.loadObjectSafe(oid); oo != nil {
+			pv := oo.(*PackageValue)
+			// inject natives after load.
+			if ds.pkgInjector != nil {
+				pl := PackageNodeLocation(pkgPath)
+				pn, ok := ds.GetBlockNodeSafe(pl).(*PackageNode)
+				if !ok {
+					// Do not inject packages from packageGetter
+					// that don't have corresponding *PackageNodes.
+				} else {
+					pv.GetBlock(ds) // preload pv.Block
+					ds.pkgInjector(ds, pn, pv)
+				}
+			}
+			return pv
+		}
 	}
 	// otherwise, fetch from pkgGetter.
 	if ds.pkgGetter != nil {
@@ -97,6 +122,17 @@ func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
 				panic("realm packages cannot be gotten from pkgGetter")
 			}
 			ds.cacheObjects[oid] = pv
+			// inject natives after init.
+			if ds.pkgInjector != nil {
+				pl := PackageNodeLocation(pkgPath)
+				pn, ok := ds.GetBlockNodeSafe(pl).(*PackageNode)
+				if !ok {
+					// Do not inject packages from packageGetter
+					// that don't have corresponding *PackageNodes.
+				} else {
+					ds.pkgInjector(ds, pn, pv)
+				}
+			}
 			return pv
 		}
 	}
@@ -119,6 +155,8 @@ func (ds *defaultStore) SetPackage(pv *PackageValue) {
 	// }
 }
 
+// NOTE: does not consult the packageGetter, so instead
+// call GetPackage() for packages.
 // NOTE: current implementation behavior requires
 // all []TypedValue types and TypeValue{} types to be
 // loaded (non-ref) types.
@@ -137,24 +175,33 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 	}
 	// check baseStore.
 	if ds.baseStore != nil {
-		key := backendObjectKey(oid)
-		hashbz := ds.baseStore.Get([]byte(key))
-		if hashbz != nil {
-			hash := hashbz[:HashSize]
-			bz := hashbz[HashSize:]
-			var oo Object
-			amino.MustUnmarshal(bz, &oo)
-			if debug {
-				if oo.GetObjectID() != oid {
-					panic(fmt.Sprintf("unexpected object id: expected %v but got %v",
-						oid, oo.GetObjectID()))
-				}
-			}
-			oo.SetHash(ValueHash{NewHashlet(hash)})
-			ds.cacheObjects[oid] = oo
-			_ = fillTypesOfValue(ds, oo)
+		if oo := ds.loadObjectSafe(oid); oo != nil {
 			return oo
 		}
+	}
+	return nil
+}
+
+// loads and caches an object.
+// CONTRACT: object isn't already in the cache.
+func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
+	key := backendObjectKey(oid)
+	hashbz := ds.baseStore.Get([]byte(key))
+	if hashbz != nil {
+		hash := hashbz[:HashSize]
+		bz := hashbz[HashSize:]
+		var oo Object
+		amino.MustUnmarshal(bz, &oo)
+		if debug {
+			if oo.GetObjectID() != oid {
+				panic(fmt.Sprintf("unexpected object id: expected %v but got %v",
+					oid, oo.GetObjectID()))
+			}
+		}
+		oo.SetHash(ValueHash{NewHashlet(hash)})
+		ds.cacheObjects[oid] = oo
+		_ = fillTypesOfValue(ds, oo)
+		return oo
 	}
 	return nil
 }
@@ -303,6 +350,14 @@ func (ds *defaultStore) SetType(tt Type) {
 }
 
 func (ds *defaultStore) GetBlockNode(loc Location) BlockNode {
+	bn := ds.GetBlockNodeSafe(loc)
+	if bn == nil {
+		panic(fmt.Sprintf("unexpected node with location %s", loc.String()))
+	}
+	return bn
+}
+
+func (ds *defaultStore) GetBlockNodeSafe(loc Location) BlockNode {
 	// check cache.
 	if bn, exists := ds.cacheNodes[loc]; exists {
 		return bn
@@ -324,7 +379,7 @@ func (ds *defaultStore) GetBlockNode(loc Location) BlockNode {
 			return bn
 		}
 	}
-	panic(fmt.Sprintf("unexpected node with location %s", loc.String()))
+	return nil
 }
 
 func (ds *defaultStore) SetBlockNode(bn BlockNode) {
@@ -412,6 +467,16 @@ func (ds *defaultStore) IterMemPackage() <-chan std.MemPackage {
 	}
 }
 
+// TODO: consider a better/faster/simpler way of achieving the overall same goal?
+func (ds *defaultStore) SwapStores(baseStore, iavlStore store.Store) {
+	ds.baseStore = baseStore
+	ds.iavlStore = iavlStore
+}
+
+func (ds *defaultStore) SetPackageInjector(inj PackageInjector) {
+	ds.pkgInjector = inj
+}
+
 func (ds *defaultStore) Flush() {
 	// XXX
 }
@@ -450,12 +515,6 @@ func (sop StoreOp) String() string {
 	default:
 		panic("should not happen")
 	}
-}
-
-// TODO: consider a better/faster/simpler way of achieving the overall same goal?
-func (ds *defaultStore) SwapStores(baseStore, iavlStore store.Store) {
-	ds.baseStore = baseStore
-	ds.iavlStore = iavlStore
 }
 
 func (ds *defaultStore) SetLogStoreOps(enabled bool) {
@@ -527,14 +586,12 @@ func backendNodeKey(loc Location) string {
 	return "node:" + loc.String()
 }
 
-// NOTE: assumes prefix "pkgidx/"
 func backendPackageIndexCtrKey() string {
-	return fmt.Sprintf("counter")
+	return fmt.Sprintf("pkgidx:counter")
 }
 
-// NOTE: assumes prefix "pkgidx/"
 func backendPackageIndexKey(index uint64) string {
-	return fmt.Sprintf("%020d", index)
+	return fmt.Sprintf("pkgidx:%020d", index)
 }
 
 //----------------------------------------
@@ -556,4 +613,15 @@ func SetCacheTypes(store Store) {
 	for _, tt := range types {
 		store.SetCacheType(tt)
 	}
+}
+
+//----------------------------------------
+// Misc.
+
+func getPackageNodeAndValue(store Store, pkgPath string) (pn *PackageNode, pv *PackageValue) {
+	// Load PackageValue first.
+	pv = store.GetPackage(pkgPath)
+	// Now the *PackageNode block node exists.
+	pn = store.GetBlockNode(PackageNodeLocation(pkgPath)).(*PackageNode)
+	return
 }

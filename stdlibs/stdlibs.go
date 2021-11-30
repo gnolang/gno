@@ -7,20 +7,16 @@ import (
 	"github.com/gnolang/gno"
 )
 
-func InjectNatives(store gno.Store, pv *gno.PackageValue) {
-	// First load the package node.
-	pkg := store.GetBlockNode(gno.PackageNodeLocation(pv.PkgPath)).(*gno.PackageNode)
-	// Override loaded package and update pv.
+func InjectPackage(store gno.Store, pn *gno.PackageNode, pv *gno.PackageValue) {
 	switch pv.PkgPath {
 	case "strconv":
-		pkg.DefineGoNativeFunc("Itoa", strconv.Itoa)
-		pkg.DefineGoNativeFunc("Atoi", strconv.Atoi)
-		pkg.PrepareNewValues(pv)
+		pn.DefineGoNativeFunc("Itoa", strconv.Itoa)
+		pn.DefineGoNativeFunc("Atoi", strconv.Atoi)
+		pn.PrepareNewValues(pv)
 	case "std":
-		// Native functions.
 		// NOTE: pkgs/sdk/vm/VMKeeper also
 		// injects more like .Send, .GetContext.
-		pkg.DefineNative("Hash",
+		pn.DefineNative("Hash",
 			gno.Flds( // params
 				"bz", "[]byte",
 			),
@@ -42,7 +38,7 @@ func InjectNatives(store gno.Store, pv *gno.PackageValue) {
 				m.PushValue(res0)
 			},
 		)
-		pkg.DefineNative("IsOriginCall",
+		pn.DefineNative("IsOriginCall",
 			gno.Flds( // params
 			),
 			gno.Flds( // results
@@ -55,8 +51,6 @@ func InjectNatives(store gno.Store, pv *gno.PackageValue) {
 				m.PushValue(res0)
 			},
 		)
-		pkg.PrepareNewValues(pv)
-	default:
-		// nothing to do
+		pn.PrepareNewValues(pv)
 	}
 }
