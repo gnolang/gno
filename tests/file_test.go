@@ -79,7 +79,9 @@ func runCheck(t *testing.T, path string) {
 				if r := recover(); r != nil {
 					pnc = r
 					if errWanted == "" {
-						// unexpected: print stack.
+						// unexpected: print output.
+						fmt.Println("OUTPUT:\n", output.String())
+						// print stack.
 						rtdb.PrintStack()
 					}
 					err := strings.TrimSpace(fmt.Sprintf("%v", pnc))

@@ -9,6 +9,7 @@ import (
 
 // t cannot be nil or untyped or DataByteType.
 // the conversion is forced and overflow/underflow is ignored.
+// TODO: return error, and let caller also print the file and line.
 func ConvertTo(store Store, tv *TypedValue, t Type) {
 	if debug {
 		if t == nil {
@@ -17,7 +18,10 @@ func ConvertTo(store Store, tv *TypedValue, t Type) {
 		if isUntyped(t) {
 			panic("cannot convert to untyped type")
 		}
-		if tv.T == DataByteType || t == DataByteType {
+		if isDataByte(t) {
+			panic("cannot convert to databyte type")
+		}
+		if isDataByte(tv.T) {
 			panic("should not happen")
 		}
 	}

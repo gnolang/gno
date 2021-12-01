@@ -467,8 +467,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					case *ArrayType, *SliceType:
 						// Replace n with *ConstExpr.
 						fillNameExprPath(last, n)
-						cv := evalConst(store, last, n)
-						return cv, TRANS_CONTINUE
+						cx := evalConst(store, last, n)
+						return cx, TRANS_CONTINUE
 					case *NativeType:
 						switch bt.Type.Kind() {
 						case reflect.Struct:
@@ -480,8 +480,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						case reflect.Array, reflect.Slice:
 							// Replace n with *ConstExpr.
 							fillNameExprPath(last, n)
-							cv := evalConst(store, last, n)
-							return cv, TRANS_CONTINUE
+							cx := evalConst(store, last, n)
+							return cx, TRANS_CONTINUE
 						default:
 							panic("should not happen")
 						}
@@ -506,19 +506,19 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					fillNameExprPath(last, n)
 					// If uverse, return a *ConstExpr.
 					if n.Path.Depth == 0 { // uverse
-						cv := evalConst(store, last, n)
+						cx := evalConst(store, last, n)
 						// built-in functions must be called.
-						if !cv.IsUndefined() &&
-							cv.T.Kind() == FuncKind &&
+						if !cx.IsUndefined() &&
+							cx.T.Kind() == FuncKind &&
 							ftype != TRANS_CALL_FUNC {
 							panic(fmt.Sprintf(
 								"use of builtin %s not in function call",
 								n.Name))
 						}
-						if !cv.IsUndefined() && cv.T.Kind() == TypeKind {
-							return constType(n, cv.GetType()), TRANS_CONTINUE
+						if !cx.IsUndefined() && cx.T.Kind() == TypeKind {
+							return constType(n, cx.GetType()), TRANS_CONTINUE
 						}
-						return cv, TRANS_CONTINUE
+						return cx, TRANS_CONTINUE
 					}
 					if last.GetIsConst(store, n.Name) {
 						cx := evalConst(store, last, n)
@@ -529,8 +529,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *BasicLitExpr:
 				// Replace with *ConstExpr.
-				cv := evalConst(store, last, n)
-				return cv, TRANS_CONTINUE
+				cx := evalConst(store, last, n)
+				return cx, TRANS_CONTINUE
 
 			// TRANS_LEAVE -----------------------
 			case *BinaryExpr:
@@ -575,8 +575,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							}
 						}
 						// Then, evaluate the expression.
-						cv := evalConst(store, last, n)
-						return cv, TRANS_CONTINUE
+						cx := evalConst(store, last, n)
+						return cx, TRANS_CONTINUE
 					} else if isUntyped(lcx.T) {
 						// Left untyped const, Right not ----------------
 						if rnt, ok := rt.(*NativeType); ok {
@@ -717,8 +717,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 					if _, ok := n.Args[0].(*ConstExpr); ok {
 						convertIfConst(store, last, n.Args[0])
-						cv := evalConst(store, last, n)
-						return cv, TRANS_CONTINUE
+						cx := evalConst(store, last, n)
+						return cx, TRANS_CONTINUE
 					} else {
 						ct := evalStaticType(store, last, n.Func)
 						n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
@@ -894,8 +894,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				}
 				// Replace with *ConstExpr if const X.
 				if isConst(n.X) {
-					cv := evalConst(store, last, n)
-					return cv, TRANS_CONTINUE
+					cx := evalConst(store, last, n)
+					return cx, TRANS_CONTINUE
 				}
 
 			// TRANS_LEAVE -----------------------
@@ -1064,6 +1064,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					pv := last.GetValueRef(nil, nx.Name)
 					pn := pv.V.(*PackageValue).GetBlock(store).GetSource(store)
 					n.Path = pn.GetPathForName(store, n.Sel)
+					// packages may contain constant vars,
+					// so check and evaluate if so.
+					tt := pn.GetStaticTypeOfAt(store, n.Path)
+					if isUntyped(tt) {
+						cx := evalConst(store, last, n)
+						return cx, TRANS_CONTINUE
+					}
 				case *TypeType:
 					// unbound method
 					xt := evalStaticType(store, last, n.X)

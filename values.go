@@ -58,6 +58,24 @@ type BigintValue struct {
 	V *big.Int
 }
 
+func (bv BigintValue) MarshalAmino() (string, error) {
+	bz, err := bv.V.MarshalText()
+	if err != nil {
+		return "", err
+	}
+	return string(bz), nil
+}
+
+func (bv *BigintValue) UnmarshalAmino(s string) error {
+	vv := big.NewInt(0)
+	err := vv.UnmarshalText([]byte(s))
+	if err != nil {
+		return err
+	}
+	bv.V = vv
+	return nil
+}
+
 func (bv BigintValue) Copy() BigintValue {
 	return BigintValue{V: big.NewInt(0).Set(bv.V)}
 }
@@ -174,10 +192,10 @@ func (av *ArrayValue) GetReadonlyBytes() []byte {
 		// because there might be references to .List[x].
 		bz := make([]byte, len(av.List))
 		for i, tv := range av.List {
-			if tv.T != Uint8Type {
+			if tv.T.Kind() != Uint8Kind {
 				panic(fmt.Sprintf(
-					"expected byte type but got %v",
-					tv.T))
+					"expected byte kind but got %v",
+					tv.T.Kind()))
 			}
 			bz[i] = tv.GetUint8()
 		}
@@ -2249,15 +2267,21 @@ func defaultStructValue(st *StructType) *StructValue {
 }
 
 func defaultArrayValue(at *ArrayType) *ArrayValue {
-	tvs := make([]TypedValue, at.Len)
-	if et := at.Elem(); et.Kind() != InterfaceKind {
-		for i := 0; i < at.Len; i++ {
-			tvs[i].T = et
-			tvs[i].V = defaultValue(et)
+	if at.Elt.Kind() == Uint8Kind {
+		return &ArrayValue{
+			Data: make([]byte, at.Len),
 		}
-	}
-	return &ArrayValue{
-		List: tvs,
+	} else {
+		tvs := make([]TypedValue, at.Len)
+		if et := at.Elem(); et.Kind() != InterfaceKind {
+			for i := 0; i < at.Len; i++ {
+				tvs[i].T = et
+				tvs[i].V = defaultValue(et)
+			}
+		}
+		return &ArrayValue{
+			List: tvs,
+		}
 	}
 }
 

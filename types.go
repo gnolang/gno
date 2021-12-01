@@ -213,6 +213,7 @@ func (pt PrimitiveType) TypeID() TypeID {
 	case Uint8Type:
 		return typeid("uint8")
 	case DataByteType:
+		// should not be persisted...
 		panic("untyped data byte type has no typeid")
 	case Uint16Type:
 		return typeid("uint16")
@@ -255,8 +256,10 @@ func (pt PrimitiveType) String() string {
 		return string("int64")
 	case UintType:
 		return string("uint")
-	case Uint8Type, DataByteType:
+	case Uint8Type:
 		return string("uint8")
+	case DataByteType:
+		return string("<databyte> uint8")
 	case Uint16Type:
 		return string("uint16")
 	case Uint32Type:
@@ -1845,6 +1848,12 @@ func assertSameTypes(lt, rt Type) {
 	} else if lt.Kind() == rt.Kind() &&
 		isUntyped(lt) || isUntyped(rt) {
 		// one is untyped of same kind.
+	} else if lt.Kind() == rt.Kind() &&
+		isDataByte(lt) {
+		// left is databyte of same kind,
+		// specifically for assignments.
+		// TODO: make another function
+		// and remove this case?
 	} else if lt.TypeID() == rt.TypeID() {
 		// non-nil types are identical.
 	} else {
@@ -1888,6 +1897,15 @@ func assertEqualityTypes(lt, rt Type) {
 func isUntyped(t Type) bool {
 	switch t {
 	case UntypedBoolType, UntypedRuneType, UntypedBigintType, UntypedStringType:
+		return true
+	default:
+		return false
+	}
+}
+
+func isDataByte(t Type) bool {
+	switch t {
+	case DataByteType:
 		return true
 	default:
 		return false

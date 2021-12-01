@@ -1003,14 +1003,11 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 				gno2GoValue(etv, rv.Index(i))
 			}
 		} else {
-			panic("not yet implemented")
-			/*
-				el := av.GetLength()
-				ec := av.GetCapacity()
-				data := make([]byte, el, ec)
-				copy(data, av.Data)
-				rv = reflect.ValueOf(data)
-			*/
+			for i := 0; i < ct.Len; i++ {
+				val := av.Data[i]
+				erv := rv.Index(i)
+				erv.SetUint(uint64(val))
+			}
 		}
 	case *SliceType:
 		st := gno2GoType(ct)

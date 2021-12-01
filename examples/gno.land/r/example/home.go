@@ -11,7 +11,7 @@ import (
 var group *groups.Group
 
 func init() {
-	group = &groups.Group{Name: "First Group"}
+	group = groups.NewGroup("First Group")
 }
 
 func AddPost(title string, body string) uint64 {

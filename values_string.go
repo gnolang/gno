@@ -25,6 +25,9 @@ func (v *ArrayValue) String() string {
 		for i, e := range v.List {
 			ss[i] = e.String()
 		}
+		// NOTE: we may want to unify the representation,
+		// but for now tests expect this to be different.
+		// This may be helpful for testing implementation behavior.
 		return "array[" + strings.Join(ss, ",") + "]"
 	} else {
 		return fmt.Sprintf("array[0x%X]", v.Data)

@@ -3,7 +3,6 @@ package groups
 import (
 	"strconv"
 
-	//"github.com/gnolang/gno/examples/gno.land/p/avl"
 	"gno.land/p/avl"
 )
 
@@ -14,6 +13,14 @@ type Group struct {
 	Name     string
 	Posts    *avl.Tree // postsCtr -> *Post
 	PostsCtr uint64
+}
+
+func NewGroup(name string) *Group {
+	return &Group{
+		Name:     name,
+		Posts:    nil,
+		PostsCtr: 0,
+	}
 }
 
 func (group *Group) AddPost(title string, body string) *Post {
