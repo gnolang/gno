@@ -1,6 +1,8 @@
 package groups
 
-import "std"
+import (
+	"std"
+)
 
 //----------------------------------------
 // VoteSet
@@ -66,8 +68,9 @@ func (vlist *VoteList) CountVotes(target string) int {
 // Committee
 
 type Committee struct {
-	MinSigners int
-	Addresses  std.AddressSet
+	Quorum    std.Rat
+	Threshold std.Rat
+	Addresses std.AddressSet
 }
 
 //----------------------------------------
@@ -75,5 +78,8 @@ type Committee struct {
 
 type CommitteeSession struct {
 	Name      string
-	Committee Committee
+	Time      std.Time
+	Committee *Committee
+	Votes     VoteSet
+	Result    string
 }

@@ -12,7 +12,6 @@ func init() {
 	addr1 := testutils.TestAddress("test1")
 	addr2 := testutils.TestAddress("test2")
 	vset = groups.NewVoteList()
-	// XXX keep going...
 	vset.SetVote(addr1, "yes")
 	vset.SetVote(addr2, "yes")
 }
