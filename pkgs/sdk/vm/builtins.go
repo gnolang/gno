@@ -19,7 +19,7 @@ func (vmk *VMKeeper) initBuiltinPackages(store gno.Store) {
 	getPackage := func(pkgPath string) (pv *gno.PackageValue) {
 		// otherwise, built-in package value.
 		// first, load from filepath.
-		stdlibPath := filepath.Join("../../../stdlibs", pkgPath)
+		stdlibPath := filepath.Join(vmk.stdlibsDir, pkgPath)
 		if !osm.DirExists(stdlibPath) {
 			// does not exist.
 			return nil

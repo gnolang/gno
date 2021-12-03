@@ -45,7 +45,8 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode, pv *gno.PackageValue) {
 				"isOrigin", "bool",
 			),
 			func(m *gno.Machine) {
-				isOrigin := len(m.Frames) == 1
+				// NOTE: the first frame is "main", this may change.
+				isOrigin := len(m.Frames) == 2
 				res0 := gno.TypedValue{T: gno.BoolType}
 				res0.SetBool(isOrigin)
 				m.PushValue(res0)

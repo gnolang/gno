@@ -395,7 +395,6 @@ func setFlagWithParts(m map[string]interface{}, fname string, fparts []string, f
 			default:
 				panic("should not happen")
 			}
-			m[name] = fvalue
 		}
 	}
 }

@@ -399,7 +399,11 @@ func (m *Machine) doOpPanic2() {
 		m.PushOp(OpReturnCallDefers)
 	} else {
 		// Keep panicking
-		m.PopUntilLastCallFrame()
+		last := m.PopUntilLastCallFrame()
+		if last == nil {
+			// XXX what else should we do?
+			panic(m.Exception.String())
+		}
 		m.PushOp(OpPanic2)
 		m.PushOp(OpReturnCallDefers) // XXX rename, not return?
 	}

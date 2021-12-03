@@ -118,9 +118,10 @@ func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
 		ds.current[pkgPath] = struct{}{}
 		defer delete(ds.current, pkgPath)
 		if pv := ds.pkgGetter(pkgPath); pv != nil {
-			if pv.IsRealm() {
-				panic("realm packages cannot be gotten from pkgGetter")
-			}
+			// e.g. tests/imports_tests loads example/gno.land/r/... realms.
+			// if pv.IsRealm() {
+			// 	panic("realm packages cannot be gotten from pkgGetter")
+			// }
 			ds.cacheObjects[oid] = pv
 			// inject natives after init.
 			if ds.pkgInjector != nil {

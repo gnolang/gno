@@ -38,7 +38,7 @@ func NewApp(rootDir string, logger log.Logger) (abci.Application, error) {
 	// Construct keepers.
 	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
 	bankKpr := bank.NewBankKeeper(acctKpr)
-	vmKpr := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr)
+	vmKpr := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, "./stdlibs")
 
 	// Configure InitChainer for genesis.
 	baseApp.SetInitChainer(InitChainer(acctKpr, bankKpr))

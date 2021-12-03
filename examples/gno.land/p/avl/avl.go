@@ -105,6 +105,7 @@ func (tree *Tree) GetByIndex(index int) (key string, value interface{}) {
 	}
 }
 
+// XXX consider a better way to do this... perhaps split Tree from Node.
 func (tree *Tree) Set(key string, value interface{}) (newSelf *Tree, updated bool) {
 	if tree == nil {
 		return NewTree(key, value), false

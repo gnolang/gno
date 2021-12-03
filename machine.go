@@ -1260,7 +1260,7 @@ func (m *Machine) PopUntilLastCallFrame() *Frame {
 			return fr
 		}
 	}
-	panic("missing call frame")
+	return nil
 }
 
 func (m *Machine) PushForPointer(lx Expr) {

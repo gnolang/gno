@@ -1,6 +1,7 @@
 package groups
 
 import (
+	"maths"
 	"std"
 )
 
@@ -68,18 +69,35 @@ func (vlist *VoteList) CountVotes(target string) int {
 // Committee
 
 type Committee struct {
-	Quorum    std.Rat
-	Threshold std.Rat
+	Quorum    maths.Rat
+	Threshold maths.Rat
 	Addresses std.AddressSet
 }
 
 //----------------------------------------
-// CommitteeSession
+// VoteSession
+// NOTE: this seems a bit too formal and
+// complicated vs what might be possible;
+// something simpler, more informal.
 
-type CommitteeSession struct {
+type SessionStatus int
+
+const (
+	SessionNew SessionStatus = iota
+	SessionStarted
+	SessionCompleted
+	SessionCanceled
+)
+
+type VoteSession struct {
 	Name      string
-	Time      std.Time
+	Creator   std.Address
+	Body      string
+	Start     std.Time
+	Deadline  std.Time
+	Status    SessionStatus
 	Committee *Committee
 	Votes     VoteSet
+	Choices   []string
 	Result    string
 }

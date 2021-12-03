@@ -37,7 +37,7 @@ func setupTestEnv() testEnv {
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id"}, log.NewNopLogger())
 	acck := authm.NewAccountKeeper(iavlCapKey, std.ProtoBaseAccount)
 	bank := bankm.NewBankKeeper(acck)
-	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank)
+	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, "../../../stdlibs")
 
 	return testEnv{ctx: ctx, vmk: vmk, bank: bank, acck: acck}
 }

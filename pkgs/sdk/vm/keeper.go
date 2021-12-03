@@ -2,6 +2,7 @@ package vm
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/gnolang/gno"
 	"github.com/gnolang/gno/pkgs/crypto"
@@ -23,22 +24,24 @@ var _ VMKeeperI = &VMKeeper{}
 
 // VMKeeper holds all package code and store state.
 type VMKeeper struct {
-	baseKey store.StoreKey
-	iavlKey store.StoreKey
-	acck    auth.AccountKeeper
-	bank    bank.BankKeeper
+	baseKey    store.StoreKey
+	iavlKey    store.StoreKey
+	acck       auth.AccountKeeper
+	bank       bank.BankKeeper
+	stdlibsDir string
 
 	// cached, the DeliverTx persistent state.
 	gnoStore gno.Store
 }
 
 // NewVMKeeper returns a new VMKeeper.
-func NewVMKeeper(baseKey store.StoreKey, iavlKey store.StoreKey, acck auth.AccountKeeper, bank bank.BankKeeper) *VMKeeper {
+func NewVMKeeper(baseKey store.StoreKey, iavlKey store.StoreKey, acck auth.AccountKeeper, bank bank.BankKeeper, stdlibsDir string) *VMKeeper {
 	vmk := &VMKeeper{
-		baseKey: baseKey,
-		iavlKey: iavlKey,
-		acck:    acck,
-		bank:    bank,
+		baseKey:    baseKey,
+		iavlKey:    iavlKey,
+		acck:       acck,
+		bank:       bank,
+		stdlibsDir: stdlibsDir,
 	}
 	return vmk
 }
@@ -59,7 +62,7 @@ func (vmk *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 				m2 := gno.NewMachineWithOptions(
 					gno.MachineOptions{
 						Package: nil,
-						Output:  nil, // XXX
+						Output:  os.Stdout, // XXX
 						Store:   vmk.gnoStore,
 					})
 				m2.PreprocessAllFilesAndSaveBlockNodes()
@@ -144,7 +147,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			Package: nil,
-			Output:  nil, // XXX
+			Output:  os.Stdout, // XXX
 			Store:   store,
 		})
 	m2.RunMemPackage(memPkg, true)
@@ -206,7 +209,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			Package: mpv,
-			Output:  nil,
+			Output:  os.Stdout, // XXX
 			Store:   store,
 			Context: msgCtx,
 		})
@@ -249,7 +252,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			Package: pv,
-			Output:  nil,
+			Output:  os.Stdout, // XXX
 			Store:   store,
 			Context: msgCtx,
 		})
