@@ -39,7 +39,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/gnolang/gno"
-	"github.com/gnolang/gno/pkgs/crypto"
 	dbm "github.com/gnolang/gno/pkgs/db"
 	osm "github.com/gnolang/gno/pkgs/os"
 	"github.com/gnolang/gno/pkgs/store/dbadapter"
@@ -331,26 +330,7 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode, pv *gno.PackageVa
 		pn.DefineGoNativeValue("ParseInt", strconv.ParseInt)
 		pn.PrepareNewValues(pv)
 	case "std":
-		pn.DefineNative("GetCaller",
-			gno.Flds( // params
-			),
-			gno.Flds( // results
-				"", "Address",
-			),
-			func(m *gno.Machine) {
-				addr := crypto.Address{}
-				copy(addr[:], []byte("testaddrtestaddrtest"))
-				store.Print()
-				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
-				res0 := gno.TypedValue{}
-				res0.T = addrT
-				res0.V = &gno.ArrayValue{
-					Data: addr[:],
-				}
-				m.PushValue(res0)
-			},
-		)
-		pn.PrepareNewValues(pv)
+		// Nothing to do, see stdlibs/InjectPackage.
 	}
 }
 

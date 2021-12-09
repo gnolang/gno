@@ -1531,7 +1531,7 @@ func (nt *NativeType) GnoType() Type {
 func (nt *NativeType) FindEmbeddedFieldType(n Name) (
 	trail []ValuePath, hasPtr bool, rcvr Type, field Type) {
 
-	// switch on type and maybe match field.
+	// special cases for pointer to struct and interface.
 	var rt reflect.Type = nt.Type
 	if rt.Kind() == reflect.Ptr {
 		// match on pointer to field
@@ -1546,18 +1546,6 @@ func (nt *NativeType) FindEmbeddedFieldType(n Name) (
 		} else {
 			// deref and continue...
 			hasPtr = true
-		}
-	} else if rt.Kind() == reflect.Struct {
-		// match on field.
-		rft, ok := rt.FieldByName(string(n))
-		if ok {
-			trail = []ValuePath{NewValuePathNative(n)}
-			hasPtr = false
-			rcvr = nil
-			field = go2GnoType(rft.Type)
-			return
-		} else { // no match
-			return nil, false, nil, nil
 		}
 	} else if rt.Kind() == reflect.Interface {
 		// match on interface.
@@ -1593,9 +1581,23 @@ func (nt *NativeType) FindEmbeddedFieldType(n Name) (
 		}
 		field = nil // XXX not set for native non-interface methods, too cumbersome/slow.
 		return
-	} else { // no match
-		return nil, false, nil, nil
 	}
+	// match field on struct.
+	if rt.Kind() == reflect.Struct {
+		// match on field.
+		rft, ok := rt.FieldByName(string(n))
+		if ok {
+			trail = []ValuePath{NewValuePathNative(n)}
+			hasPtr = false
+			rcvr = nil
+			field = go2GnoType(rft.Type)
+			return
+		} else { // no match
+			return nil, false, nil, nil
+		}
+	}
+	// no match
+	return nil, false, nil, nil
 }
 
 //----------------------------------------

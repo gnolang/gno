@@ -534,6 +534,8 @@ func (coins Coins) AmountOf(denom string) int64 {
 
 // IsAllPositive returns true if there is at least one coin and all currencies
 // have a positive value.
+// NOTE: besides this function, which is zero sensitive, all other functions
+// don't need to be called "IsAll*" -- TODO: rename back coins.IsAll* to coins.Is*?
 func (coins Coins) IsAllPositive() bool {
 	if len(coins) == 0 {
 		return false

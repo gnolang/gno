@@ -102,3 +102,16 @@ func NewTestTxWithSignBytes(msgs []std.Msg, privs []crypto.PrivKey, accNums []ui
 	tx := std.NewTx(msgs, fee, sigs, memo)
 	return tx
 }
+
+func TestAddress(name string) crypto.Address {
+	if len(name) > crypto.AddressSize {
+		panic("address name cannot be greater than crypto.AddressSize bytes")
+	}
+	addr := crypto.Address{}
+	// TODO: use strings.RepeatString or similar.
+	// NOTE: I miss python's "".Join().
+	blanks := "____________________"
+	copy(addr[:], []byte(blanks))
+	copy(addr[:], []byte(name))
+	return addr
+}

@@ -11,6 +11,7 @@ import (
 	"github.com/gnolang/gno/pkgs/sdk/bank"
 	"github.com/gnolang/gno/pkgs/std"
 	"github.com/gnolang/gno/pkgs/store"
+	"github.com/gnolang/gno/stdlibs"
 )
 
 // vm.VMKeeperI defines a module interface that supports Gno
@@ -198,14 +199,20 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			TypedValue: atv,
 		}
 	}
-	// Construct new machine.
-	msgCtx := ExecContext{
-		ChainID: ctx.ChainID(),
-		Height:  ctx.BlockHeight(),
-		Msg:     msg,
-		PkgAddr: pkgAddr,
-		sdkCtx:  ctx,
+	// Make context.
+	// NOTE: if this is too expensive,
+	// could it be safely partially memoized?
+	msgCtx := stdlibs.ExecContext{
+		ChainID:     ctx.ChainID(),
+		Height:      ctx.BlockHeight(),
+		Msg:         msg,
+		Caller:      caller,
+		TxSend:      send,
+		TxSendSpent: new(std.Coins),
+		PkgAddr:     pkgAddr,
+		Banker:      NewSDKBanker(vm, ctx),
 	}
+	// Construct machine and evaluate.
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			Package: mpv,
@@ -242,12 +249,15 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 		return "", err
 	}
 	// Construct new machine.
-	msgCtx := ExecContext{
+	msgCtx := stdlibs.ExecContext{
 		ChainID: ctx.ChainID(),
 		Height:  ctx.BlockHeight(),
-		//Msg:     msg,
-		//PkgAddr: pkgAddr,
-		sdkCtx: ctx,
+		//Msg:         msg,
+		//Caller:      caller,
+		//TxSend:      send,
+		//TxSendSpent: nil,
+		//PkgAddr:     pkgAddr,
+		//Banker:      nil,
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{

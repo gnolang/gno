@@ -15,7 +15,10 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno"
+	"github.com/gnolang/gno/pkgs/crypto"
+	"github.com/gnolang/gno/pkgs/sdk/testutils"
 	"github.com/gnolang/gno/pkgs/std"
+	"github.com/gnolang/gno/stdlibs"
 )
 
 func TestFileStr(t *testing.T) {
@@ -57,10 +60,26 @@ func runCheck(t *testing.T, path string) {
 	output := new(bytes.Buffer)
 	store := testStore(output, isRealm)
 	store.SetLogStoreOps(true)
+	caller := testutils.TestAddress("testaddr____________")
+	txSend := std.MustParseCoins("100gnots")
+	pkgCoins := std.MustParseCoins("200gnots") // >= txSend.
+	pkgAddr := testutils.TestAddress("packageaddr_________")
+	banker := newtestBanker(pkgAddr, pkgCoins)
+	ctx := stdlibs.ExecContext{
+		ChainID:     "testchain",
+		Height:      123,
+		Msg:         nil,
+		Caller:      caller,
+		TxSend:      txSend,
+		TxSendSpent: new(std.Coins),
+		PkgAddr:     pkgAddr,
+		Banker:      banker,
+	}
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		Package: pv,
 		Output:  output,
 		Store:   store,
+		Context: ctx,
 	})
 	// TODO support stdlib groups, but make testing safe;
 	// e.g. not be able to make network connections.
@@ -147,6 +166,7 @@ func runCheck(t *testing.T, path string) {
 					Package: pv2,
 					Output:  output,
 					Store:   store,
+					Context: ctx,
 				})
 				if testing.Verbose() {
 					store.Print()
@@ -265,4 +285,70 @@ func defaultPkgName(gopkgPath string) gno.Name {
 	name := parts[len(parts)-1]
 	name = strings.ToLower(name)
 	return gno.Name(name)
+}
+
+//----------------------------------------
+// testBanker
+
+type testBanker struct {
+	coinTable map[crypto.Address]std.Coins
+}
+
+func newtestBanker(args ...interface{}) *testBanker {
+	return &testBanker{
+		coinTable: make(map[crypto.Address]std.Coins),
+	}
+}
+
+func (tb *testBanker) GetCoins(addr crypto.Address, dst *std.Coins) {
+	coins, exists := tb.coinTable[addr]
+	if !exists {
+		*dst = nil
+	} else {
+		*dst = coins
+	}
+}
+
+func (tb *testBanker) SendCoins(from, to crypto.Address, amt std.Coins) {
+	fcoins, fexists := tb.coinTable[from]
+	if !fexists {
+		panic(fmt.Sprintf(
+			"source address %s does not exist",
+			from.String()))
+	}
+	if !fcoins.IsAllGTE(amt) {
+		panic(fmt.Sprintf(
+			"source address %s has %s; cannot send %s",
+			from.String(), fcoins, amt))
+	}
+	// First, subtract from 'from'.
+	frest := fcoins.Sub(amt)
+	tb.setCoins(from, frest)
+	// Second, add to 'to'.
+	// NOTE: even works when from==to, due to 2-step isolation.
+	tcoins, _ := tb.coinTable[to]
+	tsum := tcoins.Add(amt)
+	tb.setCoins(to, tsum)
+}
+
+func (tb *testBanker) setCoins(addr crypto.Address, amt std.Coins) {
+	coins, _ := tb.coinTable[addr]
+	sum := coins.Add(amt)
+	tb.coinTable[addr] = sum
+}
+
+func (tb *testBanker) TotalCoin(denom string) int64 {
+	panic("not yet implemented")
+}
+
+func (tb *testBanker) IssueCoin(addr crypto.Address, denom string, amt int64) {
+	coins, _ := tb.coinTable[addr]
+	sum := coins.Add(std.Coins{{denom, amt}})
+	tb.setCoins(addr, sum)
+}
+
+func (tb *testBanker) RemoveCoin(addr crypto.Address, denom string, amt int64) {
+	coins, _ := tb.coinTable[addr]
+	rest := coins.Sub(std.Coins{{denom, amt}})
+	tb.setCoins(addr, rest)
 }

@@ -1633,17 +1633,21 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 	if exists {
 		// Is re-defining.
 		if isConst != sb.getLocalIsConst(n) {
-			panic("StaticBlock.Define2() cannot change const status")
+			panic(fmt.Sprintf(
+				"StaticBlock.Define2(%s) cannot change const status",
+				n))
 		}
 		old := sb.Block.Values[idx]
 		if !old.IsUndefined() {
 			if tv.T != old.T {
 				panic(fmt.Sprintf(
-					"StaticBlock.Define2() cannot change .T; was %v, new %v",
-					old.T, tv.T))
+					"StaticBlock.Define2(%s) cannot change .T; was %v, new %v",
+					n, old.T, tv.T))
 			}
 			if tv.V != old.V {
-				panic("StaticBlock.Define2() cannot change .V")
+				panic(fmt.Sprintf(
+					"StaticBlock.Define2(%s) cannot change .V",
+					n))
 			}
 		}
 		sb.Block.Values[idx] = tv
