@@ -524,6 +524,21 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						cx := evalConst(store, last, n)
 						return cx, TRANS_CONTINUE
 					}
+					// If name refers to a package, and this is not in
+					// the context of a selector, fail. Packages cannot
+					// be used as a value, for go compatibility but also
+					// to preserve the security expectation regarding imports.
+					nt := evalStaticTypeOf(store, last, n)
+					if nt != nil {
+						// this is fine, e.g. for TRANS_ASSIGN_LHS (define) etc.
+					} else if ftype != TRANS_SELECTOR_X {
+						nk := nt.Kind()
+						if nk == PackageKind {
+							panic(fmt.Sprintf(
+								"package %s cannot only be referred to in a selector expression",
+								n.Name))
+						}
+					}
 				}
 
 			// TRANS_LEAVE -----------------------
