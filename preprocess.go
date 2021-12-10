@@ -529,7 +529,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// be used as a value, for go compatibility but also
 					// to preserve the security expectation regarding imports.
 					nt := evalStaticTypeOf(store, last, n)
-					if nt != nil {
+					if nt == nil {
 						// this is fine, e.g. for TRANS_ASSIGN_LHS (define) etc.
 					} else if ftype != TRANS_SELECTOR_X {
 						nk := nt.Kind()
