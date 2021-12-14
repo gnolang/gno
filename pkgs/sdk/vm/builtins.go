@@ -16,13 +16,13 @@ func (vmk *VMKeeper) initBuiltinPackages(store gno.Store) {
 	// NOTE: native functions/methods added here must be quick operations,
 	// or account for gas before operation.
 	// TODO: define criteria for inclusion, and solve gas calculations.
-	getPackage := func(pkgPath string) (pv *gno.PackageValue) {
+	getPackage := func(pkgPath string) (pn *gno.PackageNode, pv *gno.PackageValue) {
 		// otherwise, built-in package value.
 		// first, load from filepath.
 		stdlibPath := filepath.Join(vmk.stdlibsDir, pkgPath)
 		if !osm.DirExists(stdlibPath) {
 			// does not exist.
-			return nil
+			return nil, nil
 		}
 		memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
 		m2 := gno.NewMachineWithOptions(gno.MachineOptions{
@@ -30,9 +30,7 @@ func (vmk *VMKeeper) initBuiltinPackages(store gno.Store) {
 			Output:  os.Stdout,
 			Store:   store,
 		})
-		m2.RunMemPackage(memPkg, true)
-		pv = m2.Package
-		return
+		return m2.RunMemPackage(memPkg, true)
 	}
 	store.SetPackageGetter(getPackage)
 	store.SetPackageInjector(vmk.packageInjector)
@@ -44,8 +42,21 @@ func (vmk *VMKeeper) packageInjector(store gno.Store, pn *gno.PackageNode, pv *g
 	// vm (this package) specific injections:
 	switch pv.PkgPath {
 	case "std":
-		// see stdlibs.InjectPackage.
-		// nothing to do here (yet).
+		// Also see stdlibs/InjectPackage.
+		pn.DefineNative("IsOriginCall",
+			gno.Flds( // params
+			),
+			gno.Flds( // results
+				"isOrigin", "bool",
+			),
+			func(m *gno.Machine) {
+				isOrigin := len(m.Frames) == 2
+				res0 := gno.TypedValue{T: gno.BoolType}
+				res0.SetBool(isOrigin)
+				m.PushValue(res0)
+			},
+		)
+		pn.PrepareNewValues(pv)
 	}
 }
 

@@ -125,6 +125,7 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	for memPkg := range ch {
 		fset := ParseMemPackage(memPkg)
 		pn := NewPackageNode(Name(memPkg.Name), memPkg.Path, fset)
+		PredefineFileSet(m.Store, pn, fset)
 		for _, fn := range fset.Files {
 			// Save Types to m.Store (while preprocessing).
 			fn = Preprocess(m.Store, pn, fn).(*FileNode)
@@ -138,23 +139,71 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // top level Run* methods.
 
 // First sets the active package to a new instance of memPkg's.
-// Parses files, sets the package, runs files, and saves mempkg and corresponding package node to store.
-func (m *Machine) RunMemPackage(memPkg std.MemPackage, save bool) {
+// Parses files, sets the package, runs files, and saves mempkg and
+// corresponding package node to store.
+// If save is true, the mempackage, package value, package node, and defined
+// types are saved to store.
+func (m *Machine) RunMemPackage(memPkg std.MemPackage, save bool) (*PackageNode, *PackageValue) {
 	// parse files.
 	files := ParseMemPackage(memPkg)
 	// make and set package
 	pkg := NewPackageNode(Name(memPkg.Name), memPkg.Path, files)
-	m.Store.SetBlockNode(pkg)
 	pv := pkg.NewPackage()
 	m.SetActivePackage(pv)
 	if save {
-		// run files and save package
+		// run files and save package value, package node, and types
 		m.RunFilesAndSave(files.Files...)
-		// store mempkg
+		// store mempackage
 		m.Store.AddMemPackage(memPkg)
+		// store package node
+		m.Store.SetBlockNode(pkg)
 	} else {
 		// run files
 		m.RunFiles(files.Files...)
+	}
+	return pkg, pv
+}
+
+// Tests all test files in a mempackage.
+// Assumes that the importing of packages is handled elsewhere.
+// The resulting package value and node become injected with TestMethods and
+// other declarations, so it is expected that non-test code will not be run
+// afterwards from the same store.
+func (m *Machine) TestMemPackage(memPkg std.MemPackage) {
+	// parse test files.
+	tfiles, itfiles := ParseMemPackageTests(memPkg)
+	{ // first, tfiles which run in the same package.
+		pv := m.Store.GetPackage(memPkg.Path)
+		pvBlock := pv.GetBlock(m.Store)
+		pvSize := len(pvBlock.Values)
+		m.SetActivePackage(pv)
+		// run test files.
+		m.RunFiles(tfiles.Files...)
+		// run all tests in test files.
+		for i := pvSize; i < len(pvBlock.Values); i++ {
+			tv := &pvBlock.Values[i]
+			if !(tv.T.Kind() == FuncKind &&
+				strings.HasPrefix(
+					string(tv.V.(*FuncValue).Name),
+					"Test")) {
+				continue // not a test function.
+			}
+			// XXX ensure correct func type.
+			name := tv.V.(*FuncValue).Name
+			x := Call(name, Call("testing.NewT", name))
+			res := m.Eval(x)
+			if len(res) != 0 {
+				panic(fmt.Sprintf(
+					"expected no results but got %d",
+					len(res)))
+			}
+		}
+	}
+	{ // run all (import) tests in test files.
+		pkg := NewPackageNode(Name(memPkg.Name+"_test"), memPkg.Path, itfiles)
+		pv := pkg.NewPackage()
+		m.SetActivePackage(pv)
+		m.RunFiles(itfiles.Files...)
 	}
 }
 
@@ -164,7 +213,8 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	m.runFiles(fns...)
 }
 
-// Like RunFiles, but also persists the resulting new package value.
+// Like RunFiles, but also persists the resulting new package value
+// and found types.
 // Non-realm packages are persisted on a throwaway realm.
 func (m *Machine) RunFilesAndSave(fns ...*FileNode) {
 	m.runFiles(fns...)
@@ -183,14 +233,18 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 	pv := m.Package
 	pb := pv.GetBlock(m.Store)
 	pn := pb.GetSource(m.Store).(*PackageNode)
+	fs := &FileSet{Files: fns}
 	if pn.FileSet == nil {
-		pn.FileSet = &FileSet{}
+		pn.FileSet = fs
+	} else {
+		pn.FileSet.AddFiles(fns...)
 	}
-	pn.FileSet.AddFiles(fns...)
-	fileupdates := make([][]TypedValue, len(fns))
+
+	// Predefine declarations across all files.
+	PredefineFileSet(m.Store, pn, fs)
 
 	// Preprocess each new file.
-	for i, fn := range fns {
+	for _, fn := range fns {
 		// Preprocess file.
 		// NOTE: Most of the declaration is handled by
 		// Preprocess and any constant values set on
@@ -214,9 +268,10 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
 		copy(fb.Values, fn.StaticBlock.Values)
 		pv.AddFileBlock(fn.Name, fb)
-		updates := pn.PrepareNewValues(pv) // with fb
-		fileupdates[i] = updates
 	}
+
+	// Get new values across all files in package.
+	updates := pn.PrepareNewValues(pv)
 
 	// exists if declaration run.
 	var fdeclared = map[Name]struct{}{}
@@ -275,22 +330,19 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 	// behavior, build systems are encouraged to present
 	// multiple files belonging to the same package in
 	// lexical file name order to a compiler."
-	for i, fn := range fns {
-		updates := fileupdates[i]
-		fb := pv.GetFileBlock(m.Store, fn.Name)
-		m.PushBlock(fb)
-		for i := 0; i < len(updates); i++ {
-			tv := &updates[i]
-			if tv.IsDefined() && tv.T.Kind() == FuncKind && tv.V != nil {
-				if fv, ok := tv.V.(*FuncValue); ok {
-					fn := fv.Name
-					if strings.HasPrefix(string(fn), "init.") {
-						m.RunFunc(fn)
-					}
-				}
+	for _, tv := range updates {
+		if tv.IsDefined() && tv.T.Kind() == FuncKind && tv.V != nil {
+			fv, ok := tv.V.(*FuncValue)
+			if !ok {
+				continue // skip native functions.
+			}
+			if strings.HasPrefix(string(fv.Name), "init.") {
+				fb := pv.GetFileBlock(m.Store, fv.FileName)
+				m.PushBlock(fb)
+				m.RunFunc(fv.Name)
+				m.PopBlock()
 			}
 		}
-		m.PopBlock()
 	}
 }
 

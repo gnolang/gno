@@ -1077,21 +1077,51 @@ func ReadMemPackage(dir string, pkgPath string) std.MemPackage {
 	return memPkg
 }
 
+// Returns the code fileset minus any spurious or test files.
 func ParseMemPackage(memPkg std.MemPackage) (fset *FileSet) {
 	fset = &FileSet{}
+	for _, mfile := range memPkg.Files {
+		if !strings.HasSuffix(mfile.Name, ".go") {
+			continue // skip spurious file.
+		}
+		n := MustParseFile(mfile.Name, mfile.Body)
+		if strings.HasSuffix(mfile.Name, "_test.go") {
+			// skip test file.
+		} else if memPkg.Name == string(n.PkgName) {
+			// add package file.
+			fset.AddFiles(n)
+		} else {
+			panic(fmt.Sprintf(
+				"expected package name [%s] or [%s_test] but got [%s]",
+				memPkg.Name, memPkg.Name, n.PkgName))
+		}
+	}
+	return fset
+}
+func ParseMemPackageTests(memPkg std.MemPackage) (tset, itset *FileSet) {
+	tset = &FileSet{}
+	itset = &FileSet{}
 	for _, mfile := range memPkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".go") {
 			continue // skip this file.
 		}
 		n := MustParseFile(mfile.Name, mfile.Body)
-		if memPkg.Name != string(n.PkgName) {
+		if strings.HasSuffix(mfile.Name, "_test.go") {
+			// add test file.
+			if memPkg.Name+" _test" == string(n.PkgName) {
+				itset.AddFiles(n)
+			} else {
+				tset.AddFiles(n)
+			}
+		} else if memPkg.Name == string(n.PkgName) {
+			// skip package file.
+		} else {
 			panic(fmt.Sprintf(
-				"expected package name [%s] but got [%s]",
-				memPkg.Name, n.PkgName))
+				"expected package name [%s] or [%s_test] but got [%s]",
+				memPkg.Name, memPkg.Name, n.PkgName))
 		}
-		fset.AddFiles(n)
 	}
-	return fset
+	return tset, itset
 }
 
 func (fs *FileSet) AddFiles(fns ...*FileNode) {
@@ -1194,9 +1224,9 @@ func (pn *PackageNode) NewPackage() *PackageValue {
 // Returns a slice of new PackageValue.Values.
 // After return, *PackageNode.Values and *PackageValue.Values have the same
 // length.
-// TODO split logic and/or name resulting function(s) better. PrepareNewValues?
-// XXX Wait, so PackageNode>*DeclarledType>Methods>*FuncValue.PkgPath etc doesn't
-// XXX get set until it's used via pn.NewPackage()?  Fix this sooner!
+// Until this function is called, PackageNode>*DeclarledType>Methods>*FuncValue.Closure
+// and PackageNode>*FuncValue.Closure doesn't get set (and cannot because Closures
+// are runtime values.)
 func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 	// should already exist.
 	block := pv.Block.(*Block)
@@ -1228,7 +1258,7 @@ func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 					// Set function closure for function declarations.
 					switch fv := nv.V.(type) {
 					case *FuncValue:
-						fv.PkgPath = pv.PkgPath
+						fv.PkgPath = pv.PkgPath // XXX do this earlier?
 						fv.pkg = pv
 						if fv.Closure != nil {
 							panic("expected nil closure for static func")
@@ -1260,7 +1290,7 @@ func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 							// This happens with alias declarations.
 						}
 						// set mv.pkg.
-						mv.PkgPath = pv.PkgPath
+						mv.PkgPath = pv.PkgPath // XXX do this earlier?
 						mv.pkg = pv
 						// set mv.Closure.
 						fn, _ := pn.GetDeclFor(dt.Name)
@@ -1328,6 +1358,7 @@ func (rn RefNode) GetLocation() Location {
 type BlockNode interface {
 	Node
 	InitStaticBlock(BlockNode, BlockNode)
+	IsInitialized() bool
 	GetStaticBlock() *StaticBlock
 	GetLocation() Location
 	SetLocation(Location)
@@ -1365,8 +1396,8 @@ type StaticBlock struct {
 
 // Implements BlockNode
 func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
-	if sb.Names != nil {
-		panic("StaticBlock.Names already initalized")
+	if sb.Names != nil || sb.Block.Source != nil {
+		panic("StaticBlock already initalized")
 	}
 	if parent == nil {
 		sb.Block = Block{
@@ -1386,6 +1417,11 @@ func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 	sb.Consts = make([]Name, 0, 16)
 	sb.Externs = make([]Name, 0, 16)
 	return
+}
+
+// Implements BlockNode.
+func (sb *StaticBlock) IsInitialized() bool {
+	return sb.Block.Source != nil
 }
 
 // Implements BlockNode.

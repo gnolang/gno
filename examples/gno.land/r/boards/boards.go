@@ -3,6 +3,7 @@ package boards
 import (
 	"std"
 	"strconv"
+	"strings"
 
 	"gno.land/p/avl"
 )
@@ -101,6 +102,29 @@ func RenderBoard(bid BoardID) string {
 	return board.Render("")
 }
 
+func Render(path string) string {
+	if path == "" {
+		str := ""
+		gBoards.Iterate("", "", func(n *avl.Tree) bool {
+			board := n.Value().(*Board).name
+			str += "## " + board + " ##\n"
+			return false
+		})
+		return str
+	}
+	parts := strings.Split(path, "/")
+	if len(parts) == 1 {
+		name := parts[0]
+		_, boardI, exists := gBoardsByName.Get(name)
+		if !exists {
+			return "board does not exist: " + name
+		}
+		return boardI.(*Board).Render("")
+	} else {
+		return "unrecognized path " + path
+	}
+}
+
 //----------------------------------------
 // Board
 
@@ -157,9 +181,9 @@ func (board *Board) AddPost(creator std.Address, title string, body string) *Pos
 // console.  This is suitable for demonstration or tests,
 // but not for prod.
 func (board *Board) Render(indent string) string {
-	str := indent + "### " + board.name + " ###\n"
+	str := indent + "## " + board.name + " ##\n"
 	if board.posts.Size() > 0 {
-		board.posts.Traverse(true, func(n *avl.Tree) bool {
+		board.posts.Iterate("", "", func(n *avl.Tree) bool {
 			str += n.Value().(*Post).Render(indent)
 			return false
 		})
@@ -235,7 +259,7 @@ func (post *Post) Render(indent string) string {
 	str += indent + post.body // TODO: indent body lines.
 	str += indent + "\n"
 	if post.replies.Size() > 0 {
-		post.replies.Traverse(true, func(n *avl.Tree) bool {
+		post.replies.Iterate("", "", func(n *avl.Tree) bool {
 			str += "\n"
 			str += n.Value().(*Post).Render(indent + "| ")
 			return false

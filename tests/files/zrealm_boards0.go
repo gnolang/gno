@@ -19,7 +19,7 @@ func main() {
 }
 
 // Output:
-// ### Test Board ###
+// ## Test Board ##
 // ----------------------------------------
 // # First Post (title)
 //

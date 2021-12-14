@@ -1,6 +1,6 @@
 all: gnoland gnokey goscan logos
 
-.PHONY: logos goscan gnoland gnokey logos reset
+.PHONY: logos goscan gnoland gnokey logos reset test testrealm test2
 
 reset:
 	rm -rf testdir

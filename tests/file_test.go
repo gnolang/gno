@@ -23,7 +23,7 @@ import (
 
 func TestFileStr(t *testing.T) {
 	filePath := "./files/str.go"
-	runCheck(t, filePath)
+	runFileTest(t, filePath)
 }
 
 func TestFiles(t *testing.T) {
@@ -42,12 +42,12 @@ func TestFiles(t *testing.T) {
 		}
 		file := file
 		t.Run(file.Name(), func(t *testing.T) {
-			runCheck(t, filepath.Join(baseDir, file.Name()))
+			runFileTest(t, filepath.Join(baseDir, file.Name()))
 		})
 	}
 }
 
-func runCheck(t *testing.T, path string) {
+func runFileTest(t *testing.T, path string) {
 	pkgPath, resWanted, errWanted, rops := wantedFromComment(path)
 	if pkgPath == "" {
 		pkgPath = "main"

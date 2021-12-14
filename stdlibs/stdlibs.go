@@ -3,12 +3,38 @@ package stdlibs
 import (
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/gnolang/gno"
 )
 
 func InjectPackage(store gno.Store, pn *gno.PackageNode, pv *gno.PackageValue) {
 	switch pv.PkgPath {
+	case "strings":
+		// NOTE: Split returns []string, which becomes
+		// gonative{[]string}, which is confusing.
+		// So, implement with DefineNative instead.
+		// pn.DefineGoNativeFunc("Split", strings.Split)
+		pn.DefineNative("Split",
+			gno.Flds( // params
+				"str", "string",
+				"delim", "string",
+			),
+			gno.Flds( // results
+				"parts", "[]string",
+			),
+			func(m *gno.Machine) {
+				arg0, arg1 := m.LastBlock().GetParams2()
+				str := arg0.TV.GetString()
+				delim := arg1.TV.GetString()
+				parts := strings.Split(str, delim)
+				res0 := gno.Go2GnoValue(
+					reflect.ValueOf(parts),
+				)
+				m.PushValue(res0)
+			},
+		)
+		pn.PrepareNewValues(pv)
 	case "strconv":
 		pn.DefineGoNativeFunc("Itoa", strconv.Itoa)
 		pn.DefineGoNativeFunc("Atoi", strconv.Atoi)
@@ -35,20 +61,6 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode, pv *gno.PackageValue) {
 				res0 := gno.Go2GnoValue(
 					reflect.ValueOf([20]byte(hash)),
 				)
-				m.PushValue(res0)
-			},
-		)
-		pn.DefineNative("IsOriginCall",
-			gno.Flds( // params
-			),
-			gno.Flds( // results
-				"isOrigin", "bool",
-			),
-			func(m *gno.Machine) {
-				// NOTE: the first frame is "main", this may change.
-				isOrigin := len(m.Frames) == 2
-				res0 := gno.TypedValue{T: gno.BoolType}
-				res0.SetBool(isOrigin)
 				m.PushValue(res0)
 			},
 		)

@@ -27,7 +27,7 @@ func (plot *Plot) AddPost(title string, body string) {
 func (plot *Plot) String() string {
 	str := "# [plot] " + plot.Name + "\n"
 	if plot.Posts.Size() > 0 {
-		plot.Posts.Traverse(true, func(n *avl.Tree) bool {
+		plot.Posts.Iterate("", "", func(n *avl.Tree) bool {
 			str += "\n"
 			str += n.Value().(*Post).String()
 			return false
@@ -47,7 +47,7 @@ func (post *Post) String() string {
 	str += ""
 	str += post.Body
 	if post.Comments.Size() > 0 {
-		post.Comments.Traverse(true, func(n *avl.Tree) bool {
+		post.Comments.Iterate("", "", func(n *avl.Tree) bool {
 			str += "\n"
 			str += n.Value().(*Comment).String()
 			return false

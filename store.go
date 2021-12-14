@@ -13,7 +13,7 @@ import (
 const iavlCacheSize = 1024 * 1024 // TODO increase and parameterize.
 
 // return nil if package doesn't exist.
-type PackageGetter func(pkgPath string) *PackageValue
+type PackageGetter func(pkgPath string) (*PackageNode, *PackageValue)
 
 // inject natives into a new or loaded package (value and node)
 type PackageInjector func(store Store, pn *PackageNode, pv *PackageValue)
@@ -117,11 +117,18 @@ func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
 		}
 		ds.current[pkgPath] = struct{}{}
 		defer delete(ds.current, pkgPath)
-		if pv := ds.pkgGetter(pkgPath); pv != nil {
+		if pn, pv := ds.pkgGetter(pkgPath); pv != nil {
 			// e.g. tests/imports_tests loads example/gno.land/r/... realms.
 			// if pv.IsRealm() {
 			// 	panic("realm packages cannot be gotten from pkgGetter")
 			// }
+			ds.SetBlockNode(pn)
+			// NOTE: not SetObject() here,
+			// we don't want to overwrite
+			// the value from pkgGetter.
+			// Realm values obtained this way
+			// will get written elsewhere
+			// later.
 			ds.cacheObjects[oid] = pv
 			// inject natives after init.
 			if ds.pkgInjector != nil {

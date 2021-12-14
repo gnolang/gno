@@ -658,7 +658,6 @@ func (pv *PackageValue) GetBlock(store Store) *Block {
 	}
 }
 
-// XXX
 func (pv *PackageValue) AddFileBlock(fn Name, fb *Block) {
 	for _, fname := range pv.FNames {
 		if fname == fn {
@@ -670,9 +669,7 @@ func (pv *PackageValue) AddFileBlock(fn Name, fb *Block) {
 	pv.FNames = append(pv.FNames, fn)
 	pv.FBlocks = append(pv.FBlocks, fb)
 	pv.getFBlocksMap()[fn] = fb
-	// Increment fb refcount and set owner.
 	fb.SetOwner(pv)
-	//fb.IncRefCount()
 }
 
 func (pv *PackageValue) GetFileBlock(store Store, fname Name) *Block {
@@ -707,6 +704,11 @@ func (pv *PackageValue) GetRealm() *Realm {
 
 func (pv *PackageValue) SetRealm(rlm *Realm) {
 	pv.Realm = rlm
+}
+
+// Convenience.
+func (pv *PackageValue) GetPackageNode(store Store) *PackageNode {
+	return pv.GetBlock(store).GetSource(store).(*PackageNode)
 }
 
 type NativeValue struct {

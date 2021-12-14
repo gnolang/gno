@@ -49,7 +49,7 @@ import (
 
 // NOTE: this isn't safe.
 func testStore(out io.Writer, isRealm bool) (store gno.Store) {
-	getPackage := func(pkgPath string) (pv *gno.PackageValue) {
+	getPackage := func(pkgPath string) (pn *gno.PackageNode, pv *gno.PackageValue) {
 		// if _test package...
 		const testPath = "github.com/gnolang/gno/_test/"
 		if strings.HasPrefix(pkgPath, testPath) {
@@ -63,8 +63,7 @@ func testStore(out io.Writer, isRealm bool) (store gno.Store) {
 			// pkg := gno.NewPackageNode(gno.Name(memPkg.Name), memPkg.Path, nil)
 			// pv := pkg.NewPackage()
 			// m2.SetActivePackage(pv)
-			m2.RunMemPackage(memPkg, isRealm)
-			return m2.Package
+			return m2.RunMemPackage(memPkg, isRealm) // XXX , false)?
 		}
 		// TODO: if isRealm, can we panic here?
 		// otherwise, built-in package value.
@@ -90,30 +89,30 @@ func testStore(out io.Writer, isRealm bool) (store gno.Store) {
 			pkg.DefineGoNativeFunc("Sprintf", fmt.Sprintf)
 			pkg.DefineGoNativeFunc("Sscanf", fmt.Sscanf)
 			pkg.DefineGoNativeFunc("Errorf", fmt.Errorf)
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "encoding/base64":
 			pkg := gno.NewPackageNode("base64", pkgPath, nil)
 			pkg.DefineGoNativeValue("RawStdEncoding", base64.RawStdEncoding)
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "encoding/binary":
 			pkg := gno.NewPackageNode("binary", pkgPath, nil)
 			pkg.DefineGoNativeValue("LittleEndian", binary.LittleEndian)
 			pkg.DefineGoNativeValue("BigEndian", binary.BigEndian)
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "encoding/json":
 			pkg := gno.NewPackageNode("json", pkgPath, nil)
 			pkg.DefineGoNativeValue("Unmarshal", json.Unmarshal)
 			pkg.DefineGoNativeValue("Marshal", json.Marshal)
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "encoding/xml":
 			pkg := gno.NewPackageNode("xml", pkgPath, nil)
 			pkg.DefineGoNativeValue("Unmarshal", xml.Unmarshal)
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "net":
 			pkg := gno.NewPackageNode("net", pkgPath, nil)
 			pkg.DefineGoNativeType(reflect.TypeOf(net.TCPAddr{}))
 			pkg.DefineGoNativeValue("IPv4", net.IPv4)
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "net/http":
 			// XXX UNSAFE
 			// There's no reason why we can't replace these with safer alternatives.
@@ -123,17 +122,17 @@ func testStore(out io.Writer, isRealm bool) (store gno.Store) {
 				pkg.DefineGoNativeType(reflect.TypeOf(http.Request{}))
 				pkg.DefineGoNativeValue("DefaultClient", http.DefaultClient)
 				pkg.DefineGoNativeType(reflect.TypeOf(http.Client{}))
-				return pkg.NewPackage()
+				return pkg, pkg.NewPackage()
 			*/
 		case "net/url":
 			pkg := gno.NewPackageNode("url", pkgPath, nil)
 			pkg.DefineGoNativeType(reflect.TypeOf(url.Values{}))
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "bufio":
 			pkg := gno.NewPackageNode("bufio", pkgPath, nil)
 			pkg.DefineGoNativeValue("NewScanner", bufio.NewScanner)
 			pkg.DefineGoNativeType(reflect.TypeOf(bufio.SplitFunc(nil)))
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "bytes":
 			pkg := gno.NewPackageNode("bytes", pkgPath, nil)
 			pkg.DefineGoNativeValue("Equal", bytes.Equal)
@@ -141,7 +140,7 @@ func testStore(out io.Writer, isRealm bool) (store gno.Store) {
 			pkg.DefineGoNativeValue("NewReader", bytes.NewReader)
 			pkg.DefineGoNativeValue("NewBuffer", bytes.NewBuffer)
 			pkg.DefineGoNativeType(reflect.TypeOf(bytes.Buffer{}))
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "time":
 			pkg := gno.NewPackageNode("time", pkgPath, nil)
 			pkg.DefineGoNativeValue("Date", time.Date)
@@ -155,7 +154,7 @@ func testStore(out io.Writer, isRealm bool) (store gno.Store) {
 			pkg.DefineGoNativeType(reflect.TypeOf(time.Time{}))
 			pkg.DefineGoNativeType(reflect.TypeOf(time.Month(0)))
 			pkg.DefineGoNativeType(reflect.TypeOf(time.Duration(0)))
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "strings":
 			pkg := gno.NewPackageNode("strings", pkgPath, nil)
 			pkg.DefineGoNativeValue("SplitN", strings.SplitN)
@@ -163,80 +162,80 @@ func testStore(out io.Writer, isRealm bool) (store gno.Store) {
 			pkg.DefineGoNativeValue("TrimSpace", strings.TrimSpace)
 			pkg.DefineGoNativeValue("HasPrefix", strings.HasPrefix)
 			pkg.DefineGoNativeValue("NewReader", strings.NewReader)
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "math":
 			pkg := gno.NewPackageNode("math", pkgPath, nil)
 			pkg.DefineGoNativeValue("Abs", math.Abs)
 			pkg.DefineGoNativeValue("Cos", math.Cos)
 			pkg.DefineGoNativeValue("Pi", math.Pi)
 			pkg.DefineGoNativeValue("MaxFloat32", math.MaxFloat32)
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "math/rand":
 			pkg := gno.NewPackageNode("rand", pkgPath, nil)
 			pkg.DefineGoNativeValue("Uint32", rand.Uint32)
 			pkg.DefineGoNativeValue("Seed", rand.Seed)
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "crypto/rand":
 			pkg := gno.NewPackageNode("rand", pkgPath, nil)
 			pkg.DefineGoNativeValue("Prime", crand.Prime)
 			// for determinism:
 			// pkg.DefineGoNativeValue("Reader", crand.Reader)
 			pkg.DefineGoNativeValue("Reader", &dummyReader{})
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "crypto/md5":
 			pkg := gno.NewPackageNode("md5", pkgPath, nil)
 			pkg.DefineGoNativeValue("New", md5.New)
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "crypto/sha1":
 			pkg := gno.NewPackageNode("sha1", pkgPath, nil)
 			pkg.DefineGoNativeValue("New", sha1.New)
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "image":
 			pkg := gno.NewPackageNode("image", pkgPath, nil)
 			pkg.DefineGoNativeType(reflect.TypeOf(image.Point{}))
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "image/color":
 			pkg := gno.NewPackageNode("color", pkgPath, nil)
 			pkg.DefineGoNativeType(reflect.TypeOf(color.NRGBA64{}))
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "compress/flate":
 			pkg := gno.NewPackageNode("flate", pkgPath, nil)
 			pkg.DefineGoNativeValue("BestSpeed", flate.BestSpeed)
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "compress/gzip":
 			pkg := gno.NewPackageNode("gzip", pkgPath, nil)
 			pkg.DefineGoNativeType(reflect.TypeOf(gzip.Writer{}))
 			pkg.DefineGoNativeValue("BestCompression", gzip.BestCompression)
 			pkg.DefineGoNativeValue("BestSpeed", gzip.BestSpeed)
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "context":
 			pkg := gno.NewPackageNode("context", pkgPath, nil)
 			pkg.DefineGoNativeType(reflect.TypeOf((*context.Context)(nil)).Elem())
 			pkg.DefineGoNativeValue("WithValue", context.WithValue)
 			pkg.DefineGoNativeValue("Background", context.Background)
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "sync":
 			pkg := gno.NewPackageNode("sync", pkgPath, nil)
 			pkg.DefineGoNativeType(reflect.TypeOf(sync.Mutex{}))
 			pkg.DefineGoNativeType(reflect.TypeOf(sync.RWMutex{}))
 			pkg.DefineGoNativeType(reflect.TypeOf(sync.Pool{}))
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "sync/atomic":
 			pkg := gno.NewPackageNode("atomic", pkgPath, nil)
 			pkg.DefineGoNativeType(reflect.TypeOf(atomic.Value{}))
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "math/big":
 			pkg := gno.NewPackageNode("big", pkgPath, nil)
 			pkg.DefineGoNativeValue("NewInt", big.NewInt)
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "sort":
 			pkg := gno.NewPackageNode("sort", pkgPath, nil)
 			pkg.DefineGoNativeValue("Strings", sort.Strings)
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "flag":
 			pkg := gno.NewPackageNode("flag", pkgPath, nil)
 			pkg.DefineGoNativeType(reflect.TypeOf(flag.Flag{}))
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "io":
 			pkg := gno.NewPackageNode("io", pkgPath, nil)
 			pkg.DefineGoNativeValue("EOF", io.EOF)
@@ -244,35 +243,35 @@ func testStore(out io.Writer, isRealm bool) (store gno.Store) {
 			pkg.DefineGoNativeType(reflect.TypeOf((*io.ReadCloser)(nil)).Elem())
 			pkg.DefineGoNativeType(reflect.TypeOf((*io.Closer)(nil)).Elem())
 			pkg.DefineGoNativeType(reflect.TypeOf((*io.Reader)(nil)).Elem())
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "io/ioutil":
 			pkg := gno.NewPackageNode("ioutil", pkgPath, nil)
 			pkg.DefineGoNativeValue("NopCloser", ioutil.NopCloser)
 			pkg.DefineGoNativeValue("ReadAll", ioutil.ReadAll)
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "log":
 			pkg := gno.NewPackageNode("log", pkgPath, nil)
 			pkg.DefineGoNativeValue("Fatal", log.Fatal)
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "text/template":
 			pkg := gno.NewPackageNode("template", pkgPath, nil)
 			pkg.DefineGoNativeType(reflect.TypeOf(template.FuncMap{}))
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "unicode/utf8":
 			pkg := gno.NewPackageNode("utf8", pkgPath, nil)
 			pkg.DefineGoNativeValue("DecodeRuneInString", utf8.DecodeRuneInString)
 			tv := gno.TypedValue{T: gno.UntypedRuneType} // TODO dry
 			tv.SetInt32(utf8.RuneSelf)                   // ..
 			pkg.Define("RuneSelf", tv)                   // ..
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "errors":
 			pkg := gno.NewPackageNode("errors", pkgPath, nil)
 			pkg.DefineGoNativeValue("New", errors.New)
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		case "hash/fnv":
 			pkg := gno.NewPackageNode("fnv", pkgPath, nil)
 			pkg.DefineGoNativeValue("New32a", fnv.New32a)
-			return pkg.NewPackage()
+			return pkg, pkg.NewPackage()
 		default:
 			// continue on...
 		}
@@ -285,9 +284,7 @@ func testStore(out io.Writer, isRealm bool) (store gno.Store) {
 				Output:  out,
 				Store:   store,
 			})
-			m2.RunMemPackage(memPkg, isRealm)
-			pv := m2.Package
-			return pv
+			return m2.RunMemPackage(memPkg, isRealm) // XXX , false)?
 		}
 		// if examples package...
 		examplePath := filepath.Join("../examples", pkgPath)
@@ -298,8 +295,7 @@ func testStore(out io.Writer, isRealm bool) (store gno.Store) {
 				Output:  out,
 				Store:   store,
 			})
-			m2.RunMemPackage(memPkg, isRealm)
-			return m2.Package
+			return m2.RunMemPackage(memPkg, isRealm) // XXX , false)?
 		}
 		panic("unknown package path " + pkgPath)
 	}
@@ -330,7 +326,21 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode, pv *gno.PackageVa
 		pn.DefineGoNativeValue("ParseInt", strconv.ParseInt)
 		pn.PrepareNewValues(pv)
 	case "std":
-		// Nothing to do, see stdlibs/InjectPackage.
+		// Also see stdlibs/InjectPackage.
+		pn.DefineNative("IsOriginCall",
+			gno.Flds( // params
+			),
+			gno.Flds( // results
+				"isOrigin", "bool",
+			),
+			func(m *gno.Machine) {
+				isOrigin := len(m.Frames) == 3
+				res0 := gno.TypedValue{T: gno.BoolType}
+				res0.SetBool(isOrigin)
+				m.PushValue(res0)
+			},
+		)
+		pn.PrepareNewValues(pv)
 	}
 }
 

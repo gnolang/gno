@@ -4,10 +4,84 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+
+	"github.com/gnolang/gno/pkgs/errors"
 )
 
+// In the case of a *FileSet, some declaration steps have to happen
+// in a restricted parallel way across all the files.
+// Anything predefined or preprocessed here get skipped during the Preprocess
+// phase.
+func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
+	// First, initialize all file nodes and connect to package node.
+	for _, fn := range fset.Files {
+		fn.InitStaticBlock(fn, pn)
+	}
+	// NOTE: much of what follows is duplicated for a single *FileNode
+	// in the main Preprocess translation function.  Keep synced.
+	for _, fn := range fset.Files {
+		// Predefine all type decls and import decls.
+		for i := 0; i < len(fn.Decls); i++ {
+			d := fn.Decls[i]
+			switch d.(type) {
+			case *ImportDecl, *TypeDecl:
+				if d.GetAttribute(ATTR_PREDEFINED) == true {
+					// skip declarations already predefined
+					// (e.g. through recursion for a
+					// dependent)
+				} else {
+					// recursively predefine dependencies.
+					d2, _ := predefineNow(store, fn, d)
+					fn.Decls[i] = d2
+				}
+			}
+		}
+	}
+	for _, fn := range fset.Files {
+		// Then, predefine all func/method decls.
+		for i := 0; i < len(fn.Decls); i++ {
+			d := fn.Decls[i]
+			switch d.(type) {
+			case *FuncDecl:
+				if d.GetAttribute(ATTR_PREDEFINED) == true {
+					// skip declarations already
+					// predefined (e.g. through
+					// recursion for a dependent)
+				} else {
+					// recursively predefine
+					// dependencies.
+					d2, _ := predefineNow(store, fn, d)
+					fn.Decls[i] = d2
+				}
+			}
+		}
+	}
+	for _, fn := range fset.Files {
+		// Finally, predefine other decls and
+		// preprocess ValueDecls..
+		for i := 0; i < len(fn.Decls); i++ {
+			d := fn.Decls[i]
+			if d.GetAttribute(ATTR_PREDEFINED) == true {
+				// skip declarations already
+				// predefined (e.g. through
+				// recursion for a dependent)
+			} else {
+				// recursively predefine
+				// dependencies.
+				d2, _ := predefineNow(store, fn, d)
+				fn.Decls[i] = d2
+			}
+		}
+	}
+}
+
+// Preprocess n whose parent block node is ctx. If any names
+// are defined in another file, generally you must call
+// PredefineFileSet() on the whole fileset first before calling
+// Preprocess.
+//
 // The ctx passed in may be mutated if there are any statements
-// or declarations.  The file or package which contains ctx may
+// or declarations. The file or package which contains ctx may
 // be mutated if there are any file-level declarations.
 //
 // Store is used to load external package values, but otherwise
@@ -42,7 +116,12 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				for i, sbn := range stack {
 					fmt.Printf("stack #%d: %s\n", i, sbn.String())
 				}
-				panic(r)
+				if rerr, ok := r.(error); ok {
+					panic(rerr)
+				} else {
+					// gotuna/gorilla expects error exceptions.
+					panic(errors.New(fmt.Sprintf("%v", r)))
+				}
 			}
 		}()
 		if debug {
@@ -122,11 +201,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_BLOCK -----------------------
 			case *BlockStmt:
-				pushBlock(n, &last, &stack)
+				pushInitBlock(n, &last, &stack)
 
 			// TRANS_BLOCK -----------------------
 			case *ForStmt:
-				pushBlock(n, &last, &stack)
+				pushInitBlock(n, &last, &stack)
 
 			// TRANS_BLOCK -----------------------
 			case *IfStmt:
@@ -134,7 +213,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// the contents are copied onto the case block
 				// in the if case below for .Body and .Else.
 				// NOTE: similar to *SwitchStmt.
-				pushBlock(n, &last, &stack)
+				pushInitBlock(n, &last, &stack)
 
 			// TRANS_BLOCK -----------------------
 			case *IfCaseStmt:
@@ -149,7 +228,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_BLOCK -----------------------
 			case *RangeStmt:
-				pushBlock(n, &last, &stack)
+				pushInitBlock(n, &last, &stack)
 				// NOTE: preprocess it here, so type can
 				// be used to set n.IsMap/IsString and
 				// define key/value.
@@ -210,7 +289,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// retrieve cached function type.
 				ft := evalStaticType(store, last, &n.Type).(*FuncType)
 				// push func body block.
-				pushBlock(n, &last, &stack)
+				pushInitBlock(n, &last, &stack)
 				// define parameters in new block.
 				for _, p := range ft.Params {
 					last.Define(p.Name, anyValue(p.Type))
@@ -229,7 +308,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_BLOCK -----------------------
 			case *SelectCaseStmt:
-				pushBlock(n, &last, &stack)
+				pushInitBlock(n, &last, &stack)
 
 			// TRANS_BLOCK -----------------------
 			case *SwitchStmt:
@@ -244,7 +323,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// OpExec.SwitchStmt, but since we don't initially
 				// know which clause will match, we expand the
 				// block once a clause has matched.
-				pushBlock(n, &last, &stack)
+				pushInitBlock(n, &last, &stack)
 				if n.VarName != "" {
 					// NOTE: this defines for default clauses too,
 					// see comment on block copying @
@@ -324,7 +403,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				}
 
 				// push func body block.
-				pushBlock(n, &last, &stack)
+				pushInitBlock(n, &last, &stack)
 				// define receiver in new block, if method.
 				if n.IsMethod {
 					if 0 < len(n.Recv.Name) {
@@ -351,17 +430,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_BLOCK -----------------------
 			case *FileNode:
 				// only for imports.
-				pushBlock(n, &last, &stack)
+				pushInitBlock(n, &last, &stack)
 				{
 					// This logic supports out-of-order
-					// declarations.  this is required
-					// separately from the direct
-					// predefineNow() entry callbacks above,
-					// for otherwise out-of-order
-					// declarations would not get pre-defined
-					// before (say) the body of a function
-					// declaration or literl can refer to it.
-					// (this must happen after pushBlock
+					// declarations.
+					// (this must happen after pushInitBlock
 					// above, otherwise it would happen @
 					// *FileNode:ENTER)
 
@@ -1077,7 +1150,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// *NameExprs, and cannot be copied.
 					nx := n.X.(*NameExpr)
 					pv := last.GetValueRef(nil, nx.Name)
-					pn := pv.V.(*PackageValue).GetBlock(store).GetSource(store)
+					pn := pv.V.(*PackageValue).GetPackageNode(store)
 					n.Path = pn.GetPathForName(store, n.Sel)
 					// packages may contain constant vars,
 					// so check and evaluate if so.
@@ -1583,13 +1656,23 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	return nn
 }
 
-func pushBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
-	bn.InitStaticBlock(bn, *last)
+func pushInitBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
+	if !bn.IsInitialized() {
+		bn.InitStaticBlock(bn, *last)
+	} else {
+		// This may happen when PredefineFileSet() followed by Preprocess().
+		if _, ok := bn.(*FileNode); !ok {
+			panic("unexpected initialized block node type")
+		}
+	}
+	if bn.GetStaticBlock().Source != bn {
+		panic("expected the source of a block node to be itself")
+	}
 	*last = bn
 	*stack = append(*stack, bn)
 }
 
-// like pushBlock(), but when the last block is a faux block,
+// like pushInitBlock(), but when the last block is a faux block,
 // namely after SwitchStmt and IfStmt.
 func pushRealBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
 	orig := *last
@@ -2398,17 +2481,11 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 			// look up dependency declaration from fileset.
 			file, decl := pkg.FileSet.GetDeclFor(un)
 			// preprocess if not already preprocessed.
-			if file.GetParentNode(nil) == nil {
-				file = Preprocess(store, pkg, file).(*FileNode)
-				if debug {
-					if file.GetParentNode(nil) == nil {
-						panic("expected Preprocess to set file.ParentNode.")
-					}
-				}
-			} else {
-				// predefine dependency (recursive).
-				*decl, _ = predefineNow2(store, file, *decl, m)
+			if !file.IsInitialized() {
+				panic("all types from files in file-set should have already been predefined")
 			}
+			// predefine dependency (recursive).
+			*decl, _ = predefineNow2(store, file, *decl, m)
 		} else {
 			break
 		}
@@ -2595,7 +2672,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 					))
 				}
 				// check package node for name.
-				pn := pv.GetBlock(store).GetSource(store).(*PackageNode)
+				pn := pv.GetPackageNode(store)
 				tx.Path = pn.GetPathForName(store, tx.Sel)
 				ptr := pv.GetBlock(store).GetPointerTo(store, tx.Path)
 				t = ptr.TV.T

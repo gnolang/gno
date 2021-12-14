@@ -27,6 +27,10 @@ func (tree *Tree) Size() int {
 	return tree.size
 }
 
+func (tree *Tree) IsLeaf() bool {
+	return tree.height == 0
+}
+
 func (tree *Tree) Value() interface{} {
 	return tree.value
 }
@@ -280,50 +284,70 @@ func (tree *Tree) balance() (newSelf *Tree) {
 	return tree
 }
 
-// traverse is a wrapper over traverseInRange when we want the whole tree
-func (tree *Tree) Traverse(ascending bool, cb func(*Tree) bool) bool {
-	return tree.TraverseInRange("", "", ascending, cb)
+// Shortcut for TraverseInRange.
+func (tree *Tree) Iterate(start, end string, cb func(*Tree) bool) bool {
+	return tree.TraverseInRange(start, end, true, true, cb)
 }
 
-func (tree *Tree) TraverseInRange(start, end string, ascending bool, cb func(*Tree) bool) bool {
+// Shortcut for TraverseInRange.
+func (tree *Tree) IterateReverse(start, end string, cb func(*Tree) bool) bool {
+	return tree.TraverseInRange(start, end, false, true, cb)
+}
+
+// TraverseInRange traverses all nodes, including inner nodes.
+// Start is inclusive and end is exclusive when ascending,
+// Start and end are inclusive when descending.
+// Empty start and empty end denote no start and no end.
+// If leavesOnly is true, only visit leaf nodes.
+// NOTE: To simulate an exclusive reverse traversal,
+// just append 0x00 to start.
+func (tree *Tree) TraverseInRange(start, end string, ascending bool, leavesOnly bool, cb func(*Tree) bool) bool {
 	if tree == nil {
 		return false
 	}
-	afterStart := (start == "" || start <= tree.key)
-	beforeEnd := (end == "" || tree.key <= end)
-
-	stop := false
-	if afterStart && beforeEnd {
-		// IterateRange ignores this if not leaf
-		stop = cb(tree)
+	afterStart := (start == "" || start < tree.key)
+	startOrAfter := (start == "" || start <= tree.key)
+	beforeEnd := false
+	if ascending {
+		beforeEnd = (end == "" || tree.key < end)
+	} else {
+		beforeEnd = (end == "" || tree.key <= end)
 	}
-	if stop {
+
+	// Run callback per inner/leaf node.
+	stop := false
+	if (!tree.IsLeaf() && !leavesOnly) ||
+		(tree.IsLeaf() && startOrAfter && beforeEnd) {
+		stop = cb(tree)
+		if stop {
+			return stop
+		}
+	}
+	if tree.IsLeaf() {
 		return stop
 	}
 
-	if tree.height > 0 {
-		if ascending {
-			// check lower trees, then higher
-			if afterStart {
-				stop = tree.getLeftTree().TraverseInRange(start, end, ascending, cb)
-			}
-			if stop {
-				return stop
-			}
-			if beforeEnd {
-				stop = tree.getRightTree().TraverseInRange(start, end, ascending, cb)
-			}
-		} else {
-			// check the higher trees first
-			if beforeEnd {
-				stop = tree.getRightTree().TraverseInRange(start, end, ascending, cb)
-			}
-			if stop {
-				return stop
-			}
-			if afterStart {
-				stop = tree.getLeftTree().TraverseInRange(start, end, ascending, cb)
-			}
+	if ascending {
+		// check lower trees, then higher
+		if afterStart {
+			stop = tree.getLeftTree().TraverseInRange(start, end, ascending, leavesOnly, cb)
+		}
+		if stop {
+			return stop
+		}
+		if beforeEnd {
+			stop = tree.getRightTree().TraverseInRange(start, end, ascending, leavesOnly, cb)
+		}
+	} else {
+		// check the higher trees first
+		if beforeEnd {
+			stop = tree.getRightTree().TraverseInRange(start, end, ascending, leavesOnly, cb)
+		}
+		if stop {
+			return stop
+		}
+		if afterStart {
+			stop = tree.getLeftTree().TraverseInRange(start, end, ascending, leavesOnly, cb)
 		}
 	}
 

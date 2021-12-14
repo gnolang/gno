@@ -10,12 +10,17 @@ import (
 	"github.com/jaekwon/testify/assert"
 )
 
-func gonativeTestStore(pvs ...*PackageValue) Store {
+// args is an even number of elements,
+// the even index items are package nodes,
+// and the odd index items are corresponding package values.
+func gonativeTestStore(args ...interface{}) Store {
 	store := NewStore(nil, nil)
-	store.SetPackageGetter(func(pkgPath string) *PackageValue {
-		for _, pv := range pvs {
+	store.SetPackageGetter(func(pkgPath string) (*PackageNode, *PackageValue) {
+		for i := 0; i < len(args)/2; i++ {
+			pn := args[i*2].(*PackageNode)
+			pv := args[i*2+1].(*PackageValue)
 			if pkgPath == pv.PkgPath {
-				return pv
+				return pn, pv
 			}
 		}
 		panic("should not happen")
@@ -43,7 +48,7 @@ func TestGoNativeDefine(t *testing.T) {
 	pv := pkg.NewPackage()
 	nt = pv.GetBlock(nil).GetPointerTo(nil, path).TV.GetType().(*NativeType)
 	assert.Equal(t, nt.Type, rt)
-	store := gonativeTestStore(pv)
+	store := gonativeTestStore(pkg, pv)
 
 	// Import above package and evaluate foo.Foo.
 	m := NewMachineWithOptions(MachineOptions{
@@ -61,7 +66,7 @@ func TestGoNativeDefine2(t *testing.T) {
 	rt := reflect.TypeOf(Foo{})
 	pkg.DefineGoNativeType(rt)
 	pv := pkg.NewPackage()
-	store := gonativeTestStore(pv)
+	store := gonativeTestStore(pkg, pv)
 
 	// Import above package and run file.
 	out := new(bytes.Buffer)
@@ -101,7 +106,7 @@ func TestGoNativeDefine3(t *testing.T) {
 		out.Write([]byte(fmt.Sprintf("D: %v\n", f.D)))
 	})
 	pv := pkg.NewPackage()
-	store := gonativeTestStore(pv)
+	store := gonativeTestStore(pkg, pv)
 
 	// Import above package and run file.
 	m := NewMachineWithOptions(MachineOptions{

@@ -29,8 +29,9 @@ func main() {
 
 	app.Router.Handle("/", handlerHome(app))
 	app.Router.Handle("/p/{pkgpath:.*}", handlerPackage(app))
-	app.Router.Handle("/r/{rlmpath}", handlerRealm(app))
-	app.Router.Handle("/r/{rlmpath}/{expr}", handlerRealmExpr(app))
+	app.Router.Handle("/r/{rlmpath:[a-zA-Z][a-zA-Z0-9_]*}", handlerRealm(app))
+	app.Router.Handle("/r/{rlmpath:[a-zA-Z][a-zA-Z0-9_]*}.{expr}", handlerRealmExpr(app))
+	app.Router.Handle("/r/{rlmpath:[a-zA-Z][a-zA-Z0-9_]*}/{path:.+}", handlerRealmPath(app))
 	//app.Router.Handle("/login", handlerLogin(app)).Methods(http.MethodGet, http.MethodPost)
 
 	fmt.Println("Running on http://localhost:8888")
@@ -58,7 +59,7 @@ func handlerRealm(app gotuna.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		rlmPath := "gno.land/r/" + vars["rlmpath"]
-		expr := "Render()"
+		expr := "Render(\"\")"
 
 		qpath := "vm/qeval"
 		data := []byte(fmt.Sprintf("%s\n%s", rlmPath, expr))
@@ -112,6 +113,56 @@ func handlerRealmExpr(app gotuna.App) http.Handler {
 
 		qpath := "vm/qeval"
 		data := []byte(fmt.Sprintf("%s\n%s", rlmPath, expr))
+		opts2 := client.ABCIQueryOptions{
+			// Height: height, XXX
+			// Prove: false, XXX
+		}
+		remote := "127.0.0.1:26657"
+		cli := client.NewHTTP(remote, "/websocket")
+		qres, err := cli.ABCIQueryWithOptions(
+			qpath, data, opts2)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		if qres.Response.Error != nil {
+			fmt.Printf("Log: %s\n",
+				qres.Response.Log)
+			writeError(w, qres.Response.Error)
+			return
+		}
+		resdata := qres.Response.Data
+		resstr := string(resdata)
+		// NOTE: HACKY.
+		if strings.HasSuffix(resstr, " string)") {
+			resstr2 := resstr[1 : len(resstr)-len(" string)")]
+			resstr3, err := strconv.Unquote(resstr2)
+			if err != nil {
+				w.WriteHeader(500)
+				w.Write([]byte(
+					fmt.Sprintf("error unquoting result: %q", resstr2)))
+				return
+			}
+			tmpl := app.NewTemplatingEngine()
+			tmpl.Set("Contents", template.HTML(resstr3))
+			tmpl.Render(w, r, "app.html")
+			return
+		} else {
+			w.WriteHeader(200)
+			w.Write([]byte(resstr))
+			return
+		}
+	})
+}
+
+func handlerRealmPath(app gotuna.App) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		rlmPath := "gno.land/r/" + vars["rlmpath"]
+		path := vars["path"]
+
+		qpath := "vm/qpath"
+		data := []byte(fmt.Sprintf("%s\n%s", rlmPath, path))
 		opts2 := client.ABCIQueryOptions{
 			// Height: height, XXX
 			// Prove: false, XXX
