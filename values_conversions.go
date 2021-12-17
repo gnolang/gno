@@ -720,9 +720,15 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 				tv.T.String()))
 		}
 		if isUntyped(t) {
-			panic(fmt.Sprintf(
-				"ConvertUntypedTo expects typed target but got %s",
-				t.String()))
+			ptv, ok1 := baseOf(tv.T).(PrimitiveType)
+			pt, ok2 := baseOf(t).(PrimitiveType)
+			if ok1 && ok2 && ptv.Specificity() > pt.Specificity() {
+				// ok
+			} else {
+				panic(fmt.Sprintf(
+					"ConvertUntypedTo expects more specific target but got %s",
+					t.String()))
+			}
 		}
 	}
 	// special case: native

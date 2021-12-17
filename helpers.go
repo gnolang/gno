@@ -99,6 +99,12 @@ func Recv(n, t interface{}) FieldTypeExpr {
 	}
 }
 
+func MaybeNativeT(tx interface{}) *MaybeNativeTypeExpr {
+	return &MaybeNativeTypeExpr{
+		Type: X(tx),
+	}
+}
+
 func FuncD(name interface{}, params, results FieldTypeExprs, body []Stmt) *FuncDecl {
 	return &FuncDecl{
 		NameExpr: *Nx(name),

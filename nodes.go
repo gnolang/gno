@@ -188,58 +188,59 @@ type Node interface {
 }
 
 // non-pointer receiver to help make immutable.
-func (_ *NameExpr) assertNode()          {}
-func (_ *BasicLitExpr) assertNode()      {}
-func (_ *BinaryExpr) assertNode()        {}
-func (_ *CallExpr) assertNode()          {}
-func (_ *IndexExpr) assertNode()         {}
-func (_ *SelectorExpr) assertNode()      {}
-func (_ *SliceExpr) assertNode()         {}
-func (_ *StarExpr) assertNode()          {}
-func (_ *RefExpr) assertNode()           {}
-func (_ *TypeAssertExpr) assertNode()    {}
-func (_ *UnaryExpr) assertNode()         {}
-func (_ *CompositeLitExpr) assertNode()  {}
-func (_ *KeyValueExpr) assertNode()      {}
-func (_ *FuncLitExpr) assertNode()       {}
-func (_ *ConstExpr) assertNode()         {}
-func (_ *FieldTypeExpr) assertNode()     {}
-func (_ *ArrayTypeExpr) assertNode()     {}
-func (_ *SliceTypeExpr) assertNode()     {}
-func (_ *InterfaceTypeExpr) assertNode() {}
-func (_ *ChanTypeExpr) assertNode()      {}
-func (_ *FuncTypeExpr) assertNode()      {}
-func (_ *MapTypeExpr) assertNode()       {}
-func (_ *StructTypeExpr) assertNode()    {}
-func (_ *constTypeExpr) assertNode()     {}
-func (_ *AssignStmt) assertNode()        {}
-func (_ *BlockStmt) assertNode()         {}
-func (_ *BranchStmt) assertNode()        {}
-func (_ *DeclStmt) assertNode()          {}
-func (_ *DeferStmt) assertNode()         {}
-func (_ *ExprStmt) assertNode()          {}
-func (_ *ForStmt) assertNode()           {}
-func (_ *GoStmt) assertNode()            {}
-func (_ *IfStmt) assertNode()            {}
-func (_ *IfCaseStmt) assertNode()        {}
-func (_ *IncDecStmt) assertNode()        {}
-func (_ *LabeledStmt) assertNode()       {}
-func (_ *RangeStmt) assertNode()         {}
-func (_ *ReturnStmt) assertNode()        {}
-func (_ *PanicStmt) assertNode()         {}
-func (_ *SelectStmt) assertNode()        {}
-func (_ *SelectCaseStmt) assertNode()    {}
-func (_ *SendStmt) assertNode()          {}
-func (_ *SwitchStmt) assertNode()        {}
-func (_ *SwitchClauseStmt) assertNode()  {}
-func (_ *EmptyStmt) assertNode()         {}
-func (_ *bodyStmt) assertNode()          {}
-func (_ *FuncDecl) assertNode()          {}
-func (_ *ImportDecl) assertNode()        {}
-func (_ *ValueDecl) assertNode()         {}
-func (_ *TypeDecl) assertNode()          {}
-func (_ *FileNode) assertNode()          {}
-func (_ *PackageNode) assertNode()       {}
+func (_ *NameExpr) assertNode()            {}
+func (_ *BasicLitExpr) assertNode()        {}
+func (_ *BinaryExpr) assertNode()          {}
+func (_ *CallExpr) assertNode()            {}
+func (_ *IndexExpr) assertNode()           {}
+func (_ *SelectorExpr) assertNode()        {}
+func (_ *SliceExpr) assertNode()           {}
+func (_ *StarExpr) assertNode()            {}
+func (_ *RefExpr) assertNode()             {}
+func (_ *TypeAssertExpr) assertNode()      {}
+func (_ *UnaryExpr) assertNode()           {}
+func (_ *CompositeLitExpr) assertNode()    {}
+func (_ *KeyValueExpr) assertNode()        {}
+func (_ *FuncLitExpr) assertNode()         {}
+func (_ *ConstExpr) assertNode()           {}
+func (_ *FieldTypeExpr) assertNode()       {}
+func (_ *ArrayTypeExpr) assertNode()       {}
+func (_ *SliceTypeExpr) assertNode()       {}
+func (_ *InterfaceTypeExpr) assertNode()   {}
+func (_ *ChanTypeExpr) assertNode()        {}
+func (_ *FuncTypeExpr) assertNode()        {}
+func (_ *MapTypeExpr) assertNode()         {}
+func (_ *StructTypeExpr) assertNode()      {}
+func (_ *constTypeExpr) assertNode()       {}
+func (_ *MaybeNativeTypeExpr) assertNode() {}
+func (_ *AssignStmt) assertNode()          {}
+func (_ *BlockStmt) assertNode()           {}
+func (_ *BranchStmt) assertNode()          {}
+func (_ *DeclStmt) assertNode()            {}
+func (_ *DeferStmt) assertNode()           {}
+func (_ *ExprStmt) assertNode()            {}
+func (_ *ForStmt) assertNode()             {}
+func (_ *GoStmt) assertNode()              {}
+func (_ *IfStmt) assertNode()              {}
+func (_ *IfCaseStmt) assertNode()          {}
+func (_ *IncDecStmt) assertNode()          {}
+func (_ *LabeledStmt) assertNode()         {}
+func (_ *RangeStmt) assertNode()           {}
+func (_ *ReturnStmt) assertNode()          {}
+func (_ *PanicStmt) assertNode()           {}
+func (_ *SelectStmt) assertNode()          {}
+func (_ *SelectCaseStmt) assertNode()      {}
+func (_ *SendStmt) assertNode()            {}
+func (_ *SwitchStmt) assertNode()          {}
+func (_ *SwitchClauseStmt) assertNode()    {}
+func (_ *EmptyStmt) assertNode()           {}
+func (_ *bodyStmt) assertNode()            {}
+func (_ *FuncDecl) assertNode()            {}
+func (_ *ImportDecl) assertNode()          {}
+func (_ *ValueDecl) assertNode()           {}
+func (_ *TypeDecl) assertNode()            {}
+func (_ *FileNode) assertNode()            {}
+func (_ *PackageNode) assertNode()         {}
 
 var _ Node = &NameExpr{}
 var _ Node = &BasicLitExpr{}
@@ -265,6 +266,7 @@ var _ Node = &FuncTypeExpr{}
 var _ Node = &MapTypeExpr{}
 var _ Node = &StructTypeExpr{}
 var _ Node = &constTypeExpr{}
+var _ Node = &MaybeNativeTypeExpr{}
 var _ Node = &AssignStmt{}
 var _ Node = &BlockStmt{}
 var _ Node = &BranchStmt{}
@@ -502,25 +504,27 @@ type TypeExpr interface {
 }
 
 // non-pointer receiver to help make immutable.
-func (_ *FieldTypeExpr) assertTypeExpr()     {}
-func (_ *ArrayTypeExpr) assertTypeExpr()     {}
-func (_ *SliceTypeExpr) assertTypeExpr()     {}
-func (_ *InterfaceTypeExpr) assertTypeExpr() {}
-func (_ *ChanTypeExpr) assertTypeExpr()      {}
-func (_ *FuncTypeExpr) assertTypeExpr()      {}
-func (_ *MapTypeExpr) assertTypeExpr()       {}
-func (_ *StructTypeExpr) assertTypeExpr()    {}
-func (_ *constTypeExpr) assertTypeExpr()     {}
+func (_ *FieldTypeExpr) assertTypeExpr()       {}
+func (_ *ArrayTypeExpr) assertTypeExpr()       {}
+func (_ *SliceTypeExpr) assertTypeExpr()       {}
+func (_ *InterfaceTypeExpr) assertTypeExpr()   {}
+func (_ *ChanTypeExpr) assertTypeExpr()        {}
+func (_ *FuncTypeExpr) assertTypeExpr()        {}
+func (_ *MapTypeExpr) assertTypeExpr()         {}
+func (_ *StructTypeExpr) assertTypeExpr()      {}
+func (_ *constTypeExpr) assertTypeExpr()       {}
+func (_ *MaybeNativeTypeExpr) assertTypeExpr() {}
 
-func (_ *FieldTypeExpr) assertExpr()     {}
-func (_ *ArrayTypeExpr) assertExpr()     {}
-func (_ *SliceTypeExpr) assertExpr()     {}
-func (_ *InterfaceTypeExpr) assertExpr() {}
-func (_ *ChanTypeExpr) assertExpr()      {}
-func (_ *FuncTypeExpr) assertExpr()      {}
-func (_ *MapTypeExpr) assertExpr()       {}
-func (_ *StructTypeExpr) assertExpr()    {}
-func (_ *constTypeExpr) assertExpr()     {}
+func (_ *FieldTypeExpr) assertExpr()       {}
+func (_ *ArrayTypeExpr) assertExpr()       {}
+func (_ *SliceTypeExpr) assertExpr()       {}
+func (_ *InterfaceTypeExpr) assertExpr()   {}
+func (_ *ChanTypeExpr) assertExpr()        {}
+func (_ *FuncTypeExpr) assertExpr()        {}
+func (_ *MapTypeExpr) assertExpr()         {}
+func (_ *StructTypeExpr) assertExpr()      {}
+func (_ *constTypeExpr) assertExpr()       {}
+func (_ *MaybeNativeTypeExpr) assertExpr() {}
 
 var _ TypeExpr = &FieldTypeExpr{}
 var _ TypeExpr = &ArrayTypeExpr{}
@@ -531,6 +535,7 @@ var _ TypeExpr = &FuncTypeExpr{}
 var _ TypeExpr = &MapTypeExpr{}
 var _ TypeExpr = &StructTypeExpr{}
 var _ TypeExpr = &constTypeExpr{}
+var _ TypeExpr = &MaybeNativeTypeExpr{}
 
 type FieldTypeExpr struct {
 	Attributes
@@ -616,6 +621,12 @@ type constTypeExpr struct {
 	Attributes
 	Source Expr
 	Type   Type
+}
+
+// Only used for native func arguments
+type MaybeNativeTypeExpr struct {
+	Attributes
+	Type Expr
 }
 
 //----------------------------------------
@@ -1108,7 +1119,7 @@ func ParseMemPackageTests(memPkg std.MemPackage) (tset, itset *FileSet) {
 		n := MustParseFile(mfile.Name, mfile.Body)
 		if strings.HasSuffix(mfile.Name, "_test.go") {
 			// add test file.
-			if memPkg.Name+" _test" == string(n.PkgName) {
+			if memPkg.Name+"_test" == string(n.PkgName) {
 				itset.AddFiles(n)
 			} else {
 				tset.AddFiles(n)
@@ -1158,8 +1169,16 @@ func (fs *FileSet) GetDeclFor(n Name) (*FileNode, *Decl) {
 		}
 	}
 	panic(fmt.Sprintf(
-		"name %s not defined in fileset %v",
-		n, fs))
+		"name %s not defined in fileset with files %v",
+		n, fs.FileNames()))
+}
+
+func (fs *FileSet) FileNames() []string {
+	res := make([]string, len(fs.Files))
+	for i, fn := range fs.Files {
+		res[i] = string(fn.Name)
+	}
+	return res
 }
 
 //----------------------------------------

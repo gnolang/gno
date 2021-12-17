@@ -171,6 +171,12 @@ func (x *StructTypeExpr) Copy() Node {
 	}
 }
 
+func (x *MaybeNativeTypeExpr) Copy() Node {
+	return &MaybeNativeTypeExpr{
+		Type: x.Type.Copy().(Expr),
+	}
+}
+
 func (x *AssignStmt) Copy() Node {
 	return &AssignStmt{
 		Lhs: copyExprs(x.Lhs),

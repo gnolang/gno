@@ -636,15 +636,16 @@ const (
 	OpCallGoNative      Op = 0x63
 
 	/* Type operators */
-	OpFieldType     Op = 0x70 // Name: X `tag`
-	OpArrayType     Op = 0x71 // [X]Y{}
-	OpSliceType     Op = 0x72 // []X{}
-	OpPointerType   Op = 0x73 // *X
-	OpInterfaceType Op = 0x74 // interface{...}
-	OpChanType      Op = 0x75 // [<-]chan[<-]X
-	OpFuncType      Op = 0x76 // func(params...)results...
-	OpMapType       Op = 0x77 // map[X]Y
-	OpStructType    Op = 0x78 // struct{...}
+	OpFieldType       Op = 0x70 // Name: X `tag`
+	OpArrayType       Op = 0x71 // [X]Y{}
+	OpSliceType       Op = 0x72 // []X{}
+	OpPointerType     Op = 0x73 // *X
+	OpInterfaceType   Op = 0x74 // interface{...}
+	OpChanType        Op = 0x75 // [<-]chan[<-]X
+	OpFuncType        Op = 0x76 // func(params...)results...
+	OpMapType         Op = 0x77 // map[X]Y
+	OpStructType      Op = 0x78 // struct{...}
+	OpMaybeNativeType Op = 0x79 // maybenative{X}
 
 	/* Statement operators */
 	OpAssign      Op = 0x80 // Lhs = Rhs
@@ -844,6 +845,8 @@ func (m *Machine) Run() {
 			m.doOpStructType()
 		case OpInterfaceType:
 			m.doOpInterfaceType()
+		case OpMaybeNativeType:
+			m.doOpMaybeNativeType()
 		/* Statement operators */
 		case OpAssign:
 			m.doOpAssign()

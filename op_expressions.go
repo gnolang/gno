@@ -407,17 +407,25 @@ func (m *Machine) doOpArrayLit() {
 	// construct array value.
 	av := defaultArrayValue(bt)
 	if 0 < ne {
-		al := av.List
+		al, ad := av.List, av.Data
 		vs := m.PopValues(ne)
 		idx := 0
 		for i, v := range vs {
 			if kx := x.Elts[i].Key; kx != nil {
 				// XXX why convert?
 				k := kx.(*ConstExpr).ConvertGetInt()
-				al[k] = v
+				if al == nil {
+					ad[k] = v.GetUint8()
+				} else {
+					al[k] = v
+				}
 				idx = k + 1
 			} else {
-				al[idx] = v
+				if al == nil {
+					ad[idx] = v.GetUint8()
+				} else {
+					al[idx] = v
+				}
 				idx++
 			}
 		}

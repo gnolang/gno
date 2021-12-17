@@ -165,6 +165,17 @@ func (m *Machine) doOpChanType() {
 	}
 }
 
+func (m *Machine) doOpMaybeNativeType() {
+	tv := m.PeekValue(1) // re-use as result.
+	mnt := &MaybeNativeType{
+		Type: tv.GetType(),
+	}
+	*tv = TypedValue{
+		T: gTypeType,
+		V: toTypeValue(mnt),
+	}
+}
+
 // Evaluate the type of a typed (i.e. not untyped) value.
 // This function expects const expressions to have been
 // already swapped for *ConstExpr in the preprocessor.  If not, panics.

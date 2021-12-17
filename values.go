@@ -405,6 +405,21 @@ type FuncValue struct {
 	pkg        *PackageValue
 }
 
+func (fv *FuncValue) Copy() *FuncValue {
+	return &FuncValue{
+		Type:       fv.Type,
+		IsMethod:   fv.IsMethod,
+		Source:     fv.Source,
+		Name:       fv.Name,
+		Closure:    fv.Closure,
+		FileName:   fv.FileName,
+		PkgPath:    fv.PkgPath,
+		body:       fv.body,
+		nativeBody: fv.nativeBody,
+		pkg:        fv.pkg,
+	}
+}
+
 func (fv *FuncValue) GetType(store Store) *FuncType {
 	switch ct := fv.Type.(type) {
 	case nil:
@@ -1402,7 +1417,7 @@ func (tv *TypedValue) Assign(tv2 TypedValue, cu bool) {
 		default:
 			panic("should not happen")
 		}
-	case *StructType: // XXX path index+other.
+	case *StructType:
 		if !tv2.IsUndefined() {
 			if debug {
 				if tv.T.TypeID() != tv2.T.TypeID() {
@@ -1411,7 +1426,6 @@ func (tv *TypedValue) Assign(tv2 TypedValue, cu bool) {
 				}
 			}
 		}
-		// XXX fix realm refcount logic.
 		*tv = tv2.Copy()
 	case nil:
 		*tv = tv2.Copy()

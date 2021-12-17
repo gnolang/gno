@@ -109,11 +109,11 @@ func UverseNode() *PackageNode {
 	// Functions
 	defNative("append",
 		Flds( // params
-			"x", SliceT(GenT("X", nil)), // args[0]
-			"args", Vrd(GenT("X", nil)), // args[1]
+			"x", GenT("X", nil), // args[0]
+			"args", MaybeNativeT(Vrd(GenT("X.Elem()", nil))), // args[1]
 		),
 		Flds( // results
-			"res", SliceT(GenT("X", nil)), // res
+			"res", GenT("X", nil), // res
 		),
 		func(m *Machine) {
 			arg0, arg1 := m.LastBlock().GetParams2()
@@ -573,9 +573,13 @@ func UverseNode() *PackageNode {
 					}
 					res0.SetInt(minl)
 					m.PushValue(res0)
+				case *NativeType:
+					panic("copy from native slice not yet implemented") // XXX
 				default:
 					panic("should not happen")
 				}
+			case *NativeType:
+				panic("copy to native slice not yet implemented") // XXX
 			default:
 				panic("should not happen")
 			}
@@ -590,12 +594,13 @@ func UverseNode() *PackageNode {
 		func(m *Machine) {
 			arg0, arg1 := m.LastBlock().GetParams2()
 			itv := arg1.Deref()
-			switch baseOf(arg0.TV.T).(type) {
+			switch cbt := baseOf(arg0.TV.T).(type) {
 			case *MapType:
 				mv := arg0.TV.V.(*MapValue)
 				mv.DeleteForKey(m.Store, &itv)
 			case *NativeType:
-				krv := gno2GoValue(&itv, reflect.Value{})
+				krv := reflect.New(cbt.Type.Key()).Elem()
+				krv = gno2GoValue(&itv, krv)
 				mrv := arg0.TV.V.(*NativeValue).Value
 				mrv.SetMapIndex(krv, reflect.Value{})
 			default:

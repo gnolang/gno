@@ -265,6 +265,11 @@ func (m *Machine) doOpEval() {
 		m.PushOp(OpChanType)
 		m.PushExpr(x.Value)
 		m.PushOp(OpEval) // OpEvalType?
+	case *MaybeNativeTypeExpr:
+		m.PopExpr()
+		m.PushOp(OpMaybeNativeType)
+		m.PushExpr(x.Type)
+		m.PushOp(OpEval)
 	default:
 		panic(fmt.Sprintf("unexpected expression %#v", x))
 	}

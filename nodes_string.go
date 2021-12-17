@@ -246,6 +246,10 @@ func (n StructTypeExpr) String() string {
 	return fmt.Sprintf("struct { %v }", n.Fields)
 }
 
+func (n MaybeNativeTypeExpr) String() string {
+	return fmt.Sprintf("maybenative(%s)", n.Type.String())
+}
+
 func (n AssignStmt) String() string {
 	return fmt.Sprintf("%v %s %v", n.Lhs, n.Op.TokenString(), n.Rhs)
 }
@@ -443,7 +447,7 @@ func (n TypeDecl) String() string {
 }
 
 func (n FileNode) String() string {
-	return fmt.Sprintf("file{ package %s; %s }", n.PkgName, n.Decls.String())
+	return fmt.Sprintf("file{ package %s ... }", n.PkgName) // , n.Decls.String())
 }
 
 func (n PackageNode) String() string {

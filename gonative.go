@@ -95,6 +95,9 @@ func go2GnoBaseType(rt reflect.Type) Type {
 // memoized in *NativeType.GnoType() for type inference in the
 // preprocessor, as well as in the go2GnoCache lookup map to
 // support recursive translations.
+// The namedness of the native type gets converted to an
+// appropriate gno *DeclaredType with native methods
+// converted via go2GnoFuncType().
 func go2GnoType2(rt reflect.Type) (t Type) {
 	if gnot, ok := go2GnoCache[rt]; ok {
 		return gnot
@@ -114,10 +117,10 @@ func go2GnoType2(rt reflect.Type) (t Type) {
 			} else {
 				prt := rt
 				if rt.Kind() != reflect.Ptr {
-					// NOTE: go reflect requires ptr kind for
-					// methods with ptr receivers, whereas gno
-					// methods are all declared on the
-					// *DeclaredType.
+					// NOTE: go reflect requires ptr kind
+					// for methods with ptr receivers,
+					// whereas gno methods are all
+					// declared on the *DeclaredType.
 					prt = reflect.PtrTo(rt)
 				}
 				nm := prt.NumMethod()
@@ -223,7 +226,7 @@ func go2GnoType2(rt reflect.Type) (t Type) {
 			mthd := rt.Method(i)
 			fs[i] = FieldType{
 				Name: Name(mthd.Name),
-				Type: go2GnoType2(mthd.Type),
+				Type: go2GnoType2(mthd.Type), // recursive
 			}
 		}
 		it.PkgPath = rt.PkgPath()
@@ -239,8 +242,7 @@ func go2GnoType2(rt reflect.Type) (t Type) {
 		return mt
 	case reflect.Ptr:
 		return &PointerType{
-			// this is the only recursive call to go2GnoType2().
-			Elt: go2GnoType2(rt.Elem()),
+			Elt: go2GnoType2(rt.Elem()), // recursive
 		}
 	case reflect.Struct:
 		// predefine gno type
@@ -655,11 +657,11 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 	return
 }
 
-// This function is like go2GnoValue() but less lazy (but still
-// not recursive/eager). It is for converting Go types to Gno
-// types upon an explicit conversion (via ConvertTo).  Panics on
-// unexported/private fields. Some types that cannot be converted
-// remain native. Unlike go2GnoValue(), rv must be valid.
+// This function is like go2GnoValue() but less lazy (but still not
+// recursive/eager unless recursive is true). When recursive is false, it is
+// for converting Go types to Gno types upon an explicit conversion (via
+// ConvertTo).  Panics on unexported/private fields. Some types that cannot
+// be converted remain native. Unlike go2GnoValue(), rv must be valid.
 func go2GnoValue2(rv reflect.Value, recursive bool) (tv TypedValue) {
 	if debug {
 		if !rv.IsValid() {
@@ -774,6 +776,8 @@ func go2GnoValue2(rv reflect.Value, recursive bool) (tv TypedValue) {
 
 // Converts native go function type to gno *FuncType,
 // for the preprocessor to infer types of arguments.
+// The argument and return types are shallowly converted
+// to gno types, (to preserve the original native types).
 func go2GnoFuncType(rt reflect.Type) *FuncType {
 	// prewdefine func type
 	ft := &FuncType{}

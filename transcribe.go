@@ -59,6 +59,7 @@ const (
 	TRANS_MAPTYPE_KEY
 	TRANS_MAPTYPE_VALUE
 	TRANS_STRUCTTYPE_FIELD
+	TRANS_MAYBENATIVETYPE_TYPE
 	TRANS_ASSIGN_LHS
 	TRANS_ASSIGN_RHS
 	TRANS_BLOCK_BODY
@@ -352,6 +353,11 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			} else if isStopOrSkip(nc, c) {
 				return
 			}
+		}
+	case *MaybeNativeTypeExpr:
+		cnn.Type = transcribe(t, nns, TRANS_MAYBENATIVETYPE_TYPE, 0, cnn.Type, &c).(Expr)
+		if isStopOrSkip(nc, c) {
+			return
 		}
 	case *AssignStmt:
 		for idx, _ := range cnn.Lhs {

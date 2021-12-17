@@ -19,7 +19,7 @@ func md5Crypt(password, salt, magic []byte) []byte {
 		d.Write([]byte{mixin[i%16]})
 	}
 
-	return d.Sum(nil)
+	return ([]byte)(d.Sum(nil)) // gonative{[]byte} -> []byte
 }
 
 func main() {

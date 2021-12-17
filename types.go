@@ -53,23 +53,24 @@ func typeid(f string, args ...interface{}) (tid TypeID) {
 // of the language to enable mass scale persistence, we
 // cannot use pointer equality to test for type equality.
 // Instead, for checking equalty use the TypeID.
-func (PrimitiveType) assertType()  {}
-func (*PointerType) assertType()   {}
-func (FieldType) assertType()      {}
-func (*ArrayType) assertType()     {}
-func (*SliceType) assertType()     {}
-func (*StructType) assertType()    {}
-func (*FuncType) assertType()      {}
-func (*MapType) assertType()       {}
-func (*InterfaceType) assertType() {}
-func (*TypeType) assertType()      {}
-func (*DeclaredType) assertType()  {}
-func (*PackageType) assertType()   {}
-func (*ChanType) assertType()      {}
-func (*NativeType) assertType()    {}
-func (blockType) assertType()      {}
-func (*tupleType) assertType()     {}
-func (RefType) assertType()        {}
+func (PrimitiveType) assertType()   {}
+func (*PointerType) assertType()    {}
+func (FieldType) assertType()       {}
+func (*ArrayType) assertType()      {}
+func (*SliceType) assertType()      {}
+func (*StructType) assertType()     {}
+func (*FuncType) assertType()       {}
+func (*MapType) assertType()        {}
+func (*InterfaceType) assertType()  {}
+func (*TypeType) assertType()       {}
+func (*DeclaredType) assertType()   {}
+func (*PackageType) assertType()    {}
+func (*ChanType) assertType()       {}
+func (*NativeType) assertType()     {}
+func (blockType) assertType()       {}
+func (*tupleType) assertType()      {}
+func (RefType) assertType()         {}
+func (MaybeNativeType) assertType() {}
 
 //----------------------------------------
 // Primitive types
@@ -1083,6 +1084,23 @@ func (ft *FuncType) Specify(argTVs []TypedValue, isVarg bool) *FuncType {
 	pfts := make([]FieldType, len(ft.Params))
 	rfts := make([]FieldType, len(ft.Results))
 	for i, pft := range ft.Params {
+		// special case for maybenative, just take the native type.
+		if mnpft, ok := pft.Type.(*MaybeNativeType); ok {
+			if nt, ok := argTVs[i].T.(*NativeType); ok {
+				pfts[i] = FieldType{
+					Name: pft.Name,
+					Type: nt,
+				}
+			} else {
+				pt, _ := applySpecifics(lookup, mnpft.Type)
+				pfts[i] = FieldType{
+					Name: pft.Name,
+					Type: pt,
+				}
+			}
+			continue
+		}
+		// default case.
 		pt, _ := applySpecifics(lookup, pft.Type)
 		pfts[i] = FieldType{
 			Name: pft.Name,
@@ -1142,6 +1160,12 @@ func (ft *FuncType) HasVarg() bool {
 		lpt := ft.Params[numParams-1].Type
 		if lat, ok := lpt.(*SliceType); ok {
 			return lat.Vrd
+		} else if mnt, ok := lpt.(*MaybeNativeType); ok {
+			if lat, ok := mnt.Type.(*SliceType); ok {
+				return lat.Vrd
+			} else {
+				return false
+			}
 		} else {
 			return false
 		}
@@ -1509,12 +1533,21 @@ func (nt *NativeType) String() string {
 }
 
 // TODO: memoize?
+func (nt *NativeType) Key() Type {
+	switch nt.Type.Kind() {
+	case reflect.Map:
+		return go2GnoType(nt.Type.Key())
+	default:
+		panic(fmt.Sprintf("unexpected native type %v for .Key",
+			nt.Type.String()))
+	}
+}
+
+// TODO: memoize?
 func (nt *NativeType) Elem() Type {
 	switch nt.Type.Kind() {
 	case reflect.Ptr, reflect.Array, reflect.Slice, reflect.Map:
-		return &NativeType{
-			Type: nt.Type.Elem(),
-		}
+		return go2GnoType(nt.Type.Elem())
 	default:
 		panic(fmt.Sprintf("unexpected native type %v for .Elem",
 			nt.Type.String()))
@@ -1691,6 +1724,32 @@ func (rt RefType) Elem() Type {
 }
 
 //----------------------------------------
+// MaybeNativeType
+
+// MaybeNativeType wraps an underlying gno type
+// and allows the generic matching of spec to gno type,
+// or go2GnoType2(spec) to gno type if spec is native.
+type MaybeNativeType struct {
+	Type
+}
+
+func (mn MaybeNativeType) Kind() Kind {
+	return mn.Type.Kind()
+}
+
+func (mn MaybeNativeType) TypeID() TypeID {
+	panic("MaybeNativeType type has no type id")
+}
+
+func (mn MaybeNativeType) String() string {
+	return fmt.Sprintf("MaybeNativeType{%s}", mn.Type.String())
+}
+
+func (mn MaybeNativeType) Elem() Type {
+	return mn.Type.Elem()
+}
+
+//----------------------------------------
 // Float32 and Float64
 
 var Float32Type *StructType
@@ -1830,6 +1889,8 @@ func KindOf(t Type) Kind {
 		return TupleKind
 	case RefType:
 		return RefTypeKind
+	case MaybeNativeType:
+		return t.Kind()
 	default:
 		panic(fmt.Sprintf("unexpected type %#v", t))
 	}
@@ -1993,10 +2054,12 @@ func IsImplementedBy(it Type, ot Type) bool {
 	return baseOf(it).(*InterfaceType).IsImplementedBy(ot)
 }
 
-// given a map of generic type names, match the tmpl type which
+// Given a map of generic type names, match the tmpl type which
 // might include generics with the spec type which is concrete
 // with no generics, and update the lookup map or panic if error.
 // specTypeval is Type if spec is TypeKind.
+// NOTE: type-checking isn't strictly necessary here, as the resulting lookup
+// map gets applied to produce the ultimate param and result types.
 func specifyType(lookup map[Name]Type, tmpl Type, spec Type, specTypeval Type) {
 	if isGeneric(spec) {
 		panic("spec must not be generic")
@@ -2007,7 +2070,8 @@ func specifyType(lookup map[Name]Type, tmpl Type, spec Type, specTypeval Type) {
 		case *PointerType:
 			specifyType(lookup, ct.Elt, pt.Elt, nil)
 		case *NativeType:
-			et := &NativeType{Type: pt.Type.Elem()}
+			// NOTE: see note about type-checking.
+			et := pt.Elem()
 			specifyType(lookup, ct.Elt, et, nil)
 		default:
 			panic(fmt.Sprintf(
@@ -2019,7 +2083,8 @@ func specifyType(lookup map[Name]Type, tmpl Type, spec Type, specTypeval Type) {
 		case *ArrayType:
 			specifyType(lookup, ct.Elt, at.Elt, nil)
 		case *NativeType:
-			et := &NativeType{Type: at.Type.Elem()}
+			// NOTE: see note about type-checking.
+			et := at.Elem()
 			specifyType(lookup, ct.Elt, et, nil)
 		default:
 			panic(fmt.Sprintf(
@@ -2049,7 +2114,8 @@ func specifyType(lookup map[Name]Type, tmpl Type, spec Type, specTypeval Type) {
 		case *SliceType:
 			specifyType(lookup, ct.Elt, st.Elt, nil)
 		case *NativeType:
-			et := &NativeType{Type: st.Type.Elem()}
+			// NOTE: see note about type-checking.
+			et := st.Elem()
 			specifyType(lookup, ct.Elt, et, nil)
 		default:
 			panic(fmt.Sprintf(
@@ -2062,8 +2128,9 @@ func specifyType(lookup map[Name]Type, tmpl Type, spec Type, specTypeval Type) {
 			specifyType(lookup, ct.Key, mt.Key, nil)
 			specifyType(lookup, ct.Value, mt.Value, nil)
 		case *NativeType:
-			kt := &NativeType{Type: mt.Type.Key()}
-			vt := &NativeType{Type: mt.Type.Elem()}
+			// NOTE: see note about type-checking.
+			kt := mt.Key()
+			vt := mt.Elem()
 			specifyType(lookup, ct.Key, kt, nil)
 			specifyType(lookup, ct.Value, vt, nil)
 		default:
@@ -2097,22 +2164,29 @@ func specifyType(lookup map[Name]Type, tmpl Type, spec Type, specTypeval Type) {
 					lookup[generic] = specTypeval
 					return // ok
 				}
+			} else if strings.HasSuffix(string(ct.Generic), ".Elem()") {
+				if spec.Kind() == TypeKind {
+					panic("generic <%s> does not expect type kind")
+				}
+				generic := ct.Generic[:len(ct.Generic)-len(".Elem()")]
+				match, ok := lookup[generic]
+				if ok {
+					checkType(spec, match.Elem(), false)
+					return // ok
+				} else {
+					// Panic here, because we don't know whether T
+					// should be native or gno yet.
+					// It may be possible to allow lazy specification
+					// with some changes, but it isn't obvious.
+					panic("T.Elem generic must follow specification of T")
+					// lookup[generic] = specTypeval
+					// return // ok
+				}
 			} else {
 				match, ok := lookup[ct.Generic]
 				if ok {
-					checkType(spec, match)
+					checkType(spec, match, false)
 					return // ok
-					/*
-						if match.TypeID() != spec.TypeID() {
-							panic(fmt.Sprintf(
-								"expected %s for <%s> but got %s",
-								match.String(),
-								ct.Generic,
-								spec.String()))
-						} else {
-							return // ok
-						}
-					*/
 				} else {
 					if isUntyped(spec) {
 						spec = defaultTypeOf(spec)
@@ -2124,6 +2198,14 @@ func specifyType(lookup map[Name]Type, tmpl Type, spec Type, specTypeval Type) {
 		} else {
 			// TODO: handle generics in method signatures
 			return // nothing to do
+		}
+	case *MaybeNativeType:
+		switch cbt := baseOf(spec).(type) {
+		case *NativeType:
+			gnoType := go2GnoType2(cbt.Type)
+			specifyType(lookup, ct.Type, gnoType, nil)
+		default:
+			specifyType(lookup, ct.Type, cbt, nil)
 		}
 	default:
 		// ignore, no generics.
@@ -2179,6 +2261,14 @@ func applySpecifics(lookup map[Name]Type, tmpl Type) (Type, bool) {
 				// used for defining types by name via arg matching.
 				return gTypeType, true
 			} else {
+				// used for capturing and distinguishing native vs gno
+				// slice/array types, e.g. for "append".
+				// TODO: implement .Elem() on TypeValues.
+				generic := ct.Generic
+				isElem := strings.HasSuffix(string(ct.Generic), ".Elem()")
+				if isElem {
+					generic = generic[:len(generic)-len(".Elem()")]
+				}
 				// Construct BlockStmt from map.
 				// TODO: make arg type be this
 				// to reduce redundant steps.
@@ -2189,12 +2279,16 @@ func applySpecifics(lookup map[Name]Type, tmpl Type) (Type, bool) {
 					bs.Define(n, asValue(t))
 				}
 				// Parse generic to expr.
-				gx := MustParseExpr(string(ct.Generic))
+				gx := MustParseExpr(string(generic))
 				gx = Preprocess(nil, bs, gx).(Expr)
 				// Evalute type from generic expression.
 				m := NewMachine("", nil)
 				tv := m.EvalStatic(bs, gx)
-				return tv.GetType(), true
+				if isElem {
+					return tv.GetType().Elem(), true
+				} else {
+					return tv.GetType(), true
+				}
 			}
 		} else { // simply return
 			// TODO: handle generics in method signatures
@@ -2223,6 +2317,8 @@ func isGeneric(t Type) bool {
 	case *InterfaceType:
 		// TODO: handle generics in method signatures
 		return ct.Generic != ""
+	case *MaybeNativeType:
+		return isGeneric(ct.Type)
 	default:
 		return false
 	}

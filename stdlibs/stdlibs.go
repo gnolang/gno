@@ -11,6 +11,12 @@ import (
 func InjectPackage(store gno.Store, pn *gno.PackageNode, pv *gno.PackageValue) {
 	switch pv.PkgPath {
 	case "strings":
+		pn.DefineGoNativeFunc("ToLower", strings.ToLower)
+		pn.DefineGoNativeFunc("ToLowerSpecial", strings.ToLowerSpecial)
+		pn.DefineGoNativeFunc("ToUpper", strings.ToUpper)
+		pn.DefineGoNativeFunc("ToUpperSpecial", strings.ToUpperSpecial)
+		pn.DefineGoNativeFunc("ToTitle", strings.ToTitle)
+		pn.DefineGoNativeFunc("ToTitleSpecial", strings.ToTitleSpecial)
 		// NOTE: Split returns []string, which becomes
 		// gonative{[]string}, which is confusing.
 		// So, implement with DefineNative instead.

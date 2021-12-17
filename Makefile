@@ -1,6 +1,6 @@
 all: gnoland gnokey goscan logos
 
-.PHONY: logos goscan gnoland gnokey logos reset test testrealm test2
+.PHONY: logos goscan gnoland gnokey logos reset test testrealm testpackages test2
 
 reset:
 	rm -rf testdir
@@ -39,6 +39,10 @@ testrealm:
 	echo "Running tests"
 	go test
 	go test tests/*.go -v -run "TestFiles/^zrealm"
+
+testpackages:
+	echo "Running tests"
+	go test tests/*.go -v -run "TestPackages"
 
 test2:
 	# -p 1 shows test failures as they come
