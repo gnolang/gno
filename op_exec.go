@@ -99,7 +99,7 @@ func (m *Machine) doOpExec(op Op) {
 					return
 				}
 			}
-			bs.NextBodyIndex++ // TODO remove
+			bs.NextBodyIndex++
 		}
 		// execute body statement.
 		if bs.NextBodyIndex < bs.BodyLen {
@@ -248,7 +248,12 @@ func (m *Machine) doOpExec(op Op) {
 		case -2: // init.
 			// We decode utf8 runes in order --
 			// we don't yet know the number of runes.
-			bs.StrLen = xv.GetLength()
+			strLen := xv.GetLength()
+			if strLen == 0 { // early termination
+				m.PopFrameAndReset()
+				return
+			}
+			bs.StrLen = strLen
 			r, size := utf8.DecodeRuneInString(sv)
 			bs.NextRune = r
 			bs.StrIndex += size
@@ -347,7 +352,11 @@ func (m *Machine) doOpExec(op Op) {
 		mv := xv.V.(*MapValue)
 		switch bs.NextBodyIndex {
 		case -2: // init.
-			// bs.ListLen = xv.GetLength()
+			if mv.GetLength() == 0 { // early termination
+				m.PopFrameAndReset()
+				return
+			}
+			// initialize bs.
 			bs.NextItem = mv.List.Head
 			bs.NumOps = m.NumOps
 			bs.NumStmts = len(m.Stmts)
@@ -727,6 +736,7 @@ EXEC_SWITCH:
 		goto EXEC_SWITCH
 	case *SwitchStmt:
 		m.PushFrameBasic(cs)
+		m.PushOp(OpPopFrameAndReset)
 		b := NewBlock(cs, m.LastBlock())
 		m.PushBlock(b)
 		m.PushOp(OpPopBlock)

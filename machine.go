@@ -202,8 +202,36 @@ func (m *Machine) TestMemPackage(memPkg std.MemPackage) {
 	{ // run all (import) tests in test files.
 		pkg := NewPackageNode(Name(memPkg.Name+"_test"), memPkg.Path, itfiles)
 		pv := pkg.NewPackage()
+		pvBlock := pv.GetBlock(m.Store)
 		m.SetActivePackage(pv)
 		m.RunFiles(itfiles.Files...)
+		// XXX only define if it wasn't already defined.
+		pkg.Define(Name("testing"), TypedValue{
+			T: gPackageType,
+			V: m.Store.GetPackage("testing"),
+		})
+		pkg.PrepareNewValues(pv)
+		for i := 0; i < len(pvBlock.Values); i++ {
+			tv := &pvBlock.Values[i]
+			if !(tv.T.Kind() == FuncKind &&
+				strings.HasPrefix(
+					string(tv.V.(*FuncValue).Name),
+					"Test")) {
+				continue // not a test function.
+			}
+			// XXX ensure correct func type.
+			name := tv.V.(*FuncValue).Name
+			fmt.Print("  --- GNORUN ", name+"... ")
+			x := Call(name, Call("testing.NewT", Str(string(name))))
+			res := m.Eval(x)
+			if len(res) != 0 {
+				fmt.Println("ERROR")
+				panic(fmt.Sprintf(
+					"expected no results but got %d",
+					len(res)))
+			}
+			fmt.Println("OK")
+		}
 	}
 }
 
@@ -580,8 +608,9 @@ const (
 	OpPopValue            Op = 0x12 // pop X
 	OpPopResults          Op = 0x13 // pop n call results
 	OpPopBlock            Op = 0x14 // pop block NOTE breaks certain invariants.
-	OpPanic1              Op = 0x15 // pop exception and pop call frames.
-	OpPanic2              Op = 0x16 // pop call frames.
+	OpPopFrameAndReset    Op = 0x15 // pop frame and reset.
+	OpPanic1              Op = 0x16 // pop exception and pop call frames.
+	OpPanic2              Op = 0x17 // pop call frames.
 
 	/* Unary & binary operators */
 	OpUpos  Op = 0x20 // + (unary)
@@ -732,6 +761,8 @@ func (m *Machine) Run() {
 			m.PopResults()
 		case OpPopBlock:
 			m.PopBlock()
+		case OpPopFrameAndReset:
+			m.PopFrameAndReset()
 		/* Unary operators */
 		case OpUpos:
 			m.doOpUpos()

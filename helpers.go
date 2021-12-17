@@ -195,16 +195,21 @@ func S(args ...interface{}) Stmt {
 // If the first argument is an expression, returns it.
 // TODO replace this with rewrite of Joeson parser.
 func X(x interface{}, args ...interface{}) Expr {
-	switch x.(type) {
+	switch cx := x.(type) {
 	case Expr:
-		return x.(Expr)
+		return cx
 	case int, int8, int16, int32, int64,
 		uint, uint8, uint16, uint32, uint64:
 		return X(fmt.Sprintf("%v", x))
 	case string:
-		if x.(string) == "" {
+		if cx == "" {
 			panic("input cannot be blank for X()")
 		}
+	case Name:
+		if cx == "" {
+			panic("input cannot be blank for X()")
+		}
+		x = string(cx)
 	default:
 		panic("unexpected input type for X()")
 	}
