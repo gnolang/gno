@@ -159,7 +159,7 @@ func (m *Machine) RunMemPackage(memPkg std.MemPackage, save bool) (*PackageNode,
 	// parse files.
 	files := ParseMemPackage(memPkg)
 	// make and set package
-	pkg := NewPackageNode(Name(memPkg.Name), memPkg.Path, files)
+	pkg := NewPackageNode(Name(memPkg.Name), memPkg.Path, nil)
 	pv := pkg.NewPackage()
 	m.SetActivePackage(pv)
 	if save {
@@ -182,6 +182,10 @@ func (m *Machine) RunMemPackage(memPkg std.MemPackage, save bool) (*PackageNode,
 // other declarations, so it is expected that non-test code will not be run
 // afterwards from the same store.
 func (m *Machine) TestMemPackage(memPkg std.MemPackage) {
+	// prefetch the testing package.
+	testingpv := m.Store.GetPackage("testing")
+	testingtv := TypedValue{T: gPackageType, V: testingpv}
+	testingcx := &ConstExpr{TypedValue: testingtv}
 	// parse test files.
 	tfiles, itfiles := ParseMemPackageTests(memPkg)
 	{ // first, tfiles which run in the same package.
@@ -202,7 +206,7 @@ func (m *Machine) TestMemPackage(memPkg std.MemPackage) {
 			}
 			// XXX ensure correct func type.
 			name := tv.V.(*FuncValue).Name
-			x := Call(name, Call("testing.NewT", name))
+			x := Call(name, Call(Sel(testingcx, "NewT"), Str(string(name))))
 			res := m.Eval(x)
 			if len(res) != 0 {
 				panic(fmt.Sprintf(
@@ -217,11 +221,6 @@ func (m *Machine) TestMemPackage(memPkg std.MemPackage) {
 		pvBlock := pv.GetBlock(m.Store)
 		m.SetActivePackage(pv)
 		m.RunFiles(itfiles.Files...)
-		// XXX only define if it wasn't already defined.
-		pkg.Define(Name("testing"), TypedValue{
-			T: gPackageType,
-			V: m.Store.GetPackage("testing"),
-		})
 		pkg.PrepareNewValues(pv)
 		for i := 0; i < len(pvBlock.Values); i++ {
 			tv := &pvBlock.Values[i]
@@ -234,7 +233,7 @@ func (m *Machine) TestMemPackage(memPkg std.MemPackage) {
 			// XXX ensure correct func type.
 			name := tv.V.(*FuncValue).Name
 			fmt.Print("  --- GNORUN ", name+"... ")
-			x := Call(name, Call("testing.NewT", Str(string(name))))
+			x := Call(name, Call(Sel(testingcx, "NewT"), Str(string(name))))
 			res := m.Eval(x)
 			if len(res) != 0 {
 				fmt.Println("ERROR")
@@ -320,10 +319,16 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 	// recursive function for var declarations.
 	var runDeclarationFor func(fn *FileNode, decl Decl)
 	runDeclarationFor = func(fn *FileNode, decl Decl) {
+		// get fileblock of fn.
+		// fb := pv.GetFileBlock(nil, fn.Name)
 		// get dependencies of decl.
 		deps := make(map[Name]struct{})
 		findDependentNames(decl, deps)
 		for dep, _ := range deps {
+			// if dep already defined as import, skip.
+			if _, ok := fn.GetLocalIndex(dep); ok {
+				continue
+			}
 			// if dep already in fdeclared, skip.
 			if _, ok := fdeclared[dep]; ok {
 				continue

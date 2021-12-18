@@ -195,4 +195,3 @@ func (c *Cipher) SetCounter(ctr uint64) {
 // HChaCha20 generates 32 pseudo-random bytes from a 128 bit nonce and a 256 bit secret key.
 // It can be used as a key-derivation-function (KDF).
 func HChaCha20(out *[32]byte, nonce *[16]byte, key *[32]byte) { hChaCha20(out, nonce, key) }
-

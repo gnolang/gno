@@ -113,9 +113,12 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 		defer func() {
 			if r := recover(); r != nil {
-				for i, sbn := range stack {
-					fmt.Printf("stack #%d: %s\n", i, sbn.String())
+				fmt.Println("--- preprocess stack ---")
+				for i := len(stack) - 1; i >= 0; i-- {
+					sbn := stack[i]
+					fmt.Printf("stack %d: %s\n", i, sbn.String())
 				}
+				fmt.Println("------------------------")
 				if rerr, ok := r.(error); ok {
 					panic(rerr)
 				} else {
@@ -1205,11 +1208,19 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					n.Path = tr[len(tr)-1]
 					// n.Path = cxt.GetPathForName(n.Sel)
 				case *PackageType:
-					// packages can only be referred to by
-					// *NameExprs, and cannot be copied.
-					nx := n.X.(*NameExpr)
-					pv := last.GetValueRef(nil, nx.Name)
-					pn := pv.V.(*PackageValue).GetPackageNode(store)
+					var pv *PackageValue
+					if cx, ok := n.X.(*ConstExpr); ok {
+						// NOTE: *Machine.TestMemPackage() needs this
+						// to pass in an imported package as *ConstEzpr.
+						pv = cx.V.(*PackageValue)
+					} else {
+						// otherwise, packages can only be referred to by
+						// *NameExprs, and cannot be copied.
+						nx := n.X.(*NameExpr)
+						tv := last.GetValueRef(nil, nx.Name)
+						pv = tv.V.(*PackageValue)
+					}
+					pn := pv.GetPackageNode(store)
 					n.Path = pn.GetPathForName(store, n.Sel)
 					// packages may contain constant vars,
 					// so check and evaluate if so.

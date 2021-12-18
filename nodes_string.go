@@ -415,9 +415,9 @@ func (n FuncDecl) String() string {
 
 func (n ImportDecl) String() string {
 	if n.Name == "" {
-		return fmt.Sprintf("import %s", n.Path)
+		return fmt.Sprintf("import %s", n.PkgPath)
 	} else {
-		return fmt.Sprintf("import %s %s", n.Name, n.Path)
+		return fmt.Sprintf("import %s %s", n.Name, n.PkgPath)
 	}
 }
 

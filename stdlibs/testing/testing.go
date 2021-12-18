@@ -86,6 +86,7 @@ func (t *T) TempDir() string {
 // TODO: actually implement
 
 type B struct {
+	N int
 }
 
 func (b *B) Cleanup(f func())                          { panic("not yet implemented") }

@@ -911,27 +911,32 @@ func (m *Machine) doOpSwitchClause() {
 		m.PopValue() // pop clause index
 		// done!
 	} else {
-		clause := ss.Clauses[idx]
-		if len(clause.Cases) == 0 {
+		cl := ss.Clauses[idx]
+		if len(cl.Cases) == 0 {
 			// default clause
 			m.PopStmt()  // pop switch stmt
 			m.PopValue() // pop switch tag value
 			m.PopValue() // clause case index no longer needed
 			m.PopValue() // clause index no longer needed
+			// expand block size
+			b := m.LastBlock()
+			if nn := cl.GetNumNames(); int(nn) > len(b.Values) {
+				b.ExpandToSize(nn)
+			}
 			// exec clause body
-			lb := m.LastBlock()
-			lb.bodyStmt = bodyStmt{
-				Body:          clause.Body,
-				BodyLen:       len(clause.Body),
+			b.bodyStmt = bodyStmt{
+				Body:          cl.Body,
+				BodyLen:       len(cl.Body),
 				NextBodyIndex: -2,
 			}
 			m.PushOp(OpBody)
-			m.PushStmt(lb.GetBodyStmt())
+			m.PushStmt(b.GetBodyStmt())
 		} else {
+			// try to match switch clause case(s).
 			m.PushOp(OpSwitchClauseCase)
 			// push first case expr
 			m.PushOp(OpEval)
-			m.PushExpr(clause.Cases[0])
+			m.PushExpr(cl.Cases[0])
 		}
 	}
 }
@@ -953,29 +958,33 @@ func (m *Machine) doOpSwitchClauseCase() {
 		m.PopValue()                    // pop switch tag value
 		m.PopValue()                    // pop clause case index
 		m.PopValue()                    // pop clause index
-		// exec clause body
+		// expand block size
 		clidx := cliv.GetInt()
-		clause := ss.Clauses[clidx]
-		lb := m.LastBlock()
-		lb.bodyStmt = bodyStmt{
-			Body:          clause.Body,
-			BodyLen:       len(clause.Body),
+		cl := ss.Clauses[clidx]
+		b := m.LastBlock()
+		if nn := cl.GetNumNames(); int(nn) > len(b.Values) {
+			b.ExpandToSize(nn)
+		}
+		// exec clause body
+		b.bodyStmt = bodyStmt{
+			Body:          cl.Body,
+			BodyLen:       len(cl.Body),
 			NextBodyIndex: -2,
 		}
 		m.PushOp(OpBody)
-		m.PushStmt(lb.GetBodyStmt())
+		m.PushStmt(b.GetBodyStmt())
 	} else {
 		// try next case or clause.
 		ss := m.PeekStmt1().(*SwitchStmt) // peek switch stmt
 		clidx := cliv.GetInt()
-		clause := ss.Clauses[clidx]
+		cl := ss.Clauses[clidx]
 		caidx := caiv.GetInt()
-		if (caidx + 1) < len(clause.Cases) {
+		if (caidx + 1) < len(cl.Cases) {
 			// try next clause case.
 			m.PushOp(OpSwitchClauseCase) // TODO consider sticky
 			caiv.SetInt(caidx + 1)
 			m.PushOp(OpEval)
-			m.PushExpr(clause.Cases[caidx+1])
+			m.PushExpr(cl.Cases[caidx+1])
 		} else {
 			// no more cases: next clause.
 			m.PushOp(OpSwitchClause) // TODO make sticky

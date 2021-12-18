@@ -1,7 +1,6 @@
 package stdlibs
 
 import (
-	"encoding/hex"
 	"reflect"
 	"strconv"
 
@@ -41,10 +40,6 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode, pv *gno.PackageValue) {
 		},
 	)
 	pn.PrepareNewValues(pv) */
-	case "encoding/hex":
-		pn.DefineGoNativeValue("EncodeToString", hex.EncodeToString)
-		pn.DefineGoNativeValue("DecodeString", hex.DecodeString)
-		pn.PrepareNewValues(pv)
 	case "strconv":
 		pn.DefineGoNativeFunc("Itoa", strconv.Itoa)
 		pn.DefineGoNativeFunc("Atoi", strconv.Atoi)

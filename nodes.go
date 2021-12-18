@@ -965,7 +965,7 @@ func (fd *FuncDecl) GetDeclNames() []Name {
 
 type ImportDecl struct {
 	Attributes
-	NameExpr // local package name, or ".". required.
+	NameExpr // local package name. required.
 	PkgPath  string
 }
 
@@ -1165,6 +1165,7 @@ func (fs *FileSet) GetDeclFor(n Name) (*FileNode, *Decl) {
 	for _, fn := range fs.Files {
 		for i, dn := range fn.Decls {
 			if _, isImport := dn.(*ImportDecl); isImport {
+				// imports in other files don't count.
 				continue
 			}
 			if HasDeclName(dn, n) {

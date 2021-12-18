@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 
 	//"go/build"
 
@@ -22,7 +23,8 @@ func TestPackages(t *testing.T) {
 		filepath.Join("..", "examples"),
 		filepath.Join("..", "stdlibs"),
 	}
-	testDirs := map[string]string{} // aggregate here, dir -> pkgPath
+	testDirs := map[string]string{} // aggregate here, pkgPath -> dir
+	pkgPaths := []string{}
 	for _, rootDir := range rootDirs {
 		fileSystem := os.DirFS(rootDir)
 		fs.WalkDir(fileSystem, ".", func(path string, d fs.DirEntry, err error) error {
@@ -34,14 +36,21 @@ func TestPackages(t *testing.T) {
 			}
 			if strings.HasSuffix(path, "_test.go") {
 				dirPath := filepath.Dir(path)
-				testDirs[filepath.Join(rootDir, dirPath)] = dirPath
+				if _, exists := testDirs[dirPath]; exists {
+					// already exists.
+				} else {
+					testDirs[dirPath] = filepath.Join(rootDir, dirPath)
+					pkgPaths = append(pkgPaths, dirPath)
+				}
 			}
 			return nil
 		})
 	}
-	fmt.Println(testDirs)
+	// Sort pkgPaths for determinism.
+	sort.Strings(pkgPaths)
 	// For each package with testfiles (in testDirs), call Machine.TestMemPackage.
-	for testDir, pkgPath := range testDirs {
+	for _, pkgPath := range pkgPaths {
+		testDir := testDirs[pkgPath]
 		t.Run(pkgPath, func(t *testing.T) {
 			runPackageTest(t, testDir, pkgPath)
 		})
