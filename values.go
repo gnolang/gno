@@ -1657,7 +1657,7 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 		if dtv.IsUndefined() {
 			panic("interface method call on undefined value")
 		}
-		tr, _, _, _ := findEmbeddedFieldType(dtv.T, path.Name)
+		tr, _, _, _ := findEmbeddedFieldType(dtv.T, path.Name, nil)
 		if len(tr) == 0 {
 			panic(fmt.Sprintf("method %s not found in type %s",
 				path.Name, dtv.T.String()))
@@ -1988,7 +1988,7 @@ func (tv *TypedValue) GetSlice(low, high int) TypedValue {
 			V: &SliceValue{
 				Base:   sv.Base,
 				Offset: sv.Offset + low,
-				Length: sv.Offset + high - low,
+				Length: high - low,
 				Maxcap: sv.Maxcap - low,
 			},
 		}
@@ -2323,6 +2323,17 @@ func defaultValue(t Type) Value {
 		}
 	default:
 		return nil
+	}
+}
+
+func defaultTypedValue(t Type) TypedValue {
+	if t.Kind() == InterfaceKind {
+		return TypedValue{}
+	} else {
+		return TypedValue{
+			T: t,
+			V: defaultValue(t),
+		}
 	}
 }
 

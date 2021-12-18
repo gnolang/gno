@@ -1,6 +1,9 @@
 // Shim for Go's "testing" package to support minimal testing types.
 package testing
 
+//----------------------------------------
+// T
+
 type T struct {
 	name    string
 	didFail bool
@@ -77,3 +80,47 @@ func (t *T) Skipf(format string, args ...interface{}) {
 func (t *T) TempDir() string {
 	panic("not yet implemented")
 }
+
+//----------------------------------------
+// B
+// TODO: actually implement
+
+type B struct {
+}
+
+func (b *B) Cleanup(f func())                          { panic("not yet implemented") }
+func (b *B) Error(args ...interface{})                 { panic("not yet implemented") }
+func (b *B) Errorf(format string, args ...interface{}) { panic("not yet implemented") }
+func (b *B) Fail()                                     { panic("not yet implemented") }
+func (b *B) FailNow()                                  { panic("not yet implemented") }
+func (b *B) Failed() bool                              { panic("not yet implemented") }
+func (b *B) Fatal(args ...interface{})                 { panic("not yet implemented") }
+func (b *B) Fatalf(format string, args ...interface{}) { panic("not yet implemented") }
+func (b *B) Helper()                                   { panic("not yet implemented") }
+func (b *B) Log(args ...interface{})                   { panic("not yet implemented") }
+func (b *B) Logf(format string, args ...interface{})   { panic("not yet implemented") }
+func (b *B) Name() string                              { panic("not yet implemented") }
+func (b *B) ReportAllocs()                             { panic("not yet implemented") }
+func (b *B) ReportMetric(n float64, unit string)       { panic("not yet implemented") }
+func (b *B) ResetTimer()                               { panic("not yet implemented") }
+func (b *B) Run(name string, f func(b *B)) bool        { panic("not yet implemented") }
+func (b *B) RunParallel(body func(*PB))                { panic("not yet implemented") }
+func (b *B) SetBytes(n int64)                          { panic("not yet implemented") }
+func (b *B) SetParallelism(p int)                      { panic("not yet implemented") }
+func (b *B) Setenv(key, value string)                  { panic("not yet implemented") }
+func (b *B) Skip(args ...interface{})                  { panic("not yet implemented") }
+func (b *B) SkipNow()                                  { panic("not yet implemented") }
+func (b *B) Skipf(format string, args ...interface{})  { panic("not yet implemented") }
+func (b *B) Skipped() bool                             { panic("not yet implemented") }
+func (b *B) StartTimer()                               { panic("not yet implemented") }
+func (b *B) StopTimer()                                { panic("not yet implemented") }
+func (b *B) TempDir() string                           { panic("not yet implemented") }
+
+//----------------------------------------
+// PB
+// TODO: actually implement
+
+type PB struct {
+}
+
+func (pb *PB) Next() bool { panic("not yet implemented") }

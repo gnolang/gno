@@ -1075,7 +1075,12 @@ func ReadMemPackage(dir string, pkgPath string) std.MemPackage {
 		if err != nil {
 			panic(err)
 		}
-		if pkgName == "" && strings.HasSuffix(file.Name(), ".go") {
+		if pkgName == "" && strings.HasSuffix(file.Name(), "_test.go") {
+			pkgName = PackageNameFromFileBody(string(bz))
+			if strings.HasSuffix(string(pkgName), "_test") {
+				pkgName = pkgName[:len(pkgName)-len("_test")]
+			}
+		} else if pkgName == "" && strings.HasSuffix(file.Name(), ".go") {
 			pkgName = PackageNameFromFileBody(string(bz))
 		}
 		memPkg.Files = append(memPkg.Files,
@@ -1128,8 +1133,8 @@ func ParseMemPackageTests(memPkg std.MemPackage) (tset, itset *FileSet) {
 			// skip package file.
 		} else {
 			panic(fmt.Sprintf(
-				"expected package name [%s] or [%s_test] but got [%s]",
-				memPkg.Name, memPkg.Name, n.PkgName))
+				"expected package name [%s] or [%s_test] but got [%s] file [%s]",
+				memPkg.Name, memPkg.Name, n.PkgName, mfile))
 		}
 	}
 	return tset, itset
@@ -1501,10 +1506,8 @@ func (sb *StaticBlock) GetParentNode(store Store) BlockNode {
 // Implements BlockNode.
 // As a side effect, notes externally defined names.
 func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
-	if debug {
-		if n == "_" {
-			panic("should not happen")
-		}
+	if n == "_" {
+		return NewValuePathBlock(0, 0, "_")
 	}
 	gen := 1
 	if idx, ok := sb.GetLocalIndex(n); ok {
@@ -1683,6 +1686,9 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 	}
 	if tv.T == nil && tv.V != nil {
 		panic("StaticBlock.Define2() requires .T if .V is set")
+	}
+	if n == "_" {
+		return // ignore
 	}
 	idx, exists := sb.GetLocalIndex(n)
 	if exists {

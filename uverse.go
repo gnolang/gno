@@ -32,6 +32,29 @@ var gErrorType = &DeclaredType{
 	sealed: true,
 }
 
+var gStringerType = &DeclaredType{
+	PkgPath: uversePkgPath,
+	Name:    "stringer",
+	Base: &InterfaceType{
+		PkgPath: uversePkgPath,
+		Methods: []FieldType{
+			FieldType{
+				Name: "String",
+				Type: &FuncType{
+					Params: nil,
+					Results: []FieldType{
+						FieldType{
+							//Name: "",
+							Type: StringType,
+						},
+					},
+				},
+			},
+		},
+	},
+	sealed: true,
+}
+
 //----------------------------------------
 // Uverse package
 
@@ -65,7 +88,7 @@ func UverseNode() *PackageNode {
 
 	// Primitive types
 	undefined := TypedValue{}
-	def("_", undefined)    // special, path is zero.
+	def("._", undefined)   // special, path is zero.
 	def("iota", undefined) // special
 	def("nil", undefined)
 	def("bool", asValue(BoolType))
@@ -545,11 +568,37 @@ func UverseNode() *PackageNode {
 					if debug {
 						debug.Println("copy(<%s>,<%s>)", bdt.String(), bst.String())
 					}
-					if bst.Kind() == StringKind {
-						panic("not yet implemented")
-					} else {
+					if bst.Kind() != StringKind {
 						panic("should not happen")
 					}
+					if bdt.Elt != Uint8Type {
+						panic("should not happen")
+					}
+					// NOTE: this implementation is almost identical to the next one.
+					// note that in some cases optimization
+					// is possible if dstv.Data != nil.
+					dstl := dst.TV.GetLength()
+					srcl := src.TV.GetLength()
+					minl := dstl
+					if srcl < dstl {
+						minl = srcl
+					}
+					if minl == 0 {
+						return // do nothing.
+					}
+					dstv := dst.TV.V.(*SliceValue)
+					// TODO: consider an optimization if dstv.Data != nil.
+					for i := 0; i < minl; i++ {
+						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
+						srcev := src.TV.GetPointerAtIndexInt(m.Store, i)
+						dstev.TV.Assign(srcev.Deref(), false)
+					}
+					res0 := TypedValue{
+						T: IntType,
+						V: nil,
+					}
+					res0.SetInt(minl)
+					m.PushValue(res0)
 				case *SliceType:
 					dstl := dst.TV.GetLength()
 					srcl := src.TV.GetLength()
@@ -786,7 +835,7 @@ func UverseNode() *PackageNode {
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1()
 			xv := arg0.Deref()
-			panic(sprintString(&xv))
+			panic(sprintString(m, &xv))
 		},
 	)
 	defNative("print",
@@ -801,7 +850,7 @@ func UverseNode() *PackageNode {
 			ss := make([]string, xvl)
 			for i := 0; i < xvl; i++ {
 				ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
-				ss[i] = sprintString(&ev)
+				ss[i] = sprintString(m, &ev)
 			}
 			rs := strings.Join(ss, " ")
 			m.Output.Write([]byte(rs))
@@ -819,7 +868,7 @@ func UverseNode() *PackageNode {
 			ss := make([]string, xvl)
 			for i := 0; i < xvl; i++ {
 				ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
-				ss[i] = sprintString(&ev)
+				ss[i] = sprintString(m, &ev)
 			}
 			rs := strings.Join(ss, " ") + "\n"
 			m.Output.Write([]byte(rs))
@@ -863,10 +912,23 @@ func UverseNode() *PackageNode {
 
 // sprintString returns the string to be printed for tv from
 // print() and println().
-func sprintString(tv *TypedValue) string {
+// XXX rename to sprintTypedValue.
+func sprintString(m *Machine, tv *TypedValue) string {
+	// if undefined, just "undefined".
 	if tv.T == nil {
 		return "undefined"
 	}
+	// if implements .String(), return it.
+	if IsImplementedBy(gStringerType, tv.T) {
+		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "String")))
+		return res[0].GetString()
+	}
+	// if implements .Error(), return it.
+	if IsImplementedBy(gErrorType, tv.T) {
+		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "Error")))
+		return res[0].GetString()
+	}
+	// otherwise, default behavior.
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
 		switch bt {

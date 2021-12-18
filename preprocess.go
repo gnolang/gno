@@ -184,8 +184,20 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			case *FuncTypeExpr:
 				for i, _ := range n.Params {
 					p := &n.Params[i]
-					if p.Name == "" {
-						p.Name = "_"
+					if p.Name == "" || p.Name == "_" {
+						// create a hidden var with leading dot.
+						// NOTE: document somewhere.
+						pn := fmt.Sprintf(".arg_%d", i)
+						p.Name = Name(pn)
+					}
+				}
+				for i, _ := range n.Results {
+					r := &n.Results[i]
+					if r.Name == "_" {
+						// create a hidden var with leading dot.
+						// NOTE: document somewhere.
+						rn := fmt.Sprintf(".res_%d", i)
+						r.Name = Name(rn)
 					}
 				}
 
@@ -1116,7 +1128,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// Set selector path based on xt's type.
 				switch cxt := xt.(type) {
 				case *PointerType, *DeclaredType, *StructType, *InterfaceType:
-					tr, _, rcvr, _ := findEmbeddedFieldType(cxt, n.Sel)
+					tr, _, rcvr, _ := findEmbeddedFieldType(cxt, n.Sel, nil)
 					if tr == nil {
 						panic(fmt.Sprintf("missing field %s in %s", n.Sel,
 							cxt.String()))
@@ -2174,19 +2186,17 @@ func checkType(xt Type, dt Type, autoNative bool) {
 		// if xt is untyped, ensure dt is compatible.
 		switch xt {
 		case UntypedBoolType:
-			switch dt.Kind() {
-			case BoolKind:
+			if dt.Kind() == BoolKind {
 				return // ok
-			default:
+			} else {
 				panic(fmt.Sprintf(
 					"cannot use untyped bool as %s",
 					dt.Kind()))
 			}
 		case UntypedStringType:
-			switch dt.Kind() {
-			case StringKind:
+			if dt.Kind() == StringKind {
 				return // ok
-			default:
+			} else {
 				panic(fmt.Sprintf(
 					"cannot use untyped string as %s",
 					dt.Kind()))
@@ -2223,6 +2233,8 @@ func checkType(xt Type, dt Type, autoNative bool) {
 	case *SliceType:
 		if st, ok := xt.(*SliceType); ok {
 			checkType(st.Elt, cdt.Elt, false)
+			return // ok
+		} else if xt == StringType && cdt.Elt == Uint8Type {
 			return // ok
 		}
 	case *MapType:
@@ -2553,8 +2565,10 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 		// NOTE: unlike the *ValueDecl case, this case doesn't
 		// preprocess d itself (only d.Type).
 		if cd.IsMethod {
-			if cd.Recv.Name == "" {
-				cd.Recv.Name = "_"
+			if cd.Recv.Name == "" || cd.Recv.Name == "_" {
+				// create a hidden var with leading dot.
+				// NOTE: document somewhere.
+				cd.Recv.Name = ".recv"
 			}
 			cd.Recv =
 				*Preprocess(store, last, &cd.Recv).(*FieldTypeExpr)

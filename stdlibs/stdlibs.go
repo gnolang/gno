@@ -1,45 +1,49 @@
 package stdlibs
 
 import (
+	"encoding/hex"
 	"reflect"
 	"strconv"
-	"strings"
 
 	"github.com/gnolang/gno"
 )
 
 func InjectPackage(store gno.Store, pn *gno.PackageNode, pv *gno.PackageValue) {
 	switch pv.PkgPath {
-	case "strings":
-		pn.DefineGoNativeFunc("ToLower", strings.ToLower)
-		pn.DefineGoNativeFunc("ToLowerSpecial", strings.ToLowerSpecial)
-		pn.DefineGoNativeFunc("ToUpper", strings.ToUpper)
-		pn.DefineGoNativeFunc("ToUpperSpecial", strings.ToUpperSpecial)
-		pn.DefineGoNativeFunc("ToTitle", strings.ToTitle)
-		pn.DefineGoNativeFunc("ToTitleSpecial", strings.ToTitleSpecial)
-		// NOTE: Split returns []string, which becomes
-		// gonative{[]string}, which is confusing.
-		// So, implement with DefineNative instead.
-		// pn.DefineGoNativeFunc("Split", strings.Split)
-		pn.DefineNative("Split",
-			gno.Flds( // params
-				"str", "string",
-				"delim", "string",
-			),
-			gno.Flds( // results
-				"parts", "[]string",
-			),
-			func(m *gno.Machine) {
-				arg0, arg1 := m.LastBlock().GetParams2()
-				str := arg0.TV.GetString()
-				delim := arg1.TV.GetString()
-				parts := strings.Split(str, delim)
-				res0 := gno.Go2GnoValue(
-					reflect.ValueOf(parts),
-				)
-				m.PushValue(res0)
-			},
-		)
+	/* case "strings":
+	pn.DefineGoNativeFunc("ToLower", strings.ToLower)
+	pn.DefineGoNativeFunc("ToLowerSpecial", strings.ToLowerSpecial)
+	pn.DefineGoNativeFunc("ToUpper", strings.ToUpper)
+	pn.DefineGoNativeFunc("ToUpperSpecial", strings.ToUpperSpecial)
+	pn.DefineGoNativeFunc("ToTitle", strings.ToTitle)
+	pn.DefineGoNativeFunc("ToTitleSpecial", strings.ToTitleSpecial)
+	// NOTE: Split returns []string, which becomes
+	// gonative{[]string}, which is confusing.
+	// So, implement with DefineNative instead.
+	// pn.DefineGoNativeFunc("Split", strings.Split)
+	pn.DefineNative("Split",
+		gno.Flds( // params
+			"str", "string",
+			"delim", "string",
+		),
+		gno.Flds( // results
+			"parts", "[]string",
+		),
+		func(m *gno.Machine) {
+			arg0, arg1 := m.LastBlock().GetParams2()
+			str := arg0.TV.GetString()
+			delim := arg1.TV.GetString()
+			parts := strings.Split(str, delim)
+			res0 := gno.Go2GnoValue(
+				reflect.ValueOf(parts),
+			)
+			m.PushValue(res0)
+		},
+	)
+	pn.PrepareNewValues(pv) */
+	case "encoding/hex":
+		pn.DefineGoNativeValue("EncodeToString", hex.EncodeToString)
+		pn.DefineGoNativeValue("DecodeString", hex.DecodeString)
 		pn.PrepareNewValues(pv)
 	case "strconv":
 		pn.DefineGoNativeFunc("Itoa", strconv.Itoa)

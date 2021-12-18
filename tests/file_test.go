@@ -23,10 +23,12 @@ import (
 
 func TestFileStr(t *testing.T) {
 	filePath := "./files/str.go"
-	runFileTest(t, filePath)
+	runFileTest(t, filePath, true)
 }
 
-func TestFiles(t *testing.T) {
+// Bootstrapping test files from tests/files/*.go,
+// which primarily uses native stdlib shims.
+func TestFiles1(t *testing.T) {
 	baseDir := filepath.Join(".", "files")
 	files, err := ioutil.ReadDir(baseDir)
 	if err != nil {
@@ -42,12 +44,34 @@ func TestFiles(t *testing.T) {
 		}
 		file := file
 		t.Run(file.Name(), func(t *testing.T) {
-			runFileTest(t, filepath.Join(baseDir, file.Name()))
+			runFileTest(t, filepath.Join(baseDir, file.Name()), true)
 		})
 	}
 }
 
-func runFileTest(t *testing.T, path string) {
+// Like TestFiles1(), but with more full-gno stdlib packages.
+func TestFiles2(t *testing.T) {
+	baseDir := filepath.Join(".", "files2")
+	files, err := ioutil.ReadDir(baseDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, file := range files {
+		if filepath.Ext(file.Name()) != ".go" {
+			continue
+		}
+		if testing.Short() && strings.Contains(file.Name(), "_long") {
+			t.Log(fmt.Sprintf("skipping test %s in short mode.", file.Name()))
+			continue
+		}
+		file := file
+		t.Run(file.Name(), func(t *testing.T) {
+			runFileTest(t, filepath.Join(baseDir, file.Name()), false)
+		})
+	}
+}
+
+func runFileTest(t *testing.T, path string, nativeLibs bool) {
 	pkgPath, resWanted, errWanted, rops := wantedFromComment(path)
 	if pkgPath == "" {
 		pkgPath = "main"
@@ -58,7 +82,7 @@ func runFileTest(t *testing.T, path string) {
 	isRealm := pv.IsRealm() // enable diff persistence.
 
 	output := new(bytes.Buffer)
-	store := testStore(output, isRealm)
+	store := testStore(output, isRealm, nativeLibs)
 	store.SetLogStoreOps(true)
 	caller := testutils.TestAddress("testaddr____________")
 	txSend := std.MustParseCoins("100gnots")

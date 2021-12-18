@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
-	"strings"
 )
 
 func (m *Machine) doOpEval() {
@@ -41,9 +40,18 @@ func (m *Machine) doOpEval() {
 			bi := big.NewInt(0)
 			// TODO optimize.
 			// TODO deal with base.
-			if len(x.Value) > 2 && x.Value[0] == '0' &&
-				strings.ContainsAny(x.Value[1:2], "bBoOxX") {
-				_, ok := bi.SetString(x.Value[2:], 16)
+			if len(x.Value) > 2 && x.Value[0] == '0' {
+				var ok bool = false
+				switch x.Value[1] {
+				case 'b', 'B':
+					_, ok = bi.SetString(x.Value[2:], 2)
+				case 'o', 'O':
+					_, ok = bi.SetString(x.Value[2:], 8)
+				case 'x', 'X':
+					_, ok = bi.SetString(x.Value[2:], 16)
+				default:
+					ok = false
+				}
 				if !ok {
 					panic(fmt.Sprintf(
 						"invalid integer constant: %s",

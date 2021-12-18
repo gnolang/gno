@@ -1,6 +1,6 @@
 all: gnoland gnokey goscan logos
 
-.PHONY: logos goscan gnoland gnokey logos reset test testrealm testpackages test2
+.PHONY: logos goscan gnoland gnokey logos reset test test1 test2 testrealm testrealm1 testrealm2 testpackages testpkgs
 
 reset:
 	rm -rf testdir
@@ -35,16 +35,36 @@ test:
 	go test
 	go test tests/*.go -v -test.short
 
+test1:
+	echo "Running tests"
+	go test
+	go test tests/*.go -v -test.short -run "TestFiles1"
+
+test2:
+	echo "Running tests"
+	go test
+	go test tests/*.go -v -test.short -run "TestFiles2"
+
 testrealm:
 	echo "Running tests"
 	go test
 	go test tests/*.go -v -run "TestFiles/^zrealm"
 
+testrealm1:
+	echo "Running tests"
+	go test
+	go test tests/*.go -v -run "TestFiles1/^zrealm"
+
+testrealm2:
+	echo "Running tests"
+	go test
+	go test tests/*.go -v -run "TestFiles2/^zrealm"
+
 testpackages:
 	echo "Running tests"
 	go test tests/*.go -v -run "TestPackages"
 
-test2:
+testpkgs:
 	# -p 1 shows test failures as they come
 	# maybe another way to do this?
 	go test ./pkgs/... -p 1 -count 1

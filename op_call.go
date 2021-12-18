@@ -75,6 +75,14 @@ func (m *Machine) doOpCall() {
 			// NOTE: m.PushOp(OpReturn) doesn't handle defers.
 			m.PushStmt(gReturnStmt)
 			m.PushOp(OpExec)
+		} else {
+			// Initialize return variables.
+			numParams := len(ft.Params)
+			for i, rt := range ft.Results {
+				ptr := b.GetPointerToInt(nil, numParams+i)
+				dtv := defaultTypedValue(rt.Type)
+				ptr.Assign2(nil, nil, dtv, false)
+			}
 		}
 		// Exec body.
 		b.bodyStmt = bodyStmt{

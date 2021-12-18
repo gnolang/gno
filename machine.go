@@ -132,6 +132,18 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 			// Save BlockNodes to m.Store.
 			SaveBlockNodes(m.Store, fn)
 		}
+		// Normally, the fileset would be added onto the
+		// package node only after runFiles(), but we cannot
+		// run files upon restart (only preprocess them).
+		// So, add them here instead.
+		// TODO: is this right?
+		if pn.FileSet == nil {
+			pn.FileSet = fset
+		} else {
+			// This happens for non-realm file tests.
+			// TODO ensure the files are the same.
+		}
+
 	}
 }
 
@@ -439,13 +451,12 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 			"Machine.Eval(x) expression already preprocessed: %s",
 			x.String()))
 	}
-	// Preprocess input using package block.
-	// There should only be one block, a *PackageNode.
-	// Other usage styles not yet supported.
-	pn := m.LastBlock().GetSource(m.Store).(*PackageNode)
+	// Preprocess input using last block context.
+	last := m.LastBlock().GetSource(m.Store)
 	// Transform expression to ensure isolation.
-	// This is to ensure that the existing machine
-	// context (ie **PackageNode) doesn't get modified.
+	// This is to ensure that the parent context
+	// doesn't get modified.
+	// XXX Just use a BlockStmt?
 	if _, ok := x.(*CallExpr); !ok {
 		x = Call(Fn(nil, Flds("x", InterfaceT(nil)),
 			Ss(
@@ -455,7 +466,7 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 		// x already creates its own scope.
 	}
 	// Preprocess x.
-	x = Preprocess(m.Store, pn, x).(Expr)
+	x = Preprocess(m.Store, last, x).(Expr)
 	// Evaluate x.
 	start := m.NumValues
 	m.PushOp(OpHalt)

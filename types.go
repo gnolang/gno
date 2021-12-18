@@ -3,7 +3,6 @@ package gno
 import (
 	"fmt"
 	"reflect"
-	rdebug "runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -553,15 +552,24 @@ func (pt *PointerType) Elem() Type {
 	return pt.Elt
 }
 
-func (pt *PointerType) FindEmbeddedFieldType(n Name) (
+func (pt *PointerType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 	trail []ValuePath, hasPtr bool, rcvr Type, field Type) {
 
+	// Recursion guard.
+	if m == nil {
+		m = map[Type]struct{}{pt: (struct{}{})}
+	} else if _, exists := m[pt]; exists {
+		return nil, false, nil, nil
+	} else {
+		m[pt] = struct{}{}
+	}
+	// ...
 	switch cet := pt.Elt.(type) {
 	case *DeclaredType, *StructType:
 		// Pointer to declared types and structs
 		// expose embedded methods and fields.
 		// See tests/selector_test.go for examples.
-		trail, hasPtr, rcvr, field = findEmbeddedFieldType(cet, n)
+		trail, hasPtr, rcvr, field = findEmbeddedFieldType(cet, n, m)
 		if trail != nil { // found
 			hasPtr = true // pt *is* a pointer.
 			switch trail[0].Type {
@@ -630,7 +638,7 @@ func (pt *PointerType) FindEmbeddedFieldType(n Name) (
 		npt := &NativeType{
 			Type: reflect.PtrTo(cet.Type),
 		}
-		return npt.FindEmbeddedFieldType(n)
+		return npt.FindEmbeddedFieldType(n, m)
 	default:
 		// nester pointers or pointer to interfaces
 		// and other pointer types do not expose their methods.
@@ -711,9 +719,17 @@ func (st *StructType) GetStaticTypeOfAt(path ValuePath) Type {
 // it may be better to implement it on DeclaredType. The resulting
 // ValuePaths may be modified.  If not found, all returned values
 // are nil; for consistency, check the trail.
-func (st *StructType) FindEmbeddedFieldType(n Name) (
+func (st *StructType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 	trail []ValuePath, hasPtr bool, rcvr Type, field Type) {
 
+	// Recursion guard
+	if m == nil {
+		m = map[Type]struct{}{st: (struct{}{})}
+	} else if _, exists := m[st]; exists {
+		return nil, false, nil, nil
+	} else {
+		m[st] = struct{}{}
+	}
 	// Search fields.
 	for i := 0; i < len(st.Fields); i++ {
 		sf := &st.Fields[i]
@@ -725,7 +741,7 @@ func (st *StructType) FindEmbeddedFieldType(n Name) (
 		// Maybe is embedded within a field.
 		if sf.Embedded {
 			st := sf.Type
-			trail, hasPtr, rcvr, field = findEmbeddedFieldType(st, n)
+			trail, hasPtr, rcvr, field = findEmbeddedFieldType(st, n, m)
 			if trail != nil {
 				vp := NewValuePathField(0, uint16(i), sf.Name)
 				return append([]ValuePath{vp}, trail...), hasPtr, rcvr, field
@@ -839,8 +855,18 @@ func (it *InterfaceType) GetMethodType(n Name) *FuncType {
 	return nil
 }
 
-func (it *InterfaceType) FindEmbeddedFieldType(n Name) (
+func (it *InterfaceType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 	trail []ValuePath, hasPtr bool, rcvr Type, ft Type) {
+
+	// Recursion guard
+	if m == nil {
+		m = map[Type]struct{}{it: (struct{}{})}
+	} else if _, exists := m[it]; exists {
+		return nil, false, nil, nil
+	} else {
+		m[it] = struct{}{}
+	}
+	// ...
 	for _, im := range it.Methods {
 		if im.Name == n {
 			// a matched name cannot be an embedded interface.
@@ -856,7 +882,7 @@ func (it *InterfaceType) FindEmbeddedFieldType(n Name) (
 		}
 		if et, ok := baseOf(im.Type).(*InterfaceType); ok {
 			// embedded interfaces must be recursively searched.
-			trail, hasPtr, rcvr, ft = et.FindEmbeddedFieldType(n)
+			trail, hasPtr, rcvr, ft = et.FindEmbeddedFieldType(n, m)
 			if trail != nil {
 				if debug {
 					if len(trail) != 1 || trail[0].Type != VPInterface {
@@ -888,7 +914,7 @@ func (it *InterfaceType) IsImplementedBy(ot Type) bool {
 			}
 		}
 		// find method in field.
-		tr, hp, rt, ft := findEmbeddedFieldType(gnot, im.Name)
+		tr, hp, rt, ft := findEmbeddedFieldType(gnot, im.Name, nil)
 		if tr == nil { // not found.
 			return false
 		}
@@ -1256,11 +1282,6 @@ func declareWith(pkgPath string, name Name, b Type) *DeclaredType {
 		Base:    baseOf(b),
 		sealed:  false,
 	}
-	if strings.HasPrefix(
-		fmt.Sprintf("%v", dt),
-		"github.com/gnolang/gno/_test/timtadh/data-structures/tree/avl.AvlNode") {
-		rdebug.PrintStack()
-	}
 	return dt
 }
 
@@ -1369,9 +1390,17 @@ func (dt *DeclaredType) GetMethod(n Name) *FuncValue {
 // Searches embedded fields to find matching field or method.
 // This function is slow.
 // TODO: consider memoizing for successful matches.
-func (dt *DeclaredType) FindEmbeddedFieldType(n Name) (
+func (dt *DeclaredType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 	trail []ValuePath, hasPtr bool, rcvr Type, ft Type) {
 
+	// Recursion guard
+	if m == nil {
+		m = map[Type]struct{}{dt: (struct{}{})}
+	} else if _, exists := m[dt]; exists {
+		return nil, false, nil, nil
+	} else {
+		m[dt] = struct{}{}
+	}
 	// Search direct methods.
 	for i := 0; i < len(dt.Methods); i++ {
 		mv := &dt.Methods[i]
@@ -1392,7 +1421,7 @@ func (dt *DeclaredType) FindEmbeddedFieldType(n Name) (
 		}
 	}
 	// Otherwise, search base.
-	trail, hasPtr, rcvr, ft = findEmbeddedFieldType(dt.Base, n)
+	trail, hasPtr, rcvr, ft = findEmbeddedFieldType(dt.Base, n, m)
 	if trail == nil {
 		return nil, false, nil, nil
 	}
@@ -1523,7 +1552,18 @@ func (nt *NativeType) Kind() Kind {
 func (nt *NativeType) TypeID() TypeID {
 	// like a DeclaredType, but different.
 	if nt.typeid.IsZero() {
-		nt.typeid = typeid("go:%s.%s", nt.Type.PkgPath(), nt.Type.Name())
+		if nt.Type.Name() == "" {
+			// TODO try to derive better name specification,
+			// current Golang one is undefined.
+			// > String returns a string representation of the type.
+			// > The string representation may use shortened package names
+			// > (e.g., base64 instead of "encoding/base64") and is not
+			// > guaranteed to be unique among types. To test for type identity,
+			// > compare the Types directly.
+			nt.typeid = typeid("go:%s.%s", nt.Type.PkgPath(), nt.Type.String())
+		} else {
+			nt.typeid = typeid("go:%s.%s", nt.Type.PkgPath(), nt.Type.Name())
+		}
 	}
 	return nt.typeid
 }
@@ -1561,9 +1601,17 @@ func (nt *NativeType) GnoType() Type {
 	return nt.gnoType
 }
 
-func (nt *NativeType) FindEmbeddedFieldType(n Name) (
+func (nt *NativeType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 	trail []ValuePath, hasPtr bool, rcvr Type, field Type) {
 
+	// Recursion guard
+	if m == nil {
+		m = map[Type]struct{}{nt: (struct{}{})}
+	} else if _, exists := m[nt]; exists {
+		return nil, false, nil, nil
+	} else {
+		m[nt] = struct{}{}
+	}
 	// special cases for pointer to struct and interface.
 	var rt reflect.Type = nt.Type
 	if rt.Kind() == reflect.Ptr {
@@ -2325,23 +2373,23 @@ func isGeneric(t Type) bool {
 }
 
 // NOTE: runs at preprocess time but also runtime,
-// for dynamic interface lookups.
+// for dynamic interface lookups. m can be nil,
+// is used for recursion detection.
 // TODO: could this be more optimized for the runtime?
 // are Go-style itables the solution or?
-func findEmbeddedFieldType(t Type, n Name) (
+func findEmbeddedFieldType(t Type, n Name, m map[Type]struct{}) (
 	trail []ValuePath, hasPtr bool, rcvr Type, ft Type) {
-
 	switch ct := t.(type) {
 	case *DeclaredType:
-		return ct.FindEmbeddedFieldType(n)
+		return ct.FindEmbeddedFieldType(n, m)
 	case *PointerType:
-		return ct.FindEmbeddedFieldType(n)
+		return ct.FindEmbeddedFieldType(n, m)
 	case *StructType:
-		return ct.FindEmbeddedFieldType(n)
+		return ct.FindEmbeddedFieldType(n, m)
 	case *InterfaceType:
-		return ct.FindEmbeddedFieldType(n)
+		return ct.FindEmbeddedFieldType(n, m)
 	case *NativeType:
-		return ct.FindEmbeddedFieldType(n)
+		return ct.FindEmbeddedFieldType(n, m)
 	default:
 		return nil, false, nil, nil
 	}

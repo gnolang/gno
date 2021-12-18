@@ -940,7 +940,12 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		rt = gno2GoType(bt)
 		rv = reflect.New(rt).Elem()
 		ret = rv
-	} else if rv.Kind() == reflect.Interface && rv.IsZero() {
+	} else if rv.Kind() == reflect.Interface {
+		if debug {
+			if !rv.IsZero() {
+				panic("should not happen")
+			}
+		}
 		rt = gno2GoType(bt)
 		rv1 := rv
 		rv2 := reflect.New(rt).Elem()
