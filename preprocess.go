@@ -2290,9 +2290,13 @@ func checkType(xt Type, dt Type, autoNative bool) {
 				return // ok
 			}
 		} else {
-			// XXX actually check the type of
-			// native function calls.
-			return // XXX
+			// autoNative, so check whether matches.
+			// xt: any type but a *DeclaredType; could be native.
+			// cdt: actual concrete native target type.
+			// ie, if cdt can match against xt.
+			if gno2GoTypeMatches(xt, cdt.Type) {
+				return // ok
+			}
 		}
 	default:
 		panic(fmt.Sprintf(

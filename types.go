@@ -898,11 +898,7 @@ func (it *InterfaceType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 
 // For run-time type assertion.
 // TODO: optimize somehow.
-func (it *InterfaceType) IsImplementedBy(ot Type) bool {
-	gnot := ot
-	if not, ok := ot.(*NativeType); ok {
-		gnot = not.GnoType()
-	}
+func (it *InterfaceType) IsImplementedBy(ot Type) (result bool) {
 	for _, im := range it.Methods {
 		if im.Type.Kind() == InterfaceKind {
 			// field is embedded interface...
@@ -914,20 +910,31 @@ func (it *InterfaceType) IsImplementedBy(ot Type) bool {
 			}
 		}
 		// find method in field.
-		tr, hp, rt, ft := findEmbeddedFieldType(gnot, im.Name, nil)
+		tr, hp, rt, ft := findEmbeddedFieldType(ot, im.Name, nil)
 		if tr == nil { // not found.
 			return false
 		}
-		// if method is pointer receiver, check addressability:
-		if _, ptrRcvr := rt.(*PointerType); ptrRcvr && !hp {
-			return false // not addressable.
-		}
-		// check for func type equality.
-		mt := ft.(*FuncType)
-		dmtid := mt.TypeID()
-		imtid := im.Type.TypeID()
-		if dmtid != imtid {
-			return false
+		if nft, ok := ft.(*NativeType); ok {
+			// Treat native function types as autoNative calls.
+			// ft: possibly gonative function type.
+			// gnot: the corresponding gno type (GnoType()).
+			// im.Type: the desired interface gno type.
+			// ie, if each of ft's arg types can match
+			// against the desired arg types in im.Types.
+			if !gno2GoTypeMatches(im.Type, nft.Type) {
+				return false
+			}
+		} else if mt, ok := ft.(*FuncType); ok {
+			// if method is pointer receiver, check addressability:
+			if _, ptrRcvr := rt.(*PointerType); ptrRcvr && !hp {
+				return false // not addressable.
+			}
+			// check for func type equality.
+			dmtid := mt.TypeID()
+			imtid := im.Type.TypeID()
+			if dmtid != imtid {
+				return false
+			}
 		}
 	}
 	return true
@@ -1660,7 +1667,22 @@ func (nt *NativeType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 				rcvr = nt
 			}
 		}
-		field = nil // XXX not set for native non-interface methods, too cumbersome/slow.
+		{ // construct bound function type
+			// TODO cache.
+			numIns := rmt.Type.NumIn() - 1 // bound
+			ins := make([]reflect.Type, numIns)
+			for i := 0; i < numIns; i++ {
+				ins[i] = rmt.Type.In(i + 1) // skip receiver
+			}
+			numOuts := rmt.Type.NumOut()
+			outs := make([]reflect.Type, numOuts)
+			for i := 0; i < numOuts; i++ {
+				outs[i] = rmt.Type.Out(i)
+			}
+			variadic := rmt.Type.IsVariadic()
+			brmt := reflect.FuncOf(ins, outs, variadic) // bound reflect method type
+			field = go2GnoType(brmt)
+		}
 		return
 	}
 	// match field on struct.
@@ -2099,7 +2121,14 @@ func fillEmbeddedName(ft *FieldType) {
 }
 
 func IsImplementedBy(it Type, ot Type) bool {
-	return baseOf(it).(*InterfaceType).IsImplementedBy(ot)
+	switch cbt := baseOf(it).(type) {
+	case *InterfaceType:
+		return cbt.IsImplementedBy(ot)
+	case *NativeType:
+		return gno2GoTypeMatches(ot, cbt.Type)
+	default:
+		panic("should not happen")
+	}
 }
 
 // Given a map of generic type names, match the tmpl type which

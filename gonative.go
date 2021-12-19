@@ -657,11 +657,11 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 	return
 }
 
-// This function is like go2GnoValue() but less lazy (but still not
-// recursive/eager unless recursive is true). When recursive is false, it is
-// for converting Go types to Gno types upon an explicit conversion (via
-// ConvertTo).  Panics on unexported/private fields. Some types that cannot
-// be converted remain native. Unlike go2GnoValue(), rv must be valid.
+// If recursive is false, this function is like go2GnoValue() but less lazy
+// (but still not recursive/eager). When recursive is false, it is for
+// converting Go types to Gno types upon an explicit conversion (via
+// ConvertTo).  Panics on unexported/private fields. Some types that cannot be
+// converted remain native. Unlike go2GnoValue(), rv must be valid.
 func go2GnoValue2(rv reflect.Value, recursive bool) (tv TypedValue) {
 	if debug {
 		if !rv.IsValid() {
@@ -916,6 +916,146 @@ func gno2GoType(t Type) reflect.Type {
 		panic("should not happen")
 	case *NativeType:
 		return ct.Type
+	default:
+		panic(fmt.Sprintf("unexpected type %v with base %v", t, baseOf(t)))
+	}
+}
+
+// If gno2GoTypeMatches(t, rt) is true, a t value can
+// be converted to an rt native value using gno2GoValue(v, rv).
+// This is called when autoNative is true in checkType().
+// This is used for all native function calls, and also
+// for testing whether a native value implements a gno interface.
+func gno2GoTypeMatches(t Type, rt reflect.Type) (result bool) {
+	if rt == nil {
+		panic("should not happen")
+	}
+	// special case if t == Float32Type or Float64Type
+	if t == Float32Type {
+		return rt.Kind() == reflect.Float32
+	} else if t == Float64Type {
+		return rt.Kind() == reflect.Float64
+	}
+	switch ct := baseOf(t).(type) {
+	case PrimitiveType:
+		switch ct {
+		case BoolType, UntypedBoolType:
+			return rt.Kind() == reflect.Bool
+		case StringType, UntypedStringType:
+			return rt.Kind() == reflect.String
+		case IntType:
+			return rt.Kind() == reflect.Int
+		case Int8Type:
+			return rt.Kind() == reflect.Int8
+		case Int16Type:
+			return rt.Kind() == reflect.Int16
+		case Int32Type, UntypedRuneType:
+			return rt.Kind() == reflect.Int32
+		case Int64Type:
+			return rt.Kind() == reflect.Int64
+		case UintType:
+			return rt.Kind() == reflect.Uint
+		case Uint8Type:
+			return rt.Kind() == reflect.Uint8
+		case Uint16Type:
+			return rt.Kind() == reflect.Uint16
+		case Uint32Type:
+			return rt.Kind() == reflect.Uint32
+		case Uint64Type:
+			return rt.Kind() == reflect.Uint64
+		case BigintType, UntypedBigintType:
+			panic("not yet implemented")
+		default:
+			panic("should not happen")
+		}
+	case *PointerType:
+		if rt.Kind() != reflect.Ptr {
+			return false
+		}
+		return gno2GoTypeMatches(ct.Elt, rt.Elem())
+	case *ArrayType:
+		if rt.Kind() != reflect.Array {
+			return false
+		}
+		if ct.Len != rt.Len() {
+			return false
+		}
+		return gno2GoTypeMatches(ct.Elt, rt.Elem())
+	case *SliceType:
+		if rt.Kind() != reflect.Slice {
+			return false
+		}
+		return gno2GoTypeMatches(ct.Elt, rt.Elem())
+	case *StructType:
+		// TODO maybe consider automatically skipping private native fields?
+		for i, field := range ct.Fields {
+			rft := rt.Field(i).Type
+			if !gno2GoTypeMatches(field.Type, rft) {
+				return false
+			}
+		}
+		return true
+	case *MapType:
+		if !gno2GoTypeMatches(ct.Key, rt.Key()) {
+			return false
+		}
+		if !gno2GoTypeMatches(ct.Value, rt.Elem()) {
+			return false
+		}
+		return true
+	case *FuncType:
+		// TODO: there is a recursion issue when a native func
+		// takes a func type as an argument.  as implemented,
+		// we match too broadly.
+		//
+		// args must auto-match.
+		for i, pt := range ct.Params {
+			if !gno2GoTypeMatches(pt.Type, rt.In(i)) {
+				return false
+			}
+		}
+		// go2GnoType(result) must match directly.
+		for i, rct := range ct.Results {
+			rrt := rt.Out(i)
+			gnorrt := go2GnoType(rrt)
+			if rct.Type.Kind() == InterfaceKind {
+				if !IsImplementedBy(rct.Type, gnorrt) {
+					return false
+				}
+			} else if rct.Type.TypeID() != gnorrt.TypeID() {
+				return false
+			}
+		}
+		// variadicity must be the same
+		if ct.HasVarg() != rt.IsVariadic() {
+			return false
+		}
+		return true
+	case *InterfaceType:
+		if rt.Kind() != reflect.Interface {
+			return false
+		}
+		if ct.IsEmptyInterface() {
+			return rt.NumMethod() == 0
+		} else {
+			// NOTE: can this be implemented in go1.15? i think not.
+			panic("not yet supported")
+		}
+	case *TypeType:
+		panic("should not happen")
+	case *DeclaredType:
+		// NOTE: Go1.15 has issues with generating types and values using
+		// reflect to declare types with methods.  When Go has fixed these
+		// issues, we can revisit.  For now, all Gno objects passed to Go
+		// lose their names or "namedness", e.g. cannot satisfy anything
+		// but empty interfaces, and have no methods.
+
+		// We switch on baseOf(t).
+		panic("should not happen")
+	case *PackageType:
+		panic("should not happen")
+	case *NativeType:
+		return ct.Type.AssignableTo(rt)
 	default:
 		panic(fmt.Sprintf("unexpected type %v with base %v", t, baseOf(t)))
 	}

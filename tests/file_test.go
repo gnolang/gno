@@ -81,8 +81,10 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 	pv := pn.NewPackage()
 	isRealm := pv.IsRealm() // enable diff persistence.
 
-	output := new(bytes.Buffer)
-	store := testStore(output, isRealm, nativeLibs)
+	stdin := new(bytes.Buffer)
+	stdout := new(bytes.Buffer)
+	stderr := new(bytes.Buffer)
+	store := testStore(stdin, stdout, stderr, isRealm, nativeLibs)
 	store.SetLogStoreOps(true)
 	caller := testutils.TestAddress("testaddr____________")
 	txSend := std.MustParseCoins("100gnots")
@@ -101,7 +103,7 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 	}
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		Package: pv,
-		Output:  output,
+		Output:  stdout,
 		Store:   store,
 		Context: ctx,
 	})
@@ -123,7 +125,7 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 					pnc = r
 					if errWanted == "" {
 						// unexpected: print output.
-						fmt.Println("OUTPUT:\n", output.String())
+						fmt.Println("OUTPUT:\n", stdout.String())
 						// print stack.
 						rtdb.PrintStack()
 					}
@@ -188,7 +190,7 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 				}
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 					Package: pv2,
-					Output:  output,
+					Output:  stdout,
 					Store:   store,
 					Context: ctx,
 				})
@@ -234,7 +236,7 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 			}
 		}
 		// check result
-		res := strings.TrimSpace(output.String())
+		res := strings.TrimSpace(stdout.String())
 		if resWanted != "" {
 			if res != resWanted {
 				// panic so tests immediately fail (for now).

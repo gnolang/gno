@@ -163,6 +163,7 @@ func UverseNode() *PackageNode {
 				}
 			}
 			xt := arg0.TV.T
+			argt := arg1.TV.T
 			switch xv := arg0.TV.V.(type) {
 
 			//----------------------------------------------------------------
@@ -191,7 +192,7 @@ func UverseNode() *PackageNode {
 							V: nil,
 						})
 						return
-					} else if xt.Kind() == Uint8Kind {
+					} else if xt.Elem().Kind() == Uint8Kind {
 						// append(nil, *SliceValue) new data bytes ---
 						data := make([]byte, argsl)
 						if argsb.Data == nil {
@@ -234,7 +235,7 @@ func UverseNode() *PackageNode {
 							V: nil,
 						})
 						return
-					} else if xt.Kind() == Uint8Kind {
+					} else if xt.Elem().Kind() == Uint8Kind {
 						// append(nil, *NativeValue) new data bytes --
 						data := make([]byte, argsl)
 						copyNativeToData(
@@ -336,7 +337,7 @@ func UverseNode() *PackageNode {
 							})
 							return
 						}
-					} else if xt.Kind() == Uint8Kind {
+					} else if xt.Elem().Kind() == Uint8Kind {
 						// append(*SliceValue, *SliceValue) new data bytes ---
 						data := make([]byte, xvl+argsl)
 						if 0 < xvl {
@@ -370,14 +371,30 @@ func UverseNode() *PackageNode {
 						// append(*SliceValue, *SliceValue) new list ---------
 						list := make([]TypedValue, xvl+argsl)
 						if 0 < xvl {
-							copy(
-								list[:xvl],
-								xvb.List[xvo:xvo+xvl])
+							if xvb.Data == nil {
+								copy(
+									list[:xvl],
+									xvb.List[xvo:xvo+xvl])
+							} else {
+								copyDataToList(
+									list[:xvl],
+									xvb.Data[xvo:xvo+xvl],
+									xt.Elem(),
+								)
+							}
 						}
 						if 0 < argsl {
-							copy(
-								list[xvl:xvl+argsl],
-								argsb.List[argso:argso+argsl])
+							if argsb.Data == nil {
+								copy(
+									list[xvl:xvl+argsl],
+									argsb.List[argso:argso+argsl])
+							} else {
+								copyDataToList(
+									list[xvl:xvl+argsl],
+									argsb.Data[argso:argso+argsl],
+									argt.Elem(),
+								)
+							}
 						}
 						m.PushValue(TypedValue{
 							T: xt,
@@ -424,7 +441,7 @@ func UverseNode() *PackageNode {
 							})
 							return
 						}
-					} else if xt.Kind() == Uint8Kind {
+					} else if xt.Elem().Kind() == Uint8Kind {
 						// append(*SliceValue, *NativeValue) new data bytes --
 						data := make([]byte, xvl+argsl)
 						if 0 < xvl {

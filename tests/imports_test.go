@@ -48,7 +48,7 @@ import (
 )
 
 // NOTE: this isn't safe.
-func testStore(out io.Writer, isRealm bool, nativeLibs bool) (store gno.Store) {
+func testStore(stdin io.Reader, stdout, stderr io.Writer, isRealm bool, nativeLibs bool) (store gno.Store) {
 	filesPath := "./files"
 	if nativeLibs {
 		filesPath = "./files2"
@@ -61,7 +61,7 @@ func testStore(out io.Writer, isRealm bool, nativeLibs bool) (store gno.Store) {
 			memPkg := gno.ReadMemPackage(baseDir, pkgPath)
 			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 				Package: nil,
-				Output:  out,
+				Output:  stdout,
 				Store:   store,
 			})
 			// pkg := gno.NewPackageNode(gno.Name(memPkg.Name), memPkg.Path, nil)
@@ -72,6 +72,12 @@ func testStore(out io.Writer, isRealm bool, nativeLibs bool) (store gno.Store) {
 		// TODO: if isRealm, can we panic here?
 		// otherwise, built-in package value.
 		switch pkgPath {
+		case "os":
+			pkg := gno.NewPackageNode("os", pkgPath, nil)
+			pkg.DefineGoNativeValue("Stdin", stdin)
+			pkg.DefineGoNativeValue("Stdout", stdout)
+			pkg.DefineGoNativeValue("Stderr", stderr)
+			return pkg, pkg.NewPackage()
 		case "fmt":
 			pkg := gno.NewPackageNode("fmt", pkgPath, nil)
 			pkg.DefineGoNativeType(reflect.TypeOf((*fmt.Stringer)(nil)).Elem())
@@ -80,19 +86,22 @@ func testStore(out io.Writer, isRealm bool, nativeLibs bool) (store gno.Store) {
 				// NOTE: uncomment to debug long running tests
 				fmt.Println(a...)
 				res := fmt.Sprintln(a...)
-				return out.Write([]byte(res))
+				return stdout.Write([]byte(res))
 			})
 			pkg.DefineGoNativeFunc("Printf", func(format string, a ...interface{}) (n int, err error) {
 				res := fmt.Sprintf(format, a...)
-				return out.Write([]byte(res))
+				return stdout.Write([]byte(res))
 			})
 			pkg.DefineGoNativeFunc("Print", func(a ...interface{}) (n int, err error) {
 				res := fmt.Sprint(a...)
-				return out.Write([]byte(res))
+				return stdout.Write([]byte(res))
 			})
 			pkg.DefineGoNativeFunc("Sprintf", fmt.Sprintf)
 			pkg.DefineGoNativeFunc("Sscanf", fmt.Sscanf)
 			pkg.DefineGoNativeFunc("Errorf", fmt.Errorf)
+			pkg.DefineGoNativeFunc("Fprintln", fmt.Fprintln)
+			pkg.DefineGoNativeFunc("Fprintf", fmt.Fprintf)
+			pkg.DefineGoNativeFunc("Fprint", fmt.Fprint)
 			return pkg, pkg.NewPackage()
 		case "encoding/base64":
 			pkg := gno.NewPackageNode("base64", pkgPath, nil)
@@ -133,22 +142,23 @@ func testStore(out io.Writer, isRealm bool, nativeLibs bool) (store gno.Store) {
 			pkg.DefineGoNativeType(reflect.TypeOf(url.Values{}))
 			return pkg, pkg.NewPackage()
 		case "bufio":
-			pkg := gno.NewPackageNode("bufio", pkgPath, nil)
-			pkg.DefineGoNativeValue("NewScanner", bufio.NewScanner)
-			pkg.DefineGoNativeType(reflect.TypeOf(bufio.SplitFunc(nil)))
-			return pkg, pkg.NewPackage()
+			if nativeLibs {
+				pkg := gno.NewPackageNode("bufio", pkgPath, nil)
+				pkg.DefineGoNativeValue("NewScanner", bufio.NewScanner)
+				pkg.DefineGoNativeType(reflect.TypeOf(bufio.SplitFunc(nil)))
+				return pkg, pkg.NewPackage()
+			}
 		case "bytes":
-			// XXX this is next.
-			//if nativeLibs {
-			pkg := gno.NewPackageNode("bytes", pkgPath, nil)
-			pkg.DefineGoNativeValue("Equal", bytes.Equal)
-			pkg.DefineGoNativeValue("Compare", bytes.Compare)
-			pkg.DefineGoNativeValue("NewReader", bytes.NewReader)
-			pkg.DefineGoNativeValue("NewBuffer", bytes.NewBuffer)
-			pkg.DefineGoNativeValue("Repeat", bytes.Repeat)
-			pkg.DefineGoNativeType(reflect.TypeOf(bytes.Buffer{}))
-			return pkg, pkg.NewPackage()
-			//}
+			if nativeLibs {
+				pkg := gno.NewPackageNode("bytes", pkgPath, nil)
+				pkg.DefineGoNativeValue("Equal", bytes.Equal)
+				pkg.DefineGoNativeValue("Compare", bytes.Compare)
+				pkg.DefineGoNativeValue("NewReader", bytes.NewReader)
+				pkg.DefineGoNativeValue("NewBuffer", bytes.NewBuffer)
+				pkg.DefineGoNativeValue("Repeat", bytes.Repeat)
+				pkg.DefineGoNativeType(reflect.TypeOf(bytes.Buffer{}))
+				return pkg, pkg.NewPackage()
+			}
 		case "time":
 			pkg := gno.NewPackageNode("time", pkgPath, nil)
 			pkg.DefineGoNativeValue("Date", time.Date)
@@ -321,7 +331,7 @@ func testStore(out io.Writer, isRealm bool, nativeLibs bool) (store gno.Store) {
 			memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
 			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 				Package: nil,
-				Output:  out,
+				Output:  stdout,
 				Store:   store,
 			})
 			return m2.RunMemPackage(memPkg, isRealm) // XXX , false)?
@@ -332,7 +342,7 @@ func testStore(out io.Writer, isRealm bool, nativeLibs bool) (store gno.Store) {
 			memPkg := gno.ReadMemPackage(examplePath, pkgPath)
 			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 				Package: nil,
-				Output:  out,
+				Output:  stdout,
 				Store:   store,
 			})
 			return m2.RunMemPackage(memPkg, isRealm) // XXX , false)?

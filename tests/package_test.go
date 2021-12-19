@@ -65,12 +65,14 @@ func runPackageTest(t *testing.T, dir string, path string) {
 	}
 
 	isRealm := false // XXX try true too?
-	output := new(bytes.Buffer)
-	store := testStore(output, isRealm, false)
+	stdin := new(bytes.Buffer)
+	stdout := new(bytes.Buffer)
+	stderr := new(bytes.Buffer)
+	store := testStore(stdin, stdout, stderr, isRealm, false)
 	store.SetLogStoreOps(true)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		Package: nil,
-		Output:  output,
+		Output:  stdout,
 		Store:   store,
 		Context: nil,
 	})

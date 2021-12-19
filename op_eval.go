@@ -3,7 +3,9 @@ package gno
 import (
 	"fmt"
 	"math/big"
+	"regexp"
 	"strconv"
+	"strings"
 )
 
 func (m *Machine) doOpEval() {
@@ -70,10 +72,52 @@ func (m *Machine) doOpEval() {
 				V: BigintValue{V: bi},
 			})
 		case FLOAT:
-			// NOTE: I suspect we won't get hardware-level
-			// consistency (determinism) in floating point numbers
-			// yet, so hold off on this until we master this.
-			panic("floats are not supported")
+			// Special case if ieee notation of integer type.
+			if matched, _ := regexp.MatchString(`[\-\+]?[0-9]+e[0-9]+`, x.Value); matched {
+				value := x.Value
+				isNeg := false
+				if x.Value[0] == '-' {
+					isNeg = true
+					value = x.Value[1:]
+				} else if x.Value[0] == '+' {
+					isNeg = false
+					value = x.Value[1:]
+				}
+				parts := strings.SplitN(value, "e", 2)
+				if len(parts) != 2 {
+					panic(fmt.Sprintf(
+						"invalid integer constant: %s",
+						x.Value))
+				}
+				first, err := strconv.Atoi(parts[0])
+				if err != nil {
+					panic(fmt.Sprintf(
+						"invalid integer constant: %s",
+						x.Value))
+				}
+				second, err := strconv.Atoi(parts[1])
+				if err != nil {
+					panic(fmt.Sprintf(
+						"invalid integer constant: %s",
+						x.Value))
+				}
+				bi := big.NewInt(0)
+				bi = bi.Exp(big.NewInt(10), big.NewInt(int64(second)), nil)
+				bi = bi.Mul(bi, big.NewInt(int64(first)))
+				if isNeg {
+					bi = bi.Mul(bi, big.NewInt(-1))
+				}
+				m.PushValue(TypedValue{
+					T: UntypedBigintType,
+					V: BigintValue{V: bi},
+				})
+				return
+			} else {
+				// NOTE: I suspect we won't get hardware-level
+				// consistency (determinism) in floating point numbers
+				// yet, so hold off on this until we master this.
+				panic(fmt.Sprintf("floats are not supported: %v", x.String()))
+			}
 		case IMAG:
 			// NOTE: this is a syntax and grammar problem, not an
 			// AST one.  Imaginaries should get evaluated as a
