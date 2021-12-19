@@ -59,10 +59,6 @@ func TestPackages(t *testing.T) {
 
 func runPackageTest(t *testing.T, dir string, path string) {
 	memPkg := gno.ReadMemPackage(dir, path)
-	if memPkg.Path == "bytes" {
-		fmt.Println("skipped")
-		return
-	}
 
 	isRealm := false // XXX try true too?
 	stdin := new(bytes.Buffer)

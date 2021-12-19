@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"reflect"
-	rdebug "runtime/debug"
 	"strconv"
 	"strings"
 
@@ -1252,14 +1251,17 @@ func (pn *PackageNode) NewPackage() *PackageValue {
 	return pv
 }
 
-// Prepares new func and method values by attaching the proper file block.
-// Returns a slice of new PackageValue.Values.
+// Prepares new func and method values (e.g. by attaching the proper file block).
+// Returns a slice of new PackageValue.Values (sans updated *DeclaredType.Methods).
 // After return, *PackageNode.Values and *PackageValue.Values have the same
 // length.
 // Until this function is called, PackageNode>*DeclarledType>Methods>*FuncValue.Closure
 // and PackageNode>*FuncValue.Closure doesn't get set (and cannot because Closures
 // are runtime values.)
 func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
+	if pv.PkgPath == "" {
+		return nil // nothing to prepare for throwaway packages.
+	}
 	// should already exist.
 	block := pv.Block.(*Block)
 	if block.Source != pn {
@@ -1272,6 +1274,50 @@ func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 	}
 	pvl := len(block.Values)
 	pnl := len(pn.Values)
+	// prepare new methods for preexisting declared types.
+	prepareFuncValue := func(fv *FuncValue) bool {
+		if fv.Closure != nil || fv.PkgPath != "" {
+			return false // already prepared.
+		}
+		// set fv.pkg.
+		fv.PkgPath = pv.PkgPath // XXX do this earlier?
+		fv.pkg = pv
+		// set fv.Closure.
+		if fv.FileName == "" {
+			// Allow m.RunDeclaration(FuncD(...)) without any file
+			// nodes, as long as it uses no imports.
+		} else {
+			fb := pv.fBlocksMap[fv.FileName]
+			if fb == nil {
+				panic(fmt.Sprintf("file block missing for file %q", fv.FileName))
+			}
+			fv.Closure = fb
+		}
+		return true
+	}
+	for _, otv := range pn.Values[0:pvl] { // pvl has old max index.
+		if otv.T.Kind() != TypeKind {
+			continue // filter by TypeType.
+		}
+		dt, ok := otv.GetType().(*DeclaredType)
+		if !ok {
+			continue // filter by TypeType of *DeclaredType
+		}
+		if !dt.updated {
+			continue // filter by updated
+		}
+		if debug {
+			if dt.Kind() == InterfaceKind {
+				panic("should not happen")
+			}
+		}
+		for _, mthd := range dt.Methods {
+			mv := mthd.V.(*FuncValue)
+			prepareFuncValue(mv)
+		}
+		dt.updated = false // reset
+	}
+	// prepare new top-level defined types.
 	if pvl < pnl {
 		// XXX: deep copy heap values
 		nvs := make([]TypedValue, pnl-pvl)
@@ -1290,23 +1336,7 @@ func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 					// Set function closure for function declarations.
 					switch fv := nv.V.(type) {
 					case *FuncValue:
-						fv.PkgPath = pv.PkgPath // XXX do this earlier?
-						fv.pkg = pv
-						if fv.Closure != nil {
-							panic("expected nil closure for static func")
-						}
-						if fv.FileName == "" {
-							// Allow
-							// m.RunDeclaration(FuncD(...))
-							// without any file nodes, as long
-							// as it uses no imports.
-							continue
-						}
-						fb := pv.fBlocksMap[fv.FileName]
-						if fb == nil {
-							panic("should not happen")
-						}
-						fv.Closure = fb
+						prepareFuncValue(fv)
 					case *NativeValue:
 						// do nothing for go native functions.
 					default:
@@ -1318,19 +1348,7 @@ func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 				if dt, ok := nt.(*DeclaredType); ok {
 					for i := 0; i < len(dt.Methods); i++ {
 						mv := dt.Methods[i].V.(*FuncValue)
-						if mv.Closure != nil {
-							// This happens with alias declarations.
-						}
-						// set mv.pkg.
-						mv.PkgPath = pv.PkgPath // XXX do this earlier?
-						mv.pkg = pv
-						// set mv.Closure.
-						fn, _ := pn.GetDeclFor(dt.Name)
-						fb := pv.fBlocksMap[fn.Name]
-						if fb == nil {
-							panic("should not happen")
-						}
-						mv.Closure = fb
+						prepareFuncValue(mv)
 					}
 				}
 			default:
@@ -1809,9 +1827,6 @@ const (
 )
 
 func NewValuePath(t VPType, depth uint8, index uint16, n Name) ValuePath {
-	if t == VPField && n == "Root" {
-		rdebug.PrintStack()
-	}
 	vp := ValuePath{
 		Type:  t,
 		Depth: depth,

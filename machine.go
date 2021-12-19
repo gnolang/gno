@@ -190,6 +190,8 @@ func (m *Machine) TestMemPackage(memPkg std.MemPackage) {
 				fmt.Println(m.String())
 				fmt.Println("----------------------------------------------")
 			*/
+			// Show last location information.
+			// First, determine the line number of expression or statement if any.
 			lastLine := 0
 			if len(m.Exprs) > 0 {
 				for i := len(m.Exprs) - 1; i >= 0; i-- {
@@ -209,6 +211,7 @@ func (m *Machine) TestMemPackage(memPkg std.MemPackage) {
 					}
 				}
 			}
+			// Append line number to block location.
 			lastLoc := Location{}
 			for i := len(m.Blocks) - 1; i >= 0; i-- {
 				block := m.Blocks[i]
@@ -222,6 +225,7 @@ func (m *Machine) TestMemPackage(memPkg std.MemPackage) {
 					break
 				}
 			}
+			// wrap panic with location information.
 			if !lastLoc.IsZero() {
 				fmt.Printf("%s: %v\n", lastLoc.String(), r)
 				panic(errors.Wrap(r, fmt.Sprintf("location: %s", lastLoc.String())))

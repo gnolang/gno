@@ -95,15 +95,18 @@ func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
 	if ds.baseStore != nil {
 		if oo := ds.loadObjectSafe(oid); oo != nil {
 			pv := oo.(*PackageValue)
-			// inject natives after load.
-			if ds.pkgInjector != nil {
-				pl := PackageNodeLocation(pkgPath)
-				pn, ok := ds.GetBlockNodeSafe(pl).(*PackageNode)
-				if !ok {
-					// Do not inject packages from packageGetter
-					// that don't have corresponding *PackageNodes.
-				} else {
-					pv.GetBlock(ds) // preload pv.Block
+			_ = pv.GetBlock(ds) // preload
+			pl := PackageNodeLocation(pkgPath)
+			pn, ok := ds.GetBlockNodeSafe(pl).(*PackageNode)
+			if !ok {
+				// Do not inject packages from packageGetter
+				// that don't have corresponding *PackageNodes.
+			} else {
+				// Rederive pv.fBlocksMap.
+				pv.deriveFBlocksMap(ds)
+				// Inject natives after load.
+				if ds.pkgInjector != nil {
+					// pv.GetBlock(ds) // preload pv.Block
 					ds.pkgInjector(ds, pn, pv)
 				}
 			}

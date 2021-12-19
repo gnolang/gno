@@ -1276,8 +1276,9 @@ type DeclaredType struct {
 	Base    Type         // not a DeclaredType
 	Methods []TypedValue // {T:*FuncType,V:*FuncValue}...
 
-	typeid TypeID
-	sealed bool
+	typeid  TypeID
+	sealed  bool // for ensuring correctness with recursive types.
+	updated bool // for tracking new methods for preexisting types.
 }
 
 // returns an unsealed *DeclaredType.
@@ -1288,6 +1289,7 @@ func declareWith(pkgPath string, name Name, b Type) *DeclaredType {
 		Name:    name,
 		Base:    baseOf(b),
 		sealed:  false,
+		updated: false,
 	}
 	return dt
 }
@@ -1310,12 +1312,20 @@ func (dt *DeclaredType) Kind() Kind {
 }
 
 func (dt *DeclaredType) Seal() {
+	dt.checkSeal()
+	dt.sealed = true
+}
+
+// NOTE: dt.sealed is only for recursive types support:
+// it is unsealed until the recursion definition is complete.
+// it is not used to prevent the updating of declared types,
+// such as adding new method functions.
+func (dt *DeclaredType) checkSeal() {
 	if dt.sealed {
 		panic(fmt.Sprintf(
 			"*DeclaredType %s already sealed",
 			dt.Name))
 	}
-	dt.sealed = true
 }
 
 func (dt *DeclaredType) TypeID() TypeID {
@@ -1342,6 +1352,7 @@ func (dt *DeclaredType) DefineMethod(fv *FuncValue) {
 		T: fv.Type,
 		V: fv,
 	})
+	dt.updated = true
 }
 
 func (dt *DeclaredType) GetPathForName(n Name) ValuePath {

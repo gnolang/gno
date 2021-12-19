@@ -54,6 +54,9 @@ func testStore(stdin io.Reader, stdout, stderr io.Writer, isRealm bool, nativeLi
 		filesPath = "./files2"
 	}
 	getPackage := func(pkgPath string) (pn *gno.PackageNode, pv *gno.PackageValue) {
+		if pkgPath == "" {
+			panic(fmt.Sprintf("invalid zero package path in testStore().pkgGetter"))
+		}
 		// if _test package...
 		const testPath = "github.com/gnolang/gno/_test/"
 		if strings.HasPrefix(pkgPath, testPath) {

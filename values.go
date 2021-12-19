@@ -659,6 +659,19 @@ func (pv *PackageValue) getFBlocksMap() map[Name]*Block {
 	return pv.fBlocksMap
 }
 
+// to call after loading *PackageValue.
+func (pv *PackageValue) deriveFBlocksMap(store Store) {
+	if pv.fBlocksMap != nil {
+		panic("should not happen")
+	}
+	pv.fBlocksMap = make(map[Name]*Block, len(pv.FNames))
+	for i := 0; i < len(pv.FNames); i++ {
+		fname := pv.FNames[i]
+		fblock := pv.GetFileBlock(store, fname)
+		pv.fBlocksMap[fname] = fblock
+	}
+}
+
 func (pv *PackageValue) GetBlock(store Store) *Block {
 	bv := pv.Block
 	switch bv := bv.(type) {
