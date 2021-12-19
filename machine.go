@@ -182,6 +182,54 @@ func (m *Machine) RunMemPackage(memPkg std.MemPackage, save bool) (*PackageNode,
 // other declarations, so it is expected that non-test code will not be run
 // afterwards from the same store.
 func (m *Machine) TestMemPackage(memPkg std.MemPackage) {
+	// in case of panic, print the machine state.
+	defer func() {
+		if r := recover(); r != nil {
+			/*
+				fmt.Println("--- Machine state during TestMemPackage... ---")
+				fmt.Println(m.String())
+				fmt.Println("----------------------------------------------")
+			*/
+			lastLine := 0
+			if len(m.Exprs) > 0 {
+				for i := len(m.Exprs) - 1; i >= 0; i-- {
+					expr := m.Exprs[i]
+					if expr.GetLine() > 0 {
+						lastLine = expr.GetLine()
+						break
+					}
+				}
+			}
+			if lastLine == 0 && len(m.Stmts) > 0 {
+				for i := len(m.Stmts) - 1; i >= 0; i-- {
+					stmt := m.Stmts[i]
+					if stmt.GetLine() > 0 {
+						lastLine = stmt.GetLine()
+						break
+					}
+				}
+			}
+			lastLoc := Location{}
+			for i := len(m.Blocks) - 1; i >= 0; i-- {
+				block := m.Blocks[i]
+				src := block.GetSource(m.Store)
+				loc := src.GetLocation()
+				if !loc.IsZero() {
+					lastLoc = loc
+					if lastLine > 0 {
+						lastLoc.Line = lastLine
+					}
+					break
+				}
+			}
+			if !lastLoc.IsZero() {
+				fmt.Printf("%s: %v\n", lastLoc.String(), r)
+				panic(errors.Wrap(r, fmt.Sprintf("location: %s", lastLoc.String())))
+			} else {
+				panic(r)
+			}
+		}
+	}()
 	// prefetch the testing package.
 	testingpv := m.Store.GetPackage("testing")
 	testingtv := TypedValue{T: gPackageType, V: testingpv}

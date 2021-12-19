@@ -608,7 +608,7 @@ func addAssign(lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
-	case StringType:
+	case StringType, UntypedStringType:
 		lv.V = StringValue(lv.GetString() + rv.GetString())
 	case IntType:
 		lv.SetInt(lv.GetInt() + rv.GetInt())

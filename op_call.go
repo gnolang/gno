@@ -76,7 +76,7 @@ func (m *Machine) doOpCall() {
 			m.PushStmt(gReturnStmt)
 			m.PushOp(OpExec)
 		} else {
-			// Initialize return variables.
+			// Initialize return variables with default value.
 			numParams := len(ft.Params)
 			for i, rt := range ft.Results {
 				ptr := b.GetPointerToInt(nil, numParams+i)

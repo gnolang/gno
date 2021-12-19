@@ -15,6 +15,7 @@ import (
 func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	// First, initialize all file nodes and connect to package node.
 	for _, fn := range fset.Files {
+		SetNodeLocations(pn.PkgPath, string(fn.Name), fn)
 		fn.InitStaticBlock(fn, pn)
 	}
 	// NOTE: much of what follows is duplicated for a single *FileNode
@@ -97,6 +98,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 		panic("Preprocess requires context")
 	}
 
+	// if n is file node, set node locations recursively.
+	if fn, ok := n.(*FileNode); ok {
+		pkgPath := ctx.(*PackageNode).PkgPath
+		fileName := string(fn.Name)
+		SetNodeLocations(pkgPath, fileName, fn)
+	}
+
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
 	var last BlockNode = ctx
@@ -119,11 +127,17 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					fmt.Printf("stack %d: %s\n", i, sbn.String())
 				}
 				fmt.Println("------------------------")
+				// before re-throwing the error, append location information to message.
+				loc := last.GetLocation()
+				if nline := n.GetLine(); nline > 0 {
+					loc.Line = nline
+				}
 				if rerr, ok := r.(error); ok {
-					panic(rerr)
+					// NOTE: gotuna/gorilla expects error exceptions.
+					panic(errors.Wrap(rerr, loc.String()))
 				} else {
-					// gotuna/gorilla expects error exceptions.
-					panic(errors.New(fmt.Sprintf("%v", r)))
+					// NOTE: gotuna/gorilla expects error exceptions.
+					panic(errors.New(fmt.Sprintf("%s: %v", loc.String(), r)))
 				}
 			}
 		}()
@@ -1449,7 +1463,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *ReturnStmt:
-				fnode, ft := funcNodeOf(last)
+				fnode, ft := funcOf(last)
 				// Check number of return arguments.
 				if len(n.Results) != len(ft.Results) {
 					if len(n.Results) == 0 {
@@ -1961,7 +1975,7 @@ func packageOf(last BlockNode) *PackageNode {
 	}
 }
 
-func funcNodeOf(last BlockNode) (BlockNode, *FuncTypeExpr) {
+func funcOf(last BlockNode) (BlockNode, *FuncTypeExpr) {
 	for {
 		if flx, ok := last.(*FuncLitExpr); ok {
 			return flx, &flx.Type
@@ -2601,7 +2615,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 				Source:     cd,
 				Name:       cd.Name,
 				Closure:    nil, // set later, see PrepareNewValues().
-				FileName:   filenameOf(last),
+				FileName:   fileNameOf(last),
 				PkgPath:    "", // set later, see PrepareNewValues().
 				body:       cd.Body,
 				nativeBody: nil,
@@ -2816,7 +2830,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 					Source:     d,
 					Name:       d.Name,
 					Closure:    nil, // set later, see PrepareNewValues().
-					FileName:   filenameOf(last),
+					FileName:   fileNameOf(last),
 					PkgPath:    "", // set later, see PrepareNewValues().
 					body:       d.Body,
 					nativeBody: nil,
@@ -2917,7 +2931,7 @@ func skipFile(n BlockNode) BlockNode {
 }
 
 // If n is a *FileNode, return name, otherwise empty.
-func filenameOf(n BlockNode) Name {
+func fileNameOf(n BlockNode) Name {
 	if fnode, ok := n.(*FileNode); ok {
 		return fnode.Name
 	} else {
@@ -3196,26 +3210,24 @@ func findDependentNames(n Node, dst map[Name]struct{}) {
 }
 
 //----------------------------------------
-// SaveBlockNodes
+// SetNodeLocations
 
-// Iterate over all block nodes recursively and saves them.
+// Iterate over all block nodes recursively and sets location information
+// based on sparse expectations, and ensures uniqueness of BlockNode.Locations.
 // Ensures uniqueness of BlockNode.Locations.
-func SaveBlockNodes(store Store, fn *FileNode) {
-	// First, get the package and file names.
-	pn := packageOf(fn)
-	store.SetBlockNode(pn)
-	pkgPath := pn.PkgPath
-	fileName := string(fn.Name)
+func SetNodeLocations(pkgPath string, fileName string, n Node) {
+	if n.GetAttribute(ATTR_LOCATIONED) == true {
+		return // locations already set (typically n is a filenode).
+	}
 	if pkgPath == "" || fileName == "" {
 		panic("missing package path or file name")
 	}
 	lastLine := 0
 	nextNonce := 0
-	Transcribe(fn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+	Transcribe(n, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		if stage != TRANS_ENTER {
 			return n, TRANS_CONTINUE
 		}
-		// save node to store if blocknode.
 		if bn, ok := n.(BlockNode); ok {
 			// ensure unique location of blocknode.
 			line := bn.GetLine()
@@ -3232,6 +3244,45 @@ func SaveBlockNodes(store Store, fn *FileNode) {
 				Nonce:   nextNonce,
 			}
 			bn.SetLocation(loc)
+		}
+		return n, TRANS_CONTINUE
+	})
+}
+
+//----------------------------------------
+// SaveBlockNodes
+
+// Iterate over all block nodes recursively and saves them.
+// Ensures uniqueness of BlockNode.Locations.
+func SaveBlockNodes(store Store, fn *FileNode) {
+	// First, get the package and file names.
+	pn := packageOf(fn)
+	store.SetBlockNode(pn)
+	pkgPath := pn.PkgPath
+	fileName := string(fn.Name)
+	if pkgPath == "" || fileName == "" {
+		panic("missing package path or file name")
+	}
+	Transcribe(fn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		if stage != TRANS_ENTER {
+			return n, TRANS_CONTINUE
+		}
+		// save node to store if blocknode.
+		if bn, ok := n.(BlockNode); ok {
+			// Location must exist already.
+			loc := bn.GetLocation()
+			if loc.IsZero() {
+				panic("unexpected zero block node location")
+			}
+			if loc.PkgPath != pkgPath {
+				panic("unexpected pkg path in node location")
+			}
+			if loc.File != fileName {
+				panic("unexpected file name in node location")
+			}
+			if loc.Line != bn.GetLine() {
+				panic("wrong line in block node location")
+			}
 			// save blocknode.
 			store.SetBlockNode(bn)
 		}

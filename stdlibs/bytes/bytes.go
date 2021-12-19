@@ -986,7 +986,7 @@ func Runes(s []byte) []rune {
 // and after each UTF-8 sequence, yielding up to k+1 replacements
 // for a k-rune slice.
 // If n < 0, there is no limit on the number of replacements.
-func Replace(s, old, new []byte, n int) []byte {
+func Replace(s, old, new_ []byte, n int) []byte {
 	m := 0
 	if n != 0 {
 		// Compute number of replacements.
@@ -1001,7 +1001,7 @@ func Replace(s, old, new []byte, n int) []byte {
 	}
 
 	// Apply replacements to buffer.
-	t := make([]byte, len(s)+n*(len(new)-len(old)))
+	t := make([]byte, len(s)+n*(len(new_)-len(old)))
 	w := 0
 	start := 0
 	for i := 0; i < n; i++ {
@@ -1015,7 +1015,7 @@ func Replace(s, old, new []byte, n int) []byte {
 			j += Index(s[start:], old)
 		}
 		w += copy(t[w:], s[start:j])
-		w += copy(t[w:], new)
+		w += copy(t[w:], new_)
 		start = j + len(old)
 	}
 	w += copy(t[w:], s[start:])
@@ -1027,8 +1027,8 @@ func Replace(s, old, new []byte, n int) []byte {
 // If old is empty, it matches at the beginning of the slice
 // and after each UTF-8 sequence, yielding up to k+1 replacements
 // for a k-rune slice.
-func ReplaceAll(s, old, new []byte) []byte {
-	return Replace(s, old, new, -1)
+func ReplaceAll(s, old, new_ []byte) []byte {
+	return Replace(s, old, new_, -1)
 }
 
 // EqualFold reports whether s and t, interpreted as UTF-8 strings,

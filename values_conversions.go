@@ -616,31 +616,6 @@ GNO_CASE:
 					"cannot convert %s to %s",
 					tvk.String(), t.String()))
 			}
-			/* TODO deleteme, native types handled above.
-			case *NativeType:
-				switch cbt.Kind() {
-				case StringKind:
-					tv.V = &NativeValue{
-						Value: reflect.ValueOf(
-							string(tv.GetString()),
-						),
-					}
-					tv.T = t // after tv.GetString()
-				case SliceKind:
-					tv.V = &NativeValue{
-						Value: reflect.ValueOf(
-							[]byte(tv.GetString()),
-						),
-					}
-					tv.T = t // after tv.GetString()
-				case InterfaceKind:
-					tv.T = StringType
-				default:
-					panic(fmt.Sprintf(
-						"cannot convert %s to %s",
-						tvk.String(), t.String()))
-				}
-			*/
 		default:
 			panic(fmt.Sprintf(
 				"cannot convert %s to %s",
@@ -655,6 +630,9 @@ GNO_CASE:
 					tv.T.String(), t.String()))
 			}
 			switch sv := tv.V.(type) {
+			case nil:
+				tv.T = t
+				tv.V = StringValue(string(""))
 			case *SliceValue:
 				svo := sv.Offset
 				svl := sv.Length
@@ -685,13 +663,6 @@ GNO_CASE:
 					tv.T = t
 					tv.V = strv
 				}
-				/* TODO deleteme, native types handled above
-				case *NativeValue:
-					data := sv.Value.Bytes()
-					strv := StringValue(string(data))
-					tv.T = t
-					tv.V = strv
-				*/
 			default:
 				panic("should not happen")
 			}

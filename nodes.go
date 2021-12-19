@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gnolang/gno/pkgs/errors"
 	"github.com/gnolang/gno/pkgs/std"
 )
 
@@ -1100,7 +1101,10 @@ func ParseMemPackage(memPkg std.MemPackage) (fset *FileSet) {
 		if !strings.HasSuffix(mfile.Name, ".go") {
 			continue // skip spurious file.
 		}
-		n := MustParseFile(mfile.Name, mfile.Body)
+		n, err := ParseFile(mfile.Name, mfile.Body)
+		if err != nil {
+			panic(errors.Wrap(err, "parsing file "+mfile.Name))
+		}
 		if strings.HasSuffix(mfile.Name, "_test.go") {
 			// skip test file.
 		} else if memPkg.Name == string(n.PkgName) {
@@ -1121,7 +1125,10 @@ func ParseMemPackageTests(memPkg std.MemPackage) (tset, itset *FileSet) {
 		if !strings.HasSuffix(mfile.Name, ".go") {
 			continue // skip this file.
 		}
-		n := MustParseFile(mfile.Name, mfile.Body)
+		n, err := ParseFile(mfile.Name, mfile.Body)
+		if err != nil {
+			panic(errors.Wrap(err, "parsing file "+mfile.Name))
+		}
 		if strings.HasSuffix(mfile.Name, "_test.go") {
 			// add test file.
 			if memPkg.Name+"_test" == string(n.PkgName) {
@@ -1967,4 +1974,5 @@ const (
 	ATTR_TYPEOF_VALUE GnoAttribute = "ATTR_TYPEOF_VALUE"
 	ATTR_LABEL        GnoAttribute = "ATTR_LABEL"
 	ATTR_IOTA         GnoAttribute = "ATTR_IOTA"
+	ATTR_LOCATIONED   GnoAttribute = "ATTR_LOCATIONED"
 )

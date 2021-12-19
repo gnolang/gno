@@ -138,13 +138,17 @@ func testStore(out io.Writer, isRealm bool, nativeLibs bool) (store gno.Store) {
 			pkg.DefineGoNativeType(reflect.TypeOf(bufio.SplitFunc(nil)))
 			return pkg, pkg.NewPackage()
 		case "bytes":
+			// XXX this is next.
+			//if nativeLibs {
 			pkg := gno.NewPackageNode("bytes", pkgPath, nil)
 			pkg.DefineGoNativeValue("Equal", bytes.Equal)
 			pkg.DefineGoNativeValue("Compare", bytes.Compare)
 			pkg.DefineGoNativeValue("NewReader", bytes.NewReader)
 			pkg.DefineGoNativeValue("NewBuffer", bytes.NewBuffer)
+			pkg.DefineGoNativeValue("Repeat", bytes.Repeat)
 			pkg.DefineGoNativeType(reflect.TypeOf(bytes.Buffer{}))
 			return pkg, pkg.NewPackage()
+			//}
 		case "time":
 			pkg := gno.NewPackageNode("time", pkgPath, nil)
 			pkg.DefineGoNativeValue("Date", time.Date)

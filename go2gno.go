@@ -40,6 +40,7 @@ import (
 	"strconv"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/gnolang/gno/pkgs/errors"
 )
 
 func MustReadFile(path string) *FileNode {
@@ -66,11 +67,24 @@ func ReadFile(path string) (*FileNode, error) {
 	return ParseFile(path, string(bz))
 }
 
-func ParseExpr(expr string) (Expr, error) {
+func ParseExpr(expr string) (retx Expr, err error) {
 	x, err := parser.ParseExpr(expr)
 	if err != nil {
 		return nil, err
 	}
+	// recover from Go2Gno.
+	// NOTE: Go2Gno is best implemented with panics due to inlined toXYZ() calls.
+	defer func() {
+		if r := recover(); r != nil {
+			if rerr, ok := r.(error); ok {
+				err = rerr
+			} else {
+				err = errors.New(fmt.Sprintf("%v", r))
+			}
+			return
+		}
+	}()
+	// parse with Go2Gno.
 	return Go2Gno(nil, x).(Expr), nil
 }
 
@@ -91,9 +105,22 @@ func ParseFile(filename string, body string) (*FileNode, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	// Print the imports from the file's AST.
 	// spew.Dump(f)
+
+	// recover from Go2Gno.
+	// NOTE: Go2Gno is best implemented with panics due to inlined toXYZ() calls.
+	defer func() {
+		if r := recover(); r != nil {
+			if rerr, ok := r.(error); ok {
+				err = rerr
+			} else {
+				err = errors.New(fmt.Sprintf("%v", r))
+			}
+			return
+		}
+	}()
+	// parse with Go2Gno.
 	fn := Go2Gno(fs, f).(*FileNode)
 	fn.Name = Name(filename)
 	return fn, nil
