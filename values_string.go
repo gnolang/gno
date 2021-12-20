@@ -30,7 +30,11 @@ func (v *ArrayValue) String() string {
 		// This may be helpful for testing implementation behavior.
 		return "array[" + strings.Join(ss, ",") + "]"
 	} else {
-		return fmt.Sprintf("array[0x%X]", v.Data)
+		if len(v.Data) > 256 {
+			return fmt.Sprintf("array[0x%X...]", v.Data[:256])
+		} else {
+			return fmt.Sprintf("array[0x%X]", v.Data)
+		}
 	}
 }
 
@@ -49,7 +53,11 @@ func (v *SliceValue) String() string {
 		}
 		return "slice[" + strings.Join(ss, ",") + "]"
 	} else {
-		return fmt.Sprintf("slice[0x%X]", vbase.Data[v.Offset:v.Offset+v.Length])
+		if v.Length > 256 {
+			return fmt.Sprintf("slice[0x%X...]", vbase.Data[v.Offset:v.Offset+256])
+		} else {
+			return fmt.Sprintf("slice[0x%X]", vbase.Data[v.Offset:v.Offset+v.Length])
+		}
 	}
 }
 

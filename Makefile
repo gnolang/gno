@@ -6,6 +6,9 @@ reset:
 	rm -rf testdir
 	make
 
+tools:
+	go build -o build/logjack ./pkgs/autofile/cmd
+
 # The main show (daemon)
 gnoland:
 	echo "Building gnoland"

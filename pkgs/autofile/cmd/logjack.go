@@ -16,12 +16,13 @@ const Version = "0.0.1"
 const readBufferSize = 1024 // 1KB at a time
 
 // Parse command-line options
-func parseFlags() (headPath string, chopSize int64, limitSize int64, version bool) {
+func parseFlags() (headPath string, chopSize int64, limitSize int64, sync bool, version bool) {
 	var flagSet = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	var chopSizeStr, limitSizeStr string
 	flagSet.StringVar(&headPath, "head", "logjack.out", "Destination (head) file.")
 	flagSet.StringVar(&chopSizeStr, "chop", "100M", "Move file if greater than this")
 	flagSet.StringVar(&limitSizeStr, "limit", "10G", "Only keep this much (for each specified file). Remove old files.")
+	flagSet.BoolVar(&sync, "sync", false, "Always write synchronously (slow).")
 	flagSet.BoolVar(&version, "version", false, "Version")
 	flagSet.Parse(os.Args[1:])
 	chopSize = parseBytesize(chopSizeStr)
@@ -36,7 +37,7 @@ func main() {
 	})
 
 	// Read options
-	headPath, chopSize, limitSize, version := parseFlags()
+	headPath, chopSize, limitSize, sync, version := parseFlags()
 	if version {
 		fmt.Printf("logjack version %v\n", Version)
 		return
@@ -60,7 +61,9 @@ func main() {
 	for {
 		n, err := os.Stdin.Read(buf)
 		group.Write(buf[:n])
-		group.FlushAndSync()
+		if sync {
+			group.FlushAndSync()
+		}
 		if err != nil {
 			group.Stop()
 			if err == io.EOF {
