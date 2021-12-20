@@ -5,8 +5,8 @@
 package bytes_test
 
 import (
-	. "bytes"
-	"internal/testenv"
+	// "internal/testenv" XXX
+	"bytes"
 	"testing"
 )
 
@@ -47,7 +47,7 @@ func TestCompare(t *testing.T) {
 		for offset := 0; offset <= numShifts; offset++ {
 			shiftedB := buffer[offset : len(tt.b)+offset]
 			copy(shiftedB, tt.b)
-			cmp := Compare(tt.a, shiftedB)
+			cmp := bytes.Compare(tt.a, shiftedB)
 			if cmp != tt.i {
 				t.Errorf(`Compare(%q, %q), offset %d = %v; want %v`, tt.a, tt.b, offset, cmp, tt.i)
 			}
@@ -57,10 +57,10 @@ func TestCompare(t *testing.T) {
 
 func TestCompareIdenticalSlice(t *testing.T) {
 	var b = []byte("Hello Gophers!")
-	if Compare(b, b) != 0 {
+	if bytes.Compare(b, b) != 0 {
 		t.Error("b != b")
 	}
-	if Compare(b, b[:1]) != 1 {
+	if bytes.Compare(b, b[:1]) != 1 {
 		t.Error("b > b[:1] failed")
 	}
 }
@@ -72,48 +72,48 @@ func TestCompareBytes(t *testing.T) {
 	}
 	lengths = append(lengths, 256, 512, 1024, 1333, 4095, 4096, 4097)
 
-	if !testing.Short() || testenv.Builder() != "" {
+	if !testing.Short() { // XXX remove testenv: || testenv.Builder() != "" {
 		lengths = append(lengths, 65535, 65536, 65537, 99999)
 	}
 
 	n := lengths[len(lengths)-1]
 	a := make([]byte, n+1)
 	b := make([]byte, n+1)
-	for _, len := range lengths {
+	for _, len_ := range lengths {
 		// randomish but deterministic data. No 0 or 255.
-		for i := 0; i < len; i++ {
+		for i := 0; i < len_; i++ {
 			a[i] = byte(1 + 31*i%254)
 			b[i] = byte(1 + 31*i%254)
 		}
 		// data past the end is different
-		for i := len; i <= n; i++ {
+		for i := len_; i <= n; i++ {
 			a[i] = 8
 			b[i] = 9
 		}
-		cmp := Compare(a[:len], b[:len])
+		cmp := bytes.Compare(a[:len_], b[:len_])
 		if cmp != 0 {
-			t.Errorf(`CompareIdentical(%d) = %d`, len, cmp)
+			t.Errorf(`CompareIdentical(%d) = %d`, len_, cmp)
 		}
-		if len > 0 {
-			cmp = Compare(a[:len-1], b[:len])
+		if len_ > 0 {
+			cmp = bytes.Compare(a[:len_-1], b[:len_])
 			if cmp != -1 {
-				t.Errorf(`CompareAshorter(%d) = %d`, len, cmp)
+				t.Errorf(`CompareAshorter(%d) = %d`, len_, cmp)
 			}
-			cmp = Compare(a[:len], b[:len-1])
+			cmp = bytes.Compare(a[:len_], b[:len_-1])
 			if cmp != 1 {
-				t.Errorf(`CompareBshorter(%d) = %d`, len, cmp)
+				t.Errorf(`CompareBshorter(%d) = %d`, len_, cmp)
 			}
 		}
-		for k := 0; k < len; k++ {
+		for k := 0; k < len_; k++ {
 			b[k] = a[k] - 1
-			cmp = Compare(a[:len], b[:len])
+			cmp = bytes.Compare(a[:len_], b[:len_])
 			if cmp != 1 {
-				t.Errorf(`CompareAbigger(%d,%d) = %d`, len, k, cmp)
+				t.Errorf(`CompareAbigger(%d,%d) = %d`, len_, k, cmp)
 			}
 			b[k] = a[k] + 1
-			cmp = Compare(a[:len], b[:len])
+			cmp = bytes.Compare(a[:len_], b[:len_])
 			if cmp != -1 {
-				t.Errorf(`CompareBbigger(%d,%d) = %d`, len, k, cmp)
+				t.Errorf(`CompareBbigger(%d,%d) = %d`, len_, k, cmp)
 			}
 			b[k] = a[k]
 		}
@@ -137,13 +137,13 @@ func TestEndianBaseCompare(t *testing.T) {
 		for j := 0; j < i-1; j++ {
 			a[j] = b[j] - 1
 			a[j+1] = b[j+1] + 1
-			cmp := Compare(a[:i], b[:i])
+			cmp := bytes.Compare(a[:i], b[:i])
 			if cmp != -1 {
 				t.Errorf(`CompareBbigger(%d,%d) = %d`, i, j, cmp)
 			}
 			a[j] = b[j] + 1
 			a[j+1] = b[j+1] - 1
-			cmp = Compare(a[:i], b[:i])
+			cmp = bytes.Compare(a[:i], b[:i])
 			if cmp != 1 {
 				t.Errorf(`CompareAbigger(%d,%d) = %d`, i, j, cmp)
 			}
@@ -157,7 +157,7 @@ func BenchmarkCompareBytesEqual(b *testing.B) {
 	b1 := []byte("Hello Gophers!")
 	b2 := []byte("Hello Gophers!")
 	for i := 0; i < b.N; i++ {
-		if Compare(b1, b2) != 0 {
+		if bytes.Compare(b1, b2) != 0 {
 			b.Fatal("b1 != b2")
 		}
 	}
@@ -167,7 +167,7 @@ func BenchmarkCompareBytesToNil(b *testing.B) {
 	b1 := []byte("Hello Gophers!")
 	var b2 []byte
 	for i := 0; i < b.N; i++ {
-		if Compare(b1, b2) != 1 {
+		if bytes.Compare(b1, b2) != 1 {
 			b.Fatal("b1 > b2 failed")
 		}
 	}
@@ -177,7 +177,7 @@ func BenchmarkCompareBytesEmpty(b *testing.B) {
 	b1 := []byte("")
 	b2 := b1
 	for i := 0; i < b.N; i++ {
-		if Compare(b1, b2) != 0 {
+		if bytes.Compare(b1, b2) != 0 {
 			b.Fatal("b1 != b2")
 		}
 	}
@@ -187,7 +187,7 @@ func BenchmarkCompareBytesIdentical(b *testing.B) {
 	b1 := []byte("Hello Gophers!")
 	b2 := b1
 	for i := 0; i < b.N; i++ {
-		if Compare(b1, b2) != 0 {
+		if bytes.Compare(b1, b2) != 0 {
 			b.Fatal("b1 != b2")
 		}
 	}
@@ -197,7 +197,7 @@ func BenchmarkCompareBytesSameLength(b *testing.B) {
 	b1 := []byte("Hello Gophers!")
 	b2 := []byte("Hello, Gophers")
 	for i := 0; i < b.N; i++ {
-		if Compare(b1, b2) != -1 {
+		if bytes.Compare(b1, b2) != -1 {
 			b.Fatal("b1 < b2 failed")
 		}
 	}
@@ -207,7 +207,7 @@ func BenchmarkCompareBytesDifferentLength(b *testing.B) {
 	b1 := []byte("Hello Gophers!")
 	b2 := []byte("Hello, Gophers!")
 	for i := 0; i < b.N; i++ {
-		if Compare(b1, b2) != -1 {
+		if bytes.Compare(b1, b2) != -1 {
 			b.Fatal("b1 < b2 failed")
 		}
 	}
@@ -222,7 +222,7 @@ func BenchmarkCompareBytesBigUnaligned(b *testing.B) {
 	b2 := append([]byte("hello"), b1...)
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		if Compare(b1, b2[len("hello"):]) != 0 {
+		if bytes.Compare(b1, b2[len("hello"):]) != 0 {
 			b.Fatal("b1 != b2")
 		}
 	}
@@ -238,7 +238,7 @@ func BenchmarkCompareBytesBig(b *testing.B) {
 	b2 := append([]byte{}, b1...)
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		if Compare(b1, b2) != 0 {
+		if bytes.Compare(b1, b2) != 0 {
 			b.Fatal("b1 != b2")
 		}
 	}
@@ -254,7 +254,7 @@ func BenchmarkCompareBytesBigIdentical(b *testing.B) {
 	b2 := b1
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		if Compare(b1, b2) != 0 {
+		if bytes.Compare(b1, b2) != 0 {
 			b.Fatal("b1 != b2")
 		}
 	}

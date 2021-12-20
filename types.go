@@ -484,6 +484,11 @@ func (at *ArrayType) Elem() Type {
 //----------------------------------------
 // Slice type
 
+var gByteSliceType = &SliceType{
+	Elt: Uint8Type,
+	Vrd: false,
+}
+
 type SliceType struct {
 	Elt Type
 	Vrd bool // used for *FuncType.HasVarg()

@@ -1128,6 +1128,9 @@ func ParseMemPackageTests(memPkg std.MemPackage) (tset, itset *FileSet) {
 		if err != nil {
 			panic(errors.Wrap(err, "parsing file "+mfile.Name))
 		}
+		if n == nil {
+			panic("should not happen")
+		}
 		if strings.HasSuffix(mfile.Name, "_test.go") {
 			// add test file.
 			if memPkg.Name+"_test" == string(n.PkgName) {
@@ -1296,7 +1299,7 @@ func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 		return true
 	}
 	for _, otv := range pn.Values[0:pvl] { // pvl has old max index.
-		if otv.T.Kind() != TypeKind {
+		if otv.IsUndefined() || otv.T.Kind() != TypeKind {
 			continue // filter by TypeType.
 		}
 		dt, ok := otv.GetType().(*DeclaredType)

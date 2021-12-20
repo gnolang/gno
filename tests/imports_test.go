@@ -99,6 +99,7 @@ func testStore(stdin io.Reader, stdout, stderr io.Writer, isRealm bool, nativeLi
 				res := fmt.Sprint(a...)
 				return stdout.Write([]byte(res))
 			})
+			pkg.DefineGoNativeFunc("Sprint", fmt.Sprint)
 			pkg.DefineGoNativeFunc("Sprintf", fmt.Sprintf)
 			pkg.DefineGoNativeFunc("Sscanf", fmt.Sscanf)
 			pkg.DefineGoNativeFunc("Errorf", fmt.Errorf)
@@ -107,9 +108,13 @@ func testStore(stdin io.Reader, stdout, stderr io.Writer, isRealm bool, nativeLi
 			pkg.DefineGoNativeFunc("Fprint", fmt.Fprint)
 			return pkg, pkg.NewPackage()
 		case "encoding/base64":
-			pkg := gno.NewPackageNode("base64", pkgPath, nil)
-			pkg.DefineGoNativeValue("RawStdEncoding", base64.RawStdEncoding)
-			return pkg, pkg.NewPackage()
+			if nativeLibs {
+				pkg := gno.NewPackageNode("base64", pkgPath, nil)
+				pkg.DefineGoNativeValue("RawStdEncoding", base64.RawStdEncoding)
+				pkg.DefineGoNativeValue("StdEncoding", base64.StdEncoding)
+				pkg.DefineGoNativeFunc("NewDecoder", base64.NewDecoder)
+				return pkg, pkg.NewPackage()
+			}
 		case "encoding/binary":
 			pkg := gno.NewPackageNode("binary", pkgPath, nil)
 			pkg.DefineGoNativeValue("LittleEndian", binary.LittleEndian)
@@ -197,7 +202,9 @@ func testStore(stdin io.Reader, stdout, stderr io.Writer, isRealm bool, nativeLi
 				return pkg, pkg.NewPackage()
 			}
 		case "math/rand":
+			// XXX only expose for tests.
 			pkg := gno.NewPackageNode("rand", pkgPath, nil)
+			pkg.DefineGoNativeValue("Intn", rand.Intn)
 			pkg.DefineGoNativeValue("Uint32", rand.Uint32)
 			pkg.DefineGoNativeValue("Seed", rand.Seed)
 			return pkg, pkg.NewPackage()
@@ -255,9 +262,11 @@ func testStore(stdin io.Reader, stdout, stderr io.Writer, isRealm bool, nativeLi
 			pkg.DefineGoNativeValue("NewInt", big.NewInt)
 			return pkg, pkg.NewPackage()
 		case "sort":
-			pkg := gno.NewPackageNode("sort", pkgPath, nil)
-			pkg.DefineGoNativeValue("Strings", sort.Strings)
-			return pkg, pkg.NewPackage()
+			if nativeLibs {
+				pkg := gno.NewPackageNode("sort", pkgPath, nil)
+				pkg.DefineGoNativeValue("Strings", sort.Strings)
+				return pkg, pkg.NewPackage()
+			}
 		case "flag":
 			pkg := gno.NewPackageNode("flag", pkgPath, nil)
 			pkg.DefineGoNativeType(reflect.TypeOf(flag.Flag{}))

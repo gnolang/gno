@@ -614,7 +614,7 @@ func UverseNode() *PackageNode {
 	defNative("copy",
 		Flds( // params
 			"dst", GenT("X", nil),
-			"src", GenT("X", nil),
+			"src", GenT("Y", nil),
 		),
 		Flds( // results
 			"", "int",

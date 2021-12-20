@@ -253,9 +253,41 @@ func (m *Machine) doOpXorAssign() {
 }
 
 func (m *Machine) doOpShlAssign() {
-	panic("not yet implemented")
+	s := m.PopStmt().(*AssignStmt)
+	rv := m.PopValue() // only one.
+	lv := m.PopAsPointer(s.Lhs[0])
+
+	// XXX HACK (until value persistence impl'd)
+	if m.ReadOnly {
+		if oo, ok := lv.Base.(Object); ok {
+			if oo.GetIsReal() {
+				panic("readonly violation")
+			}
+		}
+	}
+	// lv <<= rv
+	shlAssign(lv.TV, rv)
+	if lv.Base != nil {
+		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
+	}
 }
 
 func (m *Machine) doOpShrAssign() {
-	panic("not yet implemented")
+	s := m.PopStmt().(*AssignStmt)
+	rv := m.PopValue() // only one.
+	lv := m.PopAsPointer(s.Lhs[0])
+
+	// XXX HACK (until value persistence impl'd)
+	if m.ReadOnly {
+		if oo, ok := lv.Base.(Object); ok {
+			if oo.GetIsReal() {
+				panic("readonly violation")
+			}
+		}
+	}
+	// lv >>= rv
+	shrAssign(lv.TV, rv)
+	if lv.Base != nil {
+		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
+	}
 }

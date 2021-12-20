@@ -43,6 +43,8 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode, pv *gno.PackageValue) {
 	case "strconv":
 		pn.DefineGoNativeFunc("Itoa", strconv.Itoa)
 		pn.DefineGoNativeFunc("Atoi", strconv.Atoi)
+		pn.DefineGoNativeFunc("FormatInt", strconv.FormatInt)
+		pn.DefineGoNativeValue("IntSize", strconv.IntSize)
 		pn.PrepareNewValues(pv)
 	case "std":
 		// NOTE: pkgs/sdk/vm/VMKeeper also

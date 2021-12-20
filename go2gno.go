@@ -97,7 +97,7 @@ func MustParseExpr(expr string) Expr {
 }
 
 // filename must not include the path.
-func ParseFile(filename string, body string) (*FileNode, error) {
+func ParseFile(filename string, body string) (fn *FileNode, err error) {
 
 	// Parse src but stop after processing the imports.
 	fs := token.NewFileSet()
@@ -121,7 +121,7 @@ func ParseFile(filename string, body string) (*FileNode, error) {
 		}
 	}()
 	// parse with Go2Gno.
-	fn := Go2Gno(fs, f).(*FileNode)
+	fn = Go2Gno(fs, f).(*FileNode)
 	fn.Name = Name(filename)
 	return fn, nil
 }

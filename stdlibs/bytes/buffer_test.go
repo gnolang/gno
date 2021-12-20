@@ -5,7 +5,7 @@
 package bytes_test
 
 import (
-	. "bytes"
+	"bytes"
 	"fmt"
 	"io"
 	"math/rand"
@@ -30,7 +30,7 @@ func init() {
 }
 
 // Verify that contents of buf match the string s.
-func check(t *testing.T, testname string, buf *Buffer, s string) {
+func check(t *testing.T, testname string, buf *bytes.Buffer, s string) {
 	bytes := buf.Bytes()
 	str := buf.String()
 	if buf.Len() != len(bytes) {
@@ -53,7 +53,7 @@ func check(t *testing.T, testname string, buf *Buffer, s string) {
 // Fill buf through n writes of string fus.
 // The initial contents of buf corresponds to the string s;
 // the result is the final contents of buf returned as a string.
-func fillString(t *testing.T, testname string, buf *Buffer, s string, n int, fus string) string {
+func fillString(t *testing.T, testname string, buf *bytes.Buffer, s string, n int, fus string) string {
 	check(t, testname+" (fill 1)", buf, s)
 	for ; n > 0; n-- {
 		m, err := buf.WriteString(fus)
@@ -72,7 +72,7 @@ func fillString(t *testing.T, testname string, buf *Buffer, s string, n int, fus
 // Fill buf through n writes of byte slice fub.
 // The initial contents of buf corresponds to the string s;
 // the result is the final contents of buf returned as a string.
-func fillBytes(t *testing.T, testname string, buf *Buffer, s string, n int, fub []byte) string {
+func fillBytes(t *testing.T, testname string, buf *bytes.Buffer, s string, n int, fub []byte) string {
 	check(t, testname+" (fill 1)", buf, s)
 	for ; n > 0; n-- {
 		m, err := buf.Write(fub)
@@ -89,18 +89,18 @@ func fillBytes(t *testing.T, testname string, buf *Buffer, s string, n int, fub 
 }
 
 func TestNewBuffer(t *testing.T) {
-	buf := NewBuffer(testBytes)
+	buf := bytes.NewBuffer(testBytes)
 	check(t, "NewBuffer", buf, testString)
 }
 
 func TestNewBufferString(t *testing.T) {
-	buf := NewBufferString(testString)
+	buf := bytes.NewBufferString(testString)
 	check(t, "NewBufferString", buf, testString)
 }
 
 // Empty buf through repeated reads into fub.
 // The initial contents of buf corresponds to the string s.
-func empty(t *testing.T, testname string, buf *Buffer, s string, fub []byte) {
+func empty(t *testing.T, testname string, buf *bytes.Buffer, s string, fub []byte) {
 	check(t, testname+" (empty 1)", buf, s)
 
 	for {
@@ -119,7 +119,7 @@ func empty(t *testing.T, testname string, buf *Buffer, s string, fub []byte) {
 }
 
 func TestBasicOperations(t *testing.T) {
-	var buf Buffer
+	var buf bytes.Buffer
 
 	for i := 0; i < 5; i++ {
 		check(t, "TestBasicOperations (1)", &buf, "")
@@ -167,7 +167,7 @@ func TestBasicOperations(t *testing.T) {
 }
 
 func TestLargeStringWrites(t *testing.T) {
-	var buf Buffer
+	var buf bytes.Buffer
 	limit := 30
 	if testing.Short() {
 		limit = 9
@@ -180,7 +180,7 @@ func TestLargeStringWrites(t *testing.T) {
 }
 
 func TestLargeByteWrites(t *testing.T) {
-	var buf Buffer
+	var buf bytes.Buffer
 	limit := 30
 	if testing.Short() {
 		limit = 9
@@ -193,7 +193,7 @@ func TestLargeByteWrites(t *testing.T) {
 }
 
 func TestLargeStringReads(t *testing.T) {
-	var buf Buffer
+	var buf bytes.Buffer
 	for i := 3; i < 30; i += 3 {
 		s := fillString(t, "TestLargeReads (1)", &buf, "", 5, testString[0:len(testString)/i])
 		empty(t, "TestLargeReads (2)", &buf, s, make([]byte, len(testString)))
@@ -202,7 +202,7 @@ func TestLargeStringReads(t *testing.T) {
 }
 
 func TestLargeByteReads(t *testing.T) {
-	var buf Buffer
+	var buf bytes.Buffer
 	for i := 3; i < 30; i += 3 {
 		s := fillBytes(t, "TestLargeReads (1)", &buf, "", 5, testBytes[0:len(testBytes)/i])
 		empty(t, "TestLargeReads (2)", &buf, s, make([]byte, len(testString)))
@@ -211,7 +211,7 @@ func TestLargeByteReads(t *testing.T) {
 }
 
 func TestMixedReadsAndWrites(t *testing.T) {
-	var buf Buffer
+	var buf bytes.Buffer
 	s := ""
 	for i := 0; i < 50; i++ {
 		wlen := rand.Intn(len(testString))
@@ -230,7 +230,7 @@ func TestMixedReadsAndWrites(t *testing.T) {
 }
 
 func TestCapWithPreallocatedSlice(t *testing.T) {
-	buf := NewBuffer(make([]byte, 10))
+	buf := bytes.NewBuffer(make([]byte, 10))
 	n := buf.Cap()
 	if n != 10 {
 		t.Errorf("expected 10, got %d", n)
@@ -238,7 +238,7 @@ func TestCapWithPreallocatedSlice(t *testing.T) {
 }
 
 func TestCapWithSliceAndWrittenData(t *testing.T) {
-	buf := NewBuffer(make([]byte, 0, 10))
+	buf := bytes.NewBuffer(make([]byte, 0, 10))
 	buf.Write([]byte("test"))
 	n := buf.Cap()
 	if n != 10 {
@@ -247,17 +247,17 @@ func TestCapWithSliceAndWrittenData(t *testing.T) {
 }
 
 func TestNil(t *testing.T) {
-	var b *Buffer
+	var b *bytes.Buffer
 	if b.String() != "<nil>" {
 		t.Errorf("expected <nil>; got %q", b.String())
 	}
 }
 
 func TestReadFrom(t *testing.T) {
-	var buf Buffer
+	var buf bytes.Buffer
 	for i := 3; i < 30; i += 3 {
 		s := fillBytes(t, "TestReadFrom (1)", &buf, "", 5, testBytes[0:len(testBytes)/i])
-		var b Buffer
+		var b bytes.Buffer
 		b.ReadFrom(&buf)
 		empty(t, "TestReadFrom (2)", &b, s, make([]byte, len(testString)))
 	}
@@ -277,7 +277,7 @@ func (r panicReader) Read(p []byte) (int, error) {
 func TestReadFromPanicReader(t *testing.T) {
 
 	// First verify non-panic behaviour
-	var buf Buffer
+	var buf bytes.Buffer
 	i, err := buf.ReadFrom(panicReader{})
 	if err != nil {
 		t.Fatal(err)
@@ -288,7 +288,7 @@ func TestReadFromPanicReader(t *testing.T) {
 	check(t, "TestReadFromPanicReader (1)", &buf, "")
 
 	// Confirm that when Reader panics, the empty buffer remains empty
-	var buf2 Buffer
+	var buf2 bytes.Buffer
 	defer func() {
 		recover()
 		check(t, "TestReadFromPanicReader (2)", &buf2, "")
@@ -297,7 +297,7 @@ func TestReadFromPanicReader(t *testing.T) {
 }
 
 func TestReadFromNegativeReader(t *testing.T) {
-	var b Buffer
+	var b bytes.Buffer
 	defer func() {
 		switch err := recover().(type) {
 		case nil:
@@ -317,10 +317,10 @@ func TestReadFromNegativeReader(t *testing.T) {
 }
 
 func TestWriteTo(t *testing.T) {
-	var buf Buffer
+	var buf bytes.Buffer
 	for i := 3; i < 30; i += 3 {
 		s := fillBytes(t, "TestWriteTo (1)", &buf, "", 5, testBytes[0:len(testBytes)/i])
-		var b Buffer
+		var b bytes.Buffer
 		buf.WriteTo(&b)
 		empty(t, "TestWriteTo (2)", &b, s, make([]byte, len(testString)))
 	}
@@ -330,7 +330,7 @@ func TestRuneIO(t *testing.T) {
 	const NRune = 1000
 	// Built a test slice while we write the data
 	b := make([]byte, utf8.UTFMax*NRune)
-	var buf Buffer
+	var buf bytes.Buffer
 	n := 0
 	for r := rune(0); r < NRune; r++ {
 		size := utf8.EncodeRune(b[n:], r)
@@ -346,7 +346,7 @@ func TestRuneIO(t *testing.T) {
 	b = b[0:n]
 
 	// Check the resulting bytes
-	if !Equal(buf.Bytes(), b) {
+	if !bytes.Equal(buf.Bytes(), b) {
 		t.Fatalf("incorrect result from WriteRune: %q not %q", buf.Bytes(), b)
 	}
 
@@ -392,7 +392,7 @@ func TestWriteInvalidRune(t *testing.T) {
 	// Invalid runes, including negative ones, should be written as
 	// utf8.RuneError.
 	for _, r := range []rune{-1, utf8.MaxRune + 1} {
-		var buf Buffer
+		var buf bytes.Buffer
 		buf.WriteRune(r)
 		check(t, fmt.Sprintf("TestWriteInvalidRune (%d)", r), &buf, "\uFFFD")
 	}
@@ -408,7 +408,7 @@ func TestNext(t *testing.T) {
 				// Check that if we start with a buffer
 				// of length j at offset i and ask for
 				// Next(k), we get the right bytes.
-				buf := NewBuffer(b[0:j])
+				buf := bytes.NewBuffer(b[0:j])
 				n, _ := buf.Read(tmp[0:i])
 				if n != i {
 					t.Fatalf("Read %d returned %d", i, n)
@@ -448,7 +448,7 @@ var readBytesTests = []struct {
 
 func TestReadBytes(t *testing.T) {
 	for _, test := range readBytesTests {
-		buf := NewBufferString(test.buffer)
+		buf := bytes.NewBufferString(test.buffer)
 		var err error
 		for _, expected := range test.expected {
 			var bytes []byte
@@ -468,7 +468,7 @@ func TestReadBytes(t *testing.T) {
 
 func TestReadString(t *testing.T) {
 	for _, test := range readBytesTests {
-		buf := NewBufferString(test.buffer)
+		buf := bytes.NewBufferString(test.buffer)
 		var err error
 		for _, expected := range test.expected {
 			var s string
@@ -493,7 +493,7 @@ func BenchmarkReadString(b *testing.B) {
 	data[n-1] = 'x'
 	b.SetBytes(int64(n))
 	for i := 0; i < b.N; i++ {
-		buf := NewBuffer(data)
+		buf := bytes.NewBuffer(data)
 		_, err := buf.ReadString('x')
 		if err != nil {
 			b.Fatal(err)
@@ -507,13 +507,13 @@ func TestGrow(t *testing.T) {
 	tmp := make([]byte, 72)
 	for _, growLen := range []int{0, 100, 1000, 10000, 100000} {
 		for _, startLen := range []int{0, 100, 1000, 10000, 100000} {
-			xBytes := Repeat(x, startLen)
+			xBytes := bytes.Repeat(x, startLen)
 
-			buf := NewBuffer(xBytes)
+			buf := bytes.NewBuffer(xBytes)
 			// If we read, this affects buf.off, which is good to test.
 			readBytes, _ := buf.Read(tmp)
-			yBytes := Repeat(y, growLen)
-			allocs := testing.AllocsPerRun(100, func() {
+			yBytes := bytes.Repeat(y, growLen)
+			allocs := testing.AllocsPerRun2(100, func() {
 				buf.Grow(growLen)
 				buf.Write(yBytes)
 			})
@@ -522,10 +522,10 @@ func TestGrow(t *testing.T) {
 				t.Errorf("allocation occurred during write")
 			}
 			// Check that buffer has correct data.
-			if !Equal(buf.Bytes()[0:startLen-readBytes], xBytes[readBytes:]) {
+			if !bytes.Equal(buf.Bytes()[0:startLen-readBytes], xBytes[readBytes:]) {
 				t.Errorf("bad initial data at %d %d", startLen, growLen)
 			}
-			if !Equal(buf.Bytes()[startLen-readBytes:startLen-readBytes+growLen], yBytes) {
+			if !bytes.Equal(buf.Bytes()[startLen-readBytes:startLen-readBytes+growLen], yBytes) {
 				t.Errorf("bad written data at %d %d", startLen, growLen)
 			}
 		}
@@ -534,19 +534,19 @@ func TestGrow(t *testing.T) {
 
 func TestGrowOverflow(t *testing.T) {
 	defer func() {
-		if err := recover(); err != ErrTooLarge {
-			t.Errorf("after too-large Grow, recover() = %v; want %v", err, ErrTooLarge)
+		if err := recover(); err != bytes.ErrTooLarge {
+			t.Errorf("after too-large Grow, recover() = %v; want %v", err, bytes.ErrTooLarge)
 		}
 	}()
 
-	buf := NewBuffer(make([]byte, 1))
+	buf := bytes.NewBuffer(make([]byte, 1))
 	const maxInt = int(^uint(0) >> 1)
 	buf.Grow(maxInt)
 }
 
 // Was a bug: used to give EOF reading empty slice at EOF.
 func TestReadEmptyAtEOF(t *testing.T) {
-	b := new(Buffer)
+	b := new(bytes.Buffer)
 	slice := make([]byte, 0)
 	n, err := b.Read(slice)
 	if err != nil {
@@ -558,7 +558,7 @@ func TestReadEmptyAtEOF(t *testing.T) {
 }
 
 func TestUnreadByte(t *testing.T) {
-	b := new(Buffer)
+	b := new(bytes.Buffer)
 
 	// check at EOF
 	if err := b.UnreadByte(); err == nil {
@@ -600,7 +600,7 @@ func TestUnreadByte(t *testing.T) {
 
 // Tests that we occasionally compact. Issue 5154.
 func TestBufferGrowth(t *testing.T) {
-	var b Buffer
+	var b bytes.Buffer
 	buf := make([]byte, 1024)
 	b.Write(buf[0:1])
 	var cap0 int
@@ -622,7 +622,7 @@ func TestBufferGrowth(t *testing.T) {
 func BenchmarkWriteByte(b *testing.B) {
 	const n = 4 << 10
 	b.SetBytes(n)
-	buf := NewBuffer(make([]byte, n))
+	buf := bytes.NewBuffer(make([]byte, n))
 	for i := 0; i < b.N; i++ {
 		buf.Reset()
 		for i := 0; i < n; i++ {
@@ -635,7 +635,7 @@ func BenchmarkWriteRune(b *testing.B) {
 	const n = 4 << 10
 	const r = '☺'
 	b.SetBytes(int64(n * utf8.RuneLen(r)))
-	buf := NewBuffer(make([]byte, n*utf8.UTFMax))
+	buf := bytes.NewBuffer(make([]byte, n*utf8.UTFMax))
 	for i := 0; i < b.N; i++ {
 		buf.Reset()
 		for i := 0; i < n; i++ {
@@ -648,7 +648,7 @@ func BenchmarkWriteRune(b *testing.B) {
 func BenchmarkBufferNotEmptyWriteRead(b *testing.B) {
 	buf := make([]byte, 1024)
 	for i := 0; i < b.N; i++ {
-		var b Buffer
+		var b bytes.Buffer
 		b.Write(buf[0:1])
 		for i := 0; i < 5<<10; i++ {
 			b.Write(buf)
@@ -661,7 +661,7 @@ func BenchmarkBufferNotEmptyWriteRead(b *testing.B) {
 func BenchmarkBufferFullSmallReads(b *testing.B) {
 	buf := make([]byte, 1024)
 	for i := 0; i < b.N; i++ {
-		var b Buffer
+		var b bytes.Buffer
 		b.Write(buf)
 		for b.Len()+20 < b.Cap() {
 			b.Write(buf[:10])

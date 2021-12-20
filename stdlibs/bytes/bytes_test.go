@@ -5,16 +5,29 @@
 package bytes_test
 
 import (
-	. "bytes"
+	"bytes"
 	"fmt"
-	"internal/testenv"
+
+	// "internal/testenv" XXX remove
+	// "reflect" XXX remove
 	"math/rand"
-	"reflect"
 	"strings"
 	"testing"
 	"unicode"
 	"unicode/utf8"
 )
+
+func eq2(a, b [][]byte) bool {
+	a2 := make([]string, len(a))
+	b2 := make([]string, len(b))
+	for i, part := range a {
+		a2[i] = string(part)
+	}
+	for i, part := range b {
+		b2[i] = string(part)
+	}
+	return eq(a2, b2)
+}
 
 func eq(a, b []string) bool {
 	if len(a) != len(b) {
@@ -52,9 +65,9 @@ type BinOpTest struct {
 
 func TestEqual(t *testing.T) {
 	// Run the tests and check for allocation at the same time.
-	allocs := testing.AllocsPerRun(10, func() {
+	allocs := testing.AllocsPerRun2(10, func() {
 		for _, tt := range compareTests {
-			eql := Equal(tt.a, tt.b)
+			eql := bytes.Equal(tt.a, tt.b)
 			if eql != (tt.i == 0) {
 				t.Errorf(`Equal(%q, %q) = %v`, tt.a, tt.b, eql)
 			}
@@ -79,13 +92,13 @@ func TestEqualExhaustive(t *testing.T) {
 		b_init[i] = byte(23*i + 100)
 	}
 
-	for len := 0; len <= size; len++ {
-		for x := 0; x <= size-len; x++ {
-			for y := 0; y <= size-len; y++ {
+	for len_ := 0; len_ <= size; len_++ {
+		for x := 0; x <= size-len_; x++ {
+			for y := 0; y <= size-len_; y++ {
 				copy(b, b_init)
-				copy(b[y:y+len], a[x:x+len])
-				if !Equal(a[x:x+len], b[y:y+len]) || !Equal(b[y:y+len], a[x:x+len]) {
-					t.Errorf("Equal(%d, %d, %d) = false", len, x, y)
+				copy(b[y:y+len_], a[x:x+len_])
+				if !bytes.Equal(a[x:x+len_], b[y:y+len_]) || !bytes.Equal(b[y:y+len_], a[x:x+len_]) {
+					t.Errorf("Equal(%d, %d, %d) = false", len_, x, y)
 				}
 			}
 		}
@@ -102,13 +115,13 @@ func TestNotEqual(t *testing.T) {
 	a := make([]byte, size)
 	b := make([]byte, size)
 
-	for len := 0; len <= size; len++ {
-		for x := 0; x <= size-len; x++ {
-			for y := 0; y <= size-len; y++ {
-				for diffpos := x; diffpos < x+len; diffpos++ {
+	for len_ := 0; len_ <= size; len_++ {
+		for x := 0; x <= size-len_; x++ {
+			for y := 0; y <= size-len_; y++ {
+				for diffpos := x; diffpos < x+len_; diffpos++ {
 					a[diffpos] = 1
-					if Equal(a[x:x+len], b[y:y+len]) || Equal(b[y:y+len], a[x:x+len]) {
-						t.Errorf("NotEqual(%d, %d, %d, %d) = true", len, x, y, diffpos)
+					if bytes.Equal(a[x:x+len_], b[y:y+len_]) || bytes.Equal(b[y:y+len_], a[x:x+len_]) {
+						t.Errorf("NotEqual(%d, %d, %d, %d) = true", len_, x, y, diffpos)
 					}
 					a[diffpos] = 0
 				}
@@ -224,11 +237,11 @@ func runIndexTests(t *testing.T, f func(s, sep []byte) int, funcName string, tes
 		// case for function LastIndex.
 		{[]byte("000000000000000000000000000000000000000000000000000000000000000010000"), []byte("00000000000000000000000000000000000000000000000000000000000001"), 3},
 	}
-	allocs := testing.AllocsPerRun(100, func() {
-		if i := Index(allocTests[1].a, allocTests[1].b); i != allocTests[1].i {
+	allocs := testing.AllocsPerRun2(100, func() {
+		if i := bytes.Index(allocTests[1].a, allocTests[1].b); i != allocTests[1].i {
 			t.Errorf("Index([]byte(%q), []byte(%q)) = %v; want %v", allocTests[1].a, allocTests[1].b, i, allocTests[1].i)
 		}
-		if i := LastIndex(allocTests[0].a, allocTests[0].b); i != allocTests[0].i {
+		if i := bytes.LastIndex(allocTests[0].a, allocTests[0].b); i != allocTests[0].i {
 			t.Errorf("LastIndex([]byte(%q), []byte(%q)) = %v; want %v", allocTests[0].a, allocTests[0].b, i, allocTests[0].i)
 		}
 	})
@@ -247,11 +260,11 @@ func runIndexAnyTests(t *testing.T, f func(s []byte, chars string) int, funcName
 	}
 }
 
-func TestIndex(t *testing.T)     { runIndexTests(t, Index, "Index", indexTests) }
-func TestLastIndex(t *testing.T) { runIndexTests(t, LastIndex, "LastIndex", lastIndexTests) }
-func TestIndexAny(t *testing.T)  { runIndexAnyTests(t, IndexAny, "IndexAny", indexAnyTests) }
+func TestIndex(t *testing.T)     { runIndexTests(t, bytes.Index, "Index", indexTests) }
+func TestLastIndex(t *testing.T) { runIndexTests(t, bytes.LastIndex, "LastIndex", lastIndexTests) }
+func TestIndexAny(t *testing.T)  { runIndexAnyTests(t, bytes.IndexAny, "IndexAny", indexAnyTests) }
 func TestLastIndexAny(t *testing.T) {
-	runIndexAnyTests(t, LastIndexAny, "LastIndexAny", lastIndexAnyTests)
+	runIndexAnyTests(t, bytes.LastIndexAny, "LastIndexAny", lastIndexAnyTests)
 }
 
 func TestIndexByte(t *testing.T) {
@@ -261,11 +274,11 @@ func TestIndexByte(t *testing.T) {
 		}
 		a := []byte(tt.a)
 		b := tt.b[0]
-		pos := IndexByte(a, b)
+		pos := bytes.IndexByte(a, b)
 		if pos != tt.i {
 			t.Errorf(`IndexByte(%q, '%c') = %v`, tt.a, b, pos)
 		}
-		posp := IndexBytePortable(a, b)
+		posp := bytes.IndexBytePortable(a, b)
 		if posp != tt.i {
 			t.Errorf(`indexBytePortable(%q, '%c') = %v`, tt.a, b, posp)
 		}
@@ -282,7 +295,7 @@ func TestLastIndexByte(t *testing.T) {
 		{"a☺b☻c☹d", "b", len("a☺")},               // non-ascii
 	}
 	for _, test := range testCases {
-		actual := LastIndexByte([]byte(test.a), test.b[0])
+		actual := bytes.LastIndexByte([]byte(test.a), test.b[0])
 		if actual != test.i {
 			t.Errorf("LastIndexByte(%q,%c) = %v; want %v", test.a, test.b[0], actual, test.i)
 		}
@@ -301,12 +314,12 @@ func TestIndexByteBig(t *testing.T) {
 		b1 := b[i:]
 		for j := 0; j < len(b1); j++ {
 			b1[j] = 'x'
-			pos := IndexByte(b1, 'x')
+			pos := bytes.IndexByte(b1, 'x')
 			if pos != j {
 				t.Errorf("IndexByte(%q, 'x') = %v", b1, pos)
 			}
 			b1[j] = 0
-			pos = IndexByte(b1, 'x')
+			pos = bytes.IndexByte(b1, 'x')
 			if pos != -1 {
 				t.Errorf("IndexByte(%q, 'x') = %v", b1, pos)
 			}
@@ -315,12 +328,12 @@ func TestIndexByteBig(t *testing.T) {
 		b1 = b[:i]
 		for j := 0; j < len(b1); j++ {
 			b1[j] = 'x'
-			pos := IndexByte(b1, 'x')
+			pos := bytes.IndexByte(b1, 'x')
 			if pos != j {
 				t.Errorf("IndexByte(%q, 'x') = %v", b1, pos)
 			}
 			b1[j] = 0
-			pos = IndexByte(b1, 'x')
+			pos = bytes.IndexByte(b1, 'x')
 			if pos != -1 {
 				t.Errorf("IndexByte(%q, 'x') = %v", b1, pos)
 			}
@@ -329,12 +342,12 @@ func TestIndexByteBig(t *testing.T) {
 		b1 = b[i/2 : n-(i+1)/2]
 		for j := 0; j < len(b1); j++ {
 			b1[j] = 'x'
-			pos := IndexByte(b1, 'x')
+			pos := bytes.IndexByte(b1, 'x')
 			if pos != j {
 				t.Errorf("IndexByte(%q, 'x') = %v", b1, pos)
 			}
 			b1[j] = 0
-			pos = IndexByte(b1, 'x')
+			pos = bytes.IndexByte(b1, 'x')
 			if pos != -1 {
 				t.Errorf("IndexByte(%q, 'x') = %v", b1, pos)
 			}
@@ -351,7 +364,7 @@ func TestIndexByteSmall(t *testing.T) {
 			b[i+j] = byte(100 + j)
 		}
 		for j := 0; j < 15; j++ {
-			p := IndexByte(b[i:i+15], byte(100+j))
+			p := bytes.IndexByte(b[i:i+15], byte(100+j))
 			if p != j {
 				t.Errorf("IndexByte(%q, %d) = %d", b[i:i+15], 100+j, p)
 			}
@@ -366,7 +379,7 @@ func TestIndexByteSmall(t *testing.T) {
 			b[i+j] = 1
 		}
 		for j := 0; j < 15; j++ {
-			p := IndexByte(b[i:i+15], byte(0))
+			p := bytes.IndexByte(b[i:i+15], byte(0))
 			if p != -1 {
 				t.Errorf("IndexByte(%q, %d) = %d", b[i:i+15], 0, p)
 			}
@@ -408,17 +421,17 @@ func TestIndexRune(t *testing.T) {
 		{"a☺b☻c☹d\xe2\x98�\xff�\xed\xa0\x80", utf8.MaxRune + 1, -1},
 	}
 	for _, tt := range tests {
-		if got := IndexRune([]byte(tt.in), tt.rune); got != tt.want {
+		if got := bytes.IndexRune([]byte(tt.in), tt.rune); got != tt.want {
 			t.Errorf("IndexRune(%q, %d) = %v; want %v", tt.in, tt.rune, got, tt.want)
 		}
 	}
 
 	haystack := []byte("test世界")
-	allocs := testing.AllocsPerRun(1000, func() {
-		if i := IndexRune(haystack, 's'); i != 2 {
+	allocs := testing.AllocsPerRun2(1000, func() {
+		if i := bytes.IndexRune(haystack, 's'); i != 2 {
 			t.Fatalf("'s' at %d; want 2", i)
 		}
-		if i := IndexRune(haystack, '世'); i != 4 {
+		if i := bytes.IndexRune(haystack, '世'); i != 4 {
 			t.Fatalf("'世' at %d; want 4", i)
 		}
 	})
@@ -434,7 +447,7 @@ func TestCountByte(t *testing.T) {
 	testCountWindow := func(i, window int) {
 		for j := 0; j < window; j++ {
 			b[i+j] = byte(100)
-			p := Count(b[i:i+window], []byte{100})
+			p := bytes.Count(b[i:i+window], []byte{100})
 			if p != j+1 {
 				t.Errorf("TestCountByte.Count(%q, 100) = %d", b[i:i+window], p)
 			}
@@ -481,7 +494,7 @@ func TestCountByteNoMatch(t *testing.T) {
 				b[i+j] = byte(100)
 			}
 			// Try to find something that doesn't exist
-			p := Count(b[i:i+window], []byte{0})
+			p := bytes.Count(b[i:i+window], []byte{0})
 			if p != 0 {
 				t.Errorf("TestCountByteNoMatch(%q, 0) = %d", b[i:i+window], p)
 			}
@@ -506,9 +519,11 @@ func valName(x int) string {
 
 func benchBytes(b *testing.B, sizes []int, f func(b *testing.B, n int)) {
 	for _, n := range sizes {
+		/* XXX remove testenv
 		if isRaceBuilder && n > 4<<10 {
 			continue
 		}
+		*/
 		b.Run(valName(n), func(b *testing.B) {
 			if len(bmbuf) < n {
 				bmbuf = make([]byte, n)
@@ -521,14 +536,15 @@ func benchBytes(b *testing.B, sizes []int, f func(b *testing.B, n int)) {
 
 var indexSizes = []int{10, 32, 4 << 10, 4 << 20, 64 << 20}
 
-var isRaceBuilder = strings.HasSuffix(testenv.Builder(), "-race")
+// XXX remove testenv
+// var isRaceBuilder = strings.HasSuffix(testenv.Builder(), "-race")
 
 func BenchmarkIndexByte(b *testing.B) {
-	benchBytes(b, indexSizes, bmIndexByte(IndexByte))
+	benchBytes(b, indexSizes, bmIndexByte(bytes.IndexByte))
 }
 
 func BenchmarkIndexBytePortable(b *testing.B) {
-	benchBytes(b, indexSizes, bmIndexByte(IndexBytePortable))
+	benchBytes(b, indexSizes, bmIndexByte(bytes.IndexBytePortable))
 }
 
 func bmIndexByte(index func([]byte, byte) int) func(b *testing.B, n int) {
@@ -546,11 +562,11 @@ func bmIndexByte(index func([]byte, byte) int) func(b *testing.B, n int) {
 }
 
 func BenchmarkIndexRune(b *testing.B) {
-	benchBytes(b, indexSizes, bmIndexRune(IndexRune))
+	benchBytes(b, indexSizes, bmIndexRune(bytes.IndexRune))
 }
 
 func BenchmarkIndexRuneASCII(b *testing.B) {
-	benchBytes(b, indexSizes, bmIndexRuneASCII(IndexRune))
+	benchBytes(b, indexSizes, bmIndexRuneASCII(bytes.IndexRune))
 }
 
 func bmIndexRuneASCII(index func([]byte, rune) int) func(b *testing.B, n int) {
@@ -589,7 +605,7 @@ func BenchmarkEqual(b *testing.B) {
 		buf1 := buf[0:0]
 		buf2 := buf[1:1]
 		for i := 0; i < b.N; i++ {
-			eq := Equal(buf1, buf2)
+			eq := bytes.Equal(buf1, buf2)
 			if !eq {
 				b.Fatal("bad equal")
 			}
@@ -597,7 +613,7 @@ func BenchmarkEqual(b *testing.B) {
 	})
 
 	sizes := []int{1, 6, 9, 15, 16, 20, 32, 4 << 10, 4 << 20, 64 << 20}
-	benchBytes(b, sizes, bmEqual(Equal))
+	benchBytes(b, sizes, bmEqual(bytes.Equal))
 }
 
 func bmEqual(equal func([]byte, []byte) bool) func(b *testing.B, n int) {
@@ -625,7 +641,7 @@ func BenchmarkIndex(b *testing.B) {
 		buf := bmbuf[0:n]
 		buf[n-1] = 'x'
 		for i := 0; i < b.N; i++ {
-			j := Index(buf, buf[n-7:])
+			j := bytes.Index(buf, buf[n-7:])
 			if j != n-7 {
 				b.Fatal("bad index", j)
 			}
@@ -640,7 +656,7 @@ func BenchmarkIndexEasy(b *testing.B) {
 		buf[n-1] = 'x'
 		buf[n-7] = 'x'
 		for i := 0; i < b.N; i++ {
-			j := Index(buf, buf[n-7:])
+			j := bytes.Index(buf, buf[n-7:])
 			if j != n-7 {
 				b.Fatal("bad index", j)
 			}
@@ -655,7 +671,7 @@ func BenchmarkCount(b *testing.B) {
 		buf := bmbuf[0:n]
 		buf[n-1] = 'x'
 		for i := 0; i < b.N; i++ {
-			j := Count(buf, buf[n-7:])
+			j := bytes.Count(buf, buf[n-7:])
 			if j != 1 {
 				b.Fatal("bad count", j)
 			}
@@ -670,7 +686,7 @@ func BenchmarkCountEasy(b *testing.B) {
 		buf[n-1] = 'x'
 		buf[n-7] = 'x'
 		for i := 0; i < b.N; i++ {
-			j := Count(buf, buf[n-7:])
+			j := bytes.Count(buf, buf[n-7:])
 			if j != 1 {
 				b.Fatal("bad count", j)
 			}
@@ -689,7 +705,7 @@ func BenchmarkCountSingle(b *testing.B) {
 		}
 		expect := (len(buf) + (step - 1)) / step
 		for i := 0; i < b.N; i++ {
-			j := Count(buf, []byte{1})
+			j := bytes.Count(buf, []byte{1})
 			if j != expect {
 				b.Fatal("bad count", j, expect)
 			}
@@ -727,7 +743,7 @@ var splittests = []SplitTest{
 
 func TestSplit(t *testing.T) {
 	for _, tt := range splittests {
-		a := SplitN([]byte(tt.s), []byte(tt.sep), tt.n)
+		a := bytes.SplitN([]byte(tt.s), []byte(tt.sep), tt.n)
 
 		// Appending to the results should not change future results.
 		var x []byte
@@ -748,13 +764,13 @@ func TestSplit(t *testing.T) {
 			t.Errorf("last appended result was %s; want %s", x, want)
 		}
 
-		s := Join(a, []byte(tt.sep))
+		s := bytes.Join(a, []byte(tt.sep))
 		if string(s) != tt.s {
 			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s)
 		}
 		if tt.n < 0 {
-			b := Split([]byte(tt.s), []byte(tt.sep))
-			if !reflect.DeepEqual(a, b) {
+			b := bytes.Split([]byte(tt.s), []byte(tt.sep))
+			if !eq2(a, b) {
 				t.Errorf("Split disagrees withSplitN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
 			}
 		}
@@ -785,7 +801,7 @@ var splitaftertests = []SplitTest{
 
 func TestSplitAfter(t *testing.T) {
 	for _, tt := range splitaftertests {
-		a := SplitAfterN([]byte(tt.s), []byte(tt.sep), tt.n)
+		a := bytes.SplitAfterN([]byte(tt.s), []byte(tt.sep), tt.n)
 
 		// Appending to the results should not change future results.
 		var x []byte
@@ -803,13 +819,13 @@ func TestSplitAfter(t *testing.T) {
 			t.Errorf("last appended result was %s; want %s", x, want)
 		}
 
-		s := Join(a, nil)
+		s := bytes.Join(a, nil)
 		if string(s) != tt.s {
 			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s)
 		}
 		if tt.n < 0 {
-			b := SplitAfter([]byte(tt.s), []byte(tt.sep))
-			if !reflect.DeepEqual(a, b) {
+			b := bytes.SplitAfter([]byte(tt.s), []byte(tt.sep))
+			if !eq2(a, b) {
 				t.Errorf("SplitAfter disagrees withSplitAfterN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
 			}
 		}
@@ -838,7 +854,7 @@ var fieldstests = []FieldsTest{
 func TestFields(t *testing.T) {
 	for _, tt := range fieldstests {
 		b := []byte(tt.s)
-		a := Fields(b)
+		a := bytes.Fields(b)
 
 		// Appending to the results should not change future results.
 		var x []byte
@@ -865,7 +881,7 @@ func TestFields(t *testing.T) {
 
 func TestFieldsFunc(t *testing.T) {
 	for _, tt := range fieldstests {
-		a := FieldsFunc([]byte(tt.s), unicode.IsSpace)
+		a := bytes.FieldsFunc([]byte(tt.s), unicode.IsSpace)
 		result := sliceOfString(a)
 		if !eq(result, tt.a) {
 			t.Errorf("FieldsFunc(%q, unicode.IsSpace) = %v; want %v", tt.s, a, tt.a)
@@ -881,7 +897,7 @@ func TestFieldsFunc(t *testing.T) {
 	}
 	for _, tt := range fieldsFuncTests {
 		b := []byte(tt.s)
-		a := FieldsFunc(b, pred)
+		a := bytes.FieldsFunc(b, pred)
 
 		// Appending to the results should not change future results.
 		var x []byte
@@ -971,7 +987,7 @@ func runStringTests(t *testing.T, f func([]byte) []byte, funcName string, testCa
 		if actual != nil && tc.out == nil {
 			t.Errorf("%s(%q) = %q; want nil", funcName, tc.in, actual)
 		}
-		if !Equal(actual, tc.out) {
+		if !bytes.Equal(actual, tc.out) {
 			t.Errorf("%s(%q) = %q; want %q", funcName, tc.in, actual, tc.out)
 		}
 	}
@@ -1003,7 +1019,7 @@ func TestMap(t *testing.T) {
 
 	// 1.  Grow. This triggers two reallocations in Map.
 	maxRune := func(r rune) rune { return unicode.MaxRune }
-	m := Map(maxRune, []byte(a))
+	m := bytes.Map(maxRune, []byte(a))
 	expect := tenRunes(unicode.MaxRune)
 	if string(m) != expect {
 		t.Errorf("growing: expected %q got %q", expect, m)
@@ -1011,21 +1027,21 @@ func TestMap(t *testing.T) {
 
 	// 2. Shrink
 	minRune := func(r rune) rune { return 'a' }
-	m = Map(minRune, []byte(tenRunes(unicode.MaxRune)))
+	m = bytes.Map(minRune, []byte(tenRunes(unicode.MaxRune)))
 	expect = a
 	if string(m) != expect {
 		t.Errorf("shrinking: expected %q got %q", expect, m)
 	}
 
 	// 3. Rot13
-	m = Map(rot13, []byte("a to zed"))
+	m = bytes.Map(rot13, []byte("a to zed"))
 	expect = "n gb mrq"
 	if string(m) != expect {
 		t.Errorf("rot13: expected %q got %q", expect, m)
 	}
 
 	// 4. Rot13^2
-	m = Map(rot13, Map(rot13, []byte("a to zed")))
+	m = bytes.Map(rot13, bytes.Map(rot13, []byte("a to zed")))
 	expect = "a to zed"
 	if string(m) != expect {
 		t.Errorf("rot13: expected %q got %q", expect, m)
@@ -1038,7 +1054,7 @@ func TestMap(t *testing.T) {
 		}
 		return -1
 	}
-	m = Map(dropNotLatin, []byte("Hello, 세계"))
+	m = bytes.Map(dropNotLatin, []byte("Hello, 세계"))
 	expect = "Hello"
 	if string(m) != expect {
 		t.Errorf("drop: expected %q got %q", expect, m)
@@ -1048,24 +1064,24 @@ func TestMap(t *testing.T) {
 	invalidRune := func(r rune) rune {
 		return utf8.MaxRune + 1
 	}
-	m = Map(invalidRune, []byte("x"))
+	m = bytes.Map(invalidRune, []byte("x"))
 	expect = "\uFFFD"
 	if string(m) != expect {
 		t.Errorf("invalidRune: expected %q got %q", expect, m)
 	}
 }
 
-func TestToUpper(t *testing.T) { runStringTests(t, ToUpper, "ToUpper", upperTests) }
+func TestToUpper(t *testing.T) { runStringTests(t, bytes.ToUpper, "ToUpper", upperTests) }
 
-func TestToLower(t *testing.T) { runStringTests(t, ToLower, "ToLower", lowerTests) }
+func TestToLower(t *testing.T) { runStringTests(t, bytes.ToLower, "ToLower", lowerTests) }
 
 func BenchmarkToUpper(b *testing.B) {
 	for _, tc := range upperTests {
 		tin := []byte(tc.in)
 		b.Run(tc.in, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				actual := ToUpper(tin)
-				if !Equal(actual, tc.out) {
+				actual := bytes.ToUpper(tin)
+				if !bytes.Equal(actual, tc.out) {
 					b.Errorf("ToUpper(%q) = %q; want %q", tc.in, actual, tc.out)
 				}
 			}
@@ -1078,8 +1094,8 @@ func BenchmarkToLower(b *testing.B) {
 		tin := []byte(tc.in)
 		b.Run(tc.in, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				actual := ToLower(tin)
-				if !Equal(actual, tc.out) {
+				actual := bytes.ToLower(tin)
+				if !bytes.Equal(actual, tc.out) {
 					b.Errorf("ToLower(%q) = %q; want %q", tc.in, actual, tc.out)
 				}
 			}
@@ -1110,14 +1126,14 @@ var toValidUTF8Tests = []struct {
 
 func TestToValidUTF8(t *testing.T) {
 	for _, tc := range toValidUTF8Tests {
-		got := ToValidUTF8([]byte(tc.in), []byte(tc.repl))
-		if !Equal(got, []byte(tc.out)) {
+		got := bytes.ToValidUTF8([]byte(tc.in), []byte(tc.repl))
+		if !bytes.Equal(got, []byte(tc.out)) {
 			t.Errorf("ToValidUTF8(%q, %q) = %q; want %q", tc.in, tc.repl, got, tc.out)
 		}
 	}
 }
 
-func TestTrimSpace(t *testing.T) { runStringTests(t, TrimSpace, "TrimSpace", trimSpaceTests) }
+func TestTrimSpace(t *testing.T) { runStringTests(t, bytes.TrimSpace, "TrimSpace", trimSpaceTests) }
 
 type RepeatTest struct {
 	in, out string
@@ -1138,8 +1154,8 @@ func TestRepeat(t *testing.T) {
 	for _, tt := range RepeatTests {
 		tin := []byte(tt.in)
 		tout := []byte(tt.out)
-		a := Repeat(tin, tt.count)
-		if !Equal(a, tout) {
+		a := bytes.Repeat(tin, tt.count)
+		if !bytes.Equal(a, tout) {
 			t.Errorf("Repeat(%q, %d) = %q; want %q", tin, tt.count, a, tout)
 			continue
 		}
@@ -1158,7 +1174,7 @@ func repeat(b []byte, count int) (err error) {
 		}
 	}()
 
-	Repeat(b, count)
+	bytes.Repeat(b, count)
 
 	return
 }
@@ -1225,7 +1241,7 @@ var RunesTests = []RunesTest{
 func TestRunes(t *testing.T) {
 	for _, tt := range RunesTests {
 		tin := []byte(tt.in)
-		a := Runes(tin)
+		a := bytes.Runes(tin)
 		if !runesEqual(a, tt.out) {
 			t.Errorf("Runes(%q) = %v; want %v", tin, a, tt.out)
 			continue
@@ -1283,15 +1299,15 @@ func TestTrim(t *testing.T) {
 		var fb func([]byte, []byte) []byte
 		switch name {
 		case "Trim":
-			f = Trim
+			f = bytes.Trim
 		case "TrimLeft":
-			f = TrimLeft
+			f = bytes.TrimLeft
 		case "TrimRight":
-			f = TrimRight
+			f = bytes.TrimRight
 		case "TrimPrefix":
-			fb = TrimPrefix
+			fb = bytes.TrimPrefix
 		case "TrimSuffix":
-			fb = TrimSuffix
+			fb = bytes.TrimSuffix
 		default:
 			t.Errorf("Undefined trim function %s", name)
 		}
@@ -1387,9 +1403,9 @@ func TestTrimFunc(t *testing.T) {
 			trim func(s []byte, f func(r rune) bool) []byte
 			out  []byte
 		}{
-			{"TrimFunc", TrimFunc, tc.trimOut},
-			{"TrimLeftFunc", TrimLeftFunc, tc.leftOut},
-			{"TrimRightFunc", TrimRightFunc, tc.rightOut},
+			{"TrimFunc", bytes.TrimFunc, tc.trimOut},
+			{"TrimLeftFunc", bytes.TrimLeftFunc, tc.leftOut},
+			{"TrimRightFunc", bytes.TrimRightFunc, tc.rightOut},
 		}
 		for _, trimmer := range trimmers {
 			actual := trimmer.trim([]byte(tc.in), tc.f.f)
@@ -1399,7 +1415,7 @@ func TestTrimFunc(t *testing.T) {
 			if actual != nil && trimmer.out == nil {
 				t.Errorf("%s(%q, %q) = %q; want nil", trimmer.name, tc.in, tc.f.name, actual)
 			}
-			if !Equal(actual, trimmer.out) {
+			if !bytes.Equal(actual, trimmer.out) {
 				t.Errorf("%s(%q, %q) = %q; want %q", trimmer.name, tc.in, tc.f.name, actual, trimmer.out)
 			}
 		}
@@ -1435,11 +1451,11 @@ var indexFuncTests = []IndexFuncTest{
 
 func TestIndexFunc(t *testing.T) {
 	for _, tc := range indexFuncTests {
-		first := IndexFunc([]byte(tc.in), tc.f.f)
+		first := bytes.IndexFunc([]byte(tc.in), tc.f.f)
 		if first != tc.first {
 			t.Errorf("IndexFunc(%q, %s) = %d; want %d", tc.in, tc.f.name, first, tc.first)
 		}
-		last := LastIndexFunc([]byte(tc.in), tc.f.f)
+		last := bytes.LastIndexFunc([]byte(tc.in), tc.f.f)
 		if last != tc.last {
 			t.Errorf("LastIndexFunc(%q, %s) = %d; want %d", tc.in, tc.f.name, last, tc.last)
 		}
@@ -1479,7 +1495,7 @@ func TestReplace(t *testing.T) {
 	for _, tt := range ReplaceTests {
 		in := append([]byte(tt.in), "<spare>"...)
 		in = in[:len(tt.in)]
-		out := Replace(in, []byte(tt.old), []byte(tt.new), tt.n)
+		out := bytes.Replace(in, []byte(tt.old), []byte(tt.new), tt.n)
 		if s := string(out); s != tt.out {
 			t.Errorf("Replace(%q, %q, %q, %d) = %q, want %q", tt.in, tt.old, tt.new, tt.n, s, tt.out)
 		}
@@ -1487,7 +1503,7 @@ func TestReplace(t *testing.T) {
 			t.Errorf("Replace(%q, %q, %q, %d) didn't copy", tt.in, tt.old, tt.new, tt.n)
 		}
 		if tt.n == -1 {
-			out := ReplaceAll(in, []byte(tt.old), []byte(tt.new))
+			out := bytes.ReplaceAll(in, []byte(tt.old), []byte(tt.new))
 			if s := string(out); s != tt.out {
 				t.Errorf("ReplaceAll(%q, %q, %q) = %q, want %q", tt.in, tt.old, tt.new, s, tt.out)
 			}
@@ -1513,7 +1529,7 @@ var TitleTests = []TitleTest{
 
 func TestTitle(t *testing.T) {
 	for _, tt := range TitleTests {
-		if s := string(Title([]byte(tt.in))); s != tt.out {
+		if s := string(bytes.Title([]byte(tt.in))); s != tt.out {
 			t.Errorf("Title(%q) = %q, want %q", tt.in, s, tt.out)
 		}
 	}
@@ -1531,7 +1547,7 @@ var ToTitleTests = []TitleTest{
 
 func TestToTitle(t *testing.T) {
 	for _, tt := range ToTitleTests {
-		if s := string(ToTitle([]byte(tt.in))); s != tt.out {
+		if s := string(bytes.ToTitle([]byte(tt.in))); s != tt.out {
 			t.Errorf("ToTitle(%q) = %q, want %q", tt.in, s, tt.out)
 		}
 	}
@@ -1556,10 +1572,10 @@ var EqualFoldTests = []struct {
 
 func TestEqualFold(t *testing.T) {
 	for _, tt := range EqualFoldTests {
-		if out := EqualFold([]byte(tt.s), []byte(tt.t)); out != tt.out {
+		if out := bytes.EqualFold([]byte(tt.s), []byte(tt.t)); out != tt.out {
 			t.Errorf("EqualFold(%#q, %#q) = %v, want %v", tt.s, tt.t, out, tt.out)
 		}
-		if out := EqualFold([]byte(tt.t), []byte(tt.s)); out != tt.out {
+		if out := bytes.EqualFold([]byte(tt.t), []byte(tt.s)); out != tt.out {
 			t.Errorf("EqualFold(%#q, %#q) = %v, want %v", tt.t, tt.s, out, tt.out)
 		}
 	}
@@ -1571,7 +1587,7 @@ func TestBufferGrowNegative(t *testing.T) {
 			t.Fatal("Grow(-1) should have panicked")
 		}
 	}()
-	var b Buffer
+	var b bytes.Buffer
 	b.Grow(-1)
 }
 
@@ -1581,7 +1597,7 @@ func TestBufferTruncateNegative(t *testing.T) {
 			t.Fatal("Truncate(-1) should have panicked")
 		}
 	}()
-	var b Buffer
+	var b bytes.Buffer
 	b.Truncate(-1)
 }
 
@@ -1591,7 +1607,7 @@ func TestBufferTruncateOutOfRange(t *testing.T) {
 			t.Fatal("Truncate(20) should have panicked")
 		}
 	}()
-	var b Buffer
+	var b bytes.Buffer
 	b.Write(make([]byte, 10))
 	b.Truncate(20)
 }
@@ -1608,7 +1624,7 @@ var containsTests = []struct {
 
 func TestContains(t *testing.T) {
 	for _, tt := range containsTests {
-		if got := Contains(tt.b, tt.subslice); got != tt.want {
+		if got := bytes.Contains(tt.b, tt.subslice); got != tt.want {
 			t.Errorf("Contains(%q, %q) = %v, want %v", tt.b, tt.subslice, got, tt.want)
 		}
 	}
@@ -1634,7 +1650,7 @@ var ContainsAnyTests = []struct {
 
 func TestContainsAny(t *testing.T) {
 	for _, ct := range ContainsAnyTests {
-		if ContainsAny(ct.b, ct.substr) != ct.expected {
+		if bytes.ContainsAny(ct.b, ct.substr) != ct.expected {
 			t.Errorf("ContainsAny(%s, %s) = %v, want %v",
 				ct.b, ct.substr, !ct.expected, ct.expected)
 		}
@@ -1658,7 +1674,7 @@ var ContainsRuneTests = []struct {
 
 func TestContainsRune(t *testing.T) {
 	for _, ct := range ContainsRuneTests {
-		if ContainsRune(ct.b, ct.r) != ct.expected {
+		if bytes.ContainsRune(ct.b, ct.r) != ct.expected {
 			t.Errorf("ContainsRune(%q, %q) = %v, want %v",
 				ct.b, ct.r, !ct.expected, ct.expected)
 		}
@@ -1677,7 +1693,9 @@ var makeFieldsInput = func() []byte {
 				copy(x[i-1:], "χ")
 				break
 			}
-			fallthrough
+			// XXX fallthrough not yet implemented
+			// fallthrough
+			x[i] = 'x'
 		default:
 			x[i] = 'x'
 		}
@@ -1715,7 +1733,7 @@ func BenchmarkFields(b *testing.B) {
 					b.SetBytes(int64(j))
 					data := sd.data[:j]
 					for i := 0; i < b.N; i++ {
-						Fields(data)
+						bytes.Fields(data)
 					}
 				})
 			}
@@ -1732,7 +1750,7 @@ func BenchmarkFieldsFunc(b *testing.B) {
 					b.SetBytes(int64(j))
 					data := sd.data[:j]
 					for i := 0; i < b.N; i++ {
-						FieldsFunc(data, unicode.IsSpace)
+						bytes.FieldsFunc(data, unicode.IsSpace)
 					}
 				})
 			}
@@ -1753,7 +1771,7 @@ func BenchmarkTrimSpace(b *testing.B) {
 	for _, test := range tests {
 		b.Run(test.name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				TrimSpace(test.input)
+				bytes.TrimSpace(test.input)
 			}
 		})
 	}
@@ -1773,7 +1791,7 @@ func BenchmarkToValidUTF8(b *testing.B) {
 	for _, test := range tests {
 		b.Run(test.name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				ToValidUTF8(test.input, replacement)
+				bytes.ToValidUTF8(test.input, replacement)
 			}
 		})
 	}
@@ -1800,19 +1818,19 @@ var benchInputHard = makeBenchInputHard()
 
 func benchmarkIndexHard(b *testing.B, sep []byte) {
 	for i := 0; i < b.N; i++ {
-		Index(benchInputHard, sep)
+		bytes.Index(benchInputHard, sep)
 	}
 }
 
 func benchmarkLastIndexHard(b *testing.B, sep []byte) {
 	for i := 0; i < b.N; i++ {
-		LastIndex(benchInputHard, sep)
+		bytes.LastIndex(benchInputHard, sep)
 	}
 }
 
 func benchmarkCountHard(b *testing.B, sep []byte) {
 	for i := 0; i < b.N; i++ {
-		Count(benchInputHard, sep)
+		bytes.Count(benchInputHard, sep)
 	}
 }
 
@@ -1833,41 +1851,41 @@ func BenchmarkCountHard3(b *testing.B) { benchmarkCountHard(b, []byte("<b>hello 
 
 func BenchmarkSplitEmptySeparator(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Split(benchInputHard, nil)
+		bytes.Split(benchInputHard, nil)
 	}
 }
 
 func BenchmarkSplitSingleByteSeparator(b *testing.B) {
 	sep := []byte("/")
 	for i := 0; i < b.N; i++ {
-		Split(benchInputHard, sep)
+		bytes.Split(benchInputHard, sep)
 	}
 }
 
 func BenchmarkSplitMultiByteSeparator(b *testing.B) {
 	sep := []byte("hello")
 	for i := 0; i < b.N; i++ {
-		Split(benchInputHard, sep)
+		bytes.Split(benchInputHard, sep)
 	}
 }
 
 func BenchmarkSplitNSingleByteSeparator(b *testing.B) {
 	sep := []byte("/")
 	for i := 0; i < b.N; i++ {
-		SplitN(benchInputHard, sep, 10)
+		bytes.SplitN(benchInputHard, sep, 10)
 	}
 }
 
 func BenchmarkSplitNMultiByteSeparator(b *testing.B) {
 	sep := []byte("hello")
 	for i := 0; i < b.N; i++ {
-		SplitN(benchInputHard, sep, 10)
+		bytes.SplitN(benchInputHard, sep, 10)
 	}
 }
 
 func BenchmarkRepeat(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Repeat([]byte("-"), 80)
+		bytes.Repeat([]byte("-"), 80)
 	}
 }
 
@@ -1887,20 +1905,20 @@ func BenchmarkBytesCompare(b *testing.B) {
 
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				Compare(x, y)
+				bytes.Compare(x, y)
 			}
 		})
 	}
 }
 
 func BenchmarkIndexAnyASCII(b *testing.B) {
-	x := Repeat([]byte{'#'}, 2048) // Never matches set
+	x := bytes.Repeat([]byte{'#'}, 2048) // Never matches set
 	cs := "0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz"
 	for k := 1; k <= 2048; k <<= 4 {
 		for j := 1; j <= 64; j <<= 1 {
 			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
-					IndexAny(x[:k], cs[:j])
+					bytes.IndexAny(x[:k], cs[:j])
 				}
 			})
 		}
@@ -1908,13 +1926,13 @@ func BenchmarkIndexAnyASCII(b *testing.B) {
 }
 
 func BenchmarkIndexAnyUTF8(b *testing.B) {
-	x := Repeat([]byte{'#'}, 2048) // Never matches set
+	x := bytes.Repeat([]byte{'#'}, 2048) // Never matches set
 	cs := "你好世界, hello world. 你好世界, hello world. 你好世界, hello world."
 	for k := 1; k <= 2048; k <<= 4 {
 		for j := 1; j <= 64; j <<= 1 {
 			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
-					IndexAny(x[:k], cs[:j])
+					bytes.IndexAny(x[:k], cs[:j])
 				}
 			})
 		}
@@ -1922,13 +1940,13 @@ func BenchmarkIndexAnyUTF8(b *testing.B) {
 }
 
 func BenchmarkLastIndexAnyASCII(b *testing.B) {
-	x := Repeat([]byte{'#'}, 2048) // Never matches set
+	x := bytes.Repeat([]byte{'#'}, 2048) // Never matches set
 	cs := "0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz"
 	for k := 1; k <= 2048; k <<= 4 {
 		for j := 1; j <= 64; j <<= 1 {
 			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
-					LastIndexAny(x[:k], cs[:j])
+					bytes.LastIndexAny(x[:k], cs[:j])
 				}
 			})
 		}
@@ -1936,13 +1954,13 @@ func BenchmarkLastIndexAnyASCII(b *testing.B) {
 }
 
 func BenchmarkLastIndexAnyUTF8(b *testing.B) {
-	x := Repeat([]byte{'#'}, 2048) // Never matches set
+	x := bytes.Repeat([]byte{'#'}, 2048) // Never matches set
 	cs := "你好世界, hello world. 你好世界, hello world. 你好世界, hello world."
 	for k := 1; k <= 2048; k <<= 4 {
 		for j := 1; j <= 64; j <<= 1 {
 			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
-					LastIndexAny(x[:k], cs[:j])
+					bytes.LastIndexAny(x[:k], cs[:j])
 				}
 			})
 		}
@@ -1954,9 +1972,9 @@ func BenchmarkTrimASCII(b *testing.B) {
 	for k := 1; k <= 4096; k <<= 4 {
 		for j := 1; j <= 16; j <<= 1 {
 			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
-				x := Repeat([]byte(cs[:j]), k) // Always matches set
+				x := bytes.Repeat([]byte(cs[:j]), k) // Always matches set
 				for i := 0; i < b.N; i++ {
-					Trim(x[:k], cs[:j])
+					bytes.Trim(x[:k], cs[:j])
 				}
 			})
 		}
@@ -1972,7 +1990,7 @@ func BenchmarkIndexPeriodic(b *testing.B) {
 				buf[i] = 1
 			}
 			for i := 0; i < b.N; i++ {
-				Index(buf, key)
+				bytes.Index(buf, key)
 			}
 		})
 	}

@@ -81,7 +81,7 @@ func TestMultiWriter_WriteStringSingleAlloc(t *testing.T) {
 		Writer
 	}
 	mw := MultiWriter(simpleWriter{&sink1}, simpleWriter{&sink2})
-	allocs := int(testing.AllocsPerRun(1000, func() {
+	allocs := int(testing.AllocsPerRun2(1000, func() {
 		WriteString(mw, "foo")
 	}))
 	if allocs != 1 {

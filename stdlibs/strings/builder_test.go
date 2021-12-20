@@ -90,7 +90,7 @@ func TestBuilderReset(t *testing.T) {
 func TestBuilderGrow(t *testing.T) {
 	for _, growLen := range []int{0, 100, 1000, 10000, 100000} {
 		p := bytes.Repeat([]byte{'a'}, growLen)
-		allocs := testing.AllocsPerRun(100, func() {
+		allocs := testing.AllocsPerRun2(100, func() {
 			var b strings.Builder
 			b.Grow(growLen) // should be only alloc, when growLen > 0
 			if b.Cap() < growLen {
@@ -181,7 +181,7 @@ func TestBuilderWriteByte(t *testing.T) {
 func TestBuilderAllocs(t *testing.T) {
 	// Issue 23382; verify that copyCheck doesn't force the
 	// Builder to escape and be heap allocated.
-	n := testing.AllocsPerRun(10000, func() {
+	n := testing.AllocsPerRun2(10000, func() {
 		var b strings.Builder
 		b.Grow(5)
 		b.WriteString("abcde")

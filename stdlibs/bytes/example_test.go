@@ -14,6 +14,7 @@ import (
 	"unicode"
 )
 
+/* XXX native fmt.Fprintf cannot take gno io.Writer.
 func ExampleBuffer() {
 	var b bytes.Buffer // A Buffer needs no initialization.
 	b.Write([]byte("Hello "))
@@ -21,6 +22,7 @@ func ExampleBuffer() {
 	b.WriteTo(os.Stdout)
 	// Output: Hello world!
 }
+*/
 
 func ExampleBuffer_reader() {
 	// A Buffer can turn a string or a []byte into an io.Reader.

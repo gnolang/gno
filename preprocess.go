@@ -95,7 +95,8 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 //  * TODO document what it does.
 func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	if ctx == nil {
-		panic("Preprocess requires context")
+		// Generally a ctx is required, but if not, it's ok to pass in nil.
+		// panic("Preprocess requires context")
 	}
 
 	// if n is file node, set node locations recursively.
@@ -865,6 +866,41 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						"unexpected func type %v (%v)",
 						ift, reflect.TypeOf(ift)))
 				}
+
+				// Handle special cases.
+				// NOTE: these appear to be actually special cases in go.
+				// In general, a string is not assignable to []bytes
+				// without conversion.
+				if cx, ok := n.Func.(*ConstExpr); ok {
+					fv := cx.GetFunc()
+					if fv.PkgPath == ".uverse" && fv.Name == "append" {
+						if n.Varg && len(n.Args) == 2 {
+							// If the second argument is a string,
+							// convert to byteslice.
+							args1 := n.Args[1]
+							if evalStaticTypeOf(store, last, args1).Kind() == StringKind {
+								bsx := constType(nil, gByteSliceType)
+								args1 = Call(bsx, args1)
+								args1 = Preprocess(nil, last, args1).(Expr)
+								n.Args[1] = args1
+							}
+						}
+					} else if fv.PkgPath == ".uverse" && fv.Name == "copy" {
+						if len(n.Args) == 2 {
+							// If the second argument is a string,
+							// convert to byteslice.
+							args1 := n.Args[1]
+							if evalStaticTypeOf(store, last, args1).Kind() == StringKind {
+								bsx := constType(nil, gByteSliceType)
+								args1 = Call(bsx, args1)
+								args1 = Preprocess(nil, last, args1).(Expr)
+								n.Args[1] = args1
+							}
+						}
+					}
+				}
+
+				// Continue with general case.
 				hasVarg := ft.HasVarg()
 				isVarg := n.Varg
 				embedded := false
@@ -875,6 +911,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				}
 				numArgs := countNumArgs(store, last, n) // isVarg?
 				n.NumArgs = numArgs
+
 				// Check input arg count.
 				if len(n.Args) == 1 && numArgs > 1 {
 					// special case of x(f()) form:
@@ -2259,8 +2296,6 @@ func checkType(xt Type, dt Type, autoNative bool) {
 		if st, ok := xt.(*SliceType); ok {
 			checkType(st.Elt, cdt.Elt, false)
 			return // ok
-		} else if xt == StringType && cdt.Elt == Uint8Type {
-			return // ok
 		}
 	case *MapType:
 		if mt, ok := xt.(*MapType); ok {
@@ -2557,6 +2592,22 @@ func checkIntegerType(xt Type) {
 // preprocess-able before other file-level declarations are
 // preprocessed).
 func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			// before re-throwing the error, append location information to message.
+			loc := last.GetLocation()
+			if nline := d.GetLine(); nline > 0 {
+				loc.Line = nline
+			}
+			if rerr, ok := r.(error); ok {
+				// NOTE: gotuna/gorilla expects error exceptions.
+				panic(errors.Wrap(rerr, loc.String()))
+			} else {
+				// NOTE: gotuna/gorilla expects error exceptions.
+				panic(errors.New(fmt.Sprintf("%s: %v", loc.String(), r)))
+			}
+		}
+	}()
 	m := make(map[Name]struct{})
 	return predefineNow2(store, last, d, m)
 }

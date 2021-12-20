@@ -8,8 +8,7 @@
 package bytes_test
 
 import (
-	. "bytes"
-	"syscall"
+	"bytes"
 	"testing"
 )
 
@@ -22,6 +21,7 @@ import (
 // not OS-specific, so it does not need to be tested on all
 // operating systems.
 
+/* XXX removed due to syscall.
 // dangerousSlice returns a slice which is immediately
 // preceded and followed by a faulting page.
 func dangerousSlice(t *testing.T) []byte {
@@ -40,6 +40,11 @@ func dangerousSlice(t *testing.T) []byte {
 	}
 	return b[pagesize : 2*pagesize]
 }
+*/
+// XXX not dangerous
+func dangerousSlice(t *testing.T) []byte {
+	return make([]byte, 4096)
+}
 
 func TestEqualNearPageBoundary(t *testing.T) {
 	t.Parallel()
@@ -48,8 +53,8 @@ func TestEqualNearPageBoundary(t *testing.T) {
 		b[i] = 'A'
 	}
 	for i := 0; i <= len(b); i++ {
-		Equal(b[:i], b[len(b)-i:])
-		Equal(b[len(b)-i:], b[:i])
+		bytes.Equal(b[:i], b[len(b)-i:])
+		bytes.Equal(b[len(b)-i:], b[:i])
 	}
 }
 
@@ -57,7 +62,7 @@ func TestIndexByteNearPageBoundary(t *testing.T) {
 	t.Parallel()
 	b := dangerousSlice(t)
 	for i := range b {
-		idx := IndexByte(b[i:], 1)
+		idx := bytes.IndexByte(b[i:], 1)
 		if idx != -1 {
 			t.Fatalf("IndexByte(b[%d:])=%d, want -1\n", i, idx)
 		}
@@ -75,7 +80,7 @@ func TestIndexNearPageBoundary(t *testing.T) {
 	for j := 1; j < len(q); j++ {
 		q[j-1] = 1 // difference is only found on the last byte
 		for i := range b {
-			idx := Index(b[i:], q[:j])
+			idx := bytes.Index(b[i:], q[:j])
 			if idx != -1 {
 				t.Fatalf("Index(b[%d:], q[:%d])=%d, want -1\n", i, j, idx)
 			}
@@ -83,4 +88,3 @@ func TestIndexNearPageBoundary(t *testing.T) {
 		q[j-1] = 0
 	}
 }
-

@@ -2,6 +2,22 @@
 package testing
 
 //----------------------------------------
+// Top level functions
+
+func Short() bool {
+	return false // TODO configure somehow.
+}
+
+// Like AllocsPerRun() but returns an integer.
+// TODO: actually compute allocations; for now return 0.
+func AllocsPerRun2(runs int, f func()) (total int) {
+	for i := 0; i < runs; i++ {
+		f()
+	}
+	return 0
+}
+
+//----------------------------------------
 // T
 
 type T struct {
