@@ -8,6 +8,7 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"testing"
 
 	"github.com/gnolang/gno/pkgs/errors"
 	"github.com/gnolang/gno/pkgs/std"
@@ -181,7 +182,7 @@ func (m *Machine) RunMemPackage(memPkg std.MemPackage, save bool) (*PackageNode,
 // The resulting package value and node become injected with TestMethods and
 // other declarations, so it is expected that non-test code will not be run
 // afterwards from the same store.
-func (m *Machine) TestMemPackage(memPkg std.MemPackage) {
+func (m *Machine) TestMemPackage(t *testing.T, memPkg std.MemPackage) {
 	// in case of panic, print the machine state.
 	defer func() {
 		if r := recover(); r != nil {
@@ -258,13 +259,15 @@ func (m *Machine) TestMemPackage(memPkg std.MemPackage) {
 			}
 			// XXX ensure correct func type.
 			name := tv.V.(*FuncValue).Name
-			x := Call(name, Call(Sel(testingcx, "NewT"), Str(string(name))))
-			res := m.Eval(x)
-			if len(res) != 0 {
-				panic(fmt.Sprintf(
-					"expected no results but got %d",
-					len(res)))
-			}
+			t.Run(string(name), func(t *testing.T) {
+				x := Call(name, Call(Sel(testingcx, "NewT"), Str(string(name))))
+				res := m.Eval(x)
+				if len(res) != 0 {
+					panic(fmt.Sprintf(
+						"expected no results but got %d",
+						len(res)))
+				}
+			})
 		}
 	}
 	{ // run all (import) tests in test files.
@@ -284,16 +287,17 @@ func (m *Machine) TestMemPackage(memPkg std.MemPackage) {
 			}
 			// XXX ensure correct func type.
 			name := tv.V.(*FuncValue).Name
-			fmt.Print("  --- GNORUN ", name+"... ")
-			x := Call(name, Call(Sel(testingcx, "NewT"), Str(string(name))))
-			res := m.Eval(x)
-			if len(res) != 0 {
-				fmt.Println("ERROR")
-				panic(fmt.Sprintf(
-					"expected no results but got %d",
-					len(res)))
-			}
-			fmt.Println("OK")
+			t.Run(string(name), func(t *testing.T) {
+				x := Call(name, Call(Sel(testingcx, "NewT"), Str(string(name))))
+				res := m.Eval(x)
+				if len(res) != 0 {
+					fmt.Println("ERROR")
+					panic(fmt.Sprintf(
+						"expected no results but got %d",
+						len(res)))
+				}
+				fmt.Println("OK")
+			})
 		}
 	}
 }
@@ -1550,15 +1554,21 @@ func (m *Machine) String() string {
 	for b := m.LastBlock(); b != nil; {
 		gen := len(bs)/3 + 1
 		gens := "@" // strings.Repeat("@", gen)
-		bsi := b.StringIndented("            ")
-		bs = append(bs, fmt.Sprintf("          %s(%d) %s", gens, gen, bsi))
-		if b.Source != nil {
-			sb := b.GetSource(m.Store).GetStaticBlock().GetBlock()
-			bs = append(bs, fmt.Sprintf(" (s vals) %s(%d) %s", gens, gen,
-				sb.StringIndented("            ")))
-			sts := b.GetSource(m.Store).GetStaticBlock().Types
-			bs = append(bs, fmt.Sprintf(" (s typs) %s(%d) %s", gens, gen,
-				sts))
+		if pv, ok := b.Source.(*PackageNode); ok {
+			// package blocks have too much, so just
+			// print the pkgpath.
+			bs = append(bs, fmt.Sprintf("          %s(%d) %s", gens, gen, pv.PkgPath))
+		} else {
+			bsi := b.StringIndented("            ")
+			bs = append(bs, fmt.Sprintf("          %s(%d) %s", gens, gen, bsi))
+			if b.Source != nil {
+				sb := b.GetSource(m.Store).GetStaticBlock().GetBlock()
+				bs = append(bs, fmt.Sprintf(" (s vals) %s(%d) %s", gens, gen,
+					sb.StringIndented("            ")))
+				sts := b.GetSource(m.Store).GetStaticBlock().Types
+				bs = append(bs, fmt.Sprintf(" (s typs) %s(%d) %s", gens, gen,
+					sts))
+			}
 		}
 		// b = b.Parent.(*Block|RefValue)
 		switch bp := b.Parent.(type) {
@@ -1578,12 +1588,16 @@ func (m *Machine) String() string {
 	obs := []string{}
 	for i := len(m.Blocks) - 2; i >= 0; i-- {
 		b := m.Blocks[i]
-		obs = append(obs, fmt.Sprintf("          #%d %s", i,
-			b.StringIndented("            ")))
-		if b.Source != nil {
-			sb := b.GetSource(m.Store).GetStaticBlock().GetBlock()
-			obs = append(obs, fmt.Sprintf(" (static) #%d %s", i,
-				sb.StringIndented("            ")))
+		if _, ok := b.Source.(*PackageNode); ok {
+			break // done, skip *PackageNode.
+		} else {
+			obs = append(obs, fmt.Sprintf("          #%d %s", i,
+				b.StringIndented("            ")))
+			if b.Source != nil {
+				sb := b.GetSource(m.Store).GetStaticBlock().GetBlock()
+				obs = append(obs, fmt.Sprintf(" (static) #%d %s", i,
+					sb.StringIndented("            ")))
+			}
 		}
 	}
 	fs := []string{}

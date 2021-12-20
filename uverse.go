@@ -761,48 +761,67 @@ func UverseNode() *PackageNode {
 			tt := arg0.TV.GetType()
 			switch bt := baseOf(tt).(type) {
 			case *SliceType:
+				et := bt.Elem()
 				if vargsl == 1 {
 					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
 					li := lv.ConvertGetInt()
-					list := make([]TypedValue, li)
-					if et := bt.Elem(); et.Kind() == InterfaceKind {
-						// leave as is
+					if et.Kind() == Uint8Kind {
+						data := make([]byte, li)
+						m.PushValue(TypedValue{
+							T: tt,
+							V: newSliceFromData(data),
+						})
+						return
 					} else {
-						// init zero elements with concrete type.
-						// XXX can this be removed?
-						for i := 0; i < li; i++ {
-							list[i].T = et
+						list := make([]TypedValue, li)
+						if et.Kind() == InterfaceKind {
+							// leave as is
+						} else {
+							// init zero elements with concrete type.
+							// XXX can this be removed?
+							for i := 0; i < li; i++ {
+								list[i].T = et
+							}
 						}
+						m.PushValue(TypedValue{
+							T: tt,
+							V: newSliceFromList(list),
+						})
+						return
 					}
-					m.PushValue(TypedValue{
-						T: tt,
-						V: newSliceFromList(list),
-					})
-					return
 				} else if vargsl == 2 {
 					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
 					li := lv.ConvertGetInt()
 					cv := vargs.TV.GetPointerAtIndexInt(m.Store, 1).Deref()
 					ci := cv.ConvertGetInt()
-					list := make([]TypedValue, li, ci)
-					if et := bt.Elem(); et.Kind() == InterfaceKind {
-						// leave as is
+					if et.Kind() == Uint8Kind {
+						data := make([]byte, li, ci)
+						m.PushValue(TypedValue{
+							T: tt,
+							V: newSliceFromData(data),
+						})
+						return
 					} else {
-						// init zero elements with concrete type.
-						// the elements beyond len l within cap c
-						// must also be initialized, for a future
-						// slice operation may refer to them.
-						// XXX can this be removed?
-						list2 := list[:ci]
-						for i := 0; i < ci; i++ {
-							list2[i].T = et
+						list := make([]TypedValue, li, ci)
+						if et := bt.Elem(); et.Kind() == InterfaceKind {
+							// leave as is
+						} else {
+							// init zero elements with concrete type.
+							// the elements beyond len l within cap c
+							// must also be initialized, for a future
+							// slice operation may refer to them.
+							// XXX can this be removed?
+							list2 := list[:ci]
+							for i := 0; i < ci; i++ {
+								list2[i].T = et
+							}
 						}
+						m.PushValue(TypedValue{
+							T: tt,
+							V: newSliceFromList(list),
+						})
+						return
 					}
-					m.PushValue(TypedValue{
-						T: tt,
-						V: newSliceFromList(list),
-					})
-					return
 				} else {
 					panic("make() of slice type takes 2 or 3 arguments")
 				}

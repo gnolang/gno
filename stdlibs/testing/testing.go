@@ -5,7 +5,7 @@ package testing
 // Top level functions
 
 func Short() bool {
-	return false // TODO configure somehow.
+	return true // TODO configure somehow.
 }
 
 // Like AllocsPerRun() but returns an integer.
