@@ -263,6 +263,7 @@ func (g *Group) ensureTotalSizeLimit() {
 		fInfo, err := os.Stat(pathToRemove)
 		if err != nil {
 			g.Logger.Error("Failed to fetch info for file", "file", pathToRemove)
+			g.info.MinIndex = index + 1 // bump MinIndex.
 			continue
 		}
 		err = os.Remove(pathToRemove)
@@ -270,6 +271,7 @@ func (g *Group) ensureTotalSizeLimit() {
 			g.Logger.Error("Failed to remove path", "path", pathToRemove)
 			return
 		}
+		g.info.MinIndex = index + 1 // bump MinIndex.
 		g.info.TotalSize -= fInfo.Size()
 	}
 }
