@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	auto "github.com/gnolang/gno/pkgs/autofile"
+	"github.com/gnolang/gno/pkgs/flow"
 	osm "github.com/gnolang/gno/pkgs/os"
 )
 
@@ -16,7 +17,7 @@ const Version = "0.0.1"
 const readBufferSize = 1024 // 1KB at a time
 
 // Parse command-line options
-func parseFlags() (headPath string, chopSize int64, limitSize int64, sync bool, version bool) {
+func parseFlags() (headPath string, chopSize int64, limitSize int64, sync bool, throttle int, version bool) {
 	var flagSet = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	var chopSizeStr, limitSizeStr string
 	flagSet.StringVar(&headPath, "head", "logjack.out", "Destination (head) file.")
@@ -24,6 +25,7 @@ func parseFlags() (headPath string, chopSize int64, limitSize int64, sync bool, 
 	flagSet.StringVar(&limitSizeStr, "limit", "10G", "Only keep this much (for each specified file). Remove old files.")
 	flagSet.BoolVar(&sync, "sync", false, "Always write synchronously (slow).")
 	flagSet.BoolVar(&version, "version", false, "Version")
+	flagSet.IntVar(&throttle, "throttle", 0, "Throttle writes to bytes per second")
 	flagSet.Parse(os.Args[1:])
 	chopSize = parseBytesize(chopSizeStr)
 	limitSize = parseBytesize(limitSizeStr)
@@ -37,7 +39,7 @@ func main() {
 	})
 
 	// Read options
-	headPath, chopSize, limitSize, sync, version := parseFlags()
+	headPath, chopSize, limitSize, sync, throttle, version := parseFlags()
 	if version {
 		fmt.Printf("logjack version %v\n", Version)
 		return
@@ -58,10 +60,15 @@ func main() {
 
 	// Forever read from stdin and write to AutoFile.
 	buf := make([]byte, readBufferSize)
+	writer := io.Writer(group)
+	if throttle > 0 {
+		writer = flow.NewWriter(writer, int64(throttle))
+	}
 	for {
 		n, err := os.Stdin.Read(buf)
-		group.Write(buf[:n])
+		writer.Write(buf[:n])
 		if sync {
+			// NOTE: flow writer does not biffr
 			group.FlushAndSync()
 		}
 		if err != nil {
