@@ -54,7 +54,7 @@ func (v *SliceValue) String() string {
 		return "slice[" + strings.Join(ss, ",") + "]"
 	} else {
 		if v.Length > 256 {
-			return fmt.Sprintf("slice[0x%X...]", vbase.Data[v.Offset:v.Offset+256])
+			return fmt.Sprintf("slice[0x%X...(%d)]", vbase.Data[v.Offset:v.Offset+256], v.Length)
 		} else {
 			return fmt.Sprintf("slice[0x%X]", vbase.Data[v.Offset:v.Offset+v.Length])
 		}

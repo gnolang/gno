@@ -326,7 +326,7 @@ func UverseNode() *PackageNode {
 									Base:   xvb,
 									Offset: xvo,
 									Length: xvl + argsl,
-									Maxcap: xvc - argsl,
+									Maxcap: xvc,
 								},
 							})
 							return
@@ -376,11 +376,14 @@ func UverseNode() *PackageNode {
 									list[:xvl],
 									xvb.List[xvo:xvo+xvl])
 							} else {
-								copyDataToList(
-									list[:xvl],
-									xvb.Data[xvo:xvo+xvl],
-									xt.Elem(),
-								)
+								panic("should not happen")
+								/*
+									copyDataToList(
+										list[:xvl],
+										xvb.Data[xvo:xvo+xvl],
+										xt.Elem(),
+									)
+								*/
 							}
 						}
 						if 0 < argsl {
@@ -430,7 +433,7 @@ func UverseNode() *PackageNode {
 									Base:   xvb,
 									Offset: xvo,
 									Length: xvl + argsl,
-									Maxcap: xvc - argsl,
+									Maxcap: xvc,
 								},
 							})
 							return

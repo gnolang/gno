@@ -2079,7 +2079,7 @@ func (tv *TypedValue) GetSlice2(low, high, max int) TypedValue {
 			V: &SliceValue{
 				Base:   sv.Base,
 				Offset: sv.Offset + low,
-				Length: sv.Offset + high - low,
+				Length: high - low,
 				Maxcap: max - low,
 			},
 		}
