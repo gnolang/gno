@@ -257,13 +257,6 @@ func (x *IncDecStmt) Copy() Node {
 	}
 }
 
-func (x *LabeledStmt) Copy() Node {
-	return &LabeledStmt{
-		Label: x.Label,
-		Stmt:  x.Stmt.Copy().(Stmt),
-	}
-}
-
 func (x *RangeStmt) Copy() Node {
 	return &RangeStmt{
 		X:     x.X.Copy().(Expr),

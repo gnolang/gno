@@ -14,4 +14,4 @@ func main() {
 }
 
 // Error:
-// comparison operator > not defined for InterfaceKind
+// incompatible types in binary expression: err<VPBlock(2,0)> GTR invalidT<VPBlock(4,2)>

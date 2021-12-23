@@ -62,7 +62,8 @@ func runPackageTest(t *testing.T, dir string, path string) {
 
 	isRealm := false // XXX try true too?
 	stdin := new(bytes.Buffer)
-	stdout := new(bytes.Buffer)
+	// stdout := new(bytes.Buffer)
+	stdout := os.Stdout
 	stderr := new(bytes.Buffer)
 	store := testStore(stdin, stdout, stderr, isRealm, false)
 	store.SetLogStoreOps(true)

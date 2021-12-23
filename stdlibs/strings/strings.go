@@ -387,6 +387,7 @@ func FieldsFunc(s string, f func(rune) bool) []string {
 	// more efficient, possibly due to cache effects.
 	start := -1             // valid span start if >= 0
 	for end, r := range s { // XXX rename rune to r.
+		println("end", end, "r", r, "f(r)", f(r))
 		if f(r) {
 			if start >= 0 {
 				spans = append(spans, span{start, end})

@@ -42,6 +42,7 @@ func (t *T) Errorf(format string, args ...interface{}) {
 }
 func (t *T) Fail() {
 	t.didFail = true
+	panic("TEST FAILED") // XXX
 }
 func (t *T) FailNow() {
 	panic("TEST FAILED")
@@ -58,17 +59,15 @@ func (t *T) Fatalf(format string, args ...interface{}) {
 	t.FailNow()
 }
 func (t *T) Log(args ...interface{}) {
-	for _, arg := range args {
-		print(arg)
+	for i, arg := range args {
+		println("arg", i, ": ", arg)
 	}
-	println("")
 }
 func (t *T) Logf(format string, args ...interface{}) {
 	println("format:", format, "args:")
-	for _, arg := range args {
-		print(arg)
+	for i, arg := range args {
+		println("arg", i, ": ", arg)
 	}
-	println("")
 }
 func (t *T) Name() string {
 	return t.name
@@ -95,6 +94,8 @@ func (t *T) Skipf(format string, args ...interface{}) {
 }
 func (t *T) TempDir() string {
 	panic("not yet implemented")
+}
+func (t *T) Helper() {
 }
 
 //----------------------------------------

@@ -77,7 +77,6 @@ const (
 	TRANS_IF_ELSE
 	TRANS_IF_CASE_BODY
 	TRANS_INCDEC_X
-	TRANS_LABELED_STMT
 	TRANS_RANGE_X
 	TRANS_RANGE_KEY
 	TRANS_RANGE_VALUE
@@ -500,11 +499,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		}
 	case *IncDecStmt:
 		cnn.X = transcribe(t, nns, TRANS_INCDEC_X, 0, cnn.X, &c).(Expr)
-		if isStopOrSkip(nc, c) {
-			return
-		}
-	case *LabeledStmt:
-		cnn.Stmt = transcribe(t, nns, TRANS_LABELED_STMT, 0, cnn.Stmt, &c).(Stmt)
 		if isStopOrSkip(nc, c) {
 			return
 		}

@@ -371,10 +371,9 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			Op: toWord(gon.Tok),
 		}
 	case *ast.LabeledStmt:
-		return &LabeledStmt{
-			Label: toName(gon.Label),
-			Stmt:  toStmt(fs, gon.Stmt),
-		}
+		stmt := toStmt(fs, gon.Stmt)
+		stmt.SetLabel(toName(gon.Label))
+		return stmt
 	case *ast.RangeStmt:
 		return &RangeStmt{
 			X:     toExpr(fs, gon.X),

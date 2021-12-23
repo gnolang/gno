@@ -6,7 +6,6 @@ package bytes_test
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"testing"
 )
@@ -91,8 +90,26 @@ func TestReaderAt(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("%d. got %q; want %q", i, got, tt.want)
 		}
+		/* XXX replace with switch statement due to fmt.Sprintf incompat
 		if fmt.Sprintf("%v", err) != fmt.Sprintf("%v", tt.wanterr) {
 			t.Errorf("%d. got error = %v; want %v", i, err, tt.wanterr)
+		}
+		*/
+		switch werr := tt.wanterr.(type) {
+		case nil:
+			if err != nil {
+				t.Errorf("%d. got error = %v; want %v", i, err, tt.wanterr)
+			}
+		case error:
+			if err.Error() != werr.Error() {
+				t.Errorf("%d. got error = %v; want %v", i, err, tt.wanterr)
+			}
+		case string:
+			if err.Error() != werr {
+				t.Errorf("%d. got error = %v; want %v", i, err, tt.wanterr)
+			}
+		default:
+			panic("should not happen")
 		}
 	}
 }

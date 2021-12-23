@@ -2,6 +2,9 @@ package gno
 
 import (
 	"fmt"
+	"net/http"
+
+	_ "net/http/pprof"
 )
 
 // NOTE: the golang compiler doesn't seem to be intelligent
@@ -9,19 +12,46 @@ import (
 // so it is still faster to first check the truth value
 // before calling debug.Println or debug.Printf.
 
-const debug debugging = true // or flip
+const debug debugging = false // or flip
+
+func init() {
+	if debug {
+		go func() {
+			// e.g.
+			// curl -sK -v http://localhost:8080/debug/pprof/profile?seconds=30 > cpu.out
+			// curl -sK -v http://localhost:8080/debug/pprof/heap > heap.out
+			// curl -sK -v http://localhost:8080/debug/pprof/allocs > allocs.out
+			// see https://gist.github.com/slok/33dad1d0d0bae07977e6d32bcc010188.
+			http.ListenAndServe("localhost:8080", nil)
+		}()
+	}
+}
 
 type debugging bool
 
+var enabled bool = true
+
+func (d debugging) Disable() {
+	enabled = false
+}
+
+func (d debugging) Enable() {
+	enabled = true
+}
+
 func (d debugging) Println(args ...interface{}) {
 	if d {
-		fmt.Println(append([]interface{}{"DEBUG:"}, args...)...)
+		if enabled {
+			fmt.Println(append([]interface{}{"DEBUG:"}, args...)...)
+		}
 	}
 }
 
 func (d debugging) Printf(format string, args ...interface{}) {
 	if d {
-		fmt.Printf("DEBUG: "+format, args...)
+		if enabled {
+			fmt.Printf("DEBUG: "+format, args...)
+		}
 	}
 }
 
@@ -32,7 +62,9 @@ var derrors []string = nil
 // test, and the file test fails if any unexpected debug errrors were found.
 func (d debugging) Errorf(format string, args ...interface{}) {
 	if d {
-		derrors = append(derrors, fmt.Sprintf(format, args...))
+		if enabled {
+			derrors = append(derrors, fmt.Sprintf(format, args...))
+		}
 	}
 }
 

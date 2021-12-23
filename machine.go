@@ -183,58 +183,9 @@ func (m *Machine) RunMemPackage(memPkg std.MemPackage, save bool) (*PackageNode,
 // other declarations, so it is expected that non-test code will not be run
 // afterwards from the same store.
 func (m *Machine) TestMemPackage(t *testing.T, memPkg std.MemPackage) {
-	// in case of panic, print the machine state.
-	defer func() {
-		if r := recover(); r != nil {
-			/*
-				fmt.Println("--- Machine state during TestMemPackage... ---")
-				fmt.Println(m.String())
-				fmt.Println("----------------------------------------------")
-			*/
-			// Show last location information.
-			// First, determine the line number of expression or statement if any.
-			lastLine := 0
-			if len(m.Exprs) > 0 {
-				for i := len(m.Exprs) - 1; i >= 0; i-- {
-					expr := m.Exprs[i]
-					if expr.GetLine() > 0 {
-						lastLine = expr.GetLine()
-						break
-					}
-				}
-			}
-			if lastLine == 0 && len(m.Stmts) > 0 {
-				for i := len(m.Stmts) - 1; i >= 0; i-- {
-					stmt := m.Stmts[i]
-					if stmt.GetLine() > 0 {
-						lastLine = stmt.GetLine()
-						break
-					}
-				}
-			}
-			// Append line number to block location.
-			lastLoc := Location{}
-			for i := len(m.Blocks) - 1; i >= 0; i-- {
-				block := m.Blocks[i]
-				src := block.GetSource(m.Store)
-				loc := src.GetLocation()
-				if !loc.IsZero() {
-					lastLoc = loc
-					if lastLine > 0 {
-						lastLoc.Line = lastLine
-					}
-					break
-				}
-			}
-			// wrap panic with location information.
-			if !lastLoc.IsZero() {
-				fmt.Printf("%s: %v\n", lastLoc.String(), r)
-				panic(errors.Wrap(r, fmt.Sprintf("location: %s", lastLoc.String())))
-			} else {
-				panic(r)
-			}
-		}
-	}()
+	defer m.injectLocOnPanic()
+	debug.Disable()
+	fmt.Println("DEBUG DISABLED (FOR TEST DEPENDENCIES INIT)")
 	// prefetch the testing package.
 	testingpv := m.Store.GetPackage("testing")
 	testingtv := TypedValue{T: gPackageType, V: testingpv}
@@ -260,6 +211,7 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg std.MemPackage) {
 			// XXX ensure correct func type.
 			name := tv.V.(*FuncValue).Name
 			t.Run(string(name), func(t *testing.T) {
+				defer m.injectLocOnPanic()
 				x := Call(name, Call(Sel(testingcx, "NewT"), Str(string(name))))
 				res := m.Eval(x)
 				if len(res) != 0 {
@@ -277,6 +229,8 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg std.MemPackage) {
 		m.SetActivePackage(pv)
 		m.RunFiles(itfiles.Files...)
 		pkg.PrepareNewValues(pv)
+		debug.Enable()
+		fmt.Println("DEBUG ENABLED")
 		for i := 0; i < len(pvBlock.Values); i++ {
 			tv := &pvBlock.Values[i]
 			if !(tv.T.Kind() == FuncKind &&
@@ -288,6 +242,7 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg std.MemPackage) {
 			// XXX ensure correct func type.
 			name := tv.V.(*FuncValue).Name
 			t.Run(string(name), func(t *testing.T) {
+				defer m.injectLocOnPanic()
 				x := Call(name, Call(Sel(testingcx, "NewT"), Str(string(name))))
 				res := m.Eval(x)
 				if len(res) != 0 {
@@ -296,8 +251,55 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg std.MemPackage) {
 						"expected no results but got %d",
 						len(res)))
 				}
-				fmt.Println("OK")
 			})
+		}
+	}
+}
+
+// in case of panic, inject location information to exception.
+func (m *Machine) injectLocOnPanic() {
+	if r := recover(); r != nil {
+		// Show last location information.
+		// First, determine the line number of expression or statement if any.
+		lastLine := 0
+		if len(m.Exprs) > 0 {
+			for i := len(m.Exprs) - 1; i >= 0; i-- {
+				expr := m.Exprs[i]
+				if expr.GetLine() > 0 {
+					lastLine = expr.GetLine()
+					break
+				}
+			}
+		}
+		if lastLine == 0 && len(m.Stmts) > 0 {
+			for i := len(m.Stmts) - 1; i >= 0; i-- {
+				stmt := m.Stmts[i]
+				if stmt.GetLine() > 0 {
+					lastLine = stmt.GetLine()
+					break
+				}
+			}
+		}
+		// Append line number to block location.
+		lastLoc := Location{}
+		for i := len(m.Blocks) - 1; i >= 0; i-- {
+			block := m.Blocks[i]
+			src := block.GetSource(m.Store)
+			loc := src.GetLocation()
+			if !loc.IsZero() {
+				lastLoc = loc
+				if lastLine > 0 {
+					lastLoc.Line = lastLine
+				}
+				break
+			}
+		}
+		// wrap panic with location information.
+		if !lastLoc.IsZero() {
+			fmt.Printf("%s: %v\n", lastLoc.String(), r)
+			panic(errors.Wrap(r, fmt.Sprintf("location: %s", lastLoc.String())))
+		} else {
+			panic(r)
 		}
 	}
 }
@@ -349,7 +351,7 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 		// are re-set in runDeclaration(,true).
 		fn = Preprocess(m.Store, pn, fn).(*FileNode)
 		if debug {
-			debug.Println("PREPROCESSED FILE: ", fn.String())
+			debug.Printf("PREPROCESSED FILE: %v\n", fn)
 		}
 		// After preprocessing, save blocknodes to store.
 		if m.Store != nil {
@@ -1134,7 +1136,7 @@ func (m *Machine) PeekType(offset int) Type {
 
 func (m *Machine) PushValue(tv TypedValue) {
 	if debug {
-		m.Printf("+v %s\n", tv.String())
+		m.Printf("+v %v\n", tv)
 	}
 	if len(m.Values) == m.NumValues {
 		// TODO tune.
@@ -1151,7 +1153,7 @@ func (m *Machine) PushValue(tv TypedValue) {
 func (m *Machine) PopValue() (tv *TypedValue) {
 	tv = &m.Values[m.NumValues-1]
 	if debug {
-		m.Printf("-v %s\n", tv.String())
+		m.Printf("-v %v\n", tv)
 	}
 	m.NumValues--
 	return tv
@@ -1167,7 +1169,7 @@ func (m *Machine) PopValues(n int) []TypedValue {
 	if debug {
 		for i := 0; i < n; i++ {
 			tv := m.Values[m.NumValues-n+i]
-			m.Printf("-vs[%d/%d] %s\n", i, n, tv.String())
+			m.Printf("-vs[%d/%d] %v\n", i, n, tv)
 		}
 	}
 	m.NumValues -= n
@@ -1522,15 +1524,19 @@ func (m *Machine) Panic(ex TypedValue) {
 
 func (m *Machine) Println(args ...interface{}) {
 	if debug {
-		s := strings.Repeat("|", m.NumOps)
-		fmt.Println(append([]interface{}{"DEBUG:", s}, args...)...)
+		if enabled {
+			s := strings.Repeat("|", m.NumOps)
+			debug.Println(append([]interface{}{s}, args...)...)
+		}
 	}
 }
 
 func (m *Machine) Printf(format string, args ...interface{}) {
 	if debug {
-		s := strings.Repeat("|", m.NumOps)
-		fmt.Printf("DEBUG: "+s+" "+format, args...)
+		if enabled {
+			s := strings.Repeat("|", m.NumOps)
+			debug.Printf(s+" "+format, args...)
+		}
 	}
 }
 

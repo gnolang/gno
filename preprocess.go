@@ -738,6 +738,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						} else {
 							if isShift {
 								// nothing to do, right type is (already) uint type.
+								// we don't yet know what this type should be,
+								// but another checkOrConvertType() later does.
+								// (e.g. from AssignStmt or other).
 							} else {
 								// convert n.Left to right type.
 								checkOrConvertType(store, last, n.Left, rt, false)
@@ -829,8 +832,32 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// NOTE: binary operations are always
 						// computed in gno, never with
 						// reflect.
+					} else if n.Op == SHL || n.Op == SHR {
+						// shift operator, nothing yet to do.
 					} else {
-						// nothing to do.
+						// non-shift non-const binary operator.
+						liu, riu := isUntyped(lt), isUntyped(rt)
+						if liu {
+							if riu {
+								if lt.TypeID() != rt.TypeID() {
+									panic(fmt.Sprintf(
+										"incompatible types in binary expression: %v %v %v",
+										n.Left, n.Op, n.Right))
+								}
+							} else {
+								checkOrConvertType(store, last, n.Left, rt, false)
+							}
+						} else {
+							if riu {
+								checkOrConvertType(store, last, n.Right, lt, false)
+							} else {
+								if lt.TypeID() != rt.TypeID() {
+									panic(fmt.Sprintf(
+										"incompatible types in binary expression: %v %v %v",
+										n.Left, n.Op, n.Right))
+								}
+							}
+						}
 					}
 				}
 
@@ -1475,7 +1502,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				case BREAK:
 				case CONTINUE:
 				case GOTO:
-					_, depth, index := findLabel(last, n.Label)
+					_, depth, index := findGotoLabel(last, n.Label)
 					n.Depth = depth
 					n.BodyIndex = index
 				case FALLTHROUGH:
@@ -2023,7 +2050,7 @@ func funcOf(last BlockNode) (BlockNode, *FuncTypeExpr) {
 	}
 }
 
-func findLabel(last BlockNode, label Name) (
+func findGotoLabel(last BlockNode, label Name) (
 	bn BlockNode, depth uint8, bodyIdx int) {
 
 	for {
@@ -2031,11 +2058,22 @@ func findLabel(last BlockNode, label Name) (
 		case *IfStmt, *SwitchStmt:
 			// These are faux blocks -- shouldn't happen.
 			panic("unexpected faux blocknode")
-		case *FuncLitExpr,
-			*BlockStmt, *ForStmt, *IfCaseStmt, *RangeStmt,
-			*SelectCaseStmt, *SwitchClauseStmt, *FuncDecl,
-			*FileNode, *PackageNode:
-
+		case *FileNode:
+			panic("unexpected file blocknode")
+		case *PackageNode:
+			panic("unexpected package blocknode")
+		case *FuncLitExpr, *FuncDecl:
+			body := cbn.GetBody()
+			_, bodyIdx = body.GetLabeledStmt(label)
+			if bodyIdx != -1 {
+				bn = cbn
+				return
+			} else {
+				panic(fmt.Sprintf(
+					"cannot find GOTO label %q within current function",
+					label))
+			}
+		case *BlockStmt, *ForStmt, *IfCaseStmt, *RangeStmt, *SelectCaseStmt, *SwitchClauseStmt:
 			body := cbn.GetBody()
 			_, bodyIdx = body.GetLabeledStmt(label)
 			if bodyIdx != -1 {
@@ -2111,6 +2149,9 @@ func cmpSpecificity(t1, t2 Type) int {
 func checkOrConvertType(store Store, last BlockNode, x Expr, t Type, autoNative bool) {
 	if cx, ok := x.(*ConstExpr); ok {
 		convertConst(store, last, cx, t)
+	} else if bx, ok := x.(*BinaryExpr); ok && (bx.Op == SHL || bx.Op == SHR) {
+		// "push" expected type into shift binary's left operand.
+		checkOrConvertType(store, last, bx.Left, t, autoNative)
 	} else if x != nil && t != nil {
 		xt := evalStaticTypeOf(store, last, x)
 		checkType(xt, t, autoNative)

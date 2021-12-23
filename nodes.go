@@ -163,6 +163,14 @@ func (attr *Attributes) SetLine(line int) {
 	attr.Line = line
 }
 
+func (attr *Attributes) GetLabel() Name {
+	return attr.Label
+}
+
+func (attr *Attributes) SetLabel(label Name) {
+	attr.Label = label
+}
+
 func (attr *Attributes) GetAttribute(key interface{}) interface{} {
 	return attr.data[key]
 }
@@ -183,6 +191,8 @@ type Node interface {
 	Copy() Node
 	GetLine() int
 	SetLine(int)
+	GetLabel() Name
+	SetLabel(Name)
 	GetAttribute(key interface{}) interface{}
 	SetAttribute(key interface{}, value interface{})
 }
@@ -224,7 +234,6 @@ func (_ *GoStmt) assertNode()              {}
 func (_ *IfStmt) assertNode()              {}
 func (_ *IfCaseStmt) assertNode()          {}
 func (_ *IncDecStmt) assertNode()          {}
-func (_ *LabeledStmt) assertNode()         {}
 func (_ *RangeStmt) assertNode()           {}
 func (_ *ReturnStmt) assertNode()          {}
 func (_ *PanicStmt) assertNode()           {}
@@ -278,7 +287,6 @@ var _ Node = &GoStmt{}
 var _ Node = &IfStmt{}
 var _ Node = &IfCaseStmt{}
 var _ Node = &IncDecStmt{}
-var _ Node = &LabeledStmt{}
 var _ Node = &RangeStmt{}
 var _ Node = &ReturnStmt{}
 var _ Node = &PanicStmt{}
@@ -647,8 +655,8 @@ func (ss Body) GetBody() Body {
 
 func (ss Body) GetLabeledStmt(label Name) (Stmt, int) {
 	for i, stmt := range ss {
-		if ls, ok := stmt.(*LabeledStmt); ok {
-			return ls.Stmt, i
+		if label := stmt.GetLabel(); label != "" {
+			return stmt, i
 		}
 	}
 	return nil, -1
@@ -669,7 +677,6 @@ func (*GoStmt) assertStmt()           {}
 func (*IfStmt) assertStmt()           {}
 func (*IfCaseStmt) assertStmt()       {}
 func (*IncDecStmt) assertStmt()       {}
-func (*LabeledStmt) assertStmt()      {}
 func (*RangeStmt) assertStmt()        {}
 func (*ReturnStmt) assertStmt()       {}
 func (*PanicStmt) assertStmt()        {}
@@ -692,7 +699,6 @@ var _ Stmt = &GoStmt{}
 var _ Stmt = &IfStmt{}
 var _ Stmt = &IfCaseStmt{}
 var _ Stmt = &IncDecStmt{}
-var _ Stmt = &LabeledStmt{}
 var _ Stmt = &RangeStmt{}
 var _ Stmt = &ReturnStmt{}
 var _ Stmt = &PanicStmt{}
@@ -783,12 +789,6 @@ type IncDecStmt struct {
 	Op Word // INC or DEC
 }
 
-type LabeledStmt struct {
-	Attributes
-	Label Name
-	Stmt  Stmt
-}
-
 type RangeStmt struct {
 	Attributes
 	StaticBlock
@@ -859,6 +859,8 @@ type bodyStmt struct {
 	BodyLen       int          // for for-continue
 	NextBodyIndex int          // init:-2, cond/elem:-1, body:0..., post:n
 	NumOps        int          // number of Ops, for goto
+	NumValues     int          // number of Values, for goto
+	NumExprs      int          // number of Exprs, for goto
 	NumStmts      int          // number of Stmts, for goto
 	Cond          Expr         // for ForStmt
 	Post          Stmt         // for ForStmt

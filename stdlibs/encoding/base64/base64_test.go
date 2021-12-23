@@ -365,6 +365,7 @@ func TestNewLineCharacters(t *testing.T) {
 	}
 }
 
+/* XXX removed due to time and chans.
 type nextRead struct {
 	n   int   // bytes to return
 	err error // error to return
@@ -387,7 +388,6 @@ func (r *faultInjectReader) Read(p []byte) (int, error) {
 	return n, nr.err
 }
 
-/* XXX removed due to time
 // tests that we don't ignore errors from our underlying reader
 func TestDecoderIssue3577(t *testing.T) {
 	next := make(chan nextRead, 10)

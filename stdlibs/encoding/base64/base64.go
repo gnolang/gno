@@ -361,14 +361,29 @@ func (enc *Encoding) decodeQuantum(dst, src []byte, si int) (nsi, n int, err err
 	case 4:
 		dst[2] = dbuf[2]
 		dbuf[2] = 0
-		fallthrough
+		// XXX fallthrough not yet implemented
+		// fallthrough
+		dst[1] = dbuf[1]
+		if enc.strict && dbuf[2] != 0 {
+			return si, 0, CorruptInputError(si - 1)
+		}
+		dbuf[1] = 0
+		dst[0] = dbuf[0]
+		if enc.strict && (dbuf[1] != 0 || dbuf[2] != 0) {
+			return si, 0, CorruptInputError(si - 2)
+		}
 	case 3:
 		dst[1] = dbuf[1]
 		if enc.strict && dbuf[2] != 0 {
 			return si, 0, CorruptInputError(si - 1)
 		}
 		dbuf[1] = 0
-		fallthrough
+		// XXX fallthrough not yet implemented
+		// fallthrough
+		dst[0] = dbuf[0]
+		if enc.strict && (dbuf[1] != 0 || dbuf[2] != 0) {
+			return si, 0, CorruptInputError(si - 2)
+		}
 	case 2:
 		dst[0] = dbuf[0]
 		if enc.strict && (dbuf[1] != 0 || dbuf[2] != 0) {

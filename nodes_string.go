@@ -321,10 +321,6 @@ func (n IncDecStmt) String() string {
 	}
 }
 
-func (n LabeledStmt) String() string {
-	return string(n.Label) + ": " + n.Stmt.String()
-}
-
 func (n RangeStmt) String() string {
 	if n.Key == nil {
 		if n.Value != nil {
