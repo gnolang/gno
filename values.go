@@ -1626,9 +1626,10 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 				panic("should not happen")
 			}
 		}
+		dtv2 := dtv.Copy()
 		bmv := &BoundMethodValue{
 			Func:     mv,
-			Receiver: *dtv,
+			Receiver: dtv2,
 		}
 		return PointerValue{
 			TV: &TypedValue{
