@@ -1294,9 +1294,14 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					} else {
 						// otherwise, packages can only be referred to by
 						// *NameExprs, and cannot be copied.
-						nx := n.X.(*NameExpr)
-						tv := last.GetValueRef(nil, nx.Name)
-						pv = tv.V.(*PackageValue)
+						pvc := evalConst(store, last, n.X)
+						pv_, ok := pvc.V.(*PackageValue)
+						if !ok {
+							panic(fmt.Sprintf(
+								"missing package in selector expr %s",
+								n.String()))
+						}
+						pv = pv_
 					}
 					pn := pv.GetPackageNode(store)
 					n.Path = pn.GetPathForName(store, n.Sel)
