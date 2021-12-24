@@ -207,6 +207,9 @@ func testStore(stdin io.Reader, stdout, stderr io.Writer, isRealm bool, nativeLi
 			pkg.DefineGoNativeValue("Intn", rand.Intn)
 			pkg.DefineGoNativeValue("Uint32", rand.Uint32)
 			pkg.DefineGoNativeValue("Seed", rand.Seed)
+			pkg.DefineGoNativeFunc("New", rand.New)
+			pkg.DefineGoNativeFunc("NewSource", rand.NewSource)
+			pkg.DefineGoNativeType(reflect.TypeOf(rand.Rand{}))
 			return pkg, pkg.NewPackage()
 		case "crypto/rand":
 			pkg := gno.NewPackageNode("rand", pkgPath, nil)

@@ -8,6 +8,10 @@ func Short() bool {
 	return true // TODO configure somehow.
 }
 
+func Verbose() bool {
+	return true // TODO configure somehow.
+}
+
 // Like AllocsPerRun() but returns an integer.
 // TODO: actually compute allocations; for now return 0.
 func AllocsPerRun2(runs int, f func()) (total int) {

@@ -746,15 +746,21 @@ func (st *StructType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 		// Maybe is embedded within a field.
 		if sf.Embedded {
 			st := sf.Type
-			trail, hasPtr, rcvr, field = findEmbeddedFieldType(st, n, m)
-			if trail != nil {
-				vp := NewValuePathField(0, uint16(i), sf.Name)
-				return append([]ValuePath{vp}, trail...), hasPtr, rcvr, field
+			trail2, hasPtr2, rcvr2, field2 := findEmbeddedFieldType(st, n, m)
+			if trail2 != nil {
+				if trail != nil {
+					// conflict detected. return none.
+					return nil, false, nil, nil
+				} else {
+					// remember.
+					vp := NewValuePathField(0, uint16(i), sf.Name)
+					trail, hasPtr, rcvr, field =
+						append([]ValuePath{vp}, trail2...), hasPtr2, rcvr2, field2
+				}
 			}
 		}
 	}
-	// Otherwise, it doesn't exist.
-	return nil, false, nil, nil
+	return // may be found or nil.
 }
 
 //----------------------------------------
@@ -2156,6 +2162,12 @@ func IsImplementedBy(it Type, ot Type) bool {
 func specifyType(lookup map[Name]Type, tmpl Type, spec Type, specTypeval Type) {
 	if isGeneric(spec) {
 		panic("spec must not be generic")
+	}
+	if st, ok := spec.(*SliceType); ok && st.Vrd {
+		spec = &SliceType{
+			Elt: st.Elt,
+			Vrd: false,
+		}
 	}
 	switch ct := tmpl.(type) {
 	case *PointerType:

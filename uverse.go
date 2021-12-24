@@ -75,7 +75,8 @@ func UverseNode() *PackageNode {
 	if uverseNode != nil {
 		return uverseNode
 	}
-	fmt.Println("baking uverse...")
+	fmt.Print("baking uverse...")
+	defer fmt.Println(" done")
 
 	// NOTE: uverse node is hidden, thus the leading dot in pkgPath=".uverse".
 	uverseNode = NewPackageNode("uverse", uversePkgPath, nil)
@@ -657,7 +658,7 @@ func UverseNode() *PackageNode {
 					for i := 0; i < minl; i++ {
 						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
 						srcev := src.TV.GetPointerAtIndexInt(m.Store, i)
-						dstev.TV.Assign(srcev.Deref(), false)
+						dstev.Assign2(m.Store, m.Realm, srcev.Deref(), false)
 					}
 					res0 := TypedValue{
 						T: IntType,
@@ -683,7 +684,7 @@ func UverseNode() *PackageNode {
 					for i := 0; i < minl; i++ {
 						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
 						srcev := srcv.GetPointerAtIndexInt2(m.Store, i, bst.Elt)
-						dstev.TV.Assign(srcev.Deref(), false)
+						dstev.Assign2(m.Store, m.Realm, srcev.Deref(), false)
 					}
 					res0 := TypedValue{
 						T: IntType,
@@ -781,9 +782,8 @@ func UverseNode() *PackageNode {
 							// leave as is
 						} else {
 							// init zero elements with concrete type.
-							// XXX can this be removed?
 							for i := 0; i < li; i++ {
-								list[i].T = et
+								list[i] = defaultTypedValue(et)
 							}
 						}
 						m.PushValue(TypedValue{
@@ -816,7 +816,7 @@ func UverseNode() *PackageNode {
 							// XXX can this be removed?
 							list2 := list[:ci]
 							for i := 0; i < ci; i++ {
-								list2[i].T = et
+								list2[i] = defaultTypedValue(et)
 							}
 						}
 						m.PushValue(TypedValue{

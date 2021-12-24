@@ -77,6 +77,7 @@ func TestMultiWriter_String(t *testing.T) {
 	testMultiWriter(t, new(bytes.Buffer))
 }
 
+/* XXX disabling because testing.AllocsPerRun* doesn't work.
 // Test that a multiWriter.WriteString calls results in at most 1 allocation,
 // even if multiple targets don't support WriteString.
 func TestMultiWriter_WriteStringSingleAlloc(t *testing.T) {
@@ -92,6 +93,7 @@ func TestMultiWriter_WriteStringSingleAlloc(t *testing.T) {
 		t.Errorf("num allocations = %d; want 1", allocs)
 	}
 }
+*/
 
 type writeStringChecker struct{ called bool }
 

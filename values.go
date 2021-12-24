@@ -136,9 +136,12 @@ func (pv *PointerValue) GetBase(store Store) Object {
 */
 
 // cu: convert untyped; pass false for const definitions
+// TODO: document as something that enables into-native assignment.
+// TODO: maybe consider this as entrypoint for DataByteValue too?
 func (pv PointerValue) Assign2(store Store, rlm *Realm, tv2 TypedValue, cu bool) {
-	// Special case if extended object && native.
+	// Special cases.
 	if pv.Index == PointerIndexNative {
+		// Special case if extended object && native.
 		rv := pv.Base.(*NativeValue).Value
 		if rv.Kind() == reflect.Map { // go native object
 			// assign value to map directly.
@@ -146,8 +149,64 @@ func (pv PointerValue) Assign2(store Store, rlm *Realm, tv2 TypedValue, cu bool)
 			vrv := gno2GoValue(&tv2, reflect.Value{})
 			rv.SetMapIndex(krv, vrv)
 		} else {
-			pv.TV.Assign(tv2, cu)
+			// assign depending on pv.TV type.
+			tv := pv.TV
+			nv1 := tv.V.(*NativeValue)
+			switch v2 := tv2.V.(type) {
+			case PointerValue:
+				if tv.T.Kind() != PointerKind {
+					panic("should not happen")
+				}
+				if nv2, ok := v2.TV.V.(*NativeValue); ok {
+					nrv2 := nv2.Value
+					if nrv2.CanAddr() {
+						it := nrv2.Addr()
+						nv1.Value.Set(it)
+					} else {
+						panic("not yet implemented")
+					}
+				} else {
+					panic("not yet implemented")
+				}
+			case *NativeValue:
+				if tv.V == nil {
+					// tv.V is a native function type.
+					// there is no default value, so just assign
+					// rather than .Value.Set().
+					if tv.T.Kind() == FuncKind {
+						if debug {
+							if tv2.T.Kind() != FuncKind {
+								panic("should not happen")
+							}
+							if nv, ok := tv2.V.(*NativeValue); !ok ||
+								nv.Value.Kind() != reflect.Func {
+								panic("should not happen")
+							}
+						}
+						tv.V = v2
+					} else {
+						tv.V = defaultValue(tv.T)
+						nv1.Value.Set(v2.Value)
+					}
+				} else {
+					nv1.Value.Set(v2.Value)
+				}
+			case nil:
+				if debug {
+					if tv2.T != nil && tv.T.TypeID() != tv2.T.TypeID() {
+						panic(fmt.Sprintf("mismatched types: cannot assign %v to %v",
+							tv2.String(), tv.T.String()))
+					}
+				}
+				*tv = tv2.Copy()
+			default:
+				panic("should not happen")
+			}
 		}
+		return
+	} else if pv.TV.T == DataByteType {
+		// Special case of DataByte into (base=*SliceValue).Data.
+		pv.TV.SetDataByte(tv2.GetUint8())
 		return
 	}
 	// General case
@@ -1350,113 +1409,26 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 //----------------------------------------
 // Value utility/manipulation functions.
 
+// Unlike PointerValue.Assign2, does not consider DataByte or
+// addressable NativeValue fields/elems.
 // cu: convert untyped after assignment. pass false
 // for const definitions, but true for all else.
 func (tv *TypedValue) Assign(tv2 TypedValue, cu bool) {
 	if debug {
+		if tv.T == DataByteType {
+			// assignment to data byte types should only
+			// happen via *PointerValue.Assign2().
+			panic("should not happen")
+		}
 		if tv2.T == DataByteType {
 			// tv2 will never be a DataByte, as it is
 			// retrieved as value.
 			panic("should not happen")
 		}
 	}
-	// XXX make this faster and dryer.
-	switch ct := baseOf(tv.T).(type) {
-	case PrimitiveType:
-		if ct == DataByteType {
-			tv.SetDataByte(tv2.GetUint8())
-		} else {
-			*tv = tv2.Copy()
-			if cu && isUntyped(tv.T) {
-				ConvertUntypedTo(tv, defaultTypeOf(tv.T))
-			}
-		}
-	case *NativeType:
-		// XXX what about assigning
-		// primitive/string/other-gno types to say, native
-		// slices, arrays, structs, maps?
-		switch v2 := tv2.V.(type) {
-		case PointerValue:
-			nv1 := tv.V.(*NativeValue)
-			if ct.Type.Kind() != reflect.Ptr {
-				panic("should not happen")
-			}
-			if nv2, ok := v2.TV.V.(*NativeValue); ok {
-				nrv2 := nv2.Value
-				if nrv2.CanAddr() {
-					it := nrv2.Addr()
-					nv1.Value.Set(it)
-				} else {
-					// XXX think more
-					panic("not yet implemented")
-				}
-			} else {
-				// XXX think more
-				panic("not yet implemented")
-			}
-		case *NativeValue:
-			if tv.V == nil {
-				// tv.V is a native function type.
-				// there is no default value, so just assign
-				// rather than .Value.Set().
-				if tv.T.Kind() == FuncKind {
-					if debug {
-						if tv2.T.Kind() != FuncKind {
-							panic("should not happen")
-						}
-						if nv, ok := tv2.V.(*NativeValue); !ok ||
-							nv.Value.Kind() != reflect.Func {
-							panic("should not happen")
-						}
-					}
-					tv.V = v2
-				} else {
-					tv.V = defaultValue(tv.T)
-					nv1 := tv.V.(*NativeValue)
-					nv1.Value.Set(v2.Value)
-				}
-			} else {
-				nv1 := tv.V.(*NativeValue)
-				nv1.Value.Set(v2.Value)
-			}
-		case nil:
-			if debug {
-				if tv2.T != nil && tv.T.TypeID() != tv2.T.TypeID() {
-					panic(fmt.Sprintf("mismatched types: cannot assign %v to %v",
-						tv2.String(), tv.T.String()))
-				}
-			}
-			*tv = tv2.Copy()
-		default:
-			panic("should not happen")
-		}
-	case *StructType:
-		if !tv2.IsUndefined() {
-			if debug {
-				if tv.T.TypeID() != tv2.T.TypeID() {
-					panic(fmt.Sprintf("mismatched types: cannot assign %v to %v",
-						tv2.String(), tv.T.String()))
-				}
-			}
-		}
-		*tv = tv2.Copy()
-	case nil:
-		*tv = tv2.Copy()
-		if cu && isUntyped(tv.T) {
-			ConvertUntypedTo(tv, defaultTypeOf(tv.T))
-		} else {
-			// pass cu=false for const definitions.
-		}
-	default:
-		if debug {
-			if tv.T.Kind() != InterfaceKind &&
-				tv2.T != nil &&
-				baseOf(tv.T).TypeID() != baseOf(tv2.T).TypeID() {
-				panic(fmt.Sprintf("mismatched types: cannot assign %v to %v",
-					tv2.String(), tv.T.String()))
-			}
-		}
-		*tv = tv2.Copy()
+	*tv = tv2.Copy()
+	if cu && isUntyped(tv.T) {
+		ConvertUntypedTo(tv, defaultTypeOf(tv.T))
 	}
 }
 

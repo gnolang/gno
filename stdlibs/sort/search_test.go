@@ -15,7 +15,10 @@ func f(a []int, x int) func(int) bool {
 	}
 }
 
-var data = []int{0: -10, 1: -5, 2: 0, 3: 1, 4: 2, 5: 3, 6: 5, 7: 7, 8: 11, 9: 100, 10: 100, 11: 100, 12: 1000, 13: 10000}
+// XXX keys not yet supported in composite literals.
+var data = []int{-10, -5, 0, 1, 2, 3, 5, 7, 11, 100, 100, 100, 1000, 10000}
+
+// var data = []int{0: -10, 1: -5, 2: 0, 3: 1, 4: 2, 5: 3, 6: 5, 7: 7, 8: 11, 9: 100, 10: 100, 11: 100, 12: 1000, 13: 10000}
 
 var tests = []struct {
 	name string
@@ -94,7 +97,9 @@ func TestSearchEfficiency(t *testing.T) {
 // Smoke tests for convenience wrappers - not comprehensive.
 
 //var fdata = []float64{0: -3.14, 1: 0, 2: 1, 3: 2, 4: 1000.7}
-var sdata = []string{0: "f", 1: "foo", 2: "foobar", 3: "x"}
+// XXX
+// var sdata = []string{0: "f", 1: "foo", 2: "foobar", 3: "x"}
+var sdata = []string{"f", "foo", "foobar", "x"}
 
 var wrappertests = []struct {
 	name   string
@@ -126,20 +131,20 @@ func runSearchWrappers() {
 	sort.StringSlice(sdata).Search("x")
 }
 
+/* XXX t.Skip not yet implemented; and runtime.
 func TestSearchWrappersDontAlloc(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping malloc count in short mode")
 	}
-	/* XXX removed due to runtime
 	if runtime.GOMAXPROCS(0) > 1 {
 		t.Skip("skipping; GOMAXPROCS>1")
 	}
-	*/
-	allocs := testing.AllocsPerRun(100, runSearchWrappers)
+	allocs := testing.AllocsPerRun2(100, runSearchWrappers)
 	if allocs != 0 {
 		t.Errorf("expected no allocs for runSearchWrappers, got %v", allocs)
 	}
 }
+*/
 
 func BenchmarkSearchWrappers(b *testing.B) {
 	for i := 0; i < b.N; i++ {

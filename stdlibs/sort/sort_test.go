@@ -6,14 +6,15 @@ package sort_test
 
 import (
 	"fmt"
-	"math"
 	"math/rand"
+	"sort"
 	"strconv"
 	"testing"
 )
 
 var ints = [...]int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586}
-var float64s = [...]float64{74.3, 59.0, math.Inf(1), 238.2, -784.0, 2.3, math.NaN(), math.NaN(), math.Inf(-1), 9845.768, -959.7485, 905, 7.8, 7.8}
+
+// var float64s = [...]float64{74.3, 59.0, math.Inf(1), 238.2, -784.0, 2.3, math.NaN(), math.NaN(), math.Inf(-1), 9845.768, -959.7485, 905, 7.8, 7.8}
 var strings = [...]string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"}
 
 /*a XXX removed slice due to reflect methods
@@ -138,7 +139,8 @@ func (t *nonDeterministicTestingData) Less(i, j int) bool {
 	if i < 0 || j < 0 || i >= t.Len() || j >= t.Len() {
 		panic("nondeterministic comparison out of bounds")
 	}
-	return t.r.Float32() < 0.5
+	return t.r.Int()%2 == 0
+	// return t.r.Float32() < 0.5
 }
 func (t *nonDeterministicTestingData) Swap(i, j int) {
 	if i < 0 || j < 0 || i >= t.Len() || j >= t.Len() {
@@ -353,7 +355,7 @@ func lg(n int) int {
 	return i
 }
 
-func testBentleyMcIlroy(t *testing.T, sort func(Interface), maxswap func(int) int) {
+func testBentleyMcIlroy(t *testing.T, sortFn func(sort.Interface), maxswap func(int) int) {
 	sizes := []int{100, 1023, 1024, 1025}
 	if testing.Short() {
 		sizes = []int{100, 127, 128, 129}
@@ -428,7 +430,7 @@ func testBentleyMcIlroy(t *testing.T, sort func(Interface), maxswap func(int) in
 
 					desc := fmt.Sprintf("n=%d m=%d dist=%s mode=%s", n, m, dists[dist], modes[mode])
 					d := &testingData{desc: desc, t: t, data: mdata[0:n], maxswap: maxswap(n)}
-					sort(d)
+					sortFn(d)
 					// Uncomment if you are trying to improve the number of compares/swaps.
 					//t.Logf("%s: ncmp=%d, nswp=%d", desc, d.ncmp, d.nswap)
 
@@ -453,9 +455,11 @@ func TestSortBM(t *testing.T) {
 	testBentleyMcIlroy(t, sort.Sort, func(n int) int { return n * lg(n) * 12 / 10 })
 }
 
+/* removed because sort.Heapsort removed
 func TestHeapsortBM(t *testing.T) {
 	testBentleyMcIlroy(t, sort.Heapsort, func(n int) int { return n * lg(n) * 12 / 10 })
 }
+*/
 
 func TestStableBM(t *testing.T) {
 	testBentleyMcIlroy(t, sort.Stable, func(n int) int { return n * lg(n) * lg(n) / 3 })
@@ -587,7 +591,7 @@ func TestStability(t *testing.T) {
 	}
 	data.initB()
 	sort.Stable(data)
-	if !IsSorted(data) {
+	if !sort.IsSorted(data) {
 		t.Errorf("Stable didn't sort %d ints", n)
 	}
 	if !data.inOrder() {
@@ -597,7 +601,7 @@ func TestStability(t *testing.T) {
 	// already sorted
 	data.initB()
 	sort.Stable(data)
-	if !IsSorted(data) {
+	if !sort.IsSorted(data) {
 		t.Errorf("Stable shuffled sorted %d ints (order)", n)
 	}
 	if !data.inOrder() {
@@ -610,7 +614,7 @@ func TestStability(t *testing.T) {
 	}
 	data.initB()
 	sort.Stable(data)
-	if !IsSorted(data) {
+	if !sort.IsSorted(data) {
 		t.Errorf("Stable didn't sort %d ints", n)
 	}
 	if !data.inOrder() {
@@ -620,7 +624,7 @@ func TestStability(t *testing.T) {
 
 var countOpsSizes = []int{1e2, 3e2, 1e3, 3e3, 1e4, 3e4, 1e5, 3e5, 1e6}
 
-func countOps(t *testing.T, algo func(Interface), name string) {
+func countOps(t *testing.T, algo func(sort.Interface), name string) {
 	sizes := countOpsSizes
 	if testing.Short() {
 		sizes = sizes[:5]

@@ -189,15 +189,7 @@ func (m *Machine) doOpTypeAssert1() {
 			// t is Gno interface.
 			// assert that x implements type.
 			impl := false
-			switch cxt := xt.(type) {
-			case *InterfaceType:
-				panic("should not happen")
-				// impl = it.IsImplementedBy(cxt)
-			case *DeclaredType, *PointerType:
-				impl = it.IsImplementedBy(cxt)
-			default:
-				impl = it.IsEmptyInterface()
-			}
+			impl = it.IsImplementedBy(xt)
 			if !impl {
 				// TODO: default panic type?
 				ex := fmt.Sprintf(
@@ -267,15 +259,7 @@ func (m *Machine) doOpTypeAssert2() {
 			// t is Gno interface.
 			// assert that x implements type.
 			impl := false
-			switch cxt := xt.(type) {
-			case *InterfaceType:
-				panic("should not happen")
-				// impl = it.IsImplementedBy(cxt)
-			case *DeclaredType:
-				impl = it.IsImplementedBy(cxt)
-			default:
-				impl = it.IsEmptyInterface()
-			}
+			impl = it.IsImplementedBy(xt)
 			if impl {
 				// *xv = *xv
 				*tv = untypedBool(true)
