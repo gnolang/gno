@@ -403,12 +403,12 @@ var simpleFoldTests = []string{
 	"δΔ",
 
 	// ASCII special cases.
-	"KkK",
+	"KkK",
 	"Ssſ",
 
 	// Non-ASCII special cases.
 	"ρϱΡ",
-	"ͅΙιι",
+	"ͅΙιι",
 
 	// Extra special cases: has lower/upper but no case fold.
 	"İ",

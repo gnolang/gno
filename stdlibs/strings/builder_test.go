@@ -87,6 +87,7 @@ func TestBuilderReset(t *testing.T) {
 	}
 }
 
+/* XXX disabled because testing.AllocsPerRun2 is broken
 func TestBuilderGrow(t *testing.T) {
 	for _, growLen := range []int{0, 100, 1000, 10000, 100000} {
 		p := bytes.Repeat([]byte{'a'}, growLen)
@@ -110,7 +111,9 @@ func TestBuilderGrow(t *testing.T) {
 		}
 	}
 }
+*/
 
+/* XXX test.Run not yet implemented
 func TestBuilderWrite2(t *testing.T) {
 	const s0 = "hello 世界"
 	for _, tt := range []struct {
@@ -166,6 +169,7 @@ func TestBuilderWrite2(t *testing.T) {
 		})
 	}
 }
+*/
 
 func TestBuilderWriteByte(t *testing.T) {
 	var b strings.Builder
@@ -178,6 +182,7 @@ func TestBuilderWriteByte(t *testing.T) {
 	check(t, &b, "a\x00")
 }
 
+/* testing.AllocsPerRun broken
 func TestBuilderAllocs(t *testing.T) {
 	// Issue 23382; verify that copyCheck doesn't force the
 	// Builder to escape and be heap allocated.
@@ -191,6 +196,7 @@ func TestBuilderAllocs(t *testing.T) {
 		t.Errorf("Builder allocs = %v; want 1", n)
 	}
 }
+*/
 
 func TestBuilderCopyPanic(t *testing.T) {
 	tests := []struct {
