@@ -1750,8 +1750,6 @@ func (tv *TypedValue) GetPointerAtIndexInt(store Store, ii int) PointerValue {
 	return tv.GetPointerAtIndex(store, &iv)
 }
 
-// If element value is undefined and the array/slice is not of
-// interfaces, the appropriate type is first set.
 func (tv *TypedValue) GetPointerAtIndex(store Store, iv *TypedValue) PointerValue {
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
@@ -1791,8 +1789,7 @@ func (tv *TypedValue) GetPointerAtIndex(store Store, iv *TypedValue) PointerValu
 		if pv.TV.IsUndefined() {
 			vt := baseOf(tv.T).(*MapType).Value
 			if vt.Kind() != InterfaceKind {
-				// initialize typed-nil key.
-				pv.TV.T = vt
+				*(pv.TV) = defaultTypedValue(vt)
 			}
 		}
 		return pv
@@ -1935,7 +1932,7 @@ func (tv *TypedValue) GetSlice(low, high int) TypedValue {
 	}
 	switch t := baseOf(tv.T).(type) {
 	case PrimitiveType:
-		if t == StringType {
+		if t == StringType || t == UntypedStringType {
 			return TypedValue{
 				T: tv.T,
 				V: StringValue(tv.GetString()[low:high]),

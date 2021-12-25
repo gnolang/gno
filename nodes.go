@@ -1172,6 +1172,16 @@ func (fs *FileSet) GetFileByName(n Name) *FileNode {
 // assignment.
 // TODO move to package?
 func (fs *FileSet) GetDeclFor(n Name) (*FileNode, *Decl) {
+	fn, decl, ok := fs.GetDeclForSafe(n)
+	if !ok {
+		panic(fmt.Sprintf(
+			"name %s not defined in fileset with files %v",
+			n, fs.FileNames()))
+	}
+	return fn, decl
+}
+
+func (fs *FileSet) GetDeclForSafe(n Name) (*FileNode, *Decl, bool) {
 	// XXX index to bound to linear time.
 	for _, fn := range fs.Files {
 		for i, dn := range fn.Decls {
@@ -1181,13 +1191,11 @@ func (fs *FileSet) GetDeclFor(n Name) (*FileNode, *Decl) {
 			}
 			if HasDeclName(dn, n) {
 				// found the decl that declares n.
-				return fn, &fn.Decls[i]
+				return fn, &fn.Decls[i], true
 			}
 		}
 	}
-	panic(fmt.Sprintf(
-		"name %s not defined in fileset with files %v",
-		n, fs.FileNames()))
+	return nil, nil, false
 }
 
 func (fs *FileSet) FileNames() []string {
@@ -1554,7 +1562,7 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 				return NewValuePathBlock(uint8(gen), idx, n)
 			} else {
 				if !isFile(bp) {
-					sb.GetStaticBlock().addExternName(n)
+					bp.GetStaticBlock().addExternName(n)
 				}
 				bp = bp.GetParentNode(store)
 				gen++
@@ -1992,7 +2000,6 @@ const (
 	ATTR_PREDEFINED   GnoAttribute = "ATTR_PREDEFINED"
 	ATTR_TYPE_VALUE   GnoAttribute = "ATTR_TYPE_VALUE"
 	ATTR_TYPEOF_VALUE GnoAttribute = "ATTR_TYPEOF_VALUE"
-	ATTR_LABEL        GnoAttribute = "ATTR_LABEL"
 	ATTR_IOTA         GnoAttribute = "ATTR_IOTA"
 	ATTR_LOCATIONED   GnoAttribute = "ATTR_LOCATIONED"
 )

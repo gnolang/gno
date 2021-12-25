@@ -1491,7 +1491,12 @@ func (m *Machine) doOpCallGoNative() {
 		prvs = append(prvs, gno2GoValue(ptv, erv))
 	}
 	// call and get results.
-	rrvs := fv.Value.Call(prvs)
+	rrvs := []reflect.Value(nil)
+	if isVarg {
+		rrvs = fv.Value.CallSlice(prvs)
+	} else {
+		rrvs = fv.Value.Call(prvs)
+	}
 	// convert and push results.
 	for _, rvs := range rrvs {
 		// TODO instead of this shallow conversion,

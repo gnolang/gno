@@ -1089,6 +1089,8 @@ func (ft *FuncType) Specify(argTVs []TypedValue, isVarg bool) *FuncType {
 					continue
 				} else if vargt == nil {
 					vargt = varg.T
+				} else if isUntyped(varg.T) && vargt.TypeID() == defaultTypeOf(varg.T).TypeID() {
+					vargt = defaultTypeOf(varg.T)
 				} else if vargt.TypeID() != varg.T.TypeID() {
 					panic(fmt.Sprintf(
 						"uncompatible varg types: expected %v, got %s",

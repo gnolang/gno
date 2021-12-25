@@ -578,10 +578,22 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						n.Path = bt.GetPathForName(n.Name)
 						return n, TRANS_CONTINUE
 					case *ArrayType, *SliceType:
-						// Replace n with *ConstExpr.
 						fillNameExprPath(last, n, false)
-						cx := evalConst(store, last, n)
-						return cx, TRANS_CONTINUE
+						if last.GetIsConst(store, n.Name) {
+							cx := evalConst(store, last, n)
+							return cx, TRANS_CONTINUE
+						}
+						// If name refers to a package, and this is not in
+						// the context of a selector, fail. Packages cannot
+						// be used as a value, for go compatibility but also
+						// to preserve the security expectation regarding imports.
+						nt := evalStaticTypeOf(store, last, n)
+						if nt.Kind() == PackageKind {
+							panic(fmt.Sprintf(
+								"package %s cannot only be referred to in a selector expression",
+								n.Name))
+						}
+						return n, TRANS_CONTINUE
 					case *NativeType:
 						switch bt.Type.Kind() {
 						case reflect.Struct:
@@ -1178,7 +1190,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							if elt.Key == nil {
 								idx++
 							} else {
-								// XXX why convert?
 								k := evalConst(store, last, elt.Key).ConvertGetInt()
 								if idx <= k {
 									idx = k + 1
@@ -3234,8 +3245,6 @@ func findDependentNames(n Node, dst map[Name]struct{}) {
 				"unexpected composite lit type %s",
 				ct.String()))
 		}
-	case *FuncLitExpr:
-		findDependentNames(&cn.Type, dst)
 	case *FieldTypeExpr:
 		findDependentNames(cn.Type, dst)
 	case *ArrayTypeExpr:
@@ -3273,6 +3282,11 @@ func findDependentNames(n Node, dst map[Name]struct{}) {
 	case *IndexExpr:
 		findDependentNames(cn.X, dst)
 		findDependentNames(cn.Index, dst)
+	case *FuncLitExpr:
+		findDependentNames(&cn.Type, dst)
+		for _, n := range cn.GetExternNames() {
+			dst[n] = struct{}{}
+		}
 	case *constTypeExpr:
 	case *ConstExpr:
 	case *ImportDecl:
@@ -3295,9 +3309,7 @@ func findDependentNames(n Node, dst map[Name]struct{}) {
 		} else {
 			for _, n := range cn.GetExternNames() {
 				if n == cn.Name {
-					// top-level function can
-					// refer to itself without
-					// depending on itself.
+					// top-level function referring to itself
 				} else {
 					dst[n] = struct{}{}
 				}

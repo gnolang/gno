@@ -418,11 +418,12 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 		}
 	}
 
-	// Variable initialization.  This must happen after all
-	// files are preprocessed, because value decl may be
-	// out of order and depend on other files.
+	// Declarations (and variable initializations).  This must happen after
+	// all files are preprocessed, because value decl may be out of order
+	// and depend on other files.
+
+	// Run declarations.
 	for _, fn := range fns {
-		// Run declarations.
 		for _, decl := range fn.Decls {
 			runDeclarationFor(fn, decl)
 		}
@@ -447,6 +448,7 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 			}
 		}
 	}
+
 }
 
 // Save the machine's package using realm finalization deep crawl.
@@ -726,11 +728,12 @@ const (
 	OpStaticTypeOf Op = 0x4A // static type of X
 	OpCompositeLit Op = 0x4B // X{???}
 	OpArrayLit     Op = 0x4C // [Len]{...}
-	OpSliceLit     Op = 0x4D // []{...}
-	OpMapLit       Op = 0x4E // X{...}
-	OpStructLit    Op = 0x4F // X{...}
-	OpFuncLit      Op = 0x50 // func(T){Body}
-	OpConvert      Op = 0x51 // Y(X)
+	OpSliceLit     Op = 0x4D // []{value,...}
+	OpSliceLit2    Op = 0x4E // []{key:value,...}
+	OpMapLit       Op = 0x4F // X{...}
+	OpStructLit    Op = 0x50 // X{...}
+	OpFuncLit      Op = 0x51 // func(T){Body}
+	OpConvert      Op = 0x52 // Y(X)
 
 	/* Native operators */
 	OpArrayLitGoNative  Op = 0x60
@@ -916,6 +919,8 @@ func (m *Machine) Run() {
 			m.doOpArrayLit()
 		case OpSliceLit:
 			m.doOpSliceLit()
+		case OpSliceLit2:
+			m.doOpSliceLit2()
 		case OpFuncLit:
 			m.doOpFuncLit()
 		case OpMapLit:
@@ -1230,13 +1235,9 @@ func (m *Machine) LastBlock() *Block {
 
 // Pushes a frame with one less statement.
 func (m *Machine) PushFrameBasic(s Stmt) {
-	label := s.GetAttribute(ATTR_LABEL)
-	lname := Name("")
-	if label != nil {
-		lname = label.(Name)
-	}
+	label := s.GetLabel()
 	fr := Frame{
-		Label:     lname,
+		Label:     label,
 		Source:    s,
 		NumOps:    m.NumOps,
 		NumValues: m.NumValues,

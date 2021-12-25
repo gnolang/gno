@@ -16,9 +16,23 @@ func (m *Machine) doOpIndex1() {
 	}
 	iv := m.PopValue()   // index
 	xv := m.PeekValue(1) // x
-	dst := xv
-	res := xv.GetPointerAtIndex(m.Store, iv)
-	*dst = res.Deref() // reuse as result
+	switch ct := baseOf(xv.T).(type) {
+	case *MapType:
+		mv := xv.V.(*MapValue)
+		vv, exists := mv.GetValueForKey(m.Store, iv)
+		if exists {
+			*xv = vv // reuse as result
+		} else {
+			vt := ct.Value
+			*xv = TypedValue{ // reuse as result
+				T: vt,
+				V: defaultValue(vt),
+			}
+		}
+	default:
+		res := xv.GetPointerAtIndex(m.Store, iv)
+		*xv = res.Deref() // reuse as result
+	}
 }
 
 // NOTE: keep in sync with doOpIndex1.
@@ -30,26 +44,34 @@ func (m *Machine) doOpIndex2() {
 	}
 	iv := m.PeekValue(1) // index
 	xv := m.PeekValue(2) // x
-	vt := xv.T.(*MapType).Value
-	if xv.V == nil { // uninitialized map
-		*xv = TypedValue{ // reuse as result
-			T: vt,
-			V: defaultValue(vt),
-		}
-		*iv = untypedBool(false) // reuse as result
-	} else {
-		mv := xv.V.(*MapValue)
-		vv, exists := mv.GetValueForKey(m.Store, iv)
-		if exists {
-			*xv = vv                // reuse as result
-			*iv = untypedBool(true) // reuse as result
-		} else {
+	switch ct := baseOf(xv.T).(type) {
+	case *MapType:
+		vt := ct.Value
+		if xv.V == nil { // uninitialized map
 			*xv = TypedValue{ // reuse as result
 				T: vt,
 				V: defaultValue(vt),
 			}
 			*iv = untypedBool(false) // reuse as result
+		} else {
+			mv := xv.V.(*MapValue)
+			vv, exists := mv.GetValueForKey(m.Store, iv)
+			if exists {
+				*xv = vv                // reuse as result
+				*iv = untypedBool(true) // reuse as result
+			} else {
+				*xv = TypedValue{ // reuse as result
+					T: vt,
+					V: defaultValue(vt),
+				}
+				*iv = untypedBool(false) // reuse as result
+			}
 		}
+	case *NativeType:
+		// TODO: see doOpIndex1()
+		panic("not yet implemented")
+	default:
+		panic("should not happen")
 	}
 }
 
@@ -321,14 +343,28 @@ func (m *Machine) doOpCompositeLit() {
 			m.PushOp(OpEval)
 		}
 	case *SliceType:
-		m.PushOp(OpSliceLit)
-		// evalaute item values
-		for i := len(x.Elts) - 1; 0 <= i; i-- {
-			if x.Elts[i].Key != nil {
-				panic("keys not yet supported in slice composite literals")
+		if len(x.Elts) > 0 && x.Elts[0].Key != nil {
+			m.PushOp(OpSliceLit2)
+			// evalaute item values
+			for i := len(x.Elts) - 1; 0 <= i; i-- {
+				if x.Elts[i].Key == nil {
+					panic("slice composite literal cannot mix keyed and unkeyed lements")
+				}
+				m.PushExpr(x.Elts[i].Value)
+				m.PushOp(OpEval)
+				m.PushExpr(x.Elts[i].Key)
+				m.PushOp(OpEval)
 			}
-			m.PushExpr(x.Elts[i].Value)
-			m.PushOp(OpEval)
+		} else {
+			m.PushOp(OpSliceLit)
+			// evalaute item values
+			for i := len(x.Elts) - 1; 0 <= i; i-- {
+				if x.Elts[i].Key != nil {
+					panic("slice composite literal cannot mix keyed and unkeyed lements")
+				}
+				m.PushExpr(x.Elts[i].Value)
+				m.PushOp(OpEval)
+			}
 		}
 	case *MapType:
 		m.PushOp(OpMapLit)
@@ -439,6 +475,52 @@ func (m *Machine) doOpSliceLit() {
 	es := make([]TypedValue, el)
 	for i := el - 1; 0 <= i; i-- {
 		es[i] = *m.PopValue()
+	}
+	// construct and push value.
+	if debug {
+		if m.PopValue().V.(TypeValue).Type != st {
+			panic("should not happen")
+		}
+	} else {
+		m.PopValue()
+	}
+	sv := newSliceFromList(es)
+	m.PushValue(TypedValue{
+		T: st,
+		V: sv,
+	})
+}
+
+func (m *Machine) doOpSliceLit2() {
+	// assess performance TODO
+	x := m.PopExpr().(*CompositeLitExpr)
+	el := len(x.Elts)
+	tvs := m.PopValues(el * 2)
+	// peek slice type.
+	st := m.PeekValue(1).V.(TypeValue).Type
+	// calculate maximum index.
+	max := 0
+	for i := 0; i < el; i++ {
+		itv := tvs[i*2+0]
+		idx := itv.ConvertGetInt()
+		if idx > max {
+			max = idx
+		}
+	}
+	// construct element buf slice.
+	es := make([]TypedValue, max+1)
+	for i := 0; i < el; i++ {
+		itv := tvs[i*2+0]
+		vtv := tvs[i*2+1]
+		idx := itv.ConvertGetInt()
+		es[idx] = vtv
+	}
+	// fill in empty values.
+	ste := st.Elem()
+	for i, etv := range es {
+		if etv.IsUndefined() {
+			es[i] = defaultTypedValue(ste)
+		}
 	}
 	// construct and push value.
 	if debug {
