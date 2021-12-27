@@ -331,9 +331,19 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 	pb := pv.GetBlock(m.Store)
 	pn := pb.GetSource(m.Store).(*PackageNode)
 	fs := &FileSet{Files: fns}
+	fdeclared := map[Name]struct{}{}
 	if pn.FileSet == nil {
 		pn.FileSet = fs
 	} else {
+		// collect pre-existing declared names
+		for _, fn := range pn.FileSet.Files {
+			for _, decl := range fn.Decls {
+				for _, name := range decl.GetDeclNames() {
+					fdeclared[name] = struct{}{}
+				}
+			}
+		}
+		// add fns to pre-existing fileset.
 		pn.FileSet.AddFiles(fns...)
 	}
 
@@ -370,8 +380,6 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 	// Get new values across all files in package.
 	updates := pn.PrepareNewValues(pv)
 
-	// exists if declaration run.
-	var fdeclared = map[Name]struct{}{}
 	// to detect loops in var declarations.
 	var loopfindr = []Name{}
 	// recursive function for var declarations.
@@ -1258,7 +1266,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 	fr := Frame{
 		Source:      cx,
 		NumOps:      m.NumOps,
-		NumValues:   m.NumValues,
+		NumValues:   m.NumValues - cx.NumArgs - 1,
 		NumExprs:    len(m.Exprs),
 		NumStmts:    len(m.Stmts),
 		NumBlocks:   len(m.Blocks),
@@ -1297,7 +1305,7 @@ func (m *Machine) PushFrameGoNative(cx *CallExpr, fv *NativeValue) {
 	fr := Frame{
 		Source:      cx,
 		NumOps:      m.NumOps,
-		NumValues:   m.NumValues,
+		NumValues:   m.NumValues - cx.NumArgs - 1,
 		NumExprs:    len(m.Exprs),
 		NumStmts:    len(m.Stmts),
 		NumBlocks:   len(m.Blocks),
@@ -1353,8 +1361,8 @@ func (m *Machine) PopFrameAndReturn() {
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts]
 	m.Blocks = m.Blocks[:fr.NumBlocks]
-	// shift and convert results to typed-nil if undefined and not iface kind.
-	// and not func result type isn't interface kind.
+	// shift and convert results to typed-nil if undefined and not iface
+	// kind.  and not func result type isn't interface kind.
 	resStart := m.NumValues - numRes
 	for i := 0; i < numRes; i++ {
 		res := m.Values[resStart+i]

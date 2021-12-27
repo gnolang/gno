@@ -1477,6 +1477,7 @@ func (m *Machine) doOpCallGoNative() {
 	isVarg := fr.IsVarg
 	// pop and convert params.
 	ptvs := m.PopCopyValues(fr.NumArgs)
+	m.PopValue() // func value
 	prvs := make([]reflect.Value, 0, len(ptvs))
 	for i := 0; i < fr.NumArgs; i++ {
 		ptv := &ptvs[i]

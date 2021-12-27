@@ -703,7 +703,7 @@ func mulAssign(lv, rv *TypedValue) {
 	case Uint8Type:
 		lv.SetUint8(lv.GetUint8() * rv.GetUint8())
 	case DataByteType:
-		lv.SetDataByte(lv.GetDataByte() - rv.GetUint8())
+		lv.SetDataByte(lv.GetDataByte() * rv.GetUint8())
 	case Uint16Type:
 		lv.SetUint16(lv.GetUint16() * rv.GetUint16())
 	case Uint32Type:
@@ -742,7 +742,7 @@ func quoAssign(lv, rv *TypedValue) {
 	case Uint8Type:
 		lv.SetUint8(lv.GetUint8() / rv.GetUint8())
 	case DataByteType:
-		lv.SetDataByte(lv.GetDataByte() - rv.GetUint8())
+		lv.SetDataByte(lv.GetDataByte() / rv.GetUint8())
 	case Uint16Type:
 		lv.SetUint16(lv.GetUint16() / rv.GetUint16())
 	case Uint32Type:
@@ -781,7 +781,7 @@ func remAssign(lv, rv *TypedValue) {
 	case Uint8Type:
 		lv.SetUint8(lv.GetUint8() % rv.GetUint8())
 	case DataByteType:
-		lv.SetDataByte(lv.GetDataByte() - rv.GetUint8())
+		lv.SetDataByte(lv.GetDataByte() % rv.GetUint8())
 	case Uint16Type:
 		lv.SetUint16(lv.GetUint16() % rv.GetUint16())
 	case Uint32Type:
@@ -820,7 +820,7 @@ func bandAssign(lv, rv *TypedValue) {
 	case Uint8Type:
 		lv.SetUint8(lv.GetUint8() & rv.GetUint8())
 	case DataByteType:
-		lv.SetDataByte(lv.GetDataByte() - rv.GetUint8())
+		lv.SetDataByte(lv.GetDataByte() & rv.GetUint8())
 	case Uint16Type:
 		lv.SetUint16(lv.GetUint16() & rv.GetUint16())
 	case Uint32Type:
@@ -859,7 +859,7 @@ func bandnAssign(lv, rv *TypedValue) {
 	case Uint8Type:
 		lv.SetUint8(lv.GetUint8() &^ rv.GetUint8())
 	case DataByteType:
-		lv.SetDataByte(lv.GetDataByte() - rv.GetUint8())
+		lv.SetDataByte(lv.GetDataByte() &^ rv.GetUint8())
 	case Uint16Type:
 		lv.SetUint16(lv.GetUint16() &^ rv.GetUint16())
 	case Uint32Type:
@@ -898,7 +898,7 @@ func borAssign(lv, rv *TypedValue) {
 	case Uint8Type:
 		lv.SetUint8(lv.GetUint8() | rv.GetUint8())
 	case DataByteType:
-		lv.SetDataByte(lv.GetDataByte() - rv.GetUint8())
+		lv.SetDataByte(lv.GetDataByte() | rv.GetUint8())
 	case Uint16Type:
 		lv.SetUint16(lv.GetUint16() | rv.GetUint16())
 	case Uint32Type:
@@ -937,7 +937,7 @@ func xorAssign(lv, rv *TypedValue) {
 	case Uint8Type:
 		lv.SetUint8(lv.GetUint8() ^ rv.GetUint8())
 	case DataByteType:
-		lv.SetDataByte(lv.GetDataByte() - rv.GetUint8())
+		lv.SetDataByte(lv.GetDataByte() ^ rv.GetUint8())
 	case Uint16Type:
 		lv.SetUint16(lv.GetUint16() ^ rv.GetUint16())
 	case Uint32Type:
@@ -976,7 +976,7 @@ func shlAssign(lv, rv *TypedValue) {
 	case Uint8Type:
 		lv.SetUint8(lv.GetUint8() << rv.GetUint())
 	case DataByteType:
-		lv.SetDataByte(lv.GetDataByte() - rv.GetUint8())
+		lv.SetDataByte(lv.GetDataByte() << rv.GetUint8())
 	case Uint16Type:
 		lv.SetUint16(lv.GetUint16() << rv.GetUint())
 	case Uint32Type:
@@ -1015,7 +1015,7 @@ func shrAssign(lv, rv *TypedValue) {
 	case Uint8Type:
 		lv.SetUint8(lv.GetUint8() >> rv.GetUint())
 	case DataByteType:
-		lv.SetDataByte(lv.GetDataByte() - rv.GetUint8())
+		lv.SetDataByte(lv.GetDataByte() >> rv.GetUint8())
 	case Uint16Type:
 		lv.SetUint16(lv.GetUint16() >> rv.GetUint())
 	case Uint32Type:

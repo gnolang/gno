@@ -173,7 +173,7 @@ func testStore(stdin io.Reader, stdout, stderr io.Writer, isRealm bool, nativeLi
 			pkg.DefineGoNativeValue("Second", time.Second)
 			pkg.DefineGoNativeValue("Minute", time.Minute)
 			pkg.DefineGoNativeValue("Hour", time.Hour)
-			pkg.DefineGoNativeValue("Now", func() time.Time { return time.Unix(0, 0) }) // deterministic
+			pkg.DefineGoNativeValue("Now", func() time.Time { return time.Unix(0, 0).UTC() }) // deterministic
 			pkg.DefineGoNativeValue("November", time.November)
 			pkg.DefineGoNativeValue("UTC", time.UTC)
 			pkg.DefineGoNativeValue("Unix", time.Unix)

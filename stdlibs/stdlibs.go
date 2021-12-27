@@ -45,7 +45,9 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode, pv *gno.PackageValue) {
 		pn.DefineGoNativeFunc("Atoi", strconv.Atoi)
 		pn.DefineGoNativeFunc("FormatInt", strconv.FormatInt)
 		pn.DefineGoNativeFunc("FormatUint", strconv.FormatUint)
+		pn.DefineGoNativeFunc("Quote", strconv.Quote)
 		pn.DefineGoNativeFunc("QuoteToASCII", strconv.QuoteToASCII)
+		pn.DefineGoNativeFunc("CanBackquote", strconv.CanBackquote)
 		pn.DefineGoNativeValue("IntSize", strconv.IntSize)
 		pn.PrepareNewValues(pv)
 	case "std":

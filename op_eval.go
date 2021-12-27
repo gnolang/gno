@@ -165,6 +165,12 @@ func (m *Machine) doOpEval() {
 		}
 	case *CallExpr:
 		m.PushOp(OpPrecall)
+		// Eval args.
+		args := x.Args
+		for i := len(args) - 1; 0 <= i; i-- {
+			m.PushExpr(args[i])
+			m.PushOp(OpEval)
+		}
 		// evaluate func
 		m.PushExpr(x.Func)
 		m.PushOp(OpEval)

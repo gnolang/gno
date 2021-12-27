@@ -6,23 +6,22 @@ import (
 )
 
 func (m *Machine) doOpPrecall() {
+
 	cx := m.PopExpr().(*CallExpr)
-	v := m.PeekValue(1).V
+	v := m.PeekValue(1 + cx.NumArgs).V
 	if debug {
 		if v == nil {
-			// This may happen due to an undefined uverse or closure value
-			// (which isn't supposed to happen but may happen due to
-			// incomplete initialization).
+			// This may happen due to an undefined uverse or
+			// closure value (which isn't supposed to happen but
+			// may happen due to incomplete initialization).
 			panic("should not happen")
 		}
 	}
 	switch fv := v.(type) {
 	case *FuncValue:
-		m.PopValue()
 		m.PushFrameCall(cx, fv, TypedValue{})
 		m.PushOp(OpCall)
 	case *BoundMethodValue:
-		m.PopValue()
 		m.PushFrameCall(cx, fv.Func, fv.Receiver)
 		m.PushOp(OpCall)
 	case TypeValue:
@@ -35,19 +34,12 @@ func (m *Machine) doOpPrecall() {
 			}
 		}
 	case *NativeValue:
-		m.PopValue()
 		m.PushFrameGoNative(cx, fv)
 		m.PushOp(OpCallGoNative)
 	default:
 		panic(fmt.Sprintf(
 			"unexpected function value type %s",
 			reflect.TypeOf(v).String()))
-	}
-	// Eval args.
-	args := cx.Args
-	for i := len(args) - 1; 0 <= i; i-- {
-		m.PushExpr(args[i])
-		m.PushOp(OpEval)
 	}
 }
 

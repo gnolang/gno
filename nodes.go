@@ -653,10 +653,10 @@ func (ss Body) GetBody() Body {
 	return ss
 }
 
-func (ss Body) GetLabeledStmt(label Name) (Stmt, int) {
-	for i, stmt := range ss {
-		if label := stmt.GetLabel(); label != "" {
-			return stmt, i
+func (ss Body) GetLabeledStmt(label Name) (stmt Stmt, idx int) {
+	for idx, stmt = range ss {
+		if label == stmt.GetLabel() {
+			return stmt, idx
 		}
 	}
 	return nil, -1

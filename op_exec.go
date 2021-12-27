@@ -510,7 +510,7 @@ EXEC_SWITCH:
 		b.bodyStmt = bodyStmt{
 			Body:          cs.Body,
 			BodyLen:       len(cs.Body),
-			NextBodyIndex: -1,
+			NextBodyIndex: -2,
 			Cond:          cs.Cond,
 			Post:          cs.Post,
 		}
