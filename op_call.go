@@ -170,7 +170,7 @@ func (m *Machine) doOpCallDeferNativeBody() {
 
 // Assumes that result values are pushed onto the Values stack.
 func (m *Machine) doOpReturn() {
-	fr := m.PopUntilLastCallFrame()
+	cfr := m.PopUntilLastCallFrame()
 	// See if we are exiting a realm boundary.
 	// NOTE: there are other ways to implement realm boundary transitions,
 	// e.g. with independent Machine instances per realm for example, or
@@ -179,7 +179,7 @@ func (m *Machine) doOpReturn() {
 	// per OpReturn*.
 	crlm := m.Realm
 	if crlm != nil {
-		lrlm := fr.LastRealm
+		lrlm := cfr.LastRealm
 		finalize := false
 		if m.NumFrames() == 1 {
 			// We are exiting the machine's realm.
@@ -202,11 +202,11 @@ func (m *Machine) doOpReturn() {
 // i.e. named result vars declared in func signatures.
 func (m *Machine) doOpReturnFromBlock() {
 	// Copy results from block.
-	fr := m.PopUntilLastCallFrame()
-	ft := fr.Func.GetType(m.Store)
+	cfr := m.PopUntilLastCallFrame()
+	ft := cfr.Func.GetType(m.Store)
 	numParams := len(ft.Params)
 	numResults := len(ft.Results)
-	fblock := m.Blocks[fr.NumBlocks] // frame +1
+	fblock := m.Blocks[cfr.NumBlocks] // frame +1
 	for i := 0; i < numResults; i++ {
 		rtv := fillValueTV(m.Store, &fblock.Values[i+numParams])
 		m.PushValue(*rtv)
@@ -214,7 +214,7 @@ func (m *Machine) doOpReturnFromBlock() {
 	// See if we are exiting a realm boundary.
 	crlm := m.Realm
 	if crlm != nil {
-		lrlm := fr.LastRealm
+		lrlm := cfr.LastRealm
 		finalize := false
 		if m.NumFrames() == 1 {
 			// We are exiting the machine's realm.
@@ -237,11 +237,11 @@ func (m *Machine) doOpReturnFromBlock() {
 // deferred statements can refer to results with name
 // expressions.
 func (m *Machine) doOpReturnToBlock() {
-	fr := m.LastFrame()
-	ft := fr.Func.GetType(m.Store)
+	cfr := m.LastCallFrame()
+	ft := cfr.Func.GetType(m.Store)
 	numParams := len(ft.Params)
 	numResults := len(ft.Results)
-	fblock := m.Blocks[fr.NumBlocks] // frame +1
+	fblock := m.Blocks[cfr.NumBlocks] // frame +1
 	results := m.PopValues(numResults)
 	for i := 0; i < numResults; i++ {
 		rtv := results[i]
@@ -250,8 +250,8 @@ func (m *Machine) doOpReturnToBlock() {
 }
 
 func (m *Machine) doOpReturnCallDefers() {
-	fr := m.LastFrame()
-	dfr, ok := fr.PopDefer()
+	cfr := m.LastCallFrame()
+	dfr, ok := cfr.PopDefer()
 	if !ok {
 		// Done with defers.
 		m.ForcePopOp()
@@ -263,8 +263,6 @@ func (m *Machine) doOpReturnCallDefers() {
 		return
 	}
 	// Call last deferred call.
-	// Get block of parent function.
-	fb := m.Blocks[fr.NumBlocks]
 	// NOTE: the following logic is largely duplicated in doOpCall().
 	// Convert if variadic argument.
 	if dfr.Func != nil {
@@ -273,7 +271,7 @@ func (m *Machine) doOpReturnCallDefers() {
 		pts := ft.Params
 		numParams := len(ft.Params)
 		// Create new block scope for defer.
-		b := NewBlock(fv.GetSource(m.Store), fb)
+		b := NewBlock(fv.GetSource(m.Store), dfr.Parent)
 		m.PushBlock(b)
 		if fv.nativeBody == nil {
 			fbody := fv.GetBodyFromSource(m.Store)
@@ -337,7 +335,8 @@ func (m *Machine) doOpReturnCallDefers() {
 }
 
 func (m *Machine) doOpDefer() {
-	fr := m.LastFrame()
+	lb := m.LastBlock()
+	cfr := m.LastCallFrame()
 	ds := m.PopStmt().(*DeferStmt)
 	// Pop arguments
 	numArgs := len(ds.Call.Args)
@@ -350,10 +349,11 @@ func (m *Machine) doOpDefer() {
 	switch cv := ftv.V.(type) {
 	case *FuncValue:
 		// TODO what if value is NativeValue?
-		fr.PushDefer(Defer{
+		cfr.PushDefer(Defer{
 			Func:   cv,
 			Args:   args,
 			Source: ds,
+			Parent: lb,
 		})
 	case *BoundMethodValue:
 		if debug {
@@ -369,16 +369,18 @@ func (m *Machine) doOpDefer() {
 		args2 := make([]TypedValue, len(args)+1)
 		args2[0] = cv.Receiver
 		copy(args2[1:], args)
-		fr.PushDefer(Defer{
+		cfr.PushDefer(Defer{
 			Func:   cv.Func,
 			Args:   args2,
 			Source: ds,
+			Parent: lb,
 		})
 	case *NativeValue:
-		fr.PushDefer(Defer{
+		cfr.PushDefer(Defer{
 			GoFunc: cv,
 			Args:   args,
 			Source: ds,
+			Parent: lb,
 		})
 	default:
 		panic("should not happen")

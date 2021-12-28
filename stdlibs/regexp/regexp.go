@@ -727,7 +727,6 @@ func QuoteMeta(s string) string {
 	}
 	// No meta characters found, so return original string.
 	if i >= len(s) {
-		println("NOQUOTEMETA")
 		return s
 	}
 

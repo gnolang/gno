@@ -82,4 +82,5 @@ type Defer struct {
 	GoFunc *NativeValue // go function value
 	Args   []TypedValue // arguments
 	Source *DeferStmt   // source
+	Parent *Block
 }

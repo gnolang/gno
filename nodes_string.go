@@ -285,8 +285,18 @@ func (n ExprStmt) String() string {
 }
 
 func (n ForStmt) String() string {
+	init, cond, post := "", "", ""
+	if n.Init != nil {
+		init = n.Init.String()
+	}
+	if n.Cond != nil {
+		cond = n.Cond.String()
+	}
+	if n.Post != nil {
+		post = n.Post.String()
+	}
 	return fmt.Sprintf("for %s; %s; %s { %s }",
-		n.Init, n.Cond, n.Post, n.Body.String())
+		init, cond, post, n.Body.String())
 }
 
 func (n GoStmt) String() string {
@@ -445,7 +455,8 @@ func (n TypeDecl) String() string {
 }
 
 func (n FileNode) String() string {
-	return fmt.Sprintf("file{ package %s ... }", n.PkgName) // , n.Decls.String())
+	// return fmt.Sprintf("file{ package %s ... }", n.PkgName) // , n.Decls.String())
+	return fmt.Sprintf("file{ package %s; %s }", n.PkgName, n.Decls.String())
 }
 
 func (n PackageNode) String() string {

@@ -1027,6 +1027,12 @@ func (m *Machine) PushOp(op Op) {
 	if debug {
 		m.Printf("+o %v\n", op)
 	}
+	if len(m.Ops) == m.NumOps {
+		// TODO tune. also see PushValue().
+		newOps := make([]Op, len(m.Ops)*2)
+		copy(newOps, m.Ops)
+		m.Ops = newOps
+	}
 	m.Ops[m.NumOps] = op
 	m.NumOps++
 }
@@ -1152,7 +1158,7 @@ func (m *Machine) PushValue(tv TypedValue) {
 		m.Printf("+v %v\n", tv)
 	}
 	if len(m.Values) == m.NumValues {
-		// TODO tune.
+		// TODO tune. also see PushOp().
 		newValues := make([]TypedValue, len(m.Values)*2)
 		copy(newValues, m.Values)
 		m.Values = newValues
