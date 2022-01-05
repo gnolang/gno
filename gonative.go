@@ -1322,22 +1322,6 @@ func (pn *PackageNode) DefineGoNativeValue(n Name, nv interface{}) {
 	pn.Define(n, go2GnoValue(rv2))
 }
 
-// DefineGoNativeFunc defines an existing Go function.  This
-// is not the same as DefineNative, which gives access to
-// the running machine.
-func (pn *PackageNode) DefineGoNativeFunc(n Name, fn interface{}) {
-	if debug {
-		debug.Printf("*PackageNode.DefineGoNativeFunc(%s)\n", reflect.ValueOf(fn).String())
-	}
-	if reflect.TypeOf(fn).Kind() != reflect.Func {
-		panic(fmt.Sprintf(
-			"DefineGoNativeFunc expects a function, but got %s",
-			reflect.TypeOf(fn).String()))
-	}
-	rv := reflect.ValueOf(fn)
-	pn.Define(n, go2GnoValue(rv))
-}
-
 //----------------------------------------
 // Machine methods
 

@@ -178,15 +178,15 @@ func makeImporter(out io.Writer) gno.Importer {
 		case "fmt":
 			pkg := gno.NewPackageNode("fmt", "fmt", nil)
 			pkg.DefineGoNativeType(reflect.TypeOf((*fmt.Stringer)(nil)).Elem())
-			pkg.DefineGoNativeFunc("Println", func(a ...interface{}) (n int, err error) {
+			pkg.DefineGoNativeValue("Println", func(a ...interface{}) (n int, err error) {
 				res := fmt.Sprintln(a...)
 				return out.Write([]byte(res))
 			})
-			pkg.DefineGoNativeFunc("Printf", func(format string, a ...interface{}) (n int, err error) {
+			pkg.DefineGoNativeValue("Printf", func(format string, a ...interface{}) (n int, err error) {
 				res := fmt.Sprintf(format, a...)
 				return out.Write([]byte(res))
 			})
-			pkg.DefineGoNativeFunc("Sprintf", fmt.Sprintf)
+			pkg.DefineGoNativeValue("Sprintf", fmt.Sprintf)
 			return pkg.NewPackage(nil)
 		case "strings":
 			pkg := gno.NewPackageNode("strings", "strings", nil)

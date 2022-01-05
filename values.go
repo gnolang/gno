@@ -745,6 +745,13 @@ func (pv *PackageValue) GetBlock(store Store) *Block {
 	}
 }
 
+func (pv *PackageValue) GetValueRefAt(store Store, path ValuePath) *TypedValue {
+	return pv.
+		GetBlock(store).
+		GetPointerTo(store, path).
+		TV
+}
+
 func (pv *PackageValue) AddFileBlock(fn Name, fb *Block) {
 	for _, fname := range pv.FNames {
 		if fname == fn {

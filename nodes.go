@@ -1379,7 +1379,7 @@ func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 }
 
 // DefineNativeFunc defines a native function. This is not the
-// same as DefineGoNativeFunc, which DOES NOT give access to
+// same as DefineGoNativeValue, which DOES NOT give access to
 // the running machine.
 func (pn *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*Machine)) {
 	if debug {
@@ -1548,31 +1548,39 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 	if n == "_" {
 		return NewValuePathBlock(0, 0, "_")
 	}
+	// Check local.
 	gen := 1
 	if idx, ok := sb.GetLocalIndex(n); ok {
 		return NewValuePathBlock(uint8(gen), idx, n)
-	} else {
-		if !isFile(sb.GetSource(store)) {
-			sb.GetStaticBlock().addExternName(n)
-		}
-		gen++
-		bp := sb.GetParentNode(store)
-		for bp != nil {
-			if idx, ok = bp.GetLocalIndex(n); ok {
-				return NewValuePathBlock(uint8(gen), idx, n)
-			} else {
-				if !isFile(bp) {
-					bp.GetStaticBlock().addExternName(n)
-				}
-				bp = bp.GetParentNode(store)
-				gen++
-				if 0xff < gen {
-					panic("value path depth overflow")
-				}
+	}
+	// Register as extern.
+	// NOTE: uverse names are externs too.
+	if !isFile(sb.GetSource(store)) {
+		sb.GetStaticBlock().addExternName(n)
+	}
+	// Check ancestors.
+	gen++
+	bp := sb.GetParentNode(store)
+	for bp != nil {
+		if idx, ok := bp.GetLocalIndex(n); ok {
+			return NewValuePathBlock(uint8(gen), idx, n)
+		} else {
+			if !isFile(bp) {
+				bp.GetStaticBlock().addExternName(n)
+			}
+			bp = bp.GetParentNode(store)
+			gen++
+			if 0xff < gen {
+				panic("value path depth overflow")
 			}
 		}
-		panic(fmt.Sprintf("name %s not declared", n))
 	}
+	// Finally, check uverse.
+	if idx, ok := UverseNode().GetLocalIndex(n); ok {
+		return NewValuePathUverse(idx, n)
+	}
+	// Name does not exist.
+	panic(fmt.Sprintf("name %s not declared", n))
 }
 
 // Returns whether a name defined here in in ancestry is a const.
@@ -1606,6 +1614,7 @@ func (sb *StaticBlock) getLocalIsConst(n Name) bool {
 }
 
 // Implements BlockNode.
+// XXX XXX what about uverse?
 func (sb *StaticBlock) GetStaticTypeOf(store Store, n Name) Type {
 	idx, ok := sb.GetLocalIndex(n)
 	ts := sb.Types
@@ -1617,7 +1626,12 @@ func (sb *StaticBlock) GetStaticTypeOf(store Store, n Name) Type {
 			idx, ok = bp.GetLocalIndex(n)
 			ts = bp.GetStaticBlock().Types
 			bp = bp.GetParentNode(store)
+		} else if idx, ok := UverseNode().GetLocalIndex(n); ok {
+			path := NewValuePathUverse(idx, n)
+			tv := Uverse().GetValueRefAt(store, path)
+			return tv.T
 		} else {
+
 			panic(fmt.Sprintf("name %s not declared", n))
 		}
 	}

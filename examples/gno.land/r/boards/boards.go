@@ -1,6 +1,8 @@
 package boards
 
 import (
+	"fmt"
+	"regexp"
 	"std"
 	"strconv"
 	"strings"
@@ -14,6 +16,11 @@ import (
 var gBoards *avl.Tree       // id -> *Board
 var gBoardsCtr int          // increments Board.id
 var gBoardsByName *avl.Tree // name -> *Board
+
+//----------------------------------------
+// Constants
+
+var reName = regexp.MustCompile(`^[a-z]+[_a-z0-9]*$`)
 
 //----------------------------------------
 // Public facing functions
@@ -34,16 +41,7 @@ func CreateBoard(name string) BoardID {
 	}
 	bid := incGetBoardID()
 	caller := std.GetCaller()
-	// TODO: validate name.
-	exists := gBoardsByName.Has(name)
-	if exists {
-		panic("board already exists")
-	}
-	board := &Board{
-		id:      bid,
-		name:    name,
-		creator: caller,
-	}
+	board := newBoard(bid, name, caller)
 	bidkey := strconv.Itoa(int(bid))
 	gBoards, _ = gBoards.Set(bidkey, board)
 	gBoardsByName, _ = gBoardsByName.Set(name, board)
@@ -99,7 +97,7 @@ func RenderBoard(bid BoardID) string {
 	if board == nil {
 		return "missing board"
 	}
-	return board.Render("")
+	return board.Render()
 }
 
 func Render(path string) string {
@@ -107,7 +105,7 @@ func Render(path string) string {
 		str := ""
 		gBoards.Iterate("", "", func(n *avl.Tree) bool {
 			board := n.Value().(*Board).name
-			str += "## " + board + " ##\n"
+			str += " * [" + board + "](gno.land/r/boards/" + board + ")\n"
 			return false
 		})
 		return str
@@ -119,7 +117,7 @@ func Render(path string) string {
 		if !exists {
 			return "board does not exist: " + name
 		}
-		return boardI.(*Board).Render("")
+		return boardI.(*Board).Render()
 	} else {
 		return "unrecognized path " + path
 	}
@@ -138,16 +136,27 @@ type Board struct {
 	postsCtr uint64    // increments Post.id
 }
 
+func newBoard(id BoardID, name string, creator std.Address) *Board {
+	if !reName.MatchString(name) {
+		panic(fmt.Sprintf("invalid name %q", name))
+	}
+	exists := gBoardsByName.Has(name)
+	if exists {
+		panic("board already exists")
+	}
+	return &Board{
+		id:      id,
+		name:    name,
+		creator: creator,
+	}
+}
+
 // A private board is not tracked by gBoards*,
 // but must be persisted by the caller's realm.
 // Private boards have 0 id and does not ping
 // back the remote board on reposts.
 func NewPrivateBoard(name string, creator std.Address) *Board {
-	return &Board{
-		id:      0, // private
-		name:    name,
-		creator: creator,
-	}
+	return newBoard(0, name, creator)
 }
 
 func (board *Board) IsPrivate() bool {
@@ -180,11 +189,17 @@ func (board *Board) AddPost(creator std.Address, title string, body string) *Pos
 // Renders the board for display suitable as plaintext in
 // console.  This is suitable for demonstration or tests,
 // but not for prod.
-func (board *Board) Render(indent string) string {
-	str := indent + "## " + board.name + " ##\n"
+func (board *Board) Render() string {
+	str := ""
+	if board.id == 0 {
+		str += "### (private) " + board.name + " ###\n\n"
+	} else {
+		str += "### gno.land/r/boards/" + board.name + " ###\n\n"
+	}
 	if board.posts.Size() > 0 {
 		board.posts.Iterate("", "", func(n *avl.Tree) bool {
-			str += n.Value().(*Post).Render(indent)
+			str += "----------------------------------------\n"
+			str += n.Value().(*Post).RenderSummary()
 			return false
 		})
 	}
@@ -225,7 +240,6 @@ func (post *Post) AddReply(creator std.Address, body string) *Post {
 		body:    body,
 		replyTo: post.id,
 	}
-	board.posts, _ = board.posts.Set(pidkey, reply)
 	post.replies, _ = post.replies.Set(pidkey, pid)
 	return reply
 }
@@ -248,6 +262,26 @@ func (post *Post) AddRepostTo(creator std.Address, title, body string, dst *Boar
 		post.reposts, _ = post.reposts.Set(bidkey, pid)
 	}
 	return repost
+}
+
+func (post *Post) Summary() string {
+	lines := strings.SplitN(post.body, "\n", 2)
+	line := lines[0]
+	if len(line) > 80 {
+		line = line[:77] + "..."
+	}
+	return line
+}
+
+func (post *Post) RenderSummary() string {
+	str := ""
+	if post.title != "" {
+		str += "# " + post.title + "\n"
+		str += "\n"
+	}
+	str += post.Summary() + "\n\n"
+	str += padLeft("("+strconv.Itoa(post.replies.Size())+" replies)", 40) + "\n"
+	return str
 }
 
 func (post *Post) Render(indent string) string {
@@ -285,4 +319,12 @@ func getBoard(bid BoardID) *Board {
 func incGetBoardID() BoardID {
 	gBoardsCtr++
 	return BoardID(gBoardsCtr)
+}
+
+func padLeft(str string, length int) string {
+	if len(str) >= length {
+		return str
+	} else {
+		return strings.Repeat(" ", length-len(str)) + str
+	}
 }

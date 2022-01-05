@@ -8,8 +8,8 @@ import (
 var board *boards.Board
 
 func init() {
-	_ = boards.CreateBoard("Test Board #1")
-	_ = boards.CreateBoard("Test Board #2")
+	_ = boards.CreateBoard("test_board_1")
+	_ = boards.CreateBoard("test_board_2")
 }
 
 func main() {
@@ -17,5 +17,5 @@ func main() {
 }
 
 // Output:
-// ## Test Board #1 ##
-// ## Test Board #2 ##
+//  * [test_board_1](gno.land/r/boards/test_board_1)
+//  * [test_board_2](gno.land/r/boards/test_board_2)

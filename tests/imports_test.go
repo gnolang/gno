@@ -85,34 +85,34 @@ func testStore(stdin io.Reader, stdout, stderr io.Writer, isRealm bool, nativeLi
 			pkg := gno.NewPackageNode("fmt", pkgPath, nil)
 			pkg.DefineGoNativeType(reflect.TypeOf((*fmt.Stringer)(nil)).Elem())
 			pkg.DefineGoNativeType(reflect.TypeOf((*fmt.Formatter)(nil)).Elem())
-			pkg.DefineGoNativeFunc("Println", func(a ...interface{}) (n int, err error) {
+			pkg.DefineGoNativeValue("Println", func(a ...interface{}) (n int, err error) {
 				// NOTE: uncomment to debug long running tests
 				fmt.Println(a...)
 				res := fmt.Sprintln(a...)
 				return stdout.Write([]byte(res))
 			})
-			pkg.DefineGoNativeFunc("Printf", func(format string, a ...interface{}) (n int, err error) {
+			pkg.DefineGoNativeValue("Printf", func(format string, a ...interface{}) (n int, err error) {
 				res := fmt.Sprintf(format, a...)
 				return stdout.Write([]byte(res))
 			})
-			pkg.DefineGoNativeFunc("Print", func(a ...interface{}) (n int, err error) {
+			pkg.DefineGoNativeValue("Print", func(a ...interface{}) (n int, err error) {
 				res := fmt.Sprint(a...)
 				return stdout.Write([]byte(res))
 			})
-			pkg.DefineGoNativeFunc("Sprint", fmt.Sprint)
-			pkg.DefineGoNativeFunc("Sprintf", fmt.Sprintf)
-			pkg.DefineGoNativeFunc("Sscanf", fmt.Sscanf)
-			pkg.DefineGoNativeFunc("Errorf", fmt.Errorf)
-			pkg.DefineGoNativeFunc("Fprintln", fmt.Fprintln)
-			pkg.DefineGoNativeFunc("Fprintf", fmt.Fprintf)
-			pkg.DefineGoNativeFunc("Fprint", fmt.Fprint)
+			pkg.DefineGoNativeValue("Sprint", fmt.Sprint)
+			pkg.DefineGoNativeValue("Sprintf", fmt.Sprintf)
+			pkg.DefineGoNativeValue("Sscanf", fmt.Sscanf)
+			pkg.DefineGoNativeValue("Errorf", fmt.Errorf)
+			pkg.DefineGoNativeValue("Fprintln", fmt.Fprintln)
+			pkg.DefineGoNativeValue("Fprintf", fmt.Fprintf)
+			pkg.DefineGoNativeValue("Fprint", fmt.Fprint)
 			return pkg, pkg.NewPackage()
 		case "encoding/base64":
 			if nativeLibs {
 				pkg := gno.NewPackageNode("base64", pkgPath, nil)
 				pkg.DefineGoNativeValue("RawStdEncoding", base64.RawStdEncoding)
 				pkg.DefineGoNativeValue("StdEncoding", base64.StdEncoding)
-				pkg.DefineGoNativeFunc("NewDecoder", base64.NewDecoder)
+				pkg.DefineGoNativeValue("NewDecoder", base64.NewDecoder)
 				return pkg, pkg.NewPackage()
 			}
 		case "encoding/binary":
@@ -190,6 +190,9 @@ func testStore(stdin io.Reader, stdout, stderr io.Writer, isRealm bool, nativeLi
 				pkg.DefineGoNativeValue("TrimSpace", strings.TrimSpace)
 				pkg.DefineGoNativeValue("HasPrefix", strings.HasPrefix)
 				pkg.DefineGoNativeValue("NewReader", strings.NewReader)
+				pkg.DefineGoNativeValue("Index", strings.Index)
+				pkg.DefineGoNativeValue("IndexRune", strings.IndexRune)
+				pkg.DefineGoNativeType(reflect.TypeOf(strings.Builder{}))
 				return pkg, pkg.NewPackage()
 			}
 		case "math":
@@ -207,8 +210,8 @@ func testStore(stdin io.Reader, stdout, stderr io.Writer, isRealm bool, nativeLi
 			pkg.DefineGoNativeValue("Intn", rand.Intn)
 			pkg.DefineGoNativeValue("Uint32", rand.Uint32)
 			pkg.DefineGoNativeValue("Seed", rand.Seed)
-			pkg.DefineGoNativeFunc("New", rand.New)
-			pkg.DefineGoNativeFunc("NewSource", rand.NewSource)
+			pkg.DefineGoNativeValue("New", rand.New)
+			pkg.DefineGoNativeValue("NewSource", rand.NewSource)
 			pkg.DefineGoNativeType(reflect.TypeOf(rand.Rand{}))
 			return pkg, pkg.NewPackage()
 		case "crypto/rand":
@@ -268,6 +271,7 @@ func testStore(stdin io.Reader, stdout, stderr io.Writer, isRealm bool, nativeLi
 			if nativeLibs {
 				pkg := gno.NewPackageNode("sort", pkgPath, nil)
 				pkg.DefineGoNativeValue("Strings", sort.Strings)
+				// pkg.DefineGoNativeValue("Sort", sort.Sort) not supported
 				return pkg, pkg.NewPackage()
 			}
 		case "flag":

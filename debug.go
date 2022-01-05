@@ -27,6 +27,10 @@ func init() {
 	}
 }
 
+func Debug() bool {
+	return bool(debug)
+}
+
 type debugging bool
 
 var enabled bool = true

@@ -137,7 +137,7 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 					}
 				}
 			}()
-			if testing.Verbose() {
+			if gno.Debug() && testing.Verbose() {
 				t.Log("========================================")
 				t.Log("RUN FILES & INIT")
 				t.Log("========================================")
@@ -146,13 +146,13 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 				// simple case.
 				n := gno.MustParseFile(path, string(bz)) // "main.go", string(bz))
 				m.RunFiles(n)
-				if testing.Verbose() {
+				if gno.Debug() && testing.Verbose() {
 					t.Log("========================================")
 					t.Log("RUN MAIN")
 					t.Log("========================================")
 				}
 				m.RunMain()
-				if testing.Verbose() {
+				if gno.Debug() && testing.Verbose() {
 					t.Log("========================================")
 					t.Log("RUN MAIN END")
 					t.Log("========================================")
@@ -178,7 +178,7 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 				// reconstruct machine and clear store cache.
 				// whether pv is realm or not, since non-realm
 				// may call realm packages too.
-				if testing.Verbose() {
+				if gno.Debug() && testing.Verbose() {
 					t.Log("========================================")
 					t.Log("CLEAR STORE CACHE")
 					t.Log("========================================")
@@ -194,21 +194,21 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 					Store:   store,
 					Context: ctx,
 				})
-				if testing.Verbose() {
+				if gno.Debug() && testing.Verbose() {
 					store.Print()
 					t.Log("========================================")
 					t.Log("PREPROCESS ALL FILES")
 					t.Log("========================================")
 				}
 				m2.PreprocessAllFilesAndSaveBlockNodes()
-				if testing.Verbose() {
+				if gno.Debug() && testing.Verbose() {
 					t.Log("========================================")
 					t.Log("RUN MAIN")
 					t.Log("========================================")
 					store.Print()
 				}
 				m2.RunMain()
-				if testing.Verbose() {
+				if gno.Debug() && testing.Verbose() {
 					t.Log("========================================")
 					t.Log("RUN MAIN END")
 					t.Log("========================================")

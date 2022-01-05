@@ -603,6 +603,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *NameExpr:
+				// Validity: check that name isn't reserved.
+				if isReservedName(n.Name) {
+					panic(fmt.Sprintf(
+						"should not happen: name %q is reserved", n.Name))
+				}
 				// special case if struct composite key.
 				if ftype == TRANS_COMPOSITE_KEY {
 					clx := ns[len(ns)-1].(*CompositeLitExpr)
@@ -657,9 +662,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					cx := constUntypedBigint(n, int64(io))
 					return cx, TRANS_CONTINUE
 				case "nil":
-					// nil will be converted to typed-nils when
-					// appropriate upon leaving the expression
-					// nodes that contain nil nodes.
+					// nil will be converted to
+					// typed-nils when appropriate upon
+					// leaving the expression nodes that
+					// contain nil nodes.
 					fallthrough
 				default:
 					if ftype == TRANS_ASSIGN_LHS {
@@ -2445,10 +2451,11 @@ func checkType(xt Type, dt Type, autoNative bool) {
 		dt.String()))
 }
 
-// Returns any names not yet defined in expr.
-// These happen upon enter from the top, so value paths cannot be
-// used.  If no names are un and x is TypeExpr, evalStaticType(store,last, x)
-// must not panic.
+// Returns any names not yet defined nor predefined in expr.  These happen
+// upon transcribe:enter from the top, so value paths cannot be used.  If no
+// names are un and x is TypeExpr, evalStaticType(store,last, x) must not
+// panic.
+//
 // NOTE: has no side effects except for the case of composite
 // type expressions, which must get preprocessed for inner
 // composite type eliding to work.
@@ -2462,10 +2469,13 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
 	}
 	switch cx := x.(type) {
 	case *NameExpr:
-		if _, ok := UverseNode().GetLocalIndex(cx.Name); ok {
+		if tv := last.GetValueRef(store, cx.Name); tv != nil {
 			return
 		}
-		if tv := last.GetValueRef(store, cx.Name); tv != nil {
+		if _, ok := UverseNode().GetLocalIndex(cx.Name); ok {
+			// XXX NOTE even if the name is shadowed by a file
+			// level delcaration, it is fine to return here as it
+			// will be predefined later.
 			return
 		}
 		return cx.Name
@@ -2887,11 +2897,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			case *StructTypeExpr:
 				t = &StructType{}
 			case *NameExpr:
-				if idx, ok := UverseNode().GetLocalIndex(tx.Name); ok {
-					// uverse name
-					tv := Uverse().GetBlock(nil).GetPointerTo(nil, NewValuePathUverse(idx, tx.Name))
-					t = tv.TV.GetType()
-				} else if tv := last.GetValueRef(store, tx.Name); tv != nil {
+				if tv := last.GetValueRef(store, tx.Name); tv != nil {
 					// (file) block name
 					t = tv.GetType()
 					if dt, ok := t.(*DeclaredType); ok {
@@ -2903,6 +2909,11 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 						// all names are declared types.
 						panic("should not happen")
 					}
+				} else if idx, ok := UverseNode().GetLocalIndex(tx.Name); ok {
+					// uverse name
+					path := NewValuePathUverse(idx, tx.Name)
+					tv := Uverse().GetValueRefAt(nil, path)
+					t = tv.GetType()
 				} else {
 					// yet undefined
 					un = tx.Name
@@ -3028,46 +3039,52 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 		// Blank name has no path; caller error.
 		panic("should not happen")
 	}
-	// check to see if name is global.
-	if idx, ok := UverseNode().GetLocalIndex(nx.Name); ok {
-		// Keep generation as 0 (instead of 1),
-		// as 1 is for last, and 0 is for uverse.
-		nx.Path.Depth = 0
-		nx.Path.Index = idx
-	} else {
-		// If not DEFINE_LHS, yet is statically undefined, set path from parent.
-		// NOTE: ValueDecl names don't need this distinction, as
-		// the transcriber doesn't enter any of the ValueDecl.NameExprs nodes,
-		// so this function never gets called for them.
-		if !isDefineLHS {
-			if last.GetStaticTypeOf(nil, nx.Name) == nil {
-				var path ValuePath
-				var i int = 0
-				for {
-					i++
-					last = last.GetParentNode(nil)
-					if last == nil {
+	// If not DEFINE_LHS, yet is statically undefined, set path from parent.
+
+	// NOTE: ValueDecl names don't need this distinction, as
+	// the transcriber doesn't enter any of the ValueDecl.NameExprs nodes,
+	// so this function never gets called for them.
+	if !isDefineLHS {
+		if last.GetStaticTypeOf(nil, nx.Name) == nil {
+			// NOTE: We cannot simply call last.GetPathForName() as below here,
+			// because .GetPathForName() doesn't distinguish between predefined
+			// and declared variables. See tests/files/define1.go for test case.
+			var path ValuePath
+			var i int = 0
+			for {
+				i++
+				last = last.GetParentNode(nil)
+				if last == nil {
+					if isUverseName(nx.Name) {
+						idx, ok := UverseNode().GetLocalIndex(nx.Name)
+						if !ok {
+							panic("should not happen")
+						}
+						nx.Path = NewValuePathUverse(idx, nx.Name)
+						return
+					} else {
 						panic(fmt.Sprintf(
 							"name not defined: %s", nx.Name))
 					}
-					if last.GetStaticTypeOf(nil, nx.Name) == nil {
-						continue
-					} else {
-						path = last.GetPathForName(nil, nx.Name)
-						if path.Type != VPBlock {
-							panic("expected block value path type")
-						}
-						break
-					}
 				}
-				path.Depth += uint8(i)
-				nx.Path = path
-				return
+				if last.GetStaticTypeOf(nil, nx.Name) == nil {
+					continue
+				} else {
+					path = last.GetPathForName(nil, nx.Name)
+					if path.Type != VPBlock {
+						panic("expected block value path type")
+					}
+					break
+				}
 			}
+			path.Depth += uint8(i)
+			nx.Path = path
+			return
 		}
-		// Otherwise, set path for name.
-		nx.Path = last.GetPathForName(nil, nx.Name)
 	}
+	// Otherwise, set path for name.
+	// Uverse name paths get set here as well.
+	nx.Path = last.GetPathForName(nil, nx.Name)
 }
 
 func isFile(n BlockNode) bool {
@@ -3238,11 +3255,7 @@ func mergeNames(a, b []Name) []Name {
 func findDependentNames(n Node, dst map[Name]struct{}) {
 	switch cn := n.(type) {
 	case *NameExpr:
-		if _, ok := UverseNode().GetLocalIndex(cn.Name); ok {
-			// skip global name
-		} else {
-			dst[cn.Name] = struct{}{}
-		}
+		dst[cn.Name] = struct{}{}
 	case *BasicLitExpr:
 	case *BinaryExpr:
 		findDependentNames(cn.Left, dst)

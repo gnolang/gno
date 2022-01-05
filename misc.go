@@ -128,3 +128,31 @@ func toTypeValue(t Type) TypeValue {
 		Type: t,
 	}
 }
+
+//----------------------------------------
+// reserved & uverse names
+
+var reservedNames = map[Name]struct{}{
+	"break": struct{}{}, "default": struct{}{}, "func": struct{}{}, "interface": struct{}{}, "select": struct{}{},
+	"case": struct{}{}, "defer": struct{}{}, "go": struct{}{}, "map": struct{}{}, "struct": struct{}{},
+	"chan": struct{}{}, "else": struct{}{}, "goto": struct{}{}, "package": struct{}{}, "switch": struct{}{},
+	"const": struct{}{}, "fallthrough": struct{}{}, "if": struct{}{}, "range": struct{}{}, "type": struct{}{},
+	"continue": struct{}{}, "for": struct{}{}, "import": struct{}{}, "return": struct{}{}, "var": struct{}{},
+}
+
+// if true, caller should generally panic.
+func isReservedName(n Name) bool {
+	_, ok := reservedNames[n]
+	return ok
+}
+
+// scans uverse static node for blocknames. (slow)
+func isUverseName(n Name) bool {
+	uverseNames := UverseNode().GetBlockNames()
+	for _, name := range uverseNames {
+		if name == n {
+			return true
+		}
+	}
+	return false
+}

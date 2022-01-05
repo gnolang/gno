@@ -399,7 +399,17 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 			if _, ok := fdeclared[dep]; ok {
 				continue
 			}
-			fn, depdecl := pn.FileSet.GetDeclFor(dep)
+			fn, depdecl, exists := pn.FileSet.GetDeclForSafe(dep)
+			// special case: if doesn't exist:
+			if !exists {
+				if isUverseName(dep) { // then is reserved keyword in uverse.
+					continue
+				} else { // is an undefined dependency.
+					panic(fmt.Sprintf(
+						"dependency %s not defined in fileset with files %v",
+						dep, fs.FileNames()))
+				}
+			}
 			// if dep already in loopfindr, abort.
 			if hasName(dep, loopfindr) {
 				if _, ok := (*depdecl).(*FuncDecl); ok {

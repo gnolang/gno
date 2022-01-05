@@ -9,6 +9,7 @@ import (
 type ExecContext struct {
 	ChainID     string
 	Height      int64
+	Timestamp   int64
 	Msg         sdk.Msg
 	Caller      crypto.Address
 	TxSend      std.Coins

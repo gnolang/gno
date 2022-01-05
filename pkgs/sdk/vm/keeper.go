@@ -205,6 +205,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	msgCtx := stdlibs.ExecContext{
 		ChainID:     ctx.ChainID(),
 		Height:      ctx.BlockHeight(),
+		Timestamp:   ctx.BlockTime().Unix(),
 		Msg:         msg,
 		Caller:      caller,
 		TxSend:      send,
@@ -250,8 +251,9 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 	}
 	// Construct new machine.
 	msgCtx := stdlibs.ExecContext{
-		ChainID: ctx.ChainID(),
-		Height:  ctx.BlockHeight(),
+		ChainID:   ctx.ChainID(),
+		Height:    ctx.BlockHeight(),
+		Timestamp: ctx.BlockTime().Unix(),
 		//Msg:         msg,
 		//Caller:      caller,
 		//TxSend:      send,

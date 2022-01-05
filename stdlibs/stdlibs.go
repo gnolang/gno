@@ -9,45 +9,14 @@ import (
 
 func InjectPackage(store gno.Store, pn *gno.PackageNode, pv *gno.PackageValue) {
 	switch pv.PkgPath {
-	/* case "strings":
-	pn.DefineGoNativeFunc("ToLower", strings.ToLower)
-	pn.DefineGoNativeFunc("ToLowerSpecial", strings.ToLowerSpecial)
-	pn.DefineGoNativeFunc("ToUpper", strings.ToUpper)
-	pn.DefineGoNativeFunc("ToUpperSpecial", strings.ToUpperSpecial)
-	pn.DefineGoNativeFunc("ToTitle", strings.ToTitle)
-	pn.DefineGoNativeFunc("ToTitleSpecial", strings.ToTitleSpecial)
-	// NOTE: Split returns []string, which becomes
-	// gonative{[]string}, which is confusing.
-	// So, implement with DefineNative instead.
-	// pn.DefineGoNativeFunc("Split", strings.Split)
-	pn.DefineNative("Split",
-		gno.Flds( // params
-			"str", "string",
-			"delim", "string",
-		),
-		gno.Flds( // results
-			"parts", "[]string",
-		),
-		func(m *gno.Machine) {
-			arg0, arg1 := m.LastBlock().GetParams2()
-			str := arg0.TV.GetString()
-			delim := arg1.TV.GetString()
-			parts := strings.Split(str, delim)
-			res0 := gno.Go2GnoValue(
-				reflect.ValueOf(parts),
-			)
-			m.PushValue(res0)
-		},
-	)
-	pn.PrepareNewValues(pv) */
 	case "strconv":
-		pn.DefineGoNativeFunc("Itoa", strconv.Itoa)
-		pn.DefineGoNativeFunc("Atoi", strconv.Atoi)
-		pn.DefineGoNativeFunc("FormatInt", strconv.FormatInt)
-		pn.DefineGoNativeFunc("FormatUint", strconv.FormatUint)
-		pn.DefineGoNativeFunc("Quote", strconv.Quote)
-		pn.DefineGoNativeFunc("QuoteToASCII", strconv.QuoteToASCII)
-		pn.DefineGoNativeFunc("CanBackquote", strconv.CanBackquote)
+		pn.DefineGoNativeValue("Itoa", strconv.Itoa)
+		pn.DefineGoNativeValue("Atoi", strconv.Atoi)
+		pn.DefineGoNativeValue("FormatInt", strconv.FormatInt)
+		pn.DefineGoNativeValue("FormatUint", strconv.FormatUint)
+		pn.DefineGoNativeValue("Quote", strconv.Quote)
+		pn.DefineGoNativeValue("QuoteToASCII", strconv.QuoteToASCII)
+		pn.DefineGoNativeValue("CanBackquote", strconv.CanBackquote)
 		pn.DefineGoNativeValue("IntSize", strconv.IntSize)
 		pn.PrepareNewValues(pv)
 	case "std":
@@ -202,6 +171,24 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode, pv *gno.PackageValue) {
 				m.PushValue(res0)
 			},
 		)
+		pn.DefineNative("GetTimestamp",
+			gno.Flds( // params
+			),
+			gno.Flds( // results
+				"", "int64",
+			),
+			func(m *gno.Machine) {
+				ctx := m.Context.(ExecContext)
+				res0 := typedInt64(ctx.Timestamp)
+				m.PushValue(res0)
+			},
+		)
 		pn.PrepareNewValues(pv)
 	}
+}
+
+func typedInt64(i64 int64) gno.TypedValue {
+	tv := gno.TypedValue{T: gno.Int64Type}
+	tv.SetInt64(i64)
+	return tv
 }

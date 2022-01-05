@@ -982,8 +982,8 @@ func extract(str string) (name string, num int, rest string, ok bool) {
 	}
 	i := 0
 	for i < len(str) {
-		rune_, size := utf8.DecodeRuneInString(str[i:])
-		if !unicode.IsLetter(rune_) && !unicode.IsDigit(rune_) && rune_ != '_' {
+		rune, size := utf8.DecodeRuneInString(str[i:])
+		if !unicode.IsLetter(rune) && !unicode.IsDigit(rune) && rune != '_' {
 			break
 		}
 		i += size

@@ -99,7 +99,7 @@ func TestGoNativeDefine3(t *testing.T) {
 	out := new(bytes.Buffer)
 	pkg := NewPackageNode("foo", "test.foo", nil)
 	pkg.DefineGoNativeType(reflect.TypeOf(Foo{}))
-	pkg.DefineGoNativeFunc("printFoo", func(f Foo) {
+	pkg.DefineGoNativeValue("printFoo", func(f Foo) {
 		out.Write([]byte(fmt.Sprintf("A: %v\n", f.A)))
 		out.Write([]byte(fmt.Sprintf("B: %v\n", f.B)))
 		out.Write([]byte(fmt.Sprintf("C: %v\n", f.C)))
