@@ -129,11 +129,12 @@ func Render(path string) string {
 type BoardID uint64
 
 type Board struct {
-	id       BoardID // only set for public boards.
-	name     string
-	creator  std.Address
-	posts    *avl.Tree // Post.id -> *Post
-	postsCtr uint64    // increments Post.id
+	id        BoardID // only set for public boards.
+	name      string
+	creator   std.Address
+	posts     *avl.Tree // Post.id -> *Post
+	postsCtr  uint64    // increments Post.id
+	createdAt int64
 }
 
 func newBoard(id BoardID, name string, creator std.Address) *Board {
@@ -145,9 +146,10 @@ func newBoard(id BoardID, name string, creator std.Address) *Board {
 		panic("board already exists")
 	}
 	return &Board{
-		id:      id,
-		name:    name,
-		creator: creator,
+		id:        id,
+		name:      name,
+		creator:   creator,
+		createdAt: std.GetTimestamp(),
 	}
 }
 
@@ -176,11 +178,12 @@ func (board *Board) AddPost(creator std.Address, title string, body string) *Pos
 	pid := board.incGetPostID()
 	pidkey := strconv.Itoa(int(pid))
 	post := &Post{
-		board:   board,
-		id:      pid,
-		creator: creator,
-		title:   title,
-		body:    body,
+		board:     board,
+		id:        pid,
+		creator:   creator,
+		title:     title,
+		body:      body,
+		createdAt: std.GetTimestamp(),
 	}
 	board.posts, _ = board.posts.Set(pidkey, post)
 	return post
@@ -227,6 +230,7 @@ type Post struct {
 	reposts     *avl.Tree // Board.id -> Post.id
 	replyTo     PostID    // original Post.id (if reply or repost)
 	repostBoard BoardID   // original Board.id (if repost)
+	createdAt   int64
 }
 
 func (post *Post) AddReply(creator std.Address, body string) *Post {
@@ -234,13 +238,14 @@ func (post *Post) AddReply(creator std.Address, body string) *Post {
 	pid := board.incGetPostID()
 	pidkey := strconv.Itoa(int(pid))
 	reply := &Post{
-		board:   board,
-		id:      pid,
-		creator: creator,
-		body:    body,
-		replyTo: post.id,
+		board:     board,
+		id:        pid,
+		creator:   creator,
+		body:      body,
+		replyTo:   post.id,
+		createdAt: std.GetTimestamp(),
 	}
-	post.replies, _ = post.replies.Set(pidkey, pid)
+	post.replies, _ = post.replies.Set(pidkey, reply)
 	return reply
 }
 
@@ -255,6 +260,7 @@ func (post *Post) AddRepostTo(creator std.Address, title, body string, dst *Boar
 		body:        body,
 		replyTo:     post.id,
 		repostBoard: post.board.id,
+		createdAt:   std.GetTimestamp(),
 	}
 	dst.posts, _ = dst.posts.Set(pidkey, repost)
 	if !dst.IsPrivate() {
@@ -285,17 +291,18 @@ func (post *Post) RenderSummary() string {
 }
 
 func (post *Post) Render(indent string) string {
-	str := "----------------------------------------\n"
+	str := ""
 	if post.title != "" {
 		str += indent + "# " + post.title + "\n"
 		str += indent + "\n"
 	}
-	str += indent + post.body // TODO: indent body lines.
-	str += indent + "\n"
+	str += indent + post.body + "\n" // TODO: indent body lines.
+	str += indent + "- by " + std.ToBech32(post.creator) + ", "
+	str += std.FormatTimestamp(post.createdAt, "2006-01-02 3:04pm (MST)") + "\n"
 	if post.replies.Size() > 0 {
 		post.replies.Iterate("", "", func(n *avl.Tree) bool {
 			str += "\n"
-			str += n.Value().(*Post).Render(indent + "| ")
+			str += n.Value().(*Post).Render(indent + "> ")
 			return false
 		})
 	}

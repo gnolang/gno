@@ -3,8 +3,11 @@ package stdlibs
 import (
 	"reflect"
 	"strconv"
+	"time"
 
 	"github.com/gnolang/gno"
+	"github.com/gnolang/gno/pkgs/bech32"
+	"github.com/gnolang/gno/pkgs/crypto"
 )
 
 func InjectPackage(store gno.Store, pn *gno.PackageNode, pv *gno.PackageValue) {
@@ -183,6 +186,46 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode, pv *gno.PackageValue) {
 				m.PushValue(res0)
 			},
 		)
+		pn.DefineNative("FormatTimestamp",
+			gno.Flds( // params
+				"timestamp", "int64",
+				"format", "string",
+			),
+			gno.Flds( // results
+				"", "string",
+			),
+			func(m *gno.Machine) {
+				arg0, arg1 := m.LastBlock().GetParams2()
+				timestamp := arg0.TV.GetInt64()
+				format := arg1.TV.GetString()
+				t := time.Unix(timestamp, 0).Round(0).UTC()
+				result := t.Format(format)
+				res0 := typedString(result)
+				m.PushValue(res0)
+			},
+		)
+		pn.DefineNative("ToBech32",
+			gno.Flds( // params
+				"addr", "Address",
+			),
+			gno.Flds( // results
+				"", "string",
+			),
+			func(m *gno.Machine) {
+				arg0 := m.LastBlock().GetParams1()
+				bz := arg0.TV.V.(*gno.ArrayValue).GetReadonlyBytes()
+				if len(bz) != crypto.AddressSize {
+					panic("should not happen")
+				}
+				b32, err := bech32.ConvertAndEncode("g", bz)
+				if err != nil {
+					panic(err)
+				}
+				res0 := typedString(b32)
+				m.PushValue(res0)
+			},
+		)
+
 		pn.PrepareNewValues(pv)
 	}
 }
@@ -190,5 +233,11 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode, pv *gno.PackageValue) {
 func typedInt64(i64 int64) gno.TypedValue {
 	tv := gno.TypedValue{T: gno.Int64Type}
 	tv.SetInt64(i64)
+	return tv
+}
+
+func typedString(s string) gno.TypedValue {
+	tv := gno.TypedValue{T: gno.StringType}
+	tv.SetString(s)
 	return tv
 }

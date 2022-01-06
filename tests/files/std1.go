@@ -3,8 +3,10 @@ package main
 import "std"
 
 func main() {
-	println(std.GetTimestamp())
+	timestamp := std.GetTimestamp()
+	result := std.FormatTimestamp(timestamp, "Jan 2, 2006 at 3:04pm (MST)")
+	println(result)
 }
 
 // Output:
-// 0
+// Jan 1, 1970 at 12:00am (UTC)

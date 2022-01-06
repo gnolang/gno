@@ -76,7 +76,7 @@ func NewStore(baseStore, iavlStore store.Store) *defaultStore {
 		iavlStore:    iavlStore,
 		current:      make(map[string]struct{}),
 	}
-	SetCacheTypes(ds)
+	InitCacheTypes(ds)
 	return ds
 }
 
@@ -142,6 +142,15 @@ func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
 					// that don't have corresponding *PackageNodes.
 				} else {
 					ds.pkgInjector(ds, pn, pv)
+				}
+			}
+			// cache all types. usually preprocess() sets types,
+			// but packages gotten from the pkgGetter may skip this step,
+			// so fill in store.CacheTypes here.
+			for _, tv := range pv.GetBlock(nil).Values {
+				if tv.T.Kind() == TypeKind {
+					t := tv.GetType()
+					ds.SetCacheType(t)
 				}
 			}
 			return pv
@@ -555,7 +564,7 @@ func (ds *defaultStore) ClearCache() {
 	ds.cacheTypes = make(map[TypeID]Type)
 	ds.cacheNodes = make(map[Location]BlockNode)
 	// restore builtin types to cache.
-	SetCacheTypes(ds)
+	InitCacheTypes(ds)
 }
 
 // for debugging
@@ -608,7 +617,7 @@ func backendPackageIndexKey(index uint64) string {
 //----------------------------------------
 // builtin types
 
-func SetCacheTypes(store Store) {
+func InitCacheTypes(store Store) {
 	types := []Type{
 		BoolType, UntypedBoolType,
 		StringType, UntypedStringType,
