@@ -58,6 +58,8 @@ func broadcastApp(cmd *command.Command, args []string, iopts interface{}) error 
 	} else {
 		cmd.Println(string(bres.DeliverTx.Data))
 		cmd.Println("OK!")
+		cmd.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
+		cmd.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
 	}
 	return nil
 }

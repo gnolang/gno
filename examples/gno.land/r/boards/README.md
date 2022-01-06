@@ -5,19 +5,36 @@ The smart contract files that were uploaded to make this
 possible can be found here:
 https://github.com/gnolang/gno/tree/master/examples/gno.land
 
-## add test account
+## build and start gnoland.
 
-> make
-> ./build/gnokey add test1 --recover
+```bash
+git clone github.com/gnolang/gno
+cd ./gno
+make 
+```
+
+## add test account.
+
+```bash
+./build/gnokey add test1 --recover
+```
 
 Use this mnemonic:
 > source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast
 
 ## start gnoland validator.
 
-> ./build/gnoland
+```bash
+./build/gnoland
+```
 
 (This can be reset with `make reset`).
+
+## start gnoland web server (optional).
+
+```bash
+go run ./gnoland/website/\*.go
+```
 
 ## sign an addpkg (add avl package) transaction.
 
@@ -31,7 +48,7 @@ Use this mnemonic:
 ## sign an addpkg (add "gno.land/r/boards" package) transaction.
 
 ```bash
-./build/gnokey maketx addpkg test1 --pkgpath "gno.land/r/boards" --pkgdir "examples/gno.land/r/boards" --deposit 100gnot --gas-fee 1gnot --gas-wanted 4000000 > addpkg.boards.unsigned.txt
+./build/gnokey maketx addpkg test1 --pkgpath "gno.land/r/boards" --pkgdir "examples/gno.land/r/boards" --deposit 100gnot --gas-fee 1gnot --gas-wanted 300000000 > addpkg.boards.unsigned.txt
 ./build/gnokey sign test1 --txpath addpkg.boards.unsigned.txt --chainid "testchain" --number 0 --sequence 1 > addpkg.boards.signed.txt
 ./build/gnokey broadcast addpkg.boards.signed.txt
 ```
@@ -39,16 +56,15 @@ Use this mnemonic:
 ## sign a (contract) function call transaction -- create board.
 
 ```bash
-./build/gnokey maketx call test1 --pkgpath "gno.land/r/boards" --func CreateBoard --args "Gno.land" --gas-fee 1gnot --gas-wanted 2000000 > createboard.unsigned.txt
+./build/gnokey maketx call test1 --pkgpath "gno.land/r/boards" --func CreateBoard --args "gnolang" --gas-fee 1gnot --gas-wanted 2000000 > createboard.unsigned.txt
 ./build/gnokey sign test1 --txpath createboard.unsigned.txt --chainid "testchain" --number 0 --sequence 2 > createboard.signed.txt
 ./build/gnokey broadcast createboard.signed.txt
 ```
-The boardcast of the createboard transaction should return the resulting board's BoardID (e.g. 1).
-You can also look this up by querying:
+Next, query for the permanent board ID by querying (you need this to create a new post):
 
 ```bash
 ./build/gnokey query "vm/qeval" --data "gno.land/r/boards
-GetBoardIDFromName(\"Gno.land\")"
+GetBoardIDFromName(\"gnolang\")"
 ```
 
 ## sign a (contract) function call transaction -- create post.
@@ -63,5 +79,18 @@ GetBoardIDFromName(\"Gno.land\")"
 
 ```bash
 ./build/gnokey query "vm/qeval" --data "gno.land/r/boards
-RenderBoard(1)"
+Render(\"gnolang\")"
+```
+
+## add a comment to a post.
+
+```bash
+./build/gnokey maketx call test1 --pkgpath "gno.land/r/boards" --func CreateReply --args 1 --args 1 --args "A reply" --gas-fee 1gnot --gas-wanted 2000000 > createreply.unsigned.txt
+./build/gnokey sign test1 --txpath createreply.unsigned.txt --chainid "testchain" --number 0 --sequence 4 > createreply.signed.txt
+./build/gnokey broadcast createreply.signed.txt
+```
+
+```bash
+./build/gnokey query "vm/qeval" --data "gno.land/r/boards
+Render(\"gnolang/1\")"
 ```

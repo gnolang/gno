@@ -1,7 +1,6 @@
 package boards
 
 import (
-	"fmt"
 	"regexp"
 	"std"
 	"strconv"
@@ -33,7 +32,7 @@ func GetBoardIDFromName(name string) (BoardID, bool) {
 	return boardI.(*Board).id, true
 }
 
-func CreateBoard(name string) *Board {
+func CreateBoard(name string) BoardID {
 	if !std.IsOriginCall() {
 		// TODO: consider making this a function
 		// tag/decorator.
@@ -46,10 +45,10 @@ func CreateBoard(name string) *Board {
 	bidkey := strconv.Itoa(int(bid))
 	gBoards, _ = gBoards.Set(bidkey, board)
 	gBoardsByName, _ = gBoardsByName.Set(name, board)
-	return board
+	return board.id
 }
 
-func CreatePost(bid BoardID, title string, body string) {
+func CreatePost(bid BoardID, title string, body string) PostID {
 	if !std.IsOriginCall() {
 		// TODO: consider making this a function
 		// tag/decorator.
@@ -57,10 +56,11 @@ func CreatePost(bid BoardID, title string, body string) {
 	}
 	caller := std.GetCaller()
 	board := getBoard(bid)
-	board.AddPost(caller, title, body)
+	post := board.AddPost(caller, title, body)
+	return post.id
 }
 
-func CreateReply(bid BoardID, postid PostID, body string) {
+func CreateReply(bid BoardID, postid PostID, body string) PostID {
 	if !std.IsOriginCall() {
 		// TODO: consider making this a function
 		// tag/decorator.
@@ -69,12 +69,13 @@ func CreateReply(bid BoardID, postid PostID, body string) {
 	caller := std.GetCaller()
 	board := getBoard(bid)
 	post := board.GetPost(postid)
-	post.AddReply(caller, body)
+	reply := post.AddReply(caller, body)
+	return reply.id
 }
 
 // If dstBoard is private, does not ping back.
 // If board specified by bid is private, panics.
-func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoardID BoardID) {
+func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoardID BoardID) PostID {
 	if !std.IsOriginCall() {
 		// TODO: consider making this a function
 		// tag/decorator.
@@ -87,7 +88,8 @@ func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoar
 	}
 	dst := getBoard(dstBoardID)
 	post := board.GetPost(postid)
-	post.AddRepostTo(caller, title, body, dst)
+	repost := post.AddRepostTo(caller, title, body, dst)
+	return repost.id
 }
 
 //----------------------------------------
@@ -119,6 +121,22 @@ func Render(path string) string {
 			return "board does not exist: " + name
 		}
 		return boardI.(*Board).Render()
+	} else if len(parts) == 2 {
+		name := parts[0]
+		_, boardI, exists := gBoardsByName.Get(name)
+		if !exists {
+			return "board does not exist: " + name
+		}
+		pid, err := strconv.Atoi(parts[1])
+		if err != nil {
+			return "invalid post id: " + parts[1]
+		}
+		board := boardI.(*Board)
+		post := board.GetPost(PostID(pid))
+		if post == nil {
+			return "post does not exist with id: " + parts[1]
+		}
+		return post.Render("")
 	} else {
 		return "unrecognized path " + path
 	}
@@ -141,7 +159,7 @@ type Board struct {
 
 func newBoard(id BoardID, url string, name string, creator std.Address) *Board {
 	if !reName.MatchString(name) {
-		panic(fmt.Sprintf("invalid name %q", name))
+		panic("invalid name: " + name)
 	}
 	exists := gBoardsByName.Has(name)
 	if exists {
@@ -238,6 +256,10 @@ type Post struct {
 	createdAt   int64
 }
 
+func (post *Post) GetPostID() PostID {
+	return post.id
+}
+
 func (post *Post) AddReply(creator std.Address, body string) *Post {
 	board := post.board
 	pid := board.incGetPostID()
@@ -278,7 +300,7 @@ func (post *Post) AddRepostTo(creator std.Address, title, body string, dst *Boar
 func (post *Post) GetSummary() string {
 	lines := strings.SplitN(post.body, "\n", 2)
 	line := lines[0]
-	if len(line) > 80 {
+	if len(line) > 80 || len(lines) > 1 {
 		line = line[:77] + "..."
 	}
 	return line
