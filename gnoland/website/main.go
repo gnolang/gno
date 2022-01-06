@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -14,7 +15,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gotuna/gotuna"
 
-	"github.com/gnolang/gno/pkgs/sdk/vm" // for error types
+	"github.com/gnolang/gno/gnoland/website/static" // for static files
+	"github.com/gnolang/gno/pkgs/sdk/vm"            // for error types
 )
 
 func init() {
@@ -23,8 +25,10 @@ func init() {
 
 func main() {
 	app := gotuna.App{
-		ViewFiles: os.DirFS("."),
+		ViewFiles: os.DirFS("./views/"),
 		Router:    gotuna.NewMuxRouter(),
+		Static:    static.EmbeddedStatic,
+		// StaticPrefix: "static/",
 	}
 
 	app.Router.Handle("/", handlerHome(app))
@@ -32,7 +36,7 @@ func main() {
 	app.Router.Handle("/r/{rlmpath:[a-zA-Z][a-zA-Z0-9_]*}", handlerRealm(app))
 	app.Router.Handle("/r/{rlmpath:[a-zA-Z][a-zA-Z0-9_]*}.{expr}", handlerRealmExpr(app))
 	app.Router.Handle("/r/{rlmpath:[a-zA-Z][a-zA-Z0-9_]*}/{path:.+}", handlerRealmPath(app))
-	//app.Router.Handle("/login", handlerLogin(app)).Methods(http.MethodGet, http.MethodPost)
+	app.Router.Handle("/static/{path:.+}", handlerStaticFile(app))
 
 	fmt.Println("Running on http://localhost:8888")
 	http.ListenAndServe("127.0.0.1:8888", app.Router)
@@ -212,6 +216,43 @@ func handlerLogin(app gotuna.App) http.Handler {
 	})
 }
 */
+
+func handlerStaticFile(app gotuna.App) http.Handler {
+
+	fs := http.FS(app.Static)
+	fileapp := http.StripPrefix("/static", http.FileServer(fs))
+	notFound := handlerNotFound(app)
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		fpath := filepath.Clean(vars["path"])
+		f, err := fs.Open(fpath)
+		if os.IsNotExist(err) {
+			notFound.ServeHTTP(w, r)
+			return
+		}
+		stat, err := f.Stat()
+		if err != nil || stat.IsDir() {
+			notFound.ServeHTTP(w, r)
+			return
+		}
+
+		// TODO: ModTime doesn't work for embed?
+		//w.Header().Set("ETag", fmt.Sprintf("%x", stat.ModTime().UnixNano()))
+		//w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%s", "31536000"))
+		fileapp.ServeHTTP(w, r)
+	})
+}
+
+func handlerNotFound(app gotuna.App) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		app.NewTemplatingEngine().
+			Set("title", app.Locale.T(app.Session.GetLocale(r), "Not found")).
+			SetError("title", app.Locale.T(app.Session.GetLocale(r), "Not found")).
+			Render(w, r, "404.html")
+	})
+}
 
 func writeError(w http.ResponseWriter, err error) {
 	w.WriteHeader(500)

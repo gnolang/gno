@@ -300,8 +300,11 @@ func (post *Post) AddRepostTo(creator std.Address, title, body string, dst *Boar
 func (post *Post) GetSummary() string {
 	lines := strings.SplitN(post.body, "\n", 2)
 	line := lines[0]
-	if len(line) > 80 || len(lines) > 1 {
+	if len(line) > 80 {
 		line = line[:77] + "..."
+	} else if len(lines) > 1 {
+		// len(line) <= 80
+		line = line + "..."
 	}
 	return line
 }
