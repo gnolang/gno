@@ -17,5 +17,5 @@ func main() {
 }
 
 // Output:
-//  * [test_board_1](gno.land/r/boards/test_board_1)
-//  * [test_board_2](gno.land/r/boards/test_board_2)
+//  * [test_board_1](/r/boards/test_board_1)
+//  * [test_board_2](/r/boards/test_board_2)

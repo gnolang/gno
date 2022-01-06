@@ -33,7 +33,7 @@ func GetBoardIDFromName(name string) (BoardID, bool) {
 	return boardI.(*Board).id, true
 }
 
-func CreateBoard(name string) BoardID {
+func CreateBoard(name string) *Board {
 	if !std.IsOriginCall() {
 		// TODO: consider making this a function
 		// tag/decorator.
@@ -41,11 +41,12 @@ func CreateBoard(name string) BoardID {
 	}
 	bid := incGetBoardID()
 	caller := std.GetCaller()
-	board := newBoard(bid, name, caller)
+	url := "/r/boards/" + name
+	board := newBoard(bid, url, name, caller)
 	bidkey := strconv.Itoa(int(bid))
 	gBoards, _ = gBoards.Set(bidkey, board)
 	gBoardsByName, _ = gBoardsByName.Set(name, board)
-	return board.id
+	return board
 }
 
 func CreatePost(bid BoardID, title string, body string) {
@@ -104,8 +105,8 @@ func Render(path string) string {
 	if path == "" {
 		str := ""
 		gBoards.Iterate("", "", func(n *avl.Tree) bool {
-			board := n.Value().(*Board).name
-			str += " * [" + board + "](gno.land/r/boards/" + board + ")\n"
+			board := n.Value().(*Board)
+			str += " * [" + board.name + "](" + board.url + ")\n"
 			return false
 		})
 		return str
@@ -130,6 +131,7 @@ type BoardID uint64
 
 type Board struct {
 	id        BoardID // only set for public boards.
+	url       string
 	name      string
 	creator   std.Address
 	posts     *avl.Tree // Post.id -> *Post
@@ -137,7 +139,7 @@ type Board struct {
 	createdAt int64
 }
 
-func newBoard(id BoardID, name string, creator std.Address) *Board {
+func newBoard(id BoardID, url string, name string, creator std.Address) *Board {
 	if !reName.MatchString(name) {
 		panic(fmt.Sprintf("invalid name %q", name))
 	}
@@ -147,19 +149,22 @@ func newBoard(id BoardID, name string, creator std.Address) *Board {
 	}
 	return &Board{
 		id:        id,
+		url:       url,
 		name:      name,
 		creator:   creator,
 		createdAt: std.GetTimestamp(),
 	}
 }
 
+/* TODO support this once we figure out how to ensure URL correctness.
 // A private board is not tracked by gBoards*,
 // but must be persisted by the caller's realm.
 // Private boards have 0 id and does not ping
 // back the remote board on reposts.
-func NewPrivateBoard(name string, creator std.Address) *Board {
-	return newBoard(0, name, creator)
+func NewPrivateBoard(url string, name string, creator std.Address) *Board {
+	return newBoard(0, url, name, creator)
 }
+*/
 
 func (board *Board) IsPrivate() bool {
 	return board.id == 0
@@ -197,7 +202,7 @@ func (board *Board) Render() string {
 	if board.id == 0 {
 		str += "### (private) " + board.name + " ###\n\n"
 	} else {
-		str += "### gno.land/r/boards/" + board.name + " ###\n\n"
+		str += "### " + board.name + " ###\n\n"
 	}
 	if board.posts.Size() > 0 {
 		board.posts.Iterate("", "", func(n *avl.Tree) bool {
@@ -270,7 +275,7 @@ func (post *Post) AddRepostTo(creator std.Address, title, body string, dst *Boar
 	return repost
 }
 
-func (post *Post) Summary() string {
+func (post *Post) GetSummary() string {
 	lines := strings.SplitN(post.body, "\n", 2)
 	line := lines[0]
 	if len(line) > 80 {
@@ -279,14 +284,21 @@ func (post *Post) Summary() string {
 	return line
 }
 
+func (post *Post) GetURL() string {
+	return post.board.url + "/" + strconv.Itoa(int(post.id))
+}
+
 func (post *Post) RenderSummary() string {
 	str := ""
 	if post.title != "" {
 		str += "# " + post.title + "\n"
 		str += "\n"
 	}
-	str += post.Summary() + "\n\n"
-	str += padLeft("("+strconv.Itoa(post.replies.Size())+" replies)", 40) + "\n"
+	str += post.GetSummary() + "\n"
+	str += "- by " + std.ToBech32(post.creator) + ", "
+	str += "[" + std.FormatTimestamp(post.createdAt, "2006-01-02 3:04pm MST") + "](" + post.GetURL() + ") "
+
+	str += "(" + strconv.Itoa(post.replies.Size()) + " replies)" + "\n"
 	return str
 }
 
@@ -298,7 +310,7 @@ func (post *Post) Render(indent string) string {
 	}
 	str += indent + post.body + "\n" // TODO: indent body lines.
 	str += indent + "- by " + std.ToBech32(post.creator) + ", "
-	str += std.FormatTimestamp(post.createdAt, "2006-01-02 3:04pm (MST)") + "\n"
+	str += "[" + std.FormatTimestamp(post.createdAt, "2006-01-02 3:04pm (MST)") + "](" + post.GetURL() + ")\n"
 	if post.replies.Size() > 0 {
 		post.replies.Iterate("", "", func(n *avl.Tree) bool {
 			str += "\n"
