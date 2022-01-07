@@ -26,5 +26,5 @@ become finished within a reasonable timeframe.
 ## Token Philosophy
 
  * Single base token.
- * Deflatinoary is sufficient when tx fees are imminent.
+ * Deflationary is sufficient when tx fees are imminent.
  * Int64 is sufficiently large to handle human numbers; for everything else, use denom conversions.
