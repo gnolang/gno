@@ -206,6 +206,7 @@ func (board *Board) AddPost(creator std.Address, title string, body string) *Pos
 		creator:   creator,
 		title:     title,
 		body:      body,
+		threadID:  pid,
 		createdAt: std.GetTimestamp(),
 	}
 	board.posts, _ = board.posts.Set(pidkey, post)
@@ -250,8 +251,10 @@ type Post struct {
 	title       string // optional
 	body        string
 	replies     *avl.Tree // Post.id -> *Post
+	repliesAll  *avl.Tree // Post.id -> *Post (all comments, for top-level posts)
 	reposts     *avl.Tree // Board.id -> Post.id
-	replyTo     PostID    // original Post.id (if reply or repost)
+	threadID    PostID    // original Post.id
+	replyTo     PostID    // parent Post.id (if reply or repost)
 	repostBoard BoardID   // original Board.id (if repost)
 	createdAt   int64
 }
@@ -269,10 +272,17 @@ func (post *Post) AddReply(creator std.Address, body string) *Post {
 		id:        pid,
 		creator:   creator,
 		body:      body,
+		threadID:  post.threadID,
 		replyTo:   post.id,
 		createdAt: std.GetTimestamp(),
 	}
 	post.replies, _ = post.replies.Set(pidkey, reply)
+	if post.threadID == post.id {
+		post.repliesAll, _ = post.repliesAll.Set(pidkey, reply)
+	} else {
+		thread := board.GetPost(post.threadID)
+		thread.repliesAll, _ = thread.repliesAll.Set(pidkey, reply)
+	}
 	return reply
 }
 
@@ -285,6 +295,7 @@ func (post *Post) AddRepostTo(creator std.Address, title, body string, dst *Boar
 		creator:     creator,
 		title:       title,
 		body:        body,
+		threadID:    pid,
 		replyTo:     post.id,
 		repostBoard: post.board.id,
 		createdAt:   std.GetTimestamp(),
@@ -310,7 +321,11 @@ func (post *Post) GetSummary() string {
 }
 
 func (post *Post) GetURL() string {
-	return post.board.url + "/" + strconv.Itoa(int(post.id))
+	if post.replyTo == 0 {
+		return post.board.url + "/" + strconv.Itoa(int(post.id))
+	} else {
+		return post.board.url + "/" + strconv.Itoa(int(post.threadID)) + "#" + strconv.Itoa(int(post.id))
+	}
 }
 
 func (post *Post) RenderSummary() string {
