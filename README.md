@@ -53,9 +53,9 @@ Make sure you have >=[go1.15](https://golang.org/doc/install) installed, and the
 ## Resources
 
  * [GnoKey Client Tool](/cmd/gnokey) universal Gno client
- * [Amino](/pkg/amino) complete with .proto generation
- * [BFT Consensus](/pkg/bft) minimal port of Tendermint
- * [SDK](/pkg/sdk) minimal port of Cosmos-SDK
+ * [Amino](/pkgs/amino) complete with .proto generation
+ * [BFT Consensus](/pkgs/bft) minimal port of Tendermint
+ * [SDK](/pkgs/sdk) minimal port of Cosmos-SDK
  * [Logos Browser](/logos) future terminal browser
  * [Plan](/PLAN.md) project plan
  * [Roadmap](/ROADMAP.md) development roadmap
