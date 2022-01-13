@@ -75,8 +75,8 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 	}
 	gen.AppState = gnoland.GnoGenesisState{
 		Balances: []string{
-			"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj=1000000000gnot",
 			"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5=10000gnot",
+			"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj=1000000000gnot",
 			// from Github:
 			"g1589c8cekvmjfmy0qrd4f3z52r7fn7rgk02667s=10000gnot", // @mefodica #83
 			"g13sm84nuqed3fuank8huh7x9mupgw22uft3lcl8=10000gnot", // @hipsterhead91 #81
