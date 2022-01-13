@@ -3,6 +3,7 @@ package command
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"reflect"
@@ -47,8 +48,8 @@ func (cmd *Command) Run(app App, args []string, defaults interface{}) error {
 		args, flags := ParseArgs(args)
 		if help, ok := flags["help"]; ok && help == "y" {
 			// print help.
-			rt := reflect.TypeOf(defaults)
-			cmd.printHelpFromDefaults(rt)
+			rv := reflect.ValueOf(defaults)
+			cmd.printHelpFromDefaults(rv)
 			return nil
 		}
 		// store raw flags.
@@ -64,14 +65,16 @@ func (cmd *Command) Run(app App, args []string, defaults interface{}) error {
 	}
 }
 
-func (cmd *Command) printHelpFromDefaults(rt reflect.Type) {
+func (cmd *Command) printHelpFromDefaults(rv reflect.Value) {
+	rt := rv.Type()
 	num := rt.NumField()
 
 	// print anonymous embedded struct options
 	for i := 0; i < num; i++ {
+		rvf := rv.Field(i)
 		rtf := rt.Field(i)
 		if rtf.Anonymous {
-			cmd.printHelpFromDefaults(rtf.Type)
+			cmd.printHelpFromDefaults(rvf)
 			cmd.Println("")
 		} else {
 			continue
@@ -81,6 +84,7 @@ func (cmd *Command) printHelpFromDefaults(rt reflect.Type) {
 	// print remaining options
 	cmd.Println("#", rt.Name(), "options")
 	for i := 0; i < num; i++ {
+		rvf := rv.Field(i)
 		rtf := rt.Field(i)
 		ffn := rtf.Tag.Get("flag")
 		if rtf.Anonymous {
@@ -88,9 +92,13 @@ func (cmd *Command) printHelpFromDefaults(rt reflect.Type) {
 		} else if ffn == "" {
 			// ignore fields with no flags field.
 		} else {
+			def := ""
+			if !rvf.IsZero() {
+				def = "(default " + fmt.Sprintf("%v", rvf.Interface()) + ") "
+			}
 			frt := rtf.Type
 			help := rtf.Tag.Get("help")
-			cmd.Println("-", ffn, "("+frt.String()+")", "-", help)
+			cmd.Println("-", ffn, "("+frt.String()+")", "-", help, def)
 		}
 	}
 

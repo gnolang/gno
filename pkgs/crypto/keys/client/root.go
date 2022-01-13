@@ -5,15 +5,8 @@ import (
 	"github.com/gnolang/gno/pkgs/errors"
 )
 
-type AppItem struct {
-	App      command.App
-	Name     string      // arg name
-	Desc     string      // short (single line) description of app
-	Defaults interface{} // default options
-	// Help string // long form help
-}
-
-type AppList []AppItem
+type AppItem = command.AppItem
+type AppList = command.AppList
 
 var mainApps AppList = []AppItem{
 	{addApp, "add", "add key to keybase", DefaultAddOptions},
