@@ -118,6 +118,7 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 			"g1e8umkzumtxgs8399lw0us4rclea3xl5gxy9spp=10000gnot", // @imperator-co #42
 			"g14qekdkj2nmmwea4ufg9n002a3pud23y8k7ugs5=10000gnot", // @dylanschultzie #41
 			"g19w2488ntfgpduzqq3sk4j5x387zynwknqdvjqf=10000gnot", // @nullnames #40
+			"g1mzjajymvmtksdwh3wkrndwj6zls2awl9q83dh6=10000gnot", // @vanlee #39
 		},
 	}
 	return gen
