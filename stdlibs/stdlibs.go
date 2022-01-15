@@ -10,8 +10,8 @@ import (
 	"github.com/gnolang/gno/pkgs/crypto"
 )
 
-func InjectPackage(store gno.Store, pn *gno.PackageNode, pv *gno.PackageValue) {
-	switch pv.PkgPath {
+func InjectPackage(store gno.Store, pn *gno.PackageNode) {
+	switch pn.PkgPath {
 	case "strconv":
 		pn.DefineGoNativeValue("Itoa", strconv.Itoa)
 		pn.DefineGoNativeValue("Atoi", strconv.Atoi)
@@ -21,7 +21,6 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode, pv *gno.PackageValue) {
 		pn.DefineGoNativeValue("QuoteToASCII", strconv.QuoteToASCII)
 		pn.DefineGoNativeValue("CanBackquote", strconv.CanBackquote)
 		pn.DefineGoNativeValue("IntSize", strconv.IntSize)
-		pn.PrepareNewValues(pv)
 	case "std":
 		// NOTE: pkgs/sdk/vm/VMKeeper also
 		// injects more like .Send, .GetContext.
@@ -225,8 +224,6 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode, pv *gno.PackageValue) {
 				m.PushValue(res0)
 			},
 		)
-
-		pn.PrepareNewValues(pv)
 	}
 }
 

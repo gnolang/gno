@@ -383,17 +383,16 @@ func testStore(stdin io.Reader, stdout, stderr io.Writer, isRealm bool, nativeLi
 // analogous to stdlibs.InjectNatives, but with
 // native methods suitable for the testing environment.
 
-func testPackageInjector(store gno.Store, pn *gno.PackageNode, pv *gno.PackageValue) {
+func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 	// Also inject stdlibs native functions.
-	stdlibs.InjectPackage(store, pn, pv)
+	stdlibs.InjectPackage(store, pn)
 	// Test specific injections:
-	switch pv.PkgPath {
+	switch pn.PkgPath {
 	case "strconv":
 		// NOTE: Itoa and Atoi are already injected
 		// from stdlibs.InjectNatives.
 		pn.DefineGoNativeType(reflect.TypeOf(strconv.NumError{}))
 		pn.DefineGoNativeValue("ParseInt", strconv.ParseInt)
-		pn.PrepareNewValues(pv)
 	case "std":
 		// Also see stdlibs/InjectPackage.
 		pn.DefineNative("IsOriginCall",
@@ -409,7 +408,6 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode, pv *gno.PackageVa
 				m.PushValue(res0)
 			},
 		)
-		pn.PrepareNewValues(pv)
 	}
 }
 

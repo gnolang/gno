@@ -30,17 +30,18 @@ func (vmk *VMKeeper) initBuiltinPackages(store gno.Store) {
 			Output:  os.Stdout,
 			Store:   store,
 		})
-		return m2.RunMemPackage(memPkg, true)
+		save := true // save once before natives injected later.
+		return m2.RunMemPackage(memPkg, save)
 	}
 	store.SetPackageGetter(getPackage)
 	store.SetPackageInjector(vmk.packageInjector)
 }
 
-func (vmk *VMKeeper) packageInjector(store gno.Store, pn *gno.PackageNode, pv *gno.PackageValue) {
+func (vmk *VMKeeper) packageInjector(store gno.Store, pn *gno.PackageNode) {
 	// Also inject stdlibs native functions.
-	stdlibs.InjectPackage(store, pn, pv)
+	stdlibs.InjectPackage(store, pn)
 	// vm (this package) specific injections:
-	switch pv.PkgPath {
+	switch pn.PkgPath {
 	case "std":
 		// Also see stdlibs/InjectPackage.
 		pn.DefineNative("IsOriginCall",
@@ -56,7 +57,6 @@ func (vmk *VMKeeper) packageInjector(store gno.Store, pn *gno.PackageNode, pv *g
 				m.PushValue(res0)
 			},
 		)
-		pn.PrepareNewValues(pv)
 	}
 }
 

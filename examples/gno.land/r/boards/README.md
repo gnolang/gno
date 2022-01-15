@@ -8,7 +8,7 @@ https://github.com/gnolang/gno/tree/master/examples/gno.land
 ## build and start gnoland.
 
 ```bash
-git clone github.com/gnolang/gno
+git clone git@github.com:gnolang/gno.git
 cd ./gno
 make 
 ```

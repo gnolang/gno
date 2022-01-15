@@ -78,37 +78,17 @@ func (vmk *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 		return vmk.gnoStore
 	case sdk.RunTxModeCheck:
 		// For query??? XXX Why not RunTxModeQuery?
+		simStore := vmk.gnoStore.Fork()
 		baseSDKStore := ctx.Store(vmk.baseKey)
 		iavlSDKStore := ctx.Store(vmk.iavlKey)
-		simStore := gno.NewStore(baseSDKStore, iavlSDKStore)
-		vmk.initBuiltinPackages(simStore)
-		// XXX This is crazy, there has to be a better way.
-		if simStore.NumMemPackages() > 0 {
-			m2 := gno.NewMachineWithOptions(
-				gno.MachineOptions{
-					Package: nil,
-					Output:  nil, // XXX
-					Store:   simStore,
-				})
-			m2.PreprocessAllFilesAndSaveBlockNodes()
-		}
+		simStore.SwapStores(baseSDKStore, iavlSDKStore)
 		return simStore
 	case sdk.RunTxModeSimulate:
 		// always make a new store for simualte for isolation.
+		simStore := vmk.gnoStore.Fork()
 		baseSDKStore := ctx.Store(vmk.baseKey)
 		iavlSDKStore := ctx.Store(vmk.iavlKey)
-		simStore := gno.NewStore(baseSDKStore, iavlSDKStore)
-		vmk.initBuiltinPackages(simStore)
-		// XXX This is crazy, there has to be a better way.
-		if simStore.NumMemPackages() > 0 {
-			m2 := gno.NewMachineWithOptions(
-				gno.MachineOptions{
-					Package: nil,
-					Output:  nil, // XXX
-					Store:   simStore,
-				})
-			m2.PreprocessAllFilesAndSaveBlockNodes()
-		}
+		simStore.SwapStores(baseSDKStore, iavlSDKStore)
 		return simStore
 	default:
 		panic("should not happen")

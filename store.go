@@ -16,7 +16,7 @@ const iavlCacheSize = 1024 * 1024 // TODO increase and parameterize.
 type PackageGetter func(pkgPath string) (*PackageNode, *PackageValue)
 
 // inject natives into a new or loaded package (value and node)
-type PackageInjector func(store Store, pn *PackageNode, pv *PackageValue)
+type PackageInjector func(store Store, pn *PackageNode)
 
 type Store interface {
 	// STABLE
@@ -42,6 +42,7 @@ type Store interface {
 	NumMemPackages() int64
 	AddMemPackage(memPkg std.MemPackage)
 	IterMemPackage() <-chan std.MemPackage
+	Fork() Store                                 // for checktx, simulate, and queries.
 	SwapStores(baseStore, iavlStore store.Store) // for gas wrappers.
 	SetPackageInjector(PackageInjector)          // for natives
 	// MISC
@@ -106,8 +107,15 @@ func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
 				pv.deriveFBlocksMap(ds)
 				// Inject natives after load.
 				if ds.pkgInjector != nil {
-					// pv.GetBlock(ds) // preload pv.Block
-					ds.pkgInjector(ds, pn, pv)
+					if pn.HasAttribute(ATTR_INJECTED) {
+						// e.g. in checktx or simulate or query.
+						pn.PrepareNewValues(pv)
+					} else {
+						// pv.GetBlock(ds) // preload pv.Block
+						ds.pkgInjector(ds, pn)
+						pn.SetAttribute(ATTR_INJECTED, true)
+						pn.PrepareNewValues(pv)
+					}
 				}
 			}
 			return pv
@@ -135,13 +143,14 @@ func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
 			ds.cacheObjects[oid] = pv
 			// inject natives after init.
 			if ds.pkgInjector != nil {
-				pl := PackageNodeLocation(pkgPath)
-				pn, ok := ds.GetBlockNodeSafe(pl).(*PackageNode)
-				if !ok {
-					// Do not inject packages from packageGetter
-					// that don't have corresponding *PackageNodes.
+				if pn.HasAttribute(ATTR_INJECTED) {
+					// not sure why this would happen.
+					panic("should not happen")
+					// pn.PrepareNewValues(pv)
 				} else {
-					ds.pkgInjector(ds, pn, pv)
+					ds.pkgInjector(ds, pn)
+					pn.SetAttribute(ATTR_INJECTED, true)
+					pn.PrepareNewValues(pv)
 				}
 			}
 			// cache all types. usually preprocess() sets types,
@@ -484,6 +493,21 @@ func (ds *defaultStore) IterMemPackage() <-chan std.MemPackage {
 			close(ch)
 		}()
 		return ch
+	}
+}
+
+// Unstable.  This function is used to handle queries and checktx transactions.
+func (ds *defaultStore) Fork() Store {
+	return &defaultStore{
+		pkgGetter:    ds.pkgGetter,
+		cacheObjects: make(map[ObjectID]Object), // new cache.
+		cacheTypes:   ds.cacheTypes,
+		cacheNodes:   ds.cacheNodes,
+		baseStore:    ds.baseStore,
+		iavlStore:    ds.iavlStore,
+		pkgInjector:  ds.pkgInjector,
+		opslog:       nil, // new ops log.
+		current:      make(map[string]struct{}),
 	}
 }
 

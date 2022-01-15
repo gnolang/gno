@@ -171,6 +171,11 @@ func (attr *Attributes) SetLabel(label Name) {
 	attr.Label = label
 }
 
+func (attr *Attributes) HasAttribute(key interface{}) bool {
+	_, ok := attr.data[key]
+	return ok
+}
+
 func (attr *Attributes) GetAttribute(key interface{}) interface{} {
 	return attr.data[key]
 }
@@ -193,6 +198,7 @@ type Node interface {
 	SetLine(int)
 	GetLabel() Name
 	SetLabel(Name)
+	HasAttribute(key interface{}) bool
 	GetAttribute(key interface{}) interface{}
 	SetAttribute(key interface{}, value interface{})
 }
@@ -2016,4 +2022,5 @@ const (
 	ATTR_TYPEOF_VALUE GnoAttribute = "ATTR_TYPEOF_VALUE"
 	ATTR_IOTA         GnoAttribute = "ATTR_IOTA"
 	ATTR_LOCATIONED   GnoAttribute = "ATTR_LOCATIONED"
+	ATTR_INJECTED     GnoAttribute = "ATTR_INJECTED"
 )
