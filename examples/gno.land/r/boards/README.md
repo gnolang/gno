@@ -8,7 +8,7 @@ https://github.com/gnolang/gno/tree/master/examples/gno.land
 ## build and start gnoland.
 
 ```bash
-git clone github.com/gnolang/gno
+git clone https://github.com/gnolang/gno
 cd ./gno
 make 
 ```
@@ -33,7 +33,8 @@ Use this mnemonic:
 ## start gnoland web server (optional).
 
 ```bash
-go run ./gnoland/website/\*.go
+cd ./gnoland/website
+go run main.go
 ```
 
 ## sign an addpkg (add avl package) transaction.
