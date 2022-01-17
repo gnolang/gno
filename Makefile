@@ -24,6 +24,21 @@ goscan:
 	echo "Building goscan"
 	go build -o build/goscan ./cmd/goscan
 
+# genproto makes protobufs
+genproto:
+	echo "Building genproto"
+	go build -o build/genproto ./cmd/.genproto
+
+
+# gnotxport allows you to fetch valid transactions from rpc
+gnotxport:
+	echo "Building gnotxport"
+	go build -o build/gnotxport ./cmd/gnotxport
+
+# gnoview doesn't build yet
+gnoview:
+	echo "Building gnoview"
+	go build -o build/gnoview ./cmd/gnoview
 
 # Logos is the interface to Gnoland
 logos:
