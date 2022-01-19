@@ -184,7 +184,7 @@ func (m *Machine) RunMemPackage(memPkg std.MemPackage, save bool) (*PackageNode,
 // afterwards from the same store.
 func (m *Machine) TestMemPackage(t *testing.T, memPkg std.MemPackage) {
 	defer m.injectLocOnPanic()
-	debug.Disable()
+	DisableDebug()
 	fmt.Println("DEBUG DISABLED (FOR TEST DEPENDENCIES INIT)")
 	// prefetch the testing package.
 	testingpv := m.Store.GetPackage("testing")
@@ -229,7 +229,7 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg std.MemPackage) {
 		m.SetActivePackage(pv)
 		m.RunFiles(itfiles.Files...)
 		pkg.PrepareNewValues(pv)
-		debug.Enable()
+		EnableDebug()
 		fmt.Println("DEBUG ENABLED")
 		for i := 0; i < len(pvBlock.Values); i++ {
 			tv := &pvBlock.Values[i]
@@ -478,6 +478,8 @@ func (m *Machine) savePackage() {
 		rlm := pv.Realm
 		rlm.MarkNewReal(pv)
 		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
+		// save package realm info.
+		m.Store.SetPackageRealm(rlm)
 	} else if m.Store != nil { // use a throwaway realm.
 		rlm := NewRealm(pv.PkgPath)
 		rlm.MarkNewReal(pv)

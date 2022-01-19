@@ -702,7 +702,8 @@ type PackageValue struct {
 	PkgPath    string
 	FNames     []Name
 	FBlocks    []Value
-	Realm      *Realm // if IsRealmPath(PkgPath), otherwise nil.
+	Realm      *Realm `json:"-"` // if IsRealmPath(PkgPath), otherwise nil.
+	// NOTE: Realm is persisted separately.
 
 	fBlocksMap map[Name]*Block
 }

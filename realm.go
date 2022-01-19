@@ -113,7 +113,7 @@ func (rlm *Realm) String() string {
 		return "Realm(nil)"
 	} else {
 		return fmt.Sprintf(
-			"Realm{Path:%q:Time:%d}#%X",
+			"Realm{Path:%q,Time:%d}#%X",
 			rlm.Path, rlm.Time, rlm.ID.Bytes())
 	}
 }
@@ -318,13 +318,6 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 	// mark all owned-ancestors also as dirty.
 	rlm.markDirtyAncestors(store)
 	if debug {
-		fmt.Println("newCreated", rlm.newCreated)
-		fmt.Println("newEscaped", rlm.newEscaped)
-		fmt.Println("newDeleted", rlm.newDeleted)
-		fmt.Println("created", rlm.created)
-		fmt.Println("updated", rlm.updated)
-		fmt.Println("deleted", rlm.deleted)
-		fmt.Println("escaped", rlm.escaped)
 		ensureUniq(rlm.created, rlm.updated, rlm.deleted)
 		ensureUniq(rlm.escaped)
 	}
@@ -347,6 +340,7 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 // All newly created objects become appended to .created,
 // and get assigned ids.
 func (rlm *Realm) processNewCreatedMarks(store Store) {
+	// Create new objects and their new descendants.
 	for _, oo := range rlm.newCreated {
 		if debug {
 			if oo.GetIsDirty() {
@@ -366,6 +360,10 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 		} else {
 			rlm.incRefCreatedDescendants(store, oo)
 		}
+	}
+	// Save new realm time.
+	if len(rlm.newCreated) > 0 {
+		store.SetPackageRealm(rlm)
 	}
 }
 
@@ -915,119 +913,6 @@ func getUnsavedChildObjects(val Value) []Object {
 	return unsaved
 }
 
-// XXX instead of below, save declared types after package save.
-// XXX and uh, maybe typeid in general?
-/* XXX DELETE
-//----------------------------------------
-// getUnsavedTypes
-// TODO if it's just used for debug/assertions, document so.
-// XXX REMOVE
-
-func getUnsavedType(tt Type, more []Type) []Type {
-	// XXX Wait
-	// XXX XXX UGH, copnsider just getting rid of this altogether?
-	// XXX cuz we can just save declaredtypes as refs,
-	// XXX
-	XXX
-	if tt.GetIsSaved() {
-		return more
-	}
-	more = append(more, tt)
-	return more
-}
-
-func getUnsavedTypesTV(tv TypedValue, more []Type) []Type {
-	if tv.T != nil {
-		more = getUnsavedType(tv.T, more)
-	}
-	if _, ok := tv.V.(Object); ok {
-		// do not recurse into objects.
-	} else {
-		more = getUnsavedTypes(tv.V, more)
-	}
-	return more
-}
-
-// Get unsaved types from a value.
-// Shallow; doesn't recurse into objects.
-func getUnsavedTypes(val Value, more []Type) []Type {
-	switch cv := val.(type) {
-	case nil:
-		return more
-	case StringValue:
-		return more
-	case BigintValue:
-		return more
-	case DataByteValue:
-		panic("should not happen")
-	case PointerValue:
-		if cv.Base != nil {
-			// cv.Base by reference.
-			// more = getUnsavedTypes(cv.Base, more) (wrong)
-		} else {
-			more = getUnsavedTypesTV(*cv.TV, more)
-		}
-		return more
-	case *ArrayValue:
-		for _, ctv := range cv.List {
-			more = getUnsavedTypesTV(ctv, more)
-		}
-		return more
-	case *SliceValue:
-		more = getUnsavedTypes(cv.Base, more)
-		return more
-	case *StructValue:
-		for _, ctv := range cv.Fields {
-			more = getUnsavedTypesTV(ctv, more)
-		}
-		return more
-	case *FuncValue:
-		more = getUnsavedType(cv.Type, more)
-		/ * XXX prob wrong, as closure is object:
-		if bv, ok := cv.Closure.(*Block); ok {
-			more = getUnsavedTypes(bv, more)
-		}
-		* /
-		return more
-	case *BoundMethodValue:
-		more = getUnsavedTypes(cv.Func, more)
-		more = getUnsavedTypesTV(cv.Receiver, more)
-		return more
-	case *MapValue:
-		for cur := cv.List.Head; cur != nil; cur = cur.Next {
-			more = getUnsavedTypesTV(cur.Key, more)
-			more = getUnsavedTypesTV(cur.Value, more)
-		}
-		return more
-	case TypeValue:
-		more = getUnsavedType(cv.Type, more)
-		return more
-	case *PackageValue:
-		/ * XXX prob wrong, as Block and FBlocks are objects:
-		more = getUnsavedTypes(cv.Block, more)
-		for _, fb := range cv.FBlocks {
-			more = getUnsavedTypes(fb, more)
-		}
-		* /
-		return more
-	case *Block:
-		for _, ctv := range cv.Values {
-			more = getUnsavedTypesTV(ctv, more)
-		}
-		// XXX prob wrong
-		// more = getUnsavedTypes(cv.Parent, more)
-		return more
-	case *NativeValue:
-		panic("native values not supported")
-	default:
-		panic(fmt.Sprintf(
-			"unexpected type %v",
-			reflect.TypeOf(val)))
-	}
-}
-
-*/
-
 //----------------------------------------
 // copyTypeWithRefs
 
@@ -1296,6 +1181,8 @@ func copyValueWithRefs(parent Object, val Value) Value {
 			Blank:      TypedValue{}, // empty
 		}
 		return bl
+	case RefValue:
+		return cv
 	case *NativeValue:
 		panic("native values not supported")
 	default:
@@ -1481,10 +1368,11 @@ func (rlm *Realm) nextObjectID() ObjectID {
 		panic("should not happen")
 	}
 	rlm.Time++
-	return ObjectID{
+	nxtid := ObjectID{
 		PkgID:   rlm.ID,
 		NewTime: rlm.Time, // starts at 1.
 	}
+	return nxtid
 }
 
 // Object gets its id set (panics if already set), and becomes

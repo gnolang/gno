@@ -69,11 +69,15 @@ func (vmk *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 				m2.PreprocessAllFilesAndSaveBlockNodes()
 			}
 		} else {
-			// otherwise, swap sdk store of existing gnoStore.
+			// swap sdk store of existing gnoStore.
 			// this is needed due to e.g. gas wrappers.
-			baseStore := ctx.Store(vmk.baseKey)
-			iavlStore := ctx.Store(vmk.iavlKey)
-			vmk.gnoStore.SwapStores(baseStore, iavlStore)
+			baseSDKStore := ctx.Store(vmk.baseKey)
+			iavlSDKStore := ctx.Store(vmk.iavlKey)
+			vmk.gnoStore.SwapStores(baseSDKStore, iavlSDKStore)
+			// clear object cache for every transaction.
+			// NOTE: this is inefficient, but simple.
+			// in the future, replace with more advanced caching strategy.
+			vmk.gnoStore.ClearObjectCache()
 		}
 		return vmk.gnoStore
 	case sdk.RunTxModeCheck:

@@ -12,6 +12,8 @@ import (
 // so it is still faster to first check the truth value
 // before calling debug.Println or debug.Printf.
 
+type debugging bool
+
 const debug debugging = false // or flip
 
 func init() {
@@ -27,21 +29,9 @@ func init() {
 	}
 }
 
-func Debug() bool {
-	return bool(debug)
-}
-
-type debugging bool
+// runtime debugging flag.
 
 var enabled bool = true
-
-func (d debugging) Disable() {
-	enabled = false
-}
-
-func (d debugging) Enable() {
-	enabled = true
-}
 
 func (d debugging) Println(args ...interface{}) {
 	if d {
@@ -86,4 +76,20 @@ func GetDebugErrors() []string {
 
 func ClearDebugErrors() {
 	derrors = nil
+}
+
+func IsDebug() bool {
+	return bool(debug)
+}
+
+func IsDebugEnabled() bool {
+	return bool(debug) && enabled
+}
+
+func DisableDebug() {
+	enabled = false
+}
+
+func EnableDebug() {
+	enabled = true
 }

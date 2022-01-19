@@ -22,7 +22,9 @@ type Store interface {
 	// STABLE
 	SetPackageGetter(PackageGetter)
 	GetPackage(pkgPath string) *PackageValue
-	SetPackage(*PackageValue)
+	// SetPackage(*PackageValue)
+	GetPackageRealm(pkgPath string) *Realm
+	SetPackageRealm(*Realm)
 	GetObject(oid ObjectID) Object
 	GetObjectSafe(oid ObjectID) Object
 	SetObject(Object)
@@ -35,17 +37,16 @@ type Store interface {
 	GetBlockNodeSafe(Location) BlockNode
 	SetBlockNode(BlockNode)
 	// UNSTABLE
-	// AddMemPackage:
+	NumMemPackages() int64
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
 	// version 1.
-	NumMemPackages() int64
 	AddMemPackage(memPkg std.MemPackage)
 	IterMemPackage() <-chan std.MemPackage
+	ClearObjectCache()                           // for each delivertx.
 	Fork() Store                                 // for checktx, simulate, and queries.
 	SwapStores(baseStore, iavlStore store.Store) // for gas wrappers.
 	SetPackageInjector(PackageInjector)          // for natives
-	// MISC
 	SetLogStoreOps(enabled bool)
 	SprintStoreOps() string
 	ClearCache()
@@ -85,6 +86,7 @@ func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
 	ds.pkgGetter = pg
 }
 
+// Gets package from cache, or loads it from baseStore, or gets it from package getter.
 func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
 	oid := ObjectIDFromPkgPath(pkgPath)
 	// first, check cache.
@@ -97,6 +99,12 @@ func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
 		if oo := ds.loadObjectSafe(oid); oo != nil {
 			pv := oo.(*PackageValue)
 			_ = pv.GetBlock(ds) // preload
+			// get package associated realm if nil.
+			if pv.IsRealm() && pv.Realm == nil {
+				rlm := ds.GetPackageRealm(pkgPath)
+				pv.Realm = rlm
+			}
+			// get package node.
 			pl := PackageNodeLocation(pkgPath)
 			pn, ok := ds.GetBlockNodeSafe(pl).(*PackageNode)
 			if !ok {
@@ -169,19 +177,30 @@ func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
 	return nil
 }
 
-// Packages can also be provided via .SetPackageGetter, but they will be
-// overridden by cached and persisted ones..
-// Setting an already cached package (eg modifying it) fails unless realm
-// package.
-func (ds *defaultStore) SetPackage(pv *PackageValue) {
-	// if pv.IsRealm() {
-	oid := pv.ObjectInfo.ID
-	if oid.IsZero() {
-		// .SetRealm() should have set object id.
-		panic("should not happen")
+// Some atomic operation.
+func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
+	oid := ObjectIDFromPkgPath(pkgPath)
+	key := backendRealmKey(oid)
+	bz := ds.baseStore.Get([]byte(key))
+	if bz == nil {
+		return nil
 	}
-	ds.SetObject(pv)
-	// }
+	amino.MustUnmarshal(bz, &rlm)
+	if debug {
+		if rlm.ID != oid.PkgID {
+			panic(fmt.Sprintf("unexpected realm id: expected %v but got %v",
+				oid.PkgID, rlm.ID))
+		}
+	}
+	return rlm
+}
+
+// Some atomic operation.
+func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
+	oid := ObjectIDFromPkgPath(rlm.Path)
+	key := backendRealmKey(oid)
+	bz := amino.MustMarshal(rlm)
+	ds.baseStore.Set([]byte(key), bz)
 }
 
 // NOTE: does not consult the packageGetter, so instead
@@ -205,6 +224,11 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 	// check baseStore.
 	if ds.baseStore != nil {
 		if oo := ds.loadObjectSafe(oid); oo != nil {
+			if debug {
+				if _, ok := oo.(*PackageValue); ok {
+					panic("packages must be fetched with GetPackage()")
+				}
+			}
 			return oo
 		}
 	}
@@ -235,6 +259,8 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 	return nil
 }
 
+// NOTE: unlike GetObject(), SetObject() is also used to persist updated
+// package values.
 func (ds *defaultStore) SetObject(oo Object) {
 	oid := oo.GetObjectID()
 	// replace children/fields with Ref.
@@ -262,7 +288,9 @@ func (ds *defaultStore) SetObject(oo Object) {
 		}
 		if oo2, exists := ds.cacheObjects[oid]; exists {
 			if oo != oo2 {
-				panic("duplicate object")
+				panic(fmt.Sprintf(
+					"duplicate object: set %s (oid: %s) but %s (oid %s) already exists",
+					oo.String(), oid.String(), oo2.String(), oo2.GetObjectID().String()))
 			}
 		}
 	}
@@ -496,7 +524,18 @@ func (ds *defaultStore) IterMemPackage() <-chan std.MemPackage {
 	}
 }
 
-// Unstable.  This function is used to handle queries and checktx transactions.
+// Unstable.
+// This function is used to clear the object cache every transaction.
+func (ds *defaultStore) ClearObjectCache() {
+	ds.cacheObjects = make(map[ObjectID]Object) // new cache.
+	ds.opslog = nil                             // new ops log.
+	if len(ds.current) > 0 {
+		ds.current = make(map[string]struct{})
+	}
+}
+
+// Unstable.
+// This function is used to handle queries and checktx transactions.
 func (ds *defaultStore) Fork() Store {
 	return &defaultStore{
 		pkgGetter:    ds.pkgGetter,
@@ -614,12 +653,13 @@ func (ds *defaultStore) Print() {
 //----------------------------------------
 // backend keys
 
-func backendPackageKey(pkgPath string) string {
-	return "pkg:" + pkgPath
-}
-
 func backendObjectKey(oid ObjectID) string {
 	return "oid:" + oid.String()
+}
+
+// oid: associated package value object id.
+func backendRealmKey(oid ObjectID) string {
+	return "oid:" + oid.String() + "#realm"
 }
 
 func backendTypeKey(tid TypeID) string {

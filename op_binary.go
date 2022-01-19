@@ -976,7 +976,7 @@ func shlAssign(lv, rv *TypedValue) {
 	case Uint8Type:
 		lv.SetUint8(lv.GetUint8() << rv.GetUint())
 	case DataByteType:
-		lv.SetDataByte(lv.GetDataByte() << rv.GetUint8())
+		lv.SetDataByte(lv.GetDataByte() << rv.GetUint())
 	case Uint16Type:
 		lv.SetUint16(lv.GetUint16() << rv.GetUint())
 	case Uint32Type:
@@ -1015,7 +1015,7 @@ func shrAssign(lv, rv *TypedValue) {
 	case Uint8Type:
 		lv.SetUint8(lv.GetUint8() >> rv.GetUint())
 	case DataByteType:
-		lv.SetDataByte(lv.GetDataByte() >> rv.GetUint8())
+		lv.SetDataByte(lv.GetDataByte() >> rv.GetUint())
 	case Uint16Type:
 		lv.SetUint16(lv.GetUint16() >> rv.GetUint())
 	case Uint32Type:

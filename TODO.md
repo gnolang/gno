@@ -19,3 +19,15 @@
 
 # other
   * Replace spf13 with gnolang/testify fork of jaekwon/testify
+
+----------------------------------------
+
+* Limit CPU and memory usage.
+ -> memory usage: 
+ -> clear cache upon beginnewblock?
+
+* Realm PkgPath URL fixes.
+ -> /r/boards/board.go should show the code.
+
+* Validator set changes.
+ -> re staking:

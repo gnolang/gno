@@ -137,7 +137,7 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 					}
 				}
 			}()
-			if gno.Debug() && testing.Verbose() {
+			if gno.IsDebug() && testing.Verbose() {
 				t.Log("========================================")
 				t.Log("RUN FILES & INIT")
 				t.Log("========================================")
@@ -146,19 +146,20 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 				// simple case.
 				n := gno.MustParseFile(path, string(bz)) // "main.go", string(bz))
 				m.RunFiles(n)
-				if gno.Debug() && testing.Verbose() {
+				if gno.IsDebug() && testing.Verbose() {
 					t.Log("========================================")
 					t.Log("RUN MAIN")
 					t.Log("========================================")
 				}
 				m.RunMain()
-				if gno.Debug() && testing.Verbose() {
+				if gno.IsDebug() && testing.Verbose() {
 					t.Log("========================================")
 					t.Log("RUN MAIN END")
 					t.Log("========================================")
 				}
 			} else {
 				// realm case.
+				gno.DisableDebug() // until main call.
 				// save package using realm crawl procedure.
 				memPkg := std.MemPackage{
 					Name: string(pkgName),
@@ -178,7 +179,7 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 				// reconstruct machine and clear store cache.
 				// whether pv is realm or not, since non-realm
 				// may call realm packages too.
-				if gno.Debug() && testing.Verbose() {
+				if gno.IsDebug() && testing.Verbose() {
 					t.Log("========================================")
 					t.Log("CLEAR STORE CACHE")
 					t.Log("========================================")
@@ -194,21 +195,22 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 					Store:   store,
 					Context: ctx,
 				})
-				if gno.Debug() && testing.Verbose() {
+				if gno.IsDebug() && testing.Verbose() {
 					store.Print()
 					t.Log("========================================")
 					t.Log("PREPROCESS ALL FILES")
 					t.Log("========================================")
 				}
 				m2.PreprocessAllFilesAndSaveBlockNodes()
-				if gno.Debug() && testing.Verbose() {
+				if gno.IsDebug() && testing.Verbose() {
 					t.Log("========================================")
 					t.Log("RUN MAIN")
 					t.Log("========================================")
 					store.Print()
 				}
+				gno.EnableDebug()
 				m2.RunMain()
-				if gno.Debug() && testing.Verbose() {
+				if gno.IsDebug() && testing.Verbose() {
 					t.Log("========================================")
 					t.Log("RUN MAIN END")
 					t.Log("========================================")
