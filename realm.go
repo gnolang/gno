@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	rdebug "runtime/debug"
 	"strings"
 )
 
@@ -363,6 +364,7 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 	}
 	// Save new realm time.
 	if len(rlm.newCreated) > 0 {
+		fmt.Println("SETPACKAGEREALM")
 		store.SetPackageRealm(rlm)
 	}
 }
@@ -1371,6 +1373,10 @@ func (rlm *Realm) nextObjectID() ObjectID {
 	nxtid := ObjectID{
 		PkgID:   rlm.ID,
 		NewTime: rlm.Time, // starts at 1.
+	}
+	fmt.Println("NEXTID", nxtid, fmt.Sprintf("%p", rlm))
+	if false {
+		rdebug.PrintStack()
 	}
 	return nxtid
 }

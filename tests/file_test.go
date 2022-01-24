@@ -79,13 +79,14 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 	pkgName := defaultPkgName(pkgPath)
 	pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
 	pv := pn.NewPackage()
-	isRealm := pv.IsRealm() // enable diff persistence.
 
 	stdin := new(bytes.Buffer)
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
-	store := testStore(stdin, stdout, stderr, isRealm, nativeLibs)
+	store := testStore(stdin, stdout, stderr, nativeLibs)
 	store.SetLogStoreOps(true)
+	store.SetBlockNode(pn)
+	store.SetCachePackage(pv)
 	caller := testutils.TestAddress("testaddr____________")
 	txSend := std.MustParseCoins("100gnots")
 	pkgCoins := std.MustParseCoins("200gnots") // >= txSend.
@@ -102,7 +103,7 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 		Banker:      banker,
 	}
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		Package: pv,
+		PkgPath: pkgPath,
 		Output:  stdout,
 		Store:   store,
 		Context: ctx,
@@ -185,12 +186,8 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 					t.Log("========================================")
 				}
 				store.ClearCache()
-				pv2 := pv
-				if pv.IsRealm() {
-					pv2 = store.GetPackage(pkgPath) // load from backend
-				}
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-					Package: pv2,
+					PkgPath: pkgPath,
 					Output:  stdout,
 					Store:   store,
 					Context: ctx,

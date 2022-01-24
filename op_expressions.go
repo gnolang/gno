@@ -668,7 +668,6 @@ func (m *Machine) doOpFuncLit() {
 			PkgPath:    m.Package.PkgPath,
 			body:       x.Body,
 			nativeBody: nil,
-			pkg:        m.Package,
 		},
 	})
 }

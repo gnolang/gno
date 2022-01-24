@@ -22,7 +22,7 @@ type Store interface {
 	// STABLE
 	SetPackageGetter(PackageGetter)
 	GetPackage(pkgPath string) *PackageValue
-	// SetPackage(*PackageValue)
+	SetCachePackage(*PackageValue)
 	GetPackageRealm(pkgPath string) *Realm
 	SetPackageRealm(*Realm)
 	GetObject(oid ObjectID) Object
@@ -78,7 +78,7 @@ func NewStore(baseStore, iavlStore store.Store) *defaultStore {
 		iavlStore:    iavlStore,
 		current:      make(map[string]struct{}),
 	}
-	InitCacheTypes(ds)
+	InitStoreCaches(ds)
 	return ds
 }
 
@@ -102,6 +102,7 @@ func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
 			// get package associated realm if nil.
 			if pv.IsRealm() && pv.Realm == nil {
 				rlm := ds.GetPackageRealm(pkgPath)
+				fmt.Println("SETREALM", fmt.Sprintf("%p", rlm))
 				pv.Realm = rlm
 			}
 			// get package node.
@@ -177,6 +178,15 @@ func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
 	return nil
 }
 
+// Used to set throwaway packages.
+func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
+	oid := ObjectIDFromPkgPath(pv.PkgPath)
+	if _, exists := ds.cacheObjects[oid]; exists {
+		panic("package already exists in cache")
+	}
+	ds.cacheObjects[oid] = pv
+}
+
 // Some atomic operation.
 func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 	oid := ObjectIDFromPkgPath(pkgPath)
@@ -192,6 +202,7 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 				oid.PkgID, rlm.ID))
 		}
 	}
+	fmt.Println("GETPACKAGEREALM", rlm.String())
 	return rlm
 }
 
@@ -627,7 +638,7 @@ func (ds *defaultStore) ClearCache() {
 	ds.cacheTypes = make(map[TypeID]Type)
 	ds.cacheNodes = make(map[Location]BlockNode)
 	// restore builtin types to cache.
-	InitCacheTypes(ds)
+	InitStoreCaches(ds)
 }
 
 // for debugging
@@ -679,9 +690,9 @@ func backendPackageIndexKey(index uint64) string {
 }
 
 //----------------------------------------
-// builtin types
+// builtin types and packages
 
-func InitCacheTypes(store Store) {
+func InitStoreCaches(store Store) {
 	types := []Type{
 		BoolType, UntypedBoolType,
 		StringType, UntypedStringType,
@@ -697,6 +708,7 @@ func InitCacheTypes(store Store) {
 	for _, tt := range types {
 		store.SetCacheType(tt)
 	}
+	store.SetCachePackage(Uverse())
 }
 
 //----------------------------------------

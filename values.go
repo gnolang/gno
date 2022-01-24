@@ -461,7 +461,6 @@ type FuncValue struct {
 
 	body       []Stmt         // function body
 	nativeBody func(*Machine) // alternative to Body
-	pkg        *PackageValue
 }
 
 func (fv *FuncValue) Copy() *FuncValue {
@@ -475,7 +474,6 @@ func (fv *FuncValue) Copy() *FuncValue {
 		PkgPath:    fv.PkgPath,
 		body:       fv.body,
 		nativeBody: fv.nativeBody,
-		pkg:        fv.pkg,
 	}
 }
 
@@ -515,16 +513,27 @@ func (fv *FuncValue) GetSource(store Store) BlockNode {
 }
 
 func (fv *FuncValue) GetPackage(store Store) *PackageValue {
-	if fv.pkg == nil {
-		fv.pkg = store.GetPackage(fv.PkgPath)
-	}
-	return fv.pkg
+	pv := store.GetPackage(fv.PkgPath)
+	return pv
 }
 
 func (fv *FuncValue) GetClosure(store Store) *Block {
 	switch cv := fv.Closure.(type) {
 	case nil:
-		return nil
+		if fv.FileName == "" {
+			return nil
+		} else {
+			// NOTE: *PackageNode.StaticBlock.Values static declared functions and
+			// in methods in *DeclaredType.Methods initially have zero closure,
+			// but get filled lazily here.
+			pv := fv.GetPackage(store)
+			fb := pv.fBlocksMap[fv.FileName]
+			if fb == nil {
+				panic(fmt.Sprintf("file block missing for file %q", fv.FileName))
+			}
+			fv.Closure = fb
+			return fb
+		}
 	case RefValue:
 		block := store.GetObject(cv.ObjectID).(*Block)
 		fv.Closure = block

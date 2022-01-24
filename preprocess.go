@@ -1816,12 +1816,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					pn := packageOf(last)
 					tid := DeclaredTypeID(pn.PkgPath, n.Name)
 					exists := false
-					if store != nil {
-						if dt := store.GetTypeSafe(tid); dt != nil {
-							dst = dt.(*DeclaredType)
-							last.GetValueRef(store, n.Name).SetType(dst)
-							exists = true
-						}
+					if dt := store.GetTypeSafe(tid); dt != nil {
+						dst = dt.(*DeclaredType)
+						last.GetValueRef(store, n.Name).SetType(dst)
+						exists = true
 					}
 					if !exists {
 						// otherwise construct new *DeclaredType.
@@ -1908,6 +1906,11 @@ func evalStaticType(store Store, last BlockNode, x Expr) Type {
 		return ctx.Type // no need to set attribute.
 	}
 	pn := packageOf(last)
+	if store != nil {
+		pv := pn.NewPackage() // temporary
+		store = store.Fork()
+		store.SetCachePackage(pv)
+	}
 	tv := NewMachine(pn.PkgPath, store).EvalStatic(last, x)
 	if _, ok := tv.V.(TypeValue); !ok {
 		panic(fmt.Sprintf("%s is not a type", x.String()))
@@ -1969,6 +1972,11 @@ func evalStaticTypeOfRaw(store Store, last BlockNode, x Expr) (t Type) {
 		return ctx.T
 	} else {
 		pn := packageOf(last)
+		if store != nil {
+			pv := pn.NewPackage() // temporary
+			store = store.Fork()
+			store.SetCachePackage(pv)
+		}
 		t = NewMachine(pn.PkgPath, store).EvalStaticTypeOf(last, x)
 		x.SetAttribute(ATTR_TYPEOF_VALUE, t)
 		return t
@@ -2063,8 +2071,7 @@ func getResultTypedValues(cx *CallExpr) []TypedValue {
 func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	// TODO: some check or verification for ensuring x
 	// is constant?  From the machine?
-	pn := packageOf(last)
-	cv := NewMachine(pn.PkgPath, store).EvalStatic(last, x)
+	cv := NewMachine(".dontcare", store).EvalStatic(last, x)
 	cx := &ConstExpr{
 		Source:     x,
 		TypedValue: cv,
@@ -2788,10 +2795,9 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 				Name:       cd.Name,
 				Closure:    nil, // set later, see PrepareNewValues().
 				FileName:   fileNameOf(last),
-				PkgPath:    "", // set later, see PrepareNewValues().
+				PkgPath:    pkg.PkgPath,
 				body:       cd.Body,
 				nativeBody: nil,
-				pkg:        nil, // set later, see PrepareNewValues().
 			})
 		} else {
 			ftv := pkg.GetValueRef(store, cd.Name)
@@ -3004,10 +3010,9 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 					Name:       d.Name,
 					Closure:    nil, // set later, see PrepareNewValues().
 					FileName:   fileNameOf(last),
-					PkgPath:    "", // set later, see PrepareNewValues().
+					PkgPath:    pkg.PkgPath,
 					body:       d.Body,
 					nativeBody: nil,
-					pkg:        nil, // set later, see PrepareNewValues().
 				},
 			})
 			if d.Name == "init" {

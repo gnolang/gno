@@ -1291,7 +1291,7 @@ type DeclaredType struct {
 
 	typeid  TypeID
 	sealed  bool // for ensuring correctness with recursive types.
-	updated bool // for tracking new methods for preexisting types.
+	updated bool // for tracking new methods for preexisting types. // XXX remove
 }
 
 // returns an unsealed *DeclaredType.

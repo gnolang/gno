@@ -30,8 +30,7 @@ func (vmk *VMKeeper) initBuiltinPackages(store gno.Store) {
 			Output:  os.Stdout,
 			Store:   store,
 		})
-		save := true // save once before natives injected later.
-		return m2.RunMemPackage(memPkg, save)
+		return m2.RunMemPackage(memPkg, true)
 	}
 	store.SetPackageGetter(getPackage)
 	store.SetPackageInjector(vmk.packageInjector)

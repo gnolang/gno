@@ -23,7 +23,7 @@ func gonativeTestStore(args ...interface{}) Store {
 				return pn, pv
 			}
 		}
-		panic("should not happen")
+		return nil, nil
 	})
 	return store
 }
