@@ -21,7 +21,7 @@ type PackageInjector func(store Store, pn *PackageNode)
 type Store interface {
 	// STABLE
 	SetPackageGetter(PackageGetter)
-	GetPackage(pkgPath string) *PackageValue
+	GetPackage(pkgPath string, isImport bool) *PackageValue
 	SetCachePackage(*PackageValue)
 	GetPackageRealm(pkgPath string) *Realm
 	SetPackageRealm(*Realm)
@@ -87,9 +87,17 @@ func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
 }
 
 // Gets package from cache, or loads it from baseStore, or gets it from package getter.
-func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
-	oid := ObjectIDFromPkgPath(pkgPath)
+func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue {
+	// detect circular imports
+	if isImport {
+		if _, exists := ds.current[pkgPath]; exists {
+			panic(fmt.Sprintf("import cycle detected: %q", pkgPath))
+		}
+		ds.current[pkgPath] = struct{}{}
+		defer delete(ds.current, pkgPath)
+	}
 	// first, check cache.
+	oid := ObjectIDFromPkgPath(pkgPath)
 	if oo, exists := ds.cacheObjects[oid]; exists {
 		pv := oo.(*PackageValue)
 		return pv
@@ -102,7 +110,6 @@ func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
 			// get package associated realm if nil.
 			if pv.IsRealm() && pv.Realm == nil {
 				rlm := ds.GetPackageRealm(pkgPath)
-				fmt.Println("SETREALM", fmt.Sprintf("%p", rlm))
 				pv.Realm = rlm
 			}
 			// get package node.
@@ -112,8 +119,6 @@ func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
 				// Do not inject packages from packageGetter
 				// that don't have corresponding *PackageNodes.
 			} else {
-				// Rederive pv.fBlocksMap.
-				pv.deriveFBlocksMap(ds)
 				// Inject natives after load.
 				if ds.pkgInjector != nil {
 					if pn.HasAttribute(ATTR_INJECTED) {
@@ -127,16 +132,13 @@ func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
 					}
 				}
 			}
+			// Rederive pv.fBlocksMap.
+			pv.deriveFBlocksMap(ds)
 			return pv
 		}
 	}
 	// otherwise, fetch from pkgGetter.
 	if ds.pkgGetter != nil {
-		if _, exists := ds.current[pkgPath]; exists {
-			panic(fmt.Sprintf("import cycle detected: %q", pkgPath))
-		}
-		ds.current[pkgPath] = struct{}{}
-		defer delete(ds.current, pkgPath)
 		if pn, pv := ds.pkgGetter(pkgPath); pv != nil {
 			// e.g. tests/imports_tests loads example/gno.land/r/... realms.
 			// if pv.IsRealm() {
@@ -182,7 +184,7 @@ func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
 func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
 	oid := ObjectIDFromPkgPath(pv.PkgPath)
 	if _, exists := ds.cacheObjects[oid]; exists {
-		panic("package already exists in cache")
+		panic(fmt.Sprintf("package %s already exists in cache", pv.PkgPath))
 	}
 	ds.cacheObjects[oid] = pv
 }
@@ -202,7 +204,6 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 				oid.PkgID, rlm.ID))
 		}
 	}
-	fmt.Println("GETPACKAGEREALM", rlm.String())
 	return rlm
 }
 
@@ -709,15 +710,4 @@ func InitStoreCaches(store Store) {
 		store.SetCacheType(tt)
 	}
 	store.SetCachePackage(Uverse())
-}
-
-//----------------------------------------
-// Misc.
-
-func getPackageNodeAndValue(store Store, pkgPath string) (pn *PackageNode, pv *PackageValue) {
-	// Load PackageValue first.
-	pv = store.GetPackage(pkgPath)
-	// Now the *PackageNode block node exists.
-	pn = store.GetBlockNode(PackageNodeLocation(pkgPath)).(*PackageNode)
-	return
 }

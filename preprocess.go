@@ -2793,7 +2793,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 				IsMethod:   true,
 				Source:     cd,
 				Name:       cd.Name,
-				Closure:    nil, // set later, see PrepareNewValues().
+				Closure:    nil, // set lazily.
 				FileName:   fileNameOf(last),
 				PkgPath:    pkg.PkgPath,
 				body:       cd.Body,
@@ -2843,7 +2843,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 	// so value paths cannot be used here.
 	switch d := d.(type) {
 	case *ImportDecl:
-		pv := store.GetPackage(d.PkgPath)
+		pv := store.GetPackage(d.PkgPath, true)
 		if pv == nil {
 			panic(fmt.Sprintf(
 				"unknown import path %s",
@@ -2924,7 +2924,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 				} else if idx, ok := UverseNode().GetLocalIndex(tx.Name); ok {
 					// uverse name
 					path := NewValuePathUverse(idx, tx.Name)
-					tv := Uverse().GetValueRefAt(nil, path)
+					tv := Uverse().GetValueAt(nil, path)
 					t = tv.GetType()
 				} else {
 					// yet undefined
@@ -3008,7 +3008,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 					IsMethod:   false,
 					Source:     d,
 					Name:       d.Name,
-					Closure:    nil, // set later, see PrepareNewValues().
+					Closure:    nil, // set lazily.
 					FileName:   fileNameOf(last),
 					PkgPath:    pkg.PkgPath,
 					body:       d.Body,

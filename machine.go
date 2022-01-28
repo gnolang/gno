@@ -67,9 +67,6 @@ type MachineOptions struct {
 
 func NewMachineWithOptions(opts MachineOptions) *Machine {
 	//rlm := pv.GetRealm()
-	if opts.PkgPath == "" {
-		opts.PkgPath = "main"
-	}
 	checkTypes := opts.CheckTypes
 	readOnly := opts.ReadOnly
 	output := opts.Output
@@ -81,41 +78,33 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		// bare store, no stdlibs.
 		store = NewStore(nil, nil)
 	}
-	pv := store.GetPackage(opts.PkgPath)
-	if pv == nil {
-		// TODO: not sure if this is the best solution:
-		// if store can be nil, pv and file blocks must be
-		// associated some other how; but it can't be
-		// the *FuncValue of top-level declared functions and methods
-		// because that would mean that *DeclaredType.Methods
-		// file *Block.Values.(*FuncValue) must be associated
-		// with a runtime packge instance, and this conflicts
-		// with parallel interpretation of nodes.
-		pkgName := defaultPkgName(opts.PkgPath)
-		pn := NewPackageNode(pkgName, opts.PkgPath, &FileSet{})
-		pv = pn.NewPackage()
-		store.SetBlockNode(pn)
-		store.SetCachePackage(pv)
+	pv := (*PackageValue)(nil)
+	if opts.PkgPath != "" {
+		pv = store.GetPackage(opts.PkgPath, false)
+		if pv == nil {
+			pkgName := defaultPkgName(opts.PkgPath)
+			pn := NewPackageNode(pkgName, opts.PkgPath, &FileSet{})
+			pv = pn.NewPackage()
+			store.SetBlockNode(pn)
+			store.SetCachePackage(pv)
+		}
 	}
-	//blocks := []*Block{
-	//	pv.GetBlock(store),
-	//}
 	context := opts.Context
 	mm := &Machine{
-		Ops:       make([]Op, 1024),
-		NumOps:    0,
-		Values:    make([]TypedValue, 1024),
-		NumValues: 0,
-		//Blocks:     blocks,
-		Package: pv,
-		//Realm:      rlm,
+		Ops:        make([]Op, 1024),
+		NumOps:     0,
+		Values:     make([]TypedValue, 1024),
+		NumValues:  0,
+		Package:    pv,
 		CheckTypes: checkTypes,
 		ReadOnly:   readOnly,
 		Output:     output,
 		Store:      store,
 		Context:    context,
 	}
-	mm.SetActivePackage(pv)
+	if pv != nil {
+		mm.SetActivePackage(pv)
+	}
 	return mm
 }
 
@@ -165,29 +154,34 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 //----------------------------------------
 // top level Run* methods.
 
-// First sets the active package to a new instance of memPkg's.
-// Parses files, sets the package, runs files, and saves mempkg and
-// corresponding package node, package value, and types to store.
-// Save is set to false for tests where package values may be native.
+// Parses files, sets the package if doesn't exist, runs files, saves mempkg
+// and corresponding package node, package value, and types to store. Save
+// is set to false for tests where package values may be native.
 func (m *Machine) RunMemPackage(memPkg std.MemPackage, save bool) (*PackageNode, *PackageValue) {
 	// parse files.
 	files := ParseMemPackage(memPkg)
-	// make and set package
-	pn := NewPackageNode(Name(memPkg.Name), memPkg.Path, nil)
-	pv := pn.NewPackage()
-	// XXX can't do this because this masks import cycles.
-	// m.Store.SetCachePackage(pv)
+	// make and set package if doesn't exist.
+	pn := (*PackageNode)(nil)
+	pv := (*PackageValue)(nil)
+	if m.Package != nil && m.Package.PkgPath == memPkg.Path {
+		pv = m.Package
+		loc := PackageNodeLocation(memPkg.Path)
+		pn = m.Store.GetBlockNode(loc).(*PackageNode)
+	} else {
+		pn = NewPackageNode(Name(memPkg.Name), memPkg.Path, &FileSet{})
+		pv = pn.NewPackage()
+		m.Store.SetBlockNode(pn)
+		m.Store.SetCachePackage(pv)
+	}
 	m.SetActivePackage(pv)
 	// run files.
 	m.RunFiles(files.Files...)
-	// maybe save.
+	// maybe save package value and mempackage.
 	if save {
 		// store package values and types
 		m.savePackageValuesAndTypes()
 		// store mempackage
 		m.Store.AddMemPackage(memPkg)
-		// store package node
-		m.Store.SetBlockNode(pn)
 	}
 	return pn, pv
 }
@@ -202,13 +196,13 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg std.MemPackage) {
 	DisableDebug()
 	fmt.Println("DEBUG DISABLED (FOR TEST DEPENDENCIES INIT)")
 	// prefetch the testing package.
-	testingpv := m.Store.GetPackage("testing")
+	testingpv := m.Store.GetPackage("testing", false)
 	testingtv := TypedValue{T: gPackageType, V: testingpv}
 	testingcx := &ConstExpr{TypedValue: testingtv}
 	// parse test files.
 	tfiles, itfiles := ParseMemPackageTests(memPkg)
 	{ // first, tfiles which run in the same package.
-		pv := m.Store.GetPackage(memPkg.Path)
+		pv := m.Store.GetPackage(memPkg.Path, false)
 		pvBlock := pv.GetBlock(m.Store)
 		pvSize := len(pvBlock.Values)
 		m.SetActivePackage(pv)
@@ -442,9 +436,9 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 		}
 	}
 
-	// Declarations (and variable initializations).  This must happen after
-	// all files are preprocessed, because value decl may be out of order
-	// and depend on other files.
+	// Declarations (and variable initializations).  This must happen
+	// after all files are preprocessed, because value decl may be out of
+	// order and depend on other files.
 
 	// Run declarations.
 	for _, fn := range fns {

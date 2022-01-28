@@ -455,7 +455,7 @@ type FuncValue struct {
 	IsMethod bool      // is an (unbound) method
 	Source   BlockNode // for block mem allocation
 	Name     Name      // name of function/method
-	Closure  Value     // *Block or RefValue to closure (a file's Block for unbound methods).
+	Closure  Value     // *Block or RefValue to closure (may be nil for file blocks; lazy)
 	FileName Name      // file name where declared
 	PkgPath  string
 
@@ -513,7 +513,7 @@ func (fv *FuncValue) GetSource(store Store) BlockNode {
 }
 
 func (fv *FuncValue) GetPackage(store Store) *PackageValue {
-	pv := store.GetPackage(fv.PkgPath)
+	pv := store.GetPackage(fv.PkgPath, false)
 	return pv
 }
 
@@ -531,7 +531,9 @@ func (fv *FuncValue) GetClosure(store Store) *Block {
 			if fb == nil {
 				panic(fmt.Sprintf("file block missing for file %q", fv.FileName))
 			}
-			fv.Closure = fb
+			// XXX cannot set closure without tripping up refcount counting,
+			// as we don't bump the ref count of closure block here.
+			// fv.Closure = fb
 			return fb
 		}
 	case RefValue:
@@ -755,11 +757,11 @@ func (pv *PackageValue) GetBlock(store Store) *Block {
 	}
 }
 
-func (pv *PackageValue) GetValueRefAt(store Store, path ValuePath) *TypedValue {
-	return pv.
+func (pv *PackageValue) GetValueAt(store Store, path ValuePath) TypedValue {
+	return *(pv.
 		GetBlock(store).
 		GetPointerTo(store, path).
-		TV
+		TV)
 }
 
 func (pv *PackageValue) AddFileBlock(fn Name, fb *Block) {
@@ -1565,13 +1567,15 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 			switch t := dtv.V.(TypeValue).Type.(type) {
 			case *PointerType:
 				dt := t.Elt.(*DeclaredType)
+				tv := dt.GetValueAt(store, path)
 				return PointerValue{
-					TV:   dt.GetValueRefAt(path),
+					TV:   &tv, // heap alloc
 					Base: nil, // TODO: make TypeValue an object.
 				}
 			case *DeclaredType:
+				tv := t.GetValueAt(store, path)
 				return PointerValue{
-					TV:   t.GetValueRefAt(path),
+					TV:   &tv, // heap alloc
 					Base: nil, // TODO: make TypeValue an object.
 				}
 			case *NativeType:
@@ -1607,7 +1611,7 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 		}
 	case VPValMethod:
 		dt := dtv.T.(*DeclaredType)
-		mtv := dt.GetValueRefAt(path)
+		mtv := dt.GetValueAt(store, path)
 		mv := mtv.GetFunc()
 		mt := mv.GetType(store)
 		if debug {
@@ -1631,7 +1635,7 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 		dt := tv.T.(*PointerType).Elt.(*DeclaredType)
 		// ^ support nil receivers, vs:
 		// dt := dtv.T.(*DeclaredType)
-		mtv := dt.GetValueRefAt(path)
+		mtv := dt.GetValueAt(store, path)
 		mv := mtv.GetFunc()
 		mt := mv.GetType(store)
 		if debug {
@@ -2389,7 +2393,7 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 	switch cv := tv.V.(type) {
 	case RefValue:
 		if cv.PkgPath != "" { // load package
-			tv.V = store.GetPackage(cv.PkgPath)
+			tv.V = store.GetPackage(cv.PkgPath, false)
 		} else { // load object
 			tv.V = store.GetObject(cv.ObjectID)
 		}

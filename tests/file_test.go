@@ -77,16 +77,12 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 		pkgPath = "main"
 	}
 	pkgName := defaultPkgName(pkgPath)
-	pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
-	pv := pn.NewPackage()
 
 	stdin := new(bytes.Buffer)
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 	store := testStore(stdin, stdout, stderr, nativeLibs)
 	store.SetLogStoreOps(true)
-	store.SetBlockNode(pn)
-	store.SetCachePackage(pv)
 	caller := testutils.TestAddress("testaddr____________")
 	txSend := std.MustParseCoins("100gnots")
 	pkgCoins := std.MustParseCoins("200gnots") // >= txSend.
@@ -103,7 +99,7 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 		Banker:      banker,
 	}
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		PkgPath: pkgPath,
+		PkgPath: "", // set later.
 		Output:  stdout,
 		Store:   store,
 		Context: ctx,
@@ -143,8 +139,13 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 				t.Log("RUN FILES & INIT")
 				t.Log("========================================")
 			}
-			if !pv.IsRealm() {
+			if !gno.IsRealmPath(pkgPath) {
 				// simple case.
+				pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
+				pv := pn.NewPackage()
+				store.SetBlockNode(pn)
+				store.SetCachePackage(pv)
+				m.SetActivePackage(pv)
 				n := gno.MustParseFile(path, string(bz)) // "main.go", string(bz))
 				m.RunFiles(n)
 				if gno.IsDebug() && testing.Verbose() {
@@ -178,7 +179,7 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 					store.SetLogStoreOps(true) // resets.
 				}
 				// reconstruct machine and clear store cache.
-				// whether pv is realm or not, since non-realm
+				// whether package is realm or not, since non-realm
 				// may call realm packages too.
 				if gno.IsDebug() && testing.Verbose() {
 					t.Log("========================================")
@@ -187,7 +188,7 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 				}
 				store.ClearCache()
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-					PkgPath: pkgPath,
+					PkgPath: "",
 					Output:  stdout,
 					Store:   store,
 					Context: ctx,
@@ -205,6 +206,8 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 					t.Log("========================================")
 					store.Print()
 				}
+				pv2 := store.GetPackage(pkgPath, false)
+				m2.SetActivePackage(pv2)
 				gno.EnableDebug()
 				m2.RunMain()
 				if gno.IsDebug() && testing.Verbose() {

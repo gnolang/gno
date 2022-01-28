@@ -1270,13 +1270,10 @@ func (pn *PackageNode) NewPackage() *PackageValue {
 	return pv
 }
 
-// Prepares new func and method values (e.g. by attaching the proper file block).
-// Returns a slice of new PackageValue.Values (sans updated *DeclaredType.Methods).
+// Prepares new func values (e.g. by attaching the proper file block).
+// Returns a slice of new PackageValue.Values.
 // After return, *PackageNode.Values and *PackageValue.Values have the same
 // length.
-// Until this function is called, PackageNode>*DeclarledType>Methods>*FuncValue.Closure
-// and PackageNode>*FuncValue.Closure doesn't get set (and cannot because Closures
-// are runtime values.)
 func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 	if pv.PkgPath == "" {
 		// nothing to prepare for throwaway packages.
@@ -1295,12 +1292,22 @@ func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 	}
 	pvl := len(block.Values)
 	pnl := len(pn.Values)
-	// copy new top-level defined types.
+	// copy new top-level defined values/types.
 	if pvl < pnl {
 		// XXX: deep copy heap values
 		nvs := make([]TypedValue, pnl-pvl)
-		// TODO: no need to copy first, just append.
 		copy(nvs, pn.Values[pvl:pnl])
+		for i, tv := range nvs {
+			if fv, ok := tv.V.(*FuncValue); ok {
+				// copy function value and assign closure from package value.
+				fv = fv.Copy()
+				fv.Closure = pv.fBlocksMap[fv.FileName]
+				if fv.Closure == nil {
+					panic(fmt.Sprintf("file block missing for file %q", fv.FileName))
+				}
+				nvs[i].V = fv
+			}
+		}
 		block.Values = append(block.Values, nvs...)
 		return block.Values[pvl:]
 	} else if pvl > pnl {
@@ -1331,7 +1338,6 @@ func (pn *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*
 	}
 	fv := pn.GetValueRef(nil, n).V.(*FuncValue)
 	fv.nativeBody = native
-	// fv.Closure, fv.pkg set during .NewPackage().
 }
 
 //----------------------------------------
@@ -1561,7 +1567,7 @@ func (sb *StaticBlock) GetStaticTypeOf(store Store, n Name) Type {
 			bp = bp.GetParentNode(store)
 		} else if idx, ok := UverseNode().GetLocalIndex(n); ok {
 			path := NewValuePathUverse(idx, n)
-			tv := Uverse().GetValueRefAt(store, path)
+			tv := Uverse().GetValueAt(store, path)
 			return tv.T
 		} else {
 

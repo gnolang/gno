@@ -854,18 +854,6 @@ func (it *InterfaceType) Elem() Type {
 	panic("interface types have no elements")
 }
 
-// TODO: optimize
-// XXX DEPRECATED -- this is wrong, doesnot work with embedded types.
-func (it *InterfaceType) GetMethodType(n Name) *FuncType {
-	panic("DEPRECATED")
-	for _, im := range it.Methods {
-		if im.Name == n {
-			return im.Type.(*FuncType)
-		}
-	}
-	return nil
-}
-
 func (it *InterfaceType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 	trail []ValuePath, hasPtr bool, rcvr Type, ft Type) {
 
@@ -1407,7 +1395,8 @@ func (dt *DeclaredType) GetUnboundPathForName(n Name) ValuePath {
 }
 
 // Returns the method declared onto dt.
-// For embedded field methods, use FindEmbeddedFieldType().
+// Slow, for testing only.
+// XXX delete, since this doesn't fill closure etc?
 func (dt *DeclaredType) GetMethod(n Name) *FuncValue {
 	for i := 0; i < len(dt.Methods); i++ {
 		mv := &dt.Methods[i]
@@ -1472,47 +1461,52 @@ func (dt *DeclaredType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 	}
 }
 
-// The Preprocesses uses *DT.GetPathForName(name) to set the path, and also
-// *DT.GetMethod(name) to consult the type.  OpSelector uses
-// *TV.GetPointerTo(path), and for declared types, in turn uses
-// *DT.GetValueRefAt(path) to find any methods (see values.go).
-//
-// If the method is embedded (as a method of an embedded struct, or the
-// method of an embedded interface), then the current implementation in
-// preprocessor doesn't work, as it uses *DT.GetMethod(name), which uses
-// *DT.GetValueRef(name).
+// The Preprocesses uses *DT.FindEmbeddedFieldType() to set the path.
+// OpSelector uses *TV.GetPointerTo(path), and for declared types, in turn
+// uses *DT.GetValueAt(path) to find any methods (see values.go).
 //
 // i.e.,
-//  preprocessor: *DT.GetPathForName(name)
-//                *DT.GetMethod(name)
-//                 -> *DT.GetValueRef(name)
-//                *DT.GetValueRefAt(path) // from op_type/evalTypeOf()
+//  preprocessor: *DT.FindEmbeddedFieldType(name)
+//                *DT.GetValueAt(path) // from op_type/evalTypeOf()
 //
 //       runtime: *TV.GetPointerTo(path)
-//                 -> *DT.GetValueRefAt(path)
-//                     -> *DT.GetValueRef(name) // if interface
-//                     -> *DT.FindEmbeddedFieldType(name) // proposed
-// TODO: update above to visualize flow chart.
-//
-// NOTE: The preprocessor expands (elided) embedded field selectors.
-// NOTE: only works for local methods.
-func (dt *DeclaredType) GetValueRefAt(path ValuePath) *TypedValue {
+//                 -> *DT.GetValueAt(path)
+func (dt *DeclaredType) GetValueAt(store Store, path ValuePath) TypedValue {
 	switch path.Type {
 	case VPInterface:
 		panic("should not happen")
 		// should call *DT.FindEmbeddedFieldType(name) instead.
 		// tr, hp, rt, ft := dt.FindEmbeddedFieldType(n)
-	case VPValMethod, VPPtrMethod:
+	case VPValMethod, VPPtrMethod, VPField:
 		if path.Depth == 0 {
-			return &dt.Methods[path.Index]
+			mtv := dt.Methods[path.Index]
+			// Fill in *FV.Closure.
+			ft := mtv.T
+			fv := mtv.V.(*FuncValue).Copy()
+			fv.Closure = fv.GetClosure(store)
+			return TypedValue{T: ft, V: fv}
 		} else {
-			panic("DeclaredType.GetValueRefAt() expects depth == 0")
+			panic("DeclaredType.GetValueAt() expects depth == 0")
 		}
-	case VPField:
+	default:
+		panic(fmt.Sprintf(
+			"unexpected value path type %s",
+			path.String()))
+	}
+}
+
+// Like GetValueAt, but doesn't fill *FuncValue closures.
+func (dt *DeclaredType) GetStaticValueAt(path ValuePath) TypedValue {
+	switch path.Type {
+	case VPInterface:
+		panic("should not happen")
+		// should call *DT.FindEmbeddedFieldType(name) instead.
+		// tr, hp, rt, ft := dt.FindEmbeddedFieldType(n)
+	case VPValMethod, VPPtrMethod, VPField:
 		if path.Depth == 0 {
-			return &dt.Methods[path.Index]
+			return dt.Methods[path.Index]
 		} else {
-			panic("DeclaredType.GetValueRefAt() expects depth == 0")
+			panic("DeclaredType.GetStaticValueAt() expects depth == 0")
 		}
 	default:
 		panic(fmt.Sprintf(

@@ -332,11 +332,11 @@ func (m *Machine) doOpStaticTypeOf() {
 				switch cxt := xt.(type) {
 				case *PointerType:
 					dt := cxt.Elt.(*DeclaredType)
-					t2 := dt.GetValueRefAt(path).T
+					t2 := dt.GetStaticValueAt(path).T
 					m.PushValue(asValue(t2))
 					return
 				case *DeclaredType:
-					t2 := cxt.GetValueRefAt(path).T
+					t2 := cxt.GetStaticValueAt(path).T
 					m.PushValue(asValue(t2))
 					return
 				case *NativeType:
@@ -387,7 +387,7 @@ func (m *Machine) doOpStaticTypeOf() {
 					dxt.Kind().String()))
 			}
 		case VPValMethod, VPPtrMethod:
-			ftv := dxt.(*DeclaredType).GetValueRefAt(path)
+			ftv := dxt.(*DeclaredType).GetStaticValueAt(path)
 			ft := ftv.GetFunc().GetType(m.Store)
 			mt := ft.BoundType()
 			m.PushValue(asValue(mt))
