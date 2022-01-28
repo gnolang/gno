@@ -233,13 +233,14 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg std.MemPackage) {
 		}
 	}
 	{ // run all (import) tests in test files.
-		pkg := NewPackageNode(Name(memPkg.Name+"_test"), memPkg.Path+"_test", itfiles)
-		pv := pkg.NewPackage()
+		pn := NewPackageNode(Name(memPkg.Name+"_test"), memPkg.Path+"_test", itfiles)
+		pv := pn.NewPackage()
+		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
 		pvBlock := pv.GetBlock(m.Store)
 		m.SetActivePackage(pv)
 		m.RunFiles(itfiles.Files...)
-		pkg.PrepareNewValues(pv)
+		pn.PrepareNewValues(pv)
 		EnableDebug()
 		fmt.Println("DEBUG ENABLED")
 		for i := 0; i < len(pvBlock.Values); i++ {
