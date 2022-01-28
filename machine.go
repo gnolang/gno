@@ -232,8 +232,9 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg std.MemPackage) {
 		}
 	}
 	{ // run all (import) tests in test files.
-		pkg := NewPackageNode(Name(memPkg.Name+"_test"), memPkg.Path, itfiles)
+		pkg := NewPackageNode(Name(memPkg.Name+"_test"), memPkg.Path+"_test", itfiles)
 		pv := pkg.NewPackage()
+		m.Store.SetCachePackage(pv)
 		pvBlock := pv.GetBlock(m.Store)
 		m.SetActivePackage(pv)
 		m.RunFiles(itfiles.Files...)

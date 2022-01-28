@@ -523,16 +523,18 @@ func (fv *FuncValue) GetClosure(store Store) *Block {
 		if fv.FileName == "" {
 			return nil
 		} else {
-			// NOTE: *PackageNode.StaticBlock.Values static declared functions and
-			// in methods in *DeclaredType.Methods initially have zero closure,
+			// NOTE: *PackageNode.StaticBlock.Values static
+			// declared functions and in methods in
+			// *DeclaredType.Methods initially have zero closure,
 			// but get filled lazily here.
 			pv := fv.GetPackage(store)
 			fb := pv.fBlocksMap[fv.FileName]
 			if fb == nil {
 				panic(fmt.Sprintf("file block missing for file %q", fv.FileName))
 			}
-			// XXX cannot set closure without tripping up refcount counting,
-			// as we don't bump the ref count of closure block here.
+			// XXX cannot set closure without tripping up refcount
+			// counting, as we don't bump the ref count of closure
+			// block here.
 			// fv.Closure = fb
 			return fb
 		}

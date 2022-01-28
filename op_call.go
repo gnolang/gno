@@ -187,10 +187,6 @@ func (m *Machine) doOpReturn() {
 			// We are changing realms or exiting a realm.
 			finalize = true
 		}
-		fmt.Println("DIFFER m.Realm", fmt.Sprintf("%p", crlm), crlm,
-			"cfr.LastRealm", fmt.Sprintf("%p", cfr.LastRealm), cfr.LastRealm,
-			"m.Package.PkgPath", m.Package.PkgPath,
-			"m.Package.Realm", fmt.Sprintf("%p", m.Package.Realm), m.Package.Realm, cfr.Source)
 		if finalize {
 			// Finalize realm updates!
 			// NOTE: This is a resource intensive undertaking.
