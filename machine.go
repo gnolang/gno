@@ -48,6 +48,8 @@ type Machine struct {
 // Creates a new MemRealmer for any new realms.
 // Looks in store for package of pkgPath; if not found,
 // creates new instances as necessary.
+// If pkgPath is zero, the machine has no active package
+// and one must be set prior to usage.
 func NewMachine(pkgPath string, store Store) *Machine {
 	return NewMachineWithOptions(
 		MachineOptions{
@@ -66,7 +68,6 @@ type MachineOptions struct {
 }
 
 func NewMachineWithOptions(opts MachineOptions) *Machine {
-	//rlm := pv.GetRealm()
 	checkTypes := opts.CheckTypes
 	readOnly := opts.ReadOnly
 	output := opts.Output
