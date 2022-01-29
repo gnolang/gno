@@ -26,7 +26,7 @@ func (vmk *VMKeeper) initBuiltinPackages(store gno.Store) {
 		}
 		memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
 		m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-			Package: nil,
+			PkgPath: "",
 			Output:  os.Stdout,
 			Store:   store,
 		})
