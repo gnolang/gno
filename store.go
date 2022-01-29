@@ -544,12 +544,13 @@ func (ds *defaultStore) ClearObjectCache() {
 	if len(ds.current) > 0 {
 		ds.current = make(map[string]struct{})
 	}
+	ds.SetCachePackage(Uverse())
 }
 
 // Unstable.
 // This function is used to handle queries and checktx transactions.
 func (ds *defaultStore) Fork() Store {
-	return &defaultStore{
+	ds2 := &defaultStore{
 		pkgGetter:    ds.pkgGetter,
 		cacheObjects: make(map[ObjectID]Object), // new cache.
 		cacheTypes:   ds.cacheTypes,
@@ -560,6 +561,8 @@ func (ds *defaultStore) Fork() Store {
 		opslog:       nil, // new ops log.
 		current:      make(map[string]struct{}),
 	}
+	ds2.SetCachePackage(Uverse())
+	return ds2
 }
 
 // TODO: consider a better/faster/simpler way of achieving the overall same goal?

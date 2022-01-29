@@ -1308,10 +1308,8 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 	}
 	m.Frames = append(m.Frames, fr)
 	pv := fv.GetPackage(m.Store)
-	if debug {
-		if pv == nil {
-			panic("should not happen")
-		}
+	if pv == nil {
+		panic(fmt.Sprintf("package value missing in store: %s", fv.PkgPath))
 	}
 	m.Package = pv
 	rlm := pv.GetRealm()

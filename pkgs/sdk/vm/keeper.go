@@ -48,37 +48,36 @@ func NewVMKeeper(baseKey store.StoreKey, iavlKey store.StoreKey, acck auth.Accou
 }
 
 func (vmk *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
+	// construct main gnoStore if nil.
+	if vmk.gnoStore == nil {
+		baseSDKStore := ctx.Store(vmk.baseKey)
+		iavlSDKStore := ctx.Store(vmk.iavlKey)
+		vmk.gnoStore = gno.NewStore(baseSDKStore, iavlSDKStore)
+		vmk.initBuiltinPackages(vmk.gnoStore)
+		if vmk.gnoStore.NumMemPackages() > 0 {
+			// for now, all mem packages must be re-run after reboot.
+			// TODO remove this, and generally solve for in-mem garbage collection
+			// and memory management across many objects/types/nodes/packages.
+			m2 := gno.NewMachineWithOptions(
+				gno.MachineOptions{
+					PkgPath: "",
+					Output:  os.Stdout, // XXX
+					Store:   vmk.gnoStore,
+				})
+			m2.PreprocessAllFilesAndSaveBlockNodes()
+		}
+	}
 	switch ctx.Mode() {
 	case sdk.RunTxModeDeliver:
-		// construct gnoStore if nil.
-		if vmk.gnoStore == nil {
-			baseSDKStore := ctx.Store(vmk.baseKey)
-			iavlSDKStore := ctx.Store(vmk.iavlKey)
-			vmk.gnoStore = gno.NewStore(baseSDKStore, iavlSDKStore)
-			vmk.initBuiltinPackages(vmk.gnoStore)
-			if vmk.gnoStore.NumMemPackages() > 0 {
-				// for now, all mem packages must be re-run after reboot.
-				// TODO remove this, and generally solve for in-mem garbage collection
-				// and memory management across many objects/types/nodes/packages.
-				m2 := gno.NewMachineWithOptions(
-					gno.MachineOptions{
-						PkgPath: "",
-						Output:  os.Stdout, // XXX
-						Store:   vmk.gnoStore,
-					})
-				m2.PreprocessAllFilesAndSaveBlockNodes()
-			}
-		} else {
-			// swap sdk store of existing gnoStore.
-			// this is needed due to e.g. gas wrappers.
-			baseSDKStore := ctx.Store(vmk.baseKey)
-			iavlSDKStore := ctx.Store(vmk.iavlKey)
-			vmk.gnoStore.SwapStores(baseSDKStore, iavlSDKStore)
-			// clear object cache for every transaction.
-			// NOTE: this is inefficient, but simple.
-			// in the future, replace with more advanced caching strategy.
-			vmk.gnoStore.ClearObjectCache()
-		}
+		// swap sdk store of existing gnoStore.
+		// this is needed due to e.g. gas wrappers.
+		baseSDKStore := ctx.Store(vmk.baseKey)
+		iavlSDKStore := ctx.Store(vmk.iavlKey)
+		vmk.gnoStore.SwapStores(baseSDKStore, iavlSDKStore)
+		// clear object cache for every transaction.
+		// NOTE: this is inefficient, but simple.
+		// in the future, replace with more advanced caching strategy.
+		vmk.gnoStore.ClearObjectCache()
 		return vmk.gnoStore
 	case sdk.RunTxModeCheck:
 		// For query??? XXX Why not RunTxModeQuery?
