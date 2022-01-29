@@ -1277,9 +1277,8 @@ type DeclaredType struct {
 	Base    Type         // not a DeclaredType
 	Methods []TypedValue // {T:*FuncType,V:*FuncValue}...
 
-	typeid  TypeID
-	sealed  bool // for ensuring correctness with recursive types.
-	updated bool // for tracking new methods for preexisting types. // XXX remove
+	typeid TypeID
+	sealed bool // for ensuring correctness with recursive types.
 }
 
 // returns an unsealed *DeclaredType.
@@ -1290,7 +1289,6 @@ func declareWith(pkgPath string, name Name, b Type) *DeclaredType {
 		Name:    name,
 		Base:    baseOf(b),
 		sealed:  false,
-		updated: false,
 	}
 	return dt
 }
@@ -1353,7 +1351,6 @@ func (dt *DeclaredType) DefineMethod(fv *FuncValue) {
 		T: fv.Type,
 		V: fv,
 	})
-	dt.updated = true
 }
 
 func (dt *DeclaredType) GetPathForName(n Name) ValuePath {
@@ -1392,19 +1389,6 @@ func (dt *DeclaredType) GetUnboundPathForName(n Name) ValuePath {
 	panic(fmt.Sprintf(
 		"unknown *DeclaredType method named %s",
 		n))
-}
-
-// Returns the method declared onto dt.
-// Slow, for testing only.
-// XXX delete, since this doesn't fill closure etc?
-func (dt *DeclaredType) GetMethod(n Name) *FuncValue {
-	for i := 0; i < len(dt.Methods); i++ {
-		mv := &dt.Methods[i]
-		if fv := mv.GetFunc(); fv.Name == n {
-			return fv
-		}
-	}
-	return nil
 }
 
 // Searches embedded fields to find matching field or method.

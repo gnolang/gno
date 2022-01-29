@@ -517,25 +517,20 @@ func (fv *FuncValue) GetPackage(store Store) *PackageValue {
 	return pv
 }
 
+// NOTE: this function does not automatically memoize the closure for
+// file-level declared methods and functions. For those, caller
+// should set .Closure manually after *FuncValue.Copy().
 func (fv *FuncValue) GetClosure(store Store) *Block {
 	switch cv := fv.Closure.(type) {
 	case nil:
 		if fv.FileName == "" {
 			return nil
 		} else {
-			// NOTE: *PackageNode.StaticBlock.Values static
-			// declared functions and in methods in
-			// *DeclaredType.Methods initially have zero closure,
-			// but get filled lazily here.
 			pv := fv.GetPackage(store)
 			fb := pv.fBlocksMap[fv.FileName]
 			if fb == nil {
 				panic(fmt.Sprintf("file block missing for file %q", fv.FileName))
 			}
-			// XXX cannot set closure without tripping up refcount
-			// counting, as we don't bump the ref count of closure
-			// block here.
-			// fv.Closure = fb
 			return fb
 		}
 	case RefValue:
