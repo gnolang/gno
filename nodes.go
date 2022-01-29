@@ -1270,10 +1270,12 @@ func (pn *PackageNode) NewPackage() *PackageValue {
 	return pv
 }
 
-// Prepares new func values (e.g. by attaching the proper file block).
+// Prepares new func values (e.g. by attaching the proper file block closure).
 // Returns a slice of new PackageValue.Values.
 // After return, *PackageNode.Values and *PackageValue.Values have the same
 // length.
+// NOTE: declared methods do not get their closures set here. See
+// *DeclaredType.GetValueAt() which returns a filled copy.
 func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 	if pv.PkgPath == "" {
 		// nothing to prepare for throwaway packages.
