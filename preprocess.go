@@ -1816,12 +1816,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					pn := packageOf(last)
 					tid := DeclaredTypeID(pn.PkgPath, n.Name)
 					exists := false
-					if store != nil {
-						if dt := store.GetTypeSafe(tid); dt != nil {
-							dst = dt.(*DeclaredType)
-							last.GetValueRef(store, n.Name).SetType(dst)
-							exists = true
-						}
+					if dt := store.GetTypeSafe(tid); dt != nil {
+						dst = dt.(*DeclaredType)
+						last.GetValueRef(store, n.Name).SetType(dst)
+						exists = true
 					}
 					if !exists {
 						// otherwise construct new *DeclaredType.
@@ -1908,6 +1906,12 @@ func evalStaticType(store Store, last BlockNode, x Expr) Type {
 		return ctx.Type // no need to set attribute.
 	}
 	pn := packageOf(last)
+	// See comment in evalStaticTypeOfRaw.
+	if store != nil && pn.PkgPath != ".uverse" {
+		pv := pn.NewPackage() // temporary
+		store = store.Fork()
+		store.SetCachePackage(pv)
+	}
 	tv := NewMachine(pn.PkgPath, store).EvalStatic(last, x)
 	if _, ok := tv.V.(TypeValue); !ok {
 		panic(fmt.Sprintf("%s is not a type", x.String()))
@@ -1969,6 +1973,17 @@ func evalStaticTypeOfRaw(store Store, last BlockNode, x Expr) (t Type) {
 		return ctx.T
 	} else {
 		pn := packageOf(last)
+		// NOTE: do not load the package value from store,
+		// because we may be preprocessing in the middle of
+		// PreprocessAllFilesAndSaveBlockNodes,
+		// and the preprocessor will panic when
+		// package values are already there that weren't
+		// yet predefined this time around.
+		if store != nil && pn.PkgPath != ".uverse" {
+			pv := pn.NewPackage() // temporary
+			store = store.Fork()
+			store.SetCachePackage(pv)
+		}
 		t = NewMachine(pn.PkgPath, store).EvalStaticTypeOf(last, x)
 		x.SetAttribute(ATTR_TYPEOF_VALUE, t)
 		return t
@@ -2063,8 +2078,7 @@ func getResultTypedValues(cx *CallExpr) []TypedValue {
 func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	// TODO: some check or verification for ensuring x
 	// is constant?  From the machine?
-	pn := packageOf(last)
-	cv := NewMachine(pn.PkgPath, store).EvalStatic(last, x)
+	cv := NewMachine(".dontcare", store).EvalStatic(last, x)
 	cx := &ConstExpr{
 		Source:     x,
 		TypedValue: cv,
@@ -2786,12 +2800,11 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 				IsMethod:   true,
 				Source:     cd,
 				Name:       cd.Name,
-				Closure:    nil, // set later, see PrepareNewValues().
+				Closure:    nil, // set lazily.
 				FileName:   fileNameOf(last),
-				PkgPath:    "", // set later, see PrepareNewValues().
+				PkgPath:    pkg.PkgPath,
 				body:       cd.Body,
 				nativeBody: nil,
-				pkg:        nil, // set later, see PrepareNewValues().
 			})
 		} else {
 			ftv := pkg.GetValueRef(store, cd.Name)
@@ -2837,7 +2850,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 	// so value paths cannot be used here.
 	switch d := d.(type) {
 	case *ImportDecl:
-		pv := store.GetPackage(d.PkgPath)
+		pv := store.GetPackage(d.PkgPath, true)
 		if pv == nil {
 			panic(fmt.Sprintf(
 				"unknown import path %s",
@@ -2918,7 +2931,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 				} else if idx, ok := UverseNode().GetLocalIndex(tx.Name); ok {
 					// uverse name
 					path := NewValuePathUverse(idx, tx.Name)
-					tv := Uverse().GetValueRefAt(nil, path)
+					tv := Uverse().GetValueAt(nil, path)
 					t = tv.GetType()
 				} else {
 					// yet undefined
@@ -3002,12 +3015,11 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 					IsMethod:   false,
 					Source:     d,
 					Name:       d.Name,
-					Closure:    nil, // set later, see PrepareNewValues().
+					Closure:    nil, // set lazily.
 					FileName:   fileNameOf(last),
-					PkgPath:    "", // set later, see PrepareNewValues().
+					PkgPath:    pkg.PkgPath,
 					body:       d.Body,
 					nativeBody: nil,
-					pkg:        nil, // set later, see PrepareNewValues().
 				},
 			})
 			if d.Name == "init" {

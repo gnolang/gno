@@ -59,14 +59,17 @@ var gStringerType = &DeclaredType{
 // Uverse package
 
 var uverseNode *PackageNode
+var uverseValue *PackageValue
 
 const uversePkgPath = ".uverse"
 
 // Always returns a new copy from the latest state of source.
 func Uverse() *PackageValue {
-	pn := UverseNode()
-	pv := pn.NewPackage()
-	return pv
+	if uverseValue == nil {
+		pn := UverseNode()
+		uverseValue = pn.NewPackage()
+	}
+	return uverseValue
 }
 
 // Always returns the same instance with possibly differing completeness.

@@ -6,7 +6,6 @@ import (
 )
 
 func (m *Machine) doOpPrecall() {
-
 	cx := m.PopExpr().(*CallExpr)
 	v := m.PeekValue(1 + cx.NumArgs).V
 	if debug {

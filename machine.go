@@ -46,19 +46,20 @@ type Machine struct {
 
 // Machine with new package of given path.
 // Creates a new MemRealmer for any new realms.
+// Looks in store for package of pkgPath; if not found,
+// creates new instances as necessary.
+// If pkgPath is zero, the machine has no active package
+// and one must be set prior to usage.
 func NewMachine(pkgPath string, store Store) *Machine {
-	pkgName := defaultPkgName(pkgPath)
-	pn := NewPackageNode(pkgName, pkgPath, &FileSet{})
-	pv := pn.NewPackage()
 	return NewMachineWithOptions(
 		MachineOptions{
-			Package: pv,
+			PkgPath: pkgPath,
 			Store:   store,
 		})
 }
 
 type MachineOptions struct {
-	Package    *PackageValue
+	PkgPath    string
 	CheckTypes bool // not yet used
 	ReadOnly   bool
 	Output     io.Writer
@@ -67,12 +68,6 @@ type MachineOptions struct {
 }
 
 func NewMachineWithOptions(opts MachineOptions) *Machine {
-	pv := opts.Package
-	if pv == nil {
-		pn := NewPackageNode("main", ".main", &FileSet{})
-		pv = pn.NewPackage()
-	}
-	//rlm := pv.GetRealm()
 	checkTypes := opts.CheckTypes
 	readOnly := opts.ReadOnly
 	output := opts.Output
@@ -81,27 +76,36 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	}
 	store := opts.Store
 	if store == nil {
-		// bare machine, no stdlibs.
+		// bare store, no stdlibs.
+		store = NewStore(nil, nil)
 	}
-	//blocks := []*Block{
-	//	pv.GetBlock(store),
-	//}
+	pv := (*PackageValue)(nil)
+	if opts.PkgPath != "" {
+		pv = store.GetPackage(opts.PkgPath, false)
+		if pv == nil {
+			pkgName := defaultPkgName(opts.PkgPath)
+			pn := NewPackageNode(pkgName, opts.PkgPath, &FileSet{})
+			pv = pn.NewPackage()
+			store.SetBlockNode(pn)
+			store.SetCachePackage(pv)
+		}
+	}
 	context := opts.Context
 	mm := &Machine{
-		Ops:       make([]Op, 1024),
-		NumOps:    0,
-		Values:    make([]TypedValue, 1024),
-		NumValues: 0,
-		//Blocks:     blocks,
-		Package: pv,
-		//Realm:      rlm,
+		Ops:        make([]Op, 1024),
+		NumOps:     0,
+		Values:     make([]TypedValue, 1024),
+		NumValues:  0,
+		Package:    pv,
 		CheckTypes: checkTypes,
 		ReadOnly:   readOnly,
 		Output:     output,
 		Store:      store,
 		Context:    context,
 	}
-	mm.SetActivePackage(pv)
+	if pv != nil {
+		mm.SetActivePackage(pv)
+	}
 	return mm
 }
 
@@ -126,6 +130,7 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	for memPkg := range ch {
 		fset := ParseMemPackage(memPkg)
 		pn := NewPackageNode(Name(memPkg.Name), memPkg.Path, fset)
+		m.Store.SetBlockNode(pn)
 		PredefineFileSet(m.Store, pn, fset)
 		for _, fn := range fset.Files {
 			// Save Types to m.Store (while preprocessing).
@@ -151,30 +156,36 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 //----------------------------------------
 // top level Run* methods.
 
-// First sets the active package to a new instance of memPkg's.
-// Parses files, sets the package, runs files, and saves mempkg and
-// corresponding package node to store.
-// If save is true, the mempackage, package value, package node, and defined
-// types are saved to store.
+// Parses files, sets the package if doesn't exist, runs files, saves mempkg
+// and corresponding package node, package value, and types to store. Save
+// is set to false for tests where package values may be native.
 func (m *Machine) RunMemPackage(memPkg std.MemPackage, save bool) (*PackageNode, *PackageValue) {
 	// parse files.
 	files := ParseMemPackage(memPkg)
-	// make and set package
-	pkg := NewPackageNode(Name(memPkg.Name), memPkg.Path, nil)
-	pv := pkg.NewPackage()
+	// make and set package if doesn't exist.
+	pn := (*PackageNode)(nil)
+	pv := (*PackageValue)(nil)
+	if m.Package != nil && m.Package.PkgPath == memPkg.Path {
+		pv = m.Package
+		loc := PackageNodeLocation(memPkg.Path)
+		pn = m.Store.GetBlockNode(loc).(*PackageNode)
+	} else {
+		pn = NewPackageNode(Name(memPkg.Name), memPkg.Path, &FileSet{})
+		pv = pn.NewPackage()
+		m.Store.SetBlockNode(pn)
+		m.Store.SetCachePackage(pv)
+	}
 	m.SetActivePackage(pv)
+	// run files.
+	m.RunFiles(files.Files...)
+	// maybe save package value and mempackage.
 	if save {
-		// run files and save package value, package node, and types
-		m.RunFilesAndSave(files.Files...)
+		// store package values and types
+		m.savePackageValuesAndTypes()
 		// store mempackage
 		m.Store.AddMemPackage(memPkg)
-		// store package node
-		m.Store.SetBlockNode(pkg)
-	} else {
-		// run files
-		m.RunFiles(files.Files...)
 	}
-	return pkg, pv
+	return pn, pv
 }
 
 // Tests all test files in a mempackage.
@@ -187,13 +198,13 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg std.MemPackage) {
 	DisableDebug()
 	fmt.Println("DEBUG DISABLED (FOR TEST DEPENDENCIES INIT)")
 	// prefetch the testing package.
-	testingpv := m.Store.GetPackage("testing")
+	testingpv := m.Store.GetPackage("testing", false)
 	testingtv := TypedValue{T: gPackageType, V: testingpv}
 	testingcx := &ConstExpr{TypedValue: testingtv}
 	// parse test files.
 	tfiles, itfiles := ParseMemPackageTests(memPkg)
 	{ // first, tfiles which run in the same package.
-		pv := m.Store.GetPackage(memPkg.Path)
+		pv := m.Store.GetPackage(memPkg.Path, false)
 		pvBlock := pv.GetBlock(m.Store)
 		pvSize := len(pvBlock.Values)
 		m.SetActivePackage(pv)
@@ -223,12 +234,14 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg std.MemPackage) {
 		}
 	}
 	{ // run all (import) tests in test files.
-		pkg := NewPackageNode(Name(memPkg.Name+"_test"), memPkg.Path, itfiles)
-		pv := pkg.NewPackage()
+		pn := NewPackageNode(Name(memPkg.Name+"_test"), memPkg.Path+"_test", itfiles)
+		pv := pn.NewPackage()
+		m.Store.SetBlockNode(pn)
+		m.Store.SetCachePackage(pv)
 		pvBlock := pv.GetBlock(m.Store)
 		m.SetActivePackage(pv)
 		m.RunFiles(itfiles.Files...)
-		pkg.PrepareNewValues(pv)
+		pn.PrepareNewValues(pv)
 		EnableDebug()
 		fmt.Println("DEBUG ENABLED")
 		for i := 0; i < len(pvBlock.Values); i++ {
@@ -310,13 +323,6 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	m.runFiles(fns...)
 }
 
-// Like RunFiles, but also persists the resulting new package value
-// and found types.
-// Non-realm packages are persisted on a throwaway realm.
-func (m *Machine) RunFilesAndSave(fns ...*FileNode) {
-	m.runFiles(fns...)
-	m.savePackage()
-}
 func (m *Machine) runFiles(fns ...*FileNode) {
 	// Files' package names must match the machine's active one.
 	// if there is one.
@@ -364,9 +370,7 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 			debug.Printf("PREPROCESSED FILE: %v\n", fn)
 		}
 		// After preprocessing, save blocknodes to store.
-		if m.Store != nil {
-			SaveBlockNodes(m.Store, fn)
-		}
+		SaveBlockNodes(m.Store, fn)
 		// Make block for fn.
 		// Each file for each *PackageValue gets its own file *Block,
 		// with values copied over from each file's
@@ -436,9 +440,9 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 		}
 	}
 
-	// Declarations (and variable initializations).  This must happen after
-	// all files are preprocessed, because value decl may be out of order
-	// and depend on other files.
+	// Declarations (and variable initializations).  This must happen
+	// after all files are preprocessed, because value decl may be out of
+	// order and depend on other files.
 
 	// Run declarations.
 	for _, fn := range fns {
@@ -471,7 +475,7 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 
 // Save the machine's package using realm finalization deep crawl.
 // Also saves declared types.
-func (m *Machine) savePackage() {
+func (m *Machine) savePackageValuesAndTypes() {
 	// save package value and dependencies.
 	pv := m.Package
 	if pv.IsRealm() {
@@ -480,19 +484,17 @@ func (m *Machine) savePackage() {
 		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
 		// save package realm info.
 		m.Store.SetPackageRealm(rlm)
-	} else if m.Store != nil { // use a throwaway realm.
+	} else { // use a throwaway realm.
 		rlm := NewRealm(pv.PkgPath)
 		rlm.MarkNewReal(pv)
 		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
 	}
 	// save declared types.
-	if m.Store != nil {
-		if bv, ok := pv.Block.(*Block); ok {
-			for _, tv := range bv.Values {
-				if tvv, ok := tv.V.(TypeValue); ok {
-					if dt, ok := tvv.Type.(*DeclaredType); ok {
-						m.Store.SetType(dt)
-					}
+	if bv, ok := pv.Block.(*Block); ok {
+		for _, tv := range bv.Values {
+			if tvv, ok := tv.V.(TypeValue); ok {
+				if dt, ok := tvv.Type.(*DeclaredType); ok {
+					m.Store.SetType(dt)
 				}
 			}
 		}
@@ -1307,10 +1309,8 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 	}
 	m.Frames = append(m.Frames, fr)
 	pv := fv.GetPackage(m.Store)
-	if debug {
-		if pv == nil {
-			panic("should not happen")
-		}
+	if pv == nil {
+		panic(fmt.Sprintf("package value missing in store: %s", fv.PkgPath))
 	}
 	m.Package = pv
 	rlm := pv.GetRealm()

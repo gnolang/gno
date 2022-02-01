@@ -21,8 +21,8 @@ type PackageInjector func(store Store, pn *PackageNode)
 type Store interface {
 	// STABLE
 	SetPackageGetter(PackageGetter)
-	GetPackage(pkgPath string) *PackageValue
-	// SetPackage(*PackageValue)
+	GetPackage(pkgPath string, isImport bool) *PackageValue
+	SetCachePackage(*PackageValue)
 	GetPackageRealm(pkgPath string) *Realm
 	SetPackageRealm(*Realm)
 	GetObject(oid ObjectID) Object
@@ -78,7 +78,7 @@ func NewStore(baseStore, iavlStore store.Store) *defaultStore {
 		iavlStore:    iavlStore,
 		current:      make(map[string]struct{}),
 	}
-	InitCacheTypes(ds)
+	InitStoreCaches(ds)
 	return ds
 }
 
@@ -87,9 +87,17 @@ func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
 }
 
 // Gets package from cache, or loads it from baseStore, or gets it from package getter.
-func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
-	oid := ObjectIDFromPkgPath(pkgPath)
+func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue {
+	// detect circular imports
+	if isImport {
+		if _, exists := ds.current[pkgPath]; exists {
+			panic(fmt.Sprintf("import cycle detected: %q", pkgPath))
+		}
+		ds.current[pkgPath] = struct{}{}
+		defer delete(ds.current, pkgPath)
+	}
 	// first, check cache.
+	oid := ObjectIDFromPkgPath(pkgPath)
 	if oo, exists := ds.cacheObjects[oid]; exists {
 		pv := oo.(*PackageValue)
 		return pv
@@ -111,8 +119,6 @@ func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
 				// Do not inject packages from packageGetter
 				// that don't have corresponding *PackageNodes.
 			} else {
-				// Rederive pv.fBlocksMap.
-				pv.deriveFBlocksMap(ds)
 				// Inject natives after load.
 				if ds.pkgInjector != nil {
 					if pn.HasAttribute(ATTR_INJECTED) {
@@ -126,16 +132,13 @@ func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
 					}
 				}
 			}
+			// Rederive pv.fBlocksMap.
+			pv.deriveFBlocksMap(ds)
 			return pv
 		}
 	}
 	// otherwise, fetch from pkgGetter.
 	if ds.pkgGetter != nil {
-		if _, exists := ds.current[pkgPath]; exists {
-			panic(fmt.Sprintf("import cycle detected: %q", pkgPath))
-		}
-		ds.current[pkgPath] = struct{}{}
-		defer delete(ds.current, pkgPath)
 		if pn, pv := ds.pkgGetter(pkgPath); pv != nil {
 			// e.g. tests/imports_tests loads example/gno.land/r/... realms.
 			// if pv.IsRealm() {
@@ -175,6 +178,15 @@ func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
 	}
 	// otherwise, package does not exist.
 	return nil
+}
+
+// Used to set throwaway packages.
+func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
+	oid := ObjectIDFromPkgPath(pv.PkgPath)
+	if _, exists := ds.cacheObjects[oid]; exists {
+		panic(fmt.Sprintf("package %s already exists in cache", pv.PkgPath))
+	}
+	ds.cacheObjects[oid] = pv
 }
 
 // Some atomic operation.
@@ -532,12 +544,13 @@ func (ds *defaultStore) ClearObjectCache() {
 	if len(ds.current) > 0 {
 		ds.current = make(map[string]struct{})
 	}
+	ds.SetCachePackage(Uverse())
 }
 
 // Unstable.
 // This function is used to handle queries and checktx transactions.
 func (ds *defaultStore) Fork() Store {
-	return &defaultStore{
+	ds2 := &defaultStore{
 		pkgGetter:    ds.pkgGetter,
 		cacheObjects: make(map[ObjectID]Object), // new cache.
 		cacheTypes:   ds.cacheTypes,
@@ -548,6 +561,8 @@ func (ds *defaultStore) Fork() Store {
 		opslog:       nil, // new ops log.
 		current:      make(map[string]struct{}),
 	}
+	ds2.SetCachePackage(Uverse())
+	return ds2
 }
 
 // TODO: consider a better/faster/simpler way of achieving the overall same goal?
@@ -627,7 +642,7 @@ func (ds *defaultStore) ClearCache() {
 	ds.cacheTypes = make(map[TypeID]Type)
 	ds.cacheNodes = make(map[Location]BlockNode)
 	// restore builtin types to cache.
-	InitCacheTypes(ds)
+	InitStoreCaches(ds)
 }
 
 // for debugging
@@ -679,9 +694,9 @@ func backendPackageIndexKey(index uint64) string {
 }
 
 //----------------------------------------
-// builtin types
+// builtin types and packages
 
-func InitCacheTypes(store Store) {
+func InitStoreCaches(store Store) {
 	types := []Type{
 		BoolType, UntypedBoolType,
 		StringType, UntypedStringType,
@@ -697,15 +712,5 @@ func InitCacheTypes(store Store) {
 	for _, tt := range types {
 		store.SetCacheType(tt)
 	}
-}
-
-//----------------------------------------
-// Misc.
-
-func getPackageNodeAndValue(store Store, pkgPath string) (pn *PackageNode, pv *PackageValue) {
-	// Load PackageValue first.
-	pv = store.GetPackage(pkgPath)
-	// Now the *PackageNode block node exists.
-	pn = store.GetBlockNode(PackageNodeLocation(pkgPath)).(*PackageNode)
-	return
+	store.SetCachePackage(Uverse())
 }

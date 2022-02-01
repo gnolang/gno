@@ -48,37 +48,36 @@ func NewVMKeeper(baseKey store.StoreKey, iavlKey store.StoreKey, acck auth.Accou
 }
 
 func (vmk *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
+	// construct main gnoStore if nil.
+	if vmk.gnoStore == nil {
+		baseSDKStore := ctx.Store(vmk.baseKey)
+		iavlSDKStore := ctx.Store(vmk.iavlKey)
+		vmk.gnoStore = gno.NewStore(baseSDKStore, iavlSDKStore)
+		vmk.initBuiltinPackages(vmk.gnoStore)
+		if vmk.gnoStore.NumMemPackages() > 0 {
+			// for now, all mem packages must be re-run after reboot.
+			// TODO remove this, and generally solve for in-mem garbage collection
+			// and memory management across many objects/types/nodes/packages.
+			m2 := gno.NewMachineWithOptions(
+				gno.MachineOptions{
+					PkgPath: "",
+					Output:  os.Stdout, // XXX
+					Store:   vmk.gnoStore,
+				})
+			m2.PreprocessAllFilesAndSaveBlockNodes()
+		}
+	}
 	switch ctx.Mode() {
 	case sdk.RunTxModeDeliver:
-		// construct gnoStore if nil.
-		if vmk.gnoStore == nil {
-			baseSDKStore := ctx.Store(vmk.baseKey)
-			iavlSDKStore := ctx.Store(vmk.iavlKey)
-			vmk.gnoStore = gno.NewStore(baseSDKStore, iavlSDKStore)
-			vmk.initBuiltinPackages(vmk.gnoStore)
-			if vmk.gnoStore.NumMemPackages() > 0 {
-				// for now, all mem packages must be re-run after reboot.
-				// TODO remove this, and generally solve for in-mem garbage collection
-				// and memory management across many objects/types/nodes/packages.
-				m2 := gno.NewMachineWithOptions(
-					gno.MachineOptions{
-						Package: nil,
-						Output:  os.Stdout, // XXX
-						Store:   vmk.gnoStore,
-					})
-				m2.PreprocessAllFilesAndSaveBlockNodes()
-			}
-		} else {
-			// swap sdk store of existing gnoStore.
-			// this is needed due to e.g. gas wrappers.
-			baseSDKStore := ctx.Store(vmk.baseKey)
-			iavlSDKStore := ctx.Store(vmk.iavlKey)
-			vmk.gnoStore.SwapStores(baseSDKStore, iavlSDKStore)
-			// clear object cache for every transaction.
-			// NOTE: this is inefficient, but simple.
-			// in the future, replace with more advanced caching strategy.
-			vmk.gnoStore.ClearObjectCache()
-		}
+		// swap sdk store of existing gnoStore.
+		// this is needed due to e.g. gas wrappers.
+		baseSDKStore := ctx.Store(vmk.baseKey)
+		iavlSDKStore := ctx.Store(vmk.iavlKey)
+		vmk.gnoStore.SwapStores(baseSDKStore, iavlSDKStore)
+		// clear object cache for every transaction.
+		// NOTE: this is inefficient, but simple.
+		// in the future, replace with more advanced caching strategy.
+		vmk.gnoStore.ClearObjectCache()
 		return vmk.gnoStore
 	case sdk.RunTxModeCheck:
 		// For query??? XXX Why not RunTxModeQuery?
@@ -118,7 +117,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	if pkgPath == "" {
 		return ErrInvalidPkgPath("missing package path")
 	}
-	if pv := store.GetPackage(pkgPath); pv != nil {
+	if pv := store.GetPackage(pkgPath, false); pv != nil {
 		// TODO: return error instead of panicking?
 		panic("package already exists: " + pkgPath)
 	}
@@ -131,7 +130,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	// Parse and run the files, construct *PV.
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			Package: nil,
+			PkgPath: "",
 			Output:  os.Stdout, // XXX
 			Store:   store,
 		})
@@ -145,7 +144,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	fnc := msg.Func
 	store := vm.getGnoStore(ctx)
 	// Get the package and function type.
-	pv := store.GetPackage(pkgPath)
+	pv := store.GetPackage(pkgPath, false)
 	pl := gno.PackageNodeLocation(pkgPath)
 	pn := store.GetBlockNode(pl).(*gno.PackageNode)
 	ft := pn.GetStaticTypeOf(store, gno.Name(fnc)).(*gno.FuncType)
@@ -200,11 +199,12 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// Construct machine and evaluate.
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			Package: mpv,
+			PkgPath: "",
 			Output:  os.Stdout, // XXX
 			Store:   store,
 			Context: msgCtx,
 		})
+	m.SetActivePackage(mpv)
 	rtvs := m.Eval(xn)
 	for i, rtv := range rtvs {
 		res = res + rtv.String()
@@ -222,7 +222,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
 	store := vm.getGnoStore(ctx)
 	// Get Package.
-	pv := store.GetPackage(pkgPath)
+	pv := store.GetPackage(pkgPath, false)
 	if pv == nil {
 		err = ErrInvalidPkgPath(fmt.Sprintf(
 			"package not found: %s", pkgPath))
@@ -247,7 +247,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			Package: pv,
+			PkgPath: pkgPath,
 			Output:  os.Stdout, // XXX
 			Store:   store,
 			Context: msgCtx,

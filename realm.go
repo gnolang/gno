@@ -398,7 +398,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 					panic("should not happen")
 				}
 			}
-			// package values are skipped.
+			// extern package values are skipped.
 			continue
 		}
 		child.IncRefCount()

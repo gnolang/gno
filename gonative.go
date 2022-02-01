@@ -137,7 +137,6 @@ func go2GnoType2(rt reflect.Type) (t Type) {
 						PkgPath:    pkgPath,
 						body:       nil, // XXX
 						nativeBody: nil,
-						pkg:        nil, // XXX
 					}
 					mtvs[i] = TypedValue{T: ft, V: fv}
 				}

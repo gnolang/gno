@@ -60,15 +60,14 @@ func TestPackages(t *testing.T) {
 func runPackageTest(t *testing.T, dir string, path string) {
 	memPkg := gno.ReadMemPackage(dir, path)
 
-	isRealm := false // XXX try true too?
 	stdin := new(bytes.Buffer)
 	// stdout := new(bytes.Buffer)
 	stdout := os.Stdout
 	stderr := new(bytes.Buffer)
-	store := testStore(stdin, stdout, stderr, isRealm, false)
+	store := testStore(stdin, stdout, stderr, false)
 	store.SetLogStoreOps(true)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		Package: nil,
+		PkgPath: "test",
 		Output:  stdout,
 		Store:   store,
 		Context: nil,
