@@ -130,6 +130,7 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	for memPkg := range ch {
 		fset := ParseMemPackage(memPkg)
 		pn := NewPackageNode(Name(memPkg.Name), memPkg.Path, fset)
+		m.Store.SetBlockNode(pn)
 		PredefineFileSet(m.Store, pn, fset)
 		for _, fn := range fset.Files {
 			// Save Types to m.Store (while preprocessing).

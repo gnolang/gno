@@ -1906,7 +1906,8 @@ func evalStaticType(store Store, last BlockNode, x Expr) Type {
 		return ctx.Type // no need to set attribute.
 	}
 	pn := packageOf(last)
-	if store != nil {
+	// See comment in evalStaticTypeOfRaw.
+	if store != nil && pn.PkgPath != ".uverse" {
 		pv := pn.NewPackage() // temporary
 		store = store.Fork()
 		store.SetCachePackage(pv)
@@ -1972,7 +1973,13 @@ func evalStaticTypeOfRaw(store Store, last BlockNode, x Expr) (t Type) {
 		return ctx.T
 	} else {
 		pn := packageOf(last)
-		if store != nil {
+		// NOTE: do not load the package value from store,
+		// because we may be preprocessing in the middle of
+		// PreprocessAllFilesAndSaveBlockNodes,
+		// and the preprocessor will panic when
+		// package values are already there that weren't
+		// yet predefined this time around.
+		if store != nil && pn.PkgPath != ".uverse" {
 			pv := pn.NewPackage() // temporary
 			store = store.Fork()
 			store.SetCachePackage(pv)
