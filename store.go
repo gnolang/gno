@@ -41,8 +41,10 @@ type Store interface {
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
 	// version 1.
-	AddMemPackage(memPkg std.MemPackage)
-	IterMemPackage() <-chan std.MemPackage
+	AddMemPackage(memPkg *std.MemPackage)
+	GetMemPackage(path string) *std.MemPackage
+	GetMemFile(path string, name string) *std.MemFile
+	IterMemPackage() <-chan *std.MemPackage
 	ClearObjectCache()                           // for each delivertx.
 	Fork() Store                                 // for checktx, simulate, and queries.
 	SwapStores(baseStore, iavlStore store.Store) // for gas wrappers.
@@ -470,7 +472,7 @@ func (ds *defaultStore) SetBlockNode(bn BlockNode) {
 
 func (ds *defaultStore) NumMemPackages() int64 {
 	ctrkey := []byte(backendPackageIndexCtrKey())
-	ctrbz := ds.iavlStore.Get(ctrkey)
+	ctrbz := ds.baseStore.Get(ctrkey)
 	if ctrbz == nil {
 		return 0
 	} else {
@@ -484,10 +486,10 @@ func (ds *defaultStore) NumMemPackages() int64 {
 
 func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 	ctrkey := []byte(backendPackageIndexCtrKey())
-	ctrbz := ds.iavlStore.Get(ctrkey)
+	ctrbz := ds.baseStore.Get(ctrkey)
 	if ctrbz == nil {
 		nextbz := strconv.Itoa(1)
-		ds.iavlStore.Set(ctrkey, []byte(nextbz))
+		ds.baseStore.Set(ctrkey, []byte(nextbz))
 		return 1
 	} else {
 		ctr, err := strconv.Atoi(string(ctrbz))
@@ -495,21 +497,41 @@ func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 			panic(err)
 		}
 		nextbz := strconv.Itoa(ctr + 1)
-		ds.iavlStore.Set(ctrkey, []byte(nextbz))
+		ds.baseStore.Set(ctrkey, []byte(nextbz))
 		return uint64(ctr) + 1
 	}
 }
 
-func (ds *defaultStore) AddMemPackage(memPkg std.MemPackage) {
+func (ds *defaultStore) AddMemPackage(memPkg *std.MemPackage) {
 	ctr := ds.incGetPackageIndexCounter()
-	key := []byte(backendPackageIndexKey(ctr))
+	idxkey := []byte(backendPackageIndexKey(ctr))
 	bz := amino.MustMarshal(memPkg)
-	ds.iavlStore.Set(key, bz)
+	ds.baseStore.Set(idxkey, []byte(memPkg.Path))
+	pathkey := []byte(backendPackagePathKey(memPkg.Path))
+	ds.iavlStore.Set(pathkey, bz)
 }
 
-func (ds *defaultStore) IterMemPackage() <-chan std.MemPackage {
+func (ds *defaultStore) GetMemPackage(path string) *std.MemPackage {
+	pathkey := []byte(backendPackagePathKey(path))
+	bz := ds.iavlStore.Get(pathkey)
+	if bz == nil {
+		panic(fmt.Sprintf(
+			"missing package at path %s", string(pathkey)))
+	}
+	var memPkg *std.MemPackage
+	amino.MustUnmarshal(bz, &memPkg)
+	return memPkg
+}
+
+func (ds *defaultStore) GetMemFile(path string, name string) *std.MemFile {
+	memPkg := ds.GetMemPackage(path)
+	memFile := memPkg.GetFile(name)
+	return memFile
+}
+
+func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 	ctrkey := []byte(backendPackageIndexCtrKey())
-	ctrbz := ds.iavlStore.Get(ctrkey)
+	ctrbz := ds.baseStore.Get(ctrkey)
 	if ctrbz == nil {
 		return nil
 	} else {
@@ -517,17 +539,16 @@ func (ds *defaultStore) IterMemPackage() <-chan std.MemPackage {
 		if err != nil {
 			panic(err)
 		}
-		ch := make(chan std.MemPackage, 0)
+		ch := make(chan *std.MemPackage, 0)
 		go func() {
 			for i := uint64(1); i <= uint64(ctr); i++ {
-				key := backendPackageIndexKey(i)
-				bz := ds.iavlStore.Get([]byte(key))
-				if bz == nil {
+				idxkey := []byte(backendPackageIndexKey(i))
+				path := ds.baseStore.Get(idxkey)
+				if path == nil {
 					panic(fmt.Sprintf(
 						"missing package index %d", i))
 				}
-				var memPkg std.MemPackage
-				amino.MustUnmarshal(bz, &memPkg)
+				memPkg := ds.GetMemPackage(string(path))
 				ch <- memPkg
 			}
 			close(ch)
@@ -691,6 +712,10 @@ func backendPackageIndexCtrKey() string {
 
 func backendPackageIndexKey(index uint64) string {
 	return fmt.Sprintf("pkgidx:%020d", index)
+}
+
+func backendPackagePathKey(path string) string {
+	return fmt.Sprintf("pkg:" + path)
 }
 
 //----------------------------------------

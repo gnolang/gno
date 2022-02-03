@@ -163,10 +163,10 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 				// realm case.
 				gno.DisableDebug() // until main call.
 				// save package using realm crawl procedure.
-				memPkg := std.MemPackage{
+				memPkg := &std.MemPackage{
 					Name: string(pkgName),
 					Path: pkgPath,
-					Files: []std.MemFile{
+					Files: []*std.MemFile{
 						{
 							Name: "main.go", // dontcare
 							Body: string(bz),

@@ -3,6 +3,7 @@ package vm
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/gnolang/gno"
 	"github.com/gnolang/gno/pkgs/crypto"
@@ -260,6 +261,37 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 		}
 	}
 	return res, nil
+}
+
+func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err error) {
+	store := vm.getGnoStore(ctx)
+	dirpath, filename := splitFilepath(filepath)
+	if filename != "" {
+		memFile := store.GetMemFile(dirpath, filename)
+		return memFile.Body, nil
+	} else {
+		memPkg := store.GetMemPackage(dirpath)
+		for i, memfile := range memPkg.Files {
+			if i > 0 {
+				res += "\n"
+			}
+			res += memfile.Name
+		}
+		return res, nil
+	}
+}
+
+func splitFilepath(filepath string) (dirpath string, filename string) {
+	parts := strings.Split(filepath, "/")
+	if len(parts) == 1 {
+		return parts[0], ""
+	}
+	last := parts[len(parts)-1]
+	if strings.Contains(last, ".") {
+		return strings.Join(parts, "/"), last
+	} else {
+		return filepath, ""
+	}
 }
 
 //----------------------------------------

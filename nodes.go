@@ -1067,12 +1067,12 @@ func PackageNameFromFileBody(body string) Name {
 	return n.PkgName
 }
 
-func ReadMemPackage(dir string, pkgPath string) std.MemPackage {
+func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
 		panic(err)
 	}
-	var memPkg = std.MemPackage{Path: pkgPath}
+	var memPkg = &std.MemPackage{Path: pkgPath}
 	var pkgName Name
 	for _, file := range files {
 		if file.IsDir() {
@@ -1092,7 +1092,7 @@ func ReadMemPackage(dir string, pkgPath string) std.MemPackage {
 			pkgName = PackageNameFromFileBody(string(bz))
 		}
 		memPkg.Files = append(memPkg.Files,
-			std.MemFile{
+			&std.MemFile{
 				Name: file.Name(),
 				Body: string(bz),
 			})
@@ -1102,7 +1102,7 @@ func ReadMemPackage(dir string, pkgPath string) std.MemPackage {
 }
 
 // Returns the code fileset minus any spurious or test files.
-func ParseMemPackage(memPkg std.MemPackage) (fset *FileSet) {
+func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 	fset = &FileSet{}
 	for _, mfile := range memPkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".go") {
@@ -1125,7 +1125,7 @@ func ParseMemPackage(memPkg std.MemPackage) (fset *FileSet) {
 	}
 	return fset
 }
-func ParseMemPackageTests(memPkg std.MemPackage) (tset, itset *FileSet) {
+func ParseMemPackageTests(memPkg *std.MemPackage) (tset, itset *FileSet) {
 	tset = &FileSet{}
 	itset = &FileSet{}
 	for _, mfile := range memPkg.Files {

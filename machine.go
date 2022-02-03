@@ -159,7 +159,7 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // Parses files, sets the package if doesn't exist, runs files, saves mempkg
 // and corresponding package node, package value, and types to store. Save
 // is set to false for tests where package values may be native.
-func (m *Machine) RunMemPackage(memPkg std.MemPackage, save bool) (*PackageNode, *PackageValue) {
+func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
 	// parse files.
 	files := ParseMemPackage(memPkg)
 	// make and set package if doesn't exist.
@@ -193,7 +193,7 @@ func (m *Machine) RunMemPackage(memPkg std.MemPackage, save bool) (*PackageNode,
 // The resulting package value and node become injected with TestMethods and
 // other declarations, so it is expected that non-test code will not be run
 // afterwards from the same store.
-func (m *Machine) TestMemPackage(t *testing.T, memPkg std.MemPackage) {
+func (m *Machine) TestMemPackage(t *testing.T, memPkg *std.MemPackage) {
 	defer m.injectLocOnPanic()
 	DisableDebug()
 	fmt.Println("DEBUG DISABLED (FOR TEST DEPENDENCIES INIT)")

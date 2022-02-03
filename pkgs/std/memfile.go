@@ -10,5 +10,14 @@ type MemFile struct {
 type MemPackage struct {
 	Name  string
 	Path  string
-	Files []MemFile
+	Files []*MemFile
+}
+
+func (memPkg *MemPackage) GetFile(name string) *MemFile {
+	for _, memFile := range memPkg.Files {
+		if memFile.Name == name {
+			return memFile
+		}
+	}
+	return nil
 }

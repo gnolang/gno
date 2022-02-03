@@ -86,6 +86,7 @@ const (
 	QueryStore   = "store"
 	QueryEval    = "qeval"
 	QueryPath    = "qpath"
+	QueryFile    = "qfile"
 )
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
@@ -98,6 +99,8 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 		return vh.queryEval(ctx, req)
 	case QueryPath:
 		return vh.queryPath(ctx, req)
+	case QueryFile:
+		return vh.queryFile(ctx, req)
 	default:
 		res = sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest(fmt.Sprintf(
@@ -148,6 +151,20 @@ func (vh vmHandler) queryPath(ctx sdk.Context, req abci.RequestQuery) (res abci.
 	path := reqParts[1]
 	expr := fmt.Sprintf("Render(%q)", path)
 	result, err := vh.vm.QueryEval(ctx, pkgPath, expr)
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	res.Data = []byte(result)
+	return
+}
+
+// queryFile returns the file bytes, or list of files if directory.
+// if file, res.Value is []byte("file").
+// if dir, res.Value is []byte("dir").
+func (vh vmHandler) queryFile(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	filepath := string(req.Data)
+	result, err := vh.vm.QueryFile(ctx, filepath)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
 		return

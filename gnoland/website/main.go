@@ -36,6 +36,7 @@ func main() {
 	app.Router.Handle("/r/{rlmpath:[a-zA-Z][a-zA-Z0-9_]*}", handlerRealm(app))
 	app.Router.Handle("/r/{rlmpath:[a-zA-Z][a-zA-Z0-9_]*}.{expr}", handlerRealmExpr(app))
 	app.Router.Handle("/r/{rlmpath:[a-zA-Z][a-zA-Z0-9_]*}/{path:.+}", handlerRealmPath(app))
+	app.Router.Handle("/files/{filepath:.+}", handlerFilePath(app))
 	app.Router.Handle("/static/{path:.+}", handlerStaticFile(app))
 
 	fmt.Println("Running on http://localhost:8888")
@@ -67,45 +68,7 @@ func handlerRealm(app gotuna.App) http.Handler {
 
 		qpath := "vm/qeval"
 		data := []byte(fmt.Sprintf("%s\n%s", rlmPath, expr))
-		opts2 := client.ABCIQueryOptions{
-			// Height: height, XXX
-			// Prove: false, XXX
-		}
-		remote := "127.0.0.1:26657"
-		cli := client.NewHTTP(remote, "/websocket")
-		qres, err := cli.ABCIQueryWithOptions(
-			qpath, data, opts2)
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		if qres.Response.Error != nil {
-			fmt.Printf("Log: %s\n",
-				qres.Response.Log)
-			writeError(w, qres.Response.Error)
-			return
-		}
-		resdata := qres.Response.Data
-		resstr := string(resdata)
-		// NOTE: HACKY.
-		if strings.HasSuffix(resstr, " string)") {
-			resstr2 := resstr[1 : len(resstr)-len(" string)")]
-			resstr3, err := strconv.Unquote(resstr2)
-			if err != nil {
-				w.WriteHeader(500)
-				w.Write([]byte(
-					fmt.Sprintf("error unquoting result: %q", resstr2)))
-				return
-			}
-			tmpl := app.NewTemplatingEngine()
-			tmpl.Set("Contents", template.HTML(resstr3))
-			tmpl.Render(w, r, "app.html")
-			return
-		} else {
-			w.WriteHeader(200)
-			w.Write([]byte(resstr))
-			return
-		}
+		writeRequestResponse(app, w, r, qpath, data)
 	})
 }
 
@@ -117,45 +80,7 @@ func handlerRealmExpr(app gotuna.App) http.Handler {
 
 		qpath := "vm/qeval"
 		data := []byte(fmt.Sprintf("%s\n%s", rlmPath, expr))
-		opts2 := client.ABCIQueryOptions{
-			// Height: height, XXX
-			// Prove: false, XXX
-		}
-		remote := "127.0.0.1:26657"
-		cli := client.NewHTTP(remote, "/websocket")
-		qres, err := cli.ABCIQueryWithOptions(
-			qpath, data, opts2)
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		if qres.Response.Error != nil {
-			fmt.Printf("Log: %s\n",
-				qres.Response.Log)
-			writeError(w, qres.Response.Error)
-			return
-		}
-		resdata := qres.Response.Data
-		resstr := string(resdata)
-		// NOTE: HACKY.
-		if strings.HasSuffix(resstr, " string)") {
-			resstr2 := resstr[1 : len(resstr)-len(" string)")]
-			resstr3, err := strconv.Unquote(resstr2)
-			if err != nil {
-				w.WriteHeader(500)
-				w.Write([]byte(
-					fmt.Sprintf("error unquoting result: %q", resstr2)))
-				return
-			}
-			tmpl := app.NewTemplatingEngine()
-			tmpl.Set("Contents", template.HTML(resstr3))
-			tmpl.Render(w, r, "app.html")
-			return
-		} else {
-			w.WriteHeader(200)
-			w.Write([]byte(resstr))
-			return
-		}
+		writeRequestResponse(app, w, r, qpath, data)
 	})
 }
 
@@ -167,55 +92,62 @@ func handlerRealmPath(app gotuna.App) http.Handler {
 
 		qpath := "vm/qpath"
 		data := []byte(fmt.Sprintf("%s\n%s", rlmPath, path))
-		opts2 := client.ABCIQueryOptions{
-			// Height: height, XXX
-			// Prove: false, XXX
-		}
-		remote := "127.0.0.1:26657"
-		cli := client.NewHTTP(remote, "/websocket")
-		qres, err := cli.ABCIQueryWithOptions(
-			qpath, data, opts2)
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		if qres.Response.Error != nil {
-			fmt.Printf("Log: %s\n",
-				qres.Response.Log)
-			writeError(w, qres.Response.Error)
-			return
-		}
-		resdata := qres.Response.Data
-		resstr := string(resdata)
-		// NOTE: HACKY.
-		if strings.HasSuffix(resstr, " string)") {
-			resstr2 := resstr[1 : len(resstr)-len(" string)")]
-			resstr3, err := strconv.Unquote(resstr2)
-			if err != nil {
-				w.WriteHeader(500)
-				w.Write([]byte(
-					fmt.Sprintf("error unquoting result: %q", resstr2)))
-				return
-			}
-			tmpl := app.NewTemplatingEngine()
-			tmpl.Set("Contents", template.HTML(resstr3))
-			tmpl.Render(w, r, "app.html")
-			return
-		} else {
-			w.WriteHeader(200)
-			w.Write([]byte(resstr))
-			return
-		}
+		writeRequestResponse(app, w, r, qpath, data)
 	})
 }
 
-/*
-func handlerLogin(app gotuna.App) http.Handler {
+func handlerFilePath(app gotuna.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Login form...")
+		vars := mux.Vars(r)
+		filepath := vars["filepath"]
+
+		qpath := "vm/qfile"
+		data := []byte(filepath)
+		writeRequestResponse(app, w, r, qpath, data)
 	})
 }
-*/
+
+func writeRequestResponse(app gotuna.App, w http.ResponseWriter, r *http.Request, qpath string, data []byte) {
+	opts2 := client.ABCIQueryOptions{
+		// Height: height, XXX
+		// Prove: false, XXX
+	}
+	remote := "127.0.0.1:26657"
+	cli := client.NewHTTP(remote, "/websocket")
+	qres, err := cli.ABCIQueryWithOptions(
+		qpath, data, opts2)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	if qres.Response.Error != nil {
+		fmt.Printf("Log: %s\n",
+			qres.Response.Log)
+		writeError(w, qres.Response.Error)
+		return
+	}
+	resdata := qres.Response.Data
+	resstr := string(resdata)
+	// NOTE: HACKY.
+	if strings.HasSuffix(resstr, " string)") {
+		resstr2 := resstr[1 : len(resstr)-len(" string)")]
+		resstr3, err := strconv.Unquote(resstr2)
+		if err != nil {
+			w.WriteHeader(500)
+			w.Write([]byte(
+				fmt.Sprintf("error unquoting result: %q", resstr2)))
+			return
+		}
+		tmpl := app.NewTemplatingEngine()
+		tmpl.Set("Contents", template.HTML(resstr3))
+		tmpl.Render(w, r, "app.html")
+		return
+	} else {
+		w.WriteHeader(200)
+		w.Write([]byte(resstr))
+		return
+	}
+}
 
 func handlerStaticFile(app gotuna.App) http.Handler {
 
