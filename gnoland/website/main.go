@@ -100,7 +100,13 @@ func handlerFilePath(app gotuna.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		filepath := vars["filepath"]
-
+		if strings.HasPrefix(filepath, "r/") || strings.HasPrefix(filepath, "p/") {
+			filepath = "gno.land/" + filepath
+		} else if strings.HasPrefix(filepath, "gno.land") {
+			panic("should not happen")
+		} else {
+			// e.g. stdlibs.
+		}
 		qpath := "vm/qfile"
 		data := []byte(filepath)
 		writeRequestResponse(app, w, r, qpath, data)

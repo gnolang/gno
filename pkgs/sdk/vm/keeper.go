@@ -288,7 +288,7 @@ func splitFilepath(filepath string) (dirpath string, filename string) {
 	}
 	last := parts[len(parts)-1]
 	if strings.Contains(last, ".") {
-		return strings.Join(parts, "/"), last
+		return strings.Join(parts[:len(parts)-1], "/"), last
 	} else {
 		return filepath, ""
 	}
