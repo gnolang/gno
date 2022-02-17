@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -1067,6 +1068,7 @@ func PackageNameFromFileBody(body string) Name {
 	return n.PkgName
 }
 
+// NOTE: panics if package name is invalid.
 func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
@@ -1097,6 +1099,7 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 				Body: string(bz),
 			})
 	}
+	validatePkgName(string(pkgName))
 	memPkg.Name = string(pkgName)
 	return memPkg
 }
@@ -1959,3 +1962,11 @@ const (
 	ATTR_LOCATIONED   GnoAttribute = "ATTR_LOCATIONED"
 	ATTR_INJECTED     GnoAttribute = "ATTR_INJECTED"
 )
+
+// TODO: consider length restrictions.
+func validatePkgName(name string) {
+	if nameOK, _ := regexp.MatchString(
+		`^[a-z][a-z0-9_]+$`, name); !nameOK {
+		panic(fmt.Sprintf("cannot create package with invalid name %q", name))
+	}
+}

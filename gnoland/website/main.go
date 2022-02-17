@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/gnolang/gno/pkgs/bft/rpc/client"
@@ -32,11 +31,8 @@ func main() {
 	}
 
 	app.Router.Handle("/", handlerHome(app))
-	app.Router.Handle("/p/{pkgpath:.*}", handlerPackage(app))
-	app.Router.Handle("/r/{rlmpath:[a-zA-Z][a-zA-Z0-9_]*}", handlerRealm(app))
-	app.Router.Handle("/r/{rlmpath:[a-zA-Z][a-zA-Z0-9_]*}.{expr}", handlerRealmExpr(app))
-	app.Router.Handle("/r/{rlmpath:[a-zA-Z][a-zA-Z0-9_]*}/{path:.+}", handlerRealmPath(app))
-	app.Router.Handle("/files/{filepath:.+}", handlerFilePath(app))
+	app.Router.Handle("/r/{rlmpath:[a-z][a-z0-9_]*}/{path:.*}", handlerRealmRender(app))
+	app.Router.Handle("/files/{filepath:.+}", handlerPackageFilePath(app))
 	app.Router.Handle("/static/{path:.+}", handlerStaticFile(app))
 
 	fmt.Println("Running on http://localhost:8888")
@@ -50,53 +46,19 @@ func handlerHome(app gotuna.App) http.Handler {
 	})
 }
 
-func handlerPackage(app gotuna.App) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		pkgPath := "gno.land/p/" + vars["pkgpath"]
-		fmt.Println("pkgPath:", pkgPath)
-		// TODO implement query handler for fetching package files.
-		return
-	})
-}
-
-func handlerRealm(app gotuna.App) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		rlmPath := "gno.land/r/" + vars["rlmpath"]
-		expr := "Render(\"\")"
-
-		qpath := "vm/qeval"
-		data := []byte(fmt.Sprintf("%s\n%s", rlmPath, expr))
-		writeRequestResponse(app, w, r, qpath, data)
-	})
-}
-
-func handlerRealmExpr(app gotuna.App) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		rlmPath := "gno.land/r/" + vars["rlmpath"]
-		expr := vars["expr"]
-
-		qpath := "vm/qeval"
-		data := []byte(fmt.Sprintf("%s\n%s", rlmPath, expr))
-		writeRequestResponse(app, w, r, qpath, data)
-	})
-}
-
-func handlerRealmPath(app gotuna.App) http.Handler {
+func handlerRealmRender(app gotuna.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		rlmPath := "gno.land/r/" + vars["rlmpath"]
 		path := vars["path"]
 
-		qpath := "vm/qpath"
+		qpath := "vm/qrender"
 		data := []byte(fmt.Sprintf("%s\n%s", rlmPath, path))
 		writeRequestResponse(app, w, r, qpath, data)
 	})
 }
 
-func handlerFilePath(app gotuna.App) http.Handler {
+func handlerPackageFilePath(app gotuna.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		filepath := vars["filepath"]
@@ -134,25 +96,10 @@ func writeRequestResponse(app gotuna.App, w http.ResponseWriter, r *http.Request
 	}
 	resdata := qres.Response.Data
 	resstr := string(resdata)
-	// NOTE: HACKY.
-	if strings.HasSuffix(resstr, " string)") {
-		resstr2 := resstr[1 : len(resstr)-len(" string)")]
-		resstr3, err := strconv.Unquote(resstr2)
-		if err != nil {
-			w.WriteHeader(500)
-			w.Write([]byte(
-				fmt.Sprintf("error unquoting result: %q", resstr2)))
-			return
-		}
-		tmpl := app.NewTemplatingEngine()
-		tmpl.Set("Contents", template.HTML(resstr3))
-		tmpl.Render(w, r, "app.html")
-		return
-	} else {
-		w.WriteHeader(200)
-		w.Write([]byte(resstr))
-		return
-	}
+	tmpl := app.NewTemplatingEngine()
+	tmpl.Set("Contents", template.HTML(resstr))
+	tmpl.Render(w, r, "app.html")
+	return
 }
 
 func handlerStaticFile(app gotuna.App) http.Handler {

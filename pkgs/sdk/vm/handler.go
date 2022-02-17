@@ -67,13 +67,13 @@ func (vh vmHandler) handleMsgCall(ctx sdk.Context, msg MsgCall) (res sdk.Result)
 	}
 	res.Data = []byte(resstr)
 	return
-	/*
-		ctx.EventManager().EmitEvent(
-			sdk.NewEvent(
-				sdk.EventTypeMessage,
-				sdk.NewAttribute(sdk.AttributeKeyXXX, types.AttributeValueXXX),
-			),
-		)
+	/* TODO handle events.
+	ctx.EventManager().EmitEvent(
+		sdk.NewEvent(
+			sdk.EventTypeMessage,
+			sdk.NewAttribute(sdk.AttributeKeyXXX, types.AttributeValueXXX),
+		),
+	)
 	*/
 }
 
@@ -84,8 +84,7 @@ func (vh vmHandler) handleMsgCall(ctx sdk.Context, msg MsgCall) (res sdk.Result)
 const (
 	QueryPackage = "package"
 	QueryStore   = "store"
-	QueryEval    = "qeval"
-	QueryPath    = "qpath"
+	QueryRender  = "qrender"
 	QueryFile    = "qfile"
 )
 
@@ -95,10 +94,8 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 		return vh.queryPackage(ctx, req)
 	case QueryStore:
 		return vh.queryStore(ctx, req)
-	case QueryEval:
-		return vh.queryEval(ctx, req)
-	case QueryPath:
-		return vh.queryPath(ctx, req)
+	case QueryRender:
+		return vh.queryRender(ctx, req)
 	case QueryFile:
 		return vh.queryFile(ctx, req)
 	default:
@@ -122,26 +119,8 @@ func (vh vmHandler) queryStore(ctx sdk.Context, req abci.RequestQuery) (res abci
 	return
 }
 
-// queryEval evaluates a pure readonly expression.
-func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	reqData := string(req.Data)
-	reqParts := strings.Split(reqData, "\n")
-	if len(reqParts) != 2 {
-		panic("expected two lines in query input data")
-	}
-	pkgPath := reqParts[0]
-	expr := reqParts[1]
-	result, err := vh.vm.QueryEval(ctx, pkgPath, expr)
-	if err != nil {
-		res = sdk.ABCIResponseQueryFromError(err)
-		return
-	}
-	res.Data = []byte(result)
-	return
-}
-
-// queryPath calls .Render(<path>) in readonly mode.
-func (vh vmHandler) queryPath(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+// queryRender calls .Render(<path>) in readonly mode.
+func (vh vmHandler) queryRender(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	reqData := string(req.Data)
 	reqParts := strings.Split(reqData, "\n")
 	if len(reqParts) != 2 {
@@ -150,7 +129,7 @@ func (vh vmHandler) queryPath(ctx sdk.Context, req abci.RequestQuery) (res abci.
 	pkgPath := reqParts[0]
 	path := reqParts[1]
 	expr := fmt.Sprintf("Render(%q)", path)
-	result, err := vh.vm.QueryEval(ctx, pkgPath, expr)
+	result, err := vh.vm.QueryEvalString(ctx, pkgPath, expr)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
 		return

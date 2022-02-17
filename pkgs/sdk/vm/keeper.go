@@ -3,10 +3,12 @@ package vm
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/gnolang/gno"
 	"github.com/gnolang/gno/pkgs/crypto"
+	"github.com/gnolang/gno/pkgs/errors"
 	"github.com/gnolang/gno/pkgs/sdk"
 	"github.com/gnolang/gno/pkgs/sdk/auth"
 	"github.com/gnolang/gno/pkgs/sdk/bank"
@@ -115,8 +117,8 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	if creatorAcc == nil {
 		return std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist", creator))
 	}
-	if pkgPath == "" {
-		return ErrInvalidPkgPath("missing package path")
+	if err := validateNewPkgPath(pkgPath); err != nil {
+		return ErrInvalidPkgPath(err.Error())
 	}
 	if pv := store.GetPackage(pkgPath, false); pv != nil {
 		// TODO: return error instead of panicking?
@@ -217,10 +219,11 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// TODO pay for gas? TODO see context?
 }
 
-// QueryEval evaluates gno expression (readonly, for ABCI queries).
+// QueryEvalString evaluates a gno expression (readonly, for ABCI queries).
+// The result is expected to be a single string (not a tuple).
 // TODO: modify query protocol to allow MsgEval.
-// TODO: then, rename to "Eval".
-func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
+// TODO: then, rename to "EvalString".
+func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
 	store := vm.getGnoStore(ctx)
 	// Get Package.
 	pv := store.GetPackage(pkgPath, false)
@@ -254,12 +257,12 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 			Context: msgCtx,
 		})
 	rtvs := m.Eval(xx)
-	for i, rtv := range rtvs {
-		res = res + rtv.String()
-		if i < len(rtvs)-1 {
-			res += "\n"
-		}
+	if len(rtvs) != 1 {
+		return "", errors.New("expected 1 string result, got %d", len(rtvs))
+	} else if rtvs[0].T.Kind() != gno.StringKind {
+		return "", errors.New("expected 1 string result, got %v", rtvs[0].T.Kind())
 	}
+	res = rtvs[0].GetString()
 	return res, nil
 }
 
@@ -300,4 +303,27 @@ func splitFilepath(filepath string) (dirpath string, filename string) {
 func DerivePkgAddr(pkgPath string) crypto.Address {
 	// NOTE: must not collide with pubkey addrs.
 	return crypto.AddressFromPreimage([]byte("pkgPath:" + pkgPath))
+}
+
+//----------------------------------------
+// validation.
+
+// TODO: consider length restrictions.
+func validateNewPkgPath(path string) error {
+	if path == "" {
+		return errors.New("missing package path")
+	} else if strings.HasPrefix(path, "gno.land/r/") {
+		if pathOK, err := regexp.MatchString(
+			`^gno.land/r/[a-z][a-z0-9_]+$`, path); !pathOK {
+			return errors.Wrap(err, fmt.Sprintf("cannot create package with invalid path %q", path))
+		}
+	} else if strings.HasPrefix(path, "gno.land/p/") {
+		if pathOK, err := regexp.MatchString(
+			`^gno.land/p/[a-z][a-z0-9_]+(?:/[a-z][a-z0-9_]*)*`, path); !pathOK {
+			return errors.Wrap(err, fmt.Sprintf("cannot create package with invalid path %q", path))
+		}
+	} else {
+		return errors.New(fmt.Sprintf("cannot create package invalid path %q (must start with 'gno.land/r/' or 'gno.land/p/'.", path))
+	}
+	return nil
 }
