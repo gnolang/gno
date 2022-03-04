@@ -96,6 +96,8 @@ type Realm struct {
 	updated []Object // real objects that were modified.
 	deleted []Object // real objects that became deleted.
 	escaped []Object // real objects with refcount > 1.
+
+	allocated int64 // bytes allocated in memory.
 }
 
 // Creates a blank new realm with counter 0.

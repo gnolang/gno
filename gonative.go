@@ -483,7 +483,7 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 					etv.T = et
 				}
 				if etv.V == nil {
-					etv.V = defaultValue(et)
+					etv.V = defaultValue(rlm, et)
 				}
 				go2GnoValueUpdate(rlm, lvl+1, etv, erv)
 			}
@@ -522,7 +522,7 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 					etv.T = et
 				}
 				if etv.V == nil {
-					etv.V = defaultValue(et)
+					etv.V = defaultValue(rlm, et)
 				}
 				go2GnoValueUpdate(rlm, lvl+1, etv, erv)
 			}
@@ -577,7 +577,7 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 					ftv.T = ft
 				}
 				if ftv.V == nil {
-					ftv.V = defaultValue(ft)
+					ftv.V = defaultValue(rlm, ft)
 				}
 				frv := rv.Field(i)
 				go2GnoValueUpdate(rlm, lvl+1, ftv, frv)

@@ -24,7 +24,13 @@
 
 * Limit CPU and memory usage.
  -> memory usage: 
- -> clear cache upon beginnewblock?
+ -> clear cache upon beginnewblock (DONE).
+ -> limit allocation per realm, and free upon finalization.
+ -> limit cache size on store.
+
+* Ensure code is proper.
+ -> run through compiler for now?
+ -> ...
 
 * Realm PkgPath URL fixes.
  -> /r/boards/board.go should show the code.

@@ -653,7 +653,7 @@ func UverseNode() *PackageNode {
 					}
 					if minl == 0 {
 						// return 0.
-						m.PushValue(defaultTypedValue(IntType))
+						m.PushValue(defaultTypedValue(m.Realm, IntType))
 						return
 					}
 					dstv := dst.TV.V.(*SliceValue)
@@ -679,7 +679,7 @@ func UverseNode() *PackageNode {
 					}
 					if minl == 0 {
 						// return 0.
-						m.PushValue(defaultTypedValue(IntType))
+						m.PushValue(defaultTypedValue(m.Realm, IntType))
 						return
 					}
 					dstv := dst.TV.V.(*SliceValue)
@@ -786,7 +786,7 @@ func UverseNode() *PackageNode {
 						} else {
 							// init zero elements with concrete type.
 							for i := 0; i < li; i++ {
-								list[i] = defaultTypedValue(et)
+								list[i] = defaultTypedValue(m.Realm, et)
 							}
 						}
 						m.PushValue(TypedValue{
@@ -819,7 +819,7 @@ func UverseNode() *PackageNode {
 							// XXX can this be removed?
 							list2 := list[:ci]
 							for i := 0; i < ci; i++ {
-								list2[i] = defaultTypedValue(et)
+								list2[i] = defaultTypedValue(m.Realm, et)
 							}
 						}
 						m.PushValue(TypedValue{
@@ -907,7 +907,7 @@ func UverseNode() *PackageNode {
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1()
 			tt := arg0.TV.GetType()
-			vv := defaultValue(tt)
+			vv := defaultValue(m.Realm, tt)
 			m.PushValue(TypedValue{
 				T: &PointerType{
 					Elt: tt,
