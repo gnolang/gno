@@ -71,7 +71,7 @@ func (m *Machine) doOpCall() {
 			numParams := len(ft.Params)
 			for i, rt := range ft.Results {
 				ptr := b.GetPointerToInt(nil, numParams+i)
-				dtv := defaultTypedValue(m.Realm, rt.Type)
+				dtv := defaultTypedValue(m.Alloc, rt.Type)
 				ptr.Assign2(nil, nil, dtv, false)
 			}
 		}

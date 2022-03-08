@@ -24,7 +24,7 @@ func (m *Machine) doOpValueDecl() {
 			if nt == nil {
 				tv = TypedValue{}
 			} else {
-				tv = TypedValue{T: nt, V: defaultValue(m.Realm, nt)}
+				tv = TypedValue{T: nt, V: defaultValue(m.Alloc, nt)}
 			}
 		} else {
 			tv = rvs[i]

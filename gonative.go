@@ -399,7 +399,7 @@ func go2GnoValue(rv reflect.Value) (tv TypedValue) {
 // become initialized.  Due to limitations of Go 1.15
 // reflection, any child Gno declared types cannot change
 // types.
-func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
+func go2GnoValueUpdate(rlm *Realm, alloc *Allocator, lvl int, tv *TypedValue, rv reflect.Value) {
 	// Special case if nil:
 	if tv.IsUndefined() {
 		return // do nothing
@@ -483,9 +483,9 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 					etv.T = et
 				}
 				if etv.V == nil {
-					etv.V = defaultValue(rlm, et)
+					etv.V = defaultValue(alloc, et)
 				}
-				go2GnoValueUpdate(rlm, lvl+1, etv, erv)
+				go2GnoValueUpdate(rlm, alloc, lvl+1, etv, erv)
 			}
 		} else {
 			for i := 0; i < rvl; i++ {
@@ -522,9 +522,9 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 					etv.T = et
 				}
 				if etv.V == nil {
-					etv.V = defaultValue(rlm, et)
+					etv.V = defaultValue(alloc, et)
 				}
-				go2GnoValueUpdate(rlm, lvl+1, etv, erv)
+				go2GnoValueUpdate(rlm, alloc, lvl+1, etv, erv)
 			}
 		} else {
 			for i := 0; i < rvl; i++ {
@@ -539,7 +539,7 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 		pv := tv.V.(PointerValue)
 		etv := pv.TV
 		erv := rv.Elem()
-		go2GnoValueUpdate(rlm, lvl+1, etv, erv)
+		go2GnoValueUpdate(rlm, alloc, lvl+1, etv, erv)
 	case StructKind:
 		st := baseOf(tv.T).(*StructType)
 		sv := tv.V.(*StructValue)
@@ -577,10 +577,10 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 					ftv.T = ft
 				}
 				if ftv.V == nil {
-					ftv.V = defaultValue(rlm, ft)
+					ftv.V = defaultValue(alloc, ft)
 				}
 				frv := rv.Field(i)
-				go2GnoValueUpdate(rlm, lvl+1, ftv, frv)
+				go2GnoValueUpdate(rlm, alloc, lvl+1, ftv, frv)
 			}
 		}
 	case PackageKind:
@@ -627,7 +627,7 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 				// XXX remove key from mv
 				panic("not yet implemented")
 			} else {
-				go2GnoValueUpdate(rlm, lvl+1, vtv, vrv)
+				go2GnoValueUpdate(rlm, alloc, lvl+1, vtv, vrv)
 			}
 			// Delete from rv2
 			rv2.SetMapIndex(krv, reflect.Value{})
@@ -1493,7 +1493,7 @@ func (m *Machine) doOpCallGoNative() {
 		ptv := &ptvs[i]
 		prv := prvs[i]
 		if !ptv.IsUndefined() {
-			go2GnoValueUpdate(m.Realm, 0, ptv, prv)
+			go2GnoValueUpdate(m.Realm, m.Alloc, 0, ptv, prv)
 		}
 	}
 	// cleanup

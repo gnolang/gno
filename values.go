@@ -185,7 +185,7 @@ func (pv PointerValue) Assign2(store Store, rlm *Realm, tv2 TypedValue, cu bool)
 						}
 						tv.V = v2
 					} else {
-						tv.V = defaultValue(rlm, tv.T)
+						tv.V = defaultValue(nil, tv.T)
 						nv1.Value.Set(v2.Value)
 					}
 				} else {
@@ -1807,8 +1807,7 @@ func (tv *TypedValue) GetPointerAtIndex(store Store, iv *TypedValue) PointerValu
 		if pv.TV.IsUndefined() {
 			vt := baseOf(tv.T).(*MapType).Value
 			if vt.Kind() != InterfaceKind {
-				// NOTE: this will get assigned, no need
-				// to increment realm allocation.
+				// this will get assigned over, so no alloc.
 				*(pv.TV) = defaultTypedValue(nil, vt)
 			}
 		}
@@ -2268,24 +2267,24 @@ type RefValue struct {
 
 //----------------------------------------
 
-func defaultStructFields(rlm *Realm, st *StructType) []TypedValue {
+func defaultStructFields(alloc *Allocator, st *StructType) []TypedValue {
 	tvs := make([]TypedValue, len(st.Fields))
 	for i, ft := range st.Fields {
 		if ft.Type.Kind() != InterfaceKind {
 			tvs[i].T = ft.Type
-			tvs[i].V = defaultValue(rlm, ft.Type)
+			tvs[i].V = defaultValue(alloc, ft.Type)
 		}
 	}
 	return tvs
 }
 
-func defaultStructValue(rlm *Realm, st *StructType) *StructValue {
+func defaultStructValue(alloc *Allocator, st *StructType) *StructValue {
 	return &StructValue{
-		Fields: defaultStructFields(rlm, st),
+		Fields: defaultStructFields(alloc, st),
 	}
 }
 
-func defaultArrayValue(rlm *Realm, at *ArrayType) *ArrayValue {
+func defaultArrayValue(alloc *Allocator, at *ArrayType) *ArrayValue {
 	if at.Elt.Kind() == Uint8Kind {
 		return &ArrayValue{
 			Data: make([]byte, at.Len),
@@ -2295,7 +2294,7 @@ func defaultArrayValue(rlm *Realm, at *ArrayType) *ArrayValue {
 		if et := at.Elem(); et.Kind() != InterfaceKind {
 			for i := 0; i < at.Len; i++ {
 				tvs[i].T = et
-				tvs[i].V = defaultValue(rlm, et)
+				tvs[i].V = defaultValue(alloc, et)
 			}
 		}
 		return &ArrayValue{
@@ -2304,14 +2303,14 @@ func defaultArrayValue(rlm *Realm, at *ArrayType) *ArrayValue {
 	}
 }
 
-func defaultValue(rlm *Realm, t Type) Value {
+func defaultValue(alloc *Allocator, t Type) Value {
 	switch ct := baseOf(t).(type) {
 	case nil:
 		panic("unexpected nil type")
 	case *ArrayType:
-		return defaultArrayValue(rlm, ct)
+		return defaultArrayValue(alloc, ct)
 	case *StructType:
-		return defaultStructValue(rlm, ct)
+		return defaultStructValue(alloc, ct)
 	case *SliceType:
 		return nil
 	case *MapType:
@@ -2329,13 +2328,13 @@ func defaultValue(rlm *Realm, t Type) Value {
 	}
 }
 
-func defaultTypedValue(rlm *Realm, t Type) TypedValue {
+func defaultTypedValue(alloc *Allocator, t Type) TypedValue {
 	if t.Kind() == InterfaceKind {
 		return TypedValue{}
 	} else {
 		return TypedValue{
 			T: t,
-			V: defaultValue(rlm, t),
+			V: defaultValue(alloc, t),
 		}
 	}
 }

@@ -26,7 +26,7 @@ func (m *Machine) doOpIndex1() {
 			vt := ct.Value
 			*xv = TypedValue{ // reuse as result
 				T: vt,
-				V: defaultValue(m.Realm, vt),
+				V: defaultValue(m.Alloc, vt),
 			}
 		}
 	default:
@@ -50,7 +50,7 @@ func (m *Machine) doOpIndex2() {
 		if xv.V == nil { // uninitialized map
 			*xv = TypedValue{ // reuse as result
 				T: vt,
-				V: defaultValue(m.Realm, vt),
+				V: defaultValue(m.Alloc, vt),
 			}
 			*iv = untypedBool(false) // reuse as result
 		} else {
@@ -62,7 +62,7 @@ func (m *Machine) doOpIndex2() {
 			} else {
 				*xv = TypedValue{ // reuse as result
 					T: vt,
-					V: defaultValue(m.Realm, vt),
+					V: defaultValue(m.Alloc, vt),
 				}
 				*iv = untypedBool(false) // reuse as result
 			}
@@ -321,7 +321,7 @@ func (m *Machine) doOpTypeAssert2() {
 		} else {
 			*xv = TypedValue{
 				T: t,
-				V: defaultValue(m.Realm, t),
+				V: defaultValue(m.Alloc, t),
 			}
 			*tv = untypedBool(false)
 		}
@@ -425,7 +425,7 @@ func (m *Machine) doOpArrayLit() {
 	at := m.PeekValue(1 + ne).V.(TypeValue).Type
 	bt := baseOf(at).(*ArrayType)
 	// construct array value.
-	av := defaultArrayValue(m.Realm, bt)
+	av := defaultArrayValue(m.Alloc, bt)
 	if 0 < ne {
 		al, ad := av.List, av.Data
 		vs := m.PopValues(ne)
@@ -519,7 +519,7 @@ func (m *Machine) doOpSliceLit2() {
 	ste := st.Elem()
 	for i, etv := range es {
 		if etv.IsUndefined() {
-			es[i] = defaultTypedValue(m.Realm, ste)
+			es[i] = defaultTypedValue(m.Alloc, ste)
 		}
 	}
 	// construct and push value.
@@ -589,7 +589,7 @@ func (m *Machine) doOpStructLit() {
 	if el == 0 {
 		// zero struct with no fields set.
 		// TODO: optimize and allow nil.
-		fs = defaultStructFields(m.Realm, st)
+		fs = defaultStructFields(m.Alloc, st)
 	} else if x.Elts[0].Key == nil {
 		// field values are in order.
 		fs = make([]TypedValue, 0, len(st.Fields))
@@ -628,7 +628,7 @@ func (m *Machine) doOpStructLit() {
 		}
 	} else {
 		// field values are by name and may be out of order.
-		fs = defaultStructFields(m.Realm, st)
+		fs = defaultStructFields(m.Alloc, st)
 		ftvs := m.PopValues(el)
 		for i := 0; i < el; i++ {
 			fnx := x.Elts[i].Key.(*NameExpr)

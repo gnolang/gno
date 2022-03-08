@@ -30,6 +30,7 @@ type Machine struct {
 	Frames    []Frame       // func call stack
 	Package   *PackageValue // active package
 	Realm     *Realm        // active realm
+	Alloc     *Allocator    // memory allocations
 	Exception *TypedValue   // if panic'd unless recovered
 
 	// Volatile State
@@ -97,6 +98,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		Values:     make([]TypedValue, 1024),
 		NumValues:  0,
 		Package:    pv,
+		Alloc:      NewAllocator(),
 		CheckTypes: checkTypes,
 		ReadOnly:   readOnly,
 		Output:     output,
