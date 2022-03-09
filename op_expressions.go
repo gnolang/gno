@@ -114,7 +114,7 @@ func (m *Machine) doOpSlice() {
 	}
 	// all low:high:max cases
 	if max == -1 {
-		sv := xv.GetSlice(low, high)
+		sv := xv.GetSlice(m.Alloc, low, high)
 		m.PushValue(sv)
 	} else {
 		sv := xv.GetSlice2(low, high, max)

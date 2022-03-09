@@ -11,33 +11,67 @@ type Allocator struct {
 const maxAllocations = 1000000000 // TODO parameterize. 1GB for now.
 
 const (
-	realmAllocString      = 1
-	realmAllocStringByte  = 1
-	realmAllocBigint      = 1
-	realmAllocBigintByte  = 1
-	realmAllocPointer     = 1
-	realmAllocArray       = 1
-	realmAllocArrayItem   = 1
-	realmAllocSlice       = 1
-	realmAllocStruct      = 1
-	realmAllocFunc        = 1
-	realmAllocMap         = 1
-	realmAllocMapItem     = 1
-	realmAllocBoundMethod = 1
-	realmAllocBlock       = 1
-	realmAllocBlockItem   = 1
-	//realmAllocType = 1
-	//realmAllocPackge = 1
-	//realmAllocNative = 1
+	allocString      = 1
+	allocStringByte  = 1
+	allocBigint      = 1
+	allocBigintByte  = 1
+	allocPointer     = 1
+	allocArray       = 1
+	allocArrayItem   = 1
+	allocSlice       = 1
+	allocStruct      = 1
+	allocStructField = 1
+	allocFunc        = 1
+	allocMap         = 1
+	allocMapItem     = 1
+	allocBoundMethod = 1
+	allocBlock       = 1
+	allocBlockItem   = 1
+	//allocType = 1
+	//allocPackge = 1
+	//allocNative = 1
 )
 
 func NewAllocator() *Allocator {
 	return &Allocator{}
 }
 
-func (all *Allocator) Allocate(size int64) {
-	all.bytes += size
-	if all.bytes > maxAllocations {
+func (alloc *Allocator) Allocate(size int64) {
+	if alloc == nil {
+		// this can happen for map items just prior to assignment.
+		return
+	}
+	alloc.bytes += size
+	if alloc.bytes > maxAllocations {
 		panic("allocation limit exceeded")
 	}
+}
+
+// NOTE: fields must be allocated separately.
+func (alloc *Allocator) AllocateStruct() {
+	alloc.Allocate(allocStruct)
+}
+
+func (alloc *Allocator) AllocateStructFields(fields int64) {
+	alloc.Allocate(+allocStructField * fields)
+}
+
+func (alloc *Allocator) AllocateByteArray(size int64) {
+	alloc.Allocate(allocArray + size)
+}
+
+func (alloc *Allocator) AllocateItemArray(items int64) {
+	alloc.Allocate(allocArray + allocArrayItem*items)
+}
+
+func (alloc *Allocator) AllocateString(size int64) {
+	alloc.Allocate(allocString + allocStringByte*size)
+}
+
+//----------------------------------------
+// constructor utilities.
+
+func (alloc *Allocator) NewStringValue(s string) StringValue {
+	alloc.AllocateString(int64(len(s)))
+	return StringValue(s)
 }

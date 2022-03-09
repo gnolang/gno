@@ -1047,7 +1047,7 @@ func (tv *TypedValue) GetBool() bool {
 	return *(*bool)(unsafe.Pointer(&tv.N))
 }
 
-func (tv *TypedValue) SetString(s string) {
+func (tv *TypedValue) SetString(s StringValue) {
 	if debug {
 		if tv.T.Kind() != StringKind || isNative(tv.T) {
 			panic(fmt.Sprintf(
@@ -1055,7 +1055,7 @@ func (tv *TypedValue) SetString(s string) {
 				tv.T.String()))
 		}
 	}
-	tv.V = StringValue(s)
+	tv.V = s
 }
 
 func (tv *TypedValue) GetString() string {
@@ -1928,7 +1928,7 @@ func (tv *TypedValue) GetCapacity() int {
 	}
 }
 
-func (tv *TypedValue) GetSlice(low, high int) TypedValue {
+func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 	if low < 0 {
 		panic(fmt.Sprintf(
 			"invalid slice index %d (index must be non-negative)",
@@ -1954,7 +1954,7 @@ func (tv *TypedValue) GetSlice(low, high int) TypedValue {
 		if t == StringType || t == UntypedStringType {
 			return TypedValue{
 				T: tv.T,
-				V: StringValue(tv.GetString()[low:high]),
+				V: alloc.NewStringValue(tv.GetString()[low:high]),
 			}
 		} else {
 			panic("non-string primitive type cannot be sliced")
@@ -2268,6 +2268,7 @@ type RefValue struct {
 //----------------------------------------
 
 func defaultStructFields(alloc *Allocator, st *StructType) []TypedValue {
+	alloc.AllocateStructFields(int64(len(st.Fields)))
 	tvs := make([]TypedValue, len(st.Fields))
 	for i, ft := range st.Fields {
 		if ft.Type.Kind() != InterfaceKind {
@@ -2279,6 +2280,7 @@ func defaultStructFields(alloc *Allocator, st *StructType) []TypedValue {
 }
 
 func defaultStructValue(alloc *Allocator, st *StructType) *StructValue {
+	alloc.AllocateStruct()
 	return &StructValue{
 		Fields: defaultStructFields(alloc, st),
 	}
@@ -2286,10 +2288,12 @@ func defaultStructValue(alloc *Allocator, st *StructType) *StructValue {
 
 func defaultArrayValue(alloc *Allocator, at *ArrayType) *ArrayValue {
 	if at.Elt.Kind() == Uint8Kind {
+		alloc.AllocateByteArray(int64(at.Len))
 		return &ArrayValue{
 			Data: make([]byte, at.Len),
 		}
 	} else {
+		alloc.AllocateItemArray(int64(at.Len))
 		tvs := make([]TypedValue, at.Len)
 		if et := at.Elem(); et.Kind() != InterfaceKind {
 			for i := 0; i < at.Len; i++ {
