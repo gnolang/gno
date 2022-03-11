@@ -377,7 +377,7 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 		// Each file for each *PackageValue gets its own file *Block,
 		// with values copied over from each file's
 		// *FileNode.StaticBlock.
-		fb := NewBlock(fn, pb)
+		fb := m.Alloc.NewBlock(fn, pb)
 		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
 		copy(fb.Values, fn.StaticBlock.Values)
 		pv.AddFileBlock(fn.Name, fb)

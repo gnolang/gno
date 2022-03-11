@@ -30,11 +30,10 @@ const (
 	allocBoundMethod = 1
 	allocBlock       = 1
 	allocBlockItem   = 1
-	//allocType = 1
+	allocNative      = 1
+	allocDataByte    = 1
+	allocType        = 1
 	//allocPackge = 1
-	allocNative   = 1
-	allocDataByte = 1
-	allocType     = 1
 )
 
 func NewAllocator() *Allocator {

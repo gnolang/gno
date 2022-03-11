@@ -26,7 +26,8 @@
 * Limit CPU and memory usage.
  -> memory usage: 
  -> clear cache upon beginnewblock (DONE).
- -> limit allocation per realm, and free upon finalization.
+ -> limit allocation per tx.
+ -> limit allocation from store.
  -> limit cache size on store.
 
 * Ensure code is proper.
