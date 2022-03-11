@@ -105,6 +105,12 @@ func (dbv DataByteValue) SetByte(b byte) {
 // initialized, namely T set if a typed-nil.
 // Index is -1 for the shared "_" block var,
 // and -2 for (gno and native) map items.
+//
+// Allocation for PointerValue is not immediate,
+// as usually PointerValues are temporary for assignment
+// or binary operations. When a pointer is to be
+// allocated, *Allocator.AllocatePointer() is called separately,
+// as in OpRef.
 type PointerValue struct {
 	TV    *TypedValue // escape val if pointer to var.
 	Base  Value       // array/struct/block.
@@ -1459,6 +1465,11 @@ func (tv *TypedValue) ConvertUntyped() {
 }
 */
 
+// NOTE: Allocation for PointerValue is not immediate,
+// as usually PointerValues are temporary for assignment
+// or binary operations. When a pointer is to be
+// allocated, *Allocator.AllocatePointer() is called separately,
+// as in OpRef.
 func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath) PointerValue {
 	if debug {
 		if tv.IsUndefined() {
@@ -1721,10 +1732,9 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 		mv := rv.MethodByName(string(path.Name))
 		if mv.IsValid() {
 			mt := mv.Type()
-			alloc.AllocateType()
 			return PointerValue{
 				TV: &TypedValue{ // heap alloc
-					T: &NativeType{Type: mt},
+					T: alloc.NewType(&NativeType{Type: mt}),
 					V: alloc.NewNative(mv),
 				},
 				// TODO consider if needed for persistence:
@@ -1746,10 +1756,9 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 			mv := rv.Addr().MethodByName(string(path.Name))
 			if mv.IsValid() {
 				mt := mv.Type()
-				alloc.AllocateType()
 				return PointerValue{
 					TV: &TypedValue{ // heap alloc
-						T: &NativeType{Type: mt},
+						T: alloc.NewType(&NativeType{Type: mt}),
 						V: alloc.NewNative(mv),
 					},
 					// TODO consider if needed for persistence:
@@ -1843,13 +1852,12 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 			krv := gno2GoValue(iv, reflect.Value{})
 			vrv := rv.MapIndex(krv)
 			etv := go2GnoValue(alloc, vrv) // NOTE: lazy, often native.
-			alloc.AllocateType()
 			return PointerValue{
 				TV:    &etv, // TODO not needed for assignment.
 				Base:  nv,
 				Index: PointerIndexNative,
 				Key: &TypedValue{
-					T: &NativeType{Type: krv.Type()},
+					T: alloc.NewType(&NativeType{Type: krv.Type()}),
 					V: alloc.NewNative(krv),
 				},
 			}
@@ -1971,10 +1979,10 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 		}
 	case *ArrayType:
 		av := tv.V.(*ArrayValue)
-		st := &SliceType{
+		st := alloc.NewType(&SliceType{
 			Elt: t.Elt,
 			Vrd: false,
-		}
+		})
 		alloc.AllocateSlice()
 		return TypedValue{
 			T: st,
@@ -2051,10 +2059,10 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, low, high, max int) TypedValue
 	switch bt := baseOf(tv.T).(type) {
 	case *ArrayType:
 		av := tv.V.(*ArrayValue)
-		st := &SliceType{
+		st := alloc.NewType(&SliceType{
 			Elt: bt.Elt,
 			Vrd: false,
-		}
+		})
 		alloc.AllocateSlice()
 		return TypedValue{
 			T: st,

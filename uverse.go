@@ -154,10 +154,10 @@ func UverseNode() *PackageNode {
 				m.Alloc.AllocateSlice()
 				m.Alloc.AllocateDataArray(int64(len(arg1s)))
 				arg1.TV = &TypedValue{
-					T: &SliceType{ // TODO: reuse
+					T: m.Alloc.NewType(&SliceType{ // TODO: reuse
 						Elt: Uint8Type,
 						Vrd: true,
-					},
+					}),
 					V: &SliceValue{ // TODO: pool?
 						Base: &ArrayValue{
 							Data: []byte(arg1s),
@@ -917,10 +917,11 @@ func UverseNode() *PackageNode {
 			arg0 := m.LastBlock().GetParams1()
 			tt := arg0.TV.GetType()
 			vv := defaultValue(m.Alloc, tt)
+			m.Alloc.AllocatePointer()
 			m.PushValue(TypedValue{
-				T: &PointerType{
+				T: m.Alloc.NewType(&PointerType{
 					Elt: tt,
-				},
+				}),
 				V: PointerValue{
 					TV: &TypedValue{
 						T: tt,

@@ -33,9 +33,9 @@ const (
 	allocBlock       = 1
 	allocBlockItem   = 1
 	allocNative      = 1
-	allocDataByte    = 1
 	allocType        = 1
-	//allocPackge = 1
+	// allocDataByte    = 1
+	// allocPackge = 1
 )
 
 func NewAllocator() *Allocator {
@@ -111,9 +111,11 @@ func (alloc *Allocator) AllocateNative() {
 	alloc.Allocate(allocNative)
 }
 
+/* NOTE: Not used, account for with AllocatePointer.
 func (alloc *Allocator) AllocateDataByte() {
 	alloc.Allocate(allocDataByte)
 }
+*/
 
 func (alloc *Allocator) AllocateType() {
 	alloc.Allocate(allocType)
@@ -185,4 +187,9 @@ func (alloc *Allocator) NewNative(rv reflect.Value) *NativeValue {
 	return &NativeValue{
 		Value: rv,
 	}
+}
+
+func (alloc *Allocator) NewType(t Type) Type {
+	alloc.AllocateType()
+	return t
 }

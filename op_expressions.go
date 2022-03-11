@@ -176,6 +176,7 @@ func (m *Machine) doOpStar() {
 // XXX this is wrong, for var i interface{}; &i is *interface{}.
 func (m *Machine) doOpRef() {
 	rx := m.PopExpr().(*RefExpr)
+	m.Alloc.AllocatePointer()
 	xv := m.PopAsPointer(rx.X)
 	if nv, ok := xv.TV.V.(*NativeValue); ok {
 		// If a native pointer, ensure it is addressable.  This
@@ -189,11 +190,8 @@ func (m *Machine) doOpRef() {
 			nv.Value = rv2
 		}
 	}
-	// XXX this is wrong, if rx.X is interface type,
-	// XXX then the type should be &PointerType{Elt: staticTypeOf(xv)}
-	m.Alloc.AllocatePointer()
 	m.PushValue(TypedValue{
-		T: &PointerType{Elt: xv.TV.T},
+		T: m.Alloc.NewType(&PointerType{Elt: xv.TV.T}),
 		V: xv,
 	})
 }

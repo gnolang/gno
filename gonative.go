@@ -298,12 +298,11 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 	}
 	if rv.Type().PkgPath() != "" {
 		rt := rv.Type()
-		alloc.AllocateType()
-		tv.T = &NativeType{Type: rt}
+		tv.T = alloc.NewType(&NativeType{Type: rt})
 		tv.V = alloc.NewNative(rv)
 		return
 	}
-	tv.T = go2GnoType(rv.Type())
+	tv.T = alloc.NewType(go2GnoType(rv.Type()))
 	switch rk := rv.Kind(); rk {
 	case reflect.Bool:
 		tv.SetBool(rv.Bool())

@@ -181,12 +181,6 @@ func (m *Machine) doOpExec(op Op) {
 			if bs.Value != nil {
 				iv := TypedValue{T: IntType}
 				iv.SetInt(bs.ListIndex)
-				if debug {
-					if enabled {
-						debug.Println("QWEQWEQWE", xv.String(), baseOf(xv.T))
-						debug.Println("m", m.String())
-					}
-				}
 				ev := xv.GetPointerAtIndex(m.Alloc, m.Store, &iv).Deref()
 				switch bs.Op {
 				case ASSIGN:
@@ -197,12 +191,6 @@ func (m *Machine) doOpExec(op Op) {
 					ptr.TV.Assign(m.Alloc, ev, false)
 				default:
 					panic("should not happen")
-				}
-				if debug {
-					if enabled {
-						debug.Println("QWEQWEQWE END", xv.String())
-						debug.Println("m", m.String())
-					}
 				}
 			}
 			bs.NextBodyIndex++
