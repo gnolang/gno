@@ -135,7 +135,7 @@ D:
 
 func TestCrypto(t *testing.T) {
 	addr := crypto.Address{}
-	tv := Go2GnoValue(reflect.ValueOf(addr))
+	tv := Go2GnoValue(nilAllocator, reflect.ValueOf(addr))
 	assert.Equal(t, tv.String(),
 		`(array[0x0000000000000000000000000000000000000000] github.com/gnolang/gno/pkgs/crypto.Address)`)
 }

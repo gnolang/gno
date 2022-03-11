@@ -30,7 +30,7 @@ func (m *Machine) doOpIndex1() {
 			}
 		}
 	default:
-		res := xv.GetPointerAtIndex(m.Store, iv)
+		res := xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
 		*xv = res.Deref() // reuse as result
 	}
 }
@@ -78,7 +78,7 @@ func (m *Machine) doOpIndex2() {
 func (m *Machine) doOpSelector() {
 	sx := m.PopExpr().(*SelectorExpr)
 	xv := m.PeekValue(1)
-	res := xv.GetPointerTo(m.Store, sx.Path)
+	res := xv.GetPointerTo(m.Alloc, m.Store, sx.Path)
 	*xv = res.Deref() // reuse as result
 }
 
@@ -555,7 +555,7 @@ func (m *Machine) doOpMapLit() {
 		for i := 0; i < ne; i++ {
 			ktv := &kvs[i*2]
 			vtv := kvs[i*2+1]
-			ptr := mv.GetPointerForKey(m.Store, ktv)
+			ptr := mv.GetPointerForKey(m.Alloc, m.Store, ktv)
 			*ptr.TV = vtv
 		}
 	} else {

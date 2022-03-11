@@ -257,6 +257,7 @@ func UverseNode() *PackageNode {
 						list := make([]TypedValue, argsl)
 						if 0 < argsl {
 							copyNativeToList(
+								m.Alloc,
 								list[:argsl],
 								argsrv, argsl)
 						}
@@ -425,6 +426,7 @@ func UverseNode() *PackageNode {
 								// append(*SliceValue.List, *NativeValue) --------
 								list := xvb.List
 								copyNativeToList(
+									m.Alloc,
 									list[xvo:xvo+argsl],
 									argsrv, argsl)
 							} else {
@@ -486,6 +488,7 @@ func UverseNode() *PackageNode {
 						}
 						if 0 < argsl {
 							copyNativeToList(
+								m.Alloc,
 								list[xvl:xvl+argsl],
 								argsrv, argsl)
 						}
@@ -542,6 +545,7 @@ func UverseNode() *PackageNode {
 							}
 						}
 						resrv := reflect.AppendSlice(sv, argsrv)
+						m.Alloc.AllocateNative()
 						m.PushValue(TypedValue{
 							T: xt,
 							V: &NativeValue{Value: resrv},
@@ -560,6 +564,7 @@ func UverseNode() *PackageNode {
 				case *NativeValue:
 					argsrv := args.Value
 					resrv := reflect.AppendSlice(sv, argsrv)
+					m.Alloc.AllocateNative()
 					m.PushValue(TypedValue{
 						T: xt,
 						V: &NativeValue{Value: resrv},
@@ -574,6 +579,7 @@ func UverseNode() *PackageNode {
 						// appending this way without first converting to a slice.
 						argrv := reflect.ValueOf([]byte(arg1.TV.V.(StringValue)))
 						resrv := reflect.AppendSlice(sv, argrv)
+						m.Alloc.AllocateNative()
 						m.PushValue(TypedValue{
 							T: xt,
 							V: &NativeValue{Value: resrv},
@@ -665,7 +671,7 @@ func UverseNode() *PackageNode {
 					for i := 0; i < minl; i++ {
 						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
 						srcev := src.TV.GetPointerAtIndexInt(m.Store, i)
-						dstev.Assign2(m.Store, m.Realm, srcev.Deref(), false)
+						dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
 					}
 					res0 := TypedValue{
 						T: IntType,
@@ -691,7 +697,7 @@ func UverseNode() *PackageNode {
 					for i := 0; i < minl; i++ {
 						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
 						srcev := srcv.GetPointerAtIndexInt2(m.Store, i, bst.Elt)
-						dstev.Assign2(m.Store, m.Realm, srcev.Deref(), false)
+						dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
 					}
 					res0 := TypedValue{
 						T: IntType,
@@ -872,6 +878,7 @@ func UverseNode() *PackageNode {
 				switch bt.Type.Kind() {
 				case reflect.Map:
 					if vargsl == 0 {
+						m.Alloc.AllocateNative()
 						m.PushValue(TypedValue{
 							T: tt,
 							V: &NativeValue{
@@ -882,6 +889,7 @@ func UverseNode() *PackageNode {
 					} else if vargsl == 1 {
 						sv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
 						si := sv.ConvertGetInt()
+						m.Alloc.AllocateNative()
 						m.PushValue(TypedValue{
 							T: tt,
 							V: &NativeValue{
@@ -1119,10 +1127,10 @@ func copyListToRunes(dst []rune, tvs []TypedValue) {
 	}
 }
 
-func copyNativeToList(dst []TypedValue, rv reflect.Value, rvl int) {
+func copyNativeToList(alloc *Allocator, dst []TypedValue, rv reflect.Value, rvl int) {
 	// TODO: redundant go2GnoType() conversions.
 	for i := 0; i < rvl; i++ {
-		dst[i] = go2GnoValue(rv.Index(i))
+		dst[i] = go2GnoValue(alloc, rv.Index(i))
 	}
 }
 

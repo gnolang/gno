@@ -72,7 +72,7 @@ func (m *Machine) doOpCall() {
 			for i, rt := range ft.Results {
 				ptr := b.GetPointerToInt(nil, numParams+i)
 				dtv := defaultTypedValue(m.Alloc, rt.Type)
-				ptr.Assign2(nil, nil, dtv, false)
+				ptr.Assign2(m.Alloc, nil, nil, dtv, false)
 			}
 		}
 		// Exec body.
@@ -388,7 +388,7 @@ func (m *Machine) doOpDefer() {
 
 func (m *Machine) doOpPanic1() {
 	// Pop exception
-	var ex TypedValue = m.PopValue().Copy()
+	var ex TypedValue = m.PopValue().Copy(m.Alloc)
 	// Panic
 	m.Panic(ex)
 }

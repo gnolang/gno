@@ -1076,7 +1076,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				n.Func.SetAttribute(ATTR_TYPEOF_VALUE, sft)
 				if cx, ok := n.Func.(*ConstExpr); ok {
 					fv := cx.V.(*FuncValue)
-					fv2 := fv.Copy()
+					fv2 := fv.Copy(nilAllocator)
 					fv2.Type = sft
 					cx.T = sft
 					cx.V = fv2

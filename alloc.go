@@ -89,8 +89,20 @@ func (alloc *Allocator) AllocateMap(items int64) {
 	alloc.Allocate(allocMap + allocMapItem*items)
 }
 
+func (alloc *Allocator) AllocateMapItem() {
+	alloc.Allocate(allocMapItem)
+}
+
+func (alloc *Allocator) AllocateBoundMethod() {
+	alloc.Allocate(allocBoundMethod)
+}
+
 func (alloc *Allocator) AllocateBlock(items int64) {
 	alloc.Allocate(allocBlock + allocBlockItem*items)
+}
+
+func (alloc *Allocator) AllocateBlockItems(items int64) {
+	alloc.Allocate(allocBlockItem * items)
 }
 
 // NOTE: does not allocate for the underlying value.

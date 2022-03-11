@@ -268,13 +268,13 @@ func go2GnoType2(rt reflect.Type) (t Type) {
 }
 
 // NOTE: used by vm module.  Recursively converts.
-func Go2GnoValue(rv reflect.Value) (tv TypedValue) {
-	return go2GnoValue2(rv, true)
+func Go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
+	return go2GnoValue2(alloc, rv, true)
 }
 
 // NOTE: used by vm module. Shallow, preserves native namedness.
-func Go2GnoNativeValue(rv reflect.Value) (tv TypedValue) {
-	return go2GnoValue(rv)
+func Go2GnoNativeValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
+	return go2GnoValue(alloc, rv)
 }
 
 // Default run-time representation of go-native values.  It is
@@ -285,7 +285,7 @@ func Go2GnoNativeValue(rv reflect.Value) (tv TypedValue) {
 // call go2GnoValue2(), which is used by the implementation of
 // ConvertTo().
 // Unlike go2GnoValue2(), rv may be invalid.
-func go2GnoValue(rv reflect.Value) (tv TypedValue) {
+func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 	if !rv.IsValid() {
 		return
 	}
@@ -298,6 +298,8 @@ func go2GnoValue(rv reflect.Value) (tv TypedValue) {
 	}
 	if rv.Type().PkgPath() != "" {
 		rt := rv.Type()
+		alloc.AllocateType()
+		alloc.AllocateNative()
 		tv.T = &NativeType{Type: rt}
 		tv.V = &NativeValue{Value: rv}
 		return
@@ -307,8 +309,7 @@ func go2GnoValue(rv reflect.Value) (tv TypedValue) {
 	case reflect.Bool:
 		tv.SetBool(rv.Bool())
 	case reflect.String:
-		//tv.V = alloc.NewStringValue(rv.String())
-		tv.V = StringValue(rv.String())
+		tv.V = alloc.NewStringValue(rv.String())
 	case reflect.Int:
 		tv.SetInt(int(rv.Int()))
 	case reflect.Int8:
@@ -345,8 +346,8 @@ func go2GnoValue(rv reflect.Value) (tv TypedValue) {
 		} else { // create
 			ftv := TypedValue{T: Uint32Type}
 			ftv.SetUint32(u32)
-			//alloc.AllocateStruct()
-			//alloc.AllocateStructFields(1)
+			alloc.AllocateStruct()
+			alloc.AllocateStructFields(1)
 			tv.V = &StructValue{
 				Fields: []TypedValue{ftv},
 			}
@@ -367,27 +368,34 @@ func go2GnoValue(rv reflect.Value) (tv TypedValue) {
 		} else { // create
 			ftv := TypedValue{T: Uint64Type}
 			ftv.SetUint64(u64)
-			//alloc.AllocateStruct()
-			//alloc.AllocateStructFields(1)
+			alloc.AllocateStruct()
+			alloc.AllocateStructFields(1)
 			tv.V = &StructValue{
 				Fields: []TypedValue{ftv},
 			}
 		}
 	case reflect.Array:
+		alloc.AllocateNative()
 		tv.V = &NativeValue{Value: rv}
 	case reflect.Slice:
+		alloc.AllocateNative()
 		tv.V = &NativeValue{Value: rv}
 	case reflect.Chan:
+		alloc.AllocateNative()
 		tv.V = &NativeValue{Value: rv}
 	case reflect.Func:
+		alloc.AllocateNative()
 		tv.V = &NativeValue{Value: rv}
 	case reflect.Interface:
 		panic("should not happen")
 	case reflect.Map:
+		alloc.AllocateNative()
 		tv.V = &NativeValue{Value: rv}
 	case reflect.Ptr:
+		alloc.AllocateNative()
 		tv.V = &NativeValue{Value: rv}
 	case reflect.Struct:
+		alloc.AllocateNative()
 		tv.V = &NativeValue{Value: rv}
 	case reflect.UnsafePointer:
 		panic("not yet implemented")
@@ -404,7 +412,7 @@ func go2GnoValue(rv reflect.Value) (tv TypedValue) {
 // become initialized.  Due to limitations of Go 1.15
 // reflection, any child Gno declared types cannot change
 // types.
-func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
+func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 	// Special case if nil:
 	if tv.IsUndefined() {
 		return // do nothing
@@ -425,7 +433,7 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 		}
 	case StringKind:
 		if lvl != 0 {
-			tv.V = StringValue(rv.String())
+			tv.V = alloc.NewStringValue(rv.String())
 		}
 	case IntKind:
 		if lvl != 0 {
@@ -480,7 +488,7 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 		if av.Data == nil {
 			at := baseOf(tv.T).(*ArrayType)
 			et := at.Elt
-			//alloc.AllocateItemArray(int64(rvl))
+			alloc.AllocateItemArray(int64(rvl))
 			for i := 0; i < rvl; i++ {
 				erv := rv.Index(i)
 				etv := &av.List[i]
@@ -489,13 +497,12 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 					etv.T = et
 				}
 				if etv.V == nil {
-					//etv.V = defaultValue(alloc, et)
-					etv.V = defaultValue(nilAllocator, et)
+					etv.V = defaultValue(alloc, et)
 				}
-				go2GnoValueUpdate(rlm, lvl+1, etv, erv)
+				go2GnoValueUpdate(alloc, rlm, lvl+1, etv, erv)
 			}
 		} else {
-			//alloc.AllocateByteArray(int64(rvl))
+			alloc.AllocateByteArray(int64(rvl))
 			for i := 0; i < rvl; i++ {
 				erv := rv.Index(i)
 				av.Data[i] = uint8(erv.Uint())
@@ -530,10 +537,9 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 					etv.T = et
 				}
 				if etv.V == nil {
-					//etv.V = defaultValue(alloc, et)
-					etv.V = defaultValue(nilAllocator, et)
+					etv.V = defaultValue(alloc, et)
 				}
-				go2GnoValueUpdate(rlm, lvl+1, etv, erv)
+				go2GnoValueUpdate(alloc, rlm, lvl+1, etv, erv)
 			}
 		} else {
 			for i := 0; i < rvl; i++ {
@@ -548,7 +554,7 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 		pv := tv.V.(PointerValue)
 		etv := pv.TV
 		erv := rv.Elem()
-		go2GnoValueUpdate(rlm, lvl+1, etv, erv)
+		go2GnoValueUpdate(alloc, rlm, lvl+1, etv, erv)
 	case StructKind:
 		st := baseOf(tv.T).(*StructType)
 		sv := tv.V.(*StructValue)
@@ -586,10 +592,10 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 					ftv.T = ft
 				}
 				if ftv.V == nil {
-					ftv.V = defaultValue(nilAllocator, ft)
+					ftv.V = defaultValue(alloc, ft)
 				}
 				frv := rv.Field(i)
-				go2GnoValueUpdate(rlm, lvl+1, ftv, frv)
+				go2GnoValueUpdate(alloc, rlm, lvl+1, ftv, frv)
 			}
 		}
 	case PackageKind:
@@ -618,6 +624,7 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 		mvl := mv.List.Size
 		// Copy map to new map for destructive iteration of items.
 		rt := rv.Type()
+		alloc.AllocateMap(int64(mvl))
 		rv2 := reflect.MakeMapWithSize(rt, mvl)
 		rvi := rv.MapRange()
 		for rvi.Next() {
@@ -636,7 +643,7 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 				// XXX remove key from mv
 				panic("not yet implemented")
 			} else {
-				go2GnoValueUpdate(rlm, lvl+1, vtv, vrv)
+				go2GnoValueUpdate(alloc, rlm, lvl+1, vtv, vrv)
 			}
 			// Delete from rv2
 			rv2.SetMapIndex(krv, reflect.Value{})
@@ -647,15 +654,15 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 		rv2i := rv2.MapRange()
 		for rv2i.Next() {
 			k, v := rv2i.Key(), rv2i.Value()
-			ktv := go2GnoValue(k)
-			vtv := go2GnoValue(v)
-			ptr := mv.GetPointerForKey(nil, &ktv)
+			ktv := go2GnoValue(alloc, k)
+			vtv := go2GnoValue(alloc, v)
+			ptr := mv.GetPointerForKey(nilAllocator, nil, &ktv)
 			if debug {
 				if !ptr.TV.IsUndefined() {
 					panic("should not happen")
 				}
 			}
-			ptr.Assign2(nil, rlm, vtv, false) // document false
+			ptr.Assign2(alloc, nil, rlm, vtv, false) // document false
 		}
 	case TypeKind:
 		panic("not yet implemented")
@@ -670,7 +677,7 @@ func go2GnoValueUpdate(rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 // converting Go types to Gno types upon an explicit conversion (via
 // ConvertTo).  Panics on unexported/private fields. Some types that cannot be
 // converted remain native. Unlike go2GnoValue(), rv must be valid.
-func go2GnoValue2(rv reflect.Value, recursive bool) (tv TypedValue) {
+func go2GnoValue2(alloc *Allocator, rv reflect.Value, recursive bool) (tv TypedValue) {
 	if debug {
 		if !rv.IsValid() {
 			panic("go2GnoValue2() requires valid rv")
@@ -681,8 +688,7 @@ func go2GnoValue2(rv reflect.Value, recursive bool) (tv TypedValue) {
 	case reflect.Bool:
 		tv.SetBool(rv.Bool())
 	case reflect.String:
-		//tv.V = alloc.NewStringValue(rv.String())
-		tv.V = StringValue(rv.String())
+		tv.V = alloc.NewStringValue(rv.String())
 	case reflect.Int:
 		tv.SetInt(int(rv.Int()))
 	case reflect.Int8:
@@ -716,18 +722,18 @@ func go2GnoValue2(rv reflect.Value, recursive bool) (tv TypedValue) {
 		if rv.Type().Elem().Kind() == reflect.Uint8 {
 			data := make([]byte, rvl)
 			reflect.Copy(reflect.ValueOf(data), rv)
-			//alloc.AllocateByteArray(int64(rvl))
+			alloc.AllocateByteArray(int64(rvl))
 			tv.V = &ArrayValue{
 				Data: data,
 			}
 		} else {
-			//alloc.AllocateItemArray(int64(rvl))
+			alloc.AllocateItemArray(int64(rvl))
 			list := make([]TypedValue, rvl)
 			for i := 0; i < rvl; i++ {
 				if recursive {
-					list[i] = go2GnoValue2(rv.Index(i), true)
+					list[i] = go2GnoValue2(alloc, rv.Index(i), true)
 				} else {
-					list[i] = go2GnoValue(rv.Index(i))
+					list[i] = go2GnoValue(alloc, rv.Index(i))
 				}
 			}
 			tv.V = &ArrayValue{
@@ -740,12 +746,12 @@ func go2GnoValue2(rv reflect.Value, recursive bool) (tv TypedValue) {
 		list := make([]TypedValue, rvl, rvc)
 		for i := 0; i < rvl; i++ {
 			if recursive {
-				list[i] = go2GnoValue2(rv.Index(i), true)
+				list[i] = go2GnoValue2(alloc, rv.Index(i), true)
 			} else {
-				list[i] = go2GnoValue(rv.Index(i))
+				list[i] = go2GnoValue(alloc, rv.Index(i))
 			}
 		}
-		tv.V = nilAllocator.NewSliceFromList(list)
+		tv.V = alloc.NewSliceFromList(list)
 	case reflect.Chan:
 		panic("not yet implemented")
 	case reflect.Func:
@@ -753,6 +759,7 @@ func go2GnoValue2(rv reflect.Value, recursive bool) (tv TypedValue) {
 		// *FuncType or *DeclaredType.  The value may still be a
 		// *NativeValue though, and the function can be called
 		// regardless.
+		alloc.AllocateNative()
 		tv.V = &NativeValue{
 			Value: rv,
 		}
@@ -761,19 +768,19 @@ func go2GnoValue2(rv reflect.Value, recursive bool) (tv TypedValue) {
 	case reflect.Map:
 		panic("not yet implemented")
 	case reflect.Ptr:
-		val := go2GnoValue2(rv.Elem(), recursive)
+		val := go2GnoValue2(alloc, rv.Elem(), recursive)
 		tv.V = PointerValue{TV: &val} // heap alloc
 	case reflect.Struct:
 		nf := rv.NumField()
-		//alloc.AllocateStruct()
-		//alloc.AllocateStructFields(int64(nf))
+		alloc.AllocateStruct()
+		alloc.AllocateStructFields(int64(nf))
 		fs := make([]TypedValue, nf)
 		for i := 0; i < nf; i++ {
 			frv := rv.Field(i)
 			if recursive {
-				fs[i] = go2GnoValue2(frv, true)
+				fs[i] = go2GnoValue2(alloc, frv, true)
 			} else {
-				fs[i] = go2GnoValue(frv)
+				fs[i] = go2GnoValue(alloc, frv)
 			}
 		}
 		tv.V = &StructValue{
@@ -1332,7 +1339,7 @@ func (pn *PackageNode) DefineGoNativeValue(n Name, nv interface{}) {
 	rt := rv.Type()
 	rv2 := reflect.New(rt).Elem()
 	rv2.Set(rv)
-	pn.Define(n, go2GnoValue(rv2))
+	pn.Define(n, go2GnoValue(nilAllocator, rv2))
 }
 
 //----------------------------------------
@@ -1499,7 +1506,7 @@ func (m *Machine) doOpCallGoNative() {
 	for _, rvs := range rrvs {
 		// TODO instead of this shallow conversion,
 		// look at expected Gno type and convert appropriately.
-		rtv := go2GnoValue(rvs)
+		rtv := go2GnoValue(m.Alloc, rvs)
 		m.PushValue(rtv)
 	}
 	// carry writes to params if needed.
@@ -1507,7 +1514,7 @@ func (m *Machine) doOpCallGoNative() {
 		ptv := &ptvs[i]
 		prv := prvs[i]
 		if !ptv.IsUndefined() {
-			go2GnoValueUpdate(m.Realm, 0, ptv, prv)
+			go2GnoValueUpdate(m.Alloc, m.Realm, 0, ptv, prv)
 		}
 	}
 	// cleanup

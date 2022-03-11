@@ -1455,7 +1455,7 @@ func (dt *DeclaredType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 //
 //       runtime: *TV.GetPointerTo(path)
 //                 -> *DT.GetValueAt(path)
-func (dt *DeclaredType) GetValueAt(store Store, path ValuePath) TypedValue {
+func (dt *DeclaredType) GetValueAt(alloc *Allocator, store Store, path ValuePath) TypedValue {
 	switch path.Type {
 	case VPInterface:
 		panic("should not happen")
@@ -1466,7 +1466,7 @@ func (dt *DeclaredType) GetValueAt(store Store, path ValuePath) TypedValue {
 			mtv := dt.Methods[path.Index]
 			// Fill in *FV.Closure.
 			ft := mtv.T
-			fv := mtv.V.(*FuncValue).Copy()
+			fv := mtv.V.(*FuncValue).Copy(alloc)
 			fv.Closure = fv.GetClosure(store)
 			return TypedValue{T: ft, V: fv}
 		} else {

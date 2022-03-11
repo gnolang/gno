@@ -42,7 +42,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
 			return
 		} else {
 			// convert go-native to gno type (shallow).
-			*tv = go2GnoValue2(tv.V.(*NativeValue).Value, false)
+			*tv = go2GnoValue2(alloc, tv.V.(*NativeValue).Value, false)
 			ConvertTo(alloc, store, tv, t)
 			return
 		}

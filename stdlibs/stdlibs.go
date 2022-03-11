@@ -41,7 +41,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				}
 				hash := gno.HashBytes(bz)
 				res0 := gno.Go2GnoValue(
-					//m.Alloc,
+					m.Alloc,
 					reflect.ValueOf([20]byte(hash)),
 				)
 				m.PushValue(res0)
@@ -59,7 +59,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 					realmPath = m.Realm.Path
 				}
 				res0 := gno.Go2GnoValue(
-					//m.Alloc,
+					m.Alloc,
 					reflect.ValueOf(realmPath),
 				)
 				m.PushValue(res0)
@@ -74,7 +74,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			func(m *gno.Machine) {
 				ctx := m.Context.(ExecContext)
 				res0 := gno.Go2GnoValue(
-					//m.Alloc,
+					m.Alloc,
 					reflect.ValueOf(ctx.ChainID),
 				)
 				m.PushValue(res0)
@@ -89,7 +89,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			func(m *gno.Machine) {
 				ctx := m.Context.(ExecContext)
 				res0 := gno.Go2GnoValue(
-					//m.Alloc,
+					m.Alloc,
 					reflect.ValueOf(ctx.Height),
 				)
 				m.PushValue(res0)
@@ -104,7 +104,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			func(m *gno.Machine) {
 				ctx := m.Context.(ExecContext)
 				res0 := gno.Go2GnoValue(
-					//m.Alloc,
+					m.Alloc,
 					reflect.ValueOf(ctx.TxSend),
 				)
 				coinT := store.GetType(gno.DeclaredTypeID("std", "Coin"))
@@ -126,7 +126,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			func(m *gno.Machine) {
 				ctx := m.Context.(ExecContext)
 				res0 := gno.Go2GnoValue(
-					//m.Alloc,
+					m.Alloc,
 					reflect.ValueOf(ctx.Caller),
 				)
 				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
@@ -143,7 +143,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			func(m *gno.Machine) {
 				ctx := m.Context.(ExecContext)
 				res0 := gno.Go2GnoValue(
-					//m.Alloc,
+					m.Alloc,
 					reflect.ValueOf(ctx.PkgAddr),
 				)
 				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
@@ -178,7 +178,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				rv := reflect.ValueOf(banker)
 				// XXX hack: natives aren't allocated, so simulate.
 				//alloc.AllocateStruct(10) // defensive 10.
-				res0 := gno.Go2GnoNativeValue(rv)
+				res0 := gno.Go2GnoNativeValue(m.Alloc, rv)
 				m.PushValue(res0)
 			},
 		)
