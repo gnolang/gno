@@ -584,10 +584,6 @@ func (m *Machine) doOpStructLit() {
 	xt := m.PeekValue(1 + el).V.(TypeValue).Type
 	st := baseOf(xt).(*StructType)
 	nf := len(st.Fields)
-	sv := &StructValue{
-		// will replace this with fs below.
-		Fields: nil, // becomes fs.
-	}
 	fs := []TypedValue(nil)
 	// NOTE includes embedded fields.
 	if el == 0 {
@@ -651,7 +647,7 @@ func (m *Machine) doOpStructLit() {
 	}
 	// construct and push value.
 	m.PopValue() // baseOf() is st
-	sv.Fields = fs
+	sv := m.Alloc.NewStruct(fs)
 	m.PushValue(TypedValue{
 		T: xt,
 		V: sv,

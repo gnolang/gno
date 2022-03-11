@@ -59,11 +59,11 @@ func (alloc *Allocator) AllocatePointer() {
 	alloc.Allocate(allocPointer)
 }
 
-func (alloc *Allocator) AllocateByteArray(size int64) {
+func (alloc *Allocator) AllocateDataArray(size int64) {
 	alloc.Allocate(allocArray + size)
 }
 
-func (alloc *Allocator) AllocateItemArray(items int64) {
+func (alloc *Allocator) AllocateListArray(items int64) {
 	alloc.Allocate(allocArray + allocArrayItem*items)
 }
 
@@ -127,7 +127,7 @@ func (alloc *Allocator) NewStringValue(s string) StringValue {
 
 func (alloc *Allocator) NewSliceFromList(list []TypedValue) *SliceValue {
 	alloc.AllocateSlice()
-	alloc.AllocateItemArray(int64(cap(list)))
+	alloc.AllocateListArray(int64(cap(list)))
 	fullList := list[:cap(list)]
 	return &SliceValue{
 		Base: &ArrayValue{
@@ -141,7 +141,7 @@ func (alloc *Allocator) NewSliceFromList(list []TypedValue) *SliceValue {
 
 func (alloc *Allocator) NewSliceFromData(data []byte) *SliceValue {
 	alloc.AllocateSlice()
-	alloc.AllocateByteArray(int64(cap(data)))
+	alloc.AllocateDataArray(int64(cap(data)))
 	fullData := data[:cap(data)]
 	return &SliceValue{
 		Base: &ArrayValue{
@@ -151,6 +151,26 @@ func (alloc *Allocator) NewSliceFromData(data []byte) *SliceValue {
 		Length: len(data),
 		Maxcap: cap(data),
 	}
+}
+
+// NOTE: fields must be allocated (e.g. from NewStructFields)
+func (alloc *Allocator) NewStruct(fields []TypedValue) *StructValue {
+	alloc.AllocateStruct()
+	return &StructValue{
+		Fields: fields,
+	}
+}
+
+func (alloc *Allocator) NewStructFields(fields int) []TypedValue {
+	alloc.AllocateStructFields(int64(fields))
+	return make([]TypedValue, fields)
+}
+
+// NOTE: fields will be allocated.
+func (alloc *Allocator) NewStructWithFields(fields ...TypedValue) *StructValue {
+	tvs := alloc.NewStructFields(len(fields))
+	copy(tvs, fields)
+	return alloc.NewStruct(tvs)
 }
 
 func (alloc *Allocator) NewBlock(source BlockNode, parent *Block) *Block {

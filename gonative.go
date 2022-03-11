@@ -346,11 +346,7 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 		} else { // create
 			ftv := TypedValue{T: Uint32Type}
 			ftv.SetUint32(u32)
-			alloc.AllocateStruct()
-			alloc.AllocateStructFields(1)
-			tv.V = &StructValue{
-				Fields: []TypedValue{ftv},
-			}
+			tv.V = alloc.NewStructWithFields(ftv)
 		}
 	case reflect.Float64:
 		fl := rv.Float()
@@ -368,11 +364,7 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 		} else { // create
 			ftv := TypedValue{T: Uint64Type}
 			ftv.SetUint64(u64)
-			alloc.AllocateStruct()
-			alloc.AllocateStructFields(1)
-			tv.V = &StructValue{
-				Fields: []TypedValue{ftv},
-			}
+			tv.V = alloc.NewStructWithFields(ftv)
 		}
 	case reflect.Array:
 		alloc.AllocateNative()
@@ -488,7 +480,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 		if av.Data == nil {
 			at := baseOf(tv.T).(*ArrayType)
 			et := at.Elt
-			alloc.AllocateItemArray(int64(rvl))
+			alloc.AllocateListArray(int64(rvl))
 			for i := 0; i < rvl; i++ {
 				erv := rv.Index(i)
 				etv := &av.List[i]
@@ -502,7 +494,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 				go2GnoValueUpdate(alloc, rlm, lvl+1, etv, erv)
 			}
 		} else {
-			alloc.AllocateByteArray(int64(rvl))
+			alloc.AllocateDataArray(int64(rvl))
 			for i := 0; i < rvl; i++ {
 				erv := rv.Index(i)
 				av.Data[i] = uint8(erv.Uint())
@@ -722,12 +714,12 @@ func go2GnoValue2(alloc *Allocator, rv reflect.Value, recursive bool) (tv TypedV
 		if rv.Type().Elem().Kind() == reflect.Uint8 {
 			data := make([]byte, rvl)
 			reflect.Copy(reflect.ValueOf(data), rv)
-			alloc.AllocateByteArray(int64(rvl))
+			alloc.AllocateDataArray(int64(rvl))
 			tv.V = &ArrayValue{
 				Data: data,
 			}
 		} else {
-			alloc.AllocateItemArray(int64(rvl))
+			alloc.AllocateListArray(int64(rvl))
 			list := make([]TypedValue, rvl)
 			for i := 0; i < rvl; i++ {
 				if recursive {
@@ -772,9 +764,7 @@ func go2GnoValue2(alloc *Allocator, rv reflect.Value, recursive bool) (tv TypedV
 		tv.V = PointerValue{TV: &val} // heap alloc
 	case reflect.Struct:
 		nf := rv.NumField()
-		alloc.AllocateStruct()
-		alloc.AllocateStructFields(int64(nf))
-		fs := make([]TypedValue, nf)
+		fs := alloc.NewStructFields(nf)
 		for i := 0; i < nf; i++ {
 			frv := rv.Field(i)
 			if recursive {
@@ -783,9 +773,7 @@ func go2GnoValue2(alloc *Allocator, rv reflect.Value, recursive bool) (tv TypedV
 				fs[i] = go2GnoValue(alloc, frv)
 			}
 		}
-		tv.V = &StructValue{
-			Fields: fs,
-		}
+		tv.V = alloc.NewStruct(fs)
 	case reflect.UnsafePointer:
 		panic("not yet implemented")
 	default:

@@ -152,7 +152,7 @@ func UverseNode() *PackageNode {
 				// arg1 PointerValue is not a pointer,
 				// so the modification here is only local.
 				m.Alloc.AllocateSlice()
-				m.Alloc.AllocateByteArray(int64(len(arg1s)))
+				m.Alloc.AllocateDataArray(int64(len(arg1s)))
 				arg1.TV = &TypedValue{
 					T: &SliceType{ // TODO: reuse
 						Elt: Uint8Type,

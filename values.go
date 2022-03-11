@@ -319,14 +319,14 @@ func (av *ArrayValue) Copy(alloc *Allocator) *ArrayValue {
 	}
 	*/
 	if av.Data == nil {
-		alloc.AllocateItemArray(int64(len(av.List)))
+		alloc.AllocateListArray(int64(len(av.List)))
 		list := make([]TypedValue, len(av.List))
 		copy(list, av.List)
 		return &ArrayValue{
 			List: list,
 		}
 	} else {
-		alloc.AllocateByteArray(int64(len(av.Data)))
+		alloc.AllocateDataArray(int64(len(av.Data)))
 		data := make([]byte, len(av.Data))
 		copy(data, av.Data)
 		return &ArrayValue{
@@ -437,13 +437,9 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 		return sv
 	}
 	*/
-	alloc.AllocateStruct()
-	alloc.AllocateStructFields(int64(len(sv.Fields)))
-	fields := make([]TypedValue, len(sv.Fields))
+	fields := alloc.NewStructFields(len(sv.Fields))
 	copy(fields, sv.Fields)
-	return &StructValue{
-		Fields: fields,
-	}
+	return alloc.NewStruct(fields)
 }
 
 // FuncValue.Type stores the method signature from the
@@ -2290,8 +2286,7 @@ type RefValue struct {
 //----------------------------------------
 
 func defaultStructFields(alloc *Allocator, st *StructType) []TypedValue {
-	alloc.AllocateStructFields(int64(len(st.Fields)))
-	tvs := make([]TypedValue, len(st.Fields))
+	tvs := alloc.NewStructFields(len(st.Fields))
 	for i, ft := range st.Fields {
 		if ft.Type.Kind() != InterfaceKind {
 			tvs[i].T = ft.Type
@@ -2302,20 +2297,19 @@ func defaultStructFields(alloc *Allocator, st *StructType) []TypedValue {
 }
 
 func defaultStructValue(alloc *Allocator, st *StructType) *StructValue {
-	alloc.AllocateStruct()
-	return &StructValue{
-		Fields: defaultStructFields(alloc, st),
-	}
+	return alloc.NewStruct(
+		defaultStructFields(alloc, st),
+	)
 }
 
 func defaultArrayValue(alloc *Allocator, at *ArrayType) *ArrayValue {
 	if at.Elt.Kind() == Uint8Kind {
-		alloc.AllocateByteArray(int64(at.Len))
+		alloc.AllocateDataArray(int64(at.Len))
 		return &ArrayValue{
 			Data: make([]byte, at.Len),
 		}
 	} else {
-		alloc.AllocateItemArray(int64(at.Len))
+		alloc.AllocateListArray(int64(at.Len))
 		tvs := make([]TypedValue, at.Len)
 		if et := at.Elem(); et.Kind() != InterfaceKind {
 			for i := 0; i < at.Len; i++ {
