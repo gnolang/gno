@@ -230,7 +230,6 @@ func (pv PointerValue) Deref() (tv TypedValue) {
 		rv := nv.Value
 		// XXX memoize type.
 		tv.T = &NativeType{Type: rv.Type()}
-		//tv.V = &NativeValue{Value: rv}
 		tv.V = nv
 		return
 	} else {
@@ -827,8 +826,7 @@ func (nv *NativeValue) Copy(alloc *Allocator) *NativeValue {
 	nt := nv.Value.Type()
 	nv2 := reflect.New(nt).Elem()
 	nv2.Set(nv.Value)
-	alloc.AllocateNative()
-	return &NativeValue{Value: nv2}
+	return alloc.NewNative(nv2)
 }
 
 //----------------------------------------
@@ -1723,11 +1721,11 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 		mv := rv.MethodByName(string(path.Name))
 		if mv.IsValid() {
 			mt := mv.Type()
-			alloc.AllocateNative()
+			alloc.AllocateType()
 			return PointerValue{
 				TV: &TypedValue{ // heap alloc
 					T: &NativeType{Type: mt},
-					V: &NativeValue{Value: mv},
+					V: alloc.NewNative(mv),
 				},
 				// TODO consider if needed for persistence:
 				/*
@@ -1748,11 +1746,11 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 			mv := rv.Addr().MethodByName(string(path.Name))
 			if mv.IsValid() {
 				mt := mv.Type()
-				alloc.AllocateNative()
+				alloc.AllocateType()
 				return PointerValue{
 					TV: &TypedValue{ // heap alloc
 						T: &NativeType{Type: mt},
-						V: &NativeValue{Value: mv},
+						V: alloc.NewNative(mv),
 					},
 					// TODO consider if needed for persistence:
 					/*
@@ -1845,14 +1843,14 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 			krv := gno2GoValue(iv, reflect.Value{})
 			vrv := rv.MapIndex(krv)
 			etv := go2GnoValue(alloc, vrv) // NOTE: lazy, often native.
-			alloc.AllocateNative()
+			alloc.AllocateType()
 			return PointerValue{
 				TV:    &etv, // TODO not needed for assignment.
 				Base:  nv,
 				Index: PointerIndexNative,
 				Key: &TypedValue{
 					T: &NativeType{Type: krv.Type()},
-					V: &NativeValue{Value: krv},
+					V: alloc.NewNative(krv),
 				},
 			}
 		default:
@@ -1966,7 +1964,7 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 		if t == StringType || t == UntypedStringType {
 			return TypedValue{
 				T: tv.T,
-				V: alloc.NewStringValue(tv.GetString()[low:high]),
+				V: alloc.NewString(tv.GetString()[low:high]),
 			}
 		} else {
 			panic("non-string primitive type cannot be sliced")
@@ -2339,10 +2337,9 @@ func defaultValue(alloc *Allocator, t Type) Value {
 		if t.Kind() == InterfaceKind {
 			return nil
 		} else {
-			alloc.AllocateNative()
-			return &NativeValue{
-				Value: reflect.New(ct.Type).Elem(),
-			}
+			return alloc.NewNative(
+				reflect.New(ct.Type).Elem(),
+			)
 		}
 	default:
 		return nil

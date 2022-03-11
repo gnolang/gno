@@ -60,7 +60,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
 			}
 			*tv = TypedValue{
 				T: t,
-				V: &NativeValue{Value: rv},
+				V: alloc.NewNative(rv),
 			}
 			return
 		} else {
@@ -128,7 +128,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
-			tv.V = alloc.NewStringValue(string(rune(tv.GetInt())))
+			tv.V = alloc.NewString(string(rune(tv.GetInt())))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -179,7 +179,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
-			tv.V = alloc.NewStringValue(string(rune(tv.GetInt8())))
+			tv.V = alloc.NewString(string(rune(tv.GetInt8())))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -230,7 +230,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
-			tv.V = alloc.NewStringValue(string(rune(tv.GetInt16())))
+			tv.V = alloc.NewString(string(rune(tv.GetInt16())))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -281,7 +281,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
-			tv.V = alloc.NewStringValue(string(rune(tv.GetInt32())))
+			tv.V = alloc.NewString(string(rune(tv.GetInt32())))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -332,7 +332,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
-			tv.V = alloc.NewStringValue(string(rune(tv.GetInt64())))
+			tv.V = alloc.NewString(string(rune(tv.GetInt64())))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -383,7 +383,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
-			tv.V = alloc.NewStringValue(string(rune(tv.GetUint())))
+			tv.V = alloc.NewString(string(rune(tv.GetUint())))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -434,7 +434,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
-			tv.V = alloc.NewStringValue(string(rune(tv.GetUint8())))
+			tv.V = alloc.NewString(string(rune(tv.GetUint8())))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -485,7 +485,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
-			tv.V = alloc.NewStringValue(string(rune(tv.GetUint16())))
+			tv.V = alloc.NewString(string(rune(tv.GetUint16())))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -536,7 +536,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
-			tv.V = alloc.NewStringValue(string(rune(tv.GetUint32())))
+			tv.V = alloc.NewString(string(rune(tv.GetUint32())))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -587,7 +587,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
-			tv.V = alloc.NewStringValue(string(rune(tv.GetUint64())))
+			tv.V = alloc.NewString(string(rune(tv.GetUint64())))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -632,7 +632,7 @@ GNO_CASE:
 			switch sv := tv.V.(type) {
 			case nil:
 				tv.T = t
-				tv.V = alloc.NewStringValue(string(""))
+				tv.V = alloc.NewString(string(""))
 			case *SliceValue:
 				svo := sv.Offset
 				svl := sv.Length
@@ -643,7 +643,7 @@ GNO_CASE:
 						copyListToData(
 							data[:svl],
 							svb.List[svo:svo+svl])
-						strv := alloc.NewStringValue(string(data))
+						strv := alloc.NewString(string(data))
 						tv.T = t
 						tv.V = strv
 					} else if tk == Int32Kind {
@@ -651,7 +651,7 @@ GNO_CASE:
 						copyListToRunes(
 							runes[:svl],
 							svb.List[svo:svo+svl])
-						strv := alloc.NewStringValue(string(runes))
+						strv := alloc.NewString(string(runes))
 						tv.T = t
 						tv.V = strv
 					} else {
@@ -659,7 +659,7 @@ GNO_CASE:
 					}
 				} else {
 					data := svb.Data[svo : svo+svl]
-					strv := alloc.NewStringValue(string(data))
+					strv := alloc.NewString(string(data))
 					tv.T = t
 					tv.V = strv
 				}

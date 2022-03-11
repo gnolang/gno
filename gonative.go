@@ -299,9 +299,8 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 	if rv.Type().PkgPath() != "" {
 		rt := rv.Type()
 		alloc.AllocateType()
-		alloc.AllocateNative()
 		tv.T = &NativeType{Type: rt}
-		tv.V = &NativeValue{Value: rv}
+		tv.V = alloc.NewNative(rv)
 		return
 	}
 	tv.T = go2GnoType(rv.Type())
@@ -309,7 +308,7 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 	case reflect.Bool:
 		tv.SetBool(rv.Bool())
 	case reflect.String:
-		tv.V = alloc.NewStringValue(rv.String())
+		tv.V = alloc.NewString(rv.String())
 	case reflect.Int:
 		tv.SetInt(int(rv.Int()))
 	case reflect.Int8:
@@ -367,28 +366,21 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 			tv.V = alloc.NewStructWithFields(ftv)
 		}
 	case reflect.Array:
-		alloc.AllocateNative()
-		tv.V = &NativeValue{Value: rv}
+		tv.V = alloc.NewNative(rv)
 	case reflect.Slice:
-		alloc.AllocateNative()
-		tv.V = &NativeValue{Value: rv}
+		tv.V = alloc.NewNative(rv)
 	case reflect.Chan:
-		alloc.AllocateNative()
-		tv.V = &NativeValue{Value: rv}
+		tv.V = alloc.NewNative(rv)
 	case reflect.Func:
-		alloc.AllocateNative()
-		tv.V = &NativeValue{Value: rv}
+		tv.V = alloc.NewNative(rv)
 	case reflect.Interface:
 		panic("should not happen")
 	case reflect.Map:
-		alloc.AllocateNative()
-		tv.V = &NativeValue{Value: rv}
+		tv.V = alloc.NewNative(rv)
 	case reflect.Ptr:
-		alloc.AllocateNative()
-		tv.V = &NativeValue{Value: rv}
+		tv.V = alloc.NewNative(rv)
 	case reflect.Struct:
-		alloc.AllocateNative()
-		tv.V = &NativeValue{Value: rv}
+		tv.V = alloc.NewNative(rv)
 	case reflect.UnsafePointer:
 		panic("not yet implemented")
 	default:
@@ -425,7 +417,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 		}
 	case StringKind:
 		if lvl != 0 {
-			tv.V = alloc.NewStringValue(rv.String())
+			tv.V = alloc.NewString(rv.String())
 		}
 	case IntKind:
 		if lvl != 0 {
@@ -680,7 +672,7 @@ func go2GnoValue2(alloc *Allocator, rv reflect.Value, recursive bool) (tv TypedV
 	case reflect.Bool:
 		tv.SetBool(rv.Bool())
 	case reflect.String:
-		tv.V = alloc.NewStringValue(rv.String())
+		tv.V = alloc.NewString(rv.String())
 	case reflect.Int:
 		tv.SetInt(int(rv.Int()))
 	case reflect.Int8:
@@ -751,10 +743,7 @@ func go2GnoValue2(alloc *Allocator, rv reflect.Value, recursive bool) (tv TypedV
 		// *FuncType or *DeclaredType.  The value may still be a
 		// *NativeValue though, and the function can be called
 		// regardless.
-		alloc.AllocateNative()
-		tv.V = &NativeValue{
-			Value: rv,
-		}
+		tv.V = alloc.NewNative(rv)
 	case reflect.Interface:
 		panic("not yet implemented")
 	case reflect.Map:
@@ -1364,9 +1353,7 @@ func (m *Machine) doOpArrayLitGoNative() {
 	} else {
 		m.PopValue()
 	}
-	nv := &NativeValue{
-		Value: rv,
-	}
+	nv := m.Alloc.NewNative(rv)
 	m.PushValue(TypedValue{
 		T: nt,
 		V: nv,
@@ -1405,9 +1392,7 @@ func (m *Machine) doOpSliceLitGoNative() {
 	} else {
 		m.PopValue()
 	}
-	nv := &NativeValue{
-		Value: rv.Slice(0, el),
-	}
+	nv := m.Alloc.NewNative(rv.Slice(0, el))
 	m.PushValue(TypedValue{
 		T: nt,
 		V: nv,
@@ -1449,12 +1434,9 @@ func (m *Machine) doOpStructLitGoNative() {
 	} else {
 		m.PopValue()
 	}
-	nv := &NativeValue{
-		Value: rv,
-	}
 	m.PushValue(TypedValue{
 		T: nt,
-		V: nv,
+		V: m.Alloc.NewNative(rv),
 	})
 }
 

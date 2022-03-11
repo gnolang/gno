@@ -626,7 +626,7 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
 	case StringType, UntypedStringType:
-		lv.V = alloc.NewStringValue(lv.GetString() + rv.GetString())
+		lv.V = alloc.NewString(lv.GetString() + rv.GetString())
 	case IntType:
 		lv.SetInt(lv.GetInt() + rv.GetInt())
 	case Int8Type:

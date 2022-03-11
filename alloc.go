@@ -1,5 +1,7 @@
 package gno
 
+import "reflect"
+
 // Keeps track of in-memory allocations.
 // In the future, allocations within realm boundaries will be
 // (optionally?) condensed (objects to be GC'd will be discarded),
@@ -120,7 +122,7 @@ func (alloc *Allocator) AllocateType() {
 //----------------------------------------
 // constructor utilities.
 
-func (alloc *Allocator) NewStringValue(s string) StringValue {
+func (alloc *Allocator) NewString(s string) StringValue {
 	alloc.AllocateString(int64(len(s)))
 	return StringValue(s)
 }
@@ -176,4 +178,11 @@ func (alloc *Allocator) NewStructWithFields(fields ...TypedValue) *StructValue {
 func (alloc *Allocator) NewBlock(source BlockNode, parent *Block) *Block {
 	alloc.AllocateBlock(int64(source.GetNumNames()))
 	return NewBlock(source, parent)
+}
+
+func (alloc *Allocator) NewNative(rv reflect.Value) *NativeValue {
+	alloc.AllocateNative()
+	return &NativeValue{
+		Value: rv,
+	}
 }

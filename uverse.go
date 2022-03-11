@@ -545,10 +545,9 @@ func UverseNode() *PackageNode {
 							}
 						}
 						resrv := reflect.AppendSlice(sv, argsrv)
-						m.Alloc.AllocateNative()
 						m.PushValue(TypedValue{
 							T: xt,
-							V: &NativeValue{Value: resrv},
+							V: m.Alloc.NewNative(resrv),
 						})
 						return
 					} else { // no change
@@ -564,10 +563,9 @@ func UverseNode() *PackageNode {
 				case *NativeValue:
 					argsrv := args.Value
 					resrv := reflect.AppendSlice(sv, argsrv)
-					m.Alloc.AllocateNative()
 					m.PushValue(TypedValue{
 						T: xt,
-						V: &NativeValue{Value: resrv},
+						V: m.Alloc.NewNative(resrv),
 					})
 					return
 
@@ -579,10 +577,9 @@ func UverseNode() *PackageNode {
 						// appending this way without first converting to a slice.
 						argrv := reflect.ValueOf([]byte(arg1.TV.V.(StringValue)))
 						resrv := reflect.AppendSlice(sv, argrv)
-						m.Alloc.AllocateNative()
 						m.PushValue(TypedValue{
 							T: xt,
-							V: &NativeValue{Value: resrv},
+							V: m.Alloc.NewNative(resrv),
 						})
 						return
 					} else {
@@ -878,24 +875,22 @@ func UverseNode() *PackageNode {
 				switch bt.Type.Kind() {
 				case reflect.Map:
 					if vargsl == 0 {
-						m.Alloc.AllocateNative()
 						m.PushValue(TypedValue{
 							T: tt,
-							V: &NativeValue{
-								Value: reflect.MakeMap(bt.Type),
-							},
+							V: m.Alloc.NewNative(
+								reflect.MakeMap(bt.Type),
+							),
 						})
 						return
 					} else if vargsl == 1 {
 						sv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
 						si := sv.ConvertGetInt()
-						m.Alloc.AllocateNative()
 						m.PushValue(TypedValue{
 							T: tt,
-							V: &NativeValue{
-								Value: reflect.MakeMapWithSize(
+							V: m.Alloc.NewNative(
+								reflect.MakeMapWithSize(
 									bt.Type, si),
-							},
+							),
 						})
 						return
 					} else {

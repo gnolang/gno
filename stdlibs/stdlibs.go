@@ -208,7 +208,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				format := arg1.TV.GetString()
 				t := time.Unix(timestamp, 0).Round(0).UTC()
 				result := t.Format(format)
-				res0 := typedString(m.Alloc.NewStringValue(result))
+				res0 := typedString(m.Alloc.NewString(result))
 				m.PushValue(res0)
 			},
 		)
@@ -229,7 +229,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				if err != nil {
 					panic(err)
 				}
-				res0 := typedString(m.Alloc.NewStringValue(b32))
+				res0 := typedString(m.Alloc.NewString(b32))
 				m.PushValue(res0)
 			},
 		)
