@@ -140,7 +140,7 @@ func (m *Machine) doOpEval() {
 		case STRING:
 			m.PushValue(TypedValue{
 				T: UntypedStringType,
-				V: StringValue(x.GetString()),
+				V: m.Alloc.NewStringValue(x.GetString()),
 			})
 		default:
 			panic(fmt.Sprintf("unexpected lit kind %v", x.Kind))

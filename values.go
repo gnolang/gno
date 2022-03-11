@@ -1089,7 +1089,7 @@ func (tv *TypedValue) SetInt(n int) {
 
 func (tv *TypedValue) ConvertGetInt() int {
 	var store Store = nil // not used
-	ConvertTo(store, tv, IntType)
+	ConvertTo(nilAllocator, store, tv, IntType)
 	return tv.GetInt()
 }
 
@@ -1448,11 +1448,13 @@ func (tv *TypedValue) Assign(tv2 TypedValue, cu bool) {
 	}
 }
 
+/* XXX delete
 func (tv *TypedValue) ConvertUntyped() {
 	if isUntyped(tv.T) {
 		ConvertUntypedTo(tv, defaultTypeOf(tv.T))
 	}
 }
+*/
 
 func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 	if debug {
@@ -1965,6 +1967,7 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 			Elt: t.Elt,
 			Vrd: false,
 		}
+		alloc.AllocateSlice()
 		return TypedValue{
 			T: st,
 			V: &SliceValue{
@@ -1985,6 +1988,7 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 			}
 		}
 		sv := tv.V.(*SliceValue)
+		alloc.AllocateSlice()
 		return TypedValue{
 			T: tv.T,
 			V: &SliceValue{
@@ -2000,7 +2004,7 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 	}
 }
 
-func (tv *TypedValue) GetSlice2(low, high, max int) TypedValue {
+func (tv *TypedValue) GetSlice2(alloc *Allocator, low, high, max int) TypedValue {
 	if low < 0 {
 		panic(fmt.Sprintf(
 			"invalid slice index %d (index must be non-negative)",
@@ -2043,6 +2047,7 @@ func (tv *TypedValue) GetSlice2(low, high, max int) TypedValue {
 			Elt: bt.Elt,
 			Vrd: false,
 		}
+		alloc.AllocateSlice()
 		return TypedValue{
 			T: st,
 			V: &SliceValue{
@@ -2063,6 +2068,7 @@ func (tv *TypedValue) GetSlice2(low, high, max int) TypedValue {
 			}
 		}
 		sv := tv.V.(*SliceValue)
+		alloc.AllocateSlice()
 		return TypedValue{
 			T: tv.T,
 			V: &SliceValue{
@@ -2105,6 +2111,7 @@ type Block struct {
 	bodyStmt   bodyStmt   // XXX expose for persistence, not needed for MVP.
 }
 
+// NOTE: for allocation, use *Allocator.NewBlock.
 func NewBlock(source BlockNode, parent *Block) *Block {
 	var values []TypedValue
 	if source != nil {
@@ -2367,36 +2374,13 @@ func typedString(s string) TypedValue {
 	return tv
 }
 
-func newSliceFromList(list []TypedValue) *SliceValue {
-	fullList := list[:cap(list)]
-	return &SliceValue{
-		Base: &ArrayValue{
-			List: fullList,
-		},
-		Offset: 0,
-		Length: len(list),
-		Maxcap: cap(list),
-	}
-}
-
-func newSliceFromData(data []byte) *SliceValue {
-	fullData := data[:cap(data)]
-	return &SliceValue{
-		Base: &ArrayValue{
-			Data: fullData,
-		},
-		Offset: 0,
-		Length: len(data),
-		Maxcap: cap(data),
-	}
-}
-
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 	switch cv := tv.V.(type) {
 	case RefValue:
 		if cv.PkgPath != "" { // load package
 			tv.V = store.GetPackage(cv.PkgPath, false)
 		} else { // load object
+			// XXX XXX allocate object.
 			tv.V = store.GetObject(cv.ObjectID)
 		}
 	case PointerValue:

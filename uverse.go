@@ -151,6 +151,8 @@ func UverseNode() *PackageNode {
 				// NOTE: this hack works because
 				// arg1 PointerValue is not a pointer,
 				// so the modification here is only local.
+				m.Alloc.AllocateSlice()
+				m.Alloc.AllocateByteArray(int64(len(arg1s)))
 				arg1.TV = &TypedValue{
 					T: &SliceType{ // TODO: reuse
 						Elt: Uint8Type,
@@ -210,7 +212,7 @@ func UverseNode() *PackageNode {
 						}
 						m.PushValue(TypedValue{
 							T: xt,
-							V: newSliceFromData(data),
+							V: m.Alloc.NewSliceFromData(data),
 						})
 						return
 					} else {
@@ -223,7 +225,7 @@ func UverseNode() *PackageNode {
 						}
 						m.PushValue(TypedValue{
 							T: xt,
-							V: newSliceFromList(list),
+							V: m.Alloc.NewSliceFromList(list),
 						})
 						return
 					}
@@ -247,7 +249,7 @@ func UverseNode() *PackageNode {
 							argsrv, argsl)
 						m.PushValue(TypedValue{
 							T: xt,
-							V: newSliceFromData(data),
+							V: m.Alloc.NewSliceFromData(data),
 						})
 						return
 					} else {
@@ -260,7 +262,7 @@ func UverseNode() *PackageNode {
 						}
 						m.PushValue(TypedValue{
 							T: xt,
-							V: newSliceFromList(list),
+							V: m.Alloc.NewSliceFromList(list),
 						})
 						return
 					}
@@ -324,6 +326,7 @@ func UverseNode() *PackageNode {
 										argsb.Data[argso:argso+argsl])
 								}
 							}
+							m.Alloc.AllocateSlice()
 							m.PushValue(TypedValue{
 								T: xt,
 								V: &SliceValue{
@@ -368,7 +371,7 @@ func UverseNode() *PackageNode {
 						}
 						m.PushValue(TypedValue{
 							T: xt,
-							V: newSliceFromData(data),
+							V: m.Alloc.NewSliceFromData(data),
 						})
 						return
 					} else {
@@ -405,7 +408,7 @@ func UverseNode() *PackageNode {
 						}
 						m.PushValue(TypedValue{
 							T: xt,
-							V: newSliceFromList(list),
+							V: m.Alloc.NewSliceFromList(list),
 						})
 						return
 					}
@@ -431,6 +434,7 @@ func UverseNode() *PackageNode {
 									data[xvo:xvo+argsl],
 									argsrv, argsl)
 							}
+							m.Alloc.AllocateSlice()
 							m.PushValue(TypedValue{
 								T: xt,
 								V: &SliceValue{
@@ -469,7 +473,7 @@ func UverseNode() *PackageNode {
 						}
 						m.PushValue(TypedValue{
 							T: xt,
-							V: newSliceFromData(data),
+							V: m.Alloc.NewSliceFromData(data),
 						})
 						return
 					} else {
@@ -487,7 +491,7 @@ func UverseNode() *PackageNode {
 						}
 						m.PushValue(TypedValue{
 							T: xt,
-							V: newSliceFromList(list),
+							V: m.Alloc.NewSliceFromList(list),
 						})
 						return
 					}
@@ -776,7 +780,7 @@ func UverseNode() *PackageNode {
 						data := make([]byte, li)
 						m.PushValue(TypedValue{
 							T: tt,
-							V: newSliceFromData(data),
+							V: m.Alloc.NewSliceFromData(data),
 						})
 						return
 					} else {
@@ -791,7 +795,7 @@ func UverseNode() *PackageNode {
 						}
 						m.PushValue(TypedValue{
 							T: tt,
-							V: newSliceFromList(list),
+							V: m.Alloc.NewSliceFromList(list),
 						})
 						return
 					}
@@ -804,7 +808,7 @@ func UverseNode() *PackageNode {
 						data := make([]byte, li, ci)
 						m.PushValue(TypedValue{
 							T: tt,
-							V: newSliceFromData(data),
+							V: m.Alloc.NewSliceFromData(data),
 						})
 						return
 					} else {
@@ -824,7 +828,7 @@ func UverseNode() *PackageNode {
 						}
 						m.PushValue(TypedValue{
 							T: tt,
-							V: newSliceFromList(list),
+							V: m.Alloc.NewSliceFromList(list),
 						})
 						return
 					}
@@ -836,6 +840,7 @@ func UverseNode() *PackageNode {
 				if vargsl == 0 {
 					mv := &MapValue{}
 					mv.MakeMap(0)
+					m.Alloc.AllocateMap(0)
 					m.PushValue(TypedValue{
 						T: tt,
 						V: mv,
@@ -846,6 +851,7 @@ func UverseNode() *PackageNode {
 					li := lv.ConvertGetInt()
 					mv := &MapValue{}
 					mv.MakeMap(li)
+					m.Alloc.AllocateMap(int64(li))
 					m.PushValue(TypedValue{
 						T: tt,
 						V: mv,

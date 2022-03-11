@@ -62,7 +62,7 @@ func (m *Machine) doOpAddAssign() {
 		}
 	}
 	// add rv to lv.
-	addAssign(lv.TV, rv)
+	addAssign(m.Alloc, lv.TV, rv)
 	if lv.Base != nil {
 		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}

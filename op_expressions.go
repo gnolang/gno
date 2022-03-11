@@ -117,7 +117,7 @@ func (m *Machine) doOpSlice() {
 		sv := xv.GetSlice(m.Alloc, low, high)
 		m.PushValue(sv)
 	} else {
-		sv := xv.GetSlice2(low, high, max)
+		sv := xv.GetSlice2(m.Alloc, low, high, max)
 		m.PushValue(sv)
 	}
 }
@@ -191,6 +191,7 @@ func (m *Machine) doOpRef() {
 	}
 	// XXX this is wrong, if rx.X is interface type,
 	// XXX then the type should be &PointerType{Elt: staticTypeOf(xv)}
+	m.Alloc.AllocatePointer()
 	m.PushValue(TypedValue{
 		T: &PointerType{Elt: xv.TV.T},
 		V: xv,
@@ -484,7 +485,7 @@ func (m *Machine) doOpSliceLit() {
 	} else {
 		m.PopValue()
 	}
-	sv := newSliceFromList(es)
+	sv := m.Alloc.NewSliceFromList(es)
 	m.PushValue(TypedValue{
 		T: st,
 		V: sv,
@@ -530,7 +531,7 @@ func (m *Machine) doOpSliceLit2() {
 	} else {
 		m.PopValue()
 	}
-	sv := newSliceFromList(es)
+	sv := m.Alloc.NewSliceFromList(es)
 	m.PushValue(TypedValue{
 		T: st,
 		V: sv,
@@ -547,6 +548,7 @@ func (m *Machine) doOpMapLit() {
 	mv := &MapValue{}
 	mv.MakeMap(0)
 	if 0 < ne {
+		m.Alloc.AllocateMap(int64(ne))
 		kvs := m.PopValues(ne * 2)
 		// TODO: future optimization
 		// omitType := baseOf(mt).Elem().Kind() != InterfaceKind
@@ -556,6 +558,8 @@ func (m *Machine) doOpMapLit() {
 			ptr := mv.GetPointerForKey(m.Store, ktv)
 			*ptr.TV = vtv
 		}
+	} else {
+		m.Alloc.AllocateMap(0)
 	}
 	// pop map type.
 	if debug {
@@ -592,6 +596,7 @@ func (m *Machine) doOpStructLit() {
 		fs = defaultStructFields(m.Alloc, st)
 	} else if x.Elts[0].Key == nil {
 		// field values are in order.
+		m.Alloc.AllocateStructFields(int64(len(st.Fields)))
 		fs = make([]TypedValue, 0, len(st.Fields))
 		if debug {
 			if el == 0 {
@@ -657,6 +662,7 @@ func (m *Machine) doOpFuncLit() {
 	x := m.PopExpr().(*FuncLitExpr)
 	ft := m.PopValue().V.(TypeValue).Type.(*FuncType)
 	lb := m.LastBlock()
+	m.Alloc.AllocateFunc()
 	m.PushValue(TypedValue{
 		T: ft,
 		V: &FuncValue{
@@ -675,6 +681,6 @@ func (m *Machine) doOpFuncLit() {
 func (m *Machine) doOpConvert() {
 	xv := m.PopValue()
 	t := m.PopValue().GetType()
-	ConvertTo(m.Store, xv, t)
+	ConvertTo(m.Alloc, m.Store, xv, t)
 	m.PushValue(*xv)
 }

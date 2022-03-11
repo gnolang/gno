@@ -181,7 +181,7 @@ func (m *Machine) doOpAdd() {
 	}
 
 	// add rv to lv.
-	addAssign(lv, rv)
+	addAssign(m.Alloc, lv, rv)
 }
 
 func (m *Machine) doOpSub() {
@@ -621,12 +621,12 @@ func isGeq(lv, rv *TypedValue) bool {
 }
 
 // for doOpAdd and doOpAddAssign.
-func addAssign(lv, rv *TypedValue) {
+func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
 	case StringType, UntypedStringType:
-		lv.V = StringValue(lv.GetString() + rv.GetString())
+		lv.V = alloc.NewStringValue(lv.GetString() + rv.GetString())
 	case IntType:
 		lv.SetInt(lv.GetInt() + rv.GetInt())
 	case Int8Type:

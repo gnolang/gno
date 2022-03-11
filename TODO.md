@@ -9,6 +9,7 @@
   * Ensure determinism regarding 32 vs 64 bit for int/uint.
   * Ensure non-realm paths cannot mutate state.
   * Ensure native (autonative) func call types in checkType().
+  * Finish implementation of allocator for native calls etc.
 
 # /pkgs
   * Replace testify with gnolang/gno/pkgs/testify

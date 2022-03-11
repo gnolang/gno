@@ -55,7 +55,7 @@ func (m *Machine) doOpCall() {
 	isMethod := 0 // 1 if true
 	// Create new block scope.
 	clo := fr.Func.GetClosure(m.Store)
-	b := NewBlock(fr.Func.GetSource(m.Store), clo)
+	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)
 	m.PushBlock(b)
 	if fv.nativeBody == nil {
 		fbody := fv.GetBodyFromSource(m.Store)
@@ -126,7 +126,7 @@ func (m *Machine) doOpCall() {
 		} else {
 			list := m.PopCopyValues(nvar)
 			vart := pts[numParams-1].Type.(*SliceType)
-			varg := newSliceFromList(list)
+			varg := m.Alloc.NewSliceFromList(list)
 			m.PushValue(TypedValue{
 				T: vart,
 				V: varg,
@@ -270,7 +270,7 @@ func (m *Machine) doOpReturnCallDefers() {
 		pts := ft.Params
 		numParams := len(ft.Params)
 		// Create new block scope for defer.
-		b := NewBlock(fv.GetSource(m.Store), dfr.Parent)
+		b := m.Alloc.NewBlock(fv.GetSource(m.Store), dfr.Parent)
 		m.PushBlock(b)
 		if fv.nativeBody == nil {
 			fbody := fv.GetBodyFromSource(m.Store)
@@ -306,7 +306,7 @@ func (m *Machine) doOpReturnCallDefers() {
 				vart := pts[len(pts)-1].Type.(*SliceType)
 				vargs := make([]TypedValue, nvar)
 				copy(vargs, dfr.Args[numArgs-nvar:numArgs])
-				varg := newSliceFromList(vargs)
+				varg := m.Alloc.NewSliceFromList(vargs)
 				dfr.Args = dfr.Args[:numArgs-nvar]
 				dfr.Args = append(dfr.Args, TypedValue{
 					T: vart,
