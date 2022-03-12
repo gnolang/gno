@@ -151,21 +151,14 @@ func UverseNode() *PackageNode {
 				// NOTE: this hack works because
 				// arg1 PointerValue is not a pointer,
 				// so the modification here is only local.
-				m.Alloc.AllocateSlice()
-				m.Alloc.AllocateDataArray(int64(len(arg1s)))
+				av := m.Alloc.NewDataArray(len(arg1s))
+				copy(av.Data, []byte(arg1s))
 				arg1.TV = &TypedValue{
 					T: m.Alloc.NewType(&SliceType{ // TODO: reuse
 						Elt: Uint8Type,
 						Vrd: true,
 					}),
-					V: &SliceValue{ // TODO: pool?
-						Base: &ArrayValue{
-							Data: []byte(arg1s),
-						},
-						Offset: 0,
-						Length: len(arg1s),
-						Maxcap: len(arg1s),
-					},
+					V: m.Alloc.NewSlice(av, 0, len(arg1s), len(arg1s)), // TODO: pool?
 				}
 			}
 			xt := arg0.TV.T
@@ -327,15 +320,9 @@ func UverseNode() *PackageNode {
 										argsb.Data[argso:argso+argsl])
 								}
 							}
-							m.Alloc.AllocateSlice()
 							m.PushValue(TypedValue{
 								T: xt,
-								V: &SliceValue{
-									Base:   xvb,
-									Offset: xvo,
-									Length: xvl + argsl,
-									Maxcap: xvc,
-								},
+								V: m.Alloc.NewSlice(xvb, xvo, xvl+argsl, xvc),
 							})
 							return
 						} else { // no change
@@ -436,15 +423,9 @@ func UverseNode() *PackageNode {
 									data[xvo:xvo+argsl],
 									argsrv, argsl)
 							}
-							m.Alloc.AllocateSlice()
 							m.PushValue(TypedValue{
 								T: xt,
-								V: &SliceValue{
-									Base:   xvb,
-									Offset: xvo,
-									Length: xvl + argsl,
-									Maxcap: xvc,
-								},
+								V: m.Alloc.NewSlice(xvb, xvo, xvl+argsl, xvc),
 							})
 							return
 						} else { // no change
@@ -841,23 +822,17 @@ func UverseNode() *PackageNode {
 			case *MapType:
 				// NOTE: the type is not used.
 				if vargsl == 0 {
-					mv := &MapValue{}
-					mv.MakeMap(0)
-					m.Alloc.AllocateMap(0)
 					m.PushValue(TypedValue{
 						T: tt,
-						V: mv,
+						V: m.Alloc.NewMap(0),
 					})
 					return
 				} else if vargsl == 1 {
 					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
 					li := lv.ConvertGetInt()
-					mv := &MapValue{}
-					mv.MakeMap(li)
-					m.Alloc.AllocateMap(int64(li))
 					m.PushValue(TypedValue{
 						T: tt,
-						V: mv,
+						V: m.Alloc.NewMap(li),
 					})
 					return
 				} else {

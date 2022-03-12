@@ -543,10 +543,8 @@ func (m *Machine) doOpMapLit() {
 	mt := m.PeekValue(1 + ne*2).V.(TypeValue).Type
 	// bt := baseOf(at).(*MapType)
 	// construct new map value.
-	mv := &MapValue{}
-	mv.MakeMap(0)
+	mv := m.Alloc.NewMap(0)
 	if 0 < ne {
-		m.Alloc.AllocateMap(int64(ne))
 		kvs := m.PopValues(ne * 2)
 		// TODO: future optimization
 		// omitType := baseOf(mt).Elem().Kind() != InterfaceKind
@@ -556,8 +554,6 @@ func (m *Machine) doOpMapLit() {
 			ptr := mv.GetPointerForKey(m.Alloc, m.Store, ktv)
 			*ptr.TV = vtv
 		}
-	} else {
-		m.Alloc.AllocateMap(0)
 	}
 	// pop map type.
 	if debug {

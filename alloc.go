@@ -129,6 +129,31 @@ func (alloc *Allocator) NewString(s string) StringValue {
 	return StringValue(s)
 }
 
+func (alloc *Allocator) NewListArray(n int) *ArrayValue {
+	alloc.AllocateListArray(int64(n))
+	return &ArrayValue{
+		List: make([]TypedValue, n),
+	}
+}
+
+func (alloc *Allocator) NewDataArray(n int) *ArrayValue {
+	alloc.AllocateDataArray(int64(n))
+	return &ArrayValue{
+		Data: make([]byte, n),
+	}
+}
+
+func (alloc *Allocator) NewSlice(base Value, offset, length, maxcap int) *SliceValue {
+	alloc.AllocateSlice()
+	return &SliceValue{
+		Base:   base,
+		Offset: offset,
+		Length: length,
+		Maxcap: maxcap,
+	}
+}
+
+// NOTE: also allocates the underlying array from list.
 func (alloc *Allocator) NewSliceFromList(list []TypedValue) *SliceValue {
 	alloc.AllocateSlice()
 	alloc.AllocateListArray(int64(cap(list)))
@@ -143,6 +168,7 @@ func (alloc *Allocator) NewSliceFromList(list []TypedValue) *SliceValue {
 	}
 }
 
+// NOTE: also allocates the underlying array from data.
 func (alloc *Allocator) NewSliceFromData(data []byte) *SliceValue {
 	alloc.AllocateSlice()
 	alloc.AllocateDataArray(int64(cap(data)))
@@ -175,6 +201,13 @@ func (alloc *Allocator) NewStructWithFields(fields ...TypedValue) *StructValue {
 	tvs := alloc.NewStructFields(len(fields))
 	copy(tvs, fields)
 	return alloc.NewStruct(tvs)
+}
+
+func (alloc *Allocator) NewMap(size int) *MapValue {
+	alloc.AllocateMap(int64(size))
+	mv := &MapValue{}
+	mv.MakeMap(size)
+	return mv
 }
 
 func (alloc *Allocator) NewBlock(source BlockNode, parent *Block) *Block {

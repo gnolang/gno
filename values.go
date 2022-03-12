@@ -324,19 +324,13 @@ func (av *ArrayValue) Copy(alloc *Allocator) *ArrayValue {
 	}
 	*/
 	if av.Data == nil {
-		alloc.AllocateListArray(int64(len(av.List)))
-		list := make([]TypedValue, len(av.List))
-		copy(list, av.List)
-		return &ArrayValue{
-			List: list,
-		}
+		av2 := alloc.NewListArray(len(av.List))
+		copy(av2.List, av.List)
+		return av2
 	} else {
-		alloc.AllocateDataArray(int64(len(av.Data)))
-		data := make([]byte, len(av.Data))
-		copy(data, av.Data)
-		return &ArrayValue{
-			Data: data,
-		}
+		av2 := alloc.NewDataArray(len(av.Data))
+		copy(av2.Data, av.Data)
+		return av2
 	}
 }
 
@@ -2310,22 +2304,17 @@ func defaultStructValue(alloc *Allocator, st *StructType) *StructValue {
 
 func defaultArrayValue(alloc *Allocator, at *ArrayType) *ArrayValue {
 	if at.Elt.Kind() == Uint8Kind {
-		alloc.AllocateDataArray(int64(at.Len))
-		return &ArrayValue{
-			Data: make([]byte, at.Len),
-		}
+		return alloc.NewDataArray(at.Len)
 	} else {
-		alloc.AllocateListArray(int64(at.Len))
-		tvs := make([]TypedValue, at.Len)
+		av := alloc.NewListArray(at.Len)
+		tvs := av.List
 		if et := at.Elem(); et.Kind() != InterfaceKind {
 			for i := 0; i < at.Len; i++ {
 				tvs[i].T = et
 				tvs[i].V = defaultValue(alloc, et)
 			}
 		}
-		return &ArrayValue{
-			List: tvs,
-		}
+		return av
 	}
 }
 
@@ -2383,6 +2372,7 @@ func typedRune(r rune) TypedValue {
 	return tv
 }
 
+// NOTE: does not allocate; used for panics.
 func typedString(s string) TypedValue {
 	tv := TypedValue{T: StringType}
 	tv.V = StringValue(s)

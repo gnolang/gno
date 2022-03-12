@@ -471,7 +471,6 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 		if av.Data == nil {
 			at := baseOf(tv.T).(*ArrayType)
 			et := at.Elt
-			alloc.AllocateListArray(int64(rvl))
 			for i := 0; i < rvl; i++ {
 				erv := rv.Index(i)
 				etv := &av.List[i]
@@ -485,7 +484,6 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 				go2GnoValueUpdate(alloc, rlm, lvl+1, etv, erv)
 			}
 		} else {
-			alloc.AllocateDataArray(int64(rvl))
 			for i := 0; i < rvl; i++ {
 				erv := rv.Index(i)
 				av.Data[i] = uint8(erv.Uint())
@@ -607,7 +605,6 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 		mvl := mv.List.Size
 		// Copy map to new map for destructive iteration of items.
 		rt := rv.Type()
-		alloc.AllocateMap(int64(mvl))
 		rv2 := reflect.MakeMapWithSize(rt, mvl)
 		rvi := rv.MapRange()
 		for rvi.Next() {
@@ -639,7 +636,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 			k, v := rv2i.Key(), rv2i.Value()
 			ktv := go2GnoValue(alloc, k)
 			vtv := go2GnoValue(alloc, v)
-			ptr := mv.GetPointerForKey(nilAllocator, nil, &ktv)
+			ptr := mv.GetPointerForKey(alloc, nil, &ktv)
 			if debug {
 				if !ptr.TV.IsUndefined() {
 					panic("should not happen")
@@ -703,15 +700,13 @@ func go2GnoValue2(alloc *Allocator, rv reflect.Value, recursive bool) (tv TypedV
 	case reflect.Array:
 		rvl := rv.Len()
 		if rv.Type().Elem().Kind() == reflect.Uint8 {
-			data := make([]byte, rvl)
+			av := alloc.NewDataArray(rvl)
+			data := av.Data
 			reflect.Copy(reflect.ValueOf(data), rv)
-			alloc.AllocateDataArray(int64(rvl))
-			tv.V = &ArrayValue{
-				Data: data,
-			}
+			tv.V = av
 		} else {
-			alloc.AllocateListArray(int64(rvl))
-			list := make([]TypedValue, rvl)
+			av := alloc.NewListArray(rvl)
+			list := av.List
 			for i := 0; i < rvl; i++ {
 				if recursive {
 					list[i] = go2GnoValue2(alloc, rv.Index(i), true)
@@ -719,9 +714,7 @@ func go2GnoValue2(alloc *Allocator, rv reflect.Value, recursive bool) (tv TypedV
 					list[i] = go2GnoValue(alloc, rv.Index(i))
 				}
 			}
-			tv.V = &ArrayValue{
-				List: list,
-			}
+			tv.V = av
 		}
 	case reflect.Slice:
 		rvl := rv.Len()
