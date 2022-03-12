@@ -71,9 +71,9 @@ type defaultStore struct {
 	current map[string]struct{} // for detecting import cycles.
 }
 
-func NewStore(baseStore, iavlStore store.Store) *defaultStore {
+func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
 	ds := &defaultStore{
-		alloc:        NewAllocator(),
+		alloc:        alloc,
 		pkgGetter:    nil,
 		cacheObjects: make(map[ObjectID]Object),
 		cacheTypes:   make(map[TypeID]Type),
@@ -564,7 +564,7 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 // This function is used to clear the object cache every transaction.
 // It also sets a new allocator.
 func (ds *defaultStore) ClearObjectCache() {
-	ds.alloc = NewAllocator()
+	ds.alloc.Reset()
 	ds.cacheObjects = make(map[ObjectID]Object) // new cache.
 	ds.opslog = nil                             // new ops log.
 	if len(ds.current) > 0 {
@@ -577,7 +577,7 @@ func (ds *defaultStore) ClearObjectCache() {
 // This function is used to handle queries and checktx transactions.
 func (ds *defaultStore) Fork() Store {
 	ds2 := &defaultStore{
-		alloc:        NewAllocator(),
+		alloc:        ds.alloc.Fork().Reset(),
 		pkgGetter:    ds.pkgGetter,
 		cacheObjects: make(map[ObjectID]Object), // new cache.
 		cacheTypes:   ds.cacheTypes,

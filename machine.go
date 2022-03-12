@@ -60,12 +60,13 @@ func NewMachine(pkgPath string, store Store) *Machine {
 }
 
 type MachineOptions struct {
-	PkgPath    string
-	CheckTypes bool // not yet used
-	ReadOnly   bool
-	Output     io.Writer
-	Store      Store
-	Context    interface{}
+	PkgPath       string
+	CheckTypes    bool // not yet used
+	ReadOnly      bool
+	Output        io.Writer
+	Store         Store
+	Context       interface{}
+	MaxAllocBytes int64 // or 0 for no limit.
 }
 
 func NewMachineWithOptions(opts MachineOptions) *Machine {
@@ -75,10 +76,11 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	if output == nil {
 		output = os.Stdout
 	}
+	alloc := NewAllocator(opts.MaxAllocBytes)
 	store := opts.Store
 	if store == nil {
 		// bare store, no stdlibs.
-		store = NewStore(nil, nil)
+		store = NewStore(alloc, nil, nil)
 	}
 	pv := (*PackageValue)(nil)
 	if opts.PkgPath != "" {
@@ -98,7 +100,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		Values:     make([]TypedValue, 1024),
 		NumValues:  0,
 		Package:    pv,
-		Alloc:      NewAllocator(),
+		Alloc:      alloc,
 		CheckTypes: checkTypes,
 		ReadOnly:   readOnly,
 		Output:     output,

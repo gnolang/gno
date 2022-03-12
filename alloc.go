@@ -7,13 +7,12 @@ import "reflect"
 // (optionally?) condensed (objects to be GC'd will be discarded),
 // but for now, allocations strictly increment across the whole tx.
 type Allocator struct {
-	bytes int64
+	maxBytes int64
+	bytes    int64
 }
 
 // for gonative, which doesn't consider the allocator.
 var nilAllocator = (*Allocator)(nil)
-
-const maxAllocations = 1000000000 // TODO parameterize. 1000 MB for now.
 
 const (
 	// go elemental
@@ -61,8 +60,33 @@ const (
 	allocAminoByte = 10 // XXX
 )
 
-func NewAllocator() *Allocator {
-	return &Allocator{}
+func NewAllocator(maxBytes int64) *Allocator {
+	if maxBytes == 0 {
+		return nil
+	}
+	return &Allocator{
+		maxBytes: maxBytes,
+	}
+}
+
+func (alloc *Allocator) Reset() *Allocator {
+	if alloc == nil {
+		return nil
+	} else {
+		alloc.bytes = 0
+		return alloc
+	}
+}
+
+func (alloc *Allocator) Fork() *Allocator {
+	if alloc == nil {
+		return nil
+	} else {
+		return &Allocator{
+			maxBytes: alloc.maxBytes,
+			bytes:    alloc.bytes,
+		}
+	}
 }
 
 func (alloc *Allocator) Allocate(size int64) {
@@ -71,7 +95,7 @@ func (alloc *Allocator) Allocate(size int64) {
 		return
 	}
 	alloc.bytes += size
-	if alloc.bytes > maxAllocations {
+	if alloc.bytes > alloc.maxBytes {
 		panic("allocation limit exceeded")
 	}
 }
