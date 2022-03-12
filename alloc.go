@@ -13,30 +13,52 @@ type Allocator struct {
 // for gonative, which doesn't consider the allocator.
 var nilAllocator = (*Allocator)(nil)
 
-const maxAllocations = 1000000000 // TODO parameterize. 1GB for now.
+const maxAllocations = 1000000000 // TODO parameterize. 1000 MB for now.
 
 const (
-	allocString      = 1
+	// go elemental
+	_allocBase    = 24 // defensive... XXX
+	_allocPointer = 8
+	// gno types
+	_allocSlice            = 24
+	_allocPointerValue     = 40
+	_allocStructValue      = 152
+	_allocArrayValue       = 176
+	_allocSliceValue       = 40
+	_allocFuncValue        = 136
+	_allocMapValue         = 144
+	_allocBoundMethodValue = 176
+	_allocBlock            = 464
+	_allocNativeValue      = 48
+	_allocTypeValue        = 16
+	_allocTypedValue       = 40
+	_allocBigint           = 200 // XXX
+	_allocType             = 200 // XXX
+	_allocAny              = 200 // XXX
+)
+const (
+	allocString      = _allocBase
 	allocStringByte  = 1
-	allocBigint      = 1
+	allocBigint      = _allocBase + _allocPointer + _allocBigint
 	allocBigintByte  = 1
-	allocPointer     = 1
-	allocArray       = 1
-	allocArrayItem   = 1
-	allocSlice       = 1
-	allocStruct      = 1
-	allocStructField = 1
-	allocFunc        = 1
-	allocMap         = 1
-	allocMapItem     = 1
-	allocBoundMethod = 1
-	allocBlock       = 1
-	allocBlockItem   = 1
-	allocNative      = 1
-	allocType        = 1
+	allocPointer     = _allocBase
+	allocArray       = _allocBase + _allocPointer + _allocArrayValue
+	allocArrayItem   = _allocTypedValue
+	allocSlice       = _allocBase + _allocPointer + _allocSliceValue
+	allocStruct      = _allocBase + _allocPointer + _allocStructValue
+	allocStructField = _allocTypedValue
+	allocFunc        = _allocBase + _allocPointer + _allocFuncValue
+	allocMap         = _allocBase + _allocPointer + _allocMapValue
+	allocMapItem     = _allocTypedValue * 3 // XXX
+	allocBoundMethod = _allocBase + _allocPointer + _allocBoundMethodValue
+	allocBlock       = _allocBase + _allocPointer + _allocBlock
+	allocBlockItem   = _allocTypedValue
+	allocNative      = _allocBase + _allocPointer + _allocNativeValue
+	allocType        = _allocBase + _allocPointer + _allocType
 	// allocDataByte    = 1
 	// allocPackge = 1
-	allocAmino = 1
+	allocAmino     = _allocBase + _allocPointer + _allocAny
+	allocAminoByte = 10 // XXX
 )
 
 func NewAllocator() *Allocator {
@@ -124,7 +146,7 @@ func (alloc *Allocator) AllocateType() {
 
 // NOTE: a reasonable max-bounds calculation for simplicity.
 func (alloc *Allocator) AllocateAmino(l int64) {
-	alloc.Allocate(allocAmino * l)
+	alloc.Allocate(allocAmino + allocAminoByte*l)
 }
 
 //----------------------------------------
