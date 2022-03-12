@@ -24,7 +24,7 @@ func (m *Machine) doOpValueDecl() {
 			if nt == nil {
 				tv = TypedValue{}
 			} else {
-				tv = TypedValue{T: nt, V: defaultValue(nt)}
+				tv = TypedValue{T: nt, V: defaultValue(m.Alloc, nt)}
 			}
 		} else {
 			tv = rvs[i]
@@ -60,7 +60,7 @@ func (m *Machine) doOpValueDecl() {
 		}
 		nx := s.NameExprs[i]
 		ptr := lb.GetPointerTo(m.Store, nx.Path)
-		ptr.Assign2(m.Store, m.Realm, tv, false)
+		ptr.Assign2(m.Alloc, m.Store, m.Realm, tv, false)
 	}
 }
 
@@ -70,5 +70,5 @@ func (m *Machine) doOpTypeDecl() {
 	tv := asValue(t)
 	last := m.LastBlock()
 	ptr := last.GetPointerTo(m.Store, s.Path)
-	ptr.Assign2(m.Store, m.Realm, tv, false)
+	ptr.Assign2(m.Alloc, m.Store, m.Realm, tv, false)
 }

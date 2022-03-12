@@ -14,7 +14,7 @@ import (
 // the even index items are package nodes,
 // and the odd index items are corresponding package values.
 func gonativeTestStore(args ...interface{}) Store {
-	store := NewStore(nil, nil)
+	store := NewStore(nil, nil, nil)
 	store.SetPackageGetter(func(pkgPath string) (*PackageNode, *PackageValue) {
 		for i := 0; i < len(args)/2; i++ {
 			pn := args[i*2].(*PackageNode)
@@ -135,7 +135,7 @@ D:
 
 func TestCrypto(t *testing.T) {
 	addr := crypto.Address{}
-	tv := Go2GnoValue(reflect.ValueOf(addr))
+	tv := Go2GnoValue(nilAllocator, reflect.ValueOf(addr))
 	assert.Equal(t, tv.String(),
 		`(array[0x0000000000000000000000000000000000000000] github.com/gnolang/gno/pkgs/crypto.Address)`)
 }

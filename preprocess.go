@@ -94,6 +94,12 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	}
 }
 
+// This counter ensures (during testing) that certain functions
+// (like ConvertUntypedTo() for bigints and strings)
+// are only called during the preprocessing stage.
+// It is a counter because Preprocess() is recursive.
+var preprocessing int
+
 // Preprocess n whose parent block node is ctx. If any names
 // are defined in another file, generally you must call
 // PredefineFileSet() on the whole fileset first before calling
@@ -112,6 +118,15 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 //  * Assigns BlockValuePath to NameExprs.
 //  * TODO document what it does.
 func Preprocess(store Store, ctx BlockNode, n Node) Node {
+
+	// Increment preprocessing counter while preprocessing.
+	{
+		preprocessing += 1
+		defer func() {
+			preprocessing -= 1
+		}()
+	}
+
 	if ctx == nil {
 		// Generally a ctx is required, but if not, it's ok to pass in nil.
 		// panic("Preprocess requires context")
@@ -1061,7 +1076,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				n.Func.SetAttribute(ATTR_TYPEOF_VALUE, sft)
 				if cx, ok := n.Func.(*ConstExpr); ok {
 					fv := cx.V.(*FuncValue)
-					fv2 := fv.Copy()
+					fv2 := fv.Copy(nilAllocator)
 					fv2.Type = sft
 					cx.T = sft
 					cx.V = fv2
@@ -2260,7 +2275,7 @@ func convertConst(store Store, last BlockNode, cx *ConstExpr, t Type) {
 		setConstAttrs(cx)
 	} else if t != nil {
 		// e.g. a named type or uint8 type to int for indexing.
-		ConvertTo(store, &cx.TypedValue, t)
+		ConvertTo(nilAllocator, store, &cx.TypedValue, t)
 		setConstAttrs(cx)
 	}
 }

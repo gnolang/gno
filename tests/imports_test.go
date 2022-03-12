@@ -372,7 +372,7 @@ func testStore(stdin io.Reader, stdout, stderr io.Writer, nativeLibs bool) (stor
 	db := dbm.NewMemDB()
 	baseStore := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
 	iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
-	store = gno.NewStore(baseStore, iavlStore)
+	store = gno.NewStore(nil, baseStore, iavlStore)
 	store.SetPackageGetter(getPackage)
 	store.SetPackageInjector(testPackageInjector)
 	return

@@ -20,7 +20,7 @@ func (m *Machine) doOpDefine() {
 				}
 			}
 		}
-		ptr.Assign2(m.Store, m.Realm, rvs[i], true)
+		ptr.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
 	}
 }
 
@@ -41,7 +41,7 @@ func (m *Machine) doOpAssign() {
 				}
 			}
 		}
-		lv.Assign2(m.Store, m.Realm, rvs[i], true)
+		lv.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
 	}
 }
 
@@ -62,7 +62,7 @@ func (m *Machine) doOpAddAssign() {
 		}
 	}
 	// add rv to lv.
-	addAssign(lv.TV, rv)
+	addAssign(m.Alloc, lv.TV, rv)
 	if lv.Base != nil {
 		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}

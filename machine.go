@@ -30,6 +30,7 @@ type Machine struct {
 	Frames    []Frame       // func call stack
 	Package   *PackageValue // active package
 	Realm     *Realm        // active realm
+	Alloc     *Allocator    // memory allocations
 	Exception *TypedValue   // if panic'd unless recovered
 
 	// Volatile State
@@ -59,12 +60,13 @@ func NewMachine(pkgPath string, store Store) *Machine {
 }
 
 type MachineOptions struct {
-	PkgPath    string
-	CheckTypes bool // not yet used
-	ReadOnly   bool
-	Output     io.Writer
-	Store      Store
-	Context    interface{}
+	PkgPath       string
+	CheckTypes    bool // not yet used
+	ReadOnly      bool
+	Output        io.Writer
+	Store         Store
+	Context       interface{}
+	MaxAllocBytes int64 // or 0 for no limit.
 }
 
 func NewMachineWithOptions(opts MachineOptions) *Machine {
@@ -74,10 +76,11 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	if output == nil {
 		output = os.Stdout
 	}
+	alloc := NewAllocator(opts.MaxAllocBytes)
 	store := opts.Store
 	if store == nil {
 		// bare store, no stdlibs.
-		store = NewStore(nil, nil)
+		store = NewStore(alloc, nil, nil)
 	}
 	pv := (*PackageValue)(nil)
 	if opts.PkgPath != "" {
@@ -97,6 +100,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		Values:     make([]TypedValue, 1024),
 		NumValues:  0,
 		Package:    pv,
+		Alloc:      alloc,
 		CheckTypes: checkTypes,
 		ReadOnly:   readOnly,
 		Output:     output,
@@ -375,7 +379,7 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 		// Each file for each *PackageValue gets its own file *Block,
 		// with values copied over from each file's
 		// *FileNode.StaticBlock.
-		fb := NewBlock(fn, pb)
+		fb := m.Alloc.NewBlock(fn, pb)
 		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
 		copy(fb.Values, fn.StaticBlock.Values)
 		pv.AddFileBlock(fn.Name, fb)
@@ -1488,10 +1492,10 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()
-		return xv.GetPointerAtIndex(m.Store, iv)
+		return xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
 	case *SelectorExpr:
 		xv := m.PopValue()
-		return xv.GetPointerTo(m.Store, lx.Path)
+		return xv.GetPointerTo(m.Alloc, m.Store, lx.Path)
 	case *StarExpr:
 		ptr := m.PopValue().V.(PointerValue)
 		return ptr

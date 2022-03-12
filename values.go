@@ -76,7 +76,7 @@ func (bv *BigintValue) UnmarshalAmino(s string) error {
 	return nil
 }
 
-func (bv BigintValue) Copy() BigintValue {
+func (bv BigintValue) Copy(alloc *Allocator) BigintValue {
 	return BigintValue{V: big.NewInt(0).Set(bv.V)}
 }
 
@@ -105,6 +105,12 @@ func (dbv DataByteValue) SetByte(b byte) {
 // initialized, namely T set if a typed-nil.
 // Index is -1 for the shared "_" block var,
 // and -2 for (gno and native) map items.
+//
+// Allocation for PointerValue is not immediate,
+// as usually PointerValues are temporary for assignment
+// or binary operations. When a pointer is to be
+// allocated, *Allocator.AllocatePointer() is called separately,
+// as in OpRef.
 type PointerValue struct {
 	TV    *TypedValue // escape val if pointer to var.
 	Base  Value       // array/struct/block.
@@ -138,7 +144,7 @@ func (pv *PointerValue) GetBase(store Store) Object {
 // cu: convert untyped; pass false for const definitions
 // TODO: document as something that enables into-native assignment.
 // TODO: maybe consider this as entrypoint for DataByteValue too?
-func (pv PointerValue) Assign2(store Store, rlm *Realm, tv2 TypedValue, cu bool) {
+func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
 	// Special cases.
 	if pv.Index == PointerIndexNative {
 		// Special case if extended object && native.
@@ -185,8 +191,8 @@ func (pv PointerValue) Assign2(store Store, rlm *Realm, tv2 TypedValue, cu bool)
 						}
 						tv.V = v2
 					} else {
-						tv.V = defaultValue(tv.T)
-						nv1.Value.Set(v2.Value)
+						tv.V = defaultValue(alloc, tv.T)
+						tv.V.(*NativeValue).Value.Set(v2.Value)
 					}
 				} else {
 					nv1.Value.Set(v2.Value)
@@ -198,7 +204,7 @@ func (pv PointerValue) Assign2(store Store, rlm *Realm, tv2 TypedValue, cu bool)
 							tv2.String(), tv.T.String()))
 					}
 				}
-				*tv = tv2.Copy()
+				*tv = tv2.Copy(alloc)
 			default:
 				panic("should not happen")
 			}
@@ -212,11 +218,11 @@ func (pv PointerValue) Assign2(store Store, rlm *Realm, tv2 TypedValue, cu bool)
 	// General case
 	if rlm != nil && pv.Base != nil {
 		oo1 := pv.TV.GetFirstObject(store)
-		pv.TV.Assign(tv2, cu)
+		pv.TV.Assign(alloc, tv2, cu)
 		oo2 := pv.TV.GetFirstObject(store)
 		rlm.DidUpdate(pv.Base.(Object), oo1, oo2)
 	} else {
-		pv.TV.Assign(tv2, cu)
+		pv.TV.Assign(alloc, tv2, cu)
 	}
 }
 
@@ -228,8 +234,9 @@ func (pv PointerValue) Deref() (tv TypedValue) {
 		return
 	} else if nv, ok := pv.TV.V.(*NativeValue); ok {
 		rv := nv.Value
+		// XXX memoize type.
 		tv.T = &NativeType{Type: rv.Type()}
-		tv.V = &NativeValue{Value: rv}
+		tv.V = nv
 		return
 	} else {
 		tv = *pv.TV
@@ -310,24 +317,20 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 	}
 }
 
-func (av *ArrayValue) Copy() *ArrayValue {
+func (av *ArrayValue) Copy(alloc *Allocator) *ArrayValue {
 	/* TODO: consider second ref count field.
 	if av.GetRefCount() == 0 {
 		return av
 	}
 	*/
 	if av.Data == nil {
-		list := make([]TypedValue, len(av.List))
-		copy(list, av.List)
-		return &ArrayValue{
-			List: list,
-		}
+		av2 := alloc.NewListArray(len(av.List))
+		copy(av2.List, av.List)
+		return av2
 	} else {
-		data := make([]byte, len(av.Data))
-		copy(data, av.Data)
-		return &ArrayValue{
-			Data: data,
-		}
+		av2 := alloc.NewDataArray(len(av.Data))
+		copy(av2.Data, av.Data)
+		return av2
 	}
 }
 
@@ -427,17 +430,15 @@ func (sv *StructValue) GetSubrefPointerTo(store Store, st *StructType, path Valu
 	}
 }
 
-func (sv *StructValue) Copy() *StructValue {
+func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 	/* TODO consider second refcount field
 	if sv.GetRefCount() == 0 {
 		return sv
 	}
 	*/
-	fields := make([]TypedValue, len(sv.Fields))
+	fields := alloc.NewStructFields(len(sv.Fields))
 	copy(fields, sv.Fields)
-	return &StructValue{
-		Fields: fields,
-	}
+	return alloc.NewStruct(fields)
 }
 
 // FuncValue.Type stores the method signature from the
@@ -463,7 +464,8 @@ type FuncValue struct {
 	nativeBody func(*Machine) // alternative to Body
 }
 
-func (fv *FuncValue) Copy() *FuncValue {
+func (fv *FuncValue) Copy(alloc *Allocator) *FuncValue {
+	alloc.AllocateFunc()
 	return &FuncValue{
 		Type:       fv.Type,
 		IsMethod:   fv.IsMethod,
@@ -599,7 +601,8 @@ func (ml *MapList) UnmarshalAmino(mlimg MapListImage) error {
 }
 
 // NOTE: Value is undefined until assigned.
-func (ml *MapList) Append(key TypedValue) *MapListItem {
+func (ml *MapList) Append(alloc *Allocator, key TypedValue) *MapListItem {
+	alloc.AllocateMapItem()
 	item := &MapListItem{
 		Prev: ml.Tail,
 		Next: nil,
@@ -654,10 +657,10 @@ func (mv *MapValue) GetLength() int {
 // Gno will, but here we just use this method signature as we
 // do for structs and arrays for assigning new entries.  If key
 // doesn't exist, a new slot is created.
-func (mv *MapValue) GetPointerForKey(store Store, key *TypedValue) PointerValue {
+func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedValue) PointerValue {
 	kmk := key.ComputeMapKey(store, false)
 	if mli, ok := mv.vmap[kmk]; ok {
-		key2 := key.Copy()
+		key2 := key.Copy(alloc)
 		return PointerValue{
 			TV:    fillValueTV(store, &mli.Value),
 			Base:  mv,
@@ -665,9 +668,9 @@ func (mv *MapValue) GetPointerForKey(store Store, key *TypedValue) PointerValue 
 			Index: PointerIndexMap,
 		}
 	} else {
-		mli := mv.List.Append(*key)
+		mli := mv.List.Append(alloc, *key)
 		mv.vmap[kmk] = mli
-		key2 := key.Copy()
+		key2 := key.Copy(alloc)
 		return PointerValue{
 			TV:    fillValueTV(store, &mli.Value),
 			Base:  mv,
@@ -819,11 +822,11 @@ type NativeValue struct {
 	Bytes []byte
 }
 
-func (nv *NativeValue) Copy() *NativeValue {
+func (nv *NativeValue) Copy(alloc *Allocator) *NativeValue {
 	nt := nv.Value.Type()
 	nv2 := reflect.New(nt).Elem()
 	nv2.Set(nv.Value)
-	return &NativeValue{Value: nv2}
+	return alloc.NewNative(nv2)
 }
 
 //----------------------------------------
@@ -945,20 +948,20 @@ func (tv *TypedValue) ClearNum() {
 	*(*uint64)(unsafe.Pointer(&tv.N)) = uint64(0)
 }
 
-func (tv TypedValue) Copy() (cp TypedValue) {
+func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	switch cv := tv.V.(type) {
 	case BigintValue:
 		cp.T = tv.T
-		cp.V = cv.Copy()
+		cp.V = cv.Copy(alloc)
 	case *ArrayValue:
 		cp.T = tv.T
-		cp.V = cv.Copy()
+		cp.V = cv.Copy(alloc)
 	case *StructValue:
 		cp.T = tv.T
-		cp.V = cv.Copy()
+		cp.V = cv.Copy(alloc)
 	case *NativeValue:
 		cp.T = tv.T
-		cp.V = cv.Copy()
+		cp.V = cv.Copy(alloc)
 	default:
 		cp = tv
 	}
@@ -1047,7 +1050,7 @@ func (tv *TypedValue) GetBool() bool {
 	return *(*bool)(unsafe.Pointer(&tv.N))
 }
 
-func (tv *TypedValue) SetString(s string) {
+func (tv *TypedValue) SetString(s StringValue) {
 	if debug {
 		if tv.T.Kind() != StringKind || isNative(tv.T) {
 			panic(fmt.Sprintf(
@@ -1055,7 +1058,7 @@ func (tv *TypedValue) SetString(s string) {
 				tv.T.String()))
 		}
 	}
-	tv.V = StringValue(s)
+	tv.V = s
 }
 
 func (tv *TypedValue) GetString() string {
@@ -1089,7 +1092,7 @@ func (tv *TypedValue) SetInt(n int) {
 
 func (tv *TypedValue) ConvertGetInt() int {
 	var store Store = nil // not used
-	ConvertTo(store, tv, IntType)
+	ConvertTo(nilAllocator, store, tv, IntType)
 	return tv.GetInt()
 }
 
@@ -1429,7 +1432,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 // addressable NativeValue fields/elems.
 // cu: convert untyped after assignment. pass false
 // for const definitions, but true for all else.
-func (tv *TypedValue) Assign(tv2 TypedValue, cu bool) {
+func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 	if debug {
 		if tv.T == DataByteType {
 			// assignment to data byte types should only
@@ -1442,19 +1445,26 @@ func (tv *TypedValue) Assign(tv2 TypedValue, cu bool) {
 			panic("should not happen")
 		}
 	}
-	*tv = tv2.Copy()
+	*tv = tv2.Copy(alloc)
 	if cu && isUntyped(tv.T) {
 		ConvertUntypedTo(tv, defaultTypeOf(tv.T))
 	}
 }
 
+/* XXX delete
 func (tv *TypedValue) ConvertUntyped() {
 	if isUntyped(tv.T) {
 		ConvertUntypedTo(tv, defaultTypeOf(tv.T))
 	}
 }
+*/
 
-func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
+// NOTE: Allocation for PointerValue is not immediate,
+// as usually PointerValues are temporary for assignment
+// or binary operations. When a pointer is to be
+// allocated, *Allocator.AllocatePointer() is called separately,
+// as in OpRef.
+func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath) PointerValue {
 	if debug {
 		if tv.IsUndefined() {
 			panic("GetPointerTo() on undefined value")
@@ -1564,13 +1574,13 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 			switch t := dtv.V.(TypeValue).Type.(type) {
 			case *PointerType:
 				dt := t.Elt.(*DeclaredType)
-				tv := dt.GetValueAt(store, path)
+				tv := dt.GetValueAt(alloc, store, path)
 				return PointerValue{
 					TV:   &tv, // heap alloc
 					Base: nil, // TODO: make TypeValue an object.
 				}
 			case *DeclaredType:
-				tv := t.GetValueAt(store, path)
+				tv := t.GetValueAt(alloc, store, path)
 				return PointerValue{
 					TV:   &tv, // heap alloc
 					Base: nil, // TODO: make TypeValue an object.
@@ -1586,7 +1596,7 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 					}
 					panic("unknown native method selector")
 				}
-				mtv := go2GnoValue(mt.Func)
+				mtv := go2GnoValue(alloc, mt.Func)
 				return PointerValue{
 					TV:   &mtv, // heap alloc
 					Base: nil,
@@ -1608,7 +1618,7 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 		}
 	case VPValMethod:
 		dt := dtv.T.(*DeclaredType)
-		mtv := dt.GetValueAt(store, path)
+		mtv := dt.GetValueAt(alloc, store, path)
 		mv := mtv.GetFunc()
 		mt := mv.GetType(store)
 		if debug {
@@ -1616,7 +1626,8 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 				panic("should not happen")
 			}
 		}
-		dtv2 := dtv.Copy()
+		dtv2 := dtv.Copy(alloc)
+		alloc.AllocateBoundMethod()
 		bmv := &BoundMethodValue{
 			Func:     mv,
 			Receiver: dtv2,
@@ -1632,7 +1643,7 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 		dt := tv.T.(*PointerType).Elt.(*DeclaredType)
 		// ^ support nil receivers, vs:
 		// dt := dtv.T.(*DeclaredType)
-		mtv := dt.GetValueAt(store, path)
+		mtv := dt.GetValueAt(alloc, store, path)
 		mv := mtv.GetFunc()
 		mt := mv.GetType(store)
 		if debug {
@@ -1646,6 +1657,7 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 				panic("should not happen")
 			}
 		}
+		alloc.AllocateBoundMethod()
 		bmv := &BoundMethodValue{
 			Func:     mv,
 			Receiver: *tv, // bound to ptr, not dtv.
@@ -1668,7 +1680,7 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 		}
 		bv := *dtv
 		for i, path := range tr {
-			ptr := bv.GetPointerTo(store, path)
+			ptr := bv.GetPointerTo(alloc, store, path)
 			if i == len(tr)-1 {
 				return ptr // done
 			} else {
@@ -1699,7 +1711,7 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 			fv = rv.FieldByName(string(path.Name))
 		}
 		if fv.IsValid() {
-			ftv := go2GnoValue(fv)
+			ftv := go2GnoValue(alloc, fv)
 			return PointerValue{
 				TV: &ftv, // heap alloc
 				// TODO consider if needed for persistence:
@@ -1716,8 +1728,8 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 			mt := mv.Type()
 			return PointerValue{
 				TV: &TypedValue{ // heap alloc
-					T: &NativeType{Type: mt},
-					V: &NativeValue{Value: mv},
+					T: alloc.NewType(&NativeType{Type: mt}),
+					V: alloc.NewNative(mv),
 				},
 				// TODO consider if needed for persistence:
 				/*
@@ -1740,8 +1752,8 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 				mt := mv.Type()
 				return PointerValue{
 					TV: &TypedValue{ // heap alloc
-						T: &NativeType{Type: mt},
-						V: &NativeValue{Value: mv},
+						T: alloc.NewType(&NativeType{Type: mt}),
+						V: alloc.NewNative(mv),
 					},
 					// TODO consider if needed for persistence:
 					/*
@@ -1765,10 +1777,10 @@ func (tv *TypedValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 func (tv *TypedValue) GetPointerAtIndexInt(store Store, ii int) PointerValue {
 	iv := TypedValue{T: IntType}
 	iv.SetInt(ii)
-	return tv.GetPointerAtIndex(store, &iv)
+	return tv.GetPointerAtIndex(nilAllocator, store, &iv)
 }
 
-func (tv *TypedValue) GetPointerAtIndex(store Store, iv *TypedValue) PointerValue {
+func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *TypedValue) PointerValue {
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
 		if bt == StringType || bt == UntypedStringType {
@@ -1803,11 +1815,12 @@ func (tv *TypedValue) GetPointerAtIndex(store Store, iv *TypedValue) PointerValu
 			panic("uninitialized map index")
 		}
 		mv := tv.V.(*MapValue)
-		pv := mv.GetPointerForKey(store, iv)
+		pv := mv.GetPointerForKey(alloc, store, iv)
 		if pv.TV.IsUndefined() {
 			vt := baseOf(tv.T).(*MapType).Value
 			if vt.Kind() != InterfaceKind {
-				*(pv.TV) = defaultTypedValue(vt)
+				// this will get assigned over, so no alloc.
+				*(pv.TV) = defaultTypedValue(nil, vt)
 			}
 		}
 		return pv
@@ -1819,7 +1832,7 @@ func (tv *TypedValue) GetPointerAtIndex(store Store, iv *TypedValue) PointerValu
 		case reflect.Array, reflect.Slice, reflect.String:
 			ii := iv.ConvertGetInt()
 			erv := rv.Index(ii)
-			etv := go2GnoValue(erv)
+			etv := go2GnoValue(alloc, erv)
 			return PointerValue{
 				TV: &etv,
 				// TODO consider if needed for persistence:
@@ -1832,14 +1845,14 @@ func (tv *TypedValue) GetPointerAtIndex(store Store, iv *TypedValue) PointerValu
 		case reflect.Map:
 			krv := gno2GoValue(iv, reflect.Value{})
 			vrv := rv.MapIndex(krv)
-			etv := go2GnoValue(vrv) // NOTE: lazy, often native.
+			etv := go2GnoValue(alloc, vrv) // NOTE: lazy, often native.
 			return PointerValue{
 				TV:    &etv, // TODO not needed for assignment.
 				Base:  nv,
 				Index: PointerIndexNative,
 				Key: &TypedValue{
-					T: &NativeType{Type: krv.Type()},
-					V: &NativeValue{Value: krv},
+					T: alloc.NewType(&NativeType{Type: krv.Type()}),
+					V: alloc.NewNative(krv),
 				},
 			}
 		default:
@@ -1927,7 +1940,7 @@ func (tv *TypedValue) GetCapacity() int {
 	}
 }
 
-func (tv *TypedValue) GetSlice(low, high int) TypedValue {
+func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 	if low < 0 {
 		panic(fmt.Sprintf(
 			"invalid slice index %d (index must be non-negative)",
@@ -1953,25 +1966,25 @@ func (tv *TypedValue) GetSlice(low, high int) TypedValue {
 		if t == StringType || t == UntypedStringType {
 			return TypedValue{
 				T: tv.T,
-				V: StringValue(tv.GetString()[low:high]),
+				V: alloc.NewString(tv.GetString()[low:high]),
 			}
 		} else {
 			panic("non-string primitive type cannot be sliced")
 		}
 	case *ArrayType:
 		av := tv.V.(*ArrayValue)
-		st := &SliceType{
+		st := alloc.NewType(&SliceType{
 			Elt: t.Elt,
 			Vrd: false,
-		}
+		})
 		return TypedValue{
 			T: st,
-			V: &SliceValue{
-				Base:   av,
-				Offset: low,
-				Length: high - low,
-				Maxcap: av.GetCapacity() - low,
-			},
+			V: alloc.NewSlice(
+				av,                   // base
+				low,                  // offset
+				high-low,             // length
+				av.GetCapacity()-low, // maxcap
+			),
 		}
 	case *SliceType:
 		if tv.V == nil {
@@ -1986,12 +1999,12 @@ func (tv *TypedValue) GetSlice(low, high int) TypedValue {
 		sv := tv.V.(*SliceValue)
 		return TypedValue{
 			T: tv.T,
-			V: &SliceValue{
-				Base:   sv.Base,
-				Offset: sv.Offset + low,
-				Length: high - low,
-				Maxcap: sv.Maxcap - low,
-			},
+			V: alloc.NewSlice(
+				sv.Base,       // base
+				sv.Offset+low, // offset
+				high-low,      // length
+				sv.Maxcap-low, // maxcap
+			),
 		}
 	default:
 		panic(fmt.Sprintf("unexpected type for GetSlice(): %s",
@@ -1999,7 +2012,7 @@ func (tv *TypedValue) GetSlice(low, high int) TypedValue {
 	}
 }
 
-func (tv *TypedValue) GetSlice2(low, high, max int) TypedValue {
+func (tv *TypedValue) GetSlice2(alloc *Allocator, low, high, max int) TypedValue {
 	if low < 0 {
 		panic(fmt.Sprintf(
 			"invalid slice index %d (index must be non-negative)",
@@ -2038,18 +2051,18 @@ func (tv *TypedValue) GetSlice2(low, high, max int) TypedValue {
 	switch bt := baseOf(tv.T).(type) {
 	case *ArrayType:
 		av := tv.V.(*ArrayValue)
-		st := &SliceType{
+		st := alloc.NewType(&SliceType{
 			Elt: bt.Elt,
 			Vrd: false,
-		}
+		})
 		return TypedValue{
 			T: st,
-			V: &SliceValue{
-				Base:   av,
-				Offset: low,
-				Length: high - low,
-				Maxcap: max - low,
-			},
+			V: alloc.NewSlice(
+				av,       // base
+				low,      // low
+				high-low, // length
+				max-low,  // maxcap
+			),
 		}
 	case *SliceType:
 		if tv.V == nil {
@@ -2064,12 +2077,12 @@ func (tv *TypedValue) GetSlice2(low, high, max int) TypedValue {
 		sv := tv.V.(*SliceValue)
 		return TypedValue{
 			T: tv.T,
-			V: &SliceValue{
-				Base:   sv.Base,
-				Offset: sv.Offset + low,
-				Length: high - low,
-				Maxcap: max - low,
-			},
+			V: alloc.NewSlice(
+				sv.Base,       // base
+				sv.Offset+low, // ofset
+				high-low,      // length
+				max-low,       // maxcap
+			),
 		}
 	default:
 		panic(fmt.Sprintf("unexpected type for GetSlice2(): %s",
@@ -2104,6 +2117,7 @@ type Block struct {
 	bodyStmt   bodyStmt   // XXX expose for persistence, not needed for MVP.
 }
 
+// NOTE: for allocation, use *Allocator.NewBlock.
 func NewBlock(source BlockNode, parent *Block) *Block {
 	var values []TypedValue
 	if source != nil {
@@ -2243,7 +2257,7 @@ func (b *Block) GetBodyStmt() *bodyStmt {
 }
 
 // Used by SwitchStmt upon clause match.
-func (b *Block) ExpandToSize(size uint16) {
+func (b *Block) ExpandToSize(alloc *Allocator, size uint16) {
 	if debug {
 		if len(b.Values) >= int(size) {
 			panic(fmt.Sprintf(
@@ -2251,6 +2265,7 @@ func (b *Block) ExpandToSize(size uint16) {
 				len(b.Values), size))
 		}
 	}
+	alloc.AllocateBlockItems(int64(size) - int64(len(b.Values)))
 	values := make([]TypedValue, int(size))
 	copy(values, b.Values)
 	b.Values = values
@@ -2266,50 +2281,47 @@ type RefValue struct {
 
 //----------------------------------------
 
-func defaultStructFields(st *StructType) []TypedValue {
-	tvs := make([]TypedValue, len(st.Fields))
+func defaultStructFields(alloc *Allocator, st *StructType) []TypedValue {
+	tvs := alloc.NewStructFields(len(st.Fields))
 	for i, ft := range st.Fields {
 		if ft.Type.Kind() != InterfaceKind {
 			tvs[i].T = ft.Type
-			tvs[i].V = defaultValue(ft.Type)
+			tvs[i].V = defaultValue(alloc, ft.Type)
 		}
 	}
 	return tvs
 }
 
-func defaultStructValue(st *StructType) *StructValue {
-	return &StructValue{
-		Fields: defaultStructFields(st),
-	}
+func defaultStructValue(alloc *Allocator, st *StructType) *StructValue {
+	return alloc.NewStruct(
+		defaultStructFields(alloc, st),
+	)
 }
 
-func defaultArrayValue(at *ArrayType) *ArrayValue {
+func defaultArrayValue(alloc *Allocator, at *ArrayType) *ArrayValue {
 	if at.Elt.Kind() == Uint8Kind {
-		return &ArrayValue{
-			Data: make([]byte, at.Len),
-		}
+		return alloc.NewDataArray(at.Len)
 	} else {
-		tvs := make([]TypedValue, at.Len)
+		av := alloc.NewListArray(at.Len)
+		tvs := av.List
 		if et := at.Elem(); et.Kind() != InterfaceKind {
 			for i := 0; i < at.Len; i++ {
 				tvs[i].T = et
-				tvs[i].V = defaultValue(et)
+				tvs[i].V = defaultValue(alloc, et)
 			}
 		}
-		return &ArrayValue{
-			List: tvs,
-		}
+		return av
 	}
 }
 
-func defaultValue(t Type) Value {
+func defaultValue(alloc *Allocator, t Type) Value {
 	switch ct := baseOf(t).(type) {
 	case nil:
 		panic("unexpected nil type")
 	case *ArrayType:
-		return defaultArrayValue(ct)
+		return defaultArrayValue(alloc, ct)
 	case *StructType:
-		return defaultStructValue(ct)
+		return defaultStructValue(alloc, ct)
 	case *SliceType:
 		return nil
 	case *MapType:
@@ -2318,22 +2330,22 @@ func defaultValue(t Type) Value {
 		if t.Kind() == InterfaceKind {
 			return nil
 		} else {
-			return &NativeValue{
-				Value: reflect.New(ct.Type).Elem(),
-			}
+			return alloc.NewNative(
+				reflect.New(ct.Type).Elem(),
+			)
 		}
 	default:
 		return nil
 	}
 }
 
-func defaultTypedValue(t Type) TypedValue {
+func defaultTypedValue(alloc *Allocator, t Type) TypedValue {
 	if t.Kind() == InterfaceKind {
 		return TypedValue{}
 	} else {
 		return TypedValue{
 			T: t,
-			V: defaultValue(t),
+			V: defaultValue(alloc, t),
 		}
 	}
 }
@@ -2356,34 +2368,11 @@ func typedRune(r rune) TypedValue {
 	return tv
 }
 
+// NOTE: does not allocate; used for panics.
 func typedString(s string) TypedValue {
 	tv := TypedValue{T: StringType}
 	tv.V = StringValue(s)
 	return tv
-}
-
-func newSliceFromList(list []TypedValue) *SliceValue {
-	fullList := list[:cap(list)]
-	return &SliceValue{
-		Base: &ArrayValue{
-			List: fullList,
-		},
-		Offset: 0,
-		Length: len(list),
-		Maxcap: cap(list),
-	}
-}
-
-func newSliceFromData(data []byte) *SliceValue {
-	fullData := data[:cap(data)]
-	return &SliceValue{
-		Base: &ArrayValue{
-			Data: fullData,
-		},
-		Offset: 0,
-		Length: len(data),
-		Maxcap: cap(data),
-	}
 }
 
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
@@ -2392,6 +2381,7 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 		if cv.PkgPath != "" { // load package
 			tv.V = store.GetPackage(cv.PkgPath, false)
 		} else { // load object
+			// XXX XXX allocate object.
 			tv.V = store.GetObject(cv.ObjectID)
 		}
 	case PointerValue:

@@ -151,19 +151,14 @@ func UverseNode() *PackageNode {
 				// NOTE: this hack works because
 				// arg1 PointerValue is not a pointer,
 				// so the modification here is only local.
+				av := m.Alloc.NewDataArray(len(arg1s))
+				copy(av.Data, []byte(arg1s))
 				arg1.TV = &TypedValue{
-					T: &SliceType{ // TODO: reuse
+					T: m.Alloc.NewType(&SliceType{ // TODO: reuse
 						Elt: Uint8Type,
 						Vrd: true,
-					},
-					V: &SliceValue{ // TODO: pool?
-						Base: &ArrayValue{
-							Data: []byte(arg1s),
-						},
-						Offset: 0,
-						Length: len(arg1s),
-						Maxcap: len(arg1s),
-					},
+					}),
+					V: m.Alloc.NewSlice(av, 0, len(arg1s), len(arg1s)), // TODO: pool?
 				}
 			}
 			xt := arg0.TV.T
@@ -210,7 +205,7 @@ func UverseNode() *PackageNode {
 						}
 						m.PushValue(TypedValue{
 							T: xt,
-							V: newSliceFromData(data),
+							V: m.Alloc.NewSliceFromData(data),
 						})
 						return
 					} else {
@@ -223,7 +218,7 @@ func UverseNode() *PackageNode {
 						}
 						m.PushValue(TypedValue{
 							T: xt,
-							V: newSliceFromList(list),
+							V: m.Alloc.NewSliceFromList(list),
 						})
 						return
 					}
@@ -247,7 +242,7 @@ func UverseNode() *PackageNode {
 							argsrv, argsl)
 						m.PushValue(TypedValue{
 							T: xt,
-							V: newSliceFromData(data),
+							V: m.Alloc.NewSliceFromData(data),
 						})
 						return
 					} else {
@@ -255,12 +250,13 @@ func UverseNode() *PackageNode {
 						list := make([]TypedValue, argsl)
 						if 0 < argsl {
 							copyNativeToList(
+								m.Alloc,
 								list[:argsl],
 								argsrv, argsl)
 						}
 						m.PushValue(TypedValue{
 							T: xt,
-							V: newSliceFromList(list),
+							V: m.Alloc.NewSliceFromList(list),
 						})
 						return
 					}
@@ -326,12 +322,7 @@ func UverseNode() *PackageNode {
 							}
 							m.PushValue(TypedValue{
 								T: xt,
-								V: &SliceValue{
-									Base:   xvb,
-									Offset: xvo,
-									Length: xvl + argsl,
-									Maxcap: xvc,
-								},
+								V: m.Alloc.NewSlice(xvb, xvo, xvl+argsl, xvc),
 							})
 							return
 						} else { // no change
@@ -368,7 +359,7 @@ func UverseNode() *PackageNode {
 						}
 						m.PushValue(TypedValue{
 							T: xt,
-							V: newSliceFromData(data),
+							V: m.Alloc.NewSliceFromData(data),
 						})
 						return
 					} else {
@@ -405,7 +396,7 @@ func UverseNode() *PackageNode {
 						}
 						m.PushValue(TypedValue{
 							T: xt,
-							V: newSliceFromList(list),
+							V: m.Alloc.NewSliceFromList(list),
 						})
 						return
 					}
@@ -422,6 +413,7 @@ func UverseNode() *PackageNode {
 								// append(*SliceValue.List, *NativeValue) --------
 								list := xvb.List
 								copyNativeToList(
+									m.Alloc,
 									list[xvo:xvo+argsl],
 									argsrv, argsl)
 							} else {
@@ -433,12 +425,7 @@ func UverseNode() *PackageNode {
 							}
 							m.PushValue(TypedValue{
 								T: xt,
-								V: &SliceValue{
-									Base:   xvb,
-									Offset: xvo,
-									Length: xvl + argsl,
-									Maxcap: xvc,
-								},
+								V: m.Alloc.NewSlice(xvb, xvo, xvl+argsl, xvc),
 							})
 							return
 						} else { // no change
@@ -469,7 +456,7 @@ func UverseNode() *PackageNode {
 						}
 						m.PushValue(TypedValue{
 							T: xt,
-							V: newSliceFromData(data),
+							V: m.Alloc.NewSliceFromData(data),
 						})
 						return
 					} else {
@@ -482,12 +469,13 @@ func UverseNode() *PackageNode {
 						}
 						if 0 < argsl {
 							copyNativeToList(
+								m.Alloc,
 								list[xvl:xvl+argsl],
 								argsrv, argsl)
 						}
 						m.PushValue(TypedValue{
 							T: xt,
-							V: newSliceFromList(list),
+							V: m.Alloc.NewSliceFromList(list),
 						})
 						return
 					}
@@ -540,7 +528,7 @@ func UverseNode() *PackageNode {
 						resrv := reflect.AppendSlice(sv, argsrv)
 						m.PushValue(TypedValue{
 							T: xt,
-							V: &NativeValue{Value: resrv},
+							V: m.Alloc.NewNative(resrv),
 						})
 						return
 					} else { // no change
@@ -558,7 +546,7 @@ func UverseNode() *PackageNode {
 					resrv := reflect.AppendSlice(sv, argsrv)
 					m.PushValue(TypedValue{
 						T: xt,
-						V: &NativeValue{Value: resrv},
+						V: m.Alloc.NewNative(resrv),
 					})
 					return
 
@@ -572,7 +560,7 @@ func UverseNode() *PackageNode {
 						resrv := reflect.AppendSlice(sv, argrv)
 						m.PushValue(TypedValue{
 							T: xt,
-							V: &NativeValue{Value: resrv},
+							V: m.Alloc.NewNative(resrv),
 						})
 						return
 					} else {
@@ -653,7 +641,7 @@ func UverseNode() *PackageNode {
 					}
 					if minl == 0 {
 						// return 0.
-						m.PushValue(defaultTypedValue(IntType))
+						m.PushValue(defaultTypedValue(m.Alloc, IntType))
 						return
 					}
 					dstv := dst.TV.V.(*SliceValue)
@@ -661,7 +649,7 @@ func UverseNode() *PackageNode {
 					for i := 0; i < minl; i++ {
 						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
 						srcev := src.TV.GetPointerAtIndexInt(m.Store, i)
-						dstev.Assign2(m.Store, m.Realm, srcev.Deref(), false)
+						dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
 					}
 					res0 := TypedValue{
 						T: IntType,
@@ -679,7 +667,7 @@ func UverseNode() *PackageNode {
 					}
 					if minl == 0 {
 						// return 0.
-						m.PushValue(defaultTypedValue(IntType))
+						m.PushValue(defaultTypedValue(m.Alloc, IntType))
 						return
 					}
 					dstv := dst.TV.V.(*SliceValue)
@@ -687,7 +675,7 @@ func UverseNode() *PackageNode {
 					for i := 0; i < minl; i++ {
 						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
 						srcev := srcv.GetPointerAtIndexInt2(m.Store, i, bst.Elt)
-						dstev.Assign2(m.Store, m.Realm, srcev.Deref(), false)
+						dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
 					}
 					res0 := TypedValue{
 						T: IntType,
@@ -776,7 +764,7 @@ func UverseNode() *PackageNode {
 						data := make([]byte, li)
 						m.PushValue(TypedValue{
 							T: tt,
-							V: newSliceFromData(data),
+							V: m.Alloc.NewSliceFromData(data),
 						})
 						return
 					} else {
@@ -786,12 +774,12 @@ func UverseNode() *PackageNode {
 						} else {
 							// init zero elements with concrete type.
 							for i := 0; i < li; i++ {
-								list[i] = defaultTypedValue(et)
+								list[i] = defaultTypedValue(m.Alloc, et)
 							}
 						}
 						m.PushValue(TypedValue{
 							T: tt,
-							V: newSliceFromList(list),
+							V: m.Alloc.NewSliceFromList(list),
 						})
 						return
 					}
@@ -804,7 +792,7 @@ func UverseNode() *PackageNode {
 						data := make([]byte, li, ci)
 						m.PushValue(TypedValue{
 							T: tt,
-							V: newSliceFromData(data),
+							V: m.Alloc.NewSliceFromData(data),
 						})
 						return
 					} else {
@@ -819,12 +807,12 @@ func UverseNode() *PackageNode {
 							// XXX can this be removed?
 							list2 := list[:ci]
 							for i := 0; i < ci; i++ {
-								list2[i] = defaultTypedValue(et)
+								list2[i] = defaultTypedValue(m.Alloc, et)
 							}
 						}
 						m.PushValue(TypedValue{
 							T: tt,
-							V: newSliceFromList(list),
+							V: m.Alloc.NewSliceFromList(list),
 						})
 						return
 					}
@@ -834,21 +822,17 @@ func UverseNode() *PackageNode {
 			case *MapType:
 				// NOTE: the type is not used.
 				if vargsl == 0 {
-					mv := &MapValue{}
-					mv.MakeMap(0)
 					m.PushValue(TypedValue{
 						T: tt,
-						V: mv,
+						V: m.Alloc.NewMap(0),
 					})
 					return
 				} else if vargsl == 1 {
 					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
 					li := lv.ConvertGetInt()
-					mv := &MapValue{}
-					mv.MakeMap(li)
 					m.PushValue(TypedValue{
 						T: tt,
-						V: mv,
+						V: m.Alloc.NewMap(li),
 					})
 					return
 				} else {
@@ -868,9 +852,9 @@ func UverseNode() *PackageNode {
 					if vargsl == 0 {
 						m.PushValue(TypedValue{
 							T: tt,
-							V: &NativeValue{
-								Value: reflect.MakeMap(bt.Type),
-							},
+							V: m.Alloc.NewNative(
+								reflect.MakeMap(bt.Type),
+							),
 						})
 						return
 					} else if vargsl == 1 {
@@ -878,10 +862,10 @@ func UverseNode() *PackageNode {
 						si := sv.ConvertGetInt()
 						m.PushValue(TypedValue{
 							T: tt,
-							V: &NativeValue{
-								Value: reflect.MakeMapWithSize(
+							V: m.Alloc.NewNative(
+								reflect.MakeMapWithSize(
 									bt.Type, si),
-							},
+							),
 						})
 						return
 					} else {
@@ -907,11 +891,12 @@ func UverseNode() *PackageNode {
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1()
 			tt := arg0.TV.GetType()
-			vv := defaultValue(tt)
+			vv := defaultValue(m.Alloc, tt)
+			m.Alloc.AllocatePointer()
 			m.PushValue(TypedValue{
-				T: &PointerType{
+				T: m.Alloc.NewType(&PointerType{
 					Elt: tt,
-				},
+				}),
 				V: PointerValue{
 					TV: &TypedValue{
 						T: tt,
@@ -1113,10 +1098,10 @@ func copyListToRunes(dst []rune, tvs []TypedValue) {
 	}
 }
 
-func copyNativeToList(dst []TypedValue, rv reflect.Value, rvl int) {
+func copyNativeToList(alloc *Allocator, dst []TypedValue, rv reflect.Value, rvl int) {
 	// TODO: redundant go2GnoType() conversions.
 	for i := 0; i < rvl; i++ {
-		dst[i] = go2GnoValue(rv.Index(i))
+		dst[i] = go2GnoValue(alloc, rv.Index(i))
 	}
 }
 
