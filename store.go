@@ -57,6 +57,7 @@ type Store interface {
 
 // Used to keep track of in-mem objects during tx.
 type defaultStore struct {
+	alloc        *Allocator    // for accounting for cached items
 	pkgGetter    PackageGetter // non-realm packages
 	cacheObjects map[ObjectID]Object
 	cacheTypes   map[TypeID]Type
@@ -72,6 +73,7 @@ type defaultStore struct {
 
 func NewStore(baseStore, iavlStore store.Store) *defaultStore {
 	ds := &defaultStore{
+		alloc:        NewAllocator(),
 		pkgGetter:    nil,
 		cacheObjects: make(map[ObjectID]Object),
 		cacheTypes:   make(map[TypeID]Type),
@@ -258,6 +260,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		hash := hashbz[:HashSize]
 		bz := hashbz[HashSize:]
 		var oo Object
+		ds.alloc.AllocateAmino(int64(len(bz)))
 		amino.MustUnmarshal(bz, &oo)
 		if debug {
 			if oo.GetObjectID() != oid {
@@ -559,7 +562,9 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 
 // Unstable.
 // This function is used to clear the object cache every transaction.
+// It also sets a new allocator.
 func (ds *defaultStore) ClearObjectCache() {
+	ds.alloc = NewAllocator()
 	ds.cacheObjects = make(map[ObjectID]Object) // new cache.
 	ds.opslog = nil                             // new ops log.
 	if len(ds.current) > 0 {
@@ -572,6 +577,7 @@ func (ds *defaultStore) ClearObjectCache() {
 // This function is used to handle queries and checktx transactions.
 func (ds *defaultStore) Fork() Store {
 	ds2 := &defaultStore{
+		alloc:        NewAllocator(),
 		pkgGetter:    ds.pkgGetter,
 		cacheObjects: make(map[ObjectID]Object), // new cache.
 		cacheTypes:   ds.cacheTypes,

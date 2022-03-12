@@ -36,6 +36,7 @@ const (
 	allocType        = 1
 	// allocDataByte    = 1
 	// allocPackge = 1
+	allocAmino = 1
 )
 
 func NewAllocator() *Allocator {
@@ -119,6 +120,11 @@ func (alloc *Allocator) AllocateDataByte() {
 
 func (alloc *Allocator) AllocateType() {
 	alloc.Allocate(allocType)
+}
+
+// NOTE: a reasonable max-bounds calculation for simplicity.
+func (alloc *Allocator) AllocateAmino(l int64) {
+	alloc.Allocate(allocAmino * l)
 }
 
 //----------------------------------------
