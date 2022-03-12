@@ -191,8 +191,8 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 						}
 						tv.V = v2
 					} else {
-						tv.V = defaultValue(nil, tv.T)
-						nv1.Value.Set(v2.Value)
+						tv.V = defaultValue(alloc, tv.T)
+						tv.V.(*NativeValue).Value.Set(v2.Value)
 					}
 				} else {
 					nv1.Value.Set(v2.Value)
@@ -1977,15 +1977,14 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 			Elt: t.Elt,
 			Vrd: false,
 		})
-		alloc.AllocateSlice()
 		return TypedValue{
 			T: st,
-			V: &SliceValue{
-				Base:   av,
-				Offset: low,
-				Length: high - low,
-				Maxcap: av.GetCapacity() - low,
-			},
+			V: alloc.NewSlice(
+				av,                   // base
+				low,                  // offset
+				high-low,             // length
+				av.GetCapacity()-low, // maxcap
+			),
 		}
 	case *SliceType:
 		if tv.V == nil {
@@ -1998,15 +1997,14 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 			}
 		}
 		sv := tv.V.(*SliceValue)
-		alloc.AllocateSlice()
 		return TypedValue{
 			T: tv.T,
-			V: &SliceValue{
-				Base:   sv.Base,
-				Offset: sv.Offset + low,
-				Length: high - low,
-				Maxcap: sv.Maxcap - low,
-			},
+			V: alloc.NewSlice(
+				sv.Base,       // base
+				sv.Offset+low, // offset
+				high-low,      // length
+				sv.Maxcap-low, // maxcap
+			),
 		}
 	default:
 		panic(fmt.Sprintf("unexpected type for GetSlice(): %s",
@@ -2057,15 +2055,14 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, low, high, max int) TypedValue
 			Elt: bt.Elt,
 			Vrd: false,
 		})
-		alloc.AllocateSlice()
 		return TypedValue{
 			T: st,
-			V: &SliceValue{
-				Base:   av,
-				Offset: low,
-				Length: high - low,
-				Maxcap: max - low,
-			},
+			V: alloc.NewSlice(
+				av,       // base
+				low,      // low
+				high-low, // length
+				max-low,  // maxcap
+			),
 		}
 	case *SliceType:
 		if tv.V == nil {
@@ -2078,15 +2075,14 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, low, high, max int) TypedValue
 			}
 		}
 		sv := tv.V.(*SliceValue)
-		alloc.AllocateSlice()
 		return TypedValue{
 			T: tv.T,
-			V: &SliceValue{
-				Base:   sv.Base,
-				Offset: sv.Offset + low,
-				Length: high - low,
-				Maxcap: max - low,
-			},
+			V: alloc.NewSlice(
+				sv.Base,       // base
+				sv.Offset+low, // ofset
+				high-low,      // length
+				max-low,       // maxcap
+			),
 		}
 	default:
 		panic(fmt.Sprintf("unexpected type for GetSlice2(): %s",

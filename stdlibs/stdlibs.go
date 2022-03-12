@@ -176,8 +176,8 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 					panic("should not happen") // defensive
 				}
 				rv := reflect.ValueOf(banker)
-				// XXX hack: natives aren't allocated, so simulate.
-				//alloc.AllocateStruct(10) // defensive 10.
+				m.Alloc.AllocateStruct()         // defensive; native space not allocated.
+				m.Alloc.AllocateStructFields(10) // defensive 10; native space not allocated.
 				res0 := gno.Go2GnoNativeValue(m.Alloc, rv)
 				m.PushValue(res0)
 			},

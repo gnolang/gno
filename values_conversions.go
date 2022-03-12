@@ -713,7 +713,7 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 		}
 		ConvertUntypedTo(tv, gnot)
 		// then convert to native value.
-		// XXX alloc?
+		// NOTE: this should only be called during preprocessing, so no alloc needed.
 		ConvertTo(nilAllocator, nil, tv, t)
 	}
 	// special case: simple conversion
