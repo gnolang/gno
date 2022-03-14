@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"regexp"
+	"strconv"
 
 	//"go/build"
 	"go/parser"
@@ -72,7 +73,7 @@ func TestFiles2(t *testing.T) {
 }
 
 func runFileTest(t *testing.T, path string, nativeLibs bool) {
-	pkgPath, resWanted, errWanted, rops := wantedFromComment(path)
+	pkgPath, resWanted, errWanted, rops, maxAlloc := wantedFromComment(path)
 	if pkgPath == "" {
 		pkgPath = "main"
 	}
@@ -99,10 +100,11 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 		Banker:      banker,
 	}
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		PkgPath: "", // set later.
-		Output:  stdout,
-		Store:   store,
-		Context: ctx,
+		PkgPath:       "", // set later.
+		Output:        stdout,
+		Store:         store,
+		Context:       ctx,
+		MaxAllocBytes: maxAlloc,
 	})
 	// TODO support stdlib groups, but make testing safe;
 	// e.g. not be able to make network connections.
@@ -266,7 +268,7 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 	}
 }
 
-func wantedFromComment(p string) (pkgPath, res, err, rops string) {
+func wantedFromComment(p string) (pkgPath, res, err, rops string, maxAlloc int64) {
 	fset := token.NewFileSet()
 	f, err2 := parser.ParseFile(fset, p, nil, parser.ParseComments)
 	if err2 != nil {
@@ -286,6 +288,14 @@ func wantedFromComment(p string) (pkgPath, res, err, rops string) {
 			panic(fmt.Sprintf(
 				"GOPATH directive not supported -- move %s to extern",
 				goPath))
+		} else if strings.HasPrefix(text, "MAXALLOC:") {
+			line := strings.SplitN(text, "\n", 2)[0]
+			maxstr := strings.TrimSpace(strings.TrimPrefix(line, "MAXALLOC:"))
+			maxint, err := strconv.Atoi(maxstr)
+			if err != nil {
+				panic(fmt.Sprintf("invalid maxalloc amount: %v", maxstr))
+			}
+			maxAlloc = int64(maxint)
 		} else if strings.HasPrefix(text, "Output:\n") {
 			res = strings.TrimPrefix(text, "Output:\n")
 			res = strings.TrimSpace(res)
