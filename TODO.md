@@ -26,9 +26,10 @@
 * Limit CPU and memory usage.
  -> memory usage: 
  -> clear cache upon beginnewblock (DONE).
- -> limit allocation per tx.
- -> limit allocation from store.
- -> limit cache size on store.
+ -> limit allocation per tx. (DONE)
+ -> limit allocation from store. (DONE)
+ -> prevent mutation of state on non-realm packages. (DONE)
+ -> limit cache size on store. (DONE)
 
 * Ensure code is proper.
  -> run through compiler for now?

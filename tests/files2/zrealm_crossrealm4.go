@@ -19,4 +19,4 @@ func main() {
 }
 
 // Error:
-// cannot modify external realm object
+// cannot modify external-realm or non-realm object

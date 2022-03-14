@@ -1451,14 +1451,6 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 	}
 }
 
-/* XXX delete
-func (tv *TypedValue) ConvertUntyped() {
-	if isUntyped(tv.T) {
-		ConvertUntypedTo(tv, defaultTypeOf(tv.T))
-	}
-}
-*/
-
 // NOTE: Allocation for PointerValue is not immediate,
 // as usually PointerValues are temporary for assignment
 // or binary operations. When a pointer is to be
