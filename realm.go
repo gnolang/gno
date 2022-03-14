@@ -144,6 +144,9 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	if po == nil || !po.GetIsReal() {
 		return // do nothing.
 	}
+	if po.GetObjectID().PkgID != rlm.ID {
+		panic("cannot modify external realm object")
+	}
 	// From here on, po is real (not new-real).
 	// Updates to .newCreated/.newEscaped /.newDeleted made here. (first gen)
 	// More appends happen during FinalizeRealmTransactions(). (second+ gen)
