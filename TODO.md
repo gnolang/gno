@@ -30,6 +30,8 @@
  -> limit allocation from store. (DONE)
  -> prevent mutation of state on non-realm packages. (DONE)
  -> limit cache size on store. (DONE)
+ -> limit CPU cycles (DONE)
+ -> Calculate OpCPU\* constants.
 
 * Ensure code is proper.
  -> run through compiler for now?

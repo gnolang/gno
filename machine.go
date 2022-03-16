@@ -20,25 +20,25 @@ import (
 type Machine struct {
 
 	// State
-	Ops       []Op // main operations
-	NumOps    int
-	Values    []TypedValue  // buffer of values to be operated on
-	NumValues int           // number of values
-	Exprs     []Expr        // pending expressions
-	Stmts     []Stmt        // pending statements
-	Blocks    []*Block      // block (scope) stack
-	Frames    []Frame       // func call stack
-	Package   *PackageValue // active package
-	Realm     *Realm        // active realm
-	Alloc     *Allocator    // memory allocations
-	Exception *TypedValue   // if panic'd unless recovered
-
-	// Volatile State
-	NumResults int // number of results returned
+	Ops        []Op // main operations
+	NumOps     int
+	Values     []TypedValue  // buffer of values to be operated on
+	NumValues  int           // number of values
+	Exprs      []Expr        // pending expressions
+	Stmts      []Stmt        // pending statements
+	Blocks     []*Block      // block (scope) stack
+	Frames     []Frame       // func call stack
+	Package    *PackageValue // active package
+	Realm      *Realm        // active realm
+	Alloc      *Allocator    // memory allocations
+	Exception  *TypedValue   // if panic'd unless recovered
+	NumResults int           // number of results returned
+	Cycles     int64         // number of "cpu" cycles
 
 	// Configuration
 	CheckTypes bool // not yet used
 	ReadOnly   bool
+	MaxCycles  int64
 
 	Output  io.Writer
 	Store   Store
@@ -67,11 +67,13 @@ type MachineOptions struct {
 	Store         Store
 	Context       interface{}
 	MaxAllocBytes int64 // or 0 for no limit.
+	MaxCycles     int64 // or 0 for no limit.
 }
 
 func NewMachineWithOptions(opts MachineOptions) *Machine {
 	checkTypes := opts.CheckTypes
 	readOnly := opts.ReadOnly
+	maxCycles := opts.MaxCycles
 	output := opts.Output
 	if output == nil {
 		output = os.Stdout
@@ -103,6 +105,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		Alloc:      alloc,
 		CheckTypes: checkTypes,
 		ReadOnly:   readOnly,
+		MaxCycles:  maxCycles,
 		Output:     output,
 		Store:      store,
 		Context:    context,
@@ -812,6 +815,140 @@ const (
 )
 
 //----------------------------------------
+// "CPU" steps.
+
+func (m *Machine) incrCPU(cycles int64) {
+	m.Cycles += cycles
+	if m.MaxCycles != 0 && m.Cycles > m.MaxCycles {
+		panic("CPU cycle overrun")
+	}
+}
+
+const (
+	/* Control operators */
+	OpCPUInvalid             = 1
+	OpCPUHalt                = 1
+	OpCPUNoop                = 1
+	OpCPUExec                = 1
+	OpCPUPrecall             = 1
+	OpCPUCall                = 1
+	OpCPUCallNativeBody      = 1
+	OpCPUReturn              = 1
+	OpCPUReturnFromBlock     = 1
+	OpCPUReturnToBlock       = 1
+	OpCPUDefer               = 1
+	OpCPUCallDeferNativeBody = 1
+	OpCPUGo                  = 1
+	OpCPUSelect              = 1
+	OpCPUSwitchClause        = 1
+	OpCPUSwitchClauseCase    = 1
+	OpCPUTypeSwitch          = 1
+	OpCPUIfCond              = 1
+	OpCPUPopValue            = 1
+	OpCPUPopResults          = 1
+	OpCPUPopBlock            = 1
+	OpCPUPopFrameAndReset    = 1
+	OpCPUPanic1              = 1
+	OpCPUPanic2              = 1
+
+	/* Unary & binary operators */
+	OpCPUUpos  = 1
+	OpCPUUneg  = 1
+	OpCPUUnot  = 1
+	OpCPUUxor  = 1
+	OpCPUUrecv = 1
+	OpCPULor   = 1
+	OpCPULand  = 1
+	OpCPUEql   = 1
+	OpCPUNeq   = 1
+	OpCPULss   = 1
+	OpCPULeq   = 1
+	OpCPUGtr   = 1
+	OpCPUGeq   = 1
+	OpCPUAdd   = 1
+	OpCPUSub   = 1
+	OpCPUBor   = 1
+	OpCPUXor   = 1
+	OpCPUMul   = 1
+	OpCPUQuo   = 1
+	OpCPURem   = 1
+	OpCPUShl   = 1
+	OpCPUShr   = 1
+	OpCPUBand  = 1
+	OpCPUBandn = 1
+
+	/* Other expression operators */
+	OpCPUEval         = 1
+	OpCPUBinary1      = 1
+	OpCPUIndex1       = 1
+	OpCPUIndex2       = 1
+	OpCPUSelector     = 1
+	OpCPUSlice        = 1
+	OpCPUStar         = 1
+	OpCPURef          = 1
+	OpCPUTypeAssert1  = 1
+	OpCPUTypeAssert2  = 1
+	OpCPUStaticTypeOf = 1
+	OpCPUCompositeLit = 1
+	OpCPUArrayLit     = 1
+	OpCPUSliceLit     = 1
+	OpCPUSliceLit2    = 1
+	OpCPUMapLit       = 1
+	OpCPUStructLit    = 1
+	OpCPUFuncLit      = 1
+	OpCPUConvert      = 1
+
+	/* Native operators */
+	OpCPUArrayLitGoNative  = 1
+	OpCPUSliceLitGoNative  = 1
+	OpCPUStructLitGoNative = 1
+	OpCPUCallGoNative      = 1
+
+	/* Type operators */
+	OpCPUFieldType       = 1
+	OpCPUArrayType       = 1
+	OpCPUSliceType       = 1
+	OpCPUPointerType     = 1
+	OpCPUInterfaceType   = 1
+	OpCPUChanType        = 1
+	OpCPUFuncType        = 1
+	OpCPUMapType         = 1
+	OpCPUStructType      = 1
+	OpCPUMaybeNativeType = 1
+
+	/* Statement operators */
+	OpCPUAssign      = 1
+	OpCPUAddAssign   = 1
+	OpCPUSubAssign   = 1
+	OpCPUMulAssign   = 1
+	OpCPUQuoAssign   = 1
+	OpCPURemAssign   = 1
+	OpCPUBandAssign  = 1
+	OpCPUBandnAssign = 1
+	OpCPUBorAssign   = 1
+	OpCPUXorAssign   = 1
+	OpCPUShlAssign   = 1
+	OpCPUShrAssign   = 1
+	OpCPUDefine      = 1
+	OpCPUInc         = 1
+	OpCPUDec         = 1
+
+	/* Decl operators */
+	OpCPUValueDecl = 1
+	OpCPUTypeDecl  = 1
+
+	/* Loop (sticky) operators (>= 0xD0) */
+	OpCPUSticky            = 1
+	OpCPUBody              = 1
+	OpCPUForLoop           = 1
+	OpCPURangeIter         = 1
+	OpCPURangeIterString   = 1
+	OpCPURangeIterMap      = 1
+	OpCPURangeIterArrayPtr = 1
+	OpCPUReturnCallDefers  = 1
+)
+
+//----------------------------------------
 // main run loop.
 
 func (m *Machine) Run() {
@@ -821,216 +958,321 @@ func (m *Machine) Run() {
 		switch op {
 		/* Control operators */
 		case OpHalt:
+			m.incrCPU(OpCPUHalt)
 			return
 		case OpNoop:
+			m.incrCPU(OpCPUNoop)
 			continue
 		case OpExec:
+			m.incrCPU(OpCPUExec)
 			m.doOpExec(op)
 		case OpPrecall:
+			m.incrCPU(OpCPUPrecall)
 			m.doOpPrecall()
 		case OpCall:
+			m.incrCPU(OpCPUCall)
 			m.doOpCall()
 		case OpCallNativeBody:
+			m.incrCPU(OpCPUCallNativeBody)
 			m.doOpCallNativeBody()
 		case OpReturn:
+			m.incrCPU(OpCPUReturn)
 			m.doOpReturn()
 		case OpReturnFromBlock:
+			m.incrCPU(OpCPUReturnFromBlock)
 			m.doOpReturnFromBlock()
 		case OpReturnToBlock:
+			m.incrCPU(OpCPUReturnToBlock)
 			m.doOpReturnToBlock()
 		case OpDefer:
+			m.incrCPU(OpCPUDefer)
 			m.doOpDefer()
 		case OpPanic1:
+			m.incrCPU(OpCPUPanic1)
 			m.doOpPanic1()
 		case OpPanic2:
+			m.incrCPU(OpCPUPanic2)
 			m.doOpPanic2()
 		case OpCallDeferNativeBody:
+			m.incrCPU(OpCPUCallDeferNativeBody)
 			m.doOpCallDeferNativeBody()
 		case OpGo:
+			m.incrCPU(OpCPUGo)
 			panic("not yet implemented")
 		case OpSelect:
+			m.incrCPU(OpCPUSelect)
 			panic("not yet implemented")
 		case OpSwitchClause:
+			m.incrCPU(OpCPUSwitchClause)
 			m.doOpSwitchClause()
 		case OpSwitchClauseCase:
+			m.incrCPU(OpCPUSwitchClauseCase)
 			m.doOpSwitchClauseCase()
 		case OpTypeSwitch:
+			m.incrCPU(OpCPUTypeSwitch)
 			m.doOpTypeSwitch()
 		case OpIfCond:
+			m.incrCPU(OpCPUIfCond)
 			m.doOpIfCond()
 		case OpPopValue:
+			m.incrCPU(OpCPUPopValue)
 			m.PopValue()
 		case OpPopResults:
+			m.incrCPU(OpCPUPopResults)
 			m.PopResults()
 		case OpPopBlock:
+			m.incrCPU(OpCPUPopBlock)
 			m.PopBlock()
 		case OpPopFrameAndReset:
+			m.incrCPU(OpCPUPopFrameAndReset)
 			m.PopFrameAndReset()
 		/* Unary operators */
 		case OpUpos:
+			m.incrCPU(OpCPUUpos)
 			m.doOpUpos()
 		case OpUneg:
+			m.incrCPU(OpCPUUneg)
 			m.doOpUneg()
 		case OpUnot:
+			m.incrCPU(OpCPUUnot)
 			m.doOpUnot()
 		case OpUxor:
+			m.incrCPU(OpCPUUxor)
 			m.doOpUxor()
 		case OpUrecv:
+			m.incrCPU(OpCPUUrecv)
 			m.doOpUrecv()
 		/* Binary operators */
 		case OpLor:
+			m.incrCPU(OpCPULor)
 			m.doOpLor()
 		case OpLand:
+			m.incrCPU(OpCPULand)
 			m.doOpLand()
 		case OpEql:
+			m.incrCPU(OpCPUEql)
 			m.doOpEql()
 		case OpNeq:
+			m.incrCPU(OpCPUNeq)
 			m.doOpNeq()
 		case OpLss:
+			m.incrCPU(OpCPULss)
 			m.doOpLss()
 		case OpLeq:
+			m.incrCPU(OpCPULeq)
 			m.doOpLeq()
 		case OpGtr:
+			m.incrCPU(OpCPUGtr)
 			m.doOpGtr()
 		case OpGeq:
+			m.incrCPU(OpCPUGeq)
 			m.doOpGeq()
 		case OpAdd:
+			m.incrCPU(OpCPUAdd)
 			m.doOpAdd()
 		case OpSub:
+			m.incrCPU(OpCPUSub)
 			m.doOpSub()
 		case OpBor:
+			m.incrCPU(OpCPUBor)
 			m.doOpBor()
 		case OpXor:
+			m.incrCPU(OpCPUXor)
 			m.doOpXor()
 		case OpMul:
+			m.incrCPU(OpCPUMul)
 			m.doOpMul()
 		case OpQuo:
+			m.incrCPU(OpCPUQuo)
 			m.doOpQuo()
 		case OpRem:
+			m.incrCPU(OpCPURem)
 			m.doOpRem()
 		case OpShl:
+			m.incrCPU(OpCPUShl)
 			m.doOpShl()
 		case OpShr:
+			m.incrCPU(OpCPUShr)
 			m.doOpShr()
 		case OpBand:
+			m.incrCPU(OpCPUBand)
 			m.doOpBand()
 		case OpBandn:
+			m.incrCPU(OpCPUBandn)
 			m.doOpBandn()
 		/* Expression operators */
 		case OpEval:
+			m.incrCPU(OpCPUEval)
 			m.doOpEval()
 		case OpBinary1:
+			m.incrCPU(OpCPUBinary1)
 			m.doOpBinary1()
 		case OpIndex1:
+			m.incrCPU(OpCPUIndex1)
 			m.doOpIndex1()
 		case OpIndex2:
+			m.incrCPU(OpCPUIndex2)
 			m.doOpIndex2()
 		case OpSelector:
+			m.incrCPU(OpCPUSelector)
 			m.doOpSelector()
 		case OpSlice:
+			m.incrCPU(OpCPUSlice)
 			m.doOpSlice()
 		case OpStar:
+			m.incrCPU(OpCPUStar)
 			m.doOpStar()
 		case OpRef:
+			m.incrCPU(OpCPURef)
 			m.doOpRef()
 		case OpTypeAssert1:
+			m.incrCPU(OpCPUTypeAssert1)
 			m.doOpTypeAssert1()
 		case OpTypeAssert2:
+			m.incrCPU(OpCPUTypeAssert2)
 			m.doOpTypeAssert2()
 		case OpStaticTypeOf:
+			m.incrCPU(OpCPUStaticTypeOf)
 			m.doOpStaticTypeOf()
 		case OpCompositeLit:
+			m.incrCPU(OpCPUCompositeLit)
 			m.doOpCompositeLit()
 		case OpArrayLit:
+			m.incrCPU(OpCPUArrayLit)
 			m.doOpArrayLit()
 		case OpSliceLit:
+			m.incrCPU(OpCPUSliceLit)
 			m.doOpSliceLit()
 		case OpSliceLit2:
+			m.incrCPU(OpCPUSliceLit2)
 			m.doOpSliceLit2()
 		case OpFuncLit:
+			m.incrCPU(OpCPUFuncLit)
 			m.doOpFuncLit()
 		case OpMapLit:
+			m.incrCPU(OpCPUMapLit)
 			m.doOpMapLit()
 		case OpStructLit:
+			m.incrCPU(OpCPUStructLit)
 			m.doOpStructLit()
 		case OpConvert:
+			m.incrCPU(OpCPUConvert)
 			m.doOpConvert()
 		/* GoNative Operators */
 		case OpArrayLitGoNative:
+			m.incrCPU(OpCPUArrayLitGoNative)
 			m.doOpArrayLitGoNative()
 		case OpSliceLitGoNative:
+			m.incrCPU(OpCPUSliceLitGoNative)
 			m.doOpSliceLitGoNative()
 		case OpStructLitGoNative:
+			m.incrCPU(OpCPUStructLitGoNative)
 			m.doOpStructLitGoNative()
 		case OpCallGoNative:
+			m.incrCPU(OpCPUCallGoNative)
 			m.doOpCallGoNative()
 		/* Type operators */
 		case OpFieldType:
+			m.incrCPU(OpCPUFieldType)
 			m.doOpFieldType()
 		case OpArrayType:
+			m.incrCPU(OpCPUArrayType)
 			m.doOpArrayType()
 		case OpSliceType:
+			m.incrCPU(OpCPUSliceType)
 			m.doOpSliceType()
 		case OpChanType:
+			m.incrCPU(OpCPUChanType)
 			m.doOpChanType()
 		case OpFuncType:
+			m.incrCPU(OpCPUFuncType)
 			m.doOpFuncType()
 		case OpMapType:
+			m.incrCPU(OpCPUMapType)
 			m.doOpMapType()
 		case OpStructType:
+			m.incrCPU(OpCPUStructType)
 			m.doOpStructType()
 		case OpInterfaceType:
+			m.incrCPU(OpCPUInterfaceType)
 			m.doOpInterfaceType()
 		case OpMaybeNativeType:
+			m.incrCPU(OpCPUMaybeNativeType)
 			m.doOpMaybeNativeType()
 		/* Statement operators */
 		case OpAssign:
+			m.incrCPU(OpCPUAssign)
 			m.doOpAssign()
 		case OpAddAssign:
+			m.incrCPU(OpCPUAddAssign)
 			m.doOpAddAssign()
 		case OpSubAssign:
+			m.incrCPU(OpCPUSubAssign)
 			m.doOpSubAssign()
 		case OpMulAssign:
+			m.incrCPU(OpCPUMulAssign)
 			m.doOpMulAssign()
 		case OpQuoAssign:
+			m.incrCPU(OpCPUQuoAssign)
 			m.doOpQuoAssign()
 		case OpRemAssign:
+			m.incrCPU(OpCPURemAssign)
 			m.doOpRemAssign()
 		case OpBandAssign:
+			m.incrCPU(OpCPUBandAssign)
 			m.doOpBandAssign()
 		case OpBandnAssign:
+			m.incrCPU(OpCPUBandnAssign)
 			m.doOpBandnAssign()
 		case OpBorAssign:
+			m.incrCPU(OpCPUBorAssign)
 			m.doOpBorAssign()
 		case OpXorAssign:
+			m.incrCPU(OpCPUXorAssign)
 			m.doOpXorAssign()
 		case OpShlAssign:
+			m.incrCPU(OpCPUShlAssign)
 			m.doOpShlAssign()
 		case OpShrAssign:
+			m.incrCPU(OpCPUShrAssign)
 			m.doOpShrAssign()
 		case OpDefine:
+			m.incrCPU(OpCPUDefine)
 			m.doOpDefine()
 		case OpInc:
+			m.incrCPU(OpCPUInc)
 			m.doOpInc()
 		case OpDec:
+			m.incrCPU(OpCPUDec)
 			m.doOpDec()
 		/* Decl operators */
 		case OpValueDecl:
+			m.incrCPU(OpCPUValueDecl)
 			m.doOpValueDecl()
 		case OpTypeDecl:
+			m.incrCPU(OpCPUTypeDecl)
 			m.doOpTypeDecl()
 		/* Loop (sticky) operators */
 		case OpBody:
+			m.incrCPU(OpCPUBody)
 			m.doOpExec(op)
 		case OpForLoop:
+			m.incrCPU(OpCPUForLoop)
 			m.doOpExec(op)
-		case OpRangeIter, OpRangeIterArrayPtr:
+		case OpRangeIter:
+			m.incrCPU(OpCPURangeIter)
+			m.doOpExec(op)
+		case OpRangeIterArrayPtr:
+			m.incrCPU(OpCPURangeIterArrayPtr)
 			m.doOpExec(op)
 		case OpRangeIterString:
+			m.incrCPU(OpCPURangeIterString)
 			m.doOpExec(op)
 		case OpRangeIterMap:
+			m.incrCPU(OpCPURangeIterMap)
 			m.doOpExec(op)
 		case OpReturnCallDefers:
+			m.incrCPU(OpCPUReturnCallDefers)
 			m.doOpReturnCallDefers()
 		default:
 			panic(fmt.Sprintf("unexpected opcode %s", op.String()))
@@ -1673,6 +1915,7 @@ func (m *Machine) String() string {
 }
 
 //----------------------------------------
+// utility
 
 func hasName(n Name, ns []Name) bool {
 	for _, n2 := range ns {
