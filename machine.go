@@ -66,8 +66,9 @@ type MachineOptions struct {
 	Output        io.Writer
 	Store         Store
 	Context       interface{}
-	MaxAllocBytes int64 // or 0 for no limit.
-	MaxCycles     int64 // or 0 for no limit.
+	Alloc         *Allocator // or see MaxAllocBytes.
+	MaxAllocBytes int64      // or 0 for no limit.
+	MaxCycles     int64      // or 0 for no limit.
 }
 
 func NewMachineWithOptions(opts MachineOptions) *Machine {
@@ -78,7 +79,10 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	if output == nil {
 		output = os.Stdout
 	}
-	alloc := NewAllocator(opts.MaxAllocBytes)
+	alloc := opts.Alloc
+	if alloc == nil {
+		alloc = NewAllocator(opts.MaxAllocBytes)
+	}
 	store := opts.Store
 	if store == nil {
 		// bare store, no stdlibs.

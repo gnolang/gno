@@ -85,6 +85,7 @@ const (
 	QueryPackage = "package"
 	QueryStore   = "store"
 	QueryRender  = "qrender"
+	QueryEval    = "qeval"
 	QueryFile    = "qfile"
 )
 
@@ -96,6 +97,8 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 		return vh.queryStore(ctx, req)
 	case QueryRender:
 		return vh.queryRender(ctx, req)
+	case QueryEval:
+		return vh.queryEval(ctx, req)
 	case QueryFile:
 		return vh.queryFile(ctx, req)
 	default:
@@ -130,6 +133,24 @@ func (vh vmHandler) queryRender(ctx sdk.Context, req abci.RequestQuery) (res abc
 	path := reqParts[1]
 	expr := fmt.Sprintf("Render(%q)", path)
 	result, err := vh.vm.QueryEvalString(ctx, pkgPath, expr)
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	res.Data = []byte(result)
+	return
+}
+
+// queryEval evaluates any expression in readonly mode and returns the results.
+func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	reqData := string(req.Data)
+	reqParts := strings.Split(reqData, "\n")
+	if len(reqParts) != 2 {
+		panic("expected two lines in query input data")
+	}
+	pkgPath := reqParts[0]
+	expr := reqParts[1]
+	result, err := vh.vm.QueryEval(ctx, pkgPath, expr)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
 		return

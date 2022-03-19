@@ -37,6 +37,7 @@ type Store interface {
 	GetBlockNodeSafe(Location) BlockNode
 	SetBlockNode(BlockNode)
 	// UNSTABLE
+	GetAllocator() *Allocator
 	NumMemPackages() int64
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
@@ -84,6 +85,10 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 	}
 	InitStoreCaches(ds)
 	return ds
+}
+
+func (ds *defaultStore) GetAllocator() *Allocator {
+	return ds.alloc
 }
 
 func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {

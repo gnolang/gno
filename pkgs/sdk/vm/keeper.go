@@ -53,9 +53,11 @@ func NewVMKeeper(baseKey store.StoreKey, iavlKey store.StoreKey, acck auth.Accou
 func (vmk *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 	// construct main gnoStore if nil.
 	if vmk.gnoStore == nil {
+		const maxAllocBytes = 500 * 1000 * 1000
+		alloc := gno.NewAllocator(maxAllocBytes)
 		baseSDKStore := ctx.Store(vmk.baseKey)
 		iavlSDKStore := ctx.Store(vmk.iavlKey)
-		vmk.gnoStore = gno.NewStore(baseSDKStore, iavlSDKStore)
+		vmk.gnoStore = gno.NewStore(alloc, baseSDKStore, iavlSDKStore)
 		vmk.initBuiltinPackages(vmk.gnoStore)
 		if vmk.gnoStore.NumMemPackages() > 0 {
 			// for now, all mem packages must be re-run after reboot.
@@ -133,11 +135,14 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	// Parse and run the files, construct *PV.
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath: "",
-			Output:  os.Stdout, // XXX
-			Store:   store,
+			PkgPath:   "",
+			Output:    os.Stdout, // XXX
+			Store:     store,
+			Alloc:     store.GetAllocator(),
+			MaxCycles: 10 * 1000 * 1000, // 10M cycles // XXX
 		})
 	m2.RunMemPackage(memPkg, true)
+	fmt.Println("CPUCYCLES addpkg", m2.Cycles)
 	return nil
 }
 
@@ -202,13 +207,16 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// Construct machine and evaluate.
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath: "",
-			Output:  os.Stdout, // XXX
-			Store:   store,
-			Context: msgCtx,
+			PkgPath:   "",
+			Output:    os.Stdout, // XXX
+			Store:     store,
+			Context:   msgCtx,
+			Alloc:     store.GetAllocator(),
+			MaxCycles: 10 * 1000 * 1000, // 10M cycles // XXX
 		})
 	m.SetActivePackage(mpv)
 	rtvs := m.Eval(xn)
+	fmt.Println("CPUCYCLES call", m.Cycles)
 	for i, rtv := range rtvs {
 		res = res + rtv.String()
 		if i < len(rtvs)-1 {
@@ -217,6 +225,55 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	}
 	return res, nil
 	// TODO pay for gas? TODO see context?
+}
+
+// QueryEval evaluates a gno expression (readonly, for ABCI queries).
+// TODO: modify query protocol to allow MsgEval.
+// TODO: then, rename to "Eval".
+func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
+	store := vm.getGnoStore(ctx)
+	// Get Package.
+	pv := store.GetPackage(pkgPath, false)
+	if pv == nil {
+		err = ErrInvalidPkgPath(fmt.Sprintf(
+			"package not found: %s", pkgPath))
+		return "", err
+	}
+	// Parse expression.
+	xx, err := gno.ParseExpr(expr)
+	if err != nil {
+		return "", err
+	}
+	// Construct new machine.
+	msgCtx := stdlibs.ExecContext{
+		ChainID:   ctx.ChainID(),
+		Height:    ctx.BlockHeight(),
+		Timestamp: ctx.BlockTime().Unix(),
+		//Msg:         msg,
+		//Caller:      caller,
+		//TxSend:      send,
+		//TxSendSpent: nil,
+		//PkgAddr:     pkgAddr,
+		//Banker:      nil,
+	}
+	m := gno.NewMachineWithOptions(
+		gno.MachineOptions{
+			PkgPath:   pkgPath,
+			Output:    os.Stdout, // XXX
+			Store:     store,
+			Context:   msgCtx,
+			Alloc:     store.GetAllocator(),
+			MaxCycles: 10 * 1000 * 1000, // 10M cycles // XXX
+		})
+	rtvs := m.Eval(xx)
+	res = ""
+	for i, rtv := range rtvs {
+		res += rtv.String()
+		if i < len(rtvs)-1 {
+			res += "\n"
+		}
+	}
+	return res, nil
 }
 
 // QueryEvalString evaluates a gno expression (readonly, for ABCI queries).
@@ -251,10 +308,12 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath: pkgPath,
-			Output:  os.Stdout, // XXX
-			Store:   store,
-			Context: msgCtx,
+			PkgPath:   pkgPath,
+			Output:    os.Stdout, // XXX
+			Store:     store,
+			Context:   msgCtx,
+			Alloc:     store.GetAllocator(),
+			MaxCycles: 10 * 1000 * 1000, // 10M cycles // XXX
 		})
 	rtvs := m.Eval(xx)
 	if len(rtvs) != 1 {

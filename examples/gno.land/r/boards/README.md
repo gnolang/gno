@@ -78,8 +78,8 @@ GetBoardIDFromName(\"gnolang\")"
 ## render page with ABCI query (evalquery).
 
 ```bash
-./build/gnokey query "vm/qeval" --data "gno.land/r/boards
-Render(\"gnolang\")"
+./build/gnokey query "vm/qrender" --data "gno.land/r/boards
+gnolang"
 ```
 
 ## add a comment to a post.
@@ -91,6 +91,6 @@ Render(\"gnolang\")"
 ```
 
 ```bash
-./build/gnokey query "vm/qeval" --data "gno.land/r/boards
-Render(\"gnolang/1\")"
+./build/gnokey query "vm/qrender" --data "gno.land/r/boards
+gnolang/1"
 ```
