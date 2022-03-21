@@ -227,6 +227,66 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// TODO pay for gas? TODO see context?
 }
 
+// QueryFuncs returns public facing function signatures.
+func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionSignatures, err error) {
+	store := vm.getGnoStore(ctx)
+	// Ensure pkgPath is realm.
+	if !gno.IsRealmPath(pkgPath) {
+		err = ErrInvalidPkgPath(fmt.Sprintf(
+			"package is not realm: %s", pkgPath))
+		return nil, err
+	}
+	// Get Package.
+	pv := store.GetPackage(pkgPath, false)
+	if pv == nil {
+		err = ErrInvalidPkgPath(fmt.Sprintf(
+			"package not found: %s", pkgPath))
+		return nil, err
+	}
+	// Iterate over public functions.
+	pblock := pv.GetBlock(store)
+	for _, tv := range pblock.Values {
+		if tv.T.Kind() != gno.FuncKind {
+			continue // must be function
+		}
+		fv := tv.GetFunc()
+		if fv.IsMethod {
+			continue // cannot be method
+		}
+		fname := string(fv.Name)
+		first := fname[0:1]
+		if strings.ToUpper(first) != first {
+			continue // must be exposed
+		}
+		fsig := FunctionSignature{
+			FuncName: fname,
+		}
+		ft := fv.Type.(*gno.FuncType)
+		for _, param := range ft.Params {
+			pname := string(param.Name)
+			if pname == "" {
+				pname = "_"
+			}
+			ptype := gno.BaseOf(param.Type).String()
+			fsig.Params = append(fsig.Params,
+				NamedType{Name: pname, Type: ptype},
+			)
+		}
+		for _, result := range ft.Results {
+			rname := string(result.Name)
+			if rname == "" {
+				rname = "_"
+			}
+			rtype := gno.BaseOf(result.Type).String()
+			fsig.Results = append(fsig.Results,
+				NamedType{Name: rname, Type: rtype},
+			)
+		}
+		fsigs = append(fsigs, fsig)
+	}
+	return fsigs, nil
+}
+
 // QueryEval evaluates a gno expression (readonly, for ABCI queries).
 // TODO: modify query protocol to allow MsgEval.
 // TODO: then, rename to "Eval".

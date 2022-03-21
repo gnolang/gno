@@ -221,7 +221,7 @@ func (board *Board) Render() string {
 	if board.id == 0 {
 		str += "### (private) " + board.name + " ###\n\n"
 	} else {
-		str += "### " + board.name + " ###\n\n"
+		str += "### r/boards/" + board.name + " ###\n\n"
 	}
 	if board.posts.Size() > 0 {
 		board.posts.Iterate("", "", func(n *avl.Tree) bool {

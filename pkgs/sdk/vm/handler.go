@@ -85,6 +85,7 @@ const (
 	QueryPackage = "package"
 	QueryStore   = "store"
 	QueryRender  = "qrender"
+	QueryFuncs   = "qfuncs"
 	QueryEval    = "qeval"
 	QueryFile    = "qfile"
 )
@@ -97,6 +98,8 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 		return vh.queryStore(ctx, req)
 	case QueryRender:
 		return vh.queryRender(ctx, req)
+	case QueryFuncs:
+		return vh.queryFuncs(ctx, req)
 	case QueryEval:
 		return vh.queryEval(ctx, req)
 	case QueryFile:
@@ -138,6 +141,23 @@ func (vh vmHandler) queryRender(ctx sdk.Context, req abci.RequestQuery) (res abc
 		return
 	}
 	res.Data = []byte(result)
+	return
+}
+
+// queryFuncs returns public facing function signatures as JSON.
+func (vh vmHandler) queryFuncs(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	reqData := string(req.Data)
+	reqParts := strings.Split(reqData, "\n")
+	if len(reqParts) != 1 {
+		panic("expected one line in query input data")
+	}
+	pkgPath := reqParts[0]
+	fsigs, err := vh.vm.QueryFuncs(ctx, pkgPath)
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	res.Data = []byte(fsigs.JSON())
 	return
 }
 

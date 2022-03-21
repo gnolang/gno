@@ -1,0 +1,85 @@
+{{- define "app" -}}
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="/static/css/app.css"/>
+        <script src="/static/js/umbrella.min.js"></script>
+        <script src="/static/js/marked.min.js"></script>
+        <script src="/static/js/funcs.js"></script>
+    </head>
+    <body onload="main()">
+        <div id="data" data-realm-path="{{ .Data.RealmPath }}"/>
+        <div id="header">
+            <a id="logo" href="/">GNO.LAND</a>
+            <div id="header_buttons">
+                <a href="https://github.com/gnolang/gno"><img src="/static/img/github-mark-32px.png" alt="Github"/></a>
+            </div>
+        </div>
+        <div id="contents">{{ template "func_specs" .Data.FunctionSignatures}}</div>
+    </body>
+</html>
+{{- end -}}
+
+{{ define "func_specs" }}
+<div class="func_specs">
+    {{ range . }}{{ template "func_spec" . }}{{ end }}
+</div>
+{{ end }}
+
+{{ define "func_spec" }}
+<div class="func_spec" data-func-name="{{ .FuncName }}">
+<table>
+    <tr class="func_name">
+        <th>contract</th>
+        <td>{{ .FuncName }}(...)</td>
+    </tr>
+    <tr class="func_params">
+        <th>params</th>
+        <td>
+            <table>
+                {{ range .Params }}{{ template "func_param" . }}{{ end }}
+            </table>
+        </td>
+    </tr>
+    <tr class="func_results">
+        <th>results</th>
+        <td>
+            <table>
+                {{ range .Results }}{{ template "func_result" . }}{{ end }}
+            </table>
+        </td>
+    </tr>
+    <tr class="command">
+        <th>command</th>
+        <td>
+            <div class="shell_command"/>
+        </td>
+    </tr>
+</table>
+</div>
+{{ end }}
+
+{{ define "func_param" }}
+<tr>
+    <th class="func_param_name">
+        {{ .Name }}
+    </th>
+    <td class="func_param_value">
+        <input type="text" />
+    </td>
+    <td class="func_param_type">
+        {{ .Type }}
+    </td>
+</tr>
+{{ end }}
+
+{{ define "func_result" }}
+<tr>
+    <th class="func_result_name">
+        {{ .Name }}
+    </th>
+    <td class="func_result_type">
+        {{ .Type }}
+    </td>
+</tr>
+{{ end }}
