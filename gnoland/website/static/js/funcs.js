@@ -18,6 +18,7 @@ function updateCommand(x) {
 		vals.push(input.value);
 	});
 	var shell = x.find(".shell_command");
+	shell.empty();
 
 	// command 1: construct tx.
 	var args = ["gnokey", "maketx", "call", "<KEYNAME>", 
