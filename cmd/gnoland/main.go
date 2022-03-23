@@ -119,6 +119,14 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 			"g14qekdkj2nmmwea4ufg9n002a3pud23y8k7ugs5=10000gnot", // @dylanschultzie #41
 			"g19w2488ntfgpduzqq3sk4j5x387zynwknqdvjqf=10000gnot", // @nullnames #40
 			"g1495y3z7zrej4rendysnw5kaeu4g3d7x7w0734g=10000gnot", // @dimasik #85
+			"g1hygx8ga9qakhkczyrzs9drm8j8tu4qds9y5e3r=10000gnot", // @zoynitskiy #94
+			"g1f977l6wxdh3qu60kzl75vx2wmzswu68l03r8su=10000gnot", // @catShaark #92
+			"g1644qje5rx6jsdqfkzmgnfcegx4dxkjh6rwqd69=10000gnot", // @MadafakAvril14th #91
+			"g1mzjajymvmtksdwh3wkrndwj6zls2awl9q83dh6=10000gnot", // @Vanlee #89
+			// NOTE: Thanks guys, no more keys through genesis this way though:
+			// going forward we will have an ATOM-fee based faucet so anyone can get
+			// faucet tokens by making a spam-prevention transaction.
+			// TODO: make it a bounty item.
 		},
 	}
 	return gen
