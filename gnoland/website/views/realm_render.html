@@ -14,7 +14,9 @@
         </span>
         {{ template "header_buttons" }}
 	</div>
-        <div id="contents">{{ .Data.Contents }}</div>
+    <div id="realm_render">
+        {{ .Data.Contents }}
+    </div>
     </body>
 </html>
 {{- end -}}

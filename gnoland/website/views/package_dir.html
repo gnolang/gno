@@ -12,7 +12,9 @@
             </span>
             {{ template "header_buttons" }}
         </div>
-        <div id="contents">{{ template "dir_contents" . }}</div>
+        <div id="packge_dir">
+            {{ template "dir_contents" . }}
+        </div>
     </body>
 </html>
 {{- end -}}

@@ -8,11 +8,11 @@
         <div id="header">
             <a id="logo" href="/">GNO.LAND</a>
             <span id="logo_path">
-                <a href="{{ .Data.DirPath }}">{{ .Data.DirPath }}</a>/*
+                <a href="{{ .Data.DirPath }}/">{{ .Data.DirPath }}/</a>{{ .Data.FileName }}
             </span>
             {{ template "header_buttons" }}
         </div>
-        <div id="contents">
+        <div id="package_file">
             <pre>{{ .Data.FileContents }}</pre>
         </div>
     </body>

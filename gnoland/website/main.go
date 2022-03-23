@@ -71,12 +71,14 @@ func handlerRealmMain(app gotuna.App) http.Handler {
 			amino.MustUnmarshalJSON(res, &fsigs)
 			tmpl := app.NewTemplatingEngine()
 			tmpl.Set("RealmPath", rlmpath)
+			tmpl.Set("DirPath", pathOf(rlmpath))
 			tmpl.Set("FunctionSignatures", fsigs)
 			tmpl.Render(w, r, "realm_funcs.html", "header.html")
 		} else {
 			// Render main template.
 			tmpl := app.NewTemplatingEngine()
 			tmpl.Set("RealmPath", rlmpath)
+			tmpl.Set("DirPath", pathOf(rlmpath))
 			tmpl.Render(w, r, "realm_main.html", "header.html")
 		}
 	})

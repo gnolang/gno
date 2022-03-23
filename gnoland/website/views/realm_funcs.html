@@ -11,12 +11,18 @@
         <div id="data" data-realm-path="{{ .Data.RealmPath }}"/>
         <div id="header">
             <a id="logo" href="/">GNO.LAND</a>
+            <span id="logo_path">
+                <a href="{{ .Data.DirPath }}">{{ .Data.DirPath }}</a>?funcs
+            </span>
             {{ template "header_buttons" }}
         </div>
-        <div class="realm_info">
-            <h2>Contracts for {{ .Data.RealmPath }}</h2>
+        <div id="realm_funcs">
+            <br/>
+            These are the realm's exposed functions.
+            <br />
+            <br />
+            {{ template "func_specs" .Data.FunctionSignatures}}
         </div>
-        <div id="contents">{{ template "func_specs" .Data.FunctionSignatures}}</div>
     </body>
 </html>
 {{- end -}}

@@ -3,6 +3,15 @@ body {
 	font-family: "Lucida Console", "Monaco", monospace;
 }
 
+a {
+	color: #25172a;
+}
+
+input {
+	background-color: #EEE;
+	border: 1px solid #CCC;
+}
+
 blockquote {
 	padding: 0.5em 0 0.5em 1em;
 	background-color: #DDD;
@@ -25,8 +34,6 @@ blockquote {
 }
 
 #logo_path a {
-	/* color: black; */
-	color: #25172a;
 	text-decoration: none;
 }
 
@@ -44,8 +51,6 @@ blockquote {
 /* package_dir.html */
 
 .dir_entry a {
-	/* color: black; */
-	color: #25172a;
 	text-decoration: none;
 }
 
