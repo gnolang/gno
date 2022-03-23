@@ -20,6 +20,30 @@ simulated by the Gnomes of the Greater Resistance.
  
 ## Status
 
+_Pinned/Sticky Update_
+
+The best way to test the functionality of gnolang is to run the tests,
+or to run the steps laid out in /examples/gno.land/r/boards/README.md.
+To run a smart contract locally, copy one of the test files in
+/tests/files2/zrealm_\*.go into one of your own.
+
+You can run these tests by running:
+`go test tests/*.go -v -run "TestFiles2/zrealm"`.
+
+_Update Mar 23rd, 2022: CPU and memory allocation limitations_
+
+Completed a simple implementation of CPU and memory allocation limitations.
+The deduction of allocation units from garbage-collected allocated
+and structures does not occur until the end of the transaction.
+
+NOTE: This means memory usage will more inefficient for functions that rely on
+the garbage collection for memory reclaimation.  In the future, a finer scoped
+ability to account for garbage collection between functions will be
+implemented.
+
+NOTE: CPU counting and some memory allocation values are placeholders, and need
+to be determined through empirical measurements.
+
 _Update Aug 26th, 2021: SDK/store,baseapp ported; Plan updated_
 
 Cosmos-SDK's store and baseapp modules have been ported.
