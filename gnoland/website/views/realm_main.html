@@ -1,0 +1,19 @@
+{{- define "app" -}}
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="/static/css/app.css"/>
+        <script src="/static/js/marked.min.js"></script>
+        <script src="/static/js/app.js"></script>
+    </head>
+    <body onload="main()">
+	<div id="header">
+	    <a id="logo" href="/">GNO.LAND</a>
+	    <div id="header_buttons">
+	        <a href="https://github.com/gnolang/gno"><img src="/static/img/github-mark-32px.png" alt="Github"/></a>
+	    </div>
+	</div>
+        <div id="">Main for {{ .Data.RealmPath }}</div>
+    </body>
+</html>
+{{- end -}}

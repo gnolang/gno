@@ -9,9 +9,10 @@
     <body onload="main()">
 	<div id="header">
 	    <a id="logo" href="/">GNO.LAND</a>
-	    <div id="header_buttons">
-	        <a href="https://github.com/gnolang/gno"><img src="/static/img/github-mark-32px.png" alt="Github"/></a>
-	    </div>
+        <span id="logo_path">
+            <a href="{{ .Data.DirPath }}">/r/{{ .Data.RealmName }}</a>:{{ .Data.Query }}
+        </span>
+        {{ template "header_buttons" }}
 	</div>
         <div id="contents">{{ .Data.Contents }}</div>
     </body>

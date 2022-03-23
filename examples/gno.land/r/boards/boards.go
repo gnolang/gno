@@ -218,14 +218,11 @@ func (board *Board) AddPost(creator std.Address, title string, body string) *Pos
 // but not for prod.
 func (board *Board) Render() string {
 	str := ""
-	if board.id == 0 {
-		str += "### (private) " + board.name + " ###\n\n"
-	} else {
-		str += "### r/boards/" + board.name + " ###\n\n"
-	}
 	if board.posts.Size() > 0 {
 		board.posts.Iterate("", "", func(n *avl.Tree) bool {
-			str += "----------------------------------------\n"
+			if str != "" {
+				str += "----------------------------------------\n"
+			}
 			str += n.Value().(*Post).RenderSummary()
 			return false
 		})

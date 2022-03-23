@@ -20,6 +20,20 @@ blockquote {
 	text-decoration: none;
 }
 
+#logo_path {
+	font-size: 24px;
+}
+
+#logo_path a {
+	/* color: black; */
+	color: #25172a;
+	text-decoration: none;
+}
+
+#logo_path a:hover {
+	text-decoration: underline;
+}
+
 #header_buttons {
 	float: right;
 	position: relative;
@@ -27,7 +41,20 @@ blockquote {
 }
 
 /*****************************************/
-/* funcs.tmpl */
+/* package_dir.html */
+
+.dir_entry a {
+	/* color: black; */
+	color: #25172a;
+	text-decoration: none;
+}
+
+.dir_entry a:hover {
+	text-decoration: underline;
+}
+
+/*****************************************/
+/* realm_funcs.html */
 
 div.func_spec > table {
 	background-color: #EEE3DE;

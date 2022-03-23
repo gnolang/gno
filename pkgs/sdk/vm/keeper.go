@@ -3,7 +3,6 @@ package vm
 import (
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
 
 	"github.com/gnolang/gno"
@@ -119,7 +118,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	if creatorAcc == nil {
 		return std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist", creator))
 	}
-	if err := validateNewPkgPath(pkgPath); err != nil {
+	if err := msg.Package.Validate(); err != nil {
 		return ErrInvalidPkgPath(err.Error())
 	}
 	if pv := store.GetPackage(pkgPath, false); pv != nil {
@@ -387,7 +386,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 
 func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err error) {
 	store := vm.getGnoStore(ctx)
-	dirpath, filename := splitFilepath(filepath)
+	dirpath, filename := std.SplitFilepath(filepath)
 	if filename != "" {
 		memFile := store.GetMemFile(dirpath, filename)
 		return memFile.Body, nil
@@ -403,46 +402,10 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 	}
 }
 
-func splitFilepath(filepath string) (dirpath string, filename string) {
-	parts := strings.Split(filepath, "/")
-	if len(parts) == 1 {
-		return parts[0], ""
-	}
-	last := parts[len(parts)-1]
-	if strings.Contains(last, ".") {
-		return strings.Join(parts[:len(parts)-1], "/"), last
-	} else {
-		return filepath, ""
-	}
-}
-
 //----------------------------------------
 
 // For keeping record of package & realm coins.
 func DerivePkgAddr(pkgPath string) crypto.Address {
 	// NOTE: must not collide with pubkey addrs.
 	return crypto.AddressFromPreimage([]byte("pkgPath:" + pkgPath))
-}
-
-//----------------------------------------
-// validation.
-
-// TODO: consider length restrictions.
-func validateNewPkgPath(path string) error {
-	if path == "" {
-		return errors.New("missing package path")
-	} else if strings.HasPrefix(path, "gno.land/r/") {
-		if pathOK, err := regexp.MatchString(
-			`^gno.land/r/[a-z][a-z0-9_]+$`, path); !pathOK {
-			return errors.Wrap(err, fmt.Sprintf("cannot create package with invalid path %q", path))
-		}
-	} else if strings.HasPrefix(path, "gno.land/p/") {
-		if pathOK, err := regexp.MatchString(
-			`^gno.land/p/[a-z][a-z0-9_]+(?:/[a-z][a-z0-9_]*)*`, path); !pathOK {
-			return errors.Wrap(err, fmt.Sprintf("cannot create package with invalid path %q", path))
-		}
-	} else {
-		return errors.New(fmt.Sprintf("cannot create package invalid path %q (must start with 'gno.land/r/' or 'gno.land/p/'.", path))
-	}
-	return nil
 }

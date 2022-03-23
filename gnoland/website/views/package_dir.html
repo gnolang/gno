@@ -1,0 +1,31 @@
+{{- define "app" -}}
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="/static/css/app.css"/>
+    </head>
+    <body>
+        <div id="header">
+            <a id="logo" href="/">GNO.LAND</a>
+            <span id="logo_path">
+                <a href="{{ .Data.DirPath }}">{{ .Data.DirPath }}</a>/*
+            </span>
+            {{ template "header_buttons" }}
+        </div>
+        <div id="contents">{{ template "dir_contents" . }}</div>
+    </body>
+</html>
+{{- end -}}
+
+{{ define "dir_contents" }}
+<div class="dir_contents">
+    {{ $dirPath := .Data.DirPath }}
+    <ul>
+        {{ range .Data.Files }}
+        <li class="dir_entry">
+            <a href="{{ $dirPath }}/{{ . }}">{{ . }}</a>
+        </li>
+        {{ end }}
+    </ul>
+</div>
+{{ end }}
