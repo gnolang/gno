@@ -40,7 +40,7 @@ func CreateBoard(name string) BoardID {
 	}
 	bid := incGetBoardID()
 	caller := std.GetCaller()
-	url := "/r/boards/" + name
+	url := "/r/boards:" + name
 	board := newBoard(bid, url, name, caller)
 	bidkey := strconv.Itoa(int(bid))
 	gBoards, _ = gBoards.Set(bidkey, board)

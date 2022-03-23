@@ -36,7 +36,7 @@ const rePkgName = `^[a-z][a-z0-9_]*$`
 const rePkgPath = reDomainPart + `/p/` + rePathPart + `(/` + rePathPart + `)*`
 const reRlmPath = reDomainPart + `/r/` + rePathPart
 const rePkgOrRlmPath = `^(` + rePkgPath + `|` + reRlmPath + `)$`
-const reFileName = `^[a-z0-9_]*\.[a-z0-9_\.]*$`
+const reFileName = `^[a-zA-Z0-9_]*\.[a-z0-9_\.]*$`
 
 // path must not contain any dots after the first domain component.
 // file names must contain dots.
@@ -52,7 +52,7 @@ func (mempkg *MemPackage) Validate() error {
 	}
 	fnames := map[string]struct{}{}
 	for _, memfile := range mempkg.Files {
-		ok, _ := regexp.MatchString(rePkgPath, memfile.Name)
+		ok, _ := regexp.MatchString(reFileName, memfile.Name)
 		if !ok {
 			return errors.New(fmt.Sprintf("invalid file name %q", memfile.Name))
 		}
