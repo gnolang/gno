@@ -5,6 +5,9 @@ The smart contract files that were uploaded to make this
 possible can be found here:
 https://github.com/gnolang/gno/tree/master/examples/gno.land
 
+Where you see `--remote gno.land:36657`, that flag can be removed
+to use the default value of `localhost:26657` for local testnet testing.
+
 ## build and start gnoland.
 
 ```bash
@@ -42,7 +45,7 @@ go run ./gnoland/website/\*.go
 ./build/gnokey maketx addpkg test1 --pkgpath "gno.land/p/avl" --pkgdir "examples/gno.land/p/avl" --deposit 100gnot --gas-fee 1gnot --gas-wanted 2000000 > addpkg.avl.unsigned.txt
 ./build/gnokey query "auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 ./build/gnokey sign test1 --txpath addpkg.avl.unsigned.txt --chainid "testchain" --number 0 --sequence 0 > addpkg.avl.signed.txt
-./build/gnokey broadcast addpkg.avl.signed.txt
+./build/gnokey broadcast addpkg.avl.signed.txt --remote gno.land:36657
 ```
 
 ## sign an addpkg (add "gno.land/r/boards" package) transaction.
@@ -50,7 +53,7 @@ go run ./gnoland/website/\*.go
 ```bash
 ./build/gnokey maketx addpkg test1 --pkgpath "gno.land/r/boards" --pkgdir "examples/gno.land/r/boards" --deposit 100gnot --gas-fee 1gnot --gas-wanted 300000000 > addpkg.boards.unsigned.txt
 ./build/gnokey sign test1 --txpath addpkg.boards.unsigned.txt --chainid "testchain" --number 0 --sequence 1 > addpkg.boards.signed.txt
-./build/gnokey broadcast addpkg.boards.signed.txt
+./build/gnokey broadcast addpkg.boards.signed.txt --remote gno.land:36657
 ```
 
 ## sign a (contract) function call transaction -- create board.
@@ -58,7 +61,7 @@ go run ./gnoland/website/\*.go
 ```bash
 ./build/gnokey maketx call test1 --pkgpath "gno.land/r/boards" --func CreateBoard --args "gnolang" --gas-fee 1gnot --gas-wanted 2000000 > createboard.unsigned.txt
 ./build/gnokey sign test1 --txpath createboard.unsigned.txt --chainid "testchain" --number 0 --sequence 2 > createboard.signed.txt
-./build/gnokey broadcast createboard.signed.txt
+./build/gnokey broadcast createboard.signed.txt --remote gno.land:36657
 ```
 Next, query for the permanent board ID by querying (you need this to create a new post):
 
@@ -72,7 +75,7 @@ GetBoardIDFromName(\"gnolang\")"
 ```bash
 ./build/gnokey maketx call test1 --pkgpath "gno.land/r/boards" --func CreatePost --args 1 --args "Hello World" --args#file "./examples/gno.land/r/boards/README.md" --gas-fee 1gnot --gas-wanted 2000000 > createpost.unsigned.txt
 ./build/gnokey sign test1 --txpath createpost.unsigned.txt --chainid "testchain" --number 0 --sequence 3 > createpost.signed.txt
-./build/gnokey broadcast createpost.signed.txt
+./build/gnokey broadcast createpost.signed.txt --remote gno.land:36657
 ```
 
 ## render page with ABCI query (evalquery).
@@ -87,7 +90,7 @@ gnolang"
 ```bash
 ./build/gnokey maketx call test1 --pkgpath "gno.land/r/boards" --func CreateReply --args 1 --args 1 --args "A comment" --gas-fee 1gnot --gas-wanted 2000000 > createcomment.unsigned.txt
 ./build/gnokey sign test1 --txpath createcomment.unsigned.txt --chainid "testchain" --number 0 --sequence 4 > createcomment.signed.txt
-./build/gnokey broadcast createcomment.signed.txt
+./build/gnokey broadcast createcomment.signed.txt --remote gno.land:36657
 ```
 
 ```bash
