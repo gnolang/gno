@@ -14,13 +14,15 @@
         {{ template "header_buttons" }}
 	</div>
     <div id="realm_render">
-        {{ .Data.Contents }}
+        <pre id="source">
+            {{ .Data.Contents }}
+        </pre>
     </div>
     </body>
     <script type="text/javascript">
 function main() {
 	marked.setOptions({gfm:true});
-	window.contents = document.getElementById("realm_render").innerHTML;
+	window.contents = document.getElementById("source").innerHTML;
 	var doc = new DOMParser().parseFromString(window.contents, "text/html");
 	var contents = doc.documentElement.textContent
 	var parsed = marked.parse(contents);
