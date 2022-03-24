@@ -1,4 +1,4 @@
-all: gnoland gnokey goscan logos
+all: gnoland gnokey goscan logos gnokeybk 
 
 .PHONY: logos goscan gnoland gnokey logos reset test test1 test2 testrealm testrealm1 testrealm2 testpackages testpkgs
 
@@ -18,6 +18,10 @@ gnoland:
 gnokey:
 	echo "Building gnokey"
 	go build -o build/gnokey ./cmd/gnokey
+# Key tool
+gnokeybk:
+	echo "Building gnokeybk"
+	go build -o build/gnokeybk ./cmd/gnokeybk
 
 # goscan scans go code to determine its AST
 goscan:

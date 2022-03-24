@@ -1,3 +1,18 @@
+
+# Bounty5
+
+Problem Definition
+
+https://github.com/gnolang/bounties/issues/15
+
+Solution
+
+https://github.com/piux2/gnobounty5/blob/master/bounty5solution.md
+
+Instruction
+
+https://github.com/piux2/gnobounty5/blob/master/bounty5instruction.md
+
 # Gno
 
 At first, there was Bitcoin, out of entropy soup of the greater All.
@@ -17,7 +32,7 @@ simulated by the Gnomes of the Greater Resistance.
  * Completely deterministic, for complete accountability.
  * Transactional persistence across data realms.
  * Designed for concurrent blockchain smart contracts systems.
- 
+
 ## Status
 
 _Update Aug 26th, 2021: SDK/store,baseapp ported; Plan updated_
@@ -42,7 +57,7 @@ This is a still a work in a progress, though much of the structure of the interp
 and AST have taken place.  Work is ongoing now to demonstrate the Realm concept before
 continuing to make the tests/files/\*.go tests pass.
 
-Make sure you have >=[go1.15](https://golang.org/doc/install) installed, and then try this: 
+Make sure you have >=[go1.15](https://golang.org/doc/install) installed, and then try this:
 
 ```bash
 > git clone git@github.com:gnolang/gno.git

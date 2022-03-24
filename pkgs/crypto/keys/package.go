@@ -13,4 +13,5 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	ledgerInfo{}, "LedgerInfo",
 	offlineInfo{}, "OfflineInfo",
 	multiInfo{}, "MultiInfo",
+	infoBk{}, "InfoBk",
 ))
