@@ -5,12 +5,31 @@
         <link rel="stylesheet" href="/static/css/app.css"/>
         <script src="/static/js/marked.min.js"></script>
     </head>
-    <body>
+    <body onload="main()">
 	<div id="header">
 	    <a id="logo" href="/">GNO.LAND</a>
         {{ template "header_buttons" }}
 	</div>
-    <div id="home">TODO</div>
+    <div id="home">
+
+Welcome to Gno.land.
+
+ * [Install `gnokey`](https://github.com/gnolang/gno/)
+ * TODO: [Acquire testnet tokens]
+ * [Explore the /r/boards realm](/r/boards)
+ * [Upload a GNO smart contract](/r/boards:gnolang/1) TODO: Write another post specifically on addpkg.
+
+    </div>
     </body>
+    <script type="text/javascript">
+function main() {
+	marked.setOptions({gfm:true});
+	window.contents = document.getElementById("home").innerHTML;
+	var doc = new DOMParser().parseFromString(window.contents, "text/html");
+	var contents = doc.documentElement.textContent
+	var parsed = marked.parse(contents);
+	document.getElementById("home").innerHTML = parsed;
+};
+    </script>
 </html>
 {{- end -}}

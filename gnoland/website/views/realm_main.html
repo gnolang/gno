@@ -3,8 +3,7 @@
 <html>
     <head>
         <link rel="stylesheet" href="/static/css/app.css"/>
-        <script src="/static/js/marked.min.js"></script>
-        <script src="/static/js/app.js"></script>
+        <script src="/static/js/umbrella.min.js"></script>
     </head>
     <body onload="main()">
         <div id="header">
@@ -20,9 +19,18 @@
             <ul>
                 <li><a href="{{ .Data.DirPath }}/">view realm files</a></li>
                 <li><a href="{{ .Data.DirPath }}?funcs">view public functions</a></li>
-                <li><a href="{{ .Data.DirPath }}:EXAMPLE">render page from path expression</a></li>
+                <li>render realm expression: {{ .Data.DirPath }}:<input id="expression"/> <button id="button">GO</button></li>
             </ul>
         </div>
     </body>
+    <script type="text/javascript">
+function main() {
+    // TODO: add script logic here.
+    u("#button").on("click", function(e) {
+        var expression = u("#expression").first().value || "";
+        window.location = "{{ .Data.DirPath }}" + ":" + expression;
+    });
+};
+    </script>
 </html>
 {{- end -}}

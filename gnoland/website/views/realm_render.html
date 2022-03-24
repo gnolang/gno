@@ -4,7 +4,6 @@
     <head>
         <link rel="stylesheet" href="/static/css/app.css"/>
         <script src="/static/js/marked.min.js"></script>
-        <script src="/static/js/app.js"></script>
     </head>
     <body onload="main()">
 	<div id="header">
@@ -18,5 +17,15 @@
         {{ .Data.Contents }}
     </div>
     </body>
+    <script type="text/javascript">
+function main() {
+	marked.setOptions({gfm:true});
+	window.contents = document.getElementById("realm_render").innerHTML;
+	var doc = new DOMParser().parseFromString(window.contents, "text/html");
+	var contents = doc.documentElement.textContent
+	var parsed = marked.parse(contents);
+	document.getElementById("realm_render").innerHTML = parsed;
+};
+    </script>
 </html>
 {{- end -}}

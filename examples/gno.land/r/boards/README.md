@@ -85,9 +85,9 @@ gnolang"
 ## add a comment to a post.
 
 ```bash
-./build/gnokey maketx call test1 --pkgpath "gno.land/r/boards" --func CreateReply --args 1 --args 1 --args "A reply" --gas-fee 1gnot --gas-wanted 2000000 > createreply.unsigned.txt
-./build/gnokey sign test1 --txpath createreply.unsigned.txt --chainid "testchain" --number 0 --sequence 4 > createreply.signed.txt
-./build/gnokey broadcast createreply.signed.txt
+./build/gnokey maketx call test1 --pkgpath "gno.land/r/boards" --func CreateReply --args 1 --args 1 --args "A comment" --gas-fee 1gnot --gas-wanted 2000000 > createcomment.unsigned.txt
+./build/gnokey sign test1 --txpath createcomment.unsigned.txt --chainid "testchain" --number 0 --sequence 4 > createcomment.signed.txt
+./build/gnokey broadcast createcomment.signed.txt
 ```
 
 ```bash
