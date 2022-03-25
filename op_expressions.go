@@ -26,11 +26,11 @@ func (m *Machine) doOpIndex1() {
 			vt := ct.Value
 			*xv = TypedValue{ // reuse as result
 				T: vt,
-				V: defaultValue(vt),
+				V: defaultValue(m.Alloc, vt),
 			}
 		}
 	default:
-		res := xv.GetPointerAtIndex(m.Store, iv)
+		res := xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
 		*xv = res.Deref() // reuse as result
 	}
 }
@@ -50,7 +50,7 @@ func (m *Machine) doOpIndex2() {
 		if xv.V == nil { // uninitialized map
 			*xv = TypedValue{ // reuse as result
 				T: vt,
-				V: defaultValue(vt),
+				V: defaultValue(m.Alloc, vt),
 			}
 			*iv = untypedBool(false) // reuse as result
 		} else {
@@ -62,7 +62,7 @@ func (m *Machine) doOpIndex2() {
 			} else {
 				*xv = TypedValue{ // reuse as result
 					T: vt,
-					V: defaultValue(vt),
+					V: defaultValue(m.Alloc, vt),
 				}
 				*iv = untypedBool(false) // reuse as result
 			}
@@ -78,7 +78,7 @@ func (m *Machine) doOpIndex2() {
 func (m *Machine) doOpSelector() {
 	sx := m.PopExpr().(*SelectorExpr)
 	xv := m.PeekValue(1)
-	res := xv.GetPointerTo(m.Store, sx.Path)
+	res := xv.GetPointerTo(m.Alloc, m.Store, sx.Path)
 	*xv = res.Deref() // reuse as result
 }
 
@@ -114,10 +114,10 @@ func (m *Machine) doOpSlice() {
 	}
 	// all low:high:max cases
 	if max == -1 {
-		sv := xv.GetSlice(low, high)
+		sv := xv.GetSlice(m.Alloc, low, high)
 		m.PushValue(sv)
 	} else {
-		sv := xv.GetSlice2(low, high, max)
+		sv := xv.GetSlice2(m.Alloc, low, high, max)
 		m.PushValue(sv)
 	}
 }
@@ -176,6 +176,7 @@ func (m *Machine) doOpStar() {
 // XXX this is wrong, for var i interface{}; &i is *interface{}.
 func (m *Machine) doOpRef() {
 	rx := m.PopExpr().(*RefExpr)
+	m.Alloc.AllocatePointer()
 	xv := m.PopAsPointer(rx.X)
 	if nv, ok := xv.TV.V.(*NativeValue); ok {
 		// If a native pointer, ensure it is addressable.  This
@@ -189,10 +190,8 @@ func (m *Machine) doOpRef() {
 			nv.Value = rv2
 		}
 	}
-	// XXX this is wrong, if rx.X is interface type,
-	// XXX then the type should be &PointerType{Elt: staticTypeOf(xv)}
 	m.PushValue(TypedValue{
-		T: &PointerType{Elt: xv.TV.T},
+		T: m.Alloc.NewType(&PointerType{Elt: xv.TV.T}),
 		V: xv,
 	})
 }
@@ -321,7 +320,7 @@ func (m *Machine) doOpTypeAssert2() {
 		} else {
 			*xv = TypedValue{
 				T: t,
-				V: defaultValue(t),
+				V: defaultValue(m.Alloc, t),
 			}
 			*tv = untypedBool(false)
 		}
@@ -425,7 +424,7 @@ func (m *Machine) doOpArrayLit() {
 	at := m.PeekValue(1 + ne).V.(TypeValue).Type
 	bt := baseOf(at).(*ArrayType)
 	// construct array value.
-	av := defaultArrayValue(bt)
+	av := defaultArrayValue(m.Alloc, bt)
 	if 0 < ne {
 		al, ad := av.List, av.Data
 		vs := m.PopValues(ne)
@@ -484,7 +483,7 @@ func (m *Machine) doOpSliceLit() {
 	} else {
 		m.PopValue()
 	}
-	sv := newSliceFromList(es)
+	sv := m.Alloc.NewSliceFromList(es)
 	m.PushValue(TypedValue{
 		T: st,
 		V: sv,
@@ -519,7 +518,7 @@ func (m *Machine) doOpSliceLit2() {
 	ste := st.Elem()
 	for i, etv := range es {
 		if etv.IsUndefined() {
-			es[i] = defaultTypedValue(ste)
+			es[i] = defaultTypedValue(m.Alloc, ste)
 		}
 	}
 	// construct and push value.
@@ -530,7 +529,7 @@ func (m *Machine) doOpSliceLit2() {
 	} else {
 		m.PopValue()
 	}
-	sv := newSliceFromList(es)
+	sv := m.Alloc.NewSliceFromList(es)
 	m.PushValue(TypedValue{
 		T: st,
 		V: sv,
@@ -544,8 +543,7 @@ func (m *Machine) doOpMapLit() {
 	mt := m.PeekValue(1 + ne*2).V.(TypeValue).Type
 	// bt := baseOf(at).(*MapType)
 	// construct new map value.
-	mv := &MapValue{}
-	mv.MakeMap(0)
+	mv := m.Alloc.NewMap(0)
 	if 0 < ne {
 		kvs := m.PopValues(ne * 2)
 		// TODO: future optimization
@@ -553,7 +551,7 @@ func (m *Machine) doOpMapLit() {
 		for i := 0; i < ne; i++ {
 			ktv := &kvs[i*2]
 			vtv := kvs[i*2+1]
-			ptr := mv.GetPointerForKey(m.Store, ktv)
+			ptr := mv.GetPointerForKey(m.Alloc, m.Store, ktv)
 			*ptr.TV = vtv
 		}
 	}
@@ -580,18 +578,15 @@ func (m *Machine) doOpStructLit() {
 	xt := m.PeekValue(1 + el).V.(TypeValue).Type
 	st := baseOf(xt).(*StructType)
 	nf := len(st.Fields)
-	sv := &StructValue{
-		// will replace this with fs below.
-		Fields: nil, // becomes fs.
-	}
 	fs := []TypedValue(nil)
 	// NOTE includes embedded fields.
 	if el == 0 {
 		// zero struct with no fields set.
 		// TODO: optimize and allow nil.
-		fs = defaultStructFields(st)
+		fs = defaultStructFields(m.Alloc, st)
 	} else if x.Elts[0].Key == nil {
 		// field values are in order.
+		m.Alloc.AllocateStructFields(int64(len(st.Fields)))
 		fs = make([]TypedValue, 0, len(st.Fields))
 		if debug {
 			if el == 0 {
@@ -628,7 +623,7 @@ func (m *Machine) doOpStructLit() {
 		}
 	} else {
 		// field values are by name and may be out of order.
-		fs = defaultStructFields(st)
+		fs = defaultStructFields(m.Alloc, st)
 		ftvs := m.PopValues(el)
 		for i := 0; i < el; i++ {
 			fnx := x.Elts[i].Key.(*NameExpr)
@@ -646,7 +641,7 @@ func (m *Machine) doOpStructLit() {
 	}
 	// construct and push value.
 	m.PopValue() // baseOf() is st
-	sv.Fields = fs
+	sv := m.Alloc.NewStruct(fs)
 	m.PushValue(TypedValue{
 		T: xt,
 		V: sv,
@@ -657,6 +652,7 @@ func (m *Machine) doOpFuncLit() {
 	x := m.PopExpr().(*FuncLitExpr)
 	ft := m.PopValue().V.(TypeValue).Type.(*FuncType)
 	lb := m.LastBlock()
+	m.Alloc.AllocateFunc()
 	m.PushValue(TypedValue{
 		T: ft,
 		V: &FuncValue{
@@ -668,7 +664,6 @@ func (m *Machine) doOpFuncLit() {
 			PkgPath:    m.Package.PkgPath,
 			body:       x.Body,
 			nativeBody: nil,
-			pkg:        m.Package,
 		},
 	})
 }
@@ -676,6 +671,6 @@ func (m *Machine) doOpFuncLit() {
 func (m *Machine) doOpConvert() {
 	xv := m.PopValue()
 	t := m.PopValue().GetType()
-	ConvertTo(m.Store, xv, t)
+	ConvertTo(m.Alloc, m.Store, xv, t)
 	m.PushValue(*xv)
 }

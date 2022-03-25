@@ -42,6 +42,7 @@ func NewApp(rootDir string, logger log.Logger) (abci.Application, error) {
 
 	// Configure InitChainer for genesis.
 	baseApp.SetInitChainer(InitChainer(acctKpr, bankKpr))
+	baseApp.SetEndBlocker(EndBlocker(vmKpr))
 	authAnteHandler := auth.NewAnteHandler(
 		acctKpr, bankKpr, auth.DefaultSigVerificationGasConsumer)
 	baseApp.SetAnteHandler(
@@ -106,4 +107,11 @@ func parseBalance(bal string) (crypto.Address, std.Coins) {
 		panic(fmt.Sprintf("invalid balance coins %s (%v)", bal, err))
 	}
 	return addr, coins
+}
+
+// XXX not used yet.
+func EndBlocker(vmk vm.VMKeeperI) func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
+	return func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
+		return abci.ResponseEndBlock{}
+	}
 }

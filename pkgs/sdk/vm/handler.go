@@ -67,13 +67,13 @@ func (vh vmHandler) handleMsgCall(ctx sdk.Context, msg MsgCall) (res sdk.Result)
 	}
 	res.Data = []byte(resstr)
 	return
-	/*
-		ctx.EventManager().EmitEvent(
-			sdk.NewEvent(
-				sdk.EventTypeMessage,
-				sdk.NewAttribute(sdk.AttributeKeyXXX, types.AttributeValueXXX),
-			),
-		)
+	/* TODO handle events.
+	ctx.EventManager().EmitEvent(
+		sdk.NewEvent(
+			sdk.EventTypeMessage,
+			sdk.NewAttribute(sdk.AttributeKeyXXX, types.AttributeValueXXX),
+		),
+	)
 	*/
 }
 
@@ -84,8 +84,10 @@ func (vh vmHandler) handleMsgCall(ctx sdk.Context, msg MsgCall) (res sdk.Result)
 const (
 	QueryPackage = "package"
 	QueryStore   = "store"
+	QueryRender  = "qrender"
+	QueryFuncs   = "qfuncs"
 	QueryEval    = "qeval"
-	QueryPath    = "qpath"
+	QueryFile    = "qfile"
 )
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
@@ -94,10 +96,14 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 		return vh.queryPackage(ctx, req)
 	case QueryStore:
 		return vh.queryStore(ctx, req)
+	case QueryRender:
+		return vh.queryRender(ctx, req)
+	case QueryFuncs:
+		return vh.queryFuncs(ctx, req)
 	case QueryEval:
 		return vh.queryEval(ctx, req)
-	case QueryPath:
-		return vh.queryPath(ctx, req)
+	case QueryFile:
+		return vh.queryFile(ctx, req)
 	default:
 		res = sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest(fmt.Sprintf(
@@ -119,7 +125,43 @@ func (vh vmHandler) queryStore(ctx sdk.Context, req abci.RequestQuery) (res abci
 	return
 }
 
-// queryEval evaluates a pure readonly expression.
+// queryRender calls .Render(<path>) in readonly mode.
+func (vh vmHandler) queryRender(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	reqData := string(req.Data)
+	reqParts := strings.Split(reqData, "\n")
+	if len(reqParts) != 2 {
+		panic("expected two lines in query input data")
+	}
+	pkgPath := reqParts[0]
+	path := reqParts[1]
+	expr := fmt.Sprintf("Render(%q)", path)
+	result, err := vh.vm.QueryEvalString(ctx, pkgPath, expr)
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	res.Data = []byte(result)
+	return
+}
+
+// queryFuncs returns public facing function signatures as JSON.
+func (vh vmHandler) queryFuncs(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	reqData := string(req.Data)
+	reqParts := strings.Split(reqData, "\n")
+	if len(reqParts) != 1 {
+		panic("expected one line in query input data")
+	}
+	pkgPath := reqParts[0]
+	fsigs, err := vh.vm.QueryFuncs(ctx, pkgPath)
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	res.Data = []byte(fsigs.JSON())
+	return
+}
+
+// queryEval evaluates any expression in readonly mode and returns the results.
 func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	reqData := string(req.Data)
 	reqParts := strings.Split(reqData, "\n")
@@ -137,17 +179,12 @@ func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.
 	return
 }
 
-// queryPath calls .Render(<path>) in readonly mode.
-func (vh vmHandler) queryPath(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	reqData := string(req.Data)
-	reqParts := strings.Split(reqData, "\n")
-	if len(reqParts) != 2 {
-		panic("expected two lines in query input data")
-	}
-	pkgPath := reqParts[0]
-	path := reqParts[1]
-	expr := fmt.Sprintf("Render(%q)", path)
-	result, err := vh.vm.QueryEval(ctx, pkgPath, expr)
+// queryFile returns the file bytes, or list of files if directory.
+// if file, res.Value is []byte("file").
+// if dir, res.Value is []byte("dir").
+func (vh vmHandler) queryFile(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	filepath := string(req.Data)
+	result, err := vh.vm.QueryFile(ctx, filepath)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
 		return

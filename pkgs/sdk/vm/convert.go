@@ -8,8 +8,11 @@ import (
 	"github.com/gnolang/gno"
 )
 
-// NOTE: very important that there is no malleability.
+// These convert string representations of public-facing arguments to GNO types.
+// The limited set of input types available should map 1:1 to types supported
+// in FunctionSignature{}.
 // String representation of arg must be deterministic.
+// NOTE: very important that there is no malleability.
 func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 	tv.T = argT
 	switch bt := gno.BaseOf(argT).(type) {
@@ -28,7 +31,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 					arg))
 			}
 		case gno.StringType:
-			tv.SetString(arg)
+			tv.SetString(gno.StringValue(arg))
 			return
 		case gno.IntType:
 			if arg[0] == '+' {

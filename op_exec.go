@@ -149,7 +149,7 @@ func (m *Machine) doOpExec(op Op) {
 				*xv = *dv
 			} else {
 				dv = xv
-				*xv = xv.Copy()
+				*xv = xv.Copy(m.Alloc)
 			}
 			ll = dv.GetLength()
 			if ll == 0 { // early termination
@@ -169,11 +169,11 @@ func (m *Machine) doOpExec(op Op) {
 				iv.SetInt(bs.ListIndex)
 				switch bs.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Key).Assign2(m.Store, m.Realm, iv, false)
+					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, iv, false)
 				case DEFINE:
 					knxp := bs.Key.(*NameExpr).Path
 					ptr := m.LastBlock().GetPointerTo(m.Store, knxp)
-					ptr.TV.Assign(iv, false)
+					ptr.TV.Assign(m.Alloc, iv, false)
 				default:
 					panic("should not happen")
 				}
@@ -181,28 +181,16 @@ func (m *Machine) doOpExec(op Op) {
 			if bs.Value != nil {
 				iv := TypedValue{T: IntType}
 				iv.SetInt(bs.ListIndex)
-				if debug {
-					if enabled {
-						debug.Println("QWEQWEQWE", xv.String(), baseOf(xv.T))
-						debug.Println("m", m.String())
-					}
-				}
-				ev := xv.GetPointerAtIndex(m.Store, &iv).Deref()
+				ev := xv.GetPointerAtIndex(m.Alloc, m.Store, &iv).Deref()
 				switch bs.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Value).Assign2(m.Store, m.Realm, ev, false)
+					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, ev, false)
 				case DEFINE:
 					vnxp := bs.Value.(*NameExpr).Path
 					ptr := m.LastBlock().GetPointerTo(m.Store, vnxp)
-					ptr.TV.Assign(ev, false)
+					ptr.TV.Assign(m.Alloc, ev, false)
 				default:
 					panic("should not happen")
-				}
-				if debug {
-					if enabled {
-						debug.Println("QWEQWEQWE END", xv.String())
-						debug.Println("m", m.String())
-					}
 				}
 			}
 			bs.NextBodyIndex++
@@ -277,11 +265,11 @@ func (m *Machine) doOpExec(op Op) {
 				iv.SetInt(bs.ListIndex)
 				switch bs.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Key).Assign2(m.Store, m.Realm, iv, false)
+					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, iv, false)
 				case DEFINE:
 					knxp := bs.Key.(*NameExpr).Path
 					ptr := m.LastBlock().GetPointerTo(m.Store, knxp)
-					ptr.TV.Assign(iv, false)
+					ptr.TV.Assign(m.Alloc, iv, false)
 				default:
 					panic("should not happen")
 				}
@@ -290,11 +278,11 @@ func (m *Machine) doOpExec(op Op) {
 				ev := typedRune(bs.NextRune)
 				switch bs.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Value).Assign2(m.Store, m.Realm, ev, false)
+					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, ev, false)
 				case DEFINE:
 					vnxp := bs.Value.(*NameExpr).Path
 					ptr := m.LastBlock().GetPointerTo(m.Store, vnxp)
-					ptr.TV.Assign(ev, false)
+					ptr.TV.Assign(m.Alloc, ev, false)
 				default:
 					panic("should not happen")
 				}
@@ -370,11 +358,11 @@ func (m *Machine) doOpExec(op Op) {
 				kv := *fillValueTV(m.Store, &next.Key)
 				switch bs.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Key).Assign2(m.Store, m.Realm, kv, false)
+					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, kv, false)
 				case DEFINE:
 					knxp := bs.Key.(*NameExpr).Path
 					ptr := m.LastBlock().GetPointerTo(m.Store, knxp)
-					ptr.TV.Assign(kv, false)
+					ptr.TV.Assign(m.Alloc, kv, false)
 				default:
 					panic("should not happen")
 				}
@@ -383,11 +371,11 @@ func (m *Machine) doOpExec(op Op) {
 				vv := *fillValueTV(m.Store, &next.Value)
 				switch bs.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Value).Assign2(m.Store, m.Realm, vv, false)
+					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, vv, false)
 				case DEFINE:
 					vnxp := bs.Value.(*NameExpr).Path
 					ptr := m.LastBlock().GetPointerTo(m.Store, vnxp)
-					ptr.TV.Assign(vv, false)
+					ptr.TV.Assign(m.Alloc, vv, false)
 				default:
 					panic("should not happen")
 				}
@@ -506,7 +494,7 @@ EXEC_SWITCH:
 		m.PushOp(OpEval)
 	case *ForStmt:
 		m.PushFrameBasic(cs)
-		b := NewBlock(cs, m.LastBlock())
+		b := m.Alloc.NewBlock(cs, m.LastBlock())
 		b.bodyStmt = bodyStmt{
 			Body:          cs.Body,
 			BodyLen:       len(cs.Body),
@@ -528,7 +516,7 @@ EXEC_SWITCH:
 			m.PushOp(OpExec)
 		}
 	case *IfStmt:
-		b := NewBlock(cs, m.LastBlock())
+		b := m.Alloc.NewBlock(cs, m.LastBlock())
 		m.PushBlock(b)
 		m.PushOp(OpPopBlock)
 		m.PushOp(OpIfCond)
@@ -591,7 +579,7 @@ EXEC_SWITCH:
 		m.PushOp(OpEval)
 	case *RangeStmt:
 		m.PushFrameBasic(cs)
-		b := NewBlock(cs, m.LastBlock())
+		b := m.Alloc.NewBlock(cs, m.LastBlock())
 		b.bodyStmt = bodyStmt{
 			Body:          cs.Body,
 			BodyLen:       len(cs.Body),
@@ -726,7 +714,7 @@ EXEC_SWITCH:
 	case *SwitchStmt:
 		m.PushFrameBasic(cs)
 		m.PushOp(OpPopFrameAndReset)
-		b := NewBlock(cs, m.LastBlock())
+		b := m.Alloc.NewBlock(cs, m.LastBlock())
 		m.PushBlock(b)
 		m.PushOp(OpPopBlock)
 		if cs.IsTypeSwitch {
@@ -750,7 +738,7 @@ EXEC_SWITCH:
 			m.PushStmt(cs.Init)
 		}
 	case *BlockStmt:
-		b := NewBlock(cs, m.LastBlock())
+		b := m.Alloc.NewBlock(cs, m.LastBlock())
 		m.PushBlock(b)
 		m.PushOp(OpPopBlock)
 		b.bodyStmt = bodyStmt{
@@ -774,7 +762,7 @@ func (m *Machine) doOpIfCond() {
 		if len(is.Then.Body) != 0 {
 			// expand block size
 			if nn := is.Then.GetNumNames(); int(nn) > len(b.Values) {
-				b.ExpandToSize(nn)
+				b.ExpandToSize(m.Alloc, nn)
 			}
 			// exec then body
 			b.bodyStmt = bodyStmt{
@@ -789,7 +777,7 @@ func (m *Machine) doOpIfCond() {
 		if len(is.Else.Body) != 0 {
 			// expand block size
 			if nn := is.Else.GetNumNames(); int(nn) > len(b.Values) {
-				b.ExpandToSize(nn)
+				b.ExpandToSize(m.Alloc, nn)
 			}
 			// exec then body
 			b.bodyStmt = bodyStmt{
@@ -866,11 +854,11 @@ func (m *Machine) doOpTypeSwitch() {
 					vp := NewValuePath(
 						VPBlock, 1, 0, ss.VarName)
 					ptr := b.GetPointerTo(m.Store, vp)
-					ptr.TV.Assign(*xv, false)
+					ptr.TV.Assign(m.Alloc, *xv, false)
 				}
 				// expand block size
 				if nn := cs.GetNumNames(); int(nn) > len(b.Values) {
-					b.ExpandToSize(nn)
+					b.ExpandToSize(m.Alloc, nn)
 				}
 				// exec clause body
 				b.bodyStmt = bodyStmt{
@@ -910,7 +898,7 @@ func (m *Machine) doOpSwitchClause() {
 			// expand block size
 			b := m.LastBlock()
 			if nn := cl.GetNumNames(); int(nn) > len(b.Values) {
-				b.ExpandToSize(nn)
+				b.ExpandToSize(m.Alloc, nn)
 			}
 			// exec clause body
 			b.bodyStmt = bodyStmt{
@@ -952,7 +940,7 @@ func (m *Machine) doOpSwitchClauseCase() {
 		cl := ss.Clauses[clidx]
 		b := m.LastBlock()
 		if nn := cl.GetNumNames(); int(nn) > len(b.Values) {
-			b.ExpandToSize(nn)
+			b.ExpandToSize(m.Alloc, nn)
 		}
 		// exec clause body
 		b.bodyStmt = bodyStmt{

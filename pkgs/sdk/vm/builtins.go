@@ -26,12 +26,11 @@ func (vmk *VMKeeper) initBuiltinPackages(store gno.Store) {
 		}
 		memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
 		m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-			Package: nil,
+			PkgPath: "",
 			Output:  os.Stdout,
 			Store:   store,
 		})
-		save := true // save once before natives injected later.
-		return m2.RunMemPackage(memPkg, save)
+		return m2.RunMemPackage(memPkg, true)
 	}
 	store.SetPackageGetter(getPackage)
 	store.SetPackageInjector(vmk.packageInjector)

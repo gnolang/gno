@@ -14,7 +14,7 @@ import (
 // the even index items are package nodes,
 // and the odd index items are corresponding package values.
 func gonativeTestStore(args ...interface{}) Store {
-	store := NewStore(nil, nil)
+	store := NewStore(nil, nil, nil)
 	store.SetPackageGetter(func(pkgPath string) (*PackageNode, *PackageValue) {
 		for i := 0; i < len(args)/2; i++ {
 			pn := args[i*2].(*PackageNode)
@@ -23,7 +23,7 @@ func gonativeTestStore(args ...interface{}) Store {
 				return pn, pv
 			}
 		}
-		panic("should not happen")
+		return nil, nil
 	})
 	return store
 }
@@ -52,7 +52,8 @@ func TestGoNativeDefine(t *testing.T) {
 
 	// Import above package and evaluate foo.Foo.
 	m := NewMachineWithOptions(MachineOptions{
-		Store: store,
+		PkgPath: "test",
+		Store:   store,
 	})
 	m.RunDeclaration(ImportD("foo", "test.foo"))
 	tvs := m.Eval(Sel(Nx("foo"), "Foo"))
@@ -71,8 +72,9 @@ func TestGoNativeDefine2(t *testing.T) {
 	// Import above package and run file.
 	out := new(bytes.Buffer)
 	m := NewMachineWithOptions(MachineOptions{
-		Output: out,
-		Store:  store,
+		PkgPath: "main",
+		Output:  out,
+		Store:   store,
 	})
 
 	c := `package main
@@ -110,8 +112,9 @@ func TestGoNativeDefine3(t *testing.T) {
 
 	// Import above package and run file.
 	m := NewMachineWithOptions(MachineOptions{
-		Output: out,
-		Store:  store,
+		PkgPath: "main",
+		Output:  out,
+		Store:   store,
 	})
 
 	c := `package main
@@ -132,7 +135,7 @@ D:
 
 func TestCrypto(t *testing.T) {
 	addr := crypto.Address{}
-	tv := Go2GnoValue(reflect.ValueOf(addr))
+	tv := Go2GnoValue(nilAllocator, reflect.ValueOf(addr))
 	assert.Equal(t, tv.String(),
 		`(array[0x0000000000000000000000000000000000000000] github.com/gnolang/gno/pkgs/crypto.Address)`)
 }

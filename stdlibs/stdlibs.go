@@ -41,6 +41,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				}
 				hash := gno.HashBytes(bz)
 				res0 := gno.Go2GnoValue(
+					m.Alloc,
 					reflect.ValueOf([20]byte(hash)),
 				)
 				m.PushValue(res0)
@@ -58,6 +59,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 					realmPath = m.Realm.Path
 				}
 				res0 := gno.Go2GnoValue(
+					m.Alloc,
 					reflect.ValueOf(realmPath),
 				)
 				m.PushValue(res0)
@@ -72,6 +74,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			func(m *gno.Machine) {
 				ctx := m.Context.(ExecContext)
 				res0 := gno.Go2GnoValue(
+					m.Alloc,
 					reflect.ValueOf(ctx.ChainID),
 				)
 				m.PushValue(res0)
@@ -86,6 +89,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			func(m *gno.Machine) {
 				ctx := m.Context.(ExecContext)
 				res0 := gno.Go2GnoValue(
+					m.Alloc,
 					reflect.ValueOf(ctx.Height),
 				)
 				m.PushValue(res0)
@@ -100,6 +104,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			func(m *gno.Machine) {
 				ctx := m.Context.(ExecContext)
 				res0 := gno.Go2GnoValue(
+					m.Alloc,
 					reflect.ValueOf(ctx.TxSend),
 				)
 				coinT := store.GetType(gno.DeclaredTypeID("std", "Coin"))
@@ -121,6 +126,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			func(m *gno.Machine) {
 				ctx := m.Context.(ExecContext)
 				res0 := gno.Go2GnoValue(
+					m.Alloc,
 					reflect.ValueOf(ctx.Caller),
 				)
 				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
@@ -137,6 +143,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			func(m *gno.Machine) {
 				ctx := m.Context.(ExecContext)
 				res0 := gno.Go2GnoValue(
+					m.Alloc,
 					reflect.ValueOf(ctx.PkgAddr),
 				)
 				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
@@ -169,7 +176,9 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 					panic("should not happen") // defensive
 				}
 				rv := reflect.ValueOf(banker)
-				res0 := gno.Go2GnoNativeValue(rv)
+				m.Alloc.AllocateStruct()         // defensive; native space not allocated.
+				m.Alloc.AllocateStructFields(10) // defensive 10; native space not allocated.
+				res0 := gno.Go2GnoNativeValue(m.Alloc, rv)
 				m.PushValue(res0)
 			},
 		)
@@ -199,7 +208,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				format := arg1.TV.GetString()
 				t := time.Unix(timestamp, 0).Round(0).UTC()
 				result := t.Format(format)
-				res0 := typedString(result)
+				res0 := typedString(m.Alloc.NewString(result))
 				m.PushValue(res0)
 			},
 		)
@@ -220,7 +229,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				if err != nil {
 					panic(err)
 				}
-				res0 := typedString(b32)
+				res0 := typedString(m.Alloc.NewString(b32))
 				m.PushValue(res0)
 			},
 		)
@@ -233,7 +242,7 @@ func typedInt64(i64 int64) gno.TypedValue {
 	return tv
 }
 
-func typedString(s string) gno.TypedValue {
+func typedString(s gno.StringValue) gno.TypedValue {
 	tv := gno.TypedValue{T: gno.StringType}
 	tv.SetString(s)
 	return tv

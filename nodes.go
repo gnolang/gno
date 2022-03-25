@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -1067,12 +1068,13 @@ func PackageNameFromFileBody(body string) Name {
 	return n.PkgName
 }
 
-func ReadMemPackage(dir string, pkgPath string) std.MemPackage {
+// NOTE: panics if package name is invalid.
+func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
 		panic(err)
 	}
-	var memPkg = std.MemPackage{Path: pkgPath}
+	var memPkg = &std.MemPackage{Path: pkgPath}
 	var pkgName Name
 	for _, file := range files {
 		if file.IsDir() {
@@ -1092,17 +1094,18 @@ func ReadMemPackage(dir string, pkgPath string) std.MemPackage {
 			pkgName = PackageNameFromFileBody(string(bz))
 		}
 		memPkg.Files = append(memPkg.Files,
-			std.MemFile{
+			&std.MemFile{
 				Name: file.Name(),
 				Body: string(bz),
 			})
 	}
+	validatePkgName(string(pkgName))
 	memPkg.Name = string(pkgName)
 	return memPkg
 }
 
 // Returns the code fileset minus any spurious or test files.
-func ParseMemPackage(memPkg std.MemPackage) (fset *FileSet) {
+func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 	fset = &FileSet{}
 	for _, mfile := range memPkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".go") {
@@ -1125,7 +1128,7 @@ func ParseMemPackage(memPkg std.MemPackage) (fset *FileSet) {
 	}
 	return fset
 }
-func ParseMemPackageTests(memPkg std.MemPackage) (tset, itset *FileSet) {
+func ParseMemPackageTests(memPkg *std.MemPackage) (tset, itset *FileSet) {
 	tset = &FileSet{}
 	itset = &FileSet{}
 	for _, mfile := range memPkg.Files {
@@ -1270,16 +1273,17 @@ func (pn *PackageNode) NewPackage() *PackageValue {
 	return pv
 }
 
-// Prepares new func and method values (e.g. by attaching the proper file block).
-// Returns a slice of new PackageValue.Values (sans updated *DeclaredType.Methods).
+// Prepares new func values (e.g. by attaching the proper file block closure).
+// Returns a slice of new PackageValue.Values.
 // After return, *PackageNode.Values and *PackageValue.Values have the same
 // length.
-// Until this function is called, PackageNode>*DeclarledType>Methods>*FuncValue.Closure
-// and PackageNode>*FuncValue.Closure doesn't get set (and cannot because Closures
-// are runtime values.)
+// NOTE: declared methods do not get their closures set here. See
+// *DeclaredType.GetValueAt() which returns a filled copy.
 func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 	if pv.PkgPath == "" {
-		return nil // nothing to prepare for throwaway packages.
+		// nothing to prepare for throwaway packages.
+		// TODO: double check to see if still relevant.
+		return nil
 	}
 	// should already exist.
 	block := pv.Block.(*Block)
@@ -1293,85 +1297,20 @@ func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 	}
 	pvl := len(block.Values)
 	pnl := len(pn.Values)
-	// prepare new methods for preexisting declared types.
-	prepareFuncValue := func(fv *FuncValue) bool {
-		if fv.Closure != nil || fv.PkgPath != "" {
-			return false // already prepared.
-		}
-		// set fv.pkg.
-		fv.PkgPath = pv.PkgPath // XXX do this earlier?
-		fv.pkg = pv
-		// set fv.Closure.
-		if fv.FileName == "" {
-			// Allow m.RunDeclaration(FuncD(...)) without any file
-			// nodes, as long as it uses no imports.
-		} else {
-			fb := pv.fBlocksMap[fv.FileName]
-			if fb == nil {
-				panic(fmt.Sprintf("file block missing for file %q", fv.FileName))
-			}
-			fv.Closure = fb
-		}
-		return true
-	}
-	for _, otv := range pn.Values[0:pvl] { // pvl has old max index.
-		if otv.IsUndefined() || otv.T.Kind() != TypeKind {
-			continue // filter by TypeType.
-		}
-		dt, ok := otv.GetType().(*DeclaredType)
-		if !ok {
-			continue // filter by TypeType of *DeclaredType
-		}
-		if !dt.updated {
-			continue // filter by updated
-		}
-		if debug {
-			if dt.Kind() == InterfaceKind {
-				panic("should not happen")
-			}
-		}
-		for _, mthd := range dt.Methods {
-			mv := mthd.V.(*FuncValue)
-			prepareFuncValue(mv)
-		}
-		dt.updated = false // reset
-	}
-	// prepare new top-level defined types.
+	// copy new top-level defined values/types.
 	if pvl < pnl {
 		// XXX: deep copy heap values
 		nvs := make([]TypedValue, pnl-pvl)
 		copy(nvs, pn.Values[pvl:pnl])
-		for _, nv := range nvs {
-			if nv.IsUndefined() {
-				continue
-			}
-			switch nv.T.Kind() {
-			case FuncKind:
-				// If package-level FuncLit function, value is nil,
-				// and the closure will be set at run-time.
-				if nv.V == nil {
-					// nothing to do
-				} else {
-					// Set function closure for function declarations.
-					switch fv := nv.V.(type) {
-					case *FuncValue:
-						prepareFuncValue(fv)
-					case *NativeValue:
-						// do nothing for go native functions.
-					default:
-						panic("should not happen")
-					}
+		for i, tv := range nvs {
+			if fv, ok := tv.V.(*FuncValue); ok {
+				// copy function value and assign closure from package value.
+				fv = fv.Copy(nilAllocator)
+				fv.Closure = pv.fBlocksMap[fv.FileName]
+				if fv.Closure == nil {
+					panic(fmt.Sprintf("file block missing for file %q", fv.FileName))
 				}
-			case TypeKind:
-				nt := nv.GetType()
-				if dt, ok := nt.(*DeclaredType); ok {
-					for i := 0; i < len(dt.Methods); i++ {
-						mv := dt.Methods[i].V.(*FuncValue)
-						prepareFuncValue(mv)
-					}
-				}
-			default:
-				// already shallowed copied.
+				nvs[i].V = fv
 			}
 		}
 		block.Values = append(block.Values, nvs...)
@@ -1404,7 +1343,6 @@ func (pn *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*
 	}
 	fv := pn.GetValueRef(nil, n).V.(*FuncValue)
 	fv.nativeBody = native
-	// fv.Closure, fv.pkg set during .NewPackage().
 }
 
 //----------------------------------------
@@ -1634,7 +1572,7 @@ func (sb *StaticBlock) GetStaticTypeOf(store Store, n Name) Type {
 			bp = bp.GetParentNode(store)
 		} else if idx, ok := UverseNode().GetLocalIndex(n); ok {
 			path := NewValuePathUverse(idx, n)
-			tv := Uverse().GetValueRefAt(store, path)
+			tv := Uverse().GetValueAt(store, path)
 			return tv.T
 		} else {
 
@@ -2024,3 +1962,11 @@ const (
 	ATTR_LOCATIONED   GnoAttribute = "ATTR_LOCATIONED"
 	ATTR_INJECTED     GnoAttribute = "ATTR_INJECTED"
 )
+
+// TODO: consider length restrictions.
+func validatePkgName(name string) {
+	if nameOK, _ := regexp.MatchString(
+		`^[a-z][a-z0-9_]+$`, name); !nameOK {
+		panic(fmt.Sprintf("cannot create package with invalid name %q", name))
+	}
+}

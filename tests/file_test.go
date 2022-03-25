@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"regexp"
+	"strconv"
 
 	//"go/build"
 	"go/parser"
@@ -72,19 +73,16 @@ func TestFiles2(t *testing.T) {
 }
 
 func runFileTest(t *testing.T, path string, nativeLibs bool) {
-	pkgPath, resWanted, errWanted, rops := wantedFromComment(path)
+	pkgPath, resWanted, errWanted, rops, maxAlloc := wantedFromComment(path)
 	if pkgPath == "" {
 		pkgPath = "main"
 	}
 	pkgName := defaultPkgName(pkgPath)
-	pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
-	pv := pn.NewPackage()
-	isRealm := pv.IsRealm() // enable diff persistence.
 
 	stdin := new(bytes.Buffer)
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
-	store := testStore(stdin, stdout, stderr, isRealm, nativeLibs)
+	store := testStore(stdin, stdout, stderr, nativeLibs)
 	store.SetLogStoreOps(true)
 	caller := testutils.TestAddress("testaddr____________")
 	txSend := std.MustParseCoins("100gnots")
@@ -102,10 +100,11 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 		Banker:      banker,
 	}
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		Package: pv,
-		Output:  stdout,
-		Store:   store,
-		Context: ctx,
+		PkgPath:       "", // set later.
+		Output:        stdout,
+		Store:         store,
+		Context:       ctx,
+		MaxAllocBytes: maxAlloc,
 	})
 	// TODO support stdlib groups, but make testing safe;
 	// e.g. not be able to make network connections.
@@ -137,33 +136,39 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 					}
 				}
 			}()
-			if gno.Debug() && testing.Verbose() {
+			if gno.IsDebug() && testing.Verbose() {
 				t.Log("========================================")
 				t.Log("RUN FILES & INIT")
 				t.Log("========================================")
 			}
-			if !pv.IsRealm() {
+			if !gno.IsRealmPath(pkgPath) {
 				// simple case.
+				pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
+				pv := pn.NewPackage()
+				store.SetBlockNode(pn)
+				store.SetCachePackage(pv)
+				m.SetActivePackage(pv)
 				n := gno.MustParseFile(path, string(bz)) // "main.go", string(bz))
 				m.RunFiles(n)
-				if gno.Debug() && testing.Verbose() {
+				if gno.IsDebug() && testing.Verbose() {
 					t.Log("========================================")
 					t.Log("RUN MAIN")
 					t.Log("========================================")
 				}
 				m.RunMain()
-				if gno.Debug() && testing.Verbose() {
+				if gno.IsDebug() && testing.Verbose() {
 					t.Log("========================================")
 					t.Log("RUN MAIN END")
 					t.Log("========================================")
 				}
 			} else {
 				// realm case.
+				gno.DisableDebug() // until main call.
 				// save package using realm crawl procedure.
-				memPkg := std.MemPackage{
+				memPkg := &std.MemPackage{
 					Name: string(pkgName),
 					Path: pkgPath,
-					Files: []std.MemFile{
+					Files: []*std.MemFile{
 						{
 							Name: "main.go", // dontcare
 							Body: string(bz),
@@ -176,39 +181,38 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 					store.SetLogStoreOps(true) // resets.
 				}
 				// reconstruct machine and clear store cache.
-				// whether pv is realm or not, since non-realm
+				// whether package is realm or not, since non-realm
 				// may call realm packages too.
-				if gno.Debug() && testing.Verbose() {
+				if gno.IsDebug() && testing.Verbose() {
 					t.Log("========================================")
 					t.Log("CLEAR STORE CACHE")
 					t.Log("========================================")
 				}
 				store.ClearCache()
-				pv2 := pv
-				if pv.IsRealm() {
-					pv2 = store.GetPackage(pkgPath) // load from backend
-				}
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-					Package: pv2,
+					PkgPath: "",
 					Output:  stdout,
 					Store:   store,
 					Context: ctx,
 				})
-				if gno.Debug() && testing.Verbose() {
+				if gno.IsDebug() && testing.Verbose() {
 					store.Print()
 					t.Log("========================================")
 					t.Log("PREPROCESS ALL FILES")
 					t.Log("========================================")
 				}
 				m2.PreprocessAllFilesAndSaveBlockNodes()
-				if gno.Debug() && testing.Verbose() {
+				if gno.IsDebug() && testing.Verbose() {
 					t.Log("========================================")
 					t.Log("RUN MAIN")
 					t.Log("========================================")
 					store.Print()
 				}
+				pv2 := store.GetPackage(pkgPath, false)
+				m2.SetActivePackage(pv2)
+				gno.EnableDebug()
 				m2.RunMain()
-				if gno.Debug() && testing.Verbose() {
+				if gno.IsDebug() && testing.Verbose() {
 					t.Log("========================================")
 					t.Log("RUN MAIN END")
 					t.Log("========================================")
@@ -264,7 +268,7 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 	}
 }
 
-func wantedFromComment(p string) (pkgPath, res, err, rops string) {
+func wantedFromComment(p string) (pkgPath, res, err, rops string, maxAlloc int64) {
 	fset := token.NewFileSet()
 	f, err2 := parser.ParseFile(fset, p, nil, parser.ParseComments)
 	if err2 != nil {
@@ -284,6 +288,14 @@ func wantedFromComment(p string) (pkgPath, res, err, rops string) {
 			panic(fmt.Sprintf(
 				"GOPATH directive not supported -- move %s to extern",
 				goPath))
+		} else if strings.HasPrefix(text, "MAXALLOC:") {
+			line := strings.SplitN(text, "\n", 2)[0]
+			maxstr := strings.TrimSpace(strings.TrimPrefix(line, "MAXALLOC:"))
+			maxint, err := strconv.Atoi(maxstr)
+			if err != nil {
+				panic(fmt.Sprintf("invalid maxalloc amount: %v", maxstr))
+			}
+			maxAlloc = int64(maxint)
 		} else if strings.HasPrefix(text, "Output:\n") {
 			res = strings.TrimPrefix(text, "Output:\n")
 			res = strings.TrimSpace(res)

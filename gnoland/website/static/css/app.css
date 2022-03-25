@@ -1,8 +1,112 @@
 body {
 	background-color: #EEE;
+	font-family: "Lucida Console", "Monaco", monospace;
+}
+
+a {
+	color: #25172a;
+}
+
+input {
+	background-color: #EEE;
+	border: 1px solid #CCC;
 }
 
 blockquote {
 	padding: 0.5em 0 0.5em 1em;
 	background-color: #DDD;
+}
+
+#header {
+	background-color: #a8aec6;
+	padding: 0px 10px;
+}
+
+#logo {
+	color: #25172a;
+	font-weight: bold;
+	font-size: 32px;
+	text-decoration: none;
+}
+
+#logo_path {
+	font-size: 24px;
+}
+
+#logo_path a {
+	text-decoration: none;
+}
+
+#logo_path a:hover {
+	text-decoration: underline;
+}
+
+#header_buttons {
+	float: right;
+	position: relative;
+	top: 5px;
+}
+
+/*****************************************/
+/* package_dir.html */
+
+.dir_entry a {
+	text-decoration: none;
+}
+
+.dir_entry a:hover {
+	text-decoration: underline;
+}
+
+/*****************************************/
+/* realm_funcs.html */
+
+div.func_spec > table {
+	background-color: #EEE3DE;
+	width: 100%;
+	padding: 10px 10px 20px 10px;
+	margin-bottom: 20px;
+	border: 1px solid #C4B6B2;
+}
+
+div.func_spec > table > tbody > tr > th {
+	width: 50px;
+	vertical-align: top;
+	text-align: right;
+	color: #777;
+}
+
+div.func_spec > table > tbody > tr.func_name > td {
+	padding-left: 115px;
+}
+
+th.func_param_name {
+	width: 100px;
+	vertical-align: top;
+	text-align: right;
+	padding-right: 5px;
+}
+
+th.func_result_name {
+	width: 100px;
+	vertical-align: top;
+	text-align: right;
+	padding-right: 5px;
+}
+
+td.func_param_type, td.func_result_type {
+	font-size: 0.8em;
+	color: #777;
+}
+
+div.func_spec div.shell_command {
+	font-family: "Lucida Console", "Monaco", monospace;
+	margin-left: 50px;
+	font-size: 0.9em;
+	color: #777;
+}
+
+div.func_spec div.shell_command span {
+	display: inline-block;
+	margin-bottom: 10px;
 }

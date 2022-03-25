@@ -94,6 +94,12 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	}
 }
 
+// This counter ensures (during testing) that certain functions
+// (like ConvertUntypedTo() for bigints and strings)
+// are only called during the preprocessing stage.
+// It is a counter because Preprocess() is recursive.
+var preprocessing int
+
 // Preprocess n whose parent block node is ctx. If any names
 // are defined in another file, generally you must call
 // PredefineFileSet() on the whole fileset first before calling
@@ -112,6 +118,15 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 //  * Assigns BlockValuePath to NameExprs.
 //  * TODO document what it does.
 func Preprocess(store Store, ctx BlockNode, n Node) Node {
+
+	// Increment preprocessing counter while preprocessing.
+	{
+		preprocessing += 1
+		defer func() {
+			preprocessing -= 1
+		}()
+	}
+
 	if ctx == nil {
 		// Generally a ctx is required, but if not, it's ok to pass in nil.
 		// panic("Preprocess requires context")
@@ -1061,7 +1076,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				n.Func.SetAttribute(ATTR_TYPEOF_VALUE, sft)
 				if cx, ok := n.Func.(*ConstExpr); ok {
 					fv := cx.V.(*FuncValue)
-					fv2 := fv.Copy()
+					fv2 := fv.Copy(nilAllocator)
 					fv2.Type = sft
 					cx.T = sft
 					cx.V = fv2
@@ -1542,6 +1557,12 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						default:
 							panic("should not happen")
 						}
+					} else if n.Op == SHL_ASSIGN || n.Op == SHR_ASSIGN {
+						if len(n.Lhs) != 1 || len(n.Rhs) != 1 {
+							panic("should not happen")
+						}
+						// Special case if shift assign <<= or >>=.
+						checkOrConvertType(store, last, &n.Rhs[0], UintType, false)
 					} else {
 						// General case: a, b = x, y.
 						for i, lx := range n.Lhs {
@@ -1810,12 +1831,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					pn := packageOf(last)
 					tid := DeclaredTypeID(pn.PkgPath, n.Name)
 					exists := false
-					if store != nil {
-						if dt := store.GetTypeSafe(tid); dt != nil {
-							dst = dt.(*DeclaredType)
-							last.GetValueRef(store, n.Name).SetType(dst)
-							exists = true
-						}
+					if dt := store.GetTypeSafe(tid); dt != nil {
+						dst = dt.(*DeclaredType)
+						last.GetValueRef(store, n.Name).SetType(dst)
+						exists = true
 					}
 					if !exists {
 						// otherwise construct new *DeclaredType.
@@ -1902,6 +1921,12 @@ func evalStaticType(store Store, last BlockNode, x Expr) Type {
 		return ctx.Type // no need to set attribute.
 	}
 	pn := packageOf(last)
+	// See comment in evalStaticTypeOfRaw.
+	if store != nil && pn.PkgPath != ".uverse" {
+		pv := pn.NewPackage() // temporary
+		store = store.Fork()
+		store.SetCachePackage(pv)
+	}
 	tv := NewMachine(pn.PkgPath, store).EvalStatic(last, x)
 	if _, ok := tv.V.(TypeValue); !ok {
 		panic(fmt.Sprintf("%s is not a type", x.String()))
@@ -1963,6 +1988,17 @@ func evalStaticTypeOfRaw(store Store, last BlockNode, x Expr) (t Type) {
 		return ctx.T
 	} else {
 		pn := packageOf(last)
+		// NOTE: do not load the package value from store,
+		// because we may be preprocessing in the middle of
+		// PreprocessAllFilesAndSaveBlockNodes,
+		// and the preprocessor will panic when
+		// package values are already there that weren't
+		// yet predefined this time around.
+		if store != nil && pn.PkgPath != ".uverse" {
+			pv := pn.NewPackage() // temporary
+			store = store.Fork()
+			store.SetCachePackage(pv)
+		}
 		t = NewMachine(pn.PkgPath, store).EvalStaticTypeOf(last, x)
 		x.SetAttribute(ATTR_TYPEOF_VALUE, t)
 		return t
@@ -2057,8 +2093,7 @@ func getResultTypedValues(cx *CallExpr) []TypedValue {
 func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	// TODO: some check or verification for ensuring x
 	// is constant?  From the machine?
-	pn := packageOf(last)
-	cv := NewMachine(pn.PkgPath, store).EvalStatic(last, x)
+	cv := NewMachine(".dontcare", store).EvalStatic(last, x)
 	cx := &ConstExpr{
 		Source:     x,
 		TypedValue: cv,
@@ -2240,7 +2275,7 @@ func convertConst(store Store, last BlockNode, cx *ConstExpr, t Type) {
 		setConstAttrs(cx)
 	} else if t != nil {
 		// e.g. a named type or uint8 type to int for indexing.
-		ConvertTo(store, &cx.TypedValue, t)
+		ConvertTo(nilAllocator, store, &cx.TypedValue, t)
 		setConstAttrs(cx)
 	}
 }
@@ -2780,12 +2815,11 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 				IsMethod:   true,
 				Source:     cd,
 				Name:       cd.Name,
-				Closure:    nil, // set later, see PrepareNewValues().
+				Closure:    nil, // set lazily.
 				FileName:   fileNameOf(last),
-				PkgPath:    "", // set later, see PrepareNewValues().
+				PkgPath:    pkg.PkgPath,
 				body:       cd.Body,
 				nativeBody: nil,
-				pkg:        nil, // set later, see PrepareNewValues().
 			})
 		} else {
 			ftv := pkg.GetValueRef(store, cd.Name)
@@ -2831,7 +2865,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 	// so value paths cannot be used here.
 	switch d := d.(type) {
 	case *ImportDecl:
-		pv := store.GetPackage(d.PkgPath)
+		pv := store.GetPackage(d.PkgPath, true)
 		if pv == nil {
 			panic(fmt.Sprintf(
 				"unknown import path %s",
@@ -2912,7 +2946,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 				} else if idx, ok := UverseNode().GetLocalIndex(tx.Name); ok {
 					// uverse name
 					path := NewValuePathUverse(idx, tx.Name)
-					tv := Uverse().GetValueRefAt(nil, path)
+					tv := Uverse().GetValueAt(nil, path)
 					t = tv.GetType()
 				} else {
 					// yet undefined
@@ -2996,12 +3030,11 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 					IsMethod:   false,
 					Source:     d,
 					Name:       d.Name,
-					Closure:    nil, // set later, see PrepareNewValues().
+					Closure:    nil, // set lazily.
 					FileName:   fileNameOf(last),
-					PkgPath:    "", // set later, see PrepareNewValues().
+					PkgPath:    pkg.PkgPath,
 					body:       d.Body,
 					nativeBody: nil,
-					pkg:        nil, // set later, see PrepareNewValues().
 				},
 			})
 			if d.Name == "init" {

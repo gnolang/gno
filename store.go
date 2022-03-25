@@ -21,8 +21,10 @@ type PackageInjector func(store Store, pn *PackageNode)
 type Store interface {
 	// STABLE
 	SetPackageGetter(PackageGetter)
-	GetPackage(pkgPath string) *PackageValue
-	SetPackage(*PackageValue)
+	GetPackage(pkgPath string, isImport bool) *PackageValue
+	SetCachePackage(*PackageValue)
+	GetPackageRealm(pkgPath string) *Realm
+	SetPackageRealm(*Realm)
 	GetObject(oid ObjectID) Object
 	GetObjectSafe(oid ObjectID) Object
 	SetObject(Object)
@@ -35,17 +37,19 @@ type Store interface {
 	GetBlockNodeSafe(Location) BlockNode
 	SetBlockNode(BlockNode)
 	// UNSTABLE
-	// AddMemPackage:
+	GetAllocator() *Allocator
+	NumMemPackages() int64
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
 	// version 1.
-	NumMemPackages() int64
-	AddMemPackage(memPkg std.MemPackage)
-	IterMemPackage() <-chan std.MemPackage
+	AddMemPackage(memPkg *std.MemPackage)
+	GetMemPackage(path string) *std.MemPackage
+	GetMemFile(path string, name string) *std.MemFile
+	IterMemPackage() <-chan *std.MemPackage
+	ClearObjectCache()                           // for each delivertx.
 	Fork() Store                                 // for checktx, simulate, and queries.
 	SwapStores(baseStore, iavlStore store.Store) // for gas wrappers.
 	SetPackageInjector(PackageInjector)          // for natives
-	// MISC
 	SetLogStoreOps(enabled bool)
 	SprintStoreOps() string
 	ClearCache()
@@ -54,6 +58,7 @@ type Store interface {
 
 // Used to keep track of in-mem objects during tx.
 type defaultStore struct {
+	alloc        *Allocator    // for accounting for cached items
 	pkgGetter    PackageGetter // non-realm packages
 	cacheObjects map[ObjectID]Object
 	cacheTypes   map[TypeID]Type
@@ -67,8 +72,9 @@ type defaultStore struct {
 	current map[string]struct{} // for detecting import cycles.
 }
 
-func NewStore(baseStore, iavlStore store.Store) *defaultStore {
+func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
 	ds := &defaultStore{
+		alloc:        alloc,
 		pkgGetter:    nil,
 		cacheObjects: make(map[ObjectID]Object),
 		cacheTypes:   make(map[TypeID]Type),
@@ -77,17 +83,30 @@ func NewStore(baseStore, iavlStore store.Store) *defaultStore {
 		iavlStore:    iavlStore,
 		current:      make(map[string]struct{}),
 	}
-	InitCacheTypes(ds)
+	InitStoreCaches(ds)
 	return ds
+}
+
+func (ds *defaultStore) GetAllocator() *Allocator {
+	return ds.alloc
 }
 
 func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
 	ds.pkgGetter = pg
 }
 
-func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
-	oid := ObjectIDFromPkgPath(pkgPath)
+// Gets package from cache, or loads it from baseStore, or gets it from package getter.
+func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue {
+	// detect circular imports
+	if isImport {
+		if _, exists := ds.current[pkgPath]; exists {
+			panic(fmt.Sprintf("import cycle detected: %q", pkgPath))
+		}
+		ds.current[pkgPath] = struct{}{}
+		defer delete(ds.current, pkgPath)
+	}
 	// first, check cache.
+	oid := ObjectIDFromPkgPath(pkgPath)
 	if oo, exists := ds.cacheObjects[oid]; exists {
 		pv := oo.(*PackageValue)
 		return pv
@@ -97,14 +116,18 @@ func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
 		if oo := ds.loadObjectSafe(oid); oo != nil {
 			pv := oo.(*PackageValue)
 			_ = pv.GetBlock(ds) // preload
+			// get package associated realm if nil.
+			if pv.IsRealm() && pv.Realm == nil {
+				rlm := ds.GetPackageRealm(pkgPath)
+				pv.Realm = rlm
+			}
+			// get package node.
 			pl := PackageNodeLocation(pkgPath)
 			pn, ok := ds.GetBlockNodeSafe(pl).(*PackageNode)
 			if !ok {
 				// Do not inject packages from packageGetter
 				// that don't have corresponding *PackageNodes.
 			} else {
-				// Rederive pv.fBlocksMap.
-				pv.deriveFBlocksMap(ds)
 				// Inject natives after load.
 				if ds.pkgInjector != nil {
 					if pn.HasAttribute(ATTR_INJECTED) {
@@ -118,16 +141,13 @@ func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
 					}
 				}
 			}
+			// Rederive pv.fBlocksMap.
+			pv.deriveFBlocksMap(ds)
 			return pv
 		}
 	}
 	// otherwise, fetch from pkgGetter.
 	if ds.pkgGetter != nil {
-		if _, exists := ds.current[pkgPath]; exists {
-			panic(fmt.Sprintf("import cycle detected: %q", pkgPath))
-		}
-		ds.current[pkgPath] = struct{}{}
-		defer delete(ds.current, pkgPath)
 		if pn, pv := ds.pkgGetter(pkgPath); pv != nil {
 			// e.g. tests/imports_tests loads example/gno.land/r/... realms.
 			// if pv.IsRealm() {
@@ -169,19 +189,39 @@ func (ds *defaultStore) GetPackage(pkgPath string) *PackageValue {
 	return nil
 }
 
-// Packages can also be provided via .SetPackageGetter, but they will be
-// overridden by cached and persisted ones..
-// Setting an already cached package (eg modifying it) fails unless realm
-// package.
-func (ds *defaultStore) SetPackage(pv *PackageValue) {
-	// if pv.IsRealm() {
-	oid := pv.ObjectInfo.ID
-	if oid.IsZero() {
-		// .SetRealm() should have set object id.
-		panic("should not happen")
+// Used to set throwaway packages.
+func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
+	oid := ObjectIDFromPkgPath(pv.PkgPath)
+	if _, exists := ds.cacheObjects[oid]; exists {
+		panic(fmt.Sprintf("package %s already exists in cache", pv.PkgPath))
 	}
-	ds.SetObject(pv)
-	// }
+	ds.cacheObjects[oid] = pv
+}
+
+// Some atomic operation.
+func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
+	oid := ObjectIDFromPkgPath(pkgPath)
+	key := backendRealmKey(oid)
+	bz := ds.baseStore.Get([]byte(key))
+	if bz == nil {
+		return nil
+	}
+	amino.MustUnmarshal(bz, &rlm)
+	if debug {
+		if rlm.ID != oid.PkgID {
+			panic(fmt.Sprintf("unexpected realm id: expected %v but got %v",
+				oid.PkgID, rlm.ID))
+		}
+	}
+	return rlm
+}
+
+// An atomic operation to set the package realm info (id counter etc).
+func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
+	oid := ObjectIDFromPkgPath(rlm.Path)
+	key := backendRealmKey(oid)
+	bz := amino.MustMarshal(rlm)
+	ds.baseStore.Set([]byte(key), bz)
 }
 
 // NOTE: does not consult the packageGetter, so instead
@@ -205,6 +245,11 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 	// check baseStore.
 	if ds.baseStore != nil {
 		if oo := ds.loadObjectSafe(oid); oo != nil {
+			if debug {
+				if _, ok := oo.(*PackageValue); ok {
+					panic("packages must be fetched with GetPackage()")
+				}
+			}
 			return oo
 		}
 	}
@@ -220,6 +265,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		hash := hashbz[:HashSize]
 		bz := hashbz[HashSize:]
 		var oo Object
+		ds.alloc.AllocateAmino(int64(len(bz)))
 		amino.MustUnmarshal(bz, &oo)
 		if debug {
 			if oo.GetObjectID() != oid {
@@ -235,6 +281,8 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 	return nil
 }
 
+// NOTE: unlike GetObject(), SetObject() is also used to persist updated
+// package values.
 func (ds *defaultStore) SetObject(oo Object) {
 	oid := oo.GetObjectID()
 	// replace children/fields with Ref.
@@ -262,7 +310,9 @@ func (ds *defaultStore) SetObject(oo Object) {
 		}
 		if oo2, exists := ds.cacheObjects[oid]; exists {
 			if oo != oo2 {
-				panic("duplicate object")
+				panic(fmt.Sprintf(
+					"duplicate object: set %s (oid: %s) but %s (oid %s) already exists",
+					oo.String(), oid.String(), oo2.String(), oo2.GetObjectID().String()))
 			}
 		}
 	}
@@ -430,7 +480,7 @@ func (ds *defaultStore) SetBlockNode(bn BlockNode) {
 
 func (ds *defaultStore) NumMemPackages() int64 {
 	ctrkey := []byte(backendPackageIndexCtrKey())
-	ctrbz := ds.iavlStore.Get(ctrkey)
+	ctrbz := ds.baseStore.Get(ctrkey)
 	if ctrbz == nil {
 		return 0
 	} else {
@@ -444,10 +494,10 @@ func (ds *defaultStore) NumMemPackages() int64 {
 
 func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 	ctrkey := []byte(backendPackageIndexCtrKey())
-	ctrbz := ds.iavlStore.Get(ctrkey)
+	ctrbz := ds.baseStore.Get(ctrkey)
 	if ctrbz == nil {
 		nextbz := strconv.Itoa(1)
-		ds.iavlStore.Set(ctrkey, []byte(nextbz))
+		ds.baseStore.Set(ctrkey, []byte(nextbz))
 		return 1
 	} else {
 		ctr, err := strconv.Atoi(string(ctrbz))
@@ -455,21 +505,42 @@ func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 			panic(err)
 		}
 		nextbz := strconv.Itoa(ctr + 1)
-		ds.iavlStore.Set(ctrkey, []byte(nextbz))
+		ds.baseStore.Set(ctrkey, []byte(nextbz))
 		return uint64(ctr) + 1
 	}
 }
 
-func (ds *defaultStore) AddMemPackage(memPkg std.MemPackage) {
+func (ds *defaultStore) AddMemPackage(memPkg *std.MemPackage) {
+	memPkg.Validate() // NOTE: duplicate validation.
 	ctr := ds.incGetPackageIndexCounter()
-	key := []byte(backendPackageIndexKey(ctr))
+	idxkey := []byte(backendPackageIndexKey(ctr))
 	bz := amino.MustMarshal(memPkg)
-	ds.iavlStore.Set(key, bz)
+	ds.baseStore.Set(idxkey, []byte(memPkg.Path))
+	pathkey := []byte(backendPackagePathKey(memPkg.Path))
+	ds.iavlStore.Set(pathkey, bz)
 }
 
-func (ds *defaultStore) IterMemPackage() <-chan std.MemPackage {
+func (ds *defaultStore) GetMemPackage(path string) *std.MemPackage {
+	pathkey := []byte(backendPackagePathKey(path))
+	bz := ds.iavlStore.Get(pathkey)
+	if bz == nil {
+		panic(fmt.Sprintf(
+			"missing package at path %s", string(pathkey)))
+	}
+	var memPkg *std.MemPackage
+	amino.MustUnmarshal(bz, &memPkg)
+	return memPkg
+}
+
+func (ds *defaultStore) GetMemFile(path string, name string) *std.MemFile {
+	memPkg := ds.GetMemPackage(path)
+	memFile := memPkg.GetFile(name)
+	return memFile
+}
+
+func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 	ctrkey := []byte(backendPackageIndexCtrKey())
-	ctrbz := ds.iavlStore.Get(ctrkey)
+	ctrbz := ds.baseStore.Get(ctrkey)
 	if ctrbz == nil {
 		return nil
 	} else {
@@ -477,17 +548,16 @@ func (ds *defaultStore) IterMemPackage() <-chan std.MemPackage {
 		if err != nil {
 			panic(err)
 		}
-		ch := make(chan std.MemPackage, 0)
+		ch := make(chan *std.MemPackage, 0)
 		go func() {
 			for i := uint64(1); i <= uint64(ctr); i++ {
-				key := backendPackageIndexKey(i)
-				bz := ds.iavlStore.Get([]byte(key))
-				if bz == nil {
+				idxkey := []byte(backendPackageIndexKey(i))
+				path := ds.baseStore.Get(idxkey)
+				if path == nil {
 					panic(fmt.Sprintf(
 						"missing package index %d", i))
 				}
-				var memPkg std.MemPackage
-				amino.MustUnmarshal(bz, &memPkg)
+				memPkg := ds.GetMemPackage(string(path))
 				ch <- memPkg
 			}
 			close(ch)
@@ -496,9 +566,24 @@ func (ds *defaultStore) IterMemPackage() <-chan std.MemPackage {
 	}
 }
 
-// Unstable.  This function is used to handle queries and checktx transactions.
+// Unstable.
+// This function is used to clear the object cache every transaction.
+// It also sets a new allocator.
+func (ds *defaultStore) ClearObjectCache() {
+	ds.alloc.Reset()
+	ds.cacheObjects = make(map[ObjectID]Object) // new cache.
+	ds.opslog = nil                             // new ops log.
+	if len(ds.current) > 0 {
+		ds.current = make(map[string]struct{})
+	}
+	ds.SetCachePackage(Uverse())
+}
+
+// Unstable.
+// This function is used to handle queries and checktx transactions.
 func (ds *defaultStore) Fork() Store {
-	return &defaultStore{
+	ds2 := &defaultStore{
+		alloc:        ds.alloc.Fork().Reset(),
 		pkgGetter:    ds.pkgGetter,
 		cacheObjects: make(map[ObjectID]Object), // new cache.
 		cacheTypes:   ds.cacheTypes,
@@ -509,6 +594,8 @@ func (ds *defaultStore) Fork() Store {
 		opslog:       nil, // new ops log.
 		current:      make(map[string]struct{}),
 	}
+	ds2.SetCachePackage(Uverse())
+	return ds2
 }
 
 // TODO: consider a better/faster/simpler way of achieving the overall same goal?
@@ -588,7 +675,7 @@ func (ds *defaultStore) ClearCache() {
 	ds.cacheTypes = make(map[TypeID]Type)
 	ds.cacheNodes = make(map[Location]BlockNode)
 	// restore builtin types to cache.
-	InitCacheTypes(ds)
+	InitStoreCaches(ds)
 }
 
 // for debugging
@@ -614,12 +701,13 @@ func (ds *defaultStore) Print() {
 //----------------------------------------
 // backend keys
 
-func backendPackageKey(pkgPath string) string {
-	return "pkg:" + pkgPath
-}
-
 func backendObjectKey(oid ObjectID) string {
 	return "oid:" + oid.String()
+}
+
+// oid: associated package value object id.
+func backendRealmKey(oid ObjectID) string {
+	return "oid:" + oid.String() + "#realm"
 }
 
 func backendTypeKey(tid TypeID) string {
@@ -638,10 +726,14 @@ func backendPackageIndexKey(index uint64) string {
 	return fmt.Sprintf("pkgidx:%020d", index)
 }
 
-//----------------------------------------
-// builtin types
+func backendPackagePathKey(path string) string {
+	return fmt.Sprintf("pkg:" + path)
+}
 
-func InitCacheTypes(store Store) {
+//----------------------------------------
+// builtin types and packages
+
+func InitStoreCaches(store Store) {
 	types := []Type{
 		BoolType, UntypedBoolType,
 		StringType, UntypedStringType,
@@ -657,15 +749,5 @@ func InitCacheTypes(store Store) {
 	for _, tt := range types {
 		store.SetCacheType(tt)
 	}
-}
-
-//----------------------------------------
-// Misc.
-
-func getPackageNodeAndValue(store Store, pkgPath string) (pn *PackageNode, pv *PackageValue) {
-	// Load PackageValue first.
-	pv = store.GetPackage(pkgPath)
-	// Now the *PackageNode block node exists.
-	pn = store.GetBlockNode(PackageNodeLocation(pkgPath)).(*PackageNode)
-	return
+	store.SetCachePackage(Uverse())
 }

@@ -1,0 +1,33 @@
+{{- define "app" -}}
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="/static/css/app.css"/>
+        <script src="/static/js/marked.min.js"></script>
+    </head>
+    <body onload="main()">
+	<div id="header">
+	    <a id="logo" href="/">GNO.LAND</a>
+        <span id="logo_path">
+            <a href="/r/{{ .Data.RealmName }}">/r/{{ .Data.RealmName }}</a>:{{ .Data.Query }}
+        </span>
+        {{ template "header_buttons" }}
+	</div>
+    <div id="realm_render">
+        <pre id="source">
+            {{ .Data.Contents }}
+        </pre>
+    </div>
+    </body>
+    <script type="text/javascript">
+function main() {
+	marked.setOptions({gfm:true});
+	window.contents = document.getElementById("source").innerHTML;
+	var doc = new DOMParser().parseFromString(window.contents, "text/html");
+	var contents = doc.documentElement.textContent
+	var parsed = marked.parse(contents);
+	document.getElementById("realm_render").innerHTML = parsed;
+};
+    </script>
+</html>
+{{- end -}}

@@ -20,35 +20,30 @@ simulated by the Gnomes of the Greater Resistance.
  
 ## Status
 
-_Update Aug 26th, 2021: SDK/store,baseapp ported; Plan updated_
+_Pinned/Sticky Update_
 
-Cosmos-SDK's store and baseapp modules have been ported.
-Now porting x/auth, for minimal auth usage.
-Plan updated with premine distribution for GNO adoption.
+The best way to test the functionality of gnolang is to run the tests,
+or to run the steps laid out in /examples/gno.land/r/boards/README.md.
+To run a smart contract locally, copy one of the test files in
+/tests/files2/zrealm_\*.go into one of your own.
 
-_Update Aug 16th, 2021: basic file tests pass_
+You can run these tests by running:
+`go test tests/*.go -v -run "TestFiles2/zrealm"`.
 
-Basic Go file tests now pass.  Working on realm/ownership logic under tests/files/zrealm\*.go.
+----------------------------------------
+_Update Mar 23rd, 2022: CPU and memory allocation limitations_
 
-_Update Jul 22nd, 2021: create pkgs/crypto/keys/client as crypto wallet._
+Completed a simple implementation of CPU and memory allocation limitations.
+The deduction of allocation units from garbage-collected allocated
+and structures does not occur until the end of the transaction.
 
-The new wallet will be used for signed communications.
+NOTE: This means memory usage will more inefficient for functions that rely on
+the garbage collection for memory reclaimation.  In the future, a finer scoped
+ability to account for garbage collection between functions will be
+implemented.
 
-_Update Jul ?, 2021: Public invited to contribute to Gnolang/files tests.
-
-_Update Feb 13th, 2021: Implemented Logos UI framework._
-
-This is a still a work in a progress, though much of the structure of the interpreter
-and AST have taken place.  Work is ongoing now to demonstrate the Realm concept before
-continuing to make the tests/files/\*.go tests pass.
-
-Make sure you have >=[go1.15](https://golang.org/doc/install) installed, and then try this: 
-
-```bash
-> git clone git@github.com:gnolang/gno.git
-> cd gno
-> make test
-```
+NOTE: CPU counting and some memory allocation values are placeholders, and need
+to be determined through empirical measurements.
 
 ## Resources
 

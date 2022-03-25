@@ -10,7 +10,7 @@ import (
 // t cannot be nil or untyped or DataByteType.
 // the conversion is forced and overflow/underflow is ignored.
 // TODO: return error, and let caller also print the file and line.
-func ConvertTo(store Store, tv *TypedValue, t Type) {
+func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
 	if debug {
 		if t == nil {
 			panic("ConvertTo() requires non-nil type")
@@ -42,8 +42,8 @@ func ConvertTo(store Store, tv *TypedValue, t Type) {
 			return
 		} else {
 			// convert go-native to gno type (shallow).
-			*tv = go2GnoValue2(tv.V.(*NativeValue).Value, false)
-			ConvertTo(store, tv, t)
+			*tv = go2GnoValue2(alloc, tv.V.(*NativeValue).Value, false)
+			ConvertTo(alloc, store, tv, t)
 			return
 		}
 	} else {
@@ -60,7 +60,7 @@ func ConvertTo(store Store, tv *TypedValue, t Type) {
 			}
 			*tv = TypedValue{
 				T: t,
-				V: &NativeValue{Value: rv},
+				V: alloc.NewNative(rv),
 			}
 			return
 		} else {
@@ -128,7 +128,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
-			tv.V = StringValue(string(rune(tv.GetInt())))
+			tv.V = alloc.NewString(string(rune(tv.GetInt())))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -179,7 +179,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
-			tv.V = StringValue(string(rune(tv.GetInt8())))
+			tv.V = alloc.NewString(string(rune(tv.GetInt8())))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -230,7 +230,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
-			tv.V = StringValue(string(rune(tv.GetInt16())))
+			tv.V = alloc.NewString(string(rune(tv.GetInt16())))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -281,7 +281,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
-			tv.V = StringValue(string(rune(tv.GetInt32())))
+			tv.V = alloc.NewString(string(rune(tv.GetInt32())))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -332,7 +332,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
-			tv.V = StringValue(string(rune(tv.GetInt64())))
+			tv.V = alloc.NewString(string(rune(tv.GetInt64())))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -383,7 +383,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
-			tv.V = StringValue(string(rune(tv.GetUint())))
+			tv.V = alloc.NewString(string(rune(tv.GetUint())))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -434,7 +434,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
-			tv.V = StringValue(string(rune(tv.GetUint8())))
+			tv.V = alloc.NewString(string(rune(tv.GetUint8())))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -485,7 +485,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
-			tv.V = StringValue(string(rune(tv.GetUint16())))
+			tv.V = alloc.NewString(string(rune(tv.GetUint16())))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -536,7 +536,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
-			tv.V = StringValue(string(rune(tv.GetUint32())))
+			tv.V = alloc.NewString(string(rune(tv.GetUint32())))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -587,7 +587,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case StringKind:
-			tv.V = StringValue(string(rune(tv.GetUint64())))
+			tv.V = alloc.NewString(string(rune(tv.GetUint64())))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -601,7 +601,7 @@ GNO_CASE:
 		case *SliceType:
 			switch cbt.Elt.Kind() {
 			case Uint8Kind:
-				tv.V = newSliceFromData([]byte(tv.GetString()))
+				tv.V = alloc.NewSliceFromData([]byte(tv.GetString()))
 				tv.T = t // after tv.GetString()
 			case Int32Kind:
 				runes := []TypedValue{}
@@ -609,7 +609,7 @@ GNO_CASE:
 				for _, r := range str {
 					runes = append(runes, typedRune(r))
 				}
-				tv.V = newSliceFromList(runes)
+				tv.V = alloc.NewSliceFromList(runes)
 				tv.T = t // after tv.GetString()
 			default:
 				panic(fmt.Sprintf(
@@ -632,7 +632,7 @@ GNO_CASE:
 			switch sv := tv.V.(type) {
 			case nil:
 				tv.T = t
-				tv.V = StringValue(string(""))
+				tv.V = alloc.NewString(string(""))
 			case *SliceValue:
 				svo := sv.Offset
 				svl := sv.Length
@@ -643,7 +643,7 @@ GNO_CASE:
 						copyListToData(
 							data[:svl],
 							svb.List[svo:svo+svl])
-						strv := StringValue(string(data))
+						strv := alloc.NewString(string(data))
 						tv.T = t
 						tv.V = strv
 					} else if tk == Int32Kind {
@@ -651,7 +651,7 @@ GNO_CASE:
 						copyListToRunes(
 							runes[:svl],
 							svb.List[svo:svo+svl])
-						strv := StringValue(string(runes))
+						strv := alloc.NewString(string(runes))
 						tv.T = t
 						tv.V = strv
 					} else {
@@ -659,7 +659,7 @@ GNO_CASE:
 					}
 				} else {
 					data := svb.Data[svo : svo+svl]
-					strv := StringValue(string(data))
+					strv := alloc.NewString(string(data))
 					tv.T = t
 					tv.V = strv
 				}
@@ -713,7 +713,8 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 		}
 		ConvertUntypedTo(tv, gnot)
 		// then convert to native value.
-		ConvertTo(nil, tv, t)
+		// NOTE: this should only be called during preprocessing, so no alloc needed.
+		ConvertTo(nilAllocator, nil, tv, t)
 	}
 	// special case: simple conversion
 	if t != nil && tv.T.Kind() == t.Kind() {
@@ -738,11 +739,17 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 		}
 		ConvertUntypedRuneTo(tv, t)
 	case UntypedBigintType:
+		if preprocessing == 0 {
+			panic("untyped Bigint conversion should not happen during interpretation")
+		}
 		if t == nil {
 			t = IntType
 		}
 		ConvertUntypedBigintTo(tv, tv.V.(BigintValue), t)
 	case UntypedStringType:
+		if preprocessing == 0 {
+			panic("untyped String conversion should not happen during interpretation")
+		}
 		if t == nil {
 			t = StringType
 		}
@@ -750,7 +757,7 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 			tv.T = t
 			return
 		} else {
-			ConvertTo(nil, tv, t)
+			ConvertTo(nilAllocator, nil, tv, t)
 		}
 	default:
 		panic(fmt.Sprintf(

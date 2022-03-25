@@ -20,24 +20,25 @@ import (
 type Machine struct {
 
 	// State
-	Ops       []Op // main operations
-	NumOps    int
-	Values    []TypedValue  // buffer of values to be operated on
-	NumValues int           // number of values
-	Exprs     []Expr        // pending expressions
-	Stmts     []Stmt        // pending statements
-	Blocks    []*Block      // block (scope) stack
-	Frames    []Frame       // func call stack
-	Package   *PackageValue // active package
-	Realm     *Realm        // active realm
-	Exception *TypedValue   // if panic'd unless recovered
-
-	// Volatile State
-	NumResults int // number of results returned
+	Ops        []Op // main operations
+	NumOps     int
+	Values     []TypedValue  // buffer of values to be operated on
+	NumValues  int           // number of values
+	Exprs      []Expr        // pending expressions
+	Stmts      []Stmt        // pending statements
+	Blocks     []*Block      // block (scope) stack
+	Frames     []Frame       // func call stack
+	Package    *PackageValue // active package
+	Realm      *Realm        // active realm
+	Alloc      *Allocator    // memory allocations
+	Exception  *TypedValue   // if panic'd unless recovered
+	NumResults int           // number of results returned
+	Cycles     int64         // number of "cpu" cycles
 
 	// Configuration
 	CheckTypes bool // not yet used
 	ReadOnly   bool
+	MaxCycles  int64
 
 	Output  io.Writer
 	Store   Store
@@ -46,62 +47,76 @@ type Machine struct {
 
 // Machine with new package of given path.
 // Creates a new MemRealmer for any new realms.
+// Looks in store for package of pkgPath; if not found,
+// creates new instances as necessary.
+// If pkgPath is zero, the machine has no active package
+// and one must be set prior to usage.
 func NewMachine(pkgPath string, store Store) *Machine {
-	pkgName := defaultPkgName(pkgPath)
-	pn := NewPackageNode(pkgName, pkgPath, &FileSet{})
-	pv := pn.NewPackage()
 	return NewMachineWithOptions(
 		MachineOptions{
-			Package: pv,
+			PkgPath: pkgPath,
 			Store:   store,
 		})
 }
 
 type MachineOptions struct {
-	Package    *PackageValue
-	CheckTypes bool // not yet used
-	ReadOnly   bool
-	Output     io.Writer
-	Store      Store
-	Context    interface{}
+	PkgPath       string
+	CheckTypes    bool // not yet used
+	ReadOnly      bool
+	Output        io.Writer
+	Store         Store
+	Context       interface{}
+	Alloc         *Allocator // or see MaxAllocBytes.
+	MaxAllocBytes int64      // or 0 for no limit.
+	MaxCycles     int64      // or 0 for no limit.
 }
 
 func NewMachineWithOptions(opts MachineOptions) *Machine {
-	pv := opts.Package
-	if pv == nil {
-		pn := NewPackageNode("main", ".main", &FileSet{})
-		pv = pn.NewPackage()
-	}
-	//rlm := pv.GetRealm()
 	checkTypes := opts.CheckTypes
 	readOnly := opts.ReadOnly
+	maxCycles := opts.MaxCycles
 	output := opts.Output
 	if output == nil {
 		output = os.Stdout
 	}
+	alloc := opts.Alloc
+	if alloc == nil {
+		alloc = NewAllocator(opts.MaxAllocBytes)
+	}
 	store := opts.Store
 	if store == nil {
-		// bare machine, no stdlibs.
+		// bare store, no stdlibs.
+		store = NewStore(alloc, nil, nil)
 	}
-	//blocks := []*Block{
-	//	pv.GetBlock(store),
-	//}
+	pv := (*PackageValue)(nil)
+	if opts.PkgPath != "" {
+		pv = store.GetPackage(opts.PkgPath, false)
+		if pv == nil {
+			pkgName := defaultPkgName(opts.PkgPath)
+			pn := NewPackageNode(pkgName, opts.PkgPath, &FileSet{})
+			pv = pn.NewPackage()
+			store.SetBlockNode(pn)
+			store.SetCachePackage(pv)
+		}
+	}
 	context := opts.Context
 	mm := &Machine{
-		Ops:       make([]Op, 1024),
-		NumOps:    0,
-		Values:    make([]TypedValue, 1024),
-		NumValues: 0,
-		//Blocks:     blocks,
-		Package: pv,
-		//Realm:      rlm,
+		Ops:        make([]Op, 1024),
+		NumOps:     0,
+		Values:     make([]TypedValue, 1024),
+		NumValues:  0,
+		Package:    pv,
+		Alloc:      alloc,
 		CheckTypes: checkTypes,
 		ReadOnly:   readOnly,
+		MaxCycles:  maxCycles,
 		Output:     output,
 		Store:      store,
 		Context:    context,
 	}
-	mm.SetActivePackage(pv)
+	if pv != nil {
+		mm.SetActivePackage(pv)
+	}
 	return mm
 }
 
@@ -126,6 +141,7 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	for memPkg := range ch {
 		fset := ParseMemPackage(memPkg)
 		pn := NewPackageNode(Name(memPkg.Name), memPkg.Path, fset)
+		m.Store.SetBlockNode(pn)
 		PredefineFileSet(m.Store, pn, fset)
 		for _, fn := range fset.Files {
 			// Save Types to m.Store (while preprocessing).
@@ -151,30 +167,36 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 //----------------------------------------
 // top level Run* methods.
 
-// First sets the active package to a new instance of memPkg's.
-// Parses files, sets the package, runs files, and saves mempkg and
-// corresponding package node to store.
-// If save is true, the mempackage, package value, package node, and defined
-// types are saved to store.
-func (m *Machine) RunMemPackage(memPkg std.MemPackage, save bool) (*PackageNode, *PackageValue) {
+// Parses files, sets the package if doesn't exist, runs files, saves mempkg
+// and corresponding package node, package value, and types to store. Save
+// is set to false for tests where package values may be native.
+func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
 	// parse files.
 	files := ParseMemPackage(memPkg)
-	// make and set package
-	pkg := NewPackageNode(Name(memPkg.Name), memPkg.Path, nil)
-	pv := pkg.NewPackage()
+	// make and set package if doesn't exist.
+	pn := (*PackageNode)(nil)
+	pv := (*PackageValue)(nil)
+	if m.Package != nil && m.Package.PkgPath == memPkg.Path {
+		pv = m.Package
+		loc := PackageNodeLocation(memPkg.Path)
+		pn = m.Store.GetBlockNode(loc).(*PackageNode)
+	} else {
+		pn = NewPackageNode(Name(memPkg.Name), memPkg.Path, &FileSet{})
+		pv = pn.NewPackage()
+		m.Store.SetBlockNode(pn)
+		m.Store.SetCachePackage(pv)
+	}
 	m.SetActivePackage(pv)
+	// run files.
+	m.RunFiles(files.Files...)
+	// maybe save package value and mempackage.
 	if save {
-		// run files and save package value, package node, and types
-		m.RunFilesAndSave(files.Files...)
+		// store package values and types
+		m.savePackageValuesAndTypes()
 		// store mempackage
 		m.Store.AddMemPackage(memPkg)
-		// store package node
-		m.Store.SetBlockNode(pkg)
-	} else {
-		// run files
-		m.RunFiles(files.Files...)
 	}
-	return pkg, pv
+	return pn, pv
 }
 
 // Tests all test files in a mempackage.
@@ -182,18 +204,18 @@ func (m *Machine) RunMemPackage(memPkg std.MemPackage, save bool) (*PackageNode,
 // The resulting package value and node become injected with TestMethods and
 // other declarations, so it is expected that non-test code will not be run
 // afterwards from the same store.
-func (m *Machine) TestMemPackage(t *testing.T, memPkg std.MemPackage) {
+func (m *Machine) TestMemPackage(t *testing.T, memPkg *std.MemPackage) {
 	defer m.injectLocOnPanic()
-	debug.Disable()
+	DisableDebug()
 	fmt.Println("DEBUG DISABLED (FOR TEST DEPENDENCIES INIT)")
 	// prefetch the testing package.
-	testingpv := m.Store.GetPackage("testing")
+	testingpv := m.Store.GetPackage("testing", false)
 	testingtv := TypedValue{T: gPackageType, V: testingpv}
 	testingcx := &ConstExpr{TypedValue: testingtv}
 	// parse test files.
 	tfiles, itfiles := ParseMemPackageTests(memPkg)
 	{ // first, tfiles which run in the same package.
-		pv := m.Store.GetPackage(memPkg.Path)
+		pv := m.Store.GetPackage(memPkg.Path, false)
 		pvBlock := pv.GetBlock(m.Store)
 		pvSize := len(pvBlock.Values)
 		m.SetActivePackage(pv)
@@ -223,13 +245,15 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg std.MemPackage) {
 		}
 	}
 	{ // run all (import) tests in test files.
-		pkg := NewPackageNode(Name(memPkg.Name+"_test"), memPkg.Path, itfiles)
-		pv := pkg.NewPackage()
+		pn := NewPackageNode(Name(memPkg.Name+"_test"), memPkg.Path+"_test", itfiles)
+		pv := pn.NewPackage()
+		m.Store.SetBlockNode(pn)
+		m.Store.SetCachePackage(pv)
 		pvBlock := pv.GetBlock(m.Store)
 		m.SetActivePackage(pv)
 		m.RunFiles(itfiles.Files...)
-		pkg.PrepareNewValues(pv)
-		debug.Enable()
+		pn.PrepareNewValues(pv)
+		EnableDebug()
 		fmt.Println("DEBUG ENABLED")
 		for i := 0; i < len(pvBlock.Values); i++ {
 			tv := &pvBlock.Values[i]
@@ -310,13 +334,6 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	m.runFiles(fns...)
 }
 
-// Like RunFiles, but also persists the resulting new package value
-// and found types.
-// Non-realm packages are persisted on a throwaway realm.
-func (m *Machine) RunFilesAndSave(fns ...*FileNode) {
-	m.runFiles(fns...)
-	m.savePackage()
-}
 func (m *Machine) runFiles(fns ...*FileNode) {
 	// Files' package names must match the machine's active one.
 	// if there is one.
@@ -364,14 +381,12 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 			debug.Printf("PREPROCESSED FILE: %v\n", fn)
 		}
 		// After preprocessing, save blocknodes to store.
-		if m.Store != nil {
-			SaveBlockNodes(m.Store, fn)
-		}
+		SaveBlockNodes(m.Store, fn)
 		// Make block for fn.
 		// Each file for each *PackageValue gets its own file *Block,
 		// with values copied over from each file's
 		// *FileNode.StaticBlock.
-		fb := NewBlock(fn, pb)
+		fb := m.Alloc.NewBlock(fn, pb)
 		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
 		copy(fb.Values, fn.StaticBlock.Values)
 		pv.AddFileBlock(fn.Name, fb)
@@ -436,9 +451,9 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 		}
 	}
 
-	// Declarations (and variable initializations).  This must happen after
-	// all files are preprocessed, because value decl may be out of order
-	// and depend on other files.
+	// Declarations (and variable initializations).  This must happen
+	// after all files are preprocessed, because value decl may be out of
+	// order and depend on other files.
 
 	// Run declarations.
 	for _, fn := range fns {
@@ -471,26 +486,26 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 
 // Save the machine's package using realm finalization deep crawl.
 // Also saves declared types.
-func (m *Machine) savePackage() {
+func (m *Machine) savePackageValuesAndTypes() {
 	// save package value and dependencies.
 	pv := m.Package
 	if pv.IsRealm() {
 		rlm := pv.Realm
 		rlm.MarkNewReal(pv)
 		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
-	} else if m.Store != nil { // use a throwaway realm.
+		// save package realm info.
+		m.Store.SetPackageRealm(rlm)
+	} else { // use a throwaway realm.
 		rlm := NewRealm(pv.PkgPath)
 		rlm.MarkNewReal(pv)
 		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
 	}
 	// save declared types.
-	if m.Store != nil {
-		if bv, ok := pv.Block.(*Block); ok {
-			for _, tv := range bv.Values {
-				if tvv, ok := tv.V.(TypeValue); ok {
-					if dt, ok := tvv.Type.(*DeclaredType); ok {
-						m.Store.SetType(dt)
-					}
+	if bv, ok := pv.Block.(*Block); ok {
+		for _, tv := range bv.Values {
+			if tvv, ok := tv.V.(TypeValue); ok {
+				if dt, ok := tvv.Type.(*DeclaredType); ok {
+					m.Store.SetType(dt)
 				}
 			}
 		}
@@ -804,6 +819,140 @@ const (
 )
 
 //----------------------------------------
+// "CPU" steps.
+
+func (m *Machine) incrCPU(cycles int64) {
+	m.Cycles += cycles
+	if m.MaxCycles != 0 && m.Cycles > m.MaxCycles {
+		panic("CPU cycle overrun")
+	}
+}
+
+const (
+	/* Control operators */
+	OpCPUInvalid             = 1
+	OpCPUHalt                = 1
+	OpCPUNoop                = 1
+	OpCPUExec                = 1
+	OpCPUPrecall             = 1
+	OpCPUCall                = 1
+	OpCPUCallNativeBody      = 1
+	OpCPUReturn              = 1
+	OpCPUReturnFromBlock     = 1
+	OpCPUReturnToBlock       = 1
+	OpCPUDefer               = 1
+	OpCPUCallDeferNativeBody = 1
+	OpCPUGo                  = 1
+	OpCPUSelect              = 1
+	OpCPUSwitchClause        = 1
+	OpCPUSwitchClauseCase    = 1
+	OpCPUTypeSwitch          = 1
+	OpCPUIfCond              = 1
+	OpCPUPopValue            = 1
+	OpCPUPopResults          = 1
+	OpCPUPopBlock            = 1
+	OpCPUPopFrameAndReset    = 1
+	OpCPUPanic1              = 1
+	OpCPUPanic2              = 1
+
+	/* Unary & binary operators */
+	OpCPUUpos  = 1
+	OpCPUUneg  = 1
+	OpCPUUnot  = 1
+	OpCPUUxor  = 1
+	OpCPUUrecv = 1
+	OpCPULor   = 1
+	OpCPULand  = 1
+	OpCPUEql   = 1
+	OpCPUNeq   = 1
+	OpCPULss   = 1
+	OpCPULeq   = 1
+	OpCPUGtr   = 1
+	OpCPUGeq   = 1
+	OpCPUAdd   = 1
+	OpCPUSub   = 1
+	OpCPUBor   = 1
+	OpCPUXor   = 1
+	OpCPUMul   = 1
+	OpCPUQuo   = 1
+	OpCPURem   = 1
+	OpCPUShl   = 1
+	OpCPUShr   = 1
+	OpCPUBand  = 1
+	OpCPUBandn = 1
+
+	/* Other expression operators */
+	OpCPUEval         = 1
+	OpCPUBinary1      = 1
+	OpCPUIndex1       = 1
+	OpCPUIndex2       = 1
+	OpCPUSelector     = 1
+	OpCPUSlice        = 1
+	OpCPUStar         = 1
+	OpCPURef          = 1
+	OpCPUTypeAssert1  = 1
+	OpCPUTypeAssert2  = 1
+	OpCPUStaticTypeOf = 1
+	OpCPUCompositeLit = 1
+	OpCPUArrayLit     = 1
+	OpCPUSliceLit     = 1
+	OpCPUSliceLit2    = 1
+	OpCPUMapLit       = 1
+	OpCPUStructLit    = 1
+	OpCPUFuncLit      = 1
+	OpCPUConvert      = 1
+
+	/* Native operators */
+	OpCPUArrayLitGoNative  = 1
+	OpCPUSliceLitGoNative  = 1
+	OpCPUStructLitGoNative = 1
+	OpCPUCallGoNative      = 1
+
+	/* Type operators */
+	OpCPUFieldType       = 1
+	OpCPUArrayType       = 1
+	OpCPUSliceType       = 1
+	OpCPUPointerType     = 1
+	OpCPUInterfaceType   = 1
+	OpCPUChanType        = 1
+	OpCPUFuncType        = 1
+	OpCPUMapType         = 1
+	OpCPUStructType      = 1
+	OpCPUMaybeNativeType = 1
+
+	/* Statement operators */
+	OpCPUAssign      = 1
+	OpCPUAddAssign   = 1
+	OpCPUSubAssign   = 1
+	OpCPUMulAssign   = 1
+	OpCPUQuoAssign   = 1
+	OpCPURemAssign   = 1
+	OpCPUBandAssign  = 1
+	OpCPUBandnAssign = 1
+	OpCPUBorAssign   = 1
+	OpCPUXorAssign   = 1
+	OpCPUShlAssign   = 1
+	OpCPUShrAssign   = 1
+	OpCPUDefine      = 1
+	OpCPUInc         = 1
+	OpCPUDec         = 1
+
+	/* Decl operators */
+	OpCPUValueDecl = 1
+	OpCPUTypeDecl  = 1
+
+	/* Loop (sticky) operators (>= 0xD0) */
+	OpCPUSticky            = 1
+	OpCPUBody              = 1
+	OpCPUForLoop           = 1
+	OpCPURangeIter         = 1
+	OpCPURangeIterString   = 1
+	OpCPURangeIterMap      = 1
+	OpCPURangeIterArrayPtr = 1
+	OpCPUReturnCallDefers  = 1
+)
+
+//----------------------------------------
 // main run loop.
 
 func (m *Machine) Run() {
@@ -813,216 +962,321 @@ func (m *Machine) Run() {
 		switch op {
 		/* Control operators */
 		case OpHalt:
+			m.incrCPU(OpCPUHalt)
 			return
 		case OpNoop:
+			m.incrCPU(OpCPUNoop)
 			continue
 		case OpExec:
+			m.incrCPU(OpCPUExec)
 			m.doOpExec(op)
 		case OpPrecall:
+			m.incrCPU(OpCPUPrecall)
 			m.doOpPrecall()
 		case OpCall:
+			m.incrCPU(OpCPUCall)
 			m.doOpCall()
 		case OpCallNativeBody:
+			m.incrCPU(OpCPUCallNativeBody)
 			m.doOpCallNativeBody()
 		case OpReturn:
+			m.incrCPU(OpCPUReturn)
 			m.doOpReturn()
 		case OpReturnFromBlock:
+			m.incrCPU(OpCPUReturnFromBlock)
 			m.doOpReturnFromBlock()
 		case OpReturnToBlock:
+			m.incrCPU(OpCPUReturnToBlock)
 			m.doOpReturnToBlock()
 		case OpDefer:
+			m.incrCPU(OpCPUDefer)
 			m.doOpDefer()
 		case OpPanic1:
+			m.incrCPU(OpCPUPanic1)
 			m.doOpPanic1()
 		case OpPanic2:
+			m.incrCPU(OpCPUPanic2)
 			m.doOpPanic2()
 		case OpCallDeferNativeBody:
+			m.incrCPU(OpCPUCallDeferNativeBody)
 			m.doOpCallDeferNativeBody()
 		case OpGo:
+			m.incrCPU(OpCPUGo)
 			panic("not yet implemented")
 		case OpSelect:
+			m.incrCPU(OpCPUSelect)
 			panic("not yet implemented")
 		case OpSwitchClause:
+			m.incrCPU(OpCPUSwitchClause)
 			m.doOpSwitchClause()
 		case OpSwitchClauseCase:
+			m.incrCPU(OpCPUSwitchClauseCase)
 			m.doOpSwitchClauseCase()
 		case OpTypeSwitch:
+			m.incrCPU(OpCPUTypeSwitch)
 			m.doOpTypeSwitch()
 		case OpIfCond:
+			m.incrCPU(OpCPUIfCond)
 			m.doOpIfCond()
 		case OpPopValue:
+			m.incrCPU(OpCPUPopValue)
 			m.PopValue()
 		case OpPopResults:
+			m.incrCPU(OpCPUPopResults)
 			m.PopResults()
 		case OpPopBlock:
+			m.incrCPU(OpCPUPopBlock)
 			m.PopBlock()
 		case OpPopFrameAndReset:
+			m.incrCPU(OpCPUPopFrameAndReset)
 			m.PopFrameAndReset()
 		/* Unary operators */
 		case OpUpos:
+			m.incrCPU(OpCPUUpos)
 			m.doOpUpos()
 		case OpUneg:
+			m.incrCPU(OpCPUUneg)
 			m.doOpUneg()
 		case OpUnot:
+			m.incrCPU(OpCPUUnot)
 			m.doOpUnot()
 		case OpUxor:
+			m.incrCPU(OpCPUUxor)
 			m.doOpUxor()
 		case OpUrecv:
+			m.incrCPU(OpCPUUrecv)
 			m.doOpUrecv()
 		/* Binary operators */
 		case OpLor:
+			m.incrCPU(OpCPULor)
 			m.doOpLor()
 		case OpLand:
+			m.incrCPU(OpCPULand)
 			m.doOpLand()
 		case OpEql:
+			m.incrCPU(OpCPUEql)
 			m.doOpEql()
 		case OpNeq:
+			m.incrCPU(OpCPUNeq)
 			m.doOpNeq()
 		case OpLss:
+			m.incrCPU(OpCPULss)
 			m.doOpLss()
 		case OpLeq:
+			m.incrCPU(OpCPULeq)
 			m.doOpLeq()
 		case OpGtr:
+			m.incrCPU(OpCPUGtr)
 			m.doOpGtr()
 		case OpGeq:
+			m.incrCPU(OpCPUGeq)
 			m.doOpGeq()
 		case OpAdd:
+			m.incrCPU(OpCPUAdd)
 			m.doOpAdd()
 		case OpSub:
+			m.incrCPU(OpCPUSub)
 			m.doOpSub()
 		case OpBor:
+			m.incrCPU(OpCPUBor)
 			m.doOpBor()
 		case OpXor:
+			m.incrCPU(OpCPUXor)
 			m.doOpXor()
 		case OpMul:
+			m.incrCPU(OpCPUMul)
 			m.doOpMul()
 		case OpQuo:
+			m.incrCPU(OpCPUQuo)
 			m.doOpQuo()
 		case OpRem:
+			m.incrCPU(OpCPURem)
 			m.doOpRem()
 		case OpShl:
+			m.incrCPU(OpCPUShl)
 			m.doOpShl()
 		case OpShr:
+			m.incrCPU(OpCPUShr)
 			m.doOpShr()
 		case OpBand:
+			m.incrCPU(OpCPUBand)
 			m.doOpBand()
 		case OpBandn:
+			m.incrCPU(OpCPUBandn)
 			m.doOpBandn()
 		/* Expression operators */
 		case OpEval:
+			m.incrCPU(OpCPUEval)
 			m.doOpEval()
 		case OpBinary1:
+			m.incrCPU(OpCPUBinary1)
 			m.doOpBinary1()
 		case OpIndex1:
+			m.incrCPU(OpCPUIndex1)
 			m.doOpIndex1()
 		case OpIndex2:
+			m.incrCPU(OpCPUIndex2)
 			m.doOpIndex2()
 		case OpSelector:
+			m.incrCPU(OpCPUSelector)
 			m.doOpSelector()
 		case OpSlice:
+			m.incrCPU(OpCPUSlice)
 			m.doOpSlice()
 		case OpStar:
+			m.incrCPU(OpCPUStar)
 			m.doOpStar()
 		case OpRef:
+			m.incrCPU(OpCPURef)
 			m.doOpRef()
 		case OpTypeAssert1:
+			m.incrCPU(OpCPUTypeAssert1)
 			m.doOpTypeAssert1()
 		case OpTypeAssert2:
+			m.incrCPU(OpCPUTypeAssert2)
 			m.doOpTypeAssert2()
 		case OpStaticTypeOf:
+			m.incrCPU(OpCPUStaticTypeOf)
 			m.doOpStaticTypeOf()
 		case OpCompositeLit:
+			m.incrCPU(OpCPUCompositeLit)
 			m.doOpCompositeLit()
 		case OpArrayLit:
+			m.incrCPU(OpCPUArrayLit)
 			m.doOpArrayLit()
 		case OpSliceLit:
+			m.incrCPU(OpCPUSliceLit)
 			m.doOpSliceLit()
 		case OpSliceLit2:
+			m.incrCPU(OpCPUSliceLit2)
 			m.doOpSliceLit2()
 		case OpFuncLit:
+			m.incrCPU(OpCPUFuncLit)
 			m.doOpFuncLit()
 		case OpMapLit:
+			m.incrCPU(OpCPUMapLit)
 			m.doOpMapLit()
 		case OpStructLit:
+			m.incrCPU(OpCPUStructLit)
 			m.doOpStructLit()
 		case OpConvert:
+			m.incrCPU(OpCPUConvert)
 			m.doOpConvert()
 		/* GoNative Operators */
 		case OpArrayLitGoNative:
+			m.incrCPU(OpCPUArrayLitGoNative)
 			m.doOpArrayLitGoNative()
 		case OpSliceLitGoNative:
+			m.incrCPU(OpCPUSliceLitGoNative)
 			m.doOpSliceLitGoNative()
 		case OpStructLitGoNative:
+			m.incrCPU(OpCPUStructLitGoNative)
 			m.doOpStructLitGoNative()
 		case OpCallGoNative:
+			m.incrCPU(OpCPUCallGoNative)
 			m.doOpCallGoNative()
 		/* Type operators */
 		case OpFieldType:
+			m.incrCPU(OpCPUFieldType)
 			m.doOpFieldType()
 		case OpArrayType:
+			m.incrCPU(OpCPUArrayType)
 			m.doOpArrayType()
 		case OpSliceType:
+			m.incrCPU(OpCPUSliceType)
 			m.doOpSliceType()
 		case OpChanType:
+			m.incrCPU(OpCPUChanType)
 			m.doOpChanType()
 		case OpFuncType:
+			m.incrCPU(OpCPUFuncType)
 			m.doOpFuncType()
 		case OpMapType:
+			m.incrCPU(OpCPUMapType)
 			m.doOpMapType()
 		case OpStructType:
+			m.incrCPU(OpCPUStructType)
 			m.doOpStructType()
 		case OpInterfaceType:
+			m.incrCPU(OpCPUInterfaceType)
 			m.doOpInterfaceType()
 		case OpMaybeNativeType:
+			m.incrCPU(OpCPUMaybeNativeType)
 			m.doOpMaybeNativeType()
 		/* Statement operators */
 		case OpAssign:
+			m.incrCPU(OpCPUAssign)
 			m.doOpAssign()
 		case OpAddAssign:
+			m.incrCPU(OpCPUAddAssign)
 			m.doOpAddAssign()
 		case OpSubAssign:
+			m.incrCPU(OpCPUSubAssign)
 			m.doOpSubAssign()
 		case OpMulAssign:
+			m.incrCPU(OpCPUMulAssign)
 			m.doOpMulAssign()
 		case OpQuoAssign:
+			m.incrCPU(OpCPUQuoAssign)
 			m.doOpQuoAssign()
 		case OpRemAssign:
+			m.incrCPU(OpCPURemAssign)
 			m.doOpRemAssign()
 		case OpBandAssign:
+			m.incrCPU(OpCPUBandAssign)
 			m.doOpBandAssign()
 		case OpBandnAssign:
+			m.incrCPU(OpCPUBandnAssign)
 			m.doOpBandnAssign()
 		case OpBorAssign:
+			m.incrCPU(OpCPUBorAssign)
 			m.doOpBorAssign()
 		case OpXorAssign:
+			m.incrCPU(OpCPUXorAssign)
 			m.doOpXorAssign()
 		case OpShlAssign:
+			m.incrCPU(OpCPUShlAssign)
 			m.doOpShlAssign()
 		case OpShrAssign:
+			m.incrCPU(OpCPUShrAssign)
 			m.doOpShrAssign()
 		case OpDefine:
+			m.incrCPU(OpCPUDefine)
 			m.doOpDefine()
 		case OpInc:
+			m.incrCPU(OpCPUInc)
 			m.doOpInc()
 		case OpDec:
+			m.incrCPU(OpCPUDec)
 			m.doOpDec()
 		/* Decl operators */
 		case OpValueDecl:
+			m.incrCPU(OpCPUValueDecl)
 			m.doOpValueDecl()
 		case OpTypeDecl:
+			m.incrCPU(OpCPUTypeDecl)
 			m.doOpTypeDecl()
 		/* Loop (sticky) operators */
 		case OpBody:
+			m.incrCPU(OpCPUBody)
 			m.doOpExec(op)
 		case OpForLoop:
+			m.incrCPU(OpCPUForLoop)
 			m.doOpExec(op)
-		case OpRangeIter, OpRangeIterArrayPtr:
+		case OpRangeIter:
+			m.incrCPU(OpCPURangeIter)
+			m.doOpExec(op)
+		case OpRangeIterArrayPtr:
+			m.incrCPU(OpCPURangeIterArrayPtr)
 			m.doOpExec(op)
 		case OpRangeIterString:
+			m.incrCPU(OpCPURangeIterString)
 			m.doOpExec(op)
 		case OpRangeIterMap:
+			m.incrCPU(OpCPURangeIterMap)
 			m.doOpExec(op)
 		case OpReturnCallDefers:
+			m.incrCPU(OpCPUReturnCallDefers)
 			m.doOpReturnCallDefers()
 		default:
 			panic(fmt.Sprintf("unexpected opcode %s", op.String()))
@@ -1305,10 +1559,8 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 	}
 	m.Frames = append(m.Frames, fr)
 	pv := fv.GetPackage(m.Store)
-	if debug {
-		if pv == nil {
-			panic("should not happen")
-		}
+	if pv == nil {
+		panic(fmt.Sprintf("package value missing in store: %s", fv.PkgPath))
 	}
 	m.Package = pv
 	rlm := pv.GetRealm()
@@ -1486,10 +1738,10 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()
-		return xv.GetPointerAtIndex(m.Store, iv)
+		return xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
 	case *SelectorExpr:
 		xv := m.PopValue()
-		return xv.GetPointerTo(m.Store, lx.Path)
+		return xv.GetPointerTo(m.Alloc, m.Store, lx.Path)
 	case *StarExpr:
 		ptr := m.PopValue().V.(PointerValue)
 		return ptr
@@ -1667,6 +1919,7 @@ func (m *Machine) String() string {
 }
 
 //----------------------------------------
+// utility
 
 func hasName(n Name, ns []Name) bool {
 	for _, n2 := range ns {

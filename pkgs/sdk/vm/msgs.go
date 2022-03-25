@@ -15,15 +15,15 @@ import (
 
 // MsgAddPackage - create and initialize new package
 type MsgAddPackage struct {
-	Creator crypto.Address `json:"creator" yaml:"creator"`
-	Package std.MemPackage `json:"package" yaml:"package"`
-	Deposit std.Coins      `json:"deposit" yaml:"deposit"`
+	Creator crypto.Address  `json:"creator" yaml:"creator"`
+	Package *std.MemPackage `json:"package" yaml:"package"`
+	Deposit std.Coins       `json:"deposit" yaml:"deposit"`
 }
 
 var _ std.Msg = MsgAddPackage{}
 
 // NewMsgAddPackage - upload a package with files.
-func NewMsgAddPackage(creator crypto.Address, pkgPath string, files []std.MemFile) MsgAddPackage {
+func NewMsgAddPackage(creator crypto.Address, pkgPath string, files []*std.MemFile) MsgAddPackage {
 	var pkgName string
 	for _, file := range files {
 		if strings.HasSuffix(file.Name, ".go") {
@@ -33,7 +33,7 @@ func NewMsgAddPackage(creator crypto.Address, pkgPath string, files []std.MemFil
 	}
 	return MsgAddPackage{
 		Creator: creator,
-		Package: std.MemPackage{
+		Package: &std.MemPackage{
 			Name:  pkgName,
 			Path:  pkgPath,
 			Files: files,

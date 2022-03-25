@@ -8,10 +8,11 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
+	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/bft/rpc/client"
+	"github.com/gnolang/gno/pkgs/std"
 	"github.com/gorilla/mux"
 	"github.com/gotuna/gotuna"
 
@@ -32,11 +33,13 @@ func main() {
 	}
 
 	app.Router.Handle("/", handlerHome(app))
-	app.Router.Handle("/p/{pkgpath:.*}", handlerPackage(app))
-	app.Router.Handle("/r/{rlmpath:[a-zA-Z][a-zA-Z0-9_]*}", handlerRealm(app))
-	app.Router.Handle("/r/{rlmpath:[a-zA-Z][a-zA-Z0-9_]*}.{expr}", handlerRealmExpr(app))
-	app.Router.Handle("/r/{rlmpath:[a-zA-Z][a-zA-Z0-9_]*}/{path:.+}", handlerRealmPath(app))
+	// NOTE: see rePathPart.
+	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*}", handlerRealmMain(app))
+	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*}:{querystr:.*}", handlerRealmRender(app))
+	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*}/{filename:.*}", handlerRealmFile(app))
+	app.Router.Handle("/p/{filepath:.*}", handlerPackageFile(app))
 	app.Router.Handle("/static/{path:.+}", handlerStaticFile(app))
+	// funcs/{rlmname:[a-z][a-z0-9_]*}", handlerGetFunctions(app))
 
 	fmt.Println("Running on http://localhost:8888")
 	http.ListenAndServe("127.0.0.1:8888", app.Router)
@@ -45,195 +48,157 @@ func main() {
 func handlerHome(app gotuna.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		app.NewTemplatingEngine().
-			Render(w, r, "app.html")
+			Render(w, r, "home.html", "header.html")
 	})
 }
 
-func handlerPackage(app gotuna.App) http.Handler {
+func handlerRealmMain(app gotuna.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
-		pkgPath := "gno.land/p/" + vars["pkgpath"]
-		fmt.Println("pkgPath:", pkgPath)
-		// TODO implement query handler for fetching package files.
-		return
-	})
-}
-
-func handlerRealm(app gotuna.App) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		rlmPath := "gno.land/r/" + vars["rlmpath"]
-		expr := "Render(\"\")"
-
-		qpath := "vm/qeval"
-		data := []byte(fmt.Sprintf("%s\n%s", rlmPath, expr))
-		opts2 := client.ABCIQueryOptions{
-			// Height: height, XXX
-			// Prove: false, XXX
+		rlmpath := "gno.land/r/" + vars["rlmname"]
+		_, ok := r.URL.Query()["funcs"]
+		if ok {
+			// Render function helper.
+			qpath := "vm/qfuncs"
+			data := []byte(rlmpath)
+			res, err := makeRequest(qpath, data)
+			if err != nil {
+				writeError(w, err)
+				return
+			}
+			// Render template.
+			var fsigs vm.FunctionSignatures
+			amino.MustUnmarshalJSON(res, &fsigs)
+			tmpl := app.NewTemplatingEngine()
+			tmpl.Set("RealmPath", rlmpath)
+			tmpl.Set("DirPath", pathOf(rlmpath))
+			tmpl.Set("FunctionSignatures", fsigs)
+			tmpl.Render(w, r, "realm_funcs.html", "header.html")
+		} else {
+			// Render main template.
+			tmpl := app.NewTemplatingEngine()
+			tmpl.Set("RealmPath", rlmpath)
+			tmpl.Set("DirPath", pathOf(rlmpath))
+			tmpl.Render(w, r, "realm_main.html", "header.html")
 		}
-		remote := "127.0.0.1:26657"
-		cli := client.NewHTTP(remote, "/websocket")
-		qres, err := cli.ABCIQueryWithOptions(
-			qpath, data, opts2)
+	})
+}
+
+func handlerRealmRender(app gotuna.App) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		rlmname := vars["rlmname"]
+		rlmpath := "gno.land/r/" + rlmname
+		querystr := vars["querystr"]
+		qpath := "vm/qrender"
+		data := []byte(fmt.Sprintf("%s\n%s", rlmpath, querystr))
+		res, err := makeRequest(qpath, data)
 		if err != nil {
 			writeError(w, err)
 			return
 		}
-		if qres.Response.Error != nil {
-			fmt.Printf("Log: %s\n",
-				qres.Response.Log)
-			writeError(w, qres.Response.Error)
-			return
-		}
-		resdata := qres.Response.Data
-		resstr := string(resdata)
-		// NOTE: HACKY.
-		if strings.HasSuffix(resstr, " string)") {
-			resstr2 := resstr[1 : len(resstr)-len(" string)")]
-			resstr3, err := strconv.Unquote(resstr2)
-			if err != nil {
-				w.WriteHeader(500)
-				w.Write([]byte(
-					fmt.Sprintf("error unquoting result: %q", resstr2)))
-				return
-			}
-			tmpl := app.NewTemplatingEngine()
-			tmpl.Set("Contents", template.HTML(resstr3))
-			tmpl.Render(w, r, "app.html")
-			return
-		} else {
-			w.WriteHeader(200)
-			w.Write([]byte(resstr))
-			return
-		}
+		// Render template.
+		tmpl := app.NewTemplatingEngine()
+		tmpl.Set("RealmName", rlmname)
+		tmpl.Set("RealmPath", rlmpath)
+		tmpl.Set("Query", string(querystr))
+		tmpl.Set("Contents", template.HTML(string(res)))
+		tmpl.Render(w, r, "realm_render.html", "header.html")
 	})
 }
 
-func handlerRealmExpr(app gotuna.App) http.Handler {
+func handlerRealmFile(app gotuna.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
-		rlmPath := "gno.land/r/" + vars["rlmpath"]
-		expr := vars["expr"]
+		diruri := "gno.land/r/" + vars["rlmname"]
+		filename := vars["filename"]
+		renderPackageFile(app, w, r, diruri, filename)
+	})
+}
 
-		qpath := "vm/qeval"
-		data := []byte(fmt.Sprintf("%s\n%s", rlmPath, expr))
-		opts2 := client.ABCIQueryOptions{
-			// Height: height, XXX
-			// Prove: false, XXX
-		}
-		remote := "127.0.0.1:26657"
-		cli := client.NewHTTP(remote, "/websocket")
-		qres, err := cli.ABCIQueryWithOptions(
-			qpath, data, opts2)
+func handlerPackageFile(app gotuna.App) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		pkgpath := "gno.land/p/" + vars["filepath"]
+		diruri, filename := std.SplitFilepath(pkgpath)
+		renderPackageFile(app, w, r, diruri, filename)
+	})
+}
+
+func renderPackageFile(app gotuna.App, w http.ResponseWriter, r *http.Request, diruri string, filename string) {
+	if filename == "" {
+		// TODO: redirect if pkgpath doesn't end with "/".
+
+		// Request is for a folder.
+		qpath := "vm/qfile"
+		data := []byte(diruri)
+		res, err := makeRequest(qpath, data)
 		if err != nil {
 			writeError(w, err)
 			return
 		}
-		if qres.Response.Error != nil {
-			fmt.Printf("Log: %s\n",
-				qres.Response.Log)
-			writeError(w, qres.Response.Error)
-			return
-		}
-		resdata := qres.Response.Data
-		resstr := string(resdata)
-		// NOTE: HACKY.
-		if strings.HasSuffix(resstr, " string)") {
-			resstr2 := resstr[1 : len(resstr)-len(" string)")]
-			resstr3, err := strconv.Unquote(resstr2)
-			if err != nil {
-				w.WriteHeader(500)
-				w.Write([]byte(
-					fmt.Sprintf("error unquoting result: %q", resstr2)))
-				return
-			}
-			tmpl := app.NewTemplatingEngine()
-			tmpl.Set("Contents", template.HTML(resstr3))
-			tmpl.Render(w, r, "app.html")
-			return
-		} else {
-			w.WriteHeader(200)
-			w.Write([]byte(resstr))
-			return
-		}
-	})
-}
-
-func handlerRealmPath(app gotuna.App) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		rlmPath := "gno.land/r/" + vars["rlmpath"]
-		path := vars["path"]
-
-		qpath := "vm/qpath"
-		data := []byte(fmt.Sprintf("%s\n%s", rlmPath, path))
-		opts2 := client.ABCIQueryOptions{
-			// Height: height, XXX
-			// Prove: false, XXX
-		}
-		remote := "127.0.0.1:26657"
-		cli := client.NewHTTP(remote, "/websocket")
-		qres, err := cli.ABCIQueryWithOptions(
-			qpath, data, opts2)
+		files := strings.Split(string(res), "\n")
+		// Render template.
+		tmpl := app.NewTemplatingEngine()
+		tmpl.Set("DirURI", diruri)
+		tmpl.Set("DirPath", pathOf(diruri))
+		tmpl.Set("Files", files)
+		tmpl.Render(w, r, "package_dir.html", "header.html")
+	} else {
+		// Request is for a file.
+		filepath := diruri + "/" + filename
+		qpath := "vm/qfile"
+		data := []byte(filepath)
+		res, err := makeRequest(qpath, data)
 		if err != nil {
 			writeError(w, err)
 			return
 		}
-		if qres.Response.Error != nil {
-			fmt.Printf("Log: %s\n",
-				qres.Response.Log)
-			writeError(w, qres.Response.Error)
-			return
-		}
-		resdata := qres.Response.Data
-		resstr := string(resdata)
-		// NOTE: HACKY.
-		if strings.HasSuffix(resstr, " string)") {
-			resstr2 := resstr[1 : len(resstr)-len(" string)")]
-			resstr3, err := strconv.Unquote(resstr2)
-			if err != nil {
-				w.WriteHeader(500)
-				w.Write([]byte(
-					fmt.Sprintf("error unquoting result: %q", resstr2)))
-				return
-			}
-			tmpl := app.NewTemplatingEngine()
-			tmpl.Set("Contents", template.HTML(resstr3))
-			tmpl.Render(w, r, "app.html")
-			return
-		} else {
-			w.WriteHeader(200)
-			w.Write([]byte(resstr))
-			return
-		}
-	})
+		// Render template.
+		tmpl := app.NewTemplatingEngine()
+		tmpl.Set("DirURI", diruri)
+		tmpl.Set("DirPath", pathOf(diruri))
+		tmpl.Set("FileName", filename)
+		tmpl.Set("FileContents", string(res))
+		tmpl.Render(w, r, "package_file.html", "header.html")
+	}
 }
 
-/*
-func handlerLogin(app gotuna.App) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Login form...")
-	})
+func makeRequest(qpath string, data []byte) (res []byte, err error) {
+	opts2 := client.ABCIQueryOptions{
+		// Height: height, XXX
+		// Prove: false, XXX
+	}
+	remote := "127.0.0.1:26657"
+	cli := client.NewHTTP(remote, "/websocket")
+	qres, err := cli.ABCIQueryWithOptions(
+		qpath, data, opts2)
+	if err != nil {
+		return nil, err
+	}
+	if qres.Response.Error != nil {
+		fmt.Printf("Log: %s\n",
+			qres.Response.Log)
+		return nil, qres.Response.Error
+	}
+	return qres.Response.Data, nil
 }
-*/
 
 func handlerStaticFile(app gotuna.App) http.Handler {
-
 	fs := http.FS(app.Static)
 	fileapp := http.StripPrefix("/static", http.FileServer(fs))
-	notFound := handlerNotFound(app)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		fpath := filepath.Clean(vars["path"])
 		f, err := fs.Open(fpath)
 		if os.IsNotExist(err) {
-			notFound.ServeHTTP(w, r)
+			handleNotFound(app, fpath, w, r)
 			return
 		}
 		stat, err := f.Stat()
 		if err != nil || stat.IsDir() {
-			notFound.ServeHTTP(w, r)
+			handleNotFound(app, fpath, w, r)
 			return
 		}
 
@@ -244,17 +209,24 @@ func handlerStaticFile(app gotuna.App) http.Handler {
 	})
 }
 
-func handlerNotFound(app gotuna.App) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-		app.NewTemplatingEngine().
-			Set("title", app.Locale.T(app.Session.GetLocale(r), "Not found")).
-			SetError("title", app.Locale.T(app.Session.GetLocale(r), "Not found")).
-			Render(w, r, "404.html")
-	})
+func handleNotFound(app gotuna.App, path string, w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotFound)
+	app.NewTemplatingEngine().
+		Set("title", "Not found").
+		Set("path", path).
+		Render(w, r, "404.html", "header.html")
 }
 
 func writeError(w http.ResponseWriter, err error) {
 	w.WriteHeader(500)
 	w.Write([]byte(err.Error()))
+}
+
+func pathOf(diruri string) string {
+	parts := strings.Split(diruri, "/")
+	if parts[0] == "gno.land" {
+		return "/" + strings.Join(parts[1:], "/")
+	} else {
+		panic(fmt.Sprintf("invalid dir-URI %q", diruri))
+	}
 }

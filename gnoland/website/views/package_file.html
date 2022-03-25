@@ -1,0 +1,20 @@
+{{- define "app" -}}
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="/static/css/app.css"/>
+    </head>
+    <body>
+        <div id="header">
+            <a id="logo" href="/">GNO.LAND</a>
+            <span id="logo_path">
+                <a href="{{ .Data.DirPath }}/">{{ .Data.DirPath }}/</a>{{ .Data.FileName }}
+            </span>
+            {{ template "header_buttons" }}
+        </div>
+        <div id="package_file">
+            <pre>{{ .Data.FileContents }}</pre>
+        </div>
+    </body>
+</html>
+{{- end -}}

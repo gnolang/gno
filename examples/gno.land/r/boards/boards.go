@@ -40,7 +40,7 @@ func CreateBoard(name string) BoardID {
 	}
 	bid := incGetBoardID()
 	caller := std.GetCaller()
-	url := "/r/boards/" + name
+	url := "/r/boards:" + name
 	board := newBoard(bid, url, name, caller)
 	bidkey := strconv.Itoa(int(bid))
 	gBoards, _ = gBoards.Set(bidkey, board)
@@ -105,10 +105,10 @@ func RenderBoard(bid BoardID) string {
 
 func Render(path string) string {
 	if path == "" {
-		str := ""
+		str := "These are all the boards of this realm:\n\n"
 		gBoards.Iterate("", "", func(n *avl.Tree) bool {
 			board := n.Value().(*Board)
-			str += " * [" + board.name + "](" + board.url + ")\n"
+			str += " * [" + board.url + "](" + board.url + ")\n"
 			return false
 		})
 		return str
@@ -218,14 +218,11 @@ func (board *Board) AddPost(creator std.Address, title string, body string) *Pos
 // but not for prod.
 func (board *Board) Render() string {
 	str := ""
-	if board.id == 0 {
-		str += "### (private) " + board.name + " ###\n\n"
-	} else {
-		str += "### " + board.name + " ###\n\n"
-	}
 	if board.posts.Size() > 0 {
 		board.posts.Iterate("", "", func(n *avl.Tree) bool {
-			str += "----------------------------------------\n"
+			if str != "" {
+				str += "----------------------------------------\n"
+			}
 			str += n.Value().(*Post).RenderSummary()
 			return false
 		})
