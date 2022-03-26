@@ -1,0 +1,34 @@
+{{- define "app" -}}
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="/static/css/app.css"/>
+    </head>
+    <body onload="main()">
+	<div id="header">
+	    <a id="logo" href="/">GNO.LAND</a>
+        {{ template "header_buttons" }}
+	</div>
+    <div id="home">
+        <pre id="source">
+
+This is the Gno.land (test) facet.
+
+<form method="POST" action="http://localhost:5050/">
+  <label for="toaddr">GNO.land address (e.g. g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5):</label><br>
+  <input type="text" id="toaddr" name="toaddr"/><br>
+  <input type="submit" value="GO"/>
+</form>
+
+
+
+        </pre>
+    </div>
+    </body>
+    <script type="text/javascript">
+function main() {
+    // XXX
+};
+    </script>
+</html>
+{{- end -}}

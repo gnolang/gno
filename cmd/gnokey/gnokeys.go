@@ -18,18 +18,10 @@ import (
 )
 
 func main() {
-
 	cmd := command.NewStdCommand()
-
-	// set default options.
-
-	// customize call to command.
-	// insert args and options here.
-	// TODO: use flags or */pflags.
-
 	exec := os.Args[0]
 	args := os.Args[1:]
-
+	// extend default crypto/keys/client with maketx.
 	client.AddApp(makeTxApp, "maketx", "compose a tx document to sign", nil)
 	err := client.RunMain(cmd, exec, args)
 	if err != nil {
@@ -282,7 +274,7 @@ func makeSendTxApp(cmd *command.Command, args []string, iopts interface{}) error
 	if err != nil {
 		return err
 	}
-	caller := info.GetAddress()
+	fromAddr := info.GetAddress()
 	// info.GetPubKey()
 
 	// Parse to address.
@@ -306,7 +298,7 @@ func makeSendTxApp(cmd *command.Command, args []string, iopts interface{}) error
 
 	// construct msg & tx and marshal.
 	msg := bank.MsgSend{
-		FromAddress: caller,
+		FromAddress: fromAddr,
 		ToAddress:   toAddr,
 		Amount:      send,
 	}

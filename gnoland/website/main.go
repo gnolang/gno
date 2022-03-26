@@ -33,6 +33,7 @@ func main() {
 	}
 
 	app.Router.Handle("/", handlerHome(app))
+	app.Router.Handle("/faucet", handlerFaucet(app))
 	// NOTE: see rePathPart.
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*}", handlerRealmMain(app))
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*}:{querystr:.*}", handlerRealmRender(app))
@@ -49,6 +50,13 @@ func handlerHome(app gotuna.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		app.NewTemplatingEngine().
 			Render(w, r, "home.html", "header.html")
+	})
+}
+
+func handlerFaucet(app gotuna.App) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		app.NewTemplatingEngine().
+			Render(w, r, "faucet.html", "header.html")
 	})
 }
 

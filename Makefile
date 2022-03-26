@@ -1,6 +1,6 @@
 all: gnoland gnokey goscan logos
 
-.PHONY: logos goscan gnoland gnokey logos reset test test1 test2 testrealm testrealm1 testrealm2 testpackages testpkgs
+.PHONY: logos goscan gnoland gnokey gnofaucet logos reset test test1 test2 testrealm testrealm1 testrealm2 testpackages testpkgs
 
 reset:
 	rm -rf testdir
@@ -18,6 +18,11 @@ gnoland:
 gnokey:
 	echo "Building gnokey"
 	go build -o build/gnokey ./cmd/gnokey
+
+# The faucet (daemon)
+gnofaucet:
+	echo "Building gnofaucet"
+	go build -o build/gnofaucet ./cmd/gnofaucet
 
 # goscan scans go code to determine its AST
 goscan:
