@@ -4,7 +4,8 @@ func (m *Machine) doOpInc() {
 	s := m.PopStmt().(*IncDecStmt)
 
 	// Get reference to lhs.
-	lv := m.PopAsPointer(s.X).TV
+	pv := m.PopAsPointer(s.X)
+	lv := pv.TV
 
 	// Switch on the base type.  NOTE: this is faster
 	// than computing the kind of kv.T.  TODO: consider
@@ -44,13 +45,19 @@ func (m *Machine) doOpInc() {
 	default:
 		panic("unexpected type in in operation")
 	}
+
+	// Mark dirty in realm.
+	if m.Realm != nil && pv.Base != nil {
+		m.Realm.DidUpdate(pv.Base.(Object), nil, nil)
+	}
 }
 
 func (m *Machine) doOpDec() {
 	s := m.PopStmt().(*IncDecStmt)
 
 	// Get result ptr depending on lhs.
-	lv := m.PopAsPointer(s.X).TV
+	pv := m.PopAsPointer(s.X)
+	lv := pv.TV
 
 	// Switch on the base type.  NOTE: this is faster
 	// than computing the kind of kv.T.  TODO: consider
@@ -89,5 +96,10 @@ func (m *Machine) doOpDec() {
 		lv.SetUint64(lv.GetUint64() - 1)
 	default:
 		panic("unexpected type in in operation")
+	}
+
+	// Mark dirty in realm.
+	if m.Realm != nil && pv.Base != nil {
+		m.Realm.DidUpdate(pv.Base.(Object), nil, nil)
 	}
 }
