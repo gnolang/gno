@@ -23,9 +23,6 @@
 
 ----------------------------------------
 
-* Gnolang
- -> Test files2/zrealm_boards4.go better with main() and main2() or other. (op_inc_dec bug)
-
 * Limit CPU and memory usage.
  -> memory usage: 
  -> clear cache upon beginnewblock (DONE).
