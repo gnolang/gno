@@ -11,4 +11,4 @@ func main() {
 }
 
 // Output:
-// array[0x74657374616464725F5F5F5F5F5F5F5F5F5F5F5F]
+// g1w3jhxarpv3j8yh6lta047h6lta047h6l46ncpj

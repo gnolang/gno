@@ -8,7 +8,7 @@ import (
 func main() {
 	caller := std.GetCaller()
 	caller2 := std.GetCaller()
-	cmp := bytes.Compare(caller[:], caller2[:])
+	cmp := bytes.Compare([]byte(caller), []byte(caller2))
 	println(cmp)
 }
 

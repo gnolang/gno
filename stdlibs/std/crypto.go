@@ -1,5 +1,7 @@
 package std
 
-const AddressSize = 20
+type Address string // NOTE: bech32
 
-type Address [AddressSize]byte
+const RawAddressSize = 20
+
+type RawAddress [RawAddressSize]byte

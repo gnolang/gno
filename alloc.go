@@ -195,6 +195,12 @@ func (alloc *Allocator) NewDataArray(n int) *ArrayValue {
 	}
 }
 
+func (alloc *Allocator) NewArrayFromData(data []byte) *ArrayValue {
+	av := alloc.NewDataArray(len(data))
+	copy(av.Data, data)
+	return av
+}
+
 func (alloc *Allocator) NewSlice(base Value, offset, length, maxcap int) *SliceValue {
 	alloc.AllocateSlice()
 	return &SliceValue{

@@ -212,25 +212,51 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				m.PushValue(res0)
 			},
 		)
-		pn.DefineNative("ToBech32",
+		pn.DefineNative("EncodeBech32",
 			gno.Flds( // params
-				"addr", "Address",
+				"prefix", "string",
+				"bytes", "[20]byte",
 			),
 			gno.Flds( // results
-				"", "string",
+				"addr", "string",
 			),
 			func(m *gno.Machine) {
-				arg0 := m.LastBlock().GetParams1()
-				bz := arg0.TV.V.(*gno.ArrayValue).GetReadonlyBytes()
+				arg0, arg1 := m.LastBlock().GetParams2()
+				prefix := arg0.TV.GetString()
+				bz := arg1.TV.V.(*gno.ArrayValue).GetReadonlyBytes()
 				if len(bz) != crypto.AddressSize {
 					panic("should not happen")
 				}
-				b32, err := bech32.ConvertAndEncode("g", bz)
+				b32, err := bech32.ConvertAndEncode(prefix, bz)
 				if err != nil {
 					panic(err)
 				}
 				res0 := typedString(m.Alloc.NewString(b32))
 				m.PushValue(res0)
+			},
+		)
+		pn.DefineNative("DecodeBech32",
+			gno.Flds( // params
+				"addr", "Address",
+			),
+			gno.Flds( // results
+				"prefix", "string",
+				"bytes", "[20]byte",
+				"ok", "bool",
+			),
+			func(m *gno.Machine) {
+				arg0 := m.LastBlock().GetParams1()
+				addr := arg0.TV.GetString()
+				prefix, bz, err := bech32.Decode(addr)
+				if err != nil || len(bz) != 20 {
+					m.PushValue(typedString(m.Alloc.NewString("")))
+					m.PushValue(typedByteArray(20, m.Alloc.NewDataArray(20)))
+					m.PushValue(typedBool(false))
+				} else {
+					m.PushValue(typedString(m.Alloc.NewString(prefix)))
+					m.PushValue(typedByteArray(20, m.Alloc.NewArrayFromData(bz)))
+					m.PushValue(typedBool(true))
+				}
 			},
 		)
 	}
@@ -245,5 +271,29 @@ func typedInt64(i64 int64) gno.TypedValue {
 func typedString(s gno.StringValue) gno.TypedValue {
 	tv := gno.TypedValue{T: gno.StringType}
 	tv.SetString(s)
+	return tv
+}
+
+func typedBool(b bool) gno.TypedValue {
+	tv := gno.TypedValue{T: gno.BoolType}
+	tv.SetBool(b)
+	return tv
+}
+
+func typedByteArray(ln int, bz *gno.ArrayValue) gno.TypedValue {
+	if bz != nil && bz.GetLength() != ln {
+		panic("array length mismatch")
+	}
+	tv := gno.TypedValue{T: &gno.ArrayType{Len: ln, Elt: gno.Uint8Type}, V: bz}
+	return tv
+}
+
+func typedByteSlice(bz *gno.SliceValue) gno.TypedValue {
+	tv := gno.TypedValue{T: &gno.SliceType{Elt: gno.Uint8Type}, V: bz}
+	return tv
+}
+
+func typedNil(t gno.Type) gno.TypedValue {
+	tv := gno.TypedValue{T: t, V: nil}
 	return tv
 }

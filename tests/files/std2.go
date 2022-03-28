@@ -4,8 +4,7 @@ import "std"
 
 func main() {
 	caller := std.GetCaller()
-	result := std.ToBech32(caller)
-	println(result)
+	println(caller)
 }
 
 // Output:

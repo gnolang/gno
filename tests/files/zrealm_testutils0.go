@@ -11,5 +11,5 @@ func main() {
 }
 
 // Output:
-// array[0x74657374315F5F5F5F5F5F5F5F5F5F5F5F5F5F5F]
-// array[0x74657374325F5F5F5F5F5F5F5F5F5F5F5F5F5F5F]
+// g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7
+// g1w3jhxapjta047h6lta047h6lta047h6laqcyu4

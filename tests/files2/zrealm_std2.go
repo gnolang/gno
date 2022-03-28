@@ -21,7 +21,7 @@ func main() {
 	println("error:", err)
 	has := aset.HasAddress(caller)
 	println("has:", has)
-	has = aset.HasAddress(std.Address{})
+	has = aset.HasAddress(std.Address(""))
 	println("has:", has)
 }
 

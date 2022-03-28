@@ -115,3 +115,7 @@ func TestAddress(name string) crypto.Address {
 	copy(addr[:], []byte(name))
 	return addr
 }
+
+func TestBech32Address(name string) crypto.Bech32Address {
+	return TestAddress(name).Bech32()
+}

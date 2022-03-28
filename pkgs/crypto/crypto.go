@@ -9,6 +9,15 @@ import (
 )
 
 //----------------------------------------
+// Bech32Address
+
+type Bech32Address string
+
+func (b32 Bech32Address) String() string {
+	return string(b32)
+}
+
+//----------------------------------------
 // Address
 
 const (
@@ -71,6 +80,10 @@ func (addr Address) IsZero() bool {
 
 func (addr Address) String() string {
 	return AddressToBech32(addr)
+}
+
+func (addr Address) Bech32() Bech32Address {
+	return Bech32Address(AddressToBech32(addr))
 }
 
 func (addr Address) Bytes() []byte {

@@ -197,10 +197,10 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		Height:      ctx.BlockHeight(),
 		Timestamp:   ctx.BlockTime().Unix(),
 		Msg:         msg,
-		Caller:      caller,
+		Caller:      caller.Bech32(),
 		TxSend:      send,
 		TxSendSpent: new(std.Coins),
-		PkgAddr:     pkgAddr,
+		PkgAddr:     pkgAddr.Bech32(),
 		Banker:      NewSDKBanker(vm, ctx),
 	}
 	// Construct machine and evaluate.

@@ -84,10 +84,10 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 	stderr := new(bytes.Buffer)
 	store := testStore(stdin, stdout, stderr, nativeLibs)
 	store.SetLogStoreOps(true)
-	caller := testutils.TestAddress("testaddr____________")
+	caller := testutils.TestBech32Address("testaddr____________")
 	txSend := std.MustParseCoins("100gnots")
 	pkgCoins := std.MustParseCoins("200gnots") // >= txSend.
-	pkgAddr := testutils.TestAddress("packageaddr_________")
+	pkgAddr := testutils.TestBech32Address("packageaddr_________")
 	banker := newtestBanker(pkgAddr, pkgCoins)
 	ctx := stdlibs.ExecContext{
 		ChainID:     "testchain",
@@ -329,16 +329,16 @@ func defaultPkgName(gopkgPath string) gno.Name {
 // testBanker
 
 type testBanker struct {
-	coinTable map[crypto.Address]std.Coins
+	coinTable map[crypto.Bech32Address]std.Coins
 }
 
 func newtestBanker(args ...interface{}) *testBanker {
 	return &testBanker{
-		coinTable: make(map[crypto.Address]std.Coins),
+		coinTable: make(map[crypto.Bech32Address]std.Coins),
 	}
 }
 
-func (tb *testBanker) GetCoins(addr crypto.Address, dst *std.Coins) {
+func (tb *testBanker) GetCoins(addr crypto.Bech32Address, dst *std.Coins) {
 	coins, exists := tb.coinTable[addr]
 	if !exists {
 		*dst = nil
@@ -347,7 +347,7 @@ func (tb *testBanker) GetCoins(addr crypto.Address, dst *std.Coins) {
 	}
 }
 
-func (tb *testBanker) SendCoins(from, to crypto.Address, amt std.Coins) {
+func (tb *testBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins) {
 	fcoins, fexists := tb.coinTable[from]
 	if !fexists {
 		panic(fmt.Sprintf(
@@ -369,7 +369,7 @@ func (tb *testBanker) SendCoins(from, to crypto.Address, amt std.Coins) {
 	tb.setCoins(to, tsum)
 }
 
-func (tb *testBanker) setCoins(addr crypto.Address, amt std.Coins) {
+func (tb *testBanker) setCoins(addr crypto.Bech32Address, amt std.Coins) {
 	coins, _ := tb.coinTable[addr]
 	sum := coins.Add(amt)
 	tb.coinTable[addr] = sum
@@ -379,13 +379,13 @@ func (tb *testBanker) TotalCoin(denom string) int64 {
 	panic("not yet implemented")
 }
 
-func (tb *testBanker) IssueCoin(addr crypto.Address, denom string, amt int64) {
+func (tb *testBanker) IssueCoin(addr crypto.Bech32Address, denom string, amt int64) {
 	coins, _ := tb.coinTable[addr]
 	sum := coins.Add(std.Coins{{denom, amt}})
 	tb.setCoins(addr, sum)
 }
 
-func (tb *testBanker) RemoveCoin(addr crypto.Address, denom string, amt int64) {
+func (tb *testBanker) RemoveCoin(addr crypto.Bech32Address, denom string, amt int64) {
 	coins, _ := tb.coinTable[addr]
 	rest := coins.Sub(std.Coins{{denom, amt}})
 	tb.setCoins(addr, rest)

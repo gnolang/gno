@@ -4,7 +4,7 @@ package const_test
 import "std"
 
 func main() {
-	println(std.AddressSize)
+	println(std.RawAddressSize)
 }
 
 // Output:
