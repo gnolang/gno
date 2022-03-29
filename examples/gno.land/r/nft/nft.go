@@ -13,6 +13,7 @@ import (
 type TokenID string
 
 type GRC721 interface {
+	Mint(to std.Address, data string) TokenID
 	BalanceOf(owner std.Address) (count int64)
 	OwnerOf(tid TokenID) std.Address
 	SafeTransferFrom(from, to std.Address, tid TokenID)
