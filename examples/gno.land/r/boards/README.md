@@ -1,14 +1,14 @@
 This is a demo of Gno smart contract programming.  This document was
-constructed by Gno. To see how it was done, follow the steps below.
+constructed by Gno onto a smart contract hosted on the data Realm 
+name ["gno.land/r/boards"](https://gno.land/r/boards/)
+([github](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/boards)).
 
-The smart contract files that were uploaded to make this
-possible can be found here:
-https://github.com/gnolang/gno/tree/master/examples/gno.land
+## Starting the `gnoland` node node/validator:
 
-Where you see `--remote gno.land:36657`, that flag can be removed
-to use the default value of `localhost:26657` for local testnet testing.
+NOTE: Where you see `--remote gno.land:36657` here, that flag can be replaced
+with `--remote localhost:26657` for local testnets.
 
-## build and start gnoland.
+### Build gnoland.
 
 ```bash
 git clone git@github.com:gnolang/gno.git
@@ -16,7 +16,7 @@ cd ./gno
 make 
 ```
 
-## add test account.
+### Add test account.
 
 ```bash
 ./build/gnokey add test1 --recover
@@ -25,7 +25,7 @@ make
 Use this mnemonic:
 > source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast
 
-## start gnoland validator.
+### Start gnoland validator node.
 
 ```bash
 ./build/gnoland
@@ -33,13 +33,15 @@ Use this mnemonic:
 
 (This can be reset with `make reset`).
 
-## start gnoland web server (optional).
+### Start gnoland web server (optional).
 
 ```bash
-go run ./gnoland/website/\*.go
+cd ./gnoland/website; go run \*.go
 ```
 
-## sign an addpkg (add avl package) transaction.
+## Signing and broadcasting transactions:
+
+### Publish the "gno.land/p/avl" package.
 
 ```bash
 ./build/gnokey maketx addpkg test1 --pkgpath "gno.land/p/avl" --pkgdir "examples/gno.land/p/avl" --deposit 100gnot --gas-fee 1gnot --gas-wanted 2000000 > addpkg.avl.unsigned.txt
@@ -48,7 +50,7 @@ go run ./gnoland/website/\*.go
 ./build/gnokey broadcast addpkg.avl.signed.txt --remote gno.land:36657
 ```
 
-## sign an addpkg (add "gno.land/r/boards" package) transaction.
+### Publish the "gno.land/r/boards" realm package.
 
 ```bash
 ./build/gnokey maketx addpkg test1 --pkgpath "gno.land/r/boards" --pkgdir "examples/gno.land/r/boards" --deposit 100gnot --gas-fee 1gnot --gas-wanted 300000000 > addpkg.boards.unsigned.txt
@@ -56,7 +58,7 @@ go run ./gnoland/website/\*.go
 ./build/gnokey broadcast addpkg.boards.signed.txt --remote gno.land:36657
 ```
 
-## sign a (contract) function call transaction -- create board.
+### Create a board with a smart contrct call.
 
 ```bash
 ./build/gnokey maketx call test1 --pkgpath "gno.land/r/boards" --func CreateBoard --args "gnolang" --gas-fee 1gnot --gas-wanted 2000000 > createboard.unsigned.txt
@@ -70,7 +72,7 @@ Next, query for the permanent board ID by querying (you need this to create a ne
 GetBoardIDFromName(\"gnolang\")"
 ```
 
-## sign a (contract) function call transaction -- create post.
+### Create a post of a board with a smart contrct call.
 
 ```bash
 ./build/gnokey maketx call test1 --pkgpath "gno.land/r/boards" --func CreatePost --args 1 --args "Hello World" --args#file "./examples/gno.land/r/boards/README.md" --gas-fee 1gnot --gas-wanted 2000000 > createpost.unsigned.txt
@@ -78,14 +80,7 @@ GetBoardIDFromName(\"gnolang\")"
 ./build/gnokey broadcast createpost.signed.txt --remote gno.land:36657
 ```
 
-## render page with ABCI query (evalquery).
-
-```bash
-./build/gnokey query "vm/qrender" --data "gno.land/r/boards
-gnolang"
-```
-
-## add a comment to a post.
+### Create a comment to a post.
 
 ```bash
 ./build/gnokey maketx call test1 --pkgpath "gno.land/r/boards" --func CreateReply --args 1 --args 1 --args "A comment" --gas-fee 1gnot --gas-wanted 2000000 > createcomment.unsigned.txt
@@ -96,4 +91,14 @@ gnolang"
 ```bash
 ./build/gnokey query "vm/qrender" --data "gno.land/r/boards
 gnolang/1"
+```
+
+### Render page with optional path expression.
+
+The contents of `https://gno.land/r/boards:` and `https://gno.land/r/boards:gnolang` are rendered by calling
+the `Render(path string)` function like so:
+
+```bash
+./build/gnokey query "vm/qrender" --data "gno.land/r/boards
+gnolang"
 ```

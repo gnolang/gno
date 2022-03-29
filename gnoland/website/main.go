@@ -3,6 +3,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -83,6 +84,14 @@ func handlerRealmMain(app gotuna.App) http.Handler {
 			tmpl.Set("FunctionSignatures", fsigs)
 			tmpl.Render(w, r, "realm_funcs.html", "header.html")
 		} else {
+			// Ensure realm exists. TODO optimize.
+			qpath := "vm/qfile"
+			data := []byte(rlmpath)
+			_, err := makeRequest(qpath, data)
+			if err != nil {
+				writeError(w, errors.New("error querying realm package"))
+				return
+			}
 			// Render main template.
 			tmpl := app.NewTemplatingEngine()
 			tmpl.Set("RealmPath", rlmpath)
