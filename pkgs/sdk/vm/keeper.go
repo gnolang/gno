@@ -196,7 +196,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		Height:      ctx.BlockHeight(),
 		Timestamp:   ctx.BlockTime().Unix(),
 		Msg:         msg,
-		Caller:      caller.Bech32(),
+		OrigCaller:  caller.Bech32(),
 		TxSend:      send,
 		TxSendSpent: new(std.Coins),
 		OrigPkgAddr: pkgAddr.Bech32(),
@@ -308,10 +308,10 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 		Height:    ctx.BlockHeight(),
 		Timestamp: ctx.BlockTime().Unix(),
 		//Msg:         msg,
-		//Caller:      caller,
+		//OrigCaller:  caller,
 		//TxSend:      send,
 		//TxSendSpent: nil,
-		//OrigPkgAddr:     pkgAddr,
+		//OrigPkgAddr: pkgAddr,
 		//Banker:      nil,
 	}
 	m := gno.NewMachineWithOptions(
@@ -358,10 +358,10 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 		Height:    ctx.BlockHeight(),
 		Timestamp: ctx.BlockTime().Unix(),
 		//Msg:         msg,
-		//Caller:      caller,
+		//OrigCaller:  caller,
 		//TxSend:      send,
 		//TxSendSpent: nil,
-		//OrigPkgAddr:     pkgAddr,
+		//OrigPkgAddr: pkgAddr,
 		//Banker:      nil,
 	}
 	m := gno.NewMachineWithOptions(
