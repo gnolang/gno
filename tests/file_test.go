@@ -176,10 +176,6 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 					},
 				}
 				m.RunMemPackage(memPkg, true)
-				if rops != "" {
-					// clear store.opslog from init funtion(s).
-					store.SetLogStoreOps(true) // resets.
-				}
 				// reconstruct machine and clear store cache.
 				// whether package is realm or not, since non-realm
 				// may call realm packages too.
@@ -211,6 +207,11 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 				pv2 := store.GetPackage(pkgPath, false)
 				m2.SetActivePackage(pv2)
 				gno.EnableDebug()
+				if rops != "" {
+					// clear store.opslog from init funtion(s),
+					// and PreprocessAllFilesAndSaveBlockNodes().
+					store.SetLogStoreOps(true) // resets.
+				}
 				m2.RunMain()
 				if gno.IsDebug() && testing.Verbose() {
 					t.Log("========================================")

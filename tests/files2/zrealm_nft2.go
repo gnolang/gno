@@ -1,0 +1,24 @@
+// PKGPATH: gno.land/r/nft_test
+package nft_test
+
+import (
+	"std"
+
+	"gno.land/p/testutils"
+	"gno.land/r/nft"
+)
+
+func main() {
+	caller := std.GetCallerAt(1)
+	addr1 := testutils.TestAddress("addr1")
+	// addr2 := testutils.TestAddress("addr2")
+	grc721 := nft.GetGRC721()
+	tid := grc721.Mint(caller, "NFT#1")
+	println(grc721.OwnerOf(tid))
+	println(addr1)
+	grc721.TransferFrom(caller, addr1, tid)
+}
+
+// Output:
+// g1zur8hjter6pzguerw02rqqq0rgzysy2mg9eq2v
+// g1v9jxgu33ta047h6lta047h6lta047h6l43dqc5

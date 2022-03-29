@@ -24,6 +24,7 @@ func main() {
 // false 4
 
 // Realm:
+// switchrealm["gno.land/r/test"]
 // c[a8ada09dee16d791fd406d629fe29bb0ed084a30:7]={
 //     "Fields": [
 //         {

@@ -1896,6 +1896,10 @@ func (m *Machine) String() string {
 		fr := m.Frames[i]
 		fs = append(fs, fmt.Sprintf("          #%d %s", i, fr.String()))
 	}
+	rlmpath := ""
+	if m.Realm != nil {
+		rlmpath = m.Realm.Path
+	}
 	return fmt.Sprintf(`Machine:
     CheckTypes: %v
 	Op: %v
@@ -1911,6 +1915,8 @@ func (m *Machine) String() string {
 %s
 	Frames:
 %s
+	Realm:
+	  %s
 	Exception:
 	  %s`,
 		m.CheckTypes,
@@ -1922,6 +1928,7 @@ func (m *Machine) String() string {
 		strings.Join(bs, "\n"),
 		strings.Join(obs, "\n"),
 		strings.Join(fs, "\n"),
+		rlmpath,
 		m.Exception,
 	)
 }

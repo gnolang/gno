@@ -40,6 +40,7 @@ func main() {
 //
 
 // Realm:
+// switchrealm["gno.land/r/boards"]
 // u[960d1737342909c1a4c32a4a93a88e680a6f79df:26]={
 //     "Fields": [
 //         {
@@ -876,3 +877,4 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
+// switchrealm["gno.land/r/boards"]

@@ -308,7 +308,8 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 			panic("should not happen")
 		}
 	}
-
+	// log realm boundaries in opslog.
+	store.LogSwitchRealm(rlm.Path)
 	// increment recursively for created descendants.
 	// also assigns object ids for all.
 	rlm.processNewCreatedMarks(store)

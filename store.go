@@ -52,6 +52,7 @@ type Store interface {
 	SetPackageInjector(PackageInjector)          // for natives
 	SetLogStoreOps(enabled bool)
 	SprintStoreOps() string
+	LogSwitchRealm(rlmpath string) // to mark change of realm boundaries
 	ClearCache()
 	Print()
 }
@@ -326,7 +327,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 			op = StoreOpMod
 		}
 		ds.opslog = append(ds.opslog,
-			StoreOp{op, o2.(Object)})
+			StoreOp{Type: op, Object: o2.(Object)})
 	}
 	// if escaped, add hash to iavl.
 	if oo.GetIsEscaped() && ds.iavlStore != nil {
@@ -349,7 +350,7 @@ func (ds *defaultStore) DelObject(oo Object) {
 	// make realm op log entry
 	if ds.opslog != nil {
 		ds.opslog = append(ds.opslog,
-			StoreOp{StoreOpDel, oo})
+			StoreOp{Type: StoreOpDel, Object: oo})
 	}
 }
 
@@ -621,11 +622,13 @@ const (
 	StoreOpNew StoreOpType = iota
 	StoreOpMod
 	StoreOpDel
+	StoreOpSwitchRealm
 )
 
 type StoreOp struct {
-	Type   StoreOpType
-	Object Object // ref'd objects
+	Type    StoreOpType
+	Object  Object // ref'd objects
+	RlmPath string // for StoreOpSwitchRealm
 }
 
 // used by the tests/file_test system to check
@@ -643,6 +646,9 @@ func (sop StoreOp) String() string {
 	case StoreOpDel:
 		return fmt.Sprintf("d[%v]",
 			sop.Object.GetObjectID())
+	case StoreOpSwitchRealm:
+		return fmt.Sprintf("switchrealm[%q]",
+			sop.RlmPath)
 	default:
 		panic("should not happen")
 	}
@@ -668,6 +674,11 @@ func (ds *defaultStore) SprintStoreOps() string {
 		ss = append(ss, sop.String())
 	}
 	return strings.Join(ss, "\n")
+}
+
+func (ds *defaultStore) LogSwitchRealm(rlmpath string) {
+	ds.opslog = append(ds.opslog,
+		StoreOp{Type: StoreOpSwitchRealm, RlmPath: rlmpath})
 }
 
 func (ds *defaultStore) ClearCache() {

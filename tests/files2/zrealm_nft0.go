@@ -1,30 +1,28 @@
-// PKGPATH: gno.land/r/example
-package example
+// PKGPATH: gno.land/r/nft_test
+package nft_test
 
 import (
-	"gno.land/p/dom"
+	"gno.land/p/testutils"
+	"gno.land/r/nft"
 )
 
-var gPlot *dom.Plot
-
-func init() {
-	gPlot = &dom.Plot{Name: "First Plot"}
-}
-
 func main() {
-	gPlot.AddPost("TEST_TITLE", "TEST_BODY")
-	println(gPlot.String())
+	addr1 := testutils.TestAddress("addr1")
+	//addr2 := testutils.TestAddress("addr2")
+	grc721 := nft.GetGRC721()
+	tid := grc721.Mint(addr1, "NFT#1")
+	println(grc721.OwnerOf(tid))
+	println(addr1)
 }
 
 // Output:
-// # [plot] First Plot
-//
-// ## TEST_TITLE
-// TEST_BODY
+// g1v9jxgu33ta047h6lta047h6lta047h6l43dqc5
+// g1v9jxgu33ta047h6lta047h6lta047h6l43dqc5
 
 // Realm:
-// switchrealm["gno.land/r/example"]
-// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:6]={
+// switchrealm["gno.land/r/nft"]
+// switchrealm["gno.land/r/nft"]
+// c[6bde79a5f04d2658d17cbc323e45df5fad216511:6]={
 //     "Fields": [
 //         {
 //             "T": {
@@ -33,7 +31,23 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.vstr",
-//                 "value": "TEST_TITLE"
+//                 "value": "g1v9jxgu33ta047h6lta047h6lta047h6l43dqc5"
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.tref",
+//                 "ID": "std.Address"
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.tref",
+//                 "ID": "gno.land/r/nft.TokenID"
+//             },
+//             "V": {
+//                 "@type": "/gno.vstr",
+//                 "value": "1"
 //             }
 //         },
 //         {
@@ -43,36 +57,27 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.vstr",
-//                 "value": "TEST_BODY"
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.tptr",
-//                 "Elt": {
-//                     "@type": "/gno.tref",
-//                     "ID": "gno.land/p/avl.Tree"
-//                 }
+//                 "value": "NFT#1"
 //             }
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:6",
+//         "ID": "6bde79a5f04d2658d17cbc323e45df5fad216511:6",
 //         "ModTime": "0",
-//         "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:5",
+//         "OwnerID": "6bde79a5f04d2658d17cbc323e45df5fad216511:5",
 //         "RefCount": "1"
 //     }
 // }
-// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:5]={
+// c[6bde79a5f04d2658d17cbc323e45df5fad216511:5]={
 //     "Fields": [
 //         {
 //             "T": {
-//                 "@type": "/gno.tpri",
-//                 "value": "16"
+//                 "@type": "/gno.tref",
+//                 "ID": "gno.land/r/nft.TokenID"
 //             },
 //             "V": {
 //                 "@type": "/gno.vstr",
-//                 "value": "0"
+//                 "value": "1"
 //             }
 //         },
 //         {
@@ -80,7 +85,7 @@ func main() {
 //                 "@type": "/gno.tptr",
 //                 "Elt": {
 //                     "@type": "/gno.tref",
-//                     "ID": "gno.land/p/dom.Post"
+//                     "ID": "gno.land/r/nft.NFToken"
 //                 }
 //             },
 //             "V": {
@@ -90,12 +95,12 @@ func main() {
 //                 "TV": {
 //                     "T": {
 //                         "@type": "/gno.tref",
-//                         "ID": "gno.land/p/dom.Post"
+//                         "ID": "gno.land/r/nft.NFToken"
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "2af68ed35868e781e8996d4af6aafa2a28fd67de",
-//                         "ObjectID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:6"
+//                         "Hash": "0a46d513dfdc0f260a954548eea9e3cf0921b1e9",
+//                         "ObjectID": "6bde79a5f04d2658d17cbc323e45df5fad216511:6"
 //                     }
 //                 }
 //             }
@@ -133,22 +138,19 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:5",
+//         "ID": "6bde79a5f04d2658d17cbc323e45df5fad216511:5",
 //         "ModTime": "0",
-//         "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:4",
+//         "OwnerID": "6bde79a5f04d2658d17cbc323e45df5fad216511:4",
 //         "RefCount": "1"
 //     }
 // }
-// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:4]={
+// u[6bde79a5f04d2658d17cbc323e45df5fad216511:4]={
 //     "Fields": [
 //         {
+//             "N": "AQAAAAAAAAA=",
 //             "T": {
 //                 "@type": "/gno.tpri",
-//                 "value": "16"
-//             },
-//             "V": {
-//                 "@type": "/gno.vstr",
-//                 "value": "First Plot"
+//                 "value": "32"
 //             }
 //         },
 //         {
@@ -170,25 +172,26 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "3ffd289b6834348ccea968f5b1ed21656135a9a0",
-//                         "ObjectID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:5"
+//                         "Hash": "2ce40660a85dc9402b1253bbe8736a33da0c5968",
+//                         "ObjectID": "6bde79a5f04d2658d17cbc323e45df5fad216511:5"
 //                     }
 //                 }
 //             }
 //         },
 //         {
-//             "N": "AQAAAAAAAAA=",
 //             "T": {
-//                 "@type": "/gno.tpri",
-//                 "value": "32"
+//                 "@type": "/gno.tptr",
+//                 "Elt": {
+//                     "@type": "/gno.tref",
+//                     "ID": "gno.land/p/avl.Tree"
+//                 }
 //             }
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:4",
+//         "ID": "6bde79a5f04d2658d17cbc323e45df5fad216511:4",
 //         "ModTime": "4",
-//         "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:2",
+//         "OwnerID": "6bde79a5f04d2658d17cbc323e45df5fad216511:2",
 //         "RefCount": "1"
 //     }
 // }
-//
