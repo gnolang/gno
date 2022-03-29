@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno"
-	"github.com/gnolang/gno/pkgs/crypto"
 	"github.com/gnolang/gno/pkgs/errors"
 	"github.com/gnolang/gno/pkgs/sdk"
 	"github.com/gnolang/gno/pkgs/sdk/auth"
@@ -126,7 +125,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 		panic("package already exists: " + pkgPath)
 	}
 	// Pay deposit from creator.
-	pkgAddr := DerivePkgAddr(pkgPath)
+	pkgAddr := gno.DerivePkgAddr(pkgPath)
 	err := vm.bank.SendCoins(ctx, creator, pkgAddr, deposit)
 	if err != nil {
 		return err
@@ -170,7 +169,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	expr := fmt.Sprintf(`pkg.%s(%s)`, fnc, argslist)
 	xn := gno.MustParseExpr(expr)
 	// Send send-coins to pkg from caller.
-	pkgAddr := DerivePkgAddr(pkgPath)
+	pkgAddr := gno.DerivePkgAddr(pkgPath)
 	caller := msg.Caller
 	send := msg.Send
 	err = vm.bank.SendCoins(ctx, caller, pkgAddr, send)
@@ -200,7 +199,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		Caller:      caller.Bech32(),
 		TxSend:      send,
 		TxSendSpent: new(std.Coins),
-		PkgAddr:     pkgAddr.Bech32(),
+		OrigPkgAddr: pkgAddr.Bech32(),
 		Banker:      NewSDKBanker(vm, ctx),
 	}
 	// Construct machine and evaluate.
@@ -312,7 +311,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 		//Caller:      caller,
 		//TxSend:      send,
 		//TxSendSpent: nil,
-		//PkgAddr:     pkgAddr,
+		//OrigPkgAddr:     pkgAddr,
 		//Banker:      nil,
 	}
 	m := gno.NewMachineWithOptions(
@@ -362,7 +361,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 		//Caller:      caller,
 		//TxSend:      send,
 		//TxSendSpent: nil,
-		//PkgAddr:     pkgAddr,
+		//OrigPkgAddr:     pkgAddr,
 		//Banker:      nil,
 	}
 	m := gno.NewMachineWithOptions(
@@ -400,12 +399,4 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 		}
 		return res, nil
 	}
-}
-
-//----------------------------------------
-
-// For keeping record of package & realm coins.
-func DerivePkgAddr(pkgPath string) crypto.Address {
-	// NOTE: must not collide with pubkey addrs.
-	return crypto.AddressFromPreimage([]byte("pkgPath:" + pkgPath))
 }

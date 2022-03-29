@@ -1675,15 +1675,23 @@ func (m *Machine) LastFrame() *Frame {
 
 // TODO: this function and PopUntilLastCallFrame() is used in conjunction
 // spanning two disjoint operations upon return. Optimize.
-func (m *Machine) LastCallFrame() *Frame {
+// If n is 1, returns the immediately last call frame.
+func (m *Machine) LastCallFrame(n int) *Frame {
+	if n == 0 {
+		panic("n must be positive")
+	}
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := &m.Frames[i]
 		if fr.Func != nil || fr.GoFunc != nil {
 			// TODO: optimize with fr.IsCall
-			return fr
+			if n == 1 {
+				return fr
+			} else {
+				n-- // continue
+			}
 		}
 	}
-	panic("missing call frame")
+	panic("frame not found")
 }
 
 // pops the last non-call (loop) frames

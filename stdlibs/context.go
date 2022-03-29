@@ -11,9 +11,9 @@ type ExecContext struct {
 	Height      int64
 	Timestamp   int64
 	Msg         sdk.Msg
-	Caller      crypto.Bech32Address
+	OrigCaller  crypto.Bech32Address
+	OrigPkgAddr crypto.Bech32Address
 	TxSend      std.Coins
 	TxSendSpent *std.Coins // mutable
-	PkgAddr     crypto.Bech32Address
 	Banker      Banker
 }

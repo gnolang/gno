@@ -117,7 +117,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				m.PushValue(res0)
 			},
 		)
-		pn.DefineNative("GetCaller",
+		pn.DefineNative("GetOrigCaller",
 			gno.Flds( // params
 			),
 			gno.Flds( // results
@@ -127,14 +127,14 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				ctx := m.Context.(ExecContext)
 				res0 := gno.Go2GnoValue(
 					m.Alloc,
-					reflect.ValueOf(ctx.Caller),
+					reflect.ValueOf(ctx.OrigCaller),
 				)
 				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
 				res0.T = addrT
 				m.PushValue(res0)
 			},
 		)
-		pn.DefineNative("GetPkgAddr",
+		pn.DefineNative("GetOrigPkgAddr",
 			gno.Flds( // params
 			),
 			gno.Flds( // results
@@ -144,7 +144,37 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				ctx := m.Context.(ExecContext)
 				res0 := gno.Go2GnoValue(
 					m.Alloc,
-					reflect.ValueOf(ctx.PkgAddr),
+					reflect.ValueOf(ctx.OrigPkgAddr),
+				)
+				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
+				res0.T = addrT
+				m.PushValue(res0)
+			},
+		)
+		pn.DefineNative("GetCallerAt",
+			gno.Flds( // params
+				"n", "int",
+			),
+			gno.Flds( // results
+				"", "Address",
+			),
+			func(m *gno.Machine) {
+				arg0 := m.LastBlock().GetParams1().TV
+				n := arg0.GetInt()
+				if n <= 0 {
+					panic("GetCallerAt requires positive arg")
+				}
+				if n >= m.NumFrames() {
+					// NOTE: the last frame's LastPackage
+					// is set to the original non-frame
+					// package, so need this check.
+					panic("frame not found")
+				}
+				var pkgAddr string
+				pkgAddr = string(m.LastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
+				res0 := gno.Go2GnoValue(
+					m.Alloc,
+					reflect.ValueOf(pkgAddr),
 				)
 				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
 				res0.T = addrT
@@ -167,9 +197,9 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				case BankerTypeReadonly:
 					banker = NewReadonlyBanker(banker)
 				case BankerTypeTxSend:
-					banker = NewTxSendBanker(banker, ctx.PkgAddr, ctx.TxSend, ctx.TxSendSpent)
+					banker = NewTxSendBanker(banker, ctx.OrigPkgAddr, ctx.TxSend, ctx.TxSendSpent)
 				case BankerTypeRealmSend:
-					banker = NewRealmSendBanker(banker, ctx.PkgAddr)
+					banker = NewRealmSendBanker(banker, ctx.OrigPkgAddr)
 				case BankerTypeRealmIssue:
 					banker = banker
 				default:

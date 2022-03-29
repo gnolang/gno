@@ -236,7 +236,7 @@ func (m *Machine) doOpReturnFromBlock() {
 // deferred statements can refer to results with name
 // expressions.
 func (m *Machine) doOpReturnToBlock() {
-	cfr := m.LastCallFrame()
+	cfr := m.LastCallFrame(1)
 	ft := cfr.Func.GetType(m.Store)
 	numParams := len(ft.Params)
 	numResults := len(ft.Results)
@@ -249,7 +249,7 @@ func (m *Machine) doOpReturnToBlock() {
 }
 
 func (m *Machine) doOpReturnCallDefers() {
-	cfr := m.LastCallFrame()
+	cfr := m.LastCallFrame(1)
 	dfr, ok := cfr.PopDefer()
 	if !ok {
 		// Done with defers.
@@ -335,7 +335,7 @@ func (m *Machine) doOpReturnCallDefers() {
 
 func (m *Machine) doOpDefer() {
 	lb := m.LastBlock()
-	cfr := m.LastCallFrame()
+	cfr := m.LastCallFrame(1)
 	ds := m.PopStmt().(*DeferStmt)
 	// Pop arguments
 	numArgs := len(ds.Call.Args)

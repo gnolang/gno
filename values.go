@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"unsafe"
+
+	"github.com/gnolang/gno/pkgs/crypto"
 )
 
 //----------------------------------------
@@ -815,6 +817,11 @@ func (pv *PackageValue) SetRealm(rlm *Realm) {
 // Convenience.
 func (pv *PackageValue) GetPackageNode(store Store) *PackageNode {
 	return pv.GetBlock(store).GetSource(store).(*PackageNode)
+}
+
+// Convenience
+func (pv *PackageValue) GetPkgAddr() crypto.Address {
+	return DerivePkgAddr(pv.PkgPath)
 }
 
 type NativeValue struct {

@@ -8,14 +8,14 @@ import (
 var aset *std.AddressList
 
 func init() {
-	caller := std.GetCaller()
+	caller := std.GetOrigCaller()
 	aset = std.NewAddressList()
 	aset.AddAddress(caller)
 }
 
 func main() {
 	println(*aset)
-	caller := std.GetCaller()
+	caller := std.GetOrigCaller()
 	err := aset.AddAddress(caller)
 	println("error:", err)
 	has := aset.HasAddress(caller)

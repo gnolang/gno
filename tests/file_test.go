@@ -93,10 +93,10 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 		ChainID:     "testchain",
 		Height:      123,
 		Msg:         nil,
-		Caller:      caller,
+		OrigCaller:  caller,
+		OrigPkgAddr: pkgAddr,
 		TxSend:      txSend,
 		TxSendSpent: new(std.Coins),
-		PkgAddr:     pkgAddr,
 		Banker:      banker,
 	}
 	m := gno.NewMachineWithOptions(gno.MachineOptions{

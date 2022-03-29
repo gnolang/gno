@@ -541,7 +541,7 @@ EXEC_SWITCH:
 		m.PushForPointer(cs.X)
 	case *ReturnStmt:
 		m.PopStmt()
-		fr := m.LastCallFrame()
+		fr := m.LastCallFrame(1)
 		ft := fr.Func.GetType(m.Store)
 		hasDefers := 0 < len(fr.Defers)
 		hasResults := 0 < len(ft.Results)

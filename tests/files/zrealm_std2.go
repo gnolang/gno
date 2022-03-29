@@ -9,14 +9,14 @@ import (
 var aset std.AddressSet
 
 func init() {
-	caller := std.GetCaller()
+	caller := std.GetOrigCaller()
 	aset = std.NewAddressList()
 	aset.AddAddress(caller)
 }
 
 func main() {
 	println(*(aset.(*std.AddressList)))
-	caller := std.GetCaller()
+	caller := std.GetOrigCaller()
 	err := aset.AddAddress(caller)
 	println("error:", err)
 	has := aset.HasAddress(caller)

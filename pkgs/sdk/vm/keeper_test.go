@@ -33,9 +33,9 @@ import "std"
 func init() {
 }
 
-func Echo(msg string) string {
-	addr := std.GetCaller()
-	pkgAddr := std.GetPkgAddr()
+func Echo(msg string) string Orig{
+	addr := std.GetOrigCaller()
+	pkgAddr := std.GetOrigPkgAddr()
 	send := std.GetTxSendCoins()
 	banker := std.GetBanker(std.BankerTypeTxSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
@@ -79,8 +79,8 @@ func init() {
 }
 
 func Echo(msg string) string {
-	addr := std.GetCaller()
-	pkgAddr := std.GetPkgAddr()
+	addr := std.GetOrigCaller()
+	pkgAddr := std.GetOrigPkgAddr()
 	send := std.GetTxSendCoins()
 	banker := std.GetBanker(std.BankerTypeTxSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
@@ -125,8 +125,8 @@ func init() {
 }
 
 func Echo(msg string) string {
-	addr := std.GetCaller()
-	pkgAddr := std.GetPkgAddr()
+	addr := std.GetOrigCaller()
+	pkgAddr := std.GetOrigPkgAddr()
 	send := std.Coins{{"gnot", 10}}
 	banker := std.GetBanker(std.BankerTypeTxSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
@@ -170,8 +170,8 @@ func init() {
 }
 
 func Echo(msg string) string {
-	addr := std.GetCaller()
-	pkgAddr := std.GetPkgAddr()
+	addr := std.GetOrigCaller()
+	pkgAddr := std.GetOrigPkgAddr()
 	send := std.Coins{{"gnot", 10}}
 	banker := std.GetBanker(std.BankerTypeRealmSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
@@ -214,8 +214,8 @@ func init() {
 }
 
 func Echo(msg string) string {
-	addr := std.GetCaller()
-	pkgAddr := std.GetPkgAddr()
+	addr := std.GetOrigCaller()
+	pkgAddr := std.GetOrigPkgAddr()
 	send := std.Coins{{"gnot", 10}}
 	banker := std.GetBanker(std.BankerTypeRealmSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back

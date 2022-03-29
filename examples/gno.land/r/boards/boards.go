@@ -39,7 +39,7 @@ func CreateBoard(name string) BoardID {
 		panic("CreateBoard is public facing")
 	}
 	bid := incGetBoardID()
-	caller := std.GetCaller()
+	caller := std.GetOrigCaller()
 	url := "/r/boards:" + name
 	board := newBoard(bid, url, name, caller)
 	bidkey := strconv.Itoa(int(bid))
@@ -54,7 +54,7 @@ func CreatePost(bid BoardID, title string, body string) PostID {
 		// tag/decorator.
 		panic("CreateBoard is public facing")
 	}
-	caller := std.GetCaller()
+	caller := std.GetOrigCaller()
 	board := getBoard(bid)
 	post := board.AddPost(caller, title, body)
 	return post.id
@@ -66,7 +66,7 @@ func CreateReply(bid BoardID, postid PostID, body string) PostID {
 		// tag/decorator.
 		panic("CreateBoard is public facing")
 	}
-	caller := std.GetCaller()
+	caller := std.GetOrigCaller()
 	board := getBoard(bid)
 	post := board.GetPost(postid)
 	reply := post.AddReply(caller, body)
@@ -81,7 +81,7 @@ func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoar
 		// tag/decorator.
 		panic("CreateBoard is public facing")
 	}
-	caller := std.GetCaller()
+	caller := std.GetOrigCaller()
 	board := getBoard(bid)
 	if board.IsPrivate() {
 		panic("cannot repost from a private board")
