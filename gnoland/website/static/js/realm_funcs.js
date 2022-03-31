@@ -25,7 +25,7 @@ function updateCommand(x) {
 		"--pkgpath", shq(realmPath), "--func", shq(funcName),
 		"--gas-fee", "1gnot", "--gas-wanted", "2000000"];
 	vals.forEach(function(arg) {
-		args.push("--arg");
+		args.push("--args");
 		args.push(shq(arg));
 	});
 	var command = args.join(" ");
