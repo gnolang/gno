@@ -4,6 +4,7 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -21,11 +22,17 @@ import (
 	"github.com/gnolang/gno/pkgs/sdk/vm"            // for error types
 )
 
+var flags struct {
+	bindAddr string
+}
+
 func init() {
-	fmt.Println(vm.Package)
+	flag.StringVar(&flags.bindAddr, "bind", "127.0.0.1:8888", "server listening address")
 }
 
 func main() {
+	flag.Parse()
+
 	app := gotuna.App{
 		ViewFiles: os.DirFS("./views/"),
 		Router:    gotuna.NewMuxRouter(),
@@ -43,8 +50,11 @@ func main() {
 	app.Router.Handle("/static/{path:.+}", handlerStaticFile(app))
 	// funcs/{rlmname:[a-z][a-z0-9_]*}", handlerGetFunctions(app))
 
-	fmt.Println("Running on http://localhost:8888")
-	http.ListenAndServe("127.0.0.1:8888", app.Router)
+	fmt.Printf("Running on http://%s\n", flags.bindAddr)
+	err := http.ListenAndServe(flags.bindAddr, app.Router)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "HTTP server stopped with error: %+v\n", err)
+	}
 }
 
 func handlerHome(app gotuna.App) http.Handler {
