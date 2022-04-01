@@ -19,7 +19,7 @@ var gBoardsByName *avl.Tree // name -> *Board
 //----------------------------------------
 // Constants
 
-var reName = regexp.MustCompile(`^[a-z]+[_a-z0-9]*$`)
+var reName = regexp.MustCompile(`^[a-z]+[_a-z0-9]{2,29}$`)
 
 //----------------------------------------
 // Public facing functions
@@ -33,11 +33,7 @@ func GetBoardIDFromName(name string) (BoardID, bool) {
 }
 
 func CreateBoard(name string) BoardID {
-	if !std.IsOriginCall() {
-		// TODO: consider making this a function
-		// tag/decorator.
-		panic("CreateBoard is public facing")
-	}
+	std.AssertOriginCall()
 	bid := incGetBoardID()
 	caller := std.GetOrigCaller()
 	url := "/r/boards:" + name
@@ -49,11 +45,7 @@ func CreateBoard(name string) BoardID {
 }
 
 func CreatePost(bid BoardID, title string, body string) PostID {
-	if !std.IsOriginCall() {
-		// TODO: consider making this a function
-		// tag/decorator.
-		panic("CreateBoard is public facing")
-	}
+	std.AssertOriginCall()
 	caller := std.GetOrigCaller()
 	board := getBoard(bid)
 	post := board.AddPost(caller, title, body)
@@ -61,11 +53,7 @@ func CreatePost(bid BoardID, title string, body string) PostID {
 }
 
 func CreateReply(bid BoardID, postid PostID, body string) PostID {
-	if !std.IsOriginCall() {
-		// TODO: consider making this a function
-		// tag/decorator.
-		panic("CreateBoard is public facing")
-	}
+	std.AssertOriginCall()
 	caller := std.GetOrigCaller()
 	board := getBoard(bid)
 	post := board.GetPost(postid)
@@ -76,11 +64,7 @@ func CreateReply(bid BoardID, postid PostID, body string) PostID {
 // If dstBoard is private, does not ping back.
 // If board specified by bid is private, panics.
 func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoardID BoardID) PostID {
-	if !std.IsOriginCall() {
-		// TODO: consider making this a function
-		// tag/decorator.
-		panic("CreateBoard is public facing")
-	}
+	std.AssertOriginCall()
 	caller := std.GetOrigCaller()
 	board := getBoard(bid)
 	if board.IsPrivate() {

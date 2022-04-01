@@ -42,7 +42,20 @@ func (vmk *VMKeeper) packageInjector(store gno.Store, pn *gno.PackageNode) {
 	// vm (this package) specific injections:
 	switch pn.PkgPath {
 	case "std":
+		/* XXX deleteme
 		// Also see stdlibs/InjectPackage.
+		pn.DefineNative("AssertOriginCall",
+			gno.Flds( // params
+			),
+			gno.Flds( // results
+			),
+			func(m *gno.Machine) {
+				isOrigin := len(m.Frames) == 2
+				if !isOrigin {
+					panic("invalid non-origin call")
+				}
+			},
+		)
 		pn.DefineNative("IsOriginCall",
 			gno.Flds( // params
 			),
@@ -56,6 +69,7 @@ func (vmk *VMKeeper) packageInjector(store gno.Store, pn *gno.PackageNode) {
 				m.PushValue(res0)
 			},
 		)
+		*/
 	}
 }
 

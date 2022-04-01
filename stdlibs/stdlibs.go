@@ -22,8 +22,33 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 		pn.DefineGoNativeValue("CanBackquote", strconv.CanBackquote)
 		pn.DefineGoNativeValue("IntSize", strconv.IntSize)
 	case "std":
-		// NOTE: pkgs/sdk/vm/VMKeeper also
-		// injects more like .Send, .GetContext.
+		// NOTE: some of these are overridden in tests/imports_test.go
+		// Also see stdlibs/InjectPackage.
+		pn.DefineNative("AssertOriginCall",
+			gno.Flds( // params
+			),
+			gno.Flds( // results
+			),
+			func(m *gno.Machine) {
+				isOrigin := len(m.Frames) == 2
+				if !isOrigin {
+					panic("invalid non-origin call")
+				}
+			},
+		)
+		pn.DefineNative("IsOriginCall",
+			gno.Flds( // params
+			),
+			gno.Flds( // results
+				"isOrigin", "bool",
+			),
+			func(m *gno.Machine) {
+				isOrigin := len(m.Frames) == 2
+				res0 := gno.TypedValue{T: gno.BoolType}
+				res0.SetBool(isOrigin)
+				m.PushValue(res0)
+			},
+		)
 		pn.DefineNative("Hash",
 			gno.Flds( // params
 				"bz", "[]byte",

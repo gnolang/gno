@@ -1345,6 +1345,20 @@ func (pn *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*
 	fv.nativeBody = native
 }
 
+// Same as DefineNative but allow the overriding of previously defined natives.
+// For example, overriding a native function defined in stdlibs/stdlibs for
+// testing. Caller must ensure that the function type is identical.
+func (pn *PackageNode) DefineNativeOverride(n Name, native func(*Machine)) {
+	if debug {
+		debug.Printf("*PackageNode.DefineNativeOverride(%s,...)\n", n)
+	}
+	if native == nil {
+		panic("DefineNative expects a function, but got nil")
+	}
+	fv := pn.GetValueRef(nil, n).V.(*FuncValue)
+	fv.nativeBody = native
+}
+
 //----------------------------------------
 // RefNode
 

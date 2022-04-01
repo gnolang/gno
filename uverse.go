@@ -916,7 +916,7 @@ func UverseNode() *PackageNode {
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1()
 			xv := arg0.Deref()
-			panic(sprintString(m, &xv))
+			panic(xv.Sprint(m))
 		},
 	)
 	defNative("print",
@@ -931,7 +931,7 @@ func UverseNode() *PackageNode {
 			ss := make([]string, xvl)
 			for i := 0; i < xvl; i++ {
 				ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
-				ss[i] = sprintString(m, &ev)
+				ss[i] = ev.Sprint(m)
 			}
 			rs := strings.Join(ss, " ")
 			m.Output.Write([]byte(rs))
@@ -949,7 +949,7 @@ func UverseNode() *PackageNode {
 			ss := make([]string, xvl)
 			for i := 0; i < xvl; i++ {
 				ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
-				ss[i] = sprintString(m, &ev)
+				ss[i] = ev.Sprint(m)
 			}
 			rs := strings.Join(ss, " ") + "\n"
 			m.Output.Write([]byte(rs))
@@ -972,111 +972,6 @@ func UverseNode() *PackageNode {
 		},
 	)
 	return uverseNode
-}
-
-// sprintString returns the string to be printed for tv from
-// print() and println().
-// XXX rename to sprintTypedValue.
-func sprintString(m *Machine, tv *TypedValue) string {
-	// if undefined, just "undefined".
-	if tv.T == nil {
-		return "undefined"
-	}
-	// if implements .String(), return it.
-	if IsImplementedBy(gStringerType, tv.T) {
-		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "String")))
-		return res[0].GetString()
-	}
-	// if implements .Error(), return it.
-	if IsImplementedBy(gErrorType, tv.T) {
-		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "Error")))
-		return res[0].GetString()
-	}
-	// otherwise, default behavior.
-	switch bt := baseOf(tv.T).(type) {
-	case PrimitiveType:
-		switch bt {
-		case UntypedBoolType, BoolType:
-			return fmt.Sprintf("%t", tv.GetBool())
-		case UntypedStringType, StringType:
-			return string(tv.GetString())
-		case IntType:
-			return fmt.Sprintf("%d", tv.GetInt())
-		case Int8Type:
-			return fmt.Sprintf("%d", tv.GetInt8())
-		case Int16Type:
-			return fmt.Sprintf("%d", tv.GetInt16())
-		case UntypedRuneType, Int32Type:
-			return fmt.Sprintf("%d", tv.GetInt32())
-		case Int64Type:
-			return fmt.Sprintf("%d", tv.GetInt64())
-		case UintType:
-			return fmt.Sprintf("%d", tv.GetUint())
-		case Uint8Type:
-			return fmt.Sprintf("%d", tv.GetUint8())
-		case Uint16Type:
-			return fmt.Sprintf("%d", tv.GetUint16())
-		case Uint32Type:
-			return fmt.Sprintf("%d", tv.GetUint32())
-		case Uint64Type:
-			return fmt.Sprintf("%d", tv.GetUint64())
-		case UntypedBigintType, BigintType:
-			return tv.V.(BigintValue).V.String()
-		default:
-			panic("should not happen")
-		}
-	case *PointerType:
-		return tv.V.(PointerValue).String()
-	case *ArrayType:
-		return tv.V.(*ArrayValue).String()
-	case *SliceType:
-		return tv.V.(*SliceValue).String()
-	case *StructType:
-		return tv.V.(*StructValue).String()
-	case *MapType:
-		return tv.V.(*MapValue).String()
-	case *FuncType:
-		switch fv := tv.V.(type) {
-		case nil:
-			ft := tv.T.String()
-			return "nil " + ft
-		case *FuncValue:
-			return fv.String()
-		case *BoundMethodValue:
-			return fv.String()
-		default:
-			panic(fmt.Sprintf(
-				"unexpected func type %v",
-				reflect.TypeOf(tv.V)))
-		}
-	case *InterfaceType:
-		if debug {
-			if tv.DebugHasValue() {
-				panic("should not happen")
-			}
-		}
-		return "nil"
-	case *TypeType:
-		return tv.V.(TypeValue).String()
-	case *DeclaredType:
-		panic("should not happen")
-	case *PackageType:
-		return tv.V.(*PackageValue).String()
-	case *ChanType:
-		panic("not yet implemented")
-		//return tv.V.(*ChanValue).String()
-	case *NativeType:
-		return fmt.Sprintf("%v",
-			tv.V.(*NativeValue).Value.Interface())
-	default:
-		if debug {
-			panic(fmt.Sprintf(
-				"unexpected type %s",
-				tv.T.String()))
-		} else {
-			panic("should not happen")
-		}
-	}
 }
 
 func copyDataToList(dst []TypedValue, data []byte, et Type) {

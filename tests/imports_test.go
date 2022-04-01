@@ -394,13 +394,17 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 		pn.DefineGoNativeType(reflect.TypeOf(strconv.NumError{}))
 		pn.DefineGoNativeValue("ParseInt", strconv.ParseInt)
 	case "std":
+		// NOTE: some of these are overrides.
 		// Also see stdlibs/InjectPackage.
-		pn.DefineNative("IsOriginCall",
-			gno.Flds( // params
-			),
-			gno.Flds( // results
-				"isOrigin", "bool",
-			),
+		pn.DefineNativeOverride("AssertOriginCall",
+			func(m *gno.Machine) {
+				isOrigin := len(m.Frames) == 3
+				if !isOrigin {
+					panic("invalid non-origin call")
+				}
+			},
+		)
+		pn.DefineNativeOverride("IsOriginCall",
 			func(m *gno.Machine) {
 				isOrigin := len(m.Frames) == 3
 				res0 := gno.TypedValue{T: gno.BoolType}

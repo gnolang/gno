@@ -22,7 +22,7 @@ type txImportOptions struct {
 }
 
 var defaultTxImportOptions = txImportOptions{
-	Remote: "gno.land:36657",
+	Remote: "localhost:26657",
 	InFile: "txexport.log",
 }
 

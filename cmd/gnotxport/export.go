@@ -23,7 +23,7 @@ type txExportOptions struct {
 }
 
 var defaultTxExportOptions = txExportOptions{
-	Remote:      "gno.land:36657",
+	Remote:      "localhost:26657",
 	StartHeight: 1,
 	EndHeight:   0,
 	OutFile:     "txexport.log",

@@ -1918,6 +1918,7 @@ func (m *Machine) String() string {
 	Realm:
 	  %s
 	Exception:
+	  %s
 	  %s`,
 		m.CheckTypes,
 		m.Ops[:m.NumOps],
@@ -1930,6 +1931,7 @@ func (m *Machine) String() string {
 		strings.Join(fs, "\n"),
 		rlmpath,
 		m.Exception,
+		m.Exception.Sprint(m),
 	)
 }
 

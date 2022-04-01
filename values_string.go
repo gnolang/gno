@@ -162,3 +162,156 @@ func (v RefValue) String() string {
 			v.PkgPath)
 	}
 }
+
+//----------------------------------------
+// *TypedValue.Sprint
+
+// for print() and println().
+func (tv *TypedValue) Sprint(m *Machine) string {
+	// if undefined, just "undefined".
+	if tv == nil || tv.T == nil {
+		return "undefined"
+	}
+	// if implements .String(), return it.
+	if IsImplementedBy(gStringerType, tv.T) {
+		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "String")))
+		return res[0].GetString()
+	}
+	// if implements .Error(), return it.
+	if IsImplementedBy(gErrorType, tv.T) {
+		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "Error")))
+		return res[0].GetString()
+	}
+	// otherwise, default behavior.
+	switch bt := baseOf(tv.T).(type) {
+	case PrimitiveType:
+		switch bt {
+		case UntypedBoolType, BoolType:
+			return fmt.Sprintf("%t", tv.GetBool())
+		case UntypedStringType, StringType:
+			return string(tv.GetString())
+		case IntType:
+			return fmt.Sprintf("%d", tv.GetInt())
+		case Int8Type:
+			return fmt.Sprintf("%d", tv.GetInt8())
+		case Int16Type:
+			return fmt.Sprintf("%d", tv.GetInt16())
+		case UntypedRuneType, Int32Type:
+			return fmt.Sprintf("%d", tv.GetInt32())
+		case Int64Type:
+			return fmt.Sprintf("%d", tv.GetInt64())
+		case UintType:
+			return fmt.Sprintf("%d", tv.GetUint())
+		case Uint8Type:
+			return fmt.Sprintf("%d", tv.GetUint8())
+		case Uint16Type:
+			return fmt.Sprintf("%d", tv.GetUint16())
+		case Uint32Type:
+			return fmt.Sprintf("%d", tv.GetUint32())
+		case Uint64Type:
+			return fmt.Sprintf("%d", tv.GetUint64())
+		case UntypedBigintType, BigintType:
+			return tv.V.(BigintValue).V.String()
+		default:
+			panic("should not happen")
+		}
+	case *PointerType:
+		return tv.V.(PointerValue).String()
+	case *ArrayType:
+		return tv.V.(*ArrayValue).String()
+	case *SliceType:
+		return tv.V.(*SliceValue).String()
+	case *StructType:
+		return tv.V.(*StructValue).String()
+	case *MapType:
+		return tv.V.(*MapValue).String()
+	case *FuncType:
+		switch fv := tv.V.(type) {
+		case nil:
+			ft := tv.T.String()
+			return "nil " + ft
+		case *FuncValue:
+			return fv.String()
+		case *BoundMethodValue:
+			return fv.String()
+		default:
+			panic(fmt.Sprintf(
+				"unexpected func type %v",
+				reflect.TypeOf(tv.V)))
+		}
+	case *InterfaceType:
+		if debug {
+			if tv.DebugHasValue() {
+				panic("should not happen")
+			}
+		}
+		return "nil"
+	case *TypeType:
+		return tv.V.(TypeValue).String()
+	case *DeclaredType:
+		panic("should not happen")
+	case *PackageType:
+		return tv.V.(*PackageValue).String()
+	case *ChanType:
+		panic("not yet implemented")
+		//return tv.V.(*ChanValue).String()
+	case *NativeType:
+		return fmt.Sprintf("%v",
+			tv.V.(*NativeValue).Value.Interface())
+	default:
+		if debug {
+			panic(fmt.Sprintf(
+				"unexpected type %s",
+				tv.T.String()))
+		} else {
+			panic("should not happen")
+		}
+	}
+}
+
+//----------------------------------------
+// TypedValue.String()
+
+// For gno debugging/testing.
+func (tv TypedValue) String() string {
+	if tv.IsUndefined() {
+		return "(undefined)"
+	}
+	vs := ""
+	if tv.V == nil {
+		switch baseOf(tv.T) {
+		case BoolType, UntypedBoolType:
+			vs = fmt.Sprintf("%t", tv.GetBool())
+		case StringType, UntypedStringType:
+			vs = fmt.Sprintf("%s", tv.GetString())
+		case IntType:
+			vs = fmt.Sprintf("%d", tv.GetInt())
+		case Int8Type:
+			vs = fmt.Sprintf("%d", tv.GetInt8())
+		case Int16Type:
+			vs = fmt.Sprintf("%d", tv.GetInt16())
+		case Int32Type, UntypedRuneType:
+			vs = fmt.Sprintf("%d", tv.GetInt32())
+		case Int64Type:
+			vs = fmt.Sprintf("%d", tv.GetInt64())
+		case UintType:
+			vs = fmt.Sprintf("%d", tv.GetUint())
+		case Uint8Type:
+			vs = fmt.Sprintf("%d", tv.GetUint8())
+		case DataByteType:
+			vs = fmt.Sprintf("%d", tv.GetDataByte())
+		case Uint16Type:
+			vs = fmt.Sprintf("%d", tv.GetUint16())
+		case Uint32Type:
+			vs = fmt.Sprintf("%d", tv.GetUint32())
+		case Uint64Type:
+			vs = fmt.Sprintf("%d", tv.GetUint64())
+		default:
+			vs = "nil"
+		}
+	} else {
+		vs = fmt.Sprintf("%v", tv.V)
+	}
+	ts := tv.T.String()
+	return fmt.Sprintf("(%s %s)", vs, ts) // TODO improve
+}

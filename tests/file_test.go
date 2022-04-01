@@ -73,20 +73,22 @@ func TestFiles2(t *testing.T) {
 }
 
 func runFileTest(t *testing.T, path string, nativeLibs bool) {
-	pkgPath, resWanted, errWanted, rops, maxAlloc := wantedFromComment(path)
+	pkgPath, resWanted, errWanted, rops, maxAlloc, send := wantedFromComment(path)
 	if pkgPath == "" {
 		pkgPath = "main"
 	}
 	pkgName := defaultPkgName(pkgPath)
-
+	if send == "" {
+		send = "" // send nothing.
+	}
 	stdin := new(bytes.Buffer)
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 	store := testStore(stdin, stdout, stderr, nativeLibs)
 	store.SetLogStoreOps(true)
 	caller := testutils.TestBech32Address("testaddr____________")
-	txSend := std.MustParseCoins("100gnots")
-	pkgCoins := std.MustParseCoins("200gnots") // >= txSend.
+	txSend := std.MustParseCoins(send)
+	pkgCoins := std.MustParseCoins("200gnot") // >= txSend.
 	pkgAddr := testutils.TestBech32Address("packageaddr_________")
 	banker := newtestBanker(pkgAddr, pkgCoins)
 	ctx := stdlibs.ExecContext{
@@ -185,19 +187,22 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 					t.Log("========================================")
 				}
 				store.ClearCache()
-				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-					PkgPath: "",
-					Output:  stdout,
-					Store:   store,
-					Context: ctx,
-				})
+				/*
+					m = gno.NewMachineWithOptions(gno.MachineOptions{
+						PkgPath:       "",
+						Output:        stdout,
+						Store:         store,
+						Context:       ctx,
+						MaxAllocBytes: maxAlloc,
+					})
+				*/
 				if gno.IsDebug() && testing.Verbose() {
 					store.Print()
 					t.Log("========================================")
 					t.Log("PREPROCESS ALL FILES")
 					t.Log("========================================")
 				}
-				m2.PreprocessAllFilesAndSaveBlockNodes()
+				m.PreprocessAllFilesAndSaveBlockNodes()
 				if gno.IsDebug() && testing.Verbose() {
 					t.Log("========================================")
 					t.Log("RUN MAIN")
@@ -205,14 +210,14 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 					store.Print()
 				}
 				pv2 := store.GetPackage(pkgPath, false)
-				m2.SetActivePackage(pv2)
+				m.SetActivePackage(pv2)
 				gno.EnableDebug()
 				if rops != "" {
 					// clear store.opslog from init funtion(s),
 					// and PreprocessAllFilesAndSaveBlockNodes().
 					store.SetLogStoreOps(true) // resets.
 				}
-				m2.RunMain()
+				m.RunMain()
 				if gno.IsDebug() && testing.Verbose() {
 					t.Log("========================================")
 					t.Log("RUN MAIN END")
@@ -225,16 +230,25 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 			if pnc == nil {
 				panic(fmt.Sprintf("got nil error, want: %q", errWanted))
 			}
-			err := strings.TrimSpace(fmt.Sprintf("%v", pnc))
-			if !strings.Contains(err, errWanted) {
-				panic(fmt.Sprintf("got %q, want: %q", err, errWanted))
+			errstr := ""
+			if tv, ok := pnc.(*gno.TypedValue); ok {
+				errstr = tv.Sprint(m)
+			} else {
+				errstr = strings.TrimSpace(fmt.Sprintf("%v", pnc))
+			}
+			if !strings.Contains(errstr, errWanted) {
+				panic(fmt.Sprintf("got %q, want: %q", errstr, errWanted))
 			}
 			// NOTE: ignores any gno.GetDebugErrors().
 			gno.ClearDebugErrors()
 			return // nothing more to do.
 		} else {
 			if pnc != nil {
-				panic(fmt.Sprintf("got unexpected error: %v", pnc))
+				if tv, ok := pnc.(*gno.TypedValue); ok {
+					panic(fmt.Sprintf("got unexpected error: %s", tv.Sprint(m)))
+				} else { // TODO: does this happen?
+					panic(fmt.Sprintf("got unexpected error: %v", pnc))
+				}
 			}
 			if gno.HasDebugErrors() {
 				panic(fmt.Sprintf("got unexpected debug error(s): %v", gno.GetDebugErrors()))
@@ -269,7 +283,7 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 	}
 }
 
-func wantedFromComment(p string) (pkgPath, res, err, rops string, maxAlloc int64) {
+func wantedFromComment(p string) (pkgPath, res, err, rops string, maxAlloc int64, send string) {
 	fset := token.NewFileSet()
 	f, err2 := parser.ParseFile(fset, p, nil, parser.ParseComments)
 	if err2 != nil {
@@ -281,14 +295,16 @@ func wantedFromComment(p string) (pkgPath, res, err, rops string, maxAlloc int64
 	for _, comments := range f.Comments {
 		text := comments.Text()
 		if strings.HasPrefix(text, "PKGPATH:") {
-			line := strings.SplitN(text, "\n", 2)[0]
-			pkgPath = strings.TrimSpace(strings.TrimPrefix(line, "PKGPATH:"))
-		} else if strings.HasPrefix(text, "GOPATH:") {
-			line := strings.SplitN(text, "\n", 2)[0]
-			goPath := strings.TrimSpace(strings.TrimPrefix(line, "GOPATH:"))
-			panic(fmt.Sprintf(
-				"GOPATH directive not supported -- move %s to extern",
-				goPath))
+			// NOTE: this should be the first comment in a file test.
+			lines := strings.SplitN(text, "\n", 2)
+			line0 := lines[0]
+			pkgPath = strings.TrimSpace(strings.TrimPrefix(line0, "PKGPATH:"))
+			// This comment block can contain additional lines beneath PKGPATH.
+			for _, line := range lines[1:] {
+				if strings.HasPrefix(line, "SEND:") {
+					send = strings.TrimSpace(strings.TrimPrefix(line, "SEND:"))
+				}
+			}
 		} else if strings.HasPrefix(text, "MAXALLOC:") {
 			line := strings.SplitN(text, "\n", 2)[0]
 			maxstr := strings.TrimSpace(strings.TrimPrefix(line, "MAXALLOC:"))

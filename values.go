@@ -908,49 +908,6 @@ func (tv *TypedValue) DebugHasValue() bool {
 	return false
 }
 
-func (tv TypedValue) String() string {
-	if tv.IsUndefined() {
-		return "(undefined)"
-	}
-	vs := ""
-	if tv.V == nil {
-		switch baseOf(tv.T) {
-		case BoolType, UntypedBoolType:
-			vs = fmt.Sprintf("%t", tv.GetBool())
-		case StringType, UntypedStringType:
-			vs = fmt.Sprintf("%s", tv.GetString())
-		case IntType:
-			vs = fmt.Sprintf("%d", tv.GetInt())
-		case Int8Type:
-			vs = fmt.Sprintf("%d", tv.GetInt8())
-		case Int16Type:
-			vs = fmt.Sprintf("%d", tv.GetInt16())
-		case Int32Type, UntypedRuneType:
-			vs = fmt.Sprintf("%d", tv.GetInt32())
-		case Int64Type:
-			vs = fmt.Sprintf("%d", tv.GetInt64())
-		case UintType:
-			vs = fmt.Sprintf("%d", tv.GetUint())
-		case Uint8Type:
-			vs = fmt.Sprintf("%d", tv.GetUint8())
-		case DataByteType:
-			vs = fmt.Sprintf("%d", tv.GetDataByte())
-		case Uint16Type:
-			vs = fmt.Sprintf("%d", tv.GetUint16())
-		case Uint32Type:
-			vs = fmt.Sprintf("%d", tv.GetUint32())
-		case Uint64Type:
-			vs = fmt.Sprintf("%d", tv.GetUint64())
-		default:
-			vs = "nil"
-		}
-	} else {
-		vs = fmt.Sprintf("%v", tv.V)
-	}
-	ts := tv.T.String()
-	return fmt.Sprintf("(%s %s)", vs, ts) // TODO improve
-}
-
 func (tv *TypedValue) ClearNum() {
 	*(*uint64)(unsafe.Pointer(&tv.N)) = uint64(0)
 }
