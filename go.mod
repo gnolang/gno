@@ -47,6 +47,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
 )
 
-replace github.com/gdamore/tcell => github.com/gnolang/tcell v1.4.0
-
 replace github.com/gdamore/tcell/v2 => github.com/gnolang/tcell/v2 v2.1.0
