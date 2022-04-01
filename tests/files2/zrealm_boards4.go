@@ -30,14 +30,13 @@ func main() {
 // # Second Post (title)
 //
 // Body of the second post. (body)
-// - by g1w3jhxarpv3j8yh6lta047h6lta047h6l46ncpj, [1970-01-01 12:00am (UTC)](/r/boards:test_board/2)
+// - by g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985, [1970-01-01 12:00am (UTC)](/r/boards:test_board/2)
 //
 // > Reply of the second post
-// > - by g1w3jhxarpv3j8yh6lta047h6lta047h6l46ncpj, [1970-01-01 12:00am (UTC)](/r/boards:test_board/2#3)
+// > - by g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985, [1970-01-01 12:00am (UTC)](/r/boards:test_board/2#3)
 //
 // > Second reply of the second post
-// > - by g1w3jhxarpv3j8yh6lta047h6lta047h6l46ncpj, [1970-01-01 12:00am (UTC)](/r/boards:test_board/2#4)
-//
+// > - by g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985, [1970-01-01 12:00am (UTC)](/r/boards:test_board/2#4)
 
 // Realm:
 // switchrealm["gno.land/r/boards"]
@@ -319,7 +318,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.vstr",
-//                 "value": "g1w3jhxarpv3j8yh6lta047h6lta047h6l46ncpj"
+//                 "value": "g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985"
 //             }
 //         },
 //         {
@@ -672,7 +671,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.vstr",
-//                 "value": "g1w3jhxarpv3j8yh6lta047h6lta047h6l46ncpj"
+//                 "value": "g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985"
 //             }
 //         },
 //         {
@@ -694,7 +693,7 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "832523ef2a61addb1e1b566203210e54c5a7095f",
+//                         "Hash": "5d5df17f5b05dae50e1542e7012db62cbc27df5d",
 //                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:75"
 //                     }
 //                 }
@@ -762,7 +761,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.vstr",
-//                 "value": "g1w3jhxarpv3j8yh6lta047h6lta047h6l46ncpj"
+//                 "value": "g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985"
 //             }
 //         },
 //         {

@@ -397,6 +397,12 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 		// NOTE: some of these are overrides.
 		// Also see stdlibs/InjectPackage.
 		pn.DefineNativeOverride("AssertOriginCall",
+			/*
+				gno.Flds( // params
+				),
+				gno.Flds( // results
+				),
+			*/
 			func(m *gno.Machine) {
 				isOrigin := len(m.Frames) == 3
 				if !isOrigin {
@@ -405,6 +411,13 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 			},
 		)
 		pn.DefineNativeOverride("IsOriginCall",
+			/*
+				gno.Flds( // params
+				),
+				gno.Flds( // results
+					"isOrigin", "bool",
+				),
+			*/
 			func(m *gno.Machine) {
 				isOrigin := len(m.Frames) == 3
 				res0 := gno.TypedValue{T: gno.BoolType}

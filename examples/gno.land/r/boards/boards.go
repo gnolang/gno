@@ -312,7 +312,7 @@ func (post *Post) GetURL() string {
 func (post *Post) RenderSummary() string {
 	str := ""
 	if post.title != "" {
-		str += "# " + post.title + "\n"
+		str += "## " + post.title + "\n"
 		str += "\n"
 	}
 	str += post.GetSummary() + "\n"

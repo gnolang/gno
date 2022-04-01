@@ -45,7 +45,7 @@ func Register(inviter std.Address, name string, profile string) error {
 		// banker := std.GetBanker(std.BankerTypeTxSend)
 		sent := std.GetTxSendCoins()
 		// TODO: implement sent.IsGTE(...)
-		if len(sent) == 1 && sent[0].Denom == "gnot" && sent[0].Amount > 2000 {
+		if len(sent) == 1 && sent[0].Denom == "gnot" && sent[0].Amount >= 2000 {
 			// ok
 		} else {
 			return errors.New("insufficient payment")
@@ -84,6 +84,7 @@ func Register(inviter std.Address, name string, profile string) error {
 	}
 	name2User, _ = name2User.Set(name, user)
 	addr2User, _ = addr2User.Set(caller, user)
+	return nil
 }
 
 //----------------------------------------

@@ -27,7 +27,7 @@ func main() {
 // # Second Post (title)
 //
 // Body of the second post. (body)
-// - by g1w3jhxarpv3j8yh6lta047h6lta047h6l46ncpj, [1970-01-01 12:00am (UTC)](/r/boards:test_board/2)
+// - by g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985, [1970-01-01 12:00am (UTC)](/r/boards:test_board/2)
 //
 // > Reply of the second post
-// > - by g1w3jhxarpv3j8yh6lta047h6lta047h6l46ncpj, [1970-01-01 12:00am (UTC)](/r/boards:test_board/2#3)
+// > - by g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985, [1970-01-01 12:00am (UTC)](/r/boards:test_board/2#3)

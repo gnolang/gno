@@ -127,6 +127,11 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 			// going forward we will have an ATOM-fee based faucet so anyone can get
 			// faucet tokens by making a spam-prevention transaction.
 			// TODO: make it a bounty item.
+			//
+			// These are for significant contributions.
+			// The figures will increment over time; consider these "vested".
+			"g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq=100000gnot", // @moul
+			"g14da4n9hcynyzz83q607uu8keuh9hwlv42ra6fa=100000gnot", // !p2
 		},
 	}
 	return gen

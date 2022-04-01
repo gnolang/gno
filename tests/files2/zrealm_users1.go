@@ -1,6 +1,6 @@
 package main
 
-// SEND: 100gnot
+// SEND: 2000gnot
 
 import (
 	"gno.land/r/users"
@@ -9,11 +9,10 @@ import (
 func main() {
 	err := users.Register("", "jaekwon", "my profile")
 	if err != nil {
-		println(err.Error())
 		panic(err)
 	}
 	println("done")
 }
 
-// Error:
-// insufficient payment
+// Output:
+// done

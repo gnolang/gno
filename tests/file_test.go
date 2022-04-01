@@ -17,7 +17,6 @@ import (
 
 	"github.com/gnolang/gno"
 	"github.com/gnolang/gno/pkgs/crypto"
-	"github.com/gnolang/gno/pkgs/sdk/testutils"
 	"github.com/gnolang/gno/pkgs/std"
 	"github.com/gnolang/gno/stdlibs"
 )
@@ -86,17 +85,17 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 	stderr := new(bytes.Buffer)
 	store := testStore(stdin, stdout, stderr, nativeLibs)
 	store.SetLogStoreOps(true)
-	caller := testutils.TestBech32Address("testaddr____________")
+	pkgAddr := gno.DerivePkgAddr(pkgPath) // the addr of the pkgPath called.
+	caller := gno.DerivePkgAddr(pkgPath)  // NOTE: for the purpose of testing, the caller is generally the "main" package, same as pkgAddr.
 	txSend := std.MustParseCoins(send)
 	pkgCoins := std.MustParseCoins("200gnot") // >= txSend.
-	pkgAddr := testutils.TestBech32Address("packageaddr_________")
 	banker := newtestBanker(pkgAddr, pkgCoins)
 	ctx := stdlibs.ExecContext{
 		ChainID:     "testchain",
 		Height:      123,
 		Msg:         nil,
-		OrigCaller:  caller,
-		OrigPkgAddr: pkgAddr,
+		OrigCaller:  caller.Bech32(),
+		OrigPkgAddr: pkgAddr.Bech32(),
 		TxSend:      txSend,
 		TxSendSpent: new(std.Coins),
 		Banker:      banker,
@@ -123,11 +122,11 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
+					// print output.
+					fmt.Println("OUTPUT:\n", stdout.String())
+					// print stack if unexpected error.
 					pnc = r
 					if errWanted == "" {
-						// unexpected: print output.
-						fmt.Println("OUTPUT:\n", stdout.String())
-						// print stack.
 						rtdb.PrintStack()
 					}
 					err := strings.TrimSpace(fmt.Sprintf("%v", pnc))
@@ -295,16 +294,8 @@ func wantedFromComment(p string) (pkgPath, res, err, rops string, maxAlloc int64
 	for _, comments := range f.Comments {
 		text := comments.Text()
 		if strings.HasPrefix(text, "PKGPATH:") {
-			// NOTE: this should be the first comment in a file test.
-			lines := strings.SplitN(text, "\n", 2)
-			line0 := lines[0]
-			pkgPath = strings.TrimSpace(strings.TrimPrefix(line0, "PKGPATH:"))
-			// This comment block can contain additional lines beneath PKGPATH.
-			for _, line := range lines[1:] {
-				if strings.HasPrefix(line, "SEND:") {
-					send = strings.TrimSpace(strings.TrimPrefix(line, "SEND:"))
-				}
-			}
+			line := strings.SplitN(text, "\n", 2)[0]
+			pkgPath = strings.TrimSpace(strings.TrimPrefix(line, "PKGPATH:"))
 		} else if strings.HasPrefix(text, "MAXALLOC:") {
 			line := strings.SplitN(text, "\n", 2)[0]
 			maxstr := strings.TrimSpace(strings.TrimPrefix(line, "MAXALLOC:"))
@@ -313,6 +304,9 @@ func wantedFromComment(p string) (pkgPath, res, err, rops string, maxAlloc int64
 				panic(fmt.Sprintf("invalid maxalloc amount: %v", maxstr))
 			}
 			maxAlloc = int64(maxint)
+		} else if strings.HasPrefix(text, "SEND:") {
+			line := strings.SplitN(text, "\n", 2)[0]
+			send = strings.TrimSpace(strings.TrimPrefix(line, "SEND:"))
 		} else if strings.HasPrefix(text, "Output:\n") {
 			res = strings.TrimPrefix(text, "Output:\n")
 			res = strings.TrimSpace(res)
