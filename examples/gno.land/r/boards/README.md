@@ -1,5 +1,5 @@
 This is a demo of Gno smart contract programming.  This document was
-constructed by Gno onto a smart contract hosted on the data Realm 
+constructed by Gno onto a smart contract hosted on the data Realm
 name ["gno.land/r/boards"](https://gno.land/r/boards/)
 ([github](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/boards)).
 
@@ -13,7 +13,7 @@ with `--remote localhost:26657` for local testnets.
 ```bash
 git clone git@github.com:gnolang/gno.git
 cd ./gno
-make 
+make
 ```
 
 ### Add test account.
@@ -58,7 +58,7 @@ cd ./gnoland/website; go run \*.go
 ./build/gnokey broadcast addpkg.boards.signed.txt --remote gno.land:36657
 ```
 
-### Create a board with a smart contrct call.
+### Create a board with a smart contract call.
 
 ```bash
 ./build/gnokey maketx call test1 --pkgpath "gno.land/r/boards" --func CreateBoard --args "gnolang" --gas-fee 1gnot --gas-wanted 2000000 > createboard.unsigned.txt
@@ -72,7 +72,7 @@ Next, query for the permanent board ID by querying (you need this to create a ne
 GetBoardIDFromName(\"gnolang\")"
 ```
 
-### Create a post of a board with a smart contrct call.
+### Create a post of a board with a smart contract call.
 
 ```bash
 ./build/gnokey maketx call test1 --pkgpath "gno.land/r/boards" --func CreatePost --args 1 --args "Hello World" --args#file "./examples/gno.land/r/boards/README.md" --gas-fee 1gnot --gas-wanted 2000000 > createpost.unsigned.txt
