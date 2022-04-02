@@ -255,6 +255,7 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 		}
 		// check result
 		res := strings.TrimSpace(stdout.String())
+		res = trimTrailingSpaces(res)
 		if resWanted != "" {
 			if res != resWanted {
 				// panic so tests immediately fail (for now).
@@ -334,6 +335,15 @@ func defaultPkgName(gopkgPath string) gno.Name {
 	name := parts[len(parts)-1]
 	name = strings.ToLower(name)
 	return gno.Name(name)
+}
+
+// go comments strip trailing spaces.
+func trimTrailingSpaces(result string) string {
+	lines := strings.Split(result, "\n")
+	for i, line := range lines {
+		lines[i] = strings.TrimRight(line, " \t")
+	}
+	return strings.Join(lines, "\n")
 }
 
 //----------------------------------------

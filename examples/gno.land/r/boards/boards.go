@@ -329,7 +329,7 @@ func (post *Post) Render(indent string) string {
 		str += indent + "# " + post.title + "\n"
 		str += indent + "\n"
 	}
-	str += indent + post.body + "\n" // TODO: indent body lines.
+	str += indentBody(indent, post.body) + "\n" // TODO: indent body lines.
 	str += indent + "- by " + string(post.creator) + ", "
 	str += "[" + std.FormatTimestamp(post.createdAt, "2006-01-02 3:04pm (MST)") + "](" + post.GetURL() + ")\n"
 	if post.replies.Size() > 0 {
@@ -367,4 +367,16 @@ func padLeft(str string, length int) string {
 	} else {
 		return strings.Repeat(" ", length-len(str)) + str
 	}
+}
+
+func indentBody(indent string, body string) string {
+	lines := strings.Split(body, "\n")
+	res := ""
+	for i, line := range lines {
+		if i > 0 {
+			res += "\n"
+		}
+		res += indent + line
+	}
+	return res
 }
