@@ -31,6 +31,10 @@ func (tree *Tree) IsLeaf() bool {
 	return tree.height == 0
 }
 
+func (tree *Tree) Key() string {
+	return tree.key
+}
+
 func (tree *Tree) Value() interface{} {
 	return tree.value
 }

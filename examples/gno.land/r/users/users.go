@@ -21,6 +21,13 @@ type User struct {
 	inviter std.Address
 }
 
+func (u *User) Render() string {
+	return "## user " + u.name + " (" + string(u.address) + ")," +
+		"invites:" + strconv.Itoa(u.invites) + "," +
+		"inviter:" + string(u.inviter) + "\n\n" +
+		u.profile + "\n" // XXX make separate page; or quote each line.
+}
+
 //----------------------------------------
 // State
 
@@ -78,6 +85,7 @@ func Register(inviter std.Address, name string, profile string) {
 		name:    name,
 		profile: profile,
 		number:  counter,
+		inviter: inviter,
 	}
 	name2User, _ = name2User.Set(name, user)
 	addr2User, _ = addr2User.Set(caller, user)
@@ -170,3 +178,16 @@ func GetUserByAddress(addr string) *User {
 // Constants
 
 var reName = regexp.MustCompile(`^[a-z]+[_a-z0-9]{5,16}$`)
+
+//----------------------------------------
+// Render main page
+
+func Render(path string) string {
+	doc := ""
+	name2User.Iterate("", "", func(t *avl.Tree) bool {
+		value := t.Value()
+		doc += value.(*User).Render() + "\n"
+		return false
+	})
+	return doc
+}
