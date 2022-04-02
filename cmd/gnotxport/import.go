@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"strings"
+	"time"
 
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/bft/rpc/client"
@@ -35,15 +37,29 @@ func txImportApp(cmd *command.Command, args []string, iopts interface{}) error {
 	}
 	lines := strings.Split(strings.TrimSpace(string(filebz)), "\n")
 	for i, line := range lines {
+		print(".")
+		//time.Sleep(10 * time.Second)
 		if len(line) == 0 {
 			panic(i)
 		}
 		var tx std.Tx
 		amino.MustUnmarshalJSON([]byte(line), &tx)
 		txbz := amino.MustMarshal(tx)
-		_, err := c.BroadcastTxSync(txbz)
-		if err != nil {
-			return errors.Wrap(err, "broadcasting tx %d", i)
+		res, err := c.BroadcastTxSync(txbz)
+		if err != nil || res.Error != nil {
+			print("!")
+			// wait for next block and try again.
+			// TODO: actually wait 1 block instead of fudging it.
+			time.Sleep(20 * time.Second)
+			res, err := c.BroadcastTxSync(txbz)
+			if err != nil || res.Error != nil {
+				if err != nil {
+					fmt.Println("SECOND ERROR", err)
+				} else {
+					fmt.Println("SECOND ERROR!", res.Error)
+				}
+				return errors.Wrap(err, "broadcasting tx %d", i)
+			}
 		}
 	}
 	return nil

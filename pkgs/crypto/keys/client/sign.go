@@ -1,6 +1,7 @@
 package client
 
 import (
+	"fmt"
 	"io/ioutil"
 
 	"github.com/gnolang/gno/pkgs/amino"
@@ -16,6 +17,7 @@ type SignOptions struct {
 	ChainID       string  `flag:"chainid" help:"chainid to sign for"`
 	AccountNumber *uint64 `flag:"number" help:"account number to sign with (required)"`
 	Sequence      *uint64 `flag:"sequence" help:"sequence to sign with (required)"`
+	ShowSignBytes bool    `flag:"show-signbytes" help:"show sign bytes and quit"`
 }
 
 var DefaultSignOptions = SignOptions{
@@ -88,6 +90,10 @@ func signApp(cmd *command.Command, args []string, iopts interface{}) error {
 	accountNumber := *opts.AccountNumber
 	sequence := *opts.Sequence
 	signbz := tx.GetSignBytes(chainID, accountNumber, sequence)
+	if opts.ShowSignBytes {
+		fmt.Printf("sign bytes: %X\n", signbz)
+		return nil
+	}
 
 	pass, err := "", error(nil)
 	if opts.Quiet {

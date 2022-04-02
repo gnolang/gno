@@ -56,15 +56,16 @@ func txExportApp(cmd *command.Command, args []string, iopts interface{}) error {
 		if len(txs) == 0 {
 			continue
 		}
-		bres, err := c.BlockResults(&height)
+		_, err = c.BlockResults(&height)
 		if err != nil {
 			// TODO: consider retry for latest height.
 			panic(err)
 		}
 		for i := 0; i < len(txs); i++ {
-			if bres.Results.DeliverTxs[i].Error != nil {
-				continue
-			}
+			// need to include error'd txs, to keep sequence alignment.
+			//if bres.Results.DeliverTxs[i].Error != nil {
+			//	continue
+			//}
 			tx := txs[i]
 			stdtx := std.Tx{}
 			amino.MustUnmarshal(tx, &stdtx)
