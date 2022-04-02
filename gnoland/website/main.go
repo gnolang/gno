@@ -148,14 +148,17 @@ func handlerPackageFile(app gotuna.App) http.Handler {
 		vars := mux.Vars(r)
 		pkgpath := "gno.land/p/" + vars["filepath"]
 		diruri, filename := std.SplitFilepath(pkgpath)
+		if filename == "" && diruri == pkgpath {
+			// redirect to diruri + "/"
+			http.Redirect(w, r, "/p/"+vars["filepath"]+"/", http.StatusFound)
+			return
+		}
 		renderPackageFile(app, w, r, diruri, filename)
 	})
 }
 
 func renderPackageFile(app gotuna.App, w http.ResponseWriter, r *http.Request, diruri string, filename string) {
 	if filename == "" {
-		// TODO: redirect if pkgpath doesn't end with "/".
-
 		// Request is for a folder.
 		qpath := "vm/qfile"
 		data := []byte(diruri)
