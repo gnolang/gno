@@ -442,7 +442,7 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				if n <= 0 {
 					panic("GetCallerAt requires positive arg")
 				}
-				if n >= m.NumFrames() {
+				if n > m.NumFrames()-1 {
 					// NOTE: the last frame's LastPackage
 					// is set to the original non-frame
 					// package, so need this check.

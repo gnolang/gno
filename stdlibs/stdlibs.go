@@ -189,14 +189,20 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				if n <= 0 {
 					panic("GetCallerAt requires positive arg")
 				}
-				if n >= m.NumFrames() {
+				if n > m.NumFrames() {
 					// NOTE: the last frame's LastPackage
 					// is set to the original non-frame
 					// package, so need this check.
 					panic("frame not found")
 				}
 				var pkgAddr string
-				pkgAddr = string(m.LastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
+				if n == m.NumFrames() {
+					// This makes it consistent with GetOrigCaller.
+					ctx := m.Context.(ExecContext)
+					pkgAddr = string(ctx.OrigCaller)
+				} else {
+					pkgAddr = string(m.LastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
+				}
 				res0 := gno.Go2GnoValue(
 					m.Alloc,
 					reflect.ValueOf(pkgAddr),
