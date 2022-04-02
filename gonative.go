@@ -277,6 +277,11 @@ func Go2GnoNativeValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 	return go2GnoValue(alloc, rv)
 }
 
+// NOTE: used by imports_test.go TestSetOrigCaller.
+func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
+	return gno2GoValue(tv, rv)
+}
+
 // Default run-time representation of go-native values.  It is
 // "lazy" in the sense that unnamed complex types like arrays and
 // slices aren't translated to Gno canonical types except as

@@ -39,8 +39,10 @@ import (
 	"unicode/utf8"
 
 	"github.com/gnolang/gno"
+	"github.com/gnolang/gno/pkgs/crypto"
 	dbm "github.com/gnolang/gno/pkgs/db"
 	osm "github.com/gnolang/gno/pkgs/os"
+	"github.com/gnolang/gno/pkgs/std"
 	"github.com/gnolang/gno/pkgs/store/dbadapter"
 	"github.com/gnolang/gno/pkgs/store/iavl"
 	stypes "github.com/gnolang/gno/pkgs/store/types"
@@ -423,6 +425,75 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				res0 := gno.TypedValue{T: gno.BoolType}
 				res0.SetBool(isOrigin)
 				m.PushValue(res0)
+			},
+		)
+		pn.DefineNativeOverride("GetCallerAt",
+			/*
+				gno.Flds( // params
+					"n", "int",
+				),
+				gno.Flds( // results
+					"", "Address",
+				),
+			*/
+			func(m *gno.Machine) {
+				arg0 := m.LastBlock().GetParams1().TV
+				n := arg0.GetInt()
+				if n <= 0 {
+					panic("GetCallerAt requires positive arg")
+				}
+				if n >= m.NumFrames() {
+					// NOTE: the last frame's LastPackage
+					// is set to the original non-frame
+					// package, so need this check.
+					panic("frame not found")
+				}
+				var pkgAddr string
+				if n == m.NumFrames()-1 {
+					// This makes it consistent with GetOrigCaller and TestSetOrigCaller.
+					ctx := m.Context.(stdlibs.ExecContext)
+					pkgAddr = string(ctx.OrigCaller)
+				} else {
+					pkgAddr = string(m.LastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
+				}
+				res0 := gno.Go2GnoValue(
+					m.Alloc,
+					reflect.ValueOf(pkgAddr),
+				)
+				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
+				res0.T = addrT
+				m.PushValue(res0)
+			},
+		)
+		pn.DefineNative("TestSetOrigCaller",
+			gno.Flds( // params
+				"", "Address",
+			),
+			gno.Flds( // results
+			),
+			func(m *gno.Machine) {
+				arg0 := m.LastBlock().GetParams1().TV
+				addr := arg0.GetString()
+				ctx := m.Context.(stdlibs.ExecContext)
+				ctx.OrigCaller = crypto.Bech32Address(addr)
+				m.Context = ctx // NOTE: tramples context for testing.
+			},
+		)
+		pn.DefineNative("TestSetTxSend",
+			gno.Flds( // params
+				"", "Coins",
+			),
+			gno.Flds( // results
+			),
+			func(m *gno.Machine) {
+				arg0 := m.LastBlock().GetParams1().TV
+				var coins std.Coins
+				rv := reflect.ValueOf(&coins).Elem()
+				gno.Gno2GoValue(arg0, rv)
+				coins = rv.Interface().(std.Coins)
+				ctx := m.Context.(stdlibs.ExecContext)
+				ctx.TxSend = coins
+				m.Context = ctx // NOTE: tramples context for testing.
 			},
 		)
 	}
