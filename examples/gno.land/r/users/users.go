@@ -76,7 +76,7 @@ func Register(inviter std.Address, name string, profile string) {
 	}
 	// assert name is valid.
 	if !reName.MatchString(name) {
-		panic("invalid name: " + name)
+		panic("invalid name: " + name + " (must be at least 6 characters, lowercase alphanumeric with underscore)")
 	}
 	// register.
 	counter++
@@ -120,7 +120,7 @@ func Invite(invitee string) {
 	// for each line...
 	for _, line := range lines {
 		// record invite.
-		invitekey := string(caller) + ":" + string(invitee)
+		invitekey := string(caller) + ":" + string(line)
 		invites, _ = invites.Set(invitekey, true)
 	}
 }
