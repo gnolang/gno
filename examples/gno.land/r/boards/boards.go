@@ -316,7 +316,7 @@ func (post *Post) RenderSummary() string {
 		str += "\n"
 	}
 	str += post.GetSummary() + "\n"
-	str += "- by " + post.creator + ", "
+	str += "- by " + post.creator.String() + ", "
 	str += "[" + std.FormatTimestamp(post.createdAt, "2006-01-02 3:04pm MST") + "](" + post.GetURL() + ") "
 
 	str += "(" + strconv.Itoa(post.replies.Size()) + " replies)" + "\n"
@@ -330,7 +330,7 @@ func (post *Post) Render(indent string) string {
 		str += indent + "\n"
 	}
 	str += indentBody(indent, post.body) + "\n" // TODO: indent body lines.
-	str += indent + "- by " + string(post.creator) + ", "
+	str += indent + "- by " + post.creator.String() + ", "
 	str += "[" + std.FormatTimestamp(post.createdAt, "2006-01-02 3:04pm (MST)") + "](" + post.GetURL() + ")\n"
 	if post.replies.Size() > 0 {
 		post.replies.Iterate("", "", func(n *avl.Tree) bool {

@@ -71,7 +71,7 @@ func (grc *grc721) nextTokenID() TokenID {
 }
 
 func (grc *grc721) getToken(tid TokenID) (*NFToken, bool) {
-	_, token, ok := grc.tokens.Get(tid)
+	_, token, ok := grc.tokens.Get(string(tid))
 	if !ok {
 		return nil, false
 	}
@@ -80,7 +80,7 @@ func (grc *grc721) getToken(tid TokenID) (*NFToken, bool) {
 
 func (grc *grc721) Mint(to std.Address, data string) TokenID {
 	tid := grc.nextTokenID()
-	newTokens, _ := grc.tokens.Set(tid, &NFToken{
+	newTokens, _ := grc.tokens.Set(string(tid), &NFToken{
 		owner:   to,
 		tokenID: tid,
 		data:    data,
@@ -121,7 +121,7 @@ func (grc *grc721) TransferFrom(from, to std.Address, tid TokenID) {
 	// Throws unless `msg.sender` is the current owner, an authorized
 	// operator, or the approved address for this NFT.
 	if caller != token.owner && caller != token.approved {
-		_, operator, ok := grc.operators.Get(token.owner)
+		_, operator, ok := grc.operators.Get(token.owner.String())
 		if !ok || caller != operator.(std.Address) {
 			panic("unauthorized")
 		}
@@ -148,7 +148,7 @@ func (grc *grc721) Approve(approved std.Address, tid TokenID) {
 	// Throws unless `msg.sender` is the current owner,
 	// or an authorized operator.
 	if caller != token.owner {
-		_, operator, ok := grc.operators.Get(token.owner)
+		_, operator, ok := grc.operators.Get(token.owner.String())
 		if !ok || caller != operator.(std.Address) {
 			panic("unauthorized")
 		}
@@ -160,7 +160,7 @@ func (grc *grc721) Approve(approved std.Address, tid TokenID) {
 // XXX make it work for set of operators.
 func (grc *grc721) SetApprovalForAll(operator std.Address, approved bool) {
 	caller := std.GetCallerAt(2)
-	newOperators, _ := grc.operators.Set(caller, operator)
+	newOperators, _ := grc.operators.Set(caller.String(), operator)
 	grc.operators = newOperators
 }
 
@@ -175,7 +175,7 @@ func (grc *grc721) GetApproved(tid TokenID) std.Address {
 
 // XXX make it work for set of operators
 func (grc *grc721) IsApprovedForAll(owner, operator std.Address) bool {
-	_, operator2, ok := grc.operators.Get(owner)
+	_, operator2, ok := grc.operators.Get(owner.String())
 	if !ok {
 		return false
 	}

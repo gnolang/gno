@@ -1711,7 +1711,7 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 		}
 		old := sb.Block.Values[idx]
 		if !old.IsUndefined() {
-			if tv.T != old.T {
+			if tv.T.TypeID() != old.T.TypeID() {
 				panic(fmt.Sprintf(
 					"StaticBlock.Define2(%s) cannot change .T; was %v, new %v",
 					n, old.T, tv.T))

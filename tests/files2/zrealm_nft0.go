@@ -26,8 +26,8 @@ func main() {
 //     "Fields": [
 //         {
 //             "T": {
-//                 "@type": "/gno.tpri",
-//                 "value": "16"
+//                 "@type": "/gno.tref",
+//                 "ID": "std.Address"
 //             },
 //             "V": {
 //                 "@type": "/gno.vstr",
@@ -72,8 +72,8 @@ func main() {
 //     "Fields": [
 //         {
 //             "T": {
-//                 "@type": "/gno.tref",
-//                 "ID": "gno.land/r/nft.TokenID"
+//                 "@type": "/gno.tpri",
+//                 "value": "16"
 //             },
 //             "V": {
 //                 "@type": "/gno.vstr",
@@ -99,7 +99,7 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "0a46d513dfdc0f260a954548eea9e3cf0921b1e9",
+//                         "Hash": "d6f02aad674df014ea8e7057d28f345b8185fd91",
 //                         "ObjectID": "6bde79a5f04d2658d17cbc323e45df5fad216511:6"
 //                     }
 //                 }
@@ -172,7 +172,7 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "2ce40660a85dc9402b1253bbe8736a33da0c5968",
+//                         "Hash": "5bc850fde6b94814d4ab7aac069a70adb6d90ab2",
 //                         "ObjectID": "6bde79a5f04d2658d17cbc323e45df5fad216511:5"
 //                     }
 //                 }

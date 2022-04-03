@@ -12,7 +12,7 @@ func main() {
 	caller := std.GetOrigCaller() // main
 	// as admin, grant invites to unregistered user.
 	std.TestSetOrigCaller(admin)
-	users.GrantInvites(caller + ":1")
+	users.GrantInvites(caller.String() + ":1")
 	println("done")
 }
 

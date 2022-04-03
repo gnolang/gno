@@ -2361,6 +2361,7 @@ func checkType(xt Type, dt Type, autoNative bool) {
 	}
 	// Special case of xt or dt is *DeclaredType,
 	// allow implicit conversion unless both are declared.
+	// TODO simplify with .IsNamedType().
 	if dxt, ok := xt.(*DeclaredType); ok {
 		if ddt, ok := dt.(*DeclaredType); ok {
 			// types must match exactly.
@@ -2377,12 +2378,30 @@ func checkType(xt Type, dt Type, autoNative bool) {
 					ddt.String()))
 			}
 		} else {
-			// carry on with baseOf(dxt)
-			xt = dxt.Base
+			// special case if implicitly named primitive type.
+			// TODO simplify with .IsNamedType().
+			if _, ok := dt.(PrimitiveType); ok {
+				panic(fmt.Sprintf(
+					"cannot use %s as %s without explicit conversion",
+					dxt.String(),
+					dt.String()))
+			} else {
+				// carry on with baseOf(dxt)
+				xt = dxt.Base
+			}
 		}
 	} else if ddt, ok := dt.(*DeclaredType); ok {
-		// carry on with baseOf(ddt)
-		dt = ddt.Base
+		// special case if implicitly named primitive type.
+		// TODO simplify with .IsNamedType().
+		if _, ok := xt.(PrimitiveType); ok {
+			panic(fmt.Sprintf(
+				"cannot use %s as %s without explicit conversion",
+				xt.String(),
+				ddt.String()))
+		} else {
+			// carry on with baseOf(ddt)
+			dt = ddt.Base
+		}
 	}
 	// General cases.
 	switch cdt := dt.(type) {

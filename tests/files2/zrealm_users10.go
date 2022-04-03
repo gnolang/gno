@@ -14,7 +14,7 @@ func init() {
 	test2 := testutils.TestAddress("test2")
 	// as admin, invite gnouser and test2
 	std.TestSetOrigCaller(admin)
-	users.Invite(caller + "\n" + test2)
+	users.Invite(caller.String() + "\n" + test2.String())
 	// register as caller
 	std.TestSetOrigCaller(caller)
 	users.Register(admin, "gnouser", "my profile")

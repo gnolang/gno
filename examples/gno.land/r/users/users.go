@@ -70,7 +70,7 @@ func Register(inviter std.Address, name string, profile string) {
 	if ok {
 		panic("name already registered")
 	}
-	_, _, ok = addr2User.Get(caller)
+	_, _, ok = addr2User.Get(caller.String())
 	if ok {
 		panic("address already registered")
 	}
@@ -88,7 +88,7 @@ func Register(inviter std.Address, name string, profile string) {
 		inviter: inviter,
 	}
 	name2User, _ = name2User.Set(name, user)
-	addr2User, _ = addr2User.Set(caller, user)
+	addr2User, _ = addr2User.Set(caller.String(), user)
 }
 
 func Invite(invitee string) {
@@ -104,7 +104,7 @@ func Invite(invitee string) {
 		// nothing to do, all good
 	} else {
 		// ensure has invites.
-		_, userI, ok := addr2User.Get(caller)
+		_, userI, ok := addr2User.Get(caller.String())
 		if !ok {
 			panic("user unknown")
 		}
@@ -140,7 +140,7 @@ func GrantInvites(invites string) {
 	lines := strings.Split(invites, "\n")
 	for _, line := range lines {
 		// parse addr and invites.
-		var addr std.Address
+		var addr string
 		var invites int
 		parts := strings.Split(line, ":")
 		if len(parts) == 1 { // short for :1.
@@ -177,8 +177,8 @@ func GetUserByName(name string) *User {
 	return userI.(*User)
 }
 
-func GetUserByAddress(addr string) *User {
-	_, userI, ok := addr2User.Get(addr)
+func GetUserByAddress(addr std.Address) *User {
+	_, userI, ok := addr2User.Get(addr.String())
 	if !ok {
 		return nil
 	}
