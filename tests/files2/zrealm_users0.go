@@ -12,4 +12,4 @@ func main() {
 }
 
 // Error:
-// insufficient payment
+// payment must be exactly 2000 gnots

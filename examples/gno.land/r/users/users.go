@@ -52,10 +52,10 @@ func Register(inviter std.Address, name string, profile string) {
 		// banker := std.GetBanker(std.BankerTypeTxSend)
 		sent := std.GetTxSendCoins()
 		// TODO: implement sent.IsGTE(...)
-		if len(sent) == 1 && sent[0].Denom == "gnot" && sent[0].Amount >= 2000 {
+		if len(sent) == 1 && sent[0].Denom == "gnot" && sent[0].Amount == 2000 {
 			// ok
 		} else {
-			panic("insufficient payment")
+			panic("payment must be exactly 2000 gnots")
 		}
 	} else {
 		invitekey := string(inviter + ":" + caller)
@@ -99,19 +99,30 @@ func Invite(invitee string) {
 	if caller != std.GetOrigCaller() {
 		panic("should not happen") // because std.AssertOrigCall().
 	}
-	// ensure has invites.
-	_, userI, ok := addr2User.Get(caller)
-	if !ok {
-		panic("user unknown")
+	lines := strings.Split(invitee, "\n")
+	if caller == admin {
+		// nothing to do, all good
+	} else {
+		// ensure has invites.
+		_, userI, ok := addr2User.Get(caller)
+		if !ok {
+			panic("user unknown")
+		}
+		user := userI.(*User)
+		if user.invites <= 0 {
+			panic("user has no invite tokens")
+		}
+		user.invites -= len(lines)
+		if user.invites < 0 {
+			panic("user has insufficient invite tokens")
+		}
 	}
-	user := userI.(*User)
-	if user.invites <= 0 {
-		panic("user has no invites")
+	// for each line...
+	for _, line := range lines {
+		// record invite.
+		invitekey := string(caller) + ":" + string(invitee)
+		invites, _ = invites.Set(invitekey, true)
 	}
-	user.invites--
-	// record invite.
-	invitekey := string(caller) + ":" + string(invitee)
-	invites, _ = invites.Set(invitekey, true)
 }
 
 func GrantInvites(invites string) {
@@ -132,7 +143,7 @@ func GrantInvites(invites string) {
 		var addr std.Address
 		var invites int
 		parts := strings.Split(line, ":")
-		if len(parts) == 1 {
+		if len(parts) == 1 { // short for :1.
 			addr = parts[0]
 			invites = 1
 		} else if len(parts) == 2 {

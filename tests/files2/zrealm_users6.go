@@ -1,0 +1,20 @@
+package main
+
+import (
+	"gno.land/p/testutils"
+	"gno.land/r/users"
+	"std"
+)
+
+const admin = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+
+func main() {
+	caller := std.GetOrigCaller() // main
+	// as admin, grant invites to unregistered user.
+	std.TestSetOrigCaller(admin)
+	users.GrantInvites(caller + ":1")
+	println("done")
+}
+
+// Error:
+// invalid user
