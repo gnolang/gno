@@ -3,6 +3,7 @@ package gno
 import (
 	"fmt"
 	"net/http"
+	"os"
 
 	_ "net/http/pprof"
 )
@@ -14,9 +15,12 @@ import (
 
 type debugging bool
 
-const debug debugging = false // or flip
+// using a const is probably faster.
+// const debug debugging = true // or flip
+var debug debugging = false
 
 func init() {
+	debug = os.Getenv("DEBUG") == "1"
 	if debug {
 		go func() {
 			// e.g.

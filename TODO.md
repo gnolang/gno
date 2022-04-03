@@ -39,3 +39,7 @@
 
 * Validator set changes.
  -> re staking:
+
+* vm keeper should not use ante-handler gas upon restart.
+* run realm tests with debug on.
+* write new test case for newreal newdeleted bug.
