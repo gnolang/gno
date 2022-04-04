@@ -48,28 +48,36 @@ func NewVMKeeper(baseKey store.StoreKey, iavlKey store.StoreKey, acck auth.Accou
 	return vmk
 }
 
+func (vmk *VMKeeper) Initialize(ms store.MultiStore) {
+	if vmk.gnoStore != nil {
+		panic("should not happen")
+	}
+	const maxAllocBytes = 500 * 1000 * 1000
+	alloc := gno.NewAllocator(maxAllocBytes)
+	baseSDKStore := ms.GetStore(vmk.baseKey)
+	iavlSDKStore := ms.GetStore(vmk.iavlKey)
+	vmk.gnoStore = gno.NewStore(alloc, baseSDKStore, iavlSDKStore)
+	vmk.initBuiltinPackages(vmk.gnoStore)
+	if vmk.gnoStore.NumMemPackages() > 0 {
+		// for now, all mem packages must be re-run after reboot.
+		// TODO remove this, and generally solve for in-mem garbage collection
+		// and memory management across many objects/types/nodes/packages.
+		m2 := gno.NewMachineWithOptions(
+			gno.MachineOptions{
+				PkgPath: "",
+				Output:  os.Stdout, // XXX
+				Store:   vmk.gnoStore,
+			})
+		gno.DisableDebug()
+		m2.PreprocessAllFilesAndSaveBlockNodes()
+		gno.EnableDebug()
+	}
+}
+
 func (vmk *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 	// construct main gnoStore if nil.
 	if vmk.gnoStore == nil {
-		const maxAllocBytes = 500 * 1000 * 1000
-		alloc := gno.NewAllocator(maxAllocBytes)
-		baseSDKStore := ctx.Store(vmk.baseKey)
-		iavlSDKStore := ctx.Store(vmk.iavlKey)
-		vmk.gnoStore = gno.NewStore(alloc, baseSDKStore, iavlSDKStore)
-		vmk.initBuiltinPackages(vmk.gnoStore)
-		if vmk.gnoStore.NumMemPackages() > 0 {
-			// for now, all mem packages must be re-run after reboot.
-			// TODO remove this, and generally solve for in-mem garbage collection
-			// and memory management across many objects/types/nodes/packages.
-			m2 := gno.NewMachineWithOptions(
-				gno.MachineOptions{
-					PkgPath: "",
-					Output:  os.Stdout, // XXX
-					Store:   vmk.gnoStore,
-				})
-			gno.DisableDebug() // until main call.
-			m2.PreprocessAllFilesAndSaveBlockNodes()
-		}
+		panic("VMKeeper must first be initialized")
 	}
 	switch ctx.Mode() {
 	case sdk.RunTxModeDeliver:
@@ -214,7 +222,6 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			MaxCycles: 10 * 1000 * 1000, // 10M cycles // XXX
 		})
 	m.SetActivePackage(mpv)
-	gno.EnableDebug()
 	rtvs := m.Eval(xn)
 	fmt.Println("CPUCYCLES call", m.Cycles)
 	for i, rtv := range rtvs {

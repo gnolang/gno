@@ -69,6 +69,9 @@ func NewApp(rootDir string, logger log.Logger) (abci.Application, error) {
 		return nil, err
 	}
 
+	// Initialize the VMKeeper.
+	vmKpr.Initialize(baseApp.GetCacheMultiStore())
+
 	return baseApp, nil
 }
 

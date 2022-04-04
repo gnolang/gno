@@ -58,7 +58,7 @@ type BaseApp struct {
 	minGasPrices []GasPrice
 
 	// flag for sealing options and parameters to a BaseApp
-	sealed bool
+	sealed bool // TODO: needed?
 
 	// block height at which to halt the chain and gracefully shutdown
 	haltHeight uint64
@@ -209,6 +209,12 @@ func (app *BaseApp) setHaltHeight(haltHeight uint64) {
 
 func (app *BaseApp) setHaltTime(haltTime uint64) {
 	app.haltTime = haltTime
+}
+
+// Returns a read-only (cache) MultiStore.
+// This may be used by keepers for initialization upon restart.
+func (app *BaseApp) GetCacheMultiStore() store.MultiStore {
+	return app.cms.MultiCacheWrap()
 }
 
 // Router returns the router of the BaseApp.
