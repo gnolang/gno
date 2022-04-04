@@ -24,7 +24,7 @@ func TestVMKeeperTxSend1(t *testing.T) {
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10gnot")))
 
 	// Create test package.
-	files := []std.MemFile{
+	files := []*std.MemFile{
 		{"init.go", `
 package test
 
@@ -33,7 +33,7 @@ import "std"
 func init() {
 }
 
-func Echo(msg string) string Orig{
+func Echo(msg string) string {
 	addr := std.GetOrigCaller()
 	pkgAddr := std.GetOrigPkgAddr()
 	send := std.GetTxSendCoins()
@@ -69,7 +69,7 @@ func TestVMKeeperTxSend2(t *testing.T) {
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10gnot")))
 
 	// Create test package.
-	files := []std.MemFile{
+	files := []*std.MemFile{
 		{"init.go", `
 package test
 
@@ -115,7 +115,7 @@ func TestVMKeeperTxSend3(t *testing.T) {
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10gnot")))
 
 	// Create test package.
-	files := []std.MemFile{
+	files := []*std.MemFile{
 		{"init.go", `
 package test
 
@@ -160,7 +160,7 @@ func TestVMKeeperRealmSend1(t *testing.T) {
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10gnot")))
 
 	// Create test package.
-	files := []std.MemFile{
+	files := []*std.MemFile{
 		{"init.go", `
 package test
 
@@ -204,7 +204,7 @@ func TestVMKeeperRealmSend2(t *testing.T) {
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10gnot")))
 
 	// Create test package.
-	files := []std.MemFile{
+	files := []*std.MemFile{
 		{"init.go", `
 package test
 

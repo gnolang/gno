@@ -41,7 +41,7 @@
  -> re staking:
 
 * run realm tests with debug on.
-* vm keeper should not use ante-handler gas upon restart. (...)
+* vm keeper should not use ante-handler gas upon restart. (DONE)
 * write new test case for newreal newdeleted bug. (DONE)
 * make account number not change for new packages... (WONT DO)
 * test functionality of invites again. (DONE)

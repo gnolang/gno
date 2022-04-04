@@ -39,5 +39,7 @@ func setupTestEnv() testEnv {
 	bank := bankm.NewBankKeeper(acck)
 	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, "../../../stdlibs")
 
+	vmk.Initialize(ms.MultiCacheWrap())
+
 	return testEnv{ctx: ctx, vmk: vmk, bank: bank, acck: acck}
 }
