@@ -693,8 +693,8 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "5d5df17f5b05dae50e1542e7012db62cbc27df5d",
-//                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:75"
+//                         "Hash": "63b482189d353ba2aebec1c7ea2a632a5821367b",
+//                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:77"
 //                     }
 //                 }
 //             }
@@ -877,3 +877,4 @@ func main() {
 //     }
 // }
 // switchrealm["gno.land/r/boards"]
+// switchrealm["gno.land/r/boards_test"]

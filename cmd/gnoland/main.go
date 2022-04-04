@@ -124,8 +124,8 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 			"g1644qje5rx6jsdqfkzmgnfcegx4dxkjh6rwqd69=10000gnot", // @MadafakAvril14th #91
 			"g1mzjajymvmtksdwh3wkrndwj6zls2awl9q83dh6=10000gnot", // @Vanlee #89
 			// NOTE: Thanks guys, no more keys through genesis this way though:
-			// going forward we will have an ATOM-fee based faucet so anyone can get
-			// faucet tokens by making a spam-prevention transaction.
+			// going forward we will have a faucet so anyone can get
+			// tokens to pay the spam-prevention tx fee.
 			// TODO: make it a bounty item.
 			//
 			// These are for significant contributions.
@@ -133,6 +133,7 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 			// NOTE: these are commented out and sent as SendTxs instead to keep account numbers aligned.
 			//"g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq=100000gnot", // @moul
 			//"g14da4n9hcynyzz83q607uu8keuh9hwlv42ra6fa=100000gnot", // !p2
+			//"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj=10000gnot", // @difranco
 		},
 	}
 	return gen

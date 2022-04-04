@@ -1641,6 +1641,7 @@ func (m *Machine) PopFrameAndReturn() {
 	}
 	m.NumValues = fr.NumValues + numRes
 	m.Package = fr.LastPackage
+	m.Realm = fr.LastRealm
 }
 
 func (m *Machine) PeekFrameAndContinueFor() {

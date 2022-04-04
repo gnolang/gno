@@ -934,6 +934,9 @@ func UverseNode() *PackageNode {
 				ss[i] = ev.Sprint(m)
 			}
 			rs := strings.Join(ss, " ")
+			if debug {
+				print(rs)
+			}
 			m.Output.Write([]byte(rs))
 		},
 	)
@@ -952,6 +955,9 @@ func UverseNode() *PackageNode {
 				ss[i] = ev.Sprint(m)
 			}
 			rs := strings.Join(ss, " ") + "\n"
+			if debug {
+				println("DEBUG/stdout: " + rs)
+			}
 			m.Output.Write([]byte(rs))
 		},
 	)

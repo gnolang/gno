@@ -169,9 +169,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	if xo != nil {
 		xo.DecRefCount()
 		if xo.GetRefCount() == 0 {
-			if xo.GetIsNewReal() || xo.GetIsReal() {
-				// NOTE: newreal newdeleted case?
-				// XXX is this right? xo.GetIsNewReal()?
+			if xo.GetIsReal() {
 				rlm.MarkNewDeleted(xo)
 			}
 		}
@@ -449,15 +447,15 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 // Must run *after* processNewCreatedMarks().
 func (rlm *Realm) processNewDeletedMarks(store Store) {
 	for _, oo := range rlm.newDeleted {
+		if debug {
+			if oo.GetObjectID().IsZero() {
+				panic("should not happen")
+			}
+		}
 		if oo.GetRefCount() > 0 {
 			oo.SetIsNewDeleted(false)
 			// skip if became undeleted.
 			continue
-		} else if oo.GetObjectID().IsZero() {
-			// just unmark.
-			// NOTE: newreal newdeleted case?
-			oo.SetIsNewDeleted(false)
-			oo.SetIsNewReal(false)
 		} else {
 			rlm.decRefDeletedDescendants(store, oo)
 		}
@@ -494,7 +492,7 @@ func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
 	for _, child := range more {
 		child.DecRefCount()
 		rc := child.GetRefCount()
-		if rc == 0 && !child.GetObjectID().IsZero() {
+		if rc == 0 {
 			rlm.decRefDeletedDescendants(store, child)
 		} else if rc > 0 {
 			// do nothing

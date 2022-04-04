@@ -195,3 +195,5 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
+// switchrealm["gno.land/r/nft"]
+// switchrealm["gno.land/r/nft_test"]

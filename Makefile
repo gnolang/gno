@@ -41,7 +41,7 @@ clean:
 test:
 	echo "Running tests"
 	go test
-	go test tests/*.go -v -test.short
+	go test tests/*.go -v -test.short --timeout 20m
 
 test1:
 	echo "Running tests"

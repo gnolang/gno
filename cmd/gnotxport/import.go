@@ -58,6 +58,7 @@ func txImportApp(cmd *command.Command, args []string, iopts interface{}) error {
 				} else {
 					fmt.Println("SECOND ERROR!", res.Error)
 				}
+				fmt.Println(line)
 				return errors.Wrap(err, "broadcasting tx %d", i)
 			}
 		}

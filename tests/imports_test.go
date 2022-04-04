@@ -34,6 +34,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"testing"
 	"text/template"
 	"time"
 	"unicode/utf8"
@@ -496,6 +497,40 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				m.Context = ctx // NOTE: tramples context for testing.
 			},
 		)
+		pn.DefineNative("TestCurrentRealm",
+			gno.Flds( // params
+			),
+			gno.Flds( // results
+				"realm", "string",
+			),
+			func(m *gno.Machine) {
+				rlmpath := m.Realm.Path
+				m.PushValue(typedString(rlmpath))
+			},
+		)
+		// TODO: move elsewhere.
+		pn.DefineNative("ClearStoreCache",
+			gno.Flds( // params
+			),
+			gno.Flds( // results
+			),
+			func(m *gno.Machine) {
+				if gno.IsDebug() && testing.Verbose() {
+					store.Print()
+					fmt.Println("========================================")
+					fmt.Println("CLEAR CACHE (RUNTIME)")
+					fmt.Println("========================================")
+				}
+				m.Store.ClearCache()
+				m.PreprocessAllFilesAndSaveBlockNodes()
+				if gno.IsDebug() && testing.Verbose() {
+					store.Print()
+					fmt.Println("========================================")
+					fmt.Println("CLEAR CACHE DONE")
+					fmt.Println("========================================")
+				}
+			},
+		)
 	}
 }
 
@@ -508,4 +543,13 @@ func (*dummyReader) Read(b []byte) (n int, err error) {
 		b[i] = byte((100 + i) % 256)
 	}
 	return len(b), nil
+}
+
+//----------------------------------------
+
+// NOTE: does not allocate; used for panics.
+func typedString(s string) gno.TypedValue {
+	tv := gno.TypedValue{T: gno.StringType}
+	tv.V = gno.StringValue(s)
+	return tv
 }

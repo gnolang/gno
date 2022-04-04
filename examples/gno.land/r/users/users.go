@@ -58,7 +58,7 @@ func Register(inviter std.Address, name string, profile string) {
 			panic("payment must be exactly 2000 gnots")
 		}
 	} else {
-		invitekey := string(inviter + ":" + caller)
+		invitekey := inviter.String() + ":" + caller.String()
 		_, _, ok := invites.Get(invitekey)
 		if !ok {
 			panic("invalid invitation")
