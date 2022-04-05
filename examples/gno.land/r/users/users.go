@@ -119,6 +119,11 @@ func Invite(invitee string) {
 	}
 	// for each line...
 	for _, line := range lines {
+		if line == "" {
+			continue // file bodies have a trailing newline.
+		} else if strings.HasPrefix(line, `//`) {
+			continue // comment
+		}
 		// record invite.
 		invitekey := string(caller) + ":" + string(line)
 		invites, _ = invites.Set(invitekey, true)
@@ -139,6 +144,11 @@ func GrantInvites(invites string) {
 	// for each line...
 	lines := strings.Split(invites, "\n")
 	for _, line := range lines {
+		if line == "" {
+			continue // file bodies have a trailing newline.
+		} else if strings.HasPrefix(line, `//`) {
+			continue // comment
+		}
 		// parse addr and invites.
 		var addr string
 		var invites int
