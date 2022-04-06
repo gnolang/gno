@@ -386,8 +386,8 @@ func main() {
 //         },
 //         {
 //             "T": {
-//                 "@type": "/gno.tpri",
-//                 "value": "1024"
+//                 "@type": "/gno.tref",
+//                 "ID": "std.Time"
 //             }
 //         }
 //     ],
@@ -693,7 +693,7 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "63b482189d353ba2aebec1c7ea2a632a5821367b",
+//                         "Hash": "f580f434ed70774d1bf060a62c412eb0542f3fad",
 //                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:77"
 //                     }
 //                 }
@@ -708,8 +708,8 @@ func main() {
 //         },
 //         {
 //             "T": {
-//                 "@type": "/gno.tpri",
-//                 "value": "1024"
+//                 "@type": "/gno.tref",
+//                 "ID": "std.Time"
 //             }
 //         }
 //     ],
@@ -864,8 +864,8 @@ func main() {
 //         },
 //         {
 //             "T": {
-//                 "@type": "/gno.tpri",
-//                 "value": "1024"
+//                 "@type": "/gno.tref",
+//                 "ID": "std.Time"
 //             }
 //         }
 //     ],

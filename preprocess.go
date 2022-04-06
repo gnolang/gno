@@ -937,7 +937,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				case *FuncType:
 					ft = cft
 				case *NativeType:
-					ft = go2GnoFuncType(cft.Type)
+					ft = store.Go2GnoType(cft.Type).(*FuncType)
 				case *TypeType:
 					if len(n.Args) != 1 {
 						panic("type conversion requires single argument")
@@ -1067,7 +1067,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					panic("should not happen")
 				}
 				// Specify function param/result generics.
-				sft := ft.Specify(argTVs, isVarg)
+				sft := ft.Specify(store, argTVs, isVarg)
 				spts := sft.Params
 				srts := FieldTypeList(sft.Results).Types()
 				// If generics were specified, override attr
@@ -1141,7 +1141,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// or if not const, assert integer type..
 					checkOrConvertIntegerType(store, last, n.Index)
 				case MapKind:
-					mt := baseOf(gnoTypeOf(dt)).(*MapType)
+					mt := baseOf(gnoTypeOf(store, dt)).(*MapType)
 					checkOrConvertType(store, last, &n.Index, mt.Key, false)
 				default:
 					panic(fmt.Sprintf(
@@ -1231,7 +1231,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						checkOrConvertType(store, last, &n.Elts[i].Value, cclt.Value, false)
 					}
 				case *NativeType:
-					clt = cclt.GnoType()
+					clt = cclt.GnoType(store)
 					goto CLT_TYPE_SWITCH
 				default:
 					panic(fmt.Sprintf(
@@ -1468,7 +1468,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						case *CallExpr:
 							// Call case: a, b := x(...)
 							ift := evalStaticTypeOf(store, last, cx.Func)
-							cft := getGnoFuncTypeOf(ift)
+							cft := getGnoFuncTypeOf(store, ift)
 							if len(n.Lhs) != len(cft.Results) {
 								panic(fmt.Sprintf(
 									"assignment mismatch: "+
@@ -1535,7 +1535,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						case *CallExpr:
 							// Call case: a, b = x(...)
 							ift := evalStaticTypeOf(store, last, cx.Func)
-							cft := getGnoFuncTypeOf(ift)
+							cft := getGnoFuncTypeOf(store, ift)
 							if len(n.Lhs) != len(cft.Results) {
 								panic(fmt.Sprintf(
 									"assignment mismatch: "+
@@ -1619,7 +1619,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					} else if len(n.Results) == 1 {
 						if cx, ok := n.Results[0].(*CallExpr); ok {
 							ift := evalStaticTypeOf(store, last, cx.Func)
-							cft := getGnoFuncTypeOf(ift)
+							cft := getGnoFuncTypeOf(store, ift)
 							if len(cft.Results) != len(ft.Results) {
 								panic(fmt.Sprintf("expected %d return values; got %d",
 									len(ft.Results),
@@ -1952,9 +1952,9 @@ func getType(x Expr) Type {
 }
 
 // If t is a native type, returns the gno type.
-func gnoTypeOf(t Type) Type {
+func gnoTypeOf(store Store, t Type) Type {
 	if nt, ok := t.(*NativeType); ok {
-		return nt.GnoType()
+		return nt.GnoType(store)
 	} else {
 		return t
 	}
@@ -2051,9 +2051,9 @@ func evalStaticTypedValues(store Store, last BlockNode, xs ...Expr) []TypedValue
 	return res
 }
 
-func getGnoFuncTypeOf(it Type) *FuncType {
+func getGnoFuncTypeOf(store Store, it Type) *FuncType {
 	bt := baseOf(it)
-	ft := gnoTypeOf(bt).(*FuncType)
+	ft := gnoTypeOf(store, bt).(*FuncType)
 	return ft
 }
 
@@ -3285,7 +3285,7 @@ func countNumArgs(store Store, last BlockNode, n *CallExpr) (numArgs int) {
 		if cxift.Kind() == TypeKind {
 			return 1 // type conversion
 		} else {
-			cxft := getGnoFuncTypeOf(cxift)
+			cxft := getGnoFuncTypeOf(store, cxift)
 			numResults := len(cxft.Results)
 			return numResults
 		}

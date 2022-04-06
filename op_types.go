@@ -437,7 +437,7 @@ func (m *Machine) doOpStaticTypeOf() {
 			// match method.
 			rmt, ok := rt.MethodByName(string(x.Sel))
 			if ok {
-				mt := go2GnoFuncType(rmt.Type)
+				mt := m.Store.Go2GnoType(rmt.Type).(*FuncType)
 				if rt.Kind() == reflect.Interface {
 					m.PushValue(asValue(mt))
 					return

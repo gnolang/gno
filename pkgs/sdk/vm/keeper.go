@@ -57,7 +57,7 @@ func (vmk *VMKeeper) Initialize(ms store.MultiStore) {
 	baseSDKStore := ms.GetStore(vmk.baseKey)
 	iavlSDKStore := ms.GetStore(vmk.iavlKey)
 	vmk.gnoStore = gno.NewStore(alloc, baseSDKStore, iavlSDKStore)
-	vmk.initBuiltinPackages(vmk.gnoStore)
+	vmk.initBuiltinPackagesAndTypes(vmk.gnoStore)
 	if vmk.gnoStore.NumMemPackages() > 0 {
 		// for now, all mem packages must be re-run after reboot.
 		// TODO remove this, and generally solve for in-mem garbage collection

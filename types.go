@@ -1042,7 +1042,7 @@ func (ft *FuncType) UnboundType(rft FieldType) *FuncType {
 // NOTE: if ft.HasVarg() and !isVarg, argTVs[len(ft.Params):]
 // are ignored (since they are of the same type as
 // argTVs[len(ft.Params)-1]).
-func (ft *FuncType) Specify(argTVs []TypedValue, isVarg bool) *FuncType {
+func (ft *FuncType) Specify(store Store, argTVs []TypedValue, isVarg bool) *FuncType {
 	hasGenericParams := false
 	hasGenericResults := false
 	for _, pf := range ft.Params {
@@ -1109,9 +1109,9 @@ func (ft *FuncType) Specify(argTVs []TypedValue, isVarg bool) *FuncType {
 	for i, pf := range ft.Params {
 		arg := &argTVs[i]
 		if arg.T.Kind() == TypeKind {
-			specifyType(lookup, pf.Type, arg.T, arg.GetType())
+			specifyType(store, lookup, pf.Type, arg.T, arg.GetType())
 		} else {
-			specifyType(lookup, pf.Type, arg.T, nil)
+			specifyType(store, lookup, pf.Type, arg.T, nil)
 		}
 	}
 	// apply specifics to generic params and results.
@@ -1603,9 +1603,9 @@ func (nt *NativeType) Elem() Type {
 	}
 }
 
-func (nt *NativeType) GnoType() Type {
+func (nt *NativeType) GnoType(store Store) Type {
 	if nt.gnoType == nil {
-		nt.gnoType = go2GnoType2(nt.Type)
+		nt.gnoType = store.Go2GnoType(nt.Type)
 	}
 	return nt.gnoType
 }
@@ -2139,7 +2139,7 @@ func IsImplementedBy(it Type, ot Type) bool {
 // specTypeval is Type if spec is TypeKind.
 // NOTE: type-checking isn't strictly necessary here, as the resulting lookup
 // map gets applied to produce the ultimate param and result types.
-func specifyType(lookup map[Name]Type, tmpl Type, spec Type, specTypeval Type) {
+func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTypeval Type) {
 	if isGeneric(spec) {
 		panic("spec must not be generic")
 	}
@@ -2153,11 +2153,11 @@ func specifyType(lookup map[Name]Type, tmpl Type, spec Type, specTypeval Type) {
 	case *PointerType:
 		switch pt := baseOf(spec).(type) {
 		case *PointerType:
-			specifyType(lookup, ct.Elt, pt.Elt, nil)
+			specifyType(store, lookup, ct.Elt, pt.Elt, nil)
 		case *NativeType:
 			// NOTE: see note about type-checking.
 			et := pt.Elem()
-			specifyType(lookup, ct.Elt, et, nil)
+			specifyType(store, lookup, ct.Elt, et, nil)
 		default:
 			panic(fmt.Sprintf(
 				"expected pointer kind but got %s",
@@ -2166,11 +2166,11 @@ func specifyType(lookup map[Name]Type, tmpl Type, spec Type, specTypeval Type) {
 	case *ArrayType:
 		switch at := baseOf(spec).(type) {
 		case *ArrayType:
-			specifyType(lookup, ct.Elt, at.Elt, nil)
+			specifyType(store, lookup, ct.Elt, at.Elt, nil)
 		case *NativeType:
 			// NOTE: see note about type-checking.
 			et := at.Elem()
-			specifyType(lookup, ct.Elt, et, nil)
+			specifyType(store, lookup, ct.Elt, et, nil)
 		default:
 			panic(fmt.Sprintf(
 				"expected array kind but got %s",
@@ -2181,7 +2181,7 @@ func specifyType(lookup map[Name]Type, tmpl Type, spec Type, specTypeval Type) {
 		case PrimitiveType:
 			if isGeneric(ct.Elt) {
 				if st.Kind() == StringKind {
-					specifyType(lookup, ct.Elt, Uint8Type, nil)
+					specifyType(store, lookup, ct.Elt, Uint8Type, nil)
 				} else {
 					panic(fmt.Sprintf(
 						"expected slice kind but got %s",
@@ -2197,11 +2197,11 @@ func specifyType(lookup map[Name]Type, tmpl Type, spec Type, specTypeval Type) {
 					spec.Kind()))
 			}
 		case *SliceType:
-			specifyType(lookup, ct.Elt, st.Elt, nil)
+			specifyType(store, lookup, ct.Elt, st.Elt, nil)
 		case *NativeType:
 			// NOTE: see note about type-checking.
 			et := st.Elem()
-			specifyType(lookup, ct.Elt, et, nil)
+			specifyType(store, lookup, ct.Elt, et, nil)
 		default:
 			panic(fmt.Sprintf(
 				"expected slice kind but got %s",
@@ -2210,14 +2210,14 @@ func specifyType(lookup map[Name]Type, tmpl Type, spec Type, specTypeval Type) {
 	case *MapType:
 		switch mt := baseOf(spec).(type) {
 		case *MapType:
-			specifyType(lookup, ct.Key, mt.Key, nil)
-			specifyType(lookup, ct.Value, mt.Value, nil)
+			specifyType(store, lookup, ct.Key, mt.Key, nil)
+			specifyType(store, lookup, ct.Value, mt.Value, nil)
 		case *NativeType:
 			// NOTE: see note about type-checking.
 			kt := mt.Key()
 			vt := mt.Elem()
-			specifyType(lookup, ct.Key, kt, nil)
-			specifyType(lookup, ct.Value, vt, nil)
+			specifyType(store, lookup, ct.Key, kt, nil)
+			specifyType(store, lookup, ct.Value, vt, nil)
 		default:
 			panic(fmt.Sprintf(
 				"expected map kind but got %s",
@@ -2287,10 +2287,10 @@ func specifyType(lookup map[Name]Type, tmpl Type, spec Type, specTypeval Type) {
 	case *MaybeNativeType:
 		switch cbt := baseOf(spec).(type) {
 		case *NativeType:
-			gnoType := go2GnoType2(cbt.Type)
-			specifyType(lookup, ct.Type, gnoType, nil)
+			gnoType := store.Go2GnoType(cbt.Type)
+			specifyType(store, lookup, ct.Type, gnoType, nil)
 		default:
-			specifyType(lookup, ct.Type, cbt, nil)
+			specifyType(store, lookup, ct.Type, cbt, nil)
 		}
 	default:
 		// ignore, no generics.

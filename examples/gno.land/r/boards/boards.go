@@ -138,7 +138,7 @@ type Board struct {
 	creator   std.Address
 	posts     *avl.Tree // Post.id -> *Post
 	postsCtr  uint64    // increments Post.id
-	createdAt int64
+	createdAt std.Time
 }
 
 func newBoard(id BoardID, url string, name string, creator std.Address) *Board {
@@ -237,7 +237,7 @@ type Post struct {
 	threadID    PostID    // original Post.id
 	replyTo     PostID    // parent Post.id (if reply or repost)
 	repostBoard BoardID   // original Board.id (if repost)
-	createdAt   int64
+	createdAt   std.Time
 }
 
 func (post *Post) GetPostID() PostID {

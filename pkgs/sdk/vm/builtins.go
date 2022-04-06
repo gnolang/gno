@@ -12,7 +12,7 @@ import (
 	"github.com/gnolang/gno/stdlibs"
 )
 
-func (vmk *VMKeeper) initBuiltinPackages(store gno.Store) {
+func (vmk *VMKeeper) initBuiltinPackagesAndTypes(store gno.Store) {
 	// NOTE: native functions/methods added here must be quick operations,
 	// or account for gas before operation.
 	// TODO: define criteria for inclusion, and solve gas calculations.
@@ -34,6 +34,7 @@ func (vmk *VMKeeper) initBuiltinPackages(store gno.Store) {
 	}
 	store.SetPackageGetter(getPackage)
 	store.SetPackageInjector(vmk.packageInjector)
+	stdlibs.InjectNativeMappings(store)
 }
 
 func (vmk *VMKeeper) packageInjector(store gno.Store, pn *gno.PackageNode) {
@@ -88,10 +89,10 @@ func NewSDKBanker(vmk *VMKeeper, ctx sdk.Context) *SDKBanker {
 	}
 }
 
-func (bnk *SDKBanker) GetCoins(b32addr crypto.Bech32Address, dst *std.Coins) {
+func (bnk *SDKBanker) GetCoins(b32addr crypto.Bech32Address) (dst std.Coins) {
 	addr := crypto.MustAddressFromString(string(b32addr))
 	coins := bnk.vmk.bank.GetCoins(bnk.ctx, addr)
-	*dst = coins
+	return coins
 }
 func (bnk *SDKBanker) SendCoins(b32from, b32to crypto.Bech32Address, amt std.Coins) {
 	from := crypto.MustAddressFromString(string(b32from))

@@ -378,6 +378,9 @@ func testStore(stdin io.Reader, stdout, stderr io.Writer, nativeLibs bool) (stor
 	store = gno.NewStore(nil, baseStore, iavlStore)
 	store.SetPackageGetter(getPackage)
 	store.SetPackageInjector(testPackageInjector)
+	store.SetStrictGo2GnoMapping(false)
+	// native mappings
+	stdlibs.InjectNativeMappings(store)
 	return
 }
 
@@ -459,6 +462,7 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				}
 				res0 := gno.Go2GnoValue(
 					m.Alloc,
+					m.Store,
 					reflect.ValueOf(pkgAddr),
 				)
 				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
@@ -477,6 +481,21 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				addr := arg0.GetString()
 				ctx := m.Context.(stdlibs.ExecContext)
 				ctx.OrigCaller = crypto.Bech32Address(addr)
+				m.Context = ctx // NOTE: tramples context for testing.
+			},
+		)
+		pn.DefineNative("TestSetOrigPkgAddr",
+			gno.Flds( // params
+				"", "Address",
+			),
+			gno.Flds( // results
+			),
+			func(m *gno.Machine) {
+				arg0 := m.LastBlock().GetParams1().TV
+				addr := arg0.GetString()
+				ctx := m.Context.(stdlibs.ExecContext)
+				fmt.Println("TESTSETORIGPKGADDR", crypto.Bech32Address(addr))
+				ctx.OrigPkgAddr = crypto.Bech32Address(addr)
 				m.Context = ctx // NOTE: tramples context for testing.
 			},
 		)
@@ -506,6 +525,27 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 			func(m *gno.Machine) {
 				rlmpath := m.Realm.Path
 				m.PushValue(typedString(rlmpath))
+			},
+		)
+		pn.DefineNative("TestDerivePkgAddr",
+			gno.Flds( // params
+				"pkgPath", "string",
+			),
+			gno.Flds( // results
+				"addr", "Address",
+			),
+			func(m *gno.Machine) {
+				arg0 := m.LastBlock().GetParams1().TV
+				pkgPath := arg0.GetString()
+				pkgAddr := gno.DerivePkgAddr(pkgPath).Bech32()
+				res0 := gno.Go2GnoValue(
+					m.Alloc,
+					m.Store,
+					reflect.ValueOf(pkgAddr),
+				)
+				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
+				res0.T = addrT
+				m.PushValue(res0)
 			},
 		)
 		// TODO: move elsewhere.

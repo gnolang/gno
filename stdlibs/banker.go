@@ -13,7 +13,7 @@ import (
 // becomes available in Gno that implements
 // stdlibs/std.Banker.
 type Banker interface {
-	GetCoins(addr crypto.Bech32Address, dst *std.Coins)
+	GetCoins(addr crypto.Bech32Address) (dst std.Coins)
 	SendCoins(from, to crypto.Bech32Address, amt std.Coins)
 	TotalCoin(denom string) int64
 	IssueCoin(addr crypto.Bech32Address, denom string, amount int64)
@@ -47,8 +47,8 @@ func NewReadonlyBanker(banker Banker) ReadonlyBanker {
 	return ReadonlyBanker{banker}
 }
 
-func (rb ReadonlyBanker) GetCoins(addr crypto.Bech32Address, dst *std.Coins) {
-	rb.banker.GetCoins(addr, dst)
+func (rb ReadonlyBanker) GetCoins(addr crypto.Bech32Address) (dst std.Coins) {
+	return rb.banker.GetCoins(addr)
 }
 func (rb ReadonlyBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins) {
 	panic("ReadonlyBanker cannot send coins")
@@ -85,12 +85,14 @@ func NewTxSendBanker(banker Banker, pkgAddr crypto.Bech32Address, txSend std.Coi
 	}
 }
 
-func (tsb TxSendBanker) GetCoins(addr crypto.Bech32Address, dst *std.Coins) {
-	tsb.banker.GetCoins(addr, dst)
+func (tsb TxSendBanker) GetCoins(addr crypto.Bech32Address) (dst std.Coins) {
+	return tsb.banker.GetCoins(addr)
 }
 func (tsb TxSendBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins) {
 	if from != tsb.pkgAddr {
-		panic("TxSendBanker can only send from the realm package address")
+		panic(fmt.Sprintf(
+			"TxSendBanker can only send from the realm package address %q, but got %q",
+			tsb.pkgAddr, from))
 	}
 	spent := (*tsb.txSendSpent).Add(amt)
 	if !tsb.txSend.IsAllGTE(spent) {
@@ -98,6 +100,7 @@ func (tsb TxSendBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins) 
 			"cannot send %v, limit %v exceeded with %v already spent",
 			amt, tsb.txSend, *tsb.txSendSpent))
 	}
+	fmt.Println(">>>> BANKER SEND", from, to, amt)
 	tsb.banker.SendCoins(from, to, amt)
 	*tsb.txSendSpent = spent
 }
@@ -126,12 +129,14 @@ func NewRealmSendBanker(banker Banker, pkgAddr crypto.Bech32Address) RealmSendBa
 	}
 }
 
-func (rsb RealmSendBanker) GetCoins(addr crypto.Bech32Address, dst *std.Coins) {
-	rsb.banker.GetCoins(addr, dst)
+func (rsb RealmSendBanker) GetCoins(addr crypto.Bech32Address) (dst std.Coins) {
+	return rsb.banker.GetCoins(addr)
 }
 func (rsb RealmSendBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins) {
 	if from != rsb.pkgAddr {
-		panic("RealmSendBanker can only send from the realm package address")
+		panic(fmt.Sprintf(
+			"RealmSendBanker can only send from the realm package address %q, but got %q",
+			rsb.pkgAddr, from))
 	}
 	rsb.banker.SendCoins(from, to, amt)
 }

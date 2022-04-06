@@ -2,6 +2,7 @@ package gno
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -37,6 +38,9 @@ type Store interface {
 	GetBlockNodeSafe(Location) BlockNode
 	SetBlockNode(BlockNode)
 	// UNSTABLE
+	SetStrictGo2GnoMapping(bool)
+	AddGo2GnoMapping(rt reflect.Type, pkgPath string, name string)
+	Go2GnoType(rt reflect.Type) Type
 	GetAllocator() *Allocator
 	NumMemPackages() int64
 	// Upon restart, all packages will be re-preprocessed; This
@@ -59,14 +63,17 @@ type Store interface {
 
 // Used to keep track of in-mem objects during tx.
 type defaultStore struct {
-	alloc        *Allocator    // for accounting for cached items
-	pkgGetter    PackageGetter // non-realm packages
-	cacheObjects map[ObjectID]Object
-	cacheTypes   map[TypeID]Type
-	cacheNodes   map[Location]BlockNode
-	baseStore    store.Store     // for objects, types, nodes
-	iavlStore    store.Store     // for escaped object hashes
-	pkgInjector  PackageInjector // for injecting natives
+	alloc            *Allocator    // for accounting for cached items
+	pkgGetter        PackageGetter // non-realm packages
+	cacheObjects     map[ObjectID]Object
+	cacheTypes       map[TypeID]Type
+	cacheNodes       map[Location]BlockNode
+	cacheNativeTypes map[reflect.Type]Type // go spec: reflect.Type are comparable
+	baseStore        store.Store           // for objects, types, nodes
+	iavlStore        store.Store           // for escaped object hashes
+	pkgInjector      PackageInjector       // for injecting natives
+	go2gnoMap        map[string]string     // go pkgpath.name -> gno pkgpath.name
+	go2gnoStrict     bool                  // if true, native->gno type conversion must be registered.
 
 	// transient
 	opslog  []StoreOp           // for debugging and testing.
@@ -75,14 +82,17 @@ type defaultStore struct {
 
 func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
 	ds := &defaultStore{
-		alloc:        alloc,
-		pkgGetter:    nil,
-		cacheObjects: make(map[ObjectID]Object),
-		cacheTypes:   make(map[TypeID]Type),
-		cacheNodes:   make(map[Location]BlockNode),
-		baseStore:    baseStore,
-		iavlStore:    iavlStore,
-		current:      make(map[string]struct{}),
+		alloc:            alloc,
+		pkgGetter:        nil,
+		cacheObjects:     make(map[ObjectID]Object),
+		cacheTypes:       make(map[TypeID]Type),
+		cacheNodes:       make(map[Location]BlockNode),
+		cacheNativeTypes: make(map[reflect.Type]Type),
+		baseStore:        baseStore,
+		iavlStore:        iavlStore,
+		go2gnoMap:        make(map[string]string),
+		go2gnoStrict:     true,
+		current:          make(map[string]struct{}),
 	}
 	InitStoreCaches(ds)
 	return ds
@@ -584,16 +594,19 @@ func (ds *defaultStore) ClearObjectCache() {
 // This function is used to handle queries and checktx transactions.
 func (ds *defaultStore) Fork() Store {
 	ds2 := &defaultStore{
-		alloc:        ds.alloc.Fork().Reset(),
-		pkgGetter:    ds.pkgGetter,
-		cacheObjects: make(map[ObjectID]Object), // new cache.
-		cacheTypes:   ds.cacheTypes,
-		cacheNodes:   ds.cacheNodes,
-		baseStore:    ds.baseStore,
-		iavlStore:    ds.iavlStore,
-		pkgInjector:  ds.pkgInjector,
-		opslog:       nil, // new ops log.
-		current:      make(map[string]struct{}),
+		alloc:            ds.alloc.Fork().Reset(),
+		pkgGetter:        ds.pkgGetter,
+		cacheObjects:     make(map[ObjectID]Object), // new cache.
+		cacheTypes:       ds.cacheTypes,
+		cacheNodes:       ds.cacheNodes,
+		cacheNativeTypes: ds.cacheNativeTypes,
+		baseStore:        ds.baseStore,
+		iavlStore:        ds.iavlStore,
+		pkgInjector:      ds.pkgInjector,
+		go2gnoMap:        ds.go2gnoMap,
+		go2gnoStrict:     ds.go2gnoStrict,
+		opslog:           nil, // new ops log.
+		current:          make(map[string]struct{}),
 	}
 	ds2.SetCachePackage(Uverse())
 	return ds2
@@ -685,6 +698,7 @@ func (ds *defaultStore) ClearCache() {
 	ds.cacheObjects = make(map[ObjectID]Object)
 	ds.cacheTypes = make(map[TypeID]Type)
 	ds.cacheNodes = make(map[Location]BlockNode)
+	ds.cacheNativeTypes = make(map[reflect.Type]Type)
 	// restore builtin types to cache.
 	InitStoreCaches(ds)
 }

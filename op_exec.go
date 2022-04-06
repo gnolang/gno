@@ -823,7 +823,7 @@ func (m *Machine) doOpTypeSwitch() {
 				} else if ct.Kind() == InterfaceKind {
 					var gnot Type
 					if not, ok := ct.(*NativeType); ok {
-						gnot = not.GnoType()
+						gnot = not.GnoType(m.Store)
 					} else {
 						gnot = ct
 					}

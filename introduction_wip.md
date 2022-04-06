@@ -1,6 +1,28 @@
-// TODO: this is an example, and needs to be fixed up and tested.
+// This is outdated and is still incomplete. Work in Progress.
+// I am considering starting off with an even simpler example,
+// of returning funds sent to a test contract.
 
+# What is GNO
+
+## Escrow model
+
+> https://paulx.dev/blog/2021/01/14/programming-on-solana-an-introduction/
+
+```golang
 package bank
+
+// Like ERC20 but for Gno.
+type Bank20 interface {
+	Name() string
+	Denom() string
+	TotalSupply() int64
+	BalanceOf(addr std.Address) int64
+	Transfer(to std.Address, value int64) bool
+	TransferFrom(from std.Address, to std.Address, value int64) bool
+	...
+	MakeOrder(from, to std.Address, amount std.Coins) Order
+	
+}
 
 // NOTE: unexposed struct for security.
 type order struct {
@@ -59,9 +81,10 @@ func (o Order) Amount() Coins {
 func (o Order) Processed() bool {
 	return o.order.processed
 }
+```
 
-//----------------------------------------
-// Escrow
+```golang
+package escrow
 
 type EscrowTerms struct {
 	PartyA  Address
@@ -125,13 +148,50 @@ func (esc *EscrowContract) Execute() {
 	esc.OrderA.Execute()
 	esc.OrderB.Execute()
 }
+```
 
-//----------------------------------------
-// TODO: actually implement these in std package.
+Object oriented programming won market share because it provides encapsulation of logic.
+Gno leverages...
+We can provide that for smart contracts, 
 
-type Address string
-type Coins []Coin
-type Coin struct {
-	Denom  bool
-	Amount int64
-}
+## No persistence translation.  No databases, only data structures.
+
+How do you persist data to a store?
+Answer: you don't.
+
+example with posts...
+
+## Object-level hashing.
+
+## Back to example...
+
+## Where are we?
+
+ * Gnolang
+   * Version 0.1: current: persist values and run gno.lang/r/example <-- WE ARE HERE.
+   * Version 0.2: 2022: persist types and nodes
+ * Tendermint
+   * reconcile differences between pkgs/bft and mainline tendermint
+   * scenario A: Tendermint/Mainline and Tendermint/GNO, two branches
+     scenario B: Tendermint/Mainline depends on Tendermint/Gno (minimal kernel)
+ * SDK
+   * minimal fork of cosmos-sdk to pkgs/sdk
+   * part of Tendermint/GNO.
+
+Philosophy: minimal, secure, (big-O) fast. 
+
+## About the License.
+
+pkgs/bft and pkgs/sdk to become Apache2.0.
+Gnolang smart contract logic not yet Apache2.0.
+  * Need to balance publishing, adoption, and attribution.
+  * Feedback wanted (in github).
+
+## Call to Action.
+
+ * Wanted: volunteers or contractors who can grok Gnolang and contribute.
+   - database/language/operating-system/file-system programming required.
+   - contact on telegram @cosmosjae.
+ * Try to make a test pass from ./tests/challenge/...
+ * Document differences between tendermint/gno and mainline tendermint.
+ * Create a plan of reconciliation between tendermint/gno and mainline tendermint.
