@@ -18,6 +18,11 @@ type SignOptions struct {
 	AccountNumber *uint64 `flag:"number" help:"account number to sign with (required)"`
 	Sequence      *uint64 `flag:"sequence" help:"sequence to sign with (required)"`
 	ShowSignBytes bool    `flag:"show-signbytes" help:"show sign bytes and quit"`
+
+	// internal flags, when called programatically
+	Name   string `flag:"-"`
+	TxJson []byte `flag:"-"`
+	Pass   string `flag:"-"`
 }
 
 var DefaultSignOptions = SignOptions{
@@ -26,46 +31,75 @@ var DefaultSignOptions = SignOptions{
 }
 
 func signApp(cmd *command.Command, args []string, iopts interface{}) error {
-	var kb keys.Keybase
-	var err error
 	var opts SignOptions = iopts.(SignOptions)
+	var err error
 
 	if len(args) != 1 {
 		cmd.ErrPrintfln("Usage: sign <keyname>")
 		return errors.New("invalid args")
 	}
-	if opts.AccountNumber == nil {
-		return errors.New("invalid account number")
-	}
-	if opts.Sequence == nil {
-		return errors.New("invalid sequence")
-	}
-
-	name := args[0]
-	txpath := opts.TxPath
-	kb, err = keys.NewKeyBaseFromDir(opts.Home)
-	if err != nil {
-		return err
-	}
+	opts.Name = args[0]
 
 	// read tx to sign
-	var tx std.Tx
-	var txjson []byte
+	txpath := opts.TxPath
 	if txpath == "-" { // from stdin.
 		txjsonstr, err := cmd.GetString("Enter tx to sign, terminated by a newline.")
 		if err != nil {
 			return err
 		}
-		txjson = []byte(txjsonstr)
+		opts.TxJson = []byte(txjsonstr)
 	} else { // from file
-		txjson, err = ioutil.ReadFile(txpath)
+		opts.TxJson, err = ioutil.ReadFile(txpath)
 		if err != nil {
 			return err
 		}
 	}
-	err = amino.UnmarshalJSON(txjson, &tx)
+
+	if opts.Quiet {
+		opts.Pass, err = cmd.GetPassword("")
+	} else {
+		opts.Pass, err = cmd.GetPassword("Enter password.")
+	}
 	if err != nil {
 		return err
+	}
+
+	signedTx, err := SignHandler(opts)
+	if err != nil {
+		return err
+	}
+
+	signedJson, err := amino.MarshalJSON(signedTx)
+	if err != nil {
+		return err
+	}
+	cmd.Println(string(signedJson))
+
+	return nil
+}
+
+func SignHandler(opts SignOptions) (*std.Tx, error) {
+	var err error
+	var tx std.Tx
+
+	if opts.AccountNumber == nil {
+		return nil, errors.New("invalid account number")
+	}
+	if opts.Sequence == nil {
+		return nil, errors.New("invalid sequence")
+	}
+	if opts.TxJson == nil {
+		return nil, errors.New("invalid tx content")
+	}
+
+	kb, err := keys.NewKeyBaseFromDir(opts.Home)
+	if err != nil {
+		return nil, err
+	}
+
+	err = amino.UnmarshalJSON(opts.TxJson, &tx)
+	if err != nil {
+		return nil, err
 	}
 
 	// fill tx signatures.
@@ -82,7 +116,7 @@ func signApp(cmd *command.Command, args []string, iopts interface{}) error {
 	// validate document to sign.
 	err = tx.ValidateBasic()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// derive sign doc bytes.
@@ -92,21 +126,12 @@ func signApp(cmd *command.Command, args []string, iopts interface{}) error {
 	signbz := tx.GetSignBytes(chainID, accountNumber, sequence)
 	if opts.ShowSignBytes {
 		fmt.Printf("sign bytes: %X\n", signbz)
-		return nil
+		return nil, nil
 	}
 
-	pass, err := "", error(nil)
-	if opts.Quiet {
-		pass, err = cmd.GetPassword("")
-	} else {
-		pass, err = cmd.GetPassword("Enter password.")
-	}
+	sig, pub, err := kb.Sign(opts.Name, opts.Pass, signbz)
 	if err != nil {
-		return err
-	}
-	sig, pub, err := kb.Sign(name, pass, signbz)
-	if err != nil {
-		return err
+		return nil, err
 	}
 	addr := pub.Address()
 	found := false
@@ -121,13 +146,9 @@ func signApp(cmd *command.Command, args []string, iopts interface{}) error {
 		}
 	}
 	if !found {
-		return errors.New("addr %v (%s) not in signer set",
-			addr, name)
+		return nil, errors.New("addr %v (%s) not in signer set",
+			addr, opts.Name)
 	}
-	txjson2, err := amino.MarshalJSON(tx)
-	if err != nil {
-		return err
-	}
-	cmd.Println(string(txjson2))
-	return nil
+
+	return &tx, nil
 }
