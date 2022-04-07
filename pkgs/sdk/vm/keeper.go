@@ -299,6 +299,7 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 // TODO: then, rename to "Eval".
 func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
 	store := vm.getGnoStore(ctx)
+	pkgAddr := gno.DerivePkgAddr(pkgPath)
 	// Get Package.
 	pv := store.GetPackage(pkgPath, false)
 	if pv == nil {
@@ -320,8 +321,8 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 		// OrigCaller:    caller,
 		// OrigSend:      send,
 		// OrigSendSpent: nil,
-		// OrigPkgAddr:   pkgAddr,
-		// Banker:        nil,
+		OrigPkgAddr: pkgAddr.Bech32(),
+		Banker:      NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
@@ -349,6 +350,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 // TODO: then, rename to "EvalString".
 func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
 	store := vm.getGnoStore(ctx)
+	pkgAddr := gno.DerivePkgAddr(pkgPath)
 	// Get Package.
 	pv := store.GetPackage(pkgPath, false)
 	if pv == nil {
@@ -370,8 +372,8 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 		// OrigCaller:    caller,
 		// OrigSend:      jsend,
 		// OrigSendSpent: nil,
-		// OrigPkgAddr:   pkgAddr,
-		// Banker:        nil,
+		OrigPkgAddr: pkgAddr.Bech32(),
+		Banker:      NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{

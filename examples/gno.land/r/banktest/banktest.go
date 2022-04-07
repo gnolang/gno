@@ -32,7 +32,7 @@ func Deposit(returnDenom string, returnAmount int64) string {
 		returned: send,
 		time:     std.GetTimestamp(),
 	}
-	for i := 0; i < len(latest)-1; i++ {
+	for i := len(latest) - 1; i >= 0; i-- {
 		latest[i+1] = latest[i] // shift by +1.
 	}
 	latest[0] = act
