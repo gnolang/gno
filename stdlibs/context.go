@@ -7,13 +7,13 @@ import (
 )
 
 type ExecContext struct {
-	ChainID     string
-	Height      int64
-	Timestamp   int64
-	Msg         sdk.Msg
-	OrigCaller  crypto.Bech32Address
-	OrigPkgAddr crypto.Bech32Address
-	TxSend      std.Coins
-	TxSendSpent *std.Coins // mutable
-	Banker      Banker
+	ChainID       string
+	Height        int64
+	Timestamp     int64
+	Msg           sdk.Msg
+	OrigCaller    crypto.Bech32Address
+	OrigPkgAddr   crypto.Bech32Address
+	OrigSend      std.Coins
+	OrigSendSpent *std.Coins // mutable
+	Banker        Banker
 }

@@ -77,28 +77,24 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 		pkgPath = "main"
 	}
 	pkgName := defaultPkgName(pkgPath)
-	if send == "" {
-		send = "" // send nothing.
-	}
 	stdin := new(bytes.Buffer)
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 	store := testStore(stdin, stdout, stderr, nativeLibs)
 	store.SetLogStoreOps(true)
-	pkgAddr := gno.DerivePkgAddr(pkgPath) // the addr of the pkgPath called.
-	caller := gno.DerivePkgAddr(pkgPath)  // NOTE: for the purpose of testing, the caller is generally the "main" package, same as pkgAddr.
-	txSend := std.MustParseCoins(send)
-	pkgCoins := std.MustParseCoins("200gnot") // >= txSend.
-	banker := newtestBanker(pkgAddr, pkgCoins)
+	pkgAddr := gno.DerivePkgAddr(pkgPath)               // the addr of the pkgPath called.
+	caller := gno.DerivePkgAddr(pkgPath)                // NOTE: for the purpose of testing, the caller is generally the "main" package, same as pkgAddr.
+	pkgCoins := std.MustParseCoins("200gnot").Add(send) // >= send.
+	banker := newTestBanker(pkgAddr.Bech32(), pkgCoins)
 	ctx := stdlibs.ExecContext{
-		ChainID:     "testchain",
-		Height:      123,
-		Msg:         nil,
-		OrigCaller:  caller.Bech32(),
-		OrigPkgAddr: pkgAddr.Bech32(),
-		TxSend:      txSend,
-		TxSendSpent: new(std.Coins),
-		Banker:      banker,
+		ChainID:       "testchain",
+		Height:        123,
+		Msg:           nil,
+		OrigCaller:    caller.Bech32(),
+		OrigPkgAddr:   pkgAddr.Bech32(),
+		OrigSend:      send,
+		OrigSendSpent: new(std.Coins),
+		Banker:        banker,
 	}
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath:       "", // set later.
@@ -164,7 +160,8 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 				}
 			} else {
 				// realm case.
-				gno.DisableDebug() // until main call.
+				store.SetStrictGo2GnoMapping(true) // in gno.land, natives must be registered.
+				gno.DisableDebug()                 // until main call.
 				// save package using realm crawl procedure.
 				memPkg := &std.MemPackage{
 					Name: string(pkgName),
@@ -283,7 +280,7 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 	}
 }
 
-func wantedFromComment(p string) (pkgPath, res, err, rops string, maxAlloc int64, send string) {
+func wantedFromComment(p string) (pkgPath, res, err, rops string, maxAlloc int64, send std.Coins) {
 	fset := token.NewFileSet()
 	f, err2 := parser.ParseFile(fset, p, nil, parser.ParseComments)
 	if err2 != nil {
@@ -307,7 +304,8 @@ func wantedFromComment(p string) (pkgPath, res, err, rops string, maxAlloc int64
 			maxAlloc = int64(maxint)
 		} else if strings.HasPrefix(text, "SEND:") {
 			line := strings.SplitN(text, "\n", 2)[0]
-			send = strings.TrimSpace(strings.TrimPrefix(line, "SEND:"))
+			sendstr := strings.TrimSpace(strings.TrimPrefix(line, "SEND:"))
+			send = std.MustParseCoins(sendstr)
 		} else if strings.HasPrefix(text, "Output:\n") {
 			res = strings.TrimPrefix(text, "Output:\n")
 			res = strings.TrimSpace(res)
@@ -353,19 +351,23 @@ type testBanker struct {
 	coinTable map[crypto.Bech32Address]std.Coins
 }
 
-func newtestBanker(args ...interface{}) *testBanker {
+func newTestBanker(args ...interface{}) *testBanker {
+	coinTable := make(map[crypto.Bech32Address]std.Coins)
+	if len(args)%2 != 0 {
+		panic("newTestBanker requires even number of arguments; addr followed by coins")
+	}
+	for i := 0; i < len(args); i += 2 {
+		addr := args[i].(crypto.Bech32Address)
+		amount := args[i+1].(std.Coins)
+		coinTable[addr] = amount
+	}
 	return &testBanker{
-		coinTable: make(map[crypto.Bech32Address]std.Coins),
+		coinTable: coinTable,
 	}
 }
 
-func (tb *testBanker) GetCoins(addr crypto.Bech32Address, dst *std.Coins) {
-	coins, exists := tb.coinTable[addr]
-	if !exists {
-		*dst = nil
-	} else {
-		*dst = coins
-	}
+func (tb *testBanker) GetCoins(addr crypto.Bech32Address) (dst std.Coins) {
+	return tb.coinTable[addr]
 }
 
 func (tb *testBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins) {
@@ -382,18 +384,12 @@ func (tb *testBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins) {
 	}
 	// First, subtract from 'from'.
 	frest := fcoins.Sub(amt)
-	tb.setCoins(from, frest)
+	tb.coinTable[from] = frest
 	// Second, add to 'to'.
 	// NOTE: even works when from==to, due to 2-step isolation.
 	tcoins, _ := tb.coinTable[to]
 	tsum := tcoins.Add(amt)
-	tb.setCoins(to, tsum)
-}
-
-func (tb *testBanker) setCoins(addr crypto.Bech32Address, amt std.Coins) {
-	coins, _ := tb.coinTable[addr]
-	sum := coins.Add(amt)
-	tb.coinTable[addr] = sum
+	tb.coinTable[to] = tsum
 }
 
 func (tb *testBanker) TotalCoin(denom string) int64 {
@@ -403,11 +399,11 @@ func (tb *testBanker) TotalCoin(denom string) int64 {
 func (tb *testBanker) IssueCoin(addr crypto.Bech32Address, denom string, amt int64) {
 	coins, _ := tb.coinTable[addr]
 	sum := coins.Add(std.Coins{{denom, amt}})
-	tb.setCoins(addr, sum)
+	tb.coinTable[addr] = sum
 }
 
 func (tb *testBanker) RemoveCoin(addr crypto.Bech32Address, denom string, amt int64) {
 	coins, _ := tb.coinTable[addr]
 	rest := coins.Sub(std.Coins{{denom, amt}})
-	tb.setCoins(addr, rest)
+	tb.coinTable[addr] = rest
 }

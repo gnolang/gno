@@ -8,7 +8,14 @@ import (
 	"github.com/gnolang/gno"
 	"github.com/gnolang/gno/pkgs/bech32"
 	"github.com/gnolang/gno/pkgs/crypto"
+	"github.com/gnolang/gno/pkgs/std"
 )
+
+func InjectNativeMappings(store gno.Store) {
+	store.AddGo2GnoMapping(reflect.TypeOf(crypto.Bech32Address("")), "std", "Address")
+	store.AddGo2GnoMapping(reflect.TypeOf(std.Coins{}), "std", "Coins")
+	store.AddGo2GnoMapping(reflect.TypeOf(std.Coin{}), "std", "Coin")
+}
 
 func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 	switch pn.PkgPath {
@@ -67,6 +74,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				hash := gno.HashBytes(bz)
 				res0 := gno.Go2GnoValue(
 					m.Alloc,
+					m.Store,
 					reflect.ValueOf([20]byte(hash)),
 				)
 				m.PushValue(res0)
@@ -85,6 +93,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				}
 				res0 := gno.Go2GnoValue(
 					m.Alloc,
+					m.Store,
 					reflect.ValueOf(realmPath),
 				)
 				m.PushValue(res0)
@@ -100,6 +109,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				ctx := m.Context.(ExecContext)
 				res0 := gno.Go2GnoValue(
 					m.Alloc,
+					m.Store,
 					reflect.ValueOf(ctx.ChainID),
 				)
 				m.PushValue(res0)
@@ -115,12 +125,13 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				ctx := m.Context.(ExecContext)
 				res0 := gno.Go2GnoValue(
 					m.Alloc,
+					m.Store,
 					reflect.ValueOf(ctx.Height),
 				)
 				m.PushValue(res0)
 			},
 		)
-		pn.DefineNative("GetTxSendCoins",
+		pn.DefineNative("GetOrigSend",
 			gno.Flds( // params
 			),
 			gno.Flds( // results
@@ -130,7 +141,8 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				ctx := m.Context.(ExecContext)
 				res0 := gno.Go2GnoValue(
 					m.Alloc,
-					reflect.ValueOf(ctx.TxSend),
+					m.Store,
+					reflect.ValueOf(ctx.OrigSend),
 				)
 				coinT := store.GetType(gno.DeclaredTypeID("std", "Coin"))
 				coinsT := store.GetType(gno.DeclaredTypeID("std", "Coins"))
@@ -152,6 +164,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				ctx := m.Context.(ExecContext)
 				res0 := gno.Go2GnoValue(
 					m.Alloc,
+					m.Store,
 					reflect.ValueOf(ctx.OrigCaller),
 				)
 				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
@@ -169,6 +182,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				ctx := m.Context.(ExecContext)
 				res0 := gno.Go2GnoValue(
 					m.Alloc,
+					m.Store,
 					reflect.ValueOf(ctx.OrigPkgAddr),
 				)
 				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
@@ -205,6 +219,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				}
 				res0 := gno.Go2GnoValue(
 					m.Alloc,
+					m.Store,
 					reflect.ValueOf(pkgAddr),
 				)
 				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
@@ -227,8 +242,8 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				switch bankerType {
 				case BankerTypeReadonly:
 					banker = NewReadonlyBanker(banker)
-				case BankerTypeTxSend:
-					banker = NewTxSendBanker(banker, ctx.OrigPkgAddr, ctx.TxSend, ctx.TxSendSpent)
+				case BankerTypeOrigSend:
+					banker = NewOrigSendBanker(banker, ctx.OrigPkgAddr, ctx.OrigSend, ctx.OrigSendSpent)
 				case BankerTypeRealmSend:
 					banker = NewRealmSendBanker(banker, ctx.OrigPkgAddr)
 				case BankerTypeRealmIssue:
@@ -239,7 +254,12 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				rv := reflect.ValueOf(banker)
 				m.Alloc.AllocateStruct()         // defensive; native space not allocated.
 				m.Alloc.AllocateStructFields(10) // defensive 10; native space not allocated.
-				res0 := gno.Go2GnoNativeValue(m.Alloc, rv)
+
+				// make gno bankAdapter{rv}
+				btv := gno.Go2GnoNativeValue(m.Alloc, rv)
+				bsv := m.Alloc.NewStructWithFields(btv)
+				bankAdapterType := store.GetType(gno.DeclaredTypeID("std", "bankAdapter"))
+				res0 := gno.TypedValue{T: bankAdapterType, V: bsv}
 				m.PushValue(res0)
 			},
 		)
@@ -247,17 +267,19 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			gno.Flds( // params
 			),
 			gno.Flds( // results
-				"", "int64",
+				"", "Time",
 			),
 			func(m *gno.Machine) {
 				ctx := m.Context.(ExecContext)
 				res0 := typedInt64(ctx.Timestamp)
+				timeT := store.GetType(gno.DeclaredTypeID("std", "Time"))
+				res0.T = timeT
 				m.PushValue(res0)
 			},
 		)
 		pn.DefineNative("FormatTimestamp",
 			gno.Flds( // params
-				"timestamp", "int64",
+				"timestamp", "Time",
 				"format", "string",
 			),
 			gno.Flds( // results

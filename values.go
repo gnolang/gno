@@ -826,7 +826,7 @@ func (pv *PackageValue) GetPkgAddr() crypto.Address {
 
 type NativeValue struct {
 	Value reflect.Value `json:"-"`
-	Bytes []byte
+	Bytes []byte        // XXX is this used?
 }
 
 func (nv *NativeValue) Copy(alloc *Allocator) *NativeValue {
@@ -1863,6 +1863,8 @@ func (tv *TypedValue) GetLength() int {
 		return cv.GetLength()
 	case *MapValue:
 		return cv.GetLength()
+	case *NativeValue:
+		return cv.Value.Len()
 	default:
 		panic(fmt.Sprintf("unexpected type for len(): %s",
 			tv.T.String()))
@@ -1890,6 +1892,8 @@ func (tv *TypedValue) GetCapacity() int {
 		return cv.GetCapacity()
 	case *SliceValue:
 		return cv.GetCapacity()
+	case *NativeValue:
+		return cv.Value.Cap()
 	default:
 		panic(fmt.Sprintf("unexpected type for cap(): %s",
 			tv.T.String()))

@@ -49,8 +49,8 @@ func Register(inviter std.Address, name string, profile string) {
 		panic("should not happen") // because std.AssertOrigCall().
 	}
 	if inviter == "" {
-		// banker := std.GetBanker(std.BankerTypeTxSend)
-		sent := std.GetTxSendCoins()
+		// banker := std.GetBanker(std.BankerTypeOrigSend)
+		sent := std.GetOrigSend()
 		// TODO: implement sent.IsGTE(...)
 		if len(sent) == 1 && sent[0].Denom == "gnot" && sent[0].Amount == 2000 {
 			// ok

@@ -378,6 +378,9 @@ func testStore(stdin io.Reader, stdout, stderr io.Writer, nativeLibs bool) (stor
 	store = gno.NewStore(nil, baseStore, iavlStore)
 	store.SetPackageGetter(getPackage)
 	store.SetPackageInjector(testPackageInjector)
+	store.SetStrictGo2GnoMapping(false)
+	// native mappings
+	stdlibs.InjectNativeMappings(store)
 	return
 }
 
@@ -459,6 +462,7 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				}
 				res0 := gno.Go2GnoValue(
 					m.Alloc,
+					m.Store,
 					reflect.ValueOf(pkgAddr),
 				)
 				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
@@ -475,26 +479,71 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 			func(m *gno.Machine) {
 				arg0 := m.LastBlock().GetParams1().TV
 				addr := arg0.GetString()
+				// overwrite context
 				ctx := m.Context.(stdlibs.ExecContext)
 				ctx.OrigCaller = crypto.Bech32Address(addr)
-				m.Context = ctx // NOTE: tramples context for testing.
+				m.Context = ctx
 			},
 		)
-		pn.DefineNative("TestSetTxSend",
+		pn.DefineNative("TestSetOrigPkgAddr",
 			gno.Flds( // params
-				"", "Coins",
+				"", "Address",
 			),
 			gno.Flds( // results
 			),
 			func(m *gno.Machine) {
 				arg0 := m.LastBlock().GetParams1().TV
-				var coins std.Coins
-				rv := reflect.ValueOf(&coins).Elem()
-				gno.Gno2GoValue(arg0, rv)
-				coins = rv.Interface().(std.Coins)
+				addr := crypto.Bech32Address(arg0.GetString())
+				// overwrite context
 				ctx := m.Context.(stdlibs.ExecContext)
-				ctx.TxSend = coins
-				m.Context = ctx // NOTE: tramples context for testing.
+				ctx.OrigPkgAddr = addr
+				m.Context = ctx
+			},
+		)
+		pn.DefineNative("TestSetOrigSend",
+			gno.Flds( // params
+				"sent", "Coins",
+				"spent", "Coins",
+			),
+			gno.Flds( // results
+			),
+			func(m *gno.Machine) {
+				arg0, arg1 := m.LastBlock().GetParams2()
+				var sent std.Coins
+				rvSent := reflect.ValueOf(&sent).Elem()
+				gno.Gno2GoValue(arg0.TV, rvSent)
+				sent = rvSent.Interface().(std.Coins) // needed?
+				var spent std.Coins
+				rvSpent := reflect.ValueOf(&spent).Elem()
+				gno.Gno2GoValue(arg1.TV, rvSpent)
+				spent = rvSpent.Interface().(std.Coins) // needed?
+				// overwrite context.
+				ctx := m.Context.(stdlibs.ExecContext)
+				ctx.OrigSend = sent
+				ctx.OrigSendSpent = &spent
+				m.Context = ctx
+			},
+		)
+		pn.DefineNative("TestIssueCoins",
+			gno.Flds( // params
+				"addr", "Address",
+				"coins", "Coins",
+			),
+			gno.Flds( // results
+			),
+			func(m *gno.Machine) {
+				arg0, arg1 := m.LastBlock().GetParams2()
+				addr := crypto.Bech32Address(arg0.TV.GetString())
+				var coins std.Coins
+				rvCoins := reflect.ValueOf(&coins).Elem()
+				gno.Gno2GoValue(arg1.TV, rvCoins)
+				coins = rvCoins.Interface().(std.Coins) // needed?
+				// overwrite context.
+				ctx := m.Context.(stdlibs.ExecContext)
+				banker := ctx.Banker
+				for _, coin := range coins {
+					banker.IssueCoin(addr, coin.Denom, coin.Amount)
+				}
 			},
 		)
 		pn.DefineNative("TestCurrentRealm",
@@ -506,6 +555,27 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 			func(m *gno.Machine) {
 				rlmpath := m.Realm.Path
 				m.PushValue(typedString(rlmpath))
+			},
+		)
+		pn.DefineNative("TestDerivePkgAddr",
+			gno.Flds( // params
+				"pkgPath", "string",
+			),
+			gno.Flds( // results
+				"addr", "Address",
+			),
+			func(m *gno.Machine) {
+				arg0 := m.LastBlock().GetParams1().TV
+				pkgPath := arg0.GetString()
+				pkgAddr := gno.DerivePkgAddr(pkgPath).Bech32()
+				res0 := gno.Go2GnoValue(
+					m.Alloc,
+					m.Store,
+					reflect.ValueOf(pkgAddr),
+				)
+				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
+				res0.T = addrT
+				m.PushValue(res0)
 			},
 		)
 		// TODO: move elsewhere.

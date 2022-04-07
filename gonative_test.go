@@ -25,6 +25,7 @@ func gonativeTestStore(args ...interface{}) Store {
 		}
 		return nil, nil
 	})
+	store.SetStrictGo2GnoMapping(false)
 	return store
 }
 
@@ -135,7 +136,8 @@ D:
 
 func TestCrypto(t *testing.T) {
 	addr := crypto.Address{}
-	tv := Go2GnoValue(nilAllocator, reflect.ValueOf(addr))
+	store := gonativeTestStore()
+	tv := Go2GnoValue(nilAllocator, store, reflect.ValueOf(addr))
 	assert.Equal(t, tv.String(),
 		`(array[0x0000000000000000000000000000000000000000] github.com/gnolang/gno/pkgs/crypto.Address)`)
 }
