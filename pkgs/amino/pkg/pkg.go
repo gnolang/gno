@@ -2,7 +2,7 @@ package pkg
 
 import (
 	"fmt"
-	"path"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"runtime"
@@ -79,10 +79,10 @@ func NewPackage(gopkgPath string, p3pkgName string, dirName string) *Package {
 			DirName:      dirName,
 			Dependencies: nil,
 			Types:        nil,
-			P3GoPkgPath:  path.Join(gopkgPath, "pb"),
+			P3GoPkgPath:  filepath.Join(gopkgPath, "pb"),
 			P3PkgName:    p3pkgName,
-			P3ImportPath: path.Join(gopkgPath, gopkgName+".proto"),
-			P3SchemaFile: path.Join(dirName, gopkgName+".proto"),
+			P3ImportPath: filepath.Join(gopkgPath, gopkgName+".proto"),
+			P3SchemaFile: filepath.Join(dirName, gopkgName+".proto"),
 		}
 		return pkg
 	} else {
@@ -108,8 +108,8 @@ func (pkg *Package) WithGoPkgName(name string) *Package {
 	// The following fields must also be updated.
 	// TODO: make P3ImportPath and P3SchemaFile lazy,
 	// so it never gets out of sync.
-	pkg.P3ImportPath = path.Join(pkg.GoPkgPath, name+".proto")
-	pkg.P3SchemaFile = path.Join(pkg.DirName, name+".proto")
+	pkg.P3ImportPath = filepath.Join(pkg.GoPkgPath, name+".proto")
+	pkg.P3SchemaFile = filepath.Join(pkg.DirName, name+".proto")
 	return pkg
 }
 
@@ -301,7 +301,7 @@ func GetCallersDirname() string {
 	if !ok {
 		panic("could not get caller to derive caller's package directory")
 	}
-	dirName = path.Dir(filename)
+	dirName = filepath.Dir(filename)
 	if filename == "" || dirName == "" {
 		panic("could not derive caller's package directory")
 	}
@@ -346,11 +346,11 @@ func assertValidDirName(dirName string) {
 		// DirName should not be set to "." or "./".
 		return
 	}
-	if !path.IsAbs(dirName) {
+	if !filepath.IsAbs(dirName) {
 		panic(fmt.Sprintf("dirName if present should be absolute, but got %v", dirName))
 	}
-	if path.Dir(dirName+"/dummy") != dirName {
-		panic(fmt.Sprintf("dirName not canonical. got %v, expected %v", dirName, path.Dir(dirName+"/dummy")))
+	if filepath.Dir(dirName+"/dummy") != dirName {
+		panic(fmt.Sprintf("dirName not canonical. got %v, expected %v", dirName, filepath.Dir(dirName+"/dummy")))
 	}
 }
 
