@@ -11,65 +11,65 @@ tools:
 
 # The main show (daemon)
 gnoland:
-	echo "Building gnoland"
+	@echo "+ Building gnoland"
 	go build -o build/gnoland ./cmd/gnoland
 
 # The main show (client)
 gnokey:
-	echo "Building gnokey"
+	@echo "+ Building gnokey"
 	go build -o build/gnokey ./cmd/gnokey
 
 # The faucet (daemon)
 gnofaucet:
-	echo "Building gnofaucet"
+	@echo "+ Building gnofaucet"
 	go build -o build/gnofaucet ./cmd/gnofaucet
 
 # goscan scans go code to determine its AST
 goscan:
-	echo "Building goscan"
+	@echo "+ Building goscan"
 	go build -o build/goscan ./cmd/goscan
 
 
 # Logos is the interface to Gnoland
 logos:
-	echo "building logos"
+	@echo "+ Building logos"
 	go build -o build/logos ./logos/cmd/logos.go
 
 clean:
 	rm -rf build
 
 test:
-	echo "Running tests"
+	@echo "+ Running tests"
 	go test
 	go test tests/*.go -v -test.short --timeout 20m
 
 test1:
-	echo "Running tests"
+	@echo "+ Running tests"
 	go test
 	go test tests/*.go -v -test.short -run "TestFiles1"
 
 test2:
-	echo "Running tests"
+	@echo "+ Running tests"
 	go test
 	go test tests/*.go -v -test.short -run "TestFiles2"
 
 testrealm:
-	echo "Running tests"
+	@echo "+ Running tests"
 	go test
 	go test tests/*.go -v -run "TestFiles/^zrealm"
 
 testrealm1:
-	echo "Running tests"
+	@echo "+ Running tests"
 	go test
 	go test tests/*.go -v -run "TestFiles1/^zrealm"
 
 testrealm2:
-	echo "Running tests"
+	@echo "+ Running tests"
 	go test
 	go test tests/*.go -v -run "TestFiles2/^zrealm"
 
 testpackages:
-	echo "Running tests"
+	@echo "+ Running tests"
 	go test tests/*.go -v -run "TestPackages"
 
 testpkgs:
