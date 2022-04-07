@@ -42,7 +42,7 @@ function updateCommand(x) {
 	shell.append(u("<span>").text(command)).append(u("<br>"));
 
 	// command 3: broadcast tx.
-	var args = ["gnokey", "broadcast", "signed.tx"];
+	var args = ["gnokey", "broadcast", "signed.tx", "--remote", "gno.land:36657"];
 	var command = args.join(" ");
 	command = command;
 	shell.append(u("<span>").text(command)).append(u("<br>"));
