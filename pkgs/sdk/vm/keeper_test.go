@@ -36,7 +36,7 @@ func init() {
 func Echo(msg string) string {
 	addr := std.GetOrigCaller()
 	pkgAddr := std.GetOrigPkgAddr()
-	send := std.GetOrigSendCoins()
+	send := std.GetOrigSend()
 	banker := std.GetBanker(std.BankerTypeOrigSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
@@ -81,7 +81,7 @@ func init() {
 func Echo(msg string) string {
 	addr := std.GetOrigCaller()
 	pkgAddr := std.GetOrigPkgAddr()
-	send := std.GetOrigSendCoins()
+	send := std.GetOrigSend()
 	banker := std.GetBanker(std.BankerTypeOrigSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
