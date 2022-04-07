@@ -5,6 +5,7 @@ import (
 
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/bft/rpc/client"
+	ctypes "github.com/gnolang/gno/pkgs/bft/rpc/core/types"
 	"github.com/gnolang/gno/pkgs/command"
 	"github.com/gnolang/gno/pkgs/errors"
 	"github.com/gnolang/gno/pkgs/std"
@@ -12,6 +13,9 @@ import (
 
 type BroadcastOptions struct {
 	BaseOptions
+
+	// internal
+	Tx *std.Tx `flag:"-"`
 }
 
 var DefaultBroadcastOptions = BroadcastOptions{
@@ -26,10 +30,6 @@ func broadcastApp(cmd *command.Command, args []string, iopts interface{}) error 
 		return errors.New("invalid args")
 	}
 	filename := args[0]
-	remote := opts.Remote
-	if remote == "" || remote == "y" {
-		return errors.New("missing remote url")
-	}
 
 	jsonbz, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -40,26 +40,47 @@ func broadcastApp(cmd *command.Command, args []string, iopts interface{}) error 
 	if err != nil {
 		return errors.Wrap(err, "unmarshaling tx json bytes")
 	}
-	bz, err := amino.Marshal(tx)
+	opts.Tx = &tx
+
+	res, err := BroadcastHandler(opts)
 	if err != nil {
-		return errors.Wrap(err, "remarshaling tx binary bytes")
+		return err
+	}
+
+	if res.CheckTx.IsErr() {
+		return errors.New("transaction failed %#v\nlog %s", res, res.CheckTx.Log)
+	} else if res.DeliverTx.IsErr() {
+		return errors.New("transaction failed %#v\nlog %s", res, res.DeliverTx.Log)
+	} else {
+		cmd.Println(string(res.DeliverTx.Data))
+		cmd.Println("OK!")
+		cmd.Println("GAS WANTED:", res.DeliverTx.GasWanted)
+		cmd.Println("GAS USED:  ", res.DeliverTx.GasUsed)
+	}
+	return nil
+}
+
+func BroadcastHandler(opts BroadcastOptions) (*ctypes.ResultBroadcastTxCommit, error) {
+	if opts.Tx == nil {
+		return nil, errors.New("invalid tx")
+	}
+
+	remote := opts.Remote
+	if remote == "" || remote == "y" {
+		return nil, errors.New("missing remote url")
+	}
+
+	bz, err := amino.Marshal(opts.Tx)
+	if err != nil {
+		return nil, errors.Wrap(err, "remarshaling tx binary bytes")
 	}
 
 	cli := client.NewHTTP(remote, "/websocket")
 
 	bres, err := cli.BroadcastTxCommit(bz)
 	if err != nil {
-		return errors.Wrap(err, "broadcasting bytes")
+		return nil, errors.Wrap(err, "broadcasting bytes")
 	}
-	if bres.CheckTx.IsErr() {
-		return errors.New("transaction failed %#v\nlog %s", bres, bres.CheckTx.Log)
-	} else if bres.DeliverTx.IsErr() {
-		return errors.New("transaction failed %#v\nlog %s", bres, bres.DeliverTx.Log)
-	} else {
-		cmd.Println(string(bres.DeliverTx.Data))
-		cmd.Println("OK!")
-		cmd.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
-		cmd.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
-	}
-	return nil
+
+	return bres, nil
 }

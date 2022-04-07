@@ -69,6 +69,9 @@ type BaseTxOptions struct {
 	GasWanted int64  `flag:"gas-wanted" help:"gas requested for tx"`
 	GasFee    string `flag:"gas-fee" help:"gas payment fee"`
 	Memo      string `flag:"memo" help:"any descriptive text"`
+
+	Broadcast bool   `flag:"broadcast" help:"sign and broadcast"`
+	ChainID   string `flag:"chainid" help:"chainid to sign for (only useful if --broadcast)"`
 }
 
 //----------------------------------------
@@ -141,7 +144,15 @@ func makeAddPackageTxApp(cmd *command.Command, args []string, iopts interface{})
 		Signatures: nil,
 		Memo:       opts.Memo,
 	}
-	fmt.Println(string(amino.MustMarshalJSON(tx)))
+
+	if opts.Broadcast {
+		err := signAndBroadcast(cmd, args, tx, opts.BaseOptions, opts.BaseTxOptions)
+		if err != nil {
+			return err
+		}
+	} else {
+		fmt.Println(string(amino.MustMarshalJSON(tx)))
+	}
 	return nil
 }
 
@@ -226,7 +237,88 @@ func makeCallTxApp(cmd *command.Command, args []string, iopts interface{}) error
 		Signatures: nil,
 		Memo:       opts.Memo,
 	}
-	fmt.Println(string(amino.MustMarshalJSON(tx)))
+
+	if opts.Broadcast {
+		err := signAndBroadcast(cmd, args, tx, opts.BaseOptions, opts.BaseTxOptions)
+		if err != nil {
+			return err
+		}
+	} else {
+		fmt.Println(string(amino.MustMarshalJSON(tx)))
+	}
+	return nil
+}
+
+func signAndBroadcast(cmd *command.Command, args []string, tx std.Tx, baseopts client.BaseOptions, txopts BaseTxOptions) error {
+	// query account
+	name := args[0]
+	kb, err := keys.NewKeyBaseFromDir(baseopts.Home)
+	if err != nil {
+		return err
+	}
+	info, err := kb.Get(name)
+	if err != nil {
+		return err
+	}
+	accountAddr := info.GetAddress()
+
+	qopts := client.QueryOptions{
+		Path: fmt.Sprintf("auth/accounts/%s", accountAddr),
+	}
+	qopts.Remote = baseopts.Remote
+	qres, err := client.QueryHandler(qopts)
+	if err != nil {
+		return errors.Wrap(err, "query account")
+	}
+	var qret struct{ BaseAccount std.BaseAccount }
+	err = amino.UnmarshalJSON(qres.Response.Data, &qret)
+	if err != nil {
+		return err
+	}
+
+	// sign tx
+	var accountNumber uint64 = qret.BaseAccount.AccountNumber
+	var sequence uint64 = qret.BaseAccount.Sequence
+	sopts := client.SignOptions{
+		Sequence:      &sequence,
+		AccountNumber: &accountNumber,
+		ChainID:       txopts.ChainID,
+		Name:          name,
+		TxJson:        amino.MustMarshalJSON(tx),
+	}
+	if baseopts.Quiet {
+		sopts.Pass, err = cmd.GetPassword("")
+	} else {
+		sopts.Pass, err = cmd.GetPassword("Enter password.")
+	}
+	if err != nil {
+		return err
+	}
+
+	signedTx, err := client.SignHandler(sopts)
+	if err != nil {
+		return errors.Wrap(err, "sign tx")
+	}
+
+	// broadcast signed tx
+	bopts := client.BroadcastOptions{
+		Tx: signedTx,
+	}
+	bopts.Remote = baseopts.Remote
+	bres, err := client.BroadcastHandler(bopts)
+	if err != nil {
+		return errors.Wrap(err, "broadcast tx")
+	}
+	if bres.CheckTx.IsErr() {
+		return errors.New("transaction failed %#v\nlog %s", bres, bres.CheckTx.Log)
+	} else if bres.DeliverTx.IsErr() {
+		return errors.New("transaction failed %#v\nlog %s", bres, bres.DeliverTx.Log)
+	} else {
+		cmd.Println(string(bres.DeliverTx.Data))
+		cmd.Println("OK!")
+		cmd.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
+		cmd.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
+	}
 	return nil
 }
 
@@ -308,6 +400,14 @@ func makeSendTxApp(cmd *command.Command, args []string, iopts interface{}) error
 		Signatures: nil,
 		Memo:       opts.Memo,
 	}
-	fmt.Println(string(amino.MustMarshalJSON(tx)))
+
+	if opts.Broadcast {
+		err := signAndBroadcast(cmd, args, tx, opts.BaseOptions, opts.BaseTxOptions)
+		if err != nil {
+			return err
+		}
+	} else {
+		fmt.Println(string(amino.MustMarshalJSON(tx)))
+	}
 	return nil
 }
