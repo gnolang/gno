@@ -29,7 +29,7 @@ const (
 	// Can only read state.
 	BankerTypeReadonly BankerType = iota
 	// Can only send from tx send.
-	BankerTypeTxSend
+	BankerTypeOrigSend
 	// Can send from all realm coins.
 	BankerTypeRealmSend
 	// Can issue and remove realm coins.
@@ -64,54 +64,53 @@ func (rb ReadonlyBanker) RemoveCoin(addr crypto.Bech32Address, denom string, amo
 }
 
 //----------------------------------------
-// TxSendBanker
+// OrigSendBanker
 
-type TxSendBanker struct {
-	banker      Banker
-	pkgAddr     crypto.Bech32Address
-	txSend      std.Coins
-	txSendSpent *std.Coins
+type OrigSendBanker struct {
+	banker        Banker
+	pkgAddr       crypto.Bech32Address
+	origSend      std.Coins
+	origSendSpent *std.Coins
 }
 
-func NewTxSendBanker(banker Banker, pkgAddr crypto.Bech32Address, txSend std.Coins, txSendSpent *std.Coins) TxSendBanker {
-	if txSendSpent == nil {
-		panic("txSendSpent cannot be nil")
+func NewOrigSendBanker(banker Banker, pkgAddr crypto.Bech32Address, origSend std.Coins, origSendSpent *std.Coins) OrigSendBanker {
+	if origSendSpent == nil {
+		panic("origSendSpent cannot be nil")
 	}
-	return TxSendBanker{
-		banker:      banker,
-		pkgAddr:     pkgAddr,
-		txSend:      txSend,
-		txSendSpent: txSendSpent,
+	return OrigSendBanker{
+		banker:        banker,
+		pkgAddr:       pkgAddr,
+		origSend:      origSend,
+		origSendSpent: origSendSpent,
 	}
 }
 
-func (tsb TxSendBanker) GetCoins(addr crypto.Bech32Address) (dst std.Coins) {
-	return tsb.banker.GetCoins(addr)
+func (osb OrigSendBanker) GetCoins(addr crypto.Bech32Address) (dst std.Coins) {
+	return osb.banker.GetCoins(addr)
 }
-func (tsb TxSendBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins) {
-	if from != tsb.pkgAddr {
+func (osb OrigSendBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins) {
+	if from != osb.pkgAddr {
 		panic(fmt.Sprintf(
-			"TxSendBanker can only send from the realm package address %q, but got %q",
-			tsb.pkgAddr, from))
+			"OrigSendBanker can only send from the realm package address %q, but got %q",
+			osb.pkgAddr, from))
 	}
-	spent := (*tsb.txSendSpent).Add(amt)
-	if !tsb.txSend.IsAllGTE(spent) {
+	spent := (*osb.origSendSpent).Add(amt)
+	if !osb.origSend.IsAllGTE(spent) {
 		panic(fmt.Sprintf(
-			"cannot send %v, limit %v exceeded with %v already spent",
-			amt, tsb.txSend, *tsb.txSendSpent))
+			`cannot send "%v", limit "%v" exceeded with "%v" already spent`,
+			amt, osb.origSend, *osb.origSendSpent))
 	}
-	fmt.Println(">>>> BANKER SEND", from, to, amt)
-	tsb.banker.SendCoins(from, to, amt)
-	*tsb.txSendSpent = spent
+	osb.banker.SendCoins(from, to, amt)
+	*osb.origSendSpent = spent
 }
-func (tsb TxSendBanker) TotalCoin(denom string) int64 {
-	return tsb.banker.TotalCoin(denom)
+func (osb OrigSendBanker) TotalCoin(denom string) int64 {
+	return osb.banker.TotalCoin(denom)
 }
-func (tsb TxSendBanker) IssueCoin(addr crypto.Bech32Address, denom string, amount int64) {
-	panic("TxSendBanker cannot issue coins")
+func (osb OrigSendBanker) IssueCoin(addr crypto.Bech32Address, denom string, amount int64) {
+	panic("OrigSendBanker cannot issue coins")
 }
-func (tsb TxSendBanker) RemoveCoin(addr crypto.Bech32Address, denom string, amount int64) {
-	panic("TxSendBanker cannot remove coins")
+func (osb OrigSendBanker) RemoveCoin(addr crypto.Bech32Address, denom string, amount int64) {
+	panic("OrigSendBanker cannot remove coins")
 }
 
 //----------------------------------------

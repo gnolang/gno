@@ -1,7 +1,6 @@
 package stdlibs
 
 import (
-	"fmt"
 	"reflect"
 	"strconv"
 	"time"
@@ -132,7 +131,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				m.PushValue(res0)
 			},
 		)
-		pn.DefineNative("GetTxSendCoins",
+		pn.DefineNative("GetOrigSend",
 			gno.Flds( // params
 			),
 			gno.Flds( // results
@@ -143,7 +142,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				res0 := gno.Go2GnoValue(
 					m.Alloc,
 					m.Store,
-					reflect.ValueOf(ctx.TxSend),
+					reflect.ValueOf(ctx.OrigSend),
 				)
 				coinT := store.GetType(gno.DeclaredTypeID("std", "Coin"))
 				coinsT := store.GetType(gno.DeclaredTypeID("std", "Coins"))
@@ -237,15 +236,14 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			),
 			func(m *gno.Machine) {
 				ctx := m.Context.(ExecContext)
-				fmt.Println("GETBANKER", ctx.OrigPkgAddr)
 				arg0 := m.LastBlock().GetParams1().TV
 				bankerType := BankerType(arg0.GetUint8())
 				banker := ctx.Banker
 				switch bankerType {
 				case BankerTypeReadonly:
 					banker = NewReadonlyBanker(banker)
-				case BankerTypeTxSend:
-					banker = NewTxSendBanker(banker, ctx.OrigPkgAddr, ctx.TxSend, ctx.TxSendSpent)
+				case BankerTypeOrigSend:
+					banker = NewOrigSendBanker(banker, ctx.OrigPkgAddr, ctx.OrigSend, ctx.OrigSendSpent)
 				case BankerTypeRealmSend:
 					banker = NewRealmSendBanker(banker, ctx.OrigPkgAddr)
 				case BankerTypeRealmIssue:

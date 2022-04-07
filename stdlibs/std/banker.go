@@ -30,7 +30,7 @@ const (
 	// Can only read state.
 	BankerTypeReadonly BankerType = iota
 	// Can only send from tx send.
-	BankerTypeTxSend
+	BankerTypeOrigSend
 	// Can send from all realm coins.
 	BankerTypeRealmSend
 	// Can issue and remove realm coins.

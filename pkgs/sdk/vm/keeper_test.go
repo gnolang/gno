@@ -12,7 +12,7 @@ import (
 )
 
 // Sending total send amount succeeds.
-func TestVMKeeperTxSend1(t *testing.T) {
+func TestVMKeeperOrigSend1(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.ctx
 
@@ -36,8 +36,8 @@ func init() {
 func Echo(msg string) string {
 	addr := std.GetOrigCaller()
 	pkgAddr := std.GetOrigPkgAddr()
-	send := std.GetTxSendCoins()
-	banker := std.GetBanker(std.BankerTypeTxSend)
+	send := std.GetOrigSendCoins()
+	banker := std.GetBanker(std.BankerTypeOrigSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }`},
@@ -57,7 +57,7 @@ func Echo(msg string) string {
 }
 
 // Sending too much fails
-func TestVMKeeperTxSend2(t *testing.T) {
+func TestVMKeeperOrigSend2(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.ctx
 
@@ -81,8 +81,8 @@ func init() {
 func Echo(msg string) string {
 	addr := std.GetOrigCaller()
 	pkgAddr := std.GetOrigPkgAddr()
-	send := std.GetTxSendCoins()
-	banker := std.GetBanker(std.BankerTypeTxSend)
+	send := std.GetOrigSendCoins()
+	banker := std.GetBanker(std.BankerTypeOrigSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }`},
@@ -103,7 +103,7 @@ func Echo(msg string) string {
 }
 
 // Sending more than tx send fails.
-func TestVMKeeperTxSend3(t *testing.T) {
+func TestVMKeeperOrigSend3(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.ctx
 
@@ -128,7 +128,7 @@ func Echo(msg string) string {
 	addr := std.GetOrigCaller()
 	pkgAddr := std.GetOrigPkgAddr()
 	send := std.Coins{{"gnot", 10}}
-	banker := std.GetBanker(std.BankerTypeTxSend)
+	banker := std.GetBanker(std.BankerTypeOrigSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }`},

@@ -23,7 +23,7 @@ func main() {
 	users.Invite(test1.String())
 	// switch to test1
 	std.TestSetOrigCaller(test1)
-	std.TestSetTxSend(std.Coins{{"dontcare", 1}})
+	std.TestSetOrigSend(std.Coins{{"dontcare", 1}})
 	users.Register(caller, "satoshi", "my other profile")
 	// as admin, grant invites to gnouser(again) and nonexistent user.
 	std.TestSetOrigCaller(admin)

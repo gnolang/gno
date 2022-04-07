@@ -1,17 +1,20 @@
 package main
 
-// SEND: 100gnot
-
 import (
 	"gno.land/r/banktest"
 	"std"
 )
 
 func main() {
-	std.TestSetOrigPkgAddr(std.TestDerivePkgAddr("gno.land/r/banktest"))
+	banktestAddr := std.TestDerivePkgAddr("gno.land/r/banktest")
+
+	// simulate a Deposit call.
+	std.TestSetOrigPkgAddr(banktestAddr)
+	std.TestIssueCoins(banktestAddr, std.Coins{{"gnot", 100}})
+	std.TestSetOrigSend(std.Coins{{"gnot", 100}}, nil)
 	res := banktest.Deposit("gnot", 101)
 	println(res)
 }
 
 // Error:
-// cannot send 101gnot
+// cannot send "101gnot"

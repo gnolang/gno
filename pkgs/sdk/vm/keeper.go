@@ -201,15 +201,15 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// NOTE: if this is too expensive,
 	// could it be safely partially memoized?
 	msgCtx := stdlibs.ExecContext{
-		ChainID:     ctx.ChainID(),
-		Height:      ctx.BlockHeight(),
-		Timestamp:   ctx.BlockTime().Unix(),
-		Msg:         msg,
-		OrigCaller:  caller.Bech32(),
-		TxSend:      send,
-		TxSendSpent: new(std.Coins),
-		OrigPkgAddr: pkgAddr.Bech32(),
-		Banker:      NewSDKBanker(vm, ctx),
+		ChainID:       ctx.ChainID(),
+		Height:        ctx.BlockHeight(),
+		Timestamp:     ctx.BlockTime().Unix(),
+		Msg:           msg,
+		OrigCaller:    caller.Bech32(),
+		OrigSend:      send,
+		OrigSendSpent: new(std.Coins),
+		OrigPkgAddr:   pkgAddr.Bech32(),
+		Banker:        NewSDKBanker(vm, ctx),
 	}
 	// Construct machine and evaluate.
 	m := gno.NewMachineWithOptions(
@@ -316,12 +316,12 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 		ChainID:   ctx.ChainID(),
 		Height:    ctx.BlockHeight(),
 		Timestamp: ctx.BlockTime().Unix(),
-		//Msg:         msg,
-		//OrigCaller:  caller,
-		//TxSend:      send,
-		//TxSendSpent: nil,
-		//OrigPkgAddr: pkgAddr,
-		//Banker:      nil,
+		// Msg:           msg,
+		// OrigCaller:    caller,
+		// OrigSend:      send,
+		// OrigSendSpent: nil,
+		// OrigPkgAddr:   pkgAddr,
+		// Banker:        nil,
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
@@ -366,12 +366,12 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 		ChainID:   ctx.ChainID(),
 		Height:    ctx.BlockHeight(),
 		Timestamp: ctx.BlockTime().Unix(),
-		//Msg:         msg,
-		//OrigCaller:  caller,
-		//TxSend:      send,
-		//TxSendSpent: nil,
-		//OrigPkgAddr: pkgAddr,
-		//Banker:      nil,
+		// Msg:           msg,
+		// OrigCaller:    caller,
+		// OrigSend:      jsend,
+		// OrigSendSpent: nil,
+		// OrigPkgAddr:   pkgAddr,
+		// Banker:        nil,
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{

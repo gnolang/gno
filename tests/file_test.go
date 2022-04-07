@@ -77,28 +77,24 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 		pkgPath = "main"
 	}
 	pkgName := defaultPkgName(pkgPath)
-	if send == "" {
-		send = "" // send nothing.
-	}
 	stdin := new(bytes.Buffer)
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 	store := testStore(stdin, stdout, stderr, nativeLibs)
 	store.SetLogStoreOps(true)
-	pkgAddr := gno.DerivePkgAddr(pkgPath) // the addr of the pkgPath called.
-	caller := gno.DerivePkgAddr(pkgPath)  // NOTE: for the purpose of testing, the caller is generally the "main" package, same as pkgAddr.
-	txSend := std.MustParseCoins(send)
-	pkgCoins := std.MustParseCoins("200gnot").Add(txSend) // >= txSend.
+	pkgAddr := gno.DerivePkgAddr(pkgPath)               // the addr of the pkgPath called.
+	caller := gno.DerivePkgAddr(pkgPath)                // NOTE: for the purpose of testing, the caller is generally the "main" package, same as pkgAddr.
+	pkgCoins := std.MustParseCoins("200gnot").Add(send) // >= send.
 	banker := newTestBanker(pkgAddr.Bech32(), pkgCoins)
 	ctx := stdlibs.ExecContext{
-		ChainID:     "testchain",
-		Height:      123,
-		Msg:         nil,
-		OrigCaller:  caller.Bech32(),
-		OrigPkgAddr: pkgAddr.Bech32(),
-		TxSend:      txSend,
-		TxSendSpent: new(std.Coins),
-		Banker:      banker,
+		ChainID:       "testchain",
+		Height:        123,
+		Msg:           nil,
+		OrigCaller:    caller.Bech32(),
+		OrigPkgAddr:   pkgAddr.Bech32(),
+		OrigSend:      send,
+		OrigSendSpent: new(std.Coins),
+		Banker:        banker,
 	}
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath:       "", // set later.
@@ -284,7 +280,7 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 	}
 }
 
-func wantedFromComment(p string) (pkgPath, res, err, rops string, maxAlloc int64, send string) {
+func wantedFromComment(p string) (pkgPath, res, err, rops string, maxAlloc int64, send std.Coins) {
 	fset := token.NewFileSet()
 	f, err2 := parser.ParseFile(fset, p, nil, parser.ParseComments)
 	if err2 != nil {
@@ -308,7 +304,8 @@ func wantedFromComment(p string) (pkgPath, res, err, rops string, maxAlloc int64
 			maxAlloc = int64(maxint)
 		} else if strings.HasPrefix(text, "SEND:") {
 			line := strings.SplitN(text, "\n", 2)[0]
-			send = strings.TrimSpace(strings.TrimPrefix(line, "SEND:"))
+			sendstr := strings.TrimSpace(strings.TrimPrefix(line, "SEND:"))
+			send = std.MustParseCoins(sendstr)
 		} else if strings.HasPrefix(text, "Output:\n") {
 			res = strings.TrimPrefix(text, "Output:\n")
 			res = strings.TrimSpace(res)
@@ -374,8 +371,6 @@ func (tb *testBanker) GetCoins(addr crypto.Bech32Address) (dst std.Coins) {
 }
 
 func (tb *testBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins) {
-	fmt.Println("TESTBANKER SENDCOINS", tb.coinTable)
-	fmt.Println("TESTBANKER SENDCOINS", from, to, amt)
 	fcoins, fexists := tb.coinTable[from]
 	if !fexists {
 		panic(fmt.Sprintf(
@@ -395,7 +390,6 @@ func (tb *testBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins) {
 	tcoins, _ := tb.coinTable[to]
 	tsum := tcoins.Add(amt)
 	tb.coinTable[to] = tsum
-	fmt.Println("TESTBANKER SENDCOINS", tb.coinTable)
 }
 
 func (tb *testBanker) TotalCoin(denom string) int64 {

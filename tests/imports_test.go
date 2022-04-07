@@ -479,9 +479,10 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 			func(m *gno.Machine) {
 				arg0 := m.LastBlock().GetParams1().TV
 				addr := arg0.GetString()
+				// overwrite context
 				ctx := m.Context.(stdlibs.ExecContext)
 				ctx.OrigCaller = crypto.Bech32Address(addr)
-				m.Context = ctx // NOTE: tramples context for testing.
+				m.Context = ctx
 			},
 		)
 		pn.DefineNative("TestSetOrigPkgAddr",
@@ -492,28 +493,57 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 			),
 			func(m *gno.Machine) {
 				arg0 := m.LastBlock().GetParams1().TV
-				addr := arg0.GetString()
+				addr := crypto.Bech32Address(arg0.GetString())
+				// overwrite context
 				ctx := m.Context.(stdlibs.ExecContext)
-				fmt.Println("TESTSETORIGPKGADDR", crypto.Bech32Address(addr))
-				ctx.OrigPkgAddr = crypto.Bech32Address(addr)
-				m.Context = ctx // NOTE: tramples context for testing.
+				ctx.OrigPkgAddr = addr
+				m.Context = ctx
 			},
 		)
-		pn.DefineNative("TestSetTxSend",
+		pn.DefineNative("TestSetOrigSend",
 			gno.Flds( // params
-				"", "Coins",
+				"sent", "Coins",
+				"spent", "Coins",
 			),
 			gno.Flds( // results
 			),
 			func(m *gno.Machine) {
-				arg0 := m.LastBlock().GetParams1().TV
-				var coins std.Coins
-				rv := reflect.ValueOf(&coins).Elem()
-				gno.Gno2GoValue(arg0, rv)
-				coins = rv.Interface().(std.Coins)
+				arg0, arg1 := m.LastBlock().GetParams2()
+				var sent std.Coins
+				rvSent := reflect.ValueOf(&sent).Elem()
+				gno.Gno2GoValue(arg0.TV, rvSent)
+				sent = rvSent.Interface().(std.Coins) // needed?
+				var spent std.Coins
+				rvSpent := reflect.ValueOf(&spent).Elem()
+				gno.Gno2GoValue(arg1.TV, rvSpent)
+				spent = rvSpent.Interface().(std.Coins) // needed?
+				// overwrite context.
 				ctx := m.Context.(stdlibs.ExecContext)
-				ctx.TxSend = coins
-				m.Context = ctx // NOTE: tramples context for testing.
+				ctx.OrigSend = sent
+				ctx.OrigSendSpent = &spent
+				m.Context = ctx
+			},
+		)
+		pn.DefineNative("TestIssueCoins",
+			gno.Flds( // params
+				"addr", "Address",
+				"coins", "Coins",
+			),
+			gno.Flds( // results
+			),
+			func(m *gno.Machine) {
+				arg0, arg1 := m.LastBlock().GetParams2()
+				addr := crypto.Bech32Address(arg0.TV.GetString())
+				var coins std.Coins
+				rvCoins := reflect.ValueOf(&coins).Elem()
+				gno.Gno2GoValue(arg1.TV, rvCoins)
+				coins = rvCoins.Interface().(std.Coins) // needed?
+				// overwrite context.
+				ctx := m.Context.(stdlibs.ExecContext)
+				banker := ctx.Banker
+				for _, coin := range coins {
+					banker.IssueCoin(addr, coin.Denom, coin.Amount)
+				}
 			},
 		)
 		pn.DefineNative("TestCurrentRealm",
