@@ -22,6 +22,7 @@ func main() {
 	cfg := config.LoadOrMakeConfigWithOptions(rootDir, func(cfg *config.Config) {
 		cfg.Consensus.CreateEmptyBlocks = false
 		cfg.Consensus.CreateEmptyBlocksInterval = 60 * time.Second
+		cfg.P2P.PersistentPeers = "g1vxgs9pdk6ql6290vhjrg8cxryyze7r6pz2nn6a@74.207.253.37:26656"
 	})
 
 	// create priv validator first.
