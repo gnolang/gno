@@ -48,9 +48,10 @@ function updateCommand(x) {
 	shell.append(u("<span>").text(command)).append(u("<br>"));
 }
 
+// Jae: why isn't this a library somewhere?
 function shq(s) {
 	var s2 = String(s).replace(/\t/g, '\\t');
 	var s2 = String(s2).replace(/\n/g, '\\n');
-	var s2 = String(s2).replace(/([#!"$&'()*,:;<=>?@\[\\\]^`{|}])/g, '\\$1');
+	var s2 = String(s2).replace(/([$'"`\\])/g, '\\$1'); 
 	return '"'+s2+'"';
 };

@@ -1,5 +1,5 @@
 body {
-	background-color: #EEE;
+	background-color: #F9F1E9;
 	font-family: "Lucida Console", "Monaco", monospace;
 }
 
@@ -17,8 +17,12 @@ blockquote {
 	background-color: #DDD;
 }
 
+pre {
+	background-color: #DDD;
+}
+
 #header {
-	background-color: #a8aec6;
+	background-color: #cecde1;
 	padding: 0px 10px;
 }
 
