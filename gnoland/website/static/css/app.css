@@ -19,6 +19,11 @@ blockquote {
 	background-color: #DDD;
 }
 
+blockquote blockquote {
+	padding: 0;
+	background-color: #AAA2;
+}
+
 pre {
 	background-color: #DDD;
 }
