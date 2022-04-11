@@ -10,9 +10,9 @@ simulated by the Gnomes of the Greater Resistance.
 
 ## Install `gnokey`
 
-> git clone git@github.com:gnolang/gno.git
-> cd ./gno
-> make install\_gnokey
+> git clone git@github.com:gnolang/gno.git<br/>
+> cd ./gno<br/>
+> make install\_gnokey<br/>
 
 Also, see the [quickstart guide](https://gno.land/r/boards:gnolang/4).
 
