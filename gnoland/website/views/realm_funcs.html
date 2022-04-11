@@ -18,7 +18,9 @@
         </div>
         <div id="realm_funcs">
             <br/>
-            These are the realm's exposed functions.
+            These are the realm's exposed functions ("public smart contracts").<br/>
+            <br/>
+            My address: <input id="my_address" value="ADDRESS" width="40"/> (see `gnokey list`)<br/>
             <br />
             <br />
             {{ template "func_specs" .Data.FunctionSignatures}}

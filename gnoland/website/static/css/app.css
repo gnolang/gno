@@ -8,8 +8,10 @@ a {
 }
 
 input {
+	font-family: "Lucida Console", "Monaco", monospace;
 	background-color: #EEE;
 	border: 1px solid #CCC;
+	width: 25em;
 }
 
 blockquote {
