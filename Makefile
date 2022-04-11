@@ -19,6 +19,10 @@ gnokey:
 	echo "Building gnokey"
 	go build -o build/gnokey ./cmd/gnokey
 
+install_gnokey: gnokey
+	echo "Installing gnokey"
+	go install ./cmd/gnokey
+
 # The faucet (daemon)
 gnofaucet:
 	echo "Building gnofaucet"

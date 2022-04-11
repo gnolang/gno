@@ -10,7 +10,11 @@ simulated by the Gnomes of the Greater Resistance.
 
 ## Install `gnokey`
 
-See the [quickstart guide](https://gno.land/r/boards:gnolang/4).
+> git clone git@github.com:gnolang/gno.git
+> cd ./gno
+> make install\_gnokey
+
+Also, see the [quickstart guide](https://gno.land/r/boards:gnolang/4).
 
 ## Language Features
 
