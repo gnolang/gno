@@ -58,6 +58,7 @@ function updateCommand(x) {
 		args.push("--args");
 		args.push(shq(arg));
 	});
+	args.push("--remote", "gno.land:36657");
 	var command = args.join(" ");
 	shell.append(u("<span>").text(command)).append(u("<br>")).append(u("<br>"));
 
