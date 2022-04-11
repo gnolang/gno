@@ -30,13 +30,13 @@ func main() {
 // # Second Post (title)
 //
 // Body of the second post. (body)
-// - by g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985, [1970-01-01 12:00am (UTC)](/r/boards:test_board/2)
+// - by g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985, [1970-01-01 12:00am (UTC)](/r/boards:test_board/2) [reply](/r/boards?help&__func=CreateReply&bid=1&postid=2)
 //
 // > Reply of the second post
-// > - by g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985, [1970-01-01 12:00am (UTC)](/r/boards:test_board/2#3)
+// > - by g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985, [1970-01-01 12:00am (UTC)](/r/boards:test_board/2#3) [reply](/r/boards?help&__func=CreateReply&bid=1&postid=3)
 //
 // > Second reply of the second post
-// > - by g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985, [1970-01-01 12:00am (UTC)](/r/boards:test_board/2#4)
+// > - by g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985, [1970-01-01 12:00am (UTC)](/r/boards:test_board/2#4) [reply](/r/boards?help&__func=CreateReply&bid=1&postid=4)
 
 // Realm:
 // switchrealm["gno.land/r/boards"]
@@ -49,7 +49,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.vstr",
-//                 "value": "3"
+//                 "value": "0000000003"
 //             }
 //         },
 //         {
@@ -125,7 +125,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.vstr",
-//                 "value": "4"
+//                 "value": "0000000004"
 //             }
 //         },
 //         {
@@ -201,7 +201,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.vstr",
-//                 "value": "4"
+//                 "value": "0000000004"
 //             }
 //         },
 //         {},
@@ -238,7 +238,7 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "3d82383d3eff018a6411a19b7ad1047db702b534",
+//                         "Hash": "1027b5b2211609578a46dd8241aa07d04e434b00",
 //                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:80"
 //                     }
 //                 }
@@ -263,7 +263,7 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "823540fb03e458fa62d69f4bff9ae1e4b614a8ca",
+//                         "Hash": "b2a6eda59e1ba6bf69a410e1c4b906c6d15595bb",
 //                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:84"
 //                     }
 //                 }
@@ -407,7 +407,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.vstr",
-//                 "value": "3"
+//                 "value": "0000000003"
 //             }
 //         },
 //         {
@@ -483,7 +483,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.vstr",
-//                 "value": "4"
+//                 "value": "0000000004"
 //             }
 //         },
 //         {
@@ -559,7 +559,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.vstr",
-//                 "value": "4"
+//                 "value": "0000000004"
 //             }
 //         },
 //         {},
@@ -596,7 +596,7 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "076962a5a65a46b2f4d9a19044503e4ee81310fd",
+//                         "Hash": "6a6ed28f4d1db8b7bb9e44ea5c094b29ed3f4b02",
 //                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:82"
 //                     }
 //                 }
@@ -621,7 +621,7 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "b9866790c4a78da1f53004c5d58684dc5e06134f",
+//                         "Hash": "c9dad8cb9d0ce381fbfef1b3738385d36ea979ff",
 //                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:87"
 //                     }
 //                 }
@@ -693,7 +693,7 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "f580f434ed70774d1bf060a62c412eb0542f3fad",
+//                         "Hash": "5d6955444233de20d2860a94a4a98cb9826bbf4f",
 //                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:77"
 //                     }
 //                 }
@@ -803,7 +803,7 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "dd9ae8642545f0f412e364157021b1c46952ef38",
+//                         "Hash": "49040fae4f9f8f4a27a362cf07f6755c80b05da0",
 //                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:83"
 //                     }
 //                 }
@@ -828,7 +828,7 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "9dca6773c83d1f9a3eb6fd49b124f19a0b36397f",
+//                         "Hash": "14ff1264ad7901f3365b7eaf90f8247b627bab77",
 //                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:86"
 //                     }
 //                 }

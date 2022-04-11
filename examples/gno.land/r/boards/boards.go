@@ -38,7 +38,7 @@ func CreateBoard(name string) BoardID {
 	caller := std.GetOrigCaller()
 	url := "/r/boards:" + name
 	board := newBoard(bid, url, name, caller)
-	bidkey := strconv.Itoa(int(bid))
+	bidkey := boardIDKey(bid)
 	gBoards, _ = gBoards.Set(bidkey, board)
 	gBoardsByName, _ = gBoardsByName.Set(name, board)
 	return board.id
@@ -173,7 +173,7 @@ func (board *Board) IsPrivate() bool {
 }
 
 func (board *Board) GetPost(pid PostID) *Post {
-	pidkey := strconv.Itoa(int(pid))
+	pidkey := postIDKey(pid)
 	_, postI, exists := board.posts.Get(pidkey)
 	if !exists {
 		return nil
@@ -183,7 +183,7 @@ func (board *Board) GetPost(pid PostID) *Post {
 
 func (board *Board) AddPost(creator std.Address, title string, body string) *Post {
 	pid := board.incGetPostID()
-	pidkey := strconv.Itoa(int(pid))
+	pidkey := postIDKey(pid)
 	post := &Post{
 		board:     board,
 		id:        pid,
@@ -247,7 +247,7 @@ func (post *Post) GetPostID() PostID {
 func (post *Post) AddReply(creator std.Address, body string) *Post {
 	board := post.board
 	pid := board.incGetPostID()
-	pidkey := strconv.Itoa(int(pid))
+	pidkey := postIDKey(pid)
 	reply := &Post{
 		board:     board,
 		id:        pid,
@@ -269,7 +269,7 @@ func (post *Post) AddReply(creator std.Address, body string) *Post {
 
 func (post *Post) AddRepostTo(creator std.Address, title, body string, dst *Board) *Post {
 	pid := dst.incGetPostID()
-	pidkey := strconv.Itoa(int(pid))
+	pidkey := postIDKey(pid)
 	repost := &Post{
 		board:       dst,
 		id:          pid,
@@ -283,22 +283,14 @@ func (post *Post) AddRepostTo(creator std.Address, title, body string, dst *Boar
 	}
 	dst.posts, _ = dst.posts.Set(pidkey, repost)
 	if !dst.IsPrivate() {
-		bidkey := strconv.Itoa(int(dst.id))
+		bidkey := boardIDKey(dst.id)
 		post.reposts, _ = post.reposts.Set(bidkey, pid)
 	}
 	return repost
 }
 
 func (post *Post) GetSummary() string {
-	lines := strings.SplitN(post.body, "\n", 2)
-	line := lines[0]
-	if len(line) > 80 {
-		line = line[:77] + "..."
-	} else if len(lines) > 1 {
-		// len(line) <= 80
-		line = line + "..."
-	}
-	return line
+	return summaryOf(post.body, 80)
 }
 
 func (post *Post) GetURL() string {
@@ -309,10 +301,16 @@ func (post *Post) GetURL() string {
 	}
 }
 
+func (post *Post) GetReplyFormURL() string {
+	return "/r/boards?help&__func=CreateReply" +
+		"&bid=" + strconv.Itoa(int(post.board.id)) +
+		"&postid=" + strconv.Itoa(int(post.id))
+}
+
 func (post *Post) RenderSummary() string {
 	str := ""
 	if post.title != "" {
-		str += "## " + post.title + "\n"
+		str += "## " + summaryOf(post.title, 80) + "\n"
 		str += "\n"
 	}
 	str += post.GetSummary() + "\n"
@@ -331,7 +329,8 @@ func (post *Post) Render(indent string) string {
 	}
 	str += indentBody(indent, post.body) + "\n" // TODO: indent body lines.
 	str += indent + "- by " + post.creator.String() + ", "
-	str += "[" + std.FormatTimestamp(post.createdAt, "2006-01-02 3:04pm (MST)") + "](" + post.GetURL() + ")\n"
+	str += "[" + std.FormatTimestamp(post.createdAt, "2006-01-02 3:04pm (MST)") + "](" + post.GetURL() + ")"
+	str += " [reply](" + post.GetReplyFormURL() + ")" + "\n"
 	if post.replies.Size() > 0 {
 		post.replies.Iterate("", "", func(n *avl.Tree) bool {
 			str += "\n"
@@ -347,7 +346,7 @@ func (post *Post) Render(indent string) string {
 // XXX ensure these cannot be called from public.
 
 func getBoard(bid BoardID) *Board {
-	bidkey := strconv.Itoa(int(bid))
+	bidkey := boardIDKey(bid)
 	_, board_, exists := gBoards.Get(bidkey)
 	if !exists {
 		return nil
@@ -369,6 +368,23 @@ func padLeft(str string, length int) string {
 	}
 }
 
+func padZero(u64 uint64, length int) string {
+	str := strconv.Itoa(int(u64))
+	if len(str) >= length {
+		return str
+	} else {
+		return strings.Repeat("0", length-len(str)) + str
+	}
+}
+
+func boardIDKey(bid BoardID) string {
+	return padZero(uint64(bid), 10)
+}
+
+func postIDKey(pid PostID) string {
+	return padZero(uint64(pid), 10)
+}
+
 func indentBody(indent string, body string) string {
 	lines := strings.Split(body, "\n")
 	res := ""
@@ -379,4 +395,17 @@ func indentBody(indent string, body string) string {
 		res += indent + line
 	}
 	return res
+}
+
+// NOTE: length must be greater than 3.
+func summaryOf(str string, length int) string {
+	lines := strings.SplitN(str, "\n", 2)
+	line := lines[0]
+	if len(line) > length {
+		line = line[:(length-3)] + "..."
+	} else if len(lines) > 1 {
+		// len(line) <= 80
+		line = line + "..."
+	}
+	return line
 }
