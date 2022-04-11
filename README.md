@@ -10,7 +10,7 @@ simulated by the Gnomes of the Greater Resistance.
 
 ## Install `gnokey`
 
-See the [quickstart guide](https://gno.land/r/boards:gnolang/8).
+See the [quickstart guide](https://gno.land/r/boards:gnolang/4).
 
 ## Language Features
 
