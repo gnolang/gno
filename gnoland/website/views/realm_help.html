@@ -5,25 +5,25 @@
         <link rel="stylesheet" href="/static/css/app.css"/>
         <script src="/static/js/umbrella.min.js"></script>
         <script src="/static/js/marked.min.js"></script>
-        <script src="/static/js/realm_funcs.js"></script>
+        <script src="/static/js/realm_help.js"></script>
     </head>
     <body onload="main()">
         <div id="data" data-realm-path="{{ .Data.RealmPath }}"/>
         <div id="header">
             <a id="logo" href="/">GNO.LAND</a>
             <span id="logo_path">
-                <a href="{{ .Data.DirPath }}">{{ .Data.DirPath }}</a>?funcs
+                <a href="{{ .Data.DirPath }}">{{ .Data.DirPath }}</a>?help
             </span>
             {{ template "header_buttons" }}
         </div>
-        <div id="realm_funcs">
+        <div id="realm_help">
             <br/>
             These are the realm's exposed functions ("public smart contracts").<br/>
             <br/>
             My address: <input id="my_address" value="ADDRESS" width="40"/> (see `gnokey list`)<br/>
             <br />
             <br />
-            {{ template "func_specs" .Data.FunctionSignatures}}
+            {{ template "func_specs" . }}
         </div>
     </body>
 </html>
@@ -31,7 +31,23 @@
 
 {{ define "func_specs" }}
 <div class="func_specs">
-    {{ range . }}{{ template "func_spec" . }}{{ end }}
+    {{ $funcName := .Data.FuncName }}
+    {{ $found := false }}
+    {{ if eq $funcName "" }}
+        {{ range .Data.FunctionSignatures }}
+            {{ template "func_spec" . }}
+        {{ end }}
+    {{ else }}
+        {{ range .Data.FunctionSignatures }}
+            {{ if eq .FuncName $funcName }}
+                {{ $found = true }}
+                {{ template "func_spec" . }}
+            {{ end }}
+        {{ end }}
+        {{ if not $found }}
+            {{ $funcName }} not found.
+        {{ end }}
+    {{ end }}
 </div>
 {{ end }}
 
@@ -74,7 +90,7 @@
         {{ .Name }}
     </th>
     <td class="func_param_value">
-        <input type="text" />
+        <input type="text" value="{{ .Value }}"/>
     </td>
     <td class="func_param_type">
         {{ .Type }}

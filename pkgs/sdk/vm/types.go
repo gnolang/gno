@@ -11,8 +11,9 @@ type FunctionSignature struct {
 }
 
 type NamedType struct {
-	Name string
-	Type string
+	Name  string
+	Type  string
+	Value string
 }
 
 type FunctionSignatures []FunctionSignature

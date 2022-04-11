@@ -48,7 +48,6 @@ func main() {
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*}/{filename:.*}", handlerRealmFile(app))
 	app.Router.Handle("/p/{filepath:.*}", handlerPackageFile(app))
 	app.Router.Handle("/static/{path:.+}", handlerStaticFile(app))
-	// funcs/{rlmname:[a-z][a-z0-9_]*}", handlerGetFunctions(app))
 
 	fmt.Printf("Running on http://%s\n", flags.bindAddr)
 	err := http.ListenAndServe(flags.bindAddr, app.Router)
@@ -75,9 +74,10 @@ func handlerRealmMain(app gotuna.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		rlmpath := "gno.land/r/" + vars["rlmname"]
-		_, ok := r.URL.Query()["funcs"]
-		if ok {
+		query := r.URL.Query()
+		if query.Has("help") {
 			// Render function helper.
+			funcName := query.Get("__func")
 			qpath := "vm/qfuncs"
 			data := []byte(rlmpath)
 			res, err := makeRequest(qpath, data)
@@ -85,14 +85,24 @@ func handlerRealmMain(app gotuna.App) http.Handler {
 				writeError(w, err)
 				return
 			}
-			// Render template.
 			var fsigs vm.FunctionSignatures
 			amino.MustUnmarshalJSON(res, &fsigs)
+			// Fill fsigs with query parameters.
+			for i := range fsigs {
+				fsig := &(fsigs[i])
+				for j := range fsig.Params {
+					param := &(fsig.Params[j])
+					value := query.Get(param.Name)
+					param.Value = value
+				}
+			}
+			// Render template.
 			tmpl := app.NewTemplatingEngine()
+			tmpl.Set("FuncName", funcName)
 			tmpl.Set("RealmPath", rlmpath)
 			tmpl.Set("DirPath", pathOf(rlmpath))
 			tmpl.Set("FunctionSignatures", fsigs)
-			tmpl.Render(w, r, "realm_funcs.html", "header.html")
+			tmpl.Render(w, r, "realm_help.html", "header.html")
 		} else {
 			// Ensure realm exists. TODO optimize.
 			qpath := "vm/qfile"
