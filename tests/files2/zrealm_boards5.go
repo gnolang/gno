@@ -26,11 +26,11 @@ func main() {
 // # Second Post (title)
 //
 // Body of the second post. (body)
-// - by g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985, [1970-01-01 12:00am (UTC)](/r/boards:test_board/2) [reply](/r/boards?help&__func=CreateReply&bid=1&postid=2)
+// - by g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985, [1970-01-01 12:00am (UTC)](/r/boards:test_board/2) [reply](/r/boards?help&__func=CreateReply&bid=1&postid=2&body.type=textarea)
 //
 // > Reply of the second post
-// > - by g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985, [1970-01-01 12:00am (UTC)](/r/boards:test_board/2#3) [reply](/r/boards?help&__func=CreateReply&bid=1&postid=3)
+// > - by g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985, [1970-01-01 12:00am (UTC)](/r/boards:test_board/2#3) [reply](/r/boards?help&__func=CreateReply&bid=1&postid=3&body.type=textarea)
 //
 // > Second reply of the second post
 // >
-// > - by g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985, [1970-01-01 12:00am (UTC)](/r/boards:test_board/2#4) [reply](/r/boards?help&__func=CreateReply&bid=1&postid=4)
+// > - by g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985, [1970-01-01 12:00am (UTC)](/r/boards:test_board/2#4) [reply](/r/boards?help&__func=CreateReply&bid=1&postid=4&body.type=textarea)

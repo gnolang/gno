@@ -304,7 +304,8 @@ func (post *Post) GetURL() string {
 func (post *Post) GetReplyFormURL() string {
 	return "/r/boards?help&__func=CreateReply" +
 		"&bid=" + strconv.Itoa(int(post.board.id)) +
-		"&postid=" + strconv.Itoa(int(post.id))
+		"&postid=" + strconv.Itoa(int(post.id)) +
+		"&body.type=textarea"
 }
 
 func (post *Post) RenderSummary() string {
