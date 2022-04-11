@@ -51,7 +51,7 @@ func TestCreateLedger(t *testing.T) {
 	assert.Equal(t, "cosmospub1addwnpepqdszcr95mrqqs8lw099aa9h8h906zmet22pmwe9vquzcgvnm93eqygufdlv", pubs)
 
 	// Check that restoring the key gets the same results
-	restoredKey, err := kb.Get("some_account")
+	restoredKey, err := kb.GetByName("some_account")
 	assert.NotNil(t, restoredKey)
 	assert.Equal(t, "some_account", restoredKey.GetName())
 	assert.Equal(t, TypeLedger, restoredKey.GetType())
@@ -81,7 +81,7 @@ func TestKeyManagement(t *testing.T) {
 	assert.Empty(t, l)
 
 	// create some keys
-	_, err = cstore.Get(n1)
+	_, err = cstore.GetByName(n1)
 	require.Error(t, err)
 	i, err := cstore.CreateAccount(n1, mn1, bip39Passphrase, p1, 0, 0)
 	require.NoError(t, err)
@@ -90,9 +90,9 @@ func TestKeyManagement(t *testing.T) {
 	require.NoError(t, err)
 
 	// we can get these keys
-	i2, err := cstore.Get(n2)
+	i2, err := cstore.GetByName(n2)
 	require.NoError(t, err)
-	_, err = cstore.Get(n3)
+	_, err = cstore.GetByName(n3)
 	require.NotNil(t, err)
 	_, err = cstore.GetByAddress(toAddr(i2))
 	require.NoError(t, err)
@@ -118,7 +118,7 @@ func TestKeyManagement(t *testing.T) {
 	keyS, err = cstore.List()
 	require.NoError(t, err)
 	require.Equal(t, 1, len(keyS))
-	_, err = cstore.Get(n1)
+	_, err = cstore.GetByName(n1)
 	require.Error(t, err)
 
 	// create an offline key
@@ -167,7 +167,7 @@ func TestSignVerify(t *testing.T) {
 	armor, err := cstore.ExportPubKey(n2)
 	require.Nil(t, err)
 	cstore.ImportPubKey(n3, armor)
-	i3, err := cstore.Get(n3)
+	i3, err := cstore.GetByName(n3)
 	require.NoError(t, err)
 	require.Equal(t, i3.GetName(), n3)
 
@@ -242,7 +242,7 @@ func TestExportImport(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, info.GetName(), "john")
 
-	john, err := cstore.Get("john")
+	john, err := cstore.GetByName("john")
 	require.NoError(t, err)
 	require.Equal(t, info.GetName(), "john")
 	johnAddr := info.GetPubKey().Address()
@@ -253,7 +253,7 @@ func TestExportImport(t *testing.T) {
 	err = cstore.Import("john2", armor)
 	require.NoError(t, err)
 
-	john2, err := cstore.Get("john2")
+	john2, err := cstore.GetByName("john2")
 	require.NoError(t, err)
 
 	require.Equal(t, john.GetPubKey().Address(), johnAddr)
@@ -275,7 +275,7 @@ func TestExportImportPubKey(t *testing.T) {
 	require.NotEqual(t, info, "")
 	require.Equal(t, info.GetName(), "john")
 	addr := info.GetPubKey().Address()
-	john, err := cstore.Get("john")
+	john, err := cstore.GetByName("john")
 	require.NoError(t, err)
 	require.Equal(t, john.GetName(), "john")
 	require.Equal(t, john.GetPubKey().Address(), addr)
@@ -287,12 +287,12 @@ func TestExportImportPubKey(t *testing.T) {
 	err = cstore.ImportPubKey("john-pubkey-only", armor)
 	require.NoError(t, err)
 	// Ensure consistency
-	john2, err := cstore.Get("john-pubkey-only")
+	john2, err := cstore.GetByName("john-pubkey-only")
 	require.NoError(t, err)
 	// Compare the public keys
 	require.True(t, john.GetPubKey().Equals(john2.GetPubKey()))
 	// Ensure the original key hasn't changed
-	john, err = cstore.Get("john")
+	john, err = cstore.GetByName("john")
 	require.NoError(t, err)
 	require.Equal(t, john.GetPubKey().Address(), addr)
 	require.Equal(t, john.GetName(), "john")
@@ -369,7 +369,7 @@ func TestSeedPhrase(t *testing.T) {
 	// now, let us delete this key
 	err = cstore.Delete(n1, p1, false)
 	require.Nil(t, err, "%+v", err)
-	_, err = cstore.Get(n1)
+	_, err = cstore.GetByName(n1)
 	require.NotNil(t, err)
 }
 
@@ -406,7 +406,7 @@ func ExampleNew() {
 	}
 
 	// and we can validate the signature with publicly available info
-	binfo, _ := cstore.Get("Bob")
+	binfo, _ := cstore.GetByName("Bob")
 	if !binfo.GetPubKey().Equals(bob.GetPubKey()) {
 		fmt.Println("Get and Create return different keys")
 	}

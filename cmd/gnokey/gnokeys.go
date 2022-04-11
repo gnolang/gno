@@ -100,17 +100,17 @@ func makeAddPackageTxApp(cmd *command.Command, args []string, iopts interface{})
 		return errors.New("pkgdir not specified")
 	}
 	if len(args) != 1 {
-		cmd.ErrPrintfln("Usage: addpkg <keyname>")
+		cmd.ErrPrintfln("Usage: addpkg <keyname or address>")
 		return errors.New("invalid args")
 	}
 
 	// read account pubkey.
-	name := args[0]
+	nameOrBech32 := args[0]
 	kb, err := keys.NewKeyBaseFromDir(opts.Home)
 	if err != nil {
 		return err
 	}
-	info, err := kb.Get(name)
+	info, err := kb.GetByNameOrAddress(nameOrBech32)
 	if err != nil {
 		return err
 	}
@@ -184,7 +184,7 @@ func makeCallTxApp(cmd *command.Command, args []string, iopts interface{}) error
 		return errors.New("func not specified")
 	}
 	if len(args) != 1 {
-		cmd.ErrPrintfln("Usage: exec <keyname>")
+		cmd.ErrPrintfln("Usage: call <keyname or address>")
 		return errors.New("invalid args")
 	}
 	if opts.GasWanted == 0 {
@@ -198,12 +198,12 @@ func makeCallTxApp(cmd *command.Command, args []string, iopts interface{}) error
 	fnc := opts.Func
 
 	// read account pubkey.
-	name := args[0]
+	nameOrBech32 := args[0]
 	kb, err := keys.NewKeyBaseFromDir(opts.Home)
 	if err != nil {
 		return err
 	}
-	info, err := kb.Get(name)
+	info, err := kb.GetByNameOrAddress(nameOrBech32)
 	if err != nil {
 		return err
 	}
@@ -251,12 +251,12 @@ func makeCallTxApp(cmd *command.Command, args []string, iopts interface{}) error
 
 func signAndBroadcast(cmd *command.Command, args []string, tx std.Tx, baseopts client.BaseOptions, txopts BaseTxOptions) error {
 	// query account
-	name := args[0]
+	nameOrBech32 := args[0]
 	kb, err := keys.NewKeyBaseFromDir(baseopts.Home)
 	if err != nil {
 		return err
 	}
-	info, err := kb.Get(name)
+	info, err := kb.GetByNameOrAddress(nameOrBech32)
 	if err != nil {
 		return err
 	}
@@ -283,7 +283,7 @@ func signAndBroadcast(cmd *command.Command, args []string, tx std.Tx, baseopts c
 		Sequence:      &sequence,
 		AccountNumber: &accountNumber,
 		ChainID:       txopts.ChainID,
-		Name:          name,
+		NameOrBech32:  nameOrBech32,
 		TxJson:        amino.MustMarshalJSON(tx),
 	}
 	if baseopts.Quiet {
@@ -340,7 +340,7 @@ var defaultMakeSendTxOptions = makeSendTxOptions{
 func makeSendTxApp(cmd *command.Command, args []string, iopts interface{}) error {
 	opts := iopts.(makeSendTxOptions)
 	if len(args) != 1 {
-		cmd.ErrPrintfln("Usage: exec <keyname>")
+		cmd.ErrPrintfln("Usage: send <keyname or address>")
 		return errors.New("invalid args")
 	}
 	if opts.GasWanted == 0 {
@@ -357,12 +357,12 @@ func makeSendTxApp(cmd *command.Command, args []string, iopts interface{}) error
 	}
 
 	// read account pubkey.
-	name := args[0]
+	nameOrBech32 := args[0]
 	kb, err := keys.NewKeyBaseFromDir(opts.Home)
 	if err != nil {
 		return err
 	}
-	info, err := kb.Get(name)
+	info, err := kb.GetByNameOrAddress(nameOrBech32)
 	if err != nil {
 		return err
 	}

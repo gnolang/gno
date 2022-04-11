@@ -89,7 +89,7 @@ func (cmd *Command) printHelpFromDefaults(rv reflect.Value) {
 		ffn := rtf.Tag.Get("flag")
 		if rtf.Anonymous {
 			continue
-		} else if ffn == "" {
+		} else if ffn == "" || ffn == "-" {
 			// ignore fields with no flags field.
 		} else {
 			def := ""
