@@ -222,6 +222,13 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			MaxCycles: 10 * 1000 * 1000, // 10M cycles // XXX
 		})
 	m.SetActivePackage(mpv)
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("VM call panic: %v\n%s\n",
+				r, m.String())
+			panic(r)
+		}
+	}()
 	rtvs := m.Eval(xn)
 	fmt.Println("CPUCYCLES call", m.Cycles)
 	for i, rtv := range rtvs {

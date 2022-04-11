@@ -52,11 +52,12 @@ func CreatePost(bid BoardID, title string, body string) PostID {
 	return post.id
 }
 
-func CreateReply(bid BoardID, postid PostID, body string) PostID {
+func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
 	std.AssertOriginCall()
 	caller := std.GetOrigCaller()
 	board := getBoard(bid)
-	post := board.GetPost(postid)
+	thread := board.GetPost(threadid)
+	post := thread.GetThreadPost(postid)
 	reply := post.AddReply(caller, body)
 	return reply.id
 }
@@ -267,6 +268,20 @@ func (post *Post) AddReply(creator std.Address, body string) *Post {
 	return reply
 }
 
+func (thread *Post) GetThreadPost(pid PostID) *Post {
+	if pid == thread.id {
+		return thread
+	} else {
+		pidkey := postIDKey(pid)
+		_, replyI, ok := thread.repliesAll.Get(pidkey)
+		if !ok {
+			return nil
+		} else {
+			return replyI.(*Post)
+		}
+	}
+}
+
 func (post *Post) AddRepostTo(creator std.Address, title, body string, dst *Board) *Post {
 	pid := dst.incGetPostID()
 	pidkey := postIDKey(pid)
@@ -304,6 +319,7 @@ func (post *Post) GetURL() string {
 func (post *Post) GetReplyFormURL() string {
 	return "/r/boards?help&__func=CreateReply" +
 		"&bid=" + strconv.Itoa(int(post.board.id)) +
+		"&threadid=" + strconv.Itoa(int(post.threadID)) +
 		"&postid=" + strconv.Itoa(int(post.id)) +
 		"&body.type=textarea"
 }

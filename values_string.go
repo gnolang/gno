@@ -216,7 +216,11 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 			panic("should not happen")
 		}
 	case *PointerType:
-		return tv.V.(PointerValue).String()
+		if tv.V == nil {
+			return "invalid-pointer"
+		} else {
+			return tv.V.(PointerValue).String()
+		}
 	case *ArrayType:
 		return tv.V.(*ArrayValue).String()
 	case *SliceType:
