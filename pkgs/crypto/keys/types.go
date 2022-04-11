@@ -13,7 +13,8 @@ import (
 type Keybase interface {
 	// CRUD on the keystore
 	List() ([]Info, error)
-	Get(name string) (Info, error)
+	GetByNameOrAddress(nameOrBech32 string) (Info, error)
+	GetByName(name string) (Info, error)
 	GetByAddress(address crypto.Address) (Info, error)
 	Delete(name, passphrase string, skipPass bool) error
 

@@ -50,7 +50,7 @@ func Test_deleteApp(t *testing.T) {
 	require.Equal(t, err.Error(), "EOF")
 
 	{
-		_, err = kb.Get(fakeKeyName1)
+		_, err = kb.GetByName(fakeKeyName1)
 		require.NoError(t, err)
 
 		// Now there is a blank password followed by a confirmation.
@@ -59,7 +59,7 @@ func Test_deleteApp(t *testing.T) {
 		err = deleteApp(cmd, args, opts)
 		require.NoError(t, err)
 
-		_, err = kb.Get(fakeKeyName1)
+		_, err = kb.GetByName(fakeKeyName1)
 		require.Error(t, err) // Key1 is gone
 	}
 
@@ -71,7 +71,7 @@ func Test_deleteApp(t *testing.T) {
 		Yes: true,
 	}
 
-	_, err = kb.Get(fakeKeyName2)
+	_, err = kb.GetByName(fakeKeyName2)
 	require.NoError(t, err)
 
 	// Run again with blank password followed by eof.
@@ -79,7 +79,7 @@ func Test_deleteApp(t *testing.T) {
 	args = []string{fakeKeyName2}
 	err = deleteApp(cmd, args, opts)
 	require.NoError(t, err)
-	_, err = kb.Get(fakeKeyName2)
+	_, err = kb.GetByName(fakeKeyName2)
 	require.Error(t, err) // Key2 is gone
 
 	// TODO: Write another case for !keys.Local

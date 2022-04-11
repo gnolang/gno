@@ -35,14 +35,24 @@ func (lkb lazyKeybase) List() ([]Info, error) {
 	return NewDBKeybase(db).List()
 }
 
-func (lkb lazyKeybase) Get(name string) (Info, error) {
+func (lkb lazyKeybase) GetByNameOrAddress(nameOrBech32 string) (Info, error) {
 	db, err := dbm.NewGoLevelDB(lkb.name, lkb.dir)
 	if err != nil {
 		return nil, err
 	}
 	defer db.Close()
 
-	return NewDBKeybase(db).Get(name)
+	return NewDBKeybase(db).GetByNameOrAddress(nameOrBech32)
+}
+
+func (lkb lazyKeybase) GetByName(name string) (Info, error) {
+	db, err := dbm.NewGoLevelDB(lkb.name, lkb.dir)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	return NewDBKeybase(db).GetByName(name)
 }
 
 func (lkb lazyKeybase) GetByAddress(address crypto.Address) (Info, error) {

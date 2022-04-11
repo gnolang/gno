@@ -20,18 +20,18 @@ func deleteApp(cmd *command.Command, args []string, iopts interface{}) error {
 	var opts DeleteOptions = iopts.(DeleteOptions)
 
 	if len(args) != 1 {
-		cmd.ErrPrintfln("Usage: delete <keyname>")
+		cmd.ErrPrintfln("Usage: delete <keyname or address>")
 		return errors.New("invalid args")
 	}
 
-	name := args[0]
+	nameOrBech32 := args[0]
 
 	kb, err := keys.NewKeyBaseFromDir(opts.Home)
 	if err != nil {
 		return err
 	}
 
-	info, err := kb.Get(name)
+	info, err := kb.GetByNameOrAddress(nameOrBech32)
 	if err != nil {
 		return err
 	}
@@ -42,7 +42,7 @@ func deleteApp(cmd *command.Command, args []string, iopts interface{}) error {
 				return err
 			}
 		}
-		if err := kb.Delete(name, "", true); err != nil {
+		if err := kb.Delete(nameOrBech32, "", true); err != nil {
 			return err
 		}
 		cmd.ErrPrintln("Public key reference deleted")
@@ -59,7 +59,7 @@ func deleteApp(cmd *command.Command, args []string, iopts interface{}) error {
 		}
 	}
 
-	err = kb.Delete(name, oldpass, skipPass)
+	err = kb.Delete(nameOrBech32, oldpass, skipPass)
 	if err != nil {
 		return err
 	}

@@ -20,9 +20,9 @@ type SignOptions struct {
 	ShowSignBytes bool    `flag:"show-signbytes" help:"show sign bytes and quit"`
 
 	// internal flags, when called programatically
-	Name   string `flag:"-"`
-	TxJson []byte `flag:"-"`
-	Pass   string `flag:"-"`
+	NameOrBech32 string `flag:"-"`
+	TxJson       []byte `flag:"-"`
+	Pass         string `flag:"-"`
 }
 
 var DefaultSignOptions = SignOptions{
@@ -35,10 +35,10 @@ func signApp(cmd *command.Command, args []string, iopts interface{}) error {
 	var err error
 
 	if len(args) != 1 {
-		cmd.ErrPrintfln("Usage: sign <keyname>")
+		cmd.ErrPrintfln("Usage: sign <keyname or address>")
 		return errors.New("invalid args")
 	}
-	opts.Name = args[0]
+	opts.NameOrBech32 = args[0]
 
 	// read tx to sign
 	txpath := opts.TxPath
@@ -129,7 +129,7 @@ func SignHandler(opts SignOptions) (*std.Tx, error) {
 		return nil, nil
 	}
 
-	sig, pub, err := kb.Sign(opts.Name, opts.Pass, signbz)
+	sig, pub, err := kb.Sign(opts.NameOrBech32, opts.Pass, signbz)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +147,7 @@ func SignHandler(opts SignOptions) (*std.Tx, error) {
 	}
 	if !found {
 		return nil, errors.New("addr %v (%s) not in signer set",
-			addr, opts.Name)
+			addr, opts.NameOrBech32)
 	}
 
 	return &tx, nil

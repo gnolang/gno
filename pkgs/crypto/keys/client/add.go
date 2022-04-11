@@ -68,7 +68,7 @@ func addApp(cmd *command.Command, args []string, iopts interface{}) error {
 			return err
 		}
 
-		_, err = kb.Get(name)
+		_, err = kb.GetByName(name)
 		if err == nil {
 			// account exists, ask for user confirmation
 			response, err2 := cmd.GetConfirmation(fmt.Sprintf("Override the existing name %s", name))
@@ -90,7 +90,7 @@ func addApp(cmd *command.Command, args []string, iopts interface{}) error {
 			}
 
 			for _, keyname := range multisigKeys {
-				k, err := kb.Get(keyname)
+				k, err := kb.GetByName(keyname)
 				if err != nil {
 					return err
 				}
