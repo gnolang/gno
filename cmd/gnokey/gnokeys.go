@@ -288,6 +288,7 @@ func signAndBroadcast(cmd *command.Command, args []string, tx std.Tx, baseopts c
 		NameOrBech32:  nameOrBech32,
 		TxJson:        amino.MustMarshalJSON(tx),
 	}
+	sopts.Home = baseopts.Home
 	if baseopts.Quiet {
 		sopts.Pass, err = cmd.GetPassword("")
 	} else {
