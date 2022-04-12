@@ -1,6 +1,6 @@
 body {
 	background-color: #F9F1E9;
-	font-family: "Lucida Console", "Monaco", monospace;
+	font-family: "Helvetica", "Arial", "sans-serif";
 }
 
 a {
@@ -30,7 +30,7 @@ pre {
 
 #header {
 	background-color: #cecde1;
-	padding: 0px 10px;
+	padding: 10px 10px 10px 10px;
 }
 
 #logo {
@@ -38,6 +38,8 @@ pre {
 	font-weight: bold;
 	font-size: 32px;
 	text-decoration: none;
+	position: relative;
+	top: 4px;
 }
 
 #logo_path {
@@ -55,7 +57,6 @@ pre {
 #header_buttons {
 	float: right;
 	position: relative;
-	top: 5px;
 }
 
 /*****************************************/
