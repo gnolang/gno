@@ -226,7 +226,7 @@ func displayAddress(input std.Address) string {
 	if user == nil {
 		return input.String()
 	}
-	return user.Name() + "(" + input.String() + ")"
+	return user.Name() + " (" + input.String() + ")"
 }
 
 //----------------------------------------
