@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/gnolang/gno/pkgs/bft/abci/types"
+	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
 	abciver "github.com/gnolang/gno/pkgs/bft/abci/version"
 	dbm "github.com/gnolang/gno/pkgs/db"
 )

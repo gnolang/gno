@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/gnolang/gno/pkgs/amino/pkg"
+	"github.com/stretchr/testify/assert"
 )
 
 type FooList []*Foo

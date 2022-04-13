@@ -2,7 +2,7 @@ package types
 
 import (
 	"github.com/gnolang/gno/pkgs/amino"
-	"github.com/gnolang/gno/pkgs/bft/abci/types"
+	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
 )
 
 var Package = amino.RegisterPackage(amino.NewPackage(

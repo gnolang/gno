@@ -1,9 +1,9 @@
 package merkle
 
 import (
-	proto "google.golang.org/protobuf/proto"
 	amino "github.com/gnolang/gno/pkgs/amino"
 	merklepb "github.com/gnolang/gno/pkgs/crypto/merkle/pb"
+	proto "google.golang.org/protobuf/proto"
 )
 
 func (goo ProofOp) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {

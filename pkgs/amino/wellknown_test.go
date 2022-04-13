@@ -3,9 +3,9 @@ package amino_test
 import (
 	"testing"
 
-	"github.com/jaekwon/testify/assert"
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/amino/tests"
+	"github.com/jaekwon/testify/assert"
 )
 
 func TestAnyWellKnownNative(t *testing.T) {

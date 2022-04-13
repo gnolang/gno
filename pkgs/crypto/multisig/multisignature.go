@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/crypto"
 	"github.com/gnolang/gno/pkgs/crypto/multisig/bitarray"
-	"github.com/gnolang/gno/pkgs/amino"
 )
 
 // Multisignature is used to represent the signature object used in the multisigs.
