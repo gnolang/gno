@@ -28,6 +28,10 @@ func (u *User) Render() string {
 		u.profile + "\n" // XXX make separate page; or quote each line.
 }
 
+func (u User) Name() string         { return u.name }
+func (u User) Profile() string      { return u.profile }
+func (u User) Address() std.Address { return u.address }
+
 //----------------------------------------
 // State
 

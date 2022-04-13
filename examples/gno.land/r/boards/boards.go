@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"gno.land/p/avl"
+	"gno.land/r/users"
 )
 
 //----------------------------------------
@@ -220,6 +221,14 @@ func (board *Board) incGetPostID() PostID {
 	return PostID(board.postsCtr)
 }
 
+func displayAddress(input std.Address) string {
+	user := users.GetUserByAddress(input)
+	if user == nil {
+		return input.String()
+	}
+	return user.Name() + " (" + input.String() + ")"
+}
+
 //----------------------------------------
 // Post
 
@@ -331,7 +340,7 @@ func (post *Post) RenderSummary() string {
 		str += "\n"
 	}
 	str += post.GetSummary() + "\n"
-	str += "- by " + post.creator.String() + ", "
+	str += "- by " + displayAddress(post.creator) + ", "
 	str += "[" + std.FormatTimestamp(post.createdAt, "2006-01-02 3:04pm MST") + "](" + post.GetURL() + ") "
 
 	str += "(" + strconv.Itoa(post.replies.Size()) + " replies)" + "\n"
@@ -345,7 +354,7 @@ func (post *Post) Render(indent string) string {
 		str += indent + "\n"
 	}
 	str += indentBody(indent, post.body) + "\n" // TODO: indent body lines.
-	str += indent + "- by " + post.creator.String() + ", "
+	str += indent + "- by " + displayAddress(post.creator) + ", "
 	str += "[" + std.FormatTimestamp(post.createdAt, "2006-01-02 3:04pm (MST)") + "](" + post.GetURL() + ")"
 	str += " [reply](" + post.GetReplyFormURL() + ")" + "\n"
 	if post.replies.Size() > 0 {
