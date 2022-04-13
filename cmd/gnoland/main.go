@@ -122,7 +122,8 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 			"g1hygx8ga9qakhkczyrzs9drm8j8tu4qds9y5e3r=10000gnot", // @zoynitskiy #94
 			"g1f977l6wxdh3qu60kzl75vx2wmzswu68l03r8su=10000gnot", // @catShaark #92
 			"g1644qje5rx6jsdqfkzmgnfcegx4dxkjh6rwqd69=10000gnot", // @MadafakAvril14th #91
-			"g1mzjajymvmtksdwh3wkrndwj6zls2awl9q83dh6=10000gnot", // @Vanlee #89
+			// NOTE: commented out for account number preservation across chain upgrades.
+			// "g1mzjajymvmtksdwh3wkrndwj6zls2awl9q83dh6=10000gnot", // @Vanlee #89
 			// NOTE: Thanks guys, no more keys through genesis this way though:
 			// going forward we will have a faucet so anyone can get
 			// tokens to pay the spam-prevention tx fee.
