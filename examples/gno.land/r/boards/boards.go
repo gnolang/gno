@@ -350,7 +350,7 @@ func (post *Post) Render(indent string) string {
 	str += " [reply](" + post.GetReplyFormURL() + ")" + "\n"
 	if post.replies.Size() > 0 {
 		post.replies.Iterate("", "", func(n *avl.Tree) bool {
-			str += "\n"
+			str += indent + "\n"
 			str += n.Value().(*Post).Render(indent + "> ")
 			return false
 		})

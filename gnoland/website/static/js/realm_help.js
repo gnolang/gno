@@ -103,6 +103,6 @@ function updateCommand(x) {
 function shq(s) {
 	var s2 = String(s).replace(/\t/g, '\\t');
 	var s2 = String(s2).replace(/\n/g, '\\n');
-	var s2 = String(s2).replace(/([$'"`\\])/g, '\\$1'); 
+	var s2 = String(s2).replace(/([$'"`\\!])/g, '\\$1'); 
 	return '"'+s2+'"';
 };
