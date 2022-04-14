@@ -121,6 +121,11 @@ func handlerRealmMain(app gotuna.App) http.Handler {
 	})
 }
 
+type pathLink struct {
+	URL  string
+	Text string
+}
+
 func handlerRealmRender(app gotuna.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -134,11 +139,22 @@ func handlerRealmRender(app gotuna.App) http.Handler {
 			writeError(w, err)
 			return
 		}
+		// linkify querystr.
+		queryParts := strings.Split(string(querystr), "/")
+		pathLinks := []pathLink{}
+		for i, part := range queryParts {
+			pathLinks = append(pathLinks, pathLink{
+				URL:  "/r/" + rlmname + ":" + strings.Join(queryParts[:i+1], "/"),
+				Text: part,
+			})
+		}
 		// Render template.
 		tmpl := app.NewTemplatingEngine()
+
 		tmpl.Set("RealmName", rlmname)
 		tmpl.Set("RealmPath", rlmpath)
 		tmpl.Set("Query", string(querystr))
+		tmpl.Set("PathLinks", pathLinks)
 		tmpl.Set("Contents", template.HTML(string(res)))
 		tmpl.Render(w, r, "realm_render.html", "header.html")
 	})

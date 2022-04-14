@@ -57,10 +57,15 @@ func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
 	std.AssertOriginCall()
 	caller := std.GetOrigCaller()
 	board := getBoard(bid)
-	thread := board.GetPost(threadid)
-	post := thread.GetThreadPost(postid)
-	reply := post.AddReply(caller, body)
-	return reply.id
+	thread := board.GetThread(threadid)
+	if postid == threadid {
+		reply := thread.AddReply(caller, body)
+		return reply.id
+	} else {
+		post := thread.GetReply(postid)
+		reply := post.AddReply(caller, body)
+		return reply.id
+	}
 }
 
 // If dstBoard is private, does not ping back.
@@ -73,8 +78,8 @@ func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoar
 		panic("cannot repost from a private board")
 	}
 	dst := getBoard(dstBoardID)
-	post := board.GetPost(postid)
-	repost := post.AddRepostTo(caller, title, body, dst)
+	thread := board.GetThread(postid)
+	repost := thread.AddRepostTo(caller, title, body, dst)
 	return repost.id
 }
 
@@ -86,7 +91,7 @@ func RenderBoard(bid BoardID) string {
 	if board == nil {
 		return "missing board"
 	}
-	return board.Render()
+	return board.RenderBoard()
 }
 
 func Render(path string) string {
@@ -101,13 +106,15 @@ func Render(path string) string {
 	}
 	parts := strings.Split(path, "/")
 	if len(parts) == 1 {
+		// /r/boards:BOARD_NAME
 		name := parts[0]
 		_, boardI, exists := gBoardsByName.Get(name)
 		if !exists {
 			return "board does not exist: " + name
 		}
-		return boardI.(*Board).Render()
+		return boardI.(*Board).RenderBoard()
 	} else if len(parts) == 2 {
+		// /r/boards:BOARD_NAME/THREAD_ID
 		name := parts[0]
 		_, boardI, exists := gBoardsByName.Get(name)
 		if !exists {
@@ -115,14 +122,39 @@ func Render(path string) string {
 		}
 		pid, err := strconv.Atoi(parts[1])
 		if err != nil {
-			return "invalid post id: " + parts[1]
+			return "invalid thread id: " + parts[1]
 		}
 		board := boardI.(*Board)
-		post := board.GetPost(PostID(pid))
-		if post == nil {
-			return "post does not exist with id: " + parts[1]
+		thread := board.GetThread(PostID(pid))
+		if thread == nil {
+			return "thread does not exist with id: " + parts[1]
 		}
-		return post.Render("")
+		return thread.RenderPost("", 5)
+	} else if len(parts) == 3 {
+		// /r/boards:BOARD_NAME/THREAD_ID/REPLY_ID
+		name := parts[0]
+		_, boardI, exists := gBoardsByName.Get(name)
+		if !exists {
+			return "board does not exist: " + name
+		}
+		pid, err := strconv.Atoi(parts[1])
+		if err != nil {
+			return "invalid thread id: " + parts[1]
+		}
+		board := boardI.(*Board)
+		thread := board.GetThread(PostID(pid))
+		if thread == nil {
+			return "thread does not exist with id: " + parts[1]
+		}
+		rid, err := strconv.Atoi(parts[2])
+		if err != nil {
+			return "invalid reply id: " + parts[2]
+		}
+		reply := thread.GetReply(PostID(rid))
+		if reply == nil {
+			return "reply does not exist with id: " + parts[2]
+		}
+		return reply.RenderInner()
 	} else {
 		return "unrecognized path " + path
 	}
@@ -174,7 +206,7 @@ func (board *Board) IsPrivate() bool {
 	return board.id == 0
 }
 
-func (board *Board) GetPost(pid PostID) *Post {
+func (board *Board) GetThread(pid PostID) *Post {
 	pidkey := postIDKey(pid)
 	_, postI, exists := board.posts.Get(pidkey)
 	if !exists {
@@ -202,7 +234,7 @@ func (board *Board) AddPost(creator std.Address, title string, body string) *Pos
 // Renders the board for display suitable as plaintext in
 // console.  This is suitable for demonstration or tests,
 // but not for prod.
-func (board *Board) Render() string {
+func (board *Board) RenderBoard() string {
 	str := ""
 	if board.posts.Size() > 0 {
 		board.posts.Iterate("", "", func(n *avl.Tree) bool {
@@ -221,6 +253,14 @@ func (board *Board) incGetPostID() PostID {
 	return PostID(board.postsCtr)
 }
 
+func (board *Board) GetURLFromThreadAndReplyID(threadID, replyID PostID) string {
+	if replyID == 0 {
+		return board.url + "/" + strconv.Itoa(int(threadID))
+	} else {
+		return board.url + "/" + strconv.Itoa(int(threadID)) + "/" + strconv.Itoa(int(replyID))
+	}
+}
+
 func displayAddress(input std.Address) string {
 	user := users.GetUserByAddress(input)
 	if user == nil {
@@ -235,6 +275,8 @@ func displayAddress(input std.Address) string {
 // NOTE: a PostID is relative to the board.
 type PostID uint64
 
+// A Post is a "thread" or a "reply" depending on context.
+// A thread is a Post of a Board that holds other replies.
 type Post struct {
 	board       *Board
 	id          PostID
@@ -242,12 +284,16 @@ type Post struct {
 	title       string // optional
 	body        string
 	replies     *avl.Tree // Post.id -> *Post
-	repliesAll  *avl.Tree // Post.id -> *Post (all comments, for top-level posts)
+	repliesAll  *avl.Tree // Post.id -> *Post (all replies, for top-level posts)
 	reposts     *avl.Tree // Board.id -> Post.id
 	threadID    PostID    // original Post.id
 	replyTo     PostID    // parent Post.id (if reply or repost)
 	repostBoard BoardID   // original Board.id (if repost)
 	createdAt   std.Time
+}
+
+func (post *Post) IsThread() bool {
+	return post.replyTo == 0
 }
 
 func (post *Post) GetPostID() PostID {
@@ -271,23 +317,19 @@ func (post *Post) AddReply(creator std.Address, body string) *Post {
 	if post.threadID == post.id {
 		post.repliesAll, _ = post.repliesAll.Set(pidkey, reply)
 	} else {
-		thread := board.GetPost(post.threadID)
+		thread := board.GetThread(post.threadID)
 		thread.repliesAll, _ = thread.repliesAll.Set(pidkey, reply)
 	}
 	return reply
 }
 
-func (thread *Post) GetThreadPost(pid PostID) *Post {
-	if pid == thread.id {
-		return thread
+func (thread *Post) GetReply(pid PostID) *Post {
+	pidkey := postIDKey(pid)
+	_, replyI, ok := thread.repliesAll.Get(pidkey)
+	if !ok {
+		return nil
 	} else {
-		pidkey := postIDKey(pid)
-		_, replyI, ok := thread.repliesAll.Get(pidkey)
-		if !ok {
-			return nil
-		} else {
-			return replyI.(*Post)
-		}
+		return replyI.(*Post)
 	}
 }
 
@@ -318,10 +360,12 @@ func (post *Post) GetSummary() string {
 }
 
 func (post *Post) GetURL() string {
-	if post.replyTo == 0 {
-		return post.board.url + "/" + strconv.Itoa(int(post.id))
+	if post.IsThread() {
+		return post.board.GetURLFromThreadAndReplyID(
+			post.id, 0)
 	} else {
-		return post.board.url + "/" + strconv.Itoa(int(post.threadID)) + "#" + strconv.Itoa(int(post.id))
+		return post.board.GetURLFromThreadAndReplyID(
+			post.threadID, post.id)
 	}
 }
 
@@ -336,7 +380,7 @@ func (post *Post) GetReplyFormURL() string {
 func (post *Post) RenderSummary() string {
 	str := ""
 	if post.title != "" {
-		str += "## " + summaryOf(post.title, 80) + "\n"
+		str += "## [" + summaryOf(post.title, 80) + "](" + post.GetURL() + ")\n"
 		str += "\n"
 	}
 	str += post.GetSummary() + "\n"
@@ -347,7 +391,10 @@ func (post *Post) RenderSummary() string {
 	return str
 }
 
-func (post *Post) Render(indent string) string {
+func (post *Post) RenderPost(indent string, levels int) string {
+	if post == nil {
+		return "nil post"
+	}
 	str := ""
 	if post.title != "" {
 		str += indent + "# " + post.title + "\n"
@@ -357,13 +404,44 @@ func (post *Post) Render(indent string) string {
 	str += indent + "- by " + displayAddress(post.creator) + ", "
 	str += "[" + std.FormatTimestamp(post.createdAt, "2006-01-02 3:04pm (MST)") + "](" + post.GetURL() + ")"
 	str += " [reply](" + post.GetReplyFormURL() + ")" + "\n"
-	if post.replies.Size() > 0 {
-		post.replies.Iterate("", "", func(n *avl.Tree) bool {
+	if levels > 0 {
+		if post.replies.Size() > 0 {
+			post.replies.Iterate("", "", func(n *avl.Tree) bool {
+				str += indent + "\n"
+				str += n.Value().(*Post).RenderPost(indent+"> ", levels-1)
+				return false
+			})
+		}
+	} else {
+		if post.replies.Size() > 0 {
 			str += indent + "\n"
-			str += n.Value().(*Post).Render(indent + "> ")
-			return false
-		})
+			str += indent + "_[see all " + strconv.Itoa(post.replies.Size()) + " replies](" + post.GetURL() + ")_\n"
+		}
 	}
+	return str
+}
+
+// render reply and link to context thread
+func (post *Post) RenderInner() string {
+	if post.IsThread() {
+		panic("unexpected thread")
+	}
+	threadID := post.threadID
+	replyID := post.id
+	parentID := post.replyTo
+	str := ""
+	str += "_[see thread](" + post.board.GetURLFromThreadAndReplyID(
+		threadID, 0) + ")_\n\n"
+	thread := post.board.GetThread(post.threadID)
+	var parent *Post
+	if thread.id == parentID {
+		parent = thread
+	} else {
+		parent = thread.GetReply(parentID)
+	}
+	str += parent.RenderPost("", 0)
+	str += "\n"
+	str += post.RenderPost("> ", 5)
 	return str
 }
 
