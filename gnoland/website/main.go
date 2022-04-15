@@ -42,6 +42,7 @@ func main() {
 
 	app.Router.Handle("/", handlerHome(app))
 	app.Router.Handle("/faucet", handlerFaucet(app))
+	app.Router.Handle("/r/boards:gnolang/6", handlerRedirect(app))
 	// NOTE: see rePathPart.
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*}", handlerRealmMain(app))
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*}:{querystr:.*}", handlerRealmRender(app))
@@ -67,6 +68,15 @@ func handlerFaucet(app gotuna.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		app.NewTemplatingEngine().
 			Render(w, r, "faucet.html", "header.html")
+	})
+}
+
+// XXX temporary.
+func handlerRedirect(app gotuna.App) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/r/boards:gnolang/3", http.StatusFound)
+		app.NewTemplatingEngine().
+			Render(w, r, "home.html", "header.html")
 	})
 }
 
@@ -138,6 +148,7 @@ func handleRealmRender(app gotuna.App, w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/r/"+rlmname+":" {
 		// Redirect to /r/REALM if querypath is empty.
 		http.Redirect(w, r, "/r/"+rlmname, http.StatusFound)
+		return
 	}
 	qpath := "vm/qrender"
 	data := []byte(fmt.Sprintf("%s\n%s", rlmpath, querystr))
