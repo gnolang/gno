@@ -22,6 +22,9 @@ func main() {
 }
 
 // Output:
+// \[[post](/r/boards?help&__func=CreatePost&bid=1&body.type=textarea)]
+//
+// ----------------------------------------
 // ## [First Post (title)](/r/boards:test_board/1)
 //
 // Body of the first post. (body)

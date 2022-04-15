@@ -236,12 +236,13 @@ func (board *Board) AddPost(creator std.Address, title string, body string) *Pos
 // but not for prod.
 func (board *Board) RenderBoard() string {
 	str := ""
+	str += "\\[[post](" + board.GetPostFormURL() + ")]\n\n"
 	if board.posts.Size() > 0 {
 		board.posts.Iterate("", "", func(n *avl.Tree) bool {
 			if str != "" {
 				str += "----------------------------------------\n"
 			}
-			str += n.Value().(*Post).RenderSummary()
+			str += n.Value().(*Post).RenderSummary() + "\n"
 			return false
 		})
 	}
@@ -261,12 +262,10 @@ func (board *Board) GetURLFromThreadAndReplyID(threadID, replyID PostID) string 
 	}
 }
 
-func displayAddress(input std.Address) string {
-	user := users.GetUserByAddress(input)
-	if user == nil {
-		return input.String()
-	}
-	return user.Name() + " (" + input.String() + ")"
+func (board *Board) GetPostFormURL() string {
+	return "/r/boards?help&__func=CreatePost" +
+		"&bid=" + strconv.Itoa(int(board.id)) +
+		"&body.type=textarea"
 }
 
 //----------------------------------------
@@ -512,4 +511,12 @@ func summaryOf(str string, length int) string {
 		line = line + "..."
 	}
 	return line
+}
+
+func displayAddress(input std.Address) string {
+	user := users.GetUserByAddress(input)
+	if user == nil {
+		return input.String()
+	}
+	return user.Name() + " (" + input.String() + ")"
 }

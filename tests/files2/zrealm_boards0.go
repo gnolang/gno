@@ -19,10 +19,14 @@ func main() {
 }
 
 // Output:
+// \[[post](/r/boards?help&__func=CreatePost&bid=1&body.type=textarea)]
+//
+// ----------------------------------------
 // ## [First Post (title)](/r/boards:test_board/1)
 //
 // Body of the first post. (body)
 // - by g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985, [1970-01-01 12:00am UTC](/r/boards:test_board/1) (0 replies)
+//
 // ----------------------------------------
 // ## [Second Post (title)](/r/boards:test_board/2)
 //
