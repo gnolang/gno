@@ -9,13 +9,18 @@
 	<div id="header">
 	    <a id="logo" href="/">GNO.LAND</a>
         <span id="logo_path">
-            <a href="/r/{{ .Data.RealmName }}">/r/{{ .Data.RealmName }}</a>:
+            <a href="/r/{{ .Data.RealmName }}">/r/{{ .Data.RealmName }}</a>
+            {{- if .Data.Query -}}:{{- end -}}
             {{- range $index, $link := .Data.PathLinks -}}
                 {{- if (gt $index 0) }}/{{ end -}}
                 <a href="{{ $link.URL }}">{{ $link.Text }}</a>
             {{- end -}}
         </span>
         {{ template "header_buttons" }}
+            <span id="realm_links">
+                <a href="/r/{{ .Data.RealmName }}/">[source]</a>
+                <a href="/r/{{ .Data.RealmName }}?help">[help]</a>
+            </span>
 	</div>
     <div id="realm_render">
         <pre id="source">

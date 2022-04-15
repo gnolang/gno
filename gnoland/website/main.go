@@ -73,7 +73,8 @@ func handlerFaucet(app gotuna.App) http.Handler {
 func handlerRealmMain(app gotuna.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
-		rlmpath := "gno.land/r/" + vars["rlmname"]
+		rlmname := vars["rlmname"]
+		rlmpath := "gno.land/r/" + rlmname
 		query := r.URL.Query()
 		if query.Has("help") {
 			// Render function helper.
@@ -112,11 +113,8 @@ func handlerRealmMain(app gotuna.App) http.Handler {
 				writeError(w, errors.New("error querying realm package"))
 				return
 			}
-			// Render main template.
-			tmpl := app.NewTemplatingEngine()
-			tmpl.Set("RealmPath", rlmpath)
-			tmpl.Set("DirPath", pathOf(rlmpath))
-			tmpl.Render(w, r, "realm_main.html", "header.html")
+			// Render blank query path, /r/REALM:.
+			handleRealmRender(app, w, r)
 		}
 	})
 }
@@ -128,36 +126,49 @@ type pathLink struct {
 
 func handlerRealmRender(app gotuna.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		rlmname := vars["rlmname"]
-		rlmpath := "gno.land/r/" + rlmname
-		querystr := vars["querystr"]
-		qpath := "vm/qrender"
-		data := []byte(fmt.Sprintf("%s\n%s", rlmpath, querystr))
-		res, err := makeRequest(qpath, data)
-		if err != nil {
+		handleRealmRender(app, w, r)
+	})
+}
+
+func handleRealmRender(app gotuna.App, w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	rlmname := vars["rlmname"]
+	rlmpath := "gno.land/r/" + rlmname
+	querystr := vars["querystr"]
+	if r.URL.Path == "/r/"+rlmname+":" {
+		// Redirect to /r/REALM if querypath is empty.
+		http.Redirect(w, r, "/r/"+rlmname, http.StatusFound)
+	}
+	qpath := "vm/qrender"
+	data := []byte(fmt.Sprintf("%s\n%s", rlmpath, querystr))
+	res, err := makeRequest(qpath, data)
+	if err != nil {
+		// XXX hack
+		if strings.Contains(err.Error(), "Render not declared") {
+			res = []byte("realm package has no Render() function")
+		} else {
 			writeError(w, err)
 			return
 		}
-		// linkify querystr.
-		queryParts := strings.Split(string(querystr), "/")
-		pathLinks := []pathLink{}
-		for i, part := range queryParts {
-			pathLinks = append(pathLinks, pathLink{
-				URL:  "/r/" + rlmname + ":" + strings.Join(queryParts[:i+1], "/"),
-				Text: part,
-			})
-		}
-		// Render template.
-		tmpl := app.NewTemplatingEngine()
+	}
+	// linkify querystr.
+	queryParts := strings.Split(string(querystr), "/")
+	pathLinks := []pathLink{}
+	for i, part := range queryParts {
+		pathLinks = append(pathLinks, pathLink{
+			URL:  "/r/" + rlmname + ":" + strings.Join(queryParts[:i+1], "/"),
+			Text: part,
+		})
+	}
+	// Render template.
+	tmpl := app.NewTemplatingEngine()
 
-		tmpl.Set("RealmName", rlmname)
-		tmpl.Set("RealmPath", rlmpath)
-		tmpl.Set("Query", string(querystr))
-		tmpl.Set("PathLinks", pathLinks)
-		tmpl.Set("Contents", template.HTML(string(res)))
-		tmpl.Render(w, r, "realm_render.html", "header.html")
-	})
+	tmpl.Set("RealmName", rlmname)
+	tmpl.Set("RealmPath", rlmpath)
+	tmpl.Set("Query", string(querystr))
+	tmpl.Set("PathLinks", pathLinks)
+	tmpl.Set("Contents", template.HTML(string(res)))
+	tmpl.Render(w, r, "realm_render.html", "header.html")
 }
 
 func handlerRealmFile(app gotuna.App) http.Handler {

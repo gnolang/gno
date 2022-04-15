@@ -56,6 +56,12 @@ pre {
 	text-decoration: underline;
 }
 
+#realm_links {
+	padding-left: 1em;
+	font-size: 0.9em;
+	color: gray;
+}
+
 #header_buttons {
 	float: right;
 	position: relative;
