@@ -28,4 +28,4 @@ func main() {
 // ## [First Post (title)](/r/boards:test_board/1)
 //
 // Body of the first post. (body)
-// - by gnouser (g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985), [1970-01-01 12:00am UTC](/r/boards:test_board/1) (0 replies)
+// \- [@gnouser](/r/users:gnouser), [1970-01-01 12:00am UTC](/r/boards:test_board/1) (0 replies)

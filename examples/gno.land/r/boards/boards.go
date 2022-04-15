@@ -383,7 +383,7 @@ func (post *Post) RenderSummary() string {
 		str += "\n"
 	}
 	str += post.GetSummary() + "\n"
-	str += "- by " + displayAddress(post.creator) + ", "
+	str += "\\- " + displayAddressMD(post.creator) + ", "
 	str += "[" + std.FormatTimestamp(post.createdAt, "2006-01-02 3:04pm MST") + "](" + post.GetURL() + ") "
 
 	str += "(" + strconv.Itoa(post.replies.Size()) + " replies)" + "\n"
@@ -400,7 +400,7 @@ func (post *Post) RenderPost(indent string, levels int) string {
 		str += indent + "\n"
 	}
 	str += indentBody(indent, post.body) + "\n" // TODO: indent body lines.
-	str += indent + "- by " + displayAddress(post.creator) + ", "
+	str += indent + "\\- " + displayAddressMD(post.creator) + ", "
 	str += "[" + std.FormatTimestamp(post.createdAt, "2006-01-02 3:04pm (MST)") + "](" + post.GetURL() + ")"
 	str += " [reply](" + post.GetReplyFormURL() + ")" + "\n"
 	if levels > 0 {
@@ -513,10 +513,11 @@ func summaryOf(str string, length int) string {
 	return line
 }
 
-func displayAddress(input std.Address) string {
-	user := users.GetUserByAddress(input)
+func displayAddressMD(addr std.Address) string {
+	user := users.GetUserByAddress(addr)
 	if user == nil {
-		return input.String()
+		return "[" + addr.String() + "](/r/users:" + addr.String() + ")"
+	} else {
+		return "[@" + user.Name() + "](/r/users:" + user.Name() + ")"
 	}
-	return user.Name() + " (" + input.String() + ")"
 }

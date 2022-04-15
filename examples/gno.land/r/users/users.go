@@ -22,10 +22,16 @@ type User struct {
 }
 
 func (u *User) Render() string {
-	return "## user " + u.name + " (" + string(u.address) + ")," +
-		"invites:" + strconv.Itoa(u.invites) + "," +
-		"inviter:" + string(u.inviter) + "\n\n" +
-		u.profile + "\n" // XXX make separate page; or quote each line.
+	str := "## user " + u.name + "\n" +
+		"\n" +
+		" * address = " + string(u.address) + "\n" +
+		" * " + strconv.Itoa(u.invites) + " invites\n"
+	if u.inviter != "" {
+		str = str + " * invited by " + string(u.inviter) + "\n"
+	}
+	str = str + "\n" +
+		u.profile + "\n"
+	return str
 }
 
 func (u User) Name() string         { return u.name }
@@ -202,16 +208,39 @@ func GetUserByAddress(addr std.Address) *User {
 //----------------------------------------
 // Constants
 
+// NOTE: name length must be clearly distinguishable from a bech32 address.
 var reName = regexp.MustCompile(`^[a-z]+[_a-z0-9]{5,16}$`)
 
 //----------------------------------------
 // Render main page
 
 func Render(path string) string {
+	if path == "" {
+		return renderHome()
+	} else if len(path) >= 38 { // 39? 40?
+		if path[:2] != "g1" {
+			return "invalid address " + path
+		}
+		user := GetUserByAddress(std.Address(path))
+		if user == nil {
+			// TODO: display basic information about account.
+			return "unknown address " + path
+		}
+		return user.Render()
+	} else {
+		user := GetUserByName(path)
+		if user == nil {
+			return "unknown username " + path
+		}
+		return user.Render()
+	}
+}
+
+func renderHome() string {
 	doc := ""
 	name2User.Iterate("", "", func(t *avl.Tree) bool {
-		value := t.Value()
-		doc += value.(*User).Render() + "\n"
+		user := t.Value().(*User)
+		doc += " * [" + user.name + "](/r/users:" + user.name + ")\n"
 		return false
 	})
 	return doc

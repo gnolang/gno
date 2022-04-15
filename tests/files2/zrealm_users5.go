@@ -26,13 +26,35 @@ func main() {
 	std.TestSetOrigSend(std.Coins{{"dontcare", 1}}, nil)
 	users.Register(caller, "satoshi", "my other profile")
 	println(users.Render(""))
+	println("========================================")
+	println(users.Render("gnouser"))
+	println("========================================")
+	println(users.Render("satoshi"))
+	println("========================================")
+	println(users.Render("badname"))
 }
 
 // Output:
-// ## user gnouser (g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4),invites:0,inviter:
+//  * [gnouser](/r/users:gnouser)
+//  * [satoshi](/r/users:satoshi)
+//
+// ========================================
+// ## user gnouser
+//
+//  * address = g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4
+//  * 0 invites
 //
 // my profile
 //
-// ## user satoshi (g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7),invites:0,inviter:g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4
+// ========================================
+// ## user satoshi
+//
+//  * address = g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7
+//  * 0 invites
+//  * invited by g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4
 //
 // my other profile
+//
+// ========================================
+// unknown username badname
+//
