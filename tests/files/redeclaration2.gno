@@ -1,15 +1,15 @@
 package main
 
 func main() {
-	var foo struct {
-		yolo string
-	}
+  var foo struct {
+    yolo string
+  }
 
-	var foo int
-	foo = 2
-	println(foo)
+  var foo int
+  foo = 2
+  println(foo)
 }
 
 // Error:
-// files/redeclaration2.go:8:6: foo redeclared in this block
-//	previous declaration at files/redeclaration2.go:4:6
+// files/redeclaration2.gno:8:7: foo redeclared in this block
+//	previous declaration at files/redeclaration2.gno:4:7

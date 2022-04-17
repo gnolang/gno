@@ -5,7 +5,7 @@ import (
 	"std"
 )
 
-// Like zrealm_std1.go but interface var.
+// Like zrealm_std1.gno but interface var.
 var aset std.AddressSet
 
 func init() {

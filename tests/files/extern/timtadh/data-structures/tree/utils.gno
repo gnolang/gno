@@ -1,4 +1,4 @@
-// from https://raw.githubusercontent.com/timtadh/data-structures/master/tree/util.go
+// from https://raw.githubusercontent.com/timtadh/data-structures/master/tree/util.gno
 
 package tree
 

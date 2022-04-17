@@ -20,4 +20,4 @@ func main() {
 }
 
 // Output:
-// recover: test log logger: restricted.go:39: test log
+// recover: test log logger: restricted.gno:39: test log

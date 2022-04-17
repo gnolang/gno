@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// ../_test/redeclaration-global7.go:5:2: quux/redeclaration-global7.go redeclared as imported package name
+// ../_test/redeclaration-global7.gno:5:2: quux/redeclaration-global7.gno redeclared as imported package name

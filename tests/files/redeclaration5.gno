@@ -1,14 +1,14 @@
 package main
 
 func main() {
-	type foo struct {
-		yolo string
-	}
+  type foo struct {
+    yolo string
+  }
 
-	type foo struct{}
-	var bar foo
-	println(bar)
+  type foo struct{}
+  var bar foo
+  println(bar)
 }
 
 // Error:
-// files/redeclaration5.go:8:7: foo redeclared in this block
+// files/redeclaration5.gno:8:8: foo redeclared in this block

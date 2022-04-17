@@ -11,5 +11,5 @@ func main() {
 }
 
 // Error:
-// files2/redeclaration2.go:8:6: foo redeclared in this block
-//	previous declaration at files2/redeclaration2.go:4:6
+// files2/redeclaration2.gno:8:6: foo redeclared in this block
+//	previous declaration at files2/redeclaration2.gno:4:6

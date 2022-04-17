@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// ../_test/redeclaration-global2.go:5:2: time/redeclaration-global2.go redeclared in this block
+// ../_test/redeclaration-global2.gno:5:2: time/redeclaration-global2.gno redeclared in this block

@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// files2/redeclaration3.go:7:7: foo redeclared in this block
+// files2/redeclaration3.gno:7:7: foo redeclared in this block

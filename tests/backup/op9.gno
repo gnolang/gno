@@ -8,4 +8,4 @@ func main() {
 }
 
 // Error:
-// _test/op9.go:7:8: invalid operation: operator > not defined on complex128
+// _test/op9.gno:7:8: invalid operation: operator > not defined on complex128

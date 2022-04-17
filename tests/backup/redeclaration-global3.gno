@@ -12,4 +12,4 @@ func main() {
 }
 
 // Error:
-// ../_test/redeclaration-global3.go:7:5: time redeclared in this block
+// ../_test/redeclaration-global3.gno:7:5: time redeclared in this block
