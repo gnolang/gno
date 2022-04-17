@@ -18,7 +18,7 @@ import (
 )
 
 func TestPackages(t *testing.T) {
-	// find all packages with *_test.go files.
+	// find all packages with *_test.gno files.
 	rootDirs := []string{
 		filepath.Join("..", "examples"),
 		filepath.Join("..", "stdlibs"),
@@ -34,7 +34,7 @@ func TestPackages(t *testing.T) {
 			if d.IsDir() {
 				return nil
 			}
-			if strings.HasSuffix(path, "_test.go") {
+			if strings.HasSuffix(path, "_test.gno") {
 				dirPath := filepath.Dir(path)
 				if _, exists := testDirs[dirPath]; exists {
 					// already exists.
