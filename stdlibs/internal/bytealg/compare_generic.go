@@ -1,0 +1,1 @@
+compare_generic.gno

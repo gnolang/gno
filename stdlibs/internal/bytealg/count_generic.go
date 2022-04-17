@@ -1,0 +1,1 @@
+count_generic.gno

@@ -1,0 +1,1 @@
+script_test.gno

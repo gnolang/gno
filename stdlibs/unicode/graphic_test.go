@@ -1,0 +1,1 @@
+graphic_test.gno

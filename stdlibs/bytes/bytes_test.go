@@ -1,0 +1,1 @@
+bytes_test.gno

@@ -1,0 +1,1 @@
+stdlibs.gno

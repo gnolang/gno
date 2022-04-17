@@ -1,0 +1,1 @@
+equal_generic.gno
