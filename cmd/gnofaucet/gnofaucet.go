@@ -111,7 +111,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 	if err != nil {
 		return err
 	}
-	info, err := kb.Get(name)
+	info, err := kb.GetByName(name)
 	if err != nil {
 		return err
 	}
@@ -230,7 +230,7 @@ func sendAmountTo(cmd *command.Command, cli rpcclient.Client, name, pass string,
 	if err != nil {
 		return err
 	}
-	info, err := kb.Get(name)
+	info, err := kb.GetByName(name)
 	if err != nil {
 		return err
 	}
