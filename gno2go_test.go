@@ -62,7 +62,7 @@ func TestGno2Go(t *testing.T) {
 			assert.NoError(t, err)
 
 			// call preprocessor
-			transformed, err := Gno2Go(fset, f)
+			transformed, err := gno2GoAST(fset, f)
 			if c.expectedPreprocessorError == nil {
 				assert.NoError(t, err)
 			} else {
