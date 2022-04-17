@@ -23,6 +23,9 @@ install_gnokey:
 	echo "Installing gnokey"
 	go install ./cmd/gnokey
 
+install_gnodev:
+	go install ./cmd/gnodev
+
 # The faucet (daemon)
 gnofaucet:
 	echo "Building gnofaucet"

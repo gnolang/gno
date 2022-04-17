@@ -26,6 +26,7 @@ var stdlibWhitelist = []string{
 	"std",
 	"strconv",
 	"strings",
+	"maths",
 }
 
 func Gno2Go(fset *token.FileSet, f *ast.File) (string, error) {
