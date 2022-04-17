@@ -1,0 +1,33 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  go-test:
+    name: Go Test
+    strategy:
+      fail-fast: false
+      matrix:
+        goversion: ["1.17.x", "1.18.x"]
+        args:
+          - ./tests/*.go -test.short -run "TestFileStr|TestPackages|TestSelectors" --timeout 20m
+          - ./tests/*.go -test.short -run "TestFiles1" --timeout 20m
+          - ./tests/*.go -test.short -run "TestFiles2" --timeout 20m
+          - ./tests/*.go -run "TestFiles/^zrealm" --timeout 20m
+          - ./tests/*.go -run "TestFiles1/^zrealm" --timeout 20m
+          - ./tests/*.go -run "TestFiles2/^zrealm" --timeout 20m
+          - ./tests/*.go -run "TestPackages" --timeout 20m
+          - ./pkgs/... -p 1 -count 1 --timeout 20m
+    runs-on: ubuntu-latest
+    timeout-minutes: 21
+    steps:
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ${{ matrix.go-version }}
+      - uses: actions/checkout@v3
+      - name: test
+        run: go test ${{ matrix.args }}
