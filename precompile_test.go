@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestGno2Go(t *testing.T) {
+func TestPrecompile(t *testing.T) {
 	var cases = []struct {
 		name                      string
 		source                    string
@@ -62,7 +62,7 @@ func TestGno2Go(t *testing.T) {
 			assert.NoError(t, err)
 
 			// call preprocessor
-			transformed, err := gno2GoAST(fset, f)
+			transformed, err := precompileAST(fset, f)
 			if c.expectedPreprocessorError == nil {
 				assert.NoError(t, err)
 			} else {

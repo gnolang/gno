@@ -129,7 +129,7 @@ func precompileFile(srcPath string, verbose bool) error {
 	}
 
 	// preprocess.
-	transformed, err := gno.Gno2Go(fset, f)
+	transformed, err := gno.Precompile(fset, f)
 	if err != nil {
 		return fmt.Errorf("failed to precompile: %w", err)
 	}
