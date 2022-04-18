@@ -1,1 +1,0 @@
-prog_test.gno

@@ -1,1 +1,0 @@
-coins.gno

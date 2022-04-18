@@ -1,1 +1,0 @@
-indexbyte_generic.gno

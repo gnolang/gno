@@ -1,1 +1,0 @@
-onepass_test.gno

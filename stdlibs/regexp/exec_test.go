@@ -1,1 +1,0 @@
-exec_test.gno

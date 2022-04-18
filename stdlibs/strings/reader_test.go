@@ -1,1 +1,0 @@
-reader_test.gno

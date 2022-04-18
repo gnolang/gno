@@ -1,1 +1,0 @@
-hex_test.gno

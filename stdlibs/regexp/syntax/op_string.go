@@ -1,1 +1,0 @@
-op_string.gno

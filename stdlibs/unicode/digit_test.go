@@ -1,1 +1,0 @@
-digit_test.gno

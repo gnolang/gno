@@ -1,1 +1,0 @@
-simplify.gno

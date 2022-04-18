@@ -1,1 +1,0 @@
-all_test.gno

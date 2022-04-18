@@ -1,1 +1,0 @@
-example_test.gno

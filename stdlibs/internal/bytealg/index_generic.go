@@ -1,1 +1,0 @@
-index_generic.gno
