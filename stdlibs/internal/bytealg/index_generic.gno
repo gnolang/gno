@@ -28,4 +28,3 @@ func IndexString(a, b string) int {
 func Cutover(n int) int {
 	panic("unimplemented")
 }
-

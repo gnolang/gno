@@ -317,4 +317,3 @@ func hChaCha20Generic(out *[32]byte, nonce *[16]byte, key *[32]byte) {
 	binary.LittleEndian.PutUint32(out[24:], v14)
 	binary.LittleEndian.PutUint32(out[28:], v15)
 }
-

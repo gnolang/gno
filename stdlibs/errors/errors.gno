@@ -67,4 +67,3 @@ type errorString struct {
 func (e *errorString) Error() string {
 	return e.s
 }
-

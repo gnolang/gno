@@ -3,12 +3,12 @@ package main
 var time int
 
 func time() string {
-  return "hello"
+	return "hello"
 }
 
 func main() {
-  t := time()
-  println(t)
+	t := time()
+	println(t)
 }
 
 // Error:

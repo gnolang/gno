@@ -24,4 +24,3 @@ func IndexByteString(s string, c byte) int {
 	}
 	return -1
 }
-

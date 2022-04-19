@@ -8052,4 +8052,3 @@ var foldInherited = &RangeTable{
 // Range bytes: 20994 16-bit, 21840 32-bit, 42834 total.
 
 // Fold orbit bytes: 88 pairs, 352 bytes
-

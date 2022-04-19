@@ -26,4 +26,3 @@ func CountString(s string, c byte) int {
 	}
 	return n
 }
-

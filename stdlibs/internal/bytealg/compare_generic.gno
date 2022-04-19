@@ -59,4 +59,3 @@ func runtime_cmpstring(a, b string) int {
 	}
 	return 0
 }
-

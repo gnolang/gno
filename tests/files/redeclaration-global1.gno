@@ -5,8 +5,8 @@ var time int
 type time string
 
 func main() {
-  var t time = "hello"
-  println(t)
+	var t time = "hello"
+	println(t)
 }
 
 // Error:
