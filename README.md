@@ -25,6 +25,6 @@ Also, see the [quickstart guide](https://gno.land/r/boards:gnolang/4).
 
 ## Contact
 
- * https://gno.land/r/boards:gnolang
- * Telegram: t.me/gnoland (info on gnoland)
- * Telegram: t.me/gnolang (devs only -- invite only)
+ * Discord: https://discord.gg/ctRYzHz5dD <-- join now
+ * Gnoland: https://gno.land/r/boards:gnolang
+ * Telegram: t.me/gnoland
