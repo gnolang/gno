@@ -1,13 +1,30 @@
 # Roadmap
 
+This is a work in progress. For the latest discussion, see the main README.md
+for link to Discord app.
+
 ## Immediate Roadmap
 
+ * Go precompile, gnodev
+ * /r/users -> /r/names; /r/boards updates. 
+ * Tweak/enforce gas limitations
+
+## Mid Term Roadmap
+
+ * float-as-struct support
+ * goroutines and concurrency
  * https://github.com/gnolang/bounties/blob/main/readme.md#4-port-joeson-to-go
- * TODO
 
 ## Long Term Roadmap
 
-### Concurrency
+ * privacy-preserving voting
+ * sybil resistant proof-of-human
+ * open hardware 
+ * logos browser
+
+# Notes
+
+## Concurrency
 
 Initially, we don't need to implement routines because realm package functions
 provide all the inter-realm functionality we need to implement rich smart
