@@ -1,5 +1,4 @@
-// PKGPATH: gno.land/r/tests/upgrade-a/upgrade_test
-package upgrade_test
+package upgrade
 
 import (
 	v1 "gno.land/r/tests/upgrade-a/v1"
