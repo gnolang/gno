@@ -5,9 +5,12 @@ for link to Discord app.
 
 ## Immediate Roadmap
 
- * Go precompile, gnodev
+ * Go precompile, gnodev.
  * /r/users -> /r/names; /r/boards updates. 
- * Tweak/enforce gas limitations
+ * Tweak/enforce gas limitations.
+ * Put bounties in /r/boards.
+ * Create snapshot of the Cosmos hub.
+ * Launch testnet with validator set changes.
 
 ## Mid Term Roadmap
 
