@@ -23,6 +23,7 @@ type Type interface {
 	TypeID() TypeID // deterministic
 	String() string // for dev/debugging
 	Elem() Type     // for TODO... types
+	GetPkgPath() string
 }
 
 type TypeID string
@@ -284,6 +285,10 @@ func (pt PrimitiveType) Elem() Type {
 	}
 }
 
+func (pt PrimitiveType) GetPkgPath() string {
+	return ""
+}
+
 //----------------------------------------
 // Field type (partial)
 
@@ -324,6 +329,10 @@ func (ft FieldType) String() string {
 
 func (ft FieldType) Elem() Type {
 	panic("FieldType is a pseudotype with no elements")
+}
+
+func (ft FieldType) GetPkgPath() string {
+	panic("FieldType is a pseudotype with no package path")
 }
 
 //----------------------------------------
@@ -481,6 +490,10 @@ func (at *ArrayType) Elem() Type {
 	return at.Elt
 }
 
+func (at *ArrayType) GetPkgPath() string {
+	return ""
+}
+
 //----------------------------------------
 // Slice type
 
@@ -523,6 +536,10 @@ func (st *SliceType) Elem() Type {
 	return st.Elt
 }
 
+func (st *SliceType) GetPkgPath() string {
+	return ""
+}
+
 //----------------------------------------
 // Pointer type
 
@@ -557,14 +574,18 @@ func (pt *PointerType) Elem() Type {
 	return pt.Elt
 }
 
-func (pt *PointerType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
-	trail []ValuePath, hasPtr bool, rcvr Type, field Type) {
+func (pt *PointerType) GetPkgPath() string {
+	return pt.Elt.GetPkgPath()
+}
+
+func (pt *PointerType) FindEmbeddedFieldType(callerPath string, n Name, m map[Type]struct{}) (
+	trail []ValuePath, hasPtr bool, rcvr Type, field Type, accessError bool) {
 
 	// Recursion guard.
 	if m == nil {
 		m = map[Type]struct{}{pt: (struct{}{})}
 	} else if _, exists := m[pt]; exists {
-		return nil, false, nil, nil
+		return nil, false, nil, nil, false
 	} else {
 		m[pt] = struct{}{}
 	}
@@ -574,7 +595,7 @@ func (pt *PointerType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 		// Pointer to declared types and structs
 		// expose embedded methods and fields.
 		// See tests/selector_test.go for examples.
-		trail, hasPtr, rcvr, field = findEmbeddedFieldType(cet, n, m)
+		trail, hasPtr, rcvr, field, accessError = findEmbeddedFieldType(callerPath, cet, n, m)
 		if trail != nil { // found
 			hasPtr = true // pt *is* a pointer.
 			switch trail[0].Type {
@@ -688,6 +709,10 @@ func (st *StructType) Elem() Type {
 	panic("struct types have no (universal) elements")
 }
 
+func (st *StructType) GetPkgPath() string {
+	return st.PkgPath
+}
+
 // NOTE only works for exposed non-embedded fields.
 func (st *StructType) GetPathForName(n Name) ValuePath {
 	for i := 0; i < len(st.Fields); i++ {
@@ -724,14 +749,14 @@ func (st *StructType) GetStaticTypeOfAt(path ValuePath) Type {
 // it may be better to implement it on DeclaredType. The resulting
 // ValuePaths may be modified.  If not found, all returned values
 // are nil; for consistency, check the trail.
-func (st *StructType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
-	trail []ValuePath, hasPtr bool, rcvr Type, field Type) {
+func (st *StructType) FindEmbeddedFieldType(callerPath string, n Name, m map[Type]struct{}) (
+	trail []ValuePath, hasPtr bool, rcvr Type, field Type, accessError bool) {
 
 	// Recursion guard
 	if m == nil {
 		m = map[Type]struct{}{st: (struct{}{})}
 	} else if _, exists := m[st]; exists {
-		return nil, false, nil, nil
+		return nil, false, nil, nil, false
 	} else {
 		m[st] = struct{}{}
 	}
@@ -740,17 +765,25 @@ func (st *StructType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 		sf := &st.Fields[i]
 		// Maybe is a field of the struct.
 		if sf.Name == n {
+			// Ensure exposed or package match.
+			if !isUpper(string(n)) && st.PkgPath != callerPath {
+				return nil, false, nil, nil, true
+			}
 			vp := NewValuePathField(0, uint16(i), n)
-			return []ValuePath{vp}, false, nil, sf.Type
+			return []ValuePath{vp}, false, nil, sf.Type, false
 		}
 		// Maybe is embedded within a field.
 		if sf.Embedded {
 			st := sf.Type
-			trail2, hasPtr2, rcvr2, field2 := findEmbeddedFieldType(st, n, m)
-			if trail2 != nil {
+			trail2, hasPtr2, rcvr2, field2, accessError2 :=
+				findEmbeddedFieldType(callerPath, st, n, m)
+			if accessError2 {
+				// XXX make test case and check against go
+				return nil, false, nil, nil, true
+			} else if trail2 != nil {
 				if trail != nil {
 					// conflict detected. return none.
-					return nil, false, nil, nil
+					return nil, false, nil, nil, false
 				} else {
 					// remember.
 					vp := NewValuePathField(0, uint16(i), sf.Name)
@@ -796,6 +829,10 @@ func (pt *PackageType) String() string {
 
 func (pt *PackageType) Elem() Type {
 	panic("package types have no elements")
+}
+
+func (pt *PackageType) GetPkgPath() string {
+	panic("package types has no package path (unlike package values)")
 }
 
 //----------------------------------------
@@ -854,45 +891,56 @@ func (it *InterfaceType) Elem() Type {
 	panic("interface types have no elements")
 }
 
-func (it *InterfaceType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
-	trail []ValuePath, hasPtr bool, rcvr Type, ft Type) {
+func (it *InterfaceType) GetPkgPath() string {
+	return it.PkgPath
+}
+
+func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[Type]struct{}) (
+	trail []ValuePath, hasPtr bool, rcvr Type, ft Type, accessError bool) {
 
 	// Recursion guard
 	if m == nil {
 		m = map[Type]struct{}{it: (struct{}{})}
 	} else if _, exists := m[it]; exists {
-		return nil, false, nil, nil
+		return nil, false, nil, nil, false
 	} else {
 		m[it] = struct{}{}
 	}
 	// ...
 	for _, im := range it.Methods {
 		if im.Name == n {
+			// Ensure exposed or package match.
+			if !isUpper(string(n)) && it.PkgPath != callerPath {
+				return nil, false, nil, nil, true
+			}
 			// a matched name cannot be an embedded interface.
 			if im.Type.Kind() == InterfaceKind {
-				return nil, false, nil, nil
+				return nil, false, nil, nil, false
 			}
 			// match found.
 			tr := []ValuePath{NewValuePathInterface(n)}
 			hasPtr := false
 			rcvr := Type(nil)
 			ft := im.Type
-			return tr, hasPtr, rcvr, ft
+			return tr, hasPtr, rcvr, ft, false
 		}
 		if et, ok := baseOf(im.Type).(*InterfaceType); ok {
 			// embedded interfaces must be recursively searched.
-			trail, hasPtr, rcvr, ft = et.FindEmbeddedFieldType(n, m)
-			if trail != nil {
+			trail, hasPtr, rcvr, ft, accessError = et.FindEmbeddedFieldType(callerPath, n, m)
+			if accessError {
+				// XXX make test case and check against go
+				return nil, false, nil, nil, true
+			} else if trail != nil {
 				if debug {
 					if len(trail) != 1 || trail[0].Type != VPInterface {
 						panic("should not happen")
 					}
 				}
-				return trail, hasPtr, rcvr, ft
+				return trail, hasPtr, rcvr, ft, false
 			} // else continue search.
 		} // else continue search.
 	}
-	return nil, false, nil, nil
+	return nil, false, nil, nil, false
 }
 
 // For run-time type assertion.
@@ -909,7 +957,7 @@ func (it *InterfaceType) IsImplementedBy(ot Type) (result bool) {
 			}
 		}
 		// find method in field.
-		tr, hp, rt, ft := findEmbeddedFieldType(ot, im.Name, nil)
+		tr, hp, rt, ft, _ := findEmbeddedFieldType(it.PkgPath, ot, im.Name, nil)
 		if tr == nil { // not found.
 			return false
 		}
@@ -988,6 +1036,10 @@ func (ct *ChanType) String() string {
 
 func (ct *ChanType) Elem() Type {
 	return ct.Elt
+}
+
+func (ct *ChanType) GetPkgPath() string {
+	return ""
 }
 
 //----------------------------------------
@@ -1187,6 +1239,10 @@ func (ft *FuncType) Elem() Type {
 	panic("function types have no elements")
 }
 
+func (ft *FuncType) GetPkgPath() string {
+	panic("function types have no package path")
+}
+
 func (ft *FuncType) HasVarg() bool {
 	if numParams := len(ft.Params); numParams == 0 {
 		return false
@@ -1241,6 +1297,10 @@ func (mt *MapType) Elem() Type {
 	return mt.Value
 }
 
+func (mt *MapType) GetPkgPath() string {
+	return ""
+}
+
 //----------------------------------------
 // Type (typeval) type
 
@@ -1264,6 +1324,10 @@ func (tt *TypeType) String() string {
 
 func (tt *TypeType) Elem() Type {
 	panic("typeval types have no elements")
+}
+
+func (tt *TypeType) GetPkgPath() string {
+	panic("typeval types have no package path")
 }
 
 //----------------------------------------
@@ -1346,6 +1410,10 @@ func (dt *DeclaredType) Elem() Type {
 	return dt.Base.Elem()
 }
 
+func (dt *DeclaredType) GetPkgPath() string {
+	return dt.PkgPath
+}
+
 func (dt *DeclaredType) DefineMethod(fv *FuncValue) {
 	dt.Methods = append(dt.Methods, TypedValue{
 		T: fv.Type,
@@ -1394,14 +1462,14 @@ func (dt *DeclaredType) GetUnboundPathForName(n Name) ValuePath {
 // Searches embedded fields to find matching field or method.
 // This function is slow.
 // TODO: consider memoizing for successful matches.
-func (dt *DeclaredType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
-	trail []ValuePath, hasPtr bool, rcvr Type, ft Type) {
+func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[Type]struct{}) (
+	trail []ValuePath, hasPtr bool, rcvr Type, ft Type, accessError bool) {
 
 	// Recursion guard
 	if m == nil {
 		m = map[Type]struct{}{dt: (struct{}{})}
 	} else if _, exists := m[dt]; exists {
-		return nil, false, nil, nil
+		return nil, false, nil, nil, false
 	} else {
 		m[dt] = struct{}{}
 	}
@@ -1409,6 +1477,10 @@ func (dt *DeclaredType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 	for i := 0; i < len(dt.Methods); i++ {
 		mv := &dt.Methods[i]
 		if fv := mv.GetFunc(); fv.Name == n {
+			// Ensure exposed or package match.
+			if !isUpper(string(n)) && dt.PkgPath != callerPath {
+				return nil, false, nil, nil, true
+			}
 			// NOTE: makes code simple but requires preprocessor's
 			// Store to pre-load method types.
 			rt := fv.GetType(nil).Params[0].Type
@@ -1421,17 +1493,17 @@ func (dt *DeclaredType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 			// NOTE: makes code simple but requires preprocessor's
 			// Store to pre-load method types.
 			bt := fv.GetType(nil).BoundType()
-			return []ValuePath{vp}, false, rt, bt
+			return []ValuePath{vp}, false, rt, bt, false
 		}
 	}
 	// Otherwise, search base.
-	trail, hasPtr, rcvr, ft = findEmbeddedFieldType(dt.Base, n, m)
+	trail, hasPtr, rcvr, ft, accessError = findEmbeddedFieldType(callerPath, dt.Base, n, m)
 	if trail == nil {
-		return nil, false, nil, nil
+		return nil, false, nil, nil, accessError
 	}
 	switch trail[0].Type {
 	case VPInterface:
-		return trail, hasPtr, rcvr, ft
+		return trail, hasPtr, rcvr, ft, false
 	case VPField, VPDerefField:
 		if debug {
 			if trail[0].Depth != 0 && trail[0].Depth != 2 {
@@ -1439,7 +1511,7 @@ func (dt *DeclaredType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 			}
 		}
 		trail[0].Depth += 1
-		return trail, hasPtr, rcvr, ft
+		return trail, hasPtr, rcvr, ft, false
 	default:
 		panic("should not happen")
 	}
@@ -1603,6 +1675,10 @@ func (nt *NativeType) Elem() Type {
 	}
 }
 
+func (nt *NativeType) GetPkgPath() string {
+	return "go:" + nt.Type.PkgPath()
+}
+
 func (nt *NativeType) GnoType(store Store) Type {
 	if nt.gnoType == nil {
 		nt.gnoType = store.Go2GnoType(nt.Type)
@@ -1610,14 +1686,15 @@ func (nt *NativeType) GnoType(store Store) Type {
 	return nt.gnoType
 }
 
+// TODO implement accessError return value.
 func (nt *NativeType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
-	trail []ValuePath, hasPtr bool, rcvr Type, field Type) {
+	trail []ValuePath, hasPtr bool, rcvr Type, field Type, accessError bool) {
 
 	// Recursion guard
 	if m == nil {
 		m = map[Type]struct{}{nt: (struct{}{})}
 	} else if _, exists := m[nt]; exists {
-		return nil, false, nil, nil
+		return nil, false, nil, nil, false
 	} else {
 		m[nt] = struct{}{}
 	}
@@ -1646,7 +1723,7 @@ func (nt *NativeType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 			field = go2GnoType(rmt.Type)
 			return
 		} else { // no match
-			return nil, false, nil, nil
+			return nil, false, nil, nil, false
 		}
 	}
 	// match method on non-interface type.
@@ -1698,11 +1775,11 @@ func (nt *NativeType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 			field = go2GnoType(rft.Type)
 			return
 		} else { // no match
-			return nil, false, nil, nil
+			return nil, false, nil, nil, false
 		}
 	}
 	// no match
-	return nil, false, nil, nil
+	return nil, false, nil, nil, false
 }
 
 //----------------------------------------
@@ -1724,6 +1801,10 @@ func (bt blockType) String() string {
 
 func (bt blockType) Elem() Type {
 	panic("blockType has no elem type")
+}
+
+func (bt blockType) GetPkgPath() string {
+	panic("blockType has no package path")
 }
 
 //----------------------------------------
@@ -1772,6 +1853,10 @@ func (tt *tupleType) Elem() Type {
 	panic("tupleType has no singular elem type")
 }
 
+func (tt *tupleType) GetPkgPath() string {
+	panic("typleType has no package path")
+}
+
 //----------------------------------------
 // RefType
 
@@ -1792,6 +1877,10 @@ func (rt RefType) String() string {
 }
 
 func (rt RefType) Elem() Type {
+	panic("should not happen")
+}
+
+func (rt RefType) GetPkgPath() string {
 	panic("should not happen")
 }
 
@@ -1819,6 +1908,10 @@ func (mn MaybeNativeType) String() string {
 
 func (mn MaybeNativeType) Elem() Type {
 	return mn.Type.Elem()
+}
+
+func (mn MaybeNativeType) GetPkgPath() string {
+	return mn.Type.GetPkgPath()
 }
 
 //----------------------------------------
@@ -2414,21 +2507,22 @@ func isGeneric(t Type) bool {
 // is used for recursion detection.
 // TODO: could this be more optimized for the runtime?
 // are Go-style itables the solution or?
-func findEmbeddedFieldType(t Type, n Name, m map[Type]struct{}) (
-	trail []ValuePath, hasPtr bool, rcvr Type, ft Type) {
+// callerPath: the path of package where selector node was declared.
+func findEmbeddedFieldType(callerPath string, t Type, n Name, m map[Type]struct{}) (
+	trail []ValuePath, hasPtr bool, rcvr Type, ft Type, accessError bool) {
 	switch ct := t.(type) {
 	case *DeclaredType:
-		return ct.FindEmbeddedFieldType(n, m)
+		return ct.FindEmbeddedFieldType(callerPath, n, m)
 	case *PointerType:
-		return ct.FindEmbeddedFieldType(n, m)
+		return ct.FindEmbeddedFieldType(callerPath, n, m)
 	case *StructType:
-		return ct.FindEmbeddedFieldType(n, m)
+		return ct.FindEmbeddedFieldType(callerPath, n, m)
 	case *InterfaceType:
-		return ct.FindEmbeddedFieldType(n, m)
+		return ct.FindEmbeddedFieldType(callerPath, n, m)
 	case *NativeType:
 		return ct.FindEmbeddedFieldType(n, m)
 	default:
-		return nil, false, nil, nil
+		return nil, false, nil, nil, false
 	}
 }
 

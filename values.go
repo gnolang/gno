@@ -1629,7 +1629,8 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 		if dtv.IsUndefined() {
 			panic("interface method call on undefined value")
 		}
-		tr, _, _, _ := findEmbeddedFieldType(dtv.T, path.Name, nil)
+		callerPath := dtv.T.GetPkgPath()
+		tr, _, _, _, _ := findEmbeddedFieldType(callerPath, dtv.T, path.Name, nil)
 		if len(tr) == 0 {
 			panic(fmt.Sprintf("method %s not found in type %s",
 				path.Name, dtv.T.String()))

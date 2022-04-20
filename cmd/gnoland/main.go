@@ -134,7 +134,8 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 			// NOTE: these are commented out and sent as SendTxs instead to keep account numbers aligned.
 			//"g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq=100000gnot", // @moul
 			//"g14da4n9hcynyzz83q607uu8keuh9hwlv42ra6fa=100000gnot", // !p2
-			//"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj=10000gnot", // @difranco
+			//"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj=100000gnot", // @difranco
+			//"g15gdm49ktawvkrl88jadqpucng37yxutucuwaef=100000gnot", // @
 		},
 	}
 	return gen

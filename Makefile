@@ -1,6 +1,7 @@
-all: gnoland gnokey goscan logos
-
+########################################
+# Dist suite
 .PHONY: logos goscan gnoland gnokey gnofaucet logos reset
+all: gnoland gnokey goscan logos
 
 reset:
 	rm -rf testdir
@@ -24,6 +25,7 @@ install_gnokey:
 	go install ./cmd/gnokey
 
 install_gnodev:
+	echo "Installing gnodev"
 	go install ./cmd/gnodev
 
 # The faucet (daemon)
@@ -45,6 +47,7 @@ logos:
 clean:
 	rm -rf build
 
+########################################
 # Test suite
 .PHONY: test test.go test.gno test.files1 test.files2 test.realm test.packages
 test: test.gno test.go
