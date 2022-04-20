@@ -102,7 +102,7 @@ func TestGoNativeDefine3(t *testing.T) {
 	out := new(bytes.Buffer)
 	pkg := NewPackageNode("foo", "test.foo", nil)
 	pkg.DefineGoNativeType(reflect.TypeOf(Foo{}))
-	pkg.DefineGoNativeValue("printFoo", func(f Foo) {
+	pkg.DefineGoNativeValue("PrintFoo", func(f Foo) {
 		out.Write([]byte(fmt.Sprintf("A: %v\n", f.A)))
 		out.Write([]byte(fmt.Sprintf("B: %v\n", f.B)))
 		out.Write([]byte(fmt.Sprintf("C: %v\n", f.C)))
@@ -122,7 +122,7 @@ func TestGoNativeDefine3(t *testing.T) {
 import foo "test.foo"
 func main() {
 	f := foo.Foo{A:1}
-	foo.printFoo(f)
+	foo.PrintFoo(f)
 }`
 	n := MustParseFile("main.go", c)
 	m.RunFiles(n)

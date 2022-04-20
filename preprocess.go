@@ -142,6 +142,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
 	var last BlockNode = ctx
+	var lastpn = packageOf(last)
 	stack = append(stack, last)
 
 	// iterate over all nodes recursively and calculate
@@ -1276,10 +1277,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// Set selector path based on xt's type.
 				switch cxt := xt.(type) {
 				case *PointerType, *DeclaredType, *StructType, *InterfaceType:
-					tr, _, rcvr, _ := findEmbeddedFieldType(cxt, n.Sel, nil)
-					if tr == nil {
-						panic(fmt.Sprintf("missing field %s in %s", n.Sel,
-							cxt.String()))
+					tr, _, rcvr, _, aerr := findEmbeddedFieldType(lastpn.PkgPath, cxt, n.Sel, nil)
+					if aerr {
+						panic(fmt.Sprintf("cannot access %s.%s from %s",
+							cxt.String(), n.Sel, lastpn.PkgPath))
+					} else if tr == nil {
+						panic(fmt.Sprintf("missing field %s in %s",
+							n.Sel, cxt.String()))
 					}
 					if len(tr) > 1 {
 						// (the last vp, tr[len(tr)-1], is for n.Sel)
@@ -1371,6 +1375,14 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						pv = pv_
 					}
 					pn := pv.GetPackageNode(store)
+					// ensure exposed or package path match.
+					if !isUpper(string(n.Sel)) && lastpn.PkgPath != pv.PkgPath {
+						panic(fmt.Sprintf("cannot access %s.%s from %s",
+							pv.PkgPath, n.Sel, lastpn.PkgPath))
+					} else {
+						// NOTE: this can happen with software upgrades,
+						// with multiple versions of the same package path.
+					}
 					n.Path = pn.GetPathForName(store, n.Sel)
 					// packages may contain constant vars,
 					// so check and evaluate if so.
@@ -1828,8 +1840,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					*dst = *(tmp.(*StructType))
 				case *DeclaredType:
 					// if store has this type, use that.
-					pn := packageOf(last)
-					tid := DeclaredTypeID(pn.PkgPath, n.Name)
+					tid := DeclaredTypeID(lastpn.PkgPath, n.Name)
 					exists := false
 					if dt := store.GetTypeSafe(tid); dt != nil {
 						dst = dt.(*DeclaredType)
@@ -1841,7 +1852,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// NOTE: this is where declared types are
 						// actually instantiated, not in
 						// machine.go:runDeclaration().
-						dt2 := declareWith(pn.PkgPath, n.Name, tmp)
+						dt2 := declareWith(lastpn.PkgPath, n.Name, tmp)
 						// if !n.IsAlias { // not sure why this was here.
 						dt2.Seal()
 						//}

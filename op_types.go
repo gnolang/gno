@@ -392,7 +392,7 @@ func (m *Machine) doOpStaticTypeOf() {
 			mt := ft.BoundType()
 			m.PushValue(asValue(mt))
 		case VPInterface:
-			_, _, _, ft := findEmbeddedFieldType(dxt, path.Name, nil)
+			_, _, _, ft, _ := findEmbeddedFieldType(dxt.GetPkgPath(), dxt, path.Name, nil)
 			m.PushValue(asValue(ft))
 		case VPNative:
 			// if dxt is *PointerType, convert to *NativeType.
