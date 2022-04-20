@@ -25,7 +25,7 @@ func TestVMKeeperOrigSend1(t *testing.T) {
 
 	// Create test package.
 	files := []*std.MemFile{
-		{"init.go", `
+		{"init.gno", `
 package test
 
 import "std"
@@ -70,7 +70,7 @@ func TestVMKeeperOrigSend2(t *testing.T) {
 
 	// Create test package.
 	files := []*std.MemFile{
-		{"init.go", `
+		{"init.gno", `
 package test
 
 import "std"
@@ -116,7 +116,7 @@ func TestVMKeeperOrigSend3(t *testing.T) {
 
 	// Create test package.
 	files := []*std.MemFile{
-		{"init.go", `
+		{"init.gno", `
 package test
 
 import "std"
@@ -161,7 +161,7 @@ func TestVMKeeperRealmSend1(t *testing.T) {
 
 	// Create test package.
 	files := []*std.MemFile{
-		{"init.go", `
+		{"init.gno", `
 package test
 
 import "std"
@@ -205,7 +205,7 @@ func TestVMKeeperRealmSend2(t *testing.T) {
 
 	// Create test package.
 	files := []*std.MemFile{
-		{"init.go", `
+		{"init.gno", `
 package test
 
 import "std"

@@ -1,6 +1,6 @@
 all: gnoland gnokey goscan logos
 
-.PHONY: logos goscan gnoland gnokey gnofaucet logos reset test test1 test2 testrealm testrealm1 testrealm2 testpackages testpkgs
+.PHONY: logos goscan gnoland gnokey gnofaucet logos reset
 
 reset:
 	rm -rf testdir
@@ -19,9 +19,12 @@ gnokey:
 	echo "Building gnokey"
 	go build -o build/gnokey ./cmd/gnokey
 
-install_gnokey: gnokey
+install_gnokey:
 	echo "Installing gnokey"
 	go install ./cmd/gnokey
+
+install_gnodev:
+	go install ./cmd/gnodev
 
 # The faucet (daemon)
 gnofaucet:
@@ -42,45 +45,34 @@ logos:
 clean:
 	rm -rf build
 
-test:
-	echo "Running tests"
-	go test
-	go test tests/*.go -v -test.short --timeout 20m
+# Test suite
+.PHONY: test test.go test.gno test.files1 test.files2 test.realm test.packages
+test: test.gno test.go
+	@echo "Full test suite finished."
 
-test1:
-	echo "Running tests"
-	go test
-	go test tests/*.go -v -test.short -run "TestFiles1"
+test.gno: test.files1 test.files2 test.realm test.packages
+	go test tests/*.go -v -run "TestFileStr"
+	go test tests/*.go -v -run "TestSelectors"
 
-test2:
-	echo "Running tests"
-	go test
-	go test tests/*.go -v -test.short -run "TestFiles2"
-
-testrealm:
-	echo "Running tests"
-	go test
-	go test tests/*.go -v -run "TestFiles/^zrealm"
-
-testrealm1:
-	echo "Running tests"
-	go test
-	go test tests/*.go -v -run "TestFiles1/^zrealm"
-
-testrealm2:
-	echo "Running tests"
-	go test
-	go test tests/*.go -v -run "TestFiles2/^zrealm"
-
-testpackages:
-	echo "Running tests"
-	go test tests/*.go -v -run "TestPackages"
-
-testpkgs:
+test.go:
+	go test . -v
 	# -p 1 shows test failures as they come
 	# maybe another way to do this?
-	go test ./pkgs/... -p 1 -count 1
+	go test ./pkgs/... -v -p 1
 
+test.files1:
+	go test tests/*.go -v -test.short -run "TestFiles1/" --timeout 20m
+
+test.files2:
+	go test tests/*.go -v -test.short -run "TestFiles2/" --timeout 20m
+
+test.realm:
+	go test tests/*.go -v -run "TestFiles/^zrealm" --timeout 20m
+
+test.packages:
+	go test tests/*.go -v -run "TestPackages" --timeout 20m
+
+# Code gen
 stringer:
 	stringer -type=Op
 

@@ -22,11 +22,11 @@ import (
 )
 
 func TestFileStr(t *testing.T) {
-	filePath := "./files/str.go"
+	filePath := "./files/str.gno"
 	runFileTest(t, filePath, true)
 }
 
-// Bootstrapping test files from tests/files/*.go,
+// Bootstrapping test files from tests/files/*.gno,
 // which primarily uses native stdlib shims.
 func TestFiles1(t *testing.T) {
 	baseDir := filepath.Join(".", "files")
@@ -35,7 +35,7 @@ func TestFiles1(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, file := range files {
-		if filepath.Ext(file.Name()) != ".go" {
+		if filepath.Ext(file.Name()) != ".gno" {
 			continue
 		}
 		if testing.Short() && strings.Contains(file.Name(), "_long") {
@@ -57,7 +57,7 @@ func TestFiles2(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, file := range files {
-		if filepath.Ext(file.Name()) != ".go" {
+		if filepath.Ext(file.Name()) != ".gno" {
 			continue
 		}
 		if testing.Short() && strings.Contains(file.Name(), "_long") {
@@ -145,7 +145,7 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 				store.SetBlockNode(pn)
 				store.SetCachePackage(pv)
 				m.SetActivePackage(pv)
-				n := gno.MustParseFile(path, string(bz)) // "main.go", string(bz))
+				n := gno.MustParseFile(path, string(bz)) // "main.gno", string(bz))
 				m.RunFiles(n)
 				if gno.IsDebug() && testing.Verbose() {
 					t.Log("========================================")
@@ -168,7 +168,7 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 					Path: pkgPath,
 					Files: []*std.MemFile{
 						{
-							Name: "main.go", // dontcare
+							Name: "main.gno", // dontcare
 							Body: string(bz),
 						},
 					},

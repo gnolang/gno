@@ -26,7 +26,7 @@ var _ std.Msg = MsgAddPackage{}
 func NewMsgAddPackage(creator crypto.Address, pkgPath string, files []*std.MemFile) MsgAddPackage {
 	var pkgName string
 	for _, file := range files {
-		if strings.HasSuffix(file.Name, ".go") {
+		if strings.HasSuffix(file.Name, ".gno") {
 			pkgName = string(gno.PackageNameFromFileBody(file.Body))
 			break
 		}

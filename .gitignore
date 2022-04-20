@@ -11,3 +11,4 @@ build/*
 *.tx
 *.log.*
 *.log
+*.gno.gen.go

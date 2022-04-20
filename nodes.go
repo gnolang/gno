@@ -1064,7 +1064,7 @@ type FileSet struct {
 // TODO replace with some more efficient method
 // that doesn't involve parsing the whole file.
 func PackageNameFromFileBody(body string) Name {
-	n := MustParseFile("dontcare.go", body)
+	n := MustParseFile("dontcare.gno", body)
 	return n.PkgName
 }
 
@@ -1085,12 +1085,12 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 		if err != nil {
 			panic(err)
 		}
-		if pkgName == "" && strings.HasSuffix(file.Name(), "_test.go") {
+		if pkgName == "" && strings.HasSuffix(file.Name(), "_test.gno") {
 			pkgName = PackageNameFromFileBody(string(bz))
 			if strings.HasSuffix(string(pkgName), "_test") {
 				pkgName = pkgName[:len(pkgName)-len("_test")]
 			}
-		} else if pkgName == "" && strings.HasSuffix(file.Name(), ".go") {
+		} else if pkgName == "" && strings.HasSuffix(file.Name(), ".gno") {
 			pkgName = PackageNameFromFileBody(string(bz))
 		}
 		memPkg.Files = append(memPkg.Files,
@@ -1108,14 +1108,14 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 	fset = &FileSet{}
 	for _, mfile := range memPkg.Files {
-		if !strings.HasSuffix(mfile.Name, ".go") {
+		if !strings.HasSuffix(mfile.Name, ".gno") {
 			continue // skip spurious file.
 		}
 		n, err := ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
 			panic(errors.Wrap(err, "parsing file "+mfile.Name))
 		}
-		if strings.HasSuffix(mfile.Name, "_test.go") {
+		if strings.HasSuffix(mfile.Name, "_test.gno") {
 			// skip test file.
 		} else if memPkg.Name == string(n.PkgName) {
 			// add package file.
@@ -1132,7 +1132,7 @@ func ParseMemPackageTests(memPkg *std.MemPackage) (tset, itset *FileSet) {
 	tset = &FileSet{}
 	itset = &FileSet{}
 	for _, mfile := range memPkg.Files {
-		if !strings.HasSuffix(mfile.Name, ".go") {
+		if !strings.HasSuffix(mfile.Name, ".gno") {
 			continue // skip this file.
 		}
 		n, err := ParseFile(mfile.Name, mfile.Body)
@@ -1142,7 +1142,7 @@ func ParseMemPackageTests(memPkg *std.MemPackage) (tset, itset *FileSet) {
 		if n == nil {
 			panic("should not happen")
 		}
-		if strings.HasSuffix(mfile.Name, "_test.go") {
+		if strings.HasSuffix(mfile.Name, "_test.gno") {
 			// add test file.
 			if memPkg.Name+"_test" == string(n.PkgName) {
 				itset.AddFiles(n)

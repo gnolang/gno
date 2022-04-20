@@ -20,14 +20,16 @@ require (
 	github.com/libp2p/go-buffer-pool v0.0.2
 	github.com/mattn/go-runewidth v0.0.10
 	github.com/pelletier/go-toml v1.9.3
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.7.1
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c
 	go.etcd.io/bbolt v1.3.6
-	golang.org/x/crypto v0.0.0-20200115085410-6d4e4cb37c7d
+	go.uber.org/multierr v1.8.0
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	golang.org/x/mod v0.4.2
 	golang.org/x/net v0.0.0-20210726213435-c6fcb2dbf985
 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
+	golang.org/x/tools v0.1.0
 	google.golang.org/protobuf v1.27.1
 )
 
@@ -39,12 +41,16 @@ require (
 	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db // indirect
 	github.com/gorilla/securecookie v1.1.1 // indirect
 	github.com/gorilla/sessions v1.2.1 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.0.3 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.1.0 // indirect
+	go.uber.org/atomic v1.7.0 // indirect
 	golang.org/x/sys v0.0.0-20210615035016-665e8c7367d1 // indirect
 	golang.org/x/text v0.3.6 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
+	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
+	gopkg.in/yaml.v2 v2.2.2 // indirect
+	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
 
 replace github.com/gdamore/tcell/v2 => github.com/gnolang/tcell/v2 v2.1.0
