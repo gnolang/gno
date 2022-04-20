@@ -32,6 +32,7 @@ type AppList = command.AppList
 
 var mainApps AppList = []AppItem{
 	{precompileApp, "precompile", "precompile .gno to .go", DefaultPrecompileOptions},
+	// build-dry-run
 }
 
 func runMain(cmd *command.Command, exec string, args []string) error {
