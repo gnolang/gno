@@ -12,14 +12,19 @@ import (
 
 type BoardID uint64
 
+func (bid BoardID) String() string {
+	return strconv.Itoa(int(bid))
+}
+
 type Board struct {
 	id        BoardID // only set for public boards.
 	url       string
 	name      string
 	creator   std.Address
-	posts     *avl.Tree // Post.id -> *Post
-	postsCtr  uint64    // increments Post.id
+	threads   *avl.MutTree // Post.id -> *Post
+	postsCtr  uint64       // increments Post.id
 	createdAt std.Time
+	deleted   *avl.MutTree // TODO reserved for fast-delete.
 }
 
 func newBoard(id BoardID, url string, name string, creator std.Address) *Board {
@@ -35,6 +40,7 @@ func newBoard(id BoardID, url string, name string, creator std.Address) *Board {
 		url:       url,
 		name:      name,
 		creator:   creator,
+		threads:   avl.NewMutTree(),
 		createdAt: std.GetTimestamp(),
 	}
 }
@@ -55,27 +61,29 @@ func (board *Board) IsPrivate() bool {
 
 func (board *Board) GetThread(pid PostID) *Post {
 	pidkey := postIDKey(pid)
-	_, postI, exists := board.posts.Get(pidkey)
+	postI, exists := board.threads.Get(pidkey)
 	if !exists {
 		return nil
 	}
 	return postI.(*Post)
 }
 
-func (board *Board) AddPost(creator std.Address, title string, body string) *Post {
+func (board *Board) AddThread(creator std.Address, title string, body string) *Post {
 	pid := board.incGetPostID()
 	pidkey := postIDKey(pid)
-	post := &Post{
-		board:     board,
-		id:        pid,
-		creator:   creator,
-		title:     title,
-		body:      body,
-		threadID:  pid,
-		createdAt: std.GetTimestamp(),
+	thread := newPost(board, pid, creator, title, body, pid, 0, 0)
+	board.threads.Set(pidkey, thread)
+	return thread
+}
+
+// NOTE: this can be potentially very expensive for threads with many replies.
+// TODO: implement optional fast-delete where thread is simply moved.
+func (board *Board) DeleteThread(pid PostID) {
+	pidkey := postIDKey(pid)
+	_, removed := board.threads.Remove(pidkey)
+	if !removed {
+		panic("thread does not exist with id " + pid.String())
 	}
-	board.posts, _ = board.posts.Set(pidkey, post)
-	return post
 }
 
 // Renders the board for display suitable as plaintext in
@@ -84,8 +92,8 @@ func (board *Board) AddPost(creator std.Address, title string, body string) *Pos
 func (board *Board) RenderBoard() string {
 	str := ""
 	str += "\\[[post](" + board.GetPostFormURL() + ")]\n\n"
-	if board.posts.Size() > 0 {
-		board.posts.Iterate("", "", func(n *avl.Tree) bool {
+	if board.threads.Size() > 0 {
+		board.threads.Iterate("", "", func(n *avl.Tree) bool {
 			if str != "" {
 				str += "----------------------------------------\n"
 			}
@@ -103,14 +111,14 @@ func (board *Board) incGetPostID() PostID {
 
 func (board *Board) GetURLFromThreadAndReplyID(threadID, replyID PostID) string {
 	if replyID == 0 {
-		return board.url + "/" + strconv.Itoa(int(threadID))
+		return board.url + "/" + threadID.String()
 	} else {
-		return board.url + "/" + strconv.Itoa(int(threadID)) + "/" + strconv.Itoa(int(replyID))
+		return board.url + "/" + threadID.String() + "/" + replyID.String()
 	}
 }
 
 func (board *Board) GetPostFormURL() string {
 	return "/r/boards?help&__func=CreatePost" +
-		"&bid=" + strconv.Itoa(int(board.id)) +
+		"&bid=" + board.id.String() +
 		"&body.type=textarea"
 }

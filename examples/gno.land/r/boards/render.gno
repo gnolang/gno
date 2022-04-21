@@ -32,7 +32,7 @@ func Render(path string) string {
 	if len(parts) == 1 {
 		// /r/boards:BOARD_NAME
 		name := parts[0]
-		_, boardI, exists := gBoardsByName.Get(name)
+		boardI, exists := gBoardsByName.Get(name)
 		if !exists {
 			return "board does not exist: " + name
 		}
@@ -40,7 +40,7 @@ func Render(path string) string {
 	} else if len(parts) == 2 {
 		// /r/boards:BOARD_NAME/THREAD_ID
 		name := parts[0]
-		_, boardI, exists := gBoardsByName.Get(name)
+		boardI, exists := gBoardsByName.Get(name)
 		if !exists {
 			return "board does not exist: " + name
 		}
@@ -57,7 +57,7 @@ func Render(path string) string {
 	} else if len(parts) == 3 {
 		// /r/boards:BOARD_NAME/THREAD_ID/REPLY_ID
 		name := parts[0]
-		_, boardI, exists := gBoardsByName.Get(name)
+		boardI, exists := gBoardsByName.Get(name)
 		if !exists {
 			return "board does not exist: " + name
 		}

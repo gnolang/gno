@@ -9,9 +9,9 @@ import (
 //----------------------------------------
 // Realm (package) state
 
-var gBoards *avl.Tree       // id -> *Board
-var gBoardsCtr int          // increments Board.id
-var gBoardsByName *avl.Tree // name -> *Board
+var gBoards = avl.NewMutTree()       // id -> *Board
+var gBoardsCtr int                   // increments Board.id
+var gBoardsByName = avl.NewMutTree() // name -> *Board
 
 //----------------------------------------
 // Constants

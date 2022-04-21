@@ -8,7 +8,7 @@ import (
 // Public facing functions
 
 func GetBoardIDFromName(name string) (BoardID, bool) {
-	_, boardI, exists := gBoardsByName.Get(name)
+	boardI, exists := gBoardsByName.Get(name)
 	if !exists {
 		return 0, false
 	}
@@ -22,17 +22,18 @@ func CreateBoard(name string) BoardID {
 	url := "/r/boards:" + name
 	board := newBoard(bid, url, name, caller)
 	bidkey := boardIDKey(bid)
-	gBoards, _ = gBoards.Set(bidkey, board)
-	gBoardsByName, _ = gBoardsByName.Set(name, board)
+	gBoards.Set(bidkey, board)
+	gBoardsByName.Set(name, board)
 	return board.id
 }
 
+// TODO: rename to CreateThread.
 func CreatePost(bid BoardID, title string, body string) PostID {
 	std.AssertOriginCall()
 	caller := std.GetOrigCaller()
 	board := getBoard(bid)
-	post := board.AddPost(caller, title, body)
-	return post.id
+	thread := board.AddThread(caller, title, body)
+	return thread.id
 }
 
 func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
@@ -63,4 +64,16 @@ func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoar
 	thread := board.GetThread(postid)
 	repost := thread.AddRepostTo(caller, title, body, dst)
 	return repost.id
+}
+
+func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
+	std.AssertOriginCall()
+	caller := std.GetOrigCaller()
+	board := getBoard(bid)
+	if postid == threadid {
+		board.DeleteThread(threadid)
+	} else {
+		thread := board.GetThread(threadid)
+		thread.DeletePost(postid)
+	}
 }

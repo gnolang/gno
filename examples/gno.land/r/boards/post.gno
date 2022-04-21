@@ -13,6 +13,10 @@ import (
 // NOTE: a PostID is relative to the board.
 type PostID uint64
 
+func (pid PostID) String() string {
+	return strconv.Itoa(int(pid))
+}
+
 // A Post is a "thread" or a "reply" depending on context.
 // A thread is a Post of a Board that holds other replies.
 type Post struct {
@@ -21,17 +25,34 @@ type Post struct {
 	creator     std.Address
 	title       string // optional
 	body        string
-	replies     *avl.Tree // Post.id -> *Post
-	repliesAll  *avl.Tree // Post.id -> *Post (all replies, for top-level posts)
-	reposts     *avl.Tree // Board.id -> Post.id
-	threadID    PostID    // original Post.id
-	replyTo     PostID    // parent Post.id (if reply or repost)
-	repostBoard BoardID   // original Board.id (if repost)
+	replies     *avl.MutTree // Post.id -> *Post
+	repliesAll  *avl.MutTree // Post.id -> *Post (all replies, for top-level posts)
+	reposts     *avl.MutTree // Board.id -> Post.id
+	threadID    PostID       // original Post.id
+	parentID    PostID       // parent Post.id (if reply or repost)
+	repostBoard BoardID      // original Board.id (if repost)
 	createdAt   std.Time
 }
 
+func newPost(board *Board, id PostID, creator std.Address, title, body string, threadID, parentID PostID, repostBoard BoardID) *Post {
+	return &Post{
+		board:       board,
+		id:          id,
+		creator:     creator,
+		title:       title,
+		body:        body,
+		replies:     avl.NewMutTree(),
+		repliesAll:  avl.NewMutTree(),
+		reposts:     avl.NewMutTree(),
+		threadID:    threadID,
+		parentID:    parentID,
+		repostBoard: repostBoard,
+		createdAt:   std.GetTimestamp(),
+	}
+}
+
 func (post *Post) IsThread() bool {
-	return post.replyTo == 0
+	return post.parentID == 0
 }
 
 func (post *Post) GetPostID() PostID {
@@ -42,28 +63,20 @@ func (post *Post) AddReply(creator std.Address, body string) *Post {
 	board := post.board
 	pid := board.incGetPostID()
 	pidkey := postIDKey(pid)
-	reply := &Post{
-		board:     board,
-		id:        pid,
-		creator:   creator,
-		body:      body,
-		threadID:  post.threadID,
-		replyTo:   post.id,
-		createdAt: std.GetTimestamp(),
-	}
-	post.replies, _ = post.replies.Set(pidkey, reply)
+	reply := newPost(board, pid, creator, "", body, post.threadID, post.id, 0)
+	post.replies.Set(pidkey, reply)
 	if post.threadID == post.id {
-		post.repliesAll, _ = post.repliesAll.Set(pidkey, reply)
+		post.repliesAll.Set(pidkey, reply)
 	} else {
 		thread := board.GetThread(post.threadID)
-		thread.repliesAll, _ = thread.repliesAll.Set(pidkey, reply)
+		thread.repliesAll.Set(pidkey, reply)
 	}
 	return reply
 }
 
 func (thread *Post) GetReply(pid PostID) *Post {
 	pidkey := postIDKey(pid)
-	_, replyI, ok := thread.repliesAll.Get(pidkey)
+	replyI, ok := thread.repliesAll.Get(pidkey)
 	if !ok {
 		return nil
 	} else {
@@ -72,25 +85,34 @@ func (thread *Post) GetReply(pid PostID) *Post {
 }
 
 func (post *Post) AddRepostTo(creator std.Address, title, body string, dst *Board) *Post {
+	if !post.IsThread() {
+		panic("cannot repost non-thread post")
+	}
 	pid := dst.incGetPostID()
 	pidkey := postIDKey(pid)
-	repost := &Post{
-		board:       dst,
-		id:          pid,
-		creator:     creator,
-		title:       title,
-		body:        body,
-		threadID:    pid,
-		replyTo:     post.id,
-		repostBoard: post.board.id,
-		createdAt:   std.GetTimestamp(),
-	}
-	dst.posts, _ = dst.posts.Set(pidkey, repost)
+	repost := newPost(dst, pid, creator, title, body, pid, post.id, post.board.id)
+	dst.threads.Set(pidkey, repost)
 	if !dst.IsPrivate() {
 		bidkey := boardIDKey(dst.id)
-		post.reposts, _ = post.reposts.Set(bidkey, pid)
+		post.reposts.Set(bidkey, pid)
 	}
 	return repost
+}
+
+func (thread *Post) DeletePost(pid PostID) {
+	if thread.id == pid {
+		panic("should not happen")
+	}
+	pidkey := postIDKey(pid)
+	postI, removed := thread.repliesAll.Remove(pidkey)
+	if !removed {
+		panic("post not found in thread")
+	}
+	post := postI.(*Post)
+	if post.parentID != thread.id {
+		parent := thread.GetReply(post.parentID)
+		parent.replies.Remove(pidkey)
+	}
 }
 
 func (post *Post) GetSummary() string {
@@ -109,10 +131,17 @@ func (post *Post) GetURL() string {
 
 func (post *Post) GetReplyFormURL() string {
 	return "/r/boards?help&__func=CreateReply" +
-		"&bid=" + strconv.Itoa(int(post.board.id)) +
-		"&threadid=" + strconv.Itoa(int(post.threadID)) +
-		"&postid=" + strconv.Itoa(int(post.id)) +
+		"&bid=" + post.board.id.String() +
+		"&threadid=" + post.threadID.String() +
+		"&postid=" + post.id.String() +
 		"&body.type=textarea"
+}
+
+func (post *Post) GetDeleteFormURL() string {
+	return "/r/boards?help?__func=DeletePost" +
+		"&bid=" + post.board.id.String() +
+		"&threadid=" + post.threadID.String() +
+		"&postid=" + post.id.String()
 }
 
 func (post *Post) RenderSummary() string {
@@ -141,7 +170,8 @@ func (post *Post) RenderPost(indent string, levels int) string {
 	str += indentBody(indent, post.body) + "\n" // TODO: indent body lines.
 	str += indent + "\\- " + displayAddressMD(post.creator) + ", "
 	str += "[" + std.FormatTimestamp(post.createdAt, "2006-01-02 3:04pm (MST)") + "](" + post.GetURL() + ")"
-	str += " [reply](" + post.GetReplyFormURL() + ")" + "\n"
+	str += " \\[[reply](" + post.GetReplyFormURL() + ")]"
+	str += " \\[[x](" + post.GetDeleteFormURL() + ")]\n"
 	if levels > 0 {
 		if post.replies.Size() > 0 {
 			post.replies.Iterate("", "", func(n *avl.Tree) bool {
@@ -166,7 +196,7 @@ func (post *Post) RenderInner() string {
 	}
 	threadID := post.threadID
 	replyID := post.id
-	parentID := post.replyTo
+	parentID := post.parentID
 	str := ""
 	str += "_[see thread](" + post.board.GetURLFromThreadAndReplyID(
 		threadID, 0) + ")_\n\n"
