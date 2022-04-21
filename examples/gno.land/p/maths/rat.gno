@@ -42,6 +42,6 @@ func (r1 Rat) Cmp(r2 Rat) int {
 	}
 }
 
-func (r1 Rat) Plus(r2 Rat) Rat {
-	// XXX
-}
+//func (r1 Rat) Plus(r2 Rat) Rat {
+// XXX
+//}
