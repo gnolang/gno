@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/lnxGnu/grocksdb"
+	"github.com/linxGnu/grocksdb"
 )
 
 func init() {
