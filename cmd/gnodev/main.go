@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -32,7 +33,6 @@ type AppList = command.AppList
 
 var mainApps AppList = []AppItem{
 	{precompileApp, "precompile", "precompile .gno to .go", DefaultPrecompileOptions},
-	// build-dry-run
 }
 
 func runMain(cmd *command.Command, exec string, args []string) error {
@@ -63,11 +63,15 @@ func runMain(cmd *command.Command, exec string, args []string) error {
 // precompileApp
 
 type precompileOptions struct {
-	Verbose bool `flag:"verbose" help:"verbose"`
+	Verbose   bool   `flag:"verbose" help:"verbose"`
+	SkipBuild bool   `flag:"skip-build" help:"convert to .go without building with go"`
+	GoBinary  string `flag:"go-binary" help:"go binary to use for building"`
 }
 
 var DefaultPrecompileOptions = precompileOptions{
-	Verbose: false,
+	Verbose:   false,
+	SkipBuild: false,
+	GoBinary:  "go",
 }
 
 func precompileApp(cmd *command.Command, args []string, iopts interface{}) error {
@@ -77,7 +81,6 @@ func precompileApp(cmd *command.Command, args []string, iopts interface{}) error
 		return errors.New("invalid args")
 	}
 
-	verbose := opts.Verbose
 	for _, arg := range args {
 		info, err := os.Stat(arg)
 		if err != nil {
@@ -85,7 +88,7 @@ func precompileApp(cmd *command.Command, args []string, iopts interface{}) error
 		}
 		if !info.IsDir() {
 			filepath := arg
-			err = precompileFile(filepath, verbose)
+			err = precompileFile(filepath, opts)
 			if err != nil {
 				return fmt.Errorf("%s: failed to precompile: %w", filepath, err)
 			}
@@ -98,7 +101,7 @@ func precompileApp(cmd *command.Command, args []string, iopts interface{}) error
 				if !isGnoFile(f) {
 					return nil // skip
 				}
-				err = precompileFile(filepath, verbose)
+				err = precompileFile(filepath, opts)
 				if err != nil {
 					return fmt.Errorf("%s: failed to precompile: %w", filepath, err)
 				}
@@ -113,7 +116,11 @@ func precompileApp(cmd *command.Command, args []string, iopts interface{}) error
 	return nil
 }
 
-func precompileFile(srcPath string, verbose bool) error {
+func precompileFile(srcPath string, opts precompileOptions) error {
+	verbose := opts.Verbose
+	shouldBuild := !opts.SkipBuild
+	goBinary := opts.GoBinary
+
 	if verbose {
 		fmt.Fprintln(os.Stderr, srcPath)
 	}
@@ -140,6 +147,22 @@ func precompileFile(srcPath string, verbose bool) error {
 	err = ioutil.WriteFile(targetPath, []byte(transformed), 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write .go file: %w", err)
+	}
+
+	if shouldBuild {
+		// try to build the generated .go file.
+		// TODO: should we call cmd/compile here?
+		// TODO: guess the nearest go.mod file, chdir in the same folder, adapt trim prefix from targetPath?
+		args := []string{"build", "-v", "-tags=gno", targetPath}
+		cmd := exec.Command(goBinary, args...)
+		if verbose {
+			fmt.Fprintln(os.Stderr, cmd.String())
+		}
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, string(out))
+			return fmt.Errorf("failed to build .go file: %w", err)
+		}
 	}
 
 	return nil
