@@ -81,19 +81,20 @@ func precompileApp(cmd *command.Command, args []string, iopts interface{}) error
 		return errors.New("invalid args")
 	}
 
+	// precompile files.
 	for _, arg := range args {
 		info, err := os.Stat(arg)
 		if err != nil {
-			return fmt.Errorf("invalid package path: %w", err)
+			return fmt.Errorf("invalid file or package path: %w", err)
 		}
 		if !info.IsDir() {
-			filepath := arg
-			err = precompileFile(filepath, opts)
+			curpath := arg
+			err = precompileFile(curpath, opts)
 			if err != nil {
-				return fmt.Errorf("%s: failed to precompile: %w", filepath, err)
+				return fmt.Errorf("%s: failed to precompile: %w", curpath, err)
 			}
 		} else {
-			err = filepath.WalkDir(arg, func(filepath string, f fs.DirEntry, err error) error {
+			err = filepath.WalkDir(arg, func(curpath string, f fs.DirEntry, err error) error {
 				if err != nil {
 					return fmt.Errorf("%s: failed to walk dir: %w", arg, err)
 				}
@@ -101,9 +102,9 @@ func precompileApp(cmd *command.Command, args []string, iopts interface{}) error
 				if !isGnoFile(f) {
 					return nil // skip
 				}
-				err = precompileFile(filepath, opts)
+				err = precompileFile(curpath, opts)
 				if err != nil {
-					return fmt.Errorf("%s: failed to precompile: %w", filepath, err)
+					return fmt.Errorf("%s: failed to precompile: %w", curpath, err)
 				}
 				return nil
 			})
@@ -113,14 +114,81 @@ func precompileApp(cmd *command.Command, args []string, iopts interface{}) error
 		}
 	}
 
+	// go build the generated packages.
+	shouldBuild := !opts.SkipBuild
+	if shouldBuild {
+		for _, arg := range args {
+			info, err := os.Stat(arg)
+			if err != nil {
+				return fmt.Errorf("invalid file or package path: %w", err)
+			}
+			if !info.IsDir() {
+				file := arg
+				err = goBuildFileOrPkg(file, opts)
+				if err != nil {
+					return fmt.Errorf("%s: failed to build file: %w", file, err)
+				}
+			} else {
+				// if the passed arg is a dir, then we'll recursively walk the dir
+				// and look for directories containing at least one .gno file.
+
+				visited := map[string]bool{} // used to run the builder only once per folder.
+				err = filepath.WalkDir(arg, func(curpath string, f fs.DirEntry, err error) error {
+					if err != nil {
+						return fmt.Errorf("%s: failed to walk dir: %w", arg, err)
+					}
+					if f.IsDir() {
+						return nil // skip
+					}
+					if !isGnoFile(f) {
+						return nil // skip
+					}
+
+					parentDir := filepath.Dir(curpath)
+					if _, found := visited[parentDir]; found {
+						return nil
+					}
+					visited[parentDir] = true
+
+					pkg := "./" + parentDir
+					err = goBuildFileOrPkg(pkg, opts)
+					if err != nil {
+						return fmt.Errorf("%s: failed to build pkg: %w", pkg, err)
+					}
+					return nil
+				})
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func goBuildFileOrPkg(fileOrPkg string, opts precompileOptions) error {
+	verbose := opts.Verbose
+	goBinary := opts.GoBinary
+
+	// TODO: should we call cmd/compile instead of exec?
+	// TODO: guess the nearest go.mod file, chdir in the same folder, adapt trim prefix from fileOrPkg?
+	args := []string{"build", "-v", "-tags=gno", fileOrPkg}
+	cmd := exec.Command(goBinary, args...)
+	if verbose {
+		fmt.Fprintln(os.Stderr, cmd.String())
+	}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, string(out))
+		return fmt.Errorf("failed to build .go file: %w", err)
+	}
+
 	return nil
 }
 
 func precompileFile(srcPath string, opts precompileOptions) error {
 	verbose := opts.Verbose
-	shouldBuild := !opts.SkipBuild
-	goBinary := opts.GoBinary
-
 	if verbose {
 		fmt.Fprintln(os.Stderr, srcPath)
 	}
@@ -147,22 +215,6 @@ func precompileFile(srcPath string, opts precompileOptions) error {
 	err = ioutil.WriteFile(targetPath, []byte(transformed), 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write .go file: %w", err)
-	}
-
-	if shouldBuild {
-		// try to build the generated .go file.
-		// TODO: should we call cmd/compile here?
-		// TODO: guess the nearest go.mod file, chdir in the same folder, adapt trim prefix from targetPath?
-		args := []string{"build", "-v", "-tags=gno", targetPath}
-		cmd := exec.Command(goBinary, args...)
-		if verbose {
-			fmt.Fprintln(os.Stderr, cmd.String())
-		}
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, string(out))
-			return fmt.Errorf("failed to build .go file: %w", err)
-		}
 	}
 
 	return nil

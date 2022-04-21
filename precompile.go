@@ -26,7 +26,6 @@ var stdlibWhitelist = []string{
 	"std",
 	"strconv",
 	"strings",
-	"maths",
 }
 
 func Precompile(fset *token.FileSet, f *ast.File) (string, error) {
