@@ -26,7 +26,6 @@ func bootGnoland() (*gno.PackageValue, *bytes.Buffer) {
 	pn := gno.NewPackageNode("main", "gno.land/r/main", &gno.FileSet{})
 	pv := pn.NewPackage(rr)
 	rlm := pv.GetRealm()
-	rlm.SetLogRealmOps(true)
 	out := new(bytes.Buffer)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		Package:  pv,
