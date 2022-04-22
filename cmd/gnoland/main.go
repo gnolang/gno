@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gnolang/gno/gnoland"
+	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/bft/config"
 	"github.com/gnolang/gno/pkgs/bft/node"
 	"github.com/gnolang/gno/pkgs/bft/privval"
@@ -14,6 +16,7 @@ import (
 	"github.com/gnolang/gno/pkgs/crypto"
 	"github.com/gnolang/gno/pkgs/log"
 	osm "github.com/gnolang/gno/pkgs/os"
+	"github.com/gnolang/gno/pkgs/std"
 )
 
 func main() {
@@ -73,6 +76,19 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 			Name:    "testvalidator",
 		},
 	}
+	// load genesis txs.
+	txsBz := osm.MustReadFile("txexport.log.14")
+	txsLines := strings.Split(string(txsBz), "\n")
+	txs := []std.Tx{}
+	for _, txLine := range txsLines {
+		if txLine == "" {
+			continue // skip empty line
+		}
+		var tx std.Tx
+		amino.MustUnmarshalJSON([]byte(txLine), &tx)
+		txs = append(txs, tx)
+	}
+	// fill genesis AppState.
 	gen.AppState = gnoland.GnoGenesisState{
 		Balances: []string{
 			"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5=10000gnot",
@@ -137,6 +153,7 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 			//"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj=100000gnot", // @difranco
 			//"g15gdm49ktawvkrl88jadqpucng37yxutucuwaef=100000gnot", // @
 		},
+		Txs: txs,
 	}
 	return gen
 }

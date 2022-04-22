@@ -95,10 +95,10 @@ func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank
 			}
 		}
 		// Run genesis txs.
-		for _, tx := range genState.Txs {
+		for _, _ = range genState.Txs {
 			// XXX make sure signatures not necessary.
 			// XXX maybe use baseApp.Deliver()?
-			baseApp.DeliverTx(XXX)
+			//baseApp.DeliverTx(XXX)
 		}
 		// Done!
 		return abci.ResponseInitChain{
