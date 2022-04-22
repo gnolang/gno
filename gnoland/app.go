@@ -40,9 +40,10 @@ func NewApp(rootDir string, logger log.Logger) (abci.Application, error) {
 	bankKpr := bank.NewBankKeeper(acctKpr)
 	vmKpr := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, "./stdlibs")
 
-	// Configure InitChainer for genesis.
-	baseApp.SetInitChainer(InitChainer(acctKpr, bankKpr))
-	baseApp.SetEndBlocker(EndBlocker(vmKpr))
+	// Set InitChainer
+	baseApp.SetInitChainer(InitChainer(baseApp, acctKpr, bankKpr))
+
+	// Set AnteHandler
 	authAnteHandler := auth.NewAnteHandler(
 		acctKpr, bankKpr, auth.DefaultSigVerificationGasConsumer)
 	baseApp.SetAnteHandler(
@@ -58,6 +59,9 @@ func NewApp(rootDir string, logger log.Logger) (abci.Application, error) {
 
 		},
 	)
+
+	// Set EndBlocker
+	baseApp.SetEndBlocker(EndBlocker(vmKpr))
 
 	// Set a handler Route.
 	baseApp.Router().AddRoute("auth", auth.NewHandler(acctKpr))
@@ -76,7 +80,7 @@ func NewApp(rootDir string, logger log.Logger) (abci.Application, error) {
 }
 
 // InitChainer returns a function that can initialize the chain with genesis.
-func InitChainer(acctKpr auth.AccountKeeperI, bankKpr bank.BankKeeperI) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
+func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank.BankKeeperI) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
 	return func(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
 		// Get genesis state.
 		genState := req.AppState.(GnoGenesisState)
@@ -90,6 +94,13 @@ func InitChainer(acctKpr auth.AccountKeeperI, bankKpr bank.BankKeeperI) func(sdk
 				panic(err)
 			}
 		}
+		// Run genesis txs.
+		for _, tx := range genState.Txs {
+			// XXX make sure signatures not necessary.
+			// XXX maybe use baseApp.Deliver()?
+			baseApp.DeliverTx(XXX)
+		}
+		// Done!
 		return abci.ResponseInitChain{
 			Validators: req.Validators,
 		}

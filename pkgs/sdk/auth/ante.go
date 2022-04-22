@@ -129,6 +129,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 
 			// check signature, return account with incremented nonce
 			sacc := signerAccs[i]
+			// XXX if isGenesis, don't require signature at all.
 			signBytes := GetSignBytes(newCtx.ChainID(), tx, sacc, isGenesis)
 			signerAccs[i], res = processSig(newCtx, sacc, stdSigs[i], signBytes, simulate, params, sigGasConsumer)
 			if !res.IsOK() {
