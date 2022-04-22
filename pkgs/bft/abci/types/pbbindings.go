@@ -1,13 +1,13 @@
 package abci
 
 import (
-	proto "google.golang.org/protobuf/proto"
 	amino "github.com/gnolang/gno/pkgs/amino"
 	abcipb "github.com/gnolang/gno/pkgs/bft/abci/types/pb"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
-	anypb "google.golang.org/protobuf/types/known/anypb"
-	merklepb "github.com/gnolang/gno/pkgs/crypto/merkle/pb"
 	merkle "github.com/gnolang/gno/pkgs/crypto/merkle"
+	merklepb "github.com/gnolang/gno/pkgs/crypto/merkle/pb"
+	proto "google.golang.org/protobuf/proto"
+	anypb "google.golang.org/protobuf/types/known/anypb"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func (goo RequestBase) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {

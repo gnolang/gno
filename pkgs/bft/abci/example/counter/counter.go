@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/gnolang/gno/pkgs/bft/abci/example/errors"
-	"github.com/gnolang/gno/pkgs/bft/abci/types"
+	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
 )
 
 type CounterApplication struct {

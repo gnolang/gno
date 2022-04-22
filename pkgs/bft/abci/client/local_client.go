@@ -3,7 +3,7 @@ package abcicli
 import (
 	"sync"
 
-	"github.com/gnolang/gno/pkgs/bft/abci/types"
+	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
 	"github.com/gnolang/gno/pkgs/service"
 )
 

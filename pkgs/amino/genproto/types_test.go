@@ -1,8 +1,9 @@
 package genproto
 
 import (
-	"github.com/jaekwon/testify/assert"
 	"testing"
+
+	"github.com/jaekwon/testify/assert"
 )
 
 func TestPrintP3Types(t *testing.T) {
