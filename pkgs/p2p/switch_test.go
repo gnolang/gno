@@ -417,7 +417,7 @@ func TestSwitchReconnectsToInboundPersistentPeer(t *testing.T) {
 
 	conn, err := rp.Dial(sw.NetAddress())
 	require.NoError(t, err)
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 	require.NotNil(t, sw.Peers().Get(rp.ID()))
 
 	conn.Close()
@@ -501,7 +501,7 @@ func TestSwitchAcceptRoutine(t *testing.T) {
 			}
 		}(c)
 	}
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 	assert.Equal(t, cfg.MaxNumInboundPeers, sw.Peers().Size())
 
 	// 2. check we close new connections if we already have MaxNumInboundPeers peers
@@ -511,7 +511,7 @@ func TestSwitchAcceptRoutine(t *testing.T) {
 	require.NoError(t, err)
 	// check conn is closed
 	one := make([]byte, 1)
-	conn.SetReadDeadline(time.Now().Add(10 * time.Millisecond))
+	conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 	_, err = conn.Read(one)
 	assert.Equal(t, io.EOF, err)
 	assert.Equal(t, cfg.MaxNumInboundPeers, sw.Peers().Size())
@@ -614,7 +614,7 @@ func TestSwitchInitPeerIsNotCalledBeforeRemovePeer(t *testing.T) {
 	_, err = rp.Dial(sw.NetAddress())
 	require.NoError(t, err)
 	// wait till the switch adds rp to the peer set
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 
 	// stop peer asynchronously
 	go sw.StopPeerForError(sw.Peers().Get(rp.ID()), "test")
@@ -623,7 +623,7 @@ func TestSwitchInitPeerIsNotCalledBeforeRemovePeer(t *testing.T) {
 	_, err = rp.Dial(sw.NetAddress())
 	require.NoError(t, err)
 	// wait till the switch adds rp to the peer set
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 
 	// make sure reactor.RemovePeer is finished before InitPeer is called
 	assert.False(t, reactor.InitCalledBeforeRemoveFinished())
