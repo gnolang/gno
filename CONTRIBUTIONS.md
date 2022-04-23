@@ -12,7 +12,13 @@ TODO: other vim tweaks to make work with vim-go etc.
 
 ### Getting started with Emacs
 
-TODO
+Install [go-mode.el](https://github.com/dominikh/go-mode.el).
+
+Add to your emacs configuration file:
+
+```lisp
+(add-to-list 'auto-mode-alist '("\\.gno\\'" . go-mode))
+```
 
 ## Notable Contributions
 
