@@ -1080,6 +1080,10 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 		if file.IsDir() {
 			continue
 		}
+		// skip files starting with a dot.
+		if strings.HasPrefix(file.Name(), ".") {
+			continue
+		}
 		fpath := filepath.Join(dir, file.Name())
 		bz, err := ioutil.ReadFile(fpath)
 		if err != nil {
