@@ -24,7 +24,7 @@ func main() {
 	if err != nil {
 		cmd.ErrPrintfln("%s", err.Error())
 		// cmd.ErrPrintfln("%#v", err)
-		return // exit
+		os.Exit(1)
 	}
 }
 
@@ -81,7 +81,10 @@ func precompileApp(cmd *command.Command, args []string, iopts interface{}) error
 		return errors.New("invalid args")
 	}
 
-	// precompile files.
+	verbose := opts.Verbose
+	errCount := 0
+
+	// precompile .gno files.
 	for _, arg := range args {
 		info, err := os.Stat(arg)
 		if err != nil {
@@ -104,7 +107,10 @@ func precompileApp(cmd *command.Command, args []string, iopts interface{}) error
 				}
 				err = precompileFile(curpath, opts)
 				if err != nil {
-					return fmt.Errorf("%s: precompile: %w", curpath, err)
+					err = fmt.Errorf("%s: precompile: %w", curpath, err)
+					cmd.ErrPrintfln("%s", err.Error())
+					errCount++
+					return nil
 				}
 				return nil
 			})
@@ -114,7 +120,11 @@ func precompileApp(cmd *command.Command, args []string, iopts interface{}) error
 		}
 	}
 
-	// go build the generated packages.
+	if errCount > 0 {
+		return fmt.Errorf("%d precompile errors", errCount)
+	}
+
+	// std go build the generated packages.
 	shouldBuild := !opts.SkipBuild
 	if shouldBuild {
 		for _, arg := range args {
@@ -150,10 +160,18 @@ func precompileApp(cmd *command.Command, args []string, iopts interface{}) error
 					}
 					visited[parentDir] = true
 
+					// cannot use path.Join or filepath.Join, because we need
+					// to ensure that ./ is the prefix to pass to go build.
 					pkg := "./" + parentDir
+					if verbose {
+						fmt.Fprintf(os.Stderr, "%s: go build\n", pkg)
+					}
 					err = goBuildFileOrPkg(pkg, opts)
 					if err != nil {
-						return fmt.Errorf("%s: build pkg: %w", pkg, err)
+						err = fmt.Errorf("%s: build pkg: %w", pkg, err)
+						cmd.ErrPrintfln("%s", err.Error())
+						errCount++
+						return nil
 					}
 					return nil
 				})
@@ -161,6 +179,9 @@ func precompileApp(cmd *command.Command, args []string, iopts interface{}) error
 					return err
 				}
 			}
+		}
+		if errCount > 0 {
+			return fmt.Errorf("%d go build errors", errCount)
 		}
 	}
 
@@ -190,7 +211,7 @@ func goBuildFileOrPkg(fileOrPkg string, opts precompileOptions) error {
 func precompileFile(srcPath string, opts precompileOptions) error {
 	verbose := opts.Verbose
 	if verbose {
-		fmt.Fprintln(os.Stderr, srcPath)
+		fmt.Fprintf(os.Stderr, "%s: precompile\n", srcPath)
 	}
 
 	// parse .gno.

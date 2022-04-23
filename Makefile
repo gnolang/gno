@@ -48,7 +48,7 @@ clean:
 	rm -rf build
 
 precompile_examples: install_gnodev
-	cd examples; gnodev precompile .
+	cd examples; gnodev precompile . --verbose
 
 ########################################
 # Test suite
