@@ -70,10 +70,18 @@ func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
 	std.AssertOriginCall()
 	caller := std.GetOrigCaller()
 	board := getBoard(bid)
+	thread := board.GetThread(threadid)
 	if postid == threadid {
+		if caller != thread.creator {
+			panic("unauthorized")
+		}
 		board.DeleteThread(threadid)
-	} else {
-		thread := board.GetThread(threadid)
-		thread.DeletePost(postid)
+		return
 	}
+
+	post := thread.GetReply(postid)
+	if caller != post.creator {
+		panic("unauthorized")
+	}
+	thread.DeletePost(postid)
 }
