@@ -1112,6 +1112,10 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 	return memPkg
 }
 
+func PrecompileMemPackage(memPkg *std.MemPackage) error {
+	return nil
+}
+
 // Returns the code fileset minus any spurious or test files.
 func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 	fset = &FileSet{}

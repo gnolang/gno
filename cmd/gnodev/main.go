@@ -1,17 +1,8 @@
 package main
 
 import (
-	"fmt"
-	"go/parser"
-	"go/token"
-	"io/fs"
-	"io/ioutil"
 	"os"
-	"os/exec"
-	"path/filepath"
-	"strings"
 
-	"github.com/gnolang/gno"
 	"github.com/gnolang/gno/pkgs/command"
 	"github.com/gnolang/gno/pkgs/errors"
 )
@@ -33,10 +24,15 @@ type AppList = command.AppList
 
 var mainApps AppList = []AppItem{
 	{precompileApp, "precompile", "precompile .gno to .go", DefaultPrecompileOptions},
+	{buildApp, "build", "build a gno package", DefaultBuildOptions},
+
+	// test
+	// fmt
+	// publish
+	// generate
 }
 
 func runMain(cmd *command.Command, exec string, args []string) error {
-
 	// show help message.
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" {
 		cmd.Println("available subcommands:")
@@ -57,191 +53,4 @@ func runMain(cmd *command.Command, exec string, args []string) error {
 	// unknown app command!
 	return errors.New("unknown command " + args[0])
 
-}
-
-//----------------------------------------
-// precompileApp
-
-type precompileOptions struct {
-	Verbose   bool   `flag:"verbose" help:"verbose"`
-	SkipBuild bool   `flag:"skip-build" help:"convert to .go without building with go"`
-	GoBinary  string `flag:"go-binary" help:"go binary to use for building"`
-}
-
-var DefaultPrecompileOptions = precompileOptions{
-	Verbose:   false,
-	SkipBuild: false,
-	GoBinary:  "go",
-}
-
-func precompileApp(cmd *command.Command, args []string, iopts interface{}) error {
-	opts := iopts.(precompileOptions)
-	if len(args) < 1 {
-		cmd.ErrPrintfln("Usage: precompile [precompile flags] [packages]")
-		return errors.New("invalid args")
-	}
-
-	verbose := opts.Verbose
-	errCount := 0
-
-	// precompile .gno files.
-	for _, arg := range args {
-		info, err := os.Stat(arg)
-		if err != nil {
-			return fmt.Errorf("invalid file or package path: %w", err)
-		}
-		if !info.IsDir() {
-			curpath := arg
-			err = precompileFile(curpath, opts)
-			if err != nil {
-				return fmt.Errorf("%s: precompile: %w", curpath, err)
-			}
-		} else {
-			err = filepath.WalkDir(arg, func(curpath string, f fs.DirEntry, err error) error {
-				if err != nil {
-					return fmt.Errorf("%s: walk dir: %w", arg, err)
-				}
-
-				if !isGnoFile(f) {
-					return nil // skip
-				}
-				err = precompileFile(curpath, opts)
-				if err != nil {
-					err = fmt.Errorf("%s: precompile: %w", curpath, err)
-					cmd.ErrPrintfln("%s", err.Error())
-					errCount++
-					return nil
-				}
-				return nil
-			})
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	if errCount > 0 {
-		return fmt.Errorf("%d precompile errors", errCount)
-	}
-
-	// std go build the generated packages.
-	shouldBuild := !opts.SkipBuild
-	if shouldBuild {
-		for _, arg := range args {
-			info, err := os.Stat(arg)
-			if err != nil {
-				return fmt.Errorf("invalid file or package path: %w", err)
-			}
-			if !info.IsDir() {
-				file := arg
-				err = goBuildFileOrPkg(file, opts)
-				if err != nil {
-					return fmt.Errorf("%s: build file: %w", file, err)
-				}
-			} else {
-				// if the passed arg is a dir, then we'll recursively walk the dir
-				// and look for directories containing at least one .gno file.
-
-				visited := map[string]bool{} // used to run the builder only once per folder.
-				err = filepath.WalkDir(arg, func(curpath string, f fs.DirEntry, err error) error {
-					if err != nil {
-						return fmt.Errorf("%s: walk dir: %w", arg, err)
-					}
-					if f.IsDir() {
-						return nil // skip
-					}
-					if !isGnoFile(f) {
-						return nil // skip
-					}
-
-					parentDir := filepath.Dir(curpath)
-					if _, found := visited[parentDir]; found {
-						return nil
-					}
-					visited[parentDir] = true
-
-					// cannot use path.Join or filepath.Join, because we need
-					// to ensure that ./ is the prefix to pass to go build.
-					pkg := "./" + parentDir
-					if verbose {
-						fmt.Fprintf(os.Stderr, "%s: go build\n", pkg)
-					}
-					err = goBuildFileOrPkg(pkg, opts)
-					if err != nil {
-						err = fmt.Errorf("%s: build pkg: %w", pkg, err)
-						cmd.ErrPrintfln("%s", err.Error())
-						errCount++
-						return nil
-					}
-					return nil
-				})
-				if err != nil {
-					return err
-				}
-			}
-		}
-		if errCount > 0 {
-			return fmt.Errorf("%d go build errors", errCount)
-		}
-	}
-
-	return nil
-}
-
-func goBuildFileOrPkg(fileOrPkg string, opts precompileOptions) error {
-	verbose := opts.Verbose
-	goBinary := opts.GoBinary
-
-	// TODO: should we call cmd/compile instead of exec?
-	// TODO: guess the nearest go.mod file, chdir in the same folder, adapt trim prefix from fileOrPkg?
-	args := []string{"build", "-v", "-tags=gno", fileOrPkg}
-	cmd := exec.Command(goBinary, args...)
-	if verbose {
-		fmt.Fprintln(os.Stderr, cmd.String())
-	}
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, string(out))
-		return fmt.Errorf("std go compiler: %w", err)
-	}
-
-	return nil
-}
-
-func precompileFile(srcPath string, opts precompileOptions) error {
-	verbose := opts.Verbose
-	if verbose {
-		fmt.Fprintf(os.Stderr, "%s: precompile\n", srcPath)
-	}
-
-	// parse .gno.
-	source, err := ioutil.ReadFile(srcPath)
-	if err != nil {
-		return fmt.Errorf("read: %w", err)
-	}
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, srcPath, source, parser.ParseComments)
-	if err != nil {
-		return fmt.Errorf("parse: %w", err)
-	}
-
-	// preprocess.
-	transformed, err := gno.Precompile(fset, f)
-	if err != nil {
-		return fmt.Errorf("precompile: %w", err)
-	}
-
-	// write .go file.
-	targetPath := strings.TrimSuffix(srcPath, ".gno") + ".gno.gen.go"
-	err = ioutil.WriteFile(targetPath, []byte(transformed), 0644)
-	if err != nil {
-		return fmt.Errorf("write .go file: %w", err)
-	}
-
-	return nil
-}
-
-func isGnoFile(f fs.DirEntry) bool {
-	name := f.Name()
-	return !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".gno") && !f.IsDir()
 }

@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"go/ast"
 	"go/format"
+	"go/parser"
 	"go/token"
+	"os"
+	"os/exec"
 	"strings"
 
 	"go.uber.org/multierr"
@@ -54,8 +57,14 @@ var importPrefixWhitelist = []string{
 	"github.com/gnolang/gno/_test",
 }
 
-func Precompile(fset *token.FileSet, f *ast.File) (string, error) {
+func Precompile(source string) (string, error) {
 	var out bytes.Buffer
+
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "tmp.gno", source, parser.ParseComments)
+	if err != nil {
+		return "", fmt.Errorf("parse: %w", err)
+	}
 
 	transformed, err := precompileAST(fset, f)
 	if err != nil {
@@ -69,6 +78,41 @@ func Precompile(fset *token.FileSet, f *ast.File) (string, error) {
 	err = format.Node(&out, fset, transformed)
 	return out.String(), nil
 }
+
+// PrecompileCheckFile tries to run `go fmt` against a precompiled .go file.
+//
+// This is fast and won't look the imports.
+func PrecompileCheckFile(path string, gofmtBinary string) error {
+	// TODO: should: we call cmd/parser instead of exec?
+
+	args := []string{"-l", "-e", path}
+	cmd := exec.Command(gofmtBinary, args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, string(out))
+		return fmt.Errorf("gofmt: %w", err)
+	}
+	return nil
+}
+
+// PrecompileCheckPackage tries to run `go build` against the precompiled .go files.
+//
+// This method is the most efficient to detect errors but requires that all the import are valid and available.
+func PrecompileCheckPackage(fileOrPkg string, goBinary string) error {
+	// TODO: should we call cmd/compile instead of exec?
+	// TODO: guess the nearest go.mod file, chdir in the same folder, adapt trim prefix from fileOrPkg?
+
+	args := []string{"build", "-v", "-tags=gno", fileOrPkg}
+	cmd := exec.Command(goBinary, args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, string(out))
+		return fmt.Errorf("std go compiler: %w", err)
+	}
+
+	return nil
+}
+
 func precompileAST(fset *token.FileSet, f *ast.File) (ast.Node, error) {
 	var errs error
 
