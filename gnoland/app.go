@@ -97,8 +97,6 @@ func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank
 		}
 		// Run genesis txs.
 		for i, tx := range genState.Txs {
-			// XXX make sure signatures not necessary.
-			// XXX maybe use baseApp.Deliver()?
 			res := baseApp.Deliver(tx)
 			if res.IsErr() {
 				fmt.Println("ERROR LOG:", res.Log)
