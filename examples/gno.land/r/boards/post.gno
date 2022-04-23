@@ -197,7 +197,7 @@ func (post *Post) RenderInner() string {
 		panic("unexpected thread")
 	}
 	threadID := post.threadID
-	replyID := post.id
+	// replyID := post.id
 	parentID := post.parentID
 	str := ""
 	str += "_[see thread](" + post.board.GetURLFromThreadAndReplyID(
