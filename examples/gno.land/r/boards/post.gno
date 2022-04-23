@@ -112,6 +112,8 @@ func (thread *Post) DeletePost(pid PostID) {
 	if post.parentID != thread.id {
 		parent := thread.GetReply(post.parentID)
 		parent.replies.Remove(pidkey)
+	} else {
+		thread.replies.Remove(pidkey)
 	}
 }
 
@@ -138,7 +140,7 @@ func (post *Post) GetReplyFormURL() string {
 }
 
 func (post *Post) GetDeleteFormURL() string {
-	return "/r/boards?help?__func=DeletePost" +
+	return "/r/boards?help&__func=DeletePost" +
 		"&bid=" + post.board.id.String() +
 		"&threadid=" + post.threadID.String() +
 		"&postid=" + post.id.String()

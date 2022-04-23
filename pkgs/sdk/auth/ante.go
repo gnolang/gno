@@ -129,12 +129,16 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 
 			// check signature, return account with incremented nonce
 			sacc := signerAccs[i]
-			signBytes := GetSignBytes(newCtx.ChainID(), tx, sacc, isGenesis)
-			signerAccs[i], res = processSig(newCtx, sacc, stdSigs[i], signBytes, simulate, params, sigGasConsumer)
-			if !res.IsOK() {
-				return newCtx, res, true
+			if isGenesis {
+				// No signatures are needed for genesis.
+			} else {
+				// Check signature
+				signBytes := GetSignBytes(newCtx.ChainID(), tx, sacc, isGenesis)
+				signerAccs[i], res = processSig(newCtx, sacc, stdSigs[i], signBytes, simulate, params, sigGasConsumer)
+				if !res.IsOK() {
+					return newCtx, res, true
+				}
 			}
-
 			ak.SetAccount(newCtx, signerAccs[i])
 		}
 
@@ -185,8 +189,8 @@ func ValidateMemo(tx std.Tx, params Params) sdk.Result {
 	return sdk.Result{}
 }
 
-// verify the signature and increment the sequence. If the account doesn't have
-// a pubkey, set it.
+// verify the signature and increment the sequence. If the account doesn't
+// have a pubkey, set it.
 func processSig(
 	ctx sdk.Context, acc std.Account, sig std.Signature, signBytes []byte, simulate bool, params Params,
 	sigGasConsumer SignatureVerificationGasConsumer,

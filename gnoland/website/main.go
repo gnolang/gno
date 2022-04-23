@@ -6,7 +6,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"html/template"
 	"io"
 	"net/http"
 	"os"
@@ -180,7 +179,7 @@ func handleRealmRender(app gotuna.App, w http.ResponseWriter, r *http.Request) {
 	tmpl.Set("RealmPath", rlmpath)
 	tmpl.Set("Query", string(querystr))
 	tmpl.Set("PathLinks", pathLinks)
-	tmpl.Set("Contents", template.HTML(string(res)))
+	tmpl.Set("Contents", string(res))
 	tmpl.Render(w, r, "realm_render.html", "header.html")
 }
 

@@ -79,6 +79,15 @@ hr {
 	border-bottom: 1px gray;
 }
 
+.actions {
+	font-size: 0.9em;
+	color: #777;
+}
+
+.actions a {
+	color: #777;
+}
+
 
 /*****************************************/
 /* package_dir.html */

@@ -179,7 +179,7 @@ func GrantInvites(invites string) {
 		// give invites.
 		_, userI, ok := addr2User.Get(addr)
 		if !ok {
-			panic("invalid user")
+			panic("invalid user " + addr)
 		}
 		user := userI.(*User)
 		user.invites += invites
