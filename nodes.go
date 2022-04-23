@@ -1084,6 +1084,10 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 		if strings.HasPrefix(file.Name(), ".") {
 			continue
 		}
+		// skip precompile cache.
+		if strings.HasSuffix(file.Name(), ".gno.gen.go") {
+			continue
+		}
 		fpath := filepath.Join(dir, file.Name())
 		bz, err := ioutil.ReadFile(fpath)
 		if err != nil {
