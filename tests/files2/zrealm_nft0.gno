@@ -43,7 +43,7 @@ func main() {
 //         {
 //             "T": {
 //                 "@type": "/gno.tref",
-//                 "ID": "gno.land/r/nft.TokenID"
+//                 "ID": "gno.land/p/grc/grc721.TokenID"
 //             },
 //             "V": {
 //                 "@type": "/gno.vstr",
@@ -99,7 +99,7 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "d6f02aad674df014ea8e7057d28f345b8185fd91",
+//                         "Hash": "cfbadf6a2492396ea5e3703c57ad9503d423cf16",
 //                         "ObjectID": "6bde79a5f04d2658d17cbc323e45df5fad216511:6"
 //                     }
 //                 }
@@ -146,6 +146,7 @@ func main() {
 // }
 // u[6bde79a5f04d2658d17cbc323e45df5fad216511:4]={
 //     "Fields": [
+//         {},
 //         {
 //             "N": "AQAAAAAAAAA=",
 //             "T": {
@@ -172,7 +173,7 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "5bc850fde6b94814d4ab7aac069a70adb6d90ab2",
+//                         "Hash": "97fc33e7e42903156d9bbbf78a0ede94ac6efd24",
 //                         "ObjectID": "6bde79a5f04d2658d17cbc323e45df5fad216511:5"
 //                     }
 //                 }
