@@ -95,5 +95,5 @@ func goBuildFileOrPkg(fileOrPkg string, opts buildOptions) error {
 		fmt.Fprintf(os.Stderr, "%s\n", fileOrPkg)
 	}
 
-	return gno.PrecompileCheckPackage(fileOrPkg, goBinary)
+	return gno.PrecompileBuildPackage(fileOrPkg, goBinary)
 }

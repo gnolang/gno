@@ -109,7 +109,7 @@ func precompileFile(srcPath string, opts precompileOptions) error {
 
 	// check .go fmt.
 	if shouldCheckFmt {
-		err = gno.PrecompileCheckFile(targetPath, gofmt)
+		err = gno.PrecompileVerifyFile(targetPath, gofmt)
 		if err != nil {
 			return fmt.Errorf("check .go file: %w", err)
 		}

@@ -57,6 +57,9 @@ var importPrefixWhitelist = []string{
 	"github.com/gnolang/gno/_test",
 }
 
+// TODO: func PrecompileFile: supports caching.
+// TODO: func PrecompilePkg: supports directories.
+
 func Precompile(source string) (string, error) {
 	var out bytes.Buffer
 
@@ -79,11 +82,11 @@ func Precompile(source string) (string, error) {
 	return out.String(), nil
 }
 
-// PrecompileCheckFile tries to run `go fmt` against a precompiled .go file.
+// PrecompileVerifyFile tries to run `go fmt` against a precompiled .go file.
 //
 // This is fast and won't look the imports.
-func PrecompileCheckFile(path string, gofmtBinary string) error {
-	// TODO: should: we call cmd/parser instead of exec?
+func PrecompileVerifyFile(path string, gofmtBinary string) error {
+	// TODO: use cmd/parser instead of exec?
 
 	args := []string{"-l", "-e", path}
 	cmd := exec.Command(gofmtBinary, args...)
@@ -95,12 +98,15 @@ func PrecompileCheckFile(path string, gofmtBinary string) error {
 	return nil
 }
 
-// PrecompileCheckPackage tries to run `go build` against the precompiled .go files.
+// PrecompileBuildPackage tries to run `go build` against the precompiled .go files.
 //
-// This method is the most efficient to detect errors but requires that all the import are valid and available.
-func PrecompileCheckPackage(fileOrPkg string, goBinary string) error {
-	// TODO: should we call cmd/compile instead of exec?
-	// TODO: guess the nearest go.mod file, chdir in the same folder, adapt trim prefix from fileOrPkg?
+// This method is the most efficient to detect errors but requires that
+// all the import are valid and available.
+func PrecompileBuildPackage(fileOrPkg string, goBinary string) error {
+	// TODO: use cmd/compile instead of exec?
+	// TODO: find the nearest go.mod file, chdir in the same folder, rim prefix?
+	// TODO: temporarily create an in-memory go.mod or disable go modules for gno?
+	// TODO: ignore .go files that were not generated from gno?
 
 	args := []string{"build", "-v", "-tags=gno", fileOrPkg}
 	cmd := exec.Command(goBinary, args...)
