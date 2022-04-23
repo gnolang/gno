@@ -23,7 +23,7 @@ func main() {
 	err := runMain(cmd, exec, args)
 	if err != nil {
 		cmd.ErrPrintfln("%s", err.Error())
-		cmd.ErrPrintfln("%#v", err)
+		// cmd.ErrPrintfln("%#v", err)
 		return // exit
 	}
 }
@@ -91,12 +91,12 @@ func precompileApp(cmd *command.Command, args []string, iopts interface{}) error
 			curpath := arg
 			err = precompileFile(curpath, opts)
 			if err != nil {
-				return fmt.Errorf("%s: failed to precompile: %w", curpath, err)
+				return fmt.Errorf("%s: precompile: %w", curpath, err)
 			}
 		} else {
 			err = filepath.WalkDir(arg, func(curpath string, f fs.DirEntry, err error) error {
 				if err != nil {
-					return fmt.Errorf("%s: failed to walk dir: %w", arg, err)
+					return fmt.Errorf("%s: walk dir: %w", arg, err)
 				}
 
 				if !isGnoFile(f) {
@@ -104,7 +104,7 @@ func precompileApp(cmd *command.Command, args []string, iopts interface{}) error
 				}
 				err = precompileFile(curpath, opts)
 				if err != nil {
-					return fmt.Errorf("%s: failed to precompile: %w", curpath, err)
+					return fmt.Errorf("%s: precompile: %w", curpath, err)
 				}
 				return nil
 			})
@@ -126,7 +126,7 @@ func precompileApp(cmd *command.Command, args []string, iopts interface{}) error
 				file := arg
 				err = goBuildFileOrPkg(file, opts)
 				if err != nil {
-					return fmt.Errorf("%s: failed to build file: %w", file, err)
+					return fmt.Errorf("%s: build file: %w", file, err)
 				}
 			} else {
 				// if the passed arg is a dir, then we'll recursively walk the dir
@@ -135,7 +135,7 @@ func precompileApp(cmd *command.Command, args []string, iopts interface{}) error
 				visited := map[string]bool{} // used to run the builder only once per folder.
 				err = filepath.WalkDir(arg, func(curpath string, f fs.DirEntry, err error) error {
 					if err != nil {
-						return fmt.Errorf("%s: failed to walk dir: %w", arg, err)
+						return fmt.Errorf("%s: walk dir: %w", arg, err)
 					}
 					if f.IsDir() {
 						return nil // skip
@@ -153,7 +153,7 @@ func precompileApp(cmd *command.Command, args []string, iopts interface{}) error
 					pkg := "./" + parentDir
 					err = goBuildFileOrPkg(pkg, opts)
 					if err != nil {
-						return fmt.Errorf("%s: failed to build pkg: %w", pkg, err)
+						return fmt.Errorf("%s: build pkg: %w", pkg, err)
 					}
 					return nil
 				})
@@ -181,7 +181,7 @@ func goBuildFileOrPkg(fileOrPkg string, opts precompileOptions) error {
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, string(out))
-		return fmt.Errorf("failed to build .go file: %w", err)
+		return fmt.Errorf("std go compiler: %w", err)
 	}
 
 	return nil
@@ -196,25 +196,25 @@ func precompileFile(srcPath string, opts precompileOptions) error {
 	// parse .gno.
 	source, err := ioutil.ReadFile(srcPath)
 	if err != nil {
-		return fmt.Errorf("failed to read: %w", err)
+		return fmt.Errorf("read: %w", err)
 	}
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, srcPath, source, parser.ParseComments)
 	if err != nil {
-		return fmt.Errorf("failed to parse: %w", err)
+		return fmt.Errorf("parse: %w", err)
 	}
 
 	// preprocess.
 	transformed, err := gno.Precompile(fset, f)
 	if err != nil {
-		return fmt.Errorf("failed to precompile: %w", err)
+		return fmt.Errorf("precompile: %w", err)
 	}
 
 	// write .go file.
 	targetPath := strings.TrimSuffix(srcPath, ".gno") + ".gno.gen.go"
 	err = ioutil.WriteFile(targetPath, []byte(transformed), 0644)
 	if err != nil {
-		return fmt.Errorf("failed to write .go file: %w", err)
+		return fmt.Errorf("write .go file: %w", err)
 	}
 
 	return nil
