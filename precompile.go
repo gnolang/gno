@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/gnolang/gno/pkgs/std"
 	"go.uber.org/multierr"
 	"golang.org/x/tools/go/ast/astutil"
 )
@@ -59,6 +60,10 @@ var importPrefixWhitelist = []string{
 
 // TODO: func PrecompileFile: supports caching.
 // TODO: func PrecompilePkg: supports directories.
+
+func PrecompileAndCheckMempkg(mempkg *std.MemPackage) error {
+	return fmt.Errorf("not implemented")
+}
 
 func Precompile(source string) (string, error) {
 	var out bytes.Buffer

@@ -127,6 +127,12 @@ func makeAddPackageTxApp(cmd *command.Command, args []string, iopts interface{})
 	// open files in directory as MemPackage.
 	memPkg := gno.ReadMemPackage(opts.PkgDir, opts.PkgPath)
 
+	// precompile and validate syntax
+	err = gno.PrecompileAndCheckMempkg(memPkg)
+	if err != nil {
+		panic(err)
+	}
+
 	// parse gas wanted & fee.
 	gaswanted := opts.GasWanted
 	gasfee, err := std.ParseCoin(opts.GasFee)
