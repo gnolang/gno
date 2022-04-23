@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gnolang/gno/pkgs/amino"
 	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
 	"github.com/gnolang/gno/pkgs/crypto"
 	dbm "github.com/gnolang/gno/pkgs/db"
@@ -95,10 +96,18 @@ func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank
 			}
 		}
 		// Run genesis txs.
-		for _, _ = range genState.Txs {
+		for i, tx := range genState.Txs {
 			// XXX make sure signatures not necessary.
 			// XXX maybe use baseApp.Deliver()?
-			//baseApp.DeliverTx(XXX)
+			res := baseApp.Deliver(tx)
+			if res.IsErr() {
+				fmt.Println("ERROR LOG:", res.Log)
+				fmt.Println("#", i, string(amino.MustMarshalJSON(tx)))
+				// NOTE: comment out to ignore.
+				panic(res.Error)
+			} else {
+				fmt.Println("SUCCESS:", string(amino.MustMarshalJSON(tx)))
+			}
 		}
 		// Done!
 		return abci.ResponseInitChain{

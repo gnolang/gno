@@ -640,6 +640,14 @@ func mustValidateDenom(denom string) {
 	}
 }
 
+func MustParseCoin(coinStr string) Coin {
+	coin, err := ParseCoin(coinStr)
+	if err != nil {
+		panic(err)
+	}
+	return coin
+}
+
 // ParseCoin parses a cli input for one coin type, returning errors if invalid.
 // This returns an error on an empty string as well.
 func ParseCoin(coinStr string) (coin Coin, err error) {
