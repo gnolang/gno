@@ -7,8 +7,10 @@ import (
 	"go/format"
 	"go/parser"
 	"go/token"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/gnolang/gno/pkgs/std"
@@ -62,7 +64,41 @@ var importPrefixWhitelist = []string{
 // TODO: func PrecompilePkg: supports directories.
 
 func PrecompileAndCheckMempkg(mempkg *std.MemPackage) error {
-	return fmt.Errorf("not implemented")
+	gofmt := "gofmt"
+
+	tmpDir, err := ioutil.TempDir("", mempkg.Name)
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmpDir) // nolint: errcheck
+
+	var errs error
+	for _, mfile := range mempkg.Files {
+		if !strings.HasSuffix(mfile.Name, ".gno") {
+			continue // skip spurious file.
+		}
+		translated, err := Precompile(string(mfile.Body))
+		if err != nil {
+			errs = multierr.Append(errs, err)
+			continue
+		}
+		tmpFile := filepath.Join(tmpDir, mfile.Name)
+		err = ioutil.WriteFile(tmpFile, []byte(translated), 0644)
+		if err != nil {
+			errs = multierr.Append(errs, err)
+			continue
+		}
+		err = PrecompileVerifyFile(tmpFile, gofmt)
+		if err != nil {
+			errs = multierr.Append(errs, err)
+			continue
+		}
+	}
+
+	if errs != nil {
+		return fmt.Errorf("precompile package: %w", errs)
+	}
+	return nil
 }
 
 func Precompile(source string) (string, error) {
