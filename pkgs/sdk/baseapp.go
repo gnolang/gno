@@ -695,7 +695,6 @@ func (app *BaseApp) cacheTxContext(ctx Context, txBytes []byte) (
 // anteHandler. The provided txBytes may be nil in some cases, eg. in tests. For
 // further details on transaction execution, reference the BaseApp SDK
 // documentation.
-// XXX remove txBytes entirely?
 func (app *BaseApp) runTx(mode RunTxMode, txBytes []byte, tx Tx) (result Result) {
 	// NOTE: GasWanted should be returned by the AnteHandler. GasUsed is
 	// determined by the GasMeter. We need access to the context to get the gas
