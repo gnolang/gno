@@ -72,7 +72,7 @@ func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
 	board := getBoard(bid)
 	thread := board.GetThread(threadid)
 	if postid == threadid {
-		if caller != thread.creator {
+		if caller != thread.creator && caller != board.creator {
 			panic("unauthorized")
 		}
 		board.DeleteThread(threadid)
@@ -80,7 +80,7 @@ func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
 	}
 
 	post := thread.GetReply(postid)
-	if caller != post.creator {
+	if caller != post.creator && caller != board.creator {
 		panic("unauthorized")
 	}
 	thread.DeletePost(postid)
