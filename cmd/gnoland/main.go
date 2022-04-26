@@ -10,6 +10,7 @@ import (
 	"github.com/gnolang/gno"
 	"github.com/gnolang/gno/gnoland"
 	"github.com/gnolang/gno/pkgs/amino"
+	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
 	"github.com/gnolang/gno/pkgs/bft/config"
 	"github.com/gnolang/gno/pkgs/bft/node"
 	"github.com/gnolang/gno/pkgs/bft/privval"
@@ -70,6 +71,15 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 	gen := &bft.GenesisDoc{}
 	gen.GenesisTime = time.Now()
 	gen.ChainID = "testchain"
+	gen.ConsensusParams = abci.ConsensusParams{
+		Block: &abci.BlockParams{
+			// TODO: update limits.
+			MaxTxBytes:   1000000,  // 1MB,
+			MaxDataBytes: 2000000,  // 2MB,
+			MaxGas:       10000000, // 10M gas
+			TimeIotaMS:   100,      // 100ms
+		},
+	}
 	gen.Validators = []bft.GenesisValidator{
 		bft.GenesisValidator{
 			Address: pvPub.Address(),
