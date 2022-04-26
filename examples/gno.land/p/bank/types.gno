@@ -92,7 +92,7 @@ func (esc *EscrowContract) SetOrderA(order Order) {
 	if esc.EscrowTerms.PartyB != order.To() {
 		panic("invalid order-a:to mismatch")
 	}
-	if esc.EscrowTerms.AmountA != order.Amount() {
+	if !esc.EscrowTerms.AmountA.Equal(order.Amount()) {
 		panic("invalid order-a amount")
 	}
 	esc.OrderA = order
@@ -108,7 +108,7 @@ func (esc *EscrowContract) SetOrderB(order Order) {
 	if esc.EscrowTerms.PartyA != order.To() {
 		panic("invalid order-b:to mismatch")
 	}
-	if esc.EscrowTerms.AmountB != order.Amount() {
+	if !esc.EscrowTerms.AmountB.Equal(order.Amount()) {
 		panic("invalid order-b amount")
 	}
 	esc.OrderA = order
@@ -134,4 +134,16 @@ type Coins []Coin
 type Coin struct {
 	Denom  bool
 	Amount int64
+}
+
+func (a Coins) Equal(b Coins) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
 }

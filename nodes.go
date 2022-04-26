@@ -1080,6 +1080,14 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 		if file.IsDir() {
 			continue
 		}
+		// skip files starting with a dot.
+		if strings.HasPrefix(file.Name(), ".") {
+			continue
+		}
+		// skip precompile cache.
+		if strings.HasSuffix(file.Name(), ".gno.gen.go") {
+			continue
+		}
 		fpath := filepath.Join(dir, file.Name())
 		bz, err := ioutil.ReadFile(fpath)
 		if err != nil {
@@ -1102,6 +1110,10 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 	validatePkgName(string(pkgName))
 	memPkg.Name = string(pkgName)
 	return memPkg
+}
+
+func PrecompileMemPackage(memPkg *std.MemPackage) error {
+	return nil
 }
 
 // Returns the code fileset minus any spurious or test files.

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"maths"
+	"gno.land/p/maths"
 )
 
 func main() {
