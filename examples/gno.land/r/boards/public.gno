@@ -68,7 +68,7 @@ func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoar
 
 func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
 	std.AssertOriginCall()
-	// caller := std.GetOrigCaller()
+	caller := std.GetOrigCaller()
 	board := getBoard(bid)
 	thread := board.GetThread(threadid)
 	if postid == threadid {
