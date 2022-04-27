@@ -31,10 +31,17 @@ func init() {
 // and also to accept or reject different types of PubKey's. This is where apps can define their own PubKey
 type SignatureVerificationGasConsumer = func(meter store.GasMeter, sig []byte, pubkey crypto.PubKey, params Params) sdk.Result
 
+type AnteOptions struct {
+	// If verifyGenesisSignatures is false, does not check signatures when Height==0.
+	// This is useful for development, and maybe production chains.
+	// Always check your settings and inspect genesis transactions.
+	VerifyGenesisSignatures bool
+}
+
 // NewAnteHandler returns an AnteHandler that checks and increments sequence
 // numbers, checks signatures & account numbers, and deducts fees from the first
 // signer.
-func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer SignatureVerificationGasConsumer) sdk.AnteHandler {
+func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer SignatureVerificationGasConsumer, opts AnteOptions) sdk.AnteHandler {
 	return func(
 		ctx sdk.Context, tx std.Tx, simulate bool,
 	) (newCtx sdk.Context, res sdk.Result, abort bool) {
@@ -129,7 +136,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 
 			// check signature, return account with incremented nonce
 			sacc := signerAccs[i]
-			if isGenesis {
+			if isGenesis && !opts.VerifyGenesisSignatures {
 				// No signatures are needed for genesis.
 			} else {
 				// Check signature

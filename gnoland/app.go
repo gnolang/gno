@@ -45,8 +45,11 @@ func NewApp(rootDir string, logger log.Logger) (abci.Application, error) {
 	baseApp.SetInitChainer(InitChainer(baseApp, acctKpr, bankKpr))
 
 	// Set AnteHandler
+	authOptions := auth.AnteOptions{
+		VerifyGenesisSignatures: false, // for development
+	}
 	authAnteHandler := auth.NewAnteHandler(
-		acctKpr, bankKpr, auth.DefaultSigVerificationGasConsumer)
+		acctKpr, bankKpr, auth.DefaultSigVerificationGasConsumer, authOptions)
 	baseApp.SetAnteHandler(
 		// Override default AnteHandler with custom logic.
 		func(ctx sdk.Context, tx std.Tx, simulate bool) (
