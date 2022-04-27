@@ -155,7 +155,7 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 	}
 	// Load initial packages from examples.
 	txs := []std.Tx{}
-	for _, path := range []string{"p/avl", "r/users", "r/boards", "r/banktest"} {
+	for _, path := range []string{"p/avl", "p/grc/grc20", "p/grc/grc721", "p/maths", "p/ufmt", "r/foo20", "r/users", "r/boards", "r/banktest"} {
 		// open files in directory as MemPackage.
 		memPkg := gno.ReadMemPackage("./examples/gno.land/"+path, "gno.land/"+path)
 		var tx std.Tx

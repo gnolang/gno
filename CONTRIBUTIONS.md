@@ -24,6 +24,7 @@ Add to your emacs configuration file:
 
 Notable contributions of fixes/features/refactors:
 
+* [https://github.com/gnolang/gno/pull/136](#136) - @moul, foo20, a grc20 example smart contract
 * [https://github.com/gnolang/gno/pull/126](#126) - @moul, feat: use the new Precompile in gnodev and in the addpkg/execution flow (2/2)
 * [https://github.com/gnolang/gno/pull/119](#119) - @moul, add a Gno2Go precompiler (1/2)
 * [https://github.com/gnolang/gno/pull/112](#112) - @moul, feat: add 'gnokey maketx --broadcast' option
