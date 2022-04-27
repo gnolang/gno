@@ -2,6 +2,12 @@ name: Build
 
 on:
   pull_request:
+    paths:
+      - "**.go"
+      - "**.gno"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/build.yml"
   push:
     branches:
       - master
