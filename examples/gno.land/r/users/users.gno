@@ -209,6 +209,20 @@ func GetUserByAddress(addr std.Address) *User {
 	return userI.(*User)
 }
 
+// GetAddressByInput takes a user input and try to resolve it as a user, or just return it, casted as an address.
+// This helper aims to make it easy to integrate r/users with any part of your contract that could ask a user address input.
+func GetAddressByInput(input string) std.Address {
+	// TODO: if input matches an address, return it.
+
+	user := GetUserByName(input)
+	if user != nil {
+		return user.Address()
+	}
+
+	// fallback, return the address itself
+	return std.Address(input)
+}
+
 //----------------------------------------
 // Constants
 

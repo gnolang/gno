@@ -6,6 +6,7 @@ import (
 	"gno.land/p/avl"
 	"gno.land/p/grc/grc20"
 	"gno.land/p/ufmt"
+	"gno.land/r/users"
 )
 
 type Token struct {
@@ -51,22 +52,32 @@ func (t *Token) GetDecimals() uint   { return t.decimals }
 func (t *Token) TotalSupply() uint64 { return t.totalSupply }
 
 func (t *Token) BalanceOf(address std.Address) uint64 {
+	address = users.GetAddressByInput(address.String())
 	return t.balanceOf(address)
 }
 
 func (t *Token) Transfer(owner, to std.Address, amount uint64) {
+	owner = users.GetAddressByInput(owner.String())
+	to = users.GetAddressByInput(to.String())
 	t.transfer(owner, to, amount)
 }
 
 func (t *Token) Allowance(owner, spender std.Address) uint64 {
+	owner = users.GetAddressByInput(owner.String())
+	spender = users.GetAddressByInput(spender.String())
 	return t.allowance(owner, spender)
 }
 
 func (t *Token) Approve(owner, spender std.Address, amount uint64) {
+	owner = users.GetAddressByInput(owner.String())
+	spender = users.GetAddressByInput(spender.String())
 	t.approve(owner, spender, amount)
 }
 
 func (t *Token) TransferFrom(spender, from, to std.Address, amount uint64) {
+	spender = users.GetAddressByInput(spender.String())
+	from = users.GetAddressByInput(from.String())
+	to = users.GetAddressByInput(to.String())
 	t.spendAllowance(from, spender, amount)
 	t.transfer(from, to, amount)
 }
@@ -75,10 +86,12 @@ func (t *Token) TransferFrom(spender, from, to std.Address, amount uint64) {
 //
 
 func (t *Token) Mint(address std.Address, amount uint64) {
+	address = users.GetAddressByInput(address.String())
 	t.mint(address, amount)
 }
 
 func (t *Token) Burn(address std.Address, amount uint64) {
+	address = users.GetAddressByInput(address.String())
 	t.burn(address, amount)
 }
 
