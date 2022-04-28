@@ -159,15 +159,15 @@ func GrantInvites(invites string) {
 		} else if strings.HasPrefix(line, `//`) {
 			continue // comment
 		}
-		// parse addr and invites.
-		var addr string
+		// parse name and invites.
+		var name string
 		var invites int
 		parts := strings.Split(line, ":")
 		if len(parts) == 1 { // short for :1.
-			addr = parts[0]
+			name = parts[0]
 			invites = 1
 		} else if len(parts) == 2 {
-			addr = parts[0]
+			name = parts[0]
 			invites_, err := strconv.Atoi(parts[1])
 			if err != nil {
 				panic(err)
@@ -177,9 +177,13 @@ func GrantInvites(invites string) {
 			panic("should not happen")
 		}
 		// give invites.
-		_, userI, ok := addr2User.Get(addr)
+		_, userI, ok := name2User.Get(name)
 		if !ok {
-			panic("invalid user " + addr)
+			// maybe address.
+			_, userI, ok = addr2User.Get(name)
+			if !ok {
+				panic("invalid user " + name)
+			}
 		}
 		user := userI.(*User)
 		user.invites += invites
