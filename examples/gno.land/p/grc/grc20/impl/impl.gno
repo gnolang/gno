@@ -45,30 +45,28 @@ const zeroAddress = std.Address("")
 // TODO: useful Render() method.
 // TODO: add a lot of unit tests, really a lot.
 
-func (t *Token) TotalSupply() uint64 {
-	return t.totalSupply
-}
+func (t *Token) GetName() string     { return t.name }
+func (t *Token) GetSymbol() string   { return t.symbol }
+func (t *Token) GetDecimals() uint   { return t.decimals }
+func (t *Token) TotalSupply() uint64 { return t.totalSupply }
 
 func (t *Token) BalanceOf(address std.Address) uint64 {
 	return t.balanceOf(address)
 }
 
-func (t *Token) Transfer(to std.Address, amount uint64) {
-	caller := std.GetCallerAt(3)
-	t.transfer(caller, to, amount)
+func (t *Token) Transfer(owner, to std.Address, amount uint64) {
+	t.transfer(owner, to, amount)
 }
 
 func (t *Token) Allowance(owner, spender std.Address) uint64 {
 	return t.allowance(owner, spender)
 }
 
-func (t *Token) Approve(spender std.Address, amount uint64) {
-	owner := std.GetCallerAt(3)
+func (t *Token) Approve(owner, spender std.Address, amount uint64) {
 	t.approve(owner, spender, amount)
 }
 
-func (t *Token) TransferFrom(from, to std.Address, amount uint64) {
-	spender := std.GetCallerAt(3)
+func (t *Token) TransferFrom(spender, from, to std.Address, amount uint64) {
 	t.spendAllowance(from, spender, amount)
 	t.transfer(from, to, amount)
 }

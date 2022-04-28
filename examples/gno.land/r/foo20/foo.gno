@@ -4,8 +4,8 @@ import (
 	"std"
 	"strings"
 
+	grc20 "gno.land/p/grc/grc20/impl"
 	"gno.land/p/ufmt"
-	grc20 "gno.land/r/foo20/grc20impl"
 )
 
 var foo *grc20.Token
@@ -29,31 +29,29 @@ func Allowance(owner, spender std.Address) uint64 { return foo.Allowance(owner, 
 // setters.
 
 func Transfer(to std.Address, amount uint64) {
-	//std.AssertOriginCall() // FIXME: inconsistent
-	foo.Transfer(to, amount)
+	caller := std.GetCallerAt(2)
+	foo.Transfer(caller, to, amount)
 }
 
 func Approve(spender std.Address, amount uint64) {
-	//std.AssertOriginCall() // FIXME: inconsistent
-	foo.Approve(spender, amount)
+	caller := std.GetCallerAt(2)
+	foo.Approve(caller, spender, amount)
 }
 
 func TransferFrom(from, to std.Address, amount uint64) {
-	//std.AssertOriginCall() // FIXME: inconsistent
-	foo.TransferFrom(from, to, amount)
+	caller := std.GetCallerAt(2)
+	foo.TransferFrom(caller, from, to, amount)
 }
 
 // administration.
 
 func Mint(address std.Address, amount uint64) {
-	//std.AssertOriginCall() // FIXME: inconsistent
 	caller := std.GetCallerAt(2)
 	assertIsAdmin(caller)
 	foo.Mint(address, amount)
 }
 
 func Burn(address std.Address, amount uint64) {
-	//std.AssertOriginCall() // FIXME: inconsistent
 	caller := std.GetCallerAt(2)
 	assertIsAdmin(caller)
 	foo.Burn(address, amount)
