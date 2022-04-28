@@ -28,4 +28,4 @@ func main() {
 // ## [First Post (title)](/r/boards:test_board/1)
 //
 // Body of the first post. (body)
-// \- [@gnouser](/r/users:gnouser), [1970-01-01 12:00am UTC](/r/boards:test_board/1) (0 replies)
+// \- [@gnouser](/r/users:gnouser), [1970-01-01 12:00am UTC](/r/boards:test_board/1) \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=1&postid=1)] (0 replies)

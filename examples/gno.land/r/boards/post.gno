@@ -153,10 +153,10 @@ func (post *Post) RenderSummary() string {
 		str += "\n"
 	}
 	str += post.GetSummary() + "\n"
-	str += "\\- " + displayAddressMD(post.creator) + ", "
-	str += "[" + std.FormatTimestamp(post.createdAt, "2006-01-02 3:04pm MST") + "](" + post.GetURL() + ") "
-
-	str += "(" + strconv.Itoa(post.replies.Size()) + " replies)" + "\n"
+	str += "\\- " + displayAddressMD(post.creator) + ","
+	str += " [" + std.FormatTimestamp(post.createdAt, "2006-01-02 3:04pm MST") + "](" + post.GetURL() + ")"
+	str += " \\[[x](" + post.GetDeleteFormURL() + ")]"
+	str += " (" + strconv.Itoa(post.replies.Size()) + " replies)" + "\n"
 	return str
 }
 
