@@ -28,3 +28,4 @@ Also, see the [quickstart guide](https://gno.land/r/boards:gnolang/4).
  * Discord: https://discord.gg/ctRYzHz5dD <-- join now
  * Gnoland: https://gno.land/r/boards:gnolang
  * Telegram: t.me/gnoland
+ * Twitter: https://twitter.com/_gnoland
