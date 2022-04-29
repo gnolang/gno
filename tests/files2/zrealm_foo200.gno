@@ -6,9 +6,9 @@ import (
 	"gno.land/r/foo20"
 )
 
-var admin = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
-var manfred = std.Address("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")
-var unknown = std.Address("g1u0000000000000000000000000000000000000")
+var admin = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj").String()
+var manfred = std.Address("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq").String()
+var unknown = std.Address("g1u0000000000000000000000000000000000000").String()
 
 func main() {
 	// testing read-only public methods

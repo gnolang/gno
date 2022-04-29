@@ -210,7 +210,8 @@ func GetUserByAddress(addr std.Address) *User {
 }
 
 func GetUserByNameOrAddress(input string) *User {
-	// TODO: if input matches an address, return it directly (to prevent someone registering someone else's address as its name)
+	// TODO: if input matches an address, return it directly.
+	// -> to prevent someone registering someone else's address as its name.
 
 	user := GetUserByName(input)
 	if user != nil {
