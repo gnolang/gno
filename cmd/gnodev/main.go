@@ -25,10 +25,10 @@ type (
 )
 
 var mainApps AppList = []AppItem{
-	{precompileApp, "precompile", "precompile .gno to .go", DefaultPrecompileOptions},
 	{buildApp, "build", "build a gno package", DefaultBuildOptions},
+	{precompileApp, "precompile", "precompile .gno to .go", DefaultPrecompileOptions},
+	{testApp, "test", "test a gno package", DefaultTestOptions},
 
-	// test
 	// fmt
 	// publish
 	// generate
