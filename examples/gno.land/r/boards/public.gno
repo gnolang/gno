@@ -72,16 +72,38 @@ func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
 	board := getBoard(bid)
 	thread := board.GetThread(threadid)
 	if postid == threadid {
-		if caller != thread.creator && caller != board.creator {
+		// delete thread
+		if !thread.HasPermission(caller, DeletePermission) {
 			panic("unauthorized")
 		}
 		board.DeleteThread(threadid)
-		return
+	} else {
+		// delete thread's post
+		post := thread.GetReply(postid)
+		if !post.HasPermission(caller, DeletePermission) {
+			panic("unauthorized")
+		}
+		thread.DeletePost(postid)
 	}
+}
 
-	post := thread.GetReply(postid)
-	if caller != post.creator && caller != board.creator {
-		panic("unauthorized")
+func EditPost(bid BoardID, threadid, postid PostID, title, body string) {
+	std.AssertOriginCall()
+	caller := std.GetOrigCaller()
+	board := getBoard(bid)
+	thread := board.GetThread(threadid)
+	if postid == threadid {
+		// edit thread
+		if !thread.HasPermission(caller, EditPermission) {
+			panic("unauthorized")
+		}
+		thread.Update(title, body)
+	} else {
+		// edit thread's post
+		post := thread.GetReply(postid)
+		if !post.HasPermission(caller, EditPermission) {
+			panic("unauthorized")
+		}
+		post.Update(title, body)
 	}
-	thread.DeletePost(postid)
 }

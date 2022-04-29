@@ -32,6 +32,7 @@ type Post struct {
 	parentID    PostID       // parent Post.id (if reply or repost)
 	repostBoard BoardID      // original Board.id (if repost)
 	createdAt   std.Time
+	updatedAt   std.Time
 }
 
 func newPost(board *Board, id PostID, creator std.Address, title, body string, threadID, parentID PostID, repostBoard BoardID) *Post {
@@ -72,6 +73,12 @@ func (post *Post) AddReply(creator std.Address, body string) *Post {
 		thread.repliesAll.Set(pidkey, reply)
 	}
 	return reply
+}
+
+func (post *Post) Update(title string, body string) {
+	post.title = title
+	post.body = body
+	post.updatedAt = std.GetTimestamp()
 }
 
 func (thread *Post) GetReply(pid PostID) *Post {
@@ -115,6 +122,21 @@ func (thread *Post) DeletePost(pid PostID) {
 	} else {
 		thread.replies.Remove(pidkey)
 	}
+}
+
+func (post *Post) HasPermission(addr std.Address, perm Permission) bool {
+	if post.creator == addr {
+		switch perm {
+		case EditPermission:
+			return true
+		case DeletePermission:
+			return true
+		default:
+			return false
+		}
+	}
+	// post notes inherit permissions of the board.
+	return post.board.HasPermission(addr, perm)
 }
 
 func (post *Post) GetSummary() string {

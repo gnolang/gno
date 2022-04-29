@@ -40,7 +40,7 @@ func main() {
 
 // Realm:
 // switchrealm["gno.land/r/boards"]
-// u[960d1737342909c1a4c32a4a93a88e680a6f79df:94]={
+// u[960d1737342909c1a4c32a4a93a88e680a6f79df:95]={
 //     "Fields": [
 //         {
 //             "T": {
@@ -72,7 +72,7 @@ func main() {
 //                     "V": {
 //                         "@type": "/gno.vref",
 //                         "Escaped": true,
-//                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:95"
+//                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:96"
 //                     }
 //                 }
 //             }
@@ -110,13 +110,13 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "960d1737342909c1a4c32a4a93a88e680a6f79df:94",
-//         "ModTime": "100",
-//         "OwnerID": "960d1737342909c1a4c32a4a93a88e680a6f79df:100",
+//         "ID": "960d1737342909c1a4c32a4a93a88e680a6f79df:95",
+//         "ModTime": "101",
+//         "OwnerID": "960d1737342909c1a4c32a4a93a88e680a6f79df:101",
 //         "RefCount": "1"
 //     }
 // }
-// c[960d1737342909c1a4c32a4a93a88e680a6f79df:101]={
+// c[960d1737342909c1a4c32a4a93a88e680a6f79df:102]={
 //     "Fields": [
 //         {
 //             "T": {
@@ -148,7 +148,7 @@ func main() {
 //                     "V": {
 //                         "@type": "/gno.vref",
 //                         "Escaped": true,
-//                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:102"
+//                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:103"
 //                     }
 //                 }
 //             }
@@ -186,13 +186,13 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "960d1737342909c1a4c32a4a93a88e680a6f79df:101",
+//         "ID": "960d1737342909c1a4c32a4a93a88e680a6f79df:102",
 //         "ModTime": "0",
-//         "OwnerID": "960d1737342909c1a4c32a4a93a88e680a6f79df:100",
+//         "OwnerID": "960d1737342909c1a4c32a4a93a88e680a6f79df:101",
 //         "RefCount": "1"
 //     }
 // }
-// c[960d1737342909c1a4c32a4a93a88e680a6f79df:100]={
+// c[960d1737342909c1a4c32a4a93a88e680a6f79df:101]={
 //     "Fields": [
 //         {
 //             "T": {
@@ -238,8 +238,8 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "d0459560bbef8f44d38cafac016bb50629388373",
-//                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:94"
+//                         "Hash": "1523e12528ed6cb1f2cfbe6dacc8008d1df39424",
+//                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:95"
 //                     }
 //                 }
 //             }
@@ -263,36 +263,17 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "c4bede19f4cf3fec8107a5e0023907109e79ed87",
-//                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:101"
+//                         "Hash": "28b9f2bc9d46acc743856e72dcbe958b10c3c79e",
+//                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:102"
 //                     }
 //                 }
 //             }
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "960d1737342909c1a4c32a4a93a88e680a6f79df:100",
+//         "ID": "960d1737342909c1a4c32a4a93a88e680a6f79df:101",
 //         "ModTime": "0",
-//         "OwnerID": "960d1737342909c1a4c32a4a93a88e680a6f79df:91",
-//         "RefCount": "1"
-//     }
-// }
-// c[960d1737342909c1a4c32a4a93a88e680a6f79df:103]={
-//     "Fields": [
-//         {
-//             "T": {
-//                 "@type": "/gno.tptr",
-//                 "Elt": {
-//                     "@type": "/gno.tref",
-//                     "ID": "gno.land/p/avl.Tree"
-//                 }
-//             }
-//         }
-//     ],
-//     "ObjectInfo": {
-//         "ID": "960d1737342909c1a4c32a4a93a88e680a6f79df:103",
-//         "ModTime": "0",
-//         "OwnerID": "960d1737342909c1a4c32a4a93a88e680a6f79df:102",
+//         "OwnerID": "960d1737342909c1a4c32a4a93a88e680a6f79df:92",
 //         "RefCount": "1"
 //     }
 // }
@@ -311,7 +292,7 @@ func main() {
 //     "ObjectInfo": {
 //         "ID": "960d1737342909c1a4c32a4a93a88e680a6f79df:104",
 //         "ModTime": "0",
-//         "OwnerID": "960d1737342909c1a4c32a4a93a88e680a6f79df:102",
+//         "OwnerID": "960d1737342909c1a4c32a4a93a88e680a6f79df:103",
 //         "RefCount": "1"
 //     }
 // }
@@ -330,11 +311,30 @@ func main() {
 //     "ObjectInfo": {
 //         "ID": "960d1737342909c1a4c32a4a93a88e680a6f79df:105",
 //         "ModTime": "0",
-//         "OwnerID": "960d1737342909c1a4c32a4a93a88e680a6f79df:102",
+//         "OwnerID": "960d1737342909c1a4c32a4a93a88e680a6f79df:103",
 //         "RefCount": "1"
 //     }
 // }
-// c[960d1737342909c1a4c32a4a93a88e680a6f79df:102]={
+// c[960d1737342909c1a4c32a4a93a88e680a6f79df:106]={
+//     "Fields": [
+//         {
+//             "T": {
+//                 "@type": "/gno.tptr",
+//                 "Elt": {
+//                     "@type": "/gno.tref",
+//                     "ID": "gno.land/p/avl.Tree"
+//                 }
+//             }
+//         }
+//     ],
+//     "ObjectInfo": {
+//         "ID": "960d1737342909c1a4c32a4a93a88e680a6f79df:106",
+//         "ModTime": "0",
+//         "OwnerID": "960d1737342909c1a4c32a4a93a88e680a6f79df:103",
+//         "RefCount": "1"
+//     }
+// }
+// c[960d1737342909c1a4c32a4a93a88e680a6f79df:103]={
 //     "Fields": [
 //         {
 //             "T": {
@@ -356,7 +356,7 @@ func main() {
 //                     "V": {
 //                         "@type": "/gno.vref",
 //                         "Escaped": true,
-//                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:80"
+//                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:81"
 //                     }
 //                 }
 //             }
@@ -417,32 +417,7 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "788c27d1007aedc9baf78c74dbbb9374f283a2a8",
-//                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:103"
-//                     }
-//                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.tptr",
-//                 "Elt": {
-//                     "@type": "/gno.tref",
-//                     "ID": "gno.land/p/avl.MutTree"
-//                 }
-//             },
-//             "V": {
-//                 "@type": "/gno.vptr",
-//                 "Base": null,
-//                 "Index": "0",
-//                 "TV": {
-//                     "T": {
-//                         "@type": "/gno.tref",
-//                         "ID": "gno.land/p/avl.MutTree"
-//                     },
-//                     "V": {
-//                         "@type": "/gno.vref",
-//                         "Hash": "68b35fd3ab1c178cf078111f7d91257e417babb7",
+//                         "Hash": "7e785fcbee72359096c1812574c0f54beb5ffc98",
 //                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:104"
 //                     }
 //                 }
@@ -467,8 +442,33 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "8650a0318edc692cd5d20fd878be95e38fb7539b",
+//                         "Hash": "b716aa7cb58920eaac772d8c4f469d6e83a4fe3c",
 //                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:105"
+//                     }
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.tptr",
+//                 "Elt": {
+//                     "@type": "/gno.tref",
+//                     "ID": "gno.land/p/avl.MutTree"
+//                 }
+//             },
+//             "V": {
+//                 "@type": "/gno.vptr",
+//                 "Base": null,
+//                 "Index": "0",
+//                 "TV": {
+//                     "T": {
+//                         "@type": "/gno.tref",
+//                         "ID": "gno.land/p/avl.MutTree"
+//                     },
+//                     "V": {
+//                         "@type": "/gno.vref",
+//                         "Hash": "acab77847d1ea45ccadc1f4bf0a14d48974fc918",
+//                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:106"
 //                     }
 //                 }
 //             }
@@ -498,16 +498,22 @@ func main() {
 //                 "@type": "/gno.tref",
 //                 "ID": "std.Time"
 //             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.tref",
+//                 "ID": "std.Time"
+//             }
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "960d1737342909c1a4c32a4a93a88e680a6f79df:102",
+//         "ID": "960d1737342909c1a4c32a4a93a88e680a6f79df:103",
 //         "IsEscaped": true,
 //         "ModTime": "0",
 //         "RefCount": "2"
 //     }
 // }
-// u[960d1737342909c1a4c32a4a93a88e680a6f79df:99]={
+// u[960d1737342909c1a4c32a4a93a88e680a6f79df:100]={
 //     "Fields": [
 //         {
 //             "T": {
@@ -539,7 +545,7 @@ func main() {
 //                     "V": {
 //                         "@type": "/gno.vref",
 //                         "Escaped": true,
-//                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:95"
+//                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:96"
 //                     }
 //                 }
 //             }
@@ -577,13 +583,13 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "960d1737342909c1a4c32a4a93a88e680a6f79df:99",
-//         "ModTime": "106",
-//         "OwnerID": "960d1737342909c1a4c32a4a93a88e680a6f79df:106",
+//         "ID": "960d1737342909c1a4c32a4a93a88e680a6f79df:100",
+//         "ModTime": "107",
+//         "OwnerID": "960d1737342909c1a4c32a4a93a88e680a6f79df:107",
 //         "RefCount": "1"
 //     }
 // }
-// c[960d1737342909c1a4c32a4a93a88e680a6f79df:107]={
+// c[960d1737342909c1a4c32a4a93a88e680a6f79df:108]={
 //     "Fields": [
 //         {
 //             "T": {
@@ -615,7 +621,7 @@ func main() {
 //                     "V": {
 //                         "@type": "/gno.vref",
 //                         "Escaped": true,
-//                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:102"
+//                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:103"
 //                     }
 //                 }
 //             }
@@ -653,13 +659,13 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "960d1737342909c1a4c32a4a93a88e680a6f79df:107",
+//         "ID": "960d1737342909c1a4c32a4a93a88e680a6f79df:108",
 //         "ModTime": "0",
-//         "OwnerID": "960d1737342909c1a4c32a4a93a88e680a6f79df:106",
+//         "OwnerID": "960d1737342909c1a4c32a4a93a88e680a6f79df:107",
 //         "RefCount": "1"
 //     }
 // }
-// c[960d1737342909c1a4c32a4a93a88e680a6f79df:106]={
+// c[960d1737342909c1a4c32a4a93a88e680a6f79df:107]={
 //     "Fields": [
 //         {
 //             "T": {
@@ -705,8 +711,8 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "4739da6421eee33a7cbe6a2a35448654fdc35c59",
-//                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:99"
+//                         "Hash": "af19b5fdbedf091b6895d5d8f3703680f3563ed1",
+//                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:100"
 //                     }
 //                 }
 //             }
@@ -730,21 +736,21 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "56ee4bdffecb7a8be55b5f0a9c794792caac9e4a",
-//                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:107"
+//                         "Hash": "53f452c8f3005506a28d0ddba65769488b308ea1",
+//                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:108"
 //                     }
 //                 }
 //             }
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "960d1737342909c1a4c32a4a93a88e680a6f79df:106",
+//         "ID": "960d1737342909c1a4c32a4a93a88e680a6f79df:107",
 //         "ModTime": "0",
-//         "OwnerID": "960d1737342909c1a4c32a4a93a88e680a6f79df:92",
+//         "OwnerID": "960d1737342909c1a4c32a4a93a88e680a6f79df:93",
 //         "RefCount": "1"
 //     }
 // }
-// u[960d1737342909c1a4c32a4a93a88e680a6f79df:80]={
+// u[960d1737342909c1a4c32a4a93a88e680a6f79df:81]={
 //     "Fields": [
 //         {
 //             "N": "AQAAAAAAAAA=",
@@ -802,8 +808,8 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "572ea43eadd0b82f319610428e20fb3703175790",
-//                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:81"
+//                         "Hash": "e62f68b3047a509accd9054b14a7598617fd10a1",
+//                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:82"
 //                     }
 //                 }
 //             }
@@ -832,45 +838,10 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "960d1737342909c1a4c32a4a93a88e680a6f79df:80",
+//         "ID": "960d1737342909c1a4c32a4a93a88e680a6f79df:81",
 //         "IsEscaped": true,
-//         "ModTime": "99",
+//         "ModTime": "100",
 //         "RefCount": "6"
-//     }
-// }
-// u[960d1737342909c1a4c32a4a93a88e680a6f79df:91]={
-//     "Fields": [
-//         {
-//             "T": {
-//                 "@type": "/gno.tptr",
-//                 "Elt": {
-//                     "@type": "/gno.tref",
-//                     "ID": "gno.land/p/avl.Tree"
-//                 }
-//             },
-//             "V": {
-//                 "@type": "/gno.vptr",
-//                 "Base": null,
-//                 "Index": "0",
-//                 "TV": {
-//                     "T": {
-//                         "@type": "/gno.tref",
-//                         "ID": "gno.land/p/avl.Tree"
-//                     },
-//                     "V": {
-//                         "@type": "/gno.vref",
-//                         "Hash": "0800eeef054e863429db8f2a5d5c8084fb359546",
-//                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:100"
-//                     }
-//                 }
-//             }
-//         }
-//     ],
-//     "ObjectInfo": {
-//         "ID": "960d1737342909c1a4c32a4a93a88e680a6f79df:91",
-//         "ModTime": "99",
-//         "OwnerID": "960d1737342909c1a4c32a4a93a88e680a6f79df:90",
-//         "RefCount": "1"
 //     }
 // }
 // u[960d1737342909c1a4c32a4a93a88e680a6f79df:92]={
@@ -894,8 +865,8 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.vref",
-//                         "Hash": "cb781bb381e495cd9197dd103d3c346cb9f8a9e3",
-//                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:106"
+//                         "Hash": "23104b7967860eaac4ac8a3909b205a147caf8df",
+//                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:101"
 //                     }
 //                 }
 //             }
@@ -903,8 +874,43 @@ func main() {
 //     ],
 //     "ObjectInfo": {
 //         "ID": "960d1737342909c1a4c32a4a93a88e680a6f79df:92",
-//         "ModTime": "99",
-//         "OwnerID": "960d1737342909c1a4c32a4a93a88e680a6f79df:90",
+//         "ModTime": "100",
+//         "OwnerID": "960d1737342909c1a4c32a4a93a88e680a6f79df:91",
+//         "RefCount": "1"
+//     }
+// }
+// u[960d1737342909c1a4c32a4a93a88e680a6f79df:93]={
+//     "Fields": [
+//         {
+//             "T": {
+//                 "@type": "/gno.tptr",
+//                 "Elt": {
+//                     "@type": "/gno.tref",
+//                     "ID": "gno.land/p/avl.Tree"
+//                 }
+//             },
+//             "V": {
+//                 "@type": "/gno.vptr",
+//                 "Base": null,
+//                 "Index": "0",
+//                 "TV": {
+//                     "T": {
+//                         "@type": "/gno.tref",
+//                         "ID": "gno.land/p/avl.Tree"
+//                     },
+//                     "V": {
+//                         "@type": "/gno.vref",
+//                         "Hash": "f031357c04026165910a82d4fa5faf115b6ab00c",
+//                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:107"
+//                     }
+//                 }
+//             }
+//         }
+//     ],
+//     "ObjectInfo": {
+//         "ID": "960d1737342909c1a4c32a4a93a88e680a6f79df:93",
+//         "ModTime": "100",
+//         "OwnerID": "960d1737342909c1a4c32a4a93a88e680a6f79df:91",
 //         "RefCount": "1"
 //     }
 // }

@@ -86,6 +86,20 @@ func (board *Board) DeleteThread(pid PostID) {
 	}
 }
 
+func (board *Board) HasPermission(addr std.Address, perm Permission) bool {
+	if board.creator == addr {
+		switch perm {
+		case EditPermission:
+			return true
+		case DeletePermission:
+			return true
+		default:
+			return false
+		}
+	}
+	return false
+}
+
 // Renders the board for display suitable as plaintext in
 // console.  This is suitable for demonstration or tests,
 // but not for prod.
