@@ -1,4 +1,4 @@
-// +build rocksdb
+// +build grocksdb
 
 package db
 

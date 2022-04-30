@@ -35,8 +35,15 @@ const (
 	// RocksDBBackend represents rocksdb (uses github.com/tecbot/gorocksdb)
 	//   - EXPERIMENTAL
 	//   - requires gcc
-	//   - use rocksdb build tag (go build -tags rocksdb)
-	RocksDBBackend BackendType = "rocksdb"
+	//   - use gorocksdb build tag (go build -tags gorocksdb)
+	//   - supports rocksdb v6 series but not further
+	RocksDBBackend BackendType = "gorocksdb"
+	// GRocksDBBackend represents grocksdb (uses github.com/linxGnu/grocksdb)
+	//   - EXPERIMENTAL
+	//   - reguires gcc
+	//   - use grocksdb build tag 
+	//   - supports rocksdb v7 series and optimistic transaction dbs
+	GRocksDBBackend BackendType = "grocksdb"
 )
 
 type dbCreator func(name string, dir string) (DB, error)

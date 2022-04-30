@@ -1,5 +1,5 @@
-//go:build rocksdb
-// +build rocksdb
+//go:build gorocksdb
+// +build gorocksdb
 
 package db
 
@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/linxGnu/grocksdb"
+	"github.com/tecbot/gorocksdb"
 )
 
 func init() {
@@ -22,21 +22,21 @@ func init() {
 var _ DB = (*RocksDB)(nil)
 
 type RocksDB struct {
-	db     *grocksdb.DB
-	ro     *grocksdb.ReadOptions
-	wo     *grocksdb.WriteOptions
-	woSync *grocksdb.WriteOptions
+	db     *gorocksdb.DB
+	ro     *gorocksdb.ReadOptions
+	wo     *gorocksdb.WriteOptions
+	woSync *gorocksdb.WriteOptions
 }
 
 func NewRocksDB(name string, dir string) (*RocksDB, error) {
 	// default rocksdb option, good enough for most cases, including heavy workloads.
 	// 1GB table cache, 512MB write buffer(may use 50% more on heavy workloads).
 	// compression: snappy as default, need to -lsnappy to enable.
-	bbto := grocksdb.NewDefaultBlockBasedTableOptions()
-	bbto.SetBlockCache(grocksdb.NewLRUCache(1 << 30))
-	bbto.SetFilterPolicy(grocksdb.NewBloomFilter(10))
+	bbto := gorocksdb.NewDefaultBlockBasedTableOptions()
+	bbto.SetBlockCache(gorocksdb.NewLRUCache(1 << 30))
+	bbto.SetFilterPolicy(gorocksdb.NewBloomFilter(10))
 
-	opts := grocksdb.NewDefaultOptions()
+	opts := gorocksdb.NewDefaultOptions()
 	opts.SetBlockBasedTableFactory(bbto)
 	opts.SetCreateIfMissing(true)
 	opts.IncreaseParallelism(runtime.NumCPU())
@@ -45,15 +45,15 @@ func NewRocksDB(name string, dir string) (*RocksDB, error) {
 	return NewRocksDBWithOptions(name, dir, opts)
 }
 
-func NewRocksDBWithOptions(name string, dir string, opts *grocksdb.Options) (*RocksDB, error) {
+func NewRocksDBWithOptions(name string, dir string, opts *gorocksdb.Options) (*RocksDB, error) {
 	dbPath := filepath.Join(dir, name+".db")
-	db, err := grocksdb.OpenDb(opts, dbPath)
+	db, err := gorocksdb.OpenDb(opts, dbPath)
 	if err != nil {
 		return nil, err
 	}
-	ro := grocksdb.NewDefaultReadOptions()
-	wo := grocksdb.NewDefaultWriteOptions()
-	woSync := grocksdb.NewDefaultWriteOptions()
+	ro := gorocksdb.NewDefaultReadOptions()
+	wo := gorocksdb.NewDefaultWriteOptions()
+	woSync := gorocksdb.NewDefaultWriteOptions()
 	woSync.SetSync(true)
 	database := &RocksDB{
 		db:     db,
@@ -117,7 +117,7 @@ func (db *RocksDB) DeleteSync(key []byte) {
 	}
 }
 
-func (db *RocksDB) DB() *grocksdb.DB {
+func (db *RocksDB) DB() *gorocksdb.DB {
 	return db.db
 }
 
@@ -155,13 +155,13 @@ func (db *RocksDB) Stats() map[string]string {
 
 // Implements DB.
 func (db *RocksDB) NewBatch() Batch {
-	batch := grocksdb.NewWriteBatch()
+	batch := gorocksdb.NewWriteBatch()
 	return &rocksDBBatch{db, batch}
 }
 
 type rocksDBBatch struct {
 	db    *RocksDB
-	batch *grocksdb.WriteBatch
+	batch *gorocksdb.WriteBatch
 }
 
 // Implements Batch.
@@ -213,13 +213,13 @@ func (db *RocksDB) ReverseIterator(start, end []byte) Iterator {
 var _ Iterator = (*rocksDBIterator)(nil)
 
 type rocksDBIterator struct {
-	source     *grocksdb.Iterator
+	source     *gorocksdb.Iterator
 	start, end []byte
 	isReverse  bool
 	isInvalid  bool
 }
 
-func newRocksDBIterator(source *grocksdb.Iterator, start, end []byte, isReverse bool) *rocksDBIterator {
+func newRocksDBIterator(source *gorocksdb.Iterator, start, end []byte, isReverse bool) *rocksDBIterator {
 	if isReverse {
 		if end == nil {
 			source.SeekToLast()
@@ -331,7 +331,7 @@ func (itr rocksDBIterator) assertIsValid() {
 // moveSliceToBytes will free the slice and copy out a go []byte
 // This function can be applied on *Slice returned from Key() and Value()
 // of an Iterator, because they are marked as freed.
-func moveSliceToBytes(s *grocksdb.Slice) []byte {
+func moveSliceToBytes(s *gorocksdb.Slice) []byte {
 	defer s.Free()
 	if !s.Exists() {
 		return nil
