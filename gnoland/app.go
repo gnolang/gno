@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gnolang/gno/pkgs/amino"
 	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
 	"github.com/gnolang/gno/pkgs/crypto"
 	dbm "github.com/gnolang/gno/pkgs/db"
@@ -40,11 +41,15 @@ func NewApp(rootDir string, logger log.Logger) (abci.Application, error) {
 	bankKpr := bank.NewBankKeeper(acctKpr)
 	vmKpr := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, "./stdlibs")
 
-	// Configure InitChainer for genesis.
-	baseApp.SetInitChainer(InitChainer(acctKpr, bankKpr))
-	baseApp.SetEndBlocker(EndBlocker(vmKpr))
+	// Set InitChainer
+	baseApp.SetInitChainer(InitChainer(baseApp, acctKpr, bankKpr))
+
+	// Set AnteHandler
+	authOptions := auth.AnteOptions{
+		VerifyGenesisSignatures: false, // for development
+	}
 	authAnteHandler := auth.NewAnteHandler(
-		acctKpr, bankKpr, auth.DefaultSigVerificationGasConsumer)
+		acctKpr, bankKpr, auth.DefaultSigVerificationGasConsumer, authOptions)
 	baseApp.SetAnteHandler(
 		// Override default AnteHandler with custom logic.
 		func(ctx sdk.Context, tx std.Tx, simulate bool) (
@@ -58,6 +63,9 @@ func NewApp(rootDir string, logger log.Logger) (abci.Application, error) {
 
 		},
 	)
+
+	// Set EndBlocker
+	baseApp.SetEndBlocker(EndBlocker(vmKpr))
 
 	// Set a handler Route.
 	baseApp.Router().AddRoute("auth", auth.NewHandler(acctKpr))
@@ -76,7 +84,7 @@ func NewApp(rootDir string, logger log.Logger) (abci.Application, error) {
 }
 
 // InitChainer returns a function that can initialize the chain with genesis.
-func InitChainer(acctKpr auth.AccountKeeperI, bankKpr bank.BankKeeperI) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
+func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank.BankKeeperI) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
 	return func(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
 		// Get genesis state.
 		genState := req.AppState.(GnoGenesisState)
@@ -90,6 +98,19 @@ func InitChainer(acctKpr auth.AccountKeeperI, bankKpr bank.BankKeeperI) func(sdk
 				panic(err)
 			}
 		}
+		// Run genesis txs.
+		for i, tx := range genState.Txs {
+			res := baseApp.Deliver(tx)
+			if res.IsErr() {
+				fmt.Println("ERROR LOG:", res.Log)
+				fmt.Println("#", i, string(amino.MustMarshalJSON(tx)))
+				// NOTE: comment out to ignore.
+				panic(res.Error)
+			} else {
+				fmt.Println("SUCCESS:", string(amino.MustMarshalJSON(tx)))
+			}
+		}
+		// Done!
 		return abci.ResponseInitChain{
 			Validators: req.Validators,
 		}

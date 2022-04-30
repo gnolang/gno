@@ -1,7 +1,7 @@
 package groups
 
 import (
-	"maths"
+	"gno.land/p/maths"
 	"std"
 )
 

@@ -1,9 +1,9 @@
 package secp256k1
 
 import (
-	proto "google.golang.org/protobuf/proto"
 	amino "github.com/gnolang/gno/pkgs/amino"
 	secp256k1pb "github.com/gnolang/gno/pkgs/crypto/secp256k1/pb"
+	proto "google.golang.org/protobuf/proto"
 )
 
 func (goo PubKeySecp256k1) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {

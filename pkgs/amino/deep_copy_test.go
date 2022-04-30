@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	amino "github.com/gnolang/gno/pkgs/amino"
+	"github.com/stretchr/testify/assert"
 )
 
 type DCFoo1 struct{ a string }

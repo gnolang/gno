@@ -1,0 +1,34 @@
+name: Build
+
+on:
+  pull_request:
+    paths:
+      - "**.go"
+      - "**.gno"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/build.yml"
+  push:
+    branches:
+      - master
+
+jobs:
+  go-build:
+    name: Go Build
+    strategy:
+      fail-fast: false
+      matrix:
+        goversion: ["1.17.x"]
+        goarch: ["amd64"]
+        goos: ["linux"]
+        program: ["genproto", "gnofaucet", "gnokey", "gnoland", "gnotxport", "goscan", "gnodev"]
+        # fixme: add "gnoview"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ${{ matrix.go-version }}
+      - uses: actions/checkout@v3
+      - name: install
+        run: GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go install ./cmd/${{ matrix.program }}

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"html/template"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -49,6 +49,7 @@ func main() {
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*}/{filename:.*}", handlerRealmFile(app))
 	app.Router.Handle("/p/{filepath:.*}", handlerPackageFile(app))
 	app.Router.Handle("/static/{path:.+}", handlerStaticFile(app))
+	app.Router.Handle("/favicon.ico", handlerFavicon(app))
 
 	fmt.Printf("Running on http://%s\n", flags.bindAddr)
 	err := http.ListenAndServe(flags.bindAddr, app.Router)
@@ -178,7 +179,7 @@ func handleRealmRender(app gotuna.App, w http.ResponseWriter, r *http.Request) {
 	tmpl.Set("RealmPath", rlmpath)
 	tmpl.Set("Query", string(querystr))
 	tmpl.Set("PathLinks", pathLinks)
-	tmpl.Set("Contents", template.HTML(string(res)))
+	tmpl.Set("Contents", string(res))
 	tmpl.Render(w, r, "realm_render.html", "header.html")
 }
 
@@ -284,6 +285,22 @@ func handlerStaticFile(app gotuna.App) http.Handler {
 		//w.Header().Set("ETag", fmt.Sprintf("%x", stat.ModTime().UnixNano()))
 		//w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%s", "31536000"))
 		fileapp.ServeHTTP(w, r)
+	})
+}
+
+func handlerFavicon(app gotuna.App) http.Handler {
+	fs := http.FS(app.Static)
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fpath := "img/favicon.ico"
+		f, err := fs.Open(fpath)
+		if os.IsNotExist(err) {
+			handleNotFound(app, fpath, w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "image/x-icon")
+		w.Header().Set("Cache-Control", "public, max-age=604800") // 7d
+		io.Copy(w, f)
 	})
 }
 

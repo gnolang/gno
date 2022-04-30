@@ -1,8 +1,8 @@
 package multisig
 
 import (
-	"github.com/gnolang/gno/pkgs/crypto"
 	"github.com/gnolang/gno/pkgs/amino"
+	"github.com/gnolang/gno/pkgs/crypto"
 )
 
 // PubKeyMultisigThreshold implements a K of N threshold multisig.

@@ -1,8 +1,9 @@
 package press
 
 import (
-	"github.com/jaekwon/testify/assert"
 	"testing"
+
+	"github.com/jaekwon/testify/assert"
 )
 
 func TestEmpty(t *testing.T) {

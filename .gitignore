@@ -7,7 +7,6 @@ proto/*
 testdir
 pkgs/sdk/vm/_testdata
 build/*
-*.txt
 *.tx
 *.log.*
 *.log

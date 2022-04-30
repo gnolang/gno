@@ -17,9 +17,13 @@ import (
 
 	"github.com/gnolang/gno"
 	"github.com/gnolang/gno/pkgs/crypto"
+	osm "github.com/gnolang/gno/pkgs/os"
 	"github.com/gnolang/gno/pkgs/std"
 	"github.com/gnolang/gno/stdlibs"
 )
+
+// If true, writes actual as wanted in test comments.
+var syncWanted bool = true
 
 func TestFileStr(t *testing.T) {
 	filePath := "./files/str.gno"
@@ -253,21 +257,29 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 		// check result
 		res := strings.TrimSpace(stdout.String())
 		res = trimTrailingSpaces(res)
-		if resWanted != "" {
-			if res != resWanted {
+		if res != resWanted {
+			if syncWanted {
+				// write output to file.
+				replaceWantedInPlace(path, "Output", res)
+			} else {
 				// panic so tests immediately fail (for now).
-				panic(fmt.Sprintf("got:\n%s\n\nwant:\n%s\n", res, resWanted))
-			}
-		} else {
-			if res != "" {
-				panic(fmt.Sprintf("got unexpected output: %s", res))
+				if resWanted == "" {
+					panic(fmt.Sprintf("got unexpected output: %s", res))
+				} else {
+					panic(fmt.Sprintf("got:\n%s\n\nwant:\n%s\n", res, resWanted))
+				}
 			}
 		}
 		// check realm ops
 		if rops != "" {
 			rops2 := strings.TrimSpace(store.SprintStoreOps())
 			if rops != rops2 {
-				panic(fmt.Sprintf("got:\n%s\n\nwant:\n%s\n", rops2, rops))
+				if syncWanted {
+					// write output to file.
+					replaceWantedInPlace(path, "Realm", rops2)
+				} else {
+					panic(fmt.Sprintf("got:\n%s\n\nwant:\n%s\n", rops2, rops))
+				}
 			}
 		}
 	}
@@ -324,6 +336,42 @@ func wantedFromComment(p string) (pkgPath, res, err, rops string, maxAlloc int64
 		}
 	}
 	return
+}
+
+// Replace comment in file with given output given directive.
+func replaceWantedInPlace(path string, directive string, output string) {
+	bz := osm.MustReadFile(path)
+	body := string(bz)
+	lines := strings.Split(body, "\n")
+	isReplacing := false
+	wroteDirective := false
+	newlines := []string(nil)
+	for _, line := range lines {
+		if line == "// "+directive+":" {
+			if wroteDirective {
+				isReplacing = true
+				continue
+			} else {
+				wroteDirective = true
+				isReplacing = true
+				newlines = append(newlines, "// "+directive+":")
+				outlines := strings.Split(output, "\n")
+				for _, outline := range outlines {
+					newlines = append(newlines,
+						strings.TrimRight("// "+outline, " "))
+				}
+				continue
+			}
+		} else if isReplacing {
+			if strings.HasPrefix(line, "//") {
+				continue
+			} else {
+				isReplacing = false
+			}
+		}
+		newlines = append(newlines, line)
+	}
+	osm.MustWriteFile(path, []byte(strings.Join(newlines, "\n")), 0644)
 }
 
 func defaultPkgName(gopkgPath string) gno.Name {

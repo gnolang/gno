@@ -64,9 +64,9 @@ func TestThrottle(test *testing.T) {
 	time.Sleep(longwait)
 	assert.Equal(2, c.Count())
 
-	// send 12, over 2 delay sections, adds 3
+	// send 14, over 2 delay sections, adds 3
 	short := time.Duration(ms/5) * time.Millisecond
-	for i := 0; i < 12; i++ {
+	for i := 0; i < 14; i++ {
 		t.Set()
 		time.Sleep(short)
 	}

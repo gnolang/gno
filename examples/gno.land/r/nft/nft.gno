@@ -5,72 +5,35 @@ import (
 	"strconv"
 
 	"gno.land/p/avl"
+	igrc721 "gno.land/p/grc/grc721"
 )
 
-//----------------------------------------
-// types
+type grc721 struct {
+	igrc721.GRC721 // implements the GRC721 interface
 
-type TokenID string
-
-type GRC721 interface {
-	BalanceOf(owner std.Address) (count int64)
-	OwnerOf(tid TokenID) std.Address
-	SafeTransferFrom(from, to std.Address, tid TokenID)
-	TransferFrom(from, to std.Address, tid TokenID)
-	Approve(approved std.Address, tid TokenID)
-	SetApprovalForAll(operator std.Address, approved bool)
-	GetApproved(tid TokenID) std.Address
-	IsApprovedForAll(owner, operator std.Address) bool
-}
-
-// TODO use
-type TransferEvent struct {
-	From    std.Address
-	To      std.Address
-	TokenID TokenID
-}
-
-// TODO use
-type ApprovalEvent struct {
-	Owner    std.Address
-	Approved std.Address
-	TokenID  TokenID
-}
-
-// TODO use
-type ApprovalForAllEvent struct {
-	Owner    std.Address
-	Operator std.Address
-	Approved bool
+	tokenCounter int
+	tokens       *avl.Tree // igrc721.TokenID -> *NFToken{}
+	operators    *avl.Tree // owner std.Address -> operator std.Address
 }
 
 type NFToken struct {
 	owner    std.Address
 	approved std.Address
-	tokenID  TokenID
+	tokenID  igrc721.TokenID
 	data     string
-}
-
-//----------------------------------------
-// impl
-
-type grc721 struct {
-	tokenCounter int
-	tokens       *avl.Tree // TokenID -> *NFToken{}
-	operators    *avl.Tree // owner std.Address -> operator std.Address
 }
 
 var gGRC721 = &grc721{}
 
 func GetGRC721() *grc721 { return gGRC721 }
 
-func (grc *grc721) nextTokenID() TokenID {
+func (grc *grc721) nextTokenID() igrc721.TokenID {
 	grc.tokenCounter++
 	s := strconv.Itoa(grc.tokenCounter)
-	return TokenID(s)
+	return igrc721.TokenID(s)
 }
 
-func (grc *grc721) getToken(tid TokenID) (*NFToken, bool) {
+func (grc *grc721) getToken(tid igrc721.TokenID) (*NFToken, bool) {
 	_, token, ok := grc.tokens.Get(string(tid))
 	if !ok {
 		return nil, false
@@ -78,7 +41,7 @@ func (grc *grc721) getToken(tid TokenID) (*NFToken, bool) {
 	return token.(*NFToken), true
 }
 
-func (grc *grc721) Mint(to std.Address, data string) TokenID {
+func (grc *grc721) Mint(to std.Address, data string) igrc721.TokenID {
 	tid := grc.nextTokenID()
 	newTokens, _ := grc.tokens.Set(string(tid), &NFToken{
 		owner:   to,
@@ -93,7 +56,7 @@ func (grc *grc721) BalanceOf(owner std.Address) (count int64) {
 	panic("not yet implemented")
 }
 
-func (grc *grc721) OwnerOf(tid TokenID) std.Address {
+func (grc *grc721) OwnerOf(tid igrc721.TokenID) std.Address {
 	token, ok := grc.getToken(tid)
 	if !ok {
 		panic("token does not exist")
@@ -102,7 +65,7 @@ func (grc *grc721) OwnerOf(tid TokenID) std.Address {
 }
 
 // XXX not fully implemented yet.
-func (grc *grc721) SafeTransferFrom(from, to std.Address, tid TokenID) {
+func (grc *grc721) SafeTransferFrom(from, to std.Address, tid igrc721.TokenID) {
 	grc.TransferFrom(from, to, tid)
 	// When transfer is complete, this function checks if `_to` is a smart
 	// contract (code size > 0). If so, it calls `onERC721Received` on
@@ -111,7 +74,7 @@ func (grc *grc721) SafeTransferFrom(from, to std.Address, tid TokenID) {
 	// XXX ensure "to" is a realm with onERC721Received() signature.
 }
 
-func (grc *grc721) TransferFrom(from, to std.Address, tid TokenID) {
+func (grc *grc721) TransferFrom(from, to std.Address, tid igrc721.TokenID) {
 	caller := std.GetCallerAt(2)
 	token, ok := grc.getToken(tid)
 	// Throws if `_tokenId` is not a valid NFT.
@@ -138,7 +101,7 @@ func (grc *grc721) TransferFrom(from, to std.Address, tid TokenID) {
 	token.owner = to
 }
 
-func (grc *grc721) Approve(approved std.Address, tid TokenID) {
+func (grc *grc721) Approve(approved std.Address, tid igrc721.TokenID) {
 	caller := std.GetCallerAt(2)
 	token, ok := grc.getToken(tid)
 	// Throws if `_tokenId` is not a valid NFT.
@@ -164,7 +127,7 @@ func (grc *grc721) SetApprovalForAll(operator std.Address, approved bool) {
 	grc.operators = newOperators
 }
 
-func (grc *grc721) GetApproved(tid TokenID) std.Address {
+func (grc *grc721) GetApproved(tid igrc721.TokenID) std.Address {
 	token, ok := grc.getToken(tid)
 	// Throws if `_tokenId` is not a valid NFT.
 	if !ok {

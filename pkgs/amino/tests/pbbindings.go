@@ -1,13 +1,14 @@
 package tests
 
 import (
+	time "time"
+
 	amino "github.com/gnolang/gno/pkgs/amino"
 	testspb "github.com/gnolang/gno/pkgs/amino/tests/pb"
 	proto "google.golang.org/protobuf/proto"
 	anypb "google.golang.org/protobuf/types/known/anypb"
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
-	time "time"
 )
 
 func (goo EmptyStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {

@@ -228,6 +228,9 @@ func applyFlagToFieldReflectString(frv reflect.Value, fvalue string) error {
 		frv.SetUint(fnum)
 		return nil
 	case reflect.String:
+		// XXX is there something wrong with os.Args? why does it strip '/", and then not unescape \n and \t while unescaping \\?
+		fvalue = strings.ReplaceAll(fvalue, `\n`, "\n")
+		fvalue = strings.ReplaceAll(fvalue, `\t`, "\t")
 		frv.SetString(fvalue)
 		return nil
 	case reflect.Bool:
