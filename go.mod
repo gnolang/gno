@@ -23,6 +23,7 @@ require (
 	github.com/pelletier/go-toml v1.9.3
 	github.com/stretchr/testify v1.7.1
 	github.com/syndtr/goleveldb v1.0.0
+	github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c
 	go.etcd.io/bbolt v1.3.6
 	go.uber.org/multierr v1.8.0
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
@@ -34,6 +35,9 @@ require (
 )
 
 require (
+	github.com/facebookgo/ensure v0.0.0-20200202191622-63f1cf65ac4c // indirect
+	github.com/facebookgo/stack v0.0.0-20160209184415-751773369052 // indirect
+	github.com/facebookgo/subset v0.0.0-20200203212716-c811ad88dec4 // indirect
 	github.com/gdamore/encoding v1.0.0 // indirect
 	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db // indirect
 	github.com/gorilla/securecookie v1.1.1 // indirect
