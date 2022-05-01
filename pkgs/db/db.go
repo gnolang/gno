@@ -13,11 +13,15 @@ const (
 	// popular implementation)
 	//   - pure go
 	//   - stable
+	//   - not well maintained
+	//   - we should move away from this
 	GoLevelDBBackend BackendType = "goleveldb"
 	// CLevelDBBackend represents cleveldb (uses levigo wrapper)
 	//   - fast
-	//   - requires gcc
+	//   - requires gcc / cgo
 	//   - use cleveldb build tag (go build -tags cleveldb)
+	//   - wrapper is not well maintained
+	//   - we should move away from this
 	CLevelDBBackend BackendType = "cleveldb"
 	// MemDBBackend represents in-memoty key value store, which is mostly used
 	// for testing.
@@ -31,19 +35,33 @@ const (
 	//   - EXPERIMENTAL
 	//   - may be faster is some use-cases (random reads - indexer)
 	//   - use boltdb build tag (go build -tags boltdb)
+	//   - maintained
+	//   - pure go
+	//  We should keep this
 	BoltDBBackend BackendType = "boltdb"
 	// RocksDBBackend represents rocksdb (uses github.com/tecbot/gorocksdb)
 	//   - EXPERIMENTAL
-	//   - requires gcc
+	//   - requires gcc / cgo
 	//   - use gorocksdb build tag (go build -tags gorocksdb)
 	//   - supports rocksdb v6 series but not further
+	//   - zero maintenance upstream
+	// If we support rocks, we should drop this
 	RocksDBBackend BackendType = "gorocksdb"
 	// GRocksDBBackend represents grocksdb (uses github.com/linxGnu/grocksdb)
 	//   - EXPERIMENTAL
-	//   - reguires gcc
+	//   - reguires gcc / cgo
 	//   - use grocksdb build tag 
 	//   - supports rocksdb v7 series and optimistic transaction dbs
+	//   - well maintained
+	// If we use rocks at all, this is the best choice for a wrapper
 	GRocksDBBackend BackendType = "grocksdb"
+	// BadgerDBBackend represents badgerdb (github.com/dgraph-io/badger)
+	//  - EXPERIMENTAL
+	//  - does not require gcc/cgo
+	//  - good maitenance
+	//  - use badgerdb build tag
+	// Jacob's current favorite for default
+	BadgerDBBackend BackendType = "badgerdb"
 )
 
 type dbCreator func(name string, dir string) (DB, error)
