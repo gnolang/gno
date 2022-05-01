@@ -45,6 +45,7 @@ var stdlibWhitelist = []string{
 	"io/util",
 	"math",
 	"math/big",
+	"math/rand",
 	"regexp",
 	"sort",
 	"strconv",
