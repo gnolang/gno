@@ -185,7 +185,7 @@ financial advice:
  * NO with VETO is slightly better than NO.
  * NO is better than ABSTAIN.
  * ABSTAIN is better than not voting at all.
- * Delegators inherit the votes of the validators.
+ * Delegators inherit the votes of the validators (unless delegators override).
  * If you vote YES on \#69, you will not receive gno.land $GNOTs.
 
 NOTE: If you don't like my airdrop rules, you are free to make your own, and if
