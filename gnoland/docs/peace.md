@@ -188,6 +188,14 @@ financial advice:
  * Delegators inherit the votes of the validators (unless delegators override).
  * If you vote YES on \#69, you will not receive gno.land $GNOTs.
 
+Regarding ATOMs locked in IBC channels, those will count as not voting,
+which is fine, and corresponding $GNOT will be released once the respective
+zone communities create a provable audited distribution given the snapsot date,
+which is defined to be exactly when those who voted on #69 can unbond and move their
+tokens, which is 21 days from the start of the proposal. Soon we will be more precise
+about what that is, but communities please prepare accordingly. If you aren't sure,
+leave ATOMs on the hub.
+
 NOTE: If you don't like my airdrop rules, you are free to make your own, and if
 you're nice you can even run gno.land contracts if you so want there, or you
 can just run a fork of gaia.
