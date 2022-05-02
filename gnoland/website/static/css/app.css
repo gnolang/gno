@@ -148,6 +148,12 @@ div.func_spec div.shell_command {
 	color: #777;
 }
 
+div.func_spec button.keplr_exec {
+	font-family: "Lucida Console", "Monaco", monospace;
+	margin-left: 50px;
+	font-size: 0.9em;
+}
+
 div.func_spec div.shell_command span {
 	display: inline-block;
 	margin-bottom: 10px;
