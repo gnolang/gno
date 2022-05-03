@@ -5,7 +5,7 @@ name ["gno.land/r/boards"](https://gno.land/r/boards/)
 
 
 
-## Build `gnokey`, create your account, and interract with Gno.
+## Build `gnokey`, create your account, and interact with Gno.
 
 NOTE: Where you see `--remote gno.land:36657` here, that flag can be replaced
 with `--remote localhost:26657` for local testnets.
