@@ -1,0 +1,23 @@
+name: DB Tests
+
+on:
+  pull_request:
+    paths:
+      - "pkgs/db"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/db-tests.yml"
+  push:
+    branches:
+      - master
+
+jobs:
+  test-databases:
+    name: basic database test
+    container: ghcr.io/faddat/cosmos
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v3
+      - name: install
+        run: go test -tags cleveldb,memdb,fsdb,boltdb ./pkgs/db/...
