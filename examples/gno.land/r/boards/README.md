@@ -80,7 +80,7 @@ GetBoardIDFromName(\"BOARDNAME\")" --remote gno.land:36657
 ### Create a comment to a post.
 
 ```bash
-./build/gnokey maketx call KEYNAME --pkgpath "gno.land/r/boards" --func "CreateReply" --args "BOARD_ID" --args "1" --args "1" --args "A comment" --gas-fee 1gnot --gas-wanted 2100000 > createcomment.unsigned.txt
+./build/gnokey maketx call KEYNAME --pkgpath "gno.land/r/boards" --func "CreateReply" --args "BOARD_ID" --args "1" --args "1" --args "A comment" --gas-fee 1gnot --gas-wanted 2000000 > createcomment.unsigned.txt
 ./build/gnokey sign KEYNAME --txpath createcomment.unsigned.txt --chainid "testchain" --number ACCOUNT_NUMBER --sequence SEQUENCE_NUMBER > createcomment.signed.txt
 ./build/gnokey broadcast createcomment.signed.txt --remote gno.land:36657
 ```
