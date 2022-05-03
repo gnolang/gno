@@ -1,4 +1,4 @@
-# Peace!
+# Peace! or, Everyone is Invited to Gno.land, if you want!
 
 I've never been put in such a difficult position, of having information that I
 cannot reveal. And if you know me, you know that I like to speak my mind.  But
