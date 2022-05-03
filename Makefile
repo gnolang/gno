@@ -47,8 +47,11 @@ logos:
 clean:
 	rm -rf build
 
-precompile_examples: install_gnodev
-	cd examples; gnodev precompile . --verbose
+examples.precompile: install_gnodev
+	gnodev precompile ./examples --verbose
+
+examples.build: examples.precompile
+	gnodev build ./examples --verbose
 
 ########################################
 # Test suite
