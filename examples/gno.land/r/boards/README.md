@@ -40,7 +40,7 @@ NOTE: `KEYNAME` is your key identifier, and should be changed.
 ./build/gnokey list
 ```
 
-## Interract with the blockchain:
+## Interact with the blockchain:
 
 ### Get your current balance, account number, and sequence number.
 
