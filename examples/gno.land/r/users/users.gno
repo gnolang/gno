@@ -209,19 +209,13 @@ func GetUserByAddress(addr std.Address) *User {
 	return userI.(*User)
 }
 
-func GetUserByNameOrAddress(input string) *User {
-	// TODO: if input matches an address, return it directly.
-	// -> to prevent someone registering someone else's address as its name.
-
-	user := GetUserByName(input)
-	if user != nil {
-		return user
-	}
-
-	// fallback, return the address itself
-	return &User{
-		address: std.Address(input),
-		number:  -1,
+// unlike GetUserByName, input must be "@" prefixed for names.
+func GetUserByNameOrAddress(input AddressOrName) *User {
+	name, isName := input.GetName()
+	if isName {
+		return GetUserByName(name)
+	} else {
+		return GetUSerByAddress(input)
 	}
 }
 

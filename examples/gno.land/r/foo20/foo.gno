@@ -22,39 +22,39 @@ func init() {
 
 // getters.
 
-func TotalSupply() uint64                    { return foo.TotalSupply() }
-func BalanceOf(address string) uint64        { return foo.BalanceOf(address) }
-func Allowance(owner, spender string) uint64 { return foo.Allowance(owner, spender) }
+func TotalSupply() uint64                           { return foo.TotalSupply() }
+func BalanceOf(addrname AddressOrName) uint64       { return foo.BalanceOf(address) }
+func Allowance(owner, spender AddressOrName) uint64 { return foo.Allowance(owner, spender) }
 
 // setters.
 
-func Transfer(to string, amount uint64) {
-	caller := std.GetCallerAt(2).String()
-	foo.Transfer(caller, to, amount)
+func Transfer(to AddressOrName, amount uint64) {
+	caller := std.GetCallerAt(2)
+	foo.Transfer(caller, to.Resolve(), amount)
 }
 
-func Approve(spender string, amount uint64) {
-	caller := std.GetCallerAt(2).String()
-	foo.Approve(caller, spender, amount)
+func Approve(spender AddressOrName, amount uint64) {
+	caller := std.GetCallerAt(2)
+	foo.Approve(caller, spender.Resolve(), amount)
 }
 
-func TransferFrom(from, to string, amount uint64) {
-	caller := std.GetCallerAt(2).String()
-	foo.TransferFrom(caller, from, to, amount)
+func TransferFrom(from, to AddressOrName, amount uint64) {
+	caller := std.GetCallerAt(2)
+	foo.TransferFrom(caller, from.Resolve(), to.Resolve(), amount)
 }
 
 // administration.
 
-func Mint(address string, amount uint64) {
+func Mint(address AddressOrName, amount uint64) {
 	caller := std.GetCallerAt(2)
 	assertIsAdmin(caller)
-	foo.Mint(address, amount)
+	foo.Mint(address.Resolve(), amount)
 }
 
-func Burn(address string, amount uint64) {
+func Burn(address AddressOrName, amount uint64) {
 	caller := std.GetCallerAt(2)
 	assertIsAdmin(caller)
-	foo.Burn(address, amount)
+	foo.Burn(address.Resolve(), amount)
 }
 
 // render.
