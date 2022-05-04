@@ -18,6 +18,7 @@ import (
 	"github.com/gnolang/gno/pkgs/amino"
 	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
 	"github.com/gnolang/gno/pkgs/bft/rpc/client"
+	ctypes "github.com/gnolang/gno/pkgs/bft/rpc/core/types"
 	"github.com/gnolang/gno/pkgs/std"
 	"github.com/gorilla/mux"
 	"github.com/gotuna/gotuna"
@@ -31,6 +32,12 @@ var flags struct {
 	bindAddr string
 }
 
+type BroadcastResult struct {
+	TxHash    string `json:"tx_hash"`
+	Height    int64  `json:"height"`
+	GasWanted int64  `json:"gas_wanted"`
+	GasUsed   int64  `json:"gas_used"`
+}
 var startedAt time.Time
 
 func init() {
@@ -50,6 +57,7 @@ func main() {
 
 	app.Router.Handle("/", handlerHome(app))
 	app.Router.Handle("/faucet", handlerFaucet(app))
+	app.Router.Handle("/txs", handlerTxs(app)).Methods(http.MethodPost)
 	app.Router.Handle("/r/boards:gnolang/6", handlerRedirect(app))
 	// NOTE: see rePathPart.
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*}", handlerRealmMain(app))
@@ -79,6 +87,73 @@ func handlerFaucet(app gotuna.App) http.Handler {
 		app.NewTemplatingEngine().
 			Render(w, r, "faucet.html", "header.html")
 	})
+}
+
+func handlerTxs(app gotuna.App) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var params map[string]json.RawMessage
+		err := json.NewDecoder(r.Body).Decode(&params)
+		if err != nil {
+			writeError(w, fmt.Errorf("%s, %s", "unmarshaling json params", err.Error()))
+			return
+		}
+
+		txData, ok := params["tx"]
+		if !ok {
+			writeError(w, fmt.Errorf("%s, %s", "Missing tx param", err.Error()))
+			return
+		}
+
+		txBz, _ := txData.MarshalJSON()
+		var tx std.Tx
+		err = amino.UnmarshalJSON(txBz, &tx)
+		if err != nil {
+			writeError(w, fmt.Errorf("%s, %s", "unmarshaling tx json bytes", err.Error()))
+			return
+		}
+
+		cli := createClient()
+		res, err := broadcastHandler(cli, tx)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+
+		if res.CheckTx.IsErr() {
+			writeError(w, fmt.Errorf("transaction failed %#v\nlog %s", res, res.CheckTx.Log))
+			return
+		}
+
+		if res.DeliverTx.IsErr() {
+			writeError(w, fmt.Errorf("transaction failed %#v\nlog %s", res, res.DeliverTx.Log))
+			return
+		}
+
+		result := BroadcastResult{
+			TxHash:    fmt.Sprintf("%X", res.Hash),
+			Height:    res.Height,
+			GasWanted: res.DeliverTx.GasWanted,
+			GasUsed:   res.DeliverTx.GasUsed,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(result)
+	})
+}
+
+func broadcastHandler(cli client.ABCIClient, tx std.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+	bz, err := amino.Marshal(tx)
+	if err != nil {
+		return nil, fmt.Errorf("%s, %s", err.Error(), "remarshaling tx binary bytes")
+	}
+
+	bres, err := cli.BroadcastTxCommit(bz)
+	if err != nil {
+		return nil, fmt.Errorf("%s, %s", err.Error(), "broadcasting bytes")
+	}
+
+	return bres, nil
 }
 
 func handlerStatusJSON(app gotuna.App) http.Handler {
@@ -300,6 +375,9 @@ func renderPackageFile(app gotuna.App, w http.ResponseWriter, r *http.Request, d
 		tmpl.Set("FileContents", string(res.Data))
 		tmpl.Render(w, r, "package_file.html", "header.html")
 	}
+}??func createClient() client.ABCIClient {
+	remote := "127.0.0.1:26657"
+	return client.NewHTTP(remote, "/websocket")
 }
 
 func makeRequest(qpath string, data []byte) (res *abci.ResponseQuery, err error) {
@@ -307,8 +385,8 @@ func makeRequest(qpath string, data []byte) (res *abci.ResponseQuery, err error)
 		// Height: height, XXX
 		// Prove: false, XXX
 	}
-	remote := "127.0.0.1:26657"
-	cli := client.NewHTTP(remote, "/websocket")
+
+	cli := createClient()
 	qres, err := cli.ABCIQueryWithOptions(
 		qpath, data, opts2)
 	if err != nil {
