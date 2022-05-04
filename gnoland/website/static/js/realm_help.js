@@ -25,7 +25,17 @@ function main() {
 		var el = u(e.currentTarget);
 		var sender = el.data("sender");
 		var msg = el.data("msg");
-		sendTx(sender, JSON.parse(msg));
+		if (!window.keplr) {
+			alert("Please install keplr extension.");
+			return;
+		}
+
+		walletFn.keplr.signAndBroadcast(sender, JSON.parse(msg)).then(function (result) {
+			alert("Tx: " + result.txHash);
+		}).catch(function (err) {
+			console.log(err);
+			alert("Error: " + err);
+		});
 	});
 };
 
@@ -107,93 +117,8 @@ function updateCommand(x) {
 
 	// set keplr params
 	var keplrExec = x.find(".keplr_exec");
-	const msg = createMsg(myAddr, realmPath, funcName, vals);
+	const msg = walletFn.createVmCallMsg(myAddr, realmPath, funcName, vals);
 	keplrExec.data({msg: JSON.stringify(msg), sender: myAddr});
-}
-
-function createMsg(sender, pkgPath, funcName, args) {
-	return  {
-		type: "/vm.m_call",
-		value: {
-			caller: sender,
-			send: "",
-			pkg_path: pkgPath,
-			func: funcName,
-			args: args,
-		}
-	};
-}
-
-function createSignDoc(account, msg, chainId, gas) {
-	return {
-	  msgs: [msg],
-	  fee: { amount: [{
-		amount: "1",
-		denom: "gnot"
-	  }], gas: gas },
-	  chain_id: chainId,
-	  memo: "",
-	  account_number: account.account_number,
-	  sequence: account.sequence,
-	};
-  }
-
-function sendTx(sender, msg) {
-	// validate params
-
-	// get account info.
-	var account = {account_number: 0, sequence: 0};
-	const signDoc = createSignDoc(account, msg, "testchain", "2000000");
-	const chainId = "testchain";
-	window.keplr.enable(chainId).then(function () {
-		return keplr.signAmino(chainId, sender, signDoc, {
-			preferNoSetFee: true, // 1gnot fixed fee 
-		});
-	}).then(function (signature) {
-		const tx = makeStdTx(signature.signed, signature.signature);
-		return broadcastTx(tx);
-	}).then(function (result) {
-		console.log(result.txHash);
-	}).catch(function (err) {
-		console.log(err);
-	});
-}
-
-function makeStdTx(content, signature) {
-	const feeAmount = content.fee.amount;
-
-	return {
-		msg: content.msgs.map(function (msg) {
-			return {
-				"@type": msg.type,
-				...msg.value
-			};
-		}),
-		fee: {
-			gas_wanted: content.fee.gas,
-			gas_fee: feeAmount.length ? `${content.fee.amount[0].amount}${content.fee.amount[0].denom}`: "",
-		},
-		signatures: [{
-			pub_key: {
-				"@type": signature.pub_key.type,
-				value: signature.pub_key.value,
-			},
-			signature: signature.signature,
-		}],
-		memo: content.memo,
-	};
-}
-
-function broadcastTx(tx) {
-	return fetch("/txs", {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json"
-		},
-		body: JSON.stringify(tx)
-	}).then(function (response) {
-		return response.json();
-	});
 }
 
 // Jae: why isn't this a library somewhere?
