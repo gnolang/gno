@@ -5,7 +5,7 @@ name ["gno.land/r/boards"](https://gno.land/r/boards/)
 
 
 
-## Build `gnokey`, create your account, and interract with Gno.
+## Build `gnokey`, create your account, and interact with Gno.
 
 NOTE: Where you see `--remote gno.land:36657` here, that flag can be replaced
 with `--remote localhost:26657` for local testnets.
@@ -40,7 +40,7 @@ NOTE: `KEYNAME` is your key identifier, and should be changed.
 ./build/gnokey list
 ```
 
-## Interract with the blockchain:
+## Interact with the blockchain:
 
 ### Get your current balance, account number, and sequence number.
 
@@ -56,6 +56,8 @@ Go to https://gno.land/faucet
 
 ### Create a board with a smart contract call.
 
+NOTE: `BOARDNAME` will be the slug of the board, and should be changed.
+
 ```bash
 ./build/gnokey maketx call KEYNAME --pkgpath "gno.land/r/boards" --func CreateBoard --args "BOARDNAME" --gas-fee 1gnot --gas-wanted 2000000 > createboard.unsigned.txt
 ./build/gnokey sign KEYNAME --txpath createboard.unsigned.txt --chainid "testchain" --number ACCOUNT_NUMBER --sequence SEQUENCE_NUMBER > createboard.signed.txt
@@ -66,28 +68,32 @@ Next, query for the permanent board ID by querying (you need this to create a ne
 
 ```bash
 ./build/gnokey query "vm/qeval" --data "gno.land/r/boards
-GetBoardIDFromName(\"BOARDNAME\")"
+GetBoardIDFromName(\"BOARDNAME\")" --remote gno.land:36657
 ```
 
 ### Create a post of a board with a smart contract call.
 
+NOTE: If a board was created successfully, your SEQUENCE_NUMBER would have increased.
+
 ```bash
-./build/gnokey maketx call KEYNAME --pkgpath "gno.land/r/boards" --func CreatePost --args 1 --args "Hello World" --args#file "./examples/gno.land/r/boards/README.md" --gas-fee 1gnot --gas-wanted 2000000 > createpost.unsigned.txt
+./build/gnokey maketx call KEYNAME --pkgpath "gno.land/r/boards" --func "CreatePost" --args BOARD_ID --args "Hello gno.land" --args\#file "./examples/gno.land/r/boards/example_post.md" --gas-fee 1gnot --gas-wanted 2000000 > createpost.unsigned.txt
 ./build/gnokey sign KEYNAME --txpath createpost.unsigned.txt --chainid "testchain" --number ACCOUNT_NUMBER --sequence SEQUENCE_NUMBER > createpost.signed.txt
 ./build/gnokey broadcast createpost.signed.txt --remote gno.land:36657
 ```
 
 ### Create a comment to a post.
 
+NOTE: If a post was created successfully, your SEQUENCE_NUMBER would have increased again.
+
 ```bash
-./build/gnokey maketx call KEYNAME --pkgpath "gno.land/r/boards" --func CreateReply --args 1 --args 1 --args "A comment" --gas-fee 1gnot --gas-wanted 2000000 > createcomment.unsigned.txt
+./build/gnokey maketx call KEYNAME --pkgpath "gno.land/r/boards" --func "CreateReply" --args "BOARD_ID" --args "1" --args "1" --args "Nice to meet you too!" --gas-fee 1gnot --gas-wanted 2000000 > createcomment.unsigned.txt
 ./build/gnokey sign KEYNAME --txpath createcomment.unsigned.txt --chainid "testchain" --number ACCOUNT_NUMBER --sequence SEQUENCE_NUMBER > createcomment.signed.txt
 ./build/gnokey broadcast createcomment.signed.txt --remote gno.land:36657
 ```
 
 ```bash
 ./build/gnokey query "vm/qrender" --data "gno.land/r/boards
-gnolang/1"
+BOARDNAME/1" --remote gno.land:36657
 ```
 
 ### Render page with optional path expression.
