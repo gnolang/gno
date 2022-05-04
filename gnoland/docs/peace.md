@@ -192,7 +192,7 @@ financial advice:
 
 Regarding ATOMs locked in IBC channels, those will count as not voting,
 which is fine, and corresponding $GNOT will be released once the respective
-zone communities create a provable audited distribution given the snapsot date,
+zone communities create a provable audited distribution given the snapshot date,
 which is defined to be exactly when those who voted on #69 can unbond and move their
 tokens, which is 21 days from the start of the proposal. Soon we will be more precise
 about what that is, but communities please prepare accordingly. If you aren't sure,
