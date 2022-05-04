@@ -30,7 +30,11 @@ walletFn.createSignDoc = function(account, msg, chainId, gas) {
 };
 
 walletFn.keplr.signAndBroadcast = function(sender, msg) {
-	return window.keplr.enable(chainId).then(function () {
+	return window.keplr.experimentalSuggestChain(walletFn.geTestnetKeplrConfig())
+	.then(function () {
+		return window.keplr.enable(chainId);
+	})
+	.then(function () {
 		return walletFn.getAccount(sender);
 	})
 	.then(function(account) {
@@ -44,6 +48,37 @@ walletFn.keplr.signAndBroadcast = function(sender, msg) {
 		const tx = walletFn.makeStdTx(signature.signed, signature.signature);
 		return walletFn.broadcastTx(tx);
 	});
+};
+
+walletFn.geTestnetKeplrConfig = function() {
+	const addressPrefix = "g";
+	const gnoToken = {
+		coinDenom: "GNOT",
+		coinMinimalDenom: "gnot",
+		coinDecimals: 6,
+		// coinGeckoId: ""
+	};
+
+	return {
+		chainId: chainId,
+		chainName: "GNO Testnet",
+		rpc: 'http://gno.land:36657',
+		rest: 'https://lcd.gno.tools',
+		bech32Config: {
+			bech32PrefixAccAddr: `${addressPrefix}`,
+			bech32PrefixAccPub: `${addressPrefix}pub`,
+			bech32PrefixValAddr: `${addressPrefix}valoper`,
+			bech32PrefixValPub: `${addressPrefix}valoperpub`,
+			bech32PrefixConsAddr: `${addressPrefix}valcons`,
+			bech32PrefixConsPub: `${addressPrefix}valconspub`,
+		},
+		currencies: [gnoToken],
+		feeCurrencies: [gnoToken],
+		stakeCurrency: gnoToken,
+		bip44: { coinType: 118 },
+		// custom feature for GNO chains.
+		features: ["gno"]
+	};
 };
 
 walletFn.makeStdTx = function(content, signature) {
