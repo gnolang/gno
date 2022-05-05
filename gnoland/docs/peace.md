@@ -75,7 +75,12 @@ other zones can distribute those ATOMs according to the logic of whatever
 liquid staking contract. This ensures separation of concerns, and a minimal
 hub.
 
-(2) we can use Go plugins to extend the functionality of the chain.
+(2) we can use Go plugins to extend the functionality of the chain. _UPDATE_
+Some have said that Go plugins are not mature enough. There are options like
+https://github.com/hashicorp/go-plugin. Spawning a sub-process is superior to
+running it under a new virtual machine, on top of a new framework, written in a
+different language than the rest of the stack. One uses the operating system.
+The other invents a new one.
 
 (3) we can do nothing. if liquid staking is such a big deal, something is wrong
 about priorities for a cosmic "hub". If the liquid staking market is larger
