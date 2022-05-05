@@ -203,7 +203,17 @@ tokens, which is 21 days from the start of the proposal. Soon we will be more pr
 about what that is, but communities please prepare accordingly. If you aren't sure,
 leave ATOMs on the hub.
 
-ATOMs in centralized exchanges will be excluded. Do not keep your ATOMs in exchanges.
+$ATOM in centralized exchanges will not result in $GNOT in the airdrop. Centralized
+exchanges will not be allowed to redeem them even after genesis, even if they are
+included. We will try to distinguish between custodial $ATOM vs non-custodial $ATOM
+for all centralized exchanges with legally binding attestations, with good faith effort;
+and so centralized exchanges would be welcome with their own capital, but not with client
+funds. Nothing is guaranteed.
+
+We reserve the right to change our minds. This project is highly experimental and has
+non-significant chances of failure. Nothing I tweet should be construed as financial
+advice. And finally, what you do with $ATOM is not my responsibility; I don't have
+control of the Cosmos Hub.
 
 NOTE: If you don't like my airdrop rules, you are free to make your own, and if
 you're nice you can even run gno.land contracts if you so want there, or you
