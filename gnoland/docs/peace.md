@@ -211,7 +211,7 @@ and so centralized exchanges would be welcome with their own capital, but not wi
 funds. Nothing is guaranteed.
 
 We reserve the right to change our minds. This project is highly experimental and has
-non-significant chances of failure. Nothing I tweet should be construed as financial
+non-zero chances of failure. Nothing I tweet should be construed as financial
 advice. And finally, what you do with $ATOM is not my responsibility; I don't have
 control of the Cosmos Hub.
 
