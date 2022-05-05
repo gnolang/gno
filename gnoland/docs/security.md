@@ -4,7 +4,7 @@ The gno.land website has 3 main dependencies:
 
 1. [UmbrellaJs](https://umbrellajs.com/) for DOM operations
 2. [MarkedJs](https://marked.js.org/) for Markdown to html compilation
-3. [HighlightJs](https://highlightjs.org/) for golang syntax hihlighting
+3. [HighlightJs](https://highlightjs.org/) for golang syntax highlighting
 4. [DOMPurify](https://github.com/cure53/DOMPurify) to sanitize html (and avoid xss)
 
 Some security considerations:
