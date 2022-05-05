@@ -19,7 +19,10 @@
         </div>
     </body>
     <script>
-        hljs.highlightAll()
+        hljs.configure({
+            throwUnescapedHTML: true // important to avoid inserting escaped html
+        })
+        hljs.highlightAll() // applied to all <pre><code>...</code></pre>
     </script>
 </html>
 {{- end -}}
