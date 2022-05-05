@@ -557,6 +557,21 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				m.PushValue(typedString(rlmpath))
 			},
 		)
+		pn.DefineNative("TestSkipHeights",
+			gno.Flds( // params
+				"count", "int64",
+			),
+			gno.Flds( // results
+			),
+			func(m *gno.Machine) {
+				arg0 := m.LastBlock().GetParams1().TV
+				count := arg0.GetInt64()
+
+				ctx := m.Context.(stdlibs.ExecContext)
+				ctx.Height += count
+				m.Context = ctx
+			},
+		)
 		pn.DefineNative("TestDerivePkgAddr",
 			gno.Flds( // params
 				"pkgPath", "string",
