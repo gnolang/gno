@@ -57,7 +57,7 @@ var derrors []string = nil
 
 // Instead of actually panic'ing, which messes with tests, errors are sometimes
 // collected onto `var derrors`.  tests/file_test.go checks derrors after each
-// test, and the file test fails if any unexpected debug errrors were found.
+// test, and the file test fails if any unexpected debug errors were found.
 func (d debugging) Errorf(format string, args ...interface{}) {
 	if d {
 		if enabled {
