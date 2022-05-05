@@ -203,6 +203,8 @@ tokens, which is 21 days from the start of the proposal. Soon we will be more pr
 about what that is, but communities please prepare accordingly. If you aren't sure,
 leave ATOMs on the hub.
 
+ATOMs in centralized exchanges will be excluded. Do not keep your ATOMs in exchanges.
+
 NOTE: If you don't like my airdrop rules, you are free to make your own, and if
 you're nice you can even run gno.land contracts if you so want there, or you
 can just run a fork of gaia.
