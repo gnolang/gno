@@ -4,9 +4,9 @@ package abci;
 option go_package = "github.com/gnolang/gno/pkgs/bft/abci/types/pb";
 
 // imports
+import "github.com/gnolang/gno/pkgs/crypto/merkle/merkle.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/any.proto";
-import "github.com/gnolang/gno/pkgs/crypto/merkle/merkle.proto";
 
 // messages
 message RequestBase {
@@ -171,7 +171,7 @@ message ValidatorParams {
 }
 
 message ValidatorUpdate {
-	bytes Address = 1;
+	string Address = 1;
 	google.protobuf.Any PubKey = 2;
 	sint64 Power = 3;
 }
@@ -182,7 +182,7 @@ message LastCommitInfo {
 }
 
 message VoteInfo {
-	bytes Address = 1;
+	string Address = 1;
 	sint64 Power = 2;
 	bool SignedLastBlock = 3;
 }

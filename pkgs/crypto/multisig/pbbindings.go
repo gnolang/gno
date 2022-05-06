@@ -1,11 +1,11 @@
 package multisig
 
 import (
-	amino "github.com/gnolang/gno/pkgs/amino"
-	crypto "github.com/gnolang/gno/pkgs/crypto"
-	multisigpb "github.com/gnolang/gno/pkgs/crypto/multisig/pb"
 	proto "google.golang.org/protobuf/proto"
+	amino "github.com/gnolang/gno/pkgs/amino"
+	multisigpb "github.com/gnolang/gno/pkgs/crypto/multisig/pb"
 	anypb "google.golang.org/protobuf/types/known/anypb"
+	crypto "github.com/gnolang/gno/pkgs/crypto"
 )
 
 func (goo PubKeyMultisigThreshold) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {

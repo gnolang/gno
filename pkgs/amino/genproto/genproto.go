@@ -253,6 +253,11 @@ func (p3c *P3Context) GenerateProto3SchemaForTypes(pkg *amino.Package, rtz ...re
 	p3doc.PackageName = pkg.P3PkgName
 	p3doc.GoPackage = pkg.P3GoPkgPath
 
+	// Add declared imports.
+	for _, dep := range pkg.GetAllDependencies() {
+		p3doc.AddImport(dep.P3ImportPath)
+	}
+
 	// Set Message schemas.
 	for _, rt := range rtz {
 		if rt.Kind() == reflect.Interface {
@@ -467,7 +472,9 @@ func MakeProtoFolder(pkg *amino.Package, dirName string) {
 		}
 		// Write symlink.
 		err := os.Symlink(p3file, loc)
-		if err != nil {
+		if os.IsExist(err) {
+			// do nothing.
+		} else if err != nil {
 			panic(err)
 		}
 	}

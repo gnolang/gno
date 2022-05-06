@@ -1,13 +1,13 @@
 package abci
 
 import (
+	proto "google.golang.org/protobuf/proto"
 	amino "github.com/gnolang/gno/pkgs/amino"
 	abcipb "github.com/gnolang/gno/pkgs/bft/abci/types/pb"
-	merkle "github.com/gnolang/gno/pkgs/crypto/merkle"
-	merklepb "github.com/gnolang/gno/pkgs/crypto/merkle/pb"
-	proto "google.golang.org/protobuf/proto"
-	anypb "google.golang.org/protobuf/types/known/anypb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	anypb "google.golang.org/protobuf/types/known/anypb"
+	merklepb "github.com/gnolang/gno/pkgs/crypto/merkle/pb"
+	merkle "github.com/gnolang/gno/pkgs/crypto/merkle"
 )
 
 func (goo RequestBase) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
@@ -2755,21 +2755,7 @@ func (goo ValidatorUpdate) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err
 		}
 		pbo = new(abcipb.ValidatorUpdate)
 		{
-			goorl := len(goo.Address)
-			if goorl == 0 {
-				pbo.Address = nil
-			} else {
-				var pbos = make([]uint8, goorl)
-				for i := 0; i < goorl; i += 1 {
-					{
-						goore := goo.Address[i]
-						{
-							pbos[i] = byte(goore)
-						}
-					}
-				}
-				pbo.Address = pbos
-			}
+			pbo.Address = string(goo.Address)
 		}
 		{
 			if goo.PubKey != nil {
@@ -2799,17 +2785,12 @@ func (goo *ValidatorUpdate) FromPBMessage(cdc *amino.Codec, msg proto.Message) (
 	{
 		if pbo != nil {
 			{
-				var goors = [20]uint8{}
-				for i := 0; i < 20; i += 1 {
-					{
-						pboe := pbo.Address[i]
-						{
-							pboev := pboe
-							goors[i] = uint8(uint8(pboev))
-						}
-					}
+				var goor string
+				goor = string(pbo.Address)
+				err = (*goo).Address.UnmarshalAmino(goor)
+				if err != nil {
+					return
 				}
-				(*goo).Address = goors
 			}
 			{
 				typeUrl := pbo.PubKey.TypeUrl
@@ -2834,7 +2815,7 @@ func IsValidatorUpdateReprEmpty(goor ValidatorUpdate) (empty bool) {
 	{
 		empty = true
 		{
-			if len(goor.Address) != 0 {
+			if goor.Address != "" {
 				return false
 			}
 		}
@@ -2960,21 +2941,7 @@ func (goo VoteInfo) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error)
 		}
 		pbo = new(abcipb.VoteInfo)
 		{
-			goorl := len(goo.Address)
-			if goorl == 0 {
-				pbo.Address = nil
-			} else {
-				var pbos = make([]uint8, goorl)
-				for i := 0; i < goorl; i += 1 {
-					{
-						goore := goo.Address[i]
-						{
-							pbos[i] = byte(goore)
-						}
-					}
-				}
-				pbo.Address = pbos
-			}
+			pbo.Address = string(goo.Address)
 		}
 		{
 			pbo.Power = int64(goo.Power)
@@ -2996,17 +2963,12 @@ func (goo *VoteInfo) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err err
 	{
 		if pbo != nil {
 			{
-				var goors = [20]uint8{}
-				for i := 0; i < 20; i += 1 {
-					{
-						pboe := pbo.Address[i]
-						{
-							pboev := pboe
-							goors[i] = uint8(uint8(pboev))
-						}
-					}
+				var goor string
+				goor = string(pbo.Address)
+				err = (*goo).Address.UnmarshalAmino(goor)
+				if err != nil {
+					return
 				}
-				(*goo).Address = goors
 			}
 			{
 				(*goo).Power = int64(pbo.Power)
@@ -3025,7 +2987,7 @@ func IsVoteInfoReprEmpty(goor VoteInfo) (empty bool) {
 	{
 		empty = true
 		{
-			if len(goor.Address) != 0 {
+			if goor.Address != "" {
 				return false
 			}
 		}

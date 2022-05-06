@@ -87,10 +87,7 @@ stringer:
 
 genproto:
 	rm -rf proto/*
-	find pkgs/crypto/ | grep "\.proto" | xargs rm
-	find pkgs/crypto/ | grep "pbbindings" | xargs rm
-	find pkgs/crypto/ | grep "pb.go" | xargs rm
-	find pkgs/bft/ | grep "\.proto" | xargs rm
-	find pkgs/bft/ | grep "pbbindings" | xargs rm
-	find pkgs/bft/ | grep "pb.go" | xargs rm
+	find pkgs | grep -v "^pkgs\/amino" | grep "\.proto" | xargs rm
+	find pkgs | grep -v "^pkgs\/amino" | grep "pbbindings" | xargs rm
+	find pkgs | grep -v "^pkgs\/amino" | grep "pb.go" | xargs rm
 	go run cmd/genproto/genproto.go

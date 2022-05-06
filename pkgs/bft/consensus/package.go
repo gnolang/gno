@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"github.com/gnolang/gno/pkgs/amino"
+	ctypes "github.com/gnolang/gno/pkgs/bft/consensus/types"
 	"github.com/gnolang/gno/pkgs/bft/types"
 )
 
@@ -11,6 +12,7 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	amino.GetCallersDirname(),
 ).
 	WithDependencies(
+		ctypes.Package,
 		types.Package,
 	).
 	WithTypes(

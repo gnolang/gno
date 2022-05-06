@@ -1,9 +1,9 @@
 package ed25519
 
 import (
+	proto "google.golang.org/protobuf/proto"
 	amino "github.com/gnolang/gno/pkgs/amino"
 	ed25519pb "github.com/gnolang/gno/pkgs/crypto/ed25519/pb"
-	proto "google.golang.org/protobuf/proto"
 )
 
 func (goo PubKeyEd25519) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
