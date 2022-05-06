@@ -81,7 +81,7 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 		},
 	}
 	gen.Validators = []bft.GenesisValidator{
-		bft.GenesisValidator{
+		{
 			Address: pvPub.Address(),
 			PubKey:  pvPub,
 			Power:   10,
