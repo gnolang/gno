@@ -6,11 +6,24 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/gnolang/gno"
 )
 
 func TestFileStr(t *testing.T) {
-	filePath := "./files/str.gno"
+	filePath := filepath.join(".", "files", "str.gno")
 	runFileTest(t, filePath, true)
+}
+
+func runFileTest(t *testing.T, path string, nativeLibs bool) {
+	var logger loggerFunc
+	if gno.IsDebug() && testing.Verbose() {
+		logger = t.Log
+	}
+	err := RunFileTest("..", path, nativeLibs, logger)
+	if err != nil {
+		t.Fatalf("got error: %v", err)
+	}
 }
 
 // Bootstrapping test files from tests/files/*.gno,

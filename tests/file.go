@@ -12,7 +12,6 @@ import (
 	"io/ioutil"
 	rtdb "runtime/debug"
 	"strings"
-	"testing"
 
 	"github.com/gnolang/gno"
 	"github.com/gnolang/gno/pkgs/crypto"
@@ -24,7 +23,9 @@ import (
 // If true, writes actual as wanted in test comments.
 var syncWanted bool = true
 
-func runFileTest(t *testing.T, path string, nativeLibs bool) {
+type loggerFunc func(args ...interface{})
+
+func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc) error {
 	pkgPath, resWanted, errWanted, rops, maxAlloc, send := wantedFromComment(path)
 	if pkgPath == "" {
 		pkgPath = "main"
@@ -33,7 +34,7 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 	stdin := new(bytes.Buffer)
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
-	store := testStore(stdin, stdout, stderr, nativeLibs)
+	store := testStore(rootDir, stdin, stdout, stderr, nativeLibs)
 	store.SetLogStoreOps(true)
 	pkgAddr := gno.DerivePkgAddr(pkgPath)               // the addr of the pkgPath called.
 	caller := gno.DerivePkgAddr(pkgPath)                // NOTE: for the purpose of testing, the caller is generally the "main" package, same as pkgAddr.
@@ -64,7 +65,7 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 	// m.Use(unsafe.Symbols)
 	bz, err := ioutil.ReadFile(path)
 	if err != nil {
-		t.Fatalf("got error: %v", err)
+		return err
 	}
 	{ // Validate result, errors, etc.
 		var pnc interface{}
@@ -86,10 +87,10 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 					}
 				}
 			}()
-			if gno.IsDebug() && testing.Verbose() {
-				t.Log("========================================")
-				t.Log("RUN FILES & INIT")
-				t.Log("========================================")
+			if logger != nil {
+				logger("========================================")
+				logger("RUN FILES & INIT")
+				logger("========================================")
 			}
 			if !gno.IsRealmPath(pkgPath) {
 				// simple case.
@@ -100,16 +101,16 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 				m.SetActivePackage(pv)
 				n := gno.MustParseFile(path, string(bz)) // "main.gno", string(bz))
 				m.RunFiles(n)
-				if gno.IsDebug() && testing.Verbose() {
-					t.Log("========================================")
-					t.Log("RUN MAIN")
-					t.Log("========================================")
+				if logger != nil {
+					logger("========================================")
+					logger("RUN MAIN")
+					logger("========================================")
 				}
 				m.RunMain()
-				if gno.IsDebug() && testing.Verbose() {
-					t.Log("========================================")
-					t.Log("RUN MAIN END")
-					t.Log("========================================")
+				if logger != nil {
+					logger("========================================")
+					logger("RUN MAIN END")
+					logger("========================================")
 				}
 			} else {
 				// realm case.
@@ -130,10 +131,10 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 				// reconstruct machine and clear store cache.
 				// whether package is realm or not, since non-realm
 				// may call realm packages too.
-				if gno.IsDebug() && testing.Verbose() {
-					t.Log("========================================")
-					t.Log("CLEAR STORE CACHE")
-					t.Log("========================================")
+				if logger != nil {
+					logger("========================================")
+					logger("CLEAR STORE CACHE")
+					logger("========================================")
 				}
 				store.ClearCache()
 				/*
@@ -145,17 +146,17 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 						MaxAllocBytes: maxAlloc,
 					})
 				*/
-				if gno.IsDebug() && testing.Verbose() {
+				if logger != nil {
 					store.Print()
-					t.Log("========================================")
-					t.Log("PREPROCESS ALL FILES")
-					t.Log("========================================")
+					logger("========================================")
+					logger("PREPROCESS ALL FILES")
+					logger("========================================")
 				}
 				m.PreprocessAllFilesAndSaveBlockNodes()
-				if gno.IsDebug() && testing.Verbose() {
-					t.Log("========================================")
-					t.Log("RUN MAIN")
-					t.Log("========================================")
+				if logger != nil {
+					logger("========================================")
+					logger("RUN MAIN")
+					logger("========================================")
 					store.Print()
 				}
 				pv2 := store.GetPackage(pkgPath, false)
@@ -167,10 +168,10 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 					store.SetLogStoreOps(true) // resets.
 				}
 				m.RunMain()
-				if gno.IsDebug() && testing.Verbose() {
-					t.Log("========================================")
-					t.Log("RUN MAIN END")
-					t.Log("========================================")
+				if logger != nil {
+					logger("========================================")
+					logger("RUN MAIN END")
+					logger("========================================")
 				}
 			}
 		}()
@@ -190,7 +191,7 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 			}
 			// NOTE: ignores any gno.GetDebugErrors().
 			gno.ClearDebugErrors()
-			return // nothing more to do.
+			return nil // nothing more to do.
 		} else {
 			if pnc != nil {
 				if tv, ok := pnc.(*gno.TypedValue); ok {
@@ -236,9 +237,12 @@ func runFileTest(t *testing.T, path string, nativeLibs bool) {
 	// Check that machine is empty.
 	err = m.CheckEmpty()
 	if err != nil {
-		t.Log("last state: \n", m.String())
+		if logger != nil {
+			logger("last state: \n", m.String())
+		}
 		panic(fmt.Sprintf("machine not empty after main: %v", err))
 	}
+	return nil
 }
 
 func wantedFromComment(p string) (pkgPath, res, err, rops string, maxAlloc int64, send std.Coins) {
