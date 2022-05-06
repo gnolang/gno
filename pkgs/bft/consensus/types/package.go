@@ -3,6 +3,7 @@ package types
 import (
 	"github.com/gnolang/gno/pkgs/amino"
 	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
+	btypes "github.com/gnolang/gno/pkgs/bft/types"
 )
 
 var Package = amino.RegisterPackage(amino.NewPackage(
@@ -12,6 +13,7 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 ).
 	WithDependencies(
 		abci.Package,
+		btypes.Package,
 	).
 	WithTypes(
 
@@ -20,6 +22,9 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 		HRS{},
 		RoundStateSimple{},
 		PeerRoundState{},
+
+		// Misc
+		HeightVoteSet{},
 
 		// Event types
 		EventNewRoundStep{},

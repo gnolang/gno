@@ -4,7 +4,8 @@ package main;
 option go_package = "github.com/gnolang/gno/pkgs/amino/genproto/example/pb";
 
 // imports
-import "github.com/gnolang/gno/pkgs/amino/genproto/example/submodule/types.proto";
+import "github.com/gnolang/gno/pkgs/amino/genproto/example/submodule/submodule.proto";
+import "github.com/gnolang/gno/pkgs/amino/genproto/example/submodule2/submodule2.proto";
 import "google/protobuf/any.proto";
 
 // messages
@@ -12,6 +13,7 @@ message StructA {
 	sint64 FieldC = 1;
 	uint32 FieldD = 2;
 }
+
 message StructB {
 	sint64 FieldC = 1;
 	uint32 FieldD = 2;

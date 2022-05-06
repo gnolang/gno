@@ -13,3 +13,5 @@ build/*
 *.gno.gen.go
 .vscode
 .idea
+*.pb.go
+pbbindings.go

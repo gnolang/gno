@@ -40,7 +40,7 @@ const (
 )
 
 func init() {
-	gcdc = NewCodec().Autoseal()
+	gcdc = NewCodec().WithPBBindings().Autoseal()
 	var err error
 	emptyTime, err = time.Parse(epochFmt, unixEpochStr)
 	if err != nil {

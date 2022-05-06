@@ -4,7 +4,7 @@ package submodule;
 option go_package = "github.com/gnolang/gno/pkgs/amino/genproto/example/submodule/pb";
 
 // imports
-import "github.com/gnolang/gno/pkgs/amino/genproto/example/submodule2/types.proto";
+import "github.com/gnolang/gno/pkgs/amino/genproto/example/submodule2/submodule2.proto";
 
 // messages
 message StructSM {

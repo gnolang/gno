@@ -208,8 +208,8 @@ func NewCodec() *Codec {
 // modifications to the underlying codec.
 func (cdc *Codec) WithPBBindings() *Codec {
 	return &Codec{
-		sealed:             true,
-		autoseal:           false,
+		sealed:             cdc.sealed,
+		autoseal:           cdc.autoseal,
 		typeInfos:          cdc.typeInfos,
 		fullnameToTypeInfo: cdc.fullnameToTypeInfo,
 		packages:           cdc.packages,
@@ -492,6 +492,7 @@ func (cdc *Codec) getTypeInfoWLock(rt reflect.Type) (info *TypeInfo, err error) 
 // If a new one is constructed and cached in state, it is not yet registered.
 // Automatically dereferences rt pointers.
 func (cdc *Codec) getTypeInfoWLocked(rt reflect.Type) (info *TypeInfo, err error) {
+
 	// Dereference pointer type.
 	for rt.Kind() == reflect.Ptr {
 		if rt.Elem().Kind() == reflect.Ptr {
