@@ -6,7 +6,7 @@ class Renderer {
     }
 
     renderUsernames() {
-        this.rawData = this.rawData.replace(/( |\n)@([_a-z0-9]{5,16})/, "$1[@$2](/r/users:$2)")
+        this.rawData = this.rawData.replace(/( |\n)@([_a-z0-9]{5,16})/, "$1[@$2](/r/users:$2)");
     }
 
     renderAll() {
