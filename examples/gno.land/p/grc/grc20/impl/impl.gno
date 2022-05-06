@@ -6,7 +6,6 @@ import (
 	"gno.land/p/avl"
 	"gno.land/p/grc/grc20"
 	"gno.land/p/ufmt"
-	"gno.land/r/users"
 )
 
 type Token struct {
@@ -51,48 +50,36 @@ func (t *Token) GetSymbol() string   { return t.symbol }
 func (t *Token) GetDecimals() uint   { return t.decimals }
 func (t *Token) TotalSupply() uint64 { return t.totalSupply }
 
-func (t *Token) BalanceOf(owner string) uint64 {
-	ownerAddr := users.GetUserByNameOrAddress(owner).Address()
-	return t.balanceOf(ownerAddr)
+func (t *Token) BalanceOf(owner std.Address) uint64 {
+	return t.balanceOf(owner)
 }
 
-func (t *Token) Transfer(owner, to string, amount uint64) {
-	ownerAddr := users.GetUserByNameOrAddress(owner).Address()
-	toAddr := users.GetUserByNameOrAddress(to).Address()
-	t.transfer(ownerAddr, toAddr, amount)
+func (t *Token) Transfer(owner, to std.Address, amount uint64) {
+	t.transfer(owner, to, amount)
 }
 
-func (t *Token) Allowance(owner, spender string) uint64 {
-	ownerAddr := users.GetUserByNameOrAddress(owner).Address()
-	spenderAddr := users.GetUserByNameOrAddress(spender).Address()
-	return t.allowance(ownerAddr, spenderAddr)
+func (t *Token) Allowance(owner, spender std.Address) uint64 {
+	return t.allowance(owner, spender)
 }
 
-func (t *Token) Approve(owner, spender string, amount uint64) {
-	ownerAddr := users.GetUserByNameOrAddress(owner).Address()
-	spenderAddr := users.GetUserByNameOrAddress(spender).Address()
-	t.approve(ownerAddr, spenderAddr, amount)
+func (t *Token) Approve(owner, spender std.Address, amount uint64) {
+	t.approve(owner, spender, amount)
 }
 
-func (t *Token) TransferFrom(spender, from, to string, amount uint64) {
-	spenderAddr := users.GetUserByNameOrAddress(spender).Address()
-	fromAddr := users.GetUserByNameOrAddress(from).Address()
-	toAddr := users.GetUserByNameOrAddress(to).Address()
-	t.spendAllowance(fromAddr, spenderAddr, amount)
-	t.transfer(fromAddr, toAddr, amount)
+func (t *Token) TransferFrom(spender, from, to std.Address, amount uint64) {
+	t.spendAllowance(from, spender, amount)
+	t.transfer(from, to, amount)
 }
 
 // Administration helpers implementation.
 //
 
-func (t *Token) Mint(to string, amount uint64) {
-	toAddr := users.GetUserByNameOrAddress(to).Address()
-	t.mint(toAddr, amount)
+func (t *Token) Mint(to std.Address, amount uint64) {
+	t.mint(to, amount)
 }
 
-func (t *Token) Burn(from string, amount uint64) {
-	fromAddr := users.GetUserByNameOrAddress(from).Address()
-	t.burn(fromAddr, amount)
+func (t *Token) Burn(from std.Address, amount uint64) {
+	t.burn(from, amount)
 }
 
 // private helpers

@@ -1,17 +1,18 @@
 package users
 
+import "std"
+
 type AddressOrName string
 
 func (aon AddressOrName) IsName() bool {
-	return aon[0] == '@'
+	return aon != "" && aon[0] == '@'
 }
 
 func (aon AddressOrName) GetName() (string, bool) {
-	if aon[0] == '@' {
-		return aon[1:], true
-	} else {
-		return "", false
+	if len(aon) >= 2 && aon[0] == '@' {
+		return string(aon[1:]), true
 	}
+	return "", false
 }
 
 func (aon AddressOrName) Resolve() std.Address {
@@ -22,5 +23,4 @@ func (aon AddressOrName) Resolve() std.Address {
 	} else {
 		return std.Address(aon) // TODO check validity
 	}
-
 }
