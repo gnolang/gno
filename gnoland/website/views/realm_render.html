@@ -35,8 +35,7 @@ function main() {
       gfm: true,
     });
 	const source = u("#source").text();
-    const r = new Renderer(source);
-	const parsed = marked.parse(r.renderAll());
+	const parsed = marked.parse(renderUsernames(source));
 	document.getElementById("realm_render").innerHTML = DOMPurify.sanitize(parsed, { USE_PROFILES: { html: true } });
 };
     </script>
