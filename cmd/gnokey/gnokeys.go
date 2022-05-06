@@ -171,7 +171,7 @@ type makeCallTxOptions struct {
 	SignBroadcastOptions          // gas-wanted, gas-fee, memo, ...
 	Send                 string   `flag:"send" help:"send coins"`
 	PkgPath              string   `flag:"pkgpath" help:"package path (required)"`
-	Func                 string   `flag:"func" help:"contract to call" (required)"`
+	Func                 string   `flag:"func" help:"contract to call (required)"`
 	Args                 []string `flag:"args" help:"arguments to contract"`
 }
 
