@@ -4,11 +4,12 @@ import (
 	"std"
 
 	"gno.land/r/foo20"
+	"gno.land/r/users"
 )
 
-var admin = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj").String()
-var manfred = std.Address("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq").String()
-var unknown = std.Address("g1u0000000000000000000000000000000000000").String()
+var admin = users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+var manfred = users.AddressOrName("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")
+var unknown = users.AddressOrName("g1u0000000000000000000000000000000000000")
 
 func main() {
 	// testing read-only public methods

@@ -10,12 +10,12 @@ import (
 )
 
 var foo *grc20.Token
-var admin std.Address = users.AddressOrName("@administrator").Resolve() // TODO: helper to change admin
+var admin std.Address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // TODO: helper to change admin
 
 func init() {
 	foo = grc20.NewToken("Foo", "FOO", 4)
-	foo.Mint(admin, 1000000*10000)                                   // @administrator (1M)
-	foo.Mint(users.AddressOrName("@manfred").Resolve(), 10000*10000) // @manfred (10k)
+	foo.Mint(admin, 1000000*10000)                                    // @administrator (1M)
+	foo.Mint("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq", 10000*10000) // @manfred (10k)
 }
 
 // method proxies as public functions.
