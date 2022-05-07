@@ -82,6 +82,7 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 		}
 	}
 	if errCount > 0 {
+		cmd.ErrPrintfln("FAIL")
 		return fmt.Errorf("FAIL: %d go test errors", errCount)
 	}
 
