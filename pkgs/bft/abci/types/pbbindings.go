@@ -13,11 +13,6 @@ import (
 func (goo RequestBase) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.RequestBase
 	{
-		if IsRequestBaseReprEmpty(goo) {
-			var pbov *abcipb.RequestBase
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.RequestBase)
 	}
 	msg = pbo
@@ -39,20 +34,9 @@ func (goo *RequestBase) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err 
 func (_ RequestBase) GetTypeURL() (typeURL string) {
 	return "/abci.RequestBase"
 }
-func IsRequestBaseReprEmpty(goor RequestBase) (empty bool) {
-	{
-		empty = true
-	}
-	return
-}
 func (goo RequestEcho) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.RequestEcho
 	{
-		if IsRequestEchoReprEmpty(goo) {
-			var pbov *abcipb.RequestEcho
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.RequestEcho)
 		{
 			pbom := proto.Message(nil)
@@ -96,31 +80,9 @@ func (goo *RequestEcho) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err 
 func (_ RequestEcho) GetTypeURL() (typeURL string) {
 	return "/abci.RequestEcho"
 }
-func IsRequestEchoReprEmpty(goor RequestEcho) (empty bool) {
-	{
-		empty = true
-		{
-			e := IsRequestBaseReprEmpty(goor.RequestBase)
-			if e == false {
-				return false
-			}
-		}
-		{
-			if goor.Message != "" {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo RequestFlush) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.RequestFlush
 	{
-		if IsRequestFlushReprEmpty(goo) {
-			var pbov *abcipb.RequestFlush
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.RequestFlush)
 		{
 			pbom := proto.Message(nil)
@@ -158,26 +120,9 @@ func (goo *RequestFlush) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 func (_ RequestFlush) GetTypeURL() (typeURL string) {
 	return "/abci.RequestFlush"
 }
-func IsRequestFlushReprEmpty(goor RequestFlush) (empty bool) {
-	{
-		empty = true
-		{
-			e := IsRequestBaseReprEmpty(goor.RequestBase)
-			if e == false {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo RequestInfo) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.RequestInfo
 	{
-		if IsRequestInfoReprEmpty(goo) {
-			var pbov *abcipb.RequestInfo
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.RequestInfo)
 		{
 			pbom := proto.Message(nil)
@@ -215,26 +160,9 @@ func (goo *RequestInfo) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err 
 func (_ RequestInfo) GetTypeURL() (typeURL string) {
 	return "/abci.RequestInfo"
 }
-func IsRequestInfoReprEmpty(goor RequestInfo) (empty bool) {
-	{
-		empty = true
-		{
-			e := IsRequestBaseReprEmpty(goor.RequestBase)
-			if e == false {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo RequestSetOption) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.RequestSetOption
 	{
-		if IsRequestSetOptionReprEmpty(goo) {
-			var pbov *abcipb.RequestSetOption
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.RequestSetOption)
 		{
 			pbom := proto.Message(nil)
@@ -284,36 +212,9 @@ func (goo *RequestSetOption) FromPBMessage(cdc *amino.Codec, msg proto.Message) 
 func (_ RequestSetOption) GetTypeURL() (typeURL string) {
 	return "/abci.RequestSetOption"
 }
-func IsRequestSetOptionReprEmpty(goor RequestSetOption) (empty bool) {
-	{
-		empty = true
-		{
-			e := IsRequestBaseReprEmpty(goor.RequestBase)
-			if e == false {
-				return false
-			}
-		}
-		{
-			if goor.Key != "" {
-				return false
-			}
-		}
-		{
-			if goor.Value != "" {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo RequestInitChain) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.RequestInitChain
 	{
-		if IsRequestInitChainReprEmpty(goo) {
-			var pbov *abcipb.RequestInitChain
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.RequestInitChain)
 		{
 			pbom := proto.Message(nil)
@@ -455,51 +356,9 @@ func (goo *RequestInitChain) FromPBMessage(cdc *amino.Codec, msg proto.Message) 
 func (_ RequestInitChain) GetTypeURL() (typeURL string) {
 	return "/abci.RequestInitChain"
 }
-func IsRequestInitChainReprEmpty(goor RequestInitChain) (empty bool) {
-	{
-		empty = true
-		{
-			e := IsRequestBaseReprEmpty(goor.RequestBase)
-			if e == false {
-				return false
-			}
-		}
-		{
-			if !amino.IsEmptyTime(goor.Time) {
-				return false
-			}
-		}
-		{
-			if goor.ChainID != "" {
-				return false
-			}
-		}
-		{
-			if goor.ConsensusParams != nil {
-				return false
-			}
-		}
-		{
-			if len(goor.Validators) != 0 {
-				return false
-			}
-		}
-		{
-			if goor.AppState != nil {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo RequestQuery) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.RequestQuery
 	{
-		if IsRequestQueryReprEmpty(goo) {
-			var pbov *abcipb.RequestQuery
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.RequestQuery)
 		{
 			pbom := proto.Message(nil)
@@ -593,46 +452,9 @@ func (goo *RequestQuery) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 func (_ RequestQuery) GetTypeURL() (typeURL string) {
 	return "/abci.RequestQuery"
 }
-func IsRequestQueryReprEmpty(goor RequestQuery) (empty bool) {
-	{
-		empty = true
-		{
-			e := IsRequestBaseReprEmpty(goor.RequestBase)
-			if e == false {
-				return false
-			}
-		}
-		{
-			if len(goor.Data) != 0 {
-				return false
-			}
-		}
-		{
-			if goor.Path != "" {
-				return false
-			}
-		}
-		{
-			if goor.Height != 0 {
-				return false
-			}
-		}
-		{
-			if goor.Prove != false {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo RequestBeginBlock) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.RequestBeginBlock
 	{
-		if IsRequestBeginBlockReprEmpty(goo) {
-			var pbov *abcipb.RequestBeginBlock
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.RequestBeginBlock)
 		{
 			pbom := proto.Message(nil)
@@ -750,41 +572,9 @@ func (goo *RequestBeginBlock) FromPBMessage(cdc *amino.Codec, msg proto.Message)
 func (_ RequestBeginBlock) GetTypeURL() (typeURL string) {
 	return "/abci.RequestBeginBlock"
 }
-func IsRequestBeginBlockReprEmpty(goor RequestBeginBlock) (empty bool) {
-	{
-		empty = true
-		{
-			e := IsRequestBaseReprEmpty(goor.RequestBase)
-			if e == false {
-				return false
-			}
-		}
-		{
-			if len(goor.Hash) != 0 {
-				return false
-			}
-		}
-		{
-			if goor.Header != nil {
-				return false
-			}
-		}
-		{
-			if goor.LastCommitInfo != nil {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo RequestCheckTx) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.RequestCheckTx
 	{
-		if IsRequestCheckTxReprEmpty(goo) {
-			var pbov *abcipb.RequestCheckTx
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.RequestCheckTx)
 		{
 			pbom := proto.Message(nil)
@@ -866,36 +656,9 @@ func (goo *RequestCheckTx) FromPBMessage(cdc *amino.Codec, msg proto.Message) (e
 func (_ RequestCheckTx) GetTypeURL() (typeURL string) {
 	return "/abci.RequestCheckTx"
 }
-func IsRequestCheckTxReprEmpty(goor RequestCheckTx) (empty bool) {
-	{
-		empty = true
-		{
-			e := IsRequestBaseReprEmpty(goor.RequestBase)
-			if e == false {
-				return false
-			}
-		}
-		{
-			if len(goor.Tx) != 0 {
-				return false
-			}
-		}
-		{
-			if goor.Type != 0 {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo RequestDeliverTx) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.RequestDeliverTx
 	{
-		if IsRequestDeliverTxReprEmpty(goo) {
-			var pbov *abcipb.RequestDeliverTx
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.RequestDeliverTx)
 		{
 			pbom := proto.Message(nil)
@@ -971,31 +734,9 @@ func (goo *RequestDeliverTx) FromPBMessage(cdc *amino.Codec, msg proto.Message) 
 func (_ RequestDeliverTx) GetTypeURL() (typeURL string) {
 	return "/abci.RequestDeliverTx"
 }
-func IsRequestDeliverTxReprEmpty(goor RequestDeliverTx) (empty bool) {
-	{
-		empty = true
-		{
-			e := IsRequestBaseReprEmpty(goor.RequestBase)
-			if e == false {
-				return false
-			}
-		}
-		{
-			if len(goor.Tx) != 0 {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo RequestEndBlock) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.RequestEndBlock
 	{
-		if IsRequestEndBlockReprEmpty(goo) {
-			var pbov *abcipb.RequestEndBlock
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.RequestEndBlock)
 		{
 			pbom := proto.Message(nil)
@@ -1039,31 +780,9 @@ func (goo *RequestEndBlock) FromPBMessage(cdc *amino.Codec, msg proto.Message) (
 func (_ RequestEndBlock) GetTypeURL() (typeURL string) {
 	return "/abci.RequestEndBlock"
 }
-func IsRequestEndBlockReprEmpty(goor RequestEndBlock) (empty bool) {
-	{
-		empty = true
-		{
-			e := IsRequestBaseReprEmpty(goor.RequestBase)
-			if e == false {
-				return false
-			}
-		}
-		{
-			if goor.Height != 0 {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo RequestCommit) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.RequestCommit
 	{
-		if IsRequestCommitReprEmpty(goo) {
-			var pbov *abcipb.RequestCommit
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.RequestCommit)
 		{
 			pbom := proto.Message(nil)
@@ -1101,26 +820,9 @@ func (goo *RequestCommit) FromPBMessage(cdc *amino.Codec, msg proto.Message) (er
 func (_ RequestCommit) GetTypeURL() (typeURL string) {
 	return "/abci.RequestCommit"
 }
-func IsRequestCommitReprEmpty(goor RequestCommit) (empty bool) {
-	{
-		empty = true
-		{
-			e := IsRequestBaseReprEmpty(goor.RequestBase)
-			if e == false {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo ResponseBase) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.ResponseBase
 	{
-		if IsResponseBaseReprEmpty(goo) {
-			var pbov *abcipb.ResponseBase
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.ResponseBase)
 		{
 			if goo.Error != nil {
@@ -1264,45 +966,9 @@ func (goo *ResponseBase) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 func (_ ResponseBase) GetTypeURL() (typeURL string) {
 	return "/abci.ResponseBase"
 }
-func IsResponseBaseReprEmpty(goor ResponseBase) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.Error != nil {
-				return false
-			}
-		}
-		{
-			if len(goor.Data) != 0 {
-				return false
-			}
-		}
-		{
-			if len(goor.Events) != 0 {
-				return false
-			}
-		}
-		{
-			if goor.Log != "" {
-				return false
-			}
-		}
-		{
-			if goor.Info != "" {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo ResponseException) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.ResponseException
 	{
-		if IsResponseExceptionReprEmpty(goo) {
-			var pbov *abcipb.ResponseException
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.ResponseException)
 		{
 			pbom := proto.Message(nil)
@@ -1340,26 +1006,9 @@ func (goo *ResponseException) FromPBMessage(cdc *amino.Codec, msg proto.Message)
 func (_ ResponseException) GetTypeURL() (typeURL string) {
 	return "/abci.ResponseException"
 }
-func IsResponseExceptionReprEmpty(goor ResponseException) (empty bool) {
-	{
-		empty = true
-		{
-			e := IsResponseBaseReprEmpty(goor.ResponseBase)
-			if e == false {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo ResponseEcho) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.ResponseEcho
 	{
-		if IsResponseEchoReprEmpty(goo) {
-			var pbov *abcipb.ResponseEcho
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.ResponseEcho)
 		{
 			pbom := proto.Message(nil)
@@ -1403,31 +1052,9 @@ func (goo *ResponseEcho) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 func (_ ResponseEcho) GetTypeURL() (typeURL string) {
 	return "/abci.ResponseEcho"
 }
-func IsResponseEchoReprEmpty(goor ResponseEcho) (empty bool) {
-	{
-		empty = true
-		{
-			e := IsResponseBaseReprEmpty(goor.ResponseBase)
-			if e == false {
-				return false
-			}
-		}
-		{
-			if goor.Message != "" {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo ResponseFlush) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.ResponseFlush
 	{
-		if IsResponseFlushReprEmpty(goo) {
-			var pbov *abcipb.ResponseFlush
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.ResponseFlush)
 		{
 			pbom := proto.Message(nil)
@@ -1465,26 +1092,9 @@ func (goo *ResponseFlush) FromPBMessage(cdc *amino.Codec, msg proto.Message) (er
 func (_ ResponseFlush) GetTypeURL() (typeURL string) {
 	return "/abci.ResponseFlush"
 }
-func IsResponseFlushReprEmpty(goor ResponseFlush) (empty bool) {
-	{
-		empty = true
-		{
-			e := IsResponseBaseReprEmpty(goor.ResponseBase)
-			if e == false {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo ResponseInfo) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.ResponseInfo
 	{
-		if IsResponseInfoReprEmpty(goo) {
-			var pbov *abcipb.ResponseInfo
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.ResponseInfo)
 		{
 			pbom := proto.Message(nil)
@@ -1578,46 +1188,9 @@ func (goo *ResponseInfo) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 func (_ ResponseInfo) GetTypeURL() (typeURL string) {
 	return "/abci.ResponseInfo"
 }
-func IsResponseInfoReprEmpty(goor ResponseInfo) (empty bool) {
-	{
-		empty = true
-		{
-			e := IsResponseBaseReprEmpty(goor.ResponseBase)
-			if e == false {
-				return false
-			}
-		}
-		{
-			if goor.ABCIVersion != "" {
-				return false
-			}
-		}
-		{
-			if goor.AppVersion != "" {
-				return false
-			}
-		}
-		{
-			if goor.LastBlockHeight != 0 {
-				return false
-			}
-		}
-		{
-			if len(goor.LastBlockAppHash) != 0 {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo ResponseSetOption) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.ResponseSetOption
 	{
-		if IsResponseSetOptionReprEmpty(goo) {
-			var pbov *abcipb.ResponseSetOption
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.ResponseSetOption)
 		{
 			pbom := proto.Message(nil)
@@ -1655,26 +1228,9 @@ func (goo *ResponseSetOption) FromPBMessage(cdc *amino.Codec, msg proto.Message)
 func (_ ResponseSetOption) GetTypeURL() (typeURL string) {
 	return "/abci.ResponseSetOption"
 }
-func IsResponseSetOptionReprEmpty(goor ResponseSetOption) (empty bool) {
-	{
-		empty = true
-		{
-			e := IsResponseBaseReprEmpty(goor.ResponseBase)
-			if e == false {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo ResponseInitChain) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.ResponseInitChain
 	{
-		if IsResponseInitChainReprEmpty(goo) {
-			var pbov *abcipb.ResponseInitChain
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.ResponseInitChain)
 		{
 			pbom := proto.Message(nil)
@@ -1782,36 +1338,9 @@ func (goo *ResponseInitChain) FromPBMessage(cdc *amino.Codec, msg proto.Message)
 func (_ ResponseInitChain) GetTypeURL() (typeURL string) {
 	return "/abci.ResponseInitChain"
 }
-func IsResponseInitChainReprEmpty(goor ResponseInitChain) (empty bool) {
-	{
-		empty = true
-		{
-			e := IsResponseBaseReprEmpty(goor.ResponseBase)
-			if e == false {
-				return false
-			}
-		}
-		{
-			if goor.ConsensusParams != nil {
-				return false
-			}
-		}
-		{
-			if len(goor.Validators) != 0 {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo ResponseQuery) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.ResponseQuery
 	{
-		if IsResponseQueryReprEmpty(goo) {
-			var pbov *abcipb.ResponseQuery
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.ResponseQuery)
 		{
 			pbom := proto.Message(nil)
@@ -1953,46 +1482,9 @@ func (goo *ResponseQuery) FromPBMessage(cdc *amino.Codec, msg proto.Message) (er
 func (_ ResponseQuery) GetTypeURL() (typeURL string) {
 	return "/abci.ResponseQuery"
 }
-func IsResponseQueryReprEmpty(goor ResponseQuery) (empty bool) {
-	{
-		empty = true
-		{
-			e := IsResponseBaseReprEmpty(goor.ResponseBase)
-			if e == false {
-				return false
-			}
-		}
-		{
-			if len(goor.Key) != 0 {
-				return false
-			}
-		}
-		{
-			if len(goor.Value) != 0 {
-				return false
-			}
-		}
-		{
-			if goor.Proof != nil {
-				return false
-			}
-		}
-		{
-			if goor.Height != 0 {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo ResponseBeginBlock) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.ResponseBeginBlock
 	{
-		if IsResponseBeginBlockReprEmpty(goo) {
-			var pbov *abcipb.ResponseBeginBlock
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.ResponseBeginBlock)
 		{
 			pbom := proto.Message(nil)
@@ -2030,26 +1522,9 @@ func (goo *ResponseBeginBlock) FromPBMessage(cdc *amino.Codec, msg proto.Message
 func (_ ResponseBeginBlock) GetTypeURL() (typeURL string) {
 	return "/abci.ResponseBeginBlock"
 }
-func IsResponseBeginBlockReprEmpty(goor ResponseBeginBlock) (empty bool) {
-	{
-		empty = true
-		{
-			e := IsResponseBaseReprEmpty(goor.ResponseBase)
-			if e == false {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo ResponseCheckTx) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.ResponseCheckTx
 	{
-		if IsResponseCheckTxReprEmpty(goo) {
-			var pbov *abcipb.ResponseCheckTx
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.ResponseCheckTx)
 		{
 			pbom := proto.Message(nil)
@@ -2099,36 +1574,9 @@ func (goo *ResponseCheckTx) FromPBMessage(cdc *amino.Codec, msg proto.Message) (
 func (_ ResponseCheckTx) GetTypeURL() (typeURL string) {
 	return "/abci.ResponseCheckTx"
 }
-func IsResponseCheckTxReprEmpty(goor ResponseCheckTx) (empty bool) {
-	{
-		empty = true
-		{
-			e := IsResponseBaseReprEmpty(goor.ResponseBase)
-			if e == false {
-				return false
-			}
-		}
-		{
-			if goor.GasWanted != 0 {
-				return false
-			}
-		}
-		{
-			if goor.GasUsed != 0 {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo ResponseDeliverTx) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.ResponseDeliverTx
 	{
-		if IsResponseDeliverTxReprEmpty(goo) {
-			var pbov *abcipb.ResponseDeliverTx
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.ResponseDeliverTx)
 		{
 			pbom := proto.Message(nil)
@@ -2178,36 +1626,9 @@ func (goo *ResponseDeliverTx) FromPBMessage(cdc *amino.Codec, msg proto.Message)
 func (_ ResponseDeliverTx) GetTypeURL() (typeURL string) {
 	return "/abci.ResponseDeliverTx"
 }
-func IsResponseDeliverTxReprEmpty(goor ResponseDeliverTx) (empty bool) {
-	{
-		empty = true
-		{
-			e := IsResponseBaseReprEmpty(goor.ResponseBase)
-			if e == false {
-				return false
-			}
-		}
-		{
-			if goor.GasWanted != 0 {
-				return false
-			}
-		}
-		{
-			if goor.GasUsed != 0 {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo ResponseEndBlock) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.ResponseEndBlock
 	{
-		if IsResponseEndBlockReprEmpty(goo) {
-			var pbov *abcipb.ResponseEndBlock
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.ResponseEndBlock)
 		{
 			pbom := proto.Message(nil)
@@ -2367,41 +1788,9 @@ func (goo *ResponseEndBlock) FromPBMessage(cdc *amino.Codec, msg proto.Message) 
 func (_ ResponseEndBlock) GetTypeURL() (typeURL string) {
 	return "/abci.ResponseEndBlock"
 }
-func IsResponseEndBlockReprEmpty(goor ResponseEndBlock) (empty bool) {
-	{
-		empty = true
-		{
-			e := IsResponseBaseReprEmpty(goor.ResponseBase)
-			if e == false {
-				return false
-			}
-		}
-		{
-			if len(goor.ValidatorUpdates) != 0 {
-				return false
-			}
-		}
-		{
-			if goor.ConsensusParams != nil {
-				return false
-			}
-		}
-		{
-			if len(goor.Events) != 0 {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo ResponseCommit) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.ResponseCommit
 	{
-		if IsResponseCommitReprEmpty(goo) {
-			var pbov *abcipb.ResponseCommit
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.ResponseCommit)
 		{
 			pbom := proto.Message(nil)
@@ -2439,26 +1828,9 @@ func (goo *ResponseCommit) FromPBMessage(cdc *amino.Codec, msg proto.Message) (e
 func (_ ResponseCommit) GetTypeURL() (typeURL string) {
 	return "/abci.ResponseCommit"
 }
-func IsResponseCommitReprEmpty(goor ResponseCommit) (empty bool) {
-	{
-		empty = true
-		{
-			e := IsResponseBaseReprEmpty(goor.ResponseBase)
-			if e == false {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo StringError) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.StringError
 	{
-		if IsStringErrorReprEmpty(goo) {
-			var pbov *abcipb.StringError
-			msg = pbov
-			return
-		}
 		pbo = &abcipb.StringError{Value: string(goo)}
 	}
 	msg = pbo
@@ -2479,23 +1851,9 @@ func (goo *StringError) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err 
 func (_ StringError) GetTypeURL() (typeURL string) {
 	return "/abci.StringError"
 }
-func IsStringErrorReprEmpty(goor StringError) (empty bool) {
-	{
-		empty = true
-		if goor != "" {
-			return false
-		}
-	}
-	return
-}
 func (goo ConsensusParams) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.ConsensusParams
 	{
-		if IsConsensusParamsReprEmpty(goo) {
-			var pbov *abcipb.ConsensusParams
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.ConsensusParams)
 		{
 			if goo.Block != nil {
@@ -2561,30 +1919,9 @@ func (goo *ConsensusParams) FromPBMessage(cdc *amino.Codec, msg proto.Message) (
 func (_ ConsensusParams) GetTypeURL() (typeURL string) {
 	return "/abci.ConsensusParams"
 }
-func IsConsensusParamsReprEmpty(goor ConsensusParams) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.Block != nil {
-				return false
-			}
-		}
-		{
-			if goor.Validator != nil {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo BlockParams) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.BlockParams
 	{
-		if IsBlockParamsReprEmpty(goo) {
-			var pbov *abcipb.BlockParams
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.BlockParams)
 		{
 			pbo.MaxTxBytes = int64(goo.MaxTxBytes)
@@ -2636,45 +1973,9 @@ func (goo *BlockParams) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err 
 func (_ BlockParams) GetTypeURL() (typeURL string) {
 	return "/abci.BlockParams"
 }
-func IsBlockParamsReprEmpty(goor BlockParams) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.MaxTxBytes != 0 {
-				return false
-			}
-		}
-		{
-			if goor.MaxDataBytes != 0 {
-				return false
-			}
-		}
-		{
-			if goor.MaxBlockBytes != 0 {
-				return false
-			}
-		}
-		{
-			if goor.MaxGas != 0 {
-				return false
-			}
-		}
-		{
-			if goor.TimeIotaMS != 0 {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo ValidatorParams) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.ValidatorParams
 	{
-		if IsValidatorParamsReprEmpty(goo) {
-			var pbov *abcipb.ValidatorParams
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.ValidatorParams)
 		{
 			goorl := len(goo.PubKeyTypeURLs)
@@ -2734,28 +2035,16 @@ func (goo *ValidatorParams) FromPBMessage(cdc *amino.Codec, msg proto.Message) (
 func (_ ValidatorParams) GetTypeURL() (typeURL string) {
 	return "/abci.ValidatorParams"
 }
-func IsValidatorParamsReprEmpty(goor ValidatorParams) (empty bool) {
-	{
-		empty = true
-		{
-			if len(goor.PubKeyTypeURLs) != 0 {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo ValidatorUpdate) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.ValidatorUpdate
 	{
-		if IsValidatorUpdateReprEmpty(goo) {
-			var pbov *abcipb.ValidatorUpdate
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.ValidatorUpdate)
 		{
-			pbo.Address = string(goo.Address)
+			goor, err1 := goo.Address.MarshalAmino()
+			if err1 != nil {
+				return nil, err1
+			}
+			pbo.Address = string(goor)
 		}
 		{
 			if goo.PubKey != nil {
@@ -2811,35 +2100,9 @@ func (goo *ValidatorUpdate) FromPBMessage(cdc *amino.Codec, msg proto.Message) (
 func (_ ValidatorUpdate) GetTypeURL() (typeURL string) {
 	return "/abci.ValidatorUpdate"
 }
-func IsValidatorUpdateReprEmpty(goor ValidatorUpdate) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.Address != "" {
-				return false
-			}
-		}
-		{
-			if goor.PubKey != nil {
-				return false
-			}
-		}
-		{
-			if goor.Power != 0 {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo LastCommitInfo) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.LastCommitInfo
 	{
-		if IsLastCommitInfoReprEmpty(goo) {
-			var pbov *abcipb.LastCommitInfo
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.LastCommitInfo)
 		{
 			pbo.Round = int32(goo.Round)
@@ -2915,33 +2178,16 @@ func (goo *LastCommitInfo) FromPBMessage(cdc *amino.Codec, msg proto.Message) (e
 func (_ LastCommitInfo) GetTypeURL() (typeURL string) {
 	return "/abci.LastCommitInfo"
 }
-func IsLastCommitInfoReprEmpty(goor LastCommitInfo) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.Round != 0 {
-				return false
-			}
-		}
-		{
-			if len(goor.Votes) != 0 {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo VoteInfo) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.VoteInfo
 	{
-		if IsVoteInfoReprEmpty(goo) {
-			var pbov *abcipb.VoteInfo
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.VoteInfo)
 		{
-			pbo.Address = string(goo.Address)
+			goor, err1 := goo.Address.MarshalAmino()
+			if err1 != nil {
+				return nil, err1
+			}
+			pbo.Address = string(goor)
 		}
 		{
 			pbo.Power = int64(goo.Power)
@@ -2983,35 +2229,9 @@ func (goo *VoteInfo) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err err
 func (_ VoteInfo) GetTypeURL() (typeURL string) {
 	return "/abci.VoteInfo"
 }
-func IsVoteInfoReprEmpty(goor VoteInfo) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.Address != "" {
-				return false
-			}
-		}
-		{
-			if goor.Power != 0 {
-				return false
-			}
-		}
-		{
-			if goor.SignedLastBlock != false {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo EventString) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.EventString
 	{
-		if IsEventStringReprEmpty(goo) {
-			var pbov *abcipb.EventString
-			msg = pbov
-			return
-		}
 		pbo = &abcipb.EventString{Value: string(goo)}
 	}
 	msg = pbo
@@ -3032,23 +2252,9 @@ func (goo *EventString) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err 
 func (_ EventString) GetTypeURL() (typeURL string) {
 	return "/abci.EventString"
 }
-func IsEventStringReprEmpty(goor EventString) (empty bool) {
-	{
-		empty = true
-		if goor != "" {
-			return false
-		}
-	}
-	return
-}
 func (goo MockHeader) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *abcipb.MockHeader
 	{
-		if IsMockHeaderReprEmpty(goo) {
-			var pbov *abcipb.MockHeader
-			msg = pbov
-			return
-		}
 		pbo = new(abcipb.MockHeader)
 		{
 			pbo.Version = string(goo.Version)
@@ -3107,40 +2313,4 @@ func (goo *MockHeader) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err e
 }
 func (_ MockHeader) GetTypeURL() (typeURL string) {
 	return "/abci.MockHeader"
-}
-func IsMockHeaderReprEmpty(goor MockHeader) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.Version != "" {
-				return false
-			}
-		}
-		{
-			if goor.ChainID != "" {
-				return false
-			}
-		}
-		{
-			if goor.Height != 0 {
-				return false
-			}
-		}
-		{
-			if !amino.IsEmptyTime(goor.Time) {
-				return false
-			}
-		}
-		{
-			if goor.NumTxs != 0 {
-				return false
-			}
-		}
-		{
-			if goor.TotalTxs != 0 {
-				return false
-			}
-		}
-	}
-	return
 }

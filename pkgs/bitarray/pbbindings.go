@@ -9,11 +9,6 @@ import (
 func (goo BitArray) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *bitarraypb.BitArray
 	{
-		if IsBitArrayReprEmpty(goo) {
-			var pbov *bitarraypb.BitArray
-			msg = pbov
-			return
-		}
 		pbo = new(bitarraypb.BitArray)
 		{
 			pbo.Bits = int64(goo.Bits)
@@ -78,20 +73,4 @@ func (goo *BitArray) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err err
 }
 func (_ BitArray) GetTypeURL() (typeURL string) {
 	return "/tm.BitArray"
-}
-func IsBitArrayReprEmpty(goor BitArray) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.Bits != 0 {
-				return false
-			}
-		}
-		{
-			if len(goor.Elems) != 0 {
-				return false
-			}
-		}
-	}
-	return
 }

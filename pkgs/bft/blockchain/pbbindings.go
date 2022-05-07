@@ -11,11 +11,6 @@ import (
 func (goo bcBlockRequestMessage) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *blockchainpb.BlockRequest
 	{
-		if IsBlockRequestReprEmpty(goo) {
-			var pbov *blockchainpb.BlockRequest
-			msg = pbov
-			return
-		}
 		pbo = new(blockchainpb.BlockRequest)
 		{
 			pbo.Height = int64(goo.Height)
@@ -43,25 +38,9 @@ func (goo *bcBlockRequestMessage) FromPBMessage(cdc *amino.Codec, msg proto.Mess
 func (_ bcBlockRequestMessage) GetTypeURL() (typeURL string) {
 	return "/tm.BlockRequest"
 }
-func IsBlockRequestReprEmpty(goor bcBlockRequestMessage) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.Height != 0 {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo bcBlockResponseMessage) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *blockchainpb.BlockResponse
 	{
-		if IsBlockResponseReprEmpty(goo) {
-			var pbov *blockchainpb.BlockResponse
-			msg = pbov
-			return
-		}
 		pbo = new(blockchainpb.BlockResponse)
 		{
 			if goo.Block != nil {
@@ -105,25 +84,9 @@ func (goo *bcBlockResponseMessage) FromPBMessage(cdc *amino.Codec, msg proto.Mes
 func (_ bcBlockResponseMessage) GetTypeURL() (typeURL string) {
 	return "/tm.BlockResponse"
 }
-func IsBlockResponseReprEmpty(goor bcBlockResponseMessage) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.Block != nil {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo bcNoBlockResponseMessage) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *blockchainpb.NoBlockResponse
 	{
-		if IsNoBlockResponseReprEmpty(goo) {
-			var pbov *blockchainpb.NoBlockResponse
-			msg = pbov
-			return
-		}
 		pbo = new(blockchainpb.NoBlockResponse)
 		{
 			pbo.Height = int64(goo.Height)
@@ -151,25 +114,9 @@ func (goo *bcNoBlockResponseMessage) FromPBMessage(cdc *amino.Codec, msg proto.M
 func (_ bcNoBlockResponseMessage) GetTypeURL() (typeURL string) {
 	return "/tm.NoBlockResponse"
 }
-func IsNoBlockResponseReprEmpty(goor bcNoBlockResponseMessage) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.Height != 0 {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo bcStatusRequestMessage) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *blockchainpb.StatusRequest
 	{
-		if IsStatusRequestReprEmpty(goo) {
-			var pbov *blockchainpb.StatusRequest
-			msg = pbov
-			return
-		}
 		pbo = new(blockchainpb.StatusRequest)
 		{
 			pbo.Height = int64(goo.Height)
@@ -197,25 +144,9 @@ func (goo *bcStatusRequestMessage) FromPBMessage(cdc *amino.Codec, msg proto.Mes
 func (_ bcStatusRequestMessage) GetTypeURL() (typeURL string) {
 	return "/tm.StatusRequest"
 }
-func IsStatusRequestReprEmpty(goor bcStatusRequestMessage) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.Height != 0 {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo bcStatusResponseMessage) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *blockchainpb.StatusResponse
 	{
-		if IsStatusResponseReprEmpty(goo) {
-			var pbov *blockchainpb.StatusResponse
-			msg = pbov
-			return
-		}
 		pbo = new(blockchainpb.StatusResponse)
 		{
 			pbo.Height = int64(goo.Height)
@@ -242,15 +173,4 @@ func (goo *bcStatusResponseMessage) FromPBMessage(cdc *amino.Codec, msg proto.Me
 }
 func (_ bcStatusResponseMessage) GetTypeURL() (typeURL string) {
 	return "/tm.StatusResponse"
-}
-func IsStatusResponseReprEmpty(goor bcStatusResponseMessage) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.Height != 0 {
-				return false
-			}
-		}
-	}
-	return
 }

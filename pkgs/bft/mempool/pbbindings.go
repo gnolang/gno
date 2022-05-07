@@ -9,11 +9,6 @@ import (
 func (goo TxMessage) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *mempoolpb.TxMessage
 	{
-		if IsTxMessageReprEmpty(goo) {
-			var pbov *mempoolpb.TxMessage
-			msg = pbov
-			return
-		}
 		pbo = new(mempoolpb.TxMessage)
 		{
 			goorl := len(goo.Tx)
@@ -72,15 +67,4 @@ func (goo *TxMessage) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err er
 }
 func (_ TxMessage) GetTypeURL() (typeURL string) {
 	return "/tm.TxMessage"
-}
-func IsTxMessageReprEmpty(goor TxMessage) (empty bool) {
-	{
-		empty = true
-		{
-			if len(goor.Tx) != 0 {
-				return false
-			}
-		}
-	}
-	return
 }

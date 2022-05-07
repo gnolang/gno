@@ -12,6 +12,7 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 
 	//----------------------------------------
 	// Values
+	&TypedValue{}, "tv",
 	StringValue(""), "vstr",
 	BigintValue{}, "vbig",
 	// DataByteValue{}
@@ -21,6 +22,8 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	&StructValue{}, "vstt",
 	&FuncValue{}, "vfun",
 	&MapValue{}, "vmap",
+	&MapList{}, "vmapl",
+	&MapListItem{}, "vmapli",
 	&BoundMethodValue{}, "vbnd",
 	TypeValue{}, "vtyp",
 	&PackageValue{}, "vpkg",
@@ -29,8 +32,13 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	RefValue{}, "vref",
 
 	//----------------------------------------
+	// Realm/Object
+	&ObjectInfo{}, "obj",
+
+	//----------------------------------------
 	// Nodes
 	RefNode{}, "nref",
+	Location{}, "loc",
 
 	//----------------------------------------
 	// Types
@@ -39,6 +47,7 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	&ArrayType{}, "tarr",
 	&SliceType{}, "tsli",
 	&StructType{}, "tstt",
+	FieldType{}, "tfld",
 	&FuncType{}, "tfun",
 	&MapType{}, "tmap",
 	&InterfaceType{}, "tint",

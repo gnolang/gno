@@ -9,11 +9,6 @@ import (
 func (goo PubKeyEd25519) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *ed25519pb.PubKeyEd25519
 	{
-		if IsPubKeyEd25519ReprEmpty(goo) {
-			var pbov *ed25519pb.PubKeyEd25519
-			msg = pbov
-			return
-		}
 		goorl := len(goo)
 		if goorl == 0 {
 			pbo = nil
@@ -58,23 +53,9 @@ func (goo *PubKeyEd25519) FromPBMessage(cdc *amino.Codec, msg proto.Message) (er
 func (_ PubKeyEd25519) GetTypeURL() (typeURL string) {
 	return "/tm.PubKeyEd25519"
 }
-func IsPubKeyEd25519ReprEmpty(goor PubKeyEd25519) (empty bool) {
-	{
-		empty = true
-		if len(goor) != 0 {
-			return false
-		}
-	}
-	return
-}
 func (goo PrivKeyEd25519) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *ed25519pb.PrivKeyEd25519
 	{
-		if IsPrivKeyEd25519ReprEmpty(goo) {
-			var pbov *ed25519pb.PrivKeyEd25519
-			msg = pbov
-			return
-		}
 		goorl := len(goo)
 		if goorl == 0 {
 			pbo = nil
@@ -118,13 +99,4 @@ func (goo *PrivKeyEd25519) FromPBMessage(cdc *amino.Codec, msg proto.Message) (e
 }
 func (_ PrivKeyEd25519) GetTypeURL() (typeURL string) {
 	return "/tm.PrivKeyEd25519"
-}
-func IsPrivKeyEd25519ReprEmpty(goor PrivKeyEd25519) (empty bool) {
-	{
-		empty = true
-		if len(goor) != 0 {
-			return false
-		}
-	}
-	return
 }

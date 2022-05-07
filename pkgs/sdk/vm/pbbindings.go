@@ -11,17 +11,20 @@ import (
 func (goo MsgCall) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *vmpb.MCall
 	{
-		if Ism_callReprEmpty(goo) {
-			var pbov *vmpb.MCall
-			msg = pbov
-			return
-		}
 		pbo = new(vmpb.MCall)
 		{
-			pbo.Caller = string(goo.Caller)
+			goor, err1 := goo.Caller.MarshalAmino()
+			if err1 != nil {
+				return nil, err1
+			}
+			pbo.Caller = string(goor)
 		}
 		{
-			pbo.Send = string(goo.Send)
+			goor, err1 := goo.Send.MarshalAmino()
+			if err1 != nil {
+				return nil, err1
+			}
+			pbo.Send = string(goor)
 		}
 		{
 			pbo.PkgPath = string(goo.PkgPath)
@@ -109,48 +112,16 @@ func (goo *MsgCall) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err erro
 func (_ MsgCall) GetTypeURL() (typeURL string) {
 	return "/vm.m_call"
 }
-func Ism_callReprEmpty(goor MsgCall) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.Caller != "" {
-				return false
-			}
-		}
-		{
-			if goor.Send != "" {
-				return false
-			}
-		}
-		{
-			if goor.PkgPath != "" {
-				return false
-			}
-		}
-		{
-			if goor.Func != "" {
-				return false
-			}
-		}
-		{
-			if len(goor.Args) != 0 {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo MsgAddPackage) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *vmpb.MAddpkg
 	{
-		if Ism_addpkgReprEmpty(goo) {
-			var pbov *vmpb.MAddpkg
-			msg = pbov
-			return
-		}
 		pbo = new(vmpb.MAddpkg)
 		{
-			pbo.Creator = string(goo.Creator)
+			goor, err1 := goo.Creator.MarshalAmino()
+			if err1 != nil {
+				return nil, err1
+			}
+			pbo.Creator = string(goor)
 		}
 		{
 			if goo.Package != nil {
@@ -166,7 +137,11 @@ func (goo MsgAddPackage) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err e
 			}
 		}
 		{
-			pbo.Deposit = string(goo.Deposit)
+			goor, err1 := goo.Deposit.MarshalAmino()
+			if err1 != nil {
+				return nil, err1
+			}
+			pbo.Deposit = string(goor)
 		}
 	}
 	msg = pbo
@@ -213,35 +188,9 @@ func (goo *MsgAddPackage) FromPBMessage(cdc *amino.Codec, msg proto.Message) (er
 func (_ MsgAddPackage) GetTypeURL() (typeURL string) {
 	return "/vm.m_addpkg"
 }
-func Ism_addpkgReprEmpty(goor MsgAddPackage) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.Creator != "" {
-				return false
-			}
-		}
-		{
-			if goor.Package != nil {
-				return false
-			}
-		}
-		{
-			if goor.Deposit != "" {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo InvalidPkgPathError) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *vmpb.InvalidPkgPathError
 	{
-		if IsInvalidPkgPathErrorReprEmpty(goo) {
-			var pbov *vmpb.InvalidPkgPathError
-			msg = pbov
-			return
-		}
 		pbo = new(vmpb.InvalidPkgPathError)
 	}
 	msg = pbo
@@ -263,20 +212,9 @@ func (goo *InvalidPkgPathError) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 func (_ InvalidPkgPathError) GetTypeURL() (typeURL string) {
 	return "/vm.InvalidPkgPathError"
 }
-func IsInvalidPkgPathErrorReprEmpty(goor InvalidPkgPathError) (empty bool) {
-	{
-		empty = true
-	}
-	return
-}
 func (goo InvalidStmtError) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *vmpb.InvalidStmtError
 	{
-		if IsInvalidStmtErrorReprEmpty(goo) {
-			var pbov *vmpb.InvalidStmtError
-			msg = pbov
-			return
-		}
 		pbo = new(vmpb.InvalidStmtError)
 	}
 	msg = pbo
@@ -298,20 +236,9 @@ func (goo *InvalidStmtError) FromPBMessage(cdc *amino.Codec, msg proto.Message) 
 func (_ InvalidStmtError) GetTypeURL() (typeURL string) {
 	return "/vm.InvalidStmtError"
 }
-func IsInvalidStmtErrorReprEmpty(goor InvalidStmtError) (empty bool) {
-	{
-		empty = true
-	}
-	return
-}
 func (goo InvalidExprError) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *vmpb.InvalidExprError
 	{
-		if IsInvalidExprErrorReprEmpty(goo) {
-			var pbov *vmpb.InvalidExprError
-			msg = pbov
-			return
-		}
 		pbo = new(vmpb.InvalidExprError)
 	}
 	msg = pbo
@@ -332,10 +259,4 @@ func (goo *InvalidExprError) FromPBMessage(cdc *amino.Codec, msg proto.Message) 
 }
 func (_ InvalidExprError) GetTypeURL() (typeURL string) {
 	return "/vm.InvalidExprError"
-}
-func IsInvalidExprErrorReprEmpty(goor InvalidExprError) (empty bool) {
-	{
-		empty = true
-	}
-	return
 }

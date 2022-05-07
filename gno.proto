@@ -1,0 +1,202 @@
+syntax = "proto3";
+package gno;
+
+option go_package = "github.com/gnolang/gno/pb";
+
+// imports
+import "google/protobuf/any.proto";
+
+// messages
+message tv {
+	google.protobuf.Any T = 1;
+	google.protobuf.Any V = 2;
+	bytes N = 3;
+}
+
+message vstr {
+	string Value = 1;
+}
+
+message vbig {
+	string Value = 1;
+}
+
+message vptr {
+	tv TV = 1;
+	google.protobuf.Any Base = 2;
+	sint64 Index = 3;
+	tv Key = 4;
+}
+
+message varr {
+	obj ObjectInfo = 1;
+	repeated tv List = 2;
+	bytes Data = 3;
+}
+
+message vsli {
+	google.protobuf.Any Base = 1;
+	sint64 Offset = 2;
+	sint64 Length = 3;
+	sint64 Maxcap = 4;
+}
+
+message vstt {
+	obj ObjectInfo = 1;
+	repeated tv Fields = 2;
+}
+
+message vfun {
+	google.protobuf.Any Type = 1;
+	bool IsMethod = 2;
+	google.protobuf.Any Source = 3;
+	string Name = 4;
+	google.protobuf.Any Closure = 5;
+	string FileName = 6;
+	string PkgPath = 7;
+}
+
+message vmap {
+	obj ObjectInfo = 1;
+	vmapl List = 2;
+}
+
+message vmapl {
+	repeated vmapli List = 1;
+}
+
+message vmapli {
+	tv Key = 1;
+	tv Value = 2;
+}
+
+message vbnd {
+	obj ObjectInfo = 1;
+	vfun Func = 2;
+	tv Receiver = 3;
+}
+
+message vtyp {
+	google.protobuf.Any Type = 1;
+}
+
+message vpkg {
+	obj ObjectInfo = 1;
+	google.protobuf.Any Block = 2;
+	string PkgName = 3;
+	string PkgPath = 4;
+	repeated string FNames = 5;
+	repeated google.protobuf.Any FBlocks = 6;
+}
+
+message vblk {
+	obj ObjectInfo = 1;
+	google.protobuf.Any Source = 2;
+	repeated tv Values = 3;
+	google.protobuf.Any Parent = 4;
+	tv Blank = 5;
+}
+
+message vref {
+	string ObjectID = 1;
+	bool Escaped = 2;
+	string PkgPath = 3;
+	string Hash = 4;
+}
+
+message obj {
+	string ID = 1;
+	string Hash = 2;
+	string OwnerID = 3;
+	uint64 ModTime = 4;
+	sint64 RefCount = 5;
+	bool IsEscaped = 6;
+}
+
+message nref {
+	loc Location = 1;
+	google.protobuf.Any BlockNode = 2;
+}
+
+message loc {
+	string PkgPath = 1;
+	string File = 2;
+	sint64 Line = 3;
+	sint64 Nonce = 4;
+}
+
+message tpri {
+	sint64 Value = 1;
+}
+
+message tptr {
+	google.protobuf.Any Elt = 1;
+}
+
+message tarr {
+	sint64 Len = 1;
+	google.protobuf.Any Elt = 2;
+	bool Vrd = 3;
+}
+
+message tsli {
+	google.protobuf.Any Elt = 1;
+	bool Vrd = 2;
+}
+
+message tstt {
+	string PkgPath = 1;
+	repeated tfld Fields = 2;
+}
+
+message tfld {
+	string Name = 1;
+	google.protobuf.Any Type = 2;
+	bool Embedded = 3;
+	string Tag = 4;
+}
+
+message tfun {
+	repeated tfld Params = 1;
+	repeated tfld Results = 2;
+}
+
+message tmap {
+	google.protobuf.Any Key = 1;
+	google.protobuf.Any Value = 2;
+}
+
+message tint {
+	string PkgPath = 1;
+	repeated tfld Methods = 2;
+	string Generic = 3;
+}
+
+message ttyp {
+}
+
+message tdec {
+	string PkgPath = 1;
+	string Name = 2;
+	google.protobuf.Any Base = 3;
+	repeated tv Methods = 4;
+}
+
+message tpkg {
+}
+
+message tchn {
+	sint64 Dir = 1;
+	google.protobuf.Any Elt = 2;
+}
+
+message tblk {
+}
+
+message ttup {
+	repeated google.protobuf.Any Elts = 1;
+}
+
+message tref {
+	string ID = 1;
+}

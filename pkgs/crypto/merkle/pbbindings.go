@@ -9,11 +9,6 @@ import (
 func (goo ProofOp) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *merklepb.ProofOp
 	{
-		if IsProofOpReprEmpty(goo) {
-			var pbov *merklepb.ProofOp
-			msg = pbov
-			return
-		}
 		pbo = new(merklepb.ProofOp)
 		{
 			pbo.Type = string(goo.Type)
@@ -117,35 +112,9 @@ func (goo *ProofOp) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err erro
 func (_ ProofOp) GetTypeURL() (typeURL string) {
 	return "/tm.ProofOp"
 }
-func IsProofOpReprEmpty(goor ProofOp) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.Type != "" {
-				return false
-			}
-		}
-		{
-			if len(goor.Key) != 0 {
-				return false
-			}
-		}
-		{
-			if len(goor.Data) != 0 {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo Proof) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *merklepb.Proof
 	{
-		if IsProofReprEmpty(goo) {
-			var pbov *merklepb.Proof
-			msg = pbov
-			return
-		}
 		pbo = new(merklepb.Proof)
 		{
 			goorl := len(goo.Ops)
@@ -215,25 +184,9 @@ func (goo *Proof) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error)
 func (_ Proof) GetTypeURL() (typeURL string) {
 	return "/tm.Proof"
 }
-func IsProofReprEmpty(goor Proof) (empty bool) {
-	{
-		empty = true
-		{
-			if len(goor.Ops) != 0 {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo SimpleProof) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *merklepb.SimpleProof
 	{
-		if IsSimpleProofReprEmpty(goo) {
-			var pbov *merklepb.SimpleProof
-			msg = pbov
-			return
-		}
 		pbo = new(merklepb.SimpleProof)
 		{
 			pbo.Total = int64(goo.Total)
@@ -375,40 +328,9 @@ func (goo *SimpleProof) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err 
 func (_ SimpleProof) GetTypeURL() (typeURL string) {
 	return "/tm.SimpleProof"
 }
-func IsSimpleProofReprEmpty(goor SimpleProof) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.Total != 0 {
-				return false
-			}
-		}
-		{
-			if goor.Index != 0 {
-				return false
-			}
-		}
-		{
-			if len(goor.LeafHash) != 0 {
-				return false
-			}
-		}
-		{
-			if len(goor.Aunts) != 0 {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo SimpleProofNode) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *merklepb.SimpleProofNode
 	{
-		if IsSimpleProofNodeReprEmpty(goo) {
-			var pbov *merklepb.SimpleProofNode
-			msg = pbov
-			return
-		}
 		pbo = new(merklepb.SimpleProofNode)
 		{
 			goorl := len(goo.Hash)
@@ -533,30 +455,4 @@ func (goo *SimpleProofNode) FromPBMessage(cdc *amino.Codec, msg proto.Message) (
 }
 func (_ SimpleProofNode) GetTypeURL() (typeURL string) {
 	return "/tm.SimpleProofNode"
-}
-func IsSimpleProofNodeReprEmpty(goor SimpleProofNode) (empty bool) {
-	{
-		empty = true
-		{
-			if len(goor.Hash) != 0 {
-				return false
-			}
-		}
-		{
-			if goor.Parent != nil {
-				return false
-			}
-		}
-		{
-			if goor.Left != nil {
-				return false
-			}
-		}
-		{
-			if goor.Right != nil {
-				return false
-			}
-		}
-	}
-	return
 }

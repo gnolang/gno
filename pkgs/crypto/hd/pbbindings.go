@@ -9,11 +9,6 @@ import (
 func (goo BIP44Params) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *hdpb.Bip44Params
 	{
-		if IsBip44ParamsReprEmpty(goo) {
-			var pbov *hdpb.Bip44Params
-			msg = pbov
-			return
-		}
 		pbo = new(hdpb.Bip44Params)
 		{
 			pbo.Purpose = uint32(goo.Purpose)
@@ -64,35 +59,4 @@ func (goo *BIP44Params) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err 
 }
 func (_ BIP44Params) GetTypeURL() (typeURL string) {
 	return "/tm.Bip44Params"
-}
-func IsBip44ParamsReprEmpty(goor BIP44Params) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.Purpose != 0 {
-				return false
-			}
-		}
-		{
-			if goor.CoinType != 0 {
-				return false
-			}
-		}
-		{
-			if goor.Account != 0 {
-				return false
-			}
-		}
-		{
-			if goor.Change != false {
-				return false
-			}
-		}
-		{
-			if goor.AddressIndex != 0 {
-				return false
-			}
-		}
-	}
-	return
 }

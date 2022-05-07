@@ -5,6 +5,7 @@ import (
 	"github.com/gnolang/gno/pkgs/amino/genproto"
 
 	// TODO: move these out.
+	"github.com/gnolang/gno"
 	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
 	"github.com/gnolang/gno/pkgs/bft/blockchain"
 	"github.com/gnolang/gno/pkgs/bft/consensus"
@@ -37,6 +38,7 @@ func main() {
 		std.Package,
 		bank.Package,
 		vm.Package,
+		gno.Package,
 	}
 	for _, pkg := range pkgs {
 		genproto.WriteProto3Schema(pkg)

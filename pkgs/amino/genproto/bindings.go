@@ -179,28 +179,30 @@ func generateMethodsForType(imports *ast.GenDecl, scope *ast.Scope, pkg *amino.P
 		))
 	}
 
-	//////////////////
-	// Is*ReprEmpty()
-	{
-		rinfo := info.ReprType
-		scope2 := ast.NewScope(scope)
-		addVars(scope2, "goo", "empty")
-		goorte := goTypeExpr(pkg, rinfo.Type, imports, scope2)
-		methods = append(methods, _func(fmt.Sprintf("Is%vReprEmpty", info.Name),
-			"", "",
-			_fields("goor", goorte),
-			_fields("empty", "bool"),
-			_block(
-				// Body: check fields.
-				_block(append(
-					[]ast.Stmt{_a("empty", "=", "true")},
-					isReprEmptyStmts(pkg, true, imports, scope2, _i("goor"), false, info)...,
-				)...),
-				// Body: return.
-				_return(),
-			),
-		))
-	}
+	/*
+		//////////////////
+		// Is*ReprEmpty()
+		{
+			rinfo := info.ReprType
+			scope2 := ast.NewScope(scope)
+			addVars(scope2, "goo", "empty")
+			goorte := goTypeExpr(pkg, rinfo.Type, imports, scope2)
+			methods = append(methods, _func(fmt.Sprintf("Is%vReprEmpty", info.Name),
+				"", "",
+				_fields("goor", goorte),
+				_fields("empty", "bool"),
+				_block(
+					// Body: check fields.
+					_block(append(
+						[]ast.Stmt{_a("empty", "=", "true")},
+						isReprEmptyStmts(pkg, true, imports, scope2, _i("goor"), false, info)...,
+					)...),
+					// Body: return.
+					_return(),
+				),
+			))
+		}
+	*/
 	return
 }
 
@@ -384,32 +386,34 @@ func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 		return
 	}
 
-	// Special case, external empty types.
-	if gooType.Registered && hasPBBindings(gooType) {
-		if isRoot {
-			pbote_ := p3goTypeExprString(rootPkg, imports, scope, gooType, fopts)
-			pbov_ := addVarUniq(scope, "pbov")
-			b = append(b,
-				_if(_call(_x("Is%vReprEmpty", gooType.Name), goor),
-					_var(pbov_, _x(pbote_), nil),
-					_a("msg", "=", pbov_),
-					_return()))
-		} else if !gooIsPtr {
-			pkgPrefix := goPkgPrefix(rootPkg, gooType.Type, gooType, imports, scope)
-			// b switcharoo pattern
-			// statements after this pattern appended to b
-			// will come after the injected if-condition.
-			oldb := b
-			b = []ast.Stmt(nil)
-			defer func() {
-				newb := b // named for clarity
-				b = append(oldb,
-					_if(_not(_call(_x("%vIs%vReprEmpty", pkgPrefix, gooType.Name), goor)),
-						newb...))
-			}()
-			// end b switcharoo pattern
+	/*
+		// Special case, external empty types.
+		if gooType.Registered && hasPBBindings(gooType) {
+			if isRoot {
+				pbote_ := p3goTypeExprString(rootPkg, imports, scope, gooType, fopts)
+				pbov_ := addVarUniq(scope, "pbov")
+				b = append(b,
+					_if(_call(_x("Is%vReprEmpty", gooType.Name), goor),
+						_var(pbov_, _x(pbote_), nil),
+						_a("msg", "=", pbov_),
+						_return()))
+			} else if !gooIsPtr {
+				pkgPrefix := goPkgPrefix(rootPkg, gooType.Type, gooType, imports, scope)
+				// b switcharoo pattern
+				// statements after this pattern appended to b
+				// will come after the injected if-condition.
+				oldb := b
+				b = []ast.Stmt(nil)
+				defer func() {
+					newb := b // named for clarity
+					b = append(oldb,
+						_if(_not(_call(_x("%vIs%vReprEmpty", pkgPrefix, gooType.Name), goor)),
+							newb...))
+				}()
+				// end b switcharoo pattern
+			}
 		}
-	}
+	*/
 
 	// General case
 	switch goork := goorType.Type.Kind(); goork {
@@ -452,7 +456,6 @@ func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 			b = append(b,
 				_a(pbo, "=", _call(_i("byte"), goor)))
 		}
-
 	case reflect.Array, reflect.Slice:
 		var newoptions uint64
 		var gooreIsPtr = goorType.ElemIsPtr
@@ -524,7 +527,7 @@ func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 
 		for _, field := range goorType.Fields {
 			var goorfIsPtr = field.IsPtr()
-			var goorfType = field.TypeInfo.ReprType
+			var goorfType = field.TypeInfo
 			var goorf = _sel(goor, field.Name) // next goo
 			var pbof = _sel(pbo, field.Name)   // next pbo
 
@@ -911,6 +914,7 @@ func isReprEmptyStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl,
 		}
 	}
 	// Below, goor is dereferenced if goo is pointer.
+	goorte := goTypeExprString(rootPkg, imports, scope, false, goorType)
 
 	// External case.
 	// If gooType is registered, just call is*ReprEmpty
@@ -951,7 +955,7 @@ func isReprEmptyStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl,
 			for _, field := range goorType.Fields {
 				var goorf = _sel(goor, field.Name) // next goo
 				var goorfIsPtr = field.IsPtr()
-				var goorfType = field.TypeInfo.ReprType
+				var goorfType = field.TypeInfo
 
 				// Translate in place.
 				scope2 := ast.NewScope(scope)
@@ -964,7 +968,7 @@ func isReprEmptyStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl,
 	default:
 		// General translation.
 		b = append(b,
-			_if(_b(goor, "!=", defaultExpr(goorType.Type.Kind())),
+			_if(_b(goor, "!=", _call(_x(goorte), defaultExpr(goorType.Type.Kind()))),
 				_return(_i("false"))))
 	}
 	return b

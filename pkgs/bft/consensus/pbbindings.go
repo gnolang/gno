@@ -14,9 +14,6 @@ import (
 	types4 "github.com/gnolang/gno/pkgs/bft/types"
 	types5 "github.com/gnolang/gno/pkgs/bft/types"
 	types6 "github.com/gnolang/gno/pkgs/bft/types"
-	types7 "github.com/gnolang/gno/pkgs/bft/types"
-	types8 "github.com/gnolang/gno/pkgs/bft/types"
-	types9 "github.com/gnolang/gno/pkgs/bft/types"
 	typespb1 "github.com/gnolang/gno/pkgs/bft/consensus/types/pb"
 	anypb "google.golang.org/protobuf/types/known/anypb"
 	crypto "github.com/gnolang/gno/pkgs/crypto"
@@ -26,11 +23,6 @@ import (
 func (goo NewRoundStepMessage) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *consensuspb.NewRoundStepMessage
 	{
-		if IsNewRoundStepMessageReprEmpty(goo) {
-			var pbov *consensuspb.NewRoundStepMessage
-			msg = pbov
-			return
-		}
 		pbo = new(consensuspb.NewRoundStepMessage)
 		{
 			pbo.Height = int64(goo.Height)
@@ -82,45 +74,9 @@ func (goo *NewRoundStepMessage) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 func (_ NewRoundStepMessage) GetTypeURL() (typeURL string) {
 	return "/tm.NewRoundStepMessage"
 }
-func IsNewRoundStepMessageReprEmpty(goor NewRoundStepMessage) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.Height != 0 {
-				return false
-			}
-		}
-		{
-			if goor.Round != 0 {
-				return false
-			}
-		}
-		{
-			if goor.Step != 0 {
-				return false
-			}
-		}
-		{
-			if goor.SecondsSinceStartTime != 0 {
-				return false
-			}
-		}
-		{
-			if goor.LastCommitRound != 0 {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo NewValidBlockMessage) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *consensuspb.NewValidBlockMessage
 	{
-		if IsNewValidBlockMessageReprEmpty(goo) {
-			var pbov *consensuspb.NewValidBlockMessage
-			msg = pbov
-			return
-		}
 		pbo = new(consensuspb.NewValidBlockMessage)
 		{
 			pbo.Height = int64(goo.Height)
@@ -198,46 +154,9 @@ func (goo *NewValidBlockMessage) FromPBMessage(cdc *amino.Codec, msg proto.Messa
 func (_ NewValidBlockMessage) GetTypeURL() (typeURL string) {
 	return "/tm.NewValidBlockMessage"
 }
-func IsNewValidBlockMessageReprEmpty(goor NewValidBlockMessage) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.Height != 0 {
-				return false
-			}
-		}
-		{
-			if goor.Round != 0 {
-				return false
-			}
-		}
-		{
-			e := types1.IsPartSetHeaderReprEmpty(goor.BlockPartsHeader)
-			if e == false {
-				return false
-			}
-		}
-		{
-			if goor.BlockParts != nil {
-				return false
-			}
-		}
-		{
-			if goor.IsCommit != false {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo ProposalMessage) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *consensuspb.ProposalMessage
 	{
-		if IsProposalMessageReprEmpty(goo) {
-			var pbov *consensuspb.ProposalMessage
-			msg = pbov
-			return
-		}
 		pbo = new(consensuspb.ProposalMessage)
 		{
 			if goo.Proposal != nil {
@@ -267,7 +186,7 @@ func (goo *ProposalMessage) FromPBMessage(cdc *amino.Codec, msg proto.Message) (
 		if pbo != nil {
 			{
 				if pbo.Proposal != nil {
-					(*goo).Proposal = new(types2.Proposal)
+					(*goo).Proposal = new(types1.Proposal)
 					err = (*goo).Proposal.FromPBMessage(cdc, pbo.Proposal)
 					if err != nil {
 						return
@@ -281,25 +200,9 @@ func (goo *ProposalMessage) FromPBMessage(cdc *amino.Codec, msg proto.Message) (
 func (_ ProposalMessage) GetTypeURL() (typeURL string) {
 	return "/tm.ProposalMessage"
 }
-func IsProposalMessageReprEmpty(goor ProposalMessage) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.Proposal != nil {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo ProposalPOLMessage) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *consensuspb.ProposalPOLMessage
 	{
-		if IsProposalPOLMessageReprEmpty(goo) {
-			var pbov *consensuspb.ProposalPOLMessage
-			msg = pbov
-			return
-		}
 		pbo = new(consensuspb.ProposalPOLMessage)
 		{
 			pbo.Height = int64(goo.Height)
@@ -355,35 +258,9 @@ func (goo *ProposalPOLMessage) FromPBMessage(cdc *amino.Codec, msg proto.Message
 func (_ ProposalPOLMessage) GetTypeURL() (typeURL string) {
 	return "/tm.ProposalPOLMessage"
 }
-func IsProposalPOLMessageReprEmpty(goor ProposalPOLMessage) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.Height != 0 {
-				return false
-			}
-		}
-		{
-			if goor.ProposalPOLRound != 0 {
-				return false
-			}
-		}
-		{
-			if goor.ProposalPOL != nil {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo BlockPartMessage) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *consensuspb.BlockPartMessage
 	{
-		if IsBlockPartMessageReprEmpty(goo) {
-			var pbov *consensuspb.BlockPartMessage
-			msg = pbov
-			return
-		}
 		pbo = new(consensuspb.BlockPartMessage)
 		{
 			pbo.Height = int64(goo.Height)
@@ -425,7 +302,7 @@ func (goo *BlockPartMessage) FromPBMessage(cdc *amino.Codec, msg proto.Message) 
 			}
 			{
 				if pbo.Part != nil {
-					(*goo).Part = new(types3.Part)
+					(*goo).Part = new(types2.Part)
 					err = (*goo).Part.FromPBMessage(cdc, pbo.Part)
 					if err != nil {
 						return
@@ -439,35 +316,9 @@ func (goo *BlockPartMessage) FromPBMessage(cdc *amino.Codec, msg proto.Message) 
 func (_ BlockPartMessage) GetTypeURL() (typeURL string) {
 	return "/tm.BlockPartMessage"
 }
-func IsBlockPartMessageReprEmpty(goor BlockPartMessage) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.Height != 0 {
-				return false
-			}
-		}
-		{
-			if goor.Round != 0 {
-				return false
-			}
-		}
-		{
-			if goor.Part != nil {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo VoteMessage) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *consensuspb.VoteMessage
 	{
-		if IsVoteMessageReprEmpty(goo) {
-			var pbov *consensuspb.VoteMessage
-			msg = pbov
-			return
-		}
 		pbo = new(consensuspb.VoteMessage)
 		{
 			if goo.Vote != nil {
@@ -497,7 +348,7 @@ func (goo *VoteMessage) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err 
 		if pbo != nil {
 			{
 				if pbo.Vote != nil {
-					(*goo).Vote = new(types4.Vote)
+					(*goo).Vote = new(types3.Vote)
 					err = (*goo).Vote.FromPBMessage(cdc, pbo.Vote)
 					if err != nil {
 						return
@@ -511,25 +362,9 @@ func (goo *VoteMessage) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err 
 func (_ VoteMessage) GetTypeURL() (typeURL string) {
 	return "/tm.VoteMessage"
 }
-func IsVoteMessageReprEmpty(goor VoteMessage) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.Vote != nil {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo HasVoteMessage) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *consensuspb.HasVoteMessage
 	{
-		if IsHasVoteMessageReprEmpty(goo) {
-			var pbov *consensuspb.HasVoteMessage
-			msg = pbov
-			return
-		}
 		pbo = new(consensuspb.HasVoteMessage)
 		{
 			pbo.Height = int64(goo.Height)
@@ -563,7 +398,7 @@ func (goo *HasVoteMessage) FromPBMessage(cdc *amino.Codec, msg proto.Message) (e
 				(*goo).Round = int(int(pbo.Round))
 			}
 			{
-				(*goo).Type = types5.SignedMsgType(uint8(pbo.Type))
+				(*goo).Type = types4.SignedMsgType(uint8(pbo.Type))
 			}
 			{
 				(*goo).Index = int(int(pbo.Index))
@@ -575,40 +410,9 @@ func (goo *HasVoteMessage) FromPBMessage(cdc *amino.Codec, msg proto.Message) (e
 func (_ HasVoteMessage) GetTypeURL() (typeURL string) {
 	return "/tm.HasVoteMessage"
 }
-func IsHasVoteMessageReprEmpty(goor HasVoteMessage) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.Height != 0 {
-				return false
-			}
-		}
-		{
-			if goor.Round != 0 {
-				return false
-			}
-		}
-		{
-			if goor.Type != 0 {
-				return false
-			}
-		}
-		{
-			if goor.Index != 0 {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo VoteSetMaj23Message) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *consensuspb.VoteSetMaj23Message
 	{
-		if IsVoteSetMaj23MessageReprEmpty(goo) {
-			var pbov *consensuspb.VoteSetMaj23Message
-			msg = pbov
-			return
-		}
 		pbo = new(consensuspb.VoteSetMaj23Message)
 		{
 			pbo.Height = int64(goo.Height)
@@ -647,7 +451,7 @@ func (goo *VoteSetMaj23Message) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 				(*goo).Round = int(int(pbo.Round))
 			}
 			{
-				(*goo).Type = types6.SignedMsgType(uint8(pbo.Type))
+				(*goo).Type = types5.SignedMsgType(uint8(pbo.Type))
 			}
 			{
 				if pbo.BlockID != nil {
@@ -664,41 +468,9 @@ func (goo *VoteSetMaj23Message) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 func (_ VoteSetMaj23Message) GetTypeURL() (typeURL string) {
 	return "/tm.VoteSetMaj23Message"
 }
-func IsVoteSetMaj23MessageReprEmpty(goor VoteSetMaj23Message) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.Height != 0 {
-				return false
-			}
-		}
-		{
-			if goor.Round != 0 {
-				return false
-			}
-		}
-		{
-			if goor.Type != 0 {
-				return false
-			}
-		}
-		{
-			e := types7.IsBlockIDReprEmpty(goor.BlockID)
-			if e == false {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo VoteSetBitsMessage) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *consensuspb.VoteSetBitsMessage
 	{
-		if IsVoteSetBitsMessageReprEmpty(goo) {
-			var pbov *consensuspb.VoteSetBitsMessage
-			msg = pbov
-			return
-		}
 		pbo = new(consensuspb.VoteSetBitsMessage)
 		{
 			pbo.Height = int64(goo.Height)
@@ -750,7 +522,7 @@ func (goo *VoteSetBitsMessage) FromPBMessage(cdc *amino.Codec, msg proto.Message
 				(*goo).Round = int(int(pbo.Round))
 			}
 			{
-				(*goo).Type = types8.SignedMsgType(uint8(pbo.Type))
+				(*goo).Type = types6.SignedMsgType(uint8(pbo.Type))
 			}
 			{
 				if pbo.BlockID != nil {
@@ -776,46 +548,9 @@ func (goo *VoteSetBitsMessage) FromPBMessage(cdc *amino.Codec, msg proto.Message
 func (_ VoteSetBitsMessage) GetTypeURL() (typeURL string) {
 	return "/tm.VoteSetBitsMessage"
 }
-func IsVoteSetBitsMessageReprEmpty(goor VoteSetBitsMessage) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.Height != 0 {
-				return false
-			}
-		}
-		{
-			if goor.Round != 0 {
-				return false
-			}
-		}
-		{
-			if goor.Type != 0 {
-				return false
-			}
-		}
-		{
-			e := types9.IsBlockIDReprEmpty(goor.BlockID)
-			if e == false {
-				return false
-			}
-		}
-		{
-			if goor.Votes != nil {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo newRoundStepInfo) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *consensuspb.NewRoundStepInfo
 	{
-		if IsnewRoundStepInfoReprEmpty(goo) {
-			var pbov *consensuspb.NewRoundStepInfo
-			msg = pbov
-			return
-		}
 		pbo = new(consensuspb.NewRoundStepInfo)
 		{
 			pbom := proto.Message(nil)
@@ -853,26 +588,9 @@ func (goo *newRoundStepInfo) FromPBMessage(cdc *amino.Codec, msg proto.Message) 
 func (_ newRoundStepInfo) GetTypeURL() (typeURL string) {
 	return "/tm.newRoundStepInfo"
 }
-func IsnewRoundStepInfoReprEmpty(goor newRoundStepInfo) (empty bool) {
-	{
-		empty = true
-		{
-			e := types.IsHRSReprEmpty(goor.HRS)
-			if e == false {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo msgInfo) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *consensuspb.MsgInfo
 	{
-		if IsmsgInfoReprEmpty(goo) {
-			var pbov *consensuspb.MsgInfo
-			msg = pbov
-			return
-		}
 		pbo = new(consensuspb.MsgInfo)
 		{
 			if goo.Msg != nil {
@@ -920,30 +638,9 @@ func (goo *msgInfo) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err erro
 func (_ msgInfo) GetTypeURL() (typeURL string) {
 	return "/tm.msgInfo"
 }
-func IsmsgInfoReprEmpty(goor msgInfo) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.Msg != nil {
-				return false
-			}
-		}
-		{
-			if goor.PeerID != "" {
-				return false
-			}
-		}
-	}
-	return
-}
 func (goo timeoutInfo) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *consensuspb.TimeoutInfo
 	{
-		if IstimeoutInfoReprEmpty(goo) {
-			var pbov *consensuspb.TimeoutInfo
-			msg = pbov
-			return
-		}
 		pbo = new(consensuspb.TimeoutInfo)
 		{
 			if goo.Duration.Nanoseconds() != 0 {
@@ -990,30 +687,4 @@ func (goo *timeoutInfo) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err 
 }
 func (_ timeoutInfo) GetTypeURL() (typeURL string) {
 	return "/tm.timeoutInfo"
-}
-func IstimeoutInfoReprEmpty(goor timeoutInfo) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.Duration != 0 {
-				return false
-			}
-		}
-		{
-			if goor.Height != 0 {
-				return false
-			}
-		}
-		{
-			if goor.Round != 0 {
-				return false
-			}
-		}
-		{
-			if goor.Step != 0 {
-				return false
-			}
-		}
-	}
-	return
 }

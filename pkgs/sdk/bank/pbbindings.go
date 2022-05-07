@@ -9,11 +9,6 @@ import (
 func (goo NoInputsError) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *bankpb.NoInputsError
 	{
-		if IsNoInputsErrorReprEmpty(goo) {
-			var pbov *bankpb.NoInputsError
-			msg = pbov
-			return
-		}
 		pbo = new(bankpb.NoInputsError)
 	}
 	msg = pbo
@@ -35,20 +30,9 @@ func (goo *NoInputsError) FromPBMessage(cdc *amino.Codec, msg proto.Message) (er
 func (_ NoInputsError) GetTypeURL() (typeURL string) {
 	return "/bank.NoInputsError"
 }
-func IsNoInputsErrorReprEmpty(goor NoInputsError) (empty bool) {
-	{
-		empty = true
-	}
-	return
-}
 func (goo NoOutputsError) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *bankpb.NoOutputsError
 	{
-		if IsNoOutputsErrorReprEmpty(goo) {
-			var pbov *bankpb.NoOutputsError
-			msg = pbov
-			return
-		}
 		pbo = new(bankpb.NoOutputsError)
 	}
 	msg = pbo
@@ -70,20 +54,9 @@ func (goo *NoOutputsError) FromPBMessage(cdc *amino.Codec, msg proto.Message) (e
 func (_ NoOutputsError) GetTypeURL() (typeURL string) {
 	return "/bank.NoOutputsError"
 }
-func IsNoOutputsErrorReprEmpty(goor NoOutputsError) (empty bool) {
-	{
-		empty = true
-	}
-	return
-}
 func (goo InputOutputMismatchError) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *bankpb.InputOutputMismatchError
 	{
-		if IsInputOutputMismatchErrorReprEmpty(goo) {
-			var pbov *bankpb.InputOutputMismatchError
-			msg = pbov
-			return
-		}
 		pbo = new(bankpb.InputOutputMismatchError)
 	}
 	msg = pbo
@@ -105,29 +78,30 @@ func (goo *InputOutputMismatchError) FromPBMessage(cdc *amino.Codec, msg proto.M
 func (_ InputOutputMismatchError) GetTypeURL() (typeURL string) {
 	return "/bank.InputOutputMismatchError"
 }
-func IsInputOutputMismatchErrorReprEmpty(goor InputOutputMismatchError) (empty bool) {
-	{
-		empty = true
-	}
-	return
-}
 func (goo MsgSend) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *bankpb.MsgSend
 	{
-		if IsMsgSendReprEmpty(goo) {
-			var pbov *bankpb.MsgSend
-			msg = pbov
-			return
-		}
 		pbo = new(bankpb.MsgSend)
 		{
-			pbo.FromAddress = string(goo.FromAddress)
+			goor, err1 := goo.FromAddress.MarshalAmino()
+			if err1 != nil {
+				return nil, err1
+			}
+			pbo.FromAddress = string(goor)
 		}
 		{
-			pbo.ToAddress = string(goo.ToAddress)
+			goor, err1 := goo.ToAddress.MarshalAmino()
+			if err1 != nil {
+				return nil, err1
+			}
+			pbo.ToAddress = string(goor)
 		}
 		{
-			pbo.Amount = string(goo.Amount)
+			goor, err1 := goo.Amount.MarshalAmino()
+			if err1 != nil {
+				return nil, err1
+			}
+			pbo.Amount = string(goor)
 		}
 	}
 	msg = pbo
@@ -172,25 +146,4 @@ func (goo *MsgSend) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err erro
 }
 func (_ MsgSend) GetTypeURL() (typeURL string) {
 	return "/bank.MsgSend"
-}
-func IsMsgSendReprEmpty(goor MsgSend) (empty bool) {
-	{
-		empty = true
-		{
-			if goor.FromAddress != "" {
-				return false
-			}
-		}
-		{
-			if goor.ToAddress != "" {
-				return false
-			}
-		}
-		{
-			if goor.Amount != "" {
-				return false
-			}
-		}
-	}
-	return
 }
