@@ -81,8 +81,8 @@ test.realm:
 test.packages:
 	go test tests/*.go -v -run "TestPackages" --timeout 20m
 
-test.examples: install_gnodev
-	gnodev test ./examples
+test.examples:
+	go run ./cmd/gnodev test ./examples
 
 # Code gen
 stringer:
