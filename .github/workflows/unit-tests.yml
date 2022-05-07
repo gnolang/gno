@@ -25,6 +25,7 @@ jobs:
           - test.files1
           - test.files2
           - test.packages
+          - test.examples
     runs-on: ubuntu-latest
     timeout-minutes: 21
     steps:
