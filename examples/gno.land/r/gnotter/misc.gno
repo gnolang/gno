@@ -29,6 +29,5 @@ func getProfile(profileID ProfileID) *Profile {
 	if !exists {
 		return nil
 	}
-	board := profile_.(*Profile)
-	return board
+	return profile_.(*Profile)
 }
