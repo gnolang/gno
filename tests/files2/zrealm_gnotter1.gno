@@ -24,6 +24,11 @@ func main() {
 	println("-----------")
 	println(gnotter.Render("Slyris"))
 	println("-----------")
+	gnotter.UnFollow(gProfileID, gAnotherProfileID)
+	println(gnotter.Render("Milerius"))
+	println("-----------")
+	println(gnotter.Render("Slyris"))
+	println("-----------")
 }
 
 // Output:
@@ -50,5 +55,17 @@ func main() {
 // URL: /r/profile:Slyris
 // Following: 0
 // Follower: 1
+// Nb threads: 0
+// -----------
+// Name: Milerius
+// URL: /r/profile:Milerius
+// Following: 0
+// Follower: 0
+// Nb threads: 0
+// -----------
+// Name: Slyris
+// URL: /r/profile:Slyris
+// Following: 0
+// Follower: 0
 // Nb threads: 0
 // -----------

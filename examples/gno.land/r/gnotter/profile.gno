@@ -6,6 +6,11 @@ import (
 	"strconv"
 )
 
+const (
+	FollowAction   = 0
+	UnfollowAction = 1
+)
+
 type ProfileID uint64
 
 type Profile struct {
@@ -47,15 +52,32 @@ func (profile *Profile) RenderProfile() string {
 	return str
 }
 
-func (profile *Profile) Follow(profileToFollowID ProfileID) {
-	profileIdKey := profileIDKey(profileToFollowID)
+func (profile *Profile) FollowAction(action int, profileToTarget ProfileID) {
+	profileIdKey := profileIDKey(profileToTarget)
 	exists := gProfiles.Has(profileIdKey)
 	if !exists {
 		panic("profile nonexistent")
-	} else {
-		// Do we really need the whole profile? (probably for easier retweet)
-		profileToFollow := getProfile(profileToFollowID)
+	}
+	switch action {
+	case FollowAction:
+		profileToFollow := getProfile(profileToTarget)
 		profile.following.Set(profileIdKey, profileToFollow)
 		profileToFollow.followers.Set(profileIDKey(profile.id), profile)
+		break
+	case UnfollowAction:
+		profileToUnFollow := getProfile(profileToTarget)
+		profile.following.Remove(profileIdKey)
+		profileToUnFollow.followers.Remove(profileIDKey(profile.id))
+		break
+	default:
+		panic("unreacheable")
 	}
+}
+
+func (profile *Profile) Follow(profileToFollowID ProfileID) {
+	profile.FollowAction(FollowAction, profileToFollowID)
+}
+
+func (profile *Profile) UnFollow(profileToUnfollowID ProfileID) {
+	profile.FollowAction(UnfollowAction, profileToUnfollowID)
 }

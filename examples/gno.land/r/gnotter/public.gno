@@ -29,3 +29,11 @@ func Follow(followerID ProfileID, followingID ProfileID) ProfileID {
 	followerProfile.Follow(followingID)
 	return followingID
 }
+
+func UnFollow(unFollowerID ProfileID, unFollowingID ProfileID) ProfileID {
+	std.AssertOriginCall()
+	caller := std.GetOrigCaller()
+	followerProfile := getProfile(unFollowerID)
+	followerProfile.UnFollow(unFollowingID)
+	return unFollowingID
+}
