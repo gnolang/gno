@@ -5,13 +5,13 @@ import "strings"
 func Render(path string) string {
 	parts := strings.Split(path, "/")
 	if len(parts) == 1 {
-		// /r/boards:BOARD_NAME
+		// /r/profile:PROFILE_NAME
 		name := parts[0]
-		boardI, exists := gProfilesByName.Get(name)
+		profileI, exists := gProfilesByName.Get(name)
 		if !exists {
 			return "profile does not exist: " + name
 		}
-		return boardI.(*Profile).RenderProfile()
+		return profileI.(*Profile).RenderProfile()
 	}
-	return "tmp"
+	return "unreacheable"
 }
