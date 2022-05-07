@@ -22,3 +22,13 @@ func incProfileID() ProfileID {
 	gProfileCtr++
 	return ProfileID(gProfileCtr)
 }
+
+func getProfile(profileID ProfileID) *Profile {
+	profileIdKey := profileIDKey(profileID)
+	profile_, exists := gProfiles.Get(profileIdKey)
+	if !exists {
+		return nil
+	}
+	board := profile_.(*Profile)
+	return board
+}

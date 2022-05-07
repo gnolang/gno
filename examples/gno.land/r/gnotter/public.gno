@@ -13,3 +13,20 @@ func CreateProfile(name string) ProfileID {
 	gProfilesByName.Set(name, profile)
 	return profile.id
 }
+
+func GetProfileIDFromName(name string) (ProfileID, bool) {
+	profileI, exists := gProfilesByName.Get(name)
+	if !exists {
+		return 0, false
+	}
+	return profileI.(*Profile).id, true
+}
+
+func Follow(followerID ProfileID, followingID ProfileID) ProfileID {
+	std.AssertOriginCall()
+	caller := std.GetOrigCaller()
+	followerProfile := getProfile(followerID)
+	//followingProfile := getProfile(followingID)
+	followerProfile.Follow(followingID)
+	return followingID
+}
