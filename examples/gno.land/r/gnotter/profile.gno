@@ -6,11 +6,6 @@ import (
 	"strconv"
 )
 
-const (
-	FollowAction   = 0
-	UnfollowAction = 1
-)
-
 type ProfileID uint64
 
 type Profile struct {
@@ -52,7 +47,7 @@ func (profile *Profile) RenderProfile() string {
 	return str
 }
 
-func (profile *Profile) FollowAction(action int, profileToTarget ProfileID) {
+func (profile *Profile) FollowAction(action Action, profileToTarget ProfileID) {
 	profileIdKey := profileIDKey(profileToTarget)
 	exists := gProfiles.Has(profileIdKey)
 	if !exists {
