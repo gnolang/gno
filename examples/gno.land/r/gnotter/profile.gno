@@ -53,14 +53,9 @@ func (profile *Profile) Follow(profileToFollowID ProfileID) {
 	if !exists {
 		panic("profile nonexistent")
 	} else {
-		if profile.following.Has(profileIdKey) {
-			// do we really need to panic here?
-			panic("already following")
-		} else {
-			// Do we really need the whole profile? (probably for easier retweet)
-			profileToFollow := getProfile(profileToFollowID)
-			profile.following.Set(profileIdKey, profileToFollow)
-			profileToFollow.followers.Set(profileIDKey(profile.id), profile)
-		}
+		// Do we really need the whole profile? (probably for easier retweet)
+		profileToFollow := getProfile(profileToFollowID)
+		profile.following.Set(profileIdKey, profileToFollow)
+		profileToFollow.followers.Set(profileIDKey(profile.id), profile)
 	}
 }

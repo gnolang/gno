@@ -26,7 +26,6 @@ func Follow(followerID ProfileID, followingID ProfileID) ProfileID {
 	std.AssertOriginCall()
 	caller := std.GetOrigCaller()
 	followerProfile := getProfile(followerID)
-	//followingProfile := getProfile(followingID)
 	followerProfile.Follow(followingID)
 	return followingID
 }
