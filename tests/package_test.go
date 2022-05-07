@@ -63,7 +63,7 @@ func runPackageTest(t *testing.T, dir string, path string) {
 	// stdout := new(bytes.Buffer)
 	stdout := os.Stdout
 	stderr := new(bytes.Buffer)
-	store := testStore(stdin, stdout, stderr, false)
+	store := testStore("..", stdin, stdout, stderr, false)
 	store.SetLogStoreOps(true)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath: "test",

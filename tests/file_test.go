@@ -11,7 +11,7 @@ import (
 )
 
 func TestFileStr(t *testing.T) {
-	filePath := filepath.join(".", "files", "str.gno")
+	filePath := filepath.Join(".", "files", "str.gno")
 	runFileTest(t, filePath, true)
 }
 
