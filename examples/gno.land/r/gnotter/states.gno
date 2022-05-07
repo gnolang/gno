@@ -1,4 +1,4 @@
-package twitter
+package gnotter
 
 import "gno.land/p/avl"
 

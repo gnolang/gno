@@ -1,8 +1,9 @@
-package twitter
+package gnotter
 
 import (
 	"gno.land/p/avl"
 	"std"
+	"strconv"
 )
 
 type ProfileID uint64
@@ -34,4 +35,13 @@ func newProfile(id ProfileID, url string, name string, creator std.Address) *Pro
 		Followers: avl.NewMutTree(),
 		Following: avl.NewMutTree(),
 	}
+}
+
+func (profile *Profile) RenderProfile() string {
+	str := ""
+	str += "Name: " + profile.name + "\n"
+	str += "URL: " + profile.url + "\n"
+	str += "Following: " + strconv.Itoa(profile.Following.Size()) + "\n"
+	str += "Follower: " + strconv.Itoa(profile.Followers.Size())
+	return str
 }
