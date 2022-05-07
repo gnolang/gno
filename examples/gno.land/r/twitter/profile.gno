@@ -15,6 +15,8 @@ type Profile struct {
 	threads   *avl.MutTree
 	postsCtr  uint64
 	createdAt std.Time
+	Followers *avl.MutTree
+	Following *avl.MutTree
 }
 
 func newProfile(id ProfileID, url string, name string, creator std.Address) *Profile {
@@ -29,5 +31,7 @@ func newProfile(id ProfileID, url string, name string, creator std.Address) *Pro
 		creator:   creator,
 		threads:   avl.NewMutTree(),
 		createdAt: std.GetTimestamp(),
+		Followers: avl.NewMutTree(),
+		Following: avl.NewMutTree(),
 	}
 }
