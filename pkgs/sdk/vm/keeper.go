@@ -407,7 +407,7 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 	if filename != "" {
 		memFile := store.GetMemFile(dirpath, filename)
 		if memFile == nil {
-			return "", fmt.Errorf("file %s is not available", filepath)
+			return "", fmt.Errorf("file %q is not available", filepath) // TODO: XSS protection
 		}
 		return memFile.Body, nil
 	} else {
