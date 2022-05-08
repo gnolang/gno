@@ -18,6 +18,7 @@ type Profile struct {
 	createdAt std.Time
 	followers *avl.MutTree
 	following *avl.MutTree
+	biography string
 }
 
 func newProfile(id ProfileID, url string, name string, creator std.Address) *Profile {
@@ -43,7 +44,8 @@ func (profile *Profile) RenderProfile() string {
 	str += "URL: " + profile.url + "\n"
 	str += "Following: " + strconv.Itoa(profile.following.Size()) + "\n"
 	str += "Follower: " + strconv.Itoa(profile.followers.Size()) + "\n"
-	str += "Nb threads: " + strconv.Itoa(profile.threads.Size())
+	str += "Nb threads: " + strconv.Itoa(profile.threads.Size()) + "\n"
+	str += "Biography: " + profile.biography
 	return str
 }
 
@@ -75,4 +77,11 @@ func (profile *Profile) Follow(profileToFollowID ProfileID) {
 
 func (profile *Profile) UnFollow(profileToUnfollowID ProfileID) {
 	profile.FollowAction(UnfollowAction, profileToUnfollowID)
+}
+
+func (profile *Profile) EditBiography(biography string) {
+	if len(biography) > gMaxBiographyLen {
+		panic("biography should be 160 max characters")
+	}
+	profile.biography = biography
 }

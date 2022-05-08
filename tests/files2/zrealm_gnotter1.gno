@@ -38,34 +38,40 @@ func main() {
 // Following: 0
 // Follower: 0
 // Nb threads: 0
+// Biography:
 // -----------
 // Name: Slyris
 // URL: /r/profile:Slyris
 // Following: 0
 // Follower: 0
 // Nb threads: 0
+// Biography:
 // -----------
 // Name: Milerius
 // URL: /r/profile:Milerius
 // Following: 1
 // Follower: 0
 // Nb threads: 0
+// Biography:
 // -----------
 // Name: Slyris
 // URL: /r/profile:Slyris
 // Following: 0
 // Follower: 1
 // Nb threads: 0
+// Biography:
 // -----------
 // Name: Milerius
 // URL: /r/profile:Milerius
 // Following: 0
 // Follower: 0
 // Nb threads: 0
+// Biography:
 // -----------
 // Name: Slyris
 // URL: /r/profile:Slyris
 // Following: 0
 // Follower: 0
 // Nb threads: 0
+// Biography:
 // -----------

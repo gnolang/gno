@@ -37,3 +37,10 @@ func UnFollow(unFollowerID ProfileID, unFollowingID ProfileID) ProfileID {
 	followerProfile.UnFollow(unFollowingID)
 	return unFollowingID
 }
+
+func EditBiography(profileID ProfileID, biography string) {
+	std.AssertOriginCall()
+	caller := std.GetOrigCaller()
+	profile := getProfile(profileID)
+	profile.EditBiography(biography)
+}
