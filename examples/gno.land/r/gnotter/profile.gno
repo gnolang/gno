@@ -9,16 +9,16 @@ import (
 type ProfileID uint64
 
 type Profile struct {
-	id        ProfileID
-	url       string
-	name      string
-	creator   std.Address
-	threads   *avl.MutTree
-	postsCtr  uint64
-	createdAt std.Time
-	followers *avl.MutTree
-	following *avl.MutTree
-	biography string
+	id         ProfileID
+	url        string
+	name       string
+	creator    std.Address
+	threads    *avl.MutTree // threads.id -> *Thread
+	threadsCtr uint64       // increments thread.id
+	createdAt  std.Time
+	followers  *avl.MutTree
+	following  *avl.MutTree
+	biography  string
 }
 
 func newProfile(id ProfileID, url string, name string, creator std.Address) *Profile {
