@@ -33,7 +33,7 @@ jobs:
       - name: Build gnoos rpi 4 image
         run: |
           cd os/devices
-          bash build.sh
+          bash rpi4/build.sh
 
       - name: Compress
         run: xz -T $(nproc) images/gnoos.img.xz
