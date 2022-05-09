@@ -22,3 +22,6 @@ SOFTWARE.
 
 Subsequently Jacob Gadikian did significant rework of this build system, and
 happily preserves stephen's original licensing.
+
+This does not supercede the license found in the gno repository, and affects
+only the docker build system found here. 
