@@ -5,6 +5,5 @@ DOCKER_ORG=ghcr.io/gnolang
 DOCKER_IMAGE=gnoos-${DOCKER_ARCH}
 
 docker push $DOCKER_ORG/$DOCKER_IMAGE
-docker push $DOCKER_ORG/$DOCKER_IMAGE:devel
 
 
