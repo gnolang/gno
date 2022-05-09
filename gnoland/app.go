@@ -22,6 +22,7 @@ import (
 
 // NewApp creates the GnoLand application.
 func NewApp(rootDir string, logger log.Logger) (abci.Application, error) {
+
 	// Get main DB.
 	db := dbm.NewDB("gnolang", dbm.GoLevelDBBackend, filepath.Join(rootDir, "data"))
 
@@ -31,6 +32,7 @@ func NewApp(rootDir string, logger log.Logger) (abci.Application, error) {
 
 	// Create BaseApp.
 	baseApp := sdk.NewBaseApp("gnoland", logger, db, baseKey, mainKey)
+	baseApp.SetAppVersion("dev")
 
 	// Set mounts for BaseApp's MultiStore.
 	baseApp.MountStoreWithDB(mainKey, iavl.StoreConstructor, db)
