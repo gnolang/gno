@@ -5,4 +5,3 @@ DOCKER_IMAGE=archlinux-$BUILD_ARCH
 
 docker build --build-arg ARCH="$BUILD_ARCH" --build-arg ARCHDIR="rootfs/$BUILD_ARCH" -t "$DOCKER_ORG/$DOCKER_IMAGE" -f Dockerfile .
 
-docker build --build-arg ARCH="$BUILD_ARCH" --build-arg ARCHDIR="rootfs/$BUILD_ARCH" -t "$DOCKER_ORG/$DOCKER_IMAGE":devel -f Dockerfile.devel .
