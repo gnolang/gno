@@ -49,7 +49,7 @@ jobs:
 
   create-manifest:
     runs-on: ubuntu-latest
-    needs: build
+    needs: gnoos
     env:
       DOCKER_CLI_EXPERIMENTAL: enabled
     steps:
