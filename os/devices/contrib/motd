@@ -1,0 +1,32 @@
+
+	         __                              __
+	   _____/ /_____ __________  ____  _____/ /_
+	  / ___/ __/ __ `/ ___/ __ \/ __ \/ ___/ __/
+	 (__  ) /_/ /_/ / /  / /_/ / /_/ / /  / /_
+	/____/\__/\__,_/_/  / .___/\____/_/   \__/
+        	           /_/
+
+
+    Starport - Fast, sovereign blockchain development and deployment.
+    ____________________________________________________________________________
+
+    This is a self-contained blockchain development environment.
+
+    It has everything you need to scaffold, test, and (soon) deploy
+    fully-sovereign blockcchains with zero dependencies on cloud services.
+
+    * Arch Linux
+    * Go
+    * nodejs, npm and yarn
+    * ZeroTier Virtual Network
+    * hsd p2p dns
+	* IPFS Daemon
+
+    By deploying your blockchain as hardware, your community gains independence.
+
+    To prevent kernel messages from printing to the terminal use "dmesg -n 1".
+
+
+    Useful links:
+      * https://github.com/tendermint/starport
+

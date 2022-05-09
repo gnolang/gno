@@ -1,0 +1,16 @@
+# Resize on first boot
+# https://github.com/mkaczanowski/packer-builder-arm/issues/19#issuecomment-609449418
+
+[Unit]
+Description=resize root file system
+Before=local-fs-pre.target
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+TimeoutSec=infinity
+ExecStart=/usr/sbin/resizerootfs
+ExecStart=/bin/systemctl --no-reload disable %n
+
+[Install]
+RequiredBy=local-fs-pre.target

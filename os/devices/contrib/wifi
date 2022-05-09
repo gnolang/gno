@@ -1,0 +1,8 @@
+Description='Baked in profile'
+Interface=wlan0
+Connection=wireless
+Security=wpa
+ESSID="SSID"
+IP=dhcp
+Key="PASSWORD"
+

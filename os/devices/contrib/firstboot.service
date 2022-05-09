@@ -1,0 +1,13 @@
+[Unit]
+Description=Starport Pi - firstboot configuration
+After=systemd-modules-load.service
+After=resizerootfs.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/firstboot.sh
+ExecStop=/bin/true
+RemainAfterExit=true
+
+[Install]
+WantedBy=multi-user.target

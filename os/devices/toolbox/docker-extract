@@ -1,0 +1,150 @@
+#!/usr/bin/env python3
+# ========================================================================== #
+#                                                                            #
+#    docker-extract - extract docker image to directory.                     #
+#                                                                            #
+#    Partially based on https://github.com/larsks/undocker and contains      #
+#    many major fixes for image spec v1.2.                                   #
+#                                                                            #
+#    Copyright (C) 2019  Maxim Devaev <mdevaev@gmail.com>                    #
+#                                                                            #
+#    This program is free software: you can redistribute it and/or modify    #
+#    it under the terms of the GNU General Public License as published by    #
+#    the Free Software Foundation, either version 3 of the License, or       #
+#    (at your option) any later version.                                     #
+#                                                                            #
+#    This program is distributed in the hope that it will be useful,         #
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of          #
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the           #
+#    GNU General Public License for more details.                            #
+#                                                                            #
+#    You should have received a copy of the GNU General Public License       #
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.  #
+#                                                                            #
+# ========================================================================== #
+
+
+import os
+import tarfile
+import shutil
+import json
+import contextlib
+import argparse
+import logging
+
+from typing import List
+from typing import Dict
+
+
+# =====
+_logger = logging.getLogger("docker-extract")
+
+
+# =====
+def _get_image_manifest(image_tar: tarfile.TarFile) -> Dict:
+    _logger.debug(":: Reading image manifest")
+    with contextlib.closing(image_tar.extractfile("manifest.json")) as manifest_file:
+        manifest = json.load(manifest_file)  # type: ignore
+        assert len(manifest) == 1, "Can't process manifest.json:\n" + json.dumps(manifest, indent="    ")
+        return manifest[0]
+
+
+def _get_image_layers(image_tar: tarfile.TarFile) -> List[str]:
+    layers = _get_image_manifest(image_tar)["Layers"]
+    for layer_path in layers:
+        _logger.debug("::    Layer: %s", layer_path)
+    return layers
+
+
+def _extract_rootfs(image_tar: tarfile.TarFile, layers: List[str], root_path: str) -> None:
+    # https://github.com/moby/moby/blob/master/image/spec/v1.2.md
+
+    if os.getuid() != 0:
+        raise RuntimeError("You must be a root")
+
+    if os.path.exists(root_path):
+        raise RuntimeError(f"{root_path}: is already exists")
+    os.mkdir(root_path)
+
+    for layer_path in layers:
+        _logger.debug(":: Extracting layer: %s", layer_path)
+
+        with contextlib.closing(image_tar.extractfile(layer_path)) as layer_file:
+            with tarfile.TarFile(fileobj=layer_file, errorlevel=1) as layer_tar:
+                members = layer_tar.getmembers()
+
+                for member in members:
+                    # https://github.com/moby/moby/blob/8e610b2b55bfd1bfa9436ab110d311f5e8a74dcb/pkg/archive/whiteouts.go
+                    # https://github.com/moby/moby/blob/8e610b2b55bfd1bfa9436ab110d311f5e8a74dcb/pkg/archive/diff.go
+                    # https://github.com/sylabs/singularity/blob/8a0e3008b29db85d1e23677d98978cafba1fdbe7/src/docker-extract.c#L21
+
+                    member_path = os.path.join(root_path, member.path)  # type: ignore
+                    assert not member_path.startswith(".wh."), member_path
+
+                    if member_path.endswith("/.wh..wh..opq"):
+                        whiteout = os.path.dirname(member_path)
+                        _logger.debug("::    Removing opaque: %s", whiteout)
+                        try:
+                            shutil.rmtree(whiteout)
+                        except FileNotFoundError:
+                            pass
+
+                    elif "/.wh." in member_path:
+                        whiteout = member_path.replace("/.wh.", "/")
+                        if os.path.isdir(whiteout) and not os.path.islink(whiteout):
+                            _logger.debug("::    Removing whiteout dir: %s", whiteout)
+                            shutil.rmtree(whiteout)
+                        else:
+                            _logger.debug("::    Removing whiteout file: %s", whiteout)
+                            os.unlink(whiteout)
+
+                layer_tar.extractall(
+                    path=root_path,
+                    members=[member for member in members if "/.wh." not in member.path],  # type: ignore
+                    numeric_owner=True,
+                )
+
+
+def _patch_os_symlink() -> None:
+    # XXX: symlinks hack, see tarfile.py:2209 for details
+    orig_os_symlink = os.symlink
+
+    def rewrite_symlink(src: str, dest: str) -> None:
+        if os.path.islink(dest) or os.path.exists(dest):
+            os.unlink(dest)
+        orig_os_symlink(src, dest)
+
+    os.symlink = rewrite_symlink  # type: ignore
+
+
+# =====
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--list-layers", action="store_true", help="List layers in an image")
+    parser.add_argument("--list-tags", action="store_true", help="List tags contained in archive")
+    parser.add_argument("-d", "--debug", action="store_const", const=logging.DEBUG, dest="log_level")
+    parser.add_argument("-o", "--root", default="rootfs", help="Output directory (defaults to 'rootfs')")
+    parser.add_argument("input")
+    parser.set_defaults(log_level=logging.INFO)
+
+    options = parser.parse_args()
+    logging.basicConfig(level=options.log_level, format="%(message)s")
+
+    with tarfile.open(options.input) as image_tar:
+        with contextlib.closing(image_tar.extractfile("repositories")) as repos_file:
+            repos = json.load(repos_file)  # type: ignore
+
+        if options.list_tags:
+            print("\n".join(_get_image_manifest(image_tar)["RepoTags"]))
+
+        elif options.list_layers:
+            print("\n".join(_get_image_layers(image_tar)))
+
+        else:
+            _patch_os_symlink()
+            _extract_rootfs(image_tar, _get_image_layers(image_tar), options.root)
+
+
+# =====
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,19 @@
+[Unit]
+Description=hsd
+After=network.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=root
+Environment="HSD_NETWORK=main"
+Environment="HSD_LOG_LEVEL=debug"
+Environment="HSD_NO_WALLET=true"
+Environment="HSD_RS_PORT"
+Environment="HSD_RS_HOST=0.0.0.0"
+Environment="HSD_PREFIX=/root/.hsd"
+ExecStart=/usr/local/bin/node /hsd/bin/hsd
+
+[Install]
+WantedBy=multi-user.target

@@ -9,11 +9,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Login to DockerHub
-        uses: docker/login-action@v1
+      -
+        name: Login to GitHub Container Registry
+        uses: docker/login-action@v1 
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up QEMU
         run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes --credential yes
@@ -27,14 +29,49 @@ jobs:
       - name: Available platforms
         run: echo ${{ steps.buildx.outputs.platforms }}
 
-      - name: Build
-        run: bash build.sh
+      - name: Build gnoos rpi 4 image
+        run: |
+          cd os/devices
+          bash build.sh
 
       - name: Compress
-        run: xz -T $(nproc) images/sos.img
+        run: xz -T $(nproc) images/gnoos.img.xz
 
       - name: Upload image
         uses: actions/upload-artifact@v2
         with:
           name: gnoos
           path: images/gnoos.img.xz
+
+
+  toolbox:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      -
+        name: Login to GitHub Container Registry
+        uses: docker/login-action@v1 
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up QEMU
+        run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes --credential yes
+
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v1.7.0
+        with:
+          version: latest
+
+      - name: Available platforms
+        run: echo ${{ steps.buildx.outputs.platforms }}
+
+      - name: Build Toolbox
+        run: |
+          cd toolbox
+          docker buildx build --tag faddat/toolbox --platform linux/arm64,linux/amd64 --push --cache-from faddat/toolbox:cache --cache-to faddat/toolbox:cache --progress plain .
+
