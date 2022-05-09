@@ -3,5 +3,5 @@
 DOCKER_ORG=ghcr.io/gnolang
 DOCKER_IMAGE=gnoos-$BUILD_ARCH
 
-docker build --build-arg ARCH="$BUILD_ARCH" --build-arg ARCHDIR="rootfs/$BUILD_ARCH" -t "$DOCKER_ORG/$DOCKER_IMAGE" --dockerfile os/docker/Dockerfile os/docker
+docker build --build-arg ARCH="$BUILD_ARCH" --build-arg ARCHDIR="rootfs/$BUILD_ARCH" -tag "$DOCKER_ORG/$DOCKER_IMAGE" --file os/docker/Dockerfile os/docker
 
