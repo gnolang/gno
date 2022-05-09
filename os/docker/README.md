@@ -1,17 +1,4 @@
-# Basic Arch Linux Docker images ![build](https://github.com/faddat/archlinux-docker/workflows/build/badge.svg)
-
-Docker images for Arch Linux on x86_64 and AArch64 (ARMv8-A). Built using native pacman and Docker multi-stage builds. Builds daily in github actions.
-
-## Running the images
-
-The images are on [Docker Hub](https://hub.docker.com/u/faddat/archlinux-docker). Use the convenient `docker run`:
-
-    docker run --rm -ti lopsided/archlinux
-
-Instead of using the multi-arch container above, you can also get the architecture specific image directly:
-
-    docker run --rm -ti lopsided/archlinux-arm32v7
-
+# Basic 
 ## Tags
 
 |  Tag   |   Update   |    Type    |              Description               |
@@ -82,3 +69,7 @@ However, this repository takes a slightly different approach to create images.
   - Uses docker run in priviledged mode to build images
 - https://github.com/lopsided98/archlinux
   - Uses prebuilt tarballs which contain packages not required in containers
+- https://github.com/faddat/archlinux
+  - Automated build for github container registry
+  - dropped armv7 and other 32 bit modes
+  - built hourly because arch is rolling release
