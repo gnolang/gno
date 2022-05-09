@@ -6,6 +6,8 @@ import (
 	"gno.land/r/users"
 )
 
+// FIXME: manage privacy?
+
 func newProfile(addr std.Address) *Profile {
 	now := std.GetTime()
 	return &Profile{
@@ -32,6 +34,8 @@ func (p *Profile) save() {
 func (p *Profile) update(dict map[string]interface{}) {
 	for k, v := range dict {
 		// TODO: additional checks here
+		// TODO: check v.Type()
+		// TODO: check v.Len()
 		if k == "address" || k == "created" || k == "updated" {
 			panic("reserved profile key")
 		}
