@@ -209,6 +209,15 @@ func GetUserByAddress(addr std.Address) *User {
 	return userI.(*User)
 }
 
+// unlike GetUserByName, input must be "@" prefixed for names.
+func GetUserByAddressOrName(input AddressOrName) *User {
+	name, isName := input.GetName()
+	if isName {
+		return GetUserByName(name)
+	}
+	return GetUserByAddress(std.Address(input))
+}
+
 //----------------------------------------
 // Constants
 
