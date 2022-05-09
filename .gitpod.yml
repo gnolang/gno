@@ -1,0 +1,4 @@
+# This file allows for https://gitpod.io to be used by developers for a smoother onboarding.
+
+image: ghcr.io/faddat/cosmos
+
