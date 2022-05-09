@@ -1,4 +1,4 @@
-FROM ghcr.io/faddat/cosmos as build
+FROM ghcr.io/faddat/cosmos AS build
 
 RUN mkdir /opt/src /opt/build
 ADD . /opt/src/
