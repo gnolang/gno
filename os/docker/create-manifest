@@ -1,9 +1,9 @@
 #!/bin/bash -ex
 
-DOCKER_ORG=ghcr.io/faddat
-DOCKER_IMAGE=archlinux
+DOCKER_ORG=ghcr.io/gnolang
+DOCKER_IMAGE=gnoos
 
-TAGS="latest devel"
+TAGS="latest"
 
 for TAG in $TAGS
 do
