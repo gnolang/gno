@@ -28,7 +28,9 @@ jobs:
         run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes --credential yes
 
       - name: Build
-        run: ./os/docker/build
+        run: |
+          cd os/docker
+          ./build
 
       -
         name: Login to GitHub Container Registry
