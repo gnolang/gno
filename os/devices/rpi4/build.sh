@@ -11,6 +11,7 @@
 # Later we can make this work for more devices and platforms with nearly the same technique.
 # Reasonable build targets include: https://archlinuxarm.org/platforms/armv8
 # For example, the Odroid-N2 is the same software-wise as our Router!
+# don't run this on your computer!  This is meant to run in a ci system, and deletes things willy-nilly.  If you want to run this locally, use metal.sh in the repo root.  In all cases, read the code first and note that ymmv.
 
 # Fail on error
 set -exo pipefail
@@ -22,14 +23,12 @@ set -o xtrace
 wget -N --progress=bar:force:noscroll http://os.archlinuxarm.org/os/ArchLinuxARM-rpi-aarch64-latest.tar.gz
 
 # BUILD IMAGE
-docker buildx build --tag sos-lite --file Dockerfile --platform linux/arm64 --progress plain --load ..
+docker buildx build --tag sos-lite --file rpi4/Dockerfile --platform linux/arm64 --progress plain --load ../..
 
 # TAG AND PUSH
 docker tag sos-lite ghcr.io/notional-labs/sos
 docker push ghcr.io/notional-labs/sos
 
-# PREPARE TOOLBOX
-# docker buildx build --rm --tag toolbox --file toolbox/Dockerfile --load  --progress plain toolbox
 
 # EXTRACT IMAGE
 # Make a temporary directory
