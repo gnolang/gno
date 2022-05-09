@@ -26,8 +26,8 @@ wget -N --progress=bar:force:noscroll http://os.archlinuxarm.org/os/ArchLinuxARM
 docker buildx build --tag sos-lite --file rpi4/Dockerfile --platform linux/arm64 --progress plain --load ../..
 
 # TAG AND PUSH
-docker tag sos-lite ghcr.io/notional-labs/sos
-docker push ghcr.io/notional-labs/sos
+docker tag sos-lite ghcr.io/gnoland/rpi4
+docker push ghcr.io/gnoland/rpi4
 
 
 # EXTRACT IMAGE
