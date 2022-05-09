@@ -188,7 +188,6 @@ func TestTypeConversion(t *testing.T) {
 		z := v.(Interface1)
 		fmt.Println(z)
 	})
-
 }
 
 func TestSomething(t *testing.T) {
@@ -205,7 +204,6 @@ func TestSomething(t *testing.T) {
 	fmt.Println(unsafe.Sizeof(Foo{X: reflect.ValueOf(0)}.X)) // still 16? weird.
 	fmt.Println(unsafe.Sizeof(reflect.ValueOf(0)))           // 24
 	fmt.Println(unsafe.Sizeof(Bar{}))
-
 }
 
 // XXX is there a way to test in Go as well as Gno?
@@ -277,7 +275,6 @@ func TestBinaryShortCircuit(t *testing.T) {
 	} else {
 		fmt.Println("done")
 	}
-
 }
 
 // XXX is there a way to test in Go as well as Gno?
@@ -327,8 +324,7 @@ func TestMultiAssignment(t *testing.T) {
 		return i
 	}
 
-	*ref(0), *ref(1), *ref(2), *ref(3) =
-		val(11), val(22), val(33), val(44)
+	*ref(0), *ref(1), *ref(2), *ref(3) = val(11), val(22), val(33), val(44)
 
 	/*
 		ref(0) called

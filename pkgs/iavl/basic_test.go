@@ -103,7 +103,6 @@ func TestBasic(t *testing.T) {
 }
 
 func TestUnit(t *testing.T) {
-
 	expectHash := func(tree *ImmutableTree, hashCount int64) {
 		// ensure number of new hash calculations is as expected.
 		hash, count := tree.hashWithCount()
@@ -182,7 +181,6 @@ func TestUnit(t *testing.T) {
 
 	expectRemove(t11, 4, "((1 2) (3 5))", 2)
 	expectRemove(t11, 3, "((1 2) (4 5))", 1)
-
 }
 
 func TestRemove(t *testing.T) {
@@ -214,7 +212,6 @@ func TestRemove(t *testing.T) {
 }
 
 func TestIntegration(t *testing.T) {
-
 	type record struct {
 		key   string
 		value string
@@ -391,7 +388,6 @@ func TestPersistence(t *testing.T) {
 }
 
 func TestProof(t *testing.T) {
-
 	// Construct some random tree
 	db := db.NewMemDB()
 	tree := NewMutableTree(db, 100)

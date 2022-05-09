@@ -32,7 +32,7 @@ import (
 // first synchronously consumes the events from the node's synchronous event
 // switch, or reads logged events from the filesystem.
 type Client interface {
-	//service.Service
+	// service.Service
 	ABCIClient
 	HistoryClient
 	NetworkClient

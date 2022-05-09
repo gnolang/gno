@@ -257,7 +257,6 @@ func (vals *ValidatorSet) Size() int {
 
 // Force recalculation of the set's total voting power.
 func (vals *ValidatorSet) updateTotalVotingPower() {
-
 	sum := int64(0)
 	for _, val := range vals.Validators {
 		// mind overflow
@@ -380,7 +379,6 @@ func processChanges(origChanges []*Validator) (updates, removals []*Validator, e
 // by processChanges for duplicates and invalid values.
 // No changes are made to the validator set 'vals'.
 func verifyUpdates(updates []*Validator, vals *ValidatorSet) (updatedTotalVotingPower int64, numNewValidators int, err error) {
-
 	updatedTotalVotingPower = vals.TotalVotingPower()
 
 	for _, update := range updates {
@@ -412,7 +410,6 @@ func verifyUpdates(updates []*Validator, vals *ValidatorSet) (updatedTotalVoting
 // 'updates' parameter must be a list of unique validators to be added or updated.
 // No changes are made to the validator set 'vals'.
 func computeNewPriorities(updates []*Validator, vals *ValidatorSet, updatedTotalVotingPower int64) {
-
 	for _, update := range updates {
 		address := update.Address
 		_, val := vals.GetByAddress(address)
@@ -430,7 +427,6 @@ func computeNewPriorities(updates []*Validator, vals *ValidatorSet, updatedTotal
 			update.ProposerPriority = val.ProposerPriority
 		}
 	}
-
 }
 
 // Merges the vals' validator list with the updates list.
@@ -438,7 +434,6 @@ func computeNewPriorities(updates []*Validator, vals *ValidatorSet, updatedTotal
 // Expects updates to be a list of updates sorted by address with no duplicates or errors,
 // must have been validated with verifyUpdates() and priorities computed with computeNewPriorities().
 func (vals *ValidatorSet) applyUpdates(updates []*Validator) {
-
 	existing := vals.Validators
 	merged := make([]*Validator, len(existing)+len(updates))
 	i := 0
@@ -476,7 +471,6 @@ func (vals *ValidatorSet) applyUpdates(updates []*Validator) {
 // Checks that the validators to be removed are part of the validator set.
 // No changes are made to the validator set 'vals'.
 func verifyRemovals(deletes []*Validator, vals *ValidatorSet) error {
-
 	for _, update := range deletes {
 		address := update.Address
 		_, val := vals.GetByAddress(address)
@@ -493,7 +487,6 @@ func verifyRemovals(deletes []*Validator, vals *ValidatorSet) error {
 // Removes the validators specified in 'deletes' from validator set 'vals'.
 // Should not fail as verification has been done before.
 func (vals *ValidatorSet) applyRemovals(deletes []*Validator) {
-
 	existing := vals.Validators
 
 	merged := make([]*Validator, len(existing)-len(deletes))
@@ -524,7 +517,6 @@ func (vals *ValidatorSet) applyRemovals(deletes []*Validator) {
 // are not allowed and will trigger an error if present in 'changes'.
 // The 'allowDeletes' flag is set to false by NewValidatorSet() and to true by UpdateWithChangeSet().
 func (vals *ValidatorSet) updateWithChangeSet(changes []*Validator, allowDeletes bool) error {
-
 	if len(changes) == 0 {
 		return nil
 	}
@@ -636,7 +628,6 @@ func (vals *ValidatorSet) ABCIValidatorUpdates() (updates []abci.ValidatorUpdate
 
 // Verify that +2/3 of the set had signed the given signBytes.
 func (vals *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height int64, commit *Commit) error {
-
 	if err := commit.ValidateBasic(); err != nil {
 		return err
 	}
@@ -709,7 +700,8 @@ func (vals *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height i
 // current height isn't part of the ValidatorSet.  Caller must check that the
 // commit height is greater than the height for this validator set.
 func (vals *ValidatorSet) VerifyFutureCommit(newSet *ValidatorSet, chainID string,
-	blockID BlockID, height int64, commit *Commit) error {
+	blockID BlockID, height int64, commit *Commit,
+) error {
 	oldVals := vals
 
 	// Commit must be a valid commit for newSet.
@@ -806,7 +798,6 @@ func (vals *ValidatorSet) StringIndented(indent string) string {
 		indent,
 		indent, strings.Join(valStrings, "\n"+indent+"    "),
 		indent)
-
 }
 
 //-------------------------------------

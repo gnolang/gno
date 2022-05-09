@@ -29,8 +29,8 @@ type Params struct {
 
 // NewParams creates a new Params object
 func NewParams(maxMemoBytes, txSigLimit, txSizeCostPerByte,
-	sigVerifyCostED25519, sigVerifyCostSecp256k1 int64) Params {
-
+	sigVerifyCostED25519, sigVerifyCostSecp256k1 int64,
+) Params {
 	return Params{
 		MaxMemoBytes:           maxMemoBytes,
 		TxSigLimit:             txSigLimit,

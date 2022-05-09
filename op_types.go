@@ -26,7 +26,7 @@ func (m *Machine) doOpFieldType() {
 
 func (m *Machine) doOpArrayType() {
 	x := m.PopExpr().(*ArrayTypeExpr)
-	var t = &ArrayType{}
+	t := &ArrayType{}
 	if x.Len == nil { // variadic array lit
 		t.Vrd = true
 	} else {
@@ -228,7 +228,7 @@ func (m *Machine) doOpStaticTypeOf() {
 
 		// NOTE: this code segment similar to that in op_types.go
 		var dxt Type
-		var path = x.Path // mutable
+		path := x.Path // mutable
 		switch path.Type {
 		case VPField:
 			switch path.Depth { // see tests/selector_test.go for cases.

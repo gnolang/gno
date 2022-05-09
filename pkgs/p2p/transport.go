@@ -364,7 +364,6 @@ func (mt *MultiplexTransport) filterConn(c net.Conn) (err error) {
 		case <-time.After(mt.filterTimeout):
 			return ErrFilterTimeout{}
 		}
-
 	}
 
 	mt.conns.Set(c, ips)
@@ -467,7 +466,6 @@ func (mt *MultiplexTransport) wrapPeer(
 	cfg peerConfig,
 	socketAddr *NetAddress,
 ) Peer {
-
 	persistent := false
 	if cfg.isPersistent != nil {
 		if cfg.outbound {

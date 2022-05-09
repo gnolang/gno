@@ -304,8 +304,8 @@ func X(x interface{}, args ...interface{}) Expr {
 				}
 			}
 
-			var fn = X(left)
-			var args = []Expr{}
+			fn := X(left)
+			args := []Expr{}
 			parts := strings.Split(right, ",")
 			for _, part := range parts {
 				// NOTE: repeated commas have no effect,
@@ -327,8 +327,8 @@ func X(x interface{}, args ...interface{}) Expr {
 				panic("struct type expressions not supported")
 			default:
 				// composite type
-				var typ = X(left)
-				var kvs = []KeyValueExpr{}
+				typ := X(left)
+				kvs := []KeyValueExpr{}
 				parts := strings.Split(right, ",")
 				for _, part := range parts {
 					if strings.TrimSpace(part) != "" {
@@ -432,12 +432,15 @@ func X(x interface{}, args ...interface{}) Expr {
 //     2             &&
 //     1             ||
 var sp = " "
-var prec5 = strings.Split("*  /  %  <<  >>  &  &^", sp)
-var prec4 = strings.Split("+ - | ^", sp)
-var prec3 = strings.Split("== != < <= > >=", sp)
-var prec2 = strings.Split("&&", sp)
-var prec1 = strings.Split("||", sp)
-var precs = [][]string{prec1, prec2, prec3, prec4, prec5}
+
+var (
+	prec5 = strings.Split("*  /  %  <<  >>  &  &^", sp)
+	prec4 = strings.Split("+ - | ^", sp)
+	prec3 = strings.Split("== != < <= > >=", sp)
+	prec2 = strings.Split("&&", sp)
+	prec1 = strings.Split("||", sp)
+	precs = [][]string{prec1, prec2, prec3, prec4, prec5}
+)
 
 // 0 for prec1... -1 if no match.
 func lowestMatch(op string) int {
@@ -869,7 +872,7 @@ func chopRight(in string) (left string, tok rune, right string) {
 		panic("input doesn't start with brace: " + in)
 	}
 	ss := newScanner(in)
-	var lastOut = 0 // last position where out.
+	lastOut := 0 // last position where out.
 	for !ss.advance() {
 		if ss.out() {
 			lastOut = ss.idx

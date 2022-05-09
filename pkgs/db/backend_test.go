@@ -67,12 +67,10 @@ func withDB(t *testing.T, creator dbCreator, fn func(DB)) {
 }
 
 func TestBackendsNilKeys(t *testing.T) {
-
 	// Test all backends.
 	for dbType, creator := range backends {
 		withDB(t, creator, func(db DB) {
 			t.Run(fmt.Sprintf("Testing %s", dbType), func(t *testing.T) {
-
 				// Nil keys are treated as the empty key for most operations.
 				expect := func(key, value []byte) {
 					if len(key) == 0 { // nil or empty
@@ -216,7 +214,6 @@ func testDBIterator(t *testing.T, backend BackendType) {
 		[]int64{3, 2}, "reverse iterator from 4 (ex) to 2")
 	verifyIterator(t, db.ReverseIterator(int642Bytes(4), int642Bytes(2)),
 		[]int64(nil), "reverse iterator from 2 (ex) to 4")
-
 }
 
 func verifyIterator(t *testing.T, itr Iterator, expected []int64, msg string) {

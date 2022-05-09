@@ -341,8 +341,8 @@ func handlerStaticFile(app gotuna.App) http.Handler {
 		}
 
 		// TODO: ModTime doesn't work for embed?
-		//w.Header().Set("ETag", fmt.Sprintf("%x", stat.ModTime().UnixNano()))
-		//w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%s", "31536000"))
+		// w.Header().Set("ETag", fmt.Sprintf("%x", stat.ModTime().UnixNano()))
+		// w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%s", "31536000"))
 		fileapp.ServeHTTP(w, r)
 	})
 }

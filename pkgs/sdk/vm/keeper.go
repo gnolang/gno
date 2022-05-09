@@ -169,7 +169,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	mpv := mpn.NewPackage()
 	// Parse expression.
 	argslist := ""
-	for i, _ := range msg.Args {
+	for i := range msg.Args {
 		if i > 0 {
 			argslist += ","
 		}

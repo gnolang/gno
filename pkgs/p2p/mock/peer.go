@@ -58,6 +58,7 @@ func (mp *Peer) Get(key string) interface{} {
 	}
 	return nil
 }
+
 func (mp *Peer) Set(key string, value interface{}) {
 	mp.kv[key] = value
 }

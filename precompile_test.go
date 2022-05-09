@@ -12,7 +12,7 @@ import (
 )
 
 func TestPrecompile(t *testing.T) {
-	var cases = []struct {
+	cases := []struct {
 		name                      string
 		source                    string
 		expectedOutput            string

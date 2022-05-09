@@ -51,7 +51,6 @@ func deepCopy(src, dst reflect.Value) {
 }
 
 func _deepCopy(src, dst reflect.Value) {
-
 	switch src.Kind() {
 	case reflect.Ptr:
 		cpy := reflect.New(src.Type().Elem())
@@ -153,7 +152,6 @@ func _deepCopy(src, dst reflect.Value) {
 	default:
 		panic(fmt.Sprintf("unsupported type %v", src.Kind()))
 	}
-
 }
 
 //----------------------------------------

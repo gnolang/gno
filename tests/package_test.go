@@ -3,16 +3,15 @@ package tests
 import (
 	"bytes"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
-	"sort"
-
-	//"go/build"
-
-	"io/fs"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
+
+	//"go/build"
 
 	"github.com/gnolang/gno"
 )

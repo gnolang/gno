@@ -18,11 +18,9 @@ const (
 	MaxBlockPartsCount = (MaxBlockSizeBytes / BlockPartSizeBytes) + 1
 )
 
-var (
-	validatorPubKeyTypeURLs = map[string]struct{}{
-		amino.GetTypeURL(ed25519.PubKeyEd25519{}): struct{}{},
-	}
-)
+var validatorPubKeyTypeURLs = map[string]struct{}{
+	amino.GetTypeURL(ed25519.PubKeyEd25519{}): {},
+}
 
 func DefaultConsensusParams() abci.ConsensusParams {
 	return abci.ConsensusParams{

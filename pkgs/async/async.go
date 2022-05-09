@@ -66,7 +66,7 @@ func (trs *TaskResultSet) LatestResult(index int) (TaskResult, bool) {
 // Writes results to trs.results without waiting for all tasks to complete.
 func (trs *TaskResultSet) Reap() *TaskResultSet {
 	for i := 0; i < len(trs.results); i++ {
-		var trch = trs.chz[i]
+		trch := trs.chz[i]
 		select {
 		case result, ok := <-trch:
 			if ok {
@@ -90,7 +90,7 @@ func (trs *TaskResultSet) Reap() *TaskResultSet {
 // Like Reap() but waits until all tasks have returned or panic'd.
 func (trs *TaskResultSet) Wait() *TaskResultSet {
 	for i := 0; i < len(trs.results); i++ {
-		var trch = trs.chz[i]
+		trch := trs.chz[i]
 		result, ok := <-trch
 		if ok {
 			// Write result.
@@ -137,16 +137,16 @@ func (trs *TaskResultSet) FirstError() error {
 // concurrent quit-like primitives, passed implicitly via Task closures. (e.g.
 // it's not Parallel's concern how you quit/abort your tasks).
 func Parallel(tasks ...Task) (trs *TaskResultSet, ok bool) {
-	var taskResultChz = make([]TaskResultCh, len(tasks)) // To return.
-	var taskDoneCh = make(chan bool, len(tasks))         // A "wait group" channel, early abort if any true received.
-	var numPanics = new(int32)                           // Keep track of panics to set ok=false later.
-	ok = true                                            // We will set it to false iff any tasks panic'd or returned abort.
+	taskResultChz := make([]TaskResultCh, len(tasks)) // To return.
+	taskDoneCh := make(chan bool, len(tasks))         // A "wait group" channel, early abort if any true received.
+	numPanics := new(int32)                           // Keep track of panics to set ok=false later.
+	ok = true                                         // We will set it to false iff any tasks panic'd or returned abort.
 
 	// Start all tasks in parallel in separate goroutines.
 	// When the task is complete, it will appear in the
 	// respective taskResultCh (associated by task index).
 	for i, task := range tasks {
-		var taskResultCh = make(chan TaskResult, 1) // Capacity for 1 result.
+		taskResultCh := make(chan TaskResult, 1) // Capacity for 1 result.
 		taskResultChz[i] = taskResultCh
 		go func(i int, task Task, taskResultCh chan TaskResult) {
 			// Recovery
@@ -162,7 +162,7 @@ func Parallel(tasks ...Task) (trs *TaskResultSet, ok bool) {
 				}
 			}()
 			// Run the task.
-			var val, err, abort = task(i)
+			val, err, abort := task(i)
 			// Send val/err to taskResultCh.
 			// NOTE: Below this line, nothing must panic/
 			taskResultCh <- TaskResult{val, err}

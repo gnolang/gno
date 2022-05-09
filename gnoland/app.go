@@ -55,14 +55,14 @@ func NewApp(rootDir string, logger log.Logger) (abci.Application, error) {
 	baseApp.SetAnteHandler(
 		// Override default AnteHandler with custom logic.
 		func(ctx sdk.Context, tx std.Tx, simulate bool) (
-			newCtx sdk.Context, res sdk.Result, abort bool) {
+			newCtx sdk.Context, res sdk.Result, abort bool,
+		) {
 			// Override auth params.
 			ctx = ctx.WithValue(
 				auth.AuthParamsContextKey{}, auth.DefaultParams())
 			// Continue on with default auth ante handler.
 			newCtx, res, abort = authAnteHandler(ctx, tx, simulate)
 			return
-
 		},
 	)
 

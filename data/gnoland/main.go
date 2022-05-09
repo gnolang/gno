@@ -2,9 +2,11 @@ package main
 
 var root Node
 
-type Node interface{}
-type Key interface{}
-type Value interface{}
+type (
+	Node  interface{}
+	Key   interface{}
+	Value interface{}
+)
 
 type InnerNode struct {
 	Key   Key

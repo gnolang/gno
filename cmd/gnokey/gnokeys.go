@@ -32,15 +32,21 @@ func main() {
 }
 
 var makeTxApps client.AppList = []client.AppItem{
-	{makeAddPackageTxApp,
+	{
+		makeAddPackageTxApp,
 		"addpkg", "upload new package",
-		defaultMakeAddPackageTxOptions},
-	{makeCallTxApp,
+		defaultMakeAddPackageTxOptions,
+	},
+	{
+		makeCallTxApp,
 		"call", "call public function",
-		defaultMakeCallTxOptions},
-	{makeSendTxApp,
+		defaultMakeCallTxOptions,
+	},
+	{
+		makeSendTxApp,
 		"send", "send coins",
-		defaultMakeSendTxOptions},
+		defaultMakeSendTxOptions,
+	},
 }
 
 func makeTxApp(cmd *command.Command, args []string, iopts interface{}) error {

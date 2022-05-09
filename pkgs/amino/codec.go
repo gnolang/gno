@@ -27,8 +27,7 @@ type TypeInfo struct {
 	StructInfo
 }
 
-type InterfaceInfo struct {
-}
+type InterfaceInfo struct{}
 
 type ConcreteInfo struct {
 	Registered            bool      // Registered with Register*().
@@ -269,7 +268,7 @@ func (cdc *Codec) registerType(pkg *Package, rt reflect.Type, typeURL string, po
 	}
 
 	// Construct TypeInfo if one doesn't already exist.
-	var info, ok = cdc.typeInfos[rt]
+	info, ok := cdc.typeInfos[rt]
 	if ok {
 		if info.Registered {
 			// If idempotent operation, ignore silenty.
@@ -431,7 +430,6 @@ func (cdc *Codec) doAutoseal() {
 // CONTRACT: info.Type is set
 // CONTRACT: if info.Registered, info.TypeURL is set
 func (cdc *Codec) registerTypeInfoWLocked(info *TypeInfo, primary bool) {
-
 	if info.Type.Kind() == reflect.Ptr {
 		panic(fmt.Sprintf("unexpected pointer type"))
 	}
@@ -589,7 +587,7 @@ func (cdc *Codec) newTypeInfoUnregisteredWLocked(rt reflect.Type) *TypeInfo {
 	// recursion if two structs reference each other in declaration.
 	// TODO: can protobuf support this? If not, we would still want to, but
 	// restrict what can be compiled to protobuf, or something.
-	var info = new(TypeInfo)
+	info := new(TypeInfo)
 	if _, exists := cdc.typeInfos[rt]; exists {
 		panic("should not happen, instance already exists")
 	}
@@ -671,10 +669,10 @@ func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 		panic("should not happen")
 	}
 
-	var infos = make([]FieldInfo, 0, rt.NumField())
+	infos := make([]FieldInfo, 0, rt.NumField())
 	for i := 0; i < rt.NumField(); i++ {
-		var field = rt.Field(i)
-		var ftype = field.Type
+		field := rt.Field(i)
+		ftype := field.Type
 		if !isExported(field) {
 			continue // field is unexported
 		}
@@ -689,8 +687,8 @@ func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 		if err != nil {
 			panic(err)
 		}
-		var frepr = fieldTypeInfo.ReprType.Type
-		var unpackedList = false
+		frepr := fieldTypeInfo.ReprType.Type
+		unpackedList := false
 		if frepr.Kind() == reflect.Array || frepr.Kind() == reflect.Slice {
 			if frepr.Elem().Kind() == reflect.Uint8 {
 				// These get handled by our optimized methods,

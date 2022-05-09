@@ -27,7 +27,6 @@ type StructB struct {
 }
 
 func main() {
-
 	packages := []*amino.Package{
 		Package,
 		submodule.Package,

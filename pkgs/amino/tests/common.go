@@ -9,8 +9,7 @@ import (
 //----------------------------------------
 // Struct types
 
-type EmptyStruct struct {
-}
+type EmptyStruct struct{}
 
 type PrimitivesStruct struct {
 	Int8        int8

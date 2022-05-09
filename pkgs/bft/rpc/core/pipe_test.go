@@ -8,7 +8,6 @@ import (
 )
 
 func TestPaginationPage(t *testing.T) {
-
 	cases := []struct {
 		totalCount int
 		perPage    int
@@ -49,7 +48,6 @@ func TestPaginationPage(t *testing.T) {
 
 		assert.Equal(t, c.newPage, p, fmt.Sprintf("%v", c))
 	}
-
 }
 
 func TestPaginationPerPage(t *testing.T) {

@@ -20,7 +20,7 @@ func main() {
 		multisig.Package,
 		merkle.Package,
 		abci.Package,
-		//types.Package,
+		// types.Package,
 	}
 	for _, pkg := range pkgs {
 		genproto.WriteProto3Schema(pkg)

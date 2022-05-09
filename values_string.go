@@ -258,7 +258,7 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 		return tv.V.(*PackageValue).String()
 	case *ChanType:
 		panic("not yet implemented")
-		//return tv.V.(*ChanValue).String()
+		// return tv.V.(*ChanValue).String()
 	case *NativeType:
 		return fmt.Sprintf("%v",
 			tv.V.(*NativeValue).Value.Interface())

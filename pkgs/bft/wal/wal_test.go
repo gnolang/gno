@@ -71,7 +71,6 @@ func TestWALWriterReader(t *testing.T) {
 const maxTestMsgSize int64 = 64 * 1024
 
 func makeTempWAL(name string, maxMsgSize int64, walChunkSize int64) (wal *baseWAL, cleanup func()) {
-
 	// Create WAL file.
 	walDir, err := ioutil.TempDir("", "wal_"+name)
 	if err != nil {
@@ -102,10 +101,9 @@ func makeTempWAL(name string, maxMsgSize int64, walChunkSize int64) (wal *baseWA
 }
 
 func TestWALWrite(t *testing.T) {
-
 	// Create WAL
 	const walChunkSize = 100000
-	var wal, cleanup = makeTempWAL("TestWALWrite", maxTestMsgSize, walChunkSize)
+	wal, cleanup := makeTempWAL("TestWALWrite", maxTestMsgSize, walChunkSize)
 	defer cleanup()
 
 	// 1) Write returns an error if msg is too big
@@ -127,14 +125,13 @@ func TestWALWrite(t *testing.T) {
 }
 
 func TestWALSearchForHeight(t *testing.T) {
-
 	// Create WAL
 	const numHeight, numRounds, dataSize = 100, 10000, 10
 	const walChunkSize = 100000
 	if numHeight*numRounds*dataSize < walChunkSize*3 {
 		panic("invalid walChunkSize, it should be an order of magnitude or more smaller than the product")
 	}
-	var wal, cleanup = makeTempWAL("TestWALSearchForHeight", maxTestMsgSize, walChunkSize)
+	wal, cleanup := makeTempWAL("TestWALSearchForHeight", maxTestMsgSize, walChunkSize)
 	defer cleanup()
 
 	// Generate WAL messages.
@@ -171,7 +168,6 @@ func TestWALSearchForHeight(t *testing.T) {
 }
 
 func TestWALPeriodicSync(t *testing.T) {
-
 	// Create WAL
 	const numHeight, numRounds, dataSize = 100, 10000, 10
 	const walChunkSize = 100000
@@ -179,7 +175,7 @@ func TestWALPeriodicSync(t *testing.T) {
 	if numHeight*numRounds*dataSize < walChunkSize {
 		panic("invalid walChunkSize, it should be an order of magnitude or more smaller than the product")
 	}
-	var wal, cleanup = makeTempWAL("TestWALPeriodSync", maxTestMsgSize, walChunkSize)
+	wal, cleanup := makeTempWAL("TestWALPeriodSync", maxTestMsgSize, walChunkSize)
 	defer cleanup()
 
 	// Is this needed?
@@ -271,18 +267,23 @@ func BenchmarkWalRead512B(b *testing.B) {
 func BenchmarkWalRead10KB(b *testing.B) {
 	benchmarkWalRead(b, 10*1024)
 }
+
 func BenchmarkWalRead100KB(b *testing.B) {
 	benchmarkWalRead(b, 100*1024)
 }
+
 func BenchmarkWalRead1MB(b *testing.B) {
 	benchmarkWalRead(b, 1024*1024)
 }
+
 func BenchmarkWalRead10MB(b *testing.B) {
 	benchmarkWalRead(b, 10*1024*1024)
 }
+
 func BenchmarkWalRead100MB(b *testing.B) {
 	benchmarkWalRead(b, 100*1024*1024)
 }
+
 func BenchmarkWalRead1GB(b *testing.B) {
 	benchmarkWalRead(b, 1024*1024*1024)
 }

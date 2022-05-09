@@ -2,7 +2,6 @@ package txindex
 
 // TxIndexer interface defines methods to index and search transactions.
 type TxIndexer interface {
-
 	/*
 		// AddBatch analyzes, indexes and stores a batch of transactions.
 		AddBatch(b *Batch) error

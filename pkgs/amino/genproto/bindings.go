@@ -21,7 +21,6 @@ import (
 // mappers to and from pb messages.  The purpose of this is to let Amino
 // use already-optimized probuf logic for serialization.
 func GenerateProtoBindingsForTypes(pkg *amino.Package, rtz ...reflect.Type) (file *ast.File, err error) {
-
 	// for TypeInfos.
 	cdc := amino.NewCodec()
 	cdc.RegisterPackage(pkg)
@@ -33,8 +32,8 @@ func GenerateProtoBindingsForTypes(pkg *amino.Package, rtz ...reflect.Type) (fil
 	}
 
 	// Generate Imports
-	var scope = ast.NewScope(nil)
-	var imports = _imports(
+	scope := ast.NewScope(nil)
+	imports := _imports(
 		"proto", "google.golang.org/protobuf/proto",
 		"amino", "github.com/gnolang/gno/pkgs/amino")
 	addImportAuto(imports, scope, pkg.GoPkgName+"pb", pkg.P3GoPkgPath)
@@ -73,7 +72,7 @@ func WriteProtoBindings(pkg *amino.Package) {
 
 func WriteProtoBindingsForTypes(filename string, pkg *amino.Package, rtz ...reflect.Type) (err error) {
 	var buf bytes.Buffer
-	var fset = token.NewFileSet()
+	fset := token.NewFileSet()
 	var file *ast.File
 	file, err = GenerateProtoBindingsForTypes(pkg, rtz...)
 	if err != nil {
@@ -83,7 +82,7 @@ func WriteProtoBindingsForTypes(filename string, pkg *amino.Package, rtz ...refl
 	if err != nil {
 		return
 	}
-	err = ioutil.WriteFile(filename, buf.Bytes(), 0644)
+	err = ioutil.WriteFile(filename, buf.Bytes(), 0o644)
 	if err != nil {
 		return
 	}
@@ -207,6 +206,7 @@ func generateMethodsForType(imports *ast.GenDecl, scope *ast.Scope, pkg *amino.P
 // These don't have ToPBMessage functions.
 // TODO make this a property of the package?
 var noBindings = struct{}{}
+
 var noBindingsPkgs = map[string]struct{}{
 	"":     noBindings,
 	"time": noBindings,
@@ -235,7 +235,6 @@ func hasPBBindings(info *amino.TypeInfo) bool {
 // CONTRACT: for arrays and lists, memory must be allocated beforehand, but new
 // instances are created within this function.
 func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope *ast.Scope, pbo ast.Expr, goo ast.Expr, gooIsPtr bool, gooType *amino.TypeInfo, fopts amino.FieldOptions, options uint64) (b []ast.Stmt) {
-
 	const (
 		option_bytes         = 0x01 // if goo's repr is uint8 as an element of bytes.
 		option_implicit_list = 0x02 // if goo is a repeated list & also an element.
@@ -287,7 +286,7 @@ func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 	// NOTE: Instead of writing code to determine the .Value type,
 	// just lazily construct before assigning to pbo.
 	var wrapImplicitStruct bool
-	var maybeWrap = func(goor ast.Expr) ast.Expr {
+	maybeWrap := func(goor ast.Expr) ast.Expr {
 		if wrapImplicitStruct {
 			pbote_ := p3goTypeExprString(rootPkg, imports, scope, gooType, fopts)
 			if pbote_[0] != '*' {
@@ -455,13 +454,13 @@ func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 
 	case reflect.Array, reflect.Slice:
 		var newoptions uint64
-		var gooreIsPtr = goorType.ElemIsPtr
-		var gooreType = goorType.Elem
+		gooreIsPtr := goorType.ElemIsPtr
+		gooreType := goorType.Elem
 		var dpbote_ string
-		var pboIsImplicit = isImplicitList(goorType, fopts)
-		var pboeIsImplicit = isImplicitList(gooreType, fopts)
-		var pbote_ = p3goTypeExprString(rootPkg, imports, scope, gooType, fopts)
-		var pboete_ = p3goTypeExprString(rootPkg, imports, scope, gooreType, fopts)
+		pboIsImplicit := isImplicitList(goorType, fopts)
+		pboeIsImplicit := isImplicitList(gooreType, fopts)
+		pbote_ := p3goTypeExprString(rootPkg, imports, scope, gooType, fopts)
+		pboete_ := p3goTypeExprString(rootPkg, imports, scope, gooreType, fopts)
 
 		if gooreType.ReprType.Type.Kind() == reflect.Uint8 {
 			// Special bytes optimization for recursive case.
@@ -523,10 +522,10 @@ func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 			_a(pbo, "=", _x("new~(~%v~)", dpbote_)))
 
 		for _, field := range goorType.Fields {
-			var goorfIsPtr = field.IsPtr()
-			var goorfType = field.TypeInfo.ReprType
-			var goorf = _sel(goor, field.Name) // next goo
-			var pbof = _sel(pbo, field.Name)   // next pbo
+			goorfIsPtr := field.IsPtr()
+			goorfType := field.TypeInfo.ReprType
+			goorf := _sel(goor, field.Name) // next goo
+			pbof := _sel(pbo, field.Name)   // next pbo
 
 			// Translate in place.
 			scope2 := ast.NewScope(scope)
@@ -555,7 +554,6 @@ func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 // CONTRACT: for arrays and lists, memory must be allocated beforehand, but new
 // instances are created within this function.
 func pb2goStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope *ast.Scope, goo ast.Expr, gooIsPtr bool, gooType *amino.TypeInfo, pbo ast.Expr, fopts amino.FieldOptions, options uint64) (b []ast.Stmt) {
-
 	const (
 		option_bytes = 0x01 // if goo's repr is uint8 as an element of bytes.
 		// option_implicit_list = 0x02 // if goo is a repeated list & also an element.
@@ -612,7 +610,7 @@ func pb2goStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 
 	// Maybe unwrap pbo.
 	var unwrapImplicitStruct bool
-	var maybeUnwrap = func(pbo ast.Expr) ast.Expr {
+	maybeUnwrap := func(pbo ast.Expr) ast.Expr {
 		if unwrapImplicitStruct {
 			return _sel(pbo, "Value")
 		} else {
@@ -729,11 +727,11 @@ func pb2goStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 
 	case reflect.Array:
 		var newoptions uint64
-		var goorLen = goorType.Type.Len()
-		var gooreType = goorType.Elem
-		var gooreIsPtr = goorType.ElemIsPtr
-		var goorete_ = goTypeExprString(rootPkg, imports, scope, gooreIsPtr, gooreType)
-		var pboeIsImplicit = isImplicitList(gooreType, fopts)
+		goorLen := goorType.Type.Len()
+		gooreType := goorType.Elem
+		gooreIsPtr := goorType.ElemIsPtr
+		goorete_ := goTypeExprString(rootPkg, imports, scope, gooreIsPtr, gooreType)
+		pboeIsImplicit := isImplicitList(gooreType, fopts)
 
 		// Special bytes optimization for recursive case.
 		if gooreType.ReprType.Type.Kind() == reflect.Uint8 {
@@ -757,11 +755,13 @@ func pb2goStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 					_ctif(pboeIsImplicit,
 						_if(_x("pboe__!=__nil"),
 							_block(append([]ast.Stmt{
-								_a("pboev", ":=", "pboe.Value")},
+								_a("pboev", ":=", "pboe.Value"),
+							},
 								subStmts...)...),
 						),
 						_block(append([]ast.Stmt{
-							_a("pboev", ":=", "pboe")},
+							_a("pboev", ":=", "pboe"),
+						},
 							subStmts...)...),
 					),
 				),
@@ -771,10 +771,10 @@ func pb2goStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 
 	case reflect.Slice:
 		var newoptions uint64
-		var gooreType = goorType.Elem
-		var gooreIsPtr = goorType.ElemIsPtr
-		var goorete_ = goTypeExprString(rootPkg, imports, scope, gooreIsPtr, gooreType)
-		var pboeIsImplicit = isImplicitList(gooreType, fopts)
+		gooreType := goorType.Elem
+		gooreIsPtr := goorType.ElemIsPtr
+		goorete_ := goTypeExprString(rootPkg, imports, scope, gooreIsPtr, gooreType)
+		pboeIsImplicit := isImplicitList(gooreType, fopts)
 
 		// Special bytes optimization for recursive case.
 		if gooreType.ReprType.Type.Kind() == reflect.Uint8 {
@@ -809,10 +809,12 @@ func pb2goStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 							_ctif(pboeIsImplicit,
 								_if(_x("pboe__!=__nil"),
 									_block(append([]ast.Stmt{
-										_a("pboev", ":=", "pboe.Value")},
+										_a("pboev", ":=", "pboe.Value"),
+									},
 										subStmts...)...)),
 								_block(append([]ast.Stmt{
-									_a("pboev", ":=", "pboe")},
+									_a("pboev", ":=", "pboe"),
+								},
 									subStmts...)...),
 							),
 						),
@@ -824,10 +826,10 @@ func pb2goStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 
 	case reflect.Struct:
 		for _, field := range goorType.Fields {
-			var pbof = _sel(pbo, field.Name) // next pbo.
-			var goorfIsPtr = field.IsPtr()
-			var goorfType = field.TypeInfo
-			var goorf = _sel(goor, field.Name) // next goor.
+			pbof := _sel(pbo, field.Name) // next pbo.
+			goorfIsPtr := field.IsPtr()
+			goorfType := field.TypeInfo
+			goorf := _sel(goor, field.Name) // next goor.
 
 			// Translate in place.
 			scope2 := ast.NewScope(scope)
@@ -844,7 +846,6 @@ func pb2goStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 }
 
 func isReprEmptyStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope *ast.Scope, goo ast.Expr, gooIsPtr bool, gooType *amino.TypeInfo) (b []ast.Stmt) {
-
 	// Special case if non-nil struct-pointer.
 	// TODO: this could be precompiled and optimized (when !isRoot).
 	if gooIsPtr && gooType.ReprType.Type.Kind() == reflect.Struct {
@@ -862,7 +863,6 @@ func isReprEmptyStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl,
 				b...,
 			)}
 		}(goo)
-
 	}
 	// Below, we can assume that goo isn't nil.
 	// NOTE: just because it's not nil doesn't mean it's empty, specifically
@@ -949,9 +949,9 @@ func isReprEmptyStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl,
 			return
 		default:
 			for _, field := range goorType.Fields {
-				var goorf = _sel(goor, field.Name) // next goo
-				var goorfIsPtr = field.IsPtr()
-				var goorfType = field.TypeInfo.ReprType
+				goorf := _sel(goor, field.Name) // next goo
+				goorfIsPtr := field.IsPtr()
+				goorfType := field.TypeInfo.ReprType
 
 				// Translate in place.
 				scope2 := ast.NewScope(scope)
@@ -1228,8 +1228,8 @@ func _x(expr string, args ...interface{}) ast.Expr {
 				}
 			}
 
-			var fn = _x(left)
-			var args = []ast.Expr{}
+			fn := _x(left)
+			args := []ast.Expr{}
 			parts := strings.Split(right, ",")
 			for _, part := range parts {
 				// NOTE: repeated commas have no effect,
@@ -1244,8 +1244,8 @@ func _x(expr string, args ...interface{}) ast.Expr {
 			}
 		case '}':
 			left, _, right := chopRight(expr)
-			var ty = _x(left)
-			var elts = []ast.Expr{}
+			ty := _x(left)
+			elts := []ast.Expr{}
 			parts := strings.Split(right, ",")
 			for _, part := range parts {
 				if strings.TrimSpace(part) != "" {
@@ -1349,12 +1349,15 @@ func _x(expr string, args ...interface{}) ast.Expr {
 //     2             &&
 //     1             ||
 var sp = " "
-var prec5 = strings.Split("*  /  %  <<  >>  &  &^", sp)
-var prec4 = strings.Split("+ - | ^", sp)
-var prec3 = strings.Split("== != < <= > >=", sp)
-var prec2 = strings.Split("&&", sp)
-var prec1 = strings.Split("||", sp)
-var precs = [][]string{prec1, prec2, prec3, prec4, prec5}
+
+var (
+	prec5 = strings.Split("*  /  %  <<  >>  &  &^", sp)
+	prec4 = strings.Split("+ - | ^", sp)
+	prec3 = strings.Split("== != < <= > >=", sp)
+	prec2 = strings.Split("&&", sp)
+	prec1 = strings.Split("||", sp)
+	precs = [][]string{prec1, prec2, prec3, prec4, prec5}
+)
 
 // 0 for prec1... -1 if no match.
 func lowestMatch(op string) int {

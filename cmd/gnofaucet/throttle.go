@@ -12,8 +12,8 @@ type SubnetThrottler struct {
 	service.BaseService
 	ticker   *time.Ticker
 	subnets3 [2 << (8 * 3)]uint8
-	//subnets2 [2 << (8 * 2)]uint8
-	//subnets1 [2 << (8 * 1)]uint8
+	// subnets2 [2 << (8 * 2)]uint8
+	// subnets1 [2 << (8 * 1)]uint8
 }
 
 func NewSubnetThrottler() *SubnetThrottler {
@@ -61,5 +61,4 @@ func (st *SubnetThrottler) Request(ip net.IP) bool {
 		st.subnets3[bucket3] += 1
 	}
 	return true
-
 }

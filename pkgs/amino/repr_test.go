@@ -47,20 +47,21 @@ func (f *Foo) UnmarshalAmino(repr []pair) error {
 	return nil
 }
 
-var gopkg = reflect.TypeOf(Foo{}).PkgPath()
-var testPackage = pkg.NewPackage(gopkg, "tests", "").
-	WithDependencies().
-	WithTypes(FooList(nil))
+var (
+	gopkg       = reflect.TypeOf(Foo{}).PkgPath()
+	testPackage = pkg.NewPackage(gopkg, "tests", "").
+			WithDependencies().
+			WithTypes(FooList(nil))
+)
 
 func TestMarshalAminoBinary(t *testing.T) {
-
 	cdc := NewCodec()
 	cdc.RegisterPackage(testPackage)
 
-	var f = Foo{
+	f := Foo{
 		a: "K",
 		b: 2,
-		c: []*Foo{&Foo{}, &Foo{}, &Foo{}},
+		c: []*Foo{{}, {}, {}},
 		D: "J",
 	}
 	bz, err := cdc.MarshalSized(f)
@@ -77,11 +78,10 @@ func TestMarshalAminoBinary(t *testing.T) {
 }
 
 func TestMarshalAminoJSON(t *testing.T) {
-
 	cdc := NewCodec()
 	cdc.RegisterPackage(testPackage)
 
-	var f = Foo{
+	f := Foo{
 		a: "K",
 		b: 2,
 		c: []*Foo{nil, nil, nil},

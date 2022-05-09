@@ -12,7 +12,7 @@ import (
 )
 
 // DefaultDirPerm is the default permissions used when creating directories.
-const DefaultDirPerm = 0700
+const DefaultDirPerm = 0o700
 
 var configTemplate *template.Template
 
@@ -46,7 +46,7 @@ func WriteConfigFile(configFilePath string, config *Config) {
 		panic(err)
 	}
 
-	osm.MustWriteFile(configFilePath, buffer.Bytes(), 0644)
+	osm.MustWriteFile(configFilePath, buffer.Bytes(), 0o644)
 }
 
 // Note: any changes to the comments/variables/field-names
@@ -324,11 +324,11 @@ func ResetTestRootWithChainID(testName string, chainID string) *Config {
 			chainID = "tendermint_test"
 		}
 		testGenesis := fmt.Sprintf(testGenesisFmt, chainID)
-		osm.MustWriteFile(genesisFilePath, []byte(testGenesis), 0644)
+		osm.MustWriteFile(genesisFilePath, []byte(testGenesis), 0o644)
 	}
 	// we always overwrite the priv val
-	osm.MustWriteFile(privKeyFilePath, []byte(testPrivValidatorKey), 0644)
-	osm.MustWriteFile(privStateFilePath, []byte(testPrivValidatorState), 0644)
+	osm.MustWriteFile(privKeyFilePath, []byte(testPrivValidatorKey), 0o644)
+	osm.MustWriteFile(privStateFilePath, []byte(testPrivValidatorState), 0o644)
 
 	config := TestConfig().SetRootDir(rootDir)
 	return config

@@ -30,13 +30,15 @@ func (mempkg *MemPackage) GetFile(name string) *MemFile {
 	return nil
 }
 
-const reDomainPart = `gno\.land`
-const rePathPart = `[a-z][a-z0-9_]*`
-const rePkgName = `^[a-z][a-z0-9_]*$`
-const rePkgPath = reDomainPart + `/p/` + rePathPart + `(/` + rePathPart + `)*`
-const reRlmPath = reDomainPart + `/r/` + rePathPart
-const rePkgOrRlmPath = `^(` + rePkgPath + `|` + reRlmPath + `)$`
-const reFileName = `^[a-zA-Z0-9_]*\.[a-z0-9_\.]*$`
+const (
+	reDomainPart   = `gno\.land`
+	rePathPart     = `[a-z][a-z0-9_]*`
+	rePkgName      = `^[a-z][a-z0-9_]*$`
+	rePkgPath      = reDomainPart + `/p/` + rePathPart + `(/` + rePathPart + `)*`
+	reRlmPath      = reDomainPart + `/r/` + rePathPart
+	rePkgOrRlmPath = `^(` + rePkgPath + `|` + reRlmPath + `)$`
+	reFileName     = `^[a-zA-Z0-9_]*\.[a-z0-9_\.]*$`
+)
 
 // path must not contain any dots after the first domain component.
 // file names must contain dots.

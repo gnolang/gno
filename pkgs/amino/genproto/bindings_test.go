@@ -2,10 +2,9 @@ package genproto
 
 import (
 	"bytes"
-	"testing"
-
 	"go/printer"
 	"go/token"
+	"testing"
 
 	"github.com/gnolang/gno/pkgs/amino/tests"
 	"github.com/jaekwon/testify/assert"
@@ -21,7 +20,7 @@ func TestGenerateProtoBindings(t *testing.T) {
 	// about the original source formatting and can add additional
 	// line breaks where they were present in the source.
 	var buf bytes.Buffer
-	var fset = token.NewFileSet()
+	fset := token.NewFileSet()
 	printer.Fprint(&buf, fset, file)
 	t.Log(buf.String())
 }

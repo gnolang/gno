@@ -2,13 +2,12 @@ package conn
 
 import (
 	"bufio"
-	"runtime/debug"
-
 	"fmt"
 	"io"
 	"math"
 	"net"
 	"reflect"
+	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -45,8 +44,10 @@ const (
 	defaultPongTimeout         = 45 * time.Second
 )
 
-type receiveCbFunc func(chID byte, msgBytes []byte)
-type errorCbFunc func(interface{})
+type (
+	receiveCbFunc func(chID byte, msgBytes []byte)
+	errorCbFunc   func(interface{})
+)
 
 /*
 Each peer has one `MConnection` (multiplex connection) instance.
@@ -175,8 +176,8 @@ func NewMConnectionWithConfig(conn net.Conn, chDescs []*ChannelDescriptor, onRec
 	}
 
 	// Create channels
-	var channelsIdx = map[byte]*Channel{}
-	var channels = []*Channel{}
+	channelsIdx := map[byte]*Channel{}
+	channels := []*Channel{}
 
 	for _, desc := range chDescs {
 		channel := newChannel(mconn, *desc)
@@ -820,7 +821,7 @@ func (ch *Channel) nextPacketMsg() PacketMsg {
 // Writes next PacketMsg to w and updates c.recentlySent.
 // Not goroutine-safe
 func (ch *Channel) writePacketMsgTo(w io.Writer) (n int64, err error) {
-	var packet = ch.nextPacketMsg()
+	packet := ch.nextPacketMsg()
 	n, err = amino.MarshalAnySizedWriter(w, packet)
 	atomic.AddInt64(&ch.recentlySent, n)
 	return
@@ -831,7 +832,7 @@ func (ch *Channel) writePacketMsgTo(w io.Writer) (n int64, err error) {
 // Not goroutine-safe
 func (ch *Channel) recvPacketMsg(packet PacketMsg) ([]byte, error) {
 	ch.Logger.Debug("Read PacketMsg", "conn", ch.conn, "packet", packet)
-	var recvCap, recvReceived = ch.desc.RecvMessageCapacity, len(ch.recving) + len(packet.Bytes)
+	recvCap, recvReceived := ch.desc.RecvMessageCapacity, len(ch.recving)+len(packet.Bytes)
 	if recvCap < recvReceived {
 		return nil, fmt.Errorf("Received message exceeds available capacity: %v < %v", recvCap, recvReceived)
 	}
@@ -868,11 +869,9 @@ func (_ PacketPing) AssertPacket() {}
 func (_ PacketPong) AssertPacket() {}
 func (_ PacketMsg) AssertPacket()  {}
 
-type PacketPing struct {
-}
+type PacketPing struct{}
 
-type PacketPong struct {
-}
+type PacketPong struct{}
 
 type PacketMsg struct {
 	ChannelID byte

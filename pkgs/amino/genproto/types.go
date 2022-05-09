@@ -88,9 +88,7 @@ func NewP3MessageType(pkg string, name string) P3MessageType {
 	return P3MessageType{PackageName: pkg, Name: name}
 }
 
-var (
-	P3AnyType P3MessageType = NewP3MessageType("google.protobuf", "Any")
-)
+var P3AnyType P3MessageType = NewP3MessageType("google.protobuf", "Any")
 
 // May be empty if it isn't set (for locally declared messages).
 func (p3mt P3MessageType) GetPackageName() string {
@@ -320,7 +318,7 @@ func (nl NList) Name() string {
 	}
 	var prefix string
 	var ename string
-	var listSfx = strings.Repeat("List", nl.Dimensions)
+	listSfx := strings.Repeat("List", nl.Dimensions)
 
 	ert := nl.UltiElem.ReprType.Type
 	if isListType(ert) {
@@ -448,7 +446,7 @@ func findNLists2(root *amino.Package, list *amino.TypeInfo, fopts amino.FieldOpt
 				// elem is []byte or bytes, and list is []bytes.
 				// no need to look for sublists.
 				return []NList{
-					NList{
+					{
 						Package:      root,
 						Dimensions:   1,
 						UltiElem:     elem,

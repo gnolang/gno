@@ -18,15 +18,16 @@ import (
 	"github.com/gnolang/gno/pkgs/std"
 )
 
-type AppItem = command.AppItem
-type AppList = command.AppList
+type (
+	AppItem = command.AppItem
+	AppList = command.AppList
+)
 
 var mainApps AppList = []AppItem{
 	{serveApp, "serve", "serve faucet", DefaultServeOptions},
 }
 
 func runMain(cmd *command.Command, exec string, args []string) error {
-
 	// show help message.
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" {
 		cmd.Println("available subcommands:")
@@ -46,7 +47,6 @@ func runMain(cmd *command.Command, exec string, args []string) error {
 
 	// unknown app command!
 	return errors.New("unknown command " + args[0])
-
 }
 
 func main() {
@@ -138,8 +138,8 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 	resdata := qres.Response.Data
 	var acc gnoland.GnoAccount
 	amino.MustUnmarshalJSON(resdata, &acc)
-	var accountNumber = acc.BaseAccount.AccountNumber
-	var sequence = acc.BaseAccount.Sequence
+	accountNumber := acc.BaseAccount.AccountNumber
+	sequence := acc.BaseAccount.Sequence
 
 	// Get password for supply account.
 	// Test by signing a dummy message;
@@ -224,7 +224,6 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 }
 
 func sendAmountTo(cmd *command.Command, cli rpcclient.Client, name, pass string, toAddr crypto.Address, accountNumber, sequence uint64, send std.Coins, opts serveOptions) error {
-
 	// Read supply account pubkey.
 	kb, err := keys.NewKeyBaseFromDir(opts.Home)
 	if err != nil {
@@ -259,7 +258,7 @@ func sendAmountTo(cmd *command.Command, cli rpcclient.Client, name, pass string,
 	// fill tx signatures.
 	signers := tx.GetSigners()
 	if tx.Signatures == nil {
-		for _, _ = range signers {
+		for range signers {
 			tx.Signatures = append(tx.Signatures, std.Signature{
 				PubKey:    nil, // zero signature
 				Signature: nil, // zero signature
@@ -281,7 +280,7 @@ func sendAmountTo(cmd *command.Command, cli rpcclient.Client, name, pass string,
 	}
 
 	found := false
-	for i, _ := range tx.Signatures {
+	for i := range tx.Signatures {
 		// override signature for matching slot.
 		if signers[i] == fromAddr {
 			found = true

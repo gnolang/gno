@@ -76,7 +76,6 @@ func NewDummyBankKeeper(acck AccountKeeper) DummyBankKeeper {
 
 // SendCoins for the dummy supply keeper
 func (bank DummyBankKeeper) SendCoins(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error {
-
 	fromAcc := bank.acck.GetAccount(ctx, fromAddr)
 	toAcc := bank.acck.GetAccount(ctx, toAddr)
 	if toAcc == nil {

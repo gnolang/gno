@@ -11,8 +11,10 @@ import (
 	p2pconn "github.com/gnolang/gno/pkgs/p2p/conn"
 )
 
-var remote string
-var listen string
+var (
+	remote string
+	listen string
+)
 
 func init() {
 	flag.StringVar(&listen, "listen", "", "set to :port if server, eg :8080")

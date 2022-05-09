@@ -20,9 +20,7 @@ import (
 	"github.com/gnolang/gno/pkgs/p2p/conn"
 )
 
-var (
-	cfg *config.P2PConfig
-)
+var cfg *config.P2PConfig
 
 func init() {
 	cfg = config.DefaultP2PConfig()
@@ -69,7 +67,7 @@ func (tr *TestReactor) Receive(chID byte, peer Peer, msgBytes []byte) {
 	if tr.logMessages {
 		tr.mtx.Lock()
 		defer tr.mtx.Unlock()
-		//fmt.Printf("Received: %X, %X\n", chID, msgBytes)
+		// fmt.Printf("Received: %X, %X\n", chID, msgBytes)
 		tr.msgsReceived[chID] = append(tr.msgsReceived[chID], PeerMessage{peer.ID(), msgBytes, tr.msgsCounter})
 		tr.msgsCounter++
 	}
@@ -534,9 +532,11 @@ func (et errorTransport) NetAddress() NetAddress {
 func (et errorTransport) Accept(c peerConfig) (Peer, error) {
 	return nil, et.acceptErr
 }
+
 func (errorTransport) Dial(NetAddress, peerConfig) (Peer, error) {
 	panic("not implemented")
 }
+
 func (errorTransport) Cleanup(Peer) {
 	panic("not implemented")
 }

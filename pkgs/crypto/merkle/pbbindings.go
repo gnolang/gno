@@ -23,7 +23,7 @@ func (goo ProofOp) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) 
 			if goorl == 0 {
 				pbo.Key = nil
 			} else {
-				var pbos = make([]uint8, goorl)
+				pbos := make([]uint8, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
 						goore := goo.Key[i]
@@ -40,7 +40,7 @@ func (goo ProofOp) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) 
 			if goorl == 0 {
 				pbo.Data = nil
 			} else {
-				var pbos = make([]uint8, goorl)
+				pbos := make([]uint8, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
 						goore := goo.Data[i]
@@ -56,11 +56,13 @@ func (goo ProofOp) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) 
 	msg = pbo
 	return
 }
+
 func (goo ProofOp) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(merklepb.ProofOp)
 	msg = pbo
 	return
 }
+
 func (goo *ProofOp) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *merklepb.ProofOp = msg.(*merklepb.ProofOp)
 	{
@@ -76,7 +78,7 @@ func (goo *ProofOp) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err erro
 				if pbol == 0 {
 					(*goo).Key = nil
 				} else {
-					var goors = make([]uint8, pbol)
+					goors := make([]uint8, pbol)
 					for i := 0; i < pbol; i += 1 {
 						{
 							pboe := pbo.Key[i]
@@ -97,7 +99,7 @@ func (goo *ProofOp) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err erro
 				if pbol == 0 {
 					(*goo).Data = nil
 				} else {
-					var goors = make([]uint8, pbol)
+					goors := make([]uint8, pbol)
 					for i := 0; i < pbol; i += 1 {
 						{
 							pboe := pbo.Data[i]
@@ -114,9 +116,11 @@ func (goo *ProofOp) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err erro
 	}
 	return
 }
+
 func (_ ProofOp) GetTypeURL() (typeURL string) {
 	return "/tm.ProofOp"
 }
+
 func IsProofOpReprEmpty(goor ProofOp) (empty bool) {
 	{
 		empty = true
@@ -138,6 +142,7 @@ func IsProofOpReprEmpty(goor ProofOp) (empty bool) {
 	}
 	return
 }
+
 func (goo Proof) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *merklepb.Proof
 	{
@@ -152,7 +157,7 @@ func (goo Proof) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 			if goorl == 0 {
 				pbo.Ops = nil
 			} else {
-				var pbos = make([]*merklepb.ProofOp, goorl)
+				pbos := make([]*merklepb.ProofOp, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
 						goore := goo.Ops[i]
@@ -173,11 +178,13 @@ func (goo Proof) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	msg = pbo
 	return
 }
+
 func (goo Proof) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(merklepb.Proof)
 	msg = pbo
 	return
 }
+
 func (goo *Proof) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *merklepb.Proof = msg.(*merklepb.Proof)
 	{
@@ -190,7 +197,7 @@ func (goo *Proof) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error)
 				if pbol == 0 {
 					(*goo).Ops = nil
 				} else {
-					var goors = make([]ProofOp, pbol)
+					goors := make([]ProofOp, pbol)
 					for i := 0; i < pbol; i += 1 {
 						{
 							pboe := pbo.Ops[i]
@@ -212,9 +219,11 @@ func (goo *Proof) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error)
 	}
 	return
 }
+
 func (_ Proof) GetTypeURL() (typeURL string) {
 	return "/tm.Proof"
 }
+
 func IsProofReprEmpty(goor Proof) (empty bool) {
 	{
 		empty = true

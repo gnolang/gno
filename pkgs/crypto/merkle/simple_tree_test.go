@@ -17,7 +17,6 @@ func (tI testItem) Hash() []byte {
 }
 
 func TestSimpleProof(t *testing.T) {
-
 	total := 100
 
 	items := make([][]byte, total)
@@ -70,7 +69,6 @@ func TestSimpleProof(t *testing.T) {
 }
 
 func TestSimpleHashAlternatives(t *testing.T) {
-
 	total := 100
 
 	items := make([][]byte, total)

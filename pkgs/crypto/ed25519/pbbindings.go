@@ -18,7 +18,7 @@ func (goo PubKeyEd25519) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err e
 		if goorl == 0 {
 			pbo = nil
 		} else {
-			var pbos = make([]uint8, goorl)
+			pbos := make([]uint8, goorl)
 			for i := 0; i < goorl; i += 1 {
 				{
 					goore := goo[i]
@@ -33,15 +33,17 @@ func (goo PubKeyEd25519) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err e
 	msg = pbo
 	return
 }
+
 func (goo PubKeyEd25519) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(ed25519pb.PubKeyEd25519)
 	msg = pbo
 	return
 }
+
 func (goo *PubKeyEd25519) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *ed25519pb.PubKeyEd25519 = msg.(*ed25519pb.PubKeyEd25519)
 	{
-		var goors = [32]uint8{}
+		goors := [32]uint8{}
 		for i := 0; i < 32; i += 1 {
 			{
 				pboe := pbo.Value[i]
@@ -55,9 +57,11 @@ func (goo *PubKeyEd25519) FromPBMessage(cdc *amino.Codec, msg proto.Message) (er
 	}
 	return
 }
+
 func (_ PubKeyEd25519) GetTypeURL() (typeURL string) {
 	return "/tm.PubKeyEd25519"
 }
+
 func IsPubKeyEd25519ReprEmpty(goor PubKeyEd25519) (empty bool) {
 	{
 		empty = true
@@ -67,6 +71,7 @@ func IsPubKeyEd25519ReprEmpty(goor PubKeyEd25519) (empty bool) {
 	}
 	return
 }
+
 func (goo PrivKeyEd25519) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *ed25519pb.PrivKeyEd25519
 	{
@@ -79,7 +84,7 @@ func (goo PrivKeyEd25519) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err 
 		if goorl == 0 {
 			pbo = nil
 		} else {
-			var pbos = make([]uint8, goorl)
+			pbos := make([]uint8, goorl)
 			for i := 0; i < goorl; i += 1 {
 				{
 					goore := goo[i]
@@ -94,15 +99,17 @@ func (goo PrivKeyEd25519) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err 
 	msg = pbo
 	return
 }
+
 func (goo PrivKeyEd25519) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(ed25519pb.PrivKeyEd25519)
 	msg = pbo
 	return
 }
+
 func (goo *PrivKeyEd25519) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *ed25519pb.PrivKeyEd25519 = msg.(*ed25519pb.PrivKeyEd25519)
 	{
-		var goors = [64]uint8{}
+		goors := [64]uint8{}
 		for i := 0; i < 64; i += 1 {
 			{
 				pboe := pbo.Value[i]
@@ -116,9 +123,11 @@ func (goo *PrivKeyEd25519) FromPBMessage(cdc *amino.Codec, msg proto.Message) (e
 	}
 	return
 }
+
 func (_ PrivKeyEd25519) GetTypeURL() (typeURL string) {
 	return "/tm.PrivKeyEd25519"
 }
+
 func IsPrivKeyEd25519ReprEmpty(goor PrivKeyEd25519) (empty bool) {
 	{
 		empty = true

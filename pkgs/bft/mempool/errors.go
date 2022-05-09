@@ -6,10 +6,8 @@ import (
 	"github.com/gnolang/gno/pkgs/errors"
 )
 
-var (
-	// ErrTxInCache is returned to the client if we saw tx earlier
-	ErrTxInCache = errors.New("Tx already exists in cache")
-)
+// ErrTxInCache is returned to the client if we saw tx earlier
+var ErrTxInCache = errors.New("Tx already exists in cache")
 
 // ErrTxTooLarge means the tx is too big to be sent in a message to other peers
 type ErrTxTooLarge struct {

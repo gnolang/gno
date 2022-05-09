@@ -80,7 +80,6 @@ var _ abci.Application = (*BaseApp)(nil)
 func NewBaseApp(
 	name string, logger log.Logger, db dbm.DB, baseKey store.StoreKey, mainKey store.StoreKey, options ...func(*BaseApp),
 ) *BaseApp {
-
 	app := &BaseApp{
 		logger:  logger,
 		name:    name,
@@ -173,7 +172,7 @@ func (app *BaseApp) initFromMainStore() error {
 	// TODO: assert that InitChain hasn't yet been called.
 	consensusParamsBz := mainStore.Get(mainConsensusParamsKey)
 	if consensusParamsBz != nil {
-		var consensusParams = &abci.ConsensusParams{}
+		consensusParams := &abci.ConsensusParams{}
 		err := amino.Unmarshal(consensusParamsBz, consensusParams)
 		if err != nil {
 			panic(err)
@@ -186,7 +185,7 @@ func (app *BaseApp) initFromMainStore() error {
 	// This is needed to setCheckState with the right chainID etc.
 	lastHeaderBz := baseStore.Get(mainLastHeaderKey)
 	if lastHeaderBz != nil {
-		var lastHeader = &bft.Header{}
+		lastHeader := &bft.Header{}
 		err := amino.Unmarshal(lastHeaderBz, lastHeader)
 		if err != nil {
 			panic(err)
@@ -683,8 +682,8 @@ func (app *BaseApp) getState(mode RunTxMode) *state {
 // cacheTxContext returns a new context based off of the provided context with
 // a cache wrapped multi-store.
 func (app *BaseApp) cacheTxContext(ctx Context, txBytes []byte) (
-	Context, store.MultiStore) {
-
+	Context, store.MultiStore,
+) {
 	ms := ctx.MultiStore()
 	// TODO: https://github.com/tendermint/classic/sdk/issues/2824
 	msCache := ms.MultiCacheWrap()
@@ -769,7 +768,7 @@ func (app *BaseApp) runTx(mode RunTxMode, txBytes []byte, tx Tx) (result Result)
 		}
 	}()
 
-	var msgs = tx.GetMsgs()
+	msgs := tx.GetMsgs()
 	if err := validateBasicTxMsgs(msgs); err != nil {
 		result.Error = ABCIError(err)
 		return

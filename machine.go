@@ -18,7 +18,6 @@ import (
 // Machine
 
 type Machine struct {
-
 	// State
 	Ops        []Op // main operations
 	NumOps     int
@@ -396,7 +395,7 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 	updates := pn.PrepareNewValues(pv)
 
 	// to detect loops in var declarations.
-	var loopfindr = []Name{}
+	loopfindr := []Name{}
 	// recursive function for var declarations.
 	var runDeclarationFor func(fn *FileNode, decl Decl)
 	runDeclarationFor = func(fn *FileNode, decl Decl) {
@@ -405,7 +404,7 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 		// get dependencies of decl.
 		deps := make(map[Name]struct{})
 		findDependentNames(decl, deps)
-		for dep, _ := range deps {
+		for dep := range deps {
 			// if dep already defined as import, skip.
 			if _, ok := fn.GetLocalIndex(dep); ok {
 				continue
@@ -481,7 +480,6 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 			}
 		}
 	}
-
 }
 
 // Save the machine's package using realm finalization deep crawl.

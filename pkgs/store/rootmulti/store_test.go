@@ -175,7 +175,6 @@ func TestParsePath(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, substore, "bang")
 	require.Equal(t, subsubpath, "/baz")
-
 }
 
 func TestMultiStoreQuery(t *testing.T) {
@@ -263,7 +262,6 @@ func newMultiStoreWithMounts(db dbm.DB) *multiStore {
 func checkStore(t *testing.T, store *multiStore, expect, got types.CommitID) {
 	require.Equal(t, expect, got)
 	require.Equal(t, expect, store.LastCommitID())
-
 }
 
 func getExpectedCommitID(store *multiStore, ver int64) types.CommitID {

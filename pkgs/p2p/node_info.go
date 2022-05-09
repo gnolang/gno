@@ -60,7 +60,6 @@ type NodeInfoOther struct {
 // url-encoding), and we just need to be careful with how we handle that in our
 // clients. (e.g. off by default).
 func (info NodeInfo) Validate() error {
-
 	// ID is already validated. TODO validate
 
 	// Validate ListenAddr.

@@ -308,7 +308,8 @@ func (kb dbKeybase) ExportPubKey(nameOrBech32 string) (astr string, err error) {
 // ExportPrivKey returns a private key in ASCII armored format.
 // It returns an error if the key does not exist or a wrong encryption passphrase is supplied.
 func (kb dbKeybase) ExportPrivKey(name string, decryptPassphrase string,
-	encryptPassphrase string) (astr string, err error) {
+	encryptPassphrase string,
+) (astr string, err error) {
 	priv, err := kb.ExportPrivateKeyObject(name, decryptPassphrase)
 	if err != nil {
 		return "", err

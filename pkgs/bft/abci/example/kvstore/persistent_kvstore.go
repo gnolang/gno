@@ -179,7 +179,7 @@ func isValidatorTx(tx []byte) bool {
 func (app *PersistentKVStoreApplication) execValidatorTx(tx []byte) (res abci.ResponseDeliverTx) {
 	tx = tx[len(ValidatorUpdatePrefix):]
 
-	//get the pubkey and power
+	// get the pubkey and power
 	pubKeyAndPower := strings.Split(string(tx), "!")
 	if len(pubKeyAndPower) != 2 {
 		res.Error = errors.EncodingError{}

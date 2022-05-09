@@ -105,7 +105,7 @@ func SignHandler(opts SignOptions) (*std.Tx, error) {
 	// fill tx signatures.
 	signers := tx.GetSigners()
 	if tx.Signatures == nil {
-		for _, _ = range signers {
+		for range signers {
 			tx.Signatures = append(tx.Signatures, std.Signature{
 				PubKey:    nil, // zero signature
 				Signature: nil, // zero signature
@@ -135,7 +135,7 @@ func SignHandler(opts SignOptions) (*std.Tx, error) {
 	}
 	addr := pub.Address()
 	found := false
-	for i, _ := range tx.Signatures {
+	for i := range tx.Signatures {
 		// override signature for matching slot.
 		if signers[i] == addr {
 			found = true

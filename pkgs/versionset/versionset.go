@@ -58,7 +58,6 @@ func (pvs VersionSet) Get(name string) (pv VersionInfo, ok bool) {
 // VersionSet.
 // TODO: test
 func (pvs VersionSet) CompatibleWith(other VersionSet) (res VersionSet, err error) {
-
 	var errs []string
 	type pvpair [2]*VersionInfo
 	name2Pair := map[string]*pvpair{}

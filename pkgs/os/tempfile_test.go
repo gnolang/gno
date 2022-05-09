@@ -18,7 +18,7 @@ func TestWriteFileAtomic(t *testing.T) {
 	var (
 		data             = []byte(random.RandStr(random.RandIntn(2048)))
 		old              = random.RandBytes(random.RandIntn(2048))
-		perm os.FileMode = 0600
+		perm os.FileMode = 0o600
 	)
 
 	f, err := ioutil.TempFile("/tmp", "write-atomic-test-")
@@ -27,7 +27,7 @@ func TestWriteFileAtomic(t *testing.T) {
 	}
 	defer os.Remove(f.Name())
 
-	if err = ioutil.WriteFile(f.Name(), old, 0664); err != nil {
+	if err = ioutil.WriteFile(f.Name(), old, 0o664); err != nil {
 		t.Fatal(err)
 	}
 
@@ -69,14 +69,14 @@ func TestWriteFileAtomicDuplicateFile(t *testing.T) {
 	firstFileRand := randWriteFileSuffix()
 	atomicWriteFileRand = defaultSeed
 	fname := "/tmp/" + atomicWriteFilePrefix + firstFileRand
-	f, err := os.OpenFile(fname, atomicWriteFileFlag, 0777)
+	f, err := os.OpenFile(fname, atomicWriteFileFlag, 0o777)
 	defer os.Remove(fname)
 	// Defer here, in case there is a panic in WriteFileAtomic.
 	defer os.Remove(fileToWrite)
 
 	require.Nil(t, err)
 	f.WriteString(testString)
-	WriteFileAtomic(fileToWrite, []byte(expectedString), 0777)
+	WriteFileAtomic(fileToWrite, []byte(expectedString), 0o777)
 	// Check that the first atomic file was untouched
 	firstAtomicFileBytes, err := ioutil.ReadFile(fname)
 	require.Nil(t, err, "Error reading first atomic file")
@@ -111,7 +111,7 @@ func TestWriteFileAtomicManyDuplicates(t *testing.T) {
 	for i := 0; i < atomicWriteFileMaxNumConflicts+2; i++ {
 		fileRand := randWriteFileSuffix()
 		fname := "/tmp/" + atomicWriteFilePrefix + fileRand
-		f, err := os.OpenFile(fname, atomicWriteFileFlag, 0777)
+		f, err := os.OpenFile(fname, atomicWriteFileFlag, 0o777)
 		require.Nil(t, err)
 		f.WriteString(fmt.Sprintf(testString, i))
 		defer os.Remove(fname)
@@ -121,7 +121,7 @@ func TestWriteFileAtomicManyDuplicates(t *testing.T) {
 	// Defer here, in case there is a panic in WriteFileAtomic.
 	defer os.Remove(fileToWrite)
 
-	WriteFileAtomic(fileToWrite, []byte(expectedString), 0777)
+	WriteFileAtomic(fileToWrite, []byte(expectedString), 0o777)
 	// Check that all intermittent atomic file were untouched
 	atomicWriteFileRand = defaultSeed
 	for i := 0; i < atomicWriteFileMaxNumConflicts+2; i++ {

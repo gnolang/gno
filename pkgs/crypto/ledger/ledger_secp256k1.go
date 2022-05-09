@@ -13,11 +13,9 @@ import (
 	"github.com/gnolang/gno/pkgs/errors"
 )
 
-var (
-	// discoverLedger defines a function to be invoked at runtime for discovering
-	// a connected Ledger device.
-	discoverLedger discoverLedgerFn
-)
+// discoverLedger defines a function to be invoked at runtime for discovering
+// a connected Ledger device.
+var discoverLedger discoverLedgerFn
 
 type (
 	// discoverLedgerFn defines a Ledger discovery function that returns a
