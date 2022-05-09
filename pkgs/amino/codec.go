@@ -209,8 +209,8 @@ func NewCodec() *Codec {
 // modifications to the underlying codec.
 func (cdc *Codec) WithPBBindings() *Codec {
 	return &Codec{
-		sealed:             true,
-		autoseal:           false,
+		sealed:             cdc.sealed,
+		autoseal:           cdc.autoseal,
 		typeInfos:          cdc.typeInfos,
 		fullnameToTypeInfo: cdc.fullnameToTypeInfo,
 		packages:           cdc.packages,

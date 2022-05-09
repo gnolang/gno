@@ -28,7 +28,7 @@ func main() {
 //         {
 //             "N": "AwAAAAAAAAA=",
 //             "T": {
-//                 "@type": "/gno.tpri",
+//                 "@type": "/gno.PrimitiveType",
 //                 "value": "32"
 //             }
 //         }
