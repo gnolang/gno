@@ -1,7 +1,7 @@
 #!/bin/bash -ex
 
-DOCKER_ORG=ghcr.io/faddat
-DOCKER_IMAGE=archlinux-$BUILD_ARCH
+DOCKER_ORG=ghcr.io/gnolang
+DOCKER_IMAGE=gnoos-$BUILD_ARCH
 
 docker build --build-arg ARCH="$BUILD_ARCH" --build-arg ARCHDIR="rootfs/$BUILD_ARCH" -t "$DOCKER_ORG/$DOCKER_IMAGE" -f Dockerfile .
 
