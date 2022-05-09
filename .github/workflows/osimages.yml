@@ -32,7 +32,7 @@ jobs:
 
       - name: Build gnoos rpi 4 image
         run: |
-          cd os/devices/rpi4
+          cd os/devices
           bash build.sh
 
       - name: Compress
