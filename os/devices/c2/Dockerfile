@@ -4,7 +4,7 @@ FROM scratch
 MAINTAINER jacobgadikian@gmail.com
 
 # Add and decompress Arch Linux ARM rpi arm64 rootfs at /
-ADD odroid-c2/ArchLinuxARM-odroid-c2-latest.tar.gz /
+ADD c2/ArchLinuxARM-odroid-c2-latest.tar.gz /
 
 # Pacman Keyring
 # Don't check disk space because we are in a container
