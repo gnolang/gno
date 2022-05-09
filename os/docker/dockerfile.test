@@ -1,4 +1,0 @@
-FROM ubuntu:latest
-ARG GREET=GeeksForGeeks
-RUN echo "Hey there! Welcome to $GREET" > greeting.txt
-CMD cat greeting.txt
