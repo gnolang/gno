@@ -184,7 +184,7 @@ func (p3c *P3Context) GenerateProto3MessagePartial(p3doc *P3Doc, rt reflect.Type
 	// we need to know whether it's an external reference
 	// (with corresponding imports in the proto3 schema)
 	// or an internal reference (with no imports necessary).
-	var pkgPath = rt.PkgPath()
+	pkgPath := rt.PkgPath()
 	if pkgPath == "" {
 		panic(fmt.Errorf("can only generate proto3 message schemas from user-defined package-level declared structs, got rt %v", rt))
 	}
@@ -193,8 +193,7 @@ func (p3c *P3Context) GenerateProto3MessagePartial(p3doc *P3Doc, rt reflect.Type
 
 	// Append to p3msg.Fields, fields of the struct.
 	for _, field := range rsfields { // rinfo.
-		fp3, fp3IsRepeated, implicit :=
-			typeToP3Type(info.Package, field.TypeInfo, field.FieldOptions)
+		fp3, fp3IsRepeated, implicit := typeToP3Type(info.Package, field.TypeInfo, field.FieldOptions)
 		// If the p3 field package is the same, omit the prefix.
 		if fp3.GetPackageName() == p3doc.PackageName {
 			fp3m := fp3.(P3MessageType)
@@ -244,7 +243,6 @@ func (p3c *P3Context) GenerateProto3ListPartial(p3doc *P3Doc, nl NList) (p3msg P
 // Given the arguments, create a new P3Doc.
 // pkg is optional.
 func (p3c *P3Context) GenerateProto3SchemaForTypes(pkg *amino.Package, rtz ...reflect.Type) (p3doc P3Doc) {
-
 	if pkg.P3PkgName == "" {
 		panic(errors.New("cannot generate schema in the root package \"\"."))
 	}
@@ -267,7 +265,7 @@ func (p3c *P3Context) GenerateProto3SchemaForTypes(pkg *amino.Package, rtz ...re
 	// Collect list types and uniq,
 	// then create list message schemas.
 	// These are representational
-	var nestedListTypes = make(map[string]NList)
+	nestedListTypes := make(map[string]NList)
 	for _, rt := range rtz {
 		if rt.Kind() == reflect.Interface {
 			continue
@@ -290,7 +288,7 @@ func (p3c *P3Context) GenerateProto3SchemaForTypes(pkg *amino.Package, rtz ...re
 func (p3c *P3Context) WriteProto3SchemaForTypes(filename string, pkg *amino.Package, rtz ...reflect.Type) {
 	fmt.Printf("writing proto3 schema to %v for package %v\n", filename, pkg)
 	p3doc := p3c.GenerateProto3SchemaForTypes(pkg, rtz...)
-	err := ioutil.WriteFile(filename, []byte(p3doc.Print()), 0644)
+	err := ioutil.WriteFile(filename, []byte(p3doc.Print()), 0o644)
 	if err != nil {
 		panic(err)
 	}
@@ -303,7 +301,6 @@ var (
 
 // If info.ReprType is a struct, the returned proto3 type is a P3MessageType.
 func typeToP3Type(root *amino.Package, info *amino.TypeInfo, fopts amino.FieldOptions) (p3type P3Type, repeated bool, implicit bool) {
-
 	// Special case overrides.
 	// We don't handle the case when info.ReprType.Type is time here.
 	switch info.Type {
@@ -402,7 +399,6 @@ func typeToP3Type(root *amino.Package, info *amino.TypeInfo, fopts amino.FieldOp
 	default:
 		panic("unexpected rt kind")
 	}
-
 }
 
 // Writes in the same directory as the origin package.
@@ -427,7 +423,7 @@ func MakeProtoFolder(pkg *amino.Package, dirName string) {
 	// p3 import path -> p3 import file (abs path).
 	// e.g. "github.com/.../mygopkg.proto" ->
 	// "/gopath/pkg/mod/.../mygopkg.proto"
-	var p3imports = map[string]string{}
+	p3imports := map[string]string{}
 	for _, dpkg := range p3c.GetAllPackages() {
 		if dpkg.P3SchemaFile == "" {
 			// Skip well known packages like google.protobuf.Any
@@ -524,7 +520,7 @@ func copyFile(src string, dst string) {
 		panic(err)
 	}
 	// Write data to dst
-	err = ioutil.WriteFile(dst, data, 0644)
+	err = ioutil.WriteFile(dst, data, 0o644)
 	if err != nil {
 		panic(err)
 	}

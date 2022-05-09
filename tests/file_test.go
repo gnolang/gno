@@ -371,7 +371,7 @@ func replaceWantedInPlace(path string, directive string, output string) {
 		}
 		newlines = append(newlines, line)
 	}
-	osm.MustWriteFile(path, []byte(strings.Join(newlines, "\n")), 0644)
+	osm.MustWriteFile(path, []byte(strings.Join(newlines, "\n")), 0o644)
 }
 
 func defaultPkgName(gopkgPath string) gno.Name {

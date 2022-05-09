@@ -679,7 +679,8 @@ func TestCountSubkeys(t *testing.T) {
 	multiLevelSubKey1 := multisig.NewPubKeyMultisigThreshold(4, genPubKeys(5))
 	multiLevelSubKey2 := multisig.NewPubKeyMultisigThreshold(4, genPubKeys(5))
 	multiLevelMultiKey := multisig.NewPubKeyMultisigThreshold(2, []crypto.PubKey{
-		multiLevelSubKey1, multiLevelSubKey2, secp256k1.GenPrivKey().PubKey()})
+		multiLevelSubKey1, multiLevelSubKey2, secp256k1.GenPrivKey().PubKey(),
+	})
 	type args struct {
 		pub crypto.PubKey
 	}
@@ -741,8 +742,8 @@ func TestEnsureSufficientMempoolFees(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.ctx.WithMinGasPrices(
 		[]std.GasPrice{
-			std.GasPrice{Gas: 100000, Price: std.Coin{Denom: "photino", Amount: 5}},
-			std.GasPrice{Gas: 100000, Price: std.Coin{Denom: "stake", Amount: 1}},
+			{Gas: 100000, Price: std.Coin{Denom: "photino", Amount: 5}},
+			{Gas: 100000, Price: std.Coin{Denom: "stake", Amount: 1}},
 		},
 	)
 

@@ -98,7 +98,6 @@ func MustParseExpr(expr string) Expr {
 
 // filename must not include the path.
 func ParseFile(filename string, body string) (fn *FileNode, err error) {
-
 	// Parse src but stop after processing the imports.
 	fs := token.NewFileSet()
 	f, err := parser.ParseFile(fs, filename, body, parser.ParseComments|parser.DeclarationErrors)
@@ -621,7 +620,6 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 	var lastValues Exprs // (see Go iota spec above)
 	var lastType Expr    // (see Go iota spec above)
 	for si, s := range gd.Specs {
-
 		switch s := s.(type) {
 		case *ast.TypeSpec:
 			name := toName(s.Name)

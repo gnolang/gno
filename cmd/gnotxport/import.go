@@ -38,7 +38,7 @@ func txImportApp(cmd *command.Command, args []string, iopts interface{}) error {
 	lines := strings.Split(strings.TrimSpace(string(filebz)), "\n")
 	for i, line := range lines {
 		print(".")
-		//time.Sleep(10 * time.Second)
+		// time.Sleep(10 * time.Second)
 		if len(line) == 0 {
 			panic(i)
 		}

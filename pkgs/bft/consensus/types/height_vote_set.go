@@ -16,9 +16,7 @@ type RoundVoteSet struct {
 	Precommits *types.VoteSet
 }
 
-var (
-	GotVoteFromUnwantedRoundError = errors.New("Peer has sent a vote that does not match our round for more than one round")
-)
+var GotVoteFromUnwantedRoundError = errors.New("Peer has sent a vote that does not match our round for more than one round")
 
 /*
 Keeps track of all VoteSets from round 0 to round 'round'.

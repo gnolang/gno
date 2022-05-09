@@ -193,7 +193,6 @@ func (store *cacheStore) dirtyItems(start, end []byte) {
 	for _, kvp := range unsorted {
 		store.sortedCache.PushBack(kvp)
 	}
-
 }
 
 //----------------------------------------

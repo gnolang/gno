@@ -49,7 +49,6 @@ func (sc *SignerClient) WaitForConnection(maxWait time.Duration) error {
 // Ping sends a ping request to the remote signer
 func (sc *SignerClient) Ping() error {
 	response, err := sc.endpoint.SendRequest(&PingRequest{})
-
 	if err != nil {
 		sc.endpoint.Logger.Error("SignerClient::Ping", "err", err)
 		return nil

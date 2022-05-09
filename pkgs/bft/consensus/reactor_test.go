@@ -49,7 +49,7 @@ func startConsensusNet(t *testing.T, css []*ConsensusState, n int) (
 		blocksSub := subscribe(eventSwitches[i], types.EventNewBlock{})
 		blocksSubs = append(blocksSubs, blocksSub)
 
-		if css[i].state.LastBlockHeight == 0 { //simulate handle initChain in handshake
+		if css[i].state.LastBlockHeight == 0 { // simulate handle initChain in handshake
 			sm.SaveState(css[i].blockExec.DB(), css[i].state)
 		}
 	}
@@ -422,7 +422,6 @@ func waitForAndValidateBlockWithTx(
 				break BLOCK_TX_LOOP
 			}
 		}
-
 	}, css)
 }
 
@@ -434,7 +433,6 @@ func waitForBlockWithUpdatedValsAndValidateIt(
 	css []*ConsensusState,
 ) {
 	timeoutWaitGroup(t, n, func(j int) {
-
 		var newBlock *types.Block
 	LOOP:
 		for {
@@ -592,8 +590,10 @@ func TestProposalPOLMessageValidateBasic(t *testing.T) {
 		{func(msg *ProposalPOLMessage) { msg.Height = -1 }, "Negative Height"},
 		{func(msg *ProposalPOLMessage) { msg.ProposalPOLRound = -1 }, "Negative ProposalPOLRound"},
 		{func(msg *ProposalPOLMessage) { msg.ProposalPOL = bitarray.NewBitArray(0) }, "Empty ProposalPOL bit array"},
-		{func(msg *ProposalPOLMessage) { msg.ProposalPOL = bitarray.NewBitArray(types.MaxVotesCount + 1) },
-			"ProposalPOL bit array is too big: 10001, max: 10000"},
+		{
+			func(msg *ProposalPOLMessage) { msg.ProposalPOL = bitarray.NewBitArray(types.MaxVotesCount + 1) },
+			"ProposalPOL bit array is too big: 10001, max: 10000",
+		},
 	}
 
 	for i, tc := range testCases {
@@ -747,8 +747,10 @@ func TestVoteSetBitsMessageValidateBasic(t *testing.T) {
 				},
 			}
 		}, "Wrong BlockID: Wrong PartsHeader: Negative Total"},
-		{func(msg *VoteSetBitsMessage) { msg.Votes = bitarray.NewBitArray(types.MaxVotesCount + 1) },
-			"Votes bit array is too big: 10001, max: 10000"},
+		{
+			func(msg *VoteSetBitsMessage) { msg.Votes = bitarray.NewBitArray(types.MaxVotesCount + 1) },
+			"Votes bit array is too big: 10001, max: 10000",
+		},
 	}
 
 	for i, tc := range testCases {

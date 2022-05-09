@@ -5,8 +5,10 @@ import (
 	"github.com/gnolang/gno/pkgs/errors"
 )
 
-type AppItem = command.AppItem
-type AppList = command.AppList
+type (
+	AppItem = command.AppItem
+	AppList = command.AppList
+)
 
 var mainApps AppList = []AppItem{
 	{addApp, "add", "add key to keybase", DefaultAddOptions},
@@ -30,7 +32,6 @@ func AddApp(app command.App, name string, desc string, defaults interface{}) {
 }
 
 func RunMain(cmd *command.Command, exec string, args []string) error {
-
 	// show help message.
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" {
 		cmd.Println("available subcommands:")
@@ -50,5 +51,4 @@ func RunMain(cmd *command.Command, exec string, args []string) error {
 
 	// unknown app command!
 	return errors.New("unknown command " + args[0])
-
 }

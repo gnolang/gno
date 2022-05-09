@@ -25,7 +25,7 @@ func (goo PubKeyMultisigThreshold) ToPBMessage(cdc *amino.Codec) (msg proto.Mess
 			if goorl == 0 {
 				pbo.PubKeys = nil
 			} else {
-				var pbos = make([]*anypb.Any, goorl)
+				pbos := make([]*anypb.Any, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
 						goore := goo.PubKeys[i]
@@ -49,11 +49,13 @@ func (goo PubKeyMultisigThreshold) ToPBMessage(cdc *amino.Codec) (msg proto.Mess
 	msg = pbo
 	return
 }
+
 func (goo PubKeyMultisigThreshold) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(multisigpb.PubKeyMultisig)
 	msg = pbo
 	return
 }
+
 func (goo *PubKeyMultisigThreshold) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *multisigpb.PubKeyMultisig = msg.(*multisigpb.PubKeyMultisig)
 	{
@@ -69,7 +71,7 @@ func (goo *PubKeyMultisigThreshold) FromPBMessage(cdc *amino.Codec, msg proto.Me
 				if pbol == 0 {
 					(*goo).PubKeys = nil
 				} else {
-					var goors = make([]crypto.PubKey, pbol)
+					goors := make([]crypto.PubKey, pbol)
 					for i := 0; i < pbol; i += 1 {
 						{
 							pboe := pbo.PubKeys[i]
@@ -92,9 +94,11 @@ func (goo *PubKeyMultisigThreshold) FromPBMessage(cdc *amino.Codec, msg proto.Me
 	}
 	return
 }
+
 func (_ PubKeyMultisigThreshold) GetTypeURL() (typeURL string) {
 	return "/tm.PubKeyMultisig"
 }
+
 func IsPubKeyMultisigReprEmpty(goor PubKeyMultisigThreshold) (empty bool) {
 	{
 		empty = true

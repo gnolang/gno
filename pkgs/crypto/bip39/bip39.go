@@ -225,7 +225,7 @@ func IsMnemonicValid(mnemonic string) bool {
 	// Create a list of all the words in the mnemonic sentence
 	words := strings.Fields(mnemonic)
 
-	//Get num of words
+	// Get num of words
 	numOfWords := len(words)
 
 	// The number of words should be 12, 15, 18, 21 or 24

@@ -101,7 +101,8 @@ func TestNewNetAddressFromStrings(t *testing.T) {
 	addrs, errs := NewNetAddressFromStrings([]string{
 		"127.0.0.1:8080",
 		"g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080",
-		"g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.2:8080"})
+		"g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.2:8080",
+	})
 	assert.Len(t, errs, 1)
 	assert.Equal(t, 2, len(addrs))
 }

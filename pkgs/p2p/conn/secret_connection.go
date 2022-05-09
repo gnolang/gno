@@ -28,11 +28,14 @@ import (
 
 // 4 + 1024 == 1028 total frame size
 const dataLenSize = 4
-const dataMaxSize = 1024
-const totalFrameSize = dataMaxSize + dataLenSize
-const aeadSizeOverhead = 16 // overhead of poly 1305 authentication tag
-const aeadKeySize = chacha20poly1305.KeySize
-const aeadNonceSize = chacha20poly1305.NonceSize
+
+const (
+	dataMaxSize      = 1024
+	totalFrameSize   = dataMaxSize + dataLenSize
+	aeadSizeOverhead = 16 // overhead of poly 1305 authentication tag
+	aeadKeySize      = chacha20poly1305.KeySize
+	aeadNonceSize    = chacha20poly1305.NonceSize
+)
 
 var (
 	ErrSmallOrderRemotePubKey = errors.New("detected low order point from remote peer")
@@ -49,7 +52,6 @@ var (
 // Otherwise they are vulnerable to MITM.
 // (TODO(ismail): see also https://github.com/tendermint/classic/issues/3010)
 type SecretConnection struct {
-
 	// immutable
 	recvAead cipher.AEAD
 	sendAead cipher.AEAD
@@ -162,8 +164,8 @@ func (sc *SecretConnection) Write(data []byte) (n int, err error) {
 
 	for 0 < len(data) {
 		if err := func() error {
-			var sealedFrame = pool.Get(aeadSizeOverhead + totalFrameSize)
-			var frame = pool.Get(totalFrameSize)
+			sealedFrame := pool.Get(aeadSizeOverhead + totalFrameSize)
+			frame := pool.Get(totalFrameSize)
 			defer func() {
 				pool.Put(sealedFrame)
 				pool.Put(frame)
@@ -211,7 +213,7 @@ func (sc *SecretConnection) Read(data []byte) (n int, err error) {
 	}
 
 	// read off the conn
-	var sealedFrame = pool.Get(aeadSizeOverhead + totalFrameSize)
+	sealedFrame := pool.Get(aeadSizeOverhead + totalFrameSize)
 	defer pool.Put(sealedFrame)
 	_, err = io.ReadFull(sc.conn, sealedFrame)
 	if err != nil {
@@ -220,7 +222,7 @@ func (sc *SecretConnection) Read(data []byte) (n int, err error) {
 
 	// decrypt the frame.
 	// reads and updates the sc.recvNonce
-	var frame = pool.Get(totalFrameSize)
+	frame := pool.Get(totalFrameSize)
 	defer pool.Put(frame)
 	_, err = sc.recvAead.Open(frame[:0], sc.recvNonce[:], sealedFrame, nil)
 	if err != nil {
@@ -231,11 +233,11 @@ func (sc *SecretConnection) Read(data []byte) (n int, err error) {
 
 	// copy checkLength worth into data,
 	// set recvBuffer to the rest.
-	var chunkLength = binary.LittleEndian.Uint32(frame) // read the first four bytes
+	chunkLength := binary.LittleEndian.Uint32(frame) // read the first four bytes
 	if chunkLength > dataMaxSize {
 		return 0, errors.New("chunkLength is greater than dataMaxSize")
 	}
-	var chunk = frame[dataLenSize : dataLenSize+chunkLength]
+	chunk := frame[dataLenSize : dataLenSize+chunkLength]
 	n = copy(data, chunk)
 	if n < len(chunk) {
 		sc.recvBuffer = make([]byte, len(chunk)-n)
@@ -253,6 +255,7 @@ func (sc *SecretConnection) SetDeadline(t time.Time) error { return sc.conn.(net
 func (sc *SecretConnection) SetReadDeadline(t time.Time) error {
 	return sc.conn.(net.Conn).SetReadDeadline(t)
 }
+
 func (sc *SecretConnection) SetWriteDeadline(t time.Time) error {
 	return sc.conn.(net.Conn).SetWriteDeadline(t)
 }
@@ -270,11 +273,10 @@ func genEphKeys() (ephPub, ephPriv *[32]byte) {
 }
 
 func shareEphPubKey(conn io.ReadWriteCloser, locEphPub *[32]byte) (remEphPub *[32]byte, err error) {
-
 	// Send our pubkey and receive theirs in tandem.
-	var trs, _ = async.Parallel(
+	trs, _ := async.Parallel(
 		func(_ int) (val interface{}, err error, abort bool) {
-			var _, err1 = amino.MarshalSizedWriter(conn, locEphPub)
+			_, err1 := amino.MarshalSizedWriter(conn, locEphPub)
 			if err1 != nil {
 				return nil, err1, true // abort
 			}
@@ -282,7 +284,7 @@ func shareEphPubKey(conn io.ReadWriteCloser, locEphPub *[32]byte) (remEphPub *[3
 		},
 		func(_ int) (val interface{}, err error, abort bool) {
 			var _remEphPub [32]byte
-			var _, err2 = amino.UnmarshalSizedReader(conn, &_remEphPub, 1024*1024) // TODO
+			_, err2 := amino.UnmarshalSizedReader(conn, &_remEphPub, 1024*1024) // TODO
 			if err2 != nil {
 				return nil, err2, true // abort
 			}
@@ -300,7 +302,7 @@ func shareEphPubKey(conn io.ReadWriteCloser, locEphPub *[32]byte) (remEphPub *[3
 	}
 
 	// Otherwise:
-	var _remEphPub = trs.FirstValue().([32]byte)
+	_remEphPub := trs.FirstValue().([32]byte)
 	return &_remEphPub, nil
 }
 
@@ -308,35 +310,49 @@ func shareEphPubKey(conn io.ReadWriteCloser, locEphPub *[32]byte) (remEphPub *[3
 // https://github.com/jedisct1/libsodium/blob/536ed00d2c5e0c65ac01e29141d69a30455f2038/src/libsodium/crypto_scalarmult/curve25519/ref10/x25519_ref10.c#L11-L17
 var blacklist = [][32]byte{
 	// 0 (order 4)
-	{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	{
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	},
 	// 1 (order 1)
-	{0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	{
+		0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	},
 	// 325606250916557431795983626356110631294008115727848805560023387167927233504
 	//   (order 8)
-	{0xe0, 0xeb, 0x7a, 0x7c, 0x3b, 0x41, 0xb8, 0xae, 0x16, 0x56, 0xe3,
+	{
+		0xe0, 0xeb, 0x7a, 0x7c, 0x3b, 0x41, 0xb8, 0xae, 0x16, 0x56, 0xe3,
 		0xfa, 0xf1, 0x9f, 0xc4, 0x6a, 0xda, 0x09, 0x8d, 0xeb, 0x9c, 0x32,
-		0xb1, 0xfd, 0x86, 0x62, 0x05, 0x16, 0x5f, 0x49, 0xb8, 0x00},
+		0xb1, 0xfd, 0x86, 0x62, 0x05, 0x16, 0x5f, 0x49, 0xb8, 0x00,
+	},
 	// 39382357235489614581723060781553021112529911719440698176882885853963445705823
 	//    (order 8)
-	{0x5f, 0x9c, 0x95, 0xbc, 0xa3, 0x50, 0x8c, 0x24, 0xb1, 0xd0, 0xb1,
+	{
+		0x5f, 0x9c, 0x95, 0xbc, 0xa3, 0x50, 0x8c, 0x24, 0xb1, 0xd0, 0xb1,
 		0x55, 0x9c, 0x83, 0xef, 0x5b, 0x04, 0x44, 0x5c, 0xc4, 0x58, 0x1c,
-		0x8e, 0x86, 0xd8, 0x22, 0x4e, 0xdd, 0xd0, 0x9f, 0x11, 0x57},
+		0x8e, 0x86, 0xd8, 0x22, 0x4e, 0xdd, 0xd0, 0x9f, 0x11, 0x57,
+	},
 	// p-1 (order 2)
-	{0xec, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+	{
+		0xec, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f},
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f,
+	},
 	// p (=0, order 4)
-	{0xed, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+	{
+		0xed, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f},
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f,
+	},
 	// p+1 (=1, order 1)
-	{0xee, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+	{
+		0xee, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f},
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f,
+	},
 }
 
 func hasSmallOrder(pubKey [32]byte) bool {
@@ -424,11 +440,10 @@ type authSigMessage struct {
 }
 
 func shareAuthSignature(sc *SecretConnection, pubKey crypto.PubKey, signature []byte) (recvMsg authSigMessage, err error) {
-
 	// Send our info and receive theirs in tandem.
-	var trs, _ = async.Parallel(
+	trs, _ := async.Parallel(
 		func(_ int) (val interface{}, err error, abort bool) {
-			var _, err1 = amino.MarshalSizedWriter(sc, authSigMessage{pubKey, signature})
+			_, err1 := amino.MarshalSizedWriter(sc, authSigMessage{pubKey, signature})
 			if err1 != nil {
 				return nil, err1, true // abort
 			}
@@ -436,7 +451,7 @@ func shareAuthSignature(sc *SecretConnection, pubKey crypto.PubKey, signature []
 		},
 		func(_ int) (val interface{}, err error, abort bool) {
 			var _recvMsg authSigMessage
-			var _, err2 = amino.UnmarshalSizedReader(sc, &_recvMsg, 1024*1024) // TODO
+			_, err2 := amino.UnmarshalSizedReader(sc, &_recvMsg, 1024*1024) // TODO
 			if err2 != nil {
 				return nil, err2, true // abort
 			}
@@ -450,7 +465,7 @@ func shareAuthSignature(sc *SecretConnection, pubKey crypto.PubKey, signature []
 		return
 	}
 
-	var _recvMsg = trs.FirstValue().(authSigMessage)
+	_recvMsg := trs.FirstValue().(authSigMessage)
 	return _recvMsg, nil
 }
 

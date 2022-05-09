@@ -19,14 +19,14 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 		Block{},
 		Header{},
 		Data{},
-		//EvidenceData{},
+		// EvidenceData{},
 		Commit{},
 		BlockID{},
 		CommitSig{},
 		PartSetHeader{},
 		Vote{},
-		//Tx{},
-		//Txs{},
+		// Tx{},
+		// Txs{},
 
 		// Internal state types
 		Validator{},

@@ -35,6 +35,7 @@ const (
 	_allocType             = 200 // XXX
 	_allocAny              = 200 // XXX
 )
+
 const (
 	allocString      = _allocBase
 	allocStringByte  = 1

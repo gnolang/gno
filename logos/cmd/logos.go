@@ -10,11 +10,12 @@ import (
 	"github.com/gnolang/gno/logos"
 )
 
-var row = 0
-var style = tcell.StyleDefault
+var (
+	row   = 0
+	style = tcell.StyleDefault
+)
 
 func main() {
-
 	encoding.Register()
 
 	// construct screen

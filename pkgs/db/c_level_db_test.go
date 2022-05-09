@@ -1,3 +1,4 @@
+//go:build cleveldb
 // +build cleveldb
 
 package db
@@ -37,7 +38,7 @@ func BenchmarkRandomReadsWrites2(b *testing.B) {
 			val := internal[idx]
 			idxBytes := int642Bytes(int64(idx))
 			valBytes := int642Bytes(int64(val))
-			//fmt.Printf("Set %X -> %X\n", idxBytes, valBytes)
+			// fmt.Printf("Set %X -> %X\n", idxBytes, valBytes)
 			db.Set(
 				idxBytes,
 				valBytes,
@@ -49,7 +50,7 @@ func BenchmarkRandomReadsWrites2(b *testing.B) {
 			val := internal[idx]
 			idxBytes := int642Bytes(int64(idx))
 			valBytes := db.Get(idxBytes)
-			//fmt.Printf("Get %X -> %X\n", idxBytes, valBytes)
+			// fmt.Printf("Get %X -> %X\n", idxBytes, valBytes)
 			if val == 0 {
 				if !bytes.Equal(valBytes, nil) {
 					b.Errorf("Expected %v for %v, got %X",

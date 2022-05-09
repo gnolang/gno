@@ -92,7 +92,6 @@ func (dve *DuplicateVoteEvidence) AssertABCIEvidence() {}
 // String returns a string representation of the evidence.
 func (dve *DuplicateVoteEvidence) String() string {
 	return fmt.Sprintf("VoteA: %v; VoteB: %v", dve.VoteA, dve.VoteB)
-
 }
 
 // Hash returns the hash of the evidence.
@@ -217,6 +216,7 @@ func (e MockGoodEvidence) AssertABCIEvidence() {}
 func (e MockGoodEvidence) Hash() []byte {
 	return []byte(fmt.Sprintf("%d-%x", e.Height, e.Address))
 }
+
 func (e MockGoodEvidence) Bytes() []byte {
 	return []byte(fmt.Sprintf("%d-%x", e.Height, e.Address))
 }
@@ -240,6 +240,7 @@ func (e MockBadEvidence) AssertABCIEvidence() {}
 func (e MockBadEvidence) Verify(chainID string, pubKey crypto.PubKey) error {
 	return fmt.Errorf("MockBadEvidence")
 }
+
 func (e MockBadEvidence) Equal(ev Evidence) bool {
 	e2 := ev.(MockBadEvidence)
 	return e.Height == e2.Height && e.Address == e2.Address

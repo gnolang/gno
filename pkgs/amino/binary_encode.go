@@ -43,7 +43,8 @@ CONTRACT: rv is not a pointer
 CONTRACT: rv is valid.
 */
 func (cdc *Codec) encodeReflectBinary(w io.Writer, info *TypeInfo, rv reflect.Value,
-	fopts FieldOptions, bare bool, options uint64) (err error) {
+	fopts FieldOptions, bare bool, options uint64,
+) (err error) {
 	if rv.Kind() == reflect.Ptr {
 		// Whether to encode nil pointers as 0x00 or not at all depend on the
 		// context, so pointers should be handled first by the caller.
@@ -210,7 +211,8 @@ func (cdc *Codec) encodeReflectBinary(w io.Writer, info *TypeInfo, rv reflect.Va
 }
 
 func (cdc *Codec) encodeReflectBinaryInterface(w io.Writer, iinfo *TypeInfo, rv reflect.Value,
-	fopts FieldOptions, bare bool) (err error) {
+	fopts FieldOptions, bare bool,
+) (err error) {
 	if printLog {
 		fmt.Println("(e) encodeReflectBinaryInterface")
 		defer func() {
@@ -224,9 +226,9 @@ func (cdc *Codec) encodeReflectBinaryInterface(w io.Writer, iinfo *TypeInfo, rv 
 	}
 
 	// Get concrete non-pointer reflect value & type.
-	var crv = rv.Elem()
-	var crt = crv.Type()
-	var dcrv, crvIsPtr, crvIsNilPtr = maybeDerefValue(crv)
+	crv := rv.Elem()
+	crt := crv.Type()
+	dcrv, crvIsPtr, crvIsNilPtr := maybeDerefValue(crv)
 	if crvIsPtr && dcrv.Kind() == reflect.Interface {
 		// See "MARKER: No interface-pointers" in codec.go
 		panic("should not happen")
@@ -268,7 +270,7 @@ func (cdc *Codec) encodeReflectBinaryInterface(w io.Writer, iinfo *TypeInfo, rv 
 	{
 		// google.protobuf.Any values must be a struct, or an unpacked list which
 		// is indistinguishable from a struct.
-		var buf2 = bytes.NewBuffer(nil)
+		buf2 := bytes.NewBuffer(nil)
 		if !cinfo.IsStructOrUnpacked(fopts) {
 			writeEmpty := false
 			// Encode with an implicit struct, with a single field with number 1.
@@ -311,7 +313,8 @@ func (cdc *Codec) encodeReflectBinaryInterface(w io.Writer, iinfo *TypeInfo, rv 
 }
 
 func (cdc *Codec) encodeReflectBinaryByteArray(w io.Writer, info *TypeInfo, rv reflect.Value,
-	fopts FieldOptions) (err error) {
+	fopts FieldOptions,
+) (err error) {
 	ert := info.Type.Elem()
 	if ert.Kind() != reflect.Uint8 {
 		panic("should not happen")
@@ -335,7 +338,8 @@ func (cdc *Codec) encodeReflectBinaryByteArray(w io.Writer, info *TypeInfo, rv r
 }
 
 func (cdc *Codec) encodeReflectBinaryList(w io.Writer, info *TypeInfo, rv reflect.Value,
-	fopts FieldOptions, bare bool) (err error) {
+	fopts FieldOptions, bare bool,
+) (err error) {
 	if printLog {
 		fmt.Println("(e) encodeReflectBinaryList")
 		defer func() {
@@ -353,12 +357,12 @@ func (cdc *Codec) encodeReflectBinaryList(w io.Writer, info *TypeInfo, rv reflec
 
 	// Proto3 byte-length prefixing incurs alloc cost on the encoder.
 	// Here we incur it for unpacked form for ease of dev.
-	var buf = bytes.NewBuffer(nil)
+	buf := bytes.NewBuffer(nil)
 
 	// If elem is not already a ByteLength type, write in packed form.
 	// This is a Proto wart due to Proto backwards compatibility issues.
 	// Amino2 will probably migrate to use the List typ3.
-	var newoptions = uint64(0)
+	newoptions := uint64(0)
 	// Special case for list of (repr) bytes: encode as "bytes".
 	if einfo.ReprType.Type.Kind() == reflect.Uint8 {
 		newoptions |= be_option_byte
@@ -367,7 +371,7 @@ func (cdc *Codec) encodeReflectBinaryList(w io.Writer, info *TypeInfo, rv reflec
 	if typ3 != Typ3ByteLength || (newoptions&be_option_byte > 0) {
 		// Write elems in packed form.
 		for i := 0; i < rv.Len(); i++ {
-			var erv = rv.Index(i)
+			erv := rv.Index(i)
 			// If pointer, get dereferenced element value (or zero).
 			if ert.Kind() == reflect.Ptr {
 				if erv.IsNil() {
@@ -398,7 +402,7 @@ func (cdc *Codec) encodeReflectBinaryList(w io.Writer, info *TypeInfo, rv reflec
 				return
 			}
 			// Get dereferenced element value and info.
-			var erv = rv.Index(i)
+			erv := rv.Index(i)
 			if isNonstructDefaultValue(erv) {
 				// Special case if:
 				//  - erv is a struct pointer and
@@ -463,7 +467,8 @@ func (cdc *Codec) encodeReflectBinaryList(w io.Writer, info *TypeInfo, rv reflec
 
 // CONTRACT: info.Type.Elem().Kind() == reflect.Uint8
 func (cdc *Codec) encodeReflectBinaryByteSlice(w io.Writer, info *TypeInfo, rv reflect.Value,
-	fopts FieldOptions) (err error) {
+	fopts FieldOptions,
+) (err error) {
 	if printLog {
 		fmt.Println("(e) encodeReflectBinaryByteSlice")
 		defer func() {
@@ -476,13 +481,14 @@ func (cdc *Codec) encodeReflectBinaryByteSlice(w io.Writer, info *TypeInfo, rv r
 	}
 
 	// Write byte-length prefixed byte-slice.
-	var byteslice = rv.Bytes()
+	byteslice := rv.Bytes()
 	err = EncodeByteSlice(w, byteslice)
 	return
 }
 
 func (cdc *Codec) encodeReflectBinaryStruct(w io.Writer, info *TypeInfo, rv reflect.Value,
-	fopts FieldOptions, bare bool) (err error) {
+	fopts FieldOptions, bare bool,
+) (err error) {
 	if printLog {
 		fmt.Println("(e) encodeReflectBinaryBinaryStruct")
 		defer func() {
@@ -496,10 +502,10 @@ func (cdc *Codec) encodeReflectBinaryStruct(w io.Writer, info *TypeInfo, rv refl
 
 	for _, field := range info.Fields {
 		// Get type info for field.
-		var finfo = field.TypeInfo
+		finfo := field.TypeInfo
 		// Get dereferenced field value and info.
-		var frv = rv.Field(field.Index)
-		var dfrv, frvIsPtr, _ = maybeDerefValue(frv)
+		frv := rv.Field(field.Index)
+		dfrv, frvIsPtr, _ := maybeDerefValue(frv)
 		if !field.WriteEmpty && isNonstructDefaultValue(frv) {
 			// Do not encode default value fields
 			// (except when `amino:"write_empty"` is set).
@@ -538,7 +544,7 @@ func encodeFieldNumberAndTyp3(w io.Writer, num uint32, typ Typ3) (err error) {
 	}
 
 	// Pack Typ3 and field number.
-	var value64 = (uint64(num) << 3) | uint64(typ)
+	value64 := (uint64(num) << 3) | uint64(typ)
 
 	// Write uvarint value for field and Typ3.
 	var buf [10]byte

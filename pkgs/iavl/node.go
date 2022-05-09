@@ -44,7 +44,6 @@ func NewNode(key []byte, value []byte, version int64) *Node {
 // The new node doesn't have its hash saved or set. The caller must set it
 // afterwards.
 func MakeNode(buf []byte) (*Node, error) {
-
 	// Read node header (height, size, version, key).
 	height, n, cause := amino.DecodeVarint8(buf)
 	if cause != nil {

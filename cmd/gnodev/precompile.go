@@ -102,7 +102,7 @@ func precompileFile(srcPath string, opts precompileOptions) error {
 
 	// write .go file.
 	targetPath := strings.TrimSuffix(srcPath, ".gno") + ".gno.gen.go"
-	err = ioutil.WriteFile(targetPath, []byte(transformed), 0644)
+	err = ioutil.WriteFile(targetPath, []byte(transformed), 0o644)
 	if err != nil {
 		return fmt.Errorf("write .go file: %w", err)
 	}

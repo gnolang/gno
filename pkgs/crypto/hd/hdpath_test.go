@@ -102,12 +102,10 @@ func TestParamsFromPath(t *testing.T) {
 		assert.Nil(t, params, errStr)
 		assert.Error(t, err, errStr)
 	}
-
 }
 
 // nolint: vet
 func ExampleSomeBIP32TestVecs() {
-
 	seed := mnemonicToSeed("barrel original fuel morning among eternal " +
 		"filter ball stove pluck matrix mechanic")
 	master, ch := ComputeMastersFromSeed(seed)

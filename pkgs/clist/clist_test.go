@@ -32,21 +32,21 @@ func TestSmall(t *testing.T) {
 		t.Error("Expected len 3, got ", l.Len())
 	}
 
-	//fmt.Printf("%p %v\n", el1, el1)
-	//fmt.Printf("%p %v\n", el2, el2)
-	//fmt.Printf("%p %v\n", el3, el3)
+	// fmt.Printf("%p %v\n", el1, el1)
+	// fmt.Printf("%p %v\n", el2, el2)
+	// fmt.Printf("%p %v\n", el3, el3)
 
 	r1 := l.Remove(el1)
 
-	//fmt.Printf("%p %v\n", el1, el1)
-	//fmt.Printf("%p %v\n", el2, el2)
-	//fmt.Printf("%p %v\n", el3, el3)
+	// fmt.Printf("%p %v\n", el1, el1)
+	// fmt.Printf("%p %v\n", el2, el2)
+	// fmt.Printf("%p %v\n", el3, el3)
 
 	r2 := l.Remove(el2)
 
-	//fmt.Printf("%p %v\n", el1, el1)
-	//fmt.Printf("%p %v\n", el2, el2)
-	//fmt.Printf("%p %v\n", el3, el3)
+	// fmt.Printf("%p %v\n", el1, el1)
+	// fmt.Printf("%p %v\n", el2, el2)
+	// fmt.Printf("%p %v\n", el3, el3)
 
 	r3 := l.Remove(el3)
 
@@ -62,7 +62,6 @@ func TestSmall(t *testing.T) {
 	if l.Len() != 0 {
 		t.Error("Expected len 0, got ", l.Len())
 	}
-
 }
 
 // This test is quite hacky because it relies on SetFinalizer
@@ -96,10 +95,10 @@ func _TestGCFifo(t *testing.T) {
 
 	for el := l.Front(); el != nil; {
 		l.Remove(el)
-		//oldEl := el
+		// oldEl := el
 		el = el.Next()
-		//oldEl.DetachPrev()
-		//oldEl.DetachNext()
+		// oldEl.DetachPrev()
+		// oldEl.DetachNext()
 	}
 
 	runtime.GC()
@@ -163,7 +162,6 @@ func _TestGCRandom(t *testing.T) {
 }
 
 func TestScanRightDeleteRandom(t *testing.T) {
-
 	const numElements = 1000
 	const numTimes = 100
 	const numScanners = 10
@@ -210,7 +208,7 @@ func TestScanRightDeleteRandom(t *testing.T) {
 
 		// Remove it
 		l.Remove(rmEl)
-		//fmt.Print(".")
+		// fmt.Print(".")
 
 		// Insert a new element
 		newEl := l.PushBack(-1*i - 1)

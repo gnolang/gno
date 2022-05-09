@@ -19,8 +19,10 @@ func main() {
 	}
 }
 
-type AppItem = command.AppItem
-type AppList = command.AppList
+type (
+	AppItem = command.AppItem
+	AppList = command.AppList
+)
 
 var mainApps AppList = []AppItem{
 	{precompileApp, "precompile", "precompile .gno to .go", DefaultPrecompileOptions},
@@ -52,5 +54,4 @@ func runMain(cmd *command.Command, exec string, args []string) error {
 
 	// unknown app command!
 	return errors.New("unknown command " + args[0])
-
 }

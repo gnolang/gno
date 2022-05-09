@@ -13,12 +13,14 @@ import (
 	osm "github.com/gnolang/gno/pkgs/os"
 )
 
-const Version = "0.0.1"
-const readBufferSize = 1024 // 1KB at a time
+const (
+	Version        = "0.0.1"
+	readBufferSize = 1024 // 1KB at a time
+)
 
 // Parse command-line options
 func parseFlags() (headPath string, chopSize int64, limitSize int64, sync bool, throttle int, version bool) {
-	var flagSet = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+	flagSet := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	var chopSizeStr, limitSizeStr string
 	flagSet.StringVar(&headPath, "head", "logjack.out", "Destination (head) file.")
 	flagSet.StringVar(&chopSizeStr, "chop", "100M", "Move file if greater than this")

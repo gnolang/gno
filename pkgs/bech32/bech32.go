@@ -13,14 +13,13 @@ func ConvertAndEncode(hrp string, data []byte) (string, error) {
 		return "", errors.Wrap(err, "encoding bech32 failed")
 	}
 	return bech32.Encode(hrp, converted)
-
 }
 
 func Encode(hrp string, data []byte) (string, error) {
 	return ConvertAndEncode(hrp, data)
 }
 
-//DecodeAndConvert decodes bech32 to []byte.
+// DecodeAndConvert decodes bech32 to []byte.
 // DEPRECATED use Decode
 func DecodeAndConvert(bech string) (string, []byte, error) {
 	hrp, data, err := bech32.Decode(bech)

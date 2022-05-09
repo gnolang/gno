@@ -48,7 +48,6 @@ func (ah authHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Re
 // queryAccount fetch an account for the supplied height.
 // Account address are passed as path component.
 func (ah authHandler) queryAccount(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-
 	// parse addr from path.
 	b32addr := thirdPart(req.Path)
 	addr, err := crypto.AddressFromBech32(b32addr)

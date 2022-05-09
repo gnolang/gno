@@ -263,7 +263,7 @@ func soapRequest(url, function, message, domain string) (r *http.Response, err e
 	}
 	req.Header.Set("Content-Type", "text/xml ; charset=\"utf-8\"")
 	req.Header.Set("User-Agent", "Darwin/10.0.0, UPnP/1.0, MiniUPnPc/1.3")
-	//req.Header.Set("Transfer-Encoding", "chunked")
+	// req.Header.Set("Transfer-Encoding", "chunked")
 	req.Header.Set("SOAPAction", "\"urn:"+domain+":service:WANIPConnection:1#"+function+"\"")
 	req.Header.Set("Connection", "Close")
 	req.Header.Set("Cache-Control", "no-cache")
@@ -293,7 +293,6 @@ type statusInfo struct {
 }
 
 func (n *upnpNAT) getExternalIPAddress() (info statusInfo, err error) {
-
 	message := "<u:GetExternalIPAddress xmlns:u=\"urn:" + n.urnDomain + ":service:WANIPConnection:1\">\r\n" +
 		"</u:GetExternalIPAddress>"
 
@@ -371,7 +370,6 @@ func (n *upnpNAT) AddPortMapping(protocol string, externalPort, internalPort int
 }
 
 func (n *upnpNAT) DeletePortMapping(protocol string, externalPort, internalPort int) (err error) {
-
 	message := "<u:DeletePortMapping xmlns:u=\"urn:" + n.urnDomain + ":service:WANIPConnection:1\">\r\n" +
 		"<NewRemoteHost></NewRemoteHost><NewExternalPort>" + strconv.Itoa(externalPort) +
 		"</NewExternalPort><NewProtocol>" + protocol + "</NewProtocol>" +

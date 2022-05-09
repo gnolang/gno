@@ -132,7 +132,7 @@ func WithPostCheck(f PostCheckFunc) CListMempoolOption {
 // *not thread safe*
 func (mem *CListMempool) InitWAL() {
 	walDir := mem.config.WalDir()
-	err := osm.EnsureDir(walDir, 0700)
+	err := osm.EnsureDir(walDir, 0o700)
 	if err != nil {
 		panic(errors.Wrap(err, "Error ensuring WAL dir"))
 	}
@@ -232,7 +232,8 @@ func (mem *CListMempool) CheckTxWithInfo(tx types.Tx, cb func(abci.Response), tx
 		int64(txSize)+txsBytes > mem.config.MaxPendingTxsBytes {
 		return ErrMempoolIsFull{
 			memSize, mem.config.Size,
-			txsBytes, mem.config.MaxPendingTxsBytes}
+			txsBytes, mem.config.MaxPendingTxsBytes,
+		}
 	}
 
 	// Check max tx bytes

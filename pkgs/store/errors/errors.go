@@ -12,9 +12,11 @@ type Error = abci.Error
 func ErrInternal(msg string) Error {
 	return abci.StringError("internal error:" + msg)
 }
+
 func ErrTxDecode(msg string) Error {
 	return abci.StringError("txdecode error:" + msg)
 }
+
 func ErrUnknownRequest(msg string) Error {
 	return abci.StringError("unknownrequest error:" + msg)
 }

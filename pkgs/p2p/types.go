@@ -4,5 +4,7 @@ import (
 	"github.com/gnolang/gno/pkgs/p2p/conn"
 )
 
-type ChannelDescriptor = conn.ChannelDescriptor
-type ConnectionStatus = conn.ConnectionStatus
+type (
+	ChannelDescriptor = conn.ChannelDescriptor
+	ConnectionStatus  = conn.ConnectionStatus
+)

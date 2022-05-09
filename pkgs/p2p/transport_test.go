@@ -262,13 +262,11 @@ func TestTransportMultiplexAcceptNonBlocking(t *testing.T) {
 	go func() {
 		<-slowc
 
-		var (
-			dialer = newMultiplexTransport(
-				fastNodeInfo,
-				NodeKey{
-					PrivKey: fastNodePV,
-				},
-			)
+		dialer := newMultiplexTransport(
+			fastNodeInfo,
+			NodeKey{
+				PrivKey: fastNodePV,
+			},
 		)
 		addr := NewNetAddress(mt.nodeKey.ID(), mt.listener.Addr())
 

@@ -21,7 +21,7 @@ func TestKeyFormat(t *testing.T) {
 	var a, b, c int64 = 100, 200, 400
 	assert.Equal(t, key, kf.Key(a, b, c))
 
-	var ao, bo, co = new(int64), new(int64), new(int64)
+	ao, bo, co := new(int64), new(int64), new(int64)
 	kf.Scan(key, ao, bo, co)
 	assert.Equal(t, a, *ao)
 	assert.Equal(t, b, *bo)
@@ -41,12 +41,14 @@ func TestNegativeKeys(t *testing.T) {
 
 	var a, b int64 = -100, -200
 	// One's complement plus one
-	key := []byte{'e',
+	key := []byte{
+		'e',
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, byte(0xff + a + 1),
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, byte(0xff + b + 1)}
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, byte(0xff + b + 1),
+	}
 	assert.Equal(t, key, kf.Key(a, b))
 
-	var ao, bo = new(int64), new(int64)
+	ao, bo := new(int64), new(int64)
 	kf.Scan(key, ao, bo)
 	assert.Equal(t, a, *ao)
 	assert.Equal(t, b, *bo)
@@ -57,13 +59,14 @@ func TestOverflow(t *testing.T) {
 
 	var a int64 = 1 << 62
 	var b uint64 = 1 << 63
-	key := []byte{'o',
+	key := []byte{
+		'o',
 		0x40, 0, 0, 0, 0, 0, 0, 0,
 		0x80, 0, 0, 0, 0, 0, 0, 0,
 	}
 	assert.Equal(t, key, kf.Key(a, b))
 
-	var ao, bo = new(int64), new(int64)
+	ao, bo := new(int64), new(int64)
 	kf.Scan(key, ao, bo)
 	assert.Equal(t, a, *ao)
 	assert.Equal(t, int64(b), *bo)

@@ -6,7 +6,6 @@ import "fmt"
 // (runtime) Frame
 
 type Frame struct {
-
 	// general
 	Label     Name // for break/continue
 	Source    Node // source of frame

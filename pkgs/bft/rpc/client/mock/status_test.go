@@ -21,7 +21,8 @@ func TestStatus(t *testing.T) {
 					LatestAppHash:     []byte("app"),
 					LatestBlockHeight: 10,
 				},
-			}},
+			},
+		},
 	}
 
 	r := mock.NewStatusRecorder(m)

@@ -356,7 +356,8 @@ func sumReceivedNumbers(numbers, doneSum chan uint64) {
 // assertion that all events have been sent, and enabling the test to assert
 // all events have also been received.
 func fireEvents(evsw EventSwitch, doneChan chan uint64,
-	offset uint64) {
+	offset uint64,
+) {
 	var sentSum uint64
 	for i := offset; i <= offset+uint64(999); i++ {
 		sentSum += i

@@ -115,7 +115,6 @@ func (bh bankHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Re
 // queryBalance fetch an account's balance for the supplied height.
 // Account address is passed as path component.
 func (bh bankHandler) queryBalance(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-
 	// parse addr from path.
 	b32addr := thirdPart(req.Path)
 	addr, err := crypto.AddressFromBech32(b32addr)

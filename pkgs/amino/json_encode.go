@@ -117,7 +117,8 @@ func (cdc *Codec) encodeReflectJSON(w io.Writer, info *TypeInfo, rv reflect.Valu
 }
 
 func (cdc *Codec) encodeReflectJSONInterface(w io.Writer, iinfo *TypeInfo, rv reflect.Value,
-	fopts FieldOptions) (err error) {
+	fopts FieldOptions,
+) (err error) {
 	if printLog {
 		fmt.Println("(e) encodeReflectJSONInterface")
 		defer func() {
@@ -132,8 +133,8 @@ func (cdc *Codec) encodeReflectJSONInterface(w io.Writer, iinfo *TypeInfo, rv re
 	}
 
 	// Get concrete non-pointer reflect value & type.
-	var crv = rv.Elem()
-	var _, crvIsPtr, crvIsNilPtr = maybeDerefValue(crv)
+	crv := rv.Elem()
+	_, crvIsPtr, crvIsNilPtr := maybeDerefValue(crv)
 	if crvIsPtr && crv.Kind() == reflect.Interface {
 		// See "MARKER: No interface-pointers" in codec.go
 		panic("should not happen")
@@ -142,7 +143,7 @@ func (cdc *Codec) encodeReflectJSONInterface(w io.Writer, iinfo *TypeInfo, rv re
 		panic(fmt.Sprintf("Illegal nil-pointer of type %v for registered interface %v. "+
 			"For compatibility with other languages, nil-pointer interface values are forbidden.", crv.Type(), iinfo.Type))
 	}
-	var crt = crv.Type()
+	crt := crv.Type()
 
 	// Get *TypeInfo for concrete type.
 	var cinfo *TypeInfo
@@ -257,7 +258,7 @@ func (cdc *Codec) encodeReflectJSONList(w io.Writer, info *TypeInfo, rv reflect.
 		}
 		for i := 0; i < length; i++ {
 			// Get dereferenced element value and info.
-			var erv = rv.Index(i)
+			erv := rv.Index(i)
 			if erv.Kind() == reflect.Ptr &&
 				erv.IsNil() {
 				// then
@@ -305,11 +306,11 @@ func (cdc *Codec) encodeReflectJSONStruct(w io.Writer, info *TypeInfo, rv reflec
 		}
 	}()
 
-	var writeComma = false
+	writeComma := false
 	for _, field := range info.Fields {
-		var finfo = field.TypeInfo
+		finfo := field.TypeInfo
 		// Get dereferenced field value and info.
-		var frv, _, frvIsNil = maybeDerefValue(rv.Field(field.Index))
+		frv, _, frvIsNil := maybeDerefValue(rv.Field(field.Index))
 		// If frv is empty and omitempty, skip it.
 		// NOTE: Unlike Amino:binary, we don't skip null fields unless "omitempty".
 		if field.JSONOmitEmpty && isJSONEmpty(frv, field.ZeroValue) {

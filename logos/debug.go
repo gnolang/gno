@@ -18,6 +18,7 @@ func (d debugging) Println(args ...interface{}) {
 		fmt.Println(append([]interface{}{"DEBUG:"}, args...)...)
 	}
 }
+
 func (d debugging) Printf(format string, args ...interface{}) {
 	if d {
 		fmt.Printf("DEBUG: "+format, args...)

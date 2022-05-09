@@ -22,7 +22,6 @@ import (
 )
 
 func Example() {
-
 	type Message interface{}
 
 	type bcMessage struct {
@@ -49,8 +48,8 @@ func Example() {
 			WithTypes(&bcMessage{}, &bcResponse{}, &bcStatus{}),
 	)
 
-	var bm = &bcMessage{Message: "ABC", Height: 100}
-	var msg = bm
+	bm := &bcMessage{Message: "ABC", Height: 100}
+	msg := bm
 
 	var bz []byte // the marshalled bytes.
 	var err error
@@ -60,7 +59,7 @@ func Example() {
 	var msg2 Message
 	err = amino.UnmarshalSized(bz, &msg2)
 	fmt.Printf("Decoded: %v (err: %v)\n", msg2, err)
-	var bm2 = msg2.(*bcMessage)
+	bm2 := msg2.(*bcMessage)
 	fmt.Printf("Decoded successfully: %v\n", *bm == *bm2)
 
 	// Output:

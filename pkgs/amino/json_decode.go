@@ -15,7 +15,6 @@ import (
 
 // CONTRACT: rv.CanAddr() is true.
 func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value, fopts FieldOptions) (err error) {
-
 	if !rv.CanAddr() {
 		panic("rv not addressable")
 	}
@@ -146,7 +145,8 @@ func invokeStdlibJSONUnmarshal(bz []byte, rv reflect.Value, fopts FieldOptions) 
 
 // CONTRACT: rv.CanAddr() is true.
 func (cdc *Codec) decodeReflectJSONInterface(bz []byte, iinfo *TypeInfo, rv reflect.Value,
-	fopts FieldOptions) (err error) {
+	fopts FieldOptions,
+) (err error) {
 	if !rv.CanAddr() {
 		panic("rv not addressable")
 	}
@@ -199,7 +199,7 @@ func (cdc *Codec) decodeReflectJSONInterface(bz []byte, iinfo *TypeInfo, rv refl
 	}
 
 	// Construct the concrete type.
-	var crv, irvSet = constructConcreteType(cinfo)
+	crv, irvSet := constructConcreteType(cinfo)
 
 	// Decode into the concrete type.
 	err = cdc.decodeReflectJSON(bz, cinfo, crv, fopts)
@@ -286,7 +286,7 @@ func (cdc *Codec) decodeReflectJSONSlice(bz []byte, info *TypeInfo, rv reflect.V
 		}()
 	}
 
-	var ert = info.Type.Elem()
+	ert := info.Type.Elem()
 
 	switch ert.Kind() {
 
@@ -320,15 +320,15 @@ func (cdc *Codec) decodeReflectJSONSlice(bz []byte, info *TypeInfo, rv reflect.V
 
 		// Special case when length is 0.
 		// NOTE: We prefer nil slices.
-		var length = len(rawSlice)
+		length := len(rawSlice)
 		if length == 0 {
 			rv.Set(info.ZeroValue)
 			return
 		}
 
 		// Read into a new slice.
-		var esrt = reflect.SliceOf(ert) // TODO could be optimized.
-		var srv = reflect.MakeSlice(esrt, length, length)
+		esrt := reflect.SliceOf(ert) // TODO could be optimized.
+		srv := reflect.MakeSlice(esrt, length, length)
 		for i := 0; i < length; i++ {
 			erv := srv.Index(i)
 			ebz := rawSlice[i]
@@ -359,7 +359,7 @@ func (cdc *Codec) decodeReflectJSONStruct(bz []byte, info *TypeInfo, rv reflect.
 	// Map all the fields(keys) to their blobs/bytes.
 	// NOTE: In decodeReflectBinaryStruct, we don't need to do this,
 	// since fields are encoded in order.
-	var rawMap = make(map[string]json.RawMessage)
+	rawMap := make(map[string]json.RawMessage)
 	err = json.Unmarshal(bz, &rawMap)
 	if err != nil {
 		return
@@ -368,11 +368,11 @@ func (cdc *Codec) decodeReflectJSONStruct(bz []byte, info *TypeInfo, rv reflect.
 	for _, field := range info.Fields {
 
 		// Get field rv and info.
-		var frv = rv.Field(field.Index)
-		var finfo = field.TypeInfo
+		frv := rv.Field(field.Index)
+		finfo := field.TypeInfo
 
 		// Get value from rawMap.
-		var valueBytes = rawMap[field.JSONName]
+		valueBytes := rawMap[field.JSONName]
 		if len(valueBytes) == 0 {
 			// TODO: Since the Go stdlib's JSON codec allows case-insensitive
 			// keys perhaps we need to also do case-insensitive lookups here.

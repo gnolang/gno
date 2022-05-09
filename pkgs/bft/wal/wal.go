@@ -99,7 +99,7 @@ var _ WAL = &baseWAL{}
 // `maxSize` is the maximum allowable amino bytes of a TimedWALMessage
 // including the amino (byte) size prefix, but excluding any crc checks.
 func NewWAL(walFile string, maxSize int64, groupOptions ...func(*auto.Group)) (*baseWAL, error) {
-	err := osm.EnsureDir(filepath.Dir(walFile), 0700)
+	err := osm.EnsureDir(filepath.Dir(walFile), 0o700)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to ensure WAL directory is in place")
 	}
@@ -632,7 +632,7 @@ func (dec *WALReader) ReadMessage() (*TimedWALMessage, *MetaMessage, error) {
 	}
 
 	// decode amino sized bytes.
-	var res = new(TimedWALMessage) // nolint: gosimple
+	res := new(TimedWALMessage) // nolint: gosimple
 	err = amino.UnmarshalSized(twmBytes, res)
 	if err != nil {
 		return nil, nil, DataCorruptionError{fmt.Errorf("failed to decode twmBytes: %v", err)}

@@ -52,12 +52,12 @@ func (bs *BlockStore) Height() int64 {
 // LoadBlock returns the block with the given height.
 // If no block is found for that height, it returns nil.
 func (bs *BlockStore) LoadBlock(height int64) *types.Block {
-	var blockMeta = bs.LoadBlockMeta(height)
+	blockMeta := bs.LoadBlockMeta(height)
 	if blockMeta == nil {
 		return nil
 	}
 
-	var block = new(types.Block)
+	block := new(types.Block)
 	buf := []byte{}
 	for i := 0; i < blockMeta.BlockID.PartsHeader.Total; i++ {
 		part := bs.LoadBlockPart(height, i)
@@ -76,7 +76,7 @@ func (bs *BlockStore) LoadBlock(height int64) *types.Block {
 // from the block at the given height.
 // If no part is found for the given height and index, it returns nil.
 func (bs *BlockStore) LoadBlockPart(height int64, index int) *types.Part {
-	var part = new(types.Part)
+	part := new(types.Part)
 	bz := bs.db.Get(calcBlockPartKey(height, index))
 	if len(bz) == 0 {
 		return nil
@@ -91,7 +91,7 @@ func (bs *BlockStore) LoadBlockPart(height int64, index int) *types.Part {
 // LoadBlockMeta returns the BlockMeta for the given height.
 // If no block is found for the given height, it returns nil.
 func (bs *BlockStore) LoadBlockMeta(height int64) *types.BlockMeta {
-	var blockMeta = new(types.BlockMeta)
+	blockMeta := new(types.BlockMeta)
 	bz := bs.db.Get(calcBlockMetaKey(height))
 	if len(bz) == 0 {
 		return nil
@@ -108,7 +108,7 @@ func (bs *BlockStore) LoadBlockMeta(height int64) *types.BlockMeta {
 // and it comes from the block.LastCommit for `height+1`.
 // If no commit is found for the given height, it returns nil.
 func (bs *BlockStore) LoadBlockCommit(height int64) *types.Commit {
-	var commit = new(types.Commit)
+	commit := new(types.Commit)
 	bz := bs.db.Get(calcBlockCommitKey(height))
 	if len(bz) == 0 {
 		return nil
@@ -124,7 +124,7 @@ func (bs *BlockStore) LoadBlockCommit(height int64) *types.Commit {
 // This is useful when we've seen a commit, but there has not yet been
 // a new block at `height + 1` that includes this commit in its block.LastCommit.
 func (bs *BlockStore) LoadSeenCommit(height int64) *types.Commit {
-	var commit = new(types.Commit)
+	commit := new(types.Commit)
 	bz := bs.db.Get(calcSeenCommitKey(height))
 	if len(bz) == 0 {
 		return nil

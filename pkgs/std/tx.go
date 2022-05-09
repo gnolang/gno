@@ -8,9 +8,7 @@ import (
 	"github.com/gnolang/gno/pkgs/crypto/multisig"
 )
 
-var (
-	maxGasWanted = int64((1 << 60) - 1) // something smaller than math.MaxInt64
-)
+var maxGasWanted = int64((1 << 60) - 1) // something smaller than math.MaxInt64
 
 // Tx is a standard way to wrap a Msg with Fee and Signatures.
 // NOTE: the first signature is the fee payer (Signatures must not be nil).

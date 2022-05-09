@@ -820,7 +820,6 @@ func TestTxGasLimits(t *testing.T) {
 			}
 			return
 		})
-
 	}
 
 	routerOpt := func(bapp *BaseApp) {
@@ -895,7 +894,6 @@ func TestMaxBlockGasLimits(t *testing.T) {
 			}
 			return
 		})
-
 	}
 
 	routerOpt := func(bapp *BaseApp) {
@@ -1077,7 +1075,7 @@ func TestGasConsumptionBadTx(t *testing.T) {
 			},
 		},
 	})
-	//app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+	// app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
 
 	header := &bft.Header{ChainID: "test-chain", Height: app.LastBlockHeight() + 1}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})

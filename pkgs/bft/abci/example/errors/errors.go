@@ -3,10 +3,12 @@ package errors
 //----------------------------------------
 // Error types
 
-type EncodingError struct{}
-type BadNonce struct{}
-type Unauthorized struct{}
-type UnknownError struct{}
+type (
+	EncodingError struct{}
+	BadNonce      struct{}
+	Unauthorized  struct{}
+	UnknownError  struct{}
+)
 
 //----------------------------------------
 // All errors must implement abci.Error
