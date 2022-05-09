@@ -8,6 +8,9 @@ import (
 
 func main() {
 	fmt.Println("test")
+	// various data types
+	// avatar
+	// ip address
 }
 
 // Output:

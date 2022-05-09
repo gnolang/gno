@@ -11,6 +11,7 @@ import (
 var profiles *avl.MutTree // std.Address.String() -> *Profile
 
 func Update(dict map[string]interface{}) {
+	// FIXME: ask a price per stored data length?
 	currentUser := std.GetOrigCaller()
 	profile := getOrCreateProfileByAddress(currentUser)
 	profile.update(dict)
