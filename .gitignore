@@ -11,3 +11,5 @@ build/*
 *.log.*
 *.log
 *.gno.gen.go
+.vscode
+.idea
