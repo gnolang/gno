@@ -1,5 +1,5 @@
 ARG ARCH=amd64
-FROM lopsided/archlinux-$ARCH
+FROM FROM ghcr.io/faddat/archlinux-$ARCH
 
 ARG ARCHDIR="rootfs/amd64"
 
