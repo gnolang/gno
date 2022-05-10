@@ -162,8 +162,8 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 		"p/grc/grc20/impl",
 		"p/grc/grc721",
 		"p/maths",
-		"r/foo20",
 		"r/users",
+		"r/foo20",
 		"r/boards",
 		"r/banktest",
 	} {
