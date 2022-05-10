@@ -57,6 +57,9 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 				return nil
 			}
 			if strings.HasSuffix(path, "_test.gno") {
+				panic("*_test.gno files are not yet supported by gnodev")
+			}
+			if strings.HasSuffix(path, "_filetest.gno") {
 				testFiles = append(testFiles, path)
 			}
 			return nil
@@ -113,7 +116,7 @@ func gnoTestPkg(pkgPath string, testFiles []string, opts testOptions) error {
 		}
 
 		testFilePath := filepath.Join(pkgPath, testFile)
-		err := tests.RunFileTest(rootDir, testFilePath, true, nil)
+		err := tests.RunFileTest(rootDir, testFilePath, false, nil)
 		duration := time.Since(startedAt)
 		if err != nil {
 			errs = multierr.Append(errs, err)

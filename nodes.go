@@ -1129,6 +1129,8 @@ func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 		}
 		if strings.HasSuffix(mfile.Name, "_test.gno") {
 			// skip test file.
+		} else if strings.HasSuffix(mfile.Name, "_filetest.gno") {
+			// skip test file.
 		} else if memPkg.Name == string(n.PkgName) {
 			// add package file.
 			fset.AddFiles(n)

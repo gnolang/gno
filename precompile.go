@@ -170,6 +170,8 @@ func PrecompileBuildPackage(fileOrPkg string, goBinary string) error {
 		for _, goMatch := range goMatches {
 			switch {
 			case strings.HasSuffix(goMatch, "."): // skip
+			case strings.HasSuffix(goMatch, "_filetest.go"): // skip
+			case strings.HasSuffix(goMatch, "_filetest.gno.gen.go"): // skip
 			case strings.HasSuffix(goMatch, "_test.go"): // skip
 			case strings.HasSuffix(goMatch, "_test.gno.gen.go"): // skip
 			default:
