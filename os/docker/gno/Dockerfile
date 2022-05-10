@@ -5,6 +5,7 @@ FROM ghcr.io/faddat/archlinux
 ENV GOPATH=/go
 
 # everything needed for gno development
+# fully supports all databases and their compression schemes, with nothing additional.
 RUN pacman -Syyu --noconfirm go base-devel git leveldb rocksdb make snappy lz4 protobuf
 
 # Useful tools
