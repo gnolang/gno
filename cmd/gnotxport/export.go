@@ -47,7 +47,7 @@ func txExportApp(cmd *command.Command, args []string, iopts interface{}) error {
 		return err
 	}
 
-	for height := int64(opts.StartHeight); height <= last; height++ {
+	for height := opts.StartHeight; height <= last; height++ {
 		block, err := c.Block(&height)
 		if err != nil {
 			panic(err)
