@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gnolang/gno/gnoland"
 	"github.com/gnolang/gno/pkgs/amino"
@@ -193,7 +194,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 			return
 		}
 		r.ParseForm()
-		toAddrStr := r.Form["toaddr"][0]
+		toAddrStr := strings.TrimSpace(r.Form["toaddr"][0])
 		if toAddrStr == "" {
 			fmt.Println("no toAddr")
 			return
