@@ -19,8 +19,8 @@ import (
 func TestPackages(t *testing.T) {
 	// find all packages with *_test.gno files.
 	rootDirs := []string{
-		filepath.Join("..", "examples"),
 		filepath.Join("..", "stdlibs"),
+		filepath.Join("..", "examples"),
 	}
 	testDirs := map[string]string{} // aggregate here, pkgPath -> dir
 	pkgPaths := []string{}
@@ -63,7 +63,7 @@ func runPackageTest(t *testing.T, dir string, path string) {
 	// stdout := new(bytes.Buffer)
 	stdout := os.Stdout
 	stderr := new(bytes.Buffer)
-	store := testStore(stdin, stdout, stderr, false)
+	store := testStore("..", stdin, stdout, stderr, false)
 	store.SetLogStoreOps(true)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath: "test",

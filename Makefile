@@ -50,7 +50,7 @@ clean:
 examples.precompile: install_gnodev
 	gnodev precompile ./examples --verbose
 
-examples.build: examples.precompile
+examples.build: install_gnodev examples.precompile
 	gnodev build ./examples --verbose
 
 ########################################
@@ -59,7 +59,7 @@ examples.build: examples.precompile
 test: test.gno test.go
 	@echo "Full test suite finished."
 
-test.gno: test.files1 test.files2 test.realm test.packages
+test.gno: test.files1 test.files2 test.realm test.packages test.examples
 	go test tests/*.go -v -run "TestFileStr"
 	go test tests/*.go -v -run "TestSelectors"
 
@@ -80,6 +80,9 @@ test.realm:
 
 test.packages:
 	go test tests/*.go -v -run "TestPackages" --timeout 20m
+
+test.examples:
+	go run ./cmd/gnodev test ./examples
 
 # Code gen
 stringer:
