@@ -2,13 +2,20 @@ package profile
 
 import (
 	"std"
+	"strings"
 
+	"gno.land/p/avl"
+	"gno.land/p/ufmt"
 	"gno.land/r/users"
 )
 
 // TODO: makes sense to implement an allowance system?
 
 var profiles *avl.MutTree // std.Address.String() -> *Profile
+
+func init() {
+	// profiles = avl.NewMutTree()
+}
 
 func Update(dict map[string]interface{}) {
 	// FIXME: ask a price per stored data length?
@@ -18,20 +25,24 @@ func Update(dict map[string]interface{}) {
 }
 
 func GetByAddressOrName(aon users.AddressOrName) *Profile {
-	return profiles.Get(aon)
+	addr := aon.Resolve()
+	profile, found := profiles.Get(addr.String())
+	if !found {
+		return nil
+	}
+	return profile.(*Profile)
 }
 
-func getOrCreateProfileByAddress(aon users.AddressOrName) *Profile {
+func getOrCreateProfileByAddress(addr std.Address) *Profile {
 	// lookup existing profile
-	profile := profiles.Get(aon)
-	if profile != nil {
-		return profile
+	profile, found := profiles.Get(addr.String())
+	if found {
+		return profile.(*Profile)
 	}
 
 	// create
-	addr := aon.Resolve()
 	newProfile := &Profile{address: addr}
-	profiles.Set(addr, newProfile)
+	profiles.Set(addr.String(), newProfile)
 	return newProfile
 }
 
@@ -43,7 +54,8 @@ func Render(path string) string {
 		output := ufmt.Sprintf("stats: %d known profiles\n", profiles.Size())
 		return output
 	case len(parts) == 1:
-		profile := GetByAddressOrName(parts[0])
+		aon := users.AddressOrName(parts[0])
+		profile := GetByAddressOrName(aon)
 		if profile != nil {
 			return profile.Render()
 		}
