@@ -3,13 +3,14 @@ package profile
 import (
 	"std"
 
-	"gno.land/r/users"
+	"gno.land/p/ufmt"
+	// "gno.land/r/users"
 )
 
 // FIXME: manage privacy?
 
 func newProfile(addr std.Address) *Profile {
-	now := std.GetTime()
+	now := std.GetTimestamp()
 	return &Profile{
 		address: addr,
 		created: now,
@@ -19,12 +20,12 @@ func newProfile(addr std.Address) *Profile {
 type Profile struct {
 	dict    map[string]interface{}
 	address std.Address
-	created uint64
-	updated uint64
+	created std.Time
+	updated std.Time
 }
 
 func (p *Profile) save() {
-	now := std.GetTime()
+	now := std.GetTimestamp()
 	if p.created == 0 {
 		p.created = now
 	}
