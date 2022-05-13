@@ -1149,6 +1149,9 @@ func ParseMemPackageTests(memPkg *std.MemPackage) (tset, itset *FileSet) {
 		if !strings.HasSuffix(mfile.Name, ".gno") {
 			continue // skip this file.
 		}
+		if strings.HasSuffix(mfile.Name, "_filetest.gno") {
+			continue // skip this file.
+		}
 		n, err := ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
 			panic(errors.Wrap(err, "parsing file "+mfile.Name))

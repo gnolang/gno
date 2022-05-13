@@ -40,15 +40,16 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 	// FIXME: guess opts.RootDir by walking parent dirs.
 
-	pkgPaths, err := gnoPackagesFromArgs(args)
+	pkgDirs, err := gnoPackagesFromArgs(args)
 	if err != nil {
 		return fmt.Errorf("list packages from args: %w", err)
 	}
 
 	errCount := 0
-	for _, pkgPath := range pkgPaths {
+	for _, pkgDir := range pkgDirs {
 		testFiles := []string{}
-		fileSystem := os.DirFS(pkgPath)
+		hasPackageTests := false
+		fileSystem := os.DirFS(pkgDir)
 		fs.WalkDir(fileSystem, ".", func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				log.Fatal(err)
@@ -57,32 +58,52 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 				return nil
 			}
 			if strings.HasSuffix(path, "_test.gno") {
-				panic("*_test.gno files are not yet supported by gnodev")
+				hasPackageTests = true
 			}
 			if strings.HasSuffix(path, "_filetest.gno") {
 				testFiles = append(testFiles, path)
 			}
 			return nil
 		})
+		// FIXME: perform tests per package instead of per test kind
 		sort.Strings(testFiles)
 
-		if len(testFiles) > 0 {
-			startedAt := time.Now()
-			err = gnoTestPkg(pkgPath, testFiles, opts)
-			duration := time.Since(startedAt)
+		if len(testFiles) == 0 && !hasPackageTests {
+			cmd.ErrPrintfln("?       %s \t[no test files]", pkgDir)
+			continue
+		}
 
+		startedAt := time.Now()
+		// run _test.gno tests
+		if hasPackageTests {
+			err = gnoTestPkg(pkgDir, opts)
 			if err != nil {
-				err = fmt.Errorf("%s: test pkg: %w", pkgPath, err)
+				duration := time.Since(startedAt)
+				err = fmt.Errorf("%s: test pkg: %w", pkgDir, err)
 				cmd.ErrPrintfln("FAIL")
-				cmd.ErrPrintfln("FAIL    %s \t%v", pkgPath, duration)
+				cmd.ErrPrintfln("FAIL    %s \t%v", pkgDir, duration)
 				cmd.ErrPrintfln("FAIL")
 				errCount++
-			} else {
-				cmd.ErrPrintfln("ok      %s \t%v", pkgPath, duration)
+				continue
 			}
-		} else {
-			cmd.ErrPrintfln("?       %s \t[no test files]", pkgPath)
 		}
+
+		// run _filetest.gno tests
+		if len(testFiles) > 0 {
+			err = gnoTestFiles(pkgDir, testFiles, opts)
+			if err != nil {
+				duration := time.Since(startedAt)
+				err = fmt.Errorf("%s: test pkg: %w", pkgDir, err)
+				cmd.ErrPrintfln("FAIL")
+				cmd.ErrPrintfln("FAIL    %s \t%v", pkgDir, duration)
+				cmd.ErrPrintfln("FAIL")
+				errCount++
+				continue
+			}
+		}
+
+		duration := time.Since(startedAt)
+		cmd.ErrPrintfln("ok      %s \t%v", pkgDir, duration)
 	}
 	if errCount > 0 {
 		cmd.ErrPrintfln("FAIL")
@@ -92,11 +113,9 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 	return nil
 }
 
-func gnoTestPkg(pkgPath string, testFiles []string, opts testOptions) error {
+func gnoTestFiles(pkgDir string, testFiles []string, opts testOptions) error {
 	verbose := opts.Verbose
 	rootDir := opts.RootDir
-	// FIXME support test-based, examples, and full packages
-	// FIXME update Makefile and CI
 
 	var errs error
 	for _, testFile := range testFiles {
@@ -115,7 +134,7 @@ func gnoTestPkg(pkgPath string, testFiles []string, opts testOptions) error {
 			}
 		}
 
-		testFilePath := filepath.Join(pkgPath, testFile)
+		testFilePath := filepath.Join(pkgDir, testFile)
 		err := tests.RunFileTest(rootDir, testFilePath, false, nil)
 		duration := time.Since(startedAt)
 		if err != nil {
@@ -134,6 +153,62 @@ func gnoTestPkg(pkgPath string, testFiles []string, opts testOptions) error {
 	}
 
 	return errs
+}
+
+func gnoTestPkg(pkgDir string, opts testOptions) error {
+	rootDir := opts.RootDir
+	exampleDir := filepath.Join(rootDir, "examples")
+	pkgPath, err := filepath.Rel(exampleDir, pkgDir)
+	if err != nil {
+		return fmt.Errorf("failed to guess package path")
+	}
+
+	err = tests.RunPackageTest(nil, pkgDir, pkgPath)
+	fmt.Println(err)
+
+	// BLAHBLAH ../stdlibs/bufio bufio
+
+	/*
+		verbose := opts.Verbose
+
+		var errs error
+		for _, testFile := range testFiles {
+			testName := "file/" + testFile
+			startedAt := time.Now()
+			if verbose {
+				fmt.Fprintf(os.Stderr, "=== RUN   %s\n", testName)
+			}
+
+			var closer func() string
+			if !verbose {
+				var err error
+				closer, err = captureStdoutAndStderr()
+				if err != nil {
+					panic(err)
+				}
+			}
+
+			testFilePath := filepath.Join(pkgPath, testFile)
+			err := tests.RunFileTest(rootDir, testFilePath, false, nil)
+			duration := time.Since(startedAt)
+			if err != nil {
+				errs = multierr.Append(errs, err)
+				fmt.Fprintf(os.Stderr, "--- FAIL: %s (%v)\n", testName, duration)
+				if !verbose {
+					stdouterr := closer()
+					fmt.Fprintln(os.Stderr, stdouterr)
+				}
+				continue
+			}
+
+			if verbose {
+				fmt.Fprintf(os.Stderr, "--- PASS: %s (%v)\n", testName, duration)
+			}
+		}
+
+		return errs
+	*/
+	return nil
 }
 
 // CaptureStdoutAndStderr temporarily pipes os.Stdout and os.Stderr into a buffer.
