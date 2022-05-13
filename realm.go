@@ -745,7 +745,6 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 	// set index.
 	if oo.GetIsEscaped() {
 		// XXX save oid->hash to iavl.
-		fmt.Println("XXX save hash to iavl")
 	}
 }
 
