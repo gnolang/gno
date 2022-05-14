@@ -9,8 +9,10 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"testing"
 	"time"
 
+	"github.com/gnolang/gno/cmd/gnodev/internal/testrunner"
 	"github.com/gnolang/gno/pkgs/command"
 	"github.com/gnolang/gno/pkgs/errors"
 	"github.com/gnolang/gno/tests"
@@ -163,8 +165,14 @@ func gnoTestPkg(pkgDir string, opts testOptions) error {
 		return fmt.Errorf("failed to guess package path")
 	}
 
-	err = tests.RunPackageTest(nil, pkgDir, pkgPath)
-	fmt.Println(err)
+	testFunc := func(t *testing.T) {
+		err = tests.RunPackageTest(nil, pkgDir, pkgPath)
+		fmt.Println(err)
+	}
+	err = testrunner.Run(testFunc)
+	if err != nil {
+		panic(err)
+	}
 
 	// BLAHBLAH ../stdlibs/bufio bufio
 
