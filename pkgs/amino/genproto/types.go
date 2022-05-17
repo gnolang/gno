@@ -318,7 +318,7 @@ func (nl NList) Name() string {
 	if nl.Dimensions <= 0 {
 		panic("should not happen")
 	}
-	var pkgname = nl.Package.GoPkgName
+	var pkgname = strings.ToUpper(nl.Package.GoPkgName) // must be exposed.
 	var prefix string
 	var ename string
 	var listSfx = strings.Repeat("List", nl.Dimensions)
