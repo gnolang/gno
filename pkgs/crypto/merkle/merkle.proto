@@ -28,6 +28,6 @@ message SimpleProofNode {
 	SimpleProofNode Right = 4;
 }
 
-message merkle_BytesList {
+message MERKLE_BytesList {
 	repeated bytes Value = 1;
 }

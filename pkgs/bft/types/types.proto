@@ -169,6 +169,6 @@ message MockAppState {
 message VoteSet {
 }
 
-message types_BytesList {
+message TYPES_BytesList {
 	repeated bytes Value = 1;
 }
