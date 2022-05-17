@@ -42,7 +42,8 @@ license.
 
 You may keep a copy of this project only for your personal, commercial, and
 non-commercial purposes as long as such purposes are not associated with any
-religious or distributed ledger (blockchain) subject matter.
+religious or distributed ledger (blockchain) subject matter, and the software
+is not executed in a replicated environment (e.g. with Tendermint).
 
 THIS PROJECT AND THE WORKS AVAILABLE THROUGH THIS PROJECT ARE PROVIDED “AS IS”
 AND WITHOUT WARRANTY OF ANY KIND. IN NO EVENT SHALL THE OWNER OR MAINTAINER OF
