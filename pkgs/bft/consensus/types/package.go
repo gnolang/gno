@@ -1,4 +1,4 @@
-package types
+package cstypes
 
 import (
 	"github.com/gnolang/gno/pkgs/amino"
@@ -11,6 +11,7 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	"tm",
 	amino.GetCallersDirname(),
 ).
+	WithGoPkgName("cstypes").
 	WithDependencies(
 		abci.Package,
 		btypes.Package,
