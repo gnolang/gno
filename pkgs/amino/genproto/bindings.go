@@ -320,14 +320,10 @@ func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 				_return(_x("nil"), _i(err_)),
 			),
 		)
-		// XXX If isRoot and repr type isn't struct, an implicit struct is needed.
-		// XXX DELETE If gooType is struct or is registered non-native, but the repr type
-		// XXX DELETE isn't struct, an implicit struct is needed.
+		// If isRoot and repr type isn't struct, an implicit struct is needed.
 		// If option_bytes, special case as we will encode as uint8.
 		if isRoot &&
 			gooType.ReprType.Type.Kind() != reflect.Struct &&
-			//(gooType.Type.Kind() == reflect.Struct ||
-			//(gooType.Package != nil && gooType.Package.GoPkgPath != "")) &&
 			options&option_bytes == 0 {
 
 			if gooType.ReprType.Type.Kind() == reflect.Interface {
@@ -339,10 +335,8 @@ func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 		goor = _i(goor_)
 		goorType = gooType.ReprType
 	} else {
-		// XXX If gooType is registered non-native, but the repr type isn't struct
-		// XXX nor interface, an implicit struct is needed.  (if not amino
-		// XXX marshaler and isn't struct (nor interface), but isn't registered,
-		// XXX not a p3 message).
+		// If isRoot and gooType isn't struct nor interface, an implicit
+		// struct wrapper is needed.
 		if isRoot &&
 			// gooType.Package != nil &&
 			// gooType.Package.GoPkgPath != "" &&
