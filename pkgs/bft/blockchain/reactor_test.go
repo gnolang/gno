@@ -20,6 +20,7 @@ import (
 	"github.com/gnolang/gno/pkgs/errors"
 	"github.com/gnolang/gno/pkgs/log"
 	"github.com/gnolang/gno/pkgs/p2p"
+	"github.com/gnolang/gno/pkgs/testutils"
 )
 
 var config *cfg.Config
@@ -173,7 +174,9 @@ func TestNoBlockResponse(t *testing.T) {
 // or without significant refactoring of the module.
 // Alternatively we could actually dial a TCP conn but
 // that seems extreme.
-func TestBadBlockStopsPeer(t *testing.T) {
+func TestFlappyBadBlockStopsPeer(t *testing.T) {
+	testutils.FilterStability(t, testutils.Flappy)
+
 	config = cfg.ResetTestRoot("blockchain_reactor_test")
 	defer os.RemoveAll(config.RootDir)
 	genDoc, privVals := randGenesisDoc(1, false, 30)

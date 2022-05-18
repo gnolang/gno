@@ -26,6 +26,7 @@ jobs:
           - test.files2
           - test.packages
           - test.examples
+          - test.flappy
     runs-on: ubuntu-latest
     timeout-minutes: 21
     steps:

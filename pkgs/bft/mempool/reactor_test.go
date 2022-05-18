@@ -19,6 +19,7 @@ import (
 	"github.com/gnolang/gno/pkgs/p2p"
 	p2pcfg "github.com/gnolang/gno/pkgs/p2p/config"
 	"github.com/gnolang/gno/pkgs/p2p/mock"
+	"github.com/gnolang/gno/pkgs/testutils"
 )
 
 type peerState struct {
@@ -195,7 +196,9 @@ func TestBroadcastTxForPeerStopsWhenPeerStops(t *testing.T) {
 	leaktest.CheckTimeout(t, 10*time.Second)()
 }
 
-func TestBroadcastTxForPeerStopsWhenReactorStops(t *testing.T) {
+func TestFlappyBroadcastTxForPeerStopsWhenReactorStops(t *testing.T) {
+	testutils.FilterStability(t, testutils.Flappy)
+
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
