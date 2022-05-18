@@ -338,8 +338,6 @@ func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 		// If isRoot and gooType isn't struct nor interface, an implicit
 		// struct wrapper is needed.
 		if isRoot &&
-			// gooType.Package != nil &&
-			// gooType.Package.GoPkgPath != "" &&
 			gooType.Type.Kind() != reflect.Struct &&
 			gooType.Type.Kind() != reflect.Interface {
 
