@@ -33,7 +33,6 @@ require (
 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
 	golang.org/x/tools v0.1.0
 	google.golang.org/protobuf v1.27.1
-	moul.io/testman v1.5.0
 )
 
 require (
@@ -55,7 +54,6 @@ require (
 	github.com/klauspost/compress v1.12.3 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.0.3 // indirect
-	github.com/peterbourgon/ff/v3 v3.0.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.1.0 // indirect
@@ -64,10 +62,8 @@ require (
 	golang.org/x/sys v0.0.0-20210615035016-665e8c7367d1 // indirect
 	golang.org/x/text v0.3.6 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
+	gopkg.in/yaml.v2 v2.2.4 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20220512140231-539c8e751b99 // indirect
-	moul.io/banner v1.0.1 // indirect
-	moul.io/motd v1.0.0 // indirect
-	moul.io/u v1.6.0 // indirect
 )
 
 replace github.com/gdamore/tcell/v2 => github.com/gnolang/tcell/v2 v2.1.0

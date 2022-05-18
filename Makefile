@@ -65,7 +65,7 @@ test.gno: test.files1 test.files2 test.realm test.packages test.examples
 
 test.flappy:
 	# flappy tests should work "sometimes" (at least once)
-	TEST_STABILITY=flappy go run moul.io/testman test -test.v -timeout=20m -retry=10 -run ^TestFlappy ./pkgs/bft/consensus ./pkgs/bft/blockchain
+	TEST_STABILITY=flappy go run -modfile ./misc/devdeps/go.mod moul.io/testman test -test.v -timeout=20m -retry=10 -run ^TestFlappy ./pkgs/bft/consensus ./pkgs/bft/blockchain
 
 test.go:
 	go test . -v
