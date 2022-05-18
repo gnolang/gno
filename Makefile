@@ -55,19 +55,23 @@ examples.build: install_gnodev examples.precompile
 
 ########################################
 # Test suite
-.PHONY: test test.go test.gno test.files1 test.files2 test.realm test.packages
-test: test.gno test.go
+.PHONY: test test.go test.gno test.files1 test.files2 test.realm test.packages test.flappy
+test: test.gno test.go test.flappy
 	@echo "Full test suite finished."
 
 test.gno: test.files1 test.files2 test.realm test.packages test.examples
 	go test tests/*.go -v -run "TestFileStr"
 	go test tests/*.go -v -run "TestSelectors"
 
+test.flappy:
+	# flappy tests should work "sometimes" (at least once)
+	TEST_STABILITY=flappy go run moul.io/testman test -test.v -timeout=20m -retry=10 -run ^TestFlappy ./pkgs/bft/consensus ./pkgs/bft/blockchain
+
 test.go:
 	go test . -v
 	# -p 1 shows test failures as they come
 	# maybe another way to do this?
-	go test ./pkgs/... -v -p 1
+	go test ./pkgs/... -v -p 1 -timeout=20m
 
 test.files1:
 	go test tests/*.go -v -test.short -run "TestFiles1/" --timeout 20m
@@ -104,5 +108,5 @@ genproto2:
 	find pkgs | grep -v "^pkgs\/amino" | grep "pbbindings" | xargs rm
 	find pkgs | grep -v "^pkgs\/amino" | grep "pb.go" | xargs rm
 	#@rm gno.proto || true
-	@rm pbbindings.go || true 
+	@rm pbbindings.go || true
 	@rm gno.pb.go || true

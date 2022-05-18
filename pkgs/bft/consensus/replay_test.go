@@ -32,6 +32,7 @@ import (
 	"github.com/gnolang/gno/pkgs/events"
 	"github.com/gnolang/gno/pkgs/log"
 	"github.com/gnolang/gno/pkgs/random"
+	"github.com/gnolang/gno/pkgs/testutils"
 )
 
 func TestMain(m *testing.M) {
@@ -534,7 +535,9 @@ func TestHandshakeReplayOne(t *testing.T) {
 }
 
 // Sync from caught up
-func TestHandshakeReplayNone(t *testing.T) {
+func TestFlappyHandshakeReplayNone(t *testing.T) {
+	testutils.FilterStability(t, testutils.Flappy)
+
 	for _, m := range modes {
 		testHandshakeReplay(t, config, numBlocks, m, nil)
 	}
