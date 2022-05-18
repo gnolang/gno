@@ -11,6 +11,7 @@ import (
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/crypto/ed25519"
 	"github.com/gnolang/gno/pkgs/p2p/conn"
+	"github.com/gnolang/gno/pkgs/testutils"
 )
 
 var defaultNodeName = "host_peer"
@@ -210,7 +211,9 @@ func testDialer(dialAddr NetAddress, errc chan error) {
 	errc <- nil
 }
 
-func TestTransportMultiplexAcceptNonBlocking(t *testing.T) {
+func TestFlappyTransportMultiplexAcceptNonBlocking(t *testing.T) {
+	testutils.FilterStability(t, testutils.Flappy)
+
 	mt := testSetupMultiplexTransport(t)
 
 	var (
