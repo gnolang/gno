@@ -1,8 +1,9 @@
-package types
+package cstypes
 
 import (
 	"github.com/gnolang/gno/pkgs/amino"
 	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
+	btypes "github.com/gnolang/gno/pkgs/bft/types"
 )
 
 var Package = amino.RegisterPackage(amino.NewPackage(
@@ -10,8 +11,10 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	"tm",
 	amino.GetCallersDirname(),
 ).
+	WithGoPkgName("cstypes").
 	WithDependencies(
 		abci.Package,
+		btypes.Package,
 	).
 	WithTypes(
 
@@ -20,6 +23,9 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 		HRS{},
 		RoundStateSimple{},
 		PeerRoundState{},
+
+		// Misc
+		HeightVoteSet{},
 
 		// Event types
 		EventNewRoundStep{},

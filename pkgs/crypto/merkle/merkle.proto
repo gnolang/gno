@@ -13,3 +13,21 @@ message ProofOp {
 message Proof {
 	repeated ProofOp Ops = 1;
 }
+
+message SimpleProof {
+	sint64 Total = 1;
+	sint64 Index = 2;
+	bytes LeafHash = 3;
+	repeated bytes Aunts = 4;
+}
+
+message SimpleProofNode {
+	bytes Hash = 1;
+	SimpleProofNode Parent = 2;
+	SimpleProofNode Left = 3;
+	SimpleProofNode Right = 4;
+}
+
+message MERKLE_BytesList {
+	repeated bytes Value = 1;
+}

@@ -40,7 +40,7 @@ const (
 )
 
 func init() {
-	gcdc = NewCodec().Autoseal()
+	gcdc = NewCodec().WithPBBindings().Autoseal()
 	var err error
 	emptyTime, err = time.Parse(epochFmt, unixEpochStr)
 	if err != nil {
@@ -386,12 +386,10 @@ func (cdc *Codec) MarshalReflect(o interface{}) ([]byte, error) {
 		}
 		bz = buf.Bytes()
 	}
-
 	// If bz is empty, prefer nil.
 	if len(bz) == 0 {
 		bz = nil
 	}
-
 	return bz, nil
 }
 

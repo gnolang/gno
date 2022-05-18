@@ -29,7 +29,7 @@ func BenchmarkBinary(b *testing.B) {
 }
 
 func BenchmarkBinaryPBBindings(b *testing.B) {
-	cdc := amino.NewCodec()
+	cdc := amino.NewCodec().WithPBBindings()
 	for _, ptr := range tests.StructTypes {
 		b.Logf("case %v (pbbindings)", reflect.TypeOf(ptr))
 		rt := getTypeFromPointer(ptr)

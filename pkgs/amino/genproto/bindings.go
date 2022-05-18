@@ -252,9 +252,13 @@ func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 	// Below, we can assume that goo isn't nil.
 
 	// External case.
-	// If gooType is registered, just call ToPBMessage.
+	// If gooType is registered and repr is struct, just call ToPBMessage.
 	// TODO If not registered?
-	if !isRoot && gooType.Registered && hasPBBindings(gooType) && (options&option_bytes == 0) {
+	if !isRoot &&
+		gooType.Registered && hasPBBindings(gooType) &&
+		gooType.ReprType.Type.Kind() == reflect.Struct &&
+		(options&option_bytes == 0) {
+
 		// Call ToPBMessage().
 		pbote_ := p3goTypeExprString(rootPkg, imports, scope, gooType, fopts)
 		pbom_ := addVarUniq(scope, "pbom")
@@ -314,11 +318,9 @@ func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 				_return(_x("nil"), _i(err_)),
 			),
 		)
-		// If gooType is struct or is registered non-native, but the repr type
-		// isn't struct, an implicit struct is needed.
+		// If isRoot and repr type isn't struct, an implicit struct is needed.
 		// If option_bytes, special case as we will encode as uint8.
-		if (gooType.Type.Kind() == reflect.Struct ||
-			(gooType.Package != nil && gooType.Package.GoPkgPath != "")) &&
+		if isRoot &&
 			gooType.ReprType.Type.Kind() != reflect.Struct &&
 			options&option_bytes == 0 {
 
@@ -331,12 +333,9 @@ func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 		goor = _i(goor_)
 		goorType = gooType.ReprType
 	} else {
-		// If gooType is registered non-native, but the repr type isn't struct
-		// nor interface, an implicit struct is needed.  (if not amino
-		// marshaler and isn't struct (nor interface), but isn't registered,
-		// not a p3 message).
-		if gooType.Package != nil &&
-			gooType.Package.GoPkgPath != "" &&
+		// If isRoot and gooType isn't struct nor interface, an implicit
+		// struct wrapper is needed.
+		if isRoot &&
 			gooType.Type.Kind() != reflect.Struct &&
 			gooType.Type.Kind() != reflect.Interface {
 
@@ -451,7 +450,6 @@ func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 			b = append(b,
 				_a(pbo, "=", _call(_i("byte"), goor)))
 		}
-
 	case reflect.Array, reflect.Slice:
 		var newoptions uint64
 		gooreIsPtr := goorType.ElemIsPtr
@@ -523,7 +521,7 @@ func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 
 		for _, field := range goorType.Fields {
 			goorfIsPtr := field.IsPtr()
-			goorfType := field.TypeInfo.ReprType
+			goorfType := field.TypeInfo
 			goorf := _sel(goor, field.Name) // next goo
 			pbof := _sel(pbo, field.Name)   // next pbo
 
@@ -590,9 +588,12 @@ func pb2goStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 		}
 
 		// External case.
-		// If gooType is registered, just call FromPBMessage.
+		// If gooType is registered and repr is struct, just call FromPBMessage.
 		// TODO If not registered?
-		if gooType.Registered && hasPBBindings(gooType) && (options&option_bytes == 0) {
+		if gooType.Registered && hasPBBindings(gooType) &&
+			gooType.ReprType.Type.Kind() == reflect.Struct &&
+			(options&option_bytes == 0) {
+
 			b = append(b,
 				_a(_i("err"), "=", _call(_sel(goo, "FromPBMessage"), _i("cdc"), pbo)),
 				_if(_x("err__!=__nil"),
@@ -638,11 +639,8 @@ func pb2goStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 				),
 			)
 		}()
-		// If gooType is struct or is registered non-native, but the repr
-		// type isn't struct, an implicit struct is needed.
-		// If option_bytes, special case as we will encode as uint8.
-		if (gooType.Type.Kind() == reflect.Struct ||
-			(gooType.Package != nil && gooType.Package.GoPkgPath != "")) &&
+		// If isRoot and repr type isn't struct, an implicit struct is needed.
+		if isRoot &&
 			gooType.ReprType.Type.Kind() != reflect.Struct &&
 			options&option_bytes == 0 {
 
@@ -656,12 +654,9 @@ func pb2goStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 		goorType = gooType.ReprType
 		// goorte_ already set.
 	} else {
-		// If gooType is registered non-native, but the repr type isn't
-		// struct nor interface, an implicit struct is needed.  (if not amino
-		// marshaler and isn't struct (nor interface), but isn't registered,
-		// not a p3 message).
-		if gooType.Package != nil &&
-			gooType.Package.GoPkgPath != "" &&
+		// If isRoot and gooType isn't struct nor interface, an implicit
+		// struct wrapper is needed.
+		if isRoot &&
 			gooType.Type.Kind() != reflect.Struct &&
 			gooType.Type.Kind() != reflect.Interface {
 
@@ -891,7 +886,7 @@ func isReprEmptyStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl,
 			b = append(b,
 				_a(goor_, err_, ":=", _call(_sel(goo, "MarshalAmino"))),
 				_if(_x("%v__!=__nil", err_),
-					_return(_x("nil"), _i(err_)),
+					_return(_x("false")),
 				),
 			)
 			// Assign *goor*.
@@ -951,7 +946,7 @@ func isReprEmptyStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl,
 			for _, field := range goorType.Fields {
 				goorf := _sel(goor, field.Name) // next goo
 				goorfIsPtr := field.IsPtr()
-				goorfType := field.TypeInfo.ReprType
+				goorfType := field.TypeInfo
 
 				// Translate in place.
 				scope2 := ast.NewScope(scope)
@@ -963,8 +958,9 @@ func isReprEmptyStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl,
 
 	default:
 		// General translation.
+		goorte := goTypeExprString(rootPkg, imports, scope, false, goorType)
 		b = append(b,
-			_if(_b(goor, "!=", defaultExpr(goorType.Type.Kind())),
+			_if(_b(goor, "!=", _call(_x(goorte), defaultExpr(goorType.Type.Kind()))),
 				_return(_i("false"))))
 	}
 	return b
@@ -1992,7 +1988,7 @@ func goTypeExpr(rootPkg *amino.Package, rt reflect.Type, imports *ast.GenDecl, s
 	}
 }
 
-// The relevant pre-repr p3-protoc generated go-type's type-expr.
+// The relevant p3-protoc generated go-type's type-expr given pre-repr info.
 // This is used for construction.
 func p3goTypeExprString(rootPkg *amino.Package, imports *ast.GenDecl, scope *ast.Scope, info *amino.TypeInfo, fopts amino.FieldOptions) (typeExpr string) {
 	// If registered non-native type:
@@ -2011,7 +2007,8 @@ func p3goTypeExprString(rootPkg *amino.Package, imports *ast.GenDecl, scope *ast
 			return fmt.Sprintf("*%v.%v", pkgName, "Duration")
 		}
 		pkgName := addImportAuto(imports, scope, pkg.GoPkgName+"pb", pkg.P3GoPkgPath)
-		return fmt.Sprintf("*%v.%v", pkgName, CamelCase(info.Name))
+		typeExpr = fmt.Sprintf("*%v.%v", pkgName, CamelCase(info.Name))
+		return
 	}
 	// Else, if unregistered or non-concrete type:
 	k := info.Type.Kind()
@@ -2025,6 +2022,8 @@ func p3goTypeExprString(rootPkg *amino.Package, imports *ast.GenDecl, scope *ast
 			nl := newNList(rootPkg, info, fopts)
 			return nl.P3GoExprString(imports, scope)
 		}
+	case reflect.String:
+		return "string"
 	case reflect.Interface:
 		anypb := addImportAuto(imports, scope, "anypb", "google.golang.org/protobuf/types/known/anypb")
 		return fmt.Sprintf("*%v.Any", anypb)
@@ -2043,11 +2042,14 @@ func p3goTypeExprString(rootPkg *amino.Package, imports *ast.GenDecl, scope *ast
 	case reflect.Uint16:
 		return "uint32"
 	default:
-		te := info.Type.String()
-		if te == "" {
+		if info.Type.PkgPath() != "" {
+			panic("unexpected unregistered type " + info.Type.String())
+		}
+		typeExpr = info.Type.String()
+		if typeExpr == "" {
 			panic("unexpected empty type expr string")
 		}
-		return te
+		return
 	}
 }
 

@@ -316,6 +316,7 @@ func (nl NList) Name() string {
 	if nl.Dimensions <= 0 {
 		panic("should not happen")
 	}
+	var pkgname = strings.ToUpper(nl.Package.GoPkgName) // must be exposed.
 	var prefix string
 	var ename string
 	listSfx := strings.Repeat("List", nl.Dimensions)
@@ -340,7 +341,7 @@ func (nl NList) Name() string {
 		prefix = "G" + prefix
 	}
 
-	return fmt.Sprintf("%v%v%v", prefix, ename, listSfx)
+	return fmt.Sprintf("%s_%v%v%v", pkgname, prefix, ename, listSfx)
 }
 
 func (nl NList) P3GoExprString(imports *ast.GenDecl, scope *ast.Scope) string {
