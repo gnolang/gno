@@ -60,7 +60,7 @@ examples.build: install_gnodev examples.precompile
 
 ########################################
 # Test suite
-.PHONY: test test.go test.gno test.files1 test.files2 test.realm test.packages test.flappy
+.PHONY: test test.go test.go1 test.go2 test.go3 test.gno test.files1 test.files2 test.realm test.packages test.flappy
 test: test.gno test.go test.flappy
 	@echo "Full test suite finished."
 
@@ -73,23 +73,34 @@ test.flappy:
 	TEST_STABILITY=flappy go run -modfile ./misc/devdeps/go.mod moul.io/testman test -test.v -timeout=20m -retry=10 -run ^TestFlappy \
 		./pkgs/bft/consensus ./pkgs/bft/blockchain ./pkgs/bft/mempool ./pkgs/p2p
 
-test.go:
+test.go: test.go1 test.go2 test.go3
+
+test.go1:
+	# test most of pkgs/* except amino and bft.
 	go test . -v
 	# -p 1 shows test failures as they come
 	# maybe another way to do this?
-	go test ./pkgs/... -v -p 1 -timeout=20m
+	go test `go list ./pkgs/... | grep -v pkgs/amino/ | grep -v pkgs/bft/` -v -p 1 -timeout=30m
+
+test.go2:
+	# test amino.
+	go test ./pkgs/amino/... -v -p 1 -timeout=30m
+
+test.go3:
+	# test bft.
+	go test ./pkgs/bft/... -v -p 1 -timeout=30m
 
 test.files1:
-	go test tests/*.go -v -test.short -run "TestFiles1/" --timeout 20m
+	go test tests/*.go -v -test.short -run "TestFiles1/" --timeout 30m
 
 test.files2:
-	go test tests/*.go -v -test.short -run "TestFiles2/" --timeout 20m
+	go test tests/*.go -v -test.short -run "TestFiles2/" --timeout 30m
 
 test.realm:
-	go test tests/*.go -v -run "TestFiles/^zrealm" --timeout 20m
+	go test tests/*.go -v -run "TestFiles/^zrealm" --timeout 30m
 
 test.packages:
-	go test tests/*.go -v -run "TestPackages" --timeout 20m
+	go test tests/*.go -v -run "TestPackages" --timeout 30m
 
 test.examples:
 	go run ./cmd/gnodev test ./examples
