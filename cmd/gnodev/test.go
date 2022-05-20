@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -19,7 +20,7 @@ import (
 
 type testOptions struct {
 	Verbose bool   `flag:"verbose" help:"verbose"`
-	RootDir string `flag:"root-dir" help:"github.com/gnolang/gno clone dir"`
+	RootDir string `flag:"root-dir" help:"clone location of github.com/gnolang/gno (gnodev tries to guess it)"`
 	// Run string `flag:"run" help:"test name filtering pattern"`
 	// Timeout time.Duration `flag:"timeout" help:"max execution time"`
 	// VM Options
@@ -38,7 +39,16 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 		return errors.New("invalid args")
 	}
 
-	// FIXME: guess opts.RootDir by walking parent dirs.
+	// guess opts.RootDir
+	if opts.RootDir == "" {
+		cmd := exec.Command("go", "list", "-m", "-mod=mod", "-f", "{{.Dir}}", "github.com/gnolang/gno")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			log.Fatal("can't guess --root-dir, please fill it manually.")
+		}
+		rootDir := strings.TrimSpace(string(out))
+		opts.RootDir = rootDir
+	}
 
 	pkgPaths, err := gnoPackagesFromArgs(args)
 	if err != nil {
@@ -95,7 +105,7 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 func gnoTestPkg(pkgPath string, testFiles []string, opts testOptions) error {
 	verbose := opts.Verbose
 	rootDir := opts.RootDir
-	// FIXME support test-based, examples, and full packages
+	// FIXME support test-based, examples, huband full packages
 	// FIXME update Makefile and CI
 
 	var errs error
