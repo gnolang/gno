@@ -75,6 +75,11 @@ walletFn.getTestnetKeplrConfig = function() {
 		currencies: [gnoToken],
 		feeCurrencies: [gnoToken],
 		stakeCurrency: gnoToken,
+		gasPriceStep: {
+			low: 0.000000001, // min 1gnot for any tx
+			average: 0.000000001,
+			high: 0.000000001,
+		},
 		bip44: { coinType: 118 },
 		// custom feature for GNO chains.
 		features: ["gno"]
