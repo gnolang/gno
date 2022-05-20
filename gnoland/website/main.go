@@ -32,12 +32,6 @@ var flags struct {
 	bindAddr string
 }
 
-type BroadcastResult struct {
-	TxHash    string `json:"tx_hash"`
-	Height    int64  `json:"height"`
-	GasWanted int64  `json:"gas_wanted"`
-	GasUsed   int64  `json:"gas_used"`
-}
 var startedAt time.Time
 
 func init() {
@@ -89,6 +83,13 @@ func handlerFaucet(app gotuna.App) http.Handler {
 	})
 }
 
+type TxBroadcastResult struct {
+	TxHash    string `json:"tx_hash"`
+	Height    int64  `json:"height"`
+	GasWanted int64  `json:"gas_wanted"`
+	GasUsed   int64  `json:"gas_used"`
+}
+
 func handlerTxs(app gotuna.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var params map[string]json.RawMessage
@@ -129,7 +130,7 @@ func handlerTxs(app gotuna.App) http.Handler {
 			return
 		}
 
-		result := BroadcastResult{
+		result := TxBroadcastResult{
 			TxHash:    fmt.Sprintf("%X", res.Hash),
 			Height:    res.Height,
 			GasWanted: res.DeliverTx.GasWanted,
@@ -145,12 +146,12 @@ func handlerTxs(app gotuna.App) http.Handler {
 func broadcastHandler(cli client.ABCIClient, tx std.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 	bz, err := amino.Marshal(tx)
 	if err != nil {
-		return nil, fmt.Errorf("%s, %s", err.Error(), "remarshaling tx binary bytes")
+		return nil, fmt.Errorf("%s, %s", "remarshaling tx binary bytes", err.Error())
 	}
 
 	bres, err := cli.BroadcastTxCommit(bz)
 	if err != nil {
-		return nil, fmt.Errorf("%s, %s", err.Error(), "broadcasting bytes")
+		return nil, fmt.Errorf("%s, %s", "broadcasting bytes", err.Error())
 	}
 
 	return bres, nil
@@ -375,7 +376,9 @@ func renderPackageFile(app gotuna.App, w http.ResponseWriter, r *http.Request, d
 		tmpl.Set("FileContents", string(res.Data))
 		tmpl.Render(w, r, "package_file.html", "header.html")
 	}
-}??func createClient() client.ABCIClient {
+}
+
+func createClient() client.ABCIClient {
 	remote := "127.0.0.1:26657"
 	return client.NewHTTP(remote, "/websocket")
 }

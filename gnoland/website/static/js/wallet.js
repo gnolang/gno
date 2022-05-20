@@ -30,7 +30,7 @@ walletFn.createSignDoc = function(account, msg, chainId, gas) {
 };
 
 walletFn.keplr.signAndBroadcast = function(sender, msg) {
-	return window.keplr.experimentalSuggestChain(walletFn.geTestnetKeplrConfig())
+	return window.keplr.experimentalSuggestChain(walletFn.getTestnetKeplrConfig())
 	.then(function () {
 		return window.keplr.enable(chainId);
 	})
@@ -50,7 +50,7 @@ walletFn.keplr.signAndBroadcast = function(sender, msg) {
 	});
 };
 
-walletFn.geTestnetKeplrConfig = function() {
+walletFn.getTestnetKeplrConfig = function() {
 	const addressPrefix = "g";
 	const gnoToken = {
 		coinDenom: "GNOT",
@@ -63,7 +63,7 @@ walletFn.geTestnetKeplrConfig = function() {
 		chainId: chainId,
 		chainName: "GNO Testnet",
 		rpc: 'http://gno.land:36657',
-		rest: 'https://lcd.gno.tools',
+		rest: 'https://lcd.gno.tools',  // source: https://github.com/disperze/gno-api
 		bech32Config: {
 			bech32PrefixAccAddr: `${addressPrefix}`,
 			bech32PrefixAccPub: `${addressPrefix}pub`,
