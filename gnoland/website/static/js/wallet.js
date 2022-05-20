@@ -45,7 +45,7 @@ walletFn.keplr.signAndBroadcast = function(sender, msg) {
 		});
 	})
 	.then(function (signature) {
-		const tx = walletFn.makeStdTx(signature.signed, signature.signature);
+		const tx = gnopb.makeProtoTx(signature.signed, signature.signature);
 		return walletFn.broadcastTx(tx);
 	});
 };
@@ -86,33 +86,8 @@ walletFn.getTestnetKeplrConfig = function() {
 	};
 };
 
-walletFn.makeStdTx = function(content, signature) {
-	const feeAmount = content.fee.amount;
-
-	return {
-		msg: content.msgs.map(function (msg) {
-			return {
-				"@type": msg.type,
-				...msg.value
-			};
-		}),
-		fee: {
-			gas_wanted: content.fee.gas,
-			gas_fee: feeAmount.length ? `${content.fee.amount[0].amount}${content.fee.amount[0].denom}`: "",
-		},
-		signatures: [{
-			pub_key: {
-				"@type": signature.pub_key.type,
-				value: signature.pub_key.value,
-			},
-			signature: signature.signature,
-		}],
-		memo: content.memo,
-	};
-};
-
 walletFn.getAccount = function(address) {
-	return walletFn.abciQuery(`auth/accounts/${address}`)
+	return walletFn.rpcCall("abci_query", {path: `auth/accounts/${address}`})
 	.then(function (data) {
 		const response = data.result.response.ResponseBase;
 		if (response.Error) {
@@ -128,17 +103,54 @@ walletFn.getAccount = function(address) {
 	});
 };
 
-walletFn.abciQuery = function(path) {
-	return fetch(`${remote}/abci_query?path="${path}"`).then(function(response) {
-		return response.json();
+walletFn.broadcastTx = function(tx) {
+	return walletFn.rpcCall("broadcast_tx_commit", {tx: walletFn.tob64(tx)}).then(function (data) {
+		if (data.error) {
+			throw new Error(data.error.message);
+		}
+		
+		const checkTx = data.result.check_tx.ResponseBase;
+		if (checkTx.Error) {
+			throw new Error(checkTx.Log);
+		}
+
+		const deliverTx = data.result.deliver_tx.ResponseBase;
+		if (deliverTx.Error) {
+			throw new Error(deliverTx.Log);
+		}
+
+		return {
+			height: data.result.height,
+			txhash: walletFn.base64ToHex(data.result.hash),
+			gasWanted: deliverTx.GasWanted,
+			gasUsed: deliverTx.GasUsed,
+		};
 	});
 };
 
-walletFn.broadcastTx = function(tx) {
-	const payload = {
-		tx: tx,
+walletFn.tob64 = function(data) {
+	return btoa(String.fromCharCode.apply(null, data));
+};
+
+walletFn.base64ToHex = function(data) {
+	return atob(data)
+		.split('')
+		.map(function (c) {
+		  return ('0' + c.charCodeAt(0).toString(16)).slice(-2);
+		})
+	   .join('')
+	   .toUpperCase();
+}
+
+walletFn.rpcCall = function(method, params) {
+	const payload  = {
+		"jsonrpc": "2.0",
+		"method": method,
+		"params": params,
+		"id": 1
 	};
-	return fetch("/txs", {
+
+	return fetch(remote, {
 		method: "POST",
 		headers: {
 			"Content-Type": "application/json"
@@ -147,4 +159,4 @@ walletFn.broadcastTx = function(tx) {
 	}).then(function (response) {
 		return response.json();
 	});
-};
+}

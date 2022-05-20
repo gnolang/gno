@@ -31,7 +31,7 @@ function main() {
 		}
 
 		walletFn.keplr.signAndBroadcast(sender, JSON.parse(msg)).then(function (result) {
-			alert("Tx: " + result.tx_hash);
+			alert("Tx: " + result.txhash);
 		}).catch(function (err) {
 			console.log(err);
 			alert("Error: " + err);
