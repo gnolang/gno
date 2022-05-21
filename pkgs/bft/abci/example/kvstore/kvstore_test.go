@@ -97,7 +97,6 @@ func TestPersistentKVStoreInfo(t *testing.T) {
 	if resInfo.LastBlockHeight != height {
 		t.Fatalf("expected height of %d, got %d", height, resInfo.LastBlockHeight)
 	}
-
 }
 
 // add a validator, remove a validator, update a validator
@@ -164,7 +163,6 @@ func TestValUpdates(t *testing.T) {
 	vals1 = append([]abci.ValidatorUpdate{v1}, vals1[1:]...)
 	vals2 = kvstore.Validators()
 	valsEqual(t, vals1, vals2)
-
 }
 
 func makeApplyBlock(t *testing.T, kvstore abci.Application, heightInt int, diff []abci.ValidatorUpdate, txs ...[]byte) {
@@ -184,7 +182,6 @@ func makeApplyBlock(t *testing.T, kvstore abci.Application, heightInt int, diff 
 	kvstore.Commit()
 
 	valsEqual(t, diff, resEndBlock.ValidatorUpdates)
-
 }
 
 // order doesn't matter

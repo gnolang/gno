@@ -25,7 +25,6 @@ func DecodeVarint8(bz []byte) (i int8, n int, err error) {
 }
 
 func DecodeVarint16(bz []byte) (i int16, n int, err error) {
-
 	i64, n, err := DecodeVarint(bz)
 	if err != nil {
 		return
@@ -99,6 +98,7 @@ func DecodeUvarint8(bz []byte) (u uint8, n int, err error) {
 	u = uint8(u64)
 	return
 }
+
 func DecodeUvarint16(bz []byte) (u uint16, n int, err error) {
 	u64, n, err := DecodeUvarint(bz)
 	if err != nil {

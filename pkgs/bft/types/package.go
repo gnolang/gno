@@ -3,6 +3,8 @@ package types
 import (
 	"github.com/gnolang/gno/pkgs/amino"
 	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
+	"github.com/gnolang/gno/pkgs/bitarray"
+	"github.com/gnolang/gno/pkgs/crypto/merkle"
 )
 
 var Package = amino.RegisterPackage(amino.NewPackage(
@@ -12,24 +14,32 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 ).
 	WithDependencies(
 		abci.Package,
+		bitarray.Package,
+		merkle.Package,
 	).
 	WithTypes(
+
+		// Proposal
+		Proposal{},
 
 		// Block types
 		Block{},
 		Header{},
 		Data{},
-		//EvidenceData{},
+		// EvidenceData{},
 		Commit{},
 		BlockID{},
 		CommitSig{},
-		PartSetHeader{},
 		Vote{},
-		//Tx{},
-		//Txs{},
+		// Tx{},
+		// Txs{},
+		Part{},
+		PartSet{},
+		PartSetHeader{},
 
 		// Internal state types
 		Validator{},
+		ValidatorSet{},
 
 		// Event types
 		EventNewBlock{},
@@ -48,4 +58,5 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 		// Misc.
 		TxResult{},
 		MockAppState{},
+		VoteSet{},
 	))

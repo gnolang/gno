@@ -29,7 +29,7 @@ func registerTransports(cdc *amino.Codec) {
 }
 
 func TestMarshalJSON(t *testing.T) {
-	var cdc = amino.NewCodec()
+	cdc := amino.NewCodec()
 	registerTransports(cdc)
 	cases := []struct {
 		in      interface{}
@@ -44,10 +44,14 @@ func TestMarshalJSON(t *testing.T) {
 		{Car("Tesla"), `"Tesla"`, ""},                  // #5
 		{&oneExportedField{A: "Z"}, `{"A":"Z"}`, ""},   // #6
 		{[]string{"a", "bc"}, `["a","bc"]`, ""},        // #7
-		{[]interface{}{"a", "bc", 10, 10.93, 1e3},
-			``, "unregistered"}, // #8
-		{aPointerField{Foo: new(int), Name: "name"},
-			`{"Foo":"0","nm":"name"}`, ""}, // #9
+		{
+			[]interface{}{"a", "bc", 10, 10.93, 1e3},
+			``, "unregistered",
+		}, // #8
+		{
+			aPointerField{Foo: new(int), Name: "name"},
+			`{"Foo":"0","nm":"name"}`, "",
+		}, // #9
 		{
 			aPointerFieldAndEmbeddedField{intPtr(11), "ap", nil, &oneExportedField{A: "foo"}},
 			`{"Foo":"11","nm":"ap","bz":{"A":"foo"}}`, "",
@@ -95,10 +99,11 @@ func TestMarshalJSON(t *testing.T) {
 		}, // #20
 		{&fp{"Foo", 10}, `"Foo@10"`, ""}, // #21
 		{(*fp)(nil), "null", ""},         // #22
-		{struct {
-			FP      *fp
-			Package string
-		}{FP: &fp{"Foo", 10}, Package: "bytes"},
+		{
+			struct {
+				FP      *fp
+				Package string
+			}{FP: &fp{"Foo", 10}, Package: "bytes"},
 			`{"FP":"Foo@10","Package":"bytes"}`, "",
 		}, // #23
 	}
@@ -125,7 +130,7 @@ func TestMarshalJSON(t *testing.T) {
 }
 
 func TestMarshalJSONTime(t *testing.T) {
-	var cdc = amino.NewCodec()
+	cdc := amino.NewCodec()
 	registerTransports(cdc)
 
 	type SimpleStruct struct {
@@ -213,7 +218,7 @@ func TestUnmarshalFunc(t *testing.T) {
 }
 
 func TestUnmarshalJSON(t *testing.T) {
-	var cdc = amino.NewCodec()
+	cdc := amino.NewCodec()
 	registerTransports(cdc)
 	cases := []struct {
 		blob    string
@@ -305,7 +310,7 @@ func TestUnmarshalJSON(t *testing.T) {
 }
 
 func TestJSONCodecRoundTrip(t *testing.T) {
-	var cdc = amino.NewCodec()
+	cdc := amino.NewCodec()
 	registerTransports(cdc)
 	type allInclusive struct {
 		Tr      Transport `json:"trx"`
@@ -389,11 +394,13 @@ func floatPtr(f float64) *float64 {
 	return &f
 }
 
-type noFields struct{}
-type noExportedFields struct {
-	a int
-	b string
-}
+type (
+	noFields         struct{}
+	noExportedFields struct {
+		a int
+		b string
+	}
+)
 
 type oneExportedField struct {
 	A string
@@ -450,12 +457,14 @@ type BalanceSheet struct {
 	Assets []Asset `json:"assets"`
 }
 
-type Car string
-type Boat string
-type Plane struct {
-	Name        string
-	MaxAltitude int64
-}
+type (
+	Car   string
+	Boat  string
+	Plane struct {
+		Name        string
+		MaxAltitude int64
+	}
+)
 type insurancePlan int
 
 func (ip insurancePlan) Value() float64 { return float64(ip) }
@@ -494,7 +503,7 @@ func TestAminoJSONTimeEncodeDecodeRoundTrip(t *testing.T) {
 }
 
 func TestMarshalJSONIndent(t *testing.T) {
-	var cdc = amino.NewCodec()
+	cdc := amino.NewCodec()
 	registerTransports(cdc)
 	obj := Transport{Vehicle: Car("Tesla")}
 	expected := fmt.Sprintf(`{

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/amino/genproto"
 	"github.com/gnolang/gno/pkgs/amino/genproto/example/submodule"
@@ -27,26 +29,30 @@ type StructB struct {
 }
 
 func main() {
-
 	packages := []*amino.Package{
-		Package,
-		submodule.Package,
 		submodule2.Package,
+		submodule.Package,
+		Package,
 	}
 
-	for _, pkg := range packages {
+	for i, pkg := range packages {
+		fmt.Println("#", i, "package path", pkg.GoPkgPath)
 		// Defined in genproto.go.
 		// These will generate .proto files next to
 		// their .go origins.
+		fmt.Println("#", i, "write proto3 schema")
 		genproto.WriteProto3Schema(pkg)
 
 		// Make proto folder for proto dependencies.
+		fmt.Println("#", i, "make proto folder")
 		genproto.MakeProtoFolder(pkg, "proto")
 
 		// Generate Go code from .proto files generated above.
+		fmt.Println("#", i, "run protoc")
 		genproto.RunProtoc(pkg, "proto")
 
 		// Generate bindings.go for other methods.
+		fmt.Println("#", i, "write proto bindings")
 		genproto.WriteProtoBindings(pkg)
 	}
 }

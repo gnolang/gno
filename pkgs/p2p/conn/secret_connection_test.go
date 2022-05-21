@@ -48,15 +48,14 @@ func makeKVStoreConnPair() (fooConn, barConn kvstoreConn) {
 }
 
 func makeSecretConnPair(tb testing.TB) (fooSecConn, barSecConn *SecretConnection) {
-
-	var fooConn, barConn = makeKVStoreConnPair()
-	var fooPrvKey = ed25519.GenPrivKey()
-	var fooPubKey = fooPrvKey.PubKey()
-	var barPrvKey = ed25519.GenPrivKey()
-	var barPubKey = barPrvKey.PubKey()
+	fooConn, barConn := makeKVStoreConnPair()
+	fooPrvKey := ed25519.GenPrivKey()
+	fooPubKey := fooPrvKey.PubKey()
+	barPrvKey := ed25519.GenPrivKey()
+	barPubKey := barPrvKey.PubKey()
 
 	// Make connections from both sides in parallel.
-	var trs, ok = async.Parallel(
+	trs, ok := async.Parallel(
 		func(_ int) (val interface{}, err error, abort bool) {
 			fooSecConn, err = MakeSecretConnection(fooConn, fooPrvKey)
 			if err != nil {
@@ -108,7 +107,7 @@ func TestSecretConnectionHandshake(t *testing.T) {
 // Test that shareEphPubKey rejects lower order public keys based on an
 // (incomplete) blacklist.
 func TestShareLowOrderPubkey(t *testing.T) {
-	var fooConn, barConn = makeKVStoreConnPair()
+	fooConn, barConn := makeKVStoreConnPair()
 	defer fooConn.Close()
 	defer barConn.Close()
 	locEphPub, _ := genEphKeys()
@@ -236,7 +235,7 @@ func TestSecretConnectionReadWrite(t *testing.T) {
 				return nil, err, true
 			}
 			// In parallel, handle some reads and writes.
-			var trs, ok = async.Parallel(
+			trs, ok := async.Parallel(
 				func(_ int) (interface{}, error, bool) {
 					// Node writes:
 					for _, nodeWrite := range nodeWrites {
@@ -289,7 +288,7 @@ func TestSecretConnectionReadWrite(t *testing.T) {
 	}
 
 	// Run foo & bar in parallel
-	var trs, ok = async.Parallel(
+	trs, ok := async.Parallel(
 		genNodeRunner("foo", fooConn, fooWrites, &fooReads),
 		genNodeRunner("bar", barConn, barWrites, &barReads),
 	)
@@ -302,7 +301,7 @@ func TestSecretConnectionReadWrite(t *testing.T) {
 		for {
 			// Pop next write & corresponding reads
 			var read, write string = "", writes[0]
-			var readCount = 0
+			readCount := 0
 			for _, readChunk := range reads {
 				read += readChunk
 				readCount++
@@ -328,7 +327,6 @@ func TestSecretConnectionReadWrite(t *testing.T) {
 
 	compareWritesReads(fooWrites, barReads)
 	compareWritesReads(barWrites, fooReads)
-
 }
 
 // Run go test -update from within this module
@@ -340,7 +338,7 @@ func TestDeriveSecretsAndChallengeGolden(t *testing.T) {
 	if *update {
 		t.Logf("Updating golden test vector file %s", goldenFilepath)
 		data := createGoldenTestVectors(t)
-		osm.WriteFile(goldenFilepath, []byte(data), 0644)
+		osm.WriteFile(goldenFilepath, []byte(data), 0o644)
 	}
 	f, err := os.Open(goldenFilepath)
 	if err != nil {
@@ -381,9 +379,9 @@ func (pk privKeyWithNilPubKey) PubKey() crypto.PubKey           { return nil }
 func (pk privKeyWithNilPubKey) Equals(pk2 crypto.PrivKey) bool  { return pk.orig.Equals(pk2) }
 
 func TestNilPubkey(t *testing.T) {
-	var fooConn, barConn = makeKVStoreConnPair()
-	var fooPrvKey = ed25519.GenPrivKey()
-	var barPrvKey = privKeyWithNilPubKey{ed25519.GenPrivKey()}
+	fooConn, barConn := makeKVStoreConnPair()
+	fooPrvKey := ed25519.GenPrivKey()
+	barPrvKey := privKeyWithNilPubKey{ed25519.GenPrivKey()}
 
 	go func() {
 		_, err := MakeSecretConnection(barConn, barPrvKey)
@@ -399,9 +397,9 @@ func TestNilPubkey(t *testing.T) {
 }
 
 func TestNonEd25519Pubkey(t *testing.T) {
-	var fooConn, barConn = makeKVStoreConnPair()
-	var fooPrvKey = ed25519.GenPrivKey()
-	var barPrvKey = secp256k1.GenPrivKey()
+	fooConn, barConn := makeKVStoreConnPair()
+	fooPrvKey := ed25519.GenPrivKey()
+	barPrvKey := secp256k1.GenPrivKey()
 
 	go func() {
 		_, err := MakeSecretConnection(barConn, barPrvKey)
@@ -481,7 +479,7 @@ func BenchmarkWriteSecretConnection(b *testing.B) {
 	if err := fooSecConn.Close(); err != nil {
 		b.Error(err)
 	}
-	//barSecConn.Close() race condition
+	// barSecConn.Close() race condition
 }
 
 func BenchmarkReadSecretConnection(b *testing.B) {

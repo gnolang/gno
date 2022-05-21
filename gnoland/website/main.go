@@ -3,6 +3,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -10,9 +11,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"time"
 
 	"github.com/gnolang/gno/pkgs/amino"
+	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
 	"github.com/gnolang/gno/pkgs/bft/rpc/client"
 	"github.com/gnolang/gno/pkgs/std"
 	"github.com/gorilla/mux"
@@ -20,14 +24,18 @@ import (
 
 	"github.com/gnolang/gno/gnoland/website/static" // for static files
 	"github.com/gnolang/gno/pkgs/sdk/vm"            // for error types
+	// "github.com/gnolang/gno/pkgs/sdk"               // for baseapp (info, status)
 )
 
 var flags struct {
 	bindAddr string
 }
 
+var startedAt time.Time
+
 func init() {
 	flag.StringVar(&flags.bindAddr, "bind", "127.0.0.1:8888", "server listening address")
+	startedAt = time.Now()
 }
 
 func main() {
@@ -50,6 +58,7 @@ func main() {
 	app.Router.Handle("/p/{filepath:.*}", handlerPackageFile(app))
 	app.Router.Handle("/static/{path:.+}", handlerStaticFile(app))
 	app.Router.Handle("/favicon.ico", handlerFavicon(app))
+	app.Router.Handle("/status.json", handlerStatusJSON(app))
 
 	fmt.Printf("Running on http://%s\n", flags.bindAddr)
 	err := http.ListenAndServe(flags.bindAddr, app.Router)
@@ -69,6 +78,56 @@ func handlerFaucet(app gotuna.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		app.NewTemplatingEngine().
 			Render(w, r, "faucet.html", "header.html")
+	})
+}
+
+func handlerStatusJSON(app gotuna.App) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var ret struct {
+			Gnoland struct {
+				Connected bool    `json:"connected"`
+				Error     *string `json:"error,omitempty"`
+				Height    *int64  `json:"height,omitempty"`
+				// processed txs
+				// active connections
+
+				Version *string `json:"version,omitempty"`
+				//Uptime    *float64 `json:"uptime-seconds,omitempty"`
+				//Goarch    *string  `json:"goarch,omitempty"`
+				//Goos      *string  `json:"goos,omitempty"`
+				//GoVersion *string  `json:"go-version,omitempty"`
+				//NumCPU    *int     `json:"num_cpu,omitempty"`
+			} `json:"gnoland"`
+			Website struct {
+				//Version string  `json:"version"`
+				Uptime    float64 `json:"uptime-seconds"`
+				Goarch    string  `json:"goarch"`
+				Goos      string  `json:"goos"`
+				GoVersion string  `json:"go-version"`
+				NumCPU    int     `json:"num_cpu"`
+			} `json:"website"`
+		}
+		ret.Website.Uptime = time.Since(startedAt).Seconds()
+		ret.Website.Goarch = runtime.GOARCH
+		ret.Website.Goos = runtime.GOOS
+		ret.Website.NumCPU = runtime.NumCPU()
+		ret.Website.GoVersion = runtime.Version()
+
+		ret.Gnoland.Connected = true
+		res, err := makeRequest(".app/version", []byte{})
+		if err != nil {
+			ret.Gnoland.Connected = false
+			errmsg := err.Error()
+			ret.Gnoland.Error = &errmsg
+		} else {
+			version := string(res.Value)
+			ret.Gnoland.Version = &version
+			ret.Gnoland.Height = &res.Height
+		}
+
+		out, _ := json.MarshalIndent(ret, "", "  ")
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(out)
 	})
 }
 
@@ -98,7 +157,7 @@ func handlerRealmMain(app gotuna.App) http.Handler {
 				return
 			}
 			var fsigs vm.FunctionSignatures
-			amino.MustUnmarshalJSON(res, &fsigs)
+			amino.MustUnmarshalJSON(res.Data, &fsigs)
 			// Fill fsigs with query parameters.
 			for i := range fsigs {
 				fsig := &(fsigs[i])
@@ -157,7 +216,7 @@ func handleRealmRender(app gotuna.App, w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// XXX hack
 		if strings.Contains(err.Error(), "Render not declared") {
-			res = []byte("realm package has no Render() function")
+			res.Data = []byte("realm package has no Render() function")
 		} else {
 			writeError(w, err)
 			return
@@ -179,7 +238,7 @@ func handleRealmRender(app gotuna.App, w http.ResponseWriter, r *http.Request) {
 	tmpl.Set("RealmPath", rlmpath)
 	tmpl.Set("Query", string(querystr))
 	tmpl.Set("PathLinks", pathLinks)
-	tmpl.Set("Contents", string(res))
+	tmpl.Set("Contents", string(res.Data))
 	tmpl.Render(w, r, "realm_render.html", "header.html")
 }
 
@@ -216,7 +275,7 @@ func renderPackageFile(app gotuna.App, w http.ResponseWriter, r *http.Request, d
 			writeError(w, err)
 			return
 		}
-		files := strings.Split(string(res), "\n")
+		files := strings.Split(string(res.Data), "\n")
 		// Render template.
 		tmpl := app.NewTemplatingEngine()
 		tmpl.Set("DirURI", diruri)
@@ -238,12 +297,12 @@ func renderPackageFile(app gotuna.App, w http.ResponseWriter, r *http.Request, d
 		tmpl.Set("DirURI", diruri)
 		tmpl.Set("DirPath", pathOf(diruri))
 		tmpl.Set("FileName", filename)
-		tmpl.Set("FileContents", string(res))
+		tmpl.Set("FileContents", string(res.Data))
 		tmpl.Render(w, r, "package_file.html", "header.html")
 	}
 }
 
-func makeRequest(qpath string, data []byte) (res []byte, err error) {
+func makeRequest(qpath string, data []byte) (res *abci.ResponseQuery, err error) {
 	opts2 := client.ABCIQueryOptions{
 		// Height: height, XXX
 		// Prove: false, XXX
@@ -260,7 +319,7 @@ func makeRequest(qpath string, data []byte) (res []byte, err error) {
 			qres.Response.Log)
 		return nil, qres.Response.Error
 	}
-	return qres.Response.Data, nil
+	return &qres.Response, nil
 }
 
 func handlerStaticFile(app gotuna.App) http.Handler {
@@ -282,8 +341,8 @@ func handlerStaticFile(app gotuna.App) http.Handler {
 		}
 
 		// TODO: ModTime doesn't work for embed?
-		//w.Header().Set("ETag", fmt.Sprintf("%x", stat.ModTime().UnixNano()))
-		//w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%s", "31536000"))
+		// w.Header().Set("ETag", fmt.Sprintf("%x", stat.ModTime().UnixNano()))
+		// w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%s", "31536000"))
 		fileapp.ServeHTTP(w, r)
 	})
 }

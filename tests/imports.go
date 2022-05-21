@@ -51,7 +51,7 @@ import (
 )
 
 // NOTE: this isn't safe.
-func testStore(stdin io.Reader, stdout, stderr io.Writer, nativeLibs bool) (store gno.Store) {
+func testStore(rootDir string, stdin io.Reader, stdout, stderr io.Writer, nativeLibs bool) (store gno.Store) {
 	filesPath := "./files"
 	if nativeLibs {
 		filesPath = "./files2"
@@ -348,7 +348,7 @@ func testStore(stdin io.Reader, stdout, stderr io.Writer, nativeLibs bool) (stor
 			// continue on...
 		}
 		// if stdlibs package...
-		stdlibPath := filepath.Join("../stdlibs", pkgPath)
+		stdlibPath := filepath.Join(rootDir, "stdlibs", pkgPath)
 		if osm.DirExists(stdlibPath) {
 			memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
 			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
@@ -359,7 +359,7 @@ func testStore(stdin io.Reader, stdout, stderr io.Writer, nativeLibs bool) (stor
 			return m2.RunMemPackage(memPkg, true)
 		}
 		// if examples package...
-		examplePath := filepath.Join("../examples", pkgPath)
+		examplePath := filepath.Join(rootDir, "examples", pkgPath)
 		if osm.DirExists(examplePath) {
 			memPkg := gno.ReadMemPackage(examplePath, pkgPath)
 			m2 := gno.NewMachineWithOptions(gno.MachineOptions{

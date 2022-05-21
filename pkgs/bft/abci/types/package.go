@@ -63,8 +63,8 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 		ValidatorUpdate{},
 		LastCommitInfo{},
 		VoteInfo{},
-		//Validator{},
-		//Violation{},
+		// Validator{},
+		// Violation{},
 
 		// events
 		EventString(""),

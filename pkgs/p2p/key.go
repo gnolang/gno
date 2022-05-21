@@ -61,7 +61,7 @@ func genNodeKey(filePath string) (*NodeKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = ioutil.WriteFile(filePath, jsonBytes, 0600)
+	err = ioutil.WriteFile(filePath, jsonBytes, 0o600)
 	if err != nil {
 		return nil, err
 	}

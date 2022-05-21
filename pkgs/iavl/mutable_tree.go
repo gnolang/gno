@@ -375,10 +375,10 @@ func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
 	version := tree.version + 1
 
 	if tree.VersionExists(version) {
-		//version already exists, throw an error if attempting to overwrite
+		// version already exists, throw an error if attempting to overwrite
 		// Same hash means idempotent.  Return success.
 		existingHash := tree.ndb.getRoot(version)
-		var newHash = tree.WorkingHash()
+		newHash := tree.WorkingHash()
 		if bytes.Equal(existingHash, newHash) {
 			tree.version = version
 			tree.ImmutableTree = tree.ImmutableTree.clone()

@@ -6,6 +6,7 @@
         <script type="text/javascript" src="/static/js/marked.min.js"></script>
         <script type="text/javascript" src="/static/js/umbrella.min.js"></script>
         <script type="text/javascript" src="/static/js/purify.min.js"></script>
+        <script type="text/javascript" src="/static/js/renderer.js"></script>
     </head>
     <body onload="main()">
 	<div id="header">
@@ -33,8 +34,8 @@ function main() {
 	marked.setOptions({
       gfm: true,
     });
-	var source = u("#source").text();
-	var parsed = marked.parse(source);
+	const source = u("#source").text();
+	const parsed = marked.parse(renderUsernames(source));
 	document.getElementById("realm_render").innerHTML = DOMPurify.sanitize(parsed, { USE_PROFILES: { html: true } });
 };
     </script>

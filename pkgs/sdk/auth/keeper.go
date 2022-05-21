@@ -26,7 +26,6 @@ type AccountKeeper struct {
 func NewAccountKeeper(
 	key store.StoreKey, proto func() std.Account,
 ) AccountKeeper {
-
 	return AccountKeeper{
 		key:   key,
 		proto: proto,

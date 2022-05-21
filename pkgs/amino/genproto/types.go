@@ -88,9 +88,7 @@ func NewP3MessageType(pkg string, name string) P3MessageType {
 	return P3MessageType{PackageName: pkg, Name: name}
 }
 
-var (
-	P3AnyType P3MessageType = NewP3MessageType("google.protobuf", "Any")
-)
+var P3AnyType P3MessageType = NewP3MessageType("google.protobuf", "Any")
 
 // May be empty if it isn't set (for locally declared messages).
 func (p3mt P3MessageType) GetPackageName() string {
@@ -318,9 +316,10 @@ func (nl NList) Name() string {
 	if nl.Dimensions <= 0 {
 		panic("should not happen")
 	}
+	var pkgname = strings.ToUpper(nl.Package.GoPkgName) // must be exposed.
 	var prefix string
 	var ename string
-	var listSfx = strings.Repeat("List", nl.Dimensions)
+	listSfx := strings.Repeat("List", nl.Dimensions)
 
 	ert := nl.UltiElem.ReprType.Type
 	if isListType(ert) {
@@ -342,7 +341,7 @@ func (nl NList) Name() string {
 		prefix = "G" + prefix
 	}
 
-	return fmt.Sprintf("%v%v%v", prefix, ename, listSfx)
+	return fmt.Sprintf("%s_%v%v%v", pkgname, prefix, ename, listSfx)
 }
 
 func (nl NList) P3GoExprString(imports *ast.GenDecl, scope *ast.Scope) string {
@@ -448,7 +447,7 @@ func findNLists2(root *amino.Package, list *amino.TypeInfo, fopts amino.FieldOpt
 				// elem is []byte or bytes, and list is []bytes.
 				// no need to look for sublists.
 				return []NList{
-					NList{
+					{
 						Package:      root,
 						Dimensions:   1,
 						UltiElem:     elem,

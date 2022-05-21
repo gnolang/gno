@@ -36,7 +36,6 @@ func TestCreateLedger(t *testing.T) {
 	// test_unit may add a ledger mock
 	// both cases are acceptable
 	ledger, err := kb.CreateLedger("some_account", Secp256k1, "cosmos", 3, 1)
-
 	if err != nil {
 		assert.Error(t, err)
 		assert.Equal(t, "no Ledger discovery function defined", err.Error())
@@ -352,7 +351,6 @@ func TestAdvancedKeyManagement(t *testing.T) {
 
 // TestSeedPhrase verifies restoring from a seed phrase
 func TestSeedPhrase(t *testing.T) {
-
 	// make the storage with reasonable defaults
 	cstore := NewInMemory()
 

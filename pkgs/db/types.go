@@ -2,7 +2,6 @@ package db
 
 // DBs are goroutine safe.
 type DB interface {
-
 	// Get returns nil iff key doesn't exist.
 	// A nil key is interpreted as an empty byteslice.
 	// CONTRACT: key, value readonly []byte
@@ -85,7 +84,6 @@ type SetDeleter interface {
 	}
 */
 type Iterator interface {
-
 	// The start & end (exclusive) limits to iterate over.
 	// If end < start, then the Iterator goes in reverse order.
 	//

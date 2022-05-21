@@ -9,14 +9,14 @@ import (
 )
 
 var tstyle = &logos.Style{ // text
-	//Background: tcell.ColorWhite,
+	// Background: tcell.ColorWhite,
 	CursorStyle: &logos.Style{
 		Background: tcell.ColorYellow,
 	},
 }
 
 var istyle = &logos.Style{ // elem in list
-	//Background: tcell.ColorWhite,
+	// Background: tcell.ColorWhite,
 	Padding: logos.Padding{2, 0, 0, 0},
 	Border:  logos.LeftBorder(),
 	CursorStyle: &logos.Style{
@@ -27,7 +27,7 @@ var istyle = &logos.Style{ // elem in list
 }
 
 var bstyle = &logos.Style{ // box style
-	//Background: tcell.ColorWhite,
+	// Background: tcell.ColorWhite,
 	Padding: logos.Padding{2, 0, 2, 1},
 	Border:  logos.DefaultBorder(),
 	CursorStyle: &logos.Style{

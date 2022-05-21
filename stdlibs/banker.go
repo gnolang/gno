@@ -50,15 +50,19 @@ func NewReadonlyBanker(banker Banker) ReadonlyBanker {
 func (rb ReadonlyBanker) GetCoins(addr crypto.Bech32Address) (dst std.Coins) {
 	return rb.banker.GetCoins(addr)
 }
+
 func (rb ReadonlyBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins) {
 	panic("ReadonlyBanker cannot send coins")
 }
+
 func (rb ReadonlyBanker) TotalCoin(denom string) int64 {
 	return rb.banker.TotalCoin(denom)
 }
+
 func (rb ReadonlyBanker) IssueCoin(addr crypto.Bech32Address, denom string, amount int64) {
 	panic("ReadonlyBanker cannot issue coins")
 }
+
 func (rb ReadonlyBanker) RemoveCoin(addr crypto.Bech32Address, denom string, amount int64) {
 	panic("ReadonlyBanker cannot remove coins")
 }
@@ -88,6 +92,7 @@ func NewOrigSendBanker(banker Banker, pkgAddr crypto.Bech32Address, origSend std
 func (osb OrigSendBanker) GetCoins(addr crypto.Bech32Address) (dst std.Coins) {
 	return osb.banker.GetCoins(addr)
 }
+
 func (osb OrigSendBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins) {
 	if from != osb.pkgAddr {
 		panic(fmt.Sprintf(
@@ -103,12 +108,15 @@ func (osb OrigSendBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins
 	osb.banker.SendCoins(from, to, amt)
 	*osb.origSendSpent = spent
 }
+
 func (osb OrigSendBanker) TotalCoin(denom string) int64 {
 	return osb.banker.TotalCoin(denom)
 }
+
 func (osb OrigSendBanker) IssueCoin(addr crypto.Bech32Address, denom string, amount int64) {
 	panic("OrigSendBanker cannot issue coins")
 }
+
 func (osb OrigSendBanker) RemoveCoin(addr crypto.Bech32Address, denom string, amount int64) {
 	panic("OrigSendBanker cannot remove coins")
 }
@@ -131,6 +139,7 @@ func NewRealmSendBanker(banker Banker, pkgAddr crypto.Bech32Address) RealmSendBa
 func (rsb RealmSendBanker) GetCoins(addr crypto.Bech32Address) (dst std.Coins) {
 	return rsb.banker.GetCoins(addr)
 }
+
 func (rsb RealmSendBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins) {
 	if from != rsb.pkgAddr {
 		panic(fmt.Sprintf(
@@ -139,12 +148,15 @@ func (rsb RealmSendBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coin
 	}
 	rsb.banker.SendCoins(from, to, amt)
 }
+
 func (rsb RealmSendBanker) TotalCoin(denom string) int64 {
 	return rsb.banker.TotalCoin(denom)
 }
+
 func (rsb RealmSendBanker) IssueCoin(addr crypto.Bech32Address, denom string, amount int64) {
 	panic("RealmSendBanker cannot issue coins")
 }
+
 func (rsb RealmSendBanker) RemoveCoin(addr crypto.Bech32Address, denom string, amount int64) {
 	panic("RealmSendBanker cannot remove coins")
 }

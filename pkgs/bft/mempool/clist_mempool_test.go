@@ -455,7 +455,6 @@ func TestMempoolMaxMsgSize(t *testing.T) {
 			require.Equal(t, err, ErrTxTooLarge{int64(maxTxSize), int64(testCase.len)}, caseString)
 		}
 	}
-
 }
 
 func TestMempoolMaxPendingTxsBytes(t *testing.T) {

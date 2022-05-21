@@ -45,7 +45,6 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 	return func(
 		ctx sdk.Context, tx std.Tx, simulate bool,
 	) (newCtx sdk.Context, res sdk.Result, abort bool) {
-
 		// Get params from context.
 		params := ctx.Value(AuthParamsContextKey{}).(Params)
 
@@ -202,7 +201,6 @@ func processSig(
 	ctx sdk.Context, acc std.Account, sig std.Signature, signBytes []byte, simulate bool, params Params,
 	sigGasConsumer SignatureVerificationGasConsumer,
 ) (updatedAcc std.Account, res sdk.Result) {
-
 	pubKey, res := ProcessPubKey(acc, sig, simulate)
 	if !res.IsOK() {
 		return nil, res
@@ -317,8 +315,8 @@ func DefaultSigVerificationGasConsumer(
 
 func consumeMultisignatureVerificationGas(meter store.GasMeter,
 	sig multisig.Multisignature, pubkey multisig.PubKeyMultisigThreshold,
-	params Params) {
-
+	params Params,
+) {
 	size := sig.BitArray.Size()
 	sigIndex := 0
 	for i := 0; i < size; i++ {

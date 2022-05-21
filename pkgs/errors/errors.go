@@ -96,8 +96,8 @@ func (err *cmnError) Error() string {
 // Captures a stacktrace if one was not already captured.
 func (err *cmnError) Stacktrace() Error {
 	if err.stacktrace == nil {
-		var offset = 3
-		var depth = 32
+		offset := 3
+		depth := 32
 		err.stacktrace = captureStacktrace(offset, depth)
 	}
 	return err
@@ -163,7 +163,7 @@ func (err *cmnError) Format(s fmt.State, verb rune) {
 // stacktrace & msgtraceItem
 
 func captureStacktrace(offset int, depth int) []uintptr {
-	var pcs = make([]uintptr, depth)
+	pcs := make([]uintptr, depth)
 	n := runtime.Callers(offset, pcs)
 	return pcs[0:n]
 }

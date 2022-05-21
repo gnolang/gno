@@ -38,5 +38,4 @@ func init() {
 		Name:    "p2p",
 		Version: p2pver.Version,
 	})
-
 }

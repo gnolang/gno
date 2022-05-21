@@ -15,13 +15,13 @@ var gErrorType = &DeclaredType{
 	Base: &InterfaceType{
 		PkgPath: uversePkgPath,
 		Methods: []FieldType{
-			FieldType{
+			{
 				Name: "Error",
 				Type: &FuncType{
 					Params: nil,
 					Results: []FieldType{
-						FieldType{
-							//Name: "",
+						{
+							// Name: "",
 							Type: StringType,
 						},
 					},
@@ -38,13 +38,13 @@ var gStringerType = &DeclaredType{
 	Base: &InterfaceType{
 		PkgPath: uversePkgPath,
 		Methods: []FieldType{
-			FieldType{
+			{
 				Name: "String",
 				Type: &FuncType{
 					Params: nil,
 					Results: []FieldType{
-						FieldType{
-							//Name: "",
+						{
+							// Name: "",
 							Type: StringType,
 						},
 					},
@@ -58,8 +58,10 @@ var gStringerType = &DeclaredType{
 //----------------------------------------
 // Uverse package
 
-var uverseNode *PackageNode
-var uverseValue *PackageValue
+var (
+	uverseNode  *PackageNode
+	uverseValue *PackageValue
+)
 
 const uversePkgPath = ".uverse"
 

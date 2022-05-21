@@ -11,6 +11,7 @@ import (
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/crypto/ed25519"
 	"github.com/gnolang/gno/pkgs/p2p/conn"
+	"github.com/gnolang/gno/pkgs/testutils"
 )
 
 var defaultNodeName = "host_peer"
@@ -97,7 +98,7 @@ func TestTransportMultiplexConnFilterTimeout(t *testing.T) {
 	MultiplexTransportFilterTimeout(5 * time.Millisecond)(mt)
 	MultiplexTransportConnFilters(
 		func(_ ConnSet, _ net.Conn, _ []net.IP) error {
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(100 * time.Millisecond)
 			return nil
 		},
 	)(mt)
@@ -210,7 +211,9 @@ func testDialer(dialAddr NetAddress, errc chan error) {
 	errc <- nil
 }
 
-func TestTransportMultiplexAcceptNonBlocking(t *testing.T) {
+func TestFlappyTransportMultiplexAcceptNonBlocking(t *testing.T) {
+	testutils.FilterStability(t, testutils.Flappy)
+
 	mt := testSetupMultiplexTransport(t)
 
 	var (
@@ -236,18 +239,18 @@ func TestTransportMultiplexAcceptNonBlocking(t *testing.T) {
 		select {
 		case <-fastc:
 			// Fast peer connected.
-		case <-time.After(50 * time.Millisecond):
+		case <-time.After(100 * time.Millisecond):
 			// We error if the fast peer didn't succeed.
 			errc <- fmt.Errorf("Fast peer timed out")
 		}
 
-		sc, err := upgradeSecretConn(c, 20*time.Millisecond, ed25519.GenPrivKey())
+		sc, err := upgradeSecretConn(c, 100*time.Millisecond, ed25519.GenPrivKey())
 		if err != nil {
 			errc <- err
 			return
 		}
 
-		_, err = handshake(sc, 20*time.Millisecond,
+		_, err = handshake(sc, 100*time.Millisecond,
 			testNodeInfo(
 				ed25519.GenPrivKey().PubKey().Address().ID(),
 				"slow_peer",
@@ -262,13 +265,11 @@ func TestTransportMultiplexAcceptNonBlocking(t *testing.T) {
 	go func() {
 		<-slowc
 
-		var (
-			dialer = newMultiplexTransport(
-				fastNodeInfo,
-				NodeKey{
-					PrivKey: fastNodePV,
-				},
-			)
+		dialer := newMultiplexTransport(
+			fastNodeInfo,
+			NodeKey{
+				PrivKey: fastNodePV,
+			},
 		)
 		addr := NewNetAddress(mt.nodeKey.ID(), mt.listener.Addr())
 
@@ -548,7 +549,7 @@ func TestTransportHandshake(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ni, err := handshake(c, 20*time.Millisecond, emptyNodeInfo())
+	ni, err := handshake(c, 100*time.Millisecond, emptyNodeInfo())
 	if err != nil {
 		t.Fatal(err)
 	}

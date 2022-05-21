@@ -10,7 +10,7 @@ import (
 )
 
 func TestMarshal(t *testing.T) {
-	var cdc = amino.NewCodec()
+	cdc := amino.NewCodec()
 
 	type SimpleStruct struct {
 		String string
@@ -35,7 +35,7 @@ func TestMarshal(t *testing.T) {
 }
 
 func TestUnmarshalReader(t *testing.T) {
-	var cdc = amino.NewCodec()
+	cdc := amino.NewCodec()
 
 	type SimpleStruct struct {
 		String string
@@ -65,7 +65,7 @@ type stringWrapper struct {
 }
 
 func TestUnmarshalReaderSize(t *testing.T) {
-	var cdc = amino.NewCodec()
+	cdc := amino.NewCodec()
 
 	s1 := stringWrapper{"foo"}
 	b, err := cdc.MarshalSized(s1)
@@ -82,7 +82,7 @@ func TestUnmarshalReaderSize(t *testing.T) {
 }
 
 func TestUnmarshalReaderSizeLimit(t *testing.T) {
-	var cdc = amino.NewCodec()
+	cdc := amino.NewCodec()
 
 	s1 := stringWrapper{"foo"}
 	b, err := cdc.MarshalSized(s1)
@@ -101,7 +101,7 @@ func TestUnmarshalReaderSizeLimit(t *testing.T) {
 }
 
 func TestUnmarshalReaderTooLong(t *testing.T) {
-	var cdc = amino.NewCodec()
+	cdc := amino.NewCodec()
 
 	type SimpleStruct struct {
 		String string
@@ -125,8 +125,8 @@ func TestUnmarshalReaderTooLong(t *testing.T) {
 }
 
 func TestUnmarshalBufferedWritesReads(t *testing.T) {
-	var cdc = amino.NewCodec()
-	var buf = bytes.NewBuffer(nil)
+	cdc := amino.NewCodec()
+	buf := bytes.NewBuffer(nil)
 
 	// Write 3 times.
 	s1 := stringWrapper{"foo"}
@@ -155,7 +155,7 @@ func TestUnmarshalBufferedWritesReads(t *testing.T) {
 }
 
 func TestBoolPointers(t *testing.T) {
-	var cdc = amino.NewCodec()
+	cdc := amino.NewCodec()
 	type SimpleStruct struct {
 		BoolPtrTrue  *bool
 		BoolPtrFalse *bool

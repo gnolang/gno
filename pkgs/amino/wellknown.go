@@ -24,8 +24,8 @@ var (
 	// native
 	timeType     = reflect.TypeOf(time.Time{})
 	durationType = reflect.TypeOf(time.Duration(0))
-	//doubleType   = reflect.TypeOf(float64(0))
-	//floatType    = reflect.TypeOf(float32(0))
+	// doubleType   = reflect.TypeOf(float64(0))
+	// floatType    = reflect.TypeOf(float32(0))
 	int64Type  = reflect.TypeOf(int64(0))
 	uint64Type = reflect.TypeOf(uint64(0))
 	int32Type  = reflect.TypeOf(int32(0))
@@ -45,11 +45,11 @@ var (
 	gTimestampType = reflect.TypeOf(timestamppb.Timestamp{})
 	gDurationType  = reflect.TypeOf(durationpb.Duration{})
 	gEmptyType     = reflect.TypeOf(emptypb.Empty{})
-	//gStructType    = reflect.TypeOf(structpb.Struct{}) MAP not yet supported
-	//gValueType     = reflect.TypeOf(structpb.Value{})
-	//gListType      = reflect.TypeOf(structpb.ListValue{})
-	//gDoubleType    = reflect.TypeOf(wrapperspb.DoubleValue{})
-	//gFloatType     = reflect.TypeOf(wrapperspb.FloatValue{})
+	// gStructType    = reflect.TypeOf(structpb.Struct{}) MAP not yet supported
+	// gValueType     = reflect.TypeOf(structpb.Value{})
+	// gListType      = reflect.TypeOf(structpb.ListValue{})
+	// gDoubleType    = reflect.TypeOf(wrapperspb.DoubleValue{})
+	// gFloatType     = reflect.TypeOf(wrapperspb.FloatValue{})
 	gInt64Type  = reflect.TypeOf(wrapperspb.Int64Value{})
 	gUInt64Type = reflect.TypeOf(wrapperspb.UInt64Value{})
 	gInt32Type  = reflect.TypeOf(wrapperspb.Int32Value{})
@@ -140,8 +140,8 @@ var (
 )
 
 func (cdc *Codec) registerWellKnownTypes() {
-	var register, preferNative = true, false
-	var ptr, noPtr = true, false
+	register, preferNative := true, false
+	ptr, noPtr := true, false
 	// native not supported by protobuf
 	cdc.registerType(nativePkg, uint16Type, "/amino.UInt16", noPtr, register) // XXX create them, and consider switching other types over.
 	cdc.registerType(nativePkg, uint8Type, "/amino.UInt8", noPtr, register)

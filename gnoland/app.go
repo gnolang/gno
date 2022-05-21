@@ -22,6 +22,7 @@ import (
 
 // NewApp creates the GnoLand application.
 func NewApp(rootDir string, logger log.Logger) (abci.Application, error) {
+
 	// Get main DB.
 	db := dbm.NewDB("gnolang", dbm.GoLevelDBBackend, filepath.Join(rootDir, "data"))
 
@@ -31,6 +32,7 @@ func NewApp(rootDir string, logger log.Logger) (abci.Application, error) {
 
 	// Create BaseApp.
 	baseApp := sdk.NewBaseApp("gnoland", logger, db, baseKey, mainKey)
+	baseApp.SetAppVersion("dev")
 
 	// Set mounts for BaseApp's MultiStore.
 	baseApp.MountStoreWithDB(mainKey, iavl.StoreConstructor, db)
@@ -53,14 +55,14 @@ func NewApp(rootDir string, logger log.Logger) (abci.Application, error) {
 	baseApp.SetAnteHandler(
 		// Override default AnteHandler with custom logic.
 		func(ctx sdk.Context, tx std.Tx, simulate bool) (
-			newCtx sdk.Context, res sdk.Result, abort bool) {
+			newCtx sdk.Context, res sdk.Result, abort bool,
+		) {
 			// Override auth params.
 			ctx = ctx.WithValue(
 				auth.AuthParamsContextKey{}, auth.DefaultParams())
 			// Continue on with default auth ante handler.
 			newCtx, res, abort = authAnteHandler(ctx, tx, simulate)
 			return
-
 		},
 	)
 

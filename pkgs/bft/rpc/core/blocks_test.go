@@ -8,7 +8,6 @@ import (
 )
 
 func TestBlockchainInfo(t *testing.T) {
-
 	cases := []struct {
 		min, max     int64
 		height       int64
@@ -16,7 +15,6 @@ func TestBlockchainInfo(t *testing.T) {
 		resultLength int64
 		wantErr      bool
 	}{
-
 		// min > max
 		{0, 0, 0, 10, 0, true},  // min set to 1
 		{0, 1, 0, 10, 0, true},  // max set to height (0)
@@ -54,5 +52,4 @@ func TestBlockchainInfo(t *testing.T) {
 			require.Equal(t, 1+max-min, c.resultLength, caseString)
 		}
 	}
-
 }

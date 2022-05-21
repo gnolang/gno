@@ -48,8 +48,8 @@ type BaseAccount struct {
 
 // NewBaseAccount creates a new BaseAccount object
 func NewBaseAccount(address crypto.Address, coins Coins,
-	pubKey crypto.PubKey, accountNumber uint64, sequence uint64) *BaseAccount {
-
+	pubKey crypto.PubKey, accountNumber uint64, sequence uint64,
+) *BaseAccount {
 	return &BaseAccount{
 		Address:       address,
 		Coins:         coins,

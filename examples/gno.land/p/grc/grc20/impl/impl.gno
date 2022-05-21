@@ -50,8 +50,8 @@ func (t *Token) GetSymbol() string   { return t.symbol }
 func (t *Token) GetDecimals() uint   { return t.decimals }
 func (t *Token) TotalSupply() uint64 { return t.totalSupply }
 
-func (t *Token) BalanceOf(address std.Address) uint64 {
-	return t.balanceOf(address)
+func (t *Token) BalanceOf(owner std.Address) uint64 {
+	return t.balanceOf(owner)
 }
 
 func (t *Token) Transfer(owner, to std.Address, amount uint64) {
@@ -74,12 +74,12 @@ func (t *Token) TransferFrom(spender, from, to std.Address, amount uint64) {
 // Administration helpers implementation.
 //
 
-func (t *Token) Mint(address std.Address, amount uint64) {
-	t.mint(address, amount)
+func (t *Token) Mint(to std.Address, amount uint64) {
+	t.mint(to, amount)
 }
 
-func (t *Token) Burn(address std.Address, amount uint64) {
-	t.burn(address, amount)
+func (t *Token) Burn(from std.Address, amount uint64) {
+	t.burn(from, amount)
 }
 
 // private helpers

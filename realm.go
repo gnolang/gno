@@ -208,7 +208,6 @@ func (rlm *Realm) MarkNewReal(oo Object) {
 		rlm.newCreated = make([]Object, 0, 256)
 	}
 	rlm.newCreated = append(rlm.newCreated, oo)
-
 }
 
 func (rlm *Realm) MarkDirty(oo Object) {
@@ -746,7 +745,6 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 	// set index.
 	if oo.GetIsEscaped() {
 		// XXX save oid->hash to iavl.
-		fmt.Println("XXX save hash to iavl")
 	}
 }
 
@@ -1516,7 +1514,6 @@ func prettyJSON(jstr []byte) []byte {
 		return nil
 	}
 	return js
-
 }
 
 func getOwner(store Store, oo Object) Object {

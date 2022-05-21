@@ -1,4 +1,6 @@
 package vm
 
-const ModuleName = "vm"
-const RouterKey = ModuleName
+const (
+	ModuleName = "vm"
+	RouterKey  = ModuleName
+)

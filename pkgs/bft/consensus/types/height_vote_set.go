@@ -1,4 +1,4 @@
-package types
+package cstypes
 
 import (
 	"errors"
@@ -16,9 +16,7 @@ type RoundVoteSet struct {
 	Precommits *types.VoteSet
 }
 
-var (
-	GotVoteFromUnwantedRoundError = errors.New("Peer has sent a vote that does not match our round for more than one round")
-)
+var GotVoteFromUnwantedRoundError = errors.New("Peer has sent a vote that does not match our round for more than one round")
 
 /*
 Keeps track of all VoteSets from round 0 to round 'round'.
@@ -34,6 +32,7 @@ peer to prevent abuse.
 We let each peer provide us with up to 2 unexpected "catchup" rounds.
 One for their LastCommit round, and another for the official commit round.
 */
+// TODO: expose amino fields?
 type HeightVoteSet struct {
 	chainID string
 	height  int64

@@ -1,3 +1,4 @@
+//go:build gcc
 // +build gcc
 
 // This file exists because some of the DBs e.g CLevelDB

@@ -10,18 +10,18 @@ func TestPrintP3Types(t *testing.T) {
 	doc := P3Doc{
 		Comment: "doc comment",
 		Messages: []P3Message{
-			P3Message{
+			{
 				Comment: "message comment",
 				Name:    "message_name",
 				Fields: []P3Field{
-					P3Field{
+					{
 						Comment:  "field_comment",
 						Type:     P3ScalarTypeString,
 						Name:     "field_name",
 						Number:   1,
 						Repeated: false,
 					},
-					P3Field{
+					{
 						Comment:  "field_comment",
 						Type:     P3ScalarTypeUint64,
 						Name:     "field_name",
@@ -30,7 +30,7 @@ func TestPrintP3Types(t *testing.T) {
 					},
 				},
 			},
-			P3Message{
+			{
 				Comment: "message comment 2",
 				Name:    "message_name_2",
 				Fields:  []P3Field{},

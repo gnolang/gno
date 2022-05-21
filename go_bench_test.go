@@ -10,18 +10,20 @@ type BenchValue interface {
 	Int32() int32
 }
 
-type Int32 int32
-type Int32a int32
-type Int32b int32
-type Int32c int32
-type Int32d int32
-type Int32e int32
-type Int32f int32
-type Int32g int32
-type Int32h int32
-type Int32i int32
-type Int32j int32
-type Int32k int32
+type (
+	Int32  int32
+	Int32a int32
+	Int32b int32
+	Int32c int32
+	Int32d int32
+	Int32e int32
+	Int32f int32
+	Int32g int32
+	Int32h int32
+	Int32i int32
+	Int32j int32
+	Int32k int32
+)
 
 func (i Int32) Int32() int32  { return int32(i) }
 func (i Int32a) Int32() int32 { return int32(i) }
@@ -204,8 +206,7 @@ func BenchmarkTypeAssertionMethodCall(b *testing.B) {
 // there is a choice between type-switching on a slice of interfaces, or to
 // iterate over a slice of super-structs.
 func BenchmarkTypeSwitchOrCreate(b *testing.B) {
-	type Object interface {
-	}
+	type Object interface{}
 	type StructA struct {
 		Inner Object
 		A     int
@@ -256,7 +257,7 @@ func BenchmarkTypeSwitchOrCreate(b *testing.B) {
 }
 
 func BenchmarkReflectValueOf(b *testing.B) {
-	var things = []interface{}{
+	things := []interface{}{
 		int(0),
 		string(""),
 		struct{}{},

@@ -194,8 +194,8 @@ func createAndStartProxyAppConns(clientCreator proxy.ClientCreator, logger log.L
 }
 
 func createAndStartIndexerService(config *cfg.Config, dbProvider DBProvider,
-	evsw events.EventSwitch, logger log.Logger) (*txindex.IndexerService, txindex.TxIndexer, error) {
-
+	evsw events.EventSwitch, logger log.Logger,
+) (*txindex.IndexerService, txindex.TxIndexer, error) {
 	var txIndexer txindex.TxIndexer = &null.TxIndex{}
 	/*
 		switch config.TxIndex.Indexer {
@@ -226,8 +226,8 @@ func createAndStartIndexerService(config *cfg.Config, dbProvider DBProvider,
 }
 
 func doHandshake(stateDB dbm.DB, state sm.State, blockStore sm.BlockStore,
-	genDoc *types.GenesisDoc, evsw events.EventSwitch, proxyApp proxy.AppConns, consensusLogger log.Logger) error {
-
+	genDoc *types.GenesisDoc, evsw events.EventSwitch, proxyApp proxy.AppConns, consensusLogger log.Logger,
+) error {
 	handshaker := cs.NewHandshaker(stateDB, state, blockStore, genDoc)
 	handshaker.SetLogger(consensusLogger)
 	handshaker.SetEventSwitch(evsw)
@@ -261,8 +261,8 @@ func onlyValidatorIsUs(state sm.State, privVal types.PrivValidator) bool {
 }
 
 func createMempoolAndMempoolReactor(config *cfg.Config, proxyApp proxy.AppConns,
-	state sm.State, logger log.Logger) (*mempl.Reactor, *mempl.CListMempool) {
-
+	state sm.State, logger log.Logger,
+) (*mempl.Reactor, *mempl.CListMempool) {
 	mempool := mempl.NewCListMempool(
 		config.Mempool,
 		proxyApp.Mempool(),
@@ -286,7 +286,8 @@ func createBlockchainReactor(config *cfg.Config,
 	blockExec *sm.BlockExecutor,
 	blockStore *store.BlockStore,
 	fastSync bool,
-	logger log.Logger) (bcReactor p2p.Reactor, err error) {
+	logger log.Logger,
+) (bcReactor p2p.Reactor, err error) {
 	bcReactor = bc.NewBlockchainReactor(state.Copy(), blockExec, blockStore, fastSync)
 
 	bcReactor.SetLogger(logger.With("module", "blockchain"))
@@ -301,8 +302,8 @@ func createConsensusReactor(config *cfg.Config,
 	privValidator types.PrivValidator,
 	fastSync bool,
 	evsw events.EventSwitch,
-	consensusLogger log.Logger) (*consensus.ConsensusReactor, *consensus.ConsensusState) {
-
+	consensusLogger log.Logger,
+) (*consensus.ConsensusReactor, *consensus.ConsensusState) {
 	consensusState := cs.NewConsensusState(
 		config.Consensus,
 		state.Copy(),
@@ -386,8 +387,8 @@ func createSwitch(config *cfg.Config,
 	consensusReactor *consensus.ConsensusReactor,
 	nodeInfo p2p.NodeInfo,
 	nodeKey *p2p.NodeKey,
-	p2pLogger log.Logger) *p2p.Switch {
-
+	p2pLogger log.Logger,
+) *p2p.Switch {
 	sw := p2p.NewSwitch(
 		config.P2P,
 		transport,
@@ -413,8 +414,8 @@ func NewNode(config *cfg.Config,
 	genesisDocProvider GenesisDocProvider,
 	dbProvider DBProvider,
 	logger log.Logger,
-	options ...Option) (*Node, error) {
-
+	options ...Option,
+) (*Node, error) {
 	blockStore, stateDB, err := initDBs(config, dbProvider)
 	if err != nil {
 		return nil, err
@@ -637,7 +638,6 @@ func (n *Node) OnStop() {
 	if pvsc, ok := n.privValidator.(service.Service); ok {
 		pvsc.Stop()
 	}
-
 }
 
 // ConfigureRPC sets all variables in rpccore so they will serve
@@ -824,8 +824,8 @@ func makeNodeInfo(
 		txIndexerStatus = "none"
 	}
 
-	var bcChannel = bc.BlockchainChannel
-	var vset = version.VersionSet
+	bcChannel := bc.BlockchainChannel
+	vset := version.VersionSet
 	vset.Set(verset.VersionInfo{
 		Name:    "app",
 		Version: state.AppVersion,
@@ -863,9 +863,7 @@ func makeNodeInfo(
 
 //------------------------------------------------------------------------------
 
-var (
-	genesisDocKey = []byte("genesisDoc")
-)
+var genesisDocKey = []byte("genesisDoc")
 
 // LoadStateFromDBOrGenesisDocProvider attempts to load the state from the
 // database, or creates one using the given genesisDocProvider and persists the

@@ -1,7 +1,7 @@
 ########################################
 # Dist suite
-.PHONY: logos goscan gnoland gnokey gnofaucet logos reset
-all: gnoland gnokey goscan logos
+.PHONY: logos goscan gnoland gnokey gnofaucet logos reset gnoweb
+all: gnoland gnokey goscan logos gnoweb
 
 reset:
 	rm -rf testdir
@@ -38,6 +38,11 @@ goscan:
 	@echo "Building goscan"
 	go build -o build/goscan ./cmd/goscan
 
+gnoweb:
+	@echo "Building website"
+	go build -o build/website
+
+
 
 # Logos is the interface to Gnoland
 logos:
@@ -50,36 +55,55 @@ clean:
 examples.precompile: install_gnodev
 	gnodev precompile ./examples --verbose
 
-examples.build: examples.precompile
+examples.build: install_gnodev examples.precompile
 	gnodev build ./examples --verbose
 
 ########################################
 # Test suite
-.PHONY: test test.go test.gno test.files1 test.files2 test.realm test.packages
-test: test.gno test.go
+.PHONY: test test.go test.go1 test.go2 test.go3 test.gno test.files1 test.files2 test.realm test.packages test.flappy
+test: test.gno test.go test.flappy
 	@echo "Full test suite finished."
 
-test.gno: test.files1 test.files2 test.realm test.packages
+test.gno: test.files1 test.files2 test.realm test.packages test.examples
 	go test tests/*.go -v -run "TestFileStr"
 	go test tests/*.go -v -run "TestSelectors"
 
-test.go:
+test.flappy:
+	# flappy tests should work "sometimes" (at least once)
+	TEST_STABILITY=flappy go run -modfile ./misc/devdeps/go.mod moul.io/testman test -test.v -timeout=20m -retry=10 -run ^TestFlappy \
+		./pkgs/bft/consensus ./pkgs/bft/blockchain ./pkgs/bft/mempool ./pkgs/p2p
+
+test.go: test.go1 test.go2 test.go3
+
+test.go1:
+	# test most of pkgs/* except amino and bft.
 	go test . -v
 	# -p 1 shows test failures as they come
 	# maybe another way to do this?
-	go test ./pkgs/... -v -p 1
+	go test `go list ./pkgs/... | grep -v pkgs/amino/ | grep -v pkgs/bft/` -v -p 1 -timeout=30m
+
+test.go2:
+	# test amino.
+	go test ./pkgs/amino/... -v -p 1 -timeout=30m
+
+test.go3:
+	# test bft.
+	go test ./pkgs/bft/... -v -p 1 -timeout=30m
 
 test.files1:
-	go test tests/*.go -v -test.short -run "TestFiles1/" --timeout 20m
+	go test tests/*.go -v -test.short -run "TestFiles1/" --timeout 30m
 
 test.files2:
-	go test tests/*.go -v -test.short -run "TestFiles2/" --timeout 20m
+	go test tests/*.go -v -test.short -run "TestFiles2/" --timeout 30m
 
 test.realm:
-	go test tests/*.go -v -run "TestFiles/^zrealm" --timeout 20m
+	go test tests/*.go -v -run "TestFiles/^zrealm" --timeout 30m
 
 test.packages:
-	go test tests/*.go -v -run "TestPackages" --timeout 20m
+	go test tests/*.go -v -run "TestPackages" --timeout 30m
+
+test.examples:
+	go run ./cmd/gnodev test ./examples
 
 # Code gen
 stringer:
@@ -87,10 +111,19 @@ stringer:
 
 genproto:
 	rm -rf proto/*
-	find pkgs/crypto/ | grep "\.proto" | xargs rm
-	find pkgs/crypto/ | grep "pbbindings" | xargs rm
-	find pkgs/crypto/ | grep "pb.go" | xargs rm
-	find pkgs/bft/ | grep "\.proto" | xargs rm
-	find pkgs/bft/ | grep "pbbindings" | xargs rm
-	find pkgs/bft/ | grep "pb.go" | xargs rm
+	find pkgs | grep -v "^pkgs\/amino" | grep "\.proto" | xargs rm
+	find pkgs | grep -v "^pkgs\/amino" | grep "pbbindings" | xargs rm
+	find pkgs | grep -v "^pkgs\/amino" | grep "pb.go" | xargs rm
+	@rm gno.proto || true
+	@rm pbbindings.go || true
+	@rm gno.pb.go || true
 	go run cmd/genproto/genproto.go
+
+genproto2:
+	rm -rf proto/*
+	#find pkgs | grep -v "^pkgs\/amino" | grep "\.proto" | xargs rm
+	find pkgs | grep -v "^pkgs\/amino" | grep "pbbindings" | xargs rm
+	find pkgs | grep -v "^pkgs\/amino" | grep "pb.go" | xargs rm
+	#@rm gno.proto || true
+	@rm pbbindings.go || true
+	@rm gno.pb.go || true

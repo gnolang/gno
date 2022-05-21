@@ -118,7 +118,6 @@ var preprocessing int
 //  * Assigns BlockValuePath to NameExprs.
 //  * TODO document what it does.
 func Preprocess(store Store, ctx BlockNode, n Node) Node {
-
 	// Increment preprocessing counter while preprocessing.
 	{
 		preprocessing += 1
@@ -142,13 +141,12 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
 	var last BlockNode = ctx
-	var lastpn = packageOf(last)
+	lastpn := packageOf(last)
 	stack = append(stack, last)
 
 	// iterate over all nodes recursively and calculate
 	// BlockValuePath for each NameExpr.
 	nn := Transcribe(n, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
-
 		// if already preprocessed, skip it.
 		if n.GetAttribute(ATTR_PREPROCESSED) == true {
 			return n, TRANS_SKIP
@@ -234,7 +232,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_ENTER -----------------------
 			case *FuncTypeExpr:
-				for i, _ := range n.Params {
+				for i := range n.Params {
 					p := &n.Params[i]
 					if p.Name == "" || p.Name == "_" {
 						// create a hidden var with leading dot.
@@ -243,7 +241,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						p.Name = Name(pn)
 					}
 				}
-				for i, _ := range n.Results {
+				for i := range n.Results {
 					r := &n.Results[i]
 					if r.Name == "_" {
 						// create a hidden var with leading dot.
@@ -602,7 +600,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			//type before entering the kv elements.)
 			defer func() {
 				switch ftype {
-
 				// TRANS_LEAVE (deferred)---------
 				case TRANS_COMPOSITE_TYPE:
 					// fill elided element composite lit type exprs
@@ -1103,7 +1100,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 				} else {
-					for i, _ := range n.Args {
+					for i := range n.Args {
 						if hasVarg {
 							if (len(spts) - 1) <= i {
 								if isVarg {
@@ -1654,7 +1651,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 				} else {
 					// Results consts become default *ConstExprs.
-					for i, _ := range n.Results {
+					for i := range n.Results {
 						rtx := ft.Results[i].Type
 						rt := evalStaticType(store, fnode.GetParentNode(nil), rtx)
 						if isGeneric(rt) {
@@ -1721,9 +1718,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// the implementation differ from
 					// runDeclaration(), as this uses OpStaticTypeOf.
 				}
-				var numNames = len(n.NameExprs)
-				var sts = make([]Type, numNames) // static types
-				var tvs = make([]TypedValue, numNames)
+				numNames := len(n.NameExprs)
+				sts := make([]Type, numNames) // static types
+				tvs := make([]TypedValue, numNames)
 				if numNames > 1 && len(n.Values) == 1 {
 					// special case if `var a, b, c T? = f()` form.
 					cx := n.Values[0].(*CallExpr)
@@ -1758,7 +1755,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							sts[i] = nt
 						}
 						// convert if const to nt.
-						for i, _ := range n.Values {
+						for i := range n.Values {
 							checkOrConvertType(store, last, &n.Values[i], nt, false)
 						}
 					} else if n.Const {
@@ -2153,8 +2150,8 @@ func funcOf(last BlockNode) (BlockNode, *FuncTypeExpr) {
 }
 
 func findGotoLabel(last BlockNode, label Name) (
-	bn BlockNode, depth uint8, bodyIdx int) {
-
+	bn BlockNode, depth uint8, bodyIdx int,
+) {
 	for {
 		switch cbn := last.(type) {
 		case *IfStmt, *SwitchStmt:
@@ -2826,10 +2823,8 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 				// NOTE: document somewhere.
 				cd.Recv.Name = ".recv"
 			}
-			cd.Recv =
-				*Preprocess(store, last, &cd.Recv).(*FieldTypeExpr)
-			cd.Type =
-				*Preprocess(store, last, &cd.Type).(*FuncTypeExpr)
+			cd.Recv = *Preprocess(store, last, &cd.Recv).(*FieldTypeExpr)
+			cd.Type = *Preprocess(store, last, &cd.Type).(*FuncTypeExpr)
 			rft := evalStaticType(store, last, &cd.Recv).(FieldType)
 			rt := rft.Type
 			ft := evalStaticType(store, last, &cd.Type).(*FuncType)
@@ -3041,7 +3036,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			}
 		} else {
 			// define package-level function.
-			var ft = &FuncType{}
+			ft := &FuncType{}
 			pkg := skipFile(last).(*PackageNode)
 			// special case: if d.Name == "init", assign unique suffix.
 			if d.Name == "init" {

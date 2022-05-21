@@ -1,4 +1,4 @@
-package types
+package cstypes
 
 import (
 	"fmt"
@@ -49,7 +49,6 @@ func TestPeerCatchupRounds(t *testing.T) {
 	if !added || err != nil {
 		t.Error("Expected to successfully add vote from another peer")
 	}
-
 }
 
 func makeVoteHR(t *testing.T, height int64, round int, privVals []types.PrivValidator, valIndex int) *types.Vote {

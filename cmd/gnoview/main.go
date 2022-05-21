@@ -16,11 +16,12 @@ import (
 	"github.com/gnolang/gno/logos"
 )
 
-var row = 0
-var tc_style = tcell.StyleDefault
+var (
+	row      = 0
+	tc_style = tcell.StyleDefault
+)
 
 func bootGnoland() (*gno.PackageValue, *bytes.Buffer) {
-
 	// Create a new machine.
 	rr := makeRealmer()
 	pn := gno.NewPackageNode("main", "gno.land/r/main", &gno.FileSet{})
@@ -60,7 +61,6 @@ func bootGnoland() (*gno.PackageValue, *bytes.Buffer) {
 }
 
 func main() {
-
 	// bootGnoland
 	pv, out := bootGnoland()
 

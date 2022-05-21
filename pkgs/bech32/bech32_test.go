@@ -9,16 +9,13 @@ import (
 )
 
 func TestEncodeAndDecode(t *testing.T) {
-
 	sum := sha256.Sum256([]byte("hello world\n"))
 
 	bech, err := bech32.ConvertAndEncode("shasum", sum[:])
-
 	if err != nil {
 		t.Error(err)
 	}
 	hrp, data, err := bech32.DecodeAndConvert(bech)
-
 	if err != nil {
 		t.Error(err)
 	}

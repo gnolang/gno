@@ -70,8 +70,8 @@ type BlockchainReactor struct {
 
 // NewBlockchainReactor returns new reactor instance.
 func NewBlockchainReactor(state sm.State, blockExec *sm.BlockExecutor, store *store.BlockStore,
-	fastSync bool) *BlockchainReactor {
-
+	fastSync bool,
+) *BlockchainReactor {
 	if state.LastBlockHeight != store.Height() {
 		panic(fmt.Sprintf("state (%v) and store (%v) height mismatch", state.LastBlockHeight,
 			store.Height()))
@@ -157,8 +157,8 @@ func (bcR *BlockchainReactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 // According to the Tendermint spec, if all nodes are honest,
 // no node should be requesting for a block that's non-existent.
 func (bcR *BlockchainReactor) respondToPeer(msg *bcBlockRequestMessage,
-	src p2p.Peer) (queued bool) {
-
+	src p2p.Peer,
+) (queued bool) {
 	block := bcR.store.LoadBlock(msg.Height)
 	if block != nil {
 		msgBytes := amino.MustMarshalAny(&bcBlockResponseMessage{Block: block})
@@ -208,7 +208,6 @@ func (bcR *BlockchainReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 // Handle messages from the poolReactor telling the reactor what to do.
 // NOTE: Don't sleep in the FOR_LOOP or otherwise slow it down!
 func (bcR *BlockchainReactor) poolRoutine() {
-
 	trySyncTicker := time.NewTicker(trySyncIntervalMS * time.Millisecond)
 	statusUpdateTicker := time.NewTicker(statusUpdateIntervalSeconds * time.Second)
 	switchToConsensusTicker := time.NewTicker(switchToConsensusIntervalSeconds * time.Second)
@@ -293,7 +292,7 @@ FOR_LOOP:
 
 			// See if there are any blocks to sync.
 			first, second := bcR.pool.PeekTwoBlocks()
-			//bcR.Logger.Info("TrySync peeked", "first", first, "second", second)
+			// bcR.Logger.Info("TrySync peeked", "first", first, "second", second)
 			if first == nil || second == nil {
 				// We need both to sync the first block.
 				continue FOR_LOOP

@@ -14,7 +14,6 @@ package hd
 import (
 	"crypto/hmac"
 	"crypto/sha512"
-
 	"encoding/binary"
 	"errors"
 	"fmt"

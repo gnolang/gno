@@ -12,7 +12,7 @@ import (
 )
 
 func TestNilSliceEmptySlice(t *testing.T) {
-	var cdc = amino.NewCodec()
+	cdc := amino.NewCodec()
 
 	type TestStruct struct {
 		A []byte
@@ -191,7 +191,7 @@ func TestStructPointerSlice1(t *testing.T) {
 		D string // exposed
 	}
 
-	var f = Foo{
+	f := Foo{
 		A: "k",
 		B: 2,
 		C: []*Foo{nil, nil, nil},
@@ -207,7 +207,7 @@ func TestStructPointerSlice1(t *testing.T) {
 	assert.Equal(t, f, f2)
 	assert.Nil(t, f2.C[0])
 
-	var f3 = Foo{
+	f3 := Foo{
 		A: "k",
 		B: 2,
 		C: []*Foo{{}, {}, {}},
@@ -229,7 +229,7 @@ func TestStructPointerSlice2(t *testing.T) {
 		D string // exposed
 	}
 
-	var f = Foo{
+	f := Foo{
 		A: "k",
 		B: 2,
 		C: []*Foo{nil, nil, nil},
@@ -329,5 +329,4 @@ func TestDuration(t *testing.T) {
 	err = cdc.Unmarshal(nil, &dPtr)
 	assert.NoError(t, err)
 	assert.Equal(t, dPtr, &dZero)
-
 }

@@ -18,7 +18,7 @@ func main() {
 	flag.Parse()
 
 	corpusDir := filepath.Join(*corpusParentDir, "corpus")
-	if err := os.MkdirAll(corpusDir, 0755); err != nil {
+	if err := os.MkdirAll(corpusDir, 0o755); err != nil {
 		log.Fatalf("Cannot mkdirAll: %q err: %v", corpusDir, err)
 	}
 
@@ -45,7 +45,7 @@ func main() {
 		Time:        time.Date(2018, 3, 2, 21, 10, 12, 1e5, time.UTC),
 	}
 
-	var hour = 60 * time.Minute
+	hour := 60 * time.Minute
 	as := tests.ArraysStruct{
 		Int8Ar:   [4]int8{0x7F, 0x6F, 0x5F, 0x4F},
 		Int16Ar:  [4]int16{0x7FFF, 0x6FFF, 0x5FFF, 0x00},

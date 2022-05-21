@@ -95,7 +95,7 @@ const (
 	Uint16Type
 	Uint32Type
 	Uint64Type
-	//UintptrType
+	// UintptrType
 	UntypedBigintType
 	BigintType
 )
@@ -579,8 +579,8 @@ func (pt *PointerType) GetPkgPath() string {
 }
 
 func (pt *PointerType) FindEmbeddedFieldType(callerPath string, n Name, m map[Type]struct{}) (
-	trail []ValuePath, hasPtr bool, rcvr Type, field Type, accessError bool) {
-
+	trail []ValuePath, hasPtr bool, rcvr Type, field Type, accessError bool,
+) {
 	// Recursion guard.
 	if m == nil {
 		m = map[Type]struct{}{pt: (struct{}{})}
@@ -617,7 +617,7 @@ func (pt *PointerType) FindEmbeddedFieldType(callerPath string, n Name, m map[Ty
 					}
 					return true
 				}() {
-					for i, _ := range trail {
+					for i := range trail {
 						if i < len(trail)-1 {
 							trail[i].Type = VPSubrefField
 						} else {
@@ -750,8 +750,8 @@ func (st *StructType) GetStaticTypeOfAt(path ValuePath) Type {
 // ValuePaths may be modified.  If not found, all returned values
 // are nil; for consistency, check the trail.
 func (st *StructType) FindEmbeddedFieldType(callerPath string, n Name, m map[Type]struct{}) (
-	trail []ValuePath, hasPtr bool, rcvr Type, field Type, accessError bool) {
-
+	trail []ValuePath, hasPtr bool, rcvr Type, field Type, accessError bool,
+) {
 	// Recursion guard
 	if m == nil {
 		m = map[Type]struct{}{st: (struct{}{})}
@@ -775,8 +775,7 @@ func (st *StructType) FindEmbeddedFieldType(callerPath string, n Name, m map[Typ
 		// Maybe is embedded within a field.
 		if sf.Embedded {
 			st := sf.Type
-			trail2, hasPtr2, rcvr2, field2, accessError2 :=
-				findEmbeddedFieldType(callerPath, st, n, m)
+			trail2, hasPtr2, rcvr2, field2, accessError2 := findEmbeddedFieldType(callerPath, st, n, m)
 			if accessError2 {
 				// XXX make test case and check against go
 				return nil, false, nil, nil, true
@@ -787,8 +786,7 @@ func (st *StructType) FindEmbeddedFieldType(callerPath string, n Name, m map[Typ
 				} else {
 					// remember.
 					vp := NewValuePathField(0, uint16(i), sf.Name)
-					trail, hasPtr, rcvr, field =
-						append([]ValuePath{vp}, trail2...), hasPtr2, rcvr2, field2
+					trail, hasPtr, rcvr, field = append([]ValuePath{vp}, trail2...), hasPtr2, rcvr2, field2
 				}
 			}
 		}
@@ -896,8 +894,8 @@ func (it *InterfaceType) GetPkgPath() string {
 }
 
 func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[Type]struct{}) (
-	trail []ValuePath, hasPtr bool, rcvr Type, ft Type, accessError bool) {
-
+	trail []ValuePath, hasPtr bool, rcvr Type, ft Type, accessError bool,
+) {
 	// Recursion guard
 	if m == nil {
 		m = map[Type]struct{}{it: (struct{}{})}
@@ -1221,7 +1219,7 @@ func (ft *FuncType) TypeID() TypeID {
 	if ft.typeid.IsZero() {
 		ft.typeid = typeid(
 			"func(%s)(%s)",
-			//pp,
+			// pp,
 			ps.UnnamedTypeID(),
 			rs.UnnamedTypeID(),
 		)
@@ -1463,8 +1461,8 @@ func (dt *DeclaredType) GetUnboundPathForName(n Name) ValuePath {
 // This function is slow.
 // TODO: consider memoizing for successful matches.
 func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[Type]struct{}) (
-	trail []ValuePath, hasPtr bool, rcvr Type, ft Type, accessError bool) {
-
+	trail []ValuePath, hasPtr bool, rcvr Type, ft Type, accessError bool,
+) {
 	// Recursion guard
 	if m == nil {
 		m = map[Type]struct{}{dt: (struct{}{})}
@@ -1688,8 +1686,8 @@ func (nt *NativeType) GnoType(store Store) Type {
 
 // TODO implement accessError return value.
 func (nt *NativeType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
-	trail []ValuePath, hasPtr bool, rcvr Type, field Type, accessError bool) {
-
+	trail []ValuePath, hasPtr bool, rcvr Type, field Type, accessError bool,
+) {
 	// Recursion guard
 	if m == nil {
 		m = map[Type]struct{}{nt: (struct{}{})}
@@ -1917,8 +1915,10 @@ func (mn MaybeNativeType) GetPkgPath() string {
 //----------------------------------------
 // Float32 and Float64
 
-var Float32Type *StructType
-var Float64Type *StructType
+var (
+	Float32Type *StructType
+	Float64Type *StructType
+)
 
 // NOTE: this path is used to identify the struct type as a Float64.
 const float32PkgPath = uversePkgPath + "#float32"
@@ -1928,7 +1928,7 @@ func init() {
 	Float32Type = &StructType{
 		PkgPath: float32PkgPath,
 		Fields: []FieldType{
-			FieldType{
+			{
 				Name:     "Value",
 				Type:     Uint32Type,
 				Embedded: false,
@@ -1939,7 +1939,7 @@ func init() {
 	Float64Type = &StructType{
 		PkgPath: float64PkgPath,
 		Fields: []FieldType{
-			FieldType{
+			{
 				Name:     "Value",
 				Type:     Uint64Type,
 				Embedded: false,
@@ -2509,7 +2509,8 @@ func isGeneric(t Type) bool {
 // are Go-style itables the solution or?
 // callerPath: the path of package where selector node was declared.
 func findEmbeddedFieldType(callerPath string, t Type, n Name, m map[Type]struct{}) (
-	trail []ValuePath, hasPtr bool, rcvr Type, ft Type, accessError bool) {
+	trail []ValuePath, hasPtr bool, rcvr Type, ft Type, accessError bool,
+) {
 	switch ct := t.(type) {
 	case *DeclaredType:
 		return ct.FindEmbeddedFieldType(callerPath, n, m)

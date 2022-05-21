@@ -56,7 +56,7 @@ func (c Context) EventLogger() *EventLogger     { return c.eventLogger }
 
 // clone the header before returning
 func (c Context) BlockHeader() abci.Header {
-	var msg = amino.DeepCopy(&c.header).(*abci.Header)
+	msg := amino.DeepCopy(&c.header).(*abci.Header)
 	return *msg
 }
 

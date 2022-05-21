@@ -6,7 +6,6 @@ import (
 
 // Transactions messages must fulfill the Msg.
 type Msg interface {
-
 	// Return the message type.
 	// Must be alphanumeric or empty.
 	Route() string

@@ -70,7 +70,6 @@ import (
 //
 // <aside class="notice">Returns at most 20 items.</aside>
 func BlockchainInfo(ctx *rpctypes.Context, minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
-
 	// maximum 20 block metas
 	const limit int64 = 20
 	var err error
@@ -88,7 +87,8 @@ func BlockchainInfo(ctx *rpctypes.Context, minHeight, maxHeight int64) (*ctypes.
 
 	return &ctypes.ResultBlockchainInfo{
 		LastHeight: blockStore.Height(),
-		BlockMetas: blockMetas}, nil
+		BlockMetas: blockMetas,
+	}, nil
 }
 
 // error if either min or max are negative or min < max

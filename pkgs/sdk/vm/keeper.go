@@ -169,7 +169,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	mpv := mpn.NewPackage()
 	// Parse expression.
 	argslist := ""
-	for i, _ := range msg.Args {
+	for i := range msg.Args {
 		if i > 0 {
 			argslist += ","
 		}
@@ -406,6 +406,9 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 	dirpath, filename := std.SplitFilepath(filepath)
 	if filename != "" {
 		memFile := store.GetMemFile(dirpath, filename)
+		if memFile == nil {
+			return "", fmt.Errorf("file %q is not available", filepath) // TODO: XSS protection
+		}
 		return memFile.Body, nil
 	} else {
 		memPkg := store.GetMemPackage(dirpath)

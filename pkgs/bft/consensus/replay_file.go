@@ -42,7 +42,6 @@ func RunReplayFile(config cfg.BaseConfig, csConfig *cnscfg.ConsensusConfig, cons
 
 // Replay msgs in file or start the console
 func (cs *ConsensusState) ReplayFile(file string, console bool) error {
-
 	if cs.IsRunning() {
 		return errors.New("cs is already running, cannot replay")
 	}
@@ -58,7 +57,7 @@ func (cs *ConsensusState) ReplayFile(file string, console bool) error {
 	defer cs.evsw.RemoveListener(subscriber)
 
 	// just open the file for reading, no need to use wal
-	fp, err := os.OpenFile(file, os.O_RDONLY, 0600)
+	fp, err := os.OpenFile(file, os.O_RDONLY, 0o600)
 	if err != nil {
 		return err
 	}
@@ -130,7 +129,7 @@ func (pb *playback) replayReset(count int, newStepSub <-chan events.Event) error
 	if err := pb.fp.Close(); err != nil {
 		return err
 	}
-	fp, err := os.OpenFile(pb.fileName, os.O_RDONLY, 0600)
+	fp, err := os.OpenFile(pb.fileName, os.O_RDONLY, 0o600)
 	if err != nil {
 		return err
 	}

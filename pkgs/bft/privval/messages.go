@@ -42,9 +42,7 @@ type SignedProposalResponse struct {
 }
 
 // PingRequest is a request to confirm that the connection is alive.
-type PingRequest struct {
-}
+type PingRequest struct{}
 
 // PingResponse is a response to confirm that the connection is alive.
-type PingResponse struct {
-}
+type PingResponse struct{}
