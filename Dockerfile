@@ -1,4 +1,4 @@
-FROM ghcr.io/faddat/cosmos AS build
+FROM ghcr.io/notional-labs/images/gno AS build
 
 RUN mkdir /opt/src /opt/build
 ADD . /opt/src/
