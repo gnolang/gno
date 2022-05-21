@@ -59,6 +59,15 @@ examples.build: install_gnodev examples.precompile
 	gnodev build ./examples --verbose
 
 ########################################
+# Formatting, linting.
+
+.PHONY: fmt
+fmt:
+	go run -modfile ./misc/devdeps/go.mod mvdan.cc/gofumpt -w .
+	go run -modfile ./misc/devdeps/go.mod mvdan.cc/gofumpt -w `find stdlibs examples -name "*.gno"`
+	git checkout bak
+
+########################################
 # Test suite
 .PHONY: test test.go test.go1 test.go2 test.go3 test.gno test.files1 test.files2 test.realm test.packages test.flappy test.packages0 test.packages1 test.packages2
 test: test.gno test.go test.flappy
