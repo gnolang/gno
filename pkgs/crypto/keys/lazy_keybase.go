@@ -18,7 +18,7 @@ type lazyKeybase struct {
 
 // New creates a new instance of a lazy keybase.
 func NewLazyDBKeybase(name, dir string) Keybase {
-	if err := os.EnsureDir(dir, 0700); err != nil {
+	if err := os.EnsureDir(dir, 0o700); err != nil {
 		panic(fmt.Sprintf("failed to create Keybase directory: %s", err))
 	}
 
@@ -216,8 +216,8 @@ func (lkb lazyKeybase) ExportPrivateKeyObject(name string, passphrase string) (c
 }
 
 func (lkb lazyKeybase) ExportPrivKey(name string, decryptPassphrase string,
-	encryptPassphrase string) (armor string, err error) {
-
+	encryptPassphrase string,
+) (armor string, err error) {
 	db, err := dbm.NewGoLevelDB(lkb.name, lkb.dir)
 	if err != nil {
 		return "", err

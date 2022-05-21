@@ -96,7 +96,6 @@ func (cs *ConsensusState) readReplayMessage(msg *walm.TimedWALMessage, meta *wal
 // Replay only those messages since the last block.  `timeoutRoutine` should
 // run concurrently to read off tickChan.
 func (cs *ConsensusState) catchupReplay(csHeight int64) error {
-
 	// Set replayMode to true so we don't log signing errors.
 	cs.replayMode = true
 	defer func() { cs.replayMode = false }()
@@ -205,8 +204,8 @@ type Handshaker struct {
 }
 
 func NewHandshaker(stateDB dbm.DB, state sm.State,
-	store sm.BlockStore, genDoc *types.GenesisDoc) *Handshaker {
-
+	store sm.BlockStore, genDoc *types.GenesisDoc,
+) *Handshaker {
 	return &Handshaker{
 		stateDB:      stateDB,
 		initialState: state,
@@ -235,7 +234,6 @@ func (h *Handshaker) NBlocks() int {
 
 // TODO: retry the handshake/replay if it fails ?
 func (h *Handshaker) Handshake(proxyApp proxy.AppConns) error {
-
 	// Handshake is done via ABCI Info on the query conn.
 	res, err := proxyApp.Query().InfoSync(abci.RequestInfo{})
 	if err != nil {
@@ -309,7 +307,7 @@ func (h *Handshaker) ReplayBlocks(
 			return nil, err
 		}
 
-		if stateBlockHeight == 0 { //we only update state when we are in initial state
+		if stateBlockHeight == 0 { // we only update state when we are in initial state
 			// If the app returned validators or consensus params, update the state.
 			if len(res.Validators) > 0 {
 				vals := types.NewValidatorSetFromABCIValidatorUpdates(res.Validators)
@@ -355,13 +353,11 @@ func (h *Handshaker) ReplayBlocks(
 		if appBlockHeight < storeBlockHeight {
 			// the app is behind, so replay blocks, but no need to go through WAL (state is already synced to store)
 			return h.replayBlocks(state, proxyApp, appBlockHeight, storeBlockHeight, false)
-
 		} else if appBlockHeight == storeBlockHeight {
 			// We're good!
 			assertAppHashEqualsOneFromState(appHash, state)
 			return appHash, nil
 		}
-
 	} else if storeBlockHeight == stateBlockHeight+1 {
 		// We saved the block in the store but haven't updated the state,
 		// so we'll need to replay a block using the WAL.
@@ -391,7 +387,6 @@ func (h *Handshaker) ReplayBlocks(
 			state, err = h.replayBlock(state, storeBlockHeight, mockApp)
 			return state.AppHash, err
 		}
-
 	}
 
 	panic(fmt.Sprintf("uncovered case! appHeight: %d, storeHeight: %d, stateHeight: %d",

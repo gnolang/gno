@@ -29,8 +29,7 @@ func newSimpleStruct() SimpleStruct {
 }
 
 func TestMarshalUnmarshalPointer0(t *testing.T) {
-
-	var s = newSimpleStruct()
+	s := newSimpleStruct()
 	cdc := amino.NewCodec()
 	b, err := cdc.MarshalSized(s) // no indirection
 	assert.NoError(t, err)
@@ -39,12 +38,10 @@ func TestMarshalUnmarshalPointer0(t *testing.T) {
 	err = cdc.UnmarshalSized(b, &s2) // no indirection
 	assert.NoError(t, err)
 	assert.Equal(t, s, s2)
-
 }
 
 func TestMarshalUnmarshalPointer1(t *testing.T) {
-
-	var s = newSimpleStruct()
+	s := newSimpleStruct()
 	cdc := amino.NewCodec()
 	b, err := cdc.MarshalSized(&s) // extra indirection
 	assert.NoError(t, err)
@@ -53,13 +50,11 @@ func TestMarshalUnmarshalPointer1(t *testing.T) {
 	err = cdc.UnmarshalSized(b, &s2) // no indirection
 	assert.NoError(t, err)
 	assert.Equal(t, s, s2)
-
 }
 
 func TestMarshalUnmarshalPointer2(t *testing.T) {
-
-	var s = newSimpleStruct()
-	var ptr = &s
+	s := newSimpleStruct()
+	ptr := &s
 	cdc := amino.NewCodec()
 	assert.Panics(t, func() {
 		cdc.MarshalSized(&ptr) // double extra indirection panics.
@@ -68,8 +63,7 @@ func TestMarshalUnmarshalPointer2(t *testing.T) {
 }
 
 func TestMarshalUnmarshalPointer3(t *testing.T) {
-
-	var s = newSimpleStruct()
+	s := newSimpleStruct()
 	cdc := amino.NewCodec()
 	b, err := cdc.MarshalSized(s) // no indirection
 	assert.NoError(t, err)
@@ -220,7 +214,6 @@ func TestEncodeDecodeString(t *testing.T) {
 }
 
 func TestCodecSeal(t *testing.T) {
-
 	type Foo interface{}
 	type Bar interface{}
 

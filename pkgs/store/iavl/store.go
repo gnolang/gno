@@ -30,9 +30,11 @@ func StoreConstructor(db dbm.DB, opts types.StoreOptions) types.CommitStore {
 
 //----------------------------------------
 
-var _ types.Store = (*Store)(nil)
-var _ types.CommitStore = (*Store)(nil)
-var _ types.Queryable = (*Store)(nil)
+var (
+	_ types.Store       = (*Store)(nil)
+	_ types.CommitStore = (*Store)(nil)
+	_ types.Queryable   = (*Store)(nil)
+)
 
 // Store Implements types.Store and CommitStore.
 type Store struct {

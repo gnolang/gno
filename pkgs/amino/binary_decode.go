@@ -12,9 +12,7 @@ const bd_option_byte = 0x01
 //----------------------------------------
 // cdc.decodeReflectBinary
 
-var (
-	ErrOverflowInt = errors.New("encoded integer value overflows int(32)")
-)
+var ErrOverflowInt = errors.New("encoded integer value overflows int(32)")
 
 const (
 	// architecture dependent int limits:
@@ -36,8 +34,8 @@ const (
 //
 // CONTRACT: rv.CanAddr() is true.
 func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
-	rv reflect.Value, fopts FieldOptions, bare bool, options uint64) (n int, err error) {
-
+	rv reflect.Value, fopts FieldOptions, bare bool, options uint64,
+) (n int, err error) {
 	if !rv.CanAddr() {
 		panic("rv not addressable")
 	}
@@ -310,13 +308,13 @@ func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
 	default:
 		panic(fmt.Sprintf("unknown field type %v", info.Type.Kind()))
 	}
-
 }
 
 // CONTRACT: rv.CanAddr() is true.
 // CONTRACT: rv.Kind() == reflect.Interface.
 func (cdc *Codec) decodeReflectBinaryInterface(bz []byte, iinfo *TypeInfo, rv reflect.Value,
-	fopts FieldOptions, bare bool) (n int, err error) {
+	fopts FieldOptions, bare bool,
+) (n int, err error) {
 	if !rv.CanAddr() {
 		panic("rv not addressable")
 	}
@@ -364,7 +362,7 @@ func (cdc *Codec) decodeReflectBinaryInterface(bz []byte, iinfo *TypeInfo, rv re
 
 	// Consume second field of Value.
 	var value []byte = nil
-	var lenbz = len(bz)
+	lenbz := len(bz)
 	if lenbz == 0 {
 		// Value is empty.
 	} else {
@@ -411,7 +409,6 @@ func (cdc *Codec) decodeReflectBinaryInterface(bz []byte, iinfo *TypeInfo, rv re
 // CONTRACT: rv.CanAddr() is true.
 // CONTRACT: rv.Kind() == reflect.Interface.
 func (cdc *Codec) decodeReflectBinaryAny(typeURL string, value []byte, rv reflect.Value, fopts FieldOptions) (n int, err error) {
-
 	// Invalid typeURL value is invalid.
 	if !IsASCIIText(typeURL) {
 		err = fmt.Errorf("invalid type_url string bytes %X", typeURL)
@@ -427,7 +424,7 @@ func (cdc *Codec) decodeReflectBinaryAny(typeURL string, value []byte, rv reflec
 	}
 
 	// Construct the concrete type value.
-	var crv, irvSet = constructConcreteType(cinfo)
+	crv, irvSet := constructConcreteType(cinfo)
 
 	// Special case when value is default empty value.
 	// NOTE: For compatibility with other languages,
@@ -448,7 +445,7 @@ func (cdc *Codec) decodeReflectBinaryAny(typeURL string, value []byte, rv reflec
 	//
 	// See corresponding encoding message in this file, and also
 	// Codec.Unmarshal()
-	var bareValue = true
+	bareValue := true
 	if !cinfo.IsStructOrUnpacked(fopts) &&
 		len(value) > 0 {
 		// TODO test for when !cinfo.IsStructOrUnpacked() but fopts.BinFieldNum != 1.
@@ -502,7 +499,8 @@ func (cdc *Codec) decodeReflectBinaryAny(typeURL string, value []byte, rv reflec
 
 // CONTRACT: rv.CanAddr() is true.
 func (cdc *Codec) decodeReflectBinaryByteArray(bz []byte, info *TypeInfo, rv reflect.Value,
-	fopts FieldOptions) (n int, err error) {
+	fopts FieldOptions,
+) (n int, err error) {
 	if !rv.CanAddr() {
 		panic("rv not addressable")
 	}
@@ -540,7 +538,8 @@ func (cdc *Codec) decodeReflectBinaryByteArray(bz []byte, info *TypeInfo, rv ref
 // CONTRACT: rv.CanAddr() is true.
 // NOTE: Keep the code structure similar to decodeReflectBinarySlice.
 func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect.Value,
-	fopts FieldOptions, bare bool) (n int, err error) {
+	fopts FieldOptions, bare bool,
+) (n int, err error) {
 	if !rv.CanAddr() {
 		panic("rv not addressable")
 	}
@@ -569,7 +568,7 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 	// If elem is not already a ByteLength type, read in packed form.
 	// This is a Proto wart due to Proto backwards compatibility issues.
 	// Amino2 will probably migrate to use the List typ3.
-	var newoptions = uint64(0)
+	newoptions := uint64(0)
 	// Special case for list of (repr) bytes: decode from "bytes".
 	if ert.Kind() == reflect.Ptr && ert.Elem().Kind() == reflect.Uint8 {
 		newoptions |= bd_option_byte
@@ -578,7 +577,7 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 	if typ3 != Typ3ByteLength || (newoptions&be_option_byte > 0) {
 		// Read elements in packed form.
 		for i := 0; i < length; i++ {
-			var erv = rv.Index(i)
+			erv := rv.Index(i)
 			var _n int
 			_n, err = cdc.decodeReflectBinary(bz, einfo, erv, fopts, false, newoptions)
 			if slide(&bz, &n, _n) && err != nil {
@@ -620,7 +619,7 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 				return
 			}
 			// Decode the next ByteLength bytes into erv.
-			var erv = rv.Index(i)
+			erv := rv.Index(i)
 			// Special case if:
 			//  * next ByteLength bytes are 0x00, and
 			//  * - erv is not a struct pointer, or
@@ -698,7 +697,8 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 
 // CONTRACT: rv.CanAddr() is true.
 func (cdc *Codec) decodeReflectBinaryByteSlice(bz []byte, info *TypeInfo, rv reflect.Value,
-	fopts FieldOptions) (n int, err error) {
+	fopts FieldOptions,
+) (n int, err error) {
 	if !rv.CanAddr() {
 		panic("rv not addressable")
 	}
@@ -740,7 +740,8 @@ func (cdc *Codec) decodeReflectBinaryByteSlice(bz []byte, info *TypeInfo, rv ref
 // CONTRACT: rv.CanAddr() is true.
 // NOTE: Keep the code structure similar to decodeReflectBinaryArray.
 func (cdc *Codec) decodeReflectBinarySlice(bz []byte, info *TypeInfo, rv reflect.Value,
-	fopts FieldOptions, bare bool) (n int, err error) {
+	fopts FieldOptions, bare bool,
+) (n int, err error) {
 	if !rv.CanAddr() {
 		panic("rv not addressable")
 	}
@@ -762,7 +763,7 @@ func (cdc *Codec) decodeReflectBinarySlice(bz []byte, info *TypeInfo, rv reflect
 	// Construct slice to collect decoded items to.
 	// NOTE: This is due to Proto3.  How to best optimize?
 	esrt := reflect.SliceOf(ert)
-	var srv = reflect.Zero(esrt)
+	srv := reflect.Zero(esrt)
 
 	// Strip if needed.
 	bz, err = decodeMaybeBare(bz, &n, bare)
@@ -773,7 +774,7 @@ func (cdc *Codec) decodeReflectBinarySlice(bz []byte, info *TypeInfo, rv reflect
 	// If elem is not already a ByteLength type, read in packed form.
 	// This is a Proto wart due to Proto backwards compatibility issues.
 	// Amino2 will probably migrate to use the List typ3.
-	var newoptions = uint64(0)
+	newoptions := uint64(0)
 	// Special case for list of (repr) bytes: encode as "bytes".
 	if einfo.ReprType.Type.Kind() == reflect.Uint8 {
 		newoptions |= be_option_byte
@@ -895,7 +896,8 @@ func (cdc *Codec) decodeReflectBinarySlice(bz []byte, info *TypeInfo, rv reflect
 
 // CONTRACT: rv.CanAddr() is true.
 func (cdc *Codec) decodeReflectBinaryStruct(bz []byte, info *TypeInfo, rv reflect.Value,
-	_ FieldOptions, bare bool) (n int, err error) {
+	_ FieldOptions, bare bool,
+) (n int, err error) {
 	if !rv.CanAddr() {
 		panic("rv not addressable")
 	}
@@ -921,8 +923,8 @@ func (cdc *Codec) decodeReflectBinaryStruct(bz []byte, info *TypeInfo, rv reflec
 	// Read each field.
 	for _, field := range info.Fields {
 		// Get field rv and info.
-		var frv = rv.Field(field.Index)
-		var finfo = field.TypeInfo
+		frv := rv.Field(field.Index)
+		finfo := field.TypeInfo
 
 		// We're done if we've consumed all of bz.
 		if len(bz) == 0 {
@@ -1047,7 +1049,6 @@ func consumeAny(typ3 Typ3, bz []byte) (n int, err error) {
 
 // Read field key.
 func decodeFieldNumberAndTyp3(bz []byte) (num uint32, typ Typ3, n int, err error) {
-
 	// Read uvarint value.
 	value64, n, err := DecodeUvarint(bz)
 	if err != nil {

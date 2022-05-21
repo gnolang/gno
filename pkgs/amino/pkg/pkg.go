@@ -262,14 +262,24 @@ func (pkg *Package) GetDependency(gopkg string) (*Package, error) {
 		pkg.GoPkgPath)
 }
 
+func (pkg *Package) GetAllDependencies() []*Package {
+	return pkg.CrawlPackages(map[*Package]struct{}{pkg: struct{}{}})
+}
+
 // For a given package info, crawl and discover all package infos.
+// Packages already in seen are not returned.
 func (pkg *Package) CrawlPackages(seen map[*Package]struct{}) (res []*Package) {
 	if seen == nil {
 		seen = map[*Package]struct{}{}
 	}
 	var crawl func(pkg *Package)
 	crawl = func(pkg *Package) {
-		seen[pkg] = struct{}{}
+		if _, ok := seen[pkg]; ok {
+			// do not return.
+		} else {
+			seen[pkg] = struct{}{}
+			res = append(res, pkg)
+		}
 		for _, dependency := range pkg.Dependencies {
 			if _, ok := seen[dependency]; ok {
 				continue
@@ -278,9 +288,6 @@ func (pkg *Package) CrawlPackages(seen map[*Package]struct{}) (res []*Package) {
 		}
 	}
 	crawl(pkg)
-	for pkg, _ := range seen {
-		res = append(res, pkg)
-	}
 	return res
 }
 
@@ -296,7 +303,7 @@ func (pkg *Package) ReflectTypes() []reflect.Type {
 
 // Utility for whoever is making a NewPackage manually.
 func GetCallersDirname() string {
-	var dirName = "" // derive from caller.
+	dirName := "" // derive from caller.
 	_, filename, _, ok := runtime.Caller(1)
 	if !ok {
 		panic("could not get caller to derive caller's package directory")

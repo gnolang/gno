@@ -7,8 +7,10 @@ import (
 	"github.com/gnolang/gno/pkgs/errors"
 )
 
-type AppItem = command.AppItem
-type AppList = command.AppList
+type (
+	AppItem = command.AppItem
+	AppList = command.AppList
+)
 
 var mainApps AppList = []AppItem{
 	{txExportApp, "export", "export txs from node", defaultTxExportOptions},
@@ -41,5 +43,4 @@ func main() {
 
 	// unknown app command!
 	panic(errors.New("unknown command " + args[0]))
-
 }

@@ -21,10 +21,14 @@ jobs:
       matrix:
         goversion: ["1.17.x", "1.18.x"]
         args:
-          - test.go
+          - test.go1
+          - test.go2
+          - test.go3
           - test.files1
           - test.files2
           - test.packages
+          - test.examples
+          - test.flappy
     runs-on: ubuntu-latest
     timeout-minutes: 21
     steps:

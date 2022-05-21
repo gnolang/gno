@@ -6,7 +6,6 @@ package abci
 // except CheckTx/DeliverTx, which take `tx []byte`, and `Commit`, which takes
 // nothing.
 type Application interface {
-
 	// Info/Query Connection
 	Info(RequestInfo) ResponseInfo                // Return application info
 	SetOption(RequestSetOption) ResponseSetOption // Set application option
@@ -31,8 +30,7 @@ type Application interface {
 
 var _ Application = (*BaseApplication)(nil)
 
-type BaseApplication struct {
-}
+type BaseApplication struct{}
 
 func NewBaseApplication() *BaseApplication {
 	return &BaseApplication{}

@@ -16,9 +16,11 @@ import (
 	"github.com/gnolang/gno/pkgs/random"
 )
 
-var testLevelDB bool
-var testFuzzIterations int
-var rnd *random.Rand
+var (
+	testLevelDB        bool
+	testFuzzIterations int
+	rnd                *random.Rand
+)
 
 // NOTE see https://github.com/golang/go/issues/31859
 var _ = func() bool {
@@ -1045,9 +1047,9 @@ func TestVersionedTreeProofs(t *testing.T) {
 }
 
 func TestOrphans(t *testing.T) {
-	//If you create a sequence of saved versions
-	//Then randomly delete versions other than the first and last until only those two remain
-	//Any remaining orphan nodes should be constrained to just the first version
+	// If you create a sequence of saved versions
+	// Then randomly delete versions other than the first and last until only those two remain
+	// Any remaining orphan nodes should be constrained to just the first version
 	require := require.New(t)
 	tree := NewMutableTree(db.NewMemDB(), 100)
 
@@ -1281,8 +1283,8 @@ func TestLoadVersionForOverwriting(t *testing.T) {
 	_, _, err = tree.SaveVersion()
 	require.NoError(err, "SaveVersion should not fail, write the same value")
 
-	//The tree version now is 52 which is equal to latest version.
-	//Now any key value can be written into the tree
+	// The tree version now is 52 which is equal to latest version.
+	// Now any key value can be written into the tree
 	tree.Set([]byte("key any value"), []byte("value any value"))
 	_, _, err = tree.SaveVersion()
 	require.NoError(err, "SaveVersion should not fail.")

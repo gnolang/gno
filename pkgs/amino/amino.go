@@ -40,7 +40,7 @@ const (
 )
 
 func init() {
-	gcdc = NewCodec().Autoseal()
+	gcdc = NewCodec().WithPBBindings().Autoseal()
 	var err error
 	emptyTime, err = time.Parse(epochFmt, unixEpochStr)
 	if err != nil {
@@ -169,11 +169,11 @@ const (
 	Typ3Varint     = Typ3(0)
 	Typ38Byte      = Typ3(1)
 	Typ3ByteLength = Typ3(2)
-	//Typ3_Struct     = Typ3(3)
-	//Typ3_StructTerm = Typ3(4)
+	// Typ3_Struct     = Typ3(3)
+	// Typ3_StructTerm = Typ3(4)
 	Typ34Byte = Typ3(5)
-	//Typ3_List       = Typ3(6)
-	//Typ3_Interface  = Typ3(7)
+	// Typ3_List       = Typ3(6)
+	// Typ3_Interface  = Typ3(7)
 )
 
 func (typ Typ3) String() string {
@@ -184,15 +184,15 @@ func (typ Typ3) String() string {
 		return "8Byte"
 	case Typ3ByteLength:
 		return "ByteLength"
-	//case Typ3_Struct:
+	// case Typ3_Struct:
 	//	return "Struct"
-	//case Typ3_StructTerm:
+	// case Typ3_StructTerm:
 	//	return "StructTerm"
 	case Typ34Byte:
 		return "4Byte"
-	//case Typ3_List:
+	// case Typ3_List:
 	//	return "List"
-	//case Typ3_Interface:
+	// case Typ3_Interface:
 	//	return "Interface"
 	default:
 		return fmt.Sprintf("<Invalid Typ3 %X>", byte(typ))
@@ -216,7 +216,7 @@ func (cdc *Codec) MarshalSized(o interface{}) ([]byte, error) {
 	cdc.doAutoseal()
 
 	// Write the bytes here.
-	var buf = new(bytes.Buffer)
+	buf := new(bytes.Buffer)
 
 	// Write the bz without length-prefixing.
 	bz, err := cdc.Marshal(o)
@@ -268,7 +268,7 @@ func (cdc *Codec) MarshalAnySized(o interface{}) ([]byte, error) {
 	cdc.doAutoseal()
 
 	// Write the bytes here.
-	var buf = new(bytes.Buffer)
+	buf := new(bytes.Buffer)
 
 	// Write the bz without length-prefixing.
 	bz, err := cdc.MarshalAny(o)
@@ -338,9 +338,8 @@ func (cdc *Codec) Marshal(o interface{}) ([]byte, error) {
 
 // Use reflection.
 func (cdc *Codec) MarshalReflect(o interface{}) ([]byte, error) {
-
 	// Dereference value if pointer.
-	var rv = reflect.ValueOf(o)
+	rv := reflect.ValueOf(o)
 	if rv.Kind() == reflect.Ptr {
 		if rv.IsNil() {
 			panic("Marshal cannot marshal a nil pointer directly. Try wrapping in a struct?")
@@ -387,12 +386,10 @@ func (cdc *Codec) MarshalReflect(o interface{}) ([]byte, error) {
 		}
 		bz = buf.Bytes()
 	}
-
 	// If bz is empty, prefer nil.
 	if len(bz) == 0 {
 		bz = nil
 	}
-
 	return bz, nil
 }
 
@@ -426,8 +423,8 @@ func (cdc *Codec) MarshalAny(o interface{}) ([]byte, error) {
 	}
 
 	// Dereference value if pointer.
-	var rv, _, _ = maybeDerefValue(reflect.ValueOf(o))
-	var rt = rv.Type()
+	rv, _, _ := maybeDerefValue(reflect.ValueOf(o))
+	rt := rv.Type()
 
 	// rv cannot be an interface.
 	if rv.Kind() == reflect.Interface {
@@ -495,7 +492,8 @@ func (cdc *Codec) UnmarshalSized(bz []byte, ptr interface{}) error {
 // UnmarshalSizedReader will panic if ptr is a nil-pointer.
 // If maxSize is 0, there is no limit (not recommended).
 func (cdc *Codec) UnmarshalSizedReader(r io.Reader, ptr interface{},
-	maxSize int64) (n int64, err error) {
+	maxSize int64,
+) (n int64, err error) {
 	if maxSize < 0 {
 		panic("maxSize cannot be negative.")
 	}
@@ -544,7 +542,7 @@ func (cdc *Codec) UnmarshalSizedReader(r io.Reader, ptr interface{},
 	}
 
 	// Read that many bytes.
-	var bz = make([]byte, l)
+	bz := make([]byte, l)
 	_, err = io.ReadFull(r, bz)
 	if err != nil {
 		return
@@ -624,7 +622,7 @@ func (cdc *Codec) unmarshalReflect(bz []byte, ptr interface{}) error {
 	//
 	// See corresponding encoding message in this file, and also
 	// binary-decode.
-	var bare = true
+	bare := true
 	var nWrap int
 	if !info.IsStructOrUnpacked(FieldOptions{}) &&
 		len(bz) > 0 &&
@@ -769,11 +767,11 @@ func (cdc *Codec) MarshalJSONAny(o interface{}) ([]byte, error) {
 	}
 
 	// Dereference value if pointer.
-	var rv = reflect.ValueOf(o)
+	rv := reflect.ValueOf(o)
 	if rv.Kind() == reflect.Ptr {
 		rv = rv.Elem()
 	}
-	var rt = rv.Type()
+	rt := rv.Type()
 
 	// rv cannot be an interface.
 	if rv.Kind() == reflect.Interface {
@@ -873,7 +871,7 @@ func NewPackage(gopkg string, p3pkg string, dirname string) *Package {
 
 // NOTE: duplicated in pkg/pkg.go
 func GetCallersDirname() string {
-	var dirname = "" // derive from caller.
+	dirname := "" // derive from caller.
 	_, filename, _, ok := runtime.Caller(1)
 	if !ok {
 		panic("could not get caller to derive caller's package directory")

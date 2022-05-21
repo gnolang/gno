@@ -15,7 +15,7 @@ import (
 var testProposal *Proposal
 
 func init() {
-	var stamp, err = time.Parse(TimeFormat, "2018-02-11T07:09:22.765Z")
+	stamp, err := time.Parse(TimeFormat, "2018-02-11T07:09:22.765Z")
 	if err != nil {
 		panic(err)
 	}
@@ -104,7 +104,6 @@ func BenchmarkProposalVerifySignature(b *testing.B) {
 }
 
 func TestProposalValidateBasic(t *testing.T) {
-
 	privVal := NewMockPV()
 	testCases := []struct {
 		testName         string

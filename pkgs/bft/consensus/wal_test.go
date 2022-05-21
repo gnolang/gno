@@ -25,7 +25,6 @@ const (
 const maxTestMsgSize int64 = 64 * 1024
 
 func makeTempWAL(name string, maxMsgSize int64, walChunkSize int64) (wal walm.WAL, cleanup func()) {
-
 	// Create WAL file.
 	walDir, err := ioutil.TempDir("", "wal_"+name)
 	if err != nil {
@@ -61,7 +60,7 @@ func makeTempWAL(name string, maxMsgSize int64, walChunkSize int64) (wal walm.WA
 func TestWALTruncate(t *testing.T) {
 	const maxTestMsgSize = 1024 * 1024 // 1MB
 	const walChunkSize = 409610        // 4KB
-	var wal, cleanup = makeTempWAL("TestWALTruncate", maxTestMsgSize, walChunkSize)
+	wal, cleanup := makeTempWAL("TestWALTruncate", maxTestMsgSize, walChunkSize)
 	defer cleanup()
 
 	wal.SetLogger(log.TestingLogger())
@@ -75,7 +74,7 @@ func TestWALTruncate(t *testing.T) {
 	err := WALGenerateNBlocks(t, wal.(grouper).Group(), 60)
 	require.NoError(t, err)
 
-	time.Sleep(1 * time.Millisecond) //wait groupCheckDuration, make sure RotateFile run
+	time.Sleep(1 * time.Millisecond) // wait groupCheckDuration, make sure RotateFile run
 
 	wal.FlushAndSync()
 

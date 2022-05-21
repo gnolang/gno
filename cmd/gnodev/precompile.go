@@ -2,10 +2,8 @@ package main
 
 import (
 	"fmt"
-	"io/fs"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/gnolang/gno"
@@ -34,41 +32,19 @@ func precompileApp(cmd *command.Command, args []string, iopts interface{}) error
 		return errors.New("invalid args")
 	}
 
-	errCount := 0
-
 	// precompile .gno files.
-	for _, arg := range args {
-		info, err := os.Stat(arg)
-		if err != nil {
-			return fmt.Errorf("invalid file or package path: %w", err)
-		}
-		if !info.IsDir() {
-			curpath := arg
-			err = precompileFile(curpath, opts)
-			if err != nil {
-				return fmt.Errorf("%s: precompile: %w", curpath, err)
-			}
-		} else {
-			err = filepath.WalkDir(arg, func(curpath string, f fs.DirEntry, err error) error {
-				if err != nil {
-					return fmt.Errorf("%s: walk dir: %w", arg, err)
-				}
+	paths, err := gnoFilesFromArgs(args)
+	if err != nil {
+		return fmt.Errorf("list paths: %w", err)
+	}
 
-				if !isGnoFile(f) {
-					return nil // skip
-				}
-				err = precompileFile(curpath, opts)
-				if err != nil {
-					err = fmt.Errorf("%s: precompile: %w", curpath, err)
-					cmd.ErrPrintfln("%s", err.Error())
-					errCount++
-					return nil
-				}
-				return nil
-			})
-			if err != nil {
-				return err
-			}
+	errCount := 0
+	for _, filepath := range paths {
+		err = precompileFile(filepath, opts)
+		if err != nil {
+			err = fmt.Errorf("%s: precompile: %w", filepath, err)
+			cmd.ErrPrintfln("%s", err.Error())
+			errCount++
 		}
 	}
 
@@ -102,7 +78,7 @@ func precompileFile(srcPath string, opts precompileOptions) error {
 
 	// write .go file.
 	targetPath := strings.TrimSuffix(srcPath, ".gno") + ".gno.gen.go"
-	err = ioutil.WriteFile(targetPath, []byte(transformed), 0644)
+	err = ioutil.WriteFile(targetPath, []byte(transformed), 0o644)
 	if err != nil {
 		return fmt.Errorf("write .go file: %w", err)
 	}

@@ -81,7 +81,7 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 		},
 	}
 	gen.Validators = []bft.GenesisValidator{
-		bft.GenesisValidator{
+		{
 			Address: pvPub.Address(),
 			PubKey:  pvPub,
 			Power:   10,
@@ -162,10 +162,11 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 		"p/grc/grc20/impl",
 		"p/grc/grc721",
 		"p/maths",
-		"r/foo20",
 		"r/users",
+		"r/foo20",
 		"r/boards",
-		"r/banktest"} {
+		"r/banktest",
+	} {
 		// open files in directory as MemPackage.
 		memPkg := gno.ReadMemPackage("./examples/gno.land/"+path, "gno.land/"+path)
 		var tx std.Tx

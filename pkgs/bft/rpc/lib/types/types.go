@@ -94,7 +94,7 @@ func (req RPCRequest) String() string {
 }
 
 func MapToRequest(id jsonrpcid, method string, params map[string]interface{}) (RPCRequest, error) {
-	var params_ = make(map[string]json.RawMessage, len(params))
+	params_ := make(map[string]json.RawMessage, len(params))
 	for name, value := range params {
 		valueJSON, err := amino.MarshalJSON(value)
 		if err != nil {
@@ -111,7 +111,7 @@ func MapToRequest(id jsonrpcid, method string, params map[string]interface{}) (R
 }
 
 func ArrayToRequest(id jsonrpcid, method string, params []interface{}) (RPCRequest, error) {
-	var params_ = make([]json.RawMessage, len(params))
+	params_ := make([]json.RawMessage, len(params))
 	for i, value := range params {
 		valueJSON, err := amino.MarshalJSON(value)
 		if err != nil {

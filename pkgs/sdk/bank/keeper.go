@@ -117,7 +117,6 @@ func (bank BankKeeper) SendCoins(ctx sdk.Context, fromAddr crypto.Address, toAdd
 //
 // CONTRACT: If the account is a vesting account, the amount has to be spendable.
 func (bank BankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error) {
-
 	if !amt.IsValid() {
 		return nil, std.ErrInvalidCoins(amt.String())
 	}
@@ -142,7 +141,6 @@ func (bank BankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt s
 
 // AddCoins adds amt to the coins at the addr.
 func (bank BankKeeper) AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error) {
-
 	if !amt.IsValid() {
 		return nil, std.ErrInvalidCoins(amt.String())
 	}
@@ -162,7 +160,6 @@ func (bank BankKeeper) AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Co
 
 // SetCoins sets the coins at the addr.
 func (bank BankKeeper) SetCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
-
 	if !amt.IsValid() {
 		return std.ErrInvalidCoins(amt.String())
 	}

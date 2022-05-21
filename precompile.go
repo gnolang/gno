@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/gnolang/gno/pkgs/std"
@@ -84,7 +85,7 @@ func PrecompileAndCheckMempkg(mempkg *std.MemPackage) error {
 			continue
 		}
 		tmpFile := filepath.Join(tmpDir, mfile.Name)
-		err = ioutil.WriteFile(tmpFile, []byte(translated), 0644)
+		err = ioutil.WriteFile(tmpFile, []byte(translated), 0o644)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
@@ -150,7 +151,37 @@ func PrecompileBuildPackage(fileOrPkg string, goBinary string) error {
 	// TODO: temporarily create an in-memory go.mod or disable go modules for gno?
 	// TODO: ignore .go files that were not generated from gno?
 
-	args := []string{"build", "-v", "-tags=gno", fileOrPkg}
+	files := []string{}
+
+	info, err := os.Stat(fileOrPkg)
+	if err != nil {
+		return fmt.Errorf("invalid file or package path: %w", err)
+	}
+	if !info.IsDir() {
+		file := fileOrPkg
+		files = append(files, file)
+	} else {
+		pkgDir := fileOrPkg
+		goGlob := filepath.Join(pkgDir, "*.go")
+		goMatches, err := filepath.Glob(goGlob)
+		if err != nil {
+			return fmt.Errorf("glob: %w", err)
+		}
+		for _, goMatch := range goMatches {
+			switch {
+			case strings.HasSuffix(goMatch, "."): // skip
+			case strings.HasSuffix(goMatch, "_filetest.go"): // skip
+			case strings.HasSuffix(goMatch, "_filetest.gno.gen.go"): // skip
+			case strings.HasSuffix(goMatch, "_test.go"): // skip
+			case strings.HasSuffix(goMatch, "_test.gno.gen.go"): // skip
+			default:
+				files = append(files, goMatch)
+			}
+		}
+	}
+	sort.Strings(files)
+
+	args := append([]string{"build", "-v", "-tags=gno"}, files...)
 	cmd := exec.Command(goBinary, args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {

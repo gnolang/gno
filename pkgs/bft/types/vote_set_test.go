@@ -462,7 +462,6 @@ func TestConflicts(t *testing.T) {
 	if !voteSet.HasTwoThirdsAny() {
 		t.Errorf("We should have 2/3 if any votes")
 	}
-
 }
 
 func TestMakeCommit(t *testing.T) {
@@ -527,5 +526,4 @@ func TestMakeCommit(t *testing.T) {
 	if err := commit.ValidateBasic(); err != nil {
 		t.Errorf("Error in Commit.ValidateBasic(): %v", err)
 	}
-
 }

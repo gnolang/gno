@@ -120,11 +120,13 @@ type Object interface {
 	// ValueImage(rlm *Realm, owned bool) *ValueImage
 }
 
-var _ Object = &ArrayValue{}
-var _ Object = &StructValue{}
-var _ Object = &BoundMethodValue{}
-var _ Object = &MapValue{}
-var _ Object = &Block{}
+var (
+	_ Object = &ArrayValue{}
+	_ Object = &StructValue{}
+	_ Object = &BoundMethodValue{}
+	_ Object = &MapValue{}
+	_ Object = &Block{}
+)
 
 type ObjectInfo struct {
 	ID        ObjectID  // set if real.

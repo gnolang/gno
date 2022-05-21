@@ -10,7 +10,6 @@ import (
 )
 
 func TestSignAndValidateEd25519(t *testing.T) {
-
 	privKey := ed25519.GenPrivKey()
 	pubKey := privKey.PubKey()
 

@@ -470,8 +470,8 @@ func TestMConnectionReadErrorLongMessage(t *testing.T) {
 
 	// send msg thats just right
 	var err error
-	var buf = new(bytes.Buffer)
-	var packet = PacketMsg{
+	buf := new(bytes.Buffer)
+	packet := PacketMsg{
 		ChannelID: 0x01,
 		EOF:       1,
 		Bytes:     make([]byte, mconnClient.config.MaxPacketMsgPayloadSize),

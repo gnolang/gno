@@ -1,4 +1,4 @@
-package types
+package cstypes
 
 import (
 	"fmt"
@@ -23,16 +23,18 @@ func (_ EventLock) AssertEvent()             {}
 func (_ EventUnlock) AssertEvent()           {}
 func (_ EventRelock) AssertEvent()           {}
 
-var _ ConsensusEvent = EventNewRoundStep{}
-var _ ConsensusEvent = EventNewValidBlock{}
-var _ ConsensusEvent = EventNewRound{}
-var _ ConsensusEvent = EventCompleteProposal{}
-var _ ConsensusEvent = EventTimeoutPropose{}
-var _ ConsensusEvent = EventTimeoutWait{}
-var _ ConsensusEvent = EventPolka{}
-var _ ConsensusEvent = EventLock{}
-var _ ConsensusEvent = EventUnlock{}
-var _ ConsensusEvent = EventRelock{}
+var (
+	_ ConsensusEvent = EventNewRoundStep{}
+	_ ConsensusEvent = EventNewValidBlock{}
+	_ ConsensusEvent = EventNewRound{}
+	_ ConsensusEvent = EventCompleteProposal{}
+	_ ConsensusEvent = EventTimeoutPropose{}
+	_ ConsensusEvent = EventTimeoutWait{}
+	_ ConsensusEvent = EventPolka{}
+	_ ConsensusEvent = EventLock{}
+	_ ConsensusEvent = EventUnlock{}
+	_ ConsensusEvent = EventRelock{}
+)
 
 type EventNewRoundStep struct {
 	HRS `json:"hrs"` // embed for "GetHRS()"

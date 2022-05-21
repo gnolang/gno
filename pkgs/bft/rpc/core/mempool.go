@@ -215,7 +215,6 @@ func BroadcastTxSync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcas
 // |-----------+------+---------+----------+-----------------|
 // | tx        | Tx   | nil     | true     | The transaction |
 func BroadcastTxCommit(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
-
 	// Broadcast tx and wait for CheckTx result
 	checkTxResCh := make(chan abci.Response, 1)
 	err := mempool.CheckTx(tx, func(res abci.Response) {
@@ -294,7 +293,8 @@ func UnconfirmedTxs(ctx *rpctypes.Context, limit int) (*ctypes.ResultUnconfirmed
 		Count:      len(txs),
 		Total:      mempool.Size(),
 		TotalBytes: mempool.TxsBytes(),
-		Txs:        txs}, nil
+		Txs:        txs,
+	}, nil
 }
 
 // Get number of unconfirmed transactions.
@@ -331,7 +331,8 @@ func NumUnconfirmedTxs(ctx *rpctypes.Context) (*ctypes.ResultUnconfirmedTxs, err
 	return &ctypes.ResultUnconfirmedTxs{
 		Count:      mempool.Size(),
 		Total:      mempool.Size(),
-		TotalBytes: mempool.TxsBytes()}, nil
+		TotalBytes: mempool.TxsBytes(),
+	}, nil
 }
 
 //----------------------------------------
@@ -412,7 +413,6 @@ func (td *txDispatcher) notifyTxEvent(txEvent types.EventTx) {
 // If the tx times out, an error is returned.
 // Quit can optionally be provided to terminate early (e.g. if the caller disconnects).
 func (td *txDispatcher) getTxResult(tx types.Tx, quit chan struct{}) (types.TxResult, error) {
-
 	// Get or create waiter.
 	td.mtx.Lock()
 	waiter, ok := td.waiters[string(tx)]

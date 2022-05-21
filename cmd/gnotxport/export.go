@@ -42,12 +42,12 @@ func txExportApp(cmd *command.Command, args []string, iopts interface{}) error {
 	} else {
 		last = opts.EndHeight
 	}
-	out, err := os.OpenFile(opts.OutFile, os.O_RDWR|os.O_CREATE, 0755)
+	out, err := os.OpenFile(opts.OutFile, os.O_RDWR|os.O_CREATE, 0o755)
 	if err != nil {
 		return err
 	}
 
-	for height := int64(opts.StartHeight); height <= last; height++ {
+	for height := opts.StartHeight; height <= last; height++ {
 		block, err := c.Block(&height)
 		if err != nil {
 			panic(err)

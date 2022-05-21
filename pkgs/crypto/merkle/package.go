@@ -11,4 +11,6 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 ).WithDependencies().WithTypes(
 	ProofOp{},
 	Proof{},
+	SimpleProof{},
+	SimpleProofNode{},
 ))

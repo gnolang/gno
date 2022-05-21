@@ -2,3 +2,8 @@
 
 image: ghcr.io/faddat/cosmos
 
+tasks:
+  - init: go get && go build ./... && go test ./... && make
+    command: go run
+
+

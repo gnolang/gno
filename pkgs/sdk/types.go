@@ -32,13 +32,18 @@ type AnteHandler func(ctx Context, tx Tx, simulate bool) (newCtx Context, result
 
 // Exports from std.
 type Msg = std.Msg
-type Tx = std.Tx
-type Coin = std.Coin
-type Coins = std.Coins
-type GasPrice = std.GasPrice
 
-var ParseGasPrice = std.ParseGasPrice
-var ParseGasPrices = std.ParseGasPrices
+type (
+	Tx       = std.Tx
+	Coin     = std.Coin
+	Coins    = std.Coins
+	GasPrice = std.GasPrice
+)
+
+var (
+	ParseGasPrice  = std.ParseGasPrice
+	ParseGasPrices = std.ParseGasPrices
+)
 
 //----------------------------------------
 

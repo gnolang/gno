@@ -21,7 +21,7 @@ func TestErrorPanic(t *testing.T) {
 		panic(pnk{"something"})
 	}
 
-	var err = capturePanic()
+	err := capturePanic()
 
 	assert.Equal(t, pnk{"something"}, err.Data())
 	assert.Equal(t, "{something}", fmt.Sprintf("%v", err))
@@ -30,8 +30,7 @@ func TestErrorPanic(t *testing.T) {
 }
 
 func TestWrapSomething(t *testing.T) {
-
-	var err = Wrap("something", "formatter%v%v", 0, 1)
+	err := Wrap("something", "formatter%v%v", 0, 1)
 
 	assert.Equal(t, "something", err.Data())
 	assert.Equal(t, "something", fmt.Sprintf("%v", err))
@@ -40,8 +39,7 @@ func TestWrapSomething(t *testing.T) {
 }
 
 func TestWrapNothing(t *testing.T) {
-
-	var err = Wrap(nil, "formatter%v%v", 0, 1)
+	err := Wrap(nil, "formatter%v%v", 0, 1)
 
 	assert.Equal(t,
 		FmtError{"formatter%v%v", []interface{}{0, 1}},
@@ -52,8 +50,7 @@ func TestWrapNothing(t *testing.T) {
 }
 
 func TestErrorNew(t *testing.T) {
-
-	var err = New("formatter%v%v", 0, 1)
+	err := New("formatter%v%v", 0, 1)
 
 	assert.Equal(t,
 		FmtError{"formatter%v%v", []interface{}{0, 1}},
@@ -64,8 +61,7 @@ func TestErrorNew(t *testing.T) {
 }
 
 func TestErrorNewWithStacktrace(t *testing.T) {
-
-	var err = New("formatter%v%v", 0, 1).Stacktrace()
+	err := New("formatter%v%v", 0, 1).Stacktrace()
 
 	assert.Equal(t,
 		FmtError{"formatter%v%v", []interface{}{0, 1}},
@@ -76,8 +72,7 @@ func TestErrorNewWithStacktrace(t *testing.T) {
 }
 
 func TestErrorNewWithTrace(t *testing.T) {
-
-	var err = New("formatter%v%v", 0, 1)
+	err := New("formatter%v%v", 0, 1)
 	err.Trace(0, "trace %v", 1)
 	err.Trace(0, "trace %v", 2)
 	err.Trace(0, "trace %v", 3)

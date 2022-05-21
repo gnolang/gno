@@ -163,7 +163,6 @@ func MakeSwitch(
 	initSwitch func(int, *Switch) *Switch,
 	opts ...SwitchOption,
 ) *Switch {
-
 	nodeKey := NodeKey{
 		PrivKey: ed25519.GenPrivKey(),
 	}

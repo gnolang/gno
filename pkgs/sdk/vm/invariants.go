@@ -6,7 +6,7 @@ import (
 
 // RegisterInvariants registers the vm module invariants
 func RegisterInvariants(ir sdk.InvariantRegistry, vmk VMKeeper) {
-	//ir.RegisterRoute(ModuleName, "nonnegative-outstanding",
+	// ir.RegisterRoute(ModuleName, "nonnegative-outstanding",
 	//	NonnegativeBalanceInvariant(acck))
 }
 

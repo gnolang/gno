@@ -43,8 +43,10 @@ type cleanupFunc func()
 
 // genesis, chain_id, priv_val
 var config *cfg.Config // NOTE: must be reset for each _test.go file
-var consensusReplayConfig *cfg.Config
-var ensureTimeout = time.Millisecond * 20000
+var (
+	consensusReplayConfig *cfg.Config
+	ensureTimeout         = time.Millisecond * 20000
+)
 
 func ensureDir(dir string, mode os.FileMode) {
 	if err := osm.EnsureDir(dir, mode); err != nil {
@@ -234,7 +236,6 @@ func validatePrecommit(t *testing.T, cs *ConsensusState, thisRound, lockRound in
 			panic(fmt.Sprintf("Expected block to be locked on round %d, got %d. Got locked block %X, expected %X", lockRound, cs.LockedRound, cs.LockedBlock.Hash(), lockedBlockHash))
 		}
 	}
-
 }
 
 func validatePrevoteAndPrecommit(t *testing.T, cs *ConsensusState, thisRound, lockRound int, privVal *validatorStub, votedBlockHash, lockedBlockHash []byte) {
@@ -286,7 +287,7 @@ func newConsensusStateWithConfigAndBlockStore(thisConfig *cfg.Config, state sm.S
 
 	// Make ConsensusState
 	stateDB := blockDB
-	sm.SaveState(stateDB, state) //for save height 1's validators info
+	sm.SaveState(stateDB, state) // for save height 1's validators info
 	blockExec := sm.NewBlockExecutor(stateDB, log.TestingLogger(), proxyAppConnCon, mempool)
 	cs := NewConsensusState(thisConfig.Consensus, state, blockExec, blockStore, mempool)
 	cs.SetLogger(log.TestingLogger().With("module", "consensus"))
@@ -301,7 +302,7 @@ func newConsensusStateWithConfigAndBlockStore(thisConfig *cfg.Config, state sm.S
 
 func loadPrivValidator(config *cfg.Config) *privval.FilePV {
 	privValidatorKeyFile := config.PrivValidatorKeyFile()
-	ensureDir(filepath.Dir(privValidatorKeyFile), 0700)
+	ensureDir(filepath.Dir(privValidatorKeyFile), 0o700)
 	privValidatorStateFile := config.PrivValidatorStateFile()
 	privValidator := privval.LoadOrGenFilePV(privValidatorKeyFile, privValidatorStateFile)
 	privValidator.Reset()
@@ -328,7 +329,8 @@ func randConsensusState(nValidators int) (*ConsensusState, []*validatorStub) {
 //-------------------------------------------------------------------------------
 
 func ensureNoNewEvent(ch <-chan events.Event, timeout time.Duration,
-	errorMessage string) {
+	errorMessage string,
+) {
 	select {
 	case <-time.After(timeout):
 		break
@@ -529,7 +531,8 @@ func ensurePrevote(voteCh <-chan events.Event, height int64, round int) {
 }
 
 func ensureVote(voteCh <-chan events.Event, height int64, round int,
-	voteType types.SignedMsgType) {
+	voteType types.SignedMsgType,
+) {
 	select {
 	case <-time.After(ensureTimeout):
 		panic("Timeout expired while waiting for NewVote event")
@@ -594,11 +597,11 @@ func consensusLogger() log.Logger {
 		}
 		return colors.None
 	}).With("module", "consensus")
-
 }
 
 func randConsensusNet(nValidators int, testName string, tickerFunc func() TimeoutTicker,
-	appFunc func() abci.Application, configOpts ...func(*cfg.Config)) ([]*ConsensusState, cleanupFunc) {
+	appFunc func() abci.Application, configOpts ...func(*cfg.Config),
+) ([]*ConsensusState, cleanupFunc) {
 	genDoc, privVals := randGenesisDoc(nValidators, false, 30)
 	css := make([]*ConsensusState, nValidators)
 	apps := make([]abci.Application, nValidators)
@@ -612,7 +615,7 @@ func randConsensusNet(nValidators int, testName string, tickerFunc func() Timeou
 		for _, opt := range configOpts {
 			opt(thisConfig)
 		}
-		ensureDir(filepath.Dir(thisConfig.Consensus.WalFile()), 0700) // dir for wal
+		ensureDir(filepath.Dir(thisConfig.Consensus.WalFile()), 0o700) // dir for wal
 		app := appFunc()
 		vals := state.Validators.ABCIValidatorUpdates()
 		app.InitChain(abci.RequestInitChain{Validators: vals})
@@ -649,7 +652,7 @@ func randConsensusNetWithPeers(nValidators, nPeers int, testName string, tickerF
 		state, _ := sm.LoadStateFromDBOrGenesisDoc(stateDB, genDoc)
 		thisConfig := ResetConfig(fmt.Sprintf("%s_%d", testName, i))
 		configRootDirs = append(configRootDirs, thisConfig.RootDir)
-		ensureDir(filepath.Dir(thisConfig.Consensus.WalFile()), 0700) // dir for wal
+		ensureDir(filepath.Dir(thisConfig.Consensus.WalFile()), 0o700) // dir for wal
 		if i == 0 {
 			peer0Config = thisConfig
 		}
@@ -673,10 +676,10 @@ func randConsensusNetWithPeers(nValidators, nPeers int, testName string, tickerF
 		vals := state.Validators.ABCIValidatorUpdates()
 		if _, ok := app.(*kvstore.PersistentKVStoreApplication); ok {
 			state.AppVersion = kvstore.AppVersion
-			//simulate handshake, receive app version. If don't do this, replay test will fail
+			// simulate handshake, receive app version. If don't do this, replay test will fail
 		}
 		app.InitChain(abci.RequestInitChain{Validators: vals})
-		//sm.SaveState(stateDB,state)	//height 1's validatorsInfo already saved in LoadStateFromDBOrGenesisDoc above
+		// sm.SaveState(stateDB,state)	//height 1's validatorsInfo already saved in LoadStateFromDBOrGenesisDoc above
 
 		css[i] = newConsensusStateWithConfig(thisConfig, state, privVal, app)
 		css[i].SetTimeoutTicker(tickerFunc())

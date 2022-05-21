@@ -111,7 +111,7 @@ func TestCacheKVIteratorBounds(t *testing.T) {
 
 	// iterate over all of them
 	itr := st.Iterator(nil, nil)
-	var i = 0
+	i := 0
 	for ; itr.Valid(); itr.Next() {
 		k, v := itr.Key(), itr.Value()
 		require.Equal(t, keyFmt(i), k)
@@ -375,7 +375,7 @@ func doRandomOp(st types.Store, truth dbm.DB, maxKey int) {
 // iterate over whole domain
 func assertIterateDomain(t *testing.T, st types.Store, expectedN int) {
 	itr := st.Iterator(nil, nil)
-	var i = 0
+	i := 0
 	for ; itr.Valid(); itr.Next() {
 		k, v := itr.Key(), itr.Value()
 		require.Equal(t, keyFmt(i), k)

@@ -16,9 +16,7 @@ const (
 	FuzzModeDelay
 )
 
-var (
-	defaultConfigDir = "config" // duplicate across module configs?
-)
+var defaultConfigDir = "config" // duplicate across module configs?
 
 // P2PConfig defines the configuration options for the Tendermint peer-to-peer networking layer
 type P2PConfig struct {

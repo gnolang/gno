@@ -17,6 +17,7 @@ type KVPairs []KVPair
 
 // Sorting
 func (kvs KVPairs) Len() int { return len(kvs) }
+
 func (kvs KVPairs) Less(i, j int) bool {
 	switch bytes.Compare(kvs[i].Key, kvs[j].Key) {
 	case -1:
@@ -44,6 +45,7 @@ type KI64Pairs []KI64Pair
 
 // Sorting
 func (kvs KI64Pairs) Len() int { return len(kvs) }
+
 func (kvs KI64Pairs) Less(i, j int) bool {
 	switch bytes.Compare(kvs[i].Key, kvs[j].Key) {
 	case -1:

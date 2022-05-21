@@ -19,17 +19,28 @@ func main() {
 	}
 }
 
-type AppItem = command.AppItem
-type AppList = command.AppList
+type (
+	AppItem = command.AppItem
+	AppList = command.AppList
+)
 
 var mainApps AppList = []AppItem{
-	{precompileApp, "precompile", "precompile .gno to .go", DefaultPrecompileOptions},
 	{buildApp, "build", "build a gno package", DefaultBuildOptions},
+	{precompileApp, "precompile", "precompile .gno to .go", DefaultPrecompileOptions},
+	{testApp, "test", "test a gno package", DefaultTestOptions},
 
-	// test
-	// fmt
-	// publish
+	// fmt -- gofmt
+	// clean
+	// graph
+	// vendor -- download deps from the chain in vendor/
+	// list -- list packages
+	// run -- call render(), or maybe create a new main?
+	// publish/release
 	// generate
+	// doc -- godoc
+	// "vm" -- starts an in-memory chain that can be interacted with?
+	// bug -- start a bug report
+	// version -- show gnodev, golang versions
 }
 
 func runMain(cmd *command.Command, exec string, args []string) error {
@@ -52,5 +63,4 @@ func runMain(cmd *command.Command, exec string, args []string) error {
 
 	// unknown app command!
 	return errors.New("unknown command " + args[0])
-
 }

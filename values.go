@@ -38,21 +38,23 @@ func (*NativeValue) assertValue()      {}
 func (*Block) assertValue()            {}
 func (RefValue) assertValue()          {}
 
-var _ Value = StringValue("")
-var _ Value = BigintValue{}
-var _ Value = DataByteValue{}
-var _ Value = PointerValue{}
-var _ Value = &ArrayValue{} // TODO doesn't have to be pointer?
-var _ Value = &SliceValue{} // TODO doesn't have to be pointer?
-var _ Value = &StructValue{}
-var _ Value = &FuncValue{}
-var _ Value = &MapValue{}
-var _ Value = &BoundMethodValue{}
-var _ Value = TypeValue{}
-var _ Value = &PackageValue{}
-var _ Value = &NativeValue{}
-var _ Value = &Block{}
-var _ Value = RefValue{}
+var (
+	_ Value = StringValue("")
+	_ Value = BigintValue{}
+	_ Value = DataByteValue{}
+	_ Value = PointerValue{}
+	_ Value = &ArrayValue{} // TODO doesn't have to be pointer?
+	_ Value = &SliceValue{} // TODO doesn't have to be pointer?
+	_ Value = &StructValue{}
+	_ Value = &FuncValue{}
+	_ Value = &MapValue{}
+	_ Value = &BoundMethodValue{}
+	_ Value = TypeValue{}
+	_ Value = &PackageValue{}
+	_ Value = &NativeValue{}
+	_ Value = &Block{}
+	_ Value = RefValue{}
+)
 
 type StringValue string
 
@@ -1656,7 +1658,7 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 		} else {
 			nv = dtv.V.(*NativeValue)
 		}
-		var rv = nv.Value
+		rv := nv.Value
 		rt := rv.Type()
 		// First, try to get field.
 		var fv reflect.Value

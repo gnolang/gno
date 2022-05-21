@@ -133,7 +133,6 @@ func TestStateProposerSelection2(t *testing.T) {
 		ensureNewRound(newRoundCh, height, i+round+1) // wait for the new round event each round
 		incrementRound(vss[1:]...)
 	}
-
 }
 
 // a non-validator should timeout into the prevote round
@@ -206,7 +205,7 @@ func TestStateBadProposal(t *testing.T) {
 	proposalCh := subscribe(cs1.evsw, cstypes.EventCompleteProposal{})
 	voteCh := subscribe(cs1.evsw, types.EventVote{})
 
-	propBlock, _ := cs1.createProposalBlock() //changeProposer(t, cs1, vs2)
+	propBlock, _ := cs1.createProposalBlock() // changeProposer(t, cs1, vs2)
 
 	// make the second validator the proposer by incrementing round
 	round++
@@ -340,7 +339,7 @@ func TestStateFullRound2(t *testing.T) {
 	signAddVotes(cs1, types.PrevoteType, propBlockHash, propPartsHeader, vs2)
 	ensurePrevote(voteCh, height, round) // prevote
 
-	ensurePrecommit(voteCh, height, round) //precommit
+	ensurePrecommit(voteCh, height, round) // precommit
 	// the proposed block should now be locked and our precommit added
 	validatePrecommit(t, cs1, 0, 0, vss[0], propBlockHash, propBlockHash)
 
@@ -677,7 +676,7 @@ func TestStateLockPOLUnlock(t *testing.T) {
 	// before we time out into new round, set next proposal block
 	prop, propBlock := decideProposal(cs1, vs2, vs2.Height, vs2.Round+1)
 	propBlockParts := propBlock.MakePartSet(partSize)
-	//propBlockHash := propBlock.Hash()
+	// propBlockHash := propBlock.Hash()
 
 	// timeout to new round
 	ensureNewTimeout(timeoutWaitCh, height, round, cs1.config.Precommit(round).Nanoseconds())
@@ -778,7 +777,7 @@ func TestStateLockPOLSafety1(t *testing.T) {
 	round++ // moving to the next round
 	ensureNewRound(newRoundCh, height, round)
 
-	//XXX: this isnt guaranteed to get there before the timeoutPropose ...
+	// XXX: this isnt guaranteed to get there before the timeoutPropose ...
 	if err := cs1.SetProposalAndBlock(prop, propBlock, propBlockParts, "some peer"); err != nil {
 		t.Fatal(err)
 	}
@@ -934,7 +933,6 @@ func TestStateLockPOLSafety2(t *testing.T) {
 	ensureNoNewUnlock(unlockCh)
 	ensurePrevote(voteCh, height, round)
 	validatePrevote(t, cs1, round, vss[0], propBlockHash1)
-
 }
 
 // 4 vals.
@@ -1322,7 +1320,6 @@ func TestEmitNewValidBlockEventOnCommitWithoutBlock(t *testing.T) {
 	assert.True(t, rs.Step == cstypes.RoundStepCommit)
 	assert.True(t, rs.ProposalBlock == nil)
 	assert.True(t, rs.ProposalBlockParts.Header().Equals(propBlockParts.Header()))
-
 }
 
 // What we want:
@@ -1690,7 +1687,6 @@ func TestStateOutputsBlockPartsStats(t *testing.T) {
 		t.Errorf("Should not output stats message after receiving the known block part!")
 	case <-time.After(50 * time.Millisecond):
 	}
-
 }
 
 func TestStateOutputVoteStats(t *testing.T) {
@@ -1721,7 +1717,6 @@ func TestStateOutputVoteStats(t *testing.T) {
 		t.Errorf("Should not output stats message after receiving the known vote or vote from bigger height")
 	case <-time.After(50 * time.Millisecond):
 	}
-
 }
 
 func subscribe(evsw events.EventSwitch, protoevent events.Event) <-chan events.Event {

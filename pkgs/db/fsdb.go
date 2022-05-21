@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	keyPerm = os.FileMode(0600)
-	dirPerm = os.FileMode(0700)
+	keyPerm = os.FileMode(0o600)
+	dirPerm = os.FileMode(0o700)
 )
 
 func init() {
@@ -257,6 +257,7 @@ func list(dirPath string, start, end []byte) ([]string, error) {
 func escapeKey(key []byte) []byte {
 	return []byte("k_" + string(key))
 }
+
 func unescapeKey(escKey []byte) []byte {
 	if len(escKey) < 2 {
 		panic(fmt.Sprintf("Invalid esc key: %x", escKey))

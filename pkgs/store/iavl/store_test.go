@@ -215,7 +215,7 @@ func TestIAVLReverseIterator(t *testing.T) {
 	iavlStore.Set([]byte{0x00, 0x02}, []byte("0 2"))
 	iavlStore.Set([]byte{0x01}, []byte("1"))
 
-	var testReverseIterator = func(t *testing.T, start []byte, end []byte, expected []string) {
+	testReverseIterator := func(t *testing.T, start []byte, end []byte, expected []string) {
 		iter := iavlStore.ReverseIterator(start, end)
 		var i int
 		for i = 0; iter.Valid(); iter.Next() {
@@ -364,9 +364,9 @@ func nextVersion(iavl *Store) {
 }
 
 func TestIAVLDefaultPruning(t *testing.T) {
-	//Expected stored / deleted version numbers for:
-	//numRecent = 5, storeEvery = 3
-	var states = []pruneState{
+	// Expected stored / deleted version numbers for:
+	// numRecent = 5, storeEvery = 3
+	states := []pruneState{
 		{[]int64{}, []int64{}},
 		{[]int64{1}, []int64{}},
 		{[]int64{1, 2}, []int64{}},
@@ -388,9 +388,9 @@ func TestIAVLDefaultPruning(t *testing.T) {
 }
 
 func TestIAVLAlternativePruning(t *testing.T) {
-	//Expected stored / deleted version numbers for:
-	//numRecent = 3, storeEvery = 5
-	var states = []pruneState{
+	// Expected stored / deleted version numbers for:
+	// numRecent = 3, storeEvery = 5
+	states := []pruneState{
 		{[]int64{}, []int64{}},
 		{[]int64{1}, []int64{}},
 		{[]int64{1, 2}, []int64{}},

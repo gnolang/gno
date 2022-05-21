@@ -52,7 +52,7 @@ func _printValue(x interface{}) {
 }
 
 func TestSelectors(t *testing.T) {
-	var x0 = struct{ F0 int }{1}
+	x0 := struct{ F0 int }{1}
 	_printValue(x0.F0) //       *ST.F0
 	//                            F:0
 	//                          VPField{depth:0,index:0}
@@ -66,7 +66,7 @@ func TestSelectors(t *testing.T) {
 	_printValue(x1.Bye) //      *PT(implied)>*DT(S1).Bye
 	//                          +D           +1   *M:1
 	//                          VPDerefPtrMethod{index:1}
-	var x2 = &x0
+	x2 := &x0
 	_printValue(x2.F0) //       *PT>*ST.F0
 	//                          +D    F:0
 	//                          VPDerefField{depth:0,index:0}
@@ -95,7 +95,7 @@ func TestSelectors(t *testing.T) {
 	_printValue(x8.F0) //       *PT>*DT(S7)>*ST.S1 > *DT(S1)>*ST.F0
 	//                          +D  +1        F:0    +1        F:0
 	//                          VPDerefField{depth:1,index:0} > VPField{depth:1,index:0}
-	var x9 = S9{x5}
+	x9 := S9{x5}
 	_printValue(x9.F0) //       *DT(S9)>*ST.S1 > *PT>*DT(S1)>*ST.F0
 	//                          +1        F:0    +D  +1        F:0
 	//                          VPField{depth:1,index:0} > VPDerefField{depth:1,index:0}

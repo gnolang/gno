@@ -39,9 +39,7 @@ var (
 //-----------------------------------------------------------------------------
 // Messages
 
-var (
-	msgQueueSize = 1000
-)
+var msgQueueSize = 1000
 
 // WAL message.
 type newRoundStepInfo struct {
@@ -409,7 +407,6 @@ func (cs *ConsensusState) AddVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 
 // SetProposal inputs a proposal.
 func (cs *ConsensusState) SetProposal(proposal *types.Proposal, peerID p2p.ID) error {
-
 	if peerID == "" {
 		cs.internalMsgQueue <- msgInfo{&ProposalMessage{proposal}, ""}
 	} else {
@@ -422,7 +419,6 @@ func (cs *ConsensusState) SetProposal(proposal *types.Proposal, peerID p2p.ID) e
 
 // AddProposalBlockPart inputs a part of the proposal block.
 func (cs *ConsensusState) AddProposalBlockPart(height int64, round int, part *types.Part, peerID p2p.ID) error {
-
 	if peerID == "" {
 		cs.internalMsgQueue <- msgInfo{&BlockPartMessage{height, round, part}, ""}
 	} else {
@@ -461,7 +457,7 @@ func (cs *ConsensusState) updateRoundStep(round int, step cstypes.RoundStepType)
 
 // enterNewRound(height, 0) at cs.StartTime.
 func (cs *ConsensusState) scheduleRound0(rs *cstypes.RoundState) {
-	//cs.Logger.Info("scheduleRound0", "now", tmtime.Now(), "startTime", cs.StartTime)
+	// cs.Logger.Info("scheduleRound0", "now", tmtime.Now(), "startTime", cs.StartTime)
 	sleepDuration := rs.StartTime.Sub(tmtime.Now())
 	cs.scheduleTimeout(sleepDuration, rs.Height, 0, cstypes.RoundStepNewHeight)
 }
@@ -757,7 +753,6 @@ func (cs *ConsensusState) handleTimeout(ti timeoutInfo, rs cstypes.RoundState) {
 	default:
 		panic(fmt.Sprintf("Invalid timeout step: %v", ti.Step))
 	}
-
 }
 
 func (cs *ConsensusState) handleTxsAvailable() {
@@ -966,7 +961,6 @@ func (cs *ConsensusState) isProposalComplete() bool {
 	}
 	// if this is false the proposer is lying or we haven't received the POL yet
 	return cs.Votes.Prevotes(cs.Proposal.POLRound).HasTwoThirdsMajority()
-
 }
 
 // Create the next block to propose and return it.
@@ -1202,7 +1196,6 @@ func (cs *ConsensusState) enterPrecommitWait(height int64, round int) {
 
 	// Wait for some more precommits; enterNewRound
 	cs.scheduleTimeout(cs.config.Precommit(round), height, round, cstypes.RoundStepPrecommitWait)
-
 }
 
 // Enter: +2/3 precommits for block
@@ -1713,7 +1706,7 @@ func (cs *ConsensusState) signAddVote(type_ types.SignedMsgType, hash []byte, he
 		cs.Logger.Info("Signed and pushed vote", "height", cs.Height, "round", cs.Round, "vote", vote, "err", err)
 		return vote
 	}
-	//if !cs.replayMode {
+	// if !cs.replayMode {
 	cs.Logger.Error("Error signing vote", "height", cs.Height, "round", cs.Round, "vote", vote, "err", err)
 	//}
 	return nil

@@ -34,8 +34,10 @@ type multiStore struct {
 	keysByName   map[string]types.StoreKey
 }
 
-var _ types.CommitMultiStore = (*multiStore)(nil)
-var _ types.Queryable = (*multiStore)(nil)
+var (
+	_ types.CommitMultiStore = (*multiStore)(nil)
+	_ types.Queryable        = (*multiStore)(nil)
+)
 
 // nolint
 func NewMultiStore(db dbm.DB) *multiStore {
@@ -132,7 +134,7 @@ func (ms *multiStore) LoadVersion(ver int64) error {
 	}
 
 	// Load each Store and check CommitID for each.
-	var newStores = make(map[types.StoreKey]types.CommitStore)
+	newStores := make(map[types.StoreKey]types.CommitStore)
 	for key, storeParams := range ms.storesParams {
 		var id types.CommitID
 		if info, ok := infos[key]; ok {
@@ -171,7 +173,6 @@ func (ms *multiStore) LastCommitID() types.CommitID {
 
 // Implements Committer/CommitStore.
 func (ms *multiStore) Commit() types.CommitID {
-
 	// Commit stores.
 	version := ms.lastCommitID.Version + 1
 	commitInfo := commitStores(version, ms.stores)
@@ -372,7 +373,6 @@ type storeParams struct {
 
 // NOTE: Keep commitInfo a simple immutable struct.
 type commitInfo struct {
-
 	// Version
 	Version int64
 
@@ -489,7 +489,6 @@ func commitStores(version int64, storeMap map[types.StoreKey]types.CommitStore) 
 
 // Gets commitInfo from disk.
 func getCommitInfo(db dbm.DB, ver int64) (commitInfo, error) {
-
 	// Get from DB.
 	cInfoKey := fmt.Sprintf(commitInfoKeyFmt, ver)
 	cInfoBytes := db.Get([]byte(cInfoKey))

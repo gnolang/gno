@@ -28,5 +28,4 @@ func main() {
 
 	// Print the imports from the file's AST.
 	spew.Dump(f)
-
 }
