@@ -1,3 +1,4 @@
+# this path changes to ghcr.io/gnolang/devenv
 FROM ghcr.io/notional-labs/images/gno AS build
 
 RUN mkdir /opt/src /opt/build
@@ -7,6 +8,7 @@ WORKDIR /opt/build
 RUN make
 
 # Hard to say if we want one of these minimal runtime containers: it defies docker idiom but I've seen runtime containers cause serious trouble on production chains. 
+# this can change to ghcr.io/gnolang/gnoos
 FROM ghcr.io/faddat/archlinux
 
 COPY --from=build /opt/build/build/* /opt/gno/bin/
