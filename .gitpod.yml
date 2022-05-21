@@ -1,9 +1,7 @@
 # This file allows for https://gitpod.io to be used by developers for a smoother onboarding.
 
-image: ghcr.io/faddat/cosmos
+image: ghcr.io/notional-labs/images/gno
 
-tasks:
-  - init: go get && go build ./... && go test ./... && make
-    command: go run
+
 
 
