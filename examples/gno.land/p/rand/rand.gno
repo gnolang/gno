@@ -3,10 +3,10 @@ package rand
 // the goal of this package is to implement a random library that
 // is fully deterministic for validators while being hard to
 // determine by the callers.
+//
+// We use the Bernstein's hash djb2 to be CPU-cycle efficient.
 
 import (
-	"crypto/md5"
-	"encoding/binary"
 	"math/rand"
 	"std"
 )
@@ -16,47 +16,50 @@ type instance struct {
 }
 
 func New() *instance {
-	r := instance{}
+	r := instance{seed: 5381}
 	r.addEntropy()
 	return &r
 }
 
+// http://www.cse.yorku.ca/~oz/hash.html
+func (i *instance) djb2String(input string) {
+	for _, c := range input {
+		i.djb2Int64(int64(c))
+	}
+}
+
+func (i *instance) djb2Int64(input int64) {
+	i.seed = (i.seed << 5) + i.seed + input
+}
+
 // AddEntropy uses various runtime variables to add entropy to the existing seed.
 func (i *instance) addEntropy() {
-	h := md5.New()
-
-	// why not?
-	h.Write([]byte("now, you gno"))
+	// FIXME: reapply the 5381 initial value?
 
 	// inherit previous entropy
-	{
-		buf := make([]byte, 16)
-		_, _ = rand.New(rand.NewSource(i.seed)).Read(buf)
-		h.Write(buf)
-	}
+	// nothing to do
 
-	// callers
-	h.Write([]byte(std.GetCallerAt(1)))
-	h.Write([]byte(std.GetCallerAt(2)))
+	// handle callers
+	{
+		caller1 := std.GetCallerAt(1).String()
+		i.djb2String(caller1)
+		caller2 := std.GetCallerAt(2).String()
+		i.djb2String(caller2)
+	}
 
 	// height
 	{
 		height := std.GetHeight()
-		buf := make([]byte, 8)
-		binary.BigEndian.PutUint64(buf, uint64(height))
-		h.Write(buf)
+		i.djb2Int64(height)
 	}
 
 	// time
 	{
 		now := std.GetTimestamp()
-		buf := make([]byte, 8)
-		binary.BigEndian.PutUint64(buf, uint64(now))
-		h.Write(buf)
+		i.djb2Int64(int64(now))
 	}
 
-	// set seed
-	i.seed = int64(binary.BigEndian.Uint64(h.Sum(nil)))
+	// FIXME: compute other hard-to-guess but deterministic variables, like real gas?
 }
 
 func (i *instance) Float32() float32 {
