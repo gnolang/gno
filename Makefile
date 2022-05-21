@@ -60,7 +60,7 @@ examples.build: install_gnodev examples.precompile
 
 ########################################
 # Test suite
-.PHONY: test test.go test.go1 test.go2 test.go3 test.gno test.files1 test.files2 test.realm test.packages test.flappy
+.PHONY: test test.go test.go1 test.go2 test.go3 test.gno test.files1 test.files2 test.realm test.packages test.flappy test.packages0 test.packages1 test.packages2
 test: test.gno test.go test.flappy
 	@echo "Full test suite finished."
 
@@ -99,8 +99,16 @@ test.files2:
 test.realm:
 	go test tests/*.go -v -run "TestFiles/^zrealm" --timeout 30m
 
-test.packages:
-	go test tests/*.go -v -run "TestPackages" --timeout 30m
+test.packages: test.packages0 test.packages1 test.packages2
+
+test.packages0:
+	go test tests/*.go -v -run "TestPackages/(bufio|crypto|encoding|errors|internal|io|math|sort|std|stdshim|strconv|strings|testing|unicode)" --timeout 30m
+
+test.packages1:
+	go test tests/*.go -v -run "TestPackages/regexp" --timeout 30m
+
+test.packages2:
+	go test tests/*.go -v -run "TestPackages/bytes" --timeout 30m
 
 test.examples:
 	go run ./cmd/gnodev test ./examples
