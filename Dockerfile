@@ -1,4 +1,4 @@
-FROM golang:1.18.1 as build
+FROM ghcr.io/notional-labs/images/gno as build
 
 RUN mkdir /opt/src /opt/build
 ADD . /opt/src/
@@ -7,7 +7,7 @@ WORKDIR /opt/build
 RUN make
 
 
-FROM debian:stable-slim
+FROM ghcr.io/notional-labs/images/gno
 
 COPY --from=build /opt/build/build/* /opt/gno/bin/
 COPY --from=build /opt/src /opt/gno/src
