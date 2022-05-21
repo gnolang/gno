@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/gnolang/gno"
@@ -70,14 +71,31 @@ func precompileFile(srcPath string, opts precompileOptions) error {
 		return fmt.Errorf("read: %w", err)
 	}
 
+	// compute attributes based on filename.
+	var targetFilename string
+	var tags string
+	nameNoExtension := strings.TrimSuffix(filepath.Base(srcPath), ".gno")
+	switch {
+	case strings.HasSuffix(srcPath, "_filetest.gno"):
+		tags = "gno,filetest"
+		targetFilename = "." + nameNoExtension + ".gno.gen.go"
+	case strings.HasSuffix(srcPath, "_test.gno"):
+		tags = "gno,test"
+		targetFilename = "." + nameNoExtension + ".gno.gen_test.go"
+	default:
+		tags = "gno"
+		targetFilename = nameNoExtension + ".gno.gen.go"
+	}
+
 	// preprocess.
-	transformed, err := gno.Precompile(string(source))
+	transformed, err := gno.Precompile(string(source), tags)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
 	// write .go file.
-	targetPath := strings.TrimSuffix(srcPath, ".gno") + ".gno.gen.go"
+	dir := filepath.Dir(srcPath)
+	targetPath := filepath.Join(dir, targetFilename)
 	err = ioutil.WriteFile(targetPath, []byte(transformed), 0o644)
 	if err != nil {
 		return fmt.Errorf("write .go file: %w", err)
