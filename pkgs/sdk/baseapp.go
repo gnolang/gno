@@ -19,8 +19,10 @@ import (
 )
 
 // Key to store the consensus params in the main store.
-var mainConsensusParamsKey = []byte("consensus_params")
-var mainLastHeaderKey = []byte("last_header")
+var (
+	mainConsensusParamsKey = []byte("consensus_params")
+	mainLastHeaderKey      = []byte("last_header")
+)
 
 // BaseApp reflects the ABCI application implementation.
 type BaseApp struct {

@@ -492,7 +492,6 @@ func (cdc *Codec) getTypeInfoWLock(rt reflect.Type) (info *TypeInfo, err error) 
 // If a new one is constructed and cached in state, it is not yet registered.
 // Automatically dereferences rt pointers.
 func (cdc *Codec) getTypeInfoWLocked(rt reflect.Type) (info *TypeInfo, err error) {
-
 	// Dereference pointer type.
 	for rt.Kind() == reflect.Ptr {
 		if rt.Elem().Kind() == reflect.Ptr {

@@ -83,8 +83,10 @@ func (c *compiler) init() {
 	c.inst(InstFail)
 }
 
-var anyRuneNotNL = []rune{0, '\n' - 1, '\n' + 1, unicode.MaxRune}
-var anyRune = []rune{0, unicode.MaxRune}
+var (
+	anyRuneNotNL = []rune{0, '\n' - 1, '\n' + 1, unicode.MaxRune}
+	anyRune      = []rune{0, unicode.MaxRune}
+)
 
 func (c *compiler) compile(re *Regexp) frag {
 	switch re.Op {

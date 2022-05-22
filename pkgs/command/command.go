@@ -101,7 +101,6 @@ func (cmd *Command) printHelpFromDefaults(rv reflect.Value) {
 			cmd.Println("-", ffn, "("+frt.String()+")", "-", help, def)
 		}
 	}
-
 }
 
 func (cmd *Command) SetIn(in io.Reader) {
@@ -151,5 +150,4 @@ func (writeNopCloser) Close() error { return nil }
 
 func WriteNopCloser(w io.Writer) io.WriteCloser {
 	return writeNopCloser{w}
-
 }

@@ -227,15 +227,14 @@ func (proof *RangeProof) _computeRootHash() (rootHash []byte, treeEnd bool, err 
 	// Start from the left path and prove each leaf.
 
 	// shared across recursive calls
-	var leaves = proof.Leaves
-	var innersq = proof.InnerNodes
+	leaves := proof.Leaves
+	innersq := proof.InnerNodes
 	var COMPUTEHASH func(path PathToLeaf, rightmost bool) (hash []byte, treeEnd bool, done bool, err error)
 
 	// rightmost: is the root a rightmost child of the tree?
 	// treeEnd: true iff the last leaf is the last item of the tree.
 	// Returns the (possibly intermediate, possibly root) hash.
 	COMPUTEHASH = func(path PathToLeaf, rightmost bool) (hash []byte, treeEnd bool, done bool, err error) {
-
 		// Pop next leaf.
 		nleaf, rleaves := leaves[0], leaves[1:]
 		leaves = rleaves
@@ -337,7 +336,7 @@ func (t *ImmutableTree) getRangeProof(keyStart, keyEnd []byte, limit int) (proof
 		values = append(values, left.value)
 	}
 	// Either way, add to proof leaves.
-	var leaves = []proofLeafNode{
+	leaves := []proofLeafNode{
 		{
 			Key:       left.key,
 			ValueHash: tmhash.Sum(left.value),
@@ -365,15 +364,14 @@ func (t *ImmutableTree) getRangeProof(keyStart, keyEnd []byte, limit int) (proof
 
 	// Traverse starting from afterLeft, until keyEnd or the next leaf
 	// after keyEnd.
-	var innersq = []PathToLeaf(nil)
-	var inners = PathToLeaf(nil)
-	var leafCount = 1 // from left above.
-	var pathCount = 0
+	innersq := []PathToLeaf(nil)
+	inners := PathToLeaf(nil)
+	leafCount := 1 // from left above.
+	pathCount := 0
 	// var keys, values [][]byte defined as function outs.
 
 	t.root.traverseInRange(t, afterLeft, nil, true, false, 0,
 		func(node *Node, depth uint8) (stop bool) {
-
 			// Track when we diverge from path, or when we've exhausted path,
 			// since the first innersq shouldn't include it.
 			if pathCount != -1 {

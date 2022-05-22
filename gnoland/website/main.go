@@ -92,14 +92,14 @@ func handlerStatusJSON(app gotuna.App) http.Handler {
 				// active connections
 
 				Version *string `json:"version,omitempty"`
-				//Uptime    *float64 `json:"uptime-seconds,omitempty"`
-				//Goarch    *string  `json:"goarch,omitempty"`
-				//Goos      *string  `json:"goos,omitempty"`
-				//GoVersion *string  `json:"go-version,omitempty"`
-				//NumCPU    *int     `json:"num_cpu,omitempty"`
+				// Uptime    *float64 `json:"uptime-seconds,omitempty"`
+				// Goarch    *string  `json:"goarch,omitempty"`
+				// Goos      *string  `json:"goos,omitempty"`
+				// GoVersion *string  `json:"go-version,omitempty"`
+				// NumCPU    *int     `json:"num_cpu,omitempty"`
 			} `json:"gnoland"`
 			Website struct {
-				//Version string  `json:"version"`
+				// Version string  `json:"version"`
 				Uptime    float64 `json:"uptime-seconds"`
 				Goarch    string  `json:"goarch"`
 				Goos      string  `json:"goos"`

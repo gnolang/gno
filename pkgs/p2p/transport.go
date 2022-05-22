@@ -148,8 +148,10 @@ type MultiplexTransport struct {
 }
 
 // Test multiplexTransport for interface completeness.
-var _ Transport = (*MultiplexTransport)(nil)
-var _ TransportLifecycle = (*MultiplexTransport)(nil)
+var (
+	_ Transport          = (*MultiplexTransport)(nil)
+	_ TransportLifecycle = (*MultiplexTransport)(nil)
+)
 
 // NewMultiplexTransport returns a tcp connected multiplexed peer.
 func NewMultiplexTransport(

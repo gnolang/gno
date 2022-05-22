@@ -150,7 +150,6 @@ func RecoverAndLogHandler(handler http.Handler, logger log.Logger) http.Handler 
 			// Without this, Chrome & Firefox were retrying aborted ajax requests,
 			// at least to my localhost.
 			if e := recover(); e != nil {
-
 				// If RPCResponse
 				if res, ok := e.(types.RPCResponse); ok {
 					WriteRPCResponseHTTP(rww, res)

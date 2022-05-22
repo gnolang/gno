@@ -29,9 +29,11 @@ type TestNode struct {
 	Child *TestNode
 }
 
-var gTestNode1 *TestNode
-var gTestNode2 *TestNode
-var gTestNode3 *TestNode
+var (
+	gTestNode1 *TestNode
+	gTestNode2 *TestNode
+	gTestNode3 *TestNode
+)
 
 func InitTestNodes() {
 	gTestNode1 = &TestNode{Name: "first"}

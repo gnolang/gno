@@ -7,13 +7,14 @@
 package pb
 
 import (
+	reflect "reflect"
+	sync "sync"
+
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	anypb "google.golang.org/protobuf/types/known/anypb"
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
-	reflect "reflect"
-	sync "sync"
 )
 
 const (
@@ -4717,67 +4718,70 @@ func file_tests_proto_rawDescGZIP() []byte {
 	return file_tests_proto_rawDescData
 }
 
-var file_tests_proto_msgTypes = make([]protoimpl.MessageInfo, 55)
-var file_tests_proto_goTypes = []interface{}{
-	(*EmptyStruct)(nil),                  // 0: tests.EmptyStruct
-	(*PrimitivesStruct)(nil),             // 1: tests.PrimitivesStruct
-	(*ShortArraysStruct)(nil),            // 2: tests.ShortArraysStruct
-	(*ArraysStruct)(nil),                 // 3: tests.ArraysStruct
-	(*ArraysArraysStruct)(nil),           // 4: tests.ArraysArraysStruct
-	(*SlicesStruct)(nil),                 // 5: tests.SlicesStruct
-	(*SlicesSlicesStruct)(nil),           // 6: tests.SlicesSlicesStruct
-	(*PointersStruct)(nil),               // 7: tests.PointersStruct
-	(*PointerSlicesStruct)(nil),          // 8: tests.PointerSlicesStruct
-	(*ComplexSt)(nil),                    // 9: tests.ComplexSt
-	(*EmbeddedSt1)(nil),                  // 10: tests.EmbeddedSt1
-	(*EmbeddedSt2)(nil),                  // 11: tests.EmbeddedSt2
-	(*EmbeddedSt3)(nil),                  // 12: tests.EmbeddedSt3
-	(*EmbeddedSt4)(nil),                  // 13: tests.EmbeddedSt4
-	(*EmbeddedSt5NameOverride)(nil),      // 14: tests.EmbeddedSt5NameOverride
-	(*AminoMarshalerStruct1)(nil),        // 15: tests.AminoMarshalerStruct1
-	(*ReprStruct1)(nil),                  // 16: tests.ReprStruct1
-	(*AminoMarshalerStruct2)(nil),        // 17: tests.AminoMarshalerStruct2
-	(*ReprElem2)(nil),                    // 18: tests.ReprElem2
-	(*AminoMarshalerStruct3)(nil),        // 19: tests.AminoMarshalerStruct3
-	(*AminoMarshalerInt4)(nil),           // 20: tests.AminoMarshalerInt4
-	(*AminoMarshalerInt5)(nil),           // 21: tests.AminoMarshalerInt5
-	(*AminoMarshalerStruct6)(nil),        // 22: tests.AminoMarshalerStruct6
-	(*AminoMarshalerStruct7)(nil),        // 23: tests.AminoMarshalerStruct7
-	(*ReprElem7)(nil),                    // 24: tests.ReprElem7
-	(*IntDef)(nil),                       // 25: tests.IntDef
-	(*IntAr)(nil),                        // 26: tests.IntAr
-	(*IntSl)(nil),                        // 27: tests.IntSl
-	(*ByteAr)(nil),                       // 28: tests.ByteAr
-	(*ByteSl)(nil),                       // 29: tests.ByteSl
-	(*PrimitivesStructDef)(nil),          // 30: tests.PrimitivesStructDef
-	(*PrimitivesStructSl)(nil),           // 31: tests.PrimitivesStructSl
-	(*PrimitivesStructAr)(nil),           // 32: tests.PrimitivesStructAr
-	(*Concrete1)(nil),                    // 33: tests.Concrete1
-	(*Concrete2)(nil),                    // 34: tests.Concrete2
-	(*ConcreteTypeDef)(nil),              // 35: tests.ConcreteTypeDef
-	(*ConcreteWrappedBytes)(nil),         // 36: tests.ConcreteWrappedBytes
-	(*InterfaceFieldsStruct)(nil),        // 37: tests.InterfaceFieldsStruct
-	(*TESTS_BytesList)(nil),              // 38: tests.TESTS_BytesList
-	(*TESTS_BytesListList)(nil),          // 39: tests.TESTS_BytesListList
-	(*TESTS_DurationList)(nil),           // 40: tests.TESTS_DurationList
-	(*TESTS_EmptyStructList)(nil),        // 41: tests.TESTS_EmptyStructList
-	(*TESTS_Fixed32Int32ValueList)(nil),  // 42: tests.TESTS_Fixed32Int32ValueList
-	(*TESTS_Fixed32UInt32ValueList)(nil), // 43: tests.TESTS_Fixed32UInt32ValueList
-	(*TESTS_Fixed64Int64ValueList)(nil),  // 44: tests.TESTS_Fixed64Int64ValueList
-	(*TESTS_Fixed64UInt64ValueList)(nil), // 45: tests.TESTS_Fixed64UInt64ValueList
-	(*TESTS_Int16List)(nil),              // 46: tests.TESTS_Int16List
-	(*TESTS_Int32ValueList)(nil),         // 47: tests.TESTS_Int32ValueList
-	(*TESTS_Int64ValueList)(nil),         // 48: tests.TESTS_Int64ValueList
-	(*TESTS_Int8List)(nil),               // 49: tests.TESTS_Int8List
-	(*TESTS_StringValueList)(nil),        // 50: tests.TESTS_StringValueList
-	(*TESTS_TimestampList)(nil),          // 51: tests.TESTS_TimestampList
-	(*TESTS_UInt16List)(nil),             // 52: tests.TESTS_UInt16List
-	(*TESTS_UInt32ValueList)(nil),        // 53: tests.TESTS_UInt32ValueList
-	(*TESTS_UInt64ValueList)(nil),        // 54: tests.TESTS_UInt64ValueList
-	(*timestamppb.Timestamp)(nil),        // 55: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),          // 56: google.protobuf.Duration
-	(*anypb.Any)(nil),                    // 57: google.protobuf.Any
-}
+var (
+	file_tests_proto_msgTypes = make([]protoimpl.MessageInfo, 55)
+	file_tests_proto_goTypes  = []interface{}{
+		(*EmptyStruct)(nil),                  // 0: tests.EmptyStruct
+		(*PrimitivesStruct)(nil),             // 1: tests.PrimitivesStruct
+		(*ShortArraysStruct)(nil),            // 2: tests.ShortArraysStruct
+		(*ArraysStruct)(nil),                 // 3: tests.ArraysStruct
+		(*ArraysArraysStruct)(nil),           // 4: tests.ArraysArraysStruct
+		(*SlicesStruct)(nil),                 // 5: tests.SlicesStruct
+		(*SlicesSlicesStruct)(nil),           // 6: tests.SlicesSlicesStruct
+		(*PointersStruct)(nil),               // 7: tests.PointersStruct
+		(*PointerSlicesStruct)(nil),          // 8: tests.PointerSlicesStruct
+		(*ComplexSt)(nil),                    // 9: tests.ComplexSt
+		(*EmbeddedSt1)(nil),                  // 10: tests.EmbeddedSt1
+		(*EmbeddedSt2)(nil),                  // 11: tests.EmbeddedSt2
+		(*EmbeddedSt3)(nil),                  // 12: tests.EmbeddedSt3
+		(*EmbeddedSt4)(nil),                  // 13: tests.EmbeddedSt4
+		(*EmbeddedSt5NameOverride)(nil),      // 14: tests.EmbeddedSt5NameOverride
+		(*AminoMarshalerStruct1)(nil),        // 15: tests.AminoMarshalerStruct1
+		(*ReprStruct1)(nil),                  // 16: tests.ReprStruct1
+		(*AminoMarshalerStruct2)(nil),        // 17: tests.AminoMarshalerStruct2
+		(*ReprElem2)(nil),                    // 18: tests.ReprElem2
+		(*AminoMarshalerStruct3)(nil),        // 19: tests.AminoMarshalerStruct3
+		(*AminoMarshalerInt4)(nil),           // 20: tests.AminoMarshalerInt4
+		(*AminoMarshalerInt5)(nil),           // 21: tests.AminoMarshalerInt5
+		(*AminoMarshalerStruct6)(nil),        // 22: tests.AminoMarshalerStruct6
+		(*AminoMarshalerStruct7)(nil),        // 23: tests.AminoMarshalerStruct7
+		(*ReprElem7)(nil),                    // 24: tests.ReprElem7
+		(*IntDef)(nil),                       // 25: tests.IntDef
+		(*IntAr)(nil),                        // 26: tests.IntAr
+		(*IntSl)(nil),                        // 27: tests.IntSl
+		(*ByteAr)(nil),                       // 28: tests.ByteAr
+		(*ByteSl)(nil),                       // 29: tests.ByteSl
+		(*PrimitivesStructDef)(nil),          // 30: tests.PrimitivesStructDef
+		(*PrimitivesStructSl)(nil),           // 31: tests.PrimitivesStructSl
+		(*PrimitivesStructAr)(nil),           // 32: tests.PrimitivesStructAr
+		(*Concrete1)(nil),                    // 33: tests.Concrete1
+		(*Concrete2)(nil),                    // 34: tests.Concrete2
+		(*ConcreteTypeDef)(nil),              // 35: tests.ConcreteTypeDef
+		(*ConcreteWrappedBytes)(nil),         // 36: tests.ConcreteWrappedBytes
+		(*InterfaceFieldsStruct)(nil),        // 37: tests.InterfaceFieldsStruct
+		(*TESTS_BytesList)(nil),              // 38: tests.TESTS_BytesList
+		(*TESTS_BytesListList)(nil),          // 39: tests.TESTS_BytesListList
+		(*TESTS_DurationList)(nil),           // 40: tests.TESTS_DurationList
+		(*TESTS_EmptyStructList)(nil),        // 41: tests.TESTS_EmptyStructList
+		(*TESTS_Fixed32Int32ValueList)(nil),  // 42: tests.TESTS_Fixed32Int32ValueList
+		(*TESTS_Fixed32UInt32ValueList)(nil), // 43: tests.TESTS_Fixed32UInt32ValueList
+		(*TESTS_Fixed64Int64ValueList)(nil),  // 44: tests.TESTS_Fixed64Int64ValueList
+		(*TESTS_Fixed64UInt64ValueList)(nil), // 45: tests.TESTS_Fixed64UInt64ValueList
+		(*TESTS_Int16List)(nil),              // 46: tests.TESTS_Int16List
+		(*TESTS_Int32ValueList)(nil),         // 47: tests.TESTS_Int32ValueList
+		(*TESTS_Int64ValueList)(nil),         // 48: tests.TESTS_Int64ValueList
+		(*TESTS_Int8List)(nil),               // 49: tests.TESTS_Int8List
+		(*TESTS_StringValueList)(nil),        // 50: tests.TESTS_StringValueList
+		(*TESTS_TimestampList)(nil),          // 51: tests.TESTS_TimestampList
+		(*TESTS_UInt16List)(nil),             // 52: tests.TESTS_UInt16List
+		(*TESTS_UInt32ValueList)(nil),        // 53: tests.TESTS_UInt32ValueList
+		(*TESTS_UInt64ValueList)(nil),        // 54: tests.TESTS_UInt64ValueList
+		(*timestamppb.Timestamp)(nil),        // 55: google.protobuf.Timestamp
+		(*durationpb.Duration)(nil),          // 56: google.protobuf.Duration
+		(*anypb.Any)(nil),                    // 57: google.protobuf.Any
+	}
+)
+
 var file_tests_proto_depIdxs = []int32{
 	55, // 0: tests.PrimitivesStruct.Time:type_name -> google.protobuf.Timestamp
 	56, // 1: tests.PrimitivesStruct.Duration:type_name -> google.protobuf.Duration

@@ -6927,6 +6927,7 @@ var (
 // CaseRanges is the table describing case mappings for all letters with
 // non-self mappings.
 var CaseRanges = _CaseRanges
+
 var _CaseRanges = []CaseRange{
 	{0x0041, 0x005A, d{0, 32, 0}},
 	{0x0061, 0x007A, d{-32, 0, -32}},
@@ -7248,6 +7249,7 @@ var _CaseRanges = []CaseRange{
 	{0x1E900, 0x1E921, d{0, 34, 0}},
 	{0x1E922, 0x1E943, d{-34, 0, -34}},
 }
+
 var properties = [MaxLatin1 + 1]uint8{
 	0x00: pC,       // '\x00'
 	0x01: pC,       // '\x01'

@@ -13,9 +13,7 @@ import (
 	"github.com/gnolang/gno/pkgs/errors"
 )
 
-var (
-	reFlagName = regexp.MustCompile(`^--[a-z0-9.\-]+(#[a-z0-9.\-]+)?$`)
-)
+var reFlagName = regexp.MustCompile(`^--[a-z0-9.\-]+(#[a-z0-9.\-]+)?$`)
 
 // applies all flags to ptr to options.
 // --flag is short for --flag true for boolean flags.

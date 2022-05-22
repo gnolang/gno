@@ -112,6 +112,7 @@ type Envelope struct {
 	XMLName xml.Name `xml:"http://schemas.xmlsoap.org/soap/envelope/ Envelope"`
 	Soap    *SoapBody
 }
+
 type SoapBody struct {
 	XMLName    xml.Name `xml:"http://schemas.xmlsoap.org/soap/envelope/ Body"`
 	ExternalIP *ExternalIPAddressResponse

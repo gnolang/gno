@@ -142,6 +142,7 @@ func ExampleIndexByte() {
 	// 3
 	// -1
 }
+
 func ExampleIndexRune() {
 	fmt.Println(strings.IndexRune("chicken", 'k'))
 	fmt.Println(strings.IndexRune("chicken", 'd'))
@@ -327,7 +328,7 @@ func ExampleTrimSpace() {
 }
 
 func ExampleTrimPrefix() {
-	var s = "¡¡¡Hello, Gophers!!!"
+	s := "¡¡¡Hello, Gophers!!!"
 	s = strings.TrimPrefix(s, "¡¡¡Hello, ")
 	s = strings.TrimPrefix(s, "¡¡¡Howdy, ")
 	fmt.Print(s)
@@ -335,7 +336,7 @@ func ExampleTrimPrefix() {
 }
 
 func ExampleTrimSuffix() {
-	var s = "¡¡¡Hello, Gophers!!!"
+	s := "¡¡¡Hello, Gophers!!!"
 	s = strings.TrimSuffix(s, ", Gophers!!!")
 	s = strings.TrimSuffix(s, ", Marmots!!!")
 	fmt.Print(s)

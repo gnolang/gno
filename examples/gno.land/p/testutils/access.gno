@@ -3,8 +3,10 @@ package testutils
 // for testing access. see tests/files/access*.go
 
 // NOTE: non-package variables cannot be overridden, except during init().
-var TestVar1 int
-var testVar2 int
+var (
+	TestVar1 int
+	testVar2 int
+)
 
 func init() {
 	TestVar1 = 123

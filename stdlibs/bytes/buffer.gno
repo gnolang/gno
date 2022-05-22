@@ -41,8 +41,10 @@ const (
 )
 
 // ErrTooLarge is passed to panic if memory cannot be allocated to store data in a buffer.
-var ErrTooLarge = errors.New("bytes.Buffer: too large")
-var errNegativeRead = errors.New("bytes.Buffer: reader returned negative count from Read")
+var (
+	ErrTooLarge     = errors.New("bytes.Buffer: too large")
+	errNegativeRead = errors.New("bytes.Buffer: reader returned negative count from Read")
+)
 
 const maxInt = int(^uint(0) >> 1)
 

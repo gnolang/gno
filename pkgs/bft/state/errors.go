@@ -56,6 +56,7 @@ func (e ErrBlockHashMismatch) Error() string {
 func (e ErrAppBlockHeightTooHigh) Error() string {
 	return fmt.Sprintf("App block height (%d) is higher than core (%d)", e.AppHeight, e.CoreHeight)
 }
+
 func (e ErrLastStateMismatch) Error() string {
 	return fmt.Sprintf("Latest tendermint block (%d) LastAppHash (%X) does not match app's AppHash (%X)", e.Height, e.Core, e.App)
 }

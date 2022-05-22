@@ -96,7 +96,6 @@ func (blockExec *BlockExecutor) ValidateBlock(state State, block *types.Block) e
 // from outside this package to process and commit an entire block.
 // It takes a blockID to avoid recomputing the parts hash.
 func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, block *types.Block) (State, error) {
-
 	if err := blockExec.ValidateBlock(state, block); err != nil {
 		return state, ErrInvalidBlock(err)
 	}
@@ -214,7 +213,7 @@ func execBlockOnProxyApp(
 	block *types.Block,
 	stateDB dbm.DB,
 ) (*ABCIResponses, error) {
-	var validTxs, invalidTxs = 0, 0
+	validTxs, invalidTxs := 0, 0
 
 	txIndex := 0
 	abciResponses := NewABCIResponses(block)
@@ -313,7 +312,6 @@ func getBeginBlockLastCommitInfo(block *types.Block, stateDB dbm.DB) abci.LastCo
 		Votes: voteInfos,
 	}
 	return commitInfo
-
 }
 
 func validateValidatorUpdates(abciUpdates []abci.ValidatorUpdate,

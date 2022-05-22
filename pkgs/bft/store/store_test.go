@@ -284,8 +284,10 @@ func TestBlockStoreSaveLoadBlock(t *testing.T) {
 				db.Set(calcBlockCommitKey(commitHeight), []byte("foo-bogus"))
 			}
 			bCommit := bs.LoadBlockCommit(commitHeight)
-			return &quad{block: bBlock, seenCommit: bSeenCommit, commit: bCommit,
-				meta: bBlockMeta}, nil
+			return &quad{
+				block: bBlock, seenCommit: bSeenCommit, commit: bCommit,
+				meta: bBlockMeta,
+			}, nil
 		})
 
 		if subStr := tuple.wantPanic; subStr != "" {

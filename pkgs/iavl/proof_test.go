@@ -210,14 +210,14 @@ func verifyProof(t *testing.T, proof *RangeProof, root []byte) {
 	// Write/Read then verify.
 	cdc := amino.NewCodec()
 	proofBytes := cdc.MustMarshalSized(proof)
-	var proof2 = new(RangeProof)
+	proof2 := new(RangeProof)
 	err := cdc.UnmarshalSized(proofBytes, proof2)
 	require.Nil(t, err, "Failed to read KeyExistsProof from bytes: %v", err)
 
 	// Random mutations must not verify
 	for i := 0; i < 1e4; i++ {
 		badProofBytes := testutils.MutateByteSlice(proofBytes)
-		var badProof = new(RangeProof)
+		badProof := new(RangeProof)
 		err := cdc.UnmarshalSized(badProofBytes, badProof)
 		if err != nil {
 			continue // couldn't even decode.

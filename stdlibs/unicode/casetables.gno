@@ -10,6 +10,7 @@
 package unicode
 
 var TurkishCase SpecialCase = _TurkishCase
+
 var _TurkishCase = SpecialCase{
 	CaseRange{0x0049, 0x0049, d{0, 0x131 - 0x49, 0}},
 	CaseRange{0x0069, 0x0069, d{0x130 - 0x69, 0, 0x130 - 0x69}},

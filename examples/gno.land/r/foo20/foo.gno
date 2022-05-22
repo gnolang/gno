@@ -9,8 +9,10 @@ import (
 	"gno.land/r/users"
 )
 
-var foo *grc20.Token
-var admin std.Address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // TODO: helper to change admin
+var (
+	foo   *grc20.Token
+	admin std.Address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // TODO: helper to change admin
+)
 
 func init() {
 	foo = grc20.NewToken("Foo", "FOO", 4)

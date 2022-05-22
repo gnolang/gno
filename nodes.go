@@ -258,58 +258,60 @@ func (_ *TypeDecl) assertNode()            {}
 func (_ *FileNode) assertNode()            {}
 func (_ *PackageNode) assertNode()         {}
 
-var _ Node = &NameExpr{}
-var _ Node = &BasicLitExpr{}
-var _ Node = &BinaryExpr{}
-var _ Node = &CallExpr{}
-var _ Node = &IndexExpr{}
-var _ Node = &SelectorExpr{}
-var _ Node = &SliceExpr{}
-var _ Node = &StarExpr{}
-var _ Node = &RefExpr{}
-var _ Node = &TypeAssertExpr{}
-var _ Node = &UnaryExpr{}
-var _ Node = &CompositeLitExpr{}
-var _ Node = &KeyValueExpr{}
-var _ Node = &FuncLitExpr{}
-var _ Node = &ConstExpr{}
-var _ Node = &FieldTypeExpr{}
-var _ Node = &ArrayTypeExpr{}
-var _ Node = &SliceTypeExpr{}
-var _ Node = &InterfaceTypeExpr{}
-var _ Node = &ChanTypeExpr{}
-var _ Node = &FuncTypeExpr{}
-var _ Node = &MapTypeExpr{}
-var _ Node = &StructTypeExpr{}
-var _ Node = &constTypeExpr{}
-var _ Node = &MaybeNativeTypeExpr{}
-var _ Node = &AssignStmt{}
-var _ Node = &BlockStmt{}
-var _ Node = &BranchStmt{}
-var _ Node = &DeclStmt{}
-var _ Node = &DeferStmt{}
-var _ Node = &ExprStmt{}
-var _ Node = &ForStmt{}
-var _ Node = &GoStmt{}
-var _ Node = &IfStmt{}
-var _ Node = &IfCaseStmt{}
-var _ Node = &IncDecStmt{}
-var _ Node = &RangeStmt{}
-var _ Node = &ReturnStmt{}
-var _ Node = &PanicStmt{}
-var _ Node = &SelectStmt{}
-var _ Node = &SelectCaseStmt{}
-var _ Node = &SendStmt{}
-var _ Node = &SwitchStmt{}
-var _ Node = &SwitchClauseStmt{}
-var _ Node = &EmptyStmt{}
-var _ Node = &bodyStmt{}
-var _ Node = &FuncDecl{}
-var _ Node = &ImportDecl{}
-var _ Node = &ValueDecl{}
-var _ Node = &TypeDecl{}
-var _ Node = &FileNode{}
-var _ Node = &PackageNode{}
+var (
+	_ Node = &NameExpr{}
+	_ Node = &BasicLitExpr{}
+	_ Node = &BinaryExpr{}
+	_ Node = &CallExpr{}
+	_ Node = &IndexExpr{}
+	_ Node = &SelectorExpr{}
+	_ Node = &SliceExpr{}
+	_ Node = &StarExpr{}
+	_ Node = &RefExpr{}
+	_ Node = &TypeAssertExpr{}
+	_ Node = &UnaryExpr{}
+	_ Node = &CompositeLitExpr{}
+	_ Node = &KeyValueExpr{}
+	_ Node = &FuncLitExpr{}
+	_ Node = &ConstExpr{}
+	_ Node = &FieldTypeExpr{}
+	_ Node = &ArrayTypeExpr{}
+	_ Node = &SliceTypeExpr{}
+	_ Node = &InterfaceTypeExpr{}
+	_ Node = &ChanTypeExpr{}
+	_ Node = &FuncTypeExpr{}
+	_ Node = &MapTypeExpr{}
+	_ Node = &StructTypeExpr{}
+	_ Node = &constTypeExpr{}
+	_ Node = &MaybeNativeTypeExpr{}
+	_ Node = &AssignStmt{}
+	_ Node = &BlockStmt{}
+	_ Node = &BranchStmt{}
+	_ Node = &DeclStmt{}
+	_ Node = &DeferStmt{}
+	_ Node = &ExprStmt{}
+	_ Node = &ForStmt{}
+	_ Node = &GoStmt{}
+	_ Node = &IfStmt{}
+	_ Node = &IfCaseStmt{}
+	_ Node = &IncDecStmt{}
+	_ Node = &RangeStmt{}
+	_ Node = &ReturnStmt{}
+	_ Node = &PanicStmt{}
+	_ Node = &SelectStmt{}
+	_ Node = &SelectCaseStmt{}
+	_ Node = &SendStmt{}
+	_ Node = &SwitchStmt{}
+	_ Node = &SwitchClauseStmt{}
+	_ Node = &EmptyStmt{}
+	_ Node = &bodyStmt{}
+	_ Node = &FuncDecl{}
+	_ Node = &ImportDecl{}
+	_ Node = &ValueDecl{}
+	_ Node = &TypeDecl{}
+	_ Node = &FileNode{}
+	_ Node = &PackageNode{}
+)
 
 //----------------------------------------
 // Expr
@@ -341,21 +343,23 @@ func (*KeyValueExpr) assertExpr()     {}
 func (*FuncLitExpr) assertExpr()      {}
 func (*ConstExpr) assertExpr()        {}
 
-var _ Expr = &NameExpr{}
-var _ Expr = &BasicLitExpr{}
-var _ Expr = &BinaryExpr{}
-var _ Expr = &CallExpr{}
-var _ Expr = &IndexExpr{}
-var _ Expr = &SelectorExpr{}
-var _ Expr = &SliceExpr{}
-var _ Expr = &StarExpr{}
-var _ Expr = &RefExpr{}
-var _ Expr = &TypeAssertExpr{}
-var _ Expr = &UnaryExpr{}
-var _ Expr = &CompositeLitExpr{}
-var _ Expr = &KeyValueExpr{}
-var _ Expr = &FuncLitExpr{}
-var _ Expr = &ConstExpr{}
+var (
+	_ Expr = &NameExpr{}
+	_ Expr = &BasicLitExpr{}
+	_ Expr = &BinaryExpr{}
+	_ Expr = &CallExpr{}
+	_ Expr = &IndexExpr{}
+	_ Expr = &SelectorExpr{}
+	_ Expr = &SliceExpr{}
+	_ Expr = &StarExpr{}
+	_ Expr = &RefExpr{}
+	_ Expr = &TypeAssertExpr{}
+	_ Expr = &UnaryExpr{}
+	_ Expr = &CompositeLitExpr{}
+	_ Expr = &KeyValueExpr{}
+	_ Expr = &FuncLitExpr{}
+	_ Expr = &ConstExpr{}
+)
 
 type NameExpr struct {
 	Attributes
@@ -541,16 +545,18 @@ func (_ *StructTypeExpr) assertExpr()      {}
 func (_ *constTypeExpr) assertExpr()       {}
 func (_ *MaybeNativeTypeExpr) assertExpr() {}
 
-var _ TypeExpr = &FieldTypeExpr{}
-var _ TypeExpr = &ArrayTypeExpr{}
-var _ TypeExpr = &SliceTypeExpr{}
-var _ TypeExpr = &InterfaceTypeExpr{}
-var _ TypeExpr = &ChanTypeExpr{}
-var _ TypeExpr = &FuncTypeExpr{}
-var _ TypeExpr = &MapTypeExpr{}
-var _ TypeExpr = &StructTypeExpr{}
-var _ TypeExpr = &constTypeExpr{}
-var _ TypeExpr = &MaybeNativeTypeExpr{}
+var (
+	_ TypeExpr = &FieldTypeExpr{}
+	_ TypeExpr = &ArrayTypeExpr{}
+	_ TypeExpr = &SliceTypeExpr{}
+	_ TypeExpr = &InterfaceTypeExpr{}
+	_ TypeExpr = &ChanTypeExpr{}
+	_ TypeExpr = &FuncTypeExpr{}
+	_ TypeExpr = &MapTypeExpr{}
+	_ TypeExpr = &StructTypeExpr{}
+	_ TypeExpr = &constTypeExpr{}
+	_ TypeExpr = &MaybeNativeTypeExpr{}
+)
 
 type FieldTypeExpr struct {
 	Attributes
@@ -604,6 +610,7 @@ const (
 	SEND ChanDir = 1 << iota
 	RECV
 )
+
 const (
 	BOTH = SEND | RECV
 )
@@ -694,27 +701,29 @@ func (*SwitchStmt) assertStmt()       {}
 func (*SwitchClauseStmt) assertStmt() {}
 func (*bodyStmt) assertStmt()         {}
 
-var _ Stmt = &AssignStmt{}
-var _ Stmt = &BlockStmt{}
-var _ Stmt = &BranchStmt{}
-var _ Stmt = &DeclStmt{}
-var _ Stmt = &DeferStmt{}
-var _ Stmt = &EmptyStmt{}
-var _ Stmt = &ExprStmt{}
-var _ Stmt = &ForStmt{}
-var _ Stmt = &GoStmt{}
-var _ Stmt = &IfStmt{}
-var _ Stmt = &IfCaseStmt{}
-var _ Stmt = &IncDecStmt{}
-var _ Stmt = &RangeStmt{}
-var _ Stmt = &ReturnStmt{}
-var _ Stmt = &PanicStmt{}
-var _ Stmt = &SelectStmt{}
-var _ Stmt = &SelectCaseStmt{}
-var _ Stmt = &SendStmt{}
-var _ Stmt = &SwitchStmt{}
-var _ Stmt = &SwitchClauseStmt{}
-var _ Stmt = &bodyStmt{}
+var (
+	_ Stmt = &AssignStmt{}
+	_ Stmt = &BlockStmt{}
+	_ Stmt = &BranchStmt{}
+	_ Stmt = &DeclStmt{}
+	_ Stmt = &DeferStmt{}
+	_ Stmt = &EmptyStmt{}
+	_ Stmt = &ExprStmt{}
+	_ Stmt = &ForStmt{}
+	_ Stmt = &GoStmt{}
+	_ Stmt = &IfStmt{}
+	_ Stmt = &IfCaseStmt{}
+	_ Stmt = &IncDecStmt{}
+	_ Stmt = &RangeStmt{}
+	_ Stmt = &ReturnStmt{}
+	_ Stmt = &PanicStmt{}
+	_ Stmt = &SelectStmt{}
+	_ Stmt = &SelectCaseStmt{}
+	_ Stmt = &SendStmt{}
+	_ Stmt = &SwitchStmt{}
+	_ Stmt = &SwitchClauseStmt{}
+	_ Stmt = &bodyStmt{}
+)
 
 type AssignStmt struct {
 	Attributes
@@ -953,10 +962,12 @@ func (_ *ImportDecl) assertDecl() {}
 func (_ *ValueDecl) assertDecl()  {}
 func (_ *TypeDecl) assertDecl()   {}
 
-var _ Decl = &FuncDecl{}
-var _ Decl = &ImportDecl{}
-var _ Decl = &ValueDecl{}
-var _ Decl = &TypeDecl{}
+var (
+	_ Decl = &FuncDecl{}
+	_ Decl = &ImportDecl{}
+	_ Decl = &ValueDecl{}
+	_ Decl = &TypeDecl{}
+)
 
 type FuncDecl struct {
 	Attributes
@@ -1051,8 +1062,10 @@ func (_ *TypeDecl) assertSimpleDeclStmt()  {}
 func (_ *ValueDecl) assertStmt() {}
 func (_ *TypeDecl) assertStmt()  {}
 
-var _ SimpleDeclStmt = &ValueDecl{}
-var _ SimpleDeclStmt = &TypeDecl{}
+var (
+	_ SimpleDeclStmt = &ValueDecl{}
+	_ SimpleDeclStmt = &TypeDecl{}
+)
 
 //----------------------------------------
 // *FileSet
@@ -1074,7 +1087,7 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 	if err != nil {
 		panic(err)
 	}
-	var memPkg = &std.MemPackage{Path: pkgPath}
+	memPkg := &std.MemPackage{Path: pkgPath}
 	var pkgName Name
 	for _, file := range files {
 		if file.IsDir() {
@@ -1142,6 +1155,7 @@ func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 	}
 	return fset
 }
+
 func ParseMemPackageTests(memPkg *std.MemPackage) (tset, itset *FileSet) {
 	tset = &FileSet{}
 	itset = &FileSet{}
@@ -1603,7 +1617,6 @@ func (sb *StaticBlock) GetStaticTypeOf(store Store, n Name) Type {
 			tv := Uverse().GetValueAt(store, path)
 			return tv.T
 		} else {
-
 			panic(fmt.Sprintf("name %s not declared", n))
 		}
 	}
@@ -1755,19 +1768,21 @@ func (sb *StaticBlock) SetStaticBlock(osb StaticBlock) {
 	*sb = osb
 }
 
-var _ BlockNode = &FuncLitExpr{}
-var _ BlockNode = &BlockStmt{}
-var _ BlockNode = &ForStmt{}
-var _ BlockNode = &IfStmt{} // faux block node
-var _ BlockNode = &IfCaseStmt{}
-var _ BlockNode = &RangeStmt{}
-var _ BlockNode = &SelectCaseStmt{}
-var _ BlockNode = &SwitchStmt{} // faux block node
-var _ BlockNode = &SwitchClauseStmt{}
-var _ BlockNode = &FuncDecl{}
-var _ BlockNode = &FileNode{}
-var _ BlockNode = &PackageNode{}
-var _ BlockNode = RefNode{}
+var (
+	_ BlockNode = &FuncLitExpr{}
+	_ BlockNode = &BlockStmt{}
+	_ BlockNode = &ForStmt{}
+	_ BlockNode = &IfStmt{} // faux block node
+	_ BlockNode = &IfCaseStmt{}
+	_ BlockNode = &RangeStmt{}
+	_ BlockNode = &SelectCaseStmt{}
+	_ BlockNode = &SwitchStmt{} // faux block node
+	_ BlockNode = &SwitchClauseStmt{}
+	_ BlockNode = &FuncDecl{}
+	_ BlockNode = &FileNode{}
+	_ BlockNode = &PackageNode{}
+	_ BlockNode = RefNode{}
+)
 
 func (ifs *IfStmt) GetBody() Body {
 	panic("IfStmt has no body (but .Then and .Else do)")
