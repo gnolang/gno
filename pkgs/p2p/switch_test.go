@@ -18,6 +18,7 @@ import (
 	"github.com/gnolang/gno/pkgs/log"
 	"github.com/gnolang/gno/pkgs/p2p/config"
 	"github.com/gnolang/gno/pkgs/p2p/conn"
+	"github.com/gnolang/gno/pkgs/testutils"
 )
 
 var cfg *config.P2PConfig
@@ -593,7 +594,9 @@ func (r *mockReactor) InitCalledBeforeRemoveFinished() bool {
 }
 
 // see stopAndRemovePeer
-func TestSwitchInitPeerIsNotCalledBeforeRemovePeer(t *testing.T) {
+func TestFlappySwitchInitPeerIsNotCalledBeforeRemovePeer(t *testing.T) {
+	testutils.FilterStability(t, testutils.Flappy)
+
 	// make reactor
 	reactor := &mockReactor{}
 	reactor.BaseReactor = NewBaseReactor("mockReactor", reactor)
