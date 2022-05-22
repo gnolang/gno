@@ -104,6 +104,7 @@ func testStore(rootDir string, stdin io.Reader, stdout, stderr io.Writer, native
 			})
 			pkg.DefineGoNativeValue("Sprint", fmt.Sprint)
 			pkg.DefineGoNativeValue("Sprintf", fmt.Sprintf)
+			pkg.DefineGoNativeValue("Sprintln", fmt.Sprintln)
 			pkg.DefineGoNativeValue("Sscanf", fmt.Sscanf)
 			pkg.DefineGoNativeValue("Errorf", fmt.Errorf)
 			pkg.DefineGoNativeValue("Fprintln", fmt.Fprintln)
