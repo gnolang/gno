@@ -14,6 +14,7 @@ import (
 	"github.com/gnolang/gno/pkgs/events"
 	p2pmock "github.com/gnolang/gno/pkgs/p2p/mock"
 	"github.com/gnolang/gno/pkgs/random"
+	"github.com/gnolang/gno/pkgs/testutils"
 )
 
 /*
@@ -1437,7 +1438,9 @@ func TestStartNextHeightCorrectly(t *testing.T) {
 	assert.False(t, rs.TriggeredTimeoutPrecommit, "triggeredTimeoutPrecommit should be false at the beginning of each round")
 }
 
-func TestResetTimeoutPrecommitUponNewHeight(t *testing.T) {
+func TestFlappyResetTimeoutPrecommitUponNewHeight(t *testing.T) {
+	testutils.FilterStability(t, testutils.Flappy)
+
 	config.Consensus.SkipTimeoutCommit = false
 	cs1, vss := randConsensusState(4)
 
