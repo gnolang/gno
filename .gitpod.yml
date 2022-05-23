@@ -12,18 +12,17 @@ tasks:
       echo "prebuild gnodev" &&
       make install_gnodev
     command: gnodev --help
-      
+
   - name: Gnoland Website
     init: cd gnoland/website && go install .
-    command: go run . --bind-addr=0.0.0.0:8080
-    
+    command: go run . --bind=0.0.0.0:8888
+
   - name: Gnoland Node
     init: go install ./cmd/gnoland
     command: gnoland
 
 ports:
-  - port: 8080
+  - port: 8888
     onOpen: open-preview
   - port: 36657
     onOpen: notify
-    
