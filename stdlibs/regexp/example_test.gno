@@ -13,7 +13,7 @@ import (
 func Example() {
 	// Compile the expression once, usually at init time.
 	// Use raw strings to avoid having to quote the backslashes.
-	var validID = regexp.MustCompile(`^[a-z]+\[[0-9]+\]$`)
+	validID := regexp.MustCompile(`^[a-z]+\[[0-9]+\]$`)
 
 	fmt.Println(validID.MatchString("adam[23]"))
 	fmt.Println(validID.MatchString("eve[7]"))

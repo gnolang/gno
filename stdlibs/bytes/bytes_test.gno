@@ -52,10 +52,12 @@ func sliceOfString(s [][]byte) []string {
 // For ease of reading, the test cases use strings that are converted to byte
 // slices before invoking the functions.
 
-var abcd = "abcd"
-var faces = "☺☻☹"
-var commas = "1,2,3,4"
-var dots = "1....2....3....4"
+var (
+	abcd   = "abcd"
+	faces  = "☺☻☹"
+	commas = "1,2,3,4"
+	dots   = "1....2....3....4"
+)
 
 type BinOpTest struct {
 	a string
@@ -79,7 +81,7 @@ func TestEqual(t *testing.T) {
 }
 
 func TestEqualExhaustive(t *testing.T) {
-	var size = 128
+	size := 128
 	if testing.Short() {
 		size = 32
 	}
@@ -108,7 +110,7 @@ func TestEqualExhaustive(t *testing.T) {
 // make sure Equal returns false for minimally different strings. The data
 // is all zeros except for a single one in one location.
 func TestNotEqual(t *testing.T) {
-	var size = 128
+	size := 128
 	if testing.Short() {
 		size = 32
 	}
@@ -227,7 +229,7 @@ func runIndexTests(t *testing.T, f func(s, sep []byte) int, funcName string, tes
 			t.Errorf("%s(%q,%q) = %v; want %v", funcName, a, b, actual, test.i)
 		}
 	}
-	var allocTests = []struct {
+	allocTests := []struct {
 		a []byte
 		b []byte
 		i int
@@ -304,7 +306,7 @@ func TestLastIndexByte(t *testing.T) {
 
 // test a larger buffer with different sizes and alignments
 func TestIndexByteBig(t *testing.T) {
-	var n = 1024
+	n := 1024
 	if testing.Short() {
 		n = 128
 	}
@@ -889,7 +891,7 @@ func TestFieldsFunc(t *testing.T) {
 		}
 	}
 	pred := func(c rune) bool { return c == 'X' }
-	var fieldsFuncTests = []FieldsTest{
+	fieldsFuncTests := []FieldsTest{
 		{"", []string{}},
 		{"XX", []string{}},
 		{"XXhiXXX", []string{"hi"}},
@@ -1275,7 +1277,7 @@ var trimTests = []TrimTest{
 	{"Trim", "\x80test\xff", "\xff", "test"},
 	{"Trim", " Ġ ", " ", "Ġ"},
 	{"Trim", " Ġİ0", "0 ", "Ġİ"},
-	//empty string tests
+	// empty string tests
 	{"Trim", "abba", "", "abba"},
 	{"Trim", "", "123", ""},
 	{"Trim", "", "", ""},
@@ -1328,15 +1330,17 @@ type predicate struct {
 	name string
 }
 
-var isSpace = predicate{unicode.IsSpace, "IsSpace"}
-var isDigit = predicate{unicode.IsDigit, "IsDigit"}
-var isUpper = predicate{unicode.IsUpper, "IsUpper"}
-var isValidRune = predicate{
-	func(r rune) bool {
-		return r != utf8.RuneError
-	},
-	"IsValidRune",
-}
+var (
+	isSpace     = predicate{unicode.IsSpace, "IsSpace"}
+	isDigit     = predicate{unicode.IsDigit, "IsDigit"}
+	isUpper     = predicate{unicode.IsUpper, "IsUpper"}
+	isValidRune = predicate{
+		func(r rune) bool {
+			return r != utf8.RuneError
+		},
+		"IsValidRune",
+	}
+)
 
 type TrimFuncTest struct {
 	f        predicate
@@ -1356,44 +1360,62 @@ func not(p predicate) predicate {
 }
 
 var trimFuncTests = []TrimFuncTest{
-	{isSpace, space + " hello " + space,
+	{
+		isSpace, space + " hello " + space,
 		[]byte("hello"),
 		[]byte("hello " + space),
-		[]byte(space + " hello")},
-	{isDigit, "\u0e50\u0e5212hello34\u0e50\u0e51",
+		[]byte(space + " hello"),
+	},
+	{
+		isDigit, "\u0e50\u0e5212hello34\u0e50\u0e51",
 		[]byte("hello"),
 		[]byte("hello34\u0e50\u0e51"),
-		[]byte("\u0e50\u0e5212hello")},
-	{isUpper, "\u2C6F\u2C6F\u2C6F\u2C6FABCDhelloEF\u2C6F\u2C6FGH\u2C6F\u2C6F",
+		[]byte("\u0e50\u0e5212hello"),
+	},
+	{
+		isUpper, "\u2C6F\u2C6F\u2C6F\u2C6FABCDhelloEF\u2C6F\u2C6FGH\u2C6F\u2C6F",
 		[]byte("hello"),
 		[]byte("helloEF\u2C6F\u2C6FGH\u2C6F\u2C6F"),
-		[]byte("\u2C6F\u2C6F\u2C6F\u2C6FABCDhello")},
-	{not(isSpace), "hello" + space + "hello",
+		[]byte("\u2C6F\u2C6F\u2C6F\u2C6FABCDhello"),
+	},
+	{
+		not(isSpace), "hello" + space + "hello",
 		[]byte(space),
 		[]byte(space + "hello"),
-		[]byte("hello" + space)},
-	{not(isDigit), "hello\u0e50\u0e521234\u0e50\u0e51helo",
+		[]byte("hello" + space),
+	},
+	{
+		not(isDigit), "hello\u0e50\u0e521234\u0e50\u0e51helo",
 		[]byte("\u0e50\u0e521234\u0e50\u0e51"),
 		[]byte("\u0e50\u0e521234\u0e50\u0e51helo"),
-		[]byte("hello\u0e50\u0e521234\u0e50\u0e51")},
-	{isValidRune, "ab\xc0a\xc0cd",
+		[]byte("hello\u0e50\u0e521234\u0e50\u0e51"),
+	},
+	{
+		isValidRune, "ab\xc0a\xc0cd",
 		[]byte("\xc0a\xc0"),
 		[]byte("\xc0a\xc0cd"),
-		[]byte("ab\xc0a\xc0")},
-	{not(isValidRune), "\xc0a\xc0",
+		[]byte("ab\xc0a\xc0"),
+	},
+	{
+		not(isValidRune), "\xc0a\xc0",
 		[]byte("a"),
 		[]byte("a\xc0"),
-		[]byte("\xc0a")},
+		[]byte("\xc0a"),
+	},
 	// The nils returned by TrimLeftFunc are odd behavior, but we need
 	// to preserve backwards compatibility.
-	{isSpace, "",
+	{
+		isSpace, "",
 		nil,
 		nil,
-		[]byte("")},
-	{isSpace, " ",
+		[]byte(""),
+	},
+	{
+		isSpace, " ",
 		nil,
 		nil,
-		[]byte("")},
+		[]byte(""),
+	},
 }
 
 func TestTrimFunc(t *testing.T) {
@@ -1892,8 +1914,8 @@ func BenchmarkRepeat(b *testing.B) {
 func BenchmarkBytesCompare(b *testing.B) {
 	for n := 1; n <= 2048; n <<= 1 {
 		b.Run(fmt.Sprint(n), func(b *testing.B) {
-			var x = make([]byte, n)
-			var y = make([]byte, n)
+			x := make([]byte, n)
+			y := make([]byte, n)
 
 			for i := 0; i < n; i++ {
 				x[i] = 'a'

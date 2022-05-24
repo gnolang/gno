@@ -130,7 +130,6 @@ func makeBlockID(hash []byte, partSetSize int, partSetHash []byte) BlockID {
 			Hash:  partSetHash,
 		},
 	}
-
 }
 
 var nilBytes []byte

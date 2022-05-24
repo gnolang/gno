@@ -50,7 +50,7 @@ func TestStateCopy(t *testing.T) {
         %v`, state))
 }
 
-//TestMakeGenesisStateNilValidators tests state's consistency when genesis file's validators field is nil.
+// TestMakeGenesisStateNilValidators tests state's consistency when genesis file's validators field is nil.
 func TestMakeGenesisStateNilValidators(t *testing.T) {
 	doc := types.GenesisDoc{
 		ChainID:    "dummy",
@@ -147,7 +147,8 @@ func TestABCIResponsesSaveLoad2(t *testing.T) {
 					Error: abci.StringError("32"),
 					Data:  []byte("Hello"),
 				},
-			}},
+			},
+		},
 		2: {
 			[]abci.ResponseDeliverTx{
 				{ResponseBase: abci.ResponseBase{
@@ -176,7 +177,8 @@ func TestABCIResponsesSaveLoad2(t *testing.T) {
 						abci.EventString("build=stuff"),
 					},
 				},
-			}},
+			},
+		},
 		3: {
 			nil,
 			nil,
@@ -297,7 +299,6 @@ func TestOneValidatorChangesSaveLoad(t *testing.T) {
 }
 
 func TestProposerFrequency(t *testing.T) {
-
 	// some explicit test cases
 	testCases := []struct {
 		powers []int64
@@ -841,7 +842,7 @@ func TestManyValidatorChangesSaveLoad(t *testing.T) {
 	sm.SaveState(stateDB, state)
 
 	_, valOld := state.Validators.GetByIndex(0)
-	var pubkeyOld = valOld.PubKey
+	pubkeyOld := valOld.PubKey
 	pubkey := ed25519.GenPrivKey().PubKey()
 
 	// Swap the first validator with a new one (validator set size stays the same).
@@ -960,7 +961,8 @@ func TestApplyUpdates(t *testing.T) {
 	}{
 		0: {initParams, abci.ConsensusParams{}, initParams},
 		1: {initParams, abci.ConsensusParams{}, initParams},
-		2: {initParams,
+		2: {
+			initParams,
 			abci.ConsensusParams{
 				Block: &abci.BlockParams{
 					MaxTxBytes:    44,
@@ -970,7 +972,8 @@ func TestApplyUpdates(t *testing.T) {
 					TimeIotaMS:    88,
 				},
 			},
-			makeConsensusParams(44, 55, 66, 77, 88)},
+			makeConsensusParams(44, 55, 66, 77, 88),
+		},
 	}
 
 	for i, tc := range cases {

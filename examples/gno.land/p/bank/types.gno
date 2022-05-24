@@ -129,12 +129,14 @@ func (esc *EscrowContract) Execute() {
 //----------------------------------------
 // TODO: actually implement these in std package.
 
-type Address string
-type Coins []Coin
-type Coin struct {
-	Denom  bool
-	Amount int64
-}
+type (
+	Address string
+	Coins   []Coin
+	Coin    struct {
+		Denom  bool
+		Amount int64
+	}
+)
 
 func (a Coins) Equal(b Coins) bool {
 	if len(a) != len(b) {

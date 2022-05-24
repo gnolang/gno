@@ -32,6 +32,7 @@ var perlGroup = map[string]charGroup{
 	`\w`: {+1, code3},
 	`\W`: {-1, code3},
 }
+
 var code4 = []rune{ /* [:alnum:] */
 	0x30, 0x39,
 	0x41, 0x5a,

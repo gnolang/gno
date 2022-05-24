@@ -8,9 +8,10 @@
 package strings
 
 import (
-	"internal/bytealg"
 	"unicode"
 	"unicode/utf8"
+
+	"internal/bytealg"
 )
 
 // explode splits s into a slice of UTF-8 strings,

@@ -43,7 +43,6 @@ func printNode(ndb *nodeDB, node *Node, indent int) {
 		leftNode := ndb.GetNode(node.leftHash)
 		printNode(ndb, leftNode, indent+1)
 	}
-
 }
 
 func maxInt8(a, b int8) int8 {

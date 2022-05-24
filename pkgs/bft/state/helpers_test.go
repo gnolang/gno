@@ -143,7 +143,6 @@ func makeConsensusParams( // XXX search and replace
 }
 
 func makeHeaderPartsResponsesValPubKeyChange(state sm.State, pubkey crypto.PubKey) (types.Header, types.BlockID, *sm.ABCIResponses) {
-
 	block := makeBlock(state, state.LastBlockHeight+1)
 	abciResponses := &sm.ABCIResponses{
 		EndBlock: abci.ResponseEndBlock{ValidatorUpdates: nil},
@@ -164,7 +163,6 @@ func makeHeaderPartsResponsesValPubKeyChange(state sm.State, pubkey crypto.PubKe
 }
 
 func makeHeaderPartsResponsesValPowerChange(state sm.State, power int64) (types.Header, types.BlockID, *sm.ABCIResponses) {
-
 	block := makeBlock(state, state.LastBlockHeight+1)
 	abciResponses := &sm.ABCIResponses{
 		EndBlock: abci.ResponseEndBlock{ValidatorUpdates: nil},
@@ -184,7 +182,6 @@ func makeHeaderPartsResponsesValPowerChange(state sm.State, power int64) (types.
 }
 
 func makeHeaderPartsResponsesParams(state sm.State, params abci.ConsensusParams) (types.Header, types.BlockID, *sm.ABCIResponses) {
-
 	block := makeBlock(state, state.LastBlockHeight+1)
 	abciResponses := &sm.ABCIResponses{
 		EndBlock: abci.ResponseEndBlock{ConsensusParams: &params},

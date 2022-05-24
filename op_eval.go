@@ -12,7 +12,7 @@ func (m *Machine) doOpEval() {
 	x := m.PeekExpr(1)
 	if debug {
 		debug.Printf("EVAL: %v\n", x)
-		//fmt.Println(m.String())
+		// fmt.Println(m.String())
 	}
 	// This case moved out of switch for performance.
 	// TODO: understand this better.

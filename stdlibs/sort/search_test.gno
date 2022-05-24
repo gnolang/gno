@@ -96,7 +96,7 @@ func TestSearchEfficiency(t *testing.T) {
 
 // Smoke tests for convenience wrappers - not comprehensive.
 
-//var fdata = []float64{0: -3.14, 1: 0, 2: 1, 3: 2, 4: 1000.7}
+// var fdata = []float64{0: -3.14, 1: 0, 2: 1, 3: 2, 4: 1000.7}
 // XXX
 // var sdata = []string{0: "f", 1: "foo", 2: "foobar", 3: "x"}
 var sdata = []string{"f", "foo", "foobar", "x"}
@@ -124,10 +124,10 @@ func TestSearchWrappers(t *testing.T) {
 
 func runSearchWrappers() {
 	sort.SearchInts(data, 11)
-	//sort.SearchFloat64s(fdata, 2.1)
+	// sort.SearchFloat64s(fdata, 2.1)
 	sort.SearchStrings(sdata, "")
 	sort.IntSlice(data).Search(0)
-	//sort.Float64Slice(fdata).Search(2.0)
+	// sort.Float64Slice(fdata).Search(2.0)
 	sort.StringSlice(sdata).Search("x")
 }
 

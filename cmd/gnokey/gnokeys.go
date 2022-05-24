@@ -291,8 +291,8 @@ func signAndBroadcast(cmd *command.Command, args []string, tx std.Tx, baseopts c
 	}
 
 	// sign tx
-	var accountNumber = qret.BaseAccount.AccountNumber
-	var sequence = qret.BaseAccount.Sequence
+	accountNumber := qret.BaseAccount.AccountNumber
+	sequence := qret.BaseAccount.Sequence
 	sopts := client.SignOptions{
 		Sequence:      &sequence,
 		AccountNumber: &accountNumber,

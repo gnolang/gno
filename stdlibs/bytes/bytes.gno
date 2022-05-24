@@ -7,9 +7,10 @@
 package bytes
 
 import (
-	"internal/bytealg"
 	"unicode"
 	"unicode/utf8"
+
+	"internal/bytealg"
 )
 
 // Equal reports whether a and b

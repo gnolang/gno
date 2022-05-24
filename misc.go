@@ -135,11 +135,11 @@ func toTypeValue(t Type) TypeValue {
 // reserved & uverse names
 
 var reservedNames = map[Name]struct{}{
-	"break": struct{}{}, "default": struct{}{}, "func": struct{}{}, "interface": struct{}{}, "select": struct{}{},
-	"case": struct{}{}, "defer": struct{}{}, "go": struct{}{}, "map": struct{}{}, "struct": struct{}{},
-	"chan": struct{}{}, "else": struct{}{}, "goto": struct{}{}, "package": struct{}{}, "switch": struct{}{},
-	"const": struct{}{}, "fallthrough": struct{}{}, "if": struct{}{}, "range": struct{}{}, "type": struct{}{},
-	"continue": struct{}{}, "for": struct{}{}, "import": struct{}{}, "return": struct{}{}, "var": struct{}{},
+	"break": {}, "default": {}, "func": {}, "interface": {}, "select": {},
+	"case": {}, "defer": {}, "go": {}, "map": {}, "struct": {},
+	"chan": {}, "else": {}, "goto": {}, "package": {}, "switch": {},
+	"const": {}, "fallthrough": {}, "if": {}, "range": {}, "type": {},
+	"continue": {}, "for": {}, "import": {}, "return": {}, "var": {},
 }
 
 // if true, caller should generally panic.

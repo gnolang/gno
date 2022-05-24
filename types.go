@@ -1302,8 +1302,7 @@ func (mt *MapType) GetPkgPath() string {
 //----------------------------------------
 // Type (typeval) type
 
-type TypeType struct {
-	// nothing yet.
+type TypeType struct { // nothing yet.
 }
 
 var gTypeType = &TypeType{}
@@ -1921,8 +1920,10 @@ var (
 )
 
 // NOTE: this path is used to identify the struct type as a Float64.
-const float32PkgPath = uversePkgPath + "#float32"
-const float64PkgPath = uversePkgPath + "#float64"
+const (
+	float32PkgPath = uversePkgPath + "#float32"
+	float64PkgPath = uversePkgPath + "#float64"
+)
 
 func init() {
 	Float32Type = &StructType{

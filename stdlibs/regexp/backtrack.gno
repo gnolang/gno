@@ -47,8 +47,8 @@ type bitState struct {
 // var bitStatePool sync.Pool
 
 func newBitState() *bitState {
-	//b, ok := bitStatePool.Get().(*bitState)
-	//if !ok {
+	// b, ok := bitStatePool.Get().(*bitState)
+	// if !ok {
 	b := new(bitState)
 	//}
 	return b
@@ -56,7 +56,7 @@ func newBitState() *bitState {
 
 func freeBitState(b *bitState) {
 	b.inputs.clear()
-	//bitStatePool.Put(b)
+	// bitStatePool.Put(b)
 }
 
 // maxBitStateLen returns the maximum length of a string to search with

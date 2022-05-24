@@ -13,9 +13,11 @@ import (
 	"unicode/utf8"
 )
 
-const N = 10000       // make this bigger for a larger (and slower) test
-var testString string // test data for write tests
-var testBytes []byte  // test data; same as testString but as a slice.
+const N = 10000 // make this bigger for a larger (and slower) test
+var (
+	testString string // test data for write tests
+	testBytes  []byte // test data; same as testString but as a slice.
+)
 
 type negativeReader struct{}
 
@@ -275,7 +277,6 @@ func (r panicReader) Read(p []byte) (int, error) {
 // Make sure that an empty Buffer remains empty when
 // it is "grown" before a Read that panics
 func TestReadFromPanicReader(t *testing.T) {
-
 	// First verify non-panic behaviour
 	var buf bytes.Buffer
 	i, err := buf.ReadFrom(panicReader{})

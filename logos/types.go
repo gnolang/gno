@@ -53,10 +53,12 @@ type Elem interface {
 	// other most gui frameworks.
 }
 
-var _ Elem = &Page{}
-var _ Elem = &BufferedElemView{}
-var _ Elem = &TextElem{}
-var _ Elem = &Stack{}
+var (
+	_ Elem = &Page{}
+	_ Elem = &BufferedElemView{}
+	_ Elem = &TextElem{}
+	_ Elem = &Stack{}
+)
 
 // produces a page from a string.
 // width is the width of the page.
@@ -522,9 +524,11 @@ func DefaultStyle() *Style {
 	}
 }
 
-var gDefaultStyle = DefaultStyle()
-var gDefaultForeground = tcell.ColorBlack
-var gDefaultBackground = tcell.ColorLightBlue
+var (
+	gDefaultStyle      = DefaultStyle()
+	gDefaultForeground = tcell.ColorBlack
+	gDefaultBackground = tcell.ColorLightBlue
+)
 
 func (st *Style) Copy() *Style {
 	st2 := *st

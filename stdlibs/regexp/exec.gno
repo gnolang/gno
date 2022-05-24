@@ -381,8 +381,8 @@ type onePassMachine struct {
 // var onePassPool sync.Pool
 
 func newOnePassMachine() *onePassMachine {
-	//m, ok := onePassPool.Get().(*onePassMachine)
-	//if !ok {
+	// m, ok := onePassPool.Get().(*onePassMachine)
+	// if !ok {
 	m := new(onePassMachine)
 	//}
 	return m
@@ -390,7 +390,7 @@ func newOnePassMachine() *onePassMachine {
 
 func freeOnePassMachine(m *onePassMachine) {
 	m.inputs.clear()
-	//onePassPool.Put(m)
+	// onePassPool.Put(m)
 }
 
 // doOnePass implements r.doExecute using the one-pass execution engine.
