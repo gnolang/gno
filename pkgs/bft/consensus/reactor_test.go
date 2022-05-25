@@ -21,6 +21,7 @@ import (
 	osm "github.com/gnolang/gno/pkgs/os"
 	"github.com/gnolang/gno/pkgs/p2p"
 	"github.com/gnolang/gno/pkgs/p2p/mock"
+	"github.com/gnolang/gno/pkgs/testutils"
 )
 
 //----------------------------------------------
@@ -169,7 +170,9 @@ func TestReactorReceivePanicsIfInitPeerHasntBeenCalledYet(t *testing.T) {
 }
 
 // Test we record stats about votes and block parts from other peers.
-func TestReactorRecordsVotesAndBlockParts(t *testing.T) {
+func TestFlappyReactorRecordsVotesAndBlockParts(t *testing.T) {
+	testutils.FilterStability(t, testutils.Flappy)
+
 	N := 4
 	css, cleanup := randConsensusNet(N, "consensus_reactor_test", newMockTickerFunc(true), newCounter)
 	defer cleanup()
