@@ -10,6 +10,7 @@ import (
 
 	"github.com/gnolang/gno/pkgs/bft/types"
 	"github.com/gnolang/gno/pkgs/random"
+	"github.com/gnolang/gno/pkgs/testutils"
 )
 
 type signerTestCase struct {
@@ -144,7 +145,9 @@ func TestSignerVoteResetDeadline(t *testing.T) {
 	}
 }
 
-func TestSignerVoteKeepAlive(t *testing.T) {
+func TestFlappySignerVoteKeepAlive(t *testing.T) {
+	testutils.FilterStability(t, testutils.Flappy)
+
 	for _, tc := range getSignerTestCases(t) {
 		ts := time.Now()
 		want := &types.Vote{Timestamp: ts, Type: types.PrecommitType}
