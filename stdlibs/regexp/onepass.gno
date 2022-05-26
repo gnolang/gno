@@ -160,9 +160,7 @@ func mergeRuneSets(leftRunes, rightRunes *[]rune, leftPC, rightPC uint32) ([]run
 	if leftLen&0x1 != 0 || rightLen&0x1 != 0 {
 		panic("mergeRuneSets odd length []rune")
 	}
-	var (
-		lx, rx int
-	)
+	var lx, rx int
 	merged := make([]rune, 0)
 	next := make([]uint32, 0)
 	ok := true
@@ -288,8 +286,10 @@ func (p runeSlice) Len() int           { return len(p) }
 func (p runeSlice) Less(i, j int) bool { return p[i] < p[j] }
 func (p runeSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
-var anyRuneNotNL = []rune{0, '\n' - 1, '\n' + 1, unicode.MaxRune}
-var anyRune = []rune{0, unicode.MaxRune}
+var (
+	anyRuneNotNL = []rune{0, '\n' - 1, '\n' + 1, unicode.MaxRune}
+	anyRune      = []rune{0, unicode.MaxRune}
+)
 
 // makeOnePass creates a onepass Prog, if possible. It is possible if at any alt,
 // the match engine can always tell which branch to take. The routine may modify

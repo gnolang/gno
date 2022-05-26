@@ -17,9 +17,11 @@ func (o2 *TestRealmObject2) Modify() {
 	o2.Field = "modified"
 }
 
-var somevalue1 TestRealmObject2
-var SomeValue2 TestRealmObject2
-var SomeValue3 *TestRealmObject2
+var (
+	somevalue1 TestRealmObject2
+	SomeValue2 TestRealmObject2
+	SomeValue3 *TestRealmObject2
+)
 
 func init() {
 	somevalue1 = TestRealmObject2{Field: "init"}

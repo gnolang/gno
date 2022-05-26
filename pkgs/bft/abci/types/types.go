@@ -14,8 +14,7 @@ type Request interface {
 	AssertRequest()
 }
 
-type RequestBase struct {
-}
+type RequestBase struct{}
 
 func (_ RequestBase) AssertRequest() {}
 
@@ -61,7 +60,7 @@ type RequestBeginBlock struct {
 	Hash           []byte
 	Header         Header
 	LastCommitInfo *LastCommitInfo
-	//Violations     []Violation
+	// Violations     []Violation
 }
 
 type CheckTxType int

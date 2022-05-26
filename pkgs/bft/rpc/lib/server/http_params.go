@@ -21,7 +21,7 @@ var (
 	RE_ADDRESS = regexp.MustCompile(`^(?i)[a-z0-9]{25,34}$`)
 	RE_HOST    = regexp.MustCompile(`^(?i)(` + domain + `)$`)
 
-	//RE_ID12       = regexp.MustCompile(`^[a-zA-Z0-9]{12}$`)
+	// RE_ID12       = regexp.MustCompile(`^[a-zA-Z0-9]{12}$`)
 )
 
 func GetParam(r *http.Request, param string) string {

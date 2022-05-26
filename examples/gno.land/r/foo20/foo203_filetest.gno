@@ -9,11 +9,13 @@ import (
 	"gno.land/r/foo20"
 )
 
-const admin = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
-const test1 = testutils.TestAddress("test1")
-const test2 = testutils.TestAddress("test2")
-const test3 = testutils.TestAddress("test3")
-const test4 = testutils.TestAddress("test4")
+const (
+	admin = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+	test1 = testutils.TestAddress("test1")
+	test2 = testutils.TestAddress("test2")
+	test3 = testutils.TestAddress("test3")
+	test4 = testutils.TestAddress("test4")
+)
 
 func main() {
 	caller := std.GetOrigCaller() // main

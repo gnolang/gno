@@ -531,7 +531,7 @@ func binary(ranges []uu.Range16, r uint16) bool {
 }
 
 func TestLatinOffset(t *testing.T) {
-	var maps = []map[string]*uu.RangeTable{
+	maps := []map[string]*uu.RangeTable{
 		uu.Categories,
 		uu.FoldCategory,
 		uu.FoldScript,
@@ -554,7 +554,7 @@ func TestLatinOffset(t *testing.T) {
 func TestSpecialCaseNoMapping(t *testing.T) {
 	// Issue 25636
 	// no change for rune 'A', zero delta, under upper/lower/title case change.
-	var noChangeForCapitalA = uu.CaseRange{'A', 'A', [uu.MaxCase]rune{0, 0, 0}}
+	noChangeForCapitalA := uu.CaseRange{'A', 'A', [uu.MaxCase]rune{0, 0, 0}}
 	got := strings.ToLowerSpecial(uu.SpecialCase([]uu.CaseRange{noChangeForCapitalA}), "ABC")
 	want := "Abc"
 	if got != want {

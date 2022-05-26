@@ -56,7 +56,7 @@ func TestCompare(t *testing.T) {
 }
 
 func TestCompareIdenticalSlice(t *testing.T) {
-	var b = []byte("Hello Gophers!")
+	b := []byte("Hello Gophers!")
 	if bytes.Compare(b, b) != 0 {
 		t.Error("b != b")
 	}

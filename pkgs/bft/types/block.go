@@ -641,7 +641,6 @@ type SignedHeader struct {
 // sure to use a Verifier to validate the signatures actually provide a
 // significantly strong proof for this header's validity.
 func (sh SignedHeader) ValidateBasic(chainID string) error {
-
 	// Make sure the header is consistent with the commit.
 	if sh.Header == nil {
 		return errors.New("SignedHeader missing header.")

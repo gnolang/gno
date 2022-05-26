@@ -135,6 +135,7 @@ type nonDeterministicTestingData struct {
 func (t *nonDeterministicTestingData) Len() int {
 	return 500
 }
+
 func (t *nonDeterministicTestingData) Less(i, j int) bool {
 	if i < 0 || j < 0 || i >= t.Len() || j >= t.Len() {
 		panic("nondeterministic comparison out of bounds")
@@ -142,6 +143,7 @@ func (t *nonDeterministicTestingData) Less(i, j int) bool {
 	return t.r.Int()%2 == 0
 	// return t.r.Float32() < 0.5
 }
+
 func (t *nonDeterministicTestingData) Swap(i, j int) {
 	if i < 0 || j < 0 || i >= t.Len() || j >= t.Len() {
 		panic("nondeterministic comparison out of bounds")
@@ -332,6 +334,7 @@ func (d *testingData) Less(i, j int) bool {
 	d.ncmp++
 	return d.data[i] < d.data[j]
 }
+
 func (d *testingData) Swap(i, j int) {
 	if d.nswap >= d.maxswap {
 		d.t.Fatalf("%s: used %d swaps sorting slice of %d", d.desc, d.nswap, len(d.data))
@@ -432,7 +435,7 @@ func testBentleyMcIlroy(t *testing.T, sortFn func(sort.Interface), maxswap func(
 					d := &testingData{desc: desc, t: t, data: mdata[0:n], maxswap: maxswap(n)}
 					sortFn(d)
 					// Uncomment if you are trying to improve the number of compares/swaps.
-					//t.Logf("%s: ncmp=%d, nswp=%d", desc, d.ncmp, d.nswap)
+					// t.Logf("%s: ncmp=%d, nswp=%d", desc, d.ncmp, d.nswap)
 
 					// If we were testing C qsort, we'd have to make a copy
 					// of the slice and sort it ourselves and then compare

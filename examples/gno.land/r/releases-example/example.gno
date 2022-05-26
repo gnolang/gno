@@ -7,8 +7,10 @@ import (
 	"gno.land/p/releases"
 )
 
-var changelog = releases.NewChangelog("example-app")
-var admin = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @administrator
+var (
+	changelog = releases.NewChangelog("example-app")
+	admin     = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @administrator
+)
 
 func init() {
 	// FIXME: admin = std.GetCreator()

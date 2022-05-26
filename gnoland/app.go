@@ -22,7 +22,6 @@ import (
 
 // NewApp creates the GnoLand application.
 func NewApp(rootDir string, logger log.Logger) (abci.Application, error) {
-
 	// Get main DB.
 	db := dbm.NewDB("gnolang", dbm.GoLevelDBBackend, filepath.Join(rootDir, "data"))
 

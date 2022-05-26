@@ -263,7 +263,7 @@ func (pkg *Package) GetDependency(gopkg string) (*Package, error) {
 }
 
 func (pkg *Package) GetAllDependencies() []*Package {
-	return pkg.CrawlPackages(map[*Package]struct{}{pkg: struct{}{}})
+	return pkg.CrawlPackages(map[*Package]struct{}{pkg: {}})
 }
 
 // For a given package info, crawl and discover all package infos.

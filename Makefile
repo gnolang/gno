@@ -59,6 +59,15 @@ examples.build: install_gnodev examples.precompile
 	gnodev build ./examples --verbose
 
 ########################################
+# Formatting, linting.
+
+.PHONY: fmt
+fmt:
+	go run -modfile ./misc/devdeps/go.mod mvdan.cc/gofumpt -w .
+	go run -modfile ./misc/devdeps/go.mod mvdan.cc/gofumpt -w `find stdlibs examples -name "*.gno"`
+	git checkout bak
+
+########################################
 # Test suite
 .PHONY: test test.go test.go1 test.go2 test.go3 test.gno test.files1 test.files2 test.realm test.packages test.flappy test.packages0 test.packages1 test.packages2
 test: test.gno test.go test.flappy
@@ -71,7 +80,7 @@ test.gno: test.files1 test.files2 test.realm test.packages test.examples
 test.flappy:
 	# flappy tests should work "sometimes" (at least once)
 	TEST_STABILITY=flappy go run -modfile ./misc/devdeps/go.mod moul.io/testman test -test.v -timeout=20m -retry=10 -run ^TestFlappy \
-		./pkgs/bft/consensus ./pkgs/bft/blockchain ./pkgs/bft/mempool ./pkgs/p2p
+		./pkgs/bft/consensus ./pkgs/bft/blockchain ./pkgs/bft/mempool ./pkgs/p2p ./pkgs/bft/privval
 
 test.go: test.go1 test.go2 test.go3
 

@@ -44,7 +44,6 @@ func (e InvalidByteError) Error() string {
 	// XXX fmt removed
 	// return fmt.Sprintf("encoding/hex: invalid byte: %#U", rune(e))
 	return "encoding/hex: invalid byte: " + strconv.Itoa(int(e))
-
 }
 
 // DecodedLen returns the length of a decoding of x source bytes.

@@ -267,7 +267,7 @@ func (tree *Tree) balance() (newSelf *Tree) {
 			// tree = tree._copy()
 			left := tree.getLeftTree()
 			tree.leftTree = left.rotateLeft()
-			//tree.calcHeightAndSize()
+			// tree.calcHeightAndSize()
 			return tree.rotateRight()
 		}
 	}
@@ -280,7 +280,7 @@ func (tree *Tree) balance() (newSelf *Tree) {
 			// tree = tree._copy()
 			right := tree.getRightTree()
 			tree.rightTree = right.rotateRight()
-			//tree.calcHeightAndSize()
+			// tree.calcHeightAndSize()
 			return tree.rotateLeft()
 		}
 	}

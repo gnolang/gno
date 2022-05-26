@@ -12,9 +12,11 @@ import (
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
-var _ = proto.Marshal
-var _ = fmt.Errorf
-var _ = math.Inf
+var (
+	_ = proto.Marshal
+	_ = fmt.Errorf
+	_ = math.Inf
+)
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the proto package it is being compiled against.
@@ -39,15 +41,19 @@ func (*TestInt32Varint) Descriptor() ([]byte, []int) {
 func (m *TestInt32Varint) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TestInt32Varint.Unmarshal(m, b)
 }
+
 func (m *TestInt32Varint) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_TestInt32Varint.Marshal(b, m, deterministic)
 }
+
 func (m *TestInt32Varint) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_TestInt32Varint.Merge(m, src)
 }
+
 func (m *TestInt32Varint) XXX_Size() int {
 	return xxx_messageInfo_TestInt32Varint.Size(m)
 }
+
 func (m *TestInt32Varint) XXX_DiscardUnknown() {
 	xxx_messageInfo_TestInt32Varint.DiscardUnknown(m)
 }
@@ -78,15 +84,19 @@ func (*TestInt32Fixed) Descriptor() ([]byte, []int) {
 func (m *TestInt32Fixed) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TestInt32Fixed.Unmarshal(m, b)
 }
+
 func (m *TestInt32Fixed) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_TestInt32Fixed.Marshal(b, m, deterministic)
 }
+
 func (m *TestInt32Fixed) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_TestInt32Fixed.Merge(m, src)
 }
+
 func (m *TestInt32Fixed) XXX_Size() int {
 	return xxx_messageInfo_TestInt32Fixed.Size(m)
 }
+
 func (m *TestInt32Fixed) XXX_DiscardUnknown() {
 	xxx_messageInfo_TestInt32Fixed.DiscardUnknown(m)
 }
@@ -118,15 +128,19 @@ func (*Test32) Descriptor() ([]byte, []int) {
 func (m *Test32) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Test32.Unmarshal(m, b)
 }
+
 func (m *Test32) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Test32.Marshal(b, m, deterministic)
 }
+
 func (m *Test32) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_Test32.Merge(m, src)
 }
+
 func (m *Test32) XXX_Size() int {
 	return xxx_messageInfo_Test32.Size(m)
 }
+
 func (m *Test32) XXX_DiscardUnknown() {
 	xxx_messageInfo_Test32.DiscardUnknown(m)
 }
@@ -164,15 +178,19 @@ func (*TestFixedInt64) Descriptor() ([]byte, []int) {
 func (m *TestFixedInt64) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TestFixedInt64.Unmarshal(m, b)
 }
+
 func (m *TestFixedInt64) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_TestFixedInt64.Marshal(b, m, deterministic)
 }
+
 func (m *TestFixedInt64) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_TestFixedInt64.Merge(m, src)
 }
+
 func (m *TestFixedInt64) XXX_Size() int {
 	return xxx_messageInfo_TestFixedInt64.Size(m)
 }
+
 func (m *TestFixedInt64) XXX_DiscardUnknown() {
 	xxx_messageInfo_TestFixedInt64.DiscardUnknown(m)
 }
@@ -203,15 +221,19 @@ func (*TestSFixedSInt64) Descriptor() ([]byte, []int) {
 func (m *TestSFixedSInt64) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TestSFixedSInt64.Unmarshal(m, b)
 }
+
 func (m *TestSFixedSInt64) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_TestSFixedSInt64.Marshal(b, m, deterministic)
 }
+
 func (m *TestSFixedSInt64) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_TestSFixedSInt64.Merge(m, src)
 }
+
 func (m *TestSFixedSInt64) XXX_Size() int {
 	return xxx_messageInfo_TestSFixedSInt64.Size(m)
 }
+
 func (m *TestSFixedSInt64) XXX_DiscardUnknown() {
 	xxx_messageInfo_TestSFixedSInt64.DiscardUnknown(m)
 }
@@ -242,15 +264,19 @@ func (*EmbeddedStruct) Descriptor() ([]byte, []int) {
 func (m *EmbeddedStruct) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_EmbeddedStruct.Unmarshal(m, b)
 }
+
 func (m *EmbeddedStruct) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_EmbeddedStruct.Marshal(b, m, deterministic)
 }
+
 func (m *EmbeddedStruct) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_EmbeddedStruct.Merge(m, src)
 }
+
 func (m *EmbeddedStruct) XXX_Size() int {
 	return xxx_messageInfo_EmbeddedStruct.Size(m)
 }
+
 func (m *EmbeddedStruct) XXX_DiscardUnknown() {
 	xxx_messageInfo_EmbeddedStruct.DiscardUnknown(m)
 }
@@ -282,15 +308,19 @@ func (*SomeStruct) Descriptor() ([]byte, []int) {
 func (m *SomeStruct) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SomeStruct.Unmarshal(m, b)
 }
+
 func (m *SomeStruct) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_SomeStruct.Marshal(b, m, deterministic)
 }
+
 func (m *SomeStruct) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_SomeStruct.Merge(m, src)
 }
+
 func (m *SomeStruct) XXX_Size() int {
 	return xxx_messageInfo_SomeStruct.Size(m)
 }
+
 func (m *SomeStruct) XXX_DiscardUnknown() {
 	xxx_messageInfo_SomeStruct.DiscardUnknown(m)
 }
@@ -321,15 +351,19 @@ func (*ProtoGotTime) Descriptor() ([]byte, []int) {
 func (m *ProtoGotTime) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProtoGotTime.Unmarshal(m, b)
 }
+
 func (m *ProtoGotTime) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ProtoGotTime.Marshal(b, m, deterministic)
 }
+
 func (m *ProtoGotTime) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_ProtoGotTime.Merge(m, src)
 }
+
 func (m *ProtoGotTime) XXX_Size() int {
 	return xxx_messageInfo_ProtoGotTime.Size(m)
 }
+
 func (m *ProtoGotTime) XXX_DiscardUnknown() {
 	xxx_messageInfo_ProtoGotTime.DiscardUnknown(m)
 }
@@ -360,15 +394,19 @@ func (*TestInt32) Descriptor() ([]byte, []int) {
 func (m *TestInt32) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TestInt32.Unmarshal(m, b)
 }
+
 func (m *TestInt32) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_TestInt32.Marshal(b, m, deterministic)
 }
+
 func (m *TestInt32) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_TestInt32.Merge(m, src)
 }
+
 func (m *TestInt32) XXX_Size() int {
 	return xxx_messageInfo_TestInt32.Size(m)
 }
+
 func (m *TestInt32) XXX_DiscardUnknown() {
 	xxx_messageInfo_TestInt32.DiscardUnknown(m)
 }
@@ -400,15 +438,19 @@ func (*TestInts) Descriptor() ([]byte, []int) {
 func (m *TestInts) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TestInts.Unmarshal(m, b)
 }
+
 func (m *TestInts) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_TestInts.Marshal(b, m, deterministic)
 }
+
 func (m *TestInts) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_TestInts.Merge(m, src)
 }
+
 func (m *TestInts) XXX_Size() int {
 	return xxx_messageInfo_TestInts.Size(m)
 }
+
 func (m *TestInts) XXX_DiscardUnknown() {
 	xxx_messageInfo_TestInts.DiscardUnknown(m)
 }
@@ -446,15 +488,19 @@ func (*IntDef) Descriptor() ([]byte, []int) {
 func (m *IntDef) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_IntDef.Unmarshal(m, b)
 }
+
 func (m *IntDef) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_IntDef.Marshal(b, m, deterministic)
 }
+
 func (m *IntDef) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_IntDef.Merge(m, src)
 }
+
 func (m *IntDef) XXX_Size() int {
 	return xxx_messageInfo_IntDef.Size(m)
 }
+
 func (m *IntDef) XXX_DiscardUnknown() {
 	xxx_messageInfo_IntDef.DiscardUnknown(m)
 }
@@ -485,15 +531,19 @@ func (*IntArr) Descriptor() ([]byte, []int) {
 func (m *IntArr) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_IntArr.Unmarshal(m, b)
 }
+
 func (m *IntArr) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_IntArr.Marshal(b, m, deterministic)
 }
+
 func (m *IntArr) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_IntArr.Merge(m, src)
 }
+
 func (m *IntArr) XXX_Size() int {
 	return xxx_messageInfo_IntArr.Size(m)
 }
+
 func (m *IntArr) XXX_DiscardUnknown() {
 	xxx_messageInfo_IntArr.DiscardUnknown(m)
 }
@@ -537,15 +587,19 @@ func (*PrimitivesStruct) Descriptor() ([]byte, []int) {
 func (m *PrimitivesStruct) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PrimitivesStruct.Unmarshal(m, b)
 }
+
 func (m *PrimitivesStruct) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PrimitivesStruct.Marshal(b, m, deterministic)
 }
+
 func (m *PrimitivesStruct) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_PrimitivesStruct.Merge(m, src)
 }
+
 func (m *PrimitivesStruct) XXX_Size() int {
 	return xxx_messageInfo_PrimitivesStruct.Size(m)
 }
+
 func (m *PrimitivesStruct) XXX_DiscardUnknown() {
 	xxx_messageInfo_PrimitivesStruct.DiscardUnknown(m)
 }
@@ -611,15 +665,19 @@ func (*PrimitivesStructSl) Descriptor() ([]byte, []int) {
 func (m *PrimitivesStructSl) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PrimitivesStructSl.Unmarshal(m, b)
 }
+
 func (m *PrimitivesStructSl) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PrimitivesStructSl.Marshal(b, m, deterministic)
 }
+
 func (m *PrimitivesStructSl) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_PrimitivesStructSl.Merge(m, src)
 }
+
 func (m *PrimitivesStructSl) XXX_Size() int {
 	return xxx_messageInfo_PrimitivesStructSl.Size(m)
 }
+
 func (m *PrimitivesStructSl) XXX_DiscardUnknown() {
 	xxx_messageInfo_PrimitivesStructSl.DiscardUnknown(m)
 }

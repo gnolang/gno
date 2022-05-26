@@ -1,11 +1,10 @@
 package rand
 
 import (
+	"crypto/chacha20/chacha"
 	"encoding/binary"
 	"math"
 	"strconv"
-
-	"crypto/chacha20/chacha"
 )
 
 func erase(b []byte) {

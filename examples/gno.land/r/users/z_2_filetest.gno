@@ -3,9 +3,10 @@ package main
 // SEND: 2000gnot
 
 import (
+	"std"
+
 	"gno.land/p/testutils"
 	"gno.land/r/users"
-	"std"
 )
 
 const admin = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")

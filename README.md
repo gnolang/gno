@@ -25,7 +25,7 @@ Also, see the [quickstart guide](https://gno.land/r/boards:gnolang/4).
 
 ## Contact
 
- * Discord: https://discord.gg/tF2X8M6cVj <-- join now
+ * Discord: https://discord.gg/YFtMjWwUN7 <-- join now
  * Gnoland: https://gno.land/r/boards:gnolang
  * Telegram: https://t.me/gnoland
  * Twitter: https://twitter.com/_gnoland

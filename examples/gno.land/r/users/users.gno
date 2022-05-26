@@ -41,11 +41,13 @@ func (u User) Address() std.Address { return u.address }
 //----------------------------------------
 // State
 
-var admin std.Address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"
-var name2User *avl.Tree // Name -> *User
-var addr2User *avl.Tree // std.Address -> *User
-var invites *avl.Tree   // string(inviter+":"+invited) -> true
-var counter int
+var (
+	admin     std.Address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"
+	name2User *avl.Tree   // Name -> *User
+	addr2User *avl.Tree   // std.Address -> *User
+	invites   *avl.Tree   // string(inviter+":"+invited) -> true
+	counter   int
+)
 
 //----------------------------------------
 // Top-level functions

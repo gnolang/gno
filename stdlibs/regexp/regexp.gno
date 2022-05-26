@@ -232,8 +232,8 @@ var (
 // It uses the re's machine cache if possible, to avoid
 // unnecessary allocation.
 func (re *Regexp) get() *machine {
-	//m, ok := matchPool[re.mpool].Get().(*machine)
-	//if !ok {
+	// m, ok := matchPool[re.mpool].Get().(*machine)
+	// if !ok {
 	m := new(machine)
 	//}
 	m.re = re
@@ -263,7 +263,7 @@ func (re *Regexp) put(m *machine) {
 	m.re = nil
 	m.p = nil
 	m.inputs.clear()
-	//matchPool[re.mpool].Put(m)
+	// matchPool[re.mpool].Put(m)
 }
 
 // minInputLen walks the regexp to find the minimum length of any matchable input
@@ -479,7 +479,6 @@ type inputReader struct {
 func (i *inputReader) step(pos int) (rune, int) {
 	if !i.atEOT && pos != i.pos {
 		return endOfText, 0
-
 	}
 	r, w, err := i.r.ReadRune()
 	if err != nil {
@@ -1242,7 +1241,6 @@ func (re *Regexp) FindAllStringSubmatchIndex(s string, n int) [][]int {
 //   n == 0: the result is nil (zero substrings)
 //   n < 0: all substrings
 func (re *Regexp) Split(s string, n int) []string {
-
 	if n == 0 {
 		return nil
 	}

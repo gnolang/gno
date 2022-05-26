@@ -47,64 +47,82 @@ func (t *T) Error(args ...interface{}) {
 	t.Log(args...)
 	t.Fail()
 }
+
 func (t *T) Errorf(format string, args ...interface{}) {
 	t.Logf(format, args...)
 	t.Fail()
 }
+
 func (t *T) Fail() {
 	t.failed = true
 }
+
 func (t *T) FailNow() {
 	t.Fail()
 	t.finished = true // todo(anarcher): (maybe) use panic to control flow. because can't use goroutine in gno now.
 }
+
 func (t *T) Failed() bool {
 	return t.failed
 }
+
 func (t *T) Fatal(args ...interface{}) {
 	t.Log(args...)
 	t.FailNow()
 }
+
 func (t *T) Fatalf(format string, args ...interface{}) {
 	t.Logf(format, args...)
 	t.FailNow()
 }
+
 func (t *T) Log(args ...interface{}) {
 	t.log(fmt.Sprintln(args...))
 }
+
 func (t *T) Logf(format string, args ...interface{}) {
 	t.log(fmt.Sprintf(format, args...))
 	t.log(fmt.Sprintln())
 }
+
 func (t *T) Name() string {
 	return t.name
 }
+
 func (t *T) Parallel() {
 	// does nothing.
 }
+
 func (t *T) Run(name string, f func(t *T)) bool {
 	panic("not yet implemented")
 }
+
 func (t *T) Setenv(key, value string) {
 	panic("not yet implemented")
 }
+
 func (t *T) Skip(args ...interface{}) {
 	t.Log(args...)
 	t.SkipNow()
 }
+
 func (t *T) SkipNow() {
 	panic("not yet implemented")
 }
+
 func (t *T) Skipped() bool {
 	return false // todo:
 }
+
 func (t *T) Skipf(format string, args ...interface{}) {
 	t.Logf(format, args...)
 	t.SkipNow()
 }
+
 func (t *T) TempDir() string {
 	panic("not yet implemented")
 }
+
 func (t *T) Helper() {
 }
 
@@ -169,8 +187,7 @@ func (b *B) TempDir() string                           { panic("not yet implemen
 // PB
 // TODO: actually implement
 
-type PB struct {
-}
+type PB struct{}
 
 func (pb *PB) Next() bool { panic("not yet implemented") }
 

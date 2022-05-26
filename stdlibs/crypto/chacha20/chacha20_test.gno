@@ -6,10 +6,9 @@ package chacha20
 
 import (
 	"bytes"
+	"crypto/chacha20/chacha"
 	"encoding/hex"
 	"testing"
-
-	"crypto/chacha20/chacha"
 )
 
 func toHex(bits []byte) string {

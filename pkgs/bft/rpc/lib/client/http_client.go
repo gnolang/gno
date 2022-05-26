@@ -150,8 +150,10 @@ type JSONRPCCaller interface {
 
 // Both JSONRPCClient and JSONRPCRequestBatch can facilitate calls to the JSON
 // RPC endpoint.
-var _ JSONRPCCaller = (*JSONRPCClient)(nil)
-var _ JSONRPCCaller = (*JSONRPCRequestBatch)(nil)
+var (
+	_ JSONRPCCaller = (*JSONRPCClient)(nil)
+	_ JSONRPCCaller = (*JSONRPCRequestBatch)(nil)
+)
 
 // NewJSONRPCClient returns a JSONRPCClient pointed at the given address.
 func NewJSONRPCClient(remote string) *JSONRPCClient {
