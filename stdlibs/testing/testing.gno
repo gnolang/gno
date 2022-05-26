@@ -70,15 +70,9 @@ func (t *T) Fatalf(format string, args ...interface{}) {
 	t.FailNow()
 }
 func (t *T) Log(args ...interface{}) {
-	if !t.verbose {
-		return
-	}
 	t.log(fmt.Sprintln(args...))
 }
 func (t *T) Logf(format string, args ...interface{}) {
-	if !t.verbose {
-		return
-	}
 	t.log(fmt.Sprintf(format, args...))
 	t.log(fmt.Sprintln())
 }
@@ -130,7 +124,9 @@ func (t *T) report() {
 	}
 
 	// log
-	fmt.Println(string(t.output))
+	if t.Failed() || t.verbose {
+		fmt.Println(string(t.output))
+	}
 }
 
 //----------------------------------------

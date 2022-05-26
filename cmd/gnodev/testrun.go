@@ -7,22 +7,25 @@ import (
 	"log"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"text/template"
 
 	"github.com/gnolang/gno"
 	dbm "github.com/gnolang/gno/pkgs/db"
+	"github.com/gnolang/gno/pkgs/errors"
 	osm "github.com/gnolang/gno/pkgs/os"
 	"github.com/gnolang/gno/pkgs/std"
 	"github.com/gnolang/gno/pkgs/store/dbadapter"
 	"github.com/gnolang/gno/pkgs/store/iavl"
 	stypes "github.com/gnolang/gno/pkgs/store/types"
+	"github.com/gnolang/gno/stdlibs"
 )
 
 type testFuncs struct {
-	Tests   []testFunc
-	Package *std.MemPackage
-	Verbose bool
+	Tests       []testFunc
+	PackageName string
+	Verbose     bool
 }
 
 type testFunc struct {
@@ -31,7 +34,7 @@ type testFunc struct {
 }
 
 var testmainTmpl = template.Must(template.New("testmain").Parse(`
-package {{ .Package.Name }} 
+package {{ .PackageName }} 
 
 import (
 	"testing"
@@ -51,25 +54,55 @@ func testrun() (ok bool) {
 
 func runTest(testStore gno.Store, pkgPath string, verbose bool) (ok bool) {
 	memPkg := gno.ReadMemPackage(pkgPath, pkgPath)
-	tfiles, _ := gno.ParseMemPackageTests(memPkg)
-	testFuncs := loadTestFuncs(memPkg, tfiles)
-	testFuncs.Verbose = verbose
+	m := gno.NewMachine(memPkg.Name, testStore)
+	m.RunMemPackage(memPkg, true)
+
+	//tfiles, ifiles := gno.ParseMemPackageTests(memPkg)
+	tfiles, ifiles := parseMemPackageTests(memPkg)
+
+	// run test files in pkg
+	testok := runTestFiles(testStore, m, tfiles, memPkg.Name, verbose)
+
+	// run test files in xxx_test pkg
+	testPkgName := getPkgNameFromFileset(ifiles)
+	if testPkgName == "" { // empty test funcs
+		return testok
+	}
+
+	m2 := gno.NewMachine(testPkgName, testStore)
+	itestok := runTestFiles(testStore, m2, ifiles, testPkgName, verbose)
+
+	if testok && itestok {
+		return true
+	}
+	return false
+}
+
+func runTestFiles(testStore gno.Store, m *gno.Machine, files *gno.FileSet, pkgName string, verbose bool) bool {
+	testFuncs := &testFuncs{
+		PackageName: pkgName,
+		Verbose:     verbose,
+	}
+	loadTestFuncs(pkgName, testFuncs, files)
+
 	testmain, err := formatTestmain(testFuncs)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	//fmt.Printf("testmain: %s\n", testmain)
-
-	m := gno.NewMachine(memPkg.Name, testStore)
-	m.RunMemPackage(memPkg, false)
-	m.RunFiles(tfiles.Files...)
-
+	m.RunFiles(files.Files...)
 	n := gno.MustParseFile("testmain.go", testmain)
 	m.RunFiles(n)
 
 	res := m.Eval(gno.Call("testrun"))[0].GetBool()
 	return res
+}
+
+func getPkgNameFromFileset(files *gno.FileSet) string {
+	if len(files.Files) <= 0 {
+		return ""
+	}
+	return string(files.Files[0].PkgName)
 }
 
 func formatTestmain(t *testFuncs) (string, error) {
@@ -80,18 +113,14 @@ func formatTestmain(t *testFuncs) (string, error) {
 	return buf.String(), nil
 }
 
-func loadTestFuncs(memPkg *std.MemPackage, tfiles *gno.FileSet) *testFuncs {
-	t := &testFuncs{
-		Package: memPkg,
-	}
-
+func loadTestFuncs(pkgName string, t *testFuncs, tfiles *gno.FileSet) *testFuncs {
 	for _, tf := range tfiles.Files {
 		for _, d := range tf.Decls {
 			if fd, ok := d.(*gno.FuncDecl); ok {
 				fname := string(fd.Name)
 				if strings.HasPrefix(fname, "Test") {
 					tf := testFunc{
-						Package: memPkg.Name,
+						Package: pkgName,
 						Name:    fname,
 					}
 					t.Tests = append(t.Tests, tf)
@@ -100,6 +129,43 @@ func loadTestFuncs(memPkg *std.MemPackage, tfiles *gno.FileSet) *testFuncs {
 		}
 	}
 	return t
+}
+
+// parseMemPackageTests is copied from gno.ParseMemPackageTests
+// for except to _filetest.gno
+func parseMemPackageTests(memPkg *std.MemPackage) (tset, itset *gno.FileSet) {
+	tset = &gno.FileSet{}
+	itset = &gno.FileSet{}
+	for _, mfile := range memPkg.Files {
+		if !strings.HasSuffix(mfile.Name, ".gno") {
+			continue // skip this file.
+		}
+		if strings.HasSuffix(mfile.Name, "_filetest.gno") {
+			continue
+		}
+		n, err := gno.ParseFile(mfile.Name, mfile.Body)
+		if err != nil {
+			panic(errors.Wrap(err, "parsing file "+mfile.Name))
+		}
+		if n == nil {
+			panic("should not happen")
+		}
+		if strings.HasSuffix(mfile.Name, "_test.gno") {
+			// add test file.
+			if memPkg.Name+"_test" == string(n.PkgName) {
+				itset.AddFiles(n)
+			} else {
+				tset.AddFiles(n)
+			}
+		} else if memPkg.Name == string(n.PkgName) {
+			// skip package file.
+		} else {
+			panic(fmt.Sprintf(
+				"expected package name [%s] or [%s_test] but got [%s] file [%s]",
+				memPkg.Name, memPkg.Name, n.PkgName, mfile))
+		}
+	}
+	return tset, itset
 }
 
 func newTestStore(rootDir string, stdin io.Reader, stdout, stderr io.Writer) gno.Store {
@@ -171,11 +237,21 @@ func newTestStore(rootDir string, stdin io.Reader, stdout, stderr io.Writer) gno
 	}
 
 	store.SetPackageGetter(getPackage)
-	/*
-			store.SetStrictGo2GnoMapping(false)
-		    // native mappings
-		    stdlibs.InjectNativeMappings(store)
-	*/
+	store.SetStrictGo2GnoMapping(false)
+	store.SetPackageInjector(testPackageInjector)
+	// native mappings
+	stdlibs.InjectNativeMappings(store)
 
 	return store
+}
+
+func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
+	stdlibs.InjectPackage(store, pn)
+	switch pn.PkgPath {
+	case "strconv":
+		// NOTE: Itoa and Atoi are already injected
+		// from stdlibs.InjectNatives.
+		pn.DefineGoNativeType(reflect.TypeOf(strconv.NumError{}))
+		pn.DefineGoNativeValue("ParseInt", strconv.ParseInt)
+	}
 }
