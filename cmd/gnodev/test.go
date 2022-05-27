@@ -66,9 +66,11 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 			if d.IsDir() {
 				return nil
 			}
-			if strings.HasSuffix(path, "_test.gno") {
-				panic("*_test.gno files are not yet supported by gnodev")
-			}
+			/*
+				if strings.HasSuffix(path, "_test.gno") {
+					panic("*_test.gno files are not yet supported by gnodev")
+				}
+			*/
 			if strings.HasSuffix(path, "_filetest.gno") {
 				testFiles = append(testFiles, path)
 			}
@@ -92,6 +94,28 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 			}
 		} else {
 			cmd.ErrPrintfln("?       %s \t[no test files]", pkgPath)
+		}
+
+		// testing with *_test.gno
+		{
+			fs, err := filepath.Glob(filepath.Join(pkgPath, "*_test.gno"))
+			if err != nil {
+				log.Fatal(err)
+			}
+			if len(fs) <= 0 {
+				cmd.ErrPrintfln("?       %s \t[no test files]", pkgPath)
+				continue
+			}
+
+			testStore := newTestStore(opts.RootDir, os.Stdin, os.Stdout, os.Stderr)
+			startedAt := time.Now()
+			ok := runTest(testStore, pkgPath, opts.Verbose)
+			duration := time.Since(startedAt)
+			if !ok {
+				cmd.ErrPrintfln("FAIL    %s \t%v", pkgPath, duration)
+			} else {
+				cmd.Printfln("ok      %s \t%v", pkgPath, duration)
+			}
 		}
 	}
 	if errCount > 0 {

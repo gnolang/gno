@@ -88,7 +88,7 @@ func precompileFile(srcPath string, opts precompileOptions) error {
 	}
 
 	// preprocess.
-	transformed, err := gno.Precompile(string(source), tags)
+	transformed, err := gno.Precompile(string(source), tags, srcPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
