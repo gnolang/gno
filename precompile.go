@@ -79,7 +79,7 @@ func PrecompileAndCheckMempkg(mempkg *std.MemPackage) error {
 		if !strings.HasSuffix(mfile.Name, ".gno") {
 			continue // skip spurious file.
 		}
-		translated, err := Precompile(string(mfile.Body), "gno,tmp")
+		translated, err := Precompile(string(mfile.Body), "gno,tmp", mfile.Name)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
@@ -103,7 +103,7 @@ func PrecompileAndCheckMempkg(mempkg *std.MemPackage) error {
 	return nil
 }
 
-func Precompile(source string, tags string) (string, error) {
+func Precompile(source string, tags string, filename string) (string, error) {
 	var out bytes.Buffer
 
 	fset := token.NewFileSet()
@@ -112,7 +112,10 @@ func Precompile(source string, tags string) (string, error) {
 		return "", fmt.Errorf("parse: %w", err)
 	}
 
-	transformed, err := precompileAST(fset, f)
+	isTestFile := strings.HasSuffix(filename, "_test.gno") || strings.HasSuffix(filename, "_filetest.gno")
+	shouldCheckWhitelist := !isTestFile
+
+	transformed, err := precompileAST(fset, f, shouldCheckWhitelist)
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
@@ -191,46 +194,48 @@ func PrecompileBuildPackage(fileOrPkg string, goBinary string) error {
 	return nil
 }
 
-func precompileAST(fset *token.FileSet, f *ast.File) (ast.Node, error) {
+func precompileAST(fset *token.FileSet, f *ast.File, checkWhitelist bool) (ast.Node, error) {
 	var errs error
 
 	imports := astutil.Imports(fset, f)
 
 	// import whitelist
-	for _, paragraph := range imports {
-		for _, importSpec := range paragraph {
-			importPath := strings.TrimPrefix(strings.TrimSuffix(importSpec.Path.Value, `"`), `"`)
+	if checkWhitelist {
+		for _, paragraph := range imports {
+			for _, importSpec := range paragraph {
+				importPath := strings.TrimPrefix(strings.TrimSuffix(importSpec.Path.Value, `"`), `"`)
 
-			if strings.HasPrefix(importPath, gnoRealmPkgsPrefixBefore) {
-				continue
-			}
-
-			if strings.HasPrefix(importPath, gnoPackagePrefixBefore) {
-				continue
-			}
-
-			valid := false
-			for _, whitelisted := range stdlibWhitelist {
-				if importPath == whitelisted {
-					valid = true
-					break
+				if strings.HasPrefix(importPath, gnoRealmPkgsPrefixBefore) {
+					continue
 				}
-			}
-			if valid {
-				continue
-			}
 
-			for _, whitelisted := range importPrefixWhitelist {
-				if strings.HasPrefix(importPath, whitelisted) {
-					valid = true
-					break
+				if strings.HasPrefix(importPath, gnoPackagePrefixBefore) {
+					continue
 				}
-			}
-			if valid {
-				continue
-			}
 
-			errs = multierr.Append(errs, fmt.Errorf("import %q is not in the whitelist", importPath))
+				valid := false
+				for _, whitelisted := range stdlibWhitelist {
+					if importPath == whitelisted {
+						valid = true
+						break
+					}
+				}
+				if valid {
+					continue
+				}
+
+				for _, whitelisted := range importPrefixWhitelist {
+					if strings.HasPrefix(importPath, whitelisted) {
+						valid = true
+						break
+					}
+				}
+				if valid {
+					continue
+				}
+
+				errs = multierr.Append(errs, fmt.Errorf("import %q is not in the whitelist", importPath))
+			}
 		}
 	}
 
