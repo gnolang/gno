@@ -98,7 +98,7 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 		// testing with *_test.gno
 		{
-			fs, err := filepath.Glob(pkgPath + "/*_test.gno")
+			fs, err := filepath.Glob(filepath.Join(pkgPath, "*_test.gno"))
 			if err != nil {
 				log.Fatal(err)
 			}
