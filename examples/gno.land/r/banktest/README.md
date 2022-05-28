@@ -124,4 +124,4 @@ func Render(path string) string {
 }
 ```
 
-You can call this contract yourself, by vistiing [/r/banktest](/r/banktest) and the [quickstart guide](/r/boards:gnolang/4).
+You can call this contract yourself, by vistiing [/r/banktest](/r/banktest) and the [quickstart guide](/r/boards:gnolang/191).
