@@ -83,10 +83,8 @@ Interactive documentation: https://gno.land/r/boards?help&__func=CreatePost
 
 ### Create a comment to a post.
 
-NOTE: If a post was created successfully, your SEQUENCE_NUMBER would have increased again.
-
 ```bash
-./build/gnokey maketx call KEYNAME --pkgpath "gno.land/r/boards" --func "CreateReply" --args "BOARD_ID" --args "1" --args "1" --args "Nice to meet you too!" --gas-fee 1gnot --gas-wanted 2000000 --broadcast true --chainid testchain --remote gno.land:36657
+./build/gnokey maketx call KEYNAME --pkgpath "gno.land/r/boards" --func "CreateReply" --args "BOARD_ID" --args "1" --args "1" --args "Nice to meet you too." --gas-fee 1gnot --gas-wanted 2000000 --broadcast true --chainid testchain --remote gno.land:36657
 ```
 
 Interactive documentation: https://gno.land/r/boards?help&__func=CreateReply
