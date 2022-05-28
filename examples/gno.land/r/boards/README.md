@@ -59,10 +59,10 @@ Go to https://gno.land/faucet
 NOTE: `BOARDNAME` will be the slug of the board, and should be changed.
 
 ```bash
-./build/gnokey maketx call KEYNAME --pkgpath "gno.land/r/boards" --func CreateBoard --args "BOARDNAME" --gas-fee 1gnot --gas-wanted 2000000 > createboard.unsigned.txt
-./build/gnokey sign KEYNAME --txpath createboard.unsigned.txt --chainid "testchain" --number ACCOUNT_NUMBER --sequence SEQUENCE_NUMBER > createboard.signed.txt
-./build/gnokey broadcast createboard.signed.txt --remote gno.land:36657
+./build/gnokey maketx call KEYNAME --pkgpath "gno.land/r/boards" --func "CreateBoard" --args "BOARDNAME" --gas-fee "1gnot" --gas-wanted "2000000" --broadcast true --chainid testchain --remote gno.land:36657
 ```
+
+Interactive documentation: https://gno.land/r/boards?help&__func=CreateBoard
 
 Next, query for the permanent board ID by querying (you need this to create a new post):
 
@@ -76,20 +76,18 @@ GetBoardIDFromName(\"BOARDNAME\")" --remote gno.land:36657
 NOTE: If a board was created successfully, your SEQUENCE_NUMBER would have increased.
 
 ```bash
-./build/gnokey maketx call KEYNAME --pkgpath "gno.land/r/boards" --func "CreatePost" --args BOARD_ID --args "Hello gno.land" --args\#file "./examples/gno.land/r/boards/example_post.md" --gas-fee 1gnot --gas-wanted 2000000 > createpost.unsigned.txt
-./build/gnokey sign KEYNAME --txpath createpost.unsigned.txt --chainid "testchain" --number ACCOUNT_NUMBER --sequence SEQUENCE_NUMBER > createpost.signed.txt
-./build/gnokey broadcast createpost.signed.txt --remote gno.land:36657
+./build/gnokey maketx call KEYNAME --pkgpath "gno.land/r/boards" --func "CreatePost" --args BOARD_ID --args "Hello gno.land" --args\#file "./examples/gno.land/r/boards/example_post.md" --gas-fee 1gnot --gas-wanted 2000000 --broadcast true --chainid testchain --remote gno.land:36657
 ```
+
+Interactive documentation: https://gno.land/r/boards?help&__func=CreatePost
 
 ### Create a comment to a post.
 
-NOTE: If a post was created successfully, your SEQUENCE_NUMBER would have increased again.
-
 ```bash
-./build/gnokey maketx call KEYNAME --pkgpath "gno.land/r/boards" --func "CreateReply" --args "BOARD_ID" --args "1" --args "1" --args "Nice to meet you too!" --gas-fee 1gnot --gas-wanted 2000000 > createcomment.unsigned.txt
-./build/gnokey sign KEYNAME --txpath createcomment.unsigned.txt --chainid "testchain" --number ACCOUNT_NUMBER --sequence SEQUENCE_NUMBER > createcomment.signed.txt
-./build/gnokey broadcast createcomment.signed.txt --remote gno.land:36657
+./build/gnokey maketx call KEYNAME --pkgpath "gno.land/r/boards" --func "CreateReply" --args "BOARD_ID" --args "1" --args "1" --args "Nice to meet you too." --gas-fee 1gnot --gas-wanted 2000000 --broadcast true --chainid testchain --remote gno.land:36657
 ```
+
+Interactive documentation: https://gno.land/r/boards?help&__func=CreateReply
 
 ```bash
 ./build/gnokey query "vm/qrender" --data "gno.land/r/boards
@@ -128,16 +126,11 @@ NOTE: This can be reset with `make reset`
 ### Publish the "gno.land/p/avl" package.
 
 ```bash
-./build/gnokey maketx addpkg test1 --pkgpath "gno.land/p/avl" --pkgdir "examples/gno.land/p/avl" --deposit 100gnot --gas-fee 1gnot --gas-wanted 2000000 > addpkg.avl.unsigned.txt
-./build/gnokey query "auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
-./build/gnokey sign test1 --txpath addpkg.avl.unsigned.txt --chainid "testchain" --number 0 --sequence 0 > addpkg.avl.signed.txt
-./build/gnokey broadcast addpkg.avl.signed.txt --remote gno.land:36657
+./build/gnokey maketx addpkg test1 --pkgpath "gno.land/p/avl" --pkgdir "examples/gno.land/p/avl" --deposit 100gnot --gas-fee 1gnot --gas-wanted 2000000 --broadcast true --chainid testchain --remote localhost:26657
 ```
 
 ### Publish the "gno.land/r/boards" realm package.
 
 ```bash
-./build/gnokey maketx addpkg test1 --pkgpath "gno.land/r/boards" --pkgdir "examples/gno.land/r/boards" --deposit 100gnot --gas-fee 1gnot --gas-wanted 300000000 > addpkg.boards.unsigned.txt
-./build/gnokey sign test1 --txpath addpkg.boards.unsigned.txt --chainid "testchain" --number 0 --sequence 1 > addpkg.boards.signed.txt
-./build/gnokey broadcast addpkg.boards.signed.txt --remote gno.land:36657
+./build/gnokey maketx addpkg test1 --pkgpath "gno.land/r/boards" --pkgdir "examples/gno.land/r/boards" --deposit 100gnot --gas-fee 1gnot --gas-wanted 300000000 --broadcast true --chainid testchain --remote localhost:26657
 ```
