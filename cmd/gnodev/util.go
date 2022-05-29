@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"io/fs"
 	"io/ioutil"
+	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -114,4 +116,14 @@ func captureStdoutAndStderr() (func() string, error) {
 
 func fmtDuration(d time.Duration) string {
 	return fmt.Sprintf("%.2fs", d.Seconds())
+}
+
+func guessRootDir() string {
+	cmd := exec.Command("go", "list", "-m", "-mod=mod", "-f", "{{.Dir}}", "github.com/gnolang/gno")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Fatal("can't guess --root-dir, please fill it manually.")
+	}
+	rootDir := strings.TrimSpace(string(out))
+	return rootDir
 }

@@ -28,6 +28,7 @@ var mainApps AppList = []AppItem{
 	{buildApp, "build", "build a gno package", DefaultBuildOptions},
 	{precompileApp, "precompile", "precompile .gno to .go", DefaultPrecompileOptions},
 	{testApp, "test", "test a gno package", DefaultTestOptions},
+	{replApp, "repl", "start a GnoVM REPL", DefaultReplOptions},
 
 	// fmt -- gofmt
 	// clean
