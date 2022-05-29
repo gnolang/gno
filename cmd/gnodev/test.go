@@ -28,6 +28,7 @@ type testOptions struct {
 	// Timeout time.Duration `flag:"timeout" help:"max execution time"`
 	// VM Options
 	// A flag about if we should download the production realms
+	// UseNativeLibs bool // experimental, but could be useful for advanced developer needs
 }
 
 var DefaultTestOptions = testOptions{
@@ -79,15 +80,16 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 		startedAt := time.Now()
 		err = gnoTestPkg(cmd, pkgPath, unittestFiles, filetestFiles, opts)
 		duration := time.Since(startedAt)
+		dstr := fmtDuration(duration)
 
 		if err != nil {
 			err = fmt.Errorf("%s: test pkg: %w", pkgPath, err)
 			cmd.ErrPrintfln("FAIL")
-			cmd.ErrPrintfln("FAIL    %s \t%v", pkgPath, duration)
+			cmd.ErrPrintfln("FAIL    %s \t%s", pkgPath, dstr)
 			cmd.ErrPrintfln("FAIL")
 			errCount++
 		} else {
-			cmd.ErrPrintfln("ok      %s \t%v", pkgPath, duration)
+			cmd.ErrPrintfln("ok      %s \t%s", pkgPath, dstr)
 		}
 	}
 	if errCount > 0 {
@@ -162,9 +164,11 @@ func gnoTestPkg(cmd *command.Command, pkgPath string, unittestFiles, filetestFil
 			testFilePath := filepath.Join(pkgPath, testFileName)
 			err := tests.RunFileTest(rootDir, testFilePath, false, nil)
 			duration := time.Since(startedAt)
+			dstr := fmtDuration(duration)
+
 			if err != nil {
 				errs = multierr.Append(errs, err)
-				cmd.ErrPrintfln("--- FAIL: %s (%v)", testName, duration)
+				cmd.ErrPrintfln("--- FAIL: %s (%s)", testName, dstr)
 				if verbose {
 					stdouterr := closer()
 					fmt.Fprintln(os.Stderr, stdouterr)
@@ -173,7 +177,7 @@ func gnoTestPkg(cmd *command.Command, pkgPath string, unittestFiles, filetestFil
 			}
 
 			if verbose {
-				cmd.ErrPrintfln("--- PASS: %s (%v)", testName, duration)
+				cmd.ErrPrintfln("--- PASS: %s (%s)", testName, dstr)
 			}
 		}
 	}
@@ -209,6 +213,7 @@ func runTestFiles(cmd *command.Command, testStore gno.Store, m *gno.Machine, fil
 		startedAt := time.Now()
 		eval := m.Eval(gno.Call("runtest", testFuncStr))
 		duration := time.Since(startedAt)
+		dstr := fmtDuration(duration)
 
 		ret := eval[0].GetString()
 		if ret == "" {
@@ -223,7 +228,7 @@ func runTestFiles(cmd *command.Command, testStore gno.Store, m *gno.Machine, fil
 		err = json.Unmarshal([]byte(ret), &rep)
 		if err != nil {
 			errs = multierr.Append(errs, err)
-			cmd.ErrPrintfln("--- FAIL: %s (%v)", test.Name, duration)
+			cmd.ErrPrintfln("--- FAIL: %s (%s)", test.Name, dstr)
 			continue
 		}
 
@@ -233,10 +238,10 @@ func runTestFiles(cmd *command.Command, testStore gno.Store, m *gno.Machine, fil
 				cmd.ErrPrintfln("--- SKIP: %s", test.Name)
 			}
 		case rep.Failed:
-			cmd.ErrPrintfln("--- FAIL: %s (%v)", test.Name, duration)
+			cmd.ErrPrintfln("--- FAIL: %s (%s)", test.Name, dstr)
 		default:
 			if verbose {
-				cmd.ErrPrintfln("--- PASS: %s (%v)", test.Name, duration)
+				cmd.ErrPrintfln("--- PASS: %s (%s)", test.Name, dstr)
 			}
 		}
 

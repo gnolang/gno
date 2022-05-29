@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 func isGnoFile(f fs.DirEntry) bool {
@@ -109,4 +110,8 @@ func captureStdoutAndStderr() (func() string, error) {
 		return string(out)
 	}
 	return closer, nil
+}
+
+func fmtDuration(d time.Duration) string {
+	return fmt.Sprintf("%.2fs", d.Seconds())
 }
