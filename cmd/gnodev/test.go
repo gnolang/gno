@@ -1,19 +1,22 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
-	"io/fs"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
+	"text/template"
 	"time"
 
+	"github.com/gnolang/gno"
 	"github.com/gnolang/gno/pkgs/command"
 	"github.com/gnolang/gno/pkgs/errors"
+	"github.com/gnolang/gno/pkgs/std"
 	"github.com/gnolang/gno/tests"
 	"go.uber.org/multierr"
 )
@@ -57,65 +60,34 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 	errCount := 0
 	for _, pkgPath := range pkgPaths {
-		testFiles := []string{}
-		fileSystem := os.DirFS(pkgPath)
-		fs.WalkDir(fileSystem, ".", func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				log.Fatal(err)
-			}
-			if d.IsDir() {
-				return nil
-			}
-			/*
-				if strings.HasSuffix(path, "_test.gno") {
-					panic("*_test.gno files are not yet supported by gnodev")
-				}
-			*/
-			if strings.HasSuffix(path, "_filetest.gno") {
-				testFiles = append(testFiles, path)
-			}
-			return nil
-		})
-		sort.Strings(testFiles)
-
-		if len(testFiles) > 0 {
-			startedAt := time.Now()
-			err = gnoTestPkg(pkgPath, testFiles, opts)
-			duration := time.Since(startedAt)
-
-			if err != nil {
-				err = fmt.Errorf("%s: test pkg: %w", pkgPath, err)
-				cmd.ErrPrintfln("FAIL")
-				cmd.ErrPrintfln("FAIL    %s \t%v", pkgPath, duration)
-				cmd.ErrPrintfln("FAIL")
-				errCount++
-			} else {
-				cmd.ErrPrintfln("ok      %s \t%v", pkgPath, duration)
-			}
-		} else {
+		unittestFiles, err := filepath.Glob(filepath.Join(pkgPath, "*_test.gno"))
+		if err != nil {
+			log.Fatal(err)
+		}
+		filetestFiles, err := filepath.Glob(filepath.Join(pkgPath, "*_filetest.gno"))
+		if err != nil {
+			log.Fatal(err)
+		}
+		if len(unittestFiles) == 0 && len(filetestFiles) == 0 {
 			cmd.ErrPrintfln("?       %s \t[no test files]", pkgPath)
+			continue
 		}
 
-		// testing with *_test.gno
-		{
-			fs, err := filepath.Glob(filepath.Join(pkgPath, "*_test.gno"))
-			if err != nil {
-				log.Fatal(err)
-			}
-			if len(fs) <= 0 {
-				cmd.ErrPrintfln("?       %s \t[no test files]", pkgPath)
-				continue
-			}
+		sort.Strings(unittestFiles)
+		sort.Strings(filetestFiles)
 
-			testStore := newTestStore(opts.RootDir, os.Stdin, os.Stdout, os.Stderr)
-			startedAt := time.Now()
-			ok := runTest(testStore, pkgPath, opts.Verbose)
-			duration := time.Since(startedAt)
-			if !ok {
-				cmd.ErrPrintfln("FAIL    %s \t%v", pkgPath, duration)
-			} else {
-				cmd.Printfln("ok      %s \t%v", pkgPath, duration)
-			}
+		startedAt := time.Now()
+		err = gnoTestPkg(cmd, pkgPath, unittestFiles, filetestFiles, opts)
+		duration := time.Since(startedAt)
+
+		if err != nil {
+			err = fmt.Errorf("%s: test pkg: %w", pkgPath, err)
+			cmd.ErrPrintfln("FAIL")
+			cmd.ErrPrintfln("FAIL    %s \t%v", pkgPath, duration)
+			cmd.ErrPrintfln("FAIL")
+			errCount++
+		} else {
+			cmd.ErrPrintfln("ok      %s \t%v", pkgPath, duration)
 		}
 	}
 	if errCount > 0 {
@@ -126,68 +98,266 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 	return nil
 }
 
-func gnoTestPkg(pkgPath string, testFiles []string, opts testOptions) error {
+func gnoTestPkg(cmd *command.Command, pkgPath string, unittestFiles, filetestFiles []string, opts testOptions) error {
 	verbose := opts.Verbose
 	rootDir := opts.RootDir
-	// FIXME support test-based, examples, huband full packages
-	// FIXME update Makefile and CI
-
 	var errs error
-	for _, testFile := range testFiles {
-		testName := "file/" + testFile
-		startedAt := time.Now()
-		if verbose {
-			fmt.Fprintf(os.Stderr, "=== RUN   %s\n", testName)
-		}
 
-		var closer func() string
-		if !verbose {
-			var err error
-			closer, err = captureStdoutAndStderr()
+	testStore := tests.TestStore(rootDir, "", os.Stdin, os.Stdout, os.Stderr, false)
+	if verbose {
+		testStore.SetLogStoreOps(true)
+	}
+
+	// testing with *_test.gno
+	if len(unittestFiles) > 0 {
+		stdout := new(bytes.Buffer)
+		memPkg := gno.ReadMemPackage(pkgPath, pkgPath)
+
+		//tfiles, ifiles := gno.ParseMemPackageTests(memPkg)
+		tfiles, ifiles := parseMemPackageTests(memPkg)
+
+		// run test files in pkg
+		{
+			m := tests.TestMachine(testStore, stdout, "main")
+			m.RunMemPackage(memPkg, true)
+			err := runTestFiles(cmd, testStore, m, tfiles, memPkg.Name, verbose)
 			if err != nil {
-				panic(err)
+				errs = multierr.Append(errs, err)
 			}
 		}
 
-		testFilePath := filepath.Join(pkgPath, testFile)
-		err := tests.RunFileTest(rootDir, testFilePath, false, nil)
-		duration := time.Since(startedAt)
-		if err != nil {
-			errs = multierr.Append(errs, err)
-			fmt.Fprintf(os.Stderr, "--- FAIL: %s (%v)\n", testName, duration)
+		// run test files in xxx_test pkg
+		{
+			testPkgName := getPkgNameFromFileset(ifiles)
+			if testPkgName != "" {
+				m := tests.TestMachine(testStore, stdout, testPkgName)
+				m.RunMemPackage(memPkg, true)
+				err := runTestFiles(cmd, testStore, m, ifiles, testPkgName, verbose)
+				if err != nil {
+					errs = multierr.Append(errs, err)
+				}
+			}
+		}
+	}
+
+	// testing with *_filetest.gno
+	{
+		for _, testFile := range filetestFiles {
+			testFileName := filepath.Base(testFile)
+			testName := "file/" + testFileName
+			startedAt := time.Now()
+			if verbose {
+				cmd.ErrPrintfln("=== RUN   %s", testName)
+			}
+
+			var closer func() string
 			if !verbose {
-				stdouterr := closer()
-				fmt.Fprintln(os.Stderr, stdouterr)
+				var err error
+				closer, err = captureStdoutAndStderr()
+				if err != nil {
+					panic(err)
+				}
 			}
-			continue
-		}
 
-		if verbose {
-			fmt.Fprintf(os.Stderr, "--- PASS: %s (%v)\n", testName, duration)
+			testFilePath := filepath.Join(pkgPath, testFileName)
+			err := tests.RunFileTest(rootDir, testFilePath, false, nil)
+			duration := time.Since(startedAt)
+			if err != nil {
+				errs = multierr.Append(errs, err)
+				cmd.ErrPrintfln("--- FAIL: %s (%v)", testName, duration)
+				if verbose {
+					stdouterr := closer()
+					fmt.Fprintln(os.Stderr, stdouterr)
+				}
+				continue
+			}
+
+			if verbose {
+				cmd.ErrPrintfln("--- PASS: %s (%v)", testName, duration)
+			}
 		}
 	}
 
 	return errs
 }
 
-// CaptureStdoutAndStderr temporarily pipes os.Stdout and os.Stderr into a buffer.
-// Imported from https://github.com/moul/u/blob/master/io.go.
-func captureStdoutAndStderr() (func() string, error) {
-	oldErr := os.Stderr
-	oldOut := os.Stdout
-	r, w, err := os.Pipe()
-	if err != nil {
-		return nil, err
-	}
-	os.Stderr = w
-	os.Stdout = w
+func runTestFiles(cmd *command.Command, testStore gno.Store, m *gno.Machine, files *gno.FileSet, pkgName string, verbose bool) error {
+	var errs error
 
-	closer := func() string {
-		w.Close()
-		out, _ := ioutil.ReadAll(r)
-		os.Stderr = oldErr
-		os.Stdout = oldOut
-		return string(out)
+	testFuncs := &testFuncs{
+		PackageName: pkgName,
+		Verbose:     verbose,
 	}
-	return closer, nil
+	loadTestFuncs(pkgName, testFuncs, files)
+
+	testmain, err := formatTestmain(testFuncs)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	m.RunFiles(files.Files...)
+	n := gno.MustParseFile("testmain.go", testmain)
+	m.RunFiles(n)
+
+	for _, test := range testFuncs.Tests {
+		if verbose {
+			cmd.ErrPrintfln("=== RUN   %s", test.Name)
+		}
+
+		testFuncStr := fmt.Sprintf("%q", test.Name)
+
+		startedAt := time.Now()
+		eval := m.Eval(gno.Call("runtest", testFuncStr))
+		duration := time.Since(startedAt)
+
+		ret := eval[0].GetString()
+		if ret == "" {
+			err := errors.New("failed to execute unit test: %q", test.Name)
+			errs = multierr.Append(errs, err)
+			cmd.ErrPrintfln("--- FAIL: %s (%v)", test.Name, duration)
+			continue
+		}
+
+		// TODO: replace with amino or send native type?
+		var rep report
+		err = json.Unmarshal([]byte(ret), &rep)
+		if err != nil {
+			errs = multierr.Append(errs, err)
+			cmd.ErrPrintfln("--- FAIL: %s (%v)", test.Name, duration)
+			continue
+		}
+
+		switch {
+		case rep.Skipped:
+			if verbose {
+				cmd.ErrPrintfln("--- SKIP: %s", test.Name)
+			}
+		case rep.Failed:
+			cmd.ErrPrintfln("--- FAIL: %s (%v)", test.Name, duration)
+		default:
+			if verbose {
+				cmd.ErrPrintfln("--- PASS: %s (%v)", test.Name, duration)
+			}
+		}
+
+		if rep.Output != "" && (verbose || rep.Failed) {
+			cmd.ErrPrintfln("output: %s", rep.Output)
+		}
+	}
+
+	return errs
+}
+
+// mirror of stdlibs/testing.Report
+type report struct {
+	Name    string
+	Verbose bool
+	Failed  bool
+	Skipped bool
+	Output  string
+}
+
+var testmainTmpl = template.Must(template.New("testmain").Parse(`
+package {{ .PackageName }}
+
+import (
+	"testing"
+)
+
+var tests = []testing.InternalTest{
+{{range .Tests}}
+    {"{{.Name}}", {{.Name}}},
+{{end}}
+}
+
+func runtest(name string) (report string) {
+	for _, test := range tests {
+		if test.Name == name {
+			return testing.RunTest({{.Verbose}}, test)
+		}
+	}
+	panic("no such test: " + name)
+	return ""
+}
+`))
+
+type testFuncs struct {
+	Tests       []testFunc
+	PackageName string
+	Verbose     bool
+}
+
+type testFunc struct {
+	Package string
+	Name    string
+}
+
+func getPkgNameFromFileset(files *gno.FileSet) string {
+	if len(files.Files) <= 0 {
+		return ""
+	}
+	return string(files.Files[0].PkgName)
+}
+
+func formatTestmain(t *testFuncs) (string, error) {
+	var buf bytes.Buffer
+	if err := testmainTmpl.Execute(&buf, t); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
+
+func loadTestFuncs(pkgName string, t *testFuncs, tfiles *gno.FileSet) *testFuncs {
+	for _, tf := range tfiles.Files {
+		for _, d := range tf.Decls {
+			if fd, ok := d.(*gno.FuncDecl); ok {
+				fname := string(fd.Name)
+				if strings.HasPrefix(fname, "Test") {
+					tf := testFunc{
+						Package: pkgName,
+						Name:    fname,
+					}
+					t.Tests = append(t.Tests, tf)
+				}
+			}
+		}
+	}
+	return t
+}
+
+// parseMemPackageTests is copied from gno.ParseMemPackageTests
+// for except to _filetest.gno
+func parseMemPackageTests(memPkg *std.MemPackage) (tset, itset *gno.FileSet) {
+	tset = &gno.FileSet{}
+	itset = &gno.FileSet{}
+	for _, mfile := range memPkg.Files {
+		if !strings.HasSuffix(mfile.Name, ".gno") {
+			continue // skip this file.
+		}
+		if strings.HasSuffix(mfile.Name, "_filetest.gno") {
+			continue
+		}
+		n, err := gno.ParseFile(mfile.Name, mfile.Body)
+		if err != nil {
+			panic(errors.Wrap(err, "parsing file "+mfile.Name))
+		}
+		if n == nil {
+			panic("should not happen")
+		}
+		if strings.HasSuffix(mfile.Name, "_test.gno") {
+			// add test file.
+			if memPkg.Name+"_test" == string(n.PkgName) {
+				itset.AddFiles(n)
+			} else {
+				tset.AddFiles(n)
+			}
+		} else if memPkg.Name == string(n.PkgName) {
+			// skip package file.
+		} else {
+			panic(fmt.Sprintf(
+				"expected package name [%s] or [%s_test] but got [%s] file [%s]",
+				memPkg.Name, memPkg.Name, n.PkgName, mfile))
+		}
+	}
+	return tset, itset
 }

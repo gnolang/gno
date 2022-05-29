@@ -80,8 +80,6 @@ func UverseNode() *PackageNode {
 	if uverseNode != nil {
 		return uverseNode
 	}
-	fmt.Print("baking uverse...")
-	defer fmt.Println(" done")
 
 	// NOTE: uverse node is hidden, thus the leading dot in pkgPath=".uverse".
 	uverseNode = NewPackageNode("uverse", uversePkgPath, nil)
