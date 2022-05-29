@@ -3,9 +3,11 @@ package main
 import (
 	"fmt"
 	"io/fs"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 func isGnoFile(f fs.DirEntry) bool {
@@ -86,4 +88,30 @@ func gnoPackagesFromArgs(args []string) ([]string, error) {
 		}
 	}
 	return paths, nil
+}
+
+// CaptureStdoutAndStderr temporarily pipes os.Stdout and os.Stderr into a buffer.
+// Imported from https://github.com/moul/u/blob/master/io.go.
+func captureStdoutAndStderr() (func() string, error) {
+	oldErr := os.Stderr
+	oldOut := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+	os.Stderr = w
+	os.Stdout = w
+
+	closer := func() string {
+		w.Close()
+		out, _ := ioutil.ReadAll(r)
+		os.Stderr = oldErr
+		os.Stdout = oldOut
+		return string(out)
+	}
+	return closer, nil
+}
+
+func fmtDuration(d time.Duration) string {
+	return fmt.Sprintf("%.2fs", d.Seconds())
 }

@@ -6,6 +6,7 @@ import (
 	"gno.land/r/users"
 )
 
+/*
 func TestReadOnlyPublicMethods(t *testing.T) {
 	var admin = users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 	var manfred = users.AddressOrName("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")
@@ -46,3 +47,4 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 		}
 	}
 }
+*/

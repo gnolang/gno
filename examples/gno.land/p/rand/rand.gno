@@ -11,29 +11,29 @@ import (
 	"std"
 )
 
-type instance struct {
+type Instance struct {
 	seed int64
 }
 
-func New() *instance {
-	r := instance{seed: 5381}
+func New() *Instance {
+	r := Instance{seed: 5381}
 	r.addEntropy()
 	return &r
 }
 
 // http://www.cse.yorku.ca/~oz/hash.html
-func (i *instance) djb2String(input string) {
+func (i *Instance) djb2String(input string) {
 	for _, c := range input {
 		i.djb2Int64(int64(c))
 	}
 }
 
-func (i *instance) djb2Int64(input int64) {
+func (i *Instance) djb2Int64(input int64) {
 	i.seed = (i.seed << 5) + i.seed + input
 }
 
 // AddEntropy uses various runtime variables to add entropy to the existing seed.
-func (i *instance) addEntropy() {
+func (i *Instance) addEntropy() {
 	// FIXME: reapply the 5381 initial value?
 
 	// inherit previous entropy
@@ -62,62 +62,62 @@ func (i *instance) addEntropy() {
 	// FIXME: compute other hard-to-guess but deterministic variables, like real gas?
 }
 
-func (i *instance) Float32() float32 {
+func (i *Instance) Float32() float32 {
 	i.addEntropy()
 	return rand.New(rand.NewSource(i.seed)).Float32()
 }
 
-func (i *instance) Float64() float64 {
+func (i *Instance) Float64() float64 {
 	i.addEntropy()
 	return rand.New(rand.NewSource(i.seed)).Float64()
 }
 
-func (i *instance) Int() int {
+func (i *Instance) Int() int {
 	i.addEntropy()
 	return rand.New(rand.NewSource(i.seed)).Int()
 }
 
-func (i *instance) Intn(n int) int {
+func (i *Instance) Intn(n int) int {
 	i.addEntropy()
 	return rand.New(rand.NewSource(i.seed)).Intn(n)
 }
 
-func (i *instance) Int63() int64 {
+func (i *Instance) Int63() int64 {
 	i.addEntropy()
 	return rand.New(rand.NewSource(i.seed)).Int63()
 }
 
-func (i *instance) Int63n(n int64) int64 {
+func (i *Instance) Int63n(n int64) int64 {
 	i.addEntropy()
 	return rand.New(rand.NewSource(i.seed)).Int63n(n)
 }
 
-func (i *instance) Int31() int32 {
+func (i *Instance) Int31() int32 {
 	i.addEntropy()
 	return rand.New(rand.NewSource(i.seed)).Int31()
 }
 
-func (i *instance) Int31n(n int32) int32 {
+func (i *Instance) Int31n(n int32) int32 {
 	i.addEntropy()
 	return rand.New(rand.NewSource(i.seed)).Int31n(n)
 }
 
-func (i *instance) Uint32() uint32 {
+func (i *Instance) Uint32() uint32 {
 	i.addEntropy()
 	return rand.New(rand.NewSource(i.seed)).Uint32()
 }
 
-func (i *instance) Uint64() uint64 {
+func (i *Instance) Uint64() uint64 {
 	i.addEntropy()
 	return rand.New(rand.NewSource(i.seed)).Uint64()
 }
 
-func (i *instance) Read(p []byte) (n int, err error) {
+func (i *Instance) Read(p []byte) (n int, err error) {
 	i.addEntropy()
 	return rand.New(rand.NewSource(i.seed)).Read(p)
 }
 
-func (i *instance) Shuffle(n int, swap func(i, j int)) {
+func (i *Instance) Shuffle(n int, swap func(i, j int)) {
 	i.addEntropy()
 	rand.New(rand.NewSource(i.seed)).Shuffle(n, swap)
 }

@@ -3,14 +3,13 @@ package tests
 import (
 	"bytes"
 	"fmt"
-	"regexp"
-	"strconv"
-
-	//"go/build"
 	"go/parser"
 	"go/token"
+	"io"
 	"io/ioutil"
+	"regexp"
 	rtdb "runtime/debug"
+	"strconv"
 	"strings"
 
 	"github.com/gnolang/gno"
@@ -25,17 +24,16 @@ var syncWanted bool = true
 
 type loggerFunc func(args ...interface{})
 
-func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc) error {
-	pkgPath, resWanted, errWanted, rops, maxAlloc, send := wantedFromComment(path)
-	if pkgPath == "" {
-		pkgPath = "main"
-	}
-	pkgName := defaultPkgName(pkgPath)
-	stdin := new(bytes.Buffer)
-	stdout := new(bytes.Buffer)
-	stderr := new(bytes.Buffer)
-	store := testStore(rootDir, stdin, stdout, stderr, nativeLibs)
-	store.SetLogStoreOps(true)
+func TestMachine(store gno.Store, stdout io.Writer, pkgPath string) *gno.Machine {
+	// default values
+	var send std.Coins
+	var maxAlloc int64
+	return testMachineCustom(store, pkgPath, stdout, maxAlloc, send)
+}
+
+func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAlloc int64, send std.Coins) *gno.Machine {
+	// FIXME: create a better package to manage this, with custom constructors
+
 	pkgAddr := gno.DerivePkgAddr(pkgPath)               // the addr of the pkgPath called.
 	caller := gno.DerivePkgAddr(pkgPath)                // NOTE: for the purpose of testing, the caller is generally the "main" package, same as pkgAddr.
 	pkgCoins := std.MustParseCoins("200gnot").Add(send) // >= send.
@@ -57,6 +55,26 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 		Context:       ctx,
 		MaxAllocBytes: maxAlloc,
 	})
+	return m
+}
+
+func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc) error {
+	pkgPath, resWanted, errWanted, rops, maxAlloc, send := wantedFromComment(path)
+	if pkgPath == "" {
+		pkgPath = "main"
+	}
+	pkgName := DefaultPkgName(pkgPath)
+	stdin := new(bytes.Buffer)
+	stdout := new(bytes.Buffer)
+	stderr := new(bytes.Buffer)
+	filesPath := "./files"
+	if nativeLibs {
+		filesPath = "./files2"
+	}
+	store := TestStore(rootDir, filesPath, stdin, stdout, stderr, nativeLibs)
+	store.SetLogStoreOps(true)
+	m := testMachineCustom(store, pkgPath, stdout, maxAlloc, send)
+
 	// TODO support stdlib groups, but make testing safe;
 	// e.g. not be able to make network connections.
 	// interp.New(interp.Options{GoPath: goPath, Stdout: &stdout, Stderr: &stderr})
@@ -327,7 +345,7 @@ func replaceWantedInPlace(path string, directive string, output string) {
 	osm.MustWriteFile(path, []byte(strings.Join(newlines, "\n")), 0o644)
 }
 
-func defaultPkgName(gopkgPath string) gno.Name {
+func DefaultPkgName(gopkgPath string) gno.Name {
 	parts := strings.Split(gopkgPath, "/")
 	last := parts[len(parts)-1]
 	parts = strings.Split(last, "-")

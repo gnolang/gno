@@ -2,7 +2,9 @@
 package testing
 
 import (
+	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 //----------------------------------------
@@ -40,6 +42,8 @@ func NewT(name string) *T {
 	return &T{name: name}
 }
 
+type testingFunc func(*T)
+
 // Not yet implemented:
 // func (t *T) Cleanup(f func()) {
 // func (t *T) Deadline() (deadline time.Time, ok bool)
@@ -58,8 +62,9 @@ func (t *T) Fail() {
 }
 
 func (t *T) FailNow() {
+	// TODO: maybe use panic to control flow. because can't use goroutine in gno now.
 	t.Fail()
-	t.finished = true // todo(anarcher): (maybe) use panic to control flow. because can't use goroutine in gno now.
+	t.finished = true
 }
 
 func (t *T) Failed() bool {
@@ -93,7 +98,7 @@ func (t *T) Parallel() {
 	// does nothing.
 }
 
-func (t *T) Run(name string, f func(t *T)) bool {
+func (t *T) Run(name string, f testingFunc) bool {
 	panic("not yet implemented")
 }
 
@@ -130,20 +135,21 @@ func (t *T) log(s string) {
 	t.output = append(t.output, s...)
 }
 
-func (t *T) report() {
-	format := "--- %s: %s \n"
-	if t.Failed() {
-		fmt.Printf(format, "FAIL", t.name)
-	} else if t.Skipped() {
-		fmt.Printf(format, "SKIP", t.name)
-		return
-	} else if t.verbose {
-		fmt.Printf(format, "PASS", t.name)
-	}
+type Report struct {
+	Name    string
+	Verbose bool
+	Failed  bool
+	Skipped bool
+	Output  string
+}
 
-	// log
-	if t.Failed() || t.verbose {
-		fmt.Println(string(t.output))
+func (t *T) report() Report {
+	return Report{
+		Name:    t.name,
+		Verbose: t.verbose,
+		Failed:  t.Failed(),
+		Skipped: t.Skipped(),
+		Output:  strings.TrimSpace(string(t.output)),
 	}
 }
 
@@ -193,32 +199,16 @@ func (pb *PB) Next() bool { panic("not yet implemented") }
 
 type InternalTest struct {
 	Name string
-	F    func(*T)
+	F    testingFunc
 }
 
-func RunTests(verbose bool, tests []InternalTest) (ok bool) {
-	ok = true
-	for _, test := range tests {
-		t := &T{name: test.Name, verbose: verbose}
-		tRunner(t, test.F)
-		if t.Failed() {
-			ok = false
-		}
-	}
+func RunTest(verbose bool, test InternalTest) (ret string) {
+	t := &T{name: test.Name, verbose: verbose}
 
-	if ok {
-		fmt.Println("PASS")
-	} else {
-		fmt.Println("FAIL")
-	}
-	return
-}
-
-func tRunner(t *T, fn func(t *T)) {
-	defer func() {
-		t.report()
-	}()
-
-	fn(t)
+	test.F(t)
 	t.finished = true
+
+	report := t.report()
+	out, _ := json.Marshal(report)
+	return string(out)
 }

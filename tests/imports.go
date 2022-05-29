@@ -51,30 +51,30 @@ import (
 )
 
 // NOTE: this isn't safe.
-func testStore(rootDir string, stdin io.Reader, stdout, stderr io.Writer, nativeLibs bool) (store gno.Store) {
-	filesPath := "./files"
-	if nativeLibs {
-		filesPath = "./files2"
-	}
+func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Writer, nativeLibs bool) (store gno.Store) {
 	getPackage := func(pkgPath string) (pn *gno.PackageNode, pv *gno.PackageValue) {
 		if pkgPath == "" {
 			panic(fmt.Sprintf("invalid zero package path in testStore().pkgGetter"))
 		}
-		// if _test package...
-		const testPath = "github.com/gnolang/gno/_test/"
-		if strings.HasPrefix(pkgPath, testPath) {
-			baseDir := filepath.Join(filesPath, "extern", pkgPath[len(testPath):])
-			memPkg := gno.ReadMemPackage(baseDir, pkgPath)
-			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-				PkgPath: "test",
-				Output:  stdout,
-				Store:   store,
-			})
-			// pkg := gno.NewPackageNode(gno.Name(memPkg.Name), memPkg.Path, nil)
-			// pv := pkg.NewPackage()
-			// m2.SetActivePackage(pv)
-			return m2.RunMemPackage(memPkg, false)
+
+		if filesPath != "" {
+			// if _test package...
+			const testPath = "github.com/gnolang/gno/_test/"
+			if strings.HasPrefix(pkgPath, testPath) {
+				baseDir := filepath.Join(filesPath, "extern", pkgPath[len(testPath):])
+				memPkg := gno.ReadMemPackage(baseDir, pkgPath)
+				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+					PkgPath: "test",
+					Output:  stdout,
+					Store:   store,
+				})
+				// pkg := gno.NewPackageNode(gno.Name(memPkg.Name), memPkg.Path, nil)
+				// pv := pkg.NewPackage()
+				// m2.SetActivePackage(pv)
+				return m2.RunMemPackage(memPkg, false)
+			}
 		}
+
 		// TODO: if isRealm, can we panic here?
 		// otherwise, built-in package value.
 		switch pkgPath {
@@ -196,6 +196,7 @@ func testStore(rootDir string, stdin io.Reader, stdout, stderr io.Writer, native
 				pkg.DefineGoNativeValue("NewReader", strings.NewReader)
 				pkg.DefineGoNativeValue("Index", strings.Index)
 				pkg.DefineGoNativeValue("IndexRune", strings.IndexRune)
+				pkg.DefineGoNativeValue("Join", strings.Join)
 				pkg.DefineGoNativeType(reflect.TypeOf(strings.Builder{}))
 				return pkg, pkg.NewPackage()
 			}
@@ -275,7 +276,7 @@ func testStore(rootDir string, stdin io.Reader, stdout, stderr io.Writer, native
 			if nativeLibs {
 				pkg := gno.NewPackageNode("sort", pkgPath, nil)
 				pkg.DefineGoNativeValue("Strings", sort.Strings)
-				// pkg.DefineGoNativeValue("Sort", sort.Sort) not supported
+				// pkg.DefineGoNativeValue("Sort", sort.Sort)
 				return pkg, pkg.NewPackage()
 			}
 		case "flag":
@@ -638,4 +639,12 @@ func typedString(s string) gno.TypedValue {
 	tv := gno.TypedValue{T: gno.StringType}
 	tv.V = gno.StringValue(s)
 	return tv
+}
+
+type TestReport struct {
+	Name    string
+	Verbose bool
+	Failed  bool
+	Skipped bool
+	Output  string
 }
