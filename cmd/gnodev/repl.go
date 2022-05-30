@@ -2,7 +2,10 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
+
+	"golang.org/x/term"
 
 	"github.com/gnolang/gno"
 	"github.com/gnolang/gno/pkgs/command"
@@ -47,23 +50,48 @@ func runRepl(rootDir string, verbose bool) error {
 	stderr := os.Stderr
 	useNativeLibs := false
 
+	// init store and machine
 	testStore := tests.TestStore(rootDir, "", stdin, stdout, stderr, useNativeLibs)
 	if verbose {
 		testStore.SetLogStoreOps(true)
 	}
+	m := gno.NewMachineWithOptions(gno.MachineOptions{
+		PkgPath: "test",
+		Store:   testStore,
+	})
 
-	m := tests.TestMachine(testStore, stdout, "main")
+	// init termui
+	rw := struct {
+		io.Reader
+		io.Writer
+	}{os.Stdin, os.Stderr}
+	t := term.NewTerminal(rw, "")
 
-	input := `package main
-func main() {
-	println("hello")
-}
-`
-	n := gno.MustParseFile("main.go", input)
-	m.RunFiles(n)
-	m.RunMain()
+	// main loop
+	for i := 1; ; i++ {
+		// parse line and execute
+		t.SetPrompt(fmt.Sprintf("gno:%d> ", i))
+		oldState, err := term.MakeRaw(0)
+		input, err := t.ReadLine()
+		if err != nil {
+			term.Restore(0, oldState)
+			if err == io.EOF {
+				return nil
+			}
+			return fmt.Errorf("term error: %w", err)
+		}
+		term.Restore(0, oldState)
 
-	fmt.Println(m)
+		funcName := fmt.Sprintf("repl_%d", i)
+		src := "package test\nfunc " + funcName + "() {\n" + input + "\n}"
+		// FIXME: support ";" as line separator?
+		// FIXME: gofmt as linter + formatter
+		// FIXME: support multiline when unclosed parenthesis, etc
+
+		n := gno.MustParseFile(funcName+".gno", src)
+		m.RunFiles(n)
+		m.RunStatement(gno.S(gno.Call(gno.X(funcName))))
+	}
 
 	return nil
 }
