@@ -58,6 +58,9 @@ func (addr Address) MarshalAmino() (string, error) {
 }
 
 func (addr *Address) UnmarshalAmino(b32str string) (err error) {
+	if b32str == "" {
+		return nil // leave addr as zero.
+	}
 	addr2, err := AddressFromBech32(b32str)
 	if err != nil {
 		return err

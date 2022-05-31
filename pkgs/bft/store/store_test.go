@@ -293,7 +293,7 @@ func TestBlockStoreSaveLoadBlock(t *testing.T) {
 		if subStr := tuple.wantPanic; subStr != "" {
 			if panicErr == nil {
 				t.Errorf("#%d: want a non-nil panic", i)
-			} else if got := fmt.Sprintf("%#v", panicErr); !strings.Contains(got, subStr) {
+			} else if got := fmt.Sprintf("%#v\n%v", panicErr, panicErr); !strings.Contains(got, subStr) {
 				t.Errorf("#%d:\n\tgotErr: %q\nwant substring: %q", i, got, subStr)
 			}
 			continue

@@ -683,11 +683,23 @@ func (cdc *Codec) unmarshalPBBindings(bz []byte, pbm PBMessager) error {
 	pbo := pbm.EmptyPBMessage(cdc)
 	err := proto.Unmarshal(bz, pbo)
 	if err != nil {
-		return err
+		rt := reflect.TypeOf(pbm)
+		info, err2 := cdc.getTypeInfoWLock(rt)
+		if err2 != nil {
+			return err2
+		}
+		return errors.New("unmarshal to %v failed: %v",
+			info.Type, err)
 	}
 	err = pbm.FromPBMessage(cdc, pbo)
 	if err != nil {
-		return err
+		rt := reflect.TypeOf(pbm)
+		info, err2 := cdc.getTypeInfoWLock(rt)
+		if err2 != nil {
+			return err2
+		}
+		return errors.New("unmarshal to %v failed: %v",
+			info.Type, err)
 	}
 	return nil
 }
