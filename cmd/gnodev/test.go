@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -45,13 +44,7 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 	// guess opts.RootDir
 	if opts.RootDir == "" {
-		cmd := exec.Command("go", "list", "-m", "-mod=mod", "-f", "{{.Dir}}", "github.com/gnolang/gno")
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			log.Fatal("can't guess --root-dir, please fill it manually.")
-		}
-		rootDir := strings.TrimSpace(string(out))
-		opts.RootDir = rootDir
+		opts.RootDir = guessRootDir()
 	}
 
 	pkgPaths, err := gnoPackagesFromArgs(args)
