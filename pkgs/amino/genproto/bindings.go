@@ -700,6 +700,10 @@ func pb2goStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 				_return(),
 			),
 		)
+		// wrap b with if stmt.
+		b = []ast.Stmt{_if(_b(pbo, "!=", "nil"),
+			b...,
+		)}
 
 	case reflect.Int:
 		b = append(b,

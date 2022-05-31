@@ -17,6 +17,7 @@ import (
 	"github.com/gnolang/gno/pkgs/crypto/hd"
 	"github.com/gnolang/gno/pkgs/crypto/merkle"
 	"github.com/gnolang/gno/pkgs/crypto/multisig"
+	"github.com/gnolang/gno/pkgs/sdk"
 	"github.com/gnolang/gno/pkgs/sdk/bank"
 	"github.com/gnolang/gno/pkgs/sdk/vm"
 	"github.com/gnolang/gno/pkgs/std"
@@ -36,6 +37,7 @@ func main() {
 		hd.Package,
 		multisig.Package,
 		std.Package,
+		sdk.Package,
 		bank.Package,
 		vm.Package,
 		gno.Package,

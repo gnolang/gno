@@ -73,7 +73,7 @@ fmt:
 test: test.gno test.go test.flappy
 	@echo "Full test suite finished."
 
-test.gno: test.files1 test.files2 test.realm test.packages test.examples
+test.gno: test.files1 test.files2 test.packages test.examples
 	go test tests/*.go -v -run "TestFileStr"
 	go test tests/*.go -v -run "TestSelectors"
 

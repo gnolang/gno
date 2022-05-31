@@ -14,9 +14,9 @@ import (
 	"github.com/gnolang/gno/pkgs/amino"
 	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
 	bft "github.com/gnolang/gno/pkgs/bft/types"
-	"github.com/gnolang/gno/pkgs/crypto"
 	dbm "github.com/gnolang/gno/pkgs/db"
 	"github.com/gnolang/gno/pkgs/log"
+	"github.com/gnolang/gno/pkgs/sdk/testutils"
 	"github.com/gnolang/gno/pkgs/std"
 	"github.com/gnolang/gno/pkgs/store/dbadapter"
 	"github.com/gnolang/gno/pkgs/store/iavl"
@@ -27,6 +27,29 @@ var (
 	baseKey = store.NewStoreKey("base") // in all test apps
 	mainKey = store.NewStoreKey("main") // in all test apps
 )
+
+type msgCounter = testutils.MsgCounter
+type msgCounter2 = testutils.MsgCounter2
+type msgNoRoute = testutils.MsgNoRoute
+
+const (
+	routeMsgCounter  = testutils.RouteMsgCounter
+	routeMsgCounter2 = testutils.RouteMsgCounter2
+)
+
+// txInt: used as counter in incrementing counter tests,
+// or as how much gas will be consumed in antehandler
+// (depending on anteHandler used in tests)
+func newTxCounter(txInt int64, msgInts ...int64) std.Tx {
+	var msgs []std.Msg
+	for _, msgInt := range msgInts {
+		msgs = append(msgs, msgCounter{msgInt, false})
+	}
+	tx := std.Tx{Msgs: msgs}
+	setCounter(&tx, txInt)
+	setFailOnHandler(&tx, false)
+	return tx
+}
 
 func defaultLogger() log.Logger {
 	return log.NewTMLogger(log.NewSyncWriter(os.Stdout)).With("module", "sdk/app")
@@ -342,68 +365,6 @@ func setFailOnHandler(tx *Tx, fail bool) {
 	for i, msg := range tx.Msgs {
 		tx.Msgs[i] = msgCounter{msg.(msgCounter).Counter, fail}
 	}
-}
-
-const (
-	routeMsgCounter  = "msgCounter"
-	routeMsgCounter2 = "msgCounter2"
-)
-
-// ValidateBasic() fails on negative counters.
-// Otherwise it's up to the handlers
-type msgCounter struct {
-	Counter       int64
-	FailOnHandler bool
-}
-
-// Implements Msg
-func (msg msgCounter) Route() string                { return routeMsgCounter }
-func (msg msgCounter) Type() string                 { return "counter1" }
-func (msg msgCounter) GetSignBytes() []byte         { return nil }
-func (msg msgCounter) GetSigners() []crypto.Address { return nil }
-func (msg msgCounter) ValidateBasic() error {
-	if msg.Counter >= 0 {
-		return nil
-	}
-	return std.ErrInvalidSequence("counter should be a non-negative integer.")
-}
-
-// txInt: used as counter in incrementing counter tests,
-// or as how much gas will be consumed in antehandler
-// (depending on anteHandler used in tests)
-func newTxCounter(txInt int64, msgInts ...int64) std.Tx {
-	var msgs []Msg
-	for _, msgInt := range msgInts {
-		msgs = append(msgs, msgCounter{msgInt, false})
-	}
-	tx := std.Tx{Msgs: msgs}
-	setCounter(&tx, txInt)
-	setFailOnHandler(&tx, false)
-	return tx
-}
-
-// a msg we dont know how to route
-type msgNoRoute struct {
-	msgCounter
-}
-
-func (tx msgNoRoute) Route() string { return "noroute" }
-
-// Another counter msg. Duplicate of msgCounter
-type msgCounter2 struct {
-	Counter int64
-}
-
-// Implements Msg
-func (msg msgCounter2) Route() string                { return routeMsgCounter2 }
-func (msg msgCounter2) Type() string                 { return "counter2" }
-func (msg msgCounter2) GetSignBytes() []byte         { return nil }
-func (msg msgCounter2) GetSigners() []crypto.Address { return nil }
-func (msg msgCounter2) ValidateBasic() error {
-	if msg.Counter >= 0 {
-		return nil
-	}
-	return std.ErrInvalidSequence("counter should be a non-negative integer.")
 }
 
 func anteHandlerTxTest(t *testing.T, capKey store.StoreKey, storeKey []byte) AnteHandler {
@@ -1170,18 +1131,3 @@ func TestGetMaximumBlockGas(t *testing.T) {
 	app.setConsensusParams(&abci.ConsensusParams{Block: &abci.BlockParams{MaxGas: -5000000}})
 	require.Panics(t, func() { app.getMaximumBlockGas() })
 }
-
-//----------------------------------------
-// amino register
-
-var Package = amino.RegisterPackage(amino.NewPackage(
-	"github.com/gnolang/gno/pkgs/sdk",
-	"sdk_test",
-	amino.GetCallersDirname(),
-).
-	WithTypes(
-		msgCounter{},
-		msgNoRoute{},
-		msgCounter2{},
-		msgCounterHandler{},
-	))
