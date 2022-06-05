@@ -12,11 +12,11 @@ import (
 
 func TestMain(t *testing.T) {
 	tc := []struct {
-		args                 []string
-		errShouldContains    string
-		stdoutShouldContains string
-		stderrShouldContains string
-		panicShouldContains  string
+		args                []string
+		errShouldContain    string
+		stdoutShouldContain string
+		stderrShouldContain string
+		panicShouldContain  string
 	}{
 		// no args
 		{[]string{""}, "unknown command", "", "", ""},
@@ -42,7 +42,10 @@ func TestMain(t *testing.T) {
 		{[]string{"test", "../../tests/integ/minimalist-gno2"}, "", "", "ok", ""},
 		{[]string{"test", "../../tests/integ/minimalist-gno3"}, "", "", "ok", ""},
 		{[]string{"test", "../../tests/integ/valid1", "--verbose"}, "", "", "ok", ""},
+		{[]string{"test", "../../tests/integ/valid2"}, "", "", "ok", ""},
 		{[]string{"test", "../../tests/integ/valid2", "--verbose"}, "", "", "ok", ""},
+		{[]string{"test", "../../tests/integ/failing1", "--verbose"}, "FAIL: 1 go test errors", "", "FAIL: TestAlwaysFailing", ""},
+		{[]string{"test", "../../tests/integ/failing2", "--verbose"}, "", "", "=== RUN", "got unexpected error: beep boop"}, // FIXME: should fail
 	}
 
 	for _, test := range tc {
@@ -59,38 +62,48 @@ func TestMain(t *testing.T) {
 
 			require.NotNil(t, cmd)
 
+			checkOutputs := func(t *testing.T) {
+				t.Helper()
+
+				if test.stdoutShouldContain == "" {
+					require.Empty(t, mockOut.String(), "stdout should be empty")
+				} else {
+					t.Log("out", mockOut.String())
+					require.Contains(t, mockOut.String(), test.stdoutShouldContain, "stdout should contain")
+				}
+
+				if test.stderrShouldContain == "" {
+					require.Empty(t, mockErr.String(), "stderr should be empty")
+				} else {
+					t.Log("err", mockErr.String())
+					require.Contains(t, mockErr.String(), test.stderrShouldContain, "stderr should contain")
+				}
+			}
+
 			exec := "gnodev"
 			defer func() {
 				if r := recover(); r != nil {
+					require.NotEmpty(t, test.panicShouldContain, "should not panic")
+					require.Empty(t, test.errShouldContain, "should not expect an error")
 					output := fmt.Sprintf("%v", r)
-					require.Contains(t, output, test.panicShouldContains)
+					t.Log("recover", output)
+					require.Contains(t, output, test.panicShouldContain, "recover")
+					checkOutputs(t)
 				} else {
-					require.Empty(t, test.panicShouldContains)
+					require.Empty(t, test.panicShouldContain, "should panic")
 				}
 			}()
 			err := runMain(cmd, exec, test.args)
 
-			if test.errShouldContains == "" {
-				require.Nil(t, err)
+			if test.errShouldContain == "" {
+				require.Nil(t, err, "err should be nil")
 			} else {
 				t.Log("err", err.Error())
-				require.NotNil(t, err)
-				require.Contains(t, err.Error(), test.errShouldContains)
+				require.NotNil(t, err, "err shouldn't be nil")
+				require.Contains(t, err.Error(), test.errShouldContain, "err should contain")
 			}
 
-			if test.stdoutShouldContains == "" {
-				require.Empty(t, mockOut.String())
-			} else {
-				t.Log("out", mockOut.String())
-				require.Contains(t, mockOut.String(), test.stdoutShouldContains)
-			}
-
-			if test.stderrShouldContains == "" {
-				require.Empty(t, mockErr.String())
-			} else {
-				t.Log("err", mockErr.String())
-				require.Contains(t, mockErr.String(), test.stderrShouldContains)
-			}
+			checkOutputs(t)
 		})
 	}
 }

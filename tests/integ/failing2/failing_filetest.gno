@@ -1,8 +1,8 @@
 package main
 
 func main() {
-	println("test")
+	panic("beep boop")
 }
 
 // Output:
-// test
+// blah

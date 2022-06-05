@@ -231,6 +231,8 @@ func runTestFiles(cmd *command.Command, testStore gno.Store, m *gno.Machine, fil
 				cmd.ErrPrintfln("--- SKIP: %s", test.Name)
 			}
 		case rep.Failed:
+			err := errors.New("failed: %q", test.Name)
+			errs = multierr.Append(errs, err)
 			cmd.ErrPrintfln("--- FAIL: %s (%s)", test.Name, dstr)
 		default:
 			if verbose {

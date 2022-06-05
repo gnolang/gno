@@ -1,1 +1,3 @@
-package minim
+package main
+
+func main() {}
