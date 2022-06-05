@@ -38,6 +38,11 @@ func TestMain(t *testing.T) {
 		{[]string{"test", "../../tests/integ/empty-gno1"}, "", "", "no test files", ""},
 		{[]string{"test", "../../tests/integ/empty-gno2"}, "", "", "", "expected 'package', found 'EOF'"}, // FIXME: better error handling
 		{[]string{"test", "../../tests/integ/empty-gno3"}, "", "", "", "expected 'package', found 'EOF'"}, // FIXME: better error handling
+		{[]string{"test", "../../tests/integ/minimalist-gno1"}, "", "", "no test files", ""},
+		{[]string{"test", "../../tests/integ/minimalist-gno2"}, "", "", "ok", ""},
+		{[]string{"test", "../../tests/integ/minimalist-gno3"}, "", "", "ok", ""},
+		{[]string{"test", "../../tests/integ/valid1", "--verbose"}, "", "", "ok", ""},
+		{[]string{"test", "../../tests/integ/valid2", "--verbose"}, "", "", "ok", ""},
 	}
 
 	for _, test := range tc {
@@ -68,6 +73,7 @@ func TestMain(t *testing.T) {
 			if test.errShouldContains == "" {
 				require.Nil(t, err)
 			} else {
+				t.Log("err", err.Error())
 				require.NotNil(t, err)
 				require.Contains(t, err.Error(), test.errShouldContains)
 			}
@@ -75,12 +81,14 @@ func TestMain(t *testing.T) {
 			if test.stdoutShouldContains == "" {
 				require.Empty(t, mockOut.String())
 			} else {
+				t.Log("out", mockOut.String())
 				require.Contains(t, mockOut.String(), test.stdoutShouldContains)
 			}
 
 			if test.stderrShouldContains == "" {
 				require.Empty(t, mockErr.String())
 			} else {
+				t.Log("err", mockErr.String())
 				require.Contains(t, mockErr.String(), test.stderrShouldContains)
 			}
 		})
