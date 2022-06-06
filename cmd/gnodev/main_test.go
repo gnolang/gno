@@ -39,7 +39,7 @@ func TestMain(t *testing.T) {
 		{args: []string{"repl", "--help"}, stdoutShouldContain: "# replOptions options\n-"},
 
 		// custom
-		//{args: []string{"test", "../../examples/gno.land/p/rand"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/rand \t"},
+		{args: []string{"test", "../../examples/gno.land/p/rand"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/rand \t"},
 		{args: []string{"test", "../../tests/integ/no-such-dir"}, errShouldContain: "no such file or directory"},
 		{args: []string{"test", "../../tests/integ/empty-dir"}}, // FIXME: should have an output
 		{args: []string{"test", "../../tests/integ/empty-gno1"}, stderrShouldBe: "?       ./../../tests/integ/empty-gno1 \t[no test files]\n"},
@@ -54,7 +54,15 @@ func TestMain(t *testing.T) {
 		{args: []string{"test", "../../tests/integ/failing1", "--verbose"}, errShouldBe: "FAIL: 1 go test errors", stderrShouldContain: "FAIL: TestAlwaysFailing"},
 		{args: []string{"test", "../../tests/integ/failing2", "--verbose"}, stderrShouldBe: "=== RUN   file/failing_filetest.gno\n", recoverShouldBe: "got unexpected error: beep boop"}, // FIXME: should fail
 
-		// run
+		// test opts
+		{args: []string{"test", "../../examples/gno.land/p/ufmt"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/ufmt"},
+		{args: []string{"test", "../../examples/gno.land/p/ufmt", "--verbose"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/ufmt"},
+		{args: []string{"test", "../../examples/gno.land/p/ufmt", "--verbose", "--run", ".*"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/ufmt"},
+		{args: []string{"test", "../../examples/gno.land/p/ufmt", "--verbose", "--run", "NoExists"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/ufmt"},
+		{args: []string{"test", "../../examples/gno.land/p/ufmt", "--verbose", "--run", ".*/hello"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/ufmt"},
+		{args: []string{"test", "../../examples/gno.land/p/ufmt", "--verbose", "--run", ".*/hi"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/ufmt"},
+		{args: []string{"test", "../../examples/gno.land/p/ufmt", "--verbose", "--run", ".*/NoExists"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/ufmt"},
+		{args: []string{"test", "../../examples/gno.land/p/ufmt", "--verbose", "--run", ".*/hello/NoExists"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/ufmt"},
 	}
 
 	for _, test := range tc {
