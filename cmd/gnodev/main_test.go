@@ -12,46 +12,60 @@ import (
 
 func TestMain(t *testing.T) {
 	tc := []struct {
-		args                []string
-		errShouldContain    string
-		stdoutShouldContain string
-		stderrShouldContain string
-		panicShouldContain  string
+		args []string
+
+		// for the following FooContain+FooBe expected couples, if both are empty,
+		// then the test suite will require that the "got" is not empty.
+		errShouldContain     string
+		errShouldBe          string
+		stderrShouldContain  string
+		stdoutShouldBe       string
+		stdoutShouldContain  string
+		stderrShouldBe       string
+		recoverShouldContain string
+		recoverShouldBe      string
 	}{
 		// no args
-		{[]string{""}, "unknown command", "", "", ""},
-		{[]string{"test"}, "invalid args", "", "Usage: test [test flags] [packages]", ""},
-		{[]string{"build"}, "invalid args", "", "Usage: build [build flags] [packages]", ""},
-		{[]string{"precompile"}, "invalid args", "", "Usage: precompile [precompile flags] [packages]", ""},
-		// {[]string{"repl"}, "", "", ""},
+		{args: []string{""}, errShouldBe: "unknown command "},
+		{args: []string{"test"}, errShouldBe: "invalid args", stderrShouldBe: "Usage: test [test flags] [packages]\n"},
+		{args: []string{"build"}, errShouldBe: "invalid args", stderrShouldBe: "Usage: build [build flags] [packages]\n"},
+		{args: []string{"precompile"}, errShouldBe: "invalid args", stderrShouldBe: "Usage: precompile [precompile flags] [packages]\n"},
+		// {args: []string{"repl"}},
 
 		// --help
-		{[]string{"build", "--help"}, "", "# buildOptions options\n-", "", ""},
-		{[]string{"test", "--help"}, "", "# testOptions options\n-", "", ""},
-		{[]string{"precompile", "--help"}, "", "# precompileOptions options\n-", "", ""},
-		{[]string{"repl", "--help"}, "", "# replOptions options\n-", "", ""},
+		{args: []string{"build", "--help"}, stdoutShouldContain: "# buildOptions options\n-"},
+		{args: []string{"test", "--help"}, stdoutShouldContain: "# testOptions options\n-"},
+		{args: []string{"precompile", "--help"}, stdoutShouldContain: "# precompileOptions options\n-"},
+		{args: []string{"repl", "--help"}, stdoutShouldContain: "# replOptions options\n-"},
 
 		// custom
-		{[]string{"test", "../../examples/gno.land/p/rand"}, "", "", "ok", ""},
-		{[]string{"test", "../../tests/integ/no-such-dir"}, "no such file or directory", "", "", ""},
-		{[]string{"test", "../../tests/integ/empty-dir"}, "", "", "", ""},
-		{[]string{"test", "../../tests/integ/empty-gno1"}, "", "", "no test files", ""},
-		{[]string{"test", "../../tests/integ/empty-gno2"}, "", "", "", "expected 'package', found 'EOF'"}, // FIXME: better error handling
-		{[]string{"test", "../../tests/integ/empty-gno3"}, "", "", "", "expected 'package', found 'EOF'"}, // FIXME: better error handling
-		{[]string{"test", "../../tests/integ/minimalist-gno1"}, "", "", "no test files", ""},
-		{[]string{"test", "../../tests/integ/minimalist-gno2"}, "", "", "ok", ""},
-		{[]string{"test", "../../tests/integ/minimalist-gno3"}, "", "", "ok", ""},
-		{[]string{"test", "../../tests/integ/valid1", "--verbose"}, "", "", "ok", ""},
-		{[]string{"test", "../../tests/integ/valid2"}, "", "", "ok", ""},
-		{[]string{"test", "../../tests/integ/valid2", "--verbose"}, "", "", "ok", ""},
-		{[]string{"test", "../../tests/integ/failing1", "--verbose"}, "FAIL: 1 go test errors", "", "FAIL: TestAlwaysFailing", ""},
-		{[]string{"test", "../../tests/integ/failing2", "--verbose"}, "", "", "=== RUN", "got unexpected error: beep boop"}, // FIXME: should fail
+		//{args: []string{"test", "../../examples/gno.land/p/rand"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/rand \t"},
+		{args: []string{"test", "../../tests/integ/no-such-dir"}, errShouldContain: "no such file or directory"},
+		{args: []string{"test", "../../tests/integ/empty-dir"}}, // FIXME: should have an output
+		{args: []string{"test", "../../tests/integ/empty-gno1"}, stderrShouldBe: "?       ./../../tests/integ/empty-gno1 \t[no test files]\n"},
+		{args: []string{"test", "../../tests/integ/empty-gno2"}, recoverShouldBe: "dontcare.gno:1:1: expected 'package', found 'EOF'"},                                    // FIXME: better error handling + rename dontcare.gno with actual test file
+		{args: []string{"test", "../../tests/integ/empty-gno3"}, recoverShouldBe: "../../tests/integ/empty-gno3/empty_filetest.gno:1:1: expected 'package', found 'EOF'"}, // FIXME: better error handling
+		{args: []string{"test", "../../tests/integ/minimalist-gno1"}, stderrShouldBe: "?       ./../../tests/integ/minimalist-gno1 \t[no test files]\n"},
+		{args: []string{"test", "../../tests/integ/minimalist-gno2"}, stderrShouldContain: "ok "},
+		{args: []string{"test", "../../tests/integ/minimalist-gno3"}, stderrShouldContain: "ok "},
+		{args: []string{"test", "../../tests/integ/valid1", "--verbose"}, stderrShouldContain: "ok "},
+		{args: []string{"test", "../../tests/integ/valid2"}, stderrShouldContain: "ok "},
+		{args: []string{"test", "../../tests/integ/valid2", "--verbose"}, stderrShouldContain: "ok "},
+		{args: []string{"test", "../../tests/integ/failing1", "--verbose"}, errShouldBe: "FAIL: 1 go test errors", stderrShouldContain: "FAIL: TestAlwaysFailing"},
+		{args: []string{"test", "../../tests/integ/failing2", "--verbose"}, stderrShouldBe: "=== RUN   file/failing_filetest.gno\n", recoverShouldBe: "got unexpected error: beep boop"}, // FIXME: should fail
+
+		// run
 	}
 
 	for _, test := range tc {
-		name := strings.Join(test.args, " ")
-		name = strings.ReplaceAll(name, "/", "~")
-		t.Run(name, func(t *testing.T) {
+		errShouldBeEmpty := test.errShouldContain == "" && test.errShouldBe == ""
+		stdoutShouldBeEmpty := test.stdoutShouldContain == "" && test.stdoutShouldBe == ""
+		stderrShouldBeEmpty := test.stderrShouldContain == "" && test.stderrShouldBe == ""
+		recoverShouldBeEmpty := test.recoverShouldContain == "" && test.recoverShouldBe == ""
+
+		testName := strings.Join(test.args, " ")
+		testName = strings.ReplaceAll(testName, "/", "~")
+		t.Run(testName, func(t *testing.T) {
 			cmd := command.NewMockCommand()
 			mockOut := bytes.NewBufferString("")
 			mockErr := bytes.NewBufferString("")
@@ -65,42 +79,62 @@ func TestMain(t *testing.T) {
 			checkOutputs := func(t *testing.T) {
 				t.Helper()
 
-				if test.stdoutShouldContain == "" {
+				if stdoutShouldBeEmpty {
 					require.Empty(t, mockOut.String(), "stdout should be empty")
 				} else {
-					t.Log("out", mockOut.String())
-					require.Contains(t, mockOut.String(), test.stdoutShouldContain, "stdout should contain")
+					t.Log("stdout", mockOut.String())
+					if test.stdoutShouldContain != "" {
+						require.Contains(t, mockOut.String(), test.stdoutShouldContain, "stdout should contain")
+					}
+					if test.stdoutShouldBe != "" {
+						require.Equal(t, mockOut.String(), test.stdoutShouldBe, "stdout should be")
+					}
 				}
 
-				if test.stderrShouldContain == "" {
+				if stderrShouldBeEmpty {
 					require.Empty(t, mockErr.String(), "stderr should be empty")
 				} else {
-					t.Log("err", mockErr.String())
-					require.Contains(t, mockErr.String(), test.stderrShouldContain, "stderr should contain")
+					t.Log("stderr", mockErr.String())
+					if test.stderrShouldContain != "" {
+						require.Contains(t, mockErr.String(), test.stderrShouldContain, "stderr should contain")
+					}
+					if test.stderrShouldBe != "" {
+						require.Equal(t, mockErr.String(), test.stderrShouldBe, "stderr should be")
+					}
 				}
 			}
 
 			exec := "gnodev"
 			defer func() {
 				if r := recover(); r != nil {
-					require.NotEmpty(t, test.panicShouldContain, "should not panic")
-					require.Empty(t, test.errShouldContain, "should not expect an error")
 					output := fmt.Sprintf("%v", r)
 					t.Log("recover", output)
-					require.Contains(t, output, test.panicShouldContain, "recover")
+					require.False(t, recoverShouldBeEmpty, "should panic")
+					require.True(t, errShouldBeEmpty, "should not return an error")
+					if test.recoverShouldContain != "" {
+						require.Contains(t, output, test.recoverShouldContain, "recover should contain")
+					}
+					if test.recoverShouldBe != "" {
+						require.Equal(t, output, test.recoverShouldBe, "recover should be")
+					}
 					checkOutputs(t)
 				} else {
-					require.Empty(t, test.panicShouldContain, "should panic")
+					require.True(t, recoverShouldBeEmpty, "should not panic")
 				}
 			}()
 			err := runMain(cmd, exec, test.args)
 
-			if test.errShouldContain == "" {
+			if errShouldBeEmpty {
 				require.Nil(t, err, "err should be nil")
 			} else {
 				t.Log("err", err.Error())
 				require.NotNil(t, err, "err shouldn't be nil")
-				require.Contains(t, err.Error(), test.errShouldContain, "err should contain")
+				if test.errShouldContain != "" {
+					require.Contains(t, err.Error(), test.errShouldContain, "err should contain")
+				}
+				if test.errShouldBe != "" {
+					require.Equal(t, err.Error(), test.errShouldBe, "err should be")
+				}
 			}
 
 			checkOutputs(t)
