@@ -228,6 +228,9 @@ func runTestFiles(cmd *command.Command, testStore gno.Store, m *gno.Machine, fil
 		}
 
 		switch {
+		case rep.Filtered:
+			cmd.ErrPrintfln("--- FILT: %s", test.Name)
+			// noop
 		case rep.Skipped:
 			if verbose {
 				cmd.ErrPrintfln("--- SKIP: %s", test.Name)
@@ -252,11 +255,12 @@ func runTestFiles(cmd *command.Command, testStore gno.Store, m *gno.Machine, fil
 
 // mirror of stdlibs/testing.Report
 type report struct {
-	Name    string
-	Verbose bool
-	Failed  bool
-	Skipped bool
-	Output  string
+	Name     string
+	Verbose  bool
+	Failed   bool
+	Skipped  bool
+	Filtered bool
+	Output   string
 }
 
 var testmainTmpl = template.Must(template.New("testmain").Parse(`

@@ -1076,8 +1076,11 @@ type FileSet struct {
 
 // TODO replace with some more efficient method
 // that doesn't involve parsing the whole file.
-func PackageNameFromFileBody(body string) Name {
-	n := MustParseFile("dontcare.gno", body)
+//
+// name could be anything,
+// it's only used to generate better error traces.
+func PackageNameFromFileBody(name string, body string) Name {
+	n := MustParseFile(name, body)
 	return n.PkgName
 }
 
@@ -1107,12 +1110,12 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 			panic(err)
 		}
 		if pkgName == "" && strings.HasSuffix(file.Name(), "_test.gno") {
-			pkgName = PackageNameFromFileBody(string(bz))
+			pkgName = PackageNameFromFileBody(file.Name(), string(bz))
 			if strings.HasSuffix(string(pkgName), "_test") {
 				pkgName = pkgName[:len(pkgName)-len("_test")]
 			}
 		} else if pkgName == "" && strings.HasSuffix(file.Name(), ".gno") {
-			pkgName = PackageNameFromFileBody(string(bz))
+			pkgName = PackageNameFromFileBody(file.Name(), string(bz))
 		}
 		memPkg.Files = append(memPkg.Files,
 			&std.MemFile{

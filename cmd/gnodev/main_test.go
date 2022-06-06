@@ -63,6 +63,9 @@ func TestMain(t *testing.T) {
 		{args: []string{"test", "../../examples/gno.land/p/ufmt", "--verbose", "--run", ".*/hi"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/ufmt"},
 		{args: []string{"test", "../../examples/gno.land/p/ufmt", "--verbose", "--run", ".*/NoExists"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/ufmt"},
 		{args: []string{"test", "../../examples/gno.land/p/ufmt", "--verbose", "--run", ".*/hello/NoExists"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/ufmt"},
+		{args: []string{"test", "../../examples/gno.land/p/ufmt", "--verbose", "--run", "Sprintf/"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/ufmt"},
+		{args: []string{"test", "../../examples/gno.land/p/ufmt", "--verbose", "--run", "Sprintf/.*"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/ufmt"},
+		{args: []string{"test", "../../examples/gno.land/p/ufmt", "--verbose", "--run", "Sprintf/hello"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/ufmt"},
 	}
 
 	for _, test := range tc {
