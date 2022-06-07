@@ -142,9 +142,8 @@ func Echo(msg string) string {
 	coins := std.MustParseCoins("9gnot")
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	// XXX change this into an error and make sure error message is descriptive.
-	assert.Panics(t, func() {
-		env.vmk.Call(ctx, msg2)
-	})
+	_, err = env.vmk.Call(ctx, msg2)
+	assert.Error(t, err)
 }
 
 // Sending realm package coins succeeds.
@@ -231,7 +230,6 @@ func Echo(msg string) string {
 	coins := std.MustParseCoins("9gnot")
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	// XXX change this into an error and make sure error message is descriptive.
-	assert.Panics(t, func() {
-		env.vmk.Call(ctx, msg2)
-	})
+	_, err = env.vmk.Call(ctx, msg2)
+	assert.Error(t, err)
 }
