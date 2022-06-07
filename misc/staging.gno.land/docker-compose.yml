@@ -8,7 +8,27 @@ services:
     command: [ "gnoland" ]
     volumes:
       - "./data/gnoland:/opt/gno/src/testdir"
-    network_mode: host
+    #network_mode: host
+    ports:
+      - 36656:36656
+      - 36657:36657
+    restart: on-failure
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "10"
+        max-size: "100m"
+
+  gnoweb:
+    container_name: gnoweb
+    build: ../..
+    working_dir: /opt/gno/src/gnoland/website
+    command: [ "gnoweb", "--bind", "0.0.0.0:80", "--remote", "gnoland:36657" ]
+    links:
+      - gnoland
+    ports:
+      - 80:80
+    #network_mode: host
     restart: on-failure
     logging:
       driver: "json-file"

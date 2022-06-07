@@ -9,6 +9,7 @@ ADD . /opt/build/
 RUN go build -o ./build/gnoland ./cmd/gnoland
 RUN go build -o ./build/gnokey ./cmd/gnokey
 RUN go build -o ./build/gnodev ./cmd/gnodev
+RUN cd ./gnoland/website && go build -o ../../build/gnoweb .
 RUN rm -rf /opt/src/.git
 RUN ls -la /opt/build/build/
 
