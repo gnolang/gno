@@ -181,10 +181,16 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 	// handle route using handler function
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		addr := r.RemoteAddr
-		host, _, err := net.SplitHostPort(addr)
-		if err != nil {
-			return
+		host := ""
+		if false { // if not using a reverse proxy
+			addr := r.RemoteAddr
+			host_, _, err := net.SplitHostPort(addr)
+			if err != nil {
+				return
+			}
+			host = host_
+		} else {
+			host = r.Header["X-Forwarded-For"][0]
 		}
 		if len(host) == 0 {
 			return
