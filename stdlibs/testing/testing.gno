@@ -65,6 +65,9 @@ func (t *T) Errorf(format string, args ...interface{}) {
 
 func (t *T) Fail() {
 	t.failed = true
+	if t.parent != nil {
+		fmt.Printf("--- FAIL  %s\n", t.name)
+	}
 }
 
 func (t *T) FailNow() {
@@ -74,7 +77,15 @@ func (t *T) FailNow() {
 }
 
 func (t *T) Failed() bool {
-	return t.failed
+	if t.failed {
+		return true
+	}
+	for _, sub := range t.subs {
+		if sub.Failed() {
+			return true
+		}
+	}
+	return false
 }
 
 func (t *T) Fatal(args ...interface{}) {
@@ -105,7 +116,7 @@ func (t *T) Parallel() {
 }
 
 func (t *T) Run(name string, f testingFunc) bool {
-	fullName := t.name + "/" + name
+	fullName := t.name + "/" + rewrite(name)
 
 	subT := &T{
 		// parent:  t,
@@ -174,9 +185,20 @@ func (t *T) report() Report {
 		Failed:   t.Failed(),
 		Skipped:  t.Skipped(),
 		Filtered: t.filtered,
-		Output:   strings.TrimSpace(string(t.output)),
+		Output:   strings.TrimSpace(t.Output()),
 		HasSubs:  len(t.subs) > 0,
 	}
+}
+
+func (t *T) Output() string {
+	output := strings.TrimSpace(string(t.output))
+	for _, sub := range t.subs {
+		subOutput := sub.Output()
+		if subOutput != "" {
+			output += "\n\n" + subOutput
+		}
+	}
+	return strings.TrimSpace(output)
 }
 
 //----------------------------------------
@@ -258,14 +280,11 @@ doReport:
 }
 
 func tRunner(t *T, fn testingFunc, logSteps bool) {
-	if logSteps {
-		t.Logf("=== RUN   %s\n", t.name)
-	}
 
 	if !t.shouldRun(t.name) {
 		t.filtered = true
 		if logSteps {
-			t.Logf("--- FILT  %s\n", t.name)
+			// fmt.Printf("--- FILT  %s\n", t.name)
 		}
 		return
 	}
@@ -273,15 +292,14 @@ func tRunner(t *T, fn testingFunc, logSteps bool) {
 	defer func() {
 		err := recover()
 		if err != nil {
-			t.log(fmt.Sprintf("%v", err))
-			t.failed = true
-		}
-
-		if t.failed {
-			t.Logf("--- FAIL  %s\n", t.name)
+			t.Fail()
+			fmt.Printf(fmt.Sprintf("%v", err))
 		}
 	}()
 
+	if logSteps {
+		fmt.Printf("=== RUN   %s\n", t.name)
+	}
 	fn(t)
 
 	t.finished = true

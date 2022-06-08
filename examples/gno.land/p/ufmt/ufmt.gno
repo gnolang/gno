@@ -12,7 +12,12 @@ func Sprintf(format string, values ...interface{}) string {
 		isLast := i == fmtlen-1
 		switch {
 		case k == '%' && !isLast:
+			println("---")
+			println(i, offset)
 			value := values[offset]
+			println("AAA")
+			format[i+1]
+			println("BBB")
 			switch format[i+1] {
 			case 's':
 				r += value.(string)
@@ -31,6 +36,7 @@ func Sprintf(format string, values ...interface{}) string {
 				}
 			case '%':
 				r += "%"
+				i--
 			default:
 				r += "(unhandled)"
 			}

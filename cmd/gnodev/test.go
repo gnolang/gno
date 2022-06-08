@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -106,7 +107,10 @@ func gnoTestPkg(cmd *command.Command, pkgPath string, unittestFiles, filetestFil
 
 	// testing with *_test.gno
 	if len(unittestFiles) > 0 {
-		stdout := new(bytes.Buffer)
+		var stdout io.Writer = new(bytes.Buffer)
+		if verbose {
+			stdout = os.Stdout
+		}
 		memPkg := gno.ReadMemPackage(pkgPath, pkgPath)
 
 		//tfiles, ifiles := gno.ParseMemPackageTests(memPkg)
