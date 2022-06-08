@@ -36,14 +36,14 @@ func main() {
 }
 
 // Output:
-//  * [gnouser](/r/users:gnouser)
+// * [gnouser](/r/users:gnouser)
 //  * [satoshi](/r/users:satoshi)
 //
 // ========================================
 // ## user gnouser
 //
 //  * address = g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4
-//  * 0 invites
+//  * 9 invites
 //
 // my profile
 //
@@ -58,4 +58,3 @@ func main() {
 //
 // ========================================
 // unknown username badname
-//

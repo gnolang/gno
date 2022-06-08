@@ -47,7 +47,7 @@ var (
 	addr2User  *avl.Tree         // std.Address -> *User
 	invites    *avl.Tree         // string(inviter+":"+invited) -> true
 	counter    int               // user id counter
-	minFee     int64       = 100 // minimum gnot must be paid to register.
+	minFee     int64       = 200 // minimum gnot must be paid to register.
 	maxFeeMult int64       = 10  // maximum multiples of minFee accepted.
 )
 
@@ -68,12 +68,12 @@ func Register(inviter std.Address, name string, profile string) {
 		// TODO: implement sent.IsGTE(...)
 		if len(sent) == 1 && sent[0].Denom == "gnot" && sent[0].Amount >= minFee {
 			if sent[0].Amount > minFee*maxFeeMult {
-				panic("payment must not be greater than " + strconv.Itoa(minFee*maxFeeMult))
+				panic("payment must not be greater than " + strconv.Itoa(int(minFee*maxFeeMult)))
 			} else {
 				// ok
 			}
 		} else {
-			panic("payment must not be less than " + strconv.Itoa(minFee))
+			panic("payment must not be less than " + strconv.Itoa(int(minFee)))
 		}
 	} else {
 		invitekey := inviter.String() + ":" + caller.String()
