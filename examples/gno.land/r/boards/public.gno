@@ -19,6 +19,9 @@ func CreateBoard(name string) BoardID {
 	std.AssertOriginCall()
 	bid := incGetBoardID()
 	caller := std.GetOrigCaller()
+	if usernameOf(caller) == "" {
+		panic("unauthorized")
+	}
 	url := "/r/boards:" + name
 	board := newBoard(bid, url, name, caller)
 	bidkey := boardIDKey(bid)
@@ -31,6 +34,10 @@ func CreateBoard(name string) BoardID {
 func CreatePost(bid BoardID, title string, body string) PostID {
 	std.AssertOriginCall()
 	caller := std.GetOrigCaller()
+	if usernameOf(caller) == "" {
+		// TODO: allow with gDefaultAnonFee payment.
+		panic("unauthorized")
+	}
 	board := getBoard(bid)
 	thread := board.AddThread(caller, title, body)
 	return thread.id
@@ -39,6 +46,10 @@ func CreatePost(bid BoardID, title string, body string) PostID {
 func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
 	std.AssertOriginCall()
 	caller := std.GetOrigCaller()
+	if usernameOf(caller) == "" {
+		// TODO: allow with gDefaultAnonFee payment.
+		panic("unauthorized")
+	}
 	board := getBoard(bid)
 	thread := board.GetThread(threadid)
 	if postid == threadid {
@@ -56,6 +67,10 @@ func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
 func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoardID BoardID) PostID {
 	std.AssertOriginCall()
 	caller := std.GetOrigCaller()
+	if usernameOf(caller) == "" {
+		// TODO: allow with gDefaultAnonFee payment.
+		panic("unauthorized")
+	}
 	board := getBoard(bid)
 	if board.IsPrivate() {
 		panic("cannot repost from a private board")

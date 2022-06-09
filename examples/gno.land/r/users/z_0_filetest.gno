@@ -1,6 +1,6 @@
 package main
 
-// SEND: 100gnot
+// SEND: 10gnot
 
 import (
 	"gno.land/r/users"
@@ -12,4 +12,4 @@ func main() {
 }
 
 // Error:
-// payment must be exactly 2000 gnots
+// payment must not be less than 200
