@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
+	"encoding/json"
 
 	"github.com/gnolang/gno/gnoland"
 	"github.com/gnolang/gno/pkgs/amino"
@@ -18,6 +20,18 @@ import (
 	"github.com/gnolang/gno/pkgs/sdk/bank"
 	"github.com/gnolang/gno/pkgs/std"
 )
+
+// url & struct for verify captcha
+const siteVerifyURL = "https://www.google.com/recaptcha/api/siteverify"
+type SiteVerifyResponse struct {
+	Success     bool      `json:"success"`
+	Score       float64   `json:"score"`
+	Action      string    `json:"action"`
+	ChallengeTS time.Time `json:"challenge_ts"`
+	Hostname    string    `json:"hostname"`
+	ErrorCodes  []string  `json:"error-codes"`
+}
+
 
 type (
 	AppItem = command.AppItem
@@ -191,6 +205,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 			host = host_
 		} else {
 			host = r.Header["X-Forwarded-For"][0]
+			// host = "127.0.0.1"
 		}
 		if len(host) == 0 {
 			return
@@ -199,7 +214,16 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 		if ip == nil {
 			return
 		}
-		r.ParseForm()
+		r.ParseForm() 
+	
+		// verify catptcha
+		captcha := strings.TrimSpace(r.Form["g-recaptcha-response"][0])
+		if err := checkRecaptcha("{YOUR_SECRET_KEY}", captcha);  err != nil {
+			w.Write([]byte("Unauthorized"))
+			return
+		}
+
+
 		toAddrStr := strings.TrimSpace(r.Form["toaddr"][0])
 		if toAddrStr == "" {
 			fmt.Println("no toAddr")
@@ -321,5 +345,36 @@ func sendAmountTo(cmd *command.Command, cli rpcclient.Client, name, pass string,
 		cmd.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
 		cmd.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
 	}
+	return nil
+}
+
+
+func checkRecaptcha(secret, response string) error {
+	req, err := http.NewRequest(http.MethodPost, siteVerifyURL, nil)
+	if err != nil {
+		return err
+	}
+
+	q := req.URL.Query()
+	q.Add("secret", secret)
+	q.Add("response", response)
+	req.URL.RawQuery = q.Encode()
+
+	resp, err := http.DefaultClient.Do(req) // 200 OK
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+
+	var body SiteVerifyResponse
+	if err = json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return errors.New("fail, decode response")
+	}
+
+	if !body.Success {
+		return errors.New("unsuccessful recaptcha verify request")
+	}
+
 	return nil
 }
