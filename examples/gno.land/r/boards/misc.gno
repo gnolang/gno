@@ -85,3 +85,12 @@ func displayAddressMD(addr std.Address) string {
 		return "[@" + user.Name() + "](/r/users:" + user.Name() + ")"
 	}
 }
+
+func usernameOf(addr std.Address) string {
+	user := users.GetUserByAddress(addr)
+	if user == nil {
+		return ""
+	} else {
+		return user.Name()
+	}
+}

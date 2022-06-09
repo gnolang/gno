@@ -2,6 +2,7 @@ package boards
 
 import (
 	"std"
+	"strconv"
 )
 
 //----------------------------------------
@@ -19,6 +20,9 @@ func CreateBoard(name string) BoardID {
 	std.AssertOriginCall()
 	bid := incGetBoardID()
 	caller := std.GetOrigCaller()
+	if usernameOf(caller) == "" {
+		panic("unauthorized")
+	}
 	url := "/r/boards:" + name
 	board := newBoard(bid, url, name, caller)
 	bidkey := boardIDKey(bid)
@@ -27,10 +31,23 @@ func CreateBoard(name string) BoardID {
 	return board.id
 }
 
-// TODO: rename to CreateThread.
-func CreatePost(bid BoardID, title string, body string) PostID {
+func checkAnonFee() bool {
+	sent := std.GetOrigSend()
+	anonFeeCoin := std.Coin{"gnot", int64(gDefaultAnonFee)}
+	if len(sent) == 1 && sent[0].IsGTE(anonFeeCoin){
+		return true
+	}	
+	return false
+}
+
+func CreateThread(bid BoardID, title string, body string) PostID {
 	std.AssertOriginCall()
 	caller := std.GetOrigCaller()
+	if usernameOf(caller) == "" {
+		if !checkAnonFee(){
+			panic("payment must not be less than " + strconv.Itoa(gDefaultAnonFee))
+		}
+	}
 	board := getBoard(bid)
 	thread := board.AddThread(caller, title, body)
 	return thread.id
@@ -39,6 +56,11 @@ func CreatePost(bid BoardID, title string, body string) PostID {
 func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
 	std.AssertOriginCall()
 	caller := std.GetOrigCaller()
+	if usernameOf(caller) == "" {
+		if !checkAnonFee(){
+			panic("payment must not be less than " + strconv.Itoa(gDefaultAnonFee))
+		}
+	}
 	board := getBoard(bid)
 	thread := board.GetThread(threadid)
 	if postid == threadid {
@@ -56,6 +78,12 @@ func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
 func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoardID BoardID) PostID {
 	std.AssertOriginCall()
 	caller := std.GetOrigCaller()
+	if usernameOf(caller) == "" {
+		// TODO: allow with gDefaultAnonFee payment.
+		if !checkAnonFee(){
+			panic("payment must not be less than " + strconv.Itoa(gDefaultAnonFee))
+		}
+	}
 	board := getBoard(bid)
 	if board.IsPrivate() {
 		panic("cannot repost from a private board")
