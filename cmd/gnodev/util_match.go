@@ -1,4 +1,4 @@
-package testing
+package main
 
 // Most of the code in this file is extracted from golang's src/testing/match.go.
 //
@@ -9,7 +9,6 @@ package testing
 import (
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 	"unicode"
 )
