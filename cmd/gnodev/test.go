@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -23,7 +24,7 @@ import (
 type testOptions struct {
 	Verbose bool   `flag:"verbose" help:"verbose"`
 	RootDir string `flag:"root-dir" help:"clone location of github.com/gnolang/gno (gnodev tries to guess it)"`
-	// Run string `flag:"run" help:"test name filtering pattern"`
+	Run     string `flag:"run" help:"test name filtering pattern"`
 	// Timeout time.Duration `flag:"timeout" help:"max execution time"`
 	// VM Options
 	// A flag about if we should download the production realms
@@ -96,6 +97,7 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 func gnoTestPkg(cmd *command.Command, pkgPath string, unittestFiles, filetestFiles []string, opts testOptions) error {
 	verbose := opts.Verbose
 	rootDir := opts.RootDir
+	runFlag := opts.Run
 	var errs error
 
 	testStore := tests.TestStore(rootDir, "", os.Stdin, os.Stdout, os.Stderr, false)
@@ -105,7 +107,10 @@ func gnoTestPkg(cmd *command.Command, pkgPath string, unittestFiles, filetestFil
 
 	// testing with *_test.gno
 	if len(unittestFiles) > 0 {
-		stdout := new(bytes.Buffer)
+		var stdout io.Writer = new(bytes.Buffer)
+		if verbose {
+			stdout = os.Stdout
+		}
 		memPkg := gno.ReadMemPackage(pkgPath, pkgPath)
 
 		//tfiles, ifiles := gno.ParseMemPackageTests(memPkg)
@@ -115,7 +120,7 @@ func gnoTestPkg(cmd *command.Command, pkgPath string, unittestFiles, filetestFil
 		{
 			m := tests.TestMachine(testStore, stdout, "main")
 			m.RunMemPackage(memPkg, true)
-			err := runTestFiles(cmd, testStore, m, tfiles, memPkg.Name, verbose)
+			err := runTestFiles(cmd, testStore, m, tfiles, memPkg.Name, verbose, runFlag)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -127,7 +132,7 @@ func gnoTestPkg(cmd *command.Command, pkgPath string, unittestFiles, filetestFil
 			if testPkgName != "" {
 				m := tests.TestMachine(testStore, stdout, testPkgName)
 				m.RunMemPackage(memPkg, true)
-				err := runTestFiles(cmd, testStore, m, ifiles, testPkgName, verbose)
+				err := runTestFiles(cmd, testStore, m, ifiles, testPkgName, verbose, runFlag)
 				if err != nil {
 					errs = multierr.Append(errs, err)
 				}
@@ -178,12 +183,13 @@ func gnoTestPkg(cmd *command.Command, pkgPath string, unittestFiles, filetestFil
 	return errs
 }
 
-func runTestFiles(cmd *command.Command, testStore gno.Store, m *gno.Machine, files *gno.FileSet, pkgName string, verbose bool) error {
+func runTestFiles(cmd *command.Command, testStore gno.Store, m *gno.Machine, files *gno.FileSet, pkgName string, verbose bool, runFlag string) error {
 	var errs error
 
 	testFuncs := &testFuncs{
 		PackageName: pkgName,
 		Verbose:     verbose,
+		RunFlag:     runFlag,
 	}
 	loadTestFuncs(pkgName, testFuncs, files)
 
@@ -226,6 +232,9 @@ func runTestFiles(cmd *command.Command, testStore gno.Store, m *gno.Machine, fil
 		}
 
 		switch {
+		case rep.Filtered:
+			cmd.ErrPrintfln("--- FILT: %s", test.Name)
+			// noop
 		case rep.Skipped:
 			if verbose {
 				cmd.ErrPrintfln("--- SKIP: %s", test.Name)
@@ -250,11 +259,12 @@ func runTestFiles(cmd *command.Command, testStore gno.Store, m *gno.Machine, fil
 
 // mirror of stdlibs/testing.Report
 type report struct {
-	Name    string
-	Verbose bool
-	Failed  bool
-	Skipped bool
-	Output  string
+	Name     string
+	Verbose  bool
+	Failed   bool
+	Skipped  bool
+	Filtered bool
+	Output   string
 }
 
 var testmainTmpl = template.Must(template.New("testmain").Parse(`
@@ -273,7 +283,7 @@ var tests = []testing.InternalTest{
 func runtest(name string) (report string) {
 	for _, test := range tests {
 		if test.Name == name {
-			return testing.RunTest({{.Verbose}}, test)
+			return testing.RunTest({{printf "%q" .RunFlag}}, {{.Verbose}}, test)
 		}
 	}
 	panic("no such test: " + name)
@@ -285,6 +295,7 @@ type testFuncs struct {
 	Tests       []testFunc
 	PackageName string
 	Verbose     bool
+	RunFlag     string
 }
 
 type testFunc struct {
