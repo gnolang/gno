@@ -2,7 +2,6 @@ package outfmt
 
 import (
 	"encoding/json"
-	"std"
 	"strings"
 
 	"gno.land/p/rand"
@@ -28,9 +27,13 @@ func (res *Result) String() string {
 	return output
 }
 
-var r = rand.New()
+var rSeed int64
 
 func genResult() Result {
+	// init rand
+	var r = rand.FromSeed(rSeed)
+	defer func() { rSeed = r.Seed() }()
+
 	res := Result{
 		Text:   "Hello Gnomes!",
 		Number: r.Intn(1000),
@@ -41,18 +44,26 @@ func genResult() Result {
 	for i := 0; i < len; i++ {
 		res.Numbers[i] = r.Intn(100)
 	}
+
 	return res
 }
 
 func Render(path string) string {
-	fmt := "stringer"
+	if path == "" {
+		output := ""
+		output += "* [?fmt=stringer](/r/x/outfmt:?fmt=stringer)\n"
+		output += "* [?fmt=json](/r/x/outfmt:?fmt=json)\n"
+		output += "* [?fmt=jsonp](/r/x/outfmt:?fmt=jsonp)\n"
+		return output
+	}
 
 	// parsing
+	fmt := "stringer" // default
 	// FIXME: whitelist and use net/url.
 	{
 		parts := strings.Split(path, "?")
 		if len(parts) == 2 {
-			path := parts[0]
+			// path := parts[0]
 			query := parts[1]
 			if query != "" {
 				parts = strings.Split(query, "=")
@@ -68,6 +79,7 @@ func Render(path string) string {
 	}
 
 	// rendering
+
 	res := genResult()
 	switch fmt {
 	case "stringer":
