@@ -1,5 +1,6 @@
 package main
 
+// SEND: 199gnot
 
 import (
 	"gno.land/r/users"
@@ -7,10 +8,9 @@ import (
 )
 
 func main() {
-	std.TestSetOrigSend(std.Coins{{"dontcare", 1}}, nil)
 	users.Register("", "gnouser", "my profile")
 	println("done")
 }
 
 // Error:
-// invalid coin denominations: dontcare
+// payment must not be less than 200

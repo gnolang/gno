@@ -62,12 +62,12 @@ func Register(inviter std.Address, name string, profile string) {
 	if caller != std.GetOrigCaller() {
 		panic("should not happen") // because std.AssertOrigCall().
 	}
-	sent := std.GetOrigSend()
+	sentCoins := std.GetOrigSend()
+	minCoin := std.Coin{"gnot", minFee}
 	if inviter == "" {
 		// banker := std.GetBanker(std.BankerTypeOrigSend)
-		minCoin := std.Coin{"gnot", minFee}
-		if len(sent) == 1 && sent[0].IsGTE(minCoin){	
-			if sent[0].Amount > minFee*maxFeeMult {
+		if len(sentCoins) == 1 && sentCoins[0].IsGTE(minCoin){	
+			if sentCoins[0].Amount > minFee*maxFeeMult {
 				panic("payment must not be greater than " + strconv.Itoa(int(minFee*maxFeeMult)))
 			} else {
 				// ok
@@ -98,9 +98,9 @@ func Register(inviter std.Address, name string, profile string) {
 	}
 	// remainder of fees go toward invites.
 	invites := int(0)
-	if len(sent) == 1 {
-		if sent[0].Denom == "gnot" && sent[0].Amount >= minFee {
-			invites = int(sent[0].Amount / minFee)
+	if len(sentCoins) == 1 {
+		if sentCoins[0].Denom == "gnot" && sentCoins[0].Amount >= minFee {
+			invites = int(sentCoins[0].Amount / minFee)
 			if inviter == "" && invites > 0 {
 				invites -= 1
 			}
