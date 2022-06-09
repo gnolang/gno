@@ -98,6 +98,8 @@ func gnoTestPkg(cmd *command.Command, pkgPath string, unittestFiles, filetestFil
 	verbose := opts.Verbose
 	rootDir := opts.RootDir
 	runFlag := opts.Run
+	filter := splitRegexp(runFlag)
+
 	var errs error
 
 	testStore := tests.TestStore(rootDir, "", os.Stdin, os.Stdout, os.Stderr, false)
@@ -107,6 +109,7 @@ func gnoTestPkg(cmd *command.Command, pkgPath string, unittestFiles, filetestFil
 
 	// testing with *_test.gno
 	if len(unittestFiles) > 0 {
+		// TODO: speedup by ignoring if filter is file/*?
 		var stdout io.Writer = new(bytes.Buffer)
 		if verbose {
 			stdout = os.Stdout
@@ -145,6 +148,10 @@ func gnoTestPkg(cmd *command.Command, pkgPath string, unittestFiles, filetestFil
 		for _, testFile := range filetestFiles {
 			testFileName := filepath.Base(testFile)
 			testName := "file/" + testFileName
+			if !shouldRun(filter, testName) {
+				continue
+			}
+
 			startedAt := time.Now()
 			if verbose {
 				cmd.ErrPrintfln("=== RUN   %s", testName)
@@ -371,4 +378,13 @@ func parseMemPackageTests(memPkg *std.MemPackage) (tset, itset *gno.FileSet) {
 		}
 	}
 	return tset, itset
+}
+
+func shouldRun(filter filterMatch, path string) bool {
+	if filter == nil {
+		return true
+	}
+	elem := strings.Split(path, "/")
+	ok, _ := filter.matches(elem, matchString)
+	return ok
 }
