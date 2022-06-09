@@ -1,8 +1,6 @@
 package std
 
 import "strconv"
-import "fmt"
-// import "github.com/gnolang/gno/pkgs/std"
 
 // NOTE: this is selectly copied over from pkgs/std/coin.go
 // TODO: import all functionality(?).
@@ -15,12 +13,12 @@ type Coin struct {
 }
 
 func (c Coin) String() string {
-	return strconv.Itoa(int(c.Amount)) + "*" + c.Denom
+	return strconv.Itoa(int(c.Amount)) + c.Denom
 }
 
 func (c Coin) IsGTE(other Coin) bool {
 	if c.Denom != other.Denom {
-		panic(fmt.Sprintf("invalid coin denominations; %s, %s", c.Denom, other.Denom))
+		panic("invalid coin denominations: " + c.Denom)
 	}
 	return c.Amount >= other.Amount
 }

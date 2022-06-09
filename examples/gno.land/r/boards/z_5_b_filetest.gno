@@ -23,7 +23,7 @@ func main() {
 	std.TestSetOrigCaller(test2)
 	std.TestSetOrigSend(std.Coins{{"gnot", 9}}, nil)
 
-	pid := boards.CreatePost(bid, "First Post (title)", "Body of the first post. (body)")
+	pid := boards.CreateThread(bid, "First Post (title)", "Body of the first post. (body)")
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
 }
 

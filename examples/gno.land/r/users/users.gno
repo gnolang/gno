@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"gno.land/p/avl"
-	"fmt"
 )
 
 //----------------------------------------
@@ -246,14 +245,6 @@ func GetUserByName(name string) *User {
 	}
 	return userI.(*User)
 }
-
-// func GetAddrByName(name string) std.Address{
-// 	user := GetUserByName(name)
-// 	if user != nil{
-// 		return user.address
-// 	}
-// 	return ""
-// }
 
 func GetUserByAddress(addr std.Address) *User {
 	_, userI, ok := addr2User.Get(addr.String())

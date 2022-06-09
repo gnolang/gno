@@ -40,12 +40,10 @@ func checkAnonFee() bool {
 	return false
 }
 
-// TODO: rename to CreateThread.
-func CreatePost(bid BoardID, title string, body string) PostID {
+func CreateThread(bid BoardID, title string, body string) PostID {
 	std.AssertOriginCall()
 	caller := std.GetOrigCaller()
 	if usernameOf(caller) == "" {
-		// TODO: allow with gDefaultAnonFee payment.
 		if !checkAnonFee(){
 			panic("payment must not be less than " + strconv.Itoa(gDefaultAnonFee))
 		}
