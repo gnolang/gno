@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"gno.land/p/avl"
+	"fmt"
 )
 
 //----------------------------------------
@@ -65,8 +66,8 @@ func Register(inviter std.Address, name string, profile string) {
 	sent := std.GetOrigSend()
 	if inviter == "" {
 		// banker := std.GetBanker(std.BankerTypeOrigSend)
-		// TODO: implement sent.IsGTE(...)
-		if len(sent) == 1 && sent[0].Denom == "gnot" && sent[0].Amount >= minFee {
+		minCoin := std.Coin{"gnot", minFee}
+		if len(sent) == 1 && sent[0].IsGTE(minCoin){	
 			if sent[0].Amount > minFee*maxFeeMult {
 				panic("payment must not be greater than " + strconv.Itoa(int(minFee*maxFeeMult)))
 			} else {
@@ -245,6 +246,14 @@ func GetUserByName(name string) *User {
 	}
 	return userI.(*User)
 }
+
+// func GetAddrByName(name string) std.Address{
+// 	user := GetUserByName(name)
+// 	if user != nil{
+// 		return user.address
+// 	}
+// 	return ""
+// }
 
 func GetUserByAddress(addr std.Address) *User {
 	_, userI, ok := addr2User.Get(addr.String())
