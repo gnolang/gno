@@ -2,6 +2,7 @@ package boards
 
 import (
 	"std"
+	"strconv"
 )
 
 //----------------------------------------
@@ -30,13 +31,24 @@ func CreateBoard(name string) BoardID {
 	return board.id
 }
 
+func checkAnonFee() bool {
+	sent := std.GetOrigSend()
+	anonFeeCoin := std.Coin{"gnot", int64(gDefaultAnonFee)}
+	if len(sent) == 1 && sent[0].IsGTE(anonFeeCoin){
+		return true
+	}	
+	return false
+}
+
 // TODO: rename to CreateThread.
 func CreatePost(bid BoardID, title string, body string) PostID {
 	std.AssertOriginCall()
 	caller := std.GetOrigCaller()
 	if usernameOf(caller) == "" {
 		// TODO: allow with gDefaultAnonFee payment.
-		panic("unauthorized")
+		if !checkAnonFee(){
+			panic("payment must not be less than " + strconv.Itoa(gDefaultAnonFee))
+		}
 	}
 	board := getBoard(bid)
 	thread := board.AddThread(caller, title, body)
@@ -47,8 +59,9 @@ func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
 	std.AssertOriginCall()
 	caller := std.GetOrigCaller()
 	if usernameOf(caller) == "" {
-		// TODO: allow with gDefaultAnonFee payment.
-		panic("unauthorized")
+		if !checkAnonFee(){
+			panic("payment must not be less than " + strconv.Itoa(gDefaultAnonFee))
+		}
 	}
 	board := getBoard(bid)
 	thread := board.GetThread(threadid)
@@ -69,7 +82,9 @@ func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoar
 	caller := std.GetOrigCaller()
 	if usernameOf(caller) == "" {
 		// TODO: allow with gDefaultAnonFee payment.
-		panic("unauthorized")
+		if !checkAnonFee(){
+			panic("payment must not be less than " + strconv.Itoa(gDefaultAnonFee))
+		}
 	}
 	board := getBoard(bid)
 	if board.IsPrivate() {

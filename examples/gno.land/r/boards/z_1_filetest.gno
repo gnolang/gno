@@ -1,13 +1,18 @@
 // PKGPATH: gno.land/r/boards_test
 package boards_test
 
+// SEND: 200gnot
+
 import (
 	"gno.land/r/boards"
+	"gno.land/r/users"
 )
 
 var board *boards.Board
 
 func init() {
+	users.Register("", "gnouser", "my profile")
+
 	_ = boards.CreateBoard("test_board_1")
 	_ = boards.CreateBoard("test_board_2")
 }
