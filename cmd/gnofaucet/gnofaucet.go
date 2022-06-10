@@ -115,9 +115,6 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 	if opts.GasFee == "" {
 		return errors.New("gas-fee not specified")
 	}
-	// if opts.Captcha == "" {
-	// 	return errors.New("captcha not specified")
-	// }
 	remote := opts.Remote
 	if remote == "" || remote == "y" {
 		return errors.New("missing remote url")
