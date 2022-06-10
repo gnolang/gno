@@ -13,30 +13,30 @@
         <pre id="source">
 
 This is the Gno.land (test) faucet.
-
 <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+<script type="text/javascript">
+    function main() {
+        // XXX
+    };
 
-<!-- <form method="POST" action="http://localhost:5050/"> -->
-<form method="POST" action="http://gno.land:5050/">
+    {{ if .Data.captcha }}
+    function recaptchaCallback() {
+        document.getElementById("submitBtn").disabled = false;
+    };
+    {{ end }}
+</script>
+<!-- <form method="POST" action="http://gno.land:5050/"> -->
+<form method="POST" action="http://localhost:5050/">
   <label for="toaddr">GNO.land address (e.g. g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5):</label><br>
-  <input type="text" id="toaddr" name="toaddr"/><br>
-  <input type="submit" value="GO"/>
-  <div id="captcha" class="g-recaptcha" data-sitekey="{YOUR_SITE_KEY}"></span>
+  <input type="text" id="toaddr" name="toaddr" required>
+  {{ if .Data.captcha }}
+  <div class="g-recaptcha" data-callback="recaptchaCallback" data-sitekey="{YOUR_SITE_KEY}"></div>
+  {{ end }}
+  <input type="submit" value="G(n)o for G(n)o" id="submitBtn" {{ if .Data.captcha }}disabled{{ end }}>
 </form>
-
-
-
-
         </pre>
     </div>
     </body>
-    <script type="text/javascript">
-function main() {
-    // XXX
-};
-    </script>
-
-
 </html>
 
 {{- end -}}
