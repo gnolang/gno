@@ -1,4 +1,5 @@
 {{- define "app" -}}
+
 <!DOCTYPE html>
 <html>
     <head>
@@ -19,20 +20,20 @@ This is the Gno.land (test) faucet.
         // XXX
     };
 
-    {{ if .Data.captcha }}
+    {{ if .Data.captchaSite }}
     function recaptchaCallback() {
         document.getElementById("submitBtn").disabled = false;
     };
     {{ end }}
 </script>
-<!-- <form method="POST" action="http://gno.land:5050/"> -->
-<form method="POST" action="http://localhost:5050/">
+
+<form method="POST" action="{{ .Data.faucetURL }}">
   <label for="toaddr">GNO.land address (e.g. g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5):</label><br>
   <input type="text" id="toaddr" name="toaddr" required>
-  {{ if .Data.captcha }}
-  <div class="g-recaptcha" data-callback="recaptchaCallback" data-sitekey="{YOUR_SITE_KEY}"></div>
+  {{ if .Data.captchaSite }}
+  <div class="g-recaptcha" data-callback="recaptchaCallback" data-sitekey="{{ .Data.captchaSite }}"></div>
   {{ end }}
-  <input type="submit" value="G(n)o for G(n)o" id="submitBtn" {{ if .Data.captcha }}disabled{{ end }}>
+  <input type="submit" value="GO" id="submitBtn" {{ if .Data.captchaSite }}disabled{{ end }}>
 </form>
         </pre>
     </div>
