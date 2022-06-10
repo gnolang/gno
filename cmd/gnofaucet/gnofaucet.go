@@ -87,6 +87,7 @@ type serveOptions struct {
 	Memo               string `flag:"memo" help:"any descriptive text"`
 	TestTo             string `flag:"test-to" help:"test addr (optional)"`
 	Send               string `flag:"send" help:"send coins"`
+	Captcha            bool	  `flag:"captcha" help:"enable or disable catpcha(defalut: false)"`
 }
 
 var DefaultServeOptions = serveOptions{
@@ -96,6 +97,7 @@ var DefaultServeOptions = serveOptions{
 	Memo:      "",
 	TestTo:    "",
 	Send:      "1gnot",
+	Captcha:   false,
 }
 
 func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
@@ -113,6 +115,9 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 	if opts.GasFee == "" {
 		return errors.New("gas-fee not specified")
 	}
+	// if opts.Captcha == "" {
+	// 	return errors.New("captcha not specified")
+	// }
 	remote := opts.Remote
 	if remote == "" || remote == "y" {
 		return errors.New("missing remote url")
@@ -204,8 +209,8 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 			}
 			host = host_
 		} else {
-			host = r.Header["X-Forwarded-For"][0]
-			// host = "127.0.0.1"
+			// host = r.Header["X-Forwarded-For"][0]
+			host = "127.0.0.1"
 		}
 		if len(host) == 0 {
 			return
@@ -215,20 +220,34 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 			return
 		}
 		r.ParseForm() 
-	
-		// verify catptcha
-		captcha := strings.TrimSpace(r.Form["g-recaptcha-response"][0])
-		if err := checkRecaptcha("{YOUR_SECRET_KEY}", captcha);  err != nil {
-			w.Write([]byte("Unauthorized"))
-			return
+
+		// only when command line argument 'captcha' is set to 'true'
+		// veryify captcha
+		if opts.Captcha == true {
+			passedMsg := r.Form["g-recaptcha-response"]
+			if (passedMsg == nil) {
+				fmt.Println("no 'captcha' request")
+				w.Write([]byte("check captcha request"))
+				return
+			}
+
+			capMsg := strings.TrimSpace(passedMsg[0])
+
+			if err := checkRecaptcha("{YOUR_SECRET_KEY}", capMsg);  err != nil {
+				w.Write([]byte("Unauthorized"))
+				return
+			}
+
 		}
 
-
-		toAddrStr := strings.TrimSpace(r.Form["toaddr"][0])
-		if toAddrStr == "" {
-			fmt.Println("no toAddr")
+		passedAddr := r.Form["toaddr"]
+		if (passedAddr == nil) {
+			fmt.Println("input your address")
+			w.Write([]byte("no address found"))
 			return
 		}
+		toAddrStr := strings.TrimSpace(passedAddr[0])
+
 		if !st.Request(ip) {
 			return
 		}
@@ -236,6 +255,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 		toAddr, err := crypto.AddressFromBech32(toAddrStr)
 		if err != nil {
 			fmt.Println("error:", err)
+			w.Write([]byte("invalid address format"))
 			return
 		}
 		err = sendAmountTo(cmd, cli, name, pass, toAddr, accountNumber, sequence, send, opts)
