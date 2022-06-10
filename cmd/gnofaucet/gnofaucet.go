@@ -81,23 +81,23 @@ func main() {
 
 type serveOptions struct {
 	client.BaseOptions        // home, ...
-	ChainID            string `flag:"chain-id" help:"chain id"`
-	GasWanted          int64  `flag:"gas-wanted" help:"gas requested for tx"`
-	GasFee             string `flag:"gas-fee" help:"gas payment fee"`
-	Memo               string `flag:"memo" help:"any descriptive text"`
-	TestTo             string `flag:"test-to" help:"test addr (optional)"`
-	Send               string `flag:"send" help:"send coins"`
-	Captcha            bool	  `flag:"captcha" help:"enable or disable catpcha(defalut: false)"`
+	ChainID         string `flag:"chain-id" help:"chain id"`
+	GasWanted       int64  `flag:"gas-wanted" help:"gas requested for tx"`
+	GasFee          string `flag:"gas-fee" help:"gas payment fee"`
+	Memo            string `flag:"memo" help:"any descriptive text"`
+	TestTo          string `flag:"test-to" help:"test addr (optional)"`
+	Send            string `flag:"send" help:"send coins"`
+	CaptchaSecret   string `flag:"captcha-secret" help:"recaptcha secret key (if empty, captcha are disalbed"`
 }
 
 var DefaultServeOptions = serveOptions{
-	ChainID:   "", // must override
-	GasWanted: 50000,
-	GasFee:    "1gnot",
-	Memo:      "",
-	TestTo:    "",
-	Send:      "1gnot",
-	Captcha:   false,
+	ChainID:        "", // must override
+	GasWanted:      50000,
+	GasFee:         "1gnot",
+	Memo:           "",
+	TestTo:         "",
+	Send:           "1gnot",
+	CaptchaSecret:	"",
 }
 
 func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
@@ -115,6 +115,10 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 	if opts.GasFee == "" {
 		return errors.New("gas-fee not specified")
 	}
+<<<<<<< HEAD
+
+=======
+>>>>>>> 956aad6821e97aee61387c57ab8bb34960f4dc69
 	remote := opts.Remote
 	if remote == "" || remote == "y" {
 		return errors.New("missing remote url")
@@ -218,9 +222,10 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 		}
 		r.ParseForm() 
 
-		// only when command line argument 'captcha' is set to 'true'
+
+		// only when command line argument 'captcha-secret' has entered > captcha are enabled.
 		// veryify captcha
-		if opts.Captcha == true {
+		if opts.CaptchaSecret != "" {
 			passedMsg := r.Form["g-recaptcha-response"]
 			if (passedMsg == nil) {
 				fmt.Println("no 'captcha' request")
@@ -230,7 +235,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 			capMsg := strings.TrimSpace(passedMsg[0])
 
-			if err := checkRecaptcha("{YOUR_SECRET_KEY}", capMsg);  err != nil {
+			if err := checkRecaptcha(opts.CaptchaSecret, capMsg);  err != nil {
 				w.Write([]byte("Unauthorized"))
 				return
 			}
