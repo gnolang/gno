@@ -28,9 +28,10 @@ import (
 )
 
 var flags struct {
-	bindAddr   string
-	remoteAddr string
-	captcha    bool
+	bindAddr    string
+	remoteAddr  string
+	captchaSite string
+	faucetURL   string
 }
 
 var startedAt time.Time
@@ -38,7 +39,8 @@ var startedAt time.Time
 func init() {
 	flag.StringVar(&flags.remoteAddr, "remote", "127.0.0.1:26657", "remote gnoland node address")
 	flag.StringVar(&flags.bindAddr, "bind", "127.0.0.1:8888", "server listening address")
-	flag.BoolVar(&flags.captcha, "captcha", false, "enable captcha (default false)")
+	flag.StringVar(&flags.captchaSite, "captcha-site", "", "recaptcha site key (if empty, captcha are disabled")
+	flag.StringVar(&flags.faucetURL, "faucet-url", "http://localhost:5050", "faucet server URL")
 	startedAt = time.Now()
 }
 
@@ -81,7 +83,8 @@ func handlerHome(app gotuna.App) http.Handler {
 func handlerFaucet(app gotuna.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		app.NewTemplatingEngine().
-			Set("captcha", flags.captcha).
+			Set("captchaSite", flags.captchaSite).
+			Set("faucetURL", flags.faucetURL).
 			Render(w, r, "faucet.html", "header.html")
 	})
 }
