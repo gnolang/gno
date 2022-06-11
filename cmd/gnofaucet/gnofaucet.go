@@ -207,11 +207,10 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 			}
 			host = host_
 		} else {
-			// host = r.Header["X-Forwarded-For"][0]
-			host = "127.0.0.1"
+			host = r.Header["X-Forwarded-For"][0]
 		}
-		if len(host) == 0 {
-			return
+		if host == "" {
+			host = "127.0.0.1"
 		}
 		ip := net.ParseIP(host)
 		if ip == nil {
