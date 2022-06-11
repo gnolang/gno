@@ -87,7 +87,7 @@ type serveOptions struct {
 	Memo            string `flag:"memo" help:"any descriptive text"`
 	TestTo          string `flag:"test-to" help:"test addr (optional)"`
 	Send            string `flag:"send" help:"send coins"`
-	CaptchaSecret   string `flag:"captcha-secret" help:"recaptcha secret key (if empty, captcha are disalbed"`
+	CaptchaSecret   string `flag:"captcha-secret" help:"recaptcha secret key (if empty, captcha are disabled)"`
 }
 
 var DefaultServeOptions = serveOptions{
@@ -115,10 +115,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 	if opts.GasFee == "" {
 		return errors.New("gas-fee not specified")
 	}
-<<<<<<< HEAD
 
-=======
->>>>>>> 956aad6821e97aee61387c57ab8bb34960f4dc69
 	remote := opts.Remote
 	if remote == "" || remote == "y" {
 		return errors.New("missing remote url")
