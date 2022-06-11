@@ -43,7 +43,7 @@ func TestMain(t *testing.T) {
 		{args: []string{"test", "../../tests/integ/no-such-dir"}, errShouldContain: "no such file or directory"},
 		{args: []string{"test", "../../tests/integ/empty-dir"}}, // FIXME: should have an output
 		{args: []string{"test", "../../tests/integ/empty-gno1"}, stderrShouldBe: "?       ./../../tests/integ/empty-gno1 \t[no test files]\n"},
-		{args: []string{"test", "../../tests/integ/empty-gno2"}, recoverShouldBe: "dontcare.gno:1:1: expected 'package', found 'EOF'"},                                    // FIXME: better error handling + rename dontcare.gno with actual test file
+		{args: []string{"test", "../../tests/integ/empty-gno2"}, recoverShouldBe: "empty.gno:1:1: expected 'package', found 'EOF'"},                                       // FIXME: better error handling + rename dontcare.gno with actual test file
 		{args: []string{"test", "../../tests/integ/empty-gno3"}, recoverShouldBe: "../../tests/integ/empty-gno3/empty_filetest.gno:1:1: expected 'package', found 'EOF'"}, // FIXME: better error handling
 		{args: []string{"test", "../../tests/integ/minimalist-gno1"}, stderrShouldBe: "?       ./../../tests/integ/minimalist-gno1 \t[no test files]\n"},
 		{args: []string{"test", "../../tests/integ/minimalist-gno2"}, stderrShouldContain: "ok "},
