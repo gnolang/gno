@@ -14,7 +14,9 @@
         <pre id="source">
 
 This is the Gno.land (test) faucet.
+{{ if .Data.captchaSite }}
 <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+{{ end }}
 <script type="text/javascript">
     function main() {
         // XXX
