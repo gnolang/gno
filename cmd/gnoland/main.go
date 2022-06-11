@@ -23,18 +23,24 @@ import (
 	"github.com/gnolang/gno/pkgs/std"
 )
 
-var flags struct {
-	skipFailingGenesisTxs bool
-	skipStart             bool
-}
-
-func init() {
-	flag.BoolVar(&flags.skipFailingGenesisTxs, "skip-failing-genesis-txs", false, "don't panic when replaying invalid genesis txs")
-	flag.BoolVar(&flags.skipStart, "skip-start", false, "quit after initialization, don't start the node")
-}
-
 func main() {
-	flag.Parse()
+	args := os.Args[1:]
+	err := runMain(args)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+}
+
+func runMain(args []string) error {
+	var flags struct {
+		skipFailingGenesisTxs bool
+		skipStart             bool
+	}
+	fs := flag.NewFlagSet("gnoland", flag.ExitOnError)
+	fs.BoolVar(&flags.skipFailingGenesisTxs, "skip-failing-genesis-txs", false, "don't panic when replaying invalid genesis txs")
+	fs.BoolVar(&flags.skipStart, "skip-start", false, "quit after initialization, don't start the node")
+	fs.Parse(args)
 
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
 	rootDir := "testdir"
@@ -59,23 +65,22 @@ func main() {
 	// create application and node.
 	gnoApp, err := gnoland.NewApp(rootDir, flags.skipFailingGenesisTxs, logger)
 	if err != nil {
-		panic(fmt.Sprintf("error in creating new app: %v", err))
+		return fmt.Errorf("error in creating new app: %w", err)
 	}
 	cfg.LocalApp = gnoApp
 	gnoNode, err := node.DefaultNewNode(cfg, logger)
 	if err != nil {
-		panic(fmt.Sprintf("error in creating node: %v", err))
+		return fmt.Errorf("error in creating node: %w", err)
 	}
-	println("Node created.")
+	fmt.Fprintln(os.Stderr, "Node created.")
 
 	if flags.skipStart {
-		println()
-		println("'--skip-start' is set. Exiting.")
-		return
+		fmt.Fprintln(os.Stderr, "'--skip-start' is set. Exiting.")
+		return nil
 	}
 
 	if err := gnoNode.Start(); err != nil {
-		panic(fmt.Sprintf("error in start node: %v", err))
+		return fmt.Errorf("error in start node: %w", err)
 	}
 
 	// run forever
@@ -189,7 +194,7 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 		"r/banktest",
 	} {
 		// open files in directory as MemPackage.
-		memPkg := gno.ReadMemPackage("./examples/gno.land/"+path, "gno.land/"+path)
+		memPkg := gno.ReadMemPackage(filepath.Join(".", "examples", "gno.land", path), "gno.land/"+path)
 		var tx std.Tx
 		tx.Msgs = []std.Msg{
 			vmm.MsgAddPackage{

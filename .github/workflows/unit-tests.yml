@@ -24,6 +24,7 @@ jobs:
           - test.go1
           - test.go2
           - test.go3
+          - test.go4
           - test.files1
           - test.files2
           - test.packages0
