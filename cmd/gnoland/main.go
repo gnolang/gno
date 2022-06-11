@@ -25,10 +25,12 @@ import (
 
 var flags struct {
 	skipFailingGenesisTxs bool
+	skipStart             bool
 }
 
 func init() {
 	flag.BoolVar(&flags.skipFailingGenesisTxs, "skip-failing-genesis-txs", false, "don't panic when replaying invalid genesis txs")
+	flag.BoolVar(&flags.skipStart, "skip-start", false, "quit after initialization, don't start the node")
 }
 
 func main() {
@@ -64,6 +66,14 @@ func main() {
 	if err != nil {
 		panic(fmt.Sprintf("error in creating node: %v", err))
 	}
+	println("Node created.")
+
+	if flags.skipStart {
+		println()
+		println("'--skip-start' is set. Exiting.")
+		return
+	}
+
 	if err := gnoNode.Start(); err != nil {
 		panic(fmt.Sprintf("error in start node: %v", err))
 	}
