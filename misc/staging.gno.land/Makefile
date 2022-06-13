@@ -1,4 +1,4 @@
-all: up logs
+all: build up logs
 
 up:
 	mkdir -p data/gnoland/config
@@ -10,4 +10,11 @@ logs:
 
 down:
 	docker compose down
+	docker volume rm -f staginggnoland_gnonode
+	docker compose run gnoland rm -rf /opt/gno/src/testdir/data
 
+pull:
+	git pull
+
+build: 
+	docker compose build

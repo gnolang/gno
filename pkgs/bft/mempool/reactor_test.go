@@ -172,7 +172,9 @@ func TestReactorNoBroadcastToSender(t *testing.T) {
 	ensureNoTxs(t, reactors[1], 100*time.Millisecond)
 }
 
-func TestBroadcastTxForPeerStopsWhenPeerStops(t *testing.T) {
+func TestFlappyBroadcastTxForPeerStopsWhenPeerStops(t *testing.T) {
+	testutils.FilterStability(t, testutils.Flappy)
+
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
