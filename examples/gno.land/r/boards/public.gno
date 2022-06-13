@@ -132,6 +132,9 @@ func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
 	} else {
 		// delete thread's post
 		post := thread.GetReply(postid)
+		if post == nil{
+			panic("post not exist")
+		}
 		if !post.HasPermission(caller, DeletePermission) {
 			panic("unauthorized")
 		}
