@@ -49,6 +49,9 @@ func CreateThread(bid BoardID, title string, body string) PostID {
 		}
 	}
 	board := getBoard(bid)
+	if board == nil{
+		panic("board not exist")
+	}
 	thread := board.AddThread(caller, title, body)
 	return thread.id
 }
@@ -62,7 +65,13 @@ func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
 		}
 	}
 	board := getBoard(bid)
+	if board == nil{
+		panic("board not exist")
+	}
 	thread := board.GetThread(threadid)
+	if thread == nil{
+		panic("thread not exist")
+	}
 	if postid == threadid {
 		reply := thread.AddReply(caller, body)
 		return reply.id
@@ -85,11 +94,20 @@ func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoar
 		}
 	}
 	board := getBoard(bid)
+	if board == nil{
+		panic("src board not exist")
+	}
 	if board.IsPrivate() {
 		panic("cannot repost from a private board")
 	}
 	dst := getBoard(dstBoardID)
+	if dst == nil{
+		panic("dst board not exist")
+	}
 	thread := board.GetThread(postid)
+	if thread == nil{
+		panic("thread not exist")
+	}
 	repost := thread.AddRepostTo(caller, title, body, dst)
 	return repost.id
 }
@@ -98,7 +116,13 @@ func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
 	std.AssertOriginCall()
 	caller := std.GetOrigCaller()
 	board := getBoard(bid)
+	if board == nil{
+		panic("board not exist")
+	}
 	thread := board.GetThread(threadid)
+	if thread == nil{
+		panic("thread not exist")
+	}
 	if postid == threadid {
 		// delete thread
 		if !thread.HasPermission(caller, DeletePermission) {
@@ -108,6 +132,9 @@ func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
 	} else {
 		// delete thread's post
 		post := thread.GetReply(postid)
+		if post == nil{
+			panic("post not exist")
+		}
 		if !post.HasPermission(caller, DeletePermission) {
 			panic("unauthorized")
 		}
@@ -119,7 +146,13 @@ func EditPost(bid BoardID, threadid, postid PostID, title, body string) {
 	std.AssertOriginCall()
 	caller := std.GetOrigCaller()
 	board := getBoard(bid)
+	if board == nil{
+		panic("board not exist")
+	}
 	thread := board.GetThread(threadid)
+	if thread == nil{
+		panic("thread not exist")
+	}
 	if postid == threadid {
 		// edit thread
 		if !thread.HasPermission(caller, EditPermission) {
@@ -129,6 +162,9 @@ func EditPost(bid BoardID, threadid, postid PostID, title, body string) {
 	} else {
 		// edit thread's post
 		post := thread.GetReply(postid)
+		if post == nil{
+			panic("post not exist")
+		}
 		if !post.HasPermission(caller, EditPermission) {
 			panic("unauthorized")
 		}

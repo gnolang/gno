@@ -1,7 +1,7 @@
 // PKGPATH: gno.land/r/boards_test
 package boards_test
 
-// SEND: 199gnot
+// SEND: 200gnot
 
 import (
 	"gno.land/r/boards"
@@ -13,6 +13,7 @@ var bid boards.BoardID
 func init() {
 	users.Register("", "gnouser", "my profile")
 	bid = boards.CreateBoard("test_board")
+	boards.CreateReply(bid, 0, 0, "Reply of the second post")
 }
 
 func main() {
@@ -20,4 +21,4 @@ func main() {
 }
 
 // Error:
-// payment must not be less than 200
+// thread not exist

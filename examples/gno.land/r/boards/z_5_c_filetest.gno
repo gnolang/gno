@@ -24,7 +24,7 @@ func main() {
 	std.TestSetOrigSend(std.Coins{{"gnot", 101}}, nil)
 
 	pid := boards.CreateThread(bid, "First Post (title)", "Body of the first post. (body)")
-	boards.CreateReply(bid, pid, pid, "Reply of the second post")
+	boards.CreateReply(bid, pid, pid, "Reply of the first post")
 
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
 }
@@ -35,5 +35,5 @@ func main() {
 // Body of the first post. (body)
 // \- [g1w3jhxapjta047h6lta047h6lta047h6laqcyu4](/r/users:g1w3jhxapjta047h6lta047h6lta047h6laqcyu4), [1970-01-01 12:00am (UTC)](/r/boards:test_board/1) \[[reply](/r/boards?help&__func=CreateReply&bid=1&threadid=1&postid=1&body.type=textarea)] \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=1&postid=1)]
 //
-// > Reply of the second post
+// > Reply of the first post
 // > \- [g1w3jhxapjta047h6lta047h6lta047h6laqcyu4](/r/users:g1w3jhxapjta047h6lta047h6lta047h6laqcyu4), [1970-01-01 12:00am (UTC)](/r/boards:test_board/1/2) \[[reply](/r/boards?help&__func=CreateReply&bid=1&threadid=1&postid=2&body.type=textarea)] \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=1&postid=2)]
