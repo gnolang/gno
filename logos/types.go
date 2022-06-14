@@ -274,8 +274,7 @@ func (pg *Page) Render() (updated bool) {
 func (pg *Page) Draw(offset Coord, view View) {
 	style := pg.GetStyle()
 	border := style.GetBorder()
-	minX, maxX, minY, maxY :=
-		computeIntersection(pg.Size, offset, view.Bounds)
+	minX, maxX, minY, maxY := computeIntersection(pg.Size, offset, view.Bounds)
 	// First, draw page background style.
 	for y := minY; y < maxY; y++ {
 		for x := minX; x < maxX; x++ {
@@ -478,8 +477,7 @@ func (tel *TextElem) Render() (updated bool) {
 var ctr = 0
 
 func (tel *TextElem) Draw(offset Coord, view View) {
-	minX, maxX, minY, maxY :=
-		computeIntersection(tel.Size, offset, view.Bounds)
+	minX, maxX, minY, maxY := computeIntersection(tel.Size, offset, view.Bounds)
 	for y := minY; y < maxY; y++ {
 		if minY != 0 {
 			panic("should not happen")

@@ -166,8 +166,10 @@ func isSpace(r rune) bool {
 	return false
 }
 
-var matchPat string
-var matchRe *regexp.Regexp
+var (
+	matchPat string
+	matchRe  *regexp.Regexp
+)
 
 // based on testing/internal/testdeps.TestDeps.MatchString.
 func matchString(pat, str string) (result bool, err error) {

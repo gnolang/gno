@@ -28,9 +28,11 @@ var (
 	mainKey = store.NewStoreKey("main") // in all test apps
 )
 
-type msgCounter = testutils.MsgCounter
-type msgCounter2 = testutils.MsgCounter2
-type msgNoRoute = testutils.MsgNoRoute
+type (
+	msgCounter  = testutils.MsgCounter
+	msgCounter2 = testutils.MsgCounter2
+	msgNoRoute  = testutils.MsgNoRoute
+)
 
 const (
 	routeMsgCounter  = testutils.RouteMsgCounter

@@ -66,7 +66,7 @@ func Register(inviter std.Address, name string, profile string) {
 	minCoin := std.Coin{"gnot", minFee}
 	if inviter == "" {
 		// banker := std.GetBanker(std.BankerTypeOrigSend)
-		if len(sentCoins) == 1 && sentCoins[0].IsGTE(minCoin){	
+		if len(sentCoins) == 1 && sentCoins[0].IsGTE(minCoin) {
 			if sentCoins[0].Amount > minFee*maxFeeMult {
 				panic("payment must not be greater than " + strconv.Itoa(int(minFee*maxFeeMult)))
 			} else {

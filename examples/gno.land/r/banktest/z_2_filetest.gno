@@ -1,8 +1,9 @@
 package main
 
 import (
-	"gno.land/r/banktest"
 	"std"
+
+	"gno.land/r/banktest"
 )
 
 func main() {

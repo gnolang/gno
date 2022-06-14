@@ -3,8 +3,9 @@ package main
 // SEND: 199gnot
 
 import (
-	"gno.land/r/users"
 	"std"
+
+	"gno.land/r/users"
 )
 
 func main() {

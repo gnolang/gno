@@ -116,7 +116,7 @@ func gnoTestPkg(cmd *command.Command, pkgPath string, unittestFiles, filetestFil
 		}
 		memPkg := gno.ReadMemPackage(pkgPath, pkgPath)
 
-		//tfiles, ifiles := gno.ParseMemPackageTests(memPkg)
+		// tfiles, ifiles := gno.ParseMemPackageTests(memPkg)
 		tfiles, ifiles := parseMemPackageTests(memPkg)
 
 		// run test files in pkg
