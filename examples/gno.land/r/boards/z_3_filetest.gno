@@ -10,8 +10,10 @@ import (
 	"gno.land/r/users"
 )
 
-var bid boards.BoardID
-var pid boards.PostID
+var (
+	bid boards.BoardID
+	pid boards.PostID
+)
 
 func init() {
 	users.Register("", "gnouser", "my profile")

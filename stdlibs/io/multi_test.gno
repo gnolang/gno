@@ -118,7 +118,8 @@ func TestMultiWriter_StringCheckCall(t *testing.T) {
 func testMultiWriter(t *testing.T, sink interface {
 	io.Writer
 	Stringer
-}) {
+},
+) {
 	sha1 := sha1.New()
 	mw := io.MultiWriter(sha1, sink)
 

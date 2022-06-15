@@ -280,7 +280,6 @@ doReport:
 }
 
 func tRunner(t *T, fn testingFunc, logSteps bool) {
-
 	if !t.shouldRun(t.name) {
 		t.filtered = true
 		if logSteps {

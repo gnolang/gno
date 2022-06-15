@@ -29,7 +29,7 @@ import (
 
 var flags struct {
 	bindAddr   string
-	remoteAddr string	
+	remoteAddr string
 }
 
 var startedAt time.Time

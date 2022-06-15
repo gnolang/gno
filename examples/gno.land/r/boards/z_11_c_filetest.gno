@@ -10,8 +10,10 @@ import (
 	"gno.land/r/users"
 )
 
-var bid boards.BoardID
-var pid boards.PostID
+var (
+	bid boards.BoardID
+	pid boards.PostID
+)
 
 func init() {
 	users.Register("", "gnouser", "my profile")
@@ -22,7 +24,7 @@ func init() {
 
 func main() {
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
-	//post 2 not exist
+	// post 2 not exist
 	boards.EditPost(bid, pid, 2, "Edited: First Post in (title)", "Edited: Body of the first post. (body)")
 	println("----------------------------------------------------")
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))

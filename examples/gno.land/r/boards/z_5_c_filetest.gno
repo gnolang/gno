@@ -4,21 +4,21 @@ package main
 
 import (
 	"std"
+	"strconv"
 
 	"gno.land/p/testutils"
 	"gno.land/r/boards"
 	"gno.land/r/users"
-	"strconv"
 )
 
 const admin = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 func main() {
 	users.Register("", "gnouser", "my profile")
-	//create board via registered user
+	// create board via registered user
 	bid := boards.CreateBoard("test_board")
 
-	//create post via anon user
+	// create post via anon user
 	test2 := testutils.TestAddress("test2")
 	std.TestSetOrigCaller(test2)
 	std.TestSetOrigSend(std.Coins{{"gnot", 101}}, nil)

@@ -10,9 +10,11 @@ import (
 	"gno.land/r/users"
 )
 
-var firstBoard boards.BoardID
-var secondBoard boards.BoardID
-var pid boards.PostID
+var (
+	firstBoard  boards.BoardID
+	secondBoard boards.BoardID
+	pid         boards.PostID
+)
 
 func init() {
 	users.Register("", "gnouser", "my profile")

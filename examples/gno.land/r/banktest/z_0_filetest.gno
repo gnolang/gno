@@ -4,8 +4,9 @@ package main
 // SEND: 100gnot
 
 import (
-	"gno.land/r/banktest"
 	"std"
+
+	"gno.land/r/banktest"
 )
 
 func main() {

@@ -10,15 +10,16 @@ import (
 	"gno.land/r/users"
 )
 
-var bid boards.BoardID
-var pid boards.PostID
+var (
+	bid boards.BoardID
+	pid boards.PostID
+)
 
 func init() {
 	users.Register("", "gnouser", "my profile")
 
 	bid = boards.CreateBoard("test_board")
 	pid = boards.CreateThread(bid, "First Post in (title)", "Body of the first post. (body)")
-
 }
 
 func main() {

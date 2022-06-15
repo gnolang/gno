@@ -15,7 +15,7 @@ func init() {
 func main() {
 	var updated bool
 	tree, updated = tree.Set("key2", "value2")
-	//println(tree, updated)
+	// println(tree, updated)
 	println(updated, tree.Size())
 }
 
