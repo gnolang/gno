@@ -2,44 +2,62 @@ package ufmt
 
 import "strconv"
 
-func Sprintf(format string, values ...interface{}) string {
-	offset := 0
-	fmtlen := len(format)
-	r := ""
+func Sprintf(format string, args ...interface{}) string {
+	end := len(format)
+	argNum := 0
+	argLen := len(args)
+	buf := ""
 
-	for i := 0; i < fmtlen; i++ {
-		k := format[i]
-		isLast := i == fmtlen-1
-		switch {
-		case k == '%' && !isLast:
-			value := values[offset]
-			switch format[i+1] {
-			case 's':
-				r += value.(string)
-			case 'd':
-				switch v := value.(type) {
-				case int:
-					r += strconv.Itoa(v)
-				case int64:
-					r += strconv.Itoa(int(v))
-				case uint:
-					r += strconv.FormatUint(uint64(v), 10)
-				case uint64:
-					r += strconv.FormatUint(v, 10)
-				default:
-					r += "(unhandled)"
-				}
-			case '%':
-				r += "%"
-			default:
-				r += "(unhandled)"
-			}
+	for i := 0; i < end; {
+		isLast := i == end-1
+		c := format[i]
 
+		if isLast || c != '%' {
+			// we don't check for invalid format like a one ending with "%"
+			buf += string(c)
 			i++
-			offset++
-		default:
-			r += string(k)
+			continue
 		}
+
+		verb := format[i+1]
+		if verb == '%' {
+			buf += "%"
+			i += 2
+			continue
+		}
+
+		if argNum > argLen {
+			panic("invalid number of arguments to ufmt.Sprintf")
+		}
+		arg := args[argNum]
+		argNum++
+
+		switch verb {
+		case 's':
+			buf += arg.(string)
+		case 'd':
+			switch v := arg.(type) {
+			case int:
+				buf += strconv.Itoa(v)
+			case int64:
+				buf += strconv.Itoa(int(v))
+			case uint:
+				buf += strconv.FormatUint(uint64(v), 10)
+			case uint64:
+				buf += strconv.FormatUint(v, 10)
+			default:
+				buf += "(unhandled)"
+			}
+		case '%':
+			buf += "%"
+		default:
+			buf += "(unhandled)"
+		}
+
+		i += 2
 	}
-	return r
+	if argNum < argLen {
+		panic("too many arguments to ufmt.Sprintf")
+	}
+	return buf
 }

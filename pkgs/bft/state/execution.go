@@ -74,7 +74,6 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 	state State, commit *types.Commit,
 	proposerAddr crypto.Address,
 ) (*types.Block, *types.PartSet) {
-
 	maxDataBytes := state.ConsensusParams.Block.MaxDataBytes
 	maxGas := state.ConsensusParams.Block.MaxGas
 
@@ -315,7 +314,8 @@ func getBeginBlockLastCommitInfo(block *types.Block, stateDB dbm.DB) abci.LastCo
 }
 
 func validateValidatorUpdates(abciUpdates []abci.ValidatorUpdate,
-	params abci.ValidatorParams) error {
+	params abci.ValidatorParams,
+) error {
 	for _, valUpdate := range abciUpdates {
 		if valUpdate.Power < 0 {
 			return fmt.Errorf("Voting power can't be negative %v", valUpdate)
@@ -342,7 +342,6 @@ func updateState(
 	header *types.Header,
 	abciResponses *ABCIResponses,
 ) (State, error) {
-
 	// Copy the valset so we can apply changes from EndBlock
 	// and update s.LastValidators and s.Validators.
 	nValSet := state.NextValidators.Copy()

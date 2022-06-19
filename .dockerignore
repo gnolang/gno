@@ -1,6 +1,8 @@
 .dockerignore
 build/
 Dockerfile
+misc/
+docker-compose.yml
 
 # gitignore
 *.sw[pon]

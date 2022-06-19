@@ -42,11 +42,13 @@ func (u User) Address() std.Address { return u.address }
 // State
 
 var (
-	admin     std.Address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"
-	name2User *avl.Tree   // Name -> *User
-	addr2User *avl.Tree   // std.Address -> *User
-	invites   *avl.Tree   // string(inviter+":"+invited) -> true
-	counter   int
+	admin      std.Address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"
+	name2User  *avl.Tree         // Name -> *User
+	addr2User  *avl.Tree         // std.Address -> *User
+	invites    *avl.Tree         // string(inviter+":"+invited) -> true
+	counter    int               // user id counter
+	minFee     int64       = 200 // minimum gnot must be paid to register.
+	maxFeeMult int64       = 10  // maximum multiples of minFee accepted.
 )
 
 //----------------------------------------
@@ -60,14 +62,18 @@ func Register(inviter std.Address, name string, profile string) {
 	if caller != std.GetOrigCaller() {
 		panic("should not happen") // because std.AssertOrigCall().
 	}
+	sentCoins := std.GetOrigSend()
+	minCoin := std.Coin{"gnot", minFee}
 	if inviter == "" {
 		// banker := std.GetBanker(std.BankerTypeOrigSend)
-		sent := std.GetOrigSend()
-		// TODO: implement sent.IsGTE(...)
-		if len(sent) == 1 && sent[0].Denom == "gnot" && sent[0].Amount == 2000 {
-			// ok
+		if len(sentCoins) == 1 && sentCoins[0].IsGTE(minCoin) {
+			if sentCoins[0].Amount > minFee*maxFeeMult {
+				panic("payment must not be greater than " + strconv.Itoa(int(minFee*maxFeeMult)))
+			} else {
+				// ok
+			}
 		} else {
-			panic("payment must be exactly 2000 gnots")
+			panic("payment must not be less than " + strconv.Itoa(int(minFee)))
 		}
 	} else {
 		invitekey := inviter.String() + ":" + caller.String()
@@ -90,6 +96,16 @@ func Register(inviter std.Address, name string, profile string) {
 	if !reName.MatchString(name) {
 		panic("invalid name: " + name + " (must be at least 6 characters, lowercase alphanumeric with underscore)")
 	}
+	// remainder of fees go toward invites.
+	invites := int(0)
+	if len(sentCoins) == 1 {
+		if sentCoins[0].Denom == "gnot" && sentCoins[0].Amount >= minFee {
+			invites = int(sentCoins[0].Amount / minFee)
+			if inviter == "" && invites > 0 {
+				invites -= 1
+			}
+		}
+	}
 	// register.
 	counter++
 	user := &User{
@@ -97,6 +113,7 @@ func Register(inviter std.Address, name string, profile string) {
 		name:    name,
 		profile: profile,
 		number:  counter,
+		invites: invites,
 		inviter: inviter,
 	}
 	name2User, _ = name2User.Set(name, user)
@@ -190,6 +207,32 @@ func GrantInvites(invites string) {
 		user := userI.(*User)
 		user.invites += invites
 	}
+}
+
+// Any leftover fees go toward invitations.
+func SetMinFee(newMinFee int64) {
+	// assert CallTx call.
+	std.AssertOriginCall()
+	// assert admin caller.
+	caller := std.GetCallerAt(2)
+	if caller != admin {
+		panic("unauthorized")
+	}
+	// update global variables.
+	minFee = newMinFee
+}
+
+// This helps prevent fat finger accidents.
+func SetMaxFeeMultiple(newMaxFeeMult int64) {
+	// assert CallTx call.
+	std.AssertOriginCall()
+	// assert admin caller.
+	caller := std.GetCallerAt(2)
+	if caller != admin {
+		panic("unauthorized")
+	}
+	// update global variables.
+	maxFeeMult = newMaxFeeMult
 }
 
 //----------------------------------------

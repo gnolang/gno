@@ -16,6 +16,13 @@ func (c Coin) String() string {
 	return strconv.Itoa(int(c.Amount)) + c.Denom
 }
 
+func (c Coin) IsGTE(other Coin) bool {
+	if c.Denom != other.Denom {
+		panic("invalid coin denominations: " + c.Denom)
+	}
+	return c.Amount >= other.Amount
+}
+
 // Coins is a set of Coin, one per currency
 type Coins []Coin
 

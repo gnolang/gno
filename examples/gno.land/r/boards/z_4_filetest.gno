@@ -1,19 +1,26 @@
 // PKGPATH: gno.land/r/boards_test
 package boards_test
 
+// SEND: 200gnot
+
 import (
 	"strconv"
 
 	"gno.land/r/boards"
+	"gno.land/r/users"
 )
 
-var bid boards.BoardID
-var pid boards.PostID
+var (
+	bid boards.BoardID
+	pid boards.PostID
+)
 
 func init() {
+	users.Register("", "gnouser", "my profile")
+
 	bid = boards.CreateBoard("test_board")
-	boards.CreatePost(bid, "First Post (title)", "Body of the first post. (body)")
-	pid = boards.CreatePost(bid, "Second Post (title)", "Body of the second post. (body)")
+	boards.CreateThread(bid, "First Post (title)", "Body of the first post. (body)")
+	pid = boards.CreateThread(bid, "Second Post (title)", "Body of the second post. (body)")
 	rid := boards.CreateReply(bid, pid, pid, "Reply of the second post")
 	println(rid)
 }
@@ -30,15 +37,17 @@ func main() {
 // # Second Post (title)
 //
 // Body of the second post. (body)
-// \- [g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985](/r/users:g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985), [1970-01-01 12:00am (UTC)](/r/boards:test_board/2) \[[reply](/r/boards?help&__func=CreateReply&bid=1&threadid=2&postid=2&body.type=textarea)] \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=2&postid=2)]
+// \- [@gnouser](/r/users:gnouser), [1970-01-01 12:00am (UTC)](/r/boards:test_board/2) \[[reply](/r/boards?help&__func=CreateReply&bid=1&threadid=2&postid=2&body.type=textarea)] \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=2&postid=2)]
 //
 // > Reply of the second post
-// > \- [g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985](/r/users:g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985), [1970-01-01 12:00am (UTC)](/r/boards:test_board/2/3) \[[reply](/r/boards?help&__func=CreateReply&bid=1&threadid=2&postid=3&body.type=textarea)] \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=2&postid=3)]
+// > \- [@gnouser](/r/users:gnouser), [1970-01-01 12:00am (UTC)](/r/boards:test_board/2/3) \[[reply](/r/boards?help&__func=CreateReply&bid=1&threadid=2&postid=3&body.type=textarea)] \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=2&postid=3)]
 //
 // > Second reply of the second post
-// > \- [g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985](/r/users:g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985), [1970-01-01 12:00am (UTC)](/r/boards:test_board/2/4) \[[reply](/r/boards?help&__func=CreateReply&bid=1&threadid=2&postid=4&body.type=textarea)] \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=2&postid=4)]
+// > \- [@gnouser](/r/users:gnouser), [1970-01-01 12:00am (UTC)](/r/boards:test_board/2/4) \[[reply](/r/boards?help&__func=CreateReply&bid=1&threadid=2&postid=4&body.type=textarea)] \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=2&postid=4)]
 
 // Realm:
+// switchrealm["gno.land/r/users"]
+// switchrealm["gno.land/r/users"]
 // switchrealm["gno.land/r/boards"]
 // u[960d1737342909c1a4c32a4a93a88e680a6f79df:95]={
 //     "Fields": [
@@ -915,6 +924,12 @@ func main() {
 //     }
 // }
 // switchrealm["gno.land/r/boards"]
+// switchrealm["gno.land/r/users"]
+// switchrealm["gno.land/r/users"]
+// switchrealm["gno.land/r/users"]
+// switchrealm["gno.land/r/users"]
+// switchrealm["gno.land/r/users"]
+// switchrealm["gno.land/r/users"]
 // switchrealm["gno.land/r/users"]
 // switchrealm["gno.land/r/users"]
 // switchrealm["gno.land/r/users"]

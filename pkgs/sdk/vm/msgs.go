@@ -27,7 +27,7 @@ func NewMsgAddPackage(creator crypto.Address, pkgPath string, files []*std.MemFi
 	var pkgName string
 	for _, file := range files {
 		if strings.HasSuffix(file.Name, ".gno") {
-			pkgName = string(gno.PackageNameFromFileBody(file.Body))
+			pkgName = string(gno.PackageNameFromFileBody(file.Name, file.Body))
 			break
 		}
 	}

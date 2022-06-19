@@ -28,12 +28,14 @@ import (
 )
 
 var flags struct {
-	bindAddr string
+	bindAddr   string
+	remoteAddr string
 }
 
 var startedAt time.Time
 
 func init() {
+	flag.StringVar(&flags.remoteAddr, "remote", "127.0.0.1:26657", "remote gnoland node address")
 	flag.StringVar(&flags.bindAddr, "bind", "127.0.0.1:8888", "server listening address")
 	startedAt = time.Now()
 }
@@ -307,7 +309,7 @@ func makeRequest(qpath string, data []byte) (res *abci.ResponseQuery, err error)
 		// Height: height, XXX
 		// Prove: false, XXX
 	}
-	remote := "127.0.0.1:26657"
+	remote := flags.remoteAddr
 	cli := client.NewHTTP(remote, "/websocket")
 	qres, err := cli.ABCIQueryWithOptions(
 		qpath, data, opts2)

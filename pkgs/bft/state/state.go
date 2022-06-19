@@ -123,7 +123,6 @@ func (state State) MakeBlock(
 	commit *types.Commit,
 	proposerAddress crypto.Address,
 ) (*types.Block, *types.PartSet) {
-
 	// Build base block with block data.
 	block := types.MakeBlock(height, txs, commit)
 

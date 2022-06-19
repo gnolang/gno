@@ -21,6 +21,16 @@ func New() *Instance {
 	return &r
 }
 
+func FromSeed(seed int64) *Instance {
+	r := Instance{seed: seed}
+	r.addEntropy()
+	return &r
+}
+
+func (i *Instance) Seed() int64 {
+	return i.seed
+}
+
 // http://www.cse.yorku.ca/~oz/hash.html
 func (i *Instance) djb2String(input string) {
 	for _, c := range input {

@@ -14,7 +14,7 @@ func init() {
 
 	// create board and post
 	bid := boards.CreateBoard("test_board")
-	boards.CreatePost(bid, "First Post (title)", "Body of the first post. (body)")
+	boards.CreateThread(bid, "First Post (title)", "Body of the first post. (body)")
 }
 
 func main() {
