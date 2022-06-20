@@ -21,7 +21,7 @@ import (
 )
 
 // NewApp creates the GnoLand application.
-func NewApp(rootDir string, logger log.Logger) (abci.Application, error) {
+func NewApp(rootDir string, skipFailingGenesisTxs bool, logger log.Logger) (abci.Application, error) {
 	// Get main DB.
 	db := dbm.NewDB("gnolang", dbm.GoLevelDBBackend, filepath.Join(rootDir, "data"))
 
@@ -43,7 +43,7 @@ func NewApp(rootDir string, logger log.Logger) (abci.Application, error) {
 	vmKpr := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, "./stdlibs")
 
 	// Set InitChainer
-	baseApp.SetInitChainer(InitChainer(baseApp, acctKpr, bankKpr))
+	baseApp.SetInitChainer(InitChainer(baseApp, acctKpr, bankKpr, skipFailingGenesisTxs))
 
 	// Set AnteHandler
 	authOptions := auth.AnteOptions{
@@ -85,7 +85,7 @@ func NewApp(rootDir string, logger log.Logger) (abci.Application, error) {
 }
 
 // InitChainer returns a function that can initialize the chain with genesis.
-func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank.BankKeeperI) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
+func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank.BankKeeperI, skipFailingGenesisTxs bool) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
 	return func(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
 		// Get genesis state.
 		genState := req.AppState.(GnoGenesisState)
@@ -106,7 +106,9 @@ func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank
 				fmt.Println("ERROR LOG:", res.Log)
 				fmt.Println("#", i, string(amino.MustMarshalJSON(tx)))
 				// NOTE: comment out to ignore.
-				panic(res.Error)
+				if !skipFailingGenesisTxs {
+					panic(res.Error)
+				}
 			} else {
 				fmt.Println("SUCCESS:", string(amino.MustMarshalJSON(tx)))
 			}
