@@ -16,6 +16,6 @@ cat $SRC | grep '"pkg_path":"gno.land/r/users","func":"Invite"' >> $TARGET
 cat $SRC | grep '"pkg_path":"gno.land/r/users","func":"Register"' >> $TARGET
 
 # gnolang board
-cat $SRC | grep '"func":"CreateBoard","args":\["gnolang"\]' >> $TARGET
+cat $SRC | grep '"func":"CreateBoard","args":\["gnolang"\]' | sed 's/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj/' >> $TARGET
 
 wc -l $SRC $TARGET
