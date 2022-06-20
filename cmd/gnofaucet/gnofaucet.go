@@ -207,7 +207,9 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 			}
 			host = host_
 		} else {
-			host = r.Header["X-Forwarded-For"][0]
+		        if xff, found := r.Header["X-Forwarded-For"]; found && len(xff) > 0 {
+			        host = xff[0]
+			}
 		}
 		if host == "" {
 			host = "127.0.0.1"

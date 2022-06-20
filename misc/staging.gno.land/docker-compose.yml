@@ -31,14 +31,45 @@ services:
       - 0.0.0.0:80
       - --remote
       - gnoland:36657
-      #- --recaptcha-site=$RECAPTCHA_SITE_KEY
+      - --captcha-site
+      - $RECAPTCHA_SITE_KEY
+      - --faucet-url
+      - http://staging.gno.land:5050/
     links:
       - gnoland
     environment:
       - VIRTUAL_HOST=staging.gno.land
       - LETSENCRYPT_HOST=staging.gno.land
       # from .env
-      #- RECAPTCHA_SITE_KEY
+      - RECAPTCHA_SITE_KEY
+    restart: on-failure
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "10"
+        max-size: "100m"
+
+  gnofaucet:
+    container_name: gnofaucet
+    build: ../..
+    command: sh -xc "
+        date &&
+        mkdir -p /.gno &&
+        expect -c \"set timeout -1; spawn gnokey add faucet --home /.gno/ --recover; expect \\\"Enter a passphrase\\\"; send \\\"$GNOKEY_PASS\\r\\\"; expect \\\"Repeat the passphrase\\\"; send \\\"$GNOKEY_PASS\\r\\\"; expect \\\"Enter your bip39 mnemonic\\\"; send \\\"$FAUCET_WORDS\\r\\\"; expect eof\" && 
+        while true; do 
+          expect -c \"set timeout -1; spawn gnofaucet serve faucet --captcha-secret $RECAPTCHA_SECRET_KEY --remote gnoland:36657 --chain-id testchain --home /.gno/; expect \\\"Enter password.\\\"; send \\\"$GNOKEY_PASS\\r\\\"; expect eof\";
+          sleep 5;
+        done
+      "
+    links:
+      - gnoland
+    environment:
+      # from .env
+      - RECAPTCHA_SECRET_KEY
+      - FAUCET_WORDS
+      - GNOKEY_PASS
+    ports:
+      - 5050:5050
     restart: on-failure
     logging:
       driver: "json-file"
