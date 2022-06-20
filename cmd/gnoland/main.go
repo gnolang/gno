@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -22,7 +23,17 @@ import (
 	"github.com/gnolang/gno/pkgs/std"
 )
 
+var flags struct {
+	skipFailingGenesisTxs bool
+}
+
+func init() {
+	flag.BoolVar(&flags.skipFailingGenesisTxs, "skip-failing-genesis-txs", false, "don't panic when replaying invalid genesis txs")
+}
+
 func main() {
+	flag.Parse()
+
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
 	rootDir := "testdir"
 	cfg := config.LoadOrMakeConfigWithOptions(rootDir, func(cfg *config.Config) {
@@ -44,7 +55,7 @@ func main() {
 	}
 
 	// create application and node.
-	gnoApp, err := gnoland.NewApp(rootDir, logger)
+	gnoApp, err := gnoland.NewApp(rootDir, flags.skipFailingGenesisTxs, logger)
 	if err != nil {
 		panic(fmt.Sprintf("error in creating new app: %v", err))
 	}
