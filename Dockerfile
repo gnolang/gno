@@ -16,7 +16,7 @@ RUN ls -la /opt/build/build/
 
 
 FROM debian:stable-slim
-RUN apt-get update && apt-get install -y --force-yes expect
+RUN apt-get update && apt-get install -y --force-yes expect ca-certificates && update-ca-certificates
 COPY --from=build /opt/build/build/* /opt/gno/bin/
 COPY --from=build /opt/src /opt/gno/src
 ENV PATH="${PATH}:/opt/gno/bin"

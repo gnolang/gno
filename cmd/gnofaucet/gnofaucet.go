@@ -233,6 +233,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 			capMsg := strings.TrimSpace(passedMsg[0])
 
 			if err := checkRecaptcha(opts.CaptchaSecret, capMsg); err != nil {
+			        fmt.Printf("recaptcha failed; %v\n", err)
 				w.Write([]byte("Unauthorized"))
 				return
 			}
