@@ -124,6 +124,9 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 		"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj=330000000gnot",
 		// Initial account.
 		"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5=10000gnot", // test1
+		// Faucet accounts.
+		"g1f4v282mwyhu29afke4vq5r2xzcm6z3ftnugcnv=1000000gnot", // faucet0 (jae)
+		"g127jydsh6cms3lrtdenydxsckh23a8d6emqcvfa=1000000gnot", // faucet1 (moul)
 		// Contributors premine (TODO).
 		"g15gdm49ktawvkrl88jadqpucng37yxutucuwaef=100000gnot", // @chadwick
 		"g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq=100000gnot", // @moul
