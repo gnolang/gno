@@ -99,7 +99,7 @@ func (vmk *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 		simStore.SwapStores(baseSDKStore, iavlSDKStore)
 		return simStore
 	case sdk.RunTxModeSimulate:
-		// always make a new store for simualte for isolation.
+		// always make a new store for simulate for isolation.
 		simStore := vmk.gnoStore.Fork()
 		baseSDKStore := ctx.Store(vmk.baseKey)
 		iavlSDKStore := ctx.Store(vmk.iavlKey)

@@ -544,7 +544,7 @@ func (cdc *Codec) getTypeInfoFromFullnameRLock(fullname string, fopts FieldOptio
 // TypeInfo registration
 
 // Constructs a *TypeInfo from scratch (except
-// depedencies).  The constructed TypeInfo is stored in
+// dependencies).  The constructed TypeInfo is stored in
 // state, but not yet registered - no name or decoding
 // preferece (pointer or not) is known, so it cannot be
 // used to decode into an interface.

@@ -78,7 +78,7 @@ func TestParamsFromPath(t *testing.T) {
 	badCases := []struct {
 		path string
 	}{
-		{"43'/0'/0'/0/0"},   // doesnt start with 44
+		{"43'/0'/0'/0/0"},   // doesn't start with 44
 		{"44'/1'/0'/0/0/5"}, // too many fields
 		{"44'/0'/1'/0"},     // too few fields
 		{"44'/0'/0'/2/0"},   // change field can only be 0/1

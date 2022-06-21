@@ -338,7 +338,7 @@ func TestTransportMultiplexValidateNodeInfo(t *testing.T) {
 	}
 }
 
-func TestTransportMultiplexRejectMissmatchID(t *testing.T) {
+func TestTransportMultiplexRejectMismatchID(t *testing.T) {
 	mt := testSetupMultiplexTransport(t)
 
 	errc := make(chan error)

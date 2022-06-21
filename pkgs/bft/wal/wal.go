@@ -199,7 +199,7 @@ func (wal *baseWAL) Write(msg WALMessage) error {
 }
 
 // WriteMetaSync writes the new height and finalizes the previous height.
-// NOTE: It is useless to implement WriteMeta() (asyncronous) because there is
+// NOTE: It is useless to implement WriteMeta() (asynchronous) because there is
 // usually something to do in sync after the aforementioned finalization
 // occurs.
 func (wal *baseWAL) WriteMetaSync(meta MetaMessage) error {
@@ -308,7 +308,7 @@ OUTER_LOOP:
 				if backoff == 0 {
 					backoff = -1
 				} else {
-					backoff = backoff * 2 // expenential backwards
+					backoff = backoff * 2 // exponential backwards
 				}
 				continue OUTER_LOOP
 			}
@@ -504,7 +504,7 @@ func (enc *WALWriter) Write(v TimedWALMessage) error {
 	return err
 }
 
-// Meta lines are in JSON for readibility.
+// Meta lines are in JSON for readability.
 // TODO: CRC not used (yet), concatenate the CRC bytes with the JSON bytes.
 func (enc *WALWriter) WriteMeta(meta MetaMessage) error {
 	metaJSON := amino.MustMarshalJSON(meta)
@@ -521,7 +521,7 @@ func IsDataCorruptionError(err error) bool {
 	return ok
 }
 
-// DataCorruptionError is an error that occures if data on disk was corrupted.
+// DataCorruptionError is an error that occurs if data on disk was corrupted.
 type DataCorruptionError struct {
 	cause error
 }

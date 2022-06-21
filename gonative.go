@@ -539,7 +539,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 		rvl := rv.Len()
 		if debug {
 			if rvl != baseOf(tv.T).(*ArrayType).Len {
-				panic("go-native update error: array length mismmatch")
+				panic("go-native update error: array length mismatch")
 			}
 		}
 		if av.Data == nil {
@@ -578,7 +578,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 		svl := sv.Length
 		if debug {
 			if rvl != svl {
-				panic("go-native update error: slice length mismmatch")
+				panic("go-native update error: slice length mismatch")
 			}
 		}
 		if sv.GetBase(nil).Data == nil {

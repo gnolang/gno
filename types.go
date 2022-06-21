@@ -52,7 +52,7 @@ func typeid(f string, args ...interface{}) (tid TypeID) {
 // Complex types are pointers, but due to the design goal
 // of the language to enable mass scale persistence, we
 // cannot use pointer equality to test for type equality.
-// Instead, for checking equalty use the TypeID.
+// Instead, for checking equality use the TypeID.
 func (PrimitiveType) assertType()   {}
 func (*PointerType) assertType()    {}
 func (FieldType) assertType()       {}
@@ -1131,7 +1131,7 @@ func (ft *FuncType) Specify(store Store, argTVs []TypedValue, isVarg bool) *Func
 					vargt = defaultTypeOf(varg.T)
 				} else if vargt.TypeID() != varg.T.TypeID() {
 					panic(fmt.Sprintf(
-						"uncompatible varg types: expected %v, got %s",
+						"incompatible varg types: expected %v, got %s",
 						vargt.String(),
 						varg.T.String()))
 				}

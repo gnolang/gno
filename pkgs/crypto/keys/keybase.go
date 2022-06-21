@@ -85,7 +85,7 @@ func NewInMemory() Keybase { return dbKeybase{dbm.NewMemDB()} }
 // XXX Info could include the separately derived ed25519 key,
 // XXX and a signature from the sec2561key as certificate.
 // XXX NOTE: we are not saving the derivation path.
-// XXX but this doesn't help encrypted commnuication.
+// XXX but this doesn't help encrypted communication.
 // XXX also there is no document structure.
 func (kb dbKeybase) CreateAccount(name, mnemonic, bip39Passwd, encryptPasswd string, account uint32, index uint32) (Info, error) {
 	coinType := crypto.CoinType

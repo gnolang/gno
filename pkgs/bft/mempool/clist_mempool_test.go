@@ -221,7 +221,7 @@ func TestTxsAvailable(t *testing.T) {
 
 	timeoutMS := 500
 
-	// with no txs, it shouldnt fire
+	// with no txs, it shouldn't fire
 	ensureNoFire(t, mempool.TxsAvailable(), timeoutMS)
 
 	// send a bunch of txs, it should only fire once
@@ -239,7 +239,7 @@ func TestTxsAvailable(t *testing.T) {
 	ensureFire(t, mempool.TxsAvailable(), timeoutMS)
 	ensureNoFire(t, mempool.TxsAvailable(), timeoutMS)
 
-	// send a bunch more txs. we already fired for this height so it shouldnt fire again
+	// send a bunch more txs. we already fired for this height so it shouldn't fire again
 	moreTxs := checkTxs(t, mempool, 50, UnknownPeerID, true)
 	ensureNoFire(t, mempool.TxsAvailable(), timeoutMS)
 
@@ -353,7 +353,7 @@ func TestSerialReap(t *testing.T) {
 	// Reap again.  We should get the same amount
 	reapCheck(1000)
 
-	// Commit from the conensus AppConn
+	// Commit from the consensus AppConn
 	commitRange(0, 500)
 	updateRange(0, 500)
 
