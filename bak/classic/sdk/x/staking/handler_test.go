@@ -107,7 +107,7 @@ func TestValidatorByPowerIndex(t *testing.T) {
 	EndBlocker(ctx, keeper)
 	EndBlocker(ctx, keeper)
 
-	// verify that by power key no longer exists
+	// verify that by power key nolonger exists
 	_, found = keeper.GetValidator(ctx, validatorAddr)
 	require.False(t, found)
 	require.False(t, keep.ValidatorByPowerIndexExists(ctx, keeper, power3))

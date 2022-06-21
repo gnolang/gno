@@ -232,7 +232,7 @@ func (ctx CLIContext) WithBroadcastMode(mode string) CLIContext {
 }
 
 // PrintOutput prints output while respecting output and indent flags
-// NOTE: pass in marshalled structs that have been unmarshalled
+// NOTE: pass in marshalled structs that have been unmarshaled
 // because this function will panic on marshaling errors
 func (ctx CLIContext) PrintOutput(toPrint fmt.Stringer) (err error) {
 	var out []byte

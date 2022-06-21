@@ -21,7 +21,7 @@ representation of the pubkey.
 This has two significant drawbacks.
 Amino encoding is less space-efficient, due to requiring support for upgradability.
 Amino encoding support requires forking protobuf and adding this new interface support
-option in the language of choice.
+option in the langauge of choice.
 
 The reason for continuing to use amino however is that people can create code
 more easily in languages that already have an up to date amino library.

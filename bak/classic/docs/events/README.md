@@ -33,7 +33,7 @@ broadcast to all of its subscribing listeners*.
 TODO: insert documenttion on this after it is written.
 
 For filtering events, instead of employing the custom query language as in
-Tendermint/Core, we will employ a limited subset of Go expression languages.
+Tendermint/Core, we will employ a limited subset of Go expression langauges.
 The event object is also much simplified as compared to Tendermint/Classic's
 event+object+attributes model, and leverages go-amino-x to allow arbitrary Go
 structures to serve as an event.

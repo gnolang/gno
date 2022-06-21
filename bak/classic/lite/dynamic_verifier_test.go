@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	dbm "github.com/tendermint/classic/db"
 	log "github.com/tendermint/classic/libs/log"
 	"github.com/tendermint/classic/types"
+	dbm "github.com/tendermint/classic/db"
 )
 
 const testChainID = "inquiry-test"
@@ -179,7 +179,7 @@ func TestInquirerVerifyHistorical(t *testing.T) {
 	}
 
 	// See if we can jump forward using trusted full commits.
-	// Source doesn't have fcz[9] so cert.LastTrustedHeight wont' change.
+	// Souce doesn't have fcz[9] so cert.LastTrustedHeight wont' change.
 	err = source.SaveFullCommit(fcz[7])
 	require.Nil(err, "%+v", err)
 	sh := fcz[8].SignedHeader

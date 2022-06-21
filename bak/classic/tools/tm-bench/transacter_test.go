@@ -14,7 +14,7 @@ import (
 )
 
 // This test tests that the output of generate tx and update tx is consistent
-func TestGenerateTxUpdateTxConsistency(t *testing.T) {
+func TestGenerateTxUpdateTxConsistentency(t *testing.T) {
 	cases := []struct {
 		connIndex        int
 		startingTxNumber int

@@ -1755,7 +1755,7 @@ IMPROVEMENTS
 * [store] Pruning strategy configurable with pruning flag on gaiad start
 
 BUG FIXES
-* [\#1630](https://github.com/tendermint/classic/sdk/issues/1630) - redelegation no longer removes tokens from the delegator liquid account
+* [\#1630](https://github.com/tendermint/classic/sdk/issues/1630) - redelegation nolonger removes tokens from the delegator liquid account
 * [keys] [\#1629](https://github.com/tendermint/classic/sdk/issues/1629) - updating password no longer asks for a new password when the first entered password was incorrect
 * [lcd] importing an account would create a random account
 * [server] 'gaiad init' command family now writes provided name as the moniker in `config.toml`
@@ -1798,7 +1798,7 @@ BREAKING CHANGES
   * Add REST endpoint to unrevoke a validator previously revoked for downtime
   * Add REST endpoint to retrieve liveness signing information for a validator
 * [x/stake] Remove Tick and add EndBlocker
-* [x/stake] most index keys no longer hold a value - inputs are rearranged to form the desired key
+* [x/stake] most index keys nolonger hold a value - inputs are rearranged to form the desired key
 * [x/stake] store-value for delegation, validator, ubd, and red do not hold duplicate information contained store-key
 * [x/stake] Introduce concept of unbonding for delegations and validators
   * `gaiacli stake unbond` replaced with `gaiacli stake begin-unbonding`
