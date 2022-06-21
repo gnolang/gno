@@ -53,12 +53,8 @@ func (mempkg *MemPackage) Validate() error {
 		return errors.New(fmt.Sprintf("invalid package/realm path %q", mempkg.Path))
 	}
 	fnames := map[string]struct{}{}
-	re, err := regexp.Compile(reFileName)
-	if err != nil {
-		return fmt.Errorf("failed to compile regex to match file names: %w", err)
-	}
 	for _, memfile := range mempkg.Files {
-		ok := re.MatchString(memfile.Name)
+		ok, _ := regexp.MatchString(reFileName, memfile.Name)
 		if !ok {
 			return errors.New(fmt.Sprintf("invalid file name %q", memfile.Name))
 		}
