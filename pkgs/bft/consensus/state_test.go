@@ -927,7 +927,7 @@ func TestStateLockPOLSafety2(t *testing.T) {
 	ensureNewRound(newRoundCh, height, round)
 	t.Log("### ONTO Round 2")
 	/*Round2
-	// now we see the polka from round 1, but we shouldnt unlock
+	// now we see the polka from round 1, but we shouldn't unlock
 	*/
 	ensureNewProposal(proposalCh, height, round)
 

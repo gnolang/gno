@@ -3,8 +3,8 @@ package evidence
 import (
 	"fmt"
 
-	"github.com/tendermint/classic/types"
 	dbm "github.com/tendermint/classic/db"
+	"github.com/tendermint/classic/types"
 )
 
 /*
@@ -183,7 +183,7 @@ func (store *EvidenceStore) MarkEvidenceAsCommitted(evidence types.Evidence) {
 	pendingKey := keyPending(evidence)
 	store.db.Delete(pendingKey)
 
-	// committed EvidenceInfo doens't need priority
+	// committed EvidenceInfo doesn't need priority
 	ei := EvidenceInfo{
 		Committed: true,
 		Evidence:  evidence,

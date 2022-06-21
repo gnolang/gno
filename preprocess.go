@@ -204,7 +204,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 					if !defined {
-						panic(fmt.Sprintf("nothing defined in asssignment %s", n.String()))
+						panic(fmt.Sprintf("nothing defined in assignment %s", n.String()))
 					}
 				} else {
 					// nothing defined.
@@ -411,7 +411,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				}
 				if ss.IsTypeSwitch {
 					if len(n.Cases) == 0 {
-						// evaulate default case.
+						// evaluate default case.
 						if 0 < len(ss.VarName) {
 							// The type is the tag type.
 							tt := evalStaticTypeOf(store, last, ss.X)
@@ -453,7 +453,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 				} else {
-					// evalualte tag type
+					// evaluate tag type
 					tt := evalStaticTypeOf(store, last, ss.X)
 					// check or convert case types to tt.
 					for i, cx := range n.Cases {
@@ -2230,7 +2230,7 @@ func cmpSpecificity(t1, t2 Type) int {
 		t2s = t2p.Specificity()
 	}
 	if t1s < t2s {
-		// NOTE: higher specifity has lower value, so backwards.
+		// NOTE: higher specificity has lower value, so backwards.
 		return 1
 	} else if t1s == t2s {
 		return 0
@@ -2242,7 +2242,7 @@ func cmpSpecificity(t1, t2 Type) int {
 // 1. convert x to t if x is *ConstExpr.
 // 2. otherwise, assert that x can be coerced to t.
 // autoNative is usually false, but set to true
-// for native fuction calls, where gno values are
+// for native function calls, where gno values are
 // automatically converted to native go types.
 // NOTE: also see checkOrConvertIntegerType()
 func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative bool) {
@@ -2326,7 +2326,7 @@ func checkType(xt Type, dt Type, autoNative bool) {
 				nxt, ok := pxt.Elt.(*NativeType)
 				if !ok {
 					panic(fmt.Sprintf(
-						"pointer to non-native type cannot satisfy non-empty native interface; %s doesn't implmeent %s",
+						"pointer to non-native type cannot satisfy non-empty native interface; %s doesn't implement %s",
 						pxt.String(),
 						nidt.String()))
 				}
@@ -2536,7 +2536,7 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
 		}
 		if _, ok := UverseNode().GetLocalIndex(cx.Name); ok {
 			// XXX NOTE even if the name is shadowed by a file
-			// level delcaration, it is fine to return here as it
+			// level declaration, it is fine to return here as it
 			// will be predefined later.
 			return
 		}

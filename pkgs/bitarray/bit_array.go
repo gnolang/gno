@@ -108,7 +108,7 @@ func (bA *BitArray) copyBits(bits int) *BitArray {
 }
 
 // Or returns a bit array resulting from a bitwise OR of the two bit arrays.
-// If the two bit-arrys have different lengths, Or right-pads the smaller of the two bit-arrays with zeroes.
+// If the two bit-arrays have different lengths, Or right-pads the smaller of the two bit-arrays with zeroes.
 // Thus the size of the return value is the maximum of the two provided bit arrays.
 func (bA *BitArray) Or(o *BitArray) *BitArray {
 	if bA == nil && o == nil {
@@ -133,7 +133,7 @@ func (bA *BitArray) Or(o *BitArray) *BitArray {
 }
 
 // And returns a bit array resulting from a bitwise AND of the two bit arrays.
-// If the two bit-arrys have different lengths, this truncates the larger of the two bit-arrays from the right.
+// If the two bit-arrays have different lengths, this truncates the larger of the two bit-arrays from the right.
 // Thus the size of the return value is the minimum of the two provided bit arrays.
 func (bA *BitArray) And(o *BitArray) *BitArray {
 	if bA == nil || o == nil {

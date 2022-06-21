@@ -7,7 +7,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/tendermint/go-amino-x"
 
 	"github.com/tendermint/classic/sdk/client"
 	"github.com/tendermint/classic/sdk/client/context"
@@ -24,7 +23,7 @@ import (
 var (
 	flagOnlyFromValidator = "only-from-validator"
 	flagIsValidator       = "is-validator"
-	flagComission         = "commission"
+	flagCommission        = "commission"
 	flagMaxMessagesPerTx  = "max-msgs"
 )
 
@@ -111,14 +110,14 @@ $ %s tx distr withdraw-rewards cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqh
 			}
 
 			msgs := []sdk.Msg{types.NewMsgWithdrawDelegatorReward(delAddr, valAddr)}
-			if viper.GetBool(flagComission) {
+			if viper.GetBool(flagCommission) {
 				msgs = append(msgs, types.NewMsgWithdrawValidatorCommission(valAddr))
 			}
 
 			return utils.GenerateOrBroadcastMsgs(cliCtx, txBldr, msgs)
 		},
 	}
-	cmd.Flags().Bool(flagComission, false, "also withdraw validator's commission")
+	cmd.Flags().Bool(flagCommission, false, "also withdraw validator's commission")
 	return cmd
 }
 

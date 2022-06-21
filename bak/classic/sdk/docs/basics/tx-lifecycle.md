@@ -60,7 +60,7 @@ Each full-node (running Tendermint) that receives `Tx` sends an [ABCI message](h
 
 ### Types of Checks
 
-The full-nodes perform stateless, then stateful checks on `Tx` during `CheckTx`, with the goal to identify and reject an invalid transaction as early on as possible to avoid wasted computation. 
+The full-nodes perform stateless, then stateful checks on `Tx` during `CheckTx`, with the goal to identify and reject an invalid transaction as early on as possible to avoid wasted computation.
 
 ***Stateless*** checks do not require nodes to access state - light clients or offline nodes can do them - and are thus less computationally expensive. Stateless checks include making sure addresses are not empty, enforcing nonnegative numbers, and other logic specified in the definitions.
 
@@ -70,7 +70,7 @@ In order to verify `Tx`, full-nodes call `CheckTx`, which includes both _statele
 
 ### Decoding
 
-When `Tx` is received by the application from the underlying consensus engine (e.g. Tendermint), it is still in its encoded (i.e. using [Amino](https://tendermint.com/docs/spec/blockchain/encoding.html#amino)) `[]byte` form and needs to be unmarshaled in order to be processed. Then, the [`runTx`](../core/baseapp.md#runtx-and-runmsgs) function is called to run in `runTxModeCheck` mode, meaning the function will run all checks but exit before executing messages and writing state changes.
+When `Tx` is received by the application from the underlying consensus engine (e.g. Tendermint), it is still in its encoded (i.e. using [Amino](https://tendermint.com/docs/spec/blockchain/encoding.html#amino)) `[]byte` form and needs to be unmarshalled in order to be processed. Then, the [`runTx`](../core/baseapp.md#runtx-and-runmsgs) function is called to run in `runTxModeCheck` mode, meaning the function will run all checks but exit before executing messages and writing state changes.
 
 ### ValidateBasic
 
@@ -105,39 +105,39 @@ The first step of consensus is the **block proposal**. One proposer amongst the 
 The next step of consensus is to execute the transactions to fully validate them. All full-nodes that receive a block proposal execute the transactions by calling the ABCI functions [`BeginBlock`](./app-anatomy.md#beginblocker-and-endblocker), `DeliverTx` for each transaction, and [`EndBlock`](./app-anatomy.md#beginblocker-and-endblocker). While full-nodes each run everything individually, since the messages' state transitions are deterministic and transactions are explicitly ordered in the block proposal, this process yields a single, unambiguous result.
 
 ```
-		-----------------------		
-		|Receive Block Proposal|        
-		-----------------------		
-		          |		
+		-----------------------
+		|Receive Block Proposal|
+		-----------------------
+		          |
 			  v
-		-----------------------		
-		| BeginBlock	      |        
-		-----------------------		
-		          |		
-			  v			
-		-----------------------		    
-		| DeliverTx(tx0)      |  
-		| DeliverTx(tx1)      |   	  
-		| DeliverTx(tx2)      |  
-		| DeliverTx(tx3)      |  
-		|	.	      |  
+		-----------------------
+		| BeginBlock	      |
+		-----------------------
+		          |
+			  v
+		-----------------------
+		| DeliverTx(tx0)      |
+		| DeliverTx(tx1)      |
+		| DeliverTx(tx2)      |
+		| DeliverTx(tx3)      |
 		|	.	      |
 		|	.	      |
-		-----------------------		
-		          |			
-			  v			
+		|	.	      |
 		-----------------------
-		| EndBlock	      |         
+		          |
+			  v
 		-----------------------
-		          |			
-			  v			
+		| EndBlock	      |
 		-----------------------
-		| Consensus	      |         
+		          |
+			  v
 		-----------------------
-		          |			
-			  v			
+		| Consensus	      |
 		-----------------------
-		| Commit	      |         
+		          |
+			  v
+		-----------------------
+		| Commit	      |
 		-----------------------
 ```
 

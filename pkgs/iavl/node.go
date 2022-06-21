@@ -87,7 +87,7 @@ func MakeNode(buf []byte) (*Node, error) {
 	} else { // Read children.
 		leftHash, n, cause := amino.DecodeByteSlice(buf)
 		if cause != nil {
-			return nil, errors.Wrap(cause, "deocding node.leftHash")
+			return nil, errors.Wrap(cause, "decoding node.leftHash")
 		}
 		buf = buf[n:]
 

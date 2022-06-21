@@ -7,10 +7,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	dbm "github.com/tendermint/classic/db"
 	sm "github.com/tendermint/classic/state"
 	"github.com/tendermint/classic/types"
 	tmtime "github.com/tendermint/classic/types/time"
-	dbm "github.com/tendermint/classic/db"
 )
 
 func TestMain(m *testing.M) {
@@ -79,7 +79,7 @@ func TestEvidencePool(t *testing.T) {
 
 	assert.Equal(t, 1, pool.evidenceList.Len())
 
-	// if we send it again, it shouldnt change the size
+	// if we send it again, it shouldn't change the size
 	err = pool.AddEvidence(goodEvidence)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, pool.evidenceList.Len())

@@ -40,7 +40,7 @@ type NodeInfo struct {
 	Other   NodeInfoOther `json:"other"`   // other application specific data
 }
 
-// NodeInfoOther is the misc. applcation specific data
+// NodeInfoOther is the misc. application specific data
 type NodeInfoOther struct {
 	TxIndex    string `json:"tx_index"`
 	RPCAddress string `json:"rpc_address"`
@@ -122,7 +122,7 @@ func (info NodeInfo) ID() ID {
 // CONTRACT: two nodes are compatible if the Block version and network match
 // and they have at least one channel in common.
 func (info NodeInfo) CompatibleWith(other NodeInfo) error {
-	// check protocl verisons
+	// check protocl versions
 	_, err := info.VersionSet.CompatibleWith(other.VersionSet)
 	if err != nil {
 		return err

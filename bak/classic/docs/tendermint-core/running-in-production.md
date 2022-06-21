@@ -122,7 +122,7 @@ curl http(s)://{ip}:{rpcPort}/status
 ```
 
 `dump_consensus_state` will give you a detailed overview of the
-consensus state (proposer, lastest validators, peers states). From it,
+consensus state (proposer, latest validators, peers states). From it,
 you should be able to figure out why, for example, the network had
 halted.
 
@@ -198,7 +198,7 @@ Other causes can be:
 
 ### WAL Corruption
 
-If consensus WAL is corrupted at the lastest height and you are trying to start
+If consensus WAL is corrupted at the latest height and you are trying to start
 Tendermint, replay will fail with panic.
 
 Recovering from data corruption can be hard and time-consuming. Here are two approaches you can take:

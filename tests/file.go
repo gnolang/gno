@@ -181,7 +181,7 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 				m.SetActivePackage(pv2)
 				gno.EnableDebug()
 				if rops != "" {
-					// clear store.opslog from init funtion(s),
+					// clear store.opslog from init function(s),
 					// and PreprocessAllFilesAndSaveBlockNodes().
 					store.SetLogStoreOps(true) // resets.
 				}

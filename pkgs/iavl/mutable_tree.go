@@ -440,8 +440,8 @@ func (tree *MutableTree) deleteVersionsFrom(version int64) error {
 		return errors.New("version must be greater than 0")
 	}
 	newLatestVersion := version - 1
-	lastestVersion := tree.ndb.getLatestVersion()
-	for ; version <= lastestVersion; version++ {
+	latestVersion := tree.ndb.getLatestVersion()
+	for ; version <= latestVersion; version++ {
 		if version == tree.version {
 			return errors.New("cannot delete latest saved version (%d)", version)
 		}

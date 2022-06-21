@@ -11,7 +11,7 @@ var _ types.Store = Store{}
 
 // Store is similar with tendermint/tendermint/libs/db/prefix_db
 // both gives access only to the limited subset of the store
-// for convinience or safety
+// for convenience or safety
 type Store struct {
 	parent types.Store
 	prefix []byte
