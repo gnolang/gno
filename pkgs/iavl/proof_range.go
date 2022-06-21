@@ -91,10 +91,10 @@ func (proof *RangeProof) LeftIndex() int64 {
 // Verify that a key has some value.
 // Does not assume that the proof itself is valid, call Verify() first.
 func (proof *RangeProof) VerifyItem(key, value []byte) error {
-	leaves := proof.Leaves
 	if proof == nil {
 		return errors.Wrap(ErrInvalidProof, "proof is nil")
 	}
+	leaves := proof.Leaves
 	if !proof.rootVerified {
 		return errors.New("must call Verify(root) first")
 	}
