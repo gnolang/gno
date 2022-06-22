@@ -45,7 +45,8 @@ goscan:
 
 gnoweb:
 	@echo "Building website"
-	go build -o build/website
+
+	go build -o build/website ./gnoland/website
 
 
 

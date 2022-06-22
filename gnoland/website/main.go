@@ -32,6 +32,7 @@ var flags struct {
 	remoteAddr  string
 	captchaSite string
 	faucetURL   string
+	viewDir     string
 }
 
 var startedAt time.Time
@@ -41,6 +42,7 @@ func init() {
 	flag.StringVar(&flags.bindAddr, "bind", "127.0.0.1:8888", "server listening address")
 	flag.StringVar(&flags.captchaSite, "captcha-site", "", "recaptcha site key (if empty, captcha are disabled")
 	flag.StringVar(&flags.faucetURL, "faucet-url", "http://localhost:5050", "faucet server URL")
+	flag.StringVar(&flags.viewDir, "view", "./gnoland/website/views", "views directory location")
 	startedAt = time.Now()
 }
 
@@ -48,7 +50,7 @@ func main() {
 	flag.Parse()
 
 	app := gotuna.App{
-		ViewFiles: os.DirFS("./views/"),
+		ViewFiles: os.DirFS(flags.viewDir),
 		Router:    gotuna.NewMuxRouter(),
 		Static:    static.EmbeddedStatic,
 		// StaticPrefix: "static/",
