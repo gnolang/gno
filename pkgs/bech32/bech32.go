@@ -1,7 +1,7 @@
 package bech32
 
 import (
-	"github.com/btcsuite/btcutil/bech32"
+	"github.com/btcsuite/btcd/btcutil/bech32"
 	"github.com/gnolang/gno/pkgs/errors"
 )
 
@@ -22,7 +22,7 @@ func Encode(hrp string, data []byte) (string, error) {
 // DecodeAndConvert decodes bech32 to []byte.
 // DEPRECATED use Decode
 func DecodeAndConvert(bech string) (string, []byte, error) {
-	hrp, data, err := bech32.Decode(bech)
+	hrp, data, err := bech32.DecodeNoLimit(bech)
 	if err != nil {
 		return "", nil, errors.Wrap(err, "decoding bech32 failed")
 	}
