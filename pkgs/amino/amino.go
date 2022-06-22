@@ -331,7 +331,7 @@ func (cdc *Codec) Marshal(o interface{}) ([]byte, error) {
 		if ok {
 			return cdc.MarshalPBBindings(pbm)
 		} else {
-			// Fall back to using relfection for native primitive types.
+			// Fall back to using reflection for native primitive types.
 		}
 	}
 

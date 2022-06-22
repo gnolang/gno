@@ -74,7 +74,7 @@ type TransportLifecycle interface {
 }
 
 // ConnFilterFunc to be implemented by filter hooks after a new connection has
-// been established. The set of exisiting connections is passed along together
+// been established. The set of existing connections is passed along together
 // with all resolved IPs for the new connection.
 type ConnFilterFunc func(ConnSet, net.Conn, []net.IP) error
 
@@ -115,7 +115,7 @@ func MultiplexTransportFilterTimeout(
 	return func(mt *MultiplexTransport) { mt.filterTimeout = timeout }
 }
 
-// MultiplexTransportResolver sets the Resolver used for ip lokkups, defaults to
+// MultiplexTransportResolver sets the Resolver used for ip lookups, defaults to
 // net.DefaultResolver.
 func MultiplexTransportResolver(resolver IPResolver) MultiplexTransportOption {
 	return func(mt *MultiplexTransport) { mt.resolver = resolver }
@@ -141,7 +141,7 @@ type MultiplexTransport struct {
 	nodeKey          NodeKey
 	resolver         IPResolver
 
-	// TODO(xla): This config is still needed as we parameterise peerConn and
+	// TODO(xla): This config is still needed as we parameterize peerConn and
 	// peer currently. All relevant configuration should be refactored into options
 	// with sane defaults.
 	mConfig conn.MConnConfig

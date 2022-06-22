@@ -91,7 +91,7 @@ func (g *basicGasMeter) ConsumeGas(amount Gas, descriptor string) {
 		panic(GasOverflowException{descriptor})
 	}
 	// consume gas even if out of gas.
-	// corrolarily, call (Did)ConsumeGas after consumption.
+	// corollary, call (Did)ConsumeGas after consumption.
 	g.consumed = consumed
 	if consumed > g.limit {
 		panic(OutOfGasException{descriptor})

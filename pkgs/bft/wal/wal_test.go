@@ -182,7 +182,7 @@ func TestWALPeriodicSync(t *testing.T) {
 	wal.SetFlushInterval(walTestFlushInterval)
 	wal.SetLogger(log.TestingLogger())
 
-	// Take snapeshot of starting state.
+	// Take snapshot of starting state.
 	startInfo := wal.Group().ReadGroupInfo()
 	assert.True(t, startInfo.TotalSize < 1024, "WAL should start short (w/ initial Height 1 meta)")
 
@@ -202,7 +202,7 @@ func TestWALPeriodicSync(t *testing.T) {
 	// Sleep for a while, while WAL files are being created.
 	time.Sleep(sleepInterval)
 
-	// Take snapeshot of ending state.
+	// Take snapshot of ending state.
 	endInfo := wal.Group().ReadGroupInfo()
 	assert.NotEqual(t, 0, endInfo.TotalSize, "WAL should end not empty")
 

@@ -34,7 +34,7 @@ occurred to me that Proto3 is a complexification that is not needed in well
 written software, and that it mostly serves systems that are part of the mass
 public surveillance database amassed in datacenters across the world.  Somewhere,
 there is a proto3 field number and value that describes some new aspect about me,
-in several instances of Google's massive database. 
+in several instances of Google's massive database.
 
 What I want instead is a language, and for that, the original implementation
 of Amino is better suited.
@@ -104,7 +104,7 @@ model as integers anyways.
 Maps are not currently supported.  There is an unstable experimental support
 for maps for the Amino:JSON codec, but it shouldn't be relied on.  Ideally,
 each Amino library should decode maps as a List of key-value structs (in the
-case of langauges without generics, the library should maybe provide a custom
+case of languages without generics, the library should maybe provide a custom
 Map implementation).  TODO specify the standard for key-value items.
 
 ## Amino and Proto3
@@ -116,7 +116,7 @@ Amino objects are a subset of Proto3.
 Amino extends Proto3's Any system with a particular concrete type
 identification format (disfix bytes).
 
-## Amino and Go 
+## Amino and Go
 
 Amino objects are a subset of Go.
 * Multi-dimensional slices/arrays are not (yet) supported.

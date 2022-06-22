@@ -180,7 +180,7 @@ func (m *Machine) doOpEval() {
 		} else {
 			m.PushOp(OpIndex1)
 		}
-		// evalaute index
+		// evaluate index
 		m.PushExpr(x.Index)
 		m.PushOp(OpEval)
 		// evaluate x
@@ -193,22 +193,22 @@ func (m *Machine) doOpEval() {
 		m.PushOp(OpEval)
 	case *SliceExpr:
 		m.PushOp(OpSlice)
-		// evalaute max
+		// evaluate max
 		if x.Max != nil {
 			m.PushExpr(x.Max)
 			m.PushOp(OpEval)
 		}
-		// evalaute high
+		// evaluate high
 		if x.High != nil {
 			m.PushExpr(x.High)
 			m.PushOp(OpEval)
 		}
-		// evalaute low
+		// evaluate low
 		if x.Low != nil {
 			m.PushExpr(x.Low)
 			m.PushOp(OpEval)
 		}
-		// evalaute x
+		// evaluate x
 		m.PushExpr(x.X)
 		m.PushOp(OpEval)
 	case *StarExpr:

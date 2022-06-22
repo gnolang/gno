@@ -2042,7 +2042,7 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, low, high, max int) TypedValue
 			T: tv.T,
 			V: alloc.NewSlice(
 				sv.Base,       // base
-				sv.Offset+low, // ofset
+				sv.Offset+low, // offset
 				high-low,      // length
 				max-low,       // maxcap
 			),

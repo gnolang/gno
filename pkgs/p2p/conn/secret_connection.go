@@ -306,7 +306,7 @@ func shareEphPubKey(conn io.ReadWriteCloser, locEphPub *[32]byte) (remEphPub *[3
 	return &_remEphPub, nil
 }
 
-// use the samne blacklist as lib sodium (see https://eprint.iacr.org/2017/806.pdf for reference):
+// use the same blacklist as lib sodium (see https://eprint.iacr.org/2017/806.pdf for reference):
 // https://github.com/jedisct1/libsodium/blob/536ed00d2c5e0c65ac01e29141d69a30455f2038/src/libsodium/crypto_scalarmult/curve25519/ref10/x25519_ref10.c#L11-L17
 var blacklist = [][32]byte{
 	// 0 (order 4)

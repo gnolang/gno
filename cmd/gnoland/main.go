@@ -23,16 +23,24 @@ import (
 	"github.com/gnolang/gno/pkgs/std"
 )
 
-var flags struct {
-	skipFailingGenesisTxs bool
-}
-
-func init() {
-	flag.BoolVar(&flags.skipFailingGenesisTxs, "skip-failing-genesis-txs", false, "don't panic when replaying invalid genesis txs")
-}
-
 func main() {
-	flag.Parse()
+	args := os.Args[1:]
+	err := runMain(args)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+}
+
+func runMain(args []string) error {
+	var flags struct {
+		skipFailingGenesisTxs bool
+		skipStart             bool
+	}
+	fs := flag.NewFlagSet("gnoland", flag.ExitOnError)
+	fs.BoolVar(&flags.skipFailingGenesisTxs, "skip-failing-genesis-txs", false, "don't panic when replaying invalid genesis txs")
+	fs.BoolVar(&flags.skipStart, "skip-start", false, "quit after initialization, don't start the node")
+	fs.Parse(args)
 
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
 	rootDir := "testdir"
@@ -57,15 +65,22 @@ func main() {
 	// create application and node.
 	gnoApp, err := gnoland.NewApp(rootDir, flags.skipFailingGenesisTxs, logger)
 	if err != nil {
-		panic(fmt.Sprintf("error in creating new app: %v", err))
+		return fmt.Errorf("error in creating new app: %w", err)
 	}
 	cfg.LocalApp = gnoApp
 	gnoNode, err := node.DefaultNewNode(cfg, logger)
 	if err != nil {
-		panic(fmt.Sprintf("error in creating node: %v", err))
+		return fmt.Errorf("error in creating node: %w", err)
 	}
+	fmt.Fprintln(os.Stderr, "Node created.")
+
+	if flags.skipStart {
+		fmt.Fprintln(os.Stderr, "'--skip-start' is set. Exiting.")
+		return nil
+	}
+
 	if err := gnoNode.Start(); err != nil {
-		panic(fmt.Sprintf("error in start node: %v", err))
+		return fmt.Errorf("error in start node: %w", err)
 	}
 
 	// run forever
@@ -109,6 +124,9 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 		"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj=330000000gnot",
 		// Initial account.
 		"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5=10000gnot", // test1
+		// Faucet accounts.
+		"g1f4v282mwyhu29afke4vq5r2xzcm6z3ftnugcnv=1000000gnot", // faucet0 (jae)
+		"g127jydsh6cms3lrtdenydxsckh23a8d6emqcvfa=1000000gnot", // faucet1 (moul)
 		// Contributors premine (TODO).
 		"g15gdm49ktawvkrl88jadqpucng37yxutucuwaef=100000gnot", // @chadwick
 		"g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq=100000gnot", // @moul
@@ -179,7 +197,7 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 		"r/banktest",
 	} {
 		// open files in directory as MemPackage.
-		memPkg := gno.ReadMemPackage("./examples/gno.land/"+path, "gno.land/"+path)
+		memPkg := gno.ReadMemPackage(filepath.Join(".", "examples", "gno.land", path), "gno.land/"+path)
 		var tx std.Tx
 		tx.Msgs = []std.Msg{
 			vmm.MsgAddPackage{

@@ -201,7 +201,7 @@ func (p *peer) IsOutbound() bool {
 	return p.peerConn.outbound
 }
 
-// IsPersistent returns true if the peer is persitent, false otherwise.
+// IsPersistent returns true if the peer is persistent, false otherwise.
 func (p *peer) IsPersistent() bool {
 	return p.peerConn.persistent
 }
