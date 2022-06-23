@@ -13,13 +13,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Build Docker Image
+      - name: Build main Docker image
         env:
           owner: ${{ github.repository_owner }}
-          dirname: ${{ github.event.repository.name }}
+          reponame: ${{ github.event.repository.name }}
         run: |
-          docker build -t ghcr.io/${owner}/${dirname} .
-          docker tag ghcr.io/${owner}/${dirname}:latest ghcr.io/${owner}/${dirname}:${GITHUB_SHA::8}
+          docker build -t ghcr.io/${owner}/${reponame} .
+          docker tag ghcr.io/${owner}/${reponame}:latest ghcr.io/${owner}/${reponame}:${GITHUB_SHA::8}
+
+      - name: Build slim Docker images
+        env:
+          owner: ${{ github.repository_owner }}
+          reponame: ${{ github.event.repository.name }}
+        run: |
+          docker build --target=gnoland-slim   -t ghcr.io/${owner}/${reponame}/gnoland-slim   .
+          docker build --target=gnokey-slim    -t ghcr.io/${owner}/${reponame}/gnokey-slim    .
+          docker build --target=gnodev-slim    -t ghcr.io/${owner}/${reponame}/gnodev-slim    .
+          docker build --target=gnofaucet-slim -t ghcr.io/${owner}/${reponame}/gnofaucet-slim .
+          docker build --target=gnoweb-slim    -t ghcr.io/${owner}/${reponame}/gnoweb-slim    .
+
+          docker tag ghcr.io/${owner}/${reponame}/gnoland-slim:latest   ghcr.io/${owner}/${reponame}/gnoland-slim:${GITHUB_SHA::8}
+          docker tag ghcr.io/${owner}/${reponame}/gnokey-slim:latest    ghcr.io/${owner}/${reponame}/gnokey-slim:${GITHUB_SHA::8}
+          docker tag ghcr.io/${owner}/${reponame}/gnodev-slim:latest    ghcr.io/${owner}/${reponame}/gnodev-slim:${GITHUB_SHA::8}
+          docker tag ghcr.io/${owner}/${reponame}/gnofaucet-slim:latest ghcr.io/${owner}/${reponame}/gnofaucet-slim:${GITHUB_SHA::8}
+          docker tag ghcr.io/${owner}/${reponame}/gnoweb-slim:latest    ghcr.io/${owner}/${reponame}/gnoweb-slim:${GITHUB_SHA::8}
+
+      - name: List docker images
+        run: |
           docker images | grep ghcr
 
       - name: Log in to GitHub Container Registry
@@ -30,12 +50,26 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Deploy Test Container
+      - name: Publish images
         if: (github.event_name != 'pull_request')
         env:
           owner: ${{ github.repository_owner }}
-          dirname: ${{ github.event.repository.name }}
+          reponame: ${{ github.event.repository.name }}
         run: |
-            docker images
-            docker push ghcr.io/${owner}/${dirname}:latest
-            docker push ghcr.io/${owner}/${dirname}:${GITHUB_SHA::8}
+            docker push ghcr.io/${owner}/${reponame}:latest
+            docker push ghcr.io/${owner}/${reponame}:${GITHUB_SHA::8}
+
+            docker push ghcr.io/${owner}/${reponame}/gnoland-slim:latest
+            docker push ghcr.io/${owner}/${reponame}/gnoland-slim:${GITHUB_SHA::8}
+
+            docker push ghcr.io/${owner}/${reponame}/gnokey-slim:latest
+            docker push ghcr.io/${owner}/${reponame}/gnokey-slim:${GITHUB_SHA::8}
+
+            docker push ghcr.io/${owner}/${reponame}/gnodev-slim:latest
+            docker push ghcr.io/${owner}/${reponame}/gnodev-slim:${GITHUB_SHA::8}
+
+            docker push ghcr.io/${owner}/${reponame}/gnofaucet-slim:latest
+            docker push ghcr.io/${owner}/${reponame}/gnofaucet-slim:${GITHUB_SHA::8}
+
+            docker push ghcr.io/${owner}/${reponame}/gnoweb-slim:latest
+            docker push ghcr.io/${owner}/${reponame}/gnoweb-slim:${GITHUB_SHA::8}
