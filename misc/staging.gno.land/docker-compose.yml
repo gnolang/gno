@@ -24,7 +24,6 @@ services:
   gnoweb:
     container_name: gnoweb
     build: ../..
-    working_dir: /opt/gno/src/gnoland/website
     command:
       - gnoweb
       - --bind
