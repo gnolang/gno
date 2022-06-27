@@ -15,6 +15,11 @@ import (
 	"github.com/gnolang/gno/stdlibs"
 )
 
+const (
+	maxAllocTx    = 500 * 1000 * 1000
+	maxAllocQuery = 1500 * 1000 * 1000 // higher limit for queries
+)
+
 // vm.VMKeeperI defines a module interface that supports Gno
 // smart contracts programming (scripting).
 type VMKeeperI interface {
@@ -52,8 +57,7 @@ func (vmk *VMKeeper) Initialize(ms store.MultiStore) {
 	if vmk.gnoStore != nil {
 		panic("should not happen")
 	}
-	const maxAllocBytes = 500 * 1000 * 1000
-	alloc := gno.NewAllocator(maxAllocBytes)
+	alloc := gno.NewAllocator(maxAllocTx)
 	baseSDKStore := ms.GetStore(vmk.baseKey)
 	iavlSDKStore := ms.GetStore(vmk.iavlKey)
 	vmk.gnoStore = gno.NewStore(alloc, baseSDKStore, iavlSDKStore)
@@ -305,6 +309,7 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 // TODO: modify query protocol to allow MsgEval.
 // TODO: then, rename to "Eval".
 func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
+	alloc := gno.NewAllocator(maxAllocQuery)
 	store := vm.getGnoStore(ctx)
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
 	// Get Package.
@@ -337,7 +342,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 			Output:    os.Stdout, // XXX
 			Store:     store,
 			Context:   msgCtx,
-			Alloc:     store.GetAllocator(),
+			Alloc:     alloc,
 			MaxCycles: 10 * 1000 * 1000, // 10M cycles // XXX
 		})
 	rtvs := m.Eval(xx)
@@ -356,6 +361,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 // TODO: modify query protocol to allow MsgEval.
 // TODO: then, rename to "EvalString".
 func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
+	alloc := gno.NewAllocator(maxAllocQuery)
 	store := vm.getGnoStore(ctx)
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
 	// Get Package.
@@ -388,7 +394,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 			Output:    os.Stdout, // XXX
 			Store:     store,
 			Context:   msgCtx,
-			Alloc:     store.GetAllocator(),
+			Alloc:     alloc,
 			MaxCycles: 10 * 1000 * 1000, // 10M cycles // XXX
 		})
 	rtvs := m.Eval(xx)

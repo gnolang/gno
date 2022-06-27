@@ -70,6 +70,10 @@ func NewAllocator(maxBytes int64) *Allocator {
 	}
 }
 
+func (alloc *Allocator) Status() (maxBytes int64, bytes int64) {
+	return alloc.maxBytes, alloc.bytes
+}
+
 func (alloc *Allocator) Reset() *Allocator {
 	if alloc == nil {
 		return nil
