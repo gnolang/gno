@@ -211,13 +211,25 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 		} else if xff, found := r.Header["X-Forwarded-For"]; found && len(xff) > 0 {
 			host = xff[0]
 		}
-		if host == "" { // if can't identify the IP, everyone is in the same pool.
+
+		// if can't identify the IP, everyone is in the same pool.
+		// if host using ipv6 loopback addr, make it ipv4
+		if host == "" || host == "::1" || host == "0:0:0:0:0:0:0:1" {
 			host = "127.0.0.1"
 		}
 		ip := net.ParseIP(host)
 		if ip == nil {
+			fmt.Println("no ip found")
+			w.Write([]byte("no ip found"))
 			return
 		}
+
+		if !st.Request(ip) {
+			fmt.Println("wrong ip format")
+			w.Write([]byte("wrong ip format"))
+			return
+		}
+
 		r.ParseForm()
 
 		// only when command line argument 'captcha-secret' has entered > captcha are enabled.
@@ -233,7 +245,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 			capMsg := strings.TrimSpace(passedMsg[0])
 
 			if err := checkRecaptcha(opts.CaptchaSecret, capMsg); err != nil {
-			        fmt.Printf("recaptcha failed; %v\n", err)
+				fmt.Printf("recaptcha failed; %v\n", err)
 				w.Write([]byte("Unauthorized"))
 				return
 			}
@@ -246,11 +258,9 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 			w.Write([]byte("no address found"))
 			return
 		}
+
 		toAddrStr := strings.TrimSpace(passedAddr[0])
 
-		if !st.Request(ip) {
-			return
-		}
 		// OK.
 		toAddr, err := crypto.AddressFromBech32(toAddrStr)
 		if err != nil {
@@ -259,8 +269,10 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 			return
 		}
 		err = sendAmountTo(cmd, cli, name, pass, toAddr, accountNumber, sequence, send, opts)
+
 		if err != nil {
 			fmt.Println("error:", err)
+			w.Write([]byte("faucet fail"))
 			return
 		} else {
 			sequence += 1
