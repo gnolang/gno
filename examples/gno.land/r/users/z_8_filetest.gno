@@ -1,6 +1,6 @@
 package main
 
-// SEND: 2000gnot
+// SEND: 2000ugnot
 
 import (
 	"std"

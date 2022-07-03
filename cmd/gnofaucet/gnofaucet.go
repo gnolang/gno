@@ -94,10 +94,10 @@ type serveOptions struct {
 var DefaultServeOptions = serveOptions{
 	ChainID:       "", // must override
 	GasWanted:     50000,
-	GasFee:        "1gnot",
+	GasFee:        "1ugnot",
 	Memo:          "",
 	TestTo:        "",
-	Send:          "1gnot",
+	Send:          "1ugnot",
 	CaptchaSecret: "",
 	IsBehindProxy: false,
 }

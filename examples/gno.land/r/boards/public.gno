@@ -33,7 +33,7 @@ func CreateBoard(name string) BoardID {
 
 func checkAnonFee() bool {
 	sent := std.GetOrigSend()
-	anonFeeCoin := std.Coin{"gnot", int64(gDefaultAnonFee)}
+	anonFeeCoin := std.Coin{"ugnot", int64(gDefaultAnonFee)}
 	if len(sent) == 1 && sent[0].IsGTE(anonFeeCoin) {
 		return true
 	}
@@ -45,7 +45,7 @@ func CreateThread(bid BoardID, title string, body string) PostID {
 	caller := std.GetOrigCaller()
 	if usernameOf(caller) == "" {
 		if !checkAnonFee() {
-			panic("payment must not be less than " + strconv.Itoa(gDefaultAnonFee))
+			panic("please register, otherwise minimum fee " + strconv.Itoa(gDefaultAnonFee) + " is required if anonymous")
 		}
 	}
 	board := getBoard(bid)
@@ -61,7 +61,7 @@ func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
 	caller := std.GetOrigCaller()
 	if usernameOf(caller) == "" {
 		if !checkAnonFee() {
-			panic("payment must not be less than " + strconv.Itoa(gDefaultAnonFee))
+			panic("please register, otherwise minimum fee " + strconv.Itoa(gDefaultAnonFee) + " is required if anonymous")
 		}
 	}
 	board := getBoard(bid)
@@ -90,7 +90,7 @@ func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoar
 	if usernameOf(caller) == "" {
 		// TODO: allow with gDefaultAnonFee payment.
 		if !checkAnonFee() {
-			panic("payment must not be less than " + strconv.Itoa(gDefaultAnonFee))
+			panic("please register, otherwise minimum fee " + strconv.Itoa(gDefaultAnonFee) + " is required if anonymous")
 		}
 	}
 	board := getBoard(bid)

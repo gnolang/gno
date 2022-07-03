@@ -1,7 +1,7 @@
 ########################################
 # Dist suite
-.PHONY: logos goscan gnoland gnokey gnofaucet logos reset gnoweb
-all: gnoland gnokey goscan logos gnoweb
+.PHONY: logos goscan gnoland gnokey gnofaucet logos reset gnoweb gnotxport
+all: gnoland gnokey goscan logos gnoweb gnotxport
 
 reset:
 	rm -rf testdir
@@ -48,7 +48,9 @@ gnoweb:
 
 	go build -o build/website ./gnoland/website
 
-
+gnotxport:
+	@echo "Building gnotxport"
+	go build -o build/gnotxport ./cmd/gnotxport
 
 # Logos is the interface to Gnoland
 logos:
