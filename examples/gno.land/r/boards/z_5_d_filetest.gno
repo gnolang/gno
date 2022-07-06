@@ -17,13 +17,15 @@ func main() {
 	users.Register("", "gnouser", "my profile")
 	// create board via registered user
 	bid := boards.CreateBoard("test_board")
+	pid := boards.CreateThread(bid, "First Post (title)", "Body of the first post. (body)")
 
-	// create post via anon user
+	// create reply via anon user
 	test2 := testutils.TestAddress("test2")
 	std.TestSetOrigCaller(test2)
 	std.TestSetOrigSend(std.Coins{{"gnot", 9}}, nil)
+	boards.CreateReply(bid, pid, pid, "Reply of the first post")
 
-	pid := boards.CreateThread(bid, "First Post (title)", "Body of the first post. (body)")
+
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
 }
 
