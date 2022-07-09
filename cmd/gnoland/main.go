@@ -37,6 +37,7 @@ var flags struct {
 	skipStart             bool
 	airdropFile           string
 	chainID               string
+	genesisRemote         string
 }
 
 func runMain(args []string) error {
@@ -45,6 +46,7 @@ func runMain(args []string) error {
 	fs.BoolVar(&flags.skipStart, "skip-start", false, "quit after initialization, don't start the node")
 	fs.StringVar(&flags.airdropFile, "airdrop-file", "", "optional airdrop file")
 	fs.StringVar(&flags.chainID, "chainid", "dev", "chainid")
+	fs.StringVar(&flags.genesisRemote, "genesis-remote", "localhost:26657", "replacement for '%%REMOTE%%' in genesis")
 	fs.Parse(args)
 
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
@@ -246,6 +248,7 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 
 		// patch the TX
 		txLine = strings.ReplaceAll(txLine, "%%CHAINID%%", flags.chainID)
+		txLine = strings.ReplaceAll(txLine, "%%REMOTE%%", flags.genesisRemote)
 
 		var tx std.Tx
 		amino.MustUnmarshalJSON([]byte(txLine), &tx)
