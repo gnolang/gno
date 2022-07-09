@@ -36,6 +36,7 @@ var flags struct {
 	skipFailingGenesisTxs bool
 	skipStart             bool
 	airdropFile           string
+	chainID               string
 }
 
 func runMain(args []string) error {
@@ -43,6 +44,7 @@ func runMain(args []string) error {
 	fs.BoolVar(&flags.skipFailingGenesisTxs, "skip-failing-genesis-txs", false, "don't panic when replaying invalid genesis txs")
 	fs.BoolVar(&flags.skipStart, "skip-start", false, "quit after initialization, don't start the node")
 	fs.StringVar(&flags.airdropFile, "airdrop-file", "", "optional airdrop file")
+	fs.StringVar(&flags.chainID, "chainid", "devnet", "chainid")
 	fs.Parse(args)
 
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
@@ -99,7 +101,7 @@ func runMain(args []string) error {
 func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 	gen := &bft.GenesisDoc{}
 	gen.GenesisTime = time.Now()
-	gen.ChainID = "testchain"
+	gen.ChainID = flags.chainID
 	gen.ConsensusParams = abci.ConsensusParams{
 		Block: &abci.BlockParams{
 			// TODO: update limits.
@@ -241,6 +243,10 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 		if txLine == "" {
 			continue // skip empty line
 		}
+
+		// patch the TX
+		txLine = strings.ReplaceAll(txLine, "%%CHAINID%%", flags.chainID)
+
 		var tx std.Tx
 		amino.MustUnmarshalJSON([]byte(txLine), &tx)
 		txs = append(txs, tx)
