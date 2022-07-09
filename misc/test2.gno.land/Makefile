@@ -10,11 +10,11 @@ logs:
 
 down:
 	docker compose down
-	docker volume rm -f staginggnoland_gnonode
+	docker volume rm -f test2gnoland_gnonode
 	docker compose run gnoland rm -rf /opt/gno/src/testdir/data /opt/gno/src/testdir/config
 
 pull:
 	git pull
 
-build: 
+build:
 	docker compose build
