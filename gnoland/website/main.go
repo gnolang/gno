@@ -18,6 +18,7 @@ import (
 	"github.com/gnolang/gno/pkgs/amino"
 	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
 	"github.com/gnolang/gno/pkgs/bft/rpc/client"
+	osm "github.com/gnolang/gno/pkgs/os"
 	"github.com/gnolang/gno/pkgs/std"
 	"github.com/gorilla/mux"
 	"github.com/gotuna/gotuna"
@@ -28,13 +29,14 @@ import (
 )
 
 var flags struct {
-	bindAddr    string
-	remoteAddr  string
-	captchaSite string
-	faucetURL   string
-	viewDir     string
-	helpChainID string
-	helpRemote  string
+	bindAddr        string
+	remoteAddr      string
+	captchaSite     string
+	faucetURL       string
+	viewsDir        string
+	helpChainID     string
+	helpRemote      string
+	homeContentFile string
 }
 
 var startedAt time.Time
@@ -44,7 +46,8 @@ func init() {
 	flag.StringVar(&flags.bindAddr, "bind", "127.0.0.1:8888", "server listening address")
 	flag.StringVar(&flags.captchaSite, "captcha-site", "", "recaptcha site key (if empty, captcha are disabled)")
 	flag.StringVar(&flags.faucetURL, "faucet-url", "http://localhost:5050", "faucet server URL")
-	flag.StringVar(&flags.viewDir, "view", "./gnoland/website/views", "views directory location")
+	flag.StringVar(&flags.viewsDir, "views-dir", "./gnoland/website/views", "views directory location")
+	flag.StringVar(&flags.homeContentFile, "home-content", "./gnoland/website/HOME.md", "home content filepath")
 	flag.StringVar(&flags.helpChainID, "help-chainid", "dev", "help page's chainid")
 	flag.StringVar(&flags.helpRemote, "help-remote", "127.0.0.1:26657", "help page's remote addr")
 	startedAt = time.Now()
@@ -54,7 +57,7 @@ func main() {
 	flag.Parse()
 
 	app := gotuna.App{
-		ViewFiles: os.DirFS(flags.viewDir),
+		ViewFiles: os.DirFS(flags.viewsDir),
 		Router:    gotuna.NewMuxRouter(),
 		Static:    static.EmbeddedStatic,
 		// StaticPrefix: "static/",
@@ -80,8 +83,11 @@ func main() {
 }
 
 func handlerHome(app gotuna.App) http.Handler {
+	homeContent := osm.MustReadFile(flags.homeContentFile)
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		app.NewTemplatingEngine().
+			Set("HomeContent", string(homeContent)).
 			Render(w, r, "home.html", "header.html")
 	})
 }
