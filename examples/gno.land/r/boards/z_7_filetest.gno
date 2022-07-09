@@ -1,7 +1,7 @@
 // PKGPATH: gno.land/r/boards_test
 package boards_test
 
-// SEND: 2000ugnot
+// SEND: 2000000000ugnot
 
 import (
 	"gno.land/r/boards"

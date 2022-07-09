@@ -53,7 +53,7 @@ function updateCommand(x) {
   shell.append(u("<span>").text("### INSECURE BUT QUICK ###")).append(u("<br>"));
   var args = ["gnokey", "maketx", "call", myAddr,
     "--pkgpath", shq(realmPath), "--func", shq(funcName),
-    "--gas-fee", "1ugnot", "--gas-wanted", "2000000",
+    "--gas-fee", "1000000ugnot", "--gas-wanted", "2000000",
     "--send", shq(""),
     "--broadcast", "true", "--chainid", shq(chainid)];
   vals.forEach(function(arg) {
@@ -75,7 +75,7 @@ function updateCommand(x) {
   // command 1: construct tx.
   var args = ["gnokey", "maketx", "call", myAddr,
     "--pkgpath", shq(realmPath), "--func", shq(funcName),
-    "--gas-fee", "1ugnot", "--gas-wanted", "2000000",
+    "--gas-fee", "1000000ugnot", "--gas-wanted", "2000000",
     "--send", shq("")];
   vals.forEach(function(arg) {
     args.push("--args");

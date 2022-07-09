@@ -1,7 +1,7 @@
 package main
 
 // NOTE: this doesn't do anything, as it sends to "main".
-// SEND: 100ugnot
+// SEND: 100000000ugnot
 
 import (
 	"std"
@@ -20,9 +20,9 @@ func main() {
 
 	// simulate a Deposit call.
 	std.TestSetOrigPkgAddr(banktestAddr)
-	std.TestIssueCoins(banktestAddr, std.Coins{{"ugnot", 100}})
-	std.TestSetOrigSend(std.Coins{{"ugnot", 100}}, nil)
-	res := banktest.Deposit("ugnot", 100)
+	std.TestIssueCoins(banktestAddr, std.Coins{{"ugnot", 100000000}})
+	std.TestSetOrigSend(std.Coins{{"ugnot", 100000000}}, nil)
+	res := banktest.Deposit("ugnot", 100000000)
 	println("Deposit():", res)
 
 	// print main balance after.
@@ -35,11 +35,11 @@ func main() {
 }
 
 // Output:
-// main before: 200ugnot
+// main before: 200000000ugnot
 // Deposit(): returned!
-// main after: 300ugnot
+// main after: 300000000ugnot
 // ## recent activity
 //
-//  * g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4 100ugnot sent, 100ugnot returned, at 1970-01-01 12:00am UTC
+//  * g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4 100000000ugnot sent, 100000000ugnot returned, at 1970-01-01 12:00am UTC
 //
 // ## total deposits

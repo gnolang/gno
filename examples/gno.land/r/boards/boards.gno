@@ -13,7 +13,7 @@ var (
 	gBoards         = avl.NewMutTree() // id -> *Board
 	gBoardsCtr      int                // increments Board.id
 	gBoardsByName   = avl.NewMutTree() // name -> *Board
-	gDefaultAnonFee = 100              // minimum fee required if anonymous
+	gDefaultAnonFee = 100000000        // minimum fee required if anonymous
 )
 
 //----------------------------------------
