@@ -1,6 +1,8 @@
 package gas
 
 import (
+	"fmt"
+
 	"github.com/gnolang/gno/pkgs/store/types"
 )
 
@@ -30,7 +32,6 @@ func (gs *Store) Get(key []byte) (value []byte) {
 	gs.gasMeter.ConsumeGas(gs.gasConfig.ReadCostFlat, types.GasReadCostFlatDesc)
 	value = gs.parent.Get(key)
 
-	// TODO overflow-safe math?
 	gs.gasMeter.ConsumeGas(gs.gasConfig.ReadCostPerByte*types.Gas(len(value)), types.GasReadPerByteDesc)
 
 	return value
@@ -40,6 +41,27 @@ func (gs *Store) Get(key []byte) (value []byte) {
 func (gs *Store) Set(key []byte, value []byte) {
 	types.AssertValidValue(value)
 	gs.gasMeter.ConsumeGas(gs.gasConfig.WriteCostFlat, types.GasWriteCostFlatDesc)
+
+	gasConsumed := gs.gasMeter.GasConsumed()
+	gasConsumedToLimit := gs.gasMeter.GasConsumedToLimit()
+	limit := gs.gasMeter.Limit()
+	remaining := gs.gasMeter.Remaining()
+	isPastLimit := gs.gasMeter.IsPastLimit()
+	isOutOfGas := gs.gasMeter.IsOutOfGas()
+
+	// TODO overflow-safe math?
+	fmt.Println("GASGASGAS:",
+		"readcostperbyte", gs.gasConfig.ReadCostPerByte,
+		"len(value)", len(value),
+		"value", string(value),
+		"gasConsumed", gasConsumed,
+		"gasConsumedToLimit", gasConsumedToLimit,
+		"limit", limit,
+		"remaining", remaining,
+		"isPastLimit", isPastLimit,
+		"isOutOfGas", isOutOfGas,
+	)
+
 	// TODO overflow-safe math?
 	gs.gasMeter.ConsumeGas(gs.gasConfig.WriteCostPerByte*types.Gas(len(value)), types.GasWritePerByteDesc)
 	gs.parent.Set(key, value)
