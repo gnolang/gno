@@ -76,10 +76,10 @@ GetBoardIDFromName(\"BOARDNAME\")" --remote gno.land:36657
 NOTE: If a board was created successfully, your SEQUENCE_NUMBER would have increased.
 
 ```bash
-./build/gnokey maketx call KEYNAME --pkgpath "gno.land/r/boards" --func "CreatePost" --args BOARD_ID --args "Hello gno.land" --args\#file "./examples/gno.land/r/boards/example_post.md" --gas-fee 1gnot --gas-wanted 2000000 --broadcast true --chainid testchain --remote gno.land:36657
+./build/gnokey maketx call KEYNAME --pkgpath "gno.land/r/boards" --func "CreateThread" --args BOARD_ID --args "Hello gno.land" --args\#file "./examples/gno.land/r/boards/example_post.md" --gas-fee 1gnot --gas-wanted 2000000 --broadcast true --chainid testchain --remote gno.land:36657
 ```
 
-Interactive documentation: https://gno.land/r/boards?help&__func=CreatePost
+Interactive documentation: https://gno.land/r/boards?help&__func=CreateThread
 
 ### Create a comment to a post.
 
