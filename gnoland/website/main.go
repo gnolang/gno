@@ -33,6 +33,8 @@ var flags struct {
 	captchaSite string
 	faucetURL   string
 	viewDir     string
+	helpChainID string
+	helpRemote  string
 }
 
 var startedAt time.Time
@@ -43,6 +45,8 @@ func init() {
 	flag.StringVar(&flags.captchaSite, "captcha-site", "", "recaptcha site key (if empty, captcha are disabled)")
 	flag.StringVar(&flags.faucetURL, "faucet-url", "http://localhost:5050", "faucet server URL")
 	flag.StringVar(&flags.viewDir, "view", "./gnoland/website/views", "views directory location")
+	flag.StringVar(&flags.helpChainID, "help-chainid", "dev", "help page's chainid")
+	flag.StringVar(&flags.helpRemote, "help-remote", "127.0.0.1:26657", "help page's remote addr")
 	startedAt = time.Now()
 }
 
@@ -181,6 +185,8 @@ func handlerRealmMain(app gotuna.App) http.Handler {
 			tmpl := app.NewTemplatingEngine()
 			tmpl.Set("FuncName", funcName)
 			tmpl.Set("RealmPath", rlmpath)
+			tmpl.Set("Remote", flags.helpRemote)
+			tmpl.Set("ChainID", flags.helpChainID)
 			tmpl.Set("DirPath", pathOf(rlmpath))
 			tmpl.Set("FunctionSignatures", fsigs)
 			tmpl.Render(w, r, "realm_help.html", "header.html")
