@@ -59,7 +59,7 @@ Go to https://gno.land/faucet
 NOTE: `BOARDNAME` will be the slug of the board, and should be changed.
 
 ```bash
-./build/gnokey maketx call KEYNAME --pkgpath "gno.land/r/boards" --func "CreateBoard" --args "BOARDNAME" --gas-fee "1gnot" --gas-wanted "2000000" --broadcast true --chainid testchain --remote gno.land:36657
+./build/gnokey maketx call KEYNAME --pkgpath "gno.land/r/boards" --func "CreateBoard" --args "BOARDNAME" --gas-fee "1ugnot" --gas-wanted "2000000" --broadcast true --chainid testchain --remote gno.land:36657
 ```
 
 Interactive documentation: https://gno.land/r/boards?help&__func=CreateBoard
@@ -76,7 +76,7 @@ GetBoardIDFromName(\"BOARDNAME\")" --remote gno.land:36657
 NOTE: If a board was created successfully, your SEQUENCE_NUMBER would have increased.
 
 ```bash
-./build/gnokey maketx call KEYNAME --pkgpath "gno.land/r/boards" --func "CreateThread" --args BOARD_ID --args "Hello gno.land" --args\#file "./examples/gno.land/r/boards/example_post.md" --gas-fee 1gnot --gas-wanted 2000000 --broadcast true --chainid testchain --remote gno.land:36657
+./build/gnokey maketx call KEYNAME --pkgpath "gno.land/r/boards" --func "CreateThread" --args BOARD_ID --args "Hello gno.land" --args\#file "./examples/gno.land/r/boards/example_post.md" --gas-fee 1ugnot --gas-wanted 2000000 --broadcast true --chainid testchain --remote gno.land:36657
 ```
 
 Interactive documentation: https://gno.land/r/boards?help&__func=CreateThread
@@ -84,7 +84,7 @@ Interactive documentation: https://gno.land/r/boards?help&__func=CreateThread
 ### Create a comment to a post.
 
 ```bash
-./build/gnokey maketx call KEYNAME --pkgpath "gno.land/r/boards" --func "CreateReply" --args "BOARD_ID" --args "1" --args "1" --args "Nice to meet you too." --gas-fee 1gnot --gas-wanted 2000000 --broadcast true --chainid testchain --remote gno.land:36657
+./build/gnokey maketx call KEYNAME --pkgpath "gno.land/r/boards" --func "CreateReply" --args "BOARD_ID" --args "1" --args "1" --args "Nice to meet you too." --gas-fee 1ugnot --gas-wanted 2000000 --broadcast true --chainid testchain --remote gno.land:36657
 ```
 
 Interactive documentation: https://gno.land/r/boards?help&__func=CreateReply
@@ -126,11 +126,11 @@ NOTE: This can be reset with `make reset`
 ### Publish the "gno.land/p/avl" package.
 
 ```bash
-./build/gnokey maketx addpkg test1 --pkgpath "gno.land/p/avl" --pkgdir "examples/gno.land/p/avl" --deposit 100gnot --gas-fee 1gnot --gas-wanted 2000000 --broadcast true --chainid testchain --remote localhost:26657
+./build/gnokey maketx addpkg test1 --pkgpath "gno.land/p/avl" --pkgdir "examples/gno.land/p/avl" --deposit 100ugnot --gas-fee 1ugnot --gas-wanted 2000000 --broadcast true --chainid testchain --remote localhost:26657
 ```
 
 ### Publish the "gno.land/r/boards" realm package.
 
 ```bash
-./build/gnokey maketx addpkg test1 --pkgpath "gno.land/r/boards" --pkgdir "examples/gno.land/r/boards" --deposit 100gnot --gas-fee 1gnot --gas-wanted 300000000 --broadcast true --chainid testchain --remote localhost:26657
+./build/gnokey maketx addpkg test1 --pkgpath "gno.land/r/boards" --pkgdir "examples/gno.land/r/boards" --deposit 100ugnot --gas-fee 1ugnot --gas-wanted 300000000 --broadcast true --chainid testchain --remote localhost:26657
 ```
