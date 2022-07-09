@@ -60,7 +60,7 @@ function updateCommand(x) {
     args.push("--args");
     args.push(shq(arg));
   });
-  args.push("--remote", shq(remote);
+  args.push("--remote", shq(remote));
   var command = args.join(" ");
   shell.append(u("<span>").text(command)).append(u("<br>")).append(u("<br>"));
 
