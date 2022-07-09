@@ -1,7 +1,7 @@
 // PKGPATH: gno.land/r/boards_test
 package boards_test
 
-// SEND: 199ugnot
+// SEND: 199000000ugnot
 
 import (
 	"gno.land/r/boards"
@@ -20,4 +20,4 @@ func main() {
 }
 
 // Error:
-// payment must not be less than 200
+// payment must not be less than 200000000

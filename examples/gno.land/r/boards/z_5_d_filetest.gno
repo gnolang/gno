@@ -1,6 +1,6 @@
 package main
 
-// SEND: 2000ugnot
+// SEND: 2000000000ugnot
 
 import (
 	"std"
@@ -22,7 +22,7 @@ func main() {
 	// create reply via anon user
 	test2 := testutils.TestAddress("test2")
 	std.TestSetOrigCaller(test2)
-	std.TestSetOrigSend(std.Coins{{"ugnot", 9}}, nil)
+	std.TestSetOrigSend(std.Coins{{"ugnot", 9000000}}, nil)
 	boards.CreateReply(bid, pid, pid, "Reply of the first post")
 
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))

@@ -1,6 +1,6 @@
 package main
 
-// SEND: 2000ugnot
+// SEND: 2000000000ugnot
 
 import (
 	"gno.land/r/users"
