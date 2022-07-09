@@ -36,7 +36,7 @@ func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAll
 
 	pkgAddr := gno.DerivePkgAddr(pkgPath)               // the addr of the pkgPath called.
 	caller := gno.DerivePkgAddr(pkgPath)                // NOTE: for the purpose of testing, the caller is generally the "main" package, same as pkgAddr.
-	pkgCoins := std.MustParseCoins("200gnot").Add(send) // >= send.
+	pkgCoins := std.MustParseCoins("200ugnot").Add(send) // >= send.
 	banker := newTestBanker(pkgAddr.Bech32(), pkgCoins)
 	ctx := stdlibs.ExecContext{
 		ChainID:       "testchain",

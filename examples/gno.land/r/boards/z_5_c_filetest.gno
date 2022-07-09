@@ -1,6 +1,6 @@
 package main
 
-// SEND: 2000gnot
+// SEND: 2000ugnot
 
 import (
 	"std"
@@ -21,7 +21,7 @@ func main() {
 	// create post via anon user
 	test2 := testutils.TestAddress("test2")
 	std.TestSetOrigCaller(test2)
-	std.TestSetOrigSend(std.Coins{{"gnot", 101}}, nil)
+	std.TestSetOrigSend(std.Coins{{"ugnot", 101}}, nil)
 
 	pid := boards.CreateThread(bid, "First Post (title)", "Body of the first post. (body)")
 	boards.CreateReply(bid, pid, pid, "Reply of the first post")

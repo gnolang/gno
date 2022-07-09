@@ -63,7 +63,7 @@ func Register(inviter std.Address, name string, profile string) {
 		panic("should not happen") // because std.AssertOrigCall().
 	}
 	sentCoins := std.GetOrigSend()
-	minCoin := std.Coin{"gnot", minFee}
+	minCoin := std.Coin{"ugnot", minFee}
 	if inviter == "" {
 		// banker := std.GetBanker(std.BankerTypeOrigSend)
 		if len(sentCoins) == 1 && sentCoins[0].IsGTE(minCoin) {
@@ -99,7 +99,7 @@ func Register(inviter std.Address, name string, profile string) {
 	// remainder of fees go toward invites.
 	invites := int(0)
 	if len(sentCoins) == 1 {
-		if sentCoins[0].Denom == "gnot" && sentCoins[0].Amount >= minFee {
+		if sentCoins[0].Denom == "ugnot" && sentCoins[0].Amount >= minFee {
 			invites = int(sentCoins[0].Amount / minFee)
 			if inviter == "" && invites > 0 {
 				invites -= 1
