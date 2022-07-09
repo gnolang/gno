@@ -489,6 +489,7 @@ func handleQueryCustom(app *BaseApp, path []string, req abci.RequestQuery) (res 
 	}
 
 	// cache wrap the commit-multistore for safety
+	// XXX RunTxModeQuery?
 	ctx := NewContext(RunTxModeCheck, cacheMS, app.checkState.ctx.BlockHeader(), app.logger).WithMinGasPrices(app.minGasPrices)
 
 	// Passes the query to the handler.

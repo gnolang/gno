@@ -35,4 +35,6 @@ become finished within a reasonable timeframe.
 
 ## Spiritual Philosophy
 
- * The original meaning of "church" is "circle". All segments of a circle are equal.
+ * Truth is revealed in the open light.
+ * Everybody has the potential to see the light.
+ * Those who see the light are moved to expand it.
