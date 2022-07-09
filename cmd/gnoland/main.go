@@ -32,14 +32,17 @@ func main() {
 	}
 }
 
+var flags struct {
+	skipFailingGenesisTxs bool
+	skipStart             bool
+	airdropFile           string
+}
+
 func runMain(args []string) error {
-	var flags struct {
-		skipFailingGenesisTxs bool
-		skipStart             bool
-	}
 	fs := flag.NewFlagSet("gnoland", flag.ExitOnError)
 	fs.BoolVar(&flags.skipFailingGenesisTxs, "skip-failing-genesis-txs", false, "don't panic when replaying invalid genesis txs")
 	fs.BoolVar(&flags.skipStart, "skip-start", false, "quit after initialization, don't start the node")
+	fs.StringVar(&flags.airdropFile, "airdrop-file", "", "optional airdrop file")
 	fs.Parse(args)
 
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
@@ -195,10 +198,12 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 		// going forward we will have a faucet so anyone can get
 		// tokens to pay the spam-prevention tx fee.
 	}
-	//Load Distribution
-	airdrop := loadAirdrop()
 
-	balances = append(balances, airdrop...)
+	// Load distribution.
+	if flags.airdropFile != "" {
+		airdrop := loadAirdrop(flags.airdropFile)
+		balances = append(balances, airdrop...)
+	}
 
 	// Load initial packages from examples.
 	txs := []std.Tx{}
@@ -254,17 +259,15 @@ func writeGenesisFile(gen *bft.GenesisDoc, filePath string) {
 		panic(err)
 	}
 }
-func loadAirdrop() []string {
 
-	bz := osm.MustReadFile("./gnoland/airdrop/genbalance.txt")
-
+func loadAirdrop(airdropFile string) []string {
+	bz := osm.MustReadFile(airdropFile)
 	line := strings.TrimSuffix(string(bz), "\n")
-
 	balances := strings.Split(line, "\n")
 
 	for i, v := range balances {
-		//cosmos10008uvk6fj3ja05u092ya5sx6fn355wavael4j:g10008uvk6fj3ja05u092ya5sx6fn355walp9u5k=3204884ugnot
-		//split and drop cosmos address
+		// cosmos10008uvk6fj3ja05u092ya5sx6fn355wavael4j:g10008uvk6fj3ja05u092ya5sx6fn355walp9u5k=3204884ugnot
+		// split and drop cosmos address.
 		a := strings.Split(v, ":")
 		parts := strings.Split(a[1], "=")
 		if len(parts) != 2 {
@@ -273,7 +276,5 @@ func loadAirdrop() []string {
 		balances[i] = a[1]
 
 	}
-
 	return balances
-
 }
