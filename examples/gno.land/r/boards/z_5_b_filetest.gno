@@ -28,4 +28,4 @@ func main() {
 }
 
 // Error:
-// please register, otherwise minimum fee 100 is required if anonymous
+// please register, otherwise minimum fee 100000000 is required if anonymous
