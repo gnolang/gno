@@ -57,3 +57,7 @@ OF THIS PROJECT OR THE WORKS AVAILABLE THROUGH THIS PROJECT.
 This license is subject to change at any time by the Project owner.  Your
 continued access to or use of this Project or any works available through this
 Project shall be subject to the then-current version of this license.
+
+This license applies to all code except the common libraries under
+github.com/gnolang/gno/pkgs/\* which are separately published under the
+Apache2.0 license.
