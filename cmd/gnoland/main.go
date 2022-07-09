@@ -44,7 +44,7 @@ func runMain(args []string) error {
 	fs.BoolVar(&flags.skipFailingGenesisTxs, "skip-failing-genesis-txs", false, "don't panic when replaying invalid genesis txs")
 	fs.BoolVar(&flags.skipStart, "skip-start", false, "quit after initialization, don't start the node")
 	fs.StringVar(&flags.airdropFile, "airdrop-file", "", "optional airdrop file")
-	fs.StringVar(&flags.chainID, "chainid", "devnet", "chainid")
+	fs.StringVar(&flags.chainID, "chainid", "dev", "chainid")
 	fs.Parse(args)
 
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))

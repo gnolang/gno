@@ -8,7 +8,7 @@
         <script src="/static/js/realm_help.js"></script>
     </head>
     <body onload="main()">
-        <div id="data" data-realm-path="{{ .Data.RealmPath }}"/>
+        <div id="data" data-realm-path="{{ .Data.RealmPath }}" data-remote="{{ .Data.Remote }}" data-chainid="{{ .Data.ChainID }}" />
         <div id="header">
             <a id="logo" href="/">GNO.LAND</a>
             <span id="logo_path">
