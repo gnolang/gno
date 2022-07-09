@@ -29,7 +29,7 @@ func Test_signAppBasic(t *testing.T) {
 			Home: kbHome,
 		},
 		TxPath:        "-", // stdin
-		ChainID:       "testchain",
+		ChainID:       "dev",
 		AccountNumber: new(uint64),
 		Sequence:      new(uint64),
 	}
