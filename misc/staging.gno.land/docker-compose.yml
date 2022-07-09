@@ -11,6 +11,8 @@ services:
       - --skip-failing-genesis-txs
       - --chainid
       - staging
+      - --genesis-remote
+      - staging.gno.land:36657
     volumes:
       - "./data/gnoland:/opt/gno/src/testdir"
     ports:
@@ -40,6 +42,10 @@ services:
       - staging
       - --help-remote
       - staging.gno.land:36657
+      - --home-content
+      - /overlay/HOME.md
+    volumes:
+      - "./overlay:/overlay:ro"
     links:
       - gnoland
     environment:
