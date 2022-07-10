@@ -22,3 +22,9 @@ build:
 ./overlay/balances.txt:
 	wget https://github.com/gnolang/independence-day/raw/main/mkgenesis/balances.txt.gz -O overlay/balances.txt.gz
 	gunzip overlay/balances.txt.gz
+
+gnotxport:
+	#docker build -t gno ../..
+	docker run -v "$(PWD):$(PWD)" -w "$(PWD)" gno gnotxport export --remote test2.gno.land:36657
+	tail -n 1 txexport.log
+	wc -l txexport.log
