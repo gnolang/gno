@@ -126,9 +126,7 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 
 	// Load distribution.
 	balances := loadGenesisBalances(flags.genesisBalancesFile)
-	for _, balance := range balances {
-		fmt.Println(balance)
-	}
+	// debug: for _, balance := range balances { fmt.Println(balance) }
 
 	// Load initial packages from examples.
 	test1 := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
