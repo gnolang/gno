@@ -1,6 +1,6 @@
 all: build up logs
 
-up:
+up: ./overlay/balances.txt
 	mkdir -p data/gnoland/config
 	cp overlay/config.toml data/gnoland/config/config.toml
 	docker compose up --build -d
@@ -18,3 +18,7 @@ pull:
 
 build:
 	docker compose build
+
+./overlay/balances.txt:
+	wget https://github.com/gnolang/independence-day/raw/main/mkgenesis/balances.txt.gz -O overlay/balances.txt.gz
+	gunzip overlay/balances.txt.gz
