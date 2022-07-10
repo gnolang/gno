@@ -10,6 +10,7 @@ RUN         go build -o ./build/gnoland ./cmd/gnoland
 RUN         go build -o ./build/gnokey ./cmd/gnokey
 RUN         go build -o ./build/gnodev ./cmd/gnodev
 RUN         go build -o ./build/gnofaucet ./cmd/gnofaucet
+RUN         go build -o ./build/gnotxport ./cmd/gnotxport
 RUN         cd ./gnoland/website && go build -o ../../build/gnoweb .
 RUN         rm -rf /opt/gno/src/.git
 RUN         ls -la /opt/build/build/
@@ -34,6 +35,10 @@ ENTRYPOINT  ["gnokey"]
 FROM        runtime-base AS gnodev-slim
 COPY        --from=build /opt/build/build/gnodev /opt/gno/bin/
 ENTRYPOINT  ["gnodev"]
+
+FROM        runtime-base AS gnotxport-slim
+COPY        --from=build /opt/build/build/gnotxport /opt/gno/bin/
+ENTRYPOINT  ["gnotxport"]
 
 FROM        runtime-tls AS gnofaucet-slim
 COPY        --from=build /opt/build/build/gnofaucet /opt/gno/bin/
