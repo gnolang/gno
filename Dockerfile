@@ -36,6 +36,10 @@ FROM        runtime-base AS gnodev-slim
 COPY        --from=build /opt/build/build/gnodev /opt/gno/bin/
 ENTRYPOINT  ["gnodev"]
 
+FROM        runtime-base AS gnotxport-slim
+COPY        --from=build /opt/build/build/gnotxport /opt/gno/bin/
+ENTRYPOINT  ["gnotxport"]
+
 FROM        runtime-tls AS gnofaucet-slim
 COPY        --from=build /opt/build/build/gnofaucet /opt/gno/bin/
 ENTRYPOINT  ["gnofaucet"]
