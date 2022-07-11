@@ -53,7 +53,7 @@ func (gs *Store) Set(key []byte, value []byte) {
 	fmt.Println("GASGASGAS:",
 		"readcostperbyte", gs.gasConfig.ReadCostPerByte,
 		"len(value)", len(value),
-		"value", string(value),
+		// "value", string(value),
 		"gasConsumed", gasConsumed,
 		"gasConsumedToLimit", gasConsumedToLimit,
 		"limit", limit,
