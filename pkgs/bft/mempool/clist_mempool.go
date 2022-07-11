@@ -287,7 +287,13 @@ func (mem *CListMempool) CheckTxWithInfo(tx types.Tx, cb func(abci.Response), tx
 	}
 
 	reqRes := mem.proxyAppConn.CheckTxAsync(abci.RequestCheckTx{Tx: tx})
+	// XXX by here, the result is already set and is done.
+	fmt.Println("REQRES SET CALLBACK")
+	// XXX the below line then gets another error.
 	reqRes.SetCallback(mem.reqResCb(tx, txInfo.SenderID, cb))
+	fmt.Println("REQRES SET CALLBACK DONE")
+
+	reqRes.SetDidPostChecks()
 
 	return nil
 }
@@ -323,9 +329,10 @@ func (mem *CListMempool) reqResCb(tx []byte, peerID uint16, externalCb func(abci
 			panic("recheck cursor is not nil in reqResCb")
 		}
 
-		mem.resCbFirstTime(tx, peerID, res)
+		res = mem.resCbFirstTime(tx, peerID, res)
 
-		// passed in by the caller of CheckTx, eg. the RPC
+		// Passed in by the caller of CheckTx, eg. the RPC.
+		// The external callback cannot modify the result.
 		if externalCb != nil {
 			externalCb(res)
 		}
@@ -358,14 +365,22 @@ func (mem *CListMempool) removeTx(tx types.Tx, elem *clist.CElement, removeFromC
 //
 // The case where the app checks the tx for the second and subsequent times is
 // handled by the resCbRecheck callback.
-func (mem *CListMempool) resCbFirstTime(tx []byte, peerID uint16, res abci.Response) {
+//
+// NOTE: the response can be modified by returning a modified instance (e.g.
+// to set an error upon PostCheck), but the type should not change.
+func (mem *CListMempool) resCbFirstTime(tx []byte, peerID uint16, res abci.Response) abci.Response {
 	switch res := res.(type) {
 	case abci.ResponseCheckTx:
+		fmt.Println(">>>>> pre-postcheck", res.Error)
 		var postCheckErr error
-		if mem.postCheck != nil {
+		if res.Error == nil && mem.postCheck != nil {
 			postCheckErr = mem.postCheck(tx, res)
+			// XXX but this doesn't do anything?
+			res.Error = abci.ABCIErrorOrStringError(postCheckErr)
+			fmt.Println(">>>>> postcheck error", postCheckErr)
+			fmt.Println(">>>>> postcheck error", res.Error)
 		}
-		if (res.Error == nil) && postCheckErr == nil {
+		if res.Error == nil {
 			memTx := &mempoolTx{
 				height:    mem.height,
 				gasWanted: res.GasWanted,
@@ -386,8 +401,10 @@ func (mem *CListMempool) resCbFirstTime(tx []byte, peerID uint16, res abci.Respo
 			// remove from cache (it might be good later)
 			mem.cache.Remove(tx)
 		}
+		return res
 	default:
 		// ignore other messages
+		return res
 	}
 }
 

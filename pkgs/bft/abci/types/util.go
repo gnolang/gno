@@ -3,6 +3,8 @@ package abci
 import (
 	"bytes"
 	"sort"
+
+	"github.com/gnolang/gno/pkgs/errors"
 )
 
 //------------------------------------------------------------------------------
@@ -41,5 +43,21 @@ func (vu ValidatorUpdate) Equals(vu2 ValidatorUpdate) bool {
 		return true
 	} else {
 		return false
+	}
+}
+
+//----------------------------------------
+// ABCIError helpers
+
+func ABCIErrorOrStringError(err error) Error {
+	if err == nil {
+		return nil
+	}
+	err = errors.Cause(err) // unwrap
+	abcierr, ok := err.(Error)
+	if !ok {
+		return StringError(err.Error())
+	} else {
+		return abcierr
 	}
 }

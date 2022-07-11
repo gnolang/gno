@@ -56,22 +56,22 @@ type Callback func(abci.Request, abci.Response)
 
 type ReqRes struct {
 	abci.Request
-	wg            *sync.WaitGroup
-	abci.Response // Not set atomically, so be sure to use WaitGroup.
+	wg *sync.WaitGroup
 
-	mtx  sync.Mutex
-	done bool                // Gets set to true once *after* WaitGroup.Done().
-	cb   func(abci.Response) // A single callback that may be set.
+	mtx sync.Mutex
+	abci.Response
+	didPostChecks bool
+	cb            func(abci.Response) // A single callback that may be set.
 }
 
 func NewReqRes(req abci.Request) *ReqRes {
 	return &ReqRes{
 		Request:  req,
-		wg:       waitGroup1(),
+		wg:       waitGroup2(),
 		Response: nil,
 
-		done: false,
-		cb:   nil,
+		didPostChecks: false,
+		cb:            nil,
 	}
 }
 
@@ -82,7 +82,7 @@ func NewReqRes(req abci.Request) *ReqRes {
 func (reqRes *ReqRes) SetCallback(cb func(res abci.Response)) {
 	reqRes.mtx.Lock()
 
-	if reqRes.done {
+	if reqRes.Response != nil {
 		reqRes.mtx.Unlock()
 		cb(reqRes.Response)
 		return
@@ -98,22 +98,41 @@ func (reqRes *ReqRes) GetCallback() func(abci.Response) {
 	return reqRes.cb
 }
 
+// Wait will wait until SetResponse() and SetDidPostChecks() are each called.
 func (reqRes *ReqRes) Wait() {
 	reqRes.wg.Wait()
 }
 
-// NOTE: it should be safe to read reqRes.cb without locks after this.
-func (reqRes *ReqRes) Done() {
+func (reqRes *ReqRes) SetResponse(res abci.Response) {
 	reqRes.mtx.Lock()
-	reqRes.done = true
+	if reqRes.Response != nil {
+		panic("should not happen")
+	}
+	reqRes.Response = res
 	reqRes.mtx.Unlock()
 
+	reqRes.wg.Done()
+}
+
+func (reqRes *ReqRes) SetDidPostChecks() {
+	reqRes.mtx.Lock()
+	if reqRes.didPostChecks {
+		panic("should not happen")
+	}
+	reqRes.didPostChecks = true
+	reqRes.mtx.Unlock()
+
+	reqRes.wg.Done()
+}
+
+// NOTE: it should be safe to read reqRes.cb without locks after this.
+func (reqRes *ReqRes) Done() {
 	// Finally, release the hounds.
 	reqRes.wg.Done()
 }
 
-func waitGroup1() (wg *sync.WaitGroup) {
+func waitGroup2() (wg *sync.WaitGroup) {
 	wg = &sync.WaitGroup{}
-	wg.Add(1)
+	wg.Add(2)
 	return
 }
