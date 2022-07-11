@@ -73,7 +73,6 @@ examples.build: install_gnodev examples.precompile
 fmt:
 	go run -modfile ./misc/devdeps/go.mod mvdan.cc/gofumpt -w .
 	go run -modfile ./misc/devdeps/go.mod mvdan.cc/gofumpt -w `find stdlibs examples -name "*.gno"`
-	git checkout bak
 
 ########################################
 # Test suite

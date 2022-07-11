@@ -41,12 +41,13 @@ func Test_addAppBasic(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-var test2_address = "g1fupfatmln5844rjafzp6d2vc825vav2x2kzaac"
-var test2_mnemonic = "hair stove window more scrap patient endorse left early pear lawn school loud divide vibrant family still bulk lyrics firm plate media critic dove"
-var test2_pubkey_bech32 = "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqg5y7u93gpzug38k2p8s8322zpdm96t0ch87ax88sre4vnclz2jcy8uyhst"
+var (
+	test2_address       = "g1fupfatmln5844rjafzp6d2vc825vav2x2kzaac"
+	test2_mnemonic      = "hair stove window more scrap patient endorse left early pear lawn school loud divide vibrant family still bulk lyrics firm plate media critic dove"
+	test2_pubkey_bech32 = "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqg5y7u93gpzug38k2p8s8322zpdm96t0ch87ax88sre4vnclz2jcy8uyhst"
+)
 
 func Test_addPublicKey(t *testing.T) {
-
 	cmd := command.NewMockCommand()
 	assert.NotNil(t, cmd)
 
@@ -63,11 +64,9 @@ func Test_addPublicKey(t *testing.T) {
 	}
 	err := addApp(cmd, []string{"test2"}, opts)
 	assert.NoError(t, err)
-
 }
 
 func Test_addAppRecover(t *testing.T) {
-
 	cmd := command.NewMockCommand()
 	assert.NotNil(t, cmd)
 

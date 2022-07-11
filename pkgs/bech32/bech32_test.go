@@ -32,12 +32,13 @@ func TestEncodeAndDecode(t *testing.T) {
 
 var pubkeyBech32 = "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqg5y7u93gpzug38k2p8s8322zpdm96t0ch87ax88sre4vnclz2jcy8uyhst"
 
-//amino marshaled pubkey bytes. pubkey.Bytes()
-var pubkeyBytes = "0A132F746D2E5075624B6579536563703235366B3112230A2102284F70B14045C444F6504F03C54A105BB2E96FC5CFEE98E780F3564F1F12A582"
-var pubkeyPrefix = crypto.Bech32PubKeyPrefix
+// amino marshaled pubkey bytes. pubkey.Bytes()
+var (
+	pubkeyBytes  = "0A132F746D2E5075624B6579536563703235366B3112230A2102284F70B14045C444F6504F03C54A105BB2E96FC5CFEE98E780F3564F1F12A582"
+	pubkeyPrefix = crypto.Bech32PubKeyPrefix
+)
 
 func TestEncode(t *testing.T) {
-
 	bz, err := hex.DecodeString(pubkeyBytes)
 
 	assert.NoError(t, err)
@@ -45,11 +46,9 @@ func TestEncode(t *testing.T) {
 	p, err := bech32.Encode(pubkeyPrefix, bz)
 
 	assert.Equal(t, p, pubkeyBech32)
-
 }
 
 func TestDecode(t *testing.T) {
-
 	hrp, b1, err := bech32.Decode(pubkeyBech32)
 
 	assert.NoError(t, err)
@@ -59,5 +58,4 @@ func TestDecode(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, b1, b2)
-
 }
