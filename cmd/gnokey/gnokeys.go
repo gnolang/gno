@@ -326,14 +326,15 @@ func signAndBroadcast(cmd *command.Command, args []string, tx std.Tx, baseopts c
 	}
 	if bres.CheckTx.IsErr() {
 		return errors.New("transaction failed %#v\nlog %s", bres, bres.CheckTx.Log)
-	} else if bres.DeliverTx.IsErr() {
-		return errors.New("transaction failed %#v\nlog %s", bres, bres.DeliverTx.Log)
-	} else {
-		cmd.Println(string(bres.DeliverTx.Data))
-		cmd.Println("OK!")
-		cmd.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
-		cmd.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
 	}
+	if bres.DeliverTx.IsErr() {
+		return errors.New("transaction failed %#v\nlog %s", bres, bres.DeliverTx.Log)
+	}
+	cmd.Println(string(bres.DeliverTx.Data))
+	cmd.Println("OK!")
+	cmd.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
+	cmd.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
+
 	return nil
 }
 
