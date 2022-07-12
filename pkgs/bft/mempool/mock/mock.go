@@ -31,7 +31,6 @@ func (Mempool) Update(
 	_ types.Txs,
 	_ []abci.ResponseDeliverTx,
 	_ mempl.PreCheckFunc,
-	_ mempl.PostCheckFunc,
 	_ int64,
 ) error {
 	return nil

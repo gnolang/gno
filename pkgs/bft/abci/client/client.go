@@ -60,18 +60,16 @@ type ReqRes struct {
 
 	mtx sync.Mutex
 	abci.Response
-	didPostChecks bool
-	cb            func(abci.Response) // A single callback that may be set.
+	cb func(abci.Response) // A single callback that may be set.
 }
 
 func NewReqRes(req abci.Request) *ReqRes {
 	return &ReqRes{
 		Request:  req,
-		wg:       waitGroup2(),
+		wg:       waitGroup1(),
 		Response: nil,
 
-		didPostChecks: false,
-		cb:            nil,
+		cb: nil,
 	}
 }
 
@@ -98,7 +96,7 @@ func (reqRes *ReqRes) GetCallback() func(abci.Response) {
 	return reqRes.cb
 }
 
-// Wait will wait until SetResponse() and SetDidPostChecks() are each called.
+// Wait will wait until SetResponse() is called.
 func (reqRes *ReqRes) Wait() {
 	reqRes.wg.Wait()
 }
@@ -114,25 +112,14 @@ func (reqRes *ReqRes) SetResponse(res abci.Response) {
 	reqRes.wg.Done()
 }
 
-func (reqRes *ReqRes) SetDidPostChecks() {
-	reqRes.mtx.Lock()
-	if reqRes.didPostChecks {
-		panic("should not happen")
-	}
-	reqRes.didPostChecks = true
-	reqRes.mtx.Unlock()
-
-	reqRes.wg.Done()
-}
-
 // NOTE: it should be safe to read reqRes.cb without locks after this.
 func (reqRes *ReqRes) Done() {
 	// Finally, release the hounds.
 	reqRes.wg.Done()
 }
 
-func waitGroup2() (wg *sync.WaitGroup) {
+func waitGroup1() (wg *sync.WaitGroup) {
 	wg = &sync.WaitGroup{}
-	wg.Add(2)
+	wg.Add(1)
 	return
 }
