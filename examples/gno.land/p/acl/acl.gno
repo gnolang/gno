@@ -95,3 +95,8 @@ func (d *Directory) AddUserToGroup(user std.Address, group string) {
 	groups = append(groups, group)
 	d.userGroups.Set(user.String(), groups)
 }
+
+// TODO: helpers to remove permissions.
+// TODO: helpers to adds multiple permissions at once -> {verbs: []string{"read","write"}}.
+// TODO: helpers to delete users from gorups.
+// TODO: helpers to quickly reset states.
