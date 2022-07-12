@@ -280,11 +280,7 @@ func (mem *CListMempool) CheckTxWithInfo(tx types.Tx, cb func(abci.Response), tx
 	}
 
 	reqRes := mem.proxyAppConn.CheckTxAsync(abci.RequestCheckTx{Tx: tx})
-	// XXX by here, the result is already set and is done.
-	fmt.Println("REQRES SET CALLBACK")
-	// XXX the below line then gets another error.
 	reqRes.SetCallback(mem.reqResCb(tx, txInfo.SenderID, cb))
-	fmt.Println("REQRES SET CALLBACK DONE")
 
 	return nil
 }

@@ -218,7 +218,6 @@ func BroadcastTxCommit(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadc
 	// Broadcast tx and wait for CheckTx result
 	checkTxResCh := make(chan abci.Response, 1)
 	err := mempool.CheckTx(tx, func(res abci.Response) {
-		fmt.Println("!!!!! BROADCASTTXCOMMIT 1", res.(abci.ResponseCheckTx).Error)
 		checkTxResCh <- res
 	})
 	if err != nil {
@@ -227,7 +226,6 @@ func BroadcastTxCommit(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadc
 	}
 	checkTxResMsg := <-checkTxResCh
 	checkTxRes := checkTxResMsg.(abci.ResponseCheckTx)
-	fmt.Println("!!!!! BROADCASTTXCOMMIT 2", checkTxRes.Error)
 	if checkTxRes.Error != nil {
 		return &ctypes.ResultBroadcastTxCommit{
 			CheckTx:   checkTxRes,
@@ -235,8 +233,6 @@ func BroadcastTxCommit(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadc
 			Hash:      tx.Hash(),
 		}, nil
 	}
-
-	fmt.Println("!!!!! BROADCASTTXCOMMIT 3")
 
 	// Wait for the tx to be included in a block or timeout.
 	txRes, err := gTxDispatcher.getTxResult(tx, nil)
