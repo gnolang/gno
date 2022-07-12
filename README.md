@@ -14,7 +14,7 @@ simulated by the Gnomes of the Greater Resistance.
 > cd ./gno<br/>
 > make install\_gnokey<br/>
 
-Also, see the [quickstart guide](https://gno.land/r/boards:gnolang/4).
+Also, see the [quickstart guide](https://test2.gno.land/r/boards:testboard/5).
 
 ## Language Features
 
