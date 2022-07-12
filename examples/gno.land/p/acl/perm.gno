@@ -30,7 +30,7 @@ func (perm perm) hasPerm(verb, resource string) bool {
 }
 
 func match(pattern, target string) bool {
-	if pattern == "*" {
+	if pattern == ".*" {
 		return true
 	}
 

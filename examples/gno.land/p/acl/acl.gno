@@ -6,11 +6,6 @@ import (
 	"gno.land/p/avl"
 )
 
-type Directory struct {
-	permBuckets *avl.MutTree // identifier -> perms
-	userGroups  *avl.MutTree // std.Address -> []string
-}
-
 func New() *Directory {
 	return &Directory{
 		userGroups:  avl.NewMutTree(),
@@ -18,14 +13,43 @@ func New() *Directory {
 	}
 }
 
+type Directory struct {
+	permBuckets *avl.MutTree // identifier -> perms
+	userGroups  *avl.MutTree // std.Address -> []string
+}
+
 func (d *Directory) HasPerm(addr std.Address, verb, resource string) bool {
-	userPerms, ok := d.permBuckets.Get("u:" + addr.String())
+	// FIXME: consider memoize.
+
+	// user perms
+	if d.getBucketPerms("u:"+addr.String()).hasPerm(verb, resource) {
+		return true
+	}
+
+	// everyone's perms.
+	if d.getBucketPerms("g:"+Everyone).hasPerm(verb, resource) {
+		return true
+	}
+
+	// user groups' perms.
+	groups, ok := d.userGroups.Get(addr.String())
 	if ok {
-		if userPerms.(perms).hasPerm(verb, resource) {
-			return true
+		for _, group := range groups.([]string) {
+			if d.getBucketPerms("g:"+group).hasPerm(verb, resource) {
+				return true
+			}
 		}
 	}
+
 	return false
+}
+
+func (d *Directory) getBucketPerms(bucket string) perms {
+	res, ok := d.permBuckets.Get(bucket)
+	if ok {
+		return res.(perms)
+	}
+	return perms{}
 }
 
 func (d *Directory) HasRole(addr std.Address, role string) bool {
@@ -69,5 +93,5 @@ func (d *Directory) AddUserToGroup(user std.Address, group string) {
 		groups = existing.([]string)
 	}
 	groups = append(groups, group)
-	d.userGroups.Set(user.String(), &groups)
+	d.userGroups.Set(user.String(), groups)
 }
