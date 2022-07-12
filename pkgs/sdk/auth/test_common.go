@@ -1,6 +1,7 @@
 package auth
 
 import (
+	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
 	bft "github.com/gnolang/gno/pkgs/bft/types"
 	"github.com/gnolang/gno/pkgs/crypto"
 	dbm "github.com/gnolang/gno/pkgs/db"
@@ -59,6 +60,18 @@ func setupTestEnv() testEnv {
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{Height: 1, ChainID: "test-chain-id"}, log.NewNopLogger())
 	ctx = ctx.WithValue(AuthParamsContextKey{}, DefaultParams())
+	ctx = ctx.WithConsensusParams(&abci.ConsensusParams{
+		Block: &abci.BlockParams{
+			MaxTxBytes:    1024,
+			MaxDataBytes:  1024 * 100,
+			MaxBlockBytes: 1024 * 100,
+			MaxGas:        10 * 1000 * 1000,
+			TimeIotaMS:    10,
+		},
+		Validator: &abci.ValidatorParams{
+			PubKeyTypeURLs: []string{}, // XXX
+		},
+	})
 
 	return testEnv{ctx: ctx, acck: acck, bank: bank}
 }
