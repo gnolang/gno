@@ -8,15 +8,64 @@ import (
 )
 
 func Test(t *testing.T) {
-	test1 := testutils.TestAddress("test1")
-	test2 := testutils.TestAddress("test2")
+	adm := testutils.TestAddress("admin")
+	mod := testutils.TestAddress("mod")
+	usr := testutils.TestAddress("user")
+	cst := testutils.TestAddress("custom")
 
 	dir := New()
 
-	shouldNotHasRole(t, dir, test1, "foo")
-	shouldNotHasRole(t, dir, test2, "foo")
-	shouldNotHasPerm(t, dir, test1, "write", "r/boards:gnolang/1")
-	shouldNotHasPerm(t, dir, test2, "write", "r/boards:gnolang/1")
+	shouldNotHasRole(t, dir, adm, "foo")
+	shouldNotHasRole(t, dir, mod, "foo")
+	shouldNotHasRole(t, dir, usr, "foo")
+	shouldNotHasRole(t, dir, cst, "foo")
+	shouldNotHasPerm(t, dir, adm, "write", "r/boards:gnolang/1")
+	shouldNotHasPerm(t, dir, mod, "write", "r/boards:gnolang/1")
+	shouldNotHasPerm(t, dir, usr, "write", "r/boards:gnolang/1")
+	shouldNotHasPerm(t, dir, cst, "write", "r/boards:gnolang/1")
+	shouldNotHasPerm(t, dir, adm, "read", "r/boards:gnolang/1")
+	shouldNotHasPerm(t, dir, mod, "read", "r/boards:gnolang/1")
+	shouldNotHasPerm(t, dir, usr, "read", "r/boards:gnolang/1")
+	shouldNotHasPerm(t, dir, cst, "read", "r/boards:gnolang/1")
+
+	dir.AddUserPerm(adm, "*", "*")
+
+	shouldHasRole(t, dir, adm, "foo")
+	shouldNotHasRole(t, dir, mod, "foo")
+	shouldNotHasRole(t, dir, usr, "foo")
+	shouldNotHasRole(t, dir, cst, "foo")
+	shouldHasPerm(t, dir, adm, "write", "r/boards:gnolang/1")
+	shouldNotHasPerm(t, dir, mod, "write", "r/boards:gnolang/1")
+	shouldNotHasPerm(t, dir, usr, "write", "r/boards:gnolang/1")
+	shouldNotHasPerm(t, dir, cst, "write", "r/boards:gnolang/1")
+	shouldHasPerm(t, dir, adm, "read", "r/boards:gnolang/1")
+	shouldNotHasPerm(t, dir, mod, "read", "r/boards:gnolang/1")
+	shouldNotHasPerm(t, dir, usr, "read", "r/boards:gnolang/1")
+	shouldNotHasPerm(t, dir, cst, "read", "r/boards:gnolang/1")
+
+	dir.AddUserPerm(cst, "write", "r/boards:gnolang/.*")
+
+	shouldHasRole(t, dir, adm, "foo")
+	shouldNotHasRole(t, dir, mod, "foo")
+	shouldNotHasRole(t, dir, usr, "foo")
+	shouldNotHasRole(t, dir, cst, "foo")
+	shouldHasPerm(t, dir, adm, "write", "r/boards:gnolang/1")
+	shouldNotHasPerm(t, dir, mod, "write", "r/boards:gnolang/1")
+	shouldNotHasPerm(t, dir, usr, "write", "r/boards:gnolang/1")
+	shouldHasPerm(t, dir, cst, "write", "r/boards:gnolang/1")
+	shouldHasPerm(t, dir, adm, "read", "r/boards:gnolang/1")
+	shouldNotHasPerm(t, dir, mod, "read", "r/boards:gnolang/1")
+	shouldNotHasPerm(t, dir, usr, "read", "r/boards:gnolang/1")
+	shouldNotHasPerm(t, dir, cst, "read", "r/boards:gnolang/1")
+
+	println("DONE")
+	/*
+		dir.AddGroupPerm("mods", "role", "moderator")
+			dir.AddGroupPerm("mods", "role", "moderator")
+			dir.AddGroupUser("mods", mod)
+			dir.AddGroupPerm(acl.Everyone, "read", "*")
+			dir.AddGroupUser("", "mod")
+	*/
 }
 
 func shouldHasRole(t *testing.T, dir *Directory, addr std.Address, role string) {
@@ -39,7 +88,7 @@ func shouldHasPerm(t *testing.T, dir *Directory, addr std.Address, verb string, 
 	t.Helper()
 	check := dir.HasPerm(addr, verb, resource)
 	if !check {
-		t.Errorf("%q should has perm for %q - %q", addr.String(), verb, resource string)
+		t.Errorf("%q should has perm for %q - %q", addr.String(), verb, resource)
 	}
 }
 
