@@ -35,7 +35,6 @@ type CListMempool struct {
 	proxyAppConn proxy.AppConnMempool
 	txs          *clist.CList // concurrent linked-list of good txs
 	preCheck     PreCheckFunc
-	postCheck    PostCheckFunc
 	height       int64 // the last block Update()'d to
 	maxTxBytes   int64
 
@@ -120,12 +119,6 @@ func (mem *CListMempool) SetLogger(l log.Logger) {
 // false. This is ran before CheckTx.
 func WithPreCheck(f PreCheckFunc) CListMempoolOption {
 	return func(mem *CListMempool) { mem.preCheck = f }
-}
-
-// WithPostCheck sets a filter for the mempool to reject a tx if f(tx) returns
-// false. This is ran after CheckTx.
-func WithPostCheck(f PostCheckFunc) CListMempoolOption {
-	return func(mem *CListMempool) { mem.postCheck = f }
 }
 
 // *panics* if can't create directory or open file.
@@ -325,7 +318,8 @@ func (mem *CListMempool) reqResCb(tx []byte, peerID uint16, externalCb func(abci
 
 		mem.resCbFirstTime(tx, peerID, res)
 
-		// passed in by the caller of CheckTx, eg. the RPC
+		// Passed in by the caller of CheckTx, eg. the RPC.
+		// The external callback cannot modify the result.
 		if externalCb != nil {
 			externalCb(res)
 		}
@@ -361,11 +355,7 @@ func (mem *CListMempool) removeTx(tx types.Tx, elem *clist.CElement, removeFromC
 func (mem *CListMempool) resCbFirstTime(tx []byte, peerID uint16, res abci.Response) {
 	switch res := res.(type) {
 	case abci.ResponseCheckTx:
-		var postCheckErr error
-		if mem.postCheck != nil {
-			postCheckErr = mem.postCheck(tx, res)
-		}
-		if (res.Error == nil) && postCheckErr == nil {
+		if res.Error == nil {
 			memTx := &mempoolTx{
 				height:    mem.height,
 				gasWanted: res.GasWanted,
@@ -382,7 +372,7 @@ func (mem *CListMempool) resCbFirstTime(tx []byte, peerID uint16, res abci.Respo
 			mem.notifyTxsAvailable()
 		} else {
 			// ignore bad transaction
-			mem.logger.Info("Rejected bad transaction", "tx", txID(tx), "res", res, "err", postCheckErr)
+			mem.logger.Info("Rejected bad transaction", "tx", txID(tx), "res", res, "err", res.Error)
 			// remove from cache (it might be good later)
 			mem.cache.Remove(tx)
 		}
@@ -406,15 +396,11 @@ func (mem *CListMempool) resCbRecheck(req abci.Request, res abci.Response) {
 				memTx.tx,
 				tx))
 		}
-		var postCheckErr error
-		if mem.postCheck != nil {
-			postCheckErr = mem.postCheck(tx, res)
-		}
-		if (res.Error == nil) && postCheckErr == nil {
+		if res.Error == nil {
 			// Good, nothing to do.
 		} else {
 			// Tx became invalidated due to newly committed block.
-			mem.logger.Info("Tx is no longer valid", "tx", txID(tx), "res", res, "err", postCheckErr)
+			mem.logger.Info("Tx is no longer valid", "tx", txID(tx), "res", res, "err", res.Error)
 			// NOTE: we remove tx from the cache because it might be good later
 			mem.removeTx(tx, mem.recheckCursor, true)
 		}
@@ -522,7 +508,6 @@ func (mem *CListMempool) Update(
 	txs types.Txs,
 	deliverTxResponses []abci.ResponseDeliverTx,
 	preCheck PreCheckFunc,
-	postCheck PostCheckFunc,
 	maxTxBytes int64,
 ) error {
 	// Set height
@@ -531,9 +516,6 @@ func (mem *CListMempool) Update(
 
 	if preCheck != nil {
 		mem.preCheck = preCheck
-	}
-	if postCheck != nil {
-		mem.postCheck = postCheck
 	}
 	if maxTxBytes != 0 {
 		mem.maxTxBytes = maxTxBytes

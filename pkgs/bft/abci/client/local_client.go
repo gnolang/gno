@@ -222,7 +222,6 @@ func (app *localClient) completeRequest(req abci.Request, res abci.Response) *Re
 
 func newLocalReqRes(req abci.Request, res abci.Response) *ReqRes {
 	reqRes := NewReqRes(req)
-	reqRes.Response = res
-	reqRes.Done()
+	reqRes.SetResponse(res)
 	return reqRes
 }

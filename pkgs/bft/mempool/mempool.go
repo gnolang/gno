@@ -1,8 +1,6 @@
 package mempool
 
 import (
-	"fmt"
-
 	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
 	"github.com/gnolang/gno/pkgs/bft/types"
 )
@@ -43,7 +41,7 @@ type Mempool interface {
 	// Update informs the mempool that the given txs were committed and can be discarded.
 	// NOTE: this should be called *after* block is committed by consensus.
 	// NOTE: unsafe; Lock/Unlock must be managed by caller
-	Update(blockHeight int64, blockTxs types.Txs, deliverTxResponses []abci.ResponseDeliverTx, newPreFn PreCheckFunc, newPostFn PostCheckFunc, maxTxBytes int64) error
+	Update(blockHeight int64, blockTxs types.Txs, deliverTxResponses []abci.ResponseDeliverTx, newPreFn PreCheckFunc, maxTxBytes int64) error
 
 	// FlushAppConn flushes the mempool connection to ensure async reqResCb calls are
 	// done. E.g. from CheckTx.
@@ -83,12 +81,11 @@ type Mempool interface {
 // PreCheckFunc is an optional filter executed before CheckTx and rejects
 // transaction if false is returned. An example would be to ensure that a
 // transaction doesn't exceeded the block size.
+//
+// NOTE: there is no PostCheckFunc, for otherwise a checktx transaction
+// that passes in the app's checktx state would increment sequence etc,
+// causing an unexpected signature error until the next block.
 type PreCheckFunc func(types.Tx) error
-
-// PostCheckFunc is an optional filter executed after CheckTx and rejects
-// transaction if false is returned. An example would be to ensure a
-// transaction doesn't require more gas than available for the block.
-type PostCheckFunc func(types.Tx, abci.ResponseCheckTx) error
 
 // TxInfo are parameters that get passed when attempting to add a tx to the
 // mempool.
@@ -96,25 +93,4 @@ type TxInfo struct {
 	// We don't use p2p.ID here because it's too big. The gain is to store max 2
 	// bytes with each tx to identify the sender rather than 20 bytes.
 	SenderID uint16
-}
-
-//--------------------------------------------------------------------------------
-
-// PostCheckMaxGas checks that the wanted gas is smaller or equal to the passed
-// maxGas. Returns nil if maxGas is -1.
-func PostCheckMaxGas(maxGas int64) PostCheckFunc {
-	return func(tx types.Tx, res abci.ResponseCheckTx) error {
-		if maxGas == -1 {
-			return nil
-		}
-		if res.GasWanted < 0 {
-			return fmt.Errorf("gas wanted %d is negative",
-				res.GasWanted)
-		}
-		if res.GasWanted > maxGas {
-			return fmt.Errorf("gas wanted %d is greater than max gas %d",
-				res.GasWanted, maxGas)
-		}
-		return nil
-	}
 }

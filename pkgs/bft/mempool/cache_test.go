@@ -66,7 +66,7 @@ func TestCacheAfterUpdate(t *testing.T) {
 			tx := types.Tx{byte(v)}
 			updateTxs = append(updateTxs, tx)
 		}
-		mempool.Update(int64(tcIndex), updateTxs, abciResponses(len(updateTxs), nil), nil, nil, 0)
+		mempool.Update(int64(tcIndex), updateTxs, abciResponses(len(updateTxs), nil), nil, 0)
 
 		for _, v := range tc.reAddIndices {
 			tx := types.Tx{byte(v)}

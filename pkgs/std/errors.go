@@ -24,6 +24,7 @@ type (
 	InvalidPubKeyError     struct{ abciError }
 	InsufficientCoinsError struct{ abciError }
 	InvalidCoinsError      struct{ abciError }
+	InvalidGasWantedError  struct{ abciError }
 	OutOfGasError          struct{ abciError }
 	MemoTooLargeError      struct{ abciError }
 	InsufficientFeeError   struct{ abciError }
@@ -43,6 +44,7 @@ func (e UnknownAddressError) Error() string    { return "unknown address error" 
 func (e InvalidPubKeyError) Error() string     { return "invalid pubkey error" }
 func (e InsufficientCoinsError) Error() string { return "insufficient coins error" }
 func (e InvalidCoinsError) Error() string      { return "invalid coins error" }
+func (e InvalidGasWantedError) Error() string  { return "invalid gas wanted" }
 func (e OutOfGasError) Error() string          { return "out of gas error" }
 func (e MemoTooLargeError) Error() string      { return "memo too large error" }
 func (e InsufficientFeeError) Error() string   { return "insufficient fee error" }
@@ -94,6 +96,10 @@ func ErrInsufficientCoins(msg string) error {
 
 func ErrInvalidCoins(msg string) error {
 	return errors.Wrap(InvalidCoinsError{}, msg)
+}
+
+func ErrInvalidGasWanted(msg string) error {
+	return errors.Wrap(InvalidGasWantedError{}, msg)
 }
 
 func ErrOutOfGas(msg string) error {

@@ -194,7 +194,6 @@ func (blockExec *BlockExecutor) Commit(
 		block.Txs,
 		deliverTxResponses,
 		TxPreCheck(state),
-		TxPostCheck(state),
 		state.ConsensusParams.Block.MaxTxBytes,
 	)
 
