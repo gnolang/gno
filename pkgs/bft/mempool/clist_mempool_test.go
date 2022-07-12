@@ -184,7 +184,7 @@ func TestMempoolUpdate(t *testing.T) {
 
 	// 1. Adds valid txs to the cache
 	{
-		mempool.Update(1, []types.Tx{[]byte{0x01}}, abciResponses(1, nil), nil, nil, 0)
+		mempool.Update(1, []types.Tx{[]byte{0x01}}, abciResponses(1, nil), nil, 0)
 		err := mempool.CheckTx([]byte{0x01}, nil)
 		if assert.Error(t, err) {
 			assert.Equal(t, ErrTxInCache, err)
@@ -195,7 +195,7 @@ func TestMempoolUpdate(t *testing.T) {
 	{
 		err := mempool.CheckTx([]byte{0x02}, nil)
 		require.NoError(t, err)
-		mempool.Update(1, []types.Tx{[]byte{0x02}}, abciResponses(1, nil), nil, nil, 0)
+		mempool.Update(1, []types.Tx{[]byte{0x02}}, abciResponses(1, nil), nil, 0)
 		assert.Zero(t, mempool.Size())
 	}
 
@@ -203,7 +203,7 @@ func TestMempoolUpdate(t *testing.T) {
 	{
 		err := mempool.CheckTx([]byte{0x03}, nil)
 		require.NoError(t, err)
-		mempool.Update(1, []types.Tx{[]byte{0x03}}, abciResponses(1, abci.StringError("1")), nil, nil, 0)
+		mempool.Update(1, []types.Tx{[]byte{0x03}}, abciResponses(1, abci.StringError("1")), nil, 0)
 		assert.Zero(t, mempool.Size())
 
 		err = mempool.CheckTx([]byte{0x03}, nil)
@@ -232,7 +232,7 @@ func TestTxsAvailable(t *testing.T) {
 	// it should fire once now for the new height
 	// since there are still txs left
 	committedTxs, txs := txs[:50], txs[50:]
-	if err := mempool.Update(1, committedTxs, abciResponses(len(committedTxs), nil), nil, nil, 0); err != nil {
+	if err := mempool.Update(1, committedTxs, abciResponses(len(committedTxs), nil), nil, 0); err != nil {
 		t.Error(err)
 	}
 	ensureFire(t, mempool.TxsAvailable(), timeoutMS)
@@ -244,7 +244,7 @@ func TestTxsAvailable(t *testing.T) {
 
 	// now call update with all the txs. it should not fire as there are no txs left
 	committedTxs = append(txs, moreTxs...) //nolint: gocritic
-	if err := mempool.Update(2, committedTxs, abciResponses(len(committedTxs), nil), nil, nil, 0); err != nil {
+	if err := mempool.Update(2, committedTxs, abciResponses(len(committedTxs), nil), nil, 0); err != nil {
 		t.Error(err)
 	}
 	ensureNoFire(t, mempool.TxsAvailable(), timeoutMS)
@@ -303,7 +303,7 @@ func TestSerialReap(t *testing.T) {
 			binary.BigEndian.PutUint64(txBytes, uint64(i))
 			txs = append(txs, txBytes)
 		}
-		if err := mempool.Update(0, txs, abciResponses(len(txs), nil), nil, nil, 0); err != nil {
+		if err := mempool.Update(0, txs, abciResponses(len(txs), nil), nil, 0); err != nil {
 			t.Error(err)
 		}
 	}
@@ -473,7 +473,7 @@ func TestMempoolMaxPendingTxsBytes(t *testing.T) {
 	assert.EqualValues(t, 1, mempool.TxsBytes())
 
 	// 3. zero again after tx is removed by Update
-	mempool.Update(1, []types.Tx{[]byte{0x01}}, abciResponses(1, nil), nil, nil, 0)
+	mempool.Update(1, []types.Tx{[]byte{0x01}}, abciResponses(1, nil), nil, 0)
 	assert.EqualValues(t, 0, mempool.TxsBytes())
 
 	// 4. zero after Flush
@@ -518,7 +518,7 @@ func TestMempoolMaxPendingTxsBytes(t *testing.T) {
 	require.NotEmpty(t, res2.Data)
 
 	// Pretend like we committed nothing so txBytes gets rechecked and removed.
-	mempool.Update(1, []types.Tx{}, abciResponses(0, nil), nil, nil, 0)
+	mempool.Update(1, []types.Tx{}, abciResponses(0, nil), nil, 0)
 	assert.EqualValues(t, 0, mempool.TxsBytes())
 }
 
