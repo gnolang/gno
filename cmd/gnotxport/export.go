@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/gnolang/gno/pkgs/amino"
@@ -20,6 +21,7 @@ type txExportOptions struct {
 	StartHeight int64  `flag:"start" help:"Start height"`
 	EndHeight   int64  `flag:"end" help:"End height (optional)"`
 	OutFile     string `flag:"out" help:"Output file path"`
+	Quiet       bool   `flag:"quiet" help:"Quiet mode"`
 }
 
 var defaultTxExportOptions = txExportOptions{
@@ -27,6 +29,7 @@ var defaultTxExportOptions = txExportOptions{
 	StartHeight: 1,
 	EndHeight:   0,
 	OutFile:     "txexport.log",
+	Quiet:       false,
 }
 
 func txExportApp(cmd *command.Command, args []string, iopts interface{}) error {
@@ -71,6 +74,9 @@ func txExportApp(cmd *command.Command, args []string, iopts interface{}) error {
 			amino.MustUnmarshal(tx, &stdtx)
 			bz := amino.MustMarshalJSON(stdtx)
 			fmt.Fprintln(out, string(bz))
+		}
+		if !opts.Quiet {
+			log.Printf("h=%d/%d (txs=%d)", height, last, len(txs))
 		}
 	}
 	return nil
