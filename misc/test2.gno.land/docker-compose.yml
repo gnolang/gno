@@ -6,6 +6,9 @@ services:
     build: ../..
     environment:
       - LOG_LEVEL=4
+      - VIRTUAL_HOST=rpc.test2.gno.land
+      - VIRTUAL_PORT=36657
+      - LETSENCRYPT_HOST=rpc.test2.gno.land
     command:
       - gnoland
       - --skip-failing-genesis-txs
