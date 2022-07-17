@@ -5,7 +5,6 @@ package db
 
 import (
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,9 +12,7 @@ import (
 
 func TestGRocksDBBackend(t *testing.T) {
 	name := fmt.Sprintf("test_%x", randStr(12))
-	dir := os.TempDir()
-	db := NewDB(name, GRocksDBBackend, dir)
-	defer cleanupDBDir(dir, name)
+	db := NewDB(name, GRocksDBBackend, t.TempDir())
 
 	_, ok := db.(*RocksDB)
 	assert.True(t, ok)
@@ -23,9 +20,7 @@ func TestGRocksDBBackend(t *testing.T) {
 
 func TestGRocksDBStats(t *testing.T) {
 	name := fmt.Sprintf("test_%x", randStr(12))
-	dir := os.TempDir()
-	db := NewDB(name, GRocksDBBackend, dir)
-	defer cleanupDBDir(dir, name)
+	db := NewDB(name, GRocksDBBackend, t.TempDir())
 
 	assert.NotEmpty(t, db.Stats())
 }

@@ -1,7 +1,6 @@
 package kvstore
 
 import (
-	"io/ioutil"
 	"sort"
 	"testing"
 
@@ -54,11 +53,7 @@ func TestKVStoreKV(t *testing.T) {
 }
 
 func TestPersistentKVStoreKV(t *testing.T) {
-	dir, err := ioutil.TempDir("/tmp", "abci-kvstore-test") // TODO
-	if err != nil {
-		t.Fatal(err)
-	}
-	kvstore := NewPersistentKVStoreApplication(dir)
+	kvstore := NewPersistentKVStoreApplication(t.TempDir())
 	key := testKey
 	value := key
 	tx := []byte(key)
@@ -70,11 +65,7 @@ func TestPersistentKVStoreKV(t *testing.T) {
 }
 
 func TestPersistentKVStoreInfo(t *testing.T) {
-	dir, err := ioutil.TempDir("/tmp", "abci-kvstore-test") // TODO
-	if err != nil {
-		t.Fatal(err)
-	}
-	kvstore := NewPersistentKVStoreApplication(dir)
+	kvstore := NewPersistentKVStoreApplication(t.TempDir())
 	InitKVStore(kvstore)
 	height := int64(0)
 
@@ -101,10 +92,7 @@ func TestPersistentKVStoreInfo(t *testing.T) {
 
 // add a validator, remove a validator, update a validator
 func TestValUpdates(t *testing.T) {
-	dir, err := ioutil.TempDir("/tmp", "abci-kvstore-test") // TODO
-	if err != nil {
-		t.Fatal(err)
-	}
+	dir := t.TempDir()
 	kvstore := NewPersistentKVStoreApplication(dir)
 
 	// init with some validators

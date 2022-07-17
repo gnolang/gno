@@ -2,7 +2,6 @@ package db
 
 import (
 	"fmt"
-	"os"
 	"testing"
 )
 
@@ -10,8 +9,7 @@ import (
 func TestPrefixIteratorNoMatchNil(t *testing.T) {
 	for backend := range backends {
 		t.Run(fmt.Sprintf("Prefix w/ backend %s", backend), func(t *testing.T) {
-			db, dir := newTempDB(t, backend)
-			defer os.RemoveAll(dir)
+			db := newTempDB(t, backend)
 			itr := IteratePrefix(db, []byte("2"))
 
 			checkInvalid(t, itr)
@@ -28,8 +26,7 @@ func TestPrefixIteratorNoMatch1(t *testing.T) {
 		}
 
 		t.Run(fmt.Sprintf("Prefix w/ backend %s", backend), func(t *testing.T) {
-			db, dir := newTempDB(t, backend)
-			defer os.RemoveAll(dir)
+			db := newTempDB(t, backend)
 			itr := IteratePrefix(db, []byte("2"))
 			db.SetSync(bz("1"), bz("value_1"))
 
@@ -42,8 +39,7 @@ func TestPrefixIteratorNoMatch1(t *testing.T) {
 func TestPrefixIteratorNoMatch2(t *testing.T) {
 	for backend := range backends {
 		t.Run(fmt.Sprintf("Prefix w/ backend %s", backend), func(t *testing.T) {
-			db, dir := newTempDB(t, backend)
-			defer os.RemoveAll(dir)
+			db := newTempDB(t, backend)
 			db.SetSync(bz("3"), bz("value_3"))
 			itr := IteratePrefix(db, []byte("4"))
 
@@ -56,8 +52,7 @@ func TestPrefixIteratorNoMatch2(t *testing.T) {
 func TestPrefixIteratorMatch1(t *testing.T) {
 	for backend := range backends {
 		t.Run(fmt.Sprintf("Prefix w/ backend %s", backend), func(t *testing.T) {
-			db, dir := newTempDB(t, backend)
-			defer os.RemoveAll(dir)
+			db := newTempDB(t, backend)
 			db.SetSync(bz("2"), bz("value_2"))
 			itr := IteratePrefix(db, bz("2"))
 
@@ -75,8 +70,7 @@ func TestPrefixIteratorMatch1(t *testing.T) {
 func TestPrefixIteratorMatches1N(t *testing.T) {
 	for backend := range backends {
 		t.Run(fmt.Sprintf("Prefix w/ backend %s", backend), func(t *testing.T) {
-			db, dir := newTempDB(t, backend)
-			defer os.RemoveAll(dir)
+			db := newTempDB(t, backend)
 
 			// prefixed
 			db.SetSync(bz("a/1"), bz("value_1"))

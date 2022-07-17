@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"sync"
 	"testing"
@@ -63,10 +62,8 @@ func checkValuePanics(t *testing.T, itr Iterator) {
 	assert.Panics(t, func() { itr.Value() }, "checkValuePanics expected panic but didn't")
 }
 
-func newTempDB(t *testing.T, backend BackendType) (db DB, dbDir string) {
-	dirname, err := ioutil.TempDir("", "db_common_test")
-	require.Nil(t, err)
-	return NewDB("testdb", backend, dirname), dirname
+func newTempDB(t *testing.T, backend BackendType) (db DB) {
+	return NewDB("testdb", backend, t.TempDir())
 }
 
 //----------------------------------------
