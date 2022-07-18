@@ -28,9 +28,11 @@ var (
 	mainKey = store.NewStoreKey("main") // in all test apps
 )
 
-type msgCounter = testutils.MsgCounter
-type msgCounter2 = testutils.MsgCounter2
-type msgNoRoute = testutils.MsgNoRoute
+type (
+	msgCounter  = testutils.MsgCounter
+	msgCounter2 = testutils.MsgCounter2
+	msgNoRoute  = testutils.MsgNoRoute
+)
 
 const (
 	routeMsgCounter  = testutils.RouteMsgCounter
@@ -479,7 +481,7 @@ func TestCheckTx(t *testing.T) {
 
 	anteOpt := func(bapp *BaseApp) { bapp.SetAnteHandler(anteHandlerTxTest(t, mainKey, counterKey)) }
 	routerOpt := func(bapp *BaseApp) {
-		// TODO: can remove this once CheckTx doesnt process msgs.
+		// TODO: can remove this once CheckTx doesn't process msgs.
 		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result { return Result{} }))
 	}
 

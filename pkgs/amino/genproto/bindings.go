@@ -1146,7 +1146,7 @@ func _x(expr string, args ...interface{}) ast.Expr {
 	expr = strings.TrimSpace(expr)
 	first := expr[0]
 
-	// 1: Binary operators have a lower predecence than unary operators (or
+	// 1: Binary operators have a lower precedence than unary operators (or
 	// monoids).
 	left, op, right, ok := chopBinary(expr)
 	if ok {
@@ -1270,7 +1270,7 @@ func _x(expr string, args ...interface{}) ast.Expr {
 		}
 	}
 	// 4.  Monoids of array or slice type.
-	// NOTE: []foo.bar requires this to have lower predence than dots.
+	// NOTE: []foo.bar requires this to have lower precedence than dots.
 	switch first {
 	case '[':
 		if expr[1] == ']' {

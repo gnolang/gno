@@ -21,7 +21,6 @@ type RangeProof struct {
 	rootVerified bool
 	rootHash     []byte // valid iff rootVerified is true
 	treeEnd      bool   // valid iff rootVerified is true
-
 }
 
 // Keys returns all the keys in the RangeProof.  NOTE: The keys here may
@@ -92,10 +91,10 @@ func (proof *RangeProof) LeftIndex() int64 {
 // Verify that a key has some value.
 // Does not assume that the proof itself is valid, call Verify() first.
 func (proof *RangeProof) VerifyItem(key, value []byte) error {
-	leaves := proof.Leaves
 	if proof == nil {
 		return errors.Wrap(ErrInvalidProof, "proof is nil")
 	}
+	leaves := proof.Leaves
 	if !proof.rootVerified {
 		return errors.New("must call Verify(root) first")
 	}
@@ -483,8 +482,8 @@ func (tree *MutableTree) GetVersionedWithProof(key []byte, version int64) ([]byt
 // GetVersionedRangeWithProof gets key/value pairs within the specified range
 // and limit.
 func (tree *MutableTree) GetVersionedRangeWithProof(startKey, endKey []byte, limit int, version int64) (
-	keys, values [][]byte, proof *RangeProof, err error) {
-
+	keys, values [][]byte, proof *RangeProof, err error,
+) {
 	if tree.VersionExists(version) {
 		t, err := tree.GetImmutable(version)
 		if err != nil {

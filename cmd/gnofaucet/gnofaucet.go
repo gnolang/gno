@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gnolang/gno/gnoland"
 	"github.com/gnolang/gno/pkgs/amino"
@@ -18,6 +20,18 @@ import (
 	"github.com/gnolang/gno/pkgs/sdk/bank"
 	"github.com/gnolang/gno/pkgs/std"
 )
+
+// url & struct for verify captcha
+const siteVerifyURL = "https://www.google.com/recaptcha/api/siteverify"
+
+type SiteVerifyResponse struct {
+	Success     bool      `json:"success"`
+	Score       float64   `json:"score"`
+	Action      string    `json:"action"`
+	ChallengeTS time.Time `json:"challenge_ts"`
+	Hostname    string    `json:"hostname"`
+	ErrorCodes  []string  `json:"error-codes"`
+}
 
 type (
 	AppItem = command.AppItem
@@ -73,15 +87,19 @@ type serveOptions struct {
 	Memo               string `flag:"memo" help:"any descriptive text"`
 	TestTo             string `flag:"test-to" help:"test addr (optional)"`
 	Send               string `flag:"send" help:"send coins"`
+	CaptchaSecret      string `flag:"captcha-secret" help:"recaptcha secret key (if empty, captcha are disabled)"`
+	IsBehindProxy      bool   `flag:"is-behind-proxy" help:"use X-Forwarded-For IP for throttling."`
 }
 
 var DefaultServeOptions = serveOptions{
-	ChainID:   "", // must override
-	GasWanted: 50000,
-	GasFee:    "1gnot",
-	Memo:      "",
-	TestTo:    "",
-	Send:      "1gnot",
+	ChainID:       "", // must override
+	GasWanted:     50000,
+	GasFee:        "1000000ugnot",
+	Memo:          "",
+	TestTo:        "",
+	Send:          "1000000ugnot",
+	CaptchaSecret: "",
+	IsBehindProxy: false,
 }
 
 func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
@@ -99,6 +117,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 	if opts.GasFee == "" {
 		return errors.New("gas-fee not specified")
 	}
+
 	remote := opts.Remote
 	if remote == "" || remote == "y" {
 		return errors.New("missing remote url")
@@ -182,41 +201,78 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 	// handle route using handler function
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		host := ""
-		if false { // if not using a reverse proxy
+		if !opts.IsBehindProxy {
 			addr := r.RemoteAddr
 			host_, _, err := net.SplitHostPort(addr)
 			if err != nil {
 				return
 			}
 			host = host_
-		} else {
-			host = r.Header["X-Forwarded-For"][0]
+		} else if xff, found := r.Header["X-Forwarded-For"]; found && len(xff) > 0 {
+			host = xff[0]
 		}
-		if len(host) == 0 {
-			return
+
+		// if can't identify the IP, everyone is in the same pool.
+		// if host using ipv6 loopback addr, make it ipv4
+		if host == "" || host == "::1" || host == "0:0:0:0:0:0:0:1" {
+			host = "127.0.0.1"
 		}
 		ip := net.ParseIP(host)
 		if ip == nil {
+			fmt.Println("no ip found")
+			w.Write([]byte("no ip found"))
 			return
 		}
-		r.ParseForm()
-		toAddrStr := strings.TrimSpace(r.Form["toaddr"][0])
-		if toAddrStr == "" {
-			fmt.Println("no toAddr")
-			return
-		}
+
 		if !st.Request(ip) {
+			fmt.Println("wrong ip format")
+			w.Write([]byte("wrong ip format"))
 			return
 		}
+
+		r.ParseForm()
+
+		// only when command line argument 'captcha-secret' has entered > captcha are enabled.
+		// veryify captcha
+		if opts.CaptchaSecret != "" {
+			passedMsg := r.Form["g-recaptcha-response"]
+			if passedMsg == nil {
+				fmt.Println("no 'captcha' request")
+				w.Write([]byte("check captcha request"))
+				return
+			}
+
+			capMsg := strings.TrimSpace(passedMsg[0])
+
+			if err := checkRecaptcha(opts.CaptchaSecret, capMsg); err != nil {
+				fmt.Printf("recaptcha failed; %v\n", err)
+				w.Write([]byte("Unauthorized"))
+				return
+			}
+
+		}
+
+		passedAddr := r.Form["toaddr"]
+		if passedAddr == nil {
+			fmt.Println("input your address")
+			w.Write([]byte("no address found"))
+			return
+		}
+
+		toAddrStr := strings.TrimSpace(passedAddr[0])
+
 		// OK.
 		toAddr, err := crypto.AddressFromBech32(toAddrStr)
 		if err != nil {
 			fmt.Println("error:", err)
+			w.Write([]byte("invalid address format"))
 			return
 		}
 		err = sendAmountTo(cmd, cli, name, pass, toAddr, accountNumber, sequence, send, opts)
+
 		if err != nil {
 			fmt.Println("error:", err)
+			w.Write([]byte("faucet fail"))
 			return
 		} else {
 			sequence += 1
@@ -321,5 +377,34 @@ func sendAmountTo(cmd *command.Command, cli rpcclient.Client, name, pass string,
 		cmd.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
 		cmd.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
 	}
+	return nil
+}
+
+func checkRecaptcha(secret, response string) error {
+	req, err := http.NewRequest(http.MethodPost, siteVerifyURL, nil)
+	if err != nil {
+		return err
+	}
+
+	q := req.URL.Query()
+	q.Add("secret", secret)
+	q.Add("response", response)
+	req.URL.RawQuery = q.Encode()
+
+	resp, err := http.DefaultClient.Do(req) // 200 OK
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	var body SiteVerifyResponse
+	if err = json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return errors.New("fail, decode response")
+	}
+
+	if !body.Success {
+		return errors.New("unsuccessful recaptcha verify request")
+	}
+
 	return nil
 }

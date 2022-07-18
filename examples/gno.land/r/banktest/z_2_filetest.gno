@@ -1,8 +1,9 @@
 package main
 
 import (
-	"gno.land/r/banktest"
 	"std"
+
+	"gno.land/r/banktest"
 )
 
 func main() {
@@ -16,9 +17,9 @@ func main() {
 
 	// simulate a Deposit call.
 	std.TestSetOrigPkgAddr(banktestAddr)
-	std.TestIssueCoins(banktestAddr, std.Coins{{"gnot", 100}})
-	std.TestSetOrigSend(std.Coins{{"gnot", 100}}, nil)
-	res := banktest.Deposit("gnot", 55)
+	std.TestIssueCoins(banktestAddr, std.Coins{{"ugnot", 100000000}})
+	std.TestSetOrigSend(std.Coins{{"ugnot", 100000000}}, nil)
+	res := banktest.Deposit("ugnot", 55000000)
 	println("Deposit():", res)
 
 	// print main balance after.
@@ -31,13 +32,13 @@ func main() {
 }
 
 // Output:
-// main before: 200gnot
+// main before: 200000000ugnot
 // Deposit(): returned!
-// main after: 255gnot
+// main after: 255000000ugnot
 // ## recent activity
 //
-//  * g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4 100gnot sent, 55gnot returned, at 1970-01-01 12:00am UTC
+//  * g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4 100000000ugnot sent, 55000000ugnot returned, at 1970-01-01 12:00am UTC
 //
 // ## total deposits
-// 45gnot
+// 45000000ugnot
 //

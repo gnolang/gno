@@ -24,6 +24,7 @@ jobs:
           - test.go1
           - test.go2
           - test.go3
+          - test.go4
           - test.files1
           - test.files2
           - test.packages0
@@ -32,7 +33,7 @@ jobs:
           - test.examples
           - test.flappy
     runs-on: ubuntu-latest
-    timeout-minutes: 21
+    timeout-minutes: 15
     steps:
       - uses: actions/setup-go@v3
         with:

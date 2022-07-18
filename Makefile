@@ -1,7 +1,7 @@
 ########################################
 # Dist suite
-.PHONY: logos goscan gnoland gnokey gnofaucet logos reset gnoweb
-all: gnoland gnokey goscan logos gnoweb
+.PHONY: logos goscan gnoland gnokey gnofaucet logos reset gnoweb gnotxport
+all: gnoland gnokey goscan logos gnoweb gnotxport
 
 reset:
 	rm -rf testdir
@@ -45,9 +45,12 @@ goscan:
 
 gnoweb:
 	@echo "Building website"
-	go build -o build/website
 
+	go build -o build/website ./gnoland/website
 
+gnotxport:
+	@echo "Building gnotxport"
+	go build -o build/gnotxport ./cmd/gnotxport
 
 # Logos is the interface to Gnoland
 logos:
@@ -70,11 +73,10 @@ examples.build: install_gnodev examples.precompile
 fmt:
 	go run -modfile ./misc/devdeps/go.mod mvdan.cc/gofumpt -w .
 	go run -modfile ./misc/devdeps/go.mod mvdan.cc/gofumpt -w `find stdlibs examples -name "*.gno"`
-	git checkout bak
 
 ########################################
 # Test suite
-.PHONY: test test.go test.go1 test.go2 test.go3 test.gno test.files1 test.files2 test.realm test.packages test.flappy test.packages0 test.packages1 test.packages2
+.PHONY: test test.go test.go1 test.go2 test.go3 test.go4 test.gno test.files1 test.files2 test.realm test.packages test.flappy test.packages0 test.packages1 test.packages2
 test: test.gno test.go test.flappy
 	@echo "Full test suite finished."
 
@@ -87,7 +89,7 @@ test.flappy:
 	TEST_STABILITY=flappy go run -modfile ./misc/devdeps/go.mod moul.io/testman test -test.v -timeout=20m -retry=10 -run ^TestFlappy \
 		./pkgs/bft/consensus ./pkgs/bft/blockchain ./pkgs/bft/mempool ./pkgs/p2p ./pkgs/bft/privval
 
-test.go: test.go1 test.go2 test.go3
+test.go: test.go1 test.go2 test.go3 test.go4
 
 test.go1:
 	# test most of pkgs/* except amino and bft.
@@ -103,6 +105,9 @@ test.go2:
 test.go3:
 	# test bft.
 	go test ./pkgs/bft/... -v -p 1 -timeout=30m
+
+test.go4:
+	go test ./cmd/gnodev ./cmd/gnoland -v -p 1 -timeout=30m
 
 test.files1:
 	go test tests/*.go -v -test.short -run "TestFiles1/" --timeout 30m

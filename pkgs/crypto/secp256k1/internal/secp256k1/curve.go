@@ -291,7 +291,7 @@ func (BitCurve *BitCurve) Marshal(x, y *big.Int) []byte {
 	return ret
 }
 
-// Unmarshal converts a point, serialised by Marshal, into an x, y pair. On
+// Unmarshal converts a point, serialized by Marshal, into an x, y pair. On
 // error, x = nil.
 func (BitCurve *BitCurve) Unmarshal(data []byte) (x, y *big.Int) {
 	byteLen := (BitCurve.BitSize + 7) >> 3

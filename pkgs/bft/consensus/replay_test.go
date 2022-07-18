@@ -966,7 +966,7 @@ func makeBlockchainFromWAL(wal walm.WAL) ([]*types.Block, []*types.Commit, error
 				}
 				commitHeight := thisBlockCommit.Precommits[0].Height
 				if commitHeight != height {
-					panic(fmt.Sprintf("commit doesnt match. got height %d, expected %d", commitHeight, height))
+					panic(fmt.Sprintf("commit doesn't match. got height %d, expected %d", commitHeight, height))
 				}
 				blocks = append(blocks, block)
 				commits = append(commits, thisBlockCommit)
@@ -1007,7 +1007,7 @@ func makeBlockchainFromWAL(wal walm.WAL) ([]*types.Block, []*types.Commit, error
 	}
 	commitHeight := thisBlockCommit.Precommits[0].Height
 	if commitHeight != height {
-		panic(fmt.Sprintf("commit doesnt match. got height %d, expected %d", commitHeight, height))
+		panic(fmt.Sprintf("commit doesn't match. got height %d, expected %d", commitHeight, height))
 	}
 	blocks = append(blocks, block)
 	commits = append(commits, thisBlockCommit)

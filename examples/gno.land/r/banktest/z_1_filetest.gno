@@ -1,8 +1,9 @@
 package main
 
 import (
-	"gno.land/r/banktest"
 	"std"
+
+	"gno.land/r/banktest"
 )
 
 func main() {
@@ -10,11 +11,11 @@ func main() {
 
 	// simulate a Deposit call.
 	std.TestSetOrigPkgAddr(banktestAddr)
-	std.TestIssueCoins(banktestAddr, std.Coins{{"gnot", 100}})
-	std.TestSetOrigSend(std.Coins{{"gnot", 100}}, nil)
-	res := banktest.Deposit("gnot", 101)
+	std.TestIssueCoins(banktestAddr, std.Coins{{"ugnot", 100000000}})
+	std.TestSetOrigSend(std.Coins{{"ugnot", 100000000}}, nil)
+	res := banktest.Deposit("ugnot", 101000000)
 	println(res)
 }
 
 // Error:
-// cannot send "101gnot"
+// cannot send "101000000ugnot"

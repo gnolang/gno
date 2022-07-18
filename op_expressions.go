@@ -336,7 +336,7 @@ func (m *Machine) doOpCompositeLit() {
 	switch bt := baseOf(t).(type) {
 	case *ArrayType:
 		m.PushOp(OpArrayLit)
-		// evalaute item values
+		// evaluate item values
 		for i := len(x.Elts) - 1; 0 <= i; i-- {
 			m.PushExpr(x.Elts[i].Value)
 			m.PushOp(OpEval)
@@ -344,10 +344,10 @@ func (m *Machine) doOpCompositeLit() {
 	case *SliceType:
 		if len(x.Elts) > 0 && x.Elts[0].Key != nil {
 			m.PushOp(OpSliceLit2)
-			// evalaute item values
+			// evaluate item values
 			for i := len(x.Elts) - 1; 0 <= i; i-- {
 				if x.Elts[i].Key == nil {
-					panic("slice composite literal cannot mix keyed and unkeyed lements")
+					panic("slice composite literal cannot mix keyed and unkeyed elements")
 				}
 				m.PushExpr(x.Elts[i].Value)
 				m.PushOp(OpEval)
@@ -356,10 +356,10 @@ func (m *Machine) doOpCompositeLit() {
 			}
 		} else {
 			m.PushOp(OpSliceLit)
-			// evalaute item values
+			// evaluate item values
 			for i := len(x.Elts) - 1; 0 <= i; i-- {
 				if x.Elts[i].Key != nil {
-					panic("slice composite literal cannot mix keyed and unkeyed lements")
+					panic("slice composite literal cannot mix keyed and unkeyed elements")
 				}
 				m.PushExpr(x.Elts[i].Value)
 				m.PushOp(OpEval)
@@ -367,7 +367,7 @@ func (m *Machine) doOpCompositeLit() {
 		}
 	case *MapType:
 		m.PushOp(OpMapLit)
-		// evalaute map items
+		// evaluate map items
 		for i := len(x.Elts) - 1; 0 <= i; i-- {
 			// evaluate map value
 			m.PushExpr(x.Elts[i].Value)

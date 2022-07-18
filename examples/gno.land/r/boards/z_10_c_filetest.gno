@@ -1,7 +1,7 @@
 // PKGPATH: gno.land/r/boards_test
 package boards_test
 
-// SEND: 200gnot
+// SEND: 200000000ugnot
 
 import (
 	"strconv"
@@ -10,9 +10,11 @@ import (
 	"gno.land/r/users"
 )
 
-var bid boards.BoardID
-var pid boards.PostID
-var rid boards.PostID
+var (
+	bid boards.BoardID
+	pid boards.PostID
+	rid boards.PostID
+)
 
 func init() {
 	users.Register("", "gnouser", "my profile")
@@ -24,7 +26,7 @@ func init() {
 
 func main() {
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
-	boards.DeletePost(bid, pid, rid, "") 
+	boards.DeletePost(bid, pid, rid, "")
 	println("----------------------------------------------------")
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
 }

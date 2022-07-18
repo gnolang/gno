@@ -499,7 +499,7 @@ func TestAminoJSONTimeEncodeDecodeRoundTrip(t *testing.T) {
 	require.NotEqual(t, tStdlibOut, time.Time{}, "stdlib.marshaled definitely isn't equal to zero time")
 	require.Equal(t, tStdlibOut, din, "expecting stdlib.marshaled to be equal to time in")
 
-	require.Equal(t, tAminoOut, tStdlibOut, "expecting amino.unmarshaled to be equal to json.unmarshaled")
+	require.Equal(t, tAminoOut, tStdlibOut, "expecting amino.unmarshalled to be equal to json.unmarshalled")
 }
 
 func TestMarshalJSONIndent(t *testing.T) {

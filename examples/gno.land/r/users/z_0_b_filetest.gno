@@ -1,10 +1,11 @@
 package main
 
-// SEND: 199gnot
+// SEND: 199000000ugnot
 
 import (
-	"gno.land/r/users"
 	"std"
+
+	"gno.land/r/users"
 )
 
 func main() {

@@ -28,6 +28,8 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	UnknownAddressError{}, "UnknownAddressError",
 	InvalidPubKeyError{}, "InvalidPubKeyError",
 	InsufficientCoinsError{}, "InsufficientCoinsError",
+	InvalidCoinsError{}, "InvalidCoinsError",
+	InvalidGasWantedError{}, "InvalidGasWantedError",
 	OutOfGasError{}, "OutOfGasError",
 	MemoTooLargeError{}, "MemoTooLargeError",
 	InsufficientFeeError{}, "InsufficientFeeError",

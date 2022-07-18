@@ -927,7 +927,7 @@ func TestStateLockPOLSafety2(t *testing.T) {
 	ensureNewRound(newRoundCh, height, round)
 	t.Log("### ONTO Round 2")
 	/*Round2
-	// now we see the polka from round 1, but we shouldnt unlock
+	// now we see the polka from round 1, but we shouldn't unlock
 	*/
 	ensureNewProposal(proposalCh, height, round)
 
@@ -1581,7 +1581,8 @@ func TestStateSlashingPrecommits(t *testing.T) {
 
 // 4 vals.
 // we receive a final precommit after going into next round, but others might have gone to commit already!
-func TestStateHalt1(t *testing.T) {
+func TestFlappyStateHalt1(t *testing.T) {
+	testutils.FilterStability(t, testutils.Flappy)
 	cs1, vss := randConsensusState(4)
 	vs2, vs3, vs4 := vss[1], vss[2], vss[3]
 	height, round := cs1.Height, cs1.Round

@@ -106,7 +106,7 @@ func (e ErrSwitchDuplicatePeerID) Error() string {
 	return fmt.Sprintf("duplicate peer ID %v", e.ID)
 }
 
-// ErrSwitchDuplicatePeerIP to be raised whena a peer is connecting with a known
+// ErrSwitchDuplicatePeerIP to be raised when a peer is connecting with a known
 // IP.
 type ErrSwitchDuplicatePeerIP struct {
 	IP net.IP

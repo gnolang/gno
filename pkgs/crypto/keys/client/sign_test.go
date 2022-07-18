@@ -29,7 +29,7 @@ func Test_signAppBasic(t *testing.T) {
 			Home: kbHome,
 		},
 		TxPath:        "-", // stdin
-		ChainID:       "testchain",
+		ChainID:       "dev",
 		AccountNumber: new(uint64),
 		Sequence:      new(uint64),
 	}
@@ -47,7 +47,7 @@ func Test_signAppBasic(t *testing.T) {
 
 	// create a tx to sign.
 	msg := testutils2.NewTestMsg(addr)
-	fee := std.NewFee(1, std.Coin{"gnot", 1})
+	fee := std.NewFee(1, std.Coin{"ugnot", 1000000})
 	tx := std.NewTx([]std.Msg{msg}, fee, nil, "")
 	txjson := string(amino.MustMarshalJSON(tx))
 

@@ -1,7 +1,7 @@
 // PKGPATH: gno.land/r/boards_test
 package boards_test
 
-// SEND: 2000gnot
+// SEND: 2000000000ugnot
 
 import (
 	"strconv"
@@ -10,9 +10,11 @@ import (
 	"gno.land/r/users"
 )
 
-var bid boards.BoardID
-var pid boards.PostID
-var rid boards.PostID
+var (
+	bid boards.BoardID
+	pid boards.PostID
+	rid boards.PostID
+)
 
 func init() {
 	users.Register("", "gnouser", "my profile")

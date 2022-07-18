@@ -113,7 +113,7 @@ func (prt *ProofRuntime) VerifyValue(proof *Proof, root []byte, keypath string, 
 	return prt.Verify(proof, root, keypath, [][]byte{value})
 }
 
-// TODO In the long run we'll need a method of classifcation of ops,
+// TODO In the long run we'll need a method of classification of ops,
 // whether existence or absence or perhaps a third?
 func (prt *ProofRuntime) VerifyAbsence(proof *Proof, root []byte, keypath string) (err error) {
 	return prt.Verify(proof, root, keypath, nil)

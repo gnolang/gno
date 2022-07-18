@@ -17,6 +17,7 @@ import (
 	"github.com/gnolang/gno/pkgs/command"
 	"github.com/gnolang/gno/pkgs/errors"
 	"github.com/gnolang/gno/pkgs/std"
+	"github.com/gnolang/gno/pkgs/testutils"
 	"github.com/gnolang/gno/tests"
 	"go.uber.org/multierr"
 )
@@ -116,7 +117,7 @@ func gnoTestPkg(cmd *command.Command, pkgPath string, unittestFiles, filetestFil
 		}
 		memPkg := gno.ReadMemPackage(pkgPath, pkgPath)
 
-		//tfiles, ifiles := gno.ParseMemPackageTests(memPkg)
+		// tfiles, ifiles := gno.ParseMemPackageTests(memPkg)
 		tfiles, ifiles := parseMemPackageTests(memPkg)
 
 		// run test files in pkg
@@ -157,13 +158,9 @@ func gnoTestPkg(cmd *command.Command, pkgPath string, unittestFiles, filetestFil
 				cmd.ErrPrintfln("=== RUN   %s", testName)
 			}
 
-			var closer func() string
+			var closer func() (string, error)
 			if !verbose {
-				var err error
-				closer, err = captureStdoutAndStderr()
-				if err != nil {
-					panic(err)
-				}
+				closer = testutils.CaptureStdoutAndStderr()
 			}
 
 			testFilePath := filepath.Join(pkgPath, testFileName)
@@ -175,7 +172,10 @@ func gnoTestPkg(cmd *command.Command, pkgPath string, unittestFiles, filetestFil
 				errs = multierr.Append(errs, err)
 				cmd.ErrPrintfln("--- FAIL: %s (%s)", testName, dstr)
 				if verbose {
-					stdouterr := closer()
+					stdouterr, err := closer()
+					if err != nil {
+						panic(err)
+					}
 					fmt.Fprintln(os.Stderr, stdouterr)
 				}
 				continue

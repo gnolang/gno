@@ -129,7 +129,7 @@ func (ndb *nodeDB) Has(hash []byte) bool {
 }
 
 // SaveBranch saves the given node and all of its descendants.
-// NOTE: This function clears leftNode/rigthNode recursively and
+// NOTE: This function clears leftNode/rightNode recursively and
 // calls _hash() on the given node.
 // TODO refactor, maybe use hashWithCount() but provide a callback.
 func (ndb *nodeDB) SaveBranch(node *Node) []byte {

@@ -31,7 +31,7 @@ var rSeed int64
 
 func genResult() Result {
 	// init rand
-	var r = rand.FromSeed(rSeed)
+	r := rand.FromSeed(rSeed)
 	defer func() { rSeed = r.Seed() }()
 
 	res := Result{

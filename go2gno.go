@@ -23,8 +23,8 @@ package gno
 	analysis in Go should fail at run-time with the configuration but otherwise
 	behave identically.
 
-	This lets us extend the langauge (e.g. a new kind like the Type kind may
-	become available in the Gno langauge), and helps us plan to transition to
+	This lets us extend the language (e.g. a new kind like the Type kind may
+	become available in the Gno language), and helps us plan to transition to
 	the final implementation of the Gno parser which should be written in pure
 	Gno.  Callers of the interpreter have the option of using the
 	`golang/src/cmd/compile/*` package for vetting code correctness.

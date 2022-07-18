@@ -43,12 +43,12 @@ func (u User) Address() std.Address { return u.address }
 
 var (
 	admin      std.Address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"
-	name2User  *avl.Tree         // Name -> *User
-	addr2User  *avl.Tree         // std.Address -> *User
-	invites    *avl.Tree         // string(inviter+":"+invited) -> true
-	counter    int               // user id counter
-	minFee     int64       = 200 // minimum gnot must be paid to register.
-	maxFeeMult int64       = 10  // maximum multiples of minFee accepted.
+	name2User  *avl.Tree                   // Name -> *User
+	addr2User  *avl.Tree                   // std.Address -> *User
+	invites    *avl.Tree                   // string(inviter+":"+invited) -> true
+	counter    int                         // user id counter
+	minFee     int64       = 200 * 1000000 // minimum gnot must be paid to register.
+	maxFeeMult int64       = 10            // maximum multiples of minFee accepted.
 )
 
 //----------------------------------------
@@ -63,10 +63,10 @@ func Register(inviter std.Address, name string, profile string) {
 		panic("should not happen") // because std.AssertOrigCall().
 	}
 	sentCoins := std.GetOrigSend()
-	minCoin := std.Coin{"gnot", minFee}
+	minCoin := std.Coin{"ugnot", minFee}
 	if inviter == "" {
 		// banker := std.GetBanker(std.BankerTypeOrigSend)
-		if len(sentCoins) == 1 && sentCoins[0].IsGTE(minCoin){	
+		if len(sentCoins) == 1 && sentCoins[0].IsGTE(minCoin) {
 			if sentCoins[0].Amount > minFee*maxFeeMult {
 				panic("payment must not be greater than " + strconv.Itoa(int(minFee*maxFeeMult)))
 			} else {
@@ -99,7 +99,7 @@ func Register(inviter std.Address, name string, profile string) {
 	// remainder of fees go toward invites.
 	invites := int(0)
 	if len(sentCoins) == 1 {
-		if sentCoins[0].Denom == "gnot" && sentCoins[0].Amount >= minFee {
+		if sentCoins[0].Denom == "ugnot" && sentCoins[0].Amount >= minFee {
 			invites = int(sentCoins[0].Amount / minFee)
 			if inviter == "" && invites > 0 {
 				invites -= 1

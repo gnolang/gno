@@ -5,7 +5,6 @@ import (
 	"regexp"
 
 	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
-	"github.com/gnolang/gno/pkgs/errors"
 )
 
 var isAlphaNumeric = regexp.MustCompile(`^[a-zA-Z0-9]+$`).MatchString
@@ -36,17 +35,9 @@ func (app *BaseApp) NewContext(mode RunTxMode, header abci.Header) Context {
 	return NewContext(mode, app.deliverState.ms, header, app.logger)
 }
 
+// TODO: replace with abci.ABCIErrorOrStringError().
 func ABCIError(err error) abci.Error {
-	if err == nil {
-		return nil
-	}
-	err = errors.Cause(err) // unwrap
-	abcierr, ok := err.(abci.Error)
-	if !ok {
-		return abci.StringError(err.Error())
-	} else {
-		return abcierr
-	}
+	return abci.ABCIErrorOrStringError(err)
 }
 
 func ABCIResultFromError(err error) (res Result) {

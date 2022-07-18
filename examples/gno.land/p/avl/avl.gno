@@ -158,7 +158,8 @@ func (tree *Tree) Set(key string, value interface{}) (newSelf *Tree, updated boo
 // newKey: new leftmost leaf key for tree after successfully removing 'key' if changed.
 // value: removed value.
 func (tree *Tree) Remove(key string) (
-	newTree *Tree, newKey string, value interface{}, removed bool) {
+	newTree *Tree, newKey string, value interface{}, removed bool,
+) {
 	if tree == nil {
 		return nil, "", nil, false
 	}

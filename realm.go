@@ -1049,7 +1049,7 @@ func copyTypeWithRefs(typ Type) Type {
 // Copies value but with references to objects; the result is suitable for
 // persistence bytes serialization.
 // Also checks for integrity of immediate children -- they must already be
-// persistend (real), and not dirty, or else this function panics.
+// persistent (real), and not dirty, or else this function panics.
 func copyValueWithRefs(parent Object, val Value) Value {
 	switch cv := val.(type) {
 	case nil:

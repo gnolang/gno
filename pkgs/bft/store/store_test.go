@@ -96,7 +96,7 @@ func TestNewBlockStore(t *testing.T) {
 
 	db.Set(blockStoreKey, nil)
 	bs = NewBlockStore(db)
-	assert.Equal(t, bs.Height(), int64(0), "expecting nil bytes to be unmarshaled alright")
+	assert.Equal(t, bs.Height(), int64(0), "expecting nil bytes to be unmarshalled alright")
 }
 
 func freshBlockStore() (*BlockStore, dbm.DB) {

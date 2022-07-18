@@ -1,29 +1,31 @@
 // PKGPATH: gno.land/r/boards_test
 package boards_test
 
-// SEND: 200gnot
+// SEND: 200000000ugnot
 
 import (
 	"strconv"
+
 	"gno.land/r/boards"
 	"gno.land/r/users"
 )
 
-var bid boards.BoardID
-var pid boards.PostID
+var (
+	bid boards.BoardID
+	pid boards.PostID
+)
 
 func init() {
 	users.Register("", "gnouser", "my profile")
 
 	bid = boards.CreateBoard("test_board")
 	pid = boards.CreateThread(bid, "First Post in (title)", "Body of the first post. (body)")
-
 }
 
 func main() {
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
-	//boardId 2 not exist
-	boards.DeletePost(2, pid, pid, "") 
+	// boardId 2 not exist
+	boards.DeletePost(2, pid, pid, "")
 	println("----------------------------------------------------")
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
 }

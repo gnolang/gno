@@ -45,12 +45,24 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 	return func(
 		ctx sdk.Context, tx std.Tx, simulate bool,
 	) (newCtx sdk.Context, res sdk.Result, abort bool) {
-		// Get params from context.
-		params := ctx.Value(AuthParamsContextKey{}).(Params)
+		// Ensure that the gas wanted is not greater than the max allowed.
+		consParams := ctx.ConsensusParams()
+		if consParams.Block.MaxGas == -1 {
+			// no gas bounds (not recommended)
+		} else if consParams.Block.MaxGas < tx.Fee.GasWanted {
+			// tx gas-wanted too large.
+			res = abciResult(std.ErrInvalidGasWanted(
+				fmt.Sprintf(
+					"invalid gas-wanted; got: %d block-max-gas: %d",
+					tx.Fee.GasWanted, consParams.Block.MaxGas,
+				),
+			))
+			return ctx, res, true
+		}
 
 		// Ensure that the provided fees meet a minimum threshold for the validator,
 		// if this is a CheckTx. This is only for local mempool purposes, and thus
-		// is only ran on check tx.
+		// is only run upon checktx.
 		if ctx.IsCheckTx() && !simulate {
 			res := EnsureSufficientMempoolFees(ctx, tx.Fee)
 			if !res.IsOK() {
@@ -83,6 +95,8 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			}
 		}()
 
+		// Get params from context.
+		params := ctx.Value(AuthParamsContextKey{}).(Params)
 		if res := ValidateSigCount(tx, params); !res.IsOK() {
 			return newCtx, res, true
 		}

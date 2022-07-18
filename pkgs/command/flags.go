@@ -17,7 +17,7 @@ var reFlagName = regexp.MustCompile(`^--[a-z0-9.\-]+(#[a-z0-9.\-]+)?$`)
 
 // applies all flags to ptr to options.
 // --flag is short for --flag true for boolean flags.
-// consecutive flags can be used to populate arays or slices.
+// consecutive flags can be used to populate arrays or slices.
 // alternatively, a comma on a single flag can be used.
 func applyFlags(ptr interface{}, flags map[string]interface{}) error {
 	prv := reflect.ValueOf(ptr)

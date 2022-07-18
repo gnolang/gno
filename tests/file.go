@@ -34,12 +34,12 @@ func TestMachine(store gno.Store, stdout io.Writer, pkgPath string) *gno.Machine
 func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAlloc int64, send std.Coins) *gno.Machine {
 	// FIXME: create a better package to manage this, with custom constructors
 
-	pkgAddr := gno.DerivePkgAddr(pkgPath)               // the addr of the pkgPath called.
-	caller := gno.DerivePkgAddr(pkgPath)                // NOTE: for the purpose of testing, the caller is generally the "main" package, same as pkgAddr.
-	pkgCoins := std.MustParseCoins("200gnot").Add(send) // >= send.
+	pkgAddr := gno.DerivePkgAddr(pkgPath)                      // the addr of the pkgPath called.
+	caller := gno.DerivePkgAddr(pkgPath)                       // NOTE: for the purpose of testing, the caller is generally the "main" package, same as pkgAddr.
+	pkgCoins := std.MustParseCoins("200000000ugnot").Add(send) // >= send.
 	banker := newTestBanker(pkgAddr.Bech32(), pkgCoins)
 	ctx := stdlibs.ExecContext{
-		ChainID:       "testchain",
+		ChainID:       "dev",
 		Height:        123,
 		Msg:           nil,
 		OrigCaller:    caller.Bech32(),
@@ -181,7 +181,7 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 				m.SetActivePackage(pv2)
 				gno.EnableDebug()
 				if rops != "" {
-					// clear store.opslog from init funtion(s),
+					// clear store.opslog from init function(s),
 					// and PreprocessAllFilesAndSaveBlockNodes().
 					store.SetLogStoreOps(true) // resets.
 				}

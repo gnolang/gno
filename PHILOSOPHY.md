@@ -15,6 +15,10 @@ become finished within a reasonable timeframe.
  * The interpreter is meant to become independent of the host language, Go.
  * After the Gno interpreter can interpret itself, we will implement bytecode compilation.
 
+## Tendermint Philosophy
+
+ * Each node can run on a commodity machine. Corollarily, for scaling we focus on sharding & forms of IBC.
+
 ## Cli Philosophy
 
  * No envs.
@@ -28,3 +32,9 @@ become finished within a reasonable timeframe.
  * Single base token.
  * Deflationary is sufficient when tx fees are imminent.
  * Int64 is sufficiently large to handle human numbers; for everything else, use denom conversions.
+
+## Spiritual Philosophy
+
+ * Truth is revealed in the open light.
+ * Everybody has the potential to see the light.
+ * Those who see the light are moved to expand it.

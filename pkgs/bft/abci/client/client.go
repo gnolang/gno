@@ -56,12 +56,11 @@ type Callback func(abci.Request, abci.Response)
 
 type ReqRes struct {
 	abci.Request
-	wg            *sync.WaitGroup
-	abci.Response // Not set atomically, so be sure to use WaitGroup.
+	wg *sync.WaitGroup
 
-	mtx  sync.Mutex
-	done bool                // Gets set to true once *after* WaitGroup.Done().
-	cb   func(abci.Response) // A single callback that may be set.
+	mtx sync.Mutex
+	abci.Response
+	cb func(abci.Response) // A single callback that may be set.
 }
 
 func NewReqRes(req abci.Request) *ReqRes {
@@ -70,8 +69,7 @@ func NewReqRes(req abci.Request) *ReqRes {
 		wg:       waitGroup1(),
 		Response: nil,
 
-		done: false,
-		cb:   nil,
+		cb: nil,
 	}
 }
 
@@ -82,7 +80,7 @@ func NewReqRes(req abci.Request) *ReqRes {
 func (reqRes *ReqRes) SetCallback(cb func(res abci.Response)) {
 	reqRes.mtx.Lock()
 
-	if reqRes.done {
+	if reqRes.Response != nil {
 		reqRes.mtx.Unlock()
 		cb(reqRes.Response)
 		return
@@ -98,16 +96,24 @@ func (reqRes *ReqRes) GetCallback() func(abci.Response) {
 	return reqRes.cb
 }
 
+// Wait will wait until SetResponse() is called.
 func (reqRes *ReqRes) Wait() {
 	reqRes.wg.Wait()
 }
 
-// NOTE: it should be safe to read reqRes.cb without locks after this.
-func (reqRes *ReqRes) Done() {
+func (reqRes *ReqRes) SetResponse(res abci.Response) {
 	reqRes.mtx.Lock()
-	reqRes.done = true
+	if reqRes.Response != nil {
+		panic("should not happen")
+	}
+	reqRes.Response = res
 	reqRes.mtx.Unlock()
 
+	reqRes.wg.Done()
+}
+
+// NOTE: it should be safe to read reqRes.cb without locks after this.
+func (reqRes *ReqRes) Done() {
 	// Finally, release the hounds.
 	reqRes.wg.Done()
 }

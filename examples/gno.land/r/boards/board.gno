@@ -132,7 +132,7 @@ func (board *Board) GetURLFromThreadAndReplyID(threadID, replyID PostID) string 
 }
 
 func (board *Board) GetPostFormURL() string {
-	return "/r/boards?help&__func=CreatePost" +
+	return "/r/boards?help&__func=CreateThread" +
 		"&bid=" + board.id.String() +
 		"&body.type=textarea"
 }
