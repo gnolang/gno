@@ -207,8 +207,7 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 			//sync error for the first time
 			if errWanted == "isRecord" {
 				if syncWanted {
-					// write output to file.
-					//check tip line
+					//check tip line, write to file
 					ctl := fmt.Sprintf(errstr + "\n*** CHECK THE ERR MESSAGES ABOVE, MAKE SURE IT'S WHAT YOU EXPECTED, DELETE THIS LINE AND RUN TEST AGAIN ***")
 					replaceWantedInPlace(path, "Error", ctl)
 				}

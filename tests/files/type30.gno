@@ -16,4 +16,4 @@ func main() {
 }
 
 // Error:
-// cannot use main.String as string without explicit conversion
+// main/files/type30.gno:15: cannot use main.String as string without explicit conversion

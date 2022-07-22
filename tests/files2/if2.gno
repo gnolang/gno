@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// 7:5: cannot use int as bool
+// main/files2/if2.gno:7: cannot use int as bool

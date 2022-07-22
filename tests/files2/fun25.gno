@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// cannot use string as int
+// main/files2/fun25.gno:3: cannot use string as int

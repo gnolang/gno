@@ -48,4 +48,4 @@ func main() {
 }
 
 // Error:
-// duplicate type main.Bir in type switch
+// main/files2/switch19.gno:34: duplicate type main.Bir in type switch

@@ -8,4 +8,4 @@ func main() {
 }
 
 // Error:
-// package fmt cannot only be referred to in a selector expression
+// main/files/import10.gno:7: package fmt cannot only be referred to in a selector expression

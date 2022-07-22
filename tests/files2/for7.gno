@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// 4:14: cannot use int as bool
+// main/files2/for7.gno:4: cannot use int as bool

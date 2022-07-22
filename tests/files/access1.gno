@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// cannot access gno.land/p/testutils.testVar2 from main
+// main/files/access1.gno:8: cannot access gno.land/p/testutils.testVar2 from main

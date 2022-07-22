@@ -11,4 +11,4 @@ func main() {
 
 // Error:
 // files2/redeclaration-global0.gno:5:5: time redeclared in this block
-//	previous declaration at files2/redeclaration-global0.gno:3:6
+// 	previous declaration at files2/redeclaration-global0.gno:3:6

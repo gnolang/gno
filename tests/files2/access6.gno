@@ -16,4 +16,4 @@ func main() {
 }
 
 // Error:
-// main.mystruct does not implement gno.land/p/testutils.PrivateInterface
+// main/files2/access6.gno:15: main.mystruct does not implement gno.land/p/testutils.PrivateInterface
