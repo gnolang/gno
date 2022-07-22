@@ -196,7 +196,7 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 		// check errors
 		if errWanted != "" {
 			if pnc == nil {
-				panic(fmt.Sprintf("got nil error, want: %q", errWanted))
+				panic(fmt.Sprintf("fail on %s: got nil error, want: %q", path, errWanted))
 			}
 			errstr := ""
 			if tv, ok := pnc.(*gno.TypedValue); ok {
@@ -204,8 +204,21 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 			} else {
 				errstr = strings.TrimSpace(fmt.Sprintf("%v", pnc))
 			}
-			if !strings.Contains(errstr, errWanted) {
-				panic(fmt.Sprintf("got %q, want: %q", errstr, errWanted))
+			//sync error for the first time
+			if errWanted == "isRecord" {
+				if syncWanted {
+					// write output to file.
+					//check tip line
+					ctl := fmt.Sprintf(errstr + "\n*** CHECK THE ERR MESSAGES ABOVE, MAKE SURE IT'S WHAT YOU EXPECTED, DELETE THIS LINE AND RUN TEST AGAIN ***")
+					replaceWantedInPlace(path, "Error", ctl)
+				}
+				panic(fmt.Sprintf("fail on %s: err recorded, check the message and run test again", path))
+			} else {
+				// if !strings.Contains(errstr, errWanted) {
+				if errstr != errWanted {
+					panic(fmt.Sprintf("fail on %s: got %q, want: %q", path, errstr, errWanted))
+
+				}
 			}
 			// NOTE: ignores any gno.GetDebugErrors().
 			gno.ClearDebugErrors()
@@ -213,13 +226,13 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 		} else {
 			if pnc != nil {
 				if tv, ok := pnc.(*gno.TypedValue); ok {
-					panic(fmt.Sprintf("got unexpected error: %s", tv.Sprint(m)))
+					panic(fmt.Sprintf("fail on %s: got unexpected error: %s", path, tv.Sprint(m)))
 				} else { // TODO: does this happen?
-					panic(fmt.Sprintf("got unexpected error: %v", pnc))
+					panic(fmt.Sprintf("fail on %s: got unexpected error: %v", path, pnc))
 				}
 			}
 			if gno.HasDebugErrors() {
-				panic(fmt.Sprintf("got unexpected debug error(s): %v", gno.GetDebugErrors()))
+				panic(fmt.Sprintf("fail on %s: got unexpected debug error(s): %v", path, gno.GetDebugErrors()))
 			}
 		}
 		// check result
@@ -232,9 +245,9 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 			} else {
 				// panic so tests immediately fail (for now).
 				if resWanted == "" {
-					panic(fmt.Sprintf("got unexpected output: %s", res))
+					panic(fmt.Sprintf("fail on %s: got unexpected output: %s", path, res))
 				} else {
-					panic(fmt.Sprintf("got:\n%s\n\nwant:\n%s\n", res, resWanted))
+					panic(fmt.Sprintf("fail on %s: got:\n%s\n\nwant:\n%s\n", path, res, resWanted))
 				}
 			}
 		}
@@ -246,7 +259,7 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 					// write output to file.
 					replaceWantedInPlace(path, "Realm", rops2)
 				} else {
-					panic(fmt.Sprintf("got:\n%s\n\nwant:\n%s\n", rops2, rops))
+					panic(fmt.Sprintf("fail on %s: got:\n%s\n\nwant:\n%s\n", path, rops2, rops))
 				}
 			}
 		}
@@ -258,7 +271,7 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 		if logger != nil {
 			logger("last state: \n", m.String())
 		}
-		panic(fmt.Sprintf("machine not empty after main: %v", err))
+		panic(fmt.Sprintf("fail on %s: machine not empty after main: %v", path, err))
 	}
 	return nil
 }

@@ -14,4 +14,4 @@ func main() {
 }
 
 // Error:
-// payment must not be less than 200
+// payment must not be less than 200000000

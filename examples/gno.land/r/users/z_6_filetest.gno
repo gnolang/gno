@@ -18,4 +18,4 @@ func main() {
 }
 
 // Error:
-// invalid user
+// invalid user g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4
