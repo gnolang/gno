@@ -368,8 +368,7 @@ func TestSerialReap(t *testing.T) {
 
 func TestMempoolCloseWAL(t *testing.T) {
 	// 1. Create the temporary directory for mempool and WAL testing.
-	rootDir, err := ioutil.TempDir("", "mempool-test")
-	require.Nil(t, err, "expecting successful tmpdir creation")
+	rootDir := t.TempDir()
 
 	// 2. Ensure that it doesn't contain any elements -- Sanity check
 	m1, err := filepath.Glob(filepath.Join(rootDir, "*"))

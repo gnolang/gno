@@ -2,8 +2,6 @@ package wal
 
 import (
 	"bytes"
-	"io/ioutil"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -70,16 +68,12 @@ func TestWALWriterReader(t *testing.T) {
 
 const maxTestMsgSize int64 = 64 * 1024
 
-func makeTempWAL(name string, maxMsgSize int64, walChunkSize int64) (wal *baseWAL, cleanup func()) {
+func makeTempWAL(t *testing.T, maxMsgSize int64, walChunkSize int64) (wal *baseWAL) {
 	// Create WAL file.
-	walDir, err := ioutil.TempDir("", "wal_"+name)
-	if err != nil {
-		panic(err)
-	}
-	walFile := filepath.Join(walDir, "wal")
+	walFile := filepath.Join(t.TempDir(), "wal")
 
 	// Create WAL.
-	wal, err = NewWAL(walFile, maxTestMsgSize, auto.GroupHeadSizeLimit(walChunkSize))
+	wal, err := NewWAL(walFile, maxTestMsgSize, auto.GroupHeadSizeLimit(walChunkSize))
 	if err != nil {
 		panic(err)
 	}
@@ -88,23 +82,21 @@ func makeTempWAL(name string, maxMsgSize int64, walChunkSize int64) (wal *baseWA
 		panic(err)
 	}
 
-	cleanup = func() {
+	t.Cleanup(func() {
 		// WAL cleanup.
 		wal.Stop()
 		// wait for the wal to finish shutting down so we
 		// can safely remove the directory
 		wal.Wait()
-		os.RemoveAll(walDir)
-	}
+	})
 
-	return wal, cleanup
+	return wal
 }
 
 func TestWALWrite(t *testing.T) {
 	// Create WAL
 	const walChunkSize = 100000
-	wal, cleanup := makeTempWAL("TestWALWrite", maxTestMsgSize, walChunkSize)
-	defer cleanup()
+	wal := makeTempWAL(t, maxTestMsgSize, walChunkSize)
 
 	// 1) Write returns an error if msg is too big
 	msg := TestMessage{
@@ -131,8 +123,7 @@ func TestWALSearchForHeight(t *testing.T) {
 	if numHeight*numRounds*dataSize < walChunkSize*3 {
 		panic("invalid walChunkSize, it should be an order of magnitude or more smaller than the product")
 	}
-	wal, cleanup := makeTempWAL("TestWALSearchForHeight", maxTestMsgSize, walChunkSize)
-	defer cleanup()
+	wal := makeTempWAL(t, maxTestMsgSize, walChunkSize)
 
 	// Generate WAL messages.
 	for h := 1; h < numHeight; h++ {
@@ -175,8 +166,7 @@ func TestWALPeriodicSync(t *testing.T) {
 	if numHeight*numRounds*dataSize < walChunkSize {
 		panic("invalid walChunkSize, it should be an order of magnitude or more smaller than the product")
 	}
-	wal, cleanup := makeTempWAL("TestWALPeriodSync", maxTestMsgSize, walChunkSize)
-	defer cleanup()
+	wal := makeTempWAL(t, maxTestMsgSize, walChunkSize)
 
 	// Is this needed?
 	wal.SetFlushInterval(walTestFlushInterval)

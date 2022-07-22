@@ -2,28 +2,15 @@ package db
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func cleanupDBDir(dir, name string) {
-	err := os.RemoveAll(filepath.Join(dir, name) + ".db")
-	if err != nil {
-		panic(err)
-	}
-}
-
 func testBackendGetSetDelete(t *testing.T, backend BackendType) {
 	// Default
-	dirname, err := ioutil.TempDir("", fmt.Sprintf("test_backend_%s_", backend))
-	require.Nil(t, err)
-	db := NewDB("testdb", backend, dirname)
-	defer cleanupDBDir(dirname, "testdb")
+	db := NewDB("testdb", backend, t.TempDir())
 
 	// A nonexistent key should return nil, even if the key is empty
 	require.Nil(t, db.Get([]byte("")))
@@ -52,16 +39,16 @@ func testBackendGetSetDelete(t *testing.T, backend BackendType) {
 
 func TestBackendsGetSetDelete(t *testing.T) {
 	for dbType := range backends {
-		testBackendGetSetDelete(t, dbType)
+		t.Run(string(dbType), func(t *testing.T) {
+			testBackendGetSetDelete(t, dbType)
+		})
 	}
 }
 
 func withDB(t *testing.T, creator dbCreator, fn func(DB)) {
 	name := fmt.Sprintf("test_%x", randStr(12))
-	dir := os.TempDir()
-	db, err := creator(name, dir)
+	db, err := creator(name, t.TempDir())
 	require.Nil(t, err)
-	defer cleanupDBDir(dir, name)
 	fn(db)
 	db.Close()
 }
@@ -146,8 +133,7 @@ func TestBackendsNilKeys(t *testing.T) {
 
 func TestGoLevelDBBackend(t *testing.T) {
 	name := fmt.Sprintf("test_%x", randStr(12))
-	db := NewDB(name, GoLevelDBBackend, "")
-	defer cleanupDBDir("", name)
+	db := NewDB(name, GoLevelDBBackend, t.TempDir())
 
 	_, ok := db.(*GoLevelDB)
 	assert.True(t, ok)
@@ -163,9 +149,7 @@ func TestDBIterator(t *testing.T) {
 
 func testDBIterator(t *testing.T, backend BackendType) {
 	name := fmt.Sprintf("test_%x", randStr(12))
-	dir := os.TempDir()
-	db := NewDB(name, backend, dir)
-	defer cleanupDBDir(dir, name)
+	db := NewDB(name, backend, t.TempDir())
 
 	for i := 0; i < 10; i++ {
 		if i != 6 { // but skip 6.

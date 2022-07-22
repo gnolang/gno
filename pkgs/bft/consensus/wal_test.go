@@ -1,8 +1,6 @@
 package consensus
 
 import (
-	"io/ioutil"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -24,16 +22,12 @@ const (
 
 const maxTestMsgSize int64 = 64 * 1024
 
-func makeTempWAL(name string, maxMsgSize int64, walChunkSize int64) (wal walm.WAL, cleanup func()) {
+func makeTempWAL(t *testing.T, maxMsgSize int64, walChunkSize int64) (wal walm.WAL) {
 	// Create WAL file.
-	walDir, err := ioutil.TempDir("", "wal_"+name)
-	if err != nil {
-		panic(err)
-	}
-	walFile := filepath.Join(walDir, "wal")
+	walFile := filepath.Join(t.TempDir(), "wal")
 
 	// Create WAL.
-	wal, err = walm.NewWAL(walFile, maxTestMsgSize, auto.GroupHeadSizeLimit(walChunkSize))
+	wal, err := walm.NewWAL(walFile, maxTestMsgSize, auto.GroupHeadSizeLimit(walChunkSize))
 	if err != nil {
 		panic(err)
 	}
@@ -42,16 +36,15 @@ func makeTempWAL(name string, maxMsgSize int64, walChunkSize int64) (wal walm.WA
 		panic(err)
 	}
 
-	cleanup = func() {
+	t.Cleanup(func() {
 		// WAL cleanup.
 		wal.Stop()
 		// wait for the wal to finish shutting down so we
 		// can safely remove the directory
 		wal.Wait()
-		os.RemoveAll(walDir)
-	}
+	})
 
-	return wal, cleanup
+	return wal
 }
 
 // end copy from wal/wal_test.go
@@ -60,8 +53,7 @@ func makeTempWAL(name string, maxMsgSize int64, walChunkSize int64) (wal walm.WA
 func TestWALTruncate(t *testing.T) {
 	const maxTestMsgSize = 1024 * 1024 // 1MB
 	const walChunkSize = 409610        // 4KB
-	wal, cleanup := makeTempWAL("TestWALTruncate", maxTestMsgSize, walChunkSize)
-	defer cleanup()
+	wal := makeTempWAL(t, maxTestMsgSize, walChunkSize)
 
 	wal.SetLogger(log.TestingLogger())
 
