@@ -59,7 +59,7 @@ func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAll
 }
 
 func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc) error {
-	pkgPath, resWanted, errWanted, rops, maxAlloc, send := wantedFromComment(path)
+	directives, pkgPath, resWanted, errWanted, rops, maxAlloc, send := wantedFromComment(path)
 	if pkgPath == "" {
 		pkgPath = "main"
 	}
@@ -193,73 +193,80 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 				}
 			}
 		}()
-		// check errors
-		if errWanted != "" {
-			if pnc == nil {
-				panic(fmt.Sprintf("fail on %s: got nil error, want: %q", path, errWanted))
-			}
-			errstr := ""
-			if tv, ok := pnc.(*gno.TypedValue); ok {
-				errstr = tv.Sprint(m)
-			} else {
-				errstr = strings.TrimSpace(fmt.Sprintf("%v", pnc))
-			}
-			//sync error for the first time
-			if errWanted == "isRecord" {
-				if syncWanted {
-					//check tip line, write to file
-					ctl := fmt.Sprintf(errstr + "\n*** CHECK THE ERR MESSAGES ABOVE, MAKE SURE IT'S WHAT YOU EXPECTED, DELETE THIS LINE AND RUN TEST AGAIN ***")
-					replaceWantedInPlace(path, "Error", ctl)
-				}
-				panic(fmt.Sprintf("fail on %s: err recorded, check the message and run test again", path))
-			} else {
-				// if !strings.Contains(errstr, errWanted) {
-				if errstr != errWanted {
-					panic(fmt.Sprintf("fail on %s: got %q, want: %q", path, errstr, errWanted))
 
-				}
-			}
-			// NOTE: ignores any gno.GetDebugErrors().
-			gno.ClearDebugErrors()
-			return nil // nothing more to do.
-		} else {
-			if pnc != nil {
-				if tv, ok := pnc.(*gno.TypedValue); ok {
-					panic(fmt.Sprintf("fail on %s: got unexpected error: %s", path, tv.Sprint(m)))
-				} else { // TODO: does this happen?
-					panic(fmt.Sprintf("fail on %s: got unexpected error: %v", path, pnc))
-				}
-			}
-			if gno.HasDebugErrors() {
-				panic(fmt.Sprintf("fail on %s: got unexpected debug error(s): %v", path, gno.GetDebugErrors()))
-			}
-		}
-		// check result
-		res := strings.TrimSpace(stdout.String())
-		res = trimTrailingSpaces(res)
-		if res != resWanted {
-			if syncWanted {
-				// write output to file.
-				replaceWantedInPlace(path, "Output", res)
-			} else {
-				// panic so tests immediately fail (for now).
-				if resWanted == "" {
-					panic(fmt.Sprintf("fail on %s: got unexpected output: %s", path, res))
+		for _, directive := range directives {
+			switch directive {
+			case "Error":
+				// errWanted given
+				if errWanted != "" {
+					if pnc == nil {
+						panic(fmt.Sprintf("fail on %s: got nil error, want: %q", path, errWanted))
+					}
+					errstr := ""
+					if tv, ok := pnc.(*gno.TypedValue); ok {
+						errstr = tv.Sprint(m)
+					} else {
+						errstr = strings.TrimSpace(fmt.Sprintf("%v", pnc))
+					}
+					if errstr != errWanted {
+						panic(fmt.Sprintf("fail on %s: got %q, want: %q", path, errstr, errWanted))
+					}
+					// NOTE: ignores any gno.GetDebugErrors().
+					gno.ClearDebugErrors()
+					return nil // nothing more to do.
 				} else {
-					panic(fmt.Sprintf("fail on %s: got:\n%s\n\nwant:\n%s\n", path, res, resWanted))
+					// record errors when errWanted is empty and pnc not nil
+					if pnc != nil {
+						errstr := ""
+						if tv, ok := pnc.(*gno.TypedValue); ok {
+							errstr = tv.Sprint(m)
+						} else {
+							errstr = strings.TrimSpace(fmt.Sprintf("%v", pnc))
+						}
+						//check tip line, write to file
+						ctl := fmt.Sprintf(errstr + "\n*** CHECK THE ERR MESSAGES ABOVE, MAKE SURE IT'S WHAT YOU EXPECTED, DELETE THIS LINE AND RUN TEST AGAIN ***")
+						replaceWantedInPlace(path, "Error", ctl)
+						panic(fmt.Sprintf("fail on %s: err recorded, check the message and run test again", path))
+					}
+					// check gno debug errors when errWanted is empty, pnc is nil
+					if gno.HasDebugErrors() {
+						panic(fmt.Sprintf("fail on %s: got unexpected debug error(s): %v", path, gno.GetDebugErrors()))
+					}
+					// pnc is nil, errWanted empty, no gno debug errors
+					return nil
 				}
-			}
-		}
-		// check realm ops
-		if rops != "" {
-			rops2 := strings.TrimSpace(store.SprintStoreOps())
-			if rops != rops2 {
-				if syncWanted {
-					// write output to file.
-					replaceWantedInPlace(path, "Realm", rops2)
-				} else {
-					panic(fmt.Sprintf("fail on %s: got:\n%s\n\nwant:\n%s\n", path, rops2, rops))
+			case "Output":
+				// check result
+				res := strings.TrimSpace(stdout.String())
+				res = trimTrailingSpaces(res)
+				if res != resWanted {
+					if syncWanted {
+						// write output to file.
+						replaceWantedInPlace(path, "Output", res)
+					} else {
+						// panic so tests immediately fail (for now).
+						if resWanted == "" {
+							panic(fmt.Sprintf("fail on %s: got unexpected output: %s", path, res))
+						} else {
+							panic(fmt.Sprintf("fail on %s: got:\n%s\n\nwant:\n%s\n", path, res, resWanted))
+						}
+					}
 				}
+			case "Realm":
+				// check realm ops
+				if rops != "" {
+					rops2 := strings.TrimSpace(store.SprintStoreOps())
+					if rops != rops2 {
+						if syncWanted {
+							// write output to file.
+							replaceWantedInPlace(path, "Realm", rops2)
+						} else {
+							panic(fmt.Sprintf("fail on %s: got:\n%s\n\nwant:\n%s\n", path, rops2, rops))
+						}
+					}
+				}
+			default:
+				return nil
 			}
 		}
 	}
@@ -275,7 +282,7 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 	return nil
 }
 
-func wantedFromComment(p string) (pkgPath, res, err, rops string, maxAlloc int64, send std.Coins) {
+func wantedFromComment(p string) (directives []string, pkgPath, res, err, rops string, maxAlloc int64, send std.Coins) {
 	fset := token.NewFileSet()
 	f, err2 := parser.ParseFile(fset, p, nil, parser.ParseComments)
 	if err2 != nil {
@@ -304,6 +311,7 @@ func wantedFromComment(p string) (pkgPath, res, err, rops string, maxAlloc int64
 		} else if strings.HasPrefix(text, "Output:\n") {
 			res = strings.TrimPrefix(text, "Output:\n")
 			res = strings.TrimSpace(res)
+			directives = append(directives, "Output")
 		} else if strings.HasPrefix(text, "Error:\n") {
 			err = strings.TrimPrefix(text, "Error:\n")
 			err = strings.TrimSpace(err)
@@ -311,9 +319,11 @@ func wantedFromComment(p string) (pkgPath, res, err, rops string, maxAlloc int64
 			// If error starts with line:column, trim it.
 			re := regexp.MustCompile(`^[0-9]+:[0-9]+: `)
 			err = re.ReplaceAllString(err, "")
+			directives = append(directives, "Error")
 		} else if strings.HasPrefix(text, "Realm:\n") {
 			rops = strings.TrimPrefix(text, "Realm:\n")
 			rops = strings.TrimSpace(rops)
+			directives = append(directives, "Realm")
 		} else {
 			// ignore unexpected.
 		}
