@@ -236,6 +236,14 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 					return nil
 				}
 			case "Output":
+				// panic if got unexpected error
+				if pnc != nil {
+					if tv, ok := pnc.(*gno.TypedValue); ok {
+						panic(fmt.Sprintf("fail on %s: got unexpected error: %s", path, tv.Sprint(m)))
+					} else { // TODO: does this happen?
+						panic(fmt.Sprintf("fail on %s: got unexpected error: %v", path, pnc))
+					}
+				}
 				// check result
 				res := strings.TrimSpace(stdout.String())
 				res = trimTrailingSpaces(res)
@@ -253,6 +261,14 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 					}
 				}
 			case "Realm":
+				// panic if got unexpected error
+				if pnc != nil {
+					if tv, ok := pnc.(*gno.TypedValue); ok {
+						panic(fmt.Sprintf("fail on %s: got unexpected error: %s", path, tv.Sprint(m)))
+					} else { // TODO: does this happen?
+						panic(fmt.Sprintf("fail on %s: got unexpected error: %v", path, pnc))
+					}
+				}
 				// check realm ops
 				if rops != "" {
 					rops2 := strings.TrimSpace(store.SprintStoreOps())

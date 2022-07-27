@@ -52,7 +52,7 @@ func TestMain(t *testing.T) {
 		{args: []string{"test", "../../tests/integ/valid2"}, stderrShouldContain: "ok "},
 		{args: []string{"test", "../../tests/integ/valid2", "--verbose"}, stderrShouldContain: "ok "},
 		{args: []string{"test", "../../tests/integ/failing1", "--verbose"}, errShouldBe: "FAIL: 1 go test errors", stderrShouldContain: "FAIL: TestAlwaysFailing"},
-		{args: []string{"test", "../../tests/integ/failing2", "--verbose"}, stderrShouldBe: "=== RUN   file/failing_filetest.gno\n", recoverShouldBe: "got unexpected error: beep boop"}, // FIXME: should fail
+		{args: []string{"test", "../../tests/integ/failing2", "--verbose"}, stderrShouldBe: "=== RUN   file/failing_filetest.gno\n", recoverShouldBe: "fail on ../../tests/integ/failing2/failing_filetest.gno: got unexpected error: beep boop"}, // FIXME: should fail
 
 		// test opts
 		{args: []string{"test", "../../examples/gno.land/p/ufmt"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/ufmt"},
