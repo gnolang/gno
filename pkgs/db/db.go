@@ -37,6 +37,16 @@ const (
 	//   - requires gcc
 	//   - use rocksdb build tag (go build -tags rocksdb)
 	RocksDBBackend BackendType = "rocksdb"
+	// RocksDBBackend represents rocksdb (uses github.com/linxGnu/gorocksdb)
+	//   - EXPERIMENTAL
+	//   - requires gcc
+	//   - use rocksdb build tag (go build -tags rocksdb)
+	GrocksDBBackend BackendType = "grocksdb"
+	// PebbleDBBackend represents pebbledb (github.com/cockroachdb/pebble)
+	//  - Because of performance and lack of cgo, should likely become default instead of goleveldb
+	//  - Faster than rocks or grocks
+	//  - Easier to implement and maintain because pure go
+	PebbleDBBackend BackendType = "pebbledb"
 )
 
 type dbCreator func(name string, dir string) (DB, error)
