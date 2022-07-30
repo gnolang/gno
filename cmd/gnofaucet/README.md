@@ -5,8 +5,9 @@ If you have imported the test1 key skip to Step2
 
     ./build/gnokey add test1 --recover
 
-- At prompt, input and confirm your password to protect the imported private key
-- Copy and paste the following mnemonic
+At prompt, input and confirm your password to protect the imported private key.
+
+Copy and paste the following mnemonic.
 
     source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast
 
