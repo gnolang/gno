@@ -12,4 +12,4 @@ func main() {
 
 // Error:
 // files2/redeclaration2.gno:8:6: foo redeclared in this block
-//	previous declaration at files2/redeclaration2.gno:4:6
+// 	previous declaration at files2/redeclaration2.gno:4:6

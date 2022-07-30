@@ -14,4 +14,4 @@ func main() {
 }
 
 // Error:
-// incompatible types in binary expression: err<VPBlock(2,0)> GTR invalidT<VPBlock(4,2)>
+// main/files2/op7.gno:11: incompatible types in binary expression: err<VPBlock(2,0)> GTR invalidT<VPBlock(4,2)>

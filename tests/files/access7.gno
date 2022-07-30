@@ -20,4 +20,4 @@ func main() {
 }
 
 // Error:
-// main.PrivateInterface2 does not implement gno.land/p/testutils.PrivateInterface
+// main/files/access7.gno:19: main.PrivateInterface2 does not implement gno.land/p/testutils.PrivateInterface

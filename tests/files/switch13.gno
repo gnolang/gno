@@ -14,4 +14,4 @@ func main() {
 }
 
 // Error:
-// i<VPBlock(2,0)> is not a type
+// main/files/switch13.gno:0#1: i<VPBlock(2,0)> is not a type
