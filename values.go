@@ -3,6 +3,7 @@ package gno
 import (
 	"encoding/binary"
 	"fmt"
+	"math"
 	"math/big"
 	"reflect"
 	"strconv"
@@ -981,6 +982,18 @@ func (tv *TypedValue) PrimitiveBytes() (data []byte) {
 		binary.LittleEndian.PutUint64(
 			data, uint64(tv.GetUint()))
 		return data
+	case Float32Type:
+		data = make([]byte, 4)
+		u32 := math.Float32bits(tv.GetFloat32())
+		binary.LittleEndian.PutUint32(
+			data, uint32(u32))
+		return data
+	case Float64Type:
+		data = make([]byte, 8)
+		u64 := math.Float64bits(tv.GetFloat64())
+		binary.LittleEndian.PutUint64(
+			data, uint64(u64))
+		return data
 	case BigintType:
 		return tv.V.(BigintValue).V.Bytes()
 	default:
@@ -1299,6 +1312,50 @@ func (tv *TypedValue) GetUint64() uint64 {
 		}
 	}
 	return *(*uint64)(unsafe.Pointer(&tv.N))
+}
+
+func (tv *TypedValue) SetFloat32(n float32) {
+	if debug {
+		if tv.T.Kind() != Float32Kind || isNative(tv.T) {
+			panic(fmt.Sprintf(
+				"TypedValue.SetFloat32() on type %s",
+				tv.T.String()))
+		}
+	}
+	*(*float32)(unsafe.Pointer(&tv.N)) = n
+}
+
+func (tv *TypedValue) GetFloat32() float32 {
+	if debug {
+		if tv.T != nil && tv.T.Kind() != Float32Kind {
+			panic(fmt.Sprintf(
+				"TypedValue.GetFloat32() on type %s",
+				tv.T.String()))
+		}
+	}
+	return *(*float32)(unsafe.Pointer(&tv.N))
+}
+
+func (tv *TypedValue) SetFloat64(n float64) {
+	if debug {
+		if tv.T.Kind() != Float64Kind || isNative(tv.T) {
+			panic(fmt.Sprintf(
+				"TypedValue.SetFloat64() on type %s",
+				tv.T.String()))
+		}
+	}
+	*(*float64)(unsafe.Pointer(&tv.N)) = n
+}
+
+func (tv *TypedValue) GetFloat64() float64 {
+	if debug {
+		if tv.T != nil && tv.T.Kind() != Float64Kind {
+			panic(fmt.Sprintf(
+				"TypedValue.GetFloat64() on type %s",
+				tv.T.String()))
+		}
+	}
+	return *(*float64)(unsafe.Pointer(&tv.N))
 }
 
 func (tv *TypedValue) GetBig() *big.Int {

@@ -95,6 +95,8 @@ const (
 	Uint16Type
 	Uint32Type
 	Uint64Type
+	Float32Type
+	Float64Type
 	// UintptrType
 	UntypedBigintType
 	BigintType
@@ -134,6 +136,10 @@ func (pt PrimitiveType) Specificity() int {
 	case Uint32Type:
 		return 0
 	case Uint64Type:
+		return 0
+	case Float32Type:
+		return 0
+	case Float64Type:
 		return 0
 	case BigintType:
 		return 1
@@ -178,6 +184,10 @@ func (pt PrimitiveType) Kind() Kind {
 		return Uint32Kind
 	case Uint64Type:
 		return Uint64Kind
+	case Float32Type:
+		return Float32Kind
+	case Float64Type:
+		return Float64Kind
 	case BigintType, UntypedBigintType:
 		return BigintKind
 	default:
@@ -222,6 +232,10 @@ func (pt PrimitiveType) TypeID() TypeID {
 		return typeid("uint32")
 	case Uint64Type:
 		return typeid("uint64")
+	case Float32Type:
+		return typeid("float32")
+	case Float64Type:
+		return typeid("float64")
 	case UntypedBigintType:
 		return typeid("<untyped> bigint")
 	case BigintType:
@@ -267,6 +281,10 @@ func (pt PrimitiveType) String() string {
 		return string("uint32")
 	case Uint64Type:
 		return string("uint64")
+	case Float32Type:
+		return string("float32")
+	case Float64Type:
+		return string("float64")
 	case UntypedBigintType:
 		return string("<untyped> bigint")
 	case BigintType:
@@ -1912,45 +1930,6 @@ func (mn MaybeNativeType) GetPkgPath() string {
 }
 
 //----------------------------------------
-// Float32 and Float64
-
-var (
-	Float32Type *StructType
-	Float64Type *StructType
-)
-
-// NOTE: this path is used to identify the struct type as a Float64.
-const (
-	float32PkgPath = uversePkgPath + "#float32"
-	float64PkgPath = uversePkgPath + "#float64"
-)
-
-func init() {
-	Float32Type = &StructType{
-		PkgPath: float32PkgPath,
-		Fields: []FieldType{
-			{
-				Name:     "Value",
-				Type:     Uint32Type,
-				Embedded: false,
-				Tag:      "",
-			},
-		},
-	}
-	Float64Type = &StructType{
-		PkgPath: float64PkgPath,
-		Fields: []FieldType{
-			{
-				Name:     "Value",
-				Type:     Uint64Type,
-				Embedded: false,
-				Tag:      "",
-			},
-		},
-	}
-}
-
-//----------------------------------------
 // Kind
 
 type Kind uint
@@ -1969,6 +1948,8 @@ const (
 	Uint16Kind
 	Uint32Kind
 	Uint64Kind
+	Float32Kind
+	Float64Kind
 	BigintKind // not in go.
 	// UintptrKind
 	ArrayKind
@@ -2018,6 +1999,10 @@ func KindOf(t Type) Kind {
 			return Uint32Kind
 		case Uint64Type:
 			return Uint64Kind
+		case Float32Type:
+			return Float32Kind
+		case Float64Type:
+			return Float64Kind
 		case BigintType, UntypedBigintType:
 			return BigintKind
 		default:
@@ -2201,6 +2186,10 @@ func fillEmbeddedName(ft *FieldType) {
 			ft.Name = Name("uint32")
 		case Uint64Type:
 			ft.Name = Name("uint64")
+		case Float32Type:
+			ft.Name = Name("float32")
+		case Float64Type:
+			ft.Name = Name("float64")
 		case BigintType:
 			ft.Name = Name("bigint")
 		default:

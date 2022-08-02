@@ -51,6 +51,8 @@ var stdlibWhitelist = []string{
 	"sort",
 	"strconv",
 	"strings",
+	"sync",
+	"sync/atomic",
 	"text/template",
 	"unicode/utf8",
 
