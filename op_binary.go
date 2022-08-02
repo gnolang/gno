@@ -379,6 +379,10 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 		return (lv.GetUint32() == rv.GetUint32())
 	case Uint64Kind:
 		return (lv.GetUint64() == rv.GetUint64())
+	case Float32Kind:
+		return (lv.GetFloat32() == rv.GetFloat32()) // XXX determinism?
+	case Float64Kind:
+		return (lv.GetFloat64() == rv.GetFloat64()) // XXX determinism?
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
@@ -500,6 +504,10 @@ func isLss(lv, rv *TypedValue) bool {
 		return (lv.GetUint32() < rv.GetUint32())
 	case Uint64Kind:
 		return (lv.GetUint64() < rv.GetUint64())
+	case Float32Kind:
+		return (lv.GetFloat32() < rv.GetFloat32()) // XXX determinism?
+	case Float64Kind:
+		return (lv.GetFloat64() < rv.GetFloat64()) // XXX determinism?
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
@@ -536,6 +544,10 @@ func isLeq(lv, rv *TypedValue) bool {
 		return (lv.GetUint32() <= rv.GetUint32())
 	case Uint64Kind:
 		return (lv.GetUint64() <= rv.GetUint64())
+	case Float32Kind:
+		return (lv.GetFloat32() <= rv.GetFloat32()) // XXX determinism?
+	case Float64Kind:
+		return (lv.GetFloat64() <= rv.GetFloat64()) // XXX determinism?
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
@@ -572,6 +584,10 @@ func isGtr(lv, rv *TypedValue) bool {
 		return (lv.GetUint32() > rv.GetUint32())
 	case Uint64Kind:
 		return (lv.GetUint64() > rv.GetUint64())
+	case Float32Kind:
+		return (lv.GetFloat32() > rv.GetFloat32()) // XXX determinism?
+	case Float64Kind:
+		return (lv.GetFloat64() > rv.GetFloat64()) // XXX determinism?
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
@@ -608,6 +624,10 @@ func isGeq(lv, rv *TypedValue) bool {
 		return (lv.GetUint32() >= rv.GetUint32())
 	case Uint64Kind:
 		return (lv.GetUint64() >= rv.GetUint64())
+	case Float32Kind:
+		return (lv.GetFloat32() >= rv.GetFloat32()) // XXX determinism?
+	case Float64Kind:
+		return (lv.GetFloat64() >= rv.GetFloat64()) // XXX determinism?
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
@@ -649,6 +669,12 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 		lv.SetUint32(lv.GetUint32() + rv.GetUint32())
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() + rv.GetUint64())
+	case Float32Type:
+		// NOTE: gno doesn't fuse *+.
+		lv.SetFloat32(lv.GetFloat32() + rv.GetFloat32()) // XXX determinsm?
+	case Float64Type:
+		// NOTE: gno doesn't fuse *+.
+		lv.SetFloat64(lv.GetFloat64() + rv.GetFloat64()) // XXX determinism?
 	case BigintType, UntypedBigintType:
 		lb := lv.GetBig()
 		lb = big.NewInt(0).Add(lb, rv.GetBig())
@@ -688,6 +714,12 @@ func subAssign(lv, rv *TypedValue) {
 		lv.SetUint32(lv.GetUint32() - rv.GetUint32())
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() - rv.GetUint64())
+	case Float32Type:
+		// NOTE: gno doesn't fuse *+.
+		lv.SetFloat32(lv.GetFloat32() - rv.GetFloat32()) // XXX determinism?
+	case Float64Type:
+		// NOTE: gno doesn't fuse *+.
+		lv.SetFloat64(lv.GetFloat64() - rv.GetFloat64()) // XXX determinism?
 	case BigintType, UntypedBigintType:
 		lb := lv.GetBig()
 		lb = big.NewInt(0).Sub(lb, rv.GetBig())
@@ -727,6 +759,12 @@ func mulAssign(lv, rv *TypedValue) {
 		lv.SetUint32(lv.GetUint32() * rv.GetUint32())
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() * rv.GetUint64())
+	case Float32Type:
+		// NOTE: gno doesn't fuse *+.
+		lv.SetFloat32(lv.GetFloat32() * rv.GetFloat32()) // XXX determinism?
+	case Float64Type:
+		// NOTE: gno doesn't fuse *+.
+		lv.SetFloat64(lv.GetFloat64() * rv.GetFloat64()) // XXX determinism?
 	case BigintType, UntypedBigintType:
 		lb := lv.GetBig()
 		lb = big.NewInt(0).Mul(lb, rv.GetBig())
@@ -766,6 +804,14 @@ func quoAssign(lv, rv *TypedValue) {
 		lv.SetUint32(lv.GetUint32() / rv.GetUint32())
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() / rv.GetUint64())
+	case Float32Type:
+		// NOTE: gno doesn't fuse *+.
+		lv.SetFloat32(lv.GetFloat32() / rv.GetFloat32())
+		// XXX FOR DETERMINISM, PANIC IF NAN.
+	case Float64Type:
+		// NOTE: gno doesn't fuse *+.
+		lv.SetFloat64(lv.GetFloat64() / rv.GetFloat64())
+		// XXX FOR DETERMINISM, PANIC IF NAN.
 	case BigintType, UntypedBigintType:
 		lb := lv.GetBig()
 		lb = big.NewInt(0).Quo(lb, rv.GetBig())
