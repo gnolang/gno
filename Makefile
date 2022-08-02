@@ -134,7 +134,7 @@ test.examples:
 
 # Code gen
 stringer:
-	stringer -type=Op
+	stringer -type=Kind,Op,TransCtrl,TransField,VPType,Word
 
 genproto:
 	rm -rf proto/*
