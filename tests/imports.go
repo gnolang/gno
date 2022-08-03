@@ -112,6 +112,8 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			pkg.DefineGoNativeValue("Fprint", fmt.Fprint)
 			return pkg, pkg.NewPackage()
 		case "encoding/base64":
+			// NOTE: As packages are implemented in stdlibs,
+			// return conditionally on nativeLibs like so.
 			if nativeLibs {
 				pkg := gno.NewPackageNode("base64", pkgPath, nil)
 				pkg.DefineGoNativeValue("RawStdEncoding", base64.RawStdEncoding)
@@ -172,19 +174,22 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				return pkg, pkg.NewPackage()
 			}
 		case "time":
-			pkg := gno.NewPackageNode("time", pkgPath, nil)
-			pkg.DefineGoNativeValue("Date", time.Date)
-			pkg.DefineGoNativeValue("Second", time.Second)
-			pkg.DefineGoNativeValue("Minute", time.Minute)
-			pkg.DefineGoNativeValue("Hour", time.Hour)
-			pkg.DefineGoNativeValue("Now", func() time.Time { return time.Unix(0, 0).UTC() }) // deterministic
-			pkg.DefineGoNativeValue("November", time.November)
-			pkg.DefineGoNativeValue("UTC", time.UTC)
-			pkg.DefineGoNativeValue("Unix", time.Unix)
-			pkg.DefineGoNativeType(reflect.TypeOf(time.Time{}))
-			pkg.DefineGoNativeType(reflect.TypeOf(time.Month(0)))
-			pkg.DefineGoNativeType(reflect.TypeOf(time.Duration(0)))
-			return pkg, pkg.NewPackage()
+			if true || nativeLibs {
+				pkg := gno.NewPackageNode("time", pkgPath, nil)
+				pkg.DefineGoNativeValue("Date", time.Date)
+				pkg.DefineGoNativeValue("Millisecond", time.Millisecond)
+				pkg.DefineGoNativeValue("Second", time.Second)
+				pkg.DefineGoNativeValue("Minute", time.Minute)
+				pkg.DefineGoNativeValue("Hour", time.Hour)
+				pkg.DefineGoNativeValue("Now", func() time.Time { return time.Unix(0, 0).UTC() }) // deterministic
+				pkg.DefineGoNativeValue("November", time.November)
+				pkg.DefineGoNativeValue("UTC", time.UTC)
+				pkg.DefineGoNativeValue("Unix", time.Unix)
+				pkg.DefineGoNativeType(reflect.TypeOf(time.Time{}))
+				pkg.DefineGoNativeType(reflect.TypeOf(time.Month(0)))
+				pkg.DefineGoNativeType(reflect.TypeOf(time.Duration(0)))
+				return pkg, pkg.NewPackage()
+			}
 		case "strings":
 			if nativeLibs {
 				pkg := gno.NewPackageNode("strings", pkgPath, nil)
