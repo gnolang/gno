@@ -214,8 +214,14 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 			return fmt.Sprintf("%d", tv.GetUint32())
 		case Uint64Type:
 			return fmt.Sprintf("%d", tv.GetUint64())
+		case Float32Type:
+			return fmt.Sprintf("%v", tv.GetFloat32())
+		case Float64Type:
+			return fmt.Sprintf("%v", tv.GetFloat64())
 		case UntypedBigintType, BigintType:
 			return tv.V.(BigintValue).V.String()
+		case UntypedBigdecType, BigdecType:
+			return tv.V.(BigdecValue).V.String()
 		default:
 			panic("should not happen")
 		}
@@ -314,6 +320,10 @@ func (tv TypedValue) String() string {
 			vs = fmt.Sprintf("%d", tv.GetUint32())
 		case Uint64Type:
 			vs = fmt.Sprintf("%d", tv.GetUint64())
+		case Float32Type:
+			vs = fmt.Sprintf("%v", tv.GetFloat32())
+		case Float64Type:
+			vs = fmt.Sprintf("%v", tv.GetFloat64())
 		default:
 			vs = "nil"
 		}

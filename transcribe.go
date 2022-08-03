@@ -21,6 +21,7 @@ const (
 const (
 	TRANS_ENTER TransStage = iota
 	TRANS_BLOCK
+	TRANS_BLOCK2
 	TRANS_LEAVE
 )
 
@@ -602,6 +603,14 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		cnn.X = transcribe(t, nns, TRANS_SWITCH_X, 0, cnn.X, &c).(Expr)
 		if isStopOrSkip(nc, c) {
 			return
+		}
+		// NOTE: special block case for after .Init and .X.
+		cnn2, c2 = t(ns, ftype, index, cnn, TRANS_BLOCK2)
+		if isStopOrSkip(nc, c2) {
+			nn = cnn2
+			return
+		} else {
+			cnn = cnn2.(*SwitchStmt)
 		}
 		for idx := range cnn.Clauses {
 			cnn.Clauses[idx] = *transcribe(t, nns, TRANS_SWITCH_CASE, idx, &cnn.Clauses[idx], &c).(*SwitchClauseStmt)

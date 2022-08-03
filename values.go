@@ -1628,7 +1628,12 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 			panic("should not happen")
 		}
 	case VPDerefValMethod:
-		dtv = tv.V.(PointerValue).TV
+		dtv2 := tv.V.(PointerValue).TV
+		dtv = &TypedValue{ // In case method is called on converted type, like ((*othertype)x).Method().
+			T: tv.T.Elem(),
+			V: dtv2.V,
+			N: dtv2.N,
+		}
 		isPtr = true
 		path.Type = VPValMethod
 	case VPDerefPtrMethod:

@@ -58,7 +58,7 @@ const (
 	ImportModeNativePreferred
 )
 
-// ImportModeStdlibsOnly: use stdlibs/* only. for stdlibs/* and examples/* testing, and for production.
+// ImportModeStdlibsOnly: use stdlibs/* only (except fmt). for stdlibs/* and examples/* testing.
 // ImportModeStdlibsPreferred: use stdlibs/* if present, otherwise use native. for files/tests2/*.
 // ImportModeNativePreferred: do not use stdlibs/* if native registered. for files/tests/*.
 // NOTE: this isn't safe, should only be used for testing.
@@ -98,7 +98,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			if osm.DirExists(stdlibPath) {
 				memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-					PkgPath: "test",
+					PkgPath: pkgPath,
 					Output:  stdout,
 					Store:   store,
 				})
@@ -107,7 +107,20 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 		}
 
 		// if native package is allowed, return it.
-		if mode == ImportModeStdlibsPreferred ||
+		if pkgPath == "os" || // special cases even when StdlibsOnly (for tests).
+			pkgPath == "fmt" || // TODO: try to minimize these exceptions over time.
+			pkgPath == "log" ||
+			pkgPath == "crypto/rand" ||
+			pkgPath == "crypto/md5" ||
+			pkgPath == "crypto/sha1" ||
+			pkgPath == "encoding/base64" ||
+			pkgPath == "encoding/binary" ||
+			pkgPath == "encoding/json" ||
+			pkgPath == "encoding/xml" ||
+			pkgPath == "math" ||
+			pkgPath == "math/big" ||
+			pkgPath == "math/rand" ||
+			mode == ImportModeStdlibsPreferred ||
 			mode == ImportModeNativePreferred {
 			switch pkgPath {
 			case "os":
@@ -374,7 +387,8 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 					Output:  stdout,
 					Store:   store,
 				})
-				return m2.RunMemPackage(memPkg, true)
+				pn, pv = m2.RunMemPackage(memPkg, true)
+				return
 			}
 		}
 
@@ -387,7 +401,8 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				Output:  stdout,
 				Store:   store,
 			})
-			return m2.RunMemPackage(memPkg, true)
+			pn, pv = m2.RunMemPackage(memPkg, true)
+			return
 		}
 		return nil, nil
 	}

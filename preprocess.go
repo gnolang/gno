@@ -392,11 +392,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// SwitchClauseStmt:TRANS_BLOCK.
 					last.Define(n.VarName, anyValue(nil))
 				}
-				// Preprocess and convert tag if const.
-				if n.X != nil {
-					n.X = Preprocess(store, last, n.X).(Expr)
-					convertIfConst(store, last, n.X)
-				}
 
 			// TRANS_BLOCK -----------------------
 			case *SwitchClauseStmt:
@@ -412,7 +407,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				if ss.IsTypeSwitch {
 					if len(n.Cases) == 0 {
 						// evaluate default case.
-						if 0 < len(ss.VarName) {
+						if ss.VarName != "" {
 							// The type is the tag type.
 							tt := evalStaticTypeOf(store, last, ss.X)
 							last.Define(
@@ -435,7 +430,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							}
 							n.Cases[i] = constType(cx, ct)
 							// maybe type-switch def.
-							if 0 < len(ss.VarName) {
+							if ss.VarName != "" {
 								if len(n.Cases) == 1 {
 									// If there is only 1 case, the
 									// define applies with type.
@@ -580,6 +575,24 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_BLOCK -----------------------
 			default:
 				panic("should not happen")
+			}
+			return n, TRANS_CONTINUE
+
+		//----------------------------------------
+		case TRANS_BLOCK2:
+
+			// The main TRANS_BLOCK2 switch.
+			switch n := n.(type) {
+
+			// TRANS_BLOCK2 -----------------------
+			case *SwitchStmt:
+
+				// NOTE: TRANS_BLOCK2 ensures after .Init.
+				// Preprocess and convert tag if const.
+				if n.X != nil {
+					n.X = Preprocess(store, last, n.X).(Expr)
+					convertIfConst(store, last, n.X)
+				}
 			}
 			return n, TRANS_CONTINUE
 

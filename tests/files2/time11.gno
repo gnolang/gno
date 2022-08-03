@@ -8,8 +8,9 @@ import (
 const df = time.Minute * 30
 
 func main() {
+	println(df)
 	fmt.Printf("df: %v %T\n", df, df)
 }
 
 // Output:
-// df: 30m0s time.Duration
+// df: 1800000000000 int64

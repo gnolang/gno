@@ -124,6 +124,8 @@ func (n IndexExpr) String() string {
 }
 
 func (n SelectorExpr) String() string {
+	// NOTE: for debugging selector issues:
+	// return fmt.Sprintf("%s.(%v).%s", n.X, n.Path.Type, n.Sel)
 	return fmt.Sprintf("%s.%s", n.X, n.Sel)
 }
 

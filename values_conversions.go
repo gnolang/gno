@@ -962,7 +962,7 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 	switch k {
 	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind:
 	case UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
-	case StringKind:
+	case StringKind, BigintKind, BigdecKind:
 	default:
 		panic(fmt.Sprintf(
 			"cannot convert untyped rune type to %s",
@@ -1031,6 +1031,12 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 		dst.SetUint64(uint64(sv))
 	case StringKind:
 		panic("not yet implemented")
+	case BigintKind:
+		dst.ClearNum()
+		dst.V = BigintValue{V: big.NewInt(int64(sv))}
+	case BigdecKind:
+		dst.ClearNum()
+		dst.V = BigdecValue{V: decimal.NewFromInt(int64(sv))}
 	default:
 		panic(fmt.Sprintf("unexpected target %v", k))
 
@@ -1072,6 +1078,34 @@ func ConvertUntypedBigintTo(dst *TypedValue, bv BigintValue, t Type) {
 			}
 		}
 		uv = bi.Uint64()
+	case Float32Kind:
+		dst.T = t
+		dst.V = nil
+		// 24 for float32
+		bf := big.NewFloat(0.0).SetInt(bi).SetPrec(24)
+		if bf.IsInf() {
+			panic("bigint overflows float32")
+		}
+		f32, acc := bf.Float32()
+		if f32 == 0 && (acc == big.Below || acc == big.Above) {
+			panic("bigint underflows float32 (too close to zero)")
+		}
+		dst.SetFloat32(f32)
+		return // done
+	case Float64Kind:
+		dst.T = t
+		dst.V = nil
+		// 53 for float64
+		bf := big.NewFloat(0.0).SetInt(bi).SetPrec(53)
+		if bf.IsInf() {
+			panic("bigint overflows float64")
+		}
+		f64, acc := bf.Float64()
+		if f64 == 0 && (acc == big.Below || acc == big.Above) {
+			panic("bigint underflows float64 (too close to zero)")
+		}
+		dst.SetFloat64(f64)
+		return // done
 	case BigdecKind:
 		dst.T = t
 		dst.V = BigdecValue{V: decimal.NewFromBigInt(bi, 0)}
@@ -1172,7 +1206,10 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bv BigdecValue, t Type) {
 	switch k {
 	case BigintKind:
 		if !bi.IsInteger() {
-			panic("cannot convert untyped bigdec to integer -- not an exact integer")
+			panic(fmt.Sprintf(
+				"cannot convert untyped bigdec to integer -- %s not an exact integer",
+				bi.String(),
+			))
 		}
 		dst.T = t
 		dst.V = BigintValue{V: bi.BigInt()}
@@ -1189,7 +1226,10 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bv BigdecValue, t Type) {
 		fallthrough
 	case UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
 		if !bi.IsInteger() {
-			panic("cannot convert untyped bigdec to integer -- not an exact integer")
+			panic(fmt.Sprintf(
+				"cannot convert untyped bigdec to integer -- %s not an exact integer",
+				bi.String(),
+			))
 		}
 		ConvertUntypedBigintTo(dst, BigintValue{V: bi.BigInt()}, t)
 		return
