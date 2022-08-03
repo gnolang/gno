@@ -13,4 +13,5 @@ func main() {
 }
 
 // Output:
+// 30m0s
 // df: 1800000000000 int64

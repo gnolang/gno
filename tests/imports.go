@@ -98,7 +98,9 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			if osm.DirExists(stdlibPath) {
 				memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-					PkgPath: pkgPath,
+					// NOTE: see also pkgs/sdk/vm/builtins.go
+					// XXX: why does this fail when just pkgPath?
+					PkgPath: "gno.land/r/stdlibs/" + pkgPath,
 					Output:  stdout,
 					Store:   store,
 				})
