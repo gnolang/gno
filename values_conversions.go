@@ -3,6 +3,7 @@ package gno
 import (
 	"fmt"
 	"math"
+	"math/big"
 	"reflect"
 	"strconv"
 )
@@ -127,6 +128,14 @@ GNO_CASE:
 			x := uint64(tv.GetInt())
 			tv.T = t
 			tv.SetUint64(x)
+		case Float32Kind:
+			x := float32(tv.GetInt())
+			tv.T = t
+			tv.SetFloat32(x)
+		case Float64Kind:
+			x := float64(tv.GetInt())
+			tv.T = t
+			tv.SetFloat64(x)
 		case StringKind:
 			tv.V = alloc.NewString(string(rune(tv.GetInt())))
 			tv.T = t
@@ -178,6 +187,14 @@ GNO_CASE:
 			x := uint64(tv.GetInt8())
 			tv.T = t
 			tv.SetUint64(x)
+		case Float32Kind:
+			x := float32(tv.GetInt8())
+			tv.T = t
+			tv.SetFloat32(x)
+		case Float64Kind:
+			x := float64(tv.GetInt8())
+			tv.T = t
+			tv.SetFloat64(x)
 		case StringKind:
 			tv.V = alloc.NewString(string(rune(tv.GetInt8())))
 			tv.T = t
@@ -229,6 +246,14 @@ GNO_CASE:
 			x := uint64(tv.GetInt16())
 			tv.T = t
 			tv.SetUint64(x)
+		case Float32Kind:
+			x := float32(tv.GetInt16())
+			tv.T = t
+			tv.SetFloat32(x)
+		case Float64Kind:
+			x := float64(tv.GetInt16())
+			tv.T = t
+			tv.SetFloat64(x)
 		case StringKind:
 			tv.V = alloc.NewString(string(rune(tv.GetInt16())))
 			tv.T = t
@@ -280,6 +305,14 @@ GNO_CASE:
 			x := uint64(tv.GetInt32())
 			tv.T = t
 			tv.SetUint64(x)
+		case Float32Kind:
+			x := float32(tv.GetInt32())
+			tv.T = t
+			tv.SetFloat32(x)
+		case Float64Kind:
+			x := float64(tv.GetInt32())
+			tv.T = t
+			tv.SetFloat64(x)
 		case StringKind:
 			tv.V = alloc.NewString(string(rune(tv.GetInt32())))
 			tv.T = t
@@ -331,6 +364,14 @@ GNO_CASE:
 			x := uint64(tv.GetInt64())
 			tv.T = t
 			tv.SetUint64(x)
+		case Float32Kind:
+			x := float32(tv.GetInt64()) // XXX determinism?
+			tv.T = t
+			tv.SetFloat32(x)
+		case Float64Kind:
+			x := float64(tv.GetInt64()) // XXX determinism?
+			tv.T = t
+			tv.SetFloat64(x)
 		case StringKind:
 			tv.V = alloc.NewString(string(rune(tv.GetInt64())))
 			tv.T = t
@@ -382,6 +423,14 @@ GNO_CASE:
 			x := uint64(tv.GetUint())
 			tv.T = t
 			tv.SetUint64(x)
+		case Float32Kind:
+			x := float32(tv.GetUint()) // XXX determinism?
+			tv.T = t
+			tv.SetFloat32(x)
+		case Float64Kind:
+			x := float64(tv.GetUint()) // XXX determinism?
+			tv.T = t
+			tv.SetFloat64(x)
 		case StringKind:
 			tv.V = alloc.NewString(string(rune(tv.GetUint())))
 			tv.T = t
@@ -433,6 +482,14 @@ GNO_CASE:
 			x := uint64(tv.GetUint8())
 			tv.T = t
 			tv.SetUint64(x)
+		case Float32Kind:
+			x := float32(tv.GetUint8()) // XXX determinism?
+			tv.T = t
+			tv.SetFloat32(x)
+		case Float64Kind:
+			x := float64(tv.GetUint8()) // XXX determinism?
+			tv.T = t
+			tv.SetFloat64(x)
 		case StringKind:
 			tv.V = alloc.NewString(string(rune(tv.GetUint8())))
 			tv.T = t
@@ -484,6 +541,14 @@ GNO_CASE:
 			x := uint64(tv.GetUint16())
 			tv.T = t
 			tv.SetUint64(x)
+		case Float32Kind:
+			x := float32(tv.GetUint16()) // XXX determinism?
+			tv.T = t
+			tv.SetFloat32(x)
+		case Float64Kind:
+			x := float64(tv.GetUint16()) // XXX determinism?
+			tv.T = t
+			tv.SetFloat64(x)
 		case StringKind:
 			tv.V = alloc.NewString(string(rune(tv.GetUint16())))
 			tv.T = t
@@ -535,6 +600,14 @@ GNO_CASE:
 			x := uint64(tv.GetUint32())
 			tv.T = t
 			tv.SetUint64(x)
+		case Float32Kind:
+			x := float32(tv.GetUint32()) // XXX determinism?
+			tv.T = t
+			tv.SetFloat32(x)
+		case Float64Kind:
+			x := float64(tv.GetUint32()) // XXX determinism?
+			tv.T = t
+			tv.SetFloat64(x)
 		case StringKind:
 			tv.V = alloc.NewString(string(rune(tv.GetUint32())))
 			tv.T = t
@@ -586,10 +659,128 @@ GNO_CASE:
 			x := uint64(tv.GetUint64())
 			tv.T = t
 			tv.SetUint64(x)
+		case Float32Kind:
+			x := float32(tv.GetUint64()) // XXX determinism?
+			tv.T = t
+			tv.SetFloat32(x)
+		case Float64Kind:
+			x := float64(tv.GetUint64()) // XXX determinism?
+			tv.T = t
+			tv.SetFloat64(x)
 		case StringKind:
 			tv.V = alloc.NewString(string(rune(tv.GetUint64())))
 			tv.T = t
 			tv.ClearNum()
+		default:
+			panic(fmt.Sprintf(
+				"cannot convert %s to %s",
+				tvk.String(), k.String()))
+		}
+	case Float32Kind:
+		switch k {
+		case IntKind:
+			x := int(tv.GetFloat32()) // XXX determinism?
+			tv.T = t
+			tv.SetInt(x)
+		case Int8Kind:
+			x := int8(tv.GetFloat32()) // XXX determinism?
+			tv.T = t
+			tv.SetInt8(x)
+		case Int16Kind:
+			x := int16(tv.GetFloat32()) // XXX determinism?
+			tv.T = t
+			tv.SetInt16(x)
+		case Int32Kind:
+			x := int32(tv.GetFloat32()) // XXX determinism?
+			tv.T = t
+			tv.SetInt32(x)
+		case Int64Kind:
+			x := int64(tv.GetFloat32()) // XXX determinism?
+			tv.T = t
+			tv.SetInt64(x)
+		case UintKind:
+			x := uint(tv.GetFloat32()) // XXX determinism?
+			tv.T = t
+			tv.SetUint(x)
+		case Uint8Kind:
+			x := uint8(tv.GetFloat32()) // XXX determinism?
+			tv.T = t
+			tv.SetUint8(x)
+		case Uint16Kind:
+			x := uint16(tv.GetFloat32()) // XXX determinism?
+			tv.T = t
+			tv.SetUint16(x)
+		case Uint32Kind:
+			x := uint32(tv.GetFloat32()) // XXX determinism?
+			tv.T = t
+			tv.SetUint32(x)
+		case Uint64Kind:
+			x := uint64(tv.GetFloat32()) // XXX determinism?
+			tv.T = t
+			tv.SetUint64(x)
+		case Float32Kind:
+			x := float32(tv.GetFloat32()) // XXX determinism?
+			tv.T = t
+			tv.SetFloat32(x)
+		case Float64Kind:
+			x := float64(tv.GetFloat32()) // XXX determinism?
+			tv.T = t
+			tv.SetFloat64(x)
+		default:
+			panic(fmt.Sprintf(
+				"cannot convert %s to %s",
+				tvk.String(), k.String()))
+		}
+	case Float64Kind:
+		switch k {
+		case IntKind:
+			x := int(tv.GetFloat64()) // XXX determinism?
+			tv.T = t
+			tv.SetInt(x)
+		case Int8Kind:
+			x := int8(tv.GetFloat64()) // XXX determinism?
+			tv.T = t
+			tv.SetInt8(x)
+		case Int16Kind:
+			x := int16(tv.GetFloat64()) // XXX determinism?
+			tv.T = t
+			tv.SetInt16(x)
+		case Int32Kind:
+			x := int32(tv.GetFloat64()) // XXX determinism?
+			tv.T = t
+			tv.SetInt32(x)
+		case Int64Kind:
+			x := int64(tv.GetFloat64()) // XXX determinism?
+			tv.T = t
+			tv.SetInt64(x)
+		case UintKind:
+			x := uint(tv.GetFloat64()) // XXX determinism?
+			tv.T = t
+			tv.SetUint(x)
+		case Uint8Kind:
+			x := uint8(tv.GetFloat64()) // XXX determinism?
+			tv.T = t
+			tv.SetUint8(x)
+		case Uint16Kind:
+			x := uint16(tv.GetFloat64()) // XXX determinism?
+			tv.T = t
+			tv.SetUint16(x)
+		case Uint32Kind:
+			x := uint32(tv.GetFloat64()) // XXX determinism?
+			tv.T = t
+			tv.SetUint32(x)
+		case Uint64Kind:
+			x := uint64(tv.GetFloat64()) // XXX determinism?
+			tv.T = t
+			tv.SetUint64(x)
+		case Float32Kind:
+			x := float32(tv.GetFloat64()) // XXX determinism?
+			tv.T = t
+			tv.SetFloat32(x)
+		case Float64Kind:
+			x := float64(tv.GetFloat64()) // XXX determinism?
+			tv.T = t
+			tv.SetFloat64(x)
 		default:
 			panic(fmt.Sprintf(
 				"cannot convert %s to %s",
@@ -722,11 +913,11 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 		return
 	}
 	// general case
+	if t == nil {
+		t = defaultTypeOf(tv.T)
+	}
 	switch tv.T {
 	case UntypedBoolType:
-		if t == nil {
-			t = BoolType
-		}
 		if debug {
 			if t.Kind() != BoolKind {
 				panic("untyped bool can only be converted to bool kind")
@@ -734,24 +925,20 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 		}
 		tv.T = t
 	case UntypedRuneType:
-		if t == nil {
-			t = Int32Type
-		}
 		ConvertUntypedRuneTo(tv, t)
 	case UntypedBigintType:
 		if preprocessing == 0 {
 			panic("untyped Bigint conversion should not happen during interpretation")
 		}
-		if t == nil {
-			t = IntType
-		}
 		ConvertUntypedBigintTo(tv, tv.V.(BigintValue), t)
+	case UntypedBigdecType:
+		if preprocessing == 0 {
+			panic("untyped Bigdec conversion should not happen during interpretation")
+		}
+		ConvertUntypedBigdecTo(tv, tv.V.(BigdecValue), t)
 	case UntypedStringType:
 		if preprocessing == 0 {
 			panic("untyped String conversion should not happen during interpretation")
-		}
-		if t == nil {
-			t = StringType
 		}
 		if t.Kind() == StringKind {
 			tv.T = t
@@ -848,7 +1035,6 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 	}
 }
 
-// All fields may be modified to complete the conversion.
 func ConvertUntypedBigintTo(dst *TypedValue, bv BigintValue, t Type) {
 	k := t.Kind()
 	bi := bv.V
@@ -971,5 +1157,63 @@ func ConvertUntypedBigintTo(dst *TypedValue, bv BigintValue, t Type) {
 	default:
 		panic(fmt.Sprintf("cannot convert untyped bigint to %v", k))
 
+	}
+}
+
+func ConvertUntypedBigdecTo(dst *TypedValue, bv BigdecValue, t Type) {
+	k := t.Kind()
+	bi := bv.V
+	switch k {
+	case BigintKind:
+		if !bi.IsInteger() {
+			panic("cannot convert untyped bigdec to integer -- not an exact integer")
+		}
+		dst.T = t
+		dst.V = BigintValue{V: bi.BigInt()}
+		return // done
+	case BoolKind:
+		panic("cannot convert untyped bigdec to bool")
+	case InterfaceKind:
+		dst.T = Float64Type
+		dst.V = nil
+		f, _ := bi.Float64()
+		dst.SetFloat64(f)
+		return
+	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind:
+		fallthrough
+	case UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
+		if !bi.IsInteger() {
+			panic("cannot convert untyped bigdec to integer -- not an exact integer")
+		}
+		ConvertUntypedBigintTo(dst, BigintValue{V: bi.BigInt()}, t)
+		return
+	case Float32Kind:
+		dst.T = t
+		dst.V = nil
+		f64, _ := bi.Float64()
+		bf := big.NewFloat(f64)
+		f32, acc := bf.Float32()
+		if f32 == 0 && (acc == big.Below || acc == big.Above) {
+			panic("cannot convert untyped bigdec to float32 -- too close to zero")
+		} else if math.IsInf(float64(f32), 0) {
+			panic("cannot convert untyped bigdec to float32 -- too close to +-Inf")
+		}
+		dst.SetFloat32(f32)
+		return
+	case Float64Kind:
+		dst.T = t
+		dst.V = nil
+		f64, _ := bi.Float64()
+		if f64 == 0 && !bi.IsZero() {
+			panic("cannot convert untyped bigdec to float64 -- too close to zero")
+		} else if math.IsInf(float64(f64), 0) {
+			panic("cannot convert untyped bigdec to float64 -- too close to +-Inf")
+		}
+		dst.SetFloat64(f64)
+		return
+	default:
+		panic(fmt.Sprintf(
+			"cannot convert untyped bigdec type to %s",
+			k.String()))
 	}
 }

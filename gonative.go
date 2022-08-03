@@ -509,6 +509,8 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 		}
 	case BigintKind:
 		panic("not yet implemented")
+	case BigdecKind:
+		panic("not yet implemented")
 	case ArrayKind:
 		av := tv.V.(*ArrayValue)
 		rvl := rv.Len()
@@ -827,6 +829,8 @@ func gno2GoType(t Type) reflect.Type {
 			return reflect.TypeOf(float64(0))
 		case BigintType, UntypedBigintType:
 			panic("not yet implemented")
+		case BigdecType, UntypedBigdecType:
+			panic("not yet implemented")
 		default:
 			panic("should not happen")
 		}
@@ -942,6 +946,8 @@ func gno2GoTypeMatches(t Type, rt reflect.Type) (result bool) {
 		case Float64Type:
 			return rt.Kind() == reflect.Float64
 		case BigintType, UntypedBigintType:
+			panic("not yet implemented")
+		case BigdecType, UntypedBigdecType:
 			panic("not yet implemented")
 		default:
 			panic("should not happen")

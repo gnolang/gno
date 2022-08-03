@@ -15,6 +15,10 @@ func (v BigintValue) String() string {
 	return v.V.String()
 }
 
+func (v BigdecValue) String() string {
+	return v.V.String()
+}
+
 func (v DataByteValue) String() string {
 	return fmt.Sprintf("(%0X)", (v.GetByte()))
 }

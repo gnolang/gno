@@ -941,12 +941,31 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						panic("type conversion requires single argument")
 					}
 					n.NumArgs = 1
-					if _, ok := n.Args[0].(*ConstExpr); ok {
-						convertIfConst(store, last, n.Args[0])
+					if arg0, ok := n.Args[0].(*ConstExpr); ok {
+						ct := evalStaticType(store, last, n.Func)
+						// As a special case, if a decimal cannot
+						// be represented as an integer, it cannot be converted to one,
+						// and the error is handled here.
+						// Out of bounds errors are usually handled during evalConst().
+						switch ct.Kind() {
+						case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind,
+							UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind,
+							BigintKind:
+							if bd, ok := arg0.TypedValue.V.(BigdecValue); ok {
+								if !bd.V.IsInteger() {
+									panic(fmt.Sprintf(
+										"cannot convert %s to integer type",
+										arg0))
+								}
+							}
+						}
+						// (const) untyped decimal -> float64.
+						// (const) untyped bigint -> int.
+						convertConst(store, last, arg0, nil)
+						// evaluate the new expression.
 						cx := evalConst(store, last, n)
 						// Though cx may be undefined if ct is interface,
 						// the ATTR_TYPEOF_VALUE is still interface.
-						ct := evalStaticType(store, last, n.Func)
 						cx.SetAttribute(ATTR_TYPEOF_VALUE, ct)
 						return cx, TRANS_CONTINUE
 					} else {
