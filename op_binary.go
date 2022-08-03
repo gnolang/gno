@@ -750,7 +750,6 @@ func subAssign(lv, rv *TypedValue) {
 		lb = big.NewInt(0).Sub(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
 	case BigdecType, UntypedBigdecType:
-		fmt.Println("!!!", lv, rv)
 		lb := lv.GetBigDec()
 		rb := rv.GetBigDec()
 		diff := lb.Sub(rb)
