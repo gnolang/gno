@@ -103,7 +103,7 @@ func gnoTestPkg(cmd *command.Command, pkgPath string, unittestFiles, filetestFil
 
 	var errs error
 
-	testStore := tests.TestStore(rootDir, "", os.Stdin, os.Stdout, os.Stderr, false)
+	testStore := tests.TestStore(rootDir, "", os.Stdin, os.Stdout, os.Stderr, tests.ImportModeStdlibsOnly)
 	if verbose {
 		testStore.SetLogStoreOps(true)
 	}

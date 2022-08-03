@@ -67,11 +67,13 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 	stdin := new(bytes.Buffer)
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
-	filesPath := "./files"
+	filesPath := "./files2"
+	mode := ImportModeStdlibsPreferred
 	if nativeLibs {
-		filesPath = "./files2"
+		filesPath = "./files"
+		mode = ImportModeNativePreferred
 	}
-	store := TestStore(rootDir, filesPath, stdin, stdout, stderr, nativeLibs)
+	store := TestStore(rootDir, filesPath, stdin, stdout, stderr, mode)
 	store.SetLogStoreOps(true)
 	m := testMachineCustom(store, pkgPath, stdout, maxAlloc, send)
 

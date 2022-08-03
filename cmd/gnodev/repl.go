@@ -48,10 +48,9 @@ func runRepl(rootDir string, verbose bool) error {
 	stdin := os.Stdin
 	stdout := os.Stdout
 	stderr := os.Stderr
-	useNativeLibs := false
 
 	// init store and machine
-	testStore := tests.TestStore(rootDir, "", stdin, stdout, stderr, useNativeLibs)
+	testStore := tests.TestStore(rootDir, "", stdin, stdout, stderr, tests.ImportModeStdlibsOnly)
 	if verbose {
 		testStore.SetLogStoreOps(true)
 	}
