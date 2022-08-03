@@ -1,64 +1,206 @@
 package grc20
 
-import "std"
+import (
+	"std"
 
-type GRC20 interface {
-	// Returns the amount of tokens in existence.
-	TotalSupply() uint64
+	"gno.land/p/avl"
+	"gno.land/p/ufmt"
+)
 
-	// Returns the amount of tokens owned by `account`.
-	BalanceOf(address std.Address) uint64
+// FIXME: helper that creates a Permissionless instance of the token (without mint, and with caller as address).
 
-	// Moves `amount` tokens from the caller's account to `to`.
-	//
-	// Returns a boolean value indicating whether the operation succeeded.
-	//
-	// Emits a {EventTransfer} event.
-	Transfer(to std.Address, amount uint64) bool
+type Token struct {
+	IGRC20 // implements the GRC20 interface
 
-	// Returns the remaining number of tokens that `spender` will be
-	// allowed to spend on behalf of `owner` through {transferFrom}. This is
-	// zero by default.
-	//
-	// This value changes when {approve} or {transferFrom} are called.
-	Allowance(owner, spender std.Address) uint64
-
-	// Sets `amount` as the allowance of `spender` over the caller's tokens.
-	// Returns a boolean value indicating whether the operation succeeded.
-	//
-	// IMPORTANT: Beware that changing an allowance with this method brings the risk
-	// that someone may use both the old and the new allowance by unfortunate
-	// transaction ordering. One possible solution to mitigate this race
-	// condition is to first reduce the spender's allowance to 0 and set the
-	// desired value afterwards:
-	// https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-	//
-	// Emits an {EventApproval} event.
-	Approve(spender std.Address, amount uint64) bool
-
-	// Moves `amount` tokens from `from` to `to` using the
-	// allowance mechanism. `amount` is then deducted from the caller's
-	// allowance.
-	//
-	// Returns a boolean value indicating whether the operation succeeded.
-	//
-	// Emits a {EventTransfer} event.
-	TransferFrom(from, to std.Address, amount uint64) bool
+	name        string
+	symbol      string
+	decimals    uint
+	totalSupply uint64
+	balances    *avl.MutTree // std.Address(owner) -> uint64
+	allowances  *avl.MutTree // string(owner+":"+spender) -> uint64
 }
 
-// Emitted when `value` tokens are moved from one account (`from`) to another (`to`).
+func NewToken(name, symbol string, decimals uint) *Token {
+	// FIXME: check for limits
+
+	return &Token{
+		name:     name,
+		symbol:   symbol,
+		decimals: decimals,
+
+		balances:   avl.NewMutTree(),
+		allowances: avl.NewMutTree(),
+	}
+}
+
+const zeroAddress = std.Address("")
+
+// GRC20 implementation.
 //
-// Note that `value` may be zero.
-type TransferEvent struct {
-	From  std.Address
-	To    std.Address
-	Value uint64
+
+// TODO: create a reusable interface with optional hooks.
+// TODO: simplify the API and try to use events when available.
+// TODO: useful Render() method.
+// TODO: add a lot of unit tests, really a lot.
+
+func (t *Token) GetName() string     { return t.name }
+func (t *Token) GetSymbol() string   { return t.symbol }
+func (t *Token) GetDecimals() uint   { return t.decimals }
+func (t *Token) TotalSupply() uint64 { return t.totalSupply }
+
+func (t *Token) BalanceOf(owner std.Address) uint64 {
+	return t.balanceOf(owner)
 }
 
-// Emitted when the allowance of a `spender` for an `owner` is set by
-// a call to {approve}. `value` is the new allowance.
-type ApprovalEvent struct {
-	Owner   std.Address
-	Spender std.Address
-	Value   uint64
+func (t *Token) Transfer(owner, to std.Address, amount uint64) {
+	t.transfer(owner, to, amount)
+}
+
+func (t *Token) Allowance(owner, spender std.Address) uint64 {
+	return t.allowance(owner, spender)
+}
+
+func (t *Token) Approve(owner, spender std.Address, amount uint64) {
+	t.approve(owner, spender, amount)
+}
+
+func (t *Token) TransferFrom(spender, from, to std.Address, amount uint64) {
+	t.spendAllowance(from, spender, amount)
+	t.transfer(from, to, amount)
+}
+
+// Administration helpers implementation.
+//
+
+func (t *Token) Mint(to std.Address, amount uint64) {
+	t.mint(to, amount)
+}
+
+func (t *Token) Burn(from std.Address, amount uint64) {
+	t.burn(from, amount)
+}
+
+// private helpers
+//
+
+func (t *Token) mint(address std.Address, amount uint64) {
+	checkIsValidAddress(address)
+	// TODO: check for overflow
+
+	t.totalSupply += amount
+	currentBalance := t.balanceOf(address)
+	newBalance := currentBalance + amount
+
+	t.balances.Set(string(address), newBalance)
+
+	event := TransferEvent{zeroAddress, address, amount}
+	emit(&event)
+}
+
+func (t *Token) burn(address std.Address, amount uint64) {
+	checkIsValidAddress(address)
+	// TODO: check for overflow
+
+	currentBalance := t.balanceOf(address)
+	if currentBalance < amount {
+		panic("insufficient balance")
+	}
+
+	t.totalSupply -= amount
+	newBalance := currentBalance - amount
+
+	t.balances.Set(string(address), newBalance)
+
+	event := TransferEvent{address, zeroAddress, amount}
+	emit(&event)
+}
+
+func (t *Token) balanceOf(address std.Address) uint64 {
+	checkIsValidAddress(address)
+
+	balance, found := t.balances.Get(address.String())
+	if !found {
+		return 0
+	}
+	return balance.(uint64)
+}
+
+func (t *Token) spendAllowance(owner, spender std.Address, amount uint64) {
+	checkIsValidAddress(owner)
+	checkIsValidAddress(spender)
+
+	currentAllowance := t.allowance(owner, spender)
+	if currentAllowance < amount {
+		panic("insufficient allowance")
+	}
+}
+
+func (t *Token) transfer(from, to std.Address, amount uint64) {
+	checkIsValidAddress(from)
+	checkIsValidAddress(to)
+
+	if from == to {
+		panic("cannot send transfer to self")
+	}
+
+	toBalance := t.balanceOf(to)
+	fromBalance := t.balanceOf(from)
+
+	if fromBalance < amount {
+		panic("insufficient balance")
+	}
+
+	newToBalance := toBalance + amount
+	newFromBalance := fromBalance - amount
+
+	t.balances.Set(string(to), newToBalance)
+	t.balances.Set(string(from), newFromBalance)
+
+	event := TransferEvent{from, to, amount}
+	emit(&event)
+}
+
+func (t *Token) allowance(owner, spender std.Address) uint64 {
+	checkIsValidAddress(owner)
+	checkIsValidAddress(spender)
+
+	key := owner.String() + ":" + spender.String()
+
+	allowance, found := t.allowances.Get(key)
+	if !found {
+		return 0
+	}
+
+	return allowance.(uint64)
+}
+
+func (t *Token) approve(owner, spender std.Address, amount uint64) {
+	checkIsValidAddress(owner)
+	checkIsValidAddress(spender)
+
+	key := owner.String() + ":" + spender.String()
+	t.allowances.Set(key, amount)
+
+	event := ApprovalEvent{owner, spender, amount}
+	emit(&event)
+}
+
+func checkIsValidAddress(addr std.Address) {
+	if addr.String() == "" {
+		panic("invalid address")
+	}
+}
+
+func (t *Token) RenderHome() string {
+	str := ""
+	str += ufmt.Sprintf("# %s ($%s)\n\n", t.name, t.symbol)
+	str += ufmt.Sprintf("* **Decimals**: %d\n", t.decimals)
+	str += ufmt.Sprintf("* **Total supply**: %d\n", t.totalSupply)
+	str += ufmt.Sprintf("* **Known accounts**: %d\n", t.balances.Size())
+	return str
+}
+
+func emit(event interface{}) {
+	// TODO: should we do something there?
+	// noop
 }
