@@ -19,6 +19,25 @@ func InjectNativeMappings(store gno.Store) {
 
 func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 	switch pn.PkgPath {
+	case "internal/os":
+		pn.DefineNative("Now",
+			gno.Flds( // params
+			),
+			gno.Flds( // results
+				"sec", "int64",
+				"nsec", "int32",
+				"mono", "int64",
+			),
+			func(m *gno.Machine) {
+				ctx := m.Context.(ExecContext)
+				res0 := typedInt64(ctx.Timestamp)
+				res1 := typedInt32(0)
+				res2 := typedInt32(0)
+				m.PushValue(res0)
+				m.PushValue(res1)
+				m.PushValue(res2)
+			},
+		)
 	case "strconv":
 		pn.DefineGoNativeValue("Itoa", strconv.Itoa)
 		pn.DefineGoNativeValue("Atoi", strconv.Atoi)
@@ -263,6 +282,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				m.PushValue(res0)
 			},
 		)
+		// XXX DEPRECATED, use stdlibs/time instead
 		pn.DefineNative("GetTimestamp",
 			gno.Flds( // params
 			),
@@ -343,6 +363,12 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			},
 		)
 	}
+}
+
+func typedInt32(i32 int32) gno.TypedValue {
+	tv := gno.TypedValue{T: gno.Int32Type}
+	tv.SetInt32(i32)
+	return tv
 }
 
 func typedInt64(i64 int64) gno.TypedValue {

@@ -41,6 +41,7 @@ func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAll
 	ctx := stdlibs.ExecContext{
 		ChainID:       "dev",
 		Height:        123,
+		Timestamp:     1234567890,
 		Msg:           nil,
 		OrigCaller:    caller.Bech32(),
 		OrigPkgAddr:   pkgAddr.Bech32(),

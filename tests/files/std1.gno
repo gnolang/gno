@@ -9,4 +9,4 @@ func main() {
 }
 
 // Output:
-// Jan 1, 1970 at 12:00am (UTC)
+// Feb 13, 2009 at 11:31pm (UTC)
