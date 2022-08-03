@@ -769,6 +769,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								// (the other way around would work too)
 								// checkOrConvertType(store, last, n.Left, rcx.T, false)
 							} else {
+								// convert n.Right to left type.
 								checkOrConvertType(store, last, &n.Right, lcx.T, false)
 							}
 						}

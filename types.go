@@ -146,17 +146,17 @@ func (pt PrimitiveType) Specificity() int {
 	case BigintType:
 		return 1
 	case BigdecType:
-		return 1
-	case UntypedBoolType:
 		return 2
-	case UntypedRuneType:
+	case UntypedBoolType:
 		return 3
+	case UntypedRuneType:
+		return 4
 	case UntypedStringType:
-		return 4
+		return 5
 	case UntypedBigintType:
-		return 4
+		return 5
 	case UntypedBigdecType:
-		return 4
+		return 6
 	default:
 		panic(fmt.Sprintf("unexpected primitive type %v", pt))
 	}

@@ -6,6 +6,8 @@ import (
 	"math/big"
 	"reflect"
 	"strconv"
+
+	"github.com/shopspring/decimal"
 )
 
 // t cannot be nil or untyped or DataByteType.
@@ -1070,6 +1072,10 @@ func ConvertUntypedBigintTo(dst *TypedValue, bv BigintValue, t Type) {
 			}
 		}
 		uv = bi.Uint64()
+	case BigdecKind:
+		dst.T = t
+		dst.V = BigdecValue{V: decimal.NewFromBigInt(bi, 0)}
+		return // done
 	default:
 		panic(fmt.Sprintf(
 			"cannot convert untyped bigint type to %s",
