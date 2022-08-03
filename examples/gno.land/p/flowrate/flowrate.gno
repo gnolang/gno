@@ -14,7 +14,7 @@ import (
 
 // Monitor monitors and limits the transfer rate of a data stream.
 type Monitor struct {
-	// mu      sync.Mutex    // Mutex guarding access to all internal fields
+	// XXX mu      sync.Mutex    // Mutex guarding access to all internal fields
 	active  bool          // Flag indicating an active transfer
 	start   time.Duration // Transfer start time (clock() value)
 	bytes   int64         // Total number of bytes transferred
@@ -66,18 +66,18 @@ func New(sampleRate, windowSize time.Duration) *Monitor {
 // Update records the transfer of n bytes and returns n. It should be called
 // after each Read/Write operation, even if n is 0.
 func (m *Monitor) Update(n int) int {
-	m.mu.Lock()
+	// XXX m.mu.Lock()
 	m.update(n)
-	m.mu.Unlock()
+	// XXX m.mu.Unlock()
 	return n
 }
 
 // Hack to set the current rEMA.
 func (m *Monitor) SetREMA(rEMA float64) {
-	m.mu.Lock()
+	// XXX m.mu.Lock()
 	m.rEMA = rEMA
 	m.samples++
-	m.mu.Unlock()
+	// XXX m.mu.Unlock()
 }
 
 // IO is a convenience method intended to wrap io.Reader and io.Writer method
@@ -90,14 +90,14 @@ func (m *Monitor) IO(n int, err error) (int, error) {
 // limiting. Instantaneous and current transfer rates drop to 0. Update, IO, and
 // Limit methods become NOOPs. It returns the total number of bytes transferred.
 func (m *Monitor) Done() int64 {
-	m.mu.Lock()
+	// XXX m.mu.Lock()
 	if now := m.update(0); m.sBytes > 0 {
 		m.reset(now)
 	}
 	m.active = false
 	m.tLast = 0
 	n := m.bytes
-	m.mu.Unlock()
+	// XXX m.mu.Unlock()
 	return n
 }
 
@@ -125,7 +125,7 @@ type Status struct {
 // Status returns current transfer status information. The returned value
 // becomes static after a call to Done.
 func (m *Monitor) Status() Status {
-	m.mu.Lock()
+	// XXX m.mu.Lock()
 	now := m.update(0)
 	s := Status{
 		Active:   m.active,
@@ -158,7 +158,7 @@ func (m *Monitor) Status() Status {
 			}
 		}
 	}
-	m.mu.Unlock()
+	// XXX m.mu.Unlock()
 	return s
 }
 
@@ -177,7 +177,7 @@ func (m *Monitor) Limit(want int, rate int64, block bool) (n int) {
 	if want < 1 || rate < 1 {
 		return want
 	}
-	m.mu.Lock()
+	// XXX m.mu.Lock()
 
 	// Determine the maximum number of bytes that can be sent in one sample
 	limit := round(float64(rate) * m.sRate.Seconds())
@@ -196,7 +196,7 @@ func (m *Monitor) Limit(want int, rate int64, block bool) (n int) {
 	if limit -= m.sBytes; limit > int64(want) || !m.active {
 		limit = int64(want)
 	}
-	m.mu.Unlock()
+	// XXX m.mu.Unlock()
 
 	if limit < 0 {
 		limit = 0
@@ -210,9 +210,9 @@ func (m *Monitor) SetTransferSize(bytes int64) {
 	if bytes < 0 {
 		bytes = 0
 	}
-	m.mu.Lock()
+	// XXX m.mu.Lock()
 	m.tBytes = bytes
-	m.mu.Unlock()
+	// XXX m.mu.Unlock()
 }
 
 // update accumulates the transferred byte count for the current sample until
@@ -263,12 +263,12 @@ func (m *Monitor) waitNextSample(now time.Duration) time.Duration {
 	// sleep until the last sample time changes (ideally, just one iteration)
 	for m.sLast == current && m.active {
 		d := current + m.sRate - now
-		m.mu.Unlock()
+		// XXX m.mu.Unlock()
 		if d < minWait {
 			d = minWait
 		}
 		time.Sleep(d)
-		m.mu.Lock()
+		// XXX m.mu.Lock()
 		now = m.update(0)
 	}
 	return now
