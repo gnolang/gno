@@ -246,6 +246,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeValue("Cos", math.Cos)
 				pkg.DefineGoNativeValue("Pi", math.Pi)
 				pkg.DefineGoNativeValue("MaxFloat32", math.MaxFloat32)
+				pkg.DefineGoNativeValue("MaxFloat64", math.MaxFloat64)
 				return pkg, pkg.NewPackage()
 			case "math/rand":
 				// XXX only expose for tests.

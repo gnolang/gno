@@ -148,7 +148,7 @@ func (pt PrimitiveType) Specificity() int {
 	case BigdecType:
 		return 2
 	case UntypedBigdecType:
-		return 3 // XXX This should move up?
+		return 3
 	case UntypedStringType:
 		return 4
 	case UntypedBigintType:

@@ -131,11 +131,11 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case Float32Kind:
-			x := float32(tv.GetInt())
+			x := float32(tv.GetInt()) // XXX determinism?
 			tv.T = t
 			tv.SetFloat32(x)
 		case Float64Kind:
-			x := float64(tv.GetInt())
+			x := float64(tv.GetInt()) // XXX determinism?
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
@@ -190,11 +190,11 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case Float32Kind:
-			x := float32(tv.GetInt8())
+			x := float32(tv.GetInt8()) // XXX determinism?
 			tv.T = t
 			tv.SetFloat32(x)
 		case Float64Kind:
-			x := float64(tv.GetInt8())
+			x := float64(tv.GetInt8()) // XXX determinism?
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
@@ -249,11 +249,11 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case Float32Kind:
-			x := float32(tv.GetInt16())
+			x := float32(tv.GetInt16()) // XXX determinism?
 			tv.T = t
 			tv.SetFloat32(x)
 		case Float64Kind:
-			x := float64(tv.GetInt16())
+			x := float64(tv.GetInt16()) // XXX determinism?
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
@@ -308,11 +308,11 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case Float32Kind:
-			x := float32(tv.GetInt32())
+			x := float32(tv.GetInt32()) // XXX determinism?
 			tv.T = t
 			tv.SetFloat32(x)
 		case Float64Kind:
-			x := float64(tv.GetInt32())
+			x := float64(tv.GetInt32()) // XXX determinism?
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
