@@ -5,35 +5,35 @@ import (
 	"strconv"
 
 	"gno.land/p/avl"
-	igrc721 "gno.land/p/grc/grc721"
+	"gno.land/p/grc/grc721"
 )
 
-type grc721 struct {
-	igrc721.GRC721 // implements the GRC721 interface
+type token struct {
+	grc721.IGRC721 // implements the GRC721 interface
 
 	tokenCounter int
-	tokens       *avl.Tree // igrc721.TokenID -> *NFToken{}
+	tokens       *avl.Tree // grc721.TokenID -> *NFToken{}
 	operators    *avl.Tree // owner std.Address -> operator std.Address
 }
 
 type NFToken struct {
 	owner    std.Address
 	approved std.Address
-	tokenID  igrc721.TokenID
+	tokenID  grc721.TokenID
 	data     string
 }
 
-var gGRC721 = &grc721{}
+var gToken = &token{}
 
-func GetGRC721() *grc721 { return gGRC721 }
+func GetToken() *token { return gToken }
 
-func (grc *grc721) nextTokenID() igrc721.TokenID {
+func (grc *token) nextTokenID() grc721.TokenID {
 	grc.tokenCounter++
 	s := strconv.Itoa(grc.tokenCounter)
-	return igrc721.TokenID(s)
+	return grc721.TokenID(s)
 }
 
-func (grc *grc721) getToken(tid igrc721.TokenID) (*NFToken, bool) {
+func (grc *token) getToken(tid grc721.TokenID) (*NFToken, bool) {
 	_, token, ok := grc.tokens.Get(string(tid))
 	if !ok {
 		return nil, false
@@ -41,7 +41,7 @@ func (grc *grc721) getToken(tid igrc721.TokenID) (*NFToken, bool) {
 	return token.(*NFToken), true
 }
 
-func (grc *grc721) Mint(to std.Address, data string) igrc721.TokenID {
+func (grc *token) Mint(to std.Address, data string) grc721.TokenID {
 	tid := grc.nextTokenID()
 	newTokens, _ := grc.tokens.Set(string(tid), &NFToken{
 		owner:   to,
@@ -52,11 +52,11 @@ func (grc *grc721) Mint(to std.Address, data string) igrc721.TokenID {
 	return tid
 }
 
-func (grc *grc721) BalanceOf(owner std.Address) (count int64) {
+func (grc *token) BalanceOf(owner std.Address) (count int64) {
 	panic("not yet implemented")
 }
 
-func (grc *grc721) OwnerOf(tid igrc721.TokenID) std.Address {
+func (grc *token) OwnerOf(tid grc721.TokenID) std.Address {
 	token, ok := grc.getToken(tid)
 	if !ok {
 		panic("token does not exist")
@@ -65,7 +65,7 @@ func (grc *grc721) OwnerOf(tid igrc721.TokenID) std.Address {
 }
 
 // XXX not fully implemented yet.
-func (grc *grc721) SafeTransferFrom(from, to std.Address, tid igrc721.TokenID) {
+func (grc *token) SafeTransferFrom(from, to std.Address, tid grc721.TokenID) {
 	grc.TransferFrom(from, to, tid)
 	// When transfer is complete, this function checks if `_to` is a smart
 	// contract (code size > 0). If so, it calls `onERC721Received` on
@@ -74,7 +74,7 @@ func (grc *grc721) SafeTransferFrom(from, to std.Address, tid igrc721.TokenID) {
 	// XXX ensure "to" is a realm with onERC721Received() signature.
 }
 
-func (grc *grc721) TransferFrom(from, to std.Address, tid igrc721.TokenID) {
+func (grc *token) TransferFrom(from, to std.Address, tid grc721.TokenID) {
 	caller := std.GetCallerAt(2)
 	token, ok := grc.getToken(tid)
 	// Throws if `_tokenId` is not a valid NFT.
@@ -101,7 +101,7 @@ func (grc *grc721) TransferFrom(from, to std.Address, tid igrc721.TokenID) {
 	token.owner = to
 }
 
-func (grc *grc721) Approve(approved std.Address, tid igrc721.TokenID) {
+func (grc *token) Approve(approved std.Address, tid grc721.TokenID) {
 	caller := std.GetCallerAt(2)
 	token, ok := grc.getToken(tid)
 	// Throws if `_tokenId` is not a valid NFT.
@@ -121,13 +121,13 @@ func (grc *grc721) Approve(approved std.Address, tid igrc721.TokenID) {
 }
 
 // XXX make it work for set of operators.
-func (grc *grc721) SetApprovalForAll(operator std.Address, approved bool) {
+func (grc *token) SetApprovalForAll(operator std.Address, approved bool) {
 	caller := std.GetCallerAt(2)
 	newOperators, _ := grc.operators.Set(caller.String(), operator)
 	grc.operators = newOperators
 }
 
-func (grc *grc721) GetApproved(tid igrc721.TokenID) std.Address {
+func (grc *token) GetApproved(tid grc721.TokenID) std.Address {
 	token, ok := grc.getToken(tid)
 	// Throws if `_tokenId` is not a valid NFT.
 	if !ok {
@@ -137,7 +137,7 @@ func (grc *grc721) GetApproved(tid igrc721.TokenID) std.Address {
 }
 
 // XXX make it work for set of operators
-func (grc *grc721) IsApprovedForAll(owner, operator std.Address) bool {
+func (grc *token) IsApprovedForAll(owner, operator std.Address) bool {
 	_, operator2, ok := grc.operators.Get(owner.String())
 	if !ok {
 		return false

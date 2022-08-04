@@ -4,7 +4,7 @@ import (
 	"std"
 	"strings"
 
-	grc20 "gno.land/p/grc/grc20/impl"
+	"gno.land/p/grc/grc20"
 	"gno.land/p/ufmt"
 	"gno.land/r/users"
 )

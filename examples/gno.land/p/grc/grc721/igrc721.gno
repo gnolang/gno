@@ -2,7 +2,7 @@ package grc721
 
 import "std"
 
-type GRC721 interface {
+type IGRC721 interface {
 	BalanceOf(owner std.Address) (count int64)
 	OwnerOf(tid TokenID) std.Address
 	SafeTransferFrom(from, to std.Address, tid TokenID)

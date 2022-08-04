@@ -12,7 +12,7 @@ func main() {
 	caller := std.GetCallerAt(1)
 	addr1 := testutils.TestAddress("addr1")
 	addr2 := testutils.TestAddress("addr2")
-	grc721 := nft.GetGRC721()
+	grc721 := nft.GetToken()
 	tid := grc721.Mint(caller, "NFT#1")
 	println(grc721.OwnerOf(tid))
 	println(addr1)
