@@ -8,8 +8,6 @@
 package math
 
 // Mathematical constants.
-// XXX floats removed.
-/*
 const (
 	E   = 2.71828182845904523536028747135266249775724709369995957496696763 // https://oeis.org/A001113
 	Pi  = 3.14159265358979323846264338327950288419716939937510582097494459 // https://oeis.org/A000796
@@ -36,7 +34,6 @@ const (
 	MaxFloat64             = 0x1p1023 * (1 + (1 - 0x1p-52)) // 1.79769313486231570814527423731704356798070e+308
 	SmallestNonzeroFloat64 = 0x1p-1022 * 0x1p-52            // 4.9406564584124654417656879286822137236505980e-324
 )
-*/
 
 // Integer limit values.
 const (

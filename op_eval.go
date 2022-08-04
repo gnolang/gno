@@ -2,9 +2,11 @@ package gno
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/shopspring/decimal"
 )
@@ -73,7 +75,7 @@ func (m *Machine) doOpEval() {
 				V: BigintValue{V: bi},
 			})
 		case FLOAT:
-			if matched, _ := regexp.MatchString(`[\-\+]?[0-9.]+(e[0-9]+)?`, x.Value); matched {
+			if matched, _ := regexp.MatchString(`^[0-9\.]+([eE][\-\+]?[0-9]+)?$`, x.Value); matched {
 				value := x.Value
 				bd, err := decimal.NewFromString(value)
 				if err != nil {
@@ -81,6 +83,82 @@ func (m *Machine) doOpEval() {
 						"invalid decimal constant: %s",
 						x.Value))
 				}
+				m.PushValue(TypedValue{
+					T: UntypedBigdecType,
+					V: BigdecValue{V: bd},
+				})
+				return
+			} else if matched, _ := regexp.MatchString(`^0[xX][0-9a-fA-F\.]+([pP][\-\+]?[0-9a-fA-F]+)?$`, x.Value); matched {
+				originalInput := x.Value
+				value := x.Value[2:]
+				// NOTE: derived from decimal.NewFromString().
+				var hexString string
+				var exp int64
+				eIndex := strings.IndexAny(value, "Pp")
+				if eIndex == -1 {
+					panic("should not happen")
+				}
+
+				//----------------------------------------
+				// NewFromHexString()
+				// TODO: move this to another function.
+
+				// Step 1 get exp component.
+				expInt, err := strconv.ParseInt(value[eIndex+1:], 10, 32)
+				if err != nil {
+					if e, ok := err.(*strconv.NumError); ok && e.Err == strconv.ErrRange {
+						panic(fmt.Sprintf(
+							"can't convert %s to decimal: fractional part too long",
+							value))
+					}
+					panic(fmt.Sprintf(
+						"can't convert %s to decimal: exponent is not numeric",
+						value))
+				}
+				value = value[:eIndex]
+				exp = expInt
+				// Step 2 adjust exp from dot.
+				pIndex := -1
+				vLen := len(value)
+				for i := 0; i < vLen; i++ {
+					if value[i] == '.' {
+						if pIndex > -1 {
+							panic(fmt.Sprintf(
+								"can't convert %s to decimal: too many .s",
+								value))
+						}
+						pIndex = i
+					}
+				}
+				if pIndex == -1 {
+					// There is no decimal point, we can just parse the original string as
+					// a hex
+					hexString = value
+				} else {
+					if pIndex+1 < vLen {
+						hexString = value[:pIndex] + value[pIndex+1:]
+					} else {
+						hexString = value[:pIndex]
+					}
+					expInt := -len(value[pIndex+1:])
+					exp += int64(expInt)
+				}
+				// Step 3 make Decimal from mantissa and exp.
+				var dValue *big.Int
+				dValue = new(big.Int)
+				_, ok := dValue.SetString(hexString, 16)
+				if !ok {
+					panic(fmt.Sprintf("can't convert %s to decimal", value))
+				}
+				if exp < math.MinInt32 || exp > math.MaxInt32 {
+					// NOTE(vadim): I doubt a string could realistically be this long
+					panic(fmt.Sprintf("can't convert %s to decimal: fractional part too long", originalInput))
+				}
+				bd := decimal.NewFromBigInt(dValue, int32(exp))
+
+				// NewFromHexString() END
+				//----------------------------------------
+
 				m.PushValue(TypedValue{
 					T: UntypedBigdecType,
 					V: BigdecValue{V: bd},
