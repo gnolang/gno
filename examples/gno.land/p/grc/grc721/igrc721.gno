@@ -1,4 +1,4 @@
-package igrc721
+package grc721
 
 import "std"
 

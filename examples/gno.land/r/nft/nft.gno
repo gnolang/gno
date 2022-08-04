@@ -5,11 +5,11 @@ import (
 	"strconv"
 
 	"gno.land/p/avl"
-	igrc721 "gno.land/p/grc/grc721"
+	"gno.land/p/grc/grc721"
 )
 
 type grc721 struct {
-	igrc721.GRC721 // implements the GRC721 interface
+	grc721.IGRC721 // implements the GRC721 interface
 
 	tokenCounter int
 	tokens       *avl.Tree // igrc721.TokenID -> *NFToken{}
