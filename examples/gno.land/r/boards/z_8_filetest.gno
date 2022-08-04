@@ -35,10 +35,10 @@ func main() {
 // _[see thread](/r/boards:test_board/2)_
 //
 // Reply of the second post
-// \- [@gnouser](/r/users:gnouser), [1970-01-01 12:00am (UTC)](/r/boards:test_board/2/3) \[[reply](/r/boards?help&__func=CreateReply&bid=1&threadid=2&postid=3&body.type=textarea)] \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=2&postid=3)]
+// \- [@gnouser](/r/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/boards:test_board/2/3) \[[reply](/r/boards?help&__func=CreateReply&bid=1&threadid=2&postid=3&body.type=textarea)] \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=2&postid=3)]
 //
 // _[see all 1 replies](/r/boards:test_board/2/3)_
 //
 // > First reply of the first reply
 // >
-// > \- [@gnouser](/r/users:gnouser), [1970-01-01 12:00am (UTC)](/r/boards:test_board/2/5) \[[reply](/r/boards?help&__func=CreateReply&bid=1&threadid=2&postid=5&body.type=textarea)] \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=2&postid=5)]
+// > \- [@gnouser](/r/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/boards:test_board/2/5) \[[reply](/r/boards?help&__func=CreateReply&bid=1&threadid=2&postid=5&body.type=textarea)] \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=2&postid=5)]
