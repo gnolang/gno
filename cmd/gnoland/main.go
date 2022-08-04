@@ -134,8 +134,8 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 	for _, path := range []string{
 		"p/ufmt",
 		"p/avl",
+		"p/grc/exts",
 		"p/grc/grc20",
-		"p/grc/grc20/impl",
 		"p/grc/grc721",
 		"p/maths",
 		"r/users",
