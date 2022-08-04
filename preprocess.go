@@ -966,7 +966,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind,
 							BigintKind:
 							if bd, ok := arg0.TypedValue.V.(BigdecValue); ok {
-								if !bd.V.IsInteger() {
+								if !isInteger(bd.V) {
 									panic(fmt.Sprintf(
 										"cannot convert %s to integer type",
 										arg0))

@@ -56,6 +56,12 @@ message InvalidPubKeyError {
 message InsufficientCoinsError {
 }
 
+message InvalidCoinsError {
+}
+
+message InvalidGasWantedError {
+}
+
 message OutOfGasError {
 }
 

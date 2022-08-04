@@ -815,6 +815,8 @@ func getChildObjects(val Value, more []Value) []Value {
 		return more
 	case BigintValue:
 		return more
+	case BigdecValue:
+		return more
 	case DataByteValue:
 		panic("should not happen")
 	case PointerValue:
@@ -1057,6 +1059,8 @@ func copyValueWithRefs(parent Object, val Value) Value {
 	case StringValue:
 		return cv
 	case BigintValue:
+		return cv
+	case BigdecValue:
 		return cv
 	case DataByteValue:
 		panic("should not happen")

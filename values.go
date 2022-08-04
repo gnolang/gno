@@ -10,8 +10,8 @@ import (
 	"strings"
 	"unsafe"
 
+	"github.com/cockroachdb/apd"
 	"github.com/gnolang/gno/pkgs/crypto"
-	"github.com/shopspring/decimal"
 )
 
 //----------------------------------------
@@ -98,7 +98,7 @@ func (bv BigintValue) Copy(alloc *Allocator) BigintValue {
 // BigdecValue
 
 type BigdecValue struct {
-	V decimal.Decimal
+	V *apd.Decimal
 }
 
 func (bv BigdecValue) MarshalAmino() (string, error) {
@@ -110,7 +110,7 @@ func (bv BigdecValue) MarshalAmino() (string, error) {
 }
 
 func (bv *BigdecValue) UnmarshalAmino(s string) error {
-	vv := decimal.NewFromInt(0)
+	vv := apd.New(0, 0)
 	err := vv.UnmarshalText([]byte(s))
 	if err != nil {
 		return err
@@ -120,7 +120,12 @@ func (bv *BigdecValue) UnmarshalAmino(s string) error {
 }
 
 func (bv BigdecValue) Copy(alloc *Allocator) BigdecValue {
-	return BigdecValue{V: bv.V.Copy()}
+	cp := apd.New(0, 0)
+	_, err := apd.BaseContext.Add(cp, cp, bv.V)
+	if err != nil {
+		panic("should not happen")
+	}
+	return BigdecValue{V: cp}
 }
 
 //----------------------------------------
@@ -1440,7 +1445,7 @@ func (tv *TypedValue) GetBigInt() *big.Int {
 	return tv.V.(BigintValue).V
 }
 
-func (tv *TypedValue) GetBigDec() decimal.Decimal {
+func (tv *TypedValue) GetBigDec() *apd.Decimal {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != BigdecKind {
 			panic(fmt.Sprintf(

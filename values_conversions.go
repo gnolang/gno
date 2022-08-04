@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/shopspring/decimal"
+	"github.com/cockroachdb/apd"
 )
 
 // t cannot be nil or untyped or DataByteType.
@@ -1036,7 +1036,7 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 		dst.V = BigintValue{V: big.NewInt(int64(sv))}
 	case BigdecKind:
 		dst.ClearNum()
-		dst.V = BigdecValue{V: decimal.NewFromInt(int64(sv))}
+		dst.V = BigdecValue{V: apd.New(int64(sv), 0)}
 	default:
 		panic(fmt.Sprintf("unexpected target %v", k))
 
@@ -1108,7 +1108,7 @@ func ConvertUntypedBigintTo(dst *TypedValue, bv BigintValue, t Type) {
 		return // done
 	case BigdecKind:
 		dst.T = t
-		dst.V = BigdecValue{V: decimal.NewFromBigInt(bi, 0)}
+		dst.V = BigdecValue{V: apd.NewWithBigInt(bi, 0)}
 		return // done
 	default:
 		panic(fmt.Sprintf(
@@ -1202,41 +1202,41 @@ func ConvertUntypedBigintTo(dst *TypedValue, bv BigintValue, t Type) {
 
 func ConvertUntypedBigdecTo(dst *TypedValue, bv BigdecValue, t Type) {
 	k := t.Kind()
-	bi := bv.V
+	bd := bv.V
 	switch k {
 	case BigintKind:
-		if !bi.IsInteger() {
+		if !isInteger(bd) {
 			panic(fmt.Sprintf(
 				"cannot convert untyped bigdec to integer -- %s not an exact integer",
-				bi.String(),
+				bd.String(),
 			))
 		}
 		dst.T = t
-		dst.V = BigintValue{V: bi.BigInt()}
+		dst.V = BigintValue{V: toBigInt(bd)}
 		return // done
 	case BoolKind:
 		panic("cannot convert untyped bigdec to bool")
 	case InterfaceKind:
 		dst.T = Float64Type
 		dst.V = nil
-		f, _ := bi.Float64()
+		f, _ := bd.Float64()
 		dst.SetFloat64(f)
 		return
 	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind:
 		fallthrough
 	case UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
-		if !bi.IsInteger() {
+		if !isInteger(bd) {
 			panic(fmt.Sprintf(
 				"cannot convert untyped bigdec to integer -- %s not an exact integer",
-				bi.String(),
+				bd.String(),
 			))
 		}
-		ConvertUntypedBigintTo(dst, BigintValue{V: bi.BigInt()}, t)
+		ConvertUntypedBigintTo(dst, BigintValue{V: toBigInt(bd)}, t)
 		return
 	case Float32Kind:
 		dst.T = t
 		dst.V = nil
-		f64, _ := bi.Float64()
+		f64, _ := bd.Float64()
 		bf := big.NewFloat(f64)
 		f32, acc := bf.Float32()
 		if f32 == 0 && (acc == big.Below || acc == big.Above) {
@@ -1249,8 +1249,8 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bv BigdecValue, t Type) {
 	case Float64Kind:
 		dst.T = t
 		dst.V = nil
-		f64, _ := bi.Float64()
-		if f64 == 0 && !bi.IsZero() {
+		f64, _ := bd.Float64()
+		if f64 == 0 && !bd.IsZero() {
 			panic("cannot convert untyped bigdec to float64 -- too close to zero")
 		} else if math.IsInf(float64(f64), 0) {
 			panic("cannot convert untyped bigdec to float64 -- too close to +-Inf")
@@ -1262,4 +1262,34 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bv BigdecValue, t Type) {
 			"cannot convert untyped bigdec type to %s",
 			k.String()))
 	}
+}
+
+//----------------------------------------
+// apd.Decimal utility
+
+func isInteger(d *apd.Decimal) bool {
+	d2 := apd.New(0, 0)
+	res, err := apd.BaseContext.RoundToIntegralExact(d2, d)
+	if err != nil {
+		panic("should not happen")
+	}
+	integer := !res.Inexact()
+	return integer
+}
+
+func toBigInt(d *apd.Decimal) *big.Int {
+	d2 := apd.New(0, 0)
+	_, err := apd.BaseContext.RoundToIntegralExact(d2, d)
+	if err != nil {
+		panic("should not happen")
+	}
+	d2s := d2.String()
+	bi := big.NewInt(0)
+	_, ok := bi.SetString(d2s, 10)
+	if !ok {
+		panic(fmt.Sprintf(
+			"invalid integer constant: %s",
+			d2s))
+	}
+	return bi
 }

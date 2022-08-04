@@ -3,6 +3,8 @@ package gno
 import (
 	"fmt"
 	"math/big"
+
+	"github.com/cockroachdb/apd"
 )
 
 //----------------------------------------
@@ -702,7 +704,13 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 	case BigdecType, UntypedBigdecType:
 		lb := lv.GetBigDec()
 		rb := rv.GetBigDec()
-		sum := lb.Add(rb)
+		sum := apd.New(0, 0)
+		cond, err := apd.BaseContext.WithPrecision(0).Add(sum, lb, rb)
+		if err != nil {
+			panic(fmt.Sprintf("bigdec addition error: %v", err))
+		} else if cond.Inexact() {
+			panic(fmt.Sprintf("bigdec addition inexact: %v + %v", lb, rb))
+		}
 		lv.V = BigdecValue{V: sum}
 	default:
 		panic(fmt.Sprintf(
@@ -752,7 +760,13 @@ func subAssign(lv, rv *TypedValue) {
 	case BigdecType, UntypedBigdecType:
 		lb := lv.GetBigDec()
 		rb := rv.GetBigDec()
-		diff := lb.Sub(rb)
+		diff := apd.New(0, 0)
+		cond, err := apd.BaseContext.WithPrecision(0).Sub(diff, lb, rb)
+		if err != nil {
+			panic(fmt.Sprintf("bigdec subtraction error: %v", err))
+		} else if cond.Inexact() {
+			panic(fmt.Sprintf("bigdec subtraction inexact: %v + %v", lb, rb))
+		}
 		lv.V = BigdecValue{V: diff}
 	default:
 		panic(fmt.Sprintf(
@@ -802,7 +816,11 @@ func mulAssign(lv, rv *TypedValue) {
 	case BigdecType, UntypedBigdecType:
 		lb := lv.GetBigDec()
 		rb := rv.GetBigDec()
-		prod := lb.Mul(rb)
+		prod := apd.New(0, 0)
+		_, err := apd.BaseContext.WithPrecision(1024).Mul(prod, lb, rb)
+		if err != nil {
+			panic(fmt.Sprintf("bigdec multiplication error: %v", err))
+		}
 		lv.V = BigdecValue{V: prod}
 	default:
 		panic(fmt.Sprintf(
@@ -854,7 +872,11 @@ func quoAssign(lv, rv *TypedValue) {
 	case BigdecType, UntypedBigdecType:
 		lb := lv.GetBigDec()
 		rb := rv.GetBigDec()
-		quo := lb.Div(rb)
+		quo := apd.New(0, 0)
+		_, err := apd.BaseContext.WithPrecision(1024).Quo(quo, lb, rb)
+		if err != nil {
+			panic(fmt.Sprintf("bigdec division error: %v", err))
+		}
 		lv.V = BigdecValue{V: quo}
 	default:
 		panic(fmt.Sprintf(

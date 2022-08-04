@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/shopspring/decimal"
+	"github.com/cockroachdb/apd"
 )
 
 func (m *Machine) doOpEval() {
@@ -77,10 +77,15 @@ func (m *Machine) doOpEval() {
 		case FLOAT:
 			if matched, _ := regexp.MatchString(`^[0-9\.]+([eE][\-\+]?[0-9]+)?$`, x.Value); matched {
 				value := x.Value
-				bd, err := decimal.NewFromString(value)
+				bd, c, err := apd.NewFromString(value)
 				if err != nil {
 					panic(fmt.Sprintf(
 						"invalid decimal constant: %s",
+						x.Value))
+				}
+				if c.Inexact() {
+					panic(fmt.Sprintf(
+						"could not represent decimal exactly: %s",
 						x.Value))
 				}
 				m.PushValue(TypedValue{
@@ -91,7 +96,6 @@ func (m *Machine) doOpEval() {
 			} else if matched, _ := regexp.MatchString(`^0[xX][0-9a-fA-F\.]+([pP][\-\+]?[0-9a-fA-F]+)?$`, x.Value); matched {
 				originalInput := x.Value
 				value := x.Value[2:]
-				// NOTE: derived from decimal.NewFromString().
 				var hexString string
 				var exp int64
 				eIndex := strings.IndexAny(value, "Pp")
@@ -143,6 +147,14 @@ func (m *Machine) doOpEval() {
 					expInt := -len(value[pIndex+1:])
 					exp += int64(expInt)
 				}
+				bexp := apd.New(0, 0)
+				_, err = apd.BaseContext.WithPrecision(1024).Pow(
+					bexp,
+					apd.New(2, 0),
+					apd.New(exp, 0))
+				if err != nil {
+					panic(fmt.Sprintf("error computing exponent: %v", err))
+				}
 				// Step 3 make Decimal from mantissa and exp.
 				var dValue *big.Int
 				dValue = new(big.Int)
@@ -154,14 +166,21 @@ func (m *Machine) doOpEval() {
 					// NOTE(vadim): I doubt a string could realistically be this long
 					panic(fmt.Sprintf("can't convert %s to decimal: fractional part too long", originalInput))
 				}
-				bd := decimal.NewFromBigInt(dValue, int32(exp))
+				res := apd.New(0, 0)
+				_, err = apd.BaseContext.WithPrecision(1024).Mul(
+					res,
+					apd.NewWithBigInt(dValue, 0),
+					bexp)
+				if err != nil {
+					panic(fmt.Sprintf("canot calculate hexadecimal: %v", err))
+				}
 
 				// NewFromHexString() END
 				//----------------------------------------
 
 				m.PushValue(TypedValue{
 					T: UntypedBigdecType,
-					V: BigdecValue{V: bd},
+					V: BigdecValue{V: res},
 				})
 				return
 			} else {
