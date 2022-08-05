@@ -32,6 +32,7 @@ const (
 	_allocTypeValue        = 16
 	_allocTypedValue       = 40
 	_allocBigint           = 200 // XXX
+	_allocBigdec           = 200 // XXX
 	_allocType             = 200 // XXX
 	_allocAny              = 200 // XXX
 )
@@ -41,6 +42,8 @@ const (
 	allocStringByte  = 1
 	allocBigint      = _allocBase + _allocPointer + _allocBigint
 	allocBigintByte  = 1
+	allocBigdec      = _allocBase + _allocPointer + _allocBigdec
+	allocBigdecByte  = 1
 	allocPointer     = _allocBase
 	allocArray       = _allocBase + _allocPointer + _allocArrayValue
 	allocArrayItem   = _allocTypedValue

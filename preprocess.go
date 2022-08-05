@@ -392,11 +392,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// SwitchClauseStmt:TRANS_BLOCK.
 					last.Define(n.VarName, anyValue(nil))
 				}
-				// Preprocess and convert tag if const.
-				if n.X != nil {
-					n.X = Preprocess(store, last, n.X).(Expr)
-					convertIfConst(store, last, n.X)
-				}
 
 			// TRANS_BLOCK -----------------------
 			case *SwitchClauseStmt:
@@ -412,7 +407,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				if ss.IsTypeSwitch {
 					if len(n.Cases) == 0 {
 						// evaluate default case.
-						if 0 < len(ss.VarName) {
+						if ss.VarName != "" {
 							// The type is the tag type.
 							tt := evalStaticTypeOf(store, last, ss.X)
 							last.Define(
@@ -435,7 +430,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							}
 							n.Cases[i] = constType(cx, ct)
 							// maybe type-switch def.
-							if 0 < len(ss.VarName) {
+							if ss.VarName != "" {
 								if len(n.Cases) == 1 {
 									// If there is only 1 case, the
 									// define applies with type.
@@ -580,6 +575,24 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_BLOCK -----------------------
 			default:
 				panic("should not happen")
+			}
+			return n, TRANS_CONTINUE
+
+		//----------------------------------------
+		case TRANS_BLOCK2:
+
+			// The main TRANS_BLOCK2 switch.
+			switch n := n.(type) {
+
+			// TRANS_BLOCK2 -----------------------
+			case *SwitchStmt:
+
+				// NOTE: TRANS_BLOCK2 ensures after .Init.
+				// Preprocess and convert tag if const.
+				if n.X != nil {
+					n.X = Preprocess(store, last, n.X).(Expr)
+					convertIfConst(store, last, n.X)
+				}
 			}
 			return n, TRANS_CONTINUE
 
@@ -769,6 +782,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								// (the other way around would work too)
 								// checkOrConvertType(store, last, n.Left, rcx.T, false)
 							} else {
+								// convert n.Right to left type.
 								checkOrConvertType(store, last, &n.Right, lcx.T, false)
 							}
 						}
@@ -941,12 +955,31 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						panic("type conversion requires single argument")
 					}
 					n.NumArgs = 1
-					if _, ok := n.Args[0].(*ConstExpr); ok {
-						convertIfConst(store, last, n.Args[0])
+					if arg0, ok := n.Args[0].(*ConstExpr); ok {
+						ct := evalStaticType(store, last, n.Func)
+						// As a special case, if a decimal cannot
+						// be represented as an integer, it cannot be converted to one,
+						// and the error is handled here.
+						// Out of bounds errors are usually handled during evalConst().
+						switch ct.Kind() {
+						case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind,
+							UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind,
+							BigintKind:
+							if bd, ok := arg0.TypedValue.V.(BigdecValue); ok {
+								if !isInteger(bd.V) {
+									panic(fmt.Sprintf(
+										"cannot convert %s to integer type",
+										arg0))
+								}
+							}
+						}
+						// (const) untyped decimal -> float64.
+						// (const) untyped bigint -> int.
+						convertConst(store, last, arg0, nil)
+						// evaluate the new expression.
 						cx := evalConst(store, last, n)
 						// Though cx may be undefined if ct is interface,
 						// the ATTR_TYPEOF_VALUE is still interface.
-						ct := evalStaticType(store, last, n.Func)
 						cx.SetAttribute(ATTR_TYPEOF_VALUE, ct)
 						return cx, TRANS_CONTINUE
 					} else {

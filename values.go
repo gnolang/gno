@@ -3,12 +3,14 @@ package gno
 import (
 	"encoding/binary"
 	"fmt"
+	"math"
 	"math/big"
 	"reflect"
 	"strconv"
 	"strings"
 	"unsafe"
 
+	"github.com/cockroachdb/apd"
 	"github.com/gnolang/gno/pkgs/crypto"
 )
 
@@ -24,6 +26,7 @@ type Value interface {
 // for performance.
 func (StringValue) assertValue()       {}
 func (BigintValue) assertValue()       {}
+func (BigdecValue) assertValue()       {}
 func (DataByteValue) assertValue()     {}
 func (PointerValue) assertValue()      {}
 func (*ArrayValue) assertValue()       {}
@@ -41,6 +44,7 @@ func (RefValue) assertValue()          {}
 var (
 	_ Value = StringValue("")
 	_ Value = BigintValue{}
+	_ Value = BigdecValue{}
 	_ Value = DataByteValue{}
 	_ Value = PointerValue{}
 	_ Value = &ArrayValue{} // TODO doesn't have to be pointer?
@@ -56,7 +60,13 @@ var (
 	_ Value = RefValue{}
 )
 
+//----------------------------------------
+// StringValue
+
 type StringValue string
+
+//----------------------------------------
+// BigintValue
 
 type BigintValue struct {
 	V *big.Int
@@ -84,6 +94,43 @@ func (bv BigintValue) Copy(alloc *Allocator) BigintValue {
 	return BigintValue{V: big.NewInt(0).Set(bv.V)}
 }
 
+//----------------------------------------
+// BigdecValue
+
+type BigdecValue struct {
+	V *apd.Decimal
+}
+
+func (bv BigdecValue) MarshalAmino() (string, error) {
+	bz, err := bv.V.MarshalText()
+	if err != nil {
+		return "", err
+	}
+	return string(bz), nil
+}
+
+func (bv *BigdecValue) UnmarshalAmino(s string) error {
+	vv := apd.New(0, 0)
+	err := vv.UnmarshalText([]byte(s))
+	if err != nil {
+		return err
+	}
+	bv.V = vv
+	return nil
+}
+
+func (bv BigdecValue) Copy(alloc *Allocator) BigdecValue {
+	cp := apd.New(0, 0)
+	_, err := apd.BaseContext.Add(cp, cp, bv.V)
+	if err != nil {
+		panic("should not happen")
+	}
+	return BigdecValue{V: cp}
+}
+
+//----------------------------------------
+// DataByteValue
+
 type DataByteValue struct {
 	Base     *ArrayValue // base array.
 	Index    int         // base.Data index.
@@ -97,6 +144,9 @@ func (dbv DataByteValue) GetByte() byte {
 func (dbv DataByteValue) SetByte(b byte) {
 	dbv.Base.Data[dbv.Index] = b
 }
+
+//----------------------------------------
+// PointerValue
 
 // Base is set if the pointer refers to an array index or
 // struct field or block var.
@@ -248,6 +298,9 @@ func (pv PointerValue) Deref() (tv TypedValue) {
 	}
 }
 
+//----------------------------------------
+// ArrayValue
+
 type ArrayValue struct {
 	ObjectInfo
 	List []TypedValue
@@ -338,6 +391,9 @@ func (av *ArrayValue) Copy(alloc *Allocator) *ArrayValue {
 	}
 }
 
+//----------------------------------------
+// SliceValue
+
 type SliceValue struct {
 	Base   Value
 	Offset int
@@ -381,6 +437,9 @@ func (sv *SliceValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 	}
 	return sv.GetBase(store).GetPointerAtIndexInt2(store, sv.Offset+ii, et)
 }
+
+//----------------------------------------
+// StructValue
 
 type StructValue struct {
 	ObjectInfo
@@ -444,6 +503,9 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 	copy(fields, sv.Fields)
 	return alloc.NewStruct(fields)
 }
+
+//----------------------------------------
+// FuncValue
 
 // FuncValue.Type stores the method signature from the
 // declaration, and has exact parameter/result names declared,
@@ -550,6 +612,9 @@ func (fv *FuncValue) GetClosure(store Store) *Block {
 	}
 }
 
+//----------------------------------------
+// BoundMethodValue
+
 type BoundMethodValue struct {
 	ObjectInfo
 
@@ -562,6 +627,9 @@ type BoundMethodValue struct {
 	// The type is .Func.Type.Params[0].
 	Receiver TypedValue
 }
+
+//----------------------------------------
+// MapValue
 
 type MapValue struct {
 	ObjectInfo
@@ -705,10 +773,16 @@ func (mv *MapValue) DeleteForKey(store Store, key *TypedValue) {
 	}
 }
 
+//----------------------------------------
+// TypeValue
+
 // The type itself as a value.
 type TypeValue struct {
 	Type Type
 }
+
+//----------------------------------------
+// PackageValue
 
 type PackageValue struct {
 	ObjectInfo // is a separate object from .Block.
@@ -826,6 +900,9 @@ func (pv *PackageValue) GetPkgAddr() crypto.Address {
 	return DerivePkgAddr(pv.PkgPath)
 }
 
+//----------------------------------------
+// NativeValue
+
 type NativeValue struct {
 	Value reflect.Value `json:"-"`
 	Bytes []byte        // XXX is this used?
@@ -839,7 +916,7 @@ func (nv *NativeValue) Copy(alloc *Allocator) *NativeValue {
 }
 
 //----------------------------------------
-// TypedValue
+// TypedValue (is not a value, but a tuple)
 
 type TypedValue struct {
 	T Type    `json:",omitempty"` // never nil
@@ -980,6 +1057,18 @@ func (tv *TypedValue) PrimitiveBytes() (data []byte) {
 		data = make([]byte, 8)
 		binary.LittleEndian.PutUint64(
 			data, uint64(tv.GetUint()))
+		return data
+	case Float32Type:
+		data = make([]byte, 4)
+		u32 := math.Float32bits(tv.GetFloat32())
+		binary.LittleEndian.PutUint32(
+			data, uint32(u32))
+		return data
+	case Float64Type:
+		data = make([]byte, 8)
+		u64 := math.Float64bits(tv.GetFloat64())
+		binary.LittleEndian.PutUint64(
+			data, uint64(u64))
 		return data
 	case BigintType:
 		return tv.V.(BigintValue).V.Bytes()
@@ -1301,15 +1390,70 @@ func (tv *TypedValue) GetUint64() uint64 {
 	return *(*uint64)(unsafe.Pointer(&tv.N))
 }
 
-func (tv *TypedValue) GetBig() *big.Int {
+func (tv *TypedValue) SetFloat32(n float32) {
+	if debug {
+		if tv.T.Kind() != Float32Kind || isNative(tv.T) {
+			panic(fmt.Sprintf(
+				"TypedValue.SetFloat32() on type %s",
+				tv.T.String()))
+		}
+	}
+	*(*float32)(unsafe.Pointer(&tv.N)) = n
+}
+
+func (tv *TypedValue) GetFloat32() float32 {
+	if debug {
+		if tv.T != nil && tv.T.Kind() != Float32Kind {
+			panic(fmt.Sprintf(
+				"TypedValue.GetFloat32() on type %s",
+				tv.T.String()))
+		}
+	}
+	return *(*float32)(unsafe.Pointer(&tv.N))
+}
+
+func (tv *TypedValue) SetFloat64(n float64) {
+	if debug {
+		if tv.T.Kind() != Float64Kind || isNative(tv.T) {
+			panic(fmt.Sprintf(
+				"TypedValue.SetFloat64() on type %s",
+				tv.T.String()))
+		}
+	}
+	*(*float64)(unsafe.Pointer(&tv.N)) = n
+}
+
+func (tv *TypedValue) GetFloat64() float64 {
+	if debug {
+		if tv.T != nil && tv.T.Kind() != Float64Kind {
+			panic(fmt.Sprintf(
+				"TypedValue.GetFloat64() on type %s",
+				tv.T.String()))
+		}
+	}
+	return *(*float64)(unsafe.Pointer(&tv.N))
+}
+
+func (tv *TypedValue) GetBigInt() *big.Int {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != BigintKind {
 			panic(fmt.Sprintf(
-				"TypedValue.GetBig() on type %s",
+				"TypedValue.GetBigInt() on type %s",
 				tv.T.String()))
 		}
 	}
 	return tv.V.(BigintValue).V
+}
+
+func (tv *TypedValue) GetBigDec() *apd.Decimal {
+	if debug {
+		if tv.T != nil && tv.T.Kind() != BigdecKind {
+			panic(fmt.Sprintf(
+				"TypedValue.GetBigDec() on type %s",
+				tv.T.String()))
+		}
+	}
+	return tv.V.(BigdecValue).V
 }
 
 func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
@@ -1489,7 +1633,12 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 			panic("should not happen")
 		}
 	case VPDerefValMethod:
-		dtv = tv.V.(PointerValue).TV
+		dtv2 := tv.V.(PointerValue).TV
+		dtv = &TypedValue{ // In case method is called on converted type, like ((*othertype)x).Method().
+			T: tv.T.Elem(),
+			V: dtv2.V,
+			N: dtv2.N,
+		}
 		isPtr = true
 		path.Type = VPValMethod
 	case VPDerefPtrMethod:

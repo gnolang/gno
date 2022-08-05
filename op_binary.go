@@ -3,6 +3,8 @@ package gno
 import (
 	"fmt"
 	"math/big"
+
+	"github.com/cockroachdb/apd"
 )
 
 //----------------------------------------
@@ -379,9 +381,17 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 		return (lv.GetUint32() == rv.GetUint32())
 	case Uint64Kind:
 		return (lv.GetUint64() == rv.GetUint64())
+	case Float32Kind:
+		return (lv.GetFloat32() == rv.GetFloat32()) // XXX determinism?
+	case Float64Kind:
+		return (lv.GetFloat64() == rv.GetFloat64()) // XXX determinism?
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
+		return lb.Cmp(rb) == 0
+	case BigdecKind:
+		lb := lv.V.(BigdecValue).V
+		rb := rv.V.(BigdecValue).V
 		return lb.Cmp(rb) == 0
 	case ArrayKind:
 		la := lv.V.(*ArrayValue)
@@ -500,9 +510,17 @@ func isLss(lv, rv *TypedValue) bool {
 		return (lv.GetUint32() < rv.GetUint32())
 	case Uint64Kind:
 		return (lv.GetUint64() < rv.GetUint64())
+	case Float32Kind:
+		return (lv.GetFloat32() < rv.GetFloat32()) // XXX determinism?
+	case Float64Kind:
+		return (lv.GetFloat64() < rv.GetFloat64()) // XXX determinism?
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
+		return lb.Cmp(rb) < 0
+	case BigdecKind:
+		lb := lv.V.(BigdecValue).V
+		rb := rv.V.(BigdecValue).V
 		return lb.Cmp(rb) < 0
 	default:
 		panic(fmt.Sprintf(
@@ -536,9 +554,17 @@ func isLeq(lv, rv *TypedValue) bool {
 		return (lv.GetUint32() <= rv.GetUint32())
 	case Uint64Kind:
 		return (lv.GetUint64() <= rv.GetUint64())
+	case Float32Kind:
+		return (lv.GetFloat32() <= rv.GetFloat32()) // XXX determinism?
+	case Float64Kind:
+		return (lv.GetFloat64() <= rv.GetFloat64()) // XXX determinism?
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
+		return lb.Cmp(rb) <= 0
+	case BigdecKind:
+		lb := lv.V.(BigdecValue).V
+		rb := rv.V.(BigdecValue).V
 		return lb.Cmp(rb) <= 0
 	default:
 		panic(fmt.Sprintf(
@@ -572,9 +598,17 @@ func isGtr(lv, rv *TypedValue) bool {
 		return (lv.GetUint32() > rv.GetUint32())
 	case Uint64Kind:
 		return (lv.GetUint64() > rv.GetUint64())
+	case Float32Kind:
+		return (lv.GetFloat32() > rv.GetFloat32()) // XXX determinism?
+	case Float64Kind:
+		return (lv.GetFloat64() > rv.GetFloat64()) // XXX determinism?
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
+		return lb.Cmp(rb) > 0
+	case BigdecKind:
+		lb := lv.V.(BigdecValue).V
+		rb := rv.V.(BigdecValue).V
 		return lb.Cmp(rb) > 0
 	default:
 		panic(fmt.Sprintf(
@@ -608,9 +642,17 @@ func isGeq(lv, rv *TypedValue) bool {
 		return (lv.GetUint32() >= rv.GetUint32())
 	case Uint64Kind:
 		return (lv.GetUint64() >= rv.GetUint64())
+	case Float32Kind:
+		return (lv.GetFloat32() >= rv.GetFloat32()) // XXX determinism?
+	case Float64Kind:
+		return (lv.GetFloat64() >= rv.GetFloat64()) // XXX determinism?
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
+		return lb.Cmp(rb) >= 0
+	case BigdecKind:
+		lb := lv.V.(BigdecValue).V
+		rb := rv.V.(BigdecValue).V
 		return lb.Cmp(rb) >= 0
 	default:
 		panic(fmt.Sprintf(
@@ -649,10 +691,27 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 		lv.SetUint32(lv.GetUint32() + rv.GetUint32())
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() + rv.GetUint64())
+	case Float32Type:
+		// NOTE: gno doesn't fuse *+.
+		lv.SetFloat32(lv.GetFloat32() + rv.GetFloat32()) // XXX determinsm?
+	case Float64Type:
+		// NOTE: gno doesn't fuse *+.
+		lv.SetFloat64(lv.GetFloat64() + rv.GetFloat64()) // XXX determinism?
 	case BigintType, UntypedBigintType:
-		lb := lv.GetBig()
-		lb = big.NewInt(0).Add(lb, rv.GetBig())
+		lb := lv.GetBigInt()
+		lb = big.NewInt(0).Add(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
+	case BigdecType, UntypedBigdecType:
+		lb := lv.GetBigDec()
+		rb := rv.GetBigDec()
+		sum := apd.New(0, 0)
+		cond, err := apd.BaseContext.WithPrecision(0).Add(sum, lb, rb)
+		if err != nil {
+			panic(fmt.Sprintf("bigdec addition error: %v", err))
+		} else if cond.Inexact() {
+			panic(fmt.Sprintf("bigdec addition inexact: %v + %v", lb, rb))
+		}
+		lv.V = BigdecValue{V: sum}
 	default:
 		panic(fmt.Sprintf(
 			"operators + and += not defined for %s",
@@ -688,10 +747,27 @@ func subAssign(lv, rv *TypedValue) {
 		lv.SetUint32(lv.GetUint32() - rv.GetUint32())
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() - rv.GetUint64())
+	case Float32Type:
+		// NOTE: gno doesn't fuse *+.
+		lv.SetFloat32(lv.GetFloat32() - rv.GetFloat32()) // XXX determinism?
+	case Float64Type:
+		// NOTE: gno doesn't fuse *+.
+		lv.SetFloat64(lv.GetFloat64() - rv.GetFloat64()) // XXX determinism?
 	case BigintType, UntypedBigintType:
-		lb := lv.GetBig()
-		lb = big.NewInt(0).Sub(lb, rv.GetBig())
+		lb := lv.GetBigInt()
+		lb = big.NewInt(0).Sub(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
+	case BigdecType, UntypedBigdecType:
+		lb := lv.GetBigDec()
+		rb := rv.GetBigDec()
+		diff := apd.New(0, 0)
+		cond, err := apd.BaseContext.WithPrecision(0).Sub(diff, lb, rb)
+		if err != nil {
+			panic(fmt.Sprintf("bigdec subtraction error: %v", err))
+		} else if cond.Inexact() {
+			panic(fmt.Sprintf("bigdec subtraction inexact: %v + %v", lb, rb))
+		}
+		lv.V = BigdecValue{V: diff}
 	default:
 		panic(fmt.Sprintf(
 			"operators - and -= not defined for %s",
@@ -727,10 +803,25 @@ func mulAssign(lv, rv *TypedValue) {
 		lv.SetUint32(lv.GetUint32() * rv.GetUint32())
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() * rv.GetUint64())
+	case Float32Type:
+		// NOTE: gno doesn't fuse *+.
+		lv.SetFloat32(lv.GetFloat32() * rv.GetFloat32()) // XXX determinism?
+	case Float64Type:
+		// NOTE: gno doesn't fuse *+.
+		lv.SetFloat64(lv.GetFloat64() * rv.GetFloat64()) // XXX determinism?
 	case BigintType, UntypedBigintType:
-		lb := lv.GetBig()
-		lb = big.NewInt(0).Mul(lb, rv.GetBig())
+		lb := lv.GetBigInt()
+		lb = big.NewInt(0).Mul(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
+	case BigdecType, UntypedBigdecType:
+		lb := lv.GetBigDec()
+		rb := rv.GetBigDec()
+		prod := apd.New(0, 0)
+		_, err := apd.BaseContext.WithPrecision(1024).Mul(prod, lb, rb)
+		if err != nil {
+			panic(fmt.Sprintf("bigdec multiplication error: %v", err))
+		}
+		lv.V = BigdecValue{V: prod}
 	default:
 		panic(fmt.Sprintf(
 			"operators * and *= not defined for %s",
@@ -766,10 +857,27 @@ func quoAssign(lv, rv *TypedValue) {
 		lv.SetUint32(lv.GetUint32() / rv.GetUint32())
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() / rv.GetUint64())
+	case Float32Type:
+		// NOTE: gno doesn't fuse *+.
+		lv.SetFloat32(lv.GetFloat32() / rv.GetFloat32())
+		// XXX FOR DETERMINISM, PANIC IF NAN.
+	case Float64Type:
+		// NOTE: gno doesn't fuse *+.
+		lv.SetFloat64(lv.GetFloat64() / rv.GetFloat64())
+		// XXX FOR DETERMINISM, PANIC IF NAN.
 	case BigintType, UntypedBigintType:
-		lb := lv.GetBig()
-		lb = big.NewInt(0).Quo(lb, rv.GetBig())
+		lb := lv.GetBigInt()
+		lb = big.NewInt(0).Quo(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
+	case BigdecType, UntypedBigdecType:
+		lb := lv.GetBigDec()
+		rb := rv.GetBigDec()
+		quo := apd.New(0, 0)
+		_, err := apd.BaseContext.WithPrecision(1024).Quo(quo, lb, rb)
+		if err != nil {
+			panic(fmt.Sprintf("bigdec division error: %v", err))
+		}
+		lv.V = BigdecValue{V: quo}
 	default:
 		panic(fmt.Sprintf(
 			"operators / and /= not defined for %s",
@@ -806,8 +914,8 @@ func remAssign(lv, rv *TypedValue) {
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() % rv.GetUint64())
 	case BigintType, UntypedBigintType:
-		lb := lv.GetBig()
-		lb = big.NewInt(0).Rem(lb, rv.GetBig())
+		lb := lv.GetBigInt()
+		lb = big.NewInt(0).Rem(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
 	default:
 		panic(fmt.Sprintf(
@@ -845,8 +953,8 @@ func bandAssign(lv, rv *TypedValue) {
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() & rv.GetUint64())
 	case BigintType, UntypedBigintType:
-		lb := lv.GetBig()
-		lb = big.NewInt(0).And(lb, rv.GetBig())
+		lb := lv.GetBigInt()
+		lb = big.NewInt(0).And(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
 	default:
 		panic(fmt.Sprintf(
@@ -884,8 +992,8 @@ func bandnAssign(lv, rv *TypedValue) {
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() &^ rv.GetUint64())
 	case BigintType, UntypedBigintType:
-		lb := lv.GetBig()
-		lb = big.NewInt(0).AndNot(lb, rv.GetBig())
+		lb := lv.GetBigInt()
+		lb = big.NewInt(0).AndNot(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
 	default:
 		panic(fmt.Sprintf(
@@ -923,8 +1031,8 @@ func borAssign(lv, rv *TypedValue) {
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() | rv.GetUint64())
 	case BigintType, UntypedBigintType:
-		lb := lv.GetBig()
-		lb = big.NewInt(0).Or(lb, rv.GetBig())
+		lb := lv.GetBigInt()
+		lb = big.NewInt(0).Or(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
 	default:
 		panic(fmt.Sprintf(
@@ -962,8 +1070,8 @@ func xorAssign(lv, rv *TypedValue) {
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() ^ rv.GetUint64())
 	case BigintType, UntypedBigintType:
-		lb := lv.GetBig()
-		lb = big.NewInt(0).Xor(lb, rv.GetBig())
+		lb := lv.GetBigInt()
+		lb = big.NewInt(0).Xor(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
 	default:
 		panic(fmt.Sprintf(
@@ -1001,7 +1109,7 @@ func shlAssign(lv, rv *TypedValue) {
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() << rv.GetUint())
 	case BigintType, UntypedBigintType:
-		lb := lv.GetBig()
+		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Lsh(lb, rv.GetUint())
 		lv.V = BigintValue{V: lb}
 	default:
@@ -1040,7 +1148,7 @@ func shrAssign(lv, rv *TypedValue) {
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() >> rv.GetUint())
 	case BigintType, UntypedBigintType:
-		lb := lv.GetBig()
+		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Rsh(lb, rv.GetUint())
 		lv.V = BigintValue{V: lb}
 	default:

@@ -15,6 +15,7 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	&TypedValue{},
 	StringValue(""),
 	BigintValue{},
+	BigdecValue{},
 	// DataByteValue{}
 	PointerValue{},
 	&ArrayValue{},

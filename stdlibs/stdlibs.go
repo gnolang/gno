@@ -1,6 +1,7 @@
 package stdlibs
 
 import (
+	"math"
 	"reflect"
 	"strconv"
 	"time"
@@ -19,6 +20,78 @@ func InjectNativeMappings(store gno.Store) {
 
 func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 	switch pn.PkgPath {
+	case "internal/math":
+		pn.DefineNative("Float32bits",
+			gno.Flds( // params
+				"f", "float32",
+			),
+			gno.Flds( // results
+				"b", "uint32",
+			),
+			func(m *gno.Machine) {
+				arg0 := m.LastBlock().GetParams1().TV
+				res0 := typedUint32(math.Float32bits(arg0.GetFloat32()))
+				m.PushValue(res0)
+			},
+		)
+		pn.DefineNative("Float32frombits",
+			gno.Flds( // params
+				"b", "uint32",
+			),
+			gno.Flds( // results
+				"f", "float32",
+			),
+			func(m *gno.Machine) {
+				arg0 := m.LastBlock().GetParams1().TV
+				res0 := typedFloat32(math.Float32frombits(arg0.GetUint32()))
+				m.PushValue(res0)
+			},
+		)
+		pn.DefineNative("Float64bits",
+			gno.Flds( // params
+				"f", "float64",
+			),
+			gno.Flds( // results
+				"b", "uint64",
+			),
+			func(m *gno.Machine) {
+				arg0 := m.LastBlock().GetParams1().TV
+				res0 := typedUint64(math.Float64bits(arg0.GetFloat64()))
+				m.PushValue(res0)
+			},
+		)
+		pn.DefineNative("Float64frombits",
+			gno.Flds( // params
+				"b", "uint64",
+			),
+			gno.Flds( // results
+				"f", "float64",
+			),
+			func(m *gno.Machine) {
+				arg0 := m.LastBlock().GetParams1().TV
+				res0 := typedFloat64(math.Float64frombits(arg0.GetUint64()))
+				m.PushValue(res0)
+			},
+		)
+	case "internal/os":
+		pn.DefineNative("Now",
+			gno.Flds( // params
+			),
+			gno.Flds( // results
+				"sec", "int64",
+				"nsec", "int32",
+				"mono", "int64",
+			),
+			func(m *gno.Machine) {
+				ctx := m.Context.(ExecContext)
+				res0 := typedInt64(ctx.Timestamp)
+				res1 := typedInt32(0)
+				res2 := typedInt32(0)
+				m.PushValue(res0)
+				m.PushValue(res1)
+				m.PushValue(res2)
+			},
+		)
 	case "strconv":
 		pn.DefineGoNativeValue("Itoa", strconv.Itoa)
 		pn.DefineGoNativeValue("Atoi", strconv.Atoi)
@@ -263,6 +336,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				m.PushValue(res0)
 			},
 		)
+		// XXX DEPRECATED, use stdlibs/time instead
 		pn.DefineNative("GetTimestamp",
 			gno.Flds( // params
 			),
@@ -345,9 +419,39 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 	}
 }
 
+func typedInt32(i32 int32) gno.TypedValue {
+	tv := gno.TypedValue{T: gno.Int32Type}
+	tv.SetInt32(i32)
+	return tv
+}
+
 func typedInt64(i64 int64) gno.TypedValue {
 	tv := gno.TypedValue{T: gno.Int64Type}
 	tv.SetInt64(i64)
+	return tv
+}
+
+func typedUint32(u32 uint32) gno.TypedValue {
+	tv := gno.TypedValue{T: gno.Uint32Type}
+	tv.SetUint32(u32)
+	return tv
+}
+
+func typedUint64(u64 uint64) gno.TypedValue {
+	tv := gno.TypedValue{T: gno.Uint64Type}
+	tv.SetUint64(u64)
+	return tv
+}
+
+func typedFloat32(f32 float32) gno.TypedValue {
+	tv := gno.TypedValue{T: gno.Float32Type}
+	tv.SetFloat32(f32)
+	return tv
+}
+
+func typedFloat64(f64 float64) gno.TypedValue {
+	tv := gno.TypedValue{T: gno.Float64Type}
+	tv.SetFloat64(f64)
 	return tv
 }
 

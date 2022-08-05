@@ -35,7 +35,7 @@ var (
 
 func (i VPType) String() string {
 	switch {
-	case 0 <= i && i <= 6:
+	case i <= 6:
 		return _VPType_name_0[_VPType_index_0[i]:_VPType_index_0[i+1]]
 	case 18 <= i && i <= 21:
 		i -= 18

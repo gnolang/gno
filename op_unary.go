@@ -3,6 +3,8 @@ package gno
 import (
 	"fmt"
 	"math/big"
+
+	"github.com/cockroachdb/apd"
 )
 
 func (m *Machine) doOpUpos() {
@@ -43,9 +45,16 @@ func (m *Machine) doOpUneg() {
 		xv.SetUint32(-xv.GetUint32())
 	case Uint64Type:
 		xv.SetUint64(-xv.GetUint64())
+	case Float32Type:
+		xv.SetFloat32(-xv.GetFloat32())
+	case Float64Type:
+		xv.SetFloat64(-xv.GetFloat64())
 	case UntypedBigintType, BigintType:
 		bv := xv.V.(BigintValue)
 		xv.V = BigintValue{V: new(big.Int).Neg(bv.V)}
+	case UntypedBigdecType, BigdecType:
+		bv := xv.V.(BigdecValue)
+		xv.V = BigdecValue{V: apd.New(0, 0).Neg(bv.V)}
 	case nil:
 		// NOTE: for now only BigintValue is possible.
 		bv := xv.V.(BigintValue)

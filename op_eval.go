@@ -2,10 +2,13 @@ package gno
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/cockroachdb/apd"
 )
 
 func (m *Machine) doOpEval() {
@@ -72,51 +75,116 @@ func (m *Machine) doOpEval() {
 				V: BigintValue{V: bi},
 			})
 		case FLOAT:
-			// Special case if ieee notation of integer type.
-			if matched, _ := regexp.MatchString(`[\-\+]?[0-9]+e[0-9]+`, x.Value); matched {
+			if matched, _ := regexp.MatchString(`^[0-9\.]+([eE][\-\+]?[0-9]+)?$`, x.Value); matched {
 				value := x.Value
-				isNeg := false
-				if x.Value[0] == '-' {
-					isNeg = true
-					value = x.Value[1:]
-				} else if x.Value[0] == '+' {
-					isNeg = false
-					value = x.Value[1:]
-				}
-				parts := strings.SplitN(value, "e", 2)
-				if len(parts) != 2 {
-					panic(fmt.Sprintf(
-						"invalid integer constant: %s",
-						x.Value))
-				}
-				first, err := strconv.Atoi(parts[0])
+				bd, c, err := apd.NewFromString(value)
 				if err != nil {
 					panic(fmt.Sprintf(
-						"invalid integer constant: %s",
+						"invalid decimal constant: %s",
 						x.Value))
 				}
-				second, err := strconv.Atoi(parts[1])
-				if err != nil {
+				if c.Inexact() {
 					panic(fmt.Sprintf(
-						"invalid integer constant: %s",
+						"could not represent decimal exactly: %s",
 						x.Value))
-				}
-				bi := big.NewInt(0)
-				bi = bi.Exp(big.NewInt(10), big.NewInt(int64(second)), nil)
-				bi = bi.Mul(bi, big.NewInt(int64(first)))
-				if isNeg {
-					bi = bi.Mul(bi, big.NewInt(-1))
 				}
 				m.PushValue(TypedValue{
-					T: UntypedBigintType,
-					V: BigintValue{V: bi},
+					T: UntypedBigdecType,
+					V: BigdecValue{V: bd},
+				})
+				return
+			} else if matched, _ := regexp.MatchString(`^0[xX][0-9a-fA-F\.]+([pP][\-\+]?[0-9a-fA-F]+)?$`, x.Value); matched {
+				originalInput := x.Value
+				value := x.Value[2:]
+				var hexString string
+				var exp int64
+				eIndex := strings.IndexAny(value, "Pp")
+				if eIndex == -1 {
+					panic("should not happen")
+				}
+
+				//----------------------------------------
+				// NewFromHexString()
+				// TODO: move this to another function.
+
+				// Step 1 get exp component.
+				expInt, err := strconv.ParseInt(value[eIndex+1:], 10, 32)
+				if err != nil {
+					if e, ok := err.(*strconv.NumError); ok && e.Err == strconv.ErrRange {
+						panic(fmt.Sprintf(
+							"can't convert %s to decimal: fractional part too long",
+							value))
+					}
+					panic(fmt.Sprintf(
+						"can't convert %s to decimal: exponent is not numeric",
+						value))
+				}
+				value = value[:eIndex]
+				exp = expInt
+				// Step 2 adjust exp from dot.
+				pIndex := -1
+				vLen := len(value)
+				for i := 0; i < vLen; i++ {
+					if value[i] == '.' {
+						if pIndex > -1 {
+							panic(fmt.Sprintf(
+								"can't convert %s to decimal: too many .s",
+								value))
+						}
+						pIndex = i
+					}
+				}
+				if pIndex == -1 {
+					// There is no decimal point, we can just parse the original string as
+					// a hex
+					hexString = value
+				} else {
+					if pIndex+1 < vLen {
+						hexString = value[:pIndex] + value[pIndex+1:]
+					} else {
+						hexString = value[:pIndex]
+					}
+					expInt := -len(value[pIndex+1:])
+					exp += int64(expInt)
+				}
+				bexp := apd.New(0, 0)
+				_, err = apd.BaseContext.WithPrecision(1024).Pow(
+					bexp,
+					apd.New(2, 0),
+					apd.New(exp, 0))
+				if err != nil {
+					panic(fmt.Sprintf("error computing exponent: %v", err))
+				}
+				// Step 3 make Decimal from mantissa and exp.
+				var dValue *big.Int
+				dValue = new(big.Int)
+				_, ok := dValue.SetString(hexString, 16)
+				if !ok {
+					panic(fmt.Sprintf("can't convert %s to decimal", value))
+				}
+				if exp < math.MinInt32 || exp > math.MaxInt32 {
+					// NOTE(vadim): I doubt a string could realistically be this long
+					panic(fmt.Sprintf("can't convert %s to decimal: fractional part too long", originalInput))
+				}
+				res := apd.New(0, 0)
+				_, err = apd.BaseContext.WithPrecision(1024).Mul(
+					res,
+					apd.NewWithBigInt(dValue, 0),
+					bexp)
+				if err != nil {
+					panic(fmt.Sprintf("canot calculate hexadecimal: %v", err))
+				}
+
+				// NewFromHexString() END
+				//----------------------------------------
+
+				m.PushValue(TypedValue{
+					T: UntypedBigdecType,
+					V: BigdecValue{V: res},
 				})
 				return
 			} else {
-				// NOTE: I suspect we won't get hardware-level
-				// consistency (determinism) in floating point numbers
-				// yet, so hold off on this until we master this.
-				panic(fmt.Sprintf("floats are not supported: %v", x.String()))
+				panic(fmt.Sprintf("unexpected decimal/float format %s", x.Value))
 			}
 		case IMAG:
 			// NOTE: this is a syntax and grammar problem, not an

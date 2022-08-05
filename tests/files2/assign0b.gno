@@ -14,5 +14,5 @@ func main() {
 }
 
 // Output:
-// &{<nil> <nil> 10s}
-// &{<nil> <nil> 0s}
+// &{<nil> <nil> 10000000000}
+// &{<nil> <nil> 0}

@@ -33,7 +33,7 @@ func main() {
 // # First Post (title)
 //
 // Body of the first post. (body)
-// \- [g1w3jhxapjta047h6lta047h6lta047h6laqcyu4](/r/users:g1w3jhxapjta047h6lta047h6lta047h6laqcyu4), [1970-01-01 12:00am (UTC)](/r/boards:test_board/1) \[[reply](/r/boards?help&__func=CreateReply&bid=1&threadid=1&postid=1&body.type=textarea)] \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=1&postid=1)]
+// \- [g1w3jhxapjta047h6lta047h6lta047h6laqcyu4](/r/users:g1w3jhxapjta047h6lta047h6lta047h6laqcyu4), [2009-02-13 11:31pm (UTC)](/r/boards:test_board/1) \[[reply](/r/boards?help&__func=CreateReply&bid=1&threadid=1&postid=1&body.type=textarea)] \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=1&postid=1)]
 //
 // > Reply of the first post
-// > \- [g1w3jhxapjta047h6lta047h6lta047h6laqcyu4](/r/users:g1w3jhxapjta047h6lta047h6lta047h6laqcyu4), [1970-01-01 12:00am (UTC)](/r/boards:test_board/1/2) \[[reply](/r/boards?help&__func=CreateReply&bid=1&threadid=1&postid=2&body.type=textarea)] \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=1&postid=2)]
+// > \- [g1w3jhxapjta047h6lta047h6lta047h6laqcyu4](/r/users:g1w3jhxapjta047h6lta047h6lta047h6laqcyu4), [2009-02-13 11:31pm (UTC)](/r/boards:test_board/1/2) \[[reply](/r/boards?help&__func=CreateReply&bid=1&threadid=1&postid=2&body.type=textarea)] \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=1&postid=2)]

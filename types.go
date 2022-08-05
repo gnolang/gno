@@ -95,9 +95,13 @@ const (
 	Uint16Type
 	Uint32Type
 	Uint64Type
-	// UintptrType
+	Float32Type
+	Float64Type
 	UntypedBigintType
 	BigintType
+	UntypedBigdecType
+	BigdecType
+	// UintptrType
 )
 
 // Used for converting constant binary expressions.
@@ -135,16 +139,24 @@ func (pt PrimitiveType) Specificity() int {
 		return 0
 	case Uint64Type:
 		return 0
+	case Float32Type:
+		return 0
+	case Float64Type:
+		return 0
 	case BigintType:
 		return 1
-	case UntypedBoolType:
+	case BigdecType:
 		return 2
-	case UntypedRuneType:
+	case UntypedBigdecType:
 		return 3
 	case UntypedStringType:
 		return 4
 	case UntypedBigintType:
 		return 4
+	case UntypedRuneType:
+		return 5
+	case UntypedBoolType:
+		return 6
 	default:
 		panic(fmt.Sprintf("unexpected primitive type %v", pt))
 	}
@@ -178,8 +190,14 @@ func (pt PrimitiveType) Kind() Kind {
 		return Uint32Kind
 	case Uint64Type:
 		return Uint64Kind
+	case Float32Type:
+		return Float32Kind
+	case Float64Type:
+		return Float64Kind
 	case BigintType, UntypedBigintType:
 		return BigintKind
+	case BigdecType, UntypedBigdecType:
+		return BigdecKind
 	default:
 		panic(fmt.Sprintf("unexpected primitive type %v", pt))
 	}
@@ -222,10 +240,18 @@ func (pt PrimitiveType) TypeID() TypeID {
 		return typeid("uint32")
 	case Uint64Type:
 		return typeid("uint64")
+	case Float32Type:
+		return typeid("float32")
+	case Float64Type:
+		return typeid("float64")
 	case UntypedBigintType:
 		return typeid("<untyped> bigint")
 	case BigintType:
 		return typeid("bigint")
+	case UntypedBigdecType:
+		return typeid("<untyped> bigdec")
+	case BigdecType:
+		return typeid("bigdec")
 	default:
 		panic(fmt.Sprintf("unexpected primitive type %v", pt))
 	}
@@ -267,10 +293,18 @@ func (pt PrimitiveType) String() string {
 		return string("uint32")
 	case Uint64Type:
 		return string("uint64")
+	case Float32Type:
+		return string("float32")
+	case Float64Type:
+		return string("float64")
 	case UntypedBigintType:
 		return string("<untyped> bigint")
 	case BigintType:
 		return string("bigint")
+	case UntypedBigdecType:
+		return string("<untyped> bigdec")
+	case BigdecType:
+		return string("bigdec")
 	default:
 		panic(fmt.Sprintf("unexpected primitive type %d", pt))
 	}
@@ -1912,45 +1946,6 @@ func (mn MaybeNativeType) GetPkgPath() string {
 }
 
 //----------------------------------------
-// Float32 and Float64
-
-var (
-	Float32Type *StructType
-	Float64Type *StructType
-)
-
-// NOTE: this path is used to identify the struct type as a Float64.
-const (
-	float32PkgPath = uversePkgPath + "#float32"
-	float64PkgPath = uversePkgPath + "#float64"
-)
-
-func init() {
-	Float32Type = &StructType{
-		PkgPath: float32PkgPath,
-		Fields: []FieldType{
-			{
-				Name:     "Value",
-				Type:     Uint32Type,
-				Embedded: false,
-				Tag:      "",
-			},
-		},
-	}
-	Float64Type = &StructType{
-		PkgPath: float64PkgPath,
-		Fields: []FieldType{
-			{
-				Name:     "Value",
-				Type:     Uint64Type,
-				Embedded: false,
-				Tag:      "",
-			},
-		},
-	}
-}
-
-//----------------------------------------
 // Kind
 
 type Kind uint
@@ -1969,7 +1964,10 @@ const (
 	Uint16Kind
 	Uint32Kind
 	Uint64Kind
+	Float32Kind
+	Float64Kind
 	BigintKind // not in go.
+	BigdecKind // not in go.
 	// UintptrKind
 	ArrayKind
 	SliceKind
@@ -2018,8 +2016,14 @@ func KindOf(t Type) Kind {
 			return Uint32Kind
 		case Uint64Type:
 			return Uint64Kind
+		case Float32Type:
+			return Float32Kind
+		case Float64Type:
+			return Float64Kind
 		case BigintType, UntypedBigintType:
 			return BigintKind
+		case BigdecType, UntypedBigdecType:
+			return BigdecKind
 		default:
 			panic(fmt.Sprintf("unexpected primitive type %s", t.String()))
 		}
@@ -2125,7 +2129,7 @@ func assertEqualityTypes(lt, rt Type) {
 
 func isUntyped(t Type) bool {
 	switch t {
-	case UntypedBoolType, UntypedRuneType, UntypedBigintType, UntypedStringType:
+	case UntypedBoolType, UntypedRuneType, UntypedBigintType, UntypedBigdecType, UntypedStringType:
 		return true
 	default:
 		return false
@@ -2151,6 +2155,8 @@ func defaultTypeOf(t Type) Type {
 		return Int32Type
 	case UntypedBigintType:
 		return IntType
+	case UntypedBigdecType:
+		return Float64Type
 	case UntypedStringType:
 		return StringType
 	default:
@@ -2201,8 +2207,14 @@ func fillEmbeddedName(ft *FieldType) {
 			ft.Name = Name("uint32")
 		case Uint64Type:
 			ft.Name = Name("uint64")
+		case Float32Type:
+			ft.Name = Name("float32")
+		case Float64Type:
+			ft.Name = Name("float64")
 		case BigintType:
 			ft.Name = Name("bigint")
+		case BigdecType:
+			ft.Name = Name("bigdec")
 		default:
 			panic("should not happen")
 		}

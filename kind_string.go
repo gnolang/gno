@@ -21,25 +21,28 @@ func _() {
 	_ = x[Uint16Kind-10]
 	_ = x[Uint32Kind-11]
 	_ = x[Uint64Kind-12]
-	_ = x[BigintKind-13]
-	_ = x[ArrayKind-14]
-	_ = x[SliceKind-15]
-	_ = x[PointerKind-16]
-	_ = x[StructKind-17]
-	_ = x[PackageKind-18]
-	_ = x[InterfaceKind-19]
-	_ = x[ChanKind-20]
-	_ = x[FuncKind-21]
-	_ = x[MapKind-22]
-	_ = x[TypeKind-23]
-	_ = x[BlockKind-24]
-	_ = x[TupleKind-25]
-	_ = x[RefTypeKind-26]
+	_ = x[Float32Kind-13]
+	_ = x[Float64Kind-14]
+	_ = x[BigintKind-15]
+	_ = x[BigdecKind-16]
+	_ = x[ArrayKind-17]
+	_ = x[SliceKind-18]
+	_ = x[PointerKind-19]
+	_ = x[StructKind-20]
+	_ = x[PackageKind-21]
+	_ = x[InterfaceKind-22]
+	_ = x[ChanKind-23]
+	_ = x[FuncKind-24]
+	_ = x[MapKind-25]
+	_ = x[TypeKind-26]
+	_ = x[BlockKind-27]
+	_ = x[TupleKind-28]
+	_ = x[RefTypeKind-29]
 }
 
-const _Kind_name = "InvalidKindBoolKindStringKindIntKindInt8KindInt16KindInt32KindInt64KindUintKindUint8KindUint16KindUint32KindUint64KindBigintKindArrayKindSliceKindPointerKindStructKindPackageKindInterfaceKindChanKindFuncKindMapKindTypeKindBlockKindTupleKindRefTypeKind"
+const _Kind_name = "InvalidKindBoolKindStringKindIntKindInt8KindInt16KindInt32KindInt64KindUintKindUint8KindUint16KindUint32KindUint64KindFloat32KindFloat64KindBigintKindBigdecKindArrayKindSliceKindPointerKindStructKindPackageKindInterfaceKindChanKindFuncKindMapKindTypeKindBlockKindTupleKindRefTypeKind"
 
-var _Kind_index = [...]uint8{0, 11, 19, 29, 36, 44, 53, 62, 71, 79, 88, 98, 108, 118, 128, 137, 146, 157, 167, 178, 191, 199, 207, 214, 222, 231, 240, 251}
+var _Kind_index = [...]uint16{0, 11, 19, 29, 36, 44, 53, 62, 71, 79, 88, 98, 108, 118, 129, 140, 150, 160, 169, 178, 189, 199, 210, 223, 231, 239, 246, 254, 263, 272, 283}
 
 func (i Kind) String() string {
 	if i >= Kind(len(_Kind_index)-1) {

@@ -21,6 +21,10 @@ message BigintValue {
 	string Value = 1;
 }
 
+message BigdecValue {
+	string Value = 1;
+}
+
 message PointerValue {
 	TypedValue TV = 1;
 	google.protobuf.Any Base = 2;

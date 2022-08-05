@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -13,7 +12,7 @@ func f() time.Time {
 }
 
 func main() {
-	fmt.Println(f())
+	println(f())
 }
 
 // Output:

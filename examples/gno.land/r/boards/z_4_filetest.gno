@@ -37,13 +37,13 @@ func main() {
 // # Second Post (title)
 //
 // Body of the second post. (body)
-// \- [@gnouser](/r/users:gnouser), [1970-01-01 12:00am (UTC)](/r/boards:test_board/2) \[[reply](/r/boards?help&__func=CreateReply&bid=1&threadid=2&postid=2&body.type=textarea)] \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=2&postid=2)]
+// \- [@gnouser](/r/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/boards:test_board/2) \[[reply](/r/boards?help&__func=CreateReply&bid=1&threadid=2&postid=2&body.type=textarea)] \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=2&postid=2)]
 //
 // > Reply of the second post
-// > \- [@gnouser](/r/users:gnouser), [1970-01-01 12:00am (UTC)](/r/boards:test_board/2/3) \[[reply](/r/boards?help&__func=CreateReply&bid=1&threadid=2&postid=3&body.type=textarea)] \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=2&postid=3)]
+// > \- [@gnouser](/r/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/boards:test_board/2/3) \[[reply](/r/boards?help&__func=CreateReply&bid=1&threadid=2&postid=3&body.type=textarea)] \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=2&postid=3)]
 //
 // > Second reply of the second post
-// > \- [@gnouser](/r/users:gnouser), [1970-01-01 12:00am (UTC)](/r/boards:test_board/2/4) \[[reply](/r/boards?help&__func=CreateReply&bid=1&threadid=2&postid=4&body.type=textarea)] \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=2&postid=4)]
+// > \- [@gnouser](/r/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/boards:test_board/2/4) \[[reply](/r/boards?help&__func=CreateReply&bid=1&threadid=2&postid=4&body.type=textarea)] \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=2&postid=4)]
 
 // Realm:
 // switchrealm["gno.land/r/users"]
@@ -503,6 +503,7 @@ func main() {
 //             }
 //         },
 //         {
+//             "N": "0gKWSQAAAAA=",
 //             "T": {
 //                 "@type": "/gno.RefType",
 //                 "ID": "std.Time"
@@ -817,7 +818,7 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.RefValue",
-//                         "Hash": "a88e19f7fd69c993c13dd1ca4c0a19017f5e21f5",
+//                         "Hash": "e94103b1714e94126f0e5332916328a4f4fd4860",
 //                         "ObjectID": "960d1737342909c1a4c32a4a93a88e680a6f79df:82"
 //                     }
 //                 }
@@ -831,6 +832,7 @@ func main() {
 //             }
 //         },
 //         {
+//             "N": "0gKWSQAAAAA=",
 //             "T": {
 //                 "@type": "/gno.RefType",
 //                 "ID": "std.Time"

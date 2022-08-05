@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -17,7 +16,7 @@ type T1 struct {
 func main() {
 	t := T1{}
 	t.time = time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)
-	fmt.Println(t.time)
+	println(t.time)
 }
 
 // Output:

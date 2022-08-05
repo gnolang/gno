@@ -40,6 +40,6 @@ func main() {
 // main after: 300000000ugnot
 // ## recent activity
 //
-//  * g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4 100000000ugnot sent, 100000000ugnot returned, at 1970-01-01 12:00am UTC
+//  * g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4 100000000ugnot sent, 100000000ugnot returned, at 2009-02-13 11:31pm UTC
 //
 // ## total deposits

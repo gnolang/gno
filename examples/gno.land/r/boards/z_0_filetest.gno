@@ -30,10 +30,10 @@ func main() {
 // ## [First Post (title)](/r/boards:test_board/1)
 //
 // Body of the first post. (body)
-// \- [@gnouser](/r/users:gnouser), [1970-01-01 12:00am UTC](/r/boards:test_board/1) \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=1&postid=1)] (0 replies)
+// \- [@gnouser](/r/users:gnouser), [2009-02-13 11:31pm UTC](/r/boards:test_board/1) \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=1&postid=1)] (0 replies)
 //
 // ----------------------------------------
 // ## [Second Post (title)](/r/boards:test_board/2)
 //
 // Body of the second post. (body)
-// \- [@gnouser](/r/users:gnouser), [1970-01-01 12:00am UTC](/r/boards:test_board/2) \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=2&postid=2)] (1 replies)
+// \- [@gnouser](/r/users:gnouser), [2009-02-13 11:31pm UTC](/r/boards:test_board/2) \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=2&postid=2)] (1 replies)

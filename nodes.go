@@ -980,7 +980,11 @@ type FuncDecl struct {
 }
 
 func (fd *FuncDecl) GetDeclNames() []Name {
-	return []Name{fd.NameExpr.Name}
+	if fd.IsMethod {
+		return nil
+	} else {
+		return []Name{fd.NameExpr.Name}
+	}
 }
 
 type ImportDecl struct {
