@@ -866,8 +866,8 @@ GNO_CASE:
 		}
 	default:
 		panic(fmt.Sprintf(
-			"cannot convert %s to any other kind",
-			tvk.String()))
+			"cannot convert %s to %s",
+			tvk.String(), k.String()))
 	}
 }
 
@@ -884,13 +884,19 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 				tv.T.String()))
 		}
 		if isUntyped(t) {
-			ptv, ok1 := baseOf(tv.T).(PrimitiveType)
+			tvpt, ok1 := baseOf(tv.T).(PrimitiveType)
 			pt, ok2 := baseOf(t).(PrimitiveType)
-			if ok1 && ok2 && ptv.Specificity() > pt.Specificity() {
-				// ok
+			if ok1 && ok2 {
+				if tvpt == pt {
+					// do nothing
+					return
+				} else if tvpt.Specificity() > pt.Specificity() {
+					// ok
+				}
 			} else {
 				panic(fmt.Sprintf(
-					"ConvertUntypedTo expects more specific target but got %s",
+					"ConvertUntypedTo expects more specific target for %v but got %s",
+					tv.String(),
 					t.String()))
 			}
 		}

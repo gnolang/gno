@@ -200,8 +200,10 @@ func (m *Machine) doOpStaticTypeOf() {
 		panic("*BasicLitExpr not supported with OpStaticTypeOf")
 	case *BinaryExpr:
 		switch x.Op {
+		case SHL, SHR:
+			fallthrough
 		case ADD, SUB, MUL, QUO, REM, BAND, BOR, XOR,
-			SHL, SHR, BAND_NOT, LAND, LOR:
+			BAND_NOT, LAND, LOR:
 			m.PushExpr(x.Left)
 			m.PushOp(OpStaticTypeOf)
 		case EQL, LSS, GTR, NEQ, LEQ, GEQ:

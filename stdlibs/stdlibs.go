@@ -83,15 +83,26 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				"mono", "int64",
 			),
 			func(m *gno.Machine) {
-				ctx := m.Context.(ExecContext)
-				res0 := typedInt64(ctx.Timestamp)
-				res1 := typedInt32(0)
-				res2 := typedInt32(0)
-				m.PushValue(res0)
-				m.PushValue(res1)
-				m.PushValue(res2)
+				if m.Context == nil {
+					res0 := typedInt64(0)
+					res1 := typedInt32(0)
+					res2 := typedInt64(0)
+					m.PushValue(res0)
+					m.PushValue(res1)
+					m.PushValue(res2)
+				} else {
+					ctx := m.Context.(ExecContext)
+					res0 := typedInt64(ctx.Timestamp)
+					res1 := typedInt32(int32(ctx.TimestampNano))
+					res2 := typedInt64(int64(ctx.Timestamp)*int64(time.Second) + int64(ctx.TimestampNano))
+					m.PushValue(res0)
+					m.PushValue(res1)
+					m.PushValue(res2)
+				}
 			},
 		)
+	// case "internal/os_test":
+	// XXX defined in tests/imports.go
 	case "strconv":
 		pn.DefineGoNativeValue("Itoa", strconv.Itoa)
 		pn.DefineGoNativeValue("Atoi", strconv.Atoi)
@@ -101,6 +112,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 		pn.DefineGoNativeValue("QuoteToASCII", strconv.QuoteToASCII)
 		pn.DefineGoNativeValue("CanBackquote", strconv.CanBackquote)
 		pn.DefineGoNativeValue("IntSize", strconv.IntSize)
+		pn.DefineGoNativeValue("AppendUint", strconv.AppendUint)
 	case "std":
 		// NOTE: some of these are overridden in tests/imports_test.go
 		// Also see stdlibs/InjectPackage.

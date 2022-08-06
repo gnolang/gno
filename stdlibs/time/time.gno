@@ -1081,7 +1081,8 @@ func now() (sec int64, nsec int32, mono int64)
 //
 //go:linkname runtimeNano runtime.nanotime
 func runtimeNano() int64 {
-	return 0
+	_, _, mono := ios.Now() // XXX now()
+	return mono
 }
 
 // Monotonic times are reported as offsets from startNano.

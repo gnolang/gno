@@ -929,6 +929,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							if riu {
 								checkOrConvertType(store, last, &n.Right, lt, false)
 							} else {
+								// left is untyped, right is not.
 								if lt.TypeID() != rt.TypeID() {
 									panic(fmt.Sprintf(
 										"incompatible types in binary expression: %v %v %v",
@@ -2291,6 +2292,23 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 		if isUntyped(xt) {
 			if t == nil {
 				t = defaultTypeOf(xt)
+			}
+			// Push type into expr if qualifying binary expr.
+			if bx, ok := (*x).(*BinaryExpr); ok {
+				switch bx.Op {
+				case ADD, SUB, MUL, QUO, REM, BAND, BOR, XOR,
+					BAND_NOT, LAND, LOR:
+					// push t into bx.Left and bx.Right
+					checkOrConvertType(store, last, &bx.Left, t, autoNative)
+					checkOrConvertType(store, last, &bx.Right, t, autoNative)
+					return
+				case SHL, SHR:
+					// push t into bx.Left
+					checkOrConvertType(store, last, &bx.Left, t, autoNative)
+					return
+					// case EQL, LSS, GTR, NEQ, LEQ, GEQ:
+					//default:
+				}
 			}
 			cx := Expr(Call(constType(nil, t), *x))
 			cx = Preprocess(store, last, cx).(Expr)

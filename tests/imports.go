@@ -58,7 +58,7 @@ const (
 	ImportModeNativePreferred
 )
 
-// ImportModeStdlibsOnly: use stdlibs/* only (except fmt). for stdlibs/* and examples/* testing.
+// ImportModeStdlibsOnly: use stdlibs/* only (except a few exceptions). for stdlibs/* and examples/* testing.
 // ImportModeStdlibsPreferred: use stdlibs/* if present, otherwise use native. for files/tests2/*.
 // ImportModeNativePreferred: do not use stdlibs/* if native registered. for files/tests/*.
 // NOTE: this isn't safe, should only be used for testing.
@@ -119,6 +119,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			pkgPath == "encoding/binary" ||
 			pkgPath == "encoding/json" ||
 			pkgPath == "encoding/xml" ||
+			pkgPath == "internal/os_test" ||
 			pkgPath == "math" ||
 			pkgPath == "math/big" ||
 			pkgPath == "math/rand" ||
@@ -177,6 +178,31 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			case "encoding/xml":
 				pkg := gno.NewPackageNode("xml", pkgPath, nil)
 				pkg.DefineGoNativeValue("Unmarshal", xml.Unmarshal)
+				return pkg, pkg.NewPackage()
+			case "internal/os_test":
+				pkg := gno.NewPackageNode("os_test", pkgPath, nil)
+				pkg.DefineNative("Sleep",
+					gno.Flds( // params
+						"d", gno.AnyT(), // NOTE: should be time.Duration
+					),
+					gno.Flds( // results
+					),
+					func(m *gno.Machine) {
+						// For testing purposes here, nanoseconds are separately kept track.
+						arg0 := m.LastBlock().GetParams1().TV
+						d := arg0.GetInt64()
+						sec := d / int64(time.Second)
+						nano := d % int64(time.Second)
+						ctx := m.Context.(stdlibs.ExecContext)
+						ctx.Timestamp += sec
+						ctx.TimestampNano += nano
+						if ctx.TimestampNano >= int64(time.Second) {
+							ctx.Timestamp += 1
+							ctx.TimestampNano -= int64(time.Second)
+						}
+						m.Context = ctx
+					},
+				)
 				return pkg, pkg.NewPackage()
 			case "net":
 				pkg := gno.NewPackageNode("net", pkgPath, nil)
