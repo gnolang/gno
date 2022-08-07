@@ -2,20 +2,21 @@ package banktest
 
 import (
 	"std"
+	"time"
 )
 
 type activity struct {
 	caller   std.Address
 	sent     std.Coins
 	returned std.Coins
-	time     std.Time
+	time     time.Time
 }
 
 func (act *activity) String() string {
 	return act.caller.String() + " " +
 		act.sent.String() + " sent, " +
 		act.returned.String() + " returned, at " +
-		std.FormatTimestamp(act.time, "2006-01-02 3:04pm MST")
+		act.time.Format("2006-01-02 3:04pm MST")
 }
 
 var latest [10]*activity
@@ -30,7 +31,7 @@ func Deposit(returnDenom string, returnAmount int64) string {
 		caller:   caller,
 		sent:     std.GetOrigSend(),
 		returned: send,
-		time:     std.GetTimestamp(),
+		time:     time.Now(),
 	}
 	for i := len(latest) - 2; i >= 0; i-- {
 		latest[i+1] = latest[i] // shift by +1.

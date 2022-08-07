@@ -3,6 +3,7 @@ package boards
 import (
 	"std"
 	"strconv"
+	"time"
 
 	"gno.land/p/avl"
 )
@@ -31,8 +32,8 @@ type Post struct {
 	threadID    PostID       // original Post.id
 	parentID    PostID       // parent Post.id (if reply or repost)
 	repostBoard BoardID      // original Board.id (if repost)
-	createdAt   std.Time
-	updatedAt   std.Time
+	createdAt   time.Time
+	updatedAt   time.Time
 }
 
 func newPost(board *Board, id PostID, creator std.Address, title, body string, threadID, parentID PostID, repostBoard BoardID) *Post {
@@ -48,7 +49,7 @@ func newPost(board *Board, id PostID, creator std.Address, title, body string, t
 		threadID:    threadID,
 		parentID:    parentID,
 		repostBoard: repostBoard,
-		createdAt:   std.GetTimestamp(),
+		createdAt:   time.Now(),
 	}
 }
 
@@ -78,7 +79,7 @@ func (post *Post) AddReply(creator std.Address, body string) *Post {
 func (post *Post) Update(title string, body string) {
 	post.title = title
 	post.body = body
-	post.updatedAt = std.GetTimestamp()
+	post.updatedAt = time.Now()
 }
 
 func (thread *Post) GetReply(pid PostID) *Post {
@@ -176,7 +177,7 @@ func (post *Post) RenderSummary() string {
 	}
 	str += post.GetSummary() + "\n"
 	str += "\\- " + displayAddressMD(post.creator) + ","
-	str += " [" + std.FormatTimestamp(post.createdAt, "2006-01-02 3:04pm MST") + "](" + post.GetURL() + ")"
+	str += " [" + post.createdAt.Format("2006-01-02 3:04pm MST") + "](" + post.GetURL() + ")"
 	str += " \\[[x](" + post.GetDeleteFormURL() + ")]"
 	str += " (" + strconv.Itoa(post.replies.Size()) + " replies)" + "\n"
 	return str
@@ -193,7 +194,7 @@ func (post *Post) RenderPost(indent string, levels int) string {
 	}
 	str += indentBody(indent, post.body) + "\n" // TODO: indent body lines.
 	str += indent + "\\- " + displayAddressMD(post.creator) + ", "
-	str += "[" + std.FormatTimestamp(post.createdAt, "2006-01-02 3:04pm (MST)") + "](" + post.GetURL() + ")"
+	str += "[" + post.createdAt.Format("2006-01-02 3:04pm (MST)") + "](" + post.GetURL() + ")"
 	str += " \\[[reply](" + post.GetReplyFormURL() + ")]"
 	str += " \\[[x](" + post.GetDeleteFormURL() + ")]\n"
 	if levels > 0 {
