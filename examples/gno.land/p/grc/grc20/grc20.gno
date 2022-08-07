@@ -43,9 +43,9 @@ const zeroAddress = std.Address("")
 // TODO: useful Render() method.
 // TODO: add a lot of unit tests, really a lot.
 
-func (t *Token) GetName() string     { return t.name }
-func (t *Token) GetSymbol() string   { return t.symbol }
-func (t *Token) GetDecimals() uint   { return t.decimals }
+func (t *Token) Name() string        { return t.name }
+func (t *Token) Symbol() string      { return t.symbol }
+func (t *Token) Decimals() uint      { return t.decimals }
 func (t *Token) TotalSupply() uint64 { return t.totalSupply }
 
 func (t *Token) BalanceOf(owner std.Address) uint64 {
