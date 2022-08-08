@@ -1,14 +1,17 @@
 package rand
 
+// Disclaimer: this package is unsafe and won't prevent others to
+//             guess values in advance.
+//
 // the goal of this package is to implement a random library that
-// is fully deterministic for validators while being hard to
-// determine by the callers.
+// is fully deterministic for validators while being hard to guess.
 //
 // We use the Bernstein's hash djb2 to be CPU-cycle efficient.
 
 import (
 	"math/rand"
 	"std"
+	"time"
 )
 
 type Instance struct {
@@ -31,13 +34,14 @@ func (i *Instance) Seed() int64 {
 	return i.seed
 }
 
-// http://www.cse.yorku.ca/~oz/hash.html
 func (i *Instance) djb2String(input string) {
 	for _, c := range input {
 		i.djb2Int64(int64(c))
 	}
 }
 
+// super fast random algorithm.
+// http://www.cse.yorku.ca/~oz/hash.html
 func (i *Instance) djb2Int64(input int64) {
 	i.seed = (i.seed << 5) + i.seed + input
 }
@@ -65,8 +69,10 @@ func (i *Instance) addEntropy() {
 
 	// time
 	{
-		now := std.GetTimestamp()
-		i.djb2Int64(int64(now))
+		secs := time.Now().Second()
+		i.djb2Int64(int64(secs))
+		nsecs := time.Now().Nanosecond()
+		i.djb2Int64(int64(nsecs))
 	}
 
 	// FIXME: compute other hard-to-guess but deterministic variables, like real gas?

@@ -3,6 +3,7 @@ package boards
 import (
 	"std"
 	"strconv"
+	"time"
 
 	"gno.land/p/avl"
 )
@@ -23,7 +24,7 @@ type Board struct {
 	creator   std.Address
 	threads   *avl.MutTree // Post.id -> *Post
 	postsCtr  uint64       // increments Post.id
-	createdAt std.Time
+	createdAt time.Time
 	deleted   *avl.MutTree // TODO reserved for fast-delete.
 }
 
@@ -41,7 +42,7 @@ func newBoard(id BoardID, url string, name string, creator std.Address) *Board {
 		name:      name,
 		creator:   creator,
 		threads:   avl.NewMutTree(),
-		createdAt: std.GetTimestamp(),
+		createdAt: time.Now(),
 	}
 }
 

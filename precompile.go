@@ -52,6 +52,7 @@ var stdlibWhitelist = []string{
 	"strconv",
 	"strings",
 	"text/template",
+	"time",
 	"unicode/utf8",
 
 	// gno

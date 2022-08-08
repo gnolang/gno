@@ -23,8 +23,8 @@ func TestRender(t *testing.T) {
 	{
 		got := outfmt.Render("?fmt=stringer")
 		expected := `Text: Hello Gnomes!
-Number: 250
-Numbers: 98 25 21 45 33 32 81
+Number: 799
+Numbers: 18 54 54 9 23 55 31
 `
 		if got != expected {
 			t.Fatalf("expected %q, got %q.", expected, got)
@@ -35,8 +35,8 @@ Numbers: 98 25 21 45 33 32 81
 	{
 		got := outfmt.Render("?fmt=stringer")
 		expected := `Text: Hello Gnomes!
-Number: 550
-Numbers: 19 31 35 94 76 63 66 20 48
+Number: 618
+Numbers: 25 64 25 19
 `
 		if got != expected {
 			t.Fatalf("expected %q, got %q.", expected, got)
@@ -47,7 +47,7 @@ Numbers: 19 31 35 94 76 63 66 20 48
 	// json
 	{
 		got := outfmt.Render("?fmt=json")
-		expected := `{"Number":100,"Text":"Hello Gnomes!","Numbers":[66,24,80]}`
+		expected := `{"Number":39,"Text":"Hello Gnomes!","Numbers":[89,89,70,53,68,88,27,40,79]}`
 		if got != expected {
 			t.Fatalf("expected %q, got %q.", expected, got)
 		}
@@ -57,7 +57,7 @@ Numbers: 19 31 35 94 76 63 66 20 48
 	// jsonp
 	{
 		got := outfmt.Render("?fmt=jsonp")
-		expected := `callback({"Number":717,"Text":"Hello Gnomes!","Numbers":[60,1,43,24,1,21]})`
+		expected := `callback({"Number":253,"Text":"Hello Gnomes!","Numbers":[11,12]})`
 		if got != expected {
 			t.Fatalf("expected %q, got %q.", expected, got)
 		}
