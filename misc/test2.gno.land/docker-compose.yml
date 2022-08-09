@@ -74,7 +74,7 @@ services:
         mkdir -p /.gno &&
         expect -c \"set timeout -1; spawn gnokey add faucet --home /.gno/ --recover; expect \\\"Enter a passphrase\\\"; send \\\"$GNOKEY_PASS\\r\\\"; expect \\\"Repeat the passphrase\\\"; send \\\"$GNOKEY_PASS\\r\\\"; expect \\\"Enter your bip39 mnemonic\\\"; send \\\"$FAUCET_WORDS\\r\\\"; expect eof\" &&
         while true; do
-          expect -c \"set timeout -1; spawn gnofaucet serve faucet --send 50ugnot --captcha-secret \\\"$RECAPTCHA_SECRET_KEY\\\" --remote gnoland:36657 --chain-id test2 --home /.gno/; expect \\\"Enter password.\\\"; send \\\"$GNOKEY_PASS\\r\\\"; expect eof\";
+          expect -c \"set timeout -1; spawn gnofaucet serve faucet --send 50000000ugnot --captcha-secret \\\"$RECAPTCHA_SECRET_KEY\\\" --remote gnoland:36657 --chain-id test2 --home /.gno/; expect \\\"Enter password.\\\"; send \\\"$GNOKEY_PASS\\r\\\"; expect eof\";
           sleep 5;
         done
       "
