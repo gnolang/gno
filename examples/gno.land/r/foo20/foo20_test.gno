@@ -7,9 +7,9 @@ import (
 )
 
 func TestReadOnlyPublicMethods(t *testing.T) {
-	var admin = users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
-	var manfred = users.AddressOrName("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")
-	var unknown = users.AddressOrName("g1u0000000000000000000000000000000000000")
+	admin := users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+	manfred := users.AddressOrName("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")
+	unknown := users.AddressOrName("g1u0000000000000000000000000000000000000")
 
 	type test struct {
 		name    string

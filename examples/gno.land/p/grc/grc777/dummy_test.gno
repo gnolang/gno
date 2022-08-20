@@ -27,12 +27,15 @@ func (impl *dummyImpl) DefaultOperators() []std.Address        { panic("not impl
 func (impl *dummyImpl) Send(recipient std.Address, amount uint64, data []byte) {
 	panic("not implemented")
 }
+
 func (impl *dummyImpl) IsOperatorFor(operator, tokenHolder std.Address) bool {
 	panic("not implemented")
 }
+
 func (impl *dummyImpl) OperatorSend(sender, recipient std.Address, amount uint64, data, operatorData []byte) {
 	panic("not implemented")
 }
+
 func (impl *dummyImpl) OperatorBurn(account std.Address, amount uint64, data, operatorData []byte) {
 	panic("not implemented")
 }

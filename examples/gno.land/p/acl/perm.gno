@@ -38,7 +38,7 @@ func match(pattern, target string) bool {
 		return true
 	}
 
-	//regexp handling
+	// regexp handling
 	match, _ := regexp.MatchString(pattern, target)
 	return match
 }
