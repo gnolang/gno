@@ -1,8 +1,8 @@
 package upgrade
 
 import (
-	v1 "gno.land/r/tests/upgrade-a/v1"
-	v2 "gno.land/r/tests/upgrade-a/v2"
+	v1 "gno.land/r/x/upgrade/upgrade-a/v1"
+	v2 "gno.land/r/x/upgrade/upgrade-a/v2"
 )
 
 func main() {

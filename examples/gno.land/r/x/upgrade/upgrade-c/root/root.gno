@@ -2,7 +2,7 @@ package root
 
 var (
 	counter               int
-	currentImplementation = "gno.land/r/tests/upgrade-c/v1"
+	currentImplementation = "gno.land/r/x/upgrade/upgrade-c/v1"
 )
 
 func Inc() int {

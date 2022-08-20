@@ -1,6 +1,6 @@
 package v1
 
-import "gno.land/r/tests/upgrade-c/root"
+import "gno.land/r/x/upgrade/upgrade-c/root"
 
 func Inc() {
 	root.Inc()
