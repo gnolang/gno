@@ -583,7 +583,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// The main TRANS_BLOCK2 switch.
 			switch n := n.(type) {
-
 			// TRANS_BLOCK2 -----------------------
 			case *SwitchStmt:
 

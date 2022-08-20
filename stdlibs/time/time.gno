@@ -80,6 +80,7 @@ package time
 
 import (
 	"errors"
+
 	ios "internal/os" // XXX to access time.
 	// XXX _ "unsafe" // for go:linkname
 )

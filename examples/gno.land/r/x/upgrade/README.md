@@ -1,0 +1,1 @@
+Various upgrade pattern explorations.
