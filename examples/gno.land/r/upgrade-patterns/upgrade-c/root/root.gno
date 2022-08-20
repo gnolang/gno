@@ -1,11 +1,14 @@
 package root
 
-var counter int
-var currentImplementation = "gno.land/r/tests/upgrade-c/v1"
+var (
+	counter               int
+	currentImplementation = "gno.land/r/tests/upgrade-c/v1"
+)
 
 func Inc() int {
 	// TODO: if caller is currentImplementation
 	counter++
+	return counter
 }
 
 func Get() int {

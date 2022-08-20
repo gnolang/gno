@@ -1,7 +1,6 @@
 package upgradea
 
 import (
-	"std"
 	"strconv"
 
 	v1 "gno.land/r/tests/upgrade-a/v1"

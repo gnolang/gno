@@ -1,15 +1,13 @@
 package upgradea
 
-import (
-	"std"
-
-	v1 "gno.land/r/tests/upgrade-a/v1"
-)
+import "std"
 
 const admin = "blahblah"
 
-var counter int
-var nextVersion string
+var (
+	counter     int
+	nextVersion string
+)
 
 func Inc(nb int) {
 	if nextVersion != "" {
@@ -19,7 +17,7 @@ func Inc(nb int) {
 }
 
 func Get() int {
-	return v1.Get() + counter
+	return counter
 }
 
 func SetNextVersion(addr string) {
