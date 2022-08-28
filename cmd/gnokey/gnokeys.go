@@ -302,9 +302,9 @@ func signAndBroadcast(cmd *command.Command, args []string, tx std.Tx, baseopts c
 	}
 	sopts.Home = baseopts.Home
 	if baseopts.Quiet {
-		sopts.Pass, err = cmd.GetPassword("")
+		sopts.Pass, err = cmd.GetPassword("", baseopts.InsecurePasswordStdin)
 	} else {
-		sopts.Pass, err = cmd.GetPassword("Enter password.")
+		sopts.Pass, err = cmd.GetPassword("Enter password.", baseopts.InsecurePasswordStdin)
 	}
 	if err != nil {
 		return err

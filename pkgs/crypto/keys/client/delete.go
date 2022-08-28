@@ -53,8 +53,8 @@ func deleteApp(cmd *command.Command, args []string, iopts interface{}) error {
 	skipPass := opts.Force
 	var oldpass string
 	if !skipPass {
-		if oldpass, err = cmd.GetPassword(
-			"DANGER - enter password to permanently delete key:"); err != nil {
+		msg := "DANGER - enter password to permanently delete key:"
+		if oldpass, err = cmd.GetPassword(msg, false); err != nil {
 			return err
 		}
 	}

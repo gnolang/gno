@@ -56,9 +56,9 @@ func signApp(cmd *command.Command, args []string, iopts interface{}) error {
 	}
 
 	if opts.Quiet {
-		opts.Pass, err = cmd.GetPassword("")
+		opts.Pass, err = cmd.GetPassword("", opts.InsecurePasswordStdin)
 	} else {
-		opts.Pass, err = cmd.GetPassword("Enter password.")
+		opts.Pass, err = cmd.GetPassword("Enter password.", opts.InsecurePasswordStdin)
 	}
 	if err != nil {
 		return err
