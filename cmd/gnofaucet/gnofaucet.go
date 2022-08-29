@@ -225,9 +225,11 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 			return
 		}
 
-		if !st.Request(ip) {
-			fmt.Println("wrong ip format")
-			w.Write([]byte("wrong ip format"))
+		allowed, reason := st.Request(ip)
+		if !allowed {
+			msg := fmt.Sprintf("abuse protection system (%s)", reason)
+			fmt.Println(ip, msg)
+			w.Write([]byte(msg))
 			return
 		}
 
@@ -238,7 +240,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 		if opts.CaptchaSecret != "" {
 			passedMsg := r.Form["g-recaptcha-response"]
 			if passedMsg == nil {
-				fmt.Println("no 'captcha' request")
+				fmt.Println(ip, "no 'captcha' request")
 				w.Write([]byte("check captcha request"))
 				return
 			}
@@ -246,7 +248,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 			capMsg := strings.TrimSpace(passedMsg[0])
 
 			if err := checkRecaptcha(opts.CaptchaSecret, capMsg); err != nil {
-				fmt.Printf("recaptcha failed; %v\n", err)
+				fmt.Printf("%s recaptcha failed; %v\n", ip, err)
 				w.Write([]byte("Unauthorized"))
 				return
 			}
@@ -255,7 +257,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 		passedAddr := r.Form["toaddr"]
 		if passedAddr == nil {
-			fmt.Println("input your address")
+			fmt.Println(ip, "no address found")
 			w.Write([]byte("no address found"))
 			return
 		}
@@ -265,18 +267,18 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 		// OK.
 		toAddr, err := crypto.AddressFromBech32(toAddrStr)
 		if err != nil {
-			fmt.Println("error:", err)
+			fmt.Println(ip, "invalid address format", err)
 			w.Write([]byte("invalid address format"))
 			return
 		}
 		err = sendAmountTo(cmd, cli, name, pass, toAddr, accountNumber, sequence, send, opts)
-
 		if err != nil {
-			fmt.Println("error:", err)
-			w.Write([]byte("faucet fail"))
+			fmt.Println(ip, "faucet failed", err)
+			w.Write([]byte("faucet failed"))
 			return
 		} else {
 			sequence += 1
+			fmt.Println(ip, "faucet success")
 			w.Write([]byte("faucet success"))
 		}
 	})
