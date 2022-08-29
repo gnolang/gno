@@ -226,7 +226,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 		}
 
 		if !st.Request(ip) {
-			fmt.Println("wrong ip format")
+			fmt.Println("wrong ip format", ip)
 			w.Write([]byte("wrong ip format"))
 			return
 		}
