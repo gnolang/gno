@@ -92,6 +92,7 @@ type serveOptions struct {
 }
 
 var DefaultServeOptions = serveOptions{
+	BaseOptions:   client.DefaultBaseOptions,
 	ChainID:       "", // must override
 	GasWanted:     50000,
 	GasFee:        "1000000ugnot",
