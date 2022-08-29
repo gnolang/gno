@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net"
 	"time"
 
@@ -44,21 +43,18 @@ func (st *SubnetThrottler) routineTimer() {
 	}
 }
 
-func (st *SubnetThrottler) Request(ip net.IP) bool {
+func (st *SubnetThrottler) Request(ip net.IP) (allowed bool, reason string) {
 	ip = ip.To4()
 	if len(ip) != 4 {
-		fmt.Println("not 4", len(ip), ip)
-		return false
+		return false, "invalid ip format"
 	}
 	bucket3 := int(ip[0])*256*256 +
 		int(ip[1])*256 +
 		int(ip[2])
 	v := st.subnets3[bucket3]
 	if v > 5 {
-		fmt.Println("> 5")
-		return false
-	} else {
-		st.subnets3[bucket3] += 1
+		return false, ">5"
 	}
-	return true
+	st.subnets3[bucket3] += 1
+	return true, ""
 }
