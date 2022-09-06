@@ -76,13 +76,16 @@ fmt:
 
 ########################################
 # Test suite
-.PHONY: test test.go test.go1 test.go2 test.go3 test.go4 test.gno test.files1 test.files2 test.realm test.packages test.flappy test.packages0 test.packages1 test.packages2
+.PHONY: test test.go test.go1 test.go2 test.go3 test.go4 test.gno test.files1 test.files2 test.realm test.packages test.flappy test.packages0 test.packages1 test.packages2 test.docker-integration
 test: test.gno test.go test.flappy
 	@echo "Full test suite finished."
 
 test.gno: test.files1 test.files2 test.packages test.examples
 	go test tests/*.go -v -run "TestFileStr"
 	go test tests/*.go -v -run "TestSelectors"
+
+test.docker-integration:
+	go test -count=1 -v ./tests/docker-integration
 
 test.flappy:
 	# flappy tests should work "sometimes" (at least once)

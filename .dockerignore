@@ -3,6 +3,7 @@ build/
 Dockerfile
 misc/
 docker-compose.yml
+tests/docker-integration/
 
 # gitignore
 *.sw[pon]
