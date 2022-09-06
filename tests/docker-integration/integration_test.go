@@ -90,7 +90,7 @@ func waitGnoland(t *testing.T) {
 
 	t.Log("waiting...")
 	// FIXME: tail logs and wait for blockchain to be ready.
-	time.Sleep(5000 * time.Millisecond)
+	time.Sleep(20000 * time.Millisecond)
 }
 
 func cleanupGnoland(t *testing.T) {
