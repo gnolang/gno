@@ -52,6 +52,7 @@ type rpcClient interface {
 	NetworkClient
 	SignClient
 	StatusClient
+	MempoolClient
 }
 
 // baseRPCClient implements the basic RPC method logic without the actual
