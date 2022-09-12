@@ -1,14 +1,22 @@
 package main
 
-import "gno.land/p/grc/grc20"
-import "gno.land/p/vault"
+import (
+	"std"
+	"time"
+
+	"gno.land/p/grc/grc20"
+	"gno.land/p/vault"
+)
 
 func main() {
 	fooToken := grc20.NewToken("Foo", "FOO", 4)
-	vault := New(fooToken)
 
+	recoverAddr := std.Address("...")
+	lockAmount := 1000
+	lockDuration := 5 * time.Minute
+	vault := vault.New(fooToken, lockAmount, recoverAddr, lockDuration)
 	println("TEST2", vault)
 }
 
 // Output:
-// TEST2
+// test

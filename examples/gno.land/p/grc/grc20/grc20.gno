@@ -10,7 +10,7 @@ import (
 // FIXME: helper that creates a Permissionless instance of the token (without mint, and with caller as address).
 
 type Token struct {
-	IGRC20 // implements the GRC20 interface
+	IGRC20 // implements the GRC20 interface.
 
 	name        string
 	symbol      string
@@ -52,7 +52,7 @@ func (t *Token) BalanceOf(owner std.Address) uint64 {
 	return t.balanceOf(owner)
 }
 
-func (t *Token) Transfer(owner, to std.Address, amount uint64) {
+func (t *Token) Transfer(to std.Address, amount uint64) {
 	t.transfer(owner, to, amount)
 }
 
