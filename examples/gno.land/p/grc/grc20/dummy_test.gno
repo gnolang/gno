@@ -14,9 +14,9 @@ func TestInterface(t *testing.T) {
 	var dummy IGRC20 = &dummyImpl{}
 }
 
-func (impl *dummyImpl) Name() string                                    { panic("not implemented") }
-func (impl *dummyImpl) Symbol() string                                  { panic("not implemented") }
-func (impl *dummyImpl) Decimals() uint                                  { panic("not implemented") }
+func (impl *dummyImpl) GetName() string                                 { panic("not implemented") }
+func (impl *dummyImpl) GetSymbol() string                               { panic("not implemented") }
+func (impl *dummyImpl) GetDecimals() uint                               { panic("not implemented") }
 func (impl *dummyImpl) TotalSupply() uint64                             { panic("not implemented") }
 func (impl *dummyImpl) BalanceOf(account std.Address) uint64            { panic("not implemented") }
 func (impl *dummyImpl) Transfer(to std.Address, amount uint64) bool     { panic("not implemented") }

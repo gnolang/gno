@@ -40,6 +40,7 @@ var stdlibWhitelist = []string{
 	"encoding/base64",
 	"encoding/binary",
 	"encoding/xml",
+	"errors",
 	"flag",
 	"fmt",
 	"io",
