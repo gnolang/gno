@@ -1,7 +1,11 @@
 ########################################
 # Dist suite
 .PHONY: logos goscan gnoland gnokey gnofaucet logos reset gnoweb gnotxport
-all: gnoland gnokey goscan logos gnoweb gnotxport
+all: build
+
+build: gnoland gnokey goscan logos gnoweb gnotxport
+
+install: install_gnodev install_gnokey
 
 reset:
 	rm -rf testdir
