@@ -5,6 +5,9 @@ import (
 	"testing"
 )
 
+// TODO: test implementing an IMustGRC20 interface.
+// TODO: test implementing a custom method that hides its usage of the IGRC20 interface.
+
 type dummyImpl struct{}
 
 // FIXME: this should fail.

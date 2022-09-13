@@ -20,4 +20,4 @@ func main() {
 }
 
 // Output:
-// TEST2 &0xc0007861b0.(*gno.land/p/vault.impl)
+// TEST2 &0xc000b95f80.(*gno.land/p/vault.impl)
