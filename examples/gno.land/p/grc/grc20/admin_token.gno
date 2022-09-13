@@ -189,7 +189,8 @@ func (t *AdminToken) transfer(from, to std.Address, amount uint64) error {
 		return err
 	}
 
-	println("from", from, "to", to, "amount", amount, "fromBalance", fromBalance, "toBalance", toBalance)
+	// debug.
+	// println("from", from, "to", to, "amount", amount, "fromBalance", fromBalance, "toBalance", toBalance)
 
 	if fromBalance < amount {
 		return ErrInsufficientBalance
