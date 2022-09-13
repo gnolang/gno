@@ -9,14 +9,15 @@ import (
 )
 
 func main() {
-	fooToken := grc20.NewToken("Foo", "FOO", 4)
+	fooAdminToken := grc20.NewAdminToken("Foo", "FOO", 4)
+	fooToken := fooAdminToken.GRC20()
 
 	recoverAddr := std.Address("...")
-	lockAmount := 1000
+	lockAmount := uint(1000)
 	lockDuration := 5 * time.Minute
 	vault := vault.New(fooToken, lockAmount, recoverAddr, lockDuration)
 	println("TEST2", vault)
 }
 
 // Output:
-// test
+// TEST2 &0xc0007861b0.(*gno.land/p/vault.impl)
