@@ -10,12 +10,12 @@ import (
 )
 
 var (
-	foo   *grc20.Token
+	foo   *grc20.AdminToken
 	admin std.Address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // TODO: helper to change admin
 )
 
 func init() {
-	foo = grc20.NewToken("Foo", "FOO", 4)
+	foo = grc20.NewAdminToken("Foo", "FOO", 4)
 	foo.Mint(admin, 1000000*10000)                                    // @administrator (1M)
 	foo.Mint("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq", 10000*10000) // @manfred (10k)
 }
@@ -30,11 +30,19 @@ func TotalSupply() uint64 {
 }
 
 func BalanceOf(owner users.AddressOrName) uint64 {
-	return foo.BalanceOf(owner.Resolve())
+	balance, err := foo.BalanceOf(owner.Resolve())
+	if err != nil {
+		panic(err)
+	}
+	return balance
 }
 
 func Allowance(owner, spender users.AddressOrName) uint64 {
-	return foo.Allowance(owner.Resolve(), spender.Resolve())
+	allowance, err := foo.Allowance(owner.Resolve(), spender.Resolve())
+	if err != nil {
+		panic(err)
+	}
+	return allowance
 }
 
 // setters.
@@ -80,7 +88,7 @@ func Render(path string) string {
 		return foo.RenderHome()
 	case c == 2 && parts[0] == "balance":
 		owner := users.AddressOrName(parts[1])
-		balance := foo.BalanceOf(owner.Resolve())
+		balance, _ := foo.BalanceOf(owner.Resolve())
 		return ufmt.Sprintf("%d\n", balance)
 	default:
 		return "404\n"
