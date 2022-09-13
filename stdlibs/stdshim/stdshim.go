@@ -78,7 +78,3 @@ func DecodeBech32(addr Address) (prefix string, bytes []byte, ok bool) {
 	panic(shimWarn)
 	return "", nil, false
 }
-
-func ExecAsPkg(fn func()) {
-	panic(shimWarn)
-}

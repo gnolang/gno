@@ -263,34 +263,6 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				m.PushValue(res0)
 			},
 		)
-		pn.DefineNative("ExecAsPkg",
-			// TODO: rename UnsafeExecAsPkg?
-			gno.Flds( // params
-				"fn", gno.FuncT(nil, nil),
-			),
-			gno.Flds( // results
-			),
-			func(m *gno.Machine) {
-				// TODO: limit stack size: 1? 32?.
-				// TODO: limit usage in goroutines?
-				// TODO: build a new sub-context instead of patching the root one.
-				//       to support multiple concurrent contexts and advanced flows.
-				arg0 := m.LastBlock().GetParams1().TV
-				fn := arg0.GetFunc()
-				println("#####################", arg0, fn.GetType(m.Store).String())
-				//gno.Call(fn, "nil")
-				//m.Eval(gno.Call(fn))
-				// m.Eval(gno.Call(gno.FuncT(nil, nil), fn))
-				println("@@@@@@@@@@")
-				//println(fn)
-
-				/*
-					ctx := m.Context.(stdlibs.ExecContext)
-					ctx.OrigCaller = crypto.Bech32Address(addr)
-					m.Context = ctx
-				*/
-			},
-		)
 		pn.DefineNative("GetCallerAt",
 			gno.Flds( // params
 				"n", "int",
