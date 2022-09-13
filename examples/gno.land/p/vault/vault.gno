@@ -29,7 +29,6 @@ func New(token grc20.IGRC20, deposit uint, recover std.Address, lockDuration uin
 	if err != nil {
 		panic(err)
 	}
-	// TODO: deposit
 	return vault
 }
 
@@ -57,7 +56,17 @@ func (v *impl) Redeem() error {
 	// TODO: assert caller.
 	// TODO: check balance. (should be optional, but let's be sure).
 	// TODO: check height.
-	// TODO: transferToken.
+
+	// transfer token.
+	var err error
+	std.ExecAsPkg(func() {
+		//err = v.token.Transfer(v.owner, uint64(v.unvaultedAmount))
+	})
+	if err != nil {
+		return err
+	}
+
+	v.unvaultedAmount = 0
 	// TODO: if balance == 0 -> destroy?
 	return nil
 }
