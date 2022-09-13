@@ -6,8 +6,6 @@ import (
 	"gno.land/p/grc/exts"
 )
 
-// TODO: use big.Int or a custom uint256 instead of uint64?
-
 type IGRC20 interface {
 	exts.TokenMetadata
 
@@ -15,24 +13,23 @@ type IGRC20 interface {
 	TotalSupply() uint64
 
 	// Returns the amount of tokens owned by `account`.
-	BalanceOf(account std.Address) uint64
+	BalanceOf(account std.Address) (uint64, error)
 
 	// Moves `amount` tokens from the caller's account to `to`.
 	//
-	// Returns a boolean value indicating whether the operation succeeded.
-	//
-	// Emits a {EventTransfer} event.
-	Transfer(to std.Address, amount uint64) bool
+	// Returns an error if the operation failed.
+	Transfer(to std.Address, amount uint64) error
 
 	// Returns the remaining number of tokens that `spender` will be
 	// allowed to spend on behalf of `owner` through {transferFrom}. This is
 	// zero by default.
 	//
 	// This value changes when {approve} or {transferFrom} are called.
-	Allowance(owner, spender std.Address) uint64
+	Allowance(owner, spender std.Address) (uint64, error)
 
 	// Sets `amount` as the allowance of `spender` over the caller's tokens.
-	// Returns a boolean value indicating whether the operation succeeded.
+	//
+	// Returns an error if the operation failed.
 	//
 	// IMPORTANT: Beware that changing an allowance with this method brings the risk
 	// that someone may use both the old and the new allowance by unfortunate
@@ -40,18 +37,14 @@ type IGRC20 interface {
 	// condition is to first reduce the spender's allowance to 0 and set the
 	// desired value afterwards:
 	// https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-	//
-	// Emits an {EventApproval} event.
-	Approve(spender std.Address, amount uint64) bool
+	Approve(spender std.Address, amount uint64) error
 
 	// Moves `amount` tokens from `from` to `to` using the
 	// allowance mechanism. `amount` is then deducted from the caller's
 	// allowance.
 	//
-	// Returns a boolean value indicating whether the operation succeeded.
-	//
-	// Emits a {EventTransfer} event.
-	TransferFrom(from, to std.Address, amount uint64) bool
+	// Returns an error if the operation failed.
+	TransferFrom(from, to std.Address, amount uint64) error
 }
 
 // Emitted when `value` tokens are moved from one account (`from`) to another (`to`).
