@@ -22,7 +22,7 @@ func TestVault(t *testing.T) {
 	fooToken := fooAdminToken.GRC20()
 	recoverAddr := std.Address("...")
 	lockDuration := uint(5)
-	v := New(fooToken, 1000, recoverAddr, lockDuration)
+	v := New(fooToken, 400, recoverAddr, lockDuration)
 
 	debugVault(t, v, origCaller)
 }

@@ -25,7 +25,10 @@ func New(token grc20.IGRC20, deposit uint, recover std.Address, lockDuration uin
 
 	// deposit.
 	pkgAddr := std.GetOrigPkgAddr()
-	println("PKG", pkgAddr)
+	err := token.Transfer(pkgAddr, uint64(deposit))
+	if err != nil {
+		panic(err)
+	}
 	// TODO: deposit
 	return vault
 }
@@ -45,7 +48,7 @@ type impl struct {
 func (v *impl) Unvault(amount uint) error {
 	// TODO: assert caller (orig).
 	// TODO: check balance.
-	// TODO: set redeemMinHeight = now + durationToHeight(lockDuration() + 1.
+	// TODO: set redeemMinHeight = now + lockDuration()
 	v.unvaultedAmount += amount
 	return nil
 }

@@ -162,7 +162,7 @@ func (t *AdminToken) spendAllowance(owner, spender std.Address, amount uint64) e
 		return err
 	}
 	if currentAllowance < amount {
-		return ErrInsufficientBalance
+		return ErrInsufficientAllowance
 	}
 
 	return nil
@@ -188,6 +188,8 @@ func (t *AdminToken) transfer(from, to std.Address, amount uint64) error {
 	if err != nil {
 		return err
 	}
+
+	println("from", from, "to", to, "amount", amount, "fromBalance", fromBalance, "toBalance", toBalance)
 
 	if fromBalance < amount {
 		return ErrInsufficientBalance
