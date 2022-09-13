@@ -5,15 +5,19 @@ import (
 	"std"
 )
 
-func foo() {
-	println("foo", std.CurrentRealmPath())
+func displayOrigCaller() {
+	println(std.GetOrigCaller())
 }
 
 func main() {
-	println("main", std.CurrentRealmPath())
-	foo()
+	displayOrigCaller()
+	std.ExecAsPkg(func() {
+		displayOrigCaller()
+	})
+	displayOrigCaller()
 }
 
 // Output:
-// main gno.land/r/std_test
-// foo gno.land/r/std_test
+// g157y5v3k529jyzhjjz4fn49tzzhf4gess6v39xg
+// TODO: should be the address package
+// g157y5v3k529jyzhjjz4fn49tzzhf4gess6v39xg
