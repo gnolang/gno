@@ -5,7 +5,16 @@
 Add to your .vimrc file:
 
 ```vim
-au BufRead,BufNewFile *.gno set filetype=go
+function! GnoFmt()
+	cexpr system('gofmt -e -w ' . expand('%')) "or replace with gofumpt
+	edit!
+endfunction
+command! GnoFmt call GnoFmt()
+augroup gno_autocmd
+	autocmd!
+	autocmd BufNewFile,BufRead *.gno set filetype=go
+	autocmd BufWritePost *.gno GnoFmt
+augroup END
 ```
 
 TODO: other vim tweaks to make work with vim-go etc.
