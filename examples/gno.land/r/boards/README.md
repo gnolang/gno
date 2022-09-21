@@ -126,11 +126,11 @@ NOTE: This can be reset with `make reset`
 ### Publish the "gno.land/p/avl" package.
 
 ```bash
-./build/gnokey maketx addpkg test1 --pkgpath "gno.land/p/avl" --pkgdir "examples/gno.land/p/avl" --deposit 100000000ugnot --gas-fee 1000000ugnot --gas-wanted 2000000 --broadcast true --chainid testchain --remote localhost:26657
+./build/gnokey maketx addpkg test1 --pkgpath "gno.land/p/avl" --pkgdir "examples/gno.land/p/avl" --deposit 100000000ugnot --gas-fee 1000000ugnot --gas-wanted 2000000 --broadcast true --chainid dev --remote localhost:26657
 ```
 
 ### Publish the "gno.land/r/boards" realm package.
 
 ```bash
-./build/gnokey maketx addpkg test1 --pkgpath "gno.land/r/boards" --pkgdir "examples/gno.land/r/boards" --deposit 100000000ugnot --gas-fee 1000000ugnot --gas-wanted 300000000 --broadcast true --chainid testchain --remote localhost:26657
+./build/gnokey maketx addpkg test1 --pkgpath "gno.land/r/boards" --pkgdir "examples/gno.land/r/boards" --deposit 100000000ugnot --gas-fee 1000000ugnot --gas-wanted 300000000 --broadcast true --chainid dev --remote localhost:26657
 ```
