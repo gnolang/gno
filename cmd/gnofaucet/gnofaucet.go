@@ -284,6 +284,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 	})
 
 	// listen to port
+	fmt.Println("Starting server at port 5050")
 	http.ListenAndServe(":5050", nil)
 
 	return nil
