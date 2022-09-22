@@ -12,13 +12,19 @@ import (
 
 // GetPassword will prompt for a password one-time (to sign a tx).
 // Passwords may be blank; user must validate.
-func (cmd *Command) GetPassword(prompt string) (pass string, err error) {
+func (cmd *Command) GetPassword(prompt string, insecureUseStdin bool) (pass string, err error) {
 	if prompt != "" {
 		// On stderr so it isn't part of bash output.
 		cmd.ErrPrintln(prompt)
 	}
-	pass, err = cmd.readPasswordFromInBuf()
 
+	// insecure stdin.
+	if insecureUseStdin {
+		return cmd.readLineFromInBuf()
+	}
+
+	// secure prompt.
+	pass, err = cmd.readPasswordFromInBuf()
 	if err != nil {
 		return "", err
 	}
@@ -30,11 +36,11 @@ func (cmd *Command) GetPassword(prompt string) (pass string, err error) {
 // It enforces the password length. Only parses password once if
 // input is piped in.
 func (cmd *Command) GetCheckPassword(prompt, prompt2 string) (string, error) {
-	pass, err := cmd.GetPassword(prompt)
+	pass, err := cmd.GetPassword(prompt, false)
 	if err != nil {
 		return "", err
 	}
-	pass2, err := cmd.GetPassword(prompt2)
+	pass2, err := cmd.GetPassword(prompt2, false)
 	if err != nil {
 		return "", err
 	}

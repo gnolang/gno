@@ -80,27 +80,29 @@ func main() {
 // serveApp
 
 type serveOptions struct {
-	client.BaseOptions        // home, ...
-	ChainID            string `flag:"chain-id" help:"chain id"`
-	GasWanted          int64  `flag:"gas-wanted" help:"gas requested for tx"`
-	GasFee             string `flag:"gas-fee" help:"gas payment fee"`
-	Memo               string `flag:"memo" help:"any descriptive text"`
-	TestTo             string `flag:"test-to" help:"test addr (optional)"`
-	Send               string `flag:"send" help:"send coins"`
-	CaptchaSecret      string `flag:"captcha-secret" help:"recaptcha secret key (if empty, captcha are disabled)"`
-	IsBehindProxy      bool   `flag:"is-behind-proxy" help:"use X-Forwarded-For IP for throttling."`
+	client.BaseOptions           // home, ...
+	ChainID               string `flag:"chain-id" help:"chain id"`
+	GasWanted             int64  `flag:"gas-wanted" help:"gas requested for tx"`
+	GasFee                string `flag:"gas-fee" help:"gas payment fee"`
+	Memo                  string `flag:"memo" help:"any descriptive text"`
+	TestTo                string `flag:"test-to" help:"test addr (optional)"`
+	Send                  string `flag:"send" help:"send coins"`
+	CaptchaSecret         string `flag:"captcha-secret" help:"recaptcha secret key (if empty, captcha are disabled)"`
+	IsBehindProxy         bool   `flag:"is-behind-proxy" help:"use X-Forwarded-For IP for throttling"`
+	InsecurePasswordStdin bool   `flag:"insecure-password-stdin" help:"WARNING! take password from stdin"`
 }
 
 var DefaultServeOptions = serveOptions{
-	BaseOptions:   client.DefaultBaseOptions,
-	ChainID:       "", // must override
-	GasWanted:     50000,
-	GasFee:        "1000000ugnot",
-	Memo:          "",
-	TestTo:        "",
-	Send:          "1000000ugnot",
-	CaptchaSecret: "",
-	IsBehindProxy: false,
+	BaseOptions:           client.DefaultBaseOptions,
+	ChainID:               "", // must override
+	GasWanted:             50000,
+	GasFee:                "1000000ugnot",
+	Memo:                  "",
+	TestTo:                "",
+	Send:                  "1000000ugnot",
+	CaptchaSecret:         "",
+	IsBehindProxy:         false,
+	InsecurePasswordStdin: false,
 }
 
 func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
@@ -167,9 +169,9 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 	const dummy = "test"
 	var pass string
 	if opts.Quiet {
-		pass, err = cmd.GetPassword("")
+		pass, err = cmd.GetPassword("", opts.InsecurePasswordStdin)
 	} else {
-		pass, err = cmd.GetPassword("Enter password.")
+		pass, err = cmd.GetPassword("Enter password.", opts.InsecurePasswordStdin)
 	}
 	if err != nil {
 		return err
