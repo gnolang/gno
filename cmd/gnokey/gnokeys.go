@@ -335,10 +335,10 @@ func signAndBroadcast(cmd *command.Command, args []string, tx std.Tx, baseopts c
 		return errors.Wrap(err, "broadcast tx")
 	}
 	if bres.CheckTx.IsErr() {
-		return errors.New("transaction failed %#v\nlog %s", bres, bres.CheckTx.Log)
+		return errors.Wrap(bres.CheckTx.Error, "check transaction failed: log:%s", bres.CheckTx.Log)
 	}
 	if bres.DeliverTx.IsErr() {
-		return errors.New("transaction failed %#v\nlog %s", bres, bres.DeliverTx.Log)
+		return errors.Wrap(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
 	}
 	cmd.Println(string(bres.DeliverTx.Data))
 	cmd.Println("OK!")
