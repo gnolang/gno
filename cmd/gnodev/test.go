@@ -23,10 +23,10 @@ import (
 )
 
 type testOptions struct {
-	Verbose bool   `flag:"verbose" help:"verbose"`
-	RootDir string `flag:"root-dir" help:"clone location of github.com/gnolang/gno (gnodev tries to guess it)"`
-	Run     string `flag:"run" help:"test name filtering pattern"`
-	// Timeout time.Duration `flag:"timeout" help:"max execution time"`
+	Verbose bool          `flag:"verbose" help:"verbose"`
+	RootDir string        `flag:"root-dir" help:"clone location of github.com/gnolang/gno (gnodev tries to guess it)"`
+	Run     string        `flag:"run" help:"test name filtering pattern"`
+	Timeout time.Duration `flag:"timeout" help:"max execution time (in ns)"` // FIXME: support ParseDuration: "1s"
 	// VM Options
 	// A flag about if we should download the production realms
 	// UseNativeLibs bool // experimental, but could be useful for advanced developer needs
@@ -35,6 +35,7 @@ type testOptions struct {
 var DefaultTestOptions = testOptions{
 	Verbose: false,
 	RootDir: "",
+	Timeout: 0,
 }
 
 func testApp(cmd *command.Command, args []string, iopts interface{}) error {
@@ -52,6 +53,13 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 	pkgPaths, err := gnoPackagesFromArgs(args)
 	if err != nil {
 		return fmt.Errorf("list packages from args: %w", err)
+	}
+
+	if opts.Timeout > 0 {
+		go func() {
+			time.Sleep(opts.Timeout)
+			panic("test timed out after " + opts.Timeout.String())
+		}()
 	}
 
 	errCount := 0

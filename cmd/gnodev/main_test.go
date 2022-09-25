@@ -66,6 +66,8 @@ func TestMain(t *testing.T) {
 		{args: []string{"test", "../../examples/gno.land/p/ufmt", "--verbose", "--run", "Sprintf/"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/ufmt"},
 		{args: []string{"test", "../../examples/gno.land/p/ufmt", "--verbose", "--run", "Sprintf/.*"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/ufmt"},
 		{args: []string{"test", "../../examples/gno.land/p/ufmt", "--verbose", "--run", "Sprintf/hello"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/ufmt"},
+		{args: []string{"test", "../../examples/gno.land/p/ufmt", "--verbose", "--timeout", "100000000000" /* 100s */}, stderrShouldContain: "ok      ./../../examples/gno.land/p/ufmt"},
+		// {args: []string{"test", "../../examples/gno.land/p/ufmt", "--verbose", "--timeout", "10000" /* 10µs */}, recoverShouldContain: "test timed out after"}, // FIXME: should be testable
 	}
 
 	for _, test := range tc {
