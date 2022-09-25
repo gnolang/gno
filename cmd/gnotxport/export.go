@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
-	"io"
 
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/bft/rpc/client"
@@ -46,11 +46,11 @@ func txExportApp(cmd *command.Command, args []string, iopts interface{}) error {
 	} else {
 		last = opts.EndHeight
 	}
-	var out  io.Writer
-	switch opts.OutFile{
-		case "-", "STDOUT":
+	var out io.Writer
+	switch opts.OutFile {
+	case "-", "STDOUT":
 		out = os.Stdout
-		default:
+	default:
 		out, err = os.OpenFile(opts.OutFile, os.O_RDWR|os.O_CREATE, 0o755)
 		if err != nil {
 			return err
