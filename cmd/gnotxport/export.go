@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"io"
 
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/bft/rpc/client"
@@ -45,9 +46,15 @@ func txExportApp(cmd *command.Command, args []string, iopts interface{}) error {
 	} else {
 		last = opts.EndHeight
 	}
-	out, err := os.OpenFile(opts.OutFile, os.O_RDWR|os.O_CREATE, 0o755)
-	if err != nil {
-		return err
+	var out  io.Writer
+	switch opts.OutFile{
+		case "-", "STDOUT":
+		out = os.Stdout
+		default:
+		out, err = os.OpenFile(opts.OutFile, os.O_RDWR|os.O_CREATE, 0o755)
+		if err != nil {
+			return err
+		}
 	}
 
 	for height := opts.StartHeight; height <= last; height++ {
