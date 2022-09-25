@@ -260,7 +260,6 @@ func TestExportImport(t *testing.T) {
 	require.Equal(t, john, john2)
 }
 
-//
 func TestExportImportPubKey(t *testing.T) {
 	// make the storage with reasonable defaults
 	cstore := NewInMemory()

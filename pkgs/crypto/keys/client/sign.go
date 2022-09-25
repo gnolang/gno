@@ -28,6 +28,7 @@ type SignOptions struct {
 var DefaultSignOptions = SignOptions{
 	BaseOptions: DefaultBaseOptions,
 	TxPath:      "-", // read from stdin.
+	ChainID:     "dev",
 }
 
 func signApp(cmd *command.Command, args []string, iopts interface{}) error {
