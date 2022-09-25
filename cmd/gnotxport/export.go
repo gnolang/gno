@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/bft/rpc/client"
@@ -22,6 +25,7 @@ type txExportOptions struct {
 	EndHeight   int64  `flag:"end" help:"End height (optional)"`
 	OutFile     string `flag:"out" help:"Output file path"`
 	Quiet       bool   `flag:"quiet" help:"Quiet mode"`
+	Follow      bool   `flag:"follow" help:"Keep attached and follow new events"`
 }
 
 var defaultTxExportOptions = txExportOptions{
@@ -30,6 +34,7 @@ var defaultTxExportOptions = txExportOptions{
 	EndHeight:   0,
 	OutFile:     "txexport.log",
 	Quiet:       false,
+	Follow:      false,
 }
 
 func txExportApp(cmd *command.Command, args []string, iopts interface{}) error {
@@ -45,14 +50,29 @@ func txExportApp(cmd *command.Command, args []string, iopts interface{}) error {
 	} else {
 		last = opts.EndHeight
 	}
-	out, err := os.OpenFile(opts.OutFile, os.O_RDWR|os.O_CREATE, 0o755)
-	if err != nil {
-		return err
+	var out io.Writer
+	switch opts.OutFile {
+	case "-", "STDOUT":
+		out = os.Stdout
+	default:
+		out, err = os.OpenFile(opts.OutFile, os.O_RDWR|os.O_CREATE, 0o755)
+		if err != nil {
+			return err
+		}
 	}
 
-	for height := opts.StartHeight; height <= last; height++ {
+	for height := opts.StartHeight; ; height++ {
+		if !opts.Follow && height >= last {
+			break
+		}
+
+	getBlock:
 		block, err := c.Block(&height)
 		if err != nil {
+			if opts.Follow && strings.Contains(err.Error(), "") {
+				time.Sleep(time.Second)
+				goto getBlock
+			}
 			panic(err)
 		}
 		txs := block.Block.Data.Txs

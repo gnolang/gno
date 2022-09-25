@@ -80,6 +80,14 @@ type SignBroadcastOptions struct {
 	ChainID   string `flag:"chainid" help:"chainid to sign for (only useful if --broadcast)"`
 }
 
+var defaultSignBroadcastOptions = SignBroadcastOptions{
+	GasWanted: 0,
+	GasFee:    "",
+	Memo:      "",
+	Broadcast: false,
+	ChainID:   "dev",
+}
+
 //----------------------------------------
 // makeAddPackageTx
 
@@ -92,10 +100,11 @@ type makeAddPackageTxOptions struct {
 }
 
 var defaultMakeAddPackageTxOptions = makeAddPackageTxOptions{
-	BaseOptions: client.DefaultBaseOptions,
-	PkgPath:     "", // must override
-	PkgDir:      "", // must override
-	Deposit:     "",
+	BaseOptions:          client.DefaultBaseOptions,
+	SignBroadcastOptions: defaultSignBroadcastOptions,
+	PkgPath:              "", // must override
+	PkgDir:               "", // must override
+	Deposit:              "",
 }
 
 func makeAddPackageTxApp(cmd *command.Command, args []string, iopts interface{}) error {
@@ -182,11 +191,12 @@ type makeCallTxOptions struct {
 }
 
 var defaultMakeCallTxOptions = makeCallTxOptions{
-	BaseOptions: client.DefaultBaseOptions,
-	PkgPath:     "", // must override
-	Func:        "", // must override
-	Args:        nil,
-	Send:        "",
+	BaseOptions:          client.DefaultBaseOptions,
+	SignBroadcastOptions: defaultSignBroadcastOptions,
+	PkgPath:              "", // must override
+	Func:                 "", // must override
+	Args:                 nil,
+	Send:                 "",
 }
 
 func makeCallTxApp(cmd *command.Command, args []string, iopts interface{}) error {
@@ -349,9 +359,10 @@ type makeSendTxOptions struct {
 }
 
 var defaultMakeSendTxOptions = makeSendTxOptions{
-	BaseOptions: client.DefaultBaseOptions,
-	Send:        "", // must override
-	To:          "", // must override
+	BaseOptions:          client.DefaultBaseOptions,
+	SignBroadcastOptions: defaultSignBroadcastOptions,
+	Send:                 "", // must override
+	To:                   "", // must override
 }
 
 func makeSendTxApp(cmd *command.Command, args []string, iopts interface{}) error {
