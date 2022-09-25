@@ -81,7 +81,10 @@ func txExportApp(cmd *command.Command, args []string, iopts interface{}) error {
 		}
 		_, err = c.BlockResults(&height)
 		if err != nil {
-			// TODO: consider retry for latest height.
+			if opts.Follow && strings.Contains(err.Error(), "") {
+				time.Sleep(time.Second)
+				goto getBlock
+			}
 			panic(err)
 		}
 		for i := 0; i < len(txs); i++ {
