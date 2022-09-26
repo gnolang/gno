@@ -197,6 +197,10 @@ func (c *JSONRPCClient) Call(method string, params map[string]interface{}, resul
 	}
 	defer httpResponse.Body.Close() // nolint: errcheck
 
+	if !statusOK(httpResponse.StatusCode) {
+		return nil, errors.New("server at '%s' returned %s", c.address, httpResponse.Status)
+	}
+
 	responseBytes, err := ioutil.ReadAll(httpResponse.Body)
 	if err != nil {
 		return nil, err
@@ -229,6 +233,10 @@ func (c *JSONRPCClient) sendBatch(requests []*jsonRPCBufferedRequest) ([]interfa
 		return nil, err
 	}
 	defer httpResponse.Body.Close() // nolint: errcheck
+
+	if !statusOK(httpResponse.StatusCode) {
+		return nil, errors.New("server at '%s' returned %s", c.address, httpResponse.Status)
+	}
 
 	responseBytes, err := ioutil.ReadAll(httpResponse.Body)
 	if err != nil {
@@ -319,6 +327,10 @@ func (c *URIClient) Call(method string, params map[string]interface{}, result in
 		return nil, err
 	}
 	defer resp.Body.Close() // nolint: errcheck
+
+	if !statusOK(resp.StatusCode) {
+		return nil, errors.New("server at '%s' returned %s", c.address, resp.Status)
+	}
 
 	responseBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -436,3 +448,5 @@ func argsToJSON(args map[string]interface{}) error {
 	}
 	return nil
 }
+
+func statusOK(code int) bool { return code >= 200 && code <= 299 }
