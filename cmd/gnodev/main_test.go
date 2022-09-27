@@ -58,6 +58,8 @@ func TestMain(t *testing.T) {
 		{args: []string{"test", "../../tests/integ/failing1", "--verbose"}, errShouldBe: "FAIL: 0 build errors, 1 test errors", stderrShouldContain: "FAIL: TestAlwaysFailing"},
 		{args: []string{"test", "../../tests/integ/failing2", "--verbose", "--no-precompile"}, recoverShouldBe: "fail on ../../tests/integ/failing2/failing_filetest.gno: got unexpected error: beep boop", stderrShouldContain: "== RUN   file/failing_filetest.gno"},
 		{args: []string{"test", "../../tests/integ/failing2", "--verbose"}, stderrShouldBe: "=== PREC  ./../../tests/integ/failing2\n=== BUILD ./../../tests/integ/failing2\n=== RUN   file/failing_filetest.gno\n", recoverShouldBe: "fail on ../../tests/integ/failing2/failing_filetest.gno: got unexpected error: beep boop"},
+		{args: []string{"test", "../../tests/integ/import-grc20", "--verbose"}, stderrShouldContain: "ok "},
+		{args: []string{"test", "../../tests/integ/import-local", "--verbose"}, stderrShouldContain: "ok "},
 
 		// test opts
 		{args: []string{"test", "../../examples/gno.land/p/ufmt"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/ufmt"},
