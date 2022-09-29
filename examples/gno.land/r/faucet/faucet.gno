@@ -1,6 +1,7 @@
 package faucet
 
 import (
+	"errors"
 	"std"
 
 	"gno.land/p/avl"
@@ -8,8 +9,8 @@ import (
 )
 
 var (
-	gAdminAddr        std.Address
-	gGiverAddr        std.Address = std.DerivePkgAddr("gno.land/r/faucet-community")
+	gAdminAddr        std.Address = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"
+	gControllerAddr   std.Address = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"
 	gTotalTransferred std.Coins
 	gTotalTransfers   = uint(0)
 	gPerTransferSend  = std.Coins{std.Coin{"ugnot", 1000000}}
@@ -17,24 +18,23 @@ var (
 	gMessage          = "# Community Faucet.\n\n"
 )
 
-func init() {
-	// gAdminAddr = std.GetOrigCaller()
-	// gGiverAddr = std.GetOrigCaller()
-}
-
-func Transfer(to std.Address) {
-	assertIsGiver()
+func Transfer(to std.Address) error {
+	if err := assertIsController(); err != nil {
+		return err
+	}
 
 	// TODO: log history?
 	// TODO: limit per dest?
 
 	send := gPerTransferSend
-	// gTotalTransferred = gTotalTransferred.Add(send)
+
+	gTotalTransferred = gTotalTransferred.Add(send)
 	gTotalTransfers++
 
 	banker := std.GetBanker(std.BankerTypeOrigSend)
 	pkgaddr := std.GetOrigPkgAddr()
 	banker.SendCoins(pkgaddr, to, send)
+	return nil
 }
 
 func Render(path string) string {
@@ -44,11 +44,18 @@ func Render(path string) string {
 	output := gMessage
 	output += ufmt.Sprintf("Balance: %s\n", balance.String())
 	output += ufmt.Sprintf("Rewarded: %s (in %d times)\n", gTotalTransferred.String(), gTotalTransfers)
+
+	if path == "?debug" {
+		output += ufmt.Sprintf("Admin: %s, Controller: %s\n", gAdminAddr.String(), gControllerAddr.String())
+	}
 	return output
 }
 
-func assertIsGiver() bool {
+func assertIsController() error {
 	// std.AssertOriginCall()
 	caller := std.GetOrigCaller()
-	return caller == gGiverAddr
+	if caller != gControllerAddr {
+		return errors.New("restricted for controller")
+	}
+	return nil
 }
