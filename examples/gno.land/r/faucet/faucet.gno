@@ -9,13 +9,16 @@ import (
 )
 
 var (
-	gAdminAddr        std.Address = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"
-	gControllerAddr   std.Address = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"
+	// configurable by admin.
+	gAdminAddr       std.Address = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"
+	gControllerAddr  std.Address = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"
+	gPerTransferSend             = std.Coins{std.Coin{"ugnot", 1000000}}
+	gInPause                     = false
+	gMessage                     = "# Community Faucet.\n\n"
+
+	// internal vars, for stats.
 	gTotalTransferred std.Coins
 	gTotalTransfers   = uint(0)
-	gPerTransferSend  = std.Coins{std.Coin{"ugnot", 1000000}}
-	gInPause          = false
-	gMessage          = "# Community Faucet.\n\n"
 )
 
 func Transfer(to std.Address) error {
@@ -23,8 +26,9 @@ func Transfer(to std.Address) error {
 		return err
 	}
 
-	// TODO: log history?
-	// TODO: limit per dest?
+	if gInPause {
+		return errors.New("faucet in pause")
+	}
 
 	send := gPerTransferSend
 
@@ -42,8 +46,13 @@ func Render(path string) string {
 	balance := banker.GetCoins(std.GetOrigPkgAddr())
 
 	output := gMessage
-	output += ufmt.Sprintf("Balance: %s\n", balance.String())
-	output += ufmt.Sprintf("Rewarded: %s (in %d times)\n", gTotalTransferred.String(), gTotalTransfers)
+	if gInPause {
+		output += "Status: inactive.\n"
+	} else {
+		output += "Status: active.\n"
+	}
+	output += ufmt.Sprintf("Balance: %s.\n", balance.String())
+	output += ufmt.Sprintf("Rewarded: %s (in %d times).\n", gTotalTransferred.String(), gTotalTransfers)
 
 	if path == "?debug" {
 		output += ufmt.Sprintf("Admin: %s, Controller: %s\n", gAdminAddr.String(), gControllerAddr.String())
@@ -52,7 +61,6 @@ func Render(path string) string {
 }
 
 func assertIsController() error {
-	// std.AssertOriginCall()
 	caller := std.GetOrigCaller()
 	if caller != gControllerAddr {
 		return errors.New("restricted for controller")

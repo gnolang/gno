@@ -65,8 +65,9 @@ func main() {
 // ---
 // Render:  # Community Faucet.
 //
-// Balance: 997000000ugnot
-// Rewarded: 3000000ugnot (in 3 times)
+// Status: active.
+// Balance: 997000000ugnot.
+// Rewarded: 3000000ugnot (in 3 times).
 //
 // ---
 // done
