@@ -600,7 +600,7 @@ func removeZeroCoins(coins Coins) Coins {
 //-----------------------------------------------------------------------------
 // Sort interface
 
-//nolint
+// nolint
 func (coins Coins) Len() int           { return len(coins) }
 func (coins Coins) Less(i, j int) bool { return coins[i].Denom < coins[j].Denom }
 func (coins Coins) Swap(i, j int)      { coins[i], coins[j] = coins[j], coins[i] }
