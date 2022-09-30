@@ -22,6 +22,7 @@ import (
 type txExportOptions struct {
 	Remote      string `flag:"remote" help:"Remote RPC addr:port"`
 	StartHeight int64  `flag:"start" help:"Start height"`
+	TailHeight int64 `flag:"tail" help:"Start at LAST - N"`
 	EndHeight   int64  `flag:"end" help:"End height (optional)"`
 	OutFile     string `flag:"out" help:"Output file path"`
 	Quiet       bool   `flag:"quiet" help:"Quiet mode"`
@@ -32,6 +33,7 @@ var defaultTxExportOptions = txExportOptions{
 	Remote:      "localhost:26657",
 	StartHeight: 1,
 	EndHeight:   0,
+	TailHeight: 0,
 	OutFile:     "txexport.log",
 	Quiet:       false,
 	Follow:      false,
@@ -44,12 +46,16 @@ func txExportApp(cmd *command.Command, args []string, iopts interface{}) error {
 	if err != nil {
 		panic(err)
 	}
-	last := int64(0)
-	if opts.EndHeight == 0 {
-		last = status.SyncInfo.LatestBlockHeight
-	} else {
-		last = opts.EndHeight
+	start := opts.StartHeight
+	end := opts.EndHeight
+	tail := opts.TailHeight
+	if end == 0 { // take last block height
+		end = status.SyncInfo.LatestBlockHeight
 	}
+	if tail > 0 {
+		start = end - tail
+	}
+
 	var out io.Writer
 	switch opts.OutFile {
 	case "-", "STDOUT":
@@ -61,8 +67,8 @@ func txExportApp(cmd *command.Command, args []string, iopts interface{}) error {
 		}
 	}
 
-	for height := opts.StartHeight; ; height++ {
-		if !opts.Follow && height >= last {
+	for height := start; ; height++ {
+		if !opts.Follow && height >= end {
 			break
 		}
 
@@ -81,7 +87,10 @@ func txExportApp(cmd *command.Command, args []string, iopts interface{}) error {
 		}
 		_, err = c.BlockResults(&height)
 		if err != nil {
-			// TODO: consider retry for latest height.
+			if opts.Follow && strings.Contains(err.Error(), "") {
+				time.Sleep(time.Second)
+				goto getBlock
+			}
 			panic(err)
 		}
 		for i := 0; i < len(txs); i++ {
@@ -96,7 +105,7 @@ func txExportApp(cmd *command.Command, args []string, iopts interface{}) error {
 			fmt.Fprintln(out, string(bz))
 		}
 		if !opts.Quiet {
-			log.Printf("h=%d/%d (txs=%d)", height, last, len(txs))
+			log.Printf("h=%d/%d (txs=%d)", height, end, len(txs))
 		}
 	}
 	return nil
