@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,13 +18,15 @@ type precompileOptions struct {
 	SkipFmt     bool   `flag:"skip-fmt" help:"do not check syntax of generated .go files"`
 	GoBinary    string `flag:"go-binary" help:"go binary to use for building"`
 	GofmtBinary string `flag:"go-binary" help:"gofmt binary to use for syntax checking"`
+	Output      string `flag:"output" help:"output directory"`
 }
 
-var DefaultPrecompileOptions = precompileOptions{
+var defaultPrecompileOptions = precompileOptions{
 	Verbose:     false,
 	SkipFmt:     false,
 	GoBinary:    "go",
 	GofmtBinary: "gofmt",
+	Output:      ".",
 }
 
 func precompileApp(cmd *command.Command, args []string, iopts interface{}) error {
@@ -56,10 +59,28 @@ func precompileApp(cmd *command.Command, args []string, iopts interface{}) error
 	return nil
 }
 
+func precompilePkg(pkgPath string, opts precompileOptions) error {
+	files, err := filepath.Glob(filepath.Join(pkgPath, "*.gno"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, file := range files {
+		if err = precompileFile(file, opts); err != nil {
+			return fmt.Errorf("%s: %v", file, err)
+		}
+	}
+
+	return nil
+}
+
 func precompileFile(srcPath string, opts precompileOptions) error {
 	shouldCheckFmt := !opts.SkipFmt
 	verbose := opts.Verbose
 	gofmt := opts.GofmtBinary
+	if gofmt == "" {
+		gofmt = defaultPrecompileOptions.GofmtBinary
+	}
 
 	if verbose {
 		fmt.Fprintf(os.Stderr, "%s\n", srcPath)

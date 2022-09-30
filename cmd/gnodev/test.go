@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -23,19 +24,22 @@ import (
 )
 
 type testOptions struct {
-	Verbose bool          `flag:"verbose" help:"verbose"`
-	RootDir string        `flag:"root-dir" help:"clone location of github.com/gnolang/gno (gnodev tries to guess it)"`
-	Run     string        `flag:"run" help:"test name filtering pattern"`
-	Timeout time.Duration `flag:"timeout" help:"max execution time (in ns)"` // FIXME: support ParseDuration: "1s"
+	Verbose      bool          `flag:"verbose" help:"verbose"`
+	RootDir      string        `flag:"root-dir" help:"clone location of github.com/gnolang/gno (gnodev tries to guess it)"`
+	Run          string        `flag:"run" help:"test name filtering pattern"`
+	Timeout      time.Duration `flag:"timeout" help:"max execution time (in ns)"` // FIXME: support ParseDuration: "1s"
+	NoPrecompile bool          `flag:"no-precompile" help:"skip precompiling gno to go"`
 	// VM Options
 	// A flag about if we should download the production realms
 	// UseNativeLibs bool // experimental, but could be useful for advanced developer needs
 }
 
-var DefaultTestOptions = testOptions{
-	Verbose: false,
-	RootDir: "",
-	Timeout: 0,
+var defaultTestOptions = testOptions{
+	Verbose:      false,
+	Run:          "",
+	RootDir:      "",
+	Timeout:      0,
+	NoPrecompile: false,
 }
 
 func testApp(cmd *command.Command, args []string, iopts interface{}) error {
@@ -44,6 +48,14 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 		cmd.ErrPrintfln("Usage: test [test flags] [packages]")
 		return errors.New("invalid args")
 	}
+
+	verbose := opts.Verbose
+
+	tempdirRoot, err := ioutil.TempDir("", "gno-precompile")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.RemoveAll(tempdirRoot)
 
 	// guess opts.RootDir
 	if opts.RootDir == "" {
@@ -62,8 +74,45 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 		}()
 	}
 
-	errCount := 0
+	buildErrCount := 0
+	testErrCount := 0
 	for _, pkgPath := range pkgPaths {
+		if !opts.NoPrecompile {
+			if verbose {
+				cmd.ErrPrintfln("=== PREC  %s", pkgPath)
+			}
+			pkgPathSafe := strings.ReplaceAll(pkgPath, "/", "~")
+			tempdir := filepath.Join(tempdirRoot, pkgPathSafe)
+			if err = os.MkdirAll(tempdir, 0755); err != nil {
+				log.Fatal(err)
+			}
+			precompileOpts := precompileOptions{
+				Output: tempdir,
+			}
+			err := precompilePkg(pkgPath, precompileOpts)
+			if err != nil {
+				cmd.ErrPrintln(err)
+				cmd.ErrPrintln("FAIL")
+				cmd.ErrPrintfln("FAIL    %s", pkgPath)
+				cmd.ErrPrintln("FAIL")
+				buildErrCount++
+				continue
+			}
+
+			if verbose {
+				cmd.ErrPrintfln("=== BUILD %s", pkgPath)
+			}
+			err = goBuildFileOrPkg(tempdir, defaultBuildOptions)
+			if err != nil {
+				cmd.ErrPrintln(err)
+				cmd.ErrPrintln("FAIL")
+				cmd.ErrPrintfln("FAIL    %s", pkgPath)
+				cmd.ErrPrintln("FAIL")
+				buildErrCount++
+				continue
+			}
+		}
+
 		unittestFiles, err := filepath.Glob(filepath.Join(pkgPath, "*_test.gno"))
 		if err != nil {
 			log.Fatal(err)
@@ -86,18 +135,18 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 		dstr := fmtDuration(duration)
 
 		if err != nil {
-			err = fmt.Errorf("%s: test pkg: %w", pkgPath, err)
+			cmd.ErrPrintfln("%s: test pkg: %v", pkgPath, err)
 			cmd.ErrPrintfln("FAIL")
 			cmd.ErrPrintfln("FAIL    %s \t%s", pkgPath, dstr)
 			cmd.ErrPrintfln("FAIL")
-			errCount++
+			testErrCount++
 		} else {
 			cmd.ErrPrintfln("ok      %s \t%s", pkgPath, dstr)
 		}
 	}
-	if errCount > 0 {
+	if testErrCount > 0 || buildErrCount > 0 {
 		cmd.ErrPrintfln("FAIL")
-		return fmt.Errorf("FAIL: %d go test errors", errCount)
+		return fmt.Errorf("FAIL: %d build errors, %d test errors", buildErrCount, testErrCount)
 	}
 
 	return nil

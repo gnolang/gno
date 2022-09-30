@@ -25,7 +25,7 @@ type replOptions struct {
 	// ImportPkgs...
 }
 
-var DefaultReplOptions = replOptions{
+var defaultReplOptions = replOptions{
 	Verbose: false,
 	RootDir: "",
 }

@@ -14,7 +14,7 @@ type buildOptions struct {
 	GoBinary string `flag:"go-binary" help:"go binary to use for building"`
 }
 
-var DefaultBuildOptions = buildOptions{
+var defaultBuildOptions = buildOptions{
 	Verbose:  false,
 	GoBinary: "go",
 }
