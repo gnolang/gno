@@ -136,12 +136,13 @@ func Precompile(source string, tags string, filename string) (string, error) {
 func PrecompileVerifyFile(path string, gofmtBinary string) error {
 	// TODO: use cmd/parser instead of exec?
 
-	args := []string{"-l", "-e", path}
-	cmd := exec.Command(gofmtBinary, args...)
+	args := strings.Split(gofmtBinary, " ")
+	args = append(args, []string{"-l", "-e", path}...)
+	cmd := exec.Command(args[0], args[1:]...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, string(out))
-		return fmt.Errorf("gofmt: %w", err)
+		return fmt.Errorf("%s: %w", gofmtBinary, err)
 	}
 	return nil
 }
