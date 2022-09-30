@@ -34,14 +34,14 @@ the surface area for attack by an order of magnitude.  CosmWASM adds two layers
 of new complexity to the hub. WASM itself, as well as CosmWASM.  WASM as a spec
 and its implementations are still maturing, and though available on browsers,
 and some blockchains, it still hasn't gone through the gauntlet of time. All
-new complex technologies like WASM, like Java, Linux, and even Go, in hindsight
+new complex technologies like WASM, Java, Linux, and even Go, in hindsight
 have numerous bugs that could have or were used maliciously. The same will be
 true of any WASM integration with the hub, and this potential for exploits
 combined with the massive potential rewards (especially of pegged PoW tokens)
 makes such exploits an inevitability.
 
 In Juno recently there was a bug that halted the chain for three days.  Worse
-can happen on the Cosmos Hub. The very identity of the Cosmos Hub (it's most
+can happen on the Cosmos Hub. The very identity of the Cosmos Hub (its most
 valuable asset is specifically a schelling point brand, of being a "common IBC
 hub") is threatened if a bug were to result in the theft or loss of coins. On
 platforms like Ethereum or Polkadot, perhaps they would have a better time
@@ -61,7 +61,7 @@ is not enough. For one, even with perfect governance, there are two new pieces
 of complexity that will see more zero day bugs in the future for exploitation.
 In terms of governance, the contracts are probably going to be written in Rust,
 and so suddenly the validators that joined the project by inspecting the Go
-code is now required to also audit Rust code. But also, we are now truly
+code are now required to also audit Rust code. But also, we are now truly
 opening the doors to all kinds of contracts to be run, because while governance
 does sometimes reject proposals, it is generally accommodating to new features
 especially endorsed by core contributors.
@@ -120,7 +120,7 @@ In corporations, you can buy shares to influence the outcome of governance
 votes.  In democracy, this is not allowed because the vote could be bought to
 infringe upon the rights of other people.
 
-What do you do when the chain's own core contributors proposes a proposal that
+What do you do when the chain's own core contributors propose a proposal that
 you judge damages the integrity of the system? I think that's a good time to
 create a fork of the hub's ATOM distribution led by a new development team.
 Sometimes this option is the only option because of safety concerns, and this
