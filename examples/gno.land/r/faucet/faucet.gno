@@ -4,7 +4,6 @@ import (
 	"errors"
 	"std"
 
-	"gno.land/p/avl"
 	"gno.land/p/ufmt"
 )
 
