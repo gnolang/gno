@@ -5,7 +5,7 @@ import (
 )
 
 var Package = amino.RegisterPackage(amino.NewPackage(
-	"github.com/gnolang/gno",
+	"github.com/gnolang/gno/pkgs/gnolang",
 	"gno",
 	amino.GetCallersDirname(),
 ).WithDependencies().WithTypes(
