@@ -14,9 +14,9 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/gnolang/gno"
 	"github.com/gnolang/gno/pkgs/command"
 	"github.com/gnolang/gno/pkgs/errors"
+	gno "github.com/gnolang/gno/pkgs/gnolang"
 	"github.com/gnolang/gno/pkgs/std"
 	"github.com/gnolang/gno/pkgs/testutils"
 	"github.com/gnolang/gno/tests"

@@ -12,8 +12,8 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/gdamore/tcell/v2/encoding"
-	"github.com/gnolang/gno"
 	"github.com/gnolang/gno/logos"
+	gno "github.com/gnolang/gno/pkgs/gnolang"
 )
 
 var (

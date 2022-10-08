@@ -3,9 +3,9 @@ package vm
 import (
 	"strings"
 
-	"github.com/gnolang/gno"
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/crypto"
+	gno "github.com/gnolang/gno/pkgs/gnolang"
 	"github.com/gnolang/gno/pkgs/sdk"
 	"github.com/gnolang/gno/pkgs/std"
 )

@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gnolang/gno"
 	"github.com/gnolang/gno/gnoland"
 	"github.com/gnolang/gno/pkgs/amino"
 	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
@@ -17,6 +16,7 @@ import (
 	"github.com/gnolang/gno/pkgs/bft/privval"
 	bft "github.com/gnolang/gno/pkgs/bft/types"
 	"github.com/gnolang/gno/pkgs/crypto"
+	gno "github.com/gnolang/gno/pkgs/gnolang"
 	"github.com/gnolang/gno/pkgs/log"
 	osm "github.com/gnolang/gno/pkgs/os"
 	vmm "github.com/gnolang/gno/pkgs/sdk/vm"

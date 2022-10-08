@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gnolang/gno"
 	"github.com/gnolang/gno/pkgs/errors"
+	gno "github.com/gnolang/gno/pkgs/gnolang"
 	"github.com/gnolang/gno/pkgs/sdk"
 	"github.com/gnolang/gno/pkgs/sdk/auth"
 	"github.com/gnolang/gno/pkgs/sdk/bank"

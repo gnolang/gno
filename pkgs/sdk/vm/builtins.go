@@ -4,8 +4,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/gnolang/gno"
 	"github.com/gnolang/gno/pkgs/crypto"
+	gno "github.com/gnolang/gno/pkgs/gnolang"
 	osm "github.com/gnolang/gno/pkgs/os"
 	"github.com/gnolang/gno/pkgs/sdk"
 	"github.com/gnolang/gno/pkgs/std"

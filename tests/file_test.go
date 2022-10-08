@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno"
+	gno "github.com/gnolang/gno/pkgs/gnolang"
 )
 
 func TestFileStr(t *testing.T) {
