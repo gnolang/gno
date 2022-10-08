@@ -100,7 +100,6 @@ test.go: test.go1 test.go2 test.go3 test.go4
 
 test.go1:
 	# test most of pkgs/* except amino and bft.
-	go test . -v
 	# -p 1 shows test failures as they come
 	# maybe another way to do this?
 	go test `go list ./pkgs/... | grep -v pkgs/amino/ | grep -v pkgs/bft/` -v -p 1 -timeout=30m
