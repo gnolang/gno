@@ -96,7 +96,7 @@ func fmtDuration(d time.Duration) string {
 }
 
 func guessRootDir() string {
-	cmd := exec.Command("go", "list", "-m", "-mod=mod", "-f", "{{.Dir}}", gno "github.com/gnolang/gno/pkgs/gnolang")
+	cmd := exec.Command("go", "list", "-m", "-mod=mod", "-f", "{{.Dir}}", "github.com/gnolang/gno")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Fatal("can't guess --root-dir, please fill it manually.")
