@@ -26,7 +26,8 @@ import (
 
 // Client and Server should work over tcp or unix sockets
 const (
-	tcpAddr = "tcp://0.0.0.0:47768"
+	tcpAddr                  = "tcp://0.0.0.0:47768"
+	tcpServerUnavailableAddr = "tcp://0.0.0.0:47769"
 
 	unixSocket = "/tmp/rpc_test.sock"
 	unixAddr   = "unix://" + unixSocket
@@ -137,6 +138,16 @@ func setup() {
 		panic(err)
 	}
 	go server.StartHTTPServer(listener2, mux2, unixLogger, config)
+
+	listener3, err := server.Listen(tcpServerUnavailableAddr, config)
+	if err != nil {
+		panic(err)
+	}
+	mux3 := http.NewServeMux()
+	mux3.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "oups", http.StatusTeapot)
+	})
+	go server.StartHTTPServer(listener3, mux3, tcpLogger, config)
 
 	// wait for servers to start
 	time.Sleep(time.Second * 2)
@@ -283,6 +294,14 @@ func TestServersAndClientsBasic(t *testing.T) {
 		testWithWSClient(t, cl3)
 		cl3.Stop()
 	}
+
+	cl1 := client.NewURIClient(tcpServerUnavailableAddr)
+	_, err := cl1.Call("error", nil, nil)
+	require.EqualError(t, err, "server at 'http://0.0.0.0:47769' returned 418 I'm a teapot")
+
+	cl2 := client.NewJSONRPCClient(tcpServerUnavailableAddr)
+	_, err = cl2.Call("error", nil, nil)
+	require.EqualError(t, err, "server at 'http://0.0.0.0:47769' returned 418 I'm a teapot")
 }
 
 func TestHexStringArg(t *testing.T) {
