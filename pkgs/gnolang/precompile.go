@@ -185,6 +185,12 @@ func PrecompileBuildPackage(fileOrPkg string, goBinary string) error {
 			}
 		}
 	}
+
+	if len(files) < 1 {
+		// FIXME: automatically precompile?
+		return fmt.Errorf("no Go files in %s. Try 'gnodev precompile'.", fileOrPkg)
+	}
+
 	sort.Strings(files)
 	args := append([]string{"build", "-v", "-tags=gno"}, files...)
 	cmd := exec.Command(goBinary, args...)
