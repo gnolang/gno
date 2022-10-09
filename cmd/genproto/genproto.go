@@ -5,7 +5,6 @@ import (
 	"github.com/gnolang/gno/pkgs/amino/genproto"
 
 	// TODO: move these out.
-	"github.com/gnolang/gno"
 	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
 	"github.com/gnolang/gno/pkgs/bft/blockchain"
 	"github.com/gnolang/gno/pkgs/bft/consensus"
@@ -17,6 +16,7 @@ import (
 	"github.com/gnolang/gno/pkgs/crypto/hd"
 	"github.com/gnolang/gno/pkgs/crypto/merkle"
 	"github.com/gnolang/gno/pkgs/crypto/multisig"
+	gno "github.com/gnolang/gno/pkgs/gnolang"
 	"github.com/gnolang/gno/pkgs/sdk"
 	"github.com/gnolang/gno/pkgs/sdk/bank"
 	"github.com/gnolang/gno/pkgs/sdk/vm"

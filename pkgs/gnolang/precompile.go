@@ -156,6 +156,7 @@ func PrecompileBuildPackage(fileOrPkg string, goBinary string) error {
 	// TODO: find the nearest go.mod file, chdir in the same folder, rim prefix?
 	// TODO: temporarily create an in-memory go.mod or disable go modules for gno?
 	// TODO: ignore .go files that were not generated from gno?
+	// TODO: automatically precompile if not yet done.
 
 	files := []string{}
 
@@ -175,7 +176,7 @@ func PrecompileBuildPackage(fileOrPkg string, goBinary string) error {
 		}
 		for _, goMatch := range goMatches {
 			switch {
-			case strings.HasSuffix(goMatch, "."): // skip
+			case strings.HasPrefix(goMatch, "."): // skip
 			case strings.HasSuffix(goMatch, "_filetest.go"): // skip
 			case strings.HasSuffix(goMatch, "_filetest.gno.gen.go"): // skip
 			case strings.HasSuffix(goMatch, "_test.go"): // skip
@@ -185,6 +186,7 @@ func PrecompileBuildPackage(fileOrPkg string, goBinary string) error {
 			}
 		}
 	}
+
 	sort.Strings(files)
 	args := append([]string{"build", "-v", "-tags=gno"}, files...)
 	cmd := exec.Command(goBinary, args...)

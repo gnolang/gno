@@ -13,7 +13,7 @@ import (
 
 	//"go/build"
 
-	"github.com/gnolang/gno"
+	gno "github.com/gnolang/gno/pkgs/gnolang"
 )
 
 func TestPackages(t *testing.T) {

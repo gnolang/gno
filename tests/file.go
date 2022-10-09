@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gnolang/gno"
 	"github.com/gnolang/gno/pkgs/crypto"
+	gno "github.com/gnolang/gno/pkgs/gnolang"
 	osm "github.com/gnolang/gno/pkgs/os"
 	"github.com/gnolang/gno/pkgs/std"
 	"github.com/gnolang/gno/stdlibs"

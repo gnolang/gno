@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno"
 	"github.com/gnolang/gno/pkgs/command"
 	"github.com/gnolang/gno/pkgs/errors"
+	gno "github.com/gnolang/gno/pkgs/gnolang"
 )
 
 type precompileOptions struct {

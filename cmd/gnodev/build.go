@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/gnolang/gno"
 	"github.com/gnolang/gno/pkgs/command"
 	"github.com/gnolang/gno/pkgs/errors"
+	gno "github.com/gnolang/gno/pkgs/gnolang"
 )
 
 type buildOptions struct {

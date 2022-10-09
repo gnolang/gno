@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/gnolang/gno"
+	gno "github.com/gnolang/gno/pkgs/gnolang"
 )
 
 // These convert string representations of public-facing arguments to GNO types.

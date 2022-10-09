@@ -39,9 +39,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/gnolang/gno"
 	"github.com/gnolang/gno/pkgs/crypto"
 	dbm "github.com/gnolang/gno/pkgs/db"
+	gno "github.com/gnolang/gno/pkgs/gnolang"
 	osm "github.com/gnolang/gno/pkgs/os"
 	"github.com/gnolang/gno/pkgs/std"
 	"github.com/gnolang/gno/pkgs/store/dbadapter"

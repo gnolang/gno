@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gnolang/gno"
 	"github.com/gnolang/gno/pkgs/bech32"
 	"github.com/gnolang/gno/pkgs/crypto"
+	gno "github.com/gnolang/gno/pkgs/gnolang"
 	"github.com/gnolang/gno/pkgs/std"
 )
 
