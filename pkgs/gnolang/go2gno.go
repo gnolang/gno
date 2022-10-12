@@ -1,4 +1,4 @@
-package gno
+package gnolang
 
 /*
 	This package helps parse Go code into GNO ast.  It uses go/parser, which

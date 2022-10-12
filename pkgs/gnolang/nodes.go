@@ -1,4 +1,4 @@
-package gno
+package gnolang
 
 import (
 	"fmt"

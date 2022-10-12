@@ -1,4 +1,4 @@
-package gno
+package gnolang
 
 func (m *Machine) doOpInc() {
 	s := m.PopStmt().(*IncDecStmt)

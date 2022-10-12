@@ -1,4 +1,4 @@
-package gno
+package gnolang
 
 func (m *Machine) doOpDefine() {
 	s := m.PopStmt().(*AssignStmt)

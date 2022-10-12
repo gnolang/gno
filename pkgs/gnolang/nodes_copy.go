@@ -1,4 +1,4 @@
-package gno
+package gnolang
 
 // Copy should happen before any preprocessing.
 // * Attributes are not copied.
