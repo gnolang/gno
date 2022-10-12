@@ -1,4 +1,4 @@
-package gno
+package gnolang
 
 import (
 	"github.com/gnolang/gno/pkgs/amino"

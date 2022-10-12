@@ -1,4 +1,4 @@
-package gno
+package gnolang
 
 // XXX rename file to machine.go.
 
