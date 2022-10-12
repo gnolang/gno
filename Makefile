@@ -59,7 +59,7 @@ gnotxport:
 # Logos is the interface to Gnoland
 logos:
 	@echo "building logos"
-	go build -o build/logos ./logos/cmd/logos.go
+	go build -o build/logos ./misc/logos/cmd/logos.go
 
 clean:
 	rm -rf build
