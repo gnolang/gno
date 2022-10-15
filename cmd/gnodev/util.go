@@ -102,6 +102,5 @@ func guessRootDir() string {
 		log.Fatal("can't guess --root-dir, please fill it manually.")
 	}
 	rootDir := strings.TrimSpace(string(out))
-	fmt.Println("ROOTDIR", rootDir)
 	return rootDir
 }
