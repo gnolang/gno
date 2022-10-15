@@ -228,7 +228,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	m.SetActivePackage(mpv)
 	defer func() {
 		if r := recover(); r != nil {
-			err = errors.New("VM call panic: %v\n%s\n",
+			err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\n%s\n",
 				r, m.String())
 			return
 		}
