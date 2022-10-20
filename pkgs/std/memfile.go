@@ -31,11 +31,12 @@ func (mempkg *MemPackage) GetFile(name string) *MemFile {
 }
 
 const (
-	reDomainPart   = `gno\.land`
-	rePathPart     = `[a-z][a-z0-9_]*`
-	rePkgName      = `^[a-z][a-z0-9_]*$`
-	rePkgPath      = reDomainPart + `/p/` + rePathPart + `(/` + rePathPart + `)*`
-	reRlmPath      = reDomainPart + `/r/` + rePathPart
+	reDomainPart = `gno\.land`
+	rePathPart   = `[a-z][a-z0-9_]*`
+	rePkgName    = `^[a-z][a-z0-9_]*$`
+	rePkgPath    = reDomainPart + `/p/` + rePathPart + `(/` + rePathPart + `)*`
+	//reRlmPath      = reDomainPart + `/r/` + rePathPart
+	reRlmPath      = reDomainPart + `/r/` + rePathPart + `(/` + rePathPart + `)*`
 	rePkgOrRlmPath = `^(` + rePkgPath + `|` + reRlmPath + `)$`
 	reFileName     = `^[a-zA-Z0-9_]*\.[a-z0-9_\.]*$`
 )
