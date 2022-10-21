@@ -7,7 +7,7 @@ import (
 
 type GnoAccount struct {
 	std.BaseAccount
-	*PackageAccount `json:"package_account,omitempty",yaml:"package_account,omitempty"`
+	*PackageAccount `json:"PackageAccount,omitempty",yaml:"package_account,omitempty"`
 }
 
 type PackageAccount struct {
