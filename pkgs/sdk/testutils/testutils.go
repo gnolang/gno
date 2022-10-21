@@ -37,14 +37,15 @@ func (msg *TestMsg) GetSigners() []crypto.Address {
 
 //----------------------------------------
 // Utility Methods
-
+// Fee gas-wanted 5000, gas-fee 1gnot.
 func NewTestFee() std.Fee {
-	return std.NewFee(50000, std.NewCoin("atom", 150))
+	
+	return std.NewFee(50000, std.NewCoin("ugnot", 1000000))
 }
 
-// coins to more than cover the fee
+// coins to more than cover the fee. 10gnot
 func NewTestCoins() std.Coins {
-	return std.Coins{std.NewCoin("atom", 10000000)}
+	return std.Coins{std.NewCoin("ugnot", 10000000)}
 }
 
 func KeyTestPubAddr() (crypto.PrivKey, crypto.PubKey, crypto.Address) {
