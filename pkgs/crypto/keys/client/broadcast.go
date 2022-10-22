@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 
 	"github.com/gnolang/gno/pkgs/amino"
+	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
 	"github.com/gnolang/gno/pkgs/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/pkgs/bft/rpc/core/types"
 	"github.com/gnolang/gno/pkgs/command"
@@ -15,7 +16,8 @@ type BroadcastOptions struct {
 	BaseOptions
 
 	// internal
-	Tx *std.Tx `flag:"-"`
+	Tx     *std.Tx `flag:"-"`
+	DryRun bool    `flag:"dry-run"`
 }
 
 var DefaultBroadcastOptions = BroadcastOptions{
@@ -77,10 +79,31 @@ func BroadcastHandler(opts BroadcastOptions) (*ctypes.ResultBroadcastTxCommit, e
 
 	cli := client.NewHTTP(remote, "/websocket")
 
+	if opts.DryRun {
+		return SimulateTx(cli, bz)
+	}
+
 	bres, err := cli.BroadcastTxCommit(bz)
 	if err != nil {
 		return nil, errors.Wrap(err, "broadcasting bytes")
 	}
 
 	return bres, nil
+}
+
+func SimulateTx(cli client.ABCIClient, tx []byte) (*ctypes.ResultBroadcastTxCommit, error) {
+	bres, err := cli.ABCIQuery(".app/simulate", tx)
+	if err != nil {
+		return nil, errors.Wrap(err, "simulate tx")
+	}
+
+	var result abci.ResponseDeliverTx
+	err = amino.Unmarshal(bres.Response.Value, &result)
+	if err != nil {
+		return nil, errors.Wrap(err, "unmarshaling simulate result")
+	}
+
+	return &ctypes.ResultBroadcastTxCommit{
+		DeliverTx: result,
+	}, nil
 }
