@@ -3,6 +3,7 @@ package vm
 // DONTCOVER
 
 import (
+	"github.com/gnolang/gno/gnoland/types"
 	bft "github.com/gnolang/gno/pkgs/bft/types"
 	dbm "github.com/gnolang/gno/pkgs/db"
 	"github.com/gnolang/gno/pkgs/log"
@@ -10,7 +11,6 @@ import (
 	"github.com/gnolang/gno/pkgs/sdk"
 	authm "github.com/gnolang/gno/pkgs/sdk/auth"
 	bankm "github.com/gnolang/gno/pkgs/sdk/bank"
-	"github.com/gnolang/gno/pkgs/std"
 	"github.com/gnolang/gno/pkgs/store"
 	"github.com/gnolang/gno/pkgs/store/dbadapter"
 	"github.com/gnolang/gno/pkgs/store/iavl"
@@ -35,7 +35,7 @@ func setupTestEnv() testEnv {
 	ms.LoadLatestVersion()
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id"}, log.NewNopLogger())
-	acck := authm.NewAccountKeeper(iavlCapKey, std.ProtoBaseAccount)
+	acck := authm.NewAccountKeeper(iavlCapKey, types.ProtoGnoAccount)
 	bank := bankm.NewBankKeeper(acck)
 	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, "../../../stdlibs")
 
