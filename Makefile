@@ -136,7 +136,7 @@ test.packages2:
 	go test tests/*.go -v -run "TestPackages/bytes" --timeout 30m
 
 test.examples:
-	go run ./cmd/gnodev test ./examples --no-precompile --verbose
+	go run ./cmd/gnodev test ./examples --verbose
 
 # Code gen
 stringer:
