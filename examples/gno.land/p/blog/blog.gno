@@ -48,6 +48,25 @@ func (b Blog) Render(path string) string {
 		}
 		typedPost := post.(*Post)
 		return typedPost.RenderPage()
+
+	case isViewTag:
+		slug := parts[1]
+
+		output := ""
+		for idx := 0; idx < b.Posts.Size(); idx++ {
+			slug, post := b.Posts.GetByIndex(idx)
+			typedPost := post.(*Post)
+			if !typedPost.HasTag(slug) {
+				continue
+			}
+			output += typedPost.RenderListItem()
+		}
+
+		if output != "" {
+			return output
+		}
+
+		return "No posts."
 	}
 
 	return "404"
@@ -108,6 +127,15 @@ func (p *Post) AddComment(author std.Address, comment string) error {
 	})
 
 	return nil
+}
+
+func (p *Post) HasTag(tag string) bool {
+	for _, t := range p.Tags {
+		if t == tag {
+			return true
+		}
+	}
+	return false
 }
 
 func (p Post) RenderListItem() string {
