@@ -1,11 +1,14 @@
 package gnoblog
 
 import (
+	"std"
 	"strings"
 	"testing"
 )
 
 func TestPackage(t *testing.T) {
+	author := std.GetOrigCaller()
+
 	// by default, no posts.
 	{
 		got := Render("")
@@ -28,10 +31,12 @@ No posts.
 ## [title1](r/gnoland/blog:p/slug1)
 body1
 [tag1](r/gnoland/blog:t/tag1) [tag2](r/gnoland/blog:t/tag2)
+by g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4 on 2009-02-13 11:31pm UTC
 
 ## [title2](r/gnoland/blog:p/slug2)
 body2
 [tag1](r/gnoland/blog:t/tag1) [tag3](r/gnoland/blog:t/tag3)
+by g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4 on 2009-02-13 11:31pm UTC
 `
 		assertMDEquals(t, got, expected)
 	}
@@ -45,10 +50,12 @@ body2
 ## [title2](r/gnoland/blog:p/slug2)
 body2
 [tag1](r/gnoland/blog:t/tag1) [tag3](r/gnoland/blog:t/tag3)
+by g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4 on 2009-02-13 11:31pm UTC
 `
 		assertMDEquals(t, got, expected)
 	}
 
+	// TODO: list by tags.
 	// TODO: comments.
 	// TODO: pagination.
 	// TODO: ?format=...
@@ -79,6 +86,6 @@ func assertMDEquals(t *testing.T, got, expected string) {
 	expected = strings.TrimSpace(expected)
 	got = strings.TrimSpace(got)
 	if expected != got {
-		t.Errorf("expected %q, got %q.", expected, got)
+		t.Errorf("invalid render output.\nexpected %q.\ngot      %q.", expected, got)
 	}
 }

@@ -14,7 +14,6 @@ import (
 type Blog struct {
 	Prefix string      // i.e. r/gnoland/blog:
 	Posts  avl.MutTree // slug -> Post
-	Tags   avl.MutTree // slug -> Tag
 }
 
 func (b Blog) Render(path string) string {
@@ -73,7 +72,23 @@ func (b Blog) Render(path string) string {
 }
 
 func (b *Blog) NewPost(author std.Address, slug, title, body string, tags []string) error {
-	// FIXME: input sanitization.
+	title = strings.TrimSpace(title)
+	if title == "" {
+		return errors.New("title is missing.")
+	}
+	body = strings.TrimSpace(body)
+	if body == "" {
+		return errors.New("body is missing.")
+	}
+	if slug == "" {
+		return errors.New("slug is missing.")
+	}
+	post := b.GetPost(slug)
+	if post != nil {
+		return errors.New("slug already exists.")
+	}
+
+	// FIXME: more input sanitization?
 	b.Posts.Set(slug, &Post{
 		Blog:      b,
 		Slug:      slug,
@@ -83,7 +98,6 @@ func (b *Blog) NewPost(author std.Address, slug, title, body string, tags []stri
 		Author:    author,
 		Tags:      tags,
 	})
-	// FIXME: b.Tags.Set...
 	return nil
 }
 
@@ -143,6 +157,7 @@ func (p Post) RenderListItem() string {
 	output += ufmt.Sprintf("## [%s](%s)\n", p.Title, p.URL())
 	output += p.Summary() + "\n"
 	output += p.RenderTagList() + "\n"
+	output += formatAuthorAndDate(p.Author, p.CreatedAt) + "\n"
 	output += "\n"
 	return output
 }
@@ -150,8 +165,9 @@ func (p Post) RenderListItem() string {
 func (p Post) RenderPage() string {
 	output := ""
 	output += ufmt.Sprintf("## [%s](%s)\n", p.Title, p.URL())
-	output += p.Summary() + "\n"
+	output += p.Body + "\n"
 	output += p.RenderTagList() + "\n"
+	output += formatAuthorAndDate(p.Author, p.CreatedAt) + "\n"
 	output += "\n"
 	return output
 }
@@ -188,4 +204,8 @@ type Comment struct {
 	Comment   string
 }
 
-type Tag struct{}
+func formatAuthorAndDate(author std.Address, createdAt time.Time) string {
+	authorString := author.String() // FIXME: username.
+	createdAtString := createdAt.Format("2006-01-02 3:04pm MST")
+	return ufmt.Sprintf("by %s on %s", authorString, createdAtString)
+}
