@@ -16,20 +16,39 @@ type Blog struct {
 }
 
 func (b Blog) Render(path string) string {
-	if b.Posts.Size() == 0 {
-		return "No posts."
-	}
+	parts := strings.Split(path, "/")
 
-	output := ""
+	isHome := path == ""
+	isViewPost := len(parts) == 2 && parts[0] == "p" && len(parts[1]) > 0
+	isViewTag := len(parts) == 2 && parts[0] == "t" && len(parts[1]) > 0
 
-	// FIXME: tag list.
+	switch {
+	case isHome:
+		if b.Posts.Size() == 0 {
+			return "No posts."
+		}
 
-	for idx := 0; idx < b.Posts.Size(); idx++ {
-		slug, post := b.Posts.GetByIndex(idx)
+		output := ""
+		for idx := 0; idx < b.Posts.Size(); idx++ {
+			slug, post := b.Posts.GetByIndex(idx)
+			typedPost := post.(*Post)
+			output += typedPost.RenderListItem()
+		}
+		// FIXME: tag list.
+		return output
+
+	case isViewPost:
+		slug := parts[1]
+
+		post, found := b.Posts.Get(slug)
+		if !found {
+			return "404"
+		}
 		typedPost := post.(*Post)
-		output += typedPost.RenderListItem()
+		return typedPost.RenderPage()
 	}
-	return output
+
+	return "404"
 }
 
 func (b *Blog) NewPost(slug, title, body string, tags []string) string {
@@ -58,6 +77,15 @@ type Post struct {
 }
 
 func (p Post) RenderListItem() string {
+	output := ""
+	output += ufmt.Sprintf("## [%s](%s)\n", p.Title, p.URL())
+	output += p.Summary() + "\n"
+	output += p.RenderTagList() + "\n"
+	output += "\n"
+	return output
+}
+
+func (p Post) RenderPage() string {
 	output := ""
 	output += ufmt.Sprintf("## [%s](%s)\n", p.Title, p.URL())
 	output += p.Summary() + "\n"

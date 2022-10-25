@@ -66,8 +66,9 @@ body2
 		}
 		for _, notFoundPath := range notFoundPaths {
 			got := Render(notFoundPath)
-			if got != "404" {
-				t.Errorf("path %q: expected 404", notFoundPath)
+			expected := "# Gnoland's Blog\n\n404"
+			if got != expected {
+				t.Errorf("path %q: expected %q, got %q.", notFoundPath, expected, got)
 			}
 		}
 	}
