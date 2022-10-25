@@ -10,7 +10,7 @@ import (
 )
 
 type Blog struct {
-	Prefix string
+	Prefix string      // i.e. r/gnoland/blog:
 	Posts  avl.MutTree // slug -> Post
 	Tags   avl.MutTree // slug -> Tag
 }
@@ -62,6 +62,7 @@ func (p Post) RenderListItem() string {
 	output += ufmt.Sprintf("## [%s](%s)\n", p.Title, p.URL())
 	output += p.Summary() + "\n"
 	output += p.RenderTagList() + "\n"
+	output += "\n"
 	return output
 }
 
