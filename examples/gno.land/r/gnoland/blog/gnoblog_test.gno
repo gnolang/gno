@@ -19,8 +19,8 @@ No posts.
 
 	// create two posts, list post.
 	{
-		AdminNewPost("slug1", "title1", "body1", "tag1,tag2")
-		AdminNewPost("slug2", "title2", "body2", "tag1,tag3")
+		ModAddPost("slug1", "title1", "body1", "tag1,tag2")
+		ModAddPost("slug2", "title2", "body2", "tag1,tag3")
 		got := Render("")
 		expected := `
 # Gnoland's Blog

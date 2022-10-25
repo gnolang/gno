@@ -1,7 +1,9 @@
 package blog
 
 import (
+	"errors"
 	"std"
+	"strconv"
 	"strings"
 	"time"
 
@@ -51,7 +53,7 @@ func (b Blog) Render(path string) string {
 	return "404"
 }
 
-func (b *Blog) NewPost(slug, title, body string, tags []string) string {
+func (b *Blog) NewPost(author std.Address, slug, title, body string, tags []string) error {
 	// FIXME: input sanitization.
 	b.Posts.Set(slug, &Post{
 		Blog:      b,
@@ -59,21 +61,53 @@ func (b *Blog) NewPost(slug, title, body string, tags []string) string {
 		Title:     title,
 		Body:      body,
 		CreatedAt: time.Now(),
-		Author:    std.GetOrigCaller(),
+		Author:    author,
 		Tags:      tags,
 	})
 	// FIXME: b.Tags.Set...
+	return nil
+}
+
+func (b *Blog) GetPost(slug string) *Post {
+	post, found := b.Posts.Get(slug)
+	if !found {
+		return nil
+	}
+	return post.(*Post)
+}
+
+func (b *Blog) AddComment(author std.Address, slug, comment string) error {
+	post := b.GetPost(slug)
+	if post == nil {
+		return errors.New("no such post")
+	}
+
+	return post.AddComment(author, comment)
 }
 
 type Post struct {
-	Blog      *Blog
-	Slug      string // FIXME: save space?
-	Title     string
-	Body      string
-	CreatedAt time.Time
-	Comments  avl.MutTree
-	Author    std.Address
-	Tags      []string
+	Blog         *Blog
+	Slug         string // FIXME: save space?
+	Title        string
+	Body         string
+	CreatedAt    time.Time
+	Comments     avl.MutTree
+	Author       std.Address
+	Tags         []string
+	CommentIndex int
+}
+
+func (p *Post) AddComment(author std.Address, comment string) error {
+	p.CommentIndex++
+	commentKey := strconv.Itoa(p.CommentIndex)
+	p.Comments.Set(commentKey, &Comment{
+		Post:      p,
+		CreatedAt: time.Now(),
+		Author:    author,
+		Comment:   comment,
+	})
+
+	return nil
 }
 
 func (p Post) RenderListItem() string {
@@ -119,6 +153,11 @@ func (p Post) Summary() string {
 	return strings.Join(lines[0:3], "\n") + "..."
 }
 
-type Comment struct{}
+type Comment struct {
+	Post      *Post
+	CreatedAt time.Time
+	Author    std.Address
+	Comment   string
+}
 
 type Tag struct{}
