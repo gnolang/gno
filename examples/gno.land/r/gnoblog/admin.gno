@@ -2,7 +2,6 @@ package gnoblog
 
 import (
 	"std"
-	"strings"
 
 	"gno.land/p/avl"
 )
