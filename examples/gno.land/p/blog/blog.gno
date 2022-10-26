@@ -90,7 +90,7 @@ func (b *Blog) NewPost(author std.Address, slug, title, body string, tags []stri
 		return errors.New("slug already exists.")
 	}
 
-	// FIXME: more input sanitization?
+	// more input sanitization?
 	b.Posts.Set(slug, &Post{
 		Blog:      b,
 		Slug:      slug,
