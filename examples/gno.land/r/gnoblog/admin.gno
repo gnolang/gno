@@ -13,7 +13,8 @@ var commenterList avl.MutTree
 var inPause bool
 
 func init() {
-	adminAddr = std.GetOrigCaller()
+	// adminAddr = std.GetOrigCaller() // FIXME: find a way to use this from the main's genesis.
+	adminAddr = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"
 }
 
 func AdminSetAdminAddr(addr std.Address) {

@@ -7,6 +7,8 @@ import (
 )
 
 func TestPackage(t *testing.T) {
+	std.TestSetOrigCaller(std.Address("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"))
+
 	author := std.GetOrigCaller()
 
 	// by default, no posts.
@@ -31,12 +33,12 @@ No posts.
 ## [title1](r/gnoland/blog:p/slug1)
 body1
 [tag1](r/gnoland/blog:t/tag1) [tag2](r/gnoland/blog:t/tag2)
-by g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4 on 2009-02-13 11:31pm UTC
+by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
 
 ## [title2](r/gnoland/blog:p/slug2)
 body2
 [tag1](r/gnoland/blog:t/tag1) [tag3](r/gnoland/blog:t/tag3)
-by g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4 on 2009-02-13 11:31pm UTC
+by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
 `
 		assertMDEquals(t, got, expected)
 	}
@@ -50,7 +52,7 @@ by g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4 on 2009-02-13 11:31pm UTC
 ## [title2](r/gnoland/blog:p/slug2)
 body2
 [tag1](r/gnoland/blog:t/tag1) [tag3](r/gnoland/blog:t/tag3)
-by g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4 on 2009-02-13 11:31pm UTC
+by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
 `
 		assertMDEquals(t, got, expected)
 	}
@@ -68,7 +70,7 @@ by g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4 on 2009-02-13 11:31pm UTC
 ## [title1](r/gnoland/blog:p/slug1)
 body1
 [tag1](r/gnoland/blog:t/tag1) [tag2](r/gnoland/blog:t/tag2)
-by g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4 on 2009-02-13 11:31pm UTC
+by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
 `
 		assertMDEquals(t, got, expected)
 	}
@@ -87,12 +89,12 @@ by g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4 on 2009-02-13 11:31pm UTC
 ## [title2](r/gnoland/blog:p/slug2)
 body2
 [tag1](r/gnoland/blog:t/tag1) [tag3](r/gnoland/blog:t/tag3)
-by g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4 on 2009-02-13 11:31pm UTC
+by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
 
-#### by g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4 on 2009-02-13 11:31pm UTC
+#### by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
 comment4
 
-#### by g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4 on 2009-02-13 11:31pm UTC
+#### by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
 comment2
 `
 		assertMDEquals(t, got, expected)
