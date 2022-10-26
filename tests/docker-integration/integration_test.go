@@ -36,7 +36,7 @@ func runSuite(t *testing.T, tempdir string) {
 	output, err := cmd.CombinedOutput()
 	require.NoError(t, err)
 	// FIXME: this will break frequently. we need a reliable test.
-	require.Contains(t, string(output), "9999980000000ugnot")
+	require.Contains(t, string(output), "9999976000000ugnot")
 
 	// FIXME: perform TXs.
 }
