@@ -30,12 +30,13 @@ func (b Blog) Render(path string) string {
 		}
 
 		output := ""
-		for idx := 0; idx < b.Posts.Size(); idx++ {
-			slug, post := b.Posts.GetByIndex(idx)
-			typedPost := post.(*Post)
-			output += typedPost.RenderListItem()
-		}
-		// FIXME: tag list.
+		b.Posts.Iterate("", "", func(n *avl.Tree) bool {
+			post := n.Value().(*Post)
+			output += post.RenderListItem()
+			return false
+		})
+
+		// FIXME: tag list/cloud.
 		return output
 
 	case isViewPost:
@@ -49,13 +50,13 @@ func (b Blog) Render(path string) string {
 		return typedPost.RenderPage()
 
 	case isViewTag:
-		slug := parts[1]
+		tagSlug := parts[1]
 
 		output := ""
 		for idx := 0; idx < b.Posts.Size(); idx++ {
 			slug, post := b.Posts.GetByIndex(idx)
 			typedPost := post.(*Post)
-			if !typedPost.HasTag(slug) {
+			if !typedPost.HasTag(tagSlug) {
 				continue
 			}
 			output += typedPost.RenderListItem()
@@ -73,10 +74,11 @@ func (b Blog) Render(path string) string {
 
 func (b *Blog) NewPost(author std.Address, slug, title, body string, tags []string) error {
 	title = strings.TrimSpace(title)
+	body = strings.TrimSpace(body)
+
 	if title == "" {
 		return errors.New("title is missing.")
 	}
-	body = strings.TrimSpace(body)
 	if body == "" {
 		return errors.New("body is missing.")
 	}
@@ -133,6 +135,7 @@ type Post struct {
 func (p *Post) AddComment(author std.Address, comment string) error {
 	p.CommentIndex++
 	commentKey := strconv.Itoa(p.CommentIndex)
+	comment = strings.TrimSpace(comment)
 	p.Comments.Set(commentKey, &Comment{
 		Post:      p,
 		CreatedAt: time.Now(),
@@ -169,6 +172,14 @@ func (p Post) RenderPage() string {
 	output += p.RenderTagList() + "\n"
 	output += formatAuthorAndDate(p.Author, p.CreatedAt) + "\n"
 	output += "\n"
+
+	// comments
+	p.Comments.IterateReverse("", "", func(n *avl.Tree) bool {
+		comment := n.Value().(*Comment)
+		output += comment.RenderListItem()
+		return false
+	})
+
 	return output
 }
 
@@ -202,6 +213,14 @@ type Comment struct {
 	CreatedAt time.Time
 	Author    std.Address
 	Comment   string
+}
+
+func (c Comment) RenderListItem() string {
+	output := ""
+	output += ufmt.Sprintf("#### %s\n", formatAuthorAndDate(c.Author, c.CreatedAt))
+	output += c.Comment + "\n"
+	output += "\n"
+	return output
 }
 
 func formatAuthorAndDate(author std.Address, createdAt time.Time) string {
