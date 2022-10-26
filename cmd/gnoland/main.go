@@ -138,10 +138,12 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 		"p/grc/grc20",
 		"p/grc/grc721",
 		"p/maths",
+		"p/blog",
 		"r/users",
 		"r/foo20",
 		"r/boards",
 		"r/banktest",
+		"r/gnoblog", // TODO: move to gnoland/blog
 	} {
 		// open files in directory as MemPackage.
 		memPkg := gno.ReadMemPackage(filepath.Join(".", "examples", "gno.land", path), "gno.land/"+path)
