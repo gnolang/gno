@@ -55,8 +55,8 @@ func buildDockerImage(t *testing.T) {
 		"-t", "gno:integration",
 		filepath.Join("..", ".."),
 	})
-	output, err := cmd.Output()
-	require.NoError(t, err)
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, string(output))
 	// FIXME: is this check reliable?
 	require.Contains(t, string(output), "Successfully built")
 }
