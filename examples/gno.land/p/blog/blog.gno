@@ -53,15 +53,14 @@ func (b Blog) Render(path string) string {
 		tagSlug := parts[1]
 
 		output := ""
-		for idx := 0; idx < b.Posts.Size(); idx++ {
-			slug, post := b.Posts.GetByIndex(idx)
-			typedPost := post.(*Post)
-			if !typedPost.HasTag(tagSlug) {
-				continue
+		b.Posts.Iterate("", "", func(n *avl.Tree) bool {
+			post := n.Value().(*Post)
+			if !post.HasTag(tagSlug) {
+				return false
 			}
-			output += typedPost.RenderListItem()
-		}
-
+			output += post.RenderListItem()
+			return false
+		})
 		if output != "" {
 			return output
 		}
