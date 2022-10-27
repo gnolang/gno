@@ -1811,10 +1811,11 @@ func (pn *PackageNode) GetBody() Body {
 // Value Path
 
 // A relative pointer to a TypedValue value
-//  (a) a Block scope var or const
-//  (b) a StructValue field
-//  (c) a DeclaredType method
-//  (d) a PackageNode declaration
+//
+//	(a) a Block scope var or const
+//	(b) a StructValue field
+//	(c) a DeclaredType method
+//	(d) a PackageNode declaration
 //
 // Depth tells how many layers of access should be unvealed before
 // arriving at the ultimate handler type.  In the case of Blocks,

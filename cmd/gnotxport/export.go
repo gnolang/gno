@@ -22,7 +22,7 @@ import (
 type txExportOptions struct {
 	Remote      string `flag:"remote" help:"Remote RPC addr:port"`
 	StartHeight int64  `flag:"start" help:"Start height"`
-	TailHeight int64 `flag:"tail" help:"Start at LAST - N"`
+	TailHeight  int64  `flag:"tail" help:"Start at LAST - N"`
 	EndHeight   int64  `flag:"end" help:"End height (optional)"`
 	OutFile     string `flag:"out" help:"Output file path"`
 	Quiet       bool   `flag:"quiet" help:"Quiet mode"`
@@ -33,7 +33,7 @@ var defaultTxExportOptions = txExportOptions{
 	Remote:      "localhost:26657",
 	StartHeight: 1,
 	EndHeight:   0,
-	TailHeight: 0,
+	TailHeight:  0,
 	OutFile:     "txexport.log",
 	Quiet:       false,
 	Follow:      false,

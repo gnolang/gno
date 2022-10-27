@@ -334,7 +334,7 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 // If no success after all that, it stops trying.
 // NOTE: this will keep trying even if the handshake or auth fails.
 // TODO: be more explicit with error types so we only retry on certain failures
-//  - ie. if we're getting ErrDuplicatePeer we can stop
+//   - ie. if we're getting ErrDuplicatePeer we can stop
 func (sw *Switch) reconnectToPeer(addr *NetAddress) {
 	if sw.reconnecting.Has(addr.ID.String()) {
 		return

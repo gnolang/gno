@@ -83,7 +83,7 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 			}
 			pkgPathSafe := strings.ReplaceAll(pkgPath, "/", "~")
 			tempdir := filepath.Join(tempdirRoot, pkgPathSafe)
-			if err = os.MkdirAll(tempdir, 0755); err != nil {
+			if err = os.MkdirAll(tempdir, 0o755); err != nil {
 				log.Fatal(err)
 			}
 			precompileOpts := precompileOptions{

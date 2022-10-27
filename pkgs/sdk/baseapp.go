@@ -617,7 +617,7 @@ func (app *BaseApp) getContextForTx(mode RunTxMode, txBytes []byte) (ctx Context
 	return
 }
 
-/// runMsgs iterates through all the messages and executes them.
+// / runMsgs iterates through all the messages and executes them.
 func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Result) {
 	msgLogs := make([]string, 0, len(msgs))
 

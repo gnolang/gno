@@ -784,7 +784,9 @@ func (cs *ConsensusState) handleTxsAvailable() {
 // Used internally by handleTimeout and handleMsg to make state transitions
 
 // Enter: `timeoutNewHeight` by startTime (commitTime+timeoutCommit),
-// 	or, if SkipTimeoutCommit==true, after receiving all precommits from (height,round-1)
+//
+//	or, if SkipTimeoutCommit==true, after receiving all precommits from (height,round-1)
+//
 // Enter: `timeoutPrecommits` after any +2/3 precommits from (height,round-1)
 // Enter: +2/3 precommits for nil at (height,round-1)
 // Enter: +2/3 prevotes any or +2/3 precommits for block or any from (height, round)

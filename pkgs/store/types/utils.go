@@ -85,7 +85,7 @@ func InclusiveEndBytes(inclusiveBytes []byte) (exclusiveBytes []byte) {
 	return exclusiveBytes
 }
 
-//----------------------------------------
+// ----------------------------------------
 func Cp(bz []byte) (ret []byte) {
 	if bz == nil {
 		return nil

@@ -73,10 +73,10 @@ type SetDeleter interface {
 // Iterator
 
 /*
-	Usage:
+Usage:
 
-	var itr Iterator = ...
-	defer itr.Close()
+var itr Iterator = ...
+defer itr.Close()
 
 	for ; itr.Valid(); itr.Next() {
 		k, v := itr.Key(); itr.Value()

@@ -398,11 +398,12 @@ func (nl NList) Key() string {
 // If type is amino.Marshaler, find values/fields from the repr.
 // Pointers are ignored, even for the terminal type.
 // e.g. if TypeInfo.ReprType.Type is
-//  * struct{ [][]int, [][]string } -> return [][]int, [][]string
-//  * [][]int -> return [][]int
-//  * [][][]int -> return [][][]int, [][]int
-//  * [][][]byte -> return [][][]byte (but not [][]byte, which is just repeated bytes).
-//  * [][][][]int -> return [][][][]int, [][][]int, [][]int.
+//   - struct{ [][]int, [][]string } -> return [][]int, [][]string
+//   - [][]int -> return [][]int
+//   - [][][]int -> return [][][]int, [][]int
+//   - [][][]byte -> return [][][]byte (but not [][]byte, which is just repeated bytes).
+//   - [][][][]int -> return [][][][]int, [][][]int, [][]int.
+//
 // The results are uniq'd and sorted somehow.
 func findNLists(root *amino.Package, info *amino.TypeInfo, found *map[string]NList) {
 	if found == nil {

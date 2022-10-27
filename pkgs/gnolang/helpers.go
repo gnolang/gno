@@ -173,24 +173,24 @@ func S(args ...interface{}) Stmt {
 // Useful for parsing strings to ast nodes, like foo.bar["qwe"](),
 // new(bytes.Buffer), *bytes.Buffer, package.MyStruct{FieldA:1}, numeric
 //
-//  * num/char (e.g. e.g. 42, 0x7f, 3.14, 1e-9, 2.4i, 'a', '\x7f')
-//  * strings (e.g. "foo" or `\m\n\o`), nil, function calls
-//  * square bracket indexing
-//  * dot notation
-//  * star expression for pointers
-//  * composite expressions
-//  * nil
-//  * type assertions, for EXPR.(EXPR) and also EXPR.(type)
-//  * []type slice types
-//  * [n]type array types
-//  * &something referencing
-//  * unary operations, namely
-//    "+" | "-" | "!" | "^" | "*" | "&" | "<-" .
-//  * binary operations, namely
-//    "||", "&&",
-//    "==" | "!=" | "<" | "<=" | ">" | ">="
-//    "+" | "-" | "|" | "^"
-//    "*" | "/" | "%" | "<<" | ">>" | "&" | "&^" .
+//   - num/char (e.g. e.g. 42, 0x7f, 3.14, 1e-9, 2.4i, 'a', '\x7f')
+//   - strings (e.g. "foo" or `\m\n\o`), nil, function calls
+//   - square bracket indexing
+//   - dot notation
+//   - star expression for pointers
+//   - composite expressions
+//   - nil
+//   - type assertions, for EXPR.(EXPR) and also EXPR.(type)
+//   - []type slice types
+//   - [n]type array types
+//   - &something referencing
+//   - unary operations, namely
+//     "+" | "-" | "!" | "^" | "*" | "&" | "<-" .
+//   - binary operations, namely
+//     "||", "&&",
+//     "==" | "!=" | "<" | "<=" | ">" | ">="
+//     "+" | "-" | "|" | "^"
+//     "*" | "/" | "%" | "<<" | ">>" | "&" | "&^" .
 //
 // If the first argument is an expression, returns it.
 // TODO replace this with rewrite of Joeson parser.
@@ -426,11 +426,12 @@ func X(x interface{}, args ...interface{}) Expr {
 
 // Returns idx=-1 if not a binary operator.
 // Precedence    Operator
-//     5             *  /  %  <<  >>  &  &^
-//     4             +  -  |  ^
-//     3             ==  !=  <  <=  >  >=
-//     2             &&
-//     1             ||
+//
+//	5             *  /  %  <<  >>  &  &^
+//	4             +  -  |  ^
+//	3             ==  !=  <  <=  >  >=
+//	2             &&
+//	1             ||
 var sp = " "
 
 var (
@@ -806,7 +807,7 @@ func SIf(cond bool, then_, else_ Stmt) Stmt {
 //----------------------------------------
 // chop functions
 
-//----------------------------------------
+// ----------------------------------------
 func chopBinary(expr string) (left, op, right string, ok bool) {
 	// 0 for prec1... -1 if no match.
 	matchOp := func(op string) int {

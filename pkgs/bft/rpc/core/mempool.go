@@ -38,7 +38,6 @@ import (
 // https://tendermint.com/docs/tendermint-core/using-tendermint.html#formatting
 // for formatting/encoding rules.
 //
-//
 // ```shell
 // curl 'localhost:26657/broadcast_tx_async?tx="123"'
 // ```
@@ -46,9 +45,11 @@ import (
 // ```go
 // client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
 // err := client.Start()
-// if err != nil {
-//   // handle error
-// }
+//
+//	if err != nil {
+//	  // handle error
+//	}
+//
 // defer client.Stop()
 // result, err := client.BroadcastTxAsync("123")
 // ```
@@ -56,17 +57,19 @@ import (
 // > The above command returns JSON structured like this:
 //
 // ```json
-// {
-// 	"error": "",
-// 	"result": {
-// 		"hash": "E39AAB7A537ABAA237831742DCE1117F187C3C52",
-// 		"log": "",
-// 		"data": "",
-// 		"code": "0"
-// 	},
-// 	"id": "",
-// 	"jsonrpc": "2.0"
-// }
+//
+//	{
+//		"error": "",
+//		"result": {
+//			"hash": "E39AAB7A537ABAA237831742DCE1117F187C3C52",
+//			"log": "",
+//			"data": "",
+//			"code": "0"
+//		},
+//		"id": "",
+//		"jsonrpc": "2.0"
+//	}
+//
 // ```
 //
 // ### Query Parameters
@@ -107,9 +110,11 @@ func BroadcastTxAsync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadca
 // ```go
 // client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
 // err := client.Start()
-// if err != nil {
-//   // handle error
-// }
+//
+//	if err != nil {
+//	  // handle error
+//	}
+//
 // defer client.Stop()
 // result, err := client.BroadcastTxSync("456")
 // ```
@@ -117,17 +122,19 @@ func BroadcastTxAsync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadca
 // > The above command returns JSON structured like this:
 //
 // ```json
-// {
-// 	"jsonrpc": "2.0",
-// 	"id": "",
-// 	"result": {
-// 		"code": "0",
-// 		"data": "",
-// 		"log": "",
-// 		"hash": "0D33F2F03A5234F38706E43004489E061AC40A2E"
-// 	},
-// 	"error": ""
-// }
+//
+//	{
+//		"jsonrpc": "2.0",
+//		"id": "",
+//		"result": {
+//			"code": "0",
+//			"data": "",
+//			"log": "",
+//			"hash": "0D33F2F03A5234F38706E43004489E061AC40A2E"
+//		},
+//		"error": ""
+//	}
+//
 // ```
 //
 // ### Query Parameters
@@ -170,7 +177,6 @@ func BroadcastTxSync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcas
 // https://tendermint.com/docs/tendermint-core/using-tendermint.html#formatting
 // for formatting/encoding rules.
 //
-//
 // ```shell
 // curl 'localhost:26657/broadcast_tx_commit?tx="789"'
 // ```
@@ -178,9 +184,11 @@ func BroadcastTxSync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcas
 // ```go
 // client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
 // err := client.Start()
-// if err != nil {
-//   // handle error
-// }
+//
+//	if err != nil {
+//	  // handle error
+//	}
+//
 // defer client.Stop()
 // result, err := client.BroadcastTxCommit("789")
 // ```
@@ -188,25 +196,27 @@ func BroadcastTxSync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcas
 // > The above command returns JSON structured like this:
 //
 // ```json
-// {
-// 	"error": "",
-// 	"result": {
-// 		"height": "26682",
-// 		"hash": "75CA0F856A4DA078FC4911580360E70CEFB2EBEE",
-// 		"deliver_tx": {
-// 			"log": "",
-// 			"data": "",
-// 			"code": "0"
-// 		},
-// 		"check_tx": {
-// 			"log": "",
-// 			"data": "",
-// 			"code": "0"
-// 		}
-// 	},
-// 	"id": "",
-// 	"jsonrpc": "2.0"
-// }
+//
+//	{
+//		"error": "",
+//		"result": {
+//			"height": "26682",
+//			"hash": "75CA0F856A4DA078FC4911580360E70CEFB2EBEE",
+//			"deliver_tx": {
+//				"log": "",
+//				"data": "",
+//				"code": "0"
+//			},
+//			"check_tx": {
+//				"log": "",
+//				"data": "",
+//				"code": "0"
+//			}
+//		},
+//		"id": "",
+//		"jsonrpc": "2.0"
+//	}
+//
 // ```
 //
 // ### Query Parameters
@@ -256,9 +266,11 @@ func BroadcastTxCommit(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadc
 // ```go
 // client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
 // err := client.Start()
-// if err != nil {
-//   // handle error
-// }
+//
+//	if err != nil {
+//	  // handle error
+//	}
+//
 // defer client.Stop()
 // result, err := client.UnconfirmedTxs()
 // ```
@@ -266,16 +278,18 @@ func BroadcastTxCommit(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadc
 // > The above command returns JSON structured like this:
 //
 // ```json
-// {
-//   "result" : {
-//       "txs" : [],
-//       "total_bytes" : "0",
-//       "n_txs" : "0",
-//       "total" : "0"
-//     },
-//     "jsonrpc" : "2.0",
-//     "id" : ""
-//   }
+//
+//	{
+//	  "result" : {
+//	      "txs" : [],
+//	      "total_bytes" : "0",
+//	      "n_txs" : "0",
+//	      "total" : "0"
+//	    },
+//	    "jsonrpc" : "2.0",
+//	    "id" : ""
+//	  }
+//
 // ```
 //
 // ### Query Parameters
@@ -316,16 +330,18 @@ func UnconfirmedTxs(ctx *rpctypes.Context, limit int) (*ctypes.ResultUnconfirmed
 // > The above command returns JSON structured like this:
 //
 // ```json
-// {
-//   "jsonrpc" : "2.0",
-//   "id" : "",
-//   "result" : {
-//     "n_txs" : "0",
-//     "total_bytes" : "0",
-//     "total" : "0"
-//     "txs" : null,
-//   }
-// }
+//
+//	{
+//	  "jsonrpc" : "2.0",
+//	  "id" : "",
+//	  "result" : {
+//	    "n_txs" : "0",
+//	    "total_bytes" : "0",
+//	    "total" : "0"
+//	    "txs" : null,
+//	  }
+//	}
+//
 // ```
 func NumUnconfirmedTxs(ctx *rpctypes.Context) (*ctypes.ResultUnconfirmedTxs, error) {
 	return &ctypes.ResultUnconfirmedTxs{

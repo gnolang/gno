@@ -3,7 +3,8 @@ package pkg
 import "fmt"
 
 // e.g. "github.com/tendermint/tendermint/abci/types" ->
-//   &Package{...}
+//
+//	&Package{...}
 type PackageSet map[string]*Package
 
 func NewPackageSet() PackageSet {

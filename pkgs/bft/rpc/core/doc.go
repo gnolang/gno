@@ -30,17 +30,19 @@ curl 'localhost:26657/broadcast_tx_sync?tx="abc"'
 > Response:
 
 ```json
-{
-	"error": "",
-	"result": {
-		"hash": "2B8EC32BA2579B3B8606E42C06DE2F7AFA2556EF",
-		"log": "",
-		"data": "",
-		"code": "0"
-	},
-	"id": "",
-	"jsonrpc": "2.0"
-}
+
+	{
+		"error": "",
+		"result": {
+			"hash": "2B8EC32BA2579B3B8606E42C06DE2F7AFA2556EF",
+			"log": "",
+			"data": "",
+			"code": "0"
+		},
+		"id": "",
+		"jsonrpc": "2.0"
+	}
+
 ```
 
 ## JSONRPC/HTTP
@@ -48,18 +50,19 @@ curl 'localhost:26657/broadcast_tx_sync?tx="abc"'
 JSONRPC requests can be POST'd to the root RPC endpoint via HTTP (e.g. `http://localhost:26657/`).
 
 ```json
-{
-	"method": "broadcast_tx_sync",
-	"jsonrpc": "2.0",
-	"params": [ "abc" ],
-	"id": "dontcare"
-}
+
+	{
+		"method": "broadcast_tx_sync",
+		"jsonrpc": "2.0",
+		"params": [ "abc" ],
+		"id": "dontcare"
+	}
+
 ```
 
 ## JSONRPC/websockets
 
 JSONRPC requests can be made via websocket. The websocket endpoint is at `/websocket`, e.g. `localhost:26657/websocket`.
-
 
 ## More Examples
 

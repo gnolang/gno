@@ -230,8 +230,9 @@ func hasPBBindings(info *amino.TypeInfo) bool {
 // gooIsPtr: whether goo is ptr.
 // gooType: type info for goo's type (elem type if pointer).
 // CONTRACT: pbo is assignable.
-//  * The general case is `_a(pbo, "=", goo)`
-//  * The struct case is like `_a(_sel(pbo, field.Name), "=", goo)`
+//   - The general case is `_a(pbo, "=", goo)`
+//   - The struct case is like `_a(_sel(pbo, field.Name), "=", goo)`
+//
 // CONTRACT: for arrays and lists, memory must be allocated beforehand, but new
 // instances are created within this function.
 func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope *ast.Scope, pbo ast.Expr, goo ast.Expr, gooIsPtr bool, gooType *amino.TypeInfo, fopts amino.FieldOptions, options uint64) (b []ast.Stmt) {
@@ -979,12 +980,12 @@ func isReprEmptyStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl,
 // If ok=true, left+op+right == expr.
 //
 // Examples:
-//  - "5 * 2":       left="5 ", op="*", right=" 2", ok=true
-//  - " 5*2 ":       left=" 5", op="*", right="2 ", ok=true
-//  - "1*2+ 3":      left="1*2", op="+", right=" 3", ok=true
-//  - "1*2+(3+ 4)":  left="1*2", op="+", right="(3+ 4)", ok=true
-//  - "'foo'+'bar'": left="'foo'", op="+", right="'bar'", ok=true
-//  - "'x'":         ok=false
+//   - "5 * 2":       left="5 ", op="*", right=" 2", ok=true
+//   - " 5*2 ":       left=" 5", op="*", right="2 ", ok=true
+//   - "1*2+ 3":      left="1*2", op="+", right=" 3", ok=true
+//   - "1*2+(3+ 4)":  left="1*2", op="+", right="(3+ 4)", ok=true
+//   - "'foo'+'bar'": left="'foo'", op="+", right="'bar'", ok=true
+//   - "'x'":         ok=false
 func chopBinary(expr string) (left, op, right string, ok bool) {
 	// XXX implementation redacted for CHALLENGE1.
 	// TODO restore implementation and replace '__'
@@ -1114,24 +1115,24 @@ func _fields(args ...interface{}) *ast.FieldList {
 // Useful for parsing strings to ast nodes, like foo.bar["qwe"](),
 // new(bytes.Buffer), *bytes.Buffer, package.MyStruct{FieldA:1}, numeric
 //
-//  * num/char (e.g. e.g. 42, 0x7f, 3.14, 1e-9, 2.4i, 'a', '\x7f')
-//  * strings (e.g. "foo" or `\m\n\o`), nil, function calls
-//  * square bracket indexing
-//  * dot notation
-//  * star expression for pointers
-//  * struct construction
-//  * nil
-//  * type assertions, for EXPR.(EXPR) and also EXPR.(type)
-//  * []type slice types
-//  * [n]type array types
-//  * &something referencing
-//  * unary operations, namely
-//    "+" | "-" | "!" | "^" | "*" | "&" | "<-" .
-//  * binary operations, namely
-//    "||", "&&",
-//    "==" | "!=" | "<" | "<=" | ">" | ">="
-//    "+" | "-" | "|" | "^"
-//    "*" | "/" | "%" | "<<" | ">>" | "&" | "&^" .
+//   - num/char (e.g. e.g. 42, 0x7f, 3.14, 1e-9, 2.4i, 'a', '\x7f')
+//   - strings (e.g. "foo" or `\m\n\o`), nil, function calls
+//   - square bracket indexing
+//   - dot notation
+//   - star expression for pointers
+//   - struct construction
+//   - nil
+//   - type assertions, for EXPR.(EXPR) and also EXPR.(type)
+//   - []type slice types
+//   - [n]type array types
+//   - &something referencing
+//   - unary operations, namely
+//     "+" | "-" | "!" | "^" | "*" | "&" | "<-" .
+//   - binary operations, namely
+//     "||", "&&",
+//     "==" | "!=" | "<" | "<=" | ">" | ">="
+//     "+" | "-" | "|" | "^"
+//     "*" | "/" | "%" | "<<" | ">>" | "&" | "&^" .
 //
 // NOTE: This isn't trying to implement everything -- just what is
 // intuitively elegant to implement.  Why don't we use a parser generator?
@@ -1343,11 +1344,12 @@ func _x(expr string, args ...interface{}) ast.Expr {
 
 // Returns idx=-1 if not a binary operator.
 // Precedence    Operator
-//     5             *  /  %  <<  >>  &  &^
-//     4             +  -  |  ^
-//     3             ==  !=  <  <=  >  >=
-//     2             &&
-//     1             ||
+//
+//	5             *  /  %  <<  >>  &  &^
+//	4             +  -  |  ^
+//	3             ==  !=  <  <=  >  >=
+//	2             &&
+//	1             ||
 var sp = " "
 
 var (
@@ -2064,8 +2066,8 @@ func p3goTypeExprString(rootPkg *amino.Package, imports *ast.GenDecl, scope *ast
 // In other words, returns true when an implicit struct{Value []SomethingList}
 // is required in a parent list, required for the following transform:
 //
-//  go:   struct{NestedList: [][]SomethingList} -->
-//  p3go: struct{NestedList: []struct{Value []SomethingListRepr}}
+//	go:   struct{NestedList: [][]SomethingList} -->
+//	p3go: struct{NestedList: []struct{Value []SomethingListRepr}}
 func isImplicitList(info *amino.TypeInfo, fopts amino.FieldOptions) (implicit bool) {
 	k := info.ReprType.Type.Kind()
 	switch k {
