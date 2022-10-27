@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gnolang/gno/gnoland/types"
+	"github.com/gnolang/gno/gnoland"
 	"github.com/gnolang/gno/pkgs/amino"
 	rpcclient "github.com/gnolang/gno/pkgs/bft/rpc/client"
 	"github.com/gnolang/gno/pkgs/command"
@@ -159,7 +159,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 		return qres.Response.Error
 	}
 	resdata := qres.Response.Data
-	var acc types.GnoAccount
+	var acc gnoland.GnoAccount
 	amino.MustUnmarshalJSON(resdata, &acc)
 	accountNumber := acc.BaseAccount.AccountNumber
 	sequence := acc.BaseAccount.Sequence

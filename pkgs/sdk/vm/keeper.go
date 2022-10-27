@@ -5,7 +5,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gnolang/gno/gnoland/types"
 	"github.com/gnolang/gno/pkgs/errors"
 	gno "github.com/gnolang/gno/pkgs/gnolang"
 	"github.com/gnolang/gno/pkgs/sdk"
@@ -142,35 +141,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 
 	// Pay deposit from creator.
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
-
-	// only realm owner can add realm subpackages.
-	if gno.IsRealmPath(pkgPath) {
-		pathSp := strings.SplitN(pkgPath, "/", 4) // gno.land/r/...
-		rootPath := strings.Join(pathSp[0:3], "/")
-		if pkgPath != rootPath {
-			if pv := store.GetPackage(rootPath, false); pv == nil {
-				// TODO: return error instead of panicking?
-				panic("root package doesn't exist: " + rootPath)
-			}
-
-			rootAcc := vm.acck.GetAccount(ctx, gno.DerivePkgAddr(rootPath))
-			if rootAcc == nil {
-				panic("root package account doesn't exist: " + rootPath)
-			}
-
-			if creator != rootAcc.(*types.GnoAccount).Owner {
-				panic("only root realm package creator can create realm subpackages ")
-			}
-		}
-	}
-
-	// Add package account.
-	pkgAcc := vm.acck.NewAccountWithAddress(ctx, pkgAddr)
-	ga := pkgAcc.(*types.GnoAccount)
-	ga.PackageAccount = &types.PackageAccount{
-		Owner: creator,
-	}
-	vm.acck.SetAccount(ctx, ga)
 
 	err := vm.bank.SendCoins(ctx, creator, pkgAddr, deposit)
 	if err != nil {

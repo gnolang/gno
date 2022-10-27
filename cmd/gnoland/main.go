@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gnoland"
-	"github.com/gnolang/gno/gnoland/types"
 	"github.com/gnolang/gno/pkgs/amino"
 	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
 	"github.com/gnolang/gno/pkgs/bft/config"
@@ -164,7 +163,7 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 	txs = append(txs, genesisTxs...)
 
 	// construct genesis AppState.
-	gen.AppState = types.GnoGenesisState{
+	gen.AppState = gnoland.GnoGenesisState{
 		Balances: balances,
 		Txs:      txs,
 	}

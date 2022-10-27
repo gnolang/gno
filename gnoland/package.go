@@ -1,11 +1,11 @@
-package types
+package gnoland
 
 import (
 	"github.com/gnolang/gno/pkgs/amino"
 )
 
 var Package = amino.RegisterPackage(amino.NewPackage(
-	"github.com/gnolang/gno/gnoland/types",
+	"github.com/gnolang/gno/gnoland",
 	"gno",
 	amino.GetCallersDirname(),
 ).WithDependencies().WithTypes(

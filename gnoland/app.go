@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno/gnoland/types"
 	"github.com/gnolang/gno/pkgs/amino"
 	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
 	"github.com/gnolang/gno/pkgs/crypto"
@@ -39,7 +38,7 @@ func NewApp(rootDir string, skipFailingGenesisTxs bool, logger log.Logger) (abci
 	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, db)
 
 	// Construct keepers.
-	acctKpr := auth.NewAccountKeeper(mainKey, types.ProtoGnoAccount)
+	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
 	bankKpr := bank.NewBankKeeper(acctKpr)
 	vmKpr := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, "./stdlibs")
 
@@ -89,7 +88,7 @@ func NewApp(rootDir string, skipFailingGenesisTxs bool, logger log.Logger) (abci
 func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank.BankKeeperI, skipFailingGenesisTxs bool) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
 	return func(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
 		// Get genesis state.
-		genState := req.AppState.(types.GnoGenesisState)
+		genState := req.AppState.(GnoGenesisState)
 		// Parse and set genesis state balances.
 		for _, bal := range genState.Balances {
 			addr, coins := parseBalance(bal)
