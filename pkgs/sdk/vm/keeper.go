@@ -130,7 +130,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	if creatorAcc == nil {
 		return std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist", creator))
 	}
-
 	if err := msg.Package.Validate(); err != nil {
 		return ErrInvalidPkgPath(err.Error())
 	}
@@ -138,10 +137,8 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 		// TODO: return error instead of panicking?
 		panic("package already exists: " + pkgPath)
 	}
-
 	// Pay deposit from creator.
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
-
 	err := vm.bank.SendCoins(ctx, creator, pkgAddr, deposit)
 	if err != nil {
 		return err
