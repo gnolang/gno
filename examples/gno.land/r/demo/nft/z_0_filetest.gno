@@ -2,8 +2,8 @@
 package nft_test
 
 import (
-	"gno.land/p/testutils"
-	"gno.land/r/nft"
+	"gno.land/p/demo/testutils"
+	"gno.land/r/demo/nft"
 )
 
 func main() {
@@ -20,9 +20,9 @@ func main() {
 // g1v9jxgu33ta047h6lta047h6lta047h6l43dqc5
 
 // Realm:
-// switchrealm["gno.land/r/nft"]
-// switchrealm["gno.land/r/nft"]
-// c[6bde79a5f04d2658d17cbc323e45df5fad216511:6]={
+// switchrealm["gno.land/r/demo/nft"]
+// switchrealm["gno.land/r/demo/nft"]
+// c[67c479d3d51d4056b2f4111d5352912a00be311e:6]={
 //     "Fields": [
 //         {
 //             "T": {
@@ -43,7 +43,7 @@ func main() {
 //         {
 //             "T": {
 //                 "@type": "/gno.RefType",
-//                 "ID": "gno.land/p/grc/grc721.TokenID"
+//                 "ID": "gno.land/p/demo/grc/grc721.TokenID"
 //             },
 //             "V": {
 //                 "@type": "/gno.StringValue",
@@ -62,13 +62,13 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "6bde79a5f04d2658d17cbc323e45df5fad216511:6",
+//         "ID": "67c479d3d51d4056b2f4111d5352912a00be311e:6",
 //         "ModTime": "0",
-//         "OwnerID": "6bde79a5f04d2658d17cbc323e45df5fad216511:5",
+//         "OwnerID": "67c479d3d51d4056b2f4111d5352912a00be311e:5",
 //         "RefCount": "1"
 //     }
 // }
-// c[6bde79a5f04d2658d17cbc323e45df5fad216511:5]={
+// c[67c479d3d51d4056b2f4111d5352912a00be311e:5]={
 //     "Fields": [
 //         {
 //             "T": {
@@ -85,7 +85,7 @@ func main() {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/r/nft.NFToken"
+//                     "ID": "gno.land/r/demo/nft.NFToken"
 //                 }
 //             },
 //             "V": {
@@ -95,12 +95,12 @@ func main() {
 //                 "TV": {
 //                     "T": {
 //                         "@type": "/gno.RefType",
-//                         "ID": "gno.land/r/nft.NFToken"
+//                         "ID": "gno.land/r/demo/nft.NFToken"
 //                     },
 //                     "V": {
 //                         "@type": "/gno.RefValue",
-//                         "Hash": "2216c79f21a1e1b13cacb160ad0499a77518fb3a",
-//                         "ObjectID": "6bde79a5f04d2658d17cbc323e45df5fad216511:6"
+//                         "Hash": "1485b4b3acb9151d61c568ffe9faa8d2477edee5",
+//                         "ObjectID": "67c479d3d51d4056b2f4111d5352912a00be311e:6"
 //                     }
 //                 }
 //             }
@@ -123,7 +123,7 @@ func main() {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/avl.Tree"
+//                     "ID": "gno.land/p/demo/avl.Tree"
 //                 }
 //             }
 //         },
@@ -132,19 +132,19 @@ func main() {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/avl.Tree"
+//                     "ID": "gno.land/p/demo/avl.Tree"
 //                 }
 //             }
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "6bde79a5f04d2658d17cbc323e45df5fad216511:5",
+//         "ID": "67c479d3d51d4056b2f4111d5352912a00be311e:5",
 //         "ModTime": "0",
-//         "OwnerID": "6bde79a5f04d2658d17cbc323e45df5fad216511:4",
+//         "OwnerID": "67c479d3d51d4056b2f4111d5352912a00be311e:4",
 //         "RefCount": "1"
 //     }
 // }
-// u[6bde79a5f04d2658d17cbc323e45df5fad216511:4]={
+// u[67c479d3d51d4056b2f4111d5352912a00be311e:4]={
 //     "Fields": [
 //         {},
 //         {
@@ -159,7 +159,7 @@ func main() {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/avl.Tree"
+//                     "ID": "gno.land/p/demo/avl.Tree"
 //                 }
 //             },
 //             "V": {
@@ -169,12 +169,12 @@ func main() {
 //                 "TV": {
 //                     "T": {
 //                         "@type": "/gno.RefType",
-//                         "ID": "gno.land/p/avl.Tree"
+//                         "ID": "gno.land/p/demo/avl.Tree"
 //                     },
 //                     "V": {
 //                         "@type": "/gno.RefValue",
-//                         "Hash": "428f989586370a95fdd37c1a46bbd5fa51cd6e6a",
-//                         "ObjectID": "6bde79a5f04d2658d17cbc323e45df5fad216511:5"
+//                         "Hash": "7d933c2a34d391320c88bba80aab89248ae6cbdf",
+//                         "ObjectID": "67c479d3d51d4056b2f4111d5352912a00be311e:5"
 //                     }
 //                 }
 //             }
@@ -184,17 +184,17 @@ func main() {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/avl.Tree"
+//                     "ID": "gno.land/p/demo/avl.Tree"
 //                 }
 //             }
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "6bde79a5f04d2658d17cbc323e45df5fad216511:4",
+//         "ID": "67c479d3d51d4056b2f4111d5352912a00be311e:4",
 //         "ModTime": "4",
-//         "OwnerID": "6bde79a5f04d2658d17cbc323e45df5fad216511:2",
+//         "OwnerID": "67c479d3d51d4056b2f4111d5352912a00be311e:2",
 //         "RefCount": "1"
 //     }
 // }
-// switchrealm["gno.land/r/nft"]
+// switchrealm["gno.land/r/demo/nft"]
 // switchrealm["gno.land/r/nft_test"]

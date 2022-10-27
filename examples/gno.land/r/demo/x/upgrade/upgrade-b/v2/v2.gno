@@ -3,7 +3,7 @@ package upgradeb
 import (
 	"std"
 
-	v1 "gno.land/r/x/upgrade/upgrade-b/v1"
+	v1 "gno.land/r/demo/x/upgrade/upgrade-b/v1"
 )
 
 const admin = "blahblah"

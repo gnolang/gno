@@ -4,9 +4,9 @@ import (
 	"std"
 	"strings"
 
-	"gno.land/p/grc/grc20"
-	"gno.land/p/ufmt"
-	"gno.land/r/users"
+	"gno.land/p/demo/grc/grc20"
+	"gno.land/p/demo/ufmt"
+	"gno.land/r/demo/users"
 )
 
 var (

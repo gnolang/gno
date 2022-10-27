@@ -3,7 +3,7 @@ package main
 // SEND: 2000000000ugnot
 
 import (
-	"gno.land/r/users"
+	"gno.land/r/demo/users"
 )
 
 func main() {

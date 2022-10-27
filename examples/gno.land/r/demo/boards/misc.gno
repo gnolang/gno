@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/r/users"
+	"gno.land/r/demo/users"
 )
 
 //----------------------------------------

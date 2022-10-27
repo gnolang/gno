@@ -1,7 +1,7 @@
 package groups
 
 import (
-	"gno.land/r/boards"
+	"gno.land/r/demo/boards"
 )
 
 // TODO implement something and test.

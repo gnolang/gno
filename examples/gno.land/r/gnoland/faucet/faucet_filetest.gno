@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"std"
 
-	"gno.land/p/testutils"
-	"gno.land/r/faucet"
+	"gno.land/p/demo/testutils"
+	"gno.land/r/demo/faucet"
 )
 
 func main() {

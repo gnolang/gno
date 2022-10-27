@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"gno.land/p/avl"
+	"gno.land/p/demo/avl"
 )
 
 //----------------------------------------

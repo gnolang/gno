@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/rand"
+	"gno.land/p/demo/rand"
 )
 
 func TestInstance(t *testing.T) {

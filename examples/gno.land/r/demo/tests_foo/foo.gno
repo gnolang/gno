@@ -1,7 +1,7 @@
 package tests_foo
 
 import (
-	"gno.land/r/tests"
+	"gno.land/r/demo/tests"
 )
 
 // for testing gno.land/r/tests/interfaces.go

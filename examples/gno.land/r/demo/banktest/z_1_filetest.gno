@@ -3,7 +3,7 @@ package main
 import (
 	"std"
 
-	"gno.land/r/banktest"
+	"gno.land/r/demo/banktest"
 )
 
 func main() {

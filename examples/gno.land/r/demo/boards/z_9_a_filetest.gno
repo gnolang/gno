@@ -6,8 +6,8 @@ package boards_test
 import (
 	"strconv"
 
-	"gno.land/r/boards"
-	"gno.land/r/users"
+	"gno.land/r/demo/boards"
+	"gno.land/r/demo/users"
 )
 
 var dstBoard boards.BoardID

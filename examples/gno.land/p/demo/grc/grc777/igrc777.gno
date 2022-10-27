@@ -3,7 +3,7 @@ package grc777
 import (
 	"std"
 
-	"gno.land/p/grc/exts"
+	"gno.land/p/demo/grc/exts"
 )
 
 // TODO: use big.Int or a custom uint64 instead of uint64

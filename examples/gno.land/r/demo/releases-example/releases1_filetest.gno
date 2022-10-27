@@ -1,7 +1,7 @@
 package main
 
 import (
-	"gno.land/r/releases-example"
+	"gno.land/r/demo/releases-example"
 )
 
 func main() {
@@ -19,17 +19,17 @@ func main() {
 // -----------
 // # example-app
 //
-// ## [example-app v2 (latest)](r/examples-example-v2)
+// ## [example-app v2 (latest)](r/demo/examples-example-v2)
 //
 // various improvements
 //
-// ## [example-app v1](r/examples-example-v1)
+// ## [example-app v1](r/demo/examples-example-v1)
 //
 // initial release
 //
 //
 // -----------
-// ## [example-app v1](r/examples-example-v1)
+// ## [example-app v1](r/demo/examples-example-v1)
 //
 // initial release
 //

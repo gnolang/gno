@@ -4,7 +4,7 @@ package releases_example
 import (
 	"std"
 
-	"gno.land/p/releases"
+	"gno.land/p/demo/releases"
 )
 
 var (

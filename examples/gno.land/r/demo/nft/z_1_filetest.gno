@@ -2,8 +2,8 @@
 package nft_test
 
 import (
-	"gno.land/p/testutils"
-	"gno.land/r/nft"
+	"gno.land/p/demo/testutils"
+	"gno.land/r/demo/nft"
 )
 
 func main() {

@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 
-	"gno.land/p/rand"
-	"gno.land/p/ufmt"
+	"gno.land/p/demo/rand"
+	"gno.land/p/demo/ufmt"
 )
 
 type Result struct {

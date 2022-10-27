@@ -4,7 +4,7 @@ import (
 	"std"
 	"strings"
 
-	"gno.land/p/blog"
+	"gno.land/p/demo/blog"
 )
 
 var b = &blog.Blog{

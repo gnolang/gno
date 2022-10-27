@@ -3,7 +3,7 @@ package groups
 import (
 	"std"
 
-	"gno.land/p/maths"
+	"gno.land/p/demo/maths"
 )
 
 //----------------------------------------

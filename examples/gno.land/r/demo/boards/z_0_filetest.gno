@@ -4,8 +4,8 @@ package boards_test
 // SEND: 200000000ugnot
 
 import (
-	"gno.land/r/boards"
-	"gno.land/r/users"
+	"gno.land/r/demo/boards"
+	"gno.land/r/demo/users"
 )
 
 var bid boards.BoardID

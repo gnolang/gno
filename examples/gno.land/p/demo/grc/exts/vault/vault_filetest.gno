@@ -4,10 +4,10 @@ import (
 	"std"
 	"time"
 
-	"gno.land/p/grc/exts/vault"
-	"gno.land/p/grc/grc20"
-	"gno.land/p/testutils"
-	"gno.land/p/ufmt"
+	"gno.land/p/demo/grc/exts/vault"
+	"gno.land/p/demo/grc/grc20"
+	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/ufmt"
 )
 
 func main() {

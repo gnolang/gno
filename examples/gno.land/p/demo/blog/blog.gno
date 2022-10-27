@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/avl"
-	"gno.land/p/ufmt"
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/ufmt"
 )
 
 type Blog struct {

@@ -2,7 +2,7 @@
 package boards_test
 
 import (
-	"gno.land/r/boards"
+	"gno.land/r/demo/boards"
 )
 
 var bid boards.BoardID

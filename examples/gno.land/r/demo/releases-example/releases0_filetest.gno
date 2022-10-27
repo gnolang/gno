@@ -1,7 +1,7 @@
 package main
 
 import (
-	"gno.land/p/releases"
+	"gno.land/p/demo/releases"
 )
 
 func main() {

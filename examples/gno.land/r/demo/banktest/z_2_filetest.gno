@@ -3,11 +3,11 @@ package main
 import (
 	"std"
 
-	"gno.land/r/banktest"
+	"gno.land/r/demo/banktest"
 )
 
 func main() {
-	banktestAddr := std.TestDerivePkgAddr("gno.land/r/banktest")
+	banktestAddr := std.TestDerivePkgAddr("gno.land/r/demo/banktest")
 
 	// print main balance before.
 	mainaddr := std.TestDerivePkgAddr("main")

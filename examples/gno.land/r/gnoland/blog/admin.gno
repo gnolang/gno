@@ -3,7 +3,7 @@ package gnoblog
 import (
 	"std"
 
-	"gno.land/p/avl"
+	"gno.land/p/demo/avl"
 )
 
 var (

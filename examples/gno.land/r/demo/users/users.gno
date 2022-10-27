@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/avl"
+	"gno.land/p/demo/avl"
 )
 
 //----------------------------------------

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"std"
 
-	"gno.land/p/ufmt"
+	"gno.land/p/demo/ufmt"
 )
 
 var (

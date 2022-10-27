@@ -2,8 +2,8 @@
 package groups_test
 
 import (
-	"gno.land/p/groups"
-	"gno.land/p/testutils"
+	"gno.land/p/demo/groups"
+	"gno.land/p/demo/testutils"
 )
 
 var vset groups.VoteSet

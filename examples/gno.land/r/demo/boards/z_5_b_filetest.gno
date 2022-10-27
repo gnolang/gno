@@ -6,9 +6,9 @@ import (
 	"std"
 	"strconv"
 
-	"gno.land/p/testutils"
-	"gno.land/r/boards"
-	"gno.land/r/users"
+	"gno.land/p/demo/testutils"
+	"gno.land/r/demo/boards"
+	"gno.land/r/demo/users"
 )
 
 const admin = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")

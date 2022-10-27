@@ -3,8 +3,8 @@ package grc20
 import (
 	"std"
 
-	"gno.land/p/avl"
-	"gno.land/p/ufmt"
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/ufmt"
 )
 
 // AdminToken implements a token factory with admin helpers.

@@ -3,7 +3,7 @@ package grc20
 import (
 	"std"
 
-	"gno.land/p/grc/exts"
+	"gno.land/p/demo/grc/exts"
 )
 
 // IMustGRC20 is like IGRC20 but without returned errors.

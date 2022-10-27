@@ -3,8 +3,8 @@ package vault
 import (
 	"std"
 
-	"gno.land/p/avl"
-	"gno.land/p/grc/grc20"
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/grc/grc20"
 )
 
 // Vault is a GRC20 compatible token with vault features.
