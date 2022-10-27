@@ -3,6 +3,8 @@ package gnode
 // XXX what about Gnodes signing on behalf of others?
 // XXX like a multi-sig of Gnodes?
 
+type Name string
+
 type Gnode interface {
 
 	//----------------------------------------
@@ -35,11 +37,11 @@ type Affiliate struct {
 
 type MyGnode struct {
 	Name
-	Owners // voting set, something that gives authority of action.
-	Treasury
-	Affiliates
-	Board // discussions
-	Data  // XXX ?
+	// Owners     // voting set, something that gives authority of action.
+	// Treasury   //
+	// Affiliates //
+	// Board      // discussions
+	// Data       // XXX ?
 }
 
 type Affiliates []*Affiliate
@@ -48,9 +50,9 @@ type Affiliates []*Affiliate
 // NOTE: requires all fields to be comparable.
 type Document struct {
 	Authors string
-	Timestamp
-	Body
-	Attachments
+	// Timestamp
+	// Body
+	// Attachments
 }
 
 // ACTIONS
