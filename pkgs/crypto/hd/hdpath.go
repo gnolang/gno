@@ -1,8 +1,9 @@
 // Package hd provides basic functionality Hierarchical Deterministic Wallets.
 //
 // The user must understand the overall concept of the BIP 32 and the BIP 44 specs:
-//  https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki
-//  https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
+//
+//	https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki
+//	https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
 //
 // In combination with the bip39 package in go-crypto this package provides the functionality for deriving keys using a
 // BIP 44 HD path, or, more general, by passing a BIP 32 path.
@@ -202,7 +203,7 @@ func DerivePrivateKeyForPath(privKeyBytes [32]byte, chainCode [32]byte, path str
 // If harden is true, the derivation is 'hardened'.
 // It returns the new private key and new chain code.
 // For more information on hardened keys see:
-//  - https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
+//   - https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
 func derivePrivateKey(privKeyBytes [32]byte, chainCode [32]byte, index uint32, harden bool) ([32]byte, [32]byte) {
 	var data []byte
 	if harden {

@@ -33,10 +33,10 @@ func Cause(err error) error {
 // Error & cmnError
 
 /*
-
 Usage with arbitrary error data:
 
 ```go
+
 	// Error construction
 	type MyError struct{}
 	var err1 error = NewWithData(MyError{}, "my message")
@@ -50,6 +50,7 @@ Usage with arbitrary error data:
 		case MyError: ...
 	    default: ...
 	}
+
 ```
 */
 type Error interface {
@@ -186,11 +187,11 @@ func (mti msgtraceItem) String() string {
 // fmt error
 
 /*
-
 FmtError is the data type for New() (e.g. New().Data().(FmtError))
 Theoretically it could be used to switch on the format string.
 
 ```go
+
 	// Error construction
 	var err1 error = New("invalid username %v", "BOB")
 	var err2 error = New("another kind of error")
@@ -201,6 +202,7 @@ Theoretically it could be used to switch on the format string.
 		case "another kind of error": ...
 	    default: ...
 	}
+
 ```
 */
 type FmtError struct {

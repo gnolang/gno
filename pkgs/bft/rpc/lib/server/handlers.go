@@ -226,8 +226,9 @@ func arrayParamsToArgs(rpcFunc *RPCFunc, params []json.RawMessage, argsOffset in
 // array.
 //
 // Example:
-//   rpcFunc.args = [rpctypes.Context string]
-//   rpcFunc.argNames = ["arg"]
+//
+//	rpcFunc.args = [rpctypes.Context string]
+//	rpcFunc.argNames = ["arg"]
 func jsonParamsToArgs(rpcFunc *RPCFunc, raw []byte) ([]reflect.Value, error) {
 	const argsOffset = 1
 

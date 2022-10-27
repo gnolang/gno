@@ -1553,11 +1553,12 @@ func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[T
 // uses *DT.GetValueAt(path) to find any methods (see values.go).
 //
 // i.e.,
-//  preprocessor: *DT.FindEmbeddedFieldType(name)
-//                *DT.GetValueAt(path) // from op_type/evalTypeOf()
 //
-//       runtime: *TV.GetPointerTo(path)
-//                 -> *DT.GetValueAt(path)
+//	preprocessor: *DT.FindEmbeddedFieldType(name)
+//	              *DT.GetValueAt(path) // from op_type/evalTypeOf()
+//
+//	     runtime: *TV.GetPointerTo(path)
+//	               -> *DT.GetValueAt(path)
 func (dt *DeclaredType) GetValueAt(alloc *Allocator, store Store, path ValuePath) TypedValue {
 	switch path.Type {
 	case VPInterface:

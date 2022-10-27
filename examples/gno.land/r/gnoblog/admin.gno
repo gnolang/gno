@@ -6,10 +6,12 @@ import (
 	"gno.land/p/avl"
 )
 
-var adminAddr std.Address
-var moderatorList avl.MutTree
-var commenterList avl.MutTree
-var inPause bool
+var (
+	adminAddr     std.Address
+	moderatorList avl.MutTree
+	commenterList avl.MutTree
+	inPause       bool
+)
 
 func init() {
 	// adminAddr = std.GetOrigCaller() // FIXME: find a way to use this from the main's genesis.

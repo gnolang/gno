@@ -115,8 +115,8 @@ var preprocessing int
 // to enforce this.
 //
 // List of what Preprocess() does:
-//  * Assigns BlockValuePath to NameExprs.
-//  * TODO document what it does.
+//   - Assigns BlockValuePath to NameExprs.
+//   - TODO document what it does.
 func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	// Increment preprocessing counter while preprocessing.
 	{

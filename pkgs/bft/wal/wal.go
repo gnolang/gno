@@ -470,7 +470,6 @@ OUTER_LOOP:
 // #{"h":"123"}
 // ABCDEFGHIJKLMNOPQRSTUV03
 // ABCDEFGHIJKLMNOPQRSTUV04
-//
 type WALWriter struct {
 	wr      io.Writer
 	maxSize int64 // max WALMessage amino size excluding time/crc/base64.

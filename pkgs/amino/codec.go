@@ -555,10 +555,10 @@ func (cdc *Codec) getTypeInfoFromFullnameRLock(fullname string, fopts FieldOptio
 // populate the internal lookup map, but they don't have
 // certain fields set, such as:
 //
-//  * .Package - defaults to nil until registered.
-//  * .ConcreteInfo.PointerPreferred - how it prefers to
-//  be decoded
-//  * .ConcreteInfo.TypeURL - for Any serialization
+//   - .Package - defaults to nil until registered.
+//   - .ConcreteInfo.PointerPreferred - how it prefers to
+//     be decoded
+//   - .ConcreteInfo.TypeURL - for Any serialization
 //
 // But it does set .ConcreteInfo.Elem, which may be
 // modified by the Codec instance.

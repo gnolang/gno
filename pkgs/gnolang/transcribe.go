@@ -107,12 +107,12 @@ const (
 )
 
 // return:
-// - TRANS_CONTINUE to visit children recursively;
-// - TRANS_SKIP to break out of the
-//   ENTER,CHILDS1,[BLOCK,CHILDS2]?,LEAVE sequence for that node,
-//   i.e. skipping (the rest of) it;
-// - TRANS_BREAK to break out of looping in CHILDS1 or CHILDS2,
-// - TRANS_EXIT to stop traversing altogether.
+//   - TRANS_CONTINUE to visit children recursively;
+//   - TRANS_SKIP to break out of the
+//     ENTER,CHILDS1,[BLOCK,CHILDS2]?,LEAVE sequence for that node,
+//     i.e. skipping (the rest of) it;
+//   - TRANS_BREAK to break out of looping in CHILDS1 or CHILDS2,
+//   - TRANS_EXIT to stop traversing altogether.
 //
 // Do not mutate ns.
 // Must return a new node to replace the old one,

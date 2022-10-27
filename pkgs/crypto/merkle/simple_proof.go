@@ -115,7 +115,7 @@ func (sp *SimpleProof) StringIndented(indent string) string {
 
 // ValidateBasic performs basic validation.
 // NOTE: - it expects LeafHash and Aunts of tmhash.Size size
-//			 - it expects no more than 100 aunts
+//   - it expects no more than 100 aunts
 func (sp *SimpleProof) ValidateBasic() error {
 	if sp.Total < 0 {
 		return errors.New("negative Total")

@@ -84,7 +84,7 @@ func startGnoland(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, string(output)) // should be the hash of the container.
 
-	//t.Cleanup(func() { cleanupGnoland(t) })
+	// t.Cleanup(func() { cleanupGnoland(t) })
 }
 
 func waitGnoland(t *testing.T) {
