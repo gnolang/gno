@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/testutils"
-	"gno.land/r/demo/faucet"
+	"gno.land/r/gnoland/faucet"
 )
 
 func TestPackage(t *testing.T) {
