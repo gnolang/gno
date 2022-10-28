@@ -2,7 +2,7 @@
 package crossrealm_test
 
 import (
-	"gno.land/r/tests"
+	"gno.land/r/demo/tests"
 )
 
 // NOTE: it is valid to persist external realm types.

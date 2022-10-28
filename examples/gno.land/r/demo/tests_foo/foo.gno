@@ -4,7 +4,7 @@ import (
 	"gno.land/r/demo/tests"
 )
 
-// for testing gno.land/r/tests/interfaces.go
+// for testing gno.land/r/demo/tests/interfaces.go
 
 type FooStringer struct {
 	FieldA string

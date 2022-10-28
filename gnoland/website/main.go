@@ -276,7 +276,7 @@ func handlerRealmFile(app gotuna.App) http.Handler {
 func handlerPackageFile(app gotuna.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
-		pkgpath := "gno.land/p/" + vars["filepath"]
+		pkgpath := "gno.land/p/demo/" + vars["filepath"]
 		diruri, filename := std.SplitFilepath(pkgpath)
 		if filename == "" && diruri == pkgpath {
 			// redirect to diruri + "/"

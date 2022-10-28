@@ -1,7 +1,7 @@
 package main
 
 import (
-	"gno.land/p/testutils"
+	"gno.land/p/demo/testutils"
 )
 
 func main() {
@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// main/files2/access4.gno:9: cannot access gno.land/p/testutils.TestAccessStruct.privateField from main
+// main/files2/access4.gno:9: cannot access gno.land/p/demo/testutils.TestAccessStruct.privateField from main

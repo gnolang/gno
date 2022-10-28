@@ -2,7 +2,7 @@
 package crossrealm_test
 
 import (
-	"gno.land/p/tests"
+	"gno.land/p/demo/tests"
 )
 
 var somevalue tests.TestRealmObject2
