@@ -146,6 +146,9 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 		"r/demo/types",
 		"r/gnoland/blog",
 		"r/gnoland/faucet",
+		"r/system/validators",
+		"r/system/names",
+		"r/system/rewards",
 	} {
 		// open files in directory as MemPackage.
 		memPkg := gno.ReadMemPackage(filepath.Join(".", "examples", "gno.land", path), "gno.land/"+path)
