@@ -132,18 +132,19 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 	test1 := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	txs := []std.Tx{}
 	for _, path := range []string{
-		"p/ufmt",
-		"p/avl",
-		"p/grc/exts",
-		"p/grc/grc20",
-		"p/grc/grc721",
-		"p/maths",
-		"p/blog",
-		"r/users",
-		"r/foo20",
-		"r/boards",
-		"r/banktest",
-		"r/gnoblog", // TODO: move to gnoland/blog
+		"p/demo/ufmt",
+		"p/demo/avl",
+		"p/demo/grc/exts",
+		"p/demo/grc/grc20",
+		"p/demo/grc/grc721",
+		"p/demo/maths",
+		"p/demo/blog",
+		"r/demo/users",
+		"r/demo/foo20",
+		"r/demo/boards",
+		"r/demo/banktest",
+		"r/gnoland/blog",
+		"r/gnoland/faucet",
 	} {
 		// open files in directory as MemPackage.
 		memPkg := gno.ReadMemPackage(filepath.Join(".", "examples", "gno.land", path), "gno.land/"+path)

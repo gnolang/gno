@@ -1,7 +1,7 @@
 package main
 
 import (
-	"gno.land/p/testutils"
+	"gno.land/p/demo/testutils"
 )
 
 func main() {
@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// main/files/access1.gno:8: cannot access gno.land/p/testutils.testVar2 from main
+// main/files/access1.gno:8: cannot access gno.land/p/demo/testutils.testVar2 from main

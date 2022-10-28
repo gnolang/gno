@@ -2,7 +2,7 @@
 package test
 
 import (
-	"gno.land/r/tests"
+	"gno.land/r/demo/tests"
 	"std"
 )
 

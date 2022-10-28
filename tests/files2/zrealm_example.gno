@@ -2,7 +2,7 @@
 package example
 
 import (
-	"gno.land/p/dom"
+	"gno.land/p/demo/dom"
 )
 
 var gPlot *dom.Plot
@@ -51,7 +51,7 @@ func main() {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/avl.Tree"
+//                     "ID": "gno.land/p/demo/avl.Tree"
 //                 }
 //             }
 //         }
@@ -80,7 +80,7 @@ func main() {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/dom.Post"
+//                     "ID": "gno.land/p/demo/dom.Post"
 //                 }
 //             },
 //             "V": {
@@ -90,7 +90,7 @@ func main() {
 //                 "TV": {
 //                     "T": {
 //                         "@type": "/gno.RefType",
-//                         "ID": "gno.land/p/dom.Post"
+//                         "ID": "gno.land/p/demo/dom.Post"
 //                     },
 //                     "V": {
 //                         "@type": "/gno.RefValue",
@@ -118,7 +118,7 @@ func main() {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/avl.Tree"
+//                     "ID": "gno.land/p/demo/avl.Tree"
 //                 }
 //             }
 //         },
@@ -127,7 +127,7 @@ func main() {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/avl.Tree"
+//                     "ID": "gno.land/p/demo/avl.Tree"
 //                 }
 //             }
 //         }
@@ -156,7 +156,7 @@ func main() {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/avl.Tree"
+//                     "ID": "gno.land/p/demo/avl.Tree"
 //                 }
 //             },
 //             "V": {
@@ -166,7 +166,7 @@ func main() {
 //                 "TV": {
 //                     "T": {
 //                         "@type": "/gno.RefType",
-//                         "ID": "gno.land/p/avl.Tree"
+//                         "ID": "gno.land/p/demo/avl.Tree"
 //                     },
 //                     "V": {
 //                         "@type": "/gno.RefValue",

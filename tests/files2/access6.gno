@@ -1,7 +1,7 @@
 package main
 
 import (
-	"gno.land/p/testutils"
+	"gno.land/p/demo/testutils"
 )
 
 type mystruct struct{}
@@ -16,4 +16,4 @@ func main() {
 }
 
 // Error:
-// main/files2/access6.gno:15: main.mystruct does not implement gno.land/p/testutils.PrivateInterface
+// main/files2/access6.gno:15: main.mystruct does not implement gno.land/p/demo/testutils.PrivateInterface

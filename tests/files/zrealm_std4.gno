@@ -2,7 +2,7 @@
 package std_test
 
 import (
-	"gno.land/r/tests"
+	"gno.land/r/demo/tests"
 )
 
 func main() {
@@ -15,6 +15,6 @@ func main() {
 }
 
 // Output:
-// test1 gno.land/r/tests
-// test2 gno.land/r/tests
-// test3 gno.land/r/tests
+// test1 gno.land/r/demo/tests
+// test2 gno.land/r/demo/tests
+// test3 gno.land/r/demo/tests

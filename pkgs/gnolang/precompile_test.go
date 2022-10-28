@@ -32,8 +32,8 @@ func TestPrecompile(t *testing.T) {
 			expectedOutput: "package foo\nimport \"github.com/gnolang/gno/examples/gno.land/r/users\"\nfunc foo() { _ = users.Register}",
 		}, {
 			name:           "use-avl",
-			source:         "package foo\nimport \"gno.land/p/avl\"\nfunc foo()  { _ = avl.Tree}",
-			expectedOutput: "package foo\nimport \"github.com/gnolang/gno/examples/gno.land/p/avl\"\nfunc foo() { _ = avl.Tree}",
+			source:         "package foo\nimport \"gno.land/p/demo/avl\"\nfunc foo()  { _ = avl.Tree}",
+			expectedOutput: "package foo\nimport \"github.com/gnolang/gno/examples/gno.land/p/demo/avl\"\nfunc foo() { _ = avl.Tree}",
 		}, {
 			name:           "use-named-std",
 			source:         "package foo\nimport bar \"std\"\nfunc hello() string { _ = bar.Foo\nreturn \"world\"}",

@@ -2,7 +2,7 @@
 package std_test
 
 import (
-	"gno.land/p/tests" // NOTE: not a realm path.
+	"gno.land/p/demo/tests" // NOTE: not a realm path.
 )
 
 func main() {

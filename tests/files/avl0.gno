@@ -1,6 +1,6 @@
 package main
 
-import "gno.land/p/avl"
+import "gno.land/p/demo/avl"
 
 type String string
 

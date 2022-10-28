@@ -3,7 +3,7 @@ package main
 import (
 	"std"
 
-	"gno.land/p/testutils"
+	"gno.land/p/demo/testutils"
 )
 
 func inner() {
