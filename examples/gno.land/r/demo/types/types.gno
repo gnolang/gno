@@ -25,19 +25,20 @@ func init() {
 	gTree.Set("b", "content of B")
 }
 
-func Noop()                    {}
-func RetString() string        { return gString }
-func RetStringPointer() string { return &gString }
-func RetUint() uint            { return gUint }
-func RetInt() int              { return gInt }
-func RetUintPointer() *int     { return &gUint }
-func RetIntPointer() *int      { return &gInt }
-func RetTree() avl.MutTree     { return gTree }
-func RetIntSlice() []int       { return gIntSlice }
-func RetUintSlice() []uint     { return gUintSlice }
-func RetStringSlice() []string { return gStringSlice }
-func RetError() error          { return gError }
-func Panic()                   { panic("PANIC!") }
+func Noop()                     {}
+func RetTimeNow() time.Time     { return time.Now() }
+func RetString() string         { return gString }
+func RetStringPointer() *string { return &gString }
+func RetUint() uint             { return gUint }
+func RetInt() int               { return gInt }
+func RetUintPointer() *uint     { return &gUint }
+func RetIntPointer() *int       { return &gInt }
+func RetTree() avl.MutTree      { return gTree }
+func RetIntSlice() []int        { return gIntSlice }
+func RetUintSlice() []uint      { return gUintSlice }
+func RetStringSlice() []string  { return gStringSlice }
+func RetError() error           { return gError }
+func Panic()                    { panic("PANIC!") }
 
 // TODO: floats
 // TODO: typed errors
