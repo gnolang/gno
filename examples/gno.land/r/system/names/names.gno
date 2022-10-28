@@ -1,7 +1,11 @@
 // The realm r/system/names is used to manage namespaces on gno.land.
 package names
 
-import "gno.land/p/demo/avl"
+import (
+	"std"
+
+	"gno.land/p/demo/avl"
+)
 
 // "AddPkg" will check if r/system/names exists. If yes, it will
 // inspect the realm's state and use the following variable to
