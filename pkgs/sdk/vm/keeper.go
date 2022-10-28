@@ -139,6 +139,14 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	}
 	// Pay deposit from creator.
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
+
+	// TODO: ACLs.
+	// - if r/system/names does not exists -> skip validation.
+	// - loads r/system/names data state.
+	// - lookup r/system/names.namespaces for `{r,p}/NAMES`.
+	// - check if caller is in Admins or Editors.
+	// - check if namespace is not in pause.
+
 	err := vm.bank.SendCoins(ctx, creator, pkgAddr, deposit)
 	if err != nil {
 		return err
