@@ -2307,7 +2307,7 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 					checkOrConvertType(store, last, &bx.Left, t, autoNative)
 					return
 					// case EQL, LSS, GTR, NEQ, LEQ, GEQ:
-					//default:
+					// default:
 				}
 			}
 			cx := Expr(Call(constType(nil, t), *x))

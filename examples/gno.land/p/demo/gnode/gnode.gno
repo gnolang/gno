@@ -6,7 +6,6 @@ package gnode
 type Name string
 
 type Gnode interface {
-
 	//----------------------------------------
 	// Basic properties
 	GetName() Name
