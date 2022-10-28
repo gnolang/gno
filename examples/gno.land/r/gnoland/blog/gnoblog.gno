@@ -20,6 +20,16 @@ func ModAddPost(slug, title, body, tags string) {
 	checkErr(err)
 }
 
+func ModEditPost(slug, title, body, tags string) {
+	assertIsModerator()
+
+	tagList := strings.Split(tags, ",")
+	err := b.EditPost(slug, title, body, tagList)
+	if err != nil {
+		panic(err)
+	}
+}
+
 func AddComment(postSlug, comment string) {
 	assertIsCommenter()
 	assertNotInPause()

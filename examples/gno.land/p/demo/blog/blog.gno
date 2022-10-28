@@ -72,33 +72,53 @@ func (b Blog) Render(path string) string {
 }
 
 func (b *Blog) NewPost(author std.Address, slug, title, body string, tags []string) error {
-	title = strings.TrimSpace(title)
-	body = strings.TrimSpace(body)
-
-	if title == "" {
-		return errors.New("title is missing.")
-	}
-	if body == "" {
-		return errors.New("body is missing.")
-	}
-	if slug == "" {
-		return errors.New("slug is missing.")
-	}
-	post := b.GetPost(slug)
-	if post != nil {
+	_, found := b.Posts.Get(slug)
+	if found {
 		return errors.New("slug already exists.")
 	}
 
-	// more input sanitization?
-	b.Posts.Set(slug, &Post{
-		Blog:      b,
+	post := Post{
+		Author:    author,
 		Slug:      slug,
 		Title:     title,
 		Body:      body,
-		CreatedAt: time.Now(),
-		Author:    author,
 		Tags:      tags,
-	})
+		CreatedAt: time.Now(),
+	}
+	return b.prepareAndSetPost(&post)
+}
+
+func (b *Blog) UpdatePost(slug, title, body string, tags []string) error {
+	post, found := b.Posts.Get(slug)
+	if !found {
+		return errors.New("slug does not exist.")
+	}
+	post.Slug = slug
+	post.Title = title
+	post.Body = body
+	post.Tags = tags
+	return b.prepareAndSetPost(&post)
+}
+
+func (b *Blog) prepareAndSetPost(post *Post) error {
+	post.Title = strings.TrimSpace(post.Title)
+	post.Body = strings.TrimSpace(post.Body)
+
+	if post.Title == "" {
+		return errors.New("title is missing.")
+	}
+	if post.Body == "" {
+		return errors.New("body is missing.")
+	}
+	if post.Slug == "" {
+		return errors.New("slug is missing.")
+	}
+	// more input sanitization?
+
+	post.Blog = b
+	post.UpdatedAt = time.Now()
+
+	b.Posts.Set(post.Slug, post)
 	return nil
 }
 
