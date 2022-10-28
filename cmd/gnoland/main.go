@@ -143,6 +143,7 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 		"r/demo/foo20",
 		"r/demo/boards",
 		"r/demo/banktest",
+		"r/demo/types",
 		"r/gnoland/blog",
 		"r/gnoland/faucet",
 	} {
