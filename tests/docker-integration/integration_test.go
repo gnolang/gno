@@ -34,12 +34,13 @@ func runSuite(t *testing.T, tempdir string) {
 		"gnokey", "query", "auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", // test1
 	})
 	output, err := cmd.CombinedOutput()
-	require.NoError(t, err)
+	require.NoError(t, err, string(output))
 	// FIXME: this will break frequently. we need a reliable test.
 	// require.Contains(t, string(output), "9999976000000ugnot")
 	require.Contains(t, string(output), "ugnot")
 	require.Contains(t, string(output), "999")
 
+	// FIXME: add packages.
 	// FIXME: perform TXs.
 }
 
