@@ -110,15 +110,6 @@ func (b *Blog) GetPost(slug string) *Post {
 	return post.(*Post)
 }
 
-func (b *Blog) AddComment(author std.Address, slug, comment string) error {
-	post := b.GetPost(slug)
-	if post == nil {
-		return errors.New("no such post")
-	}
-
-	return post.AddComment(author, comment)
-}
-
 type Post struct {
 	Blog         *Blog
 	Slug         string // FIXME: save space?
@@ -132,6 +123,9 @@ type Post struct {
 }
 
 func (p *Post) AddComment(author std.Address, comment string) error {
+	if p == nil {
+		return ErrNoSuchPost
+	}
 	p.CommentIndex++
 	commentKey := strconv.Itoa(p.CommentIndex)
 	comment = strings.TrimSpace(comment)
@@ -145,7 +139,19 @@ func (p *Post) AddComment(author std.Address, comment string) error {
 	return nil
 }
 
+func (p *Post) DeleteComment(index int) error {
+	if p == nil {
+		return ErrNoSuchPost
+	}
+	commentKey := strconv.Itoa(index)
+	p.Comments.Unset(commentKey)
+	return nil
+}
+
 func (p *Post) HasTag(tag string) bool {
+	if p == nil {
+		return false
+	}
 	for _, t := range p.Tags {
 		if t == tag {
 			return true
@@ -154,7 +160,10 @@ func (p *Post) HasTag(tag string) bool {
 	return false
 }
 
-func (p Post) RenderListItem() string {
+func (p *Post) RenderListItem() string {
+	if p == nil {
+		return "error: no such post\n"
+	}
 	output := ""
 	output += ufmt.Sprintf("## [%s](%s)\n", p.Title, p.URL())
 	output += p.Summary() + "\n"
@@ -164,7 +173,10 @@ func (p Post) RenderListItem() string {
 	return output
 }
 
-func (p Post) RenderPage() string {
+func (p *Post) RenderPage() string {
+	if p == nil {
+		return "error: no such post\n"
+	}
 	output := ""
 	output += ufmt.Sprintf("## [%s](%s)\n", p.Title, p.URL())
 	output += p.Body + "\n"
@@ -182,7 +194,10 @@ func (p Post) RenderPage() string {
 	return output
 }
 
-func (p Post) RenderTagList() string {
+func (p *Post) RenderTagList() string {
+	if p == nil {
+		return "error: no such post\n"
+	}
 	output := ""
 	for idx, tag := range p.Tags {
 		if idx > 0 {
@@ -194,11 +209,18 @@ func (p Post) RenderTagList() string {
 	return output
 }
 
-func (p Post) URL() string {
+func (p *Post) URL() string {
+	if p == nil {
+		return p.Blog.Prefix + "404"
+	}
 	return p.Blog.Prefix + "p/" + p.Slug
 }
 
-func (p Post) Summary() string {
+func (p *Post) Summary() string {
+	if p == nil {
+		return "error: no such post\n"
+	}
+
 	// FIXME: better summary.
 	lines := strings.Split(p.Body, "\n")
 	if len(lines) <= 3 {

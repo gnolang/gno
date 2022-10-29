@@ -17,9 +17,7 @@ func ModAddPost(slug, title, body, tags string) {
 	caller := std.GetOrigCaller()
 	tagList := strings.Split(tags, ",")
 	err := b.NewPost(caller, slug, title, body, tagList)
-	if err != nil {
-		panic(err)
-	}
+	checkErr(err)
 }
 
 func AddComment(postSlug, comment string) {
@@ -27,10 +25,8 @@ func AddComment(postSlug, comment string) {
 	assertNotInPause()
 
 	caller := std.GetOrigCaller()
-	err := b.AddComment(caller, postSlug, comment)
-	if err != nil {
-		panic(err)
-	}
+	err := b.GetPost(postSlug).AddComment(caller, comment)
+	checkErr(err)
 }
 
 func Render(path string) string {
