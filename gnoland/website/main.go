@@ -67,6 +67,7 @@ func main() {
 	app.Router.Handle("/faucet", handlerFaucet(app))
 	app.Router.Handle("/r/demo/boards:gnolang/6", handlerRedirect(app))
 	// NOTE: see rePathPart.
+	// FIXME: use better regexp to support any depth.
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*/[a-z][a-z0-9_]*}", handlerRealmMain(app))
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*/[a-z][a-z0-9_]*}:{querystr:.*}", handlerRealmRender(app))
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*/[a-z][a-z0-9_]*}/{filename:.*}", handlerRealmFile(app))
