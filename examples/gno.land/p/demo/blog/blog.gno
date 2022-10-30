@@ -88,18 +88,6 @@ func (b *Blog) NewPost(author std.Address, slug, title, body string, tags []stri
 	return b.prepareAndSetPost(&post)
 }
 
-func (b *Blog) UpdatePost(slug, title, body string, tags []string) error {
-	post, found := b.Posts.Get(slug)
-	if !found {
-		return errors.New("slug does not exist.")
-	}
-	post.Slug = slug
-	post.Title = title
-	post.Body = body
-	post.Tags = tags
-	return b.prepareAndSetPost(&post)
-}
-
 func (b *Blog) prepareAndSetPost(post *Post) error {
 	post.Title = strings.TrimSpace(post.Title)
 	post.Body = strings.TrimSpace(post.Body)
@@ -136,10 +124,18 @@ type Post struct {
 	Title        string
 	Body         string
 	CreatedAt    time.Time
+	UpdatedAt    time.Time
 	Comments     avl.MutTree
 	Author       std.Address
 	Tags         []string
 	CommentIndex int
+}
+
+func (p *Post) Update(title, body string, tags []string) error {
+	p.Title = title
+	p.Body = body
+	p.Tags = tags
+	return p.Blog.prepareAndSetPost(p)
 }
 
 func (p *Post) AddComment(author std.Address, comment string) error {

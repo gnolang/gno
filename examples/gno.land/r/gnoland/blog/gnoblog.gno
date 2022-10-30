@@ -24,10 +24,8 @@ func ModEditPost(slug, title, body, tags string) {
 	assertIsModerator()
 
 	tagList := strings.Split(tags, ",")
-	err := b.EditPost(slug, title, body, tagList)
-	if err != nil {
-		panic(err)
-	}
+	err := b.GetPost(slug).Update(title, body, tagList)
+	checkErr(err)
 }
 
 func AddComment(postSlug, comment string) {
