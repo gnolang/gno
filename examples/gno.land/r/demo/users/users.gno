@@ -298,7 +298,7 @@ func renderHome() string {
 	doc := ""
 	name2User.Iterate("", "", func(t *avl.Tree) bool {
 		user := t.Value().(*User)
-		doc += " * [" + user.name + "](/r/users:" + user.name + ")\n"
+		doc += " * [" + user.name + "](/r/demo/users:" + user.name + ")\n"
 		return false
 	})
 	return doc

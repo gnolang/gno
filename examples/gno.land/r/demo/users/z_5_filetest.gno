@@ -36,8 +36,8 @@ func main() {
 }
 
 // Output:
-// * [gnouser](/r/users:gnouser)
-//  * [satoshi](/r/users:satoshi)
+// * [gnouser](/r/demo/users:gnouser)
+//  * [satoshi](/r/demo/users:satoshi)
 //
 // ========================================
 // ## user gnouser
