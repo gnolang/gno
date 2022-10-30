@@ -23,34 +23,65 @@ func Register(namespace string) {
 	// - already exists / reserved.
 	// - min/max length, format.
 	// - fees (dynamic, based on length).
-	panic("not implemented")
+	if existsNamespace(namespace) {
+		panic("namespace already exists")
+	}
+
+	caller := std.GetOrigCaller()
+	namespaces.Set(namespace, Space{
+		Admins: []std.Address{caller},
+	})
 }
 
 func AddAdmin(namespace string, newAdmin std.Address) {
-	// TODO: assertIsAdmin()
-	panic("not implemented")
+	assertIsAdmin(namespace)
+
+	space := getSpace(namespace)
+	if !containsAddress(space.Admins, newAdmin) {
+		space.Admins = append(space.Admins, newAdmin)
+	}
 }
 
 func RemoveAdmin(namespace string, newAdmin std.Address) {
-	// TODO: assertIsAdmin()
 	// TODO: check if self.
-	panic("not implemented")
+	assertIsAdmin(namespace)
+
+	// remove admin
+	space := getSpace(namespace)
+	for i, admin := range space.Admins {
+		if admin == newAdmin {
+			space.Admins = append(space.Admins[:i], space.Admins[i+1:]...)
+			break
+		}
+	}
 }
 
-func AddEditor(namespace string, newAdmin std.Address) {
-	// TODO: assertIsAdmin()
-	panic("not implemented")
+func AddEditor(namespace string, newEditor std.Address) {
+	assertIsAdmin(namespace)
+	space := getSpace(namespace)
+
+	if !containsAddress(space.Editors, newEditor) {
+		space.Editors = append(space.Editors, newEditor)
+	}
 }
 
-func RemoveEditor(namespace string, newAdmin std.Address) {
-	// TODO: assertIsAdmin()
-	// TODO: check if self.
-	panic("not implemented")
+func RemoveEditor(namespace string, newEditor std.Address) {
+	assertIsAdmin(namespace)
+
+	// remove editor
+	space := getSpace(namespace)
+	for i, editor := range space.Editors {
+		if editor == newEditor {
+			space.Editors = append(space.Editors[:i], space.Editors[i+1:]...)
+			break
+		}
+	}
 }
 
 func SetInPause(namespace string, state bool) {
-	// TODO: assertIsAdmin()
-	panic("not implemented")
+	assertIsAdmin(namespace)
+	space := getSpace(namespace)
+	space.InPause = state
 }
 
 func Render(path string) string {
