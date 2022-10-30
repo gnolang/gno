@@ -65,11 +65,12 @@ func main() {
 
 	app.Router.Handle("/", handlerHome(app))
 	app.Router.Handle("/faucet", handlerFaucet(app))
-	app.Router.Handle("/r/boards:gnolang/6", handlerRedirect(app))
+	app.Router.Handle("/r/demo/boards:gnolang/6", handlerRedirect(app))
 	// NOTE: see rePathPart.
-	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*}", handlerRealmMain(app))
-	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*}:{querystr:.*}", handlerRealmRender(app))
-	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*}/{filename:.*}", handlerRealmFile(app))
+	// FIXME: use better regexp to support any depth.
+	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*/[a-z][a-z0-9_]*}", handlerRealmMain(app))
+	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*/[a-z][a-z0-9_]*}:{querystr:.*}", handlerRealmRender(app))
+	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*/[a-z][a-z0-9_]*}/{filename:.*}", handlerRealmFile(app))
 	app.Router.Handle("/p/{filepath:.*}", handlerPackageFile(app))
 	app.Router.Handle("/static/{path:.+}", handlerStaticFile(app))
 	app.Router.Handle("/favicon.ico", handlerFavicon(app))
@@ -276,7 +277,7 @@ func handlerRealmFile(app gotuna.App) http.Handler {
 func handlerPackageFile(app gotuna.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
-		pkgpath := "gno.land/p/demo/" + vars["filepath"]
+		pkgpath := "gno.land/p/" + vars["filepath"]
 		diruri, filename := std.SplitFilepath(pkgpath)
 		if filename == "" && diruri == pkgpath {
 			// redirect to diruri + "/"

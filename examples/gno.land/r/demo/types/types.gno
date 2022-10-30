@@ -45,3 +45,7 @@ func Panic()                    { panic("PANIC!") }
 // TODO: ret interface
 // TODO: recover
 // TODO: take types as input
+
+func Render(path string) string {
+	return "package to test data types."
+}
