@@ -50,7 +50,7 @@ func ModDelCommenter(addr std.Address) {
 func ModDelComment(slug string, index int) {
 	assertIsModerator()
 
-	err := b.GetPost(slug).DeleteComment(caller, index)
+	err := b.GetPost(slug).DeleteComment(index)
 	checkErr(err)
 }
 

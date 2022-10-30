@@ -144,7 +144,7 @@ func (p *Post) DeleteComment(index int) error {
 		return ErrNoSuchPost
 	}
 	commentKey := strconv.Itoa(index)
-	p.Comments.Unset(commentKey)
+	p.Comments.Remove(commentKey)
 	return nil
 }
 
