@@ -47,6 +47,13 @@ func ModDelCommenter(addr std.Address) {
 	commenterList.Set(addr.String(), false) // FIXME: delete instead?
 }
 
+func ModDelComment(slug string, index int) {
+	assertIsModerator()
+
+	err := b.GetPost(slug).DeleteComment(index)
+	checkErr(err)
+}
+
 func isAdmin(addr std.Address) bool {
 	return addr == adminAddr
 }
