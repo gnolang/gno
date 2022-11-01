@@ -4,12 +4,12 @@ import (
 	"std"
 )
 
-func getSpace(namespace string) Space {
+func getSpace(namespace string) *Space {
 	s, ok := namespaces.Get(namespace)
 	if !ok {
 		panic("namespace does not exist")
 	}
-	return s.(Space)
+	return s.(*Space)
 }
 
 func existsNamespace(name string) bool {

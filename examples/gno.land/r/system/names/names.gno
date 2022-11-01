@@ -28,8 +28,9 @@ func Register(namespace string) {
 	}
 
 	caller := std.GetOrigCaller()
-	namespaces.Set(namespace, Space{
-		Admins: []std.Address{caller},
+	namespaces.Set(namespace, &Space{
+		Admins:  []std.Address{caller},
+		InPause: true,
 	})
 }
 
@@ -48,6 +49,9 @@ func RemoveAdmin(namespace string, newAdmin std.Address) {
 
 	// remove admin
 	space := getSpace(namespace)
+	if len(space.Admins) == 1 {
+		panic("namespace at least needs one admin")
+	}
 	for i, admin := range space.Admins {
 		if admin == newAdmin {
 			space.Admins = append(space.Admins[:i], space.Admins[i+1:]...)
