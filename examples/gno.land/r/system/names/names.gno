@@ -29,8 +29,7 @@ func Register(namespace string) {
 
 	caller := std.GetOrigCaller()
 	namespaces.Set(namespace, &Space{
-		Admins:  []std.Address{caller},
-		InPause: true,
+		Admins: []std.Address{caller},
 	})
 }
 
