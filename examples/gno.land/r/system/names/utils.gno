@@ -34,3 +34,10 @@ func containsAddress(addrs []std.Address, addr std.Address) bool {
 	}
 	return false
 }
+
+func formatBool(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
+}

@@ -5,6 +5,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/ufmt"
 )
 
 // "AddPkg" will check if r/system/names exists. If yes, it will
@@ -88,7 +89,55 @@ func SetInPause(namespace string, state bool) {
 }
 
 func Render(path string) string {
-	// TODO: by namespace.
 	// TODO: by address.
-	return "not implemented"
+
+	if path == "" {
+		return renderIndex()
+	} else if path[:2] == "n/" {
+		return renderNamespace(path[2:])
+	}
+	return ""
+}
+
+func renderNamespace(namespace string) string {
+	space := getSpace(namespace)
+	output := ufmt.Sprintf(`
+# %s
+
+## Admins
+
+%s
+
+## Editors
+
+%s
+
+## InPause
+
+%s
+
+`, namespace, renderAddresses(space.Admins), renderAddresses(space.Editors), formatBool(space.InPause))
+	return output
+
+}
+
+func renderIndex() string {
+	output := "## Namespaces \n"
+	namespaces.Iterate("", "", func(n *avl.Tree) bool {
+		namespace := n.Key()
+		space := n.Value().(*Space)
+		output += ufmt.Sprintf("* [%s](/r/system/names:n/%s) -	admins: %d editors: %d inPause: %s \n",
+			namespace, namespace, len(space.Admins), len(space.Editors), formatBool(space.InPause))
+		return false
+	})
+
+	return output
+}
+
+func renderAddresses(addresses []std.Address) string {
+	output := ""
+	for _, address := range addresses {
+		output += ufmt.Sprintf("* %s \n", string(address))
+	}
+	return output
 }
