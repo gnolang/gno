@@ -8,7 +8,7 @@ import (
 )
 
 var b = &blog.Blog{
-	Prefix: "r/gnoland/blog:",
+	Prefix: "/r/gnoland/blog:",
 }
 
 func ModAddPost(slug, title, body, tags string) {

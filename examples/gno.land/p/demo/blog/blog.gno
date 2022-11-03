@@ -182,8 +182,8 @@ func (p *Post) RenderListItem() string {
 	}
 	output := ""
 	output += ufmt.Sprintf("## [%s](%s)\n", p.Title, p.URL())
-	output += p.Summary() + "\n"
-	output += p.RenderTagList() + "\n"
+	output += p.Summary() + "\n\n"
+	output += p.RenderTagList() + "\n\n"
 	output += formatAuthorAndDate(p.Author, p.CreatedAt) + "\n"
 	output += "\n"
 	return output
@@ -195,8 +195,8 @@ func (p *Post) RenderPage() string {
 	}
 	output := ""
 	output += ufmt.Sprintf("## [%s](%s)\n", p.Title, p.URL())
-	output += p.Body + "\n"
-	output += p.RenderTagList() + "\n"
+	output += p.Body + "\n\n"
+	output += p.RenderTagList() + "\n\n"
 	output += formatAuthorAndDate(p.Author, p.CreatedAt) + "\n"
 	output += "\n"
 
