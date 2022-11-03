@@ -110,27 +110,28 @@ comment2
 		assertMDEquals(t, got, expected)
 	}
 
-	/*
-			// edit post.
-			{
-				ModAddPost("slug2", "title2++", "body2++", "tag1,tag4")
-				got := Render("p/slug2")
-				expected := `
-		# Gnoland's Blog
+	// edit post.
+	{
+		ModEditPost("slug2", "title2++", "body2++", "tag1,tag4")
+		got := Render("p/slug2")
+		expected := `
+# Gnoland's Blog
 
-		## [title2++](/r/gnoland/blog:p/slug2)
-		body2++
-		[tag1](/r/gnoland/blog:t/tag1) [tag3](/r/gnoland/blog:t/tag3)
-		by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
+## [title2++](/r/gnoland/blog:p/slug2)
+body2++
 
-		#### by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
-		comment4
+[tag1](/r/gnoland/blog:t/tag1) [tag4](/r/gnoland/blog:t/tag4)
 
-		#### by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
-		comment2
-		`
-			}
-	*/
+by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
+
+#### by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
+comment4
+
+#### by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
+comment2
+`
+		assertMDEquals(t, got, expected)
+	}
 
 	// TODO: pagination.
 	// TODO: ?format=...
