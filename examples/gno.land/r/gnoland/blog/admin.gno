@@ -4,6 +4,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl"
+	"strings"
 )
 
 var (
@@ -35,6 +36,23 @@ func AdminAddModerator(addr std.Address) {
 func AdminRemoveModerator(addr std.Address) {
 	assertIsAdmin()
 	moderatorList.Set(addr.String(), false) // FIXME: delete instead?
+}
+
+func ModAddPost(slug, title, body, tags string) {
+	assertIsModerator()
+
+	caller := std.GetOrigCaller()
+	tagList := strings.Split(tags, ",")
+	err := b.NewPost(caller, slug, title, body, tagList)
+	checkErr(err)
+}
+
+func ModEditPost(slug, title, body, tags string) {
+	assertIsModerator()
+
+	tagList := strings.Split(tags, ",")
+	err := b.GetPost(slug).Update(title, body, tagList)
+	checkErr(err)
 }
 
 func ModAddCommenter(addr std.Address) {

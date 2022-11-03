@@ -72,33 +72,41 @@ func (b Blog) Render(path string) string {
 }
 
 func (b *Blog) NewPost(author std.Address, slug, title, body string, tags []string) error {
-	title = strings.TrimSpace(title)
-	body = strings.TrimSpace(body)
-
-	if title == "" {
-		return errors.New("title is missing.")
-	}
-	if body == "" {
-		return errors.New("body is missing.")
-	}
-	if slug == "" {
-		return errors.New("slug is missing.")
-	}
-	post := b.GetPost(slug)
-	if post != nil {
+	_, found := b.Posts.Get(slug)
+	if found {
 		return errors.New("slug already exists.")
 	}
 
-	// more input sanitization?
-	b.Posts.Set(slug, &Post{
-		Blog:      b,
+	post := Post{
+		Author:    author,
 		Slug:      slug,
 		Title:     title,
 		Body:      body,
-		CreatedAt: time.Now(),
-		Author:    author,
 		Tags:      tags,
-	})
+		CreatedAt: time.Now(),
+	}
+	return b.prepareAndSetPost(&post)
+}
+
+func (b *Blog) prepareAndSetPost(post *Post) error {
+	post.Title = strings.TrimSpace(post.Title)
+	post.Body = strings.TrimSpace(post.Body)
+
+	if post.Title == "" {
+		return errors.New("title is missing.")
+	}
+	if post.Body == "" {
+		return errors.New("body is missing.")
+	}
+	if post.Slug == "" {
+		return errors.New("slug is missing.")
+	}
+	// more input sanitization?
+
+	post.Blog = b
+	post.UpdatedAt = time.Now()
+
+	b.Posts.Set(post.Slug, post)
 	return nil
 }
 
@@ -116,10 +124,18 @@ type Post struct {
 	Title        string
 	Body         string
 	CreatedAt    time.Time
+	UpdatedAt    time.Time
 	Comments     avl.MutTree
 	Author       std.Address
 	Tags         []string
 	CommentIndex int
+}
+
+func (p *Post) Update(title, body string, tags []string) error {
+	p.Title = title
+	p.Body = body
+	p.Tags = tags
+	return p.Blog.prepareAndSetPost(p)
 }
 
 func (p *Post) AddComment(author std.Address, comment string) error {
@@ -166,8 +182,8 @@ func (p *Post) RenderListItem() string {
 	}
 	output := ""
 	output += ufmt.Sprintf("## [%s](%s)\n", p.Title, p.URL())
-	output += p.Summary() + "\n"
-	output += p.RenderTagList() + "\n"
+	output += p.Summary() + "\n\n"
+	output += p.RenderTagList() + "\n\n"
 	output += formatAuthorAndDate(p.Author, p.CreatedAt) + "\n"
 	output += "\n"
 	return output
@@ -179,8 +195,8 @@ func (p *Post) RenderPage() string {
 	}
 	output := ""
 	output += ufmt.Sprintf("## [%s](%s)\n", p.Title, p.URL())
-	output += p.Body + "\n"
-	output += p.RenderTagList() + "\n"
+	output += p.Body + "\n\n"
+	output += p.RenderTagList() + "\n\n"
 	output += formatAuthorAndDate(p.Author, p.CreatedAt) + "\n"
 	output += "\n"
 
