@@ -2,6 +2,8 @@
 package names
 
 import (
+	"errors"
+	"regexp"
 	"std"
 
 	"gno.land/p/demo/avl"
@@ -12,6 +14,9 @@ import (
 // inspect the realm's state and use the following variable to
 // determine if an address can publish a package or not.
 var namespaces avl.Tree // name(string) -> Space
+
+// TODO: more accurate.
+var reNamespace = regexp.MustCompile(`^[a-z][a-z0-9_]{2,30}$`)
 
 type Space struct {
 	Admins  []std.Address
@@ -26,6 +31,10 @@ func Register(namespace string) {
 	// - fees (dynamic, based on length).
 	if existsNamespace(namespace) {
 		panic("namespace already exists")
+	}
+
+	if err := validateNamespace(namespace); err != nil {
+		panic(err)
 	}
 
 	caller := std.GetOrigCaller()
@@ -52,12 +61,14 @@ func RemoveAdmin(namespace string, newAdmin std.Address) {
 	if len(space.Admins) == 1 {
 		panic("namespace at least needs one admin")
 	}
+	var admins []std.Address
 	for i, admin := range space.Admins {
 		if admin == newAdmin {
-			space.Admins = append(space.Admins[:i], space.Admins[i+1:]...)
+			admins = append(space.Admins[:i], space.Admins[i+1:]...)
 			break
 		}
 	}
+	space.Admins = admins
 }
 
 func AddEditor(namespace string, newEditor std.Address) {
@@ -74,18 +85,40 @@ func RemoveEditor(namespace string, newEditor std.Address) {
 
 	// remove editor
 	space := getSpace(namespace)
+	var editors []std.Address
 	for i, editor := range space.Editors {
 		if editor == newEditor {
-			space.Editors = append(space.Editors[:i], space.Editors[i+1:]...)
+			editors = append(space.Editors[:i], space.Editors[i+1:]...)
 			break
 		}
 	}
+	space.Editors = editors
 }
 
 func SetInPause(namespace string, state bool) {
 	assertIsAdmin(namespace)
 	space := getSpace(namespace)
 	space.InPause = state
+}
+
+// HasPerm returns true if the caller has permission of the namespace.
+func HasPerm(namespace string) bool {
+	caller := std.GetOrigCaller()
+	space := getSpace(namespace)
+
+	if space.InPause {
+		return false
+	}
+
+	if containsAddress(space.Admins, caller) {
+		return true
+	}
+
+	if containsAddress(space.Editors, caller) {
+		return true
+	}
+
+	return false
 }
 
 func Render(path string) string {
@@ -140,4 +173,11 @@ func renderAddresses(addresses []std.Address) string {
 		output += ufmt.Sprintf("* %s \n", string(address))
 	}
 	return output
+}
+
+func validateNamespace(namespace string) error {
+	if !reNamespace.MatchString(namespace) {
+		return errors.New("invalid namespace")
+	}
+	return nil
 }
