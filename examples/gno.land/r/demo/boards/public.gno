@@ -23,7 +23,7 @@ func CreateBoard(name string) BoardID {
 	if usernameOf(caller) == "" {
 		panic("unauthorized")
 	}
-	url := "/r/boards:" + name
+	url := "/r/demo/boards:" + name
 	board := newBoard(bid, url, name, caller)
 	bidkey := boardIDKey(bid)
 	gBoards.Set(bidkey, board)

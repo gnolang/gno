@@ -37,13 +37,13 @@ func main() {
 // # Second Post (title)
 //
 // Body of the second post. (body)
-// \- [@gnouser](/r/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/boards:test_board/2) \[[reply](/r/boards?help&__func=CreateReply&bid=1&threadid=2&postid=2&body.type=textarea)] \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=2&postid=2)]
+// \- [@gnouser](/r/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2) \[[reply](/r/demo/boards?help&__func=CreateReply&bid=1&threadid=2&postid=2&body.type=textarea)] \[[x](/r/demo/boards?help&__func=DeletePost&bid=1&threadid=2&postid=2)]
 //
 // > Reply of the second post
-// > \- [@gnouser](/r/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/boards:test_board/2/3) \[[reply](/r/boards?help&__func=CreateReply&bid=1&threadid=2&postid=3&body.type=textarea)] \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=2&postid=3)]
+// > \- [@gnouser](/r/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2/3) \[[reply](/r/demo/boards?help&__func=CreateReply&bid=1&threadid=2&postid=3&body.type=textarea)] \[[x](/r/demo/boards?help&__func=DeletePost&bid=1&threadid=2&postid=3)]
 //
 // > Second reply of the second post
-// > \- [@gnouser](/r/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/boards:test_board/2/4) \[[reply](/r/boards?help&__func=CreateReply&bid=1&threadid=2&postid=4&body.type=textarea)] \[[x](/r/boards?help&__func=DeletePost&bid=1&threadid=2&postid=4)]
+// > \- [@gnouser](/r/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2/4) \[[reply](/r/demo/boards?help&__func=CreateReply&bid=1&threadid=2&postid=4&body.type=textarea)] \[[x](/r/demo/boards?help&__func=DeletePost&bid=1&threadid=2&postid=4)]
 
 // Realm:
 // switchrealm["gno.land/r/demo/users"]
@@ -353,10 +353,10 @@ func main() {
 //             }
 //         },
 //         {
-//             "N": "AQAAAAAAAAA=",
+//             "N": "AbSNdvQQIhE=",
 //             "T": {
 //                 "@type": "/gno.PrimitiveType",
-//                 "value": "512"
+//                 "value": "1024"
 //             }
 //         },
 //         {
@@ -583,7 +583,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.RefValue",
-//                 "Hash": "473ebae2198b5da431f3e10dd096771d0f875e57",
+//                 "Hash": "91a60131fc119b8a406c4be71e1e991e37ca522b",
 //                 "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:114"
 //             }
 //         },
@@ -859,7 +859,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.StringValue",
-//                 "value": "/r/boards:test_board"
+//                 "value": "/r/demo/boards:test_board"
 //             }
 //         },
 //         {
@@ -901,7 +901,7 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.RefValue",
-//                         "Hash": "6ad00e275d3df4913ee6ba915402551bf94a0455",
+//                         "Hash": "ecc6212ef0cb96a4785bb34427a7d0ee7f4c8400",
 //                         "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:82"
 //                     }
 //                 }
@@ -921,7 +921,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.RefValue",
-//                 "Hash": "3d2fa15e3c161b6f3421b2138c89ed817a5b18bd",
+//                 "Hash": "7e9fd9bb5e90a06c7751585cd80f23aedddde25b",
 //                 "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:83"
 //             }
 //         },

@@ -155,7 +155,7 @@ func (post *Post) GetURL() string {
 }
 
 func (post *Post) GetReplyFormURL() string {
-	return "/r/boards?help&__func=CreateReply" +
+	return "/r/demo/boards?help&__func=CreateReply" +
 		"&bid=" + post.board.id.String() +
 		"&threadid=" + post.threadID.String() +
 		"&postid=" + post.id.String() +
@@ -163,7 +163,7 @@ func (post *Post) GetReplyFormURL() string {
 }
 
 func (post *Post) GetDeleteFormURL() string {
-	return "/r/boards?help&__func=DeletePost" +
+	return "/r/demo/boards?help&__func=DeletePost" +
 		"&bid=" + post.board.id.String() +
 		"&threadid=" + post.threadID.String() +
 		"&postid=" + post.id.String()
