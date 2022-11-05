@@ -26,6 +26,16 @@ func assertIsAdmin(namespace string) {
 	}
 }
 
+func removeAddress(addrs []std.Address, addr std.Address) []std.Address {
+	var newAddrs []std.Address
+	for _, a := range addrs {
+		if a != addr {
+			newAddrs = append(newAddrs, a)
+		}
+	}
+	return newAddrs
+}
+
 func containsAddress(addrs []std.Address, addr std.Address) bool {
 	for _, a := range addrs {
 		if a == addr {
@@ -33,6 +43,12 @@ func containsAddress(addrs []std.Address, addr std.Address) bool {
 		}
 	}
 	return false
+}
+
+func checkErr(err error) {
+	if err != nil {
+		panic(err)
+	}
 }
 
 func formatBool(b bool) string {

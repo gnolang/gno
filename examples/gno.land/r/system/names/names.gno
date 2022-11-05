@@ -24,6 +24,49 @@ type Space struct {
 	InPause bool
 }
 
+func (s *Space) addAdmin(newAdmin std.Address) {
+	if !containsAddress(s.Admins, newAdmin) {
+		s.Admins = append(s.Admins, newAdmin)
+	}
+}
+
+func (s *Space) removeAdmin(admin std.Address) error {
+	if len(s.Admins) == 1 {
+		return errors.New("namespace at least needs one admin")
+	}
+	admins := removeAddress(s.Admins, admin)
+	s.Admins = admins
+	return nil
+}
+
+func (s *Space) addEditor(newEditor std.Address) {
+	if !containsAddress(s.Editors, newEditor) {
+		s.Editors = append(s.Editors, newEditor)
+	}
+}
+
+func (s *Space) removeEditor(editor std.Address) error {
+	editors := removeAddress(s.Editors, editor)
+	s.Editors = editors
+	return nil
+}
+
+func (s *Space) hasPerm(caller std.Address) bool {
+	if s.InPause {
+		return false
+	}
+
+	if containsAddress(s.Admins, caller) {
+		return true
+	}
+
+	if containsAddress(s.Editors, caller) {
+		return true
+	}
+
+	return false
+}
+
 func Register(namespace string) {
 	// TODO: input sanitization:
 	// - already exists / reserved.
@@ -45,54 +88,28 @@ func Register(namespace string) {
 
 func AddAdmin(namespace string, newAdmin std.Address) {
 	assertIsAdmin(namespace)
-
 	space := getSpace(namespace)
-	if !containsAddress(space.Admins, newAdmin) {
-		space.Admins = append(space.Admins, newAdmin)
-	}
+	space.addAdmin(newAdmin)
 }
 
-func RemoveAdmin(namespace string, newAdmin std.Address) {
-	// TODO: check if self.
+func RemoveAdmin(namespace string, admin std.Address) {
 	assertIsAdmin(namespace)
-
-	// remove admin
 	space := getSpace(namespace)
-	if len(space.Admins) == 1 {
-		panic("namespace at least needs one admin")
-	}
-	var admins []std.Address
-	for i, admin := range space.Admins {
-		if admin == newAdmin {
-			admins = append(space.Admins[:i], space.Admins[i+1:]...)
-			break
-		}
-	}
-	space.Admins = admins
+	err := space.removeAdmin(admin)
+	checkErr(err)
 }
 
 func AddEditor(namespace string, newEditor std.Address) {
 	assertIsAdmin(namespace)
 	space := getSpace(namespace)
-
-	if !containsAddress(space.Editors, newEditor) {
-		space.Editors = append(space.Editors, newEditor)
-	}
+	space.addEditor(newEditor)
 }
 
-func RemoveEditor(namespace string, newEditor std.Address) {
+func RemoveEditor(namespace string, editor std.Address) {
 	assertIsAdmin(namespace)
-
-	// remove editor
 	space := getSpace(namespace)
-	var editors []std.Address
-	for i, editor := range space.Editors {
-		if editor == newEditor {
-			editors = append(space.Editors[:i], space.Editors[i+1:]...)
-			break
-		}
-	}
-	space.Editors = editors
+	err := space.removeEditor(editor)
+	checkErr(err)
 }
 
 func SetInPause(namespace string, state bool) {
@@ -102,23 +119,14 @@ func SetInPause(namespace string, state bool) {
 }
 
 // HasPerm returns true if the caller has permission of the namespace.
+// If the namespace does not exist, it will return panic.
+// If the namespace exists but the caller is not an admin or editor,
+// it will return false.
+// The vm keeper will use this function to check to add package
 func HasPerm(namespace string) bool {
 	caller := std.GetOrigCaller()
 	space := getSpace(namespace)
-
-	if space.InPause {
-		return false
-	}
-
-	if containsAddress(space.Admins, caller) {
-		return true
-	}
-
-	if containsAddress(space.Editors, caller) {
-		return true
-	}
-
-	return false
+	return space.hasPerm(caller)
 }
 
 func Render(path string) string {
