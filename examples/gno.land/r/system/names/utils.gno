@@ -17,11 +17,9 @@ func existsNamespace(name string) bool {
 	return ok
 }
 
-func assertIsAdmin(namespace string) {
+func assertIsAdmin(space *Space) {
 	caller := std.GetOrigCaller()
-	space := getSpace(namespace)
-
-	if !containsAddress(space.Admins, caller) {
+	if !space.isAdmin(caller) {
 		panic("Only admins can call this function")
 	}
 }

@@ -24,6 +24,13 @@ type Space struct {
 	InPause bool
 }
 
+func (s *Space) isAdmin(addr std.Address) bool {
+	if containsAddress(s.Admins, addr) {
+		return true
+	}
+	return false
+}
+
 func (s *Space) addAdmin(newAdmin std.Address) {
 	if !containsAddress(s.Admins, newAdmin) {
 		s.Admins = append(s.Admins, newAdmin)
@@ -87,34 +94,34 @@ func Register(namespace string) {
 }
 
 func AddAdmin(namespace string, newAdmin std.Address) {
-	assertIsAdmin(namespace)
 	space := getSpace(namespace)
+	assertIsAdmin(space)
 	space.addAdmin(newAdmin)
 }
 
 func RemoveAdmin(namespace string, admin std.Address) {
-	assertIsAdmin(namespace)
 	space := getSpace(namespace)
+	assertIsAdmin(space)
 	err := space.removeAdmin(admin)
 	checkErr(err)
 }
 
 func AddEditor(namespace string, newEditor std.Address) {
-	assertIsAdmin(namespace)
 	space := getSpace(namespace)
+	assertIsAdmin(space)
 	space.addEditor(newEditor)
 }
 
 func RemoveEditor(namespace string, editor std.Address) {
-	assertIsAdmin(namespace)
 	space := getSpace(namespace)
+	assertIsAdmin(space)
 	err := space.removeEditor(editor)
 	checkErr(err)
 }
 
 func SetInPause(namespace string, state bool) {
-	assertIsAdmin(namespace)
 	space := getSpace(namespace)
+	assertIsAdmin(space)
 	space.InPause = state
 }
 
