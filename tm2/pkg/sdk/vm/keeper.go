@@ -9,6 +9,7 @@ import (
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
@@ -128,6 +129,35 @@ func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 	}
 }
 
+func (vm *VMKeeper) checkNamespacePerm(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
+	store := vm.getGnoStore(ctx)
+
+	// if r/system/names does not exists -> skip validation.
+	if pv := store.GetPackage("gno.land/r/system/names", false); pv == nil {
+		return nil
+	}
+
+	pathSp := strings.SplitN(pkgPath, "/", 4) // gno.land/r/...
+	namespace := pathSp[2]
+
+	res, err := vm.Call(ctx, MsgCall{
+		Caller:  creator,
+		Send:    std.Coins{},
+		PkgPath: "gno.land/r/system/names",
+		Func:    "HasPerm",
+		Args:    []string{namespace},
+	})
+	if err != nil {
+		return err
+	}
+	//TODO: needs fixed representation of bool
+	if res != "(true bool)" {
+		return fmt.Errorf("namespace %q not allowed", namespace)
+	}
+
+	return nil
+}
+
 // AddPackage adds a package with given fileset.
 func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	creator := msg.Creator
@@ -153,12 +183,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	// Pay deposit from creator.
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
 
-	// TODO: ACLs.
-	// - if r/system/names does not exists -> skip validation.
-	// - loads r/system/names data state.
-	// - lookup r/system/names.namespaces for `{r,p}/NAMES`.
-	// - check if caller is in Admins or Editors.
-	// - check if namespace is not in pause.
+	if err := vm.checkNamespacePerm(ctx, creator, pkgPath); err != nil {
+		return err
+	}
 
 	err := vm.bank.SendCoins(ctx, creator, pkgAddr, deposit)
 	if err != nil {
