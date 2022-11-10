@@ -80,9 +80,8 @@ func Register(namespace string) {
 		panic("namespace already exists")
 	}
 
-	if err := validateNamespace(namespace); err != nil {
-		panic(err)
-	}
+	err := validateNamespace(namespace)
+	checkErr(err)
 
 	caller := std.GetOrigCaller()
 	namespaces.Set(namespace, &Space{
