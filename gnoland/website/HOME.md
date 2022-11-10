@@ -23,6 +23,8 @@ Explore new packages.
  * [/r/system/names](/r/system/names)
  * [/r/system/rewards](/r/system/rewards)
  * [/r/system/validators](/r/system/validators)
+ * [/r/demo/groups](/r/demo/groups)
+
 
 This is a testnet.
 Package names are not guaranteed to be available for production.
