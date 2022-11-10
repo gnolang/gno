@@ -21,7 +21,6 @@ func GetGroupIDFromName(name string) (GroupID, bool) {
 
 func CreateGroup(name string) GroupID {
 
-	//m := membInpParser(memberList)
 	std.AssertOriginCall()
 	gid := incGetGroupID()
 	caller := std.GetOrigCaller()
@@ -33,21 +32,6 @@ func CreateGroup(name string) GroupID {
 	gidkey := groupIDKey(gid)
 	gGroups.Set(gidkey, group)
 	gGroupsByName.Set(name, group)
-
-	/*for i, j := range m {
-		mid := group.lastMemberID
-		//check if user address is valid and exist
-		user := users.GetUserByAddress(std.Address(j.address))
-		if user == nil {
-			continue
-		}
-		member := newMember(mid, gid, j.address, j.weight, j.metadata)
-		midkey := memberIDKey(mid)
-		group.members.Set(midkey, member)
-		mid++
-		group.lastMemberID = mid
-	}*/
-
 	return group.id
 }
 
