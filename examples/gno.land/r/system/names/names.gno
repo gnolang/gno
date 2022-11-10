@@ -25,10 +25,7 @@ type Space struct {
 }
 
 func (s *Space) isAdmin(addr std.Address) bool {
-	if containsAddress(s.Admins, addr) {
-		return true
-	}
-	return false
+	return containsAddress(s.Admins, addr)
 }
 
 func (s *Space) addAdmin(newAdmin std.Address) {
