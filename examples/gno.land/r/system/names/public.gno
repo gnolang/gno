@@ -34,6 +34,7 @@ func AddAdmin(namespace string, newAdmin std.Address) {
 func RemoveAdmin(namespace string, admin std.Address) {
 	space := getSpace(namespace)
 	assertIsAdmin(space)
+	// TODO: prevent self
 	err := space.removeAdmin(admin)
 	checkErr(err)
 }
