@@ -2,7 +2,6 @@ package groups
 
 import (
 	"std"
-	"strconv"
 
 	"gno.land/r/demo/users"
 )
