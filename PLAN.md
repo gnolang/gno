@@ -9,6 +9,7 @@ the Discord server.
 * Create snapshot of the Cosmos hub _COMPLETE_
 * Launch testnet with validator set changes
 * Put bounties in r/gnoland/bounties
+* Use IBC2 to fetch gnolang libraries from another chain
 
 ## Technical Plan
 
@@ -42,6 +43,20 @@ presence of multiple channels to select from.
 * Port TendermintClassic w/ AminoX with minimal dependencies _COMPLETE_.
 * Port minimal SDK.
 * Integrate Gnolang to SDK/BaseApp.
+
+### Proof-of-Contributions
+
+* Phase1: implement tiered membership
+* Phase2: implement GNOSH
+* Phase3: implement interchain licensing
+
+### Gnode
+
+* TODO: define plan
+
+### IBC2
+
+* TODO: define plan
 
 ## Token Plan
 
