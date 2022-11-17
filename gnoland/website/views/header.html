@@ -3,3 +3,29 @@
   <a href="https://github.com/gnolang/gno"><img src="/static/img/github-mark-32px.png" alt="Github"/></a>
 </div>
 {{ end }}
+
+{{define "html_head"}}
+  <link rel="stylesheet" href="/static/css/app.css"/>
+{{ end }}
+
+{{ define "header_logo" }}
+  <a id="logo" href="/"><img src="/static/img/logo.png" alt="Gno.land" title="Gno.land" height="38" /> </a>
+{{ end }}
+
+{{ define "footer" }}
+{{ end }}
+
+{{ define "js" }}
+  <script type="text/javascript" src="/static/js/marked.min.js"></script>
+  <script type="text/javascript" src="/static/js/purify.min.js"></script>
+  <script type="text/javascript">
+    function main() {
+        marked.setOptions({gfm:true});
+        window.contents = document.getElementById("source").innerHTML;
+        var doc = new DOMParser().parseFromString(window.contents, "text/html");
+        var contents = doc.documentElement.textContent
+        var parsed = marked.parse(contents);
+        document.getElementById("home").innerHTML = DOMPurify.sanitize(parsed, { USE_PROFILES: { html: true } });
+    };
+  </script>
+{{ end }}
