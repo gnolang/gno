@@ -30,19 +30,9 @@ No posts.
 		expected := `
 # Gnoland's Blog
 
-## [title1](/r/gnoland/blog:p/slug1)
-body1
+## [&#9656; title1](/r/gnoland/blog:p/slug1)
 
-[tag1](/r/gnoland/blog:t/tag1) [tag2](/r/gnoland/blog:t/tag2)
-
-by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
-
-## [title2](/r/gnoland/blog:p/slug2)
-body2
-
-[tag1](/r/gnoland/blog:t/tag1) [tag3](/r/gnoland/blog:t/tag3)
-
-by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
+## [&#9656; title2](/r/gnoland/blog:p/slug2)
 `
 		assertMDEquals(t, got, expected)
 	}
@@ -51,12 +41,11 @@ by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
 	{
 		got := Render("p/slug2")
 		expected := `
-# Gnoland's Blog
+# [Gnoland's Blog](/r/gnoland/blog:) / p / title2
 
-## [title2](/r/gnoland/blog:p/slug2)
 body2
 
-[tag1](/r/gnoland/blog:t/tag1) [tag3](/r/gnoland/blog:t/tag3)
+[#tag1](/r/gnoland/blog:t/tag1) [#tag3](/r/gnoland/blog:t/tag3)
 
 by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
 `
@@ -66,19 +55,14 @@ by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
 	// list by tags.
 	{
 		got := Render("t/invalid")
-		expected := "# Gnoland's Blog\n\nNo posts."
+		expected := "# [Gnoland's Blog](/r/gnoland/blog:) / t / invalid\n\nNo posts."
 		assertMDEquals(t, got, expected)
 
 		got = Render("t/tag2")
 		expected = `
-# Gnoland's Blog
+# [Gnoland's Blog](/r/gnoland/blog:) / t / tag2
 
-## [title1](/r/gnoland/blog:p/slug1)
-body1
-
-[tag1](/r/gnoland/blog:t/tag1) [tag2](/r/gnoland/blog:t/tag2)
-
-by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
+## [&#9656; title1](/r/gnoland/blog:p/slug1)
 `
 		assertMDEquals(t, got, expected)
 	}
@@ -92,12 +76,11 @@ by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
 		AddComment("slug1", "comment5")
 		got := Render("p/slug2")
 		expected := `
-# Gnoland's Blog
+# [Gnoland's Blog](/r/gnoland/blog:) / p / title2
 
-## [title2](/r/gnoland/blog:p/slug2)
 body2
 
-[tag1](/r/gnoland/blog:t/tag1) [tag3](/r/gnoland/blog:t/tag3)
+[#tag1](/r/gnoland/blog:t/tag1) [#tag3](/r/gnoland/blog:t/tag3)
 
 by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
 
@@ -115,12 +98,11 @@ comment2
 		ModEditPost("slug2", "title2++", "body2++", "tag1,tag4")
 		got := Render("p/slug2")
 		expected := `
-# Gnoland's Blog
+# [Gnoland's Blog](/r/gnoland/blog:) / p / title2++
 
-## [title2++](/r/gnoland/blog:p/slug2)
 body2++
 
-[tag1](/r/gnoland/blog:t/tag1) [tag4](/r/gnoland/blog:t/tag4)
+[#tag1](/r/gnoland/blog:t/tag1) [#tag4](/r/gnoland/blog:t/tag4)
 
 by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
 
@@ -150,7 +132,7 @@ comment2
 		}
 		for _, notFoundPath := range notFoundPaths {
 			got := Render(notFoundPath)
-			expected := "# Gnoland's Blog\n\n404"
+			expected := "404"
 			if got != expected {
 				t.Errorf("path %q: expected %q, got %q.", notFoundPath, expected, got)
 			}
