@@ -5,12 +5,12 @@
 {{ end }}
 
 {{define "html_head"}}
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="/static/css/app.css"/>
+  <link rel="stylesheet" href="/static/css/normalize.css"/>
 {{ end }}
 
-{{ define "header_logo" }}
-  <a id="logo" href="/"><img src="/static/img/logo.png" alt="Gno.land" title="Gno.land" height="38" /> </a>
-{{ end }}
+{{ define "header_logo" }}<a id="logo" href="/"><img src="/static/img/logo.png" alt="Gno.land" title="Gno.land" height="38" /> </a>{{ end }}
 
 {{ define "footer" }}
 {{ end }}

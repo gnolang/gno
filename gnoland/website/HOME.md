@@ -1,17 +1,10 @@
-Welcome to Gno.land devnet.
+Welcome to **Gno.land** devnet.
 
  * [Install `gnokey`](https://github.com/gnolang/gno/)
  * [Acquire testnet tokens](/faucet)
 
 Explore new packages.
 
-* r/demo
-  * [/r/demo/banktest](/r/demo/banktest)
-  * [/r/demo/boards](/r/demo/boards)
-  * [/r/demo/foo20](/r/demo/foo20)
-  * [/r/demo/nft](/r/demo/nft)
-  * [/r/demo/types](/r/demo/types)
-  * [/r/demo/users](/r/demo/users)
 * r/gnoland
   * [/r/gnoland/blog](/r/gnoland/blog)
   * [/r/gnoland/faucet](/r/gnoland/faucet)
@@ -19,6 +12,13 @@ Explore new packages.
   * [/r/system/names](/r/system/names)
   * [/r/system/rewards](/r/system/rewards)
   * [/r/system/validators](/r/system/validators)
+* r/demo
+  * [/r/demo/banktest](/r/demo/banktest)
+  * [/r/demo/boards](/r/demo/boards)
+  * [/r/demo/foo20](/r/demo/foo20)
+  * [/r/demo/nft](/r/demo/nft)
+  * [/r/demo/types](/r/demo/types)
+  * [/r/demo/users](/r/demo/users)
 * p/demo
   * [/p/demo/avl](/p/demo/avl)
   * [/p/demo/blog](/p/demo/blog)
