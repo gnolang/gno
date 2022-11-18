@@ -26,9 +26,10 @@ Explore new packages.
   * [/p/demo/gnode](/p/demo/gnode)
   * [/p/demo/grc/exts](/p/demo/grc/exts)
   * [/p/demo/grc/grc20](/p/demo/grc/grc20)
-  * [/p/demo/grc/grc721](/p/demo/grc/grc721)
+  * [/p/demo/grc/grc721](/p/demo/grc/grc721**
 
-This is a testnet.
+**This is a testnet.**
 Package names are not guaranteed to be available for production.
 
-Also, join our [Discord](https://discord.gg/tF2X8M6cVj).
+Also, check out some [community projects](https://github.com/gnolang/awesome-gno)
+and join our [Discord](https://discord.gg/tF2X8M6cVj).
