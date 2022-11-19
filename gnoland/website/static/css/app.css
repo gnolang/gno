@@ -80,18 +80,23 @@ pre {
   text-decoration: none;
 }
 
-#logo_path + * {
-  margin-left: auto;
+#logo_path {
+  padding-right: 12px;
 }
 
 #logo_path a:hover {
   text-decoration: underline;
 }
 
+#realm_links a {
+  font-size: 0.8rem;
+}
+
 #header_buttons {
   float: right;
   position: relative;
   padding-left: 22px;
+  margin-left: auto;
 }
 
 #home h1,
