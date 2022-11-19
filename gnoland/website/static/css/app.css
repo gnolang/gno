@@ -170,45 +170,45 @@ pre {
   padding: 0 22px;
 }
 
-.func_specs {
+#realm_help .func_specs {
   box-sizing: border-box;
   width: calc(100% + 44px);
   margin-left: -22px;
 }
 
-.func_spec {
+#realm_help .func_spec {
   padding: 22px;
   background: #d7d9db9e;
   margin-top: 22px;
 }
-.func_spec:nth-child(odd) {
+#realm_help .func_spec:nth-child(odd) {
   background: #d7d9db45;
 }
 
-div.func_spec > table > tbody > tr > th {
+#realm_help .func_spec > table > tbody > tr > th {
   width: 50px;
   vertical-align: top;
   text-align: right;
   color: #000;
 }
 
-.func_spec > table th,
-.func_spec > table td {
+#realm_help .func_spec > table th,
+#realm_help .func_spec > table td {
   padding-bottom: 16px;
 }
 
-.func_spec > table th + td {
+#realm_help .func_spec > table th + td {
   padding-left: 50px;
 }
 
-.func_spec > table th + td table td {
+#realm_help .func_spec > table th + td table td {
   padding-left: 12px;
 }
 
-.func_spec .shell_command {
+#realm_help .func_spec .shell_command {
   color: #5d5d5d;
 }
 
-.func_name td {
+#realm_help .func_name td {
   font-weight: bold;
 }
