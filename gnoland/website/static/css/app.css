@@ -63,6 +63,9 @@ pre {
 #header {
   background-color: #d7d9db;
   padding: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 #logo {
@@ -70,10 +73,15 @@ pre {
   position: relative;
   top: 4px;
   height: 45px;
+  padding-right: 22px;
 }
 
 #logo_path a {
   text-decoration: none;
+}
+
+#logo_path + * {
+  margin-left: auto;
 }
 
 #logo_path a:hover {
@@ -83,6 +91,7 @@ pre {
 #header_buttons {
   float: right;
   position: relative;
+  padding-left: 22px;
 }
 
 #home h1,
