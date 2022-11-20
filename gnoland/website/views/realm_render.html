@@ -2,45 +2,48 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <link rel="stylesheet" href="/static/css/app.css" />
-    <script type="text/javascript" src="/static/js/marked.min.js"></script>
-    <script type="text/javascript" src="/static/js/umbrella.min.js"></script>
-    <script type="text/javascript" src="/static/js/purify.min.js"></script>
-    <script type="text/javascript" src="/static/js/renderer.js"></script>
+    <title>Gno.land</title>
+    {{ template "html_head" }}
   </head>
   <body onload="main()">
-    <div id="header">
-      <a id="logo" href="/">GNO.LAND</a>
-      <span id="logo_path">
-        <a href="/r/{{ .Data.RealmName }}">/r/{{ .Data.RealmName }}</a>
-        {{- if .Data.Query -}}:{{- end -}} {{- range $index, $link :=
-        .Data.PathLinks -}} {{- if (gt $index 0) }}/{{ end -}}
-        <a href="{{ $link.URL }}">{{ $link.Text }}</a>
-        {{- end -}}
-      </span>
-      {{ template "header_buttons" }}
-      <span id="realm_links">
-        <a href="/r/{{ .Data.RealmName }}/">[source]</a>
-        <a href="/r/{{ .Data.RealmName }}?help">[help]</a>
-      </span>
+    <div id="root">
+      <div id="header">
+        {{ template "header_logo" }}<span id="logo_path"><a href="/r/{{ .Data.RealmName }}">/r/{{ .Data.RealmName }}</a>
+          {{- if .Data.Query -}}:{{- end -}} {{- range $index, $link := .Data.PathLinks -}} {{- if (gt $index 0) }}/{{ end -}}
+          <a href="{{ $link.URL }}">{{ $link.Text }}</a>
+          {{- end -}}
+        </span>
+        <span id="realm_links">
+          <a href="/r/{{ .Data.RealmName }}/">[source]</a>
+          <a href="/r/{{ .Data.RealmName }}?help">[help]</a>
+        </span>
+        {{ template "header_buttons" }}
+      </div>
+
+      <div id="realm_render">
+        <pre id="source">{{ .Data.Contents }}</pre>
+      </div>
+      {{ template "footer" }}
     </div>
-    <div id="realm_render">
-      <pre id="source">{{ .Data.Contents }}</pre>
-    </div>
+    {{ template "js" }}
+    <script type="text/javascript" src="/static/js/marked.min.js"></script>
+    <script type="text/javascript" src="/static/js/umbrella.min.js"></script>
+    <script type="text/javascript" src="/static/js/renderer.js"></script>
+    <script type="text/javascript">
+      function main() {
+        marked.setOptions({
+          gfm: true,
+        });
+        const source = u("#source").text();
+        const parsed = marked.parse(renderUsernames(source));
+        document.getElementById("realm_render").innerHTML = DOMPurify.sanitize(
+          parsed,
+          {
+            USE_PROFILES: { html: true },
+          }
+        );
+      }
+    </script>
   </body>
-  <script type="text/javascript">
-    function main() {
-      marked.setOptions({
-        gfm: true,
-      });
-      const source = u("#source").text();
-      const parsed = marked.parse(renderUsernames(source));
-      document.getElementById(
-        "realm_render"
-      ).innerHTML = DOMPurify.sanitize(parsed, {
-        USE_PROFILES: { html: true },
-      });
-    }
-  </script>
 </html>
 {{- end -}}

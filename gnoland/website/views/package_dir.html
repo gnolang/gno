@@ -2,19 +2,26 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <link rel="stylesheet" href="/static/css/app.css"/>
+    <title>Gno.land</title>
+    {{ template "html_head" }}
   </head>
-  <body>
-    <div id="header">
-      <a id="logo" href="/">GNO.LAND</a>
-      <span id="logo_path">
-        <a href="{{ .Data.DirPath }}">{{ .Data.DirPath }}</a>/*
-      </span>
-      {{ template "header_buttons" }}
+  <body onload="main()">
+    <div id="root">
+      <div id="header">
+        {{ template "header_logo" }}
+        <span id="logo_path">
+          <a href="{{ .Data.DirPath }}">{{ .Data.DirPath }}</a>/*
+        </span>
+        {{ template "header_buttons" }}
+      </div>
+
+      <div id="packge_dir">
+        {{ template "dir_contents" . }}
+      </div>
+
+      {{ template "footer" }}
     </div>
-    <div id="packge_dir">
-      {{ template "dir_contents" . }}
-    </div>
+    {{ template "js" }}
   </body>
 </html>
 {{- end -}}

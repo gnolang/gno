@@ -1,154 +1,152 @@
-body {
-	background-color: #F9F1E9;
-	font-family: "Helvetica", "Arial", "sans-serif";
+@import url("../font/font.css");
+
+html{
+    -moz-text-size-adjust: none;
+    -webkit-text-size-adjust: none;
+    text-size-adjust: none;
 }
 
-a {
-	color: #25172a;
+html,
+body {
+    padding: 0;
+    margin: 0;
+    font-family: "Roboto Mono", "Courier New", "sans-serif";
+    background-color: #eee;
+    font-size: 15px;
+}
+
+body {
+    height: 100%;
+    width: 100%;
 }
 
 input {
-	font-family: "Lucida Console", "Monaco", monospace;
-	background-color: #EEE;
-	border: 1px solid #CCC;
-	width: 25em;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+a {
+    color: #25172a;
+}
+
+input {
+    font-family: "Roboto Mono", "Monaco", monospace;
+    background-color: #eee;
+    border: 1px solid #ccc;
+    color: black;
+    width: 25em;
 }
 
 blockquote {
-	padding: 0.5em 0 0.5em 1em;
-	background-color: #DDD;
+    background-color: #ddd;
 }
 
 blockquote blockquote {
-	margin: 0;
-	padding: 0.3em 0 0.5em 1em;
-	background-color: #AAA2;
+    margin: 0;
+    background-color: #aaa2;
 }
 
 pre {
-	background-color: #DDD;
+    background-color: #d7d9db;
+    margin: 0;
+}
+
+#root {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #d7d9db;
+    margin: 20px;
+    height: calc(100vh - 40px);
 }
 
 #header {
-	background-color: #cecde1;
-	padding: 10px 10px 10px 10px;
+    background-color: #d7d9db;
+    padding: 22px;
 }
 
 #logo {
-	color: #25172a;
-	font-weight: bold;
-	font-size: 32px;
-	text-decoration: none;
-	position: relative;
-	top: 4px;
-}
-
-#logo_path {
-	font-size: 24px;
-	vertical-align: bottom;
+    color: #25172a;
+    position: relative;
+    top: 4px;
+    height: 45px;
 }
 
 #logo_path a {
-	text-decoration: none;
+    text-decoration: none;
 }
 
 #logo_path a:hover {
-	text-decoration: underline;
-}
-
-#realm_links {
-	padding-left: 1em;
-	font-size: 0.9em;
-	color: gray;
+    text-decoration: underline;
 }
 
 #header_buttons {
-	float: right;
-	position: relative;
+    float: right;
+    position: relative;
 }
 
-h1 a, h2 a, h3 a, h4 a, h5 a, h6 a{
-	text-decoration: none;
+#home h1,
+#home h2,
+#home h3,
+#home h4,
+#home h5,
+#home h6 {
+    margin: 0;
+    padding: 0;
 }
 
-h1 a:hover, h2 a:hover, h3 a:hover, h4 a:hover, h5 a:hover, h6 a:hover{
-	text-decoration: underline ;
+#home p {
+    padding: 22px;
+    margin: 0;
 }
 
-hr {
-	border-bottom: 1px gray;
+#home h1,
+#home h2,
+#home h3,
+#home h4,
+#home h5,
+#home h6 {
+    padding: 22px;
+    margin: 0;
+    border-bottom: 1px solid #d7d9db;
 }
 
-.actions {
-	font-size: 0.9em;
-	color: #777;
+#home ul {
+    margin: 0;
+    padding: 0;
+    list-style-type: none;
+    font-weight: 500;
 }
 
-.actions a {
-	color: #777;
+#home>ul>li {
+    padding: 22px;
+    background-color: #fff;
+    list-style-type: none;
 }
 
-
-/*****************************************/
-/* package_dir.html */
-
-.dir_entry a {
-	text-decoration: none;
+#home>ul>li {
+    border-bottom: 1px solid #d7d9db;
+    padding-left: 22px;
 }
 
-.dir_entry a:hover {
-	text-decoration: underline;
+#home>ul>li:before {
+    content: url('../img/list.png');
+    display: inline-block;
+    vertical-align: middle;
+    width: 22px;
+    height: 26px;
 }
 
-/*****************************************/
-/* realm_help.html */
-
-div.func_spec > table {
-	background-color: #EEE3DE;
-	width: 100%;
-	padding: 10px 10px 20px 10px;
-	margin-bottom: 20px;
-	border: 1px solid #C4B6B2;
+#home>ul>li ul {
+    padding: 22px 0 0 22px;
+    background-color: #fff;
+    list-style-type: none;
 }
 
-div.func_spec > table > tbody > tr > th {
-	width: 50px;
-	vertical-align: top;
-	text-align: right;
-	color: #777;
-}
-
-div.func_spec > table > tbody > tr.func_name > td {
-	padding-left: 115px;
-}
-
-th.func_param_name {
-	width: 100px;
-	vertical-align: top;
-	text-align: right;
-	padding-right: 5px;
-}
-
-th.func_result_name {
-	width: 100px;
-	vertical-align: top;
-	text-align: right;
-	padding-right: 5px;
-}
-
-td.func_param_type, td.func_result_type {
-	font-size: 0.8em;
-	color: #777;
-}
-
-div.func_spec div.shell_command {
-	font-family: "Lucida Console", "Monaco", monospace;
-	margin-left: 50px;
-	font-size: 0.9em;
-	color: #777;
-}
-
-div.func_spec div.shell_command span {
-	display: inline-block;
-	margin-bottom: 10px;
+#home>ul>li ul li:before {
+    content: url('../img/list-alt.png');
+    display: inline-block;
+    vertical-align: middle;
+    width: 22px;
+    height: 26px;
 }

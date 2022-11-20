@@ -89,7 +89,7 @@ func handlerHome(app gotuna.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		app.NewTemplatingEngine().
 			Set("HomeContent", string(homeContent)).
-			Render(w, r, "home.html", "header.html")
+			Render(w, r, "home.html", "funcs.html")
 	})
 }
 
@@ -98,7 +98,7 @@ func handlerFaucet(app gotuna.App) http.Handler {
 		app.NewTemplatingEngine().
 			Set("captchaSite", flags.captchaSite).
 			Set("faucetURL", flags.faucetURL).
-			Render(w, r, "faucet.html", "header.html")
+			Render(w, r, "faucet.html", "funcs.html")
 	})
 }
 
@@ -157,7 +157,7 @@ func handlerRedirect(app gotuna.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/r/boards:gnolang/3", http.StatusFound)
 		app.NewTemplatingEngine().
-			Render(w, r, "home.html", "header.html")
+			Render(w, r, "home.html", "funcs.html")
 	})
 }
 
@@ -196,7 +196,7 @@ func handlerRealmMain(app gotuna.App) http.Handler {
 			tmpl.Set("ChainID", flags.helpChainID)
 			tmpl.Set("DirPath", pathOf(rlmpath))
 			tmpl.Set("FunctionSignatures", fsigs)
-			tmpl.Render(w, r, "realm_help.html", "header.html")
+			tmpl.Render(w, r, "realm_help.html", "funcs.html")
 		} else {
 			// Ensure realm exists. TODO optimize.
 			qpath := "vm/qfile"
@@ -262,7 +262,7 @@ func handleRealmRender(app gotuna.App, w http.ResponseWriter, r *http.Request) {
 	tmpl.Set("Query", string(querystr))
 	tmpl.Set("PathLinks", pathLinks)
 	tmpl.Set("Contents", string(res.Data))
-	tmpl.Render(w, r, "realm_render.html", "header.html")
+	tmpl.Render(w, r, "realm_render.html", "funcs.html")
 }
 
 func handlerRealmFile(app gotuna.App) http.Handler {
@@ -304,7 +304,7 @@ func renderPackageFile(app gotuna.App, w http.ResponseWriter, r *http.Request, d
 		tmpl.Set("DirURI", diruri)
 		tmpl.Set("DirPath", pathOf(diruri))
 		tmpl.Set("Files", files)
-		tmpl.Render(w, r, "package_dir.html", "header.html")
+		tmpl.Render(w, r, "package_dir.html", "funcs.html")
 	} else {
 		// Request is for a file.
 		filepath := diruri + "/" + filename
@@ -321,7 +321,7 @@ func renderPackageFile(app gotuna.App, w http.ResponseWriter, r *http.Request, d
 		tmpl.Set("DirPath", pathOf(diruri))
 		tmpl.Set("FileName", filename)
 		tmpl.Set("FileContents", string(res.Data))
-		tmpl.Render(w, r, "package_file.html", "header.html")
+		tmpl.Render(w, r, "package_file.html", "funcs.html")
 	}
 }
 
@@ -391,7 +391,7 @@ func handleNotFound(app gotuna.App, path string, w http.ResponseWriter, r *http.
 	app.NewTemplatingEngine().
 		Set("title", "Not found").
 		Set("path", path).
-		Render(w, r, "404.html", "header.html")
+		Render(w, r, "404.html", "funcs.html")
 }
 
 func writeError(w http.ResponseWriter, err error) {

@@ -2,43 +2,44 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <link rel="stylesheet" href="/static/css/app.css"/>
+    <title>Gno.land</title>
+    {{ template "html_head" }}
   </head>
   <body onload="main()">
-    <div id="header">
-      <a id="logo" href="/">GNO.LAND</a>
-      {{ template "header_buttons" }}
-    </div>
-    <div id="home">
-      <pre id="source">
-
-        This is the Gno.land (test) faucet.
-        {{ if .Data.captchaSite }}
-        <script src="https://www.google.com/recaptcha/api.js" async defer></script>
-        {{ end }}
-        <script type="text/javascript">
-          function main() {
-              // XXX
-          };
-
+    <div id="root">
+      <div id="header">
+        {{ template "header_logo" }}
+        {{ template "header_buttons" }}
+      </div>
+      <div id="home">
+          This is the Gno.land (test) faucet.
           {{ if .Data.captchaSite }}
-          function recaptchaCallback() {
-              document.getElementById("submitBtn").disabled = false;
-          };
+          <script src="https://www.google.com/recaptcha/api.js" async defer></script>
           {{ end }}
-        </script>
+          <script type="text/javascript">
+            function main() {
+                // XXX
+            };
 
-        <form method="POST" action="{{ .Data.faucetURL }}">
-          <label for="toaddr">GNO.land address (e.g. g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5):</label><br>
-          <input type="text" id="toaddr" name="toaddr" required>
-          {{ if .Data.captchaSite }}
-          <div class="g-recaptcha" data-callback="recaptchaCallback" data-sitekey="{{ .Data.captchaSite }}"></div>
-          {{ end }}
-          <input type="submit" value="GO" id="submitBtn" {{ if .Data.captchaSite }}disabled{{ end }}>
-        </form>
-      </pre>
+            {{ if .Data.captchaSite }}
+            function recaptchaCallback() {
+                document.getElementById("submitBtn").disabled = false;
+            };
+            {{ end }}
+          </script>
+
+          <form method="POST" action="{{ .Data.faucetURL }}">
+            <label for="toaddr">GNO.land address (e.g. g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5):</label><br>
+            <div><input type="text" id="toaddr" name="toaddr" required /></div>
+            {{ if .Data.captchaSite }}
+            <div class="g-recaptcha" data-callback="recaptchaCallback" data-sitekey="{{ .Data.captchaSite }}"></div>
+            {{ end }}
+            <div><input type="submit" value="GO" id="submitBtn" {{ if .Data.captchaSite }}disabled{{ end }}></div>
+          </form>
+      </div>
+      {{ template "footer" }}
     </div>
+    {{ template "js" }}
   </body>
 </html>
-
 {{- end -}}
