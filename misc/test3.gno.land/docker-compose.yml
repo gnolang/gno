@@ -18,6 +18,8 @@ services:
       - test3.gno.land:36657
       - --genesis-balances-file
       - /overlay/balances.txt
+      - --genesis-txs-file
+      - /overlay/genesis_txs.txt
     volumes:
       - "./data/gnoland:/opt/gno/src/testdir"
       - "./overlay:/overlay:ro"
