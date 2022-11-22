@@ -99,70 +99,8 @@ pre {
   margin-left: auto;
 }
 
-#home h1,
-#home h2,
-#home h3,
-#home h4,
-#home h5,
-#home h6 {
-  margin: 0;
-  padding: 0;
-}
-
-#home p {
-  padding: 22px;
-  margin: 0;
-}
-
-#home h1,
-#home h2,
-#home h3,
-#home h4,
-#home h5,
-#home h6 {
-  padding: 22px;
-  margin: 0;
-  border-bottom: 1px solid #d7d9db;
-}
-
-#home ul {
-  margin: 0;
-  padding: 0;
-  list-style-type: none;
-  font-weight: 500;
-}
-
-#home > ul > li {
-  padding: 22px;
-  background-color: #fff;
-  list-style-type: none;
-}
-
-#home > ul > li {
-  border-bottom: 1px solid #d7d9db;
-  padding-left: 22px;
-}
-
-#home > ul > li:before {
-  content: url("../img/list.png");
-  display: inline-block;
-  vertical-align: middle;
-  width: 22px;
-  height: 26px;
-}
-
-#home > ul > li ul {
-  padding: 22px 0 0 22px;
-  background-color: #fff;
-  list-style-type: none;
-}
-
-#home > ul > li ul li:before {
-  content: url("../img/list-alt.png");
-  display: inline-block;
-  vertical-align: middle;
-  width: 22px;
-  height: 26px;
+#home {
+  padding: 0 22px;
 }
 
 #realm_render,

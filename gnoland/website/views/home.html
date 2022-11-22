@@ -11,10 +11,9 @@
         {{ template "header_logo" }}
         {{ template "header_buttons" }}
       </div>
+
       <div id="home">
-        <pre id="source">
-{{ .Data.HomeContent }}
-        </pre>
+        <pre id="source">{{ .Data.HomeContent }}</pre>
       </div>
       {{ template "footer" }}
     </div>
