@@ -2,30 +2,22 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <link rel="stylesheet" href="/static/css/app.css"/>
-    <script type="text/javascript" src="/static/js/marked.min.js"></script>
-    <script type="text/javascript" src="/static/js/purify.min.js"></script>
+    <title>Gno.land</title>
+    {{ template "html_head" }}
   </head>
   <body onload="main()">
-    <div id="header">
-      <a id="logo" href="/">GNO.LAND</a>
-      {{ template "header_buttons" }}
+    <div id="root">
+      <div id="header">
+        {{ template "header_logo" }}
+        {{ template "header_buttons" }}
+      </div>
+
+      <div id="home">
+        <pre id="source">{{ .Data.HomeContent }}</pre>
+      </div>
+      {{ template "footer" }}
     </div>
-    <div id="home">
-      <pre id="source">
-        {{ .Data.HomeContent }}
-      </pre>
-    </div>
+    {{ template "js" }}
   </body>
-  <script type="text/javascript">
-   function main() {
-     marked.setOptions({gfm:true});
-     window.contents = document.getElementById("source").innerHTML;
-     var doc = new DOMParser().parseFromString(window.contents, "text/html");
-     var contents = doc.documentElement.textContent
-     var parsed = marked.parse(contents);
-     document.getElementById("home").innerHTML = DOMPurify.sanitize(parsed, { USE_PROFILES: { html: true } });
-   };
-  </script>
 </html>
 {{- end -}}

@@ -1,28 +1,35 @@
 {{- define "app" -}}
 <!DOCTYPE html>
-<html>
-  <head>
-    <link rel="stylesheet" href="/static/css/app.css"/>
-    <link rel="stylesheet" href="/static/css/highlight.min.css"/>
-    <script type="text/javascript" src="/static/js/highlight.min.js"></script>
-  </head>
-  <body>
-    <div id="header">
-      <a id="logo" href="/">GNO.LAND</a>
-      <span id="logo_path">
-        <a href="{{ .Data.DirPath }}/">{{ .Data.DirPath }}/</a>{{ .Data.FileName }}
-      </span>
-      {{ template "header_buttons" }}
-    </div>
-    <div id="package_file">
-      <pre><code>{{ .Data.FileContents }}</code></pre>
-    </div>
-  </body>
-  <script>
-    hljs.configure({
-        throwUnescapedHTML: true // important to avoid inserting escaped html
-    })
-    hljs.highlightAll() // applied to all <pre><code>...</code></pre>
-  </script>
-</html>
+  <html>
+    <head>
+      <title>Gno.land</title>
+      {{ template "html_head" }}
+      <link rel="stylesheet" href="/static/css/highlight.min.css"/>
+    </head>
+    <body onload="main()">
+      <div id="root">
+        <div id="header">
+          {{ template "header_logo" }}
+          <span id="logo_path">
+            <a href="{{ .Data.DirPath }}/">{{ .Data.DirPath }}/</a>{{ .Data.FileName }}
+          </span>
+          {{ template "header_buttons" }}
+        </div>
+
+        <div id="package_file">
+          <pre><code>{{ .Data.FileContents }}</code></pre>
+        </div>
+
+        {{ template "footer" }}
+      </div>
+      {{ template "js" }}
+      <script type="text/javascript" src="/static/js/highlight.min.js"></script>
+      <script>
+       hljs.configure({
+         throwUnescapedHTML: true // important to avoid inserting escaped html
+       })
+       hljs.highlightAll() // applied to all <pre><code>...</code></pre>
+      </script>
+    </body>
+  </html>
 {{- end -}}

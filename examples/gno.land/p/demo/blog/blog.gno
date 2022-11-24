@@ -12,6 +12,7 @@ import (
 )
 
 type Blog struct {
+	Title  string
 	Prefix string      // i.e. r/gnoland/blog:
 	Posts  avl.MutTree // slug -> Post
 }
@@ -25,11 +26,13 @@ func (b Blog) Render(path string) string {
 
 	switch {
 	case isHome:
+		output := breadcrumb([]string{b.Title})
+
 		if b.Posts.Size() == 0 {
-			return "No posts."
+			output += "No posts."
+			return output
 		}
 
-		output := ""
 		b.Posts.Iterate("", "", func(n *avl.Tree) bool {
 			post := n.Value().(*Post)
 			output += post.RenderListItem()
@@ -46,26 +49,52 @@ func (b Blog) Render(path string) string {
 		if !found {
 			return "404"
 		}
-		typedPost := post.(*Post)
-		return typedPost.RenderPage()
+		p := post.(*Post)
+
+		output := breadcrumb([]string{
+			ufmt.Sprintf("[%s](%s)", b.Title, b.Prefix),
+			"p",
+			p.Title,
+		})
+
+		// output += ufmt.Sprintf("## [%s](%s)\n", p.Title, p.URL())
+		output += p.Body + "\n\n"
+		output += p.RenderTagList() + "\n\n"
+		output += formatAuthorAndDate(p.Author, p.CreatedAt) + "\n"
+		output += "\n"
+
+		// comments
+		p.Comments.IterateReverse("", "", func(n *avl.Tree) bool {
+			comment := n.Value().(*Comment)
+			output += comment.RenderListItem()
+			return false
+		})
+
+		return output
 
 	case isViewTag:
 		tagSlug := parts[1]
 
-		output := ""
+		output := breadcrumb([]string{
+			ufmt.Sprintf("[%s](%s)", b.Title, b.Prefix),
+			"t",
+			tagSlug,
+		})
+
+		nb := 0
 		b.Posts.Iterate("", "", func(n *avl.Tree) bool {
 			post := n.Value().(*Post)
 			if !post.HasTag(tagSlug) {
 				return false
 			}
 			output += post.RenderListItem()
+			nb++
 			return false
 		})
-		if output != "" {
-			return output
+		if nb == 0 {
+			output += "No posts."
 		}
-
-		return "No posts."
+		return output
 	}
 
 	return "404"
@@ -181,32 +210,11 @@ func (p *Post) RenderListItem() string {
 		return "error: no such post\n"
 	}
 	output := ""
-	output += ufmt.Sprintf("## [%s](%s)\n", p.Title, p.URL())
-	output += p.Summary() + "\n\n"
-	output += p.RenderTagList() + "\n\n"
-	output += formatAuthorAndDate(p.Author, p.CreatedAt) + "\n"
+	output += ufmt.Sprintf("## [&#9656; %s](%s)\n", p.Title, p.URL())
+	// output += p.Summary() + "\n\n"
+	// output += p.RenderTagList() + "\n\n"
+	// output += formatAuthorAndDate(p.Author, p.CreatedAt) + "\n"
 	output += "\n"
-	return output
-}
-
-func (p *Post) RenderPage() string {
-	if p == nil {
-		return "error: no such post\n"
-	}
-	output := ""
-	output += ufmt.Sprintf("## [%s](%s)\n", p.Title, p.URL())
-	output += p.Body + "\n\n"
-	output += p.RenderTagList() + "\n\n"
-	output += formatAuthorAndDate(p.Author, p.CreatedAt) + "\n"
-	output += "\n"
-
-	// comments
-	p.Comments.IterateReverse("", "", func(n *avl.Tree) bool {
-		comment := n.Value().(*Comment)
-		output += comment.RenderListItem()
-		return false
-	})
-
 	return output
 }
 
@@ -220,7 +228,7 @@ func (p *Post) RenderTagList() string {
 			output += " "
 		}
 		tagURL := p.Blog.Prefix + "t/" + tag
-		output += ufmt.Sprintf("[%s](%s)", tag, tagURL)
+		output += ufmt.Sprintf("[#%s](%s)", tag, tagURL)
 	}
 	return output
 }

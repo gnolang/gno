@@ -2,34 +2,42 @@
   <!DOCTYPE html>
   <html>
     <head>
-      <link rel="stylesheet" href="/static/css/app.css"/>
+      <title>Gno.land</title>
+      {{ template "html_head" }}
+      <link rel="stylesheet" href="/static/css/highlight.min.css"/>
+    </head>
+    <body onload="main()">
+      <div id="root">
+        <div id="data" data-realm-path="{{ .Data.RealmPath }}" data-remote="{{ .Data.Remote }}" data-chainid="{{ .Data.ChainID }}" />
+        <div id="header">
+          {{ template "header_logo" }}
+          <span id="logo_path">
+            <a href="{{ .Data.DirPath }}">{{ .Data.DirPath }}</a>?help
+          </span>
+          {{ template "header_buttons" }}
+        </div>
+
+        <div id="realm_help">
+          <br/>
+          These are the realm's exposed functions ("public smart contracts").<br/>
+          <br/>
+          My address: <input id="my_address" value="ADDRESS" width="40"/> (see <a href="https://github.com/gnolang/gno">`gnokey list`</a>)<br/>
+          <br />
+          <br />
+          {{ template "func_specs" . }}
+        </div>
+
+        {{ template "footer" }}
+      </div>
+      {{ template "js" }}
       <script src="/static/js/umbrella.min.js"></script>
       <script src="/static/js/marked.min.js"></script>
       <script src="/static/js/realm_help.js"></script>
-    </head>
-    <body onload="main()">
-      <div id="data" data-realm-path="{{ .Data.RealmPath }}" data-remote="{{ .Data.Remote }}" data-chainid="{{ .Data.ChainID }}" />
-      <div id="header">
-        <a id="logo" href="/">GNO.LAND</a>
-        <span id="logo_path">
-          <a href="{{ .Data.DirPath }}">{{ .Data.DirPath }}</a>?help
-        </span>
-        {{ template "header_buttons" }}
-      </div>
-      <div id="realm_help">
-        <br/>
-        These are the realm's exposed functions ("public smart contracts").<br/>
-        <br/>
-        My address: <input id="my_address" value="ADDRESS" width="40"/> (see <a href="https://github.com/gnolang/gno">`gnokey list`</a>)<br/>
-        <br />
-        <br />
-        {{ template "func_specs" . }}
-      </div>
     </body>
   </html>
 {{- end -}}
 
-{{ define "func_specs" }}
++{{ define "func_specs" }}
   <div class="func_specs">
     {{ $funcName := .Data.FuncName }}
     {{ $found := false }}

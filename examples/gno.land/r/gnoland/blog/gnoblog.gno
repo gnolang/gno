@@ -7,6 +7,7 @@ import (
 )
 
 var b = &blog.Blog{
+	Title:  "Gnoland's Blog",
 	Prefix: "/r/gnoland/blog:",
 }
 
@@ -20,7 +21,5 @@ func AddComment(postSlug, comment string) {
 }
 
 func Render(path string) string {
-	output := "# Gnoland's Blog\n\n"
-	output += b.Render(path)
-	return output
+	return b.Render(path)
 }

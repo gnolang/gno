@@ -1,154 +1,152 @@
-body {
-	background-color: #F9F1E9;
-	font-family: "Helvetica", "Arial", "sans-serif";
+@import url("../font/font.css");
+
+html{
+    -moz-text-size-adjust: none;
+    -webkit-text-size-adjust: none;
+    text-size-adjust: none;
 }
 
-a {
-	color: #25172a;
+html,
+body {
+  padding: 0;
+  margin: 0;
+  font-family: "Roboto Mono", "Courier New", "sans-serif";
+  background-color: #eee;
+  font-size: 15px;
+}
+
+body {
+  height: 100%;
+  width: 100%;
 }
 
 input {
-	font-family: "Lucida Console", "Monaco", monospace;
-	background-color: #EEE;
-	border: 1px solid #CCC;
-	width: 25em;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+a {
+  color: #25172a;
+}
+
+input {
+  font-family: "Roboto Mono", "Monaco", monospace;
+  background-color: #eee;
+  border: 1px solid #ccc;
+  color: black;
+  width: 25em;
 }
 
 blockquote {
-	padding: 0.5em 0 0.5em 1em;
-	background-color: #DDD;
+  background-color: #ddd;
 }
 
 blockquote blockquote {
-	margin: 0;
-	padding: 0.3em 0 0.5em 1em;
-	background-color: #AAA2;
+  margin: 0;
+  background-color: #aaa2;
 }
 
 pre {
-	background-color: #DDD;
+  background-color: #d7d9db;
+  margin: 0;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #d7d9db;
+  margin: 20px;
+  /* height: calc(100vh - 40px); */
 }
 
 #header {
-	background-color: #cecde1;
-	padding: 10px 10px 10px 10px;
+  background-color: #d7d9db;
+  padding: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 #logo {
-	color: #25172a;
-	font-weight: bold;
-	font-size: 32px;
-	text-decoration: none;
-	position: relative;
-	top: 4px;
-}
-
-#logo_path {
-	font-size: 24px;
-	vertical-align: bottom;
+  color: #25172a;
+  position: relative;
+  top: 4px;
+  height: 45px;
+  padding-right: 22px;
 }
 
 #logo_path a {
-	text-decoration: none;
+  text-decoration: none;
+}
+
+#logo_path {
+  padding-right: 12px;
 }
 
 #logo_path a:hover {
-	text-decoration: underline;
+  text-decoration: underline;
 }
 
-#realm_links {
-	padding-left: 1em;
-	font-size: 0.9em;
-	color: gray;
+#realm_links a {
+  font-size: 0.8rem;
 }
 
 #header_buttons {
-	float: right;
-	position: relative;
+  float: right;
+  position: relative;
+  padding-left: 22px;
+  margin-left: auto;
 }
 
-h1 a, h2 a, h3 a, h4 a, h5 a, h6 a{
-	text-decoration: none;
+#home {
+  padding: 0 22px;
 }
 
-h1 a:hover, h2 a:hover, h3 a:hover, h4 a:hover, h5 a:hover, h6 a:hover{
-	text-decoration: underline ;
+#realm_render,
+#realm_help {
+  padding: 0 22px;
 }
 
-hr {
-	border-bottom: 1px gray;
+#realm_help .func_specs {
+  box-sizing: border-box;
+  width: calc(100% + 44px);
+  margin-left: -22px;
 }
 
-.actions {
-	font-size: 0.9em;
-	color: #777;
+#realm_help .func_spec {
+  padding: 22px;
+  background: #d7d9db9e;
+  margin-top: 22px;
+}
+#realm_help .func_spec:nth-child(odd) {
+  background: #d7d9db45;
 }
 
-.actions a {
-	color: #777;
+#realm_help .func_spec > table > tbody > tr > th {
+  width: 50px;
+  vertical-align: top;
+  text-align: right;
+  color: #000;
 }
 
-
-/*****************************************/
-/* package_dir.html */
-
-.dir_entry a {
-	text-decoration: none;
+#realm_help .func_spec > table th,
+#realm_help .func_spec > table td {
+  padding-bottom: 16px;
 }
 
-.dir_entry a:hover {
-	text-decoration: underline;
+#realm_help .func_spec > table th + td {
+  padding-left: 50px;
 }
 
-/*****************************************/
-/* realm_help.html */
-
-div.func_spec > table {
-	background-color: #EEE3DE;
-	width: 100%;
-	padding: 10px 10px 20px 10px;
-	margin-bottom: 20px;
-	border: 1px solid #C4B6B2;
+#realm_help .func_spec > table th + td table td {
+  padding-left: 12px;
 }
 
-div.func_spec > table > tbody > tr > th {
-	width: 50px;
-	vertical-align: top;
-	text-align: right;
-	color: #777;
+#realm_help .func_spec .shell_command {
+  color: #5d5d5d;
 }
 
-div.func_spec > table > tbody > tr.func_name > td {
-	padding-left: 115px;
-}
-
-th.func_param_name {
-	width: 100px;
-	vertical-align: top;
-	text-align: right;
-	padding-right: 5px;
-}
-
-th.func_result_name {
-	width: 100px;
-	vertical-align: top;
-	text-align: right;
-	padding-right: 5px;
-}
-
-td.func_param_type, td.func_result_type {
-	font-size: 0.8em;
-	color: #777;
-}
-
-div.func_spec div.shell_command {
-	font-family: "Lucida Console", "Monaco", monospace;
-	margin-left: 50px;
-	font-size: 0.9em;
-	color: #777;
-}
-
-div.func_spec div.shell_command span {
-	display: inline-block;
-	margin-bottom: 10px;
+#realm_help .func_name td {
+  font-weight: bold;
 }
