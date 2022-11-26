@@ -39,7 +39,6 @@ func (msg *TestMsg) GetSigners() []crypto.Address {
 // Utility Methods
 // Fee gas-wanted 5000, gas-fee 1gnot.
 func NewTestFee() std.Fee {
-	
 	return std.NewFee(50000, std.NewCoin("ugnot", 1000000))
 }
 
