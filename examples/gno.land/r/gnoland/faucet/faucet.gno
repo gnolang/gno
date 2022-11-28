@@ -33,14 +33,11 @@ func Transfer(to std.Address, send int64) string {
 		return errors.New("faucet in pause").Error()
 	}
 
-	var sendCoins std.Coins
-
-	// limit the pre request
-	if send <= gLimit.AmountOf("ugnot") {
-		sendCoins = std.Coins{std.Coin{Denom: "ugnot", Amount: send}}
-	} else {
+	// limit the per request
+	if send > gLimit.AmountOf("ugnot") {
 		return errors.New("Per request limit " + gLimit.String() + " exceed").Error()
 	}
+	sendCoins := std.Coins{std.Coin{Denom: "ugnot", Amount: send}}
 
 	gTotalTransferred = gTotalTransferred.Add(sendCoins)
 	gTotalTransfers++
