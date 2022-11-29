@@ -91,7 +91,6 @@ func Echo(msg string) string {
 }
 
 func GetAdmin() string {
-
 	return admin.String()
 }
 `},
