@@ -78,7 +78,6 @@ import "std"
 var admin std.Address
 
 func init() {
-
      admin = 	std.GetOrigCaller()
 }
 
@@ -92,10 +91,8 @@ func Echo(msg string) string {
 }
 
 func GetAdmin() string {
-
 	return admin.String()
 }
-
 `},
 	}
 	pkgPath := "gno.land/r/test"
