@@ -330,7 +330,8 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				case BankerTypeOrigSend:
 					banker = NewOrigSendBanker(banker, ctx.OrigPkgAddr, ctx.OrigSend, ctx.OrigSendSpent)
 				case BankerTypeRealmSend:
-					banker = NewRealmSendBanker(banker, ctx.OrigPkgAddr)
+					pkgAddr := m.LastFrame().LastPackage.GetPkgAddr().Bech32()
+					banker = NewRealmSendBanker(banker, pkgAddr)
 				case BankerTypeRealmIssue:
 					banker = banker
 				default:
