@@ -114,7 +114,6 @@ func GetAdmin() string {
 	res, err = env.vmk.Call(ctx, msg3)
 	assert.NoError(t, err)
 	assert.Equal(t, res, addr)
-
 }
 
 // Sending more than tx send fails.
