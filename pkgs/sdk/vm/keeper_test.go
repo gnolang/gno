@@ -95,7 +95,6 @@ func GetAdmin() string {
 
 	return admin.String()
 }
-
 `},
 	}
 	pkgPath := "gno.land/r/test"
