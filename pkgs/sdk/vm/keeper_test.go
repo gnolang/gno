@@ -78,7 +78,6 @@ import "std"
 var admin std.Address
 
 func init() {
-
      admin = 	std.GetOrigCaller()
 }
 
