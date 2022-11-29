@@ -75,7 +75,11 @@ package test
 
 import "std"
 
+var admin std.Address
+
 func init() {
+
+     admin = 	std.GetOrigCaller()
 }
 
 func Echo(msg string) string {
@@ -85,7 +89,14 @@ func Echo(msg string) string {
 	banker := std.GetBanker(std.BankerTypeOrigSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
-}`},
+}
+
+func GetAdmin() string {
+
+	return admin.String()
+}
+
+`},
 	}
 	pkgPath := "gno.land/r/test"
 	msg1 := NewMsgAddPackage(addr, pkgPath, files)
@@ -100,6 +111,13 @@ func Echo(msg string) string {
 	assert.Equal(t, res, "")
 	fmt.Println(err.Error())
 	assert.True(t, strings.Contains(err.Error(), "insufficient coins error"))
+
+	// Run GetAdmin()
+	msg3 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
+	res, err = env.vmk.Call(ctx, msg3)
+	assert.NoError(t, err)
+	assert.Equal(t, res, addr)
+
 }
 
 // Sending more than tx send fails.
