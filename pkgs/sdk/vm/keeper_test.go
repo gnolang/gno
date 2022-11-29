@@ -112,7 +112,7 @@ func GetAdmin() string {
 	assert.True(t, strings.Contains(err.Error(), "insufficient coins error"))
 
 	// Run GetAdmin()
-	msg3 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
+	msg3 := NewMsgCall(addr, coins, pkgPath, "GetAdmin", []string{})
 	res, err = env.vmk.Call(ctx, msg3)
 	assert.NoError(t, err)
 	assert.Equal(t, res, addr)
