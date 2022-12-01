@@ -69,12 +69,15 @@ func FormatTimestamp(timestamp Time, format string) string {
 	return ""
 }
 
-func EncodeBech32(prefix string, bytes [20]byte) (addr string) {
+func EncodeBech32(prefix string, bytes [20]byte) (addr Address) {
 	panic(shimWarn)
 	return ""
 }
 
-func DecodeBech32(addr Address) (prefix string, bytes []byte, ok bool) {
+func DecodeBech32(addr Address) (prefix string, bytes [20]byte, ok bool) {
 	panic(shimWarn)
-	return "", nil, false
+}
+
+func DerivePkgAddr(pkgPath string) (addr Address) {
+	panic(shimWarn)
 }
