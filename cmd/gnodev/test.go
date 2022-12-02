@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -51,7 +50,7 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 	verbose := opts.Verbose
 
-	tempdirRoot, err := ioutil.TempDir("", "gno-precompile")
+	tempdirRoot, err := os.MkdirTemp("", "gno-precompile")
 	if err != nil {
 		log.Fatal(err)
 	}
