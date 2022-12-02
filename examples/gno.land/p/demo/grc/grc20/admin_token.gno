@@ -165,7 +165,7 @@ func (t *AdminToken) spendAllowance(owner, spender std.Address, amount uint64) e
 		return ErrInsufficientAllowance
 	}
 
-	key := owner.String() + ":" + spender.String()
+	key := allowanceKey(owner, spender)
 	if currentAllowance > amount {
 		t.allowances.Set(key, currentAllowance - amount)
 	} else {
@@ -223,9 +223,7 @@ func (t *AdminToken) allowance(owner, spender std.Address) (uint64, error) {
 		return 0, err
 	}
 
-	key := owner.String() + ":" + spender.String()
-
-	allowance, found := t.allowances.Get(key)
+	allowance, found := t.allowances.Get(allowanceKey(owner, spender))
 	if !found {
 		return 0, nil
 	}
@@ -241,13 +239,16 @@ func (t *AdminToken) approve(owner, spender std.Address, amount uint64) error {
 		return err
 	}
 
-	key := owner.String() + ":" + spender.String()
-	t.allowances.Set(key, amount)
+	t.allowances.Set(allowanceKey(owner, spender), amount)
 
 	event := ApprovalEvent{owner, spender, amount}
 	emit(&event)
 
 	return nil
+}
+
+func allowanceKey(owner, spender std.Address) string {
+	return owner.String() + ":" + spender.String()
 }
 
 func (t *AdminToken) RenderHome() string {
