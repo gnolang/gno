@@ -4,16 +4,19 @@ import (
 	"errors"
 	"std"
 
+	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
 )
 
 var (
 	// configurable by admin.
-	gAdminAddr std.Address = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+	gAdminAddr std.Address
 
-	gControllers [10]std.Address = [10]std.Address{} // limit it to 10
+	gControllers     = avl.NewMutTree()
+	gControllersSize = 10 // limit it to 10
 
 	gInPause = false
+
 	gMessage = "# Community Faucet.\n\n"
 
 	// internal vars, for stats.
@@ -21,8 +24,14 @@ var (
 	gTotalTransfers   = uint(0)
 
 	// per request limit, 350 gnot
-	gLimit std.Coins = std.Coins{std.Coin{"ugnot", 350000000}}
+	gLimit std.Coin = std.Coin{"ugnot", 350000000}
 )
+
+func init() {
+
+	gAdminAddr = std.GetOrigCaller()
+
+}
 
 func Transfer(to std.Address, send int64) string {
 	if err := assertIsController(); err != nil {
@@ -34,7 +43,7 @@ func Transfer(to std.Address, send int64) string {
 	}
 
 	// limit the per request
-	if send > gLimit.AmountOf("ugnot") {
+	if send > gLimit.Amount {
 		return errors.New("Per request limit " + gLimit.String() + " exceed").Error()
 	}
 	sendCoins := std.Coins{std.Coin{Denom: "ugnot", Amount: send}}
@@ -49,7 +58,7 @@ func Transfer(to std.Address, send int64) string {
 }
 
 func GetPerTransferLimit() int64 {
-	return gLimit.AmountOf("ugnot")
+	return gLimit.Amount
 }
 
 func Render(path string) string {
@@ -69,9 +78,14 @@ func Render(path string) string {
 	output += ufmt.Sprintf("Admin: %s\n\n ", gAdminAddr.String())
 	output += ufmt.Sprintf("Controllers:\n\n ")
 
-	for _, v := range gControllers {
-		output += ufmt.Sprintf("%s  ", v.String())
+	for i := 0; i < gControllersSize; i++ {
+
+		_, v := gControllers.GetByIndex(i)
+
+		output += ufmt.Sprintf("%s  ", v.(std.Address))
+
 	}
+
 	output += "\n\n"
 	output += ufmt.Sprintf("Per request limit: %s\n\n", gLimit.String())
 
@@ -81,10 +95,10 @@ func Render(path string) string {
 func assertIsController() error {
 	caller := std.GetOrigCaller()
 
-	for _, v := range gControllers {
-		if caller == v {
-			return nil
-		}
+	ok := gControllers.Has(caller.String())
+
+	if !ok {
+		errors.New(caller.String() + " is not on the controller list")
 	}
-	return errors.New(caller.String() + " is not on the controller list")
+	return nil
 }

@@ -21,11 +21,11 @@ func AdminSetMessage(message string) string {
 	return ""
 }
 
-func AdminSetTransferLimit(amount int64, denom string) string {
+func AdminSetTransferLimit(amount int64) string {
 	if err := assertIsAdmin(); err != nil {
 		return err.Error()
 	}
-	gLimit = std.Coins{std.Coin{Denom: denom, Amount: amount}}
+	gLimit = std.Coin{Denom: "ugnot", Amount: amount}
 	return ""
 }
 
@@ -42,24 +42,19 @@ func AdminAddController(addr std.Address) string {
 		return err.Error()
 	}
 
-	k := -1
-	for _, v := range gControllers {
-		if v == addr {
-			return addr.String() + " exists, no need to add."
-		}
-	}
-	for i, v := range gControllers {
-		if v == "" {
+	size := gControllers.Size()
 
-			k = i
-			break
-		}
-	}
-	if k < 0 {
+	if size >= gControllersSize {
 		return "can not add more controllers than allowed"
 	}
 
-	gControllers[k] = addr
+	if gControllers.Has(addr.String()) {
+
+		return addr.String() + " exists, no need to add."
+
+	}
+
+	gControllers.Set(addr.String(), addr)
 
 	return ""
 }
@@ -69,18 +64,22 @@ func AdminRemoveController(addr std.Address) string {
 		return err.Error()
 	}
 
-	removed := false
-	for i, v := range gControllers {
-		if v == addr {
+	if !gControllers.Has(addr.String()) {
 
-			gControllers[i] = ""
-			removed = true
-		}
+		return addr.String() + " is not on the controller list"
+
 	}
 
-	if removed == false {
+	_, ok := gControllers.Remove(addr.String())
+
+	// it not should happen.
+	// we will check anyway to prevent issues in the underline implementation.
+
+	if !ok {
+
 		return addr.String() + " is not on the controller list"
 	}
+
 	return ""
 }
 
