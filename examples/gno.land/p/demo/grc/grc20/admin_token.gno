@@ -165,6 +165,13 @@ func (t *AdminToken) spendAllowance(owner, spender std.Address, amount uint64) e
 		return ErrInsufficientAllowance
 	}
 
+	key := owner.String() + ":" + spender.String()
+	if currentAllowance > amount {
+		t.allowances.Set(key, currentAllowance - amount)
+	} else {
+		t.allowances.Remove(key)
+	}
+
 	return nil
 }
 
