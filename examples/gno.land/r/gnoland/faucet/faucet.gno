@@ -10,7 +10,7 @@ import (
 
 var (
 	// configurable by admin.
-	gAdminAddr std.Address
+	gAdminAddr std.Address = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 
 	gControllers     = avl.NewMutTree()
 	gControllersSize = 10 // limit it to 10
@@ -26,12 +26,6 @@ var (
 	// per request limit, 350 gnot
 	gLimit std.Coin = std.Coin{"ugnot", 350000000}
 )
-
-func init() {
-
-	gAdminAddr = std.GetOrigCaller()
-
-}
 
 func Transfer(to std.Address, send int64) string {
 	if err := assertIsController(); err != nil {
@@ -98,7 +92,7 @@ func assertIsController() error {
 	ok := gControllers.Has(caller.String())
 
 	if !ok {
-		errors.New(caller.String() + " is not on the controller list")
+		return errors.New(caller.String() + " is not on the controller list")
 	}
 	return nil
 }

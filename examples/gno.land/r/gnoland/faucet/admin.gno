@@ -49,9 +49,7 @@ func AdminAddController(addr std.Address) string {
 	}
 
 	if gControllers.Has(addr.String()) {
-
 		return addr.String() + " exists, no need to add."
-
 	}
 
 	gControllers.Set(addr.String(), addr)
@@ -65,9 +63,7 @@ func AdminRemoveController(addr std.Address) string {
 	}
 
 	if !gControllers.Has(addr.String()) {
-
 		return addr.String() + " is not on the controller list"
-
 	}
 
 	_, ok := gControllers.Remove(addr.String())
@@ -76,7 +72,6 @@ func AdminRemoveController(addr std.Address) string {
 	// we will check anyway to prevent issues in the underline implementation.
 
 	if !ok {
-
 		return addr.String() + " is not on the controller list"
 	}
 
