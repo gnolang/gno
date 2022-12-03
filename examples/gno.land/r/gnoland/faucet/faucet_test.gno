@@ -36,7 +36,9 @@ func TestPackage(t *testing.T) {
 	// by default, balance is empty, and as a user I cannot call Transfer, or Admin commands.
 
 	assertBalance(t, test1addr, 0)
+	std.TestSetOrigCaller(test1addr)
 	assertErr(t, faucet.Transfer(test1addr, 1000000))
+
 	assertErr(t, faucet.AdminAddController(controlleraddr1))
 	std.TestSetOrigCaller(controlleraddr1)
 	assertErr(t, faucet.Transfer(test1addr, 1000000))
@@ -79,7 +81,7 @@ func TestPackage(t *testing.T) {
 
 	// send more than per transfer limit
 	std.TestSetOrigCaller(adminaddr)
-	faucet.AdminSetTransferLimit(300000000, "ugnot")
+	faucet.AdminSetTransferLimit(300000000)
 	std.TestSetOrigCaller(controlleraddr1)
 	assertErr(t, faucet.Transfer(test1addr, 301000000))
 
@@ -90,6 +92,7 @@ func TestPackage(t *testing.T) {
 
 func assertErr(t *testing.T, err string) {
 	t.Helper()
+
 	if err == "" {
 		t.Logf("info: got err: %v", err)
 		t.Errorf("expected an error, got nil.")
@@ -105,7 +108,6 @@ func assertNoErr(t *testing.T, err string) {
 
 func assertBalance(t *testing.T, addr std.Address, expectedBal int64) {
 	t.Helper()
-
 	banker := std.GetBanker(std.BankerTypeReadonly)
 	coins := banker.GetCoins(addr)
 	got := coins.AmountOf("ugnot")
