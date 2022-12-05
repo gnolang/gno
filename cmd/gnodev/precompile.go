@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -87,7 +86,7 @@ func precompileFile(srcPath string, opts precompileOptions) error {
 	}
 
 	// parse .gno.
-	source, err := ioutil.ReadFile(srcPath)
+	source, err := os.ReadFile(srcPath)
 	if err != nil {
 		return fmt.Errorf("read: %w", err)
 	}
@@ -117,7 +116,7 @@ func precompileFile(srcPath string, opts precompileOptions) error {
 	// write .go file.
 	dir := filepath.Dir(srcPath)
 	targetPath := filepath.Join(dir, targetFilename)
-	err = ioutil.WriteFile(targetPath, []byte(transformed), 0o644)
+	err = os.WriteFile(targetPath, []byte(transformed), 0o644)
 	if err != nil {
 		return fmt.Errorf("write .go file: %w", err)
 	}

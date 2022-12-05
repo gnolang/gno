@@ -25,10 +25,30 @@ type (
 )
 
 var mainApps AppList = []AppItem{
-	{buildApp, "build", "build a gno package", defaultBuildOptions},
-	{precompileApp, "precompile", "precompile .gno to .go", defaultPrecompileOptions},
-	{testApp, "test", "test a gno package", defaultTestOptions},
-	{replApp, "repl", "start a GnoVM REPL", defaultReplOptions},
+	{
+		App:      buildApp,
+		Name:     "build",
+		Desc:     "build a gno package",
+		Defaults: defaultBuildOptions,
+	},
+	{
+		App:      precompileApp,
+		Name:     "precompile",
+		Desc:     "precompile .gno to .go",
+		Defaults: defaultPrecompileOptions,
+	},
+	{
+		App:      testApp,
+		Name:     "test",
+		Desc:     "test a gno package",
+		Defaults: defaultTestOptions,
+	},
+	{
+		App:      replApp,
+		Name:     "repl",
+		Desc:     "start a GnoVM REPL",
+		Defaults: defaultReplOptions,
+	},
 
 	// fmt -- gofmt
 	// clean
