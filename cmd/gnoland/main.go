@@ -39,6 +39,7 @@ var flags struct {
 	genesisTxsFile        string
 	chainID               string
 	genesisRemote         string
+	rootDir               string
 }
 
 func runMain(args []string) error {
@@ -48,11 +49,12 @@ func runMain(args []string) error {
 	fs.StringVar(&flags.genesisBalancesFile, "genesis-balances-file", "./gnoland/genesis/genesis_balances.txt", "initial distribution file")
 	fs.StringVar(&flags.genesisTxsFile, "genesis-txs-file", "./gnoland/genesis/genesis_txs.txt", "initial txs to replay")
 	fs.StringVar(&flags.chainID, "chainid", "dev", "chainid")
+	fs.StringVar(&flags.rootDir, "root-dir", "testdir", "directory for config and data")
 	fs.StringVar(&flags.genesisRemote, "genesis-remote", "localhost:26657", "replacement for '%%REMOTE%%' in genesis")
 	fs.Parse(args)
 
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
-	rootDir := "testdir"
+	rootDir := flags.rootDir
 	cfg := config.LoadOrMakeConfigWithOptions(rootDir, func(cfg *config.Config) {
 		cfg.Consensus.CreateEmptyBlocks = false
 		cfg.Consensus.CreateEmptyBlocksInterval = 60 * time.Second
