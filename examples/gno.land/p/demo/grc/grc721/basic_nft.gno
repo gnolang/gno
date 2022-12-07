@@ -114,7 +114,7 @@ func (s *basicNFT) GetApproved(tid TokenID) (std.Address, error) {
 		return zeroAddress, ErrTokenIdNotHasApproved
 	}
 
-	return std.Address(addr), nil
+	return std.Address(addr.(string)), nil
 }
 
 // SetApprovalForAll can approve the operator to operate on all tokens

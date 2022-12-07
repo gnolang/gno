@@ -2,7 +2,6 @@ package foo721
 
 import (
 	"std"
-	"strings"
 
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/ufmt"
@@ -23,7 +22,7 @@ func mintNNFT(owner std.Address, n uint64) {
 	count := foo.TokenCount()
 	for i := count; i < count+n; i++ {
 		tid := grc721.TokenID(ufmt.Sprintf("%d", i))
-		foo.Mint(owner, tid.(grc721.TokenID))
+		foo.Mint(owner, tid)
 	}
 }
 
