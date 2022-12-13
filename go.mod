@@ -20,7 +20,7 @@ require (
 	github.com/gotuna/gotuna v0.6.0
 	github.com/jaekwon/testify v1.6.1
 	github.com/jmhodges/levigo v1.0.0
-	github.com/libp2p/go-buffer-pool v0.0.2
+	github.com/libp2p/go-buffer-pool v0.1.0
 	github.com/linxGnu/grocksdb v1.7.2
 	github.com/mattn/go-runewidth v0.0.10
 	github.com/pelletier/go-toml v1.9.3
