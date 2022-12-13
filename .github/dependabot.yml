@@ -6,3 +6,15 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+
+  # Maintain dependencies for top level Go modules
+  - package-ecosystem: gomod
+    directory: /
+    target-branch: "master"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    pull-request-branch-name:
+      separator: "-"
+    reviewers:
+      - "moul"
