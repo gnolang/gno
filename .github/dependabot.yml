@@ -6,6 +6,8 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    labels:
+      - "github_actions"
 
   # Maintain dependencies for top level Go modules
   - package-ecosystem: gomod
@@ -13,6 +15,8 @@ updates:
     target-branch: "master"
     schedule:
       interval: weekly
+    labels:
+      - "dependencies"
     open-pull-requests-limit: 10
     pull-request-branch-name:
       separator: "-"
