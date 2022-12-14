@@ -23,7 +23,7 @@ require (
 	github.com/libp2p/go-buffer-pool v0.1.0
 	github.com/linxGnu/grocksdb v1.7.2
 	github.com/mattn/go-runewidth v0.0.10
-	github.com/pelletier/go-toml v1.9.3
+	github.com/pelletier/go-toml v1.9.5
 	github.com/stretchr/testify v1.7.1
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c
