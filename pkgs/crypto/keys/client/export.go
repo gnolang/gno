@@ -39,9 +39,9 @@ func exportApp(cmd *command.Command, _ []string, iopts interface{}) error {
 	kb, err := keys.NewKeyBaseFromDir(opts.Home)
 	if err != nil {
 		return fmt.Errorf(
-			"unable to create a key base from directory %s, %v",
-			err,
+			"unable to create a key base from directory %s, %w",
 			opts.Home,
+			err,
 		)
 	}
 
@@ -52,8 +52,8 @@ func exportApp(cmd *command.Command, _ []string, iopts interface{}) error {
 	)
 	if err != nil {
 		return fmt.Errorf(
-			"unable to retrieve decrypt password from user, %v",
-			decryptPassword,
+			"unable to retrieve decrypt password from user, %w",
+			err,
 		)
 	}
 
@@ -63,8 +63,8 @@ func exportApp(cmd *command.Command, _ []string, iopts interface{}) error {
 		"Repeat the passphrase:")
 	if err != nil {
 		return fmt.Errorf(
-			"unable to retrieve armor encrypt password from user, %v",
-			decryptPassword,
+			"unable to retrieve armor encrypt password from user, %w",
+			err,
 		)
 	}
 
@@ -76,7 +76,7 @@ func exportApp(cmd *command.Command, _ []string, iopts interface{}) error {
 	)
 	if err != nil {
 		return fmt.Errorf(
-			"unable to export the private key, %v",
+			"unable to export the private key, %w",
 			err,
 		)
 	}
@@ -88,12 +88,12 @@ func exportApp(cmd *command.Command, _ []string, iopts interface{}) error {
 		0644,
 	); err != nil {
 		return fmt.Errorf(
-			"unable to write encrypted armor to file, %v",
+			"unable to write encrypted armor to file, %w",
 			err,
 		)
 	}
 
-	fmt.Printf("Encrypted private key armor successfully outputted to %s\n", opts.OutputPath)
+	cmd.Printfln("Encrypted private key armor successfully outputted to %s", opts.OutputPath)
 
 	return nil
 }
