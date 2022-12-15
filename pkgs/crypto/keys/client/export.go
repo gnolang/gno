@@ -23,10 +23,12 @@ type ExportOptions struct {
 	OutputPath string `flag:"output-path"`
 }
 
-var DefaultExportOptions = ExportOptions{}
+var DefaultExportOptions = ExportOptions{
+	BaseOptions: DefaultBaseOptions,
+}
 
 // exportApp performs private key exports using the provided params
-func exportApp(cmd *command.Command, args []string, iopts interface{}) error {
+func exportApp(cmd *command.Command, _ []string, iopts interface{}) error {
 	// Read the flag values
 	opts, ok := iopts.(ExportOptions)
 	if !ok {
@@ -43,20 +45,11 @@ func exportApp(cmd *command.Command, args []string, iopts interface{}) error {
 		)
 	}
 
-	// Get the key info using the name / bech32
-	// TODO consider if this step is even needed
-	info, err := kb.GetByNameOrAddress(opts.NameOrBech32)
-	if err != nil {
-		return fmt.Errorf(
-			"unable to read private key, %v",
-			err,
-		)
-	}
-
 	// Get the key-base decrypt password
-	decryptPassword, err := cmd.GetCheckPassword(
+	decryptPassword, err := cmd.GetPassword(
 		"Enter a passphrase to decrypt your private key from disk:",
-		"Repeat the passphrase:")
+		false,
+	)
 	if err != nil {
 		return fmt.Errorf(
 			"unable to retrieve decrypt password from user, %v",
@@ -77,7 +70,7 @@ func exportApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 	// Generate the encrypted armor
 	armor, err := kb.ExportPrivKey(
-		info.GetName(),
+		opts.NameOrBech32,
 		decryptPassword,
 		encryptPassword,
 	)
