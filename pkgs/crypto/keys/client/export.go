@@ -17,10 +17,10 @@ type ExportOptions struct {
 	BaseOptions
 
 	// The name or address of the private key to be exported
-	NameOrBech32 string `flag:"key"`
+	NameOrBech32 string `flag:"key" help:"Name or Bech32 address of the private key"`
 
 	// Output path for the encrypted private key armor
-	OutputPath string `flag:"output-path"`
+	OutputPath string `flag:"output-path" help:"The desired output path for the encrypted armor file"`
 }
 
 var DefaultExportOptions = ExportOptions{
