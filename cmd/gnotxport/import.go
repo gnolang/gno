@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 	"time"
 
@@ -31,7 +31,7 @@ var defaultTxImportOptions = txImportOptions{
 func txImportApp(cmd *command.Command, args []string, iopts interface{}) error {
 	opts := iopts.(txImportOptions)
 	c := client.NewHTTP(opts.Remote, "/websocket")
-	filebz, err := ioutil.ReadFile(opts.InFile)
+	filebz, err := os.ReadFile(opts.InFile)
 	if err != nil {
 		return err
 	}

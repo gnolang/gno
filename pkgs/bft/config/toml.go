@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"text/template"
 
@@ -24,7 +25,7 @@ func init() {
 }
 
 func LoadConfigFile(configFilePath string) *Config {
-	bz, err := ioutil.ReadFile(configFilePath)
+	bz, err := os.ReadFile(configFilePath)
 	if err != nil {
 		panic(err)
 	}

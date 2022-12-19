@@ -3,7 +3,6 @@ package command
 import (
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"regexp"
@@ -331,7 +330,7 @@ func parseFlags(fargs []string) map[string]interface{} {
 			// if a --flag#file <file_location> flag, read contents.
 			if strings.HasSuffix(fname, "#file") {
 				ffile := farg
-				fargbz, err := ioutil.ReadFile(ffile)
+				fargbz, err := os.ReadFile(ffile)
 				if err != nil {
 					panic(fmt.Sprintf(
 						"error reading file: %v", err))
