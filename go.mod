@@ -8,7 +8,7 @@ require (
 	github.com/btcsuite/btcutil v1.0.2
 	github.com/cockroachdb/apd v1.1.0
 	github.com/davecgh/go-spew v1.1.1
-	github.com/dgraph-io/badger/v3 v3.2103.4
+	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/gdamore/tcell/v2 v2.1.0
 	github.com/gnolang/cors v1.8.1
