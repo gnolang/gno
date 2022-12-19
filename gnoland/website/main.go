@@ -34,6 +34,7 @@ var flags struct {
 	captchaSite     string
 	faucetURL       string
 	viewsDir        string
+	pagesDir        string
 	helpChainID     string
 	helpRemote      string
 	homeContentFile string
@@ -47,6 +48,7 @@ func init() {
 	flag.StringVar(&flags.captchaSite, "captcha-site", "", "recaptcha site key (if empty, captcha are disabled)")
 	flag.StringVar(&flags.faucetURL, "faucet-url", "http://localhost:5050", "faucet server URL")
 	flag.StringVar(&flags.viewsDir, "views-dir", "./gnoland/website/views", "views directory location")
+	flag.StringVar(&flags.pagesDir, "pages-dir", "./gnoland/website/pages", "pages directory location")
 	flag.StringVar(&flags.homeContentFile, "home-content", "./gnoland/website/HOME.md", "home content filepath")
 	flag.StringVar(&flags.helpChainID, "help-chainid", "dev", "help page's chainid")
 	flag.StringVar(&flags.helpRemote, "help-remote", "127.0.0.1:26657", "help page's remote addr")
@@ -64,6 +66,8 @@ func main() {
 	}
 
 	app.Router.Handle("/", handlerHome(app))
+	app.Router.Handle("/about", handlerAbout(app))
+	app.Router.Handle("/game-of-realms", handlerGor(app))
 	app.Router.Handle("/faucet", handlerFaucet(app))
 	app.Router.Handle("/r/demo/boards:gnolang/6", handlerRedirect(app))
 	// NOTE: see rePathPart.
@@ -84,12 +88,37 @@ func main() {
 }
 
 func handlerHome(app gotuna.App) http.Handler {
-	homeContent := osm.MustReadFile(flags.homeContentFile)
+	md := filepath.Join(flags.pagesDir, "HOME.md")
+	homeContent := osm.MustReadFile(md)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		app.NewTemplatingEngine().
 			Set("HomeContent", string(homeContent)).
 			Render(w, r, "home.html", "funcs.html")
+	})
+}
+
+func handlerAbout(app gotuna.App) http.Handler {
+	md := filepath.Join(flags.pagesDir, "ABOUT.md")
+	mainContent := osm.MustReadFile(md)
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		app.NewTemplatingEngine().
+			Set("Title", "About").
+			Set("MainContent", string(mainContent)).
+			Render(w, r, "generic.html", "funcs.html")
+	})
+}
+
+func handlerGor(app gotuna.App) http.Handler {
+	md := filepath.Join(flags.pagesDir, "GOR.md")
+	mainContent := osm.MustReadFile(md)
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		app.NewTemplatingEngine().
+			Set("MainContent", string(mainContent)).
+			Set("Title", "About").
+			Render(w, r, "generic.html", "funcs.html")
 	})
 }
 
