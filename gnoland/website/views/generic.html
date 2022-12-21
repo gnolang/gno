@@ -1,0 +1,24 @@
+{{- define "app" -}}
+<!DOCTYPE html>
+<html>
+  <head>
+      <title>Gno.land - {{ .Data.Title }}</title>
+    {{ template "html_head" }}
+  </head>
+  <body onload="main()">
+    <div id="root">
+      <div id="header">
+        {{ template "header_logo" }}
+        {{ template "header_buttons" }}
+      </div>
+      <div id="home">
+        <pre id="source">
+{{ .Data.MainContent }}
+        </pre>
+      </div>
+      {{ template "footer" }}
+    </div>
+    {{ template "js" }}
+  </body>
+</html>
+{{- end -}}
