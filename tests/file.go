@@ -6,7 +6,7 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
-	"io/ioutil"
+	"os"
 	"regexp"
 	rtdb "runtime/debug"
 	"strconv"
@@ -84,7 +84,7 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 	// m.Use(interp.Symbols)
 	// m.Use(stdlib.Symbols)
 	// m.Use(unsafe.Symbols)
-	bz, err := ioutil.ReadFile(path)
+	bz, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}

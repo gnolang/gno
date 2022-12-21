@@ -3,7 +3,7 @@ package p2p
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/crypto"
@@ -39,7 +39,7 @@ func LoadOrGenNodeKey(filePath string) (*NodeKey, error) {
 }
 
 func LoadNodeKey(filePath string) (*NodeKey, error) {
-	jsonBytes, err := ioutil.ReadFile(filePath)
+	jsonBytes, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func genNodeKey(filePath string) (*NodeKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = ioutil.WriteFile(filePath, jsonBytes, 0o600)
+	err = os.WriteFile(filePath, jsonBytes, 0o600)
 	if err != nil {
 		return nil, err
 	}

@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -528,7 +527,7 @@ func checksumIt(data []byte) string {
 }
 
 func checksumFile(p string, t *testing.T) string {
-	data, err := ioutil.ReadFile(p)
+	data, err := os.ReadFile(p)
 	require.Nil(t, err, "expecting successful read of %q", p)
 	return checksumIt(data)
 }

@@ -3,6 +3,7 @@ package gnolang
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -1109,7 +1110,7 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 			continue
 		}
 		fpath := filepath.Join(dir, file.Name())
-		bz, err := ioutil.ReadFile(fpath)
+		bz, err := os.ReadFile(fpath)
 		if err != nil {
 			panic(err)
 		}

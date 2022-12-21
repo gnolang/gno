@@ -2,7 +2,7 @@ package types
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/gnolang/gno/pkgs/amino"
@@ -115,7 +115,7 @@ func GenesisDocFromJSON(jsonBlob []byte) (*GenesisDoc, error) {
 
 // GenesisDocFromFile reads JSON data from a file and unmarshalls it into a GenesisDoc.
 func GenesisDocFromFile(genDocFile string) (*GenesisDoc, error) {
-	jsonBlob, err := ioutil.ReadFile(genDocFile)
+	jsonBlob, err := os.ReadFile(genDocFile)
 	if err != nil {
 		return nil, errors.Wrap(err, "Couldn't read GenesisDoc file")
 	}
