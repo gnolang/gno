@@ -19,7 +19,7 @@ type SignOptions struct {
 	Sequence      *uint64 `flag:"sequence" help:"sequence to sign with (required)"`
 	ShowSignBytes bool    `flag:"show-signbytes" help:"show sign bytes and quit"`
 
-	// internal flags, when called programatically
+	// internal flags, when called programmatically
 	NameOrBech32 string `flag:"-"`
 	TxJson       []byte `flag:"-"`
 	Pass         string `flag:"-"`
