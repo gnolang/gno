@@ -21,8 +21,11 @@ func TestFoo721(t *testing.T) {
 		{"OwnerOf(0)", admin.Resolve(), func() interface{} { return OwnerOf(grc721.TokenID("0")) }},
 		{"IsApprovedForAll(admin, hariom)", false, func() interface{} { return IsApprovedForAll(admin, hariom) }},
 	} {
-		if tc.fn() != tc.expected {
-			t.Errorf("%s: expected: %v got: %v", tc.name, tc.expected, tc.fn())
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			got := tc.fn()
+			if tc.expected != got {
+				t.Errorf("expected: %v got: %v", tc.expected, got)
+			}
+		})
 	}
 }
