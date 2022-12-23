@@ -1,12 +1,12 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
 	"github.com/gnolang/gno/pkgs/command"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
-	"github.com/gnolang/gno/pkgs/errors"
 )
 
 var (

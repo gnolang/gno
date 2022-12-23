@@ -307,7 +307,9 @@ func (kb dbKeybase) ExportPubKey(nameOrBech32 string) (astr string, err error) {
 
 // ExportPrivKey returns a private key in ASCII armored format.
 // It returns an error if the key does not exist or a wrong encryption passphrase is supplied.
-func (kb dbKeybase) ExportPrivKey(name string, decryptPassphrase string,
+func (kb dbKeybase) ExportPrivKey(
+	name string,
+	decryptPassphrase string,
 	encryptPassphrase string,
 ) (astr string, err error) {
 	priv, err := kb.ExportPrivateKeyObject(name, decryptPassphrase)
@@ -321,16 +323,21 @@ func (kb dbKeybase) ExportPrivKey(name string, decryptPassphrase string,
 // ImportPrivKey imports a private key in ASCII armor format.
 // It returns an error if a key with the same name exists or a wrong encryption passphrase is
 // supplied.
-func (kb dbKeybase) ImportPrivKey(name string, astr string, passphrase string) error {
+func (kb dbKeybase) ImportPrivKey(
+	name string,
+	astr string,
+	decryptPassphrase,
+	encryptPassphrase string,
+) error {
 	if _, err := kb.GetByNameOrAddress(name); err == nil {
 		return errors.New("Cannot overwrite key " + name)
 	}
-	privKey, err := armor.UnarmorDecryptPrivKey(astr, passphrase)
+	privKey, err := armor.UnarmorDecryptPrivKey(astr, decryptPassphrase)
 	if err != nil {
 		return errors.Wrap(err, "couldn't import private key")
 	}
 
-	kb.writeLocalKey(name, privKey, passphrase)
+	kb.writeLocalKey(name, privKey, encryptPassphrase)
 	return nil
 }
 
