@@ -308,8 +308,8 @@ func (kb dbKeybase) ExportPubKey(nameOrBech32 string) (astr string, err error) {
 // ExportPrivKey returns a private key in ASCII armored format.
 // It returns an error if the key does not exist or a wrong encryption passphrase is supplied.
 func (kb dbKeybase) ExportPrivKey(
-	name string,
-	decryptPassphrase string,
+	name,
+	decryptPassphrase,
 	encryptPassphrase string,
 ) (astr string, err error) {
 	priv, err := kb.ExportPrivateKeyObject(name, decryptPassphrase)
@@ -324,8 +324,8 @@ func (kb dbKeybase) ExportPrivKey(
 // It returns an error if a key with the same name exists or a wrong encryption passphrase is
 // supplied.
 func (kb dbKeybase) ImportPrivKey(
-	name string,
-	astr string,
+	name,
+	astr,
 	decryptPassphrase,
 	encryptPassphrase string,
 ) error {
@@ -341,7 +341,7 @@ func (kb dbKeybase) ImportPrivKey(
 	return nil
 }
 
-func (kb dbKeybase) Import(name string, astr string) (err error) {
+func (kb dbKeybase) Import(name, astr string) (err error) {
 	if _, err := kb.GetByNameOrAddress(name); err == nil {
 		return errors.New("Cannot overwrite key " + name)
 	}
@@ -356,7 +356,7 @@ func (kb dbKeybase) Import(name string, astr string) (err error) {
 // ImportPubKey imports ASCII-armored public keys.
 // Store a new Info object holding a public key only, i.e. it will
 // not be possible to sign with it as it lacks the secret key.
-func (kb dbKeybase) ImportPubKey(name string, astr string) (err error) {
+func (kb dbKeybase) ImportPubKey(name, astr string) (err error) {
 	if _, err := kb.GetByNameOrAddress(name); err == nil {
 		return errors.New("Cannot overwrite data for name " + name)
 	}
