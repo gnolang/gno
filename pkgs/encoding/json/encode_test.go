@@ -49,7 +49,7 @@ func TestMarshal(t *testing.T) {
 				}
 			*/
 
-			got, err := Marshal(v, s)
+			got, err := Marshal(s, v)
 			//fmt.Printf("got: %s\n", string(got))
 			if err != nil {
 				t.Errorf("Marshal(%v) error: %v", tt.in, err)

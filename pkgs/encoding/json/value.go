@@ -98,7 +98,13 @@ func (gv gnoValue) StructFields() []StructField {
 		panic("not a struct")
 	}
 
-	stt := gv.v.T.(*gno.StructType)
+	var stt *gno.StructType
+	if dt, ok := gv.v.T.(*gno.DeclaredType); ok {
+		stt = dt.Base.(*gno.StructType)
+	} else {
+		stt = gv.v.T.(*gno.StructType)
+	}
+
 	stv := gv.v.V.(*gno.StructValue)
 
 	var fields []StructField

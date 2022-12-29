@@ -9,14 +9,28 @@ import (
 )
 
 // Marshal returns the JSON encoding of v.
-func Marshal(v gno.TypedValue, s gno.Store) ([]byte, error) {
+func Marshal(s gno.Store, vs ...gno.TypedValue) ([]byte, error) {
 	e := newEncodeState()
 	defer encodeStatePool.Put(e)
 
-	err := e.marshal(v, s, encOpts{escapeHTML: true})
-	if err != nil {
-		return nil, err
+	if len(vs) > 1 {
+		e.WriteByte('[')
 	}
+
+	for i, v := range vs {
+		if i > 0 {
+			e.WriteByte(',')
+		}
+		err := e.marshal(v, s, encOpts{escapeHTML: true})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if len(vs) > 1 {
+		e.WriteByte(']')
+	}
+
 	buf := append([]byte(nil), e.Bytes()...)
 
 	return buf, nil
