@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/gnolang/gno/pkgs/encoding/json"
 	"github.com/gnolang/gno/pkgs/errors"
 	gno "github.com/gnolang/gno/pkgs/gnolang"
 	"github.com/gnolang/gno/pkgs/sdk"
@@ -439,6 +440,56 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 		return "", errors.New("expected 1 string result, got %v", rtvs[0].T.Kind())
 	}
 	res = rtvs[0].GetString()
+	return res, nil
+}
+
+func (vm *VMKeeper) QueryEvalJSON(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
+	alloc := gno.NewAllocator(maxAllocQuery)
+	store := vm.getGnoStore(ctx)
+	pkgAddr := gno.DerivePkgAddr(pkgPath)
+	// Get Package.
+	pv := store.GetPackage(pkgPath, false)
+	if pv == nil {
+		err = ErrInvalidPkgPath(fmt.Sprintf(
+			"package not found: %s", pkgPath))
+		return "", err
+	}
+	// Parse expression.
+	xx, err := gno.ParseExpr(expr)
+	if err != nil {
+		return "", err
+	}
+	// Construct new machine.
+	msgCtx := stdlibs.ExecContext{
+		ChainID:   ctx.ChainID(),
+		Height:    ctx.BlockHeight(),
+		Timestamp: ctx.BlockTime().Unix(),
+		// Msg:           msg,
+		// OrigCaller:    caller,
+		// OrigSend:      jsend,
+		// OrigSendSpent: nil,
+		OrigPkgAddr: pkgAddr.Bech32(),
+		Banker:      NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
+	}
+	m := gno.NewMachineWithOptions(
+		gno.MachineOptions{
+			PkgPath:   pkgPath,
+			Output:    os.Stdout, // XXX
+			Store:     store,
+			Context:   msgCtx,
+			Alloc:     alloc,
+			MaxCycles: 10 * 1000 * 1000, // 10M cycles // XXX
+		})
+	rtvs := m.Eval(xx)
+	if len(rtvs) == 0 {
+		return "", errors.New("expected result, got none")
+	}
+
+	bs, err := json.Marshal(store, rtvs...)
+	if err != nil {
+		return "", err
+	}
+	res = string(bs)
 	return res, nil
 }
 
