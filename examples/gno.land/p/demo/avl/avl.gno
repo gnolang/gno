@@ -359,6 +359,64 @@ func (tree *Tree) TraverseInRange(start, end string, ascending bool, leavesOnly 
 	return stop
 }
 
+// TraverseByOffset traverses all nodes, including inner nodes.
+// A limit of math.MaxInt means no limit.
+// XXX Actually implement this method signature by modifying the implementation below.
+// XXX Then, make tests.
+func (tree *Tree) TraverseByOffset(offset, limit int, ascending bool, leavesOnly bool, cb func(*Tree) bool) bool {
+	// XXX modify...
+	if tree == nil {
+		return false
+	}
+	afterStart := (start == "" || start < tree.key)
+	startOrAfter := (start == "" || start <= tree.key)
+	beforeEnd := false
+	if ascending {
+		beforeEnd = (end == "" || tree.key < end)
+	} else {
+		beforeEnd = (end == "" || tree.key <= end)
+	}
+
+	// Run callback per inner/leaf node.
+	stop := false
+	if (!tree.IsLeaf() && !leavesOnly) ||
+		(tree.IsLeaf() && startOrAfter && beforeEnd) {
+		stop = cb(tree)
+		if stop {
+			return stop
+		}
+	}
+	if tree.IsLeaf() {
+		return stop
+	}
+
+	if ascending {
+		// check lower trees, then higher
+		if afterStart {
+			stop = tree.getLeftTree().TraverseByOffset(start, end, ascending, leavesOnly, cb)
+		}
+		if stop {
+			return stop
+		}
+		if beforeEnd {
+			stop = tree.getRightTree().TraverseByOffset(start, end, ascending, leavesOnly, cb)
+		}
+	} else {
+		// check the higher trees first
+		if beforeEnd {
+			stop = tree.getRightTree().TraverseByOffset(start, end, ascending, leavesOnly, cb)
+		}
+		if stop {
+			return stop
+		}
+		if afterStart {
+			stop = tree.getLeftTree().TraverseByOffset(start, end, ascending, leavesOnly, cb)
+		}
+	}
+
+	return stop
+}
+
 // Only used in testing...
 func (tree *Tree) lmd() *Tree {
 	if tree.height == 0 {
