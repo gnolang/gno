@@ -28,6 +28,7 @@ type testOptions struct {
 	Run        string        `flag:"run" help:"test name filtering pattern"`
 	Timeout    time.Duration `flag:"timeout" help:"max execution time (in ns)"`               // FIXME: support ParseDuration: "1s"
 	Precompile bool          `flag:"precompile" help:"precompiling gno to go before testing"` // TODO: precompile should be the default, but it needs to automatically precompile dependencies in memory.
+	Sync       bool          `flag:"sync" help:"writes actual as wanted in test comments"`
 	// VM Options
 	// A flag about if we should download the production realms
 	// UseNativeLibs bool // experimental, but could be useful for advanced developer needs
@@ -39,6 +40,7 @@ var defaultTestOptions = testOptions{
 	RootDir:    "",
 	Timeout:    0,
 	Precompile: false,
+	Sync:       false,
 }
 
 func testApp(cmd *command.Command, args []string, iopts interface{}) error {
@@ -220,7 +222,7 @@ func gnoTestPkg(cmd *command.Command, pkgPath string, unittestFiles, filetestFil
 			}
 
 			testFilePath := filepath.Join(pkgPath, testFileName)
-			err := tests.RunFileTest(rootDir, testFilePath, false, nil)
+			err := tests.RunFileTest(rootDir, testFilePath, false, nil, opts.Sync)
 			duration := time.Since(startedAt)
 			dstr := fmtDuration(duration)
 

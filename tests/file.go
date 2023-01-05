@@ -19,9 +19,6 @@ import (
 	"github.com/gnolang/gno/stdlibs"
 )
 
-// If true, writes actual as wanted in test comments.
-var syncWanted bool = true
-
 type loggerFunc func(args ...interface{})
 
 func TestMachine(store gno.Store, stdout io.Writer, pkgPath string) *gno.Machine {
@@ -59,7 +56,10 @@ func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAll
 	return m
 }
 
-func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc) error {
+// It runs .gno file testing in tests/files and tests/files2 directories
+// If syncWanted is true, writes actual as wanted in test comments.
+
+func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc, syncWanted bool) error {
 	directives, pkgPath, resWanted, errWanted, rops, maxAlloc, send := wantedFromComment(path)
 	if pkgPath == "" {
 		pkgPath = "main"

@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
@@ -10,17 +11,19 @@ import (
 	gno "github.com/gnolang/gno/pkgs/gnolang"
 )
 
+var syncWanted = flag.Bool("sync", false, "writes actual as wanted in test comments")
+
 func TestFileStr(t *testing.T) {
 	filePath := filepath.Join(".", "files", "str.gno")
-	runFileTest(t, filePath, true)
+	runFileTest(t, filePath, true, false)
 }
 
-func runFileTest(t *testing.T, path string, nativeLibs bool) {
+func runFileTest(t *testing.T, path string, nativeLibs bool, syncWanted bool) {
 	var logger loggerFunc
 	if gno.IsDebug() && testing.Verbose() {
 		logger = t.Log
 	}
-	err := RunFileTest("..", path, nativeLibs, logger)
+	err := RunFileTest("..", path, nativeLibs, logger, syncWanted)
 	if err != nil {
 		t.Fatalf("got error: %v", err)
 	}
@@ -44,7 +47,7 @@ func TestFiles1(t *testing.T) {
 		}
 		file := file
 		t.Run(file.Name(), func(t *testing.T) {
-			runFileTest(t, filepath.Join(baseDir, file.Name()), true)
+			runFileTest(t, filepath.Join(baseDir, file.Name()), true, *syncWanted)
 		})
 	}
 }
@@ -66,7 +69,7 @@ func TestFiles2(t *testing.T) {
 		}
 		file := file
 		t.Run(file.Name(), func(t *testing.T) {
-			runFileTest(t, filepath.Join(baseDir, file.Name()), false)
+			runFileTest(t, filepath.Join(baseDir, file.Name()), false, *syncWanted)
 		})
 	}
 }
