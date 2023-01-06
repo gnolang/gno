@@ -12,7 +12,7 @@ import (
 
 type Plot struct {
 	Name     string
-	Posts    *avl.Tree // postsCtr -> *Post
+	Posts    avl.Tree // postsCtr -> *Post
 	PostsCtr int
 }
 
@@ -24,14 +24,13 @@ func (plot *Plot) AddPost(title string, body string) {
 		Title: title,
 		Body:  body,
 	}
-	posts2, _ := plot.Posts.Set(key, post)
-	plot.Posts = posts2
+	plot.Posts.Set(key, post)
 }
 
 func (plot *Plot) String() string {
 	str := "# [plot] " + plot.Name + "\n"
 	if plot.Posts.Size() > 0 {
-		plot.Posts.Iterate("", "", func(n *avl.Tree) bool {
+		plot.Posts.Iterate("", "", func(n *avl.Node) bool {
 			str += "\n"
 			str += n.Value().(*Post).String()
 			return false
@@ -43,7 +42,7 @@ func (plot *Plot) String() string {
 type Post struct {
 	Title    string
 	Body     string
-	Comments *avl.Tree
+	Comments avl.Tree
 }
 
 func (post *Post) String() string {
@@ -51,7 +50,7 @@ func (post *Post) String() string {
 	str += ""
 	str += post.Body
 	if post.Comments.Size() > 0 {
-		post.Comments.Iterate("", "", func(n *avl.Tree) bool {
+		post.Comments.Iterate("", "", func(n *avl.Node) bool {
 			str += "\n"
 			str += n.Value().(*Comment).String()
 			return false

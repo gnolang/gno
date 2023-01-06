@@ -32,7 +32,7 @@ func (tree *Tree) GetByIndex(index int) (key string, value interface{}) {
 
 func (tree *Tree) Set(key string, value interface{}) (updated bool) {
 	newnode, updated := tree.node.Set(key, value)
-	node.node = newnode
+	tree.node = newnode
 	return updated
 }
 
