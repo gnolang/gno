@@ -5,18 +5,18 @@ import (
 	"gno.land/p/demo/avl"
 )
 
-var tree *avl.Tree
+var node *avl.Node
 
 func init() {
-	tree = avl.NewTree("key0", "value0")
-	// tree, _ = tree.Set("key0", "value0")
+	node = avl.NewNode("key0", "value0")
+	// node, _ = node.Set("key0", "value0")
 }
 
 func main() {
 	var updated bool
-	tree, updated = tree.Set("key1", "value1")
-	// println(tree, updated)
-	println(updated, tree.Size())
+	node, updated = node.Set("key1", "value1")
+	// println(node, updated)
+	println(updated, node.Size())
 }
 
 // Output:
