@@ -1,18 +1,18 @@
 package avl
 
-// Tree
+// Node
 
-type Tree struct {
+type Node struct {
 	key       string
 	value     interface{}
 	height    int8
 	size      int
-	leftTree  *Tree
-	rightTree *Tree
+	leftNode *Node
+	rightNode *Node
 }
 
-func NewTree(key string, value interface{}) *Tree {
-	return &Tree{
+func NewNode(key string, value interface{}) *Node {
+	return &Node{
 		key:    key,
 		value:  value,
 		height: 0,
@@ -20,283 +20,283 @@ func NewTree(key string, value interface{}) *Tree {
 	}
 }
 
-func (tree *Tree) Size() int {
-	if tree == nil {
+func (node *Node) Size() int {
+	if node == nil {
 		return 0
 	}
-	return tree.size
+	return node.size
 }
 
-func (tree *Tree) IsLeaf() bool {
-	return tree.height == 0
+func (node *Node) IsLeaf() bool {
+	return node.height == 0
 }
 
-func (tree *Tree) Key() string {
-	return tree.key
+func (node *Node) Key() string {
+	return node.key
 }
 
-func (tree *Tree) Value() interface{} {
-	return tree.value
+func (node *Node) Value() interface{} {
+	return node.value
 }
 
-func (tree *Tree) _copy() *Tree {
-	if tree.height == 0 {
-		panic("Why are you copying a value tree?")
+func (node *Node) _copy() *Node {
+	if node.height == 0 {
+		panic("Why are you copying a value node?")
 	}
-	return &Tree{
-		key:       tree.key,
-		height:    tree.height,
-		size:      tree.size,
-		leftTree:  tree.leftTree,
-		rightTree: tree.rightTree,
+	return &Node{
+		key:       node.key,
+		height:    node.height,
+		size:      node.size,
+		leftNode:  node.leftNode,
+		rightNode: node.rightNode,
 	}
 }
 
-func (tree *Tree) Has(key string) (has bool) {
-	if tree == nil {
+func (node *Node) Has(key string) (has bool) {
+	if node == nil {
 		return false
 	}
-	if tree.key == key {
+	if node.key == key {
 		return true
 	}
-	if tree.height == 0 {
+	if node.height == 0 {
 		return false
 	} else {
-		if key < tree.key {
-			return tree.getLeftTree().Has(key)
+		if key < node.key {
+			return node.getLeftNode().Has(key)
 		} else {
-			return tree.getRightTree().Has(key)
+			return node.getRightNode().Has(key)
 		}
 	}
 }
 
-func (tree *Tree) Get(key string) (index int, value interface{}, exists bool) {
-	if tree == nil {
+func (node *Node) Get(key string) (index int, value interface{}, exists bool) {
+	if node == nil {
 		return 0, nil, false
 	}
-	if tree.height == 0 {
-		if tree.key == key {
-			return 0, tree.value, true
-		} else if tree.key < key {
+	if node.height == 0 {
+		if node.key == key {
+			return 0, node.value, true
+		} else if node.key < key {
 			return 1, nil, false
 		} else {
 			return 0, nil, false
 		}
 	} else {
-		if key < tree.key {
-			return tree.getLeftTree().Get(key)
+		if key < node.key {
+			return node.getLeftNode().Get(key)
 		} else {
-			rightTree := tree.getRightTree()
-			index, value, exists = rightTree.Get(key)
-			index += tree.size - rightTree.size
+			rightNode := node.getRightNode()
+			index, value, exists = rightNode.Get(key)
+			index += node.size - rightNode.size
 			return index, value, exists
 		}
 	}
 }
 
-func (tree *Tree) GetByIndex(index int) (key string, value interface{}) {
-	if tree.height == 0 {
+func (node *Node) GetByIndex(index int) (key string, value interface{}) {
+	if node.height == 0 {
 		if index == 0 {
-			return tree.key, tree.value
+			return node.key, node.value
 		} else {
 			panic("GetByIndex asked for invalid index")
 			return "", nil
 		}
 	} else {
 		// TODO: could improve this by storing the sizes
-		leftTree := tree.getLeftTree()
-		if index < leftTree.size {
-			return leftTree.GetByIndex(index)
+		leftNode := node.getLeftNode()
+		if index < leftNode.size {
+			return leftNode.GetByIndex(index)
 		} else {
-			return tree.getRightTree().GetByIndex(index - leftTree.size)
+			return node.getRightNode().GetByIndex(index - leftNode.size)
 		}
 	}
 }
 
-// XXX consider a better way to do this... perhaps split Tree from Node.
-func (tree *Tree) Set(key string, value interface{}) (newSelf *Tree, updated bool) {
-	if tree == nil {
-		return NewTree(key, value), false
+// XXX consider a better way to do this... perhaps split Node from Node.
+func (node *Node) Set(key string, value interface{}) (newSelf *Node, updated bool) {
+	if node == nil {
+		return NewNode(key, value), false
 	}
-	if tree.height == 0 {
-		if key < tree.key {
-			return &Tree{
-				key:       tree.key,
+	if node.height == 0 {
+		if key < node.key {
+			return &Node{
+				key:       node.key,
 				height:    1,
 				size:      2,
-				leftTree:  NewTree(key, value),
-				rightTree: tree,
+				leftNode:  NewNode(key, value),
+				rightNode: node,
 			}, false
-		} else if key == tree.key {
-			return NewTree(key, value), true
+		} else if key == node.key {
+			return NewNode(key, value), true
 		} else {
-			return &Tree{
+			return &Node{
 				key:       key,
 				height:    1,
 				size:      2,
-				leftTree:  tree,
-				rightTree: NewTree(key, value),
+				leftNode:  node,
+				rightNode: NewNode(key, value),
 			}, false
 		}
 	} else {
-		tree = tree._copy()
-		if key < tree.key {
-			tree.leftTree, updated = tree.getLeftTree().Set(key, value)
+		node = node._copy()
+		if key < node.key {
+			node.leftNode, updated = node.getLeftNode().Set(key, value)
 		} else {
-			tree.rightTree, updated = tree.getRightTree().Set(key, value)
+			node.rightNode, updated = node.getRightNode().Set(key, value)
 		}
 		if updated {
-			return tree, updated
+			return node, updated
 		} else {
-			tree.calcHeightAndSize()
-			return tree.balance(), updated
+			node.calcHeightAndSize()
+			return node.balance(), updated
 		}
 	}
 }
 
-// newTree: The new tree to replace tree after remove.
-// newKey: new leftmost leaf key for tree after successfully removing 'key' if changed.
+// newNode: The new node to replace node after remove.
+// newKey: new leftmost leaf key for node after successfully removing 'key' if changed.
 // value: removed value.
-func (tree *Tree) Remove(key string) (
-	newTree *Tree, newKey string, value interface{}, removed bool,
+func (node *Node) Remove(key string) (
+	newNode *Node, newKey string, value interface{}, removed bool,
 ) {
-	if tree == nil {
+	if node == nil {
 		return nil, "", nil, false
 	}
-	if tree.height == 0 {
-		if key == tree.key {
-			return nil, "", tree.value, true
+	if node.height == 0 {
+		if key == node.key {
+			return nil, "", node.value, true
 		} else {
-			return tree, "", nil, false
+			return node, "", nil, false
 		}
 	} else {
-		if key < tree.key {
-			var newLeftTree *Tree
-			newLeftTree, newKey, value, removed = tree.getLeftTree().Remove(key)
+		if key < node.key {
+			var newLeftNode *Node
+			newLeftNode, newKey, value, removed = node.getLeftNode().Remove(key)
 			if !removed {
-				return tree, "", value, false
-			} else if newLeftTree == nil { // left tree held value, was removed
-				return tree.rightTree, tree.key, value, true
+				return node, "", value, false
+			} else if newLeftNode == nil { // left node held value, was removed
+				return node.rightNode, node.key, value, true
 			}
-			tree = tree._copy()
-			tree.leftTree = newLeftTree
-			tree.calcHeightAndSize()
-			tree = tree.balance()
-			return tree, newKey, value, true
+			node = node._copy()
+			node.leftNode = newLeftNode
+			node.calcHeightAndSize()
+			node = node.balance()
+			return node, newKey, value, true
 		} else {
-			var newRightTree *Tree
-			newRightTree, newKey, value, removed = tree.getRightTree().Remove(key)
+			var newRightNode *Node
+			newRightNode, newKey, value, removed = node.getRightNode().Remove(key)
 			if !removed {
-				return tree, "", value, false
-			} else if newRightTree == nil { // right tree held value, was removed
-				return tree.leftTree, "", value, true
+				return node, "", value, false
+			} else if newRightNode == nil { // right node held value, was removed
+				return node.leftNode, "", value, true
 			}
-			tree = tree._copy()
-			tree.rightTree = newRightTree
+			node = node._copy()
+			node.rightNode = newRightNode
 			if newKey != "" {
-				tree.key = newKey
+				node.key = newKey
 			}
-			tree.calcHeightAndSize()
-			tree = tree.balance()
-			return tree, "", value, true
+			node.calcHeightAndSize()
+			node = node.balance()
+			return node, "", value, true
 		}
 	}
 }
 
-func (tree *Tree) getLeftTree() *Tree {
-	return tree.leftTree
+func (node *Node) getLeftNode() *Node {
+	return node.leftNode
 }
 
-func (tree *Tree) getRightTree() *Tree {
-	return tree.rightTree
+func (node *Node) getRightNode() *Node {
+	return node.rightNode
 }
 
-// NOTE: overwrites tree
+// NOTE: overwrites node
 // TODO: optimize balance & rotate
-func (tree *Tree) rotateRight() *Tree {
-	tree = tree._copy()
-	l := tree.getLeftTree()
+func (node *Node) rotateRight() *Node {
+	node = node._copy()
+	l := node.getLeftNode()
 	_l := l._copy()
 
-	_lrCached := _l.rightTree
-	_l.rightTree = tree
-	tree.leftTree = _lrCached
+	_lrCached := _l.rightNode
+	_l.rightNode = node
+	node.leftNode = _lrCached
 
-	tree.calcHeightAndSize()
+	node.calcHeightAndSize()
 	_l.calcHeightAndSize()
 
 	return _l
 }
 
-// NOTE: overwrites tree
+// NOTE: overwrites node
 // TODO: optimize balance & rotate
-func (tree *Tree) rotateLeft() *Tree {
-	tree = tree._copy()
-	r := tree.getRightTree()
+func (node *Node) rotateLeft() *Node {
+	node = node._copy()
+	r := node.getRightNode()
 	_r := r._copy()
 
-	_rlCached := _r.leftTree
-	_r.leftTree = tree
-	tree.rightTree = _rlCached
+	_rlCached := _r.leftNode
+	_r.leftNode = node
+	node.rightNode = _rlCached
 
-	tree.calcHeightAndSize()
+	node.calcHeightAndSize()
 	_r.calcHeightAndSize()
 
 	return _r
 }
 
 // NOTE: mutates height and size
-func (tree *Tree) calcHeightAndSize() {
-	tree.height = maxInt8(tree.getLeftTree().height, tree.getRightTree().height) + 1
-	tree.size = tree.getLeftTree().size + tree.getRightTree().size
+func (node *Node) calcHeightAndSize() {
+	node.height = maxInt8(node.getLeftNode().height, node.getRightNode().height) + 1
+	node.size = node.getLeftNode().size + node.getRightNode().size
 }
 
-func (tree *Tree) calcBalance() int {
-	return int(tree.getLeftTree().height) - int(tree.getRightTree().height)
+func (node *Node) calcBalance() int {
+	return int(node.getLeftNode().height) - int(node.getRightNode().height)
 }
 
-// NOTE: assumes that tree can be modified
+// NOTE: assumes that node can be modified
 // TODO: optimize balance & rotate
-func (tree *Tree) balance() (newSelf *Tree) {
-	balance := tree.calcBalance()
+func (node *Node) balance() (newSelf *Node) {
+	balance := node.calcBalance()
 	if balance > 1 {
-		if tree.getLeftTree().calcBalance() >= 0 {
+		if node.getLeftNode().calcBalance() >= 0 {
 			// Left Left Case
-			return tree.rotateRight()
+			return node.rotateRight()
 		} else {
 			// Left Right Case
-			// tree = tree._copy()
-			left := tree.getLeftTree()
-			tree.leftTree = left.rotateLeft()
-			// tree.calcHeightAndSize()
-			return tree.rotateRight()
+			// node = node._copy()
+			left := node.getLeftNode()
+			node.leftNode = left.rotateLeft()
+			// node.calcHeightAndSize()
+			return node.rotateRight()
 		}
 	}
 	if balance < -1 {
-		if tree.getRightTree().calcBalance() <= 0 {
+		if node.getRightNode().calcBalance() <= 0 {
 			// Right Right Case
-			return tree.rotateLeft()
+			return node.rotateLeft()
 		} else {
 			// Right Left Case
-			// tree = tree._copy()
-			right := tree.getRightTree()
-			tree.rightTree = right.rotateRight()
-			// tree.calcHeightAndSize()
-			return tree.rotateLeft()
+			// node = node._copy()
+			right := node.getRightNode()
+			node.rightNode = right.rotateRight()
+			// node.calcHeightAndSize()
+			return node.rotateLeft()
 		}
 	}
 	// Nothing changed
-	return tree
+	return node
 }
 
 // Shortcut for TraverseInRange.
-func (tree *Tree) Iterate(start, end string, cb func(*Tree) bool) bool {
-	return tree.TraverseInRange(start, end, true, true, cb)
+func (node *Node) Iterate(start, end string, cb func(*Node) bool) bool {
+	return node.TraverseInRange(start, end, true, true, cb)
 }
 
 // Shortcut for TraverseInRange.
-func (tree *Tree) IterateReverse(start, end string, cb func(*Tree) bool) bool {
-	return tree.TraverseInRange(start, end, false, true, cb)
+func (node *Node) IterateReverse(start, end string, cb func(*Node) bool) bool {
+	return node.TraverseInRange(start, end, false, true, cb)
 }
 
 // TraverseInRange traverses all nodes, including inner nodes.
@@ -306,53 +306,53 @@ func (tree *Tree) IterateReverse(start, end string, cb func(*Tree) bool) bool {
 // If leavesOnly is true, only visit leaf nodes.
 // NOTE: To simulate an exclusive reverse traversal,
 // just append 0x00 to start.
-func (tree *Tree) TraverseInRange(start, end string, ascending bool, leavesOnly bool, cb func(*Tree) bool) bool {
-	if tree == nil {
+func (node *Node) TraverseInRange(start, end string, ascending bool, leavesOnly bool, cb func(*Node) bool) bool {
+	if node == nil {
 		return false
 	}
-	afterStart := (start == "" || start < tree.key)
-	startOrAfter := (start == "" || start <= tree.key)
+	afterStart := (start == "" || start < node.key)
+	startOrAfter := (start == "" || start <= node.key)
 	beforeEnd := false
 	if ascending {
-		beforeEnd = (end == "" || tree.key < end)
+		beforeEnd = (end == "" || node.key < end)
 	} else {
-		beforeEnd = (end == "" || tree.key <= end)
+		beforeEnd = (end == "" || node.key <= end)
 	}
 
 	// Run callback per inner/leaf node.
 	stop := false
-	if (!tree.IsLeaf() && !leavesOnly) ||
-		(tree.IsLeaf() && startOrAfter && beforeEnd) {
-		stop = cb(tree)
+	if (!node.IsLeaf() && !leavesOnly) ||
+		(node.IsLeaf() && startOrAfter && beforeEnd) {
+		stop = cb(node)
 		if stop {
 			return stop
 		}
 	}
-	if tree.IsLeaf() {
+	if node.IsLeaf() {
 		return stop
 	}
 
 	if ascending {
-		// check lower trees, then higher
+		// check lower nodes, then higher
 		if afterStart {
-			stop = tree.getLeftTree().TraverseInRange(start, end, ascending, leavesOnly, cb)
+			stop = node.getLeftNode().TraverseInRange(start, end, ascending, leavesOnly, cb)
 		}
 		if stop {
 			return stop
 		}
 		if beforeEnd {
-			stop = tree.getRightTree().TraverseInRange(start, end, ascending, leavesOnly, cb)
+			stop = node.getRightNode().TraverseInRange(start, end, ascending, leavesOnly, cb)
 		}
 	} else {
-		// check the higher trees first
+		// check the higher nodes first
 		if beforeEnd {
-			stop = tree.getRightTree().TraverseInRange(start, end, ascending, leavesOnly, cb)
+			stop = node.getRightNode().TraverseInRange(start, end, ascending, leavesOnly, cb)
 		}
 		if stop {
 			return stop
 		}
 		if afterStart {
-			stop = tree.getLeftTree().TraverseInRange(start, end, ascending, leavesOnly, cb)
+			stop = node.getLeftNode().TraverseInRange(start, end, ascending, leavesOnly, cb)
 		}
 	}
 
@@ -360,19 +360,19 @@ func (tree *Tree) TraverseInRange(start, end string, ascending bool, leavesOnly 
 }
 
 // Only used in testing...
-func (tree *Tree) lmd() *Tree {
-	if tree.height == 0 {
-		return tree
+func (node *Node) lmd() *Node {
+	if node.height == 0 {
+		return node
 	}
-	return tree.getLeftTree().lmd()
+	return node.getLeftNode().lmd()
 }
 
 // Only used in testing...
-func (tree *Tree) rmd() *Tree {
-	if tree.height == 0 {
-		return tree
+func (node *Node) rmd() *Node {
+	if node.height == 0 {
+		return node
 	}
-	return tree.getRightTree().rmd()
+	return node.getRightNode().rmd()
 }
 
 func maxInt8(a, b int8) int8 {

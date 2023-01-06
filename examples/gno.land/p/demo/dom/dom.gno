@@ -1,3 +1,7 @@
+// XXX This is only used for testing in ./tests.
+// Otherwise this package is deprecated.
+// TODO: replace with a package that is supported, and delete this.
+
 package dom
 
 import (

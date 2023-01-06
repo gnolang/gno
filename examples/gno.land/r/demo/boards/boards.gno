@@ -10,9 +10,9 @@ import (
 // Realm (package) state
 
 var (
-	gBoards         = avl.NewMutTree() // id -> *Board
+	gBoards         = avl.Tree // id -> *Board
 	gBoardsCtr      int                // increments Board.id
-	gBoardsByName   = avl.NewMutTree() // name -> *Board
+	gBoardsByName   = avl.Tree // name -> *Board
 	gDefaultAnonFee = 100000000        // minimum fee required if anonymous
 )
 

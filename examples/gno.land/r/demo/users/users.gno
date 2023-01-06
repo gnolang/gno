@@ -43,9 +43,9 @@ func (u User) Address() std.Address { return u.address }
 
 var (
 	admin      std.Address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"
-	name2User  *avl.Tree                   // Name -> *User
-	addr2User  *avl.Tree                   // std.Address -> *User
-	invites    *avl.Tree                   // string(inviter+":"+invited) -> true
+	name2User  avl.Tree                   // Name -> *User
+	addr2User  avl.Tree                   // std.Address -> *User
+	invites    avl.Tree                   // string(inviter+":"+invited) -> true
 	counter    int                         // user id counter
 	minFee     int64       = 200 * 1000000 // minimum gnot must be paid to register.
 	maxFeeMult int64       = 10            // maximum multiples of minFee accepted.
@@ -77,18 +77,18 @@ func Register(inviter std.Address, name string, profile string) {
 		}
 	} else {
 		invitekey := inviter.String() + ":" + caller.String()
-		_, _, ok := invites.Get(invitekey)
+		_, ok := invites.Get(invitekey)
 		if !ok {
 			panic("invalid invitation")
 		}
 		invites.Remove(invitekey)
 	}
 	// assert not already registered.
-	_, _, ok := name2User.Get(name)
+	_, ok := name2User.Get(name)
 	if ok {
 		panic("name already registered")
 	}
-	_, _, ok = addr2User.Get(caller.String())
+	_, ok = addr2User.Get(caller.String())
 	if ok {
 		panic("address already registered")
 	}
@@ -116,8 +116,8 @@ func Register(inviter std.Address, name string, profile string) {
 		invites: invites,
 		inviter: inviter,
 	}
-	name2User, _ = name2User.Set(name, user)
-	addr2User, _ = addr2User.Set(caller.String(), user)
+	name2User.Set(name, user)
+	addr2User.Set(caller.String(), user)
 }
 
 func Invite(invitee string) {
@@ -133,7 +133,7 @@ func Invite(invitee string) {
 		// nothing to do, all good
 	} else {
 		// ensure has invites.
-		_, userI, ok := addr2User.Get(caller.String())
+		userI, ok := addr2User.Get(caller.String())
 		if !ok {
 			panic("user unknown")
 		}
@@ -155,7 +155,7 @@ func Invite(invitee string) {
 		}
 		// record invite.
 		invitekey := string(caller) + ":" + string(line)
-		invites, _ = invites.Set(invitekey, true)
+		invites.Set(invitekey, true)
 	}
 }
 
@@ -199,7 +199,7 @@ func GrantInvites(invites string) {
 		_, userI, ok := name2User.Get(name)
 		if !ok {
 			// maybe address.
-			_, userI, ok = addr2User.Get(name)
+			userI, ok = addr2User.Get(name)
 			if !ok {
 				panic("invalid user " + name)
 			}
@@ -247,7 +247,7 @@ func GetUserByName(name string) *User {
 }
 
 func GetUserByAddress(addr std.Address) *User {
-	_, userI, ok := addr2User.Get(addr.String())
+	userI, ok := addr2User.Get(addr.String())
 	if !ok {
 		return nil
 	}
@@ -296,7 +296,7 @@ func Render(path string) string {
 
 func renderHome() string {
 	doc := ""
-	name2User.Iterate("", "", func(t *avl.Tree) bool {
+	name2User.Iterate("", "", func(t *avl.Node) bool {
 		user := t.Value().(*User)
 		doc += " * [" + user.name + "](/r/demo/users:" + user.name + ")\n"
 		return false

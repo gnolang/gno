@@ -12,8 +12,8 @@ type token struct {
 	grc721.IGRC721 // implements the GRC721 interface
 
 	tokenCounter int
-	tokens       *avl.Tree // grc721.TokenID -> *NFToken{}
-	operators    *avl.Tree // owner std.Address -> operator std.Address
+	tokens       avl.Tree // grc721.TokenID -> *NFToken{}
+	operators    avl.Tree // owner std.Address -> operator std.Address
 }
 
 type NFToken struct {
@@ -34,7 +34,7 @@ func (grc *token) nextTokenID() grc721.TokenID {
 }
 
 func (grc *token) getToken(tid grc721.TokenID) (*NFToken, bool) {
-	_, token, ok := grc.tokens.Get(string(tid))
+	token, ok := grc.tokens.Get(string(tid))
 	if !ok {
 		return nil, false
 	}
@@ -43,12 +43,11 @@ func (grc *token) getToken(tid grc721.TokenID) (*NFToken, bool) {
 
 func (grc *token) Mint(to std.Address, data string) grc721.TokenID {
 	tid := grc.nextTokenID()
-	newTokens, _ := grc.tokens.Set(string(tid), &NFToken{
+	grc.tokens.Set(string(tid), &NFToken{
 		owner:   to,
 		tokenID: tid,
 		data:    data,
 	})
-	grc.tokens = newTokens
 	return tid
 }
 
@@ -84,7 +83,7 @@ func (grc *token) TransferFrom(from, to std.Address, tid grc721.TokenID) {
 	// Throws unless `msg.sender` is the current owner, an authorized
 	// operator, or the approved address for this NFT.
 	if caller != token.owner && caller != token.approved {
-		_, operator, ok := grc.operators.Get(token.owner.String())
+		operator, ok := grc.operators.Get(token.owner.String())
 		if !ok || caller != operator.(std.Address) {
 			panic("unauthorized")
 		}
@@ -111,7 +110,7 @@ func (grc *token) Approve(approved std.Address, tid grc721.TokenID) {
 	// Throws unless `msg.sender` is the current owner,
 	// or an authorized operator.
 	if caller != token.owner {
-		_, operator, ok := grc.operators.Get(token.owner.String())
+		operator, ok := grc.operators.Get(token.owner.String())
 		if !ok || caller != operator.(std.Address) {
 			panic("unauthorized")
 		}
@@ -123,8 +122,7 @@ func (grc *token) Approve(approved std.Address, tid grc721.TokenID) {
 // XXX make it work for set of operators.
 func (grc *token) SetApprovalForAll(operator std.Address, approved bool) {
 	caller := std.GetCallerAt(2)
-	newOperators, _ := grc.operators.Set(caller.String(), operator)
-	grc.operators = newOperators
+	grc.operators.Set(caller.String(), operator)
 }
 
 func (grc *token) GetApproved(tid grc721.TokenID) std.Address {
@@ -138,7 +136,7 @@ func (grc *token) GetApproved(tid grc721.TokenID) std.Address {
 
 // XXX make it work for set of operators
 func (grc *token) IsApprovedForAll(owner, operator std.Address) bool {
-	_, operator2, ok := grc.operators.Get(owner.String())
+	operator2, ok := grc.operators.Get(owner.String())
 	if !ok {
 		return false
 	}
