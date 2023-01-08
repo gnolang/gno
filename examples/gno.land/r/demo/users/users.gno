@@ -196,7 +196,7 @@ func GrantInvites(invites string) {
 			panic("should not happen")
 		}
 		// give invites.
-		_, userI, ok := name2User.Get(name)
+		userI, ok := name2User.Get(name)
 		if !ok {
 			// maybe address.
 			userI, ok = addr2User.Get(name)
@@ -239,7 +239,7 @@ func SetMaxFeeMultiple(newMaxFeeMult int64) {
 // Exposed public functions
 
 func GetUserByName(name string) *User {
-	_, userI, ok := name2User.Get(name)
+	userI, ok := name2User.Get(name)
 	if !ok {
 		return nil
 	}
