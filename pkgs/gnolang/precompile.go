@@ -74,6 +74,22 @@ type precompileResult struct {
 // TODO: func PrecompileFile: supports caching.
 // TODO: func PrecompilePkg: supports directories.
 
+func guessRootDir(fileOrPkg string, goBinary string) (string, error) {
+	abs, err := filepath.Abs(fileOrPkg)
+	if err != nil {
+		return "", err
+	}
+	args := []string{"list", "-m", "-mod=mod", "-f", "{{.Dir}}", ImportPrefix}
+	cmd := exec.Command(goBinary, args...)
+	cmd.Dir = abs
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("can't guess --root-dir")
+	}
+	rootDir := strings.TrimSpace(string(out))
+	return rootDir, nil
+}
+
 func PrecompileAndCheckMempkg(mempkg *std.MemPackage) error {
 	gofmt := "gofmt"
 
@@ -202,6 +218,10 @@ func PrecompileBuildPackage(fileOrPkg string, goBinary string) error {
 	sort.Strings(files)
 	args := append([]string{"build", "-v", "-tags=gno"}, files...)
 	cmd := exec.Command(goBinary, args...)
+	rootDir, err := guessRootDir(fileOrPkg, goBinary)
+	if err == nil {
+		cmd.Dir = rootDir
+	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, string(out))
