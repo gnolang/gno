@@ -56,6 +56,13 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 	}
 	defer os.RemoveAll(tempdirRoot)
 
+	// go.mod
+	modPath := filepath.Join(tempdirRoot, "go.mod")
+	err = makeTestGoMod(modPath, gno.ImportPrefix, "1.18")
+	if err != nil {
+		return fmt.Errorf("write .mod file: %w", err)
+	}
+
 	// guess opts.RootDir
 	if opts.RootDir == "" {
 		opts.RootDir = guessRootDir()
