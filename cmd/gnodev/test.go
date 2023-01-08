@@ -80,15 +80,11 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 			if verbose {
 				cmd.ErrPrintfln("=== PREC  %s", pkgPath)
 			}
-			pkgPathSafe := strings.ReplaceAll(pkgPath, "/", "~")
-			tempdir := filepath.Join(tempdirRoot, pkgPathSafe)
-			if err = os.MkdirAll(tempdir, 0o755); err != nil {
-				log.Fatal(err)
-			}
-			precompileOpts := precompileOptions{
-				Output: tempdir,
-			}
-			err := precompilePkg(pkgPath, precompileOpts)
+			tempdir := filepath.Join(tempdirRoot, pkgPath)
+			precompileOpts := newPrecompileOptions(precompileFlags{
+				Output: tempdirRoot,
+			})
+			err := precompilePkg(ImportPath(pkgPath), precompileOpts)
 			if err != nil {
 				cmd.ErrPrintln(err)
 				cmd.ErrPrintln("FAIL")

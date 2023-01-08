@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"go/ast"
 	"io/fs"
 	"log"
 	"os"
@@ -9,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	gno "github.com/gnolang/gno/pkgs/gnolang"
 )
 
 func isGnoFile(f fs.DirEntry) bool {
@@ -103,4 +106,50 @@ func guessRootDir() string {
 	}
 	rootDir := strings.TrimSpace(string(out))
 	return rootDir
+}
+
+// getPathsFromImportSpec derive and returns ImportPaths
+// without ImportPrefix from *ast.ImportSpec
+func getPathsFromImportSpec(importSpec []*ast.ImportSpec) (importPaths []ImportPath) {
+	for _, i := range importSpec {
+		importPath := i.Path.Value[1 : len(i.Path.Value)-1] // trim leading and trailing `"`
+		if strings.HasPrefix(importPath, gno.ImportPrefix) {
+			res := strings.TrimPrefix(importPath, gno.ImportPrefix)
+			importPaths = append(importPaths, ImportPath("."+res))
+		}
+	}
+	return
+}
+
+// ResolvePath joins the output dir with relative pkg path
+// e.g
+// Output Dir: Temp/gno-precompile
+// Pkg Path: ../example/gno.land/p/pkg
+// Returns -> Temp/gno-precompile/example/gno.land/p/pkg
+func ResolvePath(output string, path ImportPath) (string, error) {
+	absOutput, err := filepath.Abs(output)
+	if err != nil {
+		return "", err
+	}
+	absPkgPath, err := filepath.Abs(string(path))
+	if err != nil {
+		return "", err
+	}
+	pkgPath := strings.TrimPrefix(absPkgPath, guessRootDir())
+
+	return filepath.Join(absOutput, pkgPath), nil
+}
+
+// WriteDirFile write file to the path and also create
+// directory if needed. with:
+// Dir perm -> 0755; File perm -> 0o644
+func WriteDirFile(pathWithName string, data []byte) error {
+	path := filepath.Dir(pathWithName)
+
+	// Create Dir if not exists
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		os.MkdirAll(path, 0o755)
+	}
+
+	return os.WriteFile(pathWithName, []byte(data), 0o644)
 }
