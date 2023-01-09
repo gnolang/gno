@@ -183,7 +183,12 @@ func (post *Post) RenderSummary() string {
 	return str
 }
 
-func (post *Post) RenderPost(indent string, levels int) string {
+// XXX This "last" system doesn't work well for prev-pagination.
+// XXX For that, we need to reverse-iterate with numeric offsets.
+// XXX halting this line of development to investigate iterate with offset.
+// last: if not "", shows limit top-level items before last in reverse order.
+// this is a particularly simple but limited model for for pagination.
+func (post *Post) RenderPost(indent string, levels int, limit int, last string) string {
 	if post == nil {
 		return "nil post"
 	}
@@ -198,14 +203,38 @@ func (post *Post) RenderPost(indent string, levels int) string {
 	str += " \\[[reply](" + post.GetReplyFormURL() + ")]"
 	str += " \\[[x](" + post.GetDeleteFormURL() + ")]\n"
 	if levels > 0 {
-		if post.replies.Size() > 0 {
-			post.replies.Iterate("", "", func(n *avl.Tree) bool {
+		// Render page of replies.
+		const descLimit = 5
+		if post.replies.Size() > limit {
+			// Size is too great, clip and show link for pagination.
+			var count = 0
+			// TODO: use last here.
+			post.replies.IterateReverse("", "", func(n *avl.Tree) bool {
+				// abort if after limit.
+				count += 1
+				if count > limit {
+					str += indent + "\n"
+					str += indent + "_[see all " + strconv.Itoa(post.replies.Size()) + " replies](" + post.GetURL() + ")_\n"
+					return true
+				}
+				// normal case.
 				str += indent + "\n"
-				str += n.Value().(*Post).RenderPost(indent+"> ", levels-1)
+				str += n.Value().(*Post).RenderPost(
+					indent+"> ", levels-1, descLimit, "")
+				return false
+			})
+		} else if post.replies.Size() > 0 {
+			// Reverse iterate to show latest first.
+			// TODO: sort replies in heap store with score system.
+			post.replies.IterateReverse("", "", func(n *avl.Tree) bool {
+				str += indent + "\n"
+				str += n.Value().(*Post).RenderPost(
+					indent+"> ", levels-1, descLimit, "")
 				return false
 			})
 		}
 	} else {
+		// Render link to see replies (beyond max depth).
 		if post.replies.Size() > 0 {
 			str += indent + "\n"
 			str += indent + "_[see all " + strconv.Itoa(post.replies.Size()) + " replies](" + post.GetURL() + ")_\n"
