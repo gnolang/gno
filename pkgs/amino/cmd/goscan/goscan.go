@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"go/parser"
 	"go/token"
-	"io/ioutil"
 	"os"
 
 	"github.com/davecgh/go-spew/spew"
@@ -14,7 +13,7 @@ func main() {
 	fset := token.NewFileSet() // positions are relative to fset
 
 	filename := os.Args[1]
-	bz, err := ioutil.ReadFile(filename)
+	bz, err := os.ReadFile(filename)
 	if err != nil {
 		panic(err)
 	}

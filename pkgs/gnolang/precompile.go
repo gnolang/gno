@@ -87,7 +87,7 @@ func PrecompileAndCheckMempkg(mempkg *std.MemPackage) error {
 			continue
 		}
 		tmpFile := filepath.Join(tmpDir, mfile.Name)
-		err = ioutil.WriteFile(tmpFile, []byte(translated), 0o644)
+		err = os.WriteFile(tmpFile, []byte(translated), 0o644)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue

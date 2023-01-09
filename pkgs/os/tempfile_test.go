@@ -27,7 +27,7 @@ func TestWriteFileAtomic(t *testing.T) {
 	}
 	defer os.Remove(f.Name())
 
-	if err = ioutil.WriteFile(f.Name(), old, 0o664); err != nil {
+	if err = os.WriteFile(f.Name(), old, 0o664); err != nil {
 		t.Fatal(err)
 	}
 
@@ -35,7 +35,7 @@ func TestWriteFileAtomic(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rData, err := ioutil.ReadFile(f.Name())
+	rData, err := os.ReadFile(f.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,11 +78,11 @@ func TestWriteFileAtomicDuplicateFile(t *testing.T) {
 	f.WriteString(testString)
 	WriteFileAtomic(fileToWrite, []byte(expectedString), 0o777)
 	// Check that the first atomic file was untouched
-	firstAtomicFileBytes, err := ioutil.ReadFile(fname)
+	firstAtomicFileBytes, err := os.ReadFile(fname)
 	require.Nil(t, err, "Error reading first atomic file")
 	require.Equal(t, []byte(testString), firstAtomicFileBytes, "First atomic file was overwritten")
 	// Check that the resultant file is correct
-	resultantFileBytes, err := ioutil.ReadFile(fileToWrite)
+	resultantFileBytes, err := os.ReadFile(fileToWrite)
 	require.Nil(t, err, "Error reading resultant file")
 	require.Equal(t, []byte(expectedString), resultantFileBytes, "Written file had incorrect bytes")
 
@@ -127,14 +127,14 @@ func TestWriteFileAtomicManyDuplicates(t *testing.T) {
 	for i := 0; i < atomicWriteFileMaxNumConflicts+2; i++ {
 		fileRand := randWriteFileSuffix()
 		fname := "/tmp/" + atomicWriteFilePrefix + fileRand
-		firstAtomicFileBytes, err := ioutil.ReadFile(fname)
+		firstAtomicFileBytes, err := os.ReadFile(fname)
 		require.Nil(t, err, "Error reading first atomic file")
 		require.Equal(t, []byte(fmt.Sprintf(testString, i)), firstAtomicFileBytes,
 			"atomic write file %d was overwritten", i)
 	}
 
 	// Check that the resultant file is correct
-	resultantFileBytes, err := ioutil.ReadFile(fileToWrite)
+	resultantFileBytes, err := os.ReadFile(fileToWrite)
 	require.Nil(t, err, "Error reading resultant file")
 	require.Equal(t, []byte(expectedString), resultantFileBytes, "Written file had incorrect bytes")
 }

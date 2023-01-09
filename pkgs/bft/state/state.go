@@ -3,7 +3,7 @@ package state
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/gnolang/gno/pkgs/amino"
@@ -184,7 +184,7 @@ func MakeGenesisStateFromFile(genDocFile string) (State, error) {
 // MakeGenesisDocFromFile reads and unmarshals genesis doc from the given file.
 // XXX duplicated in bft/types/genesis.go, remove this.
 func MakeGenesisDocFromFile(genDocFile string) (*types.GenesisDoc, error) {
-	genDocJSON, err := ioutil.ReadFile(genDocFile)
+	genDocJSON, err := os.ReadFile(genDocFile)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't read GenesisDoc file: %v", err)
 	}

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"runtime/debug"
@@ -36,7 +35,7 @@ func bootGnoland() (*gno.PackageValue, *bytes.Buffer) {
 
 	// Run the file from machine.
 	path := "./data/gnoland/main.go"
-	bz, err := ioutil.ReadFile(path)
+	bz, err := os.ReadFile(path)
 	if err != nil {
 		panic("could not read file")
 	}

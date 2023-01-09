@@ -6,13 +6,13 @@ import (
 
 func main() {
 	println("-----------")
-	println(releases_example.Render(""))
+	print(releases_example.Render(""))
 
 	println("-----------")
-	println(releases_example.Render("v1"))
+	print(releases_example.Render("v1"))
 
 	println("-----------")
-	println(releases_example.Render("v42"))
+	print(releases_example.Render("v42"))
 }
 
 // Output:
@@ -27,12 +27,10 @@ func main() {
 //
 // initial release
 //
-//
 // -----------
 // ## [example-app v1](r/demo/examples-example-v1)
 //
 // initial release
-//
 //
 // -----------
 // no such release
