@@ -14,7 +14,7 @@ import (
 type Blog struct {
 	Title  string
 	Prefix string      // i.e. r/gnoland/blog:
-	Posts  avl.MutTree // slug -> Post
+	Posts  avl.Tree // slug -> Post
 }
 
 func (b Blog) Render(path string) string {
@@ -33,7 +33,7 @@ func (b Blog) Render(path string) string {
 			return output
 		}
 
-		b.Posts.Iterate("", "", func(n *avl.Tree) bool {
+		b.Posts.Iterate("", "", func(n *avl.Node) bool {
 			post := n.Value().(*Post)
 			output += post.RenderListItem()
 			return false
@@ -64,7 +64,7 @@ func (b Blog) Render(path string) string {
 		output += "\n"
 
 		// comments
-		p.Comments.IterateReverse("", "", func(n *avl.Tree) bool {
+		p.Comments.IterateReverse("", "", func(n *avl.Node) bool {
 			comment := n.Value().(*Comment)
 			output += comment.RenderListItem()
 			return false
@@ -82,7 +82,7 @@ func (b Blog) Render(path string) string {
 		})
 
 		nb := 0
-		b.Posts.Iterate("", "", func(n *avl.Tree) bool {
+		b.Posts.Iterate("", "", func(n *avl.Node) bool {
 			post := n.Value().(*Post)
 			if !post.HasTag(tagSlug) {
 				return false
@@ -154,7 +154,7 @@ type Post struct {
 	Body         string
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
-	Comments     avl.MutTree
+	Comments     avl.Tree
 	Author       std.Address
 	Tags         []string
 	CommentIndex int

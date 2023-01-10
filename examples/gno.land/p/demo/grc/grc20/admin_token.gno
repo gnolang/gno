@@ -21,8 +21,8 @@ type AdminToken struct {
 	symbol      string
 	decimals    uint
 	totalSupply uint64
-	balances    *avl.MutTree // std.Address(owner) -> uint64
-	allowances  *avl.MutTree // string(owner+":"+spender) -> uint64
+	balances    avl.Tree // std.Address(owner) -> uint64
+	allowances  avl.Tree // string(owner+":"+spender) -> uint64
 }
 
 // safeToken implements the IGRC20 interface.
@@ -43,8 +43,8 @@ func NewAdminToken(name, symbol string, decimals uint) *AdminToken {
 		symbol:   symbol,
 		decimals: decimals,
 
-		balances:   avl.NewMutTree(),
-		allowances: avl.NewMutTree(),
+		balances:   avl.Tree{},
+		allowances: avl.Tree{},
 	}
 }
 
