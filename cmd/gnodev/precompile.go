@@ -43,16 +43,16 @@ func newPrecompileOptions(flags precompileFlags) *precompileOptions {
 	return &precompileOptions{flags, map[importPath]struct{}{}}
 }
 
-func (p *precompileOptions) GetFlags() precompileFlags {
+func (p *precompileOptions) getFlags() precompileFlags {
 	return p.flags
 }
 
-func (p *precompileOptions) IsPrecompiled(pkg importPath) bool {
+func (p *precompileOptions) isPrecompiled(pkg importPath) bool {
 	_, precompiled := p.precompiled[pkg]
 	return precompiled
 }
 
-func (p *precompileOptions) MarkAsPrecompiled(pkg importPath) {
+func (p *precompileOptions) markAsPrecompiled(pkg importPath) {
 	p.precompiled[pkg] = struct{}{}
 }
 
@@ -88,10 +88,10 @@ func precompileApp(cmd *command.Command, args []string, f interface{}) error {
 }
 
 func precompilePkg(pkgPath importPath, opts *precompileOptions) error {
-	if opts.IsPrecompiled(pkgPath) {
+	if opts.isPrecompiled(pkgPath) {
 		return nil
 	}
-	opts.MarkAsPrecompiled(pkgPath)
+	opts.markAsPrecompiled(pkgPath)
 
 	files, err := filepath.Glob(filepath.Join(string(pkgPath), "*.gno"))
 	if err != nil {
@@ -108,7 +108,7 @@ func precompilePkg(pkgPath importPath, opts *precompileOptions) error {
 }
 
 func precompileFile(srcPath string, opts *precompileOptions) error {
-	flags := opts.GetFlags()
+	flags := opts.getFlags()
 	gofmt := flags.GofmtBinary
 	if gofmt == "" {
 		gofmt = defaultPrecompileFlags.GofmtBinary
