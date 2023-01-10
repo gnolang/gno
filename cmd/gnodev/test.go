@@ -90,7 +90,7 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 			precompileOpts := newPrecompileOptions(precompileFlags{
 				Output: tempdirRoot,
 			})
-			err := precompilePkg(ImportPath(pkgPath), precompileOpts)
+			err := precompilePkg(importPath(pkgPath), precompileOpts)
 			if err != nil {
 				cmd.ErrPrintln(err)
 				cmd.ErrPrintln("FAIL")
@@ -103,7 +103,7 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 			if verbose {
 				cmd.ErrPrintfln("=== BUILD %s", pkgPath)
 			}
-			tempDir, err := ResolvePath(tempdirRoot, ImportPath(pkgPath))
+			tempDir, err := ResolvePath(tempdirRoot, importPath(pkgPath))
 			if err != nil {
 				errors.New("cannot resolve build dir")
 			}

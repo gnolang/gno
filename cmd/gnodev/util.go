@@ -116,12 +116,12 @@ func makeTestGoMod(path string, packageName string, goversion string) error {
 
 // getPathsFromImportSpec derive and returns ImportPaths
 // without ImportPrefix from *ast.ImportSpec
-func getPathsFromImportSpec(importSpec []*ast.ImportSpec) (importPaths []ImportPath) {
+func getPathsFromImportSpec(importSpec []*ast.ImportSpec) (importPaths []importPath) {
 	for _, i := range importSpec {
-		importPath := i.Path.Value[1 : len(i.Path.Value)-1] // trim leading and trailing `"`
-		if strings.HasPrefix(importPath, gno.ImportPrefix) {
-			res := strings.TrimPrefix(importPath, gno.ImportPrefix)
-			importPaths = append(importPaths, ImportPath("."+res))
+		path := i.Path.Value[1 : len(i.Path.Value)-1] // trim leading and trailing `"`
+		if strings.HasPrefix(path, gno.ImportPrefix) {
+			res := strings.TrimPrefix(path, gno.ImportPrefix)
+			importPaths = append(importPaths, importPath("."+res))
 		}
 	}
 	return
@@ -132,7 +132,7 @@ func getPathsFromImportSpec(importSpec []*ast.ImportSpec) (importPaths []ImportP
 // Output Dir: Temp/gno-precompile
 // Pkg Path: ../example/gno.land/p/pkg
 // Returns -> Temp/gno-precompile/example/gno.land/p/pkg
-func ResolvePath(output string, path ImportPath) (string, error) {
+func ResolvePath(output string, path importPath) (string, error) {
 	absOutput, err := filepath.Abs(output)
 	if err != nil {
 		return "", err

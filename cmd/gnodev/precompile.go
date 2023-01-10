@@ -12,7 +12,7 @@ import (
 	gno "github.com/gnolang/gno/pkgs/gnolang"
 )
 
-type ImportPath string
+type importPath string
 
 type precompileFlags struct {
 	Verbose     bool   `flag:"verbose" help:"verbose"`
@@ -36,23 +36,23 @@ type precompileOptions struct {
 	flags precompileFlags
 	// precompiled is the set of packages already
 	// precompiled from .gno to .go.
-	precompiled map[ImportPath]struct{}
+	precompiled map[importPath]struct{}
 }
 
 func newPrecompileOptions(flags precompileFlags) *precompileOptions {
-	return &precompileOptions{flags, map[ImportPath]struct{}{}}
+	return &precompileOptions{flags, map[importPath]struct{}{}}
 }
 
 func (p *precompileOptions) GetFlags() precompileFlags {
 	return p.flags
 }
 
-func (p *precompileOptions) IsPrecompiled(pkg ImportPath) bool {
+func (p *precompileOptions) IsPrecompiled(pkg importPath) bool {
 	_, precompiled := p.precompiled[pkg]
 	return precompiled
 }
 
-func (p *precompileOptions) MarkAsPrecompiled(pkg ImportPath) {
+func (p *precompileOptions) MarkAsPrecompiled(pkg importPath) {
 	p.precompiled[pkg] = struct{}{}
 }
 
@@ -87,7 +87,7 @@ func precompileApp(cmd *command.Command, args []string, f interface{}) error {
 	return nil
 }
 
-func precompilePkg(pkgPath ImportPath, opts *precompileOptions) error {
+func precompilePkg(pkgPath importPath, opts *precompileOptions) error {
 	if opts.IsPrecompiled(pkgPath) {
 		return nil
 	}
@@ -149,7 +149,7 @@ func precompileFile(srcPath string, opts *precompileOptions) error {
 	// resolve target path
 	var targetPath string
 	if flags.Output != defaultPrecompileFlags.Output {
-		path, err := ResolvePath(flags.Output, ImportPath(filepath.Dir(srcPath)))
+		path, err := ResolvePath(flags.Output, importPath(filepath.Dir(srcPath)))
 		if err != nil {
 			return fmt.Errorf("resolve output path: %w", err)
 		}
