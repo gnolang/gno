@@ -8,14 +8,14 @@ import (
 
 func New() *Directory {
 	return &Directory{
-		userGroups:  avl.NewMutTree(),
-		permBuckets: avl.NewMutTree(),
+		userGroups:  avl.Tree{},
+		permBuckets: avl.Tree{},
 	}
 }
 
 type Directory struct {
-	permBuckets *avl.MutTree // identifier -> perms
-	userGroups  *avl.MutTree // std.Address -> []string
+	permBuckets avl.Tree // identifier -> perms
+	userGroups  avl.Tree // std.Address -> []string
 }
 
 func (d *Directory) HasPerm(addr std.Address, verb, resource string) bool {

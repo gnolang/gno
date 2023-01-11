@@ -5,10 +5,10 @@ import "gno.land/p/demo/avl"
 type String string
 
 func main() {
-	tree := avl.NewTree("", nil)
+	node := avl.NewNode("", nil)
 	key := "key"
-	tree, _ = tree.Set(key, key)
-	x, y, z := tree.Get(key)
+	node, _ = node.Set(key, key)
+	x, y, z := node.Get(key)
 	println(x, y, z)
 }
 

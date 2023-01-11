@@ -26,9 +26,9 @@ type Post struct {
 	creator     std.Address
 	title       string // optional
 	body        string
-	replies     *avl.MutTree // Post.id -> *Post
-	repliesAll  *avl.MutTree // Post.id -> *Post (all replies, for top-level posts)
-	reposts     *avl.MutTree // Board.id -> Post.id
+	replies     avl.Tree // Post.id -> *Post
+	repliesAll  avl.Tree // Post.id -> *Post (all replies, for top-level posts)
+	reposts     avl.Tree // Board.id -> Post.id
 	threadID    PostID       // original Post.id
 	parentID    PostID       // parent Post.id (if reply or repost)
 	repostBoard BoardID      // original Board.id (if repost)
@@ -43,9 +43,9 @@ func newPost(board *Board, id PostID, creator std.Address, title, body string, t
 		creator:     creator,
 		title:       title,
 		body:        body,
-		replies:     avl.NewMutTree(),
-		repliesAll:  avl.NewMutTree(),
-		reposts:     avl.NewMutTree(),
+		replies:     avl.Tree{},
+		repliesAll:  avl.Tree{},
+		reposts:     avl.Tree{},
 		threadID:    threadID,
 		parentID:    parentID,
 		repostBoard: repostBoard,
@@ -199,7 +199,7 @@ func (post *Post) RenderPost(indent string, levels int) string {
 	str += " \\[[x](" + post.GetDeleteFormURL() + ")]\n"
 	if levels > 0 {
 		if post.replies.Size() > 0 {
-			post.replies.Iterate("", "", func(n *avl.Tree) bool {
+			post.replies.Iterate("", "", func(n *avl.Node) bool {
 				str += indent + "\n"
 				str += n.Value().(*Post).RenderPost(indent+"> ", levels-1)
 				return false
