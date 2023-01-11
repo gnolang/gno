@@ -165,14 +165,19 @@ func (lkb lazyKeybase) Import(name string, armor string) (err error) {
 	return NewDBKeybase(db).Import(name, armor)
 }
 
-func (lkb lazyKeybase) ImportPrivKey(name string, armor string, passphrase string) error {
+func (lkb lazyKeybase) ImportPrivKey(
+	name string,
+	armor string,
+	decryptPassphrase,
+	encryptPassphrase string,
+) error {
 	db, err := dbm.NewGoLevelDB(lkb.name, lkb.dir)
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
-	return NewDBKeybase(db).ImportPrivKey(name, armor, passphrase)
+	return NewDBKeybase(db).ImportPrivKey(name, armor, decryptPassphrase, encryptPassphrase)
 }
 
 func (lkb lazyKeybase) ImportPubKey(name string, armor string) (err error) {
