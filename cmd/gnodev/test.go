@@ -56,6 +56,13 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 	}
 	defer os.RemoveAll(tempdirRoot)
 
+	// go.mod
+	modPath := filepath.Join(tempdirRoot, "go.mod")
+	err = makeTestGoMod(modPath, gno.ImportPrefix, "1.18")
+	if err != nil {
+		return fmt.Errorf("write .mod file: %w", err)
+	}
+
 	// guess opts.RootDir
 	if opts.RootDir == "" {
 		opts.RootDir = guessRootDir()
@@ -80,15 +87,10 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 			if verbose {
 				cmd.ErrPrintfln("=== PREC  %s", pkgPath)
 			}
-			pkgPathSafe := strings.ReplaceAll(pkgPath, "/", "~")
-			tempdir := filepath.Join(tempdirRoot, pkgPathSafe)
-			if err = os.MkdirAll(tempdir, 0o755); err != nil {
-				log.Fatal(err)
-			}
-			precompileOpts := precompileOptions{
-				Output: tempdir,
-			}
-			err := precompilePkg(pkgPath, precompileOpts)
+			precompileOpts := newPrecompileOptions(precompileFlags{
+				Output: tempdirRoot,
+			})
+			err := precompilePkg(importPath(pkgPath), precompileOpts)
 			if err != nil {
 				cmd.ErrPrintln(err)
 				cmd.ErrPrintln("FAIL")
@@ -101,7 +103,11 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 			if verbose {
 				cmd.ErrPrintfln("=== BUILD %s", pkgPath)
 			}
-			err = goBuildFileOrPkg(tempdir, defaultBuildOptions)
+			tempDir, err := ResolvePath(tempdirRoot, importPath(pkgPath))
+			if err != nil {
+				errors.New("cannot resolve build dir")
+			}
+			err = goBuildFileOrPkg(tempDir, defaultBuildOptions)
 			if err != nil {
 				cmd.ErrPrintln(err)
 				cmd.ErrPrintln("FAIL")

@@ -1,4 +1,4 @@
-package upgrade
+package upgradea
 
 import (
 	v1 "gno.land/r/demo/x/upgrade/upgrade-a/v1"

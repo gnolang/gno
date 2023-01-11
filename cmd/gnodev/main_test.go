@@ -35,7 +35,7 @@ func TestMain(t *testing.T) {
 		// --help
 		{args: []string{"build", "--help"}, stdoutShouldContain: "# buildOptions options\n-"},
 		{args: []string{"test", "--help"}, stdoutShouldContain: "# testOptions options\n-"},
-		{args: []string{"precompile", "--help"}, stdoutShouldContain: "# precompileOptions options\n-"},
+		{args: []string{"precompile", "--help"}, stdoutShouldContain: "# precompileFlags options\n-"},
 		{args: []string{"repl", "--help"}, stdoutShouldContain: "# replOptions options\n-"},
 
 		// custom

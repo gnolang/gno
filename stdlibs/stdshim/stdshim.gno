@@ -1,6 +1,3 @@
-//go:build gno
-// +build gno
-
 package std
 
 const shimWarn = "stdshim cannot be used to run code"
