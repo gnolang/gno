@@ -10,11 +10,11 @@ import (
 type basicNFT struct {
 	name              string
 	symbol            string
-	owners            *avl.MutTree // tokenId -> OwnerAddress
-	balances          *avl.MutTree // OwnerAddress -> TokenCount
-	tokenApprovals    *avl.MutTree // TokenId -> ApprovedAddress
-	tokenURIs         *avl.MutTree // TokenId -> URIs
-	operatorApprovals *avl.MutTree // "OwnerAddress:OperatorAddress" -> bool
+	owners            avl.Tree // tokenId -> OwnerAddress
+	balances          avl.Tree // OwnerAddress -> TokenCount
+	tokenApprovals    avl.Tree // TokenId -> ApprovedAddress
+	tokenURIs         avl.Tree // TokenId -> URIs
+	operatorApprovals avl.Tree // "OwnerAddress:OperatorAddress" -> bool
 }
 
 // Returns new basic NFT
@@ -23,11 +23,11 @@ func NewBasicNFT(name string, symbol string) *basicNFT {
 		name:   name,
 		symbol: symbol,
 
-		owners:            avl.NewMutTree(),
-		balances:          avl.NewMutTree(),
-		tokenApprovals:    avl.NewMutTree(),
-		tokenURIs:         avl.NewMutTree(),
-		operatorApprovals: avl.NewMutTree(),
+		owners:            avl.Tree{},
+		balances:          avl.Tree{},
+		tokenApprovals:    avl.Tree{},
+		tokenURIs:         avl.Tree{},
+		operatorApprovals: avl.Tree{},
 	}
 }
 
