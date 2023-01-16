@@ -37,6 +37,9 @@ func (s *Space) removeAdmin(admin std.Address) error {
 	if len(s.Admins) == 1 {
 		return errors.New("namespace at least needs one admin")
 	}
+	if isCallerAddress(admin) {
+		return errors.New("cannot remove self")
+	}
 	admins := removeAddress(s.Admins, admin)
 	s.Admins = admins
 	return nil
@@ -49,6 +52,9 @@ func (s *Space) addEditor(newEditor std.Address) {
 }
 
 func (s *Space) removeEditor(editor std.Address) error {
+	if isCallerAddress(editor) {
+		return errors.New("cannot remove self")
+	}
 	editors := removeAddress(s.Editors, editor)
 	s.Editors = editors
 	return nil

@@ -43,6 +43,13 @@ func containsAddress(addrs []std.Address, addr std.Address) bool {
 	return false
 }
 
+func isCallerAddress(addr std.Address) bool {
+	if addr == std.GetOrigCaller() {
+		return true
+	}
+	return false
+}
+
 func checkErr(err error) {
 	if err != nil {
 		panic(err)
