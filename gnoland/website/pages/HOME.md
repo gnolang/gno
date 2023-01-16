@@ -1,35 +1,35 @@
 # Welcome to **Gno.land**
 
  * [About Gno.land](/about)
- * [Blogs](https://test3.gno.land/r/gnoland/blog)
+ * [Blogs](/r/gnoland/blog)
  * [Install `gnokey`](https://github.com/gnolang/gno/)
- * [Acquire testnet tokens](https://test3.gno.land/faucet)
+ * [Acquire testnet tokens](/faucet)
  * [Game of Realms](/game-of-realms) - An open worldwide competition for developers to build the best Gnolang smart-contracts.
 
 # Explore new packages.
 
 * r/gnoland
-  * [/r/gnoland/blog](https://test3.gno.land/r/gnoland/blog)
-  * [/r/gnoland/faucet](https://test3.gno.land/r/gnoland/faucet)
+    * [/r/gnoland/blog](/r/gnoland/blog)
+    * [/r/gnoland/faucet](/r/gnoland/faucet)
 * r/system
-  * [/r/system/names](https://test3.gno.land/r/system/names)
-  * [/r/system/rewards](https://test3.gno.land/r/system/rewards)
-  * [/r/system/validators](https://test3.gno.land/r/system/validators)
+    * [/r/system/names](/r/system/names)
+    * [/r/system/rewards](/r/system/rewards)
+    * [/r/system/validators](/r/system/validators)
 * r/demo
-  * [/r/demo/banktest](https://test3.gno.land/r/demo/banktest)
-  * [/r/demo/boards](https://test3.gno.land/r/demo/boards)
-  * [/r/demo/foo20](https://test3.gno.land/r/demo/foo20)
-  * [/r/demo/nft](https://test3.gno.land/r/demo/nft)
-  * [/r/demo/types](https://test3.gno.land/r/demo/types)
-  * [/r/demo/users](https://test3.gno.land/r/demo/users)
+    * [/r/demo/banktest](/r/demo/banktest)
+    * [/r/demo/boards](/r/demo/boards)
+    * [/r/demo/foo20](/r/demo/foo20)
+    * [/r/demo/nft](/r/demo/nft)
+    * [/r/demo/types](/r/demo/types)
+    * [/r/demo/users](/r/demo/users)
 * p/demo
-  * [/p/demo/avl](https://test3.gno.land/p/demo/avl)
-  * [/p/demo/blog](https://test3.gno.land/p/demo/blog)
-  * [/p/demo/flow](https://test3.gno.land/p/demo/flow)
-  * [/p/demo/gnode](https://test3.gno.land/p/demo/gnode)
-  * [/p/demo/grc/exts](https://test3.gno.land/p/demo/grc/exts)
-  * [/p/demo/grc/grc20](https://test3.gno.land/p/demo/grc/grc20)
-  * [/p/demo/grc/grc721](https://test3.gno.land/p/demo/grc/grc721)
+    * [/p/demo/avl](/p/demo/avl)
+    * [/p/demo/blog](/p/demo/blog)
+    * [/p/demo/flow](/p/demo/flow)
+    * [/p/demo/gnode](/p/demo/gnode)
+    * [/p/demo/grc/exts](/p/demo/grc/exts)
+    * [/p/demo/grc/grc20](/p/demo/grc/grc20)
+    * [/p/demo/grc/grc721](/p/demo/grc/grc721)
 
 # Other Testnets
 
