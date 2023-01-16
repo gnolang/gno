@@ -64,6 +64,10 @@ func SetInPause(namespace string, state bool) {
 // it will return false.
 // The vm keeper will use this function to check to add package
 func HasPerm(namespace string) bool {
+	// if enabled is false, it always returns true for dev and testing.
+	if enabled == false {
+		return true
+	}
 	caller := std.GetOrigCaller()
 	space := getSpace(namespace)
 	return space.hasPerm(caller)
