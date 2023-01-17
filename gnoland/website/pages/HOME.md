@@ -48,22 +48,3 @@ Check out our [community projects](https://github.com/gnolang/awesome-gno).
 Official channel: [Discord](https://discord.gg/S8nKUqwkPn)<br />
 Other channels: [Telegram](https://t.me/gnoland) [Twitter](https://twitter.com/_gnoland)
 
-<!-- mailchimp -->
-<div id="mc_embed_signup">
-<form action="https://land.us18.list-manage.com/subscribe/post?u=8befe3303cf82796d2c1a1aff&amp;id=271812000b&amp;f_id=009170e7f0" method="post" id="mc-embedded-subscribe-form" name="mc-embedded-subscribe-form" class="validate" target="_self">
-  <label for="mce-EMAIL">Subscribe by email:</label>
-  <div id="mc_embed_signup_scroll">
-  	<div class="mc-field-group">
-  		<input type="email" value="" name="EMAIL" class="required email" id="mce-EMAIL" placeholder="Type your email here" required>
-  		<input type="submit" value="Subscribe" name="subscribe" id="mc-embedded-subscribe" class="button">
-  		<span id="mce-EMAIL-HELPERTEXT" class="helper_text"></span>
-  	</div>
-  	<div id="mce-responses" class="clear">
-  		<div class="response" id="mce-error-response" style="display:none"></div>
-  		<div class="response" id="mce-success-response" style="display:none"></div>
-  	</div>
-  	<div style="position: absolute; left: -5000px;" aria-hidden="true"><input type="text" name="b_8befe3303cf82796d2c1a1aff_271812000b" tabindex="-1" value=""></div>
-  </div>
-</form>
-</div>
-<!-- /mailchimp -->

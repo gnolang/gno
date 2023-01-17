@@ -99,7 +99,7 @@ pre {
   margin-left: auto;
 }
 
-#home {
+#home, #subscribe {
   padding: 0 22px;
 }
 
@@ -149,4 +149,8 @@ pre {
 
 #realm_help .func_name td {
   font-weight: bold;
+}
+
+#source {
+	display: none;
 }
