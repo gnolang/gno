@@ -3,7 +3,7 @@
 .PHONY: logos goscan gnoland gnokey gnofaucet logos reset gnoweb gnotxport
 all: build
 
-build: gnoland gnokey goscan logos gnoweb gnotxport gnofaucet
+build: gnoland gnokey gnodev goscan logos gnoweb gnotxport gnofaucet
 
 install: install_gnodev install_gnokey
 

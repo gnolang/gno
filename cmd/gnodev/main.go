@@ -26,6 +26,12 @@ type (
 
 var mainApps AppList = []AppItem{
 	{
+		App:      runApp,
+		Name:     "run",
+		Desc:     "run a Gno file",
+		Defaults: defaultRunOptions,
+	},
+	{
 		App:      buildApp,
 		Name:     "build",
 		Desc:     "build a gno package",
@@ -55,7 +61,7 @@ var mainApps AppList = []AppItem{
 	// graph
 	// vendor -- download deps from the chain in vendor/
 	// list -- list packages
-	// run -- call render(), or maybe create a new main?
+	// render -- call render()?
 	// publish/release
 	// generate
 	// doc -- godoc
