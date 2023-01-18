@@ -14,6 +14,7 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 ).WithTypes(
 	MsgCall{}, "m_call",
 	MsgAddPackage{}, "m_addpkg", // TODO rename both to MsgAddPkg?
+	MsgEval{}, "m_eval",
 
 	// errors
 	InvalidPkgPathError{}, "InvalidPkgPathError",

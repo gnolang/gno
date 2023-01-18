@@ -295,3 +295,164 @@ func GetAdmin() string {
 	assert.NoError(t, err)
 	assert.Equal(t, res, addrString)
 }
+
+func TestVMKeeperEvalSingleValue(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.ctx
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+
+	// Create test package.
+	files := []*std.MemFile{
+		{
+			Name: "eval.gno",
+			Body: `package eval
+	               var a = 1
+	               var b = 2`,
+		},
+	}
+	pkgPath := "gno.land/r/test/eval"
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg1)
+	assert.NoError(t, err)
+
+	coins := std.MustParseCoins("10000000ugnot")
+
+	msgEval := NewMsgEval(addr, coins, pkgPath, "a+b")
+
+	res, err := env.vmk.Eval(ctx, msgEval)
+
+	assert.NoError(t, err)
+	assert.Equal(t, res, `(3 int)`)
+}
+
+func TestVMKeeperEvalMultiValue(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.ctx
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+
+	// Create test package.
+	files := []*std.MemFile{
+		{
+			Name: "eval.gno",
+			Body: `package eval
+	               func echo(a, b int) (int, int) {
+		               return a, b
+		           }`,
+		},
+	}
+	pkgPath := "gno.land/r/test/eval"
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg1)
+	assert.NoError(t, err)
+
+	coins := std.MustParseCoins("10000000ugnot")
+	msgEval := NewMsgEval(addr, coins, pkgPath, "echo(1, 2)")
+
+	res, err := env.vmk.Eval(ctx, msgEval)
+	vs := strings.Split(res, "\n")
+
+	assert.NoError(t, err)
+	assert.Equal(t, vs[0], `(1 int)`)
+	assert.Equal(t, vs[1], `(2 int)`)
+}
+
+func TestVMKeeperEvalStringFail1(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.ctx
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+
+	// Create test package.
+	files := []*std.MemFile{
+		{
+			Name: "eval.gno",
+			Body: `package eval
+	               func echo(a, b int) (int, int) {
+		               return a, b
+		           }`,
+		},
+	}
+
+	pkgPath := "gno.land/r/test/eval"
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg1)
+	assert.NoError(t, err)
+
+	coins := std.MustParseCoins("10000000ugnot")
+	msgEval := NewMsgEval(addr, coins, pkgPath, "echo(1, 2)")
+	_, err = env.vmk.EvalString(ctx, msgEval)
+	assert.Error(t, err)
+	assert.Equal(t, err.Error(), "expected 1 string result, got 2")
+}
+
+func TestVMKeeperEvalStringFail2(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.ctx
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+
+	// Create test package.
+	files := []*std.MemFile{
+		{
+			Name: "eval.gno",
+			Body: `package eval
+	               func echo(a int) int {
+		               return a
+		           }`,
+		},
+	}
+
+	pkgPath := "gno.land/r/test/eval"
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg1)
+	assert.NoError(t, err)
+
+	coins := std.MustParseCoins("10000000ugnot")
+	msgEval := NewMsgEval(addr, coins, pkgPath, "echo(1)")
+	_, err = env.vmk.EvalString(ctx, msgEval)
+	assert.Error(t, err)
+	t.Logf(err.Error())
+	assert.Equal(t, err.Error(), "expected 1 string result, got IntKind")
+}
+
+func TestVMKeeperEvalStringOK(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.ctx
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+
+	// Create test package.
+	files := []*std.MemFile{
+		{
+			Name: "eval.gno",
+			Body: `package eval
+	               func echo() string {
+		               return "hey gno"
+		           }`,
+		},
+	}
+
+	pkgPath := "gno.land/r/test/eval"
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg1)
+	assert.NoError(t, err)
+
+	coins := std.MustParseCoins("10000000ugnot")
+	msgEval := NewMsgEval(addr, coins, pkgPath, "echo()")
+
+	res, err := env.vmk.EvalString(ctx, msgEval)
+	assert.NoError(t, err)
+	assert.Equal(t, res, "hey gno")
+}

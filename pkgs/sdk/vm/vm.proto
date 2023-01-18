@@ -21,6 +21,13 @@ message m_addpkg {
 	string Deposit = 3;
 }
 
+message m_eval {
+	string Caller = 1;
+	string Send = 2;
+	string PkgPath = 3;
+	string Expr = 4;
+}
+
 message InvalidPkgPathError {
 }
 

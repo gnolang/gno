@@ -43,6 +43,11 @@ var makeTxApps client.AppList = []client.AppItem{
 		defaultMakeCallTxOptions,
 	},
 	{
+		makeEvalTxApp,
+		"eval", "evaluate a gno expression",
+		defaultMakeEvalTxOptions,
+	},
+	{
 		makeSendTxApp,
 		"send", "send coins",
 		defaultMakeSendTxOptions,
@@ -254,6 +259,94 @@ func makeCallTxApp(cmd *command.Command, args []string, iopts interface{}) error
 		PkgPath: opts.PkgPath,
 		Func:    fnc,
 		Args:    opts.Args,
+	}
+	tx := std.Tx{
+		Msgs:       []std.Msg{msg},
+		Fee:        std.NewFee(gaswanted, gasfee),
+		Signatures: nil,
+		Memo:       opts.Memo,
+	}
+
+	if opts.Broadcast {
+		err := signAndBroadcast(cmd, args, tx, opts.BaseOptions, opts.SignBroadcastOptions)
+		if err != nil {
+			return err
+		}
+	} else {
+		fmt.Println(string(amino.MustMarshalJSON(tx)))
+	}
+	return nil
+}
+
+//----------------------------------------
+// makeEvalTxApp
+
+type makeEvalTxOptions struct {
+	client.BaseOptions          // home,...
+	SignBroadcastOptions        // gas-wanted, gas-fee, memo, ...
+	Send                 string `flag:"send" help:"send coins"`
+	PkgPath              string `flag:"pkgpath" help:"package path (required)"`
+	Expr                 string `flag:"expr" help:"give an expr"`
+}
+
+var defaultMakeEvalTxOptions = makeEvalTxOptions{
+	BaseOptions:          client.DefaultBaseOptions,
+	SignBroadcastOptions: defaultSignBroadcastOptions,
+	PkgPath:              "", // must override
+	Expr:                 "",
+	Send:                 "",
+}
+
+func makeEvalTxApp(cmd *command.Command, args []string, iopts interface{}) error {
+	opts := iopts.(makeEvalTxOptions)
+	if opts.PkgPath == "" {
+		return errors.New("pkgpath not specified")
+	}
+	if opts.Expr == "" {
+		return errors.New("expr not specified")
+	}
+	if opts.GasWanted == 0 {
+		return errors.New("gas-wanted not specified")
+	}
+	if opts.GasFee == "" {
+		return errors.New("gas-fee not specified")
+	}
+
+	// read statement.
+	expr := opts.Expr
+
+	// read account pubkey.
+	nameOrBech32 := args[0]
+	kb, err := keys.NewKeyBaseFromDir(opts.Home)
+	if err != nil {
+		return err
+	}
+	info, err := kb.GetByNameOrAddress(nameOrBech32)
+	if err != nil {
+		return err
+	}
+	caller := info.GetAddress()
+	// info.GetPubKey()
+
+	// Parse send amount.
+	send, err := std.ParseCoins(opts.Send)
+	if err != nil {
+		return errors.Wrap(err, "parsing send coins")
+	}
+
+	// parse gas wanted & fee.
+	gaswanted := opts.GasWanted
+	gasfee, err := std.ParseCoin(opts.GasFee)
+	if err != nil {
+		return errors.Wrap(err, "parsing gas fee coin")
+	}
+
+	// construct msg & tx and marshal.
+	msg := vm.MsgEval{
+		Caller:  caller,
+		Send:    send,
+		PkgPath: opts.PkgPath,
+		Expr:    expr,
 	}
 	tx := std.Tx{
 		Msgs:       []std.Msg{msg},

@@ -329,19 +329,19 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 // QueryEval evaluates a gno expression (readonly, for ABCI queries).
 // TODO: modify query protocol to allow MsgEval.
 // TODO: then, rename to "Eval".
-func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
+func (vm *VMKeeper) Eval(ctx sdk.Context, msg MsgEval) (res string, err error) {
 	alloc := gno.NewAllocator(maxAllocQuery)
 	store := vm.getGnoStore(ctx)
-	pkgAddr := gno.DerivePkgAddr(pkgPath)
+	pkgAddr := gno.DerivePkgAddr(msg.PkgPath)
 	// Get Package.
-	pv := store.GetPackage(pkgPath, false)
+	pv := store.GetPackage(msg.PkgPath, false)
 	if pv == nil {
 		err = ErrInvalidPkgPath(fmt.Sprintf(
-			"package not found: %s", pkgPath))
+			"package not found: %s", msg.PkgPath))
 		return "", err
 	}
 	// Parse expression.
-	xx, err := gno.ParseExpr(expr)
+	xx, err := gno.ParseExpr(msg.Expr)
 	if err != nil {
 		return "", err
 	}
@@ -359,20 +359,13 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath:   pkgPath,
+			PkgPath:   msg.PkgPath,
 			Output:    os.Stdout, // XXX
 			Store:     store,
 			Context:   msgCtx,
 			Alloc:     alloc,
 			MaxCycles: 10 * 1000 * 1000, // 10M cycles // XXX
 		})
-	defer func() {
-		if r := recover(); r != nil {
-			err = errors.Wrap(fmt.Errorf("%v", r), "VM query eval panic: %v\n%s\n",
-				r, m.String())
-			return
-		}
-	}()
 	rtvs := m.Eval(xx)
 	res = ""
 	for i, rtv := range rtvs {
@@ -388,19 +381,19 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 // The result is expected to be a single string (not a tuple).
 // TODO: modify query protocol to allow MsgEval.
 // TODO: then, rename to "EvalString".
-func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
+func (vm *VMKeeper) EvalString(ctx sdk.Context, msg MsgEval) (res string, err error) {
 	alloc := gno.NewAllocator(maxAllocQuery)
 	store := vm.getGnoStore(ctx)
-	pkgAddr := gno.DerivePkgAddr(pkgPath)
+	pkgAddr := gno.DerivePkgAddr(msg.PkgPath)
 	// Get Package.
-	pv := store.GetPackage(pkgPath, false)
+	pv := store.GetPackage(msg.PkgPath, false)
 	if pv == nil {
 		err = ErrInvalidPkgPath(fmt.Sprintf(
-			"package not found: %s", pkgPath))
+			"package not found: %s", msg.PkgPath))
 		return "", err
 	}
 	// Parse expression.
-	xx, err := gno.ParseExpr(expr)
+	xx, err := gno.ParseExpr(msg.Expr)
 	if err != nil {
 		return "", err
 	}
@@ -418,20 +411,13 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath:   pkgPath,
+			PkgPath:   msg.PkgPath,
 			Output:    os.Stdout, // XXX
 			Store:     store,
 			Context:   msgCtx,
 			Alloc:     alloc,
 			MaxCycles: 10 * 1000 * 1000, // 10M cycles // XXX
 		})
-	defer func() {
-		if r := recover(); r != nil {
-			err = errors.Wrap(fmt.Errorf("%v", r), "VM query eval string panic: %v\n%s\n",
-				r, m.String())
-			return
-		}
-	}()
 	rtvs := m.Eval(xx)
 	if len(rtvs) != 1 {
 		return "", errors.New("expected 1 string result, got %d", len(rtvs))

@@ -27,6 +27,8 @@ func (vh vmHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 		return vh.handleMsgAddPackage(ctx, msg)
 	case MsgCall:
 		return vh.handleMsgCall(ctx, msg)
+	case MsgEval:
+		return vh.handleMsgEval(ctx, msg)
 	default:
 		errMsg := fmt.Sprintf("unrecognized vm message type: %T", msg)
 		return abciResult(std.ErrUnknownRequest(errMsg))
@@ -75,6 +77,26 @@ func (vh vmHandler) handleMsgCall(ctx sdk.Context, msg MsgCall) (res sdk.Result)
 		),
 	)
 	*/
+}
+
+// Handle MsgEval.
+func (vh vmHandler) handleMsgEval(ctx sdk.Context, msg MsgEval) (res sdk.Result) {
+	amount, err := std.ParseCoins("1000000ugnot") // XXX calculate
+	if err != nil {
+		return abciResult(err)
+	}
+	err = vh.vm.bank.SendCoins(ctx, msg.Caller, auth.FeeCollectorAddress(), amount)
+	if err != nil {
+		return abciResult(err)
+	}
+	resstr := ""
+	resstr, err = vh.vm.Eval(ctx, msg)
+	if err != nil {
+		return abciResult(err)
+	}
+
+	res.Data = []byte(resstr)
+	return
 }
 
 //----------------------------------------
@@ -135,7 +157,11 @@ func (vh vmHandler) queryRender(ctx sdk.Context, req abci.RequestQuery) (res abc
 	pkgPath := reqParts[0]
 	path := reqParts[1]
 	expr := fmt.Sprintf("Render(%q)", path)
-	result, err := vh.vm.QueryEvalString(ctx, pkgPath, expr)
+	msg := MsgEval{
+		PkgPath: pkgPath,
+		Expr:    expr,
+	}
+	result, err := vh.vm.EvalString(ctx, msg)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
 		return
@@ -170,7 +196,12 @@ func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.
 	}
 	pkgPath := reqParts[0]
 	expr := reqParts[1]
-	result, err := vh.vm.QueryEval(ctx, pkgPath, expr)
+	// construct msg
+	msg := MsgEval{
+		PkgPath: pkgPath,
+		Expr:    expr,
+	}
+	result, err := vh.vm.Eval(ctx, msg)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
 		return

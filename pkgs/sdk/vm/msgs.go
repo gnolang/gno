@@ -135,3 +135,58 @@ func (msg MsgCall) GetSigners() []crypto.Address {
 func (msg MsgCall) GetReceived() std.Coins {
 	return msg.Send
 }
+
+//----------------------------------------
+// MsgEval
+
+// MsgCall - executes a Gno statement.
+type MsgEval struct {
+	Caller  crypto.Address `json:"caller" yaml:"caller"`
+	Send    std.Coins      `json:"send" yaml:"send"`
+	PkgPath string         `json:"pkg_path" yaml:"pkg_path"`
+	Expr    string         `json:"expr" yaml:"expr"`
+}
+
+func NewMsgEval(caller crypto.Address, send sdk.Coins, pkgPath, expr string) MsgEval {
+	return MsgEval{
+		Caller:  caller,
+		Send:    send,
+		PkgPath: pkgPath,
+		Expr:    expr,
+	}
+}
+
+// Implements Msg.
+func (msg MsgEval) Route() string { return RouterKey }
+
+// Implements Msg.
+func (msg MsgEval) Type() string { return "eval" }
+
+// Implements Msg.
+func (msg MsgEval) ValidateBasic() error {
+	if msg.Caller.IsZero() {
+		return std.ErrInvalidAddress("missing caller address")
+	}
+	if msg.PkgPath == "" { // XXX
+		return ErrInvalidPkgPath("missing package path")
+	}
+	if msg.Expr == "" { // XXX
+		return ErrInvalidPkgPath("missing expr")
+	}
+	return nil
+}
+
+// Implements Msg.
+func (msg MsgEval) GetSignBytes() []byte {
+	return std.MustSortJSON(amino.MustMarshalJSON(msg))
+}
+
+// Implements Msg.
+func (msg MsgEval) GetSigners() []crypto.Address {
+	return []crypto.Address{msg.Caller}
+}
+
+// Implements ReceiveMsg.
+func (msg MsgEval) GetReceived() std.Coins {
+	return msg.Send
+}
