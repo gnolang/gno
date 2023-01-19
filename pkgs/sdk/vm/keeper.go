@@ -326,9 +326,7 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 	return fsigs, nil
 }
 
-// QueryEval evaluates a gno expression (readonly, for ABCI queries).
-// TODO: modify query protocol to allow MsgEval.
-// TODO: then, rename to "Eval".
+// Eval evaluates a gno expression (readonly, for ABCI queries).
 func (vm *VMKeeper) Eval(ctx sdk.Context, msg MsgEval) (res string, err error) {
 	alloc := gno.NewAllocator(maxAllocQuery)
 	store := vm.getGnoStore(ctx)
@@ -366,6 +364,13 @@ func (vm *VMKeeper) Eval(ctx sdk.Context, msg MsgEval) (res string, err error) {
 			Alloc:     alloc,
 			MaxCycles: 10 * 1000 * 1000, // 10M cycles // XXX
 		})
+	defer func() {
+		if r := recover(); r != nil {
+			err = errors.Wrap(fmt.Errorf("%v", r), "VM eval panic: %v\n%s\n",
+				r, m.String())
+			return
+		}
+	}()
 	rtvs := m.Eval(xx)
 	res = ""
 	for i, rtv := range rtvs {
@@ -377,10 +382,7 @@ func (vm *VMKeeper) Eval(ctx sdk.Context, msg MsgEval) (res string, err error) {
 	return res, nil
 }
 
-// QueryEvalString evaluates a gno expression (readonly, for ABCI queries).
-// The result is expected to be a single string (not a tuple).
-// TODO: modify query protocol to allow MsgEval.
-// TODO: then, rename to "EvalString".
+// EvalString evaluates a gno expression (readonly, for ABCI queries).
 func (vm *VMKeeper) EvalString(ctx sdk.Context, msg MsgEval) (res string, err error) {
 	alloc := gno.NewAllocator(maxAllocQuery)
 	store := vm.getGnoStore(ctx)
@@ -418,6 +420,13 @@ func (vm *VMKeeper) EvalString(ctx sdk.Context, msg MsgEval) (res string, err er
 			Alloc:     alloc,
 			MaxCycles: 10 * 1000 * 1000, // 10M cycles // XXX
 		})
+	defer func() {
+		if r := recover(); r != nil {
+			err = errors.Wrap(fmt.Errorf("%v", r), "VM eval string panic: %v\n%s\n",
+				r, m.String())
+			return
+		}
+	}()
 	rtvs := m.Eval(xx)
 	if len(rtvs) != 1 {
 		return "", errors.New("expected 1 string result, got %d", len(rtvs))
