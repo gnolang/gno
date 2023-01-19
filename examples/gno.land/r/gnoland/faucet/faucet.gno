@@ -11,12 +11,9 @@ import (
 var (
 	// configurable by admin.
 	gAdminAddr std.Address = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-
 	gControllers     = avl.NewMutTree()
 	gControllersSize = 10 // limit it to 10
-
 	gInPause = false
-
 	gMessage = "# Community Faucet.\n\n"
 
 	// internal vars, for stats.
@@ -73,11 +70,8 @@ func Render(path string) string {
 	output += ufmt.Sprintf("Controllers:\n\n ")
 
 	for i := 0; i < gControllersSize; i++ {
-
 		_, v := gControllers.GetByIndex(i)
-
 		output += ufmt.Sprintf("%s  ", v.(std.Address))
-
 	}
 
 	output += "\n\n"
@@ -90,7 +84,6 @@ func assertIsController() error {
 	caller := std.GetOrigCaller()
 
 	ok := gControllers.Has(caller.String())
-
 	if !ok {
 		return errors.New(caller.String() + " is not on the controller list")
 	}
