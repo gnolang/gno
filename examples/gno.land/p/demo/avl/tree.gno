@@ -45,8 +45,8 @@ func (tree *Tree) Remove(key string) (value interface{}, removed bool) {
 // Shortcut for TraverseInRange.
 func (tree *Tree) Iterate(start, end string, cb IterCbFn) bool {
 	return tree.node.TraverseInRange(start, end, true, true,
-		func(node *Node) {
-			cb(node.Key(), node.Value())
+		func(node *Node) bool {
+			return cb(node.Key(), node.Value())
 		},
 	)
 }
@@ -54,8 +54,8 @@ func (tree *Tree) Iterate(start, end string, cb IterCbFn) bool {
 // Shortcut for TraverseInRange.
 func (tree *Tree) ReverseIterate(start, end string, cb IterCbFn) bool {
 	return tree.node.TraverseInRange(start, end, false, true,
-		func(node *Node) {
-			cb(node.Key(), node.Value())
+		func(node *Node) bool {
+			return cb(node.Key(), node.Value())
 		},
 	)
 }
@@ -63,19 +63,19 @@ func (tree *Tree) ReverseIterate(start, end string, cb IterCbFn) bool {
 // Shortcut for TraverseByOffset.
 func (tree *Tree) IterateByOffset(offset int, count int, cb IterCbFn) bool {
 	return tree.node.TraverseByOffset(offset, count, true, true,
-		func(node *Node) {
-			cb(node.Key(), node.Value())
+		func(node *Node) bool {
+			return cb(node.Key(), node.Value())
 		},
 	)
 }
 
 // Shortcut for TraverseByOffset.
-func (tree *Tree) ReverseIterateByOffset(start, end string, cb IterCbFn) bool {
+func (tree *Tree) ReverseIterateByOffset(offset int, count int, cb IterCbFn) bool {
 	return tree.node.TraverseByOffset(offset, count, false, true,
-		func(node *Node) {
-			cb(node.Key(), node.Value())
+		func(node *Node) bool {
+			return cb(node.Key(), node.Value())
 		},
 	)
 }
 
-func IterCbFn func(key string, value interface{}) bool 
+type IterCbFn func(key string, value interface{}) bool 

@@ -44,7 +44,9 @@ func runRun(rootDir string, verbose bool, fnames []string) error {
 	stderr := os.Stderr
 
 	// init store and machine
-	testStore := tests.TestStore(rootDir, "", stdin, stdout, stderr, tests.ImportModeStdlibsOnly)
+	testStore := tests.TestStore(rootDir,
+		"", stdin, stdout, stderr,
+		tests.ImportModeStdlibsPreferred)
 	if verbose {
 		testStore.SetLogStoreOps(true)
 	}

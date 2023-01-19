@@ -296,7 +296,7 @@ func (node *Node) Iterate(start, end string, cb func(*Node) bool) bool {
 }
 
 // Shortcut for TraverseInRange.
-func (node *Node) IterateReverse(start, end string, cb func(*Node) bool) bool {
+func (node *Node) ReverseIterate(start, end string, cb func(*Node) bool) bool {
 	return node.TraverseInRange(start, end, false, true, cb)
 }
 
@@ -358,6 +358,32 @@ func (node *Node) TraverseInRange(start, end string, ascending bool, leavesOnly 
 	}
 
 	return stop
+}
+
+// TraverseByOffset traverses all nodes, including inner nodes.
+// A limit of math.MaxInt means no limit.
+// XXX replace with optimized version.
+func (node *Node) TraverseByOffset(offset, limit int, ascending bool, leavesOnly bool, cb func(*Node) bool) bool {
+	count := 0
+	start := offset
+	end := offset + limit
+	stop := false
+
+	return node.TraverseInRange("", "", ascending, leavesOnly, func(n *Node) bool {
+		count += 1
+		if count <= start {
+			return false
+		}
+		if count <= end {
+			stop = cb(n)
+			if stop {
+				return stop
+			}
+		} else if count == end+1 {
+			return true
+		}
+		return stop
+	})
 }
 
 // Only used in testing...
