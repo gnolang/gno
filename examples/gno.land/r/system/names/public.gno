@@ -107,7 +107,7 @@ func renderNamespace(namespace string) string {
 
 func renderIndex() string {
 	output := "## Namespaces \n"
-	namespaces.Iterate("", "", func(n *avl.Tree) bool {
+	namespaces.Iterate("", "", func(n *avl.Node) bool {
 		namespace := n.Key()
 		space := n.Value().(*Space)
 		output += ufmt.Sprintf("* [%s](/r/system/names:n/%s) -	admins: %d editors: %d inPause: %s \n",
