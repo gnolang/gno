@@ -22,7 +22,7 @@ require (
 	github.com/jmhodges/levigo v1.0.0
 	github.com/libp2p/go-buffer-pool v0.1.0
 	github.com/linxGnu/grocksdb v1.7.2
-	github.com/mattn/go-runewidth v0.0.10
+	github.com/mattn/go-runewidth v0.0.14
 	github.com/pelletier/go-toml v1.9.5
 	github.com/stretchr/testify v1.7.1
 	github.com/syndtr/goleveldb v1.0.0
@@ -59,7 +59,7 @@ require (
 	github.com/lucasb-eyer/go-colorful v1.0.3 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/rivo/uniseg v0.1.0 // indirect
+	github.com/rivo/uniseg v0.2.0 // indirect
 	go.opencensus.io v0.22.5 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	golang.org/x/sys v0.0.0-20221010170243-090e33056c14 // indirect
