@@ -18,6 +18,9 @@ Likewise, if you have an idea on how to improve this guide, go for it as well.
     - [Environment](#environment)
     - [Local Setup](#local-setup)
     - [Testing](#testing)
+      - [Running locally](#running-locally)
+      - [Running test workflows](#running-test-workflows)
+      - [Testing GNO code](#testing-gno-code)
     - [Repository Structure](#repository-structure)
 - [How do I?](#how-do-i)
     - [How do I submit changes?](#how-do-i-submit-changes)
@@ -128,6 +131,24 @@ worried about compatibility.
 
 To run the entire test suite through workflow files, run the following command:
 `act -v -j go-test`
+
+#### Testing GNO code
+
+If you wish to test a `.gno` Realm or Package, you can utilize the `gnodev` tool.
+
+1. To install it, simply run:
+
+`make install gnodev`
+
+2. Now, you can point to the directory containing the `*_test.gno` files:
+
+`gnodev test <path-to-dir> --verbose`
+
+
+To learn more about how `gnodev` can help you when developing gno code, you can look into the available 
+subcommands by running:
+
+`gnodev --help`
 
 ### Repository Structure
 
