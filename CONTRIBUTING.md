@@ -309,7 +309,7 @@ If you’d like to modify the current label structure, please submit a PR modify
 the [labels.json](https://github.com/gnolang/gno/blob/master/.github/labels.json) file. The gno project utilizes
 automatic label management.
 
-#### Labels for Issues
+#### Labels for Pull Requests
 
 | Label Name      | Description                                                     |
 |-----------------|-----------------------------------------------------------------|
@@ -321,7 +321,7 @@ automatic label management.
 | feature         | PR adds new functionality to Gno                                |
 | hotfix          | PR applies a hotfix that should be merged ASAP                  |
 
-#### Labels for Pull Requests
+#### Labels for Issues
 
 | Label Name       | Description                                       |
 |------------------|---------------------------------------------------|
