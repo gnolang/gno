@@ -33,6 +33,8 @@ Likewise, if you have an idea on how to improve this guide, go for it as well.
     - [Documentation Style Guide](#documentation-style-guide)
 - [Additional Notes](#additional-notes)
     - [Issue and Pull Request Labels](#issue-and-pull-request-labels)
+      - [Labels for Pull Requests](#labels-for-pull-requests)
+      - [Labels for Issues](#labels-for-issues)
     - [Notable Contributions](#notable-contributions)
 
 ## Important Resources
