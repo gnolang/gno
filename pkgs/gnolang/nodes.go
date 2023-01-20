@@ -14,7 +14,7 @@ import (
 	"github.com/gnolang/gno/pkgs/std"
 )
 
-//----------------------------------------
+// ----------------------------------------
 // Primitives
 
 type Word int
@@ -109,7 +109,7 @@ const (
 
 type Name string
 
-//----------------------------------------
+// ----------------------------------------
 // Location
 // Acts as an identifier for nodes.
 
@@ -144,7 +144,7 @@ func (loc Location) IsZero() bool {
 		loc.Nonce == 0
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Attributes
 // All nodes have attributes for general analysis purposes.
 // Exported Attribute fields like Loc and Label are persisted
@@ -189,7 +189,7 @@ func (attr *Attributes) SetAttribute(key interface{}, value interface{}) {
 	attr.data[key] = value
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Node
 
 type Node interface {
@@ -314,7 +314,7 @@ var (
 	_ Node = &PackageNode{}
 )
 
-//----------------------------------------
+// ----------------------------------------
 // Expr
 //
 // expressions generally have no side effects on the caller's context,
@@ -505,7 +505,7 @@ type ConstExpr struct {
 	TypedValue
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Type(Expressions)
 //
 // In Go, Type expressions can be evaluated immediately
@@ -652,7 +652,7 @@ type MaybeNativeTypeExpr struct {
 	Type Expr
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Stmt
 //
 // statements generally have side effects on the calling context.
@@ -677,7 +677,7 @@ func (ss Body) GetLabeledStmt(label Name) (stmt Stmt, idx int) {
 	return nil, -1
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 // non-pointer receiver to help make immutable.
 func (*AssignStmt) assertStmt()       {}
@@ -866,7 +866,7 @@ type SwitchClauseStmt struct {
 	Body
 }
 
-//----------------------------------------
+// ----------------------------------------
 // bodyStmt (persistent)
 
 // NOTE: embedded in Block.
@@ -926,7 +926,7 @@ func (s *bodyStmt) String() string {
 		active)
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Simple Statement
 // NOTE: SimpleStmt is not used in nodes due to itable conversion costs.
 //
@@ -946,7 +946,7 @@ func (*SendStmt) assertSimpleStmt()   {}
 func (*IncDecStmt) assertSimpleStmt() {}
 func (*AssignStmt) assertSimpleStmt() {}
 
-//----------------------------------------
+// ----------------------------------------
 // Decl
 
 type Decl interface {
@@ -1047,7 +1047,7 @@ func HasDeclName(d Decl, n2 Name) bool {
 	return false
 }
 
-//----------------------------------------
+// ----------------------------------------
 // SimpleDeclStmt
 //
 // These are elements of DeclStmt, and get pushed to m.Stmts.
@@ -1072,7 +1072,7 @@ var (
 	_ SimpleDeclStmt = &TypeDecl{}
 )
 
-//----------------------------------------
+// ----------------------------------------
 // *FileSet
 
 type FileSet struct {
@@ -1251,7 +1251,7 @@ func (fs *FileSet) FileNames() []string {
 	return res
 }
 
-//----------------------------------------
+// ----------------------------------------
 // FileNode, & PackageNode
 
 type FileNode struct {
@@ -1395,7 +1395,7 @@ func (pn *PackageNode) DefineNativeOverride(n Name, native func(*Machine)) {
 	fv.nativeBody = native
 }
 
-//----------------------------------------
+// ----------------------------------------
 // RefNode
 
 // Reference to a node by its location.
@@ -1408,7 +1408,7 @@ func (rn RefNode) GetLocation() Location {
 	return rn.Location
 }
 
-//----------------------------------------
+// ----------------------------------------
 // BlockNode
 
 // Nodes that create their own scope satisfy this interface.
@@ -1437,7 +1437,7 @@ type BlockNode interface {
 	GetBody() Body
 }
 
-//----------------------------------------
+// ----------------------------------------
 // StaticBlock
 
 // Embed in node to make it a BlockNode.
@@ -1454,7 +1454,7 @@ type StaticBlock struct {
 // Implements BlockNode
 func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 	if sb.Names != nil || sb.Block.Source != nil {
-		panic("StaticBlock already initalized")
+		panic("StaticBlock already initialized")
 	}
 	if parent == nil {
 		sb.Block = Block{
@@ -1808,7 +1808,7 @@ func (pn *PackageNode) GetBody() Body {
 	panic("PackageNode has no body")
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Value Path
 
 // A relative pointer to a TypedValue value
@@ -1984,7 +1984,7 @@ type ValuePather interface {
 	GetPathForName(Name) ValuePath
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Utility
 
 func (blx *BasicLitExpr) GetString() string {

@@ -17,7 +17,7 @@ func MaxNodeInfoSize() int {
 	return maxNodeInfoSize
 }
 
-//-------------------------------------------------------------
+// -------------------------------------------------------------
 
 // NodeInfo is the basic node information exchanged
 // between two peers during the Tendermint P2P handshake.
@@ -122,7 +122,7 @@ func (info NodeInfo) ID() ID {
 // CONTRACT: two nodes are compatible if the Block version and network match
 // and they have at least one channel in common.
 func (info NodeInfo) CompatibleWith(other NodeInfo) error {
-	// check protocl versions
+	// check protocol versions
 	_, err := info.VersionSet.CompatibleWith(other.VersionSet)
 	if err != nil {
 		return err

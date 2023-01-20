@@ -180,7 +180,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 		switch stage {
 
-		//----------------------------------------
+		// ----------------------------------------
 		case TRANS_ENTER:
 			switch n := n.(type) {
 
@@ -256,7 +256,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_ENTER -----------------------
 			return n, TRANS_CONTINUE
 
-		//----------------------------------------
+		// ----------------------------------------
 		case TRANS_BLOCK:
 
 			switch n := n.(type) {
@@ -578,7 +578,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			}
 			return n, TRANS_CONTINUE
 
-		//----------------------------------------
+		// ----------------------------------------
 		case TRANS_BLOCK2:
 
 			// The main TRANS_BLOCK2 switch.
@@ -595,21 +595,21 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			}
 			return n, TRANS_CONTINUE
 
-		//----------------------------------------
+		// ----------------------------------------
 		case TRANS_LEAVE:
 			// mark as preprocessed so that it can be used
 			// in evalStaticType(store,).
 			n.SetAttribute(ATTR_PREPROCESSED, true)
 
-			//-There is still work to be done while leaving, but
-			//once the logic of that is done, we will have to
-			//perform additionally deferred logic that is best
-			//handled with orthogonal switch conditions.
-			//-For example, while leaving nodes w/
-			//TRANS_COMPOSITE_TYPE, (regardless of whether name or
-			//literal), any elided type names are inserted. (This
-			//works because the transcriber leaves the composite
-			//type before entering the kv elements.)
+			// -There is still work to be done while leaving, but
+			// once the logic of that is done, we will have to
+			// perform additionally deferred logic that is best
+			// handled with orthogonal switch conditions.
+			// -For example, while leaving nodes w/
+			// TRANS_COMPOSITE_TYPE, (regardless of whether name or
+			// literal), any elided type names are inserted. (This
+			// works because the transcriber leaves the composite
+			// type before entering the kv elements.)
 			defer func() {
 				switch ftype {
 				// TRANS_LEAVE (deferred)---------
@@ -1885,7 +1885,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						dt2 := declareWith(lastpn.PkgPath, n.Name, tmp)
 						// if !n.IsAlias { // not sure why this was here.
 						dt2.Seal()
-						//}
+						// }
 						*dst = *dt2
 					}
 				default:
@@ -2403,6 +2403,7 @@ func checkType(xt Type, dt Type, autoNative bool) {
 	// convert to *NativeType of pointer kind.
 	if pxt, ok := xt.(*PointerType); ok {
 		// *gonative{x} is gonative{*x}
+		//nolint:misspell
 		if enxt, ok := pxt.Elt.(*NativeType); ok {
 			xt = &NativeType{
 				Type: reflect.PtrTo(enxt.Type),
@@ -3487,7 +3488,7 @@ func findDependentNames(n Node, dst map[Name]struct{}) {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // SetNodeLocations
 
 // Iterate over all block nodes recursively and sets location information
@@ -3527,7 +3528,7 @@ func SetNodeLocations(pkgPath string, fileName string, n Node) {
 	})
 }
 
-//----------------------------------------
+// ----------------------------------------
 // SaveBlockNodes
 
 // Iterate over all block nodes recursively and saves them.
