@@ -1,6 +1,11 @@
 name: Docker
 on:
-  pull_request: []
+  pull_request:
+    paths:
+      - "**"
+      - "!misc/**"
+      - "!docs/**"
+      - "!**.md"
   push:
     branches:
       - master
