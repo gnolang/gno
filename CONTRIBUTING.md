@@ -35,12 +35,12 @@ Likewise, if you have an idea on how to improve this guide, go for it as well.
 
 - **[Discord](https://discord.gg/YFtMjWwUN7)** - we are very active on Discord. Join today and start discussing all
   things gno with fellow engineers and enthusiasts.
+- **[Awesome GNO](https://github.com/gnolang/awesome-gno)** - check out the list of compiled resources for helping you
+  understand the gno ecosystem
 - **[Active Staging](https://gno.land/)** - use the currently available staging environment to play around with a
   production network. If you want to interact with a local instance, refer to the [Local Setup](#local-setup) guide.
 - **[Twitter](https://twitter.com/_gnoland)** - follow us on Twitter to get the latest scoop
 - **[Telegram](https://t.me/gnoland)** - join our official Telegram group to start a conversation about gno
-- **[Awesome GNO](https://github.com/gnolang/awesome-gno)** - check out the list of compiled resources for helping you
-  understand the gno ecosystem
 
 ## Getting Started
 
