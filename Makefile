@@ -119,7 +119,7 @@ test.files1:
 	go test tests/*.go -v -test.short -run "TestFiles1/" --timeout 30m
 
 test.files1.sync:
-	go test tests/*.go -v -test.short -run "TestFiles1/" --timeout 30m	--update-golden-tests
+	go test tests/*.go -v -test.short -run "TestFiles1/" --timeout 30m --update-golden-tests
 
 test.files2:
 	go test tests/*.go -v -test.short -run "TestFiles2/" --timeout 30m
