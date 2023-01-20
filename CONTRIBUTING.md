@@ -26,7 +26,7 @@ Likewise, if you have an idea on how to improve this guide, go for it as well.
     - [How do I request a feature?](#how-do-i-request-a-feature)
 - [Style Guides](#style-guides)
     - [Git Commit Messages](#git-commit-messages)
-    - [Go Style Guide](#go-style-guide)
+    - [Go/Gno Style Guide](#gogno-style-guide)
     - [Documentation Style Guide](#documentation-style-guide)
 - [Additional Notes](#additional-notes)
     - [Issue and Pull Request Labels](#issue-and-pull-request-labels)
@@ -250,7 +250,7 @@ A general rule of thumb:
 see [A Word on Rebasing](#a-word-on-rebasing))
 - Tend to make separate commits for logically separate changes
 
-### Go Style Guide
+### Go/Gno Style Guide
 
 The gno codebase currently doesn’t follow any specific standard in terms of code style. The core team, and core
 contributors, favor using the following code style guides:
