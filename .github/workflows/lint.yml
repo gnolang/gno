@@ -20,3 +20,9 @@ jobs:
 
       - name: Lint
         uses: golangci/golangci-lint-action@v3
+        with:
+          # Version is fixated to 1.47.3 because of https://github.com/golangci/golangci-lint-action/issues/535
+          # Until issue is fixed or repo go version is bumped to 1.19
+          version: v1.47.3
+          args:
+            --config=./.golangci.yml
