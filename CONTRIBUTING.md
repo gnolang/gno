@@ -64,9 +64,8 @@ with `make install gnodev`.
 Additionally, you can also configure your editor to recognize `.gno` files as `.go` files, to get the benefit of syntax
 highlighting.
 
-Currently, we support
-an [official Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=harry-hov.gno) extension for
-Gnolang.
+Currently, we support a [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=harry-hov.gno) extension
+(eventually official in the future) for Gnolang.
 
 #### ViM Support
 
