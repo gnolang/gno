@@ -242,7 +242,7 @@ contributors, favor using the following code style guides:
 - [Google’s Go Style Guide](https://google.github.io/styleguide/go/guide)
   and [Google’s Go Best Practices](https://google.github.io/eng-practices/review/)
 
-If unsure, you should always fall back on idiomatic Go.
+If unsure, you should always follow the existing code style of the repository.
 
 Additionally, the gno codebase uses linters to enforce some common coding style etiquette. Any PR that aims to modify
 the gno codebase should make sure that the linter checks pass; otherwise they won’t be merged into the main code stream.
