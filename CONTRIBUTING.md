@@ -248,6 +248,7 @@ A general rule of thumb:
 - Use Conventional Commits for PR titles
 - Never favor rewriting history in PRs (rebases have very few exceptions, like implementation rewrites; 
 see [A Word on Rebasing](#a-word-on-rebasing))
+- Tend to make separate commits for logically separate changes
 
 ### Go Style Guide
 
