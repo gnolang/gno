@@ -21,6 +21,7 @@ Likewise, if you have an idea on how to improve this guide, go for it as well.
     - [Repository Structure](#repository-structure)
 - [How do I?](#how-do-i)
     - [How do I submit changes?](#how-do-i-submit-changes)
+      - [A Word on Rebasing](#a-word-on-rebasing)
     - [How do I report a bug?](#how-do-i-report-a-bug)
     - [How do I request a feature?](#how-do-i-request-a-feature)
 - [Style Guides](#style-guides)
@@ -176,6 +177,16 @@ Fixed in:
 [0a0577c](https://github.com/gnolang/gno/commit/0a0577ccdeb951a6621d6fbe1c04ac4e64a529c1)
 ```
 
+#### A Word on Rebasing
+
+Avoid rebasing after you open your PRs to reviews. Instead, add more commits to your PR.
+It's OK to do force pushes if PR was never opened for reviews before.
+
+A reviewer may like to see a linear commit history while reviewing. If you tend to force push from an older commit,
+a reviewer might lose track in your recent changes and will have to start reviewing from scratch.
+
+Don't worry about adding too many commits. The commits are squashed into a single commit while merging (if needed).
+
 #### Base PR template
 
 The [base PR template](https://github.com/gnolang/gno/blob/master/.github/pull_request_template.md) is by default a
@@ -235,7 +246,8 @@ Commit standard, and be short and precise.
 A general rule of thumb:
 
 - Use Conventional Commits for PR titles
-- Never favor rewriting history in PRs (rebases have very few exceptions, like implementation rewrites)
+- Never favor rewriting history in PRs (rebases have very few exceptions, like implementation rewrites; 
+see [A Word on Rebasing](#a-word-on-rebasing))
 
 ### Go Style Guide
 
