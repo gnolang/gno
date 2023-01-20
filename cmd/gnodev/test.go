@@ -28,7 +28,7 @@ type testOptions struct {
 	Run        string        `flag:"run" help:"test name filtering pattern"`
 	Timeout    time.Duration `flag:"timeout" help:"max execution time (in ns)"`               // FIXME: support ParseDuration: "1s"
 	Precompile bool          `flag:"precompile" help:"precompiling gno to go before testing"` // TODO: precompile should be the default, but it needs to automatically precompile dependencies in memory.
-	Sync       bool          `flag:"sync" help:"writes actual as wanted in test comments"`
+	Sync       bool          `flag:"update-golden-tests" help:"writes actual as wanted in test comments"`
 	// VM Options
 	// A flag about if we should download the production realms
 	// UseNativeLibs bool // experimental, but could be useful for advanced developer needs
