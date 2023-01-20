@@ -224,12 +224,12 @@ a feel for what other contributors think.
 The gno project tends to use the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) standard for any
 commit that goes into the main code stream (currently, the `master` branch).
 
-Each PR is squashed and merged into the main code stream, which means PR _titles_ should also adhere to the Conventional
+Each PR is squashed and merged into the main code stream, which means PR _titles_ should adhere to the Conventional
 Commit standard, and be short and precise.
 
 A general rule of thumb:
 
-- Use Conventional Commits for `master` branch pushes and PR titles
+- Use Conventional Commits for PR titles
 - Never favor rewriting history in PRs (rebases have very few exceptions, like implementation rewrites)
 
 ### Go Style Guide
