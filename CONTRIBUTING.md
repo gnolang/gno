@@ -211,6 +211,9 @@ You can utilize the detailed PR template by appending the following query param 
 
 Found something funky while using gno? You can report it to the team using GitHub issues.
 
+Before opening an issue, please check for existing open and closed Issues to see if that bug/feature has already been 
+reported/requested. If you find a relevant topic, you can comment on that issue.
+
 In the issue, please provide as much information as possible, for example:
 
 - what you’ve experienced
