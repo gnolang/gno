@@ -78,6 +78,10 @@ fmt:
 	go run -modfile ./misc/devdeps/go.mod mvdan.cc/gofumpt -w .
 	go run -modfile ./misc/devdeps/go.mod mvdan.cc/gofumpt -w `find stdlibs examples -name "*.gno"`
 
+.PHONY: lint
+lint:
+	golangci-lint run --config .golangci.yaml
+
 ########################################
 # Test suite
 .PHONY: test test.go test.go1 test.go2 test.go3 test.go4 test.gno test.files1 test.files2 test.realm test.packages test.flappy test.packages0 test.packages1 test.packages2 test.docker-integration
