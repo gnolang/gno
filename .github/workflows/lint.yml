@@ -25,4 +25,4 @@ jobs:
           # Until issue is fixed or repo go version is bumped to 1.19
           version: v1.47.3
           args:
-            --config=./.golangci.yml
+            --config=./.golangci.yaml
