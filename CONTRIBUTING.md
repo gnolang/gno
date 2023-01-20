@@ -7,7 +7,8 @@ This document outlines some basic pointers on making your future contribution a 
 etiquette employed by the core gno team. It lays out coding styles, simple how-to guides and tools to get you up and
 running and pushing code.
 
-If you are unsure about something, please don’t hesitate to reach out for help by opening an issue or discussion.
+If you are unsure about something, please don’t hesitate to reach out for help by opening an issue here or discuss on
+Discord.
 Likewise, if you have an idea on how to improve this guide, go for it as well.
 
 ## Table of Contents
