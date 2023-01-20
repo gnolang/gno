@@ -152,6 +152,10 @@ centralized here.
 
 ### How do I submit changes?
 
+Pull Requests serve primarily as an addition to the codebase, but also as a central point of discussion for potential features.
+Instead of opening issues, contributors are encouraged to open PRs with their suggested changes, however small, in order to
+get feedback from the community on their work.
+
 The key to successfully submitting upstream changes is providing the adequate context, with the correct implementation,
 of course.
 
@@ -212,7 +216,9 @@ The gno project operates in the public. This means that feature requests are not
 also by the general user base and other contributors.
 
 If you would like to propose a new feature (submit a feature request), you can do so by opening up an issue on GitHub,
-and providing ample context as to why this feature should be implemented.
+and providing ample context as to why this feature should be implemented. Even better, if you are able to propose your
+feature request in code, you should open a PR instead. This allows the community to easily discuss and build upon the idea
+in a central place.
 
 Additionally, it is encouraged that users suggest their idea on the official communication channels like Discord, to get
 a feel for what other contributors think.
