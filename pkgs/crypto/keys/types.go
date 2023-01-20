@@ -42,7 +42,7 @@ type Keybase interface {
 	// The following operations will *only* work on locally-stored keys
 	Update(name, oldpass string, getNewpass func() (string, error)) error
 	Import(name string, armor string) (err error)
-	ImportPrivKey(name, armor, passphrase string) error
+	ImportPrivKey(name, armor, decryptPassphrase, encryptPassphrase string) error
 	ImportPubKey(name string, armor string) (err error)
 	Export(name string) (armor string, err error)
 	ExportPubKey(name string) (armor string, err error)

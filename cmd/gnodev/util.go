@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"go/ast"
 	"io/fs"
 	"log"
 	"os"
@@ -9,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	gno "github.com/gnolang/gno/pkgs/gnolang"
 )
 
 func isGnoFile(f fs.DirEntry) bool {
@@ -103,4 +106,56 @@ func guessRootDir() string {
 	}
 	rootDir := strings.TrimSpace(string(out))
 	return rootDir
+}
+
+// makeTestGoMod creates the temporary go.mod for test
+func makeTestGoMod(path string, packageName string, goversion string) error {
+	content := fmt.Sprintf("module %s\n\ngo %s\n", packageName, goversion)
+	return os.WriteFile(path, []byte(content), 0o644)
+}
+
+// getPathsFromImportSpec derive and returns ImportPaths
+// without ImportPrefix from *ast.ImportSpec
+func getPathsFromImportSpec(importSpec []*ast.ImportSpec) (importPaths []importPath) {
+	for _, i := range importSpec {
+		path := i.Path.Value[1 : len(i.Path.Value)-1] // trim leading and trailing `"`
+		if strings.HasPrefix(path, gno.ImportPrefix) {
+			res := strings.TrimPrefix(path, gno.ImportPrefix)
+			importPaths = append(importPaths, importPath("."+res))
+		}
+	}
+	return
+}
+
+// ResolvePath joins the output dir with relative pkg path
+// e.g
+// Output Dir: Temp/gno-precompile
+// Pkg Path: ../example/gno.land/p/pkg
+// Returns -> Temp/gno-precompile/example/gno.land/p/pkg
+func ResolvePath(output string, path importPath) (string, error) {
+	absOutput, err := filepath.Abs(output)
+	if err != nil {
+		return "", err
+	}
+	absPkgPath, err := filepath.Abs(string(path))
+	if err != nil {
+		return "", err
+	}
+	pkgPath := strings.TrimPrefix(absPkgPath, guessRootDir())
+
+	return filepath.Join(absOutput, pkgPath), nil
+}
+
+// WriteDirFile write file to the path and also create
+// directory if needed. with:
+// Dir perm -> 0755; File perm -> 0o644
+func WriteDirFile(pathWithName string, data []byte) error {
+	path := filepath.Dir(pathWithName)
+
+	// Create Dir if not exists
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		os.MkdirAll(path, 0o755)
+	}
+
+	return os.WriteFile(pathWithName, []byte(data), 0o644)
 }

@@ -6,7 +6,7 @@ import (
 	"go/ast"
 	"go/printer"
 	"go/token"
-	"io/ioutil"
+	"os"
 	"path"
 	"reflect"
 	"regexp"
@@ -82,7 +82,7 @@ func WriteProtoBindingsForTypes(filename string, pkg *amino.Package, rtz ...refl
 	if err != nil {
 		return
 	}
-	err = ioutil.WriteFile(filename, buf.Bytes(), 0o644)
+	err = os.WriteFile(filename, buf.Bytes(), 0o644)
 	if err != nil {
 		return
 	}

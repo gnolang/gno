@@ -168,13 +168,7 @@ func addApp(cmd *command.Command, args []string, iopts interface{}) error {
 	}
 
 	if len(mnemonic) == 0 {
-		// read entropy seed straight from crypto.Rand and convert to mnemonic
-		entropySeed, err := bip39.NewEntropy(mnemonicEntropySize)
-		if err != nil {
-			return err
-		}
-
-		mnemonic, err = bip39.NewMnemonic(entropySeed[:])
+		mnemonic, err = generateMnemonic(mnemonicEntropySize)
 		if err != nil {
 			return err
 		}

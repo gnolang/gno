@@ -2,7 +2,7 @@ package client
 
 import (
 	"encoding/hex"
-	"io/ioutil"
+	"os"
 
 	"github.com/gnolang/gno/pkgs/command"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
@@ -49,7 +49,7 @@ func verifyApp(cmd *command.Command, args []string, iopts interface{}) error {
 		}
 		msg = []byte(msgstr)
 	} else { // from file
-		msg, err = ioutil.ReadFile(docpath)
+		msg, err = os.ReadFile(docpath)
 		if err != nil {
 			return err
 		}

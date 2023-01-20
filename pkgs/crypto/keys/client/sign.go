@@ -2,7 +2,7 @@ package client
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/command"
@@ -19,7 +19,7 @@ type SignOptions struct {
 	Sequence      *uint64 `flag:"sequence" help:"sequence to sign with (required)"`
 	ShowSignBytes bool    `flag:"show-signbytes" help:"show sign bytes and quit"`
 
-	// internal flags, when called programatically
+	// internal flags, when called programmatically
 	NameOrBech32 string `flag:"-"`
 	TxJson       []byte `flag:"-"`
 	Pass         string `flag:"-"`
@@ -50,7 +50,7 @@ func signApp(cmd *command.Command, args []string, iopts interface{}) error {
 		}
 		opts.TxJson = []byte(txjsonstr)
 	} else { // from file
-		opts.TxJson, err = ioutil.ReadFile(txpath)
+		opts.TxJson, err = os.ReadFile(txpath)
 		if err != nil {
 			return err
 		}

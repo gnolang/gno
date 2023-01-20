@@ -15,6 +15,9 @@
       <div id="home">
         <pre id="source">{{ .Data.HomeContent }}</pre>
       </div>
+      <div id="subscribe">
+        {{ template "subscribe" }}
+      </div>
       {{ template "footer" }}
     </div>
     {{ template "js" }}
