@@ -2,6 +2,9 @@ package works
 
 import "std"
 
+// TODO: String ID, StringID() string is maybe inferior to
+// ensuring that ObjectiveID etc are a priori unique via hashing.
+
 //----------------------------------------
 // Objective
 
@@ -12,8 +15,13 @@ type Objective struct {
 	ObjectiveID
 	CreatedAt time.Time
 	Components avl.Tree
+	Parent *Objective
 	Description string 
+	Contracts avl.Tree // ContractID -> Contract ??? competing contracts implementing objective.
+	Related avl.Tree // string ID -> interface{} ??? all other related objects.
 }
+
+// TODO Similar to Treasury, objectives spawn new components?
 
 //----------------------------------------
 // Treasury
@@ -30,7 +38,12 @@ func (tr *Treasury) NewAccount(...) *Treasury {
 	return nil
 }
 
-func (tr *Treasury) VerifyIntegrity() {
+// XXX Treasury is an Account interface?
+// XXX An Account is something you can deposit into?
+// XXX Or Withdraw from for purposes?
+// XXX Treasury vs ?
+
+func (tr *Treasury) VerifyTotal() error {
 	// TODO go through accounts and ensure that all internal accounts
 	// are nonnegative and sum to tr.total.
 	// TODO supplant/replace with "avl.ReduceTree" to allow reduction directly in avl.
@@ -42,6 +55,12 @@ func (tr *Treasury) VerifyIntegrity() {
 // Contract
 // Represents a contract with objectives 
 
+type ContractID string
+
+type (cid ContractID) StringID() string {
+	return "contract:"+cid
+}
+
 type Contract struct {
 	CreatedAt time.Time
 	Objectives []*Objective // XXX can refer to external objectives?
@@ -49,6 +68,8 @@ type Contract struct {
 	// signers?
 	// signed?
 }
+
+// TODO master contract, ongoing work updates etc?
 
 //----------------------------------------
 // Workgroup
