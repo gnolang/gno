@@ -35,6 +35,8 @@ func IsModFileExist(absModPath string) bool {
 	return err == nil
 }
 
+// FetchModPackages fetches and writes gno.mod packages
+// in GOPATH/pkg/gnomod/
 func FetchModPackages(f *File) error {
 	goPath := os.Getenv("GOPATH")
 	if goPath == "" {
@@ -44,21 +46,16 @@ func FetchModPackages(f *File) error {
 	if f.Require != nil {
 		for _, r := range f.Require {
 			fmt.Println("fetching", r.Mod.Path)
-			if err := writeModFiles(filepath.Join(goPath, "pkg/gnomod"), r.Mod.Path); err != nil {
+			if err := writePackage(filepath.Join(goPath, "pkg/gnomod"), r.Mod.Path); err != nil {
 				return fmt.Errorf("fetching mods: %s", err)
 			}
 		}
 	}
 
-	// TODO: Remove
-	//fmt.Println(f.Replace[0].New.Path)
-
 	return nil
 }
 
-// writeModFiles recursively fetches and writes gno modules
-// in {basePath}/{pkgPath}
-func writeModFiles(basePath, pkgPath string) error {
+func writePackage(basePath, pkgPath string) error {
 	res, err := QueryChain(queryPathFile, []byte(pkgPath))
 	if err != nil {
 		return fmt.Errorf("makeReq gno.mod: %s", err)
@@ -77,7 +74,7 @@ func writeModFiles(basePath, pkgPath string) error {
 
 		files := strings.Split(string(res.Data), "\n")
 		for _, file := range files {
-			if err := writeModFiles(basePath, filepath.Join(pkgPath, file)); err != nil {
+			if err := writePackage(basePath, filepath.Join(pkgPath, file)); err != nil {
 				return fmt.Errorf("writing mod files: %s", err)
 			}
 		}
