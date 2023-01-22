@@ -21,13 +21,18 @@ var defaultModFlags = modFlags{
 func modApp(cmd *command.Command, args []string, iopts interface{}) error {
 	opts := iopts.(modFlags)
 
-	if len(args) != 1 || args[0] != "download" {
-		cmd.ErrPrintfln("Usage: mod download [flags]")
+	if len(args) != 1 {
+		cmd.ErrPrintfln("Usage: mod [flags] <command>")
 		return errors.New("invalid command")
 	}
 
-	if err := runModDownload(&opts); err != nil {
-		return fmt.Errorf("mod download: %s", err)
+	switch args[0] {
+	case "download":
+		if err := runModDownload(&opts); err != nil {
+			return fmt.Errorf("mod download: %s", err)
+		}
+	default:
+		return fmt.Errorf("invalid command: %s", args[0])
 	}
 
 	return nil
