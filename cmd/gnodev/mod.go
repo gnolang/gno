@@ -43,7 +43,7 @@ func runModDownload(opts *modFlags) error {
 		return errors.New("gno.mod not found")
 	}
 
-	gnoMod, err := gnomod.ReadModFile(modPath, nil)
+	gnoMod, err := gnomod.ReadModFile(modPath)
 	if err != nil {
 		return err
 	}

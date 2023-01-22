@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/pkgs/std"
-	"golang.org/x/mod/modfile"
 )
 
 var (
@@ -17,36 +16,18 @@ var (
 )
 
 // ReadModFile reads, parses and validates the mod file at gnomod.
-func ReadModFile(absModPath string, fix modfile.VersionFixer) (f *modfile.File, err error) {
+func ReadModFile(absModPath string) (f *File, err error) {
 	data, err := os.ReadFile(absModPath)
 	if err != nil {
 		return nil, fmt.Errorf("reading gno.mod: %s", err)
 	}
 
-	f, err = modfile.Parse(absModPath, data, fix)
+	f, err = Parse(absModPath, data)
 	if err != nil {
 		return nil, fmt.Errorf("parsing gno.mod: %s", err)
 	}
 
-	if err := ValidateModFile(f); err != nil {
-		return nil, err
-	}
-
 	return f, err
-}
-
-func ValidateModFile(f *modfile.File) error {
-	if f.Module == nil {
-		return errors.New("validating gno.mod: no module declaration found")
-	}
-	if f.Exclude != nil {
-		return errors.New("validating gno.mod: exclude not supported")
-	}
-	if f.Retract != nil {
-		return errors.New("validating gno.mod: retract not supported")
-	}
-
-	return nil
 }
 
 func IsModFileExist(absModPath string) bool {
@@ -54,7 +35,7 @@ func IsModFileExist(absModPath string) bool {
 	return err == nil
 }
 
-func FetchModPackages(f *modfile.File) error {
+func FetchModPackages(f *File) error {
 	goPath := os.Getenv("GOPATH")
 	if goPath == "" {
 		return errors.New("GOPATH not found")
@@ -70,7 +51,7 @@ func FetchModPackages(f *modfile.File) error {
 	}
 
 	// TODO: Remove
-	fmt.Println(f.Replace[0].New.Path)
+	//fmt.Println(f.Replace[0].New.Path)
 
 	return nil
 }

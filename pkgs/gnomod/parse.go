@@ -2,8 +2,8 @@ package gnomod
 
 import (
 	"fmt"
+	"path/filepath"
 	"reflect"
-	"strconv"
 	"strings"
 
 	"golang.org/x/mod/modfile"
@@ -19,18 +19,16 @@ func Parse(file string, data []byte) (*File, error) {
 	if err != nil {
 		return nil, err
 	}
-	fss := reflect.ValueOf(fs).Interface().(*modfile.FileSyntax)
 	f := &File{
-		Syntax: fss,
+		Syntax: fs,
 	}
 	var errs modfile.ErrorList
 
 	for _, x := range fs.Stmt {
 		switch x := x.(type) {
-		case *Line:
+		case *modfile.Line:
 			f.add(&errs, nil, x, x.Token[0], x.Token[1:])
-
-		case *LineBlock:
+		case *modfile.LineBlock:
 			if len(x.Token) > 1 {
 				errs = append(errs, modfile.Error{
 					Filename: file,
@@ -61,15 +59,7 @@ func Parse(file string, data []byte) (*File, error) {
 	return f, nil
 }
 
-func (f *File) add(errs *modfile.ErrorList, block *LineBlock, line *Line, verb string, args []string) {
-	// Ignore all unknown directives
-	switch verb {
-	case "go", "module", "require":
-		// want these even for dependency gno.mods
-	default:
-		return
-	}
-
+func (f *File) add(errs *modfile.ErrorList, block *modfile.LineBlock, line *modfile.Line, verb string, args []string) {
 	wrapError := func(err error) {
 		*errs = append(*errs, modfile.Error{
 			Filename: f.Syntax.Name,
@@ -110,7 +100,6 @@ func (f *File) add(errs *modfile.ErrorList, block *LineBlock, line *Line, verb s
 			errorf("repeated module statement")
 			return
 		}
-		line := reflect.ValueOf(line).Interface().(*modfile.Line)
 		f.Module = &modfile.Module{
 			Syntax: line,
 		}
@@ -135,36 +124,56 @@ func (f *File) add(errs *modfile.ErrorList, block *LineBlock, line *Line, verb s
 			errorf("invalid quoted string: %v", err)
 			return
 		}
-		line := reflect.ValueOf(line).Interface().(*modfile.Line)
 		f.Require = append(f.Require, &modfile.Require{
-			Mod:    module.Version{Path: s, Version: ""},
+			Mod:    module.Version{Path: s, Version: "v0.0.0"},
 			Syntax: line,
 		})
 
-		// case "replace":
-		// 	replace, wrappederr := parseReplace(f.Syntax.Name, line, verb, args, fix)
-		// 	if wrappederr != nil {
-		// 		*errs = append(*errs, *wrappederr)
-		// 		return
-		// 	}
-		// 	f.Replace = append(f.Replace, replace)
-
+	case "replace":
+		replace, wrappederr := parseReplace(f.Syntax.Name, line, verb, args)
+		if wrappederr != nil {
+			*errs = append(*errs, *wrappederr)
+			return
+		}
+		f.Replace = append(f.Replace, replace)
 	}
 }
 
-func parseString(s *string) (string, error) {
-	t := *s
-	if strings.HasPrefix(t, `"`) {
-		var err error
-		if t, err = strconv.Unquote(t); err != nil {
-			return "", err
+func parseReplace(filename string, line *modfile.Line, verb string, args []string) (*modfile.Replace, *modfile.Error) {
+	wrapError := func(err error) *modfile.Error {
+		return &modfile.Error{
+			Filename: filename,
+			Pos:      modfile.Position(line.Start),
+			Err:      err,
 		}
-	} else if strings.ContainsAny(t, "\"'`") {
-		// Other quotes are reserved both for possible future expansion
-		// and to avoid confusion. For example if someone types 'x'
-		// we want that to be a syntax error and not a literal x in literal quotation marks.
-		return "", fmt.Errorf("unquoted string cannot contain quote")
 	}
-	*s = modfile.AutoQuote(t)
-	return t, nil
+	errorf := func(format string, args ...interface{}) *modfile.Error {
+		return wrapError(fmt.Errorf(format, args...))
+	}
+
+	if len(args) != 3 || args[1] != "=>" {
+		return nil, errorf("usage: %s module/path => ../local/directory", verb)
+	}
+	s, err := parseString(&args[0])
+	if err != nil {
+		return nil, errorf("invalid quoted string: %v", err)
+	}
+
+	ns, err := parseString(&args[2])
+	if err != nil {
+		return nil, errorf("invalid quoted string: %v", err)
+	}
+
+	if !modfile.IsDirectoryPath(ns) {
+		return nil, errorf("replacement module must be directory path (rooted or starting with ./ or ../)")
+	}
+	if filepath.Separator == '/' && strings.Contains(ns, `\`) {
+		return nil, errorf("replacement directory appears to be Windows path (on a non-windows system)")
+	}
+
+	return &modfile.Replace{
+		Old:    module.Version{Path: s, Version: "v0.0.0"},
+		New:    module.Version{Path: ns},
+		Syntax: line,
+	}, nil
 }
