@@ -44,13 +44,47 @@ var flags struct {
 
 func runMain(args []string) error {
 	fs := flag.NewFlagSet("gnoland", flag.ExitOnError)
-	fs.BoolVar(&flags.skipFailingGenesisTxs, "skip-failing-genesis-txs", false, "don't panic when replaying invalid genesis txs")
-	fs.BoolVar(&flags.skipStart, "skip-start", false, "quit after initialization, don't start the node")
-	fs.StringVar(&flags.genesisBalancesFile, "genesis-balances-file", "./gnoland/genesis/genesis_balances.txt", "initial distribution file")
-	fs.StringVar(&flags.genesisTxsFile, "genesis-txs-file", "./gnoland/genesis/genesis_txs.txt", "initial txs to replay")
-	fs.StringVar(&flags.chainID, "chainid", "dev", "chainid")
-	fs.StringVar(&flags.rootDir, "root-dir", "testdir", "directory for config and data")
-	fs.StringVar(&flags.genesisRemote, "genesis-remote", "localhost:26657", "replacement for '%%REMOTE%%' in genesis")
+	fs.BoolVar(
+		&flags.skipFailingGenesisTxs,
+		"skip-failing-genesis-txs",
+		false,
+		"don't panic when replaying invalid genesis txs",
+	)
+	fs.BoolVar(
+		&flags.skipStart,
+		"skip-start",
+		false, "quit after initialization, don't start the node",
+	)
+	fs.StringVar(
+		&flags.genesisBalancesFile,
+		"genesis-balances-file",
+		"./gnoland/genesis/genesis_balances.txt",
+		"initial distribution file",
+	)
+	fs.StringVar(
+		&flags.genesisTxsFile,
+		"genesis-txs-file",
+		"./gnoland/genesis/genesis_txs.txt",
+		"initial txs to replay",
+	)
+	fs.StringVar(
+		&flags.chainID,
+		"chainid",
+		"dev",
+		"chainid",
+	)
+	fs.StringVar(
+		&flags.rootDir,
+		"root-dir",
+		"testdir",
+		"directory for config and data",
+	)
+	fs.StringVar(
+		&flags.genesisRemote,
+		"genesis-remote",
+		"localhost:26657",
+		"replacement for '%%REMOTE%%' in genesis",
+	)
 	fs.Parse(args)
 
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))

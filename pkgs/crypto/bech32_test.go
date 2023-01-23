@@ -35,7 +35,12 @@ func TestEmptyAddresses(t *testing.T) {
 	require.Nil(t, err)
 }
 
-func testMarshal(t *testing.T, addr crypto.Address, marshal func(orig interface{}) ([]byte, error), unmarshal func(bz []byte, ptr interface{}) error) {
+func testMarshal(
+	t *testing.T,
+	addr crypto.Address,
+	marshal func(orig interface{}) ([]byte, error),
+	unmarshal func(bz []byte, ptr interface{}) error,
+) {
 	bz, err := marshal(addr)
 	require.Nil(t, err)
 	res := crypto.Address{}

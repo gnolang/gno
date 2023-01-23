@@ -274,7 +274,12 @@ func (proof *RangeProof) _computeRootHash() (rootHash []byte, treeEnd bool, err 
 				return nil, treeEnd, false, errors.Wrap(err, "recursive COMPUTEHASH call")
 			}
 			if !bytes.Equal(derivedRoot, lpath.Right) {
-				return nil, treeEnd, false, errors.Wrap(ErrInvalidRoot, "intermediate root hash %X doesn't match, got %X", lpath.Right, derivedRoot)
+				return nil, treeEnd, false, errors.Wrap(
+					ErrInvalidRoot,
+					"intermediate root hash %X doesn't match, got %X",
+					lpath.Right,
+					derivedRoot,
+				)
 			}
 			if done {
 				return hash, treeEnd, true, nil
@@ -300,7 +305,7 @@ func (proof *RangeProof) _computeRootHash() (rootHash []byte, treeEnd bool, err 
 	return rootHash, treeEnd, nil
 }
 
-///////////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////////////////////////////////////////////////
 
 // keyStart is inclusive and keyEnd is exclusive.
 // If keyStart or keyEnd don't exist, the leaf before keyStart
@@ -308,7 +313,11 @@ func (proof *RangeProof) _computeRootHash() (rootHash []byte, treeEnd bool, err 
 // If keyEnd-1 exists, no later leaves will be included.
 // If keyStart >= keyEnd and both not nil, panics.
 // Limit is never exceeded.
-func (t *ImmutableTree) getRangeProof(keyStart, keyEnd []byte, limit int) (proof *RangeProof, keys, values [][]byte, err error) {
+func (t *ImmutableTree) getRangeProof(
+	keyStart,
+	keyEnd []byte,
+	limit int,
+) (proof *RangeProof, keys, values [][]byte, err error) {
 	if keyStart != nil && keyEnd != nil && bytes.Compare(keyStart, keyEnd) >= 0 {
 		panic("if keyStart and keyEnd are present, need keyStart < keyEnd.")
 	}
@@ -444,7 +453,7 @@ func (t *ImmutableTree) getRangeProof(keyStart, keyEnd []byte, limit int) (proof
 	}, keys, values, nil
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 // GetWithProof gets the value under the key if it exists, or returns nil.
 // A proof of existence or absence is returned alongside the value.
@@ -460,7 +469,11 @@ func (t *ImmutableTree) GetWithProof(key []byte) (value []byte, proof *RangeProo
 }
 
 // GetRangeWithProof gets key/value pairs within the specified range and limit.
-func (t *ImmutableTree) GetRangeWithProof(startKey []byte, endKey []byte, limit int) (keys, values [][]byte, proof *RangeProof, err error) {
+func (t *ImmutableTree) GetRangeWithProof(
+	startKey []byte,
+	endKey []byte,
+	limit int,
+) (keys, values [][]byte, proof *RangeProof, err error) {
 	proof, keys, values, err = t.getRangeProof(startKey, endKey, limit)
 	return
 }

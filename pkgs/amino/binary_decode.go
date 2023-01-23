@@ -408,7 +408,12 @@ func (cdc *Codec) decodeReflectBinaryInterface(bz []byte, iinfo *TypeInfo, rv re
 // Returns the number of bytes read from value.
 // CONTRACT: rv.CanAddr() is true.
 // CONTRACT: rv.Kind() == reflect.Interface.
-func (cdc *Codec) decodeReflectBinaryAny(typeURL string, value []byte, rv reflect.Value, fopts FieldOptions) (n int, err error) {
+func (cdc *Codec) decodeReflectBinaryAny(
+	typeURL string,
+	value []byte,
+	rv reflect.Value,
+	fopts FieldOptions,
+) (n int, err error) {
 	// Invalid typeURL value is invalid.
 	if !IsASCIIText(typeURL) {
 		err = fmt.Errorf("invalid type_url string bytes %X", typeURL)

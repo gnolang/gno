@@ -58,7 +58,7 @@ func ResetConfig(name string) *cfg.Config {
 	return cfg.ResetTestRoot(name)
 }
 
-//-------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 // validator stub (a kvstore consensus peer we control)
 
 type validatorStub struct {
@@ -139,7 +139,7 @@ func (vss ValidatorStubsByAddress) Swap(i, j int) {
 	vss[j].Index = j
 }
 
-//-------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 // Functions for transitioning the consensus state
 
 func startFrom(cs *ConsensusState, height int64, round int) {
@@ -151,7 +151,12 @@ func startFrom(cs *ConsensusState, height int64, round int) {
 
 // Create proposal block from cs but sign it with vs.
 // NOTE: assumes cs already locked via mutex (perhaps via debugger).
-func decideProposal(cs *ConsensusState, vs *validatorStub, height int64, round int) (proposal *types.Proposal, block *types.Block) {
+func decideProposal(
+	cs *ConsensusState,
+	vs *validatorStub,
+	height int64,
+	round int,
+) (proposal *types.Proposal, block *types.Block) {
 	block, blockParts := cs.createProposalBlock()
 	validRound := cs.ValidRound
 	chainID := cs.state.ChainID
@@ -174,7 +179,13 @@ func addVotes(to *ConsensusState, votes ...*types.Vote) {
 	}
 }
 
-func signAddVotes(to *ConsensusState, voteType types.SignedMsgType, hash []byte, header types.PartSetHeader, vss ...*validatorStub) {
+func signAddVotes(
+	to *ConsensusState,
+	voteType types.SignedMsgType,
+	hash []byte,
+	header types.PartSetHeader,
+	vss ...*validatorStub,
+) {
 	votes := signVotes(voteType, hash, header, vss...)
 	addVotes(to, votes...)
 }
@@ -209,7 +220,15 @@ func validateLastPrecommit(t *testing.T, cs *ConsensusState, privVal *validatorS
 	}
 }
 
-func validatePrecommit(t *testing.T, cs *ConsensusState, thisRound, lockRound int, privVal *validatorStub, votedBlockHash, lockedBlockHash []byte) {
+func validatePrecommit(
+	_ *testing.T,
+	cs *ConsensusState,
+	thisRound,
+	lockRound int,
+	privVal *validatorStub,
+	votedBlockHash,
+	lockedBlockHash []byte,
+) {
 	precommits := cs.Votes.Precommits(thisRound)
 	address := privVal.GetPubKey().Address()
 	var vote *types.Vote
@@ -229,16 +248,39 @@ func validatePrecommit(t *testing.T, cs *ConsensusState, thisRound, lockRound in
 
 	if lockedBlockHash == nil {
 		if cs.LockedRound != lockRound || cs.LockedBlock != nil {
-			panic(fmt.Sprintf("Expected to be locked on nil at round %d. Got locked at round %d with block %v", lockRound, cs.LockedRound, cs.LockedBlock))
+			panic(
+				fmt.Sprintf(
+					"Expected to be locked on nil at round %d. Got locked at round %d with block %v",
+					lockRound,
+					cs.LockedRound,
+					cs.LockedBlock,
+				),
+			)
 		}
 	} else {
 		if cs.LockedRound != lockRound || !bytes.Equal(cs.LockedBlock.Hash(), lockedBlockHash) {
-			panic(fmt.Sprintf("Expected block to be locked on round %d, got %d. Got locked block %X, expected %X", lockRound, cs.LockedRound, cs.LockedBlock.Hash(), lockedBlockHash))
+			panic(
+				fmt.Sprintf(
+					"Expected block to be locked on round %d, got %d. Got locked block %X, expected %X",
+					lockRound,
+					cs.LockedRound,
+					cs.LockedBlock.Hash(),
+					lockedBlockHash,
+				),
+			)
 		}
 	}
 }
 
-func validatePrevoteAndPrecommit(t *testing.T, cs *ConsensusState, thisRound, lockRound int, privVal *validatorStub, votedBlockHash, lockedBlockHash []byte) {
+func validatePrevoteAndPrecommit(
+	t *testing.T,
+	cs *ConsensusState,
+	thisRound,
+	lockRound int,
+	privVal *validatorStub,
+	votedBlockHash,
+	lockedBlockHash []byte,
+) {
 	// verify the prevote
 	validatePrevote(t, cs, thisRound, privVal, votedBlockHash)
 	// verify precommit
@@ -256,7 +298,7 @@ func subscribeToVoter(cs *ConsensusState, addr crypto.Address) <-chan events.Eve
 	})
 }
 
-//-------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 // consensus states
 
 func newConsensusState(state sm.State, pv types.PrivValidator, app abci.Application) *ConsensusState {
@@ -264,12 +306,23 @@ func newConsensusState(state sm.State, pv types.PrivValidator, app abci.Applicat
 	return newConsensusStateWithConfig(config, state, pv, app)
 }
 
-func newConsensusStateWithConfig(thisConfig *cfg.Config, state sm.State, pv types.PrivValidator, app abci.Application) *ConsensusState {
+func newConsensusStateWithConfig(
+	thisConfig *cfg.Config,
+	state sm.State,
+	pv types.PrivValidator,
+	app abci.Application,
+) *ConsensusState {
 	blockDB := dbm.NewMemDB()
 	return newConsensusStateWithConfigAndBlockStore(thisConfig, state, pv, app, blockDB)
 }
 
-func newConsensusStateWithConfigAndBlockStore(thisConfig *cfg.Config, state sm.State, pv types.PrivValidator, app abci.Application, blockDB dbm.DB) *ConsensusState {
+func newConsensusStateWithConfigAndBlockStore(
+	thisConfig *cfg.Config,
+	state sm.State,
+	pv types.PrivValidator,
+	app abci.Application,
+	blockDB dbm.DB,
+) *ConsensusState {
 	// Get BlockStore
 	blockStore := store.NewBlockStore(blockDB)
 
@@ -326,7 +379,7 @@ func randConsensusState(nValidators int) (*ConsensusState, []*validatorStub) {
 	return cs, vss
 }
 
-//-------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 
 func ensureNoNewEvent(ch <-chan events.Event, timeout time.Duration,
 	errorMessage string,
@@ -563,7 +616,7 @@ func ensureNewEventOnChannel(ch <-chan events.Event) {
 	}
 }
 
-//-------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 // consensus nets
 
 // consensusLogger is a TestingLogger which uses a different
@@ -709,7 +762,7 @@ func getSwitchIndex(switches []*p2p.Switch, peer p2p.Peer) int {
 	panic("didnt find peer in switches")
 }
 
-//-------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 // genesis
 
 func randGenesisDoc(numValidators int, randPower bool, minPower int64) (*types.GenesisDoc, []types.PrivValidator) {
@@ -738,7 +791,7 @@ func randGenesisState(numValidators int, randPower bool, minPower int64) (sm.Sta
 	return s0, privValidators
 }
 
-//------------------------------------
+// ------------------------------------
 // mock ticker
 
 func newMockTickerFunc(onlyOnce bool) func() TimeoutTicker {
@@ -786,7 +839,7 @@ func (m *mockTicker) Chan() <-chan timeoutInfo {
 
 func (*mockTicker) SetLogger(log.Logger) {}
 
-//------------------------------------
+// ------------------------------------
 
 func newCounter() abci.Application {
 	return counter.NewCounterApplication(true)

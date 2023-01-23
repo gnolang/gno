@@ -62,7 +62,12 @@ func makeAndApplyGoodBlock(state sm.State, height int64, lastCommit *types.Commi
 	return state, blockID, nil
 }
 
-func makeValidCommit(height int64, blockID types.BlockID, vals *types.ValidatorSet, privVals map[string]types.PrivValidator) (*types.Commit, error) {
+func makeValidCommit(
+	height int64,
+	blockID types.BlockID,
+	vals *types.ValidatorSet,
+	privVals map[string]types.PrivValidator,
+) (*types.Commit, error) {
 	sigs := make([]*types.CommitSig, 0)
 	for i := 0; i < vals.Size(); i++ {
 		_, val := vals.GetByIndex(i)
@@ -182,7 +187,10 @@ func makeHeaderPartsResponsesValPowerChange(state sm.State, power int64) (types.
 	return block.Header, types.BlockID{Hash: block.Hash(), PartsHeader: types.PartSetHeader{}}, abciResponses
 }
 
-func makeHeaderPartsResponsesParams(state sm.State, params abci.ConsensusParams) (types.Header, types.BlockID, *sm.ABCIResponses) {
+func makeHeaderPartsResponsesParams(
+	state sm.State,
+	params abci.ConsensusParams,
+) (types.Header, types.BlockID, *sm.ABCIResponses) {
 	block := makeBlock(state, state.LastBlockHeight+1)
 	abciResponses := &sm.ABCIResponses{
 		EndBlock: abci.ResponseEndBlock{ConsensusParams: &params},
@@ -207,7 +215,7 @@ func randomGenesisDoc() *types.GenesisDoc {
 	}
 }
 
-//----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 
 type testApp struct {
 	abci.BaseApplication

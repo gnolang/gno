@@ -378,7 +378,10 @@ func processChanges(origChanges []*Validator) (updates, removals []*Validator, e
 // 'updates' should be a list of proper validator changes, i.e. they have been verified
 // by processChanges for duplicates and invalid values.
 // No changes are made to the validator set 'vals'.
-func verifyUpdates(updates []*Validator, vals *ValidatorSet) (updatedTotalVotingPower int64, numNewValidators int, err error) {
+func verifyUpdates(
+	updates []*Validator,
+	vals *ValidatorSet,
+) (updatedTotalVotingPower int64, numNewValidators int, err error) {
 	updatedTotalVotingPower = vals.TotalVotingPower()
 
 	for _, update := range updates {
@@ -757,7 +760,7 @@ func (vals *ValidatorSet) VerifyFutureCommit(newSet *ValidatorSet, chainID strin
 	return nil
 }
 
-//-----------------
+// -----------------
 // ErrTooMuchChange
 
 func IsErrTooMuchChange(err error) bool {
@@ -774,7 +777,7 @@ func (e errTooMuchChange) Error() string {
 	return fmt.Sprintf("Invalid commit -- insufficient old voting power: got %v, needed %v", e.got, e.needed)
 }
 
-//----------------
+// ----------------
 
 func (vals *ValidatorSet) String() string {
 	return vals.StringIndented("")
@@ -801,7 +804,7 @@ func (vals *ValidatorSet) StringIndented(indent string) string {
 		indent)
 }
 
-//-------------------------------------
+// -------------------------------------
 // Implements sort for sorting validators by address.
 
 // Sort validators by address.
@@ -821,7 +824,7 @@ func (valz ValidatorsByAddress) Swap(i, j int) {
 	valz[j] = it
 }
 
-//----------------------------------------
+// ----------------------------------------
 // for testing
 
 // RandValidatorSet returns a randomized validator set, useful for testing.
@@ -840,7 +843,7 @@ func RandValidatorSet(numValidators int, votingPower int64) (*ValidatorSet, []Pr
 	return vals, privValidators
 }
 
-///////////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////////////////////////////////////////////////
 // safe addition/subtraction
 
 func safeAdd(a, b int64) (int64, bool) {

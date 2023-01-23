@@ -611,8 +611,18 @@ func TestProposerPriorityProposerAlternates(t *testing.T) {
 	expectedVal1Prio2 := expectedVal1Prio + val1VotingPower // 1 + 10 == 11
 	expectedVal1Prio2 -= totalPower                         // -9, val1 proposer
 
-	assert.EqualValues(t, expectedVal1Prio2, updatedVal1.ProposerPriority, "unexpected proposer priority for validator: %v", updatedVal2)
-	assert.EqualValues(t, expectedVal2Prio2, updatedVal2.ProposerPriority, "unexpected proposer priority for validator: %v", updatedVal2)
+	assert.EqualValues(
+		t, expectedVal1Prio2,
+		updatedVal1.ProposerPriority,
+		"unexpected proposer priority for validator: %v",
+		updatedVal2,
+	)
+	assert.EqualValues(
+		t, expectedVal2Prio2,
+		updatedVal2.ProposerPriority,
+		"unexpected proposer priority for validator: %v",
+		updatedVal2,
+	)
 
 	// no changes in voting power and both validators have same voting power
 	// -> proposers should alternate:
@@ -664,7 +674,11 @@ func TestLargeGenesisValidator(t *testing.T) {
 	genesisVotingPower := types.MaxTotalVotingPower / 1000
 	genesisPubKey := ed25519.GenPrivKey().PubKey()
 	// fmt.Println("genesis addr: ", genesisPubKey.Address())
-	genesisVal := &types.Validator{Address: genesisPubKey.Address(), PubKey: genesisPubKey, VotingPower: genesisVotingPower}
+	genesisVal := &types.Validator{
+		Address:     genesisPubKey.Address(),
+		PubKey:      genesisPubKey,
+		VotingPower: genesisVotingPower,
+	}
 	// reset state validators to above validator
 	state.Validators = types.NewValidatorSet([]*types.Validator{genesisVal})
 	state.NextValidators = state.Validators

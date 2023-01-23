@@ -36,7 +36,7 @@ const (
 	BankerTypeRealmIssue
 )
 
-//----------------------------------------
+// ----------------------------------------
 // ReadonlyBanker
 
 type ReadonlyBanker struct {
@@ -67,7 +67,7 @@ func (rb ReadonlyBanker) RemoveCoin(addr crypto.Bech32Address, denom string, amo
 	panic("ReadonlyBanker cannot remove coins")
 }
 
-//----------------------------------------
+// ----------------------------------------
 // OrigSendBanker
 
 type OrigSendBanker struct {
@@ -77,7 +77,12 @@ type OrigSendBanker struct {
 	origSendSpent *std.Coins
 }
 
-func NewOrigSendBanker(banker Banker, pkgAddr crypto.Bech32Address, origSend std.Coins, origSendSpent *std.Coins) OrigSendBanker {
+func NewOrigSendBanker(
+	banker Banker,
+	pkgAddr crypto.Bech32Address,
+	origSend std.Coins,
+	origSendSpent *std.Coins,
+) OrigSendBanker {
 	if origSendSpent == nil {
 		panic("origSendSpent cannot be nil")
 	}
@@ -121,7 +126,7 @@ func (osb OrigSendBanker) RemoveCoin(addr crypto.Bech32Address, denom string, am
 	panic("OrigSendBanker cannot remove coins")
 }
 
-//----------------------------------------
+// ----------------------------------------
 // RealmSendBanker
 
 type RealmSendBanker struct {

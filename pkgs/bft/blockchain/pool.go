@@ -246,7 +246,15 @@ func (pool *BlockPool) AddBlock(peerID p2p.ID, block *types.Block, blockSize int
 
 	requester := pool.requesters[block.Height]
 	if requester == nil {
-		pool.Logger.Info("peer sent us a block we didn't expect", "peer", peerID, "curHeight", pool.height, "blockHeight", block.Height)
+		pool.Logger.Info(
+			"peer sent us a block we didn't expect",
+			"peer",
+			peerID,
+			"curHeight",
+			pool.height,
+			"blockHeight",
+			block.Height,
+		)
 		diff := pool.height - block.Height
 		if diff < 0 {
 			diff *= -1
@@ -419,7 +427,7 @@ func (pool *BlockPool) debug() string {
 	return str
 }
 
-//-------------------------------------
+// -------------------------------------
 
 type bpPeer struct {
 	pool        *BlockPool
@@ -491,7 +499,7 @@ func (peer *bpPeer) onTimeout() {
 	peer.didTimeout = true
 }
 
-//-------------------------------------
+// -------------------------------------
 
 type bpRequester struct {
 	service.BaseService

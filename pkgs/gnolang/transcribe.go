@@ -730,7 +730,8 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 	return
 }
 
-// returns true if transcribe() should stop or skip or exit (& if so then sets *c to TRANS_EXIT if exit, or TRANS_CONTINUE if break).
+// returns true if transcribe() should stop or skip or exit
+// (& if so then sets *c to TRANS_EXIT if exit, or TRANS_CONTINUE if break).
 func isStopOrSkip(oldnc *TransCtrl, nc TransCtrl) (stop bool) {
 	if nc == TRANS_EXIT {
 		*oldnc = TRANS_EXIT

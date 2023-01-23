@@ -226,7 +226,7 @@ func (c *WSClient) CallWithArrayParams(ctx context.Context, method string, param
 	return c.Send(ctx, request)
 }
 
-///////////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////////////////////////////////////////////////
 // Private methods
 
 func (c *WSClient) dial() error {
@@ -397,7 +397,10 @@ func (c *WSClient) writeRoutine() {
 		case <-c.readRoutineQuit:
 			return
 		case <-c.Quit():
-			if err := c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")); err != nil {
+			if err := c.conn.WriteMessage(
+				websocket.CloseMessage,
+				websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
+			); err != nil {
 				c.Logger.Error("failed to write message", "err", err)
 			}
 			return

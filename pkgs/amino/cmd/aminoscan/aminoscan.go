@@ -148,7 +148,11 @@ func scanByteLength(bz []byte, indent string) (s string, n int, err error) {
 	fmt.Printf("%s%s%s\n", indent, Cyan(lengthStrLong), Green(contentsStr))
 	// If ascii string, also show the string in quotes.
 	if amino.IsASCIIText(string(contents)) {
-		fmt.Printf("%s%s\n", indent+strings.Repeat(" ", lengthStrLongLen), Green("("+strconv.Quote(string(contents))+" in ASCII)"))
+		fmt.Printf(
+			"%s%s\n",
+			indent+strings.Repeat(" ", lengthStrLongLen),
+			Green("("+strconv.Quote(string(contents))+" in ASCII)"),
+		)
 	}
 	return
 }
@@ -292,7 +296,7 @@ func scanInterface(bz []byte, indent string) (s string, n int, err error) {
 }
 */
 
-//----------------------------------------
+// ----------------------------------------
 // Misc.
 
 func slide(bzPtr *[]byte, n *int, _n int) bool {

@@ -287,7 +287,11 @@ func (b *JSONRPCRequestBatch) Send() ([]interface{}, error) {
 
 // Call enqueues a request to call the given RPC method with the specified
 // parameters, in the same way that the `JSONRPCClient.Call` function would.
-func (b *JSONRPCRequestBatch) Call(method string, params map[string]interface{}, result interface{}) (interface{}, error) {
+func (b *JSONRPCRequestBatch) Call(
+	method string,
+	params map[string]interface{},
+	result interface{},
+) (interface{}, error) {
 	request, err := types.MapToRequest(b.client.id, method, params)
 	if err != nil {
 		return nil, err
@@ -341,7 +345,11 @@ func (c *URIClient) Call(method string, params map[string]interface{}, result in
 
 // ------------------------------------------------
 
-func unmarshalResponseBytes(responseBytes []byte, expectedID types.JSONRPCStringID, result interface{}) (interface{}, error) {
+func unmarshalResponseBytes(
+	responseBytes []byte,
+	expectedID types.JSONRPCStringID,
+	result interface{},
+) (interface{}, error) {
 	// Read response.  If rpc/core/types is imported, the result will unmarshal
 	// into the correct type.
 	// log.Notice("response", "response", string(responseBytes))
@@ -367,7 +375,11 @@ func unmarshalResponseBytes(responseBytes []byte, expectedID types.JSONRPCString
 	return result, nil
 }
 
-func unmarshalResponseBytesArray(responseBytes []byte, expectedID types.JSONRPCStringID, results []interface{}) ([]interface{}, error) {
+func unmarshalResponseBytesArray(
+	responseBytes []byte,
+	expectedID types.JSONRPCStringID,
+	results []interface{},
+) ([]interface{}, error) {
 	var (
 		err       error
 		responses []types.RPCResponse
@@ -380,7 +392,11 @@ func unmarshalResponseBytesArray(responseBytes []byte, expectedID types.JSONRPCS
 	// and unsuccessful responses.
 
 	if len(results) != len(responses) {
-		return nil, errors.New("expected %d result objects into which to inject responses, but got %d", len(responses), len(results))
+		return nil, errors.New(
+			"expected %d result objects into which to inject responses, but got %d",
+			len(responses),
+			len(results),
+		)
 	}
 
 	for i, response := range responses {

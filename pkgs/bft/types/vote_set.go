@@ -181,6 +181,7 @@ func (voteSet *VoteSet) addVote(vote *Vote) (added bool, err error) {
 
 	// Ensure that the signer has the right address.
 	if valAddr != lookupAddr {
+		//nolint:lll
 		return false, errors.Wrap(ErrVoteInvalidValidatorAddress,
 			"vote.ValidatorAddress (%X) does not match address (%X) for vote.ValidatorIndex (%d)\nEnsure the genesis file is correct across all validators.",
 			valAddr, lookupAddr, valIndex)
@@ -191,12 +192,22 @@ func (voteSet *VoteSet) addVote(vote *Vote) (added bool, err error) {
 		if bytes.Equal(existing.Signature, vote.Signature) {
 			return false, nil // duplicate
 		}
-		return false, errors.Wrap(ErrVoteNonDeterministicSignature, "Existing vote: %v; New vote: %v", existing, vote)
+		return false, errors.Wrap(
+			ErrVoteNonDeterministicSignature,
+			"Existing vote: %v; New vote: %v",
+			existing,
+			vote,
+		)
 	}
 
 	// Check signature.
 	if err := vote.Verify(voteSet.chainID, val.PubKey); err != nil {
-		return false, errors.Wrap(err, "Failed to verify vote with ChainID %s and PubKey %s", voteSet.chainID, val.PubKey)
+		return false, errors.Wrap(
+			err,
+			"Failed to verify vote with ChainID %s and PubKey %s",
+			voteSet.chainID,
+			val.PubKey,
+		)
 	}
 
 	// Add vote and get conflicting vote if any.
@@ -223,7 +234,11 @@ func (voteSet *VoteSet) getVote(valIndex int, blockKey string) (vote *Vote, ok b
 
 // Assumes signature is valid.
 // If conflicting vote exists, returns it.
-func (voteSet *VoteSet) addVerifiedVote(vote *Vote, blockKey string, votingPower int64) (added bool, conflicting *Vote) {
+func (voteSet *VoteSet) addVerifiedVote(
+	vote *Vote,
+	blockKey string,
+	votingPower int64,
+) (added bool, conflicting *Vote) {
 	valIndex := vote.ValidatorIndex
 
 	// Already exists in voteSet.votes?
@@ -427,7 +442,7 @@ func (voteSet *VoteSet) TwoThirdsMajority() (blockID BlockID, ok bool) {
 	return BlockID{}, false
 }
 
-//--------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------
 // Strings and JSON
 
 func (voteSet *VoteSet) String() string {
@@ -534,7 +549,7 @@ func (voteSet *VoteSet) sumTotalFrac() (int64, int64, float64) {
 	return voted, total, fracVoted
 }
 
-//--------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------
 // Commit
 
 // MakeCommit constructs a Commit from the VoteSet.
@@ -560,7 +575,7 @@ func (voteSet *VoteSet) MakeCommit() *Commit {
 	return NewCommit(*voteSet.maj23, commitSigs)
 }
 
-//--------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------
 
 /*
 Votes for a particular block
@@ -600,7 +615,7 @@ func (vs *blockVotes) getByIndex(index int) *Vote {
 	return vs.votes[index]
 }
 
-//--------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------
 
 // Common interface between *consensus.VoteSet and types.Commit
 type VoteSetReader interface {

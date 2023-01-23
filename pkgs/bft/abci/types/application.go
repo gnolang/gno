@@ -1,3 +1,4 @@
+//nolint:lll
 package abci
 
 // Application is an interface that enables any finite, deterministic state
@@ -25,7 +26,7 @@ type Application interface {
 	Close() error
 }
 
-//-------------------------------------------------------
+// -------------------------------------------------------
 // BaseApplication is a base form of Application
 
 var _ Application = (*BaseApplication)(nil)

@@ -23,11 +23,13 @@ import (
 )
 
 type testOptions struct {
-	Verbose    bool          `flag:"verbose" help:"verbose"`
-	RootDir    string        `flag:"root-dir" help:"clone location of github.com/gnolang/gno (gnodev tries to guess it)"`
-	Run        string        `flag:"run" help:"test name filtering pattern"`
-	Timeout    time.Duration `flag:"timeout" help:"max execution time (in ns)"`               // FIXME: support ParseDuration: "1s"
-	Precompile bool          `flag:"precompile" help:"precompiling gno to go before testing"` // TODO: precompile should be the default, but it needs to automatically precompile dependencies in memory.
+	Verbose bool   `flag:"verbose" help:"verbose"`
+	RootDir string `flag:"root-dir" help:"clone location of github.com/gnolang/gno (gnodev tries to guess it)"`
+	Run     string `flag:"run" help:"test name filtering pattern"`
+	// FIXME: support ParseDuration: "1s"
+	Timeout time.Duration `flag:"timeout" help:"max execution time (in ns)"`
+	// TODO: precompile should be the default, but it needs to automatically precompile dependencies in memory.
+	Precompile bool `flag:"precompile" help:"precompiling gno to go before testing"`
 	// VM Options
 	// A flag about if we should download the production realms
 	// UseNativeLibs bool // experimental, but could be useful for advanced developer needs
@@ -252,7 +254,15 @@ func gnoTestPkg(cmd *command.Command, pkgPath string, unittestFiles, filetestFil
 	return errs
 }
 
-func runTestFiles(cmd *command.Command, testStore gno.Store, m *gno.Machine, files *gno.FileSet, pkgName string, verbose bool, runFlag string) error {
+func runTestFiles(
+	cmd *command.Command,
+	_ gno.Store,
+	m *gno.Machine,
+	files *gno.FileSet,
+	pkgName string,
+	verbose bool,
+	runFlag string,
+) error {
 	var errs error
 
 	testFuncs := &testFuncs{

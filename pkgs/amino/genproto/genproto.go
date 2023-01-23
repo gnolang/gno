@@ -186,7 +186,12 @@ func (p3c *P3Context) GenerateProto3MessagePartial(p3doc *P3Doc, rt reflect.Type
 	// or an internal reference (with no imports necessary).
 	pkgPath := rt.PkgPath()
 	if pkgPath == "" {
-		panic(fmt.Errorf("can only generate proto3 message schemas from user-defined package-level declared structs, got rt %v", rt))
+		panic(
+			fmt.Errorf(
+				"can only generate proto3 message schemas from user-defined package-level declared structs, got rt %v",
+				rt,
+			),
+		)
 	}
 
 	p3msg.Name = info.Name // not rinfo.
@@ -305,7 +310,11 @@ var (
 )
 
 // If info.ReprType is a struct, the returned proto3 type is a P3MessageType.
-func typeToP3Type(root *amino.Package, info *amino.TypeInfo, fopts amino.FieldOptions) (p3type P3Type, repeated bool, implicit bool) {
+func typeToP3Type(
+	root *amino.Package,
+	info *amino.TypeInfo,
+	fopts amino.FieldOptions,
+) (p3type P3Type, repeated bool, implicit bool) {
 	// Special case overrides.
 	// We don't handle the case when info.ReprType.Type is time here.
 	switch info.Type {

@@ -87,13 +87,26 @@ func NewInMemory() Keybase { return dbKeybase{dbm.NewMemDB()} }
 // XXX NOTE: we are not saving the derivation path.
 // XXX but this doesn't help encrypted communication.
 // XXX also there is no document structure.
-func (kb dbKeybase) CreateAccount(name, mnemonic, bip39Passwd, encryptPasswd string, account uint32, index uint32) (Info, error) {
+func (kb dbKeybase) CreateAccount(
+	name,
+	mnemonic,
+	bip39Passwd,
+	encryptPasswd string,
+	account uint32,
+	index uint32,
+) (Info, error) {
 	coinType := crypto.CoinType
 	hdPath := hd.NewFundraiserParams(account, coinType, index)
 	return kb.CreateAccountBip44(name, mnemonic, bip39Passwd, encryptPasswd, *hdPath)
 }
 
-func (kb dbKeybase) CreateAccountBip44(name, mnemonic, bip39Passphrase, encryptPasswd string, params hd.BIP44Params) (info Info, err error) {
+func (kb dbKeybase) CreateAccountBip44(
+	name,
+	mnemonic,
+	bip39Passphrase,
+	encryptPasswd string,
+	params hd.BIP44Params,
+) (info Info, err error) {
 	seed, err := bip39.NewSeedWithErrorChecking(mnemonic, bip39Passphrase)
 	if err != nil {
 		return

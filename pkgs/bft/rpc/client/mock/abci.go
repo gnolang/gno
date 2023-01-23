@@ -28,7 +28,11 @@ func (a ABCIApp) ABCIQuery(path string, data []byte) (*ctypes.ResultABCIQuery, e
 	return a.ABCIQueryWithOptions(path, data, client.DefaultABCIQueryOptions)
 }
 
-func (a ABCIApp) ABCIQueryWithOptions(path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
+func (a ABCIApp) ABCIQueryWithOptions(
+	path string,
+	data []byte,
+	opts client.ABCIQueryOptions,
+) (*ctypes.ResultABCIQuery, error) {
 	q := a.App.Query(abci.RequestQuery{
 		Data:   data,
 		Path:   path,
@@ -92,7 +96,11 @@ func (m ABCIMock) ABCIQuery(path string, data []byte) (*ctypes.ResultABCIQuery, 
 	return m.ABCIQueryWithOptions(path, data, client.DefaultABCIQueryOptions)
 }
 
-func (m ABCIMock) ABCIQueryWithOptions(path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
+func (m ABCIMock) ABCIQueryWithOptions(
+	path string,
+	data []byte,
+	opts client.ABCIQueryOptions,
+) (*ctypes.ResultABCIQuery, error) {
 	res, err := m.Query.GetResponse(QueryArgs{path, data, opts.Height, opts.Prove})
 	if err != nil {
 		return nil, err
@@ -164,7 +172,11 @@ func (r *ABCIRecorder) ABCIQuery(path string, data []byte) (*ctypes.ResultABCIQu
 	return r.ABCIQueryWithOptions(path, data, client.DefaultABCIQueryOptions)
 }
 
-func (r *ABCIRecorder) ABCIQueryWithOptions(path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
+func (r *ABCIRecorder) ABCIQueryWithOptions(
+	path string,
+	data []byte,
+	opts client.ABCIQueryOptions,
+) (*ctypes.ResultABCIQuery, error) {
 	res, err := r.Client.ABCIQueryWithOptions(path, data, opts)
 	r.addCall(Call{
 		Name:     "abci_query",

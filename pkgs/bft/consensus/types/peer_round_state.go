@@ -1,3 +1,4 @@
+//nolint:lll
 package cstypes
 
 import (
@@ -8,7 +9,7 @@ import (
 	"github.com/gnolang/gno/pkgs/bitarray"
 )
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 // PeerRoundState contains the known state of a peer.
 // NOTE: Read-only when returned by PeerState.GetRoundState().

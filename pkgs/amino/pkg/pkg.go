@@ -162,7 +162,16 @@ func (pkg *Package) WithTypes(objs ...interface{}) *Package {
 			pointerPreferred = true
 		}
 		if objDerefType.PkgPath() != pkg.GoPkgPath {
-			panic(fmt.Sprintf("unexpected package for %v, expected %v got %v for obj %v obj type %v", objDerefType, pkg.GoPkgPath, objDerefType.PkgPath(), obj, objType))
+			panic(
+				fmt.Sprintf(
+					"unexpected package for %v, expected %v got %v for obj %v obj type %v",
+					objDerefType,
+					pkg.GoPkgPath,
+					objDerefType.PkgPath(),
+					obj,
+					objType,
+				),
+			)
 		}
 		// Check that deref type don't already exist.
 		_, ok := pkg.GetType(objDerefType)
@@ -299,7 +308,7 @@ func (pkg *Package) ReflectTypes() []reflect.Type {
 	return rtz
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 // Utility for whoever is making a NewPackage manually.
 func GetCallersDirname() string {

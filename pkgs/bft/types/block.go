@@ -1,3 +1,4 @@
+//nolint:lll
 package types
 
 import (
@@ -219,7 +220,7 @@ func (b *Block) StringShort() string {
 	return fmt.Sprintf("Block#%v", b.Hash())
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 // Header defines the structure of a Tendermint block header.
 // NOTE: changes to the Header should be duplicated in:
@@ -378,7 +379,7 @@ func (h *Header) StringIndented(indent string) string {
 		indent, h.Hash())
 }
 
-//-------------------------------------
+// -------------------------------------
 
 // CommitSig is a vote included in a Commit.
 // For now, it is identical to a vote,
@@ -403,7 +404,7 @@ func (cs *CommitSig) toVote() *Vote {
 	return &v
 }
 
-//-------------------------------------
+// -------------------------------------
 
 // Commit contains the evidence that a block was committed by a set of validators.
 // NOTE: Commit is empty for height 1, but never nil.
@@ -625,7 +626,7 @@ func (commit *Commit) StringIndented(indent string) string {
 		indent, commit.hash)
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 // SignedHeader is a header along with the commits that prove it.
 // It is the basis of the lite client.
@@ -689,7 +690,7 @@ func (sh SignedHeader) StringIndented(indent string) string {
 		indent)
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 // Data contains the set of transactions included in the block
 type Data struct {
@@ -733,7 +734,7 @@ func (data *Data) StringIndented(indent string) string {
 		indent, data.hash)
 }
 
-//--------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------
 
 // BlockID defines the unique ID of a block as its Hash and its PartSetHeader
 type BlockID struct {

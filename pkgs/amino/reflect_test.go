@@ -18,7 +18,7 @@ import (
 	"github.com/gnolang/gno/pkgs/amino/tests"
 )
 
-//-------------------------------------
+// -------------------------------------
 // Non-interface Google fuzz tests
 
 func TestCodecStruct(t *testing.T) {
@@ -187,7 +187,7 @@ func _testDeepCopy(t *testing.T, rt reflect.Type) {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Register/interface tests
 
 func TestCodecMashalFailsOnUnregisteredConcrete(t *testing.T) {
@@ -448,7 +448,7 @@ func TestCodecBinaryStructFieldNilInterface(t *testing.T) {
 	require.Equal(t, i2, i1, "i1 and i2 should be the same after decoding")
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Misc.
 
 func spw(o interface{}) string {
@@ -610,7 +610,7 @@ func getTypeFromPointer(ptr interface{}) reflect.Type {
 	return rt.Elem()
 }
 
-//----------------------------------------
+// ----------------------------------------
 // From https://github.com/google/gofuzz/blob/master/fuzz.go
 // (Apache2.0 License)
 

@@ -1,6 +1,7 @@
 //go:build !libsecp256k1
 // +build !libsecp256k1
 
+//nolint:lll
 package secp256k1
 
 import (

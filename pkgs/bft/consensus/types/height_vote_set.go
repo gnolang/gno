@@ -16,7 +16,9 @@ type RoundVoteSet struct {
 	Precommits *types.VoteSet
 }
 
-var GotVoteFromUnwantedRoundError = errors.New("Peer has sent a vote that does not match our round for more than one round")
+var GotVoteFromUnwantedRoundError = errors.New(
+	"Peer has sent a vote that does not match our round for more than one round",
+)
 
 /*
 Keeps track of all VoteSets from round 0 to round 'round'.
@@ -176,7 +178,12 @@ func (hvs *HeightVoteSet) getVoteSet(round int, type_ types.SignedMsgType) *type
 // NOTE: if there are too many peers, or too much peer churn,
 // this can cause memory issues.
 // TODO: implement ability to remove peers too
-func (hvs *HeightVoteSet) SetPeerMaj23(round int, type_ types.SignedMsgType, peerID p2p.ID, blockID types.BlockID) error {
+func (hvs *HeightVoteSet) SetPeerMaj23(
+	round int,
+	type_ types.SignedMsgType,
+	peerID p2p.ID,
+	blockID types.BlockID,
+) error {
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
 	if !types.IsVoteTypeValid(type_) {
@@ -189,7 +196,7 @@ func (hvs *HeightVoteSet) SetPeerMaj23(round int, type_ types.SignedMsgType, pee
 	return voteSet.SetPeerMaj23(types.P2PID(peerID), blockID)
 }
 
-//---------------------------------------------------------
+// ---------------------------------------------------------
 // string and json
 
 func (hvs *HeightVoteSet) String() string {

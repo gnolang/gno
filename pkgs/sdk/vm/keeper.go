@@ -42,7 +42,13 @@ type VMKeeper struct {
 }
 
 // NewVMKeeper returns a new VMKeeper.
-func NewVMKeeper(baseKey store.StoreKey, iavlKey store.StoreKey, acck auth.AccountKeeper, bank bank.BankKeeper, stdlibsDir string) *VMKeeper {
+func NewVMKeeper(
+	baseKey store.StoreKey,
+	iavlKey store.StoreKey,
+	acck auth.AccountKeeper,
+	bank bank.BankKeeper,
+	stdlibsDir string,
+) *VMKeeper {
 	vmk := &VMKeeper{
 		baseKey:    baseKey,
 		iavlKey:    iavlKey,

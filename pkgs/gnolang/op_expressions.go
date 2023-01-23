@@ -599,9 +599,15 @@ func (m *Machine) doOpStructLit() {
 				// method to initialize the struct.
 				if FieldTypeList(st.Fields).HasUnexported() &&
 					st.PkgPath != m.Package.PkgPath {
-					panic(fmt.Sprintf(
-						"Cannot initialize imported struct %s.%s with nameless composite lit expression (has unexported fields) from package %s",
-						st.PkgPath, st.String(), m.Package.PkgPath))
+					panic(
+						fmt.Sprintf(
+							"Cannot initialize imported struct %s.%s with nameless composite lit expression "+
+								"(has unexported fields) from package %s",
+							st.PkgPath,
+							st.String(),
+							m.Package.PkgPath,
+						),
+					)
 				} else {
 					// this is fine.
 				}

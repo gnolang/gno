@@ -1,3 +1,4 @@
+//nolint:lll
 /*
 # Introduction
 

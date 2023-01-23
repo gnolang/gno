@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // RPCConfig
 
 const (
@@ -75,13 +75,15 @@ type RPCConfig struct {
 	// the certFile should be the concatenation of the server's certificate, any intermediates,
 	// and the CA's certificate.
 	//
-	// NOTE: both tls_cert_file and tls_key_file must be present for Tendermint to create HTTPS server. Otherwise, HTTP server is run.
+	// NOTE: both tls_cert_file and tls_key_file must be present for Tendermint to create HTTPS server.
+	// Otherwise, HTTP server is run.
 	TLSCertFile string `toml:"tls_cert_file"`
 
 	// The path to a file containing matching private key that is used to create the HTTPS server.
 	// Migth be either absolute path or path related to tendermint's config directory.
 	//
-	// NOTE: both tls_cert_file and tls_key_file must be present for Tendermint to create HTTPS server. Otherwise, HTTP server is run.
+	// NOTE: both tls_cert_file and tls_key_file must be present for Tendermint to create HTTPS server.
+	// Otherwise, HTTP server is run.
 	TLSKeyFile string `toml:"tls_key_file"`
 }
 

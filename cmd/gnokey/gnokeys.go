@@ -88,7 +88,7 @@ var defaultSignBroadcastOptions = SignBroadcastOptions{
 	ChainID:   "dev",
 }
 
-//----------------------------------------
+// ----------------------------------------
 // makeAddPackageTx
 
 type makeAddPackageTxOptions struct {
@@ -178,7 +178,7 @@ func makeAddPackageTxApp(cmd *command.Command, args []string, iopts interface{})
 	return nil
 }
 
-//----------------------------------------
+// ----------------------------------------
 // makeCallTxApp
 
 type makeCallTxOptions struct {
@@ -273,7 +273,13 @@ func makeCallTxApp(cmd *command.Command, args []string, iopts interface{}) error
 	return nil
 }
 
-func signAndBroadcast(cmd *command.Command, args []string, tx std.Tx, baseopts client.BaseOptions, txopts SignBroadcastOptions) error {
+func signAndBroadcast(
+	cmd *command.Command,
+	args []string,
+	tx std.Tx,
+	baseopts client.BaseOptions,
+	txopts SignBroadcastOptions,
+) error {
 	// query account
 	nameOrBech32 := args[0]
 	kb, err := keys.NewKeyBaseFromDir(baseopts.Home)
@@ -348,7 +354,7 @@ func signAndBroadcast(cmd *command.Command, args []string, tx std.Tx, baseopts c
 	return nil
 }
 
-//----------------------------------------
+// ----------------------------------------
 // makeSendTxApp
 
 type makeSendTxOptions struct {
