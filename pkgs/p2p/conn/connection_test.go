@@ -38,8 +38,8 @@ func createMConnectionWithCallbacks(conn net.Conn, onReceive func(chID byte, msg
 
 func TestMConnectionSendFlushStop(t *testing.T) {
 	server, client := NetPipe()
-	defer server.Close() // nolint: errcheck
-	defer client.Close() // nolint: errcheck
+	defer server.Close() //nolint: errcheck
+	defer client.Close() //nolint: errcheck
 
 	clientConn := createTestMConnection(client)
 	err := clientConn.Start()
@@ -83,8 +83,8 @@ func TestMConnectionSendFlushStop(t *testing.T) {
 
 func TestMConnectionSend(t *testing.T) {
 	server, client := NetPipe()
-	defer server.Close() // nolint: errcheck
-	defer client.Close() // nolint: errcheck
+	defer server.Close() //nolint: errcheck
+	defer client.Close() //nolint: errcheck
 
 	mconn := createTestMConnection(client)
 	err := mconn.Start()
@@ -114,8 +114,8 @@ func TestMConnectionSend(t *testing.T) {
 
 func TestMConnectionReceive(t *testing.T) {
 	server, client := NetPipe()
-	defer server.Close() // nolint: errcheck
-	defer client.Close() // nolint: errcheck
+	defer server.Close() //nolint: errcheck
+	defer client.Close() //nolint: errcheck
 
 	receivedCh := make(chan []byte)
 	errorsCh := make(chan interface{})
@@ -150,8 +150,8 @@ func TestMConnectionReceive(t *testing.T) {
 
 func TestMConnectionStatus(t *testing.T) {
 	server, client := NetPipe()
-	defer server.Close() // nolint: errcheck
-	defer client.Close() // nolint: errcheck
+	defer server.Close() //nolint: errcheck
+	defer client.Close() //nolint: errcheck
 
 	mconn := createTestMConnection(client)
 	err := mconn.Start()
@@ -349,8 +349,8 @@ func TestMConnectionPingPongs(t *testing.T) {
 
 func TestMConnectionStopsAndReturnsError(t *testing.T) {
 	server, client := NetPipe()
-	defer server.Close() // nolint: errcheck
-	defer client.Close() // nolint: errcheck
+	defer server.Close() //nolint: errcheck
+	defer client.Close() //nolint: errcheck
 
 	receivedCh := make(chan []byte)
 	errorsCh := make(chan interface{})

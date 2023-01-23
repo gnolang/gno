@@ -35,7 +35,7 @@ func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]*RPCFunc, logger lo
 	mux.HandleFunc("/", handleInvalidJSONRPCPaths(makeJSONRPCHandler(funcMap, logger)))
 }
 
-//-------------------------------------
+// -------------------------------------
 // function introspection
 
 // RPCFunc contains the introspected type information for a function
@@ -95,7 +95,7 @@ func funcReturnTypes(f interface{}) []reflect.Type {
 }
 
 // function introspection
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // rpc.json
 
 // jsonrpc calls grab the given method's function info and runs reflect.Call
@@ -252,7 +252,7 @@ func jsonParamsToArgs(rpcFunc *RPCFunc, raw []byte) ([]reflect.Value, error) {
 }
 
 // rpc.json
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // rpc.http
 
 // convert from a function name to the http handler
@@ -415,7 +415,7 @@ func _nonJSONStringToArg(rt reflect.Type, arg string) (reflect.Value, error, boo
 }
 
 // rpc.http
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // rpc.websocket
 
 const (
@@ -614,7 +614,7 @@ func (wsc *wsConnection) readRoutine() {
 			wsc.WriteRPCResponse(types.RPCInternalError(types.JSONRPCStringID("unknown"), err))
 			go wsc.readRoutine()
 		} else {
-			wsc.baseConn.Close() // nolint: errcheck
+			wsc.baseConn.Close() //nolint: errcheck
 		}
 	}()
 
@@ -749,7 +749,7 @@ func (wsc *wsConnection) writeMessageWithDeadline(msgType int, msg []byte) error
 	return wsc.baseConn.WriteMessage(msgType, msg)
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 // WebsocketManager provides a WS handler for incoming connections and passes a
 // map of functions along with any additional params to new connections.
@@ -804,7 +804,7 @@ func (wm *WebsocketManager) WebsocketHandler(w http.ResponseWriter, r *http.Requ
 }
 
 // rpc.websocket
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 // NOTE: assume returns is result struct and error. If error is not nil, return it
 func unreflectResult(returns []reflect.Value) (interface{}, error) {
@@ -861,5 +861,5 @@ func writeListOfEndpoints(w http.ResponseWriter, r *http.Request, funcMap map[st
 	buf.WriteString("</body></html>")
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(200)
-	w.Write(buf.Bytes()) // nolint: errcheck
+	w.Write(buf.Bytes()) //nolint: errcheck
 }

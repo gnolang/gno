@@ -97,7 +97,7 @@ func PrecompileAndCheckMempkg(mempkg *std.MemPackage) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tmpDir) // nolint: errcheck
+	defer os.RemoveAll(tmpDir) //nolint: errcheck
 
 	var errs error
 	for _, mfile := range mempkg.Files {

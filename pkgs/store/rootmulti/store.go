@@ -39,7 +39,6 @@ var (
 	_ types.Queryable        = (*multiStore)(nil)
 )
 
-// nolint
 func NewMultiStore(db dbm.DB) *multiStore {
 	return &multiStore{
 		db:           db,
@@ -163,7 +162,7 @@ func (ms *multiStore) LoadVersion(ver int64) error {
 	return nil
 }
 
-//----------------------------------------
+// ----------------------------------------
 // +CommitStore
 
 // Implements Committer/CommitStore.
@@ -193,7 +192,7 @@ func (ms *multiStore) Commit() types.CommitID {
 	return commitID
 }
 
-//----------------------------------------
+// ----------------------------------------
 // +MultiStore
 
 // Implements MultiStore.
@@ -256,7 +255,7 @@ func (ms *multiStore) getStoreByName(name string) types.Store {
 	return ms.stores[key]
 }
 
-//---------------------- Query ------------------
+// ---------------------- Query ------------------
 
 // Query calls substore.Query with the same `req` where `req.Path` is
 // modified to remove the substore prefix.
@@ -332,7 +331,7 @@ func parsePath(path string) (storeName string, subpath string, err serrors.Error
 	return
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 func (ms *multiStore) constructStore(params storeParams) (store types.CommitStore, err error) {
 	var db dbm.DB
@@ -359,7 +358,7 @@ func (ms *multiStore) nameToKey(name string) types.StoreKey {
 	panic("Unknown name " + name)
 }
 
-//----------------------------------------
+// ----------------------------------------
 // storeParams
 
 type storeParams struct {
@@ -368,7 +367,7 @@ type storeParams struct {
 	db          dbm.DB
 }
 
-//----------------------------------------
+// ----------------------------------------
 // commitInfo
 
 // NOTE: Keep commitInfo a simple immutable struct.
@@ -398,7 +397,7 @@ func (ci commitInfo) CommitID() types.CommitID {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // storeInfo
 
 // storeInfo contains the name and core reference for an
@@ -431,7 +430,7 @@ func (si storeInfo) Hash() []byte {
 	return hasher.Sum(nil)
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Misc.
 
 func getLatestVersion(db dbm.DB) int64 {

@@ -10,7 +10,7 @@ import (
 	"github.com/gnolang/gno/pkgs/errors"
 )
 
-//----------------------------------------
+// ----------------------------------------
 // cdc.decodeReflectJSON
 
 // CONTRACT: rv.CanAddr() is true.
@@ -69,7 +69,7 @@ func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value,
 
 	switch ikind := info.Type.Kind(); ikind {
 
-	//----------------------------------------
+	// ----------------------------------------
 	// Complex
 
 	case reflect.Interface:
@@ -84,7 +84,7 @@ func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value,
 	case reflect.Struct:
 		err = cdc.decodeReflectJSONStruct(bz, info, rv, fopts)
 
-	//----------------------------------------
+	// ----------------------------------------
 	// Signed, Unsigned
 
 	case reflect.Int64, reflect.Int:
@@ -92,7 +92,7 @@ func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value,
 	case reflect.Uint64, reflect.Uint:
 		if bz[0] != '"' || bz[len(bz)-1] != '"' {
 			err = errors.New(
-				"invalid character -- Amino:JSON int/int64/uint/uint64 expects quoted values for javascript numeric support, got: %v", // nolint: lll
+				"invalid character -- Amino:JSON int/int64/uint/uint64 expects quoted values for javascript numeric support, got: %v", //nolint: lll
 				string(bz),
 			)
 			if err != nil {
@@ -105,7 +105,7 @@ func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value,
 		reflect.Uint32, reflect.Uint16, reflect.Uint8:
 		err = invokeStdlibJSONUnmarshal(bz, rv, fopts)
 
-	//----------------------------------------
+	// ----------------------------------------
 	// Misc
 
 	case reflect.Float32, reflect.Float64:
@@ -116,7 +116,7 @@ func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value,
 	case reflect.Bool, reflect.String:
 		err = invokeStdlibJSONUnmarshal(bz, rv, fopts)
 
-	//----------------------------------------
+	// ----------------------------------------
 	// Default
 
 	default:
@@ -401,7 +401,7 @@ func (cdc *Codec) decodeReflectJSONStruct(bz []byte, info *TypeInfo, rv reflect.
 	return nil
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Misc.
 
 type anyWrapper struct {

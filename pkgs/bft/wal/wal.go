@@ -29,7 +29,7 @@ var (
 	base64stdnp = base64.StdEncoding.WithPadding(base64.NoPadding)
 )
 
-//--------------------------------------------------------
+// --------------------------------------------------------
 // types and functions for savings consensus messages
 
 type WALMessage interface {
@@ -52,7 +52,7 @@ type MetaMessage struct {
 	Height int64 `json:"h"`
 }
 
-//--------------------------------------------------------
+// --------------------------------------------------------
 // Simple write-ahead logger
 
 // WAL is an interface for any write-ahead logger.
@@ -436,7 +436,7 @@ OUTER_LOOP:
 	return nil, false, nil
 }
 
-///////////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////////////////////////////////////////////////
 
 // A WALWriter writes custom-encoded WAL messages to an output stream.
 // Each binary WAL entry is length encoded, then crc encoded,
@@ -512,7 +512,7 @@ func (enc *WALWriter) WriteMeta(meta MetaMessage) error {
 	return err
 }
 
-///////////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////////////////////////////////////////////////
 
 // IsDataCorruptionError returns true if data has been corrupted inside WAL.
 func IsDataCorruptionError(err error) bool {
@@ -631,7 +631,7 @@ func (dec *WALReader) ReadMessage() (*TimedWALMessage, *MetaMessage, error) {
 	}
 
 	// decode amino sized bytes.
-	res := new(TimedWALMessage) // nolint: gosimple
+	res := new(TimedWALMessage) //nolint: gosimple
 	err = amino.UnmarshalSized(twmBytes, res)
 	if err != nil {
 		return nil, nil, DataCorruptionError{fmt.Errorf("failed to decode twmBytes: %v", err)}

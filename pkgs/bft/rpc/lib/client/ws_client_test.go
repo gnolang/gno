@@ -34,7 +34,7 @@ func (h *myHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
-	defer conn.Close() // nolint: errcheck
+	defer conn.Close() //nolint: errcheck
 	for {
 		messageType, _, err := conn.ReadMessage()
 		if err != nil {

@@ -22,7 +22,6 @@ type AccountKeeper struct {
 
 // NewAccountKeeper returns a new AccountKeeper that uses go-amino to
 // (binary) encode and decode concrete std.Accounts.
-// nolint
 func NewAccountKeeper(
 	key store.StoreKey, proto func() std.Account,
 ) AccountKeeper {

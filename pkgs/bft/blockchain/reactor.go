@@ -247,7 +247,7 @@ func (bcR *BlockchainReactor) poolRoutine() {
 
 			case <-statusUpdateTicker.C:
 				// ask for status updates
-				go bcR.BroadcastStatusRequest() // nolint: errcheck
+				go bcR.BroadcastStatusRequest() //nolint: errcheck
 
 			}
 		}
@@ -365,7 +365,7 @@ func (bcR *BlockchainReactor) BroadcastStatusRequest() error {
 	return nil
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // Messages
 
 // BlockchainMessage is a generic message for this reactor.
@@ -381,7 +381,7 @@ func decodeMsg(bz []byte) (msg BlockchainMessage, err error) {
 	return
 }
 
-//-------------------------------------
+// -------------------------------------
 
 type bcBlockRequestMessage struct {
 	Height int64
@@ -415,7 +415,7 @@ func (m *bcNoBlockResponseMessage) String() string {
 	return fmt.Sprintf("[bcNoBlockResponseMessage %d]", m.Height)
 }
 
-//-------------------------------------
+// -------------------------------------
 
 type bcBlockResponseMessage struct {
 	Block *types.Block
@@ -430,7 +430,7 @@ func (m *bcBlockResponseMessage) String() string {
 	return fmt.Sprintf("[bcBlockResponseMessage %v]", m.Block.Height)
 }
 
-//-------------------------------------
+// -------------------------------------
 
 type bcStatusRequestMessage struct {
 	Height int64
@@ -448,7 +448,7 @@ func (m *bcStatusRequestMessage) String() string {
 	return fmt.Sprintf("[bcStatusRequestMessage %v]", m.Height)
 }
 
-//-------------------------------------
+// -------------------------------------
 
 type bcStatusResponseMessage struct {
 	Height int64

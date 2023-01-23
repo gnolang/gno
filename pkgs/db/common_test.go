@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//----------------------------------------
+// ----------------------------------------
 // Helper functions.
 
 func checkValue(t *testing.T, db DB, key []byte, valueWanted []byte) {
@@ -66,7 +66,7 @@ func newTempDB(t *testing.T, backend BackendType) (db DB) {
 	return NewDB("testdb", backend, t.TempDir())
 }
 
-//----------------------------------------
+// ----------------------------------------
 // mockDB
 
 // NOTE: not actually goroutine safe.
@@ -162,7 +162,7 @@ func (mdb *mockDB) Stats() map[string]string {
 	return res
 }
 
-//----------------------------------------
+// ----------------------------------------
 // mockIterator
 
 type mockIterator struct{}
@@ -205,7 +205,7 @@ func benchmarkRandomReadsWrites(b *testing.B, db DB) {
 	for i := 0; i < b.N; i++ {
 		// Write something
 		{
-			idx := int64(rand.Int()) % numItems // nolint:gosec testing file, so accepting weak random number generator
+			idx := int64(rand.Int()) % numItems
 			internal[idx]++
 			val := internal[idx]
 			idxBytes := int642Bytes(idx)
@@ -216,7 +216,7 @@ func benchmarkRandomReadsWrites(b *testing.B, db DB) {
 
 		// Read something
 		{
-			idx := int64(rand.Int()) % numItems // nolint:gosec testing file, so accepting weak random number generator
+			idx := int64(rand.Int()) % numItems
 			valExp := internal[idx]
 			idxBytes := int642Bytes(idx)
 			valBytes := db.Get(idxBytes)

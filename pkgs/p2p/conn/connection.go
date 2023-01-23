@@ -279,7 +279,7 @@ func (c *MConnection) FlushStop() {
 		// Now we can close the connection
 	}
 
-	c.conn.Close() // nolint: errcheck
+	c.conn.Close() //nolint: errcheck
 
 	// We can't close pong safely here because
 	// recvRoutine may write to it after we've stopped.
@@ -295,7 +295,7 @@ func (c *MConnection) OnStop() {
 		return
 	}
 
-	c.conn.Close() // nolint: errcheck
+	c.conn.Close() //nolint: errcheck
 
 	// We can't close pong safely here because
 	// recvRoutine may write to it after we've stopped.
@@ -693,7 +693,7 @@ func (c *MConnection) Status() ConnectionStatus {
 	return status
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 type ChannelDescriptor struct {
 	ID                  byte
@@ -859,7 +859,7 @@ func (ch *Channel) updateStats() {
 	atomic.StoreInt64(&ch.recentlySent, int64(float64(atomic.LoadInt64(&ch.recentlySent))*0.8))
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Packet
 
 type Packet interface {

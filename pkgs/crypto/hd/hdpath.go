@@ -10,6 +10,8 @@
 //
 // In particular, this package (together with bip39) provides all necessary functionality to derive keys from
 // mnemonics generated during the cosmos fundraiser.
+
+//nolint:gocyclo
 package hd
 
 import (
@@ -50,7 +52,6 @@ func NewParams(purpose, coinType, account uint32, change bool, addressIdx uint32
 }
 
 // Parse the BIP44 path and unmarshal into the struct.
-// nolint: gocyclo
 func NewParamsFromPath(path string) (*BIP44Params, error) {
 	spl := strings.Split(path, "/")
 	if len(spl) != 5 {

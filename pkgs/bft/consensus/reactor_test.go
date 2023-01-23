@@ -24,7 +24,7 @@ import (
 	"github.com/gnolang/gno/pkgs/testutils"
 )
 
-//----------------------------------------------
+// ----------------------------------------------
 // in-process testnets
 
 func startConsensusNet(t *testing.T, css []*ConsensusState, n int) (
@@ -102,7 +102,7 @@ func TestReactorBasic(t *testing.T) {
 	}, css)
 }
 
-//------------------------------------
+// ------------------------------------
 
 // Ensure a testnet makes blocks when there are txs
 func TestReactorCreatesBlockWhenEmptyBlocksFalse(t *testing.T) {
@@ -193,7 +193,7 @@ func TestFlappyReactorRecordsVotesAndBlockParts(t *testing.T) {
 	assert.Equal(t, true, ps.BlockPartsSent() > 0, "number of votes sent should have increased")
 }
 
-//-------------------------------------------------------------
+// -------------------------------------------------------------
 // ensure we can make blocks despite cycling a validator set
 
 func TestReactorVotingPowerChange(t *testing.T) {
@@ -217,7 +217,7 @@ func TestReactorVotingPowerChange(t *testing.T) {
 		<-blocksSubs[j]
 	}, css)
 
-	//---------------------------------------------------------------------------
+	// ---------------------------------------------------------------------------
 	logger.Debug("---------------------------- Testing changing the voting power of one validator a few times")
 
 	val1PubKey := css[0].privValidator.GetPubKey()
@@ -281,7 +281,7 @@ func TestReactorValidatorSetChanges(t *testing.T) {
 		<-blocksSubs[j]
 	}, css)
 
-	//---------------------------------------------------------------------------
+	// ---------------------------------------------------------------------------
 	logger.Info("---------------------------- Testing adding one validator")
 
 	newValPubKey1 := css[nVals].privValidator.GetPubKey()
@@ -307,7 +307,7 @@ func TestReactorValidatorSetChanges(t *testing.T) {
 	// it includes the commit for block 4, which should have the updated validator set
 	waitForBlockWithUpdatedValsAndValidateIt(t, nPeers, activeVals, blocksSubs, css)
 
-	//---------------------------------------------------------------------------
+	// ---------------------------------------------------------------------------
 	logger.Info("---------------------------- Testing changing the voting power of one validator")
 
 	updateValPubKey1 := css[nVals].privValidator.GetPubKey()
@@ -323,7 +323,7 @@ func TestReactorValidatorSetChanges(t *testing.T) {
 		t.Errorf("expected voting power to change (before: %d, after: %d)", previousTotalVotingPower, css[nVals].GetRoundState().LastValidators.TotalVotingPower())
 	}
 
-	//---------------------------------------------------------------------------
+	// ---------------------------------------------------------------------------
 	logger.Info("---------------------------- Testing adding two validators at once")
 
 	newValPubKey2 := css[nVals+1].privValidator.GetPubKey()
@@ -339,7 +339,7 @@ func TestReactorValidatorSetChanges(t *testing.T) {
 	activeVals[newValPubKey3.Address().String()] = struct{}{}
 	waitForBlockWithUpdatedValsAndValidateIt(t, nPeers, activeVals, blocksSubs, css)
 
-	//---------------------------------------------------------------------------
+	// ---------------------------------------------------------------------------
 	logger.Info("---------------------------- Testing removing two validators at once")
 
 	removeValidatorTx2 := kvstore.MakeValSetChangeTx(newValPubKey2, 0)
@@ -503,7 +503,7 @@ func timeoutWaitGroup(t *testing.T, n int, f func(int), css []*ConsensusState) {
 	}
 }
 
-//-------------------------------------------------------------
+// -------------------------------------------------------------
 // Ensure basic validation of structs is functioning
 
 func TestNewRoundStepMessageValidateBasic(t *testing.T) {
@@ -733,7 +733,7 @@ func TestVoteSetMaj23MessageValidateBasic(t *testing.T) {
 }
 
 func TestVoteSetBitsMessageValidateBasic(t *testing.T) {
-	testCases := []struct { // nolint: maligned
+	testCases := []struct { //nolint: maligned
 		malleateFn func(*VoteSetBitsMessage)
 		expErr     string
 	}{

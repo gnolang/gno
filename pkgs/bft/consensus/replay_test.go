@@ -58,7 +58,7 @@ func TestMain(m *testing.M) {
 // the `Handshake Tests` are for failures in applying the block.
 // With the help of the WAL, we can recover from it all!
 
-//------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------
 // WAL Tests
 
 // TODO: It would be better to verify explicitly which states we can recover from without the wal
@@ -304,7 +304,7 @@ const (
 
 var mempool = mock.Mempool{}
 
-//---------------------------------------
+// ---------------------------------------
 // Test handshake/replay
 
 // 0 - all synced up
@@ -919,7 +919,7 @@ func (app *badApp) Commit() (res abci.ResponseCommit) {
 	panic("either allHashesAreWrong or onlyLastHashIsWrong must be set")
 }
 
-//--------------------------
+// --------------------------
 // utils for making blocks
 
 func makeBlockchainFromWAL(wal walm.WAL) ([]*types.Block, []*types.Commit, error) {
@@ -933,7 +933,7 @@ func makeBlockchainFromWAL(wal walm.WAL) ([]*types.Block, []*types.Commit, error
 	if !found {
 		return nil, nil, fmt.Errorf("WAL does not contain height %d", height)
 	}
-	defer gr.Close() // nolint: errcheck
+	defer gr.Close() //nolint: errcheck
 
 	// log.Notice("Build a blockchain by reading from the WAL")
 
@@ -1041,7 +1041,7 @@ func makeStateAndStore(config *cfg.Config, pubKey crypto.PubKey, appVersion stri
 	return stateDB, state, store
 }
 
-//----------------------------------
+// ----------------------------------
 // mock block store
 
 type mockBlockStore struct {
@@ -1077,7 +1077,7 @@ func (bs *mockBlockStore) LoadSeenCommit(height int64) *types.Commit {
 	return bs.commits[height-1]
 }
 
-//---------------------------------------
+// ---------------------------------------
 // Test handshake/init chain
 
 func TestHandshakeUpdatesValidators(t *testing.T) {
