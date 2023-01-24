@@ -28,6 +28,10 @@ import (
 	// "github.com/gnolang/gno/pkgs/sdk"               // for baseapp (info, status)
 )
 
+const (
+	qFileStr = "vm/qfile"
+)
+
 var flags struct {
 	bindAddr        string
 	remoteAddr      string
@@ -234,7 +238,7 @@ func handlerRealmMain(app gotuna.App) http.Handler {
 			tmpl.Render(w, r, "realm_help.html", "funcs.html")
 		} else {
 			// Ensure realm exists. TODO optimize.
-			qpath := "vm/qfile"
+			qpath := qFileStr
 			data := []byte(rlmpath)
 			_, err := makeRequest(qpath, data)
 			if err != nil {
@@ -326,7 +330,7 @@ func handlerPackageFile(app gotuna.App) http.Handler {
 func renderPackageFile(app gotuna.App, w http.ResponseWriter, r *http.Request, diruri string, filename string) {
 	if filename == "" {
 		// Request is for a folder.
-		qpath := "vm/qfile"
+		qpath := qFileStr
 		data := []byte(diruri)
 		res, err := makeRequest(qpath, data)
 		if err != nil {
@@ -343,7 +347,7 @@ func renderPackageFile(app gotuna.App, w http.ResponseWriter, r *http.Request, d
 	} else {
 		// Request is for a file.
 		filepath := diruri + "/" + filename
-		qpath := "vm/qfile"
+		qpath := qFileStr
 		data := []byte(filepath)
 		res, err := makeRequest(qpath, data)
 		if err != nil {

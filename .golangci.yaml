@@ -29,7 +29,7 @@ linters:
     - gosec # Security problems
     #- gofmt # Whether the code was gofmt-ed
     - goimports # Unused imports
-    #- goconst # Repeated strings that could be replaced by a constant
+    - goconst # Repeated strings that could be replaced by a constant
     #- forcetypeassert # Finds forced type assertions
     - dogsled # Checks assignments with too many blank identifiers (e.g. x, , , _, := f())
     #- dupl # Code clone detection
@@ -55,3 +55,4 @@ issues:
         - gosec # Disabled linting of weak number generators
         - lll # Disabled linting of long test case lines
         - makezero # Disabled linting of intentional slice appends
+        - goconst # Disabled linting of common mnemonics and test case strings

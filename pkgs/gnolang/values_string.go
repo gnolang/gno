@@ -167,7 +167,7 @@ func (v RefValue) String() string {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // *TypedValue.Sprint
 
 // for print() and println().
@@ -259,7 +259,7 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 				panic("should not happen")
 			}
 		}
-		return "nil"
+		return nilStr
 	case *TypeType:
 		return tv.V.(TypeValue).String()
 	case *DeclaredType:
@@ -283,7 +283,7 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // TypedValue.String()
 
 // For gno debugging/testing.
@@ -325,7 +325,7 @@ func (tv TypedValue) String() string {
 		case Float64Type:
 			vs = fmt.Sprintf("%v", tv.GetFloat64())
 		default:
-			vs = "nil"
+			vs = nilStr
 		}
 	} else {
 		vs = fmt.Sprintf("%v", tv.V)

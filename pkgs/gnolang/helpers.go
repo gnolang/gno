@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-//----------------------------------------
+// ----------------------------------------
 // AST Construction (Expr)
 // These are copied over from go-amino-x, but produces Gno ASTs.
 
@@ -257,8 +257,8 @@ func X(x interface{}, args ...interface{}) Expr {
 		last := expr[len(expr)-1]
 		switch last {
 		case 'l':
-			if expr == "nil" {
-				return Nx("nil")
+			if expr == nilStr {
+				return Nx(nilStr)
 			}
 		case 'i':
 			if '0' <= expr[0] && expr[0] <= '9' {
@@ -585,7 +585,7 @@ func Ptr(x interface{}) *StarExpr {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // AST Construction (Stmt)
 
 func If(cond Expr, b ...Stmt) *IfStmt {
@@ -791,7 +791,7 @@ func Op2Word(op string) Word {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // AST Static (compile time)
 
 func SIf(cond bool, then_, else_ Stmt) Stmt {
@@ -804,7 +804,7 @@ func SIf(cond bool, then_, else_ Stmt) Stmt {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // chop functions
 
 // ----------------------------------------

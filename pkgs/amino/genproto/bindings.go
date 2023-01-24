@@ -17,6 +17,10 @@ import (
 	"github.com/gnolang/gno/pkgs/amino/pkg"
 )
 
+const (
+	uint8Str = "uint8"
+)
+
 // Given genproto generated schema files for Go objects, generate
 // mappers to and from pb messages.  The purpose of this is to let Amino
 // use already-optimized probuf logic for serialization.
@@ -479,7 +483,7 @@ func go2pbStmts(
 
 		if gooreType.ReprType.Type.Kind() == reflect.Uint8 {
 			// Special bytes optimization for recursive case.
-			pboete_ = "uint8"
+			pboete_ = uint8Str
 			newoptions |= option_bytes
 		} else if pboeIsImplicit {
 			// Special implicit list struct for recursive call.
@@ -762,7 +766,7 @@ func pb2goStmts(
 			_a(goor, "=", _call(_i(goorteFn()), _call(_i("uint16"), maybeUnwrap(pbo)))))
 	case reflect.Uint8:
 		b = append(b,
-			_a(goor, "=", _call(_i(goorteFn()), _call(_i("uint8"), maybeUnwrap(pbo)))))
+			_a(goor, "=", _call(_i(goorteFn()), _call(_i(uint8Str), maybeUnwrap(pbo)))))
 
 	case reflect.Array:
 		var newoptions uint64
@@ -2141,7 +2145,7 @@ func p3goTypeExprString(
 	case reflect.Int8:
 		return "int32"
 	case reflect.Uint8:
-		return "uint8" // bytes
+		return uint8Str // bytes
 	case reflect.Int16:
 		return "int32"
 	case reflect.Uint16:

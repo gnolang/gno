@@ -14,7 +14,7 @@ import (
 	"github.com/gnolang/gno/pkgs/crypto"
 )
 
-//----------------------------------------
+// ----------------------------------------
 // (runtime) Value
 
 type Value interface {
@@ -41,6 +41,10 @@ func (*NativeValue) assertValue()      {}
 func (*Block) assertValue()            {}
 func (RefValue) assertValue()          {}
 
+const (
+	nilStr = "nil"
+)
+
 var (
 	_ Value = StringValue("")
 	_ Value = BigintValue{}
@@ -60,12 +64,12 @@ var (
 	_ Value = RefValue{}
 )
 
-//----------------------------------------
+// ----------------------------------------
 // StringValue
 
 type StringValue string
 
-//----------------------------------------
+// ----------------------------------------
 // BigintValue
 
 type BigintValue struct {
@@ -94,7 +98,7 @@ func (bv BigintValue) Copy(alloc *Allocator) BigintValue {
 	return BigintValue{V: big.NewInt(0).Set(bv.V)}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // BigdecValue
 
 type BigdecValue struct {
@@ -128,7 +132,7 @@ func (bv BigdecValue) Copy(alloc *Allocator) BigdecValue {
 	return BigdecValue{V: cp}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // DataByteValue
 
 type DataByteValue struct {
@@ -145,7 +149,7 @@ func (dbv DataByteValue) SetByte(b byte) {
 	dbv.Base.Data[dbv.Index] = b
 }
 
-//----------------------------------------
+// ----------------------------------------
 // PointerValue
 
 // Base is set if the pointer refers to an array index or
@@ -298,7 +302,7 @@ func (pv PointerValue) Deref() (tv TypedValue) {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // ArrayValue
 
 type ArrayValue struct {
@@ -391,7 +395,7 @@ func (av *ArrayValue) Copy(alloc *Allocator) *ArrayValue {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // SliceValue
 
 type SliceValue struct {
@@ -438,7 +442,7 @@ func (sv *SliceValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 	return sv.GetBase(store).GetPointerAtIndexInt2(store, sv.Offset+ii, et)
 }
 
-//----------------------------------------
+// ----------------------------------------
 // StructValue
 
 type StructValue struct {
@@ -504,7 +508,7 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 	return alloc.NewStruct(fields)
 }
 
-//----------------------------------------
+// ----------------------------------------
 // FuncValue
 
 // FuncValue.Type stores the method signature from the
@@ -612,7 +616,7 @@ func (fv *FuncValue) GetClosure(store Store) *Block {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // BoundMethodValue
 
 type BoundMethodValue struct {
@@ -628,7 +632,7 @@ type BoundMethodValue struct {
 	Receiver TypedValue
 }
 
-//----------------------------------------
+// ----------------------------------------
 // MapValue
 
 type MapValue struct {
@@ -773,7 +777,7 @@ func (mv *MapValue) DeleteForKey(store Store, key *TypedValue) {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // TypeValue
 
 // The type itself as a value.
@@ -781,7 +785,7 @@ type TypeValue struct {
 	Type Type
 }
 
-//----------------------------------------
+// ----------------------------------------
 // PackageValue
 
 type PackageValue struct {
@@ -900,7 +904,7 @@ func (pv *PackageValue) GetPkgAddr() crypto.Address {
 	return DerivePkgAddr(pv.PkgPath)
 }
 
-//----------------------------------------
+// ----------------------------------------
 // NativeValue
 
 type NativeValue struct {
@@ -915,7 +919,7 @@ func (nv *NativeValue) Copy(alloc *Allocator) *NativeValue {
 	return alloc.NewNative(nv2)
 }
 
-//----------------------------------------
+// ----------------------------------------
 // TypedValue (is not a value, but a tuple)
 
 type TypedValue struct {
@@ -1464,7 +1468,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 				panic("should not happen")
 			}
 		}
-		return MapKey("nil")
+		return MapKey(nilStr)
 	}
 	// General case.
 	bz := make([]byte, 0, 64)
@@ -1535,7 +1539,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 	return MapKey(bz)
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Value utility/manipulation functions.
 
 // Unlike PointerValue.Assign2, does not consider DataByte or
@@ -2202,7 +2206,7 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, low, high, max int) TypedValue
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Block
 //
 // Blocks hold values referred to by var/const/func/type
@@ -2391,7 +2395,7 @@ type RefValue struct {
 	Hash     ValueHash `json:",omitempty"`
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 func defaultStructFields(alloc *Allocator, st *StructType) []TypedValue {
 	tvs := alloc.NewStructFields(len(st.Fields))

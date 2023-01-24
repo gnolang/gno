@@ -686,7 +686,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					io := pd.GetAttribute(ATTR_IOTA).(int)
 					cx := constUntypedBigint(n, int64(io))
 					return cx, TRANS_CONTINUE
-				case "nil":
+				case nilStr:
 					// nil will be converted to
 					// typed-nils when appropriate upon
 					// leaving the expression nodes that
@@ -999,7 +999,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// without conversion.
 				if cx, ok := n.Func.(*ConstExpr); ok {
 					fv := cx.GetFunc()
-					if fv.PkgPath == ".uverse" && fv.Name == "append" {
+					if fv.PkgPath == uversePkgPath && fv.Name == "append" {
 						if n.Varg && len(n.Args) == 2 {
 							// If the second argument is a string,
 							// convert to byteslice.
@@ -1011,7 +1011,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								n.Args[1] = args1
 							}
 						}
-					} else if fv.PkgPath == ".uverse" && fv.Name == "copy" {
+					} else if fv.PkgPath == uversePkgPath && fv.Name == "copy" {
 						if len(n.Args) == 2 {
 							// If the second argument is a string,
 							// convert to byteslice.
@@ -1720,7 +1720,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							var ctstr string
 							ctype := casetype.(*constTypeExpr).Type
 							if ctype == nil {
-								ctstr = "nil"
+								ctstr = nilStr
 							} else {
 								ctstr = casetype.(*constTypeExpr).Type.String()
 							}
@@ -1963,7 +1963,7 @@ func evalStaticType(store Store, last BlockNode, x Expr) Type {
 	}
 	pn := packageOf(last)
 	// See comment in evalStaticTypeOfRaw.
-	if store != nil && pn.PkgPath != ".uverse" {
+	if store != nil && pn.PkgPath != uversePkgPath {
 		pv := pn.NewPackage() // temporary
 		store = store.Fork()
 		store.SetCachePackage(pv)
@@ -2035,7 +2035,7 @@ func evalStaticTypeOfRaw(store Store, last BlockNode, x Expr) (t Type) {
 		// and the preprocessor will panic when
 		// package values are already there that weren't
 		// yet predefined this time around.
-		if store != nil && pn.PkgPath != ".uverse" {
+		if store != nil && pn.PkgPath != uversePkgPath {
 			pv := pn.NewPackage() // temporary
 			store = store.Fork()
 			store.SetCachePackage(pv)
@@ -3318,7 +3318,7 @@ func elideCompositeExpr(vx *Expr, vt Type) {
 // returns true of x is exactly `nil`.
 func isNilExpr(x Expr) bool {
 	if nx, ok := x.(*NameExpr); ok {
-		return nx.Name == "nil"
+		return nx.Name == nilStr
 	}
 	return false
 }
