@@ -95,8 +95,6 @@ func genRandomProgram(size int) *program {
 			p.addInstruction(instruction{op: "SAVE", version: int64(nextVersion)})
 			nextVersion++
 		case 6:
-			// Turn off gosec here because this is for testing
-			//nolint:gosec
 			if rv := rand.Int() % nextVersion; rv < nextVersion && rv > 0 {
 				p.addInstruction(instruction{op: "DELETE", version: int64(rv)})
 			}

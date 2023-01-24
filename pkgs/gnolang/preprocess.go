@@ -454,7 +454,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					for i, cx := range n.Cases {
 						cx = Preprocess(
 							store, last, cx).(Expr)
-						checkOrConvertType(store, last, &cx, tt, false)
+						checkOrConvertType(store, last, &cx, tt, false) // #nosec G601
 						n.Cases[i] = cx
 					}
 				}

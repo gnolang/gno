@@ -26,7 +26,7 @@ linters:
     #- makezero # Finds slice declarations with non-zero initial length
     - lll # Long lines
     #- importas # Enforces consistent import aliases
-    #- gosec # Security problems
+    - gosec # Security problems
     #- gofmt # Whether the code was gofmt-ed
     - goimports # Unused imports
     #- goconst # Repeated strings that could be replaced by a constant
@@ -42,6 +42,10 @@ linters-settings:
   goconst:
     min-len: 3
     min-occurrences: 3
+  gosec:
+    excludes:
+      - G204 # Subprocess launched with a potential tainted input or cmd arguments
+      - G306 # Expect WriteFile permissions to be 0600 or less
 
 issues:
   whole-files: true

@@ -1,10 +1,13 @@
 package node
 
+// Ignore pprof import for gosec, as profiling
+// is enabled by the user by setting a profiling address
+
 import (
 	"fmt"
 	"net"
 	"net/http"
-	_ "net/http/pprof"
+	_ "net/http/pprof" //nolint:gosec
 	"strings"
 	"time"
 
@@ -526,8 +529,13 @@ func NewNode(config *cfg.Config,
 	}
 
 	if config.ProfListenAddress != "" {
+		server := &http.Server{
+			Addr:              config.ProfListenAddress,
+			ReadHeaderTimeout: 60 * time.Second,
+		}
+
 		go func() {
-			logger.Error("Profile server", "err", http.ListenAndServe(config.ProfListenAddress, nil))
+			logger.Error("Profile server", "err", server.ListenAndServe())
 		}()
 	}
 

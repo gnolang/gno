@@ -74,7 +74,6 @@ func randBytes(length int) []byte {
 	key := make([]byte, length)
 	// math.rand.Read always returns err=nil
 	// we do not need cryptographic randomness for this test:
-	//nolint:gosec
 	mrand.Read(key)
 	return key
 }

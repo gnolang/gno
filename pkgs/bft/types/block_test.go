@@ -116,8 +116,8 @@ func TestBlockString(t *testing.T) {
 func makeBlockIDRandom() BlockID {
 	blockHash := make([]byte, tmhash.Size)
 	partSetHash := make([]byte, tmhash.Size)
-	rand.Read(blockHash)   //nolint: gosec
-	rand.Read(partSetHash) //nolint: gosec
+	rand.Read(blockHash)
+	rand.Read(partSetHash)
 	blockPartsHeader := PartSetHeader{123, partSetHash}
 	return BlockID{blockHash, blockPartsHeader}
 }

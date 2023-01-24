@@ -81,8 +81,14 @@ func main() {
 	app.Router.Handle("/status.json", handlerStatusJSON(app))
 
 	fmt.Printf("Running on http://%s\n", flags.bindAddr)
-	err := http.ListenAndServe(flags.bindAddr, app.Router)
-	if err != nil {
+
+	server := &http.Server{
+		Addr:              flags.bindAddr,
+		ReadHeaderTimeout: 60 * time.Second,
+		Handler:           app.Router,
+	}
+
+	if err := server.ListenAndServe(); err != nil {
 		fmt.Fprintf(os.Stderr, "HTTP server stopped with error: %+v\n", err)
 	}
 }
