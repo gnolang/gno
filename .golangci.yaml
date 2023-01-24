@@ -15,7 +15,7 @@ linters:
     #- wsl # Forces you to use empty lines
     #- wastedassign # Finds wasted assignment statements
     #- unconvert # Unnecessary type conversions
-    #- tparallel # Detects inappropriate usage of t.Parallel() method in your Go test codes
+    - tparallel # Detects inappropriate usage of t.Parallel() method in your Go test codes
     #- thelper # Detects golang test helpers without t.Helper() call and checks the consistency of test helpers
     #- stylecheck # Stylecheck is a replacement for golint
     #- prealloc # Finds slice declarations that could potentially be pre-allocated
