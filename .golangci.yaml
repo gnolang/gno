@@ -23,7 +23,7 @@ linters:
     - nolintlint # Ill-formed or insufficient nolint directives
     #- nlreturn # Checks for a new line before return and branch statements to increase code clarity
     - misspell # Misspelled English words in comments
-    #- makezero # Finds slice declarations with non-zero initial length
+    - makezero # Finds slice declarations with non-zero initial length
     - lll # Long lines
     #- importas # Enforces consistent import aliases
     - gosec # Security problems
@@ -54,3 +54,4 @@ issues:
       linters:
         - gosec # Disabled linting of weak number generators
         - lll # Disabled linting of long test case lines
+        - makezero # Disabled linting of intentional slice appends
