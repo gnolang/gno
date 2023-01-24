@@ -55,6 +55,41 @@ func FetchModPackages(f *File) error {
 	return nil
 }
 
+// WriteGoMod writes go.mod file in the given absolute path
+// TODO: Find better way to do this.
+func WriteGoMod(absPath string, f *File) error {
+	if f.Module == nil {
+		return errors.New("writing go.mod: module not found")
+	}
+
+	data := ""
+	data += f.Module.Mod.Path + "\n\n"
+
+	if f.Go != nil {
+		data += "go " + f.Go.Version + "\n\n"
+	}
+
+	if f.Require != nil {
+		data += "require (" + "\n"
+		for _, req := range f.Require {
+			data += "\t" + req.Mod.Path + " " + req.Mod.Version + "\n"
+		}
+		data += ")\n\n"
+	}
+
+	if f.Replace != nil {
+		data += "replace (" + "\n"
+		for _, rep := range f.Replace {
+			data += "\t" + rep.Old.Path + " " + rep.Old.Version +
+				" => " + rep.New.Path + "\n"
+		}
+		data += ")\n\n"
+	}
+
+	fmt.Println(string(data))
+	return nil
+}
+
 func writePackage(basePath, pkgPath string) error {
 	res, err := QueryChain(queryPathFile, []byte(pkgPath))
 	if err != nil {
