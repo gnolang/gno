@@ -21,19 +21,27 @@ import (
 
 // setupTestCase does setup common to all test cases.
 func setupTestCase(t *testing.T) (func(t *testing.T), dbm.DB, sm.State) {
+	t.Helper()
+
 	config := cfg.ResetTestRoot("state_")
 	dbType := dbm.BackendType(config.DBBackend)
 	stateDB := dbm.NewDB("state", dbType, config.DBDir())
 	state, err := sm.LoadStateFromDBOrGenesisFile(stateDB, config.GenesisFile())
 	assert.NoError(t, err, "expected no error on LoadStateFromDBOrGenesisFile")
 
-	tearDown := func(t *testing.T) { os.RemoveAll(config.RootDir) }
+	tearDown := func(t *testing.T) {
+		t.Helper()
+
+		os.RemoveAll(config.RootDir)
+	}
 
 	return tearDown, stateDB, state
 }
 
 // TestStateCopy tests the correct copying behaviour of State.
 func TestStateCopy(t *testing.T) {
+	t.Helper()
+
 	tearDown, _, state := setupTestCase(t)
 	defer tearDown(t)
 	//nolint: vetshadow
@@ -387,6 +395,8 @@ func genValSetWithPowers(powers []int64) *types.ValidatorSet {
 
 // test a proposer appears as frequently as expected
 func testProposerFreq(t *testing.T, caseNum int, valSet *types.ValidatorSet) {
+	t.Helper()
+
 	N := valSet.Size()
 	totalPower := valSet.TotalVotingPower()
 

@@ -67,6 +67,8 @@ func newBaseApp(name string, db dbm.DB, options ...func(*BaseApp)) *BaseApp {
 
 // simple one store baseapp
 func setupBaseApp(t *testing.T, options ...func(*BaseApp)) *BaseApp {
+	t.Helper()
+
 	db := dbm.NewMemDB()
 	app := newBaseApp(t.Name(), db, options...)
 	require.Equal(t, t.Name(), app.Name())
@@ -185,6 +187,8 @@ func TestLoadVersionInvalid(t *testing.T) {
 }
 
 func testLoadVersionHelper(t *testing.T, app *BaseApp, expectedHeight int64, expectedID store.CommitID) {
+	t.Helper()
+
 	lastHeight := app.LastBlockHeight()
 	lastID := app.LastCommitID()
 	require.Equal(t, expectedHeight, lastHeight)
@@ -376,6 +380,8 @@ func setFailOnHandler(tx *Tx, fail bool) {
 }
 
 func anteHandlerTxTest(t *testing.T, capKey store.StoreKey, storeKey []byte) AnteHandler {
+	t.Helper()
+
 	return func(ctx Context, tx std.Tx, simulate bool) (newCtx Context, res Result, abort bool) {
 		store := ctx.Store(capKey)
 		if getFailOnAnte(tx) {
@@ -415,6 +421,8 @@ type msgCounterHandler struct {
 }
 
 func newMsgCounterHandler(t *testing.T, capKey store.StoreKey, deliverKey []byte) Handler {
+	t.Helper()
+
 	return msgCounterHandler{t, capKey, deliverKey}
 }
 
@@ -465,6 +473,8 @@ func setIntOnStore(store store.Store, key []byte, i int64) {
 // check counter matches what's in store.
 // increment and store
 func incrementingCounter(t *testing.T, store store.Store, counterKey []byte, counter int64) (res Result) {
+	t.Helper()
+
 	storedCounter := getIntFromStore(store, counterKey)
 	require.Equal(t, storedCounter, counter)
 	setIntOnStore(store, counterKey, counter+1)

@@ -22,6 +22,8 @@ func randBytes(length int) []byte {
 }
 
 func prepareTree(b *testing.B, db db.DB, size, keyLen, dataLen int) (*iavl.MutableTree, [][]byte) {
+	b.Helper()
+
 	t := iavl.NewMutableTree(db, size)
 	keys := make([][]byte, size)
 
@@ -37,6 +39,8 @@ func prepareTree(b *testing.B, db db.DB, size, keyLen, dataLen int) (*iavl.Mutab
 
 // commit tree saves a new version and deletes and old one...
 func commitTree(b *testing.B, t *iavl.MutableTree) {
+	b.Helper()
+
 	t.Hash()
 	_, version, err := t.SaveVersion()
 	if err != nil {
@@ -51,6 +55,8 @@ func commitTree(b *testing.B, t *iavl.MutableTree) {
 }
 
 func runQueries(b *testing.B, t *iavl.MutableTree, keyLen int) {
+	b.Helper()
+
 	for i := 0; i < b.N; i++ {
 		q := randBytes(keyLen)
 		t.Get(q)
@@ -58,6 +64,8 @@ func runQueries(b *testing.B, t *iavl.MutableTree, keyLen int) {
 }
 
 func runKnownQueries(b *testing.B, t *iavl.MutableTree, keys [][]byte) {
+	b.Helper()
+
 	l := int32(len(keys))
 	for i := 0; i < b.N; i++ {
 		q := keys[rand.Int31n(l)]
@@ -66,6 +74,8 @@ func runKnownQueries(b *testing.B, t *iavl.MutableTree, keys [][]byte) {
 }
 
 func runInsert(b *testing.B, t *iavl.MutableTree, keyLen, dataLen, blockSize int) *iavl.MutableTree {
+	b.Helper()
+
 	for i := 1; i <= b.N; i++ {
 		t.Set(randBytes(keyLen), randBytes(dataLen))
 		if i%blockSize == 0 {
@@ -77,6 +87,8 @@ func runInsert(b *testing.B, t *iavl.MutableTree, keyLen, dataLen, blockSize int
 }
 
 func runUpdate(b *testing.B, t *iavl.MutableTree, dataLen, blockSize int, keys [][]byte) *iavl.MutableTree {
+	b.Helper()
+
 	l := int32(len(keys))
 	for i := 1; i <= b.N; i++ {
 		key := keys[rand.Int31n(l)]
@@ -89,6 +101,8 @@ func runUpdate(b *testing.B, t *iavl.MutableTree, dataLen, blockSize int, keys [
 }
 
 func runDelete(b *testing.B, t *iavl.MutableTree, blockSize int, keys [][]byte) *iavl.MutableTree {
+	b.Helper()
+
 	var key []byte
 	l := int32(len(keys))
 	for i := 1; i <= b.N; i++ {
@@ -105,6 +119,8 @@ func runDelete(b *testing.B, t *iavl.MutableTree, blockSize int, keys [][]byte) 
 
 // runBlock measures time for an entire block, not just one tx
 func runBlock(b *testing.B, t *iavl.MutableTree, keyLen, dataLen, blockSize int, keys [][]byte) *iavl.MutableTree {
+	b.Helper()
+
 	l := int32(len(keys))
 
 	// XXX: This was adapted to work with VersionedTree but needs to be re-thought.
@@ -219,6 +235,8 @@ func BenchmarkLevelDBLargeData(b *testing.B) {
 }
 
 func runBenchmarks(b *testing.B, benchmarks []benchmark) {
+	b.Helper()
+
 	for _, bb := range benchmarks {
 		prefix := fmt.Sprintf("%s-%d-%d-%d-%d", bb.dbType, bb.initSize,
 			bb.blockSize, bb.keyLen, bb.dataLen)
@@ -254,6 +272,8 @@ func memUseMB() float64 {
 }
 
 func runSuite(b *testing.B, d db.DB, initSize, blockSize, keyLen, dataLen int) {
+	b.Helper()
+
 	// measure mem usage
 	runtime.GC()
 	init := memUseMB()

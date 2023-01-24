@@ -69,6 +69,8 @@ func TestWALWriterReader(t *testing.T) {
 const maxTestMsgSize int64 = 64 * 1024
 
 func makeTempWAL(t *testing.T, maxMsgSize int64, walChunkSize int64) (wal *baseWAL) {
+	t.Helper()
+
 	// Create WAL file.
 	walFile := filepath.Join(t.TempDir(), "wal")
 
@@ -225,6 +227,7 @@ func registerInterfacesOnce() {
 
 func benchmarkWalRead(b *testing.B, n int) {
 	// registerInterfacesOnce()
+	b.Helper()
 
 	buf := new(bytes.Buffer)
 	enc := NewWALWriter(buf, int64(n)+64) // n + overhead.

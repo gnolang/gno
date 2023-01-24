@@ -222,6 +222,8 @@ func TestSignVerify(t *testing.T) {
 }
 
 func assertPassword(t *testing.T, cstore Keybase, name, pass, badpass string) {
+	t.Helper()
+
 	getNewpass := func() (string, error) { return pass, nil }
 	err := cstore.Update(name, badpass, getNewpass)
 	require.NotNil(t, err)

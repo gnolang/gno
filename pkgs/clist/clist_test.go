@@ -69,6 +69,8 @@ func TestSmall(t *testing.T) {
 //
 //nolint:unused,deadcode
 func _TestGCFifo(t *testing.T) {
+	t.Helper()
+
 	if runtime.GOARCH != "amd64" {
 		t.Skipf("Skipping on non-amd64 machine")
 	}
@@ -119,6 +121,8 @@ func _TestGCFifo(t *testing.T) {
 //
 //nolint:unused,deadcode
 func _TestGCRandom(t *testing.T) {
+	t.Helper()
+
 	if runtime.GOARCH != "amd64" {
 		t.Skipf("Skipping on non-amd64 machine")
 	}

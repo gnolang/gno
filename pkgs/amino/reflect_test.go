@@ -60,6 +60,8 @@ func TestDeepCopyDef(t *testing.T) {
 }
 
 func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
+	t.Helper()
+
 	err := error(nil)
 	bz := []byte{}
 	cdc := amino.NewCodec()
@@ -160,6 +162,8 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 }
 
 func _testDeepCopy(t *testing.T, rt reflect.Type) {
+	t.Helper()
+
 	err := error(nil)
 	f := fuzz.New()
 	rv := reflect.New(rt)

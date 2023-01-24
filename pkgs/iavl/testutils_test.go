@@ -94,6 +94,8 @@ func (t *traverser) view(key, value []byte) bool {
 }
 
 func expectTraverse(t *testing.T, trav traverser, start, end string, count int) {
+	t.Helper()
+
 	if trav.first != start {
 		t.Error("Bad start", start, trav.first)
 	}
@@ -111,6 +113,8 @@ func BenchmarkImmutableAvlTreeMemDB(b *testing.B) {
 }
 
 func benchmarkImmutableAvlTreeWithDB(b *testing.B, db db.DB) {
+	b.Helper()
+
 	defer db.Close()
 
 	b.StopTimer()

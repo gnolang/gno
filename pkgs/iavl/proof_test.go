@@ -203,6 +203,8 @@ func TestTreeKeyInRangeProofs(t *testing.T) {
 }
 
 func verifyProof(t *testing.T, proof *RangeProof, root []byte) {
+	t.Helper()
+
 	// Proof must verify.
 	require.NoError(t, proof.Verify(root))
 

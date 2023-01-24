@@ -24,6 +24,8 @@ import (
 
 // run the tx through the anteHandler and ensure its valid
 func checkValidTx(t *testing.T, anteHandler sdk.AnteHandler, ctx sdk.Context, tx std.Tx, simulate bool) {
+	t.Helper()
+
 	_, result, abort := anteHandler(ctx, tx, simulate)
 	require.Equal(t, "", result.Log)
 	require.False(t, abort)
@@ -33,6 +35,8 @@ func checkValidTx(t *testing.T, anteHandler sdk.AnteHandler, ctx sdk.Context, tx
 
 // run the tx through the anteHandler and ensure it fails with the given code
 func checkInvalidTx(t *testing.T, anteHandler sdk.AnteHandler, ctx sdk.Context, tx std.Tx, simulate bool, err abci.Error) {
+	t.Helper()
+
 	newCtx, result, abort := anteHandler(ctx, tx, simulate)
 	require.True(t, abort)
 

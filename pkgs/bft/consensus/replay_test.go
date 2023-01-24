@@ -68,6 +68,8 @@ func TestMain(m *testing.M) {
 func startNewConsensusStateAndWaitForBlock(t *testing.T, consensusReplayConfig *cfg.Config,
 	lastBlockHeight int64, blockDB dbm.DB, stateDB dbm.DB,
 ) {
+	t.Helper()
+
 	logger := log.TestingLogger()
 	state, _ := sm.LoadStateFromDBOrGenesisFile(stateDB, consensusReplayConfig.GenesisFile())
 	privValidator := loadPrivValidator(consensusReplayConfig)
@@ -152,6 +154,8 @@ func TestWALCrash(t *testing.T) {
 func crashWALandCheckLiveness(t *testing.T, consensusReplayConfig *cfg.Config,
 	initFn func(dbm.DB, *ConsensusState, context.Context), lastBlockHeight int64,
 ) {
+	t.Helper()
+
 	crashCh := make(chan error)
 	crashingWal := &crashingWAL{crashCh: crashCh, lastBlockHeight: lastBlockHeight}
 
@@ -317,6 +321,8 @@ var modes = []uint{0, 1, 2}
 
 // Caller should call `defer sim.CleanupFunc()`
 func makeTestSim(t *testing.T, name string) (sim testSim) {
+	t.Helper()
+
 	nPeers := 7
 	nVals := 4
 	css, genDoc, config, cleanup := randConsensusNetWithPeers(nVals, nPeers, "replay_test_"+name, newMockTickerFunc(true), newPersistentKVStoreWithPath)
@@ -616,6 +622,8 @@ func tempWALWithData(data []byte) string {
 
 // Make some blocks. Start a fresh app and apply nBlocks blocks. Then restart the app and sync it up with the remaining blocks
 func testHandshakeReplay(t *testing.T, config *cfg.Config, nBlocks int, mode uint, sim *testSim) {
+	t.Helper()
+
 	var chain []*types.Block
 	var commits []*types.Commit
 	var store *mockBlockStore

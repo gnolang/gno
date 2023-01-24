@@ -128,6 +128,8 @@ func TestParallelRecover(t *testing.T) {
 
 // Wait for result
 func checkResult(t *testing.T, taskResultSet *TaskResultSet, index int, val interface{}, err error, pnk interface{}) {
+	t.Helper()
+
 	taskResult, ok := taskResultSet.LatestResult(index)
 	taskName := fmt.Sprintf("Task #%v", index)
 	assert.True(t, ok, "TaskResultCh unexpectedly closed for %v", taskName)
@@ -144,6 +146,8 @@ func checkResult(t *testing.T, taskResultSet *TaskResultSet, index int, val inte
 
 // Wait for timeout (no result)
 func waitTimeout(t *testing.T, taskResultCh TaskResultCh, taskName string) {
+	t.Helper()
+
 	select {
 	case _, ok := <-taskResultCh:
 		if !ok {

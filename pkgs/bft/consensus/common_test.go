@@ -190,7 +190,7 @@ func signAddVotes(
 	addVotes(to, votes...)
 }
 
-func validatePrevote(t *testing.T, cs *ConsensusState, round int, privVal *validatorStub, blockHash []byte) {
+func validatePrevote(cs *ConsensusState, round int, privVal *validatorStub, blockHash []byte) {
 	prevotes := cs.Votes.Prevotes(round)
 	address := privVal.GetPubKey().Address()
 	var vote *types.Vote
@@ -208,7 +208,7 @@ func validatePrevote(t *testing.T, cs *ConsensusState, round int, privVal *valid
 	}
 }
 
-func validateLastPrecommit(t *testing.T, cs *ConsensusState, privVal *validatorStub, blockHash []byte) {
+func validateLastPrecommit(cs *ConsensusState, privVal *validatorStub, blockHash []byte) {
 	votes := cs.LastCommit
 	address := privVal.GetPubKey().Address()
 	var vote *types.Vote
@@ -281,8 +281,10 @@ func validatePrevoteAndPrecommit(
 	votedBlockHash,
 	lockedBlockHash []byte,
 ) {
+	t.Helper()
+
 	// verify the prevote
-	validatePrevote(t, cs, thisRound, privVal, votedBlockHash)
+	validatePrevote(cs, thisRound, privVal, votedBlockHash)
 	// verify precommit
 	validatePrecommit(t, cs, thisRound, lockRound, privVal, votedBlockHash, lockedBlockHash)
 }

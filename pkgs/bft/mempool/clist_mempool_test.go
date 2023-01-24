@@ -50,6 +50,8 @@ func newMempoolWithAppAndConfig(cc proxy.ClientCreator, config *cfg.MempoolConfi
 }
 
 func ensureNoFire(t *testing.T, ch <-chan struct{}, timeoutMS int) {
+	t.Helper()
+
 	timer := time.NewTimer(time.Duration(timeoutMS) * time.Millisecond)
 	select {
 	case <-ch:
@@ -59,6 +61,8 @@ func ensureNoFire(t *testing.T, ch <-chan struct{}, timeoutMS int) {
 }
 
 func ensureFire(t *testing.T, ch <-chan struct{}, timeoutMS int) {
+	t.Helper()
+
 	timer := time.NewTimer(time.Duration(timeoutMS) * time.Millisecond)
 	select {
 	case <-ch:
@@ -68,6 +72,8 @@ func ensureFire(t *testing.T, ch <-chan struct{}, timeoutMS int) {
 }
 
 func checkTxs(t *testing.T, mempool Mempool, count int, peerID uint16, failOnCheckTxError bool) types.Txs {
+	t.Helper()
+
 	txs := make(types.Txs, count)
 	txInfo := TxInfo{SenderID: peerID}
 	for i := 0; i < count; i++ {
@@ -330,7 +336,7 @@ func TestSerialReap(t *testing.T) {
 		}
 	}
 
-	//----------------------------------------
+	// ----------------------------------------
 
 	// Deliver some txs.
 	deliverTxsRange(0, 100)
@@ -392,7 +398,7 @@ func TestMempoolCloseWAL(t *testing.T) {
 	// 5. Write some contents to the WAL
 	mempool.CheckTx(types.Tx([]byte("foo")), nil)
 	walFilepath := mempool.wal.Path
-	sum1 := checksumFile(walFilepath, t)
+	sum1 := checksumFile(t, walFilepath)
 
 	// 6. Sanity check to ensure that the written TX matches the expectation.
 	require.Equal(t, sum1, checksumIt([]byte("foo\n")), "foo with a newline should be written")
@@ -401,7 +407,7 @@ func TestMempoolCloseWAL(t *testing.T) {
 	// WAL thus any other write won't go through.
 	mempool.CloseWAL()
 	mempool.CheckTx(types.Tx([]byte("bar")), nil)
-	sum2 := checksumFile(walFilepath, t)
+	sum2 := checksumFile(t, walFilepath)
 	require.Equal(t, sum1, sum2, "expected no change to the WAL after invoking CloseWAL() since it was discarded")
 
 	// 8. Sanity check to ensure that the WAL file still exists
@@ -526,7 +532,9 @@ func checksumIt(data []byte) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
-func checksumFile(p string, t *testing.T) string {
+func checksumFile(t *testing.T, p string) string {
+	t.Helper()
+
 	data, err := os.ReadFile(p)
 	require.Nil(t, err, "expecting successful read of %q", p)
 	return checksumIt(data)

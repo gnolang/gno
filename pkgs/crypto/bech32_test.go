@@ -41,6 +41,8 @@ func testMarshal(
 	marshal func(orig interface{}) ([]byte, error),
 	unmarshal func(bz []byte, ptr interface{}) error,
 ) {
+	t.Helper()
+
 	bz, err := marshal(addr)
 	require.Nil(t, err)
 	res := crypto.Address{}

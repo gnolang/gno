@@ -198,6 +198,8 @@ func echoDataBytesViaHTTP(cl client.HTTPClient, bytes []byte) ([]byte, error) {
 }
 
 func testWithHTTPClient(t *testing.T, cl client.HTTPClient) {
+	t.Helper()
+
 	val := testVal
 	got, err := echoViaHTTP(cl, val)
 	require.Nil(t, err)
@@ -262,6 +264,8 @@ func echoBytesViaWS(cl *client.WSClient, bytes []byte) ([]byte, error) {
 }
 
 func testWithWSClient(t *testing.T, cl *client.WSClient) {
+	t.Helper()
+
 	val := testVal
 	got, err := echoViaWS(cl, val)
 	require.Nil(t, err)
@@ -273,7 +277,7 @@ func testWithWSClient(t *testing.T, cl *client.WSClient) {
 	assert.Equal(t, got2, val2)
 }
 
-//-------------
+// -------------
 
 func TestServersAndClientsBasic(t *testing.T) {
 	serverAddrs := [...]string{tcpAddr, unixAddr}
@@ -383,6 +387,8 @@ func TestWSClientPingPong(t *testing.T) {
 }
 
 func randBytes(t *testing.T) []byte {
+	t.Helper()
+
 	n := random.RandIntn(10) + 2
 	buf := make([]byte, n)
 	_, err := crand.Read(buf)

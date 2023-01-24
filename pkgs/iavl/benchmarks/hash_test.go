@@ -35,6 +35,8 @@ func BenchmarkHash(b *testing.B) {
 }
 
 func benchHasher(b *testing.B, hasher hash.Hash, size int) {
+	b.Helper()
+
 	// create all random bytes before to avoid timing this
 	inputs := randBytes(b.N + size + 1)
 

@@ -244,7 +244,7 @@ func TestMultiStoreQuery(t *testing.T) {
 	require.Equal(t, v2, qres.Value)
 }
 
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 // utils
 
 func newMultiStoreWithMounts(db dbm.DB) *multiStore {
@@ -260,6 +260,8 @@ func newMultiStoreWithMounts(db dbm.DB) *multiStore {
 }
 
 func checkStore(t *testing.T, store *multiStore, expect, got types.CommitID) {
+	t.Helper()
+
 	require.Equal(t, expect, got)
 	require.Equal(t, expect, store.LastCommitID())
 }

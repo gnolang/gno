@@ -48,6 +48,8 @@ func makeKVStoreConnPair() (fooConn, barConn kvstoreConn) {
 }
 
 func makeSecretConnPair(tb testing.TB) (fooSecConn, barSecConn *SecretConnection) {
+	tb.Helper()
+
 	fooConn, barConn := makeKVStoreConnPair()
 	fooPrvKey := ed25519.GenPrivKey()
 	fooPubKey := fooPrvKey.PubKey()
@@ -194,6 +196,8 @@ func TestConcurrentRead(t *testing.T) {
 }
 
 func writeLots(t *testing.T, wg *sync.WaitGroup, conn net.Conn, txt string, n int) {
+	t.Helper()
+
 	defer wg.Done()
 	for i := 0; i < n; i++ {
 		_, err := conn.Write([]byte(txt))
@@ -205,6 +209,8 @@ func writeLots(t *testing.T, wg *sync.WaitGroup, conn net.Conn, txt string, n in
 }
 
 func readLots(t *testing.T, wg *sync.WaitGroup, conn net.Conn, n int) {
+	t.Helper()
+
 	readBuffer := make([]byte, dataMaxSize)
 	for i := 0; i < n; i++ {
 		_, err := conn.Read(readBuffer)
@@ -337,7 +343,7 @@ func TestDeriveSecretsAndChallengeGolden(t *testing.T) {
 	goldenFilepath := filepath.Join("testdata", t.Name()+".golden")
 	if *update {
 		t.Logf("Updating golden test vector file %s", goldenFilepath)
-		data := createGoldenTestVectors(t)
+		data := createGoldenTestVectors()
 		osm.WriteFile(goldenFilepath, []byte(data), 0o644)
 	}
 	f, err := os.Open(goldenFilepath)
@@ -417,7 +423,7 @@ func TestNonEd25519Pubkey(t *testing.T) {
 // Creates the data for a test vector file.
 // The file format is:
 // Hex(diffie_hellman_secret), loc_is_least, Hex(recvSecret), Hex(sendSecret), Hex(challenge)
-func createGoldenTestVectors(t *testing.T) string {
+func createGoldenTestVectors() string {
 	data := ""
 	for i := 0; i < 32; i++ {
 		randSecretVector := random.RandBytes(32)

@@ -561,6 +561,8 @@ func TestTransportHandshake(t *testing.T) {
 
 // create listener
 func testSetupMultiplexTransport(t *testing.T) *MultiplexTransport {
+	t.Helper()
+
 	var (
 		pv = ed25519.GenPrivKey()
 		id = pv.PubKey().Address().ID()

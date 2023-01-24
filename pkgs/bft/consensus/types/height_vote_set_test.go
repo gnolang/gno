@@ -52,6 +52,8 @@ func TestPeerCatchupRounds(t *testing.T) {
 }
 
 func makeVoteHR(t *testing.T, height int64, round int, privVals []types.PrivValidator, valIndex int) *types.Vote {
+	t.Helper()
+
 	privVal := privVals[valIndex]
 	addr := privVal.GetPubKey().Address()
 	vote := &types.Vote{

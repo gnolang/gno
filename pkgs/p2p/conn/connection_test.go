@@ -385,6 +385,8 @@ func TestMConnectionStopsAndReturnsError(t *testing.T) {
 }
 
 func newClientAndServerConnsForReadErrors(t *testing.T, chOnErr chan struct{}) (*MConnection, *MConnection) {
+	t.Helper()
+
 	server, client := NetPipe()
 
 	onReceive := func(chID byte, msgBytes []byte) {}

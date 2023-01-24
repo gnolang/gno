@@ -11,7 +11,9 @@ import (
 	"github.com/gnolang/gno/pkgs/store/dbadapter"
 )
 
-func benchmarkCacheStoreIterator(numKVs int, b *testing.B) {
+func benchmarkCacheStoreIterator(b *testing.B, numKVs int) {
+	b.Helper()
+
 	mem := dbadapter.Store{DB: dbm.NewMemDB()}
 	cstore := cache.New(mem)
 	keys := make([]string, numKVs, numKVs)
@@ -39,8 +41,8 @@ func benchmarkCacheStoreIterator(numKVs int, b *testing.B) {
 	}
 }
 
-func BenchmarkCacheStoreIterator500(b *testing.B)    { benchmarkCacheStoreIterator(500, b) }
-func BenchmarkCacheStoreIterator1000(b *testing.B)   { benchmarkCacheStoreIterator(1000, b) }
-func BenchmarkCacheStoreIterator10000(b *testing.B)  { benchmarkCacheStoreIterator(10000, b) }
-func BenchmarkCacheStoreIterator50000(b *testing.B)  { benchmarkCacheStoreIterator(50000, b) }
-func BenchmarkCacheStoreIterator100000(b *testing.B) { benchmarkCacheStoreIterator(100000, b) }
+func BenchmarkCacheStoreIterator500(b *testing.B)    { benchmarkCacheStoreIterator(b, 500) }
+func BenchmarkCacheStoreIterator1000(b *testing.B)   { benchmarkCacheStoreIterator(b, 1000) }
+func BenchmarkCacheStoreIterator10000(b *testing.B)  { benchmarkCacheStoreIterator(b, 10000) }
+func BenchmarkCacheStoreIterator50000(b *testing.B)  { benchmarkCacheStoreIterator(b, 50000) }
+func BenchmarkCacheStoreIterator100000(b *testing.B) { benchmarkCacheStoreIterator(b, 100000) }
