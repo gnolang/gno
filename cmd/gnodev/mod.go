@@ -57,12 +57,9 @@ func runModDownload(opts *modFlags) error {
 		return err
 	}
 
-	gnoModPath, err := gnomod.GetGnoModPath()
-	if err != nil {
+	if err := gnomod.Sanitize(gnoMod); err != nil {
 		return err
 	}
-
-	gnomod.ReplaceModuleAll(gnoMod, gnoModPath)
 	err = gnomod.WriteGoMod(path, gnoMod)
 	if err != nil {
 		return err

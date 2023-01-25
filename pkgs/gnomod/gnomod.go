@@ -159,22 +159,6 @@ func WriteGoMod(absPath string, f *File) error {
 	return nil
 }
 
-// ReplaceModuleAll replaces all the required modules with
-// the modules in given path.
-func ReplaceModuleAll(f *File, path string) {
-	for _, req := range f.Require {
-		f.Replace = append(f.Replace, &modfile.Replace{
-			Old: module.Version{
-				Path:    req.Mod.Path,
-				Version: req.Mod.Version,
-			},
-			New: module.Version{
-				Path: filepath.Join(path, req.Mod.Path),
-			},
-		})
-	}
-}
-
 func ResolvePrecompileName(gnoFilePath string) (tags, targetFilename string) {
 	nameNoExtension := strings.TrimSuffix(filepath.Base(gnoFilePath), ".gno")
 	switch {
@@ -189,4 +173,38 @@ func ResolvePrecompileName(gnoFilePath string) (tags, targetFilename string) {
 		targetFilename = nameNoExtension + ".gno.gen.go"
 	}
 	return
+}
+
+// Sanitize make necessary modifications in the gno.mod
+// before writing it to go.mod file.
+func Sanitize(f *File) error {
+	gnoModPath, err := GetGnoModPath()
+	if err != nil {
+		return err
+	}
+
+	if strings.HasPrefix(f.Module.Mod.Path, "gno.land/r/") ||
+		strings.HasPrefix(f.Module.Mod.Path, "gno.land/p/demo/") {
+		f.Module.Mod.Path = "github.com/gnolang/gno/examples/" + f.Module.Mod.Path
+	}
+
+	for i := range f.Require {
+		path := f.Require[i].Mod.Path
+		if strings.HasPrefix(f.Require[i].Mod.Path, "gno.land/r/") ||
+			strings.HasPrefix(f.Require[i].Mod.Path, "gno.land/p/demo/") {
+			f.Require[i].Mod.Path = "github.com/gnolang/gno/examples/" + f.Require[i].Mod.Path
+		}
+
+		f.Replace = append(f.Replace, &modfile.Replace{
+			Old: module.Version{
+				Path:    f.Require[i].Mod.Path,
+				Version: f.Require[i].Mod.Version,
+			},
+			New: module.Version{
+				Path: filepath.Join(gnoModPath, path),
+			},
+		})
+	}
+
+	return nil
 }
