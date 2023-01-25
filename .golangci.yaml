@@ -18,7 +18,7 @@ linters:
     - tparallel # Detects inappropriate usage of t.Parallel() method in your Go test codes
     - thelper # Detects golang test helpers without t.Helper() call and checks the consistency of test helpers
     #- stylecheck # Stylecheck is a replacement for golint
-    #- prealloc # Finds slice declarations that could potentially be pre-allocated
+    - prealloc # Finds slice declarations that could potentially be pre-allocated
     #- predeclared # Finds code that shadows one of Go's predeclared identifiers
     - nolintlint # Ill-formed or insufficient nolint directives
     #- nlreturn # Checks for a new line before return and branch statements to increase code clarity

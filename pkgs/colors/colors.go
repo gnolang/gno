@@ -47,10 +47,12 @@ func treat(s string, color string) string {
 }
 
 func treatAll(color string, args ...interface{}) string {
-	var parts []string
-	for _, arg := range args {
-		parts = append(parts, treat(fmt.Sprintf("%v", arg), color))
+	parts := make([]string, len(args))
+
+	for i, arg := range args {
+		parts[i] = treat(fmt.Sprintf("%v", arg), color)
 	}
+
 	return strings.Join(parts, "")
 }
 

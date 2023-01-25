@@ -43,10 +43,12 @@ const (
 // or as how much gas will be consumed in antehandler
 // (depending on anteHandler used in tests)
 func newTxCounter(txInt int64, msgInts ...int64) std.Tx {
-	var msgs []std.Msg
-	for _, msgInt := range msgInts {
-		msgs = append(msgs, msgCounter{msgInt, false})
+	msgs := make([]std.Msg, len(msgInts))
+
+	for i, msgInt := range msgInts {
+		msgs[i] = msgCounter{msgInt, false}
 	}
+
 	tx := std.Tx{Msgs: msgs}
 	setCounter(&tx, txInt)
 	setFailOnHandler(&tx, false)
