@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gnolang/gno/pkgs/gnolang"
 	"github.com/gnolang/gno/pkgs/std"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -103,7 +104,15 @@ func writePackage(basePath, pkgPath string) error {
 		}
 	} else {
 		// Is File
-		err := os.WriteFile(filepath.Join(basePath, pkgPath), []byte(res.Data), 0o644)
+		// Precompile
+		filePath := filepath.Join(basePath, pkgPath)
+		_, targetFilename := ResolvePrecompileName(filePath)
+		precompileRes, err := gnolang.Precompile(string(res.Data), "", fileName)
+		if err != nil {
+			return fmt.Errorf("precompiling modules: %s", err)
+		}
+
+		err = os.WriteFile(filepath.Join(basePath, dirPath, targetFilename), []byte(precompileRes.Translated), 0o644)
 		if err != nil {
 			return fmt.Errorf("writing mod files: %s", err)
 		}
@@ -164,4 +173,20 @@ func ReplaceModuleAll(f *File, path string) {
 			},
 		})
 	}
+}
+
+func ResolvePrecompileName(gnoFilePath string) (tags, targetFilename string) {
+	nameNoExtension := strings.TrimSuffix(filepath.Base(gnoFilePath), ".gno")
+	switch {
+	case strings.HasSuffix(gnoFilePath, "_filetest.gno"):
+		tags = "gno,filetest"
+		targetFilename = "." + nameNoExtension + ".gno.gen.go"
+	case strings.HasSuffix(gnoFilePath, "_test.gno"):
+		tags = "gno,test"
+		targetFilename = "." + nameNoExtension + ".gno.gen_test.go"
+	default:
+		tags = "gno"
+		targetFilename = nameNoExtension + ".gno.gen.go"
+	}
+	return
 }
