@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/pkgs/std"
+	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
 )
 
 var (
@@ -35,58 +37,44 @@ func IsModFileExist(absModPath string) bool {
 	return err == nil
 }
 
+// GetGnoModPath returns the path for gno modules
+func GetGnoModPath() (string, error) {
+	goPath := os.Getenv("GOPATH")
+	if goPath == "" {
+		return "", errors.New("GOPATH not found")
+	}
+
+	return filepath.Join(goPath, "pkg/gnomod"), nil
+}
+
 // FetchModPackages fetches and writes gno.mod packages
 // in GOPATH/pkg/gnomod/
 func FetchModPackages(f *File) error {
-	goPath := os.Getenv("GOPATH")
-	if goPath == "" {
-		return errors.New("GOPATH not found")
+	gnoModPath, err := GetGnoModPath()
+	if err != nil {
+		return fmt.Errorf("fetching mods: %s", err)
 	}
 
 	if f.Require != nil {
 		for _, r := range f.Require {
 			fmt.Println("fetching", r.Mod.Path)
-			if err := writePackage(filepath.Join(goPath, "pkg/gnomod"), r.Mod.Path); err != nil {
+			err := writePackage(gnoModPath, r.Mod.Path)
+			if err != nil {
 				return fmt.Errorf("fetching mods: %s", err)
 			}
+
+			f := &File{
+				Module: &modfile.Module{
+					Mod: module.Version{
+						Path: r.Mod.Path,
+					},
+				},
+			}
+
+			WriteGoMod(filepath.Join(gnoModPath, r.Mod.Path), f)
 		}
 	}
 
-	return nil
-}
-
-// WriteGoMod writes go.mod file in the given absolute path
-// TODO: Find better way to do this.
-func WriteGoMod(absPath string, f *File) error {
-	if f.Module == nil {
-		return errors.New("writing go.mod: module not found")
-	}
-
-	data := ""
-	data += f.Module.Mod.Path + "\n\n"
-
-	if f.Go != nil {
-		data += "go " + f.Go.Version + "\n\n"
-	}
-
-	if f.Require != nil {
-		data += "require (" + "\n"
-		for _, req := range f.Require {
-			data += "\t" + req.Mod.Path + " " + req.Mod.Version + "\n"
-		}
-		data += ")\n\n"
-	}
-
-	if f.Replace != nil {
-		data += "replace (" + "\n"
-		for _, rep := range f.Replace {
-			data += "\t" + rep.Old.Path + " " + rep.Old.Version +
-				" => " + rep.New.Path + "\n"
-		}
-		data += ")\n\n"
-	}
-
-	fmt.Println(string(data))
 	return nil
 }
 
@@ -122,4 +110,58 @@ func writePackage(basePath, pkgPath string) error {
 	}
 
 	return nil
+}
+
+// WriteGoMod writes go.mod file in the given absolute path
+// TODO: Find better way to do this.
+func WriteGoMod(absPath string, f *File) error {
+	if f.Module == nil {
+		return errors.New("writing go.mod: module not found")
+	}
+
+	data := "module " + f.Module.Mod.Path + "\n"
+
+	if f.Go != nil {
+		data += "\ngo " + f.Go.Version + "\n"
+	}
+
+	if f.Require != nil {
+		data += "\nrequire (" + "\n"
+		for _, req := range f.Require {
+			data += "\t" + req.Mod.Path + " " + req.Mod.Version + "\n"
+		}
+		data += ")\n"
+	}
+
+	if f.Replace != nil {
+		data += "\nreplace (" + "\n"
+		for _, rep := range f.Replace {
+			data += "\t" + rep.Old.Path + " " + rep.Old.Version +
+				" => " + rep.New.Path + "\n"
+		}
+		data += ")\n"
+	}
+
+	err := os.WriteFile(filepath.Join(absPath, "go.mod"), []byte(data), 0o644)
+	if err != nil {
+		return fmt.Errorf("writing go.mod: %s", err)
+	}
+
+	return nil
+}
+
+// ReplaceModuleAll replaces all the required modules with
+// the modules in given path.
+func ReplaceModuleAll(f *File, path string) {
+	for _, req := range f.Require {
+		f.Replace = append(f.Replace, &modfile.Replace{
+			Old: module.Version{
+				Path:    req.Mod.Path,
+				Version: req.Mod.Version,
+			},
+			New: module.Version{
+				Path: filepath.Join(path, req.Mod.Path),
+			},
+		})
+	}
 }
