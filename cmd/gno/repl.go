@@ -15,7 +15,7 @@ import (
 
 type replOptions struct {
 	Verbose bool   `flag:"verbose" help:"verbose"`
-	RootDir string `flag:"root-dir" help:"clone location of github.com/gnolang/gno (gnodev tries to guess it)"`
+	RootDir string `flag:"root-dir" help:"clone location of github.com/gnolang/gno (gno tries to guess it)"`
 	// Run string `flag:"run" help:"test name filtering pattern"`
 	// Timeout time.Duration `flag:"timeout" help:"max execution time"`
 	// VM Options

@@ -49,7 +49,7 @@ func TestMain(t *testing.T) {
 		{args: []string{"test", "../../tests/integ/valid2"}, stderrShouldContain: "ok "},
 		{args: []string{"test", "../../tests/integ/valid2", "--verbose"}, stderrShouldContain: "ok "},
 
-		// TODO: when 'gnodev test' will by default imply running precompile, we should use the following tests.
+		// TODO: when 'gno test' will by default imply running precompile, we should use the following tests.
 		//{args: []string{"test", "../../tests/integ/empty-gno1", "--no-precompile"}, stderrShouldBe: "?       ./../../tests/integ/empty-gno1 \t[no test files]\n"},
 		//{args: []string{"test", "../../tests/integ/empty-gno1"}, errShouldBe: "FAIL: 1 build errors, 0 test errors", stderrShouldContain: "../../tests/integ/empty-gno1/empty.gno: parse: tmp.gno:1:1: expected 'package', found 'EOF'"},
 		//{args: []string{"test", "../../tests/integ/empty-gno2", "--no-precompile"}, recoverShouldBe: "empty.gno:1:1: expected 'package', found 'EOF'"}, // FIXME: better error handling + rename dontcare.gno with actual test file
@@ -134,7 +134,7 @@ func TestMain(t *testing.T) {
 				}
 			}
 
-			exec := "gnodev"
+			exec := "gno"
 			defer func() {
 				if r := recover(); r != nil {
 					output := fmt.Sprintf("%v", r)

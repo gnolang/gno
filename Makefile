@@ -5,7 +5,7 @@ all: build
 
 build: gnoland gnokey goscan logos gnoweb gnotxport gnofaucet
 
-install: install_gnodev install_gnokey
+install: install_gno install_gnokey
 
 reset:
 	rm -rf testdir
@@ -25,17 +25,17 @@ gnokey:
 	go build -o build/gnokey ./cmd/gnokey
 
 # Development tool
-gnodev:
-	@echo "Building gnodev"
-	go build -o build/gnodev ./cmd/gnodev
+gno:
+	@echo "Building gno (ex gnodev)"
+	go build -o build/gno ./cmd/gno
 
 install_gnokey:
 	@echo "Installing gnokey"
 	go install ./cmd/gnokey
 
-install_gnodev:
-	@echo "Installing gnodev"
-	go install ./cmd/gnodev
+install_gno:
+	@echo "Installing gno"
+	go install ./cmd/gno
 
 # The faucet (daemon)
 gnofaucet:
@@ -64,11 +64,11 @@ logos:
 clean:
 	rm -rf build
 
-examples.precompile: install_gnodev
-	go run ./cmd/gnodev precompile ./examples --verbose
+examples.precompile: install_gno
+	go run ./cmd/gno precompile ./examples --verbose
 
-examples.build: install_gnodev examples.precompile
-	go run ./cmd/gnodev build ./examples --verbose
+examples.build: install_gno examples.precompile
+	go run ./cmd/gno build ./examples --verbose
 
 ########################################
 # Formatting, linting.
@@ -113,7 +113,7 @@ test.go3:
 	go test ./pkgs/bft/... -v -p 1 -timeout=30m
 
 test.go4:
-	go test ./cmd/gnodev ./cmd/gnoland -v -p 1 -timeout=30m
+	go test ./cmd/gno ./cmd/gnoland -v -p 1 -timeout=30m
 
 test.files1:
 	go test tests/*.go -v -test.short -run "TestFiles1/" --timeout 30m
@@ -136,7 +136,7 @@ test.packages2:
 	go test tests/*.go -v -run "TestPackages/bytes" --timeout 30m
 
 test.examples:
-	go run ./cmd/gnodev test ./examples --verbose
+	go run ./cmd/gno test ./examples --verbose
 
 # Code gen
 stringer:

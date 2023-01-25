@@ -27,9 +27,9 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
       - uses: actions/checkout@v3
-      - run: go install -v ./cmd/gnodev
+      - run: go install -v ./cmd/gno
       # TODO: implement --allow-all-imports
-      #- run: gnodev precompile ./stdlibs --verbose --allow-all-imports
-      #- run: gnodev precompile ./tests --verbose --allow-all-imports
-      - run: go run ./cmd/gnodev precompile ./examples --verbose
-      - run: go run ./cmd/gnodev build ./examples --verbose
+      #- run: gno precompile ./stdlibs --verbose --allow-all-imports
+      #- run: gno precompile ./tests --verbose --allow-all-imports
+      - run: go run ./cmd/gno precompile ./examples --verbose
+      - run: go run ./cmd/gno build ./examples --verbose

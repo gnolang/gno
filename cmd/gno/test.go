@@ -24,7 +24,7 @@ import (
 
 type testOptions struct {
 	Verbose    bool          `flag:"verbose" help:"verbose"`
-	RootDir    string        `flag:"root-dir" help:"clone location of github.com/gnolang/gno (gnodev tries to guess it)"`
+	RootDir    string        `flag:"root-dir" help:"clone location of github.com/gnolang/gno (gno tries to guess it)"`
 	Run        string        `flag:"run" help:"test name filtering pattern"`
 	Timeout    time.Duration `flag:"timeout" help:"max execution time (in ns)"`               // FIXME: support ParseDuration: "1s"
 	Precompile bool          `flag:"precompile" help:"precompiling gno to go before testing"` // TODO: precompile should be the default, but it needs to automatically precompile dependencies in memory.

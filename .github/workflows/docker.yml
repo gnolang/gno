@@ -33,13 +33,13 @@ jobs:
         run: |
           docker build --target=gnoland-slim   -t ghcr.io/${owner}/${reponame}/gnoland-slim   .
           docker build --target=gnokey-slim    -t ghcr.io/${owner}/${reponame}/gnokey-slim    .
-          docker build --target=gnodev-slim    -t ghcr.io/${owner}/${reponame}/gnodev-slim    .
+          docker build --target=gno-slim       -t ghcr.io/${owner}/${reponame}/gno-slim    .
           docker build --target=gnofaucet-slim -t ghcr.io/${owner}/${reponame}/gnofaucet-slim .
           docker build --target=gnoweb-slim    -t ghcr.io/${owner}/${reponame}/gnoweb-slim    .
 
           docker tag ghcr.io/${owner}/${reponame}/gnoland-slim:latest   ghcr.io/${owner}/${reponame}/gnoland-slim:${GITHUB_SHA::8}
           docker tag ghcr.io/${owner}/${reponame}/gnokey-slim:latest    ghcr.io/${owner}/${reponame}/gnokey-slim:${GITHUB_SHA::8}
-          docker tag ghcr.io/${owner}/${reponame}/gnodev-slim:latest    ghcr.io/${owner}/${reponame}/gnodev-slim:${GITHUB_SHA::8}
+          docker tag ghcr.io/${owner}/${reponame}/gno-slim:latest       ghcr.io/${owner}/${reponame}/gno-slim:${GITHUB_SHA::8}
           docker tag ghcr.io/${owner}/${reponame}/gnofaucet-slim:latest ghcr.io/${owner}/${reponame}/gnofaucet-slim:${GITHUB_SHA::8}
           docker tag ghcr.io/${owner}/${reponame}/gnoweb-slim:latest    ghcr.io/${owner}/${reponame}/gnoweb-slim:${GITHUB_SHA::8}
 
@@ -70,8 +70,8 @@ jobs:
             docker push ghcr.io/${owner}/${reponame}/gnokey-slim:latest
             docker push ghcr.io/${owner}/${reponame}/gnokey-slim:${GITHUB_SHA::8}
 
-            docker push ghcr.io/${owner}/${reponame}/gnodev-slim:latest
-            docker push ghcr.io/${owner}/${reponame}/gnodev-slim:${GITHUB_SHA::8}
+            docker push ghcr.io/${owner}/${reponame}/gno-slim:latest
+            docker push ghcr.io/${owner}/${reponame}/gno-slim:${GITHUB_SHA::8}
 
             docker push ghcr.io/${owner}/${reponame}/gnofaucet-slim:latest
             docker push ghcr.io/${owner}/${reponame}/gnofaucet-slim:${GITHUB_SHA::8}

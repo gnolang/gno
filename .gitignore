@@ -7,7 +7,7 @@ data/*
 proto/*
 testdir
 pkgs/sdk/vm/_testdata
-cmd/gnodev/gnodev
+cmd/gno/gno
 build/*
 *.tx
 *.log.*

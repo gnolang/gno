@@ -8,7 +8,7 @@ ADD         . /opt/gno/src/
 ADD         . /opt/build/
 RUN         go build -o ./build/gnoland ./cmd/gnoland
 RUN         go build -o ./build/gnokey ./cmd/gnokey
-RUN         go build -o ./build/gnodev ./cmd/gnodev
+RUN         go build -o ./build/gno ./cmd/gno
 RUN         go build -o ./build/gnofaucet ./cmd/gnofaucet
 RUN         go build -o ./build/gnotxport ./cmd/gnotxport
 RUN         cd ./gnoland/website && go build -o ../../build/gnoweb .
@@ -32,9 +32,9 @@ FROM        runtime-base AS gnokey-slim
 COPY        --from=build /opt/build/build/gnokey /opt/gno/bin/
 ENTRYPOINT  ["gnokey"]
 
-FROM        runtime-base AS gnodev-slim
-COPY        --from=build /opt/build/build/gnodev /opt/gno/bin/
-ENTRYPOINT  ["gnodev"]
+FROM        runtime-base AS gno-slim
+COPY        --from=build /opt/build/build/gno /opt/gno/bin/
+ENTRYPOINT  ["gno"]
 
 FROM        runtime-tls AS gnofaucet-slim
 COPY        --from=build /opt/build/build/gnofaucet /opt/gno/bin/

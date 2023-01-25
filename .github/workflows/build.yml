@@ -21,7 +21,7 @@ jobs:
         goversion: [ "1.18.x", "1.19.x" ]
         goarch: [ "amd64" ]
         goos: [ "linux" ]
-        program: [ "genproto", "gnofaucet", "gnokey", "gnoland", "gnotxport", "goscan", "gnodev", "gnoweb" ]
+        program: [ "genproto", "gnofaucet", "gnokey", "gnoland", "gnotxport", "goscan", "gno", "gnoweb" ]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

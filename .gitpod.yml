@@ -9,9 +9,9 @@ tasks:
       (cd misc/devdeps && make install) &&
       echo "download dependencies" &&
       go mod download &&
-      echo "prebuild gnodev" &&
-      make install_gnodev
-    command: gnodev --help
+      echo "prebuild gno" &&
+      make install_gno
+    command: gno --help
 
   - name: Gnoland Website
     init: cd gnoland/website && go install .

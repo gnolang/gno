@@ -61,7 +61,7 @@ var mainApps AppList = []AppItem{
 	// doc -- godoc
 	// "vm" -- starts an in-memory chain that can be interacted with?
 	// bug -- start a bug report
-	// version -- show gnodev, golang versions
+	// version -- show gno, golang versions
 }
 
 func runMain(cmd *command.Command, exec string, args []string) error {
