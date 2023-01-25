@@ -126,7 +126,7 @@ func runBlock(b *testing.B, t *iavl.MutableTree, keyLen, dataLen, blockSize int,
 	// XXX: This was adapted to work with VersionedTree but needs to be re-thought.
 
 	lastCommit := t
-	real := t
+	realTree := t
 	// check := t
 
 	for i := 0; i < b.N; i++ {
@@ -143,13 +143,13 @@ func runBlock(b *testing.B, t *iavl.MutableTree, keyLen, dataLen, blockSize int,
 			// perform query and write on check and then real
 			// check.Get(key)
 			// check.Set(key, data)
-			real.Get(key)
-			real.Set(key, data)
+			realTree.Get(key)
+			realTree.Set(key, data)
 		}
 
 		// at the end of a block, move it all along....
-		commitTree(b, real)
-		lastCommit = real
+		commitTree(b, realTree)
+		lastCommit = realTree
 	}
 
 	return lastCommit

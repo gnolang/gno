@@ -189,11 +189,11 @@ func TestCompactBitArrayGetSetIndex(t *testing.T) {
 		bA, _ := randCompactBitArray(bits)
 
 		for j := 0; j < numBitsPerArr; j++ {
-			copy := bA.Copy()
+			copied := bA.Copy()
 			index := r.Intn(bits)
 			val := (r.Int63() % 2) == 0
 			bA.SetIndex(index, val)
-			require.Equal(t, val, bA.GetIndex(index), "bA.SetIndex(%d, %v) failed on bit array: %s", index, val, copy)
+			require.Equal(t, val, bA.GetIndex(index), "bA.SetIndex(%d, %v) failed on bit array: %s", index, val, copied)
 		}
 	}
 }

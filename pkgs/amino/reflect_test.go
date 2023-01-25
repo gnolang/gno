@@ -282,11 +282,11 @@ func TestCodecRoundtripNonNilRegisteredTypeDef(t *testing.T) {
 
 	// try wrapping it in an Any struct
 	// without changing the existing behavior.
-	type any struct {
+	type anyType struct {
 		TypeURL string
 		Value   []byte
 	}
-	anyc3 := any{
+	anyc3 := anyType{
 		TypeURL: "/tests.ConcreteTypeDef",
 		Value:   []byte{0x0a, 0x04, 0x30, 0x31, 0x32, 0x33}, // An implicit struct, the first field which is the length-prefixed 4 bytes.
 	}

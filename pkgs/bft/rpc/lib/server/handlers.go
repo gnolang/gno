@@ -539,9 +539,9 @@ func WriteWait(writeWait time.Duration) func(*wsConnection) {
 
 // WriteChanCapacity sets the capacity of the websocket write channel.
 // It should only be used in the constructor - not Goroutine-safe.
-func WriteChanCapacity(cap int) func(*wsConnection) {
+func WriteChanCapacity(capacity int) func(*wsConnection) {
 	return func(wsc *wsConnection) {
-		wsc.writeChanCapacity = cap
+		wsc.writeChanCapacity = capacity
 	}
 }
 
