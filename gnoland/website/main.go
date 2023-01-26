@@ -285,7 +285,7 @@ func handleRealmRender(app gotuna.App, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	// linkify querystr.
-	queryParts := strings.Split(string(querystr), "/")
+	queryParts := strings.Split(querystr, "/")
 	pathLinks := []pathLink{}
 	for i, part := range queryParts {
 		pathLinks = append(pathLinks, pathLink{
@@ -298,7 +298,7 @@ func handleRealmRender(app gotuna.App, w http.ResponseWriter, r *http.Request) {
 
 	tmpl.Set("RealmName", rlmname)
 	tmpl.Set("RealmPath", rlmpath)
-	tmpl.Set("Query", string(querystr))
+	tmpl.Set("Query", querystr)
 	tmpl.Set("PathLinks", pathLinks)
 	tmpl.Set("Contents", string(res.Data))
 	tmpl.Render(w, r, "realm_render.html", "funcs.html")

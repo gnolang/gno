@@ -91,7 +91,7 @@ GNO_CASE:
 	case IntKind:
 		switch k {
 		case IntKind:
-			x := int(tv.GetInt())
+			x := tv.GetInt()
 			tv.T = t
 			tv.SetInt(x)
 		case Int8Kind:
@@ -154,7 +154,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetInt(x)
 		case Int8Kind:
-			x := int8(tv.GetInt8())
+			x := tv.GetInt8()
 			tv.T = t
 			tv.SetInt8(x)
 		case Int16Kind:
@@ -217,7 +217,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetInt8(x)
 		case Int16Kind:
-			x := int16(tv.GetInt16())
+			x := tv.GetInt16()
 			tv.T = t
 			tv.SetInt16(x)
 		case Int32Kind:
@@ -280,7 +280,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetInt16(x)
 		case Int32Kind:
-			x := int32(tv.GetInt32())
+			x := tv.GetInt32()
 			tv.T = t
 			tv.SetInt32(x)
 		case Int64Kind:
@@ -316,7 +316,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
-			tv.V = alloc.NewString(string(rune(tv.GetInt32())))
+			tv.V = alloc.NewString(string(tv.GetInt32()))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -343,7 +343,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetInt32(x)
 		case Int64Kind:
-			x := int64(tv.GetInt64())
+			x := tv.GetInt64()
 			tv.T = t
 			tv.SetInt64(x)
 		case UintKind:
@@ -406,7 +406,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetInt64(x)
 		case UintKind:
-			x := uint(tv.GetUint())
+			x := tv.GetUint()
 			tv.T = t
 			tv.SetUint(x)
 		case Uint8Kind:
@@ -469,7 +469,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint(x)
 		case Uint8Kind:
-			x := uint8(tv.GetUint8())
+			x := tv.GetUint8()
 			tv.T = t
 			tv.SetUint8(x)
 		case Uint16Kind:
@@ -532,7 +532,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint8(x)
 		case Uint16Kind:
-			x := uint16(tv.GetUint16())
+			x := tv.GetUint16()
 			tv.T = t
 			tv.SetUint16(x)
 		case Uint32Kind:
@@ -595,7 +595,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint16(x)
 		case Uint32Kind:
-			x := uint32(tv.GetUint32())
+			x := tv.GetUint32()
 			tv.T = t
 			tv.SetUint32(x)
 		case Uint64Kind:
@@ -658,7 +658,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint32(x)
 		case Uint64Kind:
-			x := uint64(tv.GetUint64())
+			x := tv.GetUint64()
 			tv.T = t
 			tv.SetUint64(x)
 		case Float32Kind:
@@ -721,7 +721,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case Float32Kind:
-			x := float32(tv.GetFloat32()) // XXX determinism?
+			x := tv.GetFloat32() // XXX determinism?
 			tv.T = t
 			tv.SetFloat32(x)
 		case Float64Kind:
@@ -780,7 +780,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetFloat32(x)
 		case Float64Kind:
-			x := float64(tv.GetFloat64()) // XXX determinism?
+			x := tv.GetFloat64() // XXX determinism?
 			tv.T = t
 			tv.SetFloat64(x)
 		default:
@@ -1004,7 +1004,7 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 		}
 		dst.SetInt16(int16(sv))
 	case Int32Kind:
-		dst.SetInt32(int32(sv))
+		dst.SetInt32(sv)
 	case Int64Kind:
 		dst.SetInt64(int64(sv))
 	case UintKind:
@@ -1258,7 +1258,7 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bv BigdecValue, t Type) {
 		f64, _ := bd.Float64()
 		if f64 == 0 && !bd.IsZero() {
 			panic("cannot convert untyped bigdec to float64 -- too close to zero")
-		} else if math.IsInf(float64(f64), 0) {
+		} else if math.IsInf(f64, 0) {
 			panic("cannot convert untyped bigdec to float64 -- too close to +-Inf")
 		}
 		dst.SetFloat64(f64)
@@ -1270,7 +1270,7 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bv BigdecValue, t Type) {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // apd.Decimal utility
 
 func isInteger(d *apd.Decimal) bool {

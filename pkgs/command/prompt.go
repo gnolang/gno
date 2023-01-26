@@ -104,7 +104,7 @@ func (cmd *Command) readPasswordFromInBuf() (string, error) {
 	var fd int
 	var pass string
 	if cmd.In == os.Stdin {
-		fd = int(syscall.Stdin)
+		fd = syscall.Stdin
 		inputPass, err := term.ReadPassword(fd)
 		if err != nil {
 			return "", err

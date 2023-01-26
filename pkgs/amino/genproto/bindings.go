@@ -1279,7 +1279,7 @@ func _x(expr string, args ...interface{}) ast.Expr {
 			}
 			return &ast.BasicLit{
 				Kind:  token.CHAR,
-				Value: string(expr[1 : len(expr)-1]),
+				Value: expr[1 : len(expr)-1],
 			}
 		case '"', '`':
 			if first != last {
@@ -1287,7 +1287,7 @@ func _x(expr string, args ...interface{}) ast.Expr {
 			}
 			return &ast.BasicLit{
 				Kind:  token.STRING,
-				Value: string(expr),
+				Value: expr,
 			}
 		case ')':
 			left, _, right := chopRight(expr)
@@ -1391,7 +1391,7 @@ func _x(expr string, args ...interface{}) ast.Expr {
 	if isInt {
 		return &ast.BasicLit{
 			Kind:  token.INT,
-			Value: string(expr),
+			Value: expr,
 		}
 	}
 	// Numeric float?  We do these before dots, because dots are legal in floats.
@@ -1407,7 +1407,7 @@ func _x(expr string, args ...interface{}) ast.Expr {
 	if isFloat {
 		return &ast.BasicLit{
 			Kind:  token.FLOAT,
-			Value: string(expr),
+			Value: expr,
 		}
 	}
 	// Last case, handle dots.

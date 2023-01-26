@@ -193,7 +193,7 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 		case UntypedBoolType, BoolType:
 			return fmt.Sprintf("%t", tv.GetBool())
 		case UntypedStringType, StringType:
-			return string(tv.GetString())
+			return tv.GetString()
 		case IntType:
 			return fmt.Sprintf("%d", tv.GetInt())
 		case Int8Type:

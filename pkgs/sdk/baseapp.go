@@ -289,7 +289,7 @@ func (app *BaseApp) getMaximumBlockGas() int64 {
 		return 0
 
 	default:
-		return int64(maxGas)
+		return maxGas
 	}
 }
 

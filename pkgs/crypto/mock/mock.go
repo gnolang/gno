@@ -58,7 +58,7 @@ func (pubKey PubKeyMock) Address() crypto.Address {
 	}
 	addr := crypto.Address{}
 	copy(addr[20-len(pubKey):], pubKey)
-	return crypto.Address(addr)
+	return addr
 }
 
 // Bytes marshals the PubKey using amino encoding.

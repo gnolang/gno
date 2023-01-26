@@ -43,7 +43,7 @@ func (pwl pathWithLeaf) computeRootHash() []byte {
 	return pwl.Path.computeRootHash(leafHash)
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 // PathToLeaf represents an inner path to a leaf node.
 // Note that the nodes are ordered such that the last one is closest
@@ -125,7 +125,7 @@ func (pl PathToLeaf) dropRoot() PathToLeaf {
 	if pl.isEmpty() {
 		return pl
 	}
-	return PathToLeaf(pl[:len(pl)-1])
+	return pl[:len(pl)-1]
 }
 
 func (pl PathToLeaf) hasCommonRoot(pl2 PathToLeaf) bool {

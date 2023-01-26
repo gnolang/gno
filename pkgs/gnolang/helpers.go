@@ -275,7 +275,7 @@ func X(x interface{}, args ...interface{}) Expr {
 			}
 			return &BasicLitExpr{
 				Kind:  CHAR,
-				Value: string(expr[1 : len(expr)-1]),
+				Value: expr[1 : len(expr)-1],
 			}
 		case '"', '`':
 			if first != last {
@@ -283,7 +283,7 @@ func X(x interface{}, args ...interface{}) Expr {
 			}
 			return &BasicLitExpr{
 				Kind:  STRING,
-				Value: string(expr),
+				Value: expr,
 			}
 		case ')':
 			left, _, right := chopRight(expr)
@@ -394,7 +394,7 @@ func X(x interface{}, args ...interface{}) Expr {
 	if isInt {
 		return &BasicLitExpr{
 			Kind:  INT,
-			Value: string(expr),
+			Value: expr,
 		}
 	}
 	// Numeric float?  We do these before dots, because dots are legal in floats.
@@ -410,7 +410,7 @@ func X(x interface{}, args ...interface{}) Expr {
 	if isFloat {
 		return &BasicLitExpr{
 			Kind:  FLOAT,
-			Value: string(expr),
+			Value: expr,
 		}
 	}
 	// Last case, handle dots.

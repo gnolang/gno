@@ -104,7 +104,7 @@ func PrecompileAndCheckMempkg(mempkg *std.MemPackage) error {
 		if !strings.HasSuffix(mfile.Name, ".gno") {
 			continue // skip spurious file.
 		}
-		res, err := Precompile(string(mfile.Body), "gno,tmp", mfile.Name)
+		res, err := Precompile(mfile.Body, "gno,tmp", mfile.Name)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue

@@ -390,7 +390,7 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 	case reflect.Int32:
 		tv.SetInt32(int32(rv.Int()))
 	case reflect.Int64:
-		tv.SetInt64(int64(rv.Int()))
+		tv.SetInt64(rv.Int())
 	case reflect.Uint:
 		tv.SetUint(uint(rv.Uint()))
 	case reflect.Uint8:
@@ -400,11 +400,11 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 	case reflect.Uint32:
 		tv.SetUint32(uint32(rv.Uint()))
 	case reflect.Uint64:
-		tv.SetUint64(uint64(rv.Uint()))
+		tv.SetUint64(rv.Uint())
 	case reflect.Float32:
 		tv.SetFloat32(float32(rv.Float()))
 	case reflect.Float64:
-		tv.SetFloat64(float64(rv.Float()))
+		tv.SetFloat64(rv.Float())
 	case reflect.Array:
 		tv.V = alloc.NewNative(rv)
 	case reflect.Slice:
@@ -477,7 +477,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 		}
 	case Int64Kind:
 		if lvl != 0 {
-			tv.SetInt64(int64(rv.Int()))
+			tv.SetInt64(rv.Int())
 		}
 	case UintKind:
 		if lvl != 0 {
@@ -497,7 +497,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 		}
 	case Uint64Kind:
 		if lvl != 0 {
-			tv.SetUint64(uint64(rv.Uint()))
+			tv.SetUint64(rv.Uint())
 		}
 	case Float32Kind:
 		if lvl != 0 {
@@ -505,7 +505,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 		}
 	case Float64Kind:
 		if lvl != 0 {
-			tv.SetFloat64(float64(rv.Float()))
+			tv.SetFloat64(rv.Float())
 		}
 	case BigintKind:
 		panic("not yet implemented")
@@ -702,7 +702,7 @@ func go2GnoValue2(alloc *Allocator, store Store, rv reflect.Value, recursive boo
 	case reflect.Int32:
 		tv.SetInt32(int32(rv.Int()))
 	case reflect.Int64:
-		tv.SetInt64(int64(rv.Int()))
+		tv.SetInt64(rv.Int())
 	case reflect.Uint:
 		tv.SetUint(uint(rv.Uint()))
 	case reflect.Uint8:
@@ -712,11 +712,11 @@ func go2GnoValue2(alloc *Allocator, store Store, rv reflect.Value, recursive boo
 	case reflect.Uint32:
 		tv.SetUint32(uint32(rv.Uint()))
 	case reflect.Uint64:
-		tv.SetUint64(uint64(rv.Uint()))
+		tv.SetUint64(rv.Uint())
 	case reflect.Float32:
 		tv.SetFloat32(float32(rv.Float()))
 	case reflect.Float64:
-		tv.SetFloat64(float64(rv.Float()))
+		tv.SetFloat64(rv.Float())
 	case reflect.Array:
 		rvl := rv.Len()
 		if rv.Type().Elem().Kind() == reflect.Uint8 {
@@ -1088,7 +1088,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		case BoolType, UntypedBoolType:
 			rv.SetBool(tv.GetBool())
 		case StringType, UntypedStringType:
-			rv.SetString(string(tv.GetString()))
+			rv.SetString(tv.GetString())
 		case IntType:
 			rv.SetInt(int64(tv.GetInt()))
 		case Int8Type:
@@ -1098,7 +1098,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		case Int32Type, UntypedRuneType:
 			rv.SetInt(int64(tv.GetInt32()))
 		case Int64Type:
-			rv.SetInt(int64(tv.GetInt64()))
+			rv.SetInt(tv.GetInt64())
 		case UintType:
 			rv.SetUint(uint64(tv.GetUint()))
 		case Uint8Type:
@@ -1108,11 +1108,11 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		case Uint32Type:
 			rv.SetUint(uint64(tv.GetUint32()))
 		case Uint64Type:
-			rv.SetUint(uint64(tv.GetUint64()))
+			rv.SetUint(tv.GetUint64())
 		case Float32Type:
 			rv.SetFloat(float64(tv.GetFloat32()))
 		case Float64Type:
-			rv.SetFloat(float64(tv.GetFloat64()))
+			rv.SetFloat(tv.GetFloat64())
 		default:
 			panic(fmt.Sprintf(
 				"unexpected type %s",

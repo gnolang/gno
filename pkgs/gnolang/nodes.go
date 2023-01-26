@@ -1281,7 +1281,7 @@ func PackageNodeLocation(path string) Location {
 func NewPackageNode(name Name, path string, fset *FileSet) *PackageNode {
 	pn := &PackageNode{
 		PkgPath: path,
-		PkgName: Name(name),
+		PkgName: name,
 		FileSet: fset,
 	}
 	pn.SetLocation(PackageNodeLocation(path))
@@ -1861,7 +1861,7 @@ func NewValuePath(t VPType, depth uint8, index uint16, n Name) ValuePath {
 }
 
 func NewValuePathUverse(index uint16, n Name) ValuePath {
-	return NewValuePath(VPUverse, 0, uint16(index), n)
+	return NewValuePath(VPUverse, 0, index, n)
 }
 
 func NewValuePathBlock(depth uint8, index uint16, n Name) ValuePath {

@@ -467,7 +467,7 @@ func (sv *StructValue) GetPointerToInt(store Store, index int) PointerValue {
 	return PointerValue{
 		TV:    fv,
 		Base:  sv,
-		Index: int(index),
+		Index: index,
 	}
 }
 
@@ -1046,16 +1046,16 @@ func (tv *TypedValue) PrimitiveBytes() (data []byte) {
 			data, uint64(tv.GetInt()))
 		return data
 	case Uint8Type:
-		return []byte{uint8(tv.GetUint8())}
+		return []byte{tv.GetUint8()}
 	case Uint16Type:
 		data = make([]byte, 2)
 		binary.LittleEndian.PutUint16(
-			data, uint16(tv.GetUint16()))
+			data, tv.GetUint16())
 		return data
 	case Uint32Type:
 		data = make([]byte, 4)
 		binary.LittleEndian.PutUint32(
-			data, uint32(tv.GetUint32()))
+			data, tv.GetUint32())
 		return data
 	case UintType, Uint64Type:
 		data = make([]byte, 8)
@@ -1066,13 +1066,13 @@ func (tv *TypedValue) PrimitiveBytes() (data []byte) {
 		data = make([]byte, 4)
 		u32 := math.Float32bits(tv.GetFloat32())
 		binary.LittleEndian.PutUint32(
-			data, uint32(u32))
+			data, u32)
 		return data
 	case Float64Type:
 		data = make([]byte, 8)
 		u64 := math.Float64bits(tv.GetFloat64())
 		binary.LittleEndian.PutUint64(
-			data, uint64(u64))
+			data, u64)
 		return data
 	case BigintType:
 		return tv.V.(BigintValue).V.Bytes()
@@ -2309,7 +2309,7 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 	return PointerValue{
 		TV:    vv,
 		Base:  b,
-		Index: int(index),
+		Index: index,
 	}
 }
 
@@ -2480,7 +2480,7 @@ func untypedBool(b bool) TypedValue {
 
 func typedRune(r rune) TypedValue {
 	tv := TypedValue{T: Int32Type}
-	tv.SetInt32(int32(r))
+	tv.SetInt32(r)
 	return tv
 }
 

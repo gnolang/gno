@@ -103,7 +103,7 @@ func (m *Machine) doOpEval() {
 					panic("should not happen")
 				}
 
-				//----------------------------------------
+				// ----------------------------------------
 				// NewFromHexString()
 				// TODO: move this to another function.
 
@@ -176,7 +176,7 @@ func (m *Machine) doOpEval() {
 				}
 
 				// NewFromHexString() END
-				//----------------------------------------
+				// ----------------------------------------
 
 				m.PushValue(TypedValue{
 					T: UntypedBigdecType,
@@ -203,7 +203,7 @@ func (m *Machine) doOpEval() {
 				panic(fmt.Sprintf("error in parsing character literal: 1 rune expected, but got %v (%s)", len(runes), cstr))
 			}
 			tv := TypedValue{T: UntypedRuneType}
-			tv.SetInt32(int32(rune(runes[0])))
+			tv.SetInt32(runes[0])
 			m.PushValue(tv)
 		case STRING:
 			m.PushValue(TypedValue{

@@ -795,7 +795,7 @@ func TestTxGasLimits(t *testing.T) {
 			newCtx = ctx.WithGasMeter(gmeter)
 
 			count := getCounter(tx)
-			newCtx.GasMeter().ConsumeGas(int64(count), "counter-ante")
+			newCtx.GasMeter().ConsumeGas(count, "counter-ante")
 			res = Result{
 				GasWanted: gasGranted,
 			}
@@ -806,7 +806,7 @@ func TestTxGasLimits(t *testing.T) {
 	routerOpt := func(bapp *BaseApp) {
 		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
 			count := msg.(msgCounter).Counter
-			ctx.GasMeter().ConsumeGas(int64(count), "counter-handler")
+			ctx.GasMeter().ConsumeGas(count, "counter-handler")
 			return Result{}
 		}))
 	}
@@ -869,7 +869,7 @@ func TestMaxBlockGasLimits(t *testing.T) {
 			newCtx = ctx.WithGasMeter(gmeter)
 
 			count := getCounter(tx)
-			newCtx.GasMeter().ConsumeGas(int64(count), "counter-ante")
+			newCtx.GasMeter().ConsumeGas(count, "counter-ante")
 			res = Result{
 				GasWanted: gasGranted,
 			}
@@ -880,7 +880,7 @@ func TestMaxBlockGasLimits(t *testing.T) {
 	routerOpt := func(bapp *BaseApp) {
 		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
 			count := msg.(msgCounter).Counter
-			ctx.GasMeter().ConsumeGas(int64(count), "counter-handler")
+			ctx.GasMeter().ConsumeGas(count, "counter-handler")
 			return Result{}
 		}))
 	}
@@ -1026,7 +1026,7 @@ func TestGasConsumptionBadTx(t *testing.T) {
 			)
 			newCtx = ctx.WithGasMeter(gmeter)
 
-			newCtx.GasMeter().ConsumeGas(int64(getCounter(tx)), "counter-ante")
+			newCtx.GasMeter().ConsumeGas(getCounter(tx), "counter-ante")
 			if getFailOnAnte(tx) {
 				res.Error = ABCIError(std.ErrInternal("ante handler failure"))
 				return newCtx, res, true
@@ -1042,7 +1042,7 @@ func TestGasConsumptionBadTx(t *testing.T) {
 	routerOpt := func(bapp *BaseApp) {
 		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
 			count := msg.(msgCounter).Counter
-			ctx.GasMeter().ConsumeGas(int64(count), "counter-handler")
+			ctx.GasMeter().ConsumeGas(count, "counter-handler")
 			return Result{}
 		}))
 	}

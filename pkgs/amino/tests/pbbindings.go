@@ -1,4 +1,4 @@
-//nolint:stylecheck
+//nolint:stylecheck,unconvert
 package tests
 
 import (

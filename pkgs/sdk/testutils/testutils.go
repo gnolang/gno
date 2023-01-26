@@ -49,7 +49,7 @@ func NewTestCoins() std.Coins {
 func KeyTestPubAddr() (crypto.PrivKey, crypto.PubKey, crypto.Address) {
 	key := secp256k1.GenPrivKey()
 	pub := key.PubKey()
-	addr := crypto.Address(pub.Address())
+	addr := pub.Address()
 	return key, pub, addr
 }
 

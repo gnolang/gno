@@ -916,7 +916,7 @@ func TestCustomSignatureVerificationGasConsumer(t *testing.T) {
 	// verify that an ed25519 account gets accepted
 	priv2 := ed25519.GenPrivKey()
 	pub2 := priv2.PubKey()
-	addr2 := crypto.Address(pub2.Address())
+	addr2 := pub2.Address()
 	acc2 := env.acck.NewAccountWithAddress(ctx, addr2)
 	require.NoError(t, acc2.SetCoins(std.NewCoins(std.NewCoin("atom", 150))))
 	require.NoError(t, acc2.SetAccountNumber(1))

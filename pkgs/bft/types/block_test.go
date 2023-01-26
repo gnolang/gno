@@ -135,13 +135,13 @@ func makeBlockID(hash []byte, partSetSize int, partSetHash []byte) BlockID {
 var nilBytes []byte
 
 func TestNilHeaderHashDoesntCrash(t *testing.T) {
-	assert.Equal(t, []byte((*Header)(nil).Hash()), nilBytes)
-	assert.Equal(t, []byte((new(Header)).Hash()), nilBytes)
+	assert.Equal(t, (*Header)(nil).Hash(), nilBytes)
+	assert.Equal(t, (new(Header)).Hash(), nilBytes)
 }
 
 func TestNilDataHashDoesntCrash(t *testing.T) {
-	assert.Equal(t, []byte((*Data)(nil).Hash()), nilBytes)
-	assert.Equal(t, []byte(new(Data).Hash()), nilBytes)
+	assert.Equal(t, (*Data)(nil).Hash(), nilBytes)
+	assert.Equal(t, new(Data).Hash(), nilBytes)
 }
 
 func TestCommit(t *testing.T) {
