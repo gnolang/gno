@@ -14,7 +14,7 @@ import (
 // cannot, and so you cannot create types through reflection that obey any
 // interface but the empty interface.
 
-//----------------------------------------
+// ----------------------------------------
 // Go to Gno conversion
 
 // See go2GnoValue(); this is lazy.
@@ -783,7 +783,7 @@ func go2GnoValue2(alloc *Allocator, store Store, rv reflect.Value, recursive boo
 	return
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Gno to Go conversion
 
 // NOTE: Recursive types are not supported, as named types are not
@@ -1238,10 +1238,10 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 	return
 }
 
-//----------------------------------------
+// ----------------------------------------
 // PackageNode methods
 
-func (pn *PackageNode) DefineGoNativeType(rt reflect.Type) {
+func (x *PackageNode) DefineGoNativeType(rt reflect.Type) {
 	if debug {
 		debug.Printf("*PackageNode.DefineGoNativeType(%s)\n", rt.String())
 	}
@@ -1266,10 +1266,10 @@ func (pn *PackageNode) DefineGoNativeType(rt reflect.Type) {
 			rt.String()))
 	}
 	nt := &NativeType{Type: rt}
-	pn.Define(Name(name), asValue(nt))
+	x.Define(Name(name), asValue(nt))
 }
 
-func (pn *PackageNode) DefineGoNativeValue(n Name, nv interface{}) {
+func (x *PackageNode) DefineGoNativeValue(n Name, nv interface{}) {
 	if debug {
 		debug.Printf("*PackageNode.DefineGoNativeValue(%s)\n", reflect.ValueOf(nv).String())
 	}
@@ -1278,10 +1278,10 @@ func (pn *PackageNode) DefineGoNativeValue(n Name, nv interface{}) {
 	rt := rv.Type()
 	rv2 := reflect.New(rt).Elem()
 	rv2.Set(rv)
-	pn.Define(n, go2GnoValue(nilAllocator, rv2))
+	x.Define(n, go2GnoValue(nilAllocator, rv2))
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Machine methods
 
 func (m *Machine) doOpArrayLitGoNative() {
@@ -1454,7 +1454,7 @@ func (m *Machine) doOpCallGoNative() {
 	m.PopFrame()
 }
 
-//----------------------------------------
+// ----------------------------------------
 // misc
 
 func toChanDir(dir reflect.ChanDir) ChanDir {

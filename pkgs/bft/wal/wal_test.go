@@ -27,7 +27,7 @@ type TestMessage struct {
 	Data     []byte
 }
 
-func (_ TestMessage) AssertWALMessage() {}
+func (TestMessage) AssertWALMessage() {}
 
 var testPackage = amino.RegisterPackage(amino.NewPackage(
 	"github.com/gnolang/gno/pkgs/bft/wal",

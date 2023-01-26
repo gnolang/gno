@@ -619,7 +619,7 @@ FOR_LOOP:
 		case PacketMsg:
 			channel, ok := c.channelsIdx[pkt.ChannelID]
 			if !ok || channel == nil {
-				err := fmt.Errorf("Unknown channel %X", pkt.ChannelID)
+				err := fmt.Errorf("unknown channel %X", pkt.ChannelID)
 				c.Logger.Error("Connection failed @ recvRoutine", "conn", c, "err", err)
 				c.stopForError(err)
 				break FOR_LOOP
@@ -639,7 +639,7 @@ FOR_LOOP:
 				c.onReceive(pkt.ChannelID, msgBytes)
 			}
 		default:
-			err := fmt.Errorf("Unknown message type %v", reflect.TypeOf(packet))
+			err := fmt.Errorf("unknown message type %v", reflect.TypeOf(packet))
 			c.Logger.Error("Connection failed @ recvRoutine", "conn", c, "err", err)
 			c.stopForError(err)
 			break FOR_LOOP
@@ -846,7 +846,7 @@ func (ch *Channel) recvPacketMsg(packet PacketMsg) ([]byte, error) {
 	ch.Logger.Debug("Read PacketMsg", "conn", ch.conn, "packet", packet)
 	recvCap, recvReceived := ch.desc.RecvMessageCapacity, len(ch.recving)+len(packet.Bytes)
 	if recvCap < recvReceived {
-		return nil, fmt.Errorf("Received message exceeds available capacity: %v < %v", recvCap, recvReceived)
+		return nil, fmt.Errorf("received message exceeds available capacity: %v < %v", recvCap, recvReceived)
 	}
 	ch.recving = append(ch.recving, packet.Bytes...)
 	if packet.EOF == byte(0x01) {
@@ -877,9 +877,9 @@ type Packet interface {
 	AssertPacket()
 }
 
-func (_ PacketPing) AssertPacket() {}
-func (_ PacketPong) AssertPacket() {}
-func (_ PacketMsg) AssertPacket()  {}
+func (PacketPing) AssertPacket() {}
+func (PacketPong) AssertPacket() {}
+func (PacketMsg) AssertPacket()  {}
 
 type PacketPing struct{}
 

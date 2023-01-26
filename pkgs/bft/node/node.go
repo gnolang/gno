@@ -17,7 +17,6 @@ import (
 	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
 	bc "github.com/gnolang/gno/pkgs/bft/blockchain"
 	cfg "github.com/gnolang/gno/pkgs/bft/config"
-	"github.com/gnolang/gno/pkgs/bft/consensus"
 	cs "github.com/gnolang/gno/pkgs/bft/consensus"
 	mempl "github.com/gnolang/gno/pkgs/bft/mempool"
 	"github.com/gnolang/gno/pkgs/bft/privval"
@@ -305,7 +304,7 @@ func createConsensusReactor(config *cfg.Config,
 	fastSync bool,
 	evsw events.EventSwitch,
 	consensusLogger log.Logger,
-) (*consensus.ConsensusReactor, *consensus.ConsensusState) {
+) (*cs.ConsensusReactor, *cs.ConsensusState) {
 	consensusState := cs.NewConsensusState(
 		config.Consensus,
 		state.Copy(),
@@ -391,7 +390,7 @@ func createSwitch(config *cfg.Config,
 	peerFilters []p2p.PeerFilterFunc,
 	mempoolReactor *mempl.Reactor,
 	bcReactor p2p.Reactor,
-	consensusReactor *consensus.ConsensusReactor,
+	consensusReactor *cs.ConsensusReactor,
 	nodeInfo p2p.NodeInfo,
 	nodeKey *p2p.NodeKey,
 	p2pLogger log.Logger,

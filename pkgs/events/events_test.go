@@ -331,7 +331,7 @@ func TestRemoveListenersAsync(t *testing.T) {
 	}
 }
 
-//------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 // Helper functions
 
 // sumReceivedNumbers takes two channels and adds all numbers received
@@ -369,8 +369,8 @@ func fireEvents(evsw EventSwitch, doneChan chan uint64,
 
 type Uint64Event uint64
 
-func (_ Uint64Event) AssertEvent() {}
+func (Uint64Event) AssertEvent() {}
 
 type StringEvent string
 
-func (_ StringEvent) AssertEvent() {}
+func (StringEvent) AssertEvent() {}

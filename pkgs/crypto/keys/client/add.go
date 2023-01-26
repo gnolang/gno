@@ -49,7 +49,7 @@ func addApp(cmd *command.Command, args []string, iopts interface{}) error {
 	var kb keys.Keybase
 	var err error
 	var encryptPassword string
-	var opts AddOptions = iopts.(AddOptions)
+	var opts = iopts.(AddOptions)
 
 	if len(args) != 1 {
 		cmd.ErrPrintfln("Usage: add <keyname>")

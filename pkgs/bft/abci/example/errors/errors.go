@@ -1,6 +1,6 @@
 package errors
 
-//----------------------------------------
+// ----------------------------------------
 // Error types
 
 type (
@@ -10,15 +10,15 @@ type (
 	UnknownError  struct{}
 )
 
-//----------------------------------------
+// ----------------------------------------
 // All errors must implement abci.Error
 
-func (_ EncodingError) AssertABCIError() {}
-func (_ BadNonce) AssertABCIError()      {}
-func (_ Unauthorized) AssertABCIError()  {}
-func (_ UnknownError) AssertABCIError()  {}
+func (EncodingError) AssertABCIError() {}
+func (BadNonce) AssertABCIError()      {}
+func (Unauthorized) AssertABCIError()  {}
+func (UnknownError) AssertABCIError()  {}
 
-func (_ EncodingError) Error() string { return "EncodingError" }
-func (_ BadNonce) Error() string      { return "BadNonce" }
-func (_ Unauthorized) Error() string  { return "Unauthorized" }
-func (_ UnknownError) Error() string  { return "UnknownError" }
+func (EncodingError) Error() string { return "EncodingError" }
+func (BadNonce) Error() string      { return "BadNonce" }
+func (Unauthorized) Error() string  { return "Unauthorized" }
+func (UnknownError) Error() string  { return "UnknownError" }

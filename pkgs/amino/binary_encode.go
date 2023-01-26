@@ -9,9 +9,9 @@ import (
 	"reflect"
 )
 
-const be_option_byte = 0x01
+const beOptionByte = 0x01
 
-//----------------------------------------
+// ----------------------------------------
 // cdc.encodeReflectBinary
 
 /*
@@ -74,7 +74,7 @@ func (cdc *Codec) encodeReflectBinary(w io.Writer, info *TypeInfo, rv reflect.Va
 	if info.IsAminoMarshaler {
 		// First, encode rv into repr instance.
 		var rrv reflect.Value
-		var rinfo *TypeInfo = info.ReprType
+		var rinfo = info.ReprType
 		rrv, err = toReprObject(rv)
 		if err != nil {
 			return
@@ -86,7 +86,7 @@ func (cdc *Codec) encodeReflectBinary(w io.Writer, info *TypeInfo, rv reflect.Va
 
 	switch info.Type.Kind() {
 
-	//----------------------------------------
+	// ----------------------------------------
 	// Complex
 
 	case reflect.Interface:
@@ -109,7 +109,7 @@ func (cdc *Codec) encodeReflectBinary(w io.Writer, info *TypeInfo, rv reflect.Va
 	case reflect.Struct:
 		err = cdc.encodeReflectBinaryStruct(w, info, rv, fopts, bare)
 
-	//----------------------------------------
+	// ----------------------------------------
 	// Signed
 
 	case reflect.Int64:
@@ -141,7 +141,7 @@ func (cdc *Codec) encodeReflectBinary(w io.Writer, info *TypeInfo, rv reflect.Va
 			err = EncodeVarint(w, rv.Int())
 		}
 
-	//----------------------------------------
+	// ----------------------------------------
 	// Unsigned
 
 	case reflect.Uint64:
@@ -162,7 +162,7 @@ func (cdc *Codec) encodeReflectBinary(w io.Writer, info *TypeInfo, rv reflect.Va
 		err = EncodeUvarint(w, rv.Uint())
 
 	case reflect.Uint8:
-		if options&be_option_byte != 0 {
+		if options&beOptionByte != 0 {
 			err = EncodeByte(w, uint8(rv.Uint()))
 		} else {
 			err = EncodeUvarint(w, rv.Uint())
@@ -177,7 +177,7 @@ func (cdc *Codec) encodeReflectBinary(w io.Writer, info *TypeInfo, rv reflect.Va
 			err = EncodeUvarint(w, rv.Uint())
 		}
 
-	//----------------------------------------
+	// ----------------------------------------
 	// Misc
 
 	case reflect.Bool:
@@ -200,7 +200,7 @@ func (cdc *Codec) encodeReflectBinary(w io.Writer, info *TypeInfo, rv reflect.Va
 	case reflect.String:
 		err = EncodeString(w, rv.String())
 
-	//----------------------------------------
+	// ----------------------------------------
 	// Default
 
 	default:
@@ -365,10 +365,10 @@ func (cdc *Codec) encodeReflectBinaryList(w io.Writer, info *TypeInfo, rv reflec
 	newoptions := uint64(0)
 	// Special case for list of (repr) bytes: encode as "bytes".
 	if einfo.ReprType.Type.Kind() == reflect.Uint8 {
-		newoptions |= be_option_byte
+		newoptions |= beOptionByte
 	}
 	typ3 := einfo.GetTyp3(fopts)
-	if typ3 != Typ3ByteLength || (newoptions&be_option_byte > 0) {
+	if typ3 != Typ3ByteLength || (newoptions&beOptionByte > 0) {
 		// Write elems in packed form.
 		for i := 0; i < rv.Len(); i++ {
 			erv := rv.Index(i)
@@ -531,7 +531,7 @@ func (cdc *Codec) encodeReflectBinaryStruct(w io.Writer, info *TypeInfo, rv refl
 	return writeMaybeBare(w, buf.Bytes(), bare)
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Misc.
 
 // Write field key.

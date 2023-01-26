@@ -249,7 +249,7 @@ func (p3c *P3Context) GenerateProto3ListPartial(p3doc *P3Doc, nl NList) (p3msg P
 // pkg is optional.
 func (p3c *P3Context) GenerateProto3SchemaForTypes(pkg *amino.Package, rtz ...reflect.Type) (p3doc P3Doc) {
 	if pkg.P3PkgName == "" {
-		panic(errors.New("cannot generate schema in the root package \"\"."))
+		panic(errors.New("cannot generate schema in the root package \"\""))
 	}
 
 	// Set the package.

@@ -1998,7 +1998,7 @@ func goPkgPrefix(
 		return "" // native type.
 	}
 	var pkgName string
-	var pkgPath string = rt.PkgPath()
+	var pkgPath = rt.PkgPath()
 	if pkgPath == "" || rootPkg.GoPkgPath == pkgPath {
 		return ""
 	}

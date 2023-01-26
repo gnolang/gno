@@ -184,13 +184,13 @@ func (dve *DuplicateVoteEvidence) ValidateBasic() error {
 		return errors.New("Empty PubKey")
 	}
 	if dve.VoteA == nil || dve.VoteB == nil {
-		return fmt.Errorf("One or both of the votes are empty %v, %v", dve.VoteA, dve.VoteB)
+		return fmt.Errorf("one or both of the votes are empty %v, %v", dve.VoteA, dve.VoteB)
 	}
 	if err := dve.VoteA.ValidateBasic(); err != nil {
-		return fmt.Errorf("Invalid VoteA: %v", err)
+		return fmt.Errorf("invalid VoteA: %v", err)
 	}
 	if err := dve.VoteB.ValidateBasic(); err != nil {
-		return fmt.Errorf("Invalid VoteB: %v", err)
+		return fmt.Errorf("invalid VoteB: %v", err)
 	}
 	return nil
 }

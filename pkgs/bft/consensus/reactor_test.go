@@ -752,10 +752,10 @@ func TestVoteSetBitsMessageValidateBasic(t *testing.T) {
 					Hash:  []byte{},
 				},
 			}
-		}, "Wrong BlockID: Wrong PartsHeader: Negative Total"},
+		}, "wrong BlockID: wrong PartsHeader: Negative Total"},
 		{
 			func(msg *VoteSetBitsMessage) { msg.Votes = bitarray.NewBitArray(types.MaxVotesCount + 1) },
-			"Votes bit array is too big: 10001, max: 10000",
+			"votes bit array is too big: 10001, max: 10000",
 		},
 	}
 

@@ -59,14 +59,14 @@ func (cs *ConsensusState) readReplayMessage(
 			select {
 			case stepMsg, ok := <-newStepSub:
 				if !ok {
-					return fmt.Errorf("Failed to read off newStepSub. newStepSub was cancelled")
+					return fmt.Errorf("failed to read off newStepSub. newStepSub was cancelled")
 				}
 				m2 := stepMsg.(cstypes.EventNewRoundStep)
 				if m.Height != m2.Height || m.Round != m2.Round || m.Step != m2.Step {
 					return fmt.Errorf("RoundState mismatch. Got %v; Expected %v", m2, m)
 				}
 			case <-ticker:
-				return fmt.Errorf("Failed to read off newStepSub.")
+				return fmt.Errorf("failed to read off newStepSub")
 			}
 		}
 	case msgInfo:
@@ -92,7 +92,7 @@ func (cs *ConsensusState) readReplayMessage(
 		cs.Logger.Info("Replay: Timeout", "height", m.Height, "round", m.Round, "step", m.Step, "dur", m.Duration)
 		cs.handleTimeout(m, cs.RoundState)
 	default:
-		return fmt.Errorf("Replay: Unknown TimedWALMessage type: %v", reflect.TypeOf(msg.Msg))
+		return fmt.Errorf("replay: Unknown TimedWALMessage type: %v", reflect.TypeOf(msg.Msg))
 	}
 	return nil
 }
@@ -133,7 +133,7 @@ func (cs *ConsensusState) catchupReplay(csHeight int64) error {
 		return err
 	}
 	if !found {
-		return fmt.Errorf("Cannot replay height %d. WAL does not contain #ENDHEIGHT for %d", csHeight, csHeight-1)
+		return fmt.Errorf("cannot replay height %d. WAL does not contain #ENDHEIGHT for %d", csHeight, csHeight-1)
 	}
 	defer gr.Close() //nolint: errcheck
 
@@ -246,7 +246,7 @@ func (h *Handshaker) Handshake(proxyApp proxy.AppConns) error {
 
 	blockHeight := res.LastBlockHeight
 	if blockHeight < 0 {
-		return fmt.Errorf("Got a negative last block height (%d) from the app", blockHeight)
+		return fmt.Errorf("got a negative last block height (%d) from the app", blockHeight)
 	}
 	appHash := res.LastBlockAppHash
 

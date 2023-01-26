@@ -323,7 +323,7 @@ func validateValidatorUpdates(abciUpdates []abci.ValidatorUpdate,
 ) error {
 	for _, valUpdate := range abciUpdates {
 		if valUpdate.Power < 0 {
-			return fmt.Errorf("Voting power can't be negative %v", valUpdate)
+			return fmt.Errorf("voting power can't be negative %v", valUpdate)
 		} else if valUpdate.Power == 0 {
 			// continue, since this is deleting the validator, and thus there is no
 			// pubkey to check
@@ -333,7 +333,7 @@ func validateValidatorUpdates(abciUpdates []abci.ValidatorUpdate,
 		// Check if validator's pubkey matches an ABCI type in the consensus params
 		pubkeyTypeURL := amino.GetTypeURL(valUpdate.PubKey)
 		if !params.IsValidPubKeyTypeURL(pubkeyTypeURL) {
-			return fmt.Errorf("Validator %v is using pubkey %s, which is unsupported for consensus",
+			return fmt.Errorf("validator %v is using pubkey %s, which is unsupported for consensus",
 				valUpdate, pubkeyTypeURL)
 		}
 	}

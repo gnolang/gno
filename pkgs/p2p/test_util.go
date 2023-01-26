@@ -40,7 +40,7 @@ func CreateRandomPeer(outbound bool) *peer {
 
 func CreateRoutableAddr() (addr string, netAddr *NetAddress) {
 	for {
-		var id crypto.ID = ed25519.GenPrivKey().PubKey().Address().ID()
+		var id = ed25519.GenPrivKey().PubKey().Address().ID()
 		var err error
 		addr = fmt.Sprintf(
 			"%s@%v.%v.%v.%v:26656",

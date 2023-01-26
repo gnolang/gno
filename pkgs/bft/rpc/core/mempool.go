@@ -15,7 +15,7 @@ import (
 	"github.com/gnolang/gno/pkgs/service"
 )
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // NOTE: tx should be signed, but this is only checked at the app level (not by Tendermint!)
 
 // Returns right away, with no response. Does not wait for CheckTx nor
@@ -232,7 +232,7 @@ func BroadcastTxCommit(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadc
 	})
 	if err != nil {
 		logger.Error("Error on broadcastTxCommit", "err", err)
-		return nil, fmt.Errorf("Error on broadcastTxCommit: %v", err)
+		return nil, fmt.Errorf("error on broadcastTxCommit: %v", err)
 	}
 	checkTxResMsg := <-checkTxResCh
 	checkTxRes := checkTxResMsg.(abci.ResponseCheckTx)
@@ -351,7 +351,7 @@ func NumUnconfirmedTxs(ctx *rpctypes.Context) (*ctypes.ResultUnconfirmedTxs, err
 	}, nil
 }
 
-//----------------------------------------
+// ----------------------------------------
 // txListener
 
 // NOTE: txDispatcher doesn't handle any throttling or resource management.

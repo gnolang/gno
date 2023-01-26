@@ -19,7 +19,6 @@ import (
 	"github.com/gnolang/gno/pkgs/crypto"
 	"github.com/gnolang/gno/pkgs/errors"
 	"github.com/gnolang/gno/pkgs/events"
-	tmevents "github.com/gnolang/gno/pkgs/events"
 	"github.com/gnolang/gno/pkgs/log"
 	osm "github.com/gnolang/gno/pkgs/os"
 	"github.com/gnolang/gno/pkgs/p2p"
@@ -160,7 +159,7 @@ func NewConsensusState(
 		statsMsgQueue:    make(chan msgInfo, msgQueueSize),
 		done:             nil,
 		doWALCatchup:     true,
-		evsw:             tmevents.NewEventSwitch(),
+		evsw:             events.NewEventSwitch(),
 		wal:              walm.NopWAL{},
 	}
 	// set function defaults (may be overwritten before calling Start)
@@ -1816,12 +1815,12 @@ func (cs *ConsensusState) voteTime() time.Time {
 	minVoteTime := now
 	// TODO: We should remove next line in case we don't vote for v in case cs.ProposalBlock == nil,
 	// even if cs.LockedBlock != nil. See https://github.com/tendermint/spec.
-	timeIotaMS := time.Duration(cs.state.ConsensusParams.Block.TimeIotaMS) * time.Millisecond
+	timeIota := time.Duration(cs.state.ConsensusParams.Block.TimeIotaMS) * time.Millisecond
 	if cs.LockedBlock != nil {
 		// See the BFT time spec https://tendermint.com/docs/spec/consensus/bft-time.html
-		minVoteTime = cs.LockedBlock.Time.Add(timeIotaMS)
+		minVoteTime = cs.LockedBlock.Time.Add(timeIota)
 	} else if cs.ProposalBlock != nil {
-		minVoteTime = cs.ProposalBlock.Time.Add(timeIotaMS)
+		minVoteTime = cs.ProposalBlock.Time.Add(timeIota)
 	}
 
 	if now.After(minVoteTime) {

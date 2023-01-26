@@ -18,7 +18,7 @@ func TestCreateAccountInvalidMnemonic(t *testing.T) {
 		"malarkey pair crucial catch public canyon evil outer stage ten gym tornado",
 		"", "", 0, 1)
 	assert.Error(t, err)
-	assert.Equal(t, "Invalid mnemonic", err.Error())
+	assert.Equal(t, "invalid mnemonic", err.Error())
 }
 
 func TestCreateLedgerUnsupportedAlgo(t *testing.T) {

@@ -40,7 +40,7 @@ func DecryptSymmetric(ciphertext []byte, secret []byte) (plaintext []byte, err e
 		panic(fmt.Sprintf("Secret must be 32 bytes long, got len %v", len(secret)))
 	}
 	if len(ciphertext) <= secretbox.Overhead+nonceLen {
-		return nil, errors.New("Ciphertext is too short")
+		return nil, errors.New("ciphertext is too short")
 	}
 	nonce := ciphertext[:nonceLen]
 	nonceArr := [nonceLen]byte{}
@@ -50,7 +50,7 @@ func DecryptSymmetric(ciphertext []byte, secret []byte) (plaintext []byte, err e
 	plaintext = make([]byte, len(ciphertext)-nonceLen-secretbox.Overhead)
 	_, ok := secretbox.Open(plaintext[:0], ciphertext[nonceLen:], &nonceArr, &secretArr)
 	if !ok {
-		return nil, errors.New("Ciphertext decryption failed")
+		return nil, errors.New("ciphertext decryption failed")
 	}
 	return plaintext, nil
 }

@@ -7,7 +7,7 @@ import (
 	"github.com/gnolang/gno/pkgs/errors"
 )
 
-const bd_option_byte = 0x01
+const bdOptionByte = 0x01
 
 // ----------------------------------------
 // cdc.decodeReflectBinary
@@ -238,7 +238,7 @@ func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
 
 	case reflect.Uint8:
 		var num uint8
-		if options&bd_option_byte != 0 {
+		if options&bdOptionByte != 0 {
 			num, _n, err = DecodeByte(bz)
 		} else {
 			num, _n, err = DecodeUvarint8(bz)
@@ -576,10 +576,10 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 	newoptions := uint64(0)
 	// Special case for list of (repr) bytes: decode from "bytes".
 	if ert.Kind() == reflect.Ptr && ert.Elem().Kind() == reflect.Uint8 {
-		newoptions |= bd_option_byte
+		newoptions |= bdOptionByte
 	}
 	typ3 := einfo.GetTyp3(fopts)
-	if typ3 != Typ3ByteLength || (newoptions&be_option_byte > 0) {
+	if typ3 != Typ3ByteLength || (newoptions&beOptionByte > 0) {
 		// Read elements in packed form.
 		for i := 0; i < length; i++ {
 			erv := rv.Index(i)
@@ -782,10 +782,10 @@ func (cdc *Codec) decodeReflectBinarySlice(bz []byte, info *TypeInfo, rv reflect
 	newoptions := uint64(0)
 	// Special case for list of (repr) bytes: encode as "bytes".
 	if einfo.ReprType.Type.Kind() == reflect.Uint8 {
-		newoptions |= be_option_byte
+		newoptions |= beOptionByte
 	}
 	typ3 := einfo.GetTyp3(fopts)
-	if typ3 != Typ3ByteLength || (newoptions&be_option_byte > 0) {
+	if typ3 != Typ3ByteLength || (newoptions&beOptionByte > 0) {
 		// Read elems in packed form.
 		for {
 			if len(bz) == 0 {

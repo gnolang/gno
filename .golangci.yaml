@@ -17,7 +17,7 @@ linters:
     #- unconvert # Unnecessary type conversions
     - tparallel # Detects inappropriate usage of t.Parallel() method in your Go test codes
     - thelper # Detects golang test helpers without t.Helper() call and checks the consistency of test helpers
-    #- stylecheck # Stylecheck is a replacement for golint
+    - stylecheck # Stylecheck is a replacement for golint
     - prealloc # Finds slice declarations that could potentially be pre-allocated
     - predeclared # Finds code that shadows one of Go's predeclared identifiers
     - nolintlint # Ill-formed or insufficient nolint directives
@@ -46,6 +46,8 @@ linters-settings:
     excludes:
       - G204 # Subprocess launched with a potential tainted input or cmd arguments
       - G306 # Expect WriteFile permissions to be 0600 or less
+  stylecheck:
+    checks: [ "all", "-ST1022", "-ST1003" ]
 
 issues:
   whole-files: true

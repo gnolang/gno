@@ -643,7 +643,7 @@ func (vals *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height i
 		return NewErrInvalidCommitHeight(height, commit.Height())
 	}
 	if !blockID.Equals(commit.BlockID) {
-		return fmt.Errorf("Invalid commit -- wrong block id: want %v got %v",
+		return fmt.Errorf("invalid commit -- wrong block id: want %v got %v",
 			blockID, commit.BlockID)
 	}
 
@@ -657,7 +657,7 @@ func (vals *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height i
 		// Validate signature.
 		precommitSignBytes := commit.VoteSignBytes(chainID, idx)
 		if !val.PubKey.VerifyBytes(precommitSignBytes, precommit.Signature) {
-			return fmt.Errorf("Invalid commit -- invalid signature: %v", precommit)
+			return fmt.Errorf("invalid commit -- invalid signature: %v", precommit)
 		}
 		// Good precommit!
 		if blockID.Equals(precommit.BlockID) {

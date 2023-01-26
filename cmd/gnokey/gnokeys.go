@@ -314,7 +314,7 @@ func signAndBroadcast(
 		AccountNumber: &accountNumber,
 		ChainID:       txopts.ChainID,
 		NameOrBech32:  nameOrBech32,
-		TxJson:        amino.MustMarshalJSON(tx),
+		TxJSON:        amino.MustMarshalJSON(tx),
 	}
 	sopts.Home = baseopts.Home
 	if baseopts.Quiet {

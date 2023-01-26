@@ -338,7 +338,7 @@ func httpParamsToArgs(rpcFunc *RPCFunc, r *http.Request) ([]reflect.Value, error
 		arg := GetParam(r, name)
 		// log.Notice("param to arg", "argType", argType, "name", name, "arg", arg)
 
-		if "" == arg {
+		if arg == "" {
 			continue
 		}
 

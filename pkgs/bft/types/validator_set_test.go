@@ -306,16 +306,16 @@ func randValidatorSet(numValidators int) *ValidatorSet {
 	return NewValidatorSet(validators)
 }
 
-func (valSet *ValidatorSet) toBytes() []byte {
-	bz, err := amino.MarshalSized(valSet)
+func (vals *ValidatorSet) toBytes() []byte {
+	bz, err := amino.MarshalSized(vals)
 	if err != nil {
 		panic(err)
 	}
 	return bz
 }
 
-func (valSet *ValidatorSet) fromBytes(b []byte) {
-	err := amino.UnmarshalSized(b, &valSet)
+func (vals *ValidatorSet) fromBytes(b []byte) {
+	err := amino.UnmarshalSized(b, &vals)
 	if err != nil {
 		// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
 		panic(err)

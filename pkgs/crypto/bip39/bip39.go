@@ -85,7 +85,7 @@ func NewMnemonic(entropy []byte) (string, error) {
 // An error is returned if the mnemonic is invalid.
 func MnemonicToByteArray(mnemonic string) ([]byte, error) {
 	if !IsMnemonicValid(mnemonic) {
-		return nil, fmt.Errorf("Invalid mnemonic")
+		return nil, fmt.Errorf("invalid mnemonic")
 	}
 	mnemonicSlice := strings.Split(mnemonic, " ")
 
@@ -101,7 +101,7 @@ func MnemonicToByteArray(mnemonic string) ([]byte, error) {
 	for _, v := range mnemonicSlice {
 		index, found := ReverseWordMap[v]
 		if !found {
-			return nil, fmt.Errorf("Word `%v` not found in reverse map", v)
+			return nil, fmt.Errorf("word `%v` not found in reverse map", v)
 		}
 		add := big.NewInt(int64(index))
 		b = b.Mul(b, modulo)
@@ -150,7 +150,7 @@ func MnemonicToByteArray(mnemonic string) ([]byte, error) {
 	}
 	for i := range validationHex {
 		if hex[i] != validationHex[i] {
-			return nil, fmt.Errorf("Invalid byte at position %v", i)
+			return nil, fmt.Errorf("invalid byte at position %v", i)
 		}
 	}
 	return hex, nil
@@ -206,7 +206,7 @@ func padByteSlice(slice []byte, length int) []byte {
 
 func validateEntropyBitSize(bitSize int) error {
 	if (bitSize%32) != 0 || bitSize < 128 || bitSize > 256 {
-		return errors.New("Entropy length must be [128, 256] and a multiple of 32")
+		return errors.New("entropy length must be [128, 256] and a multiple of 32")
 	}
 	return nil
 }
@@ -214,7 +214,7 @@ func validateEntropyBitSize(bitSize int) error {
 func validateEntropyWithChecksumBitSize(bitSize int) error {
 	if (bitSize != 128+4) && (bitSize != 160+5) && (bitSize != 192+6) && (bitSize != 224+7) && (bitSize != 256+8) {
 		return fmt.Errorf(
-			"Wrong entropy + checksum size - expected %v, got %v",
+			"wrong entropy + checksum size - expected %v, got %v",
 			int((bitSize-bitSize%32)+(bitSize-bitSize%32)/32),
 			bitSize,
 		)

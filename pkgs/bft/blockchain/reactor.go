@@ -375,7 +375,7 @@ type BlockchainMessage interface {
 
 func decodeMsg(bz []byte) (msg BlockchainMessage, err error) {
 	if len(bz) > maxMsgSize {
-		return msg, fmt.Errorf("Msg exceeds max size (%d > %d)", len(bz), maxMsgSize)
+		return msg, fmt.Errorf("msg exceeds max size (%d > %d)", len(bz), maxMsgSize)
 	}
 	err = amino.Unmarshal(bz, &msg)
 	return
@@ -390,7 +390,7 @@ type bcBlockRequestMessage struct {
 // ValidateBasic performs basic validation.
 func (m *bcBlockRequestMessage) ValidateBasic() error {
 	if m.Height < 0 {
-		return errors.New("Negative Height")
+		return errors.New("negative height")
 	}
 	return nil
 }
@@ -406,7 +406,7 @@ type bcNoBlockResponseMessage struct {
 // ValidateBasic performs basic validation.
 func (m *bcNoBlockResponseMessage) ValidateBasic() error {
 	if m.Height < 0 {
-		return errors.New("Negative Height")
+		return errors.New("negative height")
 	}
 	return nil
 }
@@ -439,7 +439,7 @@ type bcStatusRequestMessage struct {
 // ValidateBasic performs basic validation.
 func (m *bcStatusRequestMessage) ValidateBasic() error {
 	if m.Height < 0 {
-		return errors.New("Negative Height")
+		return errors.New("negative height")
 	}
 	return nil
 }
@@ -457,7 +457,7 @@ type bcStatusResponseMessage struct {
 // ValidateBasic performs basic validation.
 func (m *bcStatusResponseMessage) ValidateBasic() error {
 	if m.Height < 0 {
-		return errors.New("Negative Height")
+		return errors.New("negative height")
 	}
 	return nil
 }
