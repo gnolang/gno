@@ -24,16 +24,16 @@ var (
 	ErrVoteNil                       = errors.New("nil vote")
 )
 
-type ErrVoteConflictingVotes struct {
+type VoteConflictingVotesError struct {
 	*DuplicateVoteEvidence
 }
 
-func (err *ErrVoteConflictingVotes) Error() string {
+func (err *VoteConflictingVotesError) Error() string {
 	return fmt.Sprintf("Conflicting votes from validator %v", err.PubKey.Address())
 }
 
-func NewConflictingVoteError(val *Validator, voteA, voteB *Vote) *ErrVoteConflictingVotes {
-	return &ErrVoteConflictingVotes{
+func NewConflictingVoteError(val *Validator, voteA, voteB *Vote) *VoteConflictingVotesError {
+	return &VoteConflictingVotesError{
 		&DuplicateVoteEvidence{
 			PubKey: val.PubKey,
 			VoteA:  voteA,

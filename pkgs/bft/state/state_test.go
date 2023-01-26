@@ -228,7 +228,7 @@ func TestValidatorSimpleSaveLoad(t *testing.T) {
 
 	// Can't load anything for height 0.
 	_, err := sm.LoadValidators(stateDB, 0)
-	assert.IsType(sm.ErrNoValSetForHeight{}, err, "expected err at height 0")
+	assert.IsType(sm.NoValSetForHeightError{}, err, "expected err at height 0")
 
 	// Should be able to load for height 1.
 	v, err := sm.LoadValidators(stateDB, 1)

@@ -15,35 +15,35 @@ const (
 	MaxEvidenceBytes int64 = 484
 )
 
-// ErrEvidenceInvalid wraps a piece of evidence and the error denoting how or why it is invalid.
-type ErrEvidenceInvalid struct {
+// EvidenceInvalidError wraps a piece of evidence and the error denoting how or why it is invalid.
+type EvidenceInvalidError struct {
 	Evidence   Evidence
 	ErrorValue error
 }
 
 // NewErrEvidenceInvalid returns a new EvidenceInvalid with the given err.
-func NewErrEvidenceInvalid(ev Evidence, err error) *ErrEvidenceInvalid {
-	return &ErrEvidenceInvalid{ev, err}
+func NewErrEvidenceInvalid(ev Evidence, err error) *EvidenceInvalidError {
+	return &EvidenceInvalidError{ev, err}
 }
 
 // Error returns a string representation of the error.
-func (err *ErrEvidenceInvalid) Error() string {
+func (err *EvidenceInvalidError) Error() string {
 	return fmt.Sprintf("Invalid evidence: %v. Evidence: %v", err.ErrorValue, err.Evidence)
 }
 
-// ErrEvidenceOverflow is for when there is too much evidence in a block.
-type ErrEvidenceOverflow struct {
+// EvidenceOverflowError is for when there is too much evidence in a block.
+type EvidenceOverflowError struct {
 	MaxNum int64
 	GotNum int64
 }
 
-// NewErrEvidenceOverflow returns a new ErrEvidenceOverflow where got > max.
-func NewErrEvidenceOverflow(max, got int64) *ErrEvidenceOverflow {
-	return &ErrEvidenceOverflow{max, got}
+// NewErrEvidenceOverflow returns a new EvidenceOverflowError where got > max.
+func NewErrEvidenceOverflow(max, got int64) *EvidenceOverflowError {
+	return &EvidenceOverflowError{max, got}
 }
 
 // Error returns a string representation of the error.
-func (err *ErrEvidenceOverflow) Error() string {
+func (err *EvidenceOverflowError) Error() string {
 	return fmt.Sprintf("Too much evidence: Max %d, got %d", err.MaxNum, err.GotNum)
 }
 

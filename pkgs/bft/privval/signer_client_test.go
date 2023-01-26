@@ -186,7 +186,7 @@ func TestSignerSignProposalErrors(t *testing.T) {
 		ts := time.Now()
 		proposal := &types.Proposal{Timestamp: ts}
 		err := tc.signerClient.SignProposal(tc.chainID, proposal)
-		require.Equal(t, err.(*RemoteSignerError).Description, types.ErroringMockPVErr.Error())
+		require.Equal(t, err.(*RemoteSignerError).Description, types.ErrMockPV.Error())
 
 		err = tc.mockPV.SignProposal(tc.chainID, proposal)
 		require.Error(t, err)
@@ -209,7 +209,7 @@ func TestSignerSignVoteErrors(t *testing.T) {
 		defer tc.signerClient.Close()
 
 		err := tc.signerClient.SignVote(tc.chainID, vote)
-		require.Equal(t, err.(*RemoteSignerError).Description, types.ErroringMockPVErr.Error())
+		require.Equal(t, err.(*RemoteSignerError).Description, types.ErrMockPV.Error())
 
 		err = tc.mockPV.SignVote(tc.chainID, vote)
 		require.Error(t, err)

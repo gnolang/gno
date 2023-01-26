@@ -71,13 +71,13 @@ func TestMinMaxTimeEncode(t *testing.T) {
 	tErr := time.Unix(minTimeSeconds-1, 0)
 	_, err = cdc.Marshal(tErr)
 	assert.Error(t, err)
-	assert.IsType(t, InvalidTimeErr(""), err)
+	assert.IsType(t, InvalidTimeError(""), err)
 	t.Log(err)
 
 	tErrMaxSec := time.Unix(maxTimeSeconds, 0)
 	_, err = cdc.Marshal(tErrMaxSec)
 	assert.Error(t, err)
-	assert.IsType(t, InvalidTimeErr(""), err)
+	assert.IsType(t, InvalidTimeError(""), err)
 	t.Log(err)
 
 	tMaxNs := time.Unix(0, maxTimeNanos)

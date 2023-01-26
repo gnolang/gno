@@ -77,12 +77,12 @@ func TestTransportMultiplexConnFilter(t *testing.T) {
 	}
 
 	_, err = mt.Accept(peerConfig{})
-	if err, ok := err.(ErrRejected); ok {
+	if err, ok := err.(RejectedError); ok {
 		if !err.IsFiltered() {
 			t.Errorf("expected peer to be filtered")
 		}
 	} else {
-		t.Errorf("expected ErrRejected")
+		t.Errorf("expected RejectedError")
 	}
 }
 
@@ -131,8 +131,8 @@ func TestTransportMultiplexConnFilterTimeout(t *testing.T) {
 	}
 
 	_, err = mt.Accept(peerConfig{})
-	if _, ok := err.(ErrFilterTimeout); !ok {
-		t.Errorf("expected ErrFilterTimeout")
+	if _, ok := err.(FilterTimeoutError); !ok {
+		t.Errorf("expected FilterTimeoutError")
 	}
 }
 
@@ -329,12 +329,12 @@ func TestTransportMultiplexValidateNodeInfo(t *testing.T) {
 	}
 
 	_, err := mt.Accept(peerConfig{})
-	if err, ok := err.(ErrRejected); ok {
+	if err, ok := err.(RejectedError); ok {
 		if !err.IsNodeInfoInvalid() {
 			t.Errorf("expected NodeInfo to be invalid")
 		}
 	} else {
-		t.Errorf("expected ErrRejected")
+		t.Errorf("expected RejectedError")
 	}
 }
 
@@ -368,12 +368,12 @@ func TestTransportMultiplexRejectMismatchID(t *testing.T) {
 	}
 
 	_, err := mt.Accept(peerConfig{})
-	if err, ok := err.(ErrRejected); ok {
+	if err, ok := err.(RejectedError); ok {
 		if !err.IsAuthFailure() {
 			t.Errorf("expected auth failure")
 		}
 	} else {
-		t.Errorf("expected ErrRejected")
+		t.Errorf("expected RejectedError")
 	}
 }
 
@@ -396,12 +396,12 @@ func TestTransportMultiplexDialRejectWrongID(t *testing.T) {
 	_, err := dialer.Dial(*addr, peerConfig{})
 	if err != nil {
 		t.Logf("connection failed: %v", err)
-		if err, ok := err.(ErrRejected); ok {
+		if err, ok := err.(RejectedError); ok {
 			if !err.IsAuthFailure() {
 				t.Errorf("expected auth failure")
 			}
 		} else {
-			t.Errorf("expected ErrRejected")
+			t.Errorf("expected RejectedError")
 		}
 	}
 }
@@ -433,12 +433,12 @@ func TestTransportMultiplexRejectIncompatible(t *testing.T) {
 	}()
 
 	_, err := mt.Accept(peerConfig{})
-	if err, ok := err.(ErrRejected); ok {
+	if err, ok := err.(RejectedError); ok {
 		if !err.IsIncompatible() {
 			t.Errorf("expected to reject incompatible")
 		}
 	} else {
-		t.Errorf("expected ErrRejected")
+		t.Errorf("expected RejectedError")
 	}
 }
 
@@ -460,24 +460,24 @@ func TestTransportMultiplexRejectSelf(t *testing.T) {
 	}()
 
 	if err := <-errc; err != nil {
-		if err, ok := err.(ErrRejected); ok {
+		if err, ok := err.(RejectedError); ok {
 			if !err.IsSelf() {
 				t.Errorf("expected to reject self, got: %v", err)
 			}
 		} else {
-			t.Errorf("expected ErrRejected")
+			t.Errorf("expected RejectedError")
 		}
 	} else {
 		t.Errorf("expected connection failure")
 	}
 
 	_, err := mt.Accept(peerConfig{})
-	if err, ok := err.(ErrRejected); ok {
+	if err, ok := err.(RejectedError); ok {
 		if !err.IsSelf() {
 			t.Errorf("expected to reject self, got: %v", err)
 		}
 	} else {
-		t.Errorf("expected ErrRejected")
+		t.Errorf("expected RejectedError")
 	}
 }
 

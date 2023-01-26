@@ -345,7 +345,7 @@ func (h *Handshaker) ReplayBlocks(
 
 	case storeBlockHeight < appBlockHeight:
 		// the app should never be ahead of the store (but this is under app's control)
-		return appHash, sm.ErrAppBlockHeightTooHigh{CoreHeight: storeBlockHeight, AppHeight: appBlockHeight}
+		return appHash, sm.AppBlockHeightTooHighError{CoreHeight: storeBlockHeight, AppHeight: appBlockHeight}
 
 	case storeBlockHeight < stateBlockHeight:
 		// the state should never be ahead of the store (this is under tendermint's control)

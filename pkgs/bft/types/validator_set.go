@@ -672,7 +672,7 @@ func (vals *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height i
 	if talliedVotingPower > vals.TotalVotingPower()*2/3 {
 		return nil
 	}
-	return errTooMuchChange{talliedVotingPower, vals.TotalVotingPower()*2/3 + 1}
+	return tooMuchChangeError{talliedVotingPower, vals.TotalVotingPower()*2/3 + 1}
 }
 
 // VerifyFutureCommit will check to see if the set would be valid with a different
@@ -756,7 +756,7 @@ func (vals *ValidatorSet) VerifyFutureCommit(newSet *ValidatorSet, chainID strin
 	}
 
 	if oldVotingPower <= oldVals.TotalVotingPower()*2/3 {
-		return errTooMuchChange{oldVotingPower, oldVals.TotalVotingPower()*2/3 + 1}
+		return tooMuchChangeError{oldVotingPower, oldVals.TotalVotingPower()*2/3 + 1}
 	}
 	return nil
 }
@@ -765,16 +765,16 @@ func (vals *ValidatorSet) VerifyFutureCommit(newSet *ValidatorSet, chainID strin
 // ErrTooMuchChange
 
 func IsErrTooMuchChange(err error) bool {
-	_, ok := errors.Cause(err).(errTooMuchChange)
+	_, ok := errors.Cause(err).(tooMuchChangeError)
 	return ok
 }
 
-type errTooMuchChange struct {
+type tooMuchChangeError struct {
 	got    int64
 	needed int64
 }
 
-func (e errTooMuchChange) Error() string {
+func (e tooMuchChangeError) Error() string {
 	return fmt.Sprintf("Invalid commit -- insufficient old voting power: got %v, needed %v", e.got, e.needed)
 }
 

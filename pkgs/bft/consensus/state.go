@@ -1603,7 +1603,7 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2p.ID) (bool, err
 		// If it's otherwise invalid, punish peer.
 		if err == ErrVoteHeightMismatch {
 			return added, err
-		} else if _, ok := err.(*types.ErrVoteConflictingVotes); ok {
+		} else if _, ok := err.(*types.VoteConflictingVotesError); ok {
 			//nolint:lll
 			/* XXX
 			addr := cs.privValidator.GetPubKey().Address()

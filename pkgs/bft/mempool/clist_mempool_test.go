@@ -455,7 +455,7 @@ func TestMempoolMaxMsgSize(t *testing.T) {
 			require.NoError(t, err, caseString)
 		} else {
 			require.True(t, len(tx) > maxTxSize, caseString)
-			require.Equal(t, err, ErrTxTooLarge{int64(maxTxSize), int64(testCase.len)}, caseString)
+			require.Equal(t, err, TxTooLargeError{int64(maxTxSize), int64(testCase.len)}, caseString)
 		}
 	}
 }
@@ -488,12 +488,12 @@ func TestMempoolMaxPendingTxsBytes(t *testing.T) {
 	mempool.Flush()
 	assert.EqualValues(t, 0, mempool.TxsBytes())
 
-	// 5. ErrMempoolIsFull is returned when/if MaxPendingTxsBytes limit is reached.
+	// 5. MempoolIsFullError is returned when/if MaxPendingTxsBytes limit is reached.
 	err = mempool.CheckTx([]byte{0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04}, nil)
 	require.NoError(t, err)
 	err = mempool.CheckTx([]byte{0x05}, nil)
 	if assert.Error(t, err) {
-		assert.IsType(t, ErrMempoolIsFull{}, err)
+		assert.IsType(t, MempoolIsFullError{}, err)
 	}
 
 	// 6. zero after tx is rechecked and removed due to not being valid anymore
