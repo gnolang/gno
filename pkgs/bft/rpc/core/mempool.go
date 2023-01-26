@@ -232,7 +232,7 @@ func BroadcastTxCommit(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadc
 	})
 	if err != nil {
 		logger.Error("Error on broadcastTxCommit", "err", err)
-		return nil, fmt.Errorf("error on broadcastTxCommit: %v", err)
+		return nil, fmt.Errorf("error on broadcastTxCommit: %w", err)
 	}
 	checkTxResMsg := <-checkTxResCh
 	checkTxRes := checkTxResMsg.(abci.ResponseCheckTx)

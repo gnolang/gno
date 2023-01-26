@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"bufio"
+	goErrors "errors"
 	"fmt"
 	"io"
 	"os"
@@ -74,7 +75,7 @@ func (cs *ConsensusState) ReplayFile(file string, console bool) error {
 		}
 
 		msg, meta, err = pb.dec.ReadMessage()
-		if err == io.EOF {
+		if goErrors.Is(err, io.EOF) {
 			return nil
 		} else if err != nil {
 			return err
@@ -143,7 +144,7 @@ func (pb *playback) replayReset(count int, newStepSub <-chan events.Event) error
 	var meta *walm.MetaMessage
 	for i := 0; i < count; i++ {
 		msg, meta, err = pb.dec.ReadMessage()
-		if err == io.EOF {
+		if goErrors.Is(err, io.EOF) {
 			return nil
 		} else if err != nil {
 			return err

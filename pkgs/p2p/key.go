@@ -11,7 +11,7 @@ import (
 	osm "github.com/gnolang/gno/pkgs/os"
 )
 
-//------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 // Persistent peer ID
 // TODO: encrypt on disk
 
@@ -46,7 +46,7 @@ func LoadNodeKey(filePath string) (*NodeKey, error) {
 	nodeKey := new(NodeKey)
 	err = amino.UnmarshalJSON(jsonBytes, nodeKey)
 	if err != nil {
-		return nil, fmt.Errorf("Error reading NodeKey from %v: %v", filePath, err)
+		return nil, fmt.Errorf("Error reading NodeKey from %v: %w", filePath, err)
 	}
 	return nodeKey, nil
 }
@@ -68,7 +68,7 @@ func genNodeKey(filePath string) (*NodeKey, error) {
 	return nodeKey, nil
 }
 
-//------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 
 // MakePoWTarget returns the big-endian encoding of 2^(targetBits - difficulty) - 1.
 // It can be used as a Proof of Work target.

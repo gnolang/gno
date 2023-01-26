@@ -391,11 +391,6 @@ type privateAddr interface {
 	PrivateAddr() bool
 }
 
-func isPrivateAddr(err error) bool {
-	te, ok := errors.Cause(err).(privateAddr)
-	return ok && te.PrivateAddr()
-}
-
 // DialPeersAsync dials a list of peers asynchronously in random order.
 // Used to dial peers from config on startup or from unsafe-RPC (trusted sources).
 // It ignores NetAddressLookupError. However, if there are other errors, first
@@ -554,7 +549,7 @@ func (sw *Switch) acceptRoutine() {
 				// So might as well panic and let process managers restart the node.
 				// There's no point in letting the node run without the acceptRoutine,
 				// since it won't be able to accept new connections.
-				panic(fmt.Errorf("accept routine exited: %v", err))
+				panic(fmt.Errorf("accept routine exited: %w", err))
 			}
 
 			break

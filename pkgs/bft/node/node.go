@@ -190,7 +190,7 @@ func createAndStartProxyAppConns(clientCreator proxy.ClientCreator, logger log.L
 	proxyApp := proxy.NewAppConns(clientCreator)
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
-		return nil, fmt.Errorf("error starting proxy app connections: %v", err)
+		return nil, fmt.Errorf("error starting proxy app connections: %w", err)
 	}
 	return proxyApp, nil
 }
@@ -234,7 +234,7 @@ func doHandshake(stateDB dbm.DB, state sm.State, blockStore sm.BlockStore,
 	handshaker.SetLogger(consensusLogger)
 	handshaker.SetEventSwitch(evsw)
 	if err := handshaker.Handshake(proxyApp); err != nil {
-		return fmt.Errorf("error during handshake: %v", err)
+		return fmt.Errorf("error during handshake: %w", err)
 	}
 	return nil
 }

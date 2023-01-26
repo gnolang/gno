@@ -1,6 +1,7 @@
 package cstypes
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"testing"
@@ -38,7 +39,7 @@ func TestPeerCatchupRounds(t *testing.T) {
 
 	vote1001_0 := makeVoteHR(t, 1, 1001, privVals, 0)
 	added, err = hvs.AddVote(vote1001_0, "peer1")
-	if err != ErrGotVoteFromUnwantedRoundError {
+	if !errors.Is(err, ErrGotVoteFromUnwantedRoundError) {
 		t.Errorf("Expected ErrGotVoteFromUnwantedRoundError, but got %v", err)
 	}
 	if added {

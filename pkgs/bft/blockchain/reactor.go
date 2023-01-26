@@ -317,14 +317,14 @@ FOR_LOOP:
 				if peer != nil {
 					// NOTE: we've already removed the peer's request, but we
 					// still need to clean up the rest.
-					bcR.Switch.StopPeerForError(peer, fmt.Errorf("BlockchainReactor validation error: %v", err))
+					bcR.Switch.StopPeerForError(peer, fmt.Errorf("BlockchainReactor validation error: %w", err))
 				}
 				peerID2 := bcR.pool.RedoRequest(second.Height)
 				peer2 := bcR.Switch.Peers().Get(peerID2)
 				if peer2 != nil && peer2 != peer {
 					// NOTE: we've already removed the peer's request, but we
 					// still need to clean up the rest.
-					bcR.Switch.StopPeerForError(peer2, fmt.Errorf("BlockchainReactor validation error: %v", err))
+					bcR.Switch.StopPeerForError(peer2, fmt.Errorf("BlockchainReactor validation error: %w", err))
 				}
 				continue FOR_LOOP
 			} else {

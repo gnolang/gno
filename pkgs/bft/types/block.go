@@ -65,7 +65,7 @@ func (b *Block) ValidateBasic() error {
 	}
 
 	if err := b.LastBlockID.ValidateBasic(); err != nil {
-		return fmt.Errorf("wrong Header.LastBlockID: %v", err)
+		return fmt.Errorf("wrong Header.LastBlockID: %w", err)
 	}
 
 	// Validate the last commit and its hash.
@@ -78,7 +78,7 @@ func (b *Block) ValidateBasic() error {
 		}
 	}
 	if err := ValidateHash(b.LastCommitHash); err != nil {
-		return fmt.Errorf("wrong Header.LastCommitHash: %v", err)
+		return fmt.Errorf("wrong Header.LastCommitHash: %w", err)
 	}
 	if !bytes.Equal(b.LastCommitHash, b.LastCommit.Hash()) {
 		return fmt.Errorf("wrong Header.LastCommitHash. Expected %v, got %v",
@@ -91,7 +91,7 @@ func (b *Block) ValidateBasic() error {
 	// NOTE: b.Data.Txs may be nil, but b.Data.Hash()
 	// still works fine
 	if err := ValidateHash(b.DataHash); err != nil {
-		return fmt.Errorf("wrong Header.DataHash: %v", err)
+		return fmt.Errorf("wrong Header.DataHash: %w", err)
 	}
 	if !bytes.Equal(b.DataHash, b.Data.Hash()) {
 		return fmt.Errorf(
@@ -104,17 +104,17 @@ func (b *Block) ValidateBasic() error {
 	// Basic validation of hashes related to application data.
 	// Will validate fully against state in state#ValidateBlock.
 	if err := ValidateHash(b.ValidatorsHash); err != nil {
-		return fmt.Errorf("wrong Header.ValidatorsHash: %v", err)
+		return fmt.Errorf("wrong Header.ValidatorsHash: %w", err)
 	}
 	if err := ValidateHash(b.NextValidatorsHash); err != nil {
-		return fmt.Errorf("wrong Header.NextValidatorsHash: %v", err)
+		return fmt.Errorf("wrong Header.NextValidatorsHash: %w", err)
 	}
 	if err := ValidateHash(b.ConsensusHash); err != nil {
-		return fmt.Errorf("wrong Header.ConsensusHash: %v", err)
+		return fmt.Errorf("wrong Header.ConsensusHash: %w", err)
 	}
 	// NOTE: AppHash is arbitrary length
 	if err := ValidateHash(b.LastResultsHash); err != nil {
-		return fmt.Errorf("wrong Header.LastResultsHash: %v", err)
+		return fmt.Errorf("wrong Header.LastResultsHash: %w", err)
 	}
 
 	if len(b.ProposerAddress) != crypto.AddressSize {
@@ -764,7 +764,7 @@ func (blockID BlockID) ValidateBasic() error {
 		return fmt.Errorf("wrong Hash")
 	}
 	if err := blockID.PartsHeader.ValidateBasic(); err != nil {
-		return fmt.Errorf("wrong PartsHeader: %v", err)
+		return fmt.Errorf("wrong PartsHeader: %w", err)
 	}
 	return nil
 }

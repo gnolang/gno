@@ -157,10 +157,10 @@ func (dve *DuplicateVoteEvidence) Verify(chainID string, pubKey crypto.PubKey) e
 
 	// Signatures must be valid
 	if !pubKey.VerifyBytes(dve.VoteA.SignBytes(chainID), dve.VoteA.Signature) {
-		return fmt.Errorf("DuplicateVoteEvidence Error verifying VoteA: %v", ErrVoteInvalidSignature)
+		return fmt.Errorf("DuplicateVoteEvidence Error verifying VoteA: %w", ErrVoteInvalidSignature)
 	}
 	if !pubKey.VerifyBytes(dve.VoteB.SignBytes(chainID), dve.VoteB.Signature) {
-		return fmt.Errorf("DuplicateVoteEvidence Error verifying VoteB: %v", ErrVoteInvalidSignature)
+		return fmt.Errorf("DuplicateVoteEvidence Error verifying VoteB: %w", ErrVoteInvalidSignature)
 	}
 
 	return nil
@@ -187,10 +187,10 @@ func (dve *DuplicateVoteEvidence) ValidateBasic() error {
 		return fmt.Errorf("one or both of the votes are empty %v, %v", dve.VoteA, dve.VoteB)
 	}
 	if err := dve.VoteA.ValidateBasic(); err != nil {
-		return fmt.Errorf("invalid VoteA: %v", err)
+		return fmt.Errorf("invalid VoteA: %w", err)
 	}
 	if err := dve.VoteB.ValidateBasic(); err != nil {
-		return fmt.Errorf("invalid VoteB: %v", err)
+		return fmt.Errorf("invalid VoteB: %w", err)
 	}
 	return nil
 }

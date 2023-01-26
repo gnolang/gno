@@ -121,7 +121,7 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 	abciValUpdates := abciResponses.EndBlock.ValidatorUpdates
 	err = validateValidatorUpdates(abciValUpdates, *state.ConsensusParams.Validator)
 	if err != nil {
-		return state, fmt.Errorf("Error in validator updates: %v", err)
+		return state, fmt.Errorf("Error in validator updates: %w", err)
 	}
 	if len(abciValUpdates) > 0 {
 		blockExec.logger.Info("Updates to validators", "updates", abciValUpdates)
@@ -130,13 +130,13 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 	// Update the state with the block and responses.
 	state, err = updateState(state, blockID, &block.Header, abciResponses)
 	if err != nil {
-		return state, fmt.Errorf("Commit failed for application: %v", err)
+		return state, fmt.Errorf("Commit failed for application: %w", err)
 	}
 
 	// Lock mempool, commit app state, update mempoool.
 	appHash, err := blockExec.Commit(state, block, abciResponses.DeliverTxs)
 	if err != nil {
-		return state, fmt.Errorf("Commit failed for application: %v", err)
+		return state, fmt.Errorf("Commit failed for application: %w", err)
 	}
 
 	fail.Fail() // XXX
@@ -356,7 +356,7 @@ func updateState(
 	if u := abciResponses.EndBlock.ValidatorUpdates; len(u) > 0 {
 		err := nValSet.UpdateWithABCIValidatorUpdates(u)
 		if err != nil {
-			return state, fmt.Errorf("Error changing validator set: %v", err)
+			return state, fmt.Errorf("Error changing validator set: %w", err)
 		}
 		// Change results from this height but only applies to the next next height.
 		lastHeightValsChanged = header.Height + 1 + 1
@@ -373,7 +373,7 @@ func updateState(
 		nextParams = state.ConsensusParams.Update(*abciResponses.EndBlock.ConsensusParams)
 		err := types.ValidateConsensusParams(nextParams)
 		if err != nil {
-			return state, fmt.Errorf("Error updating consensus params: %v", err)
+			return state, fmt.Errorf("Error updating consensus params: %w", err)
 		}
 		// Change results from this height but only applies to the next height.
 		lastHeightParamsChanged = header.Height + 1

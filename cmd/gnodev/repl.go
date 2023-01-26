@@ -1,6 +1,7 @@
 package main
 
 import (
+	goErrors "errors"
 	"fmt"
 	"io"
 	"os"
@@ -74,7 +75,7 @@ func runRepl(rootDir string, verbose bool) error {
 		input, err := t.ReadLine()
 		if err != nil {
 			term.Restore(0, oldState)
-			if err == io.EOF {
+			if goErrors.Is(err, io.EOF) {
 				return nil
 			}
 			return fmt.Errorf("term error: %w", err)

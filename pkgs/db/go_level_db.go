@@ -2,6 +2,7 @@ package db
 
 import (
 	"bytes"
+	goErrors "errors"
 	"fmt"
 	"path/filepath"
 
@@ -45,7 +46,7 @@ func (db *GoLevelDB) Get(key []byte) []byte {
 	key = nonNilBytes(key)
 	res, err := db.db.Get(key, nil)
 	if err != nil {
-		if err == errors.ErrNotFound {
+		if goErrors.Is(err, errors.ErrNotFound) {
 			return nil
 		}
 		panic(err)
@@ -141,7 +142,7 @@ func (db *GoLevelDB) Stats() map[string]string {
 	return stats
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Batch
 
 // Implements DB.
@@ -185,7 +186,7 @@ func (mBatch *goLevelDBBatch) WriteSync() {
 // Close is no-op for goLevelDBBatch.
 func (mBatch *goLevelDBBatch) Close() {}
 
-//----------------------------------------
+// ----------------------------------------
 // Iterator
 // NOTE This is almost identical to db/c_level_db.Iterator
 // Before creating a third version, refactor.

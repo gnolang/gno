@@ -1,6 +1,7 @@
 package iavl
 
 import (
+	goErrors "errors"
 	"fmt"
 	"sync"
 
@@ -89,7 +90,7 @@ func (st *Store) Commit() types.CommitID {
 		toRelease := previous - st.opts.KeepRecent
 		if st.opts.KeepEvery == 0 || toRelease%st.opts.KeepEvery != 0 {
 			err := st.tree.DeleteVersion(toRelease)
-			if errCause := errors.Cause(err); errCause != nil && errCause != iavl.ErrVersionDoesNotExist {
+			if errCause := errors.Cause(err); errCause != nil && !goErrors.Is(errCause, iavl.ErrVersionDoesNotExist) {
 				panic(err)
 			}
 		}

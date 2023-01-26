@@ -96,7 +96,7 @@ func (vs *validatorStub) signVote(voteType types.SignedMsgType, hash []byte, hea
 func signVote(vs *validatorStub, voteType types.SignedMsgType, hash []byte, header types.PartSetHeader) *types.Vote {
 	v, err := vs.signVote(voteType, hash, header)
 	if err != nil {
-		panic(fmt.Errorf("failed to sign vote: %v", err))
+		panic(fmt.Errorf("failed to sign vote: %w", err))
 	}
 	return v
 }

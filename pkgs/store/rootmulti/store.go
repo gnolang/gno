@@ -141,7 +141,7 @@ func (ms *multiStore) LoadVersion(ver int64) error {
 		}
 		store, err := ms.constructStore(storeParams)
 		if err != nil {
-			return fmt.Errorf("failed to load Store: %v", err)
+			return fmt.Errorf("failed to load Store: %w", err)
 		}
 		store.SetStoreOptions(ms.storeOpts)
 		err = store.LoadVersion(ver)
@@ -499,7 +499,7 @@ func getCommitInfo(db dbm.DB, ver int64) (commitInfo, error) {
 
 	err := amino.UnmarshalSized(cInfoBytes, &cInfo)
 	if err != nil {
-		return commitInfo{}, fmt.Errorf("failed to get Store: %v", err)
+		return commitInfo{}, fmt.Errorf("failed to get Store: %w", err)
 	}
 
 	return cInfo, nil

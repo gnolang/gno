@@ -186,11 +186,11 @@ func MakeGenesisStateFromFile(genDocFile string) (State, error) {
 func MakeGenesisDocFromFile(genDocFile string) (*types.GenesisDoc, error) {
 	genDocJSON, err := os.ReadFile(genDocFile)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't read GenesisDoc file: %v", err)
+		return nil, fmt.Errorf("couldn't read GenesisDoc file: %w", err)
 	}
 	genDoc, err := types.GenesisDocFromJSON(genDocJSON)
 	if err != nil {
-		return nil, fmt.Errorf("error reading GenesisDoc: %v", err)
+		return nil, fmt.Errorf("error reading GenesisDoc: %w", err)
 	}
 	return genDoc, nil
 }
@@ -199,7 +199,7 @@ func MakeGenesisDocFromFile(genDocFile string) (*types.GenesisDoc, error) {
 func MakeGenesisState(genDoc *types.GenesisDoc) (State, error) {
 	err := genDoc.ValidateAndComplete()
 	if err != nil {
-		return State{}, fmt.Errorf("error in genesis file: %v", err)
+		return State{}, fmt.Errorf("error in genesis file: %w", err)
 	}
 
 	var validatorSet, nextValidatorSet *types.ValidatorSet

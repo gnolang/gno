@@ -413,7 +413,7 @@ func extractJSONTypeURL(bz []byte) (typeURL string, value json.RawMessage, err e
 	anyw := new(anyWrapper)
 	err = json.Unmarshal(bz, anyw)
 	if err != nil {
-		err = fmt.Errorf("cannot parse Any JSON wrapper: %v", err)
+		err = fmt.Errorf("cannot parse Any JSON wrapper: %w", err)
 		return
 	}
 

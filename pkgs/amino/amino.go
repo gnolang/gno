@@ -658,7 +658,7 @@ func (cdc *Codec) unmarshalReflect(bz []byte, ptr interface{}) error {
 	n, err := cdc.decodeReflectBinary(bz, info, rv, FieldOptions{BinFieldNum: 1}, bare, 0)
 	if err != nil {
 		return fmt.Errorf(
-			"unmarshal to %v failed after %d bytes (%v): %X",
+			"unmarshal to %v failed after %d bytes (%w): %X",
 			info.Type,
 			n+nWrap,
 			err,

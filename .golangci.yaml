@@ -13,7 +13,6 @@ linters:
   enable:
     #- whitespace # Tool for detection of leading and trailing whitespace
     #- wsl # Forces you to use empty lines
-    - wastedassign # Finds wasted assignment statements
     - unconvert # Unnecessary type conversions
     - tparallel # Detects inappropriate usage of t.Parallel() method in your Go test codes
     - thelper # Detects golang test helpers without t.Helper() call and checks the consistency of test helpers
@@ -34,7 +33,7 @@ linters:
     - dogsled # Checks assignments with too many blank identifiers (e.g. x, , , _, := f())
     #- dupl # Code clone detection
     - errname # Checks that sentinel errors are prefixed with the Err and error types are suffixed with the Error
-    #- errorlint # errorlint is a linter for that can be used to find code that will cause problems with the error wrapping scheme introduced in Go 1.13
+    - errorlint # errorlint is a linter for that can be used to find code that will cause problems with the error wrapping scheme introduced in Go 1.13
 
 linters-settings:
   gofmt:
@@ -48,6 +47,8 @@ linters-settings:
       - G306 # Expect WriteFile permissions to be 0600 or less
   stylecheck:
     checks: [ "all", "-ST1022", "-ST1003" ]
+  errorlint:
+    asserts: false
 
 issues:
   whole-files: true
@@ -58,3 +59,6 @@ issues:
         - lll # Disabled linting of long test case lines
         - makezero # Disabled linting of intentional slice appends
         - goconst # Disabled linting of common mnemonics and test case strings
+    - path: _\.gno
+      linters:
+        - errorlint # Disabled linting of error comparisons, because of lacking std lib support

@@ -387,7 +387,7 @@ func (mt *MultiplexTransport) upgrade(
 	if err != nil {
 		return nil, NodeInfo{}, RejectedError{
 			conn:          c,
-			err:           fmt.Errorf("secret conn failed: %v", err),
+			err:           fmt.Errorf("secret conn failed: %w", err),
 			isAuthFailure: true,
 		}
 	}
@@ -413,7 +413,7 @@ func (mt *MultiplexTransport) upgrade(
 	if err != nil {
 		return nil, NodeInfo{}, RejectedError{
 			conn:          c,
-			err:           fmt.Errorf("handshake failed: %v", err),
+			err:           fmt.Errorf("handshake failed: %w", err),
 			isAuthFailure: true,
 		}
 	}

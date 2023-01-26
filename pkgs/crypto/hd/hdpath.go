@@ -192,7 +192,7 @@ func DerivePrivateKeyForPath(privKeyBytes [32]byte, chainCode [32]byte, path str
 		}
 		idx, err := strconv.Atoi(part)
 		if err != nil {
-			return [32]byte{}, fmt.Errorf("invalid BIP 32 path: %s", err)
+			return [32]byte{}, fmt.Errorf("invalid BIP 32 path: %w", err)
 		}
 		if idx < 0 {
 			return [32]byte{}, errors.New("invalid BIP 32 path: index negative ot too large")

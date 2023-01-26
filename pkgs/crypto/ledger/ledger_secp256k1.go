@@ -237,13 +237,13 @@ func sign(device LedgerSECP256K1, pkl PrivKeyLedgerSecp256k1, msg []byte) ([]byt
 func getPubKeyUnsafe(device LedgerSECP256K1, path hd.BIP44Params) (crypto.PubKey, error) {
 	publicKey, err := device.GetPublicKeySECP256K1(path.DerivationPath())
 	if err != nil {
-		return nil, fmt.Errorf("please open Cosmos app on the Ledger device - error: %v", err)
+		return nil, fmt.Errorf("please open Cosmos app on the Ledger device - error: %w", err)
 	}
 
 	// re-serialize in the 33-byte compressed format
 	cmp, err := btcec.ParsePubKey(publicKey[:], btcec.S256())
 	if err != nil {
-		return nil, fmt.Errorf("error parsing public key: %v", err)
+		return nil, fmt.Errorf("error parsing public key: %w", err)
 	}
 
 	var compressedPublicKey secp256k1.PubKeySecp256k1
@@ -267,7 +267,7 @@ func getPubKeyAddrSafe(device LedgerSECP256K1, path hd.BIP44Params, hrp string) 
 	// re-serialize in the 33-byte compressed format
 	cmp, err := btcec.ParsePubKey(publicKey[:], btcec.S256())
 	if err != nil {
-		return nil, "", fmt.Errorf("error parsing public key: %v", err)
+		return nil, "", fmt.Errorf("error parsing public key: %w", err)
 	}
 
 	var compressedPublicKey secp256k1.PubKeySecp256k1

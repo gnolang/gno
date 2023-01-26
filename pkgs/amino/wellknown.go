@@ -487,7 +487,7 @@ func DecodeJSONTime(bz []byte, fopts FieldOptions) (t time.Time, err error) {
 	}
 	t, err = time.Parse(time.RFC3339Nano, v)
 	if err != nil {
-		err = fmt.Errorf("bad time: %v", err)
+		err = fmt.Errorf("bad time: %w", err)
 		return
 	}
 	return
@@ -514,7 +514,7 @@ func DecodeJSONDuration(bz []byte, fopts FieldOptions) (d time.Duration, err err
 	}
 	d, err = time.ParseDuration(v)
 	if err != nil {
-		err = fmt.Errorf("bad time: %v", err)
+		err = fmt.Errorf("bad time: %w", err)
 		return
 	}
 	return

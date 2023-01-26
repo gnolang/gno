@@ -665,7 +665,7 @@ func ParseCoin(coinStr string) (coin Coin, err error) {
 	}
 
 	if err := validateDenom(denomStr); err != nil {
-		return Coin{}, fmt.Errorf("invalid denom cannot contain upper case characters or spaces: %s", err)
+		return Coin{}, fmt.Errorf("invalid denom cannot contain upper case characters or spaces: %w", err)
 	}
 
 	return NewCoin(denomStr, amount), nil
