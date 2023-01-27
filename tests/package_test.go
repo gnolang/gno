@@ -24,6 +24,7 @@ func TestPackages(t *testing.T) {
 	}
 	testDirs := map[string]string{} // aggregate here, pkgPath -> dir
 	pkgPaths := []string{}
+
 	for _, rootDir := range rootDirs {
 		fileSystem := os.DirFS(rootDir)
 		fs.WalkDir(fileSystem, ".", func(path string, d fs.DirEntry, err error) error {
@@ -68,6 +69,7 @@ func runPackageTest(t *testing.T, dir string, path string) {
 	stderr := new(bytes.Buffer)
 	store := TestStore("..", path, stdin, stdout, stderr, ImportModeStdlibsOnly)
 	store.SetLogStoreOps(true)
+
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath: "test",
 		Output:  stdout,

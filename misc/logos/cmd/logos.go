@@ -29,6 +29,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%v\n", e)
 		os.Exit(1)
 	}
+
 	s.SetStyle(tcell.StyleDefault.
 		Foreground(tcell.ColorBlack).
 		Background(tcell.ColorWhite))
@@ -44,17 +45,22 @@ func main() {
 	bstack.DrawToScreen(s)
 
 	// recover any panics.
-	var rec interface{}
-	var recStack []byte
+	var (
+		rec      interface{}
+		recStack []byte
+	)
 
 	// show the screen
 	quit := make(chan struct{})
+
 	s.Show()
+
 	go func() {
 		// capture panics to print error better.
 		defer func() {
 			if rec = recover(); rec != nil {
 				recStack = debug.Stack()
+
 				close(quit)
 
 				return
@@ -76,6 +82,7 @@ func main() {
 					s.Sync()
 				default:
 					bstack.ProcessEventKey(ev)
+
 					if bstack.Render() {
 						bstack.DrawToScreen(s)
 						s.Sync()

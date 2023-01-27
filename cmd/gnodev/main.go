@@ -12,6 +12,7 @@ func main() {
 	exec := os.Args[0]
 	args := os.Args[1:]
 	err := runMain(cmd, exec, args)
+
 	if err != nil {
 		cmd.ErrPrintfln("%s", err.Error())
 		// cmd.ErrPrintfln("%#v", err)
@@ -68,6 +69,7 @@ func runMain(cmd *command.Command, exec string, args []string) error {
 	// show help message.
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" {
 		cmd.Println("available subcommands:")
+
 		for _, appItem := range mainApps {
 			cmd.Printf("  %s - %s\n", appItem.Name, appItem.Desc)
 		}

@@ -35,6 +35,7 @@ func (m simpleMatch) matches(name []string, matchString func(pat, str string) (b
 		if i >= len(m) {
 			break
 		}
+
 		if ok, _ := matchString(m[i], s); !ok {
 			return false, false
 		}
@@ -82,6 +83,7 @@ func splitRegexp(s string) filterMatch {
 	b := make(alternationMatch, 0, strings.Count(s, "|"))
 	cs := 0
 	cp := 0
+
 	for i := 0; i < len(s); {
 		switch s[i] {
 		case '[':
@@ -111,9 +113,12 @@ func splitRegexp(s string) filterMatch {
 		case '|':
 			if cs == 0 && cp == 0 {
 				a = append(a, s[:i])
+
 				s = s[i+1:]
 				i = 0
+
 				b = append(b, a)
+
 				a = make(simpleMatch, 0, len(a))
 
 				continue
@@ -134,6 +139,7 @@ func splitRegexp(s string) filterMatch {
 // space.
 func rewrite(s string) string {
 	b := []byte{}
+
 	for _, r := range s {
 		switch {
 		case isSpace(r):
@@ -183,6 +189,7 @@ var (
 func matchString(pat, str string) (result bool, err error) {
 	if matchRe == nil || matchPat != pat {
 		matchPat = pat
+
 		matchRe, err = regexp.Compile(matchPat)
 		if err != nil {
 			return

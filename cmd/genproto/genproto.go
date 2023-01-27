@@ -42,11 +42,13 @@ func main() {
 		vm.Package,
 		gno.Package,
 	}
+
 	for _, pkg := range pkgs {
 		genproto.WriteProto3Schema(pkg)
 		genproto.WriteProtoBindings(pkg)
 		genproto.MakeProtoFolder(pkg, "proto")
 	}
+
 	for _, pkg := range pkgs {
 		genproto.RunProtoc(pkg, "proto")
 	}

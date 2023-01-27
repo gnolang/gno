@@ -46,6 +46,7 @@ func runMain(cmd *command.Command, exec string, args []string) error {
 	// show help message.
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" {
 		cmd.Println("available subcommands:")
+
 		for _, appItem := range mainApps {
 			cmd.Printf("  %s - %s\n", appItem.Name, appItem.Desc)
 		}
@@ -70,6 +71,7 @@ func main() {
 	cmd := command.NewStdCommand()
 	exec := os.Args[0]
 	args := os.Args[1:]
+
 	err := runMain(cmd, exec, args)
 	if err != nil {
 		cmd.ErrPrintfln("%s", err.Error())
@@ -110,17 +112,21 @@ var DefaultServeOptions = serveOptions{
 
 func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 	opts := iopts.(serveOptions)
+
 	if len(args) != 1 {
 		cmd.ErrPrintfln("Usage: serve <keyname>")
 
 		return errors.New("invalid args")
 	}
+
 	if opts.ChainID == "" {
 		return errors.New("chain-id not specified")
 	}
+
 	if opts.GasWanted == 0 {
 		return errors.New("gas-wanted not specified")
 	}
+
 	if opts.GasFee == "" {
 		return errors.New("gas-fee not specified")
 	}
@@ -129,19 +135,23 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 	if remote == "" || remote == "y" {
 		return errors.New("missing remote url")
 	}
+
 	cli := rpcclient.NewHTTP(remote, "/websocket")
 
 	// XXX XXX
 	// Read supply account pubkey.
 	name := args[0]
+
 	kb, err := keys.NewKeyBaseFromDir(opts.Home)
 	if err != nil {
 		return err
 	}
+
 	info, err := kb.GetByName(name)
 	if err != nil {
 		return err
 	}
+
 	fromAddr := info.GetAddress()
 	// pub := info.GetPubKey()
 
@@ -154,17 +164,22 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 	}
 	qres, err := cli.ABCIQueryWithOptions(
 		path, data, opts2)
+
 	if err != nil {
 		return errors.Wrap(err, "querying")
 	}
+
 	if qres.Response.Error != nil {
 		fmt.Printf("Log: %s\n",
 			qres.Response.Log)
 
 		return qres.Response.Error
 	}
+
 	resdata := qres.Response.Data
+
 	var acc gnoland.GnoAccount
+
 	amino.MustUnmarshalJSON(resdata, &acc)
 	accountNumber := acc.BaseAccount.AccountNumber
 	sequence := acc.BaseAccount.Sequence
@@ -172,15 +187,19 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 	// Get password for supply account.
 	// Test by signing a dummy message;
 	const dummy = "test"
+
 	var pass string
+
 	if opts.Quiet {
 		pass, err = cmd.GetPassword("", opts.InsecurePasswordStdin)
 	} else {
 		pass, err = cmd.GetPassword("Enter password.", opts.InsecurePasswordStdin)
 	}
+
 	if err != nil {
 		return err
 	}
+
 	_, _, err = kb.Sign(name, pass, []byte(dummy))
 	if err != nil {
 		return err
@@ -198,6 +217,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 		if err != nil {
 			return err
 		}
+
 		err = sendAmountTo(cmd, cli, name, pass, testToAddr, accountNumber, sequence, send, opts)
 
 		return err
@@ -325,15 +345,19 @@ func sendAmountTo(
 	if err != nil {
 		return err
 	}
+
 	info, err := kb.GetByName(name)
+
 	if err != nil {
 		return err
 	}
+
 	fromAddr := info.GetAddress()
 	pub := info.GetPubKey()
 
 	// parse gas wanted & fee.
 	gaswanted := opts.GasWanted
+
 	gasfee, err := std.ParseCoin(opts.GasFee)
 	if err != nil {
 		return errors.Wrap(err, "parsing gas fee coin")
@@ -361,6 +385,7 @@ func sendAmountTo(
 			})
 		}
 	}
+
 	err = tx.ValidateBasic()
 	if err != nil {
 		return err
@@ -370,12 +395,14 @@ func sendAmountTo(
 	// get sign-bytes and make signature.
 	chainID := opts.ChainID
 	signbz := tx.GetSignBytes(chainID, accountNumber, sequence)
+
 	sig, _, err := kb.Sign(name, pass, signbz)
 	if err != nil {
 		return err
 	}
 
 	found := false
+
 	for i := range tx.Signatures {
 		// override signature for matching slot.
 		if signers[i] == fromAddr {
@@ -386,10 +413,12 @@ func sendAmountTo(
 			}
 		}
 	}
+
 	if !found {
 		return errors.New("addr %v (%s) not in signer set",
 			fromAddr, name)
 	}
+
 	fmt.Println("will deliver:", string(amino.MustMarshalJSON(tx)))
 
 	// construct tx serialized bytes.
@@ -400,6 +429,7 @@ func sendAmountTo(
 	if err != nil {
 		return errors.Wrap(err, "broadcasting bytes")
 	}
+
 	if bres.CheckTx.IsErr() {
 		return errors.New("transaction failed %#v\nlog %s", bres, bres.CheckTx.Log)
 	} else if bres.DeliverTx.IsErr() {

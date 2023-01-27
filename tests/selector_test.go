@@ -1,3 +1,4 @@
+//nolint:wsl
 package tests
 
 import (

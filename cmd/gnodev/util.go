@@ -22,11 +22,13 @@ func isGnoFile(f fs.DirEntry) bool {
 
 func gnoFilesFromArgs(args []string) ([]string, error) {
 	paths := []string{}
+
 	for _, arg := range args {
 		info, err := os.Stat(arg)
 		if err != nil {
 			return nil, fmt.Errorf("invalid file or package path: %w", err)
 		}
+
 		if !info.IsDir() {
 			curpath := arg
 			paths = append(paths, curpath)
@@ -54,11 +56,13 @@ func gnoFilesFromArgs(args []string) ([]string, error) {
 
 func gnoPackagesFromArgs(args []string) ([]string, error) {
 	paths := []string{}
+
 	for _, arg := range args {
 		info, err := os.Stat(arg)
 		if err != nil {
 			return nil, fmt.Errorf("invalid file or package path: %w", err)
 		}
+
 		if !info.IsDir() {
 			paths = append(paths, arg)
 		} else {
@@ -105,10 +109,12 @@ func fmtDuration(d time.Duration) string {
 
 func guessRootDir() string {
 	cmd := exec.Command("go", "list", "-m", "-mod=mod", "-f", "{{.Dir}}", "github.com/gnolang/gno")
+
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Fatal("can't guess --root-dir, please fill it manually.")
 	}
+
 	rootDir := strings.TrimSpace(string(out))
 
 	return rootDir
@@ -145,10 +151,13 @@ func ResolvePath(output string, path importPath) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	absPkgPath, err := filepath.Abs(string(path))
+
 	if err != nil {
 		return "", err
 	}
+
 	pkgPath := strings.TrimPrefix(absPkgPath, guessRootDir())
 
 	return filepath.Join(absOutput, pkgPath), nil

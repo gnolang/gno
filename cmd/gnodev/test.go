@@ -45,6 +45,7 @@ var defaultTestOptions = testOptions{
 
 func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 	opts := iopts.(testOptions)
+
 	if len(args) < 1 {
 		cmd.ErrPrintfln("Usage: test [test flags] [packages]")
 
@@ -57,10 +58,12 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	defer os.RemoveAll(tempdirRoot)
 
 	// go.mod
 	modPath := filepath.Join(tempdirRoot, "go.mod")
+
 	err = makeTestGoMod(modPath, gno.ImportPrefix, "1.18")
 	if err != nil {
 		return fmt.Errorf("write .mod file: %w", err)
@@ -85,14 +88,17 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 	buildErrCount := 0
 	testErrCount := 0
+
 	for _, pkgPath := range pkgPaths {
 		if opts.Precompile {
 			if verbose {
 				cmd.ErrPrintfln("=== PREC  %s", pkgPath)
 			}
+
 			precompileOpts := newPrecompileOptions(precompileFlags{
 				Output: tempdirRoot,
 			})
+
 			err := precompilePkg(importPath(pkgPath), precompileOpts)
 			if err != nil {
 				cmd.ErrPrintln(err)
@@ -107,10 +113,13 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 			if verbose {
 				cmd.ErrPrintfln("=== BUILD %s", pkgPath)
 			}
+
 			tempDir, err := ResolvePath(tempdirRoot, importPath(pkgPath))
+
 			if err != nil {
 				errors.New("cannot resolve build dir")
 			}
+
 			err = goBuildFileOrPkg(tempDir, defaultBuildOptions)
 			if err != nil {
 				cmd.ErrPrintln(err)
@@ -127,10 +136,12 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 		if err != nil {
 			log.Fatal(err)
 		}
+
 		filetestFiles, err := filepath.Glob(filepath.Join(pkgPath, "*_filetest.gno"))
 		if err != nil {
 			log.Fatal(err)
 		}
+
 		if len(unittestFiles) == 0 && len(filetestFiles) == 0 {
 			cmd.ErrPrintfln("?       %s \t[no test files]", pkgPath)
 
@@ -155,6 +166,7 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 			cmd.ErrPrintfln("ok      %s \t%s", pkgPath, dstr)
 		}
 	}
+
 	if testErrCount > 0 || buildErrCount > 0 {
 		cmd.ErrPrintfln("FAIL")
 
@@ -184,6 +196,7 @@ func gnoTestPkg(cmd *command.Command, pkgPath string, unittestFiles, filetestFil
 		if verbose {
 			stdout = os.Stdout
 		}
+
 		memPkg := gno.ReadMemPackage(pkgPath, pkgPath)
 
 		// tfiles, ifiles := gno.ParseMemPackageTests(memPkg)
@@ -284,7 +297,9 @@ func runTestFiles(
 	}
 
 	m.RunFiles(files.Files...)
+
 	n := gno.MustParseFile("testmain.go", testmain)
+
 	m.RunFiles(n)
 
 	for _, test := range testFuncs.Tests {
@@ -303,6 +318,7 @@ func runTestFiles(
 		if ret == "" {
 			err := errors.New("failed to execute unit test: %q", test.Name)
 			errs = multierr.Append(errs, err)
+
 			cmd.ErrPrintfln("--- FAIL: %s (%v)", test.Name, duration)
 
 			continue
@@ -310,9 +326,11 @@ func runTestFiles(
 
 		// TODO: replace with amino or send native type?
 		var rep report
+
 		err = json.Unmarshal([]byte(ret), &rep)
 		if err != nil {
 			errs = multierr.Append(errs, err)
+
 			cmd.ErrPrintfln("--- FAIL: %s (%s)", test.Name, dstr)
 
 			continue
@@ -329,6 +347,7 @@ func runTestFiles(
 		case rep.Failed:
 			err := errors.New("failed: %q", test.Name)
 			errs = multierr.Append(errs, err)
+
 			cmd.ErrPrintfln("--- FAIL: %s (%s)", test.Name, dstr)
 		default:
 			if verbose {
@@ -431,20 +450,25 @@ func loadTestFuncs(pkgName string, t *testFuncs, tfiles *gno.FileSet) *testFuncs
 func parseMemPackageTests(memPkg *std.MemPackage) (tset, itset *gno.FileSet) {
 	tset = &gno.FileSet{}
 	itset = &gno.FileSet{}
+
 	for _, mfile := range memPkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") {
 			continue // skip this file.
 		}
+
 		if strings.HasSuffix(mfile.Name, "_filetest.gno") {
 			continue
 		}
+
 		n, err := gno.ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
 			panic(errors.Wrap(err, "parsing file "+mfile.Name))
 		}
+
 		if n == nil {
 			panic("should not happen")
 		}
+
 		if strings.HasSuffix(mfile.Name, "_test.gno") {
 			// add test file.
 			if memPkg.Name+"_test" == string(n.PkgName) {
@@ -468,6 +492,7 @@ func shouldRun(filter filterMatch, path string) bool {
 	if filter == nil {
 		return true
 	}
+
 	elem := strings.Split(path, "/")
 	ok, _ := filter.matches(elem, matchString)
 

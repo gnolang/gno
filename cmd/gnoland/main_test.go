@@ -18,6 +18,7 @@ func TestInitialize(t *testing.T) {
 		{[]string{"--skip-start"}},
 		// FIXME: test seems flappy as soon as we have multiple cases.
 	}
+
 	os.Chdir(filepath.Join("..", "..")) // go to repo's root dir
 
 	for _, tc := range cases {

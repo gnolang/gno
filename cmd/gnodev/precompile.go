@@ -59,6 +59,7 @@ func (p *precompileOptions) markAsPrecompiled(pkg importPath) {
 
 func precompileApp(cmd *command.Command, args []string, f interface{}) error {
 	flags := f.(precompileFlags)
+
 	if len(args) < 1 {
 		cmd.ErrPrintfln("Usage: precompile [precompile flags] [packages]")
 
@@ -73,6 +74,7 @@ func precompileApp(cmd *command.Command, args []string, f interface{}) error {
 
 	opts := newPrecompileOptions(flags)
 	errCount := 0
+
 	for _, filepath := range paths {
 		err = precompileFile(filepath, opts)
 		if err != nil {
@@ -93,6 +95,7 @@ func precompilePkg(pkgPath importPath, opts *precompileOptions) error {
 	if opts.isPrecompiled(pkgPath) {
 		return nil
 	}
+
 	opts.markAsPrecompiled(pkgPath)
 
 	files, err := filepath.Glob(filepath.Join(string(pkgPath), "*.gno"))
@@ -112,6 +115,7 @@ func precompilePkg(pkgPath importPath, opts *precompileOptions) error {
 func precompileFile(srcPath string, opts *precompileOptions) error {
 	flags := opts.getFlags()
 	gofmt := flags.GofmtBinary
+
 	if gofmt == "" {
 		gofmt = defaultPrecompileFlags.GofmtBinary
 	}
@@ -127,9 +131,13 @@ func precompileFile(srcPath string, opts *precompileOptions) error {
 	}
 
 	// compute attributes based on filename.
-	var targetFilename string
-	var tags string
+	var (
+		targetFilename string
+		tags           string
+	)
+
 	nameNoExtension := strings.TrimSuffix(filepath.Base(srcPath), ".gno")
+
 	switch {
 	case strings.HasSuffix(srcPath, "_filetest.gno"):
 		tags = "gno,filetest"
@@ -150,11 +158,13 @@ func precompileFile(srcPath string, opts *precompileOptions) error {
 
 	// resolve target path
 	var targetPath string
+
 	if flags.Output != defaultPrecompileFlags.Output {
 		path, err := ResolvePath(flags.Output, importPath(filepath.Dir(srcPath)))
 		if err != nil {
 			return fmt.Errorf("resolve output path: %w", err)
 		}
+
 		targetPath = filepath.Join(path, targetFilename)
 	} else {
 		targetPath = filepath.Join(filepath.Dir(srcPath), targetFilename)

@@ -23,6 +23,7 @@ func main() {
 	args := os.Args[1:]
 	// extend default crypto/keys/client with maketx.
 	client.AddApp(makeTxApp, "maketx", "compose a tx document to sign", nil)
+
 	err := client.RunMain(cmd, exec, args)
 	if err != nil {
 		cmd.ErrPrintfln("%s", err.Error())
@@ -54,6 +55,7 @@ func makeTxApp(cmd *command.Command, args []string, iopts interface{}) error {
 	// show help message.
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" {
 		cmd.Println("available subcommands:")
+
 		for _, appItem := range makeTxApps {
 			cmd.Printf("  %s - %s\n", appItem.Name, appItem.Desc)
 		}
@@ -112,12 +114,15 @@ var defaultMakeAddPackageTxOptions = makeAddPackageTxOptions{
 
 func makeAddPackageTxApp(cmd *command.Command, args []string, iopts interface{}) error {
 	opts := iopts.(makeAddPackageTxOptions)
+
 	if opts.PkgPath == "" {
 		return errors.New("pkgpath not specified")
 	}
+
 	if opts.PkgDir == "" {
 		return errors.New("pkgdir not specified")
 	}
+
 	if len(args) != 1 {
 		cmd.ErrPrintfln("Usage: addpkg <keyname or address>")
 
@@ -127,13 +132,17 @@ func makeAddPackageTxApp(cmd *command.Command, args []string, iopts interface{})
 	// read account pubkey.
 	nameOrBech32 := args[0]
 	kb, err := keys.NewKeyBaseFromDir(opts.Home)
+
 	if err != nil {
 		return err
 	}
+
 	info, err := kb.GetByNameOrAddress(nameOrBech32)
+
 	if err != nil {
 		return err
 	}
+
 	creator := info.GetAddress()
 	// info.GetPubKey()
 
@@ -154,6 +163,7 @@ func makeAddPackageTxApp(cmd *command.Command, args []string, iopts interface{})
 
 	// parse gas wanted & fee.
 	gaswanted := opts.GasWanted
+
 	gasfee, err := std.ParseCoin(opts.GasFee)
 	if err != nil {
 		panic(err)
@@ -209,17 +219,21 @@ func makeCallTxApp(cmd *command.Command, args []string, iopts interface{}) error
 	if opts.PkgPath == "" {
 		return errors.New("pkgpath not specified")
 	}
+
 	if opts.Func == "" {
 		return errors.New("func not specified")
 	}
+
 	if len(args) != 1 {
 		cmd.ErrPrintfln("Usage: call <keyname or address>")
 
 		return errors.New("invalid args")
 	}
+
 	if opts.GasWanted == 0 {
 		return errors.New("gas-wanted not specified")
 	}
+
 	if opts.GasFee == "" {
 		return errors.New("gas-fee not specified")
 	}
@@ -229,14 +243,17 @@ func makeCallTxApp(cmd *command.Command, args []string, iopts interface{}) error
 
 	// read account pubkey.
 	nameOrBech32 := args[0]
+
 	kb, err := keys.NewKeyBaseFromDir(opts.Home)
 	if err != nil {
 		return err
 	}
+
 	info, err := kb.GetByNameOrAddress(nameOrBech32)
 	if err != nil {
 		return err
 	}
+
 	caller := info.GetAddress()
 	// info.GetPubKey()
 
@@ -248,6 +265,7 @@ func makeCallTxApp(cmd *command.Command, args []string, iopts interface{}) error
 
 	// parse gas wanted & fee.
 	gaswanted := opts.GasWanted
+
 	gasfee, err := std.ParseCoin(opts.GasFee)
 	if err != nil {
 		return errors.Wrap(err, "parsing gas fee coin")
@@ -289,25 +307,31 @@ func signAndBroadcast(
 ) error {
 	// query account
 	nameOrBech32 := args[0]
+
 	kb, err := keys.NewKeyBaseFromDir(baseopts.Home)
 	if err != nil {
 		return err
 	}
+
 	info, err := kb.GetByNameOrAddress(nameOrBech32)
 	if err != nil {
 		return err
 	}
+
 	accountAddr := info.GetAddress()
 
 	qopts := client.QueryOptions{
 		Path: fmt.Sprintf("auth/accounts/%s", accountAddr),
 	}
 	qopts.Remote = baseopts.Remote
+
 	qres, err := client.QueryHandler(qopts)
 	if err != nil {
 		return errors.Wrap(err, "query account")
 	}
+
 	var qret struct{ BaseAccount std.BaseAccount }
+
 	err = amino.UnmarshalJSON(qres.Response.Data, &qret)
 	if err != nil {
 		return err
@@ -324,11 +348,13 @@ func signAndBroadcast(
 		TxJSON:        amino.MustMarshalJSON(tx),
 	}
 	sopts.Home = baseopts.Home
+
 	if baseopts.Quiet {
 		sopts.Pass, err = cmd.GetPassword("", baseopts.InsecurePasswordStdin)
 	} else {
 		sopts.Pass, err = cmd.GetPassword("Enter password.", baseopts.InsecurePasswordStdin)
 	}
+
 	if err != nil {
 		return err
 	}
@@ -343,16 +369,20 @@ func signAndBroadcast(
 		Tx: signedTx,
 	}
 	bopts.Remote = baseopts.Remote
+
 	bres, err := client.BroadcastHandler(bopts)
 	if err != nil {
 		return errors.Wrap(err, "broadcast tx")
 	}
+
 	if bres.CheckTx.IsErr() {
 		return errors.Wrap(bres.CheckTx.Error, "check transaction failed: log:%s", bres.CheckTx.Log)
 	}
+
 	if bres.DeliverTx.IsErr() {
 		return errors.Wrap(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
 	}
+
 	cmd.Println(string(bres.DeliverTx.Data))
 	cmd.Println("OK!")
 	cmd.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
@@ -380,34 +410,42 @@ var defaultMakeSendTxOptions = makeSendTxOptions{
 
 func makeSendTxApp(cmd *command.Command, args []string, iopts interface{}) error {
 	opts := iopts.(makeSendTxOptions)
+
 	if len(args) != 1 {
 		cmd.ErrPrintfln("Usage: send <keyname or address>")
 
 		return errors.New("invalid args")
 	}
+
 	if opts.GasWanted == 0 {
 		return errors.New("gas-wanted not specified")
 	}
+
 	if opts.GasFee == "" {
 		return errors.New("gas-fee not specified")
 	}
+
 	if opts.Send == "" {
 		return errors.New("send (amount) must be specified")
 	}
+
 	if opts.To == "" {
 		return errors.New("to (destination address) must be specified")
 	}
 
 	// read account pubkey.
 	nameOrBech32 := args[0]
+
 	kb, err := keys.NewKeyBaseFromDir(opts.Home)
 	if err != nil {
 		return err
 	}
+
 	info, err := kb.GetByNameOrAddress(nameOrBech32)
 	if err != nil {
 		return err
 	}
+
 	fromAddr := info.GetAddress()
 	// info.GetPubKey()
 
@@ -425,6 +463,7 @@ func makeSendTxApp(cmd *command.Command, args []string, iopts interface{}) error
 
 	// parse gas wanted & fee.
 	gaswanted := opts.GasWanted
+
 	gasfee, err := std.ParseCoin(opts.GasFee)
 	if err != nil {
 		return errors.Wrap(err, "parsing gas fee coin")

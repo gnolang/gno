@@ -56,6 +56,7 @@ func init() {
 	flag.StringVar(&flags.homeContentFile, "home-content", "./gnoland/website/HOME.md", "home content filepath")
 	flag.StringVar(&flags.helpChainID, "help-chainid", "dev", "help page's chainid")
 	flag.StringVar(&flags.helpRemote, "help-remote", "127.0.0.1:26657", "help page's remote addr")
+
 	startedAt = time.Now()
 }
 
@@ -269,14 +270,17 @@ func handleRealmRender(app gotuna.App, w http.ResponseWriter, r *http.Request) {
 	rlmname := vars["rlmname"]
 	rlmpath := "gno.land/r/" + rlmname
 	querystr := vars["querystr"]
+
 	if r.URL.Path == "/r/"+rlmname+":" {
 		// Redirect to /r/REALM if querypath is empty.
 		http.Redirect(w, r, "/r/"+rlmname, http.StatusFound)
 
 		return
 	}
+
 	qpath := "vm/qrender"
 	data := []byte(fmt.Sprintf("%s\n%s", rlmpath, querystr))
+
 	res, err := makeRequest(qpath, data)
 	if err != nil {
 		// XXX hack
@@ -291,6 +295,7 @@ func handleRealmRender(app gotuna.App, w http.ResponseWriter, r *http.Request) {
 	// linkify querystr.
 	queryParts := strings.Split(querystr, "/")
 	pathLinks := []pathLink{}
+
 	for i, part := range queryParts {
 		pathLinks = append(pathLinks, pathLink{
 			URL:  "/r/" + rlmname + ":" + strings.Join(queryParts[:i+1], "/"),
@@ -337,12 +342,14 @@ func renderPackageFile(app gotuna.App, w http.ResponseWriter, r *http.Request, d
 		// Request is for a folder.
 		qpath := qFileStr
 		data := []byte(diruri)
+
 		res, err := makeRequest(qpath, data)
 		if err != nil {
 			writeError(w, err)
 
 			return
 		}
+
 		files := strings.Split(string(res.Data), "\n")
 		// Render template.
 		tmpl := app.NewTemplatingEngine()
@@ -380,9 +387,11 @@ func makeRequest(qpath string, data []byte) (res *abci.ResponseQuery, err error)
 	cli := client.NewHTTP(remote, "/websocket")
 	qres, err := cli.ABCIQueryWithOptions(
 		qpath, data, opts2)
+
 	if err != nil {
 		return nil, err
 	}
+
 	if qres.Response.Error != nil {
 		fmt.Printf("Log: %s\n",
 			qres.Response.Log)

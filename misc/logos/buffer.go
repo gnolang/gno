@@ -34,6 +34,7 @@ func (bb *Buffer) GetCell(x, y int) *Cell {
 			"index x=%d out of bounds, width=%d",
 			x, bb.Width))
 	}
+
 	if bb.Height <= y {
 		panic(fmt.Sprintf(
 			"index y=%d out of bounds, height=%d",
@@ -45,8 +46,10 @@ func (bb *Buffer) GetCell(x, y int) *Cell {
 
 func (bb *Buffer) Sprint() string {
 	lines := []string{}
+
 	for y := 0; y < bb.Height; y++ {
 		parts := []string{}
+
 		for x := 0; x < bb.Width; x++ {
 			cell := bb.GetCell(x, y)
 			parts = append(parts, cell.Character)
@@ -58,6 +61,7 @@ func (bb *Buffer) Sprint() string {
 					fmt.Sprintf("%X", flags))
 			}
 		}
+
 		line := strings.Join(parts, "")
 		lines = append(lines, line)
 	}
@@ -70,9 +74,11 @@ func (bb *Buffer) DrawToScreen(s tcell.Screen) {
 	if bb.Size.Width != sw || bb.Size.Height != sh {
 		panic("buffer doesn't match screen size")
 	}
+
 	for y := 0; y < sh; y++ {
 		for x := 0; x < sw; x++ {
 			cell := bb.GetCell(x, y)
+
 			if x == 0 && y == 0 {
 				// NOTE: to thwart some inexplicable bugs.
 				s.SetContent(0, 0, tcell.RunePlus, nil, gDefaultSpaceTStyle)
@@ -104,10 +110,13 @@ func (cc *Cell) SetValueFromCell(c2 *Cell) {
 	cc.SetValue(c2.Character, c2.Width, c2.Style, c2.Ref)
 	cc.Character = c2.Character
 	cc.Width = c2.Width
+
 	if c2.Style != nil {
 		cc.Style = c2.Style
 	}
+
 	cc.Attrs.Merge(c2.GetAttrs())
+
 	if c2.Ref != nil {
 		cc.Ref = c2.Ref
 	}
@@ -116,9 +125,11 @@ func (cc *Cell) SetValueFromCell(c2 *Cell) {
 func (cc *Cell) SetValue(chs string, w int, st *Style, el Elem) {
 	cc.Character = chs
 	cc.Width = w
+
 	if st != nil {
 		cc.Style = st
 	}
+
 	if el != nil {
 		cc.Attrs.Merge(el.GetAttrs())
 		cc.Ref = el
@@ -142,8 +153,10 @@ var gDefaultTStyle = gDefaultStyle.GetTStyle().
 func (cc *Cell) GetTCellContent() (mainc rune, combc []rune, tstyle tcell.Style) {
 	style := cc.Style
 	attrs := &cc.Attrs
+
 	if cc.Character == "" {
 		mainc = '?' // for debugging
+
 		if style == nil {
 			// special case
 			tstyle = gDefaultSpaceTStyle
@@ -200,6 +213,7 @@ func (bs View) GetCell(x, y int) *Cell {
 	if bs.Bounds.Width <= x {
 		panic("should not happen")
 	}
+
 	if bs.Bounds.Height <= y {
 		panic("should not happen")
 	}
@@ -236,6 +250,7 @@ func NewBufferedElemView(elem Elem, size Size) *BufferedElemView {
 	if size.IsZero() {
 		size = elem.Measure()
 	}
+
 	bpv := &BufferedElemView{
 		Size:   size,
 		Style:  elem.GetStyle(),
@@ -244,6 +259,7 @@ func NewBufferedElemView(elem Elem, size Size) *BufferedElemView {
 		// NOTE: be lazy, size may change.
 		// Buffer: NewBuffer(size),
 	}
+
 	bpv.SetCoord(elem.GetCoord())
 	bpv.SetIsDirty(true)
 	elem.SetParent(bpv)

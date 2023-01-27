@@ -21,6 +21,7 @@ var defaultBuildOptions = buildOptions{
 
 func buildApp(cmd *command.Command, args []string, iopts interface{}) error {
 	opts := iopts.(buildOptions)
+
 	if len(args) < 1 {
 		cmd.ErrPrintfln("Usage: build [build flags] [packages]")
 
@@ -33,6 +34,7 @@ func buildApp(cmd *command.Command, args []string, iopts interface{}) error {
 	}
 
 	errCount := 0
+
 	for _, pkgPath := range paths {
 		err = goBuildFileOrPkg(pkgPath, opts)
 		if err != nil {
@@ -41,6 +43,7 @@ func buildApp(cmd *command.Command, args []string, iopts interface{}) error {
 			errCount++
 		}
 	}
+
 	if errCount > 0 {
 		return fmt.Errorf("%d go build errors", errCount)
 	}

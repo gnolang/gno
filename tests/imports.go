@@ -74,6 +74,7 @@ func TestStore(
 		if pkgPath == "" {
 			panic(fmt.Sprintf("invalid zero package path in testStore().pkgGetter"))
 		}
+
 		if mode != ImportModeStdlibsOnly &&
 			mode != ImportModeStdlibsPreferred &&
 			mode != ImportModeNativePreferred {
@@ -413,6 +414,7 @@ func TestStore(
 			case "unicode/utf8":
 				pkg := gno.NewPackageNode("utf8", pkgPath, nil)
 				pkg.DefineGoNativeValue("DecodeRuneInString", utf8.DecodeRuneInString)
+
 				tv := gno.TypedValue{T: gno.UntypedRuneType} // TODO dry
 				tv.SetInt32(utf8.RuneSelf)                   // ..
 				pkg.Define("RuneSelf", tv)                   // ..
@@ -448,7 +450,6 @@ func TestStore(
 				return pkg, pkg.NewPackage()
 			*/
 			default:
-				// continue on...
 			}
 		}
 

@@ -79,6 +79,7 @@ func inTable(r rune, t table) bool {
 
 	bot := 0
 	top := len(t) - 1
+
 	for top >= bot {
 		mid := (bot + top) >> 1
 
