@@ -128,6 +128,7 @@ func TestNoBlockResponse(t *testing.T) {
 
 	p2p.MakeConnectedSwitches(config.P2P, 2, func(i int, s *p2p.Switch) *p2p.Switch {
 		s.AddReactor("BLOCKCHAIN", reactorPairs[i].reactor)
+
 		return s
 	}, p2p.Connect2Switches)
 
@@ -197,6 +198,7 @@ func TestFlappyBadBlockStopsPeer(t *testing.T) {
 
 	switches := p2p.MakeConnectedSwitches(config.P2P, 4, func(i int, s *p2p.Switch) *p2p.Switch {
 		s.AddReactor("BLOCKCHAIN", reactorPairs[i].reactor)
+
 		return s
 	}, p2p.Connect2Switches)
 
@@ -226,6 +228,7 @@ func TestFlappyBadBlockStopsPeer(t *testing.T) {
 
 	switches = append(switches, p2p.MakeConnectedSwitches(config.P2P, 1, func(i int, s *p2p.Switch) *p2p.Switch {
 		s.AddReactor("BLOCKCHAIN", reactorPairs[len(reactorPairs)-1].reactor)
+
 		return s
 	}, p2p.Connect2Switches)...)
 
@@ -324,7 +327,7 @@ func TestBcStatusResponseMessageValidateBasic(t *testing.T) {
 	}
 }
 
-//----------------------------------------------
+// ----------------------------------------------
 // utility funcs
 
 func makeTxs(height int64) (txs []types.Tx) {
@@ -336,6 +339,7 @@ func makeTxs(height int64) (txs []types.Tx) {
 
 func makeBlock(height int64, state sm.State, lastCommit *types.Commit) *types.Block {
 	block, _ := state.MakeBlock(height, makeTxs(height), lastCommit, state.Validators.GetProposer().Address)
+
 	return block
 }
 

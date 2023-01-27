@@ -18,6 +18,7 @@ func randBytes(length int) []byte {
 	// math.rand.Read always returns err=nil
 	// we do not need cryptographic randomness for this test:
 	rand.Read(key)
+
 	return key
 }
 
@@ -34,6 +35,7 @@ func prepareTree(b *testing.B, db db.DB, size, keyLen, dataLen int) (*iavl.Mutab
 	}
 	commitTree(b, t)
 	runtime.GC()
+
 	return t, keys
 }
 
@@ -83,6 +85,7 @@ func runInsert(b *testing.B, t *iavl.MutableTree, keyLen, dataLen, blockSize int
 			t.SaveVersion()
 		}
 	}
+
 	return t
 }
 
@@ -97,6 +100,7 @@ func runUpdate(b *testing.B, t *iavl.MutableTree, dataLen, blockSize int, keys [
 			commitTree(b, t)
 		}
 	}
+
 	return t
 }
 
@@ -114,6 +118,7 @@ func runDelete(b *testing.B, t *iavl.MutableTree, blockSize int, keys [][]byte) 
 			commitTree(b, t)
 		}
 	}
+
 	return t
 }
 
@@ -268,6 +273,7 @@ func memUseMB() float64 {
 	runtime.ReadMemStats(&mem)
 	asize := mem.Alloc
 	mb := float64(asize) / 1000000
+
 	return mb
 }
 

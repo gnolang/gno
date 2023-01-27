@@ -225,6 +225,7 @@ func (vals *ValidatorSet) HasAddress(address crypto.Address) bool {
 	idx := sort.Search(len(vals.Validators), func(i int) bool {
 		return address.Compare(vals.Validators[i].Address) <= 0
 	})
+
 	return idx < len(vals.Validators) && vals.Validators[idx].Address == address
 }
 
@@ -347,15 +348,18 @@ func processChanges(origChanges []*Validator) (updates, removals []*Validator, e
 	for _, update := range changes {
 		if update.Address == prevAddr {
 			err = fmt.Errorf("duplicate entry %v in %v", update, changes)
+
 			return nil, nil, err
 		}
 		if update.VotingPower < 0 {
 			err = fmt.Errorf("voting power can't be negative: %v", update)
+
 			return nil, nil, err
 		}
 		if update.VotingPower > MaxTotalVotingPower {
 			err = fmt.Errorf("to prevent clipping/ overflow, voting power can't be higher than %v: %v ",
 				MaxTotalVotingPower, update)
+
 			return nil, nil, err
 		}
 		if update.VotingPower == 0 {
@@ -401,6 +405,7 @@ func verifyUpdates(
 			err = fmt.Errorf(
 				"failed to add/update validator %v, total voting power would exceed the max allowed %v",
 				update, MaxTotalVotingPower)
+
 			return 0, 0, err
 		}
 	}
@@ -599,6 +604,7 @@ func (vals *ValidatorSet) UpdateWithChangeSet(changes []*Validator) error {
 
 func NewValidatorSetFromABCIValidatorUpdates(updates []abci.ValidatorUpdate) *ValidatorSet {
 	vals := ABCIValidatorUpdatesToValidators(updates)
+
 	return NewValidatorSet(vals)
 }
 
@@ -766,6 +772,7 @@ func (vals *ValidatorSet) VerifyFutureCommit(newSet *ValidatorSet, chainID strin
 
 func IsErrTooMuchChange(err error) bool {
 	_, ok := errors.Cause(err).(tooMuchChangeError)
+
 	return ok
 }
 
@@ -792,8 +799,10 @@ func (vals *ValidatorSet) StringIndented(indent string) string {
 	var valStrings []string
 	vals.Iterate(func(index int, val *Validator) bool {
 		valStrings = append(valStrings, val.String())
+
 		return false
 	})
+
 	return fmt.Sprintf(`ValidatorSet{
 %s  Proposer: %v
 %s  Validators:
@@ -841,6 +850,7 @@ func RandValidatorSet(numValidators int, votingPower int64) (*ValidatorSet, []Pr
 	}
 	vals := NewValidatorSet(valz)
 	sort.Sort(PrivValidatorsByAddress(privValidators))
+
 	return vals, privValidators
 }
 

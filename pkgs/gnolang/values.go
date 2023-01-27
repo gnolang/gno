@@ -91,6 +91,7 @@ func (bv *BigintValue) UnmarshalAmino(s string) error {
 		return err
 	}
 	bv.V = vv
+
 	return nil
 }
 
@@ -120,6 +121,7 @@ func (bv *BigdecValue) UnmarshalAmino(s string) error {
 		return err
 	}
 	bv.V = vv
+
 	return nil
 }
 
@@ -190,6 +192,7 @@ func (pv *PointerValue) GetBase(store Store) Object {
 	case RefValue:
 		base := store.GetObject(cbase.ObjectID).(Object)
 		pv.Base = base
+
 		return base
 	case Object:
 		return cbase
@@ -271,6 +274,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 	} else if pv.TV.T == DataByteType {
 		// Special case of DataByte into (base=*SliceValue).Data.
 		pv.TV.SetDataByte(tv2.GetUint8())
+
 		return
 	}
 	// General case
@@ -289,15 +293,18 @@ func (pv PointerValue) Deref() (tv TypedValue) {
 		dbv := pv.TV.V.(DataByteValue)
 		tv.T = dbv.ElemType
 		tv.SetUint8(dbv.GetByte())
+
 		return
 	} else if nv, ok := pv.TV.V.(*NativeValue); ok {
 		rv := nv.Value
 		// XXX memoize type.
 		tv.T = &NativeType{Type: rv.Type()}
 		tv.V = nv
+
 		return
 	} else {
 		tv = *pv.TV
+
 		return
 	}
 }
@@ -356,6 +363,7 @@ func (av *ArrayValue) GetLength() int {
 func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) PointerValue {
 	if av.Data == nil {
 		ev := fillValueTV(store, &av.List[ii]) // by reference
+
 		return PointerValue{
 			TV:    ev,
 			Base:  av,
@@ -387,10 +395,12 @@ func (av *ArrayValue) Copy(alloc *Allocator) *ArrayValue {
 	if av.Data == nil {
 		av2 := alloc.NewListArray(len(av.List))
 		copy(av2.List, av.List)
+
 		return av2
 	} else {
 		av2 := alloc.NewDataArray(len(av.Data))
 		copy(av2.Data, av.Data)
+
 		return av2
 	}
 }
@@ -412,6 +422,7 @@ func (sv *SliceValue) GetBase(store Store) *ArrayValue {
 	case RefValue:
 		array := store.GetObject(cv.ObjectID).(*ArrayValue)
 		sv.Base = array
+
 		return array
 	case *ArrayValue:
 		return cv
@@ -464,6 +475,7 @@ func (sv *StructValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 
 func (sv *StructValue) GetPointerToInt(store Store, index int) PointerValue {
 	fv := fillValueTV(store, &sv.Fields[index])
+
 	return PointerValue{
 		TV:    fv,
 		Base:  sv,
@@ -482,6 +494,7 @@ func (sv *StructValue) GetSubrefPointerTo(store Store, st *StructType, path Valu
 	}
 	fv := fillValueTV(store, &sv.Fields[path.Index])
 	ft := st.GetStaticTypeOfAt(path)
+
 	return PointerValue{
 		TV: &TypedValue{ // TODO: optimize
 			T: &PointerType{ // TODO: optimize (cont)
@@ -505,6 +518,7 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 	*/
 	fields := alloc.NewStructFields(len(sv.Fields))
 	copy(fields, sv.Fields)
+
 	return alloc.NewStruct(fields)
 }
 
@@ -536,6 +550,7 @@ type FuncValue struct {
 
 func (fv *FuncValue) Copy(alloc *Allocator) *FuncValue {
 	alloc.AllocateFunc()
+
 	return &FuncValue{
 		Type:       fv.Type,
 		IsMethod:   fv.IsMethod,
@@ -556,6 +571,7 @@ func (fv *FuncValue) GetType(store Store) *FuncType {
 	case RefType:
 		typ := store.GetType(ct.ID).(*FuncType)
 		fv.Type = typ
+
 		return typ
 	case *FuncType:
 		return ct
@@ -570,6 +586,7 @@ func (fv *FuncValue) GetBodyFromSource(store Store) []Stmt {
 	} else {
 		source := fv.GetSource(store)
 		fv.body = source.GetBody()
+
 		return fv.body
 	}
 }
@@ -578,6 +595,7 @@ func (fv *FuncValue) GetSource(store Store) BlockNode {
 	if rn, ok := fv.Source.(RefNode); ok {
 		source := store.GetBlockNode(rn.GetLocation())
 		fv.Source = source
+
 		return source
 	} else {
 		return fv.Source
@@ -586,6 +604,7 @@ func (fv *FuncValue) GetSource(store Store) BlockNode {
 
 func (fv *FuncValue) GetPackage(store Store) *PackageValue {
 	pv := store.GetPackage(fv.PkgPath, false)
+
 	return pv
 }
 
@@ -608,6 +627,7 @@ func (fv *FuncValue) GetClosure(store Store) *Block {
 	case RefValue:
 		block := store.GetObject(cv.ObjectID).(*Block)
 		fv.Closure = block
+
 		return block
 	case *Block:
 		return cv
@@ -737,6 +757,7 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedVa
 	kmk := key.ComputeMapKey(store, false)
 	if mli, ok := mv.vmap[kmk]; ok {
 		key2 := key.Copy(alloc)
+
 		return PointerValue{
 			TV:    fillValueTV(store, &mli.Value),
 			Base:  mv,
@@ -747,6 +768,7 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedVa
 		mli := mv.List.Append(alloc, *key)
 		mv.vmap[kmk] = mli
 		key2 := key.Copy(alloc)
+
 		return PointerValue{
 			TV:    fillValueTV(store, &mli.Value),
 			Base:  mv,
@@ -763,6 +785,7 @@ func (mv *MapValue) GetValueForKey(store Store, key *TypedValue) (val TypedValue
 	if mli, exists := mv.vmap[kmk]; exists {
 		fillValueTV(store, &mli.Value)
 		val, ok = mli.Value, true
+
 		return
 	} else {
 		return
@@ -831,6 +854,7 @@ func (pv *PackageValue) GetBlock(store Store) *Block {
 	case RefValue:
 		bb := store.GetObject(bv.ObjectID).(*Block)
 		pv.Block = bb
+
 		return bb
 	case *Block:
 		return bv
@@ -871,9 +895,11 @@ func (pv *PackageValue) GetFileBlock(store Store, fname Name) *Block {
 			case RefValue:
 				fb := store.GetObject(fbv.ObjectID).(*Block)
 				pv.getFBlocksMap()[fname] = fb
+
 				return fb
 			case *Block:
 				pv.getFBlocksMap()[fname] = fbv
+
 				return fbv
 			default:
 				panic("should not happen")
@@ -916,6 +942,7 @@ func (nv *NativeValue) Copy(alloc *Allocator) *NativeValue {
 	nt := nv.Value.Type()
 	nv2 := reflect.New(nt).Elem()
 	nv2.Set(nv.Value)
+
 	return alloc.NewNative(nv2)
 }
 
@@ -1034,16 +1061,19 @@ func (tv *TypedValue) PrimitiveBytes() (data []byte) {
 		data = make([]byte, 2)
 		binary.LittleEndian.PutUint16(
 			data, uint16(tv.GetInt16()))
+
 		return data
 	case Int32Type:
 		data = make([]byte, 4)
 		binary.LittleEndian.PutUint32(
 			data, uint32(tv.GetInt32()))
+
 		return data
 	case IntType, Int64Type:
 		data = make([]byte, 8)
 		binary.LittleEndian.PutUint64(
 			data, uint64(tv.GetInt()))
+
 		return data
 	case Uint8Type:
 		return []byte{tv.GetUint8()}
@@ -1051,28 +1081,33 @@ func (tv *TypedValue) PrimitiveBytes() (data []byte) {
 		data = make([]byte, 2)
 		binary.LittleEndian.PutUint16(
 			data, tv.GetUint16())
+
 		return data
 	case Uint32Type:
 		data = make([]byte, 4)
 		binary.LittleEndian.PutUint32(
 			data, tv.GetUint32())
+
 		return data
 	case UintType, Uint64Type:
 		data = make([]byte, 8)
 		binary.LittleEndian.PutUint64(
 			data, uint64(tv.GetUint()))
+
 		return data
 	case Float32Type:
 		data = make([]byte, 4)
 		u32 := math.Float32bits(tv.GetFloat32())
 		binary.LittleEndian.PutUint32(
 			data, u32)
+
 		return data
 	case Float64Type:
 		data = make([]byte, 8)
 		u64 := math.Float64bits(tv.GetFloat64())
 		binary.LittleEndian.PutUint64(
 			data, u64)
+
 		return data
 	case BigintType:
 		return tv.V.(BigintValue).V.Bytes()
@@ -1152,6 +1187,7 @@ func (tv *TypedValue) SetInt(n int) {
 func (tv *TypedValue) ConvertGetInt() int {
 	var store Store = nil // not used
 	ConvertTo(nilAllocator, store, tv, IntType)
+
 	return tv.GetInt()
 }
 
@@ -2337,6 +2373,7 @@ LOOP:
 	if i < path.Depth {
 		b = b.GetParent(store)
 		i++
+
 		goto LOOP
 	}
 	return b.GetPointerToInt(store, int(path.Index))

@@ -318,5 +318,6 @@ func newConsensusStateForReplay(config cfg.BaseConfig, csConfig *cnscfg.Consensu
 		blockStore, mempool)
 
 	consensusState.SetEventSwitch(evsw)
+
 	return consensusState
 }

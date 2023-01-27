@@ -25,6 +25,7 @@ func newSimpleStruct() SimpleStruct {
 		Bytes:  []byte("goodbye"),
 		Time:   time.Now().UTC().Truncate(time.Millisecond), // strip monotonic and timezone.
 	}
+
 	return s
 }
 
@@ -104,11 +105,13 @@ func TestDecodeVarint8(t *testing.T) {
 			} else if !strings.Contains(err.Error(), tt.wantErr) {
 				t.Errorf("#%d\ngotErr=%q\nwantSegment=%q", i, err, tt.wantErr)
 			}
+
 			continue
 		}
 
 		if err != nil {
 			t.Errorf("#%d unexpected error: %v", i, err)
+
 			continue
 		}
 
@@ -152,11 +155,13 @@ func TestDecodeVarint16(t *testing.T) {
 			} else if !strings.Contains(err.Error(), tt.wantErr) {
 				t.Errorf("#%d\ngotErr=%q\nwantSegment=%q", i, err, tt.wantErr)
 			}
+
 			continue
 		}
 
 		if err != nil {
 			t.Errorf("#%d unexpected error: %v", i, err)
+
 			continue
 		}
 

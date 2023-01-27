@@ -353,6 +353,7 @@ func (voteSet *VoteSet) BitArray() *bitarray.BitArray {
 	}
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
+
 	return voteSet.votesBitArray.Copy()
 }
 
@@ -376,6 +377,7 @@ func (voteSet *VoteSet) GetByIndex(valIndex int) *Vote {
 	}
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
+
 	return voteSet.votes[valIndex]
 }
 
@@ -398,6 +400,7 @@ func (voteSet *VoteSet) HasTwoThirdsMajority() bool {
 	}
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
+
 	return voteSet.maj23 != nil
 }
 
@@ -410,6 +413,7 @@ func (voteSet *VoteSet) IsCommit() bool {
 	}
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
+
 	return voteSet.maj23 != nil
 }
 
@@ -419,12 +423,14 @@ func (voteSet *VoteSet) HasTwoThirdsAny() bool {
 	}
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
+
 	return voteSet.sum > voteSet.valSet.TotalVotingPower()*2/3
 }
 
 func (voteSet *VoteSet) HasAll() bool {
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
+
 	return voteSet.sum == voteSet.valSet.TotalVotingPower()
 }
 
@@ -481,6 +487,7 @@ func (voteSet *VoteSet) StringIndented(indent string) string {
 func (voteSet *VoteSet) MarshalJSON() ([]byte, error) {
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
+
 	return amino.MarshalJSON(VoteSetJSON{
 		voteSet.voteStrings(),
 		voteSet.bitArrayString(),
@@ -503,12 +510,14 @@ type VoteSetJSON struct {
 func (voteSet *VoteSet) BitArrayString() string {
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
+
 	return voteSet.bitArrayString()
 }
 
 func (voteSet *VoteSet) bitArrayString() string {
 	bAString := voteSet.votesBitArray.String()
 	voted, total, fracVoted := voteSet.sumTotalFrac()
+
 	return fmt.Sprintf("%s %d/%d = %.2f", bAString, voted, total, fracVoted)
 }
 
@@ -516,6 +525,7 @@ func (voteSet *VoteSet) bitArrayString() string {
 func (voteSet *VoteSet) VoteStrings() []string {
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
+
 	return voteSet.voteStrings()
 }
 
@@ -538,6 +548,7 @@ func (voteSet *VoteSet) StringShort() string {
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
 	_, _, frac := voteSet.sumTotalFrac()
+
 	return fmt.Sprintf(`VoteSet{H:%v R:%v T:%v +2/3:%v(%v) %v %v}`,
 		voteSet.height, voteSet.round, voteSet.type_, voteSet.maj23, frac, voteSet.votesBitArray, voteSet.peerMaj23s)
 }
@@ -546,6 +557,7 @@ func (voteSet *VoteSet) StringShort() string {
 func (voteSet *VoteSet) sumTotalFrac() (int64, int64, float64) {
 	voted, total := voteSet.sum, voteSet.valSet.TotalVotingPower()
 	fracVoted := float64(voted) / float64(total)
+
 	return voted, total, fracVoted
 }
 

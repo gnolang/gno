@@ -89,6 +89,7 @@ func (vs *validatorStub) signVote(voteType types.SignedMsgType, hash []byte, hea
 		BlockID:          types.BlockID{Hash: hash, PartsHeader: header},
 	}
 	err := vs.PrivValidator.SignVote(config.ChainID(), vote)
+
 	return vote, err
 }
 
@@ -305,6 +306,7 @@ func subscribeToVoter(cs *ConsensusState, addr crypto.Address) <-chan events.Eve
 
 func newConsensusState(state sm.State, pv types.PrivValidator, app abci.Application) *ConsensusState {
 	config := cfg.ResetTestRoot("consensus_state_test")
+
 	return newConsensusStateWithConfig(config, state, pv, app)
 }
 
@@ -315,6 +317,7 @@ func newConsensusStateWithConfig(
 	app abci.Application,
 ) *ConsensusState {
 	blockDB := dbm.NewMemDB()
+
 	return newConsensusStateWithConfigAndBlockStore(thisConfig, state, pv, app, blockDB)
 }
 
@@ -352,6 +355,7 @@ func newConsensusStateWithConfigAndBlockStore(
 	evsw.SetLogger(log.TestingLogger().With("module", "events"))
 	evsw.Start()
 	cs.SetEventSwitch(evsw)
+
 	return cs
 }
 
@@ -361,6 +365,7 @@ func loadPrivValidator(config *cfg.Config) *privval.FilePV {
 	privValidatorStateFile := config.PrivValidatorStateFile()
 	privValidator := privval.LoadOrGenFilePV(privValidatorKeyFile, privValidatorStateFile)
 	privValidator.Reset()
+
 	return privValidator
 }
 
@@ -790,6 +795,7 @@ func randGenesisDoc(numValidators int, randPower bool, minPower int64) (*types.G
 func randGenesisState(numValidators int, randPower bool, minPower int64) (sm.State, []types.PrivValidator) {
 	genDoc, privValidators := randGenesisDoc(numValidators, randPower, minPower)
 	s0, _ := sm.MakeGenesisState(genDoc)
+
 	return s0, privValidators
 }
 

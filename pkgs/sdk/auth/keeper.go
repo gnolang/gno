@@ -61,6 +61,7 @@ func (ak AccountKeeper) GetAccount(ctx sdk.Context, addr crypto.Address) std.Acc
 		return nil
 	}
 	acc := ak.decodeAccount(bz)
+
 	return acc
 }
 
@@ -69,9 +70,11 @@ func (ak AccountKeeper) GetAllAccounts(ctx sdk.Context) []std.Account {
 	accounts := []std.Account{}
 	appendAccount := func(acc std.Account) (stop bool) {
 		accounts = append(accounts, acc)
+
 		return false
 	}
 	ak.IterateAccounts(ctx, appendAccount)
+
 	return accounts
 }
 

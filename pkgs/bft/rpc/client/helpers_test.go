@@ -55,6 +55,7 @@ func TestWaitForHeight(t *testing.T) {
 	myWaiter := func(delta int64) error {
 		// update the height for the next call
 		m.Call.Response = &ctypes.ResultStatus{SyncInfo: ctypes.SyncInfo{LatestBlockHeight: 15}}
+
 		return client.DefaultWaitStrategy(delta)
 	}
 
@@ -81,5 +82,6 @@ func TestWaitForHeight(t *testing.T) {
 func MakeTxKV() ([]byte, []byte, []byte) {
 	k := []byte(random.RandStr(8))
 	v := []byte(random.RandStr(8))
+
 	return k, v, append(k, append([]byte("="), v...)...)
 }

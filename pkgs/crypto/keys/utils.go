@@ -23,5 +23,6 @@ func ValidateMultisigThreshold(k, nKeys int) error {
 		return fmt.Errorf(
 			"threshold k of n multisignature: %d < %d", nKeys, k)
 	}
+
 	return nil
 }

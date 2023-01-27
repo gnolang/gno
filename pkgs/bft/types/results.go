@@ -6,7 +6,7 @@ import (
 	"github.com/gnolang/gno/pkgs/crypto/merkle"
 )
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 // ABCIResult is the deterministic component of a ResponseDeliverTx.
 // TODO: add tags and other fields
@@ -62,6 +62,7 @@ func (a ABCIResults) Hash() []byte {
 // ProveResult returns a merkle proof of one result from the set
 func (a ABCIResults) ProveResult(i int) merkle.SimpleProof {
 	_, proofs := merkle.SimpleProofsFromByteSlices(a.toByteSlices())
+
 	return *proofs[i]
 }
 

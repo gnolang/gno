@@ -112,12 +112,15 @@ func (lss *FilePVLastSignState) CheckHRS(height int64, round int, step int8) (bo
 					if lss.Signature == nil {
 						panic("pv: Signature is nil but SignBytes is not!")
 					}
+
 					return true, nil
 				}
+
 				return false, errors.New("no SignBytes found")
 			}
 		}
 	}
+
 	return false, nil
 }
 
@@ -228,6 +231,7 @@ func LoadOrGenFilePV(keyFilePath, stateFilePath string) *FilePV {
 		pv = GenFilePV(keyFilePath, stateFilePath)
 		pv.Save()
 	}
+
 	return pv
 }
 
@@ -249,6 +253,7 @@ func (pv *FilePV) SignVote(chainID string, vote *types.Vote) error {
 	if err := pv.signVote(chainID, vote); err != nil {
 		return fmt.Errorf("error signing vote: %w", err)
 	}
+
 	return nil
 }
 
@@ -258,6 +263,7 @@ func (pv *FilePV) SignProposal(chainID string, proposal *types.Proposal) error {
 	if err := pv.signProposal(chainID, proposal); err != nil {
 		return fmt.Errorf("error signing proposal: %w", err)
 	}
+
 	return nil
 }
 
@@ -321,6 +327,7 @@ func (pv *FilePV) signVote(chainID string, vote *types.Vote) error {
 		} else {
 			err = fmt.Errorf("conflicting data")
 		}
+
 		return err
 	}
 
@@ -331,6 +338,7 @@ func (pv *FilePV) signVote(chainID string, vote *types.Vote) error {
 	}
 	pv.saveSigned(height, round, step, signBytes, sig)
 	vote.Signature = sig
+
 	return nil
 }
 
@@ -363,6 +371,7 @@ func (pv *FilePV) signProposal(chainID string, proposal *types.Proposal) error {
 		} else {
 			err = fmt.Errorf("conflicting data")
 		}
+
 		return err
 	}
 
@@ -373,6 +382,7 @@ func (pv *FilePV) signProposal(chainID string, proposal *types.Proposal) error {
 	}
 	pv.saveSigned(height, round, step, signBytes, sig)
 	proposal.Signature = sig
+
 	return nil
 }
 

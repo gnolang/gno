@@ -21,6 +21,7 @@ func deleteApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 	if len(args) != 1 {
 		cmd.ErrPrintfln("Usage: delete <keyname or address>")
+
 		return errors.New("invalid args")
 	}
 
@@ -46,6 +47,7 @@ func deleteApp(cmd *command.Command, args []string, iopts interface{}) error {
 			return err
 		}
 		cmd.ErrPrintln("Public key reference deleted")
+
 		return nil
 	}
 
@@ -64,6 +66,7 @@ func deleteApp(cmd *command.Command, args []string, iopts interface{}) error {
 		return err
 	}
 	cmd.ErrPrintln("Key deleted")
+
 	return nil
 }
 
@@ -75,5 +78,6 @@ func confirmDeletion(cmd *command.Command) error {
 	if !answer {
 		return errors.New("aborted")
 	}
+
 	return nil
 }

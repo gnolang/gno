@@ -22,6 +22,7 @@ type paramsChangeTestCase struct {
 func newTestApp() proxy.AppConns {
 	app := &testApp{}
 	cc := proxy.NewLocalClientCreator(app)
+
 	return proxy.NewAppConns(cc)
 }
 
@@ -44,6 +45,7 @@ func makeAndCommitGoodBlock(
 	if err != nil {
 		return state, types.BlockID{}, nil, err
 	}
+
 	return state, blockID, commit, nil
 }
 
@@ -59,6 +61,7 @@ func makeAndApplyGoodBlock(state sm.State, height int64, lastCommit *types.Commi
 	if err != nil {
 		return state, types.BlockID{}, err
 	}
+
 	return state, blockID, nil
 }
 
@@ -77,6 +80,7 @@ func makeValidCommit(
 		}
 		sigs = append(sigs, vote.CommitSig())
 	}
+
 	return types.NewCommit(blockID, sigs), nil
 }
 
@@ -85,6 +89,7 @@ func makeTxs(height int64) (txs []types.Tx) {
 	for i := 0; i < nTxsPerBlock; i++ {
 		txs = append(txs, types.Tx([]byte{byte(height), byte(i)}))
 	}
+
 	return txs
 }
 
@@ -117,11 +122,13 @@ func makeState(nVals, height int) (sm.State, dbm.DB, map[string]types.PrivValida
 		s.LastValidators = s.Validators.Copy()
 		sm.SaveState(stateDB, s)
 	}
+
 	return s, stateDB, privVals
 }
 
 func makeBlock(state sm.State, height int64) *types.Block {
 	block, _ := state.MakeBlock(height, makeTxs(state.LastBlockHeight), new(types.Commit), state.Validators.GetProposer().Address)
+
 	return block
 }
 
@@ -130,6 +137,7 @@ func genValSet(size int) *types.ValidatorSet {
 	for i := 0; i < size; i++ {
 		vals[i] = types.NewValidator(ed25519.GenPrivKey().PubKey(), 10)
 	}
+
 	return types.NewValidatorSet(vals)
 }
 
@@ -195,11 +203,13 @@ func makeHeaderPartsResponsesParams(
 	abciResponses := &sm.ABCIResponses{
 		EndBlock: abci.ResponseEndBlock{ConsensusParams: &params},
 	}
+
 	return block.Header, types.BlockID{Hash: block.Hash(), PartsHeader: types.PartSetHeader{}}, abciResponses
 }
 
 func randomGenesisDoc() *types.GenesisDoc {
 	pubkey := ed25519.GenPrivKey().PubKey()
+
 	return &types.GenesisDoc{
 		GenesisTime: tmtime.Now(),
 		ChainID:     "abc",
@@ -232,6 +242,7 @@ func (app *testApp) Info(req abci.RequestInfo) (resInfo abci.ResponseInfo) {
 
 func (app *testApp) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginBlock {
 	app.CommitVotes = req.LastCommitInfo.Votes
+
 	return abci.ResponseBeginBlock{}
 }
 

@@ -33,6 +33,7 @@ func (privKey PrivKeySecp256k1) PubKey() crypto.PubKey {
 	_, pubkeyObject := secp256k1.PrivKeyFromBytes(secp256k1.S256(), privKey[:])
 	var pubkeyBytes PubKeySecp256k1
 	copy(pubkeyBytes[:], pubkeyObject.SerializeCompressed())
+
 	return pubkeyBytes
 }
 
@@ -42,6 +43,7 @@ func (privKey PrivKeySecp256k1) Equals(other crypto.PrivKey) bool {
 	if otherSecp, ok := other.(PrivKeySecp256k1); ok {
 		return subtle.ConstantTimeCompare(privKey[:], otherSecp[:]) == 1
 	}
+
 	return false
 }
 
@@ -127,6 +129,7 @@ func (pubKey PubKeySecp256k1) Address() crypto.Address {
 
 	hasherRIPEMD160 := ripemd160.New()
 	hasherRIPEMD160.Write(sha) // does not error
+
 	return crypto.AddressFromBytes(hasherRIPEMD160.Sum(nil))
 }
 
@@ -143,5 +146,6 @@ func (pubKey PubKeySecp256k1) Equals(other crypto.PubKey) bool {
 	if otherSecp, ok := other.(PubKeySecp256k1); ok {
 		return bytes.Equal(pubKey[:], otherSecp[:])
 	}
+
 	return false
 }

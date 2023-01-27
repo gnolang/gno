@@ -25,6 +25,7 @@ var (
 // NOTE see https://github.com/golang/go/issues/31859
 var _ = func() bool {
 	testing.Init()
+
 	return true
 }()
 
@@ -1290,7 +1291,7 @@ func TestLoadVersionForOverwriting(t *testing.T) {
 	require.NoError(err, "SaveVersion should not fail.")
 }
 
-//////////////////////////// BENCHMARKS ///////////////////////////////////////
+// ////////////////////////// BENCHMARKS ///////////////////////////////////////
 
 func BenchmarkTreeLoadAndDelete(b *testing.B) {
 	numVersions := 5000

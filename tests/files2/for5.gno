@@ -5,6 +5,7 @@ func main() {
 
 	for a {
 		println("nok")
+
 		break
 	}
 	println("bye")

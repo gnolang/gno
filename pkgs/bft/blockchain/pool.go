@@ -92,6 +92,7 @@ func NewBlockPool(start int64, requestsCh chan<- BlockRequest, errorsCh chan<- p
 		errorsCh:   errorsCh,
 	}
 	bp.BaseService = *service.NewBaseService(nil, "BlockPool", bp)
+
 	return bp
 }
 
@@ -100,6 +101,7 @@ func NewBlockPool(start int64, requestsCh chan<- BlockRequest, errorsCh chan<- p
 func (pool *BlockPool) OnStart() error {
 	go pool.makeRequestersRoutine()
 	pool.startTime = time.Now()
+
 	return nil
 }
 
@@ -171,6 +173,7 @@ func (pool *BlockPool) IsCaughtUp() bool {
 	// Need at least 1 peer to be considered caught up.
 	if len(pool.peers) == 0 {
 		pool.Logger.Debug("Blockpool has no peers")
+
 		return false
 	}
 
@@ -182,6 +185,7 @@ func (pool *BlockPool) IsCaughtUp() bool {
 	receivedBlockOrTimedOut := pool.height > 0 || time.Since(pool.startTime) > 5*time.Second
 	ourChainIsLongestAmongPeers := pool.maxPeerHeight == 0 || pool.height >= (pool.maxPeerHeight-1)
 	isCaughtUp := receivedBlockOrTimedOut && ourChainIsLongestAmongPeers
+
 	return isCaughtUp
 }
 
@@ -199,6 +203,7 @@ func (pool *BlockPool) PeekTwoBlocks() (first *types.Block, second *types.Block)
 	if r := pool.requesters[pool.height+1]; r != nil {
 		second = r.getBlock()
 	}
+
 	return
 }
 
@@ -235,6 +240,7 @@ func (pool *BlockPool) RedoRequest(height int64) p2p.ID {
 		// RemovePeer will redo all requesters associated with this peer.
 		pool.removePeer(peerID)
 	}
+
 	return peerID
 }
 
@@ -262,6 +268,7 @@ func (pool *BlockPool) AddBlock(peerID p2p.ID, block *types.Block, blockSize int
 		if diff > maxDiffBetweenCurrentAndReceivedBlockHeight {
 			pool.sendError(errors.New("peer sent us a block we didn't expect with a height too far ahead/behind"), peerID)
 		}
+
 		return
 	}
 
@@ -281,6 +288,7 @@ func (pool *BlockPool) AddBlock(peerID p2p.ID, block *types.Block, blockSize int
 func (pool *BlockPool) MaxPeerHeight() int64 {
 	pool.mtx.Lock()
 	defer pool.mtx.Unlock()
+
 	return pool.maxPeerHeight
 }
 
@@ -355,6 +363,7 @@ func (pool *BlockPool) pickIncrAvailablePeer(minHeight int64) *bpPeer {
 	for _, peer := range pool.peers {
 		if peer.didTimeout {
 			pool.removePeer(peer.id)
+
 			continue
 		}
 		if peer.numPending >= maxPendingRequestsPerPeer {
@@ -364,8 +373,10 @@ func (pool *BlockPool) pickIncrAvailablePeer(minHeight int64) *bpPeer {
 			continue
 		}
 		peer.incrPending()
+
 		return peer
 	}
+
 	return nil
 }
 
@@ -424,6 +435,7 @@ func (pool *BlockPool) debug() string {
 			str += fmt.Sprintf("B?(%v) ", pool.requesters[h].block != nil)
 		}
 	}
+
 	return str
 }
 
@@ -524,11 +536,13 @@ func newBPRequester(pool *BlockPool, height int64) *bpRequester {
 		block:  nil,
 	}
 	bpr.BaseService = *service.NewBaseService(nil, "bpRequester", bpr)
+
 	return bpr
 }
 
 func (bpr *bpRequester) OnStart() error {
 	go bpr.requestRoutine()
+
 	return nil
 }
 
@@ -537,6 +551,7 @@ func (bpr *bpRequester) setBlock(block *types.Block, peerID p2p.ID) bool {
 	bpr.mtx.Lock()
 	if bpr.block != nil || bpr.peerID != peerID {
 		bpr.mtx.Unlock()
+
 		return false
 	}
 	bpr.block = block
@@ -552,12 +567,14 @@ func (bpr *bpRequester) setBlock(block *types.Block, peerID p2p.ID) bool {
 func (bpr *bpRequester) getBlock() *types.Block {
 	bpr.mtx.Lock()
 	defer bpr.mtx.Unlock()
+
 	return bpr.block
 }
 
 func (bpr *bpRequester) getPeerID() p2p.ID {
 	bpr.mtx.Lock()
 	defer bpr.mtx.Unlock()
+
 	return bpr.peerID
 }
 
@@ -600,8 +617,10 @@ OUTER_LOOP:
 			if peer == nil {
 				// log.Info("No peers available", "height", height)
 				time.Sleep(requestIntervalMS * time.Millisecond)
+
 				continue PICK_PEER_LOOP
 			}
+
 			break PICK_PEER_LOOP
 		}
 		bpr.mtx.Lock()
@@ -615,12 +634,14 @@ OUTER_LOOP:
 			select {
 			case <-bpr.pool.Quit():
 				bpr.Stop()
+
 				return
 			case <-bpr.Quit():
 				return
 			case peerID := <-bpr.redoCh:
 				if peerID == bpr.peerID {
 					bpr.reset()
+
 					continue OUTER_LOOP
 				} else {
 					continue WAIT_LOOP

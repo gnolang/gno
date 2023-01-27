@@ -37,5 +37,6 @@ func makeHashes(b *testing.B, seed int64) [][]byte {
 		hashes[i] = hashes[i][:hashSize]
 	}
 	b.StartTimer()
+
 	return hashes
 }

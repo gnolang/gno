@@ -20,6 +20,7 @@ const (
 func init() {
 	registerDBCreator(FSDBBackend, func(name, dir string) (DB, error) {
 		dbPath := filepath.Join(dir, name+".db")
+
 		return NewFSDB(dbPath), nil
 	}, false)
 }
@@ -40,6 +41,7 @@ func NewFSDB(dir string) *FSDB {
 	database := &FSDB{
 		dir: dir,
 	}
+
 	return database
 }
 
@@ -55,6 +57,7 @@ func (db *FSDB) Get(key []byte) []byte {
 	} else if err != nil {
 		panic(errors.Wrap(err, "Getting key %s (0x%X)", string(key), key))
 	}
+
 	return value
 }
 
@@ -64,6 +67,7 @@ func (db *FSDB) Has(key []byte) bool {
 	key = escapeKey(key)
 
 	path := db.nameToPath(key)
+
 	return FileExists(path)
 }
 
@@ -168,6 +172,7 @@ func (db *FSDB) MakeIterator(start, end []byte, isReversed bool) Iterator {
 	} else {
 		sort.Strings(keys)
 	}
+
 	return newMemDBIterator(db, keys, start, end)
 }
 
@@ -177,6 +182,7 @@ func (db *FSDB) ReverseIterator(start, end []byte) Iterator {
 
 func (db *FSDB) nameToPath(name []byte) string {
 	n := url.PathEscape(string(name))
+
 	return filepath.Join(db.dir, n)
 }
 
@@ -193,6 +199,7 @@ func read(path string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return d, nil
 }
 
@@ -216,6 +223,7 @@ func write(path string, d []byte) error {
 		return err
 	}
 	err = f.Sync()
+
 	return err
 }
 
@@ -249,6 +257,7 @@ func list(dirPath string, start, end []byte) ([]string, error) {
 			keys = append(keys, string(key))
 		}
 	}
+
 	return keys, nil
 }
 
@@ -265,5 +274,6 @@ func unescapeKey(escKey []byte) []byte {
 	if string(escKey[:2]) != "k_" {
 		panic(fmt.Sprintf("Invalid esc key: %x", escKey))
 	}
+
 	return escKey[2:]
 }

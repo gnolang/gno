@@ -42,6 +42,7 @@ func NewSignerServer(endpoint *SignerDialerEndpoint, chainID string, privVal typ
 // OnStart implements service.Service.
 func (ss *SignerServer) OnStart() error {
 	go ss.serviceLoop()
+
 	return nil
 }
 
@@ -68,6 +69,7 @@ func (ss *SignerServer) servicePendingRequest() {
 		if !errors.Is(err, io.EOF) {
 			ss.Logger.Error("SignerServer: HandleMessage", "err", err)
 		}
+
 		return
 	}
 

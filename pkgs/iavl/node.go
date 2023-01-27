@@ -171,6 +171,7 @@ func (node *Node) get(t *ImmutableTree, key []byte) (index int64, value []byte) 
 	rightNode := node.getRightNode(t)
 	index, value = rightNode.get(t, key)
 	index += node.size - rightNode.size
+
 	return index, value
 }
 

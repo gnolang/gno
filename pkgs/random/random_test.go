@@ -72,6 +72,7 @@ func testThemAll() string {
 	fmt.Fprintf(out, "randInt64: %d\n", RandInt64())
 	fmt.Fprintf(out, "randUint32: %d\n", RandUint32())
 	fmt.Fprintf(out, "randUint64: %d\n", RandUint64())
+
 	return out.String()
 }
 

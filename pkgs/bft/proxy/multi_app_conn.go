@@ -5,7 +5,7 @@ import (
 	"github.com/gnolang/gno/pkgs/service"
 )
 
-//-----------------------------
+// -----------------------------
 
 // Tendermint's interface to the application consists of multiple connections
 type AppConns interface {
@@ -20,7 +20,7 @@ func NewAppConns(clientCreator ClientCreator) AppConns {
 	return NewMultiAppConn(clientCreator)
 }
 
-//-----------------------------
+// -----------------------------
 // multiAppConn implements AppConns
 
 // a multiAppConn is made of a few appConns (mempool, consensus, query)
@@ -42,6 +42,7 @@ func NewMultiAppConn(clientCreator ClientCreator) *multiAppConn {
 		clientCreator: clientCreator,
 	}
 	multiAppConn.BaseService = *service.NewBaseService(nil, "multiAppConn", multiAppConn)
+
 	return multiAppConn
 }
 

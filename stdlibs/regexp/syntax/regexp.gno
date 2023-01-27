@@ -134,6 +134,7 @@ func writeRegexp(b *strings.Builder, re *Regexp) {
 	case OpCharClass:
 		if len(re.Rune)%2 != 0 {
 			b.WriteString(`[invalid char class]`)
+
 			break
 		}
 		b.WriteRune('[')
@@ -246,6 +247,7 @@ func writeRegexp(b *strings.Builder, re *Regexp) {
 func (re *Regexp) String() string {
 	var b strings.Builder
 	writeRegexp(&b, re)
+
 	return b.String()
 }
 
@@ -257,6 +259,7 @@ func escape(b *strings.Builder, r rune, force bool) {
 			b.WriteRune('\\')
 		}
 		b.WriteRune(r)
+
 		return
 	}
 
@@ -281,6 +284,7 @@ func escape(b *strings.Builder, r rune, force bool) {
 				b.WriteRune('0')
 			}
 			b.WriteString(s)
+
 			break
 		}
 		b.WriteString(`\x{`)
@@ -307,6 +311,7 @@ func (re *Regexp) MaxCap() int {
 func (re *Regexp) CapNames() []string {
 	names := make([]string, re.MaxCap()+1)
 	re.capNames(names)
+
 	return names
 }
 

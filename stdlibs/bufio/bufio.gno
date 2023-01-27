@@ -338,6 +338,7 @@ func (b *Reader) ReadSlice(delim byte) (line []byte, err error) {
 			i += s
 			line = b.buf[b.r : b.r+i+1]
 			b.r += i + 1
+
 			break
 		}
 
@@ -346,6 +347,7 @@ func (b *Reader) ReadSlice(delim byte) (line []byte, err error) {
 			line = b.buf[b.r:b.w]
 			b.r = b.w
 			err = b.readErr()
+
 			break
 		}
 
@@ -354,6 +356,7 @@ func (b *Reader) ReadSlice(delim byte) (line []byte, err error) {
 			b.r = b.w
 			line = b.buf
 			err = ErrBufferFull
+
 			break
 		}
 
@@ -440,6 +443,7 @@ func (b *Reader) collectFragments(delim byte) (fullBuffers [][]byte, finalFragme
 		}
 		if e != ErrBufferFull { // unexpected error
 			err = e
+
 			break
 		}
 

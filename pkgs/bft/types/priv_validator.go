@@ -77,6 +77,7 @@ func (pv *MockPV) SignVote(chainID string, vote *Vote) error {
 		return err
 	}
 	vote.Signature = sig
+
 	return nil
 }
 
@@ -92,12 +93,14 @@ func (pv *MockPV) SignProposal(chainID string, proposal *Proposal) error {
 		return err
 	}
 	proposal.Signature = sig
+
 	return nil
 }
 
 // String returns a string representation of the MockPV.
 func (pv *MockPV) String() string {
 	addr := pv.GetPubKey().Address()
+
 	return fmt.Sprintf("MockPV{%v}", addr)
 }
 

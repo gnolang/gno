@@ -33,8 +33,10 @@ func (t *ImmutableTree) String() string {
 	leaves := []string{}
 	t.Iterate(func(key []byte, val []byte) (stop bool) {
 		leaves = append(leaves, fmt.Sprintf("%x: %x", key, val))
+
 		return false
 	})
+
 	return "Tree{" + strings.Join(leaves, ", ") + "}"
 }
 
@@ -78,6 +80,7 @@ func (t *ImmutableTree) renderNode(
 	// handle leaf
 	if node.isLeaf() {
 		here := fmt.Sprintf("%s%s", prefix, encoder(node.key, depth, true))
+
 		return []string{here}
 	}
 
@@ -87,6 +90,7 @@ func (t *ImmutableTree) renderNode(
 	right := t.renderNode(node.getRightNode(t), indent, depth+1, encoder)
 	result := append(left, here)
 	result = append(result, right...)
+
 	return result
 }
 
@@ -125,6 +129,7 @@ func (t *ImmutableTree) Hash() []byte {
 		return nil
 	}
 	hash, _ := t.root.hashWithCount()
+
 	return hash
 }
 
@@ -221,5 +226,6 @@ func (t *ImmutableTree) nodeSize() int {
 		size++
 		return false
 	})
+
 	return size
 }

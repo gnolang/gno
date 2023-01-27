@@ -201,6 +201,7 @@ func startClient(t *testing.T, addr net.Addr) *WSClient {
 	err := c.Start()
 	require.Nil(t, err)
 	c.SetLogger(log.TestingLogger())
+
 	return c
 }
 
@@ -219,6 +220,7 @@ func callWgDoneOnResult(t *testing.T, c *WSClient, wg *sync.WaitGroup) {
 		case resp := <-c.ResponsesCh:
 			if resp.Error != nil {
 				t.Errorf("unexpected error: %v", resp.Error)
+
 				return
 			}
 			if resp.Result != nil {

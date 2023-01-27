@@ -169,6 +169,7 @@ func NetInfo(ctx *rpctypes.Context) (*ctypes.ResultNetInfo, error) {
 	// TODO: Should we include PersistentPeers and Seeds in here?
 	// PRO: useful info
 	// CON: privacy
+
 	return &ctypes.ResultNetInfo{
 		Listening: p2pTransport.IsListening(),
 		Listeners: p2pTransport.Listeners(),

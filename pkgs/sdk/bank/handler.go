@@ -32,6 +32,7 @@ func (bh bankHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 
 	default:
 		errMsg := fmt.Sprintf("unrecognized bank message type: %T", msg)
+
 		return abciResult(std.ErrUnknownRequest(errMsg))
 	}
 }
@@ -95,7 +96,7 @@ func (bh bankHandler) handleMsgMultiSend(ctx sdk.Context, msg MsgMultiSend) sdk.
 	return sdk.Result{}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Query
 
 // query balance path
@@ -108,6 +109,7 @@ func (bh bankHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Re
 	default:
 		res = sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest("unknown bank query endpoint"))
+
 		return
 	}
 }
@@ -128,14 +130,16 @@ func (bh bankHandler) queryBalance(ctx sdk.Context, req abci.RequestQuery) (res 
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(
 			std.ErrInternal(fmt.Sprintf("could not marshal result to JSON: %s", err.Error())))
+
 		return
 	}
 
 	res.Data = bz
+
 	return
 }
 
-//----------------------------------------
+// ----------------------------------------
 // misc
 
 func abciResult(err error) sdk.Result {

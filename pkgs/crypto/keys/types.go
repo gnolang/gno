@@ -177,6 +177,7 @@ func (i ledgerInfo) GetAddress() crypto.Address {
 // GetPath implements Info interface
 func (i ledgerInfo) GetPath() (*hd.BIP44Params, error) {
 	tmp := i.Path
+
 	return &tmp, nil
 }
 
@@ -282,5 +283,6 @@ func writeInfo(i Info) []byte {
 // decoding info
 func readInfo(bz []byte) (info Info, err error) {
 	err = amino.UnmarshalAnySized(bz, &info)
+
 	return
 }

@@ -125,12 +125,14 @@ func (BitCurve *BitCurve) affineFromJacobian(x, y, z *big.Int) (xOut, yOut *big.
 	zinvsq.Mul(zinvsq, zinv)
 	yOut = new(big.Int).Mul(y, zinvsq)
 	yOut.Mod(yOut, BitCurve.P)
+
 	return
 }
 
 // Add returns the sum of (x1,y1) and (x2,y2)
 func (BitCurve *BitCurve) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
 	z := new(big.Int).SetInt64(1)
+
 	return BitCurve.affineFromJacobian(BitCurve.addJacobian(x1, y1, z, x2, y2, z))
 }
 
@@ -202,6 +204,7 @@ func (BitCurve *BitCurve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (*big.Int
 // Double returns 2*(x,y)
 func (BitCurve *BitCurve) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
 	z1 := new(big.Int).SetInt64(1)
+
 	return BitCurve.affineFromJacobian(BitCurve.doubleJacobian(x1, y1, z1))
 }
 
@@ -271,6 +274,7 @@ func (BitCurve *BitCurve) ScalarMult(Bx, By *big.Int, scalar []byte) (*big.Int, 
 	if res != 1 {
 		return nil, nil
 	}
+
 	return x, y
 }
 
@@ -288,6 +292,7 @@ func (BitCurve *BitCurve) Marshal(x, y *big.Int) []byte {
 	ret[0] = 4 // uncompressed point flag
 	readBits(x, ret[1:1+byteLen])
 	readBits(y, ret[1+byteLen:])
+
 	return ret
 }
 
@@ -299,10 +304,12 @@ func (BitCurve *BitCurve) Unmarshal(data []byte) (x, y *big.Int) {
 		return
 	}
 	if data[0] != 4 { // uncompressed form
+
 		return
 	}
 	x = new(big.Int).SetBytes(data[1 : 1+byteLen])
 	y = new(big.Int).SetBytes(data[1+byteLen:])
+
 	return
 }
 

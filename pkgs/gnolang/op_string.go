@@ -146,6 +146,7 @@ func (i Op) String() string {
 		return _Op_name_0[_Op_index_0[i]:_Op_index_0[i+1]]
 	case 32 <= i && i <= 35:
 		i -= 32
+
 		return _Op_name_1[_Op_index_1[i]:_Op_index_1[i+1]]
 	case 37 <= i && i <= 56:
 		i -= 37

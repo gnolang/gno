@@ -65,6 +65,7 @@ func (vote *Vote) CommitSig() *CommitSig {
 		return nil
 	}
 	cs := CommitSig(*vote)
+
 	return &cs
 }
 
@@ -78,6 +79,7 @@ func (vote *Vote) SignBytes(chainID string) []byte {
 
 func (vote *Vote) Copy() *Vote {
 	voteCopy := *vote
+
 	return &voteCopy
 }
 

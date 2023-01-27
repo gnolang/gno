@@ -65,6 +65,7 @@ func OpenAutoFile(path string) (*AutoFile, error) {
 	}
 	if err := af.openFile(); err != nil {
 		af.Close()
+
 		return nil, err
 	}
 
@@ -90,6 +91,7 @@ func (af *AutoFile) Close() error {
 	if af.hupc != nil {
 		close(af.hupc)
 	}
+
 	return af.closeFile()
 }
 
@@ -114,6 +116,7 @@ func (af *AutoFile) closeFile() (err error) {
 	}
 
 	af.file = nil
+
 	return file.Close()
 }
 
@@ -132,6 +135,7 @@ func (af *AutoFile) Write(b []byte) (n int, err error) {
 	}
 
 	n, err = af.file.Write(b)
+
 	return
 }
 
@@ -148,6 +152,7 @@ func (af *AutoFile) Sync() error {
 			return err
 		}
 	}
+
 	return af.file.Sync()
 }
 
@@ -164,6 +169,7 @@ func (af *AutoFile) openFile() error {
 	// 	return errors.NewErrPermissionsChanged(file.Name(), fileInfo.Mode(), autoFilePerms)
 	// }
 	af.file = file
+
 	return nil
 }
 

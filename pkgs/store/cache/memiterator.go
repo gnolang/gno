@@ -25,6 +25,7 @@ func newMemIterator(start, end []byte, items *list.List, ascending bool) *memIte
 			if entered {
 				break
 			}
+
 			continue
 		}
 		itemsInDomain = append(itemsInDomain, item)
@@ -67,6 +68,7 @@ func (mi *memIterator) Key() []byte {
 	if mi.ascending {
 		return mi.items[0].Key
 	}
+
 	return mi.items[len(mi.items)-1].Key
 }
 
@@ -75,6 +77,7 @@ func (mi *memIterator) Value() []byte {
 	if mi.ascending {
 		return mi.items[0].Value
 	}
+
 	return mi.items[len(mi.items)-1].Value
 }
 

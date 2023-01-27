@@ -98,6 +98,7 @@ func (state State) Copy() State {
 // Equals returns true if the States are identical.
 func (state State) Equals(state2 State) bool {
 	sbz, s2bz := state.Bytes(), state2.Bytes()
+
 	return bytes.Equal(sbz, s2bz)
 }
 
@@ -178,6 +179,7 @@ func MakeGenesisStateFromFile(genDocFile string) (State, error) {
 	if err != nil {
 		return State{}, err
 	}
+
 	return MakeGenesisState(genDoc)
 }
 

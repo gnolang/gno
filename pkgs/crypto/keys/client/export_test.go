@@ -52,6 +52,7 @@ func addRandomKeyToKeybase(
 	}
 
 	// Add the key to the key base
+
 	return kb.CreateAccount(
 		keyName,
 		mnemonic,

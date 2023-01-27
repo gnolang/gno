@@ -106,6 +106,7 @@ func isRepeatedWZJ(bz []byte) bool {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -120,10 +121,11 @@ func widthOfSlow(s string) (w int) {
 		w += w2
 		rz = rz[n:]
 	}
+
 	return
 }
 
-//----------------------------------------
+// ----------------------------------------
 // incBuffer for testing
 
 // If overflow, bz becomes zero and returns false.
@@ -133,9 +135,11 @@ func incBuffer(bz []byte) bool {
 			bz[i] = 0x00
 		} else {
 			bz[i]++
+
 			return true
 		}
 	}
+
 	return false
 }
 

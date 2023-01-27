@@ -116,11 +116,13 @@ func TestMarshalJSON(t *testing.T) {
 				t.Errorf("#%d:\ngot:\n\t%v\nwant non-nil error containing\n\t%q", i,
 					err, tt.wantErr)
 			}
+
 			continue
 		}
 
 		if err != nil {
 			t.Errorf("#%d: unexpected error: %v\nblob: %v", i, err, tt.in)
+
 			continue
 		}
 		if g, w := string(blob), tt.want; g != w {
@@ -170,6 +172,7 @@ func (f *fp) UnmarshalAmino(repr string) (err error) {
 	}
 	f.Name = parts[0]
 	f.Version, err = strconv.Atoi(parts[1])
+
 	return
 }
 
@@ -255,6 +258,7 @@ func TestUnmarshalJSON(t *testing.T) {
 		{ // #7
 			`["1", "2", "3"]`, new([]int), func() interface{} {
 				v := []int{1, 2, 3}
+
 				return &v
 			}(), "",
 		},
@@ -292,11 +296,13 @@ func TestUnmarshalJSON(t *testing.T) {
 				t.Errorf("#%d:\ngot:\n\t%q\nwant non-nil error containing\n\t%q", i,
 					err, tt.wantErr)
 			}
+
 			continue
 		}
 
 		if err != nil {
 			t.Errorf("#%d: unexpected error: %v\nblob: %s\nin: %+v\n", i, err, tt.blob, tt.in)
+
 			continue
 		}
 		if g, w := tt.in, tt.want; !reflect.DeepEqual(g, w) {
@@ -357,16 +363,19 @@ func TestJSONCodecRoundTrip(t *testing.T) {
 				t.Errorf("#%d:\ngot:\n\t%q\nwant non-nil error containing\n\t%q", i,
 					err, tt.wantErr)
 			}
+
 			continue
 		}
 
 		if err != nil {
 			t.Errorf("#%d: unexpected error after MarshalJSON: %v", i, err)
+
 			continue
 		}
 
 		if err = cdc.UnmarshalJSON(mBlob, tt.out); err != nil {
 			t.Errorf("#%d: unexpected error after UnmarshalJSON: %v\nmBlob: %s", i, err, mBlob)
+
 			continue
 		}
 
@@ -375,6 +384,7 @@ func TestJSONCodecRoundTrip(t *testing.T) {
 		assert.NoError(t, err)
 		if err := cdc.UnmarshalJSON(mBlob, tt.out); err != nil {
 			t.Errorf("#%d: unexpected error after second MarshalJSON: %v", i, err)
+
 			continue
 		}
 		if !reflect.DeepEqual(tt.want, tt.out) {

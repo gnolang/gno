@@ -87,6 +87,7 @@ func TestMempoolProgressInHigherRound(t *testing.T) {
 			// dont set the proposal in round 0 so we timeout and
 			// go to next round
 			cs.Logger.Info("Ignoring set proposal at height 2, round 0")
+
 			return nil
 		}
 		return cs.defaultSetProposal(proposal)
@@ -196,12 +197,14 @@ func TestMempoolRmBadTx(t *testing.T) {
 		err := assertMempool(cs.txNotifier).CheckTx(txBytes, func(r abci.Response) {
 			if _, ok := r.(abci.ResponseCheckTx).Error.(errors.BadNonceError); !ok {
 				t.Errorf("expected checktx to return bad nonce, got %v", r)
+
 				return
 			}
 			checkTxRespCh <- struct{}{}
 		})
 		if err != nil {
 			t.Errorf("Error after CheckTx: %v", err)
+
 			return
 		}
 
@@ -223,6 +226,7 @@ func TestMempoolRmBadTx(t *testing.T) {
 		// success
 	case <-ticker:
 		t.Errorf("Timed out waiting for tx to return")
+
 		return
 	}
 
@@ -233,6 +237,7 @@ func TestMempoolRmBadTx(t *testing.T) {
 		// success
 	case <-ticker:
 		t.Errorf("Timed out waiting for tx to be removed")
+
 		return
 	}
 }
@@ -251,6 +256,7 @@ func NewCounterApplication() *CounterApplication {
 
 func (app *CounterApplication) Info(req abci.RequestInfo) (res abci.ResponseInfo) {
 	res.Data = []byte(fmt.Sprintf("txs:%v", app.txCount))
+
 	return
 }
 
@@ -259,6 +265,7 @@ func (app *CounterApplication) DeliverTx(req abci.RequestDeliverTx) (res abci.Re
 	if txValue != uint64(app.txCount) {
 		res.Error = errors.BadNonceError{}
 		res.Log = fmt.Sprintf("Invalid nonce. Expected %v, got %v", app.txCount, txValue)
+
 		return
 	}
 	app.txCount++
@@ -270,6 +277,7 @@ func (app *CounterApplication) CheckTx(req abci.RequestCheckTx) (res abci.Respon
 	if txValue != uint64(app.mempoolTxCount) {
 		res.Error = errors.BadNonceError{}
 		res.Log = fmt.Sprintf("Invalid nonce. Expected %v, got %v", app.mempoolTxCount, txValue)
+
 		return
 	}
 	app.mempoolTxCount++
@@ -279,6 +287,7 @@ func (app *CounterApplication) CheckTx(req abci.RequestCheckTx) (res abci.Respon
 func txAsUint64(tx []byte) uint64 {
 	tx8 := make([]byte, 8)
 	copy(tx8[len(tx8)-len(tx):], tx)
+
 	return binary.BigEndian.Uint64(tx8)
 }
 
@@ -290,5 +299,6 @@ func (app *CounterApplication) Commit() (res abci.ResponseCommit) {
 	hash := make([]byte, 8)
 	binary.BigEndian.PutUint64(hash, uint64(app.txCount))
 	res.Data = hash
+
 	return
 }

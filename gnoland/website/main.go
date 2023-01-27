@@ -214,6 +214,7 @@ func handlerRealmMain(app gotuna.App) http.Handler {
 			res, err := makeRequest(qpath, data)
 			if err != nil {
 				writeError(w, err)
+
 				return
 			}
 			var fsigs vm.FunctionSignatures
@@ -243,6 +244,7 @@ func handlerRealmMain(app gotuna.App) http.Handler {
 			_, err := makeRequest(qpath, data)
 			if err != nil {
 				writeError(w, errors.New("error querying realm package"))
+
 				return
 			}
 			// Render blank query path, /r/REALM:.
@@ -270,6 +272,7 @@ func handleRealmRender(app gotuna.App, w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/r/"+rlmname+":" {
 		// Redirect to /r/REALM if querypath is empty.
 		http.Redirect(w, r, "/r/"+rlmname, http.StatusFound)
+
 		return
 	}
 	qpath := "vm/qrender"
@@ -281,6 +284,7 @@ func handleRealmRender(app gotuna.App, w http.ResponseWriter, r *http.Request) {
 			res.Data = []byte("realm package has no Render() function")
 		} else {
 			writeError(w, err)
+
 			return
 		}
 	}
@@ -321,6 +325,7 @@ func handlerPackageFile(app gotuna.App) http.Handler {
 		if filename == "" && diruri == pkgpath {
 			// redirect to diruri + "/"
 			http.Redirect(w, r, "/p/"+vars["filepath"]+"/", http.StatusFound)
+
 			return
 		}
 		renderPackageFile(app, w, r, diruri, filename)
@@ -335,6 +340,7 @@ func renderPackageFile(app gotuna.App, w http.ResponseWriter, r *http.Request, d
 		res, err := makeRequest(qpath, data)
 		if err != nil {
 			writeError(w, err)
+
 			return
 		}
 		files := strings.Split(string(res.Data), "\n")
@@ -352,6 +358,7 @@ func renderPackageFile(app gotuna.App, w http.ResponseWriter, r *http.Request, d
 		res, err := makeRequest(qpath, data)
 		if err != nil {
 			writeError(w, err)
+
 			return
 		}
 		// Render template.
@@ -379,8 +386,10 @@ func makeRequest(qpath string, data []byte) (res *abci.ResponseQuery, err error)
 	if qres.Response.Error != nil {
 		fmt.Printf("Log: %s\n",
 			qres.Response.Log)
+
 		return nil, qres.Response.Error
 	}
+
 	return &qres.Response, nil
 }
 
@@ -394,11 +403,13 @@ func handlerStaticFile(app gotuna.App) http.Handler {
 		f, err := fs.Open(fpath)
 		if os.IsNotExist(err) {
 			handleNotFound(app, fpath, w, r)
+
 			return
 		}
 		stat, err := f.Stat()
 		if err != nil || stat.IsDir() {
 			handleNotFound(app, fpath, w, r)
+
 			return
 		}
 
@@ -417,6 +428,7 @@ func handlerFavicon(app gotuna.App) http.Handler {
 		f, err := fs.Open(fpath)
 		if os.IsNotExist(err) {
 			handleNotFound(app, fpath, w, r)
+
 			return
 		}
 		w.Header().Set("Content-Type", "image/x-icon")

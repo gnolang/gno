@@ -22,6 +22,7 @@ func TestPrefixIteratorNoMatch1(t *testing.T) {
 	for backend := range backends {
 		if backend == BoltDBBackend {
 			t.Log("bolt does not support concurrent writes while iterating")
+
 			continue
 		}
 

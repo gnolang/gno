@@ -41,6 +41,7 @@ func DominoOpDecoder(pop ProofOp) (ProofOperator, error) {
 
 func (dop DominoOp) ProofOp() ProofOp {
 	bz := amino.MustMarshalSized(dop)
+
 	return ProofOp{
 		Type: ProofOpDomino,
 		Key:  []byte(dop.key),
@@ -63,7 +64,7 @@ func (dop DominoOp) GetKey() []byte {
 	return []byte(dop.key)
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 func TestProofOperators(t *testing.T) {
 	var err error

@@ -80,6 +80,7 @@ func (pth KeyPath) String() string {
 			panic("unexpected key encoding type")
 		}
 	}
+
 	return res
 }
 
@@ -107,5 +108,6 @@ func KeyPathToKeys(path string) (keys [][]byte, err error) {
 			keys[i] = []byte(key) // TODO Test this with random bytes, I'm not sure that it works for arbitrary bytes...
 		}
 	}
+
 	return keys, nil
 }

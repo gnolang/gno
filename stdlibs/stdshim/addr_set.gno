@@ -2,7 +2,7 @@ package std
 
 import "errors"
 
-//----------------------------------------
+// ----------------------------------------
 // AddressSet
 
 type AddressSet interface {
@@ -11,7 +11,7 @@ type AddressSet interface {
 	HasAddress(Address) bool
 }
 
-//----------------------------------------
+// ----------------------------------------
 // AddressList implements AddressSet.
 // TODO implement AddressTree with avl.
 
@@ -33,6 +33,7 @@ func (alist *AddressList) AddAddress(newAddr Address) error {
 		}
 	}
 	*alist = append(*alist, newAddr)
+
 	return nil
 }
 

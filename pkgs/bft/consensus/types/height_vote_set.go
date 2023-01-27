@@ -51,6 +51,7 @@ func NewHeightVoteSet(chainID string, height int64, valSet *types.ValidatorSet) 
 		chainID: chainID,
 	}
 	hvs.Reset(height, valSet)
+
 	return hvs
 }
 
@@ -70,12 +71,14 @@ func (hvs *HeightVoteSet) Reset(height int64, valSet *types.ValidatorSet) {
 func (hvs *HeightVoteSet) Height() int64 {
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
+
 	return hvs.height
 }
 
 func (hvs *HeightVoteSet) Round() int {
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
+
 	return hvs.round
 }
 
@@ -125,22 +128,26 @@ func (hvs *HeightVoteSet) AddVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 		} else {
 			// punish peer
 			err = ErrGotVoteFromUnwantedRoundError
+
 			return
 		}
 	}
 	added, err = voteSet.AddVote(vote)
+
 	return
 }
 
 func (hvs *HeightVoteSet) Prevotes(round int) *types.VoteSet {
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
+
 	return hvs.getVoteSet(round, types.PrevoteType)
 }
 
 func (hvs *HeightVoteSet) Precommits(round int) *types.VoteSet {
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
+
 	return hvs.getVoteSet(round, types.PrecommitType)
 }
 
@@ -237,6 +244,7 @@ func (hvs *HeightVoteSet) MarshalJSON() ([]byte, error) {
 	defer hvs.mtx.Unlock()
 
 	allVotes := hvs.toAllRoundVotes()
+
 	return amino.MarshalJSON(allVotes)
 }
 
@@ -254,6 +262,7 @@ func (hvs *HeightVoteSet) toAllRoundVotes() []roundVotes {
 		}
 	}
 	// TODO: all other peer catchup rounds
+
 	return allVotes
 }
 

@@ -285,6 +285,7 @@ func (mt *MultiplexTransport) acceptPeers() {
 					case <-mt.closec:
 						// Give up if the transport was closed.
 						_ = c.Close()
+
 						return
 					}
 				}
@@ -312,6 +313,7 @@ func (mt *MultiplexTransport) acceptPeers() {
 			case <-mt.closec:
 				// Give up if the transport was closed.
 				_ = c.Close()
+
 				return
 			}
 		}(c)

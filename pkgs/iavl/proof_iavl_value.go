@@ -47,6 +47,7 @@ func IAVLValueOpDecoder(pop merkle.ProofOp) (merkle.ProofOperator, error) {
 
 func (op IAVLValueOp) ProofOp() merkle.ProofOp {
 	bz := cdc.MustMarshalSized(op)
+
 	return merkle.ProofOp{
 		Type: ProofOpIAVLValue,
 		Key:  op.key,

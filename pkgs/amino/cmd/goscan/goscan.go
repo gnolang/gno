@@ -22,6 +22,7 @@ func main() {
 	f, err := parser.ParseFile(fset, "", string(bz), parser.ParseComments|parser.DeclarationErrors)
 	if err != nil {
 		fmt.Println(err)
+
 		return
 	}
 

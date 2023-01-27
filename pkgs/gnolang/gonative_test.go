@@ -26,6 +26,7 @@ func gonativeTestStore(args ...interface{}) Store {
 		return nil, nil
 	})
 	store.SetStrictGo2GnoMapping(false)
+
 	return store
 }
 

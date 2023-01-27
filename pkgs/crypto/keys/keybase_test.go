@@ -41,6 +41,7 @@ func TestCreateLedger(t *testing.T) {
 		assert.Equal(t, "no Ledger discovery function defined", err.Error())
 		assert.Nil(t, ledger)
 		t.Skip("ledger nano S: support for ledger devices is not available in this executable")
+
 		return
 	}
 

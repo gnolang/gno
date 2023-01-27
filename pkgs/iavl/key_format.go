@@ -140,5 +140,6 @@ func format(a interface{}) []byte {
 func formatUint64(v uint64) []byte {
 	bs := make([]byte, 8)
 	binary.BigEndian.PutUint64(bs, v)
+
 	return bs
 }

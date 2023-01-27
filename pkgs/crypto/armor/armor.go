@@ -22,6 +22,7 @@ func EncodeArmor(blockType string, headers map[string]string, data []byte) strin
 	if err != nil {
 		panic(fmt.Errorf("could not encode ascii armor: %w", err))
 	}
+
 	return buf.String()
 }
 
@@ -35,5 +36,6 @@ func DecodeArmor(armorStr string) (blockType string, headers map[string]string, 
 	if err != nil {
 		return "", nil, nil, err
 	}
+
 	return block.Type, block.Header, data, nil
 }

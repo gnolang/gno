@@ -390,6 +390,7 @@ func genValSetWithPowers(powers []int64) *types.ValidatorSet {
 	}
 	valSet := types.NewValidatorSet(vals)
 	valSet.RescalePriorities(totalVotePower)
+
 	return valSet
 }
 

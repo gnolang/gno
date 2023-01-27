@@ -44,6 +44,7 @@ func (msg MsgSend) ValidateBasic() error {
 	if !msg.Amount.IsAllPositive() {
 		return std.ErrInsufficientCoins("send amount must be positive")
 	}
+
 	return nil
 }
 
@@ -101,6 +102,7 @@ func (msg MsgMultiSend) GetSigners() []crypto.Address {
 	for i, in := range msg.Inputs {
 		addrs[i] = in.Address
 	}
+
 	return addrs
 }
 
@@ -121,6 +123,7 @@ func (in Input) ValidateBasic() error {
 	if !in.Coins.IsAllPositive() {
 		return std.ErrInvalidCoins(in.Coins.String())
 	}
+
 	return nil
 }
 
@@ -149,6 +152,7 @@ func (out Output) ValidateBasic() error {
 	if !out.Coins.IsAllPositive() {
 		return std.ErrInvalidCoins(out.Coins.String())
 	}
+
 	return nil
 }
 

@@ -24,6 +24,7 @@ func NewCompactBitArray(bits int) *CompactBitArray {
 	if bits <= 0 {
 		return nil
 	}
+
 	return &CompactBitArray{
 		ExtraBitsStored: byte(bits % 8),
 		Elems:           make([]byte, (bits+7)/8),
@@ -39,6 +40,7 @@ func (bA *CompactBitArray) Size() int {
 	}
 	// num_bits = 8*num_full_bytes + overflow_in_last_byte
 	// num_full_bytes = (len(bA.Elems)-1)
+
 	return (len(bA.Elems)-1)*8 + int(bA.ExtraBitsStored)
 }
 
@@ -51,6 +53,7 @@ func (bA *CompactBitArray) GetIndex(i int) bool {
 	if i >= bA.Size() {
 		return false
 	}
+
 	return bA.Elems[i>>3]&(uint8(1)<<uint8(7-(i%8))) > 0
 }
 
@@ -68,6 +71,7 @@ func (bA *CompactBitArray) SetIndex(i int, v bool) bool {
 	} else {
 		bA.Elems[i>>3] &= ^(uint8(1) << uint8(7-(i%8)))
 	}
+
 	return true
 }
 
@@ -81,6 +85,7 @@ func (bA *CompactBitArray) NumTrueBitsBefore(index int) int {
 			numTrueValues++
 		}
 	}
+
 	return numTrueValues
 }
 
@@ -91,6 +96,7 @@ func (bA *CompactBitArray) Copy() *CompactBitArray {
 	}
 	c := make([]byte, len(bA.Elems))
 	copy(c, bA.Elems)
+
 	return &CompactBitArray{
 		ExtraBitsStored: bA.ExtraBitsStored,
 		Elems:           c,
@@ -136,6 +142,7 @@ func (bA *CompactBitArray) StringIndented(indent string) string {
 	if len(bits) > 0 {
 		lines = append(lines, bits)
 	}
+
 	return fmt.Sprintf("BA{%v:%v}", size, strings.Join(lines, indent))
 }
 
@@ -156,6 +163,7 @@ func (bA *CompactBitArray) MarshalJSON() ([]byte, error) {
 		}
 	}
 	bits += `"`
+
 	return []byte(bits), nil
 }
 
@@ -170,6 +178,7 @@ func (bA *CompactBitArray) UnmarshalJSON(bz []byte) error {
 		// into a pointer with pre-allocated BitArray.
 		bA.ExtraBitsStored = 0
 		bA.Elems = nil
+
 		return nil
 	}
 
@@ -189,6 +198,7 @@ func (bA *CompactBitArray) UnmarshalJSON(bz []byte) error {
 		}
 	}
 	*bA = *bA2
+
 	return nil
 }
 
@@ -205,6 +215,7 @@ func (bA *CompactBitArray) CompactMarshal() []byte {
 	// bytes (saving 3-4 bits) and including the offset as a full byte.
 	bz = appendUvarint(bz, uint64(size))
 	bz = append(bz, bA.Elems...)
+
 	return bz
 }
 
@@ -229,5 +240,6 @@ func CompactUnmarshal(bz []byte) (*CompactBitArray, error) {
 func appendUvarint(b []byte, x uint64) []byte {
 	var a [binary.MaxVarintLen64]byte
 	n := binary.PutUvarint(a[:], x)
+
 	return append(b, a[:n]...)
 }

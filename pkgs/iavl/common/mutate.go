@@ -20,5 +20,6 @@ func MutateByteSlice(bytez []byte) []byte {
 		pos := RandInt() % len(bytez)
 		bytez = append(bytez[:pos], bytez[pos+1:]...)
 	}
+
 	return bytez
 }

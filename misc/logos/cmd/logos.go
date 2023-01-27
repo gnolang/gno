@@ -56,6 +56,7 @@ func main() {
 			if rec = recover(); rec != nil {
 				recStack = debug.Stack()
 				close(quit)
+
 				return
 			}
 		}()
@@ -67,6 +68,7 @@ func main() {
 				switch ev.Key() {
 				case tcell.KeyCtrlQ:
 					close(quit)
+
 					return
 				case tcell.KeyCtrlR:
 					// TODO somehow make it clearer that it happened.
@@ -160,6 +162,7 @@ func makeTestString() string {
 		tcell.RuneHLine,
 		tcell.RuneLRCorner,
 	}))
+
 	return s
 }
 
@@ -172,5 +175,6 @@ func makeTestPage() *logos.BufferedElemView {
 	// TODO width shouldn't matter.
 	page := logos.NewPage(ts, 84, true, style)
 	bpv := logos.NewBufferedElemView(page, logos.Size{})
+
 	return bpv
 }

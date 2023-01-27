@@ -55,6 +55,7 @@ func TestSignerRemoteRetryTCPOnly(t *testing.T) {
 
 			if attempts == retries {
 				attemptCh <- attempts
+
 				break
 			}
 		}

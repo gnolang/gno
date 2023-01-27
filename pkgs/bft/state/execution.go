@@ -173,6 +173,7 @@ func (blockExec *BlockExecutor) Commit(
 	err := blockExec.mempool.FlushAppConn()
 	if err != nil {
 		blockExec.logger.Error("Client error during mempool.FlushAppConn", "err", err)
+
 		return nil, err
 	}
 
@@ -183,6 +184,7 @@ func (blockExec *BlockExecutor) Commit(
 			"Client error during proxyAppConn.CommitSync",
 			"err", err,
 		)
+
 		return nil, err
 	}
 	// ResponseCommit has no error code - just data
@@ -251,6 +253,7 @@ func execBlockOnProxyApp(
 	})
 	if err != nil {
 		logger.Error("Error in proxyAppConn.BeginBlock", "err", err)
+
 		return nil, err
 	}
 
@@ -266,6 +269,7 @@ func execBlockOnProxyApp(
 	abciResponses.EndBlock, err = proxyAppConn.EndBlockSync(abci.RequestEndBlock{Height: block.Height})
 	if err != nil {
 		logger.Error("Error in proxyAppConn.EndBlock", "err", err)
+
 		return nil, err
 	}
 
@@ -315,6 +319,7 @@ func getBeginBlockLastCommitInfo(block *types.Block, stateDB dbm.DB) abci.LastCo
 		Round: int32(block.LastCommit.Round()),
 		Votes: voteInfos,
 	}
+
 	return commitInfo
 }
 
@@ -337,6 +342,7 @@ func validateValidatorUpdates(abciUpdates []abci.ValidatorUpdate,
 				valUpdate, pubkeyTypeURL)
 		}
 	}
+
 	return nil
 }
 
@@ -445,14 +451,17 @@ func ExecCommitBlock(
 	_, err := execBlockOnProxyApp(logger, appConnConsensus, block, stateDB)
 	if err != nil {
 		logger.Error("Error executing block on proxy app", "height", block.Height, "err", err)
+
 		return nil, err
 	}
 	// Commit block, get hash back
 	res, err := appConnConsensus.CommitSync()
 	if err != nil {
 		logger.Error("Client error during proxyAppConn.CommitSync", "err", res)
+
 		return nil, err
 	}
 	// ResponseCommit has no error or log, just data
+
 	return res.Data, nil
 }

@@ -58,6 +58,7 @@ func StartHTTPServer(listener net.Listener, handler http.Handler, logger log.Log
 	}
 	err := s.Serve(listener)
 	logger.Info("RPC HTTP server stopped", "err", err)
+
 	return err
 }
 
@@ -83,6 +84,7 @@ func StartHTTPAndTLSServer(
 	err := s.ServeTLS(listener, certFile, keyFile)
 
 	logger.Error("RPC HTTPS server stopped", "err", err)
+
 	return err
 }
 

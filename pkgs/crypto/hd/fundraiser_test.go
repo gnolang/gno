@@ -39,6 +39,7 @@ func initFundraiserTestVectors(t *testing.T) []addrData {
 	if err != nil {
 		t.Fatalf("could not decode test vectors (test.json): %s", err)
 	}
+
 	return hdToAddrTable
 }
 

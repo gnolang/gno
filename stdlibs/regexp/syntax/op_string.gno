@@ -15,6 +15,7 @@ func (i Op) String() string {
 	switch {
 	case 1 <= i && i <= 19:
 		i -= 1
+
 		return _Op_name_0[_Op_index_0[i]:_Op_index_0[i+1]]
 	case i == 128:
 		return _Op_name_1

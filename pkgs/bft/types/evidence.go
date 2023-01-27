@@ -72,6 +72,7 @@ const (
 func MaxEvidencePerBlock(blockMaxBytes int64) (int64, int64) {
 	maxBytes := blockMaxBytes / MaxEvidenceBytesDenominator
 	maxNum := maxBytes / MaxEvidenceBytes
+
 	return maxNum, maxBytes
 }
 
@@ -175,6 +176,7 @@ func (dve *DuplicateVoteEvidence) Equal(ev Evidence) bool {
 	// just check their hashes
 	dveHash := tmhash.Sum(bytesOrNil(dve))
 	evHash := tmhash.Sum(bytesOrNil(ev))
+
 	return bytes.Equal(dveHash, evHash)
 }
 
@@ -242,6 +244,7 @@ func (e MockGoodEvidence) Bytes() []byte {
 func (e MockGoodEvidence) Verify(chainID string, pubKey crypto.PubKey) error { return nil }
 func (e MockGoodEvidence) Equal(ev Evidence) bool {
 	e2 := ev.(MockGoodEvidence)
+
 	return e.Height == e2.Height && e.Address == e2.Address
 }
 func (e MockGoodEvidence) ValidateBasic() error { return nil }
@@ -262,6 +265,7 @@ func (e MockBadEvidence) Verify(chainID string, pubKey crypto.PubKey) error {
 
 func (e MockBadEvidence) Equal(ev Evidence) bool {
 	e2 := ev.(MockBadEvidence)
+
 	return e.Height == e2.Height && e.Address == e2.Address
 }
 func (e MockBadEvidence) ValidateBasic() error { return nil }

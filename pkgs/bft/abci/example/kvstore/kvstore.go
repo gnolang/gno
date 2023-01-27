@@ -34,6 +34,7 @@ func loadState(db dbm.DB) State {
 		}
 	}
 	state.db = db
+
 	return state
 }
 
@@ -49,7 +50,7 @@ func prefixKey(key []byte) []byte {
 	return append(kvPairPrefixKey, key...)
 }
 
-//---------------------------------------------------
+// ---------------------------------------------------
 
 var _ abci.Application = (*KVStoreApplication)(nil)
 
@@ -61,6 +62,7 @@ type KVStoreApplication struct {
 
 func NewKVStoreApplication() *KVStoreApplication {
 	state := loadState(dbm.NewMemDB())
+
 	return &KVStoreApplication{state: state}
 }
 
@@ -90,6 +92,7 @@ func (app *KVStoreApplication) DeliverTx(req abci.RequestDeliverTx) (res abci.Re
 	events := []abci.Event{abci.EventString(`{"creator":"Cosmoshi Netowoko"}`)}
 
 	res.Events = events
+
 	return res
 }
 
@@ -106,6 +109,7 @@ func (app *KVStoreApplication) Commit() (res abci.ResponseCommit) {
 	saveState(app.state)
 
 	res.Data = appHash
+
 	return res
 }
 
@@ -121,6 +125,7 @@ func (app *KVStoreApplication) Query(reqQuery abci.RequestQuery) (resQuery abci.
 		} else {
 			resQuery.Log = "does not exist"
 		}
+
 		return
 	} else {
 		resQuery.Key = reqQuery.Data
@@ -131,11 +136,13 @@ func (app *KVStoreApplication) Query(reqQuery abci.RequestQuery) (resQuery abci.
 		} else {
 			resQuery.Log = "does not exist"
 		}
+
 		return
 	}
 }
 
 func (app *KVStoreApplication) Close() error {
 	app.state.db.Close()
+
 	return nil
 }

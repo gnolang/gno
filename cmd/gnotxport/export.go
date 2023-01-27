@@ -77,6 +77,7 @@ func txExportApp(cmd *command.Command, args []string, iopts interface{}) error {
 		if err != nil {
 			if opts.Follow && strings.Contains(err.Error(), "") {
 				time.Sleep(time.Second)
+
 				goto getBlock
 			}
 			panic(err)
@@ -89,15 +90,16 @@ func txExportApp(cmd *command.Command, args []string, iopts interface{}) error {
 		if err != nil {
 			if opts.Follow && strings.Contains(err.Error(), "") {
 				time.Sleep(time.Second)
+
 				goto getBlock
 			}
 			panic(err)
 		}
 		for i := 0; i < len(txs); i++ {
 			// need to include error'd txs, to keep sequence alignment.
-			//if bres.Results.DeliverTxs[i].Error != nil {
+			// if bres.Results.DeliverTxs[i].Error != nil {
 			//	continue
-			//}
+			// }
 			tx := txs[i]
 			stdtx := std.Tx{}
 			amino.MustUnmarshal(tx, &stdtx)
@@ -108,5 +110,6 @@ func txExportApp(cmd *command.Command, args []string, iopts interface{}) error {
 			log.Printf("h=%d/%d (txs=%d)", height, end, len(txs))
 		}
 	}
+
 	return nil
 }

@@ -175,6 +175,7 @@ func (proof *RangeProof) Verify(root []byte) error {
 		return errors.Wrap(ErrInvalidProof, "proof is nil")
 	}
 	err := proof.verify(root)
+
 	return err
 }
 
@@ -203,6 +204,7 @@ func (proof *RangeProof) ComputeRootHash() []byte {
 		return nil
 	}
 	rootHash, _ := proof.computeRootHash()
+
 	return rootHash
 }
 
@@ -247,6 +249,7 @@ func (proof *RangeProof) _computeRootHash() (rootHash []byte, treeEnd bool, err 
 		// If we don't have any leaves left, we're done.
 		if len(leaves) == 0 {
 			rightmost = rightmost && path.isRightmost()
+
 			return hash, rightmost, true, nil
 		}
 
@@ -475,6 +478,7 @@ func (t *ImmutableTree) GetRangeWithProof(
 	limit int,
 ) (keys, values [][]byte, proof *RangeProof, err error) {
 	proof, keys, values, err = t.getRangeProof(startKey, endKey, limit)
+
 	return
 }
 

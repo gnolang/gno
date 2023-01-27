@@ -229,6 +229,7 @@ func (c *MConnection) OnStart() error {
 	c.quitRecvRoutine = make(chan struct{})
 	go c.sendRoutine()
 	go c.recvRoutine()
+
 	return nil
 }
 
@@ -242,6 +243,7 @@ func (c *MConnection) stopServices() (alreadyStopped bool) {
 	select {
 	case <-c.quitSendRoutine:
 		// already quit
+
 		return true
 	default:
 	}
@@ -249,6 +251,7 @@ func (c *MConnection) stopServices() (alreadyStopped bool) {
 	select {
 	case <-c.quitRecvRoutine:
 		// already quit
+
 		return true
 	default:
 	}
@@ -261,6 +264,7 @@ func (c *MConnection) stopServices() (alreadyStopped bool) {
 	// inform the recvRouting that we are shutting down
 	close(c.quitRecvRoutine)
 	close(c.quitSendRoutine)
+
 	return false
 }
 
@@ -356,6 +360,7 @@ func (c *MConnection) Send(chID byte, msgBytes []byte) bool {
 	channel, ok := c.channelsIdx[chID]
 	if !ok {
 		c.Logger.Error(fmt.Sprintf("Cannot send bytes, unknown channel %X", chID))
+
 		return false
 	}
 
@@ -369,6 +374,7 @@ func (c *MConnection) Send(chID byte, msgBytes []byte) bool {
 	} else {
 		c.Logger.Debug("Send failed", "channel", chID, "conn", c, "msgBytes", fmt.Sprintf("%X", msgBytes))
 	}
+
 	return success
 }
 
@@ -385,6 +391,7 @@ func (c *MConnection) TrySend(chID byte, msgBytes []byte) bool {
 	channel, ok := c.channelsIdx[chID]
 	if !ok {
 		c.Logger.Error(fmt.Sprintf("Cannot send bytes, unknown channel %X", chID))
+
 		return false
 	}
 
@@ -410,8 +417,10 @@ func (c *MConnection) CanSend(chID byte) bool {
 	channel, ok := c.channelsIdx[chID]
 	if !ok {
 		c.Logger.Error(fmt.Sprintf("Unknown channel %X", chID))
+
 		return false
 	}
+
 	return channel.canSend()
 }
 
@@ -437,6 +446,7 @@ FOR_LOOP:
 			c.Logger.Debug("Send Ping")
 			_n, err = amino.MarshalAnySizedWriter(c.bufConnWriter, PacketPing{})
 			if err != nil {
+
 				break SELECTION
 			}
 			c.sendMonitor.Update(int(_n))
@@ -483,6 +493,7 @@ FOR_LOOP:
 		if err != nil {
 			c.Logger.Error("Connection failed @ sendRoutine", "conn", c, "err", err)
 			c.stopForError(err)
+
 			break FOR_LOOP
 		}
 	}
@@ -506,6 +517,7 @@ func (c *MConnection) sendSomePacketMsgs() bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -539,10 +551,12 @@ func (c *MConnection) sendPacketMsg() bool {
 	if err != nil {
 		c.Logger.Error("Failed to write PacketMsg", "err", err)
 		c.stopForError(err)
+
 		return true
 	}
 	c.sendMonitor.Update(int(_n))
 	c.flushTimer.Set()
+
 	return false
 }
 
@@ -596,6 +610,7 @@ FOR_LOOP:
 				}
 				c.stopForError(err)
 			}
+
 			break FOR_LOOP
 		}
 
@@ -623,6 +638,7 @@ FOR_LOOP:
 				err := fmt.Errorf("unknown channel %X", pkt.ChannelID)
 				c.Logger.Error("Connection failed @ recvRoutine", "conn", c, "err", err)
 				c.stopForError(err)
+
 				break FOR_LOOP
 			}
 
@@ -632,6 +648,7 @@ FOR_LOOP:
 					c.Logger.Error("Connection failed @ recvRoutine", "conn", c, "err", err)
 					c.stopForError(err)
 				}
+
 				break FOR_LOOP
 			}
 			if msgBytes != nil {
@@ -643,6 +660,7 @@ FOR_LOOP:
 			err := fmt.Errorf("unknown message type %v", reflect.TypeOf(packet))
 			c.Logger.Error("Connection failed @ recvRoutine", "conn", c, "err", err)
 			c.stopForError(err)
+
 			break FOR_LOOP
 		}
 	}
@@ -702,6 +720,7 @@ func (c *MConnection) Status() ConnectionStatus {
 			RecentlySent:      atomic.LoadInt64(&channel.recentlySent),
 		}
 	}
+
 	return status
 }
 
@@ -726,6 +745,7 @@ func (chDesc ChannelDescriptor) FillDefaults() (filled ChannelDescriptor) {
 		chDesc.RecvMessageCapacity = defaultRecvMessageCapacity
 	}
 	filled = chDesc
+
 	return
 }
 
@@ -750,6 +770,7 @@ func newChannel(conn *MConnection, desc ChannelDescriptor) *Channel {
 	if desc.Priority <= 0 {
 		panic("Channel default priority must be a positive integer")
 	}
+
 	return &Channel{
 		conn:                    conn,
 		desc:                    desc,
@@ -770,6 +791,7 @@ func (ch *Channel) sendBytes(bytes []byte) bool {
 	select {
 	case ch.sendQueue <- bytes:
 		atomic.AddInt32(&ch.sendQueueSize, 1)
+
 		return true
 	case <-time.After(defaultSendTimeout):
 		return false
@@ -783,6 +805,7 @@ func (ch *Channel) trySendBytes(bytes []byte) bool {
 	select {
 	case ch.sendQueue <- bytes:
 		atomic.AddInt32(&ch.sendQueueSize, 1)
+
 		return true
 	default:
 		return false
@@ -810,6 +833,7 @@ func (ch *Channel) isSendPending() bool {
 		}
 		ch.sending = <-ch.sendQueue
 	}
+
 	return true
 }
 
@@ -828,6 +852,7 @@ func (ch *Channel) nextPacketMsg() PacketMsg {
 		packet.EOF = byte(0x00)
 		ch.sending = ch.sending[maths.MinInt(maxSize, len(ch.sending)):]
 	}
+
 	return packet
 }
 
@@ -837,6 +862,7 @@ func (ch *Channel) writePacketMsgTo(w io.Writer) (n int64, err error) {
 	packet := ch.nextPacketMsg()
 	n, err = amino.MarshalAnySizedWriter(w, packet)
 	atomic.AddInt64(&ch.recentlySent, n)
+
 	return
 }
 
@@ -858,8 +884,10 @@ func (ch *Channel) recvPacketMsg(packet PacketMsg) ([]byte, error) {
 		//   suggests this could be a memory leak, but we might as well keep the memory for the channel until it closes,
 		//	at which point the recving slice stops being used and should be garbage collected
 		ch.recving = ch.recving[:0] // make([]byte, 0, ch.desc.RecvBufferCapacity)
+
 		return msgBytes, nil
 	}
+
 	return nil, nil
 }
 

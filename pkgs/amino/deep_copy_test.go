@@ -22,9 +22,13 @@ func TestDeepCopyFoo1(t *testing.T) {
 
 type DCFoo2 struct{ a string }
 
-func newDCFoo2(a string) *DCFoo2                  { return &DCFoo2{a: a} }
-func (dcf DCFoo2) MarshalAmino() (string, error)  { return dcf.a, nil } // non-pointer receiver
-func (dcf *DCFoo2) UnmarshalAmino(s string) error { dcf.a = s; return nil }
+func newDCFoo2(a string) *DCFoo2                 { return &DCFoo2{a: a} }
+func (dcf DCFoo2) MarshalAmino() (string, error) { return dcf.a, nil } // non-pointer receiver
+func (dcf *DCFoo2) UnmarshalAmino(s string) error {
+	dcf.a = s
+
+	return nil
+}
 
 func TestDeepCopyFoo2(t *testing.T) {
 	dcf1 := newDCFoo2("foobar")

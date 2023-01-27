@@ -34,6 +34,7 @@ func Test_genPrivKey(t *testing.T) {
 				require.Panics(t, func() {
 					genPrivKey(bytes.NewReader(tt.notSoRand))
 				})
+
 				return
 			}
 			got := genPrivKey(bytes.NewReader(tt.notSoRand))

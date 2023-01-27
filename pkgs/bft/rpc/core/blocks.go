@@ -124,6 +124,7 @@ func filterMinMax(height, min, max, limit int64) (int64, int64, error) {
 	if min > max {
 		return min, max, fmt.Errorf("min height %d can't be greater than max height %d", min, max)
 	}
+
 	return min, max, nil
 }
 
@@ -245,6 +246,7 @@ func Block(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultBlock, error)
 
 	blockMeta := blockStore.LoadBlockMeta(height)
 	block := blockStore.LoadBlock(height)
+
 	return &ctypes.ResultBlock{BlockMeta: blockMeta, Block: block}, nil
 }
 
@@ -340,11 +342,13 @@ func Commit(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultCommit, erro
 	// use a non-canonical commit
 	if height == storeHeight {
 		commit := blockStore.LoadSeenCommit(height)
+
 		return ctypes.NewResultCommit(&header, commit, false), nil
 	}
 
 	// Return the canonical commit (comes from the block at height+1)
 	commit := blockStore.LoadBlockCommit(height)
+
 	return ctypes.NewResultCommit(&header, commit, true), nil
 }
 
@@ -416,6 +420,7 @@ func BlockResults(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultBlockR
 		Height:  height,
 		Results: results,
 	}
+
 	return res, nil
 }
 
@@ -428,7 +433,9 @@ func getHeight(currentHeight int64, heightPtr *int64) (int64, error) {
 		if height > currentHeight {
 			return 0, fmt.Errorf("height must be less than or equal to the current blockchain height")
 		}
+
 		return height, nil
 	}
+
 	return currentHeight, nil
 }

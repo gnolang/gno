@@ -20,11 +20,13 @@ func randstr(length int) string {
 func i2b(i int) []byte {
 	buf := new(bytes.Buffer)
 	amino.EncodeInt32(buf, int32(i))
+
 	return buf.Bytes()
 }
 
 func b2i(bz []byte) int {
 	i, _, _ := amino.DecodeInt32(bz)
+
 	return int(i)
 }
 
@@ -49,6 +51,7 @@ func N(l, r interface{}) *Node {
 		rightNode: right,
 	}
 	n.calcHeightAndSize(nil)
+
 	return n
 }
 
@@ -59,6 +62,7 @@ func T(n *Node) *MutableTree {
 
 	n.hashWithCount()
 	t.root = n
+
 	return t
 }
 
@@ -75,6 +79,7 @@ func randBytes(length int) []byte {
 	// math.rand.Read always returns err=nil
 	// we do not need cryptographic randomness for this test:
 	mrand.Read(key)
+
 	return key
 }
 

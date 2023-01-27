@@ -10,6 +10,7 @@ import (
 func Connect(protoAddr string) (net.Conn, error) {
 	proto, address := ProtocolAndAddress(protoAddr)
 	conn, err := net.Dial(proto, address)
+
 	return conn, err
 }
 
@@ -22,6 +23,7 @@ func ProtocolAndAddress(listenAddr string) (string, string) {
 	if len(parts) == 2 {
 		protocol, address = parts[0], parts[1]
 	}
+
 	return protocol, address
 }
 
@@ -39,5 +41,6 @@ func GetFreePort() (int, error) {
 		return 0, err
 	}
 	defer l.Close()
+
 	return l.Addr().(*net.TCPAddr).Port, nil
 }

@@ -31,6 +31,7 @@ func splitSpaces(s string) (ss []string) {
 		ss = append(ss, string(buf))
 		// buf = nil
 	}
+
 	return ss
 }
 
@@ -39,6 +40,7 @@ func toRunes(s string) []rune {
 	for _, r := range s {
 		runes = append(runes, r)
 	}
+
 	return runes
 }
 
@@ -50,10 +52,12 @@ func widthOf(s string) (l int) {
 	for _, r := range s {
 		if r == '\u200d' {
 			zwj = true
+
 			continue
 		}
 		if zwj {
 			zwj = false
+
 			continue
 		}
 		switch runewidth.RuneWidth(r) {
@@ -71,6 +75,7 @@ func widthOf(s string) (l int) {
 			panic("should not happen")
 		}
 	}
+
 	return l
 }
 
@@ -87,10 +92,12 @@ func nextCharacter(rz []rune) (s string, w int, n int) {
 			if n+1 < len(rz) {
 				s = s + string(rz[n+1])
 				n++
+
 				continue
 			} else {
 				// just continue, return invalid string s.
 				n++
+
 				return
 			}
 		} else if 0 < len(s) {
@@ -110,16 +117,18 @@ func nextCharacter(rz []rune) (s string, w int, n int) {
 			}
 		}
 	}
+
 	return
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 func AbsCoord(elem Elem) (crd Coord) {
 	for elem != nil {
 		crd = crd.Add(elem.GetCoord())
 		elem = elem.GetParent()
 	}
+
 	return
 }
 
@@ -140,6 +149,7 @@ var rctr = 0
 
 func RandColor() Color {
 	rctr++
+
 	return randColors[rctr%len(randColors)]
 }
 
@@ -151,5 +161,6 @@ func IsInBounds(x, y int, origin Coord, size Size) bool {
 		origin.Y+size.Height <= y {
 		return false
 	}
+
 	return true
 }

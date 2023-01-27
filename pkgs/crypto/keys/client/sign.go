@@ -37,6 +37,7 @@ func signApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 	if len(args) != 1 {
 		cmd.ErrPrintfln("Usage: sign <keyname or address>")
+
 		return errors.New("invalid args")
 	}
 	opts.NameOrBech32 = args[0]
@@ -127,6 +128,7 @@ func SignHandler(opts SignOptions) (*std.Tx, error) {
 	signbz := tx.GetSignBytes(chainID, accountNumber, sequence)
 	if opts.ShowSignBytes {
 		fmt.Printf("sign bytes: %X\n", signbz)
+
 		return nil, nil
 	}
 

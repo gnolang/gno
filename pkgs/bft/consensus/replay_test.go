@@ -262,6 +262,7 @@ func (w *crashingWAL) Write(m walm.WALMessage) error {
 		_, file, line, _ := runtime.Caller(1)
 		w.crashCh <- WALWriteError{fmt.Sprintf("failed to write %T to WAL (fileline: %s:%d)", m, file, line)}
 		runtime.Goexit()
+
 		return nil
 	}
 
@@ -275,6 +276,7 @@ func (w *crashingWAL) WriteMetaSync(m walm.MetaMessage) error {
 	if m.Height != 0 && m.Height == w.lastBlockHeight+1 {
 		w.crashCh <- ReachedLastBlockHeightError{m.Height}
 		runtime.Goexit()
+
 		return nil
 	}
 	return w.next.WriteMetaSync(m)
@@ -419,6 +421,7 @@ func makeTestSim(t *testing.T, name string) (sim testSim) {
 	for i, vs := range newVss {
 		if vs.GetPubKey().Equals(css[0].privValidator.GetPubKey()) {
 			selfIndex = i
+
 			break
 		}
 	}
@@ -476,6 +479,7 @@ func makeTestSim(t *testing.T, name string) (sim testSim) {
 	for i, vs := range newVss {
 		if vs.GetPubKey().Equals(css[0].privValidator.GetPubKey()) {
 			selfIndex = i
+
 			break
 		}
 	}
@@ -925,12 +929,14 @@ func (app *badApp) Commit() (res abci.ResponseCommit) {
 	if app.onlyLastHashIsWrong {
 		if app.height == app.numBlocks {
 			res.Data = random.RandBytes(8)
+
 			return
 		}
 		res.Data = []byte{app.height}
 		return
 	} else if app.allHashesAreWrong {
 		res.Data = random.RandBytes(8)
+
 		return
 	}
 
@@ -1029,6 +1035,7 @@ func makeBlockchainFromWAL(wal walm.WAL) ([]*types.Block, []*types.Commit, error
 	}
 	blocks = append(blocks, block)
 	commits = append(commits, thisBlockCommit)
+
 	return blocks, commits, nil
 }
 
@@ -1056,6 +1063,7 @@ func makeStateAndStore(config *cfg.Config, pubKey crypto.PubKey, appVersion stri
 	state.AppVersion = appVersion
 	store := newMockBlockStore(config, state.ConsensusParams)
 	sm.SaveState(stateDB, state)
+
 	return stateDB, state, store
 }
 

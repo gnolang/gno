@@ -51,6 +51,7 @@ func toClientAddrAndParse(remoteAddr string) (network string, trimmedS string, e
 
 	// replace / with . for http requests (kvstore domain)
 	trimmedAddress := strings.Replace(address, "/", ".", -1)
+
 	return clientProtocol, trimmedAddress, nil
 }
 
@@ -59,6 +60,7 @@ func toClientAddress(remoteAddr string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return clientProtocol + "://" + trimmedAddress, nil
 }
 
@@ -251,6 +253,7 @@ func (c *JSONRPCClient) sendBatch(requests []*jsonRPCBufferedRequest) ([]interfa
 func (b *JSONRPCRequestBatch) Count() int {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
+
 	return len(b.requests)
 }
 
@@ -264,12 +267,14 @@ func (b *JSONRPCRequestBatch) enqueue(req *jsonRPCBufferedRequest) {
 func (b *JSONRPCRequestBatch) Clear() int {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
+
 	return b.clear()
 }
 
 func (b *JSONRPCRequestBatch) clear() int {
 	count := len(b.requests)
 	b.requests = make([]*jsonRPCBufferedRequest, 0)
+
 	return count
 }
 
@@ -282,6 +287,7 @@ func (b *JSONRPCRequestBatch) Send() ([]interface{}, error) {
 		b.clear()
 		b.mtx.Unlock()
 	}()
+
 	return b.client.sendBatch(b.requests)
 }
 
@@ -297,6 +303,7 @@ func (b *JSONRPCRequestBatch) Call(
 		return nil, err
 	}
 	b.enqueue(&jsonRPCBufferedRequest{request: request, result: result})
+
 	return result, nil
 }
 
@@ -453,6 +460,7 @@ func argsToJSON(args map[string]interface{}) error {
 		if isByteSlice {
 			bytes := reflect.ValueOf(v).Bytes()
 			args[k] = fmt.Sprintf("0x%X", bytes)
+
 			continue
 		}
 

@@ -83,6 +83,7 @@ func Sign(msg []byte, seckey []byte) ([]byte, error) {
 	)
 	C.secp256k1_ecdsa_recoverable_signature_serialize_compact(context, sigdata, &recid, &sigstruct)
 	sig[64] = byte(recid) // add back recid to get 65 bytes sig
+
 	return sig, nil
 }
 
@@ -118,6 +119,7 @@ func VerifySignature(pubkey, msg, signature []byte) bool {
 	sigdata := (*C.uchar)(unsafe.Pointer(&signature[0]))
 	msgdata := (*C.uchar)(unsafe.Pointer(&msg[0]))
 	keydata := (*C.uchar)(unsafe.Pointer(&pubkey[0]))
+
 	return C.secp256k1_ext_ecdsa_verify(context, sigdata, msgdata, keydata, C.size_t(len(pubkey))) != 0
 }
 

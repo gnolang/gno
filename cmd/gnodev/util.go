@@ -16,6 +16,7 @@ import (
 
 func isGnoFile(f fs.DirEntry) bool {
 	name := f.Name()
+
 	return !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".gno") && !f.IsDir()
 }
 
@@ -39,6 +40,7 @@ func gnoFilesFromArgs(args []string) ([]string, error) {
 					return nil // skip
 				}
 				paths = append(paths, curpath)
+
 				return nil
 			})
 			if err != nil {
@@ -46,6 +48,7 @@ func gnoFilesFromArgs(args []string) ([]string, error) {
 			}
 		}
 	}
+
 	return paths, nil
 }
 
@@ -84,6 +87,7 @@ func gnoPackagesFromArgs(args []string) ([]string, error) {
 				// to ensure that ./ is the prefix to pass to go build.
 				pkg := "./" + parentDir
 				paths = append(paths, pkg)
+
 				return nil
 			})
 			if err != nil {
@@ -91,6 +95,7 @@ func gnoPackagesFromArgs(args []string) ([]string, error) {
 			}
 		}
 	}
+
 	return paths, nil
 }
 
@@ -105,12 +110,14 @@ func guessRootDir() string {
 		log.Fatal("can't guess --root-dir, please fill it manually.")
 	}
 	rootDir := strings.TrimSpace(string(out))
+
 	return rootDir
 }
 
 // makeTestGoMod creates the temporary go.mod for test
 func makeTestGoMod(path string, packageName string, goversion string) error {
 	content := fmt.Sprintf("module %s\n\ngo %s\n", packageName, goversion)
+
 	return os.WriteFile(path, []byte(content), 0o644)
 }
 
@@ -124,6 +131,7 @@ func getPathsFromImportSpec(importSpec []*ast.ImportSpec) (importPaths []importP
 			importPaths = append(importPaths, importPath("."+res))
 		}
 	}
+
 	return
 }
 

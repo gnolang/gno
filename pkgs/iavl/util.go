@@ -22,6 +22,7 @@ func printNode(ndb *nodeDB, node *Node, indent int) {
 
 	if node == nil {
 		fmt.Printf("%s<nil>\n", indentPrefix)
+
 		return
 	}
 	if node.rightNode != nil {
@@ -55,6 +56,7 @@ func maxInt8(a, b int8) int8 {
 func cp(bz []byte) (ret []byte) {
 	ret = make([]byte, len(bz))
 	copy(ret, bz)
+
 	return ret
 }
 
@@ -101,6 +103,7 @@ func (bz byteslices) Swap(i, j int) {
 func sortByteSlices(src [][]byte) [][]byte {
 	bzz := byteslices(src)
 	sort.Sort(bzz)
+
 	return bzz
 }
 

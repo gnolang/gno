@@ -61,6 +61,7 @@ func NewApp(rootDir string, skipFailingGenesisTxs bool, logger log.Logger) (abci
 				auth.AuthParamsContextKey{}, auth.DefaultParams())
 			// Continue on with default auth ante handler.
 			newCtx, res, abort = authAnteHandler(ctx, tx, simulate)
+
 			return
 		},
 	)
@@ -138,6 +139,7 @@ func parseBalance(bal string) (crypto.Address, std.Coins) {
 	if err != nil {
 		panic(fmt.Sprintf("invalid balance coins %s (%v)", bal, err))
 	}
+
 	return addr, coins
 }
 

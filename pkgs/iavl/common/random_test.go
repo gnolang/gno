@@ -53,6 +53,7 @@ func testThemAll() string {
 	fmt.Fprintf(out, "perm: %s\n", blob)
 	fmt.Fprintf(out, "randInt: %d\n", RandInt())
 	fmt.Fprintf(out, "randInt31: %d\n", RandInt31())
+
 	return out.String()
 }
 

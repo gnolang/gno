@@ -33,11 +33,13 @@ func (pvs *VersionSet) Set(pv VersionInfo) {
 	for i, pv2 := range *pvs {
 		if pv2.Name == pv.Name {
 			(*pvs)[i] = pv
+
 			return
 		}
 	}
 	*pvs = append(*pvs, pv)
 	pvs.Sort()
+
 	return
 }
 
@@ -48,6 +50,7 @@ func (pvs VersionSet) Get(name string) (pv VersionInfo, ok bool) {
 		}
 	}
 	ok = false
+
 	return
 }
 
@@ -105,5 +108,6 @@ func (pvs VersionSet) CompatibleWith(other VersionSet) (res VersionSet, err erro
 	if errs != nil {
 		return res, fmt.Errorf("VersionSet not compatible...\n%s", strings.Join(errs, "\n"))
 	}
+
 	return res, nil
 }

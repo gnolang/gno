@@ -21,6 +21,7 @@ func New(parent types.Store, gasMeter types.GasMeter, gasConfig types.GasConfig)
 		gasConfig: gasConfig,
 		parent:    parent,
 	}
+
 	return kvs
 }
 
@@ -47,6 +48,7 @@ func (gs *Store) Set(key []byte, value []byte) {
 // Implements Store.
 func (gs *Store) Has(key []byte) bool {
 	gs.gasMeter.ConsumeGas(gs.gasConfig.HasCost, types.GasHasDesc)
+
 	return gs.parent.Has(key)
 }
 
@@ -137,6 +139,7 @@ func (gi *gasIterator) Next() {
 // not incur any gas cost.
 func (gi *gasIterator) Key() (key []byte) {
 	key = gi.parent.Key()
+
 	return key
 }
 
@@ -144,6 +147,7 @@ func (gi *gasIterator) Key() (key []byte) {
 // does not incur any gas cost.
 func (gi *gasIterator) Value() (value []byte) {
 	value = gi.parent.Value()
+
 	return value
 }
 

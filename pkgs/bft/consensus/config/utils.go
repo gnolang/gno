@@ -7,5 +7,6 @@ func join(root, path string) string {
 	if filepath.IsAbs(path) {
 		return path
 	}
+
 	return filepath.Join(root, path)
 }

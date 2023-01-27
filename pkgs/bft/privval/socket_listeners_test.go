@@ -36,6 +36,7 @@ func testUnixAddr() (string, error) {
 	addr := f.Name()
 	f.Close()
 	os.Remove(addr)
+
 	return addr, nil
 }
 
@@ -50,6 +51,7 @@ func tcpListenerTestCase(t *testing.T, timeoutAccept, timeoutReadWrite time.Dura
 	tcpLn := NewTCPListener(ln, newPrivKey())
 	TCPListenerTimeoutAccept(timeoutAccept)(tcpLn)
 	TCPListenerTimeoutReadWrite(timeoutReadWrite)(tcpLn)
+
 	return listenerTestCase{
 		description: "TCP",
 		listener:    tcpLn,
@@ -72,6 +74,7 @@ func unixListenerTestCase(t *testing.T, timeoutAccept, timeoutReadWrite time.Dur
 	unixLn := NewUnixListener(ln)
 	UnixListenerTimeoutAccept(timeoutAccept)(unixLn)
 	UnixListenerTimeoutReadWrite(timeoutReadWrite)(unixLn)
+
 	return listenerTestCase{
 		description: "Unix",
 		listener:    unixLn,

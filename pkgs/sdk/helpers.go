@@ -40,11 +40,13 @@ func ABCIError(err error) abci.Error {
 func ABCIResultFromError(err error) (res Result) {
 	res.Error = ABCIError(err)
 	res.Log = fmt.Sprintf("%#v", err)
+
 	return
 }
 
 func ABCIResponseQueryFromError(err error) (res abci.ResponseQuery) {
 	res.Error = ABCIError(err)
 	res.Log = fmt.Sprintf("%#v", err)
+
 	return
 }

@@ -84,12 +84,14 @@ func NewPackage(gopkgPath string, p3pkgName string, dirName string) *Package {
 			P3ImportPath: filepath.Join(gopkgPath, gopkgName+".proto"),
 			P3SchemaFile: filepath.Join(dirName, gopkgName+".proto"),
 		}
+
 		return pkg
 	} else {
 		pkg := &Package{
 			Dependencies: nil,
 			Types:        nil,
 		}
+
 		return pkg
 	}
 }
@@ -100,6 +102,7 @@ func (pkg *Package) String() string {
 
 func (pkg *Package) WithP3GoPkgPath(p3gopkg string) *Package {
 	pkg.P3GoPkgPath = p3gopkg
+
 	return pkg
 }
 
@@ -110,11 +113,13 @@ func (pkg *Package) WithGoPkgName(name string) *Package {
 	// so it never gets out of sync.
 	pkg.P3ImportPath = filepath.Join(pkg.GoPkgPath, name+".proto")
 	pkg.P3SchemaFile = filepath.Join(pkg.DirName, name+".proto")
+
 	return pkg
 }
 
 func (pkg *Package) WithDependencies(deps ...*Package) *Package {
 	pkg.Dependencies = append(pkg.Dependencies, deps...)
+
 	return pkg
 }
 
@@ -135,6 +140,7 @@ func (pkg *Package) WithTypes(objs ...interface{}) *Package {
 			} else {
 				lastType.Name = obj.(string)
 				lastType = nil // no more updating is possible.
+
 				continue
 			}
 		}
@@ -188,6 +194,7 @@ func (pkg *Package) WithTypes(objs ...interface{}) *Package {
 		}
 		pkg.Types = append(pkg.Types, lastType)
 	}
+
 	return pkg
 }
 
@@ -197,12 +204,14 @@ func (pkg *Package) WithTypes(objs ...interface{}) *Package {
 // path is .P3SchemaFile.
 func (pkg *Package) WithP3ImportPath(path string) *Package {
 	pkg.P3ImportPath = path
+
 	return pkg
 }
 
 // This file will get imported instead of the default "types.proto" if this package is a dependency.
 func (pkg *Package) WithP3SchemaFile(file string) *Package {
 	pkg.P3SchemaFile = file
+
 	return pkg
 }
 
@@ -216,6 +225,7 @@ func (pkg *Package) GetType(rt reflect.Type) (t Type, ok bool) {
 			return *t, true
 		}
 	}
+
 	return Type{}, false
 }
 
@@ -225,6 +235,7 @@ func (pkg *Package) HasName(name string) (exists bool) {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -234,6 +245,7 @@ func (pkg *Package) HasFullName(fullname string) (exists bool) {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -247,12 +259,14 @@ func (pkg *Package) FullNameForType(rt reflect.Type) string {
 	if !ok {
 		panic(fmt.Errorf("unknown type %v", drt))
 	}
+
 	return t.FullName(pkg)
 }
 
 // panics of rt (or a pointer to it) was not registered.
 func (pkg *Package) TypeURLForType(rt reflect.Type) string {
 	name := pkg.FullNameForType(rt)
+
 	return "/" + name
 }
 
@@ -267,6 +281,7 @@ func (pkg *Package) GetDependency(gopkg string) (*Package, error) {
 			return pkg, nil
 		}
 	}
+
 	return nil, fmt.Errorf("go package not declared a (in)direct dependency of %v",
 		pkg.GoPkgPath)
 }
@@ -297,6 +312,7 @@ func (pkg *Package) CrawlPackages(seen map[*Package]struct{}) (res []*Package) {
 		}
 	}
 	crawl(pkg)
+
 	return res
 }
 
@@ -376,6 +392,7 @@ func DefaultPkgName(gopkgPath string) (name string) {
 	parts = strings.Split(last, "-")
 	name = parts[len(parts)-1]
 	name = strings.ToLower(name)
+
 	return name
 }
 

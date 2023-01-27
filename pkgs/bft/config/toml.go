@@ -333,6 +333,7 @@ func ResetTestRootWithChainID(testName string, chainID string) *Config {
 	osm.MustWriteFile(privStateFilePath, []byte(testPrivValidatorState), 0o644)
 
 	config := TestConfig().SetRootDir(rootDir)
+
 	return config
 }
 

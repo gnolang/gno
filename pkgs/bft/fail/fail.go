@@ -17,6 +17,7 @@ func envSet() int {
 		if err != nil {
 			return -1
 		}
+
 		return callIndexToFail
 	}
 }

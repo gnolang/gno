@@ -161,6 +161,7 @@ func (conR *ConsensusReactor) GetChannels() []*p2p.ChannelDescriptor {
 func (conR *ConsensusReactor) InitPeer(peer p2p.Peer) p2p.Peer {
 	peerState := NewPeerState(peer).SetLogger(conR.Logger)
 	peer.Set(types.PeerStateKey, peerState)
+
 	return peer
 }
 
@@ -209,6 +210,7 @@ func (conR *ConsensusReactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 func (conR *ConsensusReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 	if !conR.IsRunning() {
 		conR.Logger.Debug("Receive", "src", src, "chId", chID, "bytes", msgBytes)
+
 		return
 	}
 
@@ -216,12 +218,14 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 	if err != nil {
 		conR.Logger.Error("Error decoding message", "src", src, "chId", chID, "msg", msg, "err", err, "bytes", msgBytes)
 		conR.Switch.StopPeerForError(src, err)
+
 		return
 	}
 
 	if err = msg.ValidateBasic(); err != nil {
 		conR.Logger.Error("Peer sent us invalid msg", "peer", src, "msg", msg, "err", err)
 		conR.Switch.StopPeerForError(src, err)
+
 		return
 	}
 
@@ -254,6 +258,7 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 			err := votes.SetPeerMaj23(msg.Round, msg.Type, ps.peer.ID(), msg.BlockID)
 			if err != nil {
 				conR.Switch.StopPeerForError(src, err)
+
 				return
 			}
 			// Respond with a VoteSetBitsMessage showing which votes we have.
@@ -281,6 +286,7 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 	case DataChannel:
 		if conR.FastSync() {
 			conR.Logger.Info("Ignoring message received during fastSync", "msg", msg)
+
 			return
 		}
 		switch msg := msg.(type) {
@@ -299,6 +305,7 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 	case VoteChannel:
 		if conR.FastSync() {
 			conR.Logger.Info("Ignoring message received during fastSync", "msg", msg)
+
 			return
 		}
 		switch msg := msg.(type) {
@@ -321,6 +328,7 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 	case VoteSetBitsChannel:
 		if conR.FastSync() {
 			conR.Logger.Info("Ignoring message received during fastSync", "msg", msg)
+
 			return
 		}
 		switch msg := msg.(type) {
@@ -364,6 +372,7 @@ func (conR *ConsensusReactor) SetEventSwitch(evsw events.EventSwitch) {
 func (conR *ConsensusReactor) FastSync() bool {
 	conR.mtx.RLock()
 	defer conR.mtx.RUnlock()
+
 	return conR.fastSync
 }
 
@@ -461,6 +470,7 @@ OUTER_LOOP:
 		// Manage disconnects from self or peer.
 		if !peer.IsRunning() || !conR.IsRunning() {
 			logger.Info("Stopping gossipDataRoutine for peer")
+
 			return
 		}
 		rs := conR.conS.GetRoundState()
@@ -479,6 +489,7 @@ OUTER_LOOP:
 				if peer.Send(DataChannel, amino.MustMarshalAny(msg)) {
 					ps.SetHasProposalBlockPart(prs.Height, prs.Round, index)
 				}
+
 				continue OUTER_LOOP
 			}
 		}
@@ -499,12 +510,14 @@ OUTER_LOOP:
 				continue OUTER_LOOP
 			}
 			conR.gossipDataForCatchup(heightLogger, rs, prs, ps, peer)
+
 			continue OUTER_LOOP
 		}
 
 		// If height and round don't match, sleep.
 		if (rs.Height != prs.Height) || (rs.Round != prs.Round) {
 			time.Sleep(conR.conS.config.PeerGossipSleepDuration)
+
 			continue OUTER_LOOP
 		}
 
@@ -537,11 +550,13 @@ OUTER_LOOP:
 				logger.Debug("Sending POL", "height", prs.Height, "round", prs.Round)
 				peer.Send(DataChannel, amino.MustMarshalAny(msg))
 			}
+
 			continue OUTER_LOOP
 		}
 
 		// Nothing to do. Sleep.
 		time.Sleep(conR.conS.config.PeerGossipSleepDuration)
+
 		continue OUTER_LOOP
 	}
 }
@@ -556,11 +571,13 @@ func (conR *ConsensusReactor) gossipDataForCatchup(logger log.Logger, rs *cstype
 			logger.Error("Failed to load block meta",
 				"ourHeight", rs.Height, "blockstoreHeight", conR.conS.blockStore.Height())
 			time.Sleep(conR.conS.config.PeerGossipSleepDuration)
+
 			return
 		} else if !blockMeta.BlockID.PartsHeader.Equals(prs.ProposalBlockPartsHeader) {
 			logger.Info("Peer ProposalBlockPartsHeader mismatch, sleeping",
 				"blockPartsHeader", blockMeta.BlockID.PartsHeader, "peerBlockPartsHeader", prs.ProposalBlockPartsHeader)
 			time.Sleep(conR.conS.config.PeerGossipSleepDuration)
+
 			return
 		}
 		// Load the part
@@ -569,6 +586,7 @@ func (conR *ConsensusReactor) gossipDataForCatchup(logger log.Logger, rs *cstype
 			logger.Error("Could not load part", "index", index,
 				"blockPartsHeader", blockMeta.BlockID.PartsHeader, "peerBlockPartsHeader", prs.ProposalBlockPartsHeader)
 			time.Sleep(conR.conS.config.PeerGossipSleepDuration)
+
 			return
 		}
 		// Send the part
@@ -600,6 +618,7 @@ OUTER_LOOP:
 		// Manage disconnects from self or peer.
 		if !peer.IsRunning() || !conR.IsRunning() {
 			logger.Info("Stopping gossipVotesRoutine for peer")
+
 			return
 		}
 		rs := conR.conS.GetRoundState()
@@ -628,6 +647,7 @@ OUTER_LOOP:
 		if prs.Height != 0 && rs.Height == prs.Height+1 {
 			if ps.PickSendVote(rs.LastCommit) {
 				logger.Debug("Picked rs.LastCommit to send", "height", prs.Height)
+
 				continue OUTER_LOOP
 			}
 		}
@@ -640,6 +660,7 @@ OUTER_LOOP:
 			commit := conR.conS.blockStore.LoadBlockCommit(prs.Height)
 			if ps.PickSendVote(commit) {
 				logger.Debug("Picked Catchup commit to send", "height", prs.Height)
+
 				continue OUTER_LOOP
 			}
 		}
@@ -656,6 +677,7 @@ OUTER_LOOP:
 		}
 
 		time.Sleep(conR.conS.config.PeerGossipSleepDuration)
+
 		continue OUTER_LOOP
 	}
 }
@@ -670,6 +692,7 @@ func (conR *ConsensusReactor) gossipVotesForHeight(
 	if prs.Step == cstypes.RoundStepNewHeight {
 		if ps.PickSendVote(rs.LastCommit) {
 			logger.Debug("Picked rs.LastCommit to send")
+
 			return true
 		}
 	}
@@ -679,6 +702,7 @@ func (conR *ConsensusReactor) gossipVotesForHeight(
 			if ps.PickSendVote(polPrevotes) {
 				logger.Debug("Picked rs.Prevotes(prs.ProposalPOLRound) to send",
 					"round", prs.ProposalPOLRound)
+
 				return true
 			}
 		}
@@ -687,6 +711,7 @@ func (conR *ConsensusReactor) gossipVotesForHeight(
 	if prs.Step <= cstypes.RoundStepPrevoteWait && prs.Round != -1 && prs.Round <= rs.Round {
 		if ps.PickSendVote(rs.Votes.Prevotes(prs.Round)) {
 			logger.Debug("Picked rs.Prevotes(prs.Round) to send", "round", prs.Round)
+
 			return true
 		}
 	}
@@ -694,6 +719,7 @@ func (conR *ConsensusReactor) gossipVotesForHeight(
 	if prs.Step <= cstypes.RoundStepPrecommitWait && prs.Round != -1 && prs.Round <= rs.Round {
 		if ps.PickSendVote(rs.Votes.Precommits(prs.Round)) {
 			logger.Debug("Picked rs.Precommits(prs.Round) to send", "round", prs.Round)
+
 			return true
 		}
 	}
@@ -701,6 +727,7 @@ func (conR *ConsensusReactor) gossipVotesForHeight(
 	if prs.Round != -1 && prs.Round <= rs.Round {
 		if ps.PickSendVote(rs.Votes.Prevotes(prs.Round)) {
 			logger.Debug("Picked rs.Prevotes(prs.Round) to send", "round", prs.Round)
+
 			return true
 		}
 	}
@@ -710,6 +737,7 @@ func (conR *ConsensusReactor) gossipVotesForHeight(
 			if ps.PickSendVote(polPrevotes) {
 				logger.Debug("Picked rs.Prevotes(prs.ProposalPOLRound) to send",
 					"round", prs.ProposalPOLRound)
+
 				return true
 			}
 		}
@@ -728,6 +756,7 @@ OUTER_LOOP:
 		// Manage disconnects from self or peer.
 		if !peer.IsRunning() || !conR.IsRunning() {
 			logger.Info("Stopping queryMaj23Routine for peer")
+
 			return
 		}
 
@@ -810,6 +839,7 @@ func (conR *ConsensusReactor) peerStatsRoutine() {
 	for {
 		if !conR.IsRunning() {
 			conR.Logger.Info("Stopping peerStatsRoutine")
+
 			return
 		}
 
@@ -820,6 +850,7 @@ func (conR *ConsensusReactor) peerStatsRoutine() {
 			if peer == nil {
 				conR.Logger.Debug("Attempt to update stats for non-existent peer",
 					"peer", msg.PeerID)
+
 				continue
 			}
 			// Get peer state
@@ -853,6 +884,7 @@ func (conR *ConsensusReactor) peerStatsRoutine() {
 // TODO: improve!
 func (conR *ConsensusReactor) String() string {
 	// better not to access shared variables
+
 	return "ConsensusReactor" // conR.StringIndented("")
 }
 
@@ -921,6 +953,7 @@ func NewPeerState(peer p2p.Peer) *PeerState {
 // itself.
 func (ps *PeerState) SetLogger(logger log.Logger) *PeerState {
 	ps.logger = logger
+
 	return ps
 }
 
@@ -931,6 +964,7 @@ func (ps *PeerState) GetRoundState() *cstypes.PeerRoundState {
 	defer ps.mtx.Unlock()
 
 	prs := ps.PRS // copy
+
 	return &prs
 }
 
@@ -947,6 +981,7 @@ func (ps *PeerState) ToJSON() ([]byte, error) {
 func (ps *PeerState) GetHeight() int64 {
 	ps.mtx.Lock()
 	defer ps.mtx.Unlock()
+
 	return ps.PRS.Height
 }
 
@@ -1009,6 +1044,7 @@ func (ps *PeerState) PickSendVote(votes types.VoteSetReader) bool {
 		ps.logger.Debug("Sending vote message", "ps", ps, "vote", vote)
 		if ps.peer.Send(VoteChannel, amino.MustMarshalAny(msg)) {
 			ps.SetHasVote(vote)
+
 			return true
 		}
 		return false
@@ -1345,6 +1381,7 @@ func (ps *PeerState) String() string {
 func (ps *PeerState) StringIndented(indent string) string {
 	ps.mtx.Lock()
 	defer ps.mtx.Unlock()
+
 	return fmt.Sprintf(`PeerState{
 %s  Key        %v
 %s  RoundState %v
@@ -1369,6 +1406,7 @@ func decodeMsg(bz []byte) (msg ConsensusMessage, err error) {
 		return msg, fmt.Errorf("msg exceeds max size (%d > %d)", len(bz), maxMsgSize)
 	}
 	err = amino.Unmarshal(bz, &msg)
+
 	return
 }
 
@@ -1400,6 +1438,7 @@ func (m *NewRoundStepMessage) ValidateBasic() error {
 
 	if (m.Height == 1 && m.LastCommitRound != -1) ||
 		(m.Height > 1 && m.LastCommitRound < -1) { // TODO: #2737 LastCommitRound should always be >= 0 for heights > 1
+
 		return errors.New("Invalid LastCommitRound (for 1st block: -1, for others: >= 0)")
 	}
 	return nil

@@ -20,6 +20,7 @@ func (mr *multiReader) Read(p []byte) (n int, err error) {
 		if len(mr.readers) == 1 {
 			if r, ok := mr.readers[0].(*multiReader); ok {
 				mr.readers = r.readers
+
 				continue
 			}
 		}

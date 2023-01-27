@@ -133,6 +133,7 @@ func (bs *BaseService) Start() error {
 			bs.Logger.Error(fmt.Sprintf("Not starting %v -- already stopped", bs.name), "impl", bs.impl)
 			// revert flag
 			atomic.StoreUint32(&bs.started, 0)
+
 			return ErrAlreadyStopped
 		}
 		bs.Logger.Info(fmt.Sprintf("Starting %v", bs.name), "impl", bs.impl)
@@ -140,11 +141,14 @@ func (bs *BaseService) Start() error {
 		if err != nil {
 			// revert flag
 			atomic.StoreUint32(&bs.started, 0)
+
 			return err
 		}
+
 		return nil
 	}
 	bs.Logger.Debug(fmt.Sprintf("Not starting %v -- already started", bs.name), "impl", bs.impl)
+
 	return ErrAlreadyStarted
 }
 
@@ -161,14 +165,17 @@ func (bs *BaseService) Stop() error {
 			bs.Logger.Error(fmt.Sprintf("Not stopping %v -- have not been started yet", bs.name), "impl", bs.impl)
 			// revert flag
 			atomic.StoreUint32(&bs.stopped, 0)
+
 			return ErrNotStarted
 		}
 		bs.Logger.Info(fmt.Sprintf("Stopping %v", bs.name), "impl", bs.impl)
 		bs.impl.OnStop()
 		close(bs.quit)
+
 		return nil
 	}
 	bs.Logger.Debug(fmt.Sprintf("Stopping %v (ignoring: already stopped)", bs.name), "impl", bs.impl)
+
 	return ErrAlreadyStopped
 }
 
@@ -182,6 +189,7 @@ func (bs *BaseService) OnStop() {}
 func (bs *BaseService) Reset() error {
 	if !atomic.CompareAndSwapUint32(&bs.stopped, 1, 0) {
 		bs.Logger.Debug(fmt.Sprintf("Can't reset %v. Not stopped", bs.name), "impl", bs.impl)
+
 		return fmt.Errorf("can't reset running %s", bs.name)
 	}
 
@@ -189,6 +197,7 @@ func (bs *BaseService) Reset() error {
 	atomic.CompareAndSwapUint32(&bs.started, 1, 0)
 
 	bs.quit = make(chan struct{})
+
 	return bs.impl.OnReset()
 }
 

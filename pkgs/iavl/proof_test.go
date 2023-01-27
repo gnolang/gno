@@ -172,6 +172,7 @@ func TestTreeKeyInRangeProofs(t *testing.T) {
 
 		if c.pnc {
 			require.Panics(func() { tree.GetRangeWithProof(start, end, 0) })
+
 			continue
 		}
 

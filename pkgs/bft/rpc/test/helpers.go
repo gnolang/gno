@@ -58,6 +58,7 @@ func makePathname() string {
 	}
 	// fmt.Println(p)
 	sep := string(filepath.Separator)
+
 	return strings.Replace(p, sep, "_", -1)
 }
 
@@ -66,6 +67,7 @@ func randPort() int {
 	if err != nil {
 		panic(err)
 	}
+
 	return port
 }
 
@@ -84,6 +86,7 @@ func createConfig() *cfg.Config {
 	c.RPC.ListenAddress = rpc
 	c.RPC.CORSAllowedOrigins = []string{"https://tendermint.com/"}
 	// c.TxIndex.IndexTags = "app.creator,tx.height" // see kvstore application
+
 	return c
 }
 
@@ -92,6 +95,7 @@ func GetConfig(forceCreate ...bool) *cfg.Config {
 	if globalConfig == nil || (len(forceCreate) > 0 && forceCreate[0]) {
 		globalConfig = createConfig()
 	}
+
 	return globalConfig
 }
 
@@ -151,6 +155,7 @@ func NewTendermint(app abci.Application, opts *Options) *nm.Node {
 	if err != nil {
 		panic(err)
 	}
+
 	return node
 }
 

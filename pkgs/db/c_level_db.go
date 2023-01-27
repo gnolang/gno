@@ -147,12 +147,13 @@ func (db *CLevelDB) Stats() map[string]string {
 	return stats
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Batch
 
 // Implements DB.
 func (db *CLevelDB) NewBatch() Batch {
 	batch := levigo.NewWriteBatch()
+
 	return &cLevelDBBatch{db, batch}
 }
 
@@ -192,18 +193,20 @@ func (mBatch *cLevelDBBatch) Close() {
 	mBatch.batch.Close()
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Iterator
 // NOTE This is almost identical to db/go_level_db.Iterator
 // Before creating a third version, refactor.
 
 func (db *CLevelDB) Iterator(start, end []byte) Iterator {
 	itr := db.db.NewIterator(db.ro)
+
 	return newCLevelDBIterator(itr, start, end, false)
 }
 
 func (db *CLevelDB) ReverseIterator(start, end []byte) Iterator {
 	itr := db.db.NewIterator(db.ro)
+
 	return newCLevelDBIterator(itr, start, end, true)
 }
 
@@ -263,6 +266,7 @@ func (itr cLevelDBIterator) Valid() bool {
 	// If source is invalid, invalid.
 	if !itr.source.Valid() {
 		itr.isInvalid = true
+
 		return false
 	}
 
@@ -273,11 +277,13 @@ func (itr cLevelDBIterator) Valid() bool {
 	if itr.isReverse {
 		if start != nil && bytes.Compare(key, start) < 0 {
 			itr.isInvalid = true
+
 			return false
 		}
 	} else {
 		if end != nil && bytes.Compare(end, key) <= 0 {
 			itr.isInvalid = true
+
 			return false
 		}
 	}
@@ -289,12 +295,14 @@ func (itr cLevelDBIterator) Valid() bool {
 func (itr cLevelDBIterator) Key() []byte {
 	itr.assertNoError()
 	itr.assertIsValid()
+
 	return itr.source.Key()
 }
 
 func (itr cLevelDBIterator) Value() []byte {
 	itr.assertNoError()
 	itr.assertIsValid()
+
 	return itr.source.Value()
 }
 

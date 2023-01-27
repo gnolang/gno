@@ -1063,6 +1063,7 @@ func ConvertUntypedBigintTo(dst *TypedValue, bv BigintValue, t Type) {
 		panic("not yet implemented")
 	case InterfaceKind:
 		t = IntType // default
+
 		fallthrough
 	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind:
 		// preliminary bounds check... more comes later.

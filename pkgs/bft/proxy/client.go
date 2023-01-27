@@ -14,7 +14,7 @@ type ClientCreator interface {
 	NewABCIClient() (abcicli.Client, error)
 }
 
-//----------------------------------------------------
+// ----------------------------------------------------
 // local proxy uses a mutex on an in-proc app
 
 type localClientCreator struct {
@@ -33,7 +33,7 @@ func (l *localClientCreator) NewABCIClient() (abcicli.Client, error) {
 	return abcicli.NewLocalClient(l.mtx, l.app), nil
 }
 
-//-----------------------------------------------------------------
+// -----------------------------------------------------------------
 // DefaultClientCreator
 
 // Returns the local application, or constructs a new one via proxy.
@@ -41,6 +41,7 @@ func (l *localClientCreator) NewABCIClient() (abcicli.Client, error) {
 func DefaultClientCreator(local abci.Application, proxy string, transport, dbDir string) ClientCreator {
 	if local != nil {
 		// local applications (ignores other arguments)
+
 		return NewLocalClientCreator(local)
 	} else {
 		switch proxy {

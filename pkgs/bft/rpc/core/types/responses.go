@@ -84,6 +84,7 @@ func (s *ResultStatus) TxIndexEnabled() bool {
 	if s == nil {
 		return false
 	}
+
 	return s.NodeInfo.Other.TxIndex == "on"
 }
 

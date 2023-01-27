@@ -4,7 +4,7 @@ import (
 	"github.com/gnolang/gno/pkgs/store/types"
 )
 
-//----------------------------------------
+// ----------------------------------------
 // Store
 
 // Store holds many cache-wrapped stores.
@@ -46,6 +46,7 @@ func newStoreFromCMS(cms Store) Store {
 	for k, v := range cms.stores {
 		stores[k] = v
 	}
+
 	return NewFromStores(stores, nil)
 }
 

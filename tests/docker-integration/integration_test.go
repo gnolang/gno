@@ -68,6 +68,7 @@ func createCommand(t *testing.T, args []string) *exec.Cmd {
 	t.Helper()
 	msg := strings.Join(args, " ")
 	t.Log(msg)
+
 	return exec.Command(args[0], args[1:]...)
 }
 

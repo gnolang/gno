@@ -25,6 +25,7 @@ func (proof *MultiStoreProof) ComputeRootHash() []byte {
 		Version:    -1, // TODO: Not needed; improve code.
 		StoreInfos: proof.StoreInfos,
 	}
+
 	return ci.Hash()
 }
 
@@ -37,7 +38,7 @@ func RequireProof(subpath string) bool {
 	return subpath == "/key"
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 var _ merkle.ProofOperator = MultiStoreProofOp{}
 
@@ -82,6 +83,7 @@ func MultiStoreProofOpDecoder(pop merkle.ProofOp) (merkle.ProofOperator, error) 
 // operation.
 func (op MultiStoreProofOp) ProofOp() merkle.ProofOp {
 	bz := amino.MustMarshalSized(op)
+
 	return merkle.ProofOp{
 		Type: ProofOpMultiStore,
 		Key:  op.key,
@@ -123,7 +125,7 @@ func (op MultiStoreProofOp) Run(args [][]byte) ([][]byte, error) {
 	return nil, errors.New("key %v not found in multistore proof", op.key)
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 // XXX: This should be managed by the rootMultiStore which may want to register
 // more proof ops?
@@ -133,5 +135,6 @@ func DefaultProofRuntime() (prt *merkle.ProofRuntime) {
 	prt.RegisterOpDecoder(iavl.ProofOpIAVLValue, iavl.IAVLValueOpDecoder)
 	prt.RegisterOpDecoder(iavl.ProofOpIAVLAbsence, iavl.IAVLAbsenceOpDecoder)
 	prt.RegisterOpDecoder(ProofOpMultiStore, MultiStoreProofOpDecoder)
+
 	return
 }

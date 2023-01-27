@@ -75,6 +75,7 @@ var (
 // The function panics if the provided remote is invalid.<Paste>
 func NewHTTP(remote, wsEndpoint string) *HTTP {
 	httpClient := rpcclient.DefaultHTTPClient(remote)
+
 	return NewHTTPWithClient(remote, wsEndpoint, httpClient)
 }
 
@@ -98,6 +99,7 @@ var _ Client = (*HTTP)(nil)
 // NewBatch creates a new batch client for this HTTP client.
 func (c *HTTP) NewBatch() *BatchHTTP {
 	rpcBatch := c.rpc.NewRequestBatch()
+
 	return &BatchHTTP{
 		rpcBatch: rpcBatch,
 		baseRPCClient: &baseRPCClient{

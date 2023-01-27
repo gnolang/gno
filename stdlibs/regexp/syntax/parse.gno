@@ -94,6 +94,7 @@ func (p *parser) newRegexp(op Op) *Regexp {
 		re = new(Regexp)
 	}
 	re.Op = op
+
 	return re
 }
 
@@ -137,6 +138,7 @@ func (p *parser) push(re *Regexp) *Regexp {
 	}
 
 	p.stack = append(p.stack, re)
+
 	return re
 }
 
@@ -169,11 +171,13 @@ func (p *parser) maybeConcat(r rune, flags Flags) bool {
 		re1.Rune = re1.Rune0[:1]
 		re1.Rune[0] = r
 		re1.Flags = flags
+
 		return true
 	}
 
 	p.stack = p.stack[:n-1]
 	p.reuse(re1)
+
 	return false // did not push r
 }
 
@@ -209,6 +213,7 @@ func minFoldRune(r rune) rune {
 func (p *parser) op(op Op) *Regexp {
 	re := p.newRegexp(op)
 	re.Flags = p.flags
+
 	return p.push(re)
 }
 
@@ -684,6 +689,7 @@ func literalRegexp(s string, flags Flags) *Regexp {
 		if len(re.Rune) >= cap(re.Rune) {
 			// string is too long to fit in Rune0.  let Go handle it
 			re.Rune = []rune(s)
+
 			break
 		}
 		re.Rune = append(re.Rune, c)
@@ -864,6 +870,7 @@ func Parse(s string, flags Flags) (*Regexp, error) {
 					re.Rune = r
 					t = rest
 					p.push(re)
+
 					break BigSwitch
 				}
 			}
@@ -873,6 +880,7 @@ func Parse(s string, flags Flags) (*Regexp, error) {
 				re.Rune = r
 				t = rest
 				p.push(re)
+
 				break BigSwitch
 			}
 			p.reuse(re)
@@ -1085,6 +1093,7 @@ func (p *parser) parseInt(s string) (n int, rest string, ok bool) {
 		// Avoid overflow.
 		if n >= 1e8 {
 			n = -1
+
 			break
 		}
 		n = n*10 + int(t[i]) - '0'
@@ -1574,6 +1583,7 @@ func (p *parser) parseClass(s string) (rest string, err error) {
 			}
 			if nclass != nil {
 				class, t = nclass, nt
+
 				continue
 			}
 		}
@@ -1585,12 +1595,14 @@ func (p *parser) parseClass(s string) (rest string, err error) {
 		}
 		if nclass != nil {
 			class, t = nclass, nt
+
 			continue
 		}
 
 		// Look for Perl character class symbols (extension).
 		if nclass, nt := p.parsePerlClassEscape(t, class); nclass != nil {
 			class, t = nclass, nt
+
 			continue
 		}
 
@@ -1777,6 +1789,7 @@ func appendTable(r []rune, x *unicode.RangeTable) []rune {
 		lo, hi, stride := rune(xr.Lo), rune(xr.Hi), rune(xr.Stride)
 		if stride == 1 {
 			r = appendRange(r, lo, hi)
+
 			continue
 		}
 		for c := lo; c <= hi; c += stride {
@@ -1787,6 +1800,7 @@ func appendTable(r []rune, x *unicode.RangeTable) []rune {
 		lo, hi, stride := rune(xr.Lo), rune(xr.Hi), rune(xr.Stride)
 		if stride == 1 {
 			r = appendRange(r, lo, hi)
+
 			continue
 		}
 		for c := lo; c <= hi; c += stride {
@@ -1806,6 +1820,7 @@ func appendNegatedTable(r []rune, x *unicode.RangeTable) []rune {
 				r = appendRange(r, nextLo, lo-1)
 			}
 			nextLo = hi + 1
+
 			continue
 		}
 		for c := lo; c <= hi; c += stride {
@@ -1822,6 +1837,7 @@ func appendNegatedTable(r []rune, x *unicode.RangeTable) []rune {
 				r = appendRange(r, nextLo, lo-1)
 			}
 			nextLo = hi + 1
+
 			continue
 		}
 		for c := lo; c <= hi; c += stride {

@@ -47,6 +47,7 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 	opts := iopts.(testOptions)
 	if len(args) < 1 {
 		cmd.ErrPrintfln("Usage: test [test flags] [packages]")
+
 		return errors.New("invalid args")
 	}
 
@@ -99,6 +100,7 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 				cmd.ErrPrintfln("FAIL    %s", pkgPath)
 				cmd.ErrPrintln("FAIL")
 				buildErrCount++
+
 				continue
 			}
 
@@ -116,6 +118,7 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 				cmd.ErrPrintfln("FAIL    %s", pkgPath)
 				cmd.ErrPrintln("FAIL")
 				buildErrCount++
+
 				continue
 			}
 		}
@@ -130,6 +133,7 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 		}
 		if len(unittestFiles) == 0 && len(filetestFiles) == 0 {
 			cmd.ErrPrintfln("?       %s \t[no test files]", pkgPath)
+
 			continue
 		}
 
@@ -153,6 +157,7 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
 		cmd.ErrPrintfln("FAIL")
+
 		return fmt.Errorf("FAIL: %d build errors, %d test errors", buildErrCount, testErrCount)
 	}
 
@@ -242,6 +247,7 @@ func gnoTestPkg(cmd *command.Command, pkgPath string, unittestFiles, filetestFil
 					}
 					fmt.Fprintln(os.Stderr, stdouterr)
 				}
+
 				continue
 			}
 
@@ -298,6 +304,7 @@ func runTestFiles(
 			err := errors.New("failed to execute unit test: %q", test.Name)
 			errs = multierr.Append(errs, err)
 			cmd.ErrPrintfln("--- FAIL: %s (%v)", test.Name, duration)
+
 			continue
 		}
 
@@ -307,6 +314,7 @@ func runTestFiles(
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			cmd.ErrPrintfln("--- FAIL: %s (%s)", test.Name, dstr)
+
 			continue
 		}
 
@@ -386,6 +394,7 @@ func getPkgNameFromFileset(files *gno.FileSet) string {
 	if len(files.Files) <= 0 {
 		return ""
 	}
+
 	return string(files.Files[0].PkgName)
 }
 
@@ -394,6 +403,7 @@ func formatTestmain(t *testFuncs) (string, error) {
 	if err := testmainTmpl.Execute(&buf, t); err != nil {
 		return "", err
 	}
+
 	return buf.String(), nil
 }
 
@@ -412,6 +422,7 @@ func loadTestFuncs(pkgName string, t *testFuncs, tfiles *gno.FileSet) *testFuncs
 			}
 		}
 	}
+
 	return t
 }
 
@@ -449,6 +460,7 @@ func parseMemPackageTests(memPkg *std.MemPackage) (tset, itset *gno.FileSet) {
 				memPkg.Name, memPkg.Name, n.PkgName, mfile))
 		}
 	}
+
 	return tset, itset
 }
 
@@ -458,5 +470,6 @@ func shouldRun(filter filterMatch, path string) bool {
 	}
 	elem := strings.Split(path, "/")
 	ok, _ := filter.matches(elem, matchString)
+
 	return ok
 }

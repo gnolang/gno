@@ -892,6 +892,7 @@ func TestCustomSignatureVerificationGasConsumer(t *testing.T) {
 		switch pubkey := pubkey.(type) {
 		case ed25519.PubKeyEd25519:
 			meter.ConsumeGas(params.SigVerifyCostED25519, "ante verify: ed25519")
+
 			return sdk.Result{}
 		default:
 			return abciResult(std.ErrInvalidPubKey(fmt.Sprintf("unrecognized public key type: %T", pubkey)))

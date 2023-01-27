@@ -29,6 +29,7 @@ func Kill() error {
 	if err != nil {
 		return err
 	}
+
 	return p.Signal(syscall.SIGTERM)
 }
 
@@ -44,17 +45,20 @@ func EnsureDir(dir string, mode os.FileMode) error {
 			return fmt.Errorf("could not create directory %v. %w", dir, err)
 		}
 	}
+
 	return nil
 }
 
 func DirExists(dirPath string) bool {
 	st, err := os.Stat(dirPath)
+
 	return !os.IsNotExist(err) && st.IsDir()
 }
 
 // Note: returns true for files and dirs.
 func FileExists(filePath string) bool {
 	_, err := os.Stat(filePath)
+
 	return !os.IsNotExist(err)
 }
 
@@ -66,8 +70,10 @@ func MustReadFile(filePath string) []byte {
 	fileBytes, err := os.ReadFile(filePath)
 	if err != nil {
 		Exit(fmt.Sprintf("MustReadFile failed: %v", err))
+
 		return nil
 	}
+
 	return fileBytes
 }
 

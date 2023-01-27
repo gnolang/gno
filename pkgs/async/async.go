@@ -6,7 +6,7 @@ import (
 	"github.com/gnolang/gno/pkgs/errors"
 )
 
-//----------------------------------------
+// ----------------------------------------
 // Routine
 
 func Routine(fn func()) <-chan struct{} {
@@ -15,10 +15,11 @@ func Routine(fn func()) <-chan struct{} {
 		fn()
 		close(done)
 	}()
+
 	return done
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Task
 
 // val: the value returned after task execution.
@@ -59,6 +60,7 @@ func (trs *TaskResultSet) LatestResult(index int) (TaskResult, bool) {
 		return TaskResult{}, false
 	}
 	resultOK := trs.results[index]
+
 	return resultOK.TaskResult, resultOK.OK
 }
 
@@ -83,6 +85,7 @@ func (trs *TaskResultSet) Reap() *TaskResultSet {
 			// Do nothing.
 		}
 	}
+
 	return trs
 }
 
@@ -103,6 +106,7 @@ func (trs *TaskResultSet) Wait() *TaskResultSet {
 		// We already wrote it.
 		// }
 	}
+
 	return trs
 }
 
@@ -114,6 +118,7 @@ func (trs *TaskResultSet) FirstValue() interface{} {
 			return result.Value
 		}
 	}
+
 	return nil
 }
 
@@ -125,10 +130,11 @@ func (trs *TaskResultSet) FirstError() error {
 			return result.Error
 		}
 	}
+
 	return nil
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Parallel
 
 // Run tasks in parallel, with ability to abort early.
@@ -179,6 +185,7 @@ func Parallel(tasks ...Task) (trs *TaskResultSet, ok bool) {
 		abort := <-taskDoneCh
 		if abort {
 			ok = false
+
 			break
 		}
 	}

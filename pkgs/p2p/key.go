@@ -33,8 +33,10 @@ func LoadOrGenNodeKey(filePath string) (*NodeKey, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		return nodeKey, nil
 	}
+
 	return genNodeKey(filePath)
 }
 
@@ -48,6 +50,7 @@ func LoadNodeKey(filePath string) (*NodeKey, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Error reading NodeKey from %v: %w", filePath, err)
 	}
+
 	return nodeKey, nil
 }
 
@@ -65,6 +68,7 @@ func genNodeKey(filePath string) (*NodeKey, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return nodeKey, nil
 }
 
@@ -89,5 +93,6 @@ func MakePoWTarget(difficulty, targetBits uint) []byte {
 		prefix = append(prefix, nonZeroPrefix)
 	}
 	tailLen := int(targetBytes) - len(prefix)
+
 	return append(prefix, bytes.Repeat([]byte{0xFF}, tailLen)...)
 }

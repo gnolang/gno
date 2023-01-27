@@ -180,6 +180,7 @@ func mergeRuneSets(leftRunes, rightRunes *[]rune, leftPC, rightPC uint32) ([]run
 		*newLow += 2
 		ix += 2
 		next = append(next, pc)
+
 		return true
 	}
 
@@ -326,6 +327,7 @@ func makeOnePass(p *onePassProg) *onePassProg {
 			matchArg := m[inst.Arg]
 			if matchOut && matchArg {
 				ok = false
+
 				break
 			}
 			// Match on empty goes in inst.Out
@@ -343,6 +345,7 @@ func makeOnePass(p *onePassProg) *onePassProg {
 				&onePassRunes[inst.Out], &onePassRunes[inst.Arg], inst.Out, inst.Arg)
 			if len(inst.Next) > 0 && inst.Next[0] == mergeFailed {
 				ok = false
+
 				break
 			}
 		case syntax.InstCapture, syntax.InstNop:
@@ -447,6 +450,7 @@ func makeOnePass(p *onePassProg) *onePassProg {
 		pc := instQueue.next()
 		if !check(pc, m) {
 			p = nil
+
 			break
 		}
 	}

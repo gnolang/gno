@@ -58,6 +58,7 @@ type DBProvider func(*DBContext) (dbm.DB, error)
 // specified in the ctx.Config.
 func DefaultDBProvider(ctx *DBContext) (dbm.DB, error) {
 	dbType := dbm.BackendType(ctx.Config.DBBackend)
+
 	return dbm.NewDB(ctx.ID, dbType, ctx.Config.DBDir()), nil
 }
 
@@ -192,6 +193,7 @@ func createAndStartProxyAppConns(clientCreator proxy.ClientCreator, logger log.L
 	if err := proxyApp.Start(); err != nil {
 		return nil, fmt.Errorf("error starting proxy app connections: %w", err)
 	}
+
 	return proxyApp, nil
 }
 
@@ -224,6 +226,7 @@ func createAndStartIndexerService(config *cfg.Config, dbProvider DBProvider,
 	if err := indexerService.Start(); err != nil {
 		return nil, nil, err
 	}
+
 	return indexerService, txIndexer, nil
 }
 
@@ -236,6 +239,7 @@ func doHandshake(stateDB dbm.DB, state sm.State, blockStore sm.BlockStore,
 	if err := handshaker.Handshake(proxyApp); err != nil {
 		return fmt.Errorf("error during handshake: %w", err)
 	}
+
 	return nil
 }
 
@@ -259,6 +263,7 @@ func onlyValidatorIsUs(state sm.State, privVal types.PrivValidator) bool {
 		return false
 	}
 	addr, _ := state.Validators.GetByIndex(0)
+
 	return privVal.GetPubKey().Address() == addr
 }
 
@@ -279,6 +284,7 @@ func createMempoolAndMempoolReactor(config *cfg.Config, proxyApp proxy.AppConns,
 	if config.Consensus.WaitForTxs() {
 		mempool.EnableTxsAvailable()
 	}
+
 	return mempoolReactor, mempool
 }
 
@@ -292,6 +298,7 @@ func createBlockchainReactor(config *cfg.Config,
 	bcReactor = bc.NewBlockchainReactor(state.Copy(), blockExec, blockStore, fastSync)
 
 	bcReactor.SetLogger(logger.With("module", "blockchain"))
+
 	return bcReactor, nil
 }
 
@@ -321,6 +328,7 @@ func createConsensusReactor(config *cfg.Config,
 	consensusReactor.SetEventSwitch(evsw)
 	// services which will be publishing and/or subscribing for messages (events)
 	// consensusReactor will set it on consensusState and blockExecutor
+
 	return consensusReactor, consensusState
 }
 
@@ -382,6 +390,7 @@ func createTransport(
 	}
 
 	p2p.MultiplexTransportConnFilters(connFilters...)(transport)
+
 	return transport, peerFilters
 }
 
@@ -409,6 +418,7 @@ func createSwitch(config *cfg.Config,
 	sw.SetNodeKey(nodeKey)
 
 	p2pLogger.Info("P2P Node ID", "ID", nodeKey.ID(), "file", config.NodeKeyFile())
+
 	return sw
 }
 
@@ -475,6 +485,7 @@ func NewNode(config *cfg.Config,
 	pubKey := privValidator.GetPubKey()
 	if pubKey == nil {
 		// TODO: GetPubKey should return errors - https://github.com/gnolang/gno/pkgs/bft/issues/3602
+
 		return nil, errors.New("could not retrieve public key from private validator")
 	}
 
@@ -869,6 +880,7 @@ func makeNodeInfo(
 	nodeInfo.NetAddress = addr
 
 	err = nodeInfo.Validate()
+
 	return nodeInfo, err
 }
 
@@ -899,6 +911,7 @@ func LoadStateFromDBOrGenesisDocProvider(
 	if err != nil {
 		return sm.State{}, nil, err
 	}
+
 	return state, genDoc, nil
 }
 
@@ -913,6 +926,7 @@ func loadGenesisDoc(db dbm.DB) (*types.GenesisDoc, error) {
 	if err != nil {
 		panic(fmt.Sprintf("Failed to load genesis doc due to unmarshaling error: %v (bytes: %X)", err, b))
 	}
+
 	return genDoc, nil
 }
 
@@ -960,5 +974,6 @@ func splitAndTrimEmpty(s, sep, cutset string) []string {
 			nonEmptyStrings = append(nonEmptyStrings, element)
 		}
 	}
+
 	return nonEmptyStrings
 }

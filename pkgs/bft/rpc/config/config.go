@@ -116,6 +116,7 @@ func TestRPCConfig() *RPCConfig {
 	cfg.ListenAddress = "tcp://0.0.0.0:36657"
 	cfg.GRPCListenAddress = "tcp://0.0.0.0:36658"
 	cfg.Unsafe = true
+
 	return cfg
 }
 
@@ -137,6 +138,7 @@ func (cfg *RPCConfig) ValidateBasic() error {
 	if cfg.MaxHeaderBytes < 0 {
 		return errors.New("max_header_bytes can't be negative")
 	}
+
 	return nil
 }
 
@@ -151,6 +153,7 @@ func (cfg RPCConfig) KeyFile() string {
 	if filepath.IsAbs(path) {
 		return path
 	}
+
 	return join(cfg.RootDir, filepath.Join(defaultConfigDir, path))
 }
 
@@ -159,6 +162,7 @@ func (cfg RPCConfig) CertFile() string {
 	if filepath.IsAbs(path) {
 		return path
 	}
+
 	return join(cfg.RootDir, filepath.Join(defaultConfigDir, path))
 }
 

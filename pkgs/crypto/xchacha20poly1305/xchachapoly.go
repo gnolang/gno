@@ -44,6 +44,7 @@ func New(key []byte) (cipher.AEAD, error) {
 	}
 	ret := new(xchacha20poly1305)
 	copy(ret.key[:], key)
+
 	return ret, nil
 }
 

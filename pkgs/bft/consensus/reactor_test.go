@@ -53,6 +53,7 @@ func startConsensusNet(css []*ConsensusState, n int) ([]*ConsensusReactor, []<-c
 	p2pSwitches = p2p.MakeConnectedSwitches(config.P2P, n, func(i int, s *p2p.Switch) *p2p.Switch {
 		s.AddReactor("CONSENSUS", reactors[i])
 		s.SetLogger(reactors[i].conS.Logger.With("module", "p2p"))
+
 		return s
 	}, p2p.Connect2Switches)
 
@@ -445,6 +446,7 @@ func waitForBlockWithUpdatedValsAndValidateIt(
 			newBlock = msg.(types.EventNewBlock).Block
 			if newBlock.LastCommit.Size() == len(updatedVals) {
 				css[j].Logger.Debug("waitForBlockWithUpdatedValsAndValidateIt: Got block", "height", newBlock.Height)
+
 				break LOOP
 			} else {
 				css[j].Logger.Debug("waitForBlockWithUpdatedValsAndValidateIt: Got block with no new validators. Skipping", "height", newBlock.Height)

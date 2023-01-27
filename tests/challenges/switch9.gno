@@ -6,6 +6,7 @@ func main() {
 	switch i.(type) {
 	case string:
 		println("string")
+
 		fallthrough
 	default:
 		println("unknown")

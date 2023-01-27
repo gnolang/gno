@@ -137,6 +137,7 @@ func TestCost(t *testing.T) {
 			actual, err := Cost(h)
 			if err != nil {
 				t.Errorf("Cost, error: %s", err)
+
 				continue
 			}
 			if actual != cost {

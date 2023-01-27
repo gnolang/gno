@@ -28,6 +28,7 @@ func TestMachine(store gno.Store, stdout io.Writer, pkgPath string) *gno.Machine
 	// default values
 	var send std.Coins
 	var maxAlloc int64
+
 	return testMachineCustom(store, pkgPath, stdout, maxAlloc, send)
 }
 
@@ -57,6 +58,7 @@ func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAll
 		Context:       ctx,
 		MaxAllocBytes: maxAlloc,
 	})
+
 	return m
 }
 
@@ -217,6 +219,7 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 					}
 					// NOTE: ignores any gno.GetDebugErrors().
 					gno.ClearDebugErrors()
+
 					return nil // nothing more to do.
 				} else {
 					// record errors when errWanted is empty and pnc not nil
@@ -303,6 +306,7 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 		}
 		panic(fmt.Sprintf("fail on %s: machine not empty after main: %v", path, err))
 	}
+
 	return nil
 }
 
@@ -352,6 +356,7 @@ func wantedFromComment(p string) (directives []string, pkgPath, res, err, rops s
 			// ignore unexpected.
 		}
 	}
+
 	return
 }
 
@@ -367,6 +372,7 @@ func replaceWantedInPlace(path string, directive string, output string) {
 		if line == "// "+directive+":" {
 			if wroteDirective {
 				isReplacing = true
+
 				continue
 			} else {
 				wroteDirective = true
@@ -377,6 +383,7 @@ func replaceWantedInPlace(path string, directive string, output string) {
 					newlines = append(newlines,
 						strings.TrimRight("// "+outline, " "))
 				}
+
 				continue
 			}
 		} else if isReplacing {
@@ -397,6 +404,7 @@ func DefaultPkgName(gopkgPath string) gno.Name {
 	parts = strings.Split(last, "-")
 	name := parts[len(parts)-1]
 	name = strings.ToLower(name)
+
 	return gno.Name(name)
 }
 
@@ -406,6 +414,7 @@ func trimTrailingSpaces(result string) string {
 	for i, line := range lines {
 		lines[i] = strings.TrimRight(line, " \t")
 	}
+
 	return strings.Join(lines, "\n")
 }
 
@@ -426,6 +435,7 @@ func newTestBanker(args ...interface{}) *testBanker {
 		amount := args[i+1].(std.Coins)
 		coinTable[addr] = amount
 	}
+
 	return &testBanker{
 		coinTable: coinTable,
 	}

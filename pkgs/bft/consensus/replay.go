@@ -150,6 +150,7 @@ LOOP:
 			break LOOP
 		case walm.IsDataCorruptionError(err):
 			cs.Logger.Error("data has been corrupted in last height of consensus WAL", "err", err, "height", csHeight)
+
 			return err
 		case err != nil:
 			return err
@@ -162,6 +163,7 @@ LOOP:
 		}
 	}
 	cs.Logger.Info("Replay: Done")
+
 	return nil
 }
 
@@ -342,6 +344,7 @@ func (h *Handshaker) ReplayBlocks(
 	switch {
 	case storeBlockHeight == 0:
 		assertAppHashEqualsOneFromState(appHash, state)
+
 		return appHash, nil
 
 	case storeBlockHeight < appBlockHeight:
@@ -369,6 +372,7 @@ func (h *Handshaker) ReplayBlocks(
 		} else if appBlockHeight == storeBlockHeight {
 			// We're good!
 			assertAppHashEqualsOneFromState(appHash, state)
+
 			return appHash, nil
 		}
 	} else if storeBlockHeight == stateBlockHeight+1 {
@@ -387,6 +391,7 @@ func (h *Handshaker) ReplayBlocks(
 			// but we'd have to allow the WAL to replay a block that wrote it's #ENDHEIGHT
 			h.logger.Info("Replay last block using real app")
 			state, err = h.replayBlock(state, storeBlockHeight, proxyApp.Consensus())
+
 			return state.AppHash, err
 
 		case appBlockHeight == storeBlockHeight:
@@ -398,6 +403,7 @@ func (h *Handshaker) ReplayBlocks(
 			mockApp := newMockProxyApp(appHash, abciResponses)
 			h.logger.Info("Replay last block using mock app")
 			state, err = h.replayBlock(state, storeBlockHeight, mockApp)
+
 			return state.AppHash, err
 		}
 	}
@@ -455,6 +461,7 @@ func (h *Handshaker) replayBlocks(
 	}
 
 	assertAppHashEqualsOneFromState(appHash, state)
+
 	return appHash, nil
 }
 
@@ -532,10 +539,12 @@ func (mock *mockProxyApp) DeliverTx(req abci.RequestDeliverTx) abci.ResponseDeli
 
 func (mock *mockProxyApp) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	mock.txCount = 0
+
 	return mock.abciResponses.EndBlock
 }
 
 func (mock *mockProxyApp) Commit() (res abci.ResponseCommit) {
 	res.Data = mock.appHash
+
 	return
 }

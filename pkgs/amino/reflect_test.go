@@ -626,6 +626,7 @@ type charRange struct {
 // given randomness source.
 func (r *charRange) choose(rand fuzz.Continue) rune {
 	count := int64(r.last - r.first)
+
 	return r.first + rune(rand.Int63n(count))
 }
 

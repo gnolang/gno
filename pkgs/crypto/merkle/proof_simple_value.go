@@ -51,6 +51,7 @@ func SimpleValueOpDecoder(pop ProofOp) (ProofOperator, error) {
 
 func (op SimpleValueOp) ProofOp() ProofOp {
 	bz := cdc.MustMarshalSized(op)
+
 	return ProofOp{
 		Type: ProofOpSimpleValue,
 		Key:  op.key,

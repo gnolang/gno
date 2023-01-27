@@ -31,6 +31,7 @@ func (vm *VMKeeper) initBuiltinPackagesAndTypes(store gno.Store) {
 			Output: os.Stdout,
 			Store:  store,
 		})
+
 		return m2.RunMemPackage(memPkg, true)
 	}
 	store.SetPackageGetter(getPackage)
@@ -93,6 +94,7 @@ func NewSDKBanker(vmk *VMKeeper, ctx sdk.Context) *SDKBanker {
 func (bnk *SDKBanker) GetCoins(b32addr crypto.Bech32Address) (dst std.Coins) {
 	addr := crypto.MustAddressFromString(string(b32addr))
 	coins := bnk.vmk.bank.GetCoins(bnk.ctx, addr)
+
 	return coins
 }
 

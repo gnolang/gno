@@ -148,6 +148,7 @@ func (b *Block) Hash() []byte {
 		return nil
 	}
 	b.fillHeader()
+
 	return b.Header.Hash()
 }
 
@@ -276,6 +277,7 @@ func MakeBlock(height int64, txs []Tx, lastCommit *Commit) *Block {
 		LastCommit: lastCommit,
 	}
 	block.fillHeader()
+
 	return block
 }
 
@@ -401,6 +403,7 @@ func (cs *CommitSig) toVote() *Vote {
 		return nil
 	}
 	v := Vote(*cs)
+
 	return &v
 }
 
@@ -466,6 +469,7 @@ func (commit *Commit) GetVote(valIdx int) *Vote {
 	// For #1648, CommitSig will need to indicate what BlockID it's for !
 	blockID := commitSig.BlockID
 	commit.memoizeHeightRound()
+
 	return &Vote{
 		Type:             PrecommitType,
 		Height:           commit.height,
@@ -500,6 +504,7 @@ func (commit *Commit) memoizeHeightRound() {
 		if precommit != nil {
 			commit.height = precommit.Height
 			commit.round = precommit.Round
+
 			return
 		}
 	}
@@ -508,12 +513,14 @@ func (commit *Commit) memoizeHeightRound() {
 // Height returns the height of the commit
 func (commit *Commit) Height() int64 {
 	commit.memoizeHeightRound()
+
 	return commit.height
 }
 
 // Round returns the round of the commit
 func (commit *Commit) Round() int {
 	commit.memoizeHeightRound()
+
 	return commit.round
 }
 
@@ -723,6 +730,7 @@ func (data *Data) StringIndented(indent string) string {
 	for i, tx := range data.Txs {
 		if i == 20 {
 			txStrings[i] = fmt.Sprintf("... (%v total)", len(data.Txs))
+
 			break
 		}
 		txStrings[i] = fmt.Sprintf("%X (%d bytes)", tx.Hash(), len(tx))

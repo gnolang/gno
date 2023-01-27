@@ -44,6 +44,7 @@ func NewValidatorFromABCIValidatorUpdate(update abci.ValidatorUpdate) *Validator
 // Panics if the validator is nil.
 func (v *Validator) Copy() *Validator {
 	vCopy := *v
+
 	return &vCopy
 }
 
@@ -103,7 +104,7 @@ func (v *Validator) ABCIValidatorUpdate() abci.ValidatorUpdate {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // RandValidator
 
 // RandValidator returns a randomized validator, useful for testing.
@@ -116,5 +117,6 @@ func RandValidator(randPower bool, minPower int64) (*Validator, PrivValidator) {
 	}
 	pubKey := privVal.GetPubKey()
 	val := NewValidator(pubKey, votePower)
+
 	return val, privVal
 }

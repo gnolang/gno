@@ -98,6 +98,7 @@ var colorFn = func(keyvals ...interface{}) colors.Color {
 			}
 		}
 	}
+
 	return colors.None
 }
 
@@ -161,6 +162,7 @@ func echoViaHTTP(cl client.HTTPClient, val string) (string, error) {
 	if _, err := cl.Call("echo", params, result); err != nil {
 		return "", err
 	}
+
 	return result.Value, nil
 }
 
@@ -172,6 +174,7 @@ func echoIntViaHTTP(cl client.HTTPClient, val int) (int, error) {
 	if _, err := cl.Call("echo_int", params, result); err != nil {
 		return 0, err
 	}
+
 	return result.Value, nil
 }
 
@@ -183,6 +186,7 @@ func echoBytesViaHTTP(cl client.HTTPClient, bytes []byte) ([]byte, error) {
 	if _, err := cl.Call("echo_bytes", params, result); err != nil {
 		return []byte{}, err
 	}
+
 	return result.Value, nil
 }
 
@@ -194,6 +198,7 @@ func echoDataBytesViaHTTP(cl client.HTTPClient, bytes []byte) ([]byte, error) {
 	if _, err := cl.Call("echo_data_bytes", params, result); err != nil {
 		return []byte{}, err
 	}
+
 	return result.Value, nil
 }
 
@@ -239,6 +244,7 @@ func echoViaWS(cl *client.WSClient, val string) (string, error) {
 	if err != nil {
 		return "", nil
 	}
+
 	return result.Value, nil
 }
 
@@ -260,6 +266,7 @@ func echoBytesViaWS(cl *client.WSClient, bytes []byte) ([]byte, error) {
 	if err != nil {
 		return []byte{}, nil
 	}
+
 	return result.Value, nil
 }
 
@@ -393,5 +400,6 @@ func randBytes(t *testing.T) []byte {
 	buf := make([]byte, n)
 	_, err := crand.Read(buf)
 	require.Nil(t, err)
+
 	return bytes.Replace(buf, []byte("="), []byte{100}, -1)
 }

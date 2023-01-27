@@ -2,6 +2,7 @@ package main
 
 func main() {
 	println("foo")
+
 	goto L1
 	println("Hello")
 L1:

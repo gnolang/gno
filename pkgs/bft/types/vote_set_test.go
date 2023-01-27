@@ -14,6 +14,7 @@ import (
 // NOTE: privValidators are in order
 func randVoteSet(height int64, round int, type_ SignedMsgType, numValidators int, votingPower int64) (*VoteSet, *ValidatorSet, []PrivValidator) {
 	valSet, privValidators := RandValidatorSet(numValidators, votingPower)
+
 	return NewVoteSet("test_chain_id", height, round, type_, valSet), valSet, privValidators
 }
 
@@ -22,6 +23,7 @@ func withValidator(vote *Vote, addr crypto.Address, idx int) *Vote {
 	vote = vote.Copy()
 	vote.ValidatorAddress = addr
 	vote.ValidatorIndex = idx
+
 	return vote
 }
 
@@ -29,6 +31,7 @@ func withValidator(vote *Vote, addr crypto.Address, idx int) *Vote {
 func withHeight(vote *Vote, height int64) *Vote {
 	vote = vote.Copy()
 	vote.Height = height
+
 	return vote
 }
 
@@ -36,6 +39,7 @@ func withHeight(vote *Vote, height int64) *Vote {
 func withRound(vote *Vote, round int) *Vote {
 	vote = vote.Copy()
 	vote.Round = round
+
 	return vote
 }
 
@@ -43,6 +47,7 @@ func withRound(vote *Vote, round int) *Vote {
 func withType(vote *Vote, type_ byte) *Vote {
 	vote = vote.Copy()
 	vote.Type = SignedMsgType(type_)
+
 	return vote
 }
 
@@ -50,6 +55,7 @@ func withType(vote *Vote, type_ byte) *Vote {
 func withBlockHash(vote *Vote, blockHash []byte) *Vote {
 	vote = vote.Copy()
 	vote.BlockID.Hash = blockHash
+
 	return vote
 }
 
@@ -57,6 +63,7 @@ func withBlockHash(vote *Vote, blockHash []byte) *Vote {
 func withBlockPartsHeader(vote *Vote, blockPartsHeader PartSetHeader) *Vote {
 	vote = vote.Copy()
 	vote.BlockID.PartsHeader = blockPartsHeader
+
 	return vote
 }
 

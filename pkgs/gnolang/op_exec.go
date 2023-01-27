@@ -43,7 +43,7 @@ SelectStmt ->
 
 */
 
-//----------------------------------------
+// ----------------------------------------
 // doOpExec
 //
 // NOTE: Push operations appear in opposite order (filo).  The end result of
@@ -78,6 +78,7 @@ func (m *Machine) doOpExec(op Op) {
 			// continue onto exec stmt.
 			bs.Active = next
 			s = next
+
 			goto EXEC_SWITCH
 		} else {
 			m.ForcePopOp()
@@ -112,6 +113,7 @@ func (m *Machine) doOpExec(op Op) {
 			// continue onto exec stmt.
 			bs.Active = next
 			s = next
+
 			goto EXEC_SWITCH
 		} else if bs.NextBodyIndex == bs.BodyLen {
 			// (queue to) go back.
@@ -131,6 +133,7 @@ func (m *Machine) doOpExec(op Op) {
 				// or uh...
 				bs.Active = next
 				s = next
+
 				goto EXEC_SWITCH
 			}
 		} else {
@@ -162,6 +165,7 @@ func (m *Machine) doOpExec(op Op) {
 			bs.NumExprs = len(m.Exprs)
 			bs.NumStmts = len(m.Stmts)
 			bs.NextBodyIndex++
+
 			fallthrough
 		case -1: // assign list element.
 			if bs.Key != nil {
@@ -194,6 +198,7 @@ func (m *Machine) doOpExec(op Op) {
 				}
 			}
 			bs.NextBodyIndex++
+
 			fallthrough
 		default:
 			// NOTE: duplicated for OpRangeIterMap,
@@ -204,6 +209,7 @@ func (m *Machine) doOpExec(op Op) {
 				// continue onto exec stmt.
 				bs.Active = next
 				s = next // switch on bs.Active
+
 				goto EXEC_SWITCH
 			} else if bs.NextBodyIndex == bs.BodyLen {
 				if bs.ListIndex < bs.ListLen-1 {
@@ -258,6 +264,7 @@ func (m *Machine) doOpExec(op Op) {
 			bs.NumExprs = len(m.Exprs)
 			bs.NumStmts = len(m.Stmts)
 			bs.NextBodyIndex++
+
 			fallthrough
 		case -1: // assign list element.
 			if bs.Key != nil {
@@ -288,6 +295,7 @@ func (m *Machine) doOpExec(op Op) {
 				}
 			}
 			bs.NextBodyIndex++
+
 			fallthrough
 		default:
 			// NOTE: duplicated for OpRangeIterMap,
@@ -298,6 +306,7 @@ func (m *Machine) doOpExec(op Op) {
 				// continue onto exec stmt.
 				bs.Active = next
 				s = next // switch on bs.Active
+
 				goto EXEC_SWITCH
 			} else if bs.NextBodyIndex == bs.BodyLen {
 				if bs.StrIndex < bs.StrLen {
@@ -351,6 +360,7 @@ func (m *Machine) doOpExec(op Op) {
 			bs.NumExprs = len(m.Exprs)
 			bs.NumStmts = len(m.Stmts)
 			bs.NextBodyIndex++
+
 			fallthrough
 		case -1: // assign list element.
 			next := bs.NextItem
@@ -381,6 +391,7 @@ func (m *Machine) doOpExec(op Op) {
 				}
 			}
 			bs.NextBodyIndex++
+
 			fallthrough
 		default:
 			// NOTE: duplicated for OpRangeIter,
@@ -391,6 +402,7 @@ func (m *Machine) doOpExec(op Op) {
 				// continue onto exec stmt.
 				bs.Active = next
 				s = next // switch on bs.Active
+
 				goto EXEC_SWITCH
 			} else if bs.NextBodyIndex == bs.BodyLen {
 				nnext := bs.NextItem.Next

@@ -46,6 +46,7 @@ func (r *Reader) Read(p []byte) (n int, err error) {
 	if len(p) > 0 {
 		n, err = r.IO(r.Reader.Read(p))
 	}
+
 	return
 }
 
@@ -53,6 +54,7 @@ func (r *Reader) Read(p []byte) (n int, err error) {
 // the previous setting.
 func (r *Reader) SetLimit(newLimit int64) (old int64) {
 	old, r.limit = r.limit, newLimit
+
 	return
 }
 
@@ -61,6 +63,7 @@ func (r *Reader) SetLimit(newLimit int64) (old int64) {
 // may be read at this time due to the rate limit.
 func (r *Reader) SetBlocking(blocking bool) (old bool) {
 	old, r.block = r.block, blocking
+
 	return
 }
 
@@ -70,6 +73,7 @@ func (r *Reader) Close() error {
 	if c, ok := r.Reader.(io.Closer); ok {
 		return c.Close()
 	}
+
 	return nil
 }
 
@@ -112,6 +116,7 @@ func (w *Writer) Write(p []byte) (n int, err error) {
 // the previous setting.
 func (w *Writer) SetLimit(newLimit int64) (old int64) {
 	old, w.limit = w.limit, newLimit
+
 	return
 }
 
@@ -120,6 +125,7 @@ func (w *Writer) SetLimit(newLimit int64) (old int64) {
 // may be written at this time due to the rate limit.
 func (w *Writer) SetBlocking(blocking bool) (old bool) {
 	old, w.block = w.block, blocking
+
 	return
 }
 

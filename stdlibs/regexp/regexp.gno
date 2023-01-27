@@ -117,6 +117,7 @@ func (re *Regexp) String() string {
 // two copies with different Longest settings.
 func (re *Regexp) Copy() *Regexp {
 	re2 := *re
+
 	return &re2
 }
 
@@ -237,7 +238,7 @@ func (re *Regexp) get() *machine {
 	// m, ok := matchPool[re.mpool].Get().(*machine)
 	// if !ok {
 	m := new(machine)
-	//}
+	// }
 	m.re = re
 	m.p = re.prog
 	if cap(m.matchcap) < re.matchcap {
@@ -485,9 +486,11 @@ func (i *inputReader) step(pos int) (rune, int) {
 	r, w, err := i.r.ReadRune()
 	if err != nil {
 		i.atEOT = true
+
 		return endOfText, 0
 	}
 	i.pos += w
+
 	return r, w
 }
 
@@ -576,6 +579,7 @@ func (re *Regexp) ReplaceAllString(src, repl string) string {
 	b := re.replaceAll(nil, src, n, func(dst []byte, match []int) []byte {
 		return re.expand(dst, repl, nil, src, match)
 	})
+
 	return string(b)
 }
 
@@ -596,6 +600,7 @@ func (re *Regexp) ReplaceAllStringFunc(src string, repl func(string) string) str
 	b := re.replaceAll(nil, src, 2, func(dst []byte, match []int) []byte {
 		return append(dst, repl(src[match[0]:match[1]])...)
 	})
+
 	return string(b)
 }
 
@@ -679,6 +684,7 @@ func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
 		}
 		return re.expand(dst, srepl, src, "", match)
 	})
+
 	return b
 }
 
@@ -965,6 +971,7 @@ func (re *Regexp) expand(dst []byte, template string, bsrc []byte, src string, m
 		}
 	}
 	dst = append(dst, template...)
+
 	return dst
 }
 
@@ -1007,6 +1014,7 @@ func extract(str string) (name string, num int, rest string, ok bool) {
 	for i := 0; i < len(name); i++ {
 		if name[i] < '0' || '9' < name[i] || num >= 1e8 {
 			num = -1
+
 			break
 		}
 		num = num*10 + int(name[i]) - '0'
@@ -1018,6 +1026,7 @@ func extract(str string) (name string, num int, rest string, ok bool) {
 
 	rest = str[i:]
 	ok = true
+
 	return
 }
 
@@ -1085,6 +1094,7 @@ func (re *Regexp) FindAll(b []byte, n int) [][]byte {
 		}
 		result = append(result, b[match[0]:match[1]:match[1]])
 	})
+
 	return result
 }
 

@@ -10,7 +10,7 @@ import (
 	"github.com/gnolang/gno/pkgs/errors"
 )
 
-//----------------------------------------
+// ----------------------------------------
 // cdc.encodeReflectJSON
 
 // This is the main entrypoint for encoding all types in json form.  This
@@ -37,6 +37,7 @@ func (cdc *Codec) encodeReflectJSON(w io.Writer, info *TypeInfo, rv reflect.Valu
 	if rv.Kind() == reflect.Ptr {
 		if rv.IsNil() {
 			err = writeStr(w, `null`)
+
 			return
 		}
 		rv = rv.Elem()
@@ -65,12 +66,13 @@ func (cdc *Codec) encodeReflectJSON(w io.Writer, info *TypeInfo, rv reflect.Valu
 		rinfo = info.ReprType
 		// Then, encode the repr instance.
 		err = cdc.encodeReflectJSON(w, rinfo, rrv, fopts)
+
 		return
 	}
 
 	switch info.Type.Kind() {
 
-	//----------------------------------------
+	// ----------------------------------------
 	// Complex
 
 	case reflect.Interface:
@@ -82,33 +84,36 @@ func (cdc *Codec) encodeReflectJSON(w io.Writer, info *TypeInfo, rv reflect.Valu
 	case reflect.Struct:
 		return cdc.encodeReflectJSONStruct(w, info, rv, fopts)
 
-	//----------------------------------------
+	// ----------------------------------------
 	// Signed, Unsigned
 
 	case reflect.Int64, reflect.Int:
 		_, err = fmt.Fprintf(w, `"%d"`, rv.Int()) // JS can't handle int64
+
 		return
 
 	case reflect.Uint64, reflect.Uint:
 		_, err = fmt.Fprintf(w, `"%d"`, rv.Uint()) // JS can't handle uint64
+
 		return
 
 	case reflect.Int32, reflect.Int16, reflect.Int8,
 		reflect.Uint32, reflect.Uint16, reflect.Uint8:
 		return invokeStdlibJSONMarshal(w, rv.Interface())
 
-	//----------------------------------------
+	// ----------------------------------------
 	// Misc
 
 	case reflect.Float64, reflect.Float32:
 		if !fopts.Unsafe {
 			return errors.New("amino.JSON float* support requires `amino:\"unsafe\"`")
 		}
+
 		fallthrough
 	case reflect.Bool, reflect.String:
 		return invokeStdlibJSONMarshal(w, rv.Interface())
 
-	//----------------------------------------
+	// ----------------------------------------
 	// Default
 
 	default:
@@ -129,6 +134,7 @@ func (cdc *Codec) encodeReflectJSONInterface(w io.Writer, iinfo *TypeInfo, rv re
 	// Special case when rv is nil, just write "null".
 	if rv.IsNil() {
 		err = writeStr(w, `null`)
+
 		return
 	}
 
@@ -153,6 +159,7 @@ func (cdc *Codec) encodeReflectJSONInterface(w io.Writer, iinfo *TypeInfo, rv re
 	}
 	if !cinfo.Registered {
 		err = errors.New("cannot encode unregistered concrete type %v", crt)
+
 		return
 	}
 
@@ -162,12 +169,14 @@ func (cdc *Codec) encodeReflectJSONInterface(w io.Writer, iinfo *TypeInfo, rv re
 	value := buf.Bytes()
 	if len(value) == 0 {
 		err = errors.New("JSON bytes cannot be empty")
+
 		return
 	}
 	if cinfo.IsJSONAnyValueType {
 		// Sanity check
 		if value[0] == '{' || value[len(value)-1] == '}' {
 			err = errors.New("unexpected JSON object %s", value)
+
 			return
 		}
 		// Write TypeURL
@@ -182,11 +191,13 @@ func (cdc *Codec) encodeReflectJSONInterface(w io.Writer, iinfo *TypeInfo, rv re
 		}
 		// Write closing brace.
 		err = writeStr(w, `}`)
+
 		return
 	} else {
 		// Sanity check
 		if value[0] != '{' || value[len(value)-1] != '}' {
 			err = errors.New("expected JSON object but got %s", value)
+
 			return
 		}
 		// Write TypeURL
@@ -216,6 +227,7 @@ func (cdc *Codec) encodeReflectJSONList(w io.Writer, info *TypeInfo, rv reflect.
 	// Empty slices and arrays are not encoded as "null".
 	if rv.Kind() == reflect.Slice && rv.IsNil() {
 		err = writeStr(w, `null`)
+
 		return
 	}
 
@@ -241,6 +253,7 @@ func (cdc *Codec) encodeReflectJSONList(w io.Writer, info *TypeInfo, rv reflect.
 			return
 		}
 		_, err = w.Write(jsonBytes)
+
 		return
 
 	default:
@@ -282,6 +295,7 @@ func (cdc *Codec) encodeReflectJSONList(w io.Writer, info *TypeInfo, rv reflect.
 		defer func() {
 			err = writeStr(w, `]`)
 		}()
+
 		return
 	}
 }
@@ -349,7 +363,7 @@ func (cdc *Codec) encodeReflectJSONStruct(w io.Writer, info *TypeInfo, rv reflec
 	return err
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Misc.
 
 func invokeStdlibJSONMarshal(w io.Writer, v interface{}) error {
@@ -361,11 +375,13 @@ func invokeStdlibJSONMarshal(w io.Writer, v interface{}) error {
 		return err
 	}
 	_, err = w.Write(blob)
+
 	return err
 }
 
 func writeStr(w io.Writer, s string) (err error) {
 	_, err = w.Write([]byte(s))
+
 	return
 }
 

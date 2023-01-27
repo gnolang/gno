@@ -18,6 +18,7 @@ func TestParallel(t *testing.T) {
 	for i := 0; i < len(tasks); i++ {
 		tasks[i] = func(i int) (res interface{}, err error, abort bool) {
 			atomic.AddInt32(counter, 1)
+
 			return -1 * i, nil, false
 		}
 	}
@@ -67,16 +68,19 @@ func TestParallelAbort(t *testing.T) {
 		func(i int) (res interface{}, err error, abort bool) {
 			assert.Equal(t, i, 1)
 			flow2 <- <-flow1
+
 			return 1, errors.New("some error"), false
 		},
 		func(i int) (res interface{}, err error, abort bool) {
 			assert.Equal(t, i, 2)
 			flow3 <- <-flow2
+
 			return 2, nil, true
 		},
 		func(i int) (res interface{}, err error, abort bool) {
 			assert.Equal(t, i, 3)
 			<-flow4
+
 			return 3, nil, false
 		},
 	}

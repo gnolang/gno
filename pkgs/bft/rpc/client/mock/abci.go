@@ -39,6 +39,7 @@ func (a ABCIApp) ABCIQueryWithOptions(
 		Height: opts.Height,
 		Prove:  opts.Prove,
 	})
+
 	return &ctypes.ResultABCIQuery{Response: q}, nil
 }
 
@@ -53,6 +54,7 @@ func (a ABCIApp) BroadcastTxCommit(tx types.Tx) (*ctypes.ResultBroadcastTxCommit
 	}
 	res.DeliverTx = a.App.DeliverTx(abci.RequestDeliverTx{Tx: tx})
 	res.Height = -1 // TODO
+
 	return &res, nil
 }
 
@@ -106,6 +108,7 @@ func (m ABCIMock) ABCIQueryWithOptions(
 		return nil, err
 	}
 	resQuery := res.(abci.ResponseQuery)
+
 	return &ctypes.ResultABCIQuery{Response: resQuery}, nil
 }
 
@@ -165,6 +168,7 @@ func (r *ABCIRecorder) ABCIInfo() (*ctypes.ResultABCIInfo, error) {
 		Response: res,
 		Error:    err,
 	})
+
 	return res, err
 }
 
@@ -184,6 +188,7 @@ func (r *ABCIRecorder) ABCIQueryWithOptions(
 		Response: res,
 		Error:    err,
 	})
+
 	return res, err
 }
 
@@ -195,6 +200,7 @@ func (r *ABCIRecorder) BroadcastTxCommit(tx types.Tx) (*ctypes.ResultBroadcastTx
 		Response: res,
 		Error:    err,
 	})
+
 	return res, err
 }
 
@@ -206,6 +212,7 @@ func (r *ABCIRecorder) BroadcastTxAsync(tx types.Tx) (*ctypes.ResultBroadcastTx,
 		Response: res,
 		Error:    err,
 	})
+
 	return res, err
 }
 
@@ -217,5 +224,6 @@ func (r *ABCIRecorder) BroadcastTxSync(tx types.Tx) (*ctypes.ResultBroadcastTx, 
 		Response: res,
 		Error:    err,
 	})
+
 	return res, err
 }

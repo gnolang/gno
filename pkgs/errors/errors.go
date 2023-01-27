@@ -11,12 +11,14 @@ import (
 func Wrap(cause interface{}, format string, args ...interface{}) Error {
 	if causeCmnError, ok := cause.(*cmnError); ok { //nolint:gocritic
 		msg := fmt.Sprintf(format, args...)
+
 		return causeCmnError.Stacktrace().Trace(1, msg)
 	} else if cause == nil {
 		return newCmnError(FmtError{format, args}).Stacktrace()
 	} else {
 		// NOTE: causeCmnError is a typed nil here.
 		msg := fmt.Sprintf(format, args...)
+
 		return newCmnError(cause).Stacktrace().Trace(1, msg)
 	}
 }
@@ -64,6 +66,7 @@ type Error interface {
 // The Error's Data will be a FmtError type.
 func New(format string, args ...interface{}) Error {
 	err := FmtError{format, args}
+
 	return newCmnError(err)
 }
 
@@ -101,6 +104,7 @@ func (err *cmnError) Stacktrace() Error {
 		depth := 32
 		err.stacktrace = captureStacktrace(offset, depth)
 	}
+
 	return err
 }
 
@@ -108,6 +112,7 @@ func (err *cmnError) Stacktrace() Error {
 // Set n=0 unless wrapped with some function, then n > 0.
 func (err *cmnError) Trace(offset int, format string, args ...interface{}) Error {
 	msg := fmt.Sprintf(format, args...)
+
 	return err.doTrace(msg, offset)
 }
 
@@ -129,6 +134,7 @@ func (err *cmnError) doTrace(msg string, n int) Error {
 		pc:  pc,
 		msg: msg,
 	})
+
 	return err
 }
 
@@ -169,6 +175,7 @@ func (err *cmnError) Format(s fmt.State, verb rune) {
 func captureStacktrace(offset int, depth int) []uintptr {
 	pcs := make([]uintptr, depth)
 	n := runtime.Callers(offset, pcs)
+
 	return pcs[0:n]
 }
 
@@ -180,6 +187,7 @@ type msgtraceItem struct {
 func (mti msgtraceItem) String() string {
 	fnc := runtime.FuncForPC(mti.pc)
 	file, line := fnc.FileLine(mti.pc)
+
 	return fmt.Sprintf("%s:%d - %s",
 		file, line,
 		mti.msg,

@@ -17,6 +17,7 @@ var DefaultListOptions = ListOptions{
 func listApp(cmd *command.Command, args []string, iopts interface{}) error {
 	if len(args) != 0 {
 		cmd.ErrPrintfln("Usage: list (no args)")
+
 		return errors.New("invalid args")
 	}
 

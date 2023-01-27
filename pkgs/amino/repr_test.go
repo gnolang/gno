@@ -31,6 +31,7 @@ func (pr pair) get(key string) (value interface{}) {
 }
 
 func (f Foo) MarshalAmino() ([]pair, error) { //nolint: golint
+
 	return []pair{
 		{"a", f.a},
 		{"b", f.b},
@@ -44,6 +45,7 @@ func (f *Foo) UnmarshalAmino(repr []pair) error {
 	f.b = repr[1].get("b").(int32)
 	f.c = repr[2].get("c").(FooList)
 	f.D = repr[3].get("D").(string)
+
 	return nil
 }
 

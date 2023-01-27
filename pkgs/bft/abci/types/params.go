@@ -11,6 +11,7 @@ func (params ValidatorParams) IsValidPubKeyTypeURL(pubKeyTypeURL string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -18,6 +19,7 @@ func (params ConsensusParams) Hash() []byte {
 	hasher := tmhash.New()
 	bz := amino.MustMarshal(params)
 	hasher.Write(bz)
+
 	return hasher.Sum(nil)
 }
 

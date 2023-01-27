@@ -97,6 +97,7 @@ func (kb dbKeybase) CreateAccount(
 ) (Info, error) {
 	coinType := crypto.CoinType
 	hdPath := hd.NewFundraiserParams(account, coinType, index)
+
 	return kb.CreateAccountBip44(name, mnemonic, bip39Passwd, encryptPasswd, *hdPath)
 }
 
@@ -113,6 +114,7 @@ func (kb dbKeybase) CreateAccountBip44(
 	}
 
 	info, err = kb.persistDerivedKey(seed, encryptPasswd, name, params.String())
+
 	return
 }
 
@@ -132,6 +134,7 @@ func (kb dbKeybase) CreateLedger(name string, algo SigningAlgo, hrp string, acco
 	pub := priv.PubKey()
 
 	// Note: Once Cosmos App v1.3.1 is compulsory, it could be possible to check that pubkey and addr match
+
 	return kb.writeLedgerKey(name, pub, *hdPath), nil
 }
 
@@ -158,6 +161,7 @@ func (kb *dbKeybase) persistDerivedKey(seed []byte, passwd, name, fullHdPath str
 	// use possibly blank password to encrypt the private
 	// key and store it. User must enforce good passwords.
 	info = kb.writeLocalKey(name, secp256k1.PrivKeySecp256k1(derivedPriv), passwd)
+
 	return
 }
 
@@ -178,6 +182,7 @@ func (kb dbKeybase) List() ([]Info, error) {
 			res = append(res, info)
 		}
 	}
+
 	return res, nil
 }
 
@@ -196,6 +201,7 @@ func (kb dbKeybase) GetByName(name string) (Info, error) {
 	if len(bs) == 0 {
 		return nil, keyerror.NewErrKeyNotFound(name)
 	}
+
 	return readInfo(bs)
 }
 
@@ -205,6 +211,7 @@ func (kb dbKeybase) GetByAddress(address crypto.Address) (Info, error) {
 		return nil, fmt.Errorf("key with address %s not found", address)
 	}
 	bs := kb.db.Get(ik)
+
 	return readInfo(bs)
 }
 
@@ -223,6 +230,7 @@ func (kb dbKeybase) Sign(nameOrBech32, passphrase string, msg []byte) (sig []byt
 		linfo := info.(localInfo)
 		if linfo.PrivKeyArmor == "" {
 			err = fmt.Errorf("private key not available")
+
 			return
 		}
 
@@ -240,6 +248,7 @@ func (kb dbKeybase) Sign(nameOrBech32, passphrase string, msg []byte) (sig []byt
 
 	case offlineInfo, multiInfo:
 		err = fmt.Errorf("cannot sign with key or addr %s", nameOrBech32)
+
 		return
 	}
 
@@ -249,6 +258,7 @@ func (kb dbKeybase) Sign(nameOrBech32, passphrase string, msg []byte) (sig []byt
 	}
 
 	pub = priv.PubKey()
+
 	return sig, pub, nil
 }
 
@@ -265,6 +275,7 @@ func (kb dbKeybase) Verify(nameOrBech32 string, msg []byte, sig []byte) (err err
 	if !pub.VerifyBytes(msg, sig) {
 		return errors.New("invalid signature")
 	}
+
 	return nil
 }
 
@@ -281,6 +292,7 @@ func (kb dbKeybase) ExportPrivateKeyObject(nameOrBech32 string, passphrase strin
 		linfo := info.(localInfo)
 		if linfo.PrivKeyArmor == "" {
 			err = fmt.Errorf("private key not available")
+
 			return nil, err
 		}
 		priv, err = armor.UnarmorDecryptPrivKey(linfo.PrivKeyArmor, passphrase)
@@ -304,6 +316,7 @@ func (kb dbKeybase) Export(nameOrBech32 string) (astr string, err error) {
 	if bz == nil {
 		return "", fmt.Errorf("no key to export with name %s", nameOrBech32)
 	}
+
 	return armor.ArmorInfoBytes(bz), nil
 }
 
@@ -315,6 +328,7 @@ func (kb dbKeybase) ExportPubKey(nameOrBech32 string) (astr string, err error) {
 	if err != nil {
 		return "", errors.Wrap(err, "getting info for name %s", nameOrBech32)
 	}
+
 	return armor.ArmorPubKeyBytes(info.GetPubKey().Bytes()), nil
 }
 
@@ -351,6 +365,7 @@ func (kb dbKeybase) ImportPrivKey(
 	}
 
 	kb.writeLocalKey(name, privKey, encryptPassphrase)
+
 	return nil
 }
 
@@ -363,6 +378,7 @@ func (kb dbKeybase) Import(name, astr string) (err error) {
 		return
 	}
 	kb.db.Set(infoKey(name), infoBytes)
+
 	return nil
 }
 
@@ -382,6 +398,7 @@ func (kb dbKeybase) ImportPubKey(name, astr string) (err error) {
 		return
 	}
 	kb.writeOfflineKey(name, pubKey)
+
 	return
 }
 
@@ -404,6 +421,7 @@ func (kb dbKeybase) Delete(nameOrBech32, passphrase string, skipPass bool) error
 	}
 	kb.db.DeleteSync(addrKey(info.GetAddress()))
 	kb.db.DeleteSync(infoKey(info.GetName()))
+
 	return nil
 }
 
@@ -430,6 +448,7 @@ func (kb dbKeybase) Update(nameOrBech32, oldpass string, getNewpass func() (stri
 			return err
 		}
 		kb.writeLocalKey(info.GetName(), key, newpass)
+
 		return nil
 	default:
 		return fmt.Errorf("locally stored key required. Received: %v", reflect.TypeOf(info).String())
@@ -448,24 +467,28 @@ func (kb dbKeybase) writeLocalKey(name string, priv crypto.PrivKey, passphrase s
 	pub := priv.PubKey()
 	info := newLocalInfo(name, pub, privArmor)
 	kb.writeInfo(name, info)
+
 	return info
 }
 
 func (kb dbKeybase) writeLedgerKey(name string, pub crypto.PubKey, path hd.BIP44Params) Info {
 	info := newLedgerInfo(name, pub, path)
 	kb.writeInfo(name, info)
+
 	return info
 }
 
 func (kb dbKeybase) writeOfflineKey(name string, pub crypto.PubKey) Info {
 	info := newOfflineInfo(name, pub)
 	kb.writeInfo(name, info)
+
 	return info
 }
 
 func (kb dbKeybase) writeMultisigKey(name string, pub crypto.PubKey) Info {
 	info := NewMultiInfo(name, pub)
 	kb.writeInfo(name, info)
+
 	return info
 }
 

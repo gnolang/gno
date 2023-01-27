@@ -25,10 +25,11 @@ func NewHandler(acck AccountKeeper) authHandler {
 func (ah authHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 	// no messages supported yet.
 	errMsg := fmt.Sprintf("unrecognized auth message type: %T", msg)
+
 	return abciResult(std.ErrUnknownRequest(errMsg))
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Query
 
 // query account path
@@ -41,6 +42,7 @@ func (ah authHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Re
 	default:
 		res = sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest("unknown auth query endpoint"))
+
 		return
 	}
 }
@@ -55,6 +57,7 @@ func (ah authHandler) queryAccount(ctx sdk.Context, req abci.RequestQuery) (res 
 		res = sdk.ABCIResponseQueryFromError(
 			std.ErrInvalidAddress(
 				"invalid query address " + b32addr))
+
 		return
 	}
 
@@ -65,14 +68,16 @@ func (ah authHandler) queryAccount(ctx sdk.Context, req abci.RequestQuery) (res 
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(
 			std.ErrInternal(fmt.Sprintf("could not marshal result to JSON: %s", err.Error())))
+
 		return
 	}
 
 	res.Data = bz
+
 	return
 }
 
-//----------------------------------------
+// ----------------------------------------
 // misc
 
 // returns the second component of a path.

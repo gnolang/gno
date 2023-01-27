@@ -23,6 +23,7 @@ func buildApp(cmd *command.Command, args []string, iopts interface{}) error {
 	opts := iopts.(buildOptions)
 	if len(args) < 1 {
 		cmd.ErrPrintfln("Usage: build [build flags] [packages]")
+
 		return errors.New("invalid args")
 	}
 

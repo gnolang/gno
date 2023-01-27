@@ -52,6 +52,7 @@ func TestMaxOpenConnections(t *testing.T) {
 			if err != nil {
 				t.Log(err)
 				atomic.AddInt32(&failed, 1)
+
 				return
 			}
 			defer r.Body.Close()

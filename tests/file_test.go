@@ -42,6 +42,7 @@ func TestFiles1(t *testing.T) {
 		}
 		if testing.Short() && strings.Contains(file.Name(), "_long") {
 			t.Log(fmt.Sprintf("skipping test %s in short mode.", file.Name()))
+
 			continue
 		}
 		file := file
@@ -64,6 +65,7 @@ func TestFiles2(t *testing.T) {
 		}
 		if testing.Short() && strings.Contains(file.Name(), "_long") {
 			t.Log(fmt.Sprintf("skipping test %s in short mode.", file.Name()))
+
 			continue
 		}
 		file := file

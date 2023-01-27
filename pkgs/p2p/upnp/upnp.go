@@ -109,10 +109,12 @@ func Discover() (nat NAT, err error) {
 				return
 			}
 			nat = &upnpNAT{serviceURL: serviceURL, ourIP: ourIP.String(), urnDomain: urnDomain}
+
 			return
 		}
 	}
 	err = errors.New("UPnP port discovery failed")
+
 	return nat, err
 }
 
@@ -167,6 +169,7 @@ func getChildDevice(d *Device, deviceType string) *Device {
 			return &dl[i]
 		}
 	}
+
 	return nil
 }
 
@@ -177,6 +180,7 @@ func getChildService(d *Device, serviceType string) *UPNPService {
 			return &sl[i]
 		}
 	}
+
 	return nil
 }
 
@@ -199,9 +203,11 @@ func localIPv4() (net.IP, error) {
 			if v4 == nil || v4[0] == 127 { // loopback address
 				continue
 			}
+
 			return v4, nil
 		}
 	}
+
 	return nil, errors.New("cannot find local IP address")
 }
 
@@ -214,6 +220,7 @@ func getServiceURL(rootURL string) (url, urnDomain string, err error) {
 
 	if r.StatusCode >= 400 {
 		err = errors.New(fmt.Sprint(r.StatusCode))
+
 		return
 	}
 	var root Root
@@ -224,16 +231,19 @@ func getServiceURL(rootURL string) (url, urnDomain string, err error) {
 	a := &root.Device
 	if !strings.Contains(a.DeviceType, "InternetGatewayDevice:1") {
 		err = errors.New("no InternetGatewayDevice")
+
 		return
 	}
 	b := getChildDevice(a, "WANDevice:1")
 	if b == nil {
 		err = errors.New("no WANDevice")
+
 		return
 	}
 	c := getChildDevice(b, "WANConnectionDevice:1")
 	if c == nil {
 		err = errors.New("no WANConnectionDevice")
+
 		return
 	}
 	d := getChildService(c, "WANIPConnection:1")
@@ -244,12 +254,14 @@ func getServiceURL(rootURL string) (url, urnDomain string, err error) {
 
 		if d == nil {
 			err = errors.New("no WANIPConnection")
+
 			return
 		}
 	}
 	// Extract the domain name, which isn't always 'schemas-upnp-org'
 	urnDomain = strings.Split(d.ServiceType, ":")[1]
 	url = combineURL(rootURL, d.ControlURL)
+
 	return url, urnDomain, err
 }
 
@@ -258,6 +270,7 @@ func combineURL(rootURL, subURL string) string {
 	protoEndIndex := strings.Index(rootURL, protocolEnd)
 	a := rootURL[protoEndIndex+len(protocolEnd):]
 	rootIndex := strings.Index(a, "/")
+
 	return rootURL[0:protoEndIndex+len(protocolEnd)+rootIndex] + subURL
 }
 
@@ -292,8 +305,10 @@ func soapRequest(url, function, message, domain string) (r *http.Response, err e
 		// log.Stderr(function, r.StatusCode)
 		err = errors.New("Error " + strconv.Itoa(r.StatusCode) + " for " + function)
 		r = nil
+
 		return
 	}
+
 	return r, err
 }
 
@@ -344,6 +359,7 @@ func (n *upnpNAT) GetExternalAddress() (addr net.IP, err error) {
 	if addr == nil {
 		err = fmt.Errorf("failed to parse IP: %v", info.externalIPAddress)
 	}
+
 	return
 }
 
@@ -381,6 +397,7 @@ func (n *upnpNAT) AddPortMapping(
 	// fmt.Println(string(body), err)
 	mappedExternalPort = externalPort
 	_ = response
+
 	return
 }
 
@@ -402,5 +419,6 @@ func (n *upnpNAT) DeletePortMapping(protocol string, externalPort, internalPort 
 	// TODO: check response to see if the port was deleted
 	// log.Println(message, response)
 	_ = response
+
 	return
 }

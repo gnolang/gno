@@ -14,6 +14,7 @@ func NewReactor() *Reactor {
 	r := &Reactor{}
 	r.BaseReactor = *p2p.NewBaseReactor("Reactor", r)
 	r.SetLogger(log.TestingLogger())
+
 	return r
 }
 

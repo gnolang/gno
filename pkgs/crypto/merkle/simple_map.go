@@ -43,6 +43,7 @@ func (sm *simpleMap) Set(key string, value []byte) {
 // (UNSTABLE: and by value too if duplicate key).
 func (sm *simpleMap) Hash() []byte {
 	sm.Sort()
+
 	return hashKVPairs(sm.kvs)
 }
 
@@ -60,10 +61,11 @@ func (sm *simpleMap) KVPairs() std.KVPairs {
 	sm.Sort()
 	kvs := make(std.KVPairs, len(sm.kvs))
 	copy(kvs, sm.kvs)
+
 	return kvs
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 // A local extension to KVPair that can be hashed.
 // Key and value are length prefixed and concatenated,

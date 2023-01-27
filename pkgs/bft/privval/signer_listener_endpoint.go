@@ -40,6 +40,7 @@ func NewSignerListenerEndpoint(
 
 	sc.BaseService = *service.NewBaseService(logger, "SignerListenerEndpoint", sc)
 	sc.signerEndpoint.timeoutReadWrite = defaultTimeoutReadWriteSeconds * time.Second
+
 	return sc
 }
 
@@ -79,6 +80,7 @@ func (sl *SignerListenerEndpoint) OnStop() {
 func (sl *SignerListenerEndpoint) WaitForConnection(maxWait time.Duration) error {
 	sl.instanceMtx.Lock()
 	defer sl.instanceMtx.Unlock()
+
 	return sl.ensureConnection(maxWait)
 }
 

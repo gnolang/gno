@@ -6,5 +6,6 @@ package types
 func fingerprint(slice []byte) []byte {
 	fingerprint := make([]byte, 6)
 	copy(fingerprint, slice)
+
 	return fingerprint
 }

@@ -54,11 +54,13 @@ type inputs struct {
 
 func (i *inputs) newBytes(b []byte) input {
 	i.bytes.str = b
+
 	return &i.bytes
 }
 
 func (i *inputs) newString(s string) input {
 	i.string.str = s
+
 	return &i.string
 }
 
@@ -66,6 +68,7 @@ func (i *inputs) newReader(r io.RuneReader) input {
 	i.reader.r = r
 	i.reader.atEOT = false
 	i.reader.pos = 0
+
 	return &i.reader
 }
 
@@ -110,6 +113,7 @@ func (m *machine) alloc(i *syntax.Inst) *thread {
 		t.cap = make([]int, len(m.matchcap), cap(m.matchcap))
 	}
 	t.inst = i
+
 	return t
 }
 
@@ -174,6 +178,7 @@ func (f lazyFlag) match(op syntax.EmptyOp) bool {
 func (m *machine) match(i input, pos int) bool {
 	startCond := m.re.cond
 	if startCond == ^syntax.EmptyOp(0) { // impossible
+
 		return false
 	}
 	m.matched = false
@@ -238,6 +243,7 @@ func (m *machine) match(i input, pos int) bool {
 		runq, nextq = nextq, runq
 	}
 	m.clear(nextq)
+
 	return m.matched
 }
 
@@ -266,6 +272,7 @@ func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond *l
 		}
 		if longest && m.matched && len(t.cap) > 0 && m.matchcap[0] < t.cap[0] {
 			m.pool = append(m.pool, t)
+
 			continue
 		}
 		i := t.inst
@@ -338,14 +345,17 @@ Again:
 	case syntax.InstAlt, syntax.InstAltMatch:
 		t = m.add(q, i.Out, pos, cap_, cond, t)
 		pc = i.Arg
+
 		goto Again
 	case syntax.InstEmptyWidth:
 		if cond.match(syntax.EmptyOp(i.Arg)) {
 			pc = i.Out
+
 			goto Again
 		}
 	case syntax.InstNop:
 		pc = i.Out
+
 		goto Again
 	case syntax.InstCapture:
 		if int(i.Arg) < len(cap_) {
@@ -355,6 +365,7 @@ Again:
 			cap_[i.Arg] = opos
 		} else {
 			pc = i.Out
+
 			goto Again
 		}
 	case syntax.InstMatch, syntax.InstRune, syntax.InstRune1, syntax.InstRuneAny, syntax.InstRuneAnyNotNL:
@@ -384,7 +395,7 @@ func newOnePassMachine() *onePassMachine {
 	// m, ok := onePassPool.Get().(*onePassMachine)
 	// if !ok {
 	m := new(onePassMachine)
-	//}
+	// }
 	return m
 }
 
@@ -397,6 +408,7 @@ func freeOnePassMachine(m *onePassMachine) {
 func (re *Regexp) doOnePass(ir io.RuneReader, ib []byte, is string, pos, ncap int, dstCap []int) []int {
 	startCond := re.cond
 	if startCond == ^syntax.EmptyOp(0) { // impossible
+
 		return nil
 	}
 
@@ -453,6 +465,7 @@ func (re *Regexp) doOnePass(ir io.RuneReader, ib []byte, is string, pos, ncap in
 				m.matchcap[0] = 0
 				m.matchcap[1] = pos
 			}
+
 			goto Return
 		case syntax.InstRune:
 			if !inst.MatchRune(r) {
@@ -471,6 +484,7 @@ func (re *Regexp) doOnePass(ir io.RuneReader, ib []byte, is string, pos, ncap in
 		// peek at the input rune to see which branch of the Alt to take
 		case syntax.InstAlt, syntax.InstAltMatch:
 			pc = int(onePassNext(&inst, r))
+
 			continue
 		case syntax.InstFail:
 			goto Return
@@ -480,11 +494,13 @@ func (re *Regexp) doOnePass(ir io.RuneReader, ib []byte, is string, pos, ncap in
 			if !flag.match(syntax.EmptyOp(inst.Arg)) {
 				goto Return
 			}
+
 			continue
 		case syntax.InstCapture:
 			if int(inst.Arg) < len(m.matchcap) {
 				m.matchcap[inst.Arg] = pos
 			}
+
 			continue
 		}
 		if width == 0 {
@@ -501,11 +517,13 @@ func (re *Regexp) doOnePass(ir io.RuneReader, ib []byte, is string, pos, ncap in
 Return:
 	if !matched {
 		freeOnePassMachine(m)
+
 		return nil
 	}
 
 	dstCap = append(dstCap, m.matchcap...)
 	freeOnePassMachine(m)
+
 	return dstCap
 }
 
@@ -541,11 +559,13 @@ func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap i
 	m.init(ncap)
 	if !m.match(i, pos) {
 		re.put(m)
+
 		return nil
 	}
 
 	dstCap = append(dstCap, m.matchcap...)
 	re.put(m)
+
 	return dstCap
 }
 

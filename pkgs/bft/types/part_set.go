@@ -53,7 +53,7 @@ func (part *Part) StringIndented(indent string) string {
 		indent)
 }
 
-//-------------------------------------
+// -------------------------------------
 
 type PartSetHeader struct {
 	Total int    `json:"total"`
@@ -84,7 +84,7 @@ func (psh PartSetHeader) ValidateBasic() error {
 	return nil
 }
 
-//-------------------------------------
+// -------------------------------------
 
 type PartSet struct {
 	total int
@@ -158,6 +158,7 @@ func (ps *PartSet) HasHeader(header PartSetHeader) bool {
 func (ps *PartSet) BitArray() *bitarray.BitArray {
 	ps.mtx.Lock()
 	defer ps.mtx.Unlock()
+
 	return ps.partsBitArray.Copy()
 }
 
@@ -221,6 +222,7 @@ func (ps *PartSet) AddPart(part *Part) (bool, error) {
 func (ps *PartSet) GetPart(index int) *Part {
 	ps.mtx.Lock()
 	defer ps.mtx.Unlock()
+
 	return ps.parts[index]
 }
 
@@ -259,6 +261,7 @@ func (psr *PartSetReader) Read(p []byte) (n int, err error) {
 			return n1, err
 		}
 		n2, err := psr.Read(p[readerLen:])
+
 		return n1 + n2, err
 	}
 
@@ -267,6 +270,7 @@ func (psr *PartSetReader) Read(p []byte) (n int, err error) {
 		return 0, io.EOF
 	}
 	psr.reader = bytes.NewReader(psr.parts[psr.i].Bytes)
+
 	return psr.Read(p)
 }
 
@@ -276,6 +280,7 @@ func (ps *PartSet) StringShort() string {
 	}
 	ps.mtx.Lock()
 	defer ps.mtx.Unlock()
+
 	return fmt.Sprintf("(%v of %v)", ps.Count(), ps.Total())
 }
 

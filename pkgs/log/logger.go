@@ -23,7 +23,7 @@ type Logger interface {
 	SetLevel(LogLevel)
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 // NewSyncWriter returns a new writer that is safe for concurrent use by
 // multiple goroutines. Writes to the returned writer are passed on to w. If
@@ -44,5 +44,6 @@ type syncWriter struct {
 func (w *syncWriter) Write(p []byte) (n int, err error) {
 	w.Lock()
 	defer w.Unlock()
+
 	return w.Writer.Write(p)
 }

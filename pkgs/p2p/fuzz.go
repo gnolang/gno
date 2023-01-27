@@ -68,6 +68,7 @@ func (fc *FuzzedConnection) Read(data []byte) (n int, err error) {
 	if fc.fuzz() {
 		return 0, nil
 	}
+
 	return fc.conn.Read(data)
 }
 
@@ -76,6 +77,7 @@ func (fc *FuzzedConnection) Write(data []byte) (n int, err error) {
 	if fc.fuzz() {
 		return 0, nil
 	}
+
 	return fc.conn.Write(data)
 }
 
@@ -103,6 +105,7 @@ func (fc *FuzzedConnection) SetWriteDeadline(t time.Time) error {
 
 func (fc *FuzzedConnection) randomDuration() time.Duration {
 	maxDelayMillis := int(fc.config.MaxDelay.Nanoseconds() / 1000)
+
 	return time.Millisecond * time.Duration(random.RandInt()%maxDelayMillis) //nolint: gas
 }
 
@@ -124,6 +127,7 @@ func (fc *FuzzedConnection) fuzz() bool {
 			// XXX: can't this fail because machine precision?
 			// XXX: do we need an error?
 			fc.Close() //nolint: errcheck, gas
+
 			return true
 		case r < fc.config.ProbDropRW+fc.config.ProbDropConn+fc.config.ProbSleep:
 			time.Sleep(fc.randomDuration())
@@ -132,6 +136,7 @@ func (fc *FuzzedConnection) fuzz() bool {
 		// sleep a bit
 		time.Sleep(fc.randomDuration())
 	}
+
 	return false
 }
 
@@ -146,6 +151,7 @@ func (fc *FuzzedConnection) shouldFuzz() bool {
 	select {
 	case <-fc.start:
 		fc.active = true
+
 		return true
 	default:
 		return false

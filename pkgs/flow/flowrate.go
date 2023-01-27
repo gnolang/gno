@@ -53,6 +53,7 @@ func New(sampleRate, windowSize time.Duration) *Monitor {
 		windowSize = 1 * time.Second
 	}
 	now := clock()
+
 	return &Monitor{
 		active:  true,
 		start:   now,
@@ -69,6 +70,7 @@ func (m *Monitor) Update(n int) int {
 	m.mu.Lock()
 	m.update(n)
 	m.mu.Unlock()
+
 	return n
 }
 
@@ -98,6 +100,7 @@ func (m *Monitor) Done() int64 {
 	m.tLast = 0
 	n := m.bytes
 	m.mu.Unlock()
+
 	return n
 }
 
@@ -159,6 +162,7 @@ func (m *Monitor) Status() Status {
 		}
 	}
 	m.mu.Unlock()
+
 	return s
 }
 
@@ -201,6 +205,7 @@ func (m *Monitor) Limit(want int, rate int64, block bool) (n int) {
 	if limit < 0 {
 		limit = 0
 	}
+
 	return int(limit)
 }
 
@@ -242,6 +247,7 @@ func (m *Monitor) update(n int) (now time.Duration) {
 		}
 		m.reset(now)
 	}
+
 	return
 }
 
@@ -271,5 +277,6 @@ func (m *Monitor) waitNextSample(now time.Duration) time.Duration {
 		m.mu.Lock()
 		now = m.update(0)
 	}
+
 	return now
 }

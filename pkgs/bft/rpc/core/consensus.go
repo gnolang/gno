@@ -67,6 +67,7 @@ func Validators(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultValidato
 	if err != nil {
 		return nil, err
 	}
+
 	return &ctypes.ResultValidators{
 		BlockHeight: height,
 		Validators:  validators.Validators,
@@ -235,6 +236,7 @@ func DumpConsensusState(ctx *rpctypes.Context) (*ctypes.ResultDumpConsensusState
 	// Get self round state.
 	config := consensusState.GetConfigDeepCopy()
 	roundState := consensusState.GetRoundStateDeepCopy()
+
 	return &ctypes.ResultDumpConsensusState{
 		Config:     config,
 		RoundState: roundState,
@@ -296,6 +298,7 @@ func DumpConsensusState(ctx *rpctypes.Context) (*ctypes.ResultDumpConsensusState
 func ConsensusState(ctx *rpctypes.Context) (*ctypes.ResultConsensusState, error) {
 	// Get self round state.
 	rs := consensusState.GetRoundStateSimple()
+
 	return &ctypes.ResultConsensusState{RoundState: rs}, nil
 }
 

@@ -34,6 +34,7 @@ func GetParam(r *http.Request, param string) string {
 
 func GetParamByteSlice(r *http.Request, param string) ([]byte, error) {
 	s := GetParam(r, param)
+
 	return hex.DecodeString(s)
 }
 

@@ -568,6 +568,7 @@ func TestNegativeEOFReader(t *testing.T) {
 		c++
 		if c > 1 {
 			t.Error("read too many lines")
+
 			break
 		}
 	}

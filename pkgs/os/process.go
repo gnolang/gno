@@ -79,6 +79,7 @@ func StartProcess(
 		}
 		close(proc.WaitCh)
 	}()
+
 	return proc, nil
 }
 

@@ -345,6 +345,7 @@ func sumReceivedNumbers(numbers, doneSum chan uint64) {
 		if !more {
 			doneSum <- sum
 			close(doneSum)
+
 			return
 		}
 	}

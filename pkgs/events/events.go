@@ -65,6 +65,7 @@ func NewEventSwitch() EventSwitch {
 		listeners: make([]listenCell, 0, 10),
 	}
 	evsw.BaseService = *service.NewBaseService(nil, "EventSwitch", evsw)
+
 	return evsw
 }
 

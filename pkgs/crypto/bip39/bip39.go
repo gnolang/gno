@@ -31,6 +31,7 @@ func NewEntropy(bitSize int) ([]byte, error) {
 
 	entropy := make([]byte, bitSize/8)
 	_, err = rand.Read(entropy)
+
 	return entropy, err
 }
 
@@ -153,6 +154,7 @@ func MnemonicToByteArray(mnemonic string) ([]byte, error) {
 			return nil, fmt.Errorf("invalid byte at position %v", i)
 		}
 	}
+
 	return hex, nil
 }
 
@@ -163,6 +165,7 @@ func NewSeedWithErrorChecking(mnemonic string, password string) ([]byte, error) 
 	if err != nil {
 		return nil, err
 	}
+
 	return NewSeed(mnemonic, password), nil
 }
 
@@ -201,6 +204,7 @@ func addChecksum(data []byte) []byte {
 
 func padByteSlice(slice []byte, length int) []byte {
 	newSlice := make([]byte, length-len(slice))
+
 	return append(newSlice, slice...) //nolint:makezero
 }
 
@@ -208,6 +212,7 @@ func validateEntropyBitSize(bitSize int) error {
 	if (bitSize%32) != 0 || bitSize < 128 || bitSize > 256 {
 		return errors.New("entropy length must be [128, 256] and a multiple of 32")
 	}
+
 	return nil
 }
 
@@ -219,6 +224,7 @@ func validateEntropyWithChecksumBitSize(bitSize int) error {
 			bitSize,
 		)
 	}
+
 	return nil
 }
 

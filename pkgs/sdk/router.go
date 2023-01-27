@@ -28,6 +28,7 @@ func (rtr *router) AddRoute(path string, h Handler) Router {
 	}
 
 	rtr.routes[path] = h
+
 	return rtr
 }
 

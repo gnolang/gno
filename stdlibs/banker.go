@@ -86,6 +86,7 @@ func NewOrigSendBanker(
 	if origSendSpent == nil {
 		panic("origSendSpent cannot be nil")
 	}
+
 	return OrigSendBanker{
 		banker:        banker,
 		pkgAddr:       pkgAddr,

@@ -25,6 +25,7 @@ func (privKey PrivKeyMock) Bytes() []byte {
 // Make a fake signature.  Its length is variable.
 func (privKey PrivKeyMock) Sign(msg []byte) ([]byte, error) {
 	sigBytes := []byte(fmt.Sprintf("signature-for-%X-by-%X", msg, []byte(privKey)))
+
 	return sigBytes, nil
 }
 
@@ -42,6 +43,7 @@ func (privKey PrivKeyMock) Equals(other crypto.PrivKey) bool {
 
 func GenPrivKey() PrivKeyMock {
 	randstr := random.RandStr(12)
+
 	return PrivKeyMock([]byte(randstr))
 }
 
@@ -58,6 +60,7 @@ func (pubKey PubKeyMock) Address() crypto.Address {
 	}
 	addr := crypto.Address{}
 	copy(addr[20-len(pubKey):], pubKey)
+
 	return addr
 }
 
@@ -68,6 +71,7 @@ func (pubKey PubKeyMock) Bytes() []byte {
 
 func (pubKey PubKeyMock) VerifyBytes(msg []byte, sig []byte) bool {
 	sigBytes := []byte(fmt.Sprintf("signature-for-%X-by-%X", msg, []byte(pubKey)))
+
 	return bytes.Equal(sig, sigBytes)
 }
 

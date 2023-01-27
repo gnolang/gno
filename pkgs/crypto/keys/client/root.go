@@ -47,6 +47,7 @@ func RunMain(cmd *command.Command, exec string, args []string) error {
 	for _, appItem := range mainApps {
 		if appItem.Name == args[0] {
 			err := cmd.Run(appItem.App, args[1:], appItem.Defaults)
+
 			return err // done
 		}
 	}

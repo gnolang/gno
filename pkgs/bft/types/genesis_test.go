@@ -120,6 +120,7 @@ func TestGenesisValidatorHash(t *testing.T) {
 
 func randomGenesisDoc() *GenesisDoc {
 	pubkey := ed25519.GenPrivKey().PubKey()
+
 	return &GenesisDoc{
 		GenesisTime:     tmtime.Now(),
 		ChainID:         "abc",

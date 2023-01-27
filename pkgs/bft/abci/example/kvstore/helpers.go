@@ -12,6 +12,7 @@ func RandVal(i int) abci.ValidatorUpdate {
 	pubkey := ed25519.GenPrivKey().PubKey()
 	power := random.RandUint16() + 1
 	v := abci.ValidatorUpdate{pubkey.Address(), pubkey, int64(power)}
+
 	return v
 }
 
@@ -24,6 +25,7 @@ func RandVals(cnt int) []abci.ValidatorUpdate {
 	for i := 0; i < cnt; i++ {
 		res[i] = RandVal(i)
 	}
+
 	return res
 }
 

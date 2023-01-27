@@ -98,6 +98,7 @@ func NewBlockchainReactor(state sm.State, blockExec *sm.BlockExecutor, store *st
 		errorsCh:     errorsCh,
 	}
 	bcR.BaseReactor = *p2p.NewBaseReactor("BlockchainReactor", bcR)
+
 	return bcR
 }
 
@@ -162,12 +163,14 @@ func (bcR *BlockchainReactor) respondToPeer(msg *bcBlockRequestMessage,
 	block := bcR.store.LoadBlock(msg.Height)
 	if block != nil {
 		msgBytes := amino.MustMarshalAny(&bcBlockResponseMessage{Block: block})
+
 		return src.TrySend(BlockchainChannel, msgBytes)
 	}
 
 	bcR.Logger.Info("Peer asking for a block we don't have", "src", src, "height", msg.Height)
 
 	msgBytes := amino.MustMarshalAny(&bcNoBlockResponseMessage{Height: msg.Height})
+
 	return src.TrySend(BlockchainChannel, msgBytes)
 }
 
@@ -177,12 +180,14 @@ func (bcR *BlockchainReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 	if err != nil {
 		bcR.Logger.Error("Error decoding message", "src", src, "chId", chID, "msg", msg, "err", err, "bytes", msgBytes)
 		bcR.Switch.StopPeerForError(src, err)
+
 		return
 	}
 
 	if err = msg.ValidateBasic(); err != nil {
 		bcR.Logger.Error("Peer sent us invalid msg", "peer", src, "msg", msg, "err", err)
 		bcR.Switch.StopPeerForError(src, err)
+
 		return
 	}
 
@@ -326,6 +331,7 @@ FOR_LOOP:
 					// still need to clean up the rest.
 					bcR.Switch.StopPeerForError(peer2, fmt.Errorf("BlockchainReactor validation error: %w", err))
 				}
+
 				continue FOR_LOOP
 			} else {
 				bcR.pool.PopRequest()
@@ -350,6 +356,7 @@ FOR_LOOP:
 					lastHundred = time.Now()
 				}
 			}
+
 			continue FOR_LOOP
 
 		case <-bcR.Quit():
@@ -362,6 +369,7 @@ FOR_LOOP:
 func (bcR *BlockchainReactor) BroadcastStatusRequest() error {
 	msgBytes := amino.MustMarshalAny(&bcStatusRequestMessage{bcR.store.Height()})
 	bcR.Switch.Broadcast(BlockchainChannel, msgBytes)
+
 	return nil
 }
 
@@ -378,6 +386,7 @@ func decodeMsg(bz []byte) (msg BlockchainMessage, err error) {
 		return msg, fmt.Errorf("msg exceeds max size (%d > %d)", len(bz), maxMsgSize)
 	}
 	err = amino.Unmarshal(bz, &msg)
+
 	return
 }
 

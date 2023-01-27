@@ -196,12 +196,14 @@ func TestCompileOnePass(t *testing.T) {
 	for _, test := range onePassTests {
 		if re, err = syntax.Parse(test.re, syntax.Perl); err != nil {
 			t.Errorf("Parse(%q) got err:%s, want success", test.re, err)
+
 			continue
 		}
 		// needs to be done before compile...
 		re = re.Simplify()
 		if p, err = syntax.Compile(re); err != nil {
 			t.Errorf("Compile(%q) got err:%s, want success", test.re, err)
+
 			continue
 		}
 		isOnePass := compileOnePass(p) != nil
@@ -224,10 +226,12 @@ func TestRunOnePass(t *testing.T) {
 		re, err := Compile(test.re)
 		if err != nil {
 			t.Errorf("Compile(%q): got err: %s", test.re, err)
+
 			continue
 		}
 		if re.onepass == nil {
 			t.Errorf("Compile(%q): got nil, want one-pass", test.re)
+
 			continue
 		}
 		if !re.MatchString(test.match) {

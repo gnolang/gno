@@ -62,6 +62,7 @@ func (mBatch *memBatch) write(doSync bool) {
 			case opTypeDelete:
 				mBatch.db.DeleteNoLockSync(op.key)
 			}
+
 			break // we're done.
 		}
 		switch op.opType {

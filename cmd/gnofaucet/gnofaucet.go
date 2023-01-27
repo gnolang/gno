@@ -49,6 +49,7 @@ func runMain(cmd *command.Command, exec string, args []string) error {
 		for _, appItem := range mainApps {
 			cmd.Printf("  %s - %s\n", appItem.Name, appItem.Desc)
 		}
+
 		return nil
 	}
 
@@ -56,6 +57,7 @@ func runMain(cmd *command.Command, exec string, args []string) error {
 	for _, appItem := range mainApps {
 		if appItem.Name == args[0] {
 			err := cmd.Run(appItem.App, args[1:], appItem.Defaults)
+
 			return err // done
 		}
 	}
@@ -72,6 +74,7 @@ func main() {
 	if err != nil {
 		cmd.ErrPrintfln("%s", err.Error())
 		cmd.ErrPrintfln("%#v", err)
+
 		return // exit
 	}
 }
@@ -109,6 +112,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 	opts := iopts.(serveOptions)
 	if len(args) != 1 {
 		cmd.ErrPrintfln("Usage: serve <keyname>")
+
 		return errors.New("invalid args")
 	}
 	if opts.ChainID == "" {
@@ -156,6 +160,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 	if qres.Response.Error != nil {
 		fmt.Printf("Log: %s\n",
 			qres.Response.Log)
+
 		return qres.Response.Error
 	}
 	resdata := qres.Response.Data
@@ -194,6 +199,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 			return err
 		}
 		err = sendAmountTo(cmd, cli, name, pass, testToAddr, accountNumber, sequence, send, opts)
+
 		return err
 	}
 
@@ -224,6 +230,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 		if ip == nil {
 			fmt.Println("no ip found")
 			w.Write([]byte("no ip found"))
+
 			return
 		}
 
@@ -232,6 +239,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 			msg := fmt.Sprintf("abuse protection system (%s)", reason)
 			fmt.Println(ip, msg)
 			w.Write([]byte(msg))
+
 			return
 		}
 
@@ -244,6 +252,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 			if passedMsg == nil {
 				fmt.Println(ip, "no 'captcha' request")
 				w.Write([]byte("check captcha request"))
+
 				return
 			}
 
@@ -252,6 +261,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 			if err := checkRecaptcha(opts.CaptchaSecret, capMsg); err != nil {
 				fmt.Printf("%s recaptcha failed; %v\n", ip, err)
 				w.Write([]byte("Unauthorized"))
+
 				return
 			}
 
@@ -261,6 +271,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 		if passedAddr == nil {
 			fmt.Println(ip, "no address found")
 			w.Write([]byte("no address found"))
+
 			return
 		}
 
@@ -271,12 +282,14 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 		if err != nil {
 			fmt.Println(ip, "invalid address format", err)
 			w.Write([]byte("invalid address format"))
+
 			return
 		}
 		err = sendAmountTo(cmd, cli, name, pass, toAddr, accountNumber, sequence, send, opts)
 		if err != nil {
 			fmt.Println(ip, "faucet failed", err)
 			w.Write([]byte("faucet failed"))
+
 			return
 		} else {
 			sequence += 1
@@ -398,6 +411,7 @@ func sendAmountTo(
 		cmd.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
 		cmd.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
 	}
+
 	return nil
 }
 

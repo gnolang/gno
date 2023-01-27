@@ -35,6 +35,7 @@ func CreateRandomPeer(outbound bool) *peer {
 		mconn:    &conn.MConnection{},
 	}
 	p.SetLogger(log.TestingLogger().With("peer", addr))
+
 	return p
 }
 
@@ -150,6 +151,7 @@ func (sw *Switch) addPeerWithConnection(conn net.Conn) error {
 
 	if err = sw.addPeer(p); err != nil {
 		pc.CloseConn()
+
 		return err
 	}
 
@@ -233,6 +235,7 @@ func testPeerConn(
 	}
 
 	// Only the information we already have
+
 	return newPeerConn(outbound, persistent, conn, socketAddr), nil
 }
 

@@ -26,6 +26,7 @@ func verifyApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 	if len(args) != 2 {
 		cmd.ErrPrintfln("Usage: verify <keyname> <signature>")
+
 		return errors.New("invalid args")
 	}
 

@@ -59,6 +59,7 @@ func mempoolLogger() log.Logger {
 				}
 			}
 		}
+
 		return colors.None
 	})
 }
@@ -79,8 +80,10 @@ func makeAndConnectReactors(mconfig *memcfg.MempoolConfig, pconfig *p2pcfg.P2PCo
 
 	p2p.MakeConnectedSwitches(pconfig, n, func(i int, s *p2p.Switch) *p2p.Switch {
 		s.AddReactor("MEMPOOL", reactors[i])
+
 		return s
 	}, p2p.Connect2Switches)
+
 	return reactors
 }
 

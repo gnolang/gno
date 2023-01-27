@@ -6,7 +6,7 @@ import (
 	"github.com/gnolang/gno/pkgs/errors"
 )
 
-//----------------------------------------
+// ----------------------------------------
 // ProofOp gets converted to an instance of ProofOperator:
 
 // ProofOperator is a layer for calculating intermediate Merkle roots
@@ -22,7 +22,7 @@ type ProofOperator interface {
 	ProofOp() ProofOp
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Operations on a list of ProofOperators
 
 // ProofOperators is a slice of ProofOperator(s).
@@ -63,10 +63,11 @@ func (poz ProofOperators) Verify(root []byte, keypath string, args [][]byte) (er
 	if len(keys) != 0 {
 		return errors.New("Keypath not consumed all")
 	}
+
 	return nil
 }
 
-//----------------------------------------
+// ----------------------------------------
 // ProofRuntime - main entrypoint
 
 type OpDecoder func(ProofOp) (ProofOperator, error)
@@ -94,6 +95,7 @@ func (prt *ProofRuntime) Decode(pop ProofOp) (ProofOperator, error) {
 	if decoder == nil {
 		return nil, errors.New("unrecognized proof type %v", pop.Type)
 	}
+
 	return decoder(pop)
 }
 
@@ -106,6 +108,7 @@ func (prt *ProofRuntime) DecodeProof(proof *Proof) (ProofOperators, error) {
 		}
 		poz = append(poz, operator)
 	}
+
 	return poz, nil
 }
 
@@ -124,6 +127,7 @@ func (prt *ProofRuntime) Verify(proof *Proof, root []byte, keypath string, args 
 	if err != nil {
 		return errors.Wrap(err, "decoding proof")
 	}
+
 	return poz.Verify(root, keypath, args)
 }
 
@@ -134,5 +138,6 @@ func (prt *ProofRuntime) Verify(proof *Proof, root []byte, keypath string, args 
 func DefaultProofRuntime() (prt *ProofRuntime) {
 	prt = NewProofRuntime()
 	prt.RegisterOpDecoder(ProofOpSimpleValue, SimpleValueOpDecoder)
+
 	return
 }

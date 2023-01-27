@@ -102,9 +102,11 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 	select {
 	case <-numBlocksWritten:
 		consensusState.Stop()
+
 		return nil
 	case <-time.After(2 * time.Minute):
 		consensusState.Stop()
+
 		return fmt.Errorf("waited too long for tendermint to produce %d blocks (grep logs for `wal_generator`)", numBlocks)
 	}
 }
@@ -121,17 +123,20 @@ func WALWithNBlocks(t *testing.T, numBlocks int) (data []byte, err error) {
 	}
 
 	wr.Flush()
+
 	return b.Bytes(), nil
 }
 
 func randPort() int {
 	// returns between base and base + spread
 	base, spread := 20000, 20000
+
 	return base + random.RandIntn(spread)
 }
 
 func makeAddrs() (string, string, string) {
 	start := randPort()
+
 	return fmt.Sprintf("tcp://0.0.0.0:%d", start),
 		fmt.Sprintf("tcp://0.0.0.0:%d", start+1),
 		fmt.Sprintf("tcp://0.0.0.0:%d", start+2)
@@ -148,6 +153,7 @@ func getConfig(t *testing.T) *cfg.Config {
 	c.P2P.ListenAddress = tm
 	c.RPC.ListenAddress = rpc
 	c.RPC.GRPCListenAddress = grpc
+
 	return c
 }
 
@@ -216,6 +222,7 @@ func (w *heightStopWAL) WriteMetaSync(m walm.MetaMessage) error {
 			w.logger.Debug("Stopping WAL at height", "height", m.Height)
 			w.signalWhenStopsTo <- struct{}{}
 			w.stopped = true
+
 			return nil
 		}
 	}
@@ -223,6 +230,7 @@ func (w *heightStopWAL) WriteMetaSync(m walm.MetaMessage) error {
 	// After processing is successful, commit to underlying store.  This must
 	// come last.
 	w.enc.WriteMeta(m)
+
 	return nil
 }
 

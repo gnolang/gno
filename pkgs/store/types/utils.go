@@ -66,11 +66,13 @@ func PrefixEndBytes(prefix []byte) []byte {
 	for {
 		if end[len(end)-1] != byte(255) {
 			end[len(end)-1]++
+
 			break
 		} else {
 			end = end[:len(end)-1]
 			if len(end) == 0 {
 				end = nil
+
 				break
 			}
 		}
@@ -82,6 +84,7 @@ func PrefixEndBytes(prefix []byte) []byte {
 // range query such that the input would be included
 func InclusiveEndBytes(inclusiveBytes []byte) (exclusiveBytes []byte) {
 	exclusiveBytes = append(inclusiveBytes, byte(0x00))
+
 	return exclusiveBytes
 }
 
@@ -92,5 +95,6 @@ func Cp(bz []byte) (ret []byte) {
 	}
 	ret = make([]byte, len(bz))
 	copy(ret, bz)
+
 	return ret
 }

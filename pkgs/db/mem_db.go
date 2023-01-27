@@ -25,6 +25,7 @@ func NewMemDB() *MemDB {
 	database := &MemDB{
 		db: make(map[string][]byte),
 	}
+
 	return database
 }
 
@@ -40,6 +41,7 @@ func (db *MemDB) Get(key []byte) []byte {
 	key = nonNilBytes(key)
 
 	value := db.db[string(key)]
+
 	return value
 }
 
@@ -50,6 +52,7 @@ func (db *MemDB) Has(key []byte) bool {
 	key = nonNilBytes(key)
 
 	_, ok := db.db[string(key)]
+
 	return ok
 }
 
@@ -148,6 +151,7 @@ func (db *MemDB) Stats() map[string]string {
 	stats := make(map[string]string)
 	stats["database.type"] = "memDB"
 	stats["database.size"] = fmt.Sprintf("%d", len(db.db))
+
 	return stats
 }
 
@@ -168,6 +172,7 @@ func (db *MemDB) Iterator(start, end []byte) Iterator {
 	defer db.mtx.Unlock()
 
 	keys := db.getSortedKeys(start, end, false)
+
 	return newMemDBIterator(db, keys, start, end)
 }
 
@@ -177,6 +182,7 @@ func (db *MemDB) ReverseIterator(start, end []byte) Iterator {
 	defer db.mtx.Unlock()
 
 	keys := db.getSortedKeys(start, end, true)
+
 	return newMemDBIterator(db, keys, start, end)
 }
 
@@ -222,6 +228,7 @@ func (itr *memDBIterator) Next() {
 // Implements Iterator.
 func (itr *memDBIterator) Key() []byte {
 	itr.assertIsValid()
+
 	return []byte(itr.keys[itr.cur])
 }
 
@@ -229,6 +236,7 @@ func (itr *memDBIterator) Key() []byte {
 func (itr *memDBIterator) Value() []byte {
 	itr.assertIsValid()
 	key := []byte(itr.keys[itr.cur])
+
 	return itr.db.Get(key)
 }
 

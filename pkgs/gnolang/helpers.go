@@ -267,6 +267,7 @@ func X(x interface{}, args ...interface{}) Expr {
 					panic("expected int or float before 'i'")
 				}
 				num.Kind = IMAG
+
 				return num
 			}
 		case '\'':
@@ -346,6 +347,7 @@ func X(x interface{}, args ...interface{}) Expr {
 			}
 		case ']':
 			left, _, right := chopRight(expr)
+
 			return Idx(left, right)
 		}
 	}
@@ -484,6 +486,7 @@ func A(args ...interface{}) *AssignStmt {
 			case "=", ":=", "+=", "-=", "*=", "/=", "%=",
 				"&=", "|=", "^=", "<<=", ">>=", "&^=":
 				setOp(Op2Word(s))
+
 				continue
 			default:
 				arg = X(s)
@@ -671,6 +674,7 @@ func Loop(b ...Stmt) *ForStmt {
 
 func Once(b ...Stmt) *ForStmt {
 	b = append(b, Break(""))
+
 	return For(nil, nil, nil, b...)
 }
 
@@ -843,6 +847,7 @@ func chopBinary(expr string) (left, op, right string, ok bool) {
 					for i := 0; i < len(op2); i++ {
 						ss.advance()
 					}
+
 					break
 					// Do not return here, we want to find the last
 					// match.  But don't consider shorter operators.
@@ -885,6 +890,7 @@ func chopRight(in string) (left string, tok rune, right string) {
 		left = string(ss.rnz[:lastOut+1])
 		tok = ss.rnz[lastOut+1]
 		right = string(ss.rnz[lastOut+2 : len(in)-2])
+
 		return
 	}
 }

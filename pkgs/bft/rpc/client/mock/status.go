@@ -48,5 +48,6 @@ func (r *StatusRecorder) Status() (*ctypes.ResultStatus, error) {
 		Response: res,
 		Error:    err,
 	})
+
 	return res, err
 }
