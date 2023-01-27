@@ -192,7 +192,6 @@ func applyFlagToFieldReflectString(frv reflect.Value, fvalue string) error {
 					return errors.Wrap(err, "invalid duration")
 				}
 				frv.Set(reflect.ValueOf(duration))
-				//frv.SetInt(duration.Nanoseconds())
 				return nil
 			}
 			return errors.Wrap(err, "invalid int64")
