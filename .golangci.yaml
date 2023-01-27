@@ -64,7 +64,7 @@ issues:
     - path: _\.gno
       linters:
         - errorlint # Disabled linting of error comparisons, because of lacking std lib support
-    - path: "pkgs/"
+    - path: pkgs/
       linters:
         - nlreturn
         - wsl
