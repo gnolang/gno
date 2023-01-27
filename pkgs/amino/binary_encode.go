@@ -86,7 +86,6 @@ func (cdc *Codec) encodeReflectBinary(w io.Writer, info *TypeInfo, rv reflect.Va
 	}
 
 	switch info.Type.Kind() {
-
 	// ----------------------------------------
 	// Complex
 

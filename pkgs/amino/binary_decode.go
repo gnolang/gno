@@ -87,7 +87,6 @@ func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
 	}
 
 	switch info.Type.Kind() {
-
 	// ----------------------------------------
 	// Complex
 
@@ -661,7 +660,6 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 			//    - field option has NilElements set
 			if (len(bz) > 0 && bz[0] == 0x00) &&
 				(!isErtStructPointer || fopts.NilElements) {
-
 				slide(&bz, &n, 1)
 				erv.Set(defaultValue(erv.Type()))
 
@@ -881,7 +879,6 @@ func (cdc *Codec) decodeReflectBinarySlice(bz []byte, info *TypeInfo, rv reflect
 			//    - field option has NilElements set
 			if (len(bz) > 0 && bz[0] == 0x00) &&
 				(!isErtStructPointer || fopts.NilElements) {
-
 				slide(&bz, &n, 1)
 				erv.Set(defaultValue(erv.Type()))
 				srv = reflect.Append(srv, erv)

@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-//----------------------------------------
+// ----------------------------------------
 // non-primitive builtin types
 
 var gErrorType = &DeclaredType{
@@ -55,7 +55,7 @@ var gStringerType = &DeclaredType{
 	sealed: true,
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Uverse package
 
 var (
@@ -164,13 +164,11 @@ func UverseNode() *PackageNode {
 			xt := arg0.TV.T
 			argt := arg1.TV.T
 			switch xv := arg0.TV.V.(type) {
-
-			//----------------------------------------------------------------
+			// ----------------------------------------------------------------
 			// append(nil, ???)
 			case nil:
 				switch args := arg1.TV.V.(type) {
-
-				//------------------------------------------------------------
+				// ------------------------------------------------------------
 				// append(nil, nil)
 				case nil: // no change
 					m.PushValue(TypedValue{
@@ -179,7 +177,7 @@ func UverseNode() *PackageNode {
 					})
 					return
 
-				//------------------------------------------------------------
+				// ------------------------------------------------------------
 				// append(nil, *SliceValue)
 				case *SliceValue:
 					argsl := args.Length
@@ -223,7 +221,7 @@ func UverseNode() *PackageNode {
 						return
 					}
 
-				//------------------------------------------------------------
+				// ------------------------------------------------------------
 				// append(nil, *NativeValue)
 				case *NativeValue:
 					argsrv := args.Value
@@ -261,13 +259,12 @@ func UverseNode() *PackageNode {
 						return
 					}
 
-				//------------------------------------------------------------
+				// ------------------------------------------------------------
 				default:
 					panic("should not happen")
-
 				}
 
-			//----------------------------------------------------------------
+			// ----------------------------------------------------------------
 			// append(*SliceValue, ???)
 			case *SliceValue:
 				xvl := xv.Length
@@ -275,8 +272,7 @@ func UverseNode() *PackageNode {
 				xvc := xv.Maxcap
 				xvb := xv.GetBase(m.Store)
 				switch args := arg1.TV.V.(type) {
-
-				//------------------------------------------------------------
+				// ------------------------------------------------------------
 				// append(*SliceValue, nil)
 				case nil: // no change
 					m.PushValue(TypedValue{
@@ -285,7 +281,7 @@ func UverseNode() *PackageNode {
 					})
 					return
 
-				//------------------------------------------------------------
+				// ------------------------------------------------------------
 				// append(*SliceValue, *SliceValue)
 				case *SliceValue:
 					argsl := args.Length
@@ -401,7 +397,7 @@ func UverseNode() *PackageNode {
 						return
 					}
 
-				//------------------------------------------------------------
+				// ------------------------------------------------------------
 				// append(*SliceValue, *NativeValue)
 				case *NativeValue:
 					argsrv := args.Value
@@ -480,19 +476,17 @@ func UverseNode() *PackageNode {
 						return
 					}
 
-				//------------------------------------------------------------
+				// ------------------------------------------------------------
 				default:
 					panic("should not happen")
-
 				}
 
-			//----------------------------------------------------------------
+			// ----------------------------------------------------------------
 			// append(*NativeValue, ???)
 			case *NativeValue:
 				sv := xv.Value
 				switch args := arg1.TV.V.(type) {
-
-				//------------------------------------------------------------
+				// ------------------------------------------------------------
 				// append(*NativeValue, nil)
 				case nil: // no change
 					m.PushValue(TypedValue{
@@ -501,7 +495,7 @@ func UverseNode() *PackageNode {
 					})
 					return
 
-				//------------------------------------------------------------
+				// ------------------------------------------------------------
 				// append(*NativeValue, *SliceValue)
 				case *SliceValue:
 					st := sv.Type()
@@ -539,7 +533,7 @@ func UverseNode() *PackageNode {
 						return
 					}
 
-				//------------------------------------------------------------
+				// ------------------------------------------------------------
 				// append(*NativeValue, *NativeValue)
 				case *NativeValue:
 					argsrv := args.Value
@@ -550,7 +544,7 @@ func UverseNode() *PackageNode {
 					})
 					return
 
-				//------------------------------------------------------------
+				// ------------------------------------------------------------
 				// append(*NativeValue, StringValue)
 				case StringValue:
 					if xt.Elem().Kind() == Uint8Kind {
@@ -569,20 +563,18 @@ func UverseNode() *PackageNode {
 							arg1.TV.T.String(), xt.String()))
 					}
 
-				//------------------------------------------------------------
+				// ------------------------------------------------------------
 				// append(*NativeValue, ???)
 				default:
 					panic(fmt.Sprintf(
 						"cannot append %s to %s",
 						arg1.TV.T.String(), xt.String()))
-
 				}
 
-			//----------------------------------------------------------------
+			// ----------------------------------------------------------------
 			// append(?!!, ???)
 			default:
 				panic("should not happen")
-
 			}
 		},
 	)

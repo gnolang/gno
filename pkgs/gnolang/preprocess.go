@@ -179,11 +179,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 		}
 
 		switch stage {
-
 		// ----------------------------------------
 		case TRANS_ENTER:
 			switch n := n.(type) {
-
 			// TRANS_ENTER -----------------------
 			case *AssignStmt:
 				if n.Op == DEFINE {
@@ -250,7 +248,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						r.Name = Name(rn)
 					}
 				}
-
 			}
 
 			// TRANS_ENTER -----------------------
@@ -260,7 +257,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 		case TRANS_BLOCK:
 
 			switch n := n.(type) {
-
 			// TRANS_BLOCK -----------------------
 			case *BlockStmt:
 				pushInitBlock(n, &last, &stack)
@@ -625,7 +621,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// The main TRANS_LEAVE switch.
 			switch n := n.(type) {
-
 			// TRANS_LEAVE -----------------------
 			case *NameExpr:
 				// Validity: check that name isn't reserved.
@@ -1193,7 +1188,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					panic(fmt.Sprintf(
 						"unexpected index base kind for type %s",
 						dt.String()))
-
 				}
 
 			// TRANS_LEAVE -----------------------

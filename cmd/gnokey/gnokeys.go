@@ -113,7 +113,6 @@ var defaultMakeAddPackageTxOptions = makeAddPackageTxOptions{
 func makeAddPackageTxApp(cmd *command.Command, args []string, iopts interface{}) error {
 	opts := iopts.(makeAddPackageTxOptions)
 	if opts.PkgPath == "" {
-
 		return errors.New("pkgpath not specified")
 	}
 	if opts.PkgDir == "" {
@@ -222,7 +221,6 @@ func makeCallTxApp(cmd *command.Command, args []string, iopts interface{}) error
 		return errors.New("gas-wanted not specified")
 	}
 	if opts.GasFee == "" {
-
 		return errors.New("gas-fee not specified")
 	}
 

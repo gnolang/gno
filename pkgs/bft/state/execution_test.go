@@ -94,7 +94,6 @@ func TestBeginBlockValidators(t *testing.T) {
 		for i, v := range app.CommitVotes {
 			if ctr < len(tc.expectedAbsentValidators) &&
 				tc.expectedAbsentValidators[ctr] == i {
-
 				assert.False(t, v.SignedLastBlock)
 				ctr++
 			} else {

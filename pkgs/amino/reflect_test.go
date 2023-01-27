@@ -119,7 +119,6 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 			spw(ptr), spw(ptr2), bz, bz)
 
 		if codecType == "binary" {
-
 			// Get pbo from rv. (go -> p3go)
 			pbm, ok := rv.Interface().(amino.PBMessager)
 			if !ok {

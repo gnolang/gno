@@ -446,7 +446,6 @@ FOR_LOOP:
 			c.Logger.Debug("Send Ping")
 			_n, err = amino.MarshalAnySizedWriter(c.bufConnWriter, PacketPing{})
 			if err != nil {
-
 				break SELECTION
 			}
 			c.sendMonitor.Update(int(_n))

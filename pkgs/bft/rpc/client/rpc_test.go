@@ -135,7 +135,6 @@ func TestHealth(t *testing.T) {
 
 func TestGenesisAndValidators(t *testing.T) {
 	for i, c := range GetClients() {
-
 		// make sure this is the right genesis file
 		gen, err := c.Genesis()
 		require.Nil(t, err, "%d: %+v", i, err)
@@ -177,7 +176,6 @@ func TestABCIQuery(t *testing.T) {
 func TestAppCalls(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 	for i, c := range GetClients() {
-
 		// get an offset of height to avoid racing and guessing
 		s, err := c.Status()
 		require.Nil(err, "%d: %+v", i, err)

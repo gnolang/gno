@@ -1911,7 +1911,6 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 					*/
 				}
 			}
-
 		}
 		panic(fmt.Sprintf(
 			"native type %s has no method or field %s",

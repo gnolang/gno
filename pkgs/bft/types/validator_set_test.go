@@ -1031,7 +1031,6 @@ func TestValSetUpdatesBasicTestsExecute(t *testing.T) {
 		if len(valList) > 0 {
 			valList[0].VotingPower++
 			assert.Equal(t, toTestValList(valListCopy), toTestValList(valSet.Validators), "test %v", i)
-
 		}
 
 		// check the final validator list is as expected and the set is properly scaled and centered.
@@ -1290,7 +1289,6 @@ func TestValSetUpdatePriorityOrderTests(t *testing.T) {
 	}
 
 	for _, cfg := range testCases {
-
 		// create a new validator set
 		valSet := createNewValidatorSet(cfg.startVals)
 		verifyValidatorSet(t, valSet)

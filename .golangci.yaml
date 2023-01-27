@@ -11,7 +11,7 @@ service:
 linters:
   disable-all: true
   enable:
-    #- whitespace # Tool for detection of leading and trailing whitespace
+    - whitespace # Tool for detection of leading and trailing whitespace
     #- wsl # Forces you to use empty lines
     - unconvert # Unnecessary type conversions
     - tparallel # Detects inappropriate usage of t.Parallel() method in your Go test codes

@@ -304,7 +304,6 @@ func (BitCurve *BitCurve) Unmarshal(data []byte) (x, y *big.Int) {
 		return
 	}
 	if data[0] != 4 { // uncompressed form
-
 		return
 	}
 	x = new(big.Int).SetBytes(data[1 : 1+byteLen])

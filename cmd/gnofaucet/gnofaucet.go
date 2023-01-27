@@ -264,7 +264,6 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 				return
 			}
-
 		}
 
 		passedAddr := r.Form["toaddr"]

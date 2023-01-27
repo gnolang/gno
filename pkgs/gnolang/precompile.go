@@ -315,7 +315,6 @@ func precompileAST(fset *token.FileSet, f *ast.File, checkWhitelist bool) (ast.N
 				if !astutil.RewriteImport(fset, f, importPath, target) {
 					errs = multierr.Append(errs, fmt.Errorf("failed to replace the %q package with %q", importPath, target))
 				}
-
 			}
 
 			// r/realm packages
@@ -325,7 +324,6 @@ func precompileAST(fset *token.FileSet, f *ast.File, checkWhitelist bool) (ast.N
 				if !astutil.RewriteImport(fset, f, importPath, target) {
 					errs = multierr.Append(errs, fmt.Errorf("failed to replace the %q package with %q", importPath, target))
 				}
-
 			}
 		}
 	}

@@ -279,7 +279,6 @@ func go2pbStmts(
 		gooType.Registered && hasPBBindings(gooType) &&
 		gooType.ReprType.Type.Kind() == reflect.Struct &&
 		(options&option_bytes == 0) {
-
 		// Call ToPBMessage().
 		pbote_ := p3goTypeExprString(rootPkg, imports, scope, gooType, fopts)
 		pbom_ := addVarUniq(scope, "pbom")
@@ -344,7 +343,6 @@ func go2pbStmts(
 		if isRoot &&
 			gooType.ReprType.Type.Kind() != reflect.Struct &&
 			options&option_bytes == 0 {
-
 			if gooType.ReprType.Type.Kind() == reflect.Interface {
 				panic("not yet tested")
 			}
@@ -359,7 +357,6 @@ func go2pbStmts(
 		if isRoot &&
 			gooType.Type.Kind() != reflect.Struct &&
 			gooType.Type.Kind() != reflect.Interface {
-
 			wrapImplicitStruct = true
 		}
 		// Assign *goor*.
@@ -432,7 +429,6 @@ func go2pbStmts(
 
 	// General case
 	switch goork := goorType.Type.Kind(); goork {
-
 	case reflect.Interface:
 		typeUrl_ := addVarUniq(scope, "typeUrl")
 		bz_ := addVarUniq(scope, "bz")
@@ -569,7 +565,6 @@ func go2pbStmts(
 		// General translation.
 		b = append(b,
 			_a(pbo, "=", maybeWrap(_call(_i(goork.String()), goor))))
-
 	}
 	return b
 }
@@ -637,7 +632,6 @@ func pb2goStmts(
 		if gooType.Registered && hasPBBindings(gooType) &&
 			gooType.ReprType.Type.Kind() == reflect.Struct &&
 			(options&option_bytes == 0) {
-
 			b = append(b,
 				_a(_i("err"), "=", _call(_sel(goo, "FromPBMessage"), _i("cdc"), pbo)),
 				_if(_x("err__!=__nil"),
@@ -687,7 +681,6 @@ func pb2goStmts(
 		if isRoot &&
 			gooType.ReprType.Type.Kind() != reflect.Struct &&
 			options&option_bytes == 0 {
-
 			if gooType.ReprType.Type.Kind() == reflect.Interface {
 				panic("not yet tested")
 			}
@@ -703,7 +696,6 @@ func pb2goStmts(
 		if isRoot &&
 			gooType.Type.Kind() != reflect.Struct &&
 			gooType.Type.Kind() != reflect.Interface {
-
 			unwrapImplicitStruct = true
 		}
 		// Assign *goor*
@@ -729,7 +721,6 @@ func pb2goStmts(
 
 	// General case
 	switch goorType.Type.Kind() {
-
 	case reflect.Interface:
 		typeUrl_ := addVarUniq(scope, "typeUrl")
 		bz_ := addVarUniq(scope, "bz")
@@ -1001,7 +992,6 @@ func isReprEmptyStmts(
 
 	// General case
 	switch goorType.Type.Kind() {
-
 	case reflect.Interface:
 		b = append(b,
 			_return(_i("false")))

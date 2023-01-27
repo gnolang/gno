@@ -69,7 +69,6 @@ func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value,
 	}
 
 	switch ikind := info.Type.Kind(); ikind {
-
 	// ----------------------------------------
 	// Complex
 
@@ -236,7 +235,6 @@ func (cdc *Codec) decodeReflectJSONArray(bz []byte, info *TypeInfo, rv reflect.V
 	length := info.Type.Len()
 
 	switch ert.Kind() {
-
 	case reflect.Uint8: // Special case: byte array
 		var buf []byte
 		err = json.Unmarshal(bz, &buf)
@@ -297,7 +295,6 @@ func (cdc *Codec) decodeReflectJSONSlice(bz []byte, info *TypeInfo, rv reflect.V
 	ert := info.Type.Elem()
 
 	switch ert.Kind() {
-
 	case reflect.Uint8: // Special case: byte slice
 		err = json.Unmarshal(bz, rv.Addr().Interface())
 		if err != nil {
@@ -376,7 +373,6 @@ func (cdc *Codec) decodeReflectJSONStruct(bz []byte, info *TypeInfo, rv reflect.
 	}
 
 	for _, field := range info.Fields {
-
 		// Get field rv and info.
 		frv := rv.Field(field.Index)
 		finfo := field.TypeInfo

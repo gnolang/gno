@@ -224,7 +224,6 @@ func brokenHandler(privVal types.PrivValidator, request SignerMessage, chainID s
 	var err error
 
 	switch r := request.(type) {
-
 	// This is broken and will answer most requests with a pubkey response
 	case *PubKeyRequest:
 		res = &PubKeyResponse{nil, nil}

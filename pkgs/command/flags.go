@@ -272,7 +272,6 @@ func applyFlagToFieldReflectString(frv reflect.Value, fvalue string) error {
 		panic(fmt.Sprintf(
 			"flag value cannot be applied to field of type %s",
 			frt.String()))
-
 	}
 }
 
@@ -303,7 +302,6 @@ func applyFlagToFieldReflectStringSlice(frv reflect.Value, fvalues []string) err
 		panic(fmt.Sprintf(
 			"flag values cannot be applied to field of type %s",
 			frt.String()))
-
 	}
 }
 

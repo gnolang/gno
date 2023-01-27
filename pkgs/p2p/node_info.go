@@ -75,7 +75,6 @@ func (info NodeInfo) Validate() error {
 	// Validate Version
 	if len(info.Version) > 0 &&
 		(!strings.IsASCIIText(info.Version) || strings.ASCIITrim(info.Version) == "") {
-
 		return fmt.Errorf("info.Version must be valid ASCII text without tabs, but got %v", info.Version)
 	}
 

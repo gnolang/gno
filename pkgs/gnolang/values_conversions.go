@@ -1045,7 +1045,6 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 		dst.V = BigdecValue{V: apd.New(int64(sv), 0)}
 	default:
 		panic(fmt.Sprintf("unexpected target %v", k))
-
 	}
 }
 
@@ -1203,7 +1202,6 @@ func ConvertUntypedBigintTo(dst *TypedValue, bv BigintValue, t Type) {
 		panic("not yet implemented")
 	default:
 		panic(fmt.Sprintf("cannot convert untyped bigint to %v", k))
-
 	}
 }
 

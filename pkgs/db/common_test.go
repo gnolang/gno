@@ -263,7 +263,6 @@ func benchmarkRandomReadsWrites(b *testing.B, db DB) {
 				}
 			}
 		}
-
 	}
 }
 

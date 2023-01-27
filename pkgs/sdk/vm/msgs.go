@@ -54,7 +54,6 @@ func (msg MsgAddPackage) ValidateBasic() error {
 		return std.ErrInvalidAddress("missing creator address")
 	}
 	if msg.Package.Path == "" { // XXX
-
 		return ErrInvalidPkgPath("missing package path")
 	}
 	if !msg.Deposit.IsValid() {

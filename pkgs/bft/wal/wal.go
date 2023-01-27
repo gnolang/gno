@@ -312,7 +312,6 @@ func (wal *baseWAL) SearchForHeight(height int64, options *WALSearchOptions) (rd
 
 OUTER_LOOP:
 	for min <= max {
-
 		var index int
 
 		// set index depending on mode.
