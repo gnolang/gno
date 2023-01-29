@@ -268,6 +268,7 @@ func handleRealmRender(app gotuna.App, w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// XXX hack
 		if strings.Contains(err.Error(), "Render not declared") {
+			res = &abci.ResponseQuery{}
 			res.Data = []byte("realm package has no Render() function")
 		} else {
 			writeError(w, err)
