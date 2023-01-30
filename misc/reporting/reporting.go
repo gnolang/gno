@@ -16,7 +16,7 @@ func DefaultOpts() Opts {
 		backlog:                true,
 		curation:               true,
 		tips:                   true,
-		format:                 "json",
+		format:                 "markdown",
 		From:                   "",
 		twitterToken:           "",
 		githubToken:            "",
@@ -75,6 +75,7 @@ func runMain(args []string) error {
 				if err != nil {
 					return err
 				}
+				//TODO: generate report from data at different formats (Markdown, JSON, CSV,  ...etc)
 				fmt.Println(changelog + backlog + curation + tips)
 				return nil
 			},
@@ -83,18 +84,22 @@ func runMain(args []string) error {
 	return root.ParseAndRun(context.Background(), args)
 }
 
+// TODO: Fetch changelog recent contributors, new PR merged, new issues closed, new releases ...
 func fetchChangelog() (string, error) {
 	return "", nil
 }
 
+// TODO: Fetch backlog from github issues & PRS ...
 func fetchBacklog() (string, error) {
 	return "", nil
 }
 
+// TODO: Fetch curation from github commits & issues & PRS in `awesome-gno` repo
 func fetchCuration() (string, error) {
 	return "", nil
 }
 
+// TODO: fetch tips since from option
 func fetchTips() (string, error) {
 	var bearer = "Bearer " + opts.twitterToken
 	req, err := http.NewRequest("GET", opts.twitterSearchTweetsUrl, nil)
