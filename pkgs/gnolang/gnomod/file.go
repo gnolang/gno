@@ -28,24 +28,22 @@ func (f *File) FetchDeps() error {
 		return fmt.Errorf("fetching mods: %s", err)
 	}
 
-	if f.Require != nil {
-		for _, r := range f.Require {
-			fmt.Println("fetching", r.Mod.Path)
-			err := writePackage(gnoModPath, r.Mod.Path)
-			if err != nil {
-				return fmt.Errorf("fetching mods: %s", err)
-			}
-
-			f := &File{
-				Module: &modfile.Module{
-					Mod: module.Version{
-						Path: r.Mod.Path,
-					},
-				},
-			}
-
-			f.WriteToPath(filepath.Join(gnoModPath, r.Mod.Path))
+	for _, r := range f.Require {
+		fmt.Println("fetching", r.Mod.Path)
+		err := writePackage(gnoModPath, r.Mod.Path)
+		if err != nil {
+			return fmt.Errorf("fetching mods: %s", err)
 		}
+
+		f := &File{
+			Module: &modfile.Module{
+				Mod: module.Version{
+					Path: r.Mod.Path,
+				},
+			},
+		}
+
+		f.WriteToPath(filepath.Join(gnoModPath, r.Mod.Path))
 	}
 
 	return nil
