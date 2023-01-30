@@ -5,6 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"io"
+	"net/http"
 	"os"
 )
 
@@ -18,6 +20,7 @@ type Opts struct {
 	githubToken  string
 	format       string
 	help         bool
+	httpClient   *http.Client
 }
 
 var opts = NewOpts()
@@ -90,7 +93,28 @@ func fetchCuration() (string, error) {
 }
 
 func fetchTips() (string, error) {
-	return "", nil
+	var bearer = "Bearer " + opts.twitterToken
+	req, err := http.NewRequest("GET", "https://api.twitter.com/2/tweets/search/recent?query=%23gnotips", nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Add("Authorization", bearer)
+	resp, err := opts.httpClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}(resp.Body)
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(body), nil
 }
 
 func NewOpts() Opts {
@@ -104,5 +128,6 @@ func NewOpts() Opts {
 		twitterToken: "",
 		githubToken:  "",
 		help:         false,
+		httpClient:   &http.Client{},
 	}
 }
