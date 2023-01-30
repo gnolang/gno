@@ -10,20 +10,23 @@ import (
 	"os"
 )
 
-type Opts struct {
-	changelog    bool
-	backlog      bool
-	curation     bool
-	tips         bool
-	From         string
-	twitterToken string
-	githubToken  string
-	format       string
-	help         bool
-	httpClient   *http.Client
+func DefaultOpts() Opts {
+	return Opts{
+		changelog:              true,
+		backlog:                true,
+		curation:               true,
+		tips:                   true,
+		format:                 "json",
+		From:                   "",
+		twitterToken:           "",
+		githubToken:            "",
+		help:                   false,
+		httpClient:             &http.Client{},
+		twitterSearchTweetsUrl: "https://api.twitter.com/2/tweets/search/recent?query=%23gnotips&max_results=100",
+	}
 }
 
-var opts = NewOpts()
+var opts = DefaultOpts()
 
 func main() {
 	err := runMain(os.Args[1:])
@@ -94,7 +97,7 @@ func fetchCuration() (string, error) {
 
 func fetchTips() (string, error) {
 	var bearer = "Bearer " + opts.twitterToken
-	req, err := http.NewRequest("GET", "https://api.twitter.com/2/tweets/search/recent?query=%23gnotips", nil)
+	req, err := http.NewRequest("GET", opts.twitterSearchTweetsUrl, nil)
 	if err != nil {
 		return "", err
 	}
@@ -117,17 +120,16 @@ func fetchTips() (string, error) {
 	return string(body), nil
 }
 
-func NewOpts() Opts {
-	return Opts{
-		changelog:    true,
-		backlog:      true,
-		curation:     true,
-		tips:         true,
-		format:       "json",
-		From:         "",
-		twitterToken: "",
-		githubToken:  "",
-		help:         false,
-		httpClient:   &http.Client{},
-	}
+type Opts struct {
+	changelog              bool
+	backlog                bool
+	curation               bool
+	tips                   bool
+	From                   string
+	twitterToken           string
+	githubToken            string
+	format                 string
+	help                   bool
+	httpClient             *http.Client
+	twitterSearchTweetsUrl string
 }
