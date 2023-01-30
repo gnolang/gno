@@ -4,10 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/peterbourgon/ff/v3/ffcli"
 	"io"
 	"net/http"
 	"os"
+
+	"github.com/peterbourgon/ff/v3/ffcli"
 )
 
 func DefaultOpts() Opts {
@@ -19,6 +20,7 @@ func DefaultOpts() Opts {
 		format:                 "markdown",
 		From:                   "",
 		twitterToken:           "",
+		twitterSince:           "",
 		githubToken:            "",
 		help:                   false,
 		httpClient:             &http.Client{},
@@ -53,6 +55,7 @@ func runMain(args []string) error {
 		globalFlags.BoolVar(&opts.tips, "tips", opts.tips, "generate tips")
 		globalFlags.StringVar(&opts.From, "from", opts.From, "from date")
 		globalFlags.StringVar(&opts.twitterToken, "twitter-token", opts.twitterToken, "twitter token")
+		globalFlags.StringVar(&opts.twitterToken, "twitter-since", opts.twitterToken, "twitter since date RFC 3339 (ex: 2003-01-19T00:00:00Z)")
 		globalFlags.StringVar(&opts.githubToken, "github-token", opts.githubToken, "github token")
 		globalFlags.BoolVar(&opts.help, "help", false, "show help")
 		globalFlags.StringVar(&opts.format, "format", opts.format, "output format")
@@ -126,6 +129,10 @@ func fetchCuration() (string, error) {
 
 // TODO: fetch tips since from option
 func fetchTips() (string, error) {
+	if opts.twitterSince != "" {
+		opts.twitterSearchTweetsUrl += "&start_time=" + opts.twitterSince
+	}
+
 	var bearer = "Bearer " + opts.twitterToken
 	req, err := http.NewRequest("GET", opts.twitterSearchTweetsUrl, nil)
 	if err != nil {
@@ -157,6 +164,7 @@ type Opts struct {
 	tips                   bool
 	From                   string
 	twitterToken           string
+	twitterSince           string
 	githubToken            string
 	format                 string
 	help                   bool
