@@ -23,6 +23,7 @@ func DefaultOpts() Opts {
 		help:                   false,
 		httpClient:             &http.Client{},
 		twitterSearchTweetsUrl: "https://api.twitter.com/2/tweets/search/recent?query=%23gnotips&max_results=100",
+		awesomeGnoRepoUrl:      "https://api.github.com/repos/gnolang/awesome-gno/issues",
 	}
 }
 
@@ -39,6 +40,9 @@ func main() {
 	}
 }
 
+// TODO: Create a type per fetching in a way we can format them in different ways
+// TODO: Verify if we can use a template engine to format the output: Like prebuild a report template with a function to format the data
+// TODO: Verify each boolean flag to know if we should fetch the data or not
 func runMain(args []string) error {
 	var root *ffcli.Command
 	{
@@ -84,19 +88,40 @@ func runMain(args []string) error {
 	return root.ParseAndRun(context.Background(), args)
 }
 
-// TODO: Fetch changelog recent contributors, new PR merged, new issues closed, new releases ...
+// TODO: Fetch changelog recent contributors, new PR merged, new issues closed, new releases ... & use from option
 func fetchChangelog() (string, error) {
 	return "", nil
 }
 
-// TODO: Fetch backlog from github issues & PRS ...
+// TODO: Fetch backlog from github issues & PRS ... & use from option
 func fetchBacklog() (string, error) {
 	return "", nil
 }
 
-// TODO: Fetch curation from github commits & issues & PRS in `awesome-gno` repo
+// TODO: Fetch curation from github commits & issues & PRS in `awesome-gno` repo & use from option
 func fetchCuration() (string, error) {
-	return "", nil
+	var bearer = "Bearer " + opts.githubToken
+	req, err := http.NewRequest("GET", opts.awesomeGnoRepoUrl, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Add("Authorization", bearer)
+	resp, err := opts.httpClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %+v\n", err)
+		}
+	}(resp.Body)
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(body), nil
 }
 
 // TODO: fetch tips since from option
@@ -114,7 +139,7 @@ func fetchTips() (string, error) {
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
-			fmt.Println(err)
+			fmt.Fprintf(os.Stderr, "error: %+v\n", err)
 		}
 	}(resp.Body)
 
@@ -137,4 +162,5 @@ type Opts struct {
 	help                   bool
 	httpClient             *http.Client
 	twitterSearchTweetsUrl string
+	awesomeGnoRepoUrl      string
 }
