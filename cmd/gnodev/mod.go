@@ -7,7 +7,7 @@ import (
 
 	"github.com/gnolang/gno/pkgs/command"
 	"github.com/gnolang/gno/pkgs/errors"
-	"github.com/gnolang/gno/pkgs/gnomod"
+	"github.com/gnolang/gno/pkgs/gnolang/gnomod"
 )
 
 type modFlags struct {
