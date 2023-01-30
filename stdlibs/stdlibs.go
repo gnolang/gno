@@ -114,7 +114,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 		pn.DefineGoNativeValue("IntSize", strconv.IntSize)
 		pn.DefineGoNativeValue("AppendUint", strconv.AppendUint)
 	case "std":
-		// NOTE: some of these are overridden in tests/imports_test.go
+		// NOTE: some of these are overridden in tests/imports.go
 		// Also see stdlibs/InjectPackage.
 		pn.DefineNative("AssertOriginCall",
 			gno.Flds( // params
@@ -122,7 +122,8 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			gno.Flds( // results
 			),
 			func(m *gno.Machine) {
-				isOrigin := len(m.Frames) == 2
+				ctx := m.Context.(ExecContext)
+				isOrigin := ctx.Msg != nil && len(ctx.Msg.GetSigners()) > 0
 				if !isOrigin {
 					panic("invalid non-origin call")
 				}
@@ -135,7 +136,8 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				"isOrigin", "bool",
 			),
 			func(m *gno.Machine) {
-				isOrigin := len(m.Frames) == 2
+				ctx := m.Context.(ExecContext)
+				isOrigin := ctx.Msg != nil && len(ctx.Msg.GetSigners()) > 0
 				res0 := gno.TypedValue{T: gno.BoolType}
 				res0.SetBool(isOrigin)
 				m.PushValue(res0)

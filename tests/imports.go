@@ -465,36 +465,6 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 		pn.DefineGoNativeValue("ParseInt", strconv.ParseInt)
 	case "std":
 		// NOTE: some of these are overrides.
-		// Also see stdlibs/InjectPackage.
-		pn.DefineNativeOverride("AssertOriginCall",
-			/*
-				gno.Flds( // params
-				),
-				gno.Flds( // results
-				),
-			*/
-			func(m *gno.Machine) {
-				isOrigin := len(m.Frames) == 3
-				if !isOrigin {
-					panic("invalid non-origin call")
-				}
-			},
-		)
-		pn.DefineNativeOverride("IsOriginCall",
-			/*
-				gno.Flds( // params
-				),
-				gno.Flds( // results
-					"isOrigin", "bool",
-				),
-			*/
-			func(m *gno.Machine) {
-				isOrigin := len(m.Frames) == 3
-				res0 := gno.TypedValue{T: gno.BoolType}
-				res0.SetBool(isOrigin)
-				m.PushValue(res0)
-			},
-		)
 		pn.DefineNativeOverride("GetCallerAt",
 			/*
 				gno.Flds( // params
