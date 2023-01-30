@@ -16,6 +16,7 @@ type Opts struct {
 	From         string
 	twitterToken string
 	githubToken  string
+	format       string
 	help         bool
 }
 
@@ -44,6 +45,7 @@ func runMain(args []string) error {
 		globalFlags.StringVar(&opts.twitterToken, "twitter-token", opts.twitterToken, "twitter token")
 		globalFlags.StringVar(&opts.githubToken, "github-token", opts.githubToken, "github token")
 		globalFlags.BoolVar(&opts.help, "help", false, "show help")
+		globalFlags.StringVar(&opts.format, "format", opts.format, "output format")
 		root = &ffcli.Command{
 			ShortUsage: "reporting [flags]",
 			FlagSet:    globalFlags,
@@ -51,12 +53,44 @@ func runMain(args []string) error {
 				if opts.help {
 					return flag.ErrHelp
 				}
-				fmt.Println("hello world")
+				changelog, err := fetchChangelog()
+				if err != nil {
+					return err
+				}
+				backlog, err := fetchBacklog()
+				if err != nil {
+					return err
+				}
+				curation, err := fetchCuration()
+				if err != nil {
+					return err
+				}
+				tips, err := fetchTips()
+				if err != nil {
+					return err
+				}
+				fmt.Println(changelog + backlog + curation + tips)
 				return nil
 			},
 		}
 	}
 	return root.ParseAndRun(context.Background(), args)
+}
+
+func fetchChangelog() (string, error) {
+	return "", nil
+}
+
+func fetchBacklog() (string, error) {
+	return "", nil
+}
+
+func fetchCuration() (string, error) {
+	return "", nil
+}
+
+func fetchTips() (string, error) {
+	return "", nil
 }
 
 func NewOpts() Opts {
@@ -65,6 +99,7 @@ func NewOpts() Opts {
 		backlog:      true,
 		curation:     true,
 		tips:         true,
+		format:       "json",
 		From:         "",
 		twitterToken: "",
 		githubToken:  "",
