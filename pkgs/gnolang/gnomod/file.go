@@ -1,6 +1,11 @@
 package gnomod
 
 import (
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+
 	"golang.org/x/mod/modfile"
 )
 
@@ -12,4 +17,43 @@ type File struct {
 	Replace []*modfile.Replace
 
 	Syntax *modfile.FileSyntax
+}
+
+// WriteToPath writes go.mod file in the given absolute path
+// TODO: Find better way to do this. Try to use `modfile`
+// package to manage this.
+func (f *File) WriteToPath(absPath string) error {
+	if f.Module == nil {
+		return errors.New("writing go.mod: module not found")
+	}
+
+	data := "module " + f.Module.Mod.Path + "\n"
+
+	if f.Go != nil {
+		data += "\ngo " + f.Go.Version + "\n"
+	}
+
+	if f.Require != nil {
+		data += "\nrequire (" + "\n"
+		for _, req := range f.Require {
+			data += "\t" + req.Mod.Path + " " + req.Mod.Version + "\n"
+		}
+		data += ")\n"
+	}
+
+	if f.Replace != nil {
+		data += "\nreplace (" + "\n"
+		for _, rep := range f.Replace {
+			data += "\t" + rep.Old.Path + " " + rep.Old.Version +
+				" => " + rep.New.Path + "\n"
+		}
+		data += ")\n"
+	}
+
+	err := os.WriteFile(filepath.Join(absPath, "go.mod"), []byte(data), 0o644)
+	if err != nil {
+		return fmt.Errorf("writing go.mod: %s", err)
+	}
+
+	return nil
 }
