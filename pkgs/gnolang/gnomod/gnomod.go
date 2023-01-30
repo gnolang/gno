@@ -49,7 +49,7 @@ func GetGnoModPath() (string, error) {
 }
 
 func writePackage(basePath, pkgPath string) error {
-	res, err := QueryChain(queryPathFile, []byte(pkgPath))
+	res, err := queryChain(queryPathFile, []byte(pkgPath))
 	if err != nil {
 		return fmt.Errorf("makeReq gno.mod: %s", err)
 	}
