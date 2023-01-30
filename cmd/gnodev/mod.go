@@ -53,7 +53,7 @@ func runModDownload(opts *modFlags) error {
 		return err
 	}
 
-	if err := gnomod.FetchModPackages(gnoMod); err != nil {
+	if err := gnoMod.FetchDeps(); err != nil {
 		return err
 	}
 

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
 )
 
 // Parsed gno.mod file.
@@ -17,6 +18,37 @@ type File struct {
 	Replace []*modfile.Replace
 
 	Syntax *modfile.FileSyntax
+}
+
+// FetchDeps fetches and writes gno.mod packages
+// in GOPATH/pkg/gnomod/
+func (f *File) FetchDeps() error {
+	gnoModPath, err := GetGnoModPath()
+	if err != nil {
+		return fmt.Errorf("fetching mods: %s", err)
+	}
+
+	if f.Require != nil {
+		for _, r := range f.Require {
+			fmt.Println("fetching", r.Mod.Path)
+			err := writePackage(gnoModPath, r.Mod.Path)
+			if err != nil {
+				return fmt.Errorf("fetching mods: %s", err)
+			}
+
+			f := &File{
+				Module: &modfile.Module{
+					Mod: module.Version{
+						Path: r.Mod.Path,
+					},
+				},
+			}
+
+			f.WriteToPath(filepath.Join(gnoModPath, r.Mod.Path))
+		}
+	}
+
+	return nil
 }
 
 // WriteToPath writes go.mod file in the given absolute path

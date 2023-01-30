@@ -48,37 +48,6 @@ func GetGnoModPath() (string, error) {
 	return filepath.Join(goPath, "pkg/gnomod"), nil
 }
 
-// FetchModPackages fetches and writes gno.mod packages
-// in GOPATH/pkg/gnomod/
-func FetchModPackages(f *File) error {
-	gnoModPath, err := GetGnoModPath()
-	if err != nil {
-		return fmt.Errorf("fetching mods: %s", err)
-	}
-
-	if f.Require != nil {
-		for _, r := range f.Require {
-			fmt.Println("fetching", r.Mod.Path)
-			err := writePackage(gnoModPath, r.Mod.Path)
-			if err != nil {
-				return fmt.Errorf("fetching mods: %s", err)
-			}
-
-			f := &File{
-				Module: &modfile.Module{
-					Mod: module.Version{
-						Path: r.Mod.Path,
-					},
-				},
-			}
-
-			f.WriteToPath(filepath.Join(gnoModPath, r.Mod.Path))
-		}
-	}
-
-	return nil
-}
-
 func writePackage(basePath, pkgPath string) error {
 	res, err := QueryChain(queryPathFile, []byte(pkgPath))
 	if err != nil {
