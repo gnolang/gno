@@ -13,10 +13,8 @@ import (
 	"golang.org/x/mod/module"
 )
 
-var (
-	source        = "test3.gno.land:36657" // "127.0.0.1:26657"
-	queryPathFile = "vm/qfile"
-)
+var source = "test3.gno.land:36657" // "127.0.0.1:26657"
+const queryPathFile = "vm/qfile"
 
 // ReadModFile reads, parses and validates the mod file at gnomod.
 func ReadModFile(absModPath string) (f *File, err error) {
