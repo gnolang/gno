@@ -1,46 +1,56 @@
 package main
 
 import (
+	"context"
+	"flag"
+	"fmt"
 	"os"
 
-	"github.com/gnolang/gno/pkgs/command"
-	"github.com/gnolang/gno/pkgs/errors"
+	"github.com/peterbourgon/ff/v3/ffcli"
 )
 
-type (
-	AppItem = command.AppItem
-	AppList = command.AppList
-)
-
-var mainApps AppList = []AppItem{
-	{txExportApp, "export", "export txs from node", defaultTxExportOptions},
-	{txImportApp, "import", "import txs to node", defaultTxImportOptions},
+// config is the shared config for gnotxport, and its subcommands
+type config struct {
+	remote string `default:"localhost:26657"`
 }
 
+const (
+	defaultFilePath = "txexport.log"
+)
+
 func main() {
-	cmd := command.NewStdCommand()
-	args := os.Args[1:]
+	cfg := &config{}
 
-	// show help message.
-	if len(args) == 0 || args[0] == "help" || args[0] == "--help" {
-		cmd.Println("available subcommands:")
-		for _, appItem := range mainApps {
-			cmd.Printf("  %s - %s\n", appItem.Name, appItem.Desc)
-		}
-		return
+	fs := flag.NewFlagSet("", flag.ExitOnError)
+	cfg.registerFlags(fs)
+
+	cmd := &ffcli.Command{
+		Name:       "",
+		ShortUsage: "<subcommand> [flags] [<arg>...]",
+		LongHelp:   "Exports or imports transactions from the node",
+		FlagSet:    fs,
+		Exec: func(_ context.Context, _ []string) error {
+			return flag.ErrHelp
+		},
 	}
 
-	// switch on first argument.
-	for _, appItem := range mainApps {
-		if appItem.Name == args[0] {
-			err := cmd.Run(appItem.App, args[1:], appItem.Defaults)
-			if err != nil {
-				panic(err)
-			}
-			return
-		}
+	cmd.Subcommands = []*ffcli.Command{
+		newImportCommand(cfg),
+		newExportCommand(cfg),
 	}
 
-	// unknown app command!
-	panic(errors.New("unknown command " + args[0]))
+	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "%v\n", err)
+
+		os.Exit(1)
+	}
+}
+
+func (c *config) registerFlags(fs *flag.FlagSet) {
+	fs.StringVar(
+		&c.remote,
+		"remote",
+		"localhost:26657",
+		"remote RPC address <addr:port>",
+	)
 }
