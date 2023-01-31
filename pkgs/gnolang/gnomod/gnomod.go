@@ -13,7 +13,7 @@ import (
 	"golang.org/x/mod/module"
 )
 
-var source = "test3.gno.land:36657" // "127.0.0.1:26657"
+var remote = "test3.gno.land:36657" // "127.0.0.1:26657"
 const queryPathFile = "vm/qfile"
 
 // ReadModFile reads, parses and validates the mod file at gnomod.
