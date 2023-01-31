@@ -14,6 +14,7 @@ require (
 	github.com/gnolang/cors v1.8.1
 	github.com/gnolang/overflow v0.0.0-20170615021017-4d914c927216
 	github.com/golang/protobuf v1.5.0
+	github.com/google/go-github/v30 v30.1.0
 	github.com/google/gofuzz v1.0.0
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.5.0
@@ -24,6 +25,7 @@ require (
 	github.com/linxGnu/grocksdb v1.7.2
 	github.com/mattn/go-runewidth v0.0.14
 	github.com/pelletier/go-toml v1.9.5
+	github.com/peterbourgon/ff/v3 v3.3.0
 	github.com/stretchr/testify v1.7.1
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c
@@ -32,6 +34,7 @@ require (
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa
 	golang.org/x/mod v0.7.0
 	golang.org/x/net v0.5.0
+	golang.org/x/oauth2 v0.0.0-20180821212333-d2e6202438be
 	golang.org/x/term v0.4.0
 	golang.org/x/tools v0.5.0
 	google.golang.org/protobuf v1.27.1
@@ -51,13 +54,13 @@ require (
 	github.com/golang/groupcache v0.0.0-20190702054246-869f871628b6 // indirect
 	github.com/golang/snappy v0.0.3 // indirect
 	github.com/google/flatbuffers v1.12.1 // indirect
+	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/gorilla/securecookie v1.1.1 // indirect
 	github.com/gorilla/sessions v1.2.1 // indirect
 	github.com/klauspost/compress v1.12.3 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lib/pq v1.10.7 // indirect
 	github.com/lucasb-eyer/go-colorful v1.0.3 // indirect
-	github.com/peterbourgon/ff/v3 v3.3.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
@@ -65,6 +68,7 @@ require (
 	go.uber.org/atomic v1.7.0 // indirect
 	golang.org/x/sys v0.4.0 // indirect
 	golang.org/x/text v0.6.0 // indirect
+	google.golang.org/appengine v1.4.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v3 v3.0.0-20220512140231-539c8e751b99 // indirect
 )
