@@ -106,7 +106,7 @@ func (c *gnolandCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func (c *gnolandCfg) Exec(ctx context.Context, _ []string) error {
+func (c *gnolandCfg) Exec(_ context.Context, _ []string) error {
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
 	rootDir := c.rootDir
 
