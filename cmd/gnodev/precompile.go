@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/gnolang/gno/pkgs/command"
 	"github.com/gnolang/gno/pkgs/errors"
@@ -125,20 +124,7 @@ func precompileFile(srcPath string, opts *precompileOptions) error {
 	}
 
 	// compute attributes based on filename.
-	var targetFilename string
-	var tags string
-	nameNoExtension := strings.TrimSuffix(filepath.Base(srcPath), ".gno")
-	switch {
-	case strings.HasSuffix(srcPath, "_filetest.gno"):
-		tags = "gno,filetest"
-		targetFilename = "." + nameNoExtension + ".gno.gen.go"
-	case strings.HasSuffix(srcPath, "_test.gno"):
-		tags = "gno,test"
-		targetFilename = "." + nameNoExtension + ".gno.gen_test.go"
-	default:
-		tags = "gno"
-		targetFilename = nameNoExtension + ".gno.gen.go"
-	}
+	targetFilename, tags := gno.GetPrecompileFilenameAndTags(srcPath)
 
 	// preprocess.
 	precompileRes, err := gno.Precompile(string(source), tags, srcPath)
