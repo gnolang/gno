@@ -16,21 +16,6 @@ import (
 var remote = "test3.gno.land:36657" // "127.0.0.1:26657"
 const queryPathFile = "vm/qfile"
 
-// ReadModFile reads, parses and validates the mod file at gnomod.
-func ReadModFile(absModPath string) (f *File, err error) {
-	data, err := os.ReadFile(absModPath)
-	if err != nil {
-		return nil, fmt.Errorf("readfile %q: %w", absModPath, err)
-	}
-
-	f, err = Parse(absModPath, data)
-	if err != nil {
-		return nil, fmt.Errorf("parse: %w", err)
-	}
-
-	return f, err
-}
-
 // GetGnoModPath returns the path for gno modules
 func GetGnoModPath() (string, error) {
 	goPath := os.Getenv("GOPATH")

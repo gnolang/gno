@@ -48,21 +48,31 @@ func runModDownload(opts *modFlags) error {
 		return errors.New("gno.mod not found")
 	}
 
-	gnoMod, err := gnomod.ReadModFile(modPath)
+	// read gno.mod
+	data, err := os.ReadFile(modPath)
 	if err != nil {
-		return fmt.Errorf("read mod file: %w", err)
+		return fmt.Errorf("readfile %q: %w", modPath, err)
 	}
 
+	// parse gno.mod
+	gnoMod, err := gnomod.Parse(modPath, data)
+	if err != nil {
+		return fmt.Errorf("parse: %w", err)
+	}
+
+	// fetch dependencies
 	if err := gnoMod.FetchDeps(); err != nil {
-		return fmt.Errorf("read mod file: %w", err)
+		return fmt.Errorf("fetch: %w", err)
 	}
 
 	if err := gnomod.Sanitize(gnoMod); err != nil {
-		return fmt.Errorf("read mod file: %w", err)
+		return fmt.Errorf("sanitize: %w", err)
 	}
+
+	// write go.mod file
 	err = gnoMod.WriteToPath(path)
 	if err != nil {
-		return fmt.Errorf("read mod file: %w", err)
+		return fmt.Errorf("write go.mod file: %w", err)
 	}
 
 	return nil
