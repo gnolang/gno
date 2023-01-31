@@ -1,0 +1,18 @@
+package grc1155
+
+import (
+	"std"
+)
+
+var zeroAddress = std.Address("")
+
+func isValidAddress(addr std.Address) error {
+	if addr.String() == "" {
+		return ErrInvalidAddress
+	}
+	return nil
+}
+
+func emit(event interface{}) {
+	// TODO: setup a pubsub system here?
+}
