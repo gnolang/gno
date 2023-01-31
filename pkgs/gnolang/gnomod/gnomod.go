@@ -75,7 +75,7 @@ func writePackage(basePath, pkgPath string) error {
 		// Is File
 		// Precompile
 		filePath := filepath.Join(basePath, pkgPath)
-		_, targetFilename := ResolvePrecompileName(filePath)
+		targetFilename, _ := gnolang.GetPrecompileFilenameAndTags(filePath)
 		precompileRes, err := gnolang.Precompile(string(res.Data), "", fileName)
 		if err != nil {
 			return fmt.Errorf("precompile: %w", err)
@@ -89,22 +89,6 @@ func writePackage(basePath, pkgPath string) error {
 	}
 
 	return nil
-}
-
-func ResolvePrecompileName(gnoFilePath string) (tags, targetFilename string) {
-	nameNoExtension := strings.TrimSuffix(filepath.Base(gnoFilePath), ".gno")
-	switch {
-	case strings.HasSuffix(gnoFilePath, "_filetest.gno"):
-		tags = "gno,filetest"
-		targetFilename = "." + nameNoExtension + ".gno.gen.go"
-	case strings.HasSuffix(gnoFilePath, "_test.gno"):
-		tags = "gno,test"
-		targetFilename = "." + nameNoExtension + ".gno.gen_test.go"
-	default:
-		tags = "gno"
-		targetFilename = nameNoExtension + ".gno.gen.go"
-	}
-	return
 }
 
 // Sanitize make necessary modifications in the gno.mod
