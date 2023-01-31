@@ -10,10 +10,9 @@ import (
 
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/bft/rpc/client"
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/errors"
 	"github.com/gnolang/gno/pkgs/std"
-	"github.com/peterbourgon/ff/v3/ffcli"
-
 	// XXX better way?
 	_ "github.com/gnolang/gno/pkgs/sdk/auth"
 	_ "github.com/gnolang/gno/pkgs/sdk/bank"
@@ -26,30 +25,27 @@ type importCfg struct {
 	inFile string
 }
 
-func newImportCommand(rootCfg *config) *ffcli.Command {
+func newImportCommand(rootCfg *config) *commands.Command {
 	cfg := &importCfg{
 		rootCfg: rootCfg,
 	}
 
-	fs := flag.NewFlagSet("import", flag.ExitOnError)
-
-	cfg.registerFlags(fs)
-	rootCfg.registerFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "import",
-		ShortUsage: "import [flags] <file>",
-		ShortHelp:  "Import transactions from file",
-		FlagSet:    fs,
-		Exec:       cfg.exec,
-	}
+	return commands.NewCommand(
+		"import",
+		commands.Metadata{
+			Name:       "import",
+			ShortUsage: "import [flags] <file>",
+			ShortHelp:  "Import transactions from file",
+		},
+		cfg,
+	)
 }
 
-func (c *importCfg) registerFlags(fs *flag.FlagSet) {
+func (c *importCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(&c.inFile, "in", defaultFilePath, "input file path")
 }
 
-func (c *importCfg) exec(ctx context.Context, _ []string) error {
+func (c *importCfg) Exec(ctx context.Context, _ []string) error {
 	// Initial validation
 	if len(c.inFile) == 0 {
 		return errors.New("input file path not specified")

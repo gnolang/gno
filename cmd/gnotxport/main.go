@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/peterbourgon/ff/v3/ffcli"
+	"github.com/gnolang/gno/pkgs/commands"
 )
 
 // config is the shared config for gnotxport, and its subcommands
@@ -21,23 +21,20 @@ const (
 func main() {
 	cfg := &config{}
 
-	fs := flag.NewFlagSet("", flag.ExitOnError)
-	cfg.registerFlags(fs)
-
-	cmd := &ffcli.Command{
-		Name:       "",
-		ShortUsage: "<subcommand> [flags] [<arg>...]",
-		LongHelp:   "Exports or imports transactions from the node",
-		FlagSet:    fs,
-		Exec: func(_ context.Context, _ []string) error {
-			return flag.ErrHelp
+	cmd := commands.NewCommand(
+		"",
+		commands.Metadata{
+			Name:       "",
+			ShortUsage: "<subcommand> [flags] [<arg>...]",
+			LongHelp:   "Exports or imports transactions from the node",
 		},
-	}
+		cfg,
+	)
 
-	cmd.Subcommands = []*ffcli.Command{
+	cmd.AddSubCommands(
 		newImportCommand(cfg),
 		newExportCommand(cfg),
-	}
+	)
 
 	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "%v\n", err)
@@ -46,7 +43,11 @@ func main() {
 	}
 }
 
-func (c *config) registerFlags(fs *flag.FlagSet) {
+func (c *config) Exec(ctx context.Context, args []string) error {
+	return commands.HelpExec(ctx, args)
+}
+
+func (c *config) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.remote,
 		"remote",

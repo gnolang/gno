@@ -12,9 +12,8 @@ import (
 
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/bft/rpc/client"
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/std"
-	"github.com/peterbourgon/ff/v3/ffcli"
-
 	// XXX better way?
 	_ "github.com/gnolang/gno/pkgs/sdk/auth"
 	_ "github.com/gnolang/gno/pkgs/sdk/bank"
@@ -32,25 +31,23 @@ type exportCfg struct {
 	follow      bool
 }
 
-func newExportCommand(rootCfg *config) *ffcli.Command {
+func newExportCommand(rootCfg *config) *commands.Command {
 	cfg := &exportCfg{
 		rootCfg: rootCfg,
 	}
 
-	fs := flag.NewFlagSet("export", flag.ExitOnError)
-	cfg.registerFlags(fs)
-	rootCfg.registerFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "export",
-		ShortUsage: "export [flags] <file>",
-		ShortHelp:  "Export transactions to file",
-		FlagSet:    fs,
-		Exec:       cfg.exec,
-	}
+	return commands.NewCommand(
+		"export",
+		commands.Metadata{
+			Name:       "export",
+			ShortUsage: "export [flags] <file>",
+			ShortHelp:  "Export transactions to file",
+		},
+		cfg,
+	)
 }
 
-func (c *exportCfg) registerFlags(fs *flag.FlagSet) {
+func (c *exportCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.Int64Var(
 		&c.startHeight,
 		"start",
@@ -94,12 +91,12 @@ func (c *exportCfg) registerFlags(fs *flag.FlagSet) {
 	)
 }
 
-func (c *exportCfg) exec(_ context.Context, _ []string) error {
+func (c *exportCfg) Exec(_ context.Context, _ []string) error {
 	node := client.NewHTTP(c.rootCfg.remote, "/websocket")
 
 	status, err := node.Status()
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("unable to fetch node status, %w", err)
 	}
 
 	var (
@@ -169,7 +166,7 @@ func (c *exportCfg) exec(_ context.Context, _ []string) error {
 
 			_, _ = fmt.Fprintln(out, string(bz))
 		}
-		
+
 		if !c.quiet {
 			log.Printf("h=%d/%d (txs=%d)", height, end, len(txs))
 		}
