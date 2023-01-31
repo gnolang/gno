@@ -31,11 +31,6 @@ func ReadModFile(absModPath string) (f *File, err error) {
 	return f, err
 }
 
-func IsModFileExist(absModPath string) bool {
-	_, err := os.Stat(absModPath)
-	return err == nil
-}
-
 // GetGnoModPath returns the path for gno modules
 func GetGnoModPath() (string, error) {
 	goPath := os.Getenv("GOPATH")

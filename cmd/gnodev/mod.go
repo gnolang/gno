@@ -44,7 +44,7 @@ func runModDownload(opts *modFlags) error {
 		return err
 	}
 	modPath := filepath.Join(path, "gno.mod")
-	if !gnomod.IsModFileExist(modPath) {
+	if !isFileExist(modPath) {
 		return errors.New("gno.mod not found")
 	}
 
