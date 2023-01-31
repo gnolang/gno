@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/testutils"
 	"github.com/stretchr/testify/require"
 )
@@ -25,7 +27,18 @@ func TestInitialize(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			closer := testutils.CaptureStdoutAndStderr()
 
-			err := runMain([]string{"--skip-failing-genesis-txs", "--skip-start"})
+			cfg := &gnolandCfg{}
+			cmd := commands.NewCommand(
+				"gnoland",
+				commands.Metadata{},
+				cfg,
+			)
+
+			err := cmd.ParseAndRun(
+				context.Background(),
+				[]string{"--skip-failing-genesis-txs", "--skip-start"},
+			)
+
 			stdouterr, bufErr := closer()
 			require.NoError(t, bufErr)
 			require.NoError(t, err)
