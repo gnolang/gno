@@ -3,6 +3,7 @@ package gnomod
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -29,7 +30,7 @@ func (f *File) FetchDeps() error {
 	}
 
 	for _, r := range f.Require {
-		fmt.Println("fetching", r.Mod.Path)
+		log.Println("fetching", r.Mod.Path)
 		err := writePackage(gnoModPath, r.Mod.Path)
 		if err != nil {
 			return fmt.Errorf("fetching mods: %s", err)
