@@ -43,7 +43,7 @@ func GetGnoModPath() (string, error) {
 		return "", errors.New("GOPATH not found")
 	}
 
-	return filepath.Join(goPath, "pkg/gnomod"), nil
+	return filepath.Join(goPath, "pkg", "gnomod"), nil
 }
 
 func writePackage(basePath, pkgPath string) error {
