@@ -22,12 +22,12 @@ var (
 func ReadModFile(absModPath string) (f *File, err error) {
 	data, err := os.ReadFile(absModPath)
 	if err != nil {
-		return nil, fmt.Errorf("reading gno.mod: %s", err)
+		return nil, fmt.Errorf("readfile %q: %w", absModPath, err)
 	}
 
 	f, err = Parse(absModPath, data)
 	if err != nil {
-		return nil, fmt.Errorf("parsing gno.mod: %s", err)
+		return nil, fmt.Errorf("parse: %w", err)
 	}
 
 	return f, err
@@ -51,7 +51,7 @@ func GetGnoModPath() (string, error) {
 func writePackage(basePath, pkgPath string) error {
 	res, err := queryChain(queryPathFile, []byte(pkgPath))
 	if err != nil {
-		return fmt.Errorf("makeReq gno.mod: %s", err)
+		return fmt.Errorf("querychain: %w", err)
 	}
 
 	dirPath, fileName := std.SplitFilepath(pkgPath)
@@ -61,14 +61,14 @@ func writePackage(basePath, pkgPath string) error {
 		dirPath := filepath.Join(basePath, dirPath)
 		if _, err := os.Stat(dirPath); os.IsNotExist(err) {
 			if err := os.MkdirAll(dirPath, 0o755); err != nil {
-				return fmt.Errorf("creating pkg dir: %s", err)
+				return fmt.Errorf("mkdir %q: %w", dirPath, err)
 			}
 		}
 
 		files := strings.Split(string(res.Data), "\n")
 		for _, file := range files {
 			if err := writePackage(basePath, filepath.Join(pkgPath, file)); err != nil {
-				return fmt.Errorf("writing mod files: %s", err)
+				return fmt.Errorf("writepackage: %w", err)
 			}
 		}
 	} else {
@@ -78,12 +78,13 @@ func writePackage(basePath, pkgPath string) error {
 		_, targetFilename := ResolvePrecompileName(filePath)
 		precompileRes, err := gnolang.Precompile(string(res.Data), "", fileName)
 		if err != nil {
-			return fmt.Errorf("precompiling modules: %s", err)
+			return fmt.Errorf("precompile: %w", err)
 		}
 
-		err = os.WriteFile(filepath.Join(basePath, dirPath, targetFilename), []byte(precompileRes.Translated), 0o644)
+		fileNameWithPath := filepath.Join(basePath, dirPath, targetFilename)
+		err = os.WriteFile(fileNameWithPath, []byte(precompileRes.Translated), 0o644)
 		if err != nil {
-			return fmt.Errorf("writing mod files: %s", err)
+			return fmt.Errorf("writefile %q: %w", fileNameWithPath, err)
 		}
 	}
 

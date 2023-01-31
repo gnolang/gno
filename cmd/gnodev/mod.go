@@ -29,7 +29,7 @@ func modApp(cmd *command.Command, args []string, iopts interface{}) error {
 	switch args[0] {
 	case "download":
 		if err := runModDownload(&opts); err != nil {
-			return fmt.Errorf("mod download: %s", err)
+			return fmt.Errorf("mod download: %w", err)
 		}
 	default:
 		return fmt.Errorf("invalid command: %s", args[0])
@@ -50,19 +50,19 @@ func runModDownload(opts *modFlags) error {
 
 	gnoMod, err := gnomod.ReadModFile(modPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("read mod file: %w", err)
 	}
 
 	if err := gnoMod.FetchDeps(); err != nil {
-		return err
+		return fmt.Errorf("read mod file: %w", err)
 	}
 
 	if err := gnomod.Sanitize(gnoMod); err != nil {
-		return err
+		return fmt.Errorf("read mod file: %w", err)
 	}
 	err = gnoMod.WriteToPath(path)
 	if err != nil {
-		return err
+		return fmt.Errorf("read mod file: %w", err)
 	}
 
 	return nil

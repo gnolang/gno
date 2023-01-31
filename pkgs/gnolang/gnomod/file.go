@@ -26,14 +26,14 @@ type File struct {
 func (f *File) FetchDeps() error {
 	gnoModPath, err := GetGnoModPath()
 	if err != nil {
-		return fmt.Errorf("fetching mods: %s", err)
+		return fmt.Errorf("get gno.mod path: %w", err)
 	}
 
 	for _, r := range f.Require {
 		log.Println("fetching", r.Mod.Path)
 		err := writePackage(gnoModPath, r.Mod.Path)
 		if err != nil {
-			return fmt.Errorf("fetching mods: %s", err)
+			return fmt.Errorf("writepackage: %w", err)
 		}
 
 		f := &File{
@@ -81,9 +81,10 @@ func (f *File) WriteToPath(absPath string) error {
 		data += ")\n"
 	}
 
-	err := os.WriteFile(filepath.Join(absPath, "go.mod"), []byte(data), 0o644)
+	modPath := filepath.Join(absPath, "go.mod")
+	err := os.WriteFile(modPath, []byte(data), 0o644)
 	if err != nil {
-		return fmt.Errorf("writing go.mod: %s", err)
+		return fmt.Errorf("writefile %q: %w", modPath, err)
 	}
 
 	return nil
