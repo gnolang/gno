@@ -18,9 +18,8 @@ func DefaultOpts() Opts {
 		curation:               true,
 		tips:                   true,
 		format:                 "markdown",
-		From:                   "",
+		from:                   "",
 		twitterToken:           "",
-		twitterSince:           "",
 		githubToken:            "",
 		help:                   false,
 		httpClient:             &http.Client{},
@@ -53,7 +52,7 @@ func runMain(args []string) error {
 		globalFlags.BoolVar(&opts.backlog, "backlog", opts.backlog, "generate backlog")
 		globalFlags.BoolVar(&opts.curation, "curation", opts.curation, "generate curation")
 		globalFlags.BoolVar(&opts.tips, "tips", opts.tips, "generate tips")
-		globalFlags.StringVar(&opts.From, "from", opts.From, "from date")
+		globalFlags.StringVar(&opts.from, "from", opts.from, "from date")
 		globalFlags.StringVar(&opts.twitterToken, "twitter-token", opts.twitterToken, "twitter token")
 		globalFlags.StringVar(&opts.twitterToken, "twitter-since", opts.twitterToken, "twitter since date RFC 3339 (ex: 2003-01-19T00:00:00Z)")
 		globalFlags.StringVar(&opts.githubToken, "github-token", opts.githubToken, "github token")
@@ -66,6 +65,13 @@ func runMain(args []string) error {
 				if opts.help {
 					return flag.ErrHelp
 				}
+				if opts.twitterToken == "" && opts.tips {
+					return fmt.Errorf("twitter token is required to fetch tips")
+				}
+				if opts.githubToken == "" && (opts.curation || opts.backlog || opts.changelog) {
+					return fmt.Errorf("github token is required to fetch curation, backlog or changelog")
+				}
+
 				changelog, err := fetchChangelog()
 				if err != nil {
 					return err
@@ -91,18 +97,34 @@ func runMain(args []string) error {
 	return root.ParseAndRun(context.Background(), args)
 }
 
-// TODO: Fetch changelog recent contributors, new PR merged, new issues closed, new releases ... & use from option
+// TODO: Fetch changelog recent contributors, new PR merged, new issues closed ... & use from option
 func fetchChangelog() (string, error) {
+	if !opts.changelog {
+		return "", nil
+	}
+	// Return a JSON which contains the following data:
+	// - contributors (github) (https://api.github.com/repos/gnolang/gno/contributors) (from)
+	// - PRs merged (github) (https://api.github.com/repos/gnolang/gno/pulls?state=closed) (from) with issues linked
+	// - new releases (github) (https://api.github.com/repos/gnolang/gno/releases) (from)
 	return "", nil
 }
 
 // TODO: Fetch backlog from github issues & PRS ... & use from option
 func fetchBacklog() (string, error) {
+	if !opts.backlog {
+		return "", nil
+	}
+	// Return a JSON which contains the following data:
+	// - new issues (github) (https://api.github.com/repos/gnolang/gno/issues) (from)
+	// - new & updated PRs (github) (https://api.github.com/repos/gnolang/gno/pulls) (from)
 	return "", nil
 }
 
 // TODO: Fetch curation from github commits & issues & PRS in `awesome-gno` repo & use from option
 func fetchCuration() (string, error) {
+	if !opts.curation {
+		return "", nil
+	}
 	var bearer = "Bearer " + opts.githubToken
 	req, err := http.NewRequest("GET", opts.awesomeGnoRepoUrl, nil)
 	if err != nil {
@@ -129,8 +151,11 @@ func fetchCuration() (string, error) {
 
 // TODO: fetch tips since from option
 func fetchTips() (string, error) {
-	if opts.twitterSince != "" {
-		opts.twitterSearchTweetsUrl += "&start_time=" + opts.twitterSince
+	if !opts.tips {
+		return "", nil
+	}
+	if opts.from != "" {
+		opts.twitterSearchTweetsUrl += "&start_time=" + opts.from
 	}
 
 	var bearer = "Bearer " + opts.twitterToken
@@ -162,9 +187,8 @@ type Opts struct {
 	backlog                bool
 	curation               bool
 	tips                   bool
-	From                   string
+	from                   string
 	twitterToken           string
-	twitterSince           string
 	githubToken            string
 	format                 string
 	help                   bool
