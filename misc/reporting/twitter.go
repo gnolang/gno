@@ -8,8 +8,8 @@ import (
 )
 
 func twitterFetchTips() string {
-	if opts.from != "" {
-		opts.twitterSearchTweetsUrl += "&start_time=" + opts.from
+	if opts.since != "" {
+		opts.twitterSearchTweetsUrl += "&start_time=" + opts.since
 	}
 
 	var bearer = "Bearer " + opts.twitterToken
