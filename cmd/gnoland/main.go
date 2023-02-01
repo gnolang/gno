@@ -41,7 +41,6 @@ func main() {
 	cmd := commands.NewCommand(
 		"gnoland",
 		commands.Metadata{
-			Name:       "",
 			ShortUsage: "[flags] [<arg>...]",
 			LongHelp:   "Starts the gnoland blockchain node",
 		},
