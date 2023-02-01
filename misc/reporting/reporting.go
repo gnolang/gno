@@ -19,7 +19,7 @@ func DefaultOpts() Opts {
 		backlog:                true,
 		curation:               true,
 		tips:                   true,
-		format:                 "markdown",
+		format:                 "json",
 		from:                   "",
 		twitterToken:           "",
 		githubToken:            "",
@@ -27,7 +27,7 @@ func DefaultOpts() Opts {
 		httpClient:             &http.Client{},
 		twitterSearchTweetsUrl: "https://api.twitter.com/2/tweets/search/recent?query=%23gnotips&max_results=100",
 		awesomeGnoRepoUrl:      "https://api.github.com/repos/gnolang/awesome-gno/issues",
-		outputPath:             "./data/",
+		outputPath:             "./output/",
 	}
 }
 
@@ -65,6 +65,7 @@ func runMain(args []string) error {
 			ShortUsage: "reporting [flags]",
 			FlagSet:    globalFlags,
 			Exec: func(ctx context.Context, args []string) error {
+
 				if opts.help {
 					return flag.ErrHelp
 				}
@@ -75,23 +76,17 @@ func runMain(args []string) error {
 					return fmt.Errorf("github token is required to fetch curation, backlog or changelog")
 				}
 
-				changelog, err := fetchChangelog()
+				outputs := map[string]string{
+					"changelog": fetchChangelog(),
+					"backlog":   fetchBacklog(),
+					"curation":  fetchCuration(),
+					"tips":      fetchTips(),
+				}
+
+				err := writeOutputFiles(outputs)
 				if err != nil {
 					return err
 				}
-				backlog, err := fetchBacklog()
-				if err != nil {
-					return err
-				}
-				curation, err := fetchCuration()
-				if err != nil {
-					return err
-				}
-				tips, err := fetchTips()
-				if err != nil {
-					return err
-				}
-				fmt.Println(jsonFormat([]string{changelog, backlog, curation, tips}))
 				//TODO: generate report from data at different formats (Markdown, JSON, CSV,  ...etc)
 				return nil
 			},
@@ -101,42 +96,44 @@ func runMain(args []string) error {
 }
 
 // TODO: Fetch changelog recent contributors, new PR merged, new issues closed ... & use from option
-func fetchChangelog() (string, error) {
+func fetchChangelog() string {
 	if !opts.changelog {
-		return "", nil
+		return ""
 	}
 	// Return a JSON which contains the following data:
 	// - contributors (github) (https://api.github.com/repos/gnolang/gno/contributors) (from)
 	// - PRs merged (github) (https://api.github.com/repos/gnolang/gno/pulls?state=closed) (from) with issues linked
 	// - new releases (github) (https://api.github.com/repos/gnolang/gno/releases) (from)
-	return "", nil
+	return ""
 }
 
 // TODO: Fetch backlog from github issues & PRS ... & use from option
-func fetchBacklog() (string, error) {
+func fetchBacklog() string {
 	if !opts.backlog {
-		return "", nil
+		return ""
 	}
 	// Return a JSON which contains the following data:
 	// - new issues (github) (https://api.github.com/repos/gnolang/gno/issues) (from)
 	// - new & updated PRs (github) (https://api.github.com/repos/gnolang/gno/pulls) (from)
-	return "", nil
+	return ""
 }
 
 // TODO: Fetch curation from github commits & issues & PRS in `awesome-gno` repo & use from option
-func fetchCuration() (string, error) {
+func fetchCuration() string {
 	if !opts.curation {
-		return "", nil
+		return ""
 	}
 	var bearer = "Bearer " + opts.githubToken
 	req, err := http.NewRequest("GET", opts.awesomeGnoRepoUrl, nil)
 	if err != nil {
-		return "", err
+		fmt.Fprintf(os.Stderr, "error: %+v\n", err)
+		return ""
 	}
 	req.Header.Add("Authorization", bearer)
 	resp, err := opts.httpClient.Do(req)
 	if err != nil {
-		return "", err
+		fmt.Fprintf(os.Stderr, "error: %+v\n", err)
+		return ""
 	}
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
@@ -147,15 +144,16 @@ func fetchCuration() (string, error) {
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		fmt.Fprintf(os.Stderr, "error: %+v\n", err)
+		return ""
 	}
-	return string(body), nil
+	return string(body)
 }
 
 // TODO: fetch tips since from option
-func fetchTips() (string, error) {
+func fetchTips() string {
 	if !opts.tips {
-		return "", nil
+		return ""
 	}
 	if opts.from != "" {
 		opts.twitterSearchTweetsUrl += "&start_time=" + opts.from
@@ -164,12 +162,14 @@ func fetchTips() (string, error) {
 	var bearer = "Bearer " + opts.twitterToken
 	req, err := http.NewRequest("GET", opts.twitterSearchTweetsUrl, nil)
 	if err != nil {
-		return "", err
+		fmt.Fprintf(os.Stderr, "error: %+v\n", err)
+		return ""
 	}
 	req.Header.Add("Authorization", bearer)
 	resp, err := opts.httpClient.Do(req)
 	if err != nil {
-		return "", err
+		fmt.Fprintf(os.Stderr, "error: %+v\n", err)
+		return ""
 	}
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
@@ -180,9 +180,10 @@ func fetchTips() (string, error) {
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		fmt.Fprintf(os.Stderr, "error: %+v\n", err)
+		return ""
 	}
-	return string(body), nil
+	return string(body)
 }
 
 func jsonFormat(data string) string {
@@ -194,8 +195,26 @@ func jsonFormat(data string) string {
 	return out.String()
 }
 
-func writeOutputFiles() error {
-
+func writeOutputFiles(outputs map[string]string) error {
+	if _, err := os.Stat(opts.outputPath); os.IsNotExist(err) {
+		err = os.MkdirAll(opts.outputPath, os.ModePerm)
+		if err != nil {
+			return err
+		}
+	}
+	for name, data := range outputs {
+		if data == "" {
+			continue
+		}
+		if opts.format == "json" {
+			data = jsonFormat(data)
+		}
+		err := os.WriteFile(opts.outputPath+name+".json", []byte(data), 0644)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type Opts struct {
