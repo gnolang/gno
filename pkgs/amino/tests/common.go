@@ -202,16 +202,16 @@ type ReprStruct1 struct {
 	D int64
 }
 
-func (am AminoMarshalerStruct1) MarshalAmino() (ReprStruct1, error) {
+func (ams AminoMarshalerStruct1) MarshalAmino() (ReprStruct1, error) {
 	return ReprStruct1{
-		C: int64(am.A),
-		D: int64(am.B),
+		C: int64(ams.A),
+		D: int64(ams.B),
 	}, nil
 }
 
-func (am *AminoMarshalerStruct1) UnmarshalAmino(rs ReprStruct1) error {
-	am.A = int32(rs.C)
-	am.B = int32(rs.D)
+func (ams *AminoMarshalerStruct1) UnmarshalAmino(rs ReprStruct1) error {
+	ams.A = int32(rs.C)
+	ams.B = int32(rs.D)
 
 	return nil
 }
@@ -230,24 +230,24 @@ type ReprElem2 struct {
 	Value interface{}
 }
 
-func (goo ReprElem2) get(key string) (value interface{}) {
-	if goo.Key != key {
-		panic(fmt.Sprintf("wanted %v but is %v", key, goo.Key))
+func (re ReprElem2) get(key string) (value interface{}) {
+	if re.Key != key {
+		panic(fmt.Sprintf("wanted %v but is %v", key, re.Key))
 	}
 
-	return goo.Value
+	return re.Value
 }
 
-func (am AminoMarshalerStruct2) MarshalAmino() ([]ReprElem2, error) {
+func (ams AminoMarshalerStruct2) MarshalAmino() ([]ReprElem2, error) {
 	return []ReprElem2{
-		{"a", am.a},
-		{"B", am.B},
+		{"a", ams.a},
+		{"B", ams.B},
 	}, nil
 }
 
-func (am *AminoMarshalerStruct2) UnmarshalAmino(repr []ReprElem2) error {
-	am.a = repr[0].get("a").(string)
-	am.B = repr[1].get("B").(int32)
+func (ams *AminoMarshalerStruct2) UnmarshalAmino(repr []ReprElem2) error {
+	ams.a = repr[0].get("a").(string)
+	ams.B = repr[1].get("B").(int32)
 
 	return nil
 }
@@ -260,12 +260,12 @@ type AminoMarshalerStruct3 struct {
 	A int32
 }
 
-func (am AminoMarshalerStruct3) MarshalAmino() (int32, error) {
-	return am.A, nil
+func (ams AminoMarshalerStruct3) MarshalAmino() (int32, error) {
+	return ams.A, nil
 }
 
-func (am *AminoMarshalerStruct3) UnmarshalAmino(i int32) error {
-	am.A = i
+func (ams *AminoMarshalerStruct3) UnmarshalAmino(i int32) error {
+	ams.A = i
 
 	return nil
 }
@@ -296,16 +296,16 @@ func (am *AminoMarshalerInt4) UnmarshalAmino(rs ReprStruct4) error {
 
 type AminoMarshalerInt5 int32
 
-func (goo AminoMarshalerInt5) MarshalAmino() (string, error) {
-	return fmt.Sprintf("%v", goo), nil
+func (am AminoMarshalerInt5) MarshalAmino() (string, error) {
+	return fmt.Sprintf("%v", am), nil
 }
 
-func (goo *AminoMarshalerInt5) UnmarshalAmino(repr string) error {
+func (am *AminoMarshalerInt5) UnmarshalAmino(repr string) error {
 	i, err := strconv.Atoi(repr)
 	if err != nil {
 		return err
 	}
-	*goo = AminoMarshalerInt5(i)
+	*am = AminoMarshalerInt5(i)
 
 	return nil
 }
@@ -319,13 +319,13 @@ type AminoMarshalerStruct6 struct {
 	B int32
 }
 
-func (am AminoMarshalerStruct6) MarshalAmino() ([]AminoMarshalerStruct1, error) {
-	return []AminoMarshalerStruct1{{A: am.A, B: am.B}}, nil
+func (ams AminoMarshalerStruct6) MarshalAmino() ([]AminoMarshalerStruct1, error) {
+	return []AminoMarshalerStruct1{{A: ams.A, B: ams.B}}, nil
 }
 
-func (am *AminoMarshalerStruct6) UnmarshalAmino(repr []AminoMarshalerStruct1) error {
-	am.A = repr[0].A
-	am.B = repr[0].B
+func (ams *AminoMarshalerStruct6) UnmarshalAmino(repr []AminoMarshalerStruct1) error {
+	ams.A = repr[0].A
+	ams.B = repr[0].B
 
 	return nil
 }
@@ -339,12 +339,12 @@ type AminoMarshalerStruct7 struct {
 	A int8
 }
 
-func (goo AminoMarshalerStruct7) MarshalAmino() ([]ReprElem7, error) {
-	return []ReprElem7{{A: goo.A}}, nil
+func (ams AminoMarshalerStruct7) MarshalAmino() ([]ReprElem7, error) {
+	return []ReprElem7{{A: ams.A}}, nil
 }
 
-func (goo *AminoMarshalerStruct7) UnmarshalAmino(repr []ReprElem7) error {
-	goo.A = repr[0].A
+func (ams *AminoMarshalerStruct7) UnmarshalAmino(repr []ReprElem7) error {
+	ams.A = repr[0].A
 
 	return nil
 }
@@ -353,12 +353,12 @@ type ReprElem7 struct {
 	A int8
 }
 
-func (goo ReprElem7) MarshalAmino() (uint8, error) {
-	return uint8(goo.A), nil
+func (re ReprElem7) MarshalAmino() (uint8, error) {
+	return uint8(re.A), nil
 }
 
-func (goo *ReprElem7) UnmarshalAmino(u uint8) error {
-	goo.A = int8(u)
+func (re *ReprElem7) UnmarshalAmino(u uint8) error {
+	re.A = int8(u)
 
 	return nil
 }

@@ -12,10 +12,10 @@ import (
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func (goo EmptyStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (es EmptyStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.EmptyStruct
 	{
-		if IsEmptyStructReprEmpty(goo) {
+		if IsEmptyStructReprEmpty(es) {
 			var pbov *testspb.EmptyStruct
 			msg = pbov
 
@@ -28,14 +28,14 @@ func (goo EmptyStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err err
 	return
 }
 
-func (goo EmptyStruct) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (es EmptyStruct) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.EmptyStruct)
 	msg = pbo
 
 	return
 }
 
-func (goo *EmptyStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (es *EmptyStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.EmptyStruct = msg.(*testspb.EmptyStruct)
 	{
 		if pbo != nil {
@@ -44,7 +44,7 @@ func (goo *EmptyStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err 
 	return
 }
 
-func (_ EmptyStruct) GetTypeURL() (typeURL string) {
+func (es EmptyStruct) GetTypeURL() (typeURL string) {
 	return "/tests.EmptyStruct"
 }
 
@@ -55,72 +55,72 @@ func IsEmptyStructReprEmpty(goor EmptyStruct) (empty bool) {
 	return
 }
 
-func (goo PrimitivesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (ps PrimitivesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.PrimitivesStruct
 	{
-		if IsPrimitivesStructReprEmpty(goo) {
+		if IsPrimitivesStructReprEmpty(ps) {
 			var pbov *testspb.PrimitivesStruct
 			msg = pbov
 			return
 		}
 		pbo = new(testspb.PrimitivesStruct)
 		{
-			pbo.Int8 = int32(goo.Int8)
+			pbo.Int8 = int32(ps.Int8)
 		}
 		{
-			pbo.Int16 = int32(goo.Int16)
+			pbo.Int16 = int32(ps.Int16)
 		}
 		{
-			pbo.Int32 = int32(goo.Int32)
+			pbo.Int32 = int32(ps.Int32)
 		}
 		{
-			pbo.Int32Fixed = int32(goo.Int32Fixed)
+			pbo.Int32Fixed = int32(ps.Int32Fixed)
 		}
 		{
-			pbo.Int64 = int64(goo.Int64)
+			pbo.Int64 = int64(ps.Int64)
 		}
 		{
-			pbo.Int64Fixed = int64(goo.Int64Fixed)
+			pbo.Int64Fixed = int64(ps.Int64Fixed)
 		}
 		{
-			pbo.Int = int64(goo.Int)
+			pbo.Int = int64(ps.Int)
 		}
 		{
-			pbo.Byte = uint32(goo.Byte)
+			pbo.Byte = uint32(ps.Byte)
 		}
 		{
-			pbo.Uint8 = uint32(goo.Uint8)
+			pbo.Uint8 = uint32(ps.Uint8)
 		}
 		{
-			pbo.Uint16 = uint32(goo.Uint16)
+			pbo.Uint16 = uint32(ps.Uint16)
 		}
 		{
-			pbo.Uint32 = uint32(goo.Uint32)
+			pbo.Uint32 = uint32(ps.Uint32)
 		}
 		{
-			pbo.Uint32Fixed = uint32(goo.Uint32Fixed)
+			pbo.Uint32Fixed = uint32(ps.Uint32Fixed)
 		}
 		{
-			pbo.Uint64 = uint64(goo.Uint64)
+			pbo.Uint64 = uint64(ps.Uint64)
 		}
 		{
-			pbo.Uint64Fixed = uint64(goo.Uint64Fixed)
+			pbo.Uint64Fixed = uint64(ps.Uint64Fixed)
 		}
 		{
-			pbo.Uint = uint64(goo.Uint)
+			pbo.Uint = uint64(ps.Uint)
 		}
 		{
-			pbo.Str = string(goo.Str)
+			pbo.Str = string(ps.Str)
 		}
 		{
-			goorl := len(goo.Bytes)
+			goorl := len(ps.Bytes)
 			if goorl == 0 {
 				pbo.Bytes = nil
 			} else {
 				pbos := make([]uint8, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Bytes[i]
+						goore := ps.Bytes[i]
 						{
 							pbos[i] = byte(goore)
 						}
@@ -130,18 +130,18 @@ func (goo PrimitivesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, er
 			}
 		}
 		{
-			if !amino.IsEmptyTime(goo.Time) {
-				pbo.Time = timestamppb.New(goo.Time)
+			if !amino.IsEmptyTime(ps.Time) {
+				pbo.Time = timestamppb.New(ps.Time)
 			}
 		}
 		{
-			if goo.Duration.Nanoseconds() != 0 {
-				pbo.Duration = durationpb.New(goo.Duration)
+			if ps.Duration.Nanoseconds() != 0 {
+				pbo.Duration = durationpb.New(ps.Duration)
 			}
 		}
 		{
 			pbom := proto.Message(nil)
-			pbom, err = goo.Empty.ToPBMessage(cdc)
+			pbom, err = ps.Empty.ToPBMessage(cdc)
 			if err != nil {
 				return
 			}
@@ -152,63 +152,63 @@ func (goo PrimitivesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, er
 	return
 }
 
-func (goo PrimitivesStruct) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (ps PrimitivesStruct) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.PrimitivesStruct)
 	msg = pbo
 	return
 }
 
-func (goo *PrimitivesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (ps *PrimitivesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.PrimitivesStruct = msg.(*testspb.PrimitivesStruct)
 	{
 		if pbo != nil {
 			{
-				(*goo).Int8 = int8(int8(pbo.Int8))
+				(*ps).Int8 = int8(int8(pbo.Int8))
 			}
 			{
-				(*goo).Int16 = int16(int16(pbo.Int16))
+				(*ps).Int16 = int16(int16(pbo.Int16))
 			}
 			{
-				(*goo).Int32 = int32(pbo.Int32)
+				(*ps).Int32 = int32(pbo.Int32)
 			}
 			{
-				(*goo).Int32Fixed = int32(pbo.Int32Fixed)
+				(*ps).Int32Fixed = int32(pbo.Int32Fixed)
 			}
 			{
-				(*goo).Int64 = int64(pbo.Int64)
+				(*ps).Int64 = int64(pbo.Int64)
 			}
 			{
-				(*goo).Int64Fixed = int64(pbo.Int64Fixed)
+				(*ps).Int64Fixed = int64(pbo.Int64Fixed)
 			}
 			{
-				(*goo).Int = int(int(pbo.Int))
+				(*ps).Int = int(int(pbo.Int))
 			}
 			{
-				(*goo).Byte = uint8(uint8(pbo.Byte))
+				(*ps).Byte = uint8(uint8(pbo.Byte))
 			}
 			{
-				(*goo).Uint8 = uint8(uint8(pbo.Uint8))
+				(*ps).Uint8 = uint8(uint8(pbo.Uint8))
 			}
 			{
-				(*goo).Uint16 = uint16(uint16(pbo.Uint16))
+				(*ps).Uint16 = uint16(uint16(pbo.Uint16))
 			}
 			{
-				(*goo).Uint32 = uint32(pbo.Uint32)
+				(*ps).Uint32 = uint32(pbo.Uint32)
 			}
 			{
-				(*goo).Uint32Fixed = uint32(pbo.Uint32Fixed)
+				(*ps).Uint32Fixed = uint32(pbo.Uint32Fixed)
 			}
 			{
-				(*goo).Uint64 = uint64(pbo.Uint64)
+				(*ps).Uint64 = uint64(pbo.Uint64)
 			}
 			{
-				(*goo).Uint64Fixed = uint64(pbo.Uint64Fixed)
+				(*ps).Uint64Fixed = uint64(pbo.Uint64Fixed)
 			}
 			{
-				(*goo).Uint = uint(uint(pbo.Uint))
+				(*ps).Uint = uint(uint(pbo.Uint))
 			}
 			{
-				(*goo).Str = string(pbo.Str)
+				(*ps).Str = string(pbo.Str)
 			}
 			{
 				var pbol int = 0
@@ -216,7 +216,7 @@ func (goo *PrimitivesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) 
 					pbol = len(pbo.Bytes)
 				}
 				if pbol == 0 {
-					(*goo).Bytes = nil
+					(*ps).Bytes = nil
 				} else {
 					goors := make([]uint8, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -228,18 +228,18 @@ func (goo *PrimitivesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) 
 							}
 						}
 					}
-					(*goo).Bytes = goors
+					(*ps).Bytes = goors
 				}
 			}
 			{
-				(*goo).Time = pbo.Time.AsTime()
+				(*ps).Time = pbo.Time.AsTime()
 			}
 			{
-				(*goo).Duration = pbo.Duration.AsDuration()
+				(*ps).Duration = pbo.Duration.AsDuration()
 			}
 			{
 				if pbo.Empty != nil {
-					err = (*goo).Empty.FromPBMessage(cdc, pbo.Empty)
+					err = (*ps).Empty.FromPBMessage(cdc, pbo.Empty)
 					if err != nil {
 						return
 					}
@@ -250,7 +250,7 @@ func (goo *PrimitivesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) 
 	return
 }
 
-func (_ PrimitivesStruct) GetTypeURL() (typeURL string) {
+func (ps PrimitivesStruct) GetTypeURL() (typeURL string) {
 	return "/tests.PrimitivesStruct"
 }
 
@@ -362,24 +362,24 @@ func IsPrimitivesStructReprEmpty(goor PrimitivesStruct) (empty bool) {
 	return
 }
 
-func (goo ShortArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (sas ShortArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.ShortArraysStruct
 	{
-		if IsShortArraysStructReprEmpty(goo) {
+		if IsShortArraysStructReprEmpty(sas) {
 			var pbov *testspb.ShortArraysStruct
 			msg = pbov
 			return
 		}
 		pbo = new(testspb.ShortArraysStruct)
 		{
-			goorl := len(goo.TimeAr)
+			goorl := len(sas.TimeAr)
 			if goorl == 0 {
 				pbo.TimeAr = nil
 			} else {
 				pbos := make([]*timestamppb.Timestamp, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.TimeAr[i]
+						goore := sas.TimeAr[i]
 						{
 							if !amino.IsEmptyTime(goore) {
 								pbos[i] = timestamppb.New(goore)
@@ -391,14 +391,14 @@ func (goo ShortArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, e
 			}
 		}
 		{
-			goorl := len(goo.DurationAr)
+			goorl := len(sas.DurationAr)
 			if goorl == 0 {
 				pbo.DurationAr = nil
 			} else {
 				pbos := make([]*durationpb.Duration, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.DurationAr[i]
+						goore := sas.DurationAr[i]
 						{
 							if goore.Nanoseconds() != 0 {
 								pbos[i] = durationpb.New(goore)
@@ -414,13 +414,13 @@ func (goo ShortArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, e
 	return
 }
 
-func (goo ShortArraysStruct) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (sas ShortArraysStruct) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.ShortArraysStruct)
 	msg = pbo
 	return
 }
 
-func (goo *ShortArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (sas *ShortArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.ShortArraysStruct = msg.(*testspb.ShortArraysStruct)
 	{
 		if pbo != nil {
@@ -435,7 +435,7 @@ func (goo *ShortArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message)
 						}
 					}
 				}
-				(*goo).TimeAr = goors
+				(*sas).TimeAr = goors
 			}
 			{
 				goors := [0]time.Duration{}
@@ -448,14 +448,14 @@ func (goo *ShortArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message)
 						}
 					}
 				}
-				(*goo).DurationAr = goors
+				(*sas).DurationAr = goors
 			}
 		}
 	}
 	return
 }
 
-func (_ ShortArraysStruct) GetTypeURL() (typeURL string) {
+func (sas ShortArraysStruct) GetTypeURL() (typeURL string) {
 	return "/tests.ShortArraysStruct"
 }
 
@@ -476,24 +476,24 @@ func IsShortArraysStructReprEmpty(goor ShortArraysStruct) (empty bool) {
 	return
 }
 
-func (goo ArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (as ArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.ArraysStruct
 	{
-		if IsArraysStructReprEmpty(goo) {
+		if IsArraysStructReprEmpty(as) {
 			var pbov *testspb.ArraysStruct
 			msg = pbov
 			return
 		}
 		pbo = new(testspb.ArraysStruct)
 		{
-			goorl := len(goo.Int8Ar)
+			goorl := len(as.Int8Ar)
 			if goorl == 0 {
 				pbo.Int8Ar = nil
 			} else {
 				pbos := make([]int32, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int8Ar[i]
+						goore := as.Int8Ar[i]
 						{
 							pbos[i] = int32(goore)
 						}
@@ -503,14 +503,14 @@ func (goo ArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.Int16Ar)
+			goorl := len(as.Int16Ar)
 			if goorl == 0 {
 				pbo.Int16Ar = nil
 			} else {
 				pbos := make([]int32, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int16Ar[i]
+						goore := as.Int16Ar[i]
 						{
 							pbos[i] = int32(goore)
 						}
@@ -520,14 +520,14 @@ func (goo ArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.Int32Ar)
+			goorl := len(as.Int32Ar)
 			if goorl == 0 {
 				pbo.Int32Ar = nil
 			} else {
 				pbos := make([]int32, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int32Ar[i]
+						goore := as.Int32Ar[i]
 						{
 							pbos[i] = int32(goore)
 						}
@@ -537,14 +537,14 @@ func (goo ArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.Int32FixedAr)
+			goorl := len(as.Int32FixedAr)
 			if goorl == 0 {
 				pbo.Int32FixedAr = nil
 			} else {
 				pbos := make([]int32, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int32FixedAr[i]
+						goore := as.Int32FixedAr[i]
 						{
 							pbos[i] = int32(goore)
 						}
@@ -554,14 +554,14 @@ func (goo ArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.Int64Ar)
+			goorl := len(as.Int64Ar)
 			if goorl == 0 {
 				pbo.Int64Ar = nil
 			} else {
 				pbos := make([]int64, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int64Ar[i]
+						goore := as.Int64Ar[i]
 						{
 							pbos[i] = int64(goore)
 						}
@@ -571,14 +571,14 @@ func (goo ArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.Int64FixedAr)
+			goorl := len(as.Int64FixedAr)
 			if goorl == 0 {
 				pbo.Int64FixedAr = nil
 			} else {
 				pbos := make([]int64, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int64FixedAr[i]
+						goore := as.Int64FixedAr[i]
 						{
 							pbos[i] = int64(goore)
 						}
@@ -588,14 +588,14 @@ func (goo ArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.IntAr)
+			goorl := len(as.IntAr)
 			if goorl == 0 {
 				pbo.IntAr = nil
 			} else {
 				pbos := make([]int64, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.IntAr[i]
+						goore := as.IntAr[i]
 						{
 							pbos[i] = int64(goore)
 						}
@@ -605,14 +605,14 @@ func (goo ArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.ByteAr)
+			goorl := len(as.ByteAr)
 			if goorl == 0 {
 				pbo.ByteAr = nil
 			} else {
 				pbos := make([]uint8, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.ByteAr[i]
+						goore := as.ByteAr[i]
 						{
 							pbos[i] = byte(goore)
 						}
@@ -622,14 +622,14 @@ func (goo ArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.Uint8Ar)
+			goorl := len(as.Uint8Ar)
 			if goorl == 0 {
 				pbo.Uint8Ar = nil
 			} else {
 				pbos := make([]uint8, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint8Ar[i]
+						goore := as.Uint8Ar[i]
 						{
 							pbos[i] = byte(goore)
 						}
@@ -639,14 +639,14 @@ func (goo ArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.Uint16Ar)
+			goorl := len(as.Uint16Ar)
 			if goorl == 0 {
 				pbo.Uint16Ar = nil
 			} else {
 				pbos := make([]uint32, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint16Ar[i]
+						goore := as.Uint16Ar[i]
 						{
 							pbos[i] = uint32(goore)
 						}
@@ -656,14 +656,14 @@ func (goo ArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.Uint32Ar)
+			goorl := len(as.Uint32Ar)
 			if goorl == 0 {
 				pbo.Uint32Ar = nil
 			} else {
 				pbos := make([]uint32, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint32Ar[i]
+						goore := as.Uint32Ar[i]
 						{
 							pbos[i] = uint32(goore)
 						}
@@ -673,14 +673,14 @@ func (goo ArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.Uint32FixedAr)
+			goorl := len(as.Uint32FixedAr)
 			if goorl == 0 {
 				pbo.Uint32FixedAr = nil
 			} else {
 				pbos := make([]uint32, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint32FixedAr[i]
+						goore := as.Uint32FixedAr[i]
 						{
 							pbos[i] = uint32(goore)
 						}
@@ -690,14 +690,14 @@ func (goo ArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.Uint64Ar)
+			goorl := len(as.Uint64Ar)
 			if goorl == 0 {
 				pbo.Uint64Ar = nil
 			} else {
 				pbos := make([]uint64, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint64Ar[i]
+						goore := as.Uint64Ar[i]
 						{
 							pbos[i] = uint64(goore)
 						}
@@ -707,14 +707,14 @@ func (goo ArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.Uint64FixedAr)
+			goorl := len(as.Uint64FixedAr)
 			if goorl == 0 {
 				pbo.Uint64FixedAr = nil
 			} else {
 				pbos := make([]uint64, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint64FixedAr[i]
+						goore := as.Uint64FixedAr[i]
 						{
 							pbos[i] = uint64(goore)
 						}
@@ -724,14 +724,14 @@ func (goo ArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.UintAr)
+			goorl := len(as.UintAr)
 			if goorl == 0 {
 				pbo.UintAr = nil
 			} else {
 				pbos := make([]uint64, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.UintAr[i]
+						goore := as.UintAr[i]
 						{
 							pbos[i] = uint64(goore)
 						}
@@ -741,14 +741,14 @@ func (goo ArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.StrAr)
+			goorl := len(as.StrAr)
 			if goorl == 0 {
 				pbo.StrAr = nil
 			} else {
 				pbos := make([]string, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.StrAr[i]
+						goore := as.StrAr[i]
 						{
 							pbos[i] = string(goore)
 						}
@@ -758,14 +758,14 @@ func (goo ArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.BytesAr)
+			goorl := len(as.BytesAr)
 			if goorl == 0 {
 				pbo.BytesAr = nil
 			} else {
 				pbos := make([][]byte, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.BytesAr[i]
+						goore := as.BytesAr[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -789,14 +789,14 @@ func (goo ArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.TimeAr)
+			goorl := len(as.TimeAr)
 			if goorl == 0 {
 				pbo.TimeAr = nil
 			} else {
 				pbos := make([]*timestamppb.Timestamp, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.TimeAr[i]
+						goore := as.TimeAr[i]
 						{
 							if !amino.IsEmptyTime(goore) {
 								pbos[i] = timestamppb.New(goore)
@@ -808,14 +808,14 @@ func (goo ArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.DurationAr)
+			goorl := len(as.DurationAr)
 			if goorl == 0 {
 				pbo.DurationAr = nil
 			} else {
 				pbos := make([]*durationpb.Duration, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.DurationAr[i]
+						goore := as.DurationAr[i]
 						{
 							if goore.Nanoseconds() != 0 {
 								pbos[i] = durationpb.New(goore)
@@ -827,14 +827,14 @@ func (goo ArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.EmptyAr)
+			goorl := len(as.EmptyAr)
 			if goorl == 0 {
 				pbo.EmptyAr = nil
 			} else {
 				pbos := make([]*testspb.EmptyStruct, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.EmptyAr[i]
+						goore := as.EmptyAr[i]
 						{
 							pbom := proto.Message(nil)
 							pbom, err = goore.ToPBMessage(cdc)
@@ -853,13 +853,13 @@ func (goo ArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 	return
 }
 
-func (goo ArraysStruct) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (as ArraysStruct) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.ArraysStruct)
 	msg = pbo
 	return
 }
 
-func (goo *ArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (as *ArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.ArraysStruct = msg.(*testspb.ArraysStruct)
 	{
 		if pbo != nil {
@@ -874,7 +874,7 @@ func (goo *ArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 						}
 					}
 				}
-				(*goo).Int8Ar = goors
+				(*as).Int8Ar = goors
 			}
 			{
 				goors := [4]int16{}
@@ -887,7 +887,7 @@ func (goo *ArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 						}
 					}
 				}
-				(*goo).Int16Ar = goors
+				(*as).Int16Ar = goors
 			}
 			{
 				goors := [4]int32{}
@@ -900,7 +900,7 @@ func (goo *ArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 						}
 					}
 				}
-				(*goo).Int32Ar = goors
+				(*as).Int32Ar = goors
 			}
 			{
 				goors := [4]int32{}
@@ -913,7 +913,7 @@ func (goo *ArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 						}
 					}
 				}
-				(*goo).Int32FixedAr = goors
+				(*as).Int32FixedAr = goors
 			}
 			{
 				goors := [4]int64{}
@@ -926,7 +926,7 @@ func (goo *ArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 						}
 					}
 				}
-				(*goo).Int64Ar = goors
+				(*as).Int64Ar = goors
 			}
 			{
 				goors := [4]int64{}
@@ -939,7 +939,7 @@ func (goo *ArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 						}
 					}
 				}
-				(*goo).Int64FixedAr = goors
+				(*as).Int64FixedAr = goors
 			}
 			{
 				goors := [4]int{}
@@ -952,7 +952,7 @@ func (goo *ArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 						}
 					}
 				}
-				(*goo).IntAr = goors
+				(*as).IntAr = goors
 			}
 			{
 				goors := [4]uint8{}
@@ -965,7 +965,7 @@ func (goo *ArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 						}
 					}
 				}
-				(*goo).ByteAr = goors
+				(*as).ByteAr = goors
 			}
 			{
 				goors := [4]uint8{}
@@ -978,7 +978,7 @@ func (goo *ArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 						}
 					}
 				}
-				(*goo).Uint8Ar = goors
+				(*as).Uint8Ar = goors
 			}
 			{
 				goors := [4]uint16{}
@@ -991,7 +991,7 @@ func (goo *ArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 						}
 					}
 				}
-				(*goo).Uint16Ar = goors
+				(*as).Uint16Ar = goors
 			}
 			{
 				goors := [4]uint32{}
@@ -1004,7 +1004,7 @@ func (goo *ArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 						}
 					}
 				}
-				(*goo).Uint32Ar = goors
+				(*as).Uint32Ar = goors
 			}
 			{
 				goors := [4]uint32{}
@@ -1017,7 +1017,7 @@ func (goo *ArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 						}
 					}
 				}
-				(*goo).Uint32FixedAr = goors
+				(*as).Uint32FixedAr = goors
 			}
 			{
 				goors := [4]uint64{}
@@ -1030,7 +1030,7 @@ func (goo *ArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 						}
 					}
 				}
-				(*goo).Uint64Ar = goors
+				(*as).Uint64Ar = goors
 			}
 			{
 				goors := [4]uint64{}
@@ -1043,7 +1043,7 @@ func (goo *ArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 						}
 					}
 				}
-				(*goo).Uint64FixedAr = goors
+				(*as).Uint64FixedAr = goors
 			}
 			{
 				goors := [4]uint{}
@@ -1056,7 +1056,7 @@ func (goo *ArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 						}
 					}
 				}
-				(*goo).UintAr = goors
+				(*as).UintAr = goors
 			}
 			{
 				goors := [4]string{}
@@ -1069,7 +1069,7 @@ func (goo *ArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 						}
 					}
 				}
-				(*goo).StrAr = goors
+				(*as).StrAr = goors
 			}
 			{
 				goors := [4][]uint8{}
@@ -1100,7 +1100,7 @@ func (goo *ArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 						}
 					}
 				}
-				(*goo).BytesAr = goors
+				(*as).BytesAr = goors
 			}
 			{
 				goors := [4]time.Time{}
@@ -1113,7 +1113,7 @@ func (goo *ArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 						}
 					}
 				}
-				(*goo).TimeAr = goors
+				(*as).TimeAr = goors
 			}
 			{
 				goors := [4]time.Duration{}
@@ -1126,7 +1126,7 @@ func (goo *ArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 						}
 					}
 				}
-				(*goo).DurationAr = goors
+				(*as).DurationAr = goors
 			}
 			{
 				goors := [4]EmptyStruct{}
@@ -1144,14 +1144,14 @@ func (goo *ArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 						}
 					}
 				}
-				(*goo).EmptyAr = goors
+				(*as).EmptyAr = goors
 			}
 		}
 	}
 	return
 }
 
-func (_ ArraysStruct) GetTypeURL() (typeURL string) {
+func (as ArraysStruct) GetTypeURL() (typeURL string) {
 	return "/tests.ArraysStruct"
 }
 
@@ -1262,24 +1262,24 @@ func IsArraysStructReprEmpty(goor ArraysStruct) (empty bool) {
 	return
 }
 
-func (goo ArraysArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (aas ArraysArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.ArraysArraysStruct
 	{
-		if IsArraysArraysStructReprEmpty(goo) {
+		if IsArraysArraysStructReprEmpty(aas) {
 			var pbov *testspb.ArraysArraysStruct
 			msg = pbov
 			return
 		}
 		pbo = new(testspb.ArraysArraysStruct)
 		{
-			goorl := len(goo.Int8ArAr)
+			goorl := len(aas.Int8ArAr)
 			if goorl == 0 {
 				pbo.Int8ArAr = nil
 			} else {
 				pbos := make([]*testspb.TESTS_Int8List, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int8ArAr[i]
+						goore := aas.Int8ArAr[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -1303,14 +1303,14 @@ func (goo ArraysArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.Int16ArAr)
+			goorl := len(aas.Int16ArAr)
 			if goorl == 0 {
 				pbo.Int16ArAr = nil
 			} else {
 				pbos := make([]*testspb.TESTS_Int16List, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int16ArAr[i]
+						goore := aas.Int16ArAr[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -1334,14 +1334,14 @@ func (goo ArraysArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.Int32ArAr)
+			goorl := len(aas.Int32ArAr)
 			if goorl == 0 {
 				pbo.Int32ArAr = nil
 			} else {
 				pbos := make([]*testspb.TESTS_Int32ValueList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int32ArAr[i]
+						goore := aas.Int32ArAr[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -1365,14 +1365,14 @@ func (goo ArraysArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.Int32FixedArAr)
+			goorl := len(aas.Int32FixedArAr)
 			if goorl == 0 {
 				pbo.Int32FixedArAr = nil
 			} else {
 				pbos := make([]*testspb.TESTS_Fixed32Int32ValueList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int32FixedArAr[i]
+						goore := aas.Int32FixedArAr[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -1396,14 +1396,14 @@ func (goo ArraysArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.Int64ArAr)
+			goorl := len(aas.Int64ArAr)
 			if goorl == 0 {
 				pbo.Int64ArAr = nil
 			} else {
 				pbos := make([]*testspb.TESTS_Int64ValueList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int64ArAr[i]
+						goore := aas.Int64ArAr[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -1427,14 +1427,14 @@ func (goo ArraysArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.Int64FixedArAr)
+			goorl := len(aas.Int64FixedArAr)
 			if goorl == 0 {
 				pbo.Int64FixedArAr = nil
 			} else {
 				pbos := make([]*testspb.TESTS_Fixed64Int64ValueList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int64FixedArAr[i]
+						goore := aas.Int64FixedArAr[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -1458,14 +1458,14 @@ func (goo ArraysArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.IntArAr)
+			goorl := len(aas.IntArAr)
 			if goorl == 0 {
 				pbo.IntArAr = nil
 			} else {
 				pbos := make([]*testspb.TESTS_Int64ValueList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.IntArAr[i]
+						goore := aas.IntArAr[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -1489,14 +1489,14 @@ func (goo ArraysArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.ByteArAr)
+			goorl := len(aas.ByteArAr)
 			if goorl == 0 {
 				pbo.ByteArAr = nil
 			} else {
 				pbos := make([][]byte, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.ByteArAr[i]
+						goore := aas.ByteArAr[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -1520,14 +1520,14 @@ func (goo ArraysArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.Uint8ArAr)
+			goorl := len(aas.Uint8ArAr)
 			if goorl == 0 {
 				pbo.Uint8ArAr = nil
 			} else {
 				pbos := make([][]byte, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint8ArAr[i]
+						goore := aas.Uint8ArAr[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -1551,14 +1551,14 @@ func (goo ArraysArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.Uint16ArAr)
+			goorl := len(aas.Uint16ArAr)
 			if goorl == 0 {
 				pbo.Uint16ArAr = nil
 			} else {
 				pbos := make([]*testspb.TESTS_UInt16List, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint16ArAr[i]
+						goore := aas.Uint16ArAr[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -1582,14 +1582,14 @@ func (goo ArraysArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.Uint32ArAr)
+			goorl := len(aas.Uint32ArAr)
 			if goorl == 0 {
 				pbo.Uint32ArAr = nil
 			} else {
 				pbos := make([]*testspb.TESTS_UInt32ValueList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint32ArAr[i]
+						goore := aas.Uint32ArAr[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -1613,14 +1613,14 @@ func (goo ArraysArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.Uint32FixedArAr)
+			goorl := len(aas.Uint32FixedArAr)
 			if goorl == 0 {
 				pbo.Uint32FixedArAr = nil
 			} else {
 				pbos := make([]*testspb.TESTS_Fixed32UInt32ValueList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint32FixedArAr[i]
+						goore := aas.Uint32FixedArAr[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -1644,14 +1644,14 @@ func (goo ArraysArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.Uint64ArAr)
+			goorl := len(aas.Uint64ArAr)
 			if goorl == 0 {
 				pbo.Uint64ArAr = nil
 			} else {
 				pbos := make([]*testspb.TESTS_UInt64ValueList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint64ArAr[i]
+						goore := aas.Uint64ArAr[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -1675,14 +1675,14 @@ func (goo ArraysArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.Uint64FixedArAr)
+			goorl := len(aas.Uint64FixedArAr)
 			if goorl == 0 {
 				pbo.Uint64FixedArAr = nil
 			} else {
 				pbos := make([]*testspb.TESTS_Fixed64UInt64ValueList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint64FixedArAr[i]
+						goore := aas.Uint64FixedArAr[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -1706,14 +1706,14 @@ func (goo ArraysArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.UintArAr)
+			goorl := len(aas.UintArAr)
 			if goorl == 0 {
 				pbo.UintArAr = nil
 			} else {
 				pbos := make([]*testspb.TESTS_UInt64ValueList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.UintArAr[i]
+						goore := aas.UintArAr[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -1737,14 +1737,14 @@ func (goo ArraysArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.StrArAr)
+			goorl := len(aas.StrArAr)
 			if goorl == 0 {
 				pbo.StrArAr = nil
 			} else {
 				pbos := make([]*testspb.TESTS_StringValueList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.StrArAr[i]
+						goore := aas.StrArAr[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -1768,14 +1768,14 @@ func (goo ArraysArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.BytesArAr)
+			goorl := len(aas.BytesArAr)
 			if goorl == 0 {
 				pbo.BytesArAr = nil
 			} else {
 				pbos := make([]*testspb.TESTS_BytesList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.BytesArAr[i]
+						goore := aas.BytesArAr[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -1813,14 +1813,14 @@ func (goo ArraysArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.TimeArAr)
+			goorl := len(aas.TimeArAr)
 			if goorl == 0 {
 				pbo.TimeArAr = nil
 			} else {
 				pbos := make([]*testspb.TESTS_TimestampList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.TimeArAr[i]
+						goore := aas.TimeArAr[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -1846,14 +1846,14 @@ func (goo ArraysArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.DurationArAr)
+			goorl := len(aas.DurationArAr)
 			if goorl == 0 {
 				pbo.DurationArAr = nil
 			} else {
 				pbos := make([]*testspb.TESTS_DurationList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.DurationArAr[i]
+						goore := aas.DurationArAr[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -1879,14 +1879,14 @@ func (goo ArraysArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.EmptyArAr)
+			goorl := len(aas.EmptyArAr)
 			if goorl == 0 {
 				pbo.EmptyArAr = nil
 			} else {
 				pbos := make([]*testspb.TESTS_EmptyStructList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.EmptyArAr[i]
+						goore := aas.EmptyArAr[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -1919,13 +1919,13 @@ func (goo ArraysArraysStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 	return
 }
 
-func (goo ArraysArraysStruct) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (aas ArraysArraysStruct) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.ArraysArraysStruct)
 	msg = pbo
 	return
 }
 
-func (goo *ArraysArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (aas *ArraysArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.ArraysArraysStruct = msg.(*testspb.ArraysArraysStruct)
 	{
 		if pbo != nil {
@@ -1952,7 +1952,7 @@ func (goo *ArraysArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 						}
 					}
 				}
-				(*goo).Int8ArAr = goors
+				(*aas).Int8ArAr = goors
 			}
 			{
 				goors := [2][2]int16{}
@@ -1977,7 +1977,7 @@ func (goo *ArraysArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 						}
 					}
 				}
-				(*goo).Int16ArAr = goors
+				(*aas).Int16ArAr = goors
 			}
 			{
 				goors := [2][2]int32{}
@@ -2002,7 +2002,7 @@ func (goo *ArraysArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 						}
 					}
 				}
-				(*goo).Int32ArAr = goors
+				(*aas).Int32ArAr = goors
 			}
 			{
 				goors := [2][2]int32{}
@@ -2027,7 +2027,7 @@ func (goo *ArraysArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 						}
 					}
 				}
-				(*goo).Int32FixedArAr = goors
+				(*aas).Int32FixedArAr = goors
 			}
 			{
 				goors := [2][2]int64{}
@@ -2052,7 +2052,7 @@ func (goo *ArraysArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 						}
 					}
 				}
-				(*goo).Int64ArAr = goors
+				(*aas).Int64ArAr = goors
 			}
 			{
 				goors := [2][2]int64{}
@@ -2077,7 +2077,7 @@ func (goo *ArraysArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 						}
 					}
 				}
-				(*goo).Int64FixedArAr = goors
+				(*aas).Int64FixedArAr = goors
 			}
 			{
 				goors := [2][2]int{}
@@ -2102,7 +2102,7 @@ func (goo *ArraysArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 						}
 					}
 				}
-				(*goo).IntArAr = goors
+				(*aas).IntArAr = goors
 			}
 			{
 				goors := [2][2]uint8{}
@@ -2125,7 +2125,7 @@ func (goo *ArraysArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 						}
 					}
 				}
-				(*goo).ByteArAr = goors
+				(*aas).ByteArAr = goors
 			}
 			{
 				goors := [2][2]uint8{}
@@ -2148,7 +2148,7 @@ func (goo *ArraysArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 						}
 					}
 				}
-				(*goo).Uint8ArAr = goors
+				(*aas).Uint8ArAr = goors
 			}
 			{
 				goors := [2][2]uint16{}
@@ -2173,7 +2173,7 @@ func (goo *ArraysArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 						}
 					}
 				}
-				(*goo).Uint16ArAr = goors
+				(*aas).Uint16ArAr = goors
 			}
 			{
 				goors := [2][2]uint32{}
@@ -2198,7 +2198,7 @@ func (goo *ArraysArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 						}
 					}
 				}
-				(*goo).Uint32ArAr = goors
+				(*aas).Uint32ArAr = goors
 			}
 			{
 				goors := [2][2]uint32{}
@@ -2223,7 +2223,7 @@ func (goo *ArraysArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 						}
 					}
 				}
-				(*goo).Uint32FixedArAr = goors
+				(*aas).Uint32FixedArAr = goors
 			}
 			{
 				goors := [2][2]uint64{}
@@ -2248,7 +2248,7 @@ func (goo *ArraysArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 						}
 					}
 				}
-				(*goo).Uint64ArAr = goors
+				(*aas).Uint64ArAr = goors
 			}
 			{
 				goors := [2][2]uint64{}
@@ -2273,7 +2273,7 @@ func (goo *ArraysArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 						}
 					}
 				}
-				(*goo).Uint64FixedArAr = goors
+				(*aas).Uint64FixedArAr = goors
 			}
 			{
 				goors := [2][2]uint{}
@@ -2298,7 +2298,7 @@ func (goo *ArraysArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 						}
 					}
 				}
-				(*goo).UintArAr = goors
+				(*aas).UintArAr = goors
 			}
 			{
 				goors := [2][2]string{}
@@ -2323,7 +2323,7 @@ func (goo *ArraysArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 						}
 					}
 				}
-				(*goo).StrArAr = goors
+				(*aas).StrArAr = goors
 			}
 			{
 				goors := [2][2][]uint8{}
@@ -2366,7 +2366,7 @@ func (goo *ArraysArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 						}
 					}
 				}
-				(*goo).BytesArAr = goors
+				(*aas).BytesArAr = goors
 			}
 			{
 				goors := [2][2]time.Time{}
@@ -2391,7 +2391,7 @@ func (goo *ArraysArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 						}
 					}
 				}
-				(*goo).TimeArAr = goors
+				(*aas).TimeArAr = goors
 			}
 			{
 				goors := [2][2]time.Duration{}
@@ -2416,7 +2416,7 @@ func (goo *ArraysArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 						}
 					}
 				}
-				(*goo).DurationArAr = goors
+				(*aas).DurationArAr = goors
 			}
 			{
 				goors := [2][2]EmptyStruct{}
@@ -2446,14 +2446,14 @@ func (goo *ArraysArraysStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 						}
 					}
 				}
-				(*goo).EmptyArAr = goors
+				(*aas).EmptyArAr = goors
 			}
 		}
 	}
 	return
 }
 
-func (_ ArraysArraysStruct) GetTypeURL() (typeURL string) {
+func (aas ArraysArraysStruct) GetTypeURL() (typeURL string) {
 	return "/tests.ArraysArraysStruct"
 }
 
@@ -2564,24 +2564,24 @@ func IsArraysArraysStructReprEmpty(goor ArraysArraysStruct) (empty bool) {
 	return
 }
 
-func (goo SlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (ss SlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.SlicesStruct
 	{
-		if IsSlicesStructReprEmpty(goo) {
+		if IsSlicesStructReprEmpty(ss) {
 			var pbov *testspb.SlicesStruct
 			msg = pbov
 			return
 		}
 		pbo = new(testspb.SlicesStruct)
 		{
-			goorl := len(goo.Int8Sl)
+			goorl := len(ss.Int8Sl)
 			if goorl == 0 {
 				pbo.Int8Sl = nil
 			} else {
 				pbos := make([]int32, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int8Sl[i]
+						goore := ss.Int8Sl[i]
 						{
 							pbos[i] = int32(goore)
 						}
@@ -2591,14 +2591,14 @@ func (goo SlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.Int16Sl)
+			goorl := len(ss.Int16Sl)
 			if goorl == 0 {
 				pbo.Int16Sl = nil
 			} else {
 				pbos := make([]int32, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int16Sl[i]
+						goore := ss.Int16Sl[i]
 						{
 							pbos[i] = int32(goore)
 						}
@@ -2608,14 +2608,14 @@ func (goo SlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.Int32Sl)
+			goorl := len(ss.Int32Sl)
 			if goorl == 0 {
 				pbo.Int32Sl = nil
 			} else {
 				pbos := make([]int32, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int32Sl[i]
+						goore := ss.Int32Sl[i]
 						{
 							pbos[i] = int32(goore)
 						}
@@ -2625,14 +2625,14 @@ func (goo SlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.Int32FixedSl)
+			goorl := len(ss.Int32FixedSl)
 			if goorl == 0 {
 				pbo.Int32FixedSl = nil
 			} else {
 				pbos := make([]int32, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int32FixedSl[i]
+						goore := ss.Int32FixedSl[i]
 						{
 							pbos[i] = int32(goore)
 						}
@@ -2642,14 +2642,14 @@ func (goo SlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.Int64Sl)
+			goorl := len(ss.Int64Sl)
 			if goorl == 0 {
 				pbo.Int64Sl = nil
 			} else {
 				pbos := make([]int64, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int64Sl[i]
+						goore := ss.Int64Sl[i]
 						{
 							pbos[i] = int64(goore)
 						}
@@ -2659,14 +2659,14 @@ func (goo SlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.Int64FixedSl)
+			goorl := len(ss.Int64FixedSl)
 			if goorl == 0 {
 				pbo.Int64FixedSl = nil
 			} else {
 				pbos := make([]int64, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int64FixedSl[i]
+						goore := ss.Int64FixedSl[i]
 						{
 							pbos[i] = int64(goore)
 						}
@@ -2676,14 +2676,14 @@ func (goo SlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.IntSl)
+			goorl := len(ss.IntSl)
 			if goorl == 0 {
 				pbo.IntSl = nil
 			} else {
 				pbos := make([]int64, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.IntSl[i]
+						goore := ss.IntSl[i]
 						{
 							pbos[i] = int64(goore)
 						}
@@ -2693,14 +2693,14 @@ func (goo SlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.ByteSl)
+			goorl := len(ss.ByteSl)
 			if goorl == 0 {
 				pbo.ByteSl = nil
 			} else {
 				pbos := make([]uint8, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.ByteSl[i]
+						goore := ss.ByteSl[i]
 						{
 							pbos[i] = byte(goore)
 						}
@@ -2710,14 +2710,14 @@ func (goo SlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.Uint8Sl)
+			goorl := len(ss.Uint8Sl)
 			if goorl == 0 {
 				pbo.Uint8Sl = nil
 			} else {
 				pbos := make([]uint8, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint8Sl[i]
+						goore := ss.Uint8Sl[i]
 						{
 							pbos[i] = byte(goore)
 						}
@@ -2727,14 +2727,14 @@ func (goo SlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.Uint16Sl)
+			goorl := len(ss.Uint16Sl)
 			if goorl == 0 {
 				pbo.Uint16Sl = nil
 			} else {
 				pbos := make([]uint32, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint16Sl[i]
+						goore := ss.Uint16Sl[i]
 						{
 							pbos[i] = uint32(goore)
 						}
@@ -2744,14 +2744,14 @@ func (goo SlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.Uint32Sl)
+			goorl := len(ss.Uint32Sl)
 			if goorl == 0 {
 				pbo.Uint32Sl = nil
 			} else {
 				pbos := make([]uint32, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint32Sl[i]
+						goore := ss.Uint32Sl[i]
 						{
 							pbos[i] = uint32(goore)
 						}
@@ -2761,14 +2761,14 @@ func (goo SlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.Uint32FixedSl)
+			goorl := len(ss.Uint32FixedSl)
 			if goorl == 0 {
 				pbo.Uint32FixedSl = nil
 			} else {
 				pbos := make([]uint32, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint32FixedSl[i]
+						goore := ss.Uint32FixedSl[i]
 						{
 							pbos[i] = uint32(goore)
 						}
@@ -2778,14 +2778,14 @@ func (goo SlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.Uint64Sl)
+			goorl := len(ss.Uint64Sl)
 			if goorl == 0 {
 				pbo.Uint64Sl = nil
 			} else {
 				pbos := make([]uint64, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint64Sl[i]
+						goore := ss.Uint64Sl[i]
 						{
 							pbos[i] = uint64(goore)
 						}
@@ -2795,14 +2795,14 @@ func (goo SlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.Uint64FixedSl)
+			goorl := len(ss.Uint64FixedSl)
 			if goorl == 0 {
 				pbo.Uint64FixedSl = nil
 			} else {
 				pbos := make([]uint64, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint64FixedSl[i]
+						goore := ss.Uint64FixedSl[i]
 						{
 							pbos[i] = uint64(goore)
 						}
@@ -2812,14 +2812,14 @@ func (goo SlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.UintSl)
+			goorl := len(ss.UintSl)
 			if goorl == 0 {
 				pbo.UintSl = nil
 			} else {
 				pbos := make([]uint64, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.UintSl[i]
+						goore := ss.UintSl[i]
 						{
 							pbos[i] = uint64(goore)
 						}
@@ -2829,14 +2829,14 @@ func (goo SlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.StrSl)
+			goorl := len(ss.StrSl)
 			if goorl == 0 {
 				pbo.StrSl = nil
 			} else {
 				pbos := make([]string, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.StrSl[i]
+						goore := ss.StrSl[i]
 						{
 							pbos[i] = string(goore)
 						}
@@ -2846,14 +2846,14 @@ func (goo SlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.BytesSl)
+			goorl := len(ss.BytesSl)
 			if goorl == 0 {
 				pbo.BytesSl = nil
 			} else {
 				pbos := make([][]byte, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.BytesSl[i]
+						goore := ss.BytesSl[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -2877,14 +2877,14 @@ func (goo SlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.TimeSl)
+			goorl := len(ss.TimeSl)
 			if goorl == 0 {
 				pbo.TimeSl = nil
 			} else {
 				pbos := make([]*timestamppb.Timestamp, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.TimeSl[i]
+						goore := ss.TimeSl[i]
 						{
 							if !amino.IsEmptyTime(goore) {
 								pbos[i] = timestamppb.New(goore)
@@ -2896,14 +2896,14 @@ func (goo SlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.DurationSl)
+			goorl := len(ss.DurationSl)
 			if goorl == 0 {
 				pbo.DurationSl = nil
 			} else {
 				pbos := make([]*durationpb.Duration, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.DurationSl[i]
+						goore := ss.DurationSl[i]
 						{
 							if goore.Nanoseconds() != 0 {
 								pbos[i] = durationpb.New(goore)
@@ -2915,14 +2915,14 @@ func (goo SlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 			}
 		}
 		{
-			goorl := len(goo.EmptySl)
+			goorl := len(ss.EmptySl)
 			if goorl == 0 {
 				pbo.EmptySl = nil
 			} else {
 				pbos := make([]*testspb.EmptyStruct, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.EmptySl[i]
+						goore := ss.EmptySl[i]
 						{
 							pbom := proto.Message(nil)
 							pbom, err = goore.ToPBMessage(cdc)
@@ -2941,13 +2941,13 @@ func (goo SlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err er
 	return
 }
 
-func (goo SlicesStruct) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (ss SlicesStruct) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.SlicesStruct)
 	msg = pbo
 	return
 }
 
-func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (ss *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.SlicesStruct = msg.(*testspb.SlicesStruct)
 	{
 		if pbo != nil {
@@ -2957,7 +2957,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 					pbol = len(pbo.Int8Sl)
 				}
 				if pbol == 0 {
-					(*goo).Int8Sl = nil
+					(*ss).Int8Sl = nil
 				} else {
 					goors := make([]int8, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -2969,7 +2969,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 							}
 						}
 					}
-					(*goo).Int8Sl = goors
+					(*ss).Int8Sl = goors
 				}
 			}
 			{
@@ -2978,7 +2978,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 					pbol = len(pbo.Int16Sl)
 				}
 				if pbol == 0 {
-					(*goo).Int16Sl = nil
+					(*ss).Int16Sl = nil
 				} else {
 					goors := make([]int16, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -2990,7 +2990,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 							}
 						}
 					}
-					(*goo).Int16Sl = goors
+					(*ss).Int16Sl = goors
 				}
 			}
 			{
@@ -2999,7 +2999,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 					pbol = len(pbo.Int32Sl)
 				}
 				if pbol == 0 {
-					(*goo).Int32Sl = nil
+					(*ss).Int32Sl = nil
 				} else {
 					goors := make([]int32, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -3011,7 +3011,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 							}
 						}
 					}
-					(*goo).Int32Sl = goors
+					(*ss).Int32Sl = goors
 				}
 			}
 			{
@@ -3020,7 +3020,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 					pbol = len(pbo.Int32FixedSl)
 				}
 				if pbol == 0 {
-					(*goo).Int32FixedSl = nil
+					(*ss).Int32FixedSl = nil
 				} else {
 					goors := make([]int32, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -3032,7 +3032,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 							}
 						}
 					}
-					(*goo).Int32FixedSl = goors
+					(*ss).Int32FixedSl = goors
 				}
 			}
 			{
@@ -3041,7 +3041,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 					pbol = len(pbo.Int64Sl)
 				}
 				if pbol == 0 {
-					(*goo).Int64Sl = nil
+					(*ss).Int64Sl = nil
 				} else {
 					goors := make([]int64, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -3053,7 +3053,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 							}
 						}
 					}
-					(*goo).Int64Sl = goors
+					(*ss).Int64Sl = goors
 				}
 			}
 			{
@@ -3062,7 +3062,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 					pbol = len(pbo.Int64FixedSl)
 				}
 				if pbol == 0 {
-					(*goo).Int64FixedSl = nil
+					(*ss).Int64FixedSl = nil
 				} else {
 					goors := make([]int64, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -3074,7 +3074,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 							}
 						}
 					}
-					(*goo).Int64FixedSl = goors
+					(*ss).Int64FixedSl = goors
 				}
 			}
 			{
@@ -3083,7 +3083,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 					pbol = len(pbo.IntSl)
 				}
 				if pbol == 0 {
-					(*goo).IntSl = nil
+					(*ss).IntSl = nil
 				} else {
 					goors := make([]int, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -3095,7 +3095,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 							}
 						}
 					}
-					(*goo).IntSl = goors
+					(*ss).IntSl = goors
 				}
 			}
 			{
@@ -3104,7 +3104,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 					pbol = len(pbo.ByteSl)
 				}
 				if pbol == 0 {
-					(*goo).ByteSl = nil
+					(*ss).ByteSl = nil
 				} else {
 					goors := make([]uint8, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -3116,7 +3116,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 							}
 						}
 					}
-					(*goo).ByteSl = goors
+					(*ss).ByteSl = goors
 				}
 			}
 			{
@@ -3125,7 +3125,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 					pbol = len(pbo.Uint8Sl)
 				}
 				if pbol == 0 {
-					(*goo).Uint8Sl = nil
+					(*ss).Uint8Sl = nil
 				} else {
 					goors := make([]uint8, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -3137,7 +3137,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 							}
 						}
 					}
-					(*goo).Uint8Sl = goors
+					(*ss).Uint8Sl = goors
 				}
 			}
 			{
@@ -3146,7 +3146,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 					pbol = len(pbo.Uint16Sl)
 				}
 				if pbol == 0 {
-					(*goo).Uint16Sl = nil
+					(*ss).Uint16Sl = nil
 				} else {
 					goors := make([]uint16, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -3158,7 +3158,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 							}
 						}
 					}
-					(*goo).Uint16Sl = goors
+					(*ss).Uint16Sl = goors
 				}
 			}
 			{
@@ -3167,7 +3167,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 					pbol = len(pbo.Uint32Sl)
 				}
 				if pbol == 0 {
-					(*goo).Uint32Sl = nil
+					(*ss).Uint32Sl = nil
 				} else {
 					goors := make([]uint32, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -3179,7 +3179,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 							}
 						}
 					}
-					(*goo).Uint32Sl = goors
+					(*ss).Uint32Sl = goors
 				}
 			}
 			{
@@ -3188,7 +3188,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 					pbol = len(pbo.Uint32FixedSl)
 				}
 				if pbol == 0 {
-					(*goo).Uint32FixedSl = nil
+					(*ss).Uint32FixedSl = nil
 				} else {
 					goors := make([]uint32, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -3200,7 +3200,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 							}
 						}
 					}
-					(*goo).Uint32FixedSl = goors
+					(*ss).Uint32FixedSl = goors
 				}
 			}
 			{
@@ -3209,7 +3209,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 					pbol = len(pbo.Uint64Sl)
 				}
 				if pbol == 0 {
-					(*goo).Uint64Sl = nil
+					(*ss).Uint64Sl = nil
 				} else {
 					goors := make([]uint64, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -3221,7 +3221,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 							}
 						}
 					}
-					(*goo).Uint64Sl = goors
+					(*ss).Uint64Sl = goors
 				}
 			}
 			{
@@ -3230,7 +3230,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 					pbol = len(pbo.Uint64FixedSl)
 				}
 				if pbol == 0 {
-					(*goo).Uint64FixedSl = nil
+					(*ss).Uint64FixedSl = nil
 				} else {
 					goors := make([]uint64, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -3242,7 +3242,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 							}
 						}
 					}
-					(*goo).Uint64FixedSl = goors
+					(*ss).Uint64FixedSl = goors
 				}
 			}
 			{
@@ -3251,7 +3251,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 					pbol = len(pbo.UintSl)
 				}
 				if pbol == 0 {
-					(*goo).UintSl = nil
+					(*ss).UintSl = nil
 				} else {
 					goors := make([]uint, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -3263,7 +3263,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 							}
 						}
 					}
-					(*goo).UintSl = goors
+					(*ss).UintSl = goors
 				}
 			}
 			{
@@ -3272,7 +3272,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 					pbol = len(pbo.StrSl)
 				}
 				if pbol == 0 {
-					(*goo).StrSl = nil
+					(*ss).StrSl = nil
 				} else {
 					goors := make([]string, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -3284,7 +3284,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 							}
 						}
 					}
-					(*goo).StrSl = goors
+					(*ss).StrSl = goors
 				}
 			}
 			{
@@ -3293,7 +3293,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 					pbol = len(pbo.BytesSl)
 				}
 				if pbol == 0 {
-					(*goo).BytesSl = nil
+					(*ss).BytesSl = nil
 				} else {
 					goors := make([][]uint8, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -3323,7 +3323,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 							}
 						}
 					}
-					(*goo).BytesSl = goors
+					(*ss).BytesSl = goors
 				}
 			}
 			{
@@ -3332,7 +3332,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 					pbol = len(pbo.TimeSl)
 				}
 				if pbol == 0 {
-					(*goo).TimeSl = nil
+					(*ss).TimeSl = nil
 				} else {
 					goors := make([]time.Time, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -3344,7 +3344,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 							}
 						}
 					}
-					(*goo).TimeSl = goors
+					(*ss).TimeSl = goors
 				}
 			}
 			{
@@ -3353,7 +3353,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 					pbol = len(pbo.DurationSl)
 				}
 				if pbol == 0 {
-					(*goo).DurationSl = nil
+					(*ss).DurationSl = nil
 				} else {
 					goors := make([]time.Duration, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -3365,7 +3365,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 							}
 						}
 					}
-					(*goo).DurationSl = goors
+					(*ss).DurationSl = goors
 				}
 			}
 			{
@@ -3374,7 +3374,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 					pbol = len(pbo.EmptySl)
 				}
 				if pbol == 0 {
-					(*goo).EmptySl = nil
+					(*ss).EmptySl = nil
 				} else {
 					goors := make([]EmptyStruct, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -3391,7 +3391,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 							}
 						}
 					}
-					(*goo).EmptySl = goors
+					(*ss).EmptySl = goors
 				}
 			}
 		}
@@ -3399,7 +3399,7 @@ func (goo *SlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err
 	return
 }
 
-func (_ SlicesStruct) GetTypeURL() (typeURL string) {
+func (ss SlicesStruct) GetTypeURL() (typeURL string) {
 	return "/tests.SlicesStruct"
 }
 
@@ -3510,24 +3510,24 @@ func IsSlicesStructReprEmpty(goor SlicesStruct) (empty bool) {
 	return
 }
 
-func (goo SlicesSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (sss SlicesSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.SlicesSlicesStruct
 	{
-		if IsSlicesSlicesStructReprEmpty(goo) {
+		if IsSlicesSlicesStructReprEmpty(sss) {
 			var pbov *testspb.SlicesSlicesStruct
 			msg = pbov
 			return
 		}
 		pbo = new(testspb.SlicesSlicesStruct)
 		{
-			goorl := len(goo.Int8SlSl)
+			goorl := len(sss.Int8SlSl)
 			if goorl == 0 {
 				pbo.Int8SlSl = nil
 			} else {
 				pbos := make([]*testspb.TESTS_Int8List, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int8SlSl[i]
+						goore := sss.Int8SlSl[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -3551,14 +3551,14 @@ func (goo SlicesSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.Int16SlSl)
+			goorl := len(sss.Int16SlSl)
 			if goorl == 0 {
 				pbo.Int16SlSl = nil
 			} else {
 				pbos := make([]*testspb.TESTS_Int16List, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int16SlSl[i]
+						goore := sss.Int16SlSl[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -3582,14 +3582,14 @@ func (goo SlicesSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.Int32SlSl)
+			goorl := len(sss.Int32SlSl)
 			if goorl == 0 {
 				pbo.Int32SlSl = nil
 			} else {
 				pbos := make([]*testspb.TESTS_Int32ValueList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int32SlSl[i]
+						goore := sss.Int32SlSl[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -3613,14 +3613,14 @@ func (goo SlicesSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.Int32FixedSlSl)
+			goorl := len(sss.Int32FixedSlSl)
 			if goorl == 0 {
 				pbo.Int32FixedSlSl = nil
 			} else {
 				pbos := make([]*testspb.TESTS_Fixed32Int32ValueList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int32FixedSlSl[i]
+						goore := sss.Int32FixedSlSl[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -3644,14 +3644,14 @@ func (goo SlicesSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.Int64SlSl)
+			goorl := len(sss.Int64SlSl)
 			if goorl == 0 {
 				pbo.Int64SlSl = nil
 			} else {
 				pbos := make([]*testspb.TESTS_Int64ValueList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int64SlSl[i]
+						goore := sss.Int64SlSl[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -3675,14 +3675,14 @@ func (goo SlicesSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.Int64FixedSlSl)
+			goorl := len(sss.Int64FixedSlSl)
 			if goorl == 0 {
 				pbo.Int64FixedSlSl = nil
 			} else {
 				pbos := make([]*testspb.TESTS_Fixed64Int64ValueList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int64FixedSlSl[i]
+						goore := sss.Int64FixedSlSl[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -3706,14 +3706,14 @@ func (goo SlicesSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.IntSlSl)
+			goorl := len(sss.IntSlSl)
 			if goorl == 0 {
 				pbo.IntSlSl = nil
 			} else {
 				pbos := make([]*testspb.TESTS_Int64ValueList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.IntSlSl[i]
+						goore := sss.IntSlSl[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -3737,14 +3737,14 @@ func (goo SlicesSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.ByteSlSl)
+			goorl := len(sss.ByteSlSl)
 			if goorl == 0 {
 				pbo.ByteSlSl = nil
 			} else {
 				pbos := make([][]byte, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.ByteSlSl[i]
+						goore := sss.ByteSlSl[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -3768,14 +3768,14 @@ func (goo SlicesSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.Uint8SlSl)
+			goorl := len(sss.Uint8SlSl)
 			if goorl == 0 {
 				pbo.Uint8SlSl = nil
 			} else {
 				pbos := make([][]byte, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint8SlSl[i]
+						goore := sss.Uint8SlSl[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -3799,14 +3799,14 @@ func (goo SlicesSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.Uint16SlSl)
+			goorl := len(sss.Uint16SlSl)
 			if goorl == 0 {
 				pbo.Uint16SlSl = nil
 			} else {
 				pbos := make([]*testspb.TESTS_UInt16List, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint16SlSl[i]
+						goore := sss.Uint16SlSl[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -3830,14 +3830,14 @@ func (goo SlicesSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.Uint32SlSl)
+			goorl := len(sss.Uint32SlSl)
 			if goorl == 0 {
 				pbo.Uint32SlSl = nil
 			} else {
 				pbos := make([]*testspb.TESTS_UInt32ValueList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint32SlSl[i]
+						goore := sss.Uint32SlSl[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -3861,14 +3861,14 @@ func (goo SlicesSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.Uint32FixedSlSl)
+			goorl := len(sss.Uint32FixedSlSl)
 			if goorl == 0 {
 				pbo.Uint32FixedSlSl = nil
 			} else {
 				pbos := make([]*testspb.TESTS_Fixed32UInt32ValueList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint32FixedSlSl[i]
+						goore := sss.Uint32FixedSlSl[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -3892,14 +3892,14 @@ func (goo SlicesSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.Uint64SlSl)
+			goorl := len(sss.Uint64SlSl)
 			if goorl == 0 {
 				pbo.Uint64SlSl = nil
 			} else {
 				pbos := make([]*testspb.TESTS_UInt64ValueList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint64SlSl[i]
+						goore := sss.Uint64SlSl[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -3923,14 +3923,14 @@ func (goo SlicesSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.Uint64FixedSlSl)
+			goorl := len(sss.Uint64FixedSlSl)
 			if goorl == 0 {
 				pbo.Uint64FixedSlSl = nil
 			} else {
 				pbos := make([]*testspb.TESTS_Fixed64UInt64ValueList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint64FixedSlSl[i]
+						goore := sss.Uint64FixedSlSl[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -3954,14 +3954,14 @@ func (goo SlicesSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.UintSlSl)
+			goorl := len(sss.UintSlSl)
 			if goorl == 0 {
 				pbo.UintSlSl = nil
 			} else {
 				pbos := make([]*testspb.TESTS_UInt64ValueList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.UintSlSl[i]
+						goore := sss.UintSlSl[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -3985,14 +3985,14 @@ func (goo SlicesSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.StrSlSl)
+			goorl := len(sss.StrSlSl)
 			if goorl == 0 {
 				pbo.StrSlSl = nil
 			} else {
 				pbos := make([]*testspb.TESTS_StringValueList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.StrSlSl[i]
+						goore := sss.StrSlSl[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -4016,14 +4016,14 @@ func (goo SlicesSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.BytesSlSl)
+			goorl := len(sss.BytesSlSl)
 			if goorl == 0 {
 				pbo.BytesSlSl = nil
 			} else {
 				pbos := make([]*testspb.TESTS_BytesList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.BytesSlSl[i]
+						goore := sss.BytesSlSl[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -4061,14 +4061,14 @@ func (goo SlicesSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.TimeSlSl)
+			goorl := len(sss.TimeSlSl)
 			if goorl == 0 {
 				pbo.TimeSlSl = nil
 			} else {
 				pbos := make([]*testspb.TESTS_TimestampList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.TimeSlSl[i]
+						goore := sss.TimeSlSl[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -4094,14 +4094,14 @@ func (goo SlicesSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.DurationSlSl)
+			goorl := len(sss.DurationSlSl)
 			if goorl == 0 {
 				pbo.DurationSlSl = nil
 			} else {
 				pbos := make([]*testspb.TESTS_DurationList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.DurationSlSl[i]
+						goore := sss.DurationSlSl[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -4127,14 +4127,14 @@ func (goo SlicesSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 			}
 		}
 		{
-			goorl := len(goo.EmptySlSl)
+			goorl := len(sss.EmptySlSl)
 			if goorl == 0 {
 				pbo.EmptySlSl = nil
 			} else {
 				pbos := make([]*testspb.TESTS_EmptyStructList, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.EmptySlSl[i]
+						goore := sss.EmptySlSl[i]
 						{
 							goorl1 := len(goore)
 							if goorl1 == 0 {
@@ -4167,13 +4167,13 @@ func (goo SlicesSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 	return
 }
 
-func (goo SlicesSlicesStruct) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (sss SlicesSlicesStruct) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.SlicesSlicesStruct)
 	msg = pbo
 	return
 }
 
-func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (sss *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.SlicesSlicesStruct = msg.(*testspb.SlicesSlicesStruct)
 	{
 		if pbo != nil {
@@ -4183,7 +4183,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 					pbol = len(pbo.Int8SlSl)
 				}
 				if pbol == 0 {
-					(*goo).Int8SlSl = nil
+					(*sss).Int8SlSl = nil
 				} else {
 					goors := make([][]int8, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -4215,7 +4215,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 							}
 						}
 					}
-					(*goo).Int8SlSl = goors
+					(*sss).Int8SlSl = goors
 				}
 			}
 			{
@@ -4224,7 +4224,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 					pbol = len(pbo.Int16SlSl)
 				}
 				if pbol == 0 {
-					(*goo).Int16SlSl = nil
+					(*sss).Int16SlSl = nil
 				} else {
 					goors := make([][]int16, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -4256,7 +4256,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 							}
 						}
 					}
-					(*goo).Int16SlSl = goors
+					(*sss).Int16SlSl = goors
 				}
 			}
 			{
@@ -4265,7 +4265,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 					pbol = len(pbo.Int32SlSl)
 				}
 				if pbol == 0 {
-					(*goo).Int32SlSl = nil
+					(*sss).Int32SlSl = nil
 				} else {
 					goors := make([][]int32, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -4297,7 +4297,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 							}
 						}
 					}
-					(*goo).Int32SlSl = goors
+					(*sss).Int32SlSl = goors
 				}
 			}
 			{
@@ -4306,7 +4306,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 					pbol = len(pbo.Int32FixedSlSl)
 				}
 				if pbol == 0 {
-					(*goo).Int32FixedSlSl = nil
+					(*sss).Int32FixedSlSl = nil
 				} else {
 					goors := make([][]int32, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -4338,7 +4338,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 							}
 						}
 					}
-					(*goo).Int32FixedSlSl = goors
+					(*sss).Int32FixedSlSl = goors
 				}
 			}
 			{
@@ -4347,7 +4347,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 					pbol = len(pbo.Int64SlSl)
 				}
 				if pbol == 0 {
-					(*goo).Int64SlSl = nil
+					(*sss).Int64SlSl = nil
 				} else {
 					goors := make([][]int64, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -4379,7 +4379,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 							}
 						}
 					}
-					(*goo).Int64SlSl = goors
+					(*sss).Int64SlSl = goors
 				}
 			}
 			{
@@ -4388,7 +4388,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 					pbol = len(pbo.Int64FixedSlSl)
 				}
 				if pbol == 0 {
-					(*goo).Int64FixedSlSl = nil
+					(*sss).Int64FixedSlSl = nil
 				} else {
 					goors := make([][]int64, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -4420,7 +4420,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 							}
 						}
 					}
-					(*goo).Int64FixedSlSl = goors
+					(*sss).Int64FixedSlSl = goors
 				}
 			}
 			{
@@ -4429,7 +4429,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 					pbol = len(pbo.IntSlSl)
 				}
 				if pbol == 0 {
-					(*goo).IntSlSl = nil
+					(*sss).IntSlSl = nil
 				} else {
 					goors := make([][]int, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -4461,7 +4461,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 							}
 						}
 					}
-					(*goo).IntSlSl = goors
+					(*sss).IntSlSl = goors
 				}
 			}
 			{
@@ -4470,7 +4470,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 					pbol = len(pbo.ByteSlSl)
 				}
 				if pbol == 0 {
-					(*goo).ByteSlSl = nil
+					(*sss).ByteSlSl = nil
 				} else {
 					goors := make([][]uint8, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -4500,7 +4500,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 							}
 						}
 					}
-					(*goo).ByteSlSl = goors
+					(*sss).ByteSlSl = goors
 				}
 			}
 			{
@@ -4509,7 +4509,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 					pbol = len(pbo.Uint8SlSl)
 				}
 				if pbol == 0 {
-					(*goo).Uint8SlSl = nil
+					(*sss).Uint8SlSl = nil
 				} else {
 					goors := make([][]uint8, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -4539,7 +4539,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 							}
 						}
 					}
-					(*goo).Uint8SlSl = goors
+					(*sss).Uint8SlSl = goors
 				}
 			}
 			{
@@ -4548,7 +4548,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 					pbol = len(pbo.Uint16SlSl)
 				}
 				if pbol == 0 {
-					(*goo).Uint16SlSl = nil
+					(*sss).Uint16SlSl = nil
 				} else {
 					goors := make([][]uint16, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -4580,7 +4580,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 							}
 						}
 					}
-					(*goo).Uint16SlSl = goors
+					(*sss).Uint16SlSl = goors
 				}
 			}
 			{
@@ -4589,7 +4589,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 					pbol = len(pbo.Uint32SlSl)
 				}
 				if pbol == 0 {
-					(*goo).Uint32SlSl = nil
+					(*sss).Uint32SlSl = nil
 				} else {
 					goors := make([][]uint32, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -4621,7 +4621,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 							}
 						}
 					}
-					(*goo).Uint32SlSl = goors
+					(*sss).Uint32SlSl = goors
 				}
 			}
 			{
@@ -4630,7 +4630,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 					pbol = len(pbo.Uint32FixedSlSl)
 				}
 				if pbol == 0 {
-					(*goo).Uint32FixedSlSl = nil
+					(*sss).Uint32FixedSlSl = nil
 				} else {
 					goors := make([][]uint32, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -4662,7 +4662,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 							}
 						}
 					}
-					(*goo).Uint32FixedSlSl = goors
+					(*sss).Uint32FixedSlSl = goors
 				}
 			}
 			{
@@ -4671,7 +4671,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 					pbol = len(pbo.Uint64SlSl)
 				}
 				if pbol == 0 {
-					(*goo).Uint64SlSl = nil
+					(*sss).Uint64SlSl = nil
 				} else {
 					goors := make([][]uint64, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -4703,7 +4703,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 							}
 						}
 					}
-					(*goo).Uint64SlSl = goors
+					(*sss).Uint64SlSl = goors
 				}
 			}
 			{
@@ -4712,7 +4712,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 					pbol = len(pbo.Uint64FixedSlSl)
 				}
 				if pbol == 0 {
-					(*goo).Uint64FixedSlSl = nil
+					(*sss).Uint64FixedSlSl = nil
 				} else {
 					goors := make([][]uint64, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -4744,7 +4744,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 							}
 						}
 					}
-					(*goo).Uint64FixedSlSl = goors
+					(*sss).Uint64FixedSlSl = goors
 				}
 			}
 			{
@@ -4753,7 +4753,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 					pbol = len(pbo.UintSlSl)
 				}
 				if pbol == 0 {
-					(*goo).UintSlSl = nil
+					(*sss).UintSlSl = nil
 				} else {
 					goors := make([][]uint, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -4785,7 +4785,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 							}
 						}
 					}
-					(*goo).UintSlSl = goors
+					(*sss).UintSlSl = goors
 				}
 			}
 			{
@@ -4794,7 +4794,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 					pbol = len(pbo.StrSlSl)
 				}
 				if pbol == 0 {
-					(*goo).StrSlSl = nil
+					(*sss).StrSlSl = nil
 				} else {
 					goors := make([][]string, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -4826,7 +4826,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 							}
 						}
 					}
-					(*goo).StrSlSl = goors
+					(*sss).StrSlSl = goors
 				}
 			}
 			{
@@ -4835,7 +4835,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 					pbol = len(pbo.BytesSlSl)
 				}
 				if pbol == 0 {
-					(*goo).BytesSlSl = nil
+					(*sss).BytesSlSl = nil
 				} else {
 					goors := make([][][]uint8, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -4885,7 +4885,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 							}
 						}
 					}
-					(*goo).BytesSlSl = goors
+					(*sss).BytesSlSl = goors
 				}
 			}
 			{
@@ -4894,7 +4894,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 					pbol = len(pbo.TimeSlSl)
 				}
 				if pbol == 0 {
-					(*goo).TimeSlSl = nil
+					(*sss).TimeSlSl = nil
 				} else {
 					goors := make([][]time.Time, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -4926,7 +4926,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 							}
 						}
 					}
-					(*goo).TimeSlSl = goors
+					(*sss).TimeSlSl = goors
 				}
 			}
 			{
@@ -4935,7 +4935,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 					pbol = len(pbo.DurationSlSl)
 				}
 				if pbol == 0 {
-					(*goo).DurationSlSl = nil
+					(*sss).DurationSlSl = nil
 				} else {
 					goors := make([][]time.Duration, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -4967,7 +4967,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 							}
 						}
 					}
-					(*goo).DurationSlSl = goors
+					(*sss).DurationSlSl = goors
 				}
 			}
 			{
@@ -4976,7 +4976,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 					pbol = len(pbo.EmptySlSl)
 				}
 				if pbol == 0 {
-					(*goo).EmptySlSl = nil
+					(*sss).EmptySlSl = nil
 				} else {
 					goors := make([][]EmptyStruct, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -5013,7 +5013,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 							}
 						}
 					}
-					(*goo).EmptySlSl = goors
+					(*sss).EmptySlSl = goors
 				}
 			}
 		}
@@ -5021,7 +5021,7 @@ func (goo *SlicesSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message
 	return
 }
 
-func (_ SlicesSlicesStruct) GetTypeURL() (typeURL string) {
+func (sss SlicesSlicesStruct) GetTypeURL() (typeURL string) {
 	return "/tests.SlicesSlicesStruct"
 }
 
@@ -5132,130 +5132,130 @@ func IsSlicesSlicesStructReprEmpty(goor SlicesSlicesStruct) (empty bool) {
 	return
 }
 
-func (goo PointersStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (ps PointersStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.PointersStruct
 	{
-		if IsPointersStructReprEmpty(goo) {
+		if IsPointersStructReprEmpty(ps) {
 			var pbov *testspb.PointersStruct
 			msg = pbov
 			return
 		}
 		pbo = new(testspb.PointersStruct)
 		{
-			if goo.Int8Pt != nil {
-				dgoor := *goo.Int8Pt
+			if ps.Int8Pt != nil {
+				dgoor := *ps.Int8Pt
 				dgoor = dgoor
 				pbo.Int8Pt = int32(dgoor)
 			}
 		}
 		{
-			if goo.Int16Pt != nil {
-				dgoor := *goo.Int16Pt
+			if ps.Int16Pt != nil {
+				dgoor := *ps.Int16Pt
 				dgoor = dgoor
 				pbo.Int16Pt = int32(dgoor)
 			}
 		}
 		{
-			if goo.Int32Pt != nil {
-				dgoor := *goo.Int32Pt
+			if ps.Int32Pt != nil {
+				dgoor := *ps.Int32Pt
 				dgoor = dgoor
 				pbo.Int32Pt = int32(dgoor)
 			}
 		}
 		{
-			if goo.Int32FixedPt != nil {
-				dgoor := *goo.Int32FixedPt
+			if ps.Int32FixedPt != nil {
+				dgoor := *ps.Int32FixedPt
 				dgoor = dgoor
 				pbo.Int32FixedPt = int32(dgoor)
 			}
 		}
 		{
-			if goo.Int64Pt != nil {
-				dgoor := *goo.Int64Pt
+			if ps.Int64Pt != nil {
+				dgoor := *ps.Int64Pt
 				dgoor = dgoor
 				pbo.Int64Pt = int64(dgoor)
 			}
 		}
 		{
-			if goo.Int64FixedPt != nil {
-				dgoor := *goo.Int64FixedPt
+			if ps.Int64FixedPt != nil {
+				dgoor := *ps.Int64FixedPt
 				dgoor = dgoor
 				pbo.Int64FixedPt = int64(dgoor)
 			}
 		}
 		{
-			if goo.IntPt != nil {
-				dgoor := *goo.IntPt
+			if ps.IntPt != nil {
+				dgoor := *ps.IntPt
 				dgoor = dgoor
 				pbo.IntPt = int64(dgoor)
 			}
 		}
 		{
-			if goo.BytePt != nil {
-				dgoor := *goo.BytePt
+			if ps.BytePt != nil {
+				dgoor := *ps.BytePt
 				dgoor = dgoor
 				pbo.BytePt = uint32(dgoor)
 			}
 		}
 		{
-			if goo.Uint8Pt != nil {
-				dgoor := *goo.Uint8Pt
+			if ps.Uint8Pt != nil {
+				dgoor := *ps.Uint8Pt
 				dgoor = dgoor
 				pbo.Uint8Pt = uint32(dgoor)
 			}
 		}
 		{
-			if goo.Uint16Pt != nil {
-				dgoor := *goo.Uint16Pt
+			if ps.Uint16Pt != nil {
+				dgoor := *ps.Uint16Pt
 				dgoor = dgoor
 				pbo.Uint16Pt = uint32(dgoor)
 			}
 		}
 		{
-			if goo.Uint32Pt != nil {
-				dgoor := *goo.Uint32Pt
+			if ps.Uint32Pt != nil {
+				dgoor := *ps.Uint32Pt
 				dgoor = dgoor
 				pbo.Uint32Pt = uint32(dgoor)
 			}
 		}
 		{
-			if goo.Uint32FixedPt != nil {
-				dgoor := *goo.Uint32FixedPt
+			if ps.Uint32FixedPt != nil {
+				dgoor := *ps.Uint32FixedPt
 				dgoor = dgoor
 				pbo.Uint32FixedPt = uint32(dgoor)
 			}
 		}
 		{
-			if goo.Uint64Pt != nil {
-				dgoor := *goo.Uint64Pt
+			if ps.Uint64Pt != nil {
+				dgoor := *ps.Uint64Pt
 				dgoor = dgoor
 				pbo.Uint64Pt = uint64(dgoor)
 			}
 		}
 		{
-			if goo.Uint64FixedPt != nil {
-				dgoor := *goo.Uint64FixedPt
+			if ps.Uint64FixedPt != nil {
+				dgoor := *ps.Uint64FixedPt
 				dgoor = dgoor
 				pbo.Uint64FixedPt = uint64(dgoor)
 			}
 		}
 		{
-			if goo.UintPt != nil {
-				dgoor := *goo.UintPt
+			if ps.UintPt != nil {
+				dgoor := *ps.UintPt
 				dgoor = dgoor
 				pbo.UintPt = uint64(dgoor)
 			}
 		}
 		{
-			if goo.StrPt != nil {
-				dgoor := *goo.StrPt
+			if ps.StrPt != nil {
+				dgoor := *ps.StrPt
 				dgoor = dgoor
 				pbo.StrPt = string(dgoor)
 			}
 		}
 		{
-			if goo.BytesPt != nil {
-				dgoor := *goo.BytesPt
+			if ps.BytesPt != nil {
+				dgoor := *ps.BytesPt
 				dgoor = dgoor
 				goorl := len(dgoor)
 				if goorl == 0 {
@@ -5275,23 +5275,23 @@ func (goo PointersStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err 
 			}
 		}
 		{
-			if goo.TimePt != nil {
-				dgoor := *goo.TimePt
+			if ps.TimePt != nil {
+				dgoor := *ps.TimePt
 				dgoor = dgoor
 				pbo.TimePt = timestamppb.New(dgoor)
 			}
 		}
 		{
-			if goo.DurationPt != nil {
-				dgoor := *goo.DurationPt
+			if ps.DurationPt != nil {
+				dgoor := *ps.DurationPt
 				dgoor = dgoor
 				pbo.DurationPt = durationpb.New(dgoor)
 			}
 		}
 		{
-			if goo.EmptyPt != nil {
+			if ps.EmptyPt != nil {
 				pbom := proto.Message(nil)
-				pbom, err = goo.EmptyPt.ToPBMessage(cdc)
+				pbom, err = ps.EmptyPt.ToPBMessage(cdc)
 				if err != nil {
 					return
 				}
@@ -5306,88 +5306,88 @@ func (goo PointersStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err 
 	return
 }
 
-func (goo PointersStruct) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (ps PointersStruct) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.PointersStruct)
 	msg = pbo
 	return
 }
 
-func (goo *PointersStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (ps *PointersStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.PointersStruct = msg.(*testspb.PointersStruct)
 	{
 		if pbo != nil {
 			{
-				(*goo).Int8Pt = new(int8)
-				*(*goo).Int8Pt = int8(int8(pbo.Int8Pt))
+				(*ps).Int8Pt = new(int8)
+				*(*ps).Int8Pt = int8(int8(pbo.Int8Pt))
 			}
 			{
-				(*goo).Int16Pt = new(int16)
-				*(*goo).Int16Pt = int16(int16(pbo.Int16Pt))
+				(*ps).Int16Pt = new(int16)
+				*(*ps).Int16Pt = int16(int16(pbo.Int16Pt))
 			}
 			{
-				(*goo).Int32Pt = new(int32)
-				*(*goo).Int32Pt = int32(pbo.Int32Pt)
+				(*ps).Int32Pt = new(int32)
+				*(*ps).Int32Pt = int32(pbo.Int32Pt)
 			}
 			{
-				(*goo).Int32FixedPt = new(int32)
-				*(*goo).Int32FixedPt = int32(pbo.Int32FixedPt)
+				(*ps).Int32FixedPt = new(int32)
+				*(*ps).Int32FixedPt = int32(pbo.Int32FixedPt)
 			}
 			{
-				(*goo).Int64Pt = new(int64)
-				*(*goo).Int64Pt = int64(pbo.Int64Pt)
+				(*ps).Int64Pt = new(int64)
+				*(*ps).Int64Pt = int64(pbo.Int64Pt)
 			}
 			{
-				(*goo).Int64FixedPt = new(int64)
-				*(*goo).Int64FixedPt = int64(pbo.Int64FixedPt)
+				(*ps).Int64FixedPt = new(int64)
+				*(*ps).Int64FixedPt = int64(pbo.Int64FixedPt)
 			}
 			{
-				(*goo).IntPt = new(int)
-				*(*goo).IntPt = int(int(pbo.IntPt))
+				(*ps).IntPt = new(int)
+				*(*ps).IntPt = int(int(pbo.IntPt))
 			}
 			{
-				(*goo).BytePt = new(uint8)
-				*(*goo).BytePt = uint8(uint8(pbo.BytePt))
+				(*ps).BytePt = new(uint8)
+				*(*ps).BytePt = uint8(uint8(pbo.BytePt))
 			}
 			{
-				(*goo).Uint8Pt = new(uint8)
-				*(*goo).Uint8Pt = uint8(uint8(pbo.Uint8Pt))
+				(*ps).Uint8Pt = new(uint8)
+				*(*ps).Uint8Pt = uint8(uint8(pbo.Uint8Pt))
 			}
 			{
-				(*goo).Uint16Pt = new(uint16)
-				*(*goo).Uint16Pt = uint16(uint16(pbo.Uint16Pt))
+				(*ps).Uint16Pt = new(uint16)
+				*(*ps).Uint16Pt = uint16(uint16(pbo.Uint16Pt))
 			}
 			{
-				(*goo).Uint32Pt = new(uint32)
-				*(*goo).Uint32Pt = uint32(pbo.Uint32Pt)
+				(*ps).Uint32Pt = new(uint32)
+				*(*ps).Uint32Pt = uint32(pbo.Uint32Pt)
 			}
 			{
-				(*goo).Uint32FixedPt = new(uint32)
-				*(*goo).Uint32FixedPt = uint32(pbo.Uint32FixedPt)
+				(*ps).Uint32FixedPt = new(uint32)
+				*(*ps).Uint32FixedPt = uint32(pbo.Uint32FixedPt)
 			}
 			{
-				(*goo).Uint64Pt = new(uint64)
-				*(*goo).Uint64Pt = uint64(pbo.Uint64Pt)
+				(*ps).Uint64Pt = new(uint64)
+				*(*ps).Uint64Pt = uint64(pbo.Uint64Pt)
 			}
 			{
-				(*goo).Uint64FixedPt = new(uint64)
-				*(*goo).Uint64FixedPt = uint64(pbo.Uint64FixedPt)
+				(*ps).Uint64FixedPt = new(uint64)
+				*(*ps).Uint64FixedPt = uint64(pbo.Uint64FixedPt)
 			}
 			{
-				(*goo).UintPt = new(uint)
-				*(*goo).UintPt = uint(uint(pbo.UintPt))
+				(*ps).UintPt = new(uint)
+				*(*ps).UintPt = uint(uint(pbo.UintPt))
 			}
 			{
-				(*goo).StrPt = new(string)
-				*(*goo).StrPt = string(pbo.StrPt)
+				(*ps).StrPt = new(string)
+				*(*ps).StrPt = string(pbo.StrPt)
 			}
 			{
-				(*goo).BytesPt = new([]uint8)
+				(*ps).BytesPt = new([]uint8)
 				var pbol int = 0
 				if pbo.BytesPt != nil {
 					pbol = len(pbo.BytesPt)
 				}
 				if pbol == 0 {
-					*(*goo).BytesPt = nil
+					*(*ps).BytesPt = nil
 				} else {
 					goors := make([]uint8, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -5399,21 +5399,21 @@ func (goo *PointersStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (e
 							}
 						}
 					}
-					*(*goo).BytesPt = goors
+					*(*ps).BytesPt = goors
 				}
 			}
 			{
-				(*goo).TimePt = new(time.Time)
-				*(*goo).TimePt = pbo.TimePt.AsTime()
+				(*ps).TimePt = new(time.Time)
+				*(*ps).TimePt = pbo.TimePt.AsTime()
 			}
 			{
-				(*goo).DurationPt = new(time.Duration)
-				*(*goo).DurationPt = pbo.DurationPt.AsDuration()
+				(*ps).DurationPt = new(time.Duration)
+				*(*ps).DurationPt = pbo.DurationPt.AsDuration()
 			}
 			{
 				if pbo.EmptyPt != nil {
-					(*goo).EmptyPt = new(EmptyStruct)
-					err = (*goo).EmptyPt.FromPBMessage(cdc, pbo.EmptyPt)
+					(*ps).EmptyPt = new(EmptyStruct)
+					err = (*ps).EmptyPt.FromPBMessage(cdc, pbo.EmptyPt)
 					if err != nil {
 						return
 					}
@@ -5424,7 +5424,7 @@ func (goo *PointersStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (e
 	return
 }
 
-func (_ PointersStruct) GetTypeURL() (typeURL string) {
+func (ps PointersStruct) GetTypeURL() (typeURL string) {
 	return "/tests.PointersStruct"
 }
 
@@ -5607,24 +5607,24 @@ func IsPointersStructReprEmpty(goor PointersStruct) (empty bool) {
 	return
 }
 
-func (goo PointerSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (pss PointerSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.PointerSlicesStruct
 	{
-		if IsPointerSlicesStructReprEmpty(goo) {
+		if IsPointerSlicesStructReprEmpty(pss) {
 			var pbov *testspb.PointerSlicesStruct
 			msg = pbov
 			return
 		}
 		pbo = new(testspb.PointerSlicesStruct)
 		{
-			goorl := len(goo.Int8PtSl)
+			goorl := len(pss.Int8PtSl)
 			if goorl == 0 {
 				pbo.Int8PtSl = nil
 			} else {
 				pbos := make([]int32, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int8PtSl[i]
+						goore := pss.Int8PtSl[i]
 						{
 							if goore != nil {
 								dgoor := *goore
@@ -5638,14 +5638,14 @@ func (goo PointerSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message,
 			}
 		}
 		{
-			goorl := len(goo.Int16PtSl)
+			goorl := len(pss.Int16PtSl)
 			if goorl == 0 {
 				pbo.Int16PtSl = nil
 			} else {
 				pbos := make([]int32, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int16PtSl[i]
+						goore := pss.Int16PtSl[i]
 						{
 							if goore != nil {
 								dgoor := *goore
@@ -5659,14 +5659,14 @@ func (goo PointerSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message,
 			}
 		}
 		{
-			goorl := len(goo.Int32PtSl)
+			goorl := len(pss.Int32PtSl)
 			if goorl == 0 {
 				pbo.Int32PtSl = nil
 			} else {
 				pbos := make([]int32, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int32PtSl[i]
+						goore := pss.Int32PtSl[i]
 						{
 							if goore != nil {
 								dgoor := *goore
@@ -5680,14 +5680,14 @@ func (goo PointerSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message,
 			}
 		}
 		{
-			goorl := len(goo.Int32FixedPtSl)
+			goorl := len(pss.Int32FixedPtSl)
 			if goorl == 0 {
 				pbo.Int32FixedPtSl = nil
 			} else {
 				pbos := make([]int32, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int32FixedPtSl[i]
+						goore := pss.Int32FixedPtSl[i]
 						{
 							if goore != nil {
 								dgoor := *goore
@@ -5701,14 +5701,14 @@ func (goo PointerSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message,
 			}
 		}
 		{
-			goorl := len(goo.Int64PtSl)
+			goorl := len(pss.Int64PtSl)
 			if goorl == 0 {
 				pbo.Int64PtSl = nil
 			} else {
 				pbos := make([]int64, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int64PtSl[i]
+						goore := pss.Int64PtSl[i]
 						{
 							if goore != nil {
 								dgoor := *goore
@@ -5722,14 +5722,14 @@ func (goo PointerSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message,
 			}
 		}
 		{
-			goorl := len(goo.Int64FixedPtSl)
+			goorl := len(pss.Int64FixedPtSl)
 			if goorl == 0 {
 				pbo.Int64FixedPtSl = nil
 			} else {
 				pbos := make([]int64, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Int64FixedPtSl[i]
+						goore := pss.Int64FixedPtSl[i]
 						{
 							if goore != nil {
 								dgoor := *goore
@@ -5743,14 +5743,14 @@ func (goo PointerSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message,
 			}
 		}
 		{
-			goorl := len(goo.IntPtSl)
+			goorl := len(pss.IntPtSl)
 			if goorl == 0 {
 				pbo.IntPtSl = nil
 			} else {
 				pbos := make([]int64, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.IntPtSl[i]
+						goore := pss.IntPtSl[i]
 						{
 							if goore != nil {
 								dgoor := *goore
@@ -5764,14 +5764,14 @@ func (goo PointerSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message,
 			}
 		}
 		{
-			goorl := len(goo.BytePtSl)
+			goorl := len(pss.BytePtSl)
 			if goorl == 0 {
 				pbo.BytePtSl = nil
 			} else {
 				pbos := make([]uint8, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.BytePtSl[i]
+						goore := pss.BytePtSl[i]
 						{
 							if goore != nil {
 								dgoor := *goore
@@ -5785,14 +5785,14 @@ func (goo PointerSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message,
 			}
 		}
 		{
-			goorl := len(goo.Uint8PtSl)
+			goorl := len(pss.Uint8PtSl)
 			if goorl == 0 {
 				pbo.Uint8PtSl = nil
 			} else {
 				pbos := make([]uint8, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint8PtSl[i]
+						goore := pss.Uint8PtSl[i]
 						{
 							if goore != nil {
 								dgoor := *goore
@@ -5806,14 +5806,14 @@ func (goo PointerSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message,
 			}
 		}
 		{
-			goorl := len(goo.Uint16PtSl)
+			goorl := len(pss.Uint16PtSl)
 			if goorl == 0 {
 				pbo.Uint16PtSl = nil
 			} else {
 				pbos := make([]uint32, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint16PtSl[i]
+						goore := pss.Uint16PtSl[i]
 						{
 							if goore != nil {
 								dgoor := *goore
@@ -5827,14 +5827,14 @@ func (goo PointerSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message,
 			}
 		}
 		{
-			goorl := len(goo.Uint32PtSl)
+			goorl := len(pss.Uint32PtSl)
 			if goorl == 0 {
 				pbo.Uint32PtSl = nil
 			} else {
 				pbos := make([]uint32, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint32PtSl[i]
+						goore := pss.Uint32PtSl[i]
 						{
 							if goore != nil {
 								dgoor := *goore
@@ -5848,14 +5848,14 @@ func (goo PointerSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message,
 			}
 		}
 		{
-			goorl := len(goo.Uint32FixedPtSl)
+			goorl := len(pss.Uint32FixedPtSl)
 			if goorl == 0 {
 				pbo.Uint32FixedPtSl = nil
 			} else {
 				pbos := make([]uint32, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint32FixedPtSl[i]
+						goore := pss.Uint32FixedPtSl[i]
 						{
 							if goore != nil {
 								dgoor := *goore
@@ -5869,14 +5869,14 @@ func (goo PointerSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message,
 			}
 		}
 		{
-			goorl := len(goo.Uint64PtSl)
+			goorl := len(pss.Uint64PtSl)
 			if goorl == 0 {
 				pbo.Uint64PtSl = nil
 			} else {
 				pbos := make([]uint64, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint64PtSl[i]
+						goore := pss.Uint64PtSl[i]
 						{
 							if goore != nil {
 								dgoor := *goore
@@ -5890,14 +5890,14 @@ func (goo PointerSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message,
 			}
 		}
 		{
-			goorl := len(goo.Uint64FixedPtSl)
+			goorl := len(pss.Uint64FixedPtSl)
 			if goorl == 0 {
 				pbo.Uint64FixedPtSl = nil
 			} else {
 				pbos := make([]uint64, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Uint64FixedPtSl[i]
+						goore := pss.Uint64FixedPtSl[i]
 						{
 							if goore != nil {
 								dgoor := *goore
@@ -5911,14 +5911,14 @@ func (goo PointerSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message,
 			}
 		}
 		{
-			goorl := len(goo.UintPtSl)
+			goorl := len(pss.UintPtSl)
 			if goorl == 0 {
 				pbo.UintPtSl = nil
 			} else {
 				pbos := make([]uint64, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.UintPtSl[i]
+						goore := pss.UintPtSl[i]
 						{
 							if goore != nil {
 								dgoor := *goore
@@ -5932,14 +5932,14 @@ func (goo PointerSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message,
 			}
 		}
 		{
-			goorl := len(goo.StrPtSl)
+			goorl := len(pss.StrPtSl)
 			if goorl == 0 {
 				pbo.StrPtSl = nil
 			} else {
 				pbos := make([]string, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.StrPtSl[i]
+						goore := pss.StrPtSl[i]
 						{
 							if goore != nil {
 								dgoor := *goore
@@ -5953,14 +5953,14 @@ func (goo PointerSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message,
 			}
 		}
 		{
-			goorl := len(goo.BytesPtSl)
+			goorl := len(pss.BytesPtSl)
 			if goorl == 0 {
 				pbo.BytesPtSl = nil
 			} else {
 				pbos := make([][]byte, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.BytesPtSl[i]
+						goore := pss.BytesPtSl[i]
 						{
 							if goore != nil {
 								dgoor := *goore
@@ -5988,14 +5988,14 @@ func (goo PointerSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message,
 			}
 		}
 		{
-			goorl := len(goo.TimePtSl)
+			goorl := len(pss.TimePtSl)
 			if goorl == 0 {
 				pbo.TimePtSl = nil
 			} else {
 				pbos := make([]*timestamppb.Timestamp, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.TimePtSl[i]
+						goore := pss.TimePtSl[i]
 						{
 							if goore != nil {
 								dgoor := *goore
@@ -6009,14 +6009,14 @@ func (goo PointerSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message,
 			}
 		}
 		{
-			goorl := len(goo.DurationPtSl)
+			goorl := len(pss.DurationPtSl)
 			if goorl == 0 {
 				pbo.DurationPtSl = nil
 			} else {
 				pbos := make([]*durationpb.Duration, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.DurationPtSl[i]
+						goore := pss.DurationPtSl[i]
 						{
 							if goore != nil {
 								dgoor := *goore
@@ -6030,14 +6030,14 @@ func (goo PointerSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message,
 			}
 		}
 		{
-			goorl := len(goo.EmptyPtSl)
+			goorl := len(pss.EmptyPtSl)
 			if goorl == 0 {
 				pbo.EmptyPtSl = nil
 			} else {
 				pbos := make([]*testspb.EmptyStruct, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.EmptyPtSl[i]
+						goore := pss.EmptyPtSl[i]
 						{
 							if goore != nil {
 								pbom := proto.Message(nil)
@@ -6061,13 +6061,13 @@ func (goo PointerSlicesStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message,
 	return
 }
 
-func (goo PointerSlicesStruct) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (pss PointerSlicesStruct) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.PointerSlicesStruct)
 	msg = pbo
 	return
 }
 
-func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (pss *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.PointerSlicesStruct = msg.(*testspb.PointerSlicesStruct)
 	{
 		if pbo != nil {
@@ -6077,7 +6077,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 					pbol = len(pbo.Int8PtSl)
 				}
 				if pbol == 0 {
-					(*goo).Int8PtSl = nil
+					(*pss).Int8PtSl = nil
 				} else {
 					goors := make([]*int8, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -6090,7 +6090,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 							}
 						}
 					}
-					(*goo).Int8PtSl = goors
+					(*pss).Int8PtSl = goors
 				}
 			}
 			{
@@ -6099,7 +6099,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 					pbol = len(pbo.Int16PtSl)
 				}
 				if pbol == 0 {
-					(*goo).Int16PtSl = nil
+					(*pss).Int16PtSl = nil
 				} else {
 					goors := make([]*int16, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -6112,7 +6112,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 							}
 						}
 					}
-					(*goo).Int16PtSl = goors
+					(*pss).Int16PtSl = goors
 				}
 			}
 			{
@@ -6121,7 +6121,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 					pbol = len(pbo.Int32PtSl)
 				}
 				if pbol == 0 {
-					(*goo).Int32PtSl = nil
+					(*pss).Int32PtSl = nil
 				} else {
 					goors := make([]*int32, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -6134,7 +6134,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 							}
 						}
 					}
-					(*goo).Int32PtSl = goors
+					(*pss).Int32PtSl = goors
 				}
 			}
 			{
@@ -6143,7 +6143,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 					pbol = len(pbo.Int32FixedPtSl)
 				}
 				if pbol == 0 {
-					(*goo).Int32FixedPtSl = nil
+					(*pss).Int32FixedPtSl = nil
 				} else {
 					goors := make([]*int32, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -6156,7 +6156,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 							}
 						}
 					}
-					(*goo).Int32FixedPtSl = goors
+					(*pss).Int32FixedPtSl = goors
 				}
 			}
 			{
@@ -6165,7 +6165,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 					pbol = len(pbo.Int64PtSl)
 				}
 				if pbol == 0 {
-					(*goo).Int64PtSl = nil
+					(*pss).Int64PtSl = nil
 				} else {
 					goors := make([]*int64, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -6178,7 +6178,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 							}
 						}
 					}
-					(*goo).Int64PtSl = goors
+					(*pss).Int64PtSl = goors
 				}
 			}
 			{
@@ -6187,7 +6187,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 					pbol = len(pbo.Int64FixedPtSl)
 				}
 				if pbol == 0 {
-					(*goo).Int64FixedPtSl = nil
+					(*pss).Int64FixedPtSl = nil
 				} else {
 					goors := make([]*int64, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -6200,7 +6200,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 							}
 						}
 					}
-					(*goo).Int64FixedPtSl = goors
+					(*pss).Int64FixedPtSl = goors
 				}
 			}
 			{
@@ -6209,7 +6209,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 					pbol = len(pbo.IntPtSl)
 				}
 				if pbol == 0 {
-					(*goo).IntPtSl = nil
+					(*pss).IntPtSl = nil
 				} else {
 					goors := make([]*int, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -6222,7 +6222,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 							}
 						}
 					}
-					(*goo).IntPtSl = goors
+					(*pss).IntPtSl = goors
 				}
 			}
 			{
@@ -6231,7 +6231,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 					pbol = len(pbo.BytePtSl)
 				}
 				if pbol == 0 {
-					(*goo).BytePtSl = nil
+					(*pss).BytePtSl = nil
 				} else {
 					goors := make([]*uint8, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -6244,7 +6244,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 							}
 						}
 					}
-					(*goo).BytePtSl = goors
+					(*pss).BytePtSl = goors
 				}
 			}
 			{
@@ -6253,7 +6253,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 					pbol = len(pbo.Uint8PtSl)
 				}
 				if pbol == 0 {
-					(*goo).Uint8PtSl = nil
+					(*pss).Uint8PtSl = nil
 				} else {
 					goors := make([]*uint8, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -6266,7 +6266,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 							}
 						}
 					}
-					(*goo).Uint8PtSl = goors
+					(*pss).Uint8PtSl = goors
 				}
 			}
 			{
@@ -6275,7 +6275,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 					pbol = len(pbo.Uint16PtSl)
 				}
 				if pbol == 0 {
-					(*goo).Uint16PtSl = nil
+					(*pss).Uint16PtSl = nil
 				} else {
 					goors := make([]*uint16, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -6288,7 +6288,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 							}
 						}
 					}
-					(*goo).Uint16PtSl = goors
+					(*pss).Uint16PtSl = goors
 				}
 			}
 			{
@@ -6297,7 +6297,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 					pbol = len(pbo.Uint32PtSl)
 				}
 				if pbol == 0 {
-					(*goo).Uint32PtSl = nil
+					(*pss).Uint32PtSl = nil
 				} else {
 					goors := make([]*uint32, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -6310,7 +6310,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 							}
 						}
 					}
-					(*goo).Uint32PtSl = goors
+					(*pss).Uint32PtSl = goors
 				}
 			}
 			{
@@ -6319,7 +6319,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 					pbol = len(pbo.Uint32FixedPtSl)
 				}
 				if pbol == 0 {
-					(*goo).Uint32FixedPtSl = nil
+					(*pss).Uint32FixedPtSl = nil
 				} else {
 					goors := make([]*uint32, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -6332,7 +6332,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 							}
 						}
 					}
-					(*goo).Uint32FixedPtSl = goors
+					(*pss).Uint32FixedPtSl = goors
 				}
 			}
 			{
@@ -6341,7 +6341,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 					pbol = len(pbo.Uint64PtSl)
 				}
 				if pbol == 0 {
-					(*goo).Uint64PtSl = nil
+					(*pss).Uint64PtSl = nil
 				} else {
 					goors := make([]*uint64, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -6354,7 +6354,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 							}
 						}
 					}
-					(*goo).Uint64PtSl = goors
+					(*pss).Uint64PtSl = goors
 				}
 			}
 			{
@@ -6363,7 +6363,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 					pbol = len(pbo.Uint64FixedPtSl)
 				}
 				if pbol == 0 {
-					(*goo).Uint64FixedPtSl = nil
+					(*pss).Uint64FixedPtSl = nil
 				} else {
 					goors := make([]*uint64, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -6376,7 +6376,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 							}
 						}
 					}
-					(*goo).Uint64FixedPtSl = goors
+					(*pss).Uint64FixedPtSl = goors
 				}
 			}
 			{
@@ -6385,7 +6385,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 					pbol = len(pbo.UintPtSl)
 				}
 				if pbol == 0 {
-					(*goo).UintPtSl = nil
+					(*pss).UintPtSl = nil
 				} else {
 					goors := make([]*uint, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -6398,7 +6398,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 							}
 						}
 					}
-					(*goo).UintPtSl = goors
+					(*pss).UintPtSl = goors
 				}
 			}
 			{
@@ -6407,7 +6407,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 					pbol = len(pbo.StrPtSl)
 				}
 				if pbol == 0 {
-					(*goo).StrPtSl = nil
+					(*pss).StrPtSl = nil
 				} else {
 					goors := make([]*string, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -6420,7 +6420,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 							}
 						}
 					}
-					(*goo).StrPtSl = goors
+					(*pss).StrPtSl = goors
 				}
 			}
 			{
@@ -6429,7 +6429,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 					pbol = len(pbo.BytesPtSl)
 				}
 				if pbol == 0 {
-					(*goo).BytesPtSl = nil
+					(*pss).BytesPtSl = nil
 				} else {
 					goors := make([]*[]uint8, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -6460,7 +6460,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 							}
 						}
 					}
-					(*goo).BytesPtSl = goors
+					(*pss).BytesPtSl = goors
 				}
 			}
 			{
@@ -6469,7 +6469,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 					pbol = len(pbo.TimePtSl)
 				}
 				if pbol == 0 {
-					(*goo).TimePtSl = nil
+					(*pss).TimePtSl = nil
 				} else {
 					goors := make([]*time.Time, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -6482,7 +6482,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 							}
 						}
 					}
-					(*goo).TimePtSl = goors
+					(*pss).TimePtSl = goors
 				}
 			}
 			{
@@ -6491,7 +6491,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 					pbol = len(pbo.DurationPtSl)
 				}
 				if pbol == 0 {
-					(*goo).DurationPtSl = nil
+					(*pss).DurationPtSl = nil
 				} else {
 					goors := make([]*time.Duration, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -6504,7 +6504,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 							}
 						}
 					}
-					(*goo).DurationPtSl = goors
+					(*pss).DurationPtSl = goors
 				}
 			}
 			{
@@ -6513,7 +6513,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 					pbol = len(pbo.EmptyPtSl)
 				}
 				if pbol == 0 {
-					(*goo).EmptyPtSl = nil
+					(*pss).EmptyPtSl = nil
 				} else {
 					goors := make([]*EmptyStruct, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -6531,7 +6531,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 							}
 						}
 					}
-					(*goo).EmptyPtSl = goors
+					(*pss).EmptyPtSl = goors
 				}
 			}
 		}
@@ -6539,7 +6539,7 @@ func (goo *PointerSlicesStruct) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 	return
 }
 
-func (_ PointerSlicesStruct) GetTypeURL() (typeURL string) {
+func (pss PointerSlicesStruct) GetTypeURL() (typeURL string) {
 	return "/tests.PointerSlicesStruct"
 }
 
@@ -6650,10 +6650,10 @@ func IsPointerSlicesStructReprEmpty(goor PointerSlicesStruct) (empty bool) {
 	return
 }
 
-func (goo ComplexSt) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (cs ComplexSt) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.ComplexSt
 	{
-		if IsComplexStReprEmpty(goo) {
+		if IsComplexStReprEmpty(cs) {
 			var pbov *testspb.ComplexSt
 			msg = pbov
 			return
@@ -6661,7 +6661,7 @@ func (goo ComplexSt) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error
 		pbo = new(testspb.ComplexSt)
 		{
 			pbom := proto.Message(nil)
-			pbom, err = goo.PrField.ToPBMessage(cdc)
+			pbom, err = cs.PrField.ToPBMessage(cdc)
 			if err != nil {
 				return
 			}
@@ -6669,7 +6669,7 @@ func (goo ComplexSt) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error
 		}
 		{
 			pbom := proto.Message(nil)
-			pbom, err = goo.ArField.ToPBMessage(cdc)
+			pbom, err = cs.ArField.ToPBMessage(cdc)
 			if err != nil {
 				return
 			}
@@ -6677,7 +6677,7 @@ func (goo ComplexSt) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error
 		}
 		{
 			pbom := proto.Message(nil)
-			pbom, err = goo.SlField.ToPBMessage(cdc)
+			pbom, err = cs.SlField.ToPBMessage(cdc)
 			if err != nil {
 				return
 			}
@@ -6685,7 +6685,7 @@ func (goo ComplexSt) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error
 		}
 		{
 			pbom := proto.Message(nil)
-			pbom, err = goo.PtField.ToPBMessage(cdc)
+			pbom, err = cs.PtField.ToPBMessage(cdc)
 			if err != nil {
 				return
 			}
@@ -6696,19 +6696,19 @@ func (goo ComplexSt) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error
 	return
 }
 
-func (goo ComplexSt) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (cs ComplexSt) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.ComplexSt)
 	msg = pbo
 	return
 }
 
-func (goo *ComplexSt) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (cs *ComplexSt) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.ComplexSt = msg.(*testspb.ComplexSt)
 	{
 		if pbo != nil {
 			{
 				if pbo.PrField != nil {
-					err = (*goo).PrField.FromPBMessage(cdc, pbo.PrField)
+					err = (*cs).PrField.FromPBMessage(cdc, pbo.PrField)
 					if err != nil {
 						return
 					}
@@ -6716,7 +6716,7 @@ func (goo *ComplexSt) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err er
 			}
 			{
 				if pbo.ArField != nil {
-					err = (*goo).ArField.FromPBMessage(cdc, pbo.ArField)
+					err = (*cs).ArField.FromPBMessage(cdc, pbo.ArField)
 					if err != nil {
 						return
 					}
@@ -6724,7 +6724,7 @@ func (goo *ComplexSt) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err er
 			}
 			{
 				if pbo.SlField != nil {
-					err = (*goo).SlField.FromPBMessage(cdc, pbo.SlField)
+					err = (*cs).SlField.FromPBMessage(cdc, pbo.SlField)
 					if err != nil {
 						return
 					}
@@ -6732,7 +6732,7 @@ func (goo *ComplexSt) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err er
 			}
 			{
 				if pbo.PtField != nil {
-					err = (*goo).PtField.FromPBMessage(cdc, pbo.PtField)
+					err = (*cs).PtField.FromPBMessage(cdc, pbo.PtField)
 					if err != nil {
 						return
 					}
@@ -6743,7 +6743,7 @@ func (goo *ComplexSt) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err er
 	return
 }
 
-func (_ ComplexSt) GetTypeURL() (typeURL string) {
+func (cs ComplexSt) GetTypeURL() (typeURL string) {
 	return "/tests.ComplexSt"
 }
 
@@ -6778,10 +6778,10 @@ func IsComplexStReprEmpty(goor ComplexSt) (empty bool) {
 	return
 }
 
-func (goo EmbeddedSt1) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (es EmbeddedSt1) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.EmbeddedSt1
 	{
-		if IsEmbeddedSt1ReprEmpty(goo) {
+		if IsEmbeddedSt1ReprEmpty(es) {
 			var pbov *testspb.EmbeddedSt1
 			msg = pbov
 			return
@@ -6789,7 +6789,7 @@ func (goo EmbeddedSt1) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err err
 		pbo = new(testspb.EmbeddedSt1)
 		{
 			pbom := proto.Message(nil)
-			pbom, err = goo.PrimitivesStruct.ToPBMessage(cdc)
+			pbom, err = es.PrimitivesStruct.ToPBMessage(cdc)
 			if err != nil {
 				return
 			}
@@ -6800,19 +6800,19 @@ func (goo EmbeddedSt1) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err err
 	return
 }
 
-func (goo EmbeddedSt1) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (es EmbeddedSt1) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.EmbeddedSt1)
 	msg = pbo
 	return
 }
 
-func (goo *EmbeddedSt1) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (es *EmbeddedSt1) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.EmbeddedSt1 = msg.(*testspb.EmbeddedSt1)
 	{
 		if pbo != nil {
 			{
 				if pbo.PrimitivesStruct != nil {
-					err = (*goo).PrimitivesStruct.FromPBMessage(cdc, pbo.PrimitivesStruct)
+					err = (*es).PrimitivesStruct.FromPBMessage(cdc, pbo.PrimitivesStruct)
 					if err != nil {
 						return
 					}
@@ -6823,7 +6823,7 @@ func (goo *EmbeddedSt1) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err 
 	return
 }
 
-func (_ EmbeddedSt1) GetTypeURL() (typeURL string) {
+func (es EmbeddedSt1) GetTypeURL() (typeURL string) {
 	return "/tests.EmbeddedSt1"
 }
 
@@ -6840,10 +6840,10 @@ func IsEmbeddedSt1ReprEmpty(goor EmbeddedSt1) (empty bool) {
 	return
 }
 
-func (goo EmbeddedSt2) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (es EmbeddedSt2) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.EmbeddedSt2
 	{
-		if IsEmbeddedSt2ReprEmpty(goo) {
+		if IsEmbeddedSt2ReprEmpty(es) {
 			var pbov *testspb.EmbeddedSt2
 			msg = pbov
 			return
@@ -6851,7 +6851,7 @@ func (goo EmbeddedSt2) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err err
 		pbo = new(testspb.EmbeddedSt2)
 		{
 			pbom := proto.Message(nil)
-			pbom, err = goo.PrimitivesStruct.ToPBMessage(cdc)
+			pbom, err = es.PrimitivesStruct.ToPBMessage(cdc)
 			if err != nil {
 				return
 			}
@@ -6859,7 +6859,7 @@ func (goo EmbeddedSt2) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err err
 		}
 		{
 			pbom := proto.Message(nil)
-			pbom, err = goo.ArraysStruct.ToPBMessage(cdc)
+			pbom, err = es.ArraysStruct.ToPBMessage(cdc)
 			if err != nil {
 				return
 			}
@@ -6867,7 +6867,7 @@ func (goo EmbeddedSt2) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err err
 		}
 		{
 			pbom := proto.Message(nil)
-			pbom, err = goo.SlicesStruct.ToPBMessage(cdc)
+			pbom, err = es.SlicesStruct.ToPBMessage(cdc)
 			if err != nil {
 				return
 			}
@@ -6875,7 +6875,7 @@ func (goo EmbeddedSt2) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err err
 		}
 		{
 			pbom := proto.Message(nil)
-			pbom, err = goo.PointersStruct.ToPBMessage(cdc)
+			pbom, err = es.PointersStruct.ToPBMessage(cdc)
 			if err != nil {
 				return
 			}
@@ -6886,19 +6886,19 @@ func (goo EmbeddedSt2) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err err
 	return
 }
 
-func (goo EmbeddedSt2) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (es EmbeddedSt2) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.EmbeddedSt2)
 	msg = pbo
 	return
 }
 
-func (goo *EmbeddedSt2) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (es *EmbeddedSt2) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.EmbeddedSt2 = msg.(*testspb.EmbeddedSt2)
 	{
 		if pbo != nil {
 			{
 				if pbo.PrimitivesStruct != nil {
-					err = (*goo).PrimitivesStruct.FromPBMessage(cdc, pbo.PrimitivesStruct)
+					err = (*es).PrimitivesStruct.FromPBMessage(cdc, pbo.PrimitivesStruct)
 					if err != nil {
 						return
 					}
@@ -6906,7 +6906,7 @@ func (goo *EmbeddedSt2) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err 
 			}
 			{
 				if pbo.ArraysStruct != nil {
-					err = (*goo).ArraysStruct.FromPBMessage(cdc, pbo.ArraysStruct)
+					err = (*es).ArraysStruct.FromPBMessage(cdc, pbo.ArraysStruct)
 					if err != nil {
 						return
 					}
@@ -6914,7 +6914,7 @@ func (goo *EmbeddedSt2) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err 
 			}
 			{
 				if pbo.SlicesStruct != nil {
-					err = (*goo).SlicesStruct.FromPBMessage(cdc, pbo.SlicesStruct)
+					err = (*es).SlicesStruct.FromPBMessage(cdc, pbo.SlicesStruct)
 					if err != nil {
 						return
 					}
@@ -6922,7 +6922,7 @@ func (goo *EmbeddedSt2) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err 
 			}
 			{
 				if pbo.PointersStruct != nil {
-					err = (*goo).PointersStruct.FromPBMessage(cdc, pbo.PointersStruct)
+					err = (*es).PointersStruct.FromPBMessage(cdc, pbo.PointersStruct)
 					if err != nil {
 						return
 					}
@@ -6933,7 +6933,7 @@ func (goo *EmbeddedSt2) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err 
 	return
 }
 
-func (_ EmbeddedSt2) GetTypeURL() (typeURL string) {
+func (es EmbeddedSt2) GetTypeURL() (typeURL string) {
 	return "/tests.EmbeddedSt2"
 }
 
@@ -6968,19 +6968,19 @@ func IsEmbeddedSt2ReprEmpty(goor EmbeddedSt2) (empty bool) {
 	return
 }
 
-func (goo EmbeddedSt3) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (es EmbeddedSt3) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.EmbeddedSt3
 	{
-		if IsEmbeddedSt3ReprEmpty(goo) {
+		if IsEmbeddedSt3ReprEmpty(es) {
 			var pbov *testspb.EmbeddedSt3
 			msg = pbov
 			return
 		}
 		pbo = new(testspb.EmbeddedSt3)
 		{
-			if goo.PrimitivesStruct != nil {
+			if es.PrimitivesStruct != nil {
 				pbom := proto.Message(nil)
-				pbom, err = goo.PrimitivesStruct.ToPBMessage(cdc)
+				pbom, err = es.PrimitivesStruct.ToPBMessage(cdc)
 				if err != nil {
 					return
 				}
@@ -6991,9 +6991,9 @@ func (goo EmbeddedSt3) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err err
 			}
 		}
 		{
-			if goo.ArraysStruct != nil {
+			if es.ArraysStruct != nil {
 				pbom := proto.Message(nil)
-				pbom, err = goo.ArraysStruct.ToPBMessage(cdc)
+				pbom, err = es.ArraysStruct.ToPBMessage(cdc)
 				if err != nil {
 					return
 				}
@@ -7004,9 +7004,9 @@ func (goo EmbeddedSt3) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err err
 			}
 		}
 		{
-			if goo.SlicesStruct != nil {
+			if es.SlicesStruct != nil {
 				pbom := proto.Message(nil)
-				pbom, err = goo.SlicesStruct.ToPBMessage(cdc)
+				pbom, err = es.SlicesStruct.ToPBMessage(cdc)
 				if err != nil {
 					return
 				}
@@ -7017,9 +7017,9 @@ func (goo EmbeddedSt3) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err err
 			}
 		}
 		{
-			if goo.PointersStruct != nil {
+			if es.PointersStruct != nil {
 				pbom := proto.Message(nil)
-				pbom, err = goo.PointersStruct.ToPBMessage(cdc)
+				pbom, err = es.PointersStruct.ToPBMessage(cdc)
 				if err != nil {
 					return
 				}
@@ -7030,9 +7030,9 @@ func (goo EmbeddedSt3) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err err
 			}
 		}
 		{
-			if goo.EmptyStruct != nil {
+			if es.EmptyStruct != nil {
 				pbom := proto.Message(nil)
-				pbom, err = goo.EmptyStruct.ToPBMessage(cdc)
+				pbom, err = es.EmptyStruct.ToPBMessage(cdc)
 				if err != nil {
 					return
 				}
@@ -7047,20 +7047,20 @@ func (goo EmbeddedSt3) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err err
 	return
 }
 
-func (goo EmbeddedSt3) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (es EmbeddedSt3) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.EmbeddedSt3)
 	msg = pbo
 	return
 }
 
-func (goo *EmbeddedSt3) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (es *EmbeddedSt3) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.EmbeddedSt3 = msg.(*testspb.EmbeddedSt3)
 	{
 		if pbo != nil {
 			{
 				if pbo.PrimitivesStruct != nil {
-					(*goo).PrimitivesStruct = new(PrimitivesStruct)
-					err = (*goo).PrimitivesStruct.FromPBMessage(cdc, pbo.PrimitivesStruct)
+					(*es).PrimitivesStruct = new(PrimitivesStruct)
+					err = (*es).PrimitivesStruct.FromPBMessage(cdc, pbo.PrimitivesStruct)
 					if err != nil {
 						return
 					}
@@ -7068,8 +7068,8 @@ func (goo *EmbeddedSt3) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err 
 			}
 			{
 				if pbo.ArraysStruct != nil {
-					(*goo).ArraysStruct = new(ArraysStruct)
-					err = (*goo).ArraysStruct.FromPBMessage(cdc, pbo.ArraysStruct)
+					(*es).ArraysStruct = new(ArraysStruct)
+					err = (*es).ArraysStruct.FromPBMessage(cdc, pbo.ArraysStruct)
 					if err != nil {
 						return
 					}
@@ -7077,8 +7077,8 @@ func (goo *EmbeddedSt3) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err 
 			}
 			{
 				if pbo.SlicesStruct != nil {
-					(*goo).SlicesStruct = new(SlicesStruct)
-					err = (*goo).SlicesStruct.FromPBMessage(cdc, pbo.SlicesStruct)
+					(*es).SlicesStruct = new(SlicesStruct)
+					err = (*es).SlicesStruct.FromPBMessage(cdc, pbo.SlicesStruct)
 					if err != nil {
 						return
 					}
@@ -7086,8 +7086,8 @@ func (goo *EmbeddedSt3) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err 
 			}
 			{
 				if pbo.PointersStruct != nil {
-					(*goo).PointersStruct = new(PointersStruct)
-					err = (*goo).PointersStruct.FromPBMessage(cdc, pbo.PointersStruct)
+					(*es).PointersStruct = new(PointersStruct)
+					err = (*es).PointersStruct.FromPBMessage(cdc, pbo.PointersStruct)
 					if err != nil {
 						return
 					}
@@ -7095,8 +7095,8 @@ func (goo *EmbeddedSt3) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err 
 			}
 			{
 				if pbo.EmptyStruct != nil {
-					(*goo).EmptyStruct = new(EmptyStruct)
-					err = (*goo).EmptyStruct.FromPBMessage(cdc, pbo.EmptyStruct)
+					(*es).EmptyStruct = new(EmptyStruct)
+					err = (*es).EmptyStruct.FromPBMessage(cdc, pbo.EmptyStruct)
 					if err != nil {
 						return
 					}
@@ -7107,7 +7107,7 @@ func (goo *EmbeddedSt3) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err 
 	return
 }
 
-func (_ EmbeddedSt3) GetTypeURL() (typeURL string) {
+func (es EmbeddedSt3) GetTypeURL() (typeURL string) {
 	return "/tests.EmbeddedSt3"
 }
 
@@ -7143,46 +7143,46 @@ func IsEmbeddedSt3ReprEmpty(goor EmbeddedSt3) (empty bool) {
 	return
 }
 
-func (goo EmbeddedSt4) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (es EmbeddedSt4) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.EmbeddedSt4
 	{
-		if IsEmbeddedSt4ReprEmpty(goo) {
+		if IsEmbeddedSt4ReprEmpty(es) {
 			var pbov *testspb.EmbeddedSt4
 			msg = pbov
 			return
 		}
 		pbo = new(testspb.EmbeddedSt4)
 		{
-			pbo.Foo1 = int64(goo.Foo1)
+			pbo.Foo1 = int64(es.Foo1)
 		}
 		{
 			pbom := proto.Message(nil)
-			pbom, err = goo.PrimitivesStruct.ToPBMessage(cdc)
+			pbom, err = es.PrimitivesStruct.ToPBMessage(cdc)
 			if err != nil {
 				return
 			}
 			pbo.PrimitivesStruct = pbom.(*testspb.PrimitivesStruct)
 		}
 		{
-			pbo.Foo2 = string(goo.Foo2)
+			pbo.Foo2 = string(es.Foo2)
 		}
 		{
 			pbom := proto.Message(nil)
-			pbom, err = goo.ArraysStructField.ToPBMessage(cdc)
+			pbom, err = es.ArraysStructField.ToPBMessage(cdc)
 			if err != nil {
 				return
 			}
 			pbo.ArraysStructField = pbom.(*testspb.ArraysStruct)
 		}
 		{
-			goorl := len(goo.Foo3)
+			goorl := len(es.Foo3)
 			if goorl == 0 {
 				pbo.Foo3 = nil
 			} else {
 				pbos := make([]uint8, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Foo3[i]
+						goore := es.Foo3[i]
 						{
 							pbos[i] = byte(goore)
 						}
@@ -7193,58 +7193,58 @@ func (goo EmbeddedSt4) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err err
 		}
 		{
 			pbom := proto.Message(nil)
-			pbom, err = goo.SlicesStruct.ToPBMessage(cdc)
+			pbom, err = es.SlicesStruct.ToPBMessage(cdc)
 			if err != nil {
 				return
 			}
 			pbo.SlicesStruct = pbom.(*testspb.SlicesStruct)
 		}
 		{
-			pbo.Foo4 = bool(goo.Foo4)
+			pbo.Foo4 = bool(es.Foo4)
 		}
 		{
 			pbom := proto.Message(nil)
-			pbom, err = goo.PointersStructField.ToPBMessage(cdc)
+			pbom, err = es.PointersStructField.ToPBMessage(cdc)
 			if err != nil {
 				return
 			}
 			pbo.PointersStructField = pbom.(*testspb.PointersStruct)
 		}
 		{
-			pbo.Foo5 = uint64(goo.Foo5)
+			pbo.Foo5 = uint64(es.Foo5)
 		}
 	}
 	msg = pbo
 	return
 }
 
-func (goo EmbeddedSt4) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (es EmbeddedSt4) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.EmbeddedSt4)
 	msg = pbo
 	return
 }
 
-func (goo *EmbeddedSt4) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (es *EmbeddedSt4) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.EmbeddedSt4 = msg.(*testspb.EmbeddedSt4)
 	{
 		if pbo != nil {
 			{
-				(*goo).Foo1 = int(int(pbo.Foo1))
+				(*es).Foo1 = int(int(pbo.Foo1))
 			}
 			{
 				if pbo.PrimitivesStruct != nil {
-					err = (*goo).PrimitivesStruct.FromPBMessage(cdc, pbo.PrimitivesStruct)
+					err = (*es).PrimitivesStruct.FromPBMessage(cdc, pbo.PrimitivesStruct)
 					if err != nil {
 						return
 					}
 				}
 			}
 			{
-				(*goo).Foo2 = string(pbo.Foo2)
+				(*es).Foo2 = string(pbo.Foo2)
 			}
 			{
 				if pbo.ArraysStructField != nil {
-					err = (*goo).ArraysStructField.FromPBMessage(cdc, pbo.ArraysStructField)
+					err = (*es).ArraysStructField.FromPBMessage(cdc, pbo.ArraysStructField)
 					if err != nil {
 						return
 					}
@@ -7256,7 +7256,7 @@ func (goo *EmbeddedSt4) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err 
 					pbol = len(pbo.Foo3)
 				}
 				if pbol == 0 {
-					(*goo).Foo3 = nil
+					(*es).Foo3 = nil
 				} else {
 					goors := make([]uint8, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -7268,37 +7268,37 @@ func (goo *EmbeddedSt4) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err 
 							}
 						}
 					}
-					(*goo).Foo3 = goors
+					(*es).Foo3 = goors
 				}
 			}
 			{
 				if pbo.SlicesStruct != nil {
-					err = (*goo).SlicesStruct.FromPBMessage(cdc, pbo.SlicesStruct)
+					err = (*es).SlicesStruct.FromPBMessage(cdc, pbo.SlicesStruct)
 					if err != nil {
 						return
 					}
 				}
 			}
 			{
-				(*goo).Foo4 = bool(pbo.Foo4)
+				(*es).Foo4 = bool(pbo.Foo4)
 			}
 			{
 				if pbo.PointersStructField != nil {
-					err = (*goo).PointersStructField.FromPBMessage(cdc, pbo.PointersStructField)
+					err = (*es).PointersStructField.FromPBMessage(cdc, pbo.PointersStructField)
 					if err != nil {
 						return
 					}
 				}
 			}
 			{
-				(*goo).Foo5 = uint(uint(pbo.Foo5))
+				(*es).Foo5 = uint(uint(pbo.Foo5))
 			}
 		}
 	}
 	return
 }
 
-func (_ EmbeddedSt4) GetTypeURL() (typeURL string) {
+func (es EmbeddedSt4) GetTypeURL() (typeURL string) {
 	return "/tests.EmbeddedSt4"
 }
 
@@ -7358,22 +7358,22 @@ func IsEmbeddedSt4ReprEmpty(goor EmbeddedSt4) (empty bool) {
 	return
 }
 
-func (goo EmbeddedSt5) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (es EmbeddedSt5) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.EmbeddedSt5NameOverride
 	{
-		if IsEmbeddedSt5NameOverrideReprEmpty(goo) {
+		if IsEmbeddedSt5NameOverrideReprEmpty(es) {
 			var pbov *testspb.EmbeddedSt5NameOverride
 			msg = pbov
 			return
 		}
 		pbo = new(testspb.EmbeddedSt5NameOverride)
 		{
-			pbo.Foo1 = int64(goo.Foo1)
+			pbo.Foo1 = int64(es.Foo1)
 		}
 		{
-			if goo.PrimitivesStruct != nil {
+			if es.PrimitivesStruct != nil {
 				pbom := proto.Message(nil)
-				pbom, err = goo.PrimitivesStruct.ToPBMessage(cdc)
+				pbom, err = es.PrimitivesStruct.ToPBMessage(cdc)
 				if err != nil {
 					return
 				}
@@ -7384,12 +7384,12 @@ func (goo EmbeddedSt5) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err err
 			}
 		}
 		{
-			pbo.Foo2 = string(goo.Foo2)
+			pbo.Foo2 = string(es.Foo2)
 		}
 		{
-			if goo.ArraysStructField != nil {
+			if es.ArraysStructField != nil {
 				pbom := proto.Message(nil)
-				pbom, err = goo.ArraysStructField.ToPBMessage(cdc)
+				pbom, err = es.ArraysStructField.ToPBMessage(cdc)
 				if err != nil {
 					return
 				}
@@ -7400,14 +7400,14 @@ func (goo EmbeddedSt5) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err err
 			}
 		}
 		{
-			goorl := len(goo.Foo3)
+			goorl := len(es.Foo3)
 			if goorl == 0 {
 				pbo.Foo3 = nil
 			} else {
 				pbos := make([]uint8, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Foo3[i]
+						goore := es.Foo3[i]
 						{
 							pbos[i] = byte(goore)
 						}
@@ -7417,9 +7417,9 @@ func (goo EmbeddedSt5) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err err
 			}
 		}
 		{
-			if goo.SlicesStruct != nil {
+			if es.SlicesStruct != nil {
 				pbom := proto.Message(nil)
-				pbom, err = goo.SlicesStruct.ToPBMessage(cdc)
+				pbom, err = es.SlicesStruct.ToPBMessage(cdc)
 				if err != nil {
 					return
 				}
@@ -7430,12 +7430,12 @@ func (goo EmbeddedSt5) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err err
 			}
 		}
 		{
-			pbo.Foo4 = bool(goo.Foo4)
+			pbo.Foo4 = bool(es.Foo4)
 		}
 		{
-			if goo.PointersStructField != nil {
+			if es.PointersStructField != nil {
 				pbom := proto.Message(nil)
-				pbom, err = goo.PointersStructField.ToPBMessage(cdc)
+				pbom, err = es.PointersStructField.ToPBMessage(cdc)
 				if err != nil {
 					return
 				}
@@ -7446,42 +7446,42 @@ func (goo EmbeddedSt5) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err err
 			}
 		}
 		{
-			pbo.Foo5 = uint64(goo.Foo5)
+			pbo.Foo5 = uint64(es.Foo5)
 		}
 	}
 	msg = pbo
 	return
 }
 
-func (goo EmbeddedSt5) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (es EmbeddedSt5) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.EmbeddedSt5NameOverride)
 	msg = pbo
 	return
 }
 
-func (goo *EmbeddedSt5) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (es *EmbeddedSt5) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.EmbeddedSt5NameOverride = msg.(*testspb.EmbeddedSt5NameOverride)
 	{
 		if pbo != nil {
 			{
-				(*goo).Foo1 = int(int(pbo.Foo1))
+				(*es).Foo1 = int(int(pbo.Foo1))
 			}
 			{
 				if pbo.PrimitivesStruct != nil {
-					(*goo).PrimitivesStruct = new(PrimitivesStruct)
-					err = (*goo).PrimitivesStruct.FromPBMessage(cdc, pbo.PrimitivesStruct)
+					(*es).PrimitivesStruct = new(PrimitivesStruct)
+					err = (*es).PrimitivesStruct.FromPBMessage(cdc, pbo.PrimitivesStruct)
 					if err != nil {
 						return
 					}
 				}
 			}
 			{
-				(*goo).Foo2 = string(pbo.Foo2)
+				(*es).Foo2 = string(pbo.Foo2)
 			}
 			{
 				if pbo.ArraysStructField != nil {
-					(*goo).ArraysStructField = new(ArraysStruct)
-					err = (*goo).ArraysStructField.FromPBMessage(cdc, pbo.ArraysStructField)
+					(*es).ArraysStructField = new(ArraysStruct)
+					err = (*es).ArraysStructField.FromPBMessage(cdc, pbo.ArraysStructField)
 					if err != nil {
 						return
 					}
@@ -7493,7 +7493,7 @@ func (goo *EmbeddedSt5) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err 
 					pbol = len(pbo.Foo3)
 				}
 				if pbol == 0 {
-					(*goo).Foo3 = nil
+					(*es).Foo3 = nil
 				} else {
 					goors := make([]uint8, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -7505,39 +7505,39 @@ func (goo *EmbeddedSt5) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err 
 							}
 						}
 					}
-					(*goo).Foo3 = goors
+					(*es).Foo3 = goors
 				}
 			}
 			{
 				if pbo.SlicesStruct != nil {
-					(*goo).SlicesStruct = new(SlicesStruct)
-					err = (*goo).SlicesStruct.FromPBMessage(cdc, pbo.SlicesStruct)
+					(*es).SlicesStruct = new(SlicesStruct)
+					err = (*es).SlicesStruct.FromPBMessage(cdc, pbo.SlicesStruct)
 					if err != nil {
 						return
 					}
 				}
 			}
 			{
-				(*goo).Foo4 = bool(pbo.Foo4)
+				(*es).Foo4 = bool(pbo.Foo4)
 			}
 			{
 				if pbo.PointersStructField != nil {
-					(*goo).PointersStructField = new(PointersStruct)
-					err = (*goo).PointersStructField.FromPBMessage(cdc, pbo.PointersStructField)
+					(*es).PointersStructField = new(PointersStruct)
+					err = (*es).PointersStructField.FromPBMessage(cdc, pbo.PointersStructField)
 					if err != nil {
 						return
 					}
 				}
 			}
 			{
-				(*goo).Foo5 = uint(uint(pbo.Foo5))
+				(*es).Foo5 = uint(uint(pbo.Foo5))
 			}
 		}
 	}
 	return
 }
 
-func (_ EmbeddedSt5) GetTypeURL() (typeURL string) {
+func (es EmbeddedSt5) GetTypeURL() (typeURL string) {
 	return "/tests.EmbeddedSt5NameOverride"
 }
 
@@ -7593,10 +7593,10 @@ func IsEmbeddedSt5NameOverrideReprEmpty(goor EmbeddedSt5) (empty bool) {
 	return
 }
 
-func (goo AminoMarshalerStruct1) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (ams AminoMarshalerStruct1) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.AminoMarshalerStruct1
 	{
-		goor, err1 := goo.MarshalAmino()
+		goor, err1 := ams.MarshalAmino()
 		if err1 != nil {
 			return nil, err1
 		}
@@ -7617,13 +7617,13 @@ func (goo AminoMarshalerStruct1) ToPBMessage(cdc *amino.Codec) (msg proto.Messag
 	return
 }
 
-func (goo AminoMarshalerStruct1) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (ams AminoMarshalerStruct1) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.AminoMarshalerStruct1)
 	msg = pbo
 	return
 }
 
-func (goo *AminoMarshalerStruct1) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (ams *AminoMarshalerStruct1) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.AminoMarshalerStruct1 = msg.(*testspb.AminoMarshalerStruct1)
 	{
 		if pbo != nil {
@@ -7634,7 +7634,7 @@ func (goo *AminoMarshalerStruct1) FromPBMessage(cdc *amino.Codec, msg proto.Mess
 			{
 				goor.D = int64(pbo.D)
 			}
-			err = goo.UnmarshalAmino(goor)
+			err = ams.UnmarshalAmino(goor)
 			if err != nil {
 				return
 			}
@@ -7643,7 +7643,7 @@ func (goo *AminoMarshalerStruct1) FromPBMessage(cdc *amino.Codec, msg proto.Mess
 	return
 }
 
-func (_ AminoMarshalerStruct1) GetTypeURL() (typeURL string) {
+func (ams AminoMarshalerStruct1) GetTypeURL() (typeURL string) {
 	return "/tests.AminoMarshalerStruct1"
 }
 
@@ -7664,48 +7664,48 @@ func IsAminoMarshalerStruct1ReprEmpty(goor ReprStruct1) (empty bool) {
 	return
 }
 
-func (goo ReprStruct1) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (rs ReprStruct1) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.ReprStruct1
 	{
-		if IsReprStruct1ReprEmpty(goo) {
+		if IsReprStruct1ReprEmpty(rs) {
 			var pbov *testspb.ReprStruct1
 			msg = pbov
 			return
 		}
 		pbo = new(testspb.ReprStruct1)
 		{
-			pbo.C = int64(goo.C)
+			pbo.C = int64(rs.C)
 		}
 		{
-			pbo.D = int64(goo.D)
+			pbo.D = int64(rs.D)
 		}
 	}
 	msg = pbo
 	return
 }
 
-func (goo ReprStruct1) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (rs ReprStruct1) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.ReprStruct1)
 	msg = pbo
 	return
 }
 
-func (goo *ReprStruct1) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (rs *ReprStruct1) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.ReprStruct1 = msg.(*testspb.ReprStruct1)
 	{
 		if pbo != nil {
 			{
-				(*goo).C = int64(pbo.C)
+				(*rs).C = int64(pbo.C)
 			}
 			{
-				(*goo).D = int64(pbo.D)
+				(*rs).D = int64(pbo.D)
 			}
 		}
 	}
 	return
 }
 
-func (_ ReprStruct1) GetTypeURL() (typeURL string) {
+func (rs ReprStruct1) GetTypeURL() (typeURL string) {
 	return "/tests.ReprStruct1"
 }
 
@@ -7726,10 +7726,10 @@ func IsReprStruct1ReprEmpty(goor ReprStruct1) (empty bool) {
 	return
 }
 
-func (goo AminoMarshalerStruct2) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (ams AminoMarshalerStruct2) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.AminoMarshalerStruct2
 	{
-		goor, err1 := goo.MarshalAmino()
+		goor, err1 := ams.MarshalAmino()
 		if err1 != nil {
 			return nil, err1
 		}
@@ -7763,13 +7763,13 @@ func (goo AminoMarshalerStruct2) ToPBMessage(cdc *amino.Codec) (msg proto.Messag
 	return
 }
 
-func (goo AminoMarshalerStruct2) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (ams AminoMarshalerStruct2) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.AminoMarshalerStruct2)
 	msg = pbo
 	return
 }
 
-func (goo *AminoMarshalerStruct2) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (ams *AminoMarshalerStruct2) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.AminoMarshalerStruct2 = msg.(*testspb.AminoMarshalerStruct2)
 	{
 		var goor []ReprElem2
@@ -7797,7 +7797,7 @@ func (goo *AminoMarshalerStruct2) FromPBMessage(cdc *amino.Codec, msg proto.Mess
 			}
 			goor = goors
 		}
-		err = goo.UnmarshalAmino(goor)
+		err = ams.UnmarshalAmino(goor)
 		if err != nil {
 			return
 		}
@@ -7805,7 +7805,7 @@ func (goo *AminoMarshalerStruct2) FromPBMessage(cdc *amino.Codec, msg proto.Mess
 	return
 }
 
-func (_ AminoMarshalerStruct2) GetTypeURL() (typeURL string) {
+func (ams AminoMarshalerStruct2) GetTypeURL() (typeURL string) {
 	return "/tests.AminoMarshalerStruct2"
 }
 
@@ -7819,23 +7819,23 @@ func IsAminoMarshalerStruct2ReprEmpty(goor []ReprElem2) (empty bool) {
 	return
 }
 
-func (goo ReprElem2) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (re ReprElem2) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.ReprElem2
 	{
-		if IsReprElem2ReprEmpty(goo) {
+		if IsReprElem2ReprEmpty(re) {
 			var pbov *testspb.ReprElem2
 			msg = pbov
 			return
 		}
 		pbo = new(testspb.ReprElem2)
 		{
-			pbo.Key = string(goo.Key)
+			pbo.Key = string(re.Key)
 		}
 		{
-			if goo.Value != nil {
-				typeUrl := cdc.GetTypeURL(goo.Value)
+			if re.Value != nil {
+				typeUrl := cdc.GetTypeURL(re.Value)
 				bz := []byte(nil)
-				bz, err = cdc.Marshal(goo.Value)
+				bz, err = cdc.Marshal(re.Value)
 				if err != nil {
 					return
 				}
@@ -7847,23 +7847,23 @@ func (goo ReprElem2) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error
 	return
 }
 
-func (goo ReprElem2) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (re ReprElem2) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.ReprElem2)
 	msg = pbo
 	return
 }
 
-func (goo *ReprElem2) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (re *ReprElem2) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.ReprElem2 = msg.(*testspb.ReprElem2)
 	{
 		if pbo != nil {
 			{
-				(*goo).Key = string(pbo.Key)
+				(*re).Key = string(pbo.Key)
 			}
 			{
 				typeUrl := pbo.Value.TypeUrl
 				bz := pbo.Value.Value
-				goorp := &(*goo).Value
+				goorp := &(*re).Value
 				err = cdc.UnmarshalAny2(typeUrl, bz, goorp)
 				if err != nil {
 					return
@@ -7874,7 +7874,7 @@ func (goo *ReprElem2) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err er
 	return
 }
 
-func (_ ReprElem2) GetTypeURL() (typeURL string) {
+func (re ReprElem2) GetTypeURL() (typeURL string) {
 	return "/tests.ReprElem2"
 }
 
@@ -7895,10 +7895,10 @@ func IsReprElem2ReprEmpty(goor ReprElem2) (empty bool) {
 	return
 }
 
-func (goo AminoMarshalerStruct3) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (ams AminoMarshalerStruct3) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.AminoMarshalerStruct3
 	{
-		goor, err1 := goo.MarshalAmino()
+		goor, err1 := ams.MarshalAmino()
 		if err1 != nil {
 			return nil, err1
 		}
@@ -7913,18 +7913,18 @@ func (goo AminoMarshalerStruct3) ToPBMessage(cdc *amino.Codec) (msg proto.Messag
 	return
 }
 
-func (goo AminoMarshalerStruct3) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (ams AminoMarshalerStruct3) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.AminoMarshalerStruct3)
 	msg = pbo
 	return
 }
 
-func (goo *AminoMarshalerStruct3) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (ams *AminoMarshalerStruct3) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.AminoMarshalerStruct3 = msg.(*testspb.AminoMarshalerStruct3)
 	{
 		var goor int32
 		goor = int32(pbo.Value)
-		err = goo.UnmarshalAmino(goor)
+		err = ams.UnmarshalAmino(goor)
 		if err != nil {
 			return
 		}
@@ -7932,7 +7932,7 @@ func (goo *AminoMarshalerStruct3) FromPBMessage(cdc *amino.Codec, msg proto.Mess
 	return
 }
 
-func (_ AminoMarshalerStruct3) GetTypeURL() (typeURL string) {
+func (ams AminoMarshalerStruct3) GetTypeURL() (typeURL string) {
 	return "/tests.AminoMarshalerStruct3"
 }
 
@@ -7946,10 +7946,10 @@ func IsAminoMarshalerStruct3ReprEmpty(goor int32) (empty bool) {
 	return
 }
 
-func (goo AminoMarshalerInt4) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (am AminoMarshalerInt4) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.AminoMarshalerInt4
 	{
-		goor, err1 := goo.MarshalAmino()
+		goor, err1 := am.MarshalAmino()
 		if err1 != nil {
 			return nil, err1
 		}
@@ -7967,13 +7967,13 @@ func (goo AminoMarshalerInt4) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 	return
 }
 
-func (goo AminoMarshalerInt4) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (am AminoMarshalerInt4) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.AminoMarshalerInt4)
 	msg = pbo
 	return
 }
 
-func (goo *AminoMarshalerInt4) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (am *AminoMarshalerInt4) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.AminoMarshalerInt4 = msg.(*testspb.AminoMarshalerInt4)
 	{
 		if pbo != nil {
@@ -7981,7 +7981,7 @@ func (goo *AminoMarshalerInt4) FromPBMessage(cdc *amino.Codec, msg proto.Message
 			{
 				goor.A = int32(pbo.A)
 			}
-			err = goo.UnmarshalAmino(goor)
+			err = am.UnmarshalAmino(goor)
 			if err != nil {
 				return
 			}
@@ -7990,7 +7990,7 @@ func (goo *AminoMarshalerInt4) FromPBMessage(cdc *amino.Codec, msg proto.Message
 	return
 }
 
-func (_ AminoMarshalerInt4) GetTypeURL() (typeURL string) {
+func (am AminoMarshalerInt4) GetTypeURL() (typeURL string) {
 	return "/tests.AminoMarshalerInt4"
 }
 
@@ -8006,10 +8006,10 @@ func IsAminoMarshalerInt4ReprEmpty(goor ReprStruct4) (empty bool) {
 	return
 }
 
-func (goo AminoMarshalerInt5) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (am AminoMarshalerInt5) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.AminoMarshalerInt5
 	{
-		goor, err1 := goo.MarshalAmino()
+		goor, err1 := am.MarshalAmino()
 		if err1 != nil {
 			return nil, err1
 		}
@@ -8024,18 +8024,18 @@ func (goo AminoMarshalerInt5) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 	return
 }
 
-func (goo AminoMarshalerInt5) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (am AminoMarshalerInt5) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.AminoMarshalerInt5)
 	msg = pbo
 	return
 }
 
-func (goo *AminoMarshalerInt5) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (am *AminoMarshalerInt5) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.AminoMarshalerInt5 = msg.(*testspb.AminoMarshalerInt5)
 	{
 		var goor string
 		goor = string(pbo.Value)
-		err = goo.UnmarshalAmino(goor)
+		err = am.UnmarshalAmino(goor)
 		if err != nil {
 			return
 		}
@@ -8043,7 +8043,7 @@ func (goo *AminoMarshalerInt5) FromPBMessage(cdc *amino.Codec, msg proto.Message
 	return
 }
 
-func (_ AminoMarshalerInt5) GetTypeURL() (typeURL string) {
+func (am AminoMarshalerInt5) GetTypeURL() (typeURL string) {
 	return "/tests.AminoMarshalerInt5"
 }
 
@@ -8057,10 +8057,10 @@ func IsAminoMarshalerInt5ReprEmpty(goor string) (empty bool) {
 	return
 }
 
-func (goo AminoMarshalerStruct6) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (ams AminoMarshalerStruct6) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.AminoMarshalerStruct6
 	{
-		goor, err1 := goo.MarshalAmino()
+		goor, err1 := ams.MarshalAmino()
 		if err1 != nil {
 			return nil, err1
 		}
@@ -8094,13 +8094,13 @@ func (goo AminoMarshalerStruct6) ToPBMessage(cdc *amino.Codec) (msg proto.Messag
 	return
 }
 
-func (goo AminoMarshalerStruct6) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (ams AminoMarshalerStruct6) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.AminoMarshalerStruct6)
 	msg = pbo
 	return
 }
 
-func (goo *AminoMarshalerStruct6) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (ams *AminoMarshalerStruct6) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.AminoMarshalerStruct6 = msg.(*testspb.AminoMarshalerStruct6)
 	{
 		var goor []AminoMarshalerStruct1
@@ -8128,7 +8128,7 @@ func (goo *AminoMarshalerStruct6) FromPBMessage(cdc *amino.Codec, msg proto.Mess
 			}
 			goor = goors
 		}
-		err = goo.UnmarshalAmino(goor)
+		err = ams.UnmarshalAmino(goor)
 		if err != nil {
 			return
 		}
@@ -8136,7 +8136,7 @@ func (goo *AminoMarshalerStruct6) FromPBMessage(cdc *amino.Codec, msg proto.Mess
 	return
 }
 
-func (_ AminoMarshalerStruct6) GetTypeURL() (typeURL string) {
+func (ams AminoMarshalerStruct6) GetTypeURL() (typeURL string) {
 	return "/tests.AminoMarshalerStruct6"
 }
 
@@ -8150,10 +8150,10 @@ func IsAminoMarshalerStruct6ReprEmpty(goor []AminoMarshalerStruct1) (empty bool)
 	return
 }
 
-func (goo AminoMarshalerStruct7) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (ams AminoMarshalerStruct7) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.AminoMarshalerStruct7
 	{
-		goor, err1 := goo.MarshalAmino()
+		goor, err1 := ams.MarshalAmino()
 		if err1 != nil {
 			return nil, err1
 		}
@@ -8188,13 +8188,13 @@ func (goo AminoMarshalerStruct7) ToPBMessage(cdc *amino.Codec) (msg proto.Messag
 	return
 }
 
-func (goo AminoMarshalerStruct7) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (ams AminoMarshalerStruct7) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.AminoMarshalerStruct7)
 	msg = pbo
 	return
 }
 
-func (goo *AminoMarshalerStruct7) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (ams *AminoMarshalerStruct7) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.AminoMarshalerStruct7 = msg.(*testspb.AminoMarshalerStruct7)
 	{
 		var goor []ReprElem7
@@ -8222,7 +8222,7 @@ func (goo *AminoMarshalerStruct7) FromPBMessage(cdc *amino.Codec, msg proto.Mess
 			}
 			goor = goors
 		}
-		err = goo.UnmarshalAmino(goor)
+		err = ams.UnmarshalAmino(goor)
 		if err != nil {
 			return
 		}
@@ -8230,7 +8230,7 @@ func (goo *AminoMarshalerStruct7) FromPBMessage(cdc *amino.Codec, msg proto.Mess
 	return
 }
 
-func (_ AminoMarshalerStruct7) GetTypeURL() (typeURL string) {
+func (ams AminoMarshalerStruct7) GetTypeURL() (typeURL string) {
 	return "/tests.AminoMarshalerStruct7"
 }
 
@@ -8244,10 +8244,10 @@ func IsAminoMarshalerStruct7ReprEmpty(goor []ReprElem7) (empty bool) {
 	return
 }
 
-func (goo ReprElem7) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (re ReprElem7) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.ReprElem7
 	{
-		goor, err1 := goo.MarshalAmino()
+		goor, err1 := re.MarshalAmino()
 		if err1 != nil {
 			return nil, err1
 		}
@@ -8262,18 +8262,18 @@ func (goo ReprElem7) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error
 	return
 }
 
-func (goo ReprElem7) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (re ReprElem7) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.ReprElem7)
 	msg = pbo
 	return
 }
 
-func (goo *ReprElem7) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (re *ReprElem7) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.ReprElem7 = msg.(*testspb.ReprElem7)
 	{
 		var goor uint8
 		goor = uint8(uint8(pbo.Value))
-		err = goo.UnmarshalAmino(goor)
+		err = re.UnmarshalAmino(goor)
 		if err != nil {
 			return
 		}
@@ -8281,7 +8281,7 @@ func (goo *ReprElem7) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err er
 	return
 }
 
-func (_ ReprElem7) GetTypeURL() (typeURL string) {
+func (re ReprElem7) GetTypeURL() (typeURL string) {
 	return "/tests.ReprElem7"
 }
 
@@ -8295,35 +8295,35 @@ func IsReprElem7ReprEmpty(goor uint8) (empty bool) {
 	return
 }
 
-func (goo IntDef) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (id IntDef) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.IntDef
 	{
-		if IsIntDefReprEmpty(goo) {
+		if IsIntDefReprEmpty(id) {
 			var pbov *testspb.IntDef
 			msg = pbov
 			return
 		}
-		pbo = &testspb.IntDef{Value: int64(goo)}
+		pbo = &testspb.IntDef{Value: int64(id)}
 	}
 	msg = pbo
 	return
 }
 
-func (goo IntDef) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (id IntDef) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.IntDef)
 	msg = pbo
 	return
 }
 
-func (goo *IntDef) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (id *IntDef) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.IntDef = msg.(*testspb.IntDef)
 	{
-		*goo = IntDef(int(pbo.Value))
+		*id = IntDef(int(pbo.Value))
 	}
 	return
 }
 
-func (_ IntDef) GetTypeURL() (typeURL string) {
+func (id IntDef) GetTypeURL() (typeURL string) {
 	return "/tests.IntDef"
 }
 
@@ -8337,22 +8337,22 @@ func IsIntDefReprEmpty(goor IntDef) (empty bool) {
 	return
 }
 
-func (goo IntAr) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (ia IntAr) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.IntAr
 	{
-		if IsIntArReprEmpty(goo) {
+		if IsIntArReprEmpty(ia) {
 			var pbov *testspb.IntAr
 			msg = pbov
 			return
 		}
-		goorl := len(goo)
+		goorl := len(ia)
 		if goorl == 0 {
 			pbo = nil
 		} else {
 			pbos := make([]int64, goorl)
 			for i := 0; i < goorl; i += 1 {
 				{
-					goore := goo[i]
+					goore := ia[i]
 					{
 						pbos[i] = int64(goore)
 					}
@@ -8365,13 +8365,13 @@ func (goo IntAr) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	return
 }
 
-func (goo IntAr) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (ia IntAr) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.IntAr)
 	msg = pbo
 	return
 }
 
-func (goo *IntAr) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (ia *IntAr) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.IntAr = msg.(*testspb.IntAr)
 	{
 		goors := [4]int{}
@@ -8384,12 +8384,12 @@ func (goo *IntAr) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error)
 				}
 			}
 		}
-		*goo = goors
+		*ia = goors
 	}
 	return
 }
 
-func (_ IntAr) GetTypeURL() (typeURL string) {
+func (ia IntAr) GetTypeURL() (typeURL string) {
 	return "/tests.IntAr"
 }
 
@@ -8403,22 +8403,22 @@ func IsIntArReprEmpty(goor IntAr) (empty bool) {
 	return
 }
 
-func (goo IntSl) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (is IntSl) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.IntSl
 	{
-		if IsIntSlReprEmpty(goo) {
+		if IsIntSlReprEmpty(is) {
 			var pbov *testspb.IntSl
 			msg = pbov
 			return
 		}
-		goorl := len(goo)
+		goorl := len(is)
 		if goorl == 0 {
 			pbo = nil
 		} else {
 			pbos := make([]int64, goorl)
 			for i := 0; i < goorl; i += 1 {
 				{
-					goore := goo[i]
+					goore := is[i]
 					{
 						pbos[i] = int64(goore)
 					}
@@ -8431,13 +8431,13 @@ func (goo IntSl) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	return
 }
 
-func (goo IntSl) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (is IntSl) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.IntSl)
 	msg = pbo
 	return
 }
 
-func (goo *IntSl) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (is *IntSl) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.IntSl = msg.(*testspb.IntSl)
 	{
 		var pbol int = 0
@@ -8445,7 +8445,7 @@ func (goo *IntSl) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error)
 			pbol = len(pbo.Value)
 		}
 		if pbol == 0 {
-			*goo = nil
+			*is = nil
 		} else {
 			goors := make([]int, pbol)
 			for i := 0; i < pbol; i += 1 {
@@ -8457,13 +8457,13 @@ func (goo *IntSl) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error)
 					}
 				}
 			}
-			*goo = goors
+			*is = goors
 		}
 	}
 	return
 }
 
-func (_ IntSl) GetTypeURL() (typeURL string) {
+func (is IntSl) GetTypeURL() (typeURL string) {
 	return "/tests.IntSl"
 }
 
@@ -8477,22 +8477,22 @@ func IsIntSlReprEmpty(goor IntSl) (empty bool) {
 	return
 }
 
-func (goo ByteAr) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (ba ByteAr) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.ByteAr
 	{
-		if IsByteArReprEmpty(goo) {
+		if IsByteArReprEmpty(ba) {
 			var pbov *testspb.ByteAr
 			msg = pbov
 			return
 		}
-		goorl := len(goo)
+		goorl := len(ba)
 		if goorl == 0 {
 			pbo = nil
 		} else {
 			pbos := make([]uint8, goorl)
 			for i := 0; i < goorl; i += 1 {
 				{
-					goore := goo[i]
+					goore := ba[i]
 					{
 						pbos[i] = byte(goore)
 					}
@@ -8505,13 +8505,13 @@ func (goo ByteAr) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	return
 }
 
-func (goo ByteAr) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (ba ByteAr) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.ByteAr)
 	msg = pbo
 	return
 }
 
-func (goo *ByteAr) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (ba *ByteAr) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.ByteAr = msg.(*testspb.ByteAr)
 	{
 		goors := [4]uint8{}
@@ -8524,12 +8524,12 @@ func (goo *ByteAr) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error
 				}
 			}
 		}
-		*goo = goors
+		*ba = goors
 	}
 	return
 }
 
-func (_ ByteAr) GetTypeURL() (typeURL string) {
+func (ba ByteAr) GetTypeURL() (typeURL string) {
 	return "/tests.ByteAr"
 }
 
@@ -8543,22 +8543,22 @@ func IsByteArReprEmpty(goor ByteAr) (empty bool) {
 	return
 }
 
-func (goo ByteSl) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (bs ByteSl) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.ByteSl
 	{
-		if IsByteSlReprEmpty(goo) {
+		if IsByteSlReprEmpty(bs) {
 			var pbov *testspb.ByteSl
 			msg = pbov
 			return
 		}
-		goorl := len(goo)
+		goorl := len(bs)
 		if goorl == 0 {
 			pbo = nil
 		} else {
 			pbos := make([]uint8, goorl)
 			for i := 0; i < goorl; i += 1 {
 				{
-					goore := goo[i]
+					goore := bs[i]
 					{
 						pbos[i] = byte(goore)
 					}
@@ -8571,13 +8571,13 @@ func (goo ByteSl) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	return
 }
 
-func (goo ByteSl) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (bs ByteSl) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.ByteSl)
 	msg = pbo
 	return
 }
 
-func (goo *ByteSl) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (bs *ByteSl) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.ByteSl = msg.(*testspb.ByteSl)
 	{
 		var pbol int = 0
@@ -8585,7 +8585,7 @@ func (goo *ByteSl) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error
 			pbol = len(pbo.Value)
 		}
 		if pbol == 0 {
-			*goo = nil
+			*bs = nil
 		} else {
 			goors := make([]uint8, pbol)
 			for i := 0; i < pbol; i += 1 {
@@ -8597,13 +8597,13 @@ func (goo *ByteSl) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error
 					}
 				}
 			}
-			*goo = goors
+			*bs = goors
 		}
 	}
 	return
 }
 
-func (_ ByteSl) GetTypeURL() (typeURL string) {
+func (bs ByteSl) GetTypeURL() (typeURL string) {
 	return "/tests.ByteSl"
 }
 
@@ -8617,72 +8617,72 @@ func IsByteSlReprEmpty(goor ByteSl) (empty bool) {
 	return
 }
 
-func (goo PrimitivesStructDef) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (psd PrimitivesStructDef) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.PrimitivesStructDef
 	{
-		if IsPrimitivesStructDefReprEmpty(goo) {
+		if IsPrimitivesStructDefReprEmpty(psd) {
 			var pbov *testspb.PrimitivesStructDef
 			msg = pbov
 			return
 		}
 		pbo = new(testspb.PrimitivesStructDef)
 		{
-			pbo.Int8 = int32(goo.Int8)
+			pbo.Int8 = int32(psd.Int8)
 		}
 		{
-			pbo.Int16 = int32(goo.Int16)
+			pbo.Int16 = int32(psd.Int16)
 		}
 		{
-			pbo.Int32 = int32(goo.Int32)
+			pbo.Int32 = int32(psd.Int32)
 		}
 		{
-			pbo.Int32Fixed = int32(goo.Int32Fixed)
+			pbo.Int32Fixed = int32(psd.Int32Fixed)
 		}
 		{
-			pbo.Int64 = int64(goo.Int64)
+			pbo.Int64 = int64(psd.Int64)
 		}
 		{
-			pbo.Int64Fixed = int64(goo.Int64Fixed)
+			pbo.Int64Fixed = int64(psd.Int64Fixed)
 		}
 		{
-			pbo.Int = int64(goo.Int)
+			pbo.Int = int64(psd.Int)
 		}
 		{
-			pbo.Byte = uint32(goo.Byte)
+			pbo.Byte = uint32(psd.Byte)
 		}
 		{
-			pbo.Uint8 = uint32(goo.Uint8)
+			pbo.Uint8 = uint32(psd.Uint8)
 		}
 		{
-			pbo.Uint16 = uint32(goo.Uint16)
+			pbo.Uint16 = uint32(psd.Uint16)
 		}
 		{
-			pbo.Uint32 = uint32(goo.Uint32)
+			pbo.Uint32 = uint32(psd.Uint32)
 		}
 		{
-			pbo.Uint32Fixed = uint32(goo.Uint32Fixed)
+			pbo.Uint32Fixed = uint32(psd.Uint32Fixed)
 		}
 		{
-			pbo.Uint64 = uint64(goo.Uint64)
+			pbo.Uint64 = uint64(psd.Uint64)
 		}
 		{
-			pbo.Uint64Fixed = uint64(goo.Uint64Fixed)
+			pbo.Uint64Fixed = uint64(psd.Uint64Fixed)
 		}
 		{
-			pbo.Uint = uint64(goo.Uint)
+			pbo.Uint = uint64(psd.Uint)
 		}
 		{
-			pbo.Str = string(goo.Str)
+			pbo.Str = string(psd.Str)
 		}
 		{
-			goorl := len(goo.Bytes)
+			goorl := len(psd.Bytes)
 			if goorl == 0 {
 				pbo.Bytes = nil
 			} else {
 				pbos := make([]uint8, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Bytes[i]
+						goore := psd.Bytes[i]
 						{
 							pbos[i] = byte(goore)
 						}
@@ -8692,18 +8692,18 @@ func (goo PrimitivesStructDef) ToPBMessage(cdc *amino.Codec) (msg proto.Message,
 			}
 		}
 		{
-			if !amino.IsEmptyTime(goo.Time) {
-				pbo.Time = timestamppb.New(goo.Time)
+			if !amino.IsEmptyTime(psd.Time) {
+				pbo.Time = timestamppb.New(psd.Time)
 			}
 		}
 		{
-			if goo.Duration.Nanoseconds() != 0 {
-				pbo.Duration = durationpb.New(goo.Duration)
+			if psd.Duration.Nanoseconds() != 0 {
+				pbo.Duration = durationpb.New(psd.Duration)
 			}
 		}
 		{
 			pbom := proto.Message(nil)
-			pbom, err = goo.Empty.ToPBMessage(cdc)
+			pbom, err = psd.Empty.ToPBMessage(cdc)
 			if err != nil {
 				return
 			}
@@ -8714,63 +8714,63 @@ func (goo PrimitivesStructDef) ToPBMessage(cdc *amino.Codec) (msg proto.Message,
 	return
 }
 
-func (goo PrimitivesStructDef) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (psd PrimitivesStructDef) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.PrimitivesStructDef)
 	msg = pbo
 	return
 }
 
-func (goo *PrimitivesStructDef) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (psd *PrimitivesStructDef) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.PrimitivesStructDef = msg.(*testspb.PrimitivesStructDef)
 	{
 		if pbo != nil {
 			{
-				(*goo).Int8 = int8(int8(pbo.Int8))
+				(*psd).Int8 = int8(int8(pbo.Int8))
 			}
 			{
-				(*goo).Int16 = int16(int16(pbo.Int16))
+				(*psd).Int16 = int16(int16(pbo.Int16))
 			}
 			{
-				(*goo).Int32 = int32(pbo.Int32)
+				(*psd).Int32 = int32(pbo.Int32)
 			}
 			{
-				(*goo).Int32Fixed = int32(pbo.Int32Fixed)
+				(*psd).Int32Fixed = int32(pbo.Int32Fixed)
 			}
 			{
-				(*goo).Int64 = int64(pbo.Int64)
+				(*psd).Int64 = int64(pbo.Int64)
 			}
 			{
-				(*goo).Int64Fixed = int64(pbo.Int64Fixed)
+				(*psd).Int64Fixed = int64(pbo.Int64Fixed)
 			}
 			{
-				(*goo).Int = int(int(pbo.Int))
+				(*psd).Int = int(int(pbo.Int))
 			}
 			{
-				(*goo).Byte = uint8(uint8(pbo.Byte))
+				(*psd).Byte = uint8(uint8(pbo.Byte))
 			}
 			{
-				(*goo).Uint8 = uint8(uint8(pbo.Uint8))
+				(*psd).Uint8 = uint8(uint8(pbo.Uint8))
 			}
 			{
-				(*goo).Uint16 = uint16(uint16(pbo.Uint16))
+				(*psd).Uint16 = uint16(uint16(pbo.Uint16))
 			}
 			{
-				(*goo).Uint32 = uint32(pbo.Uint32)
+				(*psd).Uint32 = uint32(pbo.Uint32)
 			}
 			{
-				(*goo).Uint32Fixed = uint32(pbo.Uint32Fixed)
+				(*psd).Uint32Fixed = uint32(pbo.Uint32Fixed)
 			}
 			{
-				(*goo).Uint64 = uint64(pbo.Uint64)
+				(*psd).Uint64 = uint64(pbo.Uint64)
 			}
 			{
-				(*goo).Uint64Fixed = uint64(pbo.Uint64Fixed)
+				(*psd).Uint64Fixed = uint64(pbo.Uint64Fixed)
 			}
 			{
-				(*goo).Uint = uint(uint(pbo.Uint))
+				(*psd).Uint = uint(uint(pbo.Uint))
 			}
 			{
-				(*goo).Str = string(pbo.Str)
+				(*psd).Str = string(pbo.Str)
 			}
 			{
 				var pbol int = 0
@@ -8778,7 +8778,7 @@ func (goo *PrimitivesStructDef) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 					pbol = len(pbo.Bytes)
 				}
 				if pbol == 0 {
-					(*goo).Bytes = nil
+					(*psd).Bytes = nil
 				} else {
 					goors := make([]uint8, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -8790,18 +8790,18 @@ func (goo *PrimitivesStructDef) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 							}
 						}
 					}
-					(*goo).Bytes = goors
+					(*psd).Bytes = goors
 				}
 			}
 			{
-				(*goo).Time = pbo.Time.AsTime()
+				(*psd).Time = pbo.Time.AsTime()
 			}
 			{
-				(*goo).Duration = pbo.Duration.AsDuration()
+				(*psd).Duration = pbo.Duration.AsDuration()
 			}
 			{
 				if pbo.Empty != nil {
-					err = (*goo).Empty.FromPBMessage(cdc, pbo.Empty)
+					err = (*psd).Empty.FromPBMessage(cdc, pbo.Empty)
 					if err != nil {
 						return
 					}
@@ -8812,7 +8812,7 @@ func (goo *PrimitivesStructDef) FromPBMessage(cdc *amino.Codec, msg proto.Messag
 	return
 }
 
-func (_ PrimitivesStructDef) GetTypeURL() (typeURL string) {
+func (psd PrimitivesStructDef) GetTypeURL() (typeURL string) {
 	return "/tests.PrimitivesStructDef"
 }
 
@@ -8924,22 +8924,22 @@ func IsPrimitivesStructDefReprEmpty(goor PrimitivesStructDef) (empty bool) {
 	return
 }
 
-func (goo PrimitivesStructSl) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (ps PrimitivesStructSl) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.PrimitivesStructSl
 	{
-		if IsPrimitivesStructSlReprEmpty(goo) {
+		if IsPrimitivesStructSlReprEmpty(ps) {
 			var pbov *testspb.PrimitivesStructSl
 			msg = pbov
 			return
 		}
-		goorl := len(goo)
+		goorl := len(ps)
 		if goorl == 0 {
 			pbo = nil
 		} else {
 			pbos := make([]*testspb.PrimitivesStruct, goorl)
 			for i := 0; i < goorl; i += 1 {
 				{
-					goore := goo[i]
+					goore := ps[i]
 					{
 						pbom := proto.Message(nil)
 						pbom, err = goore.ToPBMessage(cdc)
@@ -8957,13 +8957,13 @@ func (goo PrimitivesStructSl) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 	return
 }
 
-func (goo PrimitivesStructSl) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (ps PrimitivesStructSl) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.PrimitivesStructSl)
 	msg = pbo
 	return
 }
 
-func (goo *PrimitivesStructSl) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (ps *PrimitivesStructSl) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.PrimitivesStructSl = msg.(*testspb.PrimitivesStructSl)
 	{
 		var pbol int = 0
@@ -8971,7 +8971,7 @@ func (goo *PrimitivesStructSl) FromPBMessage(cdc *amino.Codec, msg proto.Message
 			pbol = len(pbo.Value)
 		}
 		if pbol == 0 {
-			*goo = nil
+			*ps = nil
 		} else {
 			goors := make([]PrimitivesStruct, pbol)
 			for i := 0; i < pbol; i += 1 {
@@ -8988,13 +8988,13 @@ func (goo *PrimitivesStructSl) FromPBMessage(cdc *amino.Codec, msg proto.Message
 					}
 				}
 			}
-			*goo = goors
+			*ps = goors
 		}
 	}
 	return
 }
 
-func (_ PrimitivesStructSl) GetTypeURL() (typeURL string) {
+func (ps PrimitivesStructSl) GetTypeURL() (typeURL string) {
 	return "/tests.PrimitivesStructSl"
 }
 
@@ -9008,22 +9008,22 @@ func IsPrimitivesStructSlReprEmpty(goor PrimitivesStructSl) (empty bool) {
 	return
 }
 
-func (goo PrimitivesStructAr) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (ps PrimitivesStructAr) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.PrimitivesStructAr
 	{
-		if IsPrimitivesStructArReprEmpty(goo) {
+		if IsPrimitivesStructArReprEmpty(ps) {
 			var pbov *testspb.PrimitivesStructAr
 			msg = pbov
 			return
 		}
-		goorl := len(goo)
+		goorl := len(ps)
 		if goorl == 0 {
 			pbo = nil
 		} else {
 			pbos := make([]*testspb.PrimitivesStruct, goorl)
 			for i := 0; i < goorl; i += 1 {
 				{
-					goore := goo[i]
+					goore := ps[i]
 					{
 						pbom := proto.Message(nil)
 						pbom, err = goore.ToPBMessage(cdc)
@@ -9041,13 +9041,13 @@ func (goo PrimitivesStructAr) ToPBMessage(cdc *amino.Codec) (msg proto.Message, 
 	return
 }
 
-func (goo PrimitivesStructAr) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (ps PrimitivesStructAr) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.PrimitivesStructAr)
 	msg = pbo
 	return
 }
 
-func (goo *PrimitivesStructAr) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (ps *PrimitivesStructAr) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.PrimitivesStructAr = msg.(*testspb.PrimitivesStructAr)
 	{
 		goors := [2]PrimitivesStruct{}
@@ -9065,12 +9065,12 @@ func (goo *PrimitivesStructAr) FromPBMessage(cdc *amino.Codec, msg proto.Message
 				}
 			}
 		}
-		*goo = goors
+		*ps = goors
 	}
 	return
 }
 
-func (_ PrimitivesStructAr) GetTypeURL() (typeURL string) {
+func (ps PrimitivesStructAr) GetTypeURL() (typeURL string) {
 	return "/tests.PrimitivesStructAr"
 }
 
@@ -9084,10 +9084,10 @@ func IsPrimitivesStructArReprEmpty(goor PrimitivesStructAr) (empty bool) {
 	return
 }
 
-func (goo Concrete1) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (c Concrete1) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.Concrete1
 	{
-		if IsConcrete1ReprEmpty(goo) {
+		if IsConcrete1ReprEmpty(c) {
 			var pbov *testspb.Concrete1
 			msg = pbov
 			return
@@ -9098,13 +9098,13 @@ func (goo Concrete1) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error
 	return
 }
 
-func (goo Concrete1) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (c Concrete1) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.Concrete1)
 	msg = pbo
 	return
 }
 
-func (goo *Concrete1) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (c *Concrete1) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.Concrete1 = msg.(*testspb.Concrete1)
 	{
 		if pbo != nil {
@@ -9113,7 +9113,7 @@ func (goo *Concrete1) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err er
 	return
 }
 
-func (_ Concrete1) GetTypeURL() (typeURL string) {
+func (c Concrete1) GetTypeURL() (typeURL string) {
 	return "/tests.Concrete1"
 }
 
@@ -9124,10 +9124,10 @@ func IsConcrete1ReprEmpty(goor Concrete1) (empty bool) {
 	return
 }
 
-func (goo Concrete2) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (c Concrete2) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.Concrete2
 	{
-		if IsConcrete2ReprEmpty(goo) {
+		if IsConcrete2ReprEmpty(c) {
 			var pbov *testspb.Concrete2
 			msg = pbov
 			return
@@ -9138,13 +9138,13 @@ func (goo Concrete2) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error
 	return
 }
 
-func (goo Concrete2) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (c Concrete2) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.Concrete2)
 	msg = pbo
 	return
 }
 
-func (goo *Concrete2) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (c *Concrete2) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.Concrete2 = msg.(*testspb.Concrete2)
 	{
 		if pbo != nil {
@@ -9153,7 +9153,7 @@ func (goo *Concrete2) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err er
 	return
 }
 
-func (_ Concrete2) GetTypeURL() (typeURL string) {
+func (c Concrete2) GetTypeURL() (typeURL string) {
 	return "/tests.Concrete2"
 }
 
@@ -9164,22 +9164,22 @@ func IsConcrete2ReprEmpty(goor Concrete2) (empty bool) {
 	return
 }
 
-func (goo ConcreteTypeDef) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (ctd ConcreteTypeDef) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.ConcreteTypeDef
 	{
-		if IsConcreteTypeDefReprEmpty(goo) {
+		if IsConcreteTypeDefReprEmpty(ctd) {
 			var pbov *testspb.ConcreteTypeDef
 			msg = pbov
 			return
 		}
-		goorl := len(goo)
+		goorl := len(ctd)
 		if goorl == 0 {
 			pbo = nil
 		} else {
 			pbos := make([]uint8, goorl)
 			for i := 0; i < goorl; i += 1 {
 				{
-					goore := goo[i]
+					goore := ctd[i]
 					{
 						pbos[i] = byte(goore)
 					}
@@ -9192,13 +9192,13 @@ func (goo ConcreteTypeDef) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err
 	return
 }
 
-func (goo ConcreteTypeDef) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (ctd ConcreteTypeDef) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.ConcreteTypeDef)
 	msg = pbo
 	return
 }
 
-func (goo *ConcreteTypeDef) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (ctd *ConcreteTypeDef) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.ConcreteTypeDef = msg.(*testspb.ConcreteTypeDef)
 	{
 		goors := [4]uint8{}
@@ -9211,12 +9211,12 @@ func (goo *ConcreteTypeDef) FromPBMessage(cdc *amino.Codec, msg proto.Message) (
 				}
 			}
 		}
-		*goo = goors
+		*ctd = goors
 	}
 	return
 }
 
-func (_ ConcreteTypeDef) GetTypeURL() (typeURL string) {
+func (ctd ConcreteTypeDef) GetTypeURL() (typeURL string) {
 	return "/tests.ConcreteTypeDef"
 }
 
@@ -9230,24 +9230,24 @@ func IsConcreteTypeDefReprEmpty(goor ConcreteTypeDef) (empty bool) {
 	return
 }
 
-func (goo ConcreteWrappedBytes) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (cwb ConcreteWrappedBytes) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.ConcreteWrappedBytes
 	{
-		if IsConcreteWrappedBytesReprEmpty(goo) {
+		if IsConcreteWrappedBytesReprEmpty(cwb) {
 			var pbov *testspb.ConcreteWrappedBytes
 			msg = pbov
 			return
 		}
 		pbo = new(testspb.ConcreteWrappedBytes)
 		{
-			goorl := len(goo.Value)
+			goorl := len(cwb.Value)
 			if goorl == 0 {
 				pbo.Value = nil
 			} else {
 				pbos := make([]uint8, goorl)
 				for i := 0; i < goorl; i += 1 {
 					{
-						goore := goo.Value[i]
+						goore := cwb.Value[i]
 						{
 							pbos[i] = byte(goore)
 						}
@@ -9261,13 +9261,13 @@ func (goo ConcreteWrappedBytes) ToPBMessage(cdc *amino.Codec) (msg proto.Message
 	return
 }
 
-func (goo ConcreteWrappedBytes) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (cwb ConcreteWrappedBytes) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.ConcreteWrappedBytes)
 	msg = pbo
 	return
 }
 
-func (goo *ConcreteWrappedBytes) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (cwb *ConcreteWrappedBytes) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.ConcreteWrappedBytes = msg.(*testspb.ConcreteWrappedBytes)
 	{
 		if pbo != nil {
@@ -9277,7 +9277,7 @@ func (goo *ConcreteWrappedBytes) FromPBMessage(cdc *amino.Codec, msg proto.Messa
 					pbol = len(pbo.Value)
 				}
 				if pbol == 0 {
-					(*goo).Value = nil
+					(*cwb).Value = nil
 				} else {
 					goors := make([]uint8, pbol)
 					for i := 0; i < pbol; i += 1 {
@@ -9289,7 +9289,7 @@ func (goo *ConcreteWrappedBytes) FromPBMessage(cdc *amino.Codec, msg proto.Messa
 							}
 						}
 					}
-					(*goo).Value = goors
+					(*cwb).Value = goors
 				}
 			}
 		}
@@ -9297,7 +9297,7 @@ func (goo *ConcreteWrappedBytes) FromPBMessage(cdc *amino.Codec, msg proto.Messa
 	return
 }
 
-func (_ ConcreteWrappedBytes) GetTypeURL() (typeURL string) {
+func (cwb ConcreteWrappedBytes) GetTypeURL() (typeURL string) {
 	return "/tests.ConcreteWrappedBytes"
 }
 
@@ -9313,20 +9313,20 @@ func IsConcreteWrappedBytesReprEmpty(goor ConcreteWrappedBytes) (empty bool) {
 	return
 }
 
-func (goo InterfaceFieldsStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
+func (ifs InterfaceFieldsStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err error) {
 	var pbo *testspb.InterfaceFieldsStruct
 	{
-		if IsInterfaceFieldsStructReprEmpty(goo) {
+		if IsInterfaceFieldsStructReprEmpty(ifs) {
 			var pbov *testspb.InterfaceFieldsStruct
 			msg = pbov
 			return
 		}
 		pbo = new(testspb.InterfaceFieldsStruct)
 		{
-			if goo.F1 != nil {
-				typeUrl := cdc.GetTypeURL(goo.F1)
+			if ifs.F1 != nil {
+				typeUrl := cdc.GetTypeURL(ifs.F1)
 				bz := []byte(nil)
-				bz, err = cdc.Marshal(goo.F1)
+				bz, err = cdc.Marshal(ifs.F1)
 				if err != nil {
 					return
 				}
@@ -9334,10 +9334,10 @@ func (goo InterfaceFieldsStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Messag
 			}
 		}
 		{
-			if goo.F2 != nil {
-				typeUrl := cdc.GetTypeURL(goo.F2)
+			if ifs.F2 != nil {
+				typeUrl := cdc.GetTypeURL(ifs.F2)
 				bz := []byte(nil)
-				bz, err = cdc.Marshal(goo.F2)
+				bz, err = cdc.Marshal(ifs.F2)
 				if err != nil {
 					return
 				}
@@ -9345,10 +9345,10 @@ func (goo InterfaceFieldsStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Messag
 			}
 		}
 		{
-			if goo.F3 != nil {
-				typeUrl := cdc.GetTypeURL(goo.F3)
+			if ifs.F3 != nil {
+				typeUrl := cdc.GetTypeURL(ifs.F3)
 				bz := []byte(nil)
-				bz, err = cdc.Marshal(goo.F3)
+				bz, err = cdc.Marshal(ifs.F3)
 				if err != nil {
 					return
 				}
@@ -9356,10 +9356,10 @@ func (goo InterfaceFieldsStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Messag
 			}
 		}
 		{
-			if goo.F4 != nil {
-				typeUrl := cdc.GetTypeURL(goo.F4)
+			if ifs.F4 != nil {
+				typeUrl := cdc.GetTypeURL(ifs.F4)
 				bz := []byte(nil)
-				bz, err = cdc.Marshal(goo.F4)
+				bz, err = cdc.Marshal(ifs.F4)
 				if err != nil {
 					return
 				}
@@ -9371,20 +9371,20 @@ func (goo InterfaceFieldsStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Messag
 	return
 }
 
-func (goo InterfaceFieldsStruct) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
+func (ifs InterfaceFieldsStruct) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.InterfaceFieldsStruct)
 	msg = pbo
 	return
 }
 
-func (goo *InterfaceFieldsStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
+func (ifs *InterfaceFieldsStruct) FromPBMessage(cdc *amino.Codec, msg proto.Message) (err error) {
 	var pbo *testspb.InterfaceFieldsStruct = msg.(*testspb.InterfaceFieldsStruct)
 	{
 		if pbo != nil {
 			{
 				typeUrl := pbo.F1.TypeUrl
 				bz := pbo.F1.Value
-				goorp := &(*goo).F1
+				goorp := &(*ifs).F1
 				err = cdc.UnmarshalAny2(typeUrl, bz, goorp)
 				if err != nil {
 					return
@@ -9393,7 +9393,7 @@ func (goo *InterfaceFieldsStruct) FromPBMessage(cdc *amino.Codec, msg proto.Mess
 			{
 				typeUrl := pbo.F2.TypeUrl
 				bz := pbo.F2.Value
-				goorp := &(*goo).F2
+				goorp := &(*ifs).F2
 				err = cdc.UnmarshalAny2(typeUrl, bz, goorp)
 				if err != nil {
 					return
@@ -9402,7 +9402,7 @@ func (goo *InterfaceFieldsStruct) FromPBMessage(cdc *amino.Codec, msg proto.Mess
 			{
 				typeUrl := pbo.F3.TypeUrl
 				bz := pbo.F3.Value
-				goorp := &(*goo).F3
+				goorp := &(*ifs).F3
 				err = cdc.UnmarshalAny2(typeUrl, bz, goorp)
 				if err != nil {
 					return
@@ -9411,7 +9411,7 @@ func (goo *InterfaceFieldsStruct) FromPBMessage(cdc *amino.Codec, msg proto.Mess
 			{
 				typeUrl := pbo.F4.TypeUrl
 				bz := pbo.F4.Value
-				goorp := &(*goo).F4
+				goorp := &(*ifs).F4
 				err = cdc.UnmarshalAny2(typeUrl, bz, goorp)
 				if err != nil {
 					return
@@ -9422,7 +9422,7 @@ func (goo *InterfaceFieldsStruct) FromPBMessage(cdc *amino.Codec, msg proto.Mess
 	return
 }
 
-func (_ InterfaceFieldsStruct) GetTypeURL() (typeURL string) {
+func (ifs InterfaceFieldsStruct) GetTypeURL() (typeURL string) {
 	return "/tests.InterfaceFieldsStruct"
 }
 
