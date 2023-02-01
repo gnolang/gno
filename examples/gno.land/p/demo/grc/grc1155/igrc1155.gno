@@ -14,17 +14,19 @@ type IGRC1155 interface {
 type TokenID string
 
 type TransferSingleEvent struct {
-	From    std.Address
-	To      std.Address
-	TokenID TokenID
-	Amount  uint64
+	Operator std.Address
+	From     std.Address
+	To       std.Address
+	TokenID  TokenID
+	Amount   uint64
 }
 
 type TransferBatchEvent struct {
-	From    std.Address
-	To      std.Address
-	Batch   []TokenID
-	Amounts []uint64
+	Operator std.Address
+	From     std.Address
+	To       std.Address
+	Batch    []TokenID
+	Amounts  []uint64
 }
 
 type ApprovalForAllEvent struct {
@@ -34,6 +36,6 @@ type ApprovalForAllEvent struct {
 }
 
 type UpdateURIEvent struct {
-	URI		string
+	URI     string
 	TokenID TokenID
 }
