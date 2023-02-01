@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -25,6 +27,7 @@ func DefaultOpts() Opts {
 		httpClient:             &http.Client{},
 		twitterSearchTweetsUrl: "https://api.twitter.com/2/tweets/search/recent?query=%23gnotips&max_results=100",
 		awesomeGnoRepoUrl:      "https://api.github.com/repos/gnolang/awesome-gno/issues",
+		outputPath:             "./data/",
 	}
 }
 
@@ -43,7 +46,6 @@ func main() {
 
 // TODO: Create a type per fetching in a way we can format them in different ways
 // TODO: Verify if we can use a template engine to format the output: Like prebuild a report template with a function to format the data
-// TODO: Verify each boolean flag to know if we should fetch the data or not
 func runMain(args []string) error {
 	var root *ffcli.Command
 	{
@@ -58,6 +60,7 @@ func runMain(args []string) error {
 		globalFlags.StringVar(&opts.githubToken, "github-token", opts.githubToken, "github token")
 		globalFlags.BoolVar(&opts.help, "help", false, "show help")
 		globalFlags.StringVar(&opts.format, "format", opts.format, "output format")
+		globalFlags.StringVar(&opts.outputPath, "output-path", opts.outputPath, "output directory path")
 		root = &ffcli.Command{
 			ShortUsage: "reporting [flags]",
 			FlagSet:    globalFlags,
@@ -88,8 +91,8 @@ func runMain(args []string) error {
 				if err != nil {
 					return err
 				}
+				fmt.Println(jsonFormat([]string{changelog, backlog, curation, tips}))
 				//TODO: generate report from data at different formats (Markdown, JSON, CSV,  ...etc)
-				fmt.Println(changelog + backlog + curation + tips)
 				return nil
 			},
 		}
@@ -182,6 +185,19 @@ func fetchTips() (string, error) {
 	return string(body), nil
 }
 
+func jsonFormat(data string) string {
+	var out bytes.Buffer
+	err := json.Indent(&out, []byte(data), "", "\t")
+	if err != nil {
+		return data
+	}
+	return out.String()
+}
+
+func writeOutputFiles() error {
+
+}
+
 type Opts struct {
 	changelog              bool
 	backlog                bool
@@ -195,4 +211,5 @@ type Opts struct {
 	httpClient             *http.Client
 	twitterSearchTweetsUrl string
 	awesomeGnoRepoUrl      string
+	outputPath             string
 }
