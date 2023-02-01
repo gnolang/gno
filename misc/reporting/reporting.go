@@ -4,7 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
+	"github.com/google/go-github/v50/github"
 	"net/http"
 	"os"
 
@@ -72,11 +72,11 @@ func runMain(args []string) error {
 				if opts.githubToken == "" && (opts.curation || opts.backlog || opts.changelog) {
 					return fmt.Errorf("github token is required to fetch curation, backlog or changelog")
 				}
-
+				githubClient := initGithubClient()
 				outputs := map[string]string{
-					"changelog": fetchChangelog(),
-					"backlog":   fetchBacklog(),
-					"curation":  fetchCuration(),
+					"changelog": fetchChangelog(githubClient),
+					"backlog":   fetchBacklog(githubClient),
+					"curation":  fetchCuration(githubClient),
 					"tips":      fetchTips(),
 				}
 
@@ -92,7 +92,7 @@ func runMain(args []string) error {
 }
 
 // TODO: Fetch changelog recent contributors, new PR merged, new issues closed ... & use from option
-func fetchChangelog() string {
+func fetchChangelog(client *github.Client) string {
 	if !opts.changelog {
 		return ""
 	}
@@ -104,7 +104,7 @@ func fetchChangelog() string {
 }
 
 // TODO: Fetch backlog from github issues & PRS ... & use from option
-func fetchBacklog() string {
+func fetchBacklog(client *github.Client) string {
 	if !opts.backlog {
 		return ""
 	}
@@ -115,42 +115,26 @@ func fetchBacklog() string {
 }
 
 // TODO: Fetch curation from github commits & issues & PRS in `awesome-gno` repo & use from option
-func fetchCuration() string {
+func fetchCuration(client *github.Client) string {
 	if !opts.curation {
 		return ""
 	}
-	var bearer = "Bearer " + opts.githubToken
-	req, err := http.NewRequest("GET", opts.awesomeGnoRepoUrl, nil)
+	issues, err := githubFetchIssues(client, &github.IssueListByRepoOptions{}, "gnolang", "awesome-gno")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %+v\n", err)
 		return ""
 	}
-	req.Header.Add("Authorization", bearer)
-	resp, err := opts.httpClient.Do(req)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %+v\n", err)
-		return ""
+	for _, issue := range issues {
+		fmt.Printf("%+s \n", *issue.Title)
 	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: %+v\n", err)
-		}
-	}(resp.Body)
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %+v\n", err)
-		return ""
-	}
-	return string(body)
+	return "string(body)"
 }
 
 func fetchTips() string {
 	if !opts.tips {
 		return ""
 	}
-	ret := twitterSearchTweetFromHashtag()
+	ret := twitterFetchTips()
 	return ret
 }
 

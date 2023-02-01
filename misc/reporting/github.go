@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 
-	"github.com/google/go-github/v30/github"
+	"github.com/google/go-github/v50/github"
 	"golang.org/x/oauth2"
 )
 
@@ -14,14 +14,8 @@ func initGithubClient() *github.Client {
 	return client
 }
 
-func getGithubBacklog(token string) ([]*github.Issue, error) {
-	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
-	tc := oauth2.NewClient(context.Background(), ts)
-	client := github.NewClient(tc)
-
-	callOpts := &github.IssueListByRepoOptions{State: "all"}
-	// may need to paginate at some time
-	issues, _, err := client.Issues.ListByRepo(context.Background(), "gnolang", "gno", callOpts)
+func githubFetchIssues(client *github.Client, opts *github.IssueListByRepoOptions, owner string, repository string) ([]*github.Issue, error) {
+	issues, _, err := client.Issues.ListByRepo(context.Background(), owner, repository, opts)
 	if err != nil {
 		return nil, err
 	}

@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-func twitterSearchTweetFromHashtag() string {
+func twitterFetchTips() string {
 	if opts.from != "" {
 		opts.twitterSearchTweetsUrl += "&start_time=" + opts.from
 	}
