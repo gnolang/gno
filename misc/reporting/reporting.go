@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -44,7 +42,6 @@ func main() {
 	}
 }
 
-// TODO: Create a type per fetching in a way we can format them in different ways
 // TODO: Verify if we can use a template engine to format the output: Like prebuild a report template with a function to format the data
 func runMain(args []string) error {
 	var root *ffcli.Command
@@ -87,7 +84,6 @@ func runMain(args []string) error {
 				if err != nil {
 					return err
 				}
-				//TODO: generate report from data at different formats (Markdown, JSON, CSV,  ...etc)
 				return nil
 			},
 		}
@@ -150,71 +146,12 @@ func fetchCuration() string {
 	return string(body)
 }
 
-// TODO: fetch tips since from option
 func fetchTips() string {
 	if !opts.tips {
 		return ""
 	}
-	if opts.from != "" {
-		opts.twitterSearchTweetsUrl += "&start_time=" + opts.from
-	}
-
-	var bearer = "Bearer " + opts.twitterToken
-	req, err := http.NewRequest("GET", opts.twitterSearchTweetsUrl, nil)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %+v\n", err)
-		return ""
-	}
-	req.Header.Add("Authorization", bearer)
-	resp, err := opts.httpClient.Do(req)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %+v\n", err)
-		return ""
-	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: %+v\n", err)
-		}
-	}(resp.Body)
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %+v\n", err)
-		return ""
-	}
-	return string(body)
-}
-
-func jsonFormat(data string) string {
-	var out bytes.Buffer
-	err := json.Indent(&out, []byte(data), "", "\t")
-	if err != nil {
-		return data
-	}
-	return out.String()
-}
-
-func writeOutputFiles(outputs map[string]string) error {
-	if _, err := os.Stat(opts.outputPath); os.IsNotExist(err) {
-		err = os.MkdirAll(opts.outputPath, os.ModePerm)
-		if err != nil {
-			return err
-		}
-	}
-	for name, data := range outputs {
-		if data == "" {
-			continue
-		}
-		if opts.format == "json" {
-			data = jsonFormat(data)
-		}
-		err := os.WriteFile(opts.outputPath+name+".json", []byte(data), 0644)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	ret := twitterSearchTweetFromHashtag()
+	return ret
 }
 
 type Opts struct {
