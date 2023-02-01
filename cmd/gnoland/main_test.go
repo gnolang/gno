@@ -29,7 +29,6 @@ func TestInitialize(t *testing.T) {
 
 			cfg := &gnolandCfg{}
 			cmd := commands.NewCommand(
-				"gnoland",
 				commands.Metadata{},
 				cfg,
 			)

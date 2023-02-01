@@ -37,7 +37,6 @@ func newExportCommand(rootCfg *config) *commands.Command {
 	}
 
 	return commands.NewCommand(
-		"export",
 		commands.Metadata{
 			Name:       "export",
 			ShortUsage: "export [flags] <file>",

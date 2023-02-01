@@ -31,7 +31,6 @@ func newImportCommand(rootCfg *config) *commands.Command {
 	}
 
 	return commands.NewCommand(
-		"import",
 		commands.Metadata{
 			Name:       "import",
 			ShortUsage: "import [flags] <file>",

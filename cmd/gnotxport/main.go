@@ -22,7 +22,6 @@ func main() {
 	cfg := &config{}
 
 	cmd := commands.NewCommand(
-		"",
 		commands.Metadata{
 			ShortUsage: "<subcommand> [flags] [<arg>...]",
 			LongHelp:   "Exports or imports transactions from the node",

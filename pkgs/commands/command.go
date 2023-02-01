@@ -47,13 +47,9 @@ func (c *Command) GetConfig() Config {
 }
 
 func NewCommand(
-	name string,
 	meta Metadata,
 	config Config,
 ) *Command {
-	// Create the flagset
-	fs := flag.NewFlagSet(name, flag.ExitOnError)
-
 	command := &Command{
 		Command: ffcli.Command{
 			Name:       meta.Name,
@@ -61,7 +57,7 @@ func NewCommand(
 			LongHelp:   meta.LongHelp,
 			ShortUsage: meta.ShortUsage,
 			Options:    meta.Options,
-			FlagSet:    fs,
+			FlagSet:    flag.NewFlagSet(meta.Name, flag.ExitOnError),
 			Exec:       config.Exec,
 		},
 		cfg: config,

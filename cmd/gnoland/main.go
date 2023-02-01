@@ -39,7 +39,6 @@ func main() {
 	cfg := &gnolandCfg{}
 
 	cmd := commands.NewCommand(
-		"gnoland",
 		commands.Metadata{
 			ShortUsage: "[flags] [<arg>...]",
 			LongHelp:   "Starts the gnoland blockchain node",
