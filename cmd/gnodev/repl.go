@@ -60,6 +60,7 @@ func runRepl(rootDir string, verbose bool) error {
 
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath: "test",
+		Output:  stdout,
 		Store:   testStore,
 	})
 
