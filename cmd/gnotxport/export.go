@@ -47,47 +47,12 @@ func newExportCommand(rootCfg *config) *commands.Command {
 }
 
 func (c *exportCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.Int64Var(
-		&c.startHeight,
-		"start",
-		1,
-		"start height",
-	)
-
-	fs.Int64Var(
-		&c.tailHeight,
-		"tail",
-		0,
-		"start at LAST - N",
-	)
-
-	fs.Int64Var(
-		&c.endHeight,
-		"end",
-		0,
-		"end height (optional)",
-	)
-
-	fs.StringVar(
-		&c.outFile,
-		"out",
-		defaultFilePath,
-		"output file path",
-	)
-
-	fs.BoolVar(
-		&c.quiet,
-		"quiet",
-		false,
-		"omit console output during execution",
-	)
-
-	fs.BoolVar(
-		&c.follow,
-		"follow",
-		false,
-		"keep attached and follow new events",
-	)
+	fs.Int64Var(&c.startHeight, "start", 1, "start height")
+	fs.Int64Var(&c.tailHeight, "tail", 0, "start at LAST - N")
+	fs.Int64Var(&c.endHeight, "end", 0, "end height (optional)")
+	fs.StringVar(&c.outFile, "out", defaultFilePath, "output file path")
+	fs.BoolVar(&c.quiet, "quiet", false, "omit console output during execution")
+	fs.BoolVar(&c.follow, "follow", false, "keep attached and follow new events")
 }
 
 func (c *exportCfg) Exec(_ context.Context, _ []string) error {
