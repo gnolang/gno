@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/google/go-github/v50/github"
@@ -124,10 +125,12 @@ func fetchCuration(client *github.Client) string {
 		fmt.Fprintf(os.Stderr, "error: %+v\n", err)
 		return ""
 	}
-	for _, issue := range issues {
-		fmt.Printf("%+s \n", *issue.Title)
+	b, err := json.Marshal(issues)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %+v\n", err)
+		return ""
 	}
-	return "string(body)"
+	return string(b)
 }
 
 func fetchTips() string {
