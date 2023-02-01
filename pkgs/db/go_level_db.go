@@ -2,7 +2,7 @@ package db
 
 import (
 	"bytes"
-	goErrors "errors"
+	goerrors "errors"
 	"fmt"
 	"path/filepath"
 
@@ -47,7 +47,7 @@ func (db *GoLevelDB) Get(key []byte) []byte {
 	key = nonNilBytes(key)
 	res, err := db.db.Get(key, nil)
 	if err != nil {
-		if goErrors.Is(err, errors.ErrNotFound) {
+		if goerrors.Is(err, errors.ErrNotFound) {
 			return nil
 		}
 		panic(err)

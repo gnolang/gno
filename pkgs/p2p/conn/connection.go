@@ -2,7 +2,7 @@ package conn
 
 import (
 	"bufio"
-	goErrors "errors"
+	goerrors "errors"
 	"fmt"
 	"io"
 	"math"
@@ -602,7 +602,7 @@ FOR_LOOP:
 			}
 
 			if c.IsRunning() {
-				if goErrors.Is(err, io.EOF) {
+				if goerrors.Is(err, io.EOF) {
 					c.Logger.Info("Connection is closed @ recvRoutine (likely by the other side)", "conn", c)
 				} else {
 					c.Logger.Error("Connection failed @ recvRoutine (reading byte)", "conn", c, "err", err)

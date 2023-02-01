@@ -2,7 +2,7 @@ package consensus
 
 import (
 	"bytes"
-	goErrors "errors"
+	goerrors "errors"
 	"fmt"
 	"reflect"
 	"runtime/debug"
@@ -297,7 +297,7 @@ func (cs *ConsensusState) LoadCommit(height int64) *types.Commit {
 func (cs *ConsensusState) OnStart() error {
 	cs.done = make(chan struct{})
 
-	if err := cs.evsw.Start(); err != nil && !goErrors.Is(err, service.ErrAlreadyStarted) {
+	if err := cs.evsw.Start(); err != nil && !goerrors.Is(err, service.ErrAlreadyStarted) {
 		return err
 	}
 
@@ -1640,7 +1640,7 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2p.ID) (bool, err
 		// If the vote height is off, we'll just ignore it,
 		// But if it's a conflicting sig, add it to the cs.mempool.
 		// If it's otherwise invalid, punish peer.
-		if goErrors.Is(err, ErrVoteHeightMismatch) {
+		if goerrors.Is(err, ErrVoteHeightMismatch) {
 			return added, err
 		} else if _, ok := err.(*types.VoteConflictingVotesError); ok {
 			//nolint:lll

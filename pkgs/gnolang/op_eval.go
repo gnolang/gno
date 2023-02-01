@@ -1,7 +1,7 @@
 package gnolang
 
 import (
-	goErrors "errors"
+	goerrors "errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -111,7 +111,7 @@ func (m *Machine) doOpEval() {
 				// Step 1 get exp component.
 				expInt, err := strconv.ParseInt(value[eIndex+1:], 10, 32)
 				if err != nil {
-					if e, ok := err.(*strconv.NumError); ok && goErrors.Is(e.Err, strconv.ErrRange) {
+					if e, ok := err.(*strconv.NumError); ok && goerrors.Is(e.Err, strconv.ErrRange) {
 						panic(fmt.Sprintf(
 							"can't convert %s to decimal: fractional part too long",
 							value))

@@ -1,7 +1,7 @@
 package main
 
 import (
-	goErrors "errors"
+	goerrors "errors"
 	"fmt"
 	"io"
 	"os"
@@ -81,7 +81,7 @@ func runRepl(rootDir string, verbose bool) error {
 		if err != nil {
 			term.Restore(0, oldState)
 
-			if goErrors.Is(err, io.EOF) {
+			if goerrors.Is(err, io.EOF) {
 				return nil
 			}
 

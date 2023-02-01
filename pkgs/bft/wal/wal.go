@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"encoding/base64"
 	"encoding/binary"
-	goErrors "errors"
+	goerrors "errors"
 	"fmt"
 	"hash/crc32"
 	"io"
@@ -357,7 +357,7 @@ OUTER_LOOP:
 			msg, meta, err = dec.ReadMessage()
 			// error case
 			if err != nil {
-				if goErrors.Is(err, io.EOF) {
+				if goerrors.Is(err, io.EOF) {
 					// adjust next index.
 					// @index didn't have a height declaration.
 					idxoff++
