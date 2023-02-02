@@ -107,7 +107,11 @@ func fetchChangelog(client *github.Client, since time.Time) string {
 	if !opts.changelog {
 		return ""
 	}
+	
 	issues, err := githubFetchIssues(client, &github.IssueListByRepoOptions{State: "closed", Since: since}, "gnolang", "gno")
+	if err != nil {
+		return ""
+	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %+v\n", err)
 		return ""

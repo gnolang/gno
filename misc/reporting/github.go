@@ -22,3 +22,21 @@ func githubFetchIssues(client *github.Client, opts *github.IssueListByRepoOption
 
 	return issues, nil
 }
+
+func githubFetchCommits(client *github.Client, opts *github.CommitsListOptions, owner string, repository string) ([]*github.RepositoryCommit, error) {
+	commits, _, err := client.Repositories.ListCommits(context.Background(), owner, repository, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return commits, nil
+}
+
+func githubFetchPullRequests(client *github.Client, opts *github.PullRequestListOptions, owner string, repository string) ([]*github.PullRequest, error) {
+	pullRequests, _, err := client.PullRequests.List(context.Background(), owner, repository, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return pullRequests, nil
+}
