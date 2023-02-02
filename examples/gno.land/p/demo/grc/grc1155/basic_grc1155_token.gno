@@ -1,0 +1,437 @@
+package grc1155
+
+import (
+	"std"
+
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/ufmt"
+)
+
+type basicGRC1155Token struct {
+	uri               string
+	balances          avl.Tree // "TokenId:Address" -> uint64
+	operatorApprovals avl.Tree // "OwnerAddress:OperatorAddress" -> bool
+}
+
+// Returns new basic SFT
+func NewBasicGRC1155Token(uri string) *basicGRC1155Token {
+	return &basicGRC1155Token{
+		uri:               uri,
+		balances:          avl.Tree{},
+		operatorApprovals: avl.Tree{},
+	}
+}
+
+// Safely transfers `tokenId` token from `from` to `to`, checking that
+// contract recipients are aware of the GRC1155 protocol to prevent
+// tokens from being forever locked.
+func (s *basicGRC1155Token) SafeTransferFrom(from, to std.Address, tid TokenID, amount uint64) error {
+	caller := std.GetOrigCaller()
+
+	if from != caller || !s.IsApprovedForAll(from, caller) {
+		return ErrCallerIsNotOwnerOrApproved
+	}
+
+	err := s.safeTransferFrom(from, to, tid, amount)
+	if err != nil {
+		return err
+	}
+
+	if !s.doSafeTransferAcceptanceCheck(caller, from, to, tid, amount) {
+		return ErrTransferToRejectedOrNonGRC1155Receiver
+	}
+
+	return nil
+}
+
+// Safely transfers a `batch` of tokens from `from` to `to`, checking that
+// contract recipients are aware of the GRC1155 protocol to prevent
+// tokens from being forever locked.
+func (s *basicGRC1155Token) SafeBatchTransferFrom(from, to std.Address, batch []TokenID, amounts []uint64) error {
+	caller := std.GetOrigCaller()
+
+	if from != caller || !s.IsApprovedForAll(from, caller) {
+		return ErrCallerIsNotOwnerOrApproved
+	}
+
+	err := s.safeBatchTransferFrom(from, to, batch, amounts)
+	if err != nil {
+		return err
+	}
+
+	if !s.doSafeBatchTransferAcceptanceCheck(caller, from, to, tid, amount) {
+		return ErrTransferToRejectedOrNonGRC1155Receiver
+	}
+
+	return nil
+}
+
+// Creates `amount` tokens of token type `id`, and assigns them to `to`. Also checks that
+// contract recipients are using GRC1155 protocol.
+func (s *basicGRC1155Token) SafeMint(to std.Address, tid TokenID, amount uint64) error {
+	caller := std.GetOrigCaller()
+
+	err := s.mint(to, tid, amount)
+	if err != nil {
+		return err
+	}
+
+	if !s.doSafeTransferAcceptanceCheck(caller, zeroAddress, to, tid, amount) {
+		return ErrTransferToRejectedOrNonGRC1155Receiver
+	}
+
+	return nil
+}
+
+// Batch version of `SafeMint()`. Also checks that
+// contract recipients are using GRC1155 protocol.
+func (s *basicGRC1155Token) SafeBatchMint(to std.Address, batch []TokenID, amounts []uint64) error {
+	caller := std.GetOrigCaller()
+
+	err := s.mintBatch(to, batch, amounts)
+	if err != nil {
+		return err
+	}
+
+	if !s.doSafeTransferAcceptanceCheck(caller, zeroAddress, to, batch, amounts) {
+		return ErrTransferToRejectedOrNonGRC1155Receiver
+	}
+
+	return nil
+}
+
+// Destroys `amount` tokens of token type `id` from `from`.
+func (s *basicGRC1155Token) Burn(from std.Address, tid TokenID, amount uint64) error {
+	err := s.burn(from, tid, amount)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Batch version of `Burn()`
+func (s *basicGRC1155Token) BatchBurn(from std.Address, batch []TokenID, amounts []uint64) error {
+	err := s.burnBatch(from, batch, amounts)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// BalanceOf returns the input address's balance of the token type requested
+func (s *basicGRC1155Token) BalanceOf(addr std.Address, tid TokenID) (uint64, error) {
+	if err := isValidAddress(addr); err != nil {
+		return 0, err
+	}
+
+	key := tid.String() + ":" + addr.String()
+	balance, found := s.balances.Get(key)
+	if !found {
+		return 0, nil
+	}
+
+	return balance.(uint64), nil
+}
+
+// BalanceOfBatch returns the balance of multiple account/token pairs
+func (s *basicGRC1155Token) BalanceOfBatch(owners []std.Address, batch []TokenId) ([]uint64, error) {
+	var balanceOfBatch []uint64
+
+	if len(owners) != len(batch) {
+		return ErrMismatchLength
+	}
+
+	for i := 0; i < len(owners); i++ {
+		balanceOfBatch[i], _ = BalanceOf(owners[i], batch[i])
+	}
+
+	return balanceOfBatch, nil
+}
+
+func (s *basicGRC1155Token) TotalSupply(tid TokenID) (uint64, error) {
+}
+
+// SetApprovalForAll can approve the operator to operate on all tokens
+func (s *basicGRC1155Token) SetApprovalForAll(operator std.Address, approved bool) error {
+	if err := isValidAddress(operator); err != nil {
+		return ErrInvalidAddress
+	}
+
+	caller := std.GetOrigCaller()
+	return s.setApprovalForAll(caller, operator, approved)
+}
+
+// IsApprovedForAll returns true if operator is approved for all by the owner.
+// Otherwise, returns false
+func (s *basicGRC1155Token) IsApprovedForAll(owner, operator std.Address) bool {
+	key := owner.String() + ":" + operator.String()
+	_, found := s.operatorApprovals.Get(key)
+	if !found {
+		return false
+	}
+
+	return true
+}
+
+/* Helper methods */
+
+// Helper for SetApprovalForAll(): approve `operator` to operate on all of `owner` tokens
+func (s *basicGRC1155Token) setApprovalForAll(owner, operator std.Address, approved bool) error {
+	if owner == operator {
+		return ErrApprovalToCurrentOwner
+	}
+
+	key := owner.String() + ":" + operator.String()
+	s.operatorApprovals.Set(key, approved)
+
+	event := ApprovalForAllEvent{owner, operator, approved}
+	emit(&event)
+
+	return nil
+}
+
+// Helper for SafeTransferFrom()
+func (s *basicGRC1155Token) safeTransferFrom(from, to std.Address, tid TokenID, amount uint64) error {
+	if err := isValidAddress(from); err != nil {
+		return ErrInvalidAddress
+	}
+	if err := isValidAddress(to); err != nil {
+		return ErrInvalidAddress
+	}
+	if from == to {
+		return ErrCannotTransferToSelf
+	}
+
+	caller := std.GetOrigCaller()
+	batch := [1]TokenID{tid}
+	amounts := [1]uint64{amount}
+	s.beforeTokenTransfer(caller, from, to, batch, amounts)
+
+	fromBalance, err := s.BalanceOf(from, tid)
+	if err != nil {
+		return err
+	}
+	if fromBalance < amount {
+		return ErrInsufficientBalance
+	}
+	toBalance, err := s.BalanceOf(to, tid)
+	if err != nil {
+		return err
+	}
+
+	fromBalance -= amount
+	toBalance += amount
+	fromBalanceKey := tid.String() + ":" + from.String()
+	toBalanceKey := tid.String() + ":" + to.String()
+	s.balances.Set(fromBalanceKey, fromBalance)
+	s.balances.Set(toBalanceKey, toBalance)
+
+	event := TransferSingleEvent{caller, from, to, tid, amount}
+	emit(&event)
+
+	s.afterTokenTransfer(caller, from, to, batch, amounts)
+
+	return nil
+}
+
+// Helper for SafeBatchTransferFrom()
+func (s *basicGRC1155Token) safeBatchTransferFrom(from, to std.Address, batch []TokenID, amounts []uint64) error {
+	if len(batch) != len(amounts) {
+		return ErrMismatchLength
+	}
+	if err := isValidAddress(from); err != nil {
+		return ErrInvalidAddress
+	}
+	if err := isValidAddress(to); err != nil {
+		return ErrInvalidAddress
+	}
+	if from == to {
+		return ErrCannotTransferToSelf
+	}
+
+	caller := std.GetOrigCaller()
+	s.beforeTokenTransfer(caller, from, to, batch, amounts)
+
+	for i := 0; i < len(batch); i++ {
+		tid := batch[i]
+		amount := amounts[i]
+		fromBalance, err := s.BalanceOf(from, tid)
+		if err != nil {
+			return err
+		}
+		if fromBalance < amount {
+			return ErrInsufficientBalance
+		}
+		toBalance, err := s.BalanceOf(to, tid)
+		if err != nil {
+			return err
+		}
+
+		fromBalance -= amount
+		toBalance += amount
+		fromBalanceKey := tid.String() + ":" + from.String()
+		toBalanceKey := tid.String() + ":" + to.String()
+		s.balances.Set(fromBalanceKey, fromBalance)
+		s.balances.Set(toBalanceKey, toBalance)
+	}
+
+	event := TransferBatchEvent{caller, from, to, batch, amounts}
+	emit(&event)
+
+	s.afterTokenTransfer(caller, from, to, batch, amounts)
+
+	return nil
+}
+
+// Helper for SafeMint()
+func (s *basicGRC1155Token) mint(to std.Address, tid TokenID, amount uint64) error {
+	if err := isValidAddress(to); err != nil {
+		return err
+	}
+
+	caller := std.GetOrigCaller()
+	batch := [1]TokenID{tid}
+	amounts := [1]uint64{amount}
+	s.beforeTokenTransfer(caller, zeroAddress, to, batch, amounts)
+
+	toBalance, err := s.BalanceOf(to, tid)
+	if err != nil {
+		return err
+	}
+	toBalance += amount
+	toBalanceKey := tid.String() + ":" + to.String()
+	s.balances.Set(toBalanceKey, toBalance)
+
+	event := TransferSingleEvent{caller, zeroAddress, to, tid, amount}
+	emit(&event)
+
+	s.afterTokenTransfer(caller, zeroAddress, to, batch, amounts)
+
+	return nil
+}
+
+// Helper for SafeBatchMint()
+func (s *basicGRC1155Token) mintBatch(to std.Address, batch []TokenID, amounts []uint64) error {
+	if len(batch) != len(amounts) {
+		return ErrMismatchLength
+	}
+	if err := isValidAddress(to); err != nil {
+		return ErrInvalidAddress
+	}
+
+	caller := std.GetOrigCaller()
+	s.beforeTokenTransfer(caller, zeroAddress, to, batch, amounts)
+
+	for i := 0; i < len(batch); i++ {
+		tid := batch[i]
+		amount := amounts[i]
+		toBalance, err := s.BalanceOf(to, tid)
+		if err != nil {
+			return err
+		}
+		toBalance += amount
+		toBalanceKey := tid.String() + ":" + to.String()
+		s.balances.Set(toBalanceKey, toBalance)
+	}
+
+	event := TransferBatchEvent{caller, zeroAddress, to, batch, amounts}
+	emit(&event)
+
+	s.afterTokenTransfer(caller, zeroAddress, to, batch, amounts)
+
+	return nil
+}
+
+// Helper for Burn()
+func (s *basicGRC1155Token) burn(from std.Address, tid TokenID, amount uint64) error {
+	if err := isValidAddress(from); err != nil {
+		return err
+	}
+
+	caller := std.GetOrigCaller()
+	batch := [1]TokenID{tid}
+	amounts := [1]uint64{amount}
+	s.beforeTokenTransfer(caller, from, zeroAddress, batch, amounts)
+
+	fromBalance, err := s.BalanceOf(from, tid)
+	if err != nil {
+		return err
+	}
+	if fromBalance < amount {
+		return ErrBurnAmountExceedsBalance
+	}
+	fromBalance -= amount
+	fromBalanceKey := tid.String() + ":" + from.String()
+	s.balances.Set(fromBalanceKey, fromBalance)
+
+	event := TransferSingleEvent{caller, from, zeroAddress, tid, amount}
+	emit(&event)
+
+	s.afterTokenTransfer(caller, from, zeroAddress, batch, amounts)
+
+	return nil
+}
+
+// Helper for BurnBatch()
+func (s *basicGRC1155Token) burnBatch(from std.Address, batch []TokenID, amounts []uint64) error {
+	if len(batch) != len(amounts) {
+		return ErrMismatchLength
+	}
+	if err := isValidAddress(from); err != nil {
+		return err
+	}
+
+	for i := 0; i < len(batch); i++ {
+		tid := batch[i]
+		amount := amounts[i]
+		fromBalance, err := s.BalanceOf(from, tid)
+		if err != nil {
+			return err
+		}
+		if fromBalance < amount {
+			return ErrBurnAmountExceedsBalance
+		}
+		fromBalance -= amount
+		fromBalanceKey := tid.String() + ":" + from.String()
+		s.balances.Set(fromBalanceKey, fromBalance)
+	}
+
+	event := TransferBatchEvent{caller, from, zeroAddress, batch, amounts}
+	emit(&event)
+
+	s.afterTokenTransfer(caller, from, zeroAddress, batch, amounts)
+
+	return nil
+}
+
+func (s *basicGRC1155Token) setUri(newUri string) {
+	s.uri = newUri
+}
+
+func (s *basicGRC1155Token) beforeTokenTransfer(operator, from, to std.Address, batch []TokenID, amounts []uint64) {
+	// TODO: Implementation
+}
+
+func (s *basicGRC1155Token) afterTokenTransfer(operator, from, to std.Address, batch []TokenID, amounts []uint64) {
+	// TODO: Implementation
+}
+
+func (s *basicGRC1155Token) doSafeTransferAcceptanceCheck(operator, from, to std.Address, tid TokenID, amount uint64) bool {
+	// TODO: Implementation
+	return true
+}
+
+func (s *basicGRC1155Token) doSafeBatchTransferAcceptanceCheck(operator, from, to std.Address, batch []TokenID, amounts []uint64) bool {
+	// TODO: Implementation
+	return true
+}
+
+func (s *basicGRC1155Token) RenderHome() (str string) {
+	str += ufmt.Sprintf("# URI:%s\n", s.uri)
+	str += ufmt.Sprintf("* **Total supply**: %d\n", s.TokenCount())
+	str += ufmt.Sprintf("* **Known accounts**: %d\n", s.balances.Size())
+
+	return
+}
