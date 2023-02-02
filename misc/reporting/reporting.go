@@ -25,7 +25,7 @@ func DefaultOpts() Opts {
 		githubToken:            "",
 		help:                   false,
 		httpClient:             &http.Client{},
-		twitterSearchTweetsUrl: "https://api.twitter.com/2/tweets/search/recent?query=%23gnotips&max_results=100",
+		twitterSearchTweetsUrl: "https://api.twitter.com/2/tweets/search/recent?query=%23gnotips&tweet.fields=created_at&max_results=100",
 		awesomeGnoRepoUrl:      "https://api.github.com/repos/gnolang/awesome-gno/issues",
 		outputPath:             "./output/",
 	}
@@ -84,14 +84,19 @@ func runMain(args []string) error {
 					}
 				}
 				githubClient := initGithubClient()
-				outputs := map[string]string{
-					"changelog": fetchChangelog(githubClient, since),
-					"backlog":   fetchBacklog(githubClient, since),
-					"curation":  fetchCuration(githubClient, since),
-					"tips":      fetchTips(),
+				err = fetchChangelog(githubClient, since)
+				if err != nil {
+					return err
 				}
-
-				err = writeOutputFiles(outputs)
+				err = fetchBacklog(githubClient, since)
+				if err != nil {
+					return err
+				}
+				err = fetchCuration(githubClient, since)
+				if err != nil {
+					return err
+				}
+				err = fetchTips()
 				if err != nil {
 					return err
 				}
@@ -103,69 +108,64 @@ func runMain(args []string) error {
 }
 
 // TODO: Fetch changelog recent contributors, new PR merged, new issues closed ...
-func fetchChangelog(client *github.Client, since time.Time) string {
+func fetchChangelog(client *github.Client, since time.Time) error {
 	if !opts.changelog {
-		return ""
+		return nil
 	}
-	
+
 	issues, err := githubFetchIssues(client, &github.IssueListByRepoOptions{State: "closed", Since: since}, "gnolang", "gno")
 	if err != nil {
-		return ""
+		return err
 	}
+	_, err = json.Marshal(issues)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %+v\n", err)
-		return ""
+		return err
 	}
-	b, err := json.Marshal(issues)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %+v\n", err)
-		return ""
-	}
-	return string(b)
+	return nil
 }
 
 // TODO: Fetch backlog from github issues & PRS ...
-func fetchBacklog(client *github.Client, since time.Time) string {
+func fetchBacklog(client *github.Client, since time.Time) error {
 	if !opts.backlog {
-		return ""
+		return nil
 	}
 	issues, err := githubFetchIssues(client, &github.IssueListByRepoOptions{State: "open", Since: since}, "gnolang", "gno")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %+v\n", err)
-		return ""
+		return err
 	}
-	b, err := json.Marshal(issues)
+	_, err = json.Marshal(issues)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %+v\n", err)
-		return ""
+		return err
 	}
-	return string(b)
+	return nil
 }
 
 // TODO: Fetch curation from github commits & issues & PRS in `awesome-gno` repo
-func fetchCuration(client *github.Client, since time.Time) string {
+func fetchCuration(client *github.Client, since time.Time) error {
 	if !opts.curation {
-		return ""
+		return nil
 	}
 	issues, err := githubFetchIssues(client, &github.IssueListByRepoOptions{State: "all", Since: since}, "gnolang", "awesome-gno")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %+v\n", err)
-		return ""
+		return err
 	}
-	b, err := json.Marshal(issues)
+	_, err = json.Marshal(issues)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %+v\n", err)
-		return ""
+		return err
 	}
-	return string(b)
+	return nil
 }
 
-func fetchTips() string {
+func fetchTips() error {
 	if !opts.tips {
-		return ""
+		return nil
 	}
 	ret := twitterFetchTips()
-	return ret
+	err := writeTips(ret)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 type Opts struct {
