@@ -7,6 +7,8 @@ import (
 )
 
 func TestApplyFlagToFieldReflectString(t *testing.T) {
+	t.Parallel()
+
 	// Test 1: time.Duration
 	duration := time.Duration(0)
 	field := reflect.ValueOf(&duration)
