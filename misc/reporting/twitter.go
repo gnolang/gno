@@ -40,18 +40,30 @@ func twitterFetchTips() string {
 }
 
 type TweetSearch struct {
-	Data []Tweet `json:"data"`
-	Meta Info    `json:"meta"`
+	Data     []Tweet `json:"data"`
+	Meta     Info    `json:"meta"`
+	Includes Include `json:"includes"`
 }
 
 type Tweet struct {
 	Id        string `json:"id"`
 	Text      string `json:"text"`
 	CreatedAt string `json:"created_at"`
+	AuthorId  string `json:"author_id"`
 }
 
 type Info struct {
 	NewestId    string `json:"newest_id"`
 	OldestId    string `json:"oldest_id"`
 	ResultCount int    `json:"result_count"`
+}
+
+type Include struct {
+	Users []User `json:"users"`
+}
+
+type User struct {
+	Id       string `json:"id"`
+	Name     string `json:"name"`
+	Username string `json:"username"`
 }
