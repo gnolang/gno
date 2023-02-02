@@ -22,6 +22,8 @@ func NewBasicGRC1155Token(uri string) *basicGRC1155Token {
 	}
 }
 
+func (s *basicGRC1155Token) Uri() string { return s.uri }
+
 // Safely transfers `tokenId` token from `from` to `to`, checking that
 // contract recipients are aware of the GRC1155 protocol to prevent
 // tokens from being forever locked.
