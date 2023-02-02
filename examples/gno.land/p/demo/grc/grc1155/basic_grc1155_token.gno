@@ -59,7 +59,7 @@ func (s *basicGRC1155Token) SafeBatchTransferFrom(from, to std.Address, batch []
 		return err
 	}
 
-	if !s.doSafeBatchTransferAcceptanceCheck(caller, from, to, tid, amount) {
+	if !s.doSafeBatchTransferAcceptanceCheck(caller, from, to, batch, amounts) {
 		return ErrTransferToRejectedOrNonGRC1155Receiver
 	}
 
@@ -93,7 +93,7 @@ func (s *basicGRC1155Token) SafeBatchMint(to std.Address, batch []TokenID, amoun
 		return err
 	}
 
-	if !s.doSafeTransferAcceptanceCheck(caller, zeroAddress, to, batch, amounts) {
+	if !s.doSafeBatchTransferAcceptanceCheck(caller, zeroAddress, to, batch, amounts) {
 		return ErrTransferToRejectedOrNonGRC1155Receiver
 	}
 
@@ -126,7 +126,7 @@ func (s *basicGRC1155Token) BalanceOf(addr std.Address, tid TokenID) (uint64, er
 		return 0, err
 	}
 
-	key := tid.String() + ":" + addr.String()
+	key := string(tid) + ":" + addr.String()
 	balance, found := s.balances.Get(key)
 	if !found {
 		return 0, nil
@@ -136,21 +136,18 @@ func (s *basicGRC1155Token) BalanceOf(addr std.Address, tid TokenID) (uint64, er
 }
 
 // BalanceOfBatch returns the balance of multiple account/token pairs
-func (s *basicGRC1155Token) BalanceOfBatch(owners []std.Address, batch []TokenId) ([]uint64, error) {
+func (s *basicGRC1155Token) BalanceOfBatch(owners []std.Address, batch []TokenID) ([]uint64, error) {
 	var balanceOfBatch []uint64
 
 	if len(owners) != len(batch) {
-		return ErrMismatchLength
+		return nil, ErrMismatchLength
 	}
 
 	for i := 0; i < len(owners); i++ {
-		balanceOfBatch[i], _ = BalanceOf(owners[i], batch[i])
+		balanceOfBatch[i], _ = s.BalanceOf(owners[i], batch[i])
 	}
 
 	return balanceOfBatch, nil
-}
-
-func (s *basicGRC1155Token) TotalSupply(tid TokenID) (uint64, error) {
 }
 
 // SetApprovalForAll can approve the operator to operate on all tokens
@@ -205,8 +202,8 @@ func (s *basicGRC1155Token) safeTransferFrom(from, to std.Address, tid TokenID, 
 	}
 
 	caller := std.GetOrigCaller()
-	batch := [1]TokenID{tid}
-	amounts := [1]uint64{amount}
+	batch := []TokenID{tid}
+	amounts := []uint64{amount}
 	s.beforeTokenTransfer(caller, from, to, batch, amounts)
 
 	fromBalance, err := s.BalanceOf(from, tid)
@@ -223,8 +220,8 @@ func (s *basicGRC1155Token) safeTransferFrom(from, to std.Address, tid TokenID, 
 
 	fromBalance -= amount
 	toBalance += amount
-	fromBalanceKey := tid.String() + ":" + from.String()
-	toBalanceKey := tid.String() + ":" + to.String()
+	fromBalanceKey := string(tid) + ":" + from.String()
+	toBalanceKey := string(tid) + ":" + to.String()
 	s.balances.Set(fromBalanceKey, fromBalance)
 	s.balances.Set(toBalanceKey, toBalance)
 
@@ -271,8 +268,8 @@ func (s *basicGRC1155Token) safeBatchTransferFrom(from, to std.Address, batch []
 
 		fromBalance -= amount
 		toBalance += amount
-		fromBalanceKey := tid.String() + ":" + from.String()
-		toBalanceKey := tid.String() + ":" + to.String()
+		fromBalanceKey := string(tid) + ":" + from.String()
+		toBalanceKey := string(tid) + ":" + to.String()
 		s.balances.Set(fromBalanceKey, fromBalance)
 		s.balances.Set(toBalanceKey, toBalance)
 	}
@@ -292,8 +289,8 @@ func (s *basicGRC1155Token) mint(to std.Address, tid TokenID, amount uint64) err
 	}
 
 	caller := std.GetOrigCaller()
-	batch := [1]TokenID{tid}
-	amounts := [1]uint64{amount}
+	batch := []TokenID{tid}
+	amounts := []uint64{amount}
 	s.beforeTokenTransfer(caller, zeroAddress, to, batch, amounts)
 
 	toBalance, err := s.BalanceOf(to, tid)
@@ -301,7 +298,7 @@ func (s *basicGRC1155Token) mint(to std.Address, tid TokenID, amount uint64) err
 		return err
 	}
 	toBalance += amount
-	toBalanceKey := tid.String() + ":" + to.String()
+	toBalanceKey := string(tid) + ":" + to.String()
 	s.balances.Set(toBalanceKey, toBalance)
 
 	event := TransferSingleEvent{caller, zeroAddress, to, tid, amount}
@@ -332,7 +329,7 @@ func (s *basicGRC1155Token) mintBatch(to std.Address, batch []TokenID, amounts [
 			return err
 		}
 		toBalance += amount
-		toBalanceKey := tid.String() + ":" + to.String()
+		toBalanceKey := string(tid) + ":" + to.String()
 		s.balances.Set(toBalanceKey, toBalance)
 	}
 
@@ -351,8 +348,8 @@ func (s *basicGRC1155Token) burn(from std.Address, tid TokenID, amount uint64) e
 	}
 
 	caller := std.GetOrigCaller()
-	batch := [1]TokenID{tid}
-	amounts := [1]uint64{amount}
+	batch := []TokenID{tid}
+	amounts := []uint64{amount}
 	s.beforeTokenTransfer(caller, from, zeroAddress, batch, amounts)
 
 	fromBalance, err := s.BalanceOf(from, tid)
@@ -363,7 +360,7 @@ func (s *basicGRC1155Token) burn(from std.Address, tid TokenID, amount uint64) e
 		return ErrBurnAmountExceedsBalance
 	}
 	fromBalance -= amount
-	fromBalanceKey := tid.String() + ":" + from.String()
+	fromBalanceKey := string(tid) + ":" + from.String()
 	s.balances.Set(fromBalanceKey, fromBalance)
 
 	event := TransferSingleEvent{caller, from, zeroAddress, tid, amount}
@@ -383,6 +380,9 @@ func (s *basicGRC1155Token) burnBatch(from std.Address, batch []TokenID, amounts
 		return err
 	}
 
+	caller := std.GetOrigCaller()
+	s.beforeTokenTransfer(caller, from, zeroAddress, batch, amounts)
+
 	for i := 0; i < len(batch); i++ {
 		tid := batch[i]
 		amount := amounts[i]
@@ -394,7 +394,7 @@ func (s *basicGRC1155Token) burnBatch(from std.Address, batch []TokenID, amounts
 			return ErrBurnAmountExceedsBalance
 		}
 		fromBalance -= amount
-		fromBalanceKey := tid.String() + ":" + from.String()
+		fromBalanceKey := string(tid) + ":" + from.String()
 		s.balances.Set(fromBalanceKey, fromBalance)
 	}
 
