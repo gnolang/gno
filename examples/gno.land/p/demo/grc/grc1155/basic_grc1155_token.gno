@@ -430,8 +430,6 @@ func (s *basicGRC1155Token) doSafeBatchTransferAcceptanceCheck(operator, from, t
 
 func (s *basicGRC1155Token) RenderHome() (str string) {
 	str += ufmt.Sprintf("# URI:%s\n", s.uri)
-	str += ufmt.Sprintf("* **Total supply**: %d\n", s.TokenCount())
-	str += ufmt.Sprintf("* **Known accounts**: %d\n", s.balances.Size())
 
 	return
 }
