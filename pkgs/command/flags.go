@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gnolang/gno/pkgs/errors"
 )
@@ -195,6 +196,14 @@ func applyFlagToFieldReflectString(frv reflect.Value, fvalue string) error {
 	case reflect.Int64:
 		fnum, err := strconv.ParseInt(fvalue, 0, 64)
 		if err != nil {
+			if frt == reflect.TypeOf(time.Duration(0)) {
+				duration, err := time.ParseDuration(fvalue)
+				if err != nil {
+					return errors.Wrap(err, "invalid duration")
+				}
+				frv.Set(reflect.ValueOf(duration))
+				return nil
+			}
 			return errors.Wrap(err, "invalid int64")
 		}
 		frv.SetInt(fnum)
