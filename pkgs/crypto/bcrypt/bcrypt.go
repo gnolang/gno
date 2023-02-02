@@ -36,11 +36,7 @@ var ErrHashTooShort = errors.New("crypto/bcrypt: hashedSecret too short to be a 
 type HashVersionTooNewError byte
 
 func (hv HashVersionTooNewError) Error() string {
-	return fmt.Sprintf(
-		"crypto/bcrypt: bcrypt algorithm version '%c' requested is newer than current version '%c'",
-		byte(hv),
-		majorVersion,
-	)
+	return fmt.Sprintf("crypto/bcrypt: bcrypt algorithm version '%c' requested is newer than current version '%c'", byte(hv), majorVersion)
 }
 
 // The error returned from CompareHashAndPassword when a hash starts with something other than '$'
@@ -291,14 +287,7 @@ func (p *hashed) decodeCost(sbytes []byte) (int, error) {
 }
 
 func (p *hashed) String() string {
-	return fmt.Sprintf(
-		"&{hash: %#v, salt: %#v, cost: %d, major: %c, minor: %c}",
-		string(p.hash),
-		p.salt,
-		p.cost,
-		p.major,
-		p.minor,
-	)
+	return fmt.Sprintf("&{hash: %#v, salt: %#v, cost: %d, major: %c, minor: %c}", string(p.hash), p.salt, p.cost, p.major, p.minor)
 }
 
 func checkCost(cost int) error {

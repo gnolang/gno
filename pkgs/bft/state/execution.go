@@ -17,7 +17,7 @@ import (
 	"github.com/gnolang/gno/pkgs/log"
 )
 
-// -----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 // BlockExecutor handles block execution and state updates.
 // It exposes ApplyBlock(), which validates & executes the block, updates state w/ ABCI responses,
 // then commits and updates the mempool atomically, then saves state.
@@ -44,13 +44,7 @@ type BlockExecutorOption func(executor *BlockExecutor)
 
 // NewBlockExecutor returns a new BlockExecutor with a NopEventBus.
 // Call SetEventBus to provide one.
-func NewBlockExecutor(
-	db dbm.DB,
-	logger log.Logger,
-	proxyApp proxy.AppConnConsensus,
-	mempool mempl.Mempool,
-	options ...BlockExecutorOption,
-) *BlockExecutor {
+func NewBlockExecutor(db dbm.DB, logger log.Logger, proxyApp proxy.AppConnConsensus, mempool mempl.Mempool, options ...BlockExecutorOption) *BlockExecutor {
 	res := &BlockExecutor{
 		db:       db,
 		proxyApp: proxyApp,
@@ -208,7 +202,7 @@ func (blockExec *BlockExecutor) Commit(
 	return res.Data, err
 }
 
-// ---------------------------------------------------------
+//---------------------------------------------------------
 // Helper functions for executing blocks and updating state
 
 // Executes block's transactions on proxyAppConn.
@@ -437,7 +431,7 @@ func fireEvents(logger log.Logger, evsw events.EventSwitch, block *types.Block, 
 	}
 }
 
-// ----------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------
 // Execute block without state. TODO: eliminate
 
 // ExecCommitBlock executes and commits a block on the proxyApp without validating or mutating the state.

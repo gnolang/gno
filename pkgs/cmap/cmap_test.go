@@ -35,12 +35,7 @@ func TestIterateKeysWithValues(t *testing.T) {
 	// Delete 1 Key
 	cmap.Delete("key1")
 
-	assert.NotEqual(
-		t,
-		len(keys),
-		len(cmap.Keys()),
-		"[]keys and []Keys() should not be equal, they are copies, one item was removed",
-	)
+	assert.NotEqual(t, len(keys), len(cmap.Keys()), "[]keys and []Keys() should not be equal, they are copies, one item was removed")
 }
 
 func TestContains(t *testing.T) {

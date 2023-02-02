@@ -1,4 +1,3 @@
-//nolint:lll
 package cstypes
 
 import (
@@ -8,7 +7,7 @@ import (
 	"github.com/gnolang/gno/pkgs/bft/types"
 )
 
-// -----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 // RoundStepType enum type
 
 // RoundStepType enumerates the state of the consensus state machine
@@ -61,7 +60,7 @@ func (rs RoundStepType) String() string {
 	}
 }
 
-// -----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
 // RoundState defines the internal consensus state.
 // NOTE: Not thread safe. Should only be manipulated by functions downstream

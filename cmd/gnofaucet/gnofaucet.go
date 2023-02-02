@@ -81,7 +81,7 @@ func main() {
 	}
 }
 
-// ----------------------------------------
+//----------------------------------------
 // serveApp
 
 type serveOptions struct {
@@ -329,17 +329,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 	return nil
 }
 
-func sendAmountTo(
-	cmd *command.Command,
-	cli rpcclient.Client,
-	name,
-	pass string,
-	toAddr crypto.Address,
-	accountNumber,
-	sequence uint64,
-	send std.Coins,
-	opts serveOptions,
-) error {
+func sendAmountTo(cmd *command.Command, cli rpcclient.Client, name, pass string, toAddr crypto.Address, accountNumber, sequence uint64, send std.Coins, opts serveOptions) error {
 	// Read supply account pubkey.
 	kb, err := keys.NewKeyBaseFromDir(opts.Home)
 	if err != nil {

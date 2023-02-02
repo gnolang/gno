@@ -28,7 +28,7 @@ import (
 	"github.com/gnolang/gno/pkgs/bft/state/txindex"
 	"github.com/gnolang/gno/pkgs/events"
 
-	// "github.com/gnolang/gno/pkgs/bft/state/txindex/kv"
+	//"github.com/gnolang/gno/pkgs/bft/state/txindex/kv"
 	"github.com/gnolang/gno/pkgs/bft/state/txindex/null"
 	"github.com/gnolang/gno/pkgs/bft/store"
 	"github.com/gnolang/gno/pkgs/bft/types"
@@ -43,7 +43,7 @@ import (
 	verset "github.com/gnolang/gno/pkgs/versionset"
 )
 
-// ------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 // DBContext specifies config information for loading a new DB.
 type DBContext struct {
@@ -137,7 +137,7 @@ func CustomReactors(reactors map[string]p2p.Reactor) Option {
 	}
 }
 
-// ------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 // Node is the highest level interface to a full Tendermint node.
 // It includes all configuration information and running services.
@@ -332,12 +332,7 @@ func createConsensusReactor(config *cfg.Config,
 	return consensusReactor, consensusState
 }
 
-func createTransport(
-	config *cfg.Config,
-	nodeInfo p2p.NodeInfo,
-	nodeKey *p2p.NodeKey,
-	proxyApp proxy.AppConns,
-) (*p2p.MultiplexTransport, []p2p.PeerFilterFunc) {
+func createTransport(config *cfg.Config, nodeInfo p2p.NodeInfo, nodeKey *p2p.NodeKey, proxyApp proxy.AppConns) (*p2p.MultiplexTransport, []p2p.PeerFilterFunc) {
 	var (
 		mConnConfig = p2p.MConnConfig(config.P2P)
 		transport   = p2p.NewMultiplexTransport(nodeInfo, *nodeKey, mConnConfig)
@@ -815,7 +810,7 @@ func (n *Node) Config() *cfg.Config {
 	return n.config
 }
 
-// ------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 func (n *Node) Listeners() []string {
 	return []string{
@@ -884,7 +879,7 @@ func makeNodeInfo(
 	return nodeInfo, err
 }
 
-// ------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 var genesisDocKey = []byte("genesisDoc")
 
@@ -892,10 +887,7 @@ var genesisDocKey = []byte("genesisDoc")
 // database, or creates one using the given genesisDocProvider and persists the
 // result to the database. On success this also returns the genesis doc loaded
 // through the given provider.
-func LoadStateFromDBOrGenesisDocProvider(
-	stateDB dbm.DB,
-	genesisDocProvider GenesisDocProvider,
-) (sm.State, *types.GenesisDoc, error) {
+func LoadStateFromDBOrGenesisDocProvider(stateDB dbm.DB, genesisDocProvider GenesisDocProvider) (sm.State, *types.GenesisDoc, error) {
 	// Get genesis doc
 	genDoc, err := loadGenesisDoc(stateDB)
 	if err != nil {

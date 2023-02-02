@@ -152,12 +152,7 @@ func startFrom(cs *ConsensusState, height int64, round int) {
 
 // Create proposal block from cs but sign it with vs.
 // NOTE: assumes cs already locked via mutex (perhaps via debugger).
-func decideProposal(
-	cs *ConsensusState,
-	vs *validatorStub,
-	height int64,
-	round int,
-) (proposal *types.Proposal, block *types.Block) {
+func decideProposal(cs *ConsensusState, vs *validatorStub, height int64, round int) (proposal *types.Proposal, block *types.Block) {
 	block, blockParts := cs.createProposalBlock()
 	validRound := cs.ValidRound
 	chainID := cs.state.ChainID
@@ -180,13 +175,7 @@ func addVotes(to *ConsensusState, votes ...*types.Vote) {
 	}
 }
 
-func signAddVotes(
-	to *ConsensusState,
-	voteType types.SignedMsgType,
-	hash []byte,
-	header types.PartSetHeader,
-	vss ...*validatorStub,
-) {
+func signAddVotes(to *ConsensusState, voteType types.SignedMsgType, hash []byte, header types.PartSetHeader, vss ...*validatorStub) {
 	votes := signVotes(voteType, hash, header, vss...)
 	addVotes(to, votes...)
 }
@@ -221,15 +210,7 @@ func validateLastPrecommit(cs *ConsensusState, privVal *validatorStub, blockHash
 	}
 }
 
-func validatePrecommit(
-	_ *testing.T,
-	cs *ConsensusState,
-	thisRound,
-	lockRound int,
-	privVal *validatorStub,
-	votedBlockHash,
-	lockedBlockHash []byte,
-) {
+func validatePrecommit(_ *testing.T, cs *ConsensusState, thisRound, lockRound int, privVal *validatorStub, votedBlockHash, lockedBlockHash []byte) {
 	precommits := cs.Votes.Precommits(thisRound)
 	address := privVal.GetPubKey().Address()
 	var vote *types.Vote
@@ -249,39 +230,16 @@ func validatePrecommit(
 
 	if lockedBlockHash == nil {
 		if cs.LockedRound != lockRound || cs.LockedBlock != nil {
-			panic(
-				fmt.Sprintf(
-					"Expected to be locked on nil at round %d. Got locked at round %d with block %v",
-					lockRound,
-					cs.LockedRound,
-					cs.LockedBlock,
-				),
-			)
+			panic(fmt.Sprintf("Expected to be locked on nil at round %d. Got locked at round %d with block %v", lockRound, cs.LockedRound, cs.LockedBlock))
 		}
 	} else {
 		if cs.LockedRound != lockRound || !bytes.Equal(cs.LockedBlock.Hash(), lockedBlockHash) {
-			panic(
-				fmt.Sprintf(
-					"Expected block to be locked on round %d, got %d. Got locked block %X, expected %X",
-					lockRound,
-					cs.LockedRound,
-					cs.LockedBlock.Hash(),
-					lockedBlockHash,
-				),
-			)
+			panic(fmt.Sprintf("Expected block to be locked on round %d, got %d. Got locked block %X, expected %X", lockRound, cs.LockedRound, cs.LockedBlock.Hash(), lockedBlockHash))
 		}
 	}
 }
 
-func validatePrevoteAndPrecommit(
-	t *testing.T,
-	cs *ConsensusState,
-	thisRound,
-	lockRound int,
-	privVal *validatorStub,
-	votedBlockHash,
-	lockedBlockHash []byte,
-) {
+func validatePrevoteAndPrecommit(t *testing.T, cs *ConsensusState, thisRound, lockRound int, privVal *validatorStub, votedBlockHash, lockedBlockHash []byte) {
 	t.Helper()
 
 	// verify the prevote
@@ -310,24 +268,13 @@ func newConsensusState(state sm.State, pv types.PrivValidator, app abci.Applicat
 	return newConsensusStateWithConfig(config, state, pv, app)
 }
 
-func newConsensusStateWithConfig(
-	thisConfig *cfg.Config,
-	state sm.State,
-	pv types.PrivValidator,
-	app abci.Application,
-) *ConsensusState {
+func newConsensusStateWithConfig(thisConfig *cfg.Config, state sm.State, pv types.PrivValidator, app abci.Application) *ConsensusState {
 	blockDB := dbm.NewMemDB()
 
 	return newConsensusStateWithConfigAndBlockStore(thisConfig, state, pv, app, blockDB)
 }
 
-func newConsensusStateWithConfigAndBlockStore(
-	thisConfig *cfg.Config,
-	state sm.State,
-	pv types.PrivValidator,
-	app abci.Application,
-	blockDB dbm.DB,
-) *ConsensusState {
+func newConsensusStateWithConfigAndBlockStore(thisConfig *cfg.Config, state sm.State, pv types.PrivValidator, app abci.Application, blockDB dbm.DB) *ConsensusState {
 	// Get BlockStore
 	blockStore := store.NewBlockStore(blockDB)
 

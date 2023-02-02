@@ -62,14 +62,7 @@ const (
 // ImportModeStdlibsPreferred: use stdlibs/* if present, otherwise use native. for files/tests2/*.
 // ImportModeNativePreferred: do not use stdlibs/* if native registered. for files/tests/*.
 // NOTE: this isn't safe, should only be used for testing.
-func TestStore(
-	rootDir,
-	filesPath string,
-	stdin io.Reader,
-	stdout,
-	stderr io.Writer,
-	mode importMode,
-) (store gno.Store) {
+func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Writer, mode importMode) (store gno.Store) {
 	getPackage := func(pkgPath string) (pn *gno.PackageNode, pv *gno.PackageValue) {
 		if pkgPath == "" {
 			panic(fmt.Sprintf("invalid zero package path in testStore().pkgGetter"))
@@ -499,7 +492,7 @@ func TestStore(
 	return
 }
 
-// ----------------------------------------
+//----------------------------------------
 // testInjectNatives
 // analogous to stdlibs.InjectNatives, but with
 // native methods suitable for the testing environment.
@@ -734,7 +727,7 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 	}
 }
 
-// ----------------------------------------
+//----------------------------------------
 
 type dummyReader struct{}
 
@@ -746,7 +739,7 @@ func (*dummyReader) Read(b []byte) (n int, err error) {
 	return len(b), nil
 }
 
-// ----------------------------------------
+//----------------------------------------
 
 // NOTE: does not allocate; used for panics.
 func typedString(s string) gno.TypedValue {

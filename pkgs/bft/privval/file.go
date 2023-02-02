@@ -35,7 +35,7 @@ func voteToStep(vote *types.Vote) int8 {
 	}
 }
 
-// -------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------
 
 // FilePVKey stores the immutable part of PrivValidator.
 type FilePVKey struct {
@@ -63,7 +63,7 @@ func (pvKey FilePVKey) Save() {
 	}
 }
 
-// -------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------
 
 // FilePVLastSignState stores the mutable part of PrivValidator.
 type FilePVLastSignState struct {
@@ -90,23 +90,12 @@ func (lss *FilePVLastSignState) CheckHRS(height int64, round int, step int8) (bo
 
 	if lss.Height == height {
 		if lss.Round > round {
-			return false, fmt.Errorf(
-				"round regression at height %v. Got %v, last round %v",
-				height,
-				round,
-				lss.Round,
-			)
+			return false, fmt.Errorf("round regression at height %v. Got %v, last round %v", height, round, lss.Round)
 		}
 
 		if lss.Round == round {
 			if lss.Step > step {
-				return false, fmt.Errorf(
-					"step regression at height %v round %v. Got %v, last step %v",
-					height,
-					round,
-					step,
-					lss.Step,
-				)
+				return false, fmt.Errorf("step regression at height %v round %v. Got %v, last step %v", height, round, step, lss.Step)
 			} else if lss.Step == step {
 				if lss.SignBytes != nil {
 					if lss.Signature == nil {
@@ -140,7 +129,7 @@ func (lss *FilePVLastSignState) Save() {
 	}
 }
 
-// -------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------
 
 // FilePV implements PrivValidator using data persisted to disk
 // to prevent double signing.
@@ -287,16 +276,10 @@ func (pv *FilePV) Reset() {
 
 // String returns a string representation of the FilePV.
 func (pv *FilePV) String() string {
-	return fmt.Sprintf(
-		"PrivValidator{%v LH:%v, LR:%v, LS:%v}",
-		pv.GetAddress(),
-		pv.LastSignState.Height,
-		pv.LastSignState.Round,
-		pv.LastSignState.Step,
-	)
+	return fmt.Sprintf("PrivValidator{%v LH:%v, LR:%v, LS:%v}", pv.GetAddress(), pv.LastSignState.Height, pv.LastSignState.Round, pv.LastSignState.Step)
 }
 
-// ------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------
 
 // signVote checks if the vote is good to sign and sets the vote signature.
 // It may need to set the timestamp as well if the vote is otherwise the same as
@@ -398,7 +381,7 @@ func (pv *FilePV) saveSigned(height int64, round int, step int8,
 	pv.LastSignState.Save()
 }
 
-// -----------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------
 
 // returns the timestamp from the lastSignBytes.
 // returns true if the only difference in the votes is their timestamp.

@@ -136,7 +136,7 @@ func WriteRPCResponseArrayHTTP(w http.ResponseWriter, res []types.RPCResponse) {
 	}
 }
 
-// -----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
 // RecoverAndLogHandler wraps an HTTP handler, adding error logging.
 // If the inner function panics, the outer function recovers, logs, sends an
@@ -163,11 +163,7 @@ func RecoverAndLogHandler(handler http.Handler, logger log.Logger) http.Handler 
 						"Panic in RPC HTTP handler", "err", e, "stack",
 						string(debug.Stack()),
 					)
-					WriteRPCResponseHTTPError(
-						rww,
-						http.StatusInternalServerError,
-						types.RPCInternalError(types.JSONRPCStringID(""), e.(error)),
-					)
+					WriteRPCResponseHTTPError(rww, http.StatusInternalServerError, types.RPCInternalError(types.JSONRPCStringID(""), e.(error)))
 				}
 			}
 

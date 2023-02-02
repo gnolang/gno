@@ -149,12 +149,7 @@ func DefaultMConnConfig() MConnConfig {
 }
 
 // NewMConnection wraps net.Conn and creates multiplex connection
-func NewMConnection(
-	conn net.Conn,
-	chDescs []*ChannelDescriptor,
-	onReceive receiveCbFunc,
-	onError errorCbFunc,
-) *MConnection {
+func NewMConnection(conn net.Conn, chDescs []*ChannelDescriptor, onReceive receiveCbFunc, onError errorCbFunc) *MConnection {
 	return NewMConnectionWithConfig(
 		conn,
 		chDescs,
@@ -164,13 +159,7 @@ func NewMConnection(
 }
 
 // NewMConnectionWithConfig wraps net.Conn and creates multiplex connection with a config
-func NewMConnectionWithConfig(
-	conn net.Conn,
-	chDescs []*ChannelDescriptor,
-	onReceive receiveCbFunc,
-	onError errorCbFunc,
-	config MConnConfig,
-) *MConnection {
+func NewMConnectionWithConfig(conn net.Conn, chDescs []*ChannelDescriptor, onReceive receiveCbFunc, onError errorCbFunc, config MConnConfig) *MConnection {
 	if config.PongTimeout >= config.PingInterval {
 		panic("pongTimeout must be less than pingInterval (otherwise, next ping will reset pong timer)")
 	}

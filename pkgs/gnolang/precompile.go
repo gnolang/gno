@@ -314,14 +314,7 @@ func precompileAST(fset *token.FileSet, f *ast.File, checkWhitelist bool) (ast.N
 			// std package
 			if importPath == gnoStdPkgBefore {
 				if !astutil.RewriteImport(fset, f, gnoStdPkgBefore, gnoStdPkgAfter) {
-					errs = multierr.Append(
-						errs,
-						fmt.Errorf(
-							"failed to replace the %q package with %q",
-							gnoStdPkgBefore,
-							gnoStdPkgAfter,
-						),
-					)
+					errs = multierr.Append(errs, fmt.Errorf("failed to replace the %q package with %q", gnoStdPkgBefore, gnoStdPkgAfter))
 				}
 			}
 

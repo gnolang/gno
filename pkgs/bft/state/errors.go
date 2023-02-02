@@ -50,12 +50,7 @@ func (e UnknownBlockError) Error() string {
 }
 
 func (e BlockHashMismatchError) Error() string {
-	return fmt.Sprintf(
-		"App block hash (%X) does not match core block hash (%X) for height %d",
-		e.AppHash,
-		e.CoreHash,
-		e.Height,
-	)
+	return fmt.Sprintf("App block hash (%X) does not match core block hash (%X) for height %d", e.AppHash, e.CoreHash, e.Height)
 }
 
 func (e AppBlockHeightTooHighError) Error() string {
@@ -63,20 +58,11 @@ func (e AppBlockHeightTooHighError) Error() string {
 }
 
 func (e LastStateMismatchError) Error() string {
-	return fmt.Sprintf(
-		"Latest tendermint block (%d) LastAppHash (%X) does not match app's AppHash (%X)",
-		e.Height,
-		e.Core,
-		e.App,
-	)
+	return fmt.Sprintf("Latest tendermint block (%d) LastAppHash (%X) does not match app's AppHash (%X)", e.Height, e.Core, e.App)
 }
 
 func (e StateMismatchError) Error() string {
-	return fmt.Sprintf(
-		"State after replay does not match saved state. Got ----\n%v\nExpected ----\n%v\n",
-		e.Got,
-		e.Expected,
-	)
+	return fmt.Sprintf("State after replay does not match saved state. Got ----\n%v\nExpected ----\n%v\n", e.Got, e.Expected)
 }
 
 func (e NoValSetForHeightError) Error() string {

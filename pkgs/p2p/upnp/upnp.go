@@ -1,8 +1,6 @@
 // Taken from taipei-torrent.
 // Just enough UPnP to be able to forward ports
 // For more information, see: http://www.upnp-hacks.org/upnp.html
-
-//nolint:lll
 package upnp
 
 // TODO: use syscalls to get actual ourIP, see issue #712
@@ -29,13 +27,7 @@ type upnpNAT struct {
 // protocol is either "udp" or "tcp"
 type NAT interface {
 	GetExternalAddress() (addr net.IP, err error)
-	AddPortMapping(
-		protocol string,
-		externalPort,
-		internalPort int,
-		description string,
-		timeout int,
-	) (mappedExternalPort int, err error)
+	AddPortMapping(protocol string, externalPort, internalPort int, description string, timeout int) (mappedExternalPort int, err error)
 	DeletePortMapping(protocol string, externalPort, internalPort int) (err error)
 }
 
@@ -363,13 +355,7 @@ func (n *upnpNAT) GetExternalAddress() (addr net.IP, err error) {
 	return
 }
 
-func (n *upnpNAT) AddPortMapping(
-	protocol string,
-	externalPort,
-	internalPort int,
-	description string,
-	timeout int,
-) (mappedExternalPort int, err error) {
+func (n *upnpNAT) AddPortMapping(protocol string, externalPort, internalPort int, description string, timeout int) (mappedExternalPort int, err error) {
 	// A single concatenation would break ARM compilation.
 	message := "<u:AddPortMapping xmlns:u=\"urn:" + n.urnDomain + ":service:WANIPConnection:1\">\r\n" +
 		"<NewRemoteHost></NewRemoteHost><NewExternalPort>" + strconv.Itoa(externalPort)

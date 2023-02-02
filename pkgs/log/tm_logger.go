@@ -83,7 +83,7 @@ func (l *tmLogger) With(keyvals ...interface{}) Logger {
 	return newWithLogger(l, keyvals)
 }
 
-// ----------------------------------------
+//----------------------------------------
 
 type withLogger struct {
 	base    Logger
@@ -122,15 +122,9 @@ func (l *withLogger) SetLevel(LogLevel) {
 	panic("SetLevel not supported on derived WithLogger")
 }
 
-// ----------------------------------------
+//----------------------------------------
 
-func writeLog(
-	w io.Writer,
-	level LogLevel,
-	colorFn func(keyvals ...interface{}) colors.Color,
-	msg string,
-	keyvals ...interface{},
-) {
+func writeLog(w io.Writer, level LogLevel, colorFn func(keyvals ...interface{}) colors.Color, msg string, keyvals ...interface{}) {
 	keyvals = append([]interface{}{
 		logKeyLevel, level,
 		logKeyMsg, msg,

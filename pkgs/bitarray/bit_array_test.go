@@ -103,15 +103,7 @@ func TestSub(t *testing.T) {
 		require.Nil(t, err)
 
 		got, _ := json.Marshal(bA.Sub(o))
-		require.Equal(
-			t,
-			tc.expectedBA,
-			string(got),
-			"%s minus %s doesn't equal %s",
-			tc.initBA,
-			tc.subtractingBA,
-			tc.expectedBA,
-		)
+		require.Equal(t, tc.expectedBA, string(got), "%s minus %s doesn't equal %s", tc.initBA, tc.subtractingBA, tc.expectedBA)
 	}
 }
 

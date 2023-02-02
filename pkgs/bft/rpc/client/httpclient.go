@@ -67,7 +67,7 @@ var (
 	_ rpcClient = (*baseRPCClient)(nil)
 )
 
-// -----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 // HTTP
 
 // NewHTTP takes a remote endpoint in the form <protocol>://<host>:<port> and
@@ -108,7 +108,7 @@ func (c *HTTP) NewBatch() *BatchHTTP {
 	}
 }
 
-// -----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 // BatchHTTP
 
 // Send is a convenience function for an HTTP batch that will trigger the
@@ -130,7 +130,7 @@ func (b *BatchHTTP) Count() int {
 	return b.rpcBatch.Count()
 }
 
-// -----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 // baseRPCClient
 
 func (c *baseRPCClient) Status() (*ctypes.ResultStatus, error) {
@@ -155,11 +155,7 @@ func (c *baseRPCClient) ABCIQuery(path string, data []byte) (*ctypes.ResultABCIQ
 	return c.ABCIQueryWithOptions(path, data, DefaultABCIQueryOptions)
 }
 
-func (c *baseRPCClient) ABCIQueryWithOptions(
-	path string,
-	data []byte,
-	opts ABCIQueryOptions,
-) (*ctypes.ResultABCIQuery, error) {
+func (c *baseRPCClient) ABCIQueryWithOptions(path string, data []byte, opts ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
 	result := new(ctypes.ResultABCIQuery)
 	_, err := c.caller.Call("abci_query",
 		map[string]interface{}{"path": path, "data": data, "height": opts.Height, "prove": opts.Prove},

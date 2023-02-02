@@ -29,12 +29,7 @@ func init() {
 
 // SignatureVerificationGasConsumer is the type of function that is used to both consume gas when verifying signatures
 // and also to accept or reject different types of PubKey's. This is where apps can define their own PubKey
-type SignatureVerificationGasConsumer = func(
-	meter store.GasMeter,
-	sig []byte,
-	pubkey crypto.PubKey,
-	params Params,
-) sdk.Result
+type SignatureVerificationGasConsumer = func(meter store.GasMeter, sig []byte, pubkey crypto.PubKey, params Params) sdk.Result
 
 type AnteOptions struct {
 	// If verifyGenesisSignatures is false, does not check signatures when Height==0.
@@ -46,12 +41,7 @@ type AnteOptions struct {
 // NewAnteHandler returns an AnteHandler that checks and increments sequence
 // numbers, checks signatures & account numbers, and deducts fees from the first
 // signer.
-func NewAnteHandler(
-	ak AccountKeeper,
-	bank BankKeeperI,
-	sigGasConsumer SignatureVerificationGasConsumer,
-	opts AnteOptions,
-) sdk.AnteHandler {
+func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer SignatureVerificationGasConsumer, opts AnteOptions) sdk.AnteHandler {
 	return func(
 		ctx sdk.Context, tx std.Tx, simulate bool,
 	) (newCtx sdk.Context, res sdk.Result, abort bool) {
@@ -251,11 +241,7 @@ func processSig(
 	}
 
 	if !simulate && !pubKey.VerifyBytes(signBytes, sig.Signature) {
-		return nil, abciResult(
-			std.ErrUnauthorized(
-				"signature verification failed; verify correct account sequence and chain-id",
-			),
-		)
+		return nil, abciResult(std.ErrUnauthorized("signature verification failed; verify correct account sequence and chain-id"))
 	}
 
 	if err := acc.SetSequence(acc.GetSequence() + 1); err != nil {

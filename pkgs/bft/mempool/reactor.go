@@ -157,19 +157,7 @@ func (memR *Reactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 	msg, err := memR.decodeMsg(msgBytes)
 	if err != nil {
-		memR.Logger.Error(
-			"Error decoding mempool message",
-			"src",
-			src,
-			"chId",
-			chID,
-			"msg",
-			msg,
-			"err",
-			err,
-			"bytes",
-			msgBytes,
-		)
+		memR.Logger.Error("Error decoding mempool message", "src", src, "chId", chID, "msg", msg, "err", err, "bytes", msgBytes)
 		memR.Switch.StopPeerForError(src, err)
 
 		return
@@ -267,7 +255,7 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 	}
 }
 
-// -----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 // Messages
 
 // MempoolMessage is a message sent or received by the Reactor.
@@ -279,7 +267,7 @@ func (memR *Reactor) decodeMsg(bz []byte) (msg MempoolMessage, err error) {
 	return
 }
 
-// -------------------------------------
+//-------------------------------------
 
 // TxMessage is a MempoolMessage containing a transaction.
 type TxMessage struct {

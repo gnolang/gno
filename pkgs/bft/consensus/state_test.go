@@ -59,7 +59,7 @@ x * TestHalt1 - if we see +2/3 precommits after timing out into new round, we sh
 
 */
 
-// ----------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------
 // ProposeSuite
 
 func TestStateProposerSelection0(t *testing.T) {
@@ -255,7 +255,7 @@ func TestStateBadProposal(t *testing.T) {
 	signAddVotes(cs1, types.PrecommitType, propBlock.Hash(), propBlock.MakePartSet(partSize).Header(), vs2)
 }
 
-// ----------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------
 // FullRoundSuite
 
 // propose, prevote, and precommit a block
@@ -354,7 +354,7 @@ func TestStateFullRound2(t *testing.T) {
 	ensureNewBlock(newBlockCh, height)
 }
 
-// ------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------------
 // LockSuite
 
 // two validators, 4 rounds.
@@ -409,7 +409,7 @@ func TestStateLockNoPOL(t *testing.T) {
 	// but with invalid args. then we enterPrecommitWait, and the timeout to new round
 	ensureNewTimeout(timeoutWaitCh, height, round, cs1.config.Precommit(round).Nanoseconds())
 
-	// /
+	///
 
 	round++ // moving to the next round
 	ensureNewRound(newRoundCh, height, round)
@@ -1496,7 +1496,7 @@ func TestFlappyResetTimeoutPrecommitUponNewHeight(t *testing.T) {
 	assert.False(t, rs.TriggeredTimeoutPrecommit, "triggeredTimeoutPrecommit should be false at the beginning of each height")
 }
 
-// ------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------------
 // SlashingSuite
 // TODO: Slashing
 
@@ -1573,10 +1573,10 @@ func TestStateSlashingPrecommits(t *testing.T) {
 }
 */
 
-// ------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------------
 // CatchupSuite
 
-// ------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------------
 // HaltSuite
 
 // 4 vals.

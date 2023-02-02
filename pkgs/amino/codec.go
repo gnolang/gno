@@ -1,4 +1,3 @@
-//nolint:lll
 package amino
 
 import (
@@ -794,12 +793,7 @@ func parseFieldOptions(field reflect.StructField) (skip bool, fopts FieldOptions
 func typeURLtoFullname(typeURL string) (fullname string) {
 	parts := strings.Split(typeURL, "/")
 	if len(parts) == 1 {
-		panic(
-			fmt.Sprintf(
-				"invalid type_url \"%v\", must contain at least one slash and be followed by the full name",
-				typeURL,
-			),
-		)
+		panic(fmt.Sprintf("invalid type_url \"%v\", must contain at least one slash and be followed by the full name", typeURL))
 	}
 	return parts[len(parts)-1]
 }

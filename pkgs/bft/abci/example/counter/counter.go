@@ -115,13 +115,6 @@ func (app *CounterApplication) Query(reqQuery abci.RequestQuery) abci.ResponseQu
 	case "tx":
 		return abci.ResponseQuery{Value: []byte(fmt.Sprintf("%v", app.txCount))}
 	default:
-		return abci.ResponseQuery{
-			ResponseBase: abci.ResponseBase{
-				Log: fmt.Sprintf(
-					"Invalid query path. Expected hash or tx, got %v",
-					reqQuery.Path,
-				),
-			},
-		}
+		return abci.ResponseQuery{ResponseBase: abci.ResponseBase{Log: fmt.Sprintf("Invalid query path. Expected hash or tx, got %v", reqQuery.Path)}}
 	}
 }

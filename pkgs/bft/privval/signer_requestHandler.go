@@ -7,11 +7,7 @@ import (
 	"github.com/gnolang/gno/pkgs/crypto"
 )
 
-func DefaultValidationRequestHandler(
-	privVal types.PrivValidator,
-	req SignerMessage,
-	chainID string,
-) (SignerMessage, error) {
+func DefaultValidationRequestHandler(privVal types.PrivValidator, req SignerMessage, chainID string) (SignerMessage, error) {
 	var res SignerMessage
 	var err error
 

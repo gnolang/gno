@@ -155,7 +155,6 @@ func EncodeFloat64(w io.Writer, f float64) (err error) {
 // Time and Duration
 
 const (
-	//nolint:lll
 	// See https://github.com/protocolbuffers/protobuf/blob/d2980062c859649523d5fd51d6b55ab310e47482/src/google/protobuf/timestamp.proto#L123-L135
 	// seconds of 01-01-0001
 	minTimeSeconds int64 = -62135596800
@@ -164,7 +163,6 @@ const (
 	// nanos have to be in interval: [0, 999999999]
 	maxTimeNanos = 999999999 // inclusive
 
-	//nolint:lll
 	// See https://github.com/protocolbuffers/protobuf/blob/d2980062c859649523d5fd51d6b55ab310e47482/src/google/protobuf/duration.proto#L105-L116
 	minDurationSeconds int64 = -315576000000
 	maxDurationSeconds int64 = 315576000000 // inclusive
@@ -351,13 +349,8 @@ func validateDurationValueGo(s int64, ns int32) (err error) {
 	}
 	sns := s*1e9 + int64(ns)
 	if sns > 0 && s < 0 || sns < 0 && s > 0 {
-		return InvalidDurationError(
-			fmt.Sprintf(
-				"duration seconds+nanoseconds exceeds bounds for Go's time.Duration type: %v and %v",
-				s,
-				ns,
-			),
-		)
+		return InvalidDurationError(fmt.Sprintf("duration seconds+nanoseconds exceeds bounds for Go's time.Duration type: %v and %v",
+			s, ns))
 	}
 	return nil
 }

@@ -87,12 +87,7 @@ func NewApp(rootDir string, skipFailingGenesisTxs bool, logger log.Logger) (abci
 }
 
 // InitChainer returns a function that can initialize the chain with genesis.
-func InitChainer(
-	baseApp *sdk.BaseApp,
-	acctKpr auth.AccountKeeperI,
-	bankKpr bank.BankKeeperI,
-	skipFailingGenesisTxs bool,
-) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
+func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank.BankKeeperI, skipFailingGenesisTxs bool) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
 	return func(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
 		// Get genesis state.
 		genState := req.AppState.(GnoGenesisState)

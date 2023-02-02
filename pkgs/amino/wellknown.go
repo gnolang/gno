@@ -15,7 +15,7 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	// "google.golang.org/protobuf/types/known/structpb"
+	//"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -143,8 +143,7 @@ func (cdc *Codec) registerWellKnownTypes() {
 	register, preferNative := true, false
 	ptr, noPtr := true, false
 	// native not supported by protobuf
-	// XXX create them, and consider switching other types over.
-	cdc.registerType(nativePkg, uint16Type, "/amino.UInt16", noPtr, register)
+	cdc.registerType(nativePkg, uint16Type, "/amino.UInt16", noPtr, register) // XXX create them, and consider switching other types over.
 	cdc.registerType(nativePkg, uint8Type, "/amino.UInt8", noPtr, register)
 	cdc.registerType(nativePkg, int16Type, "/amino.Int16", noPtr, register)
 	cdc.registerType(nativePkg, int8Type, "/amino.Int8", noPtr, register)
@@ -216,12 +215,7 @@ func isJSONWellKnownType(rt reflect.Type) (wellKnown bool) {
 
 // Returns ok=false if nothing was done because the default behavior is fine (or if err).
 // TODO: remove proto dependency.
-func encodeReflectJSONWellKnown(
-	w io.Writer,
-	info *TypeInfo,
-	rv reflect.Value,
-	_ FieldOptions,
-) (ok bool, err error) {
+func encodeReflectJSONWellKnown(w io.Writer, info *TypeInfo, rv reflect.Value, fopts FieldOptions) (ok bool, err error) {
 	switch info.Type {
 	// Native types.
 	case timeType:
@@ -340,13 +334,7 @@ func decodeReflectJSONWellKnown(bz []byte, info *TypeInfo, rv reflect.Value, fop
 }
 
 // Returns ok=false if nothing was done because the default behavior is fine.
-func encodeReflectBinaryWellKnown(
-	w io.Writer,
-	info *TypeInfo,
-	rv reflect.Value,
-	fopts FieldOptions,
-	bare bool,
-) (ok bool, err error) {
+func encodeReflectBinaryWellKnown(w io.Writer, info *TypeInfo, rv reflect.Value, fopts FieldOptions, bare bool) (ok bool, err error) {
 	// Validations.
 	if rv.Kind() == reflect.Interface {
 		panic("expected a concrete type to decode to")
@@ -387,13 +375,7 @@ func encodeReflectBinaryWellKnown(
 }
 
 // Returns ok=false if nothing was done because the default behavior is fine.
-func decodeReflectBinaryWellKnown(
-	bz []byte,
-	info *TypeInfo,
-	rv reflect.Value,
-	_ FieldOptions,
-	bare bool,
-) (ok bool, n int, err error) {
+func decodeReflectBinaryWellKnown(bz []byte, info *TypeInfo, rv reflect.Value, fopts FieldOptions, bare bool) (ok bool, n int, err error) {
 	// Validations.
 	if rv.Kind() == reflect.Interface {
 		panic("expected a concrete type to decode to")
@@ -429,7 +411,7 @@ func decodeReflectBinaryWellKnown(
 	return false, 0, nil
 }
 
-// ----------------------------------------
+//----------------------------------------
 // Well known JSON encoders and decoders
 
 func EncodeJSONTimeValue(w io.Writer, s int64, ns int32) (err error) {

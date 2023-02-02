@@ -14,15 +14,7 @@ func NewPackageSet() PackageSet {
 func (ps PackageSet) Add(pkg *Package) bool {
 	if found, ok := ps[pkg.GoPkgPath]; ok {
 		if found != pkg {
-			panic(
-				fmt.Errorf(
-					"found conflicting package mappkgng, "+
-						"%v -> %v but trying to overwrite with -> %v",
-					pkg.GoPkgPath,
-					found,
-					pkg,
-				),
-			)
+			panic(fmt.Errorf("found conflicting package mappkgng, %v -> %v but trying to overwrite with -> %v", pkg.GoPkgPath, found, pkg))
 		}
 		return false
 	} else {

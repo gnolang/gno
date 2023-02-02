@@ -28,8 +28,7 @@ import (
 // WALGenerateNBlocks generates a consensus WAL. It does this by spinning up a
 // stripped down version of node (proxy app, event bus, consensus state) with a
 // persistent kvstore application and special consensus wal instance
-// (heightStopWAL) and waits until numBlocks are created.
-// If the node fails to produce given numBlocks, it returns an error.
+// (heightStopWAL) and waits until numBlocks are created. If the node fails to produce given numBlocks, it returns an error.
 func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 	t.Helper()
 
@@ -41,7 +40,7 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 	logger := log.TestingLogger().With("wal_generator", "wal_generator")
 	logger.Info("generating WAL (last height msg excluded)", "numBlocks", numBlocks)
 
-	// ///////////////////////////////////////////////////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////
 	// COPY PASTE FROM node.go WITH A FEW MODIFICATIONS
 	// NOTE: we can't import node package because of circular dependency.
 	// NOTE: we don't do handshake so need to set state.Version.Consensus.App directly.
@@ -84,7 +83,7 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 		consensusState.SetPrivValidator(privValidator)
 	}
 	// END OF COPY PASTE
-	// ///////////////////////////////////////////////////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////
 
 	// set consensus wal to buffered WAL, which will write all incoming msgs to buffer
 	numBlocksWritten := make(chan struct{})
@@ -172,12 +171,7 @@ type heightStopWAL struct {
 // needed for determinism
 var fixedTime, _ = time.Parse(time.RFC3339, "2017-01-02T15:04:05Z")
 
-func newHeightStopWAL(
-	logger log.Logger,
-	enc *walm.WALWriter,
-	nBlocks int64,
-	signalStop chan<- struct{},
-) *heightStopWAL {
+func newHeightStopWAL(logger log.Logger, enc *walm.WALWriter, nBlocks int64, signalStop chan<- struct{}) *heightStopWAL {
 	return &heightStopWAL{
 		enc:               enc,
 		heightToStop:      nBlocks,
@@ -236,10 +230,7 @@ func (w *heightStopWAL) WriteMetaSync(m walm.MetaMessage) error {
 
 func (w *heightStopWAL) FlushAndSync() error { return nil }
 
-func (w *heightStopWAL) SearchForHeight(
-	_ int64,
-	_ *walm.WALSearchOptions,
-) (rd io.ReadCloser, found bool, err error) {
+func (w *heightStopWAL) SearchForHeight(height int64, options *walm.WALSearchOptions) (rd io.ReadCloser, found bool, err error) {
 	return nil, false, nil
 }
 

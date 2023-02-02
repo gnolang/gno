@@ -112,10 +112,7 @@ func LedgerShowAddress(path hd.BIP44Params, expectedPubKey crypto.PubKey) error 
 	}
 
 	if pubKey != expectedPubKey {
-		return fmt.Errorf(
-			"the key's pubkey does not match with the one retrieved from Ledger. " +
-				"Check that the HD path and device are the correct ones",
-		)
+		return fmt.Errorf("the key's pubkey does not match with the one retrieved from Ledger. Check that the HD path and device are the correct ones")
 	}
 
 	pubKey2, _, err := getPubKeyAddrSafe(device, path, crypto.Bech32AddrPrefix)
@@ -124,10 +121,7 @@ func LedgerShowAddress(path hd.BIP44Params, expectedPubKey crypto.PubKey) error 
 	}
 
 	if pubKey2 != expectedPubKey {
-		return fmt.Errorf(
-			"the key's pubkey does not match with the one retrieved from Ledger. " +
-				"Check that the HD path and device are the correct ones",
-		)
+		return fmt.Errorf("the key's pubkey does not match with the one retrieved from Ledger. Check that the HD path and device are the correct ones")
 	}
 
 	return nil

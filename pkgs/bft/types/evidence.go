@@ -47,7 +47,7 @@ func (err *EvidenceOverflowError) Error() string {
 	return fmt.Sprintf("Too much evidence: Max %d, got %d", err.MaxNum, err.GotNum)
 }
 
-// -------------------------------------------
+//-------------------------------------------
 
 // Evidence represents any provable malicious activity by a validator
 type Evidence interface {
@@ -76,7 +76,7 @@ func MaxEvidencePerBlock(blockMaxBytes int64) (int64, int64) {
 	return maxNum, maxBytes
 }
 
-// -------------------------------------------
+//-------------------------------------------
 
 // DuplicateVoteEvidence contains evidence a validator signed two conflicting
 // votes.
@@ -112,48 +112,29 @@ func (dve *DuplicateVoteEvidence) Verify(chainID string, pubKey crypto.PubKey) e
 	if dve.VoteA.Height != dve.VoteB.Height ||
 		dve.VoteA.Round != dve.VoteB.Round ||
 		dve.VoteA.Type != dve.VoteB.Type {
-		return fmt.Errorf(
-			"DuplicateVoteEvidence Error: H/R/S does not match. Got %v and %v",
-			dve.VoteA,
-			dve.VoteB,
-		)
+		return fmt.Errorf("DuplicateVoteEvidence Error: H/R/S does not match. Got %v and %v", dve.VoteA, dve.VoteB)
 	}
 
 	// Address must be the same
 	if dve.VoteA.ValidatorAddress != dve.VoteB.ValidatorAddress {
-		return fmt.Errorf(
-			"DuplicateVoteEvidence Error: Validator addresses do not match. Got %X and %X",
-			dve.VoteA.ValidatorAddress,
-			dve.VoteB.ValidatorAddress,
-		)
+		return fmt.Errorf("DuplicateVoteEvidence Error: Validator addresses do not match. Got %X and %X", dve.VoteA.ValidatorAddress, dve.VoteB.ValidatorAddress)
 	}
 
 	// Index must be the same
 	if dve.VoteA.ValidatorIndex != dve.VoteB.ValidatorIndex {
-		return fmt.Errorf(
-			"DuplicateVoteEvidence Error: Validator indices do not match. Got %d and %d",
-			dve.VoteA.ValidatorIndex,
-			dve.VoteB.ValidatorIndex,
-		)
+		return fmt.Errorf("DuplicateVoteEvidence Error: Validator indices do not match. Got %d and %d", dve.VoteA.ValidatorIndex, dve.VoteB.ValidatorIndex)
 	}
 
 	// BlockIDs must be different
 	if dve.VoteA.BlockID.Equals(dve.VoteB.BlockID) {
-		return fmt.Errorf(
-			"DuplicateVoteEvidence Error: BlockIDs are the same (%v) - not a real duplicate vote",
-			dve.VoteA.BlockID,
-		)
+		return fmt.Errorf("DuplicateVoteEvidence Error: BlockIDs are the same (%v) - not a real duplicate vote", dve.VoteA.BlockID)
 	}
 
 	// pubkey must match address (this should already be true, sanity check)
 	addr := dve.VoteA.ValidatorAddress
 	if pubKey.Address() != addr {
-		return fmt.Errorf(
-			"DuplicateVoteEvidence FAILED SANITY CHECK - address (%X) doesn't match pubkey (%v - %X)",
-			addr,
-			pubKey,
-			pubKey.Address(),
-		)
+		return fmt.Errorf("DuplicateVoteEvidence FAILED SANITY CHECK - address (%X) doesn't match pubkey (%v - %X)",
+			addr, pubKey, pubKey.Address())
 	}
 
 	// Signatures must be valid
@@ -197,7 +178,7 @@ func (dve *DuplicateVoteEvidence) ValidateBasic() error {
 	return nil
 }
 
-// -----------------------------------------------------------------
+//-----------------------------------------------------------------
 
 // UNSTABLE
 type MockRandomGoodEvidence struct {
@@ -273,7 +254,7 @@ func (e MockBadEvidence) String() string {
 	return fmt.Sprintf("BadEvidence: %d/%s", e.Height, e.Address)
 }
 
-// -------------------------------------------
+//-------------------------------------------
 
 // EvidenceList is a list of Evidence. Evidences is not a word.
 type EvidenceList []Evidence

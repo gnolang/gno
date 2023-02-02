@@ -55,14 +55,7 @@ func KeyTestPubAddr() (crypto.PrivKey, crypto.PubKey, crypto.Address) {
 	return key, pub, addr
 }
 
-func NewTestTx(
-	chainID string,
-	msgs []std.Msg,
-	privs []crypto.PrivKey,
-	accNums []uint64,
-	seqs []uint64,
-	fee std.Fee,
-) std.Tx {
+func NewTestTx(chainID string, msgs []std.Msg, privs []crypto.PrivKey, accNums []uint64, seqs []uint64, fee std.Fee) std.Tx {
 	sigs := make([]std.Signature, len(privs))
 	for i, priv := range privs {
 		signBytes := std.SignBytes(chainID, accNums[i], seqs[i], fee, msgs, "")
@@ -80,15 +73,7 @@ func NewTestTx(
 	return tx
 }
 
-func NewTestTxWithMemo(
-	chainID string,
-	msgs []std.Msg,
-	privs []crypto.PrivKey,
-	accNums []uint64,
-	seqs []uint64,
-	fee std.Fee,
-	memo string,
-) std.Tx {
+func NewTestTxWithMemo(chainID string, msgs []std.Msg, privs []crypto.PrivKey, accNums []uint64, seqs []uint64, fee std.Fee, memo string) std.Tx {
 	sigs := make([]std.Signature, len(privs))
 	for i, priv := range privs {
 		signBytes := std.SignBytes(chainID, accNums[i], seqs[i], fee, msgs, memo)
@@ -106,15 +91,7 @@ func NewTestTxWithMemo(
 	return tx
 }
 
-func NewTestTxWithSignBytes(
-	msgs []std.Msg,
-	privs []crypto.PrivKey,
-	_ []uint64,
-	_ []uint64,
-	fee std.Fee,
-	signBytes []byte,
-	memo string,
-) std.Tx {
+func NewTestTxWithSignBytes(msgs []std.Msg, privs []crypto.PrivKey, accNums []uint64, seqs []uint64, fee std.Fee, signBytes []byte, memo string) std.Tx {
 	sigs := make([]std.Signature, len(privs))
 	for i, priv := range privs {
 		sig, err := priv.Sign(signBytes)

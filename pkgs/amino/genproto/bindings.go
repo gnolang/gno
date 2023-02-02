@@ -94,12 +94,7 @@ func WriteProtoBindingsForTypes(filename string, pkg *amino.Package, rtz ...refl
 }
 
 // modified imports if necessary.
-func generateMethodsForType(
-	imports *ast.GenDecl,
-	scope *ast.Scope,
-	pkg *amino.Package,
-	info *amino.TypeInfo,
-) (methods []ast.Decl, err error) {
+func generateMethodsForType(imports *ast.GenDecl, scope *ast.Scope, pkg *amino.Package, info *amino.TypeInfo) (methods []ast.Decl, err error) {
 	if info.Type.Kind() == reflect.Interface {
 		panic("should not happen")
 	}
@@ -110,7 +105,7 @@ func generateMethodsForType(
 	}
 	dpbote_ := pbote_[1:]
 
-	// ////////////////
+	//////////////////
 	// ToPBMessage()
 	{
 		scope2 := ast.NewScope(scope)
@@ -132,7 +127,7 @@ func generateMethodsForType(
 		))
 	}
 
-	// ////////////////
+	//////////////////
 	// EmptyPBMessage()
 	// Use to create the pbm to proto.Unmarshal to before FromPBMessage.
 	{
@@ -153,7 +148,7 @@ func generateMethodsForType(
 		))
 	}
 
-	// ////////////////
+	//////////////////
 	// FromPBMessage()
 	{
 		scope2 := ast.NewScope(scope)
@@ -174,7 +169,7 @@ func generateMethodsForType(
 		))
 	}
 
-	// ////////////////
+	//////////////////
 	// TypeUrl()
 	{
 		methods = append(methods, _func("GetTypeURL",
@@ -187,7 +182,7 @@ func generateMethodsForType(
 		))
 	}
 
-	// ////////////////
+	//////////////////
 	// Is*ReprEmpty()
 	{
 		rinfo := info.ReprType
@@ -244,18 +239,7 @@ func hasPBBindings(info *amino.TypeInfo) bool {
 //
 // CONTRACT: for arrays and lists, memory must be allocated beforehand, but new
 // instances are created within this function.
-func go2pbStmts(
-	rootPkg *amino.Package,
-	isRoot bool,
-	imports *ast.GenDecl,
-	scope *ast.Scope,
-	pbo ast.Expr,
-	goo ast.Expr,
-	gooIsPtr bool,
-	gooType *amino.TypeInfo,
-	fopts amino.FieldOptions,
-	options uint64,
-) (b []ast.Stmt) {
+func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope *ast.Scope, pbo ast.Expr, goo ast.Expr, gooIsPtr bool, gooType *amino.TypeInfo, fopts amino.FieldOptions, options uint64) (b []ast.Stmt) {
 	const (
 		option_bytes         = 0x01 // if goo's repr is uint8 as an element of bytes.
 		option_implicit_list = 0x02 // if goo is a repeated list & also an element.
@@ -517,19 +501,7 @@ func go2pbStmts(
 						_block(
 							// Translate in place.
 							_a("goore", ":=", _idx(goor, _i("i"))),
-							_block(
-								go2pbStmts(
-									rootPkg,
-									false,
-									imports,
-									scope2,
-									_x("%v~[~i~]", pbos_),
-									_i("goore"),
-									gooreIsPtr,
-									gooreType,
-									fopts,
-									newoptions)...,
-							),
+							_block(go2pbStmts(rootPkg, false, imports, scope2, _x("%v~[~i~]", pbos_), _i("goore"), gooreIsPtr, gooreType, fopts, newoptions)...),
 						),
 					),
 					_ctif((pboIsImplicit && options&option_implicit_list != 0), // compile time if
@@ -579,18 +551,7 @@ func go2pbStmts(
 // CONTRACT: goo is addressable.
 // CONTRACT: for arrays and lists, memory must be allocated beforehand, but new
 // instances are created within this function.
-func pb2goStmts(
-	rootPkg *amino.Package,
-	isRoot bool,
-	imports *ast.GenDecl,
-	scope *ast.Scope,
-	goo ast.Expr,
-	gooIsPtr bool,
-	gooType *amino.TypeInfo,
-	pbo ast.Expr,
-	fopts amino.FieldOptions,
-	options uint64,
-) (b []ast.Stmt) {
+func pb2goStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope *ast.Scope, goo ast.Expr, gooIsPtr bool, gooType *amino.TypeInfo, pbo ast.Expr, fopts amino.FieldOptions, options uint64) (b []ast.Stmt) {
 	const (
 		option_bytes = 0x01 // if goo's repr is uint8 as an element of bytes.
 		// option_implicit_list = 0x02 // if goo is a repeated list & also an element.
@@ -776,17 +737,7 @@ func pb2goStmts(
 		goors_ := addVarUniq(scope, "goors")
 		scope2 := ast.NewScope(scope)
 		addVars(scope2, "i", "pboe", "pboev")
-		subStmts := pb2goStmts(
-			rootPkg,
-			false,
-			imports, scope2,
-			_x("%v~[~i~]", goors_),
-			gooreIsPtr,
-			gooreType,
-			_i("pboev"),
-			fopts,
-			newoptions,
-		)
+		subStmts := pb2goStmts(rootPkg, false, imports, scope2, _x("%v~[~i~]", goors_), gooreIsPtr, gooreType, _i("pboev"), fopts, newoptions)
 		b = append(b,
 			_var(goors_, nil, _x("[%v]%v~{~~}", goorLen, goorete_)),
 			_for(
@@ -830,18 +781,7 @@ func pb2goStmts(
 		goors_ := addVarUniq(scope, "goors")
 		scope2 := ast.NewScope(scope)
 		addVars(scope2, "i", "pboe", "pboev")
-		subStmts := pb2goStmts(
-			rootPkg,
-			false,
-			imports,
-			scope2,
-			_x("%v~[~i~]", goors_),
-			gooreIsPtr,
-			gooreType,
-			_i("pboev"),
-			fopts,
-			newoptions,
-		)
+		subStmts := pb2goStmts(rootPkg, false, imports, scope2, _x("%v~[~i~]", goors_), gooreIsPtr, gooreType, _i("pboev"), fopts, newoptions)
 		b = append(b,
 			_var(pbol_, _i("int"), _x("0")),
 			_if(_b(pbo, "!=", "nil"),
@@ -900,15 +840,7 @@ func pb2goStmts(
 	return b
 }
 
-func isReprEmptyStmts(
-	rootPkg *amino.Package,
-	isRoot bool,
-	imports *ast.GenDecl,
-	scope *ast.Scope,
-	goo ast.Expr,
-	gooIsPtr bool,
-	gooType *amino.TypeInfo,
-) (b []ast.Stmt) {
+func isReprEmptyStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope *ast.Scope, goo ast.Expr, gooIsPtr bool, gooType *amino.TypeInfo) (b []ast.Stmt) {
 	// Special case if non-nil struct-pointer.
 	// TODO: this could be precompiled and optimized (when !isRoot).
 	if gooIsPtr && gooType.ReprType.Type.Kind() == reflect.Struct {
@@ -1033,7 +965,7 @@ func isReprEmptyStmts(
 	return b
 }
 
-// ----------------------------------------
+//----------------------------------------
 // other....
 
 // Splits a Go expression into left and right parts.
@@ -1081,7 +1013,7 @@ func chopRight(expr string) (left string, tok rune, right string) {
 	return
 }
 
-// ----------------------------------------
+//----------------------------------------
 // AST Construction (Expr)
 
 func _i(name string) *ast.Ident {
@@ -1101,14 +1033,7 @@ func _iOrNil(name string) *ast.Ident {
 
 // recvTypeName is empty if there are no receivers.
 // recvTypeName cannot contain any dots.
-func _func(
-	name string,
-	recvRef string,
-	recvTypeName string,
-	params *ast.FieldList,
-	results *ast.FieldList,
-	b *ast.BlockStmt,
-) *ast.FuncDecl {
+func _func(name string, recvRef string, recvTypeName string, params *ast.FieldList, results *ast.FieldList, b *ast.BlockStmt) *ast.FuncDecl {
 	fn := &ast.FuncDecl{
 		Name: _i(name),
 		Type: &ast.FuncType{
@@ -1609,7 +1534,7 @@ func _sl(x ast.Expr) *ast.ArrayType {
 	}
 }
 
-// ----------------------------------------
+//----------------------------------------
 // AST Construction (Stmt)
 
 func _if(cond ast.Expr, b ...ast.Stmt) *ast.IfStmt {
@@ -1843,7 +1768,7 @@ func _aop(op string) token.Token {
 	}
 }
 
-// ----------------------------------------
+//----------------------------------------
 // AST Compile-Time
 
 func _ctif(cond bool, then_, else_ ast.Stmt) ast.Stmt {
@@ -1856,7 +1781,7 @@ func _ctif(cond bool, then_, else_ ast.Stmt) ast.Stmt {
 	}
 }
 
-// ----------------------------------------
+//----------------------------------------
 // AST query and manipulation.
 
 func importPathForName(name string, imports *ast.GenDecl) (path string, exists bool) {
@@ -1976,13 +1901,7 @@ OUTER:
 }
 
 // If rt.PkgPath() is "",
-func goPkgPrefix(
-	rootPkg *amino.Package,
-	rt reflect.Type,
-	info *amino.TypeInfo,
-	imports *ast.GenDecl,
-	scope *ast.Scope,
-) (pkgPrefix string) {
+func goPkgPrefix(rootPkg *amino.Package, rt reflect.Type, info *amino.TypeInfo, imports *ast.GenDecl, scope *ast.Scope) (pkgPrefix string) {
 	if rt.Name() == "" {
 		panic("expected rt to have name")
 	}
@@ -2006,13 +1925,7 @@ func goPkgPrefix(
 	return pkgName + "."
 }
 
-func goTypeExprStringFn(
-	rootPkg *amino.Package,
-	imports *ast.GenDecl,
-	scope *ast.Scope,
-	isPtr bool,
-	info *amino.TypeInfo,
-) func() string {
+func goTypeExprStringFn(rootPkg *amino.Package, imports *ast.GenDecl, scope *ast.Scope, isPtr bool, info *amino.TypeInfo) func() string {
 	memo := ""
 	return func() string { // lazy.
 		if memo == "" {
@@ -2022,13 +1935,7 @@ func goTypeExprStringFn(
 	}
 }
 
-func goTypeExprString(
-	rootPkg *amino.Package,
-	imports *ast.GenDecl,
-	scope *ast.Scope,
-	isPtr bool,
-	info *amino.TypeInfo,
-) string {
+func goTypeExprString(rootPkg *amino.Package, imports *ast.GenDecl, scope *ast.Scope, isPtr bool, info *amino.TypeInfo) string {
 	if isPtr {
 		return "*" + goTypeExprString(rootPkg, imports, scope, false, info)
 	}
@@ -2085,13 +1992,7 @@ func goTypeExpr(rootPkg *amino.Package, rt reflect.Type, imports *ast.GenDecl, s
 
 // The relevant p3-protoc generated go-type's type-expr given pre-repr info.
 // This is used for construction.
-func p3goTypeExprString(
-	rootPkg *amino.Package,
-	imports *ast.GenDecl,
-	scope *ast.Scope,
-	info *amino.TypeInfo,
-	fopts amino.FieldOptions,
-) (typeExpr string) {
+func p3goTypeExprString(rootPkg *amino.Package, imports *ast.GenDecl, scope *ast.Scope, info *amino.TypeInfo, fopts amino.FieldOptions) (typeExpr string) {
 	// If registered non-native type:
 	pkg := info.Package
 	if pkg != nil && pkg.GoPkgPath != "" && info.Type.Kind() != reflect.Interface {

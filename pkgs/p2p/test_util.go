@@ -18,7 +18,7 @@ import (
 
 const testCh = 0x01
 
-// ------------------------------------------------
+//------------------------------------------------
 
 func AddPeerToSwitchPeerSet(sw *Switch, peer Peer) {
 	sw.peers.Add(peer)
@@ -43,14 +43,7 @@ func CreateRoutableAddr() (addr string, netAddr *NetAddress) {
 	for {
 		var id = ed25519.GenPrivKey().PubKey().Address().ID()
 		var err error
-		addr = fmt.Sprintf(
-			"%s@%v.%v.%v.%v:26656",
-			id,
-			random.RandInt()%256,
-			random.RandInt()%256,
-			random.RandInt()%256,
-			random.RandInt()%256,
-		)
+		addr = fmt.Sprintf("%s@%v.%v.%v.%v:26656", id, random.RandInt()%256, random.RandInt()%256, random.RandInt()%256, random.RandInt()%256)
 		netAddr, err = NewNetAddressFromString(addr)
 		if err != nil {
 			panic(err)
@@ -62,7 +55,7 @@ func CreateRoutableAddr() (addr string, netAddr *NetAddress) {
 	return
 }
 
-// ------------------------------------------------------------------
+//------------------------------------------------------------------
 // Connects switches via arbitrary net.Conn. Used for testing.
 
 const TEST_HOST = "localhost"
@@ -71,12 +64,7 @@ const TEST_HOST = "localhost"
 // If connect==Connect2Switches, the switches will be fully connected.
 // initSwitch defines how the i'th switch should be initialized (ie. with what reactors).
 // NOTE: panics if any switch fails to start.
-func MakeConnectedSwitches(
-	cfg *config.P2PConfig,
-	n int,
-	initSwitch func(int, *Switch) *Switch,
-	connect func([]*Switch, int, int),
-) []*Switch {
+func MakeConnectedSwitches(cfg *config.P2PConfig, n int, initSwitch func(int, *Switch) *Switch, connect func([]*Switch, int, int)) []*Switch {
 	switches := make([]*Switch, n)
 	for i := 0; i < n; i++ {
 		switches[i] = MakeSwitch(cfg, i, TEST_HOST, "123.123.123", initSwitch)
@@ -239,7 +227,7 @@ func testPeerConn(
 	return newPeerConn(outbound, persistent, conn, socketAddr), nil
 }
 
-// ----------------------------------------------------------------
+//----------------------------------------------------------------
 // rand node info
 
 func testNodeInfo(id ID, name string) NodeInfo {

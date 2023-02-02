@@ -23,7 +23,6 @@ linters:
     - nlreturn # Checks for a new line before return and branch statements to increase code clarity
     - misspell # Misspelled English words in comments
     - makezero # Finds slice declarations with non-zero initial length
-    - lll # Long lines
     - importas # Enforces consistent import aliases
     - gosec # Security problems
     - gofmt # Whether the code was gofmt-ed
@@ -58,7 +57,6 @@ issues:
     - path: _test\.go
       linters:
         - gosec # Disabled linting of weak number generators
-        - lll # Disabled linting of long test case lines
         - makezero # Disabled linting of intentional slice appends
         - goconst # Disabled linting of common mnemonics and test case strings
     - path: _\.gno

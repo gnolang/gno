@@ -1,4 +1,3 @@
-//nolint:lll
 package secp256k1
 
 import (
@@ -15,7 +14,7 @@ import (
 	"github.com/gnolang/gno/pkgs/crypto"
 )
 
-// -------------------------------------
+//-------------------------------------
 
 var _ crypto.PrivKey = PrivKeySecp256k1{}
 
@@ -106,7 +105,7 @@ func GenPrivKeySecp256k1(secret []byte) PrivKeySecp256k1 {
 	return PrivKeySecp256k1(privKey32)
 }
 
-// -------------------------------------
+//-------------------------------------
 
 var _ crypto.PubKey = PubKeySecp256k1{}
 

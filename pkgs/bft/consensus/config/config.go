@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// -----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 // ConsensusConfig
 
 const (
@@ -102,8 +102,7 @@ func (cfg *ConsensusConfig) Precommit(round int) time.Duration {
 	) * time.Nanosecond
 }
 
-// Commit returns the amount of time to wait for straggler votes
-// after receiving +2/3 precommits for a single block (ie. a commit).
+// Commit returns the amount of time to wait for straggler votes after receiving +2/3 precommits for a single block (ie. a commit).
 func (cfg *ConsensusConfig) Commit(t time.Time) time.Time {
 	return t.Add(cfg.TimeoutCommit)
 }
