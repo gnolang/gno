@@ -30,6 +30,7 @@ func TestMain(t *testing.T) {
 		{args: []string{"test"}, errShouldBe: "invalid args", stderrShouldBe: "Usage: test [test flags] [packages]\n"},
 		{args: []string{"build"}, errShouldBe: "invalid args", stderrShouldBe: "Usage: build [build flags] [packages]\n"},
 		{args: []string{"precompile"}, errShouldBe: "invalid args", stderrShouldBe: "Usage: precompile [precompile flags] [packages]\n"},
+		{args: []string{"mod"}, errShouldBe: "invalid command", stderrShouldBe: "Usage: mod [flags] <command>\n"},
 		// {args: []string{"repl"}},
 
 		// --help
@@ -37,6 +38,7 @@ func TestMain(t *testing.T) {
 		{args: []string{"test", "--help"}, stdoutShouldContain: "# testOptions options\n-"},
 		{args: []string{"precompile", "--help"}, stdoutShouldContain: "# precompileFlags options\n-"},
 		{args: []string{"repl", "--help"}, stdoutShouldContain: "# replOptions options\n-"},
+		{args: []string{"mod", "--help"}, stdoutShouldContain: "# modFlags options\n-"},
 
 		// custom
 		{args: []string{"test", "../../examples/gno.land/p/demo/rand"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/rand \t"},
