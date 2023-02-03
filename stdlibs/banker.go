@@ -100,14 +100,12 @@ func (osb OrigSendBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins
 			"OrigSendBanker can only send from the realm package address %q, but got %q",
 			osb.pkgAddr, from))
 	}
-
 	spent := (*osb.origSendSpent).Add(amt)
 	if !osb.origSend.IsAllGTE(spent) {
 		panic(fmt.Sprintf(
 			`cannot send "%v", limit "%v" exceeded with "%v" already spent`,
 			amt, osb.origSend, *osb.origSendSpent))
 	}
-
 	osb.banker.SendCoins(from, to, amt)
 	*osb.origSendSpent = spent
 }
@@ -149,7 +147,6 @@ func (rsb RealmSendBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coin
 			"RealmSendBanker can only send from the realm package address %q, but got %q",
 			rsb.pkgAddr, from))
 	}
-
 	rsb.banker.SendCoins(from, to, amt)
 }
 

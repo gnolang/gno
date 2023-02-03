@@ -51,7 +51,6 @@ func NewApp(rootDir string, skipFailingGenesisTxs bool, logger log.Logger) (abci
 	}
 	authAnteHandler := auth.NewAnteHandler(
 		acctKpr, bankKpr, auth.DefaultSigVerificationGasConsumer, authOptions)
-
 	baseApp.SetAnteHandler(
 		// Override default AnteHandler with custom logic.
 		func(ctx sdk.Context, tx std.Tx, simulate bool) (
@@ -96,7 +95,6 @@ func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank
 			addr, coins := parseBalance(bal)
 			acc := acctKpr.NewAccountWithAddress(ctx, addr)
 			acctKpr.SetAccount(ctx, acc)
-
 			err := bankKpr.SetCoins(ctx, addr, coins)
 			if err != nil {
 				panic(err)
@@ -128,12 +126,10 @@ func parseBalance(bal string) (crypto.Address, std.Coins) {
 	if len(parts) != 2 {
 		panic(fmt.Sprintf("invalid balance string %s", bal))
 	}
-
 	addr, err := crypto.AddressFromBech32(parts[0])
 	if err != nil {
 		panic(fmt.Sprintf("invalid balance addr %s (%v)", bal, err))
 	}
-
 	coins, err := std.ParseCoins(parts[1])
 	if err != nil {
 		panic(fmt.Sprintf("invalid balance coins %s (%v)", bal, err))

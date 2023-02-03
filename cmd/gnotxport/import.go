@@ -31,12 +31,10 @@ var defaultTxImportOptions = txImportOptions{
 func txImportApp(cmd *command.Command, args []string, iopts interface{}) error {
 	opts := iopts.(txImportOptions)
 	c := client.NewHTTP(opts.Remote, "/websocket")
-
 	filebz, err := os.ReadFile(opts.InFile)
 	if err != nil {
 		return err
 	}
-
 	lines := strings.Split(strings.TrimSpace(string(filebz)), "\n")
 	for i, line := range lines {
 		print(".")
@@ -44,19 +42,15 @@ func txImportApp(cmd *command.Command, args []string, iopts interface{}) error {
 		if len(line) == 0 {
 			panic(i)
 		}
-
 		var tx std.Tx
-
 		amino.MustUnmarshalJSON([]byte(line), &tx)
 		txbz := amino.MustMarshal(tx)
-
 		res, err := c.BroadcastTxSync(txbz)
 		if err != nil || res.Error != nil {
 			print("!")
 			// wait for next block and try again.
 			// TODO: actually wait 1 block instead of fudging it.
 			time.Sleep(20 * time.Second)
-
 			res, err := c.BroadcastTxSync(txbz)
 			if err != nil || res.Error != nil {
 				if err != nil {
@@ -64,7 +58,6 @@ func txImportApp(cmd *command.Command, args []string, iopts interface{}) error {
 				} else {
 					fmt.Println("SECOND ERROR!", res.Error)
 				}
-
 				fmt.Println(line)
 
 				return errors.Wrap(err, "broadcasting tx %d", i)

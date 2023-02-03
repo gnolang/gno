@@ -33,7 +33,6 @@ var defaultReplOptions = replOptions{
 
 func replApp(cmd *command.Command, args []string, iopts interface{}) error {
 	opts := iopts.(replOptions)
-
 	if len(args) > 0 {
 		cmd.ErrPrintfln("Usage: repl [flags]")
 
@@ -57,7 +56,6 @@ func runRepl(rootDir string, verbose bool) error {
 	if verbose {
 		testStore.SetLogStoreOps(true)
 	}
-
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath: "test",
 		Output:  stdout,
@@ -75,20 +73,16 @@ func runRepl(rootDir string, verbose bool) error {
 	for i := 1; ; i++ {
 		// parse line and execute
 		t.SetPrompt(fmt.Sprintf("gno:%d> ", i))
-
 		oldState, err := term.MakeRaw(0)
 		input, err := t.ReadLine()
-
 		if err != nil {
 			term.Restore(0, oldState)
-
 			if goerrors.Is(err, io.EOF) {
 				return nil
 			}
 
 			return fmt.Errorf("term error: %w", err)
 		}
-
 		term.Restore(0, oldState)
 
 		funcName := fmt.Sprintf("repl_%d", i)

@@ -73,15 +73,12 @@ func NewPage(s string, width int, isCode bool, style *Style) *Page {
 		Elems:  nil, // will set
 		Cursor: -1,
 	}
-
 	elems := []Elem{}
-
 	if s != "" {
 		pad := style.GetPadding()
 		ypos := 0 + pad.Top
 		xpos := 0 + pad.Left
 		lines := splitLines(s)
-
 		if isCode {
 			for _, line := range lines {
 				te := NewTextElem(line, style)
@@ -89,7 +86,6 @@ func NewPage(s string, width int, isCode bool, style *Style) *Page {
 				te.SetCoord(Coord{X: xpos, Y: ypos})
 				elems = append(elems, te)
 				ypos++
-
 				xpos = 0 + pad.Left
 			}
 		} else {
@@ -115,7 +111,6 @@ func NewPage(s string, width int, isCode bool, style *Style) *Page {
 			}
 		}
 	}
-
 	page.Elems = elems
 	page.Measure()
 	page.SetIsDirty(true)
@@ -126,7 +121,6 @@ func NewPage(s string, width int, isCode bool, style *Style) *Page {
 func (pg *Page) StringIndented(indent string) string {
 	elines := []string{}
 	eindent := indent + "    "
-
 	for _, elem := range pg.Elems {
 		elines = append(elines, eindent+elem.StringIndented(eindent))
 	}
@@ -177,20 +171,16 @@ func (pg *Page) Measure() Size {
 	pad := pg.GetPadding()
 	maxX := pad.Left
 	maxY := pad.Top
-
 	for _, view := range pg.Elems {
 		coord := view.GetCoord()
 		size := view.GetSize()
-
 		if maxX < coord.X+size.Width {
 			maxX = coord.X + size.Width
 		}
-
 		if maxY < coord.Y+size.Height {
 			maxY = coord.Y + size.Height
 		}
 	}
-
 	size := Size{
 		Width:  maxX + pad.Right,
 		Height: maxY + pad.Bottom,
@@ -278,7 +268,6 @@ func (pg *Page) Render() (updated bool) {
 	} else {
 		defer pg.SetIsDirty(false)
 	}
-
 	for _, elem := range pg.Elems {
 		elem.Render()
 	}
@@ -459,18 +448,15 @@ func (tel *TextElem) Render() (updated bool) {
 	if tel.Height != 1 {
 		panic("should not happen")
 	}
-
 	if !tel.GetIsDirty() {
 		return
 	} else {
 		defer tel.SetIsDirty(false)
 	}
-
 	tel.Buffer.Reset()
 	style := tel.GetStyle()
 	runes := toRunes(tel.Text)
 	i := 0
-
 	for 0 < len(runes) {
 		s, w, n := nextCharacter(runes)
 		if n == 0 {
@@ -480,18 +466,14 @@ func (tel *TextElem) Render() (updated bool) {
 		} else {
 			runes = runes[n:]
 		}
-
 		cell := tel.Buffer.GetCell(i, 0)
 		cell.SetValue(s, w, style, tel)
-
 		for j := 1; j < w; j++ {
 			cell := tel.Buffer.GetCell(i+j, 0)
 			cell.SetValue("", 0, style, tel) // clear next cells
 		}
-
 		i += w
 	}
-
 	if i != tel.Buffer.Width {
 		panic(fmt.Sprintf(
 			"wrote %d cells but there are %d in buffer with text %q",
@@ -509,7 +491,6 @@ func (tel *TextElem) Draw(offset Coord, view View) {
 		if minY != 0 {
 			panic("should not happen")
 		}
-
 		for x := minX; x < maxX; x++ {
 			bcell := tel.Buffer.GetCell(x, y)
 			vcell := view.GetCell(x-offset.X, y-offset.Y)
@@ -616,13 +597,11 @@ func (st *Style) WithAttrs(attrs *Attrs) (res Style) {
 	if st == nil {
 		panic("unexpected nil style")
 	}
-
 	if attrs.GetIsCursor() {
 		res = *st.GetCursorStyle()
 	} else {
 		res = *st
 	}
-
 	if attrs.GetIsOccluded() {
 		res.SetIsShaded(true)
 	}
@@ -636,13 +615,11 @@ func (st Style) GetTStyle() (tst tcell.Style) {
 	} else {
 		tst = tst.Foreground(gDefaultForeground)
 	}
-
 	if st.Background.Valid() {
 		tst = tst.Background(st.Background)
 	} else {
 		tst = tst.Background(gDefaultBackground)
 	}
-
 	if st.GetIsShaded() {
 		tst = tst.Dim(true)
 		tst = tst.Background(tcell.ColorGray)
@@ -711,7 +688,6 @@ func (tt *Attrs) SetParent(p Elem) {
 	if tt.Parent != nil && tt.Parent != p {
 		panic("parent already set")
 	}
-
 	tt.Parent = p
 }
 
@@ -725,7 +701,6 @@ func (tt *Attrs) SetIsCursor(ic bool) {
 	} else {
 		tt.AttrFlags &= ^AttrFlagIsCursor
 	}
-
 	tt.SetIsDirty(true)
 }
 
@@ -754,7 +729,6 @@ func (tt *Attrs) SetIsOccluded(ic bool) {
 	} else {
 		tt.AttrFlags &= ^AttrFlagIsOccluded
 	}
-
 	tt.SetIsDirty(true)
 }
 
@@ -762,7 +736,6 @@ func (tt *Attrs) Merge(ot *Attrs) {
 	if ot.Parent != nil {
 		tt.Parent = ot.Parent
 	}
-
 	tt.AttrFlags |= ot.AttrFlags
 	tt.Other = ot.Other // TODO merge by key.
 }
@@ -819,7 +792,6 @@ func computeIntersection(els Size, elo Coord, vws Size) (minX, maxX, minY, maxY 
 		*/
 		minX = elo.X
 	}
-
 	if els.Width <= vws.Width+elo.X {
 		/*
 			     View
@@ -839,13 +811,11 @@ func computeIntersection(els Size, elo Coord, vws Size) (minX, maxX, minY, maxY 
 		*/
 		maxX = vws.Width + elo.X
 	}
-
 	if elo.Y < 0 {
 		minY = 0
 	} else {
 		minY = elo.Y
 	}
-
 	if els.Height <= vws.Height+elo.Y {
 		maxY = els.Height
 	} else {
@@ -1002,12 +972,10 @@ func (sz Size) SubCoord(crd Coord) Size {
 	if !crd.IsNonNegative() {
 		panic("should not happen")
 	}
-
 	sz2 := Size{
 		Width:  sz.Width - crd.X,
 		Height: sz.Height - crd.Y,
 	}
-
 	if !sz2.IsValid() {
 		panic("should not happen")
 	}

@@ -25,7 +25,6 @@ import (
 
 func main() {
 	args := os.Args[1:]
-
 	err := runMain(args)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
@@ -79,14 +78,11 @@ func runMain(args []string) error {
 	if err != nil {
 		return fmt.Errorf("error in creating new app: %w", err)
 	}
-
 	cfg.LocalApp = gnoApp
-
 	gnoNode, err := node.DefaultNewNode(cfg, logger)
 	if err != nil {
 		return fmt.Errorf("error in creating node: %w", err)
 	}
-
 	fmt.Fprintln(os.Stderr, "Node created.")
 
 	if flags.skipStart {
@@ -138,7 +134,6 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 	// Load initial packages from examples.
 	test1 := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	txs := []std.Tx{}
-
 	for _, path := range []string{
 		"p/demo/ufmt",
 		"p/demo/avl",
@@ -160,9 +155,7 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 	} {
 		// open files in directory as MemPackage.
 		memPkg := gno.ReadMemPackage(filepath.Join(".", "examples", "gno.land", path), "gno.land/"+path)
-
 		var tx std.Tx
-
 		tx.Msgs = []std.Msg{
 			vmm.MsgAddPackage{
 				Creator: test1,
@@ -198,7 +191,6 @@ func writeGenesisFile(gen *bft.GenesisDoc, filePath string) {
 func loadGenesisTxs(path string) []std.Tx {
 	txs := []std.Tx{}
 	txsBz := osm.MustReadFile(path)
-
 	txsLines := strings.Split(string(txsBz), "\n")
 	for _, txLine := range txsLines {
 		if txLine == "" {
@@ -210,7 +202,6 @@ func loadGenesisTxs(path string) []std.Tx {
 		txLine = strings.ReplaceAll(txLine, "%%REMOTE%%", flags.genesisRemote)
 
 		var tx std.Tx
-
 		amino.MustUnmarshalJSON([]byte(txLine), &tx)
 		txs = append(txs, tx)
 	}
@@ -222,7 +213,6 @@ func loadGenesisBalances(path string) []string {
 	// each balance is in the form: g1xxxxxxxxxxxxxxxx=100000ugnot
 	balances := []string{}
 	content := osm.MustReadFile(path)
-
 	lines := strings.Split(string(content), "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)

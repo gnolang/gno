@@ -39,13 +39,14 @@ func runSuite(t *testing.T, tempdir string) {
 	// require.Contains(t, string(output), "9999976000000ugnot")
 	require.Contains(t, string(output), "ugnot")
 	require.Contains(t, string(output), "999")
+
 	// FIXME: add packages.
 	// FIXME: perform TXs.
 }
 
 func checkDocker(t *testing.T) {
-	// FIXME: check if `docker` is installed and compatible.
 	t.Helper()
+	// FIXME: check if `docker` is installed and compatible.
 }
 
 func buildDockerImage(t *testing.T) {
@@ -65,7 +66,6 @@ func buildDockerImage(t *testing.T) {
 
 func createCommand(t *testing.T, args []string) *exec.Cmd {
 	t.Helper()
-
 	msg := strings.Join(args, " ")
 	t.Log(msg)
 
@@ -85,6 +85,8 @@ func startGnoland(t *testing.T) {
 	output, err := cmd.CombinedOutput()
 	require.NoError(t, err)
 	require.NotEmpty(t, string(output)) // should be the hash of the container.
+
+	// t.Cleanup(func() { cleanupGnoland(t) })
 }
 
 func waitGnoland(t *testing.T) {

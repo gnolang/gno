@@ -16,7 +16,6 @@ func splitLines(s string) (ss []string) {
 // splits a string according to unicode spaces.
 func splitSpaces(s string) (ss []string) {
 	buf := []rune{}
-
 	for _, r := range s {
 		if unicode.IsSpace(r) {
 			// continue
@@ -28,9 +27,9 @@ func splitSpaces(s string) (ss []string) {
 			buf = append(buf, r)
 		}
 	}
-
 	if len(buf) > 0 {
 		ss = append(ss, string(buf))
+		// buf = nil
 	}
 
 	return ss
@@ -50,20 +49,17 @@ func toRunes(s string) []rune {
 // NOTE: must be kept in sync with nextCharacter(); see tests.
 func widthOf(s string) (l int) {
 	zwj := false // zero width joiner '\u200d'.
-
 	for _, r := range s {
 		if r == '\u200d' {
 			zwj = true
 
 			continue
 		}
-
 		if zwj {
 			zwj = false
 
 			continue
 		}
-
 		switch runewidth.RuneWidth(r) {
 		case 0:
 			if isCombining(r) {
@@ -161,7 +157,6 @@ func IsInBounds(x, y int, origin Coord, size Size) bool {
 	if x < origin.X || y < origin.Y {
 		return false
 	}
-
 	if origin.X+size.Width <= x ||
 		origin.Y+size.Height <= y {
 		return false

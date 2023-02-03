@@ -12,11 +12,9 @@ import (
 func TestStringWidthSlow(t *testing.T) {
 	for n := 1; n < 4; n++ {
 		bz := make([]byte, n)
-
 		for {
 			width1 := widthOf(string(bz))
 			width2 := widthOfSlow(string(bz))
-
 			if width1 == 0 {
 				if isRepeatedWZJ(bz) {
 					// these bytes encode one or more U+200D WZJ as UTF8.
@@ -26,9 +24,7 @@ func TestStringWidthSlow(t *testing.T) {
 			} else {
 				require.True(t, 0 < width1, "got zero width for bytes %X", bz)
 			}
-
 			require.Equal(t, width1, width2)
-
 			if !incBuffer(bz) {
 				break
 			}
@@ -43,11 +39,9 @@ func TestStringWidthRandom(t *testing.T) {
 		if i%(max/80) == 0 {
 			fmt.Print(".")
 		}
-
 		bz := random.RandBytes(12)
 		width1 := widthOf(string(bz))
 		width2 := widthOfSlow(string(bz))
-
 		if width1 == 0 {
 			if isRepeatedWZJ(bz) {
 				// these bytes encode one or more U+200D WZJ as UTF8.
@@ -57,7 +51,6 @@ func TestStringWidthRandom(t *testing.T) {
 		} else {
 			require.True(t, 0 < width1, "got zero width for bytes %X", bz)
 		}
-
 		require.Equal(t, width2, width1,
 			"want %d but got %d the slow way: %X",
 			width1, width2, bz)
@@ -69,7 +62,6 @@ func TestStringWidthDummy(t *testing.T) {
 	bz := []byte{0x0C, 0x5B, 0x0D, 0xCF, 0xC5, 0xE2, 0x80, 0x8D, 0xC1, 0x32, 0x69, 0x41}
 	width1 := widthOf(string(bz))
 	width2 := widthOfSlow(string(bz))
-
 	if width1 == 0 {
 		if isRepeatedWZJ(bz) {
 			// these bytes encode one or more U+200D WZJ as UTF8.
@@ -79,7 +71,6 @@ func TestStringWidthDummy(t *testing.T) {
 	} else {
 		require.True(t, 0 < width1, "got zero width for bytes %X", bz)
 	}
-
 	require.Equal(t, width2, width1,
 		"want %d but got %d the slow way: %X",
 		width1, width2, bz)
@@ -93,7 +84,6 @@ func TestStringWidthDummy2(t *testing.T) {
 	bz := []byte("\U0001f1fa\U0001f1f8")
 	width1 := widthOf(string(bz))
 	width2 := widthOfSlow(string(bz))
-
 	require.Equal(t, width1, 1)
 	require.Equal(t, width2, width1,
 		"want %d but got %d the slow way: %X",
@@ -109,11 +99,9 @@ func isRepeatedWZJ(bz []byte) bool {
 		if bz[i] != 0xE2 {
 			return false
 		}
-
 		if bz[i+1] != 0x80 {
 			return false
 		}
-
 		if bz[i+2] != 0x8D {
 			return false
 		}
@@ -130,7 +118,6 @@ func widthOfSlow(s string) (w int) {
 		if n == 0 {
 			panic("should not happen")
 		}
-
 		w += w2
 		rz = rz[n:]
 	}

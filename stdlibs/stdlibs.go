@@ -518,7 +518,6 @@ func typedByteArray(ln int, bz *gno.ArrayValue) gno.TypedValue {
 	if bz != nil && bz.GetLength() != ln {
 		panic("array length mismatch")
 	}
-
 	tv := gno.TypedValue{T: &gno.ArrayType{Len: ln, Elt: gno.Uint8Type}, V: bz}
 
 	return tv

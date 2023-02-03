@@ -14,7 +14,6 @@ func main() {
 
 	filename := os.Args[1]
 	bz, err := os.ReadFile(filename)
-
 	if err != nil {
 		panic(err)
 	}

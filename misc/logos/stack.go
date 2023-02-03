@@ -33,7 +33,6 @@ func NewStack(size Size) *Stack {
 func (st *Stack) StringIndented(indent string) string {
 	elines := []string{}
 	eindent := indent + "    "
-
 	for _, elem := range st.Elems {
 		elines = append(elines, eindent+elem.StringIndented(eindent))
 	}
@@ -83,7 +82,6 @@ func (st *Stack) Draw(offset Coord, view View) {
 			elem.Draw(loffset, view)
 		}
 	}
-
 	if 0 < len(st.Elems) {
 		last := st.Elems[len(st.Elems)-1]
 		loffset := offset.Sub(last.GetCoord())
@@ -94,7 +92,6 @@ func (st *Stack) Draw(offset Coord, view View) {
 				inBounds := IsInBounds(x, y,
 					loffset.Neg(),
 					last.GetSize())
-
 				if inBounds {
 					// Reset unsets residual "occluded",
 					// "cursor", and other attributes from the
@@ -155,7 +152,6 @@ func (st *Stack) ProcessEventKey(ev *EventKey) bool {
 func StackOf(elem Elem) *Stack {
 	for elem != nil {
 		fmt.Println("StackOf", elem)
-
 		if st, ok := elem.(*Stack); ok {
 			return st
 		} else {

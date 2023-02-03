@@ -26,7 +26,6 @@ func NewSubnetThrottler() *SubnetThrottler {
 
 func (st *SubnetThrottler) OnStart() error {
 	st.BaseService.OnStart()
-
 	go st.routineTimer()
 
 	return nil
@@ -51,16 +50,13 @@ func (st *SubnetThrottler) Request(ip net.IP) (allowed bool, reason string) {
 	if len(ip) != 4 {
 		return false, "invalid ip format"
 	}
-
 	bucket3 := int(ip[0])*256*256 +
 		int(ip[1])*256 +
 		int(ip[2])
-
 	v := st.subnets3[bucket3]
 	if v > 5 {
 		return false, ">5"
 	}
-
 	st.subnets3[bucket3] += 1
 
 	return true, ""

@@ -24,7 +24,6 @@ func main() {
 	// show help message.
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" {
 		cmd.Println("available subcommands:")
-
 		for _, appItem := range mainApps {
 			cmd.Printf("  %s - %s\n", appItem.Name, appItem.Desc)
 		}
