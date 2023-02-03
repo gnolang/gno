@@ -24,13 +24,64 @@ func NewBasicGRC1155Token(uri string) *basicGRC1155Token {
 
 func (s *basicGRC1155Token) Uri() string { return s.uri }
 
+// BalanceOf returns the input address's balance of the token type requested
+func (s *basicGRC1155Token) BalanceOf(addr std.Address, tid TokenID) (uint64, error) {
+	if err := isValidAddress(addr); err != nil {
+		return 0, err
+	}
+
+	key := string(tid) + ":" + addr.String()
+	balance, found := s.balances.Get(key)
+	if !found {
+		return 0, nil
+	}
+
+	return balance.(uint64), nil
+}
+
+// BalanceOfBatch returns the balance of multiple account/token pairs
+func (s *basicGRC1155Token) BalanceOfBatch(owners []std.Address, batch []TokenID) ([]uint64, error) {
+	if len(owners) != len(batch) {
+		return nil, ErrMismatchLength
+	}
+
+	balanceOfBatch := make([]uint64, len(owners))
+
+	for i := 0; i < len(owners); i++ {
+		balanceOfBatch[i], _ = s.BalanceOf(owners[i], batch[i])
+	}
+
+	return balanceOfBatch, nil
+}
+
+// SetApprovalForAll can approve the operator to operate on all tokens
+func (s *basicGRC1155Token) SetApprovalForAll(operator std.Address, approved bool) error {
+	if err := isValidAddress(operator); err != nil {
+		return ErrInvalidAddress
+	}
+
+	caller := std.GetOrigCaller()
+	return s.setApprovalForAll(caller, operator, approved)
+}
+
+// IsApprovedForAll returns true if operator is approved for all by the owner.
+// Otherwise, returns false
+func (s *basicGRC1155Token) IsApprovedForAll(owner, operator std.Address) bool {
+	key := owner.String() + ":" + operator.String()
+	_, found := s.operatorApprovals.Get(key)
+	if !found {
+		return false
+	}
+
+	return true
+}
+
 // Safely transfers `tokenId` token from `from` to `to`, checking that
 // contract recipients are aware of the GRC1155 protocol to prevent
 // tokens from being forever locked.
 func (s *basicGRC1155Token) SafeTransferFrom(from, to std.Address, tid TokenID, amount uint64) error {
 	caller := std.GetOrigCaller()
-
-	if from != caller || !s.IsApprovedForAll(from, caller) {
+	if !s.isApprovedOrOwner(caller, from) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
 
@@ -51,8 +102,7 @@ func (s *basicGRC1155Token) SafeTransferFrom(from, to std.Address, tid TokenID, 
 // tokens from being forever locked.
 func (s *basicGRC1155Token) SafeBatchTransferFrom(from, to std.Address, batch []TokenID, amounts []uint64) error {
 	caller := std.GetOrigCaller()
-
-	if from != caller || !s.IsApprovedForAll(from, caller) {
+	if !s.isApprovedOrOwner(caller, from) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
 
@@ -120,58 +170,6 @@ func (s *basicGRC1155Token) BatchBurn(from std.Address, batch []TokenID, amounts
 	}
 
 	return nil
-}
-
-// BalanceOf returns the input address's balance of the token type requested
-func (s *basicGRC1155Token) BalanceOf(addr std.Address, tid TokenID) (uint64, error) {
-	if err := isValidAddress(addr); err != nil {
-		return 0, err
-	}
-
-	key := string(tid) + ":" + addr.String()
-	balance, found := s.balances.Get(key)
-	if !found {
-		return 0, nil
-	}
-
-	return balance.(uint64), nil
-}
-
-// BalanceOfBatch returns the balance of multiple account/token pairs
-func (s *basicGRC1155Token) BalanceOfBatch(owners []std.Address, batch []TokenID) ([]uint64, error) {
-	var balanceOfBatch []uint64
-
-	if len(owners) != len(batch) {
-		return nil, ErrMismatchLength
-	}
-
-	for i := 0; i < len(owners); i++ {
-		balanceOfBatch[i], _ = s.BalanceOf(owners[i], batch[i])
-	}
-
-	return balanceOfBatch, nil
-}
-
-// SetApprovalForAll can approve the operator to operate on all tokens
-func (s *basicGRC1155Token) SetApprovalForAll(operator std.Address, approved bool) error {
-	if err := isValidAddress(operator); err != nil {
-		return ErrInvalidAddress
-	}
-
-	caller := std.GetOrigCaller()
-	return s.setApprovalForAll(caller, operator, approved)
-}
-
-// IsApprovedForAll returns true if operator is approved for all by the owner.
-// Otherwise, returns false
-func (s *basicGRC1155Token) IsApprovedForAll(owner, operator std.Address) bool {
-	key := owner.String() + ":" + operator.String()
-	_, found := s.operatorApprovals.Get(key)
-	if !found {
-		return false
-	}
-
-	return true
 }
 
 /* Helper methods */
@@ -410,6 +408,14 @@ func (s *basicGRC1155Token) burnBatch(from std.Address, batch []TokenID, amounts
 
 func (s *basicGRC1155Token) setUri(newUri string) {
 	s.uri = newUri
+}
+
+func (s *basicGRC1155Token) isApprovedOrOwner(operator, owner std.Address) bool {
+	if owner == operator || s.IsApprovedForAll(owner, operator) {
+		return true
+	}
+
+	return false
 }
 
 func (s *basicGRC1155Token) beforeTokenTransfer(operator, from, to std.Address, batch []TokenID, amounts []uint64) {
