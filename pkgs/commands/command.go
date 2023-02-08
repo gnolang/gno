@@ -13,14 +13,14 @@ import (
 type Config interface {
 	// RegisterFlags registers the specific flags to the flagset
 	RegisterFlags(*flag.FlagSet)
-
-	// Exec executes the command using the specified config
-	Exec(ctx context.Context, args []string) error
 }
+
+// ExecMethod executes the command using the specified config
+type ExecMethod func(ctx context.Context, args []string) error
 
 // HelpExec is a standard exec method for displaying
 // help information about a command
-func HelpExec(_ context.Context, _ []string) error {
+func HelpExec() error {
 	return flag.ErrHelp
 }
 
@@ -42,13 +42,10 @@ type Command struct {
 	cfg Config
 }
 
-func (c *Command) GetConfig() Config {
-	return c.cfg
-}
-
 func NewCommand(
 	meta Metadata,
 	config Config,
+	exec ExecMethod,
 ) *Command {
 	command := &Command{
 		Command: ffcli.Command{
@@ -58,13 +55,15 @@ func NewCommand(
 			ShortUsage: meta.ShortUsage,
 			Options:    meta.Options,
 			FlagSet:    flag.NewFlagSet(meta.Name, flag.ExitOnError),
-			Exec:       config.Exec,
+			Exec:       exec,
 		},
 		cfg: config,
 	}
 
-	// Register the base command flags
-	config.RegisterFlags(command.FlagSet)
+	if config != nil {
+		// Register the base command flags
+		config.RegisterFlags(command.FlagSet)
+	}
 
 	return command
 }
@@ -73,8 +72,10 @@ func NewCommand(
 // and registers common flags using the flagset
 func (c *Command) AddSubCommands(cmds ...*Command) {
 	for _, cmd := range cmds {
-		// Register the parent flagset
-		c.cfg.RegisterFlags(cmd.FlagSet)
+		if c.cfg != nil {
+			// Register the parent flagset
+			c.cfg.RegisterFlags(cmd.FlagSet)
+		}
 
 		// Append the subcommand to the parent
 		c.Subcommands = append(c.Subcommands, &cmd.Command)

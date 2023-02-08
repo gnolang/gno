@@ -31,6 +31,9 @@ func TestInitialize(t *testing.T) {
 			cmd := commands.NewCommand(
 				commands.Metadata{},
 				cfg,
+				func(_ context.Context, _ []string) error {
+					return exec(cfg)
+				},
 			)
 
 			err := cmd.ParseAndRun(

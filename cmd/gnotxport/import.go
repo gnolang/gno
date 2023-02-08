@@ -37,6 +37,9 @@ func newImportCommand(rootCfg *config) *commands.Command {
 			ShortHelp:  "Import transactions from file",
 		},
 		cfg,
+		func(ctx context.Context, _ []string) error {
+			return execImport(ctx, cfg)
+		},
 	)
 }
 
@@ -44,7 +47,7 @@ func (c *importCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(&c.inFile, "in", defaultFilePath, "input file path")
 }
 
-func (c *importCfg) Exec(ctx context.Context, _ []string) error {
+func execImport(ctx context.Context, c *importCfg) error {
 	// Initial validation
 	if len(c.inFile) == 0 {
 		return errors.New("input file path not specified")
