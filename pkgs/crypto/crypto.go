@@ -8,7 +8,7 @@ import (
 	"github.com/gnolang/gno/pkgs/crypto/tmhash"
 )
 
-//----------------------------------------
+// ----------------------------------------
 // Bech32Address
 
 type Bech32Address string
@@ -17,7 +17,7 @@ func (b32 Bech32Address) String() string {
 	return string(b32)
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Address
 
 const (
@@ -36,7 +36,7 @@ func AddressFromString(str string) (addr Address, err error) {
 func MustAddressFromString(str string) (addr Address) {
 	err := addr.DecodeString(str)
 	if err != nil {
-		panic(fmt.Errorf("invalid address string representation: %v, error: %v", str, err))
+		panic(fmt.Errorf("invalid address string representation: %v, error: %w", str, err))
 	}
 	return
 }
@@ -110,7 +110,7 @@ func (addr *Address) DecodeString(str string) error {
 	return nil
 }
 
-//----------------------------------------
+// ----------------------------------------
 // ID
 
 // The bech32 representation w/ bech32 prefix.
@@ -146,7 +146,7 @@ func (addr *Address) DecodeID(id ID) error {
 	return addr.DecodeString(string(id))
 }
 
-//----------------------------------------
+// ----------------------------------------
 // PubKey
 
 // All operations must be deterministic.
@@ -159,7 +159,7 @@ type PubKey interface {
 	String() string
 }
 
-//----------------------------------------
+// ----------------------------------------
 // PrivKey
 
 // All operations must be deterministic.
@@ -171,7 +171,7 @@ type PrivKey interface {
 	Equals(PrivKey) bool
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Symmetric
 
 type Symmetric interface {

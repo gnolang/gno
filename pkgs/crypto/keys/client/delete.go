@@ -17,7 +17,7 @@ var DefaultDeleteOptions = DeleteOptions{
 }
 
 func deleteApp(cmd *command.Command, args []string, iopts interface{}) error {
-	var opts DeleteOptions = iopts.(DeleteOptions)
+	var opts = iopts.(DeleteOptions)
 
 	if len(args) != 1 {
 		cmd.ErrPrintfln("Usage: delete <keyname or address>")

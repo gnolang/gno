@@ -11,7 +11,7 @@ type router struct {
 var _ Router = NewRouter()
 
 // NewRouter returns a reference to a new router.
-func NewRouter() *router { // nolint: golint
+func NewRouter() *router { //nolint: golint
 	return &router{
 		routes: make(map[string]Handler),
 	}

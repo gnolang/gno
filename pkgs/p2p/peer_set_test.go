@@ -145,7 +145,7 @@ func TestPeerSetAddDuplicate(t *testing.T) {
 		err := <-errsChan
 
 		switch err.(type) {
-		case ErrSwitchDuplicatePeerID:
+		case SwitchDuplicatePeerIDError:
 			errsTally["duplicateID"]++
 		default:
 			errsTally["other"]++

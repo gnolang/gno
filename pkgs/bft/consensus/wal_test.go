@@ -17,12 +17,14 @@ const (
 	walTestFlushInterval = time.Duration(100) * time.Millisecond
 )
 
-//----------------------------------------
+// ----------------------------------------
 // copied over from wal/wal_test.go
 
 const maxTestMsgSize int64 = 64 * 1024
 
-func makeTempWAL(t *testing.T, maxMsgSize int64, walChunkSize int64) (wal walm.WAL) {
+func makeTempWAL(t *testing.T, walChunkSize int64) (wal walm.WAL) {
+	t.Helper()
+
 	// Create WAL file.
 	walFile := filepath.Join(t.TempDir(), "wal")
 
@@ -48,12 +50,12 @@ func makeTempWAL(t *testing.T, maxMsgSize int64, walChunkSize int64) (wal walm.W
 }
 
 // end copy from wal/wal_test.go
-//----------------------------------------
+// ----------------------------------------
 
 func TestWALTruncate(t *testing.T) {
 	const maxTestMsgSize = 1024 * 1024 // 1MB
 	const walChunkSize = 409610        // 4KB
-	wal := makeTempWAL(t, maxTestMsgSize, walChunkSize)
+	wal := makeTempWAL(t, walChunkSize)
 
 	wal.SetLogger(log.TestingLogger())
 

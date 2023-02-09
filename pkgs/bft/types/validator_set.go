@@ -71,9 +71,10 @@ func (vals *ValidatorSet) IsNilOrEmpty() bool {
 
 // Increment ProposerPriority and update the proposer on a copy, and return it.
 func (vals *ValidatorSet) CopyIncrementProposerPriority(times int) *ValidatorSet {
-	copy := vals.Copy()
-	copy.IncrementProposerPriority(times)
-	return copy
+	copiedSet := vals.Copy()
+	copiedSet.IncrementProposerPriority(times)
+
+	return copiedSet
 }
 
 // IncrementProposerPriority increments ProposerPriority of each validator and updates the
@@ -639,7 +640,7 @@ func (vals *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height i
 		return NewErrInvalidCommitHeight(height, commit.Height())
 	}
 	if !blockID.Equals(commit.BlockID) {
-		return fmt.Errorf("Invalid commit -- wrong block id: want %v got %v",
+		return fmt.Errorf("invalid commit -- wrong block id: want %v got %v",
 			blockID, commit.BlockID)
 	}
 
@@ -653,7 +654,7 @@ func (vals *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height i
 		// Validate signature.
 		precommitSignBytes := commit.VoteSignBytes(chainID, idx)
 		if !val.PubKey.VerifyBytes(precommitSignBytes, precommit.Signature) {
-			return fmt.Errorf("Invalid commit -- invalid signature: %v", precommit)
+			return fmt.Errorf("invalid commit -- invalid signature: %v", precommit)
 		}
 		// Good precommit!
 		if blockID.Equals(precommit.BlockID) {
@@ -668,7 +669,7 @@ func (vals *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height i
 	if talliedVotingPower > vals.TotalVotingPower()*2/3 {
 		return nil
 	}
-	return errTooMuchChange{talliedVotingPower, vals.TotalVotingPower()*2/3 + 1}
+	return tooMuchChangeError{talliedVotingPower, vals.TotalVotingPower()*2/3 + 1}
 }
 
 // VerifyFutureCommit will check to see if the set would be valid with a different
@@ -752,7 +753,7 @@ func (vals *ValidatorSet) VerifyFutureCommit(newSet *ValidatorSet, chainID strin
 	}
 
 	if oldVotingPower <= oldVals.TotalVotingPower()*2/3 {
-		return errTooMuchChange{oldVotingPower, oldVals.TotalVotingPower()*2/3 + 1}
+		return tooMuchChangeError{oldVotingPower, oldVals.TotalVotingPower()*2/3 + 1}
 	}
 	return nil
 }
@@ -761,16 +762,16 @@ func (vals *ValidatorSet) VerifyFutureCommit(newSet *ValidatorSet, chainID strin
 // ErrTooMuchChange
 
 func IsErrTooMuchChange(err error) bool {
-	_, ok := errors.Cause(err).(errTooMuchChange)
+	_, ok := errors.Cause(err).(tooMuchChangeError)
 	return ok
 }
 
-type errTooMuchChange struct {
+type tooMuchChangeError struct {
 	got    int64
 	needed int64
 }
 
-func (e errTooMuchChange) Error() string {
+func (e tooMuchChangeError) Error() string {
 	return fmt.Sprintf("Invalid commit -- insufficient old voting power: got %v, needed %v", e.got, e.needed)
 }
 

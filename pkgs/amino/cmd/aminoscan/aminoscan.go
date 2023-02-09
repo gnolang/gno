@@ -25,7 +25,7 @@ func main() {
 	flgs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	flgs.BoolVar(&colorize, "color", false, "Just print the colored bytes and exit.")
 	err := flgs.Parse(os.Args[1:])
-	if err == flag.ErrHelp {
+	if errors.Is(err, flag.ErrHelp) {
 		fmt.Println(`Usage: aminoscan <STRUCT HEXBYTES> or --help
 		
 		You can also use aminoscan to print "colored" bytes.  This view will

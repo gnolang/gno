@@ -3,39 +3,39 @@ package types
 import "fmt"
 
 type (
-	// ErrInvalidCommitHeight is returned when we encounter a commit with an
+	// InvalidCommitHeightError is returned when we encounter a commit with an
 	// unexpected height.
-	ErrInvalidCommitHeight struct {
+	InvalidCommitHeightError struct {
 		Expected int64
 		Actual   int64
 	}
 
-	// ErrInvalidCommitPrecommits is returned when we encounter a commit where
+	// InvalidCommitPrecommitsError is returned when we encounter a commit where
 	// the number of precommits doesn't match the number of validators.
-	ErrInvalidCommitPrecommits struct {
+	InvalidCommitPrecommitsError struct {
 		Expected int
 		Actual   int
 	}
 )
 
-func NewErrInvalidCommitHeight(expected, actual int64) ErrInvalidCommitHeight {
-	return ErrInvalidCommitHeight{
+func NewErrInvalidCommitHeight(expected, actual int64) InvalidCommitHeightError {
+	return InvalidCommitHeightError{
 		Expected: expected,
 		Actual:   actual,
 	}
 }
 
-func (e ErrInvalidCommitHeight) Error() string {
+func (e InvalidCommitHeightError) Error() string {
 	return fmt.Sprintf("Invalid commit -- wrong height: %v vs %v", e.Expected, e.Actual)
 }
 
-func NewErrInvalidCommitPrecommits(expected, actual int) ErrInvalidCommitPrecommits {
-	return ErrInvalidCommitPrecommits{
+func NewErrInvalidCommitPrecommits(expected, actual int) InvalidCommitPrecommitsError {
+	return InvalidCommitPrecommitsError{
 		Expected: expected,
 		Actual:   actual,
 	}
 }
 
-func (e ErrInvalidCommitPrecommits) Error() string {
+func (e InvalidCommitPrecommitsError) Error() string {
 	return fmt.Sprintf("Invalid commit -- wrong set size: %v vs %v", e.Expected, e.Actual)
 }

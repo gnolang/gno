@@ -53,6 +53,6 @@ func (is immutStore) CacheWrap() types.Store {
 }
 
 // Implements Store
-func (s immutStore) Write() {
+func (is immutStore) Write() {
 	panic("unexpected .Write() on immutStore")
 }

@@ -29,6 +29,8 @@ func BenchmarkTMLoggerContextual(b *testing.B) {
 }
 
 func benchmarkRunner(b *testing.B, logger log.Logger, f func(log.Logger)) {
+	b.Helper()
+
 	lc := logger.With("common_key", "common_value")
 	b.ReportAllocs()
 	b.ResetTimer()

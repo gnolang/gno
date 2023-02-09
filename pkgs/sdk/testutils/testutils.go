@@ -20,7 +20,6 @@ func NewTestMsg(addrs ...crypto.Address) *TestMsg {
 	}
 }
 
-// nolint
 func (msg *TestMsg) Route() string { return "TestMsg" }
 func (msg *TestMsg) Type() string  { return "Test message" }
 func (msg *TestMsg) GetSignBytes() []byte {
@@ -35,7 +34,7 @@ func (msg *TestMsg) GetSigners() []crypto.Address {
 	return msg.Signers
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Utility Methods
 
 func NewTestFee() std.Fee {
@@ -50,7 +49,7 @@ func NewTestCoins() std.Coins {
 func KeyTestPubAddr() (crypto.PrivKey, crypto.PubKey, crypto.Address) {
 	key := secp256k1.GenPrivKey()
 	pub := key.PubKey()
-	addr := crypto.Address(pub.Address())
+	addr := pub.Address()
 	return key, pub, addr
 }
 

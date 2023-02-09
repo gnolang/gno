@@ -58,7 +58,7 @@ func ResetConfig(name string) *cfg.Config {
 	return cfg.ResetTestRoot(name)
 }
 
-//-------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 // validator stub (a kvstore consensus peer we control)
 
 type validatorStub struct {
@@ -96,7 +96,7 @@ func (vs *validatorStub) signVote(voteType types.SignedMsgType, hash []byte, hea
 func signVote(vs *validatorStub, voteType types.SignedMsgType, hash []byte, header types.PartSetHeader) *types.Vote {
 	v, err := vs.signVote(voteType, hash, header)
 	if err != nil {
-		panic(fmt.Errorf("failed to sign vote: %v", err))
+		panic(fmt.Errorf("failed to sign vote: %w", err))
 	}
 	return v
 }
@@ -139,7 +139,7 @@ func (vss ValidatorStubsByAddress) Swap(i, j int) {
 	vss[j].Index = j
 }
 
-//-------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 // Functions for transitioning the consensus state
 
 func startFrom(cs *ConsensusState, height int64, round int) {
@@ -179,7 +179,7 @@ func signAddVotes(to *ConsensusState, voteType types.SignedMsgType, hash []byte,
 	addVotes(to, votes...)
 }
 
-func validatePrevote(t *testing.T, cs *ConsensusState, round int, privVal *validatorStub, blockHash []byte) {
+func validatePrevote(cs *ConsensusState, round int, privVal *validatorStub, blockHash []byte) {
 	prevotes := cs.Votes.Prevotes(round)
 	address := privVal.GetPubKey().Address()
 	var vote *types.Vote
@@ -197,7 +197,7 @@ func validatePrevote(t *testing.T, cs *ConsensusState, round int, privVal *valid
 	}
 }
 
-func validateLastPrecommit(t *testing.T, cs *ConsensusState, privVal *validatorStub, blockHash []byte) {
+func validateLastPrecommit(cs *ConsensusState, privVal *validatorStub, blockHash []byte) {
 	votes := cs.LastCommit
 	address := privVal.GetPubKey().Address()
 	var vote *types.Vote
@@ -209,7 +209,7 @@ func validateLastPrecommit(t *testing.T, cs *ConsensusState, privVal *validatorS
 	}
 }
 
-func validatePrecommit(t *testing.T, cs *ConsensusState, thisRound, lockRound int, privVal *validatorStub, votedBlockHash, lockedBlockHash []byte) {
+func validatePrecommit(_ *testing.T, cs *ConsensusState, thisRound, lockRound int, privVal *validatorStub, votedBlockHash, lockedBlockHash []byte) {
 	precommits := cs.Votes.Precommits(thisRound)
 	address := privVal.GetPubKey().Address()
 	var vote *types.Vote
@@ -239,8 +239,10 @@ func validatePrecommit(t *testing.T, cs *ConsensusState, thisRound, lockRound in
 }
 
 func validatePrevoteAndPrecommit(t *testing.T, cs *ConsensusState, thisRound, lockRound int, privVal *validatorStub, votedBlockHash, lockedBlockHash []byte) {
+	t.Helper()
+
 	// verify the prevote
-	validatePrevote(t, cs, thisRound, privVal, votedBlockHash)
+	validatePrevote(cs, thisRound, privVal, votedBlockHash)
 	// verify precommit
 	validatePrecommit(t, cs, thisRound, lockRound, privVal, votedBlockHash, lockedBlockHash)
 }
@@ -256,7 +258,7 @@ func subscribeToVoter(cs *ConsensusState, addr crypto.Address) <-chan events.Eve
 	})
 }
 
-//-------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 // consensus states
 
 func newConsensusState(state sm.State, pv types.PrivValidator, app abci.Application) *ConsensusState {
@@ -326,7 +328,7 @@ func randConsensusState(nValidators int) (*ConsensusState, []*validatorStub) {
 	return cs, vss
 }
 
-//-------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 
 func ensureNoNewEvent(ch <-chan events.Event, timeout time.Duration,
 	errorMessage string,
@@ -563,7 +565,7 @@ func ensureNewEventOnChannel(ch <-chan events.Event) {
 	}
 }
 
-//-------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 // consensus nets
 
 // consensusLogger is a TestingLogger which uses a different
@@ -709,7 +711,7 @@ func getSwitchIndex(switches []*p2p.Switch, peer p2p.Peer) int {
 	panic("didnt find peer in switches")
 }
 
-//-------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 // genesis
 
 func randGenesisDoc(numValidators int, randPower bool, minPower int64) (*types.GenesisDoc, []types.PrivValidator) {
@@ -738,7 +740,7 @@ func randGenesisState(numValidators int, randPower bool, minPower int64) (sm.Sta
 	return s0, privValidators
 }
 
-//------------------------------------
+// ------------------------------------
 // mock ticker
 
 func newMockTickerFunc(onlyOnce bool) func() TimeoutTicker {
@@ -786,7 +788,7 @@ func (m *mockTicker) Chan() <-chan timeoutInfo {
 
 func (*mockTicker) SetLogger(log.Logger) {}
 
-//------------------------------------
+// ------------------------------------
 
 func newCounter() abci.Application {
 	return counter.NewCounterApplication(true)

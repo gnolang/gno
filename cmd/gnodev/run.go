@@ -24,8 +24,10 @@ var defaultRunOptions = runOptions{
 
 func runApp(cmd *command.Command, args []string, iopts interface{}) error {
 	opts := iopts.(runOptions)
+
 	if len(args) == 0 {
 		cmd.ErrPrintfln("Usage: run [flags] file.gno [file2.gno...]")
+
 		return errors.New("invalid args")
 	}
 
@@ -50,6 +52,7 @@ func runRun(rootDir string, verbose bool, fnames []string) error {
 	if verbose {
 		testStore.SetLogStoreOps(true)
 	}
+
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath: "main",
 		Output:  stdout,

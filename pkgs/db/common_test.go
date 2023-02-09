@@ -12,42 +12,56 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//----------------------------------------
+// ----------------------------------------
 // Helper functions.
 
 func checkValue(t *testing.T, db DB, key []byte, valueWanted []byte) {
+	t.Helper()
+
 	valueGot := db.Get(key)
 	assert.Equal(t, valueWanted, valueGot)
 }
 
 func checkValid(t *testing.T, itr Iterator, expected bool) {
+	t.Helper()
+
 	valid := itr.Valid()
 	require.Equal(t, expected, valid)
 }
 
 func checkNext(t *testing.T, itr Iterator, expected bool) {
+	t.Helper()
+
 	itr.Next()
 	valid := itr.Valid()
 	require.Equal(t, expected, valid)
 }
 
 func checkNextPanics(t *testing.T, itr Iterator) {
+	t.Helper()
+
 	assert.Panics(t, func() { itr.Next() }, "checkNextPanics expected panic but didn't")
 }
 
 func checkDomain(t *testing.T, itr Iterator, start, end []byte) {
+	t.Helper()
+
 	ds, de := itr.Domain()
 	assert.Equal(t, start, ds, "checkDomain domain start incorrect")
 	assert.Equal(t, end, de, "checkDomain domain end incorrect")
 }
 
 func checkItem(t *testing.T, itr Iterator, key []byte, value []byte) {
+	t.Helper()
+
 	k, v := itr.Key(), itr.Value()
 	assert.Exactly(t, key, k)
 	assert.Exactly(t, value, v)
 }
 
 func checkInvalid(t *testing.T, itr Iterator) {
+	t.Helper()
+
 	checkValid(t, itr, false)
 	checkKeyPanics(t, itr)
 	checkValuePanics(t, itr)
@@ -55,18 +69,24 @@ func checkInvalid(t *testing.T, itr Iterator) {
 }
 
 func checkKeyPanics(t *testing.T, itr Iterator) {
+	t.Helper()
+
 	assert.Panics(t, func() { itr.Key() }, "checkKeyPanics expected panic but didn't")
 }
 
 func checkValuePanics(t *testing.T, itr Iterator) {
+	t.Helper()
+
 	assert.Panics(t, func() { itr.Value() }, "checkValuePanics expected panic but didn't")
 }
 
 func newTempDB(t *testing.T, backend BackendType) (db DB) {
+	t.Helper()
+
 	return NewDB("testdb", backend, t.TempDir())
 }
 
-//----------------------------------------
+// ----------------------------------------
 // mockDB
 
 // NOTE: not actually goroutine safe.
@@ -162,7 +182,7 @@ func (mdb *mockDB) Stats() map[string]string {
 	return res
 }
 
-//----------------------------------------
+// ----------------------------------------
 // mockIterator
 
 type mockIterator struct{}
@@ -190,6 +210,8 @@ func (mockIterator) Close() {
 }
 
 func benchmarkRandomReadsWrites(b *testing.B, db DB) {
+	b.Helper()
+
 	b.StopTimer()
 
 	// create dummy data
@@ -205,7 +227,7 @@ func benchmarkRandomReadsWrites(b *testing.B, db DB) {
 	for i := 0; i < b.N; i++ {
 		// Write something
 		{
-			idx := int64(rand.Int()) % numItems // nolint:gosec testing file, so accepting weak random number generator
+			idx := int64(rand.Int()) % numItems
 			internal[idx]++
 			val := internal[idx]
 			idxBytes := int642Bytes(idx)
@@ -216,7 +238,7 @@ func benchmarkRandomReadsWrites(b *testing.B, db DB) {
 
 		// Read something
 		{
-			idx := int64(rand.Int()) % numItems // nolint:gosec testing file, so accepting weak random number generator
+			idx := int64(rand.Int()) % numItems
 			valExp := internal[idx]
 			idxBytes := int642Bytes(idx)
 			valBytes := db.Get(idxBytes)
@@ -238,7 +260,6 @@ func benchmarkRandomReadsWrites(b *testing.B, db DB) {
 				}
 			}
 		}
-
 	}
 }
 

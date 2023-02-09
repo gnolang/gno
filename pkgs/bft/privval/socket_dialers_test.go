@@ -13,6 +13,8 @@ import (
 )
 
 func getDialerTestCases(t *testing.T) []dialerTestCase {
+	t.Helper()
+
 	tcpAddr := GetFreeLocalhostAddrPort()
 	unixFilePath, err := testUnixAddr()
 	require.NoError(t, err)
