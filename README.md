@@ -10,11 +10,19 @@ simulated by the Gnomes of the Greater Resistance.
 
 ## Install `gnokey`
 
+`gnokey` is a tool for managinghttps://gno.land accounts and interact with instances.
+
 > git clone git@github.com:gnolang/gno.git<br/>
 > cd ./gno<br/>
 > make install\_gnokey<br/>
 
 Also, see the [quickstart guide](https://test2.gno.land/r/boards:testboard/5).
+
+## Install `gnodev`
+
+`gnodev` is a tool for managing Gno source code.
+
+See [./cmd/gnodev](./cmd/gnodev) for instructions.
 
 ## Language Features
 
