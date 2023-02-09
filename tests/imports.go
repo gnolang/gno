@@ -104,7 +104,6 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 					Output:  stdout,
 					Store:   store,
 				})
-
 				return m2.RunMemPackage(memPkg, true)
 			}
 		}
@@ -132,7 +131,6 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeValue("Stdin", stdin)
 				pkg.DefineGoNativeValue("Stdout", stdout)
 				pkg.DefineGoNativeValue("Stderr", stderr)
-
 				return pkg, pkg.NewPackage()
 			case "fmt":
 				pkg := gno.NewPackageNode("fmt", pkgPath, nil)
@@ -142,17 +140,14 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 					// NOTE: uncomment to debug long running tests
 					fmt.Println(a...)
 					res := fmt.Sprintln(a...)
-
 					return stdout.Write([]byte(res))
 				})
 				pkg.DefineGoNativeValue("Printf", func(format string, a ...interface{}) (n int, err error) {
 					res := fmt.Sprintf(format, a...)
-
 					return stdout.Write([]byte(res))
 				})
 				pkg.DefineGoNativeValue("Print", func(a ...interface{}) (n int, err error) {
 					res := fmt.Sprint(a...)
-
 					return stdout.Write([]byte(res))
 				})
 				pkg.DefineGoNativeValue("Sprint", fmt.Sprint)
@@ -163,31 +158,26 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeValue("Fprintln", fmt.Fprintln)
 				pkg.DefineGoNativeValue("Fprintf", fmt.Fprintf)
 				pkg.DefineGoNativeValue("Fprint", fmt.Fprint)
-
 				return pkg, pkg.NewPackage()
 			case "encoding/base64":
 				pkg := gno.NewPackageNode("base64", pkgPath, nil)
 				pkg.DefineGoNativeValue("RawStdEncoding", base64.RawStdEncoding)
 				pkg.DefineGoNativeValue("StdEncoding", base64.StdEncoding)
 				pkg.DefineGoNativeValue("NewDecoder", base64.NewDecoder)
-
 				return pkg, pkg.NewPackage()
 			case "encoding/binary":
 				pkg := gno.NewPackageNode("binary", pkgPath, nil)
 				pkg.DefineGoNativeValue("LittleEndian", binary.LittleEndian)
 				pkg.DefineGoNativeValue("BigEndian", binary.BigEndian)
-
 				return pkg, pkg.NewPackage()
 			case "encoding/json":
 				pkg := gno.NewPackageNode("json", pkgPath, nil)
 				pkg.DefineGoNativeValue("Unmarshal", json.Unmarshal)
 				pkg.DefineGoNativeValue("Marshal", json.Marshal)
-
 				return pkg, pkg.NewPackage()
 			case "encoding/xml":
 				pkg := gno.NewPackageNode("xml", pkgPath, nil)
 				pkg.DefineGoNativeValue("Unmarshal", xml.Unmarshal)
-
 				return pkg, pkg.NewPackage()
 			case "internal/os_test":
 				pkg := gno.NewPackageNode("os_test", pkgPath, nil)
@@ -213,13 +203,11 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 						m.Context = ctx
 					},
 				)
-
 				return pkg, pkg.NewPackage()
 			case "net":
 				pkg := gno.NewPackageNode("net", pkgPath, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf(net.TCPAddr{}))
 				pkg.DefineGoNativeValue("IPv4", net.IPv4)
-
 				return pkg, pkg.NewPackage()
 			case "net/http":
 				// XXX UNSAFE
@@ -235,13 +223,11 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			case "net/url":
 				pkg := gno.NewPackageNode("url", pkgPath, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf(url.Values{}))
-
 				return pkg, pkg.NewPackage()
 			case "bufio":
 				pkg := gno.NewPackageNode("bufio", pkgPath, nil)
 				pkg.DefineGoNativeValue("NewScanner", bufio.NewScanner)
 				pkg.DefineGoNativeType(reflect.TypeOf(bufio.SplitFunc(nil)))
-
 				return pkg, pkg.NewPackage()
 			case "bytes":
 				pkg := gno.NewPackageNode("bytes", pkgPath, nil)
@@ -251,7 +237,6 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeValue("NewBuffer", bytes.NewBuffer)
 				pkg.DefineGoNativeValue("Repeat", bytes.Repeat)
 				pkg.DefineGoNativeType(reflect.TypeOf(bytes.Buffer{}))
-
 				return pkg, pkg.NewPackage()
 			case "time":
 				pkg := gno.NewPackageNode("time", pkgPath, nil)
@@ -267,7 +252,6 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeType(reflect.TypeOf(time.Time{}))
 				pkg.DefineGoNativeType(reflect.TypeOf(time.Duration(0)))
 				pkg.DefineGoNativeType(reflect.TypeOf(time.Month(0)))
-
 				return pkg, pkg.NewPackage()
 			case "strings":
 				pkg := gno.NewPackageNode("strings", pkgPath, nil)
@@ -281,7 +265,6 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeValue("IndexRune", strings.IndexRune)
 				pkg.DefineGoNativeValue("Join", strings.Join)
 				pkg.DefineGoNativeType(reflect.TypeOf(strings.Builder{}))
-
 				return pkg, pkg.NewPackage()
 			case "math":
 				pkg := gno.NewPackageNode("math", pkgPath, nil)
@@ -290,7 +273,6 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeValue("Pi", math.Pi)
 				pkg.DefineGoNativeValue("MaxFloat32", math.MaxFloat32)
 				pkg.DefineGoNativeValue("MaxFloat64", math.MaxFloat64)
-
 				return pkg, pkg.NewPackage()
 			case "math/rand":
 				// XXX only expose for tests.
@@ -301,7 +283,6 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeValue("New", rand.New)
 				pkg.DefineGoNativeValue("NewSource", rand.NewSource)
 				pkg.DefineGoNativeType(reflect.TypeOf(rand.Rand{}))
-
 				return pkg, pkg.NewPackage()
 			case "crypto/rand":
 				pkg := gno.NewPackageNode("rand", pkgPath, nil)
@@ -309,74 +290,61 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				// for determinism:
 				// pkg.DefineGoNativeValue("Reader", crand.Reader)
 				pkg.DefineGoNativeValue("Reader", &dummyReader{})
-
 				return pkg, pkg.NewPackage()
 			case "crypto/md5":
 				pkg := gno.NewPackageNode("md5", pkgPath, nil)
 				pkg.DefineGoNativeValue("New", md5.New)
-
 				return pkg, pkg.NewPackage()
 			case "crypto/sha1":
 				pkg := gno.NewPackageNode("sha1", pkgPath, nil)
 				pkg.DefineGoNativeValue("New", sha1.New)
-
 				return pkg, pkg.NewPackage()
 			case "image":
 				pkg := gno.NewPackageNode("image", pkgPath, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf(image.Point{}))
-
 				return pkg, pkg.NewPackage()
 			case "image/color":
 				pkg := gno.NewPackageNode("color", pkgPath, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf(color.NRGBA64{}))
-
 				return pkg, pkg.NewPackage()
 			case "compress/flate":
 				pkg := gno.NewPackageNode("flate", pkgPath, nil)
 				pkg.DefineGoNativeValue("BestSpeed", flate.BestSpeed)
-
 				return pkg, pkg.NewPackage()
 			case "compress/gzip":
 				pkg := gno.NewPackageNode("gzip", pkgPath, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf(gzip.Writer{}))
 				pkg.DefineGoNativeValue("BestCompression", gzip.BestCompression)
 				pkg.DefineGoNativeValue("BestSpeed", gzip.BestSpeed)
-
 				return pkg, pkg.NewPackage()
 			case "context":
 				pkg := gno.NewPackageNode("context", pkgPath, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf((*context.Context)(nil)).Elem())
 				pkg.DefineGoNativeValue("WithValue", context.WithValue)
 				pkg.DefineGoNativeValue("Background", context.Background)
-
 				return pkg, pkg.NewPackage()
 			case "sync":
 				pkg := gno.NewPackageNode("sync", pkgPath, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf(sync.Mutex{}))
 				pkg.DefineGoNativeType(reflect.TypeOf(sync.RWMutex{}))
 				pkg.DefineGoNativeType(reflect.TypeOf(sync.Pool{}))
-
 				return pkg, pkg.NewPackage()
 			case "sync/atomic":
 				pkg := gno.NewPackageNode("atomic", pkgPath, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf(atomic.Value{}))
-
 				return pkg, pkg.NewPackage()
 			case "math/big":
 				pkg := gno.NewPackageNode("big", pkgPath, nil)
 				pkg.DefineGoNativeValue("NewInt", big.NewInt)
-
 				return pkg, pkg.NewPackage()
 			case "sort":
 				pkg := gno.NewPackageNode("sort", pkgPath, nil)
 				pkg.DefineGoNativeValue("Strings", sort.Strings)
 				// pkg.DefineGoNativeValue("Sort", sort.Sort)
-
 				return pkg, pkg.NewPackage()
 			case "flag":
 				pkg := gno.NewPackageNode("flag", pkgPath, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf(flag.Flag{}))
-
 				return pkg, pkg.NewPackage()
 			case "io":
 				pkg := gno.NewPackageNode("io", pkgPath, nil)
@@ -385,23 +353,19 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeType(reflect.TypeOf((*io.ReadCloser)(nil)).Elem())
 				pkg.DefineGoNativeType(reflect.TypeOf((*io.Closer)(nil)).Elem())
 				pkg.DefineGoNativeType(reflect.TypeOf((*io.Reader)(nil)).Elem())
-
 				return pkg, pkg.NewPackage()
 			case "io/ioutil":
 				pkg := gno.NewPackageNode("ioutil", pkgPath, nil)
 				pkg.DefineGoNativeValue("NopCloser", ioutil.NopCloser)
 				pkg.DefineGoNativeValue("ReadAll", ioutil.ReadAll)
-
 				return pkg, pkg.NewPackage()
 			case "log":
 				pkg := gno.NewPackageNode("log", pkgPath, nil)
 				pkg.DefineGoNativeValue("Fatal", log.Fatal)
-
 				return pkg, pkg.NewPackage()
 			case "text/template":
 				pkg := gno.NewPackageNode("template", pkgPath, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf(template.FuncMap{}))
-
 				return pkg, pkg.NewPackage()
 			case "unicode/utf8":
 				pkg := gno.NewPackageNode("utf8", pkgPath, nil)
@@ -409,17 +373,14 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				tv := gno.TypedValue{T: gno.UntypedRuneType} // TODO dry
 				tv.SetInt32(utf8.RuneSelf)                   // ..
 				pkg.Define("RuneSelf", tv)                   // ..
-
 				return pkg, pkg.NewPackage()
 			case "errors":
 				pkg := gno.NewPackageNode("errors", pkgPath, nil)
 				pkg.DefineGoNativeValue("New", errors.New)
-
 				return pkg, pkg.NewPackage()
 			case "hash/fnv":
 				pkg := gno.NewPackageNode("fnv", pkgPath, nil)
 				pkg.DefineGoNativeValue("New32a", fnv.New32a)
-
 				return pkg, pkg.NewPackage()
 			/* XXX support somehow for speed. for now, generic implemented in stdlibs.
 			case "internal/bytealg":
@@ -456,7 +417,6 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 					Store:   store,
 				})
 				pn, pv = m2.RunMemPackage(memPkg, true)
-
 				return
 			}
 		}
@@ -471,10 +431,8 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				Store:   store,
 			})
 			pn, pv = m2.RunMemPackage(memPkg, true)
-
 			return
 		}
-
 		return nil, nil
 	}
 	// NOTE: store is also used in closure above.
@@ -487,7 +445,6 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 	store.SetStrictGo2GnoMapping(false)
 	// native mappings
 	stdlibs.InjectNativeMappings(store)
-
 	return
 }
 
@@ -734,7 +691,6 @@ func (*dummyReader) Read(b []byte) (n int, err error) {
 	for i := 0; i < len(b); i++ {
 		b[i] = byte((100 + i) % 256)
 	}
-
 	return len(b), nil
 }
 
@@ -744,7 +700,6 @@ func (*dummyReader) Read(b []byte) (n int, err error) {
 func typedString(s string) gno.TypedValue {
 	tv := gno.TypedValue{T: gno.StringType}
 	tv.V = gno.StringValue(s)
-
 	return tv
 }
 

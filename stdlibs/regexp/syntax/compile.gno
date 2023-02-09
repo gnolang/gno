@@ -74,7 +74,6 @@ func Compile(re *Regexp) (*Prog, error) {
 	f := c.compile(re)
 	f.out.patch(c.p, c.inst(InstMatch).i)
 	c.p.Start = int(f.i)
-
 	return c.p, nil
 }
 
@@ -131,7 +130,6 @@ func (c *compiler) compile(re *Regexp) frag {
 		bra := c.cap(uint32(re.Cap << 1))
 		sub := c.compile(re.Sub[0])
 		ket := c.cap(uint32(re.Cap<<1 | 1))
-
 		return c.cat(c.cat(bra, sub), ket)
 	case OpStar:
 		return c.star(c.compile(re.Sub[0]), re.Flags&NonGreedy != 0)
@@ -166,14 +164,12 @@ func (c *compiler) inst(op InstOp) frag {
 	// TODO: impose length limit
 	f := frag{i: uint32(len(c.p.Inst)), nullable: true}
 	c.p.Inst = append(c.p.Inst, Inst{Op: op})
-
 	return f
 }
 
 func (c *compiler) nop() frag {
 	f := c.inst(InstNop)
 	f.out = makePatchList(f.i << 1)
-
 	return f
 }
 
@@ -201,7 +197,6 @@ func (c *compiler) cat(f1, f2 frag) frag {
 	// TODO: elide nop
 
 	f1.out.patch(c.p, f2.i)
-
 	return frag{f1.i, f2.out, f1.nullable && f2.nullable}
 }
 
@@ -220,7 +215,6 @@ func (c *compiler) alt(f1, f2 frag) frag {
 	i.Arg = f2.i
 	f.out = f1.out.append(c.p, f2.out)
 	f.nullable = f1.nullable || f2.nullable
-
 	return f
 }
 

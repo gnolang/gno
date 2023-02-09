@@ -7,7 +7,6 @@ func main() {
 	case 0, 1, 2:
 		if i == 1 {
 			println("one")
-
 			break
 		}
 		println(i)

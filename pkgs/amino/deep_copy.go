@@ -5,7 +5,7 @@ import (
 	"reflect"
 )
 
-// ----------------------------------------
+//----------------------------------------
 // DeepCopy
 
 // Deeply copies an object.
@@ -22,7 +22,6 @@ func DeepCopy(o interface{}) (r interface{}) {
 	src := reflect.ValueOf(o)
 	dst := reflect.New(src.Type()).Elem()
 	deepCopy(src, dst)
-
 	return dst.Interface()
 }
 
@@ -35,7 +34,6 @@ func DeepCopyToPtr(o interface{}) (ptr interface{}) {
 	dst := reflect.New(src.Type())
 	elm := dst.Elem()
 	deepCopy(src, elm)
-
 	return dst.Interface()
 }
 
@@ -58,14 +56,12 @@ func _deepCopy(src, dst reflect.Value) {
 		cpy := reflect.New(src.Type().Elem())
 		_deepCopy(src.Elem(), cpy.Elem())
 		dst.Set(cpy)
-
 		return
 
 	case reflect.Interface:
 		cpy := reflect.New(src.Elem().Type())
 		deepCopy(src.Elem(), cpy.Elem())
 		dst.Set(cpy.Elem())
-
 		return
 
 	case reflect.Array:
@@ -77,7 +73,6 @@ func _deepCopy(src, dst reflect.Value) {
 			reflect.Float32, reflect.String:
 
 			reflect.Copy(dst, src)
-
 			return
 		default:
 			for i := 0; i < src.Type().Len(); i++ {
@@ -100,7 +95,6 @@ func _deepCopy(src, dst reflect.Value) {
 				src.Type(), src.Len(), src.Len())
 			reflect.Copy(cpy, src)
 			dst.Set(src)
-
 			return
 		default:
 			cpy := reflect.MakeSlice(
@@ -111,7 +105,6 @@ func _deepCopy(src, dst reflect.Value) {
 				deepCopy(esrc, ecpy)
 			}
 			dst.Set(src)
-
 			return
 		}
 
@@ -119,7 +112,6 @@ func _deepCopy(src, dst reflect.Value) {
 		switch src.Type() {
 		case timeType:
 			dst.Set(src)
-
 			return
 		default:
 			for i := 0; i < src.NumField(); i++ {
@@ -141,7 +133,6 @@ func _deepCopy(src, dst reflect.Value) {
 			cpy.SetMapIndex(key, val)
 		}
 		dst.Set(cpy)
-
 		return
 
 	// Primitive types
@@ -163,7 +154,7 @@ func _deepCopy(src, dst reflect.Value) {
 	}
 }
 
-// ----------------------------------------
+//----------------------------------------
 // misc.
 
 // Call .DeepCopy() method if possible.
@@ -185,13 +176,11 @@ func callDeepCopy(src, dst reflect.Value) bool {
 		out := dc.Call(nil)[0]
 		cpy.Elem().Set(out)
 		dst.Set(cpy)
-
 		return true
 	}
 	if dst.Type() == otype {
 		out := dc.Call(nil)[0]
 		dst.Set(out)
-
 		return true
 	}
 	return false

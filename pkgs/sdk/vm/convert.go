@@ -21,11 +21,9 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 		case gno.BoolType:
 			if arg == "true" {
 				tv.SetBool(true)
-
 				return
 			} else if arg == "false" {
 				tv.SetBool(false)
-
 				return
 			} else {
 				panic(fmt.Sprintf(
@@ -34,7 +32,6 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			}
 		case gno.StringType:
 			tv.SetString(gno.StringValue(arg))
-
 			return
 		case gno.IntType:
 			if arg[0] == '+' {
@@ -47,7 +44,6 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 					arg, err))
 			}
 			tv.SetInt(int(i64))
-
 			return
 		case gno.Int8Type:
 			if arg[0] == '+' {
@@ -60,7 +56,6 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 					arg, err))
 			}
 			tv.SetInt8(int8(i8))
-
 			return
 		case gno.Int16Type:
 			if arg[0] == '+' {
@@ -73,7 +68,6 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 					arg, err))
 			}
 			tv.SetInt16(int16(i16))
-
 			return
 		case gno.Int32Type:
 			if arg[0] == '+' {
@@ -86,7 +80,6 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 					arg, err))
 			}
 			tv.SetInt32(int32(i32))
-
 			return
 		case gno.Int64Type:
 			if arg[0] == '+' {
@@ -99,7 +92,6 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 					arg, err))
 			}
 			tv.SetInt64(i64)
-
 			return
 		case gno.UintType:
 			if arg[0] == '+' {
@@ -112,7 +104,6 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 					arg, err))
 			}
 			tv.SetUint(uint(u64))
-
 			return
 		case gno.Uint8Type:
 			if arg[0] == '+' {
@@ -125,7 +116,6 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 					arg, err))
 			}
 			tv.SetUint8(uint8(u8))
-
 			return
 		case gno.Uint16Type:
 			if arg[0] == '+' {
@@ -138,7 +128,6 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 					arg, err))
 			}
 			tv.SetUint16(uint16(u16))
-
 			return
 		case gno.Uint32Type:
 			if arg[0] == '+' {
@@ -151,7 +140,6 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 					arg, err))
 			}
 			tv.SetUint32(uint32(u32))
-
 			return
 		case gno.Uint64Type:
 			if arg[0] == '+' {
@@ -164,7 +152,6 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 					arg, err))
 			}
 			tv.SetUint64(u64)
-
 			return
 		default:
 			panic(fmt.Sprintf("unexpected primitive type %s", bt.String()))

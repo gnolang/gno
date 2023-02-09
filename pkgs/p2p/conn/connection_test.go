@@ -23,7 +23,6 @@ func createTestMConnection(conn net.Conn) *MConnection {
 	}
 	c := createMConnectionWithCallbacks(conn, onReceive, onError)
 	c.SetLogger(log.TestingLogger())
-
 	return c
 }
 
@@ -34,7 +33,6 @@ func createMConnectionWithCallbacks(conn net.Conn, onReceive func(chID byte, msg
 	chDescs := []*ChannelDescriptor{{ID: 0x01, Priority: 1, SendQueueCapacity: 1}}
 	c := NewMConnectionWithConfig(conn, chDescs, onReceive, onError, cfg)
 	c.SetLogger(log.TestingLogger())
-
 	return c
 }
 
@@ -58,7 +56,6 @@ func TestMConnectionSendFlushStop(t *testing.T) {
 		_, err := server.Read(msgBuf)
 		if err != nil {
 			t.Error(err)
-
 			return
 		}
 		bz, _, err := amino.DecodeByteSlice(msgBuf)
@@ -411,7 +408,6 @@ func newClientAndServerConnsForReadErrors(t *testing.T, chOnErr chan struct{}) (
 	mconnServer.SetLogger(serverLogger)
 	err = mconnServer.Start()
 	require.Nil(t, err)
-
 	return mconnClient, mconnServer
 }
 

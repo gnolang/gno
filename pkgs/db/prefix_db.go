@@ -29,7 +29,7 @@ func IteratePrefixStripped(db DB, prefix []byte) Iterator {
 }
 */
 
-// ----------------------------------------
+//----------------------------------------
 // prefixDB
 
 type PrefixDB struct {
@@ -58,7 +58,6 @@ func (pdb *PrefixDB) Get(key []byte) []byte {
 
 	pkey := pdb.prefixed(key)
 	value := pdb.db.Get(pkey)
-
 	return value
 }
 
@@ -139,7 +138,6 @@ func (pdb *PrefixDB) ReverseIterator(start, end []byte) Iterator {
 		pend = append(cp(pdb.prefix), end...)
 	}
 	ritr := pdb.db.ReverseIterator(pstart, pend)
-
 	return newPrefixIterator(
 		pdb.prefix,
 		start,
@@ -217,7 +215,7 @@ func (pdb *PrefixDB) prefixed(key []byte) []byte {
 	return append(cp(pdb.prefix), key...)
 }
 
-// ----------------------------------------
+//----------------------------------------
 // prefixBatch
 
 type prefixBatch struct {
@@ -254,7 +252,7 @@ func (pb prefixBatch) Close() {
 	pb.source.Close()
 }
 
-// ----------------------------------------
+//----------------------------------------
 // prefixIterator
 
 var _ Iterator = (*prefixIterator)(nil)
@@ -302,7 +300,6 @@ func (itr *prefixIterator) Next() {
 	itr.source.Next()
 	if !itr.source.Valid() || !bytes.HasPrefix(itr.source.Key(), itr.prefix) {
 		itr.valid = false
-
 		return
 	}
 }
@@ -325,7 +322,7 @@ func (itr *prefixIterator) Close() {
 	itr.source.Close()
 }
 
-// ----------------------------------------
+//----------------------------------------
 
 func stripPrefix(key []byte, prefix []byte) (stripped []byte) {
 	if len(key) < len(prefix) {

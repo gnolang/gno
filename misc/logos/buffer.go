@@ -7,7 +7,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-// ----------------------------------------
+//----------------------------------------
 // Buffer
 
 // A Buffer is a buffer area in which to draw.
@@ -39,7 +39,6 @@ func (bb *Buffer) GetCell(x, y int) *Cell {
 			"index y=%d out of bounds, height=%d",
 			y, bb.Height))
 	}
-
 	return &bb.Cells[y*bb.Width+x]
 }
 
@@ -61,7 +60,6 @@ func (bb *Buffer) Sprint() string {
 		line := strings.Join(parts, "")
 		lines = append(lines, line)
 	}
-
 	return strings.Join(lines, "\n")
 }
 
@@ -84,7 +82,7 @@ func (bb *Buffer) DrawToScreen(s tcell.Screen) {
 	}
 }
 
-// ----------------------------------------
+//----------------------------------------
 // Cell
 
 // A terminal character cell.
@@ -160,11 +158,10 @@ func (cc *Cell) GetTCellContent() (mainc rune, combc []rune, tstyle tcell.Style)
 			tstyle = style.WithAttrs(attrs).GetTStyle()
 		}
 	}
-
 	return
 }
 
-// ----------------------------------------
+//----------------------------------------
 // View
 // analogy: "Buffer:View :: array:slice".
 
@@ -180,7 +177,6 @@ func (bb *Buffer) NewView(offset Coord) View {
 	if !offset.IsNonNegative() {
 		panic("should not happen")
 	}
-
 	return View{
 		Base:   bb,
 		Offset: offset,
@@ -203,14 +199,13 @@ func (bs View) GetCell(x, y int) *Cell {
 	if bs.Bounds.Height <= y {
 		panic("should not happen")
 	}
-
 	return bs.Base.GetCell(
 		bs.Offset.X+x,
 		bs.Offset.Y+y,
 	)
 }
 
-// ----------------------------------------
+//----------------------------------------
 // BufferedView
 
 // A view onto an element.
@@ -248,7 +243,6 @@ func NewBufferedElemView(elem Elem, size Size) *BufferedElemView {
 	bpv.SetIsDirty(true)
 	elem.SetParent(bpv)
 	elem.SetCoord(Coord{}) // required for abs calc.
-
 	return bpv
 }
 
@@ -323,7 +317,6 @@ func (bpv *BufferedElemView) Render() (updated bool) {
 	// Then, render and draw elem.
 	bpv.Base.Render()
 	bpv.Base.Draw(bpv.Offset, buffer.NewView(Coord{}))
-
 	return true
 }
 
@@ -355,10 +348,8 @@ func (bpv *BufferedElemView) ProcessEventKey(ev *EventKey) bool {
 		if bpv.Base.ProcessEventKey(ev) {
 			return true
 		}
-
 		return false
 	}
-
 	return true // convenience for cases.
 }
 

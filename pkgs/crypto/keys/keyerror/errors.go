@@ -45,7 +45,6 @@ func IsErrKeyNotFound(err error) bool {
 			return true
 		}
 	}
-
 	return false
 }
 
@@ -78,6 +77,5 @@ func IsErrWrongPassword(err error) bool {
 			return true
 		}
 	}
-
 	return false
 }

@@ -87,7 +87,6 @@ func runMain(args []string) error {
 
 	if flags.skipStart {
 		fmt.Fprintln(os.Stderr, "'--skip-start' is set. Exiting.")
-
 		return nil
 	}
 
@@ -177,7 +176,6 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 		Balances: balances,
 		Txs:      txs,
 	}
-
 	return gen
 }
 
@@ -205,7 +203,6 @@ func loadGenesisTxs(path string) []std.Tx {
 		amino.MustUnmarshalJSON([]byte(txLine), &tx)
 		txs = append(txs, tx)
 	}
-
 	return txs
 }
 
@@ -233,6 +230,5 @@ func loadGenesisBalances(path string) []string {
 
 		balances = append(balances, line)
 	}
-
 	return balances
 }

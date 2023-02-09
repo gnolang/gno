@@ -131,7 +131,6 @@ func Transcribe(n Node, t Transform) (nn Node) {
 	var ns []Node = make([]Node, 0, 32)
 	var nc TransCtrl
 	nn = transcribe(t, ns, TRANS_ROOT, 0, n, &nc)
-
 	return
 }
 
@@ -268,7 +267,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
 		if isStopOrSkip(nc, c2) {
 			nn = cnn2
-
 			return
 		} else {
 			cnn = cnn2.(*FuncLitExpr)
@@ -381,7 +379,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
 		if isStopOrSkip(nc, c2) {
 			nn = cnn2
-
 			return
 		} else {
 			cnn = cnn2.(*BlockStmt)
@@ -419,7 +416,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
 		if isStopOrSkip(nc, c2) {
 			nn = cnn2
-
 			return
 		} else {
 			cnn = cnn2.(*ForStmt)
@@ -462,7 +458,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
 		if isStopOrSkip(nc, c2) {
 			nn = cnn2
-
 			return
 		} else {
 			cnn = cnn2.(*IfStmt)
@@ -489,7 +484,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
 		if isStopOrSkip(nc, c2) {
 			nn = cnn2
-
 			return
 		} else {
 			cnn = cnn2.(*IfCaseStmt)
@@ -511,7 +505,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
 		if isStopOrSkip(nc, c2) {
 			nn = cnn2
-
 			return
 		} else {
 			cnn = cnn2.(*RangeStmt)
@@ -564,7 +557,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
 		if isStopOrSkip(nc, c2) {
 			nn = cnn2
-
 			return
 		} else {
 			cnn = cnn2.(*SelectCaseStmt)
@@ -598,7 +590,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
 		if isStopOrSkip(nc, c2) {
 			nn = cnn2
-
 			return
 		} else {
 			cnn = cnn2.(*SwitchStmt)
@@ -617,7 +608,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		cnn2, c2 = t(ns, ftype, index, cnn, TRANS_BLOCK2)
 		if isStopOrSkip(nc, c2) {
 			nn = cnn2
-
 			return
 		} else {
 			cnn = cnn2.(*SwitchStmt)
@@ -638,7 +628,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
 		if isStopOrSkip(nc, c2) {
 			nn = cnn2
-
 			return
 		} else {
 			cnn = cnn2.(*SwitchClauseStmt)
@@ -673,7 +662,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
 		if isStopOrSkip(nc, c2) {
 			nn = cnn2
-
 			return
 		} else {
 			cnn = cnn2.(*FuncDecl)
@@ -712,7 +700,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
 		if isStopOrSkip(nc, c2) {
 			nn = cnn2
-
 			return
 		} else {
 			cnn = cnn2.(*FileNode)
@@ -747,11 +734,9 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 func isStopOrSkip(oldnc *TransCtrl, nc TransCtrl) (stop bool) {
 	if nc == TRANS_EXIT {
 		*oldnc = TRANS_EXIT
-
 		return true
 	} else if nc == TRANS_SKIP {
 		*oldnc = TRANS_CONTINUE
-
 		return true
 	} else if nc == TRANS_CONTINUE {
 		return false

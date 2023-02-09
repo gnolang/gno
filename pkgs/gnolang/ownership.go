@@ -46,7 +46,6 @@ type ObjectID struct {
 
 func (oid ObjectID) MarshalAmino() (string, error) {
 	pid := hex.EncodeToString(oid.PkgID.Hashlet[:])
-
 	return fmt.Sprintf("%s:%d", pid, oid.NewTime), nil
 }
 

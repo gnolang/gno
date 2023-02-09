@@ -33,9 +33,7 @@ func CaptureStdoutAndStderr() func() (string, error) {
 		os.Stdout = oldOut
 		w.Close()
 		err := <-done
-
 		return buf.String(), err
 	}
-
 	return closer
 }

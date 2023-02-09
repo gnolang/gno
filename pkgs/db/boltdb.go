@@ -54,7 +54,6 @@ func NewBoltDBWithOpts(name string, dir string, opts *bbolt.Options) (DB, error)
 	// create a global bucket
 	err = db.Update(func(tx *bbolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists(bucket)
-
 		return err
 	})
 	if err != nil {
@@ -88,7 +87,6 @@ func (bdb *BoltDB) Set(key, value []byte) {
 	value = nonNilBytes(value)
 	err := bdb.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(bucket)
-
 		return b.Put(key, value)
 	})
 	if err != nil {
@@ -125,10 +123,8 @@ func (bdb *BoltDB) Print() {
 	err := bdb.db.View(func(tx *bbolt.Tx) error {
 		tx.Bucket(bucket).ForEach(func(k, v []byte) error {
 			fmt.Printf("[%X]:\t[%X]\n", k, v)
-
 			return nil
 		})
-
 		return nil
 	})
 	if err != nil {
@@ -289,26 +285,22 @@ func (itr *boltDBIterator) Valid() bool {
 	// iterated to the end of the cursor
 	if len(itr.currentKey) == 0 {
 		itr.isInvalid = true
-
 		return false
 	}
 
 	if itr.isReverse {
 		if itr.start != nil && bytes.Compare(itr.currentKey, itr.start) < 0 {
 			itr.isInvalid = true
-
 			return false
 		}
 	} else {
 		if itr.end != nil && bytes.Compare(itr.end, itr.currentKey) <= 0 {
 			itr.isInvalid = true
-
 			return false
 		}
 	}
 
 	// Valid
-
 	return true
 }
 
@@ -323,7 +315,6 @@ func (itr *boltDBIterator) Next() {
 
 func (itr *boltDBIterator) Key() []byte {
 	itr.assertIsValid()
-
 	return append([]byte{}, itr.currentKey...)
 }
 

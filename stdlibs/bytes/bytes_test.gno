@@ -756,7 +756,6 @@ func TestSplit(t *testing.T) {
 		result := sliceOfString(a)
 		if !eq(result, tt.a) {
 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
-
 			continue
 		}
 		if tt.n == 0 || len(a) == 0 {
@@ -815,7 +814,6 @@ func TestSplitAfter(t *testing.T) {
 		result := sliceOfString(a)
 		if !eq(result, tt.a) {
 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
-
 			continue
 		}
 
@@ -869,7 +867,6 @@ func TestFields(t *testing.T) {
 		result := sliceOfString(a)
 		if !eq(result, tt.a) {
 			t.Errorf("Fields(%q) = %v; want %v", tt.s, a, tt.a)
-
 			continue
 		}
 
@@ -890,7 +887,6 @@ func TestFieldsFunc(t *testing.T) {
 		result := sliceOfString(a)
 		if !eq(result, tt.a) {
 			t.Errorf("FieldsFunc(%q, unicode.IsSpace) = %v; want %v", tt.s, a, tt.a)
-
 			continue
 		}
 	}
@@ -1163,7 +1159,6 @@ func TestRepeat(t *testing.T) {
 		a := bytes.Repeat(tin, tt.count)
 		if !bytes.Equal(a, tout) {
 			t.Errorf("Repeat(%q, %d) = %q; want %q", tin, tt.count, a, tout)
-
 			continue
 		}
 	}
@@ -1251,7 +1246,6 @@ func TestRunes(t *testing.T) {
 		a := bytes.Runes(tin)
 		if !runesEqual(a, tt.out) {
 			t.Errorf("Runes(%q) = %v; want %v", tin, a, tt.out)
-
 			continue
 		}
 		if !tt.lossy {
@@ -1719,7 +1713,6 @@ var makeFieldsInput = func() []byte {
 		case 1:
 			if i > 0 && x[i-1] == 'x' {
 				copy(x[i-1:], "χ")
-
 				break
 			}
 			// XXX fallthrough not yet implemented

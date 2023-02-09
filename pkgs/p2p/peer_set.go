@@ -61,7 +61,6 @@ func (ps *PeerSet) Has(peerKey ID) bool {
 	ps.mtx.Lock()
 	_, ok := ps.lookup[peerKey]
 	ps.mtx.Unlock()
-
 	return ok
 }
 
@@ -119,7 +118,6 @@ func (ps *PeerSet) Remove(peer Peer) bool {
 	if index == len(ps.list)-1 {
 		ps.list = newList
 		delete(ps.lookup, peer.ID())
-
 		return true
 	}
 
@@ -131,7 +129,6 @@ func (ps *PeerSet) Remove(peer Peer) bool {
 	lastPeerItem.index = index
 	ps.list = newList
 	delete(ps.lookup, peer.ID())
-
 	return true
 }
 
@@ -139,7 +136,6 @@ func (ps *PeerSet) Remove(peer Peer) bool {
 func (ps *PeerSet) Size() int {
 	ps.mtx.Lock()
 	defer ps.mtx.Unlock()
-
 	return len(ps.list)
 }
 
@@ -147,6 +143,5 @@ func (ps *PeerSet) Size() int {
 func (ps *PeerSet) List() []Peer {
 	ps.mtx.Lock()
 	defer ps.mtx.Unlock()
-
 	return ps.list
 }

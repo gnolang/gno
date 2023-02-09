@@ -42,7 +42,6 @@ func TestPackages(t *testing.T) {
 					pkgPaths = append(pkgPaths, dirPath)
 				}
 			}
-
 			return nil
 		})
 	}

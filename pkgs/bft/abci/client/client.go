@@ -48,11 +48,11 @@ type Client interface {
 	EndBlockSync(abci.RequestEndBlock) (abci.ResponseEndBlock, error)
 }
 
-// ----------------------------------------
+//----------------------------------------
 
 type Callback func(abci.Request, abci.Response)
 
-// ----------------------------------------
+//----------------------------------------
 
 type ReqRes struct {
 	abci.Request
@@ -83,7 +83,6 @@ func (reqRes *ReqRes) SetCallback(cb func(res abci.Response)) {
 	if reqRes.Response != nil {
 		reqRes.mtx.Unlock()
 		cb(reqRes.Response)
-
 		return
 	}
 
@@ -94,7 +93,6 @@ func (reqRes *ReqRes) SetCallback(cb func(res abci.Response)) {
 func (reqRes *ReqRes) GetCallback() func(abci.Response) {
 	reqRes.mtx.Lock()
 	defer reqRes.mtx.Unlock()
-
 	return reqRes.cb
 }
 
@@ -123,6 +121,5 @@ func (reqRes *ReqRes) Done() {
 func waitGroup1() (wg *sync.WaitGroup) {
 	wg = &sync.WaitGroup{}
 	wg.Add(1)
-
 	return
 }

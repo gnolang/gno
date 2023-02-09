@@ -28,7 +28,6 @@ func NewStdCommand() *Command {
 	cmd.SetIn(os.Stdin) // needed for **** GetPassword().
 	cmd.SetOut(os.Stdout)
 	cmd.SetErr(os.Stderr)
-
 	return cmd
 }
 
@@ -51,7 +50,6 @@ func (cmd *Command) Run(app App, args []string, defaults interface{}) error {
 			// print help.
 			rv := reflect.ValueOf(defaults)
 			cmd.printHelpFromDefaults(rv)
-
 			return nil
 		}
 		// store raw flags.
@@ -63,7 +61,6 @@ func (cmd *Command) Run(app App, args []string, defaults interface{}) error {
 			return err
 		}
 		opts := reflect.ValueOf(ptr).Elem().Interface()
-
 		return app(cmd, args, opts)
 	}
 }
@@ -127,11 +124,10 @@ func (cmd *Command) SetErr(err io.WriteCloser) {
 
 func (cmd *Command) HasFlag(name string) bool {
 	_, ok := cmd.Flags[name]
-
 	return ok
 }
 
-// ----------------------------------------
+//----------------------------------------
 // NewMockCommand
 
 // NewMockCommand returns a mock command for testing.
@@ -143,7 +139,6 @@ func NewMockCommand() *Command {
 	cmd.SetIn(mockIn)
 	cmd.SetOut(WriteNopCloser(mockOut))
 	cmd.SetErr(WriteNopCloser(mockErr))
-
 	return cmd
 }
 

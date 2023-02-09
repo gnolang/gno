@@ -42,7 +42,6 @@ func NewRocksDB(name string, dir string) (*RocksDB, error) {
 	opts.IncreaseParallelism(runtime.NumCPU())
 	// 1.5GB maximum memory use for writebuffer.
 	opts.OptimizeLevelStyleCompaction(512 * 1024 * 1024)
-
 	return NewRocksDBWithOptions(name, dir, opts)
 }
 
@@ -151,13 +150,12 @@ func (db *RocksDB) Stats() map[string]string {
 	return stats
 }
 
-// ----------------------------------------
+//----------------------------------------
 // Batch
 
 // Implements DB.
 func (db *RocksDB) NewBatch() Batch {
 	batch := grocksdb.NewWriteBatch()
-
 	return &rocksDBBatch{db, batch}
 }
 
@@ -197,20 +195,18 @@ func (mBatch *rocksDBBatch) Close() {
 	mBatch.batch.Destroy()
 }
 
-// ----------------------------------------
+//----------------------------------------
 // Iterator
 // NOTE This is almost identical to db/go_level_db.Iterator
 // Before creating a third version, refactor.
 
 func (db *RocksDB) Iterator(start, end []byte) Iterator {
 	itr := db.db.NewIterator(db.ro)
-
 	return newRocksDBIterator(itr, start, end, false)
 }
 
 func (db *RocksDB) ReverseIterator(start, end []byte) Iterator {
 	itr := db.db.NewIterator(db.ro)
-
 	return newRocksDBIterator(itr, start, end, true)
 }
 
@@ -270,7 +266,6 @@ func (itr rocksDBIterator) Valid() bool {
 	// If source is invalid, invalid.
 	if !itr.source.Valid() {
 		itr.isInvalid = true
-
 		return false
 	}
 
@@ -281,13 +276,11 @@ func (itr rocksDBIterator) Valid() bool {
 	if itr.isReverse {
 		if start != nil && bytes.Compare(key, start) < 0 {
 			itr.isInvalid = true
-
 			return false
 		}
 	} else {
 		if end != nil && bytes.Compare(end, key) <= 0 {
 			itr.isInvalid = true
-
 			return false
 		}
 	}
@@ -299,14 +292,12 @@ func (itr rocksDBIterator) Valid() bool {
 func (itr rocksDBIterator) Key() []byte {
 	itr.assertNoError()
 	itr.assertIsValid()
-
 	return moveSliceToBytes(itr.source.Key())
 }
 
 func (itr rocksDBIterator) Value() []byte {
 	itr.assertNoError()
 	itr.assertIsValid()
-
 	return moveSliceToBytes(itr.source.Value())
 }
 
@@ -346,6 +337,5 @@ func moveSliceToBytes(s *grocksdb.Slice) []byte {
 	}
 	v := make([]byte, len(s.Data()))
 	copy(v, s.Data())
-
 	return v
 }

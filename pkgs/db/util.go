@@ -8,7 +8,6 @@ import (
 func cp(bz []byte) (ret []byte) {
 	ret = make([]byte, len(bz))
 	copy(ret, bz)
-
 	return ret
 }
 
@@ -29,7 +28,6 @@ func cpIncr(bz []byte) (ret []byte) {
 		ret[i] = byte(0x00)
 		if i == 0 {
 			// Overflow
-
 			return nil
 		}
 	}
@@ -49,6 +47,5 @@ func IsKeyInDomain(key, start, end []byte) bool {
 
 func FileExists(filePath string) bool {
 	_, err := os.Stat(filePath)
-
 	return !os.IsNotExist(err)
 }

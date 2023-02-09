@@ -102,7 +102,6 @@ func NewCListMempool(
 	for _, option := range options {
 		option(mempool)
 	}
-
 	return mempool
 }
 
@@ -162,7 +161,6 @@ func (mem *CListMempool) Size() int {
 func (mem *CListMempool) MaxTxBytes() int64 {
 	mem.mtx.Lock()
 	defer mem.mtx.Unlock()
-
 	return mem.maxTxBytes
 }
 
@@ -482,7 +480,6 @@ func (mem *CListMempool) ReapMaxBytesMaxGas(maxDataBytes, maxGas int64) types.Tx
 		totalGas = newTotalGas
 		txs = append(txs, memTx.tx)
 	}
-
 	return txs
 }
 
@@ -504,7 +501,6 @@ func (mem *CListMempool) ReapMaxTxs(max int) types.Txs {
 		memTx := e.Value.(*mempoolTx)
 		txs = append(txs, memTx.tx)
 	}
-
 	return txs
 }
 
@@ -583,14 +579,12 @@ func (mem *CListMempool) recheckTxs() {
 		// check tx size
 		if int64(len(memTx.tx)) > mem.maxTxBytes {
 			mem.removeTx(memTx.tx, e, false)
-
 			continue
 		}
 		// run precheck
 		if mem.preCheck != nil {
 			if err := mem.preCheck(memTx.tx); err != nil {
 				mem.removeTx(memTx.tx, e, false)
-
 				continue
 			}
 		}
@@ -668,7 +662,6 @@ func (cache *mapTxCache) Push(tx types.Tx) bool {
 	txHash := txKey(tx)
 	if moved, exists := cache.map_[txHash]; exists {
 		cache.list.MoveToBack(moved)
-
 		return false
 	}
 
@@ -682,7 +675,6 @@ func (cache *mapTxCache) Push(tx types.Tx) bool {
 	}
 	e := cache.list.PushBack(txHash)
 	cache.map_[txHash] = e
-
 	return true
 }
 

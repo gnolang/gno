@@ -119,7 +119,6 @@ type Inst struct {
 func (p *Prog) String() string {
 	var b strings.Builder
 	dumpProg(&b, p)
-
 	return b.String()
 }
 
@@ -282,7 +281,6 @@ func (i *Inst) MatchEmptyWidth(before rune, after rune) bool {
 func (i *Inst) String() string {
 	var b strings.Builder
 	dumpInst(&b, i)
-
 	return b.String()
 }
 

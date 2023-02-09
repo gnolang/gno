@@ -30,7 +30,6 @@ func NewLocalClient(mtx *sync.Mutex, app abci.Application) *localClient {
 		Application: app,
 	}
 	cli.BaseService = *service.NewBaseService(nil, "localClient", cli)
-
 	return cli
 }
 
@@ -47,7 +46,6 @@ func (app *localClient) Error() error {
 
 func (app *localClient) FlushAsync() *ReqRes {
 	// Do nothing
-
 	return newLocalReqRes(abci.RequestFlush{}, nil)
 }
 
@@ -66,7 +64,6 @@ func (app *localClient) InfoAsync(req abci.RequestInfo) *ReqRes {
 	defer app.mtx.Unlock()
 
 	res := app.Application.Info(req)
-
 	return app.completeRequest(req, res)
 }
 
@@ -75,7 +72,6 @@ func (app *localClient) SetOptionAsync(req abci.RequestSetOption) *ReqRes {
 	defer app.mtx.Unlock()
 
 	res := app.Application.SetOption(req)
-
 	return app.completeRequest(req, res)
 }
 
@@ -84,7 +80,6 @@ func (app *localClient) DeliverTxAsync(req abci.RequestDeliverTx) *ReqRes {
 	defer app.mtx.Unlock()
 
 	res := app.Application.DeliverTx(req)
-
 	return app.completeRequest(req, res)
 }
 
@@ -93,7 +88,6 @@ func (app *localClient) CheckTxAsync(req abci.RequestCheckTx) *ReqRes {
 	defer app.mtx.Unlock()
 
 	res := app.Application.CheckTx(req)
-
 	return app.completeRequest(req, res)
 }
 
@@ -102,7 +96,6 @@ func (app *localClient) QueryAsync(req abci.RequestQuery) *ReqRes {
 	defer app.mtx.Unlock()
 
 	res := app.Application.Query(req)
-
 	return app.completeRequest(req, res)
 }
 
@@ -111,7 +104,6 @@ func (app *localClient) CommitAsync() *ReqRes {
 	defer app.mtx.Unlock()
 
 	res := app.Application.Commit()
-
 	return app.completeRequest(abci.RequestCommit{}, res)
 }
 
@@ -120,7 +112,6 @@ func (app *localClient) InitChainAsync(req abci.RequestInitChain) *ReqRes {
 	defer app.mtx.Unlock()
 
 	res := app.Application.InitChain(req)
-
 	return app.completeRequest(req, res)
 }
 
@@ -129,7 +120,6 @@ func (app *localClient) BeginBlockAsync(req abci.RequestBeginBlock) *ReqRes {
 	defer app.mtx.Unlock()
 
 	res := app.Application.BeginBlock(req)
-
 	return app.completeRequest(req, res)
 }
 
@@ -138,11 +128,10 @@ func (app *localClient) EndBlockAsync(req abci.RequestEndBlock) *ReqRes {
 	defer app.mtx.Unlock()
 
 	res := app.Application.EndBlock(req)
-
 	return app.completeRequest(req, res)
 }
 
-// -------------------------------------------------------
+//-------------------------------------------------------
 
 func (app *localClient) FlushSync() error {
 	return nil
@@ -157,7 +146,6 @@ func (app *localClient) InfoSync(req abci.RequestInfo) (abci.ResponseInfo, error
 	defer app.mtx.Unlock()
 
 	res := app.Application.Info(req)
-
 	return res, nil
 }
 
@@ -166,7 +154,6 @@ func (app *localClient) SetOptionSync(req abci.RequestSetOption) (abci.ResponseS
 	defer app.mtx.Unlock()
 
 	res := app.Application.SetOption(req)
-
 	return res, nil
 }
 
@@ -175,7 +162,6 @@ func (app *localClient) DeliverTxSync(req abci.RequestDeliverTx) (abci.ResponseD
 	defer app.mtx.Unlock()
 
 	res := app.Application.DeliverTx(req)
-
 	return res, nil
 }
 
@@ -184,7 +170,6 @@ func (app *localClient) CheckTxSync(req abci.RequestCheckTx) (abci.ResponseCheck
 	defer app.mtx.Unlock()
 
 	res := app.Application.CheckTx(req)
-
 	return res, nil
 }
 
@@ -193,7 +178,6 @@ func (app *localClient) QuerySync(req abci.RequestQuery) (abci.ResponseQuery, er
 	defer app.mtx.Unlock()
 
 	res := app.Application.Query(req)
-
 	return res, nil
 }
 
@@ -202,7 +186,6 @@ func (app *localClient) CommitSync() (abci.ResponseCommit, error) {
 	defer app.mtx.Unlock()
 
 	res := app.Application.Commit()
-
 	return res, nil
 }
 
@@ -211,7 +194,6 @@ func (app *localClient) InitChainSync(req abci.RequestInitChain) (abci.ResponseI
 	defer app.mtx.Unlock()
 
 	res := app.Application.InitChain(req)
-
 	return res, nil
 }
 
@@ -220,7 +202,6 @@ func (app *localClient) BeginBlockSync(req abci.RequestBeginBlock) (abci.Respons
 	defer app.mtx.Unlock()
 
 	res := app.Application.BeginBlock(req)
-
 	return res, nil
 }
 
@@ -229,21 +210,18 @@ func (app *localClient) EndBlockSync(req abci.RequestEndBlock) (abci.ResponseEnd
 	defer app.mtx.Unlock()
 
 	res := app.Application.EndBlock(req)
-
 	return res, nil
 }
 
-// -------------------------------------------------------
+//-------------------------------------------------------
 
 func (app *localClient) completeRequest(req abci.Request, res abci.Response) *ReqRes {
 	app.Callback(req, res)
-
 	return newLocalReqRes(req, res)
 }
 
 func newLocalReqRes(req abci.Request, res abci.Response) *ReqRes {
 	reqRes := NewReqRes(req)
 	reqRes.SetResponse(res)
-
 	return reqRes
 }

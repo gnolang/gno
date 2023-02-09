@@ -568,7 +568,6 @@ func (d intPairs) inOrder() bool {
 		if lastA != d[i].a {
 			lastA = d[i].a
 			lastB = d[i].b
-
 			continue
 		}
 		if d[i].b <= lastB {

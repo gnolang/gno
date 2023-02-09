@@ -66,7 +66,6 @@ func ABCIQuery(ctx *rpctypes.Context, path string, data []byte, height int64, pr
 		return nil, err
 	}
 	logger.Info("ABCIQuery", "path", path, "data", data, "result", resQuery)
-
 	return &ctypes.ResultABCIQuery{Response: resQuery}, nil
 }
 
@@ -109,6 +108,5 @@ func ABCIInfo(ctx *rpctypes.Context) (*ctypes.ResultABCIInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return &ctypes.ResultABCIInfo{Response: resInfo}, nil
 }

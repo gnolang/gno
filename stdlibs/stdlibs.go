@@ -461,56 +461,48 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 func typedInt32(i32 int32) gno.TypedValue {
 	tv := gno.TypedValue{T: gno.Int32Type}
 	tv.SetInt32(i32)
-
 	return tv
 }
 
 func typedInt64(i64 int64) gno.TypedValue {
 	tv := gno.TypedValue{T: gno.Int64Type}
 	tv.SetInt64(i64)
-
 	return tv
 }
 
 func typedUint32(u32 uint32) gno.TypedValue {
 	tv := gno.TypedValue{T: gno.Uint32Type}
 	tv.SetUint32(u32)
-
 	return tv
 }
 
 func typedUint64(u64 uint64) gno.TypedValue {
 	tv := gno.TypedValue{T: gno.Uint64Type}
 	tv.SetUint64(u64)
-
 	return tv
 }
 
 func typedFloat32(f32 float32) gno.TypedValue {
 	tv := gno.TypedValue{T: gno.Float32Type}
 	tv.SetFloat32(f32)
-
 	return tv
 }
 
 func typedFloat64(f64 float64) gno.TypedValue {
 	tv := gno.TypedValue{T: gno.Float64Type}
 	tv.SetFloat64(f64)
-
 	return tv
 }
 
 func typedString(s gno.StringValue) gno.TypedValue {
 	tv := gno.TypedValue{T: gno.StringType}
 	tv.SetString(s)
-
 	return tv
 }
 
 func typedBool(b bool) gno.TypedValue {
 	tv := gno.TypedValue{T: gno.BoolType}
 	tv.SetBool(b)
-
 	return tv
 }
 
@@ -519,18 +511,15 @@ func typedByteArray(ln int, bz *gno.ArrayValue) gno.TypedValue {
 		panic("array length mismatch")
 	}
 	tv := gno.TypedValue{T: &gno.ArrayType{Len: ln, Elt: gno.Uint8Type}, V: bz}
-
 	return tv
 }
 
 func typedByteSlice(bz *gno.SliceValue) gno.TypedValue {
 	tv := gno.TypedValue{T: &gno.SliceType{Elt: gno.Uint8Type}, V: bz}
-
 	return tv
 }
 
 func typedNil(t gno.Type) gno.TypedValue {
 	tv := gno.TypedValue{T: t, V: nil}
-
 	return tv
 }

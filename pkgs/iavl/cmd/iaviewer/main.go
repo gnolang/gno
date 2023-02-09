@@ -70,7 +70,6 @@ func OpenDB(dir string) (dbm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return db, nil
 }
 
@@ -84,7 +83,6 @@ func ReadTree(dir string, version int) (*iavl.MutableTree, error) {
 	tree := iavl.NewMutableTree(db, DefaultCacheSize)
 	ver, err := tree.LoadVersion(int64(version))
 	fmt.Printf("Got version: %d\n", ver)
-
 	return tree, err
 }
 
@@ -94,7 +92,6 @@ func PrintKeys(tree *iavl.MutableTree) {
 		printKey := parseWeaveKey(key)
 		digest := sha256.Sum256(value)
 		fmt.Printf("  %s\n    %X\n", printKey, digest)
-
 		return false
 	})
 }
@@ -108,7 +105,6 @@ func parseWeaveKey(key []byte) string {
 	}
 	prefix := key[:cut]
 	id := key[cut+1:]
-
 	return fmt.Sprintf("%s:%s", encodeID(prefix), encodeID(id))
 }
 
@@ -119,7 +115,6 @@ func encodeID(id []byte) string {
 			return strings.ToUpper(hex.EncodeToString(id))
 		}
 	}
-
 	return string(id)
 }
 
@@ -137,7 +132,6 @@ func nodeEncoder(id []byte, depth int, isLeaf bool) string {
 	if len(id) == 0 {
 		return fmt.Sprintf("%s<nil>", prefix)
 	}
-
 	return fmt.Sprintf("%s%s", prefix, parseWeaveKey(id))
 }
 

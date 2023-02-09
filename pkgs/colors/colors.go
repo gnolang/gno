@@ -43,7 +43,6 @@ func treat(s string, color string) string {
 	if len(s) > 2 && s[:2] == "\x1b[" {
 		return s
 	}
-
 	return color + s + ANSIReset
 }
 
@@ -106,6 +105,5 @@ func ColoredBytes(data []byte, textColor, bytesColor func(...interface{}) string
 			s += bytesColor(fmt.Sprintf("%02X", b))
 		}
 	}
-
 	return s
 }

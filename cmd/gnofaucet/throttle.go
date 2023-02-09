@@ -20,14 +20,12 @@ func NewSubnetThrottler() *SubnetThrottler {
 	// st.ticker = time.NewTicker(time.Second)
 	st.ticker = time.NewTicker(time.Minute)
 	st.BaseService = *service.NewBaseService(nil, "SubnetThrottler", st)
-
 	return st
 }
 
 func (st *SubnetThrottler) OnStart() error {
 	st.BaseService.OnStart()
 	go st.routineTimer()
-
 	return nil
 }
 
@@ -58,6 +56,5 @@ func (st *SubnetThrottler) Request(ip net.IP) (allowed bool, reason string) {
 		return false, ">5"
 	}
 	st.subnets3[bucket3] += 1
-
 	return true, ""
 }

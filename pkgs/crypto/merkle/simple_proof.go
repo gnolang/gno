@@ -223,7 +223,6 @@ func trailsFromByteSlices(items [][]byte) (trails []*SimpleProofNode, root *Simp
 		leftRoot.Right = rightRoot
 		rightRoot.Parent = root
 		rightRoot.Left = leftRoot
-
 		return append(lefts, rights...), root
 	}
 }

@@ -585,7 +585,6 @@ func TestNewCoins(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.wantPanic {
 				require.Panics(t, func() { NewCoins(tt.coins...) })
-
 				return
 			}
 			got := NewCoins(tt.coins...)

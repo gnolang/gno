@@ -18,13 +18,11 @@ type IndexerService struct {
 func NewIndexerService(idr TxIndexer, evsw events.EventSwitch) *IndexerService {
 	is := &IndexerService{idr: idr, evsw: evsw}
 	is.BaseService = *service.NewBaseService(nil, "IndexerService", is)
-
 	return is
 }
 
 func (is *IndexerService) OnStart() error {
 	// TODO
-
 	return nil
 }
 

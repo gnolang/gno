@@ -357,7 +357,6 @@ func TestNewLineCharacters(t *testing.T) {
 		buf, err := StdEncoding.DecodeString(e)
 		if err != nil {
 			t.Errorf("Decode(%q) failed: %v", e, err)
-
 			continue
 		}
 		if s := string(buf); s != expected {

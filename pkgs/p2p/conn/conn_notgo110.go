@@ -31,7 +31,6 @@ func (p *pipe) SetDeadline(t time.Time) error {
 
 func NetPipe() (net.Conn, net.Conn) {
 	p1, p2 := net.Pipe()
-
 	return &pipe{p1}, &pipe{p2}
 }
 

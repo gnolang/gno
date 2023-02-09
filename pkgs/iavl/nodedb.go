@@ -69,7 +69,6 @@ func (ndb *nodeDB) GetNode(hash []byte) *Node {
 	if elem, ok := ndb.nodeCache[string(hash)]; ok {
 		// Already exists. Move to back of nodeCacheQueue.
 		ndb.nodeCacheQueue.MoveToBack(elem)
-
 		return elem.Value.(*Node)
 	}
 
@@ -260,7 +259,6 @@ func (ndb *nodeDB) getPreviousVersion(version int64) int64 {
 	for ; itr.Valid(); itr.Next() {
 		k := itr.Key()
 		rootKeyFormat.Scan(k, &pversion)
-
 		return pversion
 	}
 
@@ -350,7 +348,6 @@ func (ndb *nodeDB) getRootsCh() <-chan int64 {
 		})
 		close(ch)
 	}()
-
 	return ch
 }
 
@@ -364,7 +361,6 @@ func (ndb *nodeDB) getRoots() (map[int64][]byte, error) {
 		rootKeyFormat.Scan(k, &version)
 		roots[version] = v
 	})
-
 	return roots, nil
 }
 
@@ -397,7 +393,7 @@ func (ndb *nodeDB) saveRoot(hash []byte, version int64) error {
 	return nil
 }
 
-// //////////////// Utility and test functions /////////////////////////////////
+////////////////// Utility and test functions /////////////////////////////////
 
 func (ndb *nodeDB) leafNodes() []*Node {
 	leaves := []*Node{}
@@ -407,7 +403,6 @@ func (ndb *nodeDB) leafNodes() []*Node {
 			leaves = append(leaves, node)
 		}
 	})
-
 	return leaves
 }
 
@@ -417,7 +412,6 @@ func (ndb *nodeDB) nodes() []*Node {
 	ndb.traverseNodes(func(hash []byte, node *Node) {
 		nodes = append(nodes, node)
 	})
-
 	return nodes
 }
 
@@ -427,13 +421,11 @@ func (ndb *nodeDB) orphans() [][]byte {
 	ndb.traverseOrphans(func(k, v []byte) {
 		orphans = append(orphans, v)
 	})
-
 	return orphans
 }
 
 func (ndb *nodeDB) roots() map[int64][]byte {
 	roots, _ := ndb.getRoots()
-
 	return roots
 }
 
@@ -445,7 +437,6 @@ func (ndb *nodeDB) size() int {
 	ndb.traverse(func(k, v []byte) {
 		size++
 	})
-
 	return size
 }
 
@@ -498,6 +489,5 @@ func (ndb *nodeDB) String() string {
 		}
 		index++
 	})
-
 	return "-" + "\n" + str + "-"
 }

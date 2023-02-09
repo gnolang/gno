@@ -7,7 +7,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-// ----------------------------------------
+//----------------------------------------
 // Page
 
 // A Page has renderable Elem(ents).
@@ -114,7 +114,6 @@ func NewPage(s string, width int, isCode bool, style *Style) *Page {
 	page.Elems = elems
 	page.Measure()
 	page.SetIsDirty(true)
-
 	return page
 }
 
@@ -124,7 +123,6 @@ func (pg *Page) StringIndented(indent string) string {
 	for _, elem := range pg.Elems {
 		elines = append(elines, eindent+elem.StringIndented(eindent))
 	}
-
 	return fmt.Sprintf("Page%v@%p\n%s",
 		pg.Size,
 		pg,
@@ -144,7 +142,6 @@ func (pg *Page) NextCoord() Coord {
 		last.Measure()
 		lcoord := last.GetCoord()
 		lsize := last.GetSize()
-
 		return Coord{
 			X: pg.GetPadding().Left,
 			Y: lcoord.Y + lsize.Height, // no spacers by spec.
@@ -186,7 +183,6 @@ func (pg *Page) Measure() Size {
 		Height: maxY + pad.Bottom,
 	}
 	pg.Size = size
-
 	return size
 }
 
@@ -271,7 +267,6 @@ func (pg *Page) Render() (updated bool) {
 	for _, elem := range pg.Elems {
 		elem.Render()
 	}
-
 	return true
 }
 
@@ -339,7 +334,6 @@ func (pg *Page) ProcessEventKey(ev *EventKey) bool {
 		if pg.Cursor == -1 {
 			// as if pressed down
 			pg.IncCursor(true)
-
 			return true
 		}
 		// XXX this is a test.
@@ -395,7 +389,7 @@ func (pg *Page) DecCursor(isVertical bool) {
 	}
 }
 
-// ----------------------------------------
+//----------------------------------------
 // TextElem
 
 type TextElem struct {
@@ -418,7 +412,6 @@ func NewTextElem(text string, style *Style) *TextElem {
 	}
 	te.Measure()
 	te.SetIsDirty(true)
-
 	return te
 }
 
@@ -440,7 +433,6 @@ func (tel *TextElem) Measure() Size {
 		Width:  widthOf(tel.Text),
 	}
 	tel.Size = size
-
 	return size
 }
 
@@ -479,7 +471,6 @@ func (tel *TextElem) Render() (updated bool) {
 			"wrote %d cells but there are %d in buffer with text %q",
 			i, tel.Buffer.Width, tel.Text))
 	}
-
 	return true
 }
 
@@ -503,7 +494,7 @@ func (tel *TextElem) ProcessEventKey(ev *EventKey) bool {
 	return false // TODO: clipboard.
 }
 
-// ----------------------------------------
+//----------------------------------------
 // misc.
 
 type Color = tcell.Color
@@ -539,7 +530,6 @@ var (
 
 func (st *Style) Copy() *Style {
 	st2 := *st
-
 	return &st2
 }
 
@@ -605,7 +595,6 @@ func (st *Style) WithAttrs(attrs *Attrs) (res Style) {
 	if attrs.GetIsOccluded() {
 		res.SetIsShaded(true)
 	}
-
 	return
 }
 
@@ -625,7 +614,6 @@ func (st Style) GetTStyle() (tst tcell.Style) {
 		tst = tst.Background(tcell.ColorGray)
 	}
 	// TODO StyleFlags
-
 	return tst
 }
 
@@ -740,7 +728,7 @@ func (tt *Attrs) Merge(ot *Attrs) {
 	tt.Other = ot.Other // TODO merge by key.
 }
 
-// ----------------------------------------
+//----------------------------------------
 // AttrFlags
 
 // NOTE: AttrFlags are merged with a simple or-assign op.
@@ -764,7 +752,7 @@ type KVPair struct {
 	Value interface{}
 }
 
-// ----------------------------------------
+//----------------------------------------
 // computeIntersection()
 
 // els: element size
@@ -821,11 +809,10 @@ func computeIntersection(els Size, elo Coord, vws Size) (minX, maxX, minY, maxY 
 	} else {
 		maxY = vws.Height + elo.Y
 	}
-
 	return
 }
 
-// ----------------------------------------
+//----------------------------------------
 // Misc simple types
 
 type Padding struct {
@@ -979,7 +966,6 @@ func (sz Size) SubCoord(crd Coord) Size {
 	if !sz2.IsValid() {
 		panic("should not happen")
 	}
-
 	return sz2
 }
 

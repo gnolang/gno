@@ -52,7 +52,6 @@ func newTxCounter(txInt int64, msgInts ...int64) std.Tx {
 	tx := std.Tx{Msgs: msgs}
 	setCounter(&tx, txInt)
 	setFailOnHandler(&tx, false)
-
 	return tx
 }
 
@@ -65,7 +64,6 @@ func newBaseApp(name string, db dbm.DB, options ...func(*BaseApp)) *BaseApp {
 	app := NewBaseApp(name, logger, db, baseKey, mainKey, options...)
 	app.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, nil)
 	app.MountStoreWithDB(mainKey, iavl.StoreConstructor, nil)
-
 	return app
 }
 
@@ -78,7 +76,6 @@ func setupBaseApp(t *testing.T, options ...func(*BaseApp)) *BaseApp {
 	require.Equal(t, t.Name(), app.Name())
 	err := app.LoadLatestVersion()
 	require.Nil(t, err)
-
 	return app
 }
 
@@ -280,7 +277,6 @@ func TestInitChainer(t *testing.T) {
 	var initChainer InitChainer = func(ctx Context, req abci.RequestInitChain) abci.ResponseInitChain {
 		store := ctx.Store(mainKey)
 		store.Set(key, value)
-
 		return abci.ResponseInitChain{}
 	}
 
@@ -344,7 +340,6 @@ type testTxData struct {
 func getFailOnAnte(tx Tx) bool {
 	var testdata testTxData
 	amino.MustUnmarshalJSON([]byte(tx.Memo), &testdata)
-
 	return testdata.FailOnAnte
 }
 
@@ -361,7 +356,6 @@ func setFailOnAnte(tx *Tx, fail bool) {
 func getCounter(tx Tx) int64 {
 	var testdata testTxData
 	amino.MustUnmarshalJSON([]byte(tx.Memo), &testdata)
-
 	return testdata.Counter
 }
 
@@ -388,13 +382,11 @@ func anteHandlerTxTest(t *testing.T, capKey store.StoreKey, storeKey []byte) Ant
 		store := ctx.Store(capKey)
 		if getFailOnAnte(tx) {
 			res.Error = ABCIError(std.ErrInternal("ante handler failure"))
-
 			return newCtx, res, true
 		}
 
 		res = incrementingCounter(t, store, storeKey, getCounter(tx))
 		newCtx = ctx
-
 		return
 	}
 }
@@ -437,7 +429,6 @@ func (mch msgCounterHandler) Process(ctx Context, msg Msg) (res Result) {
 	case msgCounter:
 		if m.FailOnHandler {
 			res.Error = ABCIError(std.ErrInternal("message handler failure"))
-
 			return
 		}
 		msgCount = m.Counter
@@ -483,7 +474,6 @@ func incrementingCounter(t *testing.T, store store.Store, counterKey []byte, cou
 	storedCounter := getIntFromStore(store, counterKey)
 	require.Equal(t, storedCounter, counter)
 	setIntOnStore(store, counterKey, counter+1)
-
 	return
 }
 
@@ -660,7 +650,6 @@ func TestSimulateTx(t *testing.T) {
 		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
 			limit := gasConsumed
 			newCtx = ctx.WithGasMeter(store.NewGasMeter(limit))
-
 			return
 		})
 	}
@@ -668,7 +657,6 @@ func TestSimulateTx(t *testing.T) {
 	routerOpt := func(bapp *BaseApp) {
 		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
 			ctx.GasMeter().ConsumeGas(gasConsumed, "test")
-
 			return Result{GasUsed: ctx.GasMeter().GasConsumed()}
 		}))
 	}
@@ -719,7 +707,6 @@ func TestRunInvalidTransaction(t *testing.T) {
 	anteOpt := func(bapp *BaseApp) {
 		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
 			newCtx = ctx
-
 			return
 		})
 	}
@@ -814,7 +801,6 @@ func TestTxGasLimits(t *testing.T) {
 		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
 			count := msg.(msgCounter).Counter
 			ctx.GasMeter().ConsumeGas(count, "counter-handler")
-
 			return Result{}
 		}))
 	}
@@ -889,7 +875,6 @@ func TestMaxBlockGasLimits(t *testing.T) {
 		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
 			count := msg.(msgCounter).Counter
 			ctx.GasMeter().ConsumeGas(count, "counter-handler")
-
 			return Result{}
 		}))
 	}
@@ -1038,7 +1023,6 @@ func TestGasConsumptionBadTx(t *testing.T) {
 			newCtx.GasMeter().ConsumeGas(getCounter(tx), "counter-ante")
 			if getFailOnAnte(tx) {
 				res.Error = ABCIError(std.ErrInternal("ante handler failure"))
-
 				return newCtx, res, true
 			}
 
@@ -1053,7 +1037,6 @@ func TestGasConsumptionBadTx(t *testing.T) {
 		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
 			count := msg.(msgCounter).Counter
 			ctx.GasMeter().ConsumeGas(count, "counter-handler")
-
 			return Result{}
 		}))
 	}
@@ -1097,7 +1080,6 @@ func TestQuery(t *testing.T) {
 			newCtx = ctx
 			store := ctx.Store(mainKey)
 			store.Set(key, value)
-
 			return
 		})
 	}
@@ -1106,7 +1088,6 @@ func TestQuery(t *testing.T) {
 		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
 			store := ctx.Store(mainKey)
 			store.Set(key, value)
-
 			return Result{}
 		}))
 	}

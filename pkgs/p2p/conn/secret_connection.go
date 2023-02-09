@@ -148,7 +148,6 @@ func MakeSecretConnection(conn io.ReadWriteCloser, locPrivKey crypto.PrivKey) (*
 
 	// We've authorized.
 	sc.remPubKey = remPubKey
-
 	return sc, nil
 }
 
@@ -193,7 +192,6 @@ func (sc *SecretConnection) Write(data []byte) (n int, err error) {
 				return err
 			}
 			n += len(chunk)
-
 			return nil
 		}(); err != nil {
 			return n, err
@@ -299,13 +297,11 @@ func shareEphPubKey(conn io.ReadWriteCloser, locEphPub *[32]byte) (remEphPub *[3
 	// If error:
 	if trs.FirstError() != nil {
 		err = trs.FirstError()
-
 		return
 	}
 
 	// Otherwise:
 	_remEphPub := trs.FirstValue().([32]byte)
-
 	return &_remEphPub, nil
 }
 
@@ -363,7 +359,6 @@ func hasSmallOrder(pubKey [32]byte) bool {
 	for _, bl := range blacklist {
 		if subtle.ConstantTimeCompare(pubKey[:], bl[:]) == 1 {
 			isSmallOrderPoint = true
-
 			break
 		}
 	}
@@ -466,12 +461,10 @@ func shareAuthSignature(sc *SecretConnection, pubKey crypto.PubKey, signature []
 	// If error:
 	if trs.FirstError() != nil {
 		err = trs.FirstError()
-
 		return
 	}
 
 	_recvMsg := trs.FirstValue().(authSigMessage)
-
 	return _recvMsg, nil
 }
 

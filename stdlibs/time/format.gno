@@ -228,7 +228,7 @@ func nextStdChunk(layout string) (prefix string, std int, suffix string) {
 
 		case '_': // _2, _2006, __2
 			if len(layout) >= i+2 && layout[i+1] == '2' {
-				// _2006 is really a literal _, followed by stdLongYear
+				//_2006 is really a literal _, followed by stdLongYear
 				if len(layout) >= i+5 && layout[i+1:i+5] == "2006" {
 					return layout[0 : i+1], stdLongYear, layout[i+5:]
 				}
@@ -728,7 +728,6 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 			// to mean "the time zone as formatted for ISO 8601".
 			if offset == 0 && (std == stdISO8601TZ || std == stdISO8601ColonTZ || std == stdISO8601SecondsTZ || std == stdISO8601ShortTZ || std == stdISO8601ColonSecondsTZ) {
 				b = append(b, 'Z')
-
 				break
 			}
 			zone := offset / 60 // convert to minutes
@@ -759,7 +758,6 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 		case stdTZ:
 			if name != "" {
 				b = append(b, name...)
-
 				break
 			}
 			// No time zone known for this time, but we must print one.
@@ -904,7 +902,6 @@ func skip(value, prefix string) (string, error) {
 			}
 			prefix = cutspace(prefix)
 			value = cutspace(value)
-
 			continue
 		}
 		if len(value) == 0 || value[0] != prefix[0] {
@@ -1013,7 +1010,6 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		case stdYear:
 			if len(value) < 2 {
 				err = errBad
-
 				break
 			}
 			hold := value
@@ -1029,7 +1025,6 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		case stdLongYear:
 			if len(value) < 4 || !isDigit(value, 0) {
 				err = errBad
-
 				break
 			}
 			p, value = value[0:4], value[4:]
@@ -1094,7 +1089,6 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 				std &= stdMask
 				if std == stdFracSecond0 || std == stdFracSecond9 {
 					// Fractional second in the layout; proceed normally
-
 					break
 				}
 				// No fractional second in the layout but we have one in the input.
@@ -1107,7 +1101,6 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		case stdPM:
 			if len(value) < 2 {
 				err = errBad
-
 				break
 			}
 			p, value = value[0:2], value[2:]
@@ -1122,7 +1115,6 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		case stdpm:
 			if len(value) < 2 {
 				err = errBad
-
 				break
 			}
 			p, value = value[0:2], value[2:]
@@ -1138,52 +1130,44 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			if (std == stdISO8601TZ || std == stdISO8601ShortTZ || std == stdISO8601ColonTZ) && len(value) >= 1 && value[0] == 'Z' {
 				value = value[1:]
 				z = UTC
-
 				break
 			}
 			var sign, hour, min, seconds string
 			if std == stdISO8601ColonTZ || std == stdNumColonTZ {
 				if len(value) < 6 {
 					err = errBad
-
 					break
 				}
 				if value[3] != ':' {
 					err = errBad
-
 					break
 				}
 				sign, hour, min, seconds, value = value[0:1], value[1:3], value[4:6], "00", value[6:]
 			} else if std == stdNumShortTZ || std == stdISO8601ShortTZ {
 				if len(value) < 3 {
 					err = errBad
-
 					break
 				}
 				sign, hour, min, seconds, value = value[0:1], value[1:3], "00", "00", value[3:]
 			} else if std == stdISO8601ColonSecondsTZ || std == stdNumColonSecondsTZ {
 				if len(value) < 9 {
 					err = errBad
-
 					break
 				}
 				if value[3] != ':' || value[6] != ':' {
 					err = errBad
-
 					break
 				}
 				sign, hour, min, seconds, value = value[0:1], value[1:3], value[4:6], value[7:9], value[9:]
 			} else if std == stdISO8601SecondsTZ || std == stdNumSecondsTz {
 				if len(value) < 7 {
 					err = errBad
-
 					break
 				}
 				sign, hour, min, seconds, value = value[0:1], value[1:3], value[3:5], value[5:7], value[7:]
 			} else {
 				if len(value) < 5 {
 					err = errBad
-
 					break
 				}
 				sign, hour, min, seconds, value = value[0:1], value[1:3], value[3:5], "00", value[5:]
@@ -1214,7 +1198,6 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			n, ok := parseTimeZone(value)
 			if !ok {
 				err = errBad
-
 				break
 			}
 			zoneName, value = value[:n], value[n:]
@@ -1225,7 +1208,6 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			ndigit := 1 + digitsLen(std)
 			if len(value) < ndigit {
 				err = errBad
-
 				break
 			}
 			nsec, rangeErrString, err = parseNanoseconds(value, ndigit)
@@ -1508,13 +1490,11 @@ func leadingFraction(s string) (x uint64, scale float64, rem string) {
 		if x > (1<<63-1)/10 {
 			// It's possible for overflow to give a positive number, so take care.
 			overflow = true
-
 			continue
 		}
 		y := x*10 + uint64(c) - '0'
 		if y > 1<<63 {
 			overflow = true
-
 			continue
 		}
 		x = y

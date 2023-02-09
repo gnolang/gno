@@ -69,7 +69,6 @@ func (ids *mempoolIDs) nextPeerID() uint16 {
 	}
 	curID := ids.nextID
 	ids.nextID++
-
 	return curID
 }
 
@@ -109,7 +108,6 @@ func NewReactor(config *cfg.MempoolConfig, mempool *CListMempool) *Reactor {
 		ids:     newMempoolIDs(),
 	}
 	memR.BaseReactor = *p2p.NewBaseReactor("Reactor", memR)
-
 	return memR
 }
 
@@ -124,7 +122,6 @@ func (memR *Reactor) OnStart() error {
 	if !memR.config.Broadcast {
 		memR.Logger.Info("Tx broadcasting is disabled")
 	}
-
 	return nil
 }
 
@@ -159,7 +156,6 @@ func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 	if err != nil {
 		memR.Logger.Error("Error decoding mempool message", "src", src, "chId", chID, "msg", msg, "err", err, "bytes", msgBytes)
 		memR.Switch.StopPeerForError(src, err)
-
 		return
 	}
 	memR.Logger.Debug("Receive", "src", src, "chId", chID, "msg", msg)
@@ -222,12 +218,10 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 			// will be initialized before the consensus reactor. We should wait a few
 			// milliseconds and retry.
 			time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
-
 			continue
 		}
 		if peerState.GetHeight() < memTx.Height()-1 { // Allow for a lag of 1 block
 			time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
-
 			continue
 		}
 
@@ -238,7 +232,6 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 			success := peer.Send(MempoolChannel, amino.MustMarshalAny(msg))
 			if !success {
 				time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
-
 				continue
 			}
 		}
@@ -263,7 +256,6 @@ type MempoolMessage interface{}
 
 func (memR *Reactor) decodeMsg(bz []byte) (msg MempoolMessage, err error) {
 	err = amino.Unmarshal(bz, &msg)
-
 	return
 }
 

@@ -38,7 +38,6 @@ func MConnConfig(cfg *config.P2PConfig) conn.MConnConfig {
 	mConfig.SendRate = cfg.SendRate
 	mConfig.RecvRate = cfg.RecvRate
 	mConfig.MaxPacketMsgPayloadSize = cfg.MaxPacketMsgPayloadSize
-
 	return mConfig
 }
 
@@ -78,7 +77,6 @@ type Switch struct {
 // NetAddress returns the address the switch is listening on.
 func (sw *Switch) NetAddress() *NetAddress {
 	addr := sw.transport.NetAddress()
-
 	return &addr
 }
 
@@ -143,7 +141,6 @@ func (sw *Switch) AddReactor(name string, reactor Reactor) Reactor {
 	}
 	sw.reactors[name] = reactor
 	reactor.SetSwitch(sw)
-
 	return reactor
 }
 
@@ -155,7 +152,6 @@ func (sw *Switch) RemoveReactor(name string, reactor Reactor) {
 		for i := 0; i < len(sw.chDescs); i++ {
 			if chDesc.ID == sw.chDescs[i].ID {
 				sw.chDescs = append(sw.chDescs[:i], sw.chDescs[i+1:]...)
-
 				break
 			}
 		}
@@ -280,7 +276,6 @@ func (sw *Switch) NumPeers() (outbound, inbound, dialing int) {
 		}
 	}
 	dialing = sw.dialing.Size()
-
 	return
 }
 
@@ -364,7 +359,6 @@ func (sw *Switch) reconnectToPeer(addr *NetAddress) {
 		sw.Logger.Info("Error reconnecting to peer. Trying again", "tries", i, "err", err, "addr", addr)
 		// sleep a set amount
 		sw.randomSleep(reconnectInterval)
-
 		continue
 	}
 
@@ -416,7 +410,6 @@ func (sw *Switch) DialPeersAsync(peers []string) error {
 		return err
 	}
 	sw.dialPeersAsync(netAddrs)
-
 	return nil
 }
 
@@ -432,7 +425,6 @@ func (sw *Switch) dialPeersAsync(netAddrs []*NetAddress) {
 
 			if addr.Same(ourAddr) {
 				sw.Logger.Debug("Ignore attempt to connect to ourselves", "addr", addr, "ourAddr", ourAddr)
-
 				return
 			}
 
@@ -498,7 +490,6 @@ func (sw *Switch) AddPersistentPeers(addrs []string) error {
 		return err
 	}
 	sw.persistentPeersAddrs = netAddrs
-
 	return nil
 }
 
@@ -607,7 +598,6 @@ func (sw *Switch) addOutboundPeerWithConfig(
 	// XXX(xla): Remove the leakage of test concerns in implementation.
 	if cfg.TestDialFail {
 		go sw.reconnectToPeer(addr)
-
 		return fmt.Errorf("dial err (peerConfig.DialFail == true)")
 	}
 
@@ -687,7 +677,6 @@ func (sw *Switch) addPeer(p Peer) error {
 	if !sw.IsRunning() {
 		// XXX should this return an error or just log and terminate?
 		sw.Logger.Error("Won't start a peer - switch is not running", "peer", p)
-
 		return nil
 	}
 
@@ -703,7 +692,6 @@ func (sw *Switch) addPeer(p Peer) error {
 	if err != nil {
 		// Should never happen
 		sw.Logger.Error("Error starting peer", "err", err, "peer", p)
-
 		return err
 	}
 

@@ -33,7 +33,6 @@ func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value,
 	// NOTE: This doesn't match the binary implementation completely.
 	if nullBytes(bz) {
 		rv.Set(defaultValue(rv.Type()))
-
 		return
 	}
 
@@ -100,7 +99,6 @@ func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value,
 			}
 		}
 		bz = bz[1 : len(bz)-1]
-
 		fallthrough
 	case reflect.Int32, reflect.Int16, reflect.Int8,
 		reflect.Uint32, reflect.Uint16, reflect.Uint8:
@@ -113,7 +111,6 @@ func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value,
 		if !fopts.Unsafe {
 			return errors.New("amino:JSON float* support requires `amino:\"unsafe\"`")
 		}
-
 		fallthrough
 	case reflect.Bool, reflect.String:
 		err = invokeStdlibJSONUnmarshal(bz, rv, fopts)
@@ -142,7 +139,6 @@ func invokeStdlibJSONUnmarshal(bz []byte, rv reflect.Value, fopts FieldOptions) 
 		return err
 	}
 	rv.Set(rrv.Elem())
-
 	return nil
 }
 
@@ -208,7 +204,6 @@ func (cdc *Codec) decodeReflectJSONInterface(bz []byte, iinfo *TypeInfo, rv refl
 	err = cdc.decodeReflectJSON(bz, cinfo, crv, fopts)
 	if err != nil {
 		rv.Set(irvSet) // Helps with debugging
-
 		return
 	}
 
@@ -216,7 +211,6 @@ func (cdc *Codec) decodeReflectJSONInterface(bz []byte, iinfo *TypeInfo, rv refl
 	// is say, an array of bytes (e.g. [32]byte), then we must call
 	// rv.Set() *after* the value was acquired.
 	rv.Set(irvSet)
-
 	return err
 }
 
@@ -246,7 +240,6 @@ func (cdc *Codec) decodeReflectJSONArray(bz []byte, info *TypeInfo, rv reflect.V
 				len(buf), length)
 		}
 		reflect.Copy(rv, reflect.ValueOf(buf))
-
 		return
 
 	default: // General case.
@@ -263,7 +256,6 @@ func (cdc *Codec) decodeReflectJSONArray(bz []byte, info *TypeInfo, rv reflect.V
 		}
 		if len(rawSlice) != length {
 			err = fmt.Errorf("decodeReflectJSONArray: length mismatch, got %v want %v", len(rawSlice), length)
-
 			return
 		}
 
@@ -328,7 +320,6 @@ func (cdc *Codec) decodeReflectJSONSlice(bz []byte, info *TypeInfo, rv reflect.V
 		length := len(rawSlice)
 		if length == 0 {
 			rv.Set(info.ZeroValue)
-
 			return
 		}
 
@@ -346,7 +337,6 @@ func (cdc *Codec) decodeReflectJSONSlice(bz []byte, info *TypeInfo, rv reflect.V
 
 		// TODO do we need this extra step?
 		rv.Set(srv)
-
 		return
 	}
 }
@@ -420,19 +410,16 @@ func extractJSONTypeURL(bz []byte) (typeURL string, value json.RawMessage, err e
 	err = json.Unmarshal(bz, anyw)
 	if err != nil {
 		err = fmt.Errorf("cannot parse Any JSON wrapper: %w", err)
-
 		return
 	}
 
 	// Get typeURL.
 	if anyw.TypeURL == "" {
 		err = errors.New("JSON encoding of interfaces require non-empty @type field")
-
 		return
 	}
 	typeURL = anyw.TypeURL
 	value = anyw.Value
-
 	return
 }
 
@@ -440,32 +427,27 @@ func deriveJSONObject(bz []byte, typeURL string) (res []byte, err error) {
 	str := string(bz)
 	if len(bz) == 0 {
 		err = errors.New("expected JSON object but was empty")
-
 		return
 	}
 	if !strings.HasPrefix(str, "{") {
 		err = fmt.Errorf("expected JSON object but was not: %s", bz)
-
 		return
 	}
 	str = strings.TrimLeft(str, " \t\r\n")
 	if !strings.HasPrefix(str, "{") {
 		err = fmt.Errorf("expected JSON object representing Any to start with '{', but got %v", string(bz))
-
 		return
 	}
 	str = str[1:]
 	str = strings.TrimLeft(str, " \t\r\n")
 	if !strings.HasPrefix(str, `"@type"`) {
 		err = fmt.Errorf("expected JSON object representing Any to start with \"@type\" field, but got %v", string(bz))
-
 		return
 	}
 	str = str[7:]
 	str = strings.TrimLeft(str, " \t\r\n")
 	if !strings.HasPrefix(str, ":") {
 		err = fmt.Errorf("expected JSON object representing Any to start with \"@type\" field, but got %v", string(bz))
-
 		return
 	}
 	str = str[1:]
@@ -476,7 +458,6 @@ func deriveJSONObject(bz []byte, typeURL string) (res []byte, err error) {
 	}
 	str = str[2+len(typeURL):]
 	str = strings.TrimLeft(str, ",")
-
 	return []byte("{" + str), nil
 }
 
@@ -486,6 +467,5 @@ func nullBytes(b []byte) bool {
 
 func unquoteString(in string) (out string, err error) {
 	err = json.Unmarshal([]byte(in), &out)
-
 	return out, err
 }

@@ -154,7 +154,6 @@ func (pkl PrivKeyLedgerSecp256k1) Equals(other crypto.PrivKey) bool {
 	if otherKey, ok := other.(PrivKeyLedgerSecp256k1); ok {
 		return pkl.CachedPubKey.Equals(otherKey.CachedPubKey)
 	}
-
 	return false
 }
 
@@ -172,7 +171,6 @@ func convertDERtoBER(signatureDER []byte) ([]byte, error) {
 		return nil, err
 	}
 	sigBER := btcec.Signature{R: sigDER.R, S: sigDER.S}
-
 	return sigBER.Serialize(), nil
 }
 

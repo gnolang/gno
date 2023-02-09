@@ -265,7 +265,6 @@ func encodeReflectJSONWellKnown(w io.Writer, info *TypeInfo, rv reflect.Value, f
 			return false, err
 		}
 		_, err = w.Write(bz)
-
 		return true, err
 	}
 	return false, nil
@@ -286,7 +285,6 @@ func decodeReflectJSONWellKnown(bz []byte, info *TypeInfo, rv reflect.Value, fop
 			return false, err
 		}
 		rv.Set(reflect.ValueOf(t))
-
 		return true, nil
 	case durationType:
 		var d time.Duration
@@ -295,7 +293,6 @@ func decodeReflectJSONWellKnown(bz []byte, info *TypeInfo, rv reflect.Value, fop
 			return false, err
 		}
 		rv.Set(reflect.ValueOf(d))
-
 		return true, nil
 	// Google "well known" types.
 	case gTimestampType:
@@ -305,7 +302,6 @@ func decodeReflectJSONWellKnown(bz []byte, info *TypeInfo, rv reflect.Value, fop
 			return false, err
 		}
 		rv.Set(reflect.ValueOf(t))
-
 		return true, nil
 	case gDurationType:
 		var d durationpb.Duration
@@ -314,7 +310,6 @@ func decodeReflectJSONWellKnown(bz []byte, info *TypeInfo, rv reflect.Value, fop
 			return false, err
 		}
 		rv.Set(reflect.ValueOf(d))
-
 		return true, nil
 	// TODO: port each below to above without proto dependency
 	// for unmarshaling code, to minimize dependencies.
@@ -395,7 +390,6 @@ func decodeReflectBinaryWellKnown(bz []byte, info *TypeInfo, rv reflect.Value, f
 			return false, n, err
 		}
 		rv.Set(reflect.ValueOf(t))
-
 		return true, n, nil
 	case durationType:
 		var d time.Duration
@@ -405,7 +399,6 @@ func decodeReflectBinaryWellKnown(bz []byte, info *TypeInfo, rv reflect.Value, f
 			return false, n, err
 		}
 		rv.Set(reflect.ValueOf(d))
-
 		return true, n, nil
 	}
 	return false, 0, nil
@@ -426,13 +419,11 @@ func EncodeJSONTimeValue(w io.Writer, s int64, ns int32) (err error) {
 	x = strings.TrimSuffix(x, "000")
 	x = strings.TrimSuffix(x, ".000")
 	_, err = w.Write([]byte(fmt.Sprintf(`"%vZ"`, x)))
-
 	return err
 }
 
 func EncodeJSONTime(w io.Writer, t time.Time) (err error) {
 	t = t.Round(0).UTC()
-
 	return EncodeJSONTimeValue(w, t.Unix(), int32(t.Nanosecond()))
 }
 
@@ -459,7 +450,6 @@ func EncodeJSONDurationValue(w io.Writer, s int64, ns int32) (err error) {
 	x = strings.TrimSuffix(x, "000")
 	x = strings.TrimSuffix(x, ".000")
 	_, err = w.Write([]byte(fmt.Sprintf(`"%vs"`, x)))
-
 	return err
 }
 
@@ -480,7 +470,6 @@ func DecodeJSONTime(bz []byte, fopts FieldOptions) (t time.Time, err error) {
 	t, err = time.Parse(time.RFC3339Nano, v)
 	if err != nil {
 		err = fmt.Errorf("bad time: %w", err)
-
 		return
 	}
 	return
@@ -508,7 +497,6 @@ func DecodeJSONDuration(bz []byte, fopts FieldOptions) (d time.Duration, err err
 	d, err = time.ParseDuration(v)
 	if err != nil {
 		err = fmt.Errorf("bad time: %w", err)
-
 		return
 	}
 	return
@@ -519,7 +507,6 @@ func newPBDuration(d time.Duration) durationpb.Duration {
 	nanos := d.Nanoseconds()
 	secs := nanos / 1e9
 	nanos -= secs * 1e9
-
 	return durationpb.Duration{Seconds: secs, Nanos: int32(nanos)}
 }
 
@@ -534,6 +521,5 @@ func DecodeJSONPBDuration(bz []byte, fopts FieldOptions) (d durationpb.Duration,
 
 func IsEmptyTime(t time.Time) bool {
 	t = t.Round(0).UTC()
-
 	return t.Unix() == 0 && t.Nanosecond() == 0
 }

@@ -44,7 +44,6 @@ func (f *Foo) UnmarshalAmino(repr []pair) error {
 	f.b = repr[1].get("b").(int32)
 	f.c = repr[2].get("c").(FooList)
 	f.D = repr[3].get("D").(string)
-
 	return nil
 }
 

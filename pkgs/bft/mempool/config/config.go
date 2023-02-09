@@ -2,7 +2,7 @@ package config
 
 import "github.com/gnolang/gno/pkgs/errors"
 
-// -----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 // MempoolConfig
 
 // MempoolConfig defines the configuration options for the Tendermint mempool
@@ -34,7 +34,6 @@ func DefaultMempoolConfig() *MempoolConfig {
 func TestMempoolConfig() *MempoolConfig {
 	cfg := DefaultMempoolConfig()
 	cfg.CacheSize = 1000
-
 	return cfg
 }
 
@@ -60,6 +59,5 @@ func (cfg *MempoolConfig) ValidateBasic() error {
 	if cfg.CacheSize < 0 {
 		return errors.New("cache_size can't be negative")
 	}
-
 	return nil
 }

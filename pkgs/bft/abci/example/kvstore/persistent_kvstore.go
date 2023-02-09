@@ -55,7 +55,6 @@ func (app *PersistentKVStoreApplication) Info(req abci.RequestInfo) abci.Respons
 	res := app.app.Info(req)
 	res.LastBlockHeight = app.app.state.Height
 	res.LastBlockAppHash = app.app.state.AppHash
-
 	return res
 }
 
@@ -70,12 +69,10 @@ func (app *PersistentKVStoreApplication) DeliverTx(req abci.RequestDeliverTx) ab
 	if isValidatorTx(req.Tx) {
 		// update validators in the merkle tree
 		// and in app.ValSetChanges
-
 		return app.execValidatorTx(req.Tx)
 	}
 
 	// otherwise, update the key-value store
-
 	return app.app.DeliverTx(req)
 }
 
@@ -98,7 +95,6 @@ func (app *PersistentKVStoreApplication) Query(reqQuery abci.RequestQuery) (resQ
 
 		resQuery.Key = reqQuery.Data
 		resQuery.Value = value
-
 		return
 	default:
 		return app.app.Query(reqQuery)
@@ -171,7 +167,6 @@ func isValidatorKey(tx []byte) bool {
 
 func MakeValSetChangeTx(pubkey crypto.PubKey, power int64) []byte {
 	pubkeyS := base64.StdEncoding.EncodeToString(pubkey.Bytes())
-
 	return []byte(fmt.Sprintf("%s%s!%d", ValidatorUpdatePrefix, pubkeyS, power))
 }
 
@@ -189,7 +184,6 @@ func (app *PersistentKVStoreApplication) execValidatorTx(tx []byte) (res abci.Re
 	if len(pubKeyAndPower) != 2 {
 		res.Error = errors.EncodingError{}
 		res.Log = fmt.Sprintf("Expected 'pubkey!power'. Got %v", pubKeyAndPower)
-
 		return
 	}
 	pubkeyS, powerS := pubKeyAndPower[0], pubKeyAndPower[1]
@@ -199,7 +193,6 @@ func (app *PersistentKVStoreApplication) execValidatorTx(tx []byte) (res abci.Re
 	if err != nil {
 		res.Error = errors.EncodingError{}
 		res.Log = fmt.Sprintf("Pubkey (%s) is invalid base64", pubkeyS)
-
 		return
 	}
 	var pubkey crypto.PubKey
@@ -210,12 +203,10 @@ func (app *PersistentKVStoreApplication) execValidatorTx(tx []byte) (res abci.Re
 	if err != nil {
 		res.Error = errors.EncodingError{}
 		res.Log = fmt.Sprintf("Power (%s) is not an int", powerS)
-
 		return
 	}
 
 	// update
-
 	return app.updateValidator(abci.ValidatorUpdate{pubkey.Address(), pubkey, power})
 }
 
@@ -226,7 +217,6 @@ func (app *PersistentKVStoreApplication) updateValidator(val abci.ValidatorUpdat
 		if !app.app.state.db.Has(makeValidatorKey(val)) {
 			res.Error = errors.UnauthorizedError{}
 			res.Log = fmt.Sprintf("Cannot remove non-existent validator %s", val.PubKey.String())
-
 			return res
 		}
 		app.app.state.db.Delete(makeValidatorKey(val))

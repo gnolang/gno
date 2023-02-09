@@ -20,7 +20,7 @@ var (
 	ErrInvalidRoot = fmt.Errorf("invalid root")
 )
 
-// ----------------------------------------
+//----------------------------------------
 
 type proofInnerNode struct {
 	Height  int8   `json:"height"`
@@ -82,11 +82,10 @@ func (pin proofInnerNode) Hash(childHash []byte) []byte {
 	}
 
 	hasher.Write(buf.Bytes())
-
 	return hasher.Sum(nil)
 }
 
-// ----------------------------------------
+//----------------------------------------
 
 type proofLeafNode struct {
 	Key       []byte `json:"key"`
@@ -135,7 +134,7 @@ func (pln proofLeafNode) Hash() []byte {
 	return hasher.Sum(nil)
 }
 
-// ----------------------------------------
+//----------------------------------------
 
 // If the key does not exist, returns the path to the next leaf left of key (w/
 // path), except when key is less than the least item, in which case it returns
@@ -143,7 +142,6 @@ func (pln proofLeafNode) Hash() []byte {
 func (node *Node) PathToLeaf(t *ImmutableTree, key []byte) (PathToLeaf, *Node, error) {
 	path := new(PathToLeaf)
 	val, err := node.pathToLeaf(t, key, path)
-
 	return *path, val, err
 }
 
@@ -169,7 +167,6 @@ func (node *Node) pathToLeaf(t *ImmutableTree, key []byte, path *PathToLeaf) (*N
 		}
 		*path = append(*path, pin)
 		n, err := node.getLeftNode(t).pathToLeaf(t, key, path)
-
 		return n, err
 	}
 	// right side
@@ -182,6 +179,5 @@ func (node *Node) pathToLeaf(t *ImmutableTree, key []byte, path *PathToLeaf) (*N
 	}
 	*path = append(*path, pin)
 	n, err := node.getRightNode(t).pathToLeaf(t, key, path)
-
 	return n, err
 }

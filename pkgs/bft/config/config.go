@@ -83,7 +83,6 @@ func (cfg *Config) SetRootDir(root string) *Config {
 	cfg.P2P.RootDir = root
 	cfg.Mempool.RootDir = root
 	cfg.Consensus.RootDir = root
-
 	return cfg
 }
 
@@ -122,7 +121,7 @@ func (cfg *Config) ValidateBasic() error {
 	return nil
 }
 
-// -----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 // BaseConfig
 
 const (

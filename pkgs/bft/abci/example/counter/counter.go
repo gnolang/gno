@@ -67,7 +67,6 @@ func (app *CounterApplication) DeliverTx(req abci.RequestDeliverTx) abci.Respons
 		}
 	}
 	app.txCount++
-
 	return abci.ResponseDeliverTx{}
 }
 
@@ -93,7 +92,6 @@ func (app *CounterApplication) CheckTx(req abci.RequestCheckTx) abci.ResponseChe
 			}
 		}
 	}
-
 	return abci.ResponseCheckTx{}
 }
 
@@ -104,7 +102,6 @@ func (app *CounterApplication) Commit() (resp abci.ResponseCommit) {
 	}
 	hash := make([]byte, 8)
 	binary.BigEndian.PutUint64(hash, uint64(app.txCount))
-
 	return abci.ResponseCommit{ResponseBase: abci.ResponseBase{Data: hash}}
 }
 

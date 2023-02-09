@@ -27,7 +27,6 @@ type signerEndpoint struct {
 // Close closes the underlying net.Conn.
 func (se *signerEndpoint) Close() error {
 	se.DropConnection()
-
 	return nil
 }
 
@@ -35,7 +34,6 @@ func (se *signerEndpoint) Close() error {
 func (se *signerEndpoint) IsConnected() bool {
 	se.connMtx.Lock()
 	defer se.connMtx.Unlock()
-
 	return se.isConnected()
 }
 
@@ -50,7 +48,6 @@ func (se *signerEndpoint) GetAvailableConnection(connectionAvailableCh chan net.
 		return true
 	default:
 	}
-
 	return false
 }
 

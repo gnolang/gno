@@ -71,7 +71,6 @@ func StartProcess(label string, dir string, execPath string, args []string, stdi
 		}
 		close(proc.WaitCh)
 	}()
-
 	return proc, nil
 }
 

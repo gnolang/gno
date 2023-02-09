@@ -132,7 +132,6 @@ func (info *TypeInfo) String() string {
 		buf.Write([]byte(fmt.Sprintf("Fields:%v,", info.Fields)))
 	}
 	buf.Write([]byte("}"))
-
 	return buf.String()
 }
 
@@ -201,7 +200,6 @@ func NewCodec() *Codec {
 		usePBBindings:      false,
 	}
 	cdc.registerWellKnownTypes()
-
 	return cdc
 }
 
@@ -320,7 +318,6 @@ func (cdc *Codec) Seal() *Codec {
 	defer cdc.mtx.Unlock()
 
 	cdc.sealed = true
-
 	return cdc
 }
 
@@ -332,7 +329,6 @@ func (cdc *Codec) Autoseal() *Codec {
 		panic("already sealed")
 	}
 	cdc.autoseal = true
-
 	return cdc
 }
 
@@ -385,7 +381,6 @@ func (cdc *Codec) PrintTypes(out io.Writer) error {
 		}
 	}
 	// finish table
-
 	return nil
 }
 
@@ -399,7 +394,6 @@ func getLengthStr(info *TypeInfo) string {
 		reflect.Float32, reflect.Float64,
 		reflect.Complex64, reflect.Complex128:
 		s := info.Type.Size()
-
 		return fmt.Sprintf("0x%X", s)
 	default:
 		return "variable"
@@ -492,7 +486,6 @@ func (cdc *Codec) getTypeInfoWLock(rt reflect.Type) (info *TypeInfo, err error) 
 	defer cdc.mtx.Unlock()
 
 	info, err = cdc.getTypeInfoWLocked(rt)
-
 	return info, err
 }
 
@@ -516,7 +509,6 @@ func (cdc *Codec) getTypeInfoWLocked(rt reflect.Type) (info *TypeInfo, err error
 
 func (cdc *Codec) getTypeInfoFromTypeURLRLock(typeURL string, fopts FieldOptions) (info *TypeInfo, err error) {
 	fullname := typeURLtoFullname(typeURL)
-
 	return cdc.getTypeInfoFromFullnameRLock(fullname, fopts)
 }
 
@@ -530,13 +522,11 @@ func (cdc *Codec) getTypeInfoFromFullnameRLock(fullname string, fopts FieldOptio
 	if fullname == "google.protobuf.Timestamp" && !fopts.UseGoogleTypes {
 		cdc.mtx.RUnlock()
 		info, err = cdc.getTypeInfoWLock(timeType)
-
 		return
 	}
 	if fullname == "google.protobuf.Duration" && !fopts.UseGoogleTypes {
 		cdc.mtx.RUnlock()
 		info, err = cdc.getTypeInfoWLock(durationType)
-
 		return
 	}
 
@@ -544,11 +534,9 @@ func (cdc *Codec) getTypeInfoFromFullnameRLock(fullname string, fopts FieldOptio
 	if !ok {
 		err = fmt.Errorf("unrecognized concrete type full name %s of %v", fullname, cdc.fullnameToTypeInfo)
 		cdc.mtx.RUnlock()
-
 		return
 	}
 	cdc.mtx.RUnlock()
-
 	return
 }
 
@@ -743,7 +731,6 @@ func parseFieldOptions(field reflect.StructField) (skip bool, fopts FieldOptions
 	// NOTE: This skips binary as well.
 	if jsonTag == "-" {
 		skip = true
-
 		return
 	}
 

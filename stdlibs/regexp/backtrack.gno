@@ -50,7 +50,7 @@ func newBitState() *bitState {
 	// b, ok := bitStatePool.Get().(*bitState)
 	// if !ok {
 	b := new(bitState)
-	// }
+	//}
 	return b
 }
 
@@ -123,7 +123,6 @@ func (b *bitState) shouldVisit(pc uint32, pos int) bool {
 		return false
 	}
 	b.visited[n/visitedBits] |= 1 << (n & (visitedBits - 1))
-
 	return true
 }
 
@@ -183,12 +182,10 @@ func (re *Regexp) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 				// Finished inst.Out; try inst.Arg.
 				arg = false
 				pc = inst.Arg
-
 				goto CheckAndLoop
 			} else {
 				b.push(re, pc, pos, true)
 				pc = inst.Out
-
 				goto CheckAndLoop
 			}
 
@@ -200,13 +197,11 @@ func (re *Regexp) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 				b.push(re, inst.Arg, pos, false)
 				pc = inst.Arg
 				pos = b.end
-
 				goto CheckAndLoop
 			}
 			// inst.Out is the match - non-greedy
 			b.push(re, inst.Out, b.end, false)
 			pc = inst.Out
-
 			goto CheckAndLoop
 
 		case syntax.InstRune:
@@ -216,7 +211,6 @@ func (re *Regexp) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 			}
 			pos += width
 			pc = inst.Out
-
 			goto CheckAndLoop
 
 		case syntax.InstRune1:
@@ -226,7 +220,6 @@ func (re *Regexp) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 			}
 			pos += width
 			pc = inst.Out
-
 			goto CheckAndLoop
 
 		case syntax.InstRuneAnyNotNL:
@@ -236,7 +229,6 @@ func (re *Regexp) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 			}
 			pos += width
 			pc = inst.Out
-
 			goto CheckAndLoop
 
 		case syntax.InstRuneAny:
@@ -246,14 +238,12 @@ func (re *Regexp) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 			}
 			pos += width
 			pc = inst.Out
-
 			goto CheckAndLoop
 
 		case syntax.InstCapture:
 			if arg {
 				// Finished inst.Out; restore the old value.
 				b.cap[inst.Arg] = pos
-
 				continue
 			} else {
 				if inst.Arg < uint32(len(b.cap)) {
@@ -262,7 +252,6 @@ func (re *Regexp) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 					b.cap[inst.Arg] = pos
 				}
 				pc = inst.Out
-
 				goto CheckAndLoop
 			}
 
@@ -272,12 +261,10 @@ func (re *Regexp) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 				continue
 			}
 			pc = inst.Out
-
 			goto CheckAndLoop
 
 		case syntax.InstNop:
 			pc = inst.Out
-
 			goto CheckAndLoop
 
 		case syntax.InstMatch:
@@ -337,7 +324,6 @@ func (re *Regexp) backtrack(ib []byte, is string, pos int, ncap int, dstCap []in
 		}
 		if !re.tryBacktrack(b, i, uint32(re.prog.Start), pos) {
 			freeBitState(b)
-
 			return nil
 		}
 	} else {
@@ -354,7 +340,6 @@ func (re *Regexp) backtrack(ib []byte, is string, pos int, ncap int, dstCap []in
 				advance := i.index(re, pos)
 				if advance < 0 {
 					freeBitState(b)
-
 					return nil
 				}
 				pos += advance
@@ -370,13 +355,11 @@ func (re *Regexp) backtrack(ib []byte, is string, pos int, ncap int, dstCap []in
 			_, width = i.step(pos)
 		}
 		freeBitState(b)
-
 		return nil
 	}
 
 Match:
 	dstCap = append(dstCap, b.matchcap...)
 	freeBitState(b)
-
 	return dstCap
 }

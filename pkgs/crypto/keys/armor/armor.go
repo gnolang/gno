@@ -37,7 +37,6 @@ func armorBytes(bz []byte, blockType string) string {
 		"type":    "Info",
 		"version": "0.0.0",
 	}
-
 	return armor.EncodeArmor(blockType, header, bz)
 }
 
@@ -61,15 +60,12 @@ func unarmorBytes(armorStr, blockType string) (bz []byte, err error) {
 	}
 	if bType != blockType {
 		err = fmt.Errorf("unrecognized armor type %q, expected: %q", bType, blockType)
-
 		return
 	}
 	if header["version"] != "0.0.0" {
 		err = fmt.Errorf("unrecognized version: %v", header["version"])
-
 		return
 	}
-
 	return
 }
 
@@ -84,7 +80,6 @@ func EncryptArmorPrivKey(privKey crypto.PrivKey, passphrase string) string {
 		"salt": fmt.Sprintf("%X", saltBytes),
 	}
 	armorStr := armor.EncodeArmor(blockTypePrivKey, header, encBytes)
-
 	return armorStr
 }
 
@@ -99,7 +94,6 @@ func encryptPrivKey(privKey crypto.PrivKey, passphrase string) (saltBytes []byte
 	}
 	key = crypto.Sha256(key) // get 32 bytes
 	privKeyBytes := privKey.Bytes()
-
 	return saltBytes, xsalsa20symmetric.EncryptSymmetric(privKeyBytes, key)
 }
 
@@ -125,7 +119,6 @@ func UnarmorDecryptPrivKey(armorStr string, passphrase string) (crypto.PrivKey, 
 		return privKey, fmt.Errorf("error decoding salt: %v", err.Error())
 	}
 	privKey, err = decryptPrivKey(saltBytes, encBytes, passphrase)
-
 	return privKey, err
 }
 
@@ -142,6 +135,5 @@ func decryptPrivKey(saltBytes []byte, encBytes []byte, passphrase string) (privK
 		return privKey, err
 	}
 	privKey, err = crypto.PrivKeyFromBytes(privKeyBytes)
-
 	return privKey, err
 }

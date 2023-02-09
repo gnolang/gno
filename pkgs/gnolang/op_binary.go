@@ -351,7 +351,6 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 			}
 			lrv := lv.V.(*NativeValue).Value.Interface()
 			rrv := rv.V.(*NativeValue).Value.Interface()
-
 			return lrv == rrv
 		} else {
 			return false

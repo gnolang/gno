@@ -35,7 +35,6 @@ func NewTMLogger(w io.Writer) *tmLogger {
 			return colors.None
 		}
 	}
-
 	return &tmLogger{
 		level:   LevelDebug,
 		colorFn: colorFn,

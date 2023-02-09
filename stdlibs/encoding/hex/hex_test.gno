@@ -69,7 +69,6 @@ func TestDecodeString(t *testing.T) {
 		dst, err := DecodeString(test.enc)
 		if err != nil {
 			t.Errorf("#%d: unexpected err value: %s", i, err)
-
 			continue
 		}
 		if !bytes.Equal(dst, test.dec) {
@@ -124,13 +123,11 @@ func TestEncoderDecoder(t *testing.T) {
 			r := struct{ io.Reader }{bytes.NewReader(input)} // io.Reader only; not io.WriterTo
 			if n, err := io.CopyBuffer(enc, r, make([]byte, 7)); n != int64(len(input)) || err != nil {
 				t.Errorf("encoder.Write(%q*%d) = (%d, %v), want (%d, nil)", test.dec, multiplier, n, err, len(input))
-
 				continue
 			}
 
 			if encDst := buf.String(); encDst != output {
 				t.Errorf("buf(%q*%d) = %v, want %v", test.dec, multiplier, encDst, output)
-
 				continue
 			}
 
@@ -143,7 +140,6 @@ func TestEncoderDecoder(t *testing.T) {
 
 			if !bytes.Equal(decBuf.Bytes(), input) {
 				t.Errorf("decBuf(%q*%d) = %v, want %v", test.dec, multiplier, decBuf.Bytes(), input)
-
 				continue
 			}
 		}

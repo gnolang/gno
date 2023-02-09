@@ -17,7 +17,6 @@ func base64Encode(src []byte) []byte {
 	for dst[n-1] == '=' {
 		n--
 	}
-
 	return dst[:n]
 }
 
@@ -32,6 +31,5 @@ func base64Decode(src []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return dst[:n], nil
 }

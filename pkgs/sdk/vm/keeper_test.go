@@ -39,7 +39,6 @@ func Echo(msg string) string {
 	send := std.GetOrigSend()
 	banker := std.GetBanker(std.BankerTypeOrigSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
-	
 	return "echo:"+msg
 }`},
 	}

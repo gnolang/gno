@@ -69,7 +69,6 @@ func (pv PointerValue) String() string {
 	// NOTE: cannot do below, due to recursion problems.
 	// TODO: create a different String2(...) function.
 	// return fmt.Sprintf("&%s", v.TypedValue.String())
-
 	return fmt.Sprintf("&%p.(*%s)", pv.TV, pv.TV.T.String())
 }
 
@@ -180,13 +179,11 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 	// if implements .String(), return it.
 	if IsImplementedBy(gStringerType, tv.T) {
 		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "String")))
-
 		return res[0].GetString()
 	}
 	// if implements .Error(), return it.
 	if IsImplementedBy(gErrorType, tv.T) {
 		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "Error")))
-
 		return res[0].GetString()
 	}
 	// otherwise, default behavior.
@@ -246,7 +243,6 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 		switch fv := tv.V.(type) {
 		case nil:
 			ft := tv.T.String()
-
 			return "nil " + ft
 		case *FuncValue:
 			return fv.String()
@@ -335,6 +331,5 @@ func (tv TypedValue) String() string {
 		vs = fmt.Sprintf("%v", tv.V)
 	}
 	ts := tv.T.String()
-
 	return fmt.Sprintf("(%s %s)", vs, ts) // TODO improve
 }

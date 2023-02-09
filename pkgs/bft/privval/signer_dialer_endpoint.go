@@ -73,7 +73,6 @@ func (sd *SignerDialerEndpoint) ensureConnection() error {
 		} else {
 			sd.SetConnection(conn)
 			sd.Logger.Debug("SignerDialer: Connection Ready")
-
 			return nil
 		}
 	}

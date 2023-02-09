@@ -30,7 +30,6 @@ func main() {
 		temp.Mod(n, i)
 		if temp.Sign() == 0 {
 			fmt.Println(i)
-
 			break
 		}
 

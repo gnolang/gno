@@ -24,7 +24,6 @@ func CamelCase(s string) string {
 		}
 		if isASCIIDigit(c) {
 			t = append(t, c)
-
 			continue
 		}
 		// Assume we have a letter now - if not, it's a bogus identifier.

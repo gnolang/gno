@@ -543,7 +543,6 @@ func Repeat(s string, count int) string {
 			b.WriteString(b.String())
 		} else {
 			b.WriteString(b.String()[:n-b.Len()])
-
 			break
 		}
 	}
@@ -557,7 +556,6 @@ func ToUpper(s string) string {
 		c := s[i]
 		if c >= utf8.RuneSelf {
 			isASCII = false
-
 			break
 		}
 		hasLower = hasLower || ('a' <= c && c <= 'z')
@@ -588,7 +586,6 @@ func ToLower(s string) string {
 		c := s[i]
 		if c >= utf8.RuneSelf {
 			isASCII = false
-
 			break
 		}
 		hasUpper = hasUpper || ('A' <= c && c <= 'Z')
@@ -665,7 +662,6 @@ func ToValidUTF8(s, replacement string) string {
 			i++
 			invalid = false
 			b.WriteByte(c)
-
 			continue
 		}
 		_, wid := utf8.DecodeRuneInString(s[i:])

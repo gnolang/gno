@@ -9,6 +9,7 @@ package testing
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -101,7 +102,6 @@ func splitRegexp(s string) filterMatch {
 				a = append(a, s[:i])
 				s = s[i+1:]
 				i = 0
-
 				continue
 			}
 		case '|':
@@ -111,7 +111,6 @@ func splitRegexp(s string) filterMatch {
 				i = 0
 				b = append(b, a)
 				a = make(simpleMatch, 0, len(a))
-
 				continue
 			}
 		}

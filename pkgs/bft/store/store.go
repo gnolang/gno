@@ -36,7 +36,6 @@ type BlockStore struct {
 // initialized to the last height that was committed to the DB.
 func NewBlockStore(db dbm.DB) *BlockStore {
 	bsjson := LoadBlockStoreStateJSON(db)
-
 	return &BlockStore{
 		height: bsjson.Height,
 		db:     db,
@@ -47,7 +46,6 @@ func NewBlockStore(db dbm.DB) *BlockStore {
 func (bs *BlockStore) Height() int64 {
 	bs.mtx.RLock()
 	defer bs.mtx.RUnlock()
-
 	return bs.height
 }
 
@@ -71,7 +69,6 @@ func (bs *BlockStore) LoadBlock(height int64) *types.Block {
 		// block. So, make sure meta is only saved after blocks are saved.
 		panic(errors.Wrap(err, "Error reading block"))
 	}
-
 	return block
 }
 
@@ -88,7 +85,6 @@ func (bs *BlockStore) LoadBlockPart(height int64, index int) *types.Part {
 	if err != nil {
 		panic(errors.Wrap(err, "Error reading block part"))
 	}
-
 	return part
 }
 
@@ -104,7 +100,6 @@ func (bs *BlockStore) LoadBlockMeta(height int64) *types.BlockMeta {
 	if err != nil {
 		panic(errors.Wrap(err, "Error reading block meta"))
 	}
-
 	return blockMeta
 }
 
@@ -200,7 +195,7 @@ func (bs *BlockStore) saveBlockPart(height int64, index int, part *types.Part) {
 	bs.db.Set(calcBlockPartKey(height, index), partBytes)
 }
 
-// -----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
 func calcBlockMetaKey(height int64) []byte {
 	return []byte(fmt.Sprintf("H:%v", height))
@@ -218,7 +213,7 @@ func calcSeenCommitKey(height int64) []byte {
 	return []byte(fmt.Sprintf("SC:%v", height))
 }
 
-// -----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
 var blockStoreKey = []byte("blockStore")
 

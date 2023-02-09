@@ -113,7 +113,6 @@ func (e *CElement) Next() *CElement {
 	e.mtx.RLock()
 	val := e.next
 	e.mtx.RUnlock()
-
 	return val
 }
 
@@ -122,7 +121,6 @@ func (e *CElement) Prev() *CElement {
 	e.mtx.RLock()
 	prev := e.prev
 	e.mtx.RUnlock()
-
 	return prev
 }
 
@@ -130,7 +128,6 @@ func (e *CElement) Removed() bool {
 	e.mtx.RLock()
 	isRemoved := e.removed
 	e.mtx.RUnlock()
-
 	return isRemoved
 }
 
@@ -237,7 +234,6 @@ func (l *CList) Init() *CList {
 	l.tail = nil
 	l.len = 0
 	l.mtx.Unlock()
-
 	return l
 }
 
@@ -249,7 +245,6 @@ func New() *CList { return newWithMax(MaxLength) }
 func newWithMax(maxLength int) *CList {
 	l := new(CList)
 	l.maxLen = maxLength
-
 	return l.Init()
 }
 
@@ -264,7 +259,6 @@ func (l *CList) Front() *CElement {
 	l.mtx.RLock()
 	head := l.head
 	l.mtx.RUnlock()
-
 	return head
 }
 
@@ -288,7 +282,6 @@ func (l *CList) Back() *CElement {
 	l.mtx.RLock()
 	back := l.tail
 	l.mtx.RUnlock()
-
 	return back
 }
 
@@ -353,7 +346,6 @@ func (l *CList) PushBack(v interface{}) *CElement {
 		l.tail = e        // Update the list.
 	}
 	l.mtx.Unlock()
-
 	return e
 }
 
@@ -403,13 +395,11 @@ func (l *CList) Remove(e *CElement) interface{} {
 	e.SetRemoved()
 
 	l.mtx.Unlock()
-
 	return e.Value
 }
 
 func waitGroup1() (wg *sync.WaitGroup) {
 	wg = &sync.WaitGroup{}
 	wg.Add(1)
-
 	return
 }

@@ -100,7 +100,6 @@ func TestOverflow(t *testing.T) {
 		stream, err := NewCipher(make([]byte, test.NonceSize), key[:], 20)
 		if err != nil {
 			t.Errorf("Test %d: Failed to create cipher.Stream: %v", i, err)
-
 			continue
 		}
 		stream.SetCounter(test.Counter)

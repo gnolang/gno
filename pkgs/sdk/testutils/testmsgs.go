@@ -26,7 +26,6 @@ func (msg MsgCounter) ValidateBasic() error {
 	if msg.Counter >= 0 {
 		return nil
 	}
-
 	return std.ErrInvalidSequence("counter should be a non-negative integer.")
 }
 
@@ -51,6 +50,5 @@ func (msg MsgCounter2) ValidateBasic() error {
 	if msg.Counter >= 0 {
 		return nil
 	}
-
 	return std.ErrInvalidSequence("counter should be a non-negative integer.")
 }

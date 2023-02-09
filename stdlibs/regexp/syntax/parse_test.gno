@@ -276,7 +276,6 @@ func testParseDump(t *testing.T, tests []parseTest, flags Flags) {
 		re, err := Parse(tt.Regexp, flags)
 		if err != nil {
 			t.Errorf("Parse(%#q): %v", tt.Regexp, err)
-
 			continue
 		}
 		if tt.Dump == "" {
@@ -350,7 +349,6 @@ func dumpRegexp(b *strings.Builder, re *Regexp) {
 				for _, r := range re.Rune {
 					if unicode.SimpleFold(r) != r {
 						b.WriteString("fold")
-
 						break
 					}
 				}
@@ -555,7 +553,6 @@ func TestToStringEquivalentParse(t *testing.T) {
 		re, err := Parse(tt.Regexp, testFlags)
 		if err != nil {
 			t.Errorf("Parse(%#q): %v", tt.Regexp, err)
-
 			continue
 		}
 		if tt.Dump == "" {
@@ -565,7 +562,6 @@ func TestToStringEquivalentParse(t *testing.T) {
 		d := dump(re)
 		if d != tt.Dump {
 			t.Errorf("Parse(%#q).Dump() = %#q want %#q", tt.Regexp, d, tt.Dump)
-
 			continue
 		}
 
@@ -579,7 +575,6 @@ func TestToStringEquivalentParse(t *testing.T) {
 			nre, err := Parse(s, testFlags)
 			if err != nil {
 				t.Errorf("Parse(%#q.String() = %#q): %v", tt.Regexp, s, err)
-
 				continue
 			}
 			nd := dump(nre)

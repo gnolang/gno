@@ -152,7 +152,6 @@ func BroadcastTxSync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcas
 	}
 	res := <-resCh
 	r := res.(abci.ResponseCheckTx)
-
 	return &ctypes.ResultBroadcastTx{
 		Error: r.Error,
 		Data:  r.Data,
@@ -233,7 +232,6 @@ func BroadcastTxCommit(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadc
 	})
 	if err != nil {
 		logger.Error("Error on broadcastTxCommit", "err", err)
-
 		return nil, fmt.Errorf("error on broadcastTxCommit: %w", err)
 	}
 	checkTxResMsg := <-checkTxResCh
@@ -305,7 +303,6 @@ func UnconfirmedTxs(ctx *rpctypes.Context, limit int) (*ctypes.ResultUnconfirmed
 	limit = validatePerPage(limit)
 
 	txs := mempool.ReapMaxTxs(limit)
-
 	return &ctypes.ResultUnconfirmedTxs{
 		Count:      len(txs),
 		Total:      mempool.Size(),
@@ -389,7 +386,6 @@ func newTxDispatcher(evsw events.EventSwitch) *txDispatcher {
 
 func (td *txDispatcher) OnStart() error {
 	go td.listenRoutine()
-
 	return nil
 }
 

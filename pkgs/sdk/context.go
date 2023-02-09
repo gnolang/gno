@@ -57,7 +57,6 @@ func (c Context) EventLogger() *EventLogger     { return c.eventLogger }
 // clone the header before returning
 func (c Context) BlockHeader() abci.Header {
 	msg := amino.DeepCopy(&c.header).(*abci.Header)
-
 	return *msg
 }
 
@@ -85,79 +84,66 @@ func NewContext(mode RunTxMode, ms store.MultiStore, header abci.Header, logger 
 
 func (c Context) WithContext(ctx context.Context) Context {
 	c.ctx = ctx
-
 	return c
 }
 
 func (c Context) WithMode(mode RunTxMode) Context {
 	c.mode = mode
-
 	return c
 }
 
 func (c Context) WithMultiStore(ms store.MultiStore) Context {
 	c.ms = ms
-
 	return c
 }
 
 func (c Context) WithBlockHeader(header abci.Header) Context {
 	c.header = header
-
 	return c
 }
 
 func (c Context) WithChainID(chainID string) Context {
 	c.chainID = chainID
-
 	return c
 }
 
 func (c Context) WithTxBytes(txBytes []byte) Context {
 	c.txBytes = txBytes
-
 	return c
 }
 
 func (c Context) WithLogger(logger log.Logger) Context {
 	c.logger = logger
-
 	return c
 }
 
 func (c Context) WithVoteInfos(voteInfo []abci.VoteInfo) Context {
 	c.voteInfo = voteInfo
-
 	return c
 }
 
 func (c Context) WithGasMeter(meter store.GasMeter) Context {
 	c.gasMeter = meter
-
 	return c
 }
 
 func (c Context) WithBlockGasMeter(meter store.GasMeter) Context {
 	c.blockGasMeter = meter
-
 	return c
 }
 
 func (c Context) WithMinGasPrices(gasPrices []GasPrice) Context {
 	c.minGasPrices = gasPrices
-
 	return c
 }
 
 func (c Context) WithConsensusParams(params *abci.ConsensusParams) Context {
 	c.consParams = params
-
 	return c
 }
 
 func (c Context) WithEventLogger(em *EventLogger) Context {
 	c.eventLogger = em
-
 	return c
 }
 
@@ -173,7 +159,6 @@ func (c Context) WithEventLogger(em *EventLogger) Context {
 // NOTE: why?
 func (c Context) WithValue(key, value interface{}) Context {
 	c.ctx = context.WithValue(c.ctx, key, value)
-
 	return c
 }
 
@@ -207,7 +192,6 @@ func (c Context) Store(key store.StoreKey) store.Store {
 func (c Context) CacheContext() (cc Context, writeCache func()) {
 	cms := c.MultiStore().MultiCacheWrap()
 	cc = c.WithMultiStore(cms).WithEventLogger(NewEventLogger())
-
 	return cc, cms.MultiWrite
 }
 

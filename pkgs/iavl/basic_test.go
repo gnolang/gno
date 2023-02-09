@@ -112,7 +112,6 @@ func TestUnit(t *testing.T) {
 		// nuke hashes and reconstruct hash, ensure it's the same.
 		tree.root.traverse(tree, true, func(node *Node) bool {
 			node.hash = nil
-
 			return false
 		})
 		// ensure that the new hash after nuking is the same as the old.
@@ -314,7 +313,6 @@ func TestIterateRange(t *testing.T) {
 	viewed := []string{}
 	tree.Iterate(func(key []byte, value []byte) bool {
 		viewed = append(viewed, string(key))
-
 		return false
 	})
 	if len(viewed) != len(keys) {

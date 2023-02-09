@@ -26,7 +26,6 @@ func (privKey PrivKeySecp256k1) Sign(msg []byte) ([]byte, error) {
 		return nil, err
 	}
 	sigBytes := serializeSig(sig)
-
 	return sigBytes, nil
 }
 
@@ -47,7 +46,6 @@ func (pubKey PubKeySecp256k1) VerifyBytes(msg []byte, sigStr []byte) bool {
 	if signature.S.Cmp(secp256k1halfN) > 0 {
 		return false
 	}
-
 	return signature.Verify(crypto.Sha256(msg), pub)
 }
 
@@ -69,6 +67,5 @@ func serializeSig(sig *secp256k1.Signature) []byte {
 	// 0 pad the byte arrays from the left if they aren't big enough.
 	copy(sigBytes[32-len(rBytes):32], rBytes)
 	copy(sigBytes[64-len(sBytes):64], sBytes)
-
 	return sigBytes
 }

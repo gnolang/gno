@@ -53,7 +53,6 @@ func NewTestReactor(channels []*conn.ChannelDescriptor, logMessages bool) *TestR
 	}
 	tr.BaseReactor = *NewBaseReactor("TestReactor", tr)
 	tr.SetLogger(log.TestingLogger())
-
 	return tr
 }
 
@@ -78,7 +77,6 @@ func (tr *TestReactor) Receive(chID byte, peer Peer, msgBytes []byte) {
 func (tr *TestReactor) getMsgs(chID byte) []PeerMessage {
 	tr.mtx.Lock()
 	defer tr.mtx.Unlock()
-
 	return tr.msgsReceived[chID]
 }
 
@@ -89,7 +87,6 @@ func (tr *TestReactor) getMsgs(chID byte) []PeerMessage {
 func MakeSwitchPair(_ testing.TB, initSwitch func(int, *Switch) *Switch) (*Switch, *Switch) {
 	// Create two switches that will be interconnected.
 	switches := MakeConnectedSwitches(cfg, 2, initSwitch, Connect2Switches)
-
 	return switches[0], switches[1]
 }
 
@@ -226,7 +223,6 @@ func TestSwitchPeerFilterTimeout(t *testing.T) {
 		filters = []PeerFilterFunc{
 			func(_ IPeerSet, _ Peer) error {
 				time.Sleep(10 * time.Millisecond)
-
 				return nil
 			},
 		}
@@ -612,7 +608,6 @@ func TestFlappySwitchInitPeerIsNotCalledBeforeRemovePeer(t *testing.T) {
 	// make switch
 	sw := MakeSwitch(cfg, 1, "testing", "123.123.123", func(i int, sw *Switch) *Switch {
 		sw.AddReactor("mock", reactor)
-
 		return sw
 	})
 	err := sw.Start()
@@ -652,7 +647,6 @@ func BenchmarkSwitchBroadcast(b *testing.B) {
 			{ID: byte(0x02), Priority: 10},
 			{ID: byte(0x03), Priority: 10},
 		}, false))
-
 		return sw
 	})
 	defer s1.Stop()

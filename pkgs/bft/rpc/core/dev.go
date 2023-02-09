@@ -11,7 +11,6 @@ import (
 // UnsafeFlushMempool removes all transactions from the mempool.
 func UnsafeFlushMempool(ctx *rpctypes.Context) (*ctypes.ResultUnsafeFlushMempool, error) {
 	mempool.Flush()
-
 	return &ctypes.ResultUnsafeFlushMempool{}, nil
 }
 

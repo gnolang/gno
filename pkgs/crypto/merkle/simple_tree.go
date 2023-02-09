@@ -16,7 +16,6 @@ func SimpleHashFromByteSlices(items [][]byte) []byte {
 		k := getSplitPoint(len(items))
 		left := SimpleHashFromByteSlices(items[:k])
 		right := SimpleHashFromByteSlices(items[k:])
-
 		return innerHash(left, right)
 	}
 }

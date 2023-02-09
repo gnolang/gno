@@ -141,7 +141,6 @@ func (arz *ABCIResponses) Bytes() []byte {
 
 func (arz *ABCIResponses) ResultsHash() []byte {
 	results := types.NewResults(arz.DeliverTxs)
-
 	return results.Hash()
 }
 
@@ -222,7 +221,6 @@ func LoadValidators(db dbm.DB, height int64) (*types.ValidatorSet, error) {
 
 func lastStoredHeightFor(height, lastHeightChanged int64) int64 {
 	checkpointHeight := height - height%valSetCheckpointInterval
-
 	return maths.MaxInt64(checkpointHeight, lastHeightChanged)
 }
 

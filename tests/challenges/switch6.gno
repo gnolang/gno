@@ -7,7 +7,6 @@ func main() {
 		println(200)
 	case a == 3:
 		println(100)
-
 		fallthrough
 	default:
 		println(a, b)

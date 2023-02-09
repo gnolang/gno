@@ -214,24 +214,20 @@ func (s *Scanner) Scan() bool {
 			n, err := s.r.Read(s.buf[s.end:len(s.buf)])
 			if n < 0 || len(s.buf)-s.end < n {
 				s.setErr(ErrBadReadCount)
-
 				break
 			}
 			s.end += n
 			if err != nil {
 				s.setErr(err)
-
 				break
 			}
 			if n > 0 {
 				s.empties = 0
-
 				break
 			}
 			loop++
 			if loop > maxConsecutiveEmptyReads {
 				s.setErr(io.ErrNoProgress)
-
 				break
 			}
 		}

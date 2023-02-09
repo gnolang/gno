@@ -27,7 +27,6 @@ func (msg *TestMsg) GetSignBytes() []byte {
 	if err != nil {
 		panic(err)
 	}
-
 	return std.MustSortJSON(bz)
 }
 func (msg *TestMsg) ValidateBasic() error { return nil }
@@ -51,7 +50,6 @@ func KeyTestPubAddr() (crypto.PrivKey, crypto.PubKey, crypto.Address) {
 	key := secp256k1.GenPrivKey()
 	pub := key.PubKey()
 	addr := pub.Address()
-
 	return key, pub, addr
 }
 
@@ -69,7 +67,6 @@ func NewTestTx(chainID string, msgs []std.Msg, privs []crypto.PrivKey, accNums [
 	}
 
 	tx := std.NewTx(msgs, fee, sigs, "")
-
 	return tx
 }
 
@@ -87,7 +84,6 @@ func NewTestTxWithMemo(chainID string, msgs []std.Msg, privs []crypto.PrivKey, a
 	}
 
 	tx := std.NewTx(msgs, fee, sigs, memo)
-
 	return tx
 }
 
@@ -103,7 +99,6 @@ func NewTestTxWithSignBytes(msgs []std.Msg, privs []crypto.PrivKey, accNums []ui
 	}
 
 	tx := std.NewTx(msgs, fee, sigs, memo)
-
 	return tx
 }
 
@@ -117,7 +112,6 @@ func TestAddress(name string) crypto.Address {
 	blanks := "____________________"
 	copy(addr[:], []byte(blanks))
 	copy(addr[:], []byte(name))
-
 	return addr
 }
 

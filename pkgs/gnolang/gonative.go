@@ -228,7 +228,6 @@ func (ds *defaultStore) Go2GnoType(rt reflect.Type) (t Type) {
 		at.Len = rt.Len()
 		at.Elt = go2GnoType(rt.Elem())
 		at.Vrd = false
-
 		return at
 	case reflect.Slice:
 		return &SliceType{
@@ -243,7 +242,6 @@ func (ds *defaultStore) Go2GnoType(rt reflect.Type) (t Type) {
 		chdir := toChanDir(rt.ChanDir())
 		ct.Dir = chdir
 		ct.Elt = go2GnoType(rt.Elem())
-
 		return ct
 	case reflect.Func:
 		return ds.go2GnoFuncType(rt)
@@ -263,7 +261,6 @@ func (ds *defaultStore) Go2GnoType(rt reflect.Type) (t Type) {
 		}
 		it.PkgPath = rt.PkgPath()
 		it.Methods = fs
-
 		return it
 	case reflect.Map:
 		// predefine gno type
@@ -272,7 +269,6 @@ func (ds *defaultStore) Go2GnoType(rt reflect.Type) (t Type) {
 		// define gno type
 		mt.Key = go2GnoType(rt.Key())
 		mt.Value = go2GnoType(rt.Elem())
-
 		return mt
 	case reflect.Ptr:
 		return &PointerType{
@@ -294,7 +290,6 @@ func (ds *defaultStore) Go2GnoType(rt reflect.Type) (t Type) {
 		}
 		st.PkgPath = rt.PkgPath()
 		st.Fields = fs
-
 		return st
 	case reflect.UnsafePointer:
 		panic("not yet implemented")
@@ -337,7 +332,6 @@ func (ds *defaultStore) go2GnoFuncType(rt reflect.Type) *FuncType {
 	}
 	ft.Params = ins
 	ft.Results = outs
-
 	return ft
 }
 
@@ -379,7 +373,6 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 		rt := rv.Type()
 		tv.T = alloc.NewType(&NativeType{Type: rt})
 		tv.V = alloc.NewNative(rv)
-
 		return
 	}
 	tv.T = alloc.NewType(go2GnoType(rv.Type()))
@@ -843,16 +836,13 @@ func gno2GoType(t Type) reflect.Type {
 		}
 	case *PointerType:
 		et := gno2GoType(ct.Elem())
-
 		return reflect.PtrTo(et)
 	case *ArrayType:
 		ne := ct.Len
 		et := gno2GoType(ct.Elem())
-
 		return reflect.ArrayOf(ne, et)
 	case *SliceType:
 		et := gno2GoType(ct.Elem())
-
 		return reflect.SliceOf(et)
 	case *StructType:
 		gfs := make([]reflect.StructField, len(ct.Fields))
@@ -877,7 +867,6 @@ func gno2GoType(t Type) reflect.Type {
 	case *MapType:
 		kt := gno2GoType(ct.Key)
 		vt := gno2GoType(ct.Value)
-
 		return reflect.MapOf(kt, vt)
 	case *FuncType:
 		panic("not yet supported")
@@ -885,7 +874,6 @@ func gno2GoType(t Type) reflect.Type {
 		if ct.IsEmptyInterface() {
 			// XXX move out
 			rt := reflect.TypeOf((*interface{})(nil)).Elem()
-
 			return rt
 		} else {
 			// NOTE: can this be implemented in go1.15? i think not.

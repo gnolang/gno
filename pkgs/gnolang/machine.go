@@ -14,7 +14,7 @@ import (
 	"github.com/gnolang/gno/pkgs/std"
 )
 
-// ----------------------------------------
+//----------------------------------------
 // Machine
 
 type Machine struct {
@@ -130,7 +130,7 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 	}
 }
 
-// ----------------------------------------
+//----------------------------------------
 // top level Run* methods.
 
 // Upon restart, preprocess all MemPackage and save blocknodes.
@@ -162,7 +162,7 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	}
 }
 
-// ----------------------------------------
+//----------------------------------------
 // top level Run* methods.
 
 // Parses files, sets the package if doesn't exist, runs files, saves mempkg
@@ -289,7 +289,6 @@ func (m *Machine) injectLocOnPanic() {
 				expr := m.Exprs[i]
 				if expr.GetLine() > 0 {
 					lastLine = expr.GetLine()
-
 					break
 				}
 			}
@@ -299,7 +298,6 @@ func (m *Machine) injectLocOnPanic() {
 				stmt := m.Stmts[i]
 				if stmt.GetLine() > 0 {
 					lastLine = stmt.GetLine()
-
 					break
 				}
 			}
@@ -315,7 +313,6 @@ func (m *Machine) injectLocOnPanic() {
 				if lastLine > 0 {
 					lastLoc.Line = lastLine
 				}
-
 				break
 			}
 		}
@@ -572,7 +569,6 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 	m.PushOp(OpEval)
 	m.Run()
 	res := m.ReapValues(start)
-
 	return res
 }
 
@@ -689,7 +685,7 @@ func (m *Machine) runDeclaration(d Decl) {
 	}
 }
 
-// ----------------------------------------
+//----------------------------------------
 // Op
 
 type Op uint8
@@ -819,7 +815,7 @@ const (
 	OpReturnCallDefers  Op = 0xD7 // TODO rename?
 )
 
-// ----------------------------------------
+//----------------------------------------
 // "CPU" steps.
 
 func (m *Machine) incrCPU(cycles int64) {
@@ -953,7 +949,7 @@ const (
 	OpCPUReturnCallDefers  = 1
 )
 
-// ----------------------------------------
+//----------------------------------------
 // main run loop.
 
 func (m *Machine) Run() {
@@ -967,7 +963,6 @@ func (m *Machine) Run() {
 			return
 		case OpNoop:
 			m.incrCPU(OpCPUNoop)
-
 			continue
 		case OpExec:
 			m.incrCPU(OpCPUExec)
@@ -1286,7 +1281,7 @@ func (m *Machine) Run() {
 	}
 }
 
-// ----------------------------------------
+//----------------------------------------
 // push pop methods.
 
 func (m *Machine) PushOp(op Op) {
@@ -1807,7 +1802,7 @@ func (m *Machine) Panic(ex TypedValue) {
 	m.PushOp(OpReturnCallDefers)
 }
 
-// ----------------------------------------
+//----------------------------------------
 // inspection methods
 
 func (m *Machine) Println(args ...interface{}) {
@@ -1868,14 +1863,12 @@ func (m *Machine) String() string {
 		switch bp := b.Parent.(type) {
 		case nil:
 			b = nil
-
 			break
 		case *Block:
 			b = bp
 		case RefValue:
 			bs = append(bs, fmt.Sprintf("            (block ref %v)", bp.ObjectID))
 			b = nil
-
 			break
 		default:
 			panic("should not happen")
@@ -1940,7 +1933,7 @@ func (m *Machine) String() string {
 	)
 }
 
-// ----------------------------------------
+//----------------------------------------
 // utility
 
 func hasName(n Name, ns []Name) bool {

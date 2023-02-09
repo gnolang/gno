@@ -29,7 +29,6 @@ func broadcastApp(cmd *command.Command, args []string, iopts interface{}) error 
 
 	if len(args) != 1 {
 		cmd.ErrPrintfln("Usage: broadcast <filename>")
-
 		return errors.New("invalid args")
 	}
 	filename := args[0]
@@ -60,7 +59,6 @@ func broadcastApp(cmd *command.Command, args []string, iopts interface{}) error 
 		cmd.Println("GAS WANTED:", res.DeliverTx.GasWanted)
 		cmd.Println("GAS USED:  ", res.DeliverTx.GasUsed)
 	}
-
 	return nil
 }
 

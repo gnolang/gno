@@ -47,7 +47,6 @@ func setRandomKVPairs(store types.Store) []kvpair {
 	for _, kvp := range kvps {
 		store.Set(kvp.key, kvp.value)
 	}
-
 	return kvps
 }
 
@@ -256,7 +255,6 @@ func mockStoreWithStuff() types.Store {
 	store.Set(bz("k"), bz("g"))
 	store.Set(bz("ke"), bz("valu"))
 	store.Set(bz("kee"), bz("valuu"))
-
 	return store
 }
 

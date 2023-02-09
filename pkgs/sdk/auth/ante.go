@@ -57,7 +57,6 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 					tx.Fee.GasWanted, consParams.Block.MaxGas,
 				),
 			))
-
 			return ctx, res, true
 		}
 
@@ -164,7 +163,6 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		}
 
 		// TODO: tx tags (?)
-
 		return newCtx, sdk.Result{GasWanted: tx.Fee.GasWanted}, false // continue...
 	}
 }
@@ -175,7 +173,6 @@ func GetSignerAcc(ctx sdk.Context, ak AccountKeeper, addr crypto.Address) (std.A
 	if acc := ak.GetAccount(ctx, addr); acc != nil {
 		return acc, sdk.Result{}
 	}
-
 	return nil, abciResult(std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist", addr)))
 }
 
@@ -312,12 +309,10 @@ func DefaultSigVerificationGasConsumer(
 	switch pubkey := pubkey.(type) {
 	case ed25519.PubKeyEd25519:
 		meter.ConsumeGas(params.SigVerifyCostED25519, "ante verify: ed25519")
-
 		return abciResult(std.ErrInvalidPubKey("ED25519 public keys are unsupported"))
 
 	case secp256k1.PubKeySecp256k1:
 		meter.ConsumeGas(params.SigVerifyCostSecp256k1, "ante verify: secp256k1")
-
 		return sdk.Result{}
 
 	case multisig.PubKeyMultisigThreshold:
@@ -325,7 +320,6 @@ func DefaultSigVerificationGasConsumer(
 		amino.MustUnmarshal(sig, &multisignature)
 
 		consumeMultisignatureVerificationGas(meter, multisignature, pubkey, params)
-
 		return sdk.Result{}
 
 	default:
@@ -440,7 +434,6 @@ func GetSignBytes(chainID string, tx std.Tx, acc std.Account, genesis bool) []by
 	signbz := std.SignBytes(
 		chainID, accNum, acc.GetSequence(), tx.Fee, tx.Msgs, tx.Memo,
 	)
-
 	return signbz
 }
 

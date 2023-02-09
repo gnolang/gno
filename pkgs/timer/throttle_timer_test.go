@@ -24,7 +24,6 @@ func (c *thCounter) Count() int {
 	c.mtx.Lock()
 	val := c.count
 	c.mtx.Unlock()
-
 	return val
 }
 

@@ -247,7 +247,6 @@ func TestFindAll(t *testing.T) {
 		case test.matches != nil && result != nil:
 			if len(test.matches) != len(result) {
 				t.Errorf("expected %d matches; got %d: %s", len(test.matches), len(result), test)
-
 				continue
 			}
 			for k, e := range test.matches {
@@ -277,7 +276,6 @@ func TestFindAllString(t *testing.T) {
 		case test.matches != nil && result != nil:
 			if len(test.matches) != len(result) {
 				t.Errorf("expected %d matches; got %d: %s", len(test.matches), len(result), test)
-
 				continue
 			}
 			for k, e := range test.matches {
@@ -301,7 +299,6 @@ func testFindAllIndex(test *FindTest, result [][]int, t *testing.T) {
 	case test.matches != nil && result != nil:
 		if len(test.matches) != len(result) {
 			t.Errorf("expected %d matches; got %d: %s", len(test.matches), len(result), test)
-
 			return
 		}
 		for k, e := range test.matches {
@@ -329,7 +326,6 @@ func TestFindAllStringIndex(t *testing.T) {
 func testSubmatchBytes(test *FindTest, n int, submatches []int, result [][]byte, t *testing.T) {
 	if len(submatches) != len(result)*2 {
 		t.Errorf("match %d: expected %d submatches; got %d: %s", n, len(submatches)/2, len(result), test)
-
 		return
 	}
 	for k := 0; k < len(submatches); k += 2 {
@@ -342,13 +338,11 @@ func testSubmatchBytes(test *FindTest, n int, submatches []int, result [][]byte,
 		got := result[k/2]
 		if len(got) != cap(got) {
 			t.Errorf("match %d: expected capacity %d got %d: %s", n, len(got), cap(got), test)
-
 			return
 		}
 		expect := test.text[submatches[k]:submatches[k+1]]
 		if expect != string(got) {
 			t.Errorf("match %d: expected %q got %q: %s", n, expect, got, test)
-
 			return
 		}
 	}
@@ -373,7 +367,6 @@ func TestFindSubmatch(t *testing.T) {
 func testSubmatchString(test *FindTest, n int, submatches []int, result []string, t *testing.T) {
 	if len(submatches) != len(result)*2 {
 		t.Errorf("match %d: expected %d submatches; got %d: %s", n, len(submatches)/2, len(result), test)
-
 		return
 	}
 	for k := 0; k < len(submatches); k += 2 {
@@ -386,7 +379,6 @@ func testSubmatchString(test *FindTest, n int, submatches []int, result []string
 		expect := test.text[submatches[k]:submatches[k+1]]
 		if expect != result[k/2] {
 			t.Errorf("match %d: expected %q got %q: %s", n, expect, result, test)
-
 			return
 		}
 	}
@@ -411,7 +403,6 @@ func TestFindStringSubmatch(t *testing.T) {
 func testSubmatchIndices(test *FindTest, n int, expect, result []int, t *testing.T) {
 	if len(expect) != len(result) {
 		t.Errorf("match %d: expected %d matches; got %d: %s", n, len(expect)/2, len(result)/2, test)
-
 		return
 	}
 	for k, e := range expect {

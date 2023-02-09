@@ -235,7 +235,6 @@ func (p *peer) Send(chID byte, msgBytes []byte) bool {
 		return false
 	}
 	res := p.mconn.Send(chID, msgBytes)
-
 	return res
 }
 
@@ -248,7 +247,6 @@ func (p *peer) TrySend(chID byte, msgBytes []byte) bool {
 		return false
 	}
 	res := p.mconn.TrySend(chID, msgBytes)
-
 	return res
 }
 
@@ -279,7 +277,6 @@ func (p *peer) hasChannel(chID byte) bool {
 		"channels",
 		p.channels,
 	)
-
 	return false
 }
 

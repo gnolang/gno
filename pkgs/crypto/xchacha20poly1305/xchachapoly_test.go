@@ -38,13 +38,11 @@ func TestRandom(t *testing.T) {
 		plaintext2, err := aead.Open(nil, nonce[:], ct, ad)
 		if err != nil {
 			t.Errorf("Random #%d: Open failed", i)
-
 			continue
 		}
 
 		if !bytes.Equal(plaintext, plaintext2) {
 			t.Errorf("Random #%d: plaintext's don't match: got %x vs %x", i, plaintext2, plaintext)
-
 			continue
 		}
 

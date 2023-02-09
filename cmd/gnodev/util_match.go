@@ -39,7 +39,6 @@ func (m simpleMatch) matches(name []string, matchString func(pat, str string) (b
 			return false, false
 		}
 	}
-
 	return true, len(name) < len(m)
 }
 
@@ -53,7 +52,6 @@ func (m simpleMatch) verify(name string, matchString func(pat, str string) (bool
 			return fmt.Errorf("element %d of %s (%q): %w", i, name, s, err)
 		}
 	}
-
 	return nil
 }
 
@@ -63,7 +61,6 @@ func (m alternationMatch) matches(name []string, matchString func(pat, str strin
 			return ok, partial
 		}
 	}
-
 	return false, false
 }
 
@@ -73,7 +70,6 @@ func (m alternationMatch) verify(name string, matchString func(pat, str string) 
 			return fmt.Errorf("alternation %d of %w", i, err)
 		}
 	}
-
 	return nil
 }
 
@@ -105,7 +101,6 @@ func splitRegexp(s string) filterMatch {
 				a = append(a, s[:i])
 				s = s[i+1:]
 				i = 0
-
 				continue
 			}
 		case '|':
@@ -115,7 +110,6 @@ func splitRegexp(s string) filterMatch {
 				i = 0
 				b = append(b, a)
 				a = make(simpleMatch, 0, len(a))
-
 				continue
 			}
 		}
@@ -126,7 +120,6 @@ func splitRegexp(s string) filterMatch {
 	if len(b) == 0 {
 		return a
 	}
-
 	return append(b, a)
 }
 
@@ -145,7 +138,6 @@ func rewrite(s string) string {
 			b = append(b, string(r)...)
 		}
 	}
-
 	return string(b)
 }
 
@@ -170,7 +162,6 @@ func isSpace(r rune) bool {
 			return true
 		}
 	}
-
 	return false
 }
 
@@ -188,6 +179,5 @@ func matchString(pat, str string) (result bool, err error) {
 			return
 		}
 	}
-
 	return matchRe.MatchString(str), nil
 }

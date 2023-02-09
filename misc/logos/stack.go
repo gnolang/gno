@@ -7,7 +7,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-// ----------------------------------------
+//----------------------------------------
 // Stack
 
 // A Stack is like a Page, but it only highlights the top
@@ -36,7 +36,6 @@ func (st *Stack) StringIndented(indent string) string {
 	for _, elem := range st.Elems {
 		elines = append(elines, eindent+elem.StringIndented(eindent))
 	}
-
 	return fmt.Sprintf("Stack%v@%p\n%s",
 		st.Size,
 		st,
@@ -134,7 +133,6 @@ func (st *Stack) ProcessEventKey(ev *EventKey) bool {
 			st.Elems = st.Elems[:len(st.Elems)-1]
 			st.Cursor--
 			st.SetIsDirty(true)
-
 			return true
 		} else {
 			// Let the last layer stick around.
@@ -158,6 +156,5 @@ func StackOf(elem Elem) *Stack {
 			elem = elem.GetParent()
 		}
 	}
-
 	return nil // no stack
 }

@@ -76,7 +76,6 @@ func (tree *MutableTree) String() string {
 func (tree *MutableTree) Set(key, value []byte) bool {
 	orphaned, updated := tree.set(key, value)
 	tree.addOrphans(orphaned)
-
 	return updated
 }
 
@@ -86,7 +85,6 @@ func (tree *MutableTree) set(key []byte, value []byte) (orphaned []*Node, update
 	}
 	if tree.ImmutableTree.root == nil {
 		tree.ImmutableTree.root = NewNode(key, value, tree.version+1)
-
 		return nil, false
 	}
 	tree.ImmutableTree.root, updated, orphaned = tree.recursiveSet(tree.ImmutableTree.root, key, value)
@@ -143,7 +141,6 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte) (
 		}
 		node.calcHeightAndSize(tree.ImmutableTree)
 		newNode, balanceOrphaned := tree.balance(node)
-
 		return newNode, updated, append(orphaned, balanceOrphaned...)
 	}
 }
@@ -152,7 +149,6 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte) (
 func (tree *MutableTree) Remove(key []byte) ([]byte, bool) {
 	val, orphaned, removed := tree.remove(key)
 	tree.addOrphans(orphaned)
-
 	return val, removed
 }
 
@@ -327,7 +323,6 @@ func (tree *MutableTree) LoadVersionForOverwriting(targetVersion int64) (int64, 
 		return latestVersion, err
 	}
 	tree.deleteVersionsFrom(targetVersion + 1)
-
 	return targetVersion, nil
 }
 
@@ -457,7 +452,6 @@ func (tree *MutableTree) deleteVersionsFrom(version int64) error {
 	}
 	tree.ndb.Commit()
 	tree.ndb.resetLatestVersion(newLatestVersion)
-
 	return nil
 }
 
@@ -511,7 +505,6 @@ func (tree *MutableTree) balance(node *Node) (newSelf *Node, orphaned []*Node) {
 		if node.getLeftNode(tree.ImmutableTree).calcBalance(tree.ImmutableTree) >= 0 {
 			// Left Left Case
 			newNode, orphaned := tree.rotateRight(node)
-
 			return newNode, []*Node{orphaned}
 		}
 		// Left Right Case
@@ -528,7 +521,6 @@ func (tree *MutableTree) balance(node *Node) (newSelf *Node, orphaned []*Node) {
 		if node.getRightNode(tree.ImmutableTree).calcBalance(tree.ImmutableTree) <= 0 {
 			// Right Right Case
 			newNode, orphaned := tree.rotateLeft(node)
-
 			return newNode, []*Node{orphaned}
 		}
 		// Right Left Case
@@ -542,7 +534,6 @@ func (tree *MutableTree) balance(node *Node) (newSelf *Node, orphaned []*Node) {
 		return newNode, []*Node{right, leftOrphaned, rightOrphaned}
 	}
 	// Nothing changed
-
 	return node, []*Node{}
 }
 

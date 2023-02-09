@@ -302,7 +302,6 @@ LOOP:
 				if assert.NotEmpty(t, event.ValidatorUpdates) {
 					assert.Equal(t, pubkey, event.ValidatorUpdates[0].PubKey)
 					assert.EqualValues(t, 10, event.ValidatorUpdates[0].Power)
-
 					break LOOP
 				}
 			}

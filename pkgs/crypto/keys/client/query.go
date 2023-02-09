@@ -28,7 +28,6 @@ func queryApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 	if len(args) != 1 {
 		cmd.ErrPrintfln("Usage: query <path>")
-
 		return errors.New("invalid args")
 	}
 	opts.Path = args[0]
@@ -41,7 +40,6 @@ func queryApp(cmd *command.Command, args []string, iopts interface{}) error {
 	if qres.Response.Error != nil {
 		fmt.Printf("Log: %s\n",
 			qres.Response.Log)
-
 		return qres.Response.Error
 	}
 	resdata := qres.Response.Data
@@ -51,7 +49,6 @@ func queryApp(cmd *command.Command, args []string, iopts interface{}) error {
 	fmt.Printf("height: %d\ndata: %s\n",
 		height,
 		string(resdata))
-
 	return nil
 }
 

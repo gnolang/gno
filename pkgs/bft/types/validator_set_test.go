@@ -273,7 +273,6 @@ func newAddr(mocksecret []byte) crypto.Address {
 	privkey := mock.PrivKeyMock(mocksecret)
 	pubkey := privkey.PubKey()
 	addr := pubkey.Address()
-
 	return addr
 }
 
@@ -281,7 +280,6 @@ func newValidator(mocksecret []byte, power int64) *Validator {
 	privkey := mock.PrivKeyMock(mocksecret)
 	pubkey := privkey.PubKey()
 	addr := pubkey.Address()
-
 	return &Validator{Address: addr, PubKey: pubkey, VotingPower: power}
 }
 
@@ -294,7 +292,6 @@ func randValidator_(totalVotingPower int64) *Validator {
 	// bounds of MaxTotalVotingPower minus the already existing voting power:
 	val := NewValidator(randPubKey(), int64(random.RandUint64()%uint64((MaxTotalVotingPower-totalVotingPower))))
 	val.ProposerPriority = random.RandInt64() % (MaxTotalVotingPower - totalVotingPower)
-
 	return val
 }
 
@@ -563,7 +560,6 @@ func TestAveragingInIncrementProposerPriorityWithVotingPower(t *testing.T) {
 func TestSafeAdd(t *testing.T) {
 	f := func(a, b int64) bool {
 		c, overflow := safeAdd(a, b)
-
 		return overflow || (!overflow && c == a+b)
 	}
 	if err := quick.Check(f, nil); err != nil {
@@ -1300,7 +1296,6 @@ func (tvals testValsByAddress) Less(i, j int) bool {
 	copy(addr1[20-len(tvals[i].name):], []byte(tvals[i].name))
 	addr2 := crypto.Address{}
 	copy(addr2[20-len(tvals[j].name):], []byte(tvals[j].name))
-
 	return bytes.Compare(addr1[:], addr2[:]) < 0
 }
 

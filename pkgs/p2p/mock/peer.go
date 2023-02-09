@@ -37,7 +37,6 @@ func NewPeer(ip net.IP) *Peer {
 	}
 	mp.BaseService = service.NewBaseService(nil, "MockPeer", mp)
 	mp.Start()
-
 	return mp
 }
 
@@ -57,7 +56,6 @@ func (mp *Peer) Get(key string) interface{} {
 	if value, ok := mp.kv[key]; ok {
 		return value
 	}
-
 	return nil
 }
 

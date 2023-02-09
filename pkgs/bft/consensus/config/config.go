@@ -72,7 +72,6 @@ func TestConsensusConfig() *ConsensusConfig {
 	cfg.SkipTimeoutCommit = true
 	cfg.PeerGossipSleepDuration = 5 * time.Millisecond
 	cfg.PeerQueryMaj23SleepDuration = 250 * time.Millisecond
-
 	return cfg
 }
 
@@ -112,7 +111,6 @@ func (cfg *ConsensusConfig) WalFile() string {
 	if cfg.walFile != "" {
 		return cfg.walFile
 	}
-
 	return join(cfg.RootDir, cfg.WalPath)
 }
 
@@ -154,6 +152,5 @@ func (cfg *ConsensusConfig) ValidateBasic() error {
 	if cfg.PeerQueryMaj23SleepDuration < 0 {
 		return errors.New("peer_query_maj23_sleep_duration can't be negative")
 	}
-
 	return nil
 }

@@ -40,9 +40,8 @@ func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]*RPCFunc, logger lo
 
 // RPCFunc contains the introspected type information for a function
 type RPCFunc struct {
-	f    reflect.Value  // underlying rpc function
-	args []reflect.Type // type of each function arg
-
+	f        reflect.Value  // underlying rpc function
+	args     []reflect.Type // type of each function arg
 	returns  []reflect.Type // type of each return arg
 	argNames []string       // name of each argument
 	ws       bool           // websocket only
@@ -64,7 +63,6 @@ func newRPCFunc(f interface{}, args string, ws bool) *RPCFunc {
 	if args != "" {
 		argNames = strings.Split(args, ",")
 	}
-
 	return &RPCFunc{
 		f:        reflect.ValueOf(f),
 		args:     funcArgTypes(f),
@@ -82,7 +80,6 @@ func funcArgTypes(f interface{}) []reflect.Type {
 	for i := 0; i < n; i++ {
 		typez[i] = t.In(i)
 	}
-
 	return typez
 }
 
@@ -94,7 +91,6 @@ func funcReturnTypes(f interface{}) []reflect.Type {
 	for i := 0; i < n; i++ {
 		typez[i] = t.Out(i)
 	}
-
 	return typez
 }
 
@@ -114,7 +110,6 @@ func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger log.Logger) http.Han
 		// just display a list of functions
 		if len(b) == 0 {
 			writeListOfEndpoints(w, r, funcMap)
-
 			return
 		}
 
@@ -148,7 +143,6 @@ func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger log.Logger) http.Han
 			rpcFunc, ok := funcMap[request.Method]
 			if !ok || rpcFunc.ws {
 				responses = append(responses, types.RPCMethodNotFoundError(request.ID))
-
 				continue
 			}
 			ctx := &types.Context{JSONReq: &request, HTTPReq: r}
@@ -166,7 +160,6 @@ func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger log.Logger) http.Han
 			result, err := unreflectResult(returns)
 			if err != nil {
 				responses = append(responses, types.RPCInternalError(request.ID, err))
-
 				continue
 			}
 			responses = append(responses, types.NewRPCSuccessResponse(request.ID, result))
@@ -183,7 +176,6 @@ func handleInvalidJSONRPCPaths(next http.HandlerFunc) http.HandlerFunc {
 		// "/", otherwise return a 404 error
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
-
 			return
 		}
 
@@ -273,7 +265,6 @@ func makeHTTPHandler(rpcFunc *RPCFunc, logger log.Logger) func(http.ResponseWrit
 	}
 
 	// All other endpoints
-
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Debug("HTTP HANDLER", "req", r)
 
@@ -293,7 +284,6 @@ func makeHTTPHandler(rpcFunc *RPCFunc, logger log.Logger) func(http.ResponseWrit
 		result, err := unreflectResult(returns)
 		if err != nil {
 			WriteRPCResponseHTTP(w, types.RPCInternalError(types.JSONRPCStringID(""), err))
-
 			return
 		}
 		WriteRPCResponseHTTP(w, types.NewRPCSuccessResponse(types.JSONRPCStringID(""), result))
@@ -326,7 +316,6 @@ func httpParamsToArgs(rpcFunc *RPCFunc, r *http.Request) ([]reflect.Value, error
 		}
 		if ok {
 			values[i] = v
-
 			continue
 		}
 
@@ -346,7 +335,6 @@ func jsonStringToArg(rt reflect.Type, arg string) (reflect.Value, error) {
 		return rv, err
 	}
 	rv = rv.Elem()
-
 	return rv, nil
 }
 
@@ -359,7 +347,6 @@ func nonJSONStringToArg(rt reflect.Type, arg string) (reflect.Value, error, bool
 		case ok:
 			rv := reflect.New(rt.Elem())
 			rv.Elem().Set(rv_)
-
 			return rv, nil, true
 		default:
 			return reflect.Value{}, nil, false
@@ -400,7 +387,6 @@ func _nonJSONStringToArg(rt reflect.Type, arg string) (reflect.Value, error, boo
 		if !expectingString && !expectingByteSlice {
 			err := errors.New("got a hex string arg, but expected '%s'",
 				rt.Kind().String())
-
 			return reflect.ValueOf(nil), err, false
 		}
 
@@ -422,7 +408,6 @@ func _nonJSONStringToArg(rt reflect.Type, arg string) (reflect.Value, error, boo
 			return reflect.ValueOf(nil), err, false
 		}
 		v = v.Elem()
-
 		return reflect.ValueOf([]byte(v.String())), nil, true
 	}
 
@@ -500,7 +485,6 @@ func NewWSConnection(
 	}
 	wsc.baseConn.SetReadLimit(wsc.readLimit)
 	wsc.BaseService = *service.NewBaseService(nil, "wsConnection", wsc)
-
 	return wsc
 }
 
@@ -615,7 +599,6 @@ func (wsc *wsConnection) Context() context.Context {
 		return wsc.ctx
 	}
 	wsc.ctx, wsc.cancel = context.WithCancel(context.Background())
-
 	return wsc.ctx
 }
 
@@ -657,7 +640,6 @@ func (wsc *wsConnection) readRoutine() {
 					wsc.Logger.Error("Failed to read request", "err", err)
 				}
 				wsc.Stop()
-
 				return
 			}
 
@@ -665,7 +647,6 @@ func (wsc *wsConnection) readRoutine() {
 			err = json.Unmarshal(in, &request)
 			if err != nil {
 				wsc.WriteRPCResponse(types.RPCParseError(types.JSONRPCStringID(""), errors.Wrap(err, "error unmarshaling request")))
-
 				continue
 			}
 
@@ -680,7 +661,6 @@ func (wsc *wsConnection) readRoutine() {
 			rpcFunc := wsc.funcMap[request.Method]
 			if rpcFunc == nil {
 				wsc.WriteRPCResponse(types.RPCMethodNotFoundError(request.ID))
-
 				continue
 			}
 
@@ -703,7 +683,6 @@ func (wsc *wsConnection) readRoutine() {
 			result, err := unreflectResult(returns)
 			if err != nil {
 				wsc.WriteRPCResponse(types.RPCInternalError(request.ID, err))
-
 				continue
 			}
 
@@ -744,7 +723,6 @@ func (wsc *wsConnection) writeRoutine() {
 			if err != nil {
 				wsc.Logger.Error("Failed to write ping", "err", err)
 				wsc.Stop()
-
 				return
 			}
 		case msg := <-wsc.writeChan:
@@ -754,7 +732,6 @@ func (wsc *wsConnection) writeRoutine() {
 			} else if err = wsc.writeMessageWithDeadline(websocket.TextMessage, jsonBytes); err != nil {
 				wsc.Logger.Error("Failed to write response", "err", err)
 				wsc.Stop()
-
 				return
 			}
 		case <-wsc.Quit():
@@ -813,7 +790,6 @@ func (wm *WebsocketManager) WebsocketHandler(w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		// TODO - return http error
 		wm.logger.Error("Failed to upgrade to websocket connection", "err", err)
-
 		return
 	}
 
@@ -842,7 +818,6 @@ func unreflectResult(returns []reflect.Value) (interface{}, error) {
 	if rv.Kind() == reflect.Interface {
 		rvp := reflect.New(rv.Type())
 		rvp.Elem().Set(rv)
-
 		return rvp.Interface(), nil
 	} else {
 		return rv.Interface(), nil

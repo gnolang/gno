@@ -81,7 +81,6 @@ func NewOrigSendBanker(banker Banker, pkgAddr crypto.Bech32Address, origSend std
 	if origSendSpent == nil {
 		panic("origSendSpent cannot be nil")
 	}
-
 	return OrigSendBanker{
 		banker:        banker,
 		pkgAddr:       pkgAddr,

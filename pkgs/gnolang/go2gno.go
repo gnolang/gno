@@ -48,7 +48,6 @@ func MustReadFile(path string) *FileNode {
 	if err != nil {
 		panic(err)
 	}
-
 	return n
 }
 
@@ -57,7 +56,6 @@ func MustParseFile(filename string, body string) *FileNode {
 	if err != nil {
 		panic(err)
 	}
-
 	return n
 }
 
@@ -66,7 +64,6 @@ func ReadFile(path string) (*FileNode, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return ParseFile(path, string(bz))
 }
 
@@ -84,7 +81,6 @@ func ParseExpr(expr string) (retx Expr, err error) {
 			} else {
 				err = errors.New(fmt.Sprintf("%v", r))
 			}
-
 			return
 		}
 	}()
@@ -97,7 +93,6 @@ func MustParseExpr(expr string) Expr {
 	if err != nil {
 		panic(err)
 	}
-
 	return x
 }
 
@@ -121,21 +116,18 @@ func ParseFile(filename string, body string) (fn *FileNode, err error) {
 			} else {
 				err = errors.New(fmt.Sprintf("%v", r))
 			}
-
 			return
 		}
 	}()
 	// parse with Go2Gno.
 	fn = Go2Gno(fs, f).(*FileNode)
 	fn.Name = Name(filename)
-
 	return fn, nil
 }
 
 func setLoc(fs *token.FileSet, pos token.Pos, n Node) Node {
 	posn := fs.Position(pos)
 	n.SetLine(posn.Line)
-
 	return n
 }
 
@@ -160,7 +152,6 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		if gon == nil {
 			return nil
 		}
-
 		return &BasicLitExpr{
 			Kind:  toWord(gon.Kind),
 			Value: gon.Value,
@@ -228,7 +219,6 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		}
 	case *ast.FuncLit:
 		type_ := Go2Gno(fs, gon.Type).(*FuncTypeExpr)
-
 		return &FuncLitExpr{
 			Type: *type_,
 			Body: toBody(fs, gon.Body),
@@ -334,13 +324,11 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 				if len(cx.Args) != 1 {
 					panic("expected panic statement to have single exception value")
 				}
-
 				return &PanicStmt{
 					Exception: toExpr(fs, cx.Args[0]),
 				}
 			}
 		}
-
 		return &ExprStmt{
 			X: toExpr(fs, gon.X),
 		}
@@ -370,7 +358,6 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		if gon.Else != nil {
 			setLoc(fs, gon.Else.Pos(), &elseStmt)
 		}
-
 		return &IfStmt{
 			Init: toSimp(fs, gon.Init),
 			Cond: toExpr(fs, gon.Cond),
@@ -385,7 +372,6 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 	case *ast.LabeledStmt:
 		stmt := toStmt(fs, gon.Stmt)
 		stmt.SetLabel(toName(gon.Label))
-
 		return stmt
 	case *ast.RangeStmt:
 		return &RangeStmt{
@@ -428,7 +414,6 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			// if tag is nil, default to "true"
 			x = Nx(Name("true"))
 		}
-
 		return &SwitchStmt{
 			Init:         toStmt(fs, gon.Init),
 			X:            x,
@@ -447,7 +432,6 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		name := toName(gon.Name)
 		type_ := Go2Gno(fs, gon.Type).(*FuncTypeExpr)
 		body := Go2Gno(fs, gon.Body).(*BlockStmt).Body
-
 		return &FuncDecl{
 			IsMethod: isMethod,
 			Recv:     recv,
@@ -467,7 +451,6 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 				decls = append(decls, toDecl(fs, d))
 			}
 		}
-
 		return &FileNode{
 			Name:    "", // filled later.
 			PkgName: pkgName,
@@ -481,7 +464,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 	}
 }
 
-// ----------------------------------------
+//----------------------------------------
 // utility methods
 
 func toName(name *ast.Ident) Name {
@@ -580,7 +563,6 @@ func toExprs(fs *token.FileSet, goxs []ast.Expr) (gnoxs Exprs) {
 	for i, x := range goxs {
 		gnoxs[i] = toExpr(fs, x)
 	}
-
 	return
 }
 
@@ -598,7 +580,6 @@ func toStmts(fs *token.FileSet, goss []ast.Stmt) (gnoss Body) {
 	for i, x := range goss {
 		gnoss[i] = toStmt(fs, x)
 	}
-
 	return
 }
 
@@ -606,7 +587,6 @@ func toBody(fs *token.FileSet, body *ast.BlockStmt) Body {
 	if body == nil {
 		return nil
 	}
-
 	return toStmts(fs, body.List)
 }
 
@@ -712,7 +692,6 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 				reflect.TypeOf(s)))
 		}
 	}
-
 	return ds
 }
 
@@ -722,7 +701,6 @@ func toSimpleDeclStmts(fs *token.FileSet, gd *ast.GenDecl) (sds []Stmt) {
 	for i, d := range ds {
 		sds[i] = d.(SimpleDeclStmt).(Stmt)
 	}
-
 	return
 }
 
@@ -731,7 +709,6 @@ func toFieldsFromList(fs *token.FileSet, fl *ast.FieldList) (ftxs []FieldTypeExp
 		return nil
 	} else {
 		ftxs = toFields(fs, fl.List...)
-
 		return
 	}
 }
@@ -760,7 +737,6 @@ func toFields(fs *token.FileSet, fields ...*ast.Field) (ftxs []FieldTypeExpr) {
 			}
 		}
 	}
-
 	return
 }
 
@@ -776,7 +752,6 @@ func toKeyValueExprs(fs *token.FileSet, elts []ast.Expr) (kvxs KeyValueExprs) {
 			}
 		}
 	}
-
 	return
 }
 
@@ -801,7 +776,6 @@ func toClauses(fs *token.FileSet, csz []ast.Stmt) []SwitchClauseStmt {
 	if len(res) != len(csz) {
 		panic("should not happen")
 	}
-
 	return res
 }
 

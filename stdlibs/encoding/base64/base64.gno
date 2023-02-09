@@ -301,7 +301,6 @@ func (enc *Encoding) decodeQuantum(dst, src []byte, si int) (nsi, n int, err err
 				return si, 0, CorruptInputError(si - j)
 			}
 			dlen = j
-
 			break
 		}
 		in := src[si]
@@ -310,7 +309,6 @@ func (enc *Encoding) decodeQuantum(dst, src []byte, si int) (nsi, n int, err err
 		out := enc.decodeMap[in]
 		if out != 0xff {
 			dbuf[j] = out
-
 			continue
 		}
 
@@ -355,7 +353,6 @@ func (enc *Encoding) decodeQuantum(dst, src []byte, si int) (nsi, n int, err err
 			err = CorruptInputError(si)
 		}
 		dlen = j
-
 		break
 	}
 

@@ -264,7 +264,6 @@ func TestReplaceAll(t *testing.T) {
 		re, err := Compile(tc.pattern)
 		if err != nil {
 			t.Errorf("Unexpected error compiling %q: %v", tc.pattern, err)
-
 			continue
 		}
 		actual := re.ReplaceAllString(tc.input, tc.replacement)
@@ -290,7 +289,6 @@ func TestReplaceAllLiteral(t *testing.T) {
 		re, err := Compile(tc.pattern)
 		if err != nil {
 			t.Errorf("Unexpected error compiling %q: %v", tc.pattern, err)
-
 			continue
 		}
 		actual := re.ReplaceAllLiteralString(tc.input, tc.replacement)
@@ -311,7 +309,6 @@ func TestReplaceAllLiteral(t *testing.T) {
 		re, err := Compile(tc.pattern)
 		if err != nil {
 			t.Errorf("Unexpected error compiling %q: %v", tc.pattern, err)
-
 			continue
 		}
 		actual := re.ReplaceAllLiteralString(tc.input, tc.replacement)
@@ -333,7 +330,6 @@ func TestReplaceAllFunc(t *testing.T) {
 		re, err := Compile(tc.pattern)
 		if err != nil {
 			t.Errorf("Unexpected error compiling %q: %v", tc.pattern, err)
-
 			continue
 		}
 		actual := re.ReplaceAllStringFunc(tc.input, tc.replacement)
@@ -384,7 +380,6 @@ func TestQuoteMeta(t *testing.T) {
 		if quoted != tc.output {
 			t.Errorf("QuoteMeta(`%s`) = `%s`; want `%s`",
 				tc.pattern, quoted, tc.output)
-
 			continue
 		}
 
@@ -394,7 +389,6 @@ func TestQuoteMeta(t *testing.T) {
 			re, err := Compile(quoted)
 			if err != nil {
 				t.Errorf("Unexpected error compiling QuoteMeta(`%s`): %v", tc.pattern, err)
-
 				continue
 			}
 			src := "abc" + tc.pattern + "def"
@@ -457,13 +451,11 @@ func TestSubexp(t *testing.T) {
 		n := re.NumSubexp()
 		if n != c.num {
 			t.Errorf("%q: NumSubexp = %d, want %d", c.input, n, c.num)
-
 			continue
 		}
 		names := re.SubexpNames()
 		if len(names) != 1+n {
 			t.Errorf("%q: len(SubexpNames) = %d, want %d", c.input, len(names), n)
-
 			continue
 		}
 		if c.names != nil {
@@ -518,7 +510,6 @@ func TestSplit(t *testing.T) {
 		re, err := Compile(test.r)
 		if err != nil {
 			t.Errorf("#%d: %q: compile error: %s", i, test.r, err.Error())
-
 			continue
 		}
 

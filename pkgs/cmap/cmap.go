@@ -24,7 +24,6 @@ func (cm *CMap) Get(key string) interface{} {
 	cm.l.Lock()
 	val := cm.m[key]
 	cm.l.Unlock()
-
 	return val
 }
 
@@ -32,7 +31,6 @@ func (cm *CMap) Has(key string) bool {
 	cm.l.Lock()
 	_, ok := cm.m[key]
 	cm.l.Unlock()
-
 	return ok
 }
 
@@ -46,7 +44,6 @@ func (cm *CMap) Size() int {
 	cm.l.Lock()
 	size := len(cm.m)
 	cm.l.Unlock()
-
 	return size
 }
 
@@ -64,7 +61,6 @@ func (cm *CMap) Keys() []string {
 		keys = append(keys, k)
 	}
 	cm.l.Unlock()
-
 	return keys
 }
 
@@ -75,6 +71,5 @@ func (cm *CMap) Values() []interface{} {
 		items = append(items, v)
 	}
 	cm.l.Unlock()
-
 	return items
 }

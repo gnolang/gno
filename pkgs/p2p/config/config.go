@@ -6,7 +6,7 @@ import (
 	"github.com/gnolang/gno/pkgs/errors"
 )
 
-// -----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 // P2PConfig
 
 const (
@@ -112,7 +112,6 @@ func TestP2PConfig() *P2PConfig {
 	cfg.ListenAddress = "tcp://0.0.0.0:36656"
 	cfg.FlushThrottleTimeout = 10 * time.Millisecond
 	cfg.AllowDuplicateIP = true
-
 	return cfg
 }
 
@@ -137,7 +136,6 @@ func (cfg *P2PConfig) ValidateBasic() error {
 	if cfg.RecvRate < 0 {
 		return errors.New("recv_rate can't be negative")
 	}
-
 	return nil
 }
 

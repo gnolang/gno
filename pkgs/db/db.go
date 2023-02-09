@@ -71,6 +71,5 @@ func NewDB(name string, backend BackendType, dir string) DB {
 	if err != nil {
 		panic(fmt.Sprintf("Error initializing DB: %v", err))
 	}
-
 	return db
 }

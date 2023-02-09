@@ -30,7 +30,6 @@ func NewThrottleTimer(name string, dur time.Duration) *ThrottleTimer {
 	t.timer = time.AfterFunc(dur, t.fireRoutine)
 	t.mtx.Unlock()
 	t.timer.Stop()
-
 	return t
 }
 
@@ -72,6 +71,5 @@ func (t *ThrottleTimer) Stop() bool {
 	close(t.quit)
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
-
 	return t.timer.Stop()
 }

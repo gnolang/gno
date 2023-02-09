@@ -43,7 +43,6 @@ func TestPaginationPage(t *testing.T) {
 		p, err := validatePage(c.page, c.perPage, c.totalCount)
 		if c.expErr {
 			assert.Error(t, err)
-
 			continue
 		}
 

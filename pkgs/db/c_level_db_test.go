@@ -23,7 +23,6 @@ func BenchmarkRandomReadsWrites2(b *testing.B) {
 	db, err := NewCLevelDB(fmt.Sprintf("test_%x", randStr(12)), "")
 	if err != nil {
 		b.Fatal(err.Error())
-
 		return
 	}
 
@@ -55,21 +54,18 @@ func BenchmarkRandomReadsWrites2(b *testing.B) {
 				if !bytes.Equal(valBytes, nil) {
 					b.Errorf("Expected %v for %v, got %X",
 						nil, idx, valBytes)
-
 					break
 				}
 			} else {
 				if len(valBytes) != 8 {
 					b.Errorf("Expected length 8 for %v, got %X",
 						idx, valBytes)
-
 					break
 				}
 				valGot := bytes2Int64(valBytes)
 				if val != valGot {
 					b.Errorf("Expected %v for %v, got %v",
 						val, idx, valGot)
-
 					break
 				}
 			}
@@ -83,7 +79,6 @@ func BenchmarkRandomReadsWrites2(b *testing.B) {
 func int642Bytes(i int64) []byte {
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, uint64(i))
-
 	return buf
 }
 

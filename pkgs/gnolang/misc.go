@@ -9,7 +9,7 @@ import (
 	"github.com/gnolang/gno/pkgs/crypto"
 )
 
-// ----------------------------------------
+//----------------------------------------
 // Misc.
 
 func cp(bz []byte) (ret []byte) {
@@ -99,13 +99,12 @@ func isUpper(s string) bool {
 	var first rune
 	for _, c := range s {
 		first = c
-
 		break
 	}
 	return unicode.IsUpper(first)
 }
 
-// ----------------------------------------
+//----------------------------------------
 // converting uintptr to bytes.
 
 const sizeOfUintPtr = unsafe.Sizeof(uintptr(0))
@@ -123,7 +122,7 @@ func defaultPkgName(gopkgPath string) Name {
 	return Name(name)
 }
 
-// ----------------------------------------
+//----------------------------------------
 // value convenience
 
 func toTypeValue(t Type) TypeValue {
@@ -132,7 +131,7 @@ func toTypeValue(t Type) TypeValue {
 	}
 }
 
-// ----------------------------------------
+//----------------------------------------
 // reserved & uverse names
 
 var reservedNames = map[Name]struct{}{
@@ -160,7 +159,7 @@ func isUverseName(n Name) bool {
 	return false
 }
 
-// ----------------------------------------
+//----------------------------------------
 // other
 
 // For keeping record of package & realm coins.

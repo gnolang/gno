@@ -224,14 +224,12 @@ func TestRuntimeConversion(t *testing.T) {
 		count := utf8.RuneCountInString(ts)
 		if n := runtimeRuneCount(ts); n != count {
 			t.Errorf("%q: len([]rune()) counted %d runes; got %d from RuneCountInString", ts, n, count)
-
 			break
 		}
 
 		runes := []rune(ts)
 		if n := len(runes); n != count {
 			t.Errorf("%q: []rune() has length %d; got %d from RuneCountInString", ts, n, count)
-
 			break
 		}
 		i := 0

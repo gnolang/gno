@@ -36,7 +36,6 @@ type Local struct {
 // one process...
 func NewLocal(node *nm.Node) *Local {
 	node.ConfigureRPC()
-
 	return &Local{
 		Logger: log.NewNopLogger(),
 		ctx:    &rpctypes.Context{},

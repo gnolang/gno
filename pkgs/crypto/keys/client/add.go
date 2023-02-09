@@ -52,7 +52,6 @@ func addApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 	if len(args) != 1 {
 		cmd.ErrPrintfln("Usage: add <keyname>")
-
 		return errors.New("invalid args")
 	}
 
@@ -112,7 +111,6 @@ func addApp(cmd *command.Command, args []string, iopts interface{}) error {
 			}
 
 			cmd.Printfln("Key %q saved to disk.\n", name)
-
 			return nil
 		}
 
@@ -136,7 +134,6 @@ func addApp(cmd *command.Command, args []string, iopts interface{}) error {
 		if err != nil {
 			return err
 		}
-
 		return nil
 	}
 

@@ -45,7 +45,7 @@ paid for by the realm.  Anyone can pay the storage upkeep of
 a realm to keep it alive.
 */
 
-// ----------------------------------------
+//----------------------------------------
 // PkgID & Realm
 
 type PkgID struct {
@@ -118,7 +118,7 @@ func (rlm *Realm) String() string {
 	}
 }
 
-// ----------------------------------------
+//----------------------------------------
 // ownership hooks
 
 // po's old elem value is xo, will become co.
@@ -176,7 +176,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	}
 }
 
-// ----------------------------------------
+//----------------------------------------
 // mark*
 
 func (rlm *Realm) MarkNewReal(oo Object) {
@@ -273,7 +273,7 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 	rlm.newEscaped = append(rlm.newEscaped, oo)
 }
 
-// ----------------------------------------
+//----------------------------------------
 // transactions
 
 // OpReturn calls this when exiting a realm transaction.
@@ -335,7 +335,7 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 	rlm.clearMarks()
 }
 
-// ----------------------------------------
+//----------------------------------------
 // processNewCreatedMarks
 
 // Crawls marked created children and increments ref counts,
@@ -436,7 +436,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	}
 }
 
-// ----------------------------------------
+//----------------------------------------
 // processNewDeletedMarks
 
 // Crawls marked deleted children and decrements ref counts,
@@ -501,7 +501,7 @@ func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
 	}
 }
 
-// ----------------------------------------
+//----------------------------------------
 // processNewEscapedMarks
 
 // demotes new-real escaped objects with refcount 0 or 1.  remaining
@@ -527,7 +527,6 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 		if eo.GetRefCount() <= 1 {
 			// demote; do not add to escaped.
 			eo.SetIsNewEscaped(false)
-
 			continue
 		} else {
 			// escape;
@@ -563,7 +562,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 	rlm.escaped = escaped // XXX is this actually used?
 }
 
-// ----------------------------------------
+//----------------------------------------
 // markDirtyAncestors
 
 // New and modified objects' owners and their owners
@@ -633,7 +632,7 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 	}
 }
 
-// ----------------------------------------
+//----------------------------------------
 // saveUnsavedObjects
 
 // Saves .created and .updated objects.
@@ -749,7 +748,7 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 	}
 }
 
-// ----------------------------------------
+//----------------------------------------
 // removeDeletedObjects
 
 func (rlm *Realm) removeDeletedObjects(store Store) {
@@ -758,7 +757,7 @@ func (rlm *Realm) removeDeletedObjects(store Store) {
 	}
 }
 
-// ----------------------------------------
+//----------------------------------------
 // clearMarks
 
 func (rlm *Realm) clearMarks() {
@@ -790,7 +789,7 @@ func (rlm *Realm) clearMarks() {
 	rlm.escaped = nil
 }
 
-// ----------------------------------------
+//----------------------------------------
 // getSelfOrChildObjects
 
 // Get self (if object) or child objects.
@@ -893,7 +892,7 @@ func getChildObjects2(store Store, val Value) []Object {
 	return objs
 }
 
-// ----------------------------------------
+//----------------------------------------
 // getUnsavedChildObjects
 
 // Gets all unsaved child objects.
@@ -923,7 +922,7 @@ func getUnsavedChildObjects(val Value) []Object {
 	return unsaved
 }
 
-// ----------------------------------------
+//----------------------------------------
 // copyTypeWithRefs
 
 func copyMethods(methods []TypedValue) []TypedValue {
@@ -1046,7 +1045,7 @@ func copyTypeWithRefs(typ Type) Type {
 	}
 }
 
-// ----------------------------------------
+//----------------------------------------
 // copyValueWithRefs
 
 // Copies value but with references to objects; the result is suitable for
@@ -1204,7 +1203,7 @@ func copyValueWithRefs(parent Object, val Value) Value {
 	}
 }
 
-// ----------------------------------------
+//----------------------------------------
 // fillTypes
 
 // (fully) fills the type.
@@ -1369,7 +1368,7 @@ func fillTypesOfValue(store Store, val Value) Value {
 	}
 }
 
-// ----------------------------------------
+//----------------------------------------
 // persistence
 
 func (rlm *Realm) nextObjectID() ObjectID {
@@ -1399,7 +1398,7 @@ func (rlm *Realm) assignNewObjectID(oo Object) ObjectID {
 	return noid
 }
 
-// ----------------------------------------
+//----------------------------------------
 // Misc.
 
 func toRefNode(bn BlockNode) RefNode {

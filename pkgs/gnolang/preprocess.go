@@ -635,13 +635,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					switch bt := baseOf(clt).(type) {
 					case *StructType:
 						n.Path = bt.GetPathForName(n.Name)
-
 						return n, TRANS_CONTINUE
 					case *ArrayType, *SliceType:
 						fillNameExprPath(last, n, false)
 						if last.GetIsConst(store, n.Name) {
 							cx := evalConst(store, last, n)
-
 							return cx, TRANS_CONTINUE
 						}
 						// If name refers to a package, and this is not in
@@ -662,13 +660,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							// flexibility, do not use path indices for Go
 							// native types, but use the name.
 							n.Path = NewValuePathNative(n.Name)
-
 							return n, TRANS_CONTINUE
 						case reflect.Array, reflect.Slice:
 							// Replace n with *ConstExpr.
 							fillNameExprPath(last, n, false)
 							cx := evalConst(store, last, n)
-
 							return cx, TRANS_CONTINUE
 						default:
 							panic("should not happen")
@@ -679,13 +675,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				switch n.Name {
 				case "_":
 					n.Path = NewValuePathBlock(0, 0, "_")
-
 					return n, TRANS_CONTINUE
 				case "iota":
 					pd := lastDecl(ns)
 					io := pd.GetAttribute(ATTR_IOTA).(int)
 					cx := constUntypedBigint(n, int64(io))
-
 					return cx, TRANS_CONTINUE
 				case nilStr:
 					// nil will be converted to
@@ -718,7 +712,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 					if last.GetIsConst(store, n.Name) {
 						cx := evalConst(store, last, n)
-
 						return cx, TRANS_CONTINUE
 					}
 					// If name refers to a package, and this is not in
@@ -742,7 +735,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			case *BasicLitExpr:
 				// Replace with *ConstExpr.
 				cx := evalConst(store, last, n)
-
 				return cx, TRANS_CONTINUE
 
 			// TRANS_LEAVE -----------------------
@@ -761,7 +753,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						Right: rn,
 					}
 					resn := Preprocess(store, last, n2)
-
 					return resn, TRANS_CONTINUE
 				}
 				// General case.
@@ -791,7 +782,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 						// Then, evaluate the expression.
 						cx := evalConst(store, last, n)
-
 						return cx, TRANS_CONTINUE
 					} else if isUntyped(lcx.T) {
 						// Left untyped const, Right not ----------------
@@ -815,7 +805,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							}
 							resn := Node(Call(tx, n2))
 							resn = Preprocess(store, last, resn)
-
 							return resn, TRANS_CONTINUE
 							// NOTE: binary operations are always computed in
 							// gno, never with reflect.
@@ -862,7 +851,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								}
 								resn := Node(Call(tx, n2))
 								resn = Preprocess(store, last, resn)
-
 								return resn, TRANS_CONTINUE
 								// NOTE: binary operations are always computed in
 								// gno, never with reflect.
@@ -913,7 +901,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 						resn := Node(Call(tx, n2))
 						resn = Preprocess(store, last, resn)
-
 						return resn, TRANS_CONTINUE
 						// NOTE: binary operations are always
 						// computed in gno, never with
@@ -989,12 +976,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// Though cx may be undefined if ct is interface,
 						// the ATTR_TYPEOF_VALUE is still interface.
 						cx.SetAttribute(ATTR_TYPEOF_VALUE, ct)
-
 						return cx, TRANS_CONTINUE
 					} else {
 						ct := evalStaticType(store, last, n.Func)
 						n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
-
 						return n, TRANS_CONTINUE
 					}
 				default:
@@ -1272,7 +1257,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 				case *NativeType:
 					clt = cclt.GnoType(store)
-
 					goto CLT_TYPE_SWITCH
 				default:
 					panic(fmt.Sprintf(
@@ -3193,13 +3177,11 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 					if path.Type != VPBlock {
 						panic("expected block value path type")
 					}
-
 					break
 				}
 			}
 			path.Depth += uint8(i)
 			nx.Path = path
-
 			return
 		}
 	}

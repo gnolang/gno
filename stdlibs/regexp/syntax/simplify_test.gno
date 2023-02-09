@@ -141,7 +141,6 @@ func TestSimplify(t *testing.T) {
 		re, err := Parse(tt.Regexp, MatchNL|Perl&^OneLine)
 		if err != nil {
 			t.Errorf("Parse(%#q) = error %v", tt.Regexp, err)
-
 			continue
 		}
 		s := re.Simplify().String()

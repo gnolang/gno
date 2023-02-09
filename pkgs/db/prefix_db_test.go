@@ -14,7 +14,6 @@ func mockDBWithStuff() DB {
 	db.Set(bz("k"), bz("val"))
 	db.Set(bz("ke"), bz("valu"))
 	db.Set(bz("kee"), bz("valuu"))
-
 	return db
 }
 

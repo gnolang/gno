@@ -36,12 +36,10 @@ func TestReader(t *testing.T) {
 		pos, err := r.Seek(tt.off, tt.seek)
 		if err == nil && tt.seekerr != "" {
 			t.Errorf("%d. want seek error %q", i, tt.seekerr)
-
 			continue
 		}
 		if err != nil && err.Error() != tt.seekerr {
 			t.Errorf("%d. seek error = %q; want %q", i, err.Error(), tt.seekerr)
-
 			continue
 		}
 		if tt.wantpos != 0 && tt.wantpos != pos {
@@ -51,7 +49,6 @@ func TestReader(t *testing.T) {
 		n, err := r.Read(buf)
 		if err != tt.readerr {
 			t.Errorf("%d. read = %v; want %v", i, err, tt.readerr)
-
 			continue
 		}
 		got := string(buf[:n])

@@ -21,7 +21,6 @@ func makeTxs(cnt, size int) Txs {
 
 func randInt(low, high int) int {
 	off := random.RandInt() % (high - low)
-
 	return low + off
 }
 

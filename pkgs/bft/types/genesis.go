@@ -18,7 +18,7 @@ const (
 	MaxChainIDLen = 50
 )
 
-// ------------------------------------------------------------
+//------------------------------------------------------------
 // core types for a genesis definition
 // NOTE: any changes to the genesis definition should
 // be reflected in the documentation:
@@ -58,7 +58,6 @@ func (genDoc *GenesisDoc) ValidatorHash() []byte {
 		vals[i] = NewValidator(v.PubKey, v.Power)
 	}
 	vset := NewValidatorSet(vals)
-
 	return vset.Hash()
 }
 
@@ -96,7 +95,7 @@ func (genDoc *GenesisDoc) ValidateAndComplete() error {
 	return nil
 }
 
-// ------------------------------------------------------------
+//------------------------------------------------------------
 // Make genesis state from file
 
 // GenesisDocFromJSON unmarshalls JSON data into a GenesisDoc.
@@ -127,7 +126,7 @@ func GenesisDocFromFile(genDocFile string) (*GenesisDoc, error) {
 	return genDoc, nil
 }
 
-// ----------------------------------------
+//----------------------------------------
 // Mock AppState (for testing)
 
 type MockAppState struct {

@@ -144,7 +144,6 @@ OUTER_LOOP:
 		for _, ch2 := range other.Channels {
 			if ch1 == ch2 {
 				found = true
-
 				break OUTER_LOOP // only need one
 			}
 		}

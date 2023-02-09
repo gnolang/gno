@@ -116,7 +116,6 @@ func NewWAL(walFile string, maxSize int64, groupOptions ...func(*auto.Group)) (*
 		flushInterval: walDefaultFlushInterval,
 	}
 	wal.BaseService = *service.NewBaseService(nil, "baseWAL", wal)
-
 	return wal, nil
 }
 
@@ -145,7 +144,6 @@ func (wal *baseWAL) OnStart() error {
 	}
 	wal.flushTicker = time.NewTicker(wal.flushInterval)
 	go wal.processFlushTicks()
-
 	return nil
 }
 
@@ -195,7 +193,6 @@ func (wal *baseWAL) Write(msg WALMessage) error {
 	if err := wal.enc.Write(TimedWALMessage{tmtime.Now(), msg}); err != nil {
 		wal.Logger.Error("Error writing msg to consensus wal. WARNING: recover may not be possible for the current height",
 			"err", err, "msg", msg)
-
 		return err
 	}
 
@@ -214,14 +211,12 @@ func (wal *baseWAL) WriteMetaSync(meta MetaMessage) error {
 	if err := wal.enc.WriteMeta(meta); err != nil {
 		wal.Logger.Error("Error writing height to consensus wal. WARNING: full recover may not be possible for the previous height",
 			"err", err)
-
 		return err
 	}
 
 	if err := wal.FlushAndSync(); err != nil {
 		wal.Logger.Error("WriteSync failed to flush consensus wal. WARNING: may result in creating alternative proposals / votes for the current height iff the node restarted",
 			"err", err)
-
 		return err
 	}
 
@@ -243,7 +238,6 @@ func (wal *baseWAL) WriteSync(msg WALMessage) error {
 	if err := wal.FlushAndSync(); err != nil {
 		wal.Logger.Error("WriteSync failed to flush consensus wal. WARNING: may result in creating alternative proposals / votes for the current height iff the node restarted",
 			"err", err)
-
 		return err
 	}
 
@@ -316,7 +310,6 @@ OUTER_LOOP:
 				} else {
 					backoff = backoff * 2 // exponential backwards
 				}
-
 				continue OUTER_LOOP
 			}
 			if index < min {
@@ -329,7 +322,6 @@ OUTER_LOOP:
 				// adjust max & binary search accordingly.
 				idxoff = 0
 				max = (min+max+1)/2 - 1
-
 				continue OUTER_LOOP
 			}
 		}
@@ -350,15 +342,12 @@ OUTER_LOOP:
 					// @index didn't have a height declaration.
 					idxoff++
 					dec.Close()
-
 					continue OUTER_LOOP
 				} else if options != nil && options.IgnoreDataCorruptionErrors && IsDataCorruptionError(err) {
 					wal.Logger.Error("Corrupted entry. Skipping...", "err", err)
-
 					continue FILE_LOOP // skip corrupted line and ignore error.
 				} else {
 					dec.Close()
-
 					return nil, false, err
 				}
 			}
@@ -391,7 +380,6 @@ OUTER_LOOP:
 						max = (min+max+1)/2 - 1
 					}
 					dec.Close()
-
 					continue OUTER_LOOP
 				} else if meta.Height == height { // found
 					wal.Logger.Info("Found", "height", height, "index", index)
@@ -406,7 +394,6 @@ OUTER_LOOP:
 							// ignore and keep reading
 							// NOTE: in the future we could binary search
 							// within a file, but for now we read sequentially.
-
 							continue FILE_LOOP
 						} else {
 							// convert to binary search with index as new min.
@@ -418,7 +405,6 @@ OUTER_LOOP:
 							min = index
 							mode = WALSearchModeBinary
 							dec.Close()
-
 							continue OUTER_LOOP
 						}
 					case WALSearchModeBinary:
@@ -428,7 +414,6 @@ OUTER_LOOP:
 							idxoff = 0
 							min = index
 							dec.Close()
-
 							continue OUTER_LOOP
 						} else { // index == max
 							// this is the last file, keep reading.
@@ -515,7 +500,6 @@ func (enc *WALWriter) Write(v TimedWALMessage) error {
 	line64 := base64stdnp.EncodeToString(line)
 	line64 += "\n"
 	_, err := enc.wr.Write([]byte(line64))
-
 	return err
 }
 
@@ -525,7 +509,6 @@ func (enc *WALWriter) WriteMeta(meta MetaMessage) error {
 	metaJSON := amino.MustMarshalJSON(meta)
 	metaLine := "#" + string(metaJSON) + "\n"
 	_, err := enc.wr.Write([]byte(metaLine))
-
 	return err
 }
 
@@ -534,7 +517,6 @@ func (enc *WALWriter) WriteMeta(meta MetaMessage) error {
 // IsDataCorruptionError returns true if data has been corrupted inside WAL.
 func IsDataCorruptionError(err error) bool {
 	_, ok := err.(DataCorruptionError)
-
 	return ok
 }
 
@@ -579,7 +561,6 @@ func (dec *WALReader) readline() ([]byte, error) {
 	if 0 < len(bz) {
 		bz = bz[:len(bz)-1]
 	}
-
 	return bz, err
 }
 
@@ -598,7 +579,6 @@ func (dec *WALReader) Close() (err error) {
 	// Close rd if it is a Closer.
 	if cl, ok := dec.rd.(io.Closer); ok {
 		err = cl.Close()
-
 		return
 	}
 
@@ -621,7 +601,6 @@ func (dec *WALReader) ReadMessage() (*TimedWALMessage, *MetaMessage, error) {
 	if line64[0] == '#' {
 		var meta MetaMessage
 		err := amino.UnmarshalJSON(line64[1:], &meta)
-
 		return nil, &meta, err
 	}
 

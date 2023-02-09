@@ -28,7 +28,6 @@ func TestPrivKeySecp256k1SignVerify(t *testing.T) {
 			if tt.wantSignErr {
 				require.Error(t, err)
 				t.Logf("Got error: %s", err)
-
 				return
 			}
 			require.NoError(t, err)

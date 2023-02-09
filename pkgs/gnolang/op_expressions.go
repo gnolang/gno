@@ -218,7 +218,6 @@ func (m *Machine) doOpTypeAssert1() {
 					xt.String(),
 					it.String())
 				m.Panic(typedString(ex))
-
 				return
 			}
 			// NOTE: consider ability to push an
@@ -240,7 +239,6 @@ func (m *Machine) doOpTypeAssert1() {
 					xt.String(),
 					nt.String())
 				m.Panic(typedString(ex))
-
 				return
 			}
 			// keep xv as is.
@@ -260,7 +258,6 @@ func (m *Machine) doOpTypeAssert1() {
 				xt.String(),
 				t.String())
 			m.Panic(typedString(ex))
-
 			return
 		}
 		// keep cxt as is.

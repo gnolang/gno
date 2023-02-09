@@ -40,7 +40,6 @@ func idFromInterface(idInterface interface{}) (jsonrpcid, error) {
 		return JSONRPCIntID(int(id)), nil
 	default:
 		typ := reflect.TypeOf(id)
-
 		return nil, fmt.Errorf("JSON-RPC ID (%v) is of unknown type (%v)", id, typ)
 	}
 }
@@ -78,7 +77,6 @@ func (request *RPCRequest) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	request.ID = id
-
 	return nil
 }
 
@@ -109,7 +107,6 @@ func MapToRequest(id jsonrpcid, method string, params map[string]interface{}) (R
 		return RPCRequest{}, err
 	}
 	request := NewRPCRequest(id, method, payload)
-
 	return request, nil
 }
 
@@ -127,7 +124,6 @@ func ArrayToRequest(id jsonrpcid, method string, params []interface{}) (RPCReque
 		return RPCRequest{}, err
 	}
 	request := NewRPCRequest(id, method, payload)
-
 	return request, nil
 }
 
@@ -145,7 +141,6 @@ func (err RPCError) Error() string {
 	if err.Data != "" {
 		return fmt.Sprintf(baseFormat+": %s", err.Code, err.Message, err.Data)
 	}
-
 	return fmt.Sprintf(baseFormat, err.Code, err.Message)
 }
 
@@ -179,7 +174,6 @@ func (response *RPCResponse) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	response.ID = id
-
 	return nil
 }
 
@@ -210,7 +204,6 @@ func (response RPCResponse) String() string {
 	if response.Error == nil {
 		return fmt.Sprintf("[%s %v]", response.ID, response.Result)
 	}
-
 	return fmt.Sprintf("[%s %s]", response.ID, response.Error)
 }
 
@@ -282,7 +275,6 @@ func (ctx *Context) RemoteAddr() string {
 	} else if ctx.WSConn != nil {
 		return ctx.WSConn.GetRemoteAddr()
 	}
-
 	return ""
 }
 
@@ -302,7 +294,6 @@ func (ctx *Context) Context() context.Context {
 	} else if ctx.WSConn != nil {
 		return ctx.WSConn.Context()
 	}
-
 	return context.Background()
 }
 
@@ -317,6 +308,5 @@ func SocketType(listenAddr string) string {
 	if len(strings.Split(listenAddr, ":")) >= 2 {
 		socketType = "tcp"
 	}
-
 	return socketType
 }

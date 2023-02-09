@@ -36,7 +36,6 @@ func (re *Regexp) Simplify() *Regexp {
 
 	case OpStar, OpPlus, OpQuest:
 		sub := re.Sub[0].Simplify()
-
 		return simplify1(re.Op, re.Flags, sub, re)
 
 	case OpRepeat:
@@ -68,7 +67,6 @@ func (re *Regexp) Simplify() *Regexp {
 				nre.Sub = append(nre.Sub, sub)
 			}
 			nre.Sub = append(nre.Sub, simplify1(OpPlus, re.Flags, sub, nil))
-
 			return nre
 		}
 
@@ -149,6 +147,5 @@ func simplify1(op Op, flags Flags, sub, re *Regexp) *Regexp {
 
 	re = &Regexp{Op: op, Flags: flags}
 	re.Sub = append(re.Sub0[:0], sub)
-
 	return re
 }

@@ -18,11 +18,10 @@ func New() hash.Hash {
 // Sum returns the SHA256 of the bz.
 func Sum(bz []byte) []byte {
 	h := sha256.Sum256(bz)
-
 	return h[:]
 }
 
-// -------------------------------------------------------------
+//-------------------------------------------------------------
 
 const (
 	TruncatedSize = 20
@@ -38,7 +37,6 @@ func (h sha256trunc) Write(p []byte) (n int, err error) {
 
 func (h sha256trunc) Sum(b []byte) []byte {
 	shasum := h.sha256.Sum(b)
-
 	return shasum[:TruncatedSize]
 }
 
@@ -64,6 +62,5 @@ func NewTruncated() hash.Hash {
 // SumTruncated returns the first 20 bytes of SHA256 of the bz.
 func SumTruncated(bz []byte) []byte {
 	hash := sha256.Sum256(bz)
-
 	return hash[:TruncatedSize]
 }

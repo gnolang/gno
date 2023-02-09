@@ -87,7 +87,6 @@ func guessRootDir(fileOrPkg string, goBinary string) (string, error) {
 		return "", fmt.Errorf("can't guess --root-dir")
 	}
 	rootDir := strings.TrimSpace(string(out))
-
 	return rootDir, nil
 }
 
@@ -125,20 +124,17 @@ func PrecompileAndCheckMempkg(mempkg *std.MemPackage) error {
 		res, err := Precompile(mfile.Body, "gno,tmp", mfile.Name)
 		if err != nil {
 			errs = multierr.Append(errs, err)
-
 			continue
 		}
 		tmpFile := filepath.Join(tmpDir, mfile.Name)
 		err = os.WriteFile(tmpFile, []byte(res.Translated), 0o644)
 		if err != nil {
 			errs = multierr.Append(errs, err)
-
 			continue
 		}
 		err = PrecompileVerifyFile(tmpFile, gofmt)
 		if err != nil {
 			errs = multierr.Append(errs, err)
-
 			continue
 		}
 	}
@@ -146,7 +142,6 @@ func PrecompileAndCheckMempkg(mempkg *std.MemPackage) error {
 	if errs != nil {
 		return fmt.Errorf("precompile package: %w", errs)
 	}
-
 	return nil
 }
 
@@ -196,7 +191,6 @@ func PrecompileVerifyFile(path string, gofmtBinary string) error {
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, string(out))
-
 		return fmt.Errorf("%s: %w", gofmtBinary, err)
 	}
 	return nil
@@ -252,7 +246,6 @@ func PrecompileBuildPackage(fileOrPkg string, goBinary string) error {
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, string(out))
-
 		return fmt.Errorf("std go compiler: %w", err)
 	}
 
@@ -282,7 +275,6 @@ func precompileAST(fset *token.FileSet, f *ast.File, checkWhitelist bool) (ast.N
 				for _, whitelisted := range stdlibWhitelist {
 					if importPath == whitelisted {
 						valid = true
-
 						break
 					}
 				}
@@ -293,7 +285,6 @@ func precompileAST(fset *token.FileSet, f *ast.File, checkWhitelist bool) (ast.N
 				for _, whitelisted := range importPrefixWhitelist {
 					if strings.HasPrefix(importPath, whitelisted) {
 						valid = true
-
 						break
 					}
 				}

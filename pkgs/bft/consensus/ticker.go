@@ -43,7 +43,6 @@ func NewTimeoutTicker() TimeoutTicker {
 	}
 	tt.BaseService = *service.NewBaseService(nil, "TimeoutTicker", tt)
 	tt.stopTimer() // don't want to fire until the first scheduled timeout
-
 	return tt
 }
 
@@ -72,7 +71,7 @@ func (t *timeoutTicker) ScheduleTimeout(ti timeoutInfo) {
 	t.tickChan <- ti
 }
 
-// -------------------------------------------------------------
+//-------------------------------------------------------------
 
 // stop the timer and drain if necessary
 func (t *timeoutTicker) stopTimer() {

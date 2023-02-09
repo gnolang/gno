@@ -17,7 +17,6 @@ MAIN_LOOP:
 			v := int(val & 0x3f) // rightmost 6 bits
 			if v >= 62 {         // only 62 characters in strChars
 				val >>= 6
-
 				continue
 			} else {
 				chars = append(chars, strChars[v])

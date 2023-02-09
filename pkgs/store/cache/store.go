@@ -70,7 +70,6 @@ func (store *cacheStore) Set(key []byte, value []byte) {
 // Implements types.Store.
 func (store *cacheStore) Has(key []byte) bool {
 	value := store.Get(key)
-
 	return value != nil
 }
 

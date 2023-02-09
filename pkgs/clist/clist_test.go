@@ -192,7 +192,6 @@ func TestScanRightDeleteRandom(t *testing.T) {
 				select {
 				case <-stop:
 					fmt.Println("stopped")
-
 					break FOR_LOOP
 				default:
 				}

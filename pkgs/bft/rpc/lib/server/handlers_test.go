@@ -73,7 +73,6 @@ func TestRPCParams(t *testing.T) {
 		blob, err := ioutil.ReadAll(res.Body)
 		if err != nil {
 			t.Errorf("#%d: err reading body: %v", i, err)
-
 			continue
 		}
 
@@ -122,7 +121,6 @@ func TestJSONRPCID(t *testing.T) {
 		blob, err := ioutil.ReadAll(res.Body)
 		if err != nil {
 			t.Errorf("#%d: err reading body: %v", i, err)
-
 			continue
 		}
 
@@ -187,7 +185,6 @@ func TestRPCNotificationInBatch(t *testing.T) {
 		blob, err := ioutil.ReadAll(res.Body)
 		if err != nil {
 			t.Errorf("#%d: err reading body: %v", i, err)
-
 			continue
 		}
 
@@ -198,7 +195,6 @@ func TestRPCNotificationInBatch(t *testing.T) {
 			// if we were actually expecting an array, but got an error
 			if tt.expectCount > 1 {
 				t.Errorf("#%d: expected an array, couldn't unmarshal it\nblob: %s", i, blob)
-
 				continue
 			} else {
 				// we were expecting an error here, so let's unmarshal a single response
@@ -206,7 +202,6 @@ func TestRPCNotificationInBatch(t *testing.T) {
 				err = json.Unmarshal(blob, &response)
 				if err != nil {
 					t.Errorf("#%d: expected successful parsing of an RPCResponse\nblob: %s", i, blob)
-
 					continue
 				}
 				// have a single-element result
@@ -215,7 +210,6 @@ func TestRPCNotificationInBatch(t *testing.T) {
 		}
 		if tt.expectCount != len(responses) {
 			t.Errorf("#%d: expected %d response(s), but got %d\nblob: %s", i, tt.expectCount, len(responses), blob)
-
 			continue
 		}
 		for _, response := range responses {

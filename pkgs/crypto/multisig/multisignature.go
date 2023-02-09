@@ -40,14 +40,12 @@ func (mSig *Multisignature) AddSignature(sig []byte, index int) {
 	// Signature already exists, just replace the value there
 	if mSig.BitArray.GetIndex(index) {
 		mSig.Sigs[newSigIndex] = sig
-
 		return
 	}
 	mSig.BitArray.SetIndex(index, true)
 	// Optimization if the index is the greatest index
 	if newSigIndex == len(mSig.Sigs) {
 		mSig.Sigs = append(mSig.Sigs, sig)
-
 		return
 	}
 	// Expand slice by one with a dummy element, move all elements after i
@@ -71,7 +69,6 @@ func (mSig *Multisignature) AddSignatureFromPubKey(sig []byte, pubkey crypto.Pub
 	}
 
 	mSig.AddSignature(sig, index)
-
 	return nil
 }
 

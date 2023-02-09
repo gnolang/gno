@@ -19,7 +19,6 @@ func (ps PackageSet) Add(pkg *Package) bool {
 		return false
 	} else {
 		ps[pkg.GoPkgPath] = pkg
-
 		return true
 	}
 }

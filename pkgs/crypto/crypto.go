@@ -30,7 +30,6 @@ type Address [AddressSize]byte
 
 func AddressFromString(str string) (addr Address, err error) {
 	err = addr.DecodeString(str)
-
 	return
 }
 
@@ -39,7 +38,6 @@ func MustAddressFromString(str string) (addr Address) {
 	if err != nil {
 		panic(fmt.Errorf("invalid address string representation: %v, error: %w", str, err))
 	}
-
 	return
 }
 
@@ -52,7 +50,6 @@ func AddressFromBytes(bz []byte) (ret Address) {
 		panic(fmt.Errorf("unexpected address byte length. expected %v, got %v", AddressSize, len(bz)))
 	}
 	copy(ret[:], bz)
-
 	return
 }
 
@@ -69,7 +66,6 @@ func (addr *Address) UnmarshalAmino(b32str string) (err error) {
 		return err
 	}
 	copy(addr[:], addr2[:])
-
 	return nil
 }
 
@@ -78,7 +74,6 @@ func (addr Address) Compare(other Address) int {
 	bz2 := make([]byte, len(other))
 	copy(bz1, addr[:])
 	copy(bz2, other[:])
-
 	return bytes.Compare(bz1, bz2)
 }
 
@@ -97,7 +92,6 @@ func (addr Address) Bech32() Bech32Address {
 func (addr Address) Bytes() []byte {
 	res := make([]byte, AddressSize)
 	copy(res, addr[:])
-
 	return res
 }
 
@@ -113,7 +107,6 @@ func (addr *Address) DecodeString(str string) error {
 		return fmt.Errorf("unexpected address byte length. expected %v, got %v", AddressSize, len(bz))
 	}
 	copy((*addr)[:], bz)
-
 	return nil
 }
 
@@ -137,13 +130,11 @@ func (id ID) Validate() error {
 	}
 	var addr Address
 	err := addr.DecodeID(id)
-
 	return err
 }
 
 func AddressFromID(id ID) (addr Address, err error) {
 	err = addr.DecodeString(string(id))
-
 	return
 }
 

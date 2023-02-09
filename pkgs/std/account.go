@@ -33,7 +33,7 @@ type Account interface {
 	String() string
 }
 
-// ----------------------------------------
+//----------------------------------------
 // BaseAccount
 
 // BaseAccount - a base account structure.
@@ -100,7 +100,6 @@ func (acc *BaseAccount) SetAddress(addr crypto.Address) error {
 		return errors.New("cannot override BaseAccount address")
 	}
 	acc.Address = addr
-
 	return nil
 }
 
@@ -112,7 +111,6 @@ func (acc BaseAccount) GetPubKey() crypto.PubKey {
 // SetPubKey - Implements Account.
 func (acc *BaseAccount) SetPubKey(pubKey crypto.PubKey) error {
 	acc.PubKey = pubKey
-
 	return nil
 }
 
@@ -124,7 +122,6 @@ func (acc *BaseAccount) GetCoins() Coins {
 // SetCoins - Implements Account.
 func (acc *BaseAccount) SetCoins(coins Coins) error {
 	acc.Coins = coins
-
 	return nil
 }
 
@@ -136,7 +133,6 @@ func (acc *BaseAccount) GetAccountNumber() uint64 {
 // SetAccountNumber - Implements Account
 func (acc *BaseAccount) SetAccountNumber(accNumber uint64) error {
 	acc.AccountNumber = accNumber
-
 	return nil
 }
 
@@ -148,6 +144,5 @@ func (acc *BaseAccount) GetSequence() uint64 {
 // SetSequence - Implements Account.
 func (acc *BaseAccount) SetSequence(seq uint64) error {
 	acc.Sequence = seq
-
 	return nil
 }

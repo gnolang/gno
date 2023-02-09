@@ -39,7 +39,6 @@ func (i VPType) String() string {
 		return _VPType_name_0[_VPType_index_0[i]:_VPType_index_0[i+1]]
 	case 18 <= i && i <= 21:
 		i -= 18
-
 		return _VPType_name_1[_VPType_index_1[i]:_VPType_index_1[i+1]]
 	case i == 32:
 		return _VPType_name_2

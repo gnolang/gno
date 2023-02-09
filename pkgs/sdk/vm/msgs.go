@@ -10,7 +10,7 @@ import (
 	"github.com/gnolang/gno/pkgs/std"
 )
 
-// ----------------------------------------
+//----------------------------------------
 // MsgAddPackage
 
 // MsgAddPackage - create and initialize new package
@@ -28,7 +28,6 @@ func NewMsgAddPackage(creator crypto.Address, pkgPath string, files []*std.MemFi
 	for _, file := range files {
 		if strings.HasSuffix(file.Name, ".gno") {
 			pkgName = string(gno.PackageNameFromFileBody(file.Name, file.Body))
-
 			break
 		}
 	}
@@ -78,7 +77,7 @@ func (msg MsgAddPackage) GetReceived() std.Coins {
 	return msg.Deposit
 }
 
-// ----------------------------------------
+//----------------------------------------
 // MsgCall
 
 // MsgCall - executes a Gno statement.

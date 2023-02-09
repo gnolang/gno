@@ -29,7 +29,6 @@ func (vh vmHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 		return vh.handleMsgCall(ctx, msg)
 	default:
 		errMsg := fmt.Sprintf("unrecognized vm message type: %T", msg)
-
 		return abciResult(std.ErrUnknownRequest(errMsg))
 	}
 }
@@ -67,7 +66,6 @@ func (vh vmHandler) handleMsgCall(ctx sdk.Context, msg MsgCall) (res sdk.Result)
 		return abciResult(err)
 	}
 	res.Data = []byte(resstr)
-
 	return
 	/* TODO handle events.
 	ctx.EventManager().EmitEvent(
@@ -79,7 +77,7 @@ func (vh vmHandler) handleMsgCall(ctx sdk.Context, msg MsgCall) (res sdk.Result)
 	*/
 }
 
-// ----------------------------------------
+//----------------------------------------
 // Query
 
 // query paths
@@ -111,7 +109,6 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 			std.ErrUnknownRequest(fmt.Sprintf(
 				"unknown vm query endpoint %s in %s",
 				secondPart(req.Path), req.Path)))
-
 		return
 	}
 }
@@ -119,14 +116,12 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 // queryPackage fetch a package's files.
 func (vh vmHandler) queryPackage(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	res.Data = []byte(fmt.Sprintf("TODO: parse parts get or make fileset..."))
-
 	return
 }
 
 // queryPackage fetch items from the store.
 func (vh vmHandler) queryStore(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	res.Data = []byte(fmt.Sprintf("TODO: fetch from store"))
-
 	return
 }
 
@@ -143,11 +138,9 @@ func (vh vmHandler) queryRender(ctx sdk.Context, req abci.RequestQuery) (res abc
 	result, err := vh.vm.QueryEvalString(ctx, pkgPath, expr)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
-
 		return
 	}
 	res.Data = []byte(result)
-
 	return
 }
 
@@ -162,11 +155,9 @@ func (vh vmHandler) queryFuncs(ctx sdk.Context, req abci.RequestQuery) (res abci
 	fsigs, err := vh.vm.QueryFuncs(ctx, pkgPath)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
-
 		return
 	}
 	res.Data = []byte(fsigs.JSON())
-
 	return
 }
 
@@ -182,11 +173,9 @@ func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.
 	result, err := vh.vm.QueryEval(ctx, pkgPath, expr)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
-
 		return
 	}
 	res.Data = []byte(result)
-
 	return
 }
 
@@ -198,15 +187,13 @@ func (vh vmHandler) queryFile(ctx sdk.Context, req abci.RequestQuery) (res abci.
 	result, err := vh.vm.QueryFile(ctx, filepath)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
-
 		return
 	}
 	res.Data = []byte(result)
-
 	return
 }
 
-// ----------------------------------------
+//----------------------------------------
 // misc
 
 func abciResult(err error) sdk.Result {

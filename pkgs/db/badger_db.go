@@ -35,7 +35,6 @@ func NewBadgerDB(dbName, dir string) (*BadgerDB, error) {
 	opts.NumGoroutines = 32
 	opts.SyncWrites = false // note that we have Sync methods
 	opts.Logger = nil       // badger is too chatty by default
-
 	return NewBadgerDBWithOptions(opts)
 }
 
@@ -74,7 +73,6 @@ func (b *BadgerDB) Get(key []byte) ([]byte, error) {
 		}
 		return err
 	})
-
 	return val, err
 }
 
@@ -89,10 +87,8 @@ func (b *BadgerDB) Has(key []byte) (bool, error) {
 			return err
 		}
 		found = (err != badger.ErrKeyNotFound)
-
 		return nil
 	})
-
 	return found, err
 }
 
@@ -165,14 +161,12 @@ func (b *BadgerDB) iteratorOpts(start, end []byte, opts badger.IteratorOptions) 
 
 func (b *BadgerDB) Iterator(start, end []byte) (Iterator, error) {
 	opts := badger.DefaultIteratorOptions
-
 	return b.iteratorOpts(start, end, opts)
 }
 
 func (b *BadgerDB) ReverseIterator(start, end []byte) (Iterator, error) {
 	opts := badger.DefaultIteratorOptions
 	opts.Reverse = true
-
 	return b.iteratorOpts(end, start, opts)
 }
 
@@ -241,7 +235,6 @@ func (b *badgerDBBatch) Close() error {
 	default:
 	}
 	b.wb.Cancel()
-
 	return nil
 }
 
@@ -258,7 +251,6 @@ type badgerDBIterator struct {
 func (i *badgerDBIterator) Close() error {
 	i.iter.Close()
 	i.txn.Discard()
-
 	return nil
 }
 

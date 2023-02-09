@@ -30,7 +30,6 @@ func DialTCPFn(addr string, timeoutReadWrite time.Duration, privKey ed25519.Priv
 		if err == nil {
 			conn, err = p2pconn.MakeSecretConnection(conn, privKey)
 		}
-
 		return conn, err
 	}
 }
@@ -39,7 +38,6 @@ func DialTCPFn(addr string, timeoutReadWrite time.Duration, privKey ed25519.Priv
 func DialUnixFn(addr string) SocketDialer {
 	return func() (net.Conn, error) {
 		unixAddr := &net.UnixAddr{Name: addr, Net: "unix"}
-
 		return net.DialUnix("unix", nil, unixAddr)
 	}
 }

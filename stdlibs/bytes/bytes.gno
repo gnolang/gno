@@ -225,7 +225,6 @@ func IndexAny(s []byte, chars string) int {
 				return i
 			}
 			width = 1
-
 			continue
 		}
 		r, width = utf8.DecodeRune(s[i:])
@@ -619,7 +618,6 @@ func ToUpper(s []byte) []byte {
 		c := s[i]
 		if c >= utf8.RuneSelf {
 			isASCII = false
-
 			break
 		}
 		hasLower = hasLower || ('a' <= c && c <= 'z')
@@ -651,7 +649,6 @@ func ToLower(s []byte) []byte {
 		c := s[i]
 		if c >= utf8.RuneSelf {
 			isASCII = false
-
 			break
 		}
 		hasUpper = hasUpper || ('A' <= c && c <= 'Z')
@@ -706,7 +703,6 @@ func ToValidUTF8(s, replacement []byte) []byte {
 			i++
 			invalid = false
 			b = append(b, byte(c))
-
 			continue
 		}
 		_, wid := utf8.DecodeRune(s[i:])

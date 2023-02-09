@@ -7,7 +7,6 @@ func Primes(n int) int {
 		for _, x := range xs {
 			if i%x == 0 {
 				ok = false
-
 				break
 			}
 		}

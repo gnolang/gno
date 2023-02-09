@@ -16,7 +16,6 @@ import (
 
 func newCacheStore() types.Store {
 	mem := dbadapter.Store{dbm.NewMemDB()}
-
 	return cache.New(mem)
 }
 
@@ -508,7 +507,6 @@ func (krc *keyRangeCounter) next() {
 
 func (krc *keyRangeCounter) key() int {
 	thisKeyRange := krc.keyRanges[krc.rangeIdx]
-
 	return thisKeyRange.start + krc.idx
 }
 

@@ -37,7 +37,6 @@ func makeUPNPListener(intPort int, extPort int, logger log.Logger) (NAT, net.Lis
 	if err != nil {
 		return nat, nil, ext, fmt.Errorf("error establishing listener: %w", err)
 	}
-
 	return nat, listener, ext, nil
 }
 
@@ -47,7 +46,6 @@ func testHairpin(listener net.Listener, extAddr string, logger log.Logger) (supp
 		inConn, err := listener.Accept()
 		if err != nil {
 			logger.Info(fmt.Sprintf("Listener.Accept() error: %v", err))
-
 			return
 		}
 		logger.Info(fmt.Sprintf("Accepted incoming connection: %v -> %v", inConn.LocalAddr(), inConn.RemoteAddr()))
@@ -55,13 +53,11 @@ func testHairpin(listener net.Listener, extAddr string, logger log.Logger) (supp
 		n, err := inConn.Read(buf)
 		if err != nil {
 			logger.Info(fmt.Sprintf("Incoming connection read error: %v", err))
-
 			return
 		}
 		logger.Info(fmt.Sprintf("Incoming connection read %v bytes: %X", n, buf))
 		if string(buf) == "test data" {
 			supportsHairpin = true
-
 			return
 		}
 	}()
@@ -70,21 +66,18 @@ func testHairpin(listener net.Listener, extAddr string, logger log.Logger) (supp
 	outConn, err := net.Dial("tcp", extAddr)
 	if err != nil {
 		logger.Info(fmt.Sprintf("Outgoing connection dial error: %v", err))
-
 		return
 	}
 
 	n, err := outConn.Write([]byte("test data"))
 	if err != nil {
 		logger.Info(fmt.Sprintf("Outgoing connection write error: %v", err))
-
 		return
 	}
 	logger.Info(fmt.Sprintf("Outgoing connection wrote %v bytes", n))
 
 	// Wait for data receipt
 	time.Sleep(1 * time.Second)
-
 	return supportsHairpin
 }
 

@@ -23,7 +23,6 @@ func generateApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 	if len(args) != 0 {
 		cmd.ErrPrintfln("Usage: generate (no args)")
-
 		return errors.New("invalid args")
 	}
 

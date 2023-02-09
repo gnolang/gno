@@ -13,7 +13,6 @@ func (perm perm) hasPerm(verb, resource string) bool {
 	for _, pattern := range perm.verbs {
 		if match(pattern, verb) {
 			verbOK = true
-
 			break
 		}
 	}

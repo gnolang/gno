@@ -18,20 +18,17 @@ func (es EmptyStruct) ToPBMessage(cdc *amino.Codec) (msg proto.Message, err erro
 		if IsEmptyStructReprEmpty(es) {
 			var pbov *testspb.EmptyStruct
 			msg = pbov
-
 			return
 		}
 		pbo = new(testspb.EmptyStruct)
 	}
 	msg = pbo
-
 	return
 }
 
 func (es EmptyStruct) EmptyPBMessage(cdc *amino.Codec) (msg proto.Message) {
 	pbo := new(testspb.EmptyStruct)
 	msg = pbo
-
 	return
 }
 

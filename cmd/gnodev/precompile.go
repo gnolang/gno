@@ -48,7 +48,6 @@ func (p *precompileOptions) getFlags() precompileFlags {
 
 func (p *precompileOptions) isPrecompiled(pkg importPath) bool {
 	_, precompiled := p.precompiled[pkg]
-
 	return precompiled
 }
 
@@ -60,7 +59,6 @@ func precompileApp(cmd *command.Command, args []string, f interface{}) error {
 	flags := f.(precompileFlags)
 	if len(args) < 1 {
 		cmd.ErrPrintfln("Usage: precompile [precompile flags] [packages]")
-
 		return errors.New("invalid args")
 	}
 

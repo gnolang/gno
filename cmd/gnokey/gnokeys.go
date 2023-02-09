@@ -27,7 +27,6 @@ func main() {
 	if err != nil {
 		cmd.ErrPrintfln("%s", err.Error())
 		cmd.ErrPrintfln("%#v", err)
-
 		return // exit
 	}
 }
@@ -57,7 +56,6 @@ func makeTxApp(cmd *command.Command, args []string, iopts interface{}) error {
 		for _, appItem := range makeTxApps {
 			cmd.Printf("  %s - %s\n", appItem.Name, appItem.Desc)
 		}
-
 		return nil
 	}
 
@@ -65,7 +63,6 @@ func makeTxApp(cmd *command.Command, args []string, iopts interface{}) error {
 	for _, appItem := range makeTxApps {
 		if appItem.Name == args[0] {
 			err := cmd.Run(appItem.App, args[1:], appItem.Defaults)
-
 			return err // done
 		}
 	}
@@ -120,7 +117,6 @@ func makeAddPackageTxApp(cmd *command.Command, args []string, iopts interface{})
 	}
 	if len(args) != 1 {
 		cmd.ErrPrintfln("Usage: addpkg <keyname or address>")
-
 		return errors.New("invalid args")
 	}
 
@@ -179,7 +175,6 @@ func makeAddPackageTxApp(cmd *command.Command, args []string, iopts interface{})
 	} else {
 		fmt.Println(string(amino.MustMarshalJSON(tx)))
 	}
-
 	return nil
 }
 
@@ -214,7 +209,6 @@ func makeCallTxApp(cmd *command.Command, args []string, iopts interface{}) error
 	}
 	if len(args) != 1 {
 		cmd.ErrPrintfln("Usage: call <keyname or address>")
-
 		return errors.New("invalid args")
 	}
 	if opts.GasWanted == 0 {
@@ -276,7 +270,6 @@ func makeCallTxApp(cmd *command.Command, args []string, iopts interface{}) error
 	} else {
 		fmt.Println(string(amino.MustMarshalJSON(tx)))
 	}
-
 	return nil
 }
 
@@ -376,7 +369,6 @@ func makeSendTxApp(cmd *command.Command, args []string, iopts interface{}) error
 	opts := iopts.(makeSendTxOptions)
 	if len(args) != 1 {
 		cmd.ErrPrintfln("Usage: send <keyname or address>")
-
 		return errors.New("invalid args")
 	}
 	if opts.GasWanted == 0 {
@@ -445,6 +437,5 @@ func makeSendTxApp(cmd *command.Command, args []string, iopts interface{}) error
 	} else {
 		fmt.Println(string(amino.MustMarshalJSON(tx)))
 	}
-
 	return nil
 }

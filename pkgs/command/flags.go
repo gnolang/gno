@@ -25,7 +25,6 @@ func applyFlags(ptr interface{}, flags map[string]interface{}) error {
 		panic("expected pointer kind to option")
 	}
 	rv := prv.Elem()
-
 	return applyFlagsReflect(rv, flags)
 }
 
@@ -75,11 +74,9 @@ func applyFlagReflect(rv reflect.Value, fname string, fvalue interface{}) (bool,
 			fmt.Fprintf(os.Stderr, "WARN: non-anonymous option field found (%s) with no flag name; in the future this will panic at start of program\n", rtf.Name)
 		} else if ffn == fname {
 			frv := rv.Field(i)
-
 			return true, applyFlagToFieldReflect(frv, fvalue)
 		}
 	}
-
 	return false, nil
 }
 
@@ -111,7 +108,6 @@ func applyFlagToFieldReflectString(frv reflect.Value, fvalue string) error {
 			frv.Set(reflect.New(frt.Elem()))
 		}
 		err := applyFlagToFieldReflectString(frv.Elem(), fvalue)
-
 		return err
 	case reflect.Array:
 		ert := frt.Elem()
@@ -123,7 +119,6 @@ func applyFlagToFieldReflectString(frv reflect.Value, fvalue string) error {
 				// return errors.Wrap(err, "invalid hex")
 			}
 			frv.SetBytes(bz)
-
 			return nil
 		} else {
 			parts := strings.Split(fvalue, ",")
@@ -146,7 +141,6 @@ func applyFlagToFieldReflectString(frv reflect.Value, fvalue string) error {
 				// return errors.Wrap(err, "invalid hex")
 			}
 			frv.SetBytes(bz)
-
 			return nil
 		} else {
 			parts := strings.Split(fvalue, ",")
@@ -167,7 +161,6 @@ func applyFlagToFieldReflectString(frv reflect.Value, fvalue string) error {
 			return errors.Wrap(err, "invalid int")
 		}
 		frv.SetInt(fnum)
-
 		return nil
 	case reflect.Int8:
 		fnum, err := strconv.ParseInt(fvalue, 0, 8)
@@ -175,7 +168,6 @@ func applyFlagToFieldReflectString(frv reflect.Value, fvalue string) error {
 			return errors.Wrap(err, "invalid int8")
 		}
 		frv.SetInt(fnum)
-
 		return nil
 	case reflect.Int16:
 		fnum, err := strconv.ParseInt(fvalue, 0, 16)
@@ -183,7 +175,6 @@ func applyFlagToFieldReflectString(frv reflect.Value, fvalue string) error {
 			return errors.Wrap(err, "invalid int16")
 		}
 		frv.SetInt(fnum)
-
 		return nil
 	case reflect.Int32:
 		fnum, err := strconv.ParseInt(fvalue, 0, 32)
@@ -191,7 +182,6 @@ func applyFlagToFieldReflectString(frv reflect.Value, fvalue string) error {
 			return errors.Wrap(err, "invalid int32")
 		}
 		frv.SetInt(fnum)
-
 		return nil
 	case reflect.Int64:
 		fnum, err := strconv.ParseInt(fvalue, 0, 64)
@@ -207,7 +197,6 @@ func applyFlagToFieldReflectString(frv reflect.Value, fvalue string) error {
 			return errors.Wrap(err, "invalid int64")
 		}
 		frv.SetInt(fnum)
-
 		return nil
 	case reflect.Uint:
 		fnum, err := strconv.ParseUint(fvalue, 0, 0)
@@ -215,7 +204,6 @@ func applyFlagToFieldReflectString(frv reflect.Value, fvalue string) error {
 			return errors.Wrap(err, "invalid uint")
 		}
 		frv.SetUint(fnum)
-
 		return nil
 	case reflect.Uint8:
 		fnum, err := strconv.ParseUint(fvalue, 0, 8)
@@ -223,7 +211,6 @@ func applyFlagToFieldReflectString(frv reflect.Value, fvalue string) error {
 			return errors.Wrap(err, "invalid uint8")
 		}
 		frv.SetUint(fnum)
-
 		return nil
 	case reflect.Uint16:
 		fnum, err := strconv.ParseUint(fvalue, 0, 16)
@@ -231,7 +218,6 @@ func applyFlagToFieldReflectString(frv reflect.Value, fvalue string) error {
 			return errors.Wrap(err, "invalid uint16")
 		}
 		frv.SetUint(fnum)
-
 		return nil
 	case reflect.Uint32:
 		fnum, err := strconv.ParseUint(fvalue, 0, 32)
@@ -239,7 +225,6 @@ func applyFlagToFieldReflectString(frv reflect.Value, fvalue string) error {
 			return errors.Wrap(err, "invalid uint32")
 		}
 		frv.SetUint(fnum)
-
 		return nil
 	case reflect.Uint64:
 		fnum, err := strconv.ParseUint(fvalue, 0, 64)
@@ -247,24 +232,20 @@ func applyFlagToFieldReflectString(frv reflect.Value, fvalue string) error {
 			return errors.Wrap(err, "invalid uint64")
 		}
 		frv.SetUint(fnum)
-
 		return nil
 	case reflect.String:
 		// XXX is there something wrong with os.Args? why does it strip '/", and then not unescape \n and \t while unescaping \\?
 		fvalue = strings.ReplaceAll(fvalue, `\n`, "\n")
 		fvalue = strings.ReplaceAll(fvalue, `\t`, "\t")
 		frv.SetString(fvalue)
-
 		return nil
 	case reflect.Bool:
 		switch fvalue {
 		case "true", "True", "yes", "Yes", "y", "Y":
 			frv.SetBool(true)
-
 			return nil
 		case "false", "False", "no", "No", "n", "N":
 			frv.SetBool(false)
-
 			return nil
 		default:
 			return errors.New("unexpected bool value: " + fvalue)
@@ -314,13 +295,11 @@ func ParseArgs(oargs []string) (args []string, flags map[string]interface{}) {
 		if strings.HasPrefix(arg, "-") {
 			args = oargs[:i]
 			flags = parseFlags(oargs[i:])
-
 			return
 		}
 	}
 	args = oargs
 	flags = nil
-
 	return
 }
 

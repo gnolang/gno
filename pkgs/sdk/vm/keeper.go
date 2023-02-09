@@ -94,7 +94,6 @@ func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 		// NOTE: this is inefficient, but simple.
 		// in the future, replace with more advanced caching strategy.
 		vm.gnoStore.ClearObjectCache()
-
 		return vm.gnoStore
 	case sdk.RunTxModeCheck:
 		// For query??? XXX Why not RunTxModeQuery?
@@ -102,7 +101,6 @@ func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 		baseSDKStore := ctx.Store(vm.baseKey)
 		iavlSDKStore := ctx.Store(vm.iavlKey)
 		simStore.SwapStores(baseSDKStore, iavlSDKStore)
-
 		return simStore
 	case sdk.RunTxModeSimulate:
 		// always make a new store for simulate for isolation.
@@ -110,7 +108,6 @@ func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 		baseSDKStore := ctx.Store(vm.baseKey)
 		iavlSDKStore := ctx.Store(vm.iavlKey)
 		simStore.SwapStores(baseSDKStore, iavlSDKStore)
-
 		return simStore
 	default:
 		panic("should not happen")
@@ -178,7 +175,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 		})
 	m2.RunMemPackage(memPkg, true)
 	fmt.Println("CPUCYCLES addpkg", m2.Cycles)
-
 	return nil
 }
 
@@ -255,7 +251,6 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		if r := recover(); r != nil {
 			err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\n%s\n",
 				r, m.String())
-
 			return
 		}
 	}()
@@ -278,7 +273,6 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 	if !gno.IsRealmPath(pkgPath) {
 		err = ErrInvalidPkgPath(fmt.Sprintf(
 			"package is not realm: %s", pkgPath))
-
 		return nil, err
 	}
 	// Get Package.
@@ -286,7 +280,6 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 	if pv == nil {
 		err = ErrInvalidPkgPath(fmt.Sprintf(
 			"package not found: %s", pkgPath))
-
 		return nil, err
 	}
 	// Iterate over public functions.
@@ -345,7 +338,6 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 	if pv == nil {
 		err = ErrInvalidPkgPath(fmt.Sprintf(
 			"package not found: %s", pkgPath))
-
 		return "", err
 	}
 	// Parse expression.
@@ -378,7 +370,6 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 		if r := recover(); r != nil {
 			err = errors.Wrap(fmt.Errorf("%v", r), "VM query eval panic: %v\n%s\n",
 				r, m.String())
-
 			return
 		}
 	}()
@@ -406,7 +397,6 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 	if pv == nil {
 		err = ErrInvalidPkgPath(fmt.Sprintf(
 			"package not found: %s", pkgPath))
-
 		return "", err
 	}
 	// Parse expression.
@@ -439,7 +429,6 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 		if r := recover(); r != nil {
 			err = errors.Wrap(fmt.Errorf("%v", r), "VM query eval string panic: %v\n%s\n",
 				r, m.String())
-
 			return
 		}
 	}()
@@ -450,7 +439,6 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 		return "", errors.New("expected 1 string result, got %v", rtvs[0].T.Kind())
 	}
 	res = rtvs[0].GetString()
-
 	return res, nil
 }
 

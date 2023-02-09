@@ -13,7 +13,6 @@ func AddressToBech32(addr Address) string {
 	if err != nil {
 		panic(err)
 	}
-
 	return bech32Addr
 }
 
@@ -31,7 +30,6 @@ func PubKeyToBech32(pub PubKey) string {
 	if err != nil {
 		panic(err)
 	}
-
 	return bech32PubKey
 }
 
@@ -41,7 +39,6 @@ func PubKeyFromBech32(bech32str string) (pubKey PubKey, err error) {
 		return PubKey(nil), err
 	} else {
 		err = amino.Unmarshal(bz, &pubKey)
-
 		return
 	}
 }

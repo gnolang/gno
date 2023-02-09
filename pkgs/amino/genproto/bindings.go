@@ -1092,7 +1092,6 @@ func _fields(args ...interface{}) *ast.FieldList {
 		// but is that the behavior we want?
 		if lasti == te_ {
 			names = append(names, name)
-
 			continue
 		} else {
 			maybePop()
@@ -1417,7 +1416,6 @@ func _a(args ...interface{}) *ast.AssignStmt {
 			case "=", ":=", "+=", "-=", "*=", "/=", "%=",
 				"&=", "|=", "^=", "<<=", ">>=", "&^=":
 				setTok(_aop(s))
-
 				continue
 			default:
 				arg = _x(s)

@@ -23,7 +23,6 @@ func Sprintf(format string, args ...interface{}) string {
 		if verb == '%' {
 			buf += "%"
 			i += 2
-
 			continue
 		}
 

@@ -256,7 +256,6 @@ func newMultiStoreWithMounts(db dbm.DB) *multiStore {
 		types.NewStoreKey("store2"), iavl.StoreConstructor, nil)
 	store.MountStoreWithDB(
 		types.NewStoreKey("store3"), iavl.StoreConstructor, nil)
-
 	return store
 }
 

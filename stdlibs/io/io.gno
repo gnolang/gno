@@ -431,12 +431,10 @@ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 			written += int64(nw)
 			if ew != nil {
 				err = ew
-
 				break
 			}
 			if nr != nw {
 				err = ErrShortWrite
-
 				break
 			}
 		}

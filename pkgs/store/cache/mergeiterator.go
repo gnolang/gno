@@ -27,7 +27,6 @@ func newCacheMergeIterator(parent, cache types.Iterator, ascending bool) *cacheM
 		cache:     cache,
 		ascending: ascending,
 	}
-
 	return iter
 }
 
@@ -46,7 +45,6 @@ func (iter *cacheMergeIterator) Domain() (start, end []byte) {
 	} else {
 		end = endP
 	}
-
 	return start, end
 }
 
@@ -63,14 +61,12 @@ func (iter *cacheMergeIterator) Next() {
 	// If parent is invalid, get the next cache item.
 	if !iter.parent.Valid() {
 		iter.cache.Next()
-
 		return
 	}
 
 	// If cache is invalid, get the next parent item.
 	if !iter.cache.Valid() {
 		iter.parent.Next()
-
 		return
 	}
 
@@ -107,7 +103,6 @@ func (iter *cacheMergeIterator) Key() []byte {
 	cmp := iter.compare(keyP, keyC)
 	switch cmp {
 	case -1: // parent < cache
-
 		return keyP
 	case 0: // parent == cache
 		return keyP
@@ -159,7 +154,6 @@ func (iter *cacheMergeIterator) compare(a, b []byte) int {
 	if iter.ascending {
 		return bytes.Compare(a, b)
 	}
-
 	return bytes.Compare(a, b) * -1
 }
 
@@ -184,7 +178,6 @@ func (iter *cacheMergeIterator) skipUntilExistsOrInvalid() bool {
 		// If parent is invalid, fast-forward cache.
 		if !iter.parent.Valid() {
 			iter.skipCacheDeletes(nil)
-
 			return iter.cache.Valid()
 		}
 		// Parent is valid.
@@ -208,7 +201,6 @@ func (iter *cacheMergeIterator) skipUntilExistsOrInvalid() bool {
 			if valueC == nil {
 				iter.parent.Next()
 				iter.cache.Next()
-
 				continue
 			}
 			// Cache is not a delete.
@@ -221,7 +213,6 @@ func (iter *cacheMergeIterator) skipUntilExistsOrInvalid() bool {
 			valueC := iter.cache.Value()
 			if valueC == nil {
 				iter.skipCacheDeletes(keyP)
-
 				continue
 			}
 			// Cache is not a delete.

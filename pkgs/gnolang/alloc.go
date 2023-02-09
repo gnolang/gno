@@ -68,7 +68,6 @@ func NewAllocator(maxBytes int64) *Allocator {
 	if maxBytes == 0 {
 		return nil
 	}
-
 	return &Allocator{
 		maxBytes: maxBytes,
 	}
@@ -83,7 +82,6 @@ func (alloc *Allocator) Reset() *Allocator {
 		return nil
 	} else {
 		alloc.bytes = 0
-
 		return alloc
 	}
 }
@@ -183,18 +181,16 @@ func (alloc *Allocator) AllocateAmino(l int64) {
 	alloc.Allocate(allocAmino + allocAminoByte*l)
 }
 
-// ----------------------------------------
+//----------------------------------------
 // constructor utilities.
 
 func (alloc *Allocator) NewString(s string) StringValue {
 	alloc.AllocateString(int64(len(s)))
-
 	return StringValue(s)
 }
 
 func (alloc *Allocator) NewListArray(n int) *ArrayValue {
 	alloc.AllocateListArray(int64(n))
-
 	return &ArrayValue{
 		List: make([]TypedValue, n),
 	}
@@ -202,7 +198,6 @@ func (alloc *Allocator) NewListArray(n int) *ArrayValue {
 
 func (alloc *Allocator) NewDataArray(n int) *ArrayValue {
 	alloc.AllocateDataArray(int64(n))
-
 	return &ArrayValue{
 		Data: make([]byte, n),
 	}
@@ -211,13 +206,11 @@ func (alloc *Allocator) NewDataArray(n int) *ArrayValue {
 func (alloc *Allocator) NewArrayFromData(data []byte) *ArrayValue {
 	av := alloc.NewDataArray(len(data))
 	copy(av.Data, data)
-
 	return av
 }
 
 func (alloc *Allocator) NewSlice(base Value, offset, length, maxcap int) *SliceValue {
 	alloc.AllocateSlice()
-
 	return &SliceValue{
 		Base:   base,
 		Offset: offset,
@@ -231,7 +224,6 @@ func (alloc *Allocator) NewSliceFromList(list []TypedValue) *SliceValue {
 	alloc.AllocateSlice()
 	alloc.AllocateListArray(int64(cap(list)))
 	fullList := list[:cap(list)]
-
 	return &SliceValue{
 		Base: &ArrayValue{
 			List: fullList,
@@ -247,7 +239,6 @@ func (alloc *Allocator) NewSliceFromData(data []byte) *SliceValue {
 	alloc.AllocateSlice()
 	alloc.AllocateDataArray(int64(cap(data)))
 	fullData := data[:cap(data)]
-
 	return &SliceValue{
 		Base: &ArrayValue{
 			Data: fullData,
@@ -261,7 +252,6 @@ func (alloc *Allocator) NewSliceFromData(data []byte) *SliceValue {
 // NOTE: fields must be allocated (e.g. from NewStructFields)
 func (alloc *Allocator) NewStruct(fields []TypedValue) *StructValue {
 	alloc.AllocateStruct()
-
 	return &StructValue{
 		Fields: fields,
 	}
@@ -269,7 +259,6 @@ func (alloc *Allocator) NewStruct(fields []TypedValue) *StructValue {
 
 func (alloc *Allocator) NewStructFields(fields int) []TypedValue {
 	alloc.AllocateStructFields(int64(fields))
-
 	return make([]TypedValue, fields)
 }
 
@@ -277,7 +266,6 @@ func (alloc *Allocator) NewStructFields(fields int) []TypedValue {
 func (alloc *Allocator) NewStructWithFields(fields ...TypedValue) *StructValue {
 	tvs := alloc.NewStructFields(len(fields))
 	copy(tvs, fields)
-
 	return alloc.NewStruct(tvs)
 }
 
@@ -285,19 +273,16 @@ func (alloc *Allocator) NewMap(size int) *MapValue {
 	alloc.AllocateMap(int64(size))
 	mv := &MapValue{}
 	mv.MakeMap(size)
-
 	return mv
 }
 
 func (alloc *Allocator) NewBlock(source BlockNode, parent *Block) *Block {
 	alloc.AllocateBlock(int64(source.GetNumNames()))
-
 	return NewBlock(source, parent)
 }
 
 func (alloc *Allocator) NewNative(rv reflect.Value) *NativeValue {
 	alloc.AllocateNative()
-
 	return &NativeValue{
 		Value: rv,
 	}
@@ -305,6 +290,5 @@ func (alloc *Allocator) NewNative(rv reflect.Value) *NativeValue {
 
 func (alloc *Allocator) NewType(t Type) Type {
 	alloc.AllocateType()
-
 	return t
 }

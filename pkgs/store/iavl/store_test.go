@@ -45,7 +45,6 @@ func newAlohaTree(t *testing.T, db dbm.DB) (*iavl.MutableTree, types.CommitID) {
 	}
 	hash, ver, err := tree.SaveVersion()
 	require.Nil(t, err)
-
 	return tree, types.CommitID{ver, hash}
 }
 

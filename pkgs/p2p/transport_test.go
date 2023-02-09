@@ -66,7 +66,6 @@ func TestTransportMultiplexConnFilter(t *testing.T) {
 		_, err := addr.Dial()
 		if err != nil {
 			errc <- err
-
 			return
 		}
 
@@ -100,7 +99,6 @@ func TestTransportMultiplexConnFilterTimeout(t *testing.T) {
 	MultiplexTransportConnFilters(
 		func(_ ConnSet, _ net.Conn, _ []net.IP) error {
 			time.Sleep(100 * time.Millisecond)
-
 			return nil
 		},
 	)(mt)
@@ -122,7 +120,6 @@ func TestTransportMultiplexConnFilterTimeout(t *testing.T) {
 		_, err := addr.Dial()
 		if err != nil {
 			errc <- err
-
 			return
 		}
 
@@ -207,7 +204,6 @@ func testDialer(dialAddr NetAddress, errc chan error) {
 	_, err := dialer.Dial(dialAddr, peerConfig{})
 	if err != nil {
 		errc <- err
-
 		return
 	}
 
@@ -235,7 +231,6 @@ func TestFlappyTransportMultiplexAcceptNonBlocking(t *testing.T) {
 		c, err := addr.Dial()
 		if err != nil {
 			errc <- err
-
 			return
 		}
 
@@ -252,7 +247,6 @@ func TestFlappyTransportMultiplexAcceptNonBlocking(t *testing.T) {
 		sc, err := upgradeSecretConn(c, 100*time.Millisecond, ed25519.GenPrivKey())
 		if err != nil {
 			errc <- err
-
 			return
 		}
 
@@ -263,7 +257,6 @@ func TestFlappyTransportMultiplexAcceptNonBlocking(t *testing.T) {
 			))
 		if err != nil {
 			errc <- err
-
 			return
 		}
 	}()
@@ -283,7 +276,6 @@ func TestFlappyTransportMultiplexAcceptNonBlocking(t *testing.T) {
 		_, err := dialer.Dial(*addr, peerConfig{})
 		if err != nil {
 			errc <- err
-
 			return
 		}
 
@@ -326,7 +318,6 @@ func TestTransportMultiplexValidateNodeInfo(t *testing.T) {
 		_, err := dialer.Dial(*addr, peerConfig{})
 		if err != nil {
 			errc <- err
-
 			return
 		}
 
@@ -366,7 +357,6 @@ func TestTransportMultiplexRejectMismatchID(t *testing.T) {
 		_, err := dialer.Dial(*addr, peerConfig{})
 		if err != nil {
 			errc <- err
-
 			return
 		}
 
@@ -436,7 +426,6 @@ func TestTransportMultiplexRejectIncompatible(t *testing.T) {
 		_, err := dialer.Dial(*addr, peerConfig{})
 		if err != nil {
 			errc <- err
-
 			return
 		}
 
@@ -464,7 +453,6 @@ func TestTransportMultiplexRejectSelf(t *testing.T) {
 		_, err := mt.Dial(*addr, peerConfig{})
 		if err != nil {
 			errc <- err
-
 			return
 		}
 
@@ -533,7 +521,6 @@ func TestTransportHandshake(t *testing.T) {
 		c, err := net.Dial(ln.Addr().Network(), ln.Addr().String())
 		if err != nil {
 			t.Error(err)
-
 			return
 		}
 

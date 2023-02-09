@@ -74,7 +74,6 @@ func WriteDOTGraph(w io.Writer, tree *ImmutableTree, paths []PathToLeaf) {
 					graphNode.Attrs["peripheries"] = "2"
 					graphNode.Attrs["style"] = "filled"
 					graphNode.Attrs["fillcolor"] = "lightblue"
-
 					break
 				}
 			}
