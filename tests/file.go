@@ -203,7 +203,7 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 				// errWanted given
 				if errWanted != "" {
 					if pnc == nil {
-						return fmt.Errorf("fail on %s: got nil error, want: %q", path, errWanted)
+						panic(fmt.Sprintf("fail on %s: got nil error, want: %q", path, errWanted))
 					}
 					errstr := ""
 					if tv, ok := pnc.(*gno.TypedValue); ok {
@@ -212,7 +212,7 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 						errstr = strings.TrimSpace(fmt.Sprintf("%v", pnc))
 					}
 					if errstr != errWanted {
-						return fmt.Errorf("fail on %s: got %q, want: %q", path, errstr, errWanted)
+						panic(fmt.Sprintf("fail on %s: got %q, want: %q", path, errstr, errWanted))
 					}
 					// NOTE: ignores any gno.GetDebugErrors().
 					gno.ClearDebugErrors()
@@ -229,11 +229,11 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 						// check tip line, write to file
 						ctl := fmt.Sprintf(errstr + "\n*** CHECK THE ERR MESSAGES ABOVE, MAKE SURE IT'S WHAT YOU EXPECTED, DELETE THIS LINE AND RUN TEST AGAIN ***")
 						replaceWantedInPlace(path, "Error", ctl)
-						return fmt.Errorf("fail on %s: err recorded, check the message and run test again", path)
+						panic(fmt.Sprintf("fail on %s: err recorded, check the message and run test again", path))
 					}
 					// check gno debug errors when errWanted is empty, pnc is nil
 					if gno.HasDebugErrors() {
-						return fmt.Errorf("fail on %s: got unexpected debug error(s): %v", path, gno.GetDebugErrors())
+						panic(fmt.Sprintf("fail on %s: got unexpected debug error(s): %v", path, gno.GetDebugErrors()))
 					}
 					// pnc is nil, errWanted empty, no gno debug errors
 					return nil
@@ -242,9 +242,9 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 				// panic if got unexpected error
 				if pnc != nil {
 					if tv, ok := pnc.(*gno.TypedValue); ok {
-						return fmt.Errorf("fail on %s: got unexpected error: %s", path, tv.Sprint(m))
+						panic(fmt.Sprintf("fail on %s: got unexpected error: %s", path, tv.Sprint(m)))
 					} else { // TODO: does this happen?
-						return fmt.Errorf("fail on %s: got unexpected error: %v", path, pnc)
+						panic(fmt.Sprintf("fail on %s: got unexpected error: %v", path, pnc))
 					}
 				}
 				// check result
@@ -257,9 +257,9 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 					} else {
 						// panic so tests immediately fail (for now).
 						if resWanted == "" {
-							return fmt.Errorf("fail on %s: got unexpected output: %s", path, res)
+							panic(fmt.Sprintf("fail on %s: got unexpected output: %s", path, res))
 						} else {
-							return fmt.Errorf("fail on %s: got:\n%s\n\nwant:\n%s\n", path, res, resWanted)
+							panic(fmt.Sprintf("fail on %s: got:\n%s\n\nwant:\n%s\n", path, res, resWanted))
 						}
 					}
 				}
@@ -267,9 +267,9 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 				// panic if got unexpected error
 				if pnc != nil {
 					if tv, ok := pnc.(*gno.TypedValue); ok {
-						return fmt.Errorf("fail on %s: got unexpected error: %s", path, tv.Sprint(m))
+						panic(fmt.Sprintf("fail on %s: got unexpected error: %s", path, tv.Sprint(m)))
 					} else { // TODO: does this happen?
-						return fmt.Errorf("fail on %s: got unexpected error: %v", path, pnc)
+						panic(fmt.Sprintf("fail on %s: got unexpected error: %v", path, pnc))
 					}
 				}
 				// check realm ops
@@ -280,7 +280,7 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 							// write output to file.
 							replaceWantedInPlace(path, "Realm", rops2)
 						} else {
-							return fmt.Errorf("fail on %s: got:\n%s\n\nwant:\n%s\n", path, rops2, rops)
+							panic(fmt.Sprintf("fail on %s: got:\n%s\n\nwant:\n%s\n", path, rops2, rops))
 						}
 					}
 				}
