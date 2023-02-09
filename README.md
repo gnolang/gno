@@ -10,7 +10,7 @@ simulated by the Gnomes of the Greater Resistance.
 
 ## Install `gnokey`
 
-`gnokey` is a tool for managinghttps://gno.land accounts and interact with instances.
+`gnokey` is a tool for managing https://gno.land accounts and interact with instances.
 
 > git clone git@github.com:gnolang/gno.git<br/>
 > cd ./gno<br/>
