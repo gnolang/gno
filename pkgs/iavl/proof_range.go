@@ -252,7 +252,6 @@ func (proof *RangeProof) _computeRootHash() (rootHash []byte, treeEnd bool, err 
 
 		// Prove along path (until we run out of leaves).
 		for len(path) > 0 {
-
 			// Drop the leaf-most (last-most) inner nodes from path
 			// until we encounter one with a left hash.
 			// We assume that the left side is already verified.
@@ -382,7 +381,6 @@ func (t *ImmutableTree) getRangeProof(keyStart, keyEnd []byte, limit int) (proof
 					if pn.Height != node.height ||
 						pn.Left != nil && !bytes.Equal(pn.Left, node.leftHash) ||
 						pn.Right != nil && !bytes.Equal(pn.Right, node.rightHash) {
-
 						// We've diverged, so start appending to inners.
 						pathCount = -1
 					} else {

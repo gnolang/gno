@@ -99,7 +99,7 @@ func precompilePkg(pkgPath importPath, opts *precompileOptions) error {
 
 	for _, file := range files {
 		if err = precompileFile(file, opts); err != nil {
-			return fmt.Errorf("%s: %v", file, err)
+			return fmt.Errorf("%s: %w", file, err)
 		}
 	}
 

@@ -401,7 +401,7 @@ func filePathForIndex(headPath string, index int, maxIndex int) string {
 	return fmt.Sprintf("%v.%03d", headPath, index)
 }
 
-//--------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------
 
 // GroupReader provides an interface for reading from a Group.
 type GroupReader struct {
@@ -469,7 +469,7 @@ func (gr *GroupReader) Read(p []byte) (n int, err error) {
 		nn, err = gr.curReader.Read(p[n:])
 		n += nn
 		switch {
-		case err == io.EOF:
+		case errors.Is(err, io.EOF):
 			if n >= lenP {
 				return n, nil
 			}

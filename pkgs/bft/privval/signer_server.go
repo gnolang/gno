@@ -1,6 +1,7 @@
 package privval
 
 import (
+	"errors"
 	"io"
 	"sync"
 
@@ -64,7 +65,7 @@ func (ss *SignerServer) servicePendingRequest() {
 
 	req, err := ss.endpoint.ReadMessage()
 	if err != nil {
-		if err != io.EOF {
+		if !errors.Is(err, io.EOF) {
 			ss.Logger.Error("SignerServer: HandleMessage", "err", err)
 		}
 		return

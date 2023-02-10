@@ -14,7 +14,7 @@ type IPeerSet interface {
 	Size() int
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 // PeerSet is a special structure for keeping a table of peers.
 // Iteration over the peers is super fast and thread-safe.
@@ -44,7 +44,7 @@ func (ps *PeerSet) Add(peer Peer) error {
 	defer ps.mtx.Unlock()
 
 	if ps.lookup[peer.ID()] != nil {
-		return ErrSwitchDuplicatePeerID{peer.ID()}
+		return SwitchDuplicatePeerIDError{peer.ID()}
 	}
 
 	index := len(ps.list)

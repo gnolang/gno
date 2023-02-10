@@ -77,23 +77,23 @@ func NewNetAddressFromString(idaddr string) (*NetAddress, error) {
 	idaddr = removeProtocolIfDefined(idaddr)
 	spl := strings.Split(idaddr, "@")
 	if len(spl) != 2 {
-		return nil, ErrNetAddressNoID{idaddr}
+		return nil, NetAddressNoIDError{idaddr}
 	}
 
 	// get ID
-	var id ID = crypto.ID(spl[0])
+	var id = crypto.ID(spl[0])
 	if err := id.Validate(); err != nil {
-		return nil, ErrNetAddressInvalid{idaddr, err}
+		return nil, NetAddressInvalidError{idaddr, err}
 	}
-	var addr string = spl[1]
+	var addr = spl[1]
 
 	// get host and port
 	host, portStr, err := net.SplitHostPort(addr)
 	if err != nil {
-		return nil, ErrNetAddressInvalid{addr, err}
+		return nil, NetAddressInvalidError{addr, err}
 	}
 	if len(host) == 0 {
-		return nil, ErrNetAddressInvalid{
+		return nil, NetAddressInvalidError{
 			addr,
 			errors.New("host is empty"),
 		}
@@ -103,14 +103,14 @@ func NewNetAddressFromString(idaddr string) (*NetAddress, error) {
 	if ip == nil {
 		ips, err := net.LookupIP(host)
 		if err != nil {
-			return nil, ErrNetAddressLookup{host, err}
+			return nil, NetAddressLookupError{host, err}
 		}
 		ip = ips[0]
 	}
 
 	port, err := strconv.ParseUint(portStr, 10, 16)
 	if err != nil {
-		return nil, ErrNetAddressInvalid{portStr, err}
+		return nil, NetAddressInvalidError{portStr, err}
 	}
 
 	na := NewNetAddressFromIPPort("", ip, uint16(port))

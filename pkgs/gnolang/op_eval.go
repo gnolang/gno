@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	goerrors "errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -103,14 +104,14 @@ func (m *Machine) doOpEval() {
 					panic("should not happen")
 				}
 
-				//----------------------------------------
+				// ----------------------------------------
 				// NewFromHexString()
 				// TODO: move this to another function.
 
 				// Step 1 get exp component.
 				expInt, err := strconv.ParseInt(value[eIndex+1:], 10, 32)
 				if err != nil {
-					if e, ok := err.(*strconv.NumError); ok && e.Err == strconv.ErrRange {
+					if e, ok := err.(*strconv.NumError); ok && goerrors.Is(e.Err, strconv.ErrRange) {
 						panic(fmt.Sprintf(
 							"can't convert %s to decimal: fractional part too long",
 							value))
@@ -176,7 +177,7 @@ func (m *Machine) doOpEval() {
 				}
 
 				// NewFromHexString() END
-				//----------------------------------------
+				// ----------------------------------------
 
 				m.PushValue(TypedValue{
 					T: UntypedBigdecType,
@@ -203,7 +204,7 @@ func (m *Machine) doOpEval() {
 				panic(fmt.Sprintf("error in parsing character literal: 1 rune expected, but got %v (%s)", len(runes), cstr))
 			}
 			tv := TypedValue{T: UntypedRuneType}
-			tv.SetInt32(int32(rune(runes[0])))
+			tv.SetInt32(runes[0])
 			m.PushValue(tv)
 		case STRING:
 			m.PushValue(TypedValue{

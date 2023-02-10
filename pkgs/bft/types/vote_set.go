@@ -133,7 +133,7 @@ func (voteSet *VoteSet) Size() int {
 //	InvalidSignature | InvalidBlockHash | ConflictingVotes ]
 //
 // Duplicate votes return added=false, err=nil.
-// Conflicting votes return added=*, err=ErrVoteConflictingVotes.
+// Conflicting votes return added=*, err=VoteConflictingVotesError.
 // NOTE: vote should not be mutated after adding.
 // NOTE: VoteSet must not be nil
 // NOTE: Vote must not be nil

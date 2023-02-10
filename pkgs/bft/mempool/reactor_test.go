@@ -85,6 +85,8 @@ func makeAndConnectReactors(mconfig *memcfg.MempoolConfig, pconfig *p2pcfg.P2PCo
 }
 
 func waitForTxsOnReactors(t *testing.T, txs types.Txs, reactors []*Reactor) {
+	t.Helper()
+
 	// wait for the txs in all mempools
 	wg := new(sync.WaitGroup)
 	for i, reactor := range reactors {
@@ -101,7 +103,7 @@ func waitForTxsOnReactors(t *testing.T, txs types.Txs, reactors []*Reactor) {
 		close(done)
 	}()
 
-	timer := time.After(TIMEOUT)
+	timer := time.After(timeout)
 	select {
 	case <-timer:
 		t.Fatal("Timed out waiting for txs")
@@ -110,6 +112,8 @@ func waitForTxsOnReactors(t *testing.T, txs types.Txs, reactors []*Reactor) {
 }
 
 func waitForTxsOnReactor(t *testing.T, txs types.Txs, reactor *Reactor, reactorIndex int) {
+	t.Helper()
+
 	mempool := reactor.mempool
 	for mempool.Size() < len(txs) {
 		time.Sleep(time.Millisecond * 100)
@@ -124,13 +128,15 @@ func waitForTxsOnReactor(t *testing.T, txs types.Txs, reactor *Reactor, reactorI
 
 // ensure no txs on reactor after some timeout
 func ensureNoTxs(t *testing.T, reactor *Reactor, timeout time.Duration) {
+	t.Helper()
+
 	time.Sleep(timeout) // wait for the txs in all mempools
 	assert.Zero(t, reactor.mempool.Size())
 }
 
 const (
-	NUM_TXS = 1000
-	TIMEOUT = 120 * time.Second // ridiculously high because CircleCI is slow
+	numTxs  = 1000
+	timeout = 120 * time.Second // ridiculously high because CircleCI is slow
 )
 
 func TestReactorBroadcastTxMessage(t *testing.T) {
@@ -151,7 +157,7 @@ func TestReactorBroadcastTxMessage(t *testing.T) {
 
 	// send a bunch of txs to the first reactor's mempool
 	// and wait for them all to be received in the others
-	txs := checkTxs(t, reactors[0].mempool, NUM_TXS, UnknownPeerID, true)
+	txs := checkTxs(t, reactors[0].mempool, numTxs, UnknownPeerID, true)
 	waitForTxsOnReactors(t, txs, reactors)
 }
 
@@ -168,7 +174,7 @@ func TestReactorNoBroadcastToSender(t *testing.T) {
 
 	// send a bunch of txs to the first reactor's mempool, claiming it came from peer
 	// ensure peer gets no txs
-	checkTxs(t, reactors[0].mempool, NUM_TXS, 1, true)
+	checkTxs(t, reactors[0].mempool, numTxs, 1, true)
 	ensureNoTxs(t, reactors[1], 100*time.Millisecond)
 }
 

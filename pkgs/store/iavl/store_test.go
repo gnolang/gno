@@ -12,7 +12,7 @@ import (
 	"github.com/gnolang/gno/pkgs/iavl"
 	"github.com/gnolang/gno/pkgs/random"
 
-	//"github.com/gnolang/gno/pkgs/store/errors"
+	// "github.com/gnolang/gno/pkgs/store/errors"
 	"github.com/gnolang/gno/pkgs/store/types"
 )
 
@@ -32,6 +32,8 @@ var (
 
 // make a tree with data from above and save it
 func newAlohaTree(t *testing.T, db dbm.DB) (*iavl.MutableTree, types.CommitID) {
+	t.Helper()
+
 	tree := iavl.NewMutableTree(db, cacheSize)
 	for k, v := range treeData {
 		tree.Set([]byte(k), []byte(v))
@@ -216,6 +218,8 @@ func TestIAVLReverseIterator(t *testing.T) {
 	iavlStore.Set([]byte{0x01}, []byte("1"))
 
 	testReverseIterator := func(t *testing.T, start []byte, end []byte, expected []string) {
+		t.Helper()
+
 		iter := iavlStore.ReverseIterator(start, end)
 		var i int
 		for i = 0; iter.Valid(); iter.Next() {
@@ -417,6 +421,8 @@ type pruneState struct {
 }
 
 func testPruning(t *testing.T, numRecent int64, storeEvery int64, states []pruneState) {
+	t.Helper()
+
 	db := dbm.NewMemDB()
 	tree := iavl.NewMutableTree(db, cacheSize)
 	iavlStore := UnsafeNewStore(tree, storeOptions(numRecent, storeEvery))

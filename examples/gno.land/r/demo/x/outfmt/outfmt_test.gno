@@ -41,7 +41,6 @@ Numbers: 98 27
 		if got != expected {
 			t.Fatalf("expected %q, got %q.", expected, got)
 		}
-
 	}
 
 	// json
@@ -51,7 +50,6 @@ Numbers: 98 27
 		if got != expected {
 			t.Fatalf("expected %q, got %q.", expected, got)
 		}
-
 	}
 
 	// jsonp
@@ -61,6 +59,5 @@ Numbers: 98 27
 		if got != expected {
 			t.Fatalf("expected %q, got %q.", expected, got)
 		}
-
 	}
 }

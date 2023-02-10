@@ -80,11 +80,11 @@ func (tr *TestReactor) getMsgs(chID byte) []PeerMessage {
 	return tr.msgsReceived[chID]
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 // convenience method for creating two switches connected to each other.
 // XXX: note this uses net.Pipe and not a proper TCP conn
-func MakeSwitchPair(t testing.TB, initSwitch func(int, *Switch) *Switch) (*Switch, *Switch) {
+func MakeSwitchPair(_ testing.TB, initSwitch func(int, *Switch) *Switch) (*Switch, *Switch) {
 	// Create two switches that will be interconnected.
 	switches := MakeConnectedSwitches(cfg, 2, initSwitch, Connect2Switches)
 	return switches[0], switches[1]
@@ -131,6 +131,8 @@ func TestSwitches(t *testing.T) {
 }
 
 func assertMsgReceivedWithTimeout(t *testing.T, msgBytes []byte, channel byte, reactor *TestReactor, checkPeriod, timeout time.Duration) {
+	t.Helper()
+
 	ticker := time.NewTicker(checkPeriod)
 	for {
 		select {
@@ -159,12 +161,12 @@ func TestSwitchFiltersOutItself(t *testing.T) {
 	// addr should be rejected in addPeer based on the same ID
 	err := s1.DialPeerWithAddress(rp.Addr())
 	if assert.Error(t, err) {
-		if err, ok := err.(ErrRejected); ok {
+		if err, ok := err.(RejectedError); ok {
 			if !err.IsSelf() {
 				t.Errorf("expected self to be rejected")
 			}
 		} else {
-			t.Errorf("expected ErrRejected")
+			t.Errorf("expected RejectedError")
 		}
 	}
 
@@ -207,12 +209,12 @@ func TestSwitchPeerFilter(t *testing.T) {
 	}
 
 	err = sw.addPeer(p)
-	if err, ok := err.(ErrRejected); ok {
+	if err, ok := err.(RejectedError); ok {
 		if !err.IsFiltered() {
 			t.Errorf("expected peer to be filtered")
 		}
 	} else {
-		t.Errorf("expected ErrRejected")
+		t.Errorf("expected RejectedError")
 	}
 }
 
@@ -252,8 +254,8 @@ func TestSwitchPeerFilterTimeout(t *testing.T) {
 	}
 
 	err = sw.addPeer(p)
-	if _, ok := err.(ErrFilterTimeout); !ok {
-		t.Errorf("expected ErrFilterTimeout")
+	if _, ok := err.(FilterTimeoutError); !ok {
+		t.Errorf("expected FilterTimeoutError")
 	}
 }
 
@@ -282,16 +284,18 @@ func TestSwitchPeerFilterDuplicate(t *testing.T) {
 	}
 
 	err = sw.addPeer(p)
-	if errRej, ok := err.(ErrRejected); ok {
+	if errRej, ok := err.(RejectedError); ok {
 		if !errRej.IsDuplicate() {
 			t.Errorf("expected peer to be duplicate. got %v", errRej)
 		}
 	} else {
-		t.Errorf("expected ErrRejected, got %v", err)
+		t.Errorf("expected RejectedError, got %v", err)
 	}
 }
 
 func assertNoPeersAfterTimeout(t *testing.T, sw *Switch, timeout time.Duration) {
+	t.Helper()
+
 	time.Sleep(timeout)
 	if sw.Peers().Size() != 0 {
 		t.Fatalf("Expected %v to not connect to some peers, got %d", sw, sw.Peers().Size())
@@ -543,21 +547,21 @@ func (errorTransport) Cleanup(Peer) {
 }
 
 func TestSwitchAcceptRoutineErrorCases(t *testing.T) {
-	sw := NewSwitch(cfg, errorTransport{ErrFilterTimeout{}})
+	sw := NewSwitch(cfg, errorTransport{FilterTimeoutError{}})
 	assert.NotPanics(t, func() {
 		err := sw.Start()
 		assert.NoError(t, err)
 		sw.Stop()
 	})
 
-	sw = NewSwitch(cfg, errorTransport{ErrRejected{conn: nil, err: errors.New("filtered"), isFiltered: true}})
+	sw = NewSwitch(cfg, errorTransport{RejectedError{conn: nil, err: errors.New("filtered"), isFiltered: true}})
 	assert.NotPanics(t, func() {
 		err := sw.Start()
 		assert.NoError(t, err)
 		sw.Stop()
 	})
 
-	sw = NewSwitch(cfg, errorTransport{ErrTransportClosed{}})
+	sw = NewSwitch(cfg, errorTransport{TransportClosedError{}})
 	assert.NotPanics(t, func() {
 		err := sw.Start()
 		assert.NoError(t, err)

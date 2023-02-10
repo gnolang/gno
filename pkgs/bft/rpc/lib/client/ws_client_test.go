@@ -34,7 +34,7 @@ func (h *myHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
-	defer conn.Close() // nolint: errcheck
+	defer conn.Close() //nolint: errcheck
 	for {
 		messageType, _, err := conn.ReadMessage()
 		if err != nil {
@@ -195,6 +195,8 @@ func TestNotBlockingOnStop(t *testing.T) {
 }
 
 func startClient(t *testing.T, addr net.Addr) *WSClient {
+	t.Helper()
+
 	c := NewWSClient(addr.String(), "/websocket")
 	err := c.Start()
 	require.Nil(t, err)
@@ -203,11 +205,15 @@ func startClient(t *testing.T, addr net.Addr) *WSClient {
 }
 
 func call(t *testing.T, method string, c *WSClient) {
+	t.Helper()
+
 	err := c.Call(context.Background(), method, make(map[string]interface{}))
 	require.NoError(t, err)
 }
 
 func callWgDoneOnResult(t *testing.T, c *WSClient, wg *sync.WaitGroup) {
+	t.Helper()
+
 	for {
 		select {
 		case resp := <-c.ResponsesCh:
