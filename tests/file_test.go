@@ -37,6 +37,8 @@ func TestChallenges(t *testing.T) {
 }
 
 func runFileTests(t *testing.T, baseDir string, nativeLibs bool) {
+	t.Helper()
+
 	files, err := ioutil.ReadDir(baseDir)
 	if err != nil {
 		t.Fatal(err)
