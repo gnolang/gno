@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -12,7 +14,9 @@ import (
 
 func TestMain(t *testing.T) {
 	tc := []struct {
-		args []string
+		args                 []string
+		testDir              string
+		simulateExternalRepo bool
 
 		// for the following FooContain+FooBe expected couples, if both are empty,
 		// then the test suite will require that the "got" is not empty.
@@ -87,7 +91,18 @@ func TestMain(t *testing.T) {
 		{args: []string{"test", "../../examples/gno.land/p/demo/ufmt", "--verbose", "--run", "Sprintf/hello"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/ufmt"},
 		{args: []string{"test", "../../examples/gno.land/p/demo/ufmt", "--verbose", "--timeout", "100000000000" /* 100s */}, stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/ufmt"},
 		// {args: []string{"test", "../../examples/gno.land/p/demo/ufmt", "--verbose", "--timeout", "10000" /* 10µs */}, recoverShouldContain: "test timed out after"}, // FIXME: should be testable
+
+		// test gno.mod
+		{args: []string{"mod", "download"}, testDir: "../../tests/integ/empty-dir", simulateExternalRepo: true, errShouldBe: "mod download: gno.mod not found"},
+		{args: []string{"mod", "download"}, testDir: "../../tests/integ/empty-gnomod", simulateExternalRepo: true, errShouldBe: "mod download: validate: requires module"},
+		{args: []string{"mod", "download"}, testDir: "../../tests/integ/invalid-module-name", simulateExternalRepo: true, errShouldContain: "usage: module module/path"},
+		{args: []string{"mod", "download"}, testDir: "../../tests/integ/minimalist-gnomod", simulateExternalRepo: true},
+		{args: []string{"mod", "download"}, testDir: "../../tests/integ/require-remote-module", simulateExternalRepo: true},
+		{args: []string{"mod", "download"}, testDir: "../../tests/integ/require-invalid-module", simulateExternalRepo: true, errShouldContain: "mod download: fetch: writepackage: querychain:"},
 	}
+
+	workingDir, err := os.Getwd()
+	require.Nil(t, err)
 
 	for _, test := range tc {
 		errShouldBeEmpty := test.errShouldContain == "" && test.errShouldBe == ""
@@ -96,7 +111,8 @@ func TestMain(t *testing.T) {
 		recoverShouldBeEmpty := test.recoverShouldContain == "" && test.recoverShouldBe == ""
 
 		testName := strings.Join(test.args, " ")
-		testName = strings.ReplaceAll(testName, "/", "~")
+		testName = strings.ReplaceAll(testName+test.testDir, "/", "~")
+
 		t.Run(testName, func(t *testing.T) {
 			cmd := command.NewMockCommand()
 			mockOut := bytes.NewBufferString("")
@@ -154,6 +170,22 @@ func TestMain(t *testing.T) {
 					require.True(t, recoverShouldBeEmpty, "should not panic")
 				}
 			}()
+
+			if test.simulateExternalRepo {
+				// create external dir
+				tmpDir, cleanUpFn := createTmpDir(t)
+				defer cleanUpFn()
+
+				// copy to external dir
+				absTestDir, err := filepath.Abs(test.testDir)
+				require.Nil(t, err)
+				require.Nil(t, copyDir(absTestDir, tmpDir))
+
+				// cd to tmp directory
+				os.Chdir(tmpDir)
+				defer os.Chdir(workingDir)
+			}
+
 			err := runMain(cmd, exec, test.args)
 
 			if errShouldBeEmpty {
