@@ -30,6 +30,8 @@ import (
 // persistent kvstore application and special consensus wal instance
 // (heightStopWAL) and waits until numBlocks are created. If the node fails to produce given numBlocks, it returns an error.
 func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
+	t.Helper()
+
 	config := getConfig(t)
 
 	app := kvstore.NewPersistentKVStoreApplication(filepath.Join(config.DBDir(), "wal_generator"))
@@ -108,6 +110,8 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 
 // WALWithNBlocks returns a WAL content with numBlocks.
 func WALWithNBlocks(t *testing.T, numBlocks int) (data []byte, err error) {
+	t.Helper()
+
 	var b bytes.Buffer
 	wr := bufio.NewWriter(&b)
 
@@ -134,6 +138,8 @@ func makeAddrs() (string, string, string) {
 
 // getConfig returns a config for test cases
 func getConfig(t *testing.T) *cfg.Config {
+	t.Helper()
+
 	c := cfg.ResetTestRoot(t.Name())
 
 	// and we use random ports to run in parallel

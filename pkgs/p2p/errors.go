@@ -5,16 +5,16 @@ import (
 	"net"
 )
 
-// ErrFilterTimeout indicates that a filter operation timed out.
-type ErrFilterTimeout struct{}
+// FilterTimeoutError indicates that a filter operation timed out.
+type FilterTimeoutError struct{}
 
-func (e ErrFilterTimeout) Error() string {
+func (e FilterTimeoutError) Error() string {
 	return "filter timed out"
 }
 
-// ErrRejected indicates that a Peer was rejected carrying additional
+// RejectedError indicates that a Peer was rejected carrying additional
 // information as to the reason.
-type ErrRejected struct {
+type RejectedError struct {
 	addr              NetAddress
 	conn              net.Conn
 	err               error
@@ -28,11 +28,11 @@ type ErrRejected struct {
 }
 
 // Addr returns the NetAddress for the rejected Peer.
-func (e ErrRejected) Addr() NetAddress {
+func (e RejectedError) Addr() NetAddress {
 	return e.addr
 }
 
-func (e ErrRejected) Error() string {
+func (e RejectedError) Error() string {
 	if e.isAuthFailure {
 		return fmt.Sprintf("auth failure: %s", e.err)
 	}
@@ -79,58 +79,58 @@ func (e ErrRejected) Error() string {
 }
 
 // IsAuthFailure when Peer authentication was unsuccessful.
-func (e ErrRejected) IsAuthFailure() bool { return e.isAuthFailure }
+func (e RejectedError) IsAuthFailure() bool { return e.isAuthFailure }
 
 // IsDuplicate when Peer ID or IP are present already.
-func (e ErrRejected) IsDuplicate() bool { return e.isDuplicate }
+func (e RejectedError) IsDuplicate() bool { return e.isDuplicate }
 
 // IsFiltered when Peer ID or IP was filtered.
-func (e ErrRejected) IsFiltered() bool { return e.isFiltered }
+func (e RejectedError) IsFiltered() bool { return e.isFiltered }
 
 // IsIncompatible when Peer NodeInfo is not compatible with our own.
-func (e ErrRejected) IsIncompatible() bool { return e.isIncompatible }
+func (e RejectedError) IsIncompatible() bool { return e.isIncompatible }
 
 // IsNodeInfoInvalid when the sent NodeInfo is not valid.
-func (e ErrRejected) IsNodeInfoInvalid() bool { return e.isNodeInfoInvalid }
+func (e RejectedError) IsNodeInfoInvalid() bool { return e.isNodeInfoInvalid }
 
 // IsSelf when Peer is our own node.
-func (e ErrRejected) IsSelf() bool { return e.isSelf }
+func (e RejectedError) IsSelf() bool { return e.isSelf }
 
-// ErrSwitchDuplicatePeerID to be raised when a peer is connecting with a known
+// SwitchDuplicatePeerIDError to be raised when a peer is connecting with a known
 // ID.
-type ErrSwitchDuplicatePeerID struct {
+type SwitchDuplicatePeerIDError struct {
 	ID ID
 }
 
-func (e ErrSwitchDuplicatePeerID) Error() string {
+func (e SwitchDuplicatePeerIDError) Error() string {
 	return fmt.Sprintf("duplicate peer ID %v", e.ID)
 }
 
-// ErrSwitchDuplicatePeerIP to be raised when a peer is connecting with a known
+// SwitchDuplicatePeerIPError to be raised when a peer is connecting with a known
 // IP.
-type ErrSwitchDuplicatePeerIP struct {
+type SwitchDuplicatePeerIPError struct {
 	IP net.IP
 }
 
-func (e ErrSwitchDuplicatePeerIP) Error() string {
+func (e SwitchDuplicatePeerIPError) Error() string {
 	return fmt.Sprintf("duplicate peer IP %v", e.IP.String())
 }
 
-// ErrSwitchConnectToSelf to be raised when trying to connect to itself.
-type ErrSwitchConnectToSelf struct {
+// SwitchConnectToSelfError to be raised when trying to connect to itself.
+type SwitchConnectToSelfError struct {
 	Addr *NetAddress
 }
 
-func (e ErrSwitchConnectToSelf) Error() string {
+func (e SwitchConnectToSelfError) Error() string {
 	return fmt.Sprintf("connect to self: %v", e.Addr)
 }
 
-type ErrSwitchAuthenticationFailure struct {
+type SwitchAuthenticationFailureError struct {
 	Dialed *NetAddress
 	Got    ID
 }
 
-func (e ErrSwitchAuthenticationFailure) Error() string {
+func (e SwitchAuthenticationFailureError) Error() string {
 	return fmt.Sprintf(
 		"failed to authenticate peer. Dialed %v, but got peer with ID %s",
 		e.Dialed,
@@ -138,47 +138,47 @@ func (e ErrSwitchAuthenticationFailure) Error() string {
 	)
 }
 
-// ErrTransportClosed is raised when the Transport has been closed.
-type ErrTransportClosed struct{}
+// TransportClosedError is raised when the Transport has been closed.
+type TransportClosedError struct{}
 
-func (e ErrTransportClosed) Error() string {
+func (e TransportClosedError) Error() string {
 	return "transport has been closed"
 }
 
-//-------------------------------------------------------------------
+// -------------------------------------------------------------------
 
-type ErrNetAddressNoID struct {
+type NetAddressNoIDError struct {
 	Addr string
 }
 
-func (e ErrNetAddressNoID) Error() string {
+func (e NetAddressNoIDError) Error() string {
 	return fmt.Sprintf("address (%s) does not contain ID", e.Addr)
 }
 
-type ErrNetAddressInvalid struct {
+type NetAddressInvalidError struct {
 	Addr string
 	Err  error
 }
 
-func (e ErrNetAddressInvalid) Error() string {
+func (e NetAddressInvalidError) Error() string {
 	return fmt.Sprintf("invalid address (%s): %v", e.Addr, e.Err)
 }
 
-type ErrNetAddressLookup struct {
+type NetAddressLookupError struct {
 	Addr string
 	Err  error
 }
 
-func (e ErrNetAddressLookup) Error() string {
+func (e NetAddressLookupError) Error() string {
 	return fmt.Sprintf("error looking up host (%s): %v", e.Addr, e.Err)
 }
 
-// ErrCurrentlyDialingOrExistingAddress indicates that we're currently
+// CurrentlyDialingOrExistingAddressError indicates that we're currently
 // dialing this address or it belongs to an existing peer.
-type ErrCurrentlyDialingOrExistingAddress struct {
+type CurrentlyDialingOrExistingAddressError struct {
 	Addr string
 }
 
-func (e ErrCurrentlyDialingOrExistingAddress) Error() string {
+func (e CurrentlyDialingOrExistingAddressError) Error() string {
 	return fmt.Sprintf("connection with %s has been established or dialed", e.Addr)
 }

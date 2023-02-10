@@ -3,76 +3,76 @@ package state
 import "fmt"
 
 type (
-	ErrInvalidBlock error
-	ErrProxyAppConn error
+	InvalidBlockError error
+	ProxyAppConnError error
 
-	ErrUnknownBlock struct {
+	UnknownBlockError struct {
 		Height int64
 	}
 
-	ErrBlockHashMismatch struct {
+	BlockHashMismatchError struct {
 		CoreHash []byte
 		AppHash  []byte
 		Height   int64
 	}
 
-	ErrAppBlockHeightTooHigh struct {
+	AppBlockHeightTooHighError struct {
 		CoreHeight int64
 		AppHeight  int64
 	}
 
-	ErrLastStateMismatch struct {
+	LastStateMismatchError struct {
 		Height int64
 		Core   []byte
 		App    []byte
 	}
 
-	ErrStateMismatch struct {
+	StateMismatchError struct {
 		Got      *State
 		Expected *State
 	}
 
-	ErrNoValSetForHeight struct {
+	NoValSetForHeightError struct {
 		Height int64
 	}
 
-	ErrNoConsensusParamsForHeight struct {
+	NoConsensusParamsForHeightError struct {
 		Height int64
 	}
 
-	ErrNoABCIResponsesForHeight struct {
+	NoABCIResponsesForHeightError struct {
 		Height int64
 	}
 )
 
-func (e ErrUnknownBlock) Error() string {
+func (e UnknownBlockError) Error() string {
 	return fmt.Sprintf("Could not find block #%d", e.Height)
 }
 
-func (e ErrBlockHashMismatch) Error() string {
+func (e BlockHashMismatchError) Error() string {
 	return fmt.Sprintf("App block hash (%X) does not match core block hash (%X) for height %d", e.AppHash, e.CoreHash, e.Height)
 }
 
-func (e ErrAppBlockHeightTooHigh) Error() string {
+func (e AppBlockHeightTooHighError) Error() string {
 	return fmt.Sprintf("App block height (%d) is higher than core (%d)", e.AppHeight, e.CoreHeight)
 }
 
-func (e ErrLastStateMismatch) Error() string {
+func (e LastStateMismatchError) Error() string {
 	return fmt.Sprintf("Latest tendermint block (%d) LastAppHash (%X) does not match app's AppHash (%X)", e.Height, e.Core, e.App)
 }
 
-func (e ErrStateMismatch) Error() string {
+func (e StateMismatchError) Error() string {
 	return fmt.Sprintf("State after replay does not match saved state. Got ----\n%v\nExpected ----\n%v\n", e.Got, e.Expected)
 }
 
-func (e ErrNoValSetForHeight) Error() string {
+func (e NoValSetForHeightError) Error() string {
 	return fmt.Sprintf("Could not find validator set for height #%d", e.Height)
 }
 
-func (e ErrNoConsensusParamsForHeight) Error() string {
+func (e NoConsensusParamsForHeightError) Error() string {
 	return fmt.Sprintf("Could not find consensus params for height #%d", e.Height)
 }
 
-func (e ErrNoABCIResponsesForHeight) Error() string {
+func (e NoABCIResponsesForHeightError) Error() string {
 	return fmt.Sprintf("Could not find results for height #%d", e.Height)
 }

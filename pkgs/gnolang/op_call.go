@@ -106,7 +106,6 @@ func (m *Machine) doOpCall() {
 		}
 		b.Values[0] = fr.Receiver
 		isMethod = 1
-
 	}
 	// Convert variadic argument to slice argument.
 	// TODO: more optimizations may be possible here if

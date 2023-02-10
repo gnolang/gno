@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-//----------------------------------------
+// ----------------------------------------
 // Signed
 
 func DecodeVarint8(bz []byte) (i int8, n int, err error) {
@@ -73,7 +73,7 @@ func DecodeInt64(bz []byte) (i int64, n int, err error) {
 	return
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Unsigned
 
 func DecodeByte(bz []byte) (b byte, n int, err error) {
@@ -161,7 +161,7 @@ func DecodeUint64(bz []byte) (u uint64, n int, err error) {
 	return
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Other Primitives
 
 func DecodeBool(bz []byte) (b bool, n int, err error) {
@@ -208,7 +208,7 @@ func DecodeFloat64(bz []byte) (f float64, n int, err error) {
 	return
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Time and Duration
 
 // DecodeTimeValue decodes seconds (int64) and nanoseconds (int32) since January 1,
@@ -332,7 +332,7 @@ func decodeNanos(bz *[]byte, n *int) (int32, error) {
 		nsec := int64(nsec_)
 		// Validation check.
 		if 1e9 <= nsec || nsec <= -1e9 {
-			return 0, InvalidTimeErr(fmt.Sprintf("nanoseconds not in interval [-999999999, 999999999] %v", nsec))
+			return 0, InvalidTimeError(fmt.Sprintf("nanoseconds not in interval [-999999999, 999999999] %v", nsec))
 		}
 		// this cast from uint64 to int32 is OK, due to above restriction:
 		return int32(nsec), nil
@@ -341,7 +341,7 @@ func decodeNanos(bz *[]byte, n *int) (int32, error) {
 	return 0, nil
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Byte Slices and Strings
 
 func DecodeByteSlice(bz []byte) (bz2 []byte, n int, err error) {

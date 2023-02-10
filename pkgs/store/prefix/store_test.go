@@ -29,7 +29,7 @@ type kvpair struct {
 	value []byte
 }
 
-func genRandomKVPairs(t *testing.T) []kvpair {
+func genRandomKVPairs() []kvpair {
 	kvps := make([]kvpair, 20)
 
 	for i := 0; i < 20; i++ {
@@ -42,8 +42,8 @@ func genRandomKVPairs(t *testing.T) []kvpair {
 	return kvps
 }
 
-func setRandomKVPairs(t *testing.T, store types.Store) []kvpair {
-	kvps := genRandomKVPairs(t)
+func setRandomKVPairs(store types.Store) []kvpair {
+	kvps := genRandomKVPairs()
 	for _, kvp := range kvps {
 		store.Set(kvp.key, kvp.value)
 	}
@@ -51,13 +51,15 @@ func setRandomKVPairs(t *testing.T, store types.Store) []kvpair {
 }
 
 func testPrefixStore(t *testing.T, baseStore types.Store, prefix []byte) {
+	t.Helper()
+
 	prefixStore := New(baseStore, prefix)
 	prefixPrefixStore := New(prefixStore, []byte("prefix"))
 
 	require.Panics(t, func() { prefixStore.Get(nil) })
 	require.Panics(t, func() { prefixStore.Set(nil, []byte{}) })
 
-	kvps := setRandomKVPairs(t, prefixPrefixStore)
+	kvps := setRandomKVPairs(prefixPrefixStore)
 
 	for i := 0; i < 20; i++ {
 		key := kvps[i].key
@@ -111,7 +113,7 @@ func TestPrefixStoreIterate(t *testing.T) {
 	prefix := []byte("test")
 	prefixStore := New(baseStore, prefix)
 
-	setRandomKVPairs(t, prefixStore)
+	setRandomKVPairs(prefixStore)
 
 	bIter := types.PrefixIterator(baseStore, prefix)
 	pIter := types.PrefixIterator(prefixStore, nil)
@@ -133,7 +135,7 @@ func incFirstByte(bz []byte) {
 }
 
 func TestCloneAppend(t *testing.T) {
-	kvps := genRandomKVPairs(t)
+	kvps := genRandomKVPairs()
 	for _, kvp := range kvps {
 		bz := cloneAppend(kvp.key, kvp.value)
 		require.Equal(t, bz, append(kvp.key, kvp.value...))
@@ -257,33 +259,45 @@ func mockStoreWithStuff() types.Store {
 }
 
 func checkValue(t *testing.T, store types.Store, key []byte, expected []byte) {
+	t.Helper()
+
 	bz := store.Get(key)
 	require.Equal(t, expected, bz)
 }
 
 func checkValid(t *testing.T, itr types.Iterator, expected bool) {
+	t.Helper()
+
 	valid := itr.Valid()
 	require.Equal(t, expected, valid)
 }
 
 func checkNext(t *testing.T, itr types.Iterator, expected bool) {
+	t.Helper()
+
 	itr.Next()
 	valid := itr.Valid()
 	require.Equal(t, expected, valid)
 }
 
 func checkDomain(t *testing.T, itr types.Iterator, start, end []byte) {
+	t.Helper()
+
 	ds, de := itr.Domain()
 	require.Equal(t, start, ds)
 	require.Equal(t, end, de)
 }
 
 func checkItem(t *testing.T, itr types.Iterator, key, value []byte) {
+	t.Helper()
+
 	require.Exactly(t, key, itr.Key())
 	require.Exactly(t, value, itr.Value())
 }
 
 func checkInvalid(t *testing.T, itr types.Iterator) {
+	t.Helper()
+
 	checkValid(t, itr, false)
 	checkKeyPanics(t, itr)
 	checkValuePanics(t, itr)
@@ -291,14 +305,20 @@ func checkInvalid(t *testing.T, itr types.Iterator) {
 }
 
 func checkKeyPanics(t *testing.T, itr types.Iterator) {
+	t.Helper()
+
 	require.Panics(t, func() { itr.Key() })
 }
 
 func checkValuePanics(t *testing.T, itr types.Iterator) {
+	t.Helper()
+
 	require.Panics(t, func() { itr.Value() })
 }
 
 func checkNextPanics(t *testing.T, itr types.Iterator) {
+	t.Helper()
+
 	require.Panics(t, func() { itr.Next() })
 }
 

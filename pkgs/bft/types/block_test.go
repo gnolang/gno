@@ -116,8 +116,8 @@ func TestBlockString(t *testing.T) {
 func makeBlockIDRandom() BlockID {
 	blockHash := make([]byte, tmhash.Size)
 	partSetHash := make([]byte, tmhash.Size)
-	rand.Read(blockHash)   //nolint: gosec
-	rand.Read(partSetHash) //nolint: gosec
+	rand.Read(blockHash)
+	rand.Read(partSetHash)
 	blockPartsHeader := PartSetHeader{123, partSetHash}
 	return BlockID{blockHash, blockPartsHeader}
 }
@@ -135,13 +135,13 @@ func makeBlockID(hash []byte, partSetSize int, partSetHash []byte) BlockID {
 var nilBytes []byte
 
 func TestNilHeaderHashDoesntCrash(t *testing.T) {
-	assert.Equal(t, []byte((*Header)(nil).Hash()), nilBytes)
-	assert.Equal(t, []byte((new(Header)).Hash()), nilBytes)
+	assert.Equal(t, (*Header)(nil).Hash(), nilBytes)
+	assert.Equal(t, (new(Header)).Hash(), nilBytes)
 }
 
 func TestNilDataHashDoesntCrash(t *testing.T) {
-	assert.Equal(t, []byte((*Data)(nil).Hash()), nilBytes)
-	assert.Equal(t, []byte(new(Data).Hash()), nilBytes)
+	assert.Equal(t, (*Data)(nil).Hash(), nilBytes)
+	assert.Equal(t, new(Data).Hash(), nilBytes)
 }
 
 func TestCommit(t *testing.T) {

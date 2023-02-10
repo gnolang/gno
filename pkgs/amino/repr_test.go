@@ -30,7 +30,7 @@ func (pr pair) get(key string) (value interface{}) {
 	return pr.Value
 }
 
-func (f Foo) MarshalAmino() ([]pair, error) { // nolint: golint
+func (f Foo) MarshalAmino() ([]pair, error) { //nolint: golint
 	return []pair{
 		{"a", f.a},
 		{"b", f.b},

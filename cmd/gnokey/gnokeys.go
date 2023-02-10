@@ -308,7 +308,7 @@ func signAndBroadcast(cmd *command.Command, args []string, tx std.Tx, baseopts c
 		AccountNumber: &accountNumber,
 		ChainID:       txopts.ChainID,
 		NameOrBech32:  nameOrBech32,
-		TxJson:        amino.MustMarshalJSON(tx),
+		TxJSON:        amino.MustMarshalJSON(tx),
 	}
 	sopts.Home = baseopts.Home
 	if baseopts.Quiet {

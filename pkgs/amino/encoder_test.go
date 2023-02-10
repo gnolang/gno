@@ -23,7 +23,7 @@ func TestUvarintSize(t *testing.T) {
 	}
 	for i, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			require.Equal(t, tc.want, UvarintSize(tc.u), "#%d", i) // nolint:scopelint
+			require.Equal(t, tc.want, UvarintSize(tc.u), "#%d", i) //nolint:scopelint
 		})
 	}
 }

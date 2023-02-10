@@ -3,6 +3,7 @@ package consensus
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -58,7 +59,7 @@ func TestMain(m *testing.M) {
 // the `Handshake Tests` are for failures in applying the block.
 // With the help of the WAL, we can recover from it all!
 
-//------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------
 // WAL Tests
 
 // TODO: It would be better to verify explicitly which states we can recover from without the wal
@@ -68,6 +69,8 @@ func TestMain(m *testing.M) {
 func startNewConsensusStateAndWaitForBlock(t *testing.T, consensusReplayConfig *cfg.Config,
 	lastBlockHeight int64, blockDB dbm.DB, stateDB dbm.DB,
 ) {
+	t.Helper()
+
 	logger := log.TestingLogger()
 	state, _ := sm.LoadStateFromDBOrGenesisFile(stateDB, consensusReplayConfig.GenesisFile())
 	privValidator := loadPrivValidator(consensusReplayConfig)
@@ -152,6 +155,8 @@ func TestWALCrash(t *testing.T) {
 func crashWALandCheckLiveness(t *testing.T, consensusReplayConfig *cfg.Config,
 	initFn func(dbm.DB, *ConsensusState, context.Context), lastBlockHeight int64,
 ) {
+	t.Helper()
+
 	crashCh := make(chan error)
 	crashingWal := &crashingWAL{crashCh: crashCh, lastBlockHeight: lastBlockHeight}
 
@@ -304,7 +309,7 @@ const (
 
 var mempool = mock.Mempool{}
 
-//---------------------------------------
+// ---------------------------------------
 // Test handshake/replay
 
 // 0 - all synced up
@@ -314,6 +319,8 @@ var modes = []uint{0, 1, 2}
 
 // Caller should call `defer sim.CleanupFunc()`
 func makeTestSim(t *testing.T, name string) (sim testSim) {
+	t.Helper()
+
 	nPeers := 7
 	nVals := 4
 	css, genDoc, config, cleanup := randConsensusNetWithPeers(nVals, nPeers, "replay_test_"+name, newMockTickerFunc(true), newPersistentKVStoreWithPath)
@@ -613,6 +620,8 @@ func tempWALWithData(data []byte) string {
 
 // Make some blocks. Start a fresh app and apply nBlocks blocks. Then restart the app and sync it up with the remaining blocks
 func testHandshakeReplay(t *testing.T, config *cfg.Config, nBlocks int, mode uint, sim *testSim) {
+	t.Helper()
+
 	var chain []*types.Block
 	var commits []*types.Commit
 	var store *mockBlockStore
@@ -919,7 +928,7 @@ func (app *badApp) Commit() (res abci.ResponseCommit) {
 	panic("either allHashesAreWrong or onlyLastHashIsWrong must be set")
 }
 
-//--------------------------
+// --------------------------
 // utils for making blocks
 
 func makeBlockchainFromWAL(wal walm.WAL) ([]*types.Block, []*types.Commit, error) {
@@ -933,7 +942,7 @@ func makeBlockchainFromWAL(wal walm.WAL) ([]*types.Block, []*types.Commit, error
 	if !found {
 		return nil, nil, fmt.Errorf("WAL does not contain height %d", height)
 	}
-	defer gr.Close() // nolint: errcheck
+	defer gr.Close() //nolint: errcheck
 
 	// log.Notice("Build a blockchain by reading from the WAL")
 
@@ -947,7 +956,7 @@ func makeBlockchainFromWAL(wal walm.WAL) ([]*types.Block, []*types.Commit, error
 	dec := walm.NewWALReader(gr, maxMsgSize)
 	for {
 		msg, meta, err := dec.ReadMessage()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		} else if err != nil {
 			return nil, nil, err
@@ -1041,7 +1050,7 @@ func makeStateAndStore(config *cfg.Config, pubKey crypto.PubKey, appVersion stri
 	return stateDB, state, store
 }
 
-//----------------------------------
+// ----------------------------------
 // mock block store
 
 type mockBlockStore struct {
@@ -1077,7 +1086,7 @@ func (bs *mockBlockStore) LoadSeenCommit(height int64) *types.Commit {
 	return bs.commits[height-1]
 }
 
-//---------------------------------------
+// ---------------------------------------
 // Test handshake/init chain
 
 func TestHandshakeUpdatesValidators(t *testing.T) {

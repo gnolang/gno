@@ -9,7 +9,7 @@ import (
 	"github.com/gnolang/gno/pkgs/random"
 )
 
-//-------------------------------------
+// -------------------------------------
 // These are fake crypto implementations, useful for testing.
 
 var _ crypto.PrivKey = PrivKeyMock{}
@@ -45,7 +45,7 @@ func GenPrivKey() PrivKeyMock {
 	return PrivKeyMock([]byte(randstr))
 }
 
-//-------------------------------------
+// -------------------------------------
 
 var _ crypto.PubKey = PubKeyMock{}
 
@@ -58,7 +58,7 @@ func (pubKey PubKeyMock) Address() crypto.Address {
 	}
 	addr := crypto.Address{}
 	copy(addr[20-len(pubKey):], pubKey)
-	return crypto.Address(addr)
+	return addr
 }
 
 // Bytes marshals the PubKey using amino encoding.
@@ -75,7 +75,6 @@ func (pubKey PubKeyMock) String() string {
 	return fmt.Sprintf("PubKeyMock{%X}", ([]byte(pubKey))[:])
 }
 
-// nolint: golint
 func (pubKey PubKeyMock) Equals(other crypto.PubKey) bool {
 	if otherMock, ok := other.(PubKeyMock); ok {
 		return bytes.Equal(pubKey[:], otherMock[:])

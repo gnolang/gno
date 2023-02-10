@@ -48,7 +48,7 @@ func addApp(cmd *command.Command, args []string, iopts interface{}) error {
 	var kb keys.Keybase
 	var err error
 	var encryptPassword string
-	var opts AddOptions = iopts.(AddOptions)
+	var opts = iopts.(AddOptions)
 
 	if len(args) != 1 {
 		cmd.ErrPrintfln("Usage: add <keyname>")
@@ -137,8 +137,8 @@ func addApp(cmd *command.Command, args []string, iopts interface{}) error {
 		return nil
 	}
 
-	account := uint32(opts.Account)
-	index := uint32(opts.Index)
+	account := opts.Account
+	index := opts.Index
 
 	// If we're using ledger, only thing we need is the path and the bech32 prefix.
 	if opts.UseLedger {

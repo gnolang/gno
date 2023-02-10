@@ -12,16 +12,16 @@ type ConsensusEvent interface {
 	GetHRS() HRS
 }
 
-func (_ EventNewRoundStep) AssertEvent()     {}
-func (_ EventNewValidBlock) AssertEvent()    {}
-func (_ EventNewRound) AssertEvent()         {}
-func (_ EventCompleteProposal) AssertEvent() {}
-func (_ EventTimeoutPropose) AssertEvent()   {}
-func (_ EventTimeoutWait) AssertEvent()      {}
-func (_ EventPolka) AssertEvent()            {}
-func (_ EventLock) AssertEvent()             {}
-func (_ EventUnlock) AssertEvent()           {}
-func (_ EventRelock) AssertEvent()           {}
+func (EventNewRoundStep) AssertEvent()     {}
+func (EventNewValidBlock) AssertEvent()    {}
+func (EventNewRound) AssertEvent()         {}
+func (EventCompleteProposal) AssertEvent() {}
+func (EventTimeoutPropose) AssertEvent()   {}
+func (EventTimeoutWait) AssertEvent()      {}
+func (EventPolka) AssertEvent()            {}
+func (EventLock) AssertEvent()             {}
+func (EventUnlock) AssertEvent()           {}
+func (EventRelock) AssertEvent()           {}
 
 var (
 	_ ConsensusEvent = EventNewRoundStep{}

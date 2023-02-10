@@ -192,7 +192,7 @@ func TestMempoolRmBadTx(t *testing.T) {
 		// CheckTx should not err, but the app should return an abci Error.
 		// and the tx should get removed from the pool
 		err := assertMempool(cs.txNotifier).CheckTx(txBytes, func(r abci.Response) {
-			if _, ok := r.(abci.ResponseCheckTx).Error.(errors.BadNonce); !ok {
+			if _, ok := r.(abci.ResponseCheckTx).Error.(errors.BadNonceError); !ok {
 				t.Errorf("expected checktx to return bad nonce, got %v", r)
 				return
 			}
@@ -255,7 +255,7 @@ func (app *CounterApplication) Info(req abci.RequestInfo) (res abci.ResponseInfo
 func (app *CounterApplication) DeliverTx(req abci.RequestDeliverTx) (res abci.ResponseDeliverTx) {
 	txValue := txAsUint64(req.Tx)
 	if txValue != uint64(app.txCount) {
-		res.Error = errors.BadNonce{}
+		res.Error = errors.BadNonceError{}
 		res.Log = fmt.Sprintf("Invalid nonce. Expected %v, got %v", app.txCount, txValue)
 		return
 	}
@@ -266,7 +266,7 @@ func (app *CounterApplication) DeliverTx(req abci.RequestDeliverTx) (res abci.Re
 func (app *CounterApplication) CheckTx(req abci.RequestCheckTx) (res abci.ResponseCheckTx) {
 	txValue := txAsUint64(req.Tx)
 	if txValue != uint64(app.mempoolTxCount) {
-		res.Error = errors.BadNonce{}
+		res.Error = errors.BadNonceError{}
 		res.Log = fmt.Sprintf("Invalid nonce. Expected %v, got %v", app.mempoolTxCount, txValue)
 		return
 	}

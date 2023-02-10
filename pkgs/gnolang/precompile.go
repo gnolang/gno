@@ -114,14 +114,14 @@ func PrecompileAndCheckMempkg(mempkg *std.MemPackage) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tmpDir) // nolint: errcheck
+	defer os.RemoveAll(tmpDir) //nolint: errcheck
 
 	var errs error
 	for _, mfile := range mempkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") {
 			continue // skip spurious file.
 		}
-		res, err := Precompile(string(mfile.Body), "gno,tmp", mfile.Name)
+		res, err := Precompile(mfile.Body, "gno,tmp", mfile.Name)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
@@ -316,7 +316,6 @@ func precompileAST(fset *token.FileSet, f *ast.File, checkWhitelist bool) (ast.N
 				if !astutil.RewriteImport(fset, f, importPath, target) {
 					errs = multierr.Append(errs, fmt.Errorf("failed to replace the %q package with %q", importPath, target))
 				}
-
 			}
 
 			// r/realm packages
@@ -326,7 +325,6 @@ func precompileAST(fset *token.FileSet, f *ast.File, checkWhitelist bool) (ast.N
 				if !astutil.RewriteImport(fset, f, importPath, target) {
 					errs = multierr.Append(errs, fmt.Errorf("failed to replace the %q package with %q", importPath, target))
 				}
-
 			}
 		}
 	}

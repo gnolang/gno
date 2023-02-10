@@ -55,10 +55,10 @@ type Queryable interface {
 	Query(abci.RequestQuery) abci.ResponseQuery
 }
 
-//----------------------------------------
+// ----------------------------------------
 // MultiStore
 
-type MultiStore interface { //nolint
+type MultiStore interface {
 	// Convenience for fetching substores.
 	// If the store does not exist, panics.
 	GetStore(StoreKey) Store
@@ -70,7 +70,7 @@ type MultiStore interface { //nolint
 	MultiWrite()
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Commiter, CommitID
 
 // Something that can persist to disk
@@ -126,7 +126,7 @@ func (cid CommitID) Equals(oid CommitID) bool {
 	return cid.Version == oid.Version && bytes.Equal(cid.Hash, oid.Hash)
 }
 
-func (cid CommitID) IsZero() bool { //nolint
+func (cid CommitID) IsZero() bool {
 	return cid.Version == 0 && len(cid.Hash) == 0
 }
 
@@ -134,7 +134,7 @@ func (cid CommitID) String() string {
 	return fmt.Sprintf("CommitID{%v:%X}", cid.Hash, cid.Version)
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Keys for accessing substores
 
 // StoreKey is a key used to index stores in a MultiStore.
@@ -163,7 +163,7 @@ func (key *storeKey) String() string {
 	return fmt.Sprintf("storeKey{%p, %s}", key, key.name)
 }
 
-//----------------------------------------
+// ----------------------------------------
 // KVPair
 
 type KVPair = std.KVPair

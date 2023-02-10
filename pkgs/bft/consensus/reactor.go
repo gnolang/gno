@@ -1346,7 +1346,7 @@ type ConsensusMessage interface {
 
 func decodeMsg(bz []byte) (msg ConsensusMessage, err error) {
 	if len(bz) > maxMsgSize {
-		return msg, fmt.Errorf("Msg exceeds max size (%d > %d)", len(bz), maxMsgSize)
+		return msg, fmt.Errorf("msg exceeds max size (%d > %d)", len(bz), maxMsgSize)
 	}
 	err = amino.Unmarshal(bz, &msg)
 	return
@@ -1413,7 +1413,7 @@ func (m *NewValidBlockMessage) ValidateBasic() error {
 		return errors.New("Negative Round")
 	}
 	if err := m.BlockPartsHeader.ValidateBasic(); err != nil {
-		return fmt.Errorf("Wrong BlockPartsHeader: %v", err)
+		return fmt.Errorf("wrong BlockPartsHeader: %w", err)
 	}
 	if m.BlockParts.Size() == 0 {
 		return errors.New("Empty BlockParts")
@@ -1501,7 +1501,7 @@ func (m *BlockPartMessage) ValidateBasic() error {
 		return errors.New("Negative Round")
 	}
 	if err := m.Part.ValidateBasic(); err != nil {
-		return fmt.Errorf("Wrong Part: %v", err)
+		return fmt.Errorf("wrong Part: %w", err)
 	}
 	return nil
 }
@@ -1582,7 +1582,7 @@ func (m *VoteSetMaj23Message) ValidateBasic() error {
 		return errors.New("Invalid Type")
 	}
 	if err := m.BlockID.ValidateBasic(); err != nil {
-		return fmt.Errorf("Wrong BlockID: %v", err)
+		return fmt.Errorf("wrong BlockID: %w", err)
 	}
 	return nil
 }
@@ -1615,11 +1615,11 @@ func (m *VoteSetBitsMessage) ValidateBasic() error {
 		return errors.New("Invalid Type")
 	}
 	if err := m.BlockID.ValidateBasic(); err != nil {
-		return fmt.Errorf("Wrong BlockID: %v", err)
+		return fmt.Errorf("wrong BlockID: %w", err)
 	}
 	// NOTE: Votes.Size() can be zero if the node does not have any
 	if m.Votes.Size() > types.MaxVotesCount {
-		return fmt.Errorf("Votes bit array is too big: %d, max: %d", m.Votes.Size(), types.MaxVotesCount)
+		return fmt.Errorf("votes bit array is too big: %d, max: %d", m.Votes.Size(), types.MaxVotesCount)
 	}
 	return nil
 }

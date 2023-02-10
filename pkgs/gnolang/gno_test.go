@@ -7,7 +7,7 @@ import (
 	"testing"
 	"unsafe"
 
-	//"github.com/davecgh/go-spew/spew"
+	// "github.com/davecgh/go-spew/spew"
 	"github.com/jaekwon/testify/assert"
 )
 
@@ -48,6 +48,8 @@ func next(i int) int {
 }
 
 func assertOutput(t *testing.T, input string, output string) {
+	t.Helper()
+
 	buf := new(bytes.Buffer)
 	m := NewMachineWithOptions(MachineOptions{
 		PkgPath: "test",
@@ -105,7 +107,7 @@ func main() {
 }`, `aaa,bbb`)
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Benchmarks
 
 func BenchmarkPreprocess(b *testing.B) {
@@ -149,7 +151,7 @@ func BenchmarkLoopyMain(b *testing.B) {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Unsorted
 
 type Struct1 struct {

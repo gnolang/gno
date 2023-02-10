@@ -21,7 +21,7 @@ import (
 	osm "github.com/gnolang/gno/pkgs/os"
 )
 
-//--------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------
 
 // CListMempool is an ordered in-memory pool for transactions before they are
 // proposed in a consensus round. Transaction validity is checked using the
@@ -225,7 +225,7 @@ func (mem *CListMempool) CheckTxWithInfo(tx types.Tx, cb func(abci.Response), tx
 	// Check max pending txs bytes
 	if memSize >= mem.config.Size ||
 		int64(txSize)+txsBytes > mem.config.MaxPendingTxsBytes {
-		return ErrMempoolIsFull{
+		return MempoolIsFullError{
 			memSize, mem.config.Size,
 			txsBytes, mem.config.MaxPendingTxsBytes,
 		}
@@ -233,7 +233,7 @@ func (mem *CListMempool) CheckTxWithInfo(tx types.Tx, cb func(abci.Response), tx
 
 	// Check max tx bytes
 	if int64(txSize) > mem.maxTxBytes {
-		return ErrTxTooLarge{mem.maxTxBytes, int64(txSize)}
+		return TxTooLargeError{mem.maxTxBytes, int64(txSize)}
 	}
 
 	// Check custom preCheck function
@@ -255,7 +255,6 @@ func (mem *CListMempool) CheckTxWithInfo(tx types.Tx, cb func(abci.Response), tx
 			// TODO: consider punishing peer for dups,
 			// its non-trivial since invalid txs can become valid,
 			// but they can spam the same tx with little cost to them atm.
-
 		}
 
 		return ErrTxInCache
@@ -599,7 +598,7 @@ func (mem *CListMempool) recheckTxs() {
 	mem.proxyAppConn.FlushAsync()
 }
 
-//--------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------
 
 // mempoolTx is a transaction that successfully ran
 type mempoolTx struct {
@@ -617,7 +616,7 @@ func (memTx *mempoolTx) Height() int64 {
 	return atomic.LoadInt64(&memTx.height)
 }
 
-//--------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------
 
 type txCache interface {
 	Reset()
@@ -700,7 +699,7 @@ func (nopTxCache) Reset()             {}
 func (nopTxCache) Push(types.Tx) bool { return true }
 func (nopTxCache) Remove(types.Tx)    {}
 
-//--------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------
 
 // txKey is the fixed length array sha256 hash used as the key in maps.
 func txKey(tx types.Tx) [sha256.Size]byte {

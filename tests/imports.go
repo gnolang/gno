@@ -6,9 +6,9 @@ import (
 	"compress/flate"
 	"compress/gzip"
 	"context"
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec
 	crand "crypto/rand"
-	"crypto/sha1"
+	"crypto/sha1" //nolint:gosec
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"

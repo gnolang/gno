@@ -305,16 +305,16 @@ func randValidatorSet(numValidators int) *ValidatorSet {
 	return NewValidatorSet(validators)
 }
 
-func (valSet *ValidatorSet) toBytes() []byte {
-	bz, err := amino.MarshalSized(valSet)
+func (vals *ValidatorSet) toBytes() []byte {
+	bz, err := amino.MarshalSized(vals)
 	if err != nil {
 		panic(err)
 	}
 	return bz
 }
 
-func (valSet *ValidatorSet) fromBytes(b []byte) {
-	err := amino.UnmarshalSized(b, &valSet)
+func (vals *ValidatorSet) fromBytes(b []byte) {
+	err := amino.UnmarshalSized(b, &vals)
 	if err != nil {
 		// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
 		panic(err)
@@ -728,6 +728,8 @@ func valSetTotalProposerPriority(valSet *ValidatorSet) int64 {
 }
 
 func verifyValidatorSet(t *testing.T, valSet *ValidatorSet) {
+	t.Helper()
+
 	// verify that the capacity and length of validators is the same
 	assert.Equal(t, len(valSet.Validators), cap(valSet.Validators))
 
@@ -773,6 +775,8 @@ type valSetErrTestCase struct {
 }
 
 func executeValSetErrTestCase(t *testing.T, idx int, tt valSetErrTestCase) {
+	t.Helper()
+
 	// create a new set and apply updates, keeping copies for the checks
 	valSet := createNewValidatorSet(tt.startVals)
 	valSetCopy := valSet.Copy()
@@ -956,7 +960,6 @@ func TestValSetUpdatesBasicTestsExecute(t *testing.T) {
 		if len(valList) > 0 {
 			valList[0].VotingPower++
 			assert.Equal(t, toTestValList(valListCopy), toTestValList(valSet.Validators), "test %v", i)
-
 		}
 
 		// check the final validator list is as expected and the set is properly scaled and centered.
@@ -1104,7 +1107,7 @@ type testVSetCfg struct {
 	expectedVals []testVal
 }
 
-func randTestVSetCfg(t *testing.T, nBase, nAddMax int) testVSetCfg {
+func randTestVSetCfg(nBase, nAddMax int) testVSetCfg {
 	if nBase <= 0 || nAddMax < 0 {
 		panic(fmt.Sprintf("bad parameters %v %v", nBase, nAddMax))
 	}
@@ -1159,6 +1162,8 @@ func randTestVSetCfg(t *testing.T, nBase, nAddMax int) testVSetCfg {
 }
 
 func applyChangesToValSet(t *testing.T, valSet *ValidatorSet, valsLists ...[]testVal) {
+	t.Helper()
+
 	changes := make([]testVal, 0)
 	for _, valsList := range valsLists {
 		changes = append(changes, valsList...)
@@ -1197,23 +1202,22 @@ func TestValSetUpdatePriorityOrderTests(t *testing.T) {
 		// generate a configuration with 100 validators,
 		// randomly select validators for updates and deletes, and
 		// generate 10 new validators to be added
-		3: randTestVSetCfg(t, 100, 10),
+		3: randTestVSetCfg(100, 10),
 
-		4: randTestVSetCfg(t, 1000, 100),
+		4: randTestVSetCfg(1000, 100),
 
-		5: randTestVSetCfg(t, 10, 100),
+		5: randTestVSetCfg(10, 100),
 
-		6: randTestVSetCfg(t, 100, 1000),
+		6: randTestVSetCfg(100, 1000),
 
-		7: randTestVSetCfg(t, 1000, 1000),
+		7: randTestVSetCfg(1000, 1000),
 
-		8: randTestVSetCfg(t, 10000, 1000),
+		8: randTestVSetCfg(10000, 1000),
 
-		9: randTestVSetCfg(t, 1000, 10000),
+		9: randTestVSetCfg(1000, 10000),
 	}
 
 	for _, cfg := range testCases {
-
 		// create a new validator set
 		valSet := createNewValidatorSet(cfg.startVals)
 		verifyValidatorSet(t, valSet)
@@ -1224,6 +1228,8 @@ func TestValSetUpdatePriorityOrderTests(t *testing.T) {
 }
 
 func verifyValSetUpdatePriorityOrder(t *testing.T, valSet *ValidatorSet, cfg testVSetCfg, nMaxElections int) {
+	t.Helper()
+
 	// Run election up to nMaxElections times, sort validators by priorities
 	valSet.IncrementProposerPriority(random.RandInt()%nMaxElections + 1)
 	origValsPriSorted := validatorListCopy(valSet.Validators)

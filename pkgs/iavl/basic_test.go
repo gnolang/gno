@@ -147,7 +147,7 @@ func TestUnit(t *testing.T) {
 		tree.root = origNode
 	}
 
-	//////// Test Set cases:
+	// ////// Test Set cases:
 
 	// Case 1:
 	t1 := T(N(4, 20))
@@ -170,7 +170,7 @@ func TestUnit(t *testing.T) {
 	expectSet(t4, 8, "(((1 2) (5 6)) ((7 8) 9))", 5)
 	expectSet(t4, 10, "(((1 2) (5 6)) (7 (9 10)))", 5)
 
-	//////// Test Remove cases:
+	// ////// Test Remove cases:
 
 	t10 := T(N(N(1, 2), 3))
 
@@ -247,7 +247,7 @@ func TestIntegration(t *testing.T) {
 		if has := tree.Has([]byte(randstr(12))); has {
 			t.Error("Table has extra key")
 		}
-		if _, val := tree.Get([]byte(r.key)); string(val) != string(r.value) {
+		if _, val := tree.Get([]byte(r.key)); string(val) != r.value {
 			t.Error("wrong value")
 		}
 	}
@@ -255,7 +255,7 @@ func TestIntegration(t *testing.T) {
 	for i, x := range records {
 		if val, removed := tree.Remove([]byte(x.key)); !removed {
 			t.Error("Wasn't removed")
-		} else if string(val) != string(x.value) {
+		} else if string(val) != x.value {
 			t.Error("Wrong value")
 		}
 		for _, r := range records[i+1:] {
@@ -266,7 +266,7 @@ func TestIntegration(t *testing.T) {
 				t.Error("Table has extra key")
 			}
 			_, val := tree.Get([]byte(r.key))
-			if string(val) != string(r.value) {
+			if string(val) != r.value {
 				t.Error("wrong value")
 			}
 		}
