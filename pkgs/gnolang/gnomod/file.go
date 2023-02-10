@@ -21,6 +21,15 @@ type File struct {
 	Syntax *modfile.FileSyntax
 }
 
+// Validate validates gno.mod
+func (f *File) Validate() error {
+	if f.Module == nil {
+		return errors.New("requires module")
+	}
+
+	return nil
+}
+
 // FetchDeps fetches and writes gno.mod packages
 // in GOPATH/pkg/gnomod/
 func (f *File) FetchDeps() error {

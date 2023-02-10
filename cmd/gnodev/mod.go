@@ -60,6 +60,11 @@ func runModDownload(opts *modFlags) error {
 		return fmt.Errorf("parse: %w", err)
 	}
 
+	// validate gno.mod
+	if err := gnoMod.Validate(); err != nil {
+		return fmt.Errorf("validate: %w", err)
+	}
+
 	// fetch dependencies
 	if err := gnoMod.FetchDeps(); err != nil {
 		return fmt.Errorf("fetch: %w", err)
