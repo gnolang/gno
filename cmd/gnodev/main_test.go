@@ -44,7 +44,7 @@ func TestMain(t *testing.T) {
 		{args: []string{"repl", "--help"}, stdoutShouldContain: "# replOptions options\n-"},
 		{args: []string{"mod", "--help"}, stdoutShouldContain: "# modFlags options\n-"},
 
-		// custom
+		// test
 		{args: []string{"test", "../../examples/gno.land/p/demo/rand"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/rand \t"},
 		{args: []string{"test", "../../tests/integ/no-such-dir"}, errShouldContain: "no such file or directory"},
 		{args: []string{"test", "../../tests/integ/empty-dir"}}, // FIXME: should have an output
@@ -78,18 +78,18 @@ func TestMain(t *testing.T) {
 		{args: []string{"test", "../../tests/integ/failing2", "--verbose", "--precompile"}, stderrShouldBe: "=== PREC  ./../../tests/integ/failing2\n=== BUILD ./../../tests/integ/failing2\n=== RUN   file/failing_filetest.gno\n", recoverShouldBe: "fail on ../../tests/integ/failing2/failing_filetest.gno: got unexpected error: beep boop"},
 
 		// test opts
-		{args: []string{"test", "../../examples/gno.land/p/demo/ufmt"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/ufmt"},
-		{args: []string{"test", "../../examples/gno.land/p/demo/ufmt", "--verbose"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/ufmt"},
-		{args: []string{"test", "../../examples/gno.land/p/demo/ufmt", "--verbose", "--run", ".*"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/ufmt"},
+		{args: []string{"test", "../../examples/gno.land/p/demo/ufmt"}, stdoutShouldContain: "RUN   TestSprintf", stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/ufmt"},
+		{args: []string{"test", "../../examples/gno.land/p/demo/ufmt", "--verbose"}, stdoutShouldContain: "RUN   TestSprintf", stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/ufmt"},
+		{args: []string{"test", "../../examples/gno.land/p/demo/ufmt", "--verbose", "--run", ".*"}, stdoutShouldContain: "RUN   TestSprintf", stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/ufmt"},
 		{args: []string{"test", "../../examples/gno.land/p/demo/ufmt", "--verbose", "--run", "NoExists"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/ufmt"},
-		{args: []string{"test", "../../examples/gno.land/p/demo/ufmt", "--verbose", "--run", ".*/hello"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/ufmt"},
-		{args: []string{"test", "../../examples/gno.land/p/demo/ufmt", "--verbose", "--run", ".*/hi"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/ufmt"},
+		{args: []string{"test", "../../examples/gno.land/p/demo/ufmt", "--verbose", "--run", ".*/hello"}, stdoutShouldContain: "RUN   TestSprintf", stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/ufmt"},
+		{args: []string{"test", "../../examples/gno.land/p/demo/ufmt", "--verbose", "--run", ".*/hi"}, stdoutShouldContain: "RUN   TestSprintf", stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/ufmt"},
 		{args: []string{"test", "../../examples/gno.land/p/demo/ufmt", "--verbose", "--run", ".*/NoExists"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/ufmt"},
-		{args: []string{"test", "../../examples/gno.land/p/demo/ufmt", "--verbose", "--run", ".*/hello/NoExists"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/ufmt"},
-		{args: []string{"test", "../../examples/gno.land/p/demo/ufmt", "--verbose", "--run", "Sprintf/"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/ufmt"},
-		{args: []string{"test", "../../examples/gno.land/p/demo/ufmt", "--verbose", "--run", "Sprintf/.*"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/ufmt"},
-		{args: []string{"test", "../../examples/gno.land/p/demo/ufmt", "--verbose", "--run", "Sprintf/hello"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/ufmt"},
-		{args: []string{"test", "../../examples/gno.land/p/demo/ufmt", "--verbose", "--timeout", "100000000000" /* 100s */}, stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/ufmt"},
+		{args: []string{"test", "../../examples/gno.land/p/demo/ufmt", "--verbose", "--run", ".*/hello/NoExists"}, stdoutShouldContain: "RUN   TestSprintf", stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/ufmt"},
+		{args: []string{"test", "../../examples/gno.land/p/demo/ufmt", "--verbose", "--run", "Sprintf/"}, stdoutShouldContain: "RUN   TestSprintf", stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/ufmt"},
+		{args: []string{"test", "../../examples/gno.land/p/demo/ufmt", "--verbose", "--run", "Sprintf/.*"}, stdoutShouldContain: "RUN   TestSprintf", stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/ufmt"},
+		{args: []string{"test", "../../examples/gno.land/p/demo/ufmt", "--verbose", "--run", "Sprintf/hello"}, stdoutShouldContain: "RUN   TestSprintf", stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/ufmt"},
+		{args: []string{"test", "../../examples/gno.land/p/demo/ufmt", "--verbose", "--timeout", "100000000000" /* 100s */}, stdoutShouldContain: "RUN   TestSprintf", stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/ufmt"},
 		// {args: []string{"test", "../../examples/gno.land/p/demo/ufmt", "--verbose", "--timeout", "10000" /* 10µs */}, recoverShouldContain: "test timed out after"}, // FIXME: should be testable
 
 		// test gno.mod
@@ -101,6 +101,9 @@ func TestMain(t *testing.T) {
 		{args: []string{"mod", "download"}, testDir: "../../tests/integ/require-invalid-module", simulateExternalRepo: true, errShouldContain: "mod download: fetch: writepackage: querychain:"},
 		{args: []string{"mod", "download"}, testDir: "../../tests/integ/invalid-module-version1", simulateExternalRepo: true, errShouldContain: "usage: require module/path v1.2.3"},
 		{args: []string{"mod", "download"}, testDir: "../../tests/integ/invalid-module-version2", simulateExternalRepo: true, errShouldContain: "invalid: must be of the form v1.2.3"},
+
+		// run
+		{args: []string{"run", "../../tests/integ/run-main/main.gno"}, stdoutShouldContain: "hello world!"},
 	}
 
 	workingDir, err := os.Getwd()

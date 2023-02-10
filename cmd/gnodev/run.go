@@ -1,8 +1,6 @@
 package main
 
 import (
-	"os"
-
 	"github.com/gnolang/gno/pkgs/command"
 	"github.com/gnolang/gno/pkgs/errors"
 	gno "github.com/gnolang/gno/pkgs/gnolang"
@@ -37,13 +35,13 @@ func runApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 	fnames := args
 
-	return runRun(opts.RootDir, opts.Verbose, fnames)
+	return runRun(cmd, opts.RootDir, opts.Verbose, fnames)
 }
 
-func runRun(rootDir string, verbose bool, fnames []string) error {
-	stdin := os.Stdin
-	stdout := os.Stdout
-	stderr := os.Stderr
+func runRun(cmd *command.Command, rootDir string, verbose bool, fnames []string) error {
+	stdin := cmd.In
+	stdout := cmd.Out
+	stderr := cmd.Err
 
 	// init store and machine
 	testStore := tests.TestStore(rootDir,
