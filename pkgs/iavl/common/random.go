@@ -47,10 +47,10 @@ func (r *Rand) init() {
 }
 
 func (r *Rand) reset(seed int64) {
-	r.rand = mrand.New(mrand.NewSource(seed))
+	r.rand = mrand.New(mrand.NewSource(seed)) // #nosec G404
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Global functions
 
 func Seed(seed int64) {
@@ -77,7 +77,7 @@ func RandPerm(n int) []int {
 	return grand.Perm(n)
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Rand methods
 
 func (r *Rand) Seed(seed int64) {

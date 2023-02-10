@@ -381,7 +381,6 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 		// TODO: allow for selective filtering of 0 fee txs.
 		return sdk.Result{}
 	} else {
-
 		fgw := big.NewInt(fee.GasWanted)
 		fga := big.NewInt(fee.GasFee.Amount)
 		fgd := fee.GasFee.Denom

@@ -121,11 +121,10 @@ func (pkg *Package) WithDependencies(deps ...*Package) *Package {
 func (pkg *Package) WithTypes(objs ...interface{}) *Package {
 	var lastType *Type = nil
 	for _, obj := range objs {
-
 		// Initialize variables
-		var objType reflect.Type = reflect.TypeOf(obj)
-		var name string = ""
-		var pointerPreferred bool = false
+		var objType = reflect.TypeOf(obj)
+		var name = ""
+		var pointerPreferred = false
 
 		// Two special cases.
 		// One: a string which follows a type declaration is a name.
@@ -236,7 +235,7 @@ func (pkg *Package) FullNameForType(rt reflect.Type) string {
 	}
 	t, ok := pkg.GetType(drt)
 	if !ok {
-		panic(fmt.Errorf("Unknown type %v", drt))
+		panic(fmt.Errorf("unknown type %v", drt))
 	}
 	return t.FullName(pkg)
 }
@@ -258,7 +257,7 @@ func (pkg *Package) GetDependency(gopkg string) (*Package, error) {
 			return pkg, nil
 		}
 	}
-	return nil, fmt.Errorf("Go package not declared a (in)direct dependency of %v",
+	return nil, fmt.Errorf("go package not declared a (in)direct dependency of %v",
 		pkg.GoPkgPath)
 }
 

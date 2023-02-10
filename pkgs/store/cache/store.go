@@ -31,7 +31,6 @@ type cacheStore struct {
 
 var _ types.Store = (*cacheStore)(nil)
 
-// nolint
 func New(parent types.Store) *cacheStore {
 	return &cacheStore{
 		cache:         make(map[string]*cValue),
@@ -118,7 +117,7 @@ func (store *cacheStore) Write() {
 	store.sortedCache = list.New()
 }
 
-//----------------------------------------
+// ----------------------------------------
 // To cache-wrap this Store further.
 
 // Implements Store.
@@ -126,7 +125,7 @@ func (store *cacheStore) CacheWrap() types.Store {
 	return New(store)
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Iteration
 
 // Implements types.Store.
@@ -195,7 +194,7 @@ func (store *cacheStore) dirtyItems(start, end []byte) {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // etc
 
 // Only entrypoint to mutate store.cache.

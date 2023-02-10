@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -75,7 +76,7 @@ func main() {
 		}
 		if err != nil {
 			group.Stop()
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				os.Exit(0)
 			} else {
 				fmt.Println("logjack errored")

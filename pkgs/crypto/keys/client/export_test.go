@@ -46,7 +46,7 @@ func addRandomKeyToKeybase(
 	mnemonic, err := generateMnemonic(mnemonicEntropySize)
 	if err != nil {
 		return nil, fmt.Errorf(
-			"unable to generate a mnemonic phrase, %v",
+			"unable to generate a mnemonic phrase, %w",
 			err,
 		)
 	}

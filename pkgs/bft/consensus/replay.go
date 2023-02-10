@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"hash/crc32"
 	"io"
@@ -31,10 +32,10 @@ var crc32c = crc32.MakeTable(crc32.Castagnoli)
 // The former is handled by the WAL, the latter by the proxyApp Handshake on
 // restart, which ultimately hands off the work to the WAL.
 
-//-----------------------------------------
+// -----------------------------------------
 // 1. Recover from failure during consensus
 // (by replaying messages from the WAL)
-//-----------------------------------------
+// -----------------------------------------
 
 // Unmarshal and apply a single message to the consensus state as if it were
 // received in receiveRoutine.  Lines that start with "#" are ignored.
@@ -55,14 +56,14 @@ func (cs *ConsensusState) readReplayMessage(msg *walm.TimedWALMessage, meta *wal
 			select {
 			case stepMsg, ok := <-newStepSub:
 				if !ok {
-					return fmt.Errorf("Failed to read off newStepSub. newStepSub was cancelled")
+					return fmt.Errorf("failed to read off newStepSub. newStepSub was cancelled")
 				}
 				m2 := stepMsg.(cstypes.EventNewRoundStep)
 				if m.Height != m2.Height || m.Round != m2.Round || m.Step != m2.Step {
 					return fmt.Errorf("RoundState mismatch. Got %v; Expected %v", m2, m)
 				}
 			case <-ticker:
-				return fmt.Errorf("Failed to read off newStepSub.")
+				return fmt.Errorf("failed to read off newStepSub")
 			}
 		}
 	case msgInfo:
@@ -88,7 +89,7 @@ func (cs *ConsensusState) readReplayMessage(msg *walm.TimedWALMessage, meta *wal
 		cs.Logger.Info("Replay: Timeout", "height", m.Height, "round", m.Round, "step", m.Step, "dur", m.Duration)
 		cs.handleTimeout(m, cs.RoundState)
 	default:
-		return fmt.Errorf("Replay: Unknown TimedWALMessage type: %v", reflect.TypeOf(msg.Msg))
+		return fmt.Errorf("replay: Unknown TimedWALMessage type: %v", reflect.TypeOf(msg.Msg))
 	}
 	return nil
 }
@@ -123,15 +124,15 @@ func (cs *ConsensusState) catchupReplay(csHeight int64) error {
 	//
 	// Ignore data corruption errors in previous heights because we only care about last height
 	gr, found, err = cs.wal.SearchForHeight(csHeight, &walm.WALSearchOptions{IgnoreDataCorruptionErrors: true})
-	if err == io.EOF {
+	if errors.Is(err, io.EOF) {
 		cs.Logger.Error("Replay: wal.group.Search returned EOF", "#ENDHEIGHT", csHeight-1)
 	} else if err != nil {
 		return err
 	}
 	if !found {
-		return fmt.Errorf("Cannot replay height %d. WAL does not contain #ENDHEIGHT for %d", csHeight, csHeight-1)
+		return fmt.Errorf("cannot replay height %d. WAL does not contain #ENDHEIGHT for %d", csHeight, csHeight-1)
 	}
-	defer gr.Close() // nolint: errcheck
+	defer gr.Close() //nolint: errcheck
 
 	cs.Logger.Info("Catchup by replaying consensus messages", "height", csHeight)
 
@@ -141,7 +142,7 @@ LOOP:
 	for {
 		msg, meta, err := dec.ReadMessage()
 		switch {
-		case err == io.EOF:
+		case errors.Is(err, io.EOF):
 			break LOOP
 		case walm.IsDataCorruptionError(err):
 			cs.Logger.Error("data has been corrupted in last height of consensus WAL", "err", err, "height", csHeight)
@@ -160,7 +161,7 @@ LOOP:
 	return nil
 }
 
-//--------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------
 
 // Parses marker lines of the form:
 // #ENDHEIGHT: 12345
@@ -186,11 +187,11 @@ func makeHeightSearchFunc(height int64) auto.SearchFunc {
 	}
 }*/
 
-//---------------------------------------------------
+// ---------------------------------------------------
 // 2. Recover from failure while applying the block.
 // (by handshaking with the app to figure out where
 // we were last, and using the WAL to recover there.)
-//---------------------------------------------------
+// ---------------------------------------------------
 
 type Handshaker struct {
 	stateDB      dbm.DB
@@ -237,12 +238,12 @@ func (h *Handshaker) Handshake(proxyApp proxy.AppConns) error {
 	// Handshake is done via ABCI Info on the query conn.
 	res, err := proxyApp.Query().InfoSync(abci.RequestInfo{})
 	if err != nil {
-		return fmt.Errorf("Error calling Info: %v", err)
+		return fmt.Errorf("Error calling Info: %w", err)
 	}
 
 	blockHeight := res.LastBlockHeight
 	if blockHeight < 0 {
-		return fmt.Errorf("Got a negative last block height (%d) from the app", blockHeight)
+		return fmt.Errorf("got a negative last block height (%d) from the app", blockHeight)
 	}
 	appHash := res.LastBlockAppHash
 
@@ -262,7 +263,7 @@ func (h *Handshaker) Handshake(proxyApp proxy.AppConns) error {
 	// Replay blocks up to the latest in the blockstore.
 	_, err = h.ReplayBlocks(h.initialState, appHash, blockHeight, proxyApp)
 	if err != nil {
-		return fmt.Errorf("error on replay: %v", err)
+		return fmt.Errorf("error on replay: %w", err)
 	}
 
 	h.logger.Info("Completed ABCI Handshake - Tendermint and App are synced",
@@ -333,7 +334,7 @@ func (h *Handshaker) ReplayBlocks(
 
 	case storeBlockHeight < appBlockHeight:
 		// the app should never be ahead of the store (but this is under app's control)
-		return appHash, sm.ErrAppBlockHeightTooHigh{CoreHeight: storeBlockHeight, AppHeight: appBlockHeight}
+		return appHash, sm.AppBlockHeightTooHighError{CoreHeight: storeBlockHeight, AppHeight: appBlockHeight}
 
 	case storeBlockHeight < stateBlockHeight:
 		// the state should never be ahead of the store (this is under tendermint's control)
@@ -480,7 +481,7 @@ Did you reset Tendermint without resetting your application's data?`,
 	}
 }
 
-//--------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------
 // mockProxyApp uses ABCIResponses to give the right results
 // Useful because we don't want to call Commit() twice for the same block on the real app.
 

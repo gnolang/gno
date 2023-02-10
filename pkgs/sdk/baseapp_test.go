@@ -43,10 +43,12 @@ const (
 // or as how much gas will be consumed in antehandler
 // (depending on anteHandler used in tests)
 func newTxCounter(txInt int64, msgInts ...int64) std.Tx {
-	var msgs []std.Msg
-	for _, msgInt := range msgInts {
-		msgs = append(msgs, msgCounter{msgInt, false})
+	msgs := make([]std.Msg, len(msgInts))
+
+	for i, msgInt := range msgInts {
+		msgs[i] = msgCounter{msgInt, false}
 	}
+
 	tx := std.Tx{Msgs: msgs}
 	setCounter(&tx, txInt)
 	setFailOnHandler(&tx, false)
@@ -67,6 +69,8 @@ func newBaseApp(name string, db dbm.DB, options ...func(*BaseApp)) *BaseApp {
 
 // simple one store baseapp
 func setupBaseApp(t *testing.T, options ...func(*BaseApp)) *BaseApp {
+	t.Helper()
+
 	db := dbm.NewMemDB()
 	app := newBaseApp(t.Name(), db, options...)
 	require.Equal(t, t.Name(), app.Name())
@@ -185,6 +189,8 @@ func TestLoadVersionInvalid(t *testing.T) {
 }
 
 func testLoadVersionHelper(t *testing.T, app *BaseApp, expectedHeight int64, expectedID store.CommitID) {
+	t.Helper()
+
 	lastHeight := app.LastBlockHeight()
 	lastID := app.LastCommitID()
 	require.Equal(t, expectedHeight, lastHeight)
@@ -370,6 +376,8 @@ func setFailOnHandler(tx *Tx, fail bool) {
 }
 
 func anteHandlerTxTest(t *testing.T, capKey store.StoreKey, storeKey []byte) AnteHandler {
+	t.Helper()
+
 	return func(ctx Context, tx std.Tx, simulate bool) (newCtx Context, res Result, abort bool) {
 		store := ctx.Store(capKey)
 		if getFailOnAnte(tx) {
@@ -409,6 +417,8 @@ type msgCounterHandler struct {
 }
 
 func newMsgCounterHandler(t *testing.T, capKey store.StoreKey, deliverKey []byte) Handler {
+	t.Helper()
+
 	return msgCounterHandler{t, capKey, deliverKey}
 }
 
@@ -459,6 +469,8 @@ func setIntOnStore(store store.Store, key []byte, i int64) {
 // check counter matches what's in store.
 // increment and store
 func incrementingCounter(t *testing.T, store store.Store, counterKey []byte, counter int64) (res Result) {
+	t.Helper()
+
 	storedCounter := getIntFromStore(store, counterKey)
 	require.Equal(t, storedCounter, counter)
 	setIntOnStore(store, counterKey, counter+1)
@@ -777,7 +789,7 @@ func TestTxGasLimits(t *testing.T) {
 			newCtx = ctx.WithGasMeter(gmeter)
 
 			count := getCounter(tx)
-			newCtx.GasMeter().ConsumeGas(int64(count), "counter-ante")
+			newCtx.GasMeter().ConsumeGas(count, "counter-ante")
 			res = Result{
 				GasWanted: gasGranted,
 			}
@@ -788,7 +800,7 @@ func TestTxGasLimits(t *testing.T) {
 	routerOpt := func(bapp *BaseApp) {
 		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
 			count := msg.(msgCounter).Counter
-			ctx.GasMeter().ConsumeGas(int64(count), "counter-handler")
+			ctx.GasMeter().ConsumeGas(count, "counter-handler")
 			return Result{}
 		}))
 	}
@@ -851,7 +863,7 @@ func TestMaxBlockGasLimits(t *testing.T) {
 			newCtx = ctx.WithGasMeter(gmeter)
 
 			count := getCounter(tx)
-			newCtx.GasMeter().ConsumeGas(int64(count), "counter-ante")
+			newCtx.GasMeter().ConsumeGas(count, "counter-ante")
 			res = Result{
 				GasWanted: gasGranted,
 			}
@@ -862,7 +874,7 @@ func TestMaxBlockGasLimits(t *testing.T) {
 	routerOpt := func(bapp *BaseApp) {
 		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
 			count := msg.(msgCounter).Counter
-			ctx.GasMeter().ConsumeGas(int64(count), "counter-handler")
+			ctx.GasMeter().ConsumeGas(count, "counter-handler")
 			return Result{}
 		}))
 	}
@@ -1008,7 +1020,7 @@ func TestGasConsumptionBadTx(t *testing.T) {
 			)
 			newCtx = ctx.WithGasMeter(gmeter)
 
-			newCtx.GasMeter().ConsumeGas(int64(getCounter(tx)), "counter-ante")
+			newCtx.GasMeter().ConsumeGas(getCounter(tx), "counter-ante")
 			if getFailOnAnte(tx) {
 				res.Error = ABCIError(std.ErrInternal("ante handler failure"))
 				return newCtx, res, true
@@ -1024,7 +1036,7 @@ func TestGasConsumptionBadTx(t *testing.T) {
 	routerOpt := func(bapp *BaseApp) {
 		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
 			count := msg.(msgCounter).Counter
-			ctx.GasMeter().ConsumeGas(int64(count), "counter-handler")
+			ctx.GasMeter().ConsumeGas(count, "counter-handler")
 			return Result{}
 		}))
 	}

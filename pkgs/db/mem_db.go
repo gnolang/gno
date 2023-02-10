@@ -127,14 +127,14 @@ func (db *MemDB) Print() {
 	for key, value := range db.db {
 		var keystr, valstr string
 		if strings.IsASCIIText(key) {
-			keystr = string(key)
+			keystr = key
 		} else {
 			keystr = fmt.Sprintf("0x%X", []byte(key))
 		}
 		if strings.IsASCIIText(string(value)) {
 			valstr = string(value)
 		} else {
-			valstr = fmt.Sprintf("0x%X", []byte(value))
+			valstr = fmt.Sprintf("0x%X", value)
 		}
 		fmt.Printf("%s:\t%s\n", keystr, valstr)
 	}
@@ -159,7 +159,7 @@ func (db *MemDB) NewBatch() Batch {
 	return &memBatch{db, nil}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Iterator
 
 // Implements DB.
@@ -244,7 +244,7 @@ func (itr *memDBIterator) assertIsValid() {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Misc.
 
 func (db *MemDB) getSortedKeys(start, end []byte, reverse bool) []string {

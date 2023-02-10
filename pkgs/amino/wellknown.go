@@ -469,7 +469,7 @@ func DecodeJSONTime(bz []byte, fopts FieldOptions) (t time.Time, err error) {
 	}
 	t, err = time.Parse(time.RFC3339Nano, v)
 	if err != nil {
-		err = fmt.Errorf("bad time: %v", err)
+		err = fmt.Errorf("bad time: %w", err)
 		return
 	}
 	return
@@ -477,7 +477,7 @@ func DecodeJSONTime(bz []byte, fopts FieldOptions) (t time.Time, err error) {
 
 // NOTE: probably not needed after protobuf v1.25 and after, replace with New().
 func newPBTimestamp(t time.Time) timestamppb.Timestamp {
-	return timestamppb.Timestamp{Seconds: int64(t.Unix()), Nanos: int32(t.Nanosecond())}
+	return timestamppb.Timestamp{Seconds: t.Unix(), Nanos: int32(t.Nanosecond())}
 }
 
 func DecodeJSONPBTimestamp(bz []byte, fopts FieldOptions) (t timestamppb.Timestamp, err error) {
@@ -496,7 +496,7 @@ func DecodeJSONDuration(bz []byte, fopts FieldOptions) (d time.Duration, err err
 	}
 	d, err = time.ParseDuration(v)
 	if err != nil {
-		err = fmt.Errorf("bad time: %v", err)
+		err = fmt.Errorf("bad time: %w", err)
 		return
 	}
 	return
@@ -507,7 +507,7 @@ func newPBDuration(d time.Duration) durationpb.Duration {
 	nanos := d.Nanoseconds()
 	secs := nanos / 1e9
 	nanos -= secs * 1e9
-	return durationpb.Duration{Seconds: int64(secs), Nanos: int32(nanos)}
+	return durationpb.Duration{Seconds: secs, Nanos: int32(nanos)}
 }
 
 func DecodeJSONPBDuration(bz []byte, fopts FieldOptions) (d durationpb.Duration, err error) {

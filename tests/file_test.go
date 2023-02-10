@@ -16,6 +16,8 @@ func TestFileStr(t *testing.T) {
 }
 
 func runFileTest(t *testing.T, path string, nativeLibs bool) {
+	t.Helper()
+
 	var logger loggerFunc
 	if gno.IsDebug() && testing.Verbose() {
 		logger = t.Log

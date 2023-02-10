@@ -14,28 +14,28 @@ type keybaseError interface {
 	Code() int
 }
 
-type errKeyNotFound struct {
+type keyNotFoundError struct {
 	code int
 	name string
 }
 
-func (e errKeyNotFound) Code() int {
+func (e keyNotFoundError) Code() int {
 	return e.code
 }
 
-func (e errKeyNotFound) Error() string {
+func (e keyNotFoundError) Error() string {
 	return fmt.Sprintf("Key %s not found", e.name)
 }
 
 // NewErrKeyNotFound returns a standardized error reflecting that the specified key doesn't exist
 func NewErrKeyNotFound(name string) error {
-	return errKeyNotFound{
+	return keyNotFoundError{
 		code: codeKeyNotFound,
 		name: name,
 	}
 }
 
-// IsErrKeyNotFound returns true if the given error is errKeyNotFound
+// IsErrKeyNotFound returns true if the given error is keyNotFoundError
 func IsErrKeyNotFound(err error) bool {
 	if err == nil {
 		return false
@@ -48,26 +48,26 @@ func IsErrKeyNotFound(err error) bool {
 	return false
 }
 
-type errWrongPassword struct {
+type wrongPasswordError struct {
 	code int
 }
 
-func (e errWrongPassword) Code() int {
+func (e wrongPasswordError) Code() int {
 	return e.code
 }
 
-func (e errWrongPassword) Error() string {
+func (e wrongPasswordError) Error() string {
 	return "invalid account password"
 }
 
 // NewErrWrongPassword returns a standardized error reflecting that the specified password is wrong
 func NewErrWrongPassword() error {
-	return errWrongPassword{
+	return wrongPasswordError{
 		code: codeWrongPassword,
 	}
 }
 
-// IsErrWrongPassword returns true if the given error is errWrongPassword
+// IsErrWrongPassword returns true if the given error is wrongPasswordError
 func IsErrWrongPassword(err error) bool {
 	if err == nil {
 		return false

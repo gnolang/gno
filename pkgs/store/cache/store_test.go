@@ -305,7 +305,7 @@ func TestCacheKVMergeIteratorRandom(t *testing.T) {
 	}
 }
 
-//-------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------
 // do some random ops
 
 const (
@@ -370,10 +370,12 @@ func doRandomOp(st types.Store, truth dbm.DB, maxKey int) {
 	}
 }
 
-//-------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------
 
 // iterate over whole domain
 func assertIterateDomain(t *testing.T, st types.Store, expectedN int) {
+	t.Helper()
+
 	itr := st.Iterator(nil, nil)
 	i := 0
 	for ; itr.Valid(); itr.Next() {
@@ -386,6 +388,8 @@ func assertIterateDomain(t *testing.T, st types.Store, expectedN int) {
 }
 
 func assertIterateDomainCheck(t *testing.T, st types.Store, mem dbm.DB, r []keyRange) {
+	t.Helper()
+
 	// iterate over each and check they match the other
 	itr := st.Iterator(nil, nil)
 	itr2 := mem.Iterator(nil, nil) // ground truth
@@ -416,6 +420,8 @@ func assertIterateDomainCheck(t *testing.T, st types.Store, mem dbm.DB, r []keyR
 }
 
 func assertIterateDomainCompare(t *testing.T, st types.Store, mem dbm.DB) {
+	t.Helper()
+
 	// iterate over each and check they match the other
 	itr := st.Iterator(nil, nil)
 	itr2 := mem.Iterator(nil, nil) // ground truth
@@ -424,6 +430,8 @@ func assertIterateDomainCompare(t *testing.T, st types.Store, mem dbm.DB) {
 }
 
 func checkIterators(t *testing.T, itr, itr2 types.Iterator) {
+	t.Helper()
+
 	for ; itr.Valid(); itr.Next() {
 		require.True(t, itr2.Valid())
 		k, v := itr.Key(), itr.Value()
@@ -436,7 +444,7 @@ func checkIterators(t *testing.T, itr, itr2 types.Iterator) {
 	require.False(t, itr2.Valid())
 }
 
-//--------------------------------------------------------
+// --------------------------------------------------------
 
 func setRange(st types.Store, mem dbm.DB, start, end int) {
 	for i := start; i < end; i++ {
@@ -452,7 +460,7 @@ func deleteRange(st types.Store, mem dbm.DB, start, end int) {
 	}
 }
 
-//--------------------------------------------------------
+// --------------------------------------------------------
 
 type keyRange struct {
 	start int
@@ -502,7 +510,7 @@ func (krc *keyRangeCounter) key() int {
 	return thisKeyRange.start + krc.idx
 }
 
-//--------------------------------------------------------
+// --------------------------------------------------------
 
 func bz(s string) []byte { return []byte(s) }
 

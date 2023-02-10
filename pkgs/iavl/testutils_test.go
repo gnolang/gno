@@ -74,7 +74,6 @@ func randBytes(length int) []byte {
 	key := make([]byte, length)
 	// math.rand.Read always returns err=nil
 	// we do not need cryptographic randomness for this test:
-	//nolint:gosec
 	mrand.Read(key)
 	return key
 }
@@ -95,6 +94,8 @@ func (t *traverser) view(key, value []byte) bool {
 }
 
 func expectTraverse(t *testing.T, trav traverser, start, end string, count int) {
+	t.Helper()
+
 	if trav.first != start {
 		t.Error("Bad start", start, trav.first)
 	}
@@ -112,6 +113,8 @@ func BenchmarkImmutableAvlTreeMemDB(b *testing.B) {
 }
 
 func benchmarkImmutableAvlTreeWithDB(b *testing.B, db db.DB) {
+	b.Helper()
+
 	defer db.Close()
 
 	b.StopTimer()

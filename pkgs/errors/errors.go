@@ -5,7 +5,7 @@ import (
 	"runtime"
 )
 
-//----------------------------------------
+// ----------------------------------------
 // Convenience method.
 
 func Wrap(cause interface{}, format string, args ...interface{}) Error {
@@ -29,7 +29,7 @@ func Cause(err error) error {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Error & cmnError
 
 /*
@@ -119,6 +119,9 @@ func (err *cmnError) Data() interface{} {
 }
 
 func (err *cmnError) doTrace(msg string, n int) Error {
+	// Ignoring linting on `runtime.Caller` for now, as it's
+	// a critical method that can't be currently reworked
+	//nolint:dogsled
 	pc, _, _, _ := runtime.Caller(n + 2) // +1 for doTrace().  +1 for the caller.
 	// Include file & line number & msg.
 	// Do not include the whole stack trace.
@@ -160,7 +163,7 @@ func (err *cmnError) Format(s fmt.State, verb rune) {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // stacktrace & msgtraceItem
 
 func captureStacktrace(offset int, depth int) []uintptr {
@@ -183,7 +186,7 @@ func (mti msgtraceItem) String() string {
 	)
 }
 
-//----------------------------------------
+// ----------------------------------------
 // fmt error
 
 /*

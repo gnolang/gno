@@ -181,7 +181,6 @@ func TestDecodeRune(t *testing.T) {
 		if r != utf8.RuneError || size != 1 {
 			t.Errorf("DecodeRuneInString(%q) = %#04x, %d want %#04x, %d", s, r, size, utf8.RuneError, 1)
 		}
-
 	}
 }
 

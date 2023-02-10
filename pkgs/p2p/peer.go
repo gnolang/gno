@@ -35,7 +35,7 @@ type Peer interface {
 	Get(string) interface{}
 }
 
-//----------------------------------------------------------
+// ----------------------------------------------------------
 
 // peerConn contains the raw connection and its config.
 type peerConn struct {
@@ -152,7 +152,7 @@ func (p *peer) String() string {
 	return fmt.Sprintf("Peer{%v %v in}", p.mconn, p.ID())
 }
 
-//---------------------------------------------------
+// ---------------------------------------------------
 // Implements service.Service
 
 // SetLogger implements BaseService.
@@ -188,7 +188,7 @@ func (p *peer) OnStop() {
 	p.mconn.Stop() // stop everything and close the conn
 }
 
-//---------------------------------------------------
+// ---------------------------------------------------
 // Implements Peer
 
 // ID returns the peer's ID - the hex encoded hash of its pubkey.
@@ -285,13 +285,13 @@ func (p *peer) CloseConn() error {
 	return p.peerConn.conn.Close()
 }
 
-//---------------------------------------------------
+// ---------------------------------------------------
 // methods only used for testing
 // TODO: can we remove these?
 
 // CloseConn closes the underlying connection
 func (pc *peerConn) CloseConn() {
-	pc.conn.Close() // nolint: errcheck
+	pc.conn.Close() //nolint: errcheck
 }
 
 // RemoteAddr returns peer's remote network address.
@@ -307,7 +307,7 @@ func (p *peer) CanSend(chID byte) bool {
 	return p.mconn.CanSend(chID)
 }
 
-//------------------------------------------------------------------
+// ------------------------------------------------------------------
 // helper funcs
 
 func createMConnection(

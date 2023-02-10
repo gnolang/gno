@@ -21,6 +21,8 @@ type signerTestCase struct {
 }
 
 func getSignerTestCases(t *testing.T) []signerTestCase {
+	t.Helper()
+
 	testCases := make([]signerTestCase, 0)
 
 	// Get test cases for each possible dialer (DialTCP / DialUnix / etc)
@@ -184,7 +186,7 @@ func TestSignerSignProposalErrors(t *testing.T) {
 		ts := time.Now()
 		proposal := &types.Proposal{Timestamp: ts}
 		err := tc.signerClient.SignProposal(tc.chainID, proposal)
-		require.Equal(t, err.(*RemoteSignerError).Description, types.ErroringMockPVErr.Error())
+		require.Equal(t, err.(*RemoteSignerError).Description, types.ErrMockPV.Error())
 
 		err = tc.mockPV.SignProposal(tc.chainID, proposal)
 		require.Error(t, err)
@@ -207,7 +209,7 @@ func TestSignerSignVoteErrors(t *testing.T) {
 		defer tc.signerClient.Close()
 
 		err := tc.signerClient.SignVote(tc.chainID, vote)
-		require.Equal(t, err.(*RemoteSignerError).Description, types.ErroringMockPVErr.Error())
+		require.Equal(t, err.(*RemoteSignerError).Description, types.ErrMockPV.Error())
 
 		err = tc.mockPV.SignVote(tc.chainID, vote)
 		require.Error(t, err)
@@ -222,7 +224,6 @@ func brokenHandler(privVal types.PrivValidator, request SignerMessage, chainID s
 	var err error
 
 	switch r := request.(type) {
-
 	// This is broken and will answer most requests with a pubkey response
 	case *PubKeyRequest:
 		res = &PubKeyResponse{nil, nil}

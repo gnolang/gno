@@ -15,6 +15,8 @@ const (
 )
 
 func testKVStore(t *testing.T, app abci.Application, tx []byte, key, value string) {
+	t.Helper()
+
 	req := abci.RequestDeliverTx{Tx: tx}
 	ar := app.DeliverTx(req)
 	require.False(t, ar.IsErr(), ar)
@@ -132,7 +134,7 @@ func TestValUpdates(t *testing.T) {
 
 	makeApplyBlock(t, kvstore, 2, diff, tx1, tx2, tx3)
 
-	vals1 = append(vals[:nInit-2], vals[nInit+1]) // nolint: gocritic
+	vals1 = append(vals[:nInit-2], vals[nInit+1]) //nolint: gocritic
 	vals2 = kvstore.Validators()
 	valsEqual(t, vals1, vals2)
 
@@ -154,6 +156,8 @@ func TestValUpdates(t *testing.T) {
 }
 
 func makeApplyBlock(t *testing.T, kvstore abci.Application, heightInt int, diff []abci.ValidatorUpdate, txs ...[]byte) {
+	t.Helper()
+
 	// make and apply block
 	height := int64(heightInt)
 	hash := []byte("foo")
@@ -174,6 +178,8 @@ func makeApplyBlock(t *testing.T, kvstore abci.Application, heightInt int, diff 
 
 // order doesn't matter
 func valsEqual(t *testing.T, vals1, vals2 []abci.ValidatorUpdate) {
+	t.Helper()
+
 	if len(vals1) != len(vals2) {
 		t.Fatalf("vals dont match in len. got %d, expected %d", len(vals2), len(vals1))
 	}

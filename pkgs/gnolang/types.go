@@ -13,7 +13,7 @@ import (
 // some other system.  TypeID may become variable length,
 // rather than contain a single Hashlet.
 
-//----------------------------------------
+// ----------------------------------------
 // (runtime) Type
 
 type Type interface {
@@ -72,7 +72,7 @@ func (*tupleType) assertType()      {}
 func (RefType) assertType()         {}
 func (MaybeNativeType) assertType() {}
 
-//----------------------------------------
+// ----------------------------------------
 // Primitive types
 
 type PrimitiveType int
@@ -323,7 +323,7 @@ func (pt PrimitiveType) GetPkgPath() string {
 	return ""
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Field type (partial)
 
 type Tag string
@@ -369,7 +369,7 @@ func (ft FieldType) GetPkgPath() string {
 	panic("FieldType is a pseudotype with no package path")
 }
 
-//----------------------------------------
+// ----------------------------------------
 // FieldTypeList
 
 type FieldTypeList []FieldType
@@ -494,7 +494,7 @@ func (l FieldTypeList) Types() []Type {
 	return res
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Array type
 
 type ArrayType struct {
@@ -528,7 +528,7 @@ func (at *ArrayType) GetPkgPath() string {
 	return ""
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Slice type
 
 var gByteSliceType = &SliceType{
@@ -574,7 +574,7 @@ func (st *SliceType) GetPkgPath() string {
 	return ""
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Pointer type
 
 type PointerType struct {
@@ -706,7 +706,7 @@ func (pt *PointerType) FindEmbeddedFieldType(callerPath string, n Name, m map[Ty
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Struct type
 
 type StructType struct {
@@ -828,7 +828,7 @@ func (st *StructType) FindEmbeddedFieldType(callerPath string, n Name, m map[Typ
 	return // may be found or nil.
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Package type
 
 // The package type holds no data.
@@ -867,7 +867,7 @@ func (pt *PackageType) GetPkgPath() string {
 	panic("package types has no package path (unlike package values)")
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Interface type
 
 type InterfaceType struct {
@@ -1023,7 +1023,7 @@ func (it *InterfaceType) GetPathForName(n Name) ValuePath {
 	return NewValuePathInterface(n)
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Chan type
 
 type ChanType struct {
@@ -1074,7 +1074,7 @@ func (ct *ChanType) GetPkgPath() string {
 	return ""
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Function type
 
 type FuncType struct {
@@ -1294,7 +1294,7 @@ func (ft *FuncType) HasVarg() bool {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Map type
 
 type MapType struct {
@@ -1333,7 +1333,7 @@ func (mt *MapType) GetPkgPath() string {
 	return ""
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Type (typeval) type
 
 type TypeType struct { // nothing yet.
@@ -1361,7 +1361,7 @@ func (tt *TypeType) GetPkgPath() string {
 	panic("typeval types have no package path")
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Declared type
 // Declared types have a name, base (underlying) type,
 // and associated methods.
@@ -1603,7 +1603,7 @@ func (dt *DeclaredType) GetStaticValueAt(path ValuePath) TypedValue {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Native type
 
 type NativeType struct {
@@ -1814,7 +1814,7 @@ func (nt *NativeType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 	return nil, false, nil, nil, false
 }
 
-//----------------------------------------
+// ----------------------------------------
 // blockType
 
 type blockType struct{} // no data
@@ -1839,7 +1839,7 @@ func (bt blockType) GetPkgPath() string {
 	panic("blockType has no package path")
 }
 
-//----------------------------------------
+// ----------------------------------------
 // tupleType
 
 type tupleType struct {
@@ -1889,14 +1889,14 @@ func (tt *tupleType) GetPkgPath() string {
 	panic("typleType has no package path")
 }
 
-//----------------------------------------
+// ----------------------------------------
 // RefType
 
 type RefType struct {
 	ID TypeID
 }
 
-func (_ RefType) Kind() Kind {
+func (RefType) Kind() Kind {
 	return RefTypeKind
 }
 
@@ -1916,7 +1916,7 @@ func (rt RefType) GetPkgPath() string {
 	panic("should not happen")
 }
 
-//----------------------------------------
+// ----------------------------------------
 // MaybeNativeType
 
 // MaybeNativeType wraps an underlying gno type
@@ -1946,7 +1946,7 @@ func (mn MaybeNativeType) GetPkgPath() string {
 	return mn.Type.GetPkgPath()
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Kind
 
 type Kind uint
@@ -2067,7 +2067,7 @@ func KindOf(t Type) Kind {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // main type-assertion functions.
 
 // TODO: document what class of problems its for.
@@ -2125,7 +2125,7 @@ func assertEqualityTypes(lt, rt Type) {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // misc
 
 func isUntyped(t Type) bool {

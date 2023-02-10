@@ -6,6 +6,7 @@ package flow
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 	"time"
 )
@@ -112,7 +113,7 @@ func TestWriter(t *testing.T) {
 
 	// Non-blocking 20-byte write for the first sample returns ErrLimit
 	w.SetBlocking(false)
-	if n, err := w.Write(b); n != 20 || err != ErrLimit {
+	if n, err := w.Write(b); n != 20 || !errors.Is(err, ErrLimit) {
 		t.Fatalf("w.Write(b) expected 20 (ErrLimit); got %v (%v)", n, err)
 	} else if rt := time.Since(start); rt > _50ms {
 		t.Fatalf("w.Write(b) took too long (%v)", rt)
