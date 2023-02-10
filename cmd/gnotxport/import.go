@@ -13,8 +13,8 @@ import (
 	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/errors"
 	"github.com/gnolang/gno/pkgs/std"
-	// XXX better way?
-	_ "github.com/gnolang/gno/pkgs/sdk/auth"
+
+	_ "github.com/gnolang/gno/pkgs/sdk/auth" // XXX better way?
 	_ "github.com/gnolang/gno/pkgs/sdk/bank"
 	_ "github.com/gnolang/gno/pkgs/sdk/vm"
 )
