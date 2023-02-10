@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"bytes"
+	goerrors "errors"
 	"fmt"
 	"reflect"
 	"runtime/debug"
@@ -19,14 +20,13 @@ import (
 	"github.com/gnolang/gno/pkgs/crypto"
 	"github.com/gnolang/gno/pkgs/errors"
 	"github.com/gnolang/gno/pkgs/events"
-	tmevents "github.com/gnolang/gno/pkgs/events"
 	"github.com/gnolang/gno/pkgs/log"
 	osm "github.com/gnolang/gno/pkgs/os"
 	"github.com/gnolang/gno/pkgs/p2p"
 	"github.com/gnolang/gno/pkgs/service"
 )
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // Errors
 
 var (
@@ -36,7 +36,7 @@ var (
 	ErrVoteHeightMismatch       = errors.New("Error vote height mismatch")
 )
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // Messages
 
 var msgQueueSize = 1000
@@ -160,7 +160,7 @@ func NewConsensusState(
 		statsMsgQueue:    make(chan msgInfo, msgQueueSize),
 		done:             nil,
 		doWALCatchup:     true,
-		evsw:             tmevents.NewEventSwitch(),
+		evsw:             events.NewEventSwitch(),
 		wal:              walm.NopWAL{},
 	}
 	// set function defaults (may be overwritten before calling Start)
@@ -180,7 +180,7 @@ func NewConsensusState(
 	return cs
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Public interface
 
 // SetLogger implements Service.
@@ -198,7 +198,7 @@ func (cs *ConsensusState) SetEventSwitch(evsw events.EventSwitch) {
 // String returns a string.
 func (cs *ConsensusState) String() string {
 	// better not to access shared variables
-	return fmt.Sprintf("ConsensusState") //(H:%v R:%v S:%v", cs.Height, cs.Round, cs.Step)
+	return fmt.Sprintf("ConsensusState") // (H:%v R:%v S:%v", cs.Height, cs.Round, cs.Step)
 }
 
 // GetConfig returns a copy of the chain state.
@@ -288,7 +288,7 @@ func (cs *ConsensusState) LoadCommit(height int64) *types.Commit {
 func (cs *ConsensusState) OnStart() error {
 	cs.done = make(chan struct{})
 
-	if err := cs.evsw.Start(); err != nil && err != service.ErrAlreadyStarted {
+	if err := cs.evsw.Start(); err != nil && !goerrors.Is(err, service.ErrAlreadyStarted) {
 		return err
 	}
 
@@ -386,7 +386,7 @@ func (cs *ConsensusState) OpenWAL(walFile string) (walm.WAL, error) {
 	return wal, nil
 }
 
-//------------------------------------------------------------
+// ------------------------------------------------------------
 // Public interface for passing messages into the consensus state, possibly causing a state transition.
 // If peerID == "", the msg is considered internal.
 // Messages are added to the appropriate queue (peer or internal).
@@ -443,7 +443,7 @@ func (cs *ConsensusState) SetProposalAndBlock(proposal *types.Proposal, block *t
 	return nil
 }
 
-//------------------------------------------------------------
+// ------------------------------------------------------------
 // internal functions for managing the state
 
 func (cs *ConsensusState) updateHeight(height int64) {
@@ -579,7 +579,7 @@ func (cs *ConsensusState) newStep() {
 	}
 }
 
-//-----------------------------------------
+// -----------------------------------------
 // the main go routines
 
 // receiveRoutine handles messages which may cause state transitions.
@@ -712,7 +712,7 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 		return
 	}
 
-	if err != nil { // nolint:staticcheck
+	if err != nil { //nolint:staticcheck
 		// Causes TestReactorValidatorSetChanges to timeout
 		// https://github.com/tendermint/classic/issues/3406
 		// cs.Logger.Error("Error with msg", "height", cs.Height, "round", cs.Round,
@@ -779,7 +779,7 @@ func (cs *ConsensusState) handleTxsAvailable() {
 	}
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // State functions
 // Used internally by handleTimeout and handleMsg to make state transitions
 
@@ -936,7 +936,6 @@ func (cs *ConsensusState) defaultDecideProposal(height int64, round int) {
 	propBlockId := types.BlockID{Hash: block.Hash(), PartsHeader: blockParts.Header()}
 	proposal := types.NewProposal(height, round, cs.ValidRound, propBlockId)
 	if err := cs.privValidator.SignProposal(cs.state.ChainID, proposal); err == nil {
-
 		// send proposal and block parts on internal msg queue
 		cs.sendInternalMessage(msgInfo{&ProposalMessage{proposal}, ""})
 		for i := 0; i < blockParts.Total(); i++ {
@@ -1372,7 +1371,7 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 	// * cs.StartTime is set to when we will start round0.
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 func (cs *ConsensusState) defaultSetProposal(proposal *types.Proposal) error {
 	// Already have one
@@ -1486,9 +1485,9 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2p.ID) (bool, err
 		// If the vote height is off, we'll just ignore it,
 		// But if it's a conflicting sig, add it to the cs.mempool.
 		// If it's otherwise invalid, punish peer.
-		if err == ErrVoteHeightMismatch {
+		if goerrors.Is(err, ErrVoteHeightMismatch) {
 			return added, err
-		} else if _, ok := err.(*types.ErrVoteConflictingVotes); ok {
+		} else if _, ok := err.(*types.VoteConflictingVotesError); ok {
 			/* XXX
 			addr := cs.privValidator.GetPubKey().Address()
 			if bytes.Equal(vote.ValidatorAddress, addr) {
@@ -1511,7 +1510,7 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2p.ID) (bool, err
 	return added, nil
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, err error) {
 	cs.Logger.Debug("addVote", "voteHeight", vote.Height, "voteType", vote.Type, "valIndex", vote.ValidatorIndex, "csHeight", cs.Height)
@@ -1566,7 +1565,6 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 
 		// If +2/3 prevotes for a block or nil for *any* round:
 		if blockID, ok := prevotes.TwoThirdsMajority(); ok {
-
 			// There was a polka!
 			// If we're locked but this is a recent polka, unlock.
 			// If it matches our ProposalBlock, update the ValidBlock
@@ -1577,7 +1575,6 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 				(cs.LockedRound < vote.Round) &&
 				(vote.Round <= cs.Round) &&
 				!cs.LockedBlock.HashesTo(blockID.Hash) {
-
 				cs.Logger.Info("Unlocking because of POL.", "lockedRound", cs.LockedRound, "POLRound", vote.Round)
 				cs.LockedRound = -1
 				cs.LockedBlock = nil
@@ -1588,7 +1585,6 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 			// Update Valid* if we can.
 			// NOTE: our proposal block may be nil or not what received a polka..
 			if len(blockID.Hash) != 0 && (cs.ValidRound < vote.Round) && (vote.Round == cs.Round) {
-
 				if cs.ProposalBlock.HashesTo(blockID.Hash) {
 					cs.Logger.Info(
 						"Updating ValidBlock because of POL.", "validRound", cs.ValidRound, "POLRound", vote.Round)
@@ -1682,12 +1678,12 @@ func (cs *ConsensusState) voteTime() time.Time {
 	minVoteTime := now
 	// TODO: We should remove next line in case we don't vote for v in case cs.ProposalBlock == nil,
 	// even if cs.LockedBlock != nil. See https://github.com/tendermint/spec.
-	timeIotaMS := time.Duration(cs.state.ConsensusParams.Block.TimeIotaMS) * time.Millisecond
+	timeIota := time.Duration(cs.state.ConsensusParams.Block.TimeIotaMS) * time.Millisecond
 	if cs.LockedBlock != nil {
 		// See the BFT time spec https://tendermint.com/docs/spec/consensus/bft-time.html
-		minVoteTime = cs.LockedBlock.Time.Add(timeIotaMS)
+		minVoteTime = cs.LockedBlock.Time.Add(timeIota)
 	} else if cs.ProposalBlock != nil {
-		minVoteTime = cs.ProposalBlock.Time.Add(timeIotaMS)
+		minVoteTime = cs.ProposalBlock.Time.Add(timeIota)
 	}
 
 	if now.After(minVoteTime) {
@@ -1710,11 +1706,11 @@ func (cs *ConsensusState) signAddVote(type_ types.SignedMsgType, hash []byte, he
 	}
 	// if !cs.replayMode {
 	cs.Logger.Error("Error signing vote", "height", cs.Height, "round", cs.Round, "vote", vote, "err", err)
-	//}
+	// }
 	return nil
 }
 
-//---------------------------------------------------------
+// ---------------------------------------------------------
 
 func CompareHRS(h1 int64, r1 int, s1 cstypes.RoundStepType, h2 int64, r2 int, s2 cstypes.RoundStepType) int {
 	if h1 < h2 {

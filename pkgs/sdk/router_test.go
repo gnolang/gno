@@ -10,11 +10,11 @@ import (
 
 type nopTestHandler struct{}
 
-func (_ nopTestHandler) Process(_ Context, _ Msg) Result {
+func (nopTestHandler) Process(_ Context, _ Msg) Result {
 	return Result{}
 }
 
-func (_ nopTestHandler) Query(_ Context, _ abci.RequestQuery) abci.ResponseQuery {
+func (nopTestHandler) Query(_ Context, _ abci.RequestQuery) abci.ResponseQuery {
 	return abci.ResponseQuery{}
 }
 

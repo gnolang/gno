@@ -247,8 +247,7 @@ func (bcR *BlockchainReactor) poolRoutine() {
 
 			case <-statusUpdateTicker.C:
 				// ask for status updates
-				go bcR.BroadcastStatusRequest() // nolint: errcheck
-
+				go bcR.BroadcastStatusRequest() //nolint: errcheck
 			}
 		}
 	}()
@@ -317,14 +316,14 @@ FOR_LOOP:
 				if peer != nil {
 					// NOTE: we've already removed the peer's request, but we
 					// still need to clean up the rest.
-					bcR.Switch.StopPeerForError(peer, fmt.Errorf("BlockchainReactor validation error: %v", err))
+					bcR.Switch.StopPeerForError(peer, fmt.Errorf("BlockchainReactor validation error: %w", err))
 				}
 				peerID2 := bcR.pool.RedoRequest(second.Height)
 				peer2 := bcR.Switch.Peers().Get(peerID2)
 				if peer2 != nil && peer2 != peer {
 					// NOTE: we've already removed the peer's request, but we
 					// still need to clean up the rest.
-					bcR.Switch.StopPeerForError(peer2, fmt.Errorf("BlockchainReactor validation error: %v", err))
+					bcR.Switch.StopPeerForError(peer2, fmt.Errorf("BlockchainReactor validation error: %w", err))
 				}
 				continue FOR_LOOP
 			} else {
@@ -365,7 +364,7 @@ func (bcR *BlockchainReactor) BroadcastStatusRequest() error {
 	return nil
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // Messages
 
 // BlockchainMessage is a generic message for this reactor.
@@ -375,13 +374,13 @@ type BlockchainMessage interface {
 
 func decodeMsg(bz []byte) (msg BlockchainMessage, err error) {
 	if len(bz) > maxMsgSize {
-		return msg, fmt.Errorf("Msg exceeds max size (%d > %d)", len(bz), maxMsgSize)
+		return msg, fmt.Errorf("msg exceeds max size (%d > %d)", len(bz), maxMsgSize)
 	}
 	err = amino.Unmarshal(bz, &msg)
 	return
 }
 
-//-------------------------------------
+// -------------------------------------
 
 type bcBlockRequestMessage struct {
 	Height int64
@@ -390,7 +389,7 @@ type bcBlockRequestMessage struct {
 // ValidateBasic performs basic validation.
 func (m *bcBlockRequestMessage) ValidateBasic() error {
 	if m.Height < 0 {
-		return errors.New("Negative Height")
+		return errors.New("negative height")
 	}
 	return nil
 }
@@ -406,7 +405,7 @@ type bcNoBlockResponseMessage struct {
 // ValidateBasic performs basic validation.
 func (m *bcNoBlockResponseMessage) ValidateBasic() error {
 	if m.Height < 0 {
-		return errors.New("Negative Height")
+		return errors.New("negative height")
 	}
 	return nil
 }
@@ -415,7 +414,7 @@ func (m *bcNoBlockResponseMessage) String() string {
 	return fmt.Sprintf("[bcNoBlockResponseMessage %d]", m.Height)
 }
 
-//-------------------------------------
+// -------------------------------------
 
 type bcBlockResponseMessage struct {
 	Block *types.Block
@@ -430,7 +429,7 @@ func (m *bcBlockResponseMessage) String() string {
 	return fmt.Sprintf("[bcBlockResponseMessage %v]", m.Block.Height)
 }
 
-//-------------------------------------
+// -------------------------------------
 
 type bcStatusRequestMessage struct {
 	Height int64
@@ -439,7 +438,7 @@ type bcStatusRequestMessage struct {
 // ValidateBasic performs basic validation.
 func (m *bcStatusRequestMessage) ValidateBasic() error {
 	if m.Height < 0 {
-		return errors.New("Negative Height")
+		return errors.New("negative height")
 	}
 	return nil
 }
@@ -448,7 +447,7 @@ func (m *bcStatusRequestMessage) String() string {
 	return fmt.Sprintf("[bcStatusRequestMessage %v]", m.Height)
 }
 
-//-------------------------------------
+// -------------------------------------
 
 type bcStatusResponseMessage struct {
 	Height int64
@@ -457,7 +456,7 @@ type bcStatusResponseMessage struct {
 // ValidateBasic performs basic validation.
 func (m *bcStatusResponseMessage) ValidateBasic() error {
 	if m.Height < 0 {
-		return errors.New("Negative Height")
+		return errors.New("negative height")
 	}
 	return nil
 }

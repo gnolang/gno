@@ -86,7 +86,7 @@ func genRandomProgram(size int) *program {
 	for p.size() < size {
 		k, v := []byte(random.RandStr(1)), []byte(random.RandStr(1))
 
-		switch rand.Int() % 7 { //nolint: gosec Turn off gosec here because this is for testing
+		switch rand.Int() % 7 {
 		case 0, 1, 2:
 			p.addInstruction(instruction{op: "SET", k: k, v: v})
 		case 3, 4:
@@ -95,7 +95,7 @@ func genRandomProgram(size int) *program {
 			p.addInstruction(instruction{op: "SAVE", version: int64(nextVersion)})
 			nextVersion++
 		case 6:
-			if rv := rand.Int() % nextVersion; rv < nextVersion && rv > 0 { //nolint: gosec Turn off gosec here because this is for testing
+			if rv := rand.Int() % nextVersion; rv < nextVersion && rv > 0 {
 				p.addInstruction(instruction{op: "DELETE", version: int64(rv)})
 			}
 		}

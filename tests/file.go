@@ -26,14 +26,16 @@ type loggerFunc func(args ...interface{})
 
 func TestMachine(store gno.Store, stdout io.Writer, pkgPath string) *gno.Machine {
 	// default values
-	var send std.Coins
-	var maxAlloc int64
+	var (
+		send     std.Coins
+		maxAlloc int64
+	)
+
 	return testMachineCustom(store, pkgPath, stdout, maxAlloc, send)
 }
 
 func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAlloc int64, send std.Coins) *gno.Machine {
 	// FIXME: create a better package to manage this, with custom constructors
-
 	pkgAddr := gno.DerivePkgAddr(pkgPath)                      // the addr of the pkgPath called.
 	caller := gno.DerivePkgAddr(pkgPath)                       // NOTE: for the purpose of testing, the caller is generally the "main" package, same as pkgAddr.
 	pkgCoins := std.MustParseCoins("200000000ugnot").Add(send) // >= send.
@@ -227,7 +229,11 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 							errstr = strings.TrimSpace(fmt.Sprintf("%v", pnc))
 						}
 						// check tip line, write to file
-						ctl := fmt.Sprintf(errstr + "\n*** CHECK THE ERR MESSAGES ABOVE, MAKE SURE IT'S WHAT YOU EXPECTED, DELETE THIS LINE AND RUN TEST AGAIN ***")
+						ctl := fmt.Sprintf(
+							errstr +
+								"\n*** CHECK THE ERR MESSAGES ABOVE, MAKE SURE IT'S WHAT YOU EXPECTED, " +
+								"DELETE THIS LINE AND RUN TEST AGAIN ***",
+						)
 						replaceWantedInPlace(path, "Error", ctl)
 						panic(fmt.Sprintf("fail on %s: err recorded, check the message and run test again", path))
 					}
@@ -404,7 +410,7 @@ func trimTrailingSpaces(result string) string {
 	return strings.Join(lines, "\n")
 }
 
-//----------------------------------------
+// ----------------------------------------
 // testBanker
 
 type testBanker struct {

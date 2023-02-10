@@ -163,7 +163,7 @@ func WriteDirFile(pathWithName string, data []byte) error {
 		os.MkdirAll(path, 0o755)
 	}
 
-	return os.WriteFile(pathWithName, []byte(data), 0o644)
+	return os.WriteFile(pathWithName, data, 0o644)
 }
 
 // copyDir copies the dir from src to dst, the paths have to be

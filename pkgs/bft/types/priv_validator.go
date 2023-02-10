@@ -18,7 +18,7 @@ type PrivValidator interface {
 	SignProposal(chainID string, proposal *Proposal) error
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Misc.
 
 type PrivValidatorsByAddress []PrivValidator
@@ -38,7 +38,7 @@ func (pvs PrivValidatorsByAddress) Swap(i, j int) {
 	pvs[j] = it
 }
 
-//----------------------------------------
+// ----------------------------------------
 // MockPV
 
 // MockPV implements PrivValidator without any safety or persistence.
@@ -111,16 +111,16 @@ type erroringMockPV struct {
 	*MockPV
 }
 
-var ErroringMockPVErr = errors.New("erroringMockPV always returns an error")
+var ErrMockPV = errors.New("erroringMockPV always returns an error")
 
 // Implements PrivValidator.
 func (pv *erroringMockPV) SignVote(chainID string, vote *Vote) error {
-	return ErroringMockPVErr
+	return ErrMockPV
 }
 
 // Implements PrivValidator.
 func (pv *erroringMockPV) SignProposal(chainID string, proposal *Proposal) error {
-	return ErroringMockPVErr
+	return ErrMockPV
 }
 
 // NewErroringMockPV returns a MockPV that fails on each signing request. Again, for testing only.

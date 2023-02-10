@@ -44,7 +44,7 @@ func idFromInterface(idInterface interface{}) (jsonrpcid, error) {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // REQUEST
 
 type RPCRequest struct {
@@ -89,8 +89,8 @@ func NewRPCRequest(id jsonrpcid, method string, params json.RawMessage) RPCReque
 	}
 }
 
-func (req RPCRequest) String() string {
-	return fmt.Sprintf("[%s %s]", req.ID, req.Method)
+func (request RPCRequest) String() string {
+	return fmt.Sprintf("[%s %s]", request.ID, request.Method)
 }
 
 func MapToRequest(id jsonrpcid, method string, params map[string]interface{}) (RPCRequest, error) {
@@ -127,7 +127,7 @@ func ArrayToRequest(id jsonrpcid, method string, params []interface{}) (RPCReque
 	return request, nil
 }
 
-//----------------------------------------
+// ----------------------------------------
 // RESPONSE
 
 type RPCError struct {
@@ -200,11 +200,11 @@ func NewRPCErrorResponse(id jsonrpcid, code int, msg string, data string) RPCRes
 	}
 }
 
-func (resp RPCResponse) String() string {
-	if resp.Error == nil {
-		return fmt.Sprintf("[%s %v]", resp.ID, resp.Result)
+func (response RPCResponse) String() string {
+	if response.Error == nil {
+		return fmt.Sprintf("[%s %v]", response.ID, response.Result)
 	}
-	return fmt.Sprintf("[%s %s]", resp.ID, resp.Error)
+	return fmt.Sprintf("[%s %s]", response.ID, response.Error)
 }
 
 func RPCParseError(id jsonrpcid, err error) RPCResponse {
@@ -231,7 +231,7 @@ func RPCServerError(id jsonrpcid, err error) RPCResponse {
 	return NewRPCErrorResponse(id, -32000, "Server error", err.Error())
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 // WSRPCConnection represents a websocket connection.
 type WSRPCConnection interface {
@@ -297,7 +297,7 @@ func (ctx *Context) Context() context.Context {
 	return context.Background()
 }
 
-//----------------------------------------
+// ----------------------------------------
 // SOCKETS
 
 // Determine if its a unix or tcp socket.

@@ -209,7 +209,7 @@ func (e *CElement) SetRemoved() {
 	e.mtx.Unlock()
 }
 
-//--------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------
 
 // CList represents a linked list.
 // The zero value for CList is an empty list ready to use.
@@ -250,9 +250,9 @@ func newWithMax(maxLength int) *CList {
 
 func (l *CList) Len() int {
 	l.mtx.RLock()
-	len := l.len
-	l.mtx.RUnlock()
-	return len
+	defer l.mtx.RUnlock()
+
+	return l.len
 }
 
 func (l *CList) Front() *CElement {

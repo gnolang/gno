@@ -67,9 +67,9 @@ func TestSignerRemoteRetryTCPOnly(t *testing.T) {
 	SignerDialerEndpointTimeoutReadWrite(time.Millisecond)(dialerEndpoint)
 	SignerDialerEndpointConnRetries(retries)(dialerEndpoint)
 
-	chainId := random.RandStr(12)
+	chainID := random.RandStr(12)
 	mockPV := types.NewMockPV()
-	signerServer := NewSignerServer(dialerEndpoint, chainId, mockPV)
+	signerServer := NewSignerServer(dialerEndpoint, chainID, mockPV)
 
 	err = signerServer.Start()
 	require.NoError(t, err)
@@ -131,7 +131,7 @@ func TestRetryConnToRemoteSigner(t *testing.T) {
 	}
 }
 
-///////////////////////////////////
+// /////////////////////////////////
 
 func newSignerListenerEndpoint(logger log.Logger, addr string, timeoutReadWrite time.Duration) *SignerListenerEndpoint {
 	proto, address := osm.ProtocolAndAddress(addr)
@@ -160,6 +160,8 @@ func newSignerListenerEndpoint(logger log.Logger, addr string, timeoutReadWrite 
 }
 
 func startListenerEndpointAsync(t *testing.T, sle *SignerListenerEndpoint, endpointIsOpenCh chan struct{}) {
+	t.Helper()
+
 	go func(sle *SignerListenerEndpoint) {
 		require.NoError(t, sle.Start())
 		assert.True(t, sle.IsRunning())
@@ -172,6 +174,8 @@ func getMockEndpoints(
 	addr string,
 	socketDialer SocketDialer,
 ) (*SignerListenerEndpoint, *SignerDialerEndpoint) {
+	t.Helper()
+
 	var (
 		logger           = log.TestingLogger()
 		endpointIsOpenCh = make(chan struct{})

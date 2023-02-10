@@ -45,7 +45,7 @@ func MConnConfig(cfg *config.P2PConfig) conn.MConnConfig {
 // fully setup.
 type PeerFilterFunc func(IPeerSet, Peer) error
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 // Switch handles peer connections and exposes an API to receive incoming messages
 // on `Reactors`.  Each `Reactor` is responsible for handling incoming messages of one
@@ -124,7 +124,7 @@ func SwitchPeerFilters(filters ...PeerFilterFunc) SwitchOption {
 	return func(sw *Switch) { sw.peerFilters = filters }
 }
 
-//---------------------------------------------------------------------
+// ---------------------------------------------------------------------
 // Switch setup
 
 // AddReactor adds the given reactor to the switch.
@@ -191,7 +191,7 @@ func (sw *Switch) SetNodeKey(nodeKey *NodeKey) {
 	sw.nodeKey = nodeKey
 }
 
-//---------------------------------------------------------------------
+// ---------------------------------------------------------------------
 // Service start/stop
 
 // OnStart implements BaseService. It starts all the reactors and peers.
@@ -232,7 +232,7 @@ func (sw *Switch) OnStop() {
 	}
 }
 
-//---------------------------------------------------------------------
+// ---------------------------------------------------------------------
 // Peers
 
 // Broadcast runs a go routine for each attempted send, which will block trying
@@ -352,7 +352,7 @@ func (sw *Switch) reconnectToPeer(addr *NetAddress) {
 		err := sw.DialPeerWithAddress(addr)
 		if err == nil {
 			return // success
-		} else if _, ok := err.(ErrCurrentlyDialingOrExistingAddress); ok {
+		} else if _, ok := err.(CurrentlyDialingOrExistingAddressError); ok {
 			return
 		}
 
@@ -376,7 +376,7 @@ func (sw *Switch) reconnectToPeer(addr *NetAddress) {
 		err := sw.DialPeerWithAddress(addr)
 		if err == nil {
 			return // success
-		} else if _, ok := err.(ErrCurrentlyDialingOrExistingAddress); ok {
+		} else if _, ok := err.(CurrentlyDialingOrExistingAddressError); ok {
 			return
 		}
 		sw.Logger.Info("Error reconnecting to peer. Trying again", "tries", i, "err", err, "addr", addr)
@@ -384,21 +384,16 @@ func (sw *Switch) reconnectToPeer(addr *NetAddress) {
 	sw.Logger.Error("Failed to reconnect to peer. Giving up", "addr", addr, "elapsed", time.Since(start))
 }
 
-//---------------------------------------------------------------------
+// ---------------------------------------------------------------------
 // Dialing
 
 type privateAddr interface {
 	PrivateAddr() bool
 }
 
-func isPrivateAddr(err error) bool {
-	te, ok := errors.Cause(err).(privateAddr)
-	return ok && te.PrivateAddr()
-}
-
 // DialPeersAsync dials a list of peers asynchronously in random order.
 // Used to dial peers from config on startup or from unsafe-RPC (trusted sources).
-// It ignores ErrNetAddressLookup. However, if there are other errors, first
+// It ignores NetAddressLookupError. However, if there are other errors, first
 // encounter is returned.
 // Nop if there are no peers.
 func (sw *Switch) DialPeersAsync(peers []string) error {
@@ -407,9 +402,9 @@ func (sw *Switch) DialPeersAsync(peers []string) error {
 	for _, err := range errs {
 		sw.Logger.Error("Error in peer's address", "err", err)
 	}
-	// return first non-ErrNetAddressLookup error
+	// return first non-NetAddressLookupError error
 	for _, err := range errs {
-		if _, ok := err.(ErrNetAddressLookup); ok {
+		if _, ok := err.(NetAddressLookupError); ok {
 			continue
 		}
 		return err
@@ -438,7 +433,7 @@ func (sw *Switch) dialPeersAsync(netAddrs []*NetAddress) {
 			err := sw.DialPeerWithAddress(addr)
 			if err != nil {
 				switch err.(type) {
-				case ErrSwitchConnectToSelf, ErrSwitchDuplicatePeerID, ErrCurrentlyDialingOrExistingAddress:
+				case SwitchConnectToSelfError, SwitchDuplicatePeerIDError, CurrentlyDialingOrExistingAddressError:
 					sw.Logger.Debug("Error dialing peer", "err", err)
 				default:
 					sw.Logger.Error("Error dialing peer", "err", err)
@@ -451,10 +446,10 @@ func (sw *Switch) dialPeersAsync(netAddrs []*NetAddress) {
 // DialPeerWithAddress dials the given peer and runs sw.addPeer if it connects
 // and authenticates successfully.
 // If we're currently dialing this address or it belongs to an existing peer,
-// ErrCurrentlyDialingOrExistingAddress is returned.
+// CurrentlyDialingOrExistingAddressError is returned.
 func (sw *Switch) DialPeerWithAddress(addr *NetAddress) error {
 	if sw.IsDialingOrExistingAddress(addr) {
-		return ErrCurrentlyDialingOrExistingAddress{addr.String()}
+		return CurrentlyDialingOrExistingAddressError{addr.String()}
 	}
 
 	sw.dialing.Set(addr.ID.String(), addr)
@@ -478,7 +473,7 @@ func (sw *Switch) IsDialingOrExistingAddress(addr *NetAddress) bool {
 }
 
 // AddPersistentPeers allows you to set persistent peers. It ignores
-// ErrNetAddressLookup. However, if there are other errors, first encounter is
+// NetAddressLookupError. However, if there are other errors, first encounter is
 // returned.
 func (sw *Switch) AddPersistentPeers(addrs []string) error {
 	sw.Logger.Info("Adding persistent peers", "addrs", addrs)
@@ -487,9 +482,9 @@ func (sw *Switch) AddPersistentPeers(addrs []string) error {
 	for _, err := range errs {
 		sw.Logger.Error("Error in peer's address", "err", err)
 	}
-	// return first non-ErrNetAddressLookup error
+	// return first non-NetAddressLookupError error
 	for _, err := range errs {
-		if _, ok := err.(ErrNetAddressLookup); ok {
+		if _, ok := err.(NetAddressLookupError); ok {
 			continue
 		}
 		return err
@@ -519,7 +514,7 @@ func (sw *Switch) acceptRoutine() {
 		})
 		if err != nil {
 			switch err := err.(type) {
-			case ErrRejected:
+			case RejectedError:
 				if err.IsSelf() {
 					// TODO: warn?
 				}
@@ -531,14 +526,14 @@ func (sw *Switch) acceptRoutine() {
 				)
 
 				continue
-			case ErrFilterTimeout:
+			case FilterTimeoutError:
 				sw.Logger.Error(
 					"Peer filter timed out",
 					"err", err,
 				)
 
 				continue
-			case ErrTransportClosed:
+			case TransportClosedError:
 				sw.Logger.Error(
 					"Stopped accept routine, as transport is closed",
 					"numPeers", sw.peers.Size(),
@@ -554,7 +549,7 @@ func (sw *Switch) acceptRoutine() {
 				// So might as well panic and let process managers restart the node.
 				// There's no point in letting the node run without the acceptRoutine,
 				// since it won't be able to accept new connections.
-				panic(fmt.Errorf("accept routine exited: %v", err))
+				panic(fmt.Errorf("accept routine exited: %w", err))
 			}
 
 			break
@@ -613,7 +608,7 @@ func (sw *Switch) addOutboundPeerWithConfig(
 		reactorsByCh: sw.reactorsByCh,
 	})
 	if err != nil {
-		if e, ok := err.(ErrRejected); ok {
+		if e, ok := err.(RejectedError); ok {
 			if e.IsSelf() {
 				// TODO: warn?
 				return err
@@ -643,7 +638,7 @@ func (sw *Switch) addOutboundPeerWithConfig(
 func (sw *Switch) filterPeer(p Peer) error {
 	// Avoid duplicate
 	if sw.peers.Has(p.ID()) {
-		return ErrRejected{id: p.ID(), isDuplicate: true}
+		return RejectedError{id: p.ID(), isDuplicate: true}
 	}
 
 	errc := make(chan error, len(sw.peerFilters))
@@ -658,10 +653,10 @@ func (sw *Switch) filterPeer(p Peer) error {
 		select {
 		case err := <-errc:
 			if err != nil {
-				return ErrRejected{id: p.ID(), err: err, isFiltered: true}
+				return RejectedError{id: p.ID(), err: err, isFiltered: true}
 			}
 		case <-time.After(sw.filterTimeout):
-			return ErrFilterTimeout{}
+			return FilterTimeoutError{}
 		}
 	}
 

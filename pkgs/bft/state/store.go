@@ -19,7 +19,7 @@ const (
 	valSetCheckpointInterval = 100000
 )
 
-//------------------------------------------------------------------------
+// ------------------------------------------------------------------------
 
 func calcValidatorsKey(height int64) []byte {
 	return []byte(fmt.Sprintf("validatorsKey:%v", height))
@@ -111,7 +111,7 @@ func saveState(db dbm.DB, state State, key []byte) {
 	db.SetSync(key, state.Bytes())
 }
 
-//------------------------------------------------------------------------
+// ------------------------------------------------------------------------
 
 // ABCIResponses retains the responses
 // of the various ABCI calls during block processing.
@@ -150,7 +150,7 @@ func (arz *ABCIResponses) ResultsHash() []byte {
 func LoadABCIResponses(db dbm.DB, height int64) (*ABCIResponses, error) {
 	buf := db.Get(calcABCIResponsesKey(height))
 	if buf == nil {
-		return nil, ErrNoABCIResponsesForHeight{height}
+		return nil, NoABCIResponsesForHeightError{height}
 	}
 
 	abciResponses := new(ABCIResponses)
@@ -172,7 +172,7 @@ func saveABCIResponses(db dbm.DB, height int64, abciResponses *ABCIResponses) {
 	db.SetSync(calcABCIResponsesKey(height), abciResponses.Bytes())
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 // ValidatorsInfo represents the latest validator set, or the last height it changed
 type ValidatorsInfo struct {
@@ -186,11 +186,11 @@ func (valInfo *ValidatorsInfo) Bytes() []byte {
 }
 
 // LoadValidators loads the ValidatorSet for a given height.
-// Returns ErrNoValSetForHeight if the validator set can't be found for this height.
+// Returns NoValSetForHeightError if the validator set can't be found for this height.
 func LoadValidators(db dbm.DB, height int64) (*types.ValidatorSet, error) {
 	valInfo := loadValidatorsInfo(db, height)
 	if valInfo == nil {
-		return nil, ErrNoValSetForHeight{height}
+		return nil, NoValSetForHeightError{height}
 	}
 	if valInfo.ValidatorSet == nil {
 		lastStoredHeight := lastStoredHeightFor(height, valInfo.LastHeightChanged)
@@ -263,7 +263,7 @@ func saveValidatorsInfo(db dbm.DB, height, lastHeightChanged int64, valSet *type
 	db.Set(calcValidatorsKey(height), valInfo.Bytes())
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 // ConsensusParamsInfo represents the latest consensus params, or the last height it changed
 type ConsensusParamsInfo struct {
@@ -282,7 +282,7 @@ func LoadConsensusParams(db dbm.DB, height int64) (abci.ConsensusParams, error) 
 
 	paramsInfo := loadConsensusParamsInfo(db, height)
 	if paramsInfo == nil {
-		return empty, ErrNoConsensusParamsForHeight{height}
+		return empty, NoConsensusParamsForHeightError{height}
 	}
 
 	if amino.DeepEqual(empty, paramsInfo.ConsensusParams) {

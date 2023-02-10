@@ -38,7 +38,6 @@ import static org.bitcoin.NativeSecp256k1Util.*;
  * </p>
  */
 public class NativeSecp256k1 {
-
     private static final ReentrantReadWriteLock rwl = new ReentrantReadWriteLock();
     private static final Lock r = rwl.readLock();
     private static final Lock w = rwl.writeLock();

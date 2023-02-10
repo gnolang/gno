@@ -52,7 +52,7 @@ func main() {
 	}
 }
 
-func OpenDb(dir string) (dbm.DB, error) {
+func OpenDB(dir string) (dbm.DB, error) {
 	if strings.HasSuffix(dir, ".db") {
 		dir = dir[:len(dir)-3]
 	} else if strings.HasSuffix(dir, ".db/") {
@@ -73,26 +73,10 @@ func OpenDb(dir string) (dbm.DB, error) {
 	return db, nil
 }
 
-func PrintDbStats(db dbm.DB) {
-	count := 0
-	prefix := map[string]int{}
-	iter := db.Iterator(nil, nil)
-	for ; iter.Valid(); iter.Next() {
-		key := string(iter.Key()[:1])
-		prefix[key] = prefix[key] + 1
-		count++
-	}
-	iter.Close()
-	fmt.Printf("DB contains %d entries\n", count)
-	for k, v := range prefix {
-		fmt.Printf("  %s: %d\n", k, v)
-	}
-}
-
 // ReadTree loads an iavl tree from the directory
 // If version is 0, load latest, otherwise, load named version
 func ReadTree(dir string, version int) (*iavl.MutableTree, error) {
-	db, err := OpenDb(dir)
+	db, err := OpenDB(dir)
 	if err != nil {
 		return nil, err
 	}
@@ -117,15 +101,15 @@ func PrintKeys(tree *iavl.MutableTree) {
 func parseWeaveKey(key []byte) string {
 	cut := bytes.IndexRune(key, ':')
 	if cut == -1 {
-		return encodeId(key)
+		return encodeID(key)
 	}
 	prefix := key[:cut]
 	id := key[cut+1:]
-	return fmt.Sprintf("%s:%s", encodeId(prefix), encodeId(id))
+	return fmt.Sprintf("%s:%s", encodeID(prefix), encodeID(id))
 }
 
 // casts to a string if it is printable ascii, hex-encodes otherwise
-func encodeId(id []byte) string {
+func encodeID(id []byte) string {
 	for _, b := range id {
 		if b < 0x20 || b >= 0x80 {
 			return strings.ToUpper(hex.EncodeToString(id))

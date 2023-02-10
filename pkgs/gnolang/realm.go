@@ -1305,6 +1305,8 @@ func fillTypesOfValue(store Store, val Value) Value {
 		return cv
 	case BigintValue: // do nothing
 		return cv
+	case BigdecValue: // do nothing
+		return cv
 	case DataByteValue: // do nothing
 		return cv
 	case PointerValue:

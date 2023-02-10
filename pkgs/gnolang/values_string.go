@@ -11,22 +11,22 @@ func (v StringValue) String() string {
 	return strconv.Quote(string(v))
 }
 
-func (v BigintValue) String() string {
-	return v.V.String()
+func (bv BigintValue) String() string {
+	return bv.V.String()
 }
 
-func (v BigdecValue) String() string {
-	return v.V.String()
+func (bv BigdecValue) String() string {
+	return bv.V.String()
 }
 
-func (v DataByteValue) String() string {
-	return fmt.Sprintf("(%0X)", (v.GetByte()))
+func (dbv DataByteValue) String() string {
+	return fmt.Sprintf("(%0X)", (dbv.GetByte()))
 }
 
-func (v *ArrayValue) String() string {
-	ss := make([]string, len(v.List))
-	if v.Data == nil {
-		for i, e := range v.List {
+func (av *ArrayValue) String() string {
+	ss := make([]string, len(av.List))
+	if av.Data == nil {
+		for i, e := range av.List {
 			ss[i] = e.String()
 		}
 		// NOTE: we may want to unify the representation,
@@ -34,58 +34,58 @@ func (v *ArrayValue) String() string {
 		// This may be helpful for testing implementation behavior.
 		return "array[" + strings.Join(ss, ",") + "]"
 	} else {
-		if len(v.Data) > 256 {
-			return fmt.Sprintf("array[0x%X...]", v.Data[:256])
+		if len(av.Data) > 256 {
+			return fmt.Sprintf("array[0x%X...]", av.Data[:256])
 		} else {
-			return fmt.Sprintf("array[0x%X]", v.Data)
+			return fmt.Sprintf("array[0x%X]", av.Data)
 		}
 	}
 }
 
-func (v *SliceValue) String() string {
-	if v.Base == nil {
+func (sv *SliceValue) String() string {
+	if sv.Base == nil {
 		return "nil-slice"
 	}
-	if ref, ok := v.Base.(RefValue); ok {
+	if ref, ok := sv.Base.(RefValue); ok {
 		return fmt.Sprintf("slice[%v]", ref)
 	}
-	vbase := v.Base.(*ArrayValue)
+	vbase := sv.Base.(*ArrayValue)
 	if vbase.Data == nil {
-		ss := make([]string, v.Length)
-		for i, e := range vbase.List[v.Offset : v.Offset+v.Length] {
+		ss := make([]string, sv.Length)
+		for i, e := range vbase.List[sv.Offset : sv.Offset+sv.Length] {
 			ss[i] = e.String()
 		}
 		return "slice[" + strings.Join(ss, ",") + "]"
 	} else {
-		if v.Length > 256 {
-			return fmt.Sprintf("slice[0x%X...(%d)]", vbase.Data[v.Offset:v.Offset+256], v.Length)
+		if sv.Length > 256 {
+			return fmt.Sprintf("slice[0x%X...(%d)]", vbase.Data[sv.Offset:sv.Offset+256], sv.Length)
 		} else {
-			return fmt.Sprintf("slice[0x%X]", vbase.Data[v.Offset:v.Offset+v.Length])
+			return fmt.Sprintf("slice[0x%X]", vbase.Data[sv.Offset:sv.Offset+sv.Length])
 		}
 	}
 }
 
-func (v PointerValue) String() string {
+func (pv PointerValue) String() string {
 	// NOTE: cannot do below, due to recursion problems.
 	// TODO: create a different String2(...) function.
 	// return fmt.Sprintf("&%s", v.TypedValue.String())
-	return fmt.Sprintf("&%p.(*%s)", v.TV, v.TV.T.String())
+	return fmt.Sprintf("&%p.(*%s)", pv.TV, pv.TV.T.String())
 }
 
-func (v *StructValue) String() string {
-	ss := make([]string, len(v.Fields))
-	for i, f := range v.Fields {
+func (sv *StructValue) String() string {
+	ss := make([]string, len(sv.Fields))
+	for i, f := range sv.Fields {
 		ss[i] = f.String()
 	}
 	return "struct{" + strings.Join(ss, ",") + "}"
 }
 
-func (v *FuncValue) String() string {
+func (fv *FuncValue) String() string {
 	name := ""
-	if v.Name != "" {
-		name = string(v.Name)
+	if fv.Name != "" {
+		name = string(fv.Name)
 	}
-	if v.Type == nil {
+	if fv.Type == nil {
 		return fmt.Sprintf("incomplete-func ?%s(?)?", name)
 	}
 	return name
@@ -112,12 +112,12 @@ func (v *BoundMethodValue) String() string {
 		recvT, name, params, results)
 }
 
-func (v *MapValue) String() string {
-	if v.List == nil {
+func (mv *MapValue) String() string {
+	if mv.List == nil {
 		return "zero-map"
 	}
-	ss := make([]string, 0, v.GetLength())
-	next := v.List.Head
+	ss := make([]string, 0, mv.GetLength())
+	next := mv.List.Head
 	for next != nil {
 		ss = append(ss,
 			next.Key.String()+":"+
@@ -142,13 +142,13 @@ func (v TypeValue) String() string {
 		v.Type.String(), ptr)
 }
 
-func (v *PackageValue) String() string {
-	return fmt.Sprintf("package(%s %s)", v.PkgName, v.PkgPath)
+func (pv *PackageValue) String() string {
+	return fmt.Sprintf("package(%s %s)", pv.PkgName, pv.PkgPath)
 }
 
-func (v *NativeValue) String() string {
+func (nv *NativeValue) String() string {
 	return fmt.Sprintf("gonative{%v}",
-		v.Value.Interface())
+		nv.Value.Interface())
 	/*
 		return fmt.Sprintf("gonative{%v (%s)}",
 			v.Value.Interface(),
@@ -167,7 +167,7 @@ func (v RefValue) String() string {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // *TypedValue.Sprint
 
 // for print() and println().
@@ -193,7 +193,7 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 		case UntypedBoolType, BoolType:
 			return fmt.Sprintf("%t", tv.GetBool())
 		case UntypedStringType, StringType:
-			return string(tv.GetString())
+			return tv.GetString()
 		case IntType:
 			return fmt.Sprintf("%d", tv.GetInt())
 		case Int8Type:
@@ -259,7 +259,7 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 				panic("should not happen")
 			}
 		}
-		return "nil"
+		return nilStr
 	case *TypeType:
 		return tv.V.(TypeValue).String()
 	case *DeclaredType:
@@ -283,7 +283,7 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // TypedValue.String()
 
 // For gno debugging/testing.
@@ -325,7 +325,7 @@ func (tv TypedValue) String() string {
 		case Float64Type:
 			vs = fmt.Sprintf("%v", tv.GetFloat64())
 		default:
-			vs = "nil"
+			vs = nilStr
 		}
 	} else {
 		vs = fmt.Sprintf("%v", tv.V)
