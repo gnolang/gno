@@ -7,8 +7,10 @@ func TestPrecompileApp(t *testing.T) {
 		{args: []string{"precompile"}, errShouldBe: "invalid args", stderrShouldBe: "Usage: precompile [precompile flags] [packages]\n"},
 		{args: []string{"precompile", "--help"}, stdoutShouldContain: "# precompileFlags options\n-"},
 
-		// args
 		// {args: []string{"precompile", "..."}, stdoutShouldContain: "..."},
+		// TODO: recursive
+		// TODO: valid files
+		// TODO: invalid files
 	}
 	testMainCaseRun(t, tc)
 }
