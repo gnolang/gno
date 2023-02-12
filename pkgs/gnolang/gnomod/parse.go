@@ -32,7 +32,7 @@ func Parse(file string, data []byte) (*File, error) {
 			if len(x.Token) > 1 {
 				errs = append(errs, modfile.Error{
 					Filename: file,
-					Pos:      modfile.Position(x.Start),
+					Pos:      x.Start,
 					Err:      fmt.Errorf("unknown block type: %s", strings.Join(x.Token, " ")),
 				})
 				continue
@@ -41,7 +41,7 @@ func Parse(file string, data []byte) (*File, error) {
 			default:
 				errs = append(errs, modfile.Error{
 					Filename: file,
-					Pos:      modfile.Position(x.Start),
+					Pos:      x.Start,
 					Err:      fmt.Errorf("unknown block type: %s", strings.Join(x.Token, " ")),
 				})
 				continue
@@ -63,7 +63,7 @@ func (f *File) add(errs *modfile.ErrorList, block *modfile.LineBlock, line *modf
 	wrapError := func(err error) {
 		*errs = append(*errs, modfile.Error{
 			Filename: f.Syntax.Name,
-			Pos:      modfile.Position(line.Start),
+			Pos:      line.Start,
 			Err:      err,
 		})
 	}
@@ -143,7 +143,7 @@ func parseReplace(filename string, line *modfile.Line, verb string, args []strin
 	wrapError := func(err error) *modfile.Error {
 		return &modfile.Error{
 			Filename: filename,
-			Pos:      modfile.Position(line.Start),
+			Pos:      line.Start,
 			Err:      err,
 		}
 	}

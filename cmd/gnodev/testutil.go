@@ -6,6 +6,8 @@ import (
 )
 
 func createTmpDir(t *testing.T) (string, func()) {
+	t.Helper()
+
 	tmpDir, err := os.MkdirTemp("", "gno-mod-test")
 	if err != nil {
 		t.Error("Failed to create tmp dir for mod:", err)

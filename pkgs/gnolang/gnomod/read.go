@@ -63,7 +63,7 @@ func parse(file string, data []byte) (f *modfile.FileSyntax, err error) {
 		if e := recover(); e != nil && e != &in.parseErrors {
 			in.parseErrors = append(in.parseErrors, modfile.Error{
 				Filename: in.filename,
-				Pos:      modfile.Position(in.pos),
+				Pos:      in.pos,
 				Err:      fmt.Errorf("internal error: %v", e),
 			})
 		}
@@ -94,7 +94,7 @@ func parse(file string, data []byte) (f *modfile.FileSyntax, err error) {
 func (in *input) Error(s string) {
 	in.parseErrors = append(in.parseErrors, modfile.Error{
 		Filename: in.filename,
-		Pos:      modfile.Position(in.pos),
+		Pos:      in.pos,
 		Err:      errors.New(s),
 	})
 	panic(&in.parseErrors)
