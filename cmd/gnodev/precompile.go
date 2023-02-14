@@ -161,6 +161,9 @@ func precompilePkg(pkgPath importPath, opts *precompileOptions) error {
 func precompileFile(srcPath string, opts *precompileOptions) error {
 	flags := opts.getFlags()
 	gofmt := flags.gofmtBinary
+	if gofmt == "" {
+		gofmt = "gofmt"
+	}
 
 	if flags.verbose {
 		fmt.Fprintf(os.Stderr, "%s\n", srcPath)

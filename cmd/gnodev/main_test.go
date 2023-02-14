@@ -50,9 +50,8 @@ func TestMain_Run(t *testing.T) {
 		{args: []string{"test", "../../tests/integ/empty-gno3"}, errShouldContain: "../../tests/integ/empty-gno3/empty_filetest.gno:1:1: expected 'package', found 'EOF'"}, // FIXME: better error handling
 		{args: []string{"test", "--precompile", "../../tests/integ/empty-gno3"}, errShouldContain: "FAIL: 1 build errors, 0 test errors", stdoutShouldContain: "../../tests/integ/empty-gno3/empty.gno: parse: tmp.gno:1:1: expected 'package', found 'EOF'"},
 		{args: []string{"test", "--verbose", "../../tests/integ/failing1"}, errShouldBe: "FAIL: 0 build errors, 1 test errors", stdoutShouldContain: "FAIL: TestAlwaysFailing"},
-		// X {args: []string{"test", "--verbose", "--precompile", "../../tests/integ/failing1"}, errShouldBe: "FAIL: 0 build errors, 1 test errors", stdoutShouldContain: "FAIL: TestAlwaysFailing"},
+		{args: []string{"test", "--verbose", "--precompile", "../../tests/integ/failing1"}, errShouldBe: "FAIL: 0 build errors, 1 test errors", stdoutShouldContain: "FAIL: TestAlwaysFailing"},
 		{args: []string{"test", "--verbose", "../../tests/integ/failing2"}, errShouldContain: "fail on ../../tests/integ/failing2/failing_filetest.gno: got unexpected error: beep boop", stdoutShouldContain: "== RUN   file/failing_filetest.gno"},
-		// X {args: []string{"test", "--verbose", "--precompile", "../../tests/integ/failing2"}, stdoutShouldBe: "=== PREC  ./../../tests/integ/failing2\n=== BUILD ./../../tests/integ/failing2\n=== RUN   file/failing_filetest.gno\n", errShouldContain: "fail on ../../tests/integ/failing2/failing_filetest.gno: got unexpected error: beep boop"},
 
 		// test opts
 		{args: []string{"test", "../../examples/gno.land/p/demo/ufmt"}, stdoutShouldContain: "ok      ./../../examples/gno.land/p/demo/ufmt"},
@@ -93,7 +92,7 @@ func TestMain_Run(t *testing.T) {
 						require.Contains(t, mockOut.String(), test.stdoutShouldContain, "stdout should contain")
 					}
 					if test.stdoutShouldBe != "" {
-						require.Equal(t, mockOut.String(), test.stdoutShouldBe, "stdout should be")
+						require.Equal(t, test.stdoutShouldBe, mockOut.String(), "stdout should be")
 					}
 				}
 			}
@@ -112,7 +111,7 @@ func TestMain_Run(t *testing.T) {
 					require.Contains(t, mockErr.String(), test.errShouldContain, "err should contain")
 				}
 				if test.errShouldBe != "" {
-					require.Equal(t, mockErr.String(), test.errShouldBe, "err should be")
+					require.Equal(t, test.errShouldBe, mockErr.String(), "err should be")
 				}
 			}
 
