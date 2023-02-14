@@ -1,55 +1,71 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"os"
 
-	"github.com/gnolang/gno/pkgs/command"
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/errors"
 	gno "github.com/gnolang/gno/pkgs/gnolang"
 	"github.com/gnolang/gno/tests"
 )
 
-type runOptions struct {
-	Verbose bool   `flag:"verbose" help:"verbose"`
-	RootDir string `flag:"root-dir" help:"clone location of github.com/gnolang/gno (gnodev tries to guess it)"`
-	// Timeout time.Duration `flag:"timeout" help:"max execution time"`
-	// VM Options
-	// UseNativeLibs bool // experimental, but could be useful for advanced developer needs
+type runCfg struct {
+	verbose bool
+	rootDir string
 }
 
-var defaultRunOptions = runOptions{
-	Verbose: false,
-	RootDir: "",
+func newRunCmd() *commands.Command {
+	cfg := &runCfg{}
+
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "run",
+			ShortUsage: "run [flags] <file> [<file>...]",
+			ShortHelp:  "Runs the specified gno files",
+		},
+		cfg,
+		func(_ context.Context, args []string) error {
+			return execRun(cfg, args)
+		},
+	)
 }
 
-func runApp(cmd *command.Command, args []string, iopts interface{}) error {
-	opts := iopts.(runOptions)
+func (c *runCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.BoolVar(
+		&c.verbose,
+		"verbose",
+		false,
+		"verbose output when running",
+	)
 
+	fs.StringVar(
+		&c.rootDir,
+		"root-dir",
+		"",
+		"clone location of github.com/gnolang/gno (gnodev tries to guess it)",
+	)
+}
+
+func execRun(cfg *runCfg, args []string) error {
 	if len(args) == 0 {
-		cmd.ErrPrintfln("Usage: run [flags] file.gno [file2.gno...]")
-
 		return errors.New("invalid args")
 	}
 
-	if opts.RootDir == "" {
-		opts.RootDir = guessRootDir()
+	if cfg.rootDir == "" {
+		cfg.rootDir = guessRootDir()
 	}
 
-	fnames := args
-
-	return runRun(opts.RootDir, opts.Verbose, fnames)
-}
-
-func runRun(rootDir string, verbose bool, fnames []string) error {
 	stdin := os.Stdin
 	stdout := os.Stdout
 	stderr := os.Stderr
 
 	// init store and machine
-	testStore := tests.TestStore(rootDir,
+	testStore := tests.TestStore(cfg.rootDir,
 		"", stdin, stdout, stderr,
 		tests.ImportModeStdlibsPreferred)
-	if verbose {
+	if cfg.verbose {
 		testStore.SetLogStoreOps(true)
 	}
 
@@ -60,8 +76,8 @@ func runRun(rootDir string, verbose bool, fnames []string) error {
 	})
 
 	// read files
-	files := make([]*gno.FileNode, len(fnames))
-	for i, fname := range fnames {
+	files := make([]*gno.FileNode, len(args))
+	for i, fname := range args {
 		files[i] = gno.MustReadFile(fname)
 	}
 

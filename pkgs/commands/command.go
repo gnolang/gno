@@ -20,7 +20,7 @@ type ExecMethod func(ctx context.Context, args []string) error
 
 // HelpExec is a standard exec method for displaying
 // help information about a command
-func HelpExec() error {
+func HelpExec(_ context.Context, _ []string) error {
 	return flag.ErrHelp
 }
 

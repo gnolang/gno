@@ -1,49 +1,42 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 
-	"github.com/gnolang/gno/pkgs/command"
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/errors"
 	gno "github.com/gnolang/gno/pkgs/gnolang"
 )
 
 type importPath string
 
-type precompileFlags struct {
-	Verbose     bool   `flag:"verbose" help:"verbose"`
-	SkipFmt     bool   `flag:"skip-fmt" help:"do not check syntax of generated .go files"`
-	SkipImports bool   `flag:"skip-imports" help:"do not precompile imports recursively"`
-	GoBinary    string `flag:"go-binary" help:"go binary to use for building"`
-	GofmtBinary string `flag:"go-binary" help:"gofmt binary to use for syntax checking"`
-	Output      string `flag:"output" help:"output directory"`
-}
-
-var defaultPrecompileFlags = precompileFlags{
-	Verbose:     false,
-	SkipFmt:     false,
-	SkipImports: false,
-	GoBinary:    "go",
-	GofmtBinary: "gofmt",
-	Output:      ".",
+type precompileCfg struct {
+	verbose     bool
+	skipFmt     bool
+	skipImports bool
+	goBinary    string
+	gofmtBinary string
+	output      string
 }
 
 type precompileOptions struct {
-	flags precompileFlags
+	cfg *precompileCfg
 	// precompiled is the set of packages already
 	// precompiled from .gno to .go.
 	precompiled map[importPath]struct{}
 }
 
-func newPrecompileOptions(flags precompileFlags) *precompileOptions {
-	return &precompileOptions{flags, map[importPath]struct{}{}}
+func newPrecompileOptions(cfg *precompileCfg) *precompileOptions {
+	return &precompileOptions{cfg, map[importPath]struct{}{}}
 }
 
-func (p *precompileOptions) getFlags() precompileFlags {
-	return p.flags
+func (p *precompileOptions) getFlags() *precompileCfg {
+	return p.cfg
 }
 
 func (p *precompileOptions) isPrecompiled(pkg importPath) bool {
@@ -55,10 +48,68 @@ func (p *precompileOptions) markAsPrecompiled(pkg importPath) {
 	p.precompiled[pkg] = struct{}{}
 }
 
-func precompileApp(cmd *command.Command, args []string, f interface{}) error {
-	flags := f.(precompileFlags)
+func newPrecompileCmd() *commands.Command {
+	cfg := &precompileCfg{}
+
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "precompile",
+			ShortUsage: "precompile [flags] <package> [<package>...]",
+			ShortHelp:  "Precompiles .gno files to .go",
+		},
+		cfg,
+		func(_ context.Context, args []string) error {
+			return execPrecompile(cfg, args)
+		},
+	)
+}
+
+func (c *precompileCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.BoolVar(
+		&c.verbose,
+		"verbose",
+		false,
+		"verbose output when running",
+	)
+
+	fs.BoolVar(
+		&c.skipFmt,
+		"skip-fmt",
+		false,
+		"do not check syntax of generated .go files",
+	)
+
+	fs.BoolVar(
+		&c.skipImports,
+		"skip-imports",
+		false,
+		"do not precompile imports recursively",
+	)
+
+	fs.StringVar(
+		&c.goBinary,
+		"go-binary",
+		"go",
+		"go binary to use for building",
+	)
+
+	fs.StringVar(
+		&c.gofmtBinary,
+		"go-fmt-binary",
+		"gofmt",
+		"gofmt binary to use for syntax checking",
+	)
+
+	fs.StringVar(
+		&c.output,
+		"output",
+		".",
+		"output directory",
+	)
+}
+
+func execPrecompile(cfg *precompileCfg, args []string) error {
 	if len(args) < 1 {
-		cmd.ErrPrintfln("Usage: precompile [precompile flags] [packages]")
 		return errors.New("invalid args")
 	}
 
@@ -68,13 +119,14 @@ func precompileApp(cmd *command.Command, args []string, f interface{}) error {
 		return fmt.Errorf("list paths: %w", err)
 	}
 
-	opts := newPrecompileOptions(flags)
+	opts := newPrecompileOptions(cfg)
 	errCount := 0
 	for _, filepath := range paths {
 		err = precompileFile(filepath, opts)
 		if err != nil {
 			err = fmt.Errorf("%s: precompile: %w", filepath, err)
-			cmd.ErrPrintfln("%s", err.Error())
+			fmt.Printf("%s", err.Error())
+
 			errCount++
 		}
 	}
@@ -108,12 +160,9 @@ func precompilePkg(pkgPath importPath, opts *precompileOptions) error {
 
 func precompileFile(srcPath string, opts *precompileOptions) error {
 	flags := opts.getFlags()
-	gofmt := flags.GofmtBinary
-	if gofmt == "" {
-		gofmt = defaultPrecompileFlags.GofmtBinary
-	}
+	gofmt := flags.gofmtBinary
 
-	if flags.Verbose {
+	if flags.verbose {
 		fmt.Fprintf(os.Stderr, "%s\n", srcPath)
 	}
 
@@ -134,8 +183,8 @@ func precompileFile(srcPath string, opts *precompileOptions) error {
 
 	// resolve target path
 	var targetPath string
-	if flags.Output != defaultPrecompileFlags.Output {
-		path, err := ResolvePath(flags.Output, importPath(filepath.Dir(srcPath)))
+	if flags.output != "." {
+		path, err := ResolvePath(flags.output, importPath(filepath.Dir(srcPath)))
 		if err != nil {
 			return fmt.Errorf("resolve output path: %w", err)
 		}
@@ -151,7 +200,7 @@ func precompileFile(srcPath string, opts *precompileOptions) error {
 	}
 
 	// check .go fmt, if `SkipFmt` sets to false.
-	if !flags.SkipFmt {
+	if !flags.skipFmt {
 		err = gno.PrecompileVerifyFile(targetPath, gofmt)
 		if err != nil {
 			return fmt.Errorf("check .go file: %w", err)
@@ -159,7 +208,7 @@ func precompileFile(srcPath string, opts *precompileOptions) error {
 	}
 
 	// precompile imported packages, if `SkipImports` sets to false
-	if !flags.SkipImports {
+	if !flags.skipImports {
 		importPaths := getPathsFromImportSpec(precompileRes.Imports)
 		for _, path := range importPaths {
 			precompilePkg(path, opts)

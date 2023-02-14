@@ -27,7 +27,7 @@ func main() {
 			LongHelp:   "Exports or imports transactions from the node",
 		},
 		cfg,
-		execMain,
+		commands.HelpExec,
 	)
 
 	cmd.AddSubCommands(
@@ -40,10 +40,6 @@ func main() {
 
 		os.Exit(1)
 	}
-}
-
-func execMain(_ context.Context, _ []string) error {
-	return commands.HelpExec()
 }
 
 func (c *config) RegisterFlags(fs *flag.FlagSet) {

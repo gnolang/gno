@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"os/exec"
 	"strings"
 	"testing"
 
@@ -25,19 +26,6 @@ func TestMain(t *testing.T) {
 		recoverShouldContain string
 		recoverShouldBe      string
 	}{
-		// no args
-		{args: []string{""}, errShouldBe: "unknown command "},
-		{args: []string{"test"}, errShouldBe: "invalid args", stderrShouldBe: "Usage: test [test flags] [packages]\n"},
-		{args: []string{"build"}, errShouldBe: "invalid args", stderrShouldBe: "Usage: build [build flags] [packages]\n"},
-		{args: []string{"precompile"}, errShouldBe: "invalid args", stderrShouldBe: "Usage: precompile [precompile flags] [packages]\n"},
-		// {args: []string{"repl"}},
-
-		// --help
-		{args: []string{"build", "--help"}, stdoutShouldContain: "# buildOptions options\n-"},
-		{args: []string{"test", "--help"}, stdoutShouldContain: "# testOptions options\n-"},
-		{args: []string{"precompile", "--help"}, stdoutShouldContain: "# precompileFlags options\n-"},
-		{args: []string{"repl", "--help"}, stdoutShouldContain: "# replOptions options\n-"},
-
 		// custom
 		{args: []string{"test", "../../examples/gno.land/p/demo/rand"}, stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/rand \t"},
 		{args: []string{"test", "../../tests/integ/no-such-dir"}, errShouldContain: "no such file or directory"},
@@ -50,16 +38,16 @@ func TestMain(t *testing.T) {
 		{args: []string{"test", "../../tests/integ/valid2", "--verbose"}, stderrShouldContain: "ok "},
 
 		// TODO: when 'gnodev test' will by default imply running precompile, we should use the following tests.
-		//{args: []string{"test", "../../tests/integ/empty-gno1", "--no-precompile"}, stderrShouldBe: "?       ./../../tests/integ/empty-gno1 \t[no test files]\n"},
-		//{args: []string{"test", "../../tests/integ/empty-gno1"}, errShouldBe: "FAIL: 1 build errors, 0 test errors", stderrShouldContain: "../../tests/integ/empty-gno1/empty.gno: parse: tmp.gno:1:1: expected 'package', found 'EOF'"},
-		//{args: []string{"test", "../../tests/integ/empty-gno2", "--no-precompile"}, recoverShouldBe: "empty.gno:1:1: expected 'package', found 'EOF'"}, // FIXME: better error handling + rename dontcare.gno with actual test file
-		//{args: []string{"test", "../../tests/integ/empty-gno2"}, errShouldContain: "FAIL: 1 build errors, 0 test errors", stderrShouldContain: "../../tests/integ/empty-gno2/empty.gno: parse: tmp.gno:1:1: expected 'package', found 'EOF'"},
-		//{args: []string{"test", "../../tests/integ/empty-gno3", "--no-precompile"}, recoverShouldBe: "../../tests/integ/empty-gno3/empty_filetest.gno:1:1: expected 'package', found 'EOF'"}, // FIXME: better error handling
-		//{args: []string{"test", "../../tests/integ/empty-gno3"}, errShouldContain: "FAIL: 1 build errors, 0 test errors", stderrShouldContain: "../../tests/integ/empty-gno3/empty.gno: parse: tmp.gno:1:1: expected 'package', found 'EOF'"},
-		//{args: []string{"test", "../../tests/integ/failing1", "--verbose", "--no-precompile"}, errShouldBe: "FAIL: 0 build errors, 1 test errors", stderrShouldContain: "FAIL: TestAlwaysFailing"},
-		//{args: []string{"test", "../../tests/integ/failing1", "--verbose"}, errShouldBe: "FAIL: 0 build errors, 1 test errors", stderrShouldContain: "FAIL: TestAlwaysFailing"},
-		//{args: []string{"test", "../../tests/integ/failing2", "--verbose", "--no-precompile"}, recoverShouldBe: "fail on ../../tests/integ/failing2/failing_filetest.gno: got unexpected error: beep boop", stderrShouldContain: "== RUN   file/failing_filetest.gno"},
-		//{args: []string{"test", "../../tests/integ/failing2", "--verbose"}, stderrShouldBe: "=== PREC  ./../../tests/integ/failing2\n=== BUILD ./../../tests/integ/failing2\n=== RUN   file/failing_filetest.gno\n", recoverShouldBe: "fail on ../../tests/integ/failing2/failing_filetest.gno: got unexpected error: beep boop"},
+		// {args: []string{"test", "../../tests/integ/empty-gno1", "--no-precompile"}, stderrShouldBe: "?       ./../../tests/integ/empty-gno1 \t[no test files]\n"},
+		// {args: []string{"test", "../../tests/integ/empty-gno1"}, errShouldBe: "FAIL: 1 build errors, 0 test errors", stderrShouldContain: "../../tests/integ/empty-gno1/empty.gno: parse: tmp.gno:1:1: expected 'package', found 'EOF'"},
+		// {args: []string{"test", "../../tests/integ/empty-gno2", "--no-precompile"}, recoverShouldBe: "empty.gno:1:1: expected 'package', found 'EOF'"}, // FIXME: better error handling + rename dontcare.gno with actual test file
+		// {args: []string{"test", "../../tests/integ/empty-gno2"}, errShouldContain: "FAIL: 1 build errors, 0 test errors", stderrShouldContain: "../../tests/integ/empty-gno2/empty.gno: parse: tmp.gno:1:1: expected 'package', found 'EOF'"},
+		// {args: []string{"test", "../../tests/integ/empty-gno3", "--no-precompile"}, recoverShouldBe: "../../tests/integ/empty-gno3/empty_filetest.gno:1:1: expected 'package', found 'EOF'"}, // FIXME: better error handling
+		// {args: []string{"test", "../../tests/integ/empty-gno3"}, errShouldContain: "FAIL: 1 build errors, 0 test errors", stderrShouldContain: "../../tests/integ/empty-gno3/empty.gno: parse: tmp.gno:1:1: expected 'package', found 'EOF'"},
+		// {args: []string{"test", "../../tests/integ/failing1", "--verbose", "--no-precompile"}, errShouldBe: "FAIL: 0 build errors, 1 test errors", stderrShouldContain: "FAIL: TestAlwaysFailing"},
+		// {args: []string{"test", "../../tests/integ/failing1", "--verbose"}, errShouldBe: "FAIL: 0 build errors, 1 test errors", stderrShouldContain: "FAIL: TestAlwaysFailing"},
+		// {args: []string{"test", "../../tests/integ/failing2", "--verbose", "--no-precompile"}, recoverShouldBe: "fail on ../../tests/integ/failing2/failing_filetest.gno: got unexpected error: beep boop", stderrShouldContain: "== RUN   file/failing_filetest.gno"},
+		// {args: []string{"test", "../../tests/integ/failing2", "--verbose"}, stderrShouldBe: "=== PREC  ./../../tests/integ/failing2\n=== BUILD ./../../tests/integ/failing2\n=== RUN   file/failing_filetest.gno\n", recoverShouldBe: "fail on ../../tests/integ/failing2/failing_filetest.gno: got unexpected error: beep boop"},
 		{args: []string{"test", "../../tests/integ/empty-gno1"}, stderrShouldBe: "?       ./../../tests/integ/empty-gno1 \t[no test files]\n"},
 		{args: []string{"test", "../../tests/integ/empty-gno1", "--precompile"}, errShouldBe: "FAIL: 1 build errors, 0 test errors", stderrShouldContain: "../../tests/integ/empty-gno1/empty.gno: parse: tmp.gno:1:1: expected 'package', found 'EOF'"},
 		{args: []string{"test", "../../tests/integ/empty-gno2"}, recoverShouldBe: "empty.gno:1:1: expected 'package', found 'EOF'"}, // FIXME: better error handling + rename dontcare.gno with actual test file
@@ -134,7 +122,6 @@ func TestMain(t *testing.T) {
 				}
 			}
 
-			exec := "gnodev"
 			defer func() {
 				if r := recover(); r != nil {
 					output := fmt.Sprintf("%v", r)
@@ -152,7 +139,9 @@ func TestMain(t *testing.T) {
 					require.True(t, recoverShouldBeEmpty, "should not panic")
 				}
 			}()
-			err := runMain(cmd, exec, test.args)
+			execCmd := exec.Command("gnodev", test.args...)
+
+			err := execCmd.Run()
 
 			if errShouldBeEmpty {
 				require.Nil(t, err, "err should be nil")

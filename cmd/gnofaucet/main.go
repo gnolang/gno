@@ -15,9 +15,7 @@ func main() {
 			LongHelp:   "Starts the fund faucet that can be used by users",
 		},
 		nil,
-		func(_ context.Context, _ []string) error {
-			return commands.HelpExec()
-		},
+		commands.HelpExec,
 	)
 
 	cmd.AddSubCommands(
