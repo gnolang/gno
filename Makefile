@@ -140,7 +140,7 @@ test.packages2:
 	go test tests/*.go -v -run "TestPackages/bytes" --timeout 30m
 
 test.examples:
-	go run ./cmd/gnodev test ./examples --verbose
+	go run ./cmd/gnodev test --verbose ./examples
 
 # Code gen
 stringer:
