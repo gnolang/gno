@@ -20,8 +20,8 @@ func isGnoFile(f fs.DirEntry) bool {
 	return !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".gno") && !f.IsDir()
 }
 
-func isFileExist(absModPath string) bool {
-	_, err := os.Stat(absModPath)
+func isFileExist(path string) bool {
+	_, err := os.Stat(path)
 	return err == nil
 }
 
