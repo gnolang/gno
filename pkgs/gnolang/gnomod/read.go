@@ -20,6 +20,7 @@ import (
 	"unicode/utf8"
 
 	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
 )
 
 // An input represents a single input file being parsed.
@@ -675,4 +676,33 @@ func parseString(s *string) (string, error) {
 	}
 	*s = modfile.AutoQuote(t)
 	return t, nil
+}
+
+func parseVersion(verb string, path string, s *string) (string, error) {
+	t, err := parseString(s)
+	if err != nil {
+		return "", &modfile.Error{
+			Verb:    verb,
+			ModPath: path,
+			Err: &module.InvalidVersionError{
+				Version: *s,
+				Err:     err,
+			},
+		}
+	}
+
+	cv := module.CanonicalVersion(t)
+	if cv == "" {
+		return "", &modfile.Error{
+			Verb:    verb,
+			ModPath: path,
+			Err: &module.InvalidVersionError{
+				Version: t,
+				Err:     errors.New("must be of the form v1.2.3"),
+			},
+		}
+	}
+
+	*s = cv
+	return *s, nil
 }

@@ -99,6 +99,8 @@ func TestMain(t *testing.T) {
 		{args: []string{"mod", "download"}, testDir: "../../tests/integ/minimalist-gnomod", simulateExternalRepo: true},
 		{args: []string{"mod", "download"}, testDir: "../../tests/integ/require-remote-module", simulateExternalRepo: true},
 		{args: []string{"mod", "download"}, testDir: "../../tests/integ/require-invalid-module", simulateExternalRepo: true, errShouldContain: "mod download: fetch: writepackage: querychain:"},
+		{args: []string{"mod", "download"}, testDir: "../../tests/integ/invalid-module-version1", simulateExternalRepo: true, errShouldContain: "usage: require module/path v1.2.3"},
+		{args: []string{"mod", "download"}, testDir: "../../tests/integ/invalid-module-version2", simulateExternalRepo: true, errShouldContain: "invalid: must be of the form v1.2.3"},
 	}
 
 	workingDir, err := os.Getwd()
