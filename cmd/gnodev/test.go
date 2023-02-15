@@ -157,26 +157,40 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 	return nil
 }
 
-func gnoTestPkg(cmd *command.Command, pkgPath string, unittestFiles, filetestFiles []string, opts testOptions) error {
+func gnoTestPkg(
+	cmd *command.Command,
+	pkgPath string,
+	unittestFiles,
+	filetestFiles []string,
+	opts testOptions,
+) error {
 	verbose := opts.Verbose
 	rootDir := opts.RootDir
 	runFlag := opts.Run
 	filter := splitRegexp(runFlag)
 
+	stdin := cmd.In
+	stdout := cmd.Out
+	stderr := cmd.Err
+
 	var errs error
 
-	testStore := tests.TestStore(rootDir, "", os.Stdin, os.Stdout, os.Stderr, tests.ImportModeStdlibsOnly)
+	testStore := tests.TestStore(
+		rootDir, "",
+		stdin, stdout, stderr,
+		tests.ImportModeStdlibsOnly,
+	)
 	if verbose {
 		testStore.SetLogStoreOps(true)
 	}
 
+	if !verbose {
+		// TODO: speedup by ignoring if filter is file/*?
+		stdout = nopWriteCloser{}
+	}
+
 	// testing with *_test.gno
 	if len(unittestFiles) > 0 {
-		// TODO: speedup by ignoring if filter is file/*?
-		var stdout io.Writer = new(bytes.Buffer)
-		if verbose {
-			stdout = os.Stdout
-		}
 		memPkg := gno.ReadMemPackage(pkgPath, pkgPath)
 
 		// tfiles, ifiles := gno.ParseMemPackageTests(memPkg)
@@ -238,7 +252,7 @@ func gnoTestPkg(cmd *command.Command, pkgPath string, unittestFiles, filetestFil
 					if err != nil {
 						panic(err)
 					}
-					fmt.Fprintln(os.Stderr, stdouterr)
+					fmt.Fprintln(stderr, stdouterr)
 				}
 				continue
 			}
@@ -252,7 +266,19 @@ func gnoTestPkg(cmd *command.Command, pkgPath string, unittestFiles, filetestFil
 	return errs
 }
 
-func runTestFiles(cmd *command.Command, testStore gno.Store, m *gno.Machine, files *gno.FileSet, pkgName string, verbose bool, runFlag string) error {
+type nopWriteCloser struct{ io.Writer }
+
+func (nopWriteCloser) Close() error { return nil }
+
+func runTestFiles(
+	cmd *command.Command,
+	testStore gno.Store,
+	m *gno.Machine,
+	files *gno.FileSet,
+	pkgName string,
+	verbose bool,
+	runFlag string,
+) error {
 	var errs error
 
 	testFuncs := &testFuncs{
