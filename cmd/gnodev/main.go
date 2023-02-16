@@ -38,6 +38,12 @@ var mainApps AppList = []AppItem{
 		Defaults: defaultBuildOptions,
 	},
 	{
+		App:      modApp,
+		Name:     "mod",
+		Desc:     "manage gno.mod",
+		Defaults: defaultModFlags,
+	},
+	{
 		App:      precompileApp,
 		Name:     "precompile",
 		Desc:     "precompile .gno to .go",

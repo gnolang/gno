@@ -41,4 +41,6 @@ jobs:
           go-version: ${{ matrix.go-version }}
       - uses: actions/checkout@v3
       - name: test
-        run: make ${{ matrix.args }}
+        run: |
+          export GOPATH=$HOME/go
+          make ${{ matrix.args }}
