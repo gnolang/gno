@@ -23,6 +23,8 @@ func BenchmarkOrphanKey(b *testing.B) {
 }
 
 func makeHashes(b *testing.B, seed int64) [][]byte {
+	b.Helper()
+
 	b.StopTimer()
 	rnd := rand.NewSource(seed)
 	hashes := make([][]byte, b.N)

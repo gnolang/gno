@@ -2,7 +2,7 @@ package client
 
 import (
 	"encoding/hex"
-	"io/ioutil"
+	"os"
 
 	"github.com/gnolang/gno/pkgs/command"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
@@ -22,7 +22,7 @@ var DefaultVerifyOptions = VerifyOptions{
 func verifyApp(cmd *command.Command, args []string, iopts interface{}) error {
 	var kb keys.Keybase
 	var err error
-	var opts VerifyOptions = iopts.(VerifyOptions)
+	var opts = iopts.(VerifyOptions)
 
 	if len(args) != 2 {
 		cmd.ErrPrintfln("Usage: verify <keyname> <signature>")
@@ -49,7 +49,7 @@ func verifyApp(cmd *command.Command, args []string, iopts interface{}) error {
 		}
 		msg = []byte(msgstr)
 	} else { // from file
-		msg, err = ioutil.ReadFile(docpath)
+		msg, err = os.ReadFile(docpath)
 		if err != nil {
 			return err
 		}

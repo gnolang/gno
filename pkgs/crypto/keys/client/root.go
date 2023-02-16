@@ -14,6 +14,8 @@ var mainApps AppList = []AppItem{
 	{addApp, "add", "add key to keybase", DefaultAddOptions},
 	{deleteApp, "delete", "delete key from keybase", DefaultDeleteOptions},
 	{generateApp, "generate", "generate a new private key", DefaultGenerateOptions},
+	{exportApp, "export", "export encrypted private key armor", DefaultExportOptions},
+	{importApp, "import", "import encrypted private key armor", DefaultImportOptions},
 	{listApp, "list", "list all known keys", DefaultListOptions},
 	{signApp, "sign", "sign a document", DefaultSignOptions},
 	{verifyApp, "verify", "verify a document signature", DefaultVerifyOptions},

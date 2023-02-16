@@ -33,7 +33,7 @@ type Press struct {
 
 func NewPress() *Press {
 	return &Press{
-		rnd:          rand.New(rand.NewSource(0)),
+		rnd:          rand.New(rand.NewSource(0)), //nolint:gosec
 		indentPrefix: "",
 		indentDelim:  "\t",
 		newlineStr:   "\n",
@@ -166,7 +166,7 @@ func (p *Press) SubPress() *Press {
 // ref: the reference to the value being encoded.
 type EncoderPressFunc func(p *Press, ref string) (code string)
 
-//----------------------------------------
+// ----------------------------------------
 
 // If the final line is a line with no value, remove it
 func withoutFinalNewline(lines []line) []line {

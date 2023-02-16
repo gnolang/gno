@@ -166,7 +166,6 @@ func TestParseJSONRPC(t *testing.T) {
 				assert.Equal(t, tc.name, vals[1].String(), i)
 			}
 		}
-
 	}
 }
 
@@ -208,6 +207,5 @@ func TestParseURI(t *testing.T) {
 				assert.Equal(t, tc.name, vals[1].String(), i)
 			}
 		}
-
 	}
 }

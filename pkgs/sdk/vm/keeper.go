@@ -53,16 +53,16 @@ func NewVMKeeper(baseKey store.StoreKey, iavlKey store.StoreKey, acck auth.Accou
 	return vmk
 }
 
-func (vmk *VMKeeper) Initialize(ms store.MultiStore) {
-	if vmk.gnoStore != nil {
+func (vm *VMKeeper) Initialize(ms store.MultiStore) {
+	if vm.gnoStore != nil {
 		panic("should not happen")
 	}
 	alloc := gno.NewAllocator(maxAllocTx)
-	baseSDKStore := ms.GetStore(vmk.baseKey)
-	iavlSDKStore := ms.GetStore(vmk.iavlKey)
-	vmk.gnoStore = gno.NewStore(alloc, baseSDKStore, iavlSDKStore)
-	vmk.initBuiltinPackagesAndTypes(vmk.gnoStore)
-	if vmk.gnoStore.NumMemPackages() > 0 {
+	baseSDKStore := ms.GetStore(vm.baseKey)
+	iavlSDKStore := ms.GetStore(vm.iavlKey)
+	vm.gnoStore = gno.NewStore(alloc, baseSDKStore, iavlSDKStore)
+	vm.initBuiltinPackagesAndTypes(vm.gnoStore)
+	if vm.gnoStore.NumMemPackages() > 0 {
 		// for now, all mem packages must be re-run after reboot.
 		// TODO remove this, and generally solve for in-mem garbage collection
 		// and memory management across many objects/types/nodes/packages.
@@ -70,7 +70,7 @@ func (vmk *VMKeeper) Initialize(ms store.MultiStore) {
 			gno.MachineOptions{
 				PkgPath: "",
 				Output:  os.Stdout, // XXX
-				Store:   vmk.gnoStore,
+				Store:   vm.gnoStore,
 			})
 		gno.DisableDebug()
 		m2.PreprocessAllFilesAndSaveBlockNodes()
@@ -78,35 +78,35 @@ func (vmk *VMKeeper) Initialize(ms store.MultiStore) {
 	}
 }
 
-func (vmk *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
+func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 	// construct main gnoStore if nil.
-	if vmk.gnoStore == nil {
+	if vm.gnoStore == nil {
 		panic("VMKeeper must first be initialized")
 	}
 	switch ctx.Mode() {
 	case sdk.RunTxModeDeliver:
 		// swap sdk store of existing gnoStore.
 		// this is needed due to e.g. gas wrappers.
-		baseSDKStore := ctx.Store(vmk.baseKey)
-		iavlSDKStore := ctx.Store(vmk.iavlKey)
-		vmk.gnoStore.SwapStores(baseSDKStore, iavlSDKStore)
+		baseSDKStore := ctx.Store(vm.baseKey)
+		iavlSDKStore := ctx.Store(vm.iavlKey)
+		vm.gnoStore.SwapStores(baseSDKStore, iavlSDKStore)
 		// clear object cache for every transaction.
 		// NOTE: this is inefficient, but simple.
 		// in the future, replace with more advanced caching strategy.
-		vmk.gnoStore.ClearObjectCache()
-		return vmk.gnoStore
+		vm.gnoStore.ClearObjectCache()
+		return vm.gnoStore
 	case sdk.RunTxModeCheck:
 		// For query??? XXX Why not RunTxModeQuery?
-		simStore := vmk.gnoStore.Fork()
-		baseSDKStore := ctx.Store(vmk.baseKey)
-		iavlSDKStore := ctx.Store(vmk.iavlKey)
+		simStore := vm.gnoStore.Fork()
+		baseSDKStore := ctx.Store(vm.baseKey)
+		iavlSDKStore := ctx.Store(vm.iavlKey)
 		simStore.SwapStores(baseSDKStore, iavlSDKStore)
 		return simStore
 	case sdk.RunTxModeSimulate:
 		// always make a new store for simulate for isolation.
-		simStore := vmk.gnoStore.Fork()
-		baseSDKStore := ctx.Store(vmk.baseKey)
-		iavlSDKStore := ctx.Store(vmk.iavlKey)
+		simStore := vm.gnoStore.Fork()
+		baseSDKStore := ctx.Store(vm.baseKey)
+		iavlSDKStore := ctx.Store(vm.iavlKey)
 		simStore.SwapStores(baseSDKStore, iavlSDKStore)
 		return simStore
 	default:
@@ -366,6 +366,13 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 			Alloc:     alloc,
 			MaxCycles: 10 * 1000 * 1000, // 10M cycles // XXX
 		})
+	defer func() {
+		if r := recover(); r != nil {
+			err = errors.Wrap(fmt.Errorf("%v", r), "VM query eval panic: %v\n%s\n",
+				r, m.String())
+			return
+		}
+	}()
 	rtvs := m.Eval(xx)
 	res = ""
 	for i, rtv := range rtvs {
@@ -418,6 +425,13 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 			Alloc:     alloc,
 			MaxCycles: 10 * 1000 * 1000, // 10M cycles // XXX
 		})
+	defer func() {
+		if r := recover(); r != nil {
+			err = errors.Wrap(fmt.Errorf("%v", r), "VM query eval string panic: %v\n%s\n",
+				r, m.String())
+			return
+		}
+	}()
 	rtvs := m.Eval(xx)
 	if len(rtvs) != 1 {
 		return "", errors.New("expected 1 string result, got %d", len(rtvs))

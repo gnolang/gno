@@ -5,18 +5,18 @@ import (
 	"gno.land/p/demo/avl"
 )
 
-var tree *avl.Tree
+var node *avl.Node
 
 func init() {
-	tree = avl.NewTree("key0", "value0")
-	tree, _ = tree.Set("key1", "value1")
+	node = avl.NewNode("key0", "value0")
+	node, _ = node.Set("key1", "value1")
 }
 
 func main() {
 	var updated bool
-	tree, updated = tree.Set("key2", "value2")
-	//println(tree, updated)
-	println(updated, tree.Size())
+	node, updated = node.Set("key2", "value2")
+	//println(node, updated)
+	println(updated, node.Size())
 }
 
 // Output:
@@ -64,7 +64,7 @@ func main() {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/demo/avl.Tree"
+//                     "ID": "gno.land/p/demo/avl.Node"
 //                 }
 //             }
 //         },
@@ -73,7 +73,7 @@ func main() {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/demo/avl.Tree"
+//                     "ID": "gno.land/p/demo/avl.Node"
 //                 }
 //             }
 //         }
@@ -117,7 +117,7 @@ func main() {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/demo/avl.Tree"
+//                     "ID": "gno.land/p/demo/avl.Node"
 //                 }
 //             },
 //             "V": {
@@ -127,11 +127,11 @@ func main() {
 //                 "TV": {
 //                     "T": {
 //                         "@type": "/gno.RefType",
-//                         "ID": "gno.land/p/demo/avl.Tree"
+//                         "ID": "gno.land/p/demo/avl.Node"
 //                     },
 //                     "V": {
 //                         "@type": "/gno.RefValue",
-//                         "Hash": "bac14657044a4dbc78c87aaf6c08c38b6d5acca2",
+//                         "Hash": "7a8a63e17a567d7b0891ac89d5cd90072a73787d",
 //                         "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6"
 //                     }
 //                 }
@@ -142,7 +142,7 @@ func main() {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/demo/avl.Tree"
+//                     "ID": "gno.land/p/demo/avl.Node"
 //                 }
 //             },
 //             "V": {
@@ -152,11 +152,11 @@ func main() {
 //                 "TV": {
 //                     "T": {
 //                         "@type": "/gno.RefType",
-//                         "ID": "gno.land/p/demo/avl.Tree"
+//                         "ID": "gno.land/p/demo/avl.Node"
 //                     },
 //                     "V": {
 //                         "@type": "/gno.RefValue",
-//                         "Hash": "26a241729119ba3e93757282656c60c82924b881",
+//                         "Hash": "ab5a297f4eb033d88bdf1677f4dc151ccb9fde9f",
 //                         "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:9"
 //                     }
 //                 }
@@ -202,7 +202,7 @@ func main() {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/demo/avl.Tree"
+//                     "ID": "gno.land/p/demo/avl.Node"
 //                 }
 //             },
 //             "V": {
@@ -212,11 +212,11 @@ func main() {
 //                 "TV": {
 //                     "T": {
 //                         "@type": "/gno.RefType",
-//                         "ID": "gno.land/p/demo/avl.Tree"
+//                         "ID": "gno.land/p/demo/avl.Node"
 //                     },
 //                     "V": {
 //                         "@type": "/gno.RefValue",
-//                         "Hash": "07a4fe3e53c0b930af41d04712c28adb5c462e6b",
+//                         "Hash": "627e8e517e7ae5db0f3b753e2a32b607989198b6",
 //                         "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5"
 //                     }
 //                 }
@@ -227,7 +227,7 @@ func main() {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/demo/avl.Tree"
+//                     "ID": "gno.land/p/demo/avl.Node"
 //                 }
 //             },
 //             "V": {
@@ -237,11 +237,11 @@ func main() {
 //                 "TV": {
 //                     "T": {
 //                         "@type": "/gno.RefType",
-//                         "ID": "gno.land/p/demo/avl.Tree"
+//                         "ID": "gno.land/p/demo/avl.Node"
 //                     },
 //                     "V": {
 //                         "@type": "/gno.RefValue",
-//                         "Hash": "1ac455de553fba7821eb3f1786b130774042ee54",
+//                         "Hash": "fe8afd501233fb95375016199f0443b3c6ab1fbc",
 //                         "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:8"
 //                     }
 //                 }
@@ -348,7 +348,7 @@ func main() {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/demo/avl.Tree"
+//                     "ID": "gno.land/p/demo/avl.Node"
 //                 }
 //             },
 //             "V": {
@@ -358,11 +358,11 @@ func main() {
 //                 "TV": {
 //                     "T": {
 //                         "@type": "/gno.RefType",
-//                         "ID": "gno.land/p/demo/avl.Tree"
+//                         "ID": "gno.land/p/demo/avl.Node"
 //                     },
 //                     "V": {
 //                         "@type": "/gno.RefValue",
-//                         "Hash": "f6613fd4bc857c62f0d3b5f3bd2416aa7a46191c",
+//                         "Hash": "c5eefc40ed065461b4a920c1349ed734ffdead8f",
 //                         "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7"
 //                     }
 //                 }

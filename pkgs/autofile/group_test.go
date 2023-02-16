@@ -2,7 +2,6 @@ package autofile
 
 import (
 	"io"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -14,6 +13,8 @@ import (
 )
 
 func createTestGroupWithHeadSizeLimit(t *testing.T, headSizeLimit int64) *Group {
+	t.Helper()
+
 	testID := random.RandStr(12)
 	testDir := "_test_" + testID
 	err := osm.EnsureDir(testDir, 0o700)
@@ -28,6 +29,8 @@ func createTestGroupWithHeadSizeLimit(t *testing.T, headSizeLimit int64) *Group 
 }
 
 func destroyTestGroup(t *testing.T, g *Group) {
+	t.Helper()
+
 	g.Close()
 
 	err := os.RemoveAll(g.Dir)
@@ -35,6 +38,8 @@ func destroyTestGroup(t *testing.T, g *Group) {
 }
 
 func assertGroupInfo(t *testing.T, gInfo GroupInfo, minIndex, maxIndex int, totalSize, headSize int64) {
+	t.Helper()
+
 	assert.Equal(t, minIndex, gInfo.MinIndex)
 	assert.Equal(t, maxIndex, gInfo.MaxIndex)
 	assert.Equal(t, totalSize, gInfo.TotalSize)
@@ -100,14 +105,14 @@ func TestRotateFile(t *testing.T) {
 	g.FlushAndSync()
 
 	// Read g.Head.Path+"000"
-	body1, err := ioutil.ReadFile(g.Head.Path + ".000")
+	body1, err := os.ReadFile(g.Head.Path + ".000")
 	assert.NoError(t, err, "Failed to read first rolled file")
 	if string(body1) != "Line 1\nLine 2\nLine 3\n" {
 		t.Errorf("Got unexpected contents: [%v]", string(body1))
 	}
 
 	// Read g.Head.Path
-	body2, err := ioutil.ReadFile(g.Head.Path)
+	body2, err := os.ReadFile(g.Head.Path)
 	assert.NoError(t, err, "Failed to read first rolled file")
 	if string(body2) != "Line 4\nLine 5\nLine 6\n" {
 		t.Errorf("Got unexpected contents: [%v]", string(body2))

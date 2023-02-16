@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/gnolang/gno/pkgs/amino"
@@ -172,7 +172,7 @@ func LoadFilePVEmptyState(keyFilePath, stateFilePath string) *FilePV {
 
 // If loadState is true, we load from the stateFilePath. Otherwise, we use an empty LastSignState.
 func loadFilePV(keyFilePath, stateFilePath string, loadState bool) *FilePV {
-	keyJSONBytes, err := ioutil.ReadFile(keyFilePath)
+	keyJSONBytes, err := os.ReadFile(keyFilePath)
 	if err != nil {
 		osm.Exit(err.Error())
 	}
@@ -189,7 +189,7 @@ func loadFilePV(keyFilePath, stateFilePath string, loadState bool) *FilePV {
 
 	pvState := FilePVLastSignState{}
 	if loadState {
-		stateJSONBytes, err := ioutil.ReadFile(stateFilePath)
+		stateJSONBytes, err := os.ReadFile(stateFilePath)
 		if err != nil {
 			osm.Exit(err.Error())
 		}
@@ -236,7 +236,7 @@ func (pv *FilePV) GetPubKey() crypto.PubKey {
 // chainID. Implements PrivValidator.
 func (pv *FilePV) SignVote(chainID string, vote *types.Vote) error {
 	if err := pv.signVote(chainID, vote); err != nil {
-		return fmt.Errorf("error signing vote: %v", err)
+		return fmt.Errorf("error signing vote: %w", err)
 	}
 	return nil
 }
@@ -245,7 +245,7 @@ func (pv *FilePV) SignVote(chainID string, vote *types.Vote) error {
 // the chainID. Implements PrivValidator.
 func (pv *FilePV) SignProposal(chainID string, proposal *types.Proposal) error {
 	if err := pv.signProposal(chainID, proposal); err != nil {
-		return fmt.Errorf("error signing proposal: %v", err)
+		return fmt.Errorf("error signing proposal: %w", err)
 	}
 	return nil
 }

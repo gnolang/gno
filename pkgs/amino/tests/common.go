@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-//----------------------------------------
+// ----------------------------------------
 // Struct types
 
 type EmptyStruct struct{}
@@ -188,7 +188,7 @@ type NestedPointersStruct struct {
 }
 */
 
-//----------------------------------------
+// ----------------------------------------
 // AminoMarshalerStruct1
 // struct -> repr struct
 
@@ -215,7 +215,7 @@ func (ams *AminoMarshalerStruct1) UnmarshalAmino(rs ReprStruct1) error {
 	return nil
 }
 
-//----------------------------------------
+// ----------------------------------------
 // AminoMarshalerStruct2
 // struct -> []struct
 
@@ -249,7 +249,7 @@ func (ams *AminoMarshalerStruct2) UnmarshalAmino(repr []ReprElem2) error {
 	return nil
 }
 
-//----------------------------------------
+// ----------------------------------------
 // AminoMarshalerStruct3
 // struct -> int
 
@@ -266,7 +266,7 @@ func (ams *AminoMarshalerStruct3) UnmarshalAmino(i int32) error {
 	return nil
 }
 
-//----------------------------------------
+// ----------------------------------------
 // AminoMarshalerInt4
 // int -> struct
 
@@ -276,35 +276,35 @@ type ReprStruct4 struct {
 	A int32
 }
 
-func (ams AminoMarshalerInt4) MarshalAmino() (ReprStruct4, error) {
-	return ReprStruct4{A: int32(ams)}, nil
+func (am AminoMarshalerInt4) MarshalAmino() (ReprStruct4, error) {
+	return ReprStruct4{A: int32(am)}, nil
 }
 
-func (ams *AminoMarshalerInt4) UnmarshalAmino(rs ReprStruct4) error {
-	*ams = AminoMarshalerInt4(rs.A)
+func (am *AminoMarshalerInt4) UnmarshalAmino(rs ReprStruct4) error {
+	*am = AminoMarshalerInt4(rs.A)
 	return nil
 }
 
-//----------------------------------------
+// ----------------------------------------
 // AminoMarshalerInt5
 // int -> string
 
 type AminoMarshalerInt5 int32
 
-func (ams AminoMarshalerInt5) MarshalAmino() (string, error) {
-	return fmt.Sprintf("%v", ams), nil
+func (am AminoMarshalerInt5) MarshalAmino() (string, error) {
+	return fmt.Sprintf("%v", am), nil
 }
 
-func (ams *AminoMarshalerInt5) UnmarshalAmino(repr string) error {
+func (am *AminoMarshalerInt5) UnmarshalAmino(repr string) error {
 	i, err := strconv.Atoi(repr)
 	if err != nil {
 		return err
 	}
-	*ams = AminoMarshalerInt5(i)
+	*am = AminoMarshalerInt5(i)
 	return nil
 }
 
-//----------------------------------------
+// ----------------------------------------
 // AminoMarshalerStruct6
 // struct -> []struct, where elems are struct -> struct
 
@@ -323,7 +323,7 @@ func (ams *AminoMarshalerStruct6) UnmarshalAmino(repr []AminoMarshalerStruct1) e
 	return nil
 }
 
-//----------------------------------------
+// ----------------------------------------
 // AminoMarshalerStruct7
 // struct -> []struct, where elems are struct -> byte
 // NOTE: this should optimize to p3 bytes.
@@ -354,7 +354,7 @@ func (re *ReprElem7) UnmarshalAmino(u uint8) error {
 	return nil
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 type ComplexSt struct {
 	PrField PrimitivesStruct
@@ -432,7 +432,7 @@ var StructTypes = []interface{}{
 	(*AminoMarshalerStruct7)(nil),
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Type definition types
 
 // This will be encoded as
@@ -475,7 +475,7 @@ var DefTypes = []interface{}{
 	(*PrimitivesStructDef)(nil),
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Register/Interface test types
 
 type Interface1 interface {

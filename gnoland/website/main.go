@@ -28,12 +28,17 @@ import (
 	// "github.com/gnolang/gno/pkgs/sdk"               // for baseapp (info, status)
 )
 
+const (
+	qFileStr = "vm/qfile"
+)
+
 var flags struct {
 	bindAddr        string
 	remoteAddr      string
 	captchaSite     string
 	faucetURL       string
 	viewsDir        string
+	pagesDir        string
 	helpChainID     string
 	helpRemote      string
 	homeContentFile string
@@ -47,6 +52,7 @@ func init() {
 	flag.StringVar(&flags.captchaSite, "captcha-site", "", "recaptcha site key (if empty, captcha are disabled)")
 	flag.StringVar(&flags.faucetURL, "faucet-url", "http://localhost:5050", "faucet server URL")
 	flag.StringVar(&flags.viewsDir, "views-dir", "./gnoland/website/views", "views directory location")
+	flag.StringVar(&flags.pagesDir, "pages-dir", "./gnoland/website/pages", "pages directory location")
 	flag.StringVar(&flags.homeContentFile, "home-content", "./gnoland/website/HOME.md", "home content filepath")
 	flag.StringVar(&flags.helpChainID, "help-chainid", "dev", "help page's chainid")
 	flag.StringVar(&flags.helpRemote, "help-remote", "127.0.0.1:26657", "help page's remote addr")
@@ -64,6 +70,8 @@ func main() {
 	}
 
 	app.Router.Handle("/", handlerHome(app))
+	app.Router.Handle("/about", handlerAbout(app))
+	app.Router.Handle("/game-of-realms", handlerGor(app))
 	app.Router.Handle("/faucet", handlerFaucet(app))
 	app.Router.Handle("/r/demo/boards:gnolang/6", handlerRedirect(app))
 	// NOTE: see rePathPart.
@@ -77,19 +85,50 @@ func main() {
 	app.Router.Handle("/status.json", handlerStatusJSON(app))
 
 	fmt.Printf("Running on http://%s\n", flags.bindAddr)
-	err := http.ListenAndServe(flags.bindAddr, app.Router)
-	if err != nil {
+
+	server := &http.Server{
+		Addr:              flags.bindAddr,
+		ReadHeaderTimeout: 60 * time.Second,
+		Handler:           app.Router,
+	}
+
+	if err := server.ListenAndServe(); err != nil {
 		fmt.Fprintf(os.Stderr, "HTTP server stopped with error: %+v\n", err)
 	}
 }
 
 func handlerHome(app gotuna.App) http.Handler {
-	homeContent := osm.MustReadFile(flags.homeContentFile)
+	md := filepath.Join(flags.pagesDir, "HOME.md")
+	homeContent := osm.MustReadFile(md)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		app.NewTemplatingEngine().
 			Set("HomeContent", string(homeContent)).
 			Render(w, r, "home.html", "funcs.html")
+	})
+}
+
+func handlerAbout(app gotuna.App) http.Handler {
+	md := filepath.Join(flags.pagesDir, "ABOUT.md")
+	mainContent := osm.MustReadFile(md)
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		app.NewTemplatingEngine().
+			Set("Title", "About").
+			Set("MainContent", string(mainContent)).
+			Render(w, r, "generic.html", "funcs.html")
+	})
+}
+
+func handlerGor(app gotuna.App) http.Handler {
+	md := filepath.Join(flags.pagesDir, "GOR.md")
+	mainContent := osm.MustReadFile(md)
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		app.NewTemplatingEngine().
+			Set("MainContent", string(mainContent)).
+			Set("Title", "About").
+			Render(w, r, "generic.html", "funcs.html")
 	})
 }
 
@@ -199,7 +238,7 @@ func handlerRealmMain(app gotuna.App) http.Handler {
 			tmpl.Render(w, r, "realm_help.html", "funcs.html")
 		} else {
 			// Ensure realm exists. TODO optimize.
-			qpath := "vm/qfile"
+			qpath := qFileStr
 			data := []byte(rlmpath)
 			_, err := makeRequest(qpath, data)
 			if err != nil {
@@ -239,6 +278,7 @@ func handleRealmRender(app gotuna.App, w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// XXX hack
 		if strings.Contains(err.Error(), "Render not declared") {
+			res = &abci.ResponseQuery{}
 			res.Data = []byte("realm package has no Render() function")
 		} else {
 			writeError(w, err)
@@ -246,7 +286,7 @@ func handleRealmRender(app gotuna.App, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	// linkify querystr.
-	queryParts := strings.Split(string(querystr), "/")
+	queryParts := strings.Split(querystr, "/")
 	pathLinks := []pathLink{}
 	for i, part := range queryParts {
 		pathLinks = append(pathLinks, pathLink{
@@ -259,7 +299,7 @@ func handleRealmRender(app gotuna.App, w http.ResponseWriter, r *http.Request) {
 
 	tmpl.Set("RealmName", rlmname)
 	tmpl.Set("RealmPath", rlmpath)
-	tmpl.Set("Query", string(querystr))
+	tmpl.Set("Query", querystr)
 	tmpl.Set("PathLinks", pathLinks)
 	tmpl.Set("Contents", string(res.Data))
 	tmpl.Render(w, r, "realm_render.html", "funcs.html")
@@ -291,7 +331,7 @@ func handlerPackageFile(app gotuna.App) http.Handler {
 func renderPackageFile(app gotuna.App, w http.ResponseWriter, r *http.Request, diruri string, filename string) {
 	if filename == "" {
 		// Request is for a folder.
-		qpath := "vm/qfile"
+		qpath := qFileStr
 		data := []byte(diruri)
 		res, err := makeRequest(qpath, data)
 		if err != nil {
@@ -308,7 +348,7 @@ func renderPackageFile(app gotuna.App, w http.ResponseWriter, r *http.Request, d
 	} else {
 		// Request is for a file.
 		filepath := diruri + "/" + filename
-		qpath := "vm/qfile"
+		qpath := qFileStr
 		data := []byte(filepath)
 		res, err := makeRequest(qpath, data)
 		if err != nil {

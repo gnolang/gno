@@ -7,24 +7,23 @@ import (
 func main() {
 	println("-----------")
 	changelog := releases.NewChangelog("example")
-	println(changelog.Render(""))
+	print(changelog.Render(""))
 
 	println("-----------")
 	changelog.NewRelease("v1", "r/blahblah", "* initial version")
-	println(changelog.Render(""))
+	print(changelog.Render(""))
 
 	println("-----------")
 	changelog.NewRelease("v2", "r/blahblah2", "* various improvements\n* new shiny logo")
-	println(changelog.Render(""))
+	print(changelog.Render(""))
 
 	println("-----------")
-	println(changelog.Latest().Render())
+	print(changelog.Latest().Render())
 }
 
 // Output:
 // -----------
 // # example
-//
 //
 // -----------
 // # example
@@ -32,7 +31,6 @@ func main() {
 // ## [example v1 (latest)](r/blahblah)
 //
 // * initial version
-//
 //
 // -----------
 // # example
@@ -45,7 +43,6 @@ func main() {
 // ## [example v1](r/blahblah)
 //
 // * initial version
-//
 //
 // -----------
 // ## [example v2 (latest)](r/blahblah2)

@@ -50,6 +50,8 @@ func BenchmarkBinaryPBBindings(b *testing.B) {
 }
 
 func _benchmarkBinary(b *testing.B, cdc *amino.Codec, rt reflect.Type, codecType string, encode bool) {
+	b.Helper()
+
 	b.StopTimer()
 
 	err := error(nil)

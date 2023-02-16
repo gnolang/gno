@@ -1,7 +1,7 @@
 package client
 
 import (
-	"io/ioutil"
+	"os"
 
 	"github.com/gnolang/gno/pkgs/amino"
 	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
@@ -25,7 +25,7 @@ var DefaultBroadcastOptions = BroadcastOptions{
 }
 
 func broadcastApp(cmd *command.Command, args []string, iopts interface{}) error {
-	var opts BroadcastOptions = iopts.(BroadcastOptions)
+	var opts = iopts.(BroadcastOptions)
 
 	if len(args) != 1 {
 		cmd.ErrPrintfln("Usage: broadcast <filename>")
@@ -33,7 +33,7 @@ func broadcastApp(cmd *command.Command, args []string, iopts interface{}) error 
 	}
 	filename := args[0]
 
-	jsonbz, err := ioutil.ReadFile(filename)
+	jsonbz, err := os.ReadFile(filename)
 	if err != nil {
 		return errors.Wrap(err, "reading tx document file "+filename)
 	}

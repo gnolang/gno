@@ -159,7 +159,6 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 			// This happens for non-realm file tests.
 			// TODO ensure the files are the same.
 		}
-
 	}
 }
 

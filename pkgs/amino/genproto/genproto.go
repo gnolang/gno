@@ -123,7 +123,7 @@ func (p3c *P3Context) GenerateProto3MessagePartial(p3doc *P3Doc, rt reflect.Type
 		return
 	}
 	if rt.Kind() == reflect.Ptr {
-		panic("pointers not yet supported. if you meant pointer-prefered (for decoding), pass in rt.Elem()")
+		panic("pointers not yet supported. if you meant pointer-preferred (for decoding), pass in rt.Elem()")
 	}
 	if rt.Kind() == reflect.Interface {
 		panic("nothing to generate for interfaces")
@@ -244,7 +244,7 @@ func (p3c *P3Context) GenerateProto3ListPartial(p3doc *P3Doc, nl NList) (p3msg P
 // pkg is optional.
 func (p3c *P3Context) GenerateProto3SchemaForTypes(pkg *amino.Package, rtz ...reflect.Type) (p3doc P3Doc) {
 	if pkg.P3PkgName == "" {
-		panic(errors.New("cannot generate schema in the root package \"\"."))
+		panic(errors.New("cannot generate schema in the root package \"\""))
 	}
 
 	// Set the package.
@@ -293,7 +293,7 @@ func (p3c *P3Context) GenerateProto3SchemaForTypes(pkg *amino.Package, rtz ...re
 func (p3c *P3Context) WriteProto3SchemaForTypes(filename string, pkg *amino.Package, rtz ...reflect.Type) {
 	fmt.Printf("writing proto3 schema to %v for package %v\n", filename, pkg)
 	p3doc := p3c.GenerateProto3SchemaForTypes(pkg, rtz...)
-	err := ioutil.WriteFile(filename, []byte(p3doc.Print()), 0o644)
+	err := os.WriteFile(filename, []byte(p3doc.Print()), 0o644)
 	if err != nil {
 		panic(err)
 	}
@@ -522,12 +522,12 @@ func RunProtoc(pkg *amino.Package, protosDir string) {
 
 func copyFile(src string, dst string) {
 	// Read all content of src to data
-	data, err := ioutil.ReadFile(src)
+	data, err := os.ReadFile(src)
 	if err != nil {
 		panic(err)
 	}
 	// Write data to dst
-	err = ioutil.WriteFile(dst, data, 0o644)
+	err = os.WriteFile(dst, data, 0o644)
 	if err != nil {
 		panic(err)
 	}

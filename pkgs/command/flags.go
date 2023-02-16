@@ -3,12 +3,12 @@ package command
 import (
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gnolang/gno/pkgs/errors"
 )
@@ -186,6 +186,14 @@ func applyFlagToFieldReflectString(frv reflect.Value, fvalue string) error {
 	case reflect.Int64:
 		fnum, err := strconv.ParseInt(fvalue, 0, 64)
 		if err != nil {
+			if frt == reflect.TypeOf(time.Duration(0)) {
+				duration, err := time.ParseDuration(fvalue)
+				if err != nil {
+					return errors.Wrap(err, "invalid duration")
+				}
+				frv.Set(reflect.ValueOf(duration))
+				return nil
+			}
 			return errors.Wrap(err, "invalid int64")
 		}
 		frv.SetInt(fnum)
@@ -248,7 +256,6 @@ func applyFlagToFieldReflectString(frv reflect.Value, fvalue string) error {
 		panic(fmt.Sprintf(
 			"flag value cannot be applied to field of type %s",
 			frt.String()))
-
 	}
 }
 
@@ -279,7 +286,6 @@ func applyFlagToFieldReflectStringSlice(frv reflect.Value, fvalues []string) err
 		panic(fmt.Sprintf(
 			"flag values cannot be applied to field of type %s",
 			frt.String()))
-
 	}
 }
 
@@ -331,7 +337,7 @@ func parseFlags(fargs []string) map[string]interface{} {
 			// if a --flag#file <file_location> flag, read contents.
 			if strings.HasSuffix(fname, "#file") {
 				ffile := farg
-				fargbz, err := ioutil.ReadFile(ffile)
+				fargbz, err := os.ReadFile(ffile)
 				if err != nil {
 					panic(fmt.Sprintf(
 						"error reading file: %v", err))

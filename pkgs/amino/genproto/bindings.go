@@ -6,7 +6,7 @@ import (
 	"go/ast"
 	"go/printer"
 	"go/token"
-	"io/ioutil"
+	"os"
 	"path"
 	"reflect"
 	"regexp"
@@ -15,6 +15,10 @@ import (
 
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/amino/pkg"
+)
+
+const (
+	uint8Str = "uint8"
 )
 
 // Given genproto generated schema files for Go objects, generate
@@ -82,7 +86,7 @@ func WriteProtoBindingsForTypes(filename string, pkg *amino.Package, rtz ...refl
 	if err != nil {
 		return
 	}
-	err = ioutil.WriteFile(filename, buf.Bytes(), 0o644)
+	err = os.WriteFile(filename, buf.Bytes(), 0o644)
 	if err != nil {
 		return
 	}
@@ -259,7 +263,6 @@ func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 		gooType.Registered && hasPBBindings(gooType) &&
 		gooType.ReprType.Type.Kind() == reflect.Struct &&
 		(options&option_bytes == 0) {
-
 		// Call ToPBMessage().
 		pbote_ := p3goTypeExprString(rootPkg, imports, scope, gooType, fopts)
 		pbom_ := addVarUniq(scope, "pbom")
@@ -324,7 +327,6 @@ func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 		if isRoot &&
 			gooType.ReprType.Type.Kind() != reflect.Struct &&
 			options&option_bytes == 0 {
-
 			if gooType.ReprType.Type.Kind() == reflect.Interface {
 				panic("not yet tested")
 			}
@@ -339,7 +341,6 @@ func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 		if isRoot &&
 			gooType.Type.Kind() != reflect.Struct &&
 			gooType.Type.Kind() != reflect.Interface {
-
 			wrapImplicitStruct = true
 		}
 		// Assign *goor*.
@@ -412,7 +413,6 @@ func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 
 	// General case
 	switch goork := goorType.Type.Kind(); goork {
-
 	case reflect.Interface:
 		typeUrl_ := addVarUniq(scope, "typeUrl")
 		bz_ := addVarUniq(scope, "bz")
@@ -463,7 +463,7 @@ func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 
 		if gooreType.ReprType.Type.Kind() == reflect.Uint8 {
 			// Special bytes optimization for recursive case.
-			pboete_ = "uint8"
+			pboete_ = uint8Str
 			newoptions |= option_bytes
 		} else if pboeIsImplicit {
 			// Special implicit list struct for recursive call.
@@ -537,7 +537,6 @@ func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 		// General translation.
 		b = append(b,
 			_a(pbo, "=", maybeWrap(_call(_i(goork.String()), goor))))
-
 	}
 	return b
 }
@@ -594,7 +593,6 @@ func pb2goStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 		if gooType.Registered && hasPBBindings(gooType) &&
 			gooType.ReprType.Type.Kind() == reflect.Struct &&
 			(options&option_bytes == 0) {
-
 			b = append(b,
 				_a(_i("err"), "=", _call(_sel(goo, "FromPBMessage"), _i("cdc"), pbo)),
 				_if(_x("err__!=__nil"),
@@ -644,7 +642,6 @@ func pb2goStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 		if isRoot &&
 			gooType.ReprType.Type.Kind() != reflect.Struct &&
 			options&option_bytes == 0 {
-
 			if gooType.ReprType.Type.Kind() == reflect.Interface {
 				panic("not yet tested")
 			}
@@ -660,7 +657,6 @@ func pb2goStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 		if isRoot &&
 			gooType.Type.Kind() != reflect.Struct &&
 			gooType.Type.Kind() != reflect.Interface {
-
 			unwrapImplicitStruct = true
 		}
 		// Assign *goor*
@@ -686,7 +682,6 @@ func pb2goStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 
 	// General case
 	switch goorType.Type.Kind() {
-
 	case reflect.Interface:
 		typeUrl_ := addVarUniq(scope, "typeUrl")
 		bz_ := addVarUniq(scope, "bz")
@@ -723,7 +718,7 @@ func pb2goStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 			_a(goor, "=", _call(_i(goorteFn()), _call(_i("uint16"), maybeUnwrap(pbo)))))
 	case reflect.Uint8:
 		b = append(b,
-			_a(goor, "=", _call(_i(goorteFn()), _call(_i("uint8"), maybeUnwrap(pbo)))))
+			_a(goor, "=", _call(_i(goorteFn()), _call(_i(uint8Str), maybeUnwrap(pbo)))))
 
 	case reflect.Array:
 		var newoptions uint64
@@ -929,7 +924,6 @@ func isReprEmptyStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl,
 
 	// General case
 	switch goorType.Type.Kind() {
-
 	case reflect.Interface:
 		b = append(b,
 			_return(_i("false")))
@@ -1200,7 +1194,7 @@ func _x(expr string, args ...interface{}) ast.Expr {
 			}
 			return &ast.BasicLit{
 				Kind:  token.CHAR,
-				Value: string(expr[1 : len(expr)-1]),
+				Value: expr[1 : len(expr)-1],
 			}
 		case '"', '`':
 			if first != last {
@@ -1208,7 +1202,7 @@ func _x(expr string, args ...interface{}) ast.Expr {
 			}
 			return &ast.BasicLit{
 				Kind:  token.STRING,
-				Value: string(expr),
+				Value: expr,
 			}
 		case ')':
 			left, _, right := chopRight(expr)
@@ -1312,7 +1306,7 @@ func _x(expr string, args ...interface{}) ast.Expr {
 	if isInt {
 		return &ast.BasicLit{
 			Kind:  token.INT,
-			Value: string(expr),
+			Value: expr,
 		}
 	}
 	// Numeric float?  We do these before dots, because dots are legal in floats.
@@ -1328,7 +1322,7 @@ func _x(expr string, args ...interface{}) ast.Expr {
 	if isFloat {
 		return &ast.BasicLit{
 			Kind:  token.FLOAT,
-			Value: string(expr),
+			Value: expr,
 		}
 	}
 	// Last case, handle dots.
@@ -1913,7 +1907,7 @@ func goPkgPrefix(rootPkg *amino.Package, rt reflect.Type, info *amino.TypeInfo, 
 		return "" // native type.
 	}
 	var pkgName string
-	var pkgPath string = rt.PkgPath()
+	var pkgPath = rt.PkgPath()
 	if pkgPath == "" || rootPkg.GoPkgPath == pkgPath {
 		return ""
 	}
@@ -2042,7 +2036,7 @@ func p3goTypeExprString(rootPkg *amino.Package, imports *ast.GenDecl, scope *ast
 	case reflect.Int8:
 		return "int32"
 	case reflect.Uint8:
-		return "uint8" // bytes
+		return uint8Str // bytes
 	case reflect.Int16:
 		return "int32"
 	case reflect.Uint16:

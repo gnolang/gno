@@ -2,7 +2,7 @@ package client
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/command"
@@ -19,9 +19,9 @@ type SignOptions struct {
 	Sequence      *uint64 `flag:"sequence" help:"sequence to sign with (required)"`
 	ShowSignBytes bool    `flag:"show-signbytes" help:"show sign bytes and quit"`
 
-	// internal flags, when called programatically
+	// internal flags, when called programmatically
 	NameOrBech32 string `flag:"-"`
-	TxJson       []byte `flag:"-"`
+	TxJSON       []byte `flag:"-"`
 	Pass         string `flag:"-"`
 }
 
@@ -32,7 +32,7 @@ var DefaultSignOptions = SignOptions{
 }
 
 func signApp(cmd *command.Command, args []string, iopts interface{}) error {
-	var opts SignOptions = iopts.(SignOptions)
+	var opts = iopts.(SignOptions)
 	var err error
 
 	if len(args) != 1 {
@@ -48,9 +48,9 @@ func signApp(cmd *command.Command, args []string, iopts interface{}) error {
 		if err != nil {
 			return err
 		}
-		opts.TxJson = []byte(txjsonstr)
+		opts.TxJSON = []byte(txjsonstr)
 	} else { // from file
-		opts.TxJson, err = ioutil.ReadFile(txpath)
+		opts.TxJSON, err = os.ReadFile(txpath)
 		if err != nil {
 			return err
 		}
@@ -70,11 +70,11 @@ func signApp(cmd *command.Command, args []string, iopts interface{}) error {
 		return err
 	}
 
-	signedJson, err := amino.MarshalJSON(signedTx)
+	signedJSON, err := amino.MarshalJSON(signedTx)
 	if err != nil {
 		return err
 	}
-	cmd.Println(string(signedJson))
+	cmd.Println(string(signedJSON))
 
 	return nil
 }
@@ -89,7 +89,7 @@ func SignHandler(opts SignOptions) (*std.Tx, error) {
 	if opts.Sequence == nil {
 		return nil, errors.New("invalid sequence")
 	}
-	if opts.TxJson == nil {
+	if opts.TxJSON == nil {
 		return nil, errors.New("invalid tx content")
 	}
 
@@ -98,7 +98,7 @@ func SignHandler(opts SignOptions) (*std.Tx, error) {
 		return nil, err
 	}
 
-	err = amino.UnmarshalJSON(opts.TxJson, &tx)
+	err = amino.UnmarshalJSON(opts.TxJSON, &tx)
 	if err != nil {
 		return nil, err
 	}

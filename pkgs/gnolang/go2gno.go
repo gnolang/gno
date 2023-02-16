@@ -35,7 +35,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/ioutil"
+	"os"
 	"reflect"
 	"strconv"
 
@@ -60,7 +60,7 @@ func MustParseFile(filename string, body string) *FileNode {
 }
 
 func ReadFile(path string) (*FileNode, error) {
-	bz, err := ioutil.ReadFile(path)
+	bz, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}

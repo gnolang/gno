@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -24,11 +24,13 @@ type addrData struct {
 }
 
 func initFundraiserTestVectors(t *testing.T) []addrData {
+	t.Helper()
+
 	// NOTE: atom fundraiser address
 	// var hdPath string = "m/44'/118'/0'/0/0"
 	var hdToAddrTable []addrData
 
-	b, err := ioutil.ReadFile("test.json")
+	b, err := os.ReadFile("test.json")
 	if err != nil {
 		t.Fatalf("could not read fundraiser test vector file (test.json): %s", err)
 	}
@@ -76,6 +78,5 @@ func TestFundraiserCompatibility(t *testing.T) {
 		addr := pub.Address()
 		t.Logf("ADDR  \t%X %X\n", addrB, addr)
 		require.Equal(t, addr, crypto.AddressFromBytes(addrB), fmt.Sprintf("Expected addresses to match %d", i))
-
 	}
 }

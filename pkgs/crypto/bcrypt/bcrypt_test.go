@@ -6,6 +6,7 @@ package bcrypt
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"testing"
 )
@@ -24,7 +25,7 @@ func TestBcryptingIsEasy(t *testing.T) {
 
 	notPass := "notthepass"
 	err = CompareHashAndPassword(hp, []byte(notPass))
-	if err != ErrMismatchedHashAndPassword {
+	if !errors.Is(err, ErrMismatchedHashAndPassword) {
 		t.Errorf("%v and %s should be mismatched", hp, notPass)
 	}
 }
@@ -95,7 +96,7 @@ func TestInvalidHashErrors(t *testing.T) {
 		if err == nil {
 			t.Errorf("%s: Should have returned an error", name)
 		}
-		if err != nil && err != expected {
+		if err != nil && !errors.Is(err, expected) {
 			t.Errorf("%s gave err %v but should have given %v", name, err, expected)
 		}
 	}
@@ -178,7 +179,7 @@ func TestCostValidationInHash(t *testing.T) {
 	if err == nil {
 		t.Fatalf("newFromPassword: should return a cost error")
 	}
-	if err != InvalidCostError(32) {
+	if !errors.Is(err, InvalidCostError(32)) {
 		t.Errorf("newFromPassword: should return cost error, got %#v", err)
 	}
 }

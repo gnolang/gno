@@ -3,7 +3,7 @@ package p2p
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/crypto"
@@ -11,7 +11,7 @@ import (
 	osm "github.com/gnolang/gno/pkgs/os"
 )
 
-//------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 // Persistent peer ID
 // TODO: encrypt on disk
 
@@ -39,14 +39,14 @@ func LoadOrGenNodeKey(filePath string) (*NodeKey, error) {
 }
 
 func LoadNodeKey(filePath string) (*NodeKey, error) {
-	jsonBytes, err := ioutil.ReadFile(filePath)
+	jsonBytes, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
 	}
 	nodeKey := new(NodeKey)
 	err = amino.UnmarshalJSON(jsonBytes, nodeKey)
 	if err != nil {
-		return nil, fmt.Errorf("Error reading NodeKey from %v: %v", filePath, err)
+		return nil, fmt.Errorf("Error reading NodeKey from %v: %w", filePath, err)
 	}
 	return nodeKey, nil
 }
@@ -61,14 +61,14 @@ func genNodeKey(filePath string) (*NodeKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = ioutil.WriteFile(filePath, jsonBytes, 0o600)
+	err = os.WriteFile(filePath, jsonBytes, 0o600)
 	if err != nil {
 		return nil, err
 	}
 	return nodeKey, nil
 }
 
-//------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 
 // MakePoWTarget returns the big-endian encoding of 2^(targetBits - difficulty) - 1.
 // It can be used as a Proof of Work target.

@@ -254,7 +254,6 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 				w.Write([]byte("Unauthorized"))
 				return
 			}
-
 		}
 
 		passedAddr := r.Form["toaddr"]
@@ -287,7 +286,12 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 	// listen to port
 	fmt.Println("Starting server at port 5050")
-	http.ListenAndServe(":5050", nil)
+
+	server := &http.Server{
+		Addr:              ":5050",
+		ReadHeaderTimeout: 60 * time.Second,
+	}
+	server.ListenAndServe()
 
 	return nil
 }

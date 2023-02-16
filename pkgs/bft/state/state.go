@@ -3,7 +3,7 @@ package state
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/gnolang/gno/pkgs/amino"
@@ -20,7 +20,7 @@ var (
 	stateKey = []byte("stateKey")
 )
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 // State is a short description of the latest committed block of the Tendermint consensus.
 // It keeps all information necessary to validate new blocks,
@@ -111,7 +111,7 @@ func (state State) IsEmpty() bool {
 	return state.Validators == nil // XXX can't compare to Empty
 }
 
-//------------------------------------------------------------------------
+// ------------------------------------------------------------------------
 // Create a block from the latest state
 
 // MakeBlock builds a block from the current state with the given txs and commit.
@@ -166,7 +166,7 @@ func MedianTime(commit *types.Commit, validators *types.ValidatorSet) time.Time 
 	return tmtime.WeightedMedian(weightedTimes, totalVotingPower)
 }
 
-//------------------------------------------------------------------------
+// ------------------------------------------------------------------------
 // Genesis
 
 // MakeGenesisStateFromFile reads and unmarshals state from the given
@@ -184,13 +184,13 @@ func MakeGenesisStateFromFile(genDocFile string) (State, error) {
 // MakeGenesisDocFromFile reads and unmarshals genesis doc from the given file.
 // XXX duplicated in bft/types/genesis.go, remove this.
 func MakeGenesisDocFromFile(genDocFile string) (*types.GenesisDoc, error) {
-	genDocJSON, err := ioutil.ReadFile(genDocFile)
+	genDocJSON, err := os.ReadFile(genDocFile)
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't read GenesisDoc file: %v", err)
+		return nil, fmt.Errorf("couldn't read GenesisDoc file: %w", err)
 	}
 	genDoc, err := types.GenesisDocFromJSON(genDocJSON)
 	if err != nil {
-		return nil, fmt.Errorf("Error reading GenesisDoc: %v", err)
+		return nil, fmt.Errorf("error reading GenesisDoc: %w", err)
 	}
 	return genDoc, nil
 }
@@ -199,7 +199,7 @@ func MakeGenesisDocFromFile(genDocFile string) (*types.GenesisDoc, error) {
 func MakeGenesisState(genDoc *types.GenesisDoc) (State, error) {
 	err := genDoc.ValidateAndComplete()
 	if err != nil {
-		return State{}, fmt.Errorf("Error in genesis file: %v", err)
+		return State{}, fmt.Errorf("error in genesis file: %w", err)
 	}
 
 	var validatorSet, nextValidatorSet *types.ValidatorSet

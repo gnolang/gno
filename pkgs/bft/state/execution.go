@@ -96,12 +96,12 @@ func (blockExec *BlockExecutor) ValidateBlock(state State, block *types.Block) e
 // It takes a blockID to avoid recomputing the parts hash.
 func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, block *types.Block) (State, error) {
 	if err := blockExec.ValidateBlock(state, block); err != nil {
-		return state, ErrInvalidBlock(err)
+		return state, InvalidBlockError(err)
 	}
 
 	abciResponses, err := execBlockOnProxyApp(blockExec.logger, blockExec.proxyApp, block, blockExec.db)
 	if err != nil {
-		return state, ErrProxyAppConn(err)
+		return state, ProxyAppConnError(err)
 	}
 
 	fail.Fail() // XXX
@@ -115,7 +115,7 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 	abciValUpdates := abciResponses.EndBlock.ValidatorUpdates
 	err = validateValidatorUpdates(abciValUpdates, *state.ConsensusParams.Validator)
 	if err != nil {
-		return state, fmt.Errorf("Error in validator updates: %v", err)
+		return state, fmt.Errorf("Error in validator updates: %w", err)
 	}
 	if len(abciValUpdates) > 0 {
 		blockExec.logger.Info("Updates to validators", "updates", abciValUpdates)
@@ -124,13 +124,13 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 	// Update the state with the block and responses.
 	state, err = updateState(state, blockID, &block.Header, abciResponses)
 	if err != nil {
-		return state, fmt.Errorf("Commit failed for application: %v", err)
+		return state, fmt.Errorf("Commit failed for application: %w", err)
 	}
 
 	// Lock mempool, commit app state, update mempoool.
 	appHash, err := blockExec.Commit(state, block, abciResponses.DeliverTxs)
 	if err != nil {
-		return state, fmt.Errorf("Commit failed for application: %v", err)
+		return state, fmt.Errorf("Commit failed for application: %w", err)
 	}
 
 	fail.Fail() // XXX
@@ -317,7 +317,7 @@ func validateValidatorUpdates(abciUpdates []abci.ValidatorUpdate,
 ) error {
 	for _, valUpdate := range abciUpdates {
 		if valUpdate.Power < 0 {
-			return fmt.Errorf("Voting power can't be negative %v", valUpdate)
+			return fmt.Errorf("voting power can't be negative %v", valUpdate)
 		} else if valUpdate.Power == 0 {
 			// continue, since this is deleting the validator, and thus there is no
 			// pubkey to check
@@ -327,7 +327,7 @@ func validateValidatorUpdates(abciUpdates []abci.ValidatorUpdate,
 		// Check if validator's pubkey matches an ABCI type in the consensus params
 		pubkeyTypeURL := amino.GetTypeURL(valUpdate.PubKey)
 		if !params.IsValidPubKeyTypeURL(pubkeyTypeURL) {
-			return fmt.Errorf("Validator %v is using pubkey %s, which is unsupported for consensus",
+			return fmt.Errorf("validator %v is using pubkey %s, which is unsupported for consensus",
 				valUpdate, pubkeyTypeURL)
 		}
 	}
@@ -350,7 +350,7 @@ func updateState(
 	if u := abciResponses.EndBlock.ValidatorUpdates; len(u) > 0 {
 		err := nValSet.UpdateWithABCIValidatorUpdates(u)
 		if err != nil {
-			return state, fmt.Errorf("Error changing validator set: %v", err)
+			return state, fmt.Errorf("Error changing validator set: %w", err)
 		}
 		// Change results from this height but only applies to the next next height.
 		lastHeightValsChanged = header.Height + 1 + 1
@@ -367,7 +367,7 @@ func updateState(
 		nextParams = state.ConsensusParams.Update(*abciResponses.EndBlock.ConsensusParams)
 		err := types.ValidateConsensusParams(nextParams)
 		if err != nil {
-			return state, fmt.Errorf("Error updating consensus params: %v", err)
+			return state, fmt.Errorf("Error updating consensus params: %w", err)
 		}
 		// Change results from this height but only applies to the next height.
 		lastHeightParamsChanged = header.Height + 1

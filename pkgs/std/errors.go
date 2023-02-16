@@ -7,7 +7,7 @@ import (
 // for convenience:
 type abciError struct{}
 
-func (_ abciError) AssertABCIError() {}
+func (abciError) AssertABCIError() {}
 
 // declare all std errors.
 // NOTE: these are meant to be used in conjunction with pkgs/errors.
