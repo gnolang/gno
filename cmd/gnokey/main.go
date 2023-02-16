@@ -40,6 +40,7 @@ func main() {
 	cmd.AddSubCommands(
 		// TODO add
 		newAddCmd(cfg),
+		newDeleteCmd(cfg),
 	)
 
 	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
@@ -132,28 +133,6 @@ var makeTxApps client.AppList = []client.AppItem{
 		"send", "send coins",
 		defaultMakeSendTxOptions,
 	},
-}
-
-func makeTxApp(cmd *command.Command, args []string, iopts interface{}) error {
-	// show help message.
-	if len(args) == 0 || args[0] == "help" || args[0] == "--help" {
-		cmd.Println("available subcommands:")
-		for _, appItem := range makeTxApps {
-			cmd.Printf("  %s - %s\n", appItem.Name, appItem.Desc)
-		}
-		return nil
-	}
-
-	// switch on first argument.
-	for _, appItem := range makeTxApps {
-		if appItem.Name == args[0] {
-			err := cmd.Run(appItem.App, args[1:], appItem.Defaults)
-			return err // done
-		}
-	}
-
-	// unknown app subcommand!
-	return errors.New("unknown subcommand " + args[0])
 }
 
 type SignBroadcastOptions struct {
