@@ -17,6 +17,8 @@ const (
 )
 
 func Test_execDelete(t *testing.T) {
+	t.Parallel()
+
 	// make new test dir
 	kbHome, kbCleanUp := testutils.NewTestCaseDir(t)
 	defer kbCleanUp()

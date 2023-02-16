@@ -41,6 +41,7 @@ func main() {
 		// TODO add
 		newAddCmd(cfg),
 		newDeleteCmd(cfg),
+		newGenerateCmd(cfg),
 	)
 
 	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {

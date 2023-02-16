@@ -10,7 +10,6 @@ type (
 )
 
 var mainApps AppList = []AppItem{
-	{generateApp, "generate", "generate a new private key", DefaultGenerateOptions},
 	{exportApp, "export", "export encrypted private key armor", DefaultExportOptions},
 	{importApp, "import", "import encrypted private key armor", DefaultImportOptions},
 	{listApp, "list", "list all known keys", DefaultListOptions},
