@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        goversion: ["1.18.x", "1.19.x"]
+        goversion: ["1.19.x", "1.20.x"]
         args:
           - test.go1
           - test.go2
