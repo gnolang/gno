@@ -10,7 +10,6 @@ type (
 )
 
 var mainApps AppList = []AppItem{
-	{listApp, "list", "list all known keys", DefaultListOptions},
 	{signApp, "sign", "sign a document", DefaultSignOptions},
 	{verifyApp, "verify", "verify a document signature", DefaultVerifyOptions},
 	{broadcastApp, "broadcast", "broadcast a signed document", DefaultBroadcastOptions},

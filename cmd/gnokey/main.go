@@ -44,6 +44,7 @@ func main() {
 		newGenerateCmd(cfg),
 		newExportCmd(cfg),
 		newImportCmd(cfg),
+		newListCmd(cfg),
 	)
 
 	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {

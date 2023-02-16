@@ -1,18 +1,15 @@
-package client
+package main
 
 import (
 	"testing"
 
-	"github.com/gnolang/gno/pkgs/command"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
+	"github.com/gnolang/gno/pkgs/crypto/keys/client"
 	"github.com/gnolang/gno/pkgs/testutils"
-	"github.com/jaekwon/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
-func Test_listApp(t *testing.T) {
-	cmd := command.NewMockCommand()
-	assert.NotNil(t, cmd)
-
+func Test_execList(t *testing.T) {
 	// Prepare some keybases
 	kbHome1, cleanUp1 := testutils.NewTestCaseDir(t)
 	kbHome2, cleanUp2 := testutils.NewTestCaseDir(t)
@@ -39,13 +36,14 @@ func Test_listApp(t *testing.T) {
 	for _, tt := range testData {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set current home
-			opts := ListOptions{
-				BaseOptions: BaseOptions{
+			cfg := &baseCfg{
+				BaseOptions: client.BaseOptions{
 					Home: tt.kbDir,
 				},
 			}
+
 			args := tt.args
-			if err := listApp(cmd, args, opts); (err != nil) != tt.wantErr {
+			if err := execList(cfg, args); (err != nil) != tt.wantErr {
 				t.Errorf("listApp() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
