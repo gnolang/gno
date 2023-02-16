@@ -1,5 +1,5 @@
 package client
 
 const (
-	mnemonicEntropySize = 256
+	MnemonicEntropySize = 256
 )

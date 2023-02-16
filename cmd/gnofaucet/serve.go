@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -59,7 +61,7 @@ func newServeCmd() *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execServe(cfg, args)
+			return execServe(cfg, args, bufio.NewReader(os.Stdin))
 		},
 	)
 }
@@ -152,7 +154,7 @@ func (c *config) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execServe(cfg *config, args []string) error {
+func execServe(cfg *config, args []string, input *bufio.Reader) error {
 	if len(args) != 1 {
 		return errors.New("invalid args")
 	}
@@ -213,9 +215,9 @@ func execServe(cfg *config, args []string) error {
 	const dummy = "test"
 	var pass string
 	if cfg.Quiet {
-		pass, err = commands.GetPassword("", cfg.InsecurePasswordStdin)
+		pass, err = commands.GetPassword("", cfg.InsecurePasswordStdin, input)
 	} else {
-		pass, err = commands.GetPassword("Enter password", cfg.InsecurePasswordStdin)
+		pass, err = commands.GetPassword("Enter password", cfg.InsecurePasswordStdin, input)
 	}
 
 	if err != nil {

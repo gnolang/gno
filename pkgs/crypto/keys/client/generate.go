@@ -51,7 +51,7 @@ func generateApp(cmd *command.Command, args []string, iopts interface{}) error {
 	} else {
 		// read entropy seed straight from crypto.Rand
 		var err error
-		entropySeed, err = bip39.NewEntropy(mnemonicEntropySize)
+		entropySeed, err = bip39.NewEntropy(MnemonicEntropySize)
 		if err != nil {
 			return err
 		}

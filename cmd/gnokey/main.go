@@ -2,11 +2,14 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"os"
 
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/command"
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/crypto"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
 	"github.com/gnolang/gno/pkgs/crypto/keys/client"
@@ -17,18 +20,100 @@ import (
 	"github.com/gnolang/gno/pkgs/std"
 )
 
+type baseCfg struct {
+	client.BaseOptions   // home,...
+	SignBroadcastOptions // gas-wanted, gas-fee, memo, ...
+}
+
 func main() {
-	cmd := command.NewStdCommand()
-	exec := os.Args[0]
-	args := os.Args[1:]
-	// extend default crypto/keys/client with maketx.
-	client.AddApp(makeTxApp, "maketx", "compose a tx document to sign", nil)
-	err := client.RunMain(cmd, exec, args)
-	if err != nil {
-		cmd.ErrPrintfln("%s", err.Error())
-		cmd.ErrPrintfln("%#v", err)
-		return // exit
+	cfg := &baseCfg{}
+
+	cmd := commands.NewCommand(
+		commands.Metadata{
+			ShortUsage: "<subcommand> [flags] [<arg>...]",
+			LongHelp:   "Manages private keys for the node",
+		},
+		cfg,
+		commands.HelpExec,
+	)
+
+	cmd.AddSubCommands(
+		// TODO add
+		newAddCmd(cfg),
+	)
+
+	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "%+v", err)
+
+		os.Exit(1)
 	}
+}
+
+func (c *baseCfg) RegisterFlags(fs *flag.FlagSet) {
+	// Base options
+	fs.StringVar(
+		&c.Home,
+		"home",
+		client.DefaultBaseOptions.Home,
+		"home directory",
+	)
+
+	fs.StringVar(
+		&c.Remote,
+		"remote",
+		client.DefaultBaseOptions.Remote,
+		"remote node URL",
+	)
+
+	fs.BoolVar(
+		&c.Quiet,
+		"quiet",
+		client.DefaultBaseOptions.Quiet,
+		"suppress output during execution",
+	)
+
+	fs.BoolVar(
+		&c.InsecurePasswordStdin,
+		"insecure-password-stdin",
+		client.DefaultBaseOptions.Quiet,
+		"WARNING! take password from stdin",
+	)
+
+	// SignBroadcastOptions
+	fs.Int64Var(
+		&c.GasWanted,
+		"gas-wanted",
+		0,
+		"gas requested for tx",
+	)
+
+	fs.StringVar(
+		&c.GasFee,
+		"gas-fee",
+		"",
+		"gas payment fee",
+	)
+
+	fs.StringVar(
+		&c.Memo,
+		"memo",
+		"",
+		"any descriptive text",
+	)
+
+	fs.BoolVar(
+		&c.Broadcast,
+		"broadcast",
+		false,
+		"sign and broadcast",
+	)
+
+	fs.StringVar(
+		&c.ChainID,
+		"chainid",
+		"dev",
+		"chainid to sign for (only useful if --broadcast)",
+	)
 }
 
 var makeTxApps client.AppList = []client.AppItem{
@@ -72,23 +157,15 @@ func makeTxApp(cmd *command.Command, args []string, iopts interface{}) error {
 }
 
 type SignBroadcastOptions struct {
-	GasWanted int64  `flag:"gas-wanted" help:"gas requested for tx"`
-	GasFee    string `flag:"gas-fee" help:"gas payment fee"`
-	Memo      string `flag:"memo" help:"any descriptive text"`
+	GasWanted int64
+	GasFee    string
+	Memo      string
 
-	Broadcast bool   `flag:"broadcast" help:"sign and broadcast"`
-	ChainID   string `flag:"chainid" help:"chainid to sign for (only useful if --broadcast)"`
+	Broadcast bool
+	ChainID   string
 }
 
-var defaultSignBroadcastOptions = SignBroadcastOptions{
-	GasWanted: 0,
-	GasFee:    "",
-	Memo:      "",
-	Broadcast: false,
-	ChainID:   "dev",
-}
-
-//----------------------------------------
+// ----------------------------------------
 // makeAddPackageTx
 
 type makeAddPackageTxOptions struct {
@@ -100,11 +177,11 @@ type makeAddPackageTxOptions struct {
 }
 
 var defaultMakeAddPackageTxOptions = makeAddPackageTxOptions{
-	BaseOptions:          client.DefaultBaseOptions,
-	SignBroadcastOptions: defaultSignBroadcastOptions,
-	PkgPath:              "", // must override
-	PkgDir:               "", // must override
-	Deposit:              "",
+	BaseOptions: client.DefaultBaseOptions,
+	// SignBroadcastOptions: defaultSignBroadcastOptions,
+	PkgPath: "", // must override
+	PkgDir:  "", // must override
+	Deposit: "",
 }
 
 func makeAddPackageTxApp(cmd *command.Command, args []string, iopts interface{}) error {
@@ -178,7 +255,7 @@ func makeAddPackageTxApp(cmd *command.Command, args []string, iopts interface{})
 	return nil
 }
 
-//----------------------------------------
+// ----------------------------------------
 // makeCallTxApp
 
 type makeCallTxOptions struct {
@@ -191,12 +268,12 @@ type makeCallTxOptions struct {
 }
 
 var defaultMakeCallTxOptions = makeCallTxOptions{
-	BaseOptions:          client.DefaultBaseOptions,
-	SignBroadcastOptions: defaultSignBroadcastOptions,
-	PkgPath:              "", // must override
-	Func:                 "", // must override
-	Args:                 nil,
-	Send:                 "",
+	BaseOptions: client.DefaultBaseOptions,
+	// SignBroadcastOptions: defaultSignBroadcastOptions,
+	PkgPath: "", // must override
+	Func:    "", // must override
+	Args:    nil,
+	Send:    "",
 }
 
 func makeCallTxApp(cmd *command.Command, args []string, iopts interface{}) error {
@@ -348,7 +425,7 @@ func signAndBroadcast(cmd *command.Command, args []string, tx std.Tx, baseopts c
 	return nil
 }
 
-//----------------------------------------
+// ----------------------------------------
 // makeSendTxApp
 
 type makeSendTxOptions struct {
@@ -359,10 +436,10 @@ type makeSendTxOptions struct {
 }
 
 var defaultMakeSendTxOptions = makeSendTxOptions{
-	BaseOptions:          client.DefaultBaseOptions,
-	SignBroadcastOptions: defaultSignBroadcastOptions,
-	Send:                 "", // must override
-	To:                   "", // must override
+	BaseOptions: client.DefaultBaseOptions,
+	// SignBroadcastOptions: defaultSignBroadcastOptions,
+	Send: "", // must override
+	To:   "", // must override
 }
 
 func makeSendTxApp(cmd *command.Command, args []string, iopts interface{}) error {

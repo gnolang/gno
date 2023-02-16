@@ -11,7 +11,6 @@ type (
 )
 
 var mainApps AppList = []AppItem{
-	{addApp, "add", "add key to keybase", DefaultAddOptions},
 	{deleteApp, "delete", "delete key from keybase", DefaultDeleteOptions},
 	{generateApp, "generate", "generate a new private key", DefaultGenerateOptions},
 	{exportApp, "export", "export encrypted private key armor", DefaultExportOptions},
