@@ -21,7 +21,7 @@ func Test_execGenerateNormal(t *testing.T) {
 
 func Test_execGenerateUser(t *testing.T) {
 	t.Parallel()
-	
+
 	cfg := &generateCfg{
 		customEntropy: true,
 	}

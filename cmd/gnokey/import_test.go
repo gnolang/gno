@@ -1,11 +1,12 @@
-package client
+package main
 
 import (
+	"bufio"
 	"fmt"
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/pkgs/command"
+	"github.com/gnolang/gno/pkgs/crypto/keys/client"
 	"github.com/gnolang/gno/pkgs/testutils"
 	"github.com/stretchr/testify/assert"
 )
@@ -19,17 +20,19 @@ type testImportKeyOpts struct {
 // importKey runs the import private key command (from armor)
 func importKey(importOpts testImportKeyOpts) error {
 	var (
-		cmd  = command.NewMockCommand()
-		opts = ImportOptions{
-			BaseOptions: BaseOptions{
-				Home: importOpts.kbHome,
+		cfg = &importCfg{
+			rootCfg: &baseCfg{
+				BaseOptions: client.BaseOptions{
+					Home:                  importOpts.kbHome,
+					InsecurePasswordStdin: true,
+				},
 			},
-			KeyName:   importOpts.keyName,
-			ArmorPath: importOpts.armorPath,
+			keyName:   importOpts.keyName,
+			armorPath: importOpts.armorPath,
 		}
 	)
 
-	cmd.SetIn(
+	input := bufio.NewReader(
 		strings.NewReader(
 			fmt.Sprintf(
 				"%s\n%s\n%s\n",
@@ -40,7 +43,7 @@ func importKey(importOpts testImportKeyOpts) error {
 		),
 	)
 
-	return importApp(cmd, nil, opts)
+	return execImport(cfg, input)
 }
 
 // TestImport_ImportKey makes sure the key can be imported correctly

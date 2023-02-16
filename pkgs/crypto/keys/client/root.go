@@ -10,8 +10,6 @@ type (
 )
 
 var mainApps AppList = []AppItem{
-	{exportApp, "export", "export encrypted private key armor", DefaultExportOptions},
-	{importApp, "import", "import encrypted private key armor", DefaultImportOptions},
 	{listApp, "list", "list all known keys", DefaultListOptions},
 	{signApp, "sign", "sign a document", DefaultSignOptions},
 	{verifyApp, "verify", "verify a document signature", DefaultVerifyOptions},

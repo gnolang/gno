@@ -1,13 +1,14 @@
-package client
+package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/pkgs/command"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
+	"github.com/gnolang/gno/pkgs/crypto/keys/client"
 	"github.com/gnolang/gno/pkgs/testutils"
 	"github.com/stretchr/testify/assert"
 )
@@ -43,7 +44,7 @@ func addRandomKeyToKeybase(
 	encryptPassword string,
 ) (keys.Info, error) {
 	// Generate a random mnemonic
-	mnemonic, err := GenerateMnemonic(MnemonicEntropySize)
+	mnemonic, err := client.GenerateMnemonic(client.MnemonicEntropySize)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"unable to generate a mnemonic phrase, %w",
@@ -79,17 +80,19 @@ type testExportKeyOpts struct {
 // using the provided options
 func exportKey(exportOpts testExportKeyOpts) error {
 	var (
-		cmd  = command.NewMockCommand()
-		opts = ExportOptions{
-			BaseOptions: BaseOptions{
-				Home: exportOpts.kbHome,
+		cfg = &exportCfg{
+			rootCfg: &baseCfg{
+				BaseOptions: client.BaseOptions{
+					Home:                  exportOpts.kbHome,
+					InsecurePasswordStdin: true,
+				},
 			},
-			NameOrBech32: exportOpts.keyName,
-			OutputPath:   exportOpts.outputPath,
+			nameOrBech32: exportOpts.keyName,
+			outputPath:   exportOpts.outputPath,
 		}
 	)
 
-	cmd.SetIn(
+	input := bufio.NewReader(
 		strings.NewReader(
 			fmt.Sprintf(
 				"%s\n%s\n%s\n",
@@ -100,7 +103,7 @@ func exportKey(exportOpts testExportKeyOpts) error {
 		),
 	)
 
-	return exportApp(cmd, nil, opts)
+	return execExport(cfg, nil, input)
 }
 
 // TestExport_ExportKey makes sure the key can be exported correctly
