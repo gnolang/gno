@@ -1,20 +1,20 @@
-package client
+package main
 
 import (
+	"bufio"
 	"encoding/hex"
 	"fmt"
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/pkgs/command"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
+	"github.com/gnolang/gno/pkgs/crypto/keys/client"
 	"github.com/gnolang/gno/pkgs/testutils"
-	"github.com/jaekwon/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
-func Test_verifyAppBasic(t *testing.T) {
-	cmd := command.NewMockCommand()
-	assert.NotNil(t, cmd)
+func Test_execVerify(t *testing.T) {
+	t.Parallel()
 
 	// make new test dir
 	kbHome, kbCleanUp := testutils.NewTestCaseDir(t)
@@ -22,11 +22,14 @@ func Test_verifyAppBasic(t *testing.T) {
 	defer kbCleanUp()
 
 	// initialize test options
-	opts := VerifyOptions{
-		BaseOptions: BaseOptions{
-			Home: kbHome,
+	cfg := &verifyCfg{
+		rootCfg: &baseCfg{
+			BaseOptions: client.BaseOptions{
+				Home:                  kbHome,
+				InsecurePasswordStdin: true,
+			},
 		},
-		DocPath: "",
+		docPath: "",
 	}
 
 	fakeKeyName1 := "verifyApp_Key1"
@@ -35,7 +38,7 @@ func Test_verifyAppBasic(t *testing.T) {
 	testMsg := "some message"
 
 	// add test account to keybase.
-	kb, err := keys.NewKeyBaseFromDir(opts.Home)
+	kb, err := keys.NewKeyBaseFromDir(kbHome)
 	assert.NoError(t, err)
 	_, err = kb.CreateAccount(fakeKeyName1, testMnemonic, "", encPassword, 0, 0)
 	assert.NoError(t, err)
@@ -48,18 +51,20 @@ func Test_verifyAppBasic(t *testing.T) {
 	testSigHex := hex.EncodeToString(testSig)
 
 	// good signature passes test.
-	cmd.SetIn(strings.NewReader(fmt.Sprintf(
-		"%s\n", testMsg)))
 	args := []string{fakeKeyName1, testSigHex}
-	err = verifyApp(cmd, args, opts)
+	err = execVerify(cfg, args, bufio.NewReader(
+		strings.NewReader(
+			fmt.Sprintf("%s\n", testMsg)),
+	))
 	assert.NoError(t, err)
 
 	// mutated bad signature fails test.
 	testBadSig := testutils.MutateByteSlice(testSig)
 	testBadSigHex := hex.EncodeToString(testBadSig)
-	cmd.SetIn(strings.NewReader(fmt.Sprintf(
-		"%s\n", testMsg)))
 	args = []string{fakeKeyName1, testBadSigHex}
-	err = verifyApp(cmd, args, opts)
+	err = execVerify(cfg, args, bufio.NewReader(
+		strings.NewReader(
+			fmt.Sprintf("%s\n", testMsg)),
+	))
 	assert.Error(t, err)
 }

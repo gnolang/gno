@@ -10,7 +10,6 @@ type (
 )
 
 var mainApps AppList = []AppItem{
-	{verifyApp, "verify", "verify a document signature", DefaultVerifyOptions},
 	{broadcastApp, "broadcast", "broadcast a signed document", DefaultBroadcastOptions},
 	{queryApp, "query", "make an ABCI query", DefaultQueryOptions},
 }
