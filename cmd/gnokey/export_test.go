@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/cmd/common"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
-	"github.com/gnolang/gno/pkgs/crypto/keys/client"
 	"github.com/gnolang/gno/pkgs/testutils"
 	"github.com/stretchr/testify/assert"
 )
@@ -44,7 +44,7 @@ func addRandomKeyToKeybase(
 	encryptPassword string,
 ) (keys.Info, error) {
 	// Generate a random mnemonic
-	mnemonic, err := client.GenerateMnemonic(client.MnemonicEntropySize)
+	mnemonic, err := generateMnemonic(mnemonicEntropySize)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"unable to generate a mnemonic phrase, %w",
@@ -82,7 +82,7 @@ func exportKey(exportOpts testExportKeyOpts) error {
 	var (
 		cfg = &exportCfg{
 			rootCfg: &baseCfg{
-				BaseOptions: client.BaseOptions{
+				BaseOptions: common.BaseOptions{
 					Home:                  exportOpts.kbHome,
 					InsecurePasswordStdin: true,
 				},

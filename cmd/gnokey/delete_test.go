@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/cmd/common"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
-	"github.com/gnolang/gno/pkgs/crypto/keys/client"
 	"github.com/gnolang/gno/pkgs/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,7 +26,7 @@ func Test_execDelete(t *testing.T) {
 	// initialize test options
 	cfg := &deleteCfg{
 		rootCfg: &baseCfg{
-			BaseOptions: client.BaseOptions{
+			BaseOptions: common.BaseOptions{
 				Home:                  kbHome,
 				InsecurePasswordStdin: true,
 			},
@@ -74,7 +74,7 @@ func Test_execDelete(t *testing.T) {
 	// Set config yes = true
 	cfg = &deleteCfg{
 		rootCfg: &baseCfg{
-			BaseOptions: client.BaseOptions{
+			BaseOptions: common.BaseOptions{
 				Home:                  kbHome,
 				InsecurePasswordStdin: true,
 			},

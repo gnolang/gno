@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/pkgs/crypto/keys/client"
+	"github.com/gnolang/gno/cmd/common"
 	"github.com/gnolang/gno/pkgs/testutils"
 	"github.com/stretchr/testify/assert"
 )
@@ -22,7 +22,7 @@ func importKey(importOpts testImportKeyOpts) error {
 	var (
 		cfg = &importCfg{
 			rootCfg: &baseCfg{
-				BaseOptions: client.BaseOptions{
+				BaseOptions: common.BaseOptions{
 					Home:                  importOpts.kbHome,
 					InsecurePasswordStdin: true,
 				},

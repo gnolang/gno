@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/cmd/common"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
-	"github.com/gnolang/gno/pkgs/crypto/keys/client"
 	"github.com/gnolang/gno/pkgs/crypto/secp256k1"
 	"github.com/gnolang/gno/pkgs/testutils"
 	"github.com/stretchr/testify/assert"
@@ -23,7 +23,7 @@ func Test_execAddBasic(t *testing.T) {
 
 	cfg := &addCfg{
 		rootCfg: &baseCfg{
-			BaseOptions: client.BaseOptions{
+			BaseOptions: common.BaseOptions{
 				InsecurePasswordStdin: true,
 				Home:                  kbHome,
 			},
@@ -61,7 +61,7 @@ func Test_execAddPublicKey(t *testing.T) {
 
 	cfg := &addCfg{
 		rootCfg: &baseCfg{
-			BaseOptions: client.BaseOptions{
+			BaseOptions: common.BaseOptions{
 				Home: kbHome,
 			},
 		},
@@ -82,7 +82,7 @@ func Test_execAddRecover(t *testing.T) {
 
 	cfg := &addCfg{
 		rootCfg: &baseCfg{
-			BaseOptions: client.BaseOptions{
+			BaseOptions: common.BaseOptions{
 				InsecurePasswordStdin: true,
 				Home:                  kbHome,
 			},

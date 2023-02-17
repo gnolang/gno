@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/gnolang/gno/cmd/common"
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/command"
 	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/crypto"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
-	"github.com/gnolang/gno/pkgs/crypto/keys/client"
 	"github.com/gnolang/gno/pkgs/errors"
 	gno "github.com/gnolang/gno/pkgs/gnolang"
 	"github.com/gnolang/gno/pkgs/sdk/bank"
@@ -20,8 +20,12 @@ import (
 	"github.com/gnolang/gno/pkgs/std"
 )
 
+const (
+	mnemonicEntropySize = 256
+)
+
 type baseCfg struct {
-	client.BaseOptions // home,...
+	common.BaseOptions
 }
 
 func main() {
@@ -47,6 +51,7 @@ func main() {
 		newSignCmd(cfg),
 		newVerifyCmd(cfg),
 		newQueryCmd(cfg),
+		newBroadcastCmd(cfg),
 	)
 
 	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
@@ -61,49 +66,49 @@ func (c *baseCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.Home,
 		"home",
-		client.DefaultBaseOptions.Home,
+		common.DefaultBaseOptions.Home,
 		"home directory",
 	)
 
 	fs.StringVar(
 		&c.Remote,
 		"remote",
-		client.DefaultBaseOptions.Remote,
+		common.DefaultBaseOptions.Remote,
 		"remote node URL",
 	)
 
 	fs.BoolVar(
 		&c.Quiet,
 		"quiet",
-		client.DefaultBaseOptions.Quiet,
+		common.DefaultBaseOptions.Quiet,
 		"suppress output during execution",
 	)
 
 	fs.BoolVar(
 		&c.InsecurePasswordStdin,
 		"insecure-password-stdin",
-		client.DefaultBaseOptions.Quiet,
+		common.DefaultBaseOptions.Quiet,
 		"WARNING! take password from stdin",
 	)
 }
 
-var makeTxApps client.AppList = []client.AppItem{
-	{
-		makeAddPackageTxApp,
-		"addpkg", "upload new package",
-		defaultMakeAddPackageTxOptions,
-	},
-	{
-		makeCallTxApp,
-		"call", "call public function",
-		defaultMakeCallTxOptions,
-	},
-	{
-		makeSendTxApp,
-		"send", "send coins",
-		defaultMakeSendTxOptions,
-	},
-}
+// var makeTxApps client.AppList = []client.AppItem{
+// 	{
+// 		makeAddPackageTxApp,
+// 		"addpkg", "upload new package",
+// 		defaultMakeAddPackageTxOptions,
+// 	},
+// 	{
+// 		makeCallTxApp,
+// 		"call", "call public function",
+// 		defaultMakeCallTxOptions,
+// 	},
+// 	{
+// 		makeSendTxApp,
+// 		"send", "send coins",
+// 		defaultMakeSendTxOptions,
+// 	},
+// }
 
 type SignBroadcastOptions struct {
 	GasWanted int64
@@ -118,7 +123,7 @@ type SignBroadcastOptions struct {
 // makeAddPackageTx
 
 type makeAddPackageTxOptions struct {
-	client.BaseOptions          // home,...
+	common.BaseOptions          // home,...
 	SignBroadcastOptions        // gas-wanted, gas-fee, memo, ...
 	PkgPath              string `flag:"pkgpath" help:"package path (required)"`
 	PkgDir               string `flag:"pkgdir" help:"path to package files (required)"`
@@ -126,7 +131,7 @@ type makeAddPackageTxOptions struct {
 }
 
 var defaultMakeAddPackageTxOptions = makeAddPackageTxOptions{
-	BaseOptions: client.DefaultBaseOptions,
+	BaseOptions: common.DefaultBaseOptions,
 	// SignBroadcastOptions: defaultSignBroadcastOptions,
 	PkgPath: "", // must override
 	PkgDir:  "", // must override
@@ -208,7 +213,7 @@ func makeAddPackageTxApp(cmd *command.Command, args []string, iopts interface{})
 // makeCallTxApp
 
 type makeCallTxOptions struct {
-	client.BaseOptions            // home,...
+	common.BaseOptions            // home,...
 	SignBroadcastOptions          // gas-wanted, gas-fee, memo, ...
 	Send                 string   `flag:"send" help:"send coins"`
 	PkgPath              string   `flag:"pkgpath" help:"package path (required)"`
@@ -217,7 +222,7 @@ type makeCallTxOptions struct {
 }
 
 var defaultMakeCallTxOptions = makeCallTxOptions{
-	BaseOptions: client.DefaultBaseOptions,
+	BaseOptions: common.DefaultBaseOptions,
 	// SignBroadcastOptions: defaultSignBroadcastOptions,
 	PkgPath: "", // must override
 	Func:    "", // must override
@@ -378,14 +383,14 @@ func makeCallTxApp(cmd *command.Command, args []string, iopts interface{}) error
 // makeSendTxApp
 
 type makeSendTxOptions struct {
-	client.BaseOptions          // home,...
+	common.BaseOptions          // home,...
 	SignBroadcastOptions        // gas-wanted, gas-fee, memo, ...
 	Send                 string `flag:"send" help:"send coins"`
 	To                   string `flag:"to" help:"destination address"`
 }
 
 var defaultMakeSendTxOptions = makeSendTxOptions{
-	BaseOptions: client.DefaultBaseOptions,
+	BaseOptions: common.DefaultBaseOptions,
 	// SignBroadcastOptions: defaultSignBroadcastOptions,
 	Send: "", // must override
 	To:   "", // must override

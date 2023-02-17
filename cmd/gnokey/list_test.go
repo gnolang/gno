@@ -3,8 +3,8 @@ package main
 import (
 	"testing"
 
+	"github.com/gnolang/gno/cmd/common"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
-	"github.com/gnolang/gno/pkgs/crypto/keys/client"
 	"github.com/gnolang/gno/pkgs/testutils"
 	"github.com/stretchr/testify/assert"
 )
@@ -37,7 +37,7 @@ func Test_execList(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set current home
 			cfg := &baseCfg{
-				BaseOptions: client.BaseOptions{
+				BaseOptions: common.BaseOptions{
 					Home: tt.kbDir,
 				},
 			}

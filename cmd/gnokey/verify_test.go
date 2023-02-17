@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/cmd/common"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
-	"github.com/gnolang/gno/pkgs/crypto/keys/client"
 	"github.com/gnolang/gno/pkgs/testutils"
 	"github.com/stretchr/testify/assert"
 )
@@ -24,7 +24,7 @@ func Test_execVerify(t *testing.T) {
 	// initialize test options
 	cfg := &verifyCfg{
 		rootCfg: &baseCfg{
-			BaseOptions: client.BaseOptions{
+			BaseOptions: common.BaseOptions{
 				Home:                  kbHome,
 				InsecurePasswordStdin: true,
 			},

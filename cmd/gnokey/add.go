@@ -13,7 +13,6 @@ import (
 	"github.com/gnolang/gno/pkgs/crypto"
 	"github.com/gnolang/gno/pkgs/crypto/bip39"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
-	"github.com/gnolang/gno/pkgs/crypto/keys/client"
 	"github.com/gnolang/gno/pkgs/crypto/multisig"
 )
 
@@ -264,7 +263,7 @@ func execAdd(cfg *addCfg, args []string, input *bufio.Reader) error {
 	}
 
 	if len(mnemonic) == 0 {
-		mnemonic, err = client.GenerateMnemonic(client.MnemonicEntropySize)
+		mnemonic, err = generateMnemonic(mnemonicEntropySize)
 		if err != nil {
 			return err
 		}

@@ -10,7 +10,6 @@ import (
 
 	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/crypto/bip39"
-	"github.com/gnolang/gno/pkgs/crypto/keys/client"
 )
 
 type generateCfg struct {
@@ -84,7 +83,7 @@ func execGenerate(cfg *generateCfg, args []string, input *bufio.Reader) error {
 	} else {
 		// read entropy seed straight from crypto.Rand
 		var err error
-		entropySeed, err = bip39.NewEntropy(client.MnemonicEntropySize)
+		entropySeed, err = bip39.NewEntropy(mnemonicEntropySize)
 		if err != nil {
 			return err
 		}

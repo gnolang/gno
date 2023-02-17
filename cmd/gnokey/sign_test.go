@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/cmd/common"
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
-	"github.com/gnolang/gno/pkgs/crypto/keys/client"
 	sdkutils "github.com/gnolang/gno/pkgs/sdk/testutils"
 	"github.com/gnolang/gno/pkgs/std"
 	"github.com/gnolang/gno/pkgs/testutils"
@@ -26,7 +26,7 @@ func Test_execSign(t *testing.T) {
 	// initialize test options
 	cfg := &signCfg{
 		rootCfg: &baseCfg{
-			BaseOptions: client.BaseOptions{
+			BaseOptions: common.BaseOptions{
 				Home:                  kbHome,
 				InsecurePasswordStdin: true,
 			},
