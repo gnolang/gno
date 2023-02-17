@@ -11,10 +11,8 @@ import (
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/command"
 	"github.com/gnolang/gno/pkgs/commands"
-	"github.com/gnolang/gno/pkgs/crypto"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
 	"github.com/gnolang/gno/pkgs/errors"
-	"github.com/gnolang/gno/pkgs/sdk/bank"
 	"github.com/gnolang/gno/pkgs/sdk/vm"
 	"github.com/gnolang/gno/pkgs/std"
 )
@@ -90,24 +88,6 @@ func (c *baseCfg) RegisterFlags(fs *flag.FlagSet) {
 		"WARNING! take password from stdin",
 	)
 }
-
-// var makeTxApps client.AppList = []client.AppItem{
-// 	{
-// 		makeAddPackageTxApp,
-// 		"addpkg", "upload new package",
-// 		defaultMakeAddPackageTxOptions,
-// 	},
-// 	{
-// 		makeCallTxApp,
-// 		"call", "call public function",
-// 		defaultMakeCallTxOptions,
-// 	},
-// 	{
-// 		makeSendTxApp,
-// 		"send", "send coins",
-// 		defaultMakeSendTxOptions,
-// 	},
-// }
 
 type SignBroadcastOptions struct {
 	GasWanted int64
@@ -194,98 +174,6 @@ func makeCallTxApp(cmd *command.Command, args []string, iopts interface{}) error
 		PkgPath: opts.PkgPath,
 		Func:    fnc,
 		Args:    opts.Args,
-	}
-	tx := std.Tx{
-		Msgs:       []std.Msg{msg},
-		Fee:        std.NewFee(gaswanted, gasfee),
-		Signatures: nil,
-		Memo:       opts.Memo,
-	}
-
-	if opts.Broadcast {
-		// err := signAndBroadcast(cmd, args, tx, opts.BaseOptions, opts.SignBroadcastOptions)
-		// if err != nil {
-		// 	return err
-		// }
-	} else {
-		fmt.Println(string(amino.MustMarshalJSON(tx)))
-	}
-	return nil
-}
-
-// ----------------------------------------
-// makeSendTxApp
-
-type makeSendTxOptions struct {
-	common.BaseOptions          // home,...
-	SignBroadcastOptions        // gas-wanted, gas-fee, memo, ...
-	Send                 string `flag:"send" help:"send coins"`
-	To                   string `flag:"to" help:"destination address"`
-}
-
-var defaultMakeSendTxOptions = makeSendTxOptions{
-	BaseOptions: common.DefaultBaseOptions,
-	// SignBroadcastOptions: defaultSignBroadcastOptions,
-	Send: "", // must override
-	To:   "", // must override
-}
-
-func makeSendTxApp(cmd *command.Command, args []string, iopts interface{}) error {
-	opts := iopts.(makeSendTxOptions)
-	if len(args) != 1 {
-		cmd.ErrPrintfln("Usage: send <keyname or address>")
-		return errors.New("invalid args")
-	}
-	if opts.GasWanted == 0 {
-		return errors.New("gas-wanted not specified")
-	}
-	if opts.GasFee == "" {
-		return errors.New("gas-fee not specified")
-	}
-	if opts.Send == "" {
-		return errors.New("send (amount) must be specified")
-	}
-	if opts.To == "" {
-		return errors.New("to (destination address) must be specified")
-	}
-
-	// read account pubkey.
-	nameOrBech32 := args[0]
-	kb, err := keys.NewKeyBaseFromDir(opts.Home)
-	if err != nil {
-		return err
-	}
-	info, err := kb.GetByNameOrAddress(nameOrBech32)
-	if err != nil {
-		return err
-	}
-	fromAddr := info.GetAddress()
-	// info.GetPubKey()
-
-	// Parse to address.
-	toAddr, err := crypto.AddressFromBech32(opts.To)
-	if err != nil {
-		return err
-	}
-
-	// Parse send amount.
-	send, err := std.ParseCoins(opts.Send)
-	if err != nil {
-		return errors.Wrap(err, "parsing send coins")
-	}
-
-	// parse gas wanted & fee.
-	gaswanted := opts.GasWanted
-	gasfee, err := std.ParseCoin(opts.GasFee)
-	if err != nil {
-		return errors.Wrap(err, "parsing gas fee coin")
-	}
-
-	// construct msg & tx and marshal.
-	msg := bank.MsgSend{
-		FromAddress: fromAddr,
-		ToAddress:   toAddr,
-		Amount:      send,
 	}
 	tx := std.Tx{
 		Msgs:       []std.Msg{msg},
