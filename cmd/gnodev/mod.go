@@ -59,6 +59,8 @@ func runModDownload(opts *modFlags) error {
 	if err != nil {
 		return fmt.Errorf("parse: %w", err)
 	}
+	// sanitize gno.mod
+	gnoMod.Sanitize()
 
 	// validate gno.mod
 	if err := gnoMod.Validate(); err != nil {
