@@ -33,9 +33,9 @@ func newMakeTxCmd(rootCfg *baseCfg) *commands.Command {
 	)
 
 	cmd.AddSubCommands(
-		// TODO add
 		newAddPkgCmd(cfg),
 		newSendCmd(cfg),
+		newCallCmd(cfg),
 	)
 
 	return cmd

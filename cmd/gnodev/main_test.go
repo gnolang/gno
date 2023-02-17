@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/pkgs/command"
 	"github.com/stretchr/testify/require"
 )
 
@@ -78,8 +77,8 @@ func TestMain_Run(t *testing.T) {
 		t.Run(testName, func(t *testing.T) {
 			mockOut := bytes.NewBufferString("")
 			mockErr := bytes.NewBufferString("")
-			stdout := command.WriteNopCloser(mockOut)
-			stderr := command.WriteNopCloser(mockErr)
+			// stdout := command.WriteNopCloser(mockOut)
+			// stderr := command.WriteNopCloser(mockErr)
 
 			checkOutputs := func(t *testing.T) {
 				t.Helper()
@@ -98,8 +97,8 @@ func TestMain_Run(t *testing.T) {
 			}
 
 			execCmd := exec.Command("gnodev", test.args...)
-			execCmd.Stdout = stdout
-			execCmd.Stderr = stderr
+			// execCmd.Stdout = stdout
+			// execCmd.Stderr = stderr
 
 			err := execCmd.Run()
 

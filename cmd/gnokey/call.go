@@ -9,39 +9,40 @@ import (
 
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/commands"
-	"github.com/gnolang/gno/pkgs/crypto"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
 	"github.com/gnolang/gno/pkgs/errors"
-	"github.com/gnolang/gno/pkgs/sdk/bank"
+	"github.com/gnolang/gno/pkgs/sdk/vm"
 	"github.com/gnolang/gno/pkgs/std"
 )
 
-type sendCfg struct {
+type callCfg struct {
 	rootCfg *makeTxCfg
 
-	send string
-	to   string
+	send     string
+	pkgPath  string
+	funcName string
+	args     commands.StringArr
 }
 
-func newSendCmd(rootCfg *makeTxCfg) *commands.Command {
-	cfg := &sendCfg{
+func newCallCmd(rootCfg *makeTxCfg) *commands.Command {
+	cfg := &callCfg{
 		rootCfg: rootCfg,
 	}
 
 	return commands.NewCommand(
 		commands.Metadata{
-			Name:       "send",
-			ShortUsage: "send [flags] <key-name or address>",
-			ShortHelp:  "Sends native currency",
+			Name:       "call",
+			ShortUsage: "call [flags] <key-name or address>",
+			ShortHelp:  "Executes a Realm function call",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execSend(cfg, args, bufio.NewReader(os.Stdin))
+			return execCall(cfg, args, bufio.NewReader(os.Stdin))
 		},
 	)
 }
 
-func (c *sendCfg) RegisterFlags(fs *flag.FlagSet) {
+func (c *callCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.send,
 		"send",
@@ -50,30 +51,45 @@ func (c *sendCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
-		&c.to,
-		"to",
+		&c.pkgPath,
+		"pkgpath",
 		"",
-		"destination address",
+		"package path (required)",
+	)
+
+	fs.StringVar(
+		&c.funcName,
+		"func",
+		"",
+		"contract to call (required)",
+	)
+
+	fs.Var(
+		&c.args,
+		"args",
+		"arguments to contract",
 	)
 }
 
-func execSend(cfg *sendCfg, args []string, input *bufio.Reader) error {
+func execCall(cfg *callCfg, args []string, input *bufio.Reader) error {
+	if cfg.pkgPath == "" {
+		return errors.New("pkgpath not specified")
+	}
+	if cfg.funcName == "" {
+		return errors.New("func not specified")
+	}
 	if len(args) != 1 {
 		return flag.ErrHelp
 	}
-
 	if cfg.rootCfg.gasWanted == 0 {
 		return errors.New("gas-wanted not specified")
 	}
 	if cfg.rootCfg.gasFee == "" {
 		return errors.New("gas-fee not specified")
 	}
-	if cfg.send == "" {
-		return errors.New("send (amount) must be specified")
-	}
-	if cfg.to == "" {
-		return errors.New("to (destination address) must be specified")
-	}
+
+	// read statement.
+	fnc := cfg.funcName
 
 	// read account pubkey.
 	nameOrBech32 := args[0]
@@ -85,14 +101,8 @@ func execSend(cfg *sendCfg, args []string, input *bufio.Reader) error {
 	if err != nil {
 		return err
 	}
-	fromAddr := info.GetAddress()
+	caller := info.GetAddress()
 	// info.GetPubKey()
-
-	// Parse to address.
-	toAddr, err := crypto.AddressFromBech32(cfg.to)
-	if err != nil {
-		return err
-	}
 
 	// Parse send amount.
 	send, err := std.ParseCoins(cfg.send)
@@ -108,10 +118,12 @@ func execSend(cfg *sendCfg, args []string, input *bufio.Reader) error {
 	}
 
 	// construct msg & tx and marshal.
-	msg := bank.MsgSend{
-		FromAddress: fromAddr,
-		ToAddress:   toAddr,
-		Amount:      send,
+	msg := vm.MsgCall{
+		Caller:  caller,
+		Send:    send,
+		PkgPath: cfg.pkgPath,
+		Func:    fnc,
+		Args:    cfg.args,
 	}
 	tx := std.Tx{
 		Msgs:       []std.Msg{msg},

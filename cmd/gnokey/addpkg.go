@@ -125,7 +125,7 @@ func execAddPkg(cfg *addPkgCfg, args []string, input *bufio.Reader) error {
 	}
 
 	if cfg.rootCfg.broadcast {
-		err := signAndBroadcast(cfg.rootCfg.rootCfg, cfg.rootCfg, args, tx, input)
+		err := signAndBroadcast(cfg.rootCfg, args, tx, input)
 		if err != nil {
 			return err
 		}
@@ -136,12 +136,14 @@ func execAddPkg(cfg *addPkgCfg, args []string, input *bufio.Reader) error {
 }
 
 func signAndBroadcast(
-	baseopts *baseCfg,
-	txopts *makeTxCfg,
+	cfg *makeTxCfg,
 	args []string,
 	tx std.Tx,
 	input *bufio.Reader,
 ) error {
+	baseopts := cfg.rootCfg
+	txopts := cfg
+
 	// query account
 	nameOrBech32 := args[0]
 	kb, err := keys.NewKeyBaseFromDir(baseopts.Home)
