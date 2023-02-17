@@ -21,8 +21,7 @@ import (
 )
 
 type baseCfg struct {
-	client.BaseOptions   // home,...
-	SignBroadcastOptions // gas-wanted, gas-fee, memo, ...
+	client.BaseOptions // home,...
 }
 
 func main() {
@@ -46,6 +45,8 @@ func main() {
 		newImportCmd(cfg),
 		newListCmd(cfg),
 		newSignCmd(cfg),
+		newVerifyCmd(cfg),
+		newQueryCmd(cfg),
 	)
 
 	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
@@ -83,42 +84,6 @@ func (c *baseCfg) RegisterFlags(fs *flag.FlagSet) {
 		"insecure-password-stdin",
 		client.DefaultBaseOptions.Quiet,
 		"WARNING! take password from stdin",
-	)
-
-	// SignBroadcastOptions
-	fs.Int64Var(
-		&c.GasWanted,
-		"gas-wanted",
-		0,
-		"gas requested for tx",
-	)
-
-	fs.StringVar(
-		&c.GasFee,
-		"gas-fee",
-		"",
-		"gas payment fee",
-	)
-
-	fs.StringVar(
-		&c.Memo,
-		"memo",
-		"",
-		"any descriptive text",
-	)
-
-	fs.BoolVar(
-		&c.Broadcast,
-		"broadcast",
-		false,
-		"sign and broadcast",
-	)
-
-	fs.StringVar(
-		&c.ChainID,
-		"chainid",
-		"dev",
-		"chainid to sign for (only useful if --broadcast)",
 	)
 }
 
