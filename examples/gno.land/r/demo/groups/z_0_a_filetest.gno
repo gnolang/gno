@@ -14,4 +14,4 @@ func main() {
 }
 
 // Error:
-// unauthorized
+// user not found

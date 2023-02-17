@@ -7,23 +7,10 @@ import (
 	"time"
 )
 
-type GroupID uint64
-type MemberID uint64
+type GroupID  uint64
 
 func (gid GroupID) String() string {
 	return strconv.Itoa(int(gid))
-}
-
-func (mid MemberID) String() string {
-	return strconv.Itoa(int(mid))
-}
-
-type Member struct {
-	id        MemberID
-	address   string
-	weight    int
-	metadata  string
-	createdAt time.Time
 }
 
 type Group struct {
@@ -31,34 +18,30 @@ type Group struct {
 	url          string
 	name         string
 	lastMemberID MemberID
-	members      *avl.MutTree
+	members      avl.Tree
 	creator      std.Address
 	createdAt    time.Time
 }
 
-func newGroup(id GroupID, url string, name string, creator std.Address) *Group {
+func newGroup(url string, name string, creator std.Address) *Group {
 	if !reName.MatchString(name) {
 		panic("invalid name: " + name)
 	}
-	exists := gGroupsByName.Has(name)
-	if exists {
+	if gGroupsByName.Has(name) {
 		panic("Group with such name already exists")
 	}
 	return &Group{
-		id:        id,
+		id:        incGetGroupID(),
 		url:       url,
 		name:      name,
 		creator:   creator,
-		members:   avl.NewMutTree(),
+		members:   avl.Tree{},
 		createdAt: time.Now(),
 	}
 }
 
-func newMember(id MemberID, gid GroupID, address string, weight int, metadata string) *Member {
-
-	group := getGroup(gid)
-	exists := group.members.Has(address)
-	if exists {
+func (group *Group) newMember(id MemberID, address std.Address, weight int, metadata string) *Member {
+	if group.members.Has(address.String()) {
 		panic("this member for this group already exists")
 	}
 	return &Member{
@@ -71,21 +54,13 @@ func newMember(id MemberID, gid GroupID, address string, weight int, metadata st
 }
 
 func (group *Group) HasPermission(addr std.Address, perm Permission) bool {
-	if group.creator == addr {
-		switch perm {
-		case EditPermission:
-			return true
-		case DeletePermission:
-			return true
-		default:
-			return false
-		}
-	}
-	return false
+    if group.creator != addr {
+        return false
+    }
+    return isValidPermission(perm)
 }
 
 func (group *Group) RenderGroup() string {
-
 	str := "Group ID: " + groupIDKey(group.id) + "\n\n" +
 		"Group Name: " + group.name + "\n\n" +
 		"Group Creator: " + usernameOf(group.creator) + "\n\n" +
@@ -93,39 +68,29 @@ func (group *Group) RenderGroup() string {
 		"Group Last MemberID: " + memberIDKey(group.lastMemberID) + "\n\n"
 
 	str += "Group Members: \n\n"
-
-	group.members.Iterate("", "", func(n *avl.Tree) bool {
+	group.members.Iterate("", "", func(n *avl.Node) bool {
 		member := n.Value().(*Member)
-		str += "\t\t\t[" + memberIDKey(member.id) + ", " + member.address + ", " + strconv.Itoa(member.weight) + ", " + member.metadata + ", " + member.createdAt.String() + "],\n\n"
+		str += member.getMemberStr()
 		return false
 	})
-
 	return str
 }
 
-func (group *Group) deleteGroup(gid GroupID) {
-
-	gidkey := groupIDKey(gid)
+func (group *Group) deleteGroup() {
+	gidkey := groupIDKey(group.id)
 	_, removed := gGroups.Remove(gidkey)
 	if !removed {
-		panic("group does not exist with id " + gid.String())
+		panic("group does not exist with id " + group.id.String())
 	}
-
 }
 
-func (group *Group) deleteMember(gid GroupID, mid MemberID) {
-
-	gidkey := groupIDKey(gid)
-	exists := gGroups.Has(gidkey)
-	if !exists {
-		panic("group does not exist with id " + gid.String())
+func (group *Group) deleteMember(mid MemberID) {
+	gidkey := groupIDKey(group.id)
+	if !gGroups.Has(gidkey) {
+		panic("group does not exist with id " + group.id.String())
 	}
 
-	g := getGroup(gid)
+	g := getGroup(group.id)
 	midkey := memberIDKey(mid)
 	_, removed := g.members.Remove(midkey)
-	if !removed {
-		panic("member does not exist with id " + mid.String())
-	}
-
 }

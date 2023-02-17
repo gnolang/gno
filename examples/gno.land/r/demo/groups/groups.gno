@@ -10,9 +10,9 @@ import (
 // Realm (package) state
 
 var (
-	gGroups       = avl.NewMutTree() // id -> *Group
-	gGroupsCtr    int                // increments Group.id
-	gGroupsByName = avl.NewMutTree() // name -> *Group
+	gGroups       avl.Tree // id -> *Group
+	gGroupsCtr    int      // increments Group.id
+	gGroupsByName avl.Tree // name -> *Group
 )
 
 //----------------------------------------

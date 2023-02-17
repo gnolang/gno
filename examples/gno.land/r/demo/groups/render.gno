@@ -20,7 +20,7 @@ func RenderGroup(gid GroupID) string {
 func Render(path string) string {
 	if path == "" {
 		str := "List of all Groups:\n\n"
-		gGroups.Iterate("", "", func(n *avl.Tree) bool {
+		gGroups.Iterate("", "", func(n *avl.Node) bool {
 			group := n.Value().(*Group)
 			str += " * [" + group.name + "](" + group.url + ")\n"
 			return false

@@ -19,4 +19,4 @@ func main() {
 }
 
 // Error:
-// group not exist
+// group id (2) does not exists
