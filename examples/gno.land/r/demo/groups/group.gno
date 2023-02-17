@@ -78,10 +78,12 @@ func (group *Group) RenderGroup() string {
 
 func (group *Group) deleteGroup() {
 	gidkey := groupIDKey(group.id)
-	_, removed := gGroups.Remove(gidkey)
-	if !removed {
+	_, gGroupsRemoved := gGroups.Remove(gidkey)
+	if !gGroupsRemoved {
 		panic("group does not exist with id " + group.id.String())
 	}
+	_, gGroupsByNameRemoved := gGroupsByName.Remove(group.name)
+
 }
 
 func (group *Group) deleteMember(mid MemberID) {
