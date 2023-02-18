@@ -22,7 +22,7 @@ Also, see the [quickstart guide](https://test2.gno.land/r/boards:testboard/5).
 
 `gnodev` is a tool for managing Gno source code.
 
-See [./cmd/gnodev](./cmd/gnodev) for instructions.
+See [./cmd/gnodev](./cmd/gnodev#readme) for instructions.
 
 ## Language Features
 
