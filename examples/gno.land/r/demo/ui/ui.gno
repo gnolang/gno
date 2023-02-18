@@ -14,10 +14,10 @@ func Render(path string) string {
 
 	dom.Title = "UI Demo"
 
-	dom.Header.Append(ui.Breadcrumb([]ui.Link{
-		{Text: "foo", Path: "foo"},
-		{Text: "bar", Path: "foo/bar"},
-	}...))
+	dom.Header.Append(ui.Breadcrumb(
+		ui.Link{Text: "foo", Path: "foo"},
+		ui.Link{Text: "bar", Path: "foo/bar"},
+	))
 
 	dom.Body.Append(
 		ui.Paragraph("Simple UI demonstration."),
