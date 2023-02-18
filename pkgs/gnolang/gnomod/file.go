@@ -98,3 +98,7 @@ func (f *File) WriteToPath(absPath string) error {
 
 	return nil
 }
+
+func (f *File) Sanitize() {
+	removeDups(f.Syntax, &f.Require, &f.Replace)
+}
