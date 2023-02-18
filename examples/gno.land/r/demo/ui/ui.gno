@@ -3,12 +3,16 @@ package ui
 import "gno.land/p/demo/ui"
 
 func Render(path string) string {
+	// TODO: build this realm as a demo one with one page per feature.
+
 	// TODO: pagination
 	// TODO: non-standard markdown
 	// TODO: error, warn
 	// TODO: header
 	// TODO: HTML
 	// TODO: toc
+	// TODO: forms
+	// TODO: comments
 
 	var dom ui.DOM
 
