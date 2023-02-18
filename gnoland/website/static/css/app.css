@@ -224,6 +224,10 @@ pre {
   padding: 10px 10px;
 }
 
+.pkg_doc__comment pre {
+  background-color: transparent;
+}
+
 .pkg_doc__section .pkg_doc__comment {
   padding: 5px 15px;
   font-size: 0.9rem;

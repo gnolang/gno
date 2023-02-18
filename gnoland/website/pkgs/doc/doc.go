@@ -71,7 +71,6 @@ func New(pkgPath string, files map[string]string) (*Package, error) {
 					}
 				}
 			}
-
 		}
 
 		return true

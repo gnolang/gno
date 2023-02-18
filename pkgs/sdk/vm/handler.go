@@ -209,7 +209,7 @@ func (vh vmHandler) queryFiles(ctx sdk.Context, req abci.RequestQuery) (res abci
 		sdk.ABCIResponseQueryFromError(err)
 		return
 	}
-	res.Data = []byte(b)
+	res.Data = b
 	return
 }
 

@@ -71,12 +71,6 @@ func main() {
 		// StaticPrefix: "static/",
 	}
 
-	app.ViewHelpers = []gotuna.ViewHelperFunc{
-		func(w http.ResponseWriter, r *http.Request) (string, interface{}) {
-			return "comment", doc.CommentTplFunc
-		},
-	}
-
 	app.Router.Handle("/", handlerHome(app))
 	app.Router.Handle("/about", handlerAbout(app))
 	app.Router.Handle("/game-of-realms", handlerGor(app))
