@@ -69,12 +69,12 @@ func writePackage(basePath, pkgPath string) error {
 	return nil
 }
 
-// Sanitize make necessary modifications in the gno.mod
-// before writing it to go.mod file.
-func Sanitize(f *File) error {
+// GnoToGoMod make necessary modifications in the gno.mod
+// and return go.mod file.
+func GnoToGoMod(f File) (*File, error) {
 	gnoModPath, err := GetGnoModPath()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if strings.HasPrefix(f.Module.Mod.Path, "gno.land/r/") ||
@@ -100,5 +100,5 @@ func Sanitize(f *File) error {
 		})
 	}
 
-	return nil
+	return &f, nil
 }
