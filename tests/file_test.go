@@ -11,7 +11,7 @@ import (
 	gno "github.com/gnolang/gno/pkgs/gnolang"
 )
 
-var syncWantedFlag = flag.Bool("sync", false, "writes actual as wanted in test comments")
+var syncWantedFlag = flag.Bool("sync", false, "update test comments with generated output")
 
 func TestFileStr(t *testing.T) {
 	filePath := filepath.Join(".", "files", "str.gno")

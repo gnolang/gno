@@ -23,24 +23,24 @@ import (
 )
 
 type testOptions struct {
-	Verbose    bool          `flag:"verbose" help:"verbose"`
-	RootDir    string        `flag:"root-dir" help:"clone location of github.com/gnolang/gno (gnodev tries to guess it)"`
-	Run        string        `flag:"run" help:"test name filtering pattern"`
-	Timeout    time.Duration `flag:"timeout" help:"max execution time"`
-	Precompile bool          `flag:"precompile" help:"precompiling gno to go before testing"` // TODO: precompile should be the default, but it needs to automatically precompile dependencies in memory.
-	Sync       bool          `flag:"update-golden-tests" help:"writes actual as wanted in test comments"`
+	Verbose           bool          `flag:"verbose" help:"verbose"`
+	RootDir           string        `flag:"root-dir" help:"clone location of github.com/gnolang/gno (gnodev tries to guess it)"`
+	Run               string        `flag:"run" help:"test name filtering pattern"`
+	Timeout           time.Duration `flag:"timeout" help:"max execution time"`
+	Precompile        bool          `flag:"precompile" help:"precompiling gno to go before testing"` // TODO: precompile should be the default, but it needs to automatically precompile dependencies in memory.
+	UpdateGoldenTests bool          `flag:"update-golden-tests" help:"writes actual as wanted in test comments"`
 	// VM Options
 	// A flag about if we should download the production realms
 	// UseNativeLibs bool // experimental, but could be useful for advanced developer needs
 }
 
 var defaultTestOptions = testOptions{
-	Verbose:    false,
-	Run:        "",
-	RootDir:    "",
-	Timeout:    0,
-	Precompile: false,
-	Sync:       false,
+	Verbose:           false,
+	Run:               "",
+	RootDir:           "",
+	Timeout:           0,
+	Precompile:        false,
+	UpdateGoldenTests: false,
 }
 
 func testApp(cmd *command.Command, args []string, iopts interface{}) error {
@@ -242,7 +242,7 @@ func gnoTestPkg(
 			}
 
 			testFilePath := filepath.Join(pkgPath, testFileName)
-			err := tests.RunFileTest(rootDir, testFilePath, false, nil, opts.Sync)
+			err := tests.RunFileTest(rootDir, testFilePath, false, nil, opts.UpdateGoldenTests)
 			duration := time.Since(startedAt)
 			dstr := fmtDuration(duration)
 
