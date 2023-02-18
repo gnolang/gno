@@ -82,7 +82,7 @@ func (group *Group) deleteGroup() {
 	if !gGroupsRemoved {
 		panic("group does not exist with id " + group.id.String())
 	}
-	_, gGroupsByNameRemoved := gGroupsByName.Remove(group.name)
+	gGroupsByName.Remove(group.name)
 
 }
 
@@ -94,5 +94,5 @@ func (group *Group) deleteMember(mid MemberID) {
 
 	g := getGroup(group.id)
 	midkey := memberIDKey(mid)
-	_, removed := g.members.Remove(midkey)
+	g.members.Remove(midkey)
 }
