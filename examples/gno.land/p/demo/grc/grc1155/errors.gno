@@ -5,7 +5,6 @@ import "errors"
 var (
 	ErrInvalidAddress                         = errors.New("invalid address")
 	ErrMismatchLength                         = errors.New("accounts and ids length mismatch")
-	ErrApprovalToCurrentOwner                 = errors.New("approval to current owner")
 	ErrCannotTransferToSelf                   = errors.New("cannot send transfer to self")
 	ErrTransferToRejectedOrNonGRC1155Receiver = errors.New("transfer to rejected or non GRC1155Receiver implementer")
 	ErrCallerIsNotOwnerOrApproved             = errors.New("caller is not token owner or approved")

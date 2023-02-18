@@ -8,7 +8,7 @@ import (
 	"gno.land/r/demo/users"
 )
 
-var dummyURI = "ipfs://xyz"
+const dummyURI = "ipfs://xyz"
 
 func TestNewBasicGRC1155Token(t *testing.T) {
 	dummy := NewBasicGRC1155Token(dummyURI)
@@ -41,6 +41,10 @@ func TestBalanceOf(t *testing.T) {
 	tid1 := TokenID("1")
 	tid2 := TokenID("2")
 
+	balanceZeroAddressOfToken1, err := dummy.BalanceOf(zeroAddress, tid1)
+	if err == nil {
+		t.Errorf("should result in error")
+	}
 	balanceAddr1OfToken1, err := dummy.BalanceOf(addr1, tid1)
 	if err != nil {
 		t.Errorf("should not result in error")
@@ -50,7 +54,7 @@ func TestBalanceOf(t *testing.T) {
 	}
 
 	dummy.mintBatch(addr1, []TokenID{tid1, tid2}, []uint64{10, 100})
-	dummy.mint(addr2, tid1, 20)
+	dummy.mintBatch(addr2, []TokenID{tid1}, []uint64{20})
 
 	balanceAddr1OfToken1, err = dummy.BalanceOf(addr1, tid1)
 	if err != nil {
@@ -100,8 +104,8 @@ func TestBalanceOfBatch(t *testing.T) {
 		t.Errorf("expected: (%d), got: (%d)", 0, balanceBatch[1])
 	}
 
-	dummy.mint(addr1, tid1, 10)
-	dummy.mint(addr2, tid2, 20)
+	dummy.mintBatch(addr1, []TokenID{tid1}, []uint64{10})
+	dummy.mintBatch(addr2, []TokenID{tid2}, []uint64{20})
 
 	balanceBatch, err = dummy.BalanceOfBatch([]std.Address{addr1, addr2}, []TokenID{tid1, tid2})
 	if err != nil {
@@ -154,6 +158,16 @@ func TestSetApprovalForAll(t *testing.T) {
 	if isApprovedForAll != true {
 		t.Errorf("expected: (%v), got: (%v)", true, isApprovedForAll)
 	}
+
+	err = dummy.SetApprovalForAll(addr, false)
+	if err != nil {
+		t.Errorf("should not result in error")
+	}
+
+	isApprovedForAll = dummy.IsApprovedForAll(caller, addr)
+	if isApprovedForAll != false {
+		t.Errorf("expected: (%v), got: (%v)", false, isApprovedForAll)
+	}
 }
 
 func TestSafeTransferFrom(t *testing.T) {
@@ -167,9 +181,19 @@ func TestSafeTransferFrom(t *testing.T) {
 
 	tid := TokenID("1")
 
-	dummy.mint(caller, tid, 100)
+	dummy.mintBatch(caller, []TokenID{tid}, []uint64{100})
 
-	err := dummy.SafeTransferFrom(caller, addr, tid, 60)
+	err := dummy.SafeTransferFrom(caller, zeroAddress, tid, 10)
+	if err == nil {
+		t.Errorf("should result in error")
+	}
+
+	err = dummy.SafeTransferFrom(caller, addr, tid, 160)
+	if err == nil {
+		t.Errorf("should result in error")
+	}
+
+	err = dummy.SafeTransferFrom(caller, addr, tid, 60)
 	if err != nil {
 		t.Errorf("should not result in error")
 	}
@@ -206,7 +230,20 @@ func TestSafeBatchTransferFrom(t *testing.T) {
 	tid2 := TokenID("2")
 
 	dummy.mintBatch(caller, []TokenID{tid1, tid2}, []uint64{10, 100})
-	err := dummy.SafeBatchTransferFrom(caller, addr, []TokenID{tid1, tid2}, []uint64{4, 60})
+
+	err := dummy.SafeBatchTransferFrom(caller, zeroAddress, []TokenID{tid1, tid2}, []uint64{4, 60})
+	if err == nil {
+		t.Errorf("should result in error")
+	}
+	err = dummy.SafeBatchTransferFrom(caller, addr, []TokenID{tid1, tid2}, []uint64{40, 60})
+	if err == nil {
+		t.Errorf("should result in error")
+	}
+	err = dummy.SafeBatchTransferFrom(caller, addr, []TokenID{tid1}, []uint64{40, 60})
+	if err == nil {
+		t.Errorf("should result in error")
+	}
+	err = dummy.SafeBatchTransferFrom(caller, addr, []TokenID{tid1, tid2}, []uint64{4, 60})
 	if err != nil {
 		t.Errorf("should not result in error")
 	}
@@ -249,7 +286,11 @@ func TestSafeMint(t *testing.T) {
 	tid1 := TokenID("1")
 	tid2 := TokenID("2")
 
-	err := dummy.SafeMint(addr1, tid1, 100)
+	err := dummy.SafeMint(zeroAddress, tid1, 100)
+	if err == nil {
+		t.Errorf("should result in error")
+	}
+	err = dummy.SafeMint(addr1, tid1, 100)
 	if err != nil {
 		t.Errorf("should not result in error")
 	}
@@ -292,7 +333,11 @@ func TestSafeBatchMint(t *testing.T) {
 	tid1 := TokenID("1")
 	tid2 := TokenID("2")
 
-	err := dummy.SafeBatchMint(addr1, []TokenID{tid1, tid2}, []uint64{100, 200})
+	err := dummy.SafeBatchMint(zeroAddress, []TokenID{tid1, tid2}, []uint64{100, 200})
+	if err == nil {
+		t.Errorf("should result in error")
+	}
+	err = dummy.SafeBatchMint(addr1, []TokenID{tid1, tid2}, []uint64{100, 200})
 	if err != nil {
 		t.Errorf("should not result in error")
 	}
@@ -335,7 +380,15 @@ func TestBurn(t *testing.T) {
 	tid2 := TokenID("2")
 
 	dummy.mintBatch(addr, []TokenID{tid1, tid2}, []uint64{100, 200})
-	err := dummy.Burn(addr, tid1, 60)
+	err := dummy.Burn(zeroAddress, tid1, 60)
+	if err == nil {
+		t.Errorf("should result in error")
+	}
+	err = dummy.Burn(addr, tid1, 160)
+	if err == nil {
+		t.Errorf("should result in error")
+	}
+	err = dummy.Burn(addr, tid1, 60)
 	if err != nil {
 		t.Errorf("should not result in error")
 	}
@@ -370,7 +423,15 @@ func TestBatchBurn(t *testing.T) {
 	tid2 := TokenID("2")
 
 	dummy.mintBatch(addr, []TokenID{tid1, tid2}, []uint64{100, 200})
-	err := dummy.BatchBurn(addr, []TokenID{tid1, tid2}, []uint64{60, 60})
+	err := dummy.BatchBurn(zeroAddress, []TokenID{tid1, tid2}, []uint64{60, 60})
+	if err == nil {
+		t.Errorf("should result in error")
+	}
+	err = dummy.BatchBurn(addr, []TokenID{tid1, tid2}, []uint64{160, 60})
+	if err == nil {
+		t.Errorf("should result in error")
+	}
+	err = dummy.BatchBurn(addr, []TokenID{tid1, tid2}, []uint64{60, 60})
 	if err != nil {
 		t.Errorf("should not result in error")
 	}

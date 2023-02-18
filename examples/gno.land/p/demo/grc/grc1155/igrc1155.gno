@@ -36,6 +36,5 @@ type ApprovalForAllEvent struct {
 }
 
 type UpdateURIEvent struct {
-	URI     string
-	TokenID TokenID
+	URI string
 }

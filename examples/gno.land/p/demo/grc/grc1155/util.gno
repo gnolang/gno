@@ -4,13 +4,13 @@ import (
 	"std"
 )
 
-var zeroAddress = std.Address("")
+const zeroAddress std.Address = ""
 
-func isValidAddress(addr std.Address) error {
+func isValidAddress(addr std.Address) bool {
 	if addr.String() == "" {
-		return ErrInvalidAddress
+		return false
 	}
-	return nil
+	return true
 }
 
 func emit(event interface{}) {
