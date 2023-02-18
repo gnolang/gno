@@ -10,7 +10,7 @@ import (
 // "AddPkg" will check if r/system/names exists. If yes, it will
 // inspect the realm's state and use the following variable to
 // determine if an address can publish a package or not.
-var namespaces avl.MutTree // name(string) -> Space
+var namespaces avl.Tree // name(string) -> Space
 
 type Space struct {
 	Admins  []std.Address

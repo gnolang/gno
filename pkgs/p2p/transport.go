@@ -84,7 +84,7 @@ func ConnDuplicateIPFilter() ConnFilterFunc {
 	return func(cs ConnSet, c net.Conn, ips []net.IP) error {
 		for _, ip := range ips {
 			if cs.HasIP(ip) {
-				return ErrRejected{
+				return RejectedError{
 					conn:        c,
 					err:         fmt.Errorf("IP<%v> already connected", ip),
 					isDuplicate: true,
@@ -192,7 +192,7 @@ func (mt *MultiplexTransport) Accept(cfg peerConfig) (Peer, error) {
 
 		return mt.wrapPeer(a.conn, a.nodeInfo, cfg, a.netAddr), nil
 	case <-mt.closec:
-		return nil, ErrTransportClosed{}
+		return nil, TransportClosedError{}
 	}
 }
 
@@ -275,7 +275,7 @@ func (mt *MultiplexTransport) acceptPeers() {
 		go func(c net.Conn) {
 			defer func() {
 				if r := recover(); r != nil {
-					err := ErrRejected{
+					err := RejectedError{
 						conn:          c,
 						err:           errors.New("recovered from panic: %v", r),
 						isAuthFailure: true,
@@ -340,7 +340,7 @@ func (mt *MultiplexTransport) filterConn(c net.Conn) (err error) {
 
 	// Reject if connection is already present.
 	if mt.conns.Has(c) {
-		return ErrRejected{conn: c, isDuplicate: true}
+		return RejectedError{conn: c, isDuplicate: true}
 	}
 
 	// Resolve ips for incoming conn.
@@ -361,10 +361,10 @@ func (mt *MultiplexTransport) filterConn(c net.Conn) (err error) {
 		select {
 		case err := <-errc:
 			if err != nil {
-				return ErrRejected{conn: c, err: err, isFiltered: true}
+				return RejectedError{conn: c, err: err, isFiltered: true}
 			}
 		case <-time.After(mt.filterTimeout):
-			return ErrFilterTimeout{}
+			return FilterTimeoutError{}
 		}
 	}
 
@@ -385,9 +385,9 @@ func (mt *MultiplexTransport) upgrade(
 
 	secretConn, err = upgradeSecretConn(c, mt.handshakeTimeout, mt.nodeKey.PrivKey)
 	if err != nil {
-		return nil, NodeInfo{}, ErrRejected{
+		return nil, NodeInfo{}, RejectedError{
 			conn:          c,
-			err:           fmt.Errorf("secret conn failed: %v", err),
+			err:           fmt.Errorf("secret conn failed: %w", err),
 			isAuthFailure: true,
 		}
 	}
@@ -396,7 +396,7 @@ func (mt *MultiplexTransport) upgrade(
 	connID := secretConn.RemotePubKey().Address().ID()
 	if dialedAddr != nil {
 		if dialedID := dialedAddr.ID; connID.String() != dialedID.String() {
-			return nil, NodeInfo{}, ErrRejected{
+			return nil, NodeInfo{}, RejectedError{
 				conn: c,
 				id:   connID,
 				err: fmt.Errorf(
@@ -411,15 +411,15 @@ func (mt *MultiplexTransport) upgrade(
 
 	nodeInfo, err = handshake(secretConn, mt.handshakeTimeout, mt.nodeInfo)
 	if err != nil {
-		return nil, NodeInfo{}, ErrRejected{
+		return nil, NodeInfo{}, RejectedError{
 			conn:          c,
-			err:           fmt.Errorf("handshake failed: %v", err),
+			err:           fmt.Errorf("handshake failed: %w", err),
 			isAuthFailure: true,
 		}
 	}
 
 	if err := nodeInfo.Validate(); err != nil {
-		return nil, NodeInfo{}, ErrRejected{
+		return nil, NodeInfo{}, RejectedError{
 			conn:              c,
 			err:               err,
 			isNodeInfoInvalid: true,
@@ -428,7 +428,7 @@ func (mt *MultiplexTransport) upgrade(
 
 	// Ensure connection key matches self reported key.
 	if connID != nodeInfo.ID() {
-		return nil, NodeInfo{}, ErrRejected{
+		return nil, NodeInfo{}, RejectedError{
 			conn: c,
 			id:   connID,
 			err: fmt.Errorf(
@@ -442,7 +442,7 @@ func (mt *MultiplexTransport) upgrade(
 
 	// Reject self.
 	if mt.nodeInfo.ID() == nodeInfo.ID() {
-		return nil, NodeInfo{}, ErrRejected{
+		return nil, NodeInfo{}, RejectedError{
 			addr:   *NewNetAddress(nodeInfo.ID(), c.RemoteAddr()),
 			conn:   c,
 			id:     nodeInfo.ID(),
@@ -451,7 +451,7 @@ func (mt *MultiplexTransport) upgrade(
 	}
 
 	if err := mt.nodeInfo.CompatibleWith(nodeInfo); err != nil {
-		return nil, NodeInfo{}, ErrRejected{
+		return nil, NodeInfo{}, RejectedError{
 			conn:           c,
 			err:            err,
 			id:             nodeInfo.ID(),

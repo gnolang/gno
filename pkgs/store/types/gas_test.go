@@ -42,7 +42,6 @@ func TestGasMeter(t *testing.T) {
 		require.Equal(t, meter.GasConsumedToLimit(), meter.Limit(), "Gas consumption (to limit) not match limit")
 		require.Equal(t, meter.GasConsumed(), meter.Limit()+1, "Gas consumption not match limit+1")
 		break
-
 	}
 }
 

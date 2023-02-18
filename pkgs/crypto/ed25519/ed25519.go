@@ -12,7 +12,7 @@ import (
 	"github.com/gnolang/gno/pkgs/crypto/tmhash"
 )
 
-//-------------------------------------
+// -------------------------------------
 
 var _ crypto.PrivKey = PrivKeyEd25519{}
 
@@ -109,7 +109,7 @@ func GenPrivKeyFromSecret(secret []byte) PrivKeyEd25519 {
 	return privKeyEd
 }
 
-//-------------------------------------
+// -------------------------------------
 
 var _ crypto.PubKey = PubKeyEd25519{}
 
@@ -141,7 +141,6 @@ func (pubKey PubKeyEd25519) String() string {
 	return crypto.PubKeyToBech32(pubKey)
 }
 
-// nolint: golint
 func (pubKey PubKeyEd25519) Equals(other crypto.PubKey) bool {
 	if otherEd, ok := other.(PubKeyEd25519); ok {
 		return bytes.Equal(pubKey[:], otherEd[:])

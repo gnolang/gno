@@ -16,6 +16,7 @@ func DeriveRand(r *rand.Rand) *rand.Rand {
 		ms[i] = rand.NewSource(r.Int63())
 	}
 
+	//nolint:gosec
 	return rand.New(ms)
 }
 

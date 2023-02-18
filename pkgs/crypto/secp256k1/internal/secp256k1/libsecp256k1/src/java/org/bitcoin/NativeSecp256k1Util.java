@@ -17,7 +17,6 @@
 package org.bitcoin;
 
 public class NativeSecp256k1Util{
-
     public static void assertEquals( int val, int val2, String message ) throws AssertFailException{
       if( val != val2 )
         throw new AssertFailException("FAIL: " + message);

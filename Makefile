@@ -3,7 +3,7 @@
 .PHONY: logos goscan gnoland gnokey gnofaucet logos reset gnoweb gnotxport
 all: build
 
-build: gnoland gnokey goscan logos gnoweb gnotxport
+build: gnoland gnokey gnodev goscan logos gnoweb gnotxport gnofaucet
 
 install: install_gnodev install_gnokey
 
@@ -77,6 +77,10 @@ examples.build: install_gnodev examples.precompile
 fmt:
 	go run -modfile ./misc/devdeps/go.mod mvdan.cc/gofumpt -w .
 	go run -modfile ./misc/devdeps/go.mod mvdan.cc/gofumpt -w `find stdlibs examples -name "*.gno"`
+
+.PHONY: lint
+lint:
+	golangci-lint run --config .golangci.yaml
 
 ########################################
 # Test suite

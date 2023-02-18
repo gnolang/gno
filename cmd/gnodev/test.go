@@ -26,7 +26,7 @@ type testOptions struct {
 	Verbose    bool          `flag:"verbose" help:"verbose"`
 	RootDir    string        `flag:"root-dir" help:"clone location of github.com/gnolang/gno (gnodev tries to guess it)"`
 	Run        string        `flag:"run" help:"test name filtering pattern"`
-	Timeout    time.Duration `flag:"timeout" help:"max execution time (in ns)"`               // FIXME: support ParseDuration: "1s"
+	Timeout    time.Duration `flag:"timeout" help:"max execution time"`
 	Precompile bool          `flag:"precompile" help:"precompiling gno to go before testing"` // TODO: precompile should be the default, but it needs to automatically precompile dependencies in memory.
 	Sync       bool          `flag:"update-golden-tests" help:"writes actual as wanted in test comments"`
 	// VM Options
@@ -58,6 +58,13 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 	}
 	defer os.RemoveAll(tempdirRoot)
 
+	// go.mod
+	modPath := filepath.Join(tempdirRoot, "go.mod")
+	err = makeTestGoMod(modPath, gno.ImportPrefix, "1.18")
+	if err != nil {
+		return fmt.Errorf("write .mod file: %w", err)
+	}
+
 	// guess opts.RootDir
 	if opts.RootDir == "" {
 		opts.RootDir = guessRootDir()
@@ -82,15 +89,10 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 			if verbose {
 				cmd.ErrPrintfln("=== PREC  %s", pkgPath)
 			}
-			pkgPathSafe := strings.ReplaceAll(pkgPath, "/", "~")
-			tempdir := filepath.Join(tempdirRoot, pkgPathSafe)
-			if err = os.MkdirAll(tempdir, 0o755); err != nil {
-				log.Fatal(err)
-			}
-			precompileOpts := precompileOptions{
-				Output: tempdir,
-			}
-			err := precompilePkg(pkgPath, precompileOpts)
+			precompileOpts := newPrecompileOptions(precompileFlags{
+				Output: tempdirRoot,
+			})
+			err := precompilePkg(importPath(pkgPath), precompileOpts)
 			if err != nil {
 				cmd.ErrPrintln(err)
 				cmd.ErrPrintln("FAIL")
@@ -103,7 +105,11 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 			if verbose {
 				cmd.ErrPrintfln("=== BUILD %s", pkgPath)
 			}
-			err = goBuildFileOrPkg(tempdir, defaultBuildOptions)
+			tempDir, err := ResolvePath(tempdirRoot, importPath(pkgPath))
+			if err != nil {
+				errors.New("cannot resolve build dir")
+			}
+			err = goBuildFileOrPkg(tempDir, defaultBuildOptions)
 			if err != nil {
 				cmd.ErrPrintln(err)
 				cmd.ErrPrintln("FAIL")
@@ -153,26 +159,40 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 	return nil
 }
 
-func gnoTestPkg(cmd *command.Command, pkgPath string, unittestFiles, filetestFiles []string, opts testOptions) error {
+func gnoTestPkg(
+	cmd *command.Command,
+	pkgPath string,
+	unittestFiles,
+	filetestFiles []string,
+	opts testOptions,
+) error {
 	verbose := opts.Verbose
 	rootDir := opts.RootDir
 	runFlag := opts.Run
 	filter := splitRegexp(runFlag)
 
+	stdin := cmd.In
+	stdout := cmd.Out
+	stderr := cmd.Err
+
 	var errs error
 
-	testStore := tests.TestStore(rootDir, "", os.Stdin, os.Stdout, os.Stderr, tests.ImportModeStdlibsOnly)
+	testStore := tests.TestStore(
+		rootDir, "",
+		stdin, stdout, stderr,
+		tests.ImportModeStdlibsOnly,
+	)
 	if verbose {
 		testStore.SetLogStoreOps(true)
 	}
 
+	if !verbose {
+		// TODO: speedup by ignoring if filter is file/*?
+		stdout = nopWriteCloser{}
+	}
+
 	// testing with *_test.gno
 	if len(unittestFiles) > 0 {
-		// TODO: speedup by ignoring if filter is file/*?
-		var stdout io.Writer = new(bytes.Buffer)
-		if verbose {
-			stdout = os.Stdout
-		}
 		memPkg := gno.ReadMemPackage(pkgPath, pkgPath)
 
 		// tfiles, ifiles := gno.ParseMemPackageTests(memPkg)
@@ -234,7 +254,7 @@ func gnoTestPkg(cmd *command.Command, pkgPath string, unittestFiles, filetestFil
 					if err != nil {
 						panic(err)
 					}
-					fmt.Fprintln(os.Stderr, stdouterr)
+					fmt.Fprintln(stderr, stdouterr)
 				}
 				continue
 			}
@@ -248,7 +268,19 @@ func gnoTestPkg(cmd *command.Command, pkgPath string, unittestFiles, filetestFil
 	return errs
 }
 
-func runTestFiles(cmd *command.Command, testStore gno.Store, m *gno.Machine, files *gno.FileSet, pkgName string, verbose bool, runFlag string) error {
+type nopWriteCloser struct{ io.Writer }
+
+func (nopWriteCloser) Close() error { return nil }
+
+func runTestFiles(
+	cmd *command.Command,
+	testStore gno.Store,
+	m *gno.Machine,
+	files *gno.FileSet,
+	pkgName string,
+	verbose bool,
+	runFlag string,
+) error {
 	var errs error
 
 	testFuncs := &testFuncs{

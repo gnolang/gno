@@ -7,7 +7,7 @@ import (
 	"github.com/gnolang/gno/pkgs/crypto/merkle"
 )
 
-//----------------------------------------
+// ----------------------------------------
 // Request types
 
 type Request interface {
@@ -16,7 +16,7 @@ type Request interface {
 
 type RequestBase struct{}
 
-func (_ RequestBase) AssertRequest() {}
+func (RequestBase) AssertRequest() {}
 
 type RequestEcho struct {
 	RequestBase
@@ -90,7 +90,7 @@ type RequestCommit struct {
 	RequestBase
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Response types
 
 type Response interface {
@@ -106,7 +106,7 @@ type ResponseBase struct {
 	Info string // nondeterministic
 }
 
-func (_ ResponseBase) AssertResponse() {}
+func (ResponseBase) AssertResponse() {}
 
 func (r ResponseBase) IsOK() bool {
 	return r.Error == nil
@@ -184,7 +184,7 @@ type ResponseCommit struct {
 	ResponseBase
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Interface types
 
 type Error interface {
@@ -203,29 +203,29 @@ type Header interface {
 	AssertABCIHeader()
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Error types
 
 type StringError string
 
-func (_ StringError) AssertABCIError() {}
+func (StringError) AssertABCIError() {}
 
 func (err StringError) Error() string {
 	return string(err)
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Event types
 
 type EventString string
 
-func (_ EventString) AssertABCIEvent() {}
+func (EventString) AssertABCIEvent() {}
 
 func (err EventString) Event() string {
 	return string(err)
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Misc
 
 // Parameters that need to be negotiated between the app and consensus.

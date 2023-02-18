@@ -102,16 +102,16 @@ func TestValidateBlockCommit(t *testing.T) {
 			wrongHeightCommit := types.NewCommit(state.LastBlockID, []*types.CommitSig{wrongHeightVote.CommitSig()})
 			block, _ := state.MakeBlock(height, makeTxs(height), wrongHeightCommit, proposerAddr)
 			err = blockExec.ValidateBlock(state, block)
-			_, isErrInvalidCommitHeight := err.(types.ErrInvalidCommitHeight)
-			require.True(t, isErrInvalidCommitHeight, "expected ErrInvalidCommitHeight at height %d but got: %v", height, err)
+			_, isErrInvalidCommitHeight := err.(types.InvalidCommitHeightError)
+			require.True(t, isErrInvalidCommitHeight, "expected InvalidCommitHeightError at height %d but got: %v", height, err)
 
 			/*
 				#2589: test len(block.LastCommit.Precommits) == state.LastValidators.Size()
 			*/
 			block, _ = state.MakeBlock(height, makeTxs(height), wrongPrecommitsCommit, proposerAddr)
 			err = blockExec.ValidateBlock(state, block)
-			_, isErrInvalidCommitPrecommits := err.(types.ErrInvalidCommitPrecommits)
-			require.True(t, isErrInvalidCommitPrecommits, "expected ErrInvalidCommitPrecommits at height %d but got: %v", height, err)
+			_, isErrInvalidCommitPrecommits := err.(types.InvalidCommitPrecommitsError)
+			require.True(t, isErrInvalidCommitPrecommits, "expected InvalidCommitPrecommitsError at height %d but got: %v", height, err)
 		}
 
 		/*

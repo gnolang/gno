@@ -151,7 +151,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 					"error parsing uint64 %q: %v",
 					arg, err))
 			}
-			tv.SetUint64(uint64(u64))
+			tv.SetUint64(u64)
 			return
 		default:
 			panic(fmt.Sprintf("unexpected primitive type %s", bt.String()))

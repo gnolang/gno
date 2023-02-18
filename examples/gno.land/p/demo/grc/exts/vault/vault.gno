@@ -18,13 +18,13 @@ type Vault interface {
 func New(adminToken *grc20.AdminToken) Vault {
 	return &impl{
 		adminToken: adminToken,
-		users:      avl.NewMutTree(),
+		users:      avl.Tree{},
 	}
 }
 
 type impl struct {
 	adminToken *grc20.AdminToken
-	users      *avl.MutTree // std.Address -> userVault
+	users      avl.Tree // std.Address -> userVault
 }
 
 type userVault struct {

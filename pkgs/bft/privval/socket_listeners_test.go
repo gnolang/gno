@@ -10,14 +10,14 @@ import (
 	"github.com/gnolang/gno/pkgs/crypto/ed25519"
 )
 
-//-------------------------------------------
+// -------------------------------------------
 // helper funcs
 
 func newPrivKey() ed25519.PrivKeyEd25519 {
 	return ed25519.GenPrivKey()
 }
 
-//-------------------------------------------
+// -------------------------------------------
 // tests
 
 type listenerTestCase struct {
@@ -40,6 +40,8 @@ func testUnixAddr() (string, error) {
 }
 
 func tcpListenerTestCase(t *testing.T, timeoutAccept, timeoutReadWrite time.Duration) listenerTestCase {
+	t.Helper()
+
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -56,6 +58,8 @@ func tcpListenerTestCase(t *testing.T, timeoutAccept, timeoutReadWrite time.Dura
 }
 
 func unixListenerTestCase(t *testing.T, timeoutAccept, timeoutReadWrite time.Duration) listenerTestCase {
+	t.Helper()
+
 	addr, err := testUnixAddr()
 	if err != nil {
 		t.Fatal(err)
@@ -76,6 +80,8 @@ func unixListenerTestCase(t *testing.T, timeoutAccept, timeoutReadWrite time.Dur
 }
 
 func listenerTestCases(t *testing.T, timeoutAccept, timeoutReadWrite time.Duration) []listenerTestCase {
+	t.Helper()
+
 	return []listenerTestCase{
 		tcpListenerTestCase(t, timeoutAccept, timeoutReadWrite),
 		unixListenerTestCase(t, timeoutAccept, timeoutReadWrite),

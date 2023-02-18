@@ -14,7 +14,7 @@ import (
 	"github.com/gnolang/gno/pkgs/std"
 )
 
-//----------------------------------------
+// ----------------------------------------
 // Primitives
 
 type Word int
@@ -109,7 +109,7 @@ const (
 
 type Name string
 
-//----------------------------------------
+// ----------------------------------------
 // Location
 // Acts as an identifier for nodes.
 
@@ -144,7 +144,7 @@ func (loc Location) IsZero() bool {
 		loc.Nonce == 0
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Attributes
 // All nodes have attributes for general analysis purposes.
 // Exported Attribute fields like Loc and Label are persisted
@@ -189,7 +189,7 @@ func (attr *Attributes) SetAttribute(key interface{}, value interface{}) {
 	attr.data[key] = value
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Node
 
 type Node interface {
@@ -206,58 +206,58 @@ type Node interface {
 }
 
 // non-pointer receiver to help make immutable.
-func (_ *NameExpr) assertNode()            {}
-func (_ *BasicLitExpr) assertNode()        {}
-func (_ *BinaryExpr) assertNode()          {}
-func (_ *CallExpr) assertNode()            {}
-func (_ *IndexExpr) assertNode()           {}
-func (_ *SelectorExpr) assertNode()        {}
-func (_ *SliceExpr) assertNode()           {}
-func (_ *StarExpr) assertNode()            {}
-func (_ *RefExpr) assertNode()             {}
-func (_ *TypeAssertExpr) assertNode()      {}
-func (_ *UnaryExpr) assertNode()           {}
-func (_ *CompositeLitExpr) assertNode()    {}
-func (_ *KeyValueExpr) assertNode()        {}
-func (_ *FuncLitExpr) assertNode()         {}
-func (_ *ConstExpr) assertNode()           {}
-func (_ *FieldTypeExpr) assertNode()       {}
-func (_ *ArrayTypeExpr) assertNode()       {}
-func (_ *SliceTypeExpr) assertNode()       {}
-func (_ *InterfaceTypeExpr) assertNode()   {}
-func (_ *ChanTypeExpr) assertNode()        {}
-func (_ *FuncTypeExpr) assertNode()        {}
-func (_ *MapTypeExpr) assertNode()         {}
-func (_ *StructTypeExpr) assertNode()      {}
-func (_ *constTypeExpr) assertNode()       {}
-func (_ *MaybeNativeTypeExpr) assertNode() {}
-func (_ *AssignStmt) assertNode()          {}
-func (_ *BlockStmt) assertNode()           {}
-func (_ *BranchStmt) assertNode()          {}
-func (_ *DeclStmt) assertNode()            {}
-func (_ *DeferStmt) assertNode()           {}
-func (_ *ExprStmt) assertNode()            {}
-func (_ *ForStmt) assertNode()             {}
-func (_ *GoStmt) assertNode()              {}
-func (_ *IfStmt) assertNode()              {}
-func (_ *IfCaseStmt) assertNode()          {}
-func (_ *IncDecStmt) assertNode()          {}
-func (_ *RangeStmt) assertNode()           {}
-func (_ *ReturnStmt) assertNode()          {}
-func (_ *PanicStmt) assertNode()           {}
-func (_ *SelectStmt) assertNode()          {}
-func (_ *SelectCaseStmt) assertNode()      {}
-func (_ *SendStmt) assertNode()            {}
-func (_ *SwitchStmt) assertNode()          {}
-func (_ *SwitchClauseStmt) assertNode()    {}
-func (_ *EmptyStmt) assertNode()           {}
-func (_ *bodyStmt) assertNode()            {}
-func (_ *FuncDecl) assertNode()            {}
-func (_ *ImportDecl) assertNode()          {}
-func (_ *ValueDecl) assertNode()           {}
-func (_ *TypeDecl) assertNode()            {}
-func (_ *FileNode) assertNode()            {}
-func (_ *PackageNode) assertNode()         {}
+func (x *NameExpr) assertNode()            {}
+func (x *BasicLitExpr) assertNode()        {}
+func (x *BinaryExpr) assertNode()          {}
+func (x *CallExpr) assertNode()            {}
+func (x *IndexExpr) assertNode()           {}
+func (x *SelectorExpr) assertNode()        {}
+func (x *SliceExpr) assertNode()           {}
+func (x *StarExpr) assertNode()            {}
+func (x *RefExpr) assertNode()             {}
+func (x *TypeAssertExpr) assertNode()      {}
+func (x *UnaryExpr) assertNode()           {}
+func (x *CompositeLitExpr) assertNode()    {}
+func (x *KeyValueExpr) assertNode()        {}
+func (x *FuncLitExpr) assertNode()         {}
+func (x *ConstExpr) assertNode()           {}
+func (x *FieldTypeExpr) assertNode()       {}
+func (x *ArrayTypeExpr) assertNode()       {}
+func (x *SliceTypeExpr) assertNode()       {}
+func (x *InterfaceTypeExpr) assertNode()   {}
+func (x *ChanTypeExpr) assertNode()        {}
+func (x *FuncTypeExpr) assertNode()        {}
+func (x *MapTypeExpr) assertNode()         {}
+func (x *StructTypeExpr) assertNode()      {}
+func (x *constTypeExpr) assertNode()       {}
+func (x *MaybeNativeTypeExpr) assertNode() {}
+func (x *AssignStmt) assertNode()          {}
+func (x *BlockStmt) assertNode()           {}
+func (x *BranchStmt) assertNode()          {}
+func (x *DeclStmt) assertNode()            {}
+func (x *DeferStmt) assertNode()           {}
+func (x *ExprStmt) assertNode()            {}
+func (x *ForStmt) assertNode()             {}
+func (x *GoStmt) assertNode()              {}
+func (x *IfStmt) assertNode()              {}
+func (x *IfCaseStmt) assertNode()          {}
+func (x *IncDecStmt) assertNode()          {}
+func (x *RangeStmt) assertNode()           {}
+func (x *ReturnStmt) assertNode()          {}
+func (x *PanicStmt) assertNode()           {}
+func (x *SelectStmt) assertNode()          {}
+func (x *SelectCaseStmt) assertNode()      {}
+func (x *SendStmt) assertNode()            {}
+func (x *SwitchStmt) assertNode()          {}
+func (x *SwitchClauseStmt) assertNode()    {}
+func (x *EmptyStmt) assertNode()           {}
+func (x *bodyStmt) assertNode()            {}
+func (x *FuncDecl) assertNode()            {}
+func (x *ImportDecl) assertNode()          {}
+func (x *ValueDecl) assertNode()           {}
+func (x *TypeDecl) assertNode()            {}
+func (x *FileNode) assertNode()            {}
+func (x *PackageNode) assertNode()         {}
 
 var (
 	_ Node = &NameExpr{}
@@ -314,7 +314,7 @@ var (
 	_ Node = &PackageNode{}
 )
 
-//----------------------------------------
+// ----------------------------------------
 // Expr
 //
 // expressions generally have no side effects on the caller's context,
@@ -457,19 +457,19 @@ type CompositeLitExpr struct {
 
 // Returns true if any elements are keyed.
 // Panics if inconsistent.
-func (clx *CompositeLitExpr) IsKeyed() bool {
-	if len(clx.Elts) == 0 {
+func (x *CompositeLitExpr) IsKeyed() bool {
+	if len(x.Elts) == 0 {
 		return false
-	} else if clx.Elts[0].Key == nil {
-		for i := 1; i < len(clx.Elts); i++ {
-			if clx.Elts[i].Key != nil {
+	} else if x.Elts[0].Key == nil {
+		for i := 1; i < len(x.Elts); i++ {
+			if x.Elts[i].Key != nil {
 				panic("mixed keyed and unkeyed elements")
 			}
 		}
 		return false
 	} else {
-		for i := 1; i < len(clx.Elts); i++ {
-			if clx.Elts[i].Key == nil {
+		for i := 1; i < len(x.Elts); i++ {
+			if x.Elts[i].Key == nil {
 				panic("mixed keyed and unkeyed elements")
 			}
 		}
@@ -505,7 +505,7 @@ type ConstExpr struct {
 	TypedValue
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Type(Expressions)
 //
 // In Go, Type expressions can be evaluated immediately
@@ -524,27 +524,27 @@ type TypeExpr interface {
 }
 
 // non-pointer receiver to help make immutable.
-func (_ *FieldTypeExpr) assertTypeExpr()       {}
-func (_ *ArrayTypeExpr) assertTypeExpr()       {}
-func (_ *SliceTypeExpr) assertTypeExpr()       {}
-func (_ *InterfaceTypeExpr) assertTypeExpr()   {}
-func (_ *ChanTypeExpr) assertTypeExpr()        {}
-func (_ *FuncTypeExpr) assertTypeExpr()        {}
-func (_ *MapTypeExpr) assertTypeExpr()         {}
-func (_ *StructTypeExpr) assertTypeExpr()      {}
-func (_ *constTypeExpr) assertTypeExpr()       {}
-func (_ *MaybeNativeTypeExpr) assertTypeExpr() {}
+func (x *FieldTypeExpr) assertTypeExpr()       {}
+func (x *ArrayTypeExpr) assertTypeExpr()       {}
+func (x *SliceTypeExpr) assertTypeExpr()       {}
+func (x *InterfaceTypeExpr) assertTypeExpr()   {}
+func (x *ChanTypeExpr) assertTypeExpr()        {}
+func (x *FuncTypeExpr) assertTypeExpr()        {}
+func (x *MapTypeExpr) assertTypeExpr()         {}
+func (x *StructTypeExpr) assertTypeExpr()      {}
+func (x *constTypeExpr) assertTypeExpr()       {}
+func (x *MaybeNativeTypeExpr) assertTypeExpr() {}
 
-func (_ *FieldTypeExpr) assertExpr()       {}
-func (_ *ArrayTypeExpr) assertExpr()       {}
-func (_ *SliceTypeExpr) assertExpr()       {}
-func (_ *InterfaceTypeExpr) assertExpr()   {}
-func (_ *ChanTypeExpr) assertExpr()        {}
-func (_ *FuncTypeExpr) assertExpr()        {}
-func (_ *MapTypeExpr) assertExpr()         {}
-func (_ *StructTypeExpr) assertExpr()      {}
-func (_ *constTypeExpr) assertExpr()       {}
-func (_ *MaybeNativeTypeExpr) assertExpr() {}
+func (x *FieldTypeExpr) assertExpr()       {}
+func (x *ArrayTypeExpr) assertExpr()       {}
+func (x *SliceTypeExpr) assertExpr()       {}
+func (x *InterfaceTypeExpr) assertExpr()   {}
+func (x *ChanTypeExpr) assertExpr()        {}
+func (x *FuncTypeExpr) assertExpr()        {}
+func (x *MapTypeExpr) assertExpr()         {}
+func (x *StructTypeExpr) assertExpr()      {}
+func (x *constTypeExpr) assertExpr()       {}
+func (x *MaybeNativeTypeExpr) assertExpr() {}
 
 var (
 	_ TypeExpr = &FieldTypeExpr{}
@@ -652,7 +652,7 @@ type MaybeNativeTypeExpr struct {
 	Type Expr
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Stmt
 //
 // statements generally have side effects on the calling context.
@@ -677,7 +677,7 @@ func (ss Body) GetLabeledStmt(label Name) (stmt Stmt, idx int) {
 	return nil, -1
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 // non-pointer receiver to help make immutable.
 func (*AssignStmt) assertStmt()       {}
@@ -866,7 +866,7 @@ type SwitchClauseStmt struct {
 	Body
 }
 
-//----------------------------------------
+// ----------------------------------------
 // bodyStmt (persistent)
 
 // NOTE: embedded in Block.
@@ -893,40 +893,40 @@ type bodyStmt struct {
 	NextRune      rune         // for RangeStmt w/ strings only
 }
 
-func (s *bodyStmt) PopActiveStmt() (as Stmt) {
-	as = s.Active
-	s.Active = nil
+func (x *bodyStmt) PopActiveStmt() (as Stmt) {
+	as = x.Active
+	x.Active = nil
 	return
 }
 
-func (s *bodyStmt) String() string {
+func (x *bodyStmt) String() string {
 	next := ""
-	if s.NextBodyIndex < 0 {
+	if x.NextBodyIndex < 0 {
 		next = "(init)"
-	} else if s.NextBodyIndex == len(s.Body) {
+	} else if x.NextBodyIndex == len(x.Body) {
 		next = "(end)"
 	} else {
-		next = s.Body[s.NextBodyIndex].String()
+		next = x.Body[x.NextBodyIndex].String()
 	}
 	active := ""
-	if s.Active != nil {
-		if s.NextBodyIndex < 0 || s.NextBodyIndex == len(s.Body) {
+	if x.Active != nil {
+		if x.NextBodyIndex < 0 || x.NextBodyIndex == len(x.Body) {
 			// none
-		} else if s.Body[s.NextBodyIndex-1] == s.Active {
+		} else if x.Body[x.NextBodyIndex-1] == x.Active {
 			active = "*"
 		} else {
-			active = fmt.Sprintf(" unexpected active: %v", s.Active)
+			active = fmt.Sprintf(" unexpected active: %v", x.Active)
 		}
 	}
 	return fmt.Sprintf("bodyStmt[%d/%d/%d]=%s%s",
-		s.ListLen,
-		s.ListIndex,
-		s.NextBodyIndex,
+		x.ListLen,
+		x.ListIndex,
+		x.NextBodyIndex,
 		next,
 		active)
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Simple Statement
 // NOTE: SimpleStmt is not used in nodes due to itable conversion costs.
 //
@@ -946,7 +946,7 @@ func (*SendStmt) assertSimpleStmt()   {}
 func (*IncDecStmt) assertSimpleStmt() {}
 func (*AssignStmt) assertSimpleStmt() {}
 
-//----------------------------------------
+// ----------------------------------------
 // Decl
 
 type Decl interface {
@@ -958,10 +958,10 @@ type Decl interface {
 type Decls []Decl
 
 // non-pointer receiver to help make immutable.
-func (_ *FuncDecl) assertDecl()   {}
-func (_ *ImportDecl) assertDecl() {}
-func (_ *ValueDecl) assertDecl()  {}
-func (_ *TypeDecl) assertDecl()   {}
+func (x *FuncDecl) assertDecl()   {}
+func (x *ImportDecl) assertDecl() {}
+func (x *ValueDecl) assertDecl()  {}
+func (x *TypeDecl) assertDecl()   {}
 
 var (
 	_ Decl = &FuncDecl{}
@@ -980,11 +980,11 @@ type FuncDecl struct {
 	Body                   // function body; or empty for external (non-Go) function
 }
 
-func (fd *FuncDecl) GetDeclNames() []Name {
-	if fd.IsMethod {
+func (x *FuncDecl) GetDeclNames() []Name {
+	if x.IsMethod {
 		return nil
 	} else {
-		return []Name{fd.NameExpr.Name}
+		return []Name{x.NameExpr.Name}
 	}
 }
 
@@ -994,11 +994,11 @@ type ImportDecl struct {
 	PkgPath  string
 }
 
-func (id *ImportDecl) GetDeclNames() []Name {
-	if id.NameExpr.Name == "." {
+func (x *ImportDecl) GetDeclNames() []Name {
+	if x.NameExpr.Name == "." {
 		return nil // ignore
 	} else {
-		return []Name{id.NameExpr.Name}
+		return []Name{x.NameExpr.Name}
 	}
 }
 
@@ -1010,9 +1010,9 @@ type ValueDecl struct {
 	Const  bool
 }
 
-func (vd *ValueDecl) GetDeclNames() []Name {
-	ns := make([]Name, 0, len(vd.NameExprs))
-	for _, nx := range vd.NameExprs {
+func (x *ValueDecl) GetDeclNames() []Name {
+	ns := make([]Name, 0, len(x.NameExprs))
+	for _, nx := range x.NameExprs {
 		if nx.Name == "_" {
 			// ignore
 		} else {
@@ -1029,11 +1029,11 @@ type TypeDecl struct {
 	IsAlias bool // type alias since Go 1.9
 }
 
-func (td *TypeDecl) GetDeclNames() []Name {
-	if td.NameExpr.Name == "_" {
+func (x *TypeDecl) GetDeclNames() []Name {
+	if x.NameExpr.Name == "_" {
 		return nil // ignore
 	} else {
-		return []Name{td.NameExpr.Name}
+		return []Name{x.NameExpr.Name}
 	}
 }
 
@@ -1047,7 +1047,7 @@ func HasDeclName(d Decl, n2 Name) bool {
 	return false
 }
 
-//----------------------------------------
+// ----------------------------------------
 // SimpleDeclStmt
 //
 // These are elements of DeclStmt, and get pushed to m.Stmts.
@@ -1061,18 +1061,18 @@ type SimpleDeclStmt interface {
 // not used to avoid itable costs.
 // type SimpleDeclStmts []SimpleDeclStmt
 
-func (_ *ValueDecl) assertSimpleDeclStmt() {}
-func (_ *TypeDecl) assertSimpleDeclStmt()  {}
+func (x *ValueDecl) assertSimpleDeclStmt() {}
+func (x *TypeDecl) assertSimpleDeclStmt()  {}
 
-func (_ *ValueDecl) assertStmt() {}
-func (_ *TypeDecl) assertStmt()  {}
+func (x *ValueDecl) assertStmt() {}
+func (x *TypeDecl) assertStmt()  {}
 
 var (
 	_ SimpleDeclStmt = &ValueDecl{}
 	_ SimpleDeclStmt = &TypeDecl{}
 )
 
-//----------------------------------------
+// ----------------------------------------
 // *FileSet
 
 type FileSet struct {
@@ -1251,7 +1251,7 @@ func (fs *FileSet) FileNames() []string {
 	return res
 }
 
-//----------------------------------------
+// ----------------------------------------
 // FileNode, & PackageNode
 
 type FileNode struct {
@@ -1281,7 +1281,7 @@ func PackageNodeLocation(path string) Location {
 func NewPackageNode(name Name, path string, fset *FileSet) *PackageNode {
 	pn := &PackageNode{
 		PkgPath: path,
-		PkgName: Name(name),
+		PkgName: name,
 		FileSet: fset,
 	}
 	pn.SetLocation(PackageNodeLocation(path))
@@ -1289,23 +1289,23 @@ func NewPackageNode(name Name, path string, fset *FileSet) *PackageNode {
 	return pn
 }
 
-func (pn *PackageNode) NewPackage() *PackageValue {
+func (x *PackageNode) NewPackage() *PackageValue {
 	pv := &PackageValue{
 		Block: &Block{
-			Source: pn,
+			Source: x,
 		},
-		PkgName:    pn.PkgName,
-		PkgPath:    pn.PkgPath,
+		PkgName:    x.PkgName,
+		PkgPath:    x.PkgPath,
 		FNames:     nil,
 		FBlocks:    nil,
 		fBlocksMap: make(map[Name]*Block),
 	}
-	if IsRealmPath(pn.PkgPath) {
-		rlm := NewRealm(pn.PkgPath)
+	if IsRealmPath(x.PkgPath) {
+		rlm := NewRealm(x.PkgPath)
 		pv.SetRealm(rlm)
 	}
 	pv.IncRefCount() // all package values have starting ref count of 1.
-	pn.PrepareNewValues(pv)
+	x.PrepareNewValues(pv)
 	return pv
 }
 
@@ -1315,7 +1315,7 @@ func (pn *PackageNode) NewPackage() *PackageValue {
 // length.
 // NOTE: declared methods do not get their closures set here. See
 // *DeclaredType.GetValueAt() which returns a filled copy.
-func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
+func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 	if pv.PkgPath == "" {
 		// nothing to prepare for throwaway packages.
 		// TODO: double check to see if still relevant.
@@ -1323,7 +1323,7 @@ func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 	}
 	// should already exist.
 	block := pv.Block.(*Block)
-	if block.Source != pn {
+	if block.Source != x {
 		// special case if block.Source is ref node
 		if ref, ok := block.Source.(RefNode); ok && ref.Location == PackageNodeLocation(pv.PkgPath) {
 			// this is fine
@@ -1332,12 +1332,12 @@ func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 		}
 	}
 	pvl := len(block.Values)
-	pnl := len(pn.Values)
+	pnl := len(x.Values)
 	// copy new top-level defined values/types.
 	if pvl < pnl {
 		// XXX: deep copy heap values
 		nvs := make([]TypedValue, pnl-pvl)
-		copy(nvs, pn.Values[pvl:pnl])
+		copy(nvs, x.Values[pvl:pnl])
 		for i, tv := range nvs {
 			if fv, ok := tv.V.(*FuncValue); ok {
 				// copy function value and assign closure from package value.
@@ -1362,7 +1362,7 @@ func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 // DefineNativeFunc defines a native function. This is not the
 // same as DefineGoNativeValue, which DOES NOT give access to
 // the running machine.
-func (pn *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*Machine)) {
+func (x *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*Machine)) {
 	if debug {
 		debug.Printf("*PackageNode.DefineNative(%s,...)\n", n)
 	}
@@ -1370,32 +1370,32 @@ func (pn *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*
 		panic("DefineNative expects a function, but got nil")
 	}
 	fd := FuncD(n, ps, rs, nil)
-	fd = Preprocess(nil, pn, fd).(*FuncDecl)
-	ft := evalStaticType(nil, pn, &fd.Type).(*FuncType)
+	fd = Preprocess(nil, x, fd).(*FuncDecl)
+	ft := evalStaticType(nil, x, &fd.Type).(*FuncType)
 	if debug {
 		if ft == nil {
 			panic("should not happen")
 		}
 	}
-	fv := pn.GetValueRef(nil, n).V.(*FuncValue)
+	fv := x.GetValueRef(nil, n).V.(*FuncValue)
 	fv.nativeBody = native
 }
 
 // Same as DefineNative but allow the overriding of previously defined natives.
 // For example, overriding a native function defined in stdlibs/stdlibs for
 // testing. Caller must ensure that the function type is identical.
-func (pn *PackageNode) DefineNativeOverride(n Name, native func(*Machine)) {
+func (x *PackageNode) DefineNativeOverride(n Name, native func(*Machine)) {
 	if debug {
 		debug.Printf("*PackageNode.DefineNativeOverride(%s,...)\n", n)
 	}
 	if native == nil {
 		panic("DefineNative expects a function, but got nil")
 	}
-	fv := pn.GetValueRef(nil, n).V.(*FuncValue)
+	fv := x.GetValueRef(nil, n).V.(*FuncValue)
 	fv.nativeBody = native
 }
 
-//----------------------------------------
+// ----------------------------------------
 // RefNode
 
 // Reference to a node by its location.
@@ -1408,7 +1408,7 @@ func (rn RefNode) GetLocation() Location {
 	return rn.Location
 }
 
-//----------------------------------------
+// ----------------------------------------
 // BlockNode
 
 // Nodes that create their own scope satisfy this interface.
@@ -1437,7 +1437,7 @@ type BlockNode interface {
 	GetBody() Body
 }
 
-//----------------------------------------
+// ----------------------------------------
 // StaticBlock
 
 // Embed in node to make it a BlockNode.
@@ -1454,7 +1454,7 @@ type StaticBlock struct {
 // Implements BlockNode
 func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 	if sb.Names != nil || sb.Block.Source != nil {
-		panic("StaticBlock already initalized")
+		panic("StaticBlock already initialized")
 	}
 	if parent == nil {
 		sb.Block = Block{
@@ -1792,23 +1792,23 @@ var (
 	_ BlockNode = RefNode{}
 )
 
-func (ifs *IfStmt) GetBody() Body {
+func (x *IfStmt) GetBody() Body {
 	panic("IfStmt has no body (but .Then and .Else do)")
 }
 
-func (ifs *SwitchStmt) GetBody() Body {
+func (x *SwitchStmt) GetBody() Body {
 	panic("SwitchStmt has no body (but its cases do)")
 }
 
-func (fn *FileNode) GetBody() Body {
+func (x *FileNode) GetBody() Body {
 	panic("FileNode has no body (but it does have .Decls)")
 }
 
-func (pn *PackageNode) GetBody() Body {
+func (x *PackageNode) GetBody() Body {
 	panic("PackageNode has no body")
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Value Path
 
 // A relative pointer to a TypedValue value
@@ -1861,7 +1861,7 @@ func NewValuePath(t VPType, depth uint8, index uint16, n Name) ValuePath {
 }
 
 func NewValuePathUverse(index uint16, n Name) ValuePath {
-	return NewValuePath(VPUverse, 0, uint16(index), n)
+	return NewValuePath(VPUverse, 0, index, n)
 }
 
 func NewValuePathBlock(depth uint8, index uint16, n Name) ValuePath {
@@ -1984,19 +1984,19 @@ type ValuePather interface {
 	GetPathForName(Name) ValuePath
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Utility
 
-func (blx *BasicLitExpr) GetString() string {
-	str, err := strconv.Unquote(blx.Value)
+func (x *BasicLitExpr) GetString() string {
+	str, err := strconv.Unquote(x.Value)
 	if err != nil {
 		panic("error in parsing string literal: " + err.Error())
 	}
 	return str
 }
 
-func (blx *BasicLitExpr) GetInt() int {
-	i, err := strconv.Atoi(blx.Value)
+func (x *BasicLitExpr) GetInt() int {
+	i, err := strconv.Atoi(x.Value)
 	if err != nil {
 		panic(err)
 	}
@@ -2006,13 +2006,14 @@ func (blx *BasicLitExpr) GetInt() int {
 type GnoAttribute string
 
 const (
-	ATTR_PREPROCESSED GnoAttribute = "ATTR_PREPROCESSED"
-	ATTR_PREDEFINED   GnoAttribute = "ATTR_PREDEFINED"
-	ATTR_TYPE_VALUE   GnoAttribute = "ATTR_TYPE_VALUE"
-	ATTR_TYPEOF_VALUE GnoAttribute = "ATTR_TYPEOF_VALUE"
-	ATTR_IOTA         GnoAttribute = "ATTR_IOTA"
-	ATTR_LOCATIONED   GnoAttribute = "ATTR_LOCATIONED"
-	ATTR_INJECTED     GnoAttribute = "ATTR_INJECTED"
+	ATTR_PREPROCESSED      GnoAttribute = "ATTR_PREPROCESSED"
+	ATTR_PREDEFINED        GnoAttribute = "ATTR_PREDEFINED"
+	ATTR_TYPE_VALUE        GnoAttribute = "ATTR_TYPE_VALUE"
+	ATTR_TYPEOF_VALUE      GnoAttribute = "ATTR_TYPEOF_VALUE"
+	ATTR_IOTA              GnoAttribute = "ATTR_IOTA"
+	ATTR_LOCATIONED        GnoAttribute = "ATTR_LOCATIONED"
+	ATTR_INJECTED          GnoAttribute = "ATTR_INJECTED"
+	ATTR_SWITCH_CLAUSE_IDX GnoAttribute = "ATTR_CLAUSE_IDX"
 )
 
 // TODO: consider length restrictions.

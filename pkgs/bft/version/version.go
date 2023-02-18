@@ -16,6 +16,7 @@ var (
 
 func init() {
 	// Defensive checks
+	//nolint:goconst
 	if abciver.Version != "v1.0.0-rc.0" ||
 		bcver.Version != "v1.0.0-rc.0" ||
 		p2pver.Version != "v1.0.0-rc.0" {

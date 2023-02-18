@@ -1,6 +1,7 @@
 package main
 
 import (
+	goerrors "errors"
 	"fmt"
 	"io"
 	"os"
@@ -56,6 +57,7 @@ func runRepl(rootDir string, verbose bool) error {
 	}
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath: "test",
+		Output:  stdout,
 		Store:   testStore,
 	})
 
@@ -74,7 +76,7 @@ func runRepl(rootDir string, verbose bool) error {
 		input, err := t.ReadLine()
 		if err != nil {
 			term.Restore(0, oldState)
-			if err == io.EOF {
+			if goerrors.Is(err, io.EOF) {
 				return nil
 			}
 			return fmt.Errorf("term error: %w", err)
