@@ -194,3 +194,61 @@ pre {
 #source {
   display: none;
 }
+
+#pkg_doc {
+  padding: 0 22px;
+}
+
+#pkg_doc #pkg_doc__header__overview {
+  padding: 10px 0;
+}
+
+#pkg_doc__body > .pkg_doc__section {
+  padding: 10px 0;
+}
+
+#pkg_doc__body > .pkg_doc__section > .pkg_doc__section-heading {
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+.pkg_doc__variable {
+  padding: 10px 0;
+}
+
+.pkg_doc__constant {
+  padding: 10px 0;
+}
+
+.pkg_doc__comment {
+  padding: 10px 10px;
+}
+
+.pkg_doc__section .pkg_doc__comment {
+  padding: 5px 15px;
+  font-size: 0.9rem;
+}
+
+.pkg_doc__section .pkg_doc__function {
+  padding: 10px 0;
+}
+
+.pkg_doc__type {
+  padding: 20px 0;
+}
+
+.pkg_doc__type-title {
+  font-weight: bold;
+}
+
+.pkg_doc__type > .pkg_doc__function {
+  padding: 15px 10px;
+}
+
+.pkg_doc__type > .pkg_doc__variable {
+  padding: 15px 10px;
+}
+
+.pkg_doc__type > .pkg_doc__constant {
+  padding: 15px 10px;
+}

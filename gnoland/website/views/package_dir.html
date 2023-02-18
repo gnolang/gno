@@ -4,6 +4,7 @@
   <head>
     <title>Gno.land</title>
     {{ template "html_head" }}
+    <link rel="stylesheet" href="/static/css/highlight.min.css" />
   </head>
   <body onload="main()">
     <div id="root">
@@ -15,22 +16,138 @@
         {{ template "header_buttons" }}
       </div>
 
-      <div id="packge_dir">
-        {{ template "dir_contents" . }}
+      <div id="pkg_doc">
+        <div id="pkg_doc__header">
+          <h2>Package {{ .Data.Package.Name}}</h2>
+          <p>import "{{ .Data.Package.ImportPath }}"</p>
+          <div id="pkg_doc__header__overview">
+            <h3>Overview</h3>
+            {{ if .Data.Package.Doc }}
+            <div class="pkg_doc__comment">
+              {{ .Data.Package.Doc | comment }}
+            </div>
+            {{ else }}
+            <p>This section is empty.</p>
+            {{ end }}
+          </div>
+        </div>
+
+        <div id="pkg_doc__body">
+          <div class="pkg_doc__section">
+            <h3 class="pkg_doc__section-heading">Constants</h3>
+            {{ range .Data.Package.Consts }}
+            <div class="pkg_doc__constant">
+              <pre><code>{{ .Signature }}</code></pre>
+              {{ if .Doc }}
+              <div class="pkg_doc__comment">{{ .Doc }}</div>
+              {{end}}
+            </div>
+            {{ else }}
+            <p>This section is empty.</p>
+            {{ end }}
+          </div>
+
+          <div class="pkg_doc__section">
+            <h3 class="pkg_doc__section-heading">Variables</h3>
+            {{ range .Data.Package.Vars }}
+            <div class="pkg_doc__variable">
+              <pre><code>{{ .Signature }}</code></pre>
+              {{ if .Doc }}
+              <div class="pkg_doc__comment">{{ .Doc }}</div>
+              {{end}}
+            </div>
+            {{ else }}
+            <p>This section is empty.</p>
+            {{ end }}
+          </div>
+
+          <div class="pkg_doc__section">
+            <h3 class="pkg_doc__section-heading">Functions</h3>
+            <div>
+              {{ range .Data.Package.Funcs }}
+              <div class="pkg_doc__function">
+                <p>func <span class="pkg_doc__type-title">{{ .Name }}</span></p>
+                <pre><code>{{.Signature }}</code></pre>
+                {{ if .Doc }}
+                <div class="pkg_doc__comment">{{ .Doc | comment }}</div>
+                {{end}}
+              </div>
+              {{ else }}
+              <p>This section is empty.</p>
+              {{ end }}
+            </div>
+          </div>
+
+          <div class="pkg_doc__section">
+            <h3 class="pkg_doc__section-heading">Types</h3>
+            {{ range .Data.Package.Types }}
+            <div class="pkg_doc__type">
+              <p>type <span class="pkg_doc__type-title">{{ .Name }}</span></p>
+              <pre><code>{{ .Definition }}</code></pre>
+              {{ if .Doc }}
+              <div class="pkg_doc__comment">{{ .Doc | comment }}</div>
+              {{end}} {{ range .Vars }}
+              <div class="pkg_doc__variable">
+                <pre><code>{{ .Signature }}</code></pre>
+                {{ if .Doc }}
+                <div class="pkg_doc__comment">{{ .Doc | comment }}</div>
+                {{end}}
+              </div>
+              {{ end}} {{ range .Consts }}
+              <div class="pkg_doc__constant">
+                <pre><code>{{ .Signature }}</code></pre>
+                {{ if .Doc }}
+                <div class="pkg_doc__comment">{{ .Doc | comment }}</div>
+                {{end}}
+              </div>
+              {{ end}} {{ range .Funcs }}
+              <div class="pkg_doc__function">
+                <p>func <span class="pkg_doc__type-title">{{ .Name }}</span></p>
+                <pre><code>{{ .Signature }}</code></pre>
+                {{ if .Doc }}
+                <div class="pkg_doc__comment">{{ .Doc | comment }}</div>
+                {{end}}
+              </div>
+              {{ end }} {{ range .Methods }}
+              <div class="pkg_doc__function">
+                <p>func <span class="pkg_doc__type-title">{{ .Name }}</span></p>
+                <pre><code>{{ .Signature }}</code></pre>
+                {{ if .Doc }}
+                <div class="pkg_doc__comment">{{ .Doc | comment }}</div>
+                {{end}}
+              </div>
+
+              {{ end }}
+            </div>
+            {{ else }}
+            <p>This section is empty.</p>
+            {{ end }}
+          </div>
+
+          <div class="pkg_doc__section">
+            <h3 class="pkg_doc__section-heading">Source Files</h3>
+            <div id="packge_dir">{{ template "dir_contents" . }}</div>
+          </div>
+        </div>
       </div>
 
       {{ template "footer" }}
     </div>
     {{ template "js" }}
+    <script type="text/javascript" src="/static/js/highlight.min.js"></script>
+    <script>
+      hljs.configure({
+        throwUnescapedHTML: true, // important to avoid inserting escaped html
+      });
+      hljs.highlightAll(); // applied to all <pre><code>...</code></pre>
+    </script>
   </body>
 </html>
-{{- end -}}
-
-{{ define "dir_contents" }}
+{{- end -}} {{ define "dir_contents" }}
 <div class="dir_contents">
   {{ $dirPath := .Data.DirPath }}
   <ul>
-    {{ range .Data.Files }}
+    {{ range .Data.Package.Filenames }}
     <li class="dir_entry">
       <a href="{{ $dirPath }}/{{ . }}">{{ . }}</a>
     </li>

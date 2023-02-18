@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -88,6 +89,7 @@ const (
 	QueryFuncs   = "qfuncs"
 	QueryEval    = "qeval"
 	QueryFile    = "qfile"
+	QueryFiles   = "qfiles"
 )
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
@@ -104,6 +106,8 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 		return vh.queryEval(ctx, req)
 	case QueryFile:
 		return vh.queryFile(ctx, req)
+	case QueryFiles:
+		return vh.queryFiles(ctx, req)
 	default:
 		res = sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest(fmt.Sprintf(
@@ -190,6 +194,22 @@ func (vh vmHandler) queryFile(ctx sdk.Context, req abci.RequestQuery) (res abci.
 		return
 	}
 	res.Data = []byte(result)
+	return
+}
+
+func (vh vmHandler) queryFiles(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	dirpath := string(req.Data)
+	result, err := vh.vm.QueryFiles(ctx, dirpath)
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	b, err := json.Marshal(&result)
+	if err != nil {
+		sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	res.Data = []byte(b)
 	return
 }
 
