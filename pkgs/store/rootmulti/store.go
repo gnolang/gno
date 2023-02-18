@@ -340,7 +340,7 @@ func (ms *multiStore) constructStore(params storeParams) (store types.CommitStor
 	} else {
 		db = dbm.NewPrefixDB(ms.db, []byte("s/k:"+params.key.Name()+"/"))
 	}
-	var opts = ms.storeOpts
+	opts := ms.storeOpts
 
 	// XXX: use these:
 	// return iavl.LoadStore(db, id, ms.pruningOpts, ms.lazyLoading)

@@ -9,9 +9,7 @@ import (
 	"github.com/gnolang/gno/pkgs/crypto/keys"
 )
 
-var (
-	errInvalidImportArgs = errors.New("invalid import arguments provided")
-)
+var errInvalidImportArgs = errors.New("invalid import arguments provided")
 
 type ImportOptions struct {
 	BaseOptions

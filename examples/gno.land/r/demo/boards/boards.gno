@@ -10,10 +10,10 @@ import (
 // Realm (package) state
 
 var (
-	gBoards         avl.Tree // id -> *Board
-	gBoardsCtr      int                // increments Board.id
-	gBoardsByName   avl.Tree // name -> *Board
-	gDefaultAnonFee = 100000000        // minimum fee required if anonymous
+	gBoards         avl.Tree    // id -> *Board
+	gBoardsCtr      int         // increments Board.id
+	gBoardsByName   avl.Tree    // name -> *Board
+	gDefaultAnonFee = 100000000 // minimum fee required if anonymous
 )
 
 //----------------------------------------
