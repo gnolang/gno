@@ -56,7 +56,7 @@ func TestSelectors(t *testing.T) {
 	_printValue(x0.F0) //       *ST.F0
 	//                            F:0
 	//                          VPField{depth:0,index:0}
-	var x1 = S1{1}
+	x1 := S1{1}
 	_printValue(x1.F0) //       *DT(S1)>*ST.F0
 	//                          +1        F:0
 	//                          VPField{depth:1,index:0}
@@ -74,7 +74,7 @@ func TestSelectors(t *testing.T) {
 	_printValue(x3.F0) //       *DT(S1P)>*PT>*ST.F0
 	//                          +1       +D   F:0
 	//                          VPDerefField{depth:1,index:0}
-	var x4 = &S1{1}
+	x4 := &S1{1}
 	_printValue(x4.F0) //       *PT>*DT(S1P)>*ST.F0
 	//                          +D  +1         F:0
 	//                          VPDerefField{depth:2,index:0}
@@ -82,16 +82,16 @@ func TestSelectors(t *testing.T) {
 	_printValue(x5.F0) //       *DT(S1P)>*PT>*DT(S1)>*ST.F0
 	//                          +1       +D  +1        F:0
 	//                          VPDerefField{depth:3,index:0}
-	var x6 = &x5
+	x6 := &x5
 	_printValue(x6)
 	// _printValue(x6.F0)       *PT>*DT(S1P)??? > *PT>*DT(S1)>*ST.F0
 	//                          +D  +1            +D  +1        F:0
 	//                          VPDerefField{depth:1,index:0}(WRONG!!!) > VPDerefField{depth:1,index:0} XXX ERROR
-	var x7 = S7{S1{1}}
+	x7 := S7{S1{1}}
 	_printValue(x7.F0) //       *DT(S7)>*ST.S1 > *DT(S1)>*ST.F0
 	//                          +1        F:0    +1        F:0
 	//                          VPField{depth:1,index:0} > VPField{depth:1,index:0}
-	var x8 = &x7
+	x8 := &x7
 	_printValue(x8.F0) //       *PT>*DT(S7)>*ST.S1 > *DT(S1)>*ST.F0
 	//                          +D  +1        F:0    +1        F:0
 	//                          VPDerefField{depth:1,index:0} > VPField{depth:1,index:0}
@@ -99,7 +99,7 @@ func TestSelectors(t *testing.T) {
 	_printValue(x9.F0) //       *DT(S9)>*ST.S1 > *PT>*DT(S1)>*ST.F0
 	//                          +1        F:0    +D  +1        F:0
 	//                          VPField{depth:1,index:0} > VPDerefField{depth:1,index:0}
-	var x10 = struct{ S1 }{S1{1}}
+	x10 := struct{ S1 }{S1{1}}
 	_printValue(x10.F0) //      *ST.S1 > *DT(S1)>*ST.F0
 	//                            F:0    +1        F:0
 	//                          VPField{depth:0,index:0} > VPField{depth:1,index:0}
@@ -129,7 +129,7 @@ func TestSelectors(t *testing.T) {
 	_printValue(x10p.Bye) //    *DT(S10PD)>*PT>*ST.S1 > *DT(S1).Bye
 	//                          +1         +D    F:0    +1   *M:1
 	//                          VPSubrefField{depth:1,index:0} > VPDerefPtrMethod{index:1}
-	var x11 = S7{S1{1}}
+	x11 := S7{S1{1}}
 	_printValue(x11.F0) //      *DT(S7)>*ST.S1 > *DT(S1)>*ST.F0 NOTE same as x7.
 	//                          +1        F:0    +1        F:0
 	//                          VPField{depth:1,index:0} > VPField{depth:1,index:0}
@@ -139,7 +139,7 @@ func TestSelectors(t *testing.T) {
 	_printValue(x11.Bye) //     (*PT>)*DT(S7)>*ST.S1 > *DT(S1).Bye
 	//                           +S   +1        F:0    +1   *M:1
 	//                          VPSubrefField{depth:2,index:0} > VPDerefPtrMethod{index:1}
-	var x11p = &S7{S1{1}}
+	x11p := &S7{S1{1}}
 	_printValue(x11p.F0) //     *PT>*DT(S7)>*ST.S1 > *DT(S1)>*ST.F0
 	//                          +1            F:0    +1        F:0
 	//                          VPDerefField{depth:2,index:0} > VPField{depth:1,index:0}
@@ -149,7 +149,7 @@ func TestSelectors(t *testing.T) {
 	_printValue(x11p.Bye) //    *PT>*DT(S7)>*ST.S1 > *DT(S1).Bye
 	//                          +1            F:0    +1   *M:1
 	//                          VPSubrefField{depth:2,index:0} > VPDerefPtrMethod{index:1}
-	var x12 = struct{ *S1 }{&S1{1}}
+	x12 := struct{ *S1 }{&S1{1}}
 	_printValue(x12.F0) //      *ST.S1 > *PT>*DT(S1)>*ST.F0
 	//                            F:0    +D  +1        F:0
 	//                          VPField{depth:0,index:0} > VPDerefField{depth:1,index:0}

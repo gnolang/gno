@@ -122,9 +122,9 @@ func (pkg *Package) WithTypes(objs ...interface{}) *Package {
 	var lastType *Type = nil
 	for _, obj := range objs {
 		// Initialize variables
-		var objType = reflect.TypeOf(obj)
-		var name = ""
-		var pointerPreferred = false
+		objType := reflect.TypeOf(obj)
+		name := ""
+		pointerPreferred := false
 
 		// Two special cases.
 		// One: a string which follows a type declaration is a name.

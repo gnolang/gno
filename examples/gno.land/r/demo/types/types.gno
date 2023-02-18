@@ -33,7 +33,7 @@ func RetUint() uint             { return gUint }
 func RetInt() int               { return gInt }
 func RetUintPointer() *uint     { return &gUint }
 func RetIntPointer() *int       { return &gInt }
-func RetTree() avl.Tree 	{ return gTree }
+func RetTree() avl.Tree         { return gTree }
 func RetIntSlice() []int        { return gIntSlice }
 func RetUintSlice() []uint      { return gUintSlice }
 func RetStringSlice() []string  { return gStringSlice }
