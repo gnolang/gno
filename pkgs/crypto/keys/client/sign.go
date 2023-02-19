@@ -32,7 +32,7 @@ var DefaultSignOptions = SignOptions{
 }
 
 func signApp(cmd *command.Command, args []string, iopts interface{}) error {
-	var opts = iopts.(SignOptions)
+	opts := iopts.(SignOptions)
 	var err error
 
 	if len(args) != 1 {

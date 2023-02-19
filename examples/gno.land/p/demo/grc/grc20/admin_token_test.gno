@@ -40,7 +40,7 @@ func TestAllowance(t *testing.T) {
 		assert(t, a == tt.exp, "allowance exp: %d, got %d", tt.exp, a)
 
 		b, _ := token.BalanceOf(dest)
-		expB := b0+tt.spend
+		expB := b0 + tt.spend
 		assert(t, b == expB, "balance exp: %d, got %d", expB, b)
 	}
 

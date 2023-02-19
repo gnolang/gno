@@ -23,7 +23,7 @@ type Board struct {
 	name      string
 	creator   std.Address
 	threads   avl.Tree // Post.id -> *Post
-	postsCtr  uint64       // increments Post.id
+	postsCtr  uint64   // increments Post.id
 	createdAt time.Time
 	deleted   avl.Tree // TODO reserved for fast-delete.
 }
