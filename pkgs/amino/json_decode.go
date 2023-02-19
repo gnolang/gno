@@ -52,7 +52,7 @@ func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value,
 	if info.IsAminoMarshaler {
 		// First, decode repr instance from bytes.
 		rrv := reflect.New(info.ReprType.Type).Elem()
-		var rinfo = info.ReprType
+		rinfo := info.ReprType
 		err = cdc.decodeReflectJSON(bz, rinfo, rrv, fopts)
 		if err != nil {
 			return

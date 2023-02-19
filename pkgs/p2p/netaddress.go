@@ -81,11 +81,11 @@ func NewNetAddressFromString(idaddr string) (*NetAddress, error) {
 	}
 
 	// get ID
-	var id = crypto.ID(spl[0])
+	id := crypto.ID(spl[0])
 	if err := id.Validate(); err != nil {
 		return nil, NetAddressInvalidError{idaddr, err}
 	}
-	var addr = spl[1]
+	addr := spl[1]
 
 	// get host and port
 	host, portStr, err := net.SplitHostPort(addr)

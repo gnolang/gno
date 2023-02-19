@@ -22,7 +22,7 @@ var DefaultVerifyOptions = VerifyOptions{
 func verifyApp(cmd *command.Command, args []string, iopts interface{}) error {
 	var kb keys.Keybase
 	var err error
-	var opts = iopts.(VerifyOptions)
+	opts := iopts.(VerifyOptions)
 
 	if len(args) != 2 {
 		cmd.ErrPrintfln("Usage: verify <keyname> <signature>")
