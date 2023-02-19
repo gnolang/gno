@@ -3,7 +3,7 @@ version: "2"
 services:
   gnoland:
     container_name: gnoland
-    build: ../..
+    build: ../../..
     environment:
       - LOG_LEVEL=4
       - VIRTUAL_HOST=rpc.test2.gno.land
@@ -33,7 +33,7 @@ services:
 
   gnoweb:
     container_name: gnoweb
-    build: ../..
+    build: ../../..
     command:
       - gnoweb
       - --bind
@@ -68,7 +68,7 @@ services:
 
   gnofaucet:
     container_name: gnofaucet
-    build: ../..
+    build: ../../..
     command: sh -xc "
         date &&
         mkdir -p /.gno &&
