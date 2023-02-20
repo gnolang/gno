@@ -1907,7 +1907,7 @@ func goPkgPrefix(rootPkg *amino.Package, rt reflect.Type, info *amino.TypeInfo, 
 		return "" // native type.
 	}
 	var pkgName string
-	var pkgPath = rt.PkgPath()
+	pkgPath := rt.PkgPath()
 	if pkgPath == "" || rootPkg.GoPkgPath == pkgPath {
 		return ""
 	}

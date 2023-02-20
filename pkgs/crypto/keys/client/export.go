@@ -9,9 +9,7 @@ import (
 	"github.com/gnolang/gno/pkgs/crypto/keys"
 )
 
-var (
-	errInvalidExportArgs = errors.New("invalid export arguments provided")
-)
+var errInvalidExportArgs = errors.New("invalid export arguments provided")
 
 type ExportOptions struct {
 	BaseOptions
@@ -85,7 +83,7 @@ func exportApp(cmd *command.Command, _ []string, iopts interface{}) error {
 	if err := os.WriteFile(
 		opts.OutputPath,
 		[]byte(armor),
-		0644,
+		0o644,
 	); err != nil {
 		return fmt.Errorf(
 			"unable to write encrypted armor to file, %w",

@@ -29,9 +29,9 @@ type Post struct {
 	replies     avl.Tree // Post.id -> *Post
 	repliesAll  avl.Tree // Post.id -> *Post (all replies, for top-level posts)
 	reposts     avl.Tree // Board.id -> Post.id
-	threadID    PostID       // original Post.id
-	parentID    PostID       // parent Post.id (if reply or repost)
-	repostBoard BoardID      // original Board.id (if repost)
+	threadID    PostID   // original Post.id
+	parentID    PostID   // parent Post.id (if reply or repost)
+	repostBoard BoardID  // original Board.id (if repost)
 	createdAt   time.Time
 	updatedAt   time.Time
 }

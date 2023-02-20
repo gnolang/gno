@@ -39,7 +39,7 @@ func CreateRandomPeer(outbound bool) *peer {
 
 func CreateRoutableAddr() (addr string, netAddr *NetAddress) {
 	for {
-		var id = ed25519.GenPrivKey().PubKey().Address().ID()
+		id := ed25519.GenPrivKey().PubKey().Address().ID()
 		var err error
 		addr = fmt.Sprintf("%s@%v.%v.%v.%v:26656", id, random.RandInt()%256, random.RandInt()%256, random.RandInt()%256, random.RandInt()%256)
 		netAddr, err = NewNetAddressFromString(addr)
