@@ -434,7 +434,7 @@ func (cdc *Codec) MarshalAny(o interface{}) ([]byte, error) {
 	}
 
 	// Make a temporary interface var, to contain the value of o.
-	var ivar = rv.Interface()
+	ivar := rv.Interface()
 	var iinfo *TypeInfo
 	iinfo, err := cdc.getTypeInfoWLock(rt)
 	if err != nil {
@@ -793,7 +793,7 @@ func (cdc *Codec) MarshalJSONAny(o interface{}) ([]byte, error) {
 	}
 
 	// Make a temporary interface var, to contain the value of o.
-	var ivar = rv.Interface()
+	ivar := rv.Interface()
 	var iinfo *TypeInfo
 	iinfo, err := cdc.getTypeInfoWLock(rt)
 	if err != nil {

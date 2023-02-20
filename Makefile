@@ -122,8 +122,14 @@ test.go4:
 test.files1:
 	go test tests/*.go -v -test.short -run "TestFiles1/" --timeout 30m
 
+test.files1.sync:
+	go test tests/*.go -v -test.short -run "TestFiles1/" --timeout 30m --update-golden-tests
+
 test.files2:
 	go test tests/*.go -v -test.short -run "TestFiles2/" --timeout 30m
+
+test.files2.sync:
+	go test tests/*.go -v -test.short -run "TestFiles2/" --timeout 30m --update-golden-tests
 
 test.realm:
 	go test tests/*.go -v -run "TestFiles/^zrealm" --timeout 30m
@@ -141,6 +147,9 @@ test.packages2:
 
 test.examples:
 	go run ./cmd/gnodev test --verbose ./examples
+
+test.examples.sync:
+	go run ./cmd/gnodev test ./examples --verbose --update-golden-tests
 
 # Code gen
 stringer:

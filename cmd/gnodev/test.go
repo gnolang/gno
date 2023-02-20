@@ -24,11 +24,12 @@ import (
 )
 
 type testCfg struct {
-	verbose    bool
-	rootDir    string
-	run        string
-	timeout    time.Duration
-	precompile bool // TODO: precompile should be the default, but it needs to automatically precompile dependencies in memory.
+	verbose           bool
+	rootDir           string
+	run               string
+	timeout           time.Duration
+	precompile        bool // TODO: precompile should be the default, but it needs to automatically precompile dependencies in memory.
+	updateGoldenTests bool
 }
 
 func newTestCmd(io *commands.IO) *commands.Command {
@@ -60,6 +61,13 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		"precompile",
 		false,
 		"precompile gno to go before testing",
+	)
+
+	fs.BoolVar(
+		&c.updateGoldenTests,
+		"update-golden-tests",
+		false,
+		"writes actual as wanted in test comments",
 	)
 
 	fs.StringVar(
@@ -283,7 +291,7 @@ func gnoTestPkg(
 			}
 
 			testFilePath := filepath.Join(pkgPath, testFileName)
-			err := tests.RunFileTest(rootDir, testFilePath, false, nil)
+			err := tests.RunFileTest(rootDir, testFilePath, false, nil, cfg.updateGoldenTests)
 			duration := time.Since(startedAt)
 			dstr := fmtDuration(duration)
 

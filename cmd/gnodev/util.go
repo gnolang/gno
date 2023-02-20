@@ -178,7 +178,7 @@ func copyDir(src, dst string) error {
 		return fmt.Errorf("cannot read dir: %s", src)
 	}
 
-	if err := os.MkdirAll(dst, 0755); err != nil {
+	if err := os.MkdirAll(dst, 0o755); err != nil {
 		return fmt.Errorf("failed to create directory: '%s', error: '%w'", dst, err)
 	}
 

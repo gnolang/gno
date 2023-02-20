@@ -64,6 +64,8 @@ func runModDownload() error {
 	if err != nil {
 		return fmt.Errorf("parse: %w", err)
 	}
+	// sanitize gno.mod
+	gnoMod.Sanitize()
 
 	// validate gno.mod
 	if err := gnoMod.Validate(); err != nil {
@@ -75,12 +77,13 @@ func runModDownload() error {
 		return fmt.Errorf("fetch: %w", err)
 	}
 
-	if err := gnomod.Sanitize(gnoMod); err != nil {
+	gomod, err := gnomod.GnoToGoMod(*gnoMod)
+	if err != nil {
 		return fmt.Errorf("sanitize: %w", err)
 	}
 
 	// write go.mod file
-	err = gnoMod.WriteToPath(path)
+	err = gomod.WriteToPath(path)
 	if err != nil {
 		return fmt.Errorf("write go.mod file: %w", err)
 	}
