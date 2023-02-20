@@ -9,7 +9,6 @@ import (
 	"github.com/gnolang/gno/pkgs/crypto/ed25519"
 	"github.com/gnolang/gno/pkgs/errors"
 	"github.com/gnolang/gno/pkgs/log"
-	osm "github.com/gnolang/gno/pkgs/os"
 	"github.com/gnolang/gno/pkgs/p2p/config"
 	"github.com/gnolang/gno/pkgs/p2p/conn"
 	"github.com/gnolang/gno/pkgs/random"
@@ -243,7 +242,7 @@ func testVersionSet() versionset.VersionSet {
 func testNodeInfoWithNetwork(id ID, name, network string) NodeInfo {
 	return NodeInfo{
 		VersionSet: testVersionSet(),
-		NetAddress: NewNetAddressFromIPPort(id, net.ParseIP("127.0.0.1"), getFreePort()),
+		NetAddress: NewNetAddressFromIPPort(id, net.ParseIP("127.0.0.1"), 0),
 		Network:    network,
 		Software:   "p2ptest",
 		Version:    "v1.2.3-rc.0-deadbeef",
@@ -251,15 +250,7 @@ func testNodeInfoWithNetwork(id ID, name, network string) NodeInfo {
 		Moniker:    name,
 		Other: NodeInfoOther{
 			TxIndex:    "on",
-			RPCAddress: fmt.Sprintf("127.0.0.1:%d", getFreePort()),
+			RPCAddress: fmt.Sprintf("127.0.0.1:%d", 0),
 		},
 	}
-}
-
-func getFreePort() uint16 {
-	port, err := osm.GetFreePort()
-	if err != nil {
-		panic(err)
-	}
-	return uint16(port)
 }
