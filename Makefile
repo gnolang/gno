@@ -149,7 +149,7 @@ test.examples:
 	go run ./cmd/gnodev test --verbose ./examples
 
 test.examples.sync:
-	go run ./cmd/gnodev test ./examples --verbose --update-golden-tests
+	go run ./cmd/gnodev test --verbose --update-golden-tests ./examples
 
 # Code gen
 stringer:
