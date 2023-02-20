@@ -24,6 +24,7 @@ func main() {
 		newPrecompileCmd(),
 		newTestCmd(),
 		newReplCmd(),
+		newModCmd(),
 		// fmt -- gofmt
 		// clean
 		// graph

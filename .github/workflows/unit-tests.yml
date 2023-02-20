@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        goversion: ["1.18.x", "1.19.x"]
+        goversion: ["1.19.x", "1.20.x"]
         args:
           - test.go1
           - test.go2
@@ -41,4 +41,6 @@ jobs:
           go-version: ${{ matrix.go-version }}
       - uses: actions/checkout@v3
       - name: test
-        run: make ${{ matrix.args }}
+        run: |
+          export GOPATH=$HOME/go
+          make ${{ matrix.args }}
