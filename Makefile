@@ -65,10 +65,10 @@ clean:
 	rm -rf build
 
 examples.precompile: install_gnodev
-	go run ./cmd/gnodev precompile ./examples --verbose
+	go run ./cmd/gnodev precompile --verbose ./examples
 
 examples.build: install_gnodev examples.precompile
-	go run ./cmd/gnodev build ./examples --verbose
+	go run ./cmd/gnodev build --verbose ./examples
 
 ########################################
 # Formatting, linting.
