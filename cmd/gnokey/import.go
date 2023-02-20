@@ -86,8 +86,10 @@ func execImport(cfg *importCfg, io *commands.IO) error {
 
 	// Get the key-base encrypt password
 	encryptPassword, err := io.GetCheckPassword(
-		"Enter a passphrase to encrypt your private key:",
-		"Repeat the passphrase:",
+		[2]string{
+			"Enter a passphrase to encrypt your private key:",
+			"Repeat the passphrase:",
+		},
 		cfg.rootCfg.InsecurePasswordStdin,
 	)
 	if err != nil {

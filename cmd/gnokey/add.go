@@ -204,8 +204,10 @@ func execAdd(cfg *addCfg, args []string, io *commands.IO) error {
 		// ask for a password when generating a local key
 		if cfg.publicKey == "" && !cfg.useLedger {
 			encryptPassword, err = io.GetCheckPassword(
-				"Enter a passphrase to encrypt your key to disk:",
-				"Repeat the passphrase:",
+				[2]string{
+					"Enter a passphrase to encrypt your key to disk:",
+					"Repeat the passphrase:",
+				},
 				cfg.rootCfg.InsecurePasswordStdin,
 			)
 			if err != nil {

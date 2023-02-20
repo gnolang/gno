@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"bufio"
 	"errors"
 	"strings"
 	"syscall"
@@ -75,76 +74,29 @@ func (io *IO) GetConfirmation(prompt string) (bool, error) {
 	return false, nil
 }
 
-type passwordReader interface {
-	readPassword() (string, error)
-}
-
-type insecurePasswordReader struct {
-	reader *bufio.Reader
-}
-
-func (ipr *insecurePasswordReader) readPassword() (string, error) {
-	password, err := ipr.reader.ReadString('\n')
-	if err != nil {
-		return "", err
-	}
-
-	return password, nil
-}
-
-type terminalPasswordReader struct {
-}
-
-func (tpr *terminalPasswordReader) readPassword() (string, error) {
-	return readPassword()
-}
-
-func (io *IO) confirmPassword(prompt, prompt2 string, reader passwordReader) (string, error) {
-	if prompt != "" {
-		io.Println(prompt)
-	}
-
-	firstRead, err := reader.readPassword()
-	if err != nil {
-		return "", err
-	}
-
-	firstPassword := firstRead[:len(firstRead)-1]
-
-	if prompt2 != "" {
-		io.Println(prompt2)
-	}
-
-	secondRead, err := reader.readPassword()
-	if err != nil {
-		return "", err
-	}
-
-	secondPassword := secondRead[:len(secondRead)-1]
-
-	if firstPassword != secondPassword {
-		return "", errors.New("passphrases don't match")
-	}
-
-	return firstPassword, nil
-}
-
 // GetCheckPassword will prompt for a password twice to verify they
 // match (for creating a new password).
 // It enforces the password length. Only parses password once if
 // input is piped in.
 func (io *IO) GetCheckPassword(
-	prompt,
-	prompt2 string,
+	prompts [2]string,
 	insecure bool,
 ) (string, error) {
-	if insecure {
-		return io.confirmPassword(prompt, prompt2, &insecurePasswordReader{
-			reader: io.inBuf,
-		})
+	pass, err := io.GetPassword(prompts[0], insecure)
+	if err != nil {
+		return "", err
 	}
 
-	return io.confirmPassword(prompt, prompt2, &terminalPasswordReader{})
+	pass2, err := io.GetPassword(prompts[1], insecure)
+	if err != nil {
+		return "", err
+	}
+
+	if pass != pass2 {
+		return "", errors.New("passphrases don't match")
+	}
+
+	return pass, nil
 }
 
 // GetString simply returns the trimmed string output of a given reader.

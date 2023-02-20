@@ -76,8 +76,10 @@ func execExport(cfg *exportCfg, io *commands.IO) error {
 
 	// Get the armor encrypt password
 	encryptPassword, err := io.GetCheckPassword(
-		"Enter a passphrase to encrypt your private key armor:",
-		"Repeat the passphrase:",
+		[2]string{
+			"Enter a passphrase to encrypt your private key armor:",
+			"Repeat the passphrase:",
+		},
 		cfg.rootCfg.InsecurePasswordStdin,
 	)
 	if err != nil {
