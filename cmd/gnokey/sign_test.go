@@ -1,13 +1,13 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/cmd/common"
 	"github.com/gnolang/gno/pkgs/amino"
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
 	sdkutils "github.com/gnolang/gno/pkgs/sdk/testutils"
 	"github.com/gnolang/gno/pkgs/std"
@@ -41,6 +41,8 @@ func Test_execSign(t *testing.T) {
 	fakeKeyName2 := "signApp_Key2"
 	encPassword := "12345678"
 
+	io := commands.NewTestIO()
+
 	// add test account to keybase.
 	kb, err := keys.NewKeyBaseFromDir(cfg.rootCfg.Home)
 	assert.NoError(t, err)
@@ -55,28 +57,32 @@ func Test_execSign(t *testing.T) {
 	txjson := string(amino.MustMarshalJSON(tx))
 
 	args := []string{fakeKeyName1}
-	err = execSign(cfg, args, bufio.NewReader(strings.NewReader(txjson)))
+	io.SetIn(strings.NewReader(txjson))
+	err = execSign(cfg, args, io)
 	assert.Error(t, err)
 
 	args = []string{fakeKeyName1}
-	err = execSign(cfg, args, bufio.NewReader(strings.NewReader(txjson+"\n")))
+	io.SetIn(strings.NewReader(txjson + "\n"))
+	err = execSign(cfg, args, io)
 	assert.Error(t, err)
 
 	args = []string{fakeKeyName2}
-	err = execSign(cfg, args, bufio.NewReader(strings.NewReader(
+	io.SetIn(strings.NewReader(
 		fmt.Sprintf("%s\n%s\n",
 			txjson,
 			encPassword,
 		),
-	)))
+	))
+	err = execSign(cfg, args, io)
 	assert.Error(t, err)
 
 	args = []string{fakeKeyName1}
-	err = execSign(cfg, args, bufio.NewReader(strings.NewReader(
+	io.SetIn(strings.NewReader(
 		fmt.Sprintf("%s\n%s\n",
 			txjson,
 			encPassword,
 		),
-	)))
+	))
+	err = execSign(cfg, args, io)
 	assert.NoError(t, err)
 }

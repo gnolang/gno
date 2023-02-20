@@ -1,11 +1,9 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"encoding/hex"
 	"flag"
-	"fmt"
 	"os"
 
 	"github.com/gnolang/gno/pkgs/commands"
@@ -31,7 +29,7 @@ func newVerifyCmd(rootCfg *baseCfg) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execVerify(cfg, args, bufio.NewReader(os.Stdin))
+			return execVerify(cfg, args, commands.NewDefaultIO())
 		},
 	)
 }
@@ -45,7 +43,7 @@ func (c *verifyCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execVerify(cfg *verifyCfg, args []string, input *bufio.Reader) error {
+func execVerify(cfg *verifyCfg, args []string, io *commands.IO) error {
 	var (
 		kb  keys.Keybase
 		err error
@@ -69,9 +67,8 @@ func execVerify(cfg *verifyCfg, args []string, input *bufio.Reader) error {
 
 	// read document to sign
 	if docpath == "" { // from stdin.
-		msgstr, err := commands.GetString(
+		msgstr, err := io.GetString(
 			"Enter document to sign.",
-			input,
 		)
 		if err != nil {
 			return err
@@ -90,7 +87,7 @@ func execVerify(cfg *verifyCfg, args []string, input *bufio.Reader) error {
 	// verify signature.
 	err = kb.Verify(name, msg, sig)
 	if err == nil {
-		fmt.Println("Valid signature!")
+		io.Println("Valid signature!")
 	}
 	return err
 }

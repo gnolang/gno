@@ -1,12 +1,9 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"flag"
-	"fmt"
-	"os"
 
 	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
@@ -32,7 +29,7 @@ func newDeleteCmd(rootCfg *baseCfg) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execDelete(cfg, args, bufio.NewReader(os.Stdin))
+			return execDelete(cfg, args, commands.NewDefaultIO())
 		},
 	)
 }
@@ -53,7 +50,7 @@ func (c *deleteCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execDelete(cfg *deleteCfg, args []string, input *bufio.Reader) error {
+func execDelete(cfg *deleteCfg, args []string, io *commands.IO) error {
 	if len(args) != 1 {
 		return flag.ErrHelp
 	}
@@ -72,7 +69,7 @@ func execDelete(cfg *deleteCfg, args []string, input *bufio.Reader) error {
 
 	if info.GetType() == keys.TypeLedger || info.GetType() == keys.TypeOffline {
 		if !cfg.yes {
-			if err := confirmDeletion(input); err != nil {
+			if err := confirmDeletion(io); err != nil {
 				return err
 			}
 		}
@@ -80,7 +77,7 @@ func execDelete(cfg *deleteCfg, args []string, input *bufio.Reader) error {
 		if err := kb.Delete(nameOrBech32, "", true); err != nil {
 			return err
 		}
-		fmt.Println("Public key reference deleted")
+		io.ErrPrintln("Public key reference deleted")
 
 		return nil
 	}
@@ -90,7 +87,7 @@ func execDelete(cfg *deleteCfg, args []string, input *bufio.Reader) error {
 	var oldpass string
 	if !skipPass {
 		msg := "DANGER - enter password to permanently delete key:"
-		if oldpass, err = commands.GetPassword(msg, cfg.rootCfg.InsecurePasswordStdin, input); err != nil {
+		if oldpass, err = io.GetPassword(msg, cfg.rootCfg.InsecurePasswordStdin); err != nil {
 			return err
 		}
 	}
@@ -99,16 +96,13 @@ func execDelete(cfg *deleteCfg, args []string, input *bufio.Reader) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("Key deleted")
+	io.ErrPrintln("Key deleted")
 
 	return nil
 }
 
-func confirmDeletion(input *bufio.Reader) error {
-	answer, err := commands.GetConfirmation(
-		"Key reference will be deleted. Continue?",
-		input,
-	)
+func confirmDeletion(io *commands.IO) error {
+	answer, err := io.GetConfirmation("Key reference will be deleted. Continue?")
 
 	if err != nil {
 		return err

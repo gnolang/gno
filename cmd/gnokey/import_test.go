@@ -1,12 +1,12 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/cmd/common"
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/testutils"
 	"github.com/stretchr/testify/assert"
 )
@@ -32,7 +32,8 @@ func importKey(importOpts testImportKeyOpts) error {
 		}
 	)
 
-	input := bufio.NewReader(
+	io := commands.NewTestIO()
+	io.SetIn(
 		strings.NewReader(
 			fmt.Sprintf(
 				"%s\n%s\n%s\n",
@@ -43,7 +44,7 @@ func importKey(importOpts testImportKeyOpts) error {
 		),
 	)
 
-	return execImport(cfg, input)
+	return execImport(cfg, io)
 }
 
 // TestImport_ImportKey makes sure the key can be imported correctly

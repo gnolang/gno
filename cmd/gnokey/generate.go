@@ -1,12 +1,10 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"crypto/sha256"
 	"flag"
 	"fmt"
-	"os"
 
 	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/crypto/bip39"
@@ -31,7 +29,7 @@ func newGenerateCmd(rootCfg *baseCfg) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execGenerate(cfg, args, bufio.NewReader(os.Stdin))
+			return execGenerate(cfg, args, commands.NewDefaultIO())
 		},
 	)
 }
@@ -45,7 +43,7 @@ func (c *generateCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execGenerate(cfg *generateCfg, args []string, input *bufio.Reader) error {
+func execGenerate(cfg *generateCfg, args []string, io *commands.IO) error {
 	customEntropy := cfg.customEntropy
 
 	if len(args) != 0 {
@@ -56,9 +54,8 @@ func execGenerate(cfg *generateCfg, args []string, input *bufio.Reader) error {
 
 	if customEntropy {
 		// prompt the user to enter some entropy
-		inputEntropy, err := commands.GetString(
+		inputEntropy, err := io.GetString(
 			"WARNING: Generate at least 256-bits of entropy and enter the results here:",
-			input,
 		)
 		if err != nil {
 			return err
@@ -66,9 +63,8 @@ func execGenerate(cfg *generateCfg, args []string, input *bufio.Reader) error {
 		if len(inputEntropy) < 43 {
 			return fmt.Errorf("256-bits is 43 characters in Base-64, and 100 in Base-6. You entered %v, and probably want more", len(inputEntropy))
 		}
-		conf, err := commands.GetConfirmation(
+		conf, err := io.GetConfirmation(
 			fmt.Sprintf("Input length: %d", len(inputEntropy)),
-			input,
 		)
 		if err != nil {
 			return err
@@ -94,7 +90,7 @@ func execGenerate(cfg *generateCfg, args []string, input *bufio.Reader) error {
 		return err
 	}
 
-	fmt.Println(mnemonic)
+	io.Println(mnemonic)
 
 	return nil
 }

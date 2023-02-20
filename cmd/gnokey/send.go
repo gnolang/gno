@@ -1,11 +1,9 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"flag"
 	"fmt"
-	"os"
 
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/commands"
@@ -36,7 +34,7 @@ func newSendCmd(rootCfg *makeTxCfg) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execSend(cfg, args, bufio.NewReader(os.Stdin))
+			return execSend(cfg, args, commands.NewDefaultIO())
 		},
 	)
 }
@@ -57,7 +55,7 @@ func (c *sendCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execSend(cfg *sendCfg, args []string, input *bufio.Reader) error {
+func execSend(cfg *sendCfg, args []string, io *commands.IO) error {
 	if len(args) != 1 {
 		return flag.ErrHelp
 	}
@@ -121,7 +119,7 @@ func execSend(cfg *sendCfg, args []string, input *bufio.Reader) error {
 	}
 
 	if cfg.rootCfg.broadcast {
-		err := signAndBroadcast(cfg.rootCfg, args, tx, input)
+		err := signAndBroadcast(cfg.rootCfg, args, tx, io)
 		if err != nil {
 			return err
 		}

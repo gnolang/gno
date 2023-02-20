@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"os"
 
 	"github.com/gnolang/gno/pkgs/amino"
@@ -37,7 +36,7 @@ func newBroadcastCmd(rootCfg *baseCfg) *commands.Command {
 		},
 		nil,
 		func(_ context.Context, args []string) error {
-			return execBroadcast(cfg, args)
+			return execBroadcast(cfg, args, commands.NewDefaultIO())
 		},
 	)
 }
@@ -51,7 +50,7 @@ func (c *broadcastCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execBroadcast(cfg *broadcastCfg, args []string) error {
+func execBroadcast(cfg *broadcastCfg, args []string, io *commands.IO) error {
 	if len(args) != 1 {
 		return flag.ErrHelp
 	}
@@ -78,10 +77,10 @@ func execBroadcast(cfg *broadcastCfg, args []string) error {
 	} else if res.DeliverTx.IsErr() {
 		return errors.New("transaction failed %#v\nlog %s", res, res.DeliverTx.Log)
 	} else {
-		fmt.Println(string(res.DeliverTx.Data))
-		fmt.Println("OK!")
-		fmt.Printf("GAS WANTED: %d", res.DeliverTx.GasWanted)
-		fmt.Printf("GAS USED:  %d", res.DeliverTx.GasUsed)
+		io.Println(string(res.DeliverTx.Data))
+		io.Println("OK!")
+		io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
+		io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
 	}
 	return nil
 }

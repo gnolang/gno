@@ -1,12 +1,10 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"sort"
 
 	"github.com/gnolang/gno/pkgs/commands"
@@ -44,7 +42,7 @@ func newAddCmd(rootCfg *baseCfg) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execAdd(cfg, args, bufio.NewReader(os.Stdin))
+			return execAdd(cfg, args, commands.NewDefaultIO())
 		},
 	)
 }
@@ -133,7 +131,7 @@ input
 output
   - armor encrypted private key (saved to file)
 */
-func execAdd(cfg *addCfg, args []string, input *bufio.Reader) error {
+func execAdd(cfg *addCfg, args []string, io *commands.IO) error {
 	var (
 		kb              keys.Keybase
 		err             error
@@ -161,10 +159,7 @@ func execAdd(cfg *addCfg, args []string, input *bufio.Reader) error {
 		_, err = kb.GetByName(name)
 		if err == nil {
 			// account exists, ask for user confirmation
-			response, err2 := commands.GetConfirmation(
-				fmt.Sprintf("Override the existing name %s", name),
-				input,
-			)
+			response, err2 := io.GetConfirmation(fmt.Sprintf("Override the existing name %s", name))
 			if err2 != nil {
 				return err2
 			}
@@ -202,17 +197,16 @@ func execAdd(cfg *addCfg, args []string, input *bufio.Reader) error {
 				return err
 			}
 
-			fmt.Printf("Key %q saved to disk.\n\n", name)
+			io.Printfln("Key %q saved to disk.\n", name)
 			return nil
 		}
 
 		// ask for a password when generating a local key
 		if cfg.publicKey == "" && !cfg.useLedger {
-			encryptPassword, err = commands.GetCheckPassword(
+			encryptPassword, err = io.GetCheckPassword(
 				"Enter a passphrase to encrypt your key to disk:",
 				"Repeat the passphrase:",
 				cfg.rootCfg.InsecurePasswordStdin,
-				input,
 			)
 			if err != nil {
 				return err
@@ -243,7 +237,7 @@ func execAdd(cfg *addCfg, args []string, input *bufio.Reader) error {
 			return err
 		}
 
-		return printCreate(info, false, "")
+		return printCreate(info, false, "", io)
 	}
 
 	// Get bip39 mnemonic
@@ -252,7 +246,7 @@ func execAdd(cfg *addCfg, args []string, input *bufio.Reader) error {
 
 	if cfg.recover {
 		bip39Message := "Enter your bip39 mnemonic"
-		mnemonic, err = commands.GetString(bip39Message, input)
+		mnemonic, err = io.GetString(bip39Message)
 		if err != nil {
 			return err
 		}
@@ -281,34 +275,32 @@ func execAdd(cfg *addCfg, args []string, input *bufio.Reader) error {
 		mnemonic = ""
 	}
 
-	return printCreate(info, showMnemonic, mnemonic)
+	return printCreate(info, showMnemonic, mnemonic, io)
 }
 
-func printCreate(info keys.Info, showMnemonic bool, mnemonic string) error {
-	fmt.Println("")
-	printNewInfo(info)
+func printCreate(info keys.Info, showMnemonic bool, mnemonic string, io *commands.IO) error {
+	io.Println("")
+	printNewInfo(info, io)
 
 	// print mnemonic unless requested not to.
 	if showMnemonic {
-		fmt.Printf(`
+		io.Printfln(`
 **IMPORTANT** write this mnemonic phrase in a safe place.
 It is the only way to recover your account if you ever forget your password.
-
 %v
 `, mnemonic)
-		fmt.Println("")
 	}
 
 	return nil
 }
 
-func printNewInfo(info keys.Info) {
+func printNewInfo(info keys.Info, io *commands.IO) {
 	keyname := info.GetName()
 	keytype := info.GetType()
 	keypub := info.GetPubKey()
 	keyaddr := info.GetAddress()
 	keypath, _ := info.GetPath()
 
-	fmt.Printf("* %s (%s) - addr: %v pub: %v, path: %v\n",
+	io.Printfln("* %s (%s) - addr: %v pub: %v, path: %v",
 		keyname, keytype, keyaddr, keypub, keypath)
 }

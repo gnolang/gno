@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"flag"
 	"fmt"
@@ -31,7 +30,7 @@ func newExportCmd(rootCfg *baseCfg) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execExport(cfg, args, bufio.NewReader(os.Stdin))
+			return execExport(cfg, commands.NewDefaultIO())
 		},
 	)
 }
@@ -52,7 +51,7 @@ func (c *exportCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execExport(cfg *exportCfg, args []string, input *bufio.Reader) error {
+func execExport(cfg *exportCfg, io *commands.IO) error {
 	// Create a new instance of the key-base
 	kb, err := keys.NewKeyBaseFromDir(cfg.rootCfg.Home)
 	if err != nil {
@@ -64,10 +63,9 @@ func execExport(cfg *exportCfg, args []string, input *bufio.Reader) error {
 	}
 
 	// Get the key-base decrypt password
-	decryptPassword, err := commands.GetPassword(
+	decryptPassword, err := io.GetPassword(
 		"Enter a passphrase to decrypt your private key from disk:",
 		cfg.rootCfg.InsecurePasswordStdin,
-		input,
 	)
 	if err != nil {
 		return fmt.Errorf(
@@ -77,11 +75,10 @@ func execExport(cfg *exportCfg, args []string, input *bufio.Reader) error {
 	}
 
 	// Get the armor encrypt password
-	encryptPassword, err := commands.GetCheckPassword(
+	encryptPassword, err := io.GetCheckPassword(
 		"Enter a passphrase to encrypt your private key armor:",
 		"Repeat the passphrase:",
 		cfg.rootCfg.InsecurePasswordStdin,
-		input,
 	)
 	if err != nil {
 		return fmt.Errorf(
@@ -115,7 +112,7 @@ func execExport(cfg *exportCfg, args []string, input *bufio.Reader) error {
 		)
 	}
 
-	fmt.Printf("Encrypted private key armor successfully outputted to %s\n", cfg.outputPath)
+	io.Printfln("Encrypted private key armor successfully outputted to %s", cfg.outputPath)
 
 	return nil
 }

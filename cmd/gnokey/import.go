@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"flag"
 	"fmt"
@@ -31,7 +30,7 @@ func newImportCmd(rootCfg *baseCfg) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, _ []string) error {
-			return execImport(cfg, bufio.NewReader(os.Stdin))
+			return execImport(cfg, commands.NewDefaultIO())
 		},
 	)
 }
@@ -52,7 +51,7 @@ func (c *importCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execImport(cfg *importCfg, input *bufio.Reader) error {
+func execImport(cfg *importCfg, io *commands.IO) error {
 	// Create a new instance of the key-base
 	kb, err := keys.NewKeyBaseFromDir(cfg.rootCfg.Home)
 	if err != nil {
@@ -74,10 +73,9 @@ func execImport(cfg *importCfg, input *bufio.Reader) error {
 	}
 
 	// Get the armor decrypt password
-	decryptPassword, err := commands.GetPassword(
+	decryptPassword, err := io.GetPassword(
 		"Enter a passphrase to decrypt your private key armor:",
 		cfg.rootCfg.InsecurePasswordStdin,
-		input,
 	)
 	if err != nil {
 		return fmt.Errorf(
@@ -87,11 +85,10 @@ func execImport(cfg *importCfg, input *bufio.Reader) error {
 	}
 
 	// Get the key-base encrypt password
-	encryptPassword, err := commands.GetCheckPassword(
+	encryptPassword, err := io.GetCheckPassword(
 		"Enter a passphrase to encrypt your private key:",
 		"Repeat the passphrase:",
 		cfg.rootCfg.InsecurePasswordStdin,
-		input,
 	)
 	if err != nil {
 		return fmt.Errorf(
@@ -113,7 +110,7 @@ func execImport(cfg *importCfg, input *bufio.Reader) error {
 		)
 	}
 
-	fmt.Printf("Successfully imported private key %s\n", cfg.keyName)
+	io.Printfln("Successfully imported private key %s", cfg.keyName)
 
 	return nil
 }

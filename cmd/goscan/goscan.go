@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"go/parser"
 	"go/token"
@@ -9,13 +10,12 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gnolang/gno/pkgs/commands"
-	"github.com/gnolang/gno/pkgs/errors"
 )
 
 func main() {
 	cmd := commands.NewCommand(
 		commands.Metadata{
-			ShortUsage: "<file>",
+			ShortUsage: "<file-path>",
 			LongHelp:   "Prints out the imports for a given file's AST",
 		},
 		nil,
@@ -31,7 +31,7 @@ func main() {
 
 func execScan(_ context.Context, args []string) error {
 	if len(args) < 1 {
-		return errors.New("file path not specified as argument")
+		return flag.ErrHelp
 	}
 
 	fset := token.NewFileSet() // positions are relative to fset

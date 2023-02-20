@@ -1,11 +1,9 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"flag"
 	"fmt"
-	"os"
 
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/commands"
@@ -37,7 +35,7 @@ func newAddPkgCmd(rootCfg *makeTxCfg) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execAddPkg(cfg, args, bufio.NewReader(os.Stdin))
+			return execAddPkg(cfg, args, commands.NewDefaultIO())
 		},
 	)
 }
@@ -65,7 +63,7 @@ func (c *addPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execAddPkg(cfg *addPkgCfg, args []string, input *bufio.Reader) error {
+func execAddPkg(cfg *addPkgCfg, args []string, io *commands.IO) error {
 	if cfg.pkgPath == "" {
 		return errors.New("pkgpath not specified")
 	}
@@ -125,7 +123,7 @@ func execAddPkg(cfg *addPkgCfg, args []string, input *bufio.Reader) error {
 	}
 
 	if cfg.rootCfg.broadcast {
-		err := signAndBroadcast(cfg.rootCfg, args, tx, input)
+		err := signAndBroadcast(cfg.rootCfg, args, tx, io)
 		if err != nil {
 			return err
 		}
@@ -139,7 +137,7 @@ func signAndBroadcast(
 	cfg *makeTxCfg,
 	args []string,
 	tx std.Tx,
-	input *bufio.Reader,
+	io *commands.IO,
 ) error {
 	baseopts := cfg.rootCfg
 	txopts := cfg
@@ -182,9 +180,9 @@ func signAndBroadcast(
 	}
 	sopts.rootCfg.Home = baseopts.Home
 	if baseopts.Quiet {
-		sopts.pass, err = commands.GetPassword("", baseopts.InsecurePasswordStdin, input)
+		sopts.pass, err = io.GetPassword("", baseopts.InsecurePasswordStdin)
 	} else {
-		sopts.pass, err = commands.GetPassword("Enter password.", baseopts.InsecurePasswordStdin, input)
+		sopts.pass, err = io.GetPassword("Enter password.", baseopts.InsecurePasswordStdin)
 	}
 	if err != nil {
 		return err

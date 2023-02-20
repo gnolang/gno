@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"flag"
@@ -42,7 +41,7 @@ func newSignCmd(rootCfg *baseCfg) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execSign(cfg, args, bufio.NewReader(os.Stdin))
+			return execSign(cfg, args, commands.NewDefaultIO())
 		},
 	)
 }
@@ -84,7 +83,7 @@ func (c *signCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execSign(cfg *signCfg, args []string, input *bufio.Reader) error {
+func execSign(cfg *signCfg, args []string, io *commands.IO) error {
 	var err error
 
 	if len(args) != 1 {
@@ -96,9 +95,8 @@ func execSign(cfg *signCfg, args []string, input *bufio.Reader) error {
 	// read tx to sign
 	txpath := cfg.txPath
 	if txpath == "-" { // from stdin.
-		txjsonstr, err := commands.GetString(
+		txjsonstr, err := io.GetString(
 			"Enter tx to sign, terminated by a newline.",
-			input,
 		)
 		if err != nil {
 			return err
@@ -112,16 +110,14 @@ func execSign(cfg *signCfg, args []string, input *bufio.Reader) error {
 	}
 
 	if cfg.rootCfg.Quiet {
-		cfg.pass, err = commands.GetPassword(
+		cfg.pass, err = io.GetPassword(
 			"",
 			cfg.rootCfg.InsecurePasswordStdin,
-			input,
 		)
 	} else {
-		cfg.pass, err = commands.GetPassword(
+		cfg.pass, err = io.GetPassword(
 			"Enter password.",
 			cfg.rootCfg.InsecurePasswordStdin,
-			input,
 		)
 	}
 	if err != nil {
@@ -137,7 +133,7 @@ func execSign(cfg *signCfg, args []string, input *bufio.Reader) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(string(signedJSON))
+	io.Println(string(signedJSON))
 
 	return nil
 }

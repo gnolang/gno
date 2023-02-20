@@ -1,13 +1,13 @@
 package main
 
 import (
-	"bufio"
 	"encoding/hex"
 	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/cmd/common"
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
 	"github.com/gnolang/gno/pkgs/testutils"
 	"github.com/stretchr/testify/assert"
@@ -32,6 +32,8 @@ func Test_execVerify(t *testing.T) {
 		docPath: "",
 	}
 
+	io := commands.NewTestIO()
+
 	fakeKeyName1 := "verifyApp_Key1"
 	// encPassword := "12345678"
 	encPassword := ""
@@ -52,19 +54,23 @@ func Test_execVerify(t *testing.T) {
 
 	// good signature passes test.
 	args := []string{fakeKeyName1, testSigHex}
-	err = execVerify(cfg, args, bufio.NewReader(
+	io.SetIn(
 		strings.NewReader(
-			fmt.Sprintf("%s\n", testMsg)),
-	))
+			fmt.Sprintf("%s\n", testMsg),
+		),
+	)
+	err = execVerify(cfg, args, io)
 	assert.NoError(t, err)
 
 	// mutated bad signature fails test.
 	testBadSig := testutils.MutateByteSlice(testSig)
 	testBadSigHex := hex.EncodeToString(testBadSig)
 	args = []string{fakeKeyName1, testBadSigHex}
-	err = execVerify(cfg, args, bufio.NewReader(
+	io.SetIn(
 		strings.NewReader(
-			fmt.Sprintf("%s\n", testMsg)),
-	))
+			fmt.Sprintf("%s\n", testMsg),
+		),
+	)
+	err = execVerify(cfg, args, io)
 	assert.Error(t, err)
 }

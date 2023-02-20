@@ -1,13 +1,13 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/cmd/common"
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
 	"github.com/gnolang/gno/pkgs/testutils"
 	"github.com/stretchr/testify/assert"
@@ -92,7 +92,8 @@ func exportKey(exportOpts testExportKeyOpts) error {
 		}
 	)
 
-	input := bufio.NewReader(
+	io := commands.NewTestIO()
+	io.SetIn(
 		strings.NewReader(
 			fmt.Sprintf(
 				"%s\n%s\n%s\n",
@@ -103,7 +104,7 @@ func exportKey(exportOpts testExportKeyOpts) error {
 		),
 	)
 
-	return execExport(cfg, nil, input)
+	return execExport(cfg, io)
 }
 
 // TestExport_ExportKey makes sure the key can be exported correctly

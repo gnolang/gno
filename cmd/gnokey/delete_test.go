@@ -1,11 +1,11 @@
 package main
 
 import (
-	"bufio"
 	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/cmd/common"
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
 	"github.com/gnolang/gno/pkgs/testutils"
 	"github.com/stretchr/testify/assert"
@@ -33,6 +33,8 @@ func Test_execDelete(t *testing.T) {
 		},
 	}
 
+	io := commands.NewTestIO()
+
 	fakeKeyName1 := "deleteApp_Key1"
 	fakeKeyName2 := "deleteApp_Key2"
 
@@ -54,7 +56,8 @@ func Test_execDelete(t *testing.T) {
 
 	// test: User confirmation missing
 	args = []string{fakeKeyName1}
-	err = execDelete(cfg, args, bufio.NewReader(strings.NewReader("")))
+	io.SetIn(strings.NewReader(""))
+	err = execDelete(cfg, args, io)
 	require.Error(t, err)
 	require.Equal(t, err.Error(), "EOF")
 
@@ -64,7 +67,8 @@ func Test_execDelete(t *testing.T) {
 
 		// Now there is a blank password followed by a confirmation.
 		args := []string{fakeKeyName1}
-		err = execDelete(cfg, args, bufio.NewReader(strings.NewReader("\ny\n")))
+		io.SetIn(strings.NewReader("\ny\n"))
+		err = execDelete(cfg, args, io)
 		require.NoError(t, err)
 
 		_, err = kb.GetByName(fakeKeyName1)
@@ -87,7 +91,8 @@ func Test_execDelete(t *testing.T) {
 
 	// Run again with blank password followed by eof.
 	args = []string{fakeKeyName2}
-	err = execDelete(cfg, args, bufio.NewReader(strings.NewReader("\n")))
+	io.SetIn(strings.NewReader("\n"))
+	err = execDelete(cfg, args, io)
 	require.NoError(t, err)
 	_, err = kb.GetByName(fakeKeyName2)
 	require.Error(t, err) // Key2 is gone

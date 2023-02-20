@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 
 	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
@@ -18,12 +17,12 @@ func newListCmd(rootCfg *baseCfg) *commands.Command {
 		},
 		nil,
 		func(_ context.Context, args []string) error {
-			return execList(rootCfg, args)
+			return execList(rootCfg, args, commands.NewDefaultIO())
 		},
 	)
 }
 
-func execList(cfg *baseCfg, args []string) error {
+func execList(cfg *baseCfg, args []string, io *commands.IO) error {
 	if len(args) != 0 {
 		return flag.ErrHelp
 	}
@@ -35,20 +34,20 @@ func execList(cfg *baseCfg, args []string) error {
 
 	infos, err := kb.List()
 	if err == nil {
-		printInfos(infos)
+		printInfos(infos, io)
 	}
 
 	return err
 }
 
-func printInfos(infos []keys.Info) {
+func printInfos(infos []keys.Info, io *commands.IO) {
 	for i, info := range infos {
 		keyname := info.GetName()
 		keytype := info.GetType()
 		keypub := info.GetPubKey()
 		keyaddr := info.GetAddress()
 		keypath, _ := info.GetPath()
-		fmt.Printf("%d. %s (%s) - addr: %v pub: %v, path: %v\n",
+		io.Printfln("%d. %s (%s) - addr: %v pub: %v, path: %v",
 			i, keyname, keytype, keyaddr, keypub, keypath)
 	}
 }

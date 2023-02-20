@@ -1,11 +1,9 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"flag"
 	"fmt"
-	"os"
 
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/commands"
@@ -37,7 +35,7 @@ func newCallCmd(rootCfg *makeTxCfg) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execCall(cfg, args, bufio.NewReader(os.Stdin))
+			return execCall(cfg, args, commands.NewDefaultIO())
 		},
 	)
 }
@@ -71,7 +69,7 @@ func (c *callCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execCall(cfg *callCfg, args []string, input *bufio.Reader) error {
+func execCall(cfg *callCfg, args []string, io *commands.IO) error {
 	if cfg.pkgPath == "" {
 		return errors.New("pkgpath not specified")
 	}
@@ -133,7 +131,7 @@ func execCall(cfg *callCfg, args []string, input *bufio.Reader) error {
 	}
 
 	if cfg.rootCfg.broadcast {
-		err := signAndBroadcast(cfg.rootCfg, args, tx, input)
+		err := signAndBroadcast(cfg.rootCfg, args, tx, io)
 		if err != nil {
 			return err
 		}

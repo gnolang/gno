@@ -1,14 +1,12 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -61,7 +59,7 @@ func newServeCmd() *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execServe(cfg, args, bufio.NewReader(os.Stdin))
+			return execServe(cfg, args, commands.NewDefaultIO())
 		},
 	)
 }
@@ -154,9 +152,9 @@ func (c *config) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execServe(cfg *config, args []string, input *bufio.Reader) error {
+func execServe(cfg *config, args []string, io *commands.IO) error {
 	if len(args) != 1 {
-		return errors.New("invalid args")
+		return flag.ErrHelp
 	}
 
 	if cfg.ChainID == "" {
@@ -215,9 +213,9 @@ func execServe(cfg *config, args []string, input *bufio.Reader) error {
 	const dummy = "test"
 	var pass string
 	if cfg.Quiet {
-		pass, err = commands.GetPassword("", cfg.InsecurePasswordStdin, input)
+		pass, err = io.GetPassword("", cfg.InsecurePasswordStdin)
 	} else {
-		pass, err = commands.GetPassword("Enter password", cfg.InsecurePasswordStdin, input)
+		pass, err = io.GetPassword("Enter password", cfg.InsecurePasswordStdin)
 	}
 
 	if err != nil {
@@ -241,7 +239,7 @@ func execServe(cfg *config, args []string, input *bufio.Reader) error {
 		if err != nil {
 			return err
 		}
-		err = sendAmountTo(cfg, cli, name, pass, testToAddr, accountNumber, sequence, send)
+		err = sendAmountTo(cfg, cli, io, name, pass, testToAddr, accountNumber, sequence, send)
 		return err
 	}
 
@@ -320,7 +318,7 @@ func execServe(cfg *config, args []string, input *bufio.Reader) error {
 			w.Write([]byte("invalid address format"))
 			return
 		}
-		err = sendAmountTo(cfg, cli, name, pass, toAddr, accountNumber, sequence, send)
+		err = sendAmountTo(cfg, cli, io, name, pass, toAddr, accountNumber, sequence, send)
 		if err != nil {
 			fmt.Println(ip, "faucet failed", err)
 			w.Write([]byte("faucet failed"))
@@ -347,6 +345,7 @@ func execServe(cfg *config, args []string, input *bufio.Reader) error {
 func sendAmountTo(
 	cfg *config,
 	cli rpcclient.Client,
+	io *commands.IO,
 	name,
 	pass string,
 	toAddr crypto.Address,
@@ -439,10 +438,10 @@ func sendAmountTo(
 	} else if bres.DeliverTx.IsErr() {
 		return errors.New("transaction failed %#v\nlog %s", bres, bres.DeliverTx.Log)
 	} else {
-		fmt.Println(string(bres.DeliverTx.Data))
-		fmt.Println("OK!")
-		fmt.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
-		fmt.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
+		io.Println(string(bres.DeliverTx.Data))
+		io.Println("OK!")
+		io.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
+		io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
 	}
 	return nil
 }

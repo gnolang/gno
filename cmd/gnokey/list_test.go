@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/cmd/common"
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
 	"github.com/gnolang/gno/pkgs/testutils"
 	"github.com/stretchr/testify/assert"
@@ -43,7 +44,7 @@ func Test_execList(t *testing.T) {
 			}
 
 			args := tt.args
-			if err := execList(cfg, args); (err != nil) != tt.wantErr {
+			if err := execList(cfg, args, commands.NewTestIO()); (err != nil) != tt.wantErr {
 				t.Errorf("listApp() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

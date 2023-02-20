@@ -118,7 +118,7 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 				defer os.Chdir(workingDir)
 			}
 
-			io := commands.DefaultIO()
+			io := commands.NewTestIO()
 			io.SetOut(commands.WriteNopCloser(mockOut))
 			io.SetErr(commands.WriteNopCloser(mockErr))
 

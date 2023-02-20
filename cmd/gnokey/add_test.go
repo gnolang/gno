@@ -1,12 +1,12 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/cmd/common"
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
 	"github.com/gnolang/gno/pkgs/crypto/secp256k1"
 	"github.com/gnolang/gno/pkgs/testutils"
@@ -32,17 +32,18 @@ func Test_execAddBasic(t *testing.T) {
 
 	keyName := "keyname1"
 
+	io := commands.NewTestIO()
+	io.SetIn(strings.NewReader("test1234\ntest1234\n"))
+
 	// Create a new key
-	if err := execAdd(cfg, []string{keyName}, bufio.NewReader(
-		strings.NewReader("test1234\ntest1234\n")),
-	); err != nil {
+	if err := execAdd(cfg, []string{keyName}, io); err != nil {
 		t.Fatalf("unable to execute add cmd, %v", err)
 	}
 
+	io.SetIn(strings.NewReader("y\ntest1234\ntest1234\n"))
+
 	// Confirm overwrite
-	if err := execAdd(cfg, []string{keyName}, bufio.NewReader(
-		strings.NewReader("y\ntest1234\ntest1234\n")),
-	); err != nil {
+	if err := execAdd(cfg, []string{keyName}, io); err != nil {
 		t.Fatalf("unable to execute add cmd, %v", err)
 	}
 }
@@ -93,9 +94,10 @@ func Test_execAddRecover(t *testing.T) {
 	test2Name := "test2"
 	test2Passphrase := "gn0rocks!"
 
-	if err := execAdd(cfg, []string{test2Name}, bufio.NewReader(
-		strings.NewReader(test2Passphrase+"\n"+test2Passphrase+"\n"+test2Mnemonic+"\n"),
-	)); err != nil {
+	io := commands.NewTestIO()
+	io.SetIn(strings.NewReader(test2Passphrase + "\n" + test2Passphrase + "\n" + test2Mnemonic + "\n"))
+
+	if err := execAdd(cfg, []string{test2Name}, io); err != nil {
 		t.Fatalf("unable to execute add cmd, %v", err)
 	}
 
