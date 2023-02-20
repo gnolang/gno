@@ -208,10 +208,10 @@ func signAndBroadcast(
 	if bres.DeliverTx.IsErr() {
 		return errors.Wrap(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
 	}
-	fmt.Println(string(bres.DeliverTx.Data))
-	fmt.Println("OK!")
-	fmt.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
-	fmt.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
+	io.Println(string(bres.DeliverTx.Data))
+	io.Println("OK!")
+	io.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
+	io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
 
 	return nil
 }
