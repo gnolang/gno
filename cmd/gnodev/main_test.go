@@ -13,10 +13,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMain(t *testing.T) {
+func TestMain_Gnodev(t *testing.T) {
 	tc := []testMainCase{
-		{args: []string{""}, errShouldBe: "unknown command "},
+		{args: []string{""}, errShouldBe: "flag: help requested"},
 	}
+
 	testMainCaseRun(t, tc)
 }
 

@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/gnolang/gno/pkgs/commands"
-	"github.com/gnolang/gno/pkgs/errors"
 	gno "github.com/gnolang/gno/pkgs/gnolang"
 )
 
@@ -55,7 +54,7 @@ func (c *buildCfg) RegisterFlags(fs *flag.FlagSet) {
 
 func execBuild(cfg *buildCfg, args []string, io *commands.IO) error {
 	if len(args) < 1 {
-		return errors.New("invalid args")
+		return flag.ErrHelp
 	}
 
 	paths, err := gnoPackagesFromArgs(args)

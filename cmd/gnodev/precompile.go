@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 
 	"github.com/gnolang/gno/pkgs/commands"
-	"github.com/gnolang/gno/pkgs/errors"
 	gno "github.com/gnolang/gno/pkgs/gnolang"
 )
 
@@ -110,7 +109,7 @@ func (c *precompileCfg) RegisterFlags(fs *flag.FlagSet) {
 
 func execPrecompile(cfg *precompileCfg, args []string, io *commands.IO) error {
 	if len(args) < 1 {
-		return errors.New("invalid args")
+		return flag.ErrHelp
 	}
 
 	// precompile .gno files.

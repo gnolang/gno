@@ -86,7 +86,7 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 
 func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 	if len(args) < 1 {
-		return errors.New("invalid args")
+		return flag.ErrHelp
 	}
 
 	verbose := cfg.verbose
@@ -126,7 +126,7 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 	for _, pkgPath := range pkgPaths {
 		if cfg.precompile {
 			if verbose {
-				fmt.Printf("=== PREC  %s\n", pkgPath)
+				io.ErrPrintfln("=== PREC  %s", pkgPath)
 			}
 			precompileOpts := newPrecompileOptions(&precompileCfg{
 				output: tempdirRoot,
