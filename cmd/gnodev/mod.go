@@ -12,43 +12,28 @@ import (
 	"github.com/gnolang/gno/pkgs/gnolang/gnomod"
 )
 
-type modCfg struct {
-	verbose bool
-}
-
 func newModCmd() *commands.Command {
-	cfg := &modCfg{}
-
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "mod",
-			ShortUsage: "mod [flags] <command>",
+			ShortUsage: "mod <command>",
 			ShortHelp:  "Manage gno.mod",
 		},
-		cfg,
+		nil,
 		func(_ context.Context, args []string) error {
-			return execMod(cfg, args)
+			return execMod(args)
 		},
 	)
 }
 
-func (c *modCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.BoolVar(
-		&c.verbose,
-		"verbose",
-		false,
-		"verbose output",
-	)
-}
-
-func execMod(cfg *modCfg, args []string) error {
+func execMod(args []string) error {
 	if len(args) != 1 {
 		return flag.ErrHelp
 	}
 
 	switch args[0] {
 	case "download":
-		if err := runModDownload(cfg); err != nil {
+		if err := runModDownload(); err != nil {
 			return fmt.Errorf("mod download: %w", err)
 		}
 	default:
@@ -58,7 +43,7 @@ func execMod(cfg *modCfg, args []string) error {
 	return nil
 }
 
-func runModDownload(cfg *modCfg) error {
+func runModDownload() error {
 	path, err := os.Getwd()
 	if err != nil {
 		return err
