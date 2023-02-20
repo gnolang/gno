@@ -20,9 +20,9 @@ type IO struct {
 	errBuf *bufio.Writer
 }
 
-// DefaultIO returns a default command io
+// NewDefaultIO returns a default command io
 // that utilizes standard input / output / error
-func DefaultIO() *IO {
+func NewDefaultIO() *IO {
 	c := &IO{}
 
 	c.SetIn(os.Stdin)
@@ -32,79 +32,88 @@ func DefaultIO() *IO {
 	return c
 }
 
+// NewTestIO returns a test command io
+// that only sets standard input (to avoid panics)
+func NewTestIO() *IO {
+	c := &IO{}
+	c.SetIn(os.Stdin)
+
+	return c
+}
+
 // SetIn sets the input reader for the command io
-func (cmd *IO) SetIn(in io.Reader) {
-	cmd.In = in
-	if inbuf, ok := cmd.In.(*bufio.Reader); ok {
-		cmd.inBuf = inbuf
+func (io *IO) SetIn(in io.Reader) {
+	io.In = in
+	if inbuf, ok := io.In.(*bufio.Reader); ok {
+		io.inBuf = inbuf
 
 		return
 	}
 
-	cmd.inBuf = bufio.NewReader(in)
+	io.inBuf = bufio.NewReader(in)
 }
 
 // SetOut sets the output writer for the command io
-func (cmd *IO) SetOut(out io.WriteCloser) {
-	cmd.Out = out
-	cmd.outBuf = bufio.NewWriter(cmd.Out)
+func (io *IO) SetOut(out io.WriteCloser) {
+	io.Out = out
+	io.outBuf = bufio.NewWriter(io.Out)
 }
 
 // SetErr sets the error writer for the command io
-func (cmd *IO) SetErr(err io.WriteCloser) {
-	cmd.Err = err
-	cmd.errBuf = bufio.NewWriter(cmd.Err)
+func (io *IO) SetErr(err io.WriteCloser) {
+	io.Err = err
+	io.errBuf = bufio.NewWriter(io.Err)
 }
 
 // Println prints a line terminated by a newline
-func (cmd *IO) Println(args ...interface{}) {
-	if cmd.outBuf == nil {
+func (io *IO) Println(args ...interface{}) {
+	if io.outBuf == nil {
 		return
 	}
 
-	_, _ = fmt.Fprintln(cmd.outBuf, args...)
-	_ = cmd.outBuf.Flush()
+	_, _ = fmt.Fprintln(io.outBuf, args...)
+	_ = io.outBuf.Flush()
 }
 
 // Printf prints a formatted string without trailing newline
-func (cmd *IO) Printf(format string, args ...interface{}) {
-	if cmd.outBuf == nil {
+func (io *IO) Printf(format string, args ...interface{}) {
+	if io.outBuf == nil {
 		return
 	}
 
-	_, _ = fmt.Fprintf(cmd.outBuf, format, args...)
-	_ = cmd.outBuf.Flush()
+	_, _ = fmt.Fprintf(io.outBuf, format, args...)
+	_ = io.outBuf.Flush()
 }
 
 // Printfln prints a formatted string terminated by a newline
-func (cmd *IO) Printfln(format string, args ...interface{}) {
-	if cmd.outBuf == nil {
+func (io *IO) Printfln(format string, args ...interface{}) {
+	if io.outBuf == nil {
 		return
 	}
 
-	_, _ = fmt.Fprintf(cmd.outBuf, format+"\n", args...)
-	_ = cmd.outBuf.Flush()
+	_, _ = fmt.Fprintf(io.outBuf, format+"\n", args...)
+	_ = io.outBuf.Flush()
 }
 
 // ErrPrintln prints a line terminated by a newline to
 // cmd.Err(Buf)
-func (cmd *IO) ErrPrintln(args ...interface{}) {
-	if cmd.errBuf == nil {
+func (io *IO) ErrPrintln(args ...interface{}) {
+	if io.errBuf == nil {
 		return
 	}
 
-	_, _ = fmt.Fprintln(cmd.errBuf, args...)
-	_ = cmd.errBuf.Flush()
+	_, _ = fmt.Fprintln(io.errBuf, args...)
+	_ = io.errBuf.Flush()
 }
 
 // ErrPrintfln prints a formatted string terminated by a newline to cmd.Err(Buf)
-func (cmd *IO) ErrPrintfln(format string, args ...interface{}) {
-	if cmd.errBuf == nil {
+func (io *IO) ErrPrintfln(format string, args ...interface{}) {
+	if io.errBuf == nil {
 		return
 	}
 
-	_, _ = fmt.Fprintf(cmd.errBuf, format+"\n", args...)
-	_ = cmd.errBuf.Flush()
+	_, _ = fmt.Fprintf(io.errBuf, format+"\n", args...)
+	_ = io.errBuf.Flush()
 }
 
 type writeNopCloser struct {

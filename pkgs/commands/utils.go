@@ -3,7 +3,6 @@ package commands
 import (
 	"bufio"
 	"errors"
-	"fmt"
 	"strings"
 	"syscall"
 
@@ -11,26 +10,26 @@ import (
 )
 
 // GetPassword fetches the password using the provided prompt, if any
-func GetPassword(
+func (io *IO) GetPassword(
 	prompt string,
 	insecure bool,
-	input *bufio.Reader,
 ) (string, error) {
 	if prompt != "" {
 		// Print out the prompt
-		fmt.Println(prompt)
+		// On stderr, so it isn't part of bash output
+		io.ErrPrintln(prompt)
 	}
 
 	if insecure {
-		return readLine(input)
+		return io.readLine()
 	}
 
 	return readPassword()
 }
 
 // readLine reads a new line from standard input
-func readLine(reader *bufio.Reader) (string, error) {
-	input, err := reader.ReadString('\n')
+func (io *IO) readLine() (string, error) {
+	input, err := io.inBuf.ReadString('\n')
 	if err != nil {
 		return "", err
 	}
@@ -54,11 +53,11 @@ func readPassword() (string, error) {
 // GetConfirmation will request user give the confirmation from stdin.
 // "y", "Y", "yes", "YES", and "Yes" all count as confirmations.
 // If the input is not recognized, it returns false and a nil error.
-func GetConfirmation(prompt string, input *bufio.Reader) (bool, error) {
+func (io *IO) GetConfirmation(prompt string) (bool, error) {
 	// On stderr so it isn't part of bash output.
-	fmt.Printf("%s [y/n]:\n", prompt)
+	io.ErrPrintfln("%s [y/n]:", prompt)
 
-	response, err := readLine(input)
+	response, err := io.readLine()
 	if err != nil {
 		return false, err
 	}
@@ -100,9 +99,9 @@ func (tpr *terminalPasswordReader) readPassword() (string, error) {
 	return readPassword()
 }
 
-func confirmPassword(prompt, prompt2 string, reader passwordReader) (string, error) {
+func (io *IO) confirmPassword(prompt, prompt2 string, reader passwordReader) (string, error) {
 	if prompt != "" {
-		fmt.Println(prompt)
+		io.Println(prompt)
 	}
 
 	firstRead, err := reader.readPassword()
@@ -113,7 +112,7 @@ func confirmPassword(prompt, prompt2 string, reader passwordReader) (string, err
 	firstPassword := firstRead[:len(firstRead)-1]
 
 	if prompt2 != "" {
-		fmt.Println(prompt2)
+		io.Println(prompt2)
 	}
 
 	secondRead, err := reader.readPassword()
@@ -134,28 +133,28 @@ func confirmPassword(prompt, prompt2 string, reader passwordReader) (string, err
 // match (for creating a new password).
 // It enforces the password length. Only parses password once if
 // input is piped in.
-func GetCheckPassword(
+func (io *IO) GetCheckPassword(
 	prompt,
 	prompt2 string,
 	insecure bool,
-	input *bufio.Reader,
 ) (string, error) {
 	if insecure {
-		return confirmPassword(prompt, prompt2, &insecurePasswordReader{
-			reader: input,
+		return io.confirmPassword(prompt, prompt2, &insecurePasswordReader{
+			reader: io.inBuf,
 		})
 	}
 
-	return confirmPassword(prompt, prompt2, &terminalPasswordReader{})
+	return io.confirmPassword(prompt, prompt2, &terminalPasswordReader{})
 }
 
 // GetString simply returns the trimmed string output of a given reader.
-func GetString(prompt string, input *bufio.Reader) (string, error) {
+func (io *IO) GetString(prompt string) (string, error) {
 	if prompt != "" {
-		fmt.Println(prompt)
+		// On stderr so it isn't part of bash output.
+		io.ErrPrintln(prompt)
 	}
 
-	out, err := readLine(input)
+	out, err := io.readLine()
 	if err != nil {
 		return "", err
 	}
