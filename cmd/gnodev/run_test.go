@@ -5,22 +5,22 @@ import "testing"
 func TestRunApp(t *testing.T) {
 	tc := []testMainCase{
 		{
-			args:           []string{"run"},
-			errShouldBe:    "invalid args",
-			stderrShouldBe: "Usage: run [flags] file.gno [file2.gno...]\n",
-		}, {
-			args:                []string{"run", "--help"},
-			stdoutShouldContain: "# runOptions options\n-",
-		}, {
+			args:        []string{"run"},
+			errShouldBe: "flag: help requested",
+		},
+		{
 			args:                []string{"run", "../../tests/integ/run-main/main.gno"},
 			stdoutShouldContain: "hello world!",
-		}, {
+		},
+		{
 			args:                 []string{"run", "../../tests/integ/run-main/"},
 			recoverShouldContain: "read ../../tests/integ/run-main/: is a directory", // FIXME: should work
-		}, {
+		},
+		{
 			args:                 []string{"run", "../../tests/integ/does-not-exist"},
 			recoverShouldContain: "open ../../tests/integ/does-not-exist: no such file or directory",
-		}, {
+		},
+		{
 			args:                 []string{"run", "../../tests/integ/run-namedpkg/main.gno"},
 			recoverShouldContain: "expected package name [main] but got [namedpkg]", // FIXME: should work
 		},

@@ -9,6 +9,16 @@ import (
 )
 
 func main() {
+	cmd := newGnodevCmd(commands.DefaultIO())
+
+	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "%+v", err)
+
+		os.Exit(1)
+	}
+}
+
+func newGnodevCmd(io *commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			ShortUsage: "<subcommand> [flags] [<arg>...]",
@@ -19,10 +29,10 @@ func main() {
 	)
 
 	cmd.AddSubCommands(
-		newRunCmd(),
-		newBuildCmd(),
-		newPrecompileCmd(),
-		newTestCmd(),
+		newRunCmd(io),
+		newBuildCmd(io),
+		newPrecompileCmd(io),
+		newTestCmd(io),
 		newReplCmd(),
 		newModCmd(),
 		// fmt -- gofmt
@@ -39,9 +49,5 @@ func main() {
 		// version -- show gnodev, golang versions
 	)
 
-	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "%+v", err)
-
-		os.Exit(1)
-	}
+	return cmd
 }

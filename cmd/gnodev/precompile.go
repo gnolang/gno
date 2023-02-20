@@ -48,7 +48,7 @@ func (p *precompileOptions) markAsPrecompiled(pkg importPath) {
 	p.precompiled[pkg] = struct{}{}
 }
 
-func newPrecompileCmd() *commands.Command {
+func newPrecompileCmd(io *commands.IO) *commands.Command {
 	cfg := &precompileCfg{}
 
 	return commands.NewCommand(
@@ -59,7 +59,7 @@ func newPrecompileCmd() *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execPrecompile(cfg, args)
+			return execPrecompile(cfg, args, io)
 		},
 	)
 }
@@ -108,7 +108,7 @@ func (c *precompileCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execPrecompile(cfg *precompileCfg, args []string) error {
+func execPrecompile(cfg *precompileCfg, args []string, io *commands.IO) error {
 	if len(args) < 1 {
 		return errors.New("invalid args")
 	}
@@ -125,7 +125,7 @@ func execPrecompile(cfg *precompileCfg, args []string) error {
 		err = precompileFile(filepath, opts)
 		if err != nil {
 			err = fmt.Errorf("%s: precompile: %w", filepath, err)
-			fmt.Printf("%s", err.Error())
+			io.ErrPrintfln("%s", err.Error())
 
 			errCount++
 		}

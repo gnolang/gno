@@ -3,10 +3,8 @@ package main
 import (
 	"context"
 	"flag"
-	"os"
 
 	"github.com/gnolang/gno/pkgs/commands"
-	"github.com/gnolang/gno/pkgs/errors"
 	gno "github.com/gnolang/gno/pkgs/gnolang"
 	"github.com/gnolang/gno/tests"
 )
@@ -16,7 +14,7 @@ type runCfg struct {
 	rootDir string
 }
 
-func newRunCmd() *commands.Command {
+func newRunCmd(io *commands.IO) *commands.Command {
 	cfg := &runCfg{}
 
 	return commands.NewCommand(
@@ -27,7 +25,7 @@ func newRunCmd() *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execRun(cfg, args)
+			return execRun(cfg, args, io)
 		},
 	)
 }
@@ -48,18 +46,18 @@ func (c *runCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execRun(cfg *runCfg, args []string) error {
+func execRun(cfg *runCfg, args []string, io *commands.IO) error {
 	if len(args) == 0 {
-		return errors.New("invalid args")
+		return flag.ErrHelp
 	}
 
 	if cfg.rootDir == "" {
 		cfg.rootDir = guessRootDir()
 	}
 
-	stdin := os.Stdin
-	stdout := os.Stdout
-	stderr := os.Stderr
+	stdin := io.In
+	stdout := io.Out
+	stderr := io.Err
 
 	// init store and machine
 	testStore := tests.TestStore(cfg.rootDir,

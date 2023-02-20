@@ -21,7 +21,7 @@ var defaultBuildOptions = &buildCfg{
 	goBinary: "go",
 }
 
-func newBuildCmd() *commands.Command {
+func newBuildCmd(io *commands.IO) *commands.Command {
 	cfg := &buildCfg{}
 
 	return commands.NewCommand(
@@ -32,7 +32,7 @@ func newBuildCmd() *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execBuild(cfg, args)
+			return execBuild(cfg, args, io)
 		},
 	)
 }
@@ -53,7 +53,7 @@ func (c *buildCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execBuild(cfg *buildCfg, args []string) error {
+func execBuild(cfg *buildCfg, args []string, io *commands.IO) error {
 	if len(args) < 1 {
 		return errors.New("invalid args")
 	}
@@ -68,7 +68,7 @@ func execBuild(cfg *buildCfg, args []string) error {
 		err = goBuildFileOrPkg(pkgPath, cfg)
 		if err != nil {
 			err = fmt.Errorf("%s: build pkg: %w", pkgPath, err)
-			fmt.Printf("%s\n", err.Error())
+			io.ErrPrintfln("%s\n", err.Error())
 
 			errCount++
 		}

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -32,7 +31,7 @@ type testCfg struct {
 	precompile bool // TODO: precompile should be the default, but it needs to automatically precompile dependencies in memory.
 }
 
-func newTestCmd() *commands.Command {
+func newTestCmd(io *commands.IO) *commands.Command {
 	cfg := &testCfg{}
 
 	return commands.NewCommand(
@@ -43,7 +42,7 @@ func newTestCmd() *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execTest(cfg, args)
+			return execTest(cfg, args, io)
 		},
 	)
 }
@@ -85,7 +84,7 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execTest(cfg *testCfg, args []string) error {
+func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 	if len(args) < 1 {
 		return errors.New("invalid args")
 	}
@@ -134,17 +133,17 @@ func execTest(cfg *testCfg, args []string) error {
 			})
 			err := precompilePkg(importPath(pkgPath), precompileOpts)
 			if err != nil {
-				fmt.Println(err)
-				fmt.Println("FAIL")
-				fmt.Printf("FAIL    %s\n", pkgPath)
-				fmt.Println("FAIL")
+				io.ErrPrintln(err)
+				io.ErrPrintln("FAIL")
+				io.ErrPrintfln("FAIL    %s", pkgPath)
+				io.ErrPrintln("FAIL")
 
 				buildErrCount++
 				continue
 			}
 
 			if verbose {
-				fmt.Printf("=== BUILD %s", pkgPath)
+				io.ErrPrintfln("=== BUILD %s", pkgPath)
 			}
 			tempDir, err := ResolvePath(tempdirRoot, importPath(pkgPath))
 			if err != nil {
@@ -152,10 +151,10 @@ func execTest(cfg *testCfg, args []string) error {
 			}
 			err = goBuildFileOrPkg(tempDir, defaultBuildOptions)
 			if err != nil {
-				fmt.Println(err)
-				fmt.Println("FAIL")
-				fmt.Printf("FAIL    %s\n", pkgPath)
-				fmt.Println("FAIL")
+				io.ErrPrintln(err)
+				io.ErrPrintln("FAIL")
+				io.ErrPrintfln("FAIL    %s", pkgPath)
+				io.ErrPrintln("FAIL")
 
 				buildErrCount++
 				continue
@@ -171,7 +170,7 @@ func execTest(cfg *testCfg, args []string) error {
 			log.Fatal(err)
 		}
 		if len(unittestFiles) == 0 && len(filetestFiles) == 0 {
-			fmt.Printf("?       %s \t[no test files]\n", pkgPath)
+			io.ErrPrintfln("?       %s \t[no test files]", pkgPath)
 			continue
 		}
 
@@ -179,48 +178,62 @@ func execTest(cfg *testCfg, args []string) error {
 		sort.Strings(filetestFiles)
 
 		startedAt := time.Now()
-		err = gnoTestPkg(pkgPath, unittestFiles, filetestFiles, cfg)
+		err = gnoTestPkg(pkgPath, unittestFiles, filetestFiles, cfg, io)
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
 
 		if err != nil {
-			fmt.Printf("%s: test pkg: %v\n", pkgPath, err)
-			fmt.Println("FAIL")
-			fmt.Printf("FAIL    %s \t%s\n", pkgPath, dstr)
-			fmt.Println("FAIL")
+			io.ErrPrintfln("%s: test pkg: %v", pkgPath, err)
+			io.ErrPrintfln("FAIL")
+			io.ErrPrintfln("FAIL    %s \t%s", pkgPath, dstr)
+			io.ErrPrintfln("FAIL")
 			testErrCount++
 		} else {
-			fmt.Printf("ok      %s \t%s\n", pkgPath, dstr)
+			io.ErrPrintfln("ok      %s \t%s", pkgPath, dstr)
 		}
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
-		fmt.Println("FAIL")
+		io.ErrPrintfln("FAIL")
 		return fmt.Errorf("FAIL: %d build errors, %d test errors", buildErrCount, testErrCount)
 	}
 
 	return nil
 }
 
-func gnoTestPkg(pkgPath string, unittestFiles, filetestFiles []string, cfg *testCfg) error {
+func gnoTestPkg(
+	pkgPath string,
+	unittestFiles,
+	filetestFiles []string,
+	cfg *testCfg,
+	io *commands.IO,
+) error {
 	verbose := cfg.verbose
 	rootDir := cfg.rootDir
 	runFlag := cfg.run
 	filter := splitRegexp(runFlag)
 
+	stdin := io.In
+	stdout := io.Out
+	stderr := io.Err
+
 	var errs error
 
-	testStore := tests.TestStore(rootDir, "", os.Stdin, os.Stdout, os.Stderr, tests.ImportModeStdlibsOnly)
+	testStore := tests.TestStore(
+		rootDir, "",
+		stdin, stdout, stderr,
+		tests.ImportModeStdlibsOnly,
+	)
 	if verbose {
 		testStore.SetLogStoreOps(true)
 	}
 
+	if !verbose {
+		// TODO: speedup by ignoring if filter is file/*?
+		stdout = commands.WriteNopCloser(nil)
+	}
+
 	// testing with *_test.gno
 	if len(unittestFiles) > 0 {
-		// TODO: speedup by ignoring if filter is file/*?
-		var stdout io.Writer = new(bytes.Buffer)
-		if verbose {
-			stdout = os.Stdout
-		}
 		memPkg := gno.ReadMemPackage(pkgPath, pkgPath)
 
 		// tfiles, ifiles := gno.ParseMemPackageTests(memPkg)
@@ -230,7 +243,7 @@ func gnoTestPkg(pkgPath string, unittestFiles, filetestFiles []string, cfg *test
 		{
 			m := tests.TestMachine(testStore, stdout, "main")
 			m.RunMemPackage(memPkg, true)
-			err := runTestFiles(m, tfiles, memPkg.Name, verbose, runFlag)
+			err := runTestFiles(m, tfiles, memPkg.Name, verbose, runFlag, io)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -242,7 +255,7 @@ func gnoTestPkg(pkgPath string, unittestFiles, filetestFiles []string, cfg *test
 			if testPkgName != "" {
 				m := tests.TestMachine(testStore, stdout, testPkgName)
 				m.RunMemPackage(memPkg, true)
-				err := runTestFiles(m, ifiles, testPkgName, verbose, runFlag)
+				err := runTestFiles(m, ifiles, testPkgName, verbose, runFlag, io)
 				if err != nil {
 					errs = multierr.Append(errs, err)
 				}
@@ -261,7 +274,7 @@ func gnoTestPkg(pkgPath string, unittestFiles, filetestFiles []string, cfg *test
 
 			startedAt := time.Now()
 			if verbose {
-				fmt.Printf("=== RUN   %s\n", testName)
+				io.ErrPrintfln("=== RUN   %s", testName)
 			}
 
 			var closer func() (string, error)
@@ -276,7 +289,7 @@ func gnoTestPkg(pkgPath string, unittestFiles, filetestFiles []string, cfg *test
 
 			if err != nil {
 				errs = multierr.Append(errs, err)
-				fmt.Printf("--- FAIL: %s (%s)\n", testName, dstr)
+				io.ErrPrintfln("--- FAIL: %s (%s)", testName, dstr)
 				if verbose {
 					stdouterr, err := closer()
 					if err != nil {
@@ -288,7 +301,7 @@ func gnoTestPkg(pkgPath string, unittestFiles, filetestFiles []string, cfg *test
 			}
 
 			if verbose {
-				fmt.Printf("--- PASS: %s (%s)\n", testName, dstr)
+				io.ErrPrintfln("--- PASS: %s (%s)", testName, dstr)
 			}
 		}
 	}
@@ -296,7 +309,14 @@ func gnoTestPkg(pkgPath string, unittestFiles, filetestFiles []string, cfg *test
 	return errs
 }
 
-func runTestFiles(m *gno.Machine, files *gno.FileSet, pkgName string, verbose bool, runFlag string) error {
+func runTestFiles(
+	m *gno.Machine,
+	files *gno.FileSet,
+	pkgName string,
+	verbose bool,
+	runFlag string,
+	io *commands.IO,
+) error {
 	var errs error
 
 	testFuncs := &testFuncs{
@@ -317,7 +337,7 @@ func runTestFiles(m *gno.Machine, files *gno.FileSet, pkgName string, verbose bo
 
 	for _, test := range testFuncs.Tests {
 		if verbose {
-			fmt.Printf("=== RUN   %s\n", test.Name)
+			io.ErrPrintfln("=== RUN   %s", test.Name)
 		}
 
 		testFuncStr := fmt.Sprintf("%q", test.Name)
@@ -331,7 +351,7 @@ func runTestFiles(m *gno.Machine, files *gno.FileSet, pkgName string, verbose bo
 		if ret == "" {
 			err := errors.New("failed to execute unit test: %q", test.Name)
 			errs = multierr.Append(errs, err)
-			fmt.Printf("--- FAIL: %s (%v)\n", test.Name, duration)
+			io.ErrPrintfln("--- FAIL: %s (%v)", test.Name, duration)
 			continue
 		}
 
@@ -340,30 +360,30 @@ func runTestFiles(m *gno.Machine, files *gno.FileSet, pkgName string, verbose bo
 		err = json.Unmarshal([]byte(ret), &rep)
 		if err != nil {
 			errs = multierr.Append(errs, err)
-			fmt.Printf("--- FAIL: %s (%s)\n", test.Name, dstr)
+			io.ErrPrintfln("--- FAIL: %s (%s)", test.Name, dstr)
 			continue
 		}
 
 		switch {
 		case rep.Filtered:
-			fmt.Printf("--- FILT: %s\n", test.Name)
+			io.ErrPrintfln("--- FILT: %s", test.Name)
 			// noop
 		case rep.Skipped:
 			if verbose {
-				fmt.Printf("--- SKIP: %s\n", test.Name)
+				io.ErrPrintfln("--- SKIP: %s", test.Name)
 			}
 		case rep.Failed:
 			err := errors.New("failed: %q", test.Name)
 			errs = multierr.Append(errs, err)
-			fmt.Printf("--- FAIL: %s (%s)\n", test.Name, dstr)
+			io.ErrPrintfln("--- FAIL: %s (%s)", test.Name, dstr)
 		default:
 			if verbose {
-				fmt.Printf("--- PASS: %s (%s)\n", test.Name, dstr)
+				io.ErrPrintfln("--- PASS: %s (%s)", test.Name, dstr)
 			}
 		}
 
 		if rep.Output != "" && (verbose || rep.Failed) {
-			fmt.Printf("output: %s\n", rep.Output)
+			io.ErrPrintfln("output: %s", rep.Output)
 		}
 	}
 
