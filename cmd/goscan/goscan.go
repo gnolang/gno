@@ -18,7 +18,7 @@ func main() {
 			ShortUsage: "<file-path>",
 			LongHelp:   "Prints out the imports for a given file's AST",
 		},
-		nil,
+		commands.NewEmptyConfig(),
 		execScan,
 	)
 

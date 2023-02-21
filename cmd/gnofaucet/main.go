@@ -14,7 +14,7 @@ func main() {
 			ShortUsage: "<subcommand> [flags] [<arg>...]",
 			LongHelp:   "Starts the fund faucet that can be used by users",
 		},
-		nil,
+		commands.NewEmptyConfig(),
 		commands.HelpExec,
 	)
 

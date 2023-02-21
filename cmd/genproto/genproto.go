@@ -33,7 +33,7 @@ func main() {
 		commands.Metadata{
 			LongHelp: "Generates proto bindings for Amino packages",
 		},
-		nil,
+		commands.NewEmptyConfig(),
 		execGen,
 	)
 

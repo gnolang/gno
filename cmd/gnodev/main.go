@@ -24,7 +24,7 @@ func newGnodevCmd(io *commands.IO) *commands.Command {
 			ShortUsage: "<subcommand> [flags] [<arg>...]",
 			LongHelp:   "Runs the gno development toolkit",
 		},
-		nil,
+		commands.NewEmptyConfig(),
 		commands.HelpExec,
 	)
 

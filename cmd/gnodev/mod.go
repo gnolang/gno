@@ -19,7 +19,7 @@ func newModCmd() *commands.Command {
 			ShortUsage: "mod <command>",
 			ShortHelp:  "Manage gno.mod",
 		},
-		nil,
+		commands.NewEmptyConfig(),
 		func(_ context.Context, args []string) error {
 			return execMod(args)
 		},
