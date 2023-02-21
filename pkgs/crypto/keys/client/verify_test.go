@@ -1,4 +1,4 @@
-package main
+package client
 
 import (
 	"encoding/hex"
@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/cmd/common"
 	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
 	"github.com/gnolang/gno/pkgs/testutils"
@@ -24,7 +23,7 @@ func Test_execVerify(t *testing.T) {
 	// initialize test options
 	cfg := &verifyCfg{
 		rootCfg: &baseCfg{
-			BaseOptions: common.BaseOptions{
+			BaseOptions: BaseOptions{
 				Home:                  kbHome,
 				InsecurePasswordStdin: true,
 			},

@@ -10,13 +10,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gnolang/gno/cmd/common"
 	"github.com/gnolang/gno/gnoland"
 	"github.com/gnolang/gno/pkgs/amino"
 	rpcclient "github.com/gnolang/gno/pkgs/bft/rpc/client"
 	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/crypto"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
+	"github.com/gnolang/gno/pkgs/crypto/keys/client"
 	"github.com/gnolang/gno/pkgs/errors"
 	"github.com/gnolang/gno/pkgs/sdk/bank"
 	"github.com/gnolang/gno/pkgs/std"
@@ -35,7 +35,7 @@ type SiteVerifyResponse struct {
 }
 
 type config struct {
-	common.BaseOptions // home, ...
+	client.BaseOptions // home, ...
 
 	ChainID               string
 	GasWanted             int64
@@ -69,21 +69,21 @@ func (c *config) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.BaseOptions.Home,
 		"home",
-		common.DefaultBaseOptions.Home,
+		client.DefaultBaseOptions.Home,
 		"home directory",
 	)
 
 	fs.StringVar(
 		&c.BaseOptions.Remote,
 		"remote",
-		common.DefaultBaseOptions.Remote,
+		client.DefaultBaseOptions.Remote,
 		"remote node URL",
 	)
 
 	fs.BoolVar(
 		&c.BaseOptions.Quiet,
 		"quiet",
-		common.DefaultBaseOptions.Quiet,
+		client.DefaultBaseOptions.Quiet,
 		"for parsing output",
 	)
 

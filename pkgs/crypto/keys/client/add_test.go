@@ -1,11 +1,10 @@
-package main
+package client
 
 import (
 	"fmt"
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/cmd/common"
 	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
 	"github.com/gnolang/gno/pkgs/crypto/secp256k1"
@@ -23,7 +22,7 @@ func Test_execAddBasic(t *testing.T) {
 
 	cfg := &addCfg{
 		rootCfg: &baseCfg{
-			BaseOptions: common.BaseOptions{
+			BaseOptions: BaseOptions{
 				InsecurePasswordStdin: true,
 				Home:                  kbHome,
 			},
@@ -62,7 +61,7 @@ func Test_execAddPublicKey(t *testing.T) {
 
 	cfg := &addCfg{
 		rootCfg: &baseCfg{
-			BaseOptions: common.BaseOptions{
+			BaseOptions: BaseOptions{
 				Home: kbHome,
 			},
 		},
@@ -83,7 +82,7 @@ func Test_execAddRecover(t *testing.T) {
 
 	cfg := &addCfg{
 		rootCfg: &baseCfg{
-			BaseOptions: common.BaseOptions{
+			BaseOptions: BaseOptions{
 				InsecurePasswordStdin: true,
 				Home:                  kbHome,
 			},

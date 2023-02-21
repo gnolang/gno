@@ -1,10 +1,9 @@
-package main
+package client
 
 import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/cmd/common"
 	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
 	"github.com/gnolang/gno/pkgs/testutils"
@@ -26,7 +25,7 @@ func Test_execDelete(t *testing.T) {
 	// initialize test options
 	cfg := &deleteCfg{
 		rootCfg: &baseCfg{
-			BaseOptions: common.BaseOptions{
+			BaseOptions: BaseOptions{
 				Home:                  kbHome,
 				InsecurePasswordStdin: true,
 			},
@@ -78,7 +77,7 @@ func Test_execDelete(t *testing.T) {
 	// Set config yes = true
 	cfg = &deleteCfg{
 		rootCfg: &baseCfg{
-			BaseOptions: common.BaseOptions{
+			BaseOptions: BaseOptions{
 				Home:                  kbHome,
 				InsecurePasswordStdin: true,
 			},

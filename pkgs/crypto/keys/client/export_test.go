@@ -1,4 +1,4 @@
-package main
+package client
 
 import (
 	"fmt"
@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/cmd/common"
 	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
 	"github.com/gnolang/gno/pkgs/testutils"
@@ -82,7 +81,7 @@ func exportKey(exportOpts testExportKeyOpts) error {
 	var (
 		cfg = &exportCfg{
 			rootCfg: &baseCfg{
-				BaseOptions: common.BaseOptions{
+				BaseOptions: BaseOptions{
 					Home:                  exportOpts.kbHome,
 					InsecurePasswordStdin: true,
 				},

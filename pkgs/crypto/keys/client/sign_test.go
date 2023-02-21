@@ -1,11 +1,10 @@
-package main
+package client
 
 import (
 	"fmt"
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/cmd/common"
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
@@ -26,7 +25,7 @@ func Test_execSign(t *testing.T) {
 	// initialize test options
 	cfg := &signCfg{
 		rootCfg: &baseCfg{
-			BaseOptions: common.BaseOptions{
+			BaseOptions: BaseOptions{
 				Home:                  kbHome,
 				InsecurePasswordStdin: true,
 			},
