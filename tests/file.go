@@ -86,7 +86,8 @@ func WithSyncWanted(v bool) RunFileTestOption {
 	return func(r *runFileTestOptions) { r.syncWanted = v }
 }
 
-// It runs .gno file testing in tests/files and tests/files2 directories.
+// RunFileTest executes the filetest at the given path, using rootDir as
+// the directory where to find the "stdlibs" directory.
 func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 	var f runFileTestOptions
 	for _, opt := range opts {
