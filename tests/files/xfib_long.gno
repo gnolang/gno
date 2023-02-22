@@ -10,7 +10,7 @@ func fib(n int) int {
 
 func main() {
 	println(fib(35))
-	//println(fib(10))
+	// println(fib(10))
 }
 
 // Output:

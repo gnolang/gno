@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"path"
@@ -10,6 +11,8 @@ import (
 
 	gno "github.com/gnolang/gno/pkgs/gnolang"
 )
+
+var withSync = flag.Bool("update-golden-tests", false, "rewrite tests updating Realm: and Output: with new values where changed")
 
 func TestFileStr(t *testing.T) {
 	filePath := filepath.Join(".", "files", "str.gno")
@@ -37,6 +40,8 @@ func TestChallenges(t *testing.T) {
 // ignore are glob patterns to ignore
 func runFileTests(t *testing.T, baseDir string, ignore []string, opts ...RunFileTestOption) {
 	t.Helper()
+
+	opts = append([]RunFileTestOption{WithSyncWanted(*withSync)}, opts...)
 
 	files, err := os.ReadDir(baseDir)
 	if err != nil {
@@ -67,6 +72,8 @@ Upper:
 
 func runFileTest(t *testing.T, path string, opts ...RunFileTestOption) {
 	t.Helper()
+
+	opts = append([]RunFileTestOption{WithSyncWanted(*withSync)}, opts...)
 
 	var logger loggerFunc
 	if gno.IsDebug() && testing.Verbose() {

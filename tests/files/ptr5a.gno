@@ -5,7 +5,7 @@ type Foo struct {
 }
 
 func main() {
-	var a = Foo{3}
+	a := Foo{3}
 	b := &a
 	println(b.val)
 }

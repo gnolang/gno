@@ -1,8 +1,9 @@
 package main
 
 import (
-	imath "internal/math"
 	"math"
+
+	imath "internal/math"
 )
 
 func main() {

@@ -25,8 +25,10 @@ func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) T
 	}
 }
 
-var UTC *Location = &utcLoc
-var utcLoc = Location{name: "UTC"}
+var (
+	UTC    *Location = &utcLoc
+	utcLoc           = Location{name: "UTC"}
+)
 
 type Location struct {
 	name       string

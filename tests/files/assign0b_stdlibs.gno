@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/gnolang/gno/_test/net/http"
 	"time"
+
+	"github.com/gnolang/gno/_test/net/http"
 )
 
 func main() {

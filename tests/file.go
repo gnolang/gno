@@ -82,8 +82,8 @@ func WithLoggerFunc(f func(args ...interface{})) RunFileTestOption {
 // WithSyncWanted sets the syncWanted flag to true.
 // It rewrites tests files so that the values of Output: and of Realm:
 // comments match the actual output or realm state after the test.
-func WithSyncWanted() RunFileTestOption {
-	return func(r *runFileTestOptions) { r.syncWanted = true }
+func WithSyncWanted(v bool) RunFileTestOption {
+	return func(r *runFileTestOptions) { r.syncWanted = v }
 }
 
 // It runs .gno file testing in tests/files and tests/files2 directories.
