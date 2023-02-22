@@ -58,9 +58,41 @@ func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAll
 	return m
 }
 
+type runFileTestOptions struct {
+	nativeLibs bool
+	logger     loggerFunc
+	syncWanted bool
+}
+
+// RunFileTestOptions specify changing options in [RunFileTest], deviating
+// from the zero value.
+type RunFileTestOption func(*runFileTestOptions)
+
+// WithNativeLibs enables using go native libraries (ie, [ImportModeNativePreferred])
+// instead of using stdlibs/*.
+func WithNativeLibs() RunFileTestOption {
+	return func(r *runFileTestOptions) { r.nativeLibs = true }
+}
+
+// WithLoggerFunc sets a logging function for [RunFileTest].
+func WithLoggerFunc(f func(args ...interface{})) RunFileTestOption {
+	return func(r *runFileTestOptions) { r.logger = f }
+}
+
+// WithSyncWanted sets the syncWanted flag to true.
+// It rewrites tests files so that the values of Output: and of Realm:
+// comments match the actual output or realm state after the test.
+func WithSyncWanted() RunFileTestOption {
+	return func(r *runFileTestOptions) { r.syncWanted = true }
+}
+
 // It runs .gno file testing in tests/files and tests/files2 directories.
-// If syncWanted is true, writes actual as wanted in test comments.
-func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc, syncWanted bool) error {
+func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
+	var f runFileTestOptions
+	for _, opt := range opts {
+		opt(&f)
+	}
+
 	directives, pkgPath, resWanted, errWanted, rops, maxAlloc, send := wantedFromComment(path)
 	if pkgPath == "" {
 		pkgPath = "main"
@@ -69,13 +101,11 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 	stdin := new(bytes.Buffer)
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
-	filesPath := "./files2"
 	mode := ImportModeStdlibsPreferred
-	if nativeLibs {
-		filesPath = "./files"
+	if f.nativeLibs {
 		mode = ImportModeNativePreferred
 	}
-	store := TestStore(rootDir, filesPath, stdin, stdout, stderr, mode)
+	store := TestStore(rootDir, "./files", stdin, stdout, stderr, mode)
 	store.SetLogStoreOps(true)
 	m := testMachineCustom(store, pkgPath, stdout, maxAlloc, send)
 
@@ -109,10 +139,10 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 					}
 				}
 			}()
-			if logger != nil {
-				logger("========================================")
-				logger("RUN FILES & INIT")
-				logger("========================================")
+			if f.logger != nil {
+				f.logger("========================================")
+				f.logger("RUN FILES & INIT")
+				f.logger("========================================")
 			}
 			if !gno.IsRealmPath(pkgPath) {
 				// simple case.
@@ -123,16 +153,16 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 				m.SetActivePackage(pv)
 				n := gno.MustParseFile(path, string(bz)) // "main.gno", string(bz))
 				m.RunFiles(n)
-				if logger != nil {
-					logger("========================================")
-					logger("RUN MAIN")
-					logger("========================================")
+				if f.logger != nil {
+					f.logger("========================================")
+					f.logger("RUN MAIN")
+					f.logger("========================================")
 				}
 				m.RunMain()
-				if logger != nil {
-					logger("========================================")
-					logger("RUN MAIN END")
-					logger("========================================")
+				if f.logger != nil {
+					f.logger("========================================")
+					f.logger("RUN MAIN END")
+					f.logger("========================================")
 				}
 			} else {
 				// realm case.
@@ -153,10 +183,10 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 				// reconstruct machine and clear store cache.
 				// whether package is realm or not, since non-realm
 				// may call realm packages too.
-				if logger != nil {
-					logger("========================================")
-					logger("CLEAR STORE CACHE")
-					logger("========================================")
+				if f.logger != nil {
+					f.logger("========================================")
+					f.logger("CLEAR STORE CACHE")
+					f.logger("========================================")
 				}
 				store.ClearCache()
 				/*
@@ -168,17 +198,17 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 						MaxAllocBytes: maxAlloc,
 					})
 				*/
-				if logger != nil {
+				if f.logger != nil {
 					store.Print()
-					logger("========================================")
-					logger("PREPROCESS ALL FILES")
-					logger("========================================")
+					f.logger("========================================")
+					f.logger("PREPROCESS ALL FILES")
+					f.logger("========================================")
 				}
 				m.PreprocessAllFilesAndSaveBlockNodes()
-				if logger != nil {
-					logger("========================================")
-					logger("RUN MAIN")
-					logger("========================================")
+				if f.logger != nil {
+					f.logger("========================================")
+					f.logger("RUN MAIN")
+					f.logger("========================================")
 					store.Print()
 				}
 				pv2 := store.GetPackage(pkgPath, false)
@@ -190,10 +220,10 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 					store.SetLogStoreOps(true) // resets.
 				}
 				m.RunMain()
-				if logger != nil {
-					logger("========================================")
-					logger("RUN MAIN END")
-					logger("========================================")
+				if f.logger != nil {
+					f.logger("========================================")
+					f.logger("RUN MAIN END")
+					f.logger("========================================")
 				}
 			}
 		}()
@@ -256,7 +286,7 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 				res := strings.TrimSpace(stdout.String())
 				res = trimTrailingSpaces(res)
 				if res != resWanted {
-					if syncWanted {
+					if f.syncWanted {
 						// write output to file.
 						replaceWantedInPlace(path, "Output", res)
 					} else {
@@ -281,7 +311,7 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 				if rops != "" {
 					rops2 := strings.TrimSpace(store.SprintStoreOps())
 					if rops != rops2 {
-						if syncWanted {
+						if f.syncWanted {
 							// write output to file.
 							replaceWantedInPlace(path, "Realm", rops2)
 						} else {
@@ -298,8 +328,8 @@ func RunFileTest(rootDir string, path string, nativeLibs bool, logger loggerFunc
 	// Check that machine is empty.
 	err = m.CheckEmpty()
 	if err != nil {
-		if logger != nil {
-			logger("last state: \n", m.String())
+		if f.logger != nil {
+			f.logger("last state: \n", m.String())
 		}
 		panic(fmt.Sprintf("fail on %s: machine not empty after main: %v", path, err))
 	}

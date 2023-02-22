@@ -1,9 +1,9 @@
 package tests
 
 import (
-	"flag"
 	"fmt"
-	"io/ioutil"
+	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -11,61 +11,68 @@ import (
 	gno "github.com/gnolang/gno/pkgs/gnolang"
 )
 
-var syncWantedFlag = flag.Bool("sync", false, "update test comments with generated output")
-
 func TestFileStr(t *testing.T) {
 	filePath := filepath.Join(".", "files", "str.gno")
-	runFileTest(t, filePath, true, *syncWantedFlag)
+	runFileTest(t, filePath, WithNativeLibs())
 }
 
-// Bootstrapping test files from tests/files/*.gno,
-// which primarily uses native stdlib shims.
-func TestFiles1(t *testing.T) {
+// Run tests in the `files` directory using shims from stdlib
+// to native go standard library.
+func TestFilesNative(t *testing.T) {
 	baseDir := filepath.Join(".", "files")
-	runFileTests(t, baseDir, true, *syncWantedFlag)
+	runFileTests(t, baseDir, []string{"*_stdlibs*"}, WithNativeLibs())
 }
 
-// Like TestFiles1(), but with more full-gno stdlib packages.
-func TestFiles2(t *testing.T) {
-	baseDir := filepath.Join(".", "files2")
-	runFileTests(t, baseDir, false, *syncWantedFlag)
+// Test files using standard library in stdlibs/.
+func TestFiles(t *testing.T) {
+	baseDir := filepath.Join(".", "files")
+	runFileTests(t, baseDir, []string{"*_native*"})
 }
 
 func TestChallenges(t *testing.T) {
 	baseDir := filepath.Join(".", "challenges")
-	runFileTests(t, baseDir, false, *syncWantedFlag)
+	runFileTests(t, baseDir, nil)
 }
 
-func runFileTests(t *testing.T, baseDir string, nativeLibs bool, syncWanted bool) {
+// ignore are glob patterns to ignore
+func runFileTests(t *testing.T, baseDir string, ignore []string, opts ...RunFileTestOption) {
 	t.Helper()
 
-	files, err := ioutil.ReadDir(baseDir)
+	files, err := os.ReadDir(baseDir)
 	if err != nil {
 		t.Fatal(err)
 	}
+Upper:
 	for _, file := range files {
 		if filepath.Ext(file.Name()) != ".gno" {
 			continue
 		}
+		for _, is := range ignore {
+			if match, err := path.Match(is, file.Name()); match {
+				continue Upper
+			} else if err != nil {
+				t.Fatal(fmt.Errorf("error parsing glob pattern %q: %w", is, err))
+			}
+		}
 		if testing.Short() && strings.Contains(file.Name(), "_long") {
-			t.Log(fmt.Sprintf("skipping test %s in short mode.", file.Name()))
+			t.Logf("skipping test %s in short mode.", file.Name())
 			continue
 		}
 		file := file
 		t.Run(file.Name(), func(t *testing.T) {
-			runFileTest(t, filepath.Join(baseDir, file.Name()), nativeLibs, syncWanted)
+			runFileTest(t, filepath.Join(baseDir, file.Name()), opts...)
 		})
 	}
 }
 
-func runFileTest(t *testing.T, path string, nativeLibs bool, syncWanted bool) {
+func runFileTest(t *testing.T, path string, opts ...RunFileTestOption) {
 	t.Helper()
 
 	var logger loggerFunc
 	if gno.IsDebug() && testing.Verbose() {
 		logger = t.Log
 	}
-	err := RunFileTest("..", path, nativeLibs, logger, syncWanted)
+	err := RunFileTest("..", path, append(opts, WithLoggerFunc(logger))...)
 	if err != nil {
 		t.Fatalf("got error: %v", err)
 	}
