@@ -92,11 +92,12 @@ var defaultSignBroadcastOptions = SignBroadcastOptions{
 // makeAddPackageTx
 
 type makeAddPackageTxOptions struct {
-	client.BaseOptions          // home,...
-	SignBroadcastOptions        // gas-wanted, gas-fee, memo, ...
-	PkgPath              string `flag:"pkgpath" help:"package path (required)"`
-	PkgDir               string `flag:"pkgdir" help:"path to package files (required)"`
-	Deposit              string `flag:"deposit" help:"deposit coins"`
+	client.BaseOptions            // home,...
+	SignBroadcastOptions          // gas-wanted, gas-fee, memo, ...
+	PkgPath              string   `flag:"pkgpath" help:"package path (required)"`
+	PkgDir               string   `flag:"pkgdir" help:"path to package files (required)"`
+	Deposit              string   `flag:"deposit" help:"deposit coins"`
+	Args                 []string `flag:"args" help:"arguments to contract"`
 }
 
 var defaultMakeAddPackageTxOptions = makeAddPackageTxOptions{
@@ -105,6 +106,7 @@ var defaultMakeAddPackageTxOptions = makeAddPackageTxOptions{
 	PkgPath:              "", // must override
 	PkgDir:               "", // must override
 	Deposit:              "",
+	Args:                 nil,
 }
 
 func makeAddPackageTxApp(cmd *command.Command, args []string, iopts interface{}) error {
@@ -119,6 +121,11 @@ func makeAddPackageTxApp(cmd *command.Command, args []string, iopts interface{})
 		cmd.ErrPrintfln("Usage: addpkg <keyname or address>")
 		return errors.New("invalid args")
 	}
+
+	// TODO: parse args
+	// TODO: check if Constructor() exists and has a good signature
+	// TODO: support rollback
+	// TODO: unit test
 
 	// read account pubkey.
 	nameOrBech32 := args[0]
