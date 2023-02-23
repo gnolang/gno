@@ -463,7 +463,7 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 	}
 }
 
-func (vm *VMKeeper) QueryFiles(ctx sdk.Context, path string) (res map[string]string, err error) {
+func (vm *VMKeeper) QueryFiles(ctx sdk.Context, path string) (res std.MemFileBodies, err error) {
 	dirpath, _ := std.SplitFilepath(path)
 	memPkg := vm.getGnoStore(ctx).GetMemPackage(dirpath)
 
@@ -471,5 +471,5 @@ func (vm *VMKeeper) QueryFiles(ctx sdk.Context, path string) (res map[string]str
 		return memPkg.GetFileBodies(), nil
 	}
 
-	return map[string]string{}, nil
+	return std.MemFileBodies{}, nil
 }

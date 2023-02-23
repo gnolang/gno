@@ -336,7 +336,7 @@ func renderPackage(app gotuna.App, w http.ResponseWriter, r *http.Request, dirur
 		return
 	}
 
-	var files map[string]string
+	var files std.MemFileBodies
 	if err := json.Unmarshal(res.Data, &files); err != nil {
 		writeError(w, err)
 		return
