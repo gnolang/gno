@@ -206,7 +206,7 @@ func (vh vmHandler) queryFiles(ctx sdk.Context, req abci.RequestQuery) (res abci
 	}
 	b, err := json.Marshal(&result)
 	if err != nil {
-		sdk.ABCIResponseQueryFromError(err)
+		res = sdk.ABCIResponseQueryFromError(err)
 		return
 	}
 	res.Data = b
