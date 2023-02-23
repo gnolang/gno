@@ -38,6 +38,8 @@ func TestChallenges(t *testing.T) {
 }
 
 func filterFileTests(t *testing.T, files []fs.DirEntry, ignore []string) []fs.DirEntry {
+	t.Helper()
+
 	for i := 0; i < len(files); i++ {
 		file := files[i]
 		skip := func() { files = append(files[:i], files[i+1:]...) }
