@@ -27,7 +27,7 @@ func New(pkgPath string, files map[string]string) (*Package, error) {
 
 		ast.FileExports(f)
 
-		if strings.HasSuffix(filename, "_test.gno") {
+		if strings.HasSuffix(filename, "_test.gno") || strings.HasSuffix(filename, "_filetest.gno") {
 			continue
 		}
 
