@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -78,7 +79,10 @@ type testExportKeyOpts struct {
 
 // exportKey runs the private key export command
 // using the provided options
-func exportKey(exportOpts testExportKeyOpts) error {
+func exportKey(
+	exportOpts testExportKeyOpts,
+	input io.Reader,
+) error {
 	var (
 		cmd  = command.NewMockCommand()
 		opts = ExportOptions{
@@ -101,6 +105,8 @@ func exportKey(exportOpts testExportKeyOpts) error {
 			),
 		),
 	)
+
+	cmd.SetIn(input)
 
 	return exportApp(cmd, nil, opts)
 }
@@ -128,20 +134,31 @@ func TestExport_ExportKey(t *testing.T) {
 	testTable := []struct {
 		name     string
 		baseOpts testCmdKeyOptsBase
+		input    io.Reader
 	}{
 		{
 			"encrypted key export",
-			testCmdKeyOptsBase{
-				decryptPassword: password,
-				encryptPassword: password,
-			},
+			testCmdKeyOptsBase{},
+			strings.NewReader(
+				fmt.Sprintf(
+					"%s\n%s\n%s\n",
+					password, // decrypt
+					password, // encrypt
+					password, // encrypt confirm
+				),
+			),
 		},
 		{
 			"unencrypted key export",
 			testCmdKeyOptsBase{
-				decryptPassword: password,
-				unsafe:          true,
+				unsafe: true,
 			},
+			strings.NewReader(
+				fmt.Sprintf(
+					"%s\n",
+					password, // decrypt
+				),
+			),
 		},
 	}
 
@@ -174,14 +191,13 @@ func TestExport_ExportKey(t *testing.T) {
 				exportKey(
 					testExportKeyOpts{
 						testCmdKeyOptsBase: testCmdKeyOptsBase{
-							kbHome:          kbHome,
-							keyName:         info.GetName(),
-							decryptPassword: testCase.baseOpts.decryptPassword,
-							encryptPassword: testCase.baseOpts.encryptPassword,
-							unsafe:          testCase.baseOpts.unsafe,
+							kbHome:  kbHome,
+							keyName: info.GetName(),
+							unsafe:  testCase.baseOpts.unsafe,
 						},
 						outputPath: outputFile.Name(),
 					},
+					testCase.input,
 				),
 			)
 
