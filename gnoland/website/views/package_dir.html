@@ -18,7 +18,7 @@
 
       <div id="pkg_doc">
         <div id="pkg_doc__header">
-          <h2>Package {{ .Data.Package.Name}}</h2>
+          <h2>Package {{ .Data.Package.Name }}</h2>
           <p>import "{{ .Data.Package.ImportPath }}"</p>
           <div id="pkg_doc__header__overview">
             <h3>Overview</h3>
@@ -40,7 +40,7 @@
               <pre><code>{{ .Signature }}</code></pre>
               {{ if .Doc }}
               <div class="pkg_doc__comment">{{ .Doc }}</div>
-              {{end}}
+              {{ end }}
             </div>
             {{ else }}
             <p>This section is empty.</p>
@@ -54,7 +54,7 @@
               <pre><code>{{ .Signature }}</code></pre>
               {{ if .Doc }}
               <div class="pkg_doc__comment">{{ .Doc }}</div>
-              {{end}}
+              {{ end }}
             </div>
             {{ else }}
             <p>This section is empty.</p>
@@ -72,7 +72,7 @@
                 <div class="pkg_doc__comment">
                   <pre>{{ .Doc  }}</pre>
                 </div>
-                {{end}}
+                {{ end }}
               </div>
               {{ else }}
               <p>This section is empty.</p>
@@ -88,27 +88,27 @@
               <pre><code>{{ .Definition }}</code></pre>
               {{ if .Doc }}
               <div class="pkg_doc__comment">{{ .Doc }}</div>
-              {{end}} {{ range .Vars }}
+              {{ end }} {{ range .Vars }}
               <div class="pkg_doc__variable">
                 <pre><code>{{ .Signature }}</code></pre>
                 {{ if .Doc }}
                 <div class="pkg_doc__comment">{{ .Doc }}</div>
-                {{end}}
+                {{ end }}
               </div>
-              {{ end}} {{ range .Consts }}
+              {{ end }} {{ range .Consts }}
               <div class="pkg_doc__constant">
                 <pre><code>{{ .Signature }}</code></pre>
                 {{ if .Doc }}
                 <div class="pkg_doc__comment">{{ .Doc }}</div>
-                {{end}}
+                {{ end }}
               </div>
-              {{ end}} {{ range .Funcs }}
+              {{ end }} {{ range .Funcs }}
               <div class="pkg_doc__function">
                 <p>func <span class="pkg_doc__type-title">{{ .Name }}</span></p>
                 <pre><code>{{ .Signature }}</code></pre>
                 {{ if .Doc }}
                 <div class="pkg_doc__comment">{{ .Doc }}</div>
-                {{end}}
+                {{ end }}
               </div>
               {{ end }} {{ range .Methods }}
               <div class="pkg_doc__function">
@@ -116,7 +116,7 @@
                 <pre><code>{{ .Signature }}</code></pre>
                 {{ if .Doc }}
                 <div class="pkg_doc__comment">{{ .Doc }}</div>
-                {{end}}
+                {{ end }}
               </div>
 
               {{ end }}

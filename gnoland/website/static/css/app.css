@@ -229,8 +229,7 @@ pre {
 }
 
 .pkg_doc__section .pkg_doc__comment {
-  padding: 5px 15px;
-  font-size: 0.9rem;
+  padding: 1em 0;
 }
 
 .pkg_doc__section .pkg_doc__function {
@@ -245,14 +244,8 @@ pre {
   font-weight: bold;
 }
 
-.pkg_doc__type > .pkg_doc__function {
-  padding: 15px 10px;
-}
-
+.pkg_doc__type > .pkg_doc__function,
+.pkg_doc__type > .pkg_doc__constant,
 .pkg_doc__type > .pkg_doc__variable {
-  padding: 15px 10px;
-}
-
-.pkg_doc__type > .pkg_doc__constant {
-  padding: 15px 10px;
+  padding: 5px 0 5px 20px;
 }

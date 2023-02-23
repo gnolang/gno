@@ -47,8 +47,10 @@ func (p *Package) populateTypeWithMethods() {
 
 func (p *Package) populateTypeWithFuncs() {
 	for _, t := range p.Types {
-		var matchedFuncs []*Func
-		var remainingFuncs []*Func
+		var (
+			matchedFuncs   []*Func
+			remainingFuncs []*Func
+		)
 
 		for _, fn := range p.Funcs {
 			foundMatch := false
@@ -73,10 +75,13 @@ func (p *Package) populateTypeWithFuncs() {
 
 func (p *Package) populateTypeWithValue() {
 	for _, t := range p.Types {
-		var matchedVars []*Value
-		var matchedConsts []*Value
+		var (
+			matchedVars     []*Value
+			matchedConsts   []*Value
+			remainingVars   []*Value
+			remainingConsts []*Value
+		)
 
-		var remainingVars []*Value
 		for _, v := range p.Vars {
 			var matched bool
 			for _, item := range v.Items {
@@ -90,9 +95,7 @@ func (p *Package) populateTypeWithValue() {
 				remainingVars = append(remainingVars, v)
 			}
 		}
-		p.Vars = remainingVars
 
-		var remainingConsts []*Value
 		for _, c := range p.Consts {
 			var matched bool
 			for _, item := range c.Items {
@@ -106,10 +109,11 @@ func (p *Package) populateTypeWithValue() {
 				remainingConsts = append(remainingConsts, c)
 			}
 		}
-		p.Consts = remainingConsts
 
 		t.Vars = matchedVars
+		p.Vars = remainingVars
 		t.Consts = matchedConsts
+		p.Consts = remainingConsts
 	}
 }
 
