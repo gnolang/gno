@@ -330,9 +330,7 @@ func handlerPackageFile(app gotuna.App) http.Handler {
 }
 
 func renderPackage(app gotuna.App, w http.ResponseWriter, r *http.Request, diruri string) {
-	qpath := qFilesStr
-	data := []byte(diruri)
-	res, err := makeRequest(qpath, data)
+	res, err := makeRequest(qFilesStr, []byte(diruri))
 	if err != nil {
 		writeError(w, err)
 		return
@@ -359,10 +357,7 @@ func renderPackage(app gotuna.App, w http.ResponseWriter, r *http.Request, dirur
 
 func renderPackageFile(app gotuna.App, w http.ResponseWriter, r *http.Request, diruri string, filename string) {
 	// Request is for a file.
-	filepath := diruri + "/" + filename
-	qpath := qFileStr
-	data := []byte(filepath)
-	res, err := makeRequest(qpath, data)
+	res, err := makeRequest(qFileStr, []byte(diruri+"/"+filename))
 	if err != nil {
 		writeError(w, err)
 		return
