@@ -30,6 +30,14 @@ func (mempkg *MemPackage) GetFile(name string) *MemFile {
 	return nil
 }
 
+func (mempkg *MemPackage) GetFileBodies() map[string]string {
+	files := map[string]string{}
+	for _, memfile := range mempkg.Files {
+		files[memfile.Name] = memfile.Body
+	}
+	return files
+}
+
 const (
 	reDomainPart   = `gno\.land`
 	rePathPart     = `[a-z][a-z0-9_]*`
