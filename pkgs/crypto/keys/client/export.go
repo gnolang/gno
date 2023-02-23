@@ -17,8 +17,11 @@ type ExportOptions struct {
 	// The name or address of the private key to be exported
 	NameOrBech32 string `flag:"key" help:"Name or Bech32 address of the private key"`
 
-	// Output path for the encrypted private key armor
-	OutputPath string `flag:"output-path" help:"The desired output path for the encrypted armor file"`
+	// Output path for the private key armor
+	OutputPath string `flag:"output-path" help:"The desired output path for the armor file"`
+
+	// Unsafe flag for specifying the output as unencrypted
+	Unsafe bool `flag:"unsafe" help:"Export the private key armor as unencrypted"`
 }
 
 var DefaultExportOptions = ExportOptions{
@@ -55,31 +58,45 @@ func exportApp(cmd *command.Command, _ []string, iopts interface{}) error {
 		)
 	}
 
-	// Get the armor encrypt password
-	encryptPassword, err := cmd.GetCheckPassword(
-		"Enter a passphrase to encrypt your private key armor:",
-		"Repeat the passphrase:")
-	if err != nil {
-		return fmt.Errorf(
-			"unable to retrieve armor encrypt password from user, %w",
-			err,
+	var (
+		armor     string
+		exportErr error
+	)
+
+	if opts.Unsafe {
+		// Generate the unencrypted armor
+		armor, exportErr = kb.ExportPrivKeyUnsafe(
+			opts.NameOrBech32,
+			decryptPassword,
+		)
+	} else {
+		// Get the armor encrypt password
+		encryptPassword, err := cmd.GetCheckPassword(
+			"Enter a passphrase to encrypt your private key armor:",
+			"Repeat the passphrase:")
+		if err != nil {
+			return fmt.Errorf(
+				"unable to retrieve armor encrypt password from user, %w",
+				err,
+			)
+		}
+
+		// Generate the encrypted armor
+		armor, exportErr = kb.ExportPrivKey(
+			opts.NameOrBech32,
+			decryptPassword,
+			encryptPassword,
 		)
 	}
 
-	// Generate the encrypted armor
-	armor, err := kb.ExportPrivKey(
-		opts.NameOrBech32,
-		decryptPassword,
-		encryptPassword,
-	)
-	if err != nil {
+	if exportErr != nil {
 		return fmt.Errorf(
 			"unable to export the private key, %w",
-			err,
+			exportErr,
 		)
 	}
 
-	// Write the encrypted armor to disk
+	// Write the armor to disk
 	if err := os.WriteFile(
 		opts.OutputPath,
 		[]byte(armor),
@@ -91,7 +108,7 @@ func exportApp(cmd *command.Command, _ []string, iopts interface{}) error {
 		)
 	}
 
-	cmd.Printfln("Encrypted private key armor successfully outputted to %s", opts.OutputPath)
+	cmd.Printfln("Private key armor successfully outputted to %s", opts.OutputPath)
 
 	return nil
 }
