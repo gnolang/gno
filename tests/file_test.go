@@ -42,7 +42,7 @@ func filterFileTests(t *testing.T, files []fs.DirEntry, ignore []string) []fs.Di
 
 	for i := 0; i < len(files); i++ {
 		file := files[i]
-		skip := func() { files = append(files[:i], files[i+1:]...) }
+		skip := func() { files = append(files[:i], files[i+1:]...); i-- }
 		if filepath.Ext(file.Name()) != ".gno" {
 			skip()
 			continue
