@@ -2,7 +2,7 @@ package tests
 
 import (
 	"flag"
-	"fmt"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -37,6 +37,31 @@ func TestChallenges(t *testing.T) {
 	runFileTests(t, baseDir, nil)
 }
 
+func filterFileTests(t *testing.T, files []fs.DirEntry, ignore []string) []fs.DirEntry {
+	for i := 0; i < len(files); i++ {
+		file := files[i]
+		skip := func() { files = append(files[:i], files[i+1:]...) }
+		if filepath.Ext(file.Name()) != ".gno" {
+			skip()
+			continue
+		}
+		for _, is := range ignore {
+			if match, err := path.Match(is, file.Name()); match {
+				skip()
+				continue
+			} else if err != nil {
+				t.Fatalf("error parsing glob pattern %q: %v", is, err)
+			}
+		}
+		if testing.Short() && strings.Contains(file.Name(), "_long") {
+			t.Logf("skipping test %s in short mode.", file.Name())
+			skip()
+			continue
+		}
+	}
+	return files
+}
+
 // ignore are glob patterns to ignore
 func runFileTests(t *testing.T, baseDir string, ignore []string, opts ...RunFileTestOption) {
 	t.Helper()
@@ -47,22 +72,10 @@ func runFileTests(t *testing.T, baseDir string, ignore []string, opts ...RunFile
 	if err != nil {
 		t.Fatal(err)
 	}
-Upper:
+
+	files = filterFileTests(t, files, ignore)
+
 	for _, file := range files {
-		if filepath.Ext(file.Name()) != ".gno" {
-			continue
-		}
-		for _, is := range ignore {
-			if match, err := path.Match(is, file.Name()); match {
-				continue Upper
-			} else if err != nil {
-				t.Fatal(fmt.Errorf("error parsing glob pattern %q: %w", is, err))
-			}
-		}
-		if testing.Short() && strings.Contains(file.Name(), "_long") {
-			t.Logf("skipping test %s in short mode.", file.Name())
-			continue
-		}
 		file := file
 		t.Run(file.Name(), func(t *testing.T) {
 			runFileTest(t, filepath.Join(baseDir, file.Name()), opts...)
