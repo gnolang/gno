@@ -11,7 +11,7 @@ func TestUserTokenImpl(t *testing.T) {
 	_ = dummyUser
 }
 
-func TestUserAllowance(t *testing.T) {
+func TestUserApprove(t *testing.T) {
 	owner := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 	spender := std.Address("g1us8428u2a5satrlxzagsqa5m6vmuze027sxc8x")
 	dest := std.Address("g1us8428m6a5satrlxzagsqa5m6vmuze02tyelwj")
@@ -63,5 +63,4 @@ func TestUserAllowance(t *testing.T) {
 	// Try to transfer one token from owner to dest ,should fail because no allowance left
 	err = dummyUser.TransferFrom(owner, dest, 1)
 	assert(t, err != nil, "no allowance")
-
 }
