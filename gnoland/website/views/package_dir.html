@@ -66,7 +66,7 @@
             <div>
               {{ range .Data.Package.Funcs }}
               <div class="pkg_doc__function">
-                <p>func <span class="pkg_doc__type-title">{{ .Name }}</span></p>
+                <p><span class="pkg_doc__type-title">{{ . }}</span></p>
                 <pre><code>{{ .Signature }}</code></pre>
                 {{ if .Doc }}
                 <div class="pkg_doc__comment">
@@ -104,7 +104,7 @@
               </div>
               {{ end }} {{ range .Funcs }}
               <div class="pkg_doc__function">
-                <p>func <span class="pkg_doc__type-title">{{ .Name }}</span></p>
+                <p><span class="pkg_doc__type-title">{{ . }}</span></p>
                 <pre><code>{{ .Signature }}</code></pre>
                 {{ if .Doc }}
                 <div class="pkg_doc__comment">{{ .Doc }}</div>
@@ -112,7 +112,7 @@
               </div>
               {{ end }} {{ range .Methods }}
               <div class="pkg_doc__function">
-                <p>func <span class="pkg_doc__type-title">{{ .Name }}</span></p>
+                <p><span class="pkg_doc__type-title">{{ . }}</span></p>
                 <pre><code>{{ .Signature }}</code></pre>
                 {{ if .Doc }}
                 <div class="pkg_doc__comment">{{ .Doc }}</div>

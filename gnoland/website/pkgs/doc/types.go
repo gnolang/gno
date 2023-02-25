@@ -2,10 +2,12 @@ package doc
 
 import (
 	"bytes"
+	"fmt"
 	"go/ast"
 	"go/format"
 	"go/token"
 	"sort"
+	"strings"
 )
 
 type Package struct {
@@ -133,6 +135,19 @@ type Func struct {
 	Returns   []*FuncReturn
 	Recv      []string
 	Signature string
+}
+
+func (f Func) String() string {
+	var b strings.Builder
+	b.WriteString("func ")
+
+	if len(f.Recv) > 0 {
+		b.WriteString(fmt.Sprintf("(%s) ", strings.Join(f.Recv, ", ")))
+	}
+
+	b.WriteString(f.Name)
+
+	return b.String()
 }
 
 type Type struct {

@@ -247,5 +247,5 @@ pre {
 .pkg_doc__type > .pkg_doc__function,
 .pkg_doc__type > .pkg_doc__constant,
 .pkg_doc__type > .pkg_doc__variable {
-  padding: 5px 0 5px 20px;
+  padding: 5px 0 5px;
 }
