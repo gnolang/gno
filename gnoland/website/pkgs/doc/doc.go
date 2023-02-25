@@ -33,6 +33,10 @@ func New(pkgPath string, files map[string]string) (*Package, error) {
 
 		gnoFiles[filename] = f
 
+		if p.Name == "" {
+			p.Name = f.Name.Name
+		}
+
 		if f.Doc != nil {
 			doc := f.Doc.Text()
 			if p.Doc != "" {
@@ -42,41 +46,51 @@ func New(pkgPath string, files map[string]string) (*Package, error) {
 		}
 	}
 
-	sort.Strings(p.Filenames)
-
-	astPkg, _ := ast.NewPackage(fset, gnoFiles, nil, nil)
-
-	p.Name = astPkg.Name
-
-	ast.Inspect(astPkg, func(n ast.Node) bool {
-		switch x := n.(type) {
-		case *ast.FuncDecl:
-			fn := extractFunc(x)
-			p.Funcs = append(p.Funcs, fn)
-
-		case *ast.GenDecl:
-			if x.Tok == token.VAR {
-				value, _ := extractValue(fset, x)
-				p.Vars = append(p.Vars, value)
-			}
-			if x.Tok == token.CONST {
-				value, _ := extractValue(fset, x)
-				p.Consts = append(p.Consts, value)
-			}
-			if x.Tok == token.TYPE {
-				for _, spec := range x.Specs {
-					if ts, ok := spec.(*ast.TypeSpec); ok {
-						newType, _ := extractType(fset, ts)
-						p.Types = append(p.Types, newType)
+	for _, f := range gnoFiles {
+		for _, decl := range f.Decls {
+			switch x := decl.(type) {
+			case *ast.FuncDecl:
+				if x.Name.IsExported() {
+					fn := extractFunc(x)
+					p.Funcs = append(p.Funcs, fn)
+				}
+			case *ast.GenDecl:
+				if x.Tok == token.TYPE {
+					for _, spec := range x.Specs {
+						if ident, ok := spec.(*ast.TypeSpec); ok {
+							if ident.Name.IsExported() {
+								newType, _ := extractType(fset, ident)
+								p.Types = append(p.Types, newType)
+							}
+						}
 					}
+				}
+				if x.Tok == token.VAR {
+					value, _ := extractValue(fset, x)
+					p.Vars = append(p.Vars, value)
+				}
+				if x.Tok == token.CONST {
+					value, _ := extractValue(fset, x)
+					p.Consts = append(p.Consts, value)
 				}
 			}
 		}
+	}
 
-		return true
+	for _, t := range p.Types {
+		t.Funcs, t.Methods = p.filterTypeFuncs(t.Name)
+		t.Vars, t.Consts = p.filterTypeValues(t.Name)
+	}
+
+	sort.Slice(p.Types, func(i, j int) bool {
+		return p.Types[i].Name < p.Types[j].Name
 	})
 
-	p.populateType()
+	sort.Slice(p.Funcs, func(i, j int) bool {
+		return p.Funcs[i].Name < p.Funcs[j].Name
+	})
+
+	sort.Strings(p.Filenames)
 
 	return &p, nil
 }
