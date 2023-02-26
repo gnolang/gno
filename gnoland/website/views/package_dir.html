@@ -41,12 +41,12 @@
             </h3>
             {{ range .Data.Package.Consts }}
             <div class="pkg_doc__constant">
-              <a name="{{ .ID }}">
-                <pre><code>{{ .Signature }}</code></pre>
-              </a>
               {{ if .Doc }}
               <div class="pkg_doc__comment">{{ .Doc }}</div>
               {{ end }}
+              <a name="{{ .ID }}">
+                <pre><code>{{ .Signature }}</code></pre>
+              </a>
             </div>
             {{ else }}
             <p>This section is empty.</p>
@@ -59,12 +59,12 @@
             </h3>
             {{ range .Data.Package.Vars }}
             <div class="pkg_doc__variable">
-              <a name="{{ .ID }}">
-                <pre><code>{{ .Signature }}</code></pre>
-              </a>
               {{ if .Doc }}
               <div class="pkg_doc__comment">{{ .Doc }}</div>
               {{ end }}
+              <a name="{{ .ID }}">
+                <pre><code>{{ .Signature }}</code></pre>
+              </a>
             </div>
             {{ else }}
             <p>This section is empty.</p>
@@ -103,26 +103,27 @@
               <a name="{{ .ID }}">
                 <p>type <span class="pkg_doc__type-title">{{ .Name }}</span></p>
               </a>
-              <pre><code>{{ .Definition }}</code></pre>
               {{ if .Doc }}
               <div class="pkg_doc__comment">{{ .Doc }}</div>
-              {{ end }} {{ range .Vars }}
+              {{ end }}
+              <pre><code>{{ .Definition }}</code></pre>
+              {{ range .Vars }}
               <div class="pkg_doc__variable">
-                <a name="{{ .ID }}">
-                  <pre><code>{{ .Signature }}</code></pre>
-                </a>
                 {{ if .Doc }}
                 <div class="pkg_doc__comment">{{ .Doc }}</div>
                 {{ end }}
+                <a name="{{ .ID }}">
+                  <pre><code>{{ .Signature }}</code></pre>
+                </a>
               </div>
               {{ end }} {{ range .Consts }}
               <div class="pkg_doc__constant">
-                <a name="{{ .ID }}">
-                  <pre><code>{{ .Signature }}</code></pre>
-                </a>
                 {{ if .Doc }}
                 <div class="pkg_doc__comment">{{ .Doc }}</div>
                 {{ end }}
+                <a name="{{ .ID }}">
+                  <pre><code>{{ .Signature }}</code></pre>
+                </a>
               </div>
               {{ end }} {{ range .Funcs }}
               <div class="pkg_doc__function">
