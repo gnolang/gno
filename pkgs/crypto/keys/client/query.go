@@ -24,7 +24,7 @@ var DefaultQueryOptions = QueryOptions{
 }
 
 func queryApp(cmd *command.Command, args []string, iopts interface{}) error {
-	var opts = iopts.(QueryOptions)
+	opts := iopts.(QueryOptions)
 
 	if len(args) != 1 {
 		cmd.ErrPrintfln("Usage: query <path>")

@@ -25,7 +25,7 @@ var DefaultBroadcastOptions = BroadcastOptions{
 }
 
 func broadcastApp(cmd *command.Command, args []string, iopts interface{}) error {
-	var opts = iopts.(BroadcastOptions)
+	opts := iopts.(BroadcastOptions)
 
 	if len(args) != 1 {
 		cmd.ErrPrintfln("Usage: broadcast <filename>")
