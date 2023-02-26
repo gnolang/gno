@@ -19,9 +19,11 @@
       <div id="pkg_doc">
         <div id="pkg_doc__header">
           <h2>Package {{ .Data.Package.Name }}</h2>
-          <p>import "{{ .Data.Package.ImportPath }}"</p>
+          <p><a name="import">import "{{ .Data.Package.ImportPath }}"</a></p>
           <div id="pkg_doc__header__overview">
-            <h3>Overview</h3>
+            <h3>
+              <a name="overview">Overview</a>
+            </h3>
             {{ if .Data.Package.Doc }}
             <div class="pkg_doc__comment">
               <pre>{{ .Data.Package.Doc }}</pre>
@@ -34,10 +36,14 @@
 
         <div id="pkg_doc__body">
           <div class="pkg_doc__section">
-            <h3 class="pkg_doc__section-heading">Constants</h3>
+            <h3 class="pkg_doc__section-heading">
+              <a name="constants">Constants</a>
+            </h3>
             {{ range .Data.Package.Consts }}
             <div class="pkg_doc__constant">
-              <pre><code>{{ .Signature }}</code></pre>
+              <a name="{{ .ID }}">
+                <pre><code>{{ .Signature }}</code></pre>
+              </a>
               {{ if .Doc }}
               <div class="pkg_doc__comment">{{ .Doc }}</div>
               {{ end }}
@@ -48,10 +54,14 @@
           </div>
 
           <div class="pkg_doc__section">
-            <h3 class="pkg_doc__section-heading">Variables</h3>
+            <h3 class="pkg_doc__section-heading">
+              <a name="variables">Variables</a>
+            </h3>
             {{ range .Data.Package.Vars }}
             <div class="pkg_doc__variable">
-              <pre><code>{{ .Signature }}</code></pre>
+              <a name="{{ .ID }}">
+                <pre><code>{{ .Signature }}</code></pre>
+              </a>
               {{ if .Doc }}
               <div class="pkg_doc__comment">{{ .Doc }}</div>
               {{ end }}
@@ -62,12 +72,16 @@
           </div>
 
           <div class="pkg_doc__section">
-            <h3 class="pkg_doc__section-heading">Functions</h3>
+            <h3 class="pkg_doc__section-heading">
+              <a name="functions">Functions</a>
+            </h3>
             <div>
               {{ range .Data.Package.Funcs }}
               <div class="pkg_doc__function">
                 <p><span class="pkg_doc__type-title">{{ . }}</span></p>
-                <pre><code>{{ .Signature }}</code></pre>
+                <a name="{{ .ID }}">
+                  <pre><code>{{ .Signature }}</code></pre>
+                </a>
                 {{ if .Doc }}
                 <div class="pkg_doc__comment">
                   <pre>{{ .Doc  }}</pre>
@@ -81,30 +95,40 @@
           </div>
 
           <div class="pkg_doc__section">
-            <h3 class="pkg_doc__section-heading">Types</h3>
+            <h3 class="pkg_doc__section-heading">
+              <a name="types">Types</a>
+            </h3>
             {{ range .Data.Package.Types }}
             <div class="pkg_doc__type">
-              <p>type <span class="pkg_doc__type-title">{{ .Name }}</span></p>
+              <a name="{{ .ID }}">
+                <p>type <span class="pkg_doc__type-title">{{ .Name }}</span></p>
+              </a>
               <pre><code>{{ .Definition }}</code></pre>
               {{ if .Doc }}
               <div class="pkg_doc__comment">{{ .Doc }}</div>
               {{ end }} {{ range .Vars }}
               <div class="pkg_doc__variable">
-                <pre><code>{{ .Signature }}</code></pre>
+                <a name="{{ .ID }}">
+                  <pre><code>{{ .Signature }}</code></pre>
+                </a>
                 {{ if .Doc }}
                 <div class="pkg_doc__comment">{{ .Doc }}</div>
                 {{ end }}
               </div>
               {{ end }} {{ range .Consts }}
               <div class="pkg_doc__constant">
-                <pre><code>{{ .Signature }}</code></pre>
+                <a name="{{ .ID }}">
+                  <pre><code>{{ .Signature }}</code></pre>
+                </a>
                 {{ if .Doc }}
                 <div class="pkg_doc__comment">{{ .Doc }}</div>
                 {{ end }}
               </div>
               {{ end }} {{ range .Funcs }}
               <div class="pkg_doc__function">
-                <p><span class="pkg_doc__type-title">{{ . }}</span></p>
+                <a name="{{ .ID }}">
+                  <p><span class="pkg_doc__type-title">{{ . }}</span></p>
+                </a>
                 <pre><code>{{ .Signature }}</code></pre>
                 {{ if .Doc }}
                 <div class="pkg_doc__comment">{{ .Doc }}</div>
@@ -112,13 +136,14 @@
               </div>
               {{ end }} {{ range .Methods }}
               <div class="pkg_doc__function">
-                <p><span class="pkg_doc__type-title">{{ . }}</span></p>
+                <a name="{{ .ID }}">
+                  <p><span class="pkg_doc__type-title">{{ . }}</span></p>
+                </a>
                 <pre><code>{{ .Signature }}</code></pre>
                 {{ if .Doc }}
                 <div class="pkg_doc__comment">{{ .Doc }}</div>
                 {{ end }}
               </div>
-
               {{ end }}
             </div>
             {{ else }}
@@ -127,7 +152,9 @@
           </div>
 
           <div class="pkg_doc__section">
-            <h3 class="pkg_doc__section-heading">Source Files</h3>
+            <h3 class="pkg_doc__section-heading">
+              <a name="source-files" Source Files></a>
+            </h3>
             <div id="packge_dir">{{ template "dir_contents" . }}</div>
           </div>
         </div>

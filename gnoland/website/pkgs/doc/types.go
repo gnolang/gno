@@ -105,6 +105,7 @@ func (p *Package) filterTypeValues(typeName string) (vars []*Value, consts []*Va
 }
 
 type Value struct {
+	ID        string
 	Doc       string
 	Names     []string
 	Items     []*ValueItem
@@ -112,6 +113,7 @@ type Value struct {
 }
 
 type ValueItem struct {
+	ID    string
 	Doc   string
 	Type  string
 	Name  string
@@ -129,6 +131,7 @@ type FuncReturn struct {
 }
 
 type Func struct {
+	ID        string
 	Doc       string
 	Name      string
 	Params    []*FuncParam
@@ -151,6 +154,7 @@ func (f Func) String() string {
 }
 
 type Type struct {
+	ID         string
 	Doc        string
 	Name       string
 	Definition string
@@ -162,6 +166,7 @@ type Type struct {
 
 func extractFunc(x *ast.FuncDecl) *Func {
 	fn := Func{
+		ID:        x.Name.String(),
 		Doc:       x.Doc.Text(),
 		Name:      x.Name.String(),
 		Signature: generateFuncSignature(x),
@@ -170,6 +175,10 @@ func extractFunc(x *ast.FuncDecl) *Func {
 		for _, rcv := range x.Recv.List {
 			fn.Recv = append(fn.Recv, typeString(rcv.Type))
 		}
+	}
+
+	if len(fn.Recv) > 0 {
+		fn.ID = fmt.Sprintf("%s.%s", fn.Recv[0], fn.Name)
 	}
 
 	for _, field := range x.Type.Params.List {
@@ -222,10 +231,14 @@ func extractValue(fset *token.FileSet, x *ast.GenDecl) (*Value, error) {
 				if !name.IsExported() {
 					continue
 				}
+				value.ID += name.String()
+				value.Names = append(value.Names, name.Name)
 				valueItem := ValueItem{
+					ID:   name.String(),
 					Type: typeString(valueSpec.Type),
 					Name: name.String(),
 				}
+
 				if len(valueSpec.Values) > i {
 					if lit, ok := valueSpec.Values[i].(*ast.BasicLit); ok {
 						valueItem.Value = lit.Value
@@ -244,9 +257,11 @@ func extractValue(fset *token.FileSet, x *ast.GenDecl) (*Value, error) {
 }
 
 func extractType(fset *token.FileSet, x *ast.TypeSpec) (*Type, error) {
-	newType := Type{}
-	newType.Name = x.Name.String()
-	newType.Doc = x.Doc.Text()
+	newType := Type{
+		ID:   x.Name.String(),
+		Name: x.Name.String(),
+		Doc:  x.Doc.Text(),
+	}
 
 	x.Doc = nil
 	var buf bytes.Buffer
