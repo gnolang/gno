@@ -39,6 +39,13 @@ func (f *File) FetchDeps() error {
 	}
 
 	for _, r := range f.Require {
+		mod, replaced := isReplaced(r.Mod, f.Replace)
+		if replaced {
+			if modfile.IsDirectoryPath(mod.Path) {
+				continue
+			}
+			r.Mod = *mod
+		}
 		log.Println("fetching", r.Mod.Path)
 		err := writePackage(gnoModPath, r.Mod.Path)
 		if err != nil {

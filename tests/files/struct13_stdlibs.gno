@@ -7,17 +7,13 @@ import (
 )
 
 type Fromage struct {
-	http.ResponseWriter
+	http.Server
 }
 
 func main() {
 	a := Fromage{}
-	if a.ResponseWriter == nil {
-		fmt.Println("nil")
-	} else {
-		fmt.Println("not nil")
-	}
+	fmt.Println(a.Server.WriteTimeout)
 }
 
 // Output:
-// nil
+// 0

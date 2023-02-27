@@ -80,20 +80,18 @@ func (alloc *Allocator) Status() (maxBytes int64, bytes int64) {
 func (alloc *Allocator) Reset() *Allocator {
 	if alloc == nil {
 		return nil
-	} else {
-		alloc.bytes = 0
-		return alloc
 	}
+	alloc.bytes = 0
+	return alloc
 }
 
 func (alloc *Allocator) Fork() *Allocator {
 	if alloc == nil {
 		return nil
-	} else {
-		return &Allocator{
-			maxBytes: alloc.maxBytes,
-			bytes:    alloc.bytes,
-		}
+	}
+	return &Allocator{
+		maxBytes: alloc.maxBytes,
+		bytes:    alloc.bytes,
 	}
 }
 

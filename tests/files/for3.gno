@@ -7,8 +7,8 @@ import (
 
 func main() {
 	m := map[string][]string{
-		"hello": []string{"foo", "bar"},
-		"world": []string{"truc", "machin"},
+		"hello": {"foo", "bar"},
+		"world": {"truc", "machin"},
 	}
 
 	var content []string

@@ -11,8 +11,8 @@ type Foo struct {
 
 func main() {
 	m := map[string][]Foo{
-		"hello": []Foo{{"foo"}, {"bar"}},
-		"world": []Foo{{"truc"}, {"machin"}},
+		"hello": {{"foo"}, {"bar"}},
+		"world": {{"truc"}, {"machin"}},
 	}
 
 	var content []string
