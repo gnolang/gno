@@ -15,6 +15,11 @@ const (
 	Path        = "path"
 )
 
+var (
+	errMissingPath = errors.New("missing path param")
+	errInvalidType = errors.New("invalid config for file indexer specified")
+)
+
 // TxIndexer is the implementation of a transaction indexer
 // that outputs to the local filesystem
 type TxIndexer struct {
@@ -25,9 +30,13 @@ type TxIndexer struct {
 // NewTxIndexer creates a new file-based tx indexer
 func NewTxIndexer(cfg *config.Config) (*TxIndexer, error) {
 	// Parse config params
+	if IndexerType != cfg.IndexerType {
+		return nil, errInvalidType
+	}
+
 	headPath, ok := cfg.GetParam(Path).(string)
 	if !ok {
-		return nil, errors.New("missing path param")
+		return nil, errMissingPath
 	}
 
 	return &TxIndexer{
@@ -60,7 +69,7 @@ func (t *TxIndexer) GetType() string {
 
 func (t *TxIndexer) Index(tx types.TxResult) error {
 	// Serialize the transaction using amino:binary
-	txRaw, err := amino.Marshal(tx)
+	txRaw, err := amino.MarshalJSON(tx)
 	if err != nil {
 		return fmt.Errorf("unable to marshal transaction, %w", err)
 	}

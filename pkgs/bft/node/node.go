@@ -201,7 +201,6 @@ func createAndStartIndexerService(
 	evSwitch events.EventSwitch,
 	logger log.Logger,
 ) (*txindex.IndexerService, txindex.TxIndexer, error) {
-	// TODO start indexer based on the configuration
 	var (
 		err       error
 		txIndexer txindex.TxIndexer
@@ -222,7 +221,7 @@ func createAndStartIndexerService(
 
 	indexerService := txindex.NewIndexerService(txIndexer, evSwitch)
 	indexerService.SetLogger(logger.With("module", "txindex"))
-	if err := indexerService.Start(); err != nil {
+	if err = indexerService.Start(); err != nil {
 		return nil, nil, err
 	}
 
