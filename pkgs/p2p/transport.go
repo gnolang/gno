@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strconv"
 	"time"
 
 	"github.com/gnolang/gno/pkgs/amino"
@@ -239,6 +240,17 @@ func (mt *MultiplexTransport) Listen(addr NetAddress) error {
 	ln, err := net.Listen("tcp", addr.DialString())
 	if err != nil {
 		return err
+	}
+
+	if addr.Port == 0 {
+		// net.Listen on port 0 means the kernel will auto-allocate a port
+		// - find out which one has been given to us.
+		_, p, err := net.SplitHostPort(ln.Addr().String())
+		if err != nil {
+			return fmt.Errorf("error finding port (after listening on port 0): %w", err)
+		}
+		pInt, _ := strconv.Atoi(p)
+		addr.Port = uint16(pInt)
 	}
 
 	mt.netAddr = addr
