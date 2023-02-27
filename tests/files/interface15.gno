@@ -5,7 +5,7 @@ type Fooer interface {
 }
 
 type Barer interface {
-	//fmt.Stringer
+	// fmt.Stringer
 	Fooer
 	Bar()
 }

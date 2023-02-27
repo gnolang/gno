@@ -8,7 +8,7 @@ import "fmt"
 //)
 
 func main() {
-	var samples = []int{}
+	samples := []int{}
 	samples = append(samples, 1)
 	fmt.Println(samples)
 }

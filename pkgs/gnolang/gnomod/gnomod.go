@@ -83,6 +83,12 @@ func GnoToGoMod(f File) (*File, error) {
 	}
 
 	for i := range f.Require {
+		mod, replaced := isReplaced(f.Require[i].Mod, f.Replace)
+		if replaced {
+			if modfile.IsDirectoryPath(mod.Path) {
+				continue
+			}
+		}
 		path := f.Require[i].Mod.Path
 		if strings.HasPrefix(f.Require[i].Mod.Path, "gno.land/r/") ||
 			strings.HasPrefix(f.Require[i].Mod.Path, "gno.land/p/demo/") {
@@ -101,4 +107,13 @@ func GnoToGoMod(f File) (*File, error) {
 	}
 
 	return &f, nil
+}
+
+func isReplaced(module module.Version, repl []*modfile.Replace) (*module.Version, bool) {
+	for _, r := range repl {
+		if r.Old == module {
+			return &r.New, true
+		}
+	}
+	return nil, false
 }

@@ -3,8 +3,10 @@ package test
 
 var root Node
 
-type Node interface{}
-type Key interface{}
+type (
+	Node interface{}
+	Key  interface{}
+)
 
 type InnerNode struct {
 	Key   Key
@@ -177,7 +179,7 @@ func main() {
 //                     "BlockNode": null,
 //                     "Location": {
 //                         "File": "main.gno",
-//                         "Line": "15",
+//                         "Line": "17",
 //                         "Nonce": "0",
 //                         "PkgPath": "gno.land/r/test"
 //                     }
@@ -211,7 +213,7 @@ func main() {
 //                     "BlockNode": null,
 //                     "Location": {
 //                         "File": "main.gno",
-//                         "Line": "21",
+//                         "Line": "23",
 //                         "Nonce": "0",
 //                         "PkgPath": "gno.land/r/test"
 //                     }

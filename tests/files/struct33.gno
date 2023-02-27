@@ -17,10 +17,11 @@ var t0 = T0{"t0"}
 
 func look(s string) T0 { println("in look"); return t0 }
 
-var table = []*T1{{
-	name: "bar",
-	info: look,
-},
+var table = []*T1{
+	{
+		name: "bar",
+		info: look,
+	},
 }
 
 func main() {

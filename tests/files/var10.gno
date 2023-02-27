@@ -1,7 +1,9 @@
 package main
 
-var _ = true
-var _ = "hello"
+var (
+	_ = true
+	_ = "hello"
+)
 
 func main() {
 	println("hello")
