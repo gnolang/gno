@@ -28,7 +28,7 @@ import (
 	"github.com/gnolang/gno/pkgs/bft/state/txindex"
 	"github.com/gnolang/gno/pkgs/events"
 
-	//"github.com/gnolang/gno/pkgs/bft/state/txindex/kv"
+	// "github.com/gnolang/gno/pkgs/bft/state/txindex/kv"
 	"github.com/gnolang/gno/pkgs/bft/state/txindex/null"
 	"github.com/gnolang/gno/pkgs/bft/store"
 	"github.com/gnolang/gno/pkgs/bft/types"
@@ -43,7 +43,7 @@ import (
 	verset "github.com/gnolang/gno/pkgs/versionset"
 )
 
-//------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 
 // DBContext specifies config information for loading a new DB.
 type DBContext struct {
@@ -136,7 +136,7 @@ func CustomReactors(reactors map[string]p2p.Reactor) Option {
 	}
 }
 
-//------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 
 // Node is the highest level interface to a full Tendermint node.
 // It includes all configuration information and running services.
@@ -195,35 +195,21 @@ func createAndStartProxyAppConns(clientCreator proxy.ClientCreator, logger log.L
 	return proxyApp, nil
 }
 
-func createAndStartIndexerService(config *cfg.Config, dbProvider DBProvider,
-	evsw events.EventSwitch, logger log.Logger,
+func createAndStartIndexerService(
+	_ *cfg.Config,
+	_ DBProvider,
+	evSwitch events.EventSwitch,
+	logger log.Logger,
 ) (*txindex.IndexerService, txindex.TxIndexer, error) {
-	var txIndexer txindex.TxIndexer = &null.TxIndex{}
-	/*
-		switch config.TxIndex.Indexer {
-		case "kv":
-			store, err := dbProvider(&DBContext{"tx_index", config})
-			if err != nil {
-				return nil, nil, err
-			}
-			switch {
-			case config.TxIndex.IndexTags != "":
-				txIndexer = kv.NewTxIndex(store, kv.IndexTags(splitAndTrimEmpty(config.TxIndex.IndexTags, ",", " ")))
-			case config.TxIndex.IndexAllTags:
-				txIndexer = kv.NewTxIndex(store, kv.IndexAllTags())
-			default:
-				txIndexer = kv.NewTxIndex(store)
-			}
-		default:
-			txIndexer = &null.TxIndex{}
-		}
-	*/
+	// TODO start indexer based on the configuration
+	txIndexer := &null.TxIndex{}
 
-	indexerService := txindex.NewIndexerService(txIndexer, evsw)
+	indexerService := txindex.NewIndexerService(txIndexer, evSwitch)
 	indexerService.SetLogger(logger.With("module", "txindex"))
 	if err := indexerService.Start(); err != nil {
 		return nil, nil, err
 	}
+
 	return indexerService, txIndexer, nil
 }
 
@@ -821,7 +807,7 @@ func (n *Node) Config() *cfg.Config {
 	return n.config
 }
 
-//------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 
 func (n *Node) Listeners() []string {
 	return []string{
@@ -889,7 +875,7 @@ func makeNodeInfo(
 	return nodeInfo, err
 }
 
-//------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 
 var genesisDocKey = []byte("genesisDoc")
 
