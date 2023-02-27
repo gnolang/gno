@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	var buf1 = make([]byte, 1024)
+	buf1 := make([]byte, 1024)
 	var buf2 []byte
 	buf1 = []byte("Hallo\nTest\nLine3")
 

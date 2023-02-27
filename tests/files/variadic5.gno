@@ -4,8 +4,7 @@ import (
 	"fmt"
 )
 
-type A struct {
-}
+type A struct{}
 
 func (a A) f(vals ...bool) {
 	for _, v := range vals {

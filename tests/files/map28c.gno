@@ -12,7 +12,7 @@ func main() {
 	value1.Set("first", "v1")
 	value1.Set("second", "v2")
 
-    // Index case: v, ok := x[k], x is map.
+	// Index case: v, ok := x[k], x is map.
 	_, ok := value1["first"]
 
 	println(ok)
