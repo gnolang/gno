@@ -5,19 +5,31 @@ import (
 	"github.com/gnolang/gno/pkgs/bft/types"
 )
 
-var _ txindex.TxIndexer = (*TxIndex)(nil)
+var _ txindex.TxIndexer = (*TxIndexer)(nil)
 
-// TxIndex acts as a /dev/null.
-type TxIndex struct{}
+const (
+	IndexerType = "none"
+)
 
-func (t TxIndex) Start() error {
+// TxIndexer acts as a /dev/null
+type TxIndexer struct{}
+
+func NewNullIndexer() *TxIndexer {
+	return &TxIndexer{}
+}
+
+func (t TxIndexer) Start() error {
 	return nil
 }
 
-func (t TxIndex) Close() error {
+func (t TxIndexer) Stop() error {
 	return nil
 }
 
-func (t TxIndex) Index(_ *types.TxResult) error {
+func (t TxIndexer) Index(_ *types.TxResult) error {
 	return nil
+}
+
+func (t TxIndexer) GetType() string {
+	return "none"
 }

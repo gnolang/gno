@@ -21,8 +21,8 @@ type IndexerService struct {
 }
 
 // NewIndexerService returns a new service instance.
-func NewIndexerService(idr TxIndexer, evsw events.EventSwitch) *IndexerService {
-	is := &IndexerService{indexer: idr, evSwitch: evsw}
+func NewIndexerService(idr TxIndexer, evSwitch events.EventSwitch) *IndexerService {
+	is := &IndexerService{indexer: idr, evSwitch: evSwitch}
 	is.BaseService = *service.NewBaseService(nil, "IndexerService", is)
 
 	return is
@@ -49,7 +49,7 @@ func (is *IndexerService) OnStop() {
 	is.cancelFn()
 
 	// Attempt to gracefully stop the transaction indexer
-	if err := is.indexer.Close(); err != nil {
+	if err := is.indexer.Stop(); err != nil {
 		is.Logger.Error(
 			fmt.Sprintf("unable to gracefully stop transaction indexer, %v", err),
 		)
@@ -60,7 +60,7 @@ func (is *IndexerService) OnStop() {
 // transaction indexer. It relays transaction events that come from the event stream
 func (is *IndexerService) monitorTxEvents(ctx context.Context) {
 	// Create a subscription for transaction events
-	subCh := events.SubscribeToEvent(is.evSwitch, "tx-indexer", types.TxResult{})
+	subCh := events.SubscribeToEvent(is.evSwitch, "tx-indexer", types.EventTx{})
 
 	for {
 		select {

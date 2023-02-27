@@ -14,8 +14,11 @@ import (
 	"github.com/gnolang/gno/pkgs/bft/config"
 	"github.com/gnolang/gno/pkgs/bft/node"
 	"github.com/gnolang/gno/pkgs/bft/privval"
+	indexercfg "github.com/gnolang/gno/pkgs/bft/state/txindex/config"
+	"github.com/gnolang/gno/pkgs/bft/state/txindex/file"
 	bft "github.com/gnolang/gno/pkgs/bft/types"
 	"github.com/gnolang/gno/pkgs/crypto"
+	"github.com/gnolang/gno/pkgs/errors"
 	gno "github.com/gnolang/gno/pkgs/gnolang"
 	"github.com/gnolang/gno/pkgs/log"
 	osm "github.com/gnolang/gno/pkgs/os"
@@ -40,6 +43,9 @@ var flags struct {
 	chainID               string
 	genesisRemote         string
 	rootDir               string
+
+	txIndexerType string
+	txIndexerPath string
 }
 
 func runMain(args []string) error {
@@ -51,6 +57,10 @@ func runMain(args []string) error {
 	fs.StringVar(&flags.chainID, "chainid", "dev", "chainid")
 	fs.StringVar(&flags.rootDir, "root-dir", "testdir", "directory for config and data")
 	fs.StringVar(&flags.genesisRemote, "genesis-remote", "localhost:26657", "replacement for '%%REMOTE%%' in genesis")
+
+	fs.StringVar(&flags.txIndexerType, "tx-indexer-type", "none", "type of transaction indexer [none, file]")
+	fs.StringVar(&flags.txIndexerPath, "tx-indexer-path", "", "path for the file tx-indexer (required if indexer if 'file')")
+
 	fs.Parse(args)
 
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
@@ -72,6 +82,14 @@ func runMain(args []string) error {
 		genDoc := makeGenesisDoc(priv.GetPubKey())
 		writeGenesisFile(genDoc, genesisFilePath)
 	}
+
+	// Initialize the indexer config
+	indexerCfg, err := getIndexerConfig()
+	if err != nil {
+		return fmt.Errorf("unable to parse indexer config, %w", err)
+	}
+
+	cfg.Indexer = indexerCfg
 
 	// create application and node.
 	gnoApp, err := gnoland.NewApp(rootDir, flags.skipFailingGenesisTxs, logger)
@@ -101,6 +119,30 @@ func runMain(args []string) error {
 		}
 	})
 	select {} // run forever
+}
+
+// getIndexerConfig constructs an indexer config from provided user options
+func getIndexerConfig() (*indexercfg.Config, error) {
+	var cfg *indexercfg.Config
+
+	switch flags.txIndexerType {
+	case file.IndexerType:
+		if flags.txIndexerPath == "" {
+			return nil, errors.New("unspecified file transaction indexer path")
+		}
+
+		// Fill out the configuration
+		cfg = &indexercfg.Config{
+			IndexerType: file.IndexerType,
+			Params: map[string]any{
+				file.Path: flags.txIndexerPath,
+			},
+		}
+	default:
+		cfg = indexercfg.DefaultIndexerConfig()
+	}
+
+	return cfg, nil
 }
 
 // Makes a local test genesis doc with local privValidator.

@@ -9,6 +9,7 @@ import (
 	cns "github.com/gnolang/gno/pkgs/bft/consensus/config"
 	mem "github.com/gnolang/gno/pkgs/bft/mempool/config"
 	rpc "github.com/gnolang/gno/pkgs/bft/rpc/config"
+	"github.com/gnolang/gno/pkgs/bft/state/txindex/config"
 	"github.com/gnolang/gno/pkgs/errors"
 	osm "github.com/gnolang/gno/pkgs/os"
 	p2p "github.com/gnolang/gno/pkgs/p2p/config"
@@ -24,6 +25,7 @@ type Config struct {
 	P2P       *p2p.P2PConfig       `toml:"p2p"`
 	Mempool   *mem.MempoolConfig   `toml:"mempool"`
 	Consensus *cns.ConsensusConfig `toml:"consensus"`
+	Indexer   *config.Config       `toml:"indexer"`
 }
 
 // DefaultConfig returns a default configuration for a Tendermint node
@@ -34,6 +36,7 @@ func DefaultConfig() *Config {
 		P2P:        p2p.DefaultP2PConfig(),
 		Mempool:    mem.DefaultMempoolConfig(),
 		Consensus:  cns.DefaultConsensusConfig(),
+		Indexer:    config.DefaultIndexerConfig(),
 	}
 }
 
@@ -121,7 +124,7 @@ func (cfg *Config) ValidateBasic() error {
 	return nil
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // BaseConfig
 
 const (

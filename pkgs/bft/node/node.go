@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gnolang/cors"
+	"github.com/gnolang/gno/pkgs/bft/state/txindex/file"
 
 	"github.com/gnolang/gno/pkgs/amino"
 	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
@@ -196,13 +197,28 @@ func createAndStartProxyAppConns(clientCreator proxy.ClientCreator, logger log.L
 }
 
 func createAndStartIndexerService(
-	_ *cfg.Config,
-	_ DBProvider,
+	cfg *cfg.Config,
 	evSwitch events.EventSwitch,
 	logger log.Logger,
 ) (*txindex.IndexerService, txindex.TxIndexer, error) {
 	// TODO start indexer based on the configuration
-	txIndexer := &null.TxIndex{}
+	var (
+		err       error
+		txIndexer txindex.TxIndexer
+	)
+
+	// Instantiate the indexer based on the configuration
+	switch cfg.Indexer.IndexerType {
+	case file.IndexerType:
+		// Transaction indexes should be logged to files
+		txIndexer, err = file.NewTxIndexer(cfg.Indexer)
+		if err != nil {
+			return nil, nil, fmt.Errorf("unable to create file tx indexer, %w", err)
+		}
+	default:
+		// Transaction indexing should be omitted
+		txIndexer = null.NewNullIndexer()
+	}
 
 	indexerService := txindex.NewIndexerService(txIndexer, evSwitch)
 	indexerService.SetLogger(logger.With("module", "txindex"))
@@ -426,7 +442,7 @@ func NewNode(config *cfg.Config,
 	evsw := events.NewEventSwitch()
 
 	// Transaction indexing
-	indexerService, txIndexer, err := createAndStartIndexerService(config, dbProvider, evsw, logger)
+	indexerService, txIndexer, err := createAndStartIndexerService(config, evsw, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -831,12 +847,7 @@ func makeNodeInfo(
 	genDoc *types.GenesisDoc,
 	state sm.State,
 ) (p2p.NodeInfo, error) {
-	txIndexerStatus := "on"
-	if _, ok := txIndexer.(*null.TxIndex); ok {
-		txIndexerStatus = "off"
-	} else if txIndexer == nil {
-		txIndexerStatus = "none"
-	}
+	txIndexerStatus := txIndexer.GetType()
 
 	bcChannel := bc.BlockchainChannel
 	vset := version.VersionSet

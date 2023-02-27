@@ -7,8 +7,11 @@ type TxIndexer interface {
 	// Start starts the transaction indexer
 	Start() error
 
-	// Close stops the transaction indexer
-	Close() error
+	// Stop stops the transaction indexer
+	Stop() error
+
+	// GetType returns the indexer type
+	GetType() string
 
 	// Index analyzes, indexes and stores a single transaction
 	Index(result *types.TxResult) error

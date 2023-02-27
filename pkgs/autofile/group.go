@@ -136,11 +136,12 @@ func (g *Group) Wait() {
 
 // Close closes the head file. The group must be stopped by this moment.
 func (g *Group) Close() {
-	g.FlushAndSync()
+	_ = g.FlushAndSync()
 
 	g.mtx.Lock()
+	defer g.mtx.Unlock()
+
 	_ = g.Head.Close()
-	g.mtx.Unlock()
 }
 
 // HeadSizeLimit returns the current head size limit.
