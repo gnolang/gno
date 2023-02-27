@@ -242,7 +242,7 @@ func gnoTestPkg(
 			}
 
 			testFilePath := filepath.Join(pkgPath, testFileName)
-			err := tests.RunFileTest(rootDir, testFilePath, false, nil, opts.UpdateGoldenTests)
+			err := tests.RunFileTest(rootDir, testFilePath, tests.WithSyncWanted(opts.UpdateGoldenTests))
 			duration := time.Since(startedAt)
 			dstr := fmtDuration(duration)
 

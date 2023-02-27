@@ -9,7 +9,7 @@ func (s Sample) foo(i int) {
 }
 
 var samples = []Sample{
-	Sample{"hello"},
+	{"hello"},
 }
 
 func main() {

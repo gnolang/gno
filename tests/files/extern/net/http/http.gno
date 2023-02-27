@@ -2,7 +2,6 @@ package http
 
 import (
 	"errors"
-	"github.com/gnolang/gno/_test/net/url"
 	"io"
 	"time"
 )
@@ -52,9 +51,8 @@ type Response struct {
 
 type Client struct {
 	Transport RoundTripper
-	//CheckRedirect func(req *Request, via []*Request) error
-	Jar     CookieJar
-	Timeout time.Duration // Go 1.3
+	Jar       CookieJar
+	Timeout   time.Duration // Go 1.3
 }
 
 // XXX dummy

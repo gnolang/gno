@@ -2,8 +2,9 @@
 package test
 
 import (
-	"gno.land/r/demo/tests"
 	"std"
+
+	"gno.land/r/demo/tests"
 )
 
 func main() {

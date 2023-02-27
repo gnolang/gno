@@ -9,7 +9,7 @@ func main() {
 	fmt.Println(v, exists)
 
 	if exists == true {
-		//if exists {
+		// if exists {
 		fmt.Println("exists", v)
 	} else {
 		fmt.Println("not exists")

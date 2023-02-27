@@ -4,7 +4,7 @@ func main() {
 	a := 3
 	switch a {
 	default:
-		//println("default")
+		// println("default")
 	case 3:
 		println("three")
 	}
