@@ -591,6 +591,13 @@ func (n *Node) OnStart() error {
 	if err := n.transport.Listen(*addr); err != nil {
 		return err
 	}
+	if addr.Port == 0 {
+		// if the port we have from config.P2p.ListenAdress is 0,
+		// it means the port was selected when doing net.Listen (using autoselect on the kernel).
+		// fix the config variable using the correct address
+		na := n.transport.NetAddress()
+		n.config.P2P.ListenAddress = na.DialString()
+	}
 
 	n.isListening = true
 
@@ -687,6 +694,7 @@ func (n *Node) startRPC() ([]net.Listener, error) {
 	}
 
 	// we may expose the rpc over both a unix and tcp socket
+	var rebuildAddresses bool
 	listeners := make([]net.Listener, len(listenAddrs))
 	for i, listenAddr := range listenAddrs {
 		mux := http.NewServeMux()
@@ -702,6 +710,9 @@ func (n *Node) startRPC() ([]net.Listener, error) {
 		wm.SetLogger(wmLogger)
 		mux.HandleFunc("/websocket", wm.WebsocketHandler)
 		rpcserver.RegisterRPCFuncs(mux, rpccore.Routes, rpcLogger)
+		if strings.HasPrefix(listenAddr, "tcp://") && strings.HasSuffix(listenAddr, ":0") {
+			rebuildAddresses = true
+		}
 		listener, err := rpcserver.Listen(
 			listenAddr,
 			config,
@@ -739,8 +750,19 @@ func (n *Node) startRPC() ([]net.Listener, error) {
 
 		listeners[i] = listener
 	}
+	if rebuildAddresses {
+		n.config.RPC.ListenAddress = joinListenerAddresses(listeners)
+	}
 
 	return listeners, nil
+}
+
+func joinListenerAddresses(ll []net.Listener) string {
+	sl := make([]string, len(ll))
+	for i, l := range ll {
+		sl[i] = l.Addr().Network() + "://" + l.Addr().String()
+	}
+	return strings.Join(sl, ",")
 }
 
 // Switch returns the Node's Switch.

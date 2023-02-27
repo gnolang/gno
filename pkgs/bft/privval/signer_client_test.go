@@ -31,7 +31,7 @@ func getSignerTestCases(t *testing.T) []signerTestCase {
 		mockPV := types.NewMockPV()
 
 		// get a pair of signer listener, signer dialer endpoints
-		sl, sd := getMockEndpoints(t, dtc.addr, dtc.dialer)
+		sl, sd := getMockEndpoints(t, dtc.listener, dtc.dialer)
 		sc, err := NewSignerClient(sl)
 		require.NoError(t, err)
 		ss := NewSignerServer(sd, chainID, mockPV)

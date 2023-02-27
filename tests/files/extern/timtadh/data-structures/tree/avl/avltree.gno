@@ -4,6 +4,7 @@ package avl
 
 import (
 	"fmt"
+
 	"github.com/gnolang/gno/_test/timtadh/data-structures/tree"
 	"github.com/gnolang/gno/_test/timtadh/data-structures/types"
 )

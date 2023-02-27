@@ -1,9 +1,9 @@
 package main
 
 func main() {
-	var x = 1
+	x := 1
 	{
-		var x = (func() int { var x = x + 100; return x + 10000 })()
+		x := (func() int { x := x + 100; return x + 10000 })()
 		println(x)
 	}
 }

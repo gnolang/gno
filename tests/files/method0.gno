@@ -2,8 +2,7 @@ package main
 
 import "fmt"
 
-type Foo struct {
-}
+type Foo struct{}
 
 func (Foo) Call() {
 	fmt.Println("Foo Called")

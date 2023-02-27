@@ -61,6 +61,11 @@ func TestModApp(t *testing.T) {
 			simulateExternalRepo: true,
 			errShouldContain:     "invalid: must be of the form v1.2.3",
 		},
+		{
+			args:                 []string{"mod", "download"},
+			testDir:              "../../tests/integ/replace-module",
+			simulateExternalRepo: true,
+		},
 	}
 	testMainCaseRun(t, tc)
 }

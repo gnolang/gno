@@ -84,11 +84,11 @@ lint:
 
 ########################################
 # Test suite
-.PHONY: test test.go test.go1 test.go2 test.go3 test.go4 test.gno test.files1 test.files2 test.realm test.packages test.flappy test.packages0 test.packages1 test.packages2 test.docker-integration
+.PHONY: test test.go test.go1 test.go2 test.go3 test.go4 test.gno test.filesNative test.filesStdlibs test.realm test.packages test.flappy test.packages0 test.packages1 test.packages2 test.docker-integration
 test: test.gno test.go test.flappy
 	@echo "Full test suite finished."
 
-test.gno: test.files1 test.files2 test.packages test.examples
+test.gno: test.filesNative test.filesStdlibs test.packages test.examples
 	go test tests/*.go -v -run "TestFileStr"
 	go test tests/*.go -v -run "TestSelectors"
 
@@ -119,17 +119,17 @@ test.go3:
 test.go4:
 	go test ./cmd/gnodev ./cmd/gnoland -v -p 1 -timeout=30m
 
-test.files1:
-	go test tests/*.go -v -test.short -run "TestFiles1/" --timeout 30m
+test.filesNative:
+	go test tests/*.go -v -test.short -run "TestFilesNative/" --timeout 30m
 
-test.files1.sync:
-	go test tests/*.go -v -test.short -run "TestFiles1/" --timeout 30m --update-golden-tests
+test.filesNative.sync:
+	go test tests/*.go -v -test.short -run "TestFilesNative/" --timeout 30m --update-golden-tests
 
-test.files2:
-	go test tests/*.go -v -test.short -run "TestFiles2/" --timeout 30m
+test.filesStdlibs:
+	go test tests/*.go -v -test.short -run 'TestFiles$$/' --timeout 30m
 
-test.files2.sync:
-	go test tests/*.go -v -test.short -run "TestFiles2/" --timeout 30m --update-golden-tests
+test.filesStdlibs.sync:
+	go test tests/*.go -v -test.short -run 'TestFiles$$/' --timeout 30m --update-golden-tests
 
 test.realm:
 	go test tests/*.go -v -run "TestFiles/^zrealm" --timeout 30m

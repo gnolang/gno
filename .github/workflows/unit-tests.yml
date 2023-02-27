@@ -25,8 +25,8 @@ jobs:
           - test.go2
           - test.go3
           - test.go4
-          - test.files1
-          - test.files2
+          - test.filesNative
+          - test.filesStdlibs
           - test.packages0
           - test.packages1
           - test.packages2

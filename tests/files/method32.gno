@@ -5,7 +5,7 @@ import (
 )
 
 func main() {
-	var a = []func(string){bar}
+	a := []func(string){bar}
 	b := a[0]
 	b("bar")
 }
