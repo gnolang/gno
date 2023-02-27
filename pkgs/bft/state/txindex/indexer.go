@@ -14,5 +14,5 @@ type TxIndexer interface {
 	GetType() string
 
 	// Index analyzes, indexes and stores a single transaction
-	Index(result *types.TxResult) error
+	Index(result types.TxResult) error
 }

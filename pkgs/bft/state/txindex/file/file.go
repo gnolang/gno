@@ -58,7 +58,7 @@ func (t *TxIndexer) GetType() string {
 	return IndexerType
 }
 
-func (t *TxIndexer) Index(tx *types.TxResult) error {
+func (t *TxIndexer) Index(tx types.TxResult) error {
 	// Serialize the transaction using amino:binary
 	txRaw, err := amino.Marshal(tx)
 	if err != nil {

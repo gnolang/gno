@@ -26,10 +26,10 @@ func (t TxIndexer) Stop() error {
 	return nil
 }
 
-func (t TxIndexer) Index(_ *types.TxResult) error {
+func (t TxIndexer) Index(_ types.TxResult) error {
 	return nil
 }
 
 func (t TxIndexer) GetType() string {
-	return "none"
+	return IndexerType
 }

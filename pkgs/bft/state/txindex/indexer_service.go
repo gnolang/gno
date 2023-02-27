@@ -68,7 +68,7 @@ func (is *IndexerService) monitorTxEvents(ctx context.Context) {
 			return
 		case evRaw := <-subCh:
 			// Cast the event
-			ev, ok := evRaw.(*types.TxResult)
+			ev, ok := evRaw.(types.EventTx)
 			if !ok {
 				is.Logger.Error("invalid transaction result type cast")
 
@@ -76,7 +76,7 @@ func (is *IndexerService) monitorTxEvents(ctx context.Context) {
 			}
 
 			// Alert the actual indexer
-			if err := is.indexer.Index(ev); err != nil {
+			if err := is.indexer.Index(ev.Result); err != nil {
 				is.Logger.Error(
 					fmt.Sprintf("unable to index transaction, %v", err),
 				)
