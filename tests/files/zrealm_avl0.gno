@@ -15,7 +15,7 @@ func init() {
 func main() {
 	var updated bool
 	node, updated = node.Set("key1", "value1")
-	//println(node, updated)
+	// println(node, updated)
 	println(updated, node.Size())
 }
 

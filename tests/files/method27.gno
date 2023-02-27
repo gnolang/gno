@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/gnolang/gno/_test/net/http"
 )
 
@@ -13,7 +14,6 @@ type AuthenticatedRequest struct {
 func main() {
 	a := &AuthenticatedRequest{}
 	fmt.Println("ua:", a.UserAgent())
-
 }
 
 // Output:

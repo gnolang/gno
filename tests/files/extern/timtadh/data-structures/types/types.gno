@@ -20,10 +20,12 @@ type MHashable interface {
 	Hashable
 }
 
-type Iterator func() (item interface{}, next Iterator)
-type KIterator func() (key Hashable, next KIterator)
-type KVIterator func() (key Hashable, value interface{}, next KVIterator)
-type Coroutine func(send interface{}) (recv interface{}, next Coroutine)
+type (
+	Iterator   func() (item interface{}, next Iterator)
+	KIterator  func() (key Hashable, next KIterator)
+	KVIterator func() (key Hashable, value interface{}, next KVIterator)
+	Coroutine  func(send interface{}) (recv interface{}, next Coroutine)
+)
 
 type Iterable interface {
 	Iterate() Iterator
