@@ -44,6 +44,7 @@ func NewTxIndexer(cfg *config.Config) (*TxIndexer, error) {
 	}, nil
 }
 
+// Start starts the file transaction indexer, by opening the autofile group
 func (t *TxIndexer) Start() error {
 	// Open the group
 	group, err := autofile.OpenGroup(t.headPath)
@@ -56,6 +57,7 @@ func (t *TxIndexer) Start() error {
 	return nil
 }
 
+// Stop stops the file transaction indexer, by closing the autofile group
 func (t *TxIndexer) Stop() error {
 	// Close off the group
 	t.group.Close()
@@ -63,12 +65,14 @@ func (t *TxIndexer) Stop() error {
 	return nil
 }
 
+// GetType returns the file transaction indexer type
 func (t *TxIndexer) GetType() string {
 	return IndexerType
 }
 
+// Index marshals the transaction using amino, and writes it to the disk
 func (t *TxIndexer) Index(tx types.TxResult) error {
-	// Serialize the transaction using amino:binary
+	// Serialize the transaction using amino
 	txRaw, err := amino.MarshalJSON(tx)
 	if err != nil {
 		return fmt.Errorf("unable to marshal transaction, %w", err)
