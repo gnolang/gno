@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	IndexerType = "file-indexer"
+	IndexerType = "file"
 	Path        = "path"
 )
 

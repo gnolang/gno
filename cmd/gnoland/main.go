@@ -16,6 +16,7 @@ import (
 	"github.com/gnolang/gno/pkgs/bft/privval"
 	indexercfg "github.com/gnolang/gno/pkgs/bft/state/txindex/config"
 	"github.com/gnolang/gno/pkgs/bft/state/txindex/file"
+	"github.com/gnolang/gno/pkgs/bft/state/txindex/null"
 	bft "github.com/gnolang/gno/pkgs/bft/types"
 	"github.com/gnolang/gno/pkgs/crypto"
 	"github.com/gnolang/gno/pkgs/errors"
@@ -58,8 +59,8 @@ func runMain(args []string) error {
 	fs.StringVar(&flags.rootDir, "root-dir", "testdir", "directory for config and data")
 	fs.StringVar(&flags.genesisRemote, "genesis-remote", "localhost:26657", "replacement for '%%REMOTE%%' in genesis")
 
-	fs.StringVar(&flags.txIndexerType, "tx-indexer-type", "none", "type of transaction indexer [none, file]")
-	fs.StringVar(&flags.txIndexerPath, "tx-indexer-path", "", "path for the file tx-indexer (required if indexer if 'file')")
+	fs.StringVar(&flags.txIndexerType, "tx-indexer-type", "none", fmt.Sprintf("type of transaction indexer [%s, %s]", null.IndexerType, file.IndexerType))
+	fs.StringVar(&flags.txIndexerPath, "tx-indexer-path", "", fmt.Sprintf("path for the file tx-indexer (required if indexer if '%s')", file.IndexerType))
 
 	fs.Parse(args)
 
