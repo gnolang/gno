@@ -105,12 +105,24 @@ func GnoToGoMod(f File) (*File, error) {
 		})
 	}
 
+	// Since we already fetched and replaced replacement modules
+	// with `/pkg/gnomod/...` path.
+	// Ignore leftovers.
+	var repl []*modfile.Replace
+	for _, r := range f.Replace {
+		if !modfile.IsDirectoryPath(r.New.Path) {
+			continue
+		}
+		repl = append(repl, r)
+	}
+	f.Replace = repl
+
 	return &f, nil
 }
 
 func isReplaced(module module.Version, repl []*modfile.Replace) (*module.Version, bool) {
 	for _, r := range repl {
-		if r.Old == module {
+		if (r.Old.Path == module.Path && r.Old.Version == "") || r.Old == module {
 			return &r.New, true
 		}
 	}

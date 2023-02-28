@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"unicode"
@@ -661,6 +662,14 @@ func ModulePath(mod []byte) string {
 	return "" // missing module path
 }
 
+func modulePathMajor(path string) (string, error) {
+	_, major, ok := module.SplitPathVersion(path)
+	if !ok {
+		return "", fmt.Errorf("invalid module path")
+	}
+	return major, nil
+}
+
 func parseString(s *string) (string, error) {
 	t := *s
 	if strings.HasPrefix(t, `"`) {
@@ -705,4 +714,82 @@ func parseVersion(verb string, path string, s *string) (string, error) {
 
 	*s = cv
 	return *s, nil
+}
+
+func parseReplace(filename string, line *modfile.Line, verb string, args []string) (*modfile.Replace, *modfile.Error) {
+	wrapModPathError := func(modPath string, err error) *modfile.Error {
+		return &modfile.Error{
+			Filename: filename,
+			Pos:      line.Start,
+			ModPath:  modPath,
+			Verb:     verb,
+			Err:      err,
+		}
+	}
+	wrapError := func(err error) *modfile.Error {
+		return &modfile.Error{
+			Filename: filename,
+			Pos:      line.Start,
+			Err:      err,
+		}
+	}
+	errorf := func(format string, args ...interface{}) *modfile.Error {
+		return wrapError(fmt.Errorf(format, args...))
+	}
+
+	arrow := 2
+	if len(args) >= 2 && args[1] == "=>" {
+		arrow = 1
+	}
+	if len(args) < arrow+2 || len(args) > arrow+3 || args[arrow] != "=>" {
+		return nil, errorf("usage: %s module/path [v1.2.3] => other/module v1.4\n\t or %s module/path [v1.2.3] => ../local/directory", verb, verb)
+	}
+	s, err := parseString(&args[0])
+	if err != nil {
+		return nil, errorf("invalid quoted string: %v", err)
+	}
+	pathMajor, err := modulePathMajor(s)
+	if err != nil {
+		return nil, wrapModPathError(s, err)
+	}
+	var v string
+	if arrow == 2 {
+		v, err = parseVersion(verb, s, &args[1])
+		if err != nil {
+			return nil, wrapError(err)
+		}
+		if err := module.CheckPathMajor(v, pathMajor); err != nil {
+			return nil, wrapModPathError(s, err)
+		}
+	}
+	ns, err := parseString(&args[arrow+1])
+	if err != nil {
+		return nil, errorf("invalid quoted string: %v", err)
+	}
+	nv := ""
+	if len(args) == arrow+2 {
+		if !modfile.IsDirectoryPath(ns) {
+			if strings.Contains(ns, "@") {
+				return nil, errorf("replacement module must match format 'path version', not 'path@version'")
+			}
+			return nil, errorf("replacement module without version must be directory path (rooted or starting with ./ or ../)")
+		}
+		if filepath.Separator == '/' && strings.Contains(ns, `\`) {
+			return nil, errorf("replacement directory appears to be Windows path (on a non-windows system)")
+		}
+	}
+	if len(args) == arrow+3 {
+		nv, err = parseVersion(verb, ns, &args[arrow+2])
+		if err != nil {
+			return nil, wrapError(err)
+		}
+		if modfile.IsDirectoryPath(ns) {
+			return nil, errorf("replacement module directory path %q cannot have version", ns)
+		}
+	}
+	return &modfile.Replace{
+		Old:    module.Version{Path: s, Version: v},
+		New:    module.Version{Path: ns, Version: nv},
+		Syntax: line,
+	}, nil
 }
