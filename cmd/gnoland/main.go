@@ -59,7 +59,7 @@ func runMain(args []string) error {
 	fs.StringVar(&flags.rootDir, "root-dir", "testdir", "directory for config and data")
 	fs.StringVar(&flags.genesisRemote, "genesis-remote", "localhost:26657", "replacement for '%%REMOTE%%' in genesis")
 
-	fs.StringVar(&flags.txIndexerType, "tx-indexer-type", "none", fmt.Sprintf("type of transaction indexer [%s, %s]", null.IndexerType, file.IndexerType))
+	fs.StringVar(&flags.txIndexerType, "tx-indexer-type", null.IndexerType, fmt.Sprintf("type of transaction indexer [%s, %s]", null.IndexerType, file.IndexerType))
 	fs.StringVar(&flags.txIndexerPath, "tx-indexer-path", "", fmt.Sprintf("path for the file tx-indexer (required if indexer if '%s')", file.IndexerType))
 
 	fs.Parse(args)
