@@ -113,11 +113,6 @@ func TestTxIndexer_Index(t *testing.T) {
 		if err = indexer.Index(tx); err != nil {
 			t.Fatalf("unable to index transaction, %v", err)
 		}
-
-		// Force the group to flush
-		if err = indexer.group.FlushAndSync(); err != nil {
-			t.Fatalf("unable to flush buffer contents to file, %v", err)
-		}
 	}
 
 	// Make sure the file group's size is valid

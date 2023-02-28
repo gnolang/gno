@@ -83,5 +83,10 @@ func (t *TxIndexer) Index(tx types.TxResult) error {
 		return fmt.Errorf("unable to save transaction index, %w", err)
 	}
 
+	// Flush output to storage
+	if err := t.group.FlushAndSync(); err != nil {
+		return fmt.Errorf("unable to flush and sync transaction index, %w", err)
+	}
+
 	return nil
 }
