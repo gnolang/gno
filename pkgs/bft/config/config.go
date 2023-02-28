@@ -76,6 +76,7 @@ func TestConfig() *Config {
 		P2P:        p2p.TestP2PConfig(),
 		Mempool:    mem.TestMempoolConfig(),
 		Consensus:  cns.TestConsensusConfig(),
+		Indexer:    config.DefaultIndexerConfig(),
 	}
 }
 
