@@ -4,57 +4,57 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/pkgs/command"
-	"github.com/jaekwon/testify/assert"
-	"github.com/jaekwon/testify/require"
+	"github.com/gnolang/gno/pkgs/commands"
+	"github.com/stretchr/testify/require"
 )
 
-func Test_RunGenerateCmdNormal(t *testing.T) {
-	cmd := command.NewMockCommand()
-	assert.NotNil(t, cmd)
+func Test_execGenerateNormal(t *testing.T) {
+	t.Parallel()
 
-	args := []string{}
-	opts := GenerateOptions{
-		CustomEntropy: false,
+	cfg := &generateCfg{
+		customEntropy: false,
 	}
-	err := generateApp(cmd, args, opts)
+
+	err := execGenerate(cfg, []string{}, commands.NewTestIO())
 	require.NoError(t, err)
 }
 
-func Test_RunGenerateCmdUser(t *testing.T) {
-	cmd := command.NewMockCommand()
-	assert.NotNil(t, cmd)
+func Test_execGenerateUser(t *testing.T) {
+	t.Parallel()
 
-	args := []string{}
-	opts := GenerateOptions{
-		CustomEntropy: true,
+	cfg := &generateCfg{
+		customEntropy: true,
 	}
-	err := generateApp(cmd, args, opts)
+
+	io := commands.NewTestIO()
+	io.SetIn(strings.NewReader(""))
+
+	err := execGenerate(cfg, []string{}, io)
 	require.Error(t, err)
 	require.Equal(t, err.Error(), "EOF")
 
 	// Try again
-	cmd.SetIn(strings.NewReader("Hi!\n"))
-	err = generateApp(cmd, args, opts)
+	io.SetIn(strings.NewReader("Hi!\n"))
+	err = execGenerate(cfg, []string{}, io)
 	require.Error(t, err)
 	require.Equal(t, err.Error(),
 		"256-bits is 43 characters in Base-64, and 100 in Base-6. You entered 3, and probably want more")
 
 	// Now provide "good" entropy :)
 	fakeEntropy := strings.Repeat(":)", 40) + "\ny\n" // entropy + accept count
-	cmd.SetIn(strings.NewReader(fakeEntropy))
-	err = generateApp(cmd, args, opts)
+	io.SetIn(strings.NewReader(fakeEntropy))
+	err = execGenerate(cfg, []string{}, io)
 	require.NoError(t, err)
 
 	// Now provide "good" entropy but no answer
 	fakeEntropy = strings.Repeat(":)", 40) + "\n" // entropy + accept count
-	cmd.SetIn(strings.NewReader(fakeEntropy))
-	err = generateApp(cmd, args, opts)
+	io.SetIn(strings.NewReader(fakeEntropy))
+	err = execGenerate(cfg, []string{}, io)
 	require.Error(t, err)
 
 	// Now provide "good" entropy but say no
 	fakeEntropy = strings.Repeat(":)", 40) + "\nn\n" // entropy + accept count
-	cmd.SetIn(strings.NewReader(fakeEntropy))
-	err = generateApp(cmd, args, opts)
+	io.SetIn(strings.NewReader(fakeEntropy))
+	err = execGenerate(cfg, []string{}, io)
 	require.NoError(t, err)
 }

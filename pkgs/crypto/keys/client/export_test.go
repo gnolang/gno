@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/pkgs/command"
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
 	"github.com/gnolang/gno/pkgs/testutils"
 	"github.com/stretchr/testify/assert"
@@ -84,31 +84,23 @@ func exportKey(
 	input io.Reader,
 ) error {
 	var (
-		cmd  = command.NewMockCommand()
-		opts = ExportOptions{
-			BaseOptions: BaseOptions{
-				Home: exportOpts.kbHome,
+		cfg = &exportCfg{
+			rootCfg: &baseCfg{
+				BaseOptions: BaseOptions{
+					Home:                  exportOpts.kbHome,
+					InsecurePasswordStdin: true,
+				},
 			},
-			NameOrBech32: exportOpts.keyName,
-			OutputPath:   exportOpts.outputPath,
-			Unsafe:       exportOpts.unsafe,
+			nameOrBech32: exportOpts.keyName,
+			outputPath:   exportOpts.outputPath,
+			unsafe:       exportOpts.unsafe,
 		}
 	)
 
-	cmd.SetIn(
-		strings.NewReader(
-			fmt.Sprintf(
-				"%s\n%s\n%s\n",
-				exportOpts.decryptPassword,
-				exportOpts.encryptPassword,
-				exportOpts.encryptPassword,
-			),
-		),
-	)
+	cmdIO := commands.NewTestIO()
+	cmdIO.SetIn(input)
 
-	cmd.SetIn(input)
-
-	return exportApp(cmd, nil, opts)
+	return execExport(cfg, cmdIO)
 }
 
 // TestExport_ExportKey makes sure the key can be exported correctly

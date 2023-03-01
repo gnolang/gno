@@ -1,57 +1,81 @@
 package client
 
 import (
-	"errors"
+	"context"
+	"flag"
 	"fmt"
 	"os"
 
-	"github.com/gnolang/gno/pkgs/command"
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
 )
 
-var errInvalidImportArgs = errors.New("invalid import arguments provided")
+type importCfg struct {
+	rootCfg *baseCfg
 
-type ImportOptions struct {
-	BaseOptions
-
-	// Name of the private key in the key-base
-	KeyName string `flag:"name" help:"The name of the private key"`
-
-	// Path to the encrypted private key armor
-	ArmorPath string `flag:"armor-path" help:"The path to the encrypted armor file"`
-
-	// Unsafe flag for specifying the input as unencrypted
-	Unsafe bool `flag:"unsafe" help:"Import the private key armor as unencrypted"`
+	keyName   string
+	armorPath string
+	unsafe    bool
 }
 
-var DefaultImportOptions = ImportOptions{
-	BaseOptions: DefaultBaseOptions,
-}
-
-// importApp performs private key imports using the provided params
-func importApp(cmd *command.Command, _ []string, iopts interface{}) error {
-	// Read the flag values
-	opts, ok := iopts.(ImportOptions)
-	if !ok {
-		return errInvalidImportArgs
+func newImportCmd(rootCfg *baseCfg) *commands.Command {
+	cfg := &importCfg{
+		rootCfg: rootCfg,
 	}
 
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "import",
+			ShortUsage: "import [flags]",
+			ShortHelp:  "Imports encrypted private key armor",
+		},
+		cfg,
+		func(_ context.Context, _ []string) error {
+			return execImport(cfg, commands.NewDefaultIO())
+		},
+	)
+}
+
+func (c *importCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.StringVar(
+		&c.keyName,
+		"name",
+		"",
+		"The name of the private key",
+	)
+
+	fs.StringVar(
+		&c.armorPath,
+		"armor-path",
+		"",
+		"The path to the encrypted armor file",
+	)
+
+	fs.BoolVar(
+		&c.unsafe,
+		"unsafe",
+		false,
+		"Import the private key armor as unencrypted",
+	)
+}
+
+func execImport(cfg *importCfg, io *commands.IO) error {
 	// Create a new instance of the key-base
-	kb, err := keys.NewKeyBaseFromDir(opts.Home)
+	kb, err := keys.NewKeyBaseFromDir(cfg.rootCfg.Home)
 	if err != nil {
 		return fmt.Errorf(
 			"unable to create a key base from directory %s, %w",
-			opts.Home,
+			cfg.rootCfg.Home,
 			err,
 		)
 	}
 
 	// Read the raw encrypted armor
-	armor, err := os.ReadFile(opts.ArmorPath)
+	armor, err := os.ReadFile(cfg.armorPath)
 	if err != nil {
 		return fmt.Errorf(
 			"unable to read armor from path %s, %w",
-			opts.ArmorPath,
+			cfg.armorPath,
 			err,
 		)
 	}
@@ -61,11 +85,11 @@ func importApp(cmd *command.Command, _ []string, iopts interface{}) error {
 		encryptPassword string
 	)
 
-	if !opts.Unsafe {
+	if !cfg.unsafe {
 		// Get the armor decrypt password
-		decryptPassword, err = cmd.GetPassword(
+		decryptPassword, err = io.GetPassword(
 			"Enter a passphrase to decrypt your private key armor:",
-			false,
+			cfg.rootCfg.InsecurePasswordStdin,
 		)
 		if err != nil {
 			return fmt.Errorf(
@@ -76,9 +100,13 @@ func importApp(cmd *command.Command, _ []string, iopts interface{}) error {
 	}
 
 	// Get the key-base encrypt password
-	encryptPassword, err = cmd.GetCheckPassword(
-		"Enter a passphrase to encrypt your private key:",
-		"Repeat the passphrase:")
+	encryptPassword, err = io.GetCheckPassword(
+		[2]string{
+			"Enter a passphrase to encrypt your private key:",
+			"Repeat the passphrase:",
+		},
+		cfg.rootCfg.InsecurePasswordStdin,
+	)
 	if err != nil {
 		return fmt.Errorf(
 			"unable to retrieve key encrypt password from user, %w",
@@ -86,10 +114,10 @@ func importApp(cmd *command.Command, _ []string, iopts interface{}) error {
 		)
 	}
 
-	if opts.Unsafe {
+	if cfg.unsafe {
 		// Import the unencrypted private key
 		if err := kb.ImportPrivKeyUnsafe(
-			opts.KeyName,
+			cfg.keyName,
 			string(armor),
 			encryptPassword,
 		); err != nil {
@@ -101,7 +129,7 @@ func importApp(cmd *command.Command, _ []string, iopts interface{}) error {
 	} else {
 		// Import the encrypted private key
 		if err := kb.ImportPrivKey(
-			opts.KeyName,
+			cfg.keyName,
 			string(armor),
 			decryptPassword,
 			encryptPassword,
@@ -113,7 +141,7 @@ func importApp(cmd *command.Command, _ []string, iopts interface{}) error {
 		}
 	}
 
-	cmd.Printfln("Successfully imported private key %s", opts.KeyName)
+	io.Printfln("Successfully imported private key %s", cfg.keyName)
 
 	return nil
 }

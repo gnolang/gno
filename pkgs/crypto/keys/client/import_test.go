@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/pkgs/command"
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/testutils"
 	"github.com/stretchr/testify/assert"
 )
@@ -23,20 +23,23 @@ func importKey(
 	input io.Reader,
 ) error {
 	var (
-		cmd  = command.NewMockCommand()
-		opts = ImportOptions{
-			BaseOptions: BaseOptions{
-				Home: importOpts.kbHome,
+		cfg = &importCfg{
+			rootCfg: &baseCfg{
+				BaseOptions: BaseOptions{
+					Home:                  importOpts.kbHome,
+					InsecurePasswordStdin: true,
+				},
 			},
-			KeyName:   importOpts.keyName,
-			ArmorPath: importOpts.armorPath,
-			Unsafe:    importOpts.unsafe,
+			keyName:   importOpts.keyName,
+			armorPath: importOpts.armorPath,
+			unsafe:    importOpts.unsafe,
 		}
 	)
 
-	cmd.SetIn(input)
+	cmdIO := commands.NewTestIO()
+	cmdIO.SetIn(input)
 
-	return importApp(cmd, nil, opts)
+	return execImport(cfg, cmdIO)
 }
 
 // TestImport_ImportKey makes sure the key can be imported correctly

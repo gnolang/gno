@@ -1,55 +1,79 @@
 package client
 
 import (
-	"errors"
+	"context"
+	"flag"
 	"fmt"
 	"os"
 
-	"github.com/gnolang/gno/pkgs/command"
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
 )
 
-var errInvalidExportArgs = errors.New("invalid export arguments provided")
+type exportCfg struct {
+	rootCfg *baseCfg
 
-type ExportOptions struct {
-	BaseOptions
-
-	// The name or address of the private key to be exported
-	NameOrBech32 string `flag:"key" help:"Name or Bech32 address of the private key"`
-
-	// Output path for the private key armor
-	OutputPath string `flag:"output-path" help:"The desired output path for the armor file"`
-
-	// Unsafe flag for specifying the output as unencrypted
-	Unsafe bool `flag:"unsafe" help:"Export the private key armor as unencrypted"`
+	nameOrBech32 string
+	outputPath   string
+	unsafe       bool
 }
 
-var DefaultExportOptions = ExportOptions{
-	BaseOptions: DefaultBaseOptions,
-}
-
-// exportApp performs private key exports using the provided params
-func exportApp(cmd *command.Command, _ []string, iopts interface{}) error {
-	// Read the flag values
-	opts, ok := iopts.(ExportOptions)
-	if !ok {
-		return errInvalidExportArgs
+func newExportCmd(rootCfg *baseCfg) *commands.Command {
+	cfg := &exportCfg{
+		rootCfg: rootCfg,
 	}
 
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "export",
+			ShortUsage: "export [flags]",
+			ShortHelp:  "Exports private key armor",
+		},
+		cfg,
+		func(_ context.Context, args []string) error {
+			return execExport(cfg, commands.NewDefaultIO())
+		},
+	)
+}
+
+func (c *exportCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.StringVar(
+		&c.nameOrBech32,
+		"key",
+		"",
+		"Name or Bech32 address of the private key",
+	)
+
+	fs.StringVar(
+		&c.outputPath,
+		"output-path",
+		"",
+		"The desired output path for the armor file",
+	)
+
+	fs.BoolVar(
+		&c.unsafe,
+		"unsafe",
+		false,
+		"Export the private key armor as unencrypted",
+	)
+}
+
+func execExport(cfg *exportCfg, io *commands.IO) error {
 	// Create a new instance of the key-base
-	kb, err := keys.NewKeyBaseFromDir(opts.Home)
+	kb, err := keys.NewKeyBaseFromDir(cfg.rootCfg.Home)
 	if err != nil {
 		return fmt.Errorf(
 			"unable to create a key base from directory %s, %w",
-			opts.Home,
+			cfg.rootCfg.Home,
 			err,
 		)
 	}
 
 	// Get the key-base decrypt password
-	decryptPassword, err := cmd.GetPassword(
+	decryptPassword, err := io.GetPassword(
 		"Enter a passphrase to decrypt your private key from disk:",
-		false,
+		cfg.rootCfg.InsecurePasswordStdin,
 	)
 	if err != nil {
 		return fmt.Errorf(
@@ -63,17 +87,21 @@ func exportApp(cmd *command.Command, _ []string, iopts interface{}) error {
 		exportErr error
 	)
 
-	if opts.Unsafe {
+	if cfg.unsafe {
 		// Generate the unencrypted armor
 		armor, exportErr = kb.ExportPrivKeyUnsafe(
-			opts.NameOrBech32,
+			cfg.nameOrBech32,
 			decryptPassword,
 		)
 	} else {
 		// Get the armor encrypt password
-		encryptPassword, err := cmd.GetCheckPassword(
-			"Enter a passphrase to encrypt your private key armor:",
-			"Repeat the passphrase:")
+		encryptPassword, err := io.GetCheckPassword(
+			[2]string{
+				"Enter a passphrase to encrypt your private key armor:",
+				"Repeat the passphrase:",
+			},
+			cfg.rootCfg.InsecurePasswordStdin,
+		)
 		if err != nil {
 			return fmt.Errorf(
 				"unable to retrieve armor encrypt password from user, %w",
@@ -83,7 +111,7 @@ func exportApp(cmd *command.Command, _ []string, iopts interface{}) error {
 
 		// Generate the encrypted armor
 		armor, exportErr = kb.ExportPrivKey(
-			opts.NameOrBech32,
+			cfg.nameOrBech32,
 			decryptPassword,
 			encryptPassword,
 		)
@@ -98,9 +126,9 @@ func exportApp(cmd *command.Command, _ []string, iopts interface{}) error {
 
 	// Write the armor to disk
 	if err := os.WriteFile(
-		opts.OutputPath,
+		cfg.outputPath,
 		[]byte(armor),
-		0o644,
+		0644,
 	); err != nil {
 		return fmt.Errorf(
 			"unable to write encrypted armor to file, %w",
@@ -108,7 +136,7 @@ func exportApp(cmd *command.Command, _ []string, iopts interface{}) error {
 		)
 	}
 
-	cmd.Printfln("Private key armor successfully outputted to %s", opts.OutputPath)
+	io.Printfln("Private key armor successfully outputted to %s", cfg.outputPath)
 
 	return nil
 }

@@ -65,10 +65,10 @@ clean:
 	rm -rf build
 
 examples.precompile: install_gnodev
-	go run ./cmd/gnodev precompile ./examples --verbose
+	go run ./cmd/gnodev precompile --verbose ./examples
 
 examples.build: install_gnodev examples.precompile
-	go run ./cmd/gnodev build ./examples --verbose
+	go run ./cmd/gnodev build --verbose ./examples
 
 ########################################
 # Formatting, linting.
@@ -146,10 +146,10 @@ test.packages2:
 	go test tests/*.go -v -run "TestPackages/bytes" --timeout 30m
 
 test.examples:
-	go run ./cmd/gnodev test ./examples --verbose
+	go run ./cmd/gnodev test --verbose ./examples
 
 test.examples.sync:
-	go run ./cmd/gnodev test ./examples --verbose --update-golden-tests
+	go run ./cmd/gnodev test --verbose --update-golden-tests ./examples
 
 # Code gen
 stringer:

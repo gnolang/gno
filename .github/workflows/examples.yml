@@ -31,5 +31,5 @@ jobs:
       # TODO: implement --allow-all-imports
       #- run: gnodev precompile ./stdlibs --verbose --allow-all-imports
       #- run: gnodev precompile ./tests --verbose --allow-all-imports
-      - run: go run ./cmd/gnodev precompile ./examples --verbose
-      - run: go run ./cmd/gnodev build ./examples --verbose
+      - run: go run ./cmd/gnodev precompile --verbose ./examples
+      - run: go run ./cmd/gnodev build --verbose ./examples

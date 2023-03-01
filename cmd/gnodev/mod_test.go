@@ -5,13 +5,8 @@ import "testing"
 func TestModApp(t *testing.T) {
 	tc := []testMainCase{
 		{
-			args:           []string{"mod"},
-			errShouldBe:    "invalid command",
-			stderrShouldBe: "Usage: mod [flags] <command>\n",
-		},
-		{
-			args:                []string{"mod", "--help"},
-			stdoutShouldContain: "# modFlags options\n-",
+			args:        []string{"mod"},
+			errShouldBe: "flag: help requested",
 		},
 
 		// test gno.mod
