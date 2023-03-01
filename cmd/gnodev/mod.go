@@ -1,34 +1,39 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/gnolang/gno/pkgs/command"
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/errors"
 	"github.com/gnolang/gno/pkgs/gnolang/gnomod"
 )
 
-type modFlags struct {
-	Verbose bool `flag:"verbose" help:"verbose"`
+func newModCmd() *commands.Command {
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "mod",
+			ShortUsage: "mod <command>",
+			ShortHelp:  "Manage gno.mod",
+		},
+		commands.NewEmptyConfig(),
+		func(_ context.Context, args []string) error {
+			return execMod(args)
+		},
+	)
 }
 
-var defaultModFlags = modFlags{
-	Verbose: false,
-}
-
-func modApp(cmd *command.Command, args []string, iopts interface{}) error {
-	opts := iopts.(modFlags)
-
+func execMod(args []string) error {
 	if len(args) != 1 {
-		cmd.ErrPrintfln("Usage: mod [flags] <command>")
-		return errors.New("invalid command")
+		return flag.ErrHelp
 	}
 
 	switch args[0] {
 	case "download":
-		if err := runModDownload(&opts); err != nil {
+		if err := runModDownload(); err != nil {
 			return fmt.Errorf("mod download: %w", err)
 		}
 	default:
@@ -38,7 +43,7 @@ func modApp(cmd *command.Command, args []string, iopts interface{}) error {
 	return nil
 }
 
-func runModDownload(opts *modFlags) error {
+func runModDownload() error {
 	path, err := os.Getwd()
 	if err != nil {
 		return err

@@ -2,9 +2,10 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -13,7 +14,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/gnolang/gno/pkgs/command"
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/errors"
 	gno "github.com/gnolang/gno/pkgs/gnolang"
 	"github.com/gnolang/gno/pkgs/std"
@@ -22,35 +23,81 @@ import (
 	"go.uber.org/multierr"
 )
 
-type testOptions struct {
-	Verbose           bool          `flag:"verbose" help:"verbose"`
-	RootDir           string        `flag:"root-dir" help:"clone location of github.com/gnolang/gno (gnodev tries to guess it)"`
-	Run               string        `flag:"run" help:"test name filtering pattern"`
-	Timeout           time.Duration `flag:"timeout" help:"max execution time"`
-	Precompile        bool          `flag:"precompile" help:"precompiling gno to go before testing"` // TODO: precompile should be the default, but it needs to automatically precompile dependencies in memory.
-	UpdateGoldenTests bool          `flag:"update-golden-tests" help:"writes actual as wanted in test comments"`
-	// VM Options
-	// A flag about if we should download the production realms
-	// UseNativeLibs bool // experimental, but could be useful for advanced developer needs
+type testCfg struct {
+	verbose           bool
+	rootDir           string
+	run               string
+	timeout           time.Duration
+	precompile        bool // TODO: precompile should be the default, but it needs to automatically precompile dependencies in memory.
+	updateGoldenTests bool
 }
 
-var defaultTestOptions = testOptions{
-	Verbose:           false,
-	Run:               "",
-	RootDir:           "",
-	Timeout:           0,
-	Precompile:        false,
-	UpdateGoldenTests: false,
+func newTestCmd(io *commands.IO) *commands.Command {
+	cfg := &testCfg{}
+
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "test",
+			ShortUsage: "test [flags] <package> [<package>...]",
+			ShortHelp:  "Runs the tests for the specified packages",
+		},
+		cfg,
+		func(_ context.Context, args []string) error {
+			return execTest(cfg, args, io)
+		},
+	)
 }
 
-func testApp(cmd *command.Command, args []string, iopts interface{}) error {
-	opts := iopts.(testOptions)
+func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.BoolVar(
+		&c.verbose,
+		"verbose",
+		false,
+		"verbose output when running",
+	)
+
+	fs.BoolVar(
+		&c.precompile,
+		"precompile",
+		false,
+		"precompile gno to go before testing",
+	)
+
+	fs.BoolVar(
+		&c.updateGoldenTests,
+		"update-golden-tests",
+		false,
+		"writes actual as wanted in test comments",
+	)
+
+	fs.StringVar(
+		&c.rootDir,
+		"root-dir",
+		"",
+		"clone location of github.com/gnolang/gno (gnodev tries to guess it)",
+	)
+
+	fs.StringVar(
+		&c.run,
+		"run",
+		"",
+		"test name filtering pattern",
+	)
+
+	fs.DurationVar(
+		&c.timeout,
+		"timeout",
+		0,
+		"max execution time",
+	)
+}
+
+func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 	if len(args) < 1 {
-		cmd.ErrPrintfln("Usage: test [test flags] [packages]")
-		return errors.New("invalid args")
+		return flag.ErrHelp
 	}
 
-	verbose := opts.Verbose
+	verbose := cfg.verbose
 
 	tempdirRoot, err := os.MkdirTemp("", "gno-precompile")
 	if err != nil {
@@ -66,8 +113,8 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 	}
 
 	// guess opts.RootDir
-	if opts.RootDir == "" {
-		opts.RootDir = guessRootDir()
+	if cfg.rootDir == "" {
+		cfg.rootDir = guessRootDir()
 	}
 
 	pkgPaths, err := gnoPackagesFromArgs(args)
@@ -75,46 +122,48 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 		return fmt.Errorf("list packages from args: %w", err)
 	}
 
-	if opts.Timeout > 0 {
+	if cfg.timeout > 0 {
 		go func() {
-			time.Sleep(opts.Timeout)
-			panic("test timed out after " + opts.Timeout.String())
+			time.Sleep(cfg.timeout)
+			panic("test timed out after " + cfg.timeout.String())
 		}()
 	}
 
 	buildErrCount := 0
 	testErrCount := 0
 	for _, pkgPath := range pkgPaths {
-		if opts.Precompile {
+		if cfg.precompile {
 			if verbose {
-				cmd.ErrPrintfln("=== PREC  %s", pkgPath)
+				io.ErrPrintfln("=== PREC  %s", pkgPath)
 			}
-			precompileOpts := newPrecompileOptions(precompileFlags{
-				Output: tempdirRoot,
+			precompileOpts := newPrecompileOptions(&precompileCfg{
+				output: tempdirRoot,
 			})
 			err := precompilePkg(importPath(pkgPath), precompileOpts)
 			if err != nil {
-				cmd.ErrPrintln(err)
-				cmd.ErrPrintln("FAIL")
-				cmd.ErrPrintfln("FAIL    %s", pkgPath)
-				cmd.ErrPrintln("FAIL")
+				io.ErrPrintln(err)
+				io.ErrPrintln("FAIL")
+				io.ErrPrintfln("FAIL    %s", pkgPath)
+				io.ErrPrintln("FAIL")
+
 				buildErrCount++
 				continue
 			}
 
 			if verbose {
-				cmd.ErrPrintfln("=== BUILD %s", pkgPath)
+				io.ErrPrintfln("=== BUILD %s", pkgPath)
 			}
 			tempDir, err := ResolvePath(tempdirRoot, importPath(pkgPath))
 			if err != nil {
-				errors.New("cannot resolve build dir")
+				return errors.New("cannot resolve build dir")
 			}
 			err = goBuildFileOrPkg(tempDir, defaultBuildOptions)
 			if err != nil {
-				cmd.ErrPrintln(err)
-				cmd.ErrPrintln("FAIL")
-				cmd.ErrPrintfln("FAIL    %s", pkgPath)
-				cmd.ErrPrintln("FAIL")
+				io.ErrPrintln(err)
+				io.ErrPrintln("FAIL")
+				io.ErrPrintfln("FAIL    %s", pkgPath)
+				io.ErrPrintln("FAIL")
+
 				buildErrCount++
 				continue
 			}
@@ -129,7 +178,7 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 			log.Fatal(err)
 		}
 		if len(unittestFiles) == 0 && len(filetestFiles) == 0 {
-			cmd.ErrPrintfln("?       %s \t[no test files]", pkgPath)
+			io.ErrPrintfln("?       %s \t[no test files]", pkgPath)
 			continue
 		}
 
@@ -137,22 +186,22 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 		sort.Strings(filetestFiles)
 
 		startedAt := time.Now()
-		err = gnoTestPkg(cmd, pkgPath, unittestFiles, filetestFiles, opts)
+		err = gnoTestPkg(pkgPath, unittestFiles, filetestFiles, cfg, io)
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
 
 		if err != nil {
-			cmd.ErrPrintfln("%s: test pkg: %v", pkgPath, err)
-			cmd.ErrPrintfln("FAIL")
-			cmd.ErrPrintfln("FAIL    %s \t%s", pkgPath, dstr)
-			cmd.ErrPrintfln("FAIL")
+			io.ErrPrintfln("%s: test pkg: %v", pkgPath, err)
+			io.ErrPrintfln("FAIL")
+			io.ErrPrintfln("FAIL    %s \t%s", pkgPath, dstr)
+			io.ErrPrintfln("FAIL")
 			testErrCount++
 		} else {
-			cmd.ErrPrintfln("ok      %s \t%s", pkgPath, dstr)
+			io.ErrPrintfln("ok      %s \t%s", pkgPath, dstr)
 		}
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
-		cmd.ErrPrintfln("FAIL")
+		io.ErrPrintfln("FAIL")
 		return fmt.Errorf("FAIL: %d build errors, %d test errors", buildErrCount, testErrCount)
 	}
 
@@ -160,20 +209,20 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 }
 
 func gnoTestPkg(
-	cmd *command.Command,
 	pkgPath string,
 	unittestFiles,
 	filetestFiles []string,
-	opts testOptions,
+	cfg *testCfg,
+	io *commands.IO,
 ) error {
-	verbose := opts.Verbose
-	rootDir := opts.RootDir
-	runFlag := opts.Run
+	verbose := cfg.verbose
+	rootDir := cfg.rootDir
+	runFlag := cfg.run
 	filter := splitRegexp(runFlag)
 
-	stdin := cmd.In
-	stdout := cmd.Out
-	stderr := cmd.Err
+	stdin := io.In
+	stdout := io.Out
+	stderr := io.Err
 
 	var errs error
 
@@ -188,7 +237,7 @@ func gnoTestPkg(
 
 	if !verbose {
 		// TODO: speedup by ignoring if filter is file/*?
-		stdout = nopWriteCloser{}
+		stdout = commands.WriteNopCloser(nil)
 	}
 
 	// testing with *_test.gno
@@ -202,7 +251,7 @@ func gnoTestPkg(
 		{
 			m := tests.TestMachine(testStore, stdout, "main")
 			m.RunMemPackage(memPkg, true)
-			err := runTestFiles(cmd, testStore, m, tfiles, memPkg.Name, verbose, runFlag)
+			err := runTestFiles(m, tfiles, memPkg.Name, verbose, runFlag, io)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -214,7 +263,7 @@ func gnoTestPkg(
 			if testPkgName != "" {
 				m := tests.TestMachine(testStore, stdout, testPkgName)
 				m.RunMemPackage(memPkg, true)
-				err := runTestFiles(cmd, testStore, m, ifiles, testPkgName, verbose, runFlag)
+				err := runTestFiles(m, ifiles, testPkgName, verbose, runFlag, io)
 				if err != nil {
 					errs = multierr.Append(errs, err)
 				}
@@ -233,7 +282,7 @@ func gnoTestPkg(
 
 			startedAt := time.Now()
 			if verbose {
-				cmd.ErrPrintfln("=== RUN   %s", testName)
+				io.ErrPrintfln("=== RUN   %s", testName)
 			}
 
 			var closer func() (string, error)
@@ -242,25 +291,25 @@ func gnoTestPkg(
 			}
 
 			testFilePath := filepath.Join(pkgPath, testFileName)
-			err := tests.RunFileTest(rootDir, testFilePath, tests.WithSyncWanted(opts.UpdateGoldenTests))
+			err := tests.RunFileTest(rootDir, testFilePath, tests.WithSyncWanted(cfg.updateGoldenTests))
 			duration := time.Since(startedAt)
 			dstr := fmtDuration(duration)
 
 			if err != nil {
 				errs = multierr.Append(errs, err)
-				cmd.ErrPrintfln("--- FAIL: %s (%s)", testName, dstr)
+				io.ErrPrintfln("--- FAIL: %s (%s)", testName, dstr)
 				if verbose {
 					stdouterr, err := closer()
 					if err != nil {
 						panic(err)
 					}
-					fmt.Fprintln(stderr, stdouterr)
+					fmt.Fprintln(os.Stderr, stdouterr)
 				}
 				continue
 			}
 
 			if verbose {
-				cmd.ErrPrintfln("--- PASS: %s (%s)", testName, dstr)
+				io.ErrPrintfln("--- PASS: %s (%s)", testName, dstr)
 			}
 		}
 	}
@@ -268,18 +317,13 @@ func gnoTestPkg(
 	return errs
 }
 
-type nopWriteCloser struct{ io.Writer }
-
-func (nopWriteCloser) Close() error { return nil }
-
 func runTestFiles(
-	cmd *command.Command,
-	testStore gno.Store,
 	m *gno.Machine,
 	files *gno.FileSet,
 	pkgName string,
 	verbose bool,
 	runFlag string,
+	io *commands.IO,
 ) error {
 	var errs error
 
@@ -301,7 +345,7 @@ func runTestFiles(
 
 	for _, test := range testFuncs.Tests {
 		if verbose {
-			cmd.ErrPrintfln("=== RUN   %s", test.Name)
+			io.ErrPrintfln("=== RUN   %s", test.Name)
 		}
 
 		testFuncStr := fmt.Sprintf("%q", test.Name)
@@ -315,7 +359,7 @@ func runTestFiles(
 		if ret == "" {
 			err := errors.New("failed to execute unit test: %q", test.Name)
 			errs = multierr.Append(errs, err)
-			cmd.ErrPrintfln("--- FAIL: %s (%v)", test.Name, duration)
+			io.ErrPrintfln("--- FAIL: %s (%v)", test.Name, duration)
 			continue
 		}
 
@@ -324,30 +368,30 @@ func runTestFiles(
 		err = json.Unmarshal([]byte(ret), &rep)
 		if err != nil {
 			errs = multierr.Append(errs, err)
-			cmd.ErrPrintfln("--- FAIL: %s (%s)", test.Name, dstr)
+			io.ErrPrintfln("--- FAIL: %s (%s)", test.Name, dstr)
 			continue
 		}
 
 		switch {
 		case rep.Filtered:
-			cmd.ErrPrintfln("--- FILT: %s", test.Name)
+			io.ErrPrintfln("--- FILT: %s", test.Name)
 			// noop
 		case rep.Skipped:
 			if verbose {
-				cmd.ErrPrintfln("--- SKIP: %s", test.Name)
+				io.ErrPrintfln("--- SKIP: %s", test.Name)
 			}
 		case rep.Failed:
 			err := errors.New("failed: %q", test.Name)
 			errs = multierr.Append(errs, err)
-			cmd.ErrPrintfln("--- FAIL: %s (%s)", test.Name, dstr)
+			io.ErrPrintfln("--- FAIL: %s (%s)", test.Name, dstr)
 		default:
 			if verbose {
-				cmd.ErrPrintfln("--- PASS: %s (%s)", test.Name, dstr)
+				io.ErrPrintfln("--- PASS: %s (%s)", test.Name, dstr)
 			}
 		}
 
 		if rep.Output != "" && (verbose || rep.Failed) {
-			cmd.ErrPrintfln("output: %s", rep.Output)
+			io.ErrPrintfln("output: %s", rep.Output)
 		}
 	}
 

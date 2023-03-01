@@ -1,56 +1,76 @@
+// Dedicated to my love, Lexi.
 package client
 
 import (
-	"github.com/gnolang/gno/pkgs/command"
-	"github.com/gnolang/gno/pkgs/errors"
+	"flag"
+
+	"github.com/gnolang/gno/pkgs/commands"
 )
 
-type (
-	AppItem = command.AppItem
-	AppList = command.AppList
+const (
+	mnemonicEntropySize = 256
 )
 
-var mainApps AppList = []AppItem{
-	{addApp, "add", "add key to keybase", DefaultAddOptions},
-	{deleteApp, "delete", "delete key from keybase", DefaultDeleteOptions},
-	{generateApp, "generate", "generate a new private key", DefaultGenerateOptions},
-	{exportApp, "export", "export encrypted private key armor", DefaultExportOptions},
-	{importApp, "import", "import encrypted private key armor", DefaultImportOptions},
-	{listApp, "list", "list all known keys", DefaultListOptions},
-	{signApp, "sign", "sign a document", DefaultSignOptions},
-	{verifyApp, "verify", "verify a document signature", DefaultVerifyOptions},
-	{broadcastApp, "broadcast", "broadcast a signed document", DefaultBroadcastOptions},
-	{queryApp, "query", "make an ABCI query", DefaultQueryOptions},
+type baseCfg struct {
+	BaseOptions
 }
 
-// For clients that want to extend the functionality of the base client.
-func AddApp(app command.App, name string, desc string, defaults interface{}) {
-	mainApps = append(mainApps, AppItem{
-		App:      app,
-		Name:     name,
-		Desc:     desc,
-		Defaults: defaults,
-	})
+func NewRootCmd() *commands.Command {
+	cfg := &baseCfg{}
+
+	cmd := commands.NewCommand(
+		commands.Metadata{
+			ShortUsage: "<subcommand> [flags] [<arg>...]",
+			LongHelp:   "Manages private keys for the node",
+		},
+		cfg,
+		commands.HelpExec,
+	)
+
+	cmd.AddSubCommands(
+		newAddCmd(cfg),
+		newDeleteCmd(cfg),
+		newGenerateCmd(cfg),
+		newExportCmd(cfg),
+		newImportCmd(cfg),
+		newListCmd(cfg),
+		newSignCmd(cfg),
+		newVerifyCmd(cfg),
+		newQueryCmd(cfg),
+		newBroadcastCmd(cfg),
+		newMakeTxCmd(cfg),
+	)
+
+	return cmd
 }
 
-func RunMain(cmd *command.Command, exec string, args []string) error {
-	// show help message.
-	if len(args) == 0 || args[0] == "help" || args[0] == "--help" {
-		cmd.Println("available subcommands:")
-		for _, appItem := range mainApps {
-			cmd.Printf("  %s - %s\n", appItem.Name, appItem.Desc)
-		}
-		return nil
-	}
+func (c *baseCfg) RegisterFlags(fs *flag.FlagSet) {
+	// Base options
+	fs.StringVar(
+		&c.Home,
+		"home",
+		DefaultBaseOptions.Home,
+		"home directory",
+	)
 
-	// switch on first argument.
-	for _, appItem := range mainApps {
-		if appItem.Name == args[0] {
-			err := cmd.Run(appItem.App, args[1:], appItem.Defaults)
-			return err // done
-		}
-	}
+	fs.StringVar(
+		&c.Remote,
+		"remote",
+		DefaultBaseOptions.Remote,
+		"remote node URL",
+	)
 
-	// unknown app command!
-	return errors.New("unknown command " + args[0])
+	fs.BoolVar(
+		&c.Quiet,
+		"quiet",
+		DefaultBaseOptions.Quiet,
+		"suppress output during execution",
+	)
+
+	fs.BoolVar(
+		&c.InsecurePasswordStdin,
+		"insecure-password-stdin",
+		DefaultBaseOptions.Quiet,
+		"WARNING! take password from stdin",
+	)
 }
