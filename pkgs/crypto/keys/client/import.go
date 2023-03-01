@@ -19,6 +19,9 @@ type ImportOptions struct {
 
 	// Path to the encrypted private key armor
 	ArmorPath string `flag:"armor-path" help:"The path to the encrypted armor file"`
+
+	// Unsafe flag for specifying the input as unencrypted
+	Unsafe bool `flag:"unsafe" help:"Import the private key armor as unencrypted"`
 }
 
 var DefaultImportOptions = ImportOptions{
@@ -53,20 +56,27 @@ func importApp(cmd *command.Command, _ []string, iopts interface{}) error {
 		)
 	}
 
-	// Get the armor decrypt password
-	decryptPassword, err := cmd.GetPassword(
-		"Enter a passphrase to decrypt your private key armor:",
-		false,
+	var (
+		decryptPassword string
+		encryptPassword string
 	)
-	if err != nil {
-		return fmt.Errorf(
-			"unable to retrieve armor decrypt password from user, %w",
-			err,
+
+	if !opts.Unsafe {
+		// Get the armor decrypt password
+		decryptPassword, err = cmd.GetPassword(
+			"Enter a passphrase to decrypt your private key armor:",
+			false,
 		)
+		if err != nil {
+			return fmt.Errorf(
+				"unable to retrieve armor decrypt password from user, %w",
+				err,
+			)
+		}
 	}
 
 	// Get the key-base encrypt password
-	encryptPassword, err := cmd.GetCheckPassword(
+	encryptPassword, err = cmd.GetCheckPassword(
 		"Enter a passphrase to encrypt your private key:",
 		"Repeat the passphrase:")
 	if err != nil {
@@ -76,17 +86,31 @@ func importApp(cmd *command.Command, _ []string, iopts interface{}) error {
 		)
 	}
 
-	// Import the private key
-	if err := kb.ImportPrivKey(
-		opts.KeyName,
-		string(armor),
-		decryptPassword,
-		encryptPassword,
-	); err != nil {
-		return fmt.Errorf(
-			"unable to import the private key, %w",
-			err,
-		)
+	if opts.Unsafe {
+		// Import the unencrypted private key
+		if err := kb.ImportPrivKeyUnsafe(
+			opts.KeyName,
+			string(armor),
+			encryptPassword,
+		); err != nil {
+			return fmt.Errorf(
+				"unable to import the unencrypted private key, %w",
+				err,
+			)
+		}
+	} else {
+		// Import the encrypted private key
+		if err := kb.ImportPrivKey(
+			opts.KeyName,
+			string(armor),
+			decryptPassword,
+			encryptPassword,
+		); err != nil {
+			return fmt.Errorf(
+				"unable to import the encrypted private key, %w",
+				err,
+			)
+		}
 	}
 
 	cmd.Printfln("Successfully imported private key %s", opts.KeyName)

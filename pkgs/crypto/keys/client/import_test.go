@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 
@@ -17,7 +18,10 @@ type testImportKeyOpts struct {
 }
 
 // importKey runs the import private key command (from armor)
-func importKey(importOpts testImportKeyOpts) error {
+func importKey(
+	importOpts testImportKeyOpts,
+	input io.Reader,
+) error {
 	var (
 		cmd  = command.NewMockCommand()
 		opts = ImportOptions{
@@ -26,19 +30,11 @@ func importKey(importOpts testImportKeyOpts) error {
 			},
 			KeyName:   importOpts.keyName,
 			ArmorPath: importOpts.armorPath,
+			Unsafe:    importOpts.unsafe,
 		}
 	)
 
-	cmd.SetIn(
-		strings.NewReader(
-			fmt.Sprintf(
-				"%s\n%s\n%s\n",
-				importOpts.decryptPassword,
-				importOpts.encryptPassword,
-				importOpts.encryptPassword,
-			),
-		),
-	)
+	cmd.SetIn(input)
 
 	return importApp(cmd, nil, opts)
 }
@@ -47,57 +43,111 @@ func importKey(importOpts testImportKeyOpts) error {
 func TestImport_ImportKey(t *testing.T) {
 	t.Parallel()
 
-	var (
+	const (
 		keyName       = "key name"
 		importKeyName = "import key name"
 		password      = "password"
 	)
 
-	// Generate a temporary key-base directory
-	kb, kbHome := newTestKeybase(t)
-
-	// Add an initial key to the key base
-	info, err := addRandomKeyToKeybase(kb, keyName, password)
-	if err != nil {
-		t.Fatalf(
-			"unable to create a key base account, %v",
-			err,
-		)
+	testTable := []struct {
+		name     string
+		baseOpts testCmdKeyOptsBase
+		input    io.Reader
+	}{
+		{
+			"encrypted private key",
+			testCmdKeyOptsBase{
+				unsafe: false, // explicit
+			},
+			strings.NewReader(
+				fmt.Sprintf(
+					"%s\n%s\n%s\n",
+					password, // decrypt
+					password, // key-base encrypt
+					password, // key-base encrypt confirm
+				),
+			),
+		},
+		{
+			"unencrypted private key",
+			testCmdKeyOptsBase{
+				unsafe: true,
+			},
+			strings.NewReader(
+				fmt.Sprintf(
+					"%s\n%s\n",
+					password, // key-base encrypt
+					password, // key-base encrypt confirm
+				),
+			),
+		},
 	}
 
-	outputFile, outputCleanupFn := testutils.NewTestFile(t)
-	defer outputCleanupFn()
+	for _, testCase := range testTable {
+		testCase := testCase
 
-	baseOpts := testCmdKeyOptsBase{
-		kbHome:          kbHome,
-		keyName:         info.GetName(),
-		decryptPassword: password,
-		encryptPassword: password,
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Generate a temporary key-base directory
+			kb, kbHome := newTestKeybase(t)
+
+			// Add an initial key to the key base
+			info, err := addRandomKeyToKeybase(kb, keyName, password)
+			if err != nil {
+				t.Fatalf(
+					"unable to create a key base account, %v",
+					err,
+				)
+			}
+
+			outputFile, outputCleanupFn := testutils.NewTestFile(t)
+			defer outputCleanupFn()
+
+			// Make sure the export command executes correctly
+			if err := exportKey(
+				testExportKeyOpts{
+					testCmdKeyOptsBase: testCmdKeyOptsBase{
+						kbHome:  kbHome,
+						keyName: keyName,
+						unsafe:  testCase.baseOpts.unsafe,
+					},
+					outputPath: outputFile.Name(),
+				},
+				strings.NewReader(
+					fmt.Sprintf(
+						"%s\n%s\n%s\n",
+						password,
+						password,
+						password,
+					),
+				),
+			); err != nil {
+				t.Fatalf("unable to export private key, %v", err)
+			}
+
+			// Make sure the encrypted armor can be imported correctly
+			if err := importKey(
+				testImportKeyOpts{
+					testCmdKeyOptsBase: testCmdKeyOptsBase{
+						kbHome: kbHome,
+						// Change the import key name so the existing one (in the key-base)
+						// doesn't get overwritten
+						keyName: importKeyName,
+						unsafe:  testCase.baseOpts.unsafe,
+					},
+					armorPath: outputFile.Name(),
+				},
+				testCase.input,
+			); err != nil {
+				t.Fatalf("unable to import private key armor, %v", err)
+			}
+
+			// Make sure the key-base has the new key imported
+			info, err = kb.GetByName(importKeyName)
+
+			assert.NotNil(t, info)
+			assert.NoError(t, err)
+		})
 	}
-
-	// Make sure the export command executes correctly
-	if err := exportKey(testExportKeyOpts{
-		testCmdKeyOptsBase: baseOpts,
-		outputPath:         outputFile.Name(),
-	}); err != nil {
-		t.Fatalf("unable to export private key, %v", err)
-	}
-
-	// Change the import key name so the existing one (in the key-base)
-	// doesn't get overwritten
-	baseOpts.keyName = importKeyName
-
-	// Make sure the encrypted armor can be imported correctly
-	if err := importKey(testImportKeyOpts{
-		testCmdKeyOptsBase: baseOpts,
-		armorPath:          outputFile.Name(),
-	}); err != nil {
-		t.Fatalf("unable to import private key armor, %v", err)
-	}
-
-	// Make sure the key-base has the new key imported
-	info, err = kb.GetByName(importKeyName)
-
-	assert.NotNil(t, info)
-	assert.NoError(t, err)
 }
