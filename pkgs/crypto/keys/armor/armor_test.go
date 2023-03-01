@@ -11,7 +11,9 @@ import (
 	"github.com/gnolang/gno/pkgs/crypto/secp256k1"
 )
 
-func TestArmorUnarmorPrivKey(t *testing.T) {
+func TestArmorUnarmor_PrivKey_Encrypted(t *testing.T) {
+	t.Parallel()
+
 	priv := secp256k1.GenPrivKey()
 	astr := armor.EncryptArmorPrivKey(priv, "passphrase")
 	_, err := armor.UnarmorDecryptPrivKey(astr, "wrongpassphrase")
@@ -21,7 +23,9 @@ func TestArmorUnarmorPrivKey(t *testing.T) {
 	require.True(t, priv.Equals(decrypted))
 }
 
-func TestArmorUnarmorPubKey(t *testing.T) {
+func TestArmorUnarmor_PubKey(t *testing.T) {
+	t.Parallel()
+
 	// Select the encryption and storage for your cryptostore
 	cstore := keys.NewInMemory()
 

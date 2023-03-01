@@ -2,20 +2,22 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/pkgs/command"
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/stretchr/testify/require"
 )
 
-func TestMain(t *testing.T) {
+func TestMain_Gnodev(t *testing.T) {
 	tc := []testMainCase{
-		{args: []string{""}, errShouldBe: "unknown command "},
+		{args: []string{""}, errShouldBe: "flag: help requested"},
 	}
+
 	testMainCaseRun(t, tc)
 }
 
@@ -52,15 +54,8 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 		testName = strings.ReplaceAll(testName+test.testDir, "/", "~")
 
 		t.Run(testName, func(t *testing.T) {
-			cmd := command.NewMockCommand()
 			mockOut := bytes.NewBufferString("")
 			mockErr := bytes.NewBufferString("")
-			stdout := command.WriteNopCloser(mockOut)
-			stderr := command.WriteNopCloser(mockErr)
-			cmd.SetOut(stdout)
-			cmd.SetErr(stderr)
-
-			require.NotNil(t, cmd)
 
 			checkOutputs := func(t *testing.T) {
 				t.Helper()
@@ -73,7 +68,7 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 						require.Contains(t, mockOut.String(), test.stdoutShouldContain, "stdout should contain")
 					}
 					if test.stdoutShouldBe != "" {
-						require.Equal(t, mockOut.String(), test.stdoutShouldBe, "stdout should be")
+						require.Equal(t, test.stdoutShouldBe, mockOut.String(), "stdout should be")
 					}
 				}
 
@@ -85,12 +80,11 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 						require.Contains(t, mockErr.String(), test.stderrShouldContain, "stderr should contain")
 					}
 					if test.stderrShouldBe != "" {
-						require.Equal(t, mockErr.String(), test.stderrShouldBe, "stderr should be")
+						require.Equal(t, test.stderrShouldBe, mockErr.String(), "stderr should be")
 					}
 				}
 			}
 
-			exec := "gnodev"
 			defer func() {
 				if r := recover(); r != nil {
 					output := fmt.Sprintf("%v", r)
@@ -101,7 +95,7 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 						require.Contains(t, output, test.recoverShouldContain, "recover should contain")
 					}
 					if test.recoverShouldBe != "" {
-						require.Equal(t, output, test.recoverShouldBe, "recover should be")
+						require.Equal(t, test.recoverShouldBe, output, "recover should be")
 					}
 					checkOutputs(t)
 				} else {
@@ -124,7 +118,11 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 				defer os.Chdir(workingDir)
 			}
 
-			err := runMain(cmd, exec, test.args)
+			io := commands.NewTestIO()
+			io.SetOut(commands.WriteNopCloser(mockOut))
+			io.SetErr(commands.WriteNopCloser(mockErr))
+
+			err := newGnodevCmd(io).ParseAndRun(context.Background(), test.args)
 
 			if errShouldBeEmpty {
 				require.Nil(t, err, "err should be nil")
@@ -135,7 +133,7 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 					require.Contains(t, err.Error(), test.errShouldContain, "err should contain")
 				}
 				if test.errShouldBe != "" {
-					require.Equal(t, err.Error(), test.errShouldBe, "err should be")
+					require.Equal(t, test.errShouldBe, err.Error(), "err should be")
 				}
 			}
 

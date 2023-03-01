@@ -1,8 +1,13 @@
 package main
 
 import (
+	"context"
+	"fmt"
+	"os"
+
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/amino/genproto"
+	"github.com/gnolang/gno/pkgs/commands"
 
 	// TODO: move these out.
 	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
@@ -24,6 +29,22 @@ import (
 )
 
 func main() {
+	cmd := commands.NewCommand(
+		commands.Metadata{
+			LongHelp: "Generates proto bindings for Amino packages",
+		},
+		commands.NewEmptyConfig(),
+		execGen,
+	)
+
+	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "%+v", err)
+
+		os.Exit(1)
+	}
+}
+
+func execGen(_ context.Context, _ []string) error {
 	pkgs := []*amino.Package{
 		bitarray.Package,
 		merkle.Package,
@@ -42,12 +63,16 @@ func main() {
 		vm.Package,
 		gno.Package,
 	}
+
 	for _, pkg := range pkgs {
 		genproto.WriteProto3Schema(pkg)
 		genproto.WriteProtoBindings(pkg)
 		genproto.MakeProtoFolder(pkg, "proto")
 	}
+
 	for _, pkg := range pkgs {
 		genproto.RunProtoc(pkg, "proto")
 	}
+
+	return nil
 }

@@ -1,46 +1,53 @@
 package client
 
 import (
-	"github.com/gnolang/gno/pkgs/command"
+	"context"
+	"flag"
+
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
-	"github.com/gnolang/gno/pkgs/errors"
 )
 
-type ListOptions struct {
-	BaseOptions // home, ...
+func newListCmd(rootCfg *baseCfg) *commands.Command {
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "list",
+			ShortUsage: "list [flags]",
+			ShortHelp:  "Lists all keys in the keybase",
+		},
+		nil,
+		func(_ context.Context, args []string) error {
+			return execList(rootCfg, args, commands.NewDefaultIO())
+		},
+	)
 }
 
-var DefaultListOptions = ListOptions{
-	BaseOptions: DefaultBaseOptions,
-}
-
-func listApp(cmd *command.Command, args []string, iopts interface{}) error {
+func execList(cfg *baseCfg, args []string, io *commands.IO) error {
 	if len(args) != 0 {
-		cmd.ErrPrintfln("Usage: list (no args)")
-		return errors.New("invalid args")
+		return flag.ErrHelp
 	}
 
-	opts := iopts.(ListOptions)
-	kb, err := keys.NewKeyBaseFromDir(opts.Home)
+	kb, err := keys.NewKeyBaseFromDir(cfg.Home)
 	if err != nil {
 		return err
 	}
 
 	infos, err := kb.List()
 	if err == nil {
-		printInfos(cmd, infos)
+		printInfos(infos, io)
 	}
+
 	return err
 }
 
-func printInfos(cmd *command.Command, infos []keys.Info) {
+func printInfos(infos []keys.Info, io *commands.IO) {
 	for i, info := range infos {
 		keyname := info.GetName()
 		keytype := info.GetType()
 		keypub := info.GetPubKey()
 		keyaddr := info.GetAddress()
 		keypath, _ := info.GetPath()
-		cmd.Printfln("%d. %s (%s) - addr: %v pub: %v, path: %v",
+		io.Printfln("%d. %s (%s) - addr: %v pub: %v, path: %v",
 			i, keyname, keytype, keyaddr, keypub, keypath)
 	}
 }

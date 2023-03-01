@@ -1,18 +1,19 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/gnolang/gno/gnoland"
 	"github.com/gnolang/gno/pkgs/amino"
 	rpcclient "github.com/gnolang/gno/pkgs/bft/rpc/client"
-	"github.com/gnolang/gno/pkgs/command"
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/crypto"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
 	"github.com/gnolang/gno/pkgs/crypto/keys/client"
@@ -33,95 +34,142 @@ type SiteVerifyResponse struct {
 	ErrorCodes  []string  `json:"error-codes"`
 }
 
-type (
-	AppItem = command.AppItem
-	AppList = command.AppList
-)
+type config struct {
+	client.BaseOptions // home, ...
 
-var mainApps AppList = []AppItem{
-	{serveApp, "serve", "serve faucet", DefaultServeOptions},
+	ChainID               string
+	GasWanted             int64
+	GasFee                string
+	Memo                  string
+	TestTo                string
+	Send                  string
+	CaptchaSecret         string
+	IsBehindProxy         bool
+	InsecurePasswordStdin bool
 }
 
-func runMain(cmd *command.Command, exec string, args []string) error {
-	// show help message.
-	if len(args) == 0 || args[0] == "help" || args[0] == "--help" {
-		cmd.Println("available subcommands:")
-		for _, appItem := range mainApps {
-			cmd.Printf("  %s - %s\n", appItem.Name, appItem.Desc)
-		}
-		return nil
-	}
+func newServeCmd() *commands.Command {
+	cfg := &config{}
 
-	// switch on first argument.
-	for _, appItem := range mainApps {
-		if appItem.Name == args[0] {
-			err := cmd.Run(appItem.App, args[1:], appItem.Defaults)
-			return err // done
-		}
-	}
-
-	// unknown app command!
-	return errors.New("unknown command " + args[0])
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "serve",
+			ShortUsage: "serve [flags] <key>",
+			LongHelp:   "Serves the gno.land faucet to users",
+		},
+		cfg,
+		func(_ context.Context, args []string) error {
+			return execServe(cfg, args, commands.NewDefaultIO())
+		},
+	)
 }
 
-func main() {
-	cmd := command.NewStdCommand()
-	exec := os.Args[0]
-	args := os.Args[1:]
-	err := runMain(cmd, exec, args)
-	if err != nil {
-		cmd.ErrPrintfln("%s", err.Error())
-		cmd.ErrPrintfln("%#v", err)
-		return // exit
-	}
+func (c *config) RegisterFlags(fs *flag.FlagSet) {
+	// Base config options
+	fs.StringVar(
+		&c.BaseOptions.Home,
+		"home",
+		client.DefaultBaseOptions.Home,
+		"home directory",
+	)
+
+	fs.StringVar(
+		&c.BaseOptions.Remote,
+		"remote",
+		client.DefaultBaseOptions.Remote,
+		"remote node URL",
+	)
+
+	fs.BoolVar(
+		&c.BaseOptions.Quiet,
+		"quiet",
+		client.DefaultBaseOptions.Quiet,
+		"for parsing output",
+	)
+
+	// Command options
+	fs.StringVar(
+		&c.ChainID,
+		"chain-id",
+		"",
+		"the ID of the chain",
+	)
+
+	fs.Int64Var(
+		&c.GasWanted,
+		"gas-wanted",
+		50000,
+		"gas requested for the tx",
+	)
+
+	fs.StringVar(
+		&c.GasFee,
+		"gas-fee",
+		"1000000ugnot",
+		"gas payment fee",
+	)
+
+	fs.StringVar(
+		&c.Memo,
+		"memo",
+		"",
+		"any descriptive text",
+	)
+
+	fs.StringVar(
+		&c.TestTo,
+		"test-to",
+		"",
+		"test address (optional)",
+	)
+
+	fs.StringVar(
+		&c.Send,
+		"send",
+		"1000000ugnot",
+		"send coins",
+	)
+
+	fs.StringVar(
+		&c.CaptchaSecret,
+		"captcha-secret",
+		"",
+		"recaptcha secret key (if empty, captcha are disabled)",
+	)
+
+	fs.BoolVar(
+		&c.IsBehindProxy,
+		"is-behind-proxy",
+		false,
+		"use X-Forwarded-For IP for throttling",
+	)
+
+	fs.BoolVar(
+		&c.InsecurePasswordStdin,
+		"insecure-password-stdin",
+		false,
+		"WARNING! take password from stdin",
+	)
 }
 
-//----------------------------------------
-// serveApp
-
-type serveOptions struct {
-	client.BaseOptions           // home, ...
-	ChainID               string `flag:"chain-id" help:"chain id"`
-	GasWanted             int64  `flag:"gas-wanted" help:"gas requested for tx"`
-	GasFee                string `flag:"gas-fee" help:"gas payment fee"`
-	Memo                  string `flag:"memo" help:"any descriptive text"`
-	TestTo                string `flag:"test-to" help:"test addr (optional)"`
-	Send                  string `flag:"send" help:"send coins"`
-	CaptchaSecret         string `flag:"captcha-secret" help:"recaptcha secret key (if empty, captcha are disabled)"`
-	IsBehindProxy         bool   `flag:"is-behind-proxy" help:"use X-Forwarded-For IP for throttling"`
-	InsecurePasswordStdin bool   `flag:"insecure-password-stdin" help:"WARNING! take password from stdin"`
-}
-
-var DefaultServeOptions = serveOptions{
-	BaseOptions:           client.DefaultBaseOptions,
-	ChainID:               "", // must override
-	GasWanted:             50000,
-	GasFee:                "1000000ugnot",
-	Memo:                  "",
-	TestTo:                "",
-	Send:                  "1000000ugnot",
-	CaptchaSecret:         "",
-	IsBehindProxy:         false,
-	InsecurePasswordStdin: false,
-}
-
-func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
-	opts := iopts.(serveOptions)
+func execServe(cfg *config, args []string, io *commands.IO) error {
 	if len(args) != 1 {
-		cmd.ErrPrintfln("Usage: serve <keyname>")
-		return errors.New("invalid args")
+		return flag.ErrHelp
 	}
-	if opts.ChainID == "" {
+
+	if cfg.ChainID == "" {
 		return errors.New("chain-id not specified")
 	}
-	if opts.GasWanted == 0 {
+
+	if cfg.GasWanted == 0 {
 		return errors.New("gas-wanted not specified")
 	}
-	if opts.GasFee == "" {
+
+	if cfg.GasFee == "" {
 		return errors.New("gas-fee not specified")
 	}
 
-	remote := opts.Remote
+	remote := cfg.Remote
 	if remote == "" || remote == "y" {
 		return errors.New("missing remote url")
 	}
@@ -130,7 +178,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 	// XXX XXX
 	// Read supply account pubkey.
 	name := args[0]
-	kb, err := keys.NewKeyBaseFromDir(opts.Home)
+	kb, err := keys.NewKeyBaseFromDir(cfg.Home)
 	if err != nil {
 		return err
 	}
@@ -139,15 +187,11 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 		return err
 	}
 	fromAddr := info.GetAddress()
-	// pub := info.GetPubKey()
 
 	// query for initial number and sequence.
 	path := fmt.Sprintf("auth/accounts/%s", fromAddr.String())
 	data := []byte(nil)
-	opts2 := rpcclient.ABCIQueryOptions{
-		// Height: height, XXX
-		// Prove: false, XXX
-	}
+	opts2 := rpcclient.ABCIQueryOptions{}
 	qres, err := cli.ABCIQueryWithOptions(
 		path, data, opts2)
 	if err != nil {
@@ -168,32 +212,34 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 	// Test by signing a dummy message;
 	const dummy = "test"
 	var pass string
-	if opts.Quiet {
-		pass, err = cmd.GetPassword("", opts.InsecurePasswordStdin)
+	if cfg.Quiet {
+		pass, err = io.GetPassword("", cfg.InsecurePasswordStdin)
 	} else {
-		pass, err = cmd.GetPassword("Enter password.", opts.InsecurePasswordStdin)
+		pass, err = io.GetPassword("Enter password", cfg.InsecurePasswordStdin)
 	}
+
 	if err != nil {
 		return err
 	}
+
 	_, _, err = kb.Sign(name, pass, []byte(dummy))
 	if err != nil {
 		return err
 	}
 
 	// Parse send amount.
-	send, err := std.ParseCoins(opts.Send)
+	send, err := std.ParseCoins(cfg.Send)
 	if err != nil {
 		return errors.Wrap(err, "parsing send coins")
 	}
 
 	// Parse test-to address. If present, send and quit.
-	if opts.TestTo != "" {
-		testToAddr, err := crypto.AddressFromBech32(opts.TestTo)
+	if cfg.TestTo != "" {
+		testToAddr, err := crypto.AddressFromBech32(cfg.TestTo)
 		if err != nil {
 			return err
 		}
-		err = sendAmountTo(cmd, cli, name, pass, testToAddr, accountNumber, sequence, send, opts)
+		err = sendAmountTo(cfg, cli, io, name, pass, testToAddr, accountNumber, sequence, send)
 		return err
 	}
 
@@ -204,7 +250,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 	// handle route using handler function
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		host := ""
-		if !opts.IsBehindProxy {
+		if !cfg.IsBehindProxy {
 			addr := r.RemoteAddr
 			host_, _, err := net.SplitHostPort(addr)
 			if err != nil {
@@ -239,7 +285,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 		// only when command line argument 'captcha-secret' has entered > captcha are enabled.
 		// veryify captcha
-		if opts.CaptchaSecret != "" {
+		if cfg.CaptchaSecret != "" {
 			passedMsg := r.Form["g-recaptcha-response"]
 			if passedMsg == nil {
 				fmt.Println(ip, "no 'captcha' request")
@@ -249,7 +295,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 			capMsg := strings.TrimSpace(passedMsg[0])
 
-			if err := checkRecaptcha(opts.CaptchaSecret, capMsg); err != nil {
+			if err := checkRecaptcha(cfg.CaptchaSecret, capMsg); err != nil {
 				fmt.Printf("%s recaptcha failed; %v\n", ip, err)
 				w.Write([]byte("Unauthorized"))
 				return
@@ -272,7 +318,7 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 			w.Write([]byte("invalid address format"))
 			return
 		}
-		err = sendAmountTo(cmd, cli, name, pass, toAddr, accountNumber, sequence, send, opts)
+		err = sendAmountTo(cfg, cli, io, name, pass, toAddr, accountNumber, sequence, send)
 		if err != nil {
 			fmt.Println(ip, "faucet failed", err)
 			w.Write([]byte("faucet failed"))
@@ -296,9 +342,19 @@ func serveApp(cmd *command.Command, args []string, iopts interface{}) error {
 	return nil
 }
 
-func sendAmountTo(cmd *command.Command, cli rpcclient.Client, name, pass string, toAddr crypto.Address, accountNumber, sequence uint64, send std.Coins, opts serveOptions) error {
+func sendAmountTo(
+	cfg *config,
+	cli rpcclient.Client,
+	io *commands.IO,
+	name,
+	pass string,
+	toAddr crypto.Address,
+	accountNumber,
+	sequence uint64,
+	send std.Coins,
+) error {
 	// Read supply account pubkey.
-	kb, err := keys.NewKeyBaseFromDir(opts.Home)
+	kb, err := keys.NewKeyBaseFromDir(cfg.Home)
 	if err != nil {
 		return err
 	}
@@ -310,8 +366,8 @@ func sendAmountTo(cmd *command.Command, cli rpcclient.Client, name, pass string,
 	pub := info.GetPubKey()
 
 	// parse gas wanted & fee.
-	gaswanted := opts.GasWanted
-	gasfee, err := std.ParseCoin(opts.GasFee)
+	gaswanted := cfg.GasWanted
+	gasfee, err := std.ParseCoin(cfg.GasFee)
 	if err != nil {
 		return errors.Wrap(err, "parsing gas fee coin")
 	}
@@ -326,7 +382,7 @@ func sendAmountTo(cmd *command.Command, cli rpcclient.Client, name, pass string,
 		Msgs:       []std.Msg{msg},
 		Fee:        std.NewFee(gaswanted, gasfee),
 		Signatures: nil,
-		Memo:       opts.Memo,
+		Memo:       cfg.Memo,
 	}
 	// fill tx signatures.
 	signers := tx.GetSigners()
@@ -345,7 +401,7 @@ func sendAmountTo(cmd *command.Command, cli rpcclient.Client, name, pass string,
 	// fmt.Println("will sign:", string(amino.MustMarshalJSON(tx)))
 
 	// get sign-bytes and make signature.
-	chainID := opts.ChainID
+	chainID := cfg.ChainID
 	signbz := tx.GetSignBytes(chainID, accountNumber, sequence)
 	sig, _, err := kb.Sign(name, pass, signbz)
 	if err != nil {
@@ -382,10 +438,10 @@ func sendAmountTo(cmd *command.Command, cli rpcclient.Client, name, pass string,
 	} else if bres.DeliverTx.IsErr() {
 		return errors.New("transaction failed %#v\nlog %s", bres, bres.DeliverTx.Log)
 	} else {
-		cmd.Println(string(bres.DeliverTx.Data))
-		cmd.Println("OK!")
-		cmd.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
-		cmd.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
+		io.Println(string(bres.DeliverTx.Data))
+		io.Println("OK!")
+		io.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
+		io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
 	}
 	return nil
 }
