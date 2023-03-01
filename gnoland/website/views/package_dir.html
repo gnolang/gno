@@ -78,10 +78,12 @@
             <div>
               {{ range .Data.Package.Funcs }}
               <div class="pkg_doc__function">
-                <p><span class="pkg_doc__type-title">{{ . }}</span></p>
-                <a name="{{ .ID }}">
-                  <pre><code>{{ .Signature }}</code></pre>
-                </a>
+                <p>
+                  <a name="{{ .ID }}">
+                    func <span class="pkg_doc__type-title">{{ . }}</span>
+                  </a>
+                </p>
+                <pre><code>{{ .Signature }}</code></pre>
                 {{ if .Doc }}
                 <div class="pkg_doc__comment">
                   <pre>{{ .Doc  }}</pre>
@@ -128,7 +130,7 @@
               {{ end }} {{ range .Funcs }}
               <div class="pkg_doc__function">
                 <a name="{{ .ID }}">
-                  <p><span class="pkg_doc__type-title">{{ . }}</span></p>
+                  <p>func <span class="pkg_doc__type-title">{{ . }}</span></p>
                 </a>
                 <pre><code>{{ .Signature }}</code></pre>
                 {{ if .Doc }}
@@ -138,7 +140,7 @@
               {{ end }} {{ range .Methods }}
               <div class="pkg_doc__function">
                 <a name="{{ .ID }}">
-                  <p><span class="pkg_doc__type-title">{{ . }}</span></p>
+                  <p>func <span class="pkg_doc__type-title">{{ . }}</span></p>
                 </a>
                 <pre><code>{{ .Signature }}</code></pre>
                 {{ if .Doc }}
@@ -154,7 +156,7 @@
 
           <div class="pkg_doc__section">
             <h3 class="pkg_doc__section-heading">
-              <a name="source-files" Source Files></a>
+              <a name="source-files">Source Files</a>
             </h3>
             <div id="packge_dir">{{ template "dir_contents" . }}</div>
           </div>
@@ -164,13 +166,7 @@
       {{ template "footer" }}
     </div>
     {{ template "js" }}
-    <script type="text/javascript" src="/static/js/highlight.min.js"></script>
-    <script>
-      hljs.configure({
-        throwUnescapedHTML: true, // important to avoid inserting escaped html
-      });
-      hljs.highlightAll(); // applied to all <pre><code>...</code></pre>
-    </script>
+    {{ template "hljs" }}
   </body>
 </html>
 {{- end -}} {{ define "dir_contents" }}

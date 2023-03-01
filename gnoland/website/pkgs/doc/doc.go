@@ -15,7 +15,7 @@ func New(pkgPath string, files map[string]string) (*Package, error) {
 	}
 
 	fset := token.NewFileSet()
-	gnoFiles := make(map[string]*ast.File)
+	gnoFiles := make(map[string]*ast.File, len(files))
 
 	for filename, fileContent := range files {
 		p.Filenames = append(p.Filenames, filename)
@@ -55,21 +55,18 @@ func New(pkgPath string, files map[string]string) (*Package, error) {
 					p.Funcs = append(p.Funcs, fn)
 				}
 			case *ast.GenDecl:
-				if x.Tok == token.TYPE {
+				switch x.Tok {
+				case token.TYPE:
 					for _, spec := range x.Specs {
-						if ident, ok := spec.(*ast.TypeSpec); ok {
-							if ident.Name.IsExported() {
-								newType, _ := extractType(fset, ident)
-								p.Types = append(p.Types, newType)
-							}
+						if ident, ok := spec.(*ast.TypeSpec); ok && ident.Name.IsExported() {
+							newType, _ := extractType(fset, ident)
+							p.Types = append(p.Types, newType)
 						}
 					}
-				}
-				if x.Tok == token.VAR {
+				case token.VAR:
 					value, _ := extractValue(fset, x)
 					p.Vars = append(p.Vars, value)
-				}
-				if x.Tok == token.CONST {
+				case token.CONST:
 					value, _ := extractValue(fset, x)
 					p.Consts = append(p.Consts, value)
 				}

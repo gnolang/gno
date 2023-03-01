@@ -28,7 +28,7 @@ func generateFuncSignature(fn *ast.FuncDecl) string {
 		}
 	}
 
-	b.WriteString(fmt.Sprintf("%s(", fn.Name.Name))
+	fmt.Fprintf(&b, "%s(", fn.Name.Name)
 
 	var params []string
 	if fn.Type.Params != nil {
@@ -46,7 +46,7 @@ func generateFuncSignature(fn *ast.FuncDecl) string {
 		}
 	}
 
-	b.WriteString(fmt.Sprintf("%s)", strings.Join(params, ", ")))
+	fmt.Fprintf(&b, "%s)", strings.Join(params, ", "))
 
 	results := []string{}
 	if fn.Type.Results != nil {
@@ -68,8 +68,7 @@ func generateFuncSignature(fn *ast.FuncDecl) string {
 			b.WriteString(" ")
 			returnType := strings.Join(results, ", ")
 
-			hasMultipleResultsOrNamedParams := hasNamedParams || len(results) > 1
-			if hasMultipleResultsOrNamedParams {
+			if hasNamedParams || len(results) > 1 {
 				returnType = fmt.Sprintf("(%s)", returnType)
 			}
 
@@ -152,13 +151,11 @@ func typeString(expr ast.Expr) string {
 	case *ast.MapType:
 		return fmt.Sprintf("map[%s]%s", typeString(t.Key), typeString(t.Value))
 	case *ast.ChanType:
-		var chanDir string
+		chanDir := "chan"
 		if t.Dir == ast.SEND {
 			chanDir = "chan<-"
 		} else if t.Dir == ast.RECV {
 			chanDir = "<-chan"
-		} else {
-			chanDir = "chan"
 		}
 		return fmt.Sprintf("%s %s", chanDir, typeString(t.Value))
 	case *ast.ArrayType:

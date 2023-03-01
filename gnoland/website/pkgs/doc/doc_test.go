@@ -5,8 +5,6 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	t.Parallel()
-
 	files := map[string]string{
 		"example.gno": `
 // Package example is an example package.

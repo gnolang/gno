@@ -6,8 +6,6 @@ import (
 )
 
 func TestGenerateFuncSignature(t *testing.T) {
-	t.Parallel()
-
 	testcases := []struct {
 		name string
 		fn   *ast.FuncDecl

@@ -142,10 +142,9 @@ type Func struct {
 
 func (f Func) String() string {
 	var b strings.Builder
-	b.WriteString("func ")
 
 	if len(f.Recv) > 0 {
-		b.WriteString(fmt.Sprintf("(%s) ", strings.Join(f.Recv, ", ")))
+		fmt.Fprintf(&b, "(%s) ", strings.Join(f.Recv, ", "))
 	}
 
 	b.WriteString(f.Name)
