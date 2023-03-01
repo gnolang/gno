@@ -15,6 +15,7 @@ type exportCfg struct {
 
 	nameOrBech32 string
 	outputPath   string
+	unsafe       bool
 }
 
 func newExportCmd(rootCfg *baseCfg) *commands.Command {
@@ -26,7 +27,7 @@ func newExportCmd(rootCfg *baseCfg) *commands.Command {
 		commands.Metadata{
 			Name:       "export",
 			ShortUsage: "export [flags]",
-			ShortHelp:  "Exports encrypted private key armor",
+			ShortHelp:  "Exports private key armor",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -47,7 +48,14 @@ func (c *exportCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.outputPath,
 		"output-path",
 		"",
-		"The desired output path for the encrypted armor file",
+		"The desired output path for the armor file",
+	)
+
+	fs.BoolVar(
+		&c.unsafe,
+		"unsafe",
+		false,
+		"Export the private key armor as unencrypted",
 	)
 }
 
@@ -74,35 +82,49 @@ func execExport(cfg *exportCfg, io *commands.IO) error {
 		)
 	}
 
-	// Get the armor encrypt password
-	encryptPassword, err := io.GetCheckPassword(
-		[2]string{
-			"Enter a passphrase to encrypt your private key armor:",
-			"Repeat the passphrase:",
-		},
-		cfg.rootCfg.InsecurePasswordStdin,
+	var (
+		armor     string
+		exportErr error
 	)
-	if err != nil {
-		return fmt.Errorf(
-			"unable to retrieve armor encrypt password from user, %w",
-			err,
+
+	if cfg.unsafe {
+		// Generate the unencrypted armor
+		armor, exportErr = kb.ExportPrivKeyUnsafe(
+			cfg.nameOrBech32,
+			decryptPassword,
+		)
+	} else {
+		// Get the armor encrypt password
+		encryptPassword, err := io.GetCheckPassword(
+			[2]string{
+				"Enter a passphrase to encrypt your private key armor:",
+				"Repeat the passphrase:",
+			},
+			cfg.rootCfg.InsecurePasswordStdin,
+		)
+		if err != nil {
+			return fmt.Errorf(
+				"unable to retrieve armor encrypt password from user, %w",
+				err,
+			)
+		}
+
+		// Generate the encrypted armor
+		armor, exportErr = kb.ExportPrivKey(
+			cfg.nameOrBech32,
+			decryptPassword,
+			encryptPassword,
 		)
 	}
 
-	// Generate the encrypted armor
-	armor, err := kb.ExportPrivKey(
-		cfg.nameOrBech32,
-		decryptPassword,
-		encryptPassword,
-	)
-	if err != nil {
+	if exportErr != nil {
 		return fmt.Errorf(
 			"unable to export the private key, %w",
-			err,
+			exportErr,
 		)
 	}
 
-	// Write the encrypted armor to disk
+	// Write the armor to disk
 	if err := os.WriteFile(
 		cfg.outputPath,
 		[]byte(armor),
@@ -114,7 +136,7 @@ func execExport(cfg *exportCfg, io *commands.IO) error {
 		)
 	}
 
-	io.Printfln("Encrypted private key armor successfully outputted to %s", cfg.outputPath)
+	io.Printfln("Private key armor successfully outputted to %s", cfg.outputPath)
 
 	return nil
 }

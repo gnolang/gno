@@ -15,6 +15,7 @@ type importCfg struct {
 
 	keyName   string
 	armorPath string
+	unsafe    bool
 }
 
 func newImportCmd(rootCfg *baseCfg) *commands.Command {
@@ -49,6 +50,13 @@ func (c *importCfg) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"The path to the encrypted armor file",
 	)
+
+	fs.BoolVar(
+		&c.unsafe,
+		"unsafe",
+		false,
+		"Import the private key armor as unencrypted",
+	)
 }
 
 func execImport(cfg *importCfg, io *commands.IO) error {
@@ -72,20 +80,27 @@ func execImport(cfg *importCfg, io *commands.IO) error {
 		)
 	}
 
-	// Get the armor decrypt password
-	decryptPassword, err := io.GetPassword(
-		"Enter a passphrase to decrypt your private key armor:",
-		cfg.rootCfg.InsecurePasswordStdin,
+	var (
+		decryptPassword string
+		encryptPassword string
 	)
-	if err != nil {
-		return fmt.Errorf(
-			"unable to retrieve armor decrypt password from user, %w",
-			err,
+
+	if !cfg.unsafe {
+		// Get the armor decrypt password
+		decryptPassword, err = io.GetPassword(
+			"Enter a passphrase to decrypt your private key armor:",
+			cfg.rootCfg.InsecurePasswordStdin,
 		)
+		if err != nil {
+			return fmt.Errorf(
+				"unable to retrieve armor decrypt password from user, %w",
+				err,
+			)
+		}
 	}
 
 	// Get the key-base encrypt password
-	encryptPassword, err := io.GetCheckPassword(
+	encryptPassword, err = io.GetCheckPassword(
 		[2]string{
 			"Enter a passphrase to encrypt your private key:",
 			"Repeat the passphrase:",
@@ -99,17 +114,31 @@ func execImport(cfg *importCfg, io *commands.IO) error {
 		)
 	}
 
-	// Import the private key
-	if err := kb.ImportPrivKey(
-		cfg.keyName,
-		string(armor),
-		decryptPassword,
-		encryptPassword,
-	); err != nil {
-		return fmt.Errorf(
-			"unable to import the private key, %w",
-			err,
-		)
+	if cfg.unsafe {
+		// Import the unencrypted private key
+		if err := kb.ImportPrivKeyUnsafe(
+			cfg.keyName,
+			string(armor),
+			encryptPassword,
+		); err != nil {
+			return fmt.Errorf(
+				"unable to import the unencrypted private key, %w",
+				err,
+			)
+		}
+	} else {
+		// Import the encrypted private key
+		if err := kb.ImportPrivKey(
+			cfg.keyName,
+			string(armor),
+			decryptPassword,
+			encryptPassword,
+		); err != nil {
+			return fmt.Errorf(
+				"unable to import the encrypted private key, %w",
+				err,
+			)
+		}
 	}
 
 	io.Printfln("Successfully imported private key %s", cfg.keyName)

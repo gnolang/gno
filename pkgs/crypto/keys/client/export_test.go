@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -67,6 +68,7 @@ type testCmdKeyOptsBase struct {
 	keyName         string
 	decryptPassword string
 	encryptPassword string
+	unsafe          bool
 }
 
 type testExportKeyOpts struct {
@@ -77,7 +79,10 @@ type testExportKeyOpts struct {
 
 // exportKey runs the private key export command
 // using the provided options
-func exportKey(exportOpts testExportKeyOpts) error {
+func exportKey(
+	exportOpts testExportKeyOpts,
+	input io.Reader,
+) error {
 	var (
 		cfg = &exportCfg{
 			rootCfg: &baseCfg{
@@ -88,22 +93,14 @@ func exportKey(exportOpts testExportKeyOpts) error {
 			},
 			nameOrBech32: exportOpts.keyName,
 			outputPath:   exportOpts.outputPath,
+			unsafe:       exportOpts.unsafe,
 		}
 	)
 
-	io := commands.NewTestIO()
-	io.SetIn(
-		strings.NewReader(
-			fmt.Sprintf(
-				"%s\n%s\n%s\n",
-				exportOpts.decryptPassword,
-				exportOpts.encryptPassword,
-				exportOpts.encryptPassword,
-			),
-		),
-	)
+	cmdIO := commands.NewTestIO()
+	cmdIO.SetIn(input)
 
-	return execExport(cfg, io)
+	return execExport(cfg, cmdIO)
 }
 
 // TestExport_ExportKey makes sure the key can be exported correctly
@@ -121,52 +118,91 @@ func TestExport_ExportKey(t *testing.T) {
 		return n
 	}
 
-	var (
+	const (
 		keyName  = "key name"
 		password = "password"
 	)
 
-	// Generate a temporary key-base directory
-	kb, kbHome := newTestKeybase(t)
-
-	// Add an initial key to the key base
-	info, err := addRandomKeyToKeybase(kb, keyName, password)
-	if err != nil {
-		t.Fatalf(
-			"unable to create a key base account, %v",
-			err,
-		)
-	}
-
-	outputFile, outputCleanupFn := testutils.NewTestFile(t)
-	defer outputCleanupFn()
-
-	baseOpts := testCmdKeyOptsBase{
-		kbHome:          kbHome,
-		keyName:         info.GetName(),
-		decryptPassword: password,
-		encryptPassword: password,
-	}
-
-	// Make sure the command executes correctly
-	assert.NoError(
-		t,
-		exportKey(
-			testExportKeyOpts{
-				testCmdKeyOptsBase: baseOpts,
-				outputPath:         outputFile.Name(),
+	testTable := []struct {
+		name     string
+		baseOpts testCmdKeyOptsBase
+		input    io.Reader
+	}{
+		{
+			"encrypted key export",
+			testCmdKeyOptsBase{},
+			strings.NewReader(
+				fmt.Sprintf(
+					"%s\n%s\n%s\n",
+					password, // decrypt
+					password, // encrypt
+					password, // encrypt confirm
+				),
+			),
+		},
+		{
+			"unencrypted key export",
+			testCmdKeyOptsBase{
+				unsafe: true,
 			},
-		),
-	)
-
-	// Make sure the encrypted armor has been written to disk
-	buff, err := os.ReadFile(outputFile.Name())
-	if err != nil {
-		t.Fatalf(
-			"unable to read temporary file from disk, %v",
-			err,
-		)
+			strings.NewReader(
+				fmt.Sprintf(
+					"%s\n",
+					password, // decrypt
+				),
+			),
+		},
 	}
 
-	assert.Greater(t, numLines(string(buff)), 1)
+	for _, testCase := range testTable {
+		testCase := testCase
+
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Generate a temporary key-base directory
+			kb, kbHome := newTestKeybase(t)
+
+			// Add an initial key to the key base
+			info, err := addRandomKeyToKeybase(kb, keyName, password)
+			if err != nil {
+				t.Fatalf(
+					"unable to create a key base account, %v",
+					err,
+				)
+			}
+
+			outputFile, outputCleanupFn := testutils.NewTestFile(t)
+			t.Cleanup(func() {
+				outputCleanupFn()
+			})
+
+			// Make sure the command executes correctly
+			assert.NoError(
+				t,
+				exportKey(
+					testExportKeyOpts{
+						testCmdKeyOptsBase: testCmdKeyOptsBase{
+							kbHome:  kbHome,
+							keyName: info.GetName(),
+							unsafe:  testCase.baseOpts.unsafe,
+						},
+						outputPath: outputFile.Name(),
+					},
+					testCase.input,
+				),
+			)
+
+			// Make sure the encrypted armor has been written to disk
+			buff, err := os.ReadFile(outputFile.Name())
+			if err != nil {
+				t.Fatalf(
+					"unable to read temporary file from disk, %v",
+					err,
+				)
+			}
+
+			assert.Greater(t, numLines(string(buff)), 1)
+		})
+	}
 }
