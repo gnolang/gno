@@ -62,15 +62,16 @@
 </noscript>
 <script>
   (function () {
-    var storageKey = "website_theme";
+    const storageKey = "website_theme";
+    const themeDark = "dark";
+    const themeLight = "light";
 
     function getColorPreference() {
       if (localStorage.getItem(storageKey))
         return localStorage.getItem(storageKey);
-      else
-        return window.matchMedia("(prefers-color-scheme: dark)").matches
-          ? "dark"
-          : "light";
+      return window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? themeDark
+        : themeLight;
     }
     function setTheme(value) {
       document.firstElementChild.setAttribute("data-theme", value);
@@ -80,15 +81,15 @@
       .matchMedia("(prefers-color-scheme: dark)")
       .addEventListener("change", function (e) {
         if (!localStorage.getItem(storageKey))
-          setTheme(e.matches ? "dark" : "light");
+          setTheme(e.matches ? themeDark : themeLight);
       });
     window.addEventListener("load", function () {
       document
         .getElementById("theme-toggle")
         .addEventListener("click", function (e) {
-          console.log("cc");
           e.preventDefault();
-          var newValue = getColorPreference() === "light" ? "dark" : "light";
+          const newValue =
+            getColorPreference() === themeLight ? themeDark : themeLight;
           localStorage.setItem(storageKey, newValue);
           setTheme(newValue);
         });
@@ -111,9 +112,9 @@
   function main() {
     marked.setOptions({ gfm: true });
     window.contents = document.getElementById("source").innerHTML;
-    var doc = new DOMParser().parseFromString(window.contents, "text/html");
-    var contents = doc.documentElement.textContent;
-    var parsed = marked.parse(contents);
+    const doc = new DOMParser().parseFromString(window.contents, "text/html");
+    const contents = doc.documentElement.textContent;
+    const parsed = marked.parse(contents);
     document.getElementById("home").innerHTML = DOMPurify.sanitize(parsed, {
       USE_PROFILES: { html: true },
     });
