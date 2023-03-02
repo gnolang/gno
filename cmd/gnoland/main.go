@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -18,6 +19,7 @@ import (
 	"github.com/gnolang/gno/pkgs/bft/state/txindex/file"
 	"github.com/gnolang/gno/pkgs/bft/state/txindex/null"
 	bft "github.com/gnolang/gno/pkgs/bft/types"
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/crypto"
 	"github.com/gnolang/gno/pkgs/errors"
 	gno "github.com/gnolang/gno/pkgs/gnolang"
@@ -27,16 +29,7 @@ import (
 	"github.com/gnolang/gno/pkgs/std"
 )
 
-func main() {
-	args := os.Args[1:]
-	err := runMain(args)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(1)
-	}
-}
-
-var flags struct {
+type gnolandCfg struct {
 	skipFailingGenesisTxs bool
 	skipStart             bool
 	genesisBalancesFile   string
@@ -49,23 +42,96 @@ var flags struct {
 	txIndexerPath string
 }
 
-func runMain(args []string) error {
-	fs := flag.NewFlagSet("gnoland", flag.ExitOnError)
-	fs.BoolVar(&flags.skipFailingGenesisTxs, "skip-failing-genesis-txs", false, "don't panic when replaying invalid genesis txs")
-	fs.BoolVar(&flags.skipStart, "skip-start", false, "quit after initialization, don't start the node")
-	fs.StringVar(&flags.genesisBalancesFile, "genesis-balances-file", "./gnoland/genesis/genesis_balances.txt", "initial distribution file")
-	fs.StringVar(&flags.genesisTxsFile, "genesis-txs-file", "./gnoland/genesis/genesis_txs.txt", "initial txs to replay")
-	fs.StringVar(&flags.chainID, "chainid", "dev", "chainid")
-	fs.StringVar(&flags.rootDir, "root-dir", "testdir", "directory for config and data")
-	fs.StringVar(&flags.genesisRemote, "genesis-remote", "localhost:26657", "replacement for '%%REMOTE%%' in genesis")
+func main() {
+	cfg := &gnolandCfg{}
 
-	fs.StringVar(&flags.txIndexerType, "tx-indexer-type", null.IndexerType, fmt.Sprintf("type of transaction indexer [%s, %s]", null.IndexerType, file.IndexerType))
-	fs.StringVar(&flags.txIndexerPath, "tx-indexer-path", "", fmt.Sprintf("path for the file tx-indexer (required if indexer if '%s')", file.IndexerType))
+	cmd := commands.NewCommand(
+		commands.Metadata{
+			ShortUsage: "[flags] [<arg>...]",
+			LongHelp:   "Starts the gnoland blockchain node",
+		},
+		cfg,
+		func(_ context.Context, _ []string) error {
+			return exec(cfg)
+		},
+	)
 
-	fs.Parse(args)
+	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "%+v", err)
 
+		os.Exit(1)
+	}
+}
+
+func (c *gnolandCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.BoolVar(
+		&c.skipFailingGenesisTxs,
+		"skip-failing-genesis-txs",
+		false,
+		"don't panic when replaying invalid genesis txs",
+	)
+
+	fs.BoolVar(
+		&c.skipStart,
+		"skip-start",
+		false,
+		"quit after initialization, don't start the node",
+	)
+
+	fs.StringVar(
+		&c.genesisBalancesFile,
+		"genesis-balances-file",
+		"./gnoland/genesis/genesis_balances.txt",
+		"initial distribution file",
+	)
+
+	fs.StringVar(
+		&c.genesisTxsFile,
+		"genesis-txs-file",
+		"./gnoland/genesis/genesis_txs.txt",
+		"initial txs to replay",
+	)
+
+	fs.StringVar(
+		&c.chainID,
+		"chainid",
+		"dev",
+		"the ID of the chain",
+	)
+
+	fs.StringVar(
+		&c.rootDir,
+		"root-dir",
+		"testdir",
+		"directory for config and data",
+	)
+
+	fs.StringVar(
+		&c.genesisRemote,
+		"genesis-remote",
+		"localhost:26657",
+		"replacement for '%%REMOTE%%' in genesis",
+	)
+
+	fs.StringVar(
+		&c.txIndexerType,
+		"tx-indexer-type",
+		null.IndexerType,
+		fmt.Sprintf("type of transaction indexer [%s, %s]", null.IndexerType, file.IndexerType),
+	)
+
+	fs.StringVar(
+		&c.txIndexerPath,
+		"tx-indexer-path",
+		"",
+		fmt.Sprintf("path for the file tx-indexer (required if indexer if '%s')", file.IndexerType),
+	)
+}
+
+func exec(c *gnolandCfg) error {
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
-	rootDir := flags.rootDir
+	rootDir := c.rootDir
+
 	cfg := config.LoadOrMakeConfigWithOptions(rootDir, func(cfg *config.Config) {
 		cfg.Consensus.CreateEmptyBlocks = false
 		cfg.Consensus.CreateEmptyBlocksInterval = 60 * time.Second
@@ -80,12 +146,17 @@ func runMain(args []string) error {
 	// write genesis file if missing.
 	genesisFilePath := filepath.Join(rootDir, cfg.Genesis)
 	if !osm.FileExists(genesisFilePath) {
-		genDoc := makeGenesisDoc(priv.GetPubKey())
+		genDoc := makeGenesisDoc(
+			priv.GetPubKey(),
+			c.chainID,
+			c.genesisBalancesFile,
+			loadGenesisTxs(c.genesisTxsFile, c.chainID, c.genesisRemote),
+		)
 		writeGenesisFile(genDoc, genesisFilePath)
 	}
 
 	// Initialize the indexer config
-	indexerCfg, err := getIndexerConfig()
+	indexerCfg, err := getIndexerConfig(c)
 	if err != nil {
 		return fmt.Errorf("unable to parse indexer config, %w", err)
 	}
@@ -93,19 +164,23 @@ func runMain(args []string) error {
 	cfg.Indexer = indexerCfg
 
 	// create application and node.
-	gnoApp, err := gnoland.NewApp(rootDir, flags.skipFailingGenesisTxs, logger)
+	gnoApp, err := gnoland.NewApp(rootDir, c.skipFailingGenesisTxs, logger)
 	if err != nil {
 		return fmt.Errorf("error in creating new app: %w", err)
 	}
+
 	cfg.LocalApp = gnoApp
+
 	gnoNode, err := node.DefaultNewNode(cfg, logger)
 	if err != nil {
 		return fmt.Errorf("error in creating node: %w", err)
 	}
+
 	fmt.Fprintln(os.Stderr, "Node created.")
 
-	if flags.skipStart {
+	if c.skipStart {
 		fmt.Fprintln(os.Stderr, "'--skip-start' is set. Exiting.")
+
 		return nil
 	}
 
@@ -119,16 +194,17 @@ func runMain(args []string) error {
 			_ = gnoNode.Stop()
 		}
 	})
+
 	select {} // run forever
 }
 
 // getIndexerConfig constructs an indexer config from provided user options
-func getIndexerConfig() (*indexercfg.Config, error) {
+func getIndexerConfig(c *gnolandCfg) (*indexercfg.Config, error) {
 	var cfg *indexercfg.Config
 
-	switch flags.txIndexerType {
+	switch c.txIndexerType {
 	case file.IndexerType:
-		if flags.txIndexerPath == "" {
+		if c.txIndexerPath == "" {
 			return nil, errors.New("unspecified file transaction indexer path")
 		}
 
@@ -136,7 +212,7 @@ func getIndexerConfig() (*indexercfg.Config, error) {
 		cfg = &indexercfg.Config{
 			IndexerType: file.IndexerType,
 			Params: map[string]any{
-				file.Path: flags.txIndexerPath,
+				file.Path: c.txIndexerPath,
 			},
 		}
 	default:
@@ -147,10 +223,16 @@ func getIndexerConfig() (*indexercfg.Config, error) {
 }
 
 // Makes a local test genesis doc with local privValidator.
-func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
+func makeGenesisDoc(
+	pvPub crypto.PubKey,
+	chainID string,
+	genesisBalancesFile string,
+	genesisTxs []std.Tx,
+) *bft.GenesisDoc {
 	gen := &bft.GenesisDoc{}
+
 	gen.GenesisTime = time.Now()
-	gen.ChainID = flags.chainID
+	gen.ChainID = chainID
 	gen.ConsensusParams = abci.ConsensusParams{
 		Block: &abci.BlockParams{
 			// TODO: update limits.
@@ -170,7 +252,7 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 	}
 
 	// Load distribution.
-	balances := loadGenesisBalances(flags.genesisBalancesFile)
+	balances := loadGenesisBalances(genesisBalancesFile)
 	// debug: for _, balance := range balances { fmt.Println(balance) }
 
 	// Load initial packages from examples.
@@ -182,10 +264,12 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 		"p/demo/grc/exts",
 		"p/demo/grc/grc20",
 		"p/demo/grc/grc721",
+		"p/demo/grc/grc1155",
 		"p/demo/maths",
 		"p/demo/blog",
 		"r/demo/users",
 		"r/demo/foo20",
+		"r/demo/foo1155",
 		"r/demo/boards",
 		"r/demo/banktest",
 		"r/demo/types",
@@ -212,7 +296,6 @@ func makeGenesisDoc(pvPub crypto.PubKey) *bft.GenesisDoc {
 	}
 
 	// load genesis txs from file.
-	genesisTxs := loadGenesisTxs(flags.genesisTxsFile)
 	txs = append(txs, genesisTxs...)
 
 	// construct genesis AppState.
@@ -230,7 +313,11 @@ func writeGenesisFile(gen *bft.GenesisDoc, filePath string) {
 	}
 }
 
-func loadGenesisTxs(path string) []std.Tx {
+func loadGenesisTxs(
+	path string,
+	chainID string,
+	genesisRemote string,
+) []std.Tx {
 	txs := []std.Tx{}
 	txsBz := osm.MustReadFile(path)
 	txsLines := strings.Split(string(txsBz), "\n")
@@ -240,13 +327,14 @@ func loadGenesisTxs(path string) []std.Tx {
 		}
 
 		// patch the TX
-		txLine = strings.ReplaceAll(txLine, "%%CHAINID%%", flags.chainID)
-		txLine = strings.ReplaceAll(txLine, "%%REMOTE%%", flags.genesisRemote)
+		txLine = strings.ReplaceAll(txLine, "%%CHAINID%%", chainID)
+		txLine = strings.ReplaceAll(txLine, "%%REMOTE%%", genesisRemote)
 
 		var tx std.Tx
 		amino.MustUnmarshalJSON([]byte(txLine), &tx)
 		txs = append(txs, tx)
 	}
+
 	return txs
 }
 

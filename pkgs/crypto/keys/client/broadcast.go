@@ -1,35 +1,58 @@
 package client
 
 import (
+	"context"
+	"flag"
 	"os"
 
 	"github.com/gnolang/gno/pkgs/amino"
 	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
 	"github.com/gnolang/gno/pkgs/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/pkgs/bft/rpc/core/types"
-	"github.com/gnolang/gno/pkgs/command"
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/errors"
 	"github.com/gnolang/gno/pkgs/std"
 )
 
-type BroadcastOptions struct {
-	BaseOptions
+type broadcastCfg struct {
+	rootCfg *baseCfg
+
+	dryRun bool
 
 	// internal
-	Tx     *std.Tx `flag:"-"`
-	DryRun bool    `flag:"dry-run"`
+	tx *std.Tx
 }
 
-var DefaultBroadcastOptions = BroadcastOptions{
-	BaseOptions: DefaultBaseOptions,
+func newBroadcastCmd(rootCfg *baseCfg) *commands.Command {
+	cfg := &broadcastCfg{
+		rootCfg: rootCfg,
+	}
+
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "broadcast",
+			ShortUsage: "broadcast [flags] <file-name>",
+			ShortHelp:  "Broadcasts a signed document",
+		},
+		nil,
+		func(_ context.Context, args []string) error {
+			return execBroadcast(cfg, args, commands.NewDefaultIO())
+		},
+	)
 }
 
-func broadcastApp(cmd *command.Command, args []string, iopts interface{}) error {
-	opts := iopts.(BroadcastOptions)
+func (c *broadcastCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.BoolVar(
+		&c.dryRun,
+		"dry-run",
+		false,
+		"perform a dry-run broadcast",
+	)
+}
 
+func execBroadcast(cfg *broadcastCfg, args []string, io *commands.IO) error {
 	if len(args) != 1 {
-		cmd.ErrPrintfln("Usage: broadcast <filename>")
-		return errors.New("invalid args")
+		return flag.ErrHelp
 	}
 	filename := args[0]
 
@@ -42,9 +65,9 @@ func broadcastApp(cmd *command.Command, args []string, iopts interface{}) error 
 	if err != nil {
 		return errors.Wrap(err, "unmarshaling tx json bytes")
 	}
-	opts.Tx = &tx
+	cfg.tx = &tx
 
-	res, err := BroadcastHandler(opts)
+	res, err := broadcastHandler(cfg)
 	if err != nil {
 		return err
 	}
@@ -54,33 +77,33 @@ func broadcastApp(cmd *command.Command, args []string, iopts interface{}) error 
 	} else if res.DeliverTx.IsErr() {
 		return errors.New("transaction failed %#v\nlog %s", res, res.DeliverTx.Log)
 	} else {
-		cmd.Println(string(res.DeliverTx.Data))
-		cmd.Println("OK!")
-		cmd.Println("GAS WANTED:", res.DeliverTx.GasWanted)
-		cmd.Println("GAS USED:  ", res.DeliverTx.GasUsed)
+		io.Println(string(res.DeliverTx.Data))
+		io.Println("OK!")
+		io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
+		io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
 	}
 	return nil
 }
 
-func BroadcastHandler(opts BroadcastOptions) (*ctypes.ResultBroadcastTxCommit, error) {
-	if opts.Tx == nil {
+func broadcastHandler(cfg *broadcastCfg) (*ctypes.ResultBroadcastTxCommit, error) {
+	if cfg.tx == nil {
 		return nil, errors.New("invalid tx")
 	}
 
-	remote := opts.Remote
+	remote := cfg.rootCfg.Remote
 	if remote == "" || remote == "y" {
 		return nil, errors.New("missing remote url")
 	}
 
-	bz, err := amino.Marshal(opts.Tx)
+	bz, err := amino.Marshal(cfg.tx)
 	if err != nil {
 		return nil, errors.Wrap(err, "remarshaling tx binary bytes")
 	}
 
 	cli := client.NewHTTP(remote, "/websocket")
 
-	if opts.DryRun {
-		return SimulateTx(cli, bz)
+	if cfg.dryRun {
+		return simulateTx(cli, bz)
 	}
 
 	bres, err := cli.BroadcastTxCommit(bz)
@@ -91,7 +114,7 @@ func BroadcastHandler(opts BroadcastOptions) (*ctypes.ResultBroadcastTxCommit, e
 	return bres, nil
 }
 
-func SimulateTx(cli client.ABCIClient, tx []byte) (*ctypes.ResultBroadcastTxCommit, error) {
+func simulateTx(cli client.ABCIClient, tx []byte) (*ctypes.ResultBroadcastTxCommit, error) {
 	bres, err := cli.ABCIQuery(".app/simulate", tx)
 	if err != nil {
 		return nil, errors.Wrap(err, "simulate tx")

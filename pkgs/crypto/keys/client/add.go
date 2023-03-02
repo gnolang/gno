@@ -1,34 +1,121 @@
 package client
 
 import (
+	"context"
+	"errors"
+	"flag"
 	"fmt"
 	"sort"
 
-	"github.com/gnolang/gno/pkgs/command"
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/crypto"
 	"github.com/gnolang/gno/pkgs/crypto/bip39"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
 	"github.com/gnolang/gno/pkgs/crypto/multisig"
-	"github.com/gnolang/gno/pkgs/errors"
 )
 
-type AddOptions struct {
-	BaseOptions
-	Multisig          []string `flag:"multisig" help:"Construct and store a multisig public key (implies --pubkey)"`
-	MultisigThreshold int      `flag:"threshold" help:"K out of N required signatures. For use in conjunction with --multisig"`
-	NoSort            bool     `flag:"nosort" help:"Keys passed to --multisig are taken in the order they're supplied"`
-	PublicKey         string   `flag:"pubkey" help:"Parse a public key in bech32 format and save it to disk"`
-	UseLedger         bool     `flag:"ledger" help:"Store a local reference to a private key on a Ledger device"`
-	Recover           bool     `flag:"recover" help:"Provide seed phrase to recover existing key instead of creating"`
-	NoBackup          bool     `flag:"nobackup" help:"Don't print out seed phrase (if others are watching the terminal)"`
-	DryRun            bool     `flag:"dryrun" help:"Perform action, but don't add key to local keystore"`
-	Account           uint32   `flag:"account" help:"Account number for HD derivation"`
-	Index             uint32   `flag:"index" description:"Address index number for HD derivation"`
+type addCfg struct {
+	rootCfg *baseCfg
+
+	multisig          commands.StringArr
+	multisigThreshold int
+	noSort            bool
+	publicKey         string
+	useLedger         bool
+	recover           bool
+	noBackup          bool
+	dryRun            bool
+	account           uint64
+	index             uint64
 }
 
-var DefaultAddOptions = AddOptions{
-	BaseOptions:       DefaultBaseOptions,
-	MultisigThreshold: 1,
+func newAddCmd(rootCfg *baseCfg) *commands.Command {
+	cfg := &addCfg{
+		rootCfg: rootCfg,
+	}
+
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "add",
+			ShortUsage: "add [flags] <key-name>",
+			ShortHelp:  "Adds key to the keybase",
+		},
+		cfg,
+		func(_ context.Context, args []string) error {
+			return execAdd(cfg, args, commands.NewDefaultIO())
+		},
+	)
+}
+
+func (c *addCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.Var(
+		&c.multisig,
+		"multisig",
+		"Construct and store a multisig public key (implies --pubkey)",
+	)
+
+	fs.IntVar(
+		&c.multisigThreshold,
+		"threshold",
+		1,
+		"K out of N required signatures. For use in conjunction with --multisig",
+	)
+
+	fs.BoolVar(
+		&c.noSort,
+		"nosort",
+		false,
+		"Keys passed to --multisig are taken in the order they're supplied",
+	)
+
+	fs.StringVar(
+		&c.publicKey,
+		"pubkey",
+		"",
+		"Parse a public key in bech32 format and save it to disk",
+	)
+
+	fs.BoolVar(
+		&c.useLedger,
+		"ledger",
+		false,
+		"Store a local reference to a private key on a Ledger device",
+	)
+
+	fs.BoolVar(
+		&c.recover,
+		"recover",
+		false,
+		"Provide seed phrase to recover existing key instead of creating",
+	)
+
+	fs.BoolVar(
+		&c.noBackup,
+		"nobackup",
+		false,
+		"Don't print out seed phrase (if others are watching the terminal)",
+	)
+
+	fs.BoolVar(
+		&c.dryRun,
+		"dryrun",
+		false,
+		"Perform action, but don't add key to local keystore",
+	)
+
+	fs.Uint64Var(
+		&c.account,
+		"account",
+		0,
+		"Account number for HD derivation",
+	)
+
+	fs.Uint64Var(
+		&c.index,
+		"index",
+		0,
+		"Address index number for HD derivation",
+	)
 }
 
 // DryRunKeyPass contains the default key password for genesis transactions
@@ -44,27 +131,27 @@ input
 output
   - armor encrypted private key (saved to file)
 */
-func addApp(cmd *command.Command, args []string, iopts interface{}) error {
-	var kb keys.Keybase
-	var err error
-	var encryptPassword string
-	opts := iopts.(AddOptions)
+func execAdd(cfg *addCfg, args []string, io *commands.IO) error {
+	var (
+		kb              keys.Keybase
+		err             error
+		encryptPassword string
+	)
 
 	if len(args) != 1 {
-		cmd.ErrPrintfln("Usage: add <keyname>")
-		return errors.New("invalid args")
+		return flag.ErrHelp
 	}
 
 	name := args[0]
-	showMnemonic := !opts.NoBackup
+	showMnemonic := !cfg.noBackup
 
-	if opts.DryRun {
+	if cfg.dryRun {
 		// we throw this away, so don't enforce args,
 		// we want to get a new random seed phrase quickly
 		kb = keys.NewInMemory()
 		encryptPassword = DryRunKeyPass
 	} else {
-		kb, err = keys.NewKeyBaseFromDir(opts.Home)
+		kb, err = keys.NewKeyBaseFromDir(cfg.rootCfg.Home)
 		if err != nil {
 			return err
 		}
@@ -72,7 +159,7 @@ func addApp(cmd *command.Command, args []string, iopts interface{}) error {
 		_, err = kb.GetByName(name)
 		if err == nil {
 			// account exists, ask for user confirmation
-			response, err2 := cmd.GetConfirmation(fmt.Sprintf("Override the existing name %s", name))
+			response, err2 := io.GetConfirmation(fmt.Sprintf("Override the existing name %s", name))
 			if err2 != nil {
 				return err2
 			}
@@ -81,11 +168,11 @@ func addApp(cmd *command.Command, args []string, iopts interface{}) error {
 			}
 		}
 
-		multisigKeys := opts.Multisig
+		multisigKeys := cfg.multisig
 		if len(multisigKeys) != 0 {
 			var pks []crypto.PubKey
 
-			multisigThreshold := opts.MultisigThreshold
+			multisigThreshold := cfg.multisigThreshold
 			if err := keys.ValidateMultisigThreshold(multisigThreshold, len(multisigKeys)); err != nil {
 				return err
 			}
@@ -99,7 +186,7 @@ func addApp(cmd *command.Command, args []string, iopts interface{}) error {
 			}
 
 			// Handle --nosort
-			if !opts.NoSort {
+			if !cfg.noSort {
 				sort.Slice(pks, func(i, j int) bool {
 					return pks[i].Address().Compare(pks[j].Address()) < 0
 				})
@@ -110,23 +197,27 @@ func addApp(cmd *command.Command, args []string, iopts interface{}) error {
 				return err
 			}
 
-			cmd.Printfln("Key %q saved to disk.\n", name)
+			io.Printfln("Key %q saved to disk.\n", name)
 			return nil
 		}
 
 		// ask for a password when generating a local key
-		if opts.PublicKey == "" && !opts.UseLedger {
-			encryptPassword, err = cmd.GetCheckPassword(
-				"Enter a passphrase to encrypt your key to disk:",
-				"Repeat the passphrase:")
+		if cfg.publicKey == "" && !cfg.useLedger {
+			encryptPassword, err = io.GetCheckPassword(
+				[2]string{
+					"Enter a passphrase to encrypt your key to disk:",
+					"Repeat the passphrase:",
+				},
+				cfg.rootCfg.InsecurePasswordStdin,
+			)
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	if opts.PublicKey != "" {
-		pk, err := crypto.PubKeyFromBech32(opts.PublicKey)
+	if cfg.publicKey != "" {
+		pk, err := crypto.PubKeyFromBech32(cfg.publicKey)
 		if err != nil {
 			return err
 		}
@@ -137,27 +228,27 @@ func addApp(cmd *command.Command, args []string, iopts interface{}) error {
 		return nil
 	}
 
-	account := opts.Account
-	index := opts.Index
+	account := cfg.account
+	index := cfg.index
 
 	// If we're using ledger, only thing we need is the path and the bech32 prefix.
-	if opts.UseLedger {
+	if cfg.useLedger {
 		bech32PrefixAddr := crypto.Bech32AddrPrefix
-		info, err := kb.CreateLedger(name, keys.Secp256k1, bech32PrefixAddr, account, index)
+		info, err := kb.CreateLedger(name, keys.Secp256k1, bech32PrefixAddr, uint32(account), uint32(index))
 		if err != nil {
 			return err
 		}
 
-		return printCreate(cmd, info, false, "")
+		return printCreate(info, false, "", io)
 	}
 
 	// Get bip39 mnemonic
 	var mnemonic string
 	const bip39Passphrase string = "" // XXX research.
 
-	if opts.Recover {
+	if cfg.recover {
 		bip39Message := "Enter your bip39 mnemonic"
-		mnemonic, err = cmd.GetString(bip39Message)
+		mnemonic, err = io.GetString(bip39Message)
 		if err != nil {
 			return err
 		}
@@ -174,31 +265,30 @@ func addApp(cmd *command.Command, args []string, iopts interface{}) error {
 		}
 	}
 
-	info, err := kb.CreateAccount(name, mnemonic, bip39Passphrase, encryptPassword, account, index)
+	info, err := kb.CreateAccount(name, mnemonic, bip39Passphrase, encryptPassword, uint32(account), uint32(index))
 	if err != nil {
 		return err
 	}
 
 	// Recover key from seed passphrase
-	if opts.Recover {
+	if cfg.recover {
 		// Hide mnemonic from output
 		showMnemonic = false
 		mnemonic = ""
 	}
 
-	return printCreate(cmd, info, showMnemonic, mnemonic)
+	return printCreate(info, showMnemonic, mnemonic, io)
 }
 
-func printCreate(cmd *command.Command, info keys.Info, showMnemonic bool, mnemonic string) error {
-	cmd.Println("")
-	printNewInfo(cmd, info)
+func printCreate(info keys.Info, showMnemonic bool, mnemonic string, io *commands.IO) error {
+	io.Println("")
+	printNewInfo(info, io)
 
 	// print mnemonic unless requested not to.
 	if showMnemonic {
-		cmd.Printfln(`
+		io.Printfln(`
 **IMPORTANT** write this mnemonic phrase in a safe place.
 It is the only way to recover your account if you ever forget your password.
-
 %v
 `, mnemonic)
 	}
@@ -206,12 +296,13 @@ It is the only way to recover your account if you ever forget your password.
 	return nil
 }
 
-func printNewInfo(cmd *command.Command, info keys.Info) {
+func printNewInfo(info keys.Info, io *commands.IO) {
 	keyname := info.GetName()
 	keytype := info.GetType()
 	keypub := info.GetPubKey()
 	keyaddr := info.GetAddress()
 	keypath, _ := info.GetPath()
-	cmd.Printfln("* %s (%s) - addr: %v pub: %v, path: %v",
+
+	io.Printfln("* %s (%s) - addr: %v pub: %v, path: %v",
 		keyname, keytype, keyaddr, keypub, keypath)
 }
