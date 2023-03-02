@@ -19,7 +19,7 @@ const (
 	ValidatorKeyPrefix    string = "/val/"
 )
 
-//-----------------------------------------
+// -----------------------------------------
 
 var _ abci.Application = (*PersistentKVStoreApplication)(nil)
 
@@ -142,7 +142,7 @@ func (app *PersistentKVStoreApplication) EndBlock(req abci.RequestEndBlock) abci
 	return abci.ResponseEndBlock{ValidatorUpdates: app.ValSetChanges}
 }
 
-//---------------------------------------------
+// ---------------------------------------------
 // update validators
 
 func (app *PersistentKVStoreApplication) Validators() (validators []abci.ValidatorUpdate) {
@@ -215,7 +215,7 @@ func (app *PersistentKVStoreApplication) updateValidator(val abci.ValidatorUpdat
 	if val.Power == 0 {
 		// remove validator
 		if !app.app.state.db.Has(makeValidatorKey(val)) {
-			res.Error = errors.Unauthorized{}
+			res.Error = errors.UnauthorizedError{}
 			res.Log = fmt.Sprintf("Cannot remove non-existent validator %s", val.PubKey.String())
 			return res
 		}

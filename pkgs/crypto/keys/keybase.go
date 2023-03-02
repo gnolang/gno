@@ -320,6 +320,21 @@ func (kb dbKeybase) ExportPrivKey(
 	return armor.EncryptArmorPrivKey(priv, encryptPassphrase), nil
 }
 
+// ExportPrivKeyUnsafe returns a private key in ASCII armored format.
+// The returned armor is unencrypted.
+// It returns an error if the key does not exist
+func (kb dbKeybase) ExportPrivKeyUnsafe(
+	name,
+	decryptPassphrase string,
+) (string, error) {
+	priv, err := kb.ExportPrivateKeyObject(name, decryptPassphrase)
+	if err != nil {
+		return "", err
+	}
+
+	return armor.ArmorPrivateKey(priv), nil
+}
+
 // ImportPrivKey imports a private key in ASCII armor format.
 // It returns an error if a key with the same name exists or a wrong encryption passphrase is
 // supplied.
@@ -333,6 +348,24 @@ func (kb dbKeybase) ImportPrivKey(
 		return errors.New("Cannot overwrite key " + name)
 	}
 	privKey, err := armor.UnarmorDecryptPrivKey(astr, decryptPassphrase)
+	if err != nil {
+		return errors.Wrap(err, "couldn't import private key")
+	}
+
+	kb.writeLocalKey(name, privKey, encryptPassphrase)
+	return nil
+}
+
+func (kb dbKeybase) ImportPrivKeyUnsafe(
+	name,
+	armorStr,
+	encryptPassphrase string,
+) error {
+	if _, err := kb.GetByNameOrAddress(name); err == nil {
+		return fmt.Errorf("cannot overwrite key %s", name)
+	}
+
+	privKey, err := armor.UnarmorPrivateKey(armorStr)
 	if err != nil {
 		return errors.Wrap(err, "couldn't import private key")
 	}

@@ -495,9 +495,9 @@ func TestAmountOf(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		assert.Equal(t, int64(tc.amountOfGAS), tc.coins.AmountOf("gas"))
-		assert.Equal(t, int64(tc.amountOfMINERAL), tc.coins.AmountOf("mineral"))
-		assert.Equal(t, int64(tc.amountOfTREE), tc.coins.AmountOf("tree"))
+		assert.Equal(t, tc.amountOfGAS, tc.coins.AmountOf("gas"))
+		assert.Equal(t, tc.amountOfMINERAL, tc.coins.AmountOf("mineral"))
+		assert.Equal(t, tc.amountOfTREE, tc.coins.AmountOf("tree"))
 	}
 
 	assert.Panics(t, func() { cases[0].coins.AmountOf("Invalid") })

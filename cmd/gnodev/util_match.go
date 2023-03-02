@@ -49,7 +49,7 @@ func (m simpleMatch) verify(name string, matchString func(pat, str string) (bool
 	// Verify filters before doing any processing.
 	for i, s := range m {
 		if _, err := matchString(s, "non-empty"); err != nil {
-			return fmt.Errorf("element %d of %s (%q): %s", i, name, s, err)
+			return fmt.Errorf("element %d of %s (%q): %w", i, name, s, err)
 		}
 	}
 	return nil
@@ -67,7 +67,7 @@ func (m alternationMatch) matches(name []string, matchString func(pat, str strin
 func (m alternationMatch) verify(name string, matchString func(pat, str string) (bool, error)) error {
 	for i, m := range m {
 		if err := m.verify(name, matchString); err != nil {
-			return fmt.Errorf("alternation %d of %s", i, err)
+			return fmt.Errorf("alternation %d of %w", i, err)
 		}
 	}
 	return nil

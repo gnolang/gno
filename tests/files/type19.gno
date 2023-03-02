@@ -9,7 +9,8 @@ var table = map[int]*T{
 	0: {
 		name: "foo",
 		size: 2,
-	}}
+	},
+}
 
 var s = table[0].size
 

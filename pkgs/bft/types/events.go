@@ -10,12 +10,12 @@ type TMEvent interface {
 	events.Event
 }
 
-func (_ EventNewBlock) AssertEvent()            {}
-func (_ EventNewBlockHeader) AssertEvent()      {}
-func (_ EventTx) AssertEvent()                  {}
-func (_ EventVote) AssertEvent()                {}
-func (_ EventString) AssertEvent()              {}
-func (_ EventValidatorSetUpdates) AssertEvent() {}
+func (EventNewBlock) AssertEvent()            {}
+func (EventNewBlockHeader) AssertEvent()      {}
+func (EventTx) AssertEvent()                  {}
+func (EventVote) AssertEvent()                {}
+func (EventString) AssertEvent()              {}
+func (EventValidatorSetUpdates) AssertEvent() {}
 
 // Most event messages are basic types (a block, a transaction)
 // but some (an input to a call tx or a receive) are more exotic

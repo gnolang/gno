@@ -43,10 +43,12 @@ type Keybase interface {
 	Update(name, oldpass string, getNewpass func() (string, error)) error
 	Import(name string, armor string) (err error)
 	ImportPrivKey(name, armor, decryptPassphrase, encryptPassphrase string) error
+	ImportPrivKeyUnsafe(name, armor, encryptPassphrase string) error
 	ImportPubKey(name string, armor string) (err error)
 	Export(name string) (armor string, err error)
 	ExportPubKey(name string) (armor string, err error)
 	ExportPrivKey(name, decryptPassphrase, encryptPassphrase string) (armor string, err error)
+	ExportPrivKeyUnsafe(name, decryptPassphrase string) (armor string, err error)
 
 	// ExportPrivateKeyObject *only* works on locally-stored keys. Temporary method until we redo the exporting API
 	ExportPrivateKeyObject(name string, passphrase string) (crypto.PrivKey, error)

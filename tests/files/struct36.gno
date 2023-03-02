@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/gnolang/gno/_test/net/http"
 	"strings"
+
+	"github.com/gnolang/gno/_test/net/http"
 )
 
 type S struct {

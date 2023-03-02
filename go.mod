@@ -1,6 +1,6 @@
 module github.com/gnolang/gno
 
-go 1.18
+go 1.19
 
 require (
 	github.com/btcsuite/btcd v0.22.0-beta.0.20220111032746-97732e52810c
@@ -14,7 +14,7 @@ require (
 	github.com/gnolang/cors v1.8.1
 	github.com/gnolang/overflow v0.0.0-20170615021017-4d914c927216
 	github.com/golang/protobuf v1.5.0
-	github.com/google/gofuzz v1.0.0
+	github.com/google/gofuzz v1.2.0
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/gotuna/gotuna v0.6.0
@@ -24,7 +24,8 @@ require (
 	github.com/linxGnu/grocksdb v1.7.2
 	github.com/mattn/go-runewidth v0.0.14
 	github.com/pelletier/go-toml v1.9.5
-	github.com/stretchr/testify v1.7.1
+	github.com/peterbourgon/ff/v3 v3.3.0
+	github.com/stretchr/testify v1.8.1
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c
 	go.etcd.io/bbolt v1.3.6
@@ -65,7 +66,7 @@ require (
 	golang.org/x/sys v0.4.0 // indirect
 	golang.org/x/text v0.6.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
-	gopkg.in/yaml.v3 v3.0.0-20220512140231-539c8e751b99 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 replace github.com/gdamore/tcell/v2 => github.com/gnolang/tcell/v2 v2.1.0

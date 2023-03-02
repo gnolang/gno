@@ -1,104 +1,157 @@
 package client
 
 import (
+	"context"
+	"errors"
+	"flag"
 	"fmt"
 	"os"
 
 	"github.com/gnolang/gno/pkgs/amino"
-	"github.com/gnolang/gno/pkgs/command"
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
-	"github.com/gnolang/gno/pkgs/errors"
 	"github.com/gnolang/gno/pkgs/std"
 )
 
-type SignOptions struct {
-	BaseOptions           // home,...
-	TxPath        string  `flag:"txpath" help:"path to file of tx to sign"`
-	ChainID       string  `flag:"chainid" help:"chainid to sign for"`
-	AccountNumber *uint64 `flag:"number" help:"account number to sign with (required)"`
-	Sequence      *uint64 `flag:"sequence" help:"sequence to sign with (required)"`
-	ShowSignBytes bool    `flag:"show-signbytes" help:"show sign bytes and quit"`
+type signCfg struct {
+	rootCfg *baseCfg
+
+	txPath        string
+	chainID       string
+	accountNumber uint64
+	sequence      uint64
+	showSignBytes bool
 
 	// internal flags, when called programmatically
-	NameOrBech32 string `flag:"-"`
-	TxJson       []byte `flag:"-"`
-	Pass         string `flag:"-"`
+	nameOrBech32 string
+	txJSON       []byte
+	pass         string
 }
 
-var DefaultSignOptions = SignOptions{
-	BaseOptions: DefaultBaseOptions,
-	TxPath:      "-", // read from stdin.
-	ChainID:     "dev",
+func newSignCmd(rootCfg *baseCfg) *commands.Command {
+	cfg := &signCfg{
+		rootCfg: rootCfg,
+	}
+
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "sign",
+			ShortUsage: "sign [flags] <key-name or address>",
+			ShortHelp:  "Signs the document",
+		},
+		cfg,
+		func(_ context.Context, args []string) error {
+			return execSign(cfg, args, commands.NewDefaultIO())
+		},
+	)
 }
 
-func signApp(cmd *command.Command, args []string, iopts interface{}) error {
-	var opts SignOptions = iopts.(SignOptions)
+func (c *signCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.StringVar(
+		&c.txPath,
+		"txpath",
+		"-",
+		"path to file of tx to sign",
+	)
+
+	fs.StringVar(
+		&c.chainID,
+		"chainid",
+		"dev",
+		"chainid to sign for",
+	)
+
+	fs.Uint64Var(
+		&c.accountNumber,
+		"number",
+		0,
+		"account number to sign with (required)",
+	)
+
+	fs.Uint64Var(
+		&c.sequence,
+		"sequence",
+		0,
+		"sequence to sign with (required)",
+	)
+
+	fs.BoolVar(
+		&c.showSignBytes,
+		"show-signbytes",
+		false,
+		"show sign bytes and quit",
+	)
+}
+
+func execSign(cfg *signCfg, args []string, io *commands.IO) error {
 	var err error
 
 	if len(args) != 1 {
-		cmd.ErrPrintfln("Usage: sign <keyname or address>")
-		return errors.New("invalid args")
+		return flag.ErrHelp
 	}
-	opts.NameOrBech32 = args[0]
+
+	cfg.nameOrBech32 = args[0]
 
 	// read tx to sign
-	txpath := opts.TxPath
+	txpath := cfg.txPath
 	if txpath == "-" { // from stdin.
-		txjsonstr, err := cmd.GetString("Enter tx to sign, terminated by a newline.")
+		txjsonstr, err := io.GetString(
+			"Enter tx to sign, terminated by a newline.",
+		)
 		if err != nil {
 			return err
 		}
-		opts.TxJson = []byte(txjsonstr)
+		cfg.txJSON = []byte(txjsonstr)
 	} else { // from file
-		opts.TxJson, err = os.ReadFile(txpath)
+		cfg.txJSON, err = os.ReadFile(txpath)
 		if err != nil {
 			return err
 		}
 	}
 
-	if opts.Quiet {
-		opts.Pass, err = cmd.GetPassword("", opts.InsecurePasswordStdin)
+	if cfg.rootCfg.Quiet {
+		cfg.pass, err = io.GetPassword(
+			"",
+			cfg.rootCfg.InsecurePasswordStdin,
+		)
 	} else {
-		opts.Pass, err = cmd.GetPassword("Enter password.", opts.InsecurePasswordStdin)
+		cfg.pass, err = io.GetPassword(
+			"Enter password.",
+			cfg.rootCfg.InsecurePasswordStdin,
+		)
 	}
 	if err != nil {
 		return err
 	}
 
-	signedTx, err := SignHandler(opts)
+	signedTx, err := SignHandler(cfg)
 	if err != nil {
 		return err
 	}
 
-	signedJson, err := amino.MarshalJSON(signedTx)
+	signedJSON, err := amino.MarshalJSON(signedTx)
 	if err != nil {
 		return err
 	}
-	cmd.Println(string(signedJson))
+	io.Println(string(signedJSON))
 
 	return nil
 }
 
-func SignHandler(opts SignOptions) (*std.Tx, error) {
+func SignHandler(cfg *signCfg) (*std.Tx, error) {
 	var err error
 	var tx std.Tx
 
-	if opts.AccountNumber == nil {
-		return nil, errors.New("invalid account number")
-	}
-	if opts.Sequence == nil {
-		return nil, errors.New("invalid sequence")
-	}
-	if opts.TxJson == nil {
+	if cfg.txJSON == nil {
 		return nil, errors.New("invalid tx content")
 	}
 
-	kb, err := keys.NewKeyBaseFromDir(opts.Home)
+	kb, err := keys.NewKeyBaseFromDir(cfg.rootCfg.Home)
 	if err != nil {
 		return nil, err
 	}
 
-	err = amino.UnmarshalJSON(opts.TxJson, &tx)
+	err = amino.UnmarshalJSON(cfg.txJSON, &tx)
 	if err != nil {
 		return nil, err
 	}
@@ -121,16 +174,16 @@ func SignHandler(opts SignOptions) (*std.Tx, error) {
 	}
 
 	// derive sign doc bytes.
-	chainID := opts.ChainID
-	accountNumber := *opts.AccountNumber
-	sequence := *opts.Sequence
+	chainID := cfg.chainID
+	accountNumber := cfg.accountNumber
+	sequence := cfg.sequence
 	signbz := tx.GetSignBytes(chainID, accountNumber, sequence)
-	if opts.ShowSignBytes {
+	if cfg.showSignBytes {
 		fmt.Printf("sign bytes: %X\n", signbz)
 		return nil, nil
 	}
 
-	sig, pub, err := kb.Sign(opts.NameOrBech32, opts.Pass, signbz)
+	sig, pub, err := kb.Sign(cfg.nameOrBech32, cfg.pass, signbz)
 	if err != nil {
 		return nil, err
 	}
@@ -147,8 +200,9 @@ func SignHandler(opts SignOptions) (*std.Tx, error) {
 		}
 	}
 	if !found {
-		return nil, errors.New("addr %v (%s) not in signer set",
-			addr, opts.NameOrBech32)
+		return nil, errors.New(
+			fmt.Sprintf("addr %v (%s) not in signer set", addr, cfg.nameOrBech32),
+		)
 	}
 
 	return &tx, nil

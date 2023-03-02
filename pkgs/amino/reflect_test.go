@@ -60,6 +60,8 @@ func TestDeepCopyDef(t *testing.T) {
 }
 
 func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
+	t.Helper()
+
 	err := error(nil)
 	bz := []byte{}
 	cdc := amino.NewCodec()
@@ -117,7 +119,6 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 			spw(ptr), spw(ptr2), bz, bz)
 
 		if codecType == "binary" {
-
 			// Get pbo from rv. (go -> p3go)
 			pbm, ok := rv.Interface().(amino.PBMessager)
 			if !ok {
@@ -160,6 +161,8 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 }
 
 func _testDeepCopy(t *testing.T, rt reflect.Type) {
+	t.Helper()
+
 	err := error(nil)
 	f := fuzz.New()
 	rv := reflect.New(rt)
@@ -278,11 +281,11 @@ func TestCodecRoundtripNonNilRegisteredTypeDef(t *testing.T) {
 
 	// try wrapping it in an Any struct
 	// without changing the existing behavior.
-	type any struct {
+	type anyType struct {
 		TypeURL string
 		Value   []byte
 	}
-	anyc3 := any{
+	anyc3 := anyType{
 		TypeURL: "/tests.ConcreteTypeDef",
 		Value:   []byte{0x0a, 0x04, 0x30, 0x31, 0x32, 0x33}, // An implicit struct, the first field which is the length-prefixed 4 bytes.
 	}

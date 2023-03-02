@@ -12,14 +12,14 @@ import (
 	"github.com/gnolang/gno/stdlibs"
 )
 
-func (vmk *VMKeeper) initBuiltinPackagesAndTypes(store gno.Store) {
+func (vm *VMKeeper) initBuiltinPackagesAndTypes(store gno.Store) {
 	// NOTE: native functions/methods added here must be quick operations,
 	// or account for gas before operation.
 	// TODO: define criteria for inclusion, and solve gas calculations.
 	getPackage := func(pkgPath string) (pn *gno.PackageNode, pv *gno.PackageValue) {
 		// otherwise, built-in package value.
 		// first, load from filepath.
-		stdlibPath := filepath.Join(vmk.stdlibsDir, pkgPath)
+		stdlibPath := filepath.Join(vm.stdlibsDir, pkgPath)
 		if !osm.DirExists(stdlibPath) {
 			// does not exist.
 			return nil, nil
@@ -34,11 +34,11 @@ func (vmk *VMKeeper) initBuiltinPackagesAndTypes(store gno.Store) {
 		return m2.RunMemPackage(memPkg, true)
 	}
 	store.SetPackageGetter(getPackage)
-	store.SetPackageInjector(vmk.packageInjector)
+	store.SetPackageInjector(vm.packageInjector)
 	stdlibs.InjectNativeMappings(store)
 }
 
-func (vmk *VMKeeper) packageInjector(store gno.Store, pn *gno.PackageNode) {
+func (vm *VMKeeper) packageInjector(store gno.Store, pn *gno.PackageNode) {
 	// Also inject stdlibs native functions.
 	stdlibs.InjectPackage(store, pn)
 	// vm (this package) specific injections:
@@ -75,7 +75,7 @@ func (vmk *VMKeeper) packageInjector(store gno.Store, pn *gno.PackageNode) {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // SDKBanker
 
 type SDKBanker struct {

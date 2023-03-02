@@ -9,8 +9,10 @@ type T1 struct {
 	T
 }
 
-var x = &T1{}
-var t = &T{}
+var (
+	x = &T1{}
+	t = &T{}
+)
 
 type xxx struct{}
 

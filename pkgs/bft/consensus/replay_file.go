@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"bufio"
+	goerrors "errors"
 	"fmt"
 	"io"
 	"os"
@@ -28,7 +29,7 @@ const (
 	subscriber = "replay-file"
 )
 
-//--------------------------------------------------------
+// --------------------------------------------------------
 // replay messages interactively or all at once
 
 // replay the wal file
@@ -63,7 +64,7 @@ func (cs *ConsensusState) ReplayFile(file string, console bool) error {
 	}
 
 	pb := newPlayback(file, fp, cs, cs.state.Copy())
-	defer pb.fp.Close() // nolint: errcheck
+	defer pb.fp.Close() //nolint: errcheck
 
 	var nextN int // apply N msgs in a row
 	var msg *walm.TimedWALMessage
@@ -74,7 +75,7 @@ func (cs *ConsensusState) ReplayFile(file string, console bool) error {
 		}
 
 		msg, meta, err = pb.dec.ReadMessage()
-		if err == io.EOF {
+		if goerrors.Is(err, io.EOF) {
 			return nil
 		} else if err != nil {
 			return err
@@ -91,7 +92,7 @@ func (cs *ConsensusState) ReplayFile(file string, console bool) error {
 	}
 }
 
-//------------------------------------------------
+// ------------------------------------------------
 // playback manager
 
 type playback struct {
@@ -143,7 +144,7 @@ func (pb *playback) replayReset(count int, newStepSub <-chan events.Event) error
 	var meta *walm.MetaMessage
 	for i := 0; i < count; i++ {
 		msg, meta, err = pb.dec.ReadMessage()
-		if err == io.EOF {
+		if goerrors.Is(err, io.EOF) {
 			return nil
 		} else if err != nil {
 			return err
@@ -265,7 +266,7 @@ func (pb *playback) replayConsoleLoop() int {
 	}
 }
 
-//--------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------
 
 // convenience for replay mode
 func newConsensusStateForReplay(config cfg.BaseConfig, csConfig *cnscfg.ConsensusConfig) *ConsensusState {

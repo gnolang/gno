@@ -13,6 +13,8 @@ import (
 )
 
 func createTestGroupWithHeadSizeLimit(t *testing.T, headSizeLimit int64) *Group {
+	t.Helper()
+
 	testID := random.RandStr(12)
 	testDir := "_test_" + testID
 	err := osm.EnsureDir(testDir, 0o700)
@@ -27,6 +29,8 @@ func createTestGroupWithHeadSizeLimit(t *testing.T, headSizeLimit int64) *Group 
 }
 
 func destroyTestGroup(t *testing.T, g *Group) {
+	t.Helper()
+
 	g.Close()
 
 	err := os.RemoveAll(g.Dir)
@@ -34,6 +38,8 @@ func destroyTestGroup(t *testing.T, g *Group) {
 }
 
 func assertGroupInfo(t *testing.T, gInfo GroupInfo, minIndex, maxIndex int, totalSize, headSize int64) {
+	t.Helper()
+
 	assert.Equal(t, minIndex, gInfo.MinIndex)
 	assert.Equal(t, maxIndex, gInfo.MaxIndex)
 	assert.Equal(t, totalSize, gInfo.TotalSize)

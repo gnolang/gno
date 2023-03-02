@@ -2,9 +2,9 @@ package gnoblog
 
 import (
 	"std"
+	"strings"
 
 	"gno.land/p/demo/avl"
-	"strings"
 )
 
 var (

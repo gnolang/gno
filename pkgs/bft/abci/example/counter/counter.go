@@ -60,7 +60,7 @@ func (app *CounterApplication) DeliverTx(req abci.RequestDeliverTx) abci.Respons
 		if txValue != uint64(app.txCount) {
 			return abci.ResponseDeliverTx{
 				ResponseBase: abci.ResponseBase{
-					Error: errors.BadNonce{},
+					Error: errors.BadNonceError{},
 					Log:   fmt.Sprintf("Invalid nonce. Expected %v, got %v", app.txCount, txValue),
 				},
 			}
@@ -86,7 +86,7 @@ func (app *CounterApplication) CheckTx(req abci.RequestCheckTx) abci.ResponseChe
 		if txValue < uint64(app.txCount) {
 			return abci.ResponseCheckTx{
 				ResponseBase: abci.ResponseBase{
-					Error: errors.BadNonce{},
+					Error: errors.BadNonceError{},
 					Log:   fmt.Sprintf("Invalid nonce. Expected >= %v, got %v", app.txCount, txValue),
 				},
 			}

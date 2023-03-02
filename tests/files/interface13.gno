@@ -9,6 +9,7 @@ type X struct{}
 func (X) Foo() int {
 	return 1
 }
+
 func (X) Bar() int {
 	return 2
 }

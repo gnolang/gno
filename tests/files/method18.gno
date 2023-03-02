@@ -3,6 +3,7 @@ package main
 import (
 	"compress/gzip"
 	"fmt"
+
 	"github.com/gnolang/gno/_test/net/http"
 )
 

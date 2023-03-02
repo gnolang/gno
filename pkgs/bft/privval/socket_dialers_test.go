@@ -2,6 +2,7 @@ package privval
 
 import (
 	"fmt"
+	"net"
 	"testing"
 	"time"
 
@@ -13,26 +14,34 @@ import (
 )
 
 func getDialerTestCases(t *testing.T) []dialerTestCase {
-	tcpAddr := GetFreeLocalhostAddrPort()
+	t.Helper()
+
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		panic(fmt.Errorf("no open ports? error listening to 127.0.0.1:0: %w", err))
+	}
 	unixFilePath, err := testUnixAddr()
 	require.NoError(t, err)
-	unixAddr := fmt.Sprintf("unix://%s", unixFilePath)
+	ul, err := net.Listen("unix", unixFilePath)
+	if err != nil {
+		panic(err)
+	}
 
 	return []dialerTestCase{
 		{
-			addr:   tcpAddr,
-			dialer: DialTCPFn(tcpAddr, testTimeoutReadWrite, ed25519.GenPrivKey()),
+			listener: l,
+			dialer:   DialTCPFn(l.Addr().String(), testTimeoutReadWrite, ed25519.GenPrivKey()),
 		},
 		{
-			addr:   unixAddr,
-			dialer: DialUnixFn(unixFilePath),
+			listener: ul,
+			dialer:   DialUnixFn(unixFilePath),
 		},
 	}
 }
 
 func TestIsConnTimeoutForFundamentalTimeouts(t *testing.T) {
 	// Generate a networking timeout
-	tcpAddr := GetFreeLocalhostAddrPort()
+	tcpAddr := "127.0.0.1:34985"
 	dialer := DialTCPFn(tcpAddr, time.Millisecond, ed25519.GenPrivKey())
 	_, err := dialer()
 	assert.Error(t, err)
@@ -40,7 +49,7 @@ func TestIsConnTimeoutForFundamentalTimeouts(t *testing.T) {
 }
 
 func TestIsConnTimeoutForWrappedConnTimeouts(t *testing.T) {
-	tcpAddr := GetFreeLocalhostAddrPort()
+	tcpAddr := "127.0.0.1:34985"
 	dialer := DialTCPFn(tcpAddr, time.Millisecond, ed25519.GenPrivKey())
 	_, err := dialer()
 	assert.Error(t, err)

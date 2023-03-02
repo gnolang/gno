@@ -7,9 +7,9 @@ import (
 	"github.com/gnolang/gno/pkgs/errors"
 )
 
-const bd_option_byte = 0x01
+const bdOptionByte = 0x01
 
-//----------------------------------------
+// ----------------------------------------
 // cdc.decodeReflectBinary
 
 var ErrOverflowInt = errors.New("encoded integer value overflows int(32)")
@@ -87,8 +87,7 @@ func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
 	}
 
 	switch info.Type.Kind() {
-
-	//----------------------------------------
+	// ----------------------------------------
 	// Complex
 
 	case reflect.Interface:
@@ -123,7 +122,7 @@ func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
 		n += _n
 		return
 
-	//----------------------------------------
+	// ----------------------------------------
 	// Signed
 
 	case reflect.Int64:
@@ -189,7 +188,7 @@ func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
 		rv.SetInt(num)
 		return
 
-	//----------------------------------------
+	// ----------------------------------------
 	// Unsigned
 
 	case reflect.Uint64:
@@ -238,7 +237,7 @@ func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
 
 	case reflect.Uint8:
 		var num uint8
-		if options&bd_option_byte != 0 {
+		if options&bdOptionByte != 0 {
 			num, _n, err = DecodeByte(bz)
 		} else {
 			num, _n, err = DecodeUvarint8(bz)
@@ -258,7 +257,7 @@ func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
 		rv.SetUint(num)
 		return
 
-	//----------------------------------------
+	// ----------------------------------------
 	// Misc.
 
 	case reflect.Bool:
@@ -571,17 +570,17 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 	newoptions := uint64(0)
 	// Special case for list of (repr) bytes: decode from "bytes".
 	if ert.Kind() == reflect.Ptr && ert.Elem().Kind() == reflect.Uint8 {
-		newoptions |= bd_option_byte
+		newoptions |= bdOptionByte
 	}
 	typ3 := einfo.GetTyp3(fopts)
-	if typ3 != Typ3ByteLength || (newoptions&be_option_byte > 0) {
+	if typ3 != Typ3ByteLength || (newoptions&beOptionByte > 0) {
 		// Read elements in packed form.
 		for i := 0; i < length; i++ {
 			erv := rv.Index(i)
 			var _n int
 			_n, err = cdc.decodeReflectBinary(bz, einfo, erv, fopts, false, newoptions)
 			if slide(&bz, &n, _n) && err != nil {
-				err = fmt.Errorf("error reading array contents: %v", err)
+				err = fmt.Errorf("error reading array contents: %w", err)
 				return
 			}
 		}
@@ -626,7 +625,6 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 			//    - field option has NilElements set
 			if (len(bz) > 0 && bz[0] == 0x00) &&
 				(!isErtStructPointer || fopts.NilElements) {
-
 				slide(&bz, &n, 1)
 				erv.Set(defaultValue(erv.Type()))
 				continue
@@ -658,7 +656,7 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 				efopts.BinFieldNum = 0 // dontcare
 				_n, err = cdc.decodeReflectBinary(ibz, einfo, erv, efopts, false, 0)
 				if slide(&ibz, &n, _n) && err != nil {
-					err = fmt.Errorf("error reading array contents: %v", err)
+					err = fmt.Errorf("error reading array contents: %w", err)
 					return
 				}
 				// Ensure that there are no more bytes left.
@@ -672,7 +670,7 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 				efopts.BinFieldNum = 1
 				_n, err = cdc.decodeReflectBinary(bz, einfo, erv, efopts, false, 0)
 				if slide(&bz, &n, _n) && err != nil {
-					err = fmt.Errorf("error reading array contents: %v", err)
+					err = fmt.Errorf("error reading array contents: %w", err)
 					return
 				}
 			}
@@ -777,10 +775,10 @@ func (cdc *Codec) decodeReflectBinarySlice(bz []byte, info *TypeInfo, rv reflect
 	newoptions := uint64(0)
 	// Special case for list of (repr) bytes: encode as "bytes".
 	if einfo.ReprType.Type.Kind() == reflect.Uint8 {
-		newoptions |= be_option_byte
+		newoptions |= beOptionByte
 	}
 	typ3 := einfo.GetTyp3(fopts)
-	if typ3 != Typ3ByteLength || (newoptions&be_option_byte > 0) {
+	if typ3 != Typ3ByteLength || (newoptions&beOptionByte > 0) {
 		// Read elems in packed form.
 		for {
 			if len(bz) == 0 {
@@ -789,7 +787,7 @@ func (cdc *Codec) decodeReflectBinarySlice(bz []byte, info *TypeInfo, rv reflect
 			erv, _n := reflect.New(ert).Elem(), int(0)
 			_n, err = cdc.decodeReflectBinary(bz, einfo, erv, fopts, false, newoptions)
 			if slide(&bz, &n, _n) && err != nil {
-				err = fmt.Errorf("error reading array contents: %v", err)
+				err = fmt.Errorf("error reading array contents: %w", err)
 				return
 			}
 			srv = reflect.Append(srv, erv)
@@ -836,7 +834,6 @@ func (cdc *Codec) decodeReflectBinarySlice(bz []byte, info *TypeInfo, rv reflect
 			//    - field option has NilElements set
 			if (len(bz) > 0 && bz[0] == 0x00) &&
 				(!isErtStructPointer || fopts.NilElements) {
-
 				slide(&bz, &n, 1)
 				erv.Set(defaultValue(erv.Type()))
 				srv = reflect.Append(srv, erv)
@@ -869,7 +866,7 @@ func (cdc *Codec) decodeReflectBinarySlice(bz []byte, info *TypeInfo, rv reflect
 				efopts.BinFieldNum = 0 // dontcare
 				_n, err = cdc.decodeReflectBinary(ibz, einfo, erv, efopts, false, 0)
 				if slide(&ibz, &n, _n) && err != nil {
-					err = fmt.Errorf("error reading slice contents: %v", err)
+					err = fmt.Errorf("error reading slice contents: %w", err)
 					return
 				}
 				// Ensure that there are no more bytes left.
@@ -883,7 +880,7 @@ func (cdc *Codec) decodeReflectBinarySlice(bz []byte, info *TypeInfo, rv reflect
 				efopts.BinFieldNum = 1
 				_n, err = cdc.decodeReflectBinary(bz, einfo, erv, efopts, false, 0)
 				if slide(&bz, &n, _n) && err != nil {
-					err = fmt.Errorf("error reading slice contents: %v", err)
+					err = fmt.Errorf("error reading slice contents: %w", err)
 					return
 				}
 			}
@@ -907,7 +904,7 @@ func (cdc *Codec) decodeReflectBinaryStruct(bz []byte, info *TypeInfo, rv reflec
 			fmt.Printf("(d) -> err: %v\n", err)
 		}()
 	}
-	_n := 0 // nolint: ineffassign
+	_n := 0 //nolint: ineffassign
 
 	// NOTE: The "Struct" typ3 doesn't get read here.
 	// It's already implied, either by struct-key or list-element-type-byte.
@@ -1018,7 +1015,7 @@ func (cdc *Codec) decodeReflectBinaryStruct(bz []byte, info *TypeInfo, rv reflec
 	return n, err
 }
 
-//----------------------------------------
+// ----------------------------------------
 // consume* for skipping struct fields
 
 // Read everything without doing anything with it. Report errors if they occur.
@@ -1045,7 +1042,7 @@ func consumeAny(typ3 Typ3, bz []byte) (n int, err error) {
 	return
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 // Read field key.
 func decodeFieldNumberAndTyp3(bz []byte) (num uint32, typ Typ3, n int, err error) {
@@ -1068,7 +1065,7 @@ func decodeFieldNumberAndTyp3(bz []byte) (num uint32, typ Typ3, n int, err error
 	return
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Misc.
 
 func decodeMaybeBare(bz []byte, n *int, bare bool) ([]byte, error) {

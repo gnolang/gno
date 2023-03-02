@@ -1,7 +1,7 @@
 package main
 
 func main() {
-	var runes = []rune(`....●●●...`)
+	runes := []rune(`....●●●...`)
 	println(runes)
 }
 

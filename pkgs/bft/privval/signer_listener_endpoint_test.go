@@ -11,7 +11,6 @@ import (
 	"github.com/gnolang/gno/pkgs/bft/types"
 	"github.com/gnolang/gno/pkgs/crypto/ed25519"
 	"github.com/gnolang/gno/pkgs/log"
-	osm "github.com/gnolang/gno/pkgs/os"
 	"github.com/gnolang/gno/pkgs/random"
 )
 
@@ -23,8 +22,8 @@ var (
 )
 
 type dialerTestCase struct {
-	addr   string
-	dialer SocketDialer
+	listener net.Listener
+	dialer   SocketDialer
 }
 
 // TestSignerRemoteRetryTCPOnly will test connection retry attempts over TCP. We
@@ -67,9 +66,9 @@ func TestSignerRemoteRetryTCPOnly(t *testing.T) {
 	SignerDialerEndpointTimeoutReadWrite(time.Millisecond)(dialerEndpoint)
 	SignerDialerEndpointConnRetries(retries)(dialerEndpoint)
 
-	chainId := random.RandStr(12)
+	chainID := random.RandStr(12)
 	mockPV := types.NewMockPV()
-	signerServer := NewSignerServer(dialerEndpoint, chainId, mockPV)
+	signerServer := NewSignerServer(dialerEndpoint, chainID, mockPV)
 
 	err = signerServer.Start()
 	require.NoError(t, err)
@@ -91,7 +90,7 @@ func TestRetryConnToRemoteSigner(t *testing.T) {
 			mockPV           = types.NewMockPV()
 			endpointIsOpenCh = make(chan struct{})
 			thisConnTimeout  = testTimeoutReadWrite
-			listenerEndpoint = newSignerListenerEndpoint(logger, tc.addr, thisConnTimeout)
+			listenerEndpoint = newSignerListenerEndpoint(logger, tc.listener, thisConnTimeout)
 		)
 
 		dialerEndpoint := NewSignerDialerEndpoint(
@@ -131,20 +130,12 @@ func TestRetryConnToRemoteSigner(t *testing.T) {
 	}
 }
 
-///////////////////////////////////
+// /////////////////////////////////
 
-func newSignerListenerEndpoint(logger log.Logger, addr string, timeoutReadWrite time.Duration) *SignerListenerEndpoint {
-	proto, address := osm.ProtocolAndAddress(addr)
-
-	ln, err := net.Listen(proto, address)
-	logger.Info("SignerListener: Listening", "proto", proto, "address", address)
-	if err != nil {
-		panic(err)
-	}
-
+func newSignerListenerEndpoint(logger log.Logger, ln net.Listener, timeoutReadWrite time.Duration) *SignerListenerEndpoint {
 	var listener net.Listener
 
-	if proto == "unix" {
+	if ln.Addr().Network() == "unix" {
 		unixLn := NewUnixListener(ln)
 		UnixListenerTimeoutAccept(testTimeoutAccept)(unixLn)
 		UnixListenerTimeoutReadWrite(timeoutReadWrite)(unixLn)
@@ -160,6 +151,8 @@ func newSignerListenerEndpoint(logger log.Logger, addr string, timeoutReadWrite 
 }
 
 func startListenerEndpointAsync(t *testing.T, sle *SignerListenerEndpoint, endpointIsOpenCh chan struct{}) {
+	t.Helper()
+
 	go func(sle *SignerListenerEndpoint) {
 		require.NoError(t, sle.Start())
 		assert.True(t, sle.IsRunning())
@@ -169,9 +162,11 @@ func startListenerEndpointAsync(t *testing.T, sle *SignerListenerEndpoint, endpo
 
 func getMockEndpoints(
 	t *testing.T,
-	addr string,
+	l net.Listener,
 	socketDialer SocketDialer,
 ) (*SignerListenerEndpoint, *SignerDialerEndpoint) {
+	t.Helper()
+
 	var (
 		logger           = log.TestingLogger()
 		endpointIsOpenCh = make(chan struct{})
@@ -181,7 +176,7 @@ func getMockEndpoints(
 			socketDialer,
 		)
 
-		listenerEndpoint = newSignerListenerEndpoint(logger, addr, testTimeoutReadWrite)
+		listenerEndpoint = newSignerListenerEndpoint(logger, l, testTimeoutReadWrite)
 	)
 
 	SignerDialerEndpointTimeoutReadWrite(testTimeoutReadWrite)(dialerEndpoint)

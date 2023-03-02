@@ -1,47 +1,67 @@
 package main
 
 import (
+	"context"
+	goerrors "errors"
+	"flag"
 	"fmt"
 	"io"
 	"os"
 
+	"github.com/gnolang/gno/pkgs/commands"
 	"golang.org/x/term"
 
-	"github.com/gnolang/gno/pkgs/command"
-	"github.com/gnolang/gno/pkgs/errors"
 	gno "github.com/gnolang/gno/pkgs/gnolang"
 	"github.com/gnolang/gno/tests"
 )
 
-type replOptions struct {
-	Verbose bool   `flag:"verbose" help:"verbose"`
-	RootDir string `flag:"root-dir" help:"clone location of github.com/gnolang/gno (gnodev tries to guess it)"`
-	// Run string `flag:"run" help:"test name filtering pattern"`
-	// Timeout time.Duration `flag:"timeout" help:"max execution time"`
-	// VM Options
-	// A flag about if we should download the production realms
-	// UseNativeLibs bool // experimental, but could be useful for advanced developer needs
-	// AutoImport bool
-	// ImportPkgs...
+type replCfg struct {
+	verbose bool
+	rootDir string
 }
 
-var defaultReplOptions = replOptions{
-	Verbose: false,
-	RootDir: "",
+func newReplCmd() *commands.Command {
+	cfg := &replCfg{}
+
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "repl",
+			ShortUsage: "repl [flags]",
+			ShortHelp:  "Starts a GnoVM REPL",
+		},
+		cfg,
+		func(_ context.Context, args []string) error {
+			return execRepl(cfg, args)
+		},
+	)
 }
 
-func replApp(cmd *command.Command, args []string, iopts interface{}) error {
-	opts := iopts.(replOptions)
+func (c *replCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.BoolVar(
+		&c.verbose,
+		"verbose",
+		false,
+		"verbose output when running",
+	)
+
+	fs.StringVar(
+		&c.rootDir,
+		"root-dir",
+		"",
+		"clone location of github.com/gnolang/gno (gnodev tries to guess it)",
+	)
+}
+
+func execRepl(cfg *replCfg, args []string) error {
 	if len(args) > 0 {
-		cmd.ErrPrintfln("Usage: repl [flags]")
-		return errors.New("invalid args")
+		return flag.ErrHelp
 	}
 
-	if opts.RootDir == "" {
-		opts.RootDir = guessRootDir()
+	if cfg.rootDir == "" {
+		cfg.rootDir = guessRootDir()
 	}
 
-	return runRepl(opts.RootDir, opts.Verbose)
+	return runRepl(cfg.rootDir, cfg.verbose)
 }
 
 func runRepl(rootDir string, verbose bool) error {
@@ -75,7 +95,7 @@ func runRepl(rootDir string, verbose bool) error {
 		input, err := t.ReadLine()
 		if err != nil {
 			term.Restore(0, oldState)
-			if err == io.EOF {
+			if goerrors.Is(err, io.EOF) {
 				return nil
 			}
 			return fmt.Errorf("term error: %w", err)

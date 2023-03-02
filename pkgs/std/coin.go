@@ -11,7 +11,7 @@ import (
 	"github.com/gnolang/overflow"
 )
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // Coin
 
 // Coin hold some amount of one currency.
@@ -169,7 +169,7 @@ func (coin Coin) IsNegative() bool {
 	return coin.Amount < 0
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // Coins
 
 // Coins is a set of Coin, one per currency
@@ -597,10 +597,9 @@ func removeZeroCoins(coins Coins) Coins {
 	return coins[:i]
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // Sort interface
 
-// nolint
 func (coins Coins) Len() int           { return len(coins) }
 func (coins Coins) Less(i, j int) bool { return coins[i].Denom < coins[j].Denom }
 func (coins Coins) Swap(i, j int)      { coins[i], coins[j] = coins[j], coins[i] }
@@ -613,7 +612,7 @@ func (coins Coins) Sort() Coins {
 	return coins
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // Parsing
 
 var (
@@ -666,7 +665,7 @@ func ParseCoin(coinStr string) (coin Coin, err error) {
 	}
 
 	if err := validateDenom(denomStr); err != nil {
-		return Coin{}, fmt.Errorf("invalid denom cannot contain upper case characters or spaces: %s", err)
+		return Coin{}, fmt.Errorf("invalid denom cannot contain upper case characters or spaces: %w", err)
 	}
 
 	return NewCoin(denomStr, amount), nil

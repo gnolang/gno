@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"go/ast"
+	"io"
 	"io/fs"
 	"log"
 	"os"
@@ -17,6 +18,11 @@ import (
 func isGnoFile(f fs.DirEntry) bool {
 	name := f.Name()
 	return !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".gno") && !f.IsDir()
+}
+
+func isFileExist(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 func gnoFilesFromArgs(args []string) ([]string, error) {
@@ -157,5 +163,74 @@ func WriteDirFile(pathWithName string, data []byte) error {
 		os.MkdirAll(path, 0o755)
 	}
 
-	return os.WriteFile(pathWithName, []byte(data), 0o644)
+	return os.WriteFile(pathWithName, data, 0o644)
+}
+
+// copyDir copies the dir from src to dst, the paths have to be
+// absolute to ensure consistent behavior.
+func copyDir(src, dst string) error {
+	if !filepath.IsAbs(src) || !filepath.IsAbs(dst) {
+		return fmt.Errorf("src or dst path not abosulte, src: %s dst: %s", src, dst)
+	}
+
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return fmt.Errorf("cannot read dir: %s", src)
+	}
+
+	if err := os.MkdirAll(dst, 0o755); err != nil {
+		return fmt.Errorf("failed to create directory: '%s', error: '%w'", dst, err)
+	}
+
+	for _, entry := range entries {
+		srcPath := filepath.Join(src, entry.Name())
+		dstPath := filepath.Join(dst, entry.Name())
+
+		if entry.Type().IsDir() {
+			copyDir(srcPath, dstPath)
+		} else if entry.Type().IsRegular() {
+			copyFile(srcPath, dstPath)
+		}
+	}
+
+	return nil
+}
+
+// copyFile copies the file from src to dst, the paths have
+// to be absolute to ensure consistent behavior.
+func copyFile(src, dst string) error {
+	if !filepath.IsAbs(src) || !filepath.IsAbs(dst) {
+		return fmt.Errorf("src or dst path not abosulte, src: %s dst: %s", src, dst)
+	}
+
+	// verify if it's regular flile
+	srcStat, err := os.Stat(src)
+	if err != nil {
+		return fmt.Errorf("cannot copy file: %w", err)
+	}
+	if !srcStat.Mode().IsRegular() {
+		return fmt.Errorf("%s not a regular file", src)
+	}
+
+	// create dst file
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer dstFile.Close()
+
+	// open src file
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
+	// copy srcFile -> dstFile
+	_, err = io.Copy(dstFile, srcFile)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -14,7 +14,7 @@ import (
 // Useful for debugging.
 const printLog = false
 
-//----------------------------------------
+// ----------------------------------------
 // Codec internals
 
 type TypeInfo struct {
@@ -71,7 +71,7 @@ type FieldOptions struct {
 	UseGoogleTypes bool // If true, decodes Any timestamp and duration to google types.
 }
 
-//----------------------------------------
+// ----------------------------------------
 // TypeInfo convenience
 
 func (info *TypeInfo) GetTyp3(fopts FieldOptions) Typ3 {
@@ -135,7 +135,7 @@ func (info *TypeInfo) String() string {
 	return buf.String()
 }
 
-//----------------------------------------
+// ----------------------------------------
 // FieldInfo convenience
 
 func (finfo *FieldInfo) IsPtr() bool {
@@ -174,7 +174,7 @@ func (finfo *FieldInfo) ValidateBasic() {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Codec
 
 type Codec struct {
@@ -271,7 +271,7 @@ func (cdc *Codec) registerType(pkg *Package, rt reflect.Type, typeURL string, po
 	info, ok := cdc.typeInfos[rt]
 	if ok {
 		if info.Registered {
-			// If idempotent operation, ignore silenty.
+			// If idempotent operation, ignore silently.
 			// Otherwise, panic.
 			if info.Package != pkg {
 				panic(fmt.Sprintf("type %v already registered with different package %v", rt, info.Package))
@@ -400,7 +400,7 @@ func getLengthStr(info *TypeInfo) string {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 func (cdc *Codec) assertNotSealed() {
 	cdc.mtx.Lock()
@@ -540,7 +540,7 @@ func (cdc *Codec) getTypeInfoFromFullnameRLock(fullname string, fopts FieldOptio
 	return
 }
 
-//----------------------------------------
+// ----------------------------------------
 // TypeInfo registration
 
 // Constructs a *TypeInfo from scratch (except
@@ -655,7 +655,7 @@ func (cdc *Codec) newTypeInfoUnregisteredWLocked(rt reflect.Type) *TypeInfo {
 	return info
 }
 
-//----------------------------------------
+// ----------------------------------------
 // ...
 
 func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
@@ -774,7 +774,7 @@ func parseFieldOptions(field reflect.StructField) (skip bool, fopts FieldOptions
 	return skip, fopts
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Misc.
 
 func typeURLtoFullname(typeURL string) (fullname string) {

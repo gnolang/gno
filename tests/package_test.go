@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	//"go/build"
+	// "go/build"
 
 	gno "github.com/gnolang/gno/pkgs/gnolang"
 )
@@ -57,6 +57,8 @@ func TestPackages(t *testing.T) {
 }
 
 func runPackageTest(t *testing.T, dir string, path string) {
+	t.Helper()
+
 	memPkg := gno.ReadMemPackage(dir, path)
 
 	stdin := new(bytes.Buffer)
