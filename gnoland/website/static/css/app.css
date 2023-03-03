@@ -1,6 +1,9 @@
 @import url("../font/font.css");
 
-:root {
+/*** DARK/LIGHT THEME COLORS ***/
+
+html:not([data-theme="dark"]),
+html[data-theme="light"] {
   --background-color: #eee;
   --input-background-color: #eee;
   --text-color: #000;
@@ -14,29 +17,74 @@
   --realm-help-background-color: #d7d9db9e;
   --realm-help-odd-background-color: #d7d9db45;
   --realm-help-code-color: #5d5d5d;
+
+  --highlight-color: #2f3337;
+  --highlight-bg: #f6f6f6;
+  --highlight-color: #2f3337;
+  --highlight-comment: #656e77;
+  --highlight-keyword: #015692;
+  --highlight-attribute: #015692;
+  --highlight-symbol: #803378;
+  --highlight-namespace: #b75501;
+  --highlight-keyword: #015692;
+  --highlight-variable: #54790d;
+  --highlight-keyword: #015692;
+  --highlight-literal: #b75501;
+  --highlight-punctuation: #535a60;
+  --highlight-variable: #54790d;
+  --highlight-deletion: #c02d2e;
+  --highlight-addition: #2f6f44;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background-color: #2e2e2e;
-    --input-background-color: #393939;
-    --text-color: #eee;
-    --link-color: #ebe6ff;
+html[data-theme="dark"] {
+  --background-color: #2e2e2e;
+  --input-background-color: #393939;
+  --text-color: #eee;
+  --link-color: #ebe6ff;
 
-    --quote-background: #404040;
-    --quote-2-background: #555555;
-    --code-background: #454545;
-    --header-background: #454545;
+  --quote-background: #404040;
+  --quote-2-background: #555555;
+  --code-background: #454545;
+  --header-background: #454545;
 
-    --realm-help-background-color: #45454545;
-    --realm-help-odd-background-color: #4545459e;
-    --realm-help-code-color: #b6b6b6;
-  }
+  --realm-help-background-color: #45454545;
+  --realm-help-odd-background-color: #4545459e;
+  --realm-help-code-color: #b6b6b6;
 
-  #header img {
-    filter: invert(1);
-  }
+  --highlight-color: #ffffff;
+  --highlight-bg: #1c1b1b;
+  --highlight-color: #ffffff;
+  --highlight-comment: #999999;
+  --highlight-keyword: #88aece;
+  --highlight-attribute: #88aece;
+  --highlight-symbol: #c59bc1;
+  --highlight-namespace: #f08d49;
+  --highlight-keyword: #88aece;
+  --highlight-variable: #b5bd68;
+  --highlight-keyword: #88aece;
+  --highlight-literal: #f08d49;
+  --highlight-punctuation: #cccccc;
+  --highlight-variable: #b5bd68;
+  --highlight-deletion: #de7176;
+  --highlight-addition: #76c490;
 }
+
+html[data-theme="dark"] #header img {
+  filter: invert(1);
+}
+
+#theme-toggle {
+  height: 32px;
+  width: 32px;
+  display: inline-block;
+}
+
+html[data-theme="dark"] #theme-toggle-moon,
+html[data-theme="light"] #theme-toggle-sun {
+  display: none;
+}
+
+/*** BASE HTML ELEMENTS ***/
 
 html {
   -moz-text-size-adjust: none;
@@ -52,6 +100,7 @@ body {
   background-color: var(--background-color, #eee);
   color: var(--text-color, #000);
   font-size: 15px;
+  transition: 0.25s all ease;
 }
 
 body {
@@ -90,6 +139,113 @@ pre {
   background-color: var(--code-background, #d7d9db);
   margin: 0;
 }
+
+/*** HLJS ***/
+
+/* Copyright (c) 2006, Ivan Sagalaev.
+ * https://github.com/highlightjs/highlight.js/blob/86dcb210227ef130a00b5ece50605ea1ec887be8/src/styles/default.css */
+pre code.hljs {
+  display: block;
+  overflow-x: auto;
+  padding: 1em;
+}
+
+code.hljs {
+  padding: 3px 5px;
+}
+
+/* Copyright 2017-2020 Stack Exchange Inc.
+ * https://github.com/highlightjs/highlight.js/blob/86dcb210227ef130a00b5ece50605ea1ec887be8/src/styles/stackoverflow-light.css
+ * https://github.com/highlightjs/highlight.js/blob/86dcb210227ef130a00b5ece50605ea1ec887be8/src/styles/stackoverflow-dark.css */
+.hljs {
+  color: var(--highlight-color, #2f3337);
+  background: var(--highlight-bg, #f6f6f6);
+}
+
+.hljs-subst {
+  color: var(--highlight-color, #2f3337);
+}
+
+.hljs-comment {
+  color: var(--highlight-comment, #656e77);
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-meta .hljs-keyword,
+.hljs-doctag,
+.hljs-section {
+  color: var(--highlight-keyword, #015692);
+}
+
+.hljs-attr {
+  color: var(--highlight-attribute, #015692);
+}
+
+.hljs-attribute {
+  color: var(--highlight-symbol, #803378);
+}
+
+.hljs-name,
+.hljs-type,
+.hljs-number,
+.hljs-selector-id,
+.hljs-quote,
+.hljs-template-tag {
+  color: var(--highlight-namespace, #b75501);
+}
+
+.hljs-selector-class {
+  color: var(--highlight-keyword, #015692);
+}
+
+.hljs-string,
+.hljs-regexp,
+.hljs-symbol,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-link,
+.hljs-selector-attr {
+  color: var(--highlight-variable, #54790d);
+}
+
+.hljs-meta,
+.hljs-selector-pseudo {
+  color: var(--highlight-keyword, #015692);
+}
+
+.hljs-built_in,
+.hljs-title,
+.hljs-literal {
+  color: var(--highlight-literal, #b75501);
+}
+
+.hljs-bullet,
+.hljs-code {
+  color: var(--highlight-punctuation, #535a60);
+}
+
+.hljs-meta .hljs-string {
+  color: var(--highlight-variable, #54790d);
+}
+
+.hljs-deletion {
+  color: var(--highlight-deletion, #c02d2e);
+}
+
+.hljs-addition {
+  color: var(--highlight-addition, #2f6f44);
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: bold;
+}
+
+/*** PAGE LAYOUT ***/
 
 #root {
   display: flex;
@@ -138,10 +294,19 @@ pre {
   margin-left: auto;
 }
 
+/* enabled conditionally with <noscript> */
+#source {
+  display: none;
+}
+
+/*** HOMEPAGE ***/
+
 #home,
 #subscribe {
   padding: 0 22px;
 }
+
+/*** REALM HELP ***/
 
 #realm_render,
 #realm_help {
@@ -191,9 +356,7 @@ pre {
   font-weight: bold;
 }
 
-#source {
-  display: none;
-}
+/*** PKGS/DOC ***/
 
 #pkg_doc {
   padding: 0 22px;
