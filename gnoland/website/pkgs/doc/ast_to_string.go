@@ -165,3 +165,25 @@ func typeString(expr ast.Expr) string {
 	}
 	return ""
 }
+
+func isFuncExported(fn *ast.FuncDecl) bool {
+	if !fn.Name.IsExported() {
+		return false
+	}
+
+	if fn.Recv == nil {
+		return true
+	}
+
+	for _, recv := range fn.Recv.List {
+		if ast.IsExported(removePointer(typeString(recv.Type))) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func removePointer(name string) string {
+	return strings.TrimPrefix(name, "*")
+}

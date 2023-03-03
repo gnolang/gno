@@ -29,7 +29,7 @@ func (p *Package) filterTypeFuncs(typeName string) (funcs []*Func, methods []*Fu
 		if fn.Recv == nil {
 			matched := false
 			for _, r := range fn.Returns {
-				if r.Type == typeName || r.Type == "*"+typeName {
+				if removePointer(r.Type) == typeName {
 					funcs = append(funcs, fn)
 					matched = true
 					break
@@ -42,7 +42,7 @@ func (p *Package) filterTypeFuncs(typeName string) (funcs []*Func, methods []*Fu
 			continue
 		}
 		for _, n := range fn.Recv {
-			if n == typeName || n == "*"+typeName {
+			if removePointer(n) == typeName {
 				methods = append(methods, fn)
 				break
 			} else {
@@ -73,7 +73,7 @@ func (p *Package) filterTypeValues(typeName string) (vars []*Value, consts []*Va
 	for _, v := range p.Vars {
 		var matched bool
 		for _, item := range v.Items {
-			if item.Type == typeName || item.Type == "*"+typeName {
+			if removePointer(item.Type) == typeName {
 				vars = append(vars, v)
 				matched = true
 				break

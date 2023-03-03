@@ -50,7 +50,7 @@ func New(pkgPath string, files map[string]string) (*Package, error) {
 		for _, decl := range f.Decls {
 			switch x := decl.(type) {
 			case *ast.FuncDecl:
-				if x.Name.IsExported() {
+				if isFuncExported(x) {
 					fn := extractFunc(x)
 					p.Funcs = append(p.Funcs, fn)
 				}
@@ -60,6 +60,9 @@ func New(pkgPath string, files map[string]string) (*Package, error) {
 					for _, spec := range x.Specs {
 						if ident, ok := spec.(*ast.TypeSpec); ok && ident.Name.IsExported() {
 							newType, _ := extractType(fset, ident)
+							if x.Doc != nil {
+								newType.Doc = x.Doc.Text() + newType.Doc
+							}
 							p.Types = append(p.Types, newType)
 						}
 					}

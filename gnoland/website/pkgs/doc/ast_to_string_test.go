@@ -157,14 +157,12 @@ func TestGenerateFuncSignature(t *testing.T) {
 	for _, c := range testcases {
 		got := generateFuncSignature(c.fn)
 		if got != c.want {
-			t.Errorf("%s : got %q, want %q", c.name, got, c.want)
+			t.Errorf("%s: got %q, want %q", c.name, got, c.want)
 		}
 	}
 }
 
 func TestTypeString(t *testing.T) {
-	t.Parallel()
-
 	testcases := []struct {
 		expr ast.Expr
 		want string
@@ -236,6 +234,91 @@ func TestTypeString(t *testing.T) {
 		got := typeString(c.expr)
 		if got != c.want {
 			t.Errorf("got %q, want %q", got, c.want)
+		}
+	}
+}
+
+func TestRemovePointer(t *testing.T) {
+	testcases := []struct {
+		name string
+		want string
+	}{
+		{"MyType", "MyType"},
+		{"*MyType", "MyType"},
+	}
+
+	for _, c := range testcases {
+		got := removePointer(c.name)
+		if got != c.want {
+			t.Errorf("got %s, want %s", got, c.want)
+		}
+	}
+}
+
+func TestIsFuncExported(t *testing.T) {
+	testcases := []struct {
+		name string
+		fn   *ast.FuncDecl
+		want bool
+	}{
+		{
+			name: "exported function without receiver",
+			fn: &ast.FuncDecl{
+				Name: ast.NewIdent("ExportedFunc"),
+			},
+			want: true,
+		},
+		{
+			name: "unexported function without receiver",
+			fn: &ast.FuncDecl{
+				Name: ast.NewIdent("unexportedFunc"),
+			},
+			want: false,
+		},
+		{
+			name: "exported method with exported pointer receiver",
+			fn: &ast.FuncDecl{
+				Name: ast.NewIdent("ExportedMethod"),
+				Recv: &ast.FieldList{
+					List: []*ast.Field{
+						{
+							Names: []*ast.Ident{ast.NewIdent("p")},
+							Type: &ast.StarExpr{
+								X: &ast.Ident{
+									Name: "MyType",
+								},
+							},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "exported method with unexported pointer receiver",
+			fn: &ast.FuncDecl{
+				Name: ast.NewIdent("ExportedMethod"),
+				Recv: &ast.FieldList{
+					List: []*ast.Field{
+						{
+							Names: []*ast.Ident{ast.NewIdent("p")},
+							Type: &ast.StarExpr{
+								X: &ast.Ident{
+									Name: "myType",
+								},
+							},
+						},
+					},
+				},
+			},
+			want: false,
+		},
+	}
+
+	for _, c := range testcases {
+		got := isFuncExported(c.fn)
+		if got != c.want {
+			t.Errorf("%s: got %v, want %v", c.name, got, c.want)
 		}
 	}
 }
