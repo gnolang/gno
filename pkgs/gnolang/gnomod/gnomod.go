@@ -13,7 +13,6 @@ import (
 	"golang.org/x/mod/module"
 )
 
-var remote = "test3.gno.land:36657" // "127.0.0.1:26657"
 const queryPathFile = "vm/qfile"
 
 // GetGnoModPath returns the path for gno modules
@@ -26,8 +25,8 @@ func GetGnoModPath() (string, error) {
 	return filepath.Join(goPath, "pkg", "gnomod"), nil
 }
 
-func writePackage(basePath, pkgPath string) error {
-	res, err := queryChain(queryPathFile, []byte(pkgPath))
+func writePackage(remote, basePath, pkgPath string) error {
+	res, err := queryChain(remote, queryPathFile, []byte(pkgPath))
 	if err != nil {
 		return fmt.Errorf("querychain: %w", err)
 	}
@@ -45,7 +44,7 @@ func writePackage(basePath, pkgPath string) error {
 
 		files := strings.Split(string(res.Data), "\n")
 		for _, file := range files {
-			if err := writePackage(basePath, filepath.Join(pkgPath, file)); err != nil {
+			if err := writePackage(remote, basePath, filepath.Join(pkgPath, file)); err != nil {
 				return fmt.Errorf("writepackage: %w", err)
 			}
 		}
