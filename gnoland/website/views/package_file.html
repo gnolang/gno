@@ -22,13 +22,7 @@
         {{ template "footer" }}
       </div>
       {{ template "js" }}
-      <script type="text/javascript" src="/static/js/highlight.min.js"></script>
-      <script>
-       hljs.configure({
-         throwUnescapedHTML: true // important to avoid inserting escaped html
-       })
-       hljs.highlightAll() // applied to all <pre><code>...</code></pre>
-      </script>
+      {{ template "hljs" }}
     </body>
   </html>
 {{- end -}}
