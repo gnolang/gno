@@ -16,10 +16,6 @@ type modDownloadCfg struct {
 	remote string
 }
 
-var defaultModDownloadOptions = &modDownloadCfg{
-	remote: "test3.gno.land:36657",
-}
-
 func newModCmd(io *commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
@@ -58,7 +54,7 @@ func (c *modDownloadCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.remote,
 		"remote",
-		defaultModDownloadOptions.remote,
+		"test3.gno.land:36657",
 		"remote for fetching gno modules",
 	)
 }
