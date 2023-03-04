@@ -46,7 +46,8 @@
     </svg>
   </a>
 </div>
-{{ end }} {{define "html_head" }}
+{{ end }}
+{{ define "html_head" }}
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <link rel="stylesheet" href="/static/css/app.css" />
 <link rel="stylesheet" href="/static/css/normalize.css" />
@@ -96,16 +97,21 @@
     });
   })();
 </script>
-{{ end }} {{ define "header_logo" }}<a id="logo" href="/"
-  ><img
+{{ end }}
+{{ define "header_logo" }}
+<a id="logo" href="/">
+  <img
     src="/static/img/logo.png"
     alt="Gno.land"
     title="Gno.land"
     height="38"
-  /> </a
->{{ end }} {{ define "footer" }}
+  />
+</a>
+{{ end }}
+{{ define "footer" }}
 <hr />
-{{ end }} {{ define "js" }}
+{{ end }}
+{{ define "js" }}
 <script type="text/javascript" src="/static/js/marked.min.js"></script>
 <script type="text/javascript" src="/static/js/purify.min.js"></script>
 <script type="text/javascript">
@@ -120,7 +126,7 @@
     });
   }
 </script>
-{{ end }} 
+{{ end }}
 {{ define "hljs" }}
   <script type="text/javascript" src="/static/js/highlight.min.js"></script>
   <script>
