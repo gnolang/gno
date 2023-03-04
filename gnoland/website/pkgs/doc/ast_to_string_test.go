@@ -3,6 +3,8 @@ package doc
 import (
 	"go/ast"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGenerateFuncSignature(t *testing.T) {
@@ -155,10 +157,7 @@ func TestGenerateFuncSignature(t *testing.T) {
 	}
 
 	for _, c := range testcases {
-		got := generateFuncSignature(c.fn)
-		if got != c.want {
-			t.Errorf("%s: got %q, want %q", c.name, got, c.want)
-		}
+		assert.Equal(t, c.want, generateFuncSignature(c.fn), c.name)
 	}
 }
 
@@ -231,10 +230,7 @@ func TestTypeString(t *testing.T) {
 	}
 
 	for _, c := range testcases {
-		got := typeString(c.expr)
-		if got != c.want {
-			t.Errorf("got %q, want %q", got, c.want)
-		}
+		assert.Equal(t, c.want, typeString(c.expr))
 	}
 }
 
@@ -248,10 +244,7 @@ func TestRemovePointer(t *testing.T) {
 	}
 
 	for _, c := range testcases {
-		got := removePointer(c.name)
-		if got != c.want {
-			t.Errorf("got %s, want %s", got, c.want)
-		}
+		assert.Equal(t, c.want, removePointer(c.name))
 	}
 }
 
@@ -316,9 +309,6 @@ func TestIsFuncExported(t *testing.T) {
 	}
 
 	for _, c := range testcases {
-		got := isFuncExported(c.fn)
-		if got != c.want {
-			t.Errorf("%s: got %v, want %v", c.name, got, c.want)
-		}
+		assert.Equal(t, c.want, isFuncExported(c.fn), c.name)
 	}
 }
