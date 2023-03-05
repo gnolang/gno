@@ -8,10 +8,12 @@ import (
 	"go/token"
 	"sort"
 	"strings"
+	"text/template"
 )
 
 type Package struct {
 	ImportPath string
+	Path       string
 	Name       string
 	Doc        string
 	Filenames  []string
@@ -20,6 +22,19 @@ type Package struct {
 	Vars       []*Value
 	Consts     []*Value
 	Types      []*Type
+}
+
+func (p *Package) Markdown() ([]byte, error) {
+	var buf bytes.Buffer
+
+	if err := template.Must(template.New("").Funcs(template.FuncMap{
+		"code":    codeFmt,
+		"comment": commentFmt,
+	}).Parse(TemplateMarkdown)).Execute(&buf, p); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
 }
 
 func (p *Package) filterTypeFuncs(typeName string) (funcs []*Func, methods []*Func) {

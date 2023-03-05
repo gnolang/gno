@@ -312,7 +312,21 @@ func handlerRealmFile(app gotuna.App) http.Handler {
 		vars := mux.Vars(r)
 		diruri := "gno.land/r/" + vars["rlmname"]
 		filename := vars["filename"]
-		renderPackageFile(app, w, r, diruri, filename)
+		if filename != "" {
+			renderPackageFile(app, w, r, diruri, filename)
+			return
+		}
+		res, err := makeRequest(qFileStr, []byte(diruri))
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		files := strings.Split(string(res.Data), "\n")
+		tmpl := app.NewTemplatingEngine()
+		tmpl.Set("DirURI", diruri)
+		tmpl.Set("DirPath", pathOf(diruri))
+		tmpl.Set("Files", files)
+		tmpl.Render(w, r, "realm_dir.html", "funcs.html")
 	})
 }
 
@@ -348,10 +362,15 @@ func renderPackage(app gotuna.App, w http.ResponseWriter, r *http.Request, dirur
 		return
 	}
 
+	pkgContent, err := pkgdoc.Markdown()
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+
 	tmpl := app.NewTemplatingEngine()
-	tmpl.Set("DirURI", diruri)
 	tmpl.Set("DirPath", pathOf(diruri))
-	tmpl.Set("Package", pkgdoc)
+	tmpl.Set("PkgContent", string(pkgContent))
 	tmpl.Render(w, r, "package_dir.html", "funcs.html")
 }
 

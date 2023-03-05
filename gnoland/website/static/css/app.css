@@ -362,53 +362,22 @@ code.hljs {
   padding: 0 22px;
 }
 
-#pkg_doc #pkg_doc__header__overview {
-  padding: 10px 0;
+#pkg_doc h1,
+#pkg_doc h2 {
+  border-bottom: 1px solid #ccc;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
 }
 
-#pkg_doc__body > .pkg_doc__section {
-  padding: 10px 0;
+#pkg_doc h2 {
+  margin-top: 60px;
 }
 
-#pkg_doc__body > .pkg_doc__section > .pkg_doc__section-heading {
-  padding-top: 5px;
-  padding-bottom: 5px;
+#pkg_doc h3 {
+  margin-top: 40px;
 }
 
-.pkg_doc__variable {
-  padding: 10px 0;
-}
-
-.pkg_doc__constant {
-  padding: 10px 0;
-}
-
-.pkg_doc__comment {
-  padding: 10px 10px;
-}
-
-.pkg_doc__comment pre {
-  background-color: transparent;
-}
-
-.pkg_doc__section .pkg_doc__comment {
-  padding: 1em 0;
-}
-
-.pkg_doc__section .pkg_doc__function {
-  padding: 10px 0;
-}
-
-.pkg_doc__type {
-  padding: 20px 0;
-}
-
-.pkg_doc__type-title {
-  font-weight: bold;
-}
-
-.pkg_doc__type > .pkg_doc__function,
-.pkg_doc__type > .pkg_doc__constant,
-.pkg_doc__type > .pkg_doc__variable {
-  padding: 5px 0 5px;
+#pkg_doc pre {
+  margin-top: 10px;
+  margin-bottom: 10px;
 }

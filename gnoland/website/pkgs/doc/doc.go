@@ -11,6 +11,7 @@ import (
 func New(pkgPath string, files map[string]string) (*Package, error) {
 	p := Package{
 		ImportPath: pkgPath,
+		Path:       strings.TrimPrefix(pkgPath, "gno.land"),
 		Filenames:  make([]string, 0, len(files)),
 	}
 
@@ -20,16 +21,16 @@ func New(pkgPath string, files map[string]string) (*Package, error) {
 	for filename, fileContent := range files {
 		p.Filenames = append(p.Filenames, filename)
 
+		if !strings.HasSuffix(filename, ".gno") || strings.HasSuffix(filename, "_test.gno") || strings.HasSuffix(filename, "_filetest.gno") {
+			continue
+		}
+
 		f, err := parser.ParseFile(fset, filename, fileContent, parser.ParseComments)
 		if err != nil {
 			return nil, err
 		}
 
 		ast.FileExports(f)
-
-		if strings.HasSuffix(filename, "_test.gno") || strings.HasSuffix(filename, "_filetest.gno") {
-			continue
-		}
 
 		gnoFiles[filename] = f
 
