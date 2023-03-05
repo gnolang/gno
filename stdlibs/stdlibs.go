@@ -125,7 +125,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				ctx := m.Context.(ExecContext)
 				isOrigin := ctx.Msg != nil && len(ctx.Msg.GetSigners()) > 0
 				if !isOrigin {
-					panic("invalid non-origin call")
+					m.Panic(typedString("invalid non-origin call"))
 				}
 			},
 		)

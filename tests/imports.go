@@ -43,6 +43,7 @@ import (
 	dbm "github.com/gnolang/gno/pkgs/db"
 	gno "github.com/gnolang/gno/pkgs/gnolang"
 	osm "github.com/gnolang/gno/pkgs/os"
+	"github.com/gnolang/gno/pkgs/sdk/testutils"
 	"github.com/gnolang/gno/pkgs/std"
 	"github.com/gnolang/gno/pkgs/store/dbadapter"
 	"github.com/gnolang/gno/pkgs/store/iavl"
@@ -516,6 +517,8 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				// overwrite context
 				ctx := m.Context.(stdlibs.ExecContext)
 				ctx.OrigCaller = crypto.Bech32Address(addr)
+				// Define new message with addr as signer
+				ctx.Msg = testutils.NewTestMsg(crypto.MustAddressFromString(addr))
 				m.Context = ctx
 			},
 		)
@@ -531,6 +534,8 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				// overwrite context
 				ctx := m.Context.(stdlibs.ExecContext)
 				ctx.OrigPkgAddr = addr
+				// Define new message with addr as signer
+				ctx.Msg = testutils.NewTestMsg(crypto.MustAddressFromString(arg0.GetString()))
 				m.Context = ctx
 			},
 		)

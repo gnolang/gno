@@ -4,11 +4,15 @@ package boards_test
 // SEND: 2000000000ugnot
 
 import (
+	"std"
+
+	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/boards"
 	"gno.land/r/demo/users"
 )
 
 func init() {
+	std.TestSetOrigCaller(testutils.TestAddress("test"))
 	// register
 	users.Register("", "gnouser", "my profile")
 

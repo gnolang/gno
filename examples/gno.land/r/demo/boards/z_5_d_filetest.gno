@@ -14,6 +14,7 @@ import (
 const admin = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 func main() {
+	std.TestSetOrigCaller(testutils.TestAddress("test"))
 	users.Register("", "gnouser", "my profile")
 	// create board via registered user
 	bid := boards.CreateBoard("test_board")

@@ -15,7 +15,6 @@ import (
 	"github.com/gnolang/gno/pkgs/crypto"
 	gno "github.com/gnolang/gno/pkgs/gnolang"
 	osm "github.com/gnolang/gno/pkgs/os"
-	"github.com/gnolang/gno/pkgs/sdk/testutils"
 	"github.com/gnolang/gno/pkgs/std"
 	"github.com/gnolang/gno/stdlibs"
 )
@@ -42,7 +41,7 @@ func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAll
 		ChainID:       "dev",
 		Height:        123,
 		Timestamp:     1234567890,
-		Msg:           testutils.NewTestMsg(caller),
+		Msg:           nil,
 		OrigCaller:    caller.Bech32(),
 		OrigPkgAddr:   pkgAddr.Bech32(),
 		OrigSend:      send,

@@ -98,6 +98,9 @@ func TestTest(t *testing.T) {
 			stdoutShouldContain: "RUN   TestSprintf",
 			stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/ufmt",
 		}, {
+			args:                []string{"test", "../../tests/integ/origin-call"},
+			stderrShouldContain: "ok      ./../../tests/integ/origin-call",
+		}, {
 			args:                []string{"test", "--verbose", "--run", ".*/NoExists", "../../examples/gno.land/p/demo/ufmt"},
 			stderrShouldContain: "ok      ./../../examples/gno.land/p/demo/ufmt",
 		}, {
