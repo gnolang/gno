@@ -1,7 +1,9 @@
 package stdlibs
 
 import (
+	"fmt"
 	"math"
+	"path"
 	"reflect"
 	"strconv"
 	"time"
@@ -453,6 +455,61 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
 				res0.T = addrT
 				m.PushValue(res0)
+			},
+		)
+		pn.DefineNative("Call",
+			gno.Flds( // params
+				"pkgPath", "string",
+				"funcName", "string",
+				"args", "[]string",
+			),
+			gno.Flds( // results
+				"result", "CallResult",
+			),
+			func(m *gno.Machine) {
+				arg0, arg1, arg2 := m.LastBlock().GetParams3()
+				pkgPath := arg0.TV.GetString()
+				pkgName := path.Base(pkgPath) // TODO
+				funcName := arg1.TV.GetString()
+				fmt.Printf("pkgPath: %s, pkgName: %s, funcName: %s\n", pkgPath, pkgName, funcName)
+
+				var args []interface{}
+				if arg2.TV.V != nil {
+					av := arg2.TV.V.(*gno.SliceValue).Base.(*gno.ArrayValue)
+					for i := range av.List {
+						args = append(args, av.List[i].GetString())
+					}
+				}
+				fmt.Printf("args: %+v\n", args)
+
+				// Get first block to import. because the block is package block.
+				pb := m.Blocks[0]
+				pn := pb.GetSource(m.Store).(*gno.PackageNode)
+
+				// Import package to call
+				d := gno.ImportD(pkgName, pkgPath)
+				_ = gno.Preprocess(m.Store, pn, d).(gno.Decl)
+				p := m.Store.GetPackage(pn.PkgPath, true)
+
+				pn.PrepareNewValues(p)
+				m.PushBlock(pb)
+
+				call := gno.Call(fmt.Sprintf("%s.%s", pkgName, funcName), args...)
+				tvs := m.Eval(call)
+
+				fmt.Printf("tvs: %+v\n", tvs)
+
+				crType := store.GetType(gno.DeclaredTypeID("std", "CallResult"))
+				crField := gno.TypedValue{
+					T: &gno.SliceType{Elt: &gno.InterfaceType{}},
+					V: m.Alloc.NewSliceFromList(tvs),
+				}
+				crVal := m.Alloc.NewStructWithFields(crField)
+				ret := gno.TypedValue{
+					T: crType,
+					V: crVal,
+				}
+				m.PushValue(ret)
 			},
 		)
 	}
