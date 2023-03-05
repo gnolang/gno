@@ -26,15 +26,23 @@ func TestStdCall(t *testing.T) {
 
 	c := `package main
 	import "std"
+	import "gno.land/p/demo/grc/grc721"
+	import "gno.land/p/demo/testutils"
+
+	type Token interface {
+		Mint(std.Address,string) grc721.TokenID 
+	}
+
 	func main() {
 		result := std.Call("gno.land/r/demo/nft","GetToken",nil)
 		println(result.Value)
 		println(len(result.Value))
-		tt := result.Value[0]
-		println(tt)
+		tt := result.Value[0].(Token)
 
-		//token := result.Value[0].(nft.Token)
-		//println(token)
+		addr1 := testutils.TestAddress("addr1")
+		tid := tt.Mint(addr1,"hello")
+		println("tid: ",tid)
+
 	}
 `
 	n := gno.MustParseFile("test", c)
