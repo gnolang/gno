@@ -469,36 +469,34 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			func(m *gno.Machine) {
 				arg0, arg1, arg2 := m.LastBlock().GetParams3()
 				pkgPath := arg0.TV.GetString()
-				pkgName := path.Base(pkgPath) // TODO
+				pkgName := path.Base(pkgPath)
 				funcName := arg1.TV.GetString()
-				fmt.Printf("pkgPath: %s, pkgName: %s, funcName: %s\n", pkgPath, pkgName, funcName)
 
-				var args []interface{}
+				// TODO std.CallArgs?
+				args := make([]interface{}, 0)
 				if arg2.TV.V != nil {
 					av := arg2.TV.V.(*gno.SliceValue).Base.(*gno.ArrayValue)
 					for i := range av.List {
-						args = append(args, av.List[i].GetString())
+						// TODO check type and convert to expr
+						args = append(args, gno.Str(av.List[i].GetString()))
 					}
 				}
-				fmt.Printf("args: %+v\n", args)
 
-				// Get first block to import. because the block is package block.
-				pb := m.Blocks[0]
-				pn := pb.GetSource(m.Store).(*gno.PackageNode)
+				// Make a package for the call.
+				pn := gno.NewPackageNode("callpkg", "callpkg", nil)
+				pv := store.GetPackage(pkgPath, false)
+				pn.Define(gno.Name(pkgName), gno.TypedValue{T: &gno.PackageType{}, V: pv})
 
-				// Import package to call
-				d := gno.ImportD(pkgName, pkgPath)
-				_ = gno.Preprocess(m.Store, pn, d).(gno.Decl)
-				p := m.Store.GetPackage(pn.PkgPath, true)
+				p := pn.NewPackage()
+				pb := p.GetBlock(m.Store)
 
-				pn.PrepareNewValues(p)
 				m.PushBlock(pb)
 
+				// Call the function.
 				call := gno.Call(fmt.Sprintf("%s.%s", pkgName, funcName), args...)
 				tvs := m.Eval(call)
 
-				fmt.Printf("tvs: %+v\n", tvs)
-
+				// Make result value.
 				crType := store.GetType(gno.DeclaredTypeID("std", "CallResult"))
 				crField := gno.TypedValue{
 					T: &gno.SliceType{Elt: &gno.InterfaceType{}},

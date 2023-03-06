@@ -35,21 +35,20 @@ func TestStdCall(t *testing.T) {
 
 	func main() {
 		result := std.Call("gno.land/r/demo/nft","GetToken",nil)
-		println(result.Value)
-		println(len(result.Value))
+		println("result.Value:",result.Value)
+		println("result.Value: len:",len(result.Value))
 		tt := result.Value[0].(Token)
 
 		addr1 := testutils.TestAddress("addr1")
 		tid := tt.Mint(addr1,"hello")
 		println("tid: ",tid)
-
 	}
 `
 	n := gno.MustParseFile("test", c)
 	m.RunFiles(n)
 	m.RunMain()
 
-	fmt.Printf("output: %v\n", stdout)
+	t.Logf("output: %v\n", stdout)
 
 	err := m.CheckEmpty()
 	if err != nil {
