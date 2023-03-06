@@ -105,9 +105,32 @@ func GnoToGoMod(f File) (*File, error) {
 		})
 	}
 
-	// Since we already fetched and replaced replacement modules
-	// with `/pkg/gnomod/...` path.
-	// Ignore leftovers.
+	// By this stage every replacement should be replace by dir.
+	// If not replaced by dir, remove it.
+	//
+	// e.g:
+	//
+	// ```
+	// require (
+	// 	gno.land/p/demo/avl v1.2.3
+	// )
+	//
+	// replace (
+	// 	gno.land/p/demo/avl v1.2.3  => gno.land/p/demo/avl v3.2.1
+	// )
+	// ```
+	//
+	// In above case we will fetch `gno.land/p/demo/avl v3.2.1` and
+	// replace will look something like:
+	//
+	// ```
+	// replace (
+	//	gno.land/p/demo/avl v1.2.3  => gno.land/p/demo/avl v3.2.1
+	// 	gno.land/p/demo/avl v3.2.1  => /path/to/avl/version/v3.2.1
+	// )
+	// ```
+	//
+	// Remove `gno.land/p/demo/avl v1.2.3  => gno.land/p/demo/avl v3.2.1`.
 	repl := make([]*modfile.Replace, 0, len(f.Replace))
 	for _, r := range f.Replace {
 		if !modfile.IsDirectoryPath(r.New.Path) {
