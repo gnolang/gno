@@ -7,7 +7,7 @@ import (
 	"github.com/gnolang/gno/pkgs/bft/rpc/client"
 )
 
-func queryChain(qpath string, data []byte) (res *abci.ResponseQuery, err error) {
+func queryChain(remote string, qpath string, data []byte) (res *abci.ResponseQuery, err error) {
 	opts2 := client.ABCIQueryOptions{
 		// Height: height, XXX
 		// Prove: false, XXX
