@@ -65,8 +65,8 @@ func createConfig() *cfg.Config {
 	c := cfg.ResetTestRoot(pathname)
 
 	// and we use random ports to run in parallel
-	c.P2P.ListenAddress = "tcp://127.0.0.2:0"
-	c.RPC.ListenAddress = "tcp://127.0.0.2:0"
+	c.P2P.ListenAddress = "tcp://127.0.0.1:0"
+	c.RPC.ListenAddress = "tcp://127.0.0.1:0"
 	c.RPC.CORSAllowedOrigins = []string{"https://tendermint.com/"}
 	// c.TxIndex.IndexTags = "app.creator,tx.height" // see kvstore application
 	return c
