@@ -1,10 +1,15 @@
 // Package iavl implements a versioned, snapshottable (immutable) AVL+ tree
 // for persisting key-value pairs.
 //
-// Basic usage of MutableTree.
+// The tree is not safe for concurrent use, and must be guarded by a Mutex
+// or RWLock as appropriate - the exception is immutable trees returned by
+// MutableTree.GetImmutable() which are safe for concurrent use as long as
+// the version is not deleted via DeleteVersion().
 //
-//	import "github.com/tendermint/classic/iavl"
-//	import "github.com/tendermint/classic/db"
+// Basic usage of MutableTree:
+//
+//	import "github.com/gnolang/gno/pkgs/iavl"
+//	import "github.com/gnolang/gno/pkgs/db"
 //	...
 //
 //	tree := iavl.NewMutableTree(db.NewMemDB(), 128)

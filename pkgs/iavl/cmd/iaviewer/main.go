@@ -10,7 +10,9 @@ import (
 	"strings"
 
 	dbm "github.com/gnolang/gno/pkgs/db"
+
 	"github.com/gnolang/gno/pkgs/iavl"
+	ibytes "github.com/gnolang/gno/pkgs/iavl/internal/bytes"
 )
 
 // TODO: make this configurable?
@@ -20,44 +22,53 @@ const (
 
 func main() {
 	args := os.Args[1:]
-	if len(args) < 2 || (args[0] != "data" && args[0] != "shape" && args[0] != "versions") {
-		fmt.Fprintln(os.Stderr, "Usage: iaviewer <data|shape|versions> <leveldb dir> [version number]")
+	if len(args) < 3 || (args[0] != "data" && args[0] != "shape" && args[0] != "versions") {
+		fmt.Fprintln(os.Stderr, "Usage: iaviewer <data|shape|versions> <leveldb dir> <prefix> [version number]")
+		fmt.Fprintln(os.Stderr, "<prefix> is the prefix of db, and the iavl tree of different modules in cosmos-sdk uses ")
+		fmt.Fprintln(os.Stderr, "different <prefix> to identify, just like \"s/k:gov/\" represents the prefix of gov module")
 		os.Exit(1)
 	}
 
 	version := 0
-	if len(args) == 3 {
+	if len(args) == 4 {
 		var err error
-		version, err = strconv.Atoi(args[2])
+		version, err = strconv.Atoi(args[3])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Invalid version number: %s\n", err)
 			os.Exit(1)
 		}
 	}
 
-	tree, err := ReadTree(args[1], version)
+	tree, err := ReadTree(args[1], version, []byte(args[2]))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error reading data: %s\n", err)
 		os.Exit(1)
 	}
 
-	if args[0] == "data" {
+	switch args[0] {
+	case "data":
 		PrintKeys(tree)
-		fmt.Printf("Hash: %X\n", tree.Hash())
+		hash, err := tree.Hash()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error hashing tree: %s\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("Hash: %X\n", hash)
 		fmt.Printf("Size: %X\n", tree.Size())
-	} else if args[0] == "shape" {
+	case "shape":
 		PrintShape(tree)
-	} else if args[0] == "versions" {
+	case "versions":
 		PrintVersions(tree)
 	}
 }
 
 func OpenDB(dir string) (dbm.DB, error) {
-	if strings.HasSuffix(dir, ".db") {
+	switch {
+	case strings.HasSuffix(dir, ".db"):
 		dir = dir[:len(dir)-3]
-	} else if strings.HasSuffix(dir, ".db/") {
+	case strings.HasSuffix(dir, ".db/"):
 		dir = dir[:len(dir)-4]
-	} else {
+	default:
 		return nil, fmt.Errorf("database directory must end with .db")
 	}
 	// TODO: doesn't work on windows!
@@ -73,14 +84,43 @@ func OpenDB(dir string) (dbm.DB, error) {
 	return db, nil
 }
 
+// nolint: deadcode
+func PrintDBStats(db dbm.DB) {
+	count := 0
+	prefix := map[string]int{}
+	itr := db.Iterator(nil, nil)
+
+	defer itr.Close()
+	for ; itr.Valid(); itr.Next() {
+		key := ibytes.UnsafeBytesToStr(itr.Key()[:1])
+		prefix[key]++
+		count++
+	}
+	if err := itr.Error(); err != nil {
+		panic(err)
+	}
+	fmt.Printf("DB contains %d entries\n", count)
+	for k, v := range prefix {
+		fmt.Printf("  %s: %d\n", k, v)
+	}
+}
+
 // ReadTree loads an iavl tree from the directory
 // If version is 0, load latest, otherwise, load named version
-func ReadTree(dir string, version int) (*iavl.MutableTree, error) {
+// The prefix represents which iavl tree you want to read. The iaviwer will always set a prefix.
+func ReadTree(dir string, version int, prefix []byte) (*iavl.MutableTree, error) {
 	db, err := OpenDB(dir)
 	if err != nil {
 		return nil, err
 	}
-	tree := iavl.NewMutableTree(db, DefaultCacheSize)
+	if len(prefix) != 0 {
+		db = dbm.NewPrefixDB(db, prefix)
+	}
+
+	tree, err := iavl.NewMutableTree(db, DefaultCacheSize)
+	if err != nil {
+		return nil, err
+	}
 	ver, err := tree.LoadVersion(int64(version))
 	fmt.Printf("Got version: %d\n", ver)
 	return tree, err
@@ -120,7 +160,8 @@ func encodeID(id []byte) string {
 
 func PrintShape(tree *iavl.MutableTree) {
 	// shape := tree.RenderShape("  ", nil)
-	shape := tree.RenderShape("  ", nodeEncoder)
+	// TODO: handle this error
+	shape, _ := tree.RenderShape("  ", nodeEncoder)
 	fmt.Println(strings.Join(shape, "\n"))
 }
 
@@ -138,7 +179,7 @@ func nodeEncoder(id []byte, depth int, isLeaf bool) string {
 func PrintVersions(tree *iavl.MutableTree) {
 	versions := tree.AvailableVersions()
 	fmt.Println("Available versions:")
-	for v := range versions {
+	for _, v := range versions {
 		fmt.Printf("  %d\n", v)
 	}
 }

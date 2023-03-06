@@ -1,3 +1,4 @@
+//nolint:errcheck
 package iavl
 
 import (
@@ -5,8 +6,9 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/gnolang/gno/pkgs/db"
-	"github.com/gnolang/gno/pkgs/random"
+	"github.com/stretchr/testify/require"
+
+	iavlrand "github.com/gnolang/gno/pkgs/iavl/internal/rand"
 )
 
 // This file implement fuzz testing by generating programs and then running
@@ -31,7 +33,7 @@ func (p *program) Execute(tree *MutableTree) (err error) {
 				}
 				str += prefix + instr.String() + "\n"
 			}
-			err = fmt.Errorf("Program panicked with: %s\n%s", r, str)
+			err = fmt.Errorf("program panicked with: %s\n%s", r, str)
 		}
 	}()
 
@@ -84,7 +86,7 @@ func genRandomProgram(size int) *program {
 	nextVersion := 1
 
 	for p.size() < size {
-		k, v := []byte(random.RandStr(1)), []byte(random.RandStr(1))
+		k, v := []byte(iavlrand.RandStr(1)), []byte(iavlrand.RandStr(1))
 
 		switch rand.Int() % 7 {
 		case 0, 1, 2:
@@ -111,11 +113,14 @@ func TestMutableTreeFuzz(t *testing.T) {
 
 	for size := 5; iterations < maxIterations; size++ {
 		for i := 0; i < progsPerIteration/size; i++ {
-			tree := NewMutableTree(db.NewMemDB(), 0)
+			tree, err := getTestTree(0)
+			require.NoError(t, err)
 			program := genRandomProgram(size)
-			err := program.Execute(tree)
+			err = program.Execute(tree)
 			if err != nil {
-				t.Fatalf("Error after %d iterations (size %d): %s\n%s", iterations, size, err.Error(), tree.String())
+				str, err := tree.String()
+				require.Nil(t, err)
+				t.Fatalf("Error after %d iterations (size %d): %s\n%s", iterations, size, err.Error(), str)
 			}
 			iterations++
 		}

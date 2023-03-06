@@ -3,8 +3,13 @@ package iavl
 import (
 	"fmt"
 
+	tmmerkle "github.com/gnolang/gno/pkgs/crypto"
 	"github.com/gnolang/gno/pkgs/crypto/merkle"
-	"github.com/gnolang/gno/pkgs/errors"
+	proto "github.com/gogo/protobuf/proto"
+	"github.com/pkg/errors"
+
+	"github.com/gnolang/gno/pkgs/iavl/internal/encoding"
+	iavlproto "github.com/gnolang/gno/pkgs/iavl/proto"
 )
 
 const ProofOpIAVLAbsence = "iavl:a"
@@ -13,7 +18,7 @@ const ProofOpIAVLAbsence = "iavl:a"
 //
 // If the produced root hash matches the expected hash, the proof
 // is good.
-type IAVLAbsenceOp struct {
+type AbsenceOp struct {
 	// Encoded in ProofOp.Key.
 	key []byte
 
@@ -23,48 +28,75 @@ type IAVLAbsenceOp struct {
 	Proof *RangeProof `json:"proof"`
 }
 
-var _ merkle.ProofOperator = IAVLAbsenceOp{}
+var _ merkle.ProofOperator = AbsenceOp{}
 
-func NewIAVLAbsenceOp(key []byte, proof *RangeProof) IAVLAbsenceOp {
-	return IAVLAbsenceOp{
+func NewAbsenceOp(key []byte, proof *RangeProof) AbsenceOp {
+	return AbsenceOp{
 		key:   key,
 		Proof: proof,
 	}
 }
 
-func IAVLAbsenceOpDecoder(pop merkle.ProofOp) (merkle.ProofOperator, error) {
+func AbsenceOpDecoder(pop tmmerkle.ProofOp) (merkle.ProofOperator, error) {
 	if pop.Type != ProofOpIAVLAbsence {
-		return nil, errors.New("unexpected ProofOp.Type; got %v, want %v", pop.Type, ProofOpIAVLAbsence)
+		return nil, errors.Errorf("unexpected ProofOp.Type; got %v, want %v", pop.Type, ProofOpIAVLAbsence)
 	}
-	var op IAVLAbsenceOp // a bit strange as we'll discard this, but it works.
-	err := cdc.UnmarshalSized(pop.Data, &op)
+	// Strip the varint length prefix, used for backwards compatibility with Amino.
+	bz, n, err := encoding.DecodeBytes(pop.Data)
 	if err != nil {
-		return nil, errors.Wrap(err, "decoding ProofOp.Data into IAVLAbsenceOp")
+		return nil, err
 	}
-	return NewIAVLAbsenceOp(pop.Key, op.Proof), nil
+
+	if n != len(pop.Data) {
+		return nil, fmt.Errorf("unexpected bytes, expected %v got %v", n, len(pop.Data))
+	}
+
+	pbProofOp := &iavlproto.AbsenceOp{}
+	err = proto.Unmarshal(bz, pbProofOp)
+	if err != nil {
+		return nil, err
+	}
+
+	proof, err := RangeProofFromProto(pbProofOp.Proof)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewAbsenceOp(pop.Key, &proof), nil
 }
 
-func (op IAVLAbsenceOp) ProofOp() merkle.ProofOp {
-	bz := cdc.MustMarshalSized(op)
-	return merkle.ProofOp{
+func (op AbsenceOp) ProofOp() tmmerkle.ProofOp {
+	pbProof := iavlproto.AbsenceOp{Proof: op.Proof.ToProto()}
+	bz, err := proto.Marshal(&pbProof)
+	if err != nil {
+		panic(err)
+	}
+	// We length-prefix the byte slice to retain backwards compatibility with the Amino proofs.
+	bz, err = encoding.EncodeBytesSlice(bz)
+	if err != nil {
+		panic(err)
+	}
+	return tmmerkle.ProofOp{
 		Type: ProofOpIAVLAbsence,
 		Key:  op.key,
 		Data: bz,
 	}
 }
 
-func (op IAVLAbsenceOp) String() string {
+func (op AbsenceOp) String() string {
 	return fmt.Sprintf("IAVLAbsenceOp{%v}", op.GetKey())
 }
 
-func (op IAVLAbsenceOp) Run(args [][]byte) ([][]byte, error) {
+func (op AbsenceOp) Run(args [][]byte) ([][]byte, error) {
 	if len(args) != 0 {
-		return nil, errors.New("expected 0 args, got %v", len(args))
+		return nil, errors.Errorf("expected 0 args, got %v", len(args))
 	}
+
 	// If the tree is nil, the proof is nil, and all keys are absent.
 	if op.Proof == nil {
 		return [][]byte{[]byte(nil)}, nil
 	}
+
 	// Compute the root hash and assume it is valid.
 	// The caller checks the ultimate root later.
 	root := op.Proof.ComputeRootHash()
@@ -72,6 +104,7 @@ func (op IAVLAbsenceOp) Run(args [][]byte) ([][]byte, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "computing root hash")
 	}
+
 	// XXX What is the encoding for keys?
 	// We should decode the key depending on whether it's a string or hex,
 	// maybe based on quotes and 0x prefix?
@@ -79,9 +112,10 @@ func (op IAVLAbsenceOp) Run(args [][]byte) ([][]byte, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "verifying absence")
 	}
+
 	return [][]byte{root}, nil
 }
 
-func (op IAVLAbsenceOp) GetKey() []byte {
+func (op AbsenceOp) GetKey() []byte {
 	return op.key
 }

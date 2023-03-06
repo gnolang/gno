@@ -7,9 +7,10 @@ import (
 
 // Provides a fixed-width lexicographically sortable []byte key format
 type KeyFormat struct {
-	prefix byte
-	layout []int
-	length int
+	layout    []int
+	length    int
+	prefix    byte
+	unbounded bool
 }
 
 // Create a []byte key format based on a single byte prefix and fixed width key segments each of whose length is
@@ -27,31 +28,62 @@ type KeyFormat struct {
 //		hasher.Sum(nil)
 //		return keyFormat.Key(version, hasher.Sum(nil))
 //	}
+//
+// if the last term of the layout ends in 0
 func NewKeyFormat(prefix byte, layout ...int) *KeyFormat {
 	// For prefix byte
 	length := 1
-	for _, l := range layout {
+	for i, l := range layout {
 		length += l
+		if l == 0 && i != len(layout)-1 {
+			panic("Only the last item in a key format can be 0")
+		}
 	}
 	return &KeyFormat{
-		prefix: prefix,
-		layout: layout,
-		length: length,
+		prefix:    prefix,
+		layout:    layout,
+		length:    length,
+		unbounded: len(layout) > 0 && layout[len(layout)-1] == 0,
 	}
 }
 
 // Format the byte segments into the key format - will panic if the segment lengths do not match the layout.
 func (kf *KeyFormat) KeyBytes(segments ...[]byte) []byte {
-	key := make([]byte, kf.length)
+	keyLen := kf.length
+	// In case segments length is less than layouts length,
+	// we don't have to allocate the whole kf.length, just
+	// enough space to store the segments.
+	if len(segments) < len(kf.layout) {
+		keyLen = 1
+		for i := range segments {
+			keyLen += kf.layout[i]
+		}
+	}
+
+	if kf.unbounded {
+		if len(segments) > 0 {
+			keyLen += len(segments[len(segments)-1])
+		}
+	}
+	key := make([]byte, keyLen)
 	key[0] = kf.prefix
 	n := 1
 	for i, s := range segments {
 		l := kf.layout[i]
-		if len(s) > l {
-			panic(fmt.Errorf("length of segment %X provided to KeyFormat.KeyBytes() is longer than the %d bytes "+
-				"required by layout for segment %d", s, l, i))
+
+		switch l {
+		case 0:
+			// If the expected segment length is unbounded, increase it by `string length`
+			n += len(s)
+		default:
+			if len(s) > l {
+				panic(fmt.Errorf("length of segment %X provided to KeyFormat.KeyBytes() is longer than the %d bytes "+
+					"required by layout for segment %d", s, l, i))
+			}
+			// Otherwise increase n by the segment length
+			n += l
+
 		}
-		n += l
 		// Big endian so pad on left if not given the full width for this segment
 		copy(key[n-len(s):n], s)
 	}
@@ -63,7 +95,7 @@ func (kf *KeyFormat) KeyBytes(segments ...[]byte) []byte {
 // element of the entire keys space when sorted lexicographically).
 func (kf *KeyFormat) Key(args ...interface{}) []byte {
 	if len(args) > len(kf.layout) {
-		panic(fmt.Errorf("KeyFormat.Key() is provided with %d args but format only has %d segments",
+		panic(fmt.Errorf("keyFormat.Key() is provided with %d args but format only has %d segments",
 			len(args), len(kf.layout)))
 	}
 	segments := make([][]byte, len(args))
@@ -79,10 +111,17 @@ func (kf *KeyFormat) ScanBytes(key []byte) [][]byte {
 	n := 1
 	for i, l := range kf.layout {
 		n += l
+		// if current section is longer than key, then there are no more subsequent segments.
 		if n > len(key) {
 			return segments[:i]
 		}
-		segments[i] = key[n-l : n]
+		// if unbounded, segment is rest of key
+		if l == 0 {
+			segments[i] = key[n:]
+			break
+		} else {
+			segments[i] = key[n-l : n]
+		}
 	}
 	return segments
 }
@@ -92,7 +131,7 @@ func (kf *KeyFormat) ScanBytes(key []byte) [][]byte {
 func (kf *KeyFormat) Scan(key []byte, args ...interface{}) {
 	segments := kf.ScanBytes(key)
 	if len(args) > len(segments) {
-		panic(fmt.Errorf("KeyFormat.Scan() is provided with %d args but format only has %d segments in key %X",
+		panic(fmt.Errorf("keyFormat.Scan() is provided with %d args but format only has %d segments in key %X",
 			len(args), len(segments), key))
 	}
 	for i, a := range args {
@@ -115,7 +154,7 @@ func scan(a interface{}, value []byte) {
 	case *[]byte:
 		*v = value
 	default:
-		panic(fmt.Errorf("KeyFormat scan() does not support scanning value of type %T: %v", a, a))
+		panic(fmt.Errorf("keyFormat scan() does not support scanning value of type %T: %v", a, a))
 	}
 }
 
@@ -133,7 +172,7 @@ func format(a interface{}) []byte {
 	case []byte:
 		return v
 	default:
-		panic(fmt.Errorf("KeyFormat format() does not support formatting value of type %T: %v", a, a))
+		panic(fmt.Errorf("keyFormat format() does not support formatting value of type %T: %v", a, a))
 	}
 }
 

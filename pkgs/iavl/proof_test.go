@@ -1,36 +1,42 @@
+// nolint: errcheck
 package iavl
 
 import (
 	"bytes"
+	"sort"
 	"testing"
 
+	proto "github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/gnolang/gno/pkgs/amino"
-	"github.com/gnolang/gno/pkgs/db"
-	"github.com/gnolang/gno/pkgs/random"
-	"github.com/gnolang/gno/pkgs/testutils"
+	iavlrand "github.com/gnolang/gno/pkgs/iavl/internal/rand"
+	iavlproto "github.com/gnolang/gno/pkgs/iavl/proto"
 )
 
 func TestTreeGetWithProof(t *testing.T) {
-	tree := NewMutableTree(db.NewMemDB(), 0)
+	tree, err := getTestTree(0)
+	require.NoError(t, err)
 	require := require.New(t)
 	for _, ikey := range []byte{0x11, 0x32, 0x50, 0x72, 0x99} {
 		key := []byte{ikey}
-		tree.Set(key, []byte(random.RandStr(8)))
+		tree.Set(key, []byte(iavlrand.RandStr(8)))
 	}
-	root := tree.WorkingHash()
+	root, err := tree.WorkingHash()
+	require.NoError(err)
 
 	key := []byte{0x32}
 	val, proof, err := tree.GetWithProof(key)
 	require.NoError(err)
 	require.NotEmpty(val)
 	require.NotNil(proof)
+
 	err = proof.VerifyItem(key, val)
 	require.Error(err, "%+v", err) // Verifying item before calling Verify(root)
+
 	err = proof.Verify(root)
 	require.NoError(err, "%+v", err)
+
 	err = proof.VerifyItem(key, val)
 	require.NoError(err, "%+v", err)
 
@@ -39,17 +45,22 @@ func TestTreeGetWithProof(t *testing.T) {
 	require.NoError(err)
 	require.Empty(val)
 	require.NotNil(proof)
+
 	err = proof.VerifyAbsence(key)
 	require.Error(err, "%+v", err) // Verifying absence before calling Verify(root)
+
 	err = proof.Verify(root)
 	require.NoError(err, "%+v", err)
+
 	err = proof.VerifyAbsence(key)
 	require.NoError(err, "%+v", err)
 }
 
 func TestTreeKeyExistsProof(t *testing.T) {
-	tree := NewMutableTree(db.NewMemDB(), 0)
-	root := tree.WorkingHash()
+	tree, err := getTestTree(0)
+	require.NoError(t, err)
+	root, err := tree.WorkingHash()
+	require.NoError(t, err)
 
 	// should get false for proof with nil root
 	proof, keys, values, err := tree.getRangeProof([]byte("foo"), nil, 1)
@@ -62,13 +73,14 @@ func TestTreeKeyExistsProof(t *testing.T) {
 	// insert lots of info and store the bytes
 	allkeys := make([][]byte, 200)
 	for i := 0; i < 200; i++ {
-		key := random.RandStr(20)
+		key := iavlrand.RandStr(20)
 		value := "value_for_" + key
 		tree.Set([]byte(key), []byte(value))
 		allkeys[i] = []byte(key)
 	}
 	sortByteSlices(allkeys) // Sort all keys
-	root = tree.WorkingHash()
+	root, err = tree.WorkingHash()
+	require.NoError(t, err)
 
 	// query random key fails
 	proof, _, _, err = tree.getRangeProof([]byte("foo"), nil, 2)
@@ -114,27 +126,30 @@ func TestTreeKeyExistsProof(t *testing.T) {
 }
 
 func TestTreeKeyInRangeProofs(t *testing.T) {
-	tree := NewMutableTree(db.NewMemDB(), 0)
+	tree, err := getTestTree(0)
+	require.NoError(t, err)
 	require := require.New(t)
 	keys := []byte{0x0a, 0x11, 0x2e, 0x32, 0x50, 0x72, 0x99, 0xa1, 0xe4, 0xf7} // 10 total.
 	for _, ikey := range keys {
 		key := []byte{ikey}
 		tree.Set(key, key)
 	}
-	root := tree.WorkingHash()
+	root, err := tree.WorkingHash()
+	require.NoError(err)
 
 	// For spacing:
 	T := 10
 	// disable: don't use underscores in Go names; var nil______ should be nil (golint)
+	//nolint
 	nil______ := []byte(nil)
 
-	cases := []struct {
+	cases := []struct { //nolint:maligned
 		start byte
 		end   byte
 		pkeys []byte // proof keys, one byte per key.
 		vals  []byte // keys and values, one byte per key.
 		lidx  int64  // proof left index (index of first proof key).
-		pnc   bool   // does panic
+		err   bool   // does error
 	}{
 		{start: 0x0a, end: 0xf7, pkeys: keys[0:T], vals: keys[0:9], lidx: 0}, // #0
 		{start: 0x0a, end: 0xf8, pkeys: keys[0:T], vals: keys[0:T], lidx: 0}, // #1
@@ -154,11 +169,11 @@ func TestTreeKeyInRangeProofs(t *testing.T) {
 		{start: 0xf8, end: 0xff, pkeys: keys[9:T], vals: nil______, lidx: 9}, // #15
 		{start: 0x12, end: 0x20, pkeys: keys[1:3], vals: nil______, lidx: 1}, // #16
 		{start: 0x00, end: 0x09, pkeys: keys[0:1], vals: nil______, lidx: 0}, // #17
-		{start: 0xf7, end: 0x00, pnc: true},                                  // #18
-		{start: 0xf8, end: 0x00, pnc: true},                                  // #19
-		{start: 0x10, end: 0x10, pnc: true},                                  // #20
-		{start: 0x12, end: 0x12, pnc: true},                                  // #21
-		{start: 0xff, end: 0xf7, pnc: true},                                  // #22
+		{start: 0xf7, end: 0x00, err: true},                                  // #18
+		{start: 0xf8, end: 0x00, err: true},                                  // #19
+		{start: 0x10, end: 0x10, err: true},                                  // #20
+		{start: 0x12, end: 0x12, err: true},                                  // #21
+		{start: 0xff, end: 0xf7, err: true},                                  // #22
 	}
 
 	// fmt.Println("PRINT TREE")
@@ -170,61 +185,72 @@ func TestTreeKeyInRangeProofs(t *testing.T) {
 		start := []byte{c.start}
 		end := []byte{c.end}
 
-		if c.pnc {
-			require.Panics(func() { tree.GetRangeWithProof(start, end, 0) })
-			continue
-		}
-
 		// Compute range proof.
 		keys, values, proof, err := tree.GetRangeWithProof(start, end, 0)
-		require.NoError(err, "%+v", err)
-		require.Equal(c.pkeys, flatten(proof.Keys()))
-		require.Equal(c.vals, flatten(keys))
-		require.Equal(c.vals, flatten(values))
-		require.Equal(c.lidx, proof.LeftIndex())
 
-		// Verify that proof is valid.
-		err = proof.Verify(root)
-		require.NoError(err, "%+v", err)
-		verifyProof(t, proof, root)
+		if c.err {
+			require.Error(err, "%+v", err)
+		} else {
+			require.NoError(err, "%+v", err)
+			require.Equal(c.pkeys, flatten(proof.Keys()))
+			require.Equal(c.vals, flatten(keys))
+			require.Equal(c.vals, flatten(values))
+			require.Equal(c.lidx, proof.LeftIndex())
 
-		// Verify each value of pkeys.
-		for _, key := range c.pkeys {
-			err := proof.VerifyItem([]byte{key}, []byte{key})
-			require.NoError(err)
+			// Verify that proof is valid.
+			err = proof.Verify(root)
+			require.NoError(err, "%+v", err)
+			verifyProof(t, proof, root)
+
+			// Verify each value of pkeys.
+			for _, key := range c.pkeys {
+				err := proof.VerifyItem([]byte{key}, []byte{key})
+				require.NoError(err)
+			}
+
+			// Verify each value of vals.
+			for _, key := range c.vals {
+				err := proof.VerifyItem([]byte{key}, []byte{key})
+				require.NoError(err)
+			}
 		}
 
-		// Verify each value of vals.
-		for _, key := range c.vals {
-			err := proof.VerifyItem([]byte{key}, []byte{key})
-			require.NoError(err)
-		}
 	}
 }
 
-func verifyProof(t *testing.T, proof *RangeProof, root []byte) {
-	t.Helper()
+func encodeProof(proof *RangeProof) ([]byte, error) {
+	return proto.Marshal(proof.ToProto())
+}
 
+func decodeProof(bz []byte) (*RangeProof, error) {
+	proofOp := &iavlproto.RangeProof{}
+	err := proto.Unmarshal(bz, proofOp)
+	if err != nil {
+		return nil, err
+	}
+	proof, err := RangeProofFromProto(proofOp)
+	return &proof, err
+}
+
+func verifyProof(t *testing.T, proof *RangeProof, root []byte) {
 	// Proof must verify.
 	require.NoError(t, proof.Verify(root))
 
 	// Write/Read then verify.
-	cdc := amino.NewCodec()
-	proofBytes := cdc.MustMarshalSized(proof)
-	proof2 := new(RangeProof)
-	err := cdc.UnmarshalSized(proofBytes, proof2)
-	require.Nil(t, err, "Failed to read KeyExistsProof from bytes: %v", err)
+	proofBytes, err := encodeProof(proof)
+	require.NoError(t, err)
+	_, err = decodeProof(proofBytes)
+	require.NoError(t, err)
 
 	// Random mutations must not verify
 	for i := 0; i < 1e4; i++ {
-		badProofBytes := testutils.MutateByteSlice(proofBytes)
-		badProof := new(RangeProof)
-		err := cdc.UnmarshalSized(badProofBytes, badProof)
+		badProofBytes := MutateByteSlice(proofBytes)
+		badProof, err := decodeProof(badProofBytes)
 		if err != nil {
 			continue // couldn't even decode.
 		}
 		// re-encode to make sure it's actually different.
-		badProofBytes2 := cdc.MustMarshalSized(badProof)
+		badProofBytes2, err := encodeProof(badProof)
 		if bytes.Equal(proofBytes, badProofBytes2) {
 			continue // didn't mutate successfully.
 		}
@@ -237,11 +263,61 @@ func verifyProof(t *testing.T, proof *RangeProof, root []byte) {
 	}
 }
 
-// ----------------------------------------
+//----------------------------------------
 
 func flatten(bzz [][]byte) (res []byte) {
 	for _, bz := range bzz {
 		res = append(res, bz...)
 	}
 	return res
+}
+
+// Contract: !bytes.Equal(input, output) && len(input) >= len(output)
+func MutateByteSlice(bytez []byte) []byte {
+	// If bytez is empty, panic
+	if len(bytez) == 0 {
+		panic("Cannot mutate an empty bytez")
+	}
+
+	// Copy bytez
+	mBytez := make([]byte, len(bytez))
+	copy(mBytez, bytez)
+	bytez = mBytez
+
+	// Try a random mutation
+	switch iavlrand.RandInt() % 2 {
+	case 0: // Mutate a single byte
+		bytez[iavlrand.RandInt()%len(bytez)] += byte(iavlrand.RandInt()%255 + 1)
+	case 1: // Remove an arbitrary byte
+		pos := iavlrand.RandInt() % len(bytez)
+		bytez = append(bytez[:pos], bytez[pos+1:]...)
+	}
+	return bytez
+}
+
+func sortByteSlices(src [][]byte) [][]byte {
+	bzz := byteslices(src)
+	sort.Sort(bzz)
+	return bzz
+}
+
+type byteslices [][]byte
+
+func (bz byteslices) Len() int {
+	return len(bz)
+}
+
+func (bz byteslices) Less(i, j int) bool {
+	switch bytes.Compare(bz[i], bz[j]) {
+	case -1:
+		return true
+	case 0, 1:
+		return false
+	default:
+		panic("should not happen")
+	}
+}
+
+func (bz byteslices) Swap(i, j int) {
+	bz[j], bz[i] = bz[i], bz[j]
 }

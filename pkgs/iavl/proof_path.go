@@ -1,17 +1,14 @@
 package iavl
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
-
-	"github.com/gnolang/gno/pkgs/errors"
 )
 
 // pathWithLeaf is a path to a leaf node and the leaf node itself.
 type pathWithLeaf struct {
 	Path PathToLeaf    `json:"path"`
-	Leaf proofLeafNode `json:"leaf"`
+	Leaf ProofLeafNode `json:"leaf"`
 }
 
 func (pwl pathWithLeaf) String() string {
@@ -28,27 +25,22 @@ func (pwl pathWithLeaf) StringIndented(indent string) string {
 		indent)
 }
 
-// `verify` checks that the leaf node's hash + the inner nodes merkle-izes to
-// the given root. If it returns an error, it means the leafHash or the
-// PathToLeaf is incorrect.
-func (pwl pathWithLeaf) verify(root []byte) error {
-	leafHash := pwl.Leaf.Hash()
-	return pwl.Path.verify(leafHash, root)
-}
-
 // `computeRootHash` computes the root hash with leaf node.
 // Does not verify the root hash.
-func (pwl pathWithLeaf) computeRootHash() []byte {
-	leafHash := pwl.Leaf.Hash()
+func (pwl pathWithLeaf) computeRootHash() ([]byte, error) {
+	leafHash, err := pwl.Leaf.Hash()
+	if err != nil {
+		return nil, err
+	}
 	return pwl.Path.computeRootHash(leafHash)
 }
 
-// ----------------------------------------
+//----------------------------------------
 
 // PathToLeaf represents an inner path to a leaf node.
 // Note that the nodes are ordered such that the last one is closest
 // to the root of the tree.
-type PathToLeaf []proofInnerNode
+type PathToLeaf []ProofInnerNode
 
 func (pl PathToLeaf) String() string {
 	return pl.stringIndented("")
@@ -58,13 +50,13 @@ func (pl PathToLeaf) stringIndented(indent string) string {
 	if len(pl) == 0 {
 		return "empty-PathToLeaf"
 	}
-	strs := make([]string, len(pl))
+	strs := make([]string, 0, len(pl))
 	for i, pin := range pl {
 		if i == 20 {
-			strs[i] = fmt.Sprintf("... (%v total)", len(pl))
+			strs = append(strs, fmt.Sprintf("... (%v total)", len(pl)))
 			break
 		}
-		strs[i] = fmt.Sprintf("%v:%v", i, pin.stringIndented(indent+"  "))
+		strs = append(strs, fmt.Sprintf("%v:%v", i, pin.stringIndented(indent+"  ")))
 	}
 	return fmt.Sprintf(`PathToLeaf{
 %s  %v
@@ -73,30 +65,20 @@ func (pl PathToLeaf) stringIndented(indent string) string {
 		indent)
 }
 
-// `verify` checks that the leaf node's hash + the inner nodes merkle-izes to
-// the given root. If it returns an error, it means the leafHash or the
-// PathToLeaf is incorrect.
-func (pl PathToLeaf) verify(leafHash []byte, root []byte) error {
-	hash := leafHash
-	for i := len(pl) - 1; i >= 0; i-- {
-		pin := pl[i]
-		hash = pin.Hash(hash)
-	}
-	if !bytes.Equal(root, hash) {
-		return errors.Wrap(ErrInvalidProof, "")
-	}
-	return nil
-}
-
 // `computeRootHash` computes the root hash assuming some leaf hash.
 // Does not verify the root hash.
-func (pl PathToLeaf) computeRootHash(leafHash []byte) []byte {
+// Contract: Caller must verify that the roothash is correct by calling `.verify()`.
+func (pl PathToLeaf) computeRootHash(leafHash []byte) ([]byte, error) {
+	var err error
 	hash := leafHash
 	for i := len(pl) - 1; i >= 0; i-- {
 		pin := pl[i]
-		hash = pin.Hash(hash)
+		hash, err = pin.Hash(hash)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return hash
+	return hash, nil
 }
 
 func (pl PathToLeaf) isLeftmost() bool {
@@ -117,49 +99,19 @@ func (pl PathToLeaf) isRightmost() bool {
 	return true
 }
 
-func (pl PathToLeaf) isEmpty() bool {
-	return pl == nil || len(pl) == 0
-}
-
-func (pl PathToLeaf) dropRoot() PathToLeaf {
-	if pl.isEmpty() {
-		return pl
-	}
-	return pl[:len(pl)-1]
-}
-
-func (pl PathToLeaf) hasCommonRoot(pl2 PathToLeaf) bool {
-	if pl.isEmpty() || pl2.isEmpty() {
-		return false
-	}
-	leftEnd := pl[len(pl)-1]
-	rightEnd := pl2[len(pl2)-1]
-
-	return bytes.Equal(leftEnd.Left, rightEnd.Left) &&
-		bytes.Equal(leftEnd.Right, rightEnd.Right)
-}
-
-func (pl PathToLeaf) isLeftAdjacentTo(pl2 PathToLeaf) bool {
-	for pl.hasCommonRoot(pl2) {
-		pl, pl2 = pl.dropRoot(), pl2.dropRoot()
-	}
-	pl, pl2 = pl.dropRoot(), pl2.dropRoot()
-
-	return pl.isRightmost() && pl2.isLeftmost()
-}
-
 // returns -1 if invalid.
 func (pl PathToLeaf) Index() (idx int64) {
 	for i, node := range pl {
-		if node.Left == nil {
+		switch {
+		case node.Left == nil:
 			continue
-		} else if node.Right == nil {
+		case node.Right == nil:
 			if i < len(pl)-1 {
 				idx += node.Size - pl[i+1].Size
 			} else {
 				idx += node.Size - 1
 			}
-		} else {
+		default:
 			return -1
 		}
 	}

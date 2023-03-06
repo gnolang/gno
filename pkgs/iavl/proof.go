@@ -2,12 +2,23 @@ package iavl
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"fmt"
+	"math"
+	"sync"
 
-	"github.com/gnolang/gno/pkgs/amino"
-	"github.com/gnolang/gno/pkgs/crypto/tmhash"
-	"github.com/gnolang/gno/pkgs/errors"
+	"github.com/pkg/errors"
+
+	hexbytes "github.com/gnolang/gno/pkgs/iavl/internal/bytes"
+	"github.com/gnolang/gno/pkgs/iavl/internal/encoding"
+	iavlproto "github.com/gnolang/gno/pkgs/iavl/proto"
 )
+
+var bufPool = &sync.Pool{
+	New: func() interface{} {
+		return new(bytes.Buffer)
+	},
+}
 
 var (
 	// ErrInvalidProof is returned by Verify when a proof cannot be validated.
@@ -21,8 +32,10 @@ var (
 )
 
 //----------------------------------------
+// ProofInnerNode
+// Contract: Left and Right can never both be set. Will result in a empty `[]` roothash
 
-type proofInnerNode struct {
+type ProofInnerNode struct {
 	Height  int8   `json:"height"`
 	Size    int64  `json:"size"`
 	Version int64  `json:"version"`
@@ -30,12 +43,12 @@ type proofInnerNode struct {
 	Right   []byte `json:"right"`
 }
 
-func (pin proofInnerNode) String() string {
+func (pin ProofInnerNode) String() string {
 	return pin.stringIndented("")
 }
 
-func (pin proofInnerNode) stringIndented(indent string) string {
-	return fmt.Sprintf(`proofInnerNode{
+func (pin ProofInnerNode) stringIndented(indent string) string {
+	return fmt.Sprintf(`ProofInnerNode{
 %s  Height:  %v
 %s  Size:    %v
 %s  Version: %v
@@ -50,55 +63,94 @@ func (pin proofInnerNode) stringIndented(indent string) string {
 		indent)
 }
 
-func (pin proofInnerNode) Hash(childHash []byte) []byte {
-	hasher := tmhash.New()
-	buf := new(bytes.Buffer)
+func (pin ProofInnerNode) Hash(childHash []byte) ([]byte, error) {
+	hasher := sha256.New()
 
-	err := amino.EncodeVarint8(buf, pin.Height)
+	buf := bufPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	defer bufPool.Put(buf)
+
+	err := encoding.EncodeVarint(buf, int64(pin.Height))
 	if err == nil {
-		err = amino.EncodeVarint(buf, pin.Size)
+		err = encoding.EncodeVarint(buf, pin.Size)
 	}
 	if err == nil {
-		err = amino.EncodeVarint(buf, pin.Version)
+		err = encoding.EncodeVarint(buf, pin.Version)
+	}
+
+	if len(pin.Left) > 0 && len(pin.Right) > 0 {
+		return nil, errors.New("both left and right child hashes are set")
 	}
 
 	if len(pin.Left) == 0 {
 		if err == nil {
-			err = amino.EncodeByteSlice(buf, childHash)
+			err = encoding.EncodeBytes(buf, childHash)
 		}
 		if err == nil {
-			err = amino.EncodeByteSlice(buf, pin.Right)
+			err = encoding.EncodeBytes(buf, pin.Right)
 		}
 	} else {
 		if err == nil {
-			err = amino.EncodeByteSlice(buf, pin.Left)
+			err = encoding.EncodeBytes(buf, pin.Left)
 		}
 		if err == nil {
-			err = amino.EncodeByteSlice(buf, childHash)
+			err = encoding.EncodeBytes(buf, childHash)
 		}
 	}
+
 	if err != nil {
-		panic(fmt.Sprintf("Failed to hash proofInnerNode: %v", err))
+		return nil, fmt.Errorf("failed to hash ProofInnerNode: %v", err)
 	}
 
-	hasher.Write(buf.Bytes())
-	return hasher.Sum(nil)
+	_, err = hasher.Write(buf.Bytes())
+	if err != nil {
+		return nil, err
+	}
+	return hasher.Sum(nil), nil
+}
+
+// toProto converts the inner node proof to Protobuf, for use in ProofOps.
+func (pin ProofInnerNode) toProto() *iavlproto.ProofInnerNode {
+	return &iavlproto.ProofInnerNode{
+		Height:  int32(pin.Height),
+		Size_:   pin.Size,
+		Version: pin.Version,
+		Left:    pin.Left,
+		Right:   pin.Right,
+	}
+}
+
+// proofInnerNodeFromProto converts a Protobuf ProofInnerNode to a ProofInnerNode.
+func proofInnerNodeFromProto(pbInner *iavlproto.ProofInnerNode) (ProofInnerNode, error) {
+	if pbInner == nil {
+		return ProofInnerNode{}, errors.New("inner node cannot be nil")
+	}
+	if pbInner.Height > math.MaxInt8 || pbInner.Height < math.MinInt8 {
+		return ProofInnerNode{}, fmt.Errorf("height must fit inside an int8, got %v", pbInner.Height)
+	}
+	return ProofInnerNode{
+		Height:  int8(pbInner.Height),
+		Size:    pbInner.Size_,
+		Version: pbInner.Version,
+		Left:    pbInner.Left,
+		Right:   pbInner.Right,
+	}, nil
 }
 
 //----------------------------------------
 
-type proofLeafNode struct {
-	Key       []byte `json:"key"`
-	ValueHash []byte `json:"value"`
-	Version   int64  `json:"version"`
+type ProofLeafNode struct {
+	Key       hexbytes.HexBytes `json:"key"`
+	ValueHash hexbytes.HexBytes `json:"value"`
+	Version   int64             `json:"version"`
 }
 
-func (pln proofLeafNode) String() string {
+func (pln ProofLeafNode) String() string {
 	return pln.stringIndented("")
 }
 
-func (pln proofLeafNode) stringIndented(indent string) string {
-	return fmt.Sprintf(`proofLeafNode{
+func (pln ProofLeafNode) stringIndented(indent string) string {
+	return fmt.Sprintf(`ProofLeafNode{
 %s  Key:       %v
 %s  ValueHash: %X
 %s  Version:   %v
@@ -109,29 +161,56 @@ func (pln proofLeafNode) stringIndented(indent string) string {
 		indent)
 }
 
-func (pln proofLeafNode) Hash() []byte {
-	hasher := tmhash.New()
-	buf := new(bytes.Buffer)
+func (pln ProofLeafNode) Hash() ([]byte, error) {
+	hasher := sha256.New()
 
-	err := amino.EncodeVarint8(buf, 0)
+	buf := bufPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	defer bufPool.Put(buf)
+
+	err := encoding.EncodeVarint(buf, 0)
 	if err == nil {
-		err = amino.EncodeVarint(buf, 1)
+		err = encoding.EncodeVarint(buf, 1)
 	}
 	if err == nil {
-		err = amino.EncodeVarint(buf, pln.Version)
+		err = encoding.EncodeVarint(buf, pln.Version)
 	}
 	if err == nil {
-		err = amino.EncodeByteSlice(buf, pln.Key)
+		err = encoding.EncodeBytes(buf, pln.Key)
 	}
 	if err == nil {
-		err = amino.EncodeByteSlice(buf, pln.ValueHash)
+		err = encoding.EncodeBytes(buf, pln.ValueHash)
 	}
 	if err != nil {
-		panic(fmt.Sprintf("Failed to hash proofLeafNode: %v", err))
+		return nil, fmt.Errorf("failed to hash ProofLeafNode: %v", err)
 	}
-	hasher.Write(buf.Bytes())
+	_, err = hasher.Write(buf.Bytes())
+	if err != nil {
+		return nil, err
+	}
 
-	return hasher.Sum(nil)
+	return hasher.Sum(nil), nil
+}
+
+// toProto converts the leaf node proof to Protobuf, for use in ProofOps.
+func (pln ProofLeafNode) toProto() *iavlproto.ProofLeafNode {
+	return &iavlproto.ProofLeafNode{
+		Key:       pln.Key,
+		ValueHash: pln.ValueHash,
+		Version:   pln.Version,
+	}
+}
+
+// proofLeafNodeFromProto converts a Protobuf ProofLeadNode to a ProofLeafNode.
+func proofLeafNodeFromProto(pbLeaf *iavlproto.ProofLeafNode) (ProofLeafNode, error) {
+	if pbLeaf == nil {
+		return ProofLeafNode{}, errors.New("leaf node cannot be nil")
+	}
+	return ProofLeafNode{
+		Key:       pbLeaf.Key,
+		ValueHash: pbLeaf.ValueHash,
+		Version:   pbLeaf.Version,
+	}, nil
 }
 
 //----------------------------------------
@@ -156,28 +235,53 @@ func (node *Node) pathToLeaf(t *ImmutableTree, key []byte, path *PathToLeaf) (*N
 		return node, errors.New("key does not exist")
 	}
 
+	// Note that we do not store the left child in the ProofInnerNode when we're going to add the
+	// left node as part of the path, similarly we don't store the right child info when going down
+	// the right child node. This is done as an optimization since the child info is going to be
+	// already stored in the next ProofInnerNode in PathToLeaf.
 	if bytes.Compare(key, node.key) < 0 {
 		// left side
-		pin := proofInnerNode{
+		rightNode, err := node.getRightNode(t)
+		if err != nil {
+			return nil, err
+		}
+
+		pin := ProofInnerNode{
 			Height:  node.height,
 			Size:    node.size,
 			Version: node.version,
 			Left:    nil,
-			Right:   node.getRightNode(t).hash,
+			Right:   rightNode.hash,
 		}
 		*path = append(*path, pin)
-		n, err := node.getLeftNode(t).pathToLeaf(t, key, path)
+
+		leftNode, err := node.getLeftNode(t)
+		if err != nil {
+			return nil, err
+		}
+		n, err := leftNode.pathToLeaf(t, key, path)
 		return n, err
 	}
 	// right side
-	pin := proofInnerNode{
+	leftNode, err := node.getLeftNode(t)
+	if err != nil {
+		return nil, err
+	}
+
+	pin := ProofInnerNode{
 		Height:  node.height,
 		Size:    node.size,
 		Version: node.version,
-		Left:    node.getLeftNode(t).hash,
+		Left:    leftNode.hash,
 		Right:   nil,
 	}
 	*path = append(*path, pin)
-	n, err := node.getRightNode(t).pathToLeaf(t, key, path)
+
+	rightNode, err := node.getRightNode(t)
+	if err != nil {
+		return nil, err
+	}
+
+	n, err := rightNode.pathToLeaf(t, key, path)
 	return n, err
 }

@@ -10,7 +10,7 @@ package iavl
 import (
 	"testing"
 
-	"github.com/gnolang/gno/pkgs/db"
+	db "github.com/gnolang/gno/pkgs/db"
 )
 
 func BenchmarkImmutableAvlTreeCLevelDB(b *testing.B) {
