@@ -94,8 +94,8 @@ func (c *Command) AddSubCommands(cmds ...*Command) {
 // configuration's flagset with the subcommand tree. At the point of calling
 // this method, the child subcommand tree should already be present, due to the
 // way subcommands are built (LIFO)
-func registerFlagsWithSubcommands(cfg Config, cmd *ffcli.Command) {
-	subcommands := []*ffcli.Command{cmd}
+func registerFlagsWithSubcommands(cfg Config, root *ffcli.Command) {
+	subcommands := []*ffcli.Command{root}
 
 	// Traverse the direct subcommand tree,
 	// and register the top-level flagset with each
