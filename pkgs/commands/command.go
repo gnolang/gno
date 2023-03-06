@@ -73,11 +73,40 @@ func NewCommand(
 func (c *Command) AddSubCommands(cmds ...*Command) {
 	for _, cmd := range cmds {
 		if c.cfg != nil {
-			// Register the parent flagset
+			// Register the parent flagset with the child.
+			// The syntax is not intuitive, but the flagset being
+			// modified is the subcommand's, using the flags defined
+			// in the parent command
 			c.cfg.RegisterFlags(cmd.FlagSet)
+
+			// Register the parent flagset with all the
+			// subcommands of the child as well
+			// (ex. grandparent flags are available in child commands)
+			registerFlagsWithSubcommands(c.cfg, &cmd.Command)
 		}
 
 		// Append the subcommand to the parent
 		c.Subcommands = append(c.Subcommands, &cmd.Command)
+	}
+}
+
+// registerFlagsWithSubcommands recursively registers the passed in
+// configuration's flagset with the subcommand tree. At the point of calling
+// this method, the child subcommand tree should already be present, due to the
+// way subcommands are built (LIFO)
+func registerFlagsWithSubcommands(cfg Config, cmd *ffcli.Command) {
+	subcommands := []*ffcli.Command{cmd}
+
+	// Traverse the direct subcommand tree,
+	// and register the top-level flagset with each
+	// direct line subcommand
+	for len(subcommands) > 0 {
+		current := subcommands[0]
+		subcommands = subcommands[1:]
+
+		for _, subcommand := range current.Subcommands {
+			cfg.RegisterFlags(subcommand.FlagSet)
+			subcommands = append(subcommands, subcommand)
+		}
 	}
 }
