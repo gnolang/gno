@@ -636,6 +636,21 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				m.Context = ctx
 			},
 		)
+		pn.DefineNative("TestSkipTimestamp",
+			gno.Flds( // params
+				"timestamp", "int64",
+			),
+			gno.Flds( // results
+			),
+			func(m *gno.Machine) {
+				arg0 := m.LastBlock().GetParams1().TV
+				timestamp := arg0.GetInt64()
+
+				ctx := m.Context.(stdlibs.ExecContext)
+				ctx.Timestamp += timestamp
+				m.Context = ctx
+			},
+		)
 		pn.DefineNative("TestDerivePkgAddr",
 			gno.Flds( // params
 				"pkgPath", "string",
