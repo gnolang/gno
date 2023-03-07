@@ -116,7 +116,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				}
 			},
 		)
-		// case "internal/os_test":
+	// case "internal/os_test":
 	// XXX defined in tests/imports.go
 	case "strconv":
 		pn.DefineGoNativeValue("Itoa", strconv.Itoa)
