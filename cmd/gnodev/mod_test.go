@@ -5,13 +5,8 @@ import "testing"
 func TestModApp(t *testing.T) {
 	tc := []testMainCase{
 		{
-			args:           []string{"mod"},
-			errShouldBe:    "invalid command",
-			stderrShouldBe: "Usage: mod [flags] <command>\n",
-		},
-		{
-			args:                []string{"mod", "--help"},
-			stdoutShouldContain: "# modFlags options\n-",
+			args:        []string{"mod"},
+			errShouldBe: "flag: help requested",
 		},
 
 		// test gno.mod
@@ -19,13 +14,13 @@ func TestModApp(t *testing.T) {
 			args:                 []string{"mod", "download"},
 			testDir:              "../../tests/integ/empty-dir",
 			simulateExternalRepo: true,
-			errShouldBe:          "mod download: gno.mod not found",
+			errShouldBe:          "gno.mod not found",
 		},
 		{
 			args:                 []string{"mod", "download"},
 			testDir:              "../../tests/integ/empty-gnomod",
 			simulateExternalRepo: true,
-			errShouldBe:          "mod download: validate: requires module",
+			errShouldBe:          "validate: requires module",
 		},
 		{
 			args:                 []string{"mod", "download"},
@@ -47,7 +42,7 @@ func TestModApp(t *testing.T) {
 			args:                 []string{"mod", "download"},
 			testDir:              "../../tests/integ/require-invalid-module",
 			simulateExternalRepo: true,
-			errShouldContain:     "mod download: fetch: writepackage: querychain:",
+			errShouldContain:     "fetch: writepackage: querychain:",
 		},
 		{
 			args:                 []string{"mod", "download"},

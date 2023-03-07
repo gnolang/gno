@@ -1,44 +1,69 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/gnolang/gno/pkgs/command"
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/errors"
 	"github.com/gnolang/gno/pkgs/gnolang/gnomod"
 )
 
-type modFlags struct {
-	Verbose bool `flag:"verbose" help:"verbose"`
+type modDownloadCfg struct {
+	remote string
 }
 
-var defaultModFlags = modFlags{
-	Verbose: false,
+func newModCmd(io *commands.IO) *commands.Command {
+	cmd := commands.NewCommand(
+		commands.Metadata{
+			Name:       "mod",
+			ShortUsage: "mod <command>",
+			ShortHelp:  "Manage gno.mod",
+		},
+		commands.NewEmptyConfig(),
+		commands.HelpExec,
+	)
+
+	cmd.AddSubCommands(
+		newModDownloadCmd(io),
+	)
+
+	return cmd
 }
 
-func modApp(cmd *command.Command, args []string, iopts interface{}) error {
-	opts := iopts.(modFlags)
+func newModDownloadCmd(io *commands.IO) *commands.Command {
+	cfg := &modDownloadCfg{}
 
-	if len(args) != 1 {
-		cmd.ErrPrintfln("Usage: mod [flags] <command>")
-		return errors.New("invalid command")
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "download",
+			ShortUsage: "download [flags]",
+			ShortHelp:  "Download modules to local cache",
+		},
+		cfg,
+		func(_ context.Context, args []string) error {
+			return execModDownload(cfg, args, io)
+		},
+	)
+}
+
+func (c *modDownloadCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.StringVar(
+		&c.remote,
+		"remote",
+		"test3.gno.land:36657",
+		"remote for fetching gno modules",
+	)
+}
+
+func execModDownload(cfg *modDownloadCfg, args []string, io *commands.IO) error {
+	if len(args) > 0 {
+		return flag.ErrHelp
 	}
 
-	switch args[0] {
-	case "download":
-		if err := runModDownload(&opts); err != nil {
-			return fmt.Errorf("mod download: %w", err)
-		}
-	default:
-		return fmt.Errorf("invalid command: %s", args[0])
-	}
-
-	return nil
-}
-
-func runModDownload(opts *modFlags) error {
 	path, err := os.Getwd()
 	if err != nil {
 		return err
@@ -68,7 +93,7 @@ func runModDownload(opts *modFlags) error {
 	}
 
 	// fetch dependencies
-	if err := gnoMod.FetchDeps(); err != nil {
+	if err := gnoMod.FetchDeps(cfg.remote); err != nil {
 		return fmt.Errorf("fetch: %w", err)
 	}
 

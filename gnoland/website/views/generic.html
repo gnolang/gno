@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-      <title>Gno.land - {{ .Data.Title }}</title>
+    <title>Gno.land - {{ .Data.Title }}</title>
     {{ template "html_head" }}
   </head>
   <body onload="main()">
@@ -13,7 +13,7 @@
       </div>
       <div id="home">
         <pre id="source">
-{{ .Data.MainContent }}
+          {{- .Data.MainContent -}}
         </pre>
       </div>
       {{ template "footer" }}

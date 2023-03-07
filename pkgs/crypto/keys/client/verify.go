@@ -1,32 +1,56 @@
 package client
 
 import (
+	"context"
 	"encoding/hex"
+	"flag"
 	"os"
 
-	"github.com/gnolang/gno/pkgs/command"
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
-	"github.com/gnolang/gno/pkgs/errors"
 )
 
-type VerifyOptions struct {
-	BaseOptions
-	DocPath string `flag:"docpath" help:"path of document file to verify"`
+type verifyCfg struct {
+	rootCfg *baseCfg
+
+	docPath string
 }
 
-var DefaultVerifyOptions = VerifyOptions{
-	BaseOptions: DefaultBaseOptions,
-	DocPath:     "", // read from stdin.
+func newVerifyCmd(rootCfg *baseCfg) *commands.Command {
+	cfg := &verifyCfg{
+		rootCfg: rootCfg,
+	}
+
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "verify",
+			ShortUsage: "verify [flags] <key-name> <signature>",
+			ShortHelp:  "Verifies the document signature",
+		},
+		cfg,
+		func(_ context.Context, args []string) error {
+			return execVerify(cfg, args, commands.NewDefaultIO())
+		},
+	)
 }
 
-func verifyApp(cmd *command.Command, args []string, iopts interface{}) error {
-	var kb keys.Keybase
-	var err error
-	opts := iopts.(VerifyOptions)
+func (c *verifyCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.StringVar(
+		&c.docPath,
+		"docpath",
+		"",
+		"path of document file to verify",
+	)
+}
+
+func execVerify(cfg *verifyCfg, args []string, io *commands.IO) error {
+	var (
+		kb  keys.Keybase
+		err error
+	)
 
 	if len(args) != 2 {
-		cmd.ErrPrintfln("Usage: verify <keyname> <signature>")
-		return errors.New("invalid args")
+		return flag.ErrHelp
 	}
 
 	name := args[0]
@@ -34,8 +58,8 @@ func verifyApp(cmd *command.Command, args []string, iopts interface{}) error {
 	if err != nil {
 		return err
 	}
-	docpath := opts.DocPath
-	kb, err = keys.NewKeyBaseFromDir(opts.Home)
+	docpath := cfg.docPath
+	kb, err = keys.NewKeyBaseFromDir(cfg.rootCfg.Home)
 	if err != nil {
 		return err
 	}
@@ -43,7 +67,9 @@ func verifyApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 	// read document to sign
 	if docpath == "" { // from stdin.
-		msgstr, err := cmd.GetString("Enter document to sign.")
+		msgstr, err := io.GetString(
+			"Enter document to sign.",
+		)
 		if err != nil {
 			return err
 		}
@@ -61,7 +87,7 @@ func verifyApp(cmd *command.Command, args []string, iopts interface{}) error {
 	// verify signature.
 	err = kb.Verify(name, msg, sig)
 	if err == nil {
-		cmd.Println("Valid signature!")
+		io.Println("Valid signature!")
 	}
 	return err
 }

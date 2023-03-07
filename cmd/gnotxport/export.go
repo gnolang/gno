@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -10,45 +12,66 @@ import (
 
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/bft/rpc/client"
-	"github.com/gnolang/gno/pkgs/command"
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/std"
 
-	// XXX better way?
-	_ "github.com/gnolang/gno/pkgs/sdk/auth"
+	_ "github.com/gnolang/gno/pkgs/sdk/auth" // XXX better way?
 	_ "github.com/gnolang/gno/pkgs/sdk/bank"
 	_ "github.com/gnolang/gno/pkgs/sdk/vm"
 )
 
-type txExportOptions struct {
-	Remote      string `flag:"remote" help:"Remote RPC addr:port"`
-	StartHeight int64  `flag:"start" help:"Start height"`
-	TailHeight  int64  `flag:"tail" help:"Start at LAST - N"`
-	EndHeight   int64  `flag:"end" help:"End height (optional)"`
-	OutFile     string `flag:"out" help:"Output file path"`
-	Quiet       bool   `flag:"quiet" help:"Quiet mode"`
-	Follow      bool   `flag:"follow" help:"Keep attached and follow new events"`
+type exportCfg struct {
+	rootCfg *config
+
+	startHeight int64
+	tailHeight  int64
+	endHeight   int64
+	outFile     string
+	quiet       bool
+	follow      bool
 }
 
-var defaultTxExportOptions = txExportOptions{
-	Remote:      "localhost:26657",
-	StartHeight: 1,
-	EndHeight:   0,
-	TailHeight:  0,
-	OutFile:     "txexport.log",
-	Quiet:       false,
-	Follow:      false,
-}
-
-func txExportApp(cmd *command.Command, args []string, iopts interface{}) error {
-	opts := iopts.(txExportOptions)
-	c := client.NewHTTP(opts.Remote, "/websocket")
-	status, err := c.Status()
-	if err != nil {
-		panic(err)
+func newExportCommand(rootCfg *config) *commands.Command {
+	cfg := &exportCfg{
+		rootCfg: rootCfg,
 	}
-	start := opts.StartHeight
-	end := opts.EndHeight
-	tail := opts.TailHeight
+
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "export",
+			ShortUsage: "export [flags] <file>",
+			ShortHelp:  "Export transactions to file",
+		},
+		cfg,
+		func(_ context.Context, _ []string) error {
+			return execExport(cfg)
+		},
+	)
+}
+
+func (c *exportCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.Int64Var(&c.startHeight, "start", 1, "start height")
+	fs.Int64Var(&c.tailHeight, "tail", 0, "start at LAST - N")
+	fs.Int64Var(&c.endHeight, "end", 0, "end height (optional)")
+	fs.StringVar(&c.outFile, "out", defaultFilePath, "output file path")
+	fs.BoolVar(&c.quiet, "quiet", false, "omit console output during execution")
+	fs.BoolVar(&c.follow, "follow", false, "keep attached and follow new events")
+}
+
+func execExport(c *exportCfg) error {
+	node := client.NewHTTP(c.rootCfg.remote, "/websocket")
+
+	status, err := node.Status()
+	if err != nil {
+		return fmt.Errorf("unable to fetch node status, %w", err)
+	}
+
+	var (
+		start = c.startHeight
+		end   = c.endHeight
+		tail  = c.tailHeight
+	)
+
 	if end == 0 { // take last block height
 		end = status.SyncInfo.LatestBlockHeight
 	}
@@ -57,56 +80,64 @@ func txExportApp(cmd *command.Command, args []string, iopts interface{}) error {
 	}
 
 	var out io.Writer
-	switch opts.OutFile {
+	switch c.outFile {
 	case "-", "STDOUT":
 		out = os.Stdout
 	default:
-		out, err = os.OpenFile(opts.OutFile, os.O_RDWR|os.O_CREATE, 0o755)
+		out, err = os.OpenFile(c.outFile, os.O_RDWR|os.O_CREATE, 0o755)
 		if err != nil {
 			return err
 		}
 	}
 
 	for height := start; ; height++ {
-		if !opts.Follow && height >= end {
+		if !c.follow && height >= end {
 			break
 		}
 
 	getBlock:
-		block, err := c.Block(&height)
+		block, err := node.Block(&height)
 		if err != nil {
-			if opts.Follow && strings.Contains(err.Error(), "") {
+			if c.follow && strings.Contains(err.Error(), "") {
 				time.Sleep(time.Second)
+
 				goto getBlock
 			}
-			panic(err)
+
+			return fmt.Errorf("encountered error while fetching block, %w", err)
 		}
+
 		txs := block.Block.Data.Txs
 		if len(txs) == 0 {
 			continue
 		}
-		_, err = c.BlockResults(&height)
+
+		_, err = node.BlockResults(&height)
 		if err != nil {
-			if opts.Follow && strings.Contains(err.Error(), "") {
+			if c.follow && strings.Contains(err.Error(), "") {
 				time.Sleep(time.Second)
+
 				goto getBlock
 			}
-			panic(err)
+
+			return fmt.Errorf("encountered error while fetching block results, %w", err)
 		}
+
 		for i := 0; i < len(txs); i++ {
-			// need to include error'd txs, to keep sequence alignment.
-			//if bres.Results.DeliverTxs[i].Error != nil {
-			//	continue
-			//}
 			tx := txs[i]
 			stdtx := std.Tx{}
+
 			amino.MustUnmarshal(tx, &stdtx)
+
 			bz := amino.MustMarshalJSON(stdtx)
-			fmt.Fprintln(out, string(bz))
+
+			_, _ = fmt.Fprintln(out, string(bz))
 		}
-		if !opts.Quiet {
+
+		if !c.quiet {
 			log.Printf("h=%d/%d (txs=%d)", height, end, len(txs))
 		}
 	}
+
 	return nil
 }

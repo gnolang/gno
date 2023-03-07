@@ -6,10 +6,10 @@ import (
 )
 
 type BaseOptions struct {
-	Home                  string `flag:"home" help:"home directory"`
-	Remote                string `flag:"remote" help:"remote node URL (default 127.0.0.1:26657)"`
-	Quiet                 bool   `flag:"quiet" help:"for parsing output"`
-	InsecurePasswordStdin bool   `flag:"insecure-password-stdin" help:"WARNING! take password from stdin"`
+	Home                  string
+	Remote                string
+	Quiet                 bool
+	InsecurePasswordStdin bool
 }
 
 var DefaultBaseOptions = BaseOptions{

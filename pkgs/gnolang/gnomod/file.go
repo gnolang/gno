@@ -32,7 +32,7 @@ func (f *File) Validate() error {
 
 // FetchDeps fetches and writes gno.mod packages
 // in GOPATH/pkg/gnomod/
-func (f *File) FetchDeps() error {
+func (f *File) FetchDeps(remote string) error {
 	gnoModPath, err := GetGnoModPath()
 	if err != nil {
 		return fmt.Errorf("get gno.mod path: %w", err)
@@ -47,7 +47,7 @@ func (f *File) FetchDeps() error {
 			r.Mod = *mod
 		}
 		log.Println("fetching", r.Mod.Path)
-		err := writePackage(gnoModPath, r.Mod.Path)
+		err := writePackage(remote, gnoModPath, r.Mod.Path)
 		if err != nil {
 			return fmt.Errorf("writepackage: %w", err)
 		}
