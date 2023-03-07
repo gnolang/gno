@@ -3,7 +3,6 @@ package iavl
 import (
 	"fmt"
 
-	tmmerkle "github.com/gnolang/gno/pkgs/crypto"
 	"github.com/gnolang/gno/pkgs/crypto/merkle"
 	proto "github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
@@ -37,7 +36,7 @@ func NewAbsenceOp(key []byte, proof *RangeProof) AbsenceOp {
 	}
 }
 
-func AbsenceOpDecoder(pop tmmerkle.ProofOp) (merkle.ProofOperator, error) {
+func AbsenceOpDecoder(pop merkle.ProofOp) (merkle.ProofOperator, error) {
 	if pop.Type != ProofOpIAVLAbsence {
 		return nil, errors.Errorf("unexpected ProofOp.Type; got %v, want %v", pop.Type, ProofOpIAVLAbsence)
 	}
@@ -65,7 +64,7 @@ func AbsenceOpDecoder(pop tmmerkle.ProofOp) (merkle.ProofOperator, error) {
 	return NewAbsenceOp(pop.Key, &proof), nil
 }
 
-func (op AbsenceOp) ProofOp() tmmerkle.ProofOp {
+func (op AbsenceOp) ProofOp() merkle.ProofOp {
 	pbProof := iavlproto.AbsenceOp{Proof: op.Proof.ToProto()}
 	bz, err := proto.Marshal(&pbProof)
 	if err != nil {
@@ -76,7 +75,7 @@ func (op AbsenceOp) ProofOp() tmmerkle.ProofOp {
 	if err != nil {
 		panic(err)
 	}
-	return tmmerkle.ProofOp{
+	return merkle.ProofOp{
 		Type: ProofOpIAVLAbsence,
 		Key:  op.key,
 		Data: bz,

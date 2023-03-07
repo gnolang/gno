@@ -35,7 +35,7 @@ func SetupTest() {
 
 func getTestDB() (db.DB, func()) {
 	if testLevelDB {
-		d, err := db.NewGoLevelDB("test", ".")
+		d, err := db.NewGoLevelDB("test", ".", nil)
 		if err != nil {
 			panic(err)
 		}
@@ -1653,7 +1653,7 @@ func BenchmarkTreeLoadAndDelete(b *testing.B) {
 	numVersions := 5000
 	numKeysPerVersion := 10
 
-	d, err := db.NewGoLevelDB("bench", ".")
+	d, err := db.NewGoLevelDB("bench", ".", nil)
 	if err != nil {
 		panic(err)
 	}

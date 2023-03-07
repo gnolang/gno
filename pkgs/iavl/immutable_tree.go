@@ -35,8 +35,7 @@ func NewImmutableTree(db dbm.DB, cacheSize int) *ImmutableTree {
 func NewImmutableTreeWithOpts(db dbm.DB, cacheSize int, opts *Options, skipFastStorageUpgrade bool) *ImmutableTree {
 	return &ImmutableTree{
 		// NodeDB-backed Tree.
-		ndb:                    newNodeDB(db, cacheSize, opts),
-		skipFastStorageUpgrade: skipFastStorageUpgrade,
+		ndb: newNodeDB(db, cacheSize, opts),
 	}
 }
 
@@ -179,32 +178,6 @@ func (t *ImmutableTree) Get(key []byte) ([]byte, error) {
 		return nil, nil
 	}
 
-	if !t.skipFastStorageUpgrade {
-		// attempt to get a FastNode directly from db/cache.
-		// if call fails, fall back to the original IAVL logic in place.
-		fastNode, err := t.ndb.GetFastNode(key)
-		if err != nil {
-			_, result, err := t.root.get(t, key)
-			return result, err
-		}
-
-		if fastNode == nil {
-			// If the tree is of the latest version and fast node is not in the tree
-			// then the regular node is not in the tree either because fast node
-			// represents live state.
-			if t.version == t.ndb.latestVersion {
-				return nil, nil
-			}
-
-			_, result, err := t.root.get(t, key)
-			return result, err
-		}
-
-		if fastNode.versionLastUpdatedAt <= t.version {
-			return fastNode.value, nil
-		}
-	}
-
 	// otherwise skipFastStorageUpgrade is true or
 	// the cached node was updated later than the current tree. In this case,
 	// we need to use the regular stategy for reading from the current tree to avoid staleness.
@@ -244,17 +217,9 @@ func (t *ImmutableTree) Iterate(fn func(key []byte, value []byte) bool) (bool, e
 
 // Iterator returns an iterator over the immutable tree.
 func (t *ImmutableTree) Iterator(start, end []byte, ascending bool) (dbm.Iterator, error) {
-	if !t.skipFastStorageUpgrade {
-		isFastCacheEnabled, err := t.IsFastCacheEnabled()
-		if err != nil {
-			return nil, err
-		}
 
-		if isFastCacheEnabled {
-			return NewFastIterator(start, end, ascending, t.ndb), nil
-		}
-	}
-	return NewIterator(start, end, ascending, t), nil
+	return NewFastIterator(start, end, ascending, t.ndb), nil
+
 }
 
 // IterateRange makes a callback for all nodes with key between start and end non-inclusive.
@@ -311,10 +276,9 @@ func (t *ImmutableTree) isLatestTreeVersion() (bool, error) {
 // Used internally by MutableTree.
 func (t *ImmutableTree) clone() *ImmutableTree {
 	return &ImmutableTree{
-		root:                   t.root,
-		ndb:                    t.ndb,
-		version:                t.version,
-		skipFastStorageUpgrade: t.skipFastStorageUpgrade,
+		root:    t.root,
+		ndb:     t.ndb,
+		version: t.version,
 	}
 }
 

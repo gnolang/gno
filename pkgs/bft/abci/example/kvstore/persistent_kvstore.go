@@ -220,7 +220,8 @@ func (app *PersistentKVStoreApplication) execValidatorTx(tx []byte) (res abci.Re
 func (app *PersistentKVStoreApplication) updateValidator(val abci.ValidatorUpdate) (res abci.ResponseDeliverTx) {
 	if val.Power == 0 {
 		// remove validator
-		if !app.app.state.db.Has(makeValidatorKey(val)) {
+		valkey, _ := app.app.state.db.Has(makeValidatorKey(val))
+		if !valkey {
 			res.Error = errors.UnauthorizedError{}
 			res.Log = fmt.Sprintf("Cannot remove non-existent validator %s", val.PubKey.String())
 			return res

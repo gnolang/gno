@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	tmmerkle "github.com/gnolang/gno/pkgs/crypto"
+	tmmerkle "github.com/gnolang/gno/pkgs/crypto/merkle"
 	db "github.com/gnolang/gno/pkgs/db"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
