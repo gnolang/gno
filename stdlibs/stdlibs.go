@@ -24,15 +24,26 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 	case "internal/crypto/sha1":
 		pn.DefineNative("Sum",
 			gno.Flds( // params
-				"data", "string",
+				"data", "[]byte",
 			),
 			gno.Flds( // results
 				"bz", "[]byte",
 			),
 			func(m *gno.Machine) {
 				arg0 := m.LastBlock().GetParams1().TV
-				hash := sha1.Sum([]byte(arg0.GetString()))
-				m.PushValue(typedByteArray(20, m.Alloc.NewArrayFromData(hash[:])))
+				bz := []byte(nil)
+				if arg0.V != nil {
+					slice := arg0.V.(*gno.SliceValue)
+					array := slice.GetBase(m.Store)
+					bz = array.GetReadonlyBytes()
+				}
+				hash := sha1.Sum(bz)
+				res0 := gno.Go2GnoValue(
+					m.Alloc,
+					m.Store,
+					reflect.ValueOf([20]byte(hash)),
+				)
+				m.PushValue(res0)
 			},
 		)
 	case "internal/math":
