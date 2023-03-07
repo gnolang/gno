@@ -26,6 +26,11 @@ func TestRoutes(t *testing.T) {
 		{"/r/demo/users:administrator", ok, "address"},
 		{"/r/demo/users", ok, "manfred"},
 		{"/r/demo/users/types.gno", ok, "type "},
+		{"/r/demo/deep/very/deep", ok, "it works!"},
+		{"/r/demo/deep/very/deep:bob", ok, "hi bob"},
+		{"/r/demo/deep/very/deep?help", ok, "exposed"},
+		{"/r/demo/deep/very/deep/", ok, "render.gno"},
+		{"/r/demo/deep/very/deep/render.gno", ok, "func Render("},
 	}
 	if wd, err := os.Getwd(); err == nil {
 		if strings.HasSuffix(wd, "gnoland/website") {
