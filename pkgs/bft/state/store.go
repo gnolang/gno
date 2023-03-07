@@ -154,13 +154,13 @@ func (arz *ABCIResponses) ResultsHash() []byte {
 // This is useful for recovering from crashes where we called app.Commit and before we called
 // s.Save(). It can also be used to produce Merkle proofs of the result of txs.
 func LoadABCIResponses(db dbm.DB, height int64) (*ABCIResponses, error) {
-	buf := db.Get(calcABCIResponsesKey(height))
-	if buf == nil {
+	buf, err := db.Get(calcABCIResponsesKey(height))
+	if err != nil {
 		return nil, NoABCIResponsesForHeightError{height}
 	}
 
 	abciResponses := new(ABCIResponses)
-	err := amino.Unmarshal(buf, abciResponses)
+	err = amino.Unmarshal(buf, abciResponses)
 	if err != nil {
 		// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
 		osm.Exit(fmt.Sprintf(`LoadABCIResponses: Data has been corrupted or its spec has
@@ -232,13 +232,13 @@ func lastStoredHeightFor(height, lastHeightChanged int64) int64 {
 
 // CONTRACT: Returned ValidatorsInfo can be mutated.
 func loadValidatorsInfo(db dbm.DB, height int64) *ValidatorsInfo {
-	buf := db.Get(calcValidatorsKey(height))
-	if len(buf) == 0 {
+	buf, err := db.Get(calcValidatorsKey(height))
+	if err != nil {
 		return nil
 	}
 
 	v := new(ValidatorsInfo)
-	err := amino.Unmarshal(buf, v)
+	err = amino.Unmarshal(buf, v)
 	if err != nil {
 		// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
 		osm.Exit(fmt.Sprintf(`LoadValidators: Data has been corrupted or its spec has changed:
@@ -309,13 +309,13 @@ func LoadConsensusParams(db dbm.DB, height int64) (abci.ConsensusParams, error) 
 }
 
 func loadConsensusParamsInfo(db dbm.DB, height int64) *ConsensusParamsInfo {
-	buf := db.Get(calcConsensusParamsKey(height))
-	if len(buf) == 0 {
+	buf, err := db.Get(calcConsensusParamsKey(height))
+	if err != nil {
 		return nil
 	}
 
 	paramsInfo := new(ConsensusParamsInfo)
-	err := amino.Unmarshal(buf, paramsInfo)
+	err = amino.Unmarshal(buf, paramsInfo)
 	if err != nil {
 		// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
 		osm.Exit(fmt.Sprintf(`LoadConsensusParams: Data has been corrupted or its spec has changed:

@@ -77,7 +77,7 @@ func OpenDB(dir string) (dbm.DB, error) {
 		return nil, fmt.Errorf("cannot cut paths on %s", dir)
 	}
 	name := dir[cut+1:]
-	db, err := dbm.NewGoLevelDB(name, dir[:cut])
+	db, err := dbm.NewGoLevelDB(name, dir[:cut], nil)
 	if err != nil {
 		return nil, err
 	}

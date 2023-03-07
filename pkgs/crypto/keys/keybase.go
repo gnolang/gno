@@ -151,7 +151,10 @@ func (kb *dbKeybase) persistDerivedKey(seed []byte, passwd, name, fullHdPath str
 // List returns the keys from storage in alphabetical order.
 func (kb dbKeybase) List() ([]Info, error) {
 	var res []Info
-	iter := kb.db.Iterator(nil, nil)
+	iter, err := kb.db.Iterator(nil, nil)
+	if err != nil {
+		return nil, err
+	}
 	defer iter.Close()
 	for ; iter.Valid(); iter.Next() {
 		key := string(iter.Key())
@@ -179,19 +182,19 @@ func (kb dbKeybase) GetByNameOrAddress(nameOrBech32 string) (Info, error) {
 }
 
 func (kb dbKeybase) GetByName(name string) (Info, error) {
-	bs := kb.db.Get(infoKey(name))
-	if len(bs) == 0 {
+	bs, err := kb.db.Get(infoKey(name))
+	if err != nil {
 		return nil, keyerror.NewErrKeyNotFound(name)
 	}
 	return readInfo(bs)
 }
 
 func (kb dbKeybase) GetByAddress(address crypto.Address) (Info, error) {
-	ik := kb.db.Get(addrKey(address))
-	if len(ik) == 0 {
+	ik, err := kb.db.Get(addrKey(address))
+	if err != nil {
 		return nil, fmt.Errorf("key with address %s not found", address)
 	}
-	bs := kb.db.Get(ik)
+	bs, err := kb.db.Get(ik)
 	return readInfo(bs)
 }
 
@@ -287,8 +290,8 @@ func (kb dbKeybase) Export(nameOrBech32 string) (astr string, err error) {
 	if err != nil {
 		return "", errors.Wrap(err, "getting info for name %s", nameOrBech32)
 	}
-	bz := kb.db.Get(infoKey(info.GetName()))
-	if bz == nil {
+	bz, err := kb.db.Get(infoKey(info.GetName()))
+	if err != nil {
 		return "", fmt.Errorf("no key to export with name %s", nameOrBech32)
 	}
 	return armor.ArmorInfoBytes(bz), nil
