@@ -33,13 +33,11 @@ func (av *ArrayValue) String() string {
 		// but for now tests expect this to be different.
 		// This may be helpful for testing implementation behavior.
 		return "array[" + strings.Join(ss, ",") + "]"
-	} else {
-		if len(av.Data) > 256 {
-			return fmt.Sprintf("array[0x%X...]", av.Data[:256])
-		} else {
-			return fmt.Sprintf("array[0x%X]", av.Data)
-		}
 	}
+	if len(av.Data) > 256 {
+		return fmt.Sprintf("array[0x%X...]", av.Data[:256])
+	}
+	return fmt.Sprintf("array[0x%X]", av.Data)
 }
 
 func (sv *SliceValue) String() string {
@@ -56,13 +54,11 @@ func (sv *SliceValue) String() string {
 			ss[i] = e.String()
 		}
 		return "slice[" + strings.Join(ss, ",") + "]"
-	} else {
-		if sv.Length > 256 {
-			return fmt.Sprintf("slice[0x%X...(%d)]", vbase.Data[sv.Offset:sv.Offset+256], sv.Length)
-		} else {
-			return fmt.Sprintf("slice[0x%X]", vbase.Data[sv.Offset:sv.Offset+sv.Length])
-		}
 	}
+	if sv.Length > 256 {
+		return fmt.Sprintf("slice[0x%X...(%d)]", vbase.Data[sv.Offset:sv.Offset+256], sv.Length)
+	}
+	return fmt.Sprintf("slice[0x%X]", vbase.Data[sv.Offset:sv.Offset+sv.Length])
 }
 
 func (pv PointerValue) String() string {
@@ -81,10 +77,7 @@ func (sv *StructValue) String() string {
 }
 
 func (fv *FuncValue) String() string {
-	name := ""
-	if fv.Name != "" {
-		name = string(fv.Name)
-	}
+	name := string(fv.Name)
 	if fv.Type == nil {
 		return fmt.Sprintf("incomplete-func ?%s(?)?", name)
 	}
@@ -93,9 +86,11 @@ func (fv *FuncValue) String() string {
 
 func (v *BoundMethodValue) String() string {
 	name := v.Func.Name
-	var recvT string
-	var params string
-	var results string
+	var (
+		recvT   string = "?"
+		params  string = "?"
+		results string = "(?)"
+	)
 	if ft, ok := v.Func.Type.(*FuncType); ok {
 		recvT = ft.Params[0].Type.String()
 		params = FieldTypeList(ft.Params).StringWithCommas()
@@ -103,10 +98,6 @@ func (v *BoundMethodValue) String() string {
 			results = FieldTypeList(ft.Results).StringWithCommas()
 			results = "(" + results + ")"
 		}
-	} else {
-		recvT = "?"
-		params = "?"
-		results = "(?)"
 	}
 	return fmt.Sprintf("<%s>.%s(%s)%s",
 		recvT, name, params, results)
@@ -161,10 +152,9 @@ func (v RefValue) String() string {
 	if v.PkgPath == "" {
 		return fmt.Sprintf("ref(%v)",
 			v.ObjectID)
-	} else {
-		return fmt.Sprintf("ref(%s)",
-			v.PkgPath)
 	}
+	return fmt.Sprintf("ref(%s)",
+		v.PkgPath)
 }
 
 // ----------------------------------------
@@ -228,9 +218,8 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 	case *PointerType:
 		if tv.V == nil {
 			return "invalid-pointer"
-		} else {
-			return tv.V.(PointerValue).String()
 		}
+		return tv.V.(PointerValue).String()
 	case *ArrayType:
 		return tv.V.(*ArrayValue).String()
 	case *SliceType:

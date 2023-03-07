@@ -114,9 +114,8 @@ func (x BinaryExpr) String() string {
 func (x CallExpr) String() string {
 	if x.Varg {
 		return fmt.Sprintf("%s(%s...)", x.Func, x.Args.String())
-	} else {
-		return fmt.Sprintf("%s(%s)", x.Func, x.Args.String())
 	}
+	return fmt.Sprintf("%s(%s)", x.Func, x.Args.String())
 }
 
 func (x IndexExpr) String() string {
@@ -142,9 +141,8 @@ func (x SliceExpr) String() string {
 	}
 	if ms == "" {
 		return fmt.Sprintf("%s[%s:%s]", x.X, ls, hs)
-	} else {
-		return fmt.Sprintf("%s[%s:%s:%s]", x.X, ls, hs, ms)
 	}
+	return fmt.Sprintf("%s[%s:%s:%s]", x.X, ls, hs, ms)
 }
 
 func (x StarExpr) String() string {
@@ -158,9 +156,8 @@ func (x RefExpr) String() string {
 func (x TypeAssertExpr) String() string {
 	if x.Type == nil {
 		return fmt.Sprintf("%s.(type)", x.X)
-	} else {
-		return fmt.Sprintf("%s.(%s)", x.X, x.Type)
 	}
+	return fmt.Sprintf("%s.(%s)", x.X, x.Type)
 }
 
 func (x UnaryExpr) String() string {
@@ -170,9 +167,8 @@ func (x UnaryExpr) String() string {
 func (x CompositeLitExpr) String() string {
 	if x.Type == nil {
 		return fmt.Sprintf("<elided>{%s}", x.Elts.String())
-	} else {
-		return fmt.Sprintf("%s{%s}", x.Type.String(), x.Elts.String())
 	}
+	return fmt.Sprintf("%s{%s}", x.Type.String(), x.Elts.String())
 }
 
 func (x FuncLitExpr) String() string {
@@ -182,33 +178,29 @@ func (x FuncLitExpr) String() string {
 func (x KeyValueExpr) String() string {
 	if x.Key == nil {
 		return fmt.Sprintf("%s", x.Value)
-	} else {
-		return fmt.Sprintf("%s: %s", x.Key, x.Value)
 	}
+	return fmt.Sprintf("%s: %s", x.Key, x.Value)
 }
 
 func (x FieldTypeExpr) String() string {
 	if x.Tag == nil {
 		return fmt.Sprintf("%s %s", x.Name, x.Type)
-	} else {
-		return fmt.Sprintf("%s %s %s", x.Name, x.Type, x.Tag)
 	}
+	return fmt.Sprintf("%s %s %s", x.Name, x.Type, x.Tag)
 }
 
 func (x ArrayTypeExpr) String() string {
 	if x.Len == nil {
 		return fmt.Sprintf("[...]%s", x.Elt)
-	} else {
-		return fmt.Sprintf("[%s]%s", x.Len, x.Elt)
 	}
+	return fmt.Sprintf("[%s]%s", x.Len, x.Elt)
 }
 
 func (x SliceTypeExpr) String() string {
 	if x.Vrd {
 		return fmt.Sprintf("...%s", x.Elt)
-	} else {
-		return fmt.Sprintf("[]%s", x.Elt)
 	}
+	return fmt.Sprintf("[]%s", x.Elt)
 }
 
 func (x InterfaceTypeExpr) String() string {
@@ -263,11 +255,10 @@ func (x BlockStmt) String() string {
 func (x BranchStmt) String() string {
 	if x.Label == "" {
 		return x.Op.TokenString()
-	} else {
-		return fmt.Sprintf("%s %s<%d,%d>",
-			x.Op.TokenString(), string(x.Label),
-			x.Depth, x.BodyIndex)
 	}
+	return fmt.Sprintf("%s %s<%d,%d>",
+		x.Op.TokenString(), string(x.Label),
+		x.Depth, x.BodyIndex)
 }
 
 func (x DeclStmt) String() string {
@@ -315,10 +306,9 @@ func (x IfStmt) String() string {
 	els_ := x.Else.String()
 	if x.Else.Body == nil {
 		return fmt.Sprintf("if %s%s { %s }", init, cond, then)
-	} else {
-		return fmt.Sprintf("if %s%s { %s } else { %s }",
-			init, cond, then, els_)
 	}
+	return fmt.Sprintf("if %s%s { %s } else { %s }",
+		init, cond, then, els_)
 }
 
 func (x IfCaseStmt) String() string {
@@ -326,11 +316,12 @@ func (x IfCaseStmt) String() string {
 }
 
 func (x IncDecStmt) String() string {
-	if x.Op == INC {
+	switch x.Op {
+	case INC:
 		return x.X.String() + "++"
-	} else if x.Op == DEC {
+	case DEC:
 		return x.X.String() + "--"
-	} else {
+	default:
 		panic("unexpected operator")
 	}
 }
@@ -356,9 +347,8 @@ func (x RangeStmt) String() string {
 func (x ReturnStmt) String() string {
 	if len(x.Results) == 0 {
 		return fmt.Sprintf("return")
-	} else {
-		return fmt.Sprintf("return %v", x.Results)
 	}
+	return fmt.Sprintf("return %v", x.Results)
 }
 
 func (x PanicStmt) String() string {
@@ -409,9 +399,8 @@ func (x SwitchStmt) String() string {
 func (x SwitchClauseStmt) String() string {
 	if len(x.Cases) == 0 {
 		return fmt.Sprintf("default: %s", x.Body.String())
-	} else {
-		return fmt.Sprintf("case %v: %s", x.Cases, x.Body.String())
 	}
+	return fmt.Sprintf("case %v: %s", x.Cases, x.Body.String())
 }
 
 func (x FuncDecl) String() string {
@@ -426,9 +415,8 @@ func (x FuncDecl) String() string {
 func (x ImportDecl) String() string {
 	if x.Name == "" {
 		return fmt.Sprintf("import %s", x.PkgPath)
-	} else {
-		return fmt.Sprintf("import %s %s", x.Name, x.PkgPath)
 	}
+	return fmt.Sprintf("import %s %s", x.Name, x.PkgPath)
 }
 
 func (x ValueDecl) String() string {
@@ -451,9 +439,8 @@ func (x ValueDecl) String() string {
 func (x TypeDecl) String() string {
 	if x.IsAlias {
 		return fmt.Sprintf("type %s = %s", x.Name, x.Type.String())
-	} else {
-		return fmt.Sprintf("type %s %s", x.Name, x.Type.String())
 	}
+	return fmt.Sprintf("type %s %s", x.Name, x.Type.String())
 }
 
 func (x FileNode) String() string {
@@ -552,7 +539,6 @@ func (x ConstExpr) String() string {
 func (x constTypeExpr) String() string {
 	if x.Type == nil { // type switch case
 		return fmt.Sprintf("(const-type nil)")
-	} else {
-		return fmt.Sprintf("(const-type %s)", x.Type.String())
 	}
+	return fmt.Sprintf("(const-type %s)", x.Type.String())
 }
