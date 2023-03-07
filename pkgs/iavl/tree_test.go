@@ -1884,7 +1884,8 @@ func TestGetWithIndex_ImmutableTree(t *testing.T) {
 }
 
 func Benchmark_GetWithIndex(b *testing.B) {
-	db := db.NewDB("test", db.MemDBBackend, "")
+	db, err := db.NewDB("test", db.MemDBBackend, "")
+	require.NoError(b, err)
 
 	const numKeyVals = 100000
 
@@ -1935,7 +1936,8 @@ func Benchmark_GetWithIndex(b *testing.B) {
 }
 
 func Benchmark_GetByIndex(b *testing.B) {
-	db := db.NewDB("test", db.MemDBBackend, "")
+	db, err := db.NewDB("test", db.MemDBBackend, "")
+	require.NoError(b, err)
 
 	const numKeyVals = 100000
 

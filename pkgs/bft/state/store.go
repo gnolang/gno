@@ -73,12 +73,18 @@ func LoadState(db dbm.DB) State {
 }
 
 func loadState(db dbm.DB, key []byte) (state State) {
-	buf := db.Get(key)
+	buf, err := db.Get(key)
+	if err != nil {
+		// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
+		osm.Exit(fmt.Sprintf(`LoadState: Data has been corrupted or its spec has changed:
+                %v\n`, err))
+	}
+
 	if len(buf) == 0 {
 		return state
 	}
 
-	err := amino.Unmarshal(buf, &state)
+	err = amino.Unmarshal(buf, &state)
 	if err != nil {
 		// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
 		osm.Exit(fmt.Sprintf(`LoadState: Data has been corrupted or its spec has changed:

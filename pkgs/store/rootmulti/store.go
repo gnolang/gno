@@ -490,14 +490,14 @@ func commitStores(version int64, storeMap map[types.StoreKey]types.CommitStore) 
 func getCommitInfo(db dbm.DB, ver int64) (commitInfo, error) {
 	// Get from DB.
 	cInfoKey := fmt.Sprintf(commitInfoKeyFmt, ver)
-	cInfoBytes := db.Get([]byte(cInfoKey))
-	if cInfoBytes == nil {
+	cInfoBytes, err := db.Get([]byte(cInfoKey))
+	if err != nil {
 		return commitInfo{}, fmt.Errorf("failed to get Store: no data")
 	}
 
 	var cInfo commitInfo
 
-	err := amino.UnmarshalSized(cInfoBytes, &cInfo)
+	err = amino.UnmarshalSized(cInfoBytes, &cInfo)
 	if err != nil {
 		return commitInfo{}, fmt.Errorf("failed to get Store: %w", err)
 	}

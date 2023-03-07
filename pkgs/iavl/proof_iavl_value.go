@@ -3,8 +3,8 @@ package iavl
 import (
 	"fmt"
 
-	tmmerkle "github.com/gnolang/gno/pkgs/crypto"
 	"github.com/gnolang/gno/pkgs/crypto/merkle"
+	tmmerkle "github.com/gnolang/gno/pkgs/crypto/merkle"
 	proto "github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
 

@@ -34,7 +34,7 @@ type PersistentKVStoreApplication struct {
 
 func NewPersistentKVStoreApplication(dbDir string) *PersistentKVStoreApplication {
 	name := "kvstore"
-	db, err := dbm.NewGoLevelDB(name, dbDir)
+	db, err := dbm.NewGoLevelDB(name, dbDir, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -91,7 +91,10 @@ func (app *PersistentKVStoreApplication) Query(reqQuery abci.RequestQuery) (resQ
 	switch reqQuery.Path {
 	case "/val":
 		key := []byte(ValidatorUpdatePrefix + string(reqQuery.Data))
-		value := app.app.state.db.Get(key)
+		value, err := app.app.state.db.Get(key)
+		if err != nil {
+			panic(err)
+		}
 
 		resQuery.Key = reqQuery.Data
 		resQuery.Value = value
@@ -146,7 +149,10 @@ func (app *PersistentKVStoreApplication) EndBlock(req abci.RequestEndBlock) abci
 // update validators
 
 func (app *PersistentKVStoreApplication) Validators() (validators []abci.ValidatorUpdate) {
-	itr := app.app.state.db.Iterator(nil, nil)
+	itr, err := app.app.state.db.Iterator(nil, nil)
+	if err != nil {
+		panic(err)
+	}
 	for ; itr.Valid(); itr.Next() {
 		if isValidatorKey(itr.Key()) {
 			validator := new(abci.ValidatorUpdate)

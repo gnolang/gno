@@ -25,7 +25,10 @@ type State struct {
 }
 
 func loadState(db dbm.DB) State {
-	stateBytes := db.Get(stateKey)
+	stateBytes, err := db.Get(stateKey)
+	if err != nil {
+		panic(err)
+	}
 	var state State
 	if len(stateBytes) != 0 {
 		err := json.Unmarshal(stateBytes, &state)
@@ -112,7 +115,10 @@ func (app *KVStoreApplication) Commit() (res abci.ResponseCommit) {
 // Returns an associated value or nil if missing.
 func (app *KVStoreApplication) Query(reqQuery abci.RequestQuery) (resQuery abci.ResponseQuery) {
 	if reqQuery.Prove {
-		value := app.state.db.Get(prefixKey(reqQuery.Data))
+		value, err := app.state.db.Get(prefixKey(reqQuery.Data))
+		if err != nil {
+			panic(err)
+		}
 		// resQuery.Index = -1 // TODO make Proof return index
 		resQuery.Key = reqQuery.Data
 		resQuery.Value = value
@@ -124,7 +130,10 @@ func (app *KVStoreApplication) Query(reqQuery abci.RequestQuery) (resQuery abci.
 		return
 	} else {
 		resQuery.Key = reqQuery.Data
-		value := app.state.db.Get(prefixKey(reqQuery.Data))
+		value, err := app.state.db.Get(prefixKey(reqQuery.Data))
+		if err != nil {
+			panic(err)
+		}
 		resQuery.Value = value
 		if value != nil {
 			resQuery.Log = "exists"
