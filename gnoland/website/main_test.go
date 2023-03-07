@@ -13,19 +13,19 @@ import (
 func TestRoutes(t *testing.T) {
 	ok := http.StatusOK
 	routes := []struct {
-		route  string
-		status int
-		ftest  func(string) bool
+		route     string
+		status    int
+		substring string
 	}{
-		{"/", ok, func(s string) bool { return strings.Contains(s, "Welcome") }},
-		{"/about", ok, func(s string) bool { return strings.Contains(s, "blockchain") }},
-		{"/r/gnoland/blog", ok, nil},
-		{"/r/gnoland/blog?help", ok, func(s string) bool { return strings.Contains(s, "exposed") }},
-		{"/r/gnoland/blog/", ok, func(s string) bool { return strings.Contains(s, "admin.gno") }},
-		{"/r/gnoland/blog/admin.gno", ok, func(s string) bool { return strings.Contains(s, "func ") }},
-		{"/r/demo/users:administrator", ok, func(s string) bool { return strings.Contains(s, "address") }},
-		{"/r/demo/users", ok, func(s string) bool { return strings.Contains(s, "manfred") }},
-		{"/r/demo/users/types.gno", ok, func(s string) bool { return strings.Contains(s, "type ") }},
+		{"/", ok, "Welcome"}, // assert / gives 200 (OK). assert / contains "Welcome".
+		{"/about", ok, "blockchain"},
+		{"/r/gnoland/blog", ok, ""}, // whatever content
+		{"/r/gnoland/blog?help", ok, "exposed"},
+		{"/r/gnoland/blog/", ok, "admin.gno"},
+		{"/r/gnoland/blog/admin.gno", ok, "func "},
+		{"/r/demo/users:administrator", ok, "address"},
+		{"/r/demo/users", ok, "manfred"},
+		{"/r/demo/users/types.gno", ok, "type "},
 	}
 	if wd, err := os.Getwd(); err == nil {
 		if strings.HasSuffix(wd, "gnoland/website") {
@@ -41,9 +41,7 @@ func TestRoutes(t *testing.T) {
 			response := httptest.NewRecorder()
 			app.Router.ServeHTTP(response, request)
 			assert.Equal(t, r.status, response.Code)
-			if r.ftest != nil {
-				assert.Equal(t, r.ftest(response.Body.String()), true)
-			}
+			assert.Equal(t, strings.Contains(response.Body.String(), r.substring), true)
 		})
 	}
 }
