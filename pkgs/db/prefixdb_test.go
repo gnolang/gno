@@ -32,7 +32,7 @@ func taskKey(i, k int) []byte {
 
 func randomValue() []byte {
 	b := make([]byte, 16)
-	rand.Read(b) //nolint:gosec
+	rand.Read(b) 
 	return b
 }
 

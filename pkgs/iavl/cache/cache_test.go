@@ -155,7 +155,6 @@ func Test_Cache_Add(t *testing.T) {
 			expectedCurSize := 0
 
 			for _, op := range tc.cacheOps {
-
 				actualResult := cache.Add(testNodes[op.testNodexIdx])
 
 				expectedResult := op.expectedResult
@@ -268,7 +267,6 @@ func Test_Cache_Remove(t *testing.T) {
 			expectedCurSize := cache.Len()
 
 			for _, op := range tc.cacheOps {
-
 				actualResult := cache.Remove(testNodes[op.testNodexIdx].GetKey())
 
 				expectedResult := op.expectedResult

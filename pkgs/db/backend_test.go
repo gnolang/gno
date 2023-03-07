@@ -353,8 +353,8 @@ func testDBBatchGetByteSize(t *testing.T, backend BackendType) {
 	totalSizeOfKeyAndValue := 0
 	// set 100 random keys and values
 	for i := 0; i < 100; i++ {
-		keySize := rand.Intn(32) + 1   //nolint:gosec
-		valueSize := rand.Intn(32) + 1 //nolint:gosec
+		keySize := rand.Intn(32) + 1   
+		valueSize := rand.Intn(32) + 1 
 		totalSizeOfKeyAndValue += keySize + valueSize
 		require.NoError(t, batch.Set([]byte(randStr(keySize)), []byte(randStr(valueSize))))
 	}
