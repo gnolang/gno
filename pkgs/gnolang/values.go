@@ -327,9 +327,8 @@ func (av *ArrayValue) GetReadonlyBytes() []byte {
 			bz[i] = tv.GetUint8()
 		}
 		return bz
-	} else {
-		return av.Data
 	}
+	return av.Data
 }
 
 func (av *ArrayValue) GetCapacity() int {
@@ -337,19 +336,17 @@ func (av *ArrayValue) GetCapacity() int {
 		// not cap(av.List) for simplicity.
 		// extra capacity is ignored.
 		return len(av.List)
-	} else {
-		// not cap(av.Data) for simplicity.
-		// extra capacity is ignored.
-		return len(av.Data)
 	}
+	// not cap(av.Data) for simplicity.
+	// extra capacity is ignored.
+	return len(av.Data)
 }
 
 func (av *ArrayValue) GetLength() int {
 	if av.Data == nil {
 		return len(av.List)
-	} else {
-		return len(av.Data)
 	}
+	return len(av.Data)
 }
 
 // et is only required for .List byte-arrays.
@@ -361,20 +358,19 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 			Base:  av,
 			Index: ii,
 		}
-	} else {
-		bv := &TypedValue{ // heap alloc
-			T: DataByteType,
-			V: DataByteValue{
-				Base:     av,
-				Index:    ii,
-				ElemType: et,
-			},
-		}
-		return PointerValue{
-			TV:    bv,
-			Base:  av,
-			Index: ii,
-		}
+	}
+	bv := &TypedValue{ // heap alloc
+		T: DataByteType,
+		V: DataByteValue{
+			Base:     av,
+			Index:    ii,
+			ElemType: et,
+		},
+	}
+	return PointerValue{
+		TV:    bv,
+		Base:  av,
+		Index: ii,
 	}
 }
 
@@ -388,11 +384,10 @@ func (av *ArrayValue) Copy(alloc *Allocator) *ArrayValue {
 		av2 := alloc.NewListArray(len(av.List))
 		copy(av2.List, av.List)
 		return av2
-	} else {
-		av2 := alloc.NewDataArray(len(av.Data))
-		copy(av2.Data, av.Data)
-		return av2
 	}
+	av2 := alloc.NewDataArray(len(av.Data))
+	copy(av2.Data, av.Data)
+	return av2
 }
 
 // ----------------------------------------
@@ -565,13 +560,12 @@ func (fv *FuncValue) GetType(store Store) *FuncType {
 }
 
 func (fv *FuncValue) GetBodyFromSource(store Store) []Stmt {
-	if fv.body != nil {
-		return fv.body
-	} else {
+	if fv.body == nil {
 		source := fv.GetSource(store)
 		fv.body = source.GetBody()
 		return fv.body
 	}
+	return fv.body
 }
 
 func (fv *FuncValue) GetSource(store Store) BlockNode {
@@ -579,9 +573,8 @@ func (fv *FuncValue) GetSource(store Store) BlockNode {
 		source := store.GetBlockNode(rn.GetLocation())
 		fv.Source = source
 		return source
-	} else {
-		return fv.Source
 	}
+	return fv.Source
 }
 
 func (fv *FuncValue) GetPackage(store Store) *PackageValue {
@@ -597,14 +590,13 @@ func (fv *FuncValue) GetClosure(store Store) *Block {
 	case nil:
 		if fv.FileName == "" {
 			return nil
-		} else {
-			pv := fv.GetPackage(store)
-			fb := pv.fBlocksMap[fv.FileName]
-			if fb == nil {
-				panic(fmt.Sprintf("file block missing for file %q", fv.FileName))
-			}
-			return fb
 		}
+		pv := fv.GetPackage(store)
+		fb := pv.fBlocksMap[fv.FileName]
+		if fb == nil {
+			panic(fmt.Sprintf("file block missing for file %q", fv.FileName))
+		}
+		return fb
 	case RefValue:
 		block := store.GetObject(cv.ObjectID).(*Block)
 		fv.Closure = block
@@ -687,8 +679,6 @@ func (ml *MapList) Append(alloc *Allocator, key TypedValue) *MapListItem {
 	}
 	if ml.Head == nil {
 		ml.Head = item
-	} else {
-		// nothing
 	}
 	if ml.Tail != nil {
 		ml.Tail.Next = item
@@ -743,16 +733,15 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedVa
 			Key:   &key2,
 			Index: PointerIndexMap,
 		}
-	} else {
-		mli := mv.List.Append(alloc, *key)
-		mv.vmap[kmk] = mli
-		key2 := key.Copy(alloc)
-		return PointerValue{
-			TV:    fillValueTV(store, &mli.Value),
-			Base:  mv,
-			Key:   &key2,
-			Index: PointerIndexMap,
-		}
+	}
+	mli := mv.List.Append(alloc, *key)
+	mv.vmap[kmk] = mli
+	key2 := key.Copy(alloc)
+	return PointerValue{
+		TV:    fillValueTV(store, &mli.Value),
+		Base:  mv,
+		Key:   &key2,
+		Index: PointerIndexMap,
 	}
 }
 
@@ -763,10 +752,8 @@ func (mv *MapValue) GetValueForKey(store Store, key *TypedValue) (val TypedValue
 	if mli, exists := mv.vmap[kmk]; exists {
 		fillValueTV(store, &mli.Value)
 		val, ok = mli.Value, true
-		return
-	} else {
-		return
 	}
+	return
 }
 
 func (mv *MapValue) DeleteForKey(store Store, key *TypedValue) {
@@ -946,24 +933,22 @@ func (tv *TypedValue) IsUndefined() bool {
 			}
 		}
 		return true
-	} else {
-		return tv.IsNilInterface()
 	}
+	return tv.IsNilInterface()
 }
 
 func (tv *TypedValue) IsNilInterface() bool {
 	if tv.T != nil && tv.T.Kind() == InterfaceKind {
 		if tv.V == nil {
 			return true
-		} else {
-			if debug {
-				if tv.N != [8]byte{} {
-					panic(fmt.Sprintf(
-						"corrupted TypeValue (nil interface)"))
-				}
-			}
-			return false
 		}
+		if debug {
+			if tv.N != [8]byte{} {
+				panic(fmt.Sprintf(
+					"corrupted TypeValue (nil interface)"))
+			}
+		}
+		return false
 	}
 	return false
 }
@@ -971,9 +956,8 @@ func (tv *TypedValue) IsNilInterface() bool {
 func (tv *TypedValue) HasKind(k Kind) bool {
 	if tv.T == nil {
 		return false
-	} else {
-		return tv.T.Kind() == k
 	}
+	return tv.T.Kind() == k
 }
 
 // for debugging, returns true if V or N is not zero.  just because V and N are
@@ -1023,9 +1007,8 @@ func (tv *TypedValue) PrimitiveBytes() (data []byte) {
 	case BoolType:
 		if tv.GetBool() {
 			return []byte{0x01}
-		} else {
-			return []byte{0x00}
 		}
+		return []byte{0x00}
 	case StringType:
 		return []byte(tv.GetString())
 	case Int8Type:
@@ -1130,9 +1113,8 @@ func (tv *TypedValue) GetString() string {
 	}
 	if tv.V == nil {
 		return ""
-	} else {
-		return string(tv.V.(StringValue))
 	}
+	return string(tv.V.(StringValue))
 }
 
 func (tv *TypedValue) SetInt(n int) {
@@ -1795,9 +1777,8 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 			ptr := bv.GetPointerTo(alloc, store, path)
 			if i == len(tr)-1 {
 				return ptr // done
-			} else {
-				bv = ptr.Deref() // deref
 			}
+			bv = ptr.Deref() // deref
 		}
 		panic("should not happen")
 	case VPNative:
@@ -1905,11 +1886,10 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 				TV:   bv,
 				Base: nil, // free floating
 			}
-		} else {
-			panic(fmt.Sprintf(
-				"primitive type %s cannot be indexed",
-				tv.T.String()))
 		}
+		panic(fmt.Sprintf(
+			"primitive type %s cannot be indexed",
+			tv.T.String()))
 	case *ArrayType:
 		av := tv.V.(*ArrayValue)
 		ii := iv.ConvertGetInt()
@@ -2083,9 +2063,8 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 				T: tv.T,
 				V: alloc.NewString(tv.GetString()[low:high]),
 			}
-		} else {
-			panic("non-string primitive type cannot be sliced")
 		}
+		panic("non-string primitive type cannot be sliced")
 	case *ArrayType:
 		av := tv.V.(*ArrayValue)
 		st := alloc.NewType(&SliceType{
@@ -2283,9 +2262,8 @@ func (b *Block) GetSource(store Store) BlockNode {
 		source := store.GetBlockNode(rn.GetLocation())
 		b.Source = source
 		return source
-	} else {
-		return b.Source
 	}
+	return b.Source
 }
 
 func (b *Block) GetParent(store Store) *Block {
@@ -2416,17 +2394,16 @@ func defaultStructValue(alloc *Allocator, st *StructType) *StructValue {
 func defaultArrayValue(alloc *Allocator, at *ArrayType) *ArrayValue {
 	if at.Elt.Kind() == Uint8Kind {
 		return alloc.NewDataArray(at.Len)
-	} else {
-		av := alloc.NewListArray(at.Len)
-		tvs := av.List
-		if et := at.Elem(); et.Kind() != InterfaceKind {
-			for i := 0; i < at.Len; i++ {
-				tvs[i].T = et
-				tvs[i].V = defaultValue(alloc, et)
-			}
-		}
-		return av
 	}
+	av := alloc.NewListArray(at.Len)
+	tvs := av.List
+	if et := at.Elem(); et.Kind() != InterfaceKind {
+		for i := 0; i < at.Len; i++ {
+			tvs[i].T = et
+			tvs[i].V = defaultValue(alloc, et)
+		}
+	}
+	return av
 }
 
 func defaultValue(alloc *Allocator, t Type) Value {
@@ -2457,11 +2434,10 @@ func defaultValue(alloc *Allocator, t Type) Value {
 func defaultTypedValue(alloc *Allocator, t Type) TypedValue {
 	if t.Kind() == InterfaceKind {
 		return TypedValue{}
-	} else {
-		return TypedValue{
-			T: t,
-			V: defaultValue(alloc, t),
-		}
+	}
+	return TypedValue{
+		T: t,
+		V: defaultValue(alloc, t),
 	}
 }
 
