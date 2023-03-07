@@ -145,7 +145,9 @@ func GnoToGoMod(f File) (*File, error) {
 
 func isReplaced(module module.Version, repl []*modfile.Replace) (*module.Version, bool) {
 	for _, r := range repl {
-		if (r.Old.Path == module.Path && r.Old.Version == "") || r.Old == module {
+		hasNoVersion := r.Old.Path == module.Path && r.Old.Version == ""
+		hasExactVersion := r.Old == module
+		if hasNoVersion || hasExactVersion {
 			return &r.New, true
 		}
 	}
