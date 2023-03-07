@@ -15,9 +15,9 @@ require (
 	github.com/gnolang/cors v1.8.1
 	github.com/gnolang/overflow v0.0.0-20170615021017-4d914c927216
 	github.com/gogo/protobuf v1.3.2
-	github.com/golang/mock v1.6.0
+	github.com/golang/mock v1.4.4
 	github.com/golang/protobuf v1.5.2
-	github.com/google/btree v1.1.2
+	github.com/google/btree v1.0.0
 	github.com/google/gofuzz v1.2.0
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.5.0
@@ -30,15 +30,15 @@ require (
 	github.com/peterbourgon/ff/v3 v3.3.0
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cast v1.3.0
-	github.com/stretchr/testify v1.8.1
-	github.com/syndtr/goleveldb v1.0.1-0.20200815110645-5c35d600f0ca
-	go.uber.org/multierr v1.8.0
-	golang.org/x/crypto v0.2.0
-	golang.org/x/mod v0.7.0
-	golang.org/x/net v0.5.0
-	golang.org/x/term v0.4.0
-	golang.org/x/tools v0.5.0
-	google.golang.org/protobuf v1.28.0
+	github.com/stretchr/testify v1.8.2
+	github.com/syndtr/goleveldb v1.0.0
+	go.uber.org/multierr v1.9.0
+	golang.org/x/crypto v0.7.0
+	golang.org/x/mod v0.9.0
+	golang.org/x/net v0.8.0
+	golang.org/x/term v0.6.0
+	golang.org/x/tools v0.6.0
+	google.golang.org/protobuf v1.27.1
 )
 
 require (
@@ -69,11 +69,11 @@ require (
 	github.com/prometheus/common v0.32.1 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
-	github.com/rogpeppe/go-internal v1.8.1 // indirect
-	go.uber.org/atomic v1.9.0 // indirect
+	github.com/rogpeppe/go-internal v1.6.1 // indirect
+	go.uber.org/atomic v1.7.0 // indirect
 	golang.org/x/exp v0.0.0-20200513190911-00229845015e // indirect
-	golang.org/x/sys v0.4.0 // indirect
-	golang.org/x/text v0.6.0 // indirect
+	golang.org/x/sys v0.6.0 // indirect
+	golang.org/x/text v0.8.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
