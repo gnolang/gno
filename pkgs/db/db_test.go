@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,10 +11,13 @@ import (
 func TestDBIteratorSingleKey(t *testing.T) {
 	for backend := range backends {
 		t.Run(fmt.Sprintf("Backend %s", backend), func(t *testing.T) {
-			db := newTempDB(t, backend)
+			db, dir := newTempDB(t, backend)
+			defer os.RemoveAll(dir)
 
-			db.SetSync(bz("1"), bz("value_1"))
-			itr := db.Iterator(nil, nil)
+			err := db.SetSync(bz("1"), bz("value_1"))
+			assert.NoError(t, err)
+			itr, err := db.Iterator(nil, nil)
+			assert.NoError(t, err)
 
 			checkValid(t, itr, true)
 			checkNext(t, itr, false)
@@ -29,13 +33,18 @@ func TestDBIteratorSingleKey(t *testing.T) {
 func TestDBIteratorTwoKeys(t *testing.T) {
 	for backend := range backends {
 		t.Run(fmt.Sprintf("Backend %s", backend), func(t *testing.T) {
-			db := newTempDB(t, backend)
+			db, dir := newTempDB(t, backend)
+			defer os.RemoveAll(dir)
 
-			db.SetSync(bz("1"), bz("value_1"))
-			db.SetSync(bz("2"), bz("value_1"))
+			err := db.SetSync(bz("1"), bz("value_1"))
+			assert.NoError(t, err)
+
+			err = db.SetSync(bz("2"), bz("value_1"))
+			assert.NoError(t, err)
 
 			{ // Fail by calling Next too much
-				itr := db.Iterator(nil, nil)
+				itr, err := db.Iterator(nil, nil)
+				assert.NoError(t, err)
 				checkValid(t, itr, true)
 
 				checkNext(t, itr, true)
@@ -56,7 +65,8 @@ func TestDBIteratorTwoKeys(t *testing.T) {
 func TestDBIteratorMany(t *testing.T) {
 	for backend := range backends {
 		t.Run(fmt.Sprintf("Backend %s", backend), func(t *testing.T) {
-			db := newTempDB(t, backend)
+			db, dir := newTempDB(t, backend)
+			defer os.RemoveAll(dir)
 
 			keys := make([][]byte, 100)
 			for i := 0; i < 100; i++ {
@@ -65,13 +75,20 @@ func TestDBIteratorMany(t *testing.T) {
 
 			value := []byte{5}
 			for _, k := range keys {
-				db.Set(k, value)
+				err := db.Set(k, value)
+				assert.NoError(t, err)
 			}
 
-			itr := db.Iterator(nil, nil)
+			itr, err := db.Iterator(nil, nil)
+			assert.NoError(t, err)
+
 			defer itr.Close()
 			for ; itr.Valid(); itr.Next() {
-				assert.Equal(t, db.Get(itr.Key()), itr.Value())
+				key := itr.Key()
+				value = itr.Value()
+				value1, err := db.Get(key)
+				assert.NoError(t, err)
+				assert.Equal(t, value1, value)
 			}
 		})
 	}
@@ -80,9 +97,11 @@ func TestDBIteratorMany(t *testing.T) {
 func TestDBIteratorEmpty(t *testing.T) {
 	for backend := range backends {
 		t.Run(fmt.Sprintf("Backend %s", backend), func(t *testing.T) {
-			db := newTempDB(t, backend)
+			db, dir := newTempDB(t, backend)
+			defer os.RemoveAll(dir)
 
-			itr := db.Iterator(nil, nil)
+			itr, err := db.Iterator(nil, nil)
+			assert.NoError(t, err)
 
 			checkInvalid(t, itr)
 		})
@@ -92,9 +111,11 @@ func TestDBIteratorEmpty(t *testing.T) {
 func TestDBIteratorEmptyBeginAfter(t *testing.T) {
 	for backend := range backends {
 		t.Run(fmt.Sprintf("Backend %s", backend), func(t *testing.T) {
-			db := newTempDB(t, backend)
+			db, dir := newTempDB(t, backend)
+			defer os.RemoveAll(dir)
 
-			itr := db.Iterator(bz("1"), nil)
+			itr, err := db.Iterator(bz("1"), nil)
+			assert.NoError(t, err)
 
 			checkInvalid(t, itr)
 		})
@@ -104,84 +125,15 @@ func TestDBIteratorEmptyBeginAfter(t *testing.T) {
 func TestDBIteratorNonemptyBeginAfter(t *testing.T) {
 	for backend := range backends {
 		t.Run(fmt.Sprintf("Backend %s", backend), func(t *testing.T) {
-			db := newTempDB(t, backend)
+			db, dir := newTempDB(t, backend)
+			defer os.RemoveAll(dir)
 
-			db.SetSync(bz("1"), bz("value_1"))
-			itr := db.Iterator(bz("2"), nil)
+			err := db.SetSync(bz("1"), bz("value_1"))
+			assert.NoError(t, err)
+			itr, err := db.Iterator(bz("2"), nil)
+			assert.NoError(t, err)
 
 			checkInvalid(t, itr)
 		})
-	}
-}
-
-func TestDBBatchWrite(t *testing.T) {
-	testCases := []struct {
-		modify func(batch Batch)
-		calls  map[string]int
-	}{
-		0: {
-			func(batch Batch) {
-				batch.Set(bz("1"), bz("1"))
-				batch.Set(bz("2"), bz("2"))
-				batch.Delete(bz("3"))
-				batch.Set(bz("4"), bz("4"))
-				batch.Write()
-			},
-			map[string]int{
-				"Set": 0, "SetSync": 0, "SetNoLock": 3, "SetNoLockSync": 0,
-				"Delete": 0, "DeleteSync": 0, "DeleteNoLock": 1, "DeleteNoLockSync": 0,
-			},
-		},
-		1: {
-			func(batch Batch) {
-				batch.Set(bz("1"), bz("1"))
-				batch.Set(bz("2"), bz("2"))
-				batch.Set(bz("4"), bz("4"))
-				batch.Delete(bz("3"))
-				batch.Write()
-			},
-			map[string]int{
-				"Set": 0, "SetSync": 0, "SetNoLock": 3, "SetNoLockSync": 0,
-				"Delete": 0, "DeleteSync": 0, "DeleteNoLock": 1, "DeleteNoLockSync": 0,
-			},
-		},
-		2: {
-			func(batch Batch) {
-				batch.Set(bz("1"), bz("1"))
-				batch.Set(bz("2"), bz("2"))
-				batch.Delete(bz("3"))
-				batch.Set(bz("4"), bz("4"))
-				batch.WriteSync()
-			},
-			map[string]int{
-				"Set": 0, "SetSync": 0, "SetNoLock": 2, "SetNoLockSync": 1,
-				"Delete": 0, "DeleteSync": 0, "DeleteNoLock": 1, "DeleteNoLockSync": 0,
-			},
-		},
-		3: {
-			func(batch Batch) {
-				batch.Set(bz("1"), bz("1"))
-				batch.Set(bz("2"), bz("2"))
-				batch.Set(bz("4"), bz("4"))
-				batch.Delete(bz("3"))
-				batch.WriteSync()
-			},
-			map[string]int{
-				"Set": 0, "SetSync": 0, "SetNoLock": 3, "SetNoLockSync": 0,
-				"Delete": 0, "DeleteSync": 0, "DeleteNoLock": 0, "DeleteNoLockSync": 1,
-			},
-		},
-	}
-
-	for i, tc := range testCases {
-		mdb := newMockDB()
-		batch := mdb.NewBatch()
-
-		tc.modify(batch)
-
-		for call, exp := range tc.calls {
-			got := mdb.calls[call]
-			assert.Equal(t, exp, got, "#%v - key: %s", i, call)
-		}
 	}
 }

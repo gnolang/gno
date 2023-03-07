@@ -1935,8 +1935,7 @@ func Benchmark_GetWithIndex(b *testing.B) {
 }
 
 func Benchmark_GetByIndex(b *testing.B) {
-	db, err := db.NewDB("test", db.MemDBBackend, "")
-	require.NoError(b, err)
+	db := db.NewDB("test", db.MemDBBackend, "")
 
 	const numKeyVals = 100000
 
@@ -2016,6 +2015,7 @@ func TestNodeCacheStatisic(t *testing.T) {
 			opts := &Options{Stat: stat}
 			db, err := db.NewDB("test", db.MemDBBackend, "")
 			require.NoError(t, err)
+
 			mt, err := NewMutableTreeWithOpts(db, tc.cacheSize, opts)
 			require.NoError(t, err)
 

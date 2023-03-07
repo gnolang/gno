@@ -2,15 +2,20 @@ package db
 
 import (
 	"fmt"
+	"os"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // Empty iterator for empty db.
 func TestPrefixIteratorNoMatchNil(t *testing.T) {
 	for backend := range backends {
 		t.Run(fmt.Sprintf("Prefix w/ backend %s", backend), func(t *testing.T) {
-			db := newTempDB(t, backend)
-			itr := IteratePrefix(db, []byte("2"))
+			db, dir := newTempDB(t, backend)
+			defer os.RemoveAll(dir)
+			itr, err := IteratePrefix(db, []byte("2"))
+			require.NoError(t, err)
 
 			checkInvalid(t, itr)
 		})
@@ -20,15 +25,13 @@ func TestPrefixIteratorNoMatchNil(t *testing.T) {
 // Empty iterator for db populated after iterator created.
 func TestPrefixIteratorNoMatch1(t *testing.T) {
 	for backend := range backends {
-		if backend == BoltDBBackend {
-			t.Log("bolt does not support concurrent writes while iterating")
-			continue
-		}
-
 		t.Run(fmt.Sprintf("Prefix w/ backend %s", backend), func(t *testing.T) {
-			db := newTempDB(t, backend)
-			itr := IteratePrefix(db, []byte("2"))
-			db.SetSync(bz("1"), bz("value_1"))
+			db, dir := newTempDB(t, backend)
+			defer os.RemoveAll(dir)
+			itr, err := IteratePrefix(db, []byte("2"))
+			require.NoError(t, err)
+			err = db.SetSync(bz("1"), bz("value_1"))
+			require.NoError(t, err)
 
 			checkInvalid(t, itr)
 		})
@@ -39,9 +42,12 @@ func TestPrefixIteratorNoMatch1(t *testing.T) {
 func TestPrefixIteratorNoMatch2(t *testing.T) {
 	for backend := range backends {
 		t.Run(fmt.Sprintf("Prefix w/ backend %s", backend), func(t *testing.T) {
-			db := newTempDB(t, backend)
-			db.SetSync(bz("3"), bz("value_3"))
-			itr := IteratePrefix(db, []byte("4"))
+			db, dir := newTempDB(t, backend)
+			defer os.RemoveAll(dir)
+			err := db.SetSync(bz("3"), bz("value_3"))
+			require.NoError(t, err)
+			itr, err := IteratePrefix(db, []byte("4"))
+			require.NoError(t, err)
 
 			checkInvalid(t, itr)
 		})
@@ -52,9 +58,12 @@ func TestPrefixIteratorNoMatch2(t *testing.T) {
 func TestPrefixIteratorMatch1(t *testing.T) {
 	for backend := range backends {
 		t.Run(fmt.Sprintf("Prefix w/ backend %s", backend), func(t *testing.T) {
-			db := newTempDB(t, backend)
-			db.SetSync(bz("2"), bz("value_2"))
-			itr := IteratePrefix(db, bz("2"))
+			db, dir := newTempDB(t, backend)
+			defer os.RemoveAll(dir)
+			err := db.SetSync(bz("2"), bz("value_2"))
+			require.NoError(t, err)
+			itr, err := IteratePrefix(db, bz("2"))
+			require.NoError(t, err)
 
 			checkValid(t, itr, true)
 			checkItem(t, itr, bz("2"), bz("value_2"))
@@ -70,18 +79,26 @@ func TestPrefixIteratorMatch1(t *testing.T) {
 func TestPrefixIteratorMatches1N(t *testing.T) {
 	for backend := range backends {
 		t.Run(fmt.Sprintf("Prefix w/ backend %s", backend), func(t *testing.T) {
-			db := newTempDB(t, backend)
+			db, dir := newTempDB(t, backend)
+			defer os.RemoveAll(dir)
 
 			// prefixed
-			db.SetSync(bz("a/1"), bz("value_1"))
-			db.SetSync(bz("a/3"), bz("value_3"))
+			err := db.SetSync(bz("a/1"), bz("value_1"))
+			require.NoError(t, err)
+			err = db.SetSync(bz("a/3"), bz("value_3"))
+			require.NoError(t, err)
 
 			// not
-			db.SetSync(bz("b/3"), bz("value_3"))
-			db.SetSync(bz("a-3"), bz("value_3"))
-			db.SetSync(bz("a.3"), bz("value_3"))
-			db.SetSync(bz("abcdefg"), bz("value_3"))
-			itr := IteratePrefix(db, bz("a/"))
+			err = db.SetSync(bz("b/3"), bz("value_3"))
+			require.NoError(t, err)
+			err = db.SetSync(bz("a-3"), bz("value_3"))
+			require.NoError(t, err)
+			err = db.SetSync(bz("a.3"), bz("value_3"))
+			require.NoError(t, err)
+			err = db.SetSync(bz("abcdefg"), bz("value_3"))
+			require.NoError(t, err)
+			itr, err := IteratePrefix(db, bz("a/"))
+			require.NoError(t, err)
 
 			checkValid(t, itr, true)
 			checkItem(t, itr, bz("a/1"), bz("value_1"))

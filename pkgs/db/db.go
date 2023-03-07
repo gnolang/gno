@@ -14,32 +14,26 @@ const (
 	//   - pure go
 	//   - stable
 	GoLevelDBBackend BackendType = "goleveldb"
-	// CLevelDBBackend represents cleveldb (uses levigo wrapper)
-	//   - fast
-	//   - requires gcc
-	//   - use cleveldb build tag (go build -tags cleveldb)
-	CLevelDBBackend BackendType = "cleveldb"
-	// MemDBBackend represents in-memoty key value store, which is mostly used
+	// MemDBBackend represents in-memory key value store, which is mostly used
 	// for testing.
 	MemDBBackend BackendType = "memdb"
-	// FSDBBackend represents filesystem database
-	//	 - EXPERIMENTAL
-	//   - slow
-	FSDBBackend BackendType = "fsdb"
-	// BoltDBBackend represents bolt (uses etcd's fork of bolt -
-	// go.etcd.io/bbolt)
-	//   - EXPERIMENTAL
-	//   - may be faster is some use-cases (random reads - indexer)
-	//   - use boltdb build tag (go build -tags boltdb)
-	BoltDBBackend BackendType = "boltdb"
-	// RocksDBBackend represents rocksdb (uses github.com/tecbot/gorocksdb)
-	//   - EXPERIMENTAL
+	// RocksDBBackend represents rocksdb (uses github.com/linxGnu/grocksdb)
 	//   - requires gcc
 	//   - use rocksdb build tag (go build -tags rocksdb)
 	RocksDBBackend BackendType = "rocksdb"
+	// PebbleDBDBBackend represents pebble (uses github.com/cockroachdb/pebble)
+	//   - pure go
+	//   - use pebble build tag (go build -tags pebbledb)
+	PebbleDBBackend BackendType = "pebbledb"
 )
 
-type dbCreator func(name string, dir string) (DB, error)
+type (
+	dbCreator func(name string, dir string, opts Options) (DB, error)
+
+	Options interface {
+		Get(string) interface{}
+	}
+)
 
 var backends = map[BackendType]dbCreator{}
 
@@ -52,24 +46,24 @@ func registerDBCreator(backend BackendType, creator dbCreator, force bool) {
 }
 
 // NewDB creates a new database of type backend with the given name.
-// NOTE: function panics if:
-//   - backend is unknown (not registered)
-//   - creator function, provided during registration, returns error
-func NewDB(name string, backend BackendType, dir string) DB {
+func NewDB(name string, backend BackendType, dir string) (DB, error) {
+	return NewDBwithOptions(name, backend, dir, nil)
+}
+
+func NewDBwithOptions(name string, backend BackendType, dir string, opts Options) (DB, error) {
 	dbCreator, ok := backends[backend]
 	if !ok {
-		keys := make([]string, len(backends))
-		i := 0
+		keys := make([]string, 0, len(backends))
 		for k := range backends {
-			keys[i] = string(k)
-			i++
+			keys = append(keys, string(k))
 		}
-		panic(fmt.Sprintf("Unknown db_backend %s, expected either %s", backend, strings.Join(keys, " or ")))
+		return nil, fmt.Errorf("unknown db_backend %s, expected one of %v",
+			backend, strings.Join(keys, ","))
 	}
 
-	db, err := dbCreator(name, dir)
+	db, err := dbCreator(name, dir, opts)
 	if err != nil {
-		panic(fmt.Sprintf("Error initializing DB: %v", err))
+		return nil, fmt.Errorf("failed to initialize database: %w", err)
 	}
-	return db
+	return db, nil
 }

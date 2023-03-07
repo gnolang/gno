@@ -88,7 +88,10 @@ func OpenDB(dir string) (dbm.DB, error) {
 func PrintDBStats(db dbm.DB) {
 	count := 0
 	prefix := map[string]int{}
-	itr := db.Iterator(nil, nil)
+	itr, err := db.Iterator(nil, nil)
+	if err != nil {
+		// TODO: handle error
+	}
 
 	defer itr.Close()
 	for ; itr.Valid(); itr.Next() {

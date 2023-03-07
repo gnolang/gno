@@ -49,3 +49,15 @@ func FileExists(filePath string) bool {
 	_, err := os.Stat(filePath)
 	return !os.IsNotExist(err)
 }
+
+// OptionsMap is a stub implementing Options which can get data from a map
+type OptionsMap map[string]interface{}
+
+func (m OptionsMap) Get(key string) interface{} {
+	v, ok := m[key]
+	if !ok {
+		return interface{}(nil)
+	}
+
+	return v
+}

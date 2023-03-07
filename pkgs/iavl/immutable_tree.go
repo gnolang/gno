@@ -14,10 +14,9 @@ import (
 // Returned key/value byte slices must not be modified, since they may point to data located inside
 // IAVL which would also be modified.
 type ImmutableTree struct {
-	root                   *Node
-	ndb                    *nodeDB
-	version                int64
-	skipFastStorageUpgrade bool
+	root    *Node
+	ndb     *nodeDB
+	version int64
 }
 
 // NewImmutableTree creates both in-memory and persistent instances
@@ -230,9 +229,6 @@ func (t *ImmutableTree) Iterate(fn func(key []byte, value []byte) bool) (bool, e
 	}
 
 	itr, err := t.Iterator(nil, nil, true)
-	if err != nil {
-		return false, err
-	}
 	defer itr.Close()
 	if err != nil {
 		return false, err
@@ -241,15 +237,24 @@ func (t *ImmutableTree) Iterate(fn func(key []byte, value []byte) bool) (bool, e
 		if fn(itr.Key(), itr.Value()) {
 			return true, nil
 		}
+
 	}
 	return false, nil
 }
 
 // Iterator returns an iterator over the immutable tree.
 func (t *ImmutableTree) Iterator(start, end []byte, ascending bool) (dbm.Iterator, error) {
+	if !t.skipFastStorageUpgrade {
+		isFastCacheEnabled, err := t.IsFastCacheEnabled()
+		if err != nil {
+			return nil, err
+		}
 
-	return NewFastIterator(start, end, ascending, t.ndb), nil
-
+		if isFastCacheEnabled {
+			return NewFastIterator(start, end, ascending, t.ndb), nil
+		}
+	}
+	return NewIterator(start, end, ascending, t), nil
 }
 
 // IterateRange makes a callback for all nodes with key between start and end non-inclusive.
@@ -315,7 +320,7 @@ func (t *ImmutableTree) clone() *ImmutableTree {
 
 // nodeSize is like Size, but includes inner nodes too.
 //
-
+//nolint:unused
 func (t *ImmutableTree) nodeSize() int {
 	size := 0
 	t.root.traverse(t, true, func(n *Node) bool {

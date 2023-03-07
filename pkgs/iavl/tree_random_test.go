@@ -102,7 +102,7 @@ func testRandomOperations(t *testing.T, randSeed int64) {
 	require.NoError(t, err)
 	defer os.RemoveAll(tempdir)
 
-	levelDB, err := db.NewGoLevelDB("leveldb", tempdir)
+	levelDB, err := db.NewGoLevelDB("leveldb", tempdir, nil)
 	require.NoError(t, err)
 
 	tree, version, _ := loadTree(levelDB)
@@ -335,7 +335,7 @@ func testRandomOperations(t *testing.T, randSeed int64) {
 // at the given version.
 func assertEmptyDatabase(t *testing.T, tree *MutableTree) {
 	version := tree.Version()
-	iter := tree.ndb.db.Iterator(nil, nil)
+	iter, err := tree.ndb.db.Iterator(nil, nil)
 
 	var foundKeys []string
 	for ; iter.Valid(); iter.Next() {
@@ -351,7 +351,9 @@ func assertEmptyDatabase(t *testing.T, tree *MutableTree) {
 
 	require.Equal(t, string(metadataKeyFormat.KeyBytes([]byte(storageVersionKey))), firstKey, "Unexpected storage version key")
 
-	storageVersionValue := tree.ndb.db.Get([]byte(firstKey))
+	storageVersionValue, err := tree.ndb.db.Get([]byte(firstKey))
+	require.NoError(t, err)
+
 	latestVersion, err := tree.ndb.getLatestVersion()
 	require.NoError(t, err)
 	require.Equal(t, fastStorageVersionValue+fastStorageVersionDelimiter+strconv.Itoa(int(latestVersion)), string(storageVersionValue))
