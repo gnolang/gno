@@ -1,6 +1,7 @@
 package stdlibs
 
 import (
+	"crypto/sha1"
 	"math"
 	"reflect"
 	"strconv"
@@ -20,6 +21,20 @@ func InjectNativeMappings(store gno.Store) {
 
 func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 	switch pn.PkgPath {
+	case "internal/crypto/sha1":
+		pn.DefineNative("Sum",
+			gno.Flds( // params
+				"data", "string",
+			),
+			gno.Flds( // results
+				"bz", "[]byte",
+			),
+			func(m *gno.Machine) {
+				arg0 := m.LastBlock().GetParams1().TV
+				hash := sha1.Sum([]byte(arg0.GetString()))
+				m.PushValue(typedByteArray(20, m.Alloc.NewArrayFromData(hash[:])))
+			},
+		)
 	case "internal/math":
 		pn.DefineNative("Float32bits",
 			gno.Flds( // params
@@ -101,7 +116,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				}
 			},
 		)
-	// case "internal/os_test":
+		// case "internal/os_test":
 	// XXX defined in tests/imports.go
 	case "strconv":
 		pn.DefineGoNativeValue("Itoa", strconv.Itoa)
