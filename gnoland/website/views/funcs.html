@@ -115,8 +115,10 @@
 <script type="text/javascript" src="/static/js/marked.min.js"></script>
 <script type="text/javascript" src="/static/js/purify.min.js"></script>
 <script type="text/javascript">
-  function main(options) {
-    const { sourceId = "source", targetId = "home", highlight = true } = options || {};
+  function main(options = {}) {
+    const sourceId = options.sourceId || "source";
+    const targetId = options.targetId || "home";
+    const highlight = options.highlight !== undefined ? options.highlight : true;
     marked.setOptions({ gfm: true });
     window.contents = document.getElementById(sourceId).innerHTML;
     const doc = new DOMParser().parseFromString(window.contents, "text/html");
