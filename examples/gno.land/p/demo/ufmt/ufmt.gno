@@ -55,6 +55,8 @@ func Sprintf(format string, args ...interface{}) string {
 				} else {
 					buf += "false"
 				}
+			} else {
+				buf += "(unhandled)"
 			}
 		case '%':
 			buf += "%"
