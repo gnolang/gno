@@ -1,3 +1,4 @@
+# Short doc about the commands (please keep in sync with cmd/README for now):
 # ------------------------ User commands -----------------------
 # gnokey        Key manipulation, also general interaction with gnoland
 # gnoland       Runs the blockchain node
