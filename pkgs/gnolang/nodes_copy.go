@@ -316,22 +316,16 @@ func (x *SwitchClauseStmt) Copy() Node {
 }
 
 func (x *FuncDecl) Copy() Node {
-	if x.IsMethod {
-		return &FuncDecl{
-			NameExpr: *(x.NameExpr.Copy().(*NameExpr)),
-			IsMethod: x.IsMethod,
-			Recv:     *(x.Recv.Copy().(*FieldTypeExpr)),
-			Type:     *(x.Type.Copy().(*FuncTypeExpr)),
-			Body:     copyStmts(x.Body),
-		}
-	} else {
-		return &FuncDecl{
-			NameExpr: *(x.NameExpr.Copy().(*NameExpr)),
-			IsMethod: x.IsMethod,
-			Type:     *(x.Type.Copy().(*FuncTypeExpr)),
-			Body:     copyStmts(x.Body),
-		}
+	funcDecl := &FuncDecl{
+		NameExpr: *(x.NameExpr.Copy().(*NameExpr)),
+		IsMethod: x.IsMethod,
+		Type:     *(x.Type.Copy().(*FuncTypeExpr)),
+		Body:     copyStmts(x.Body),
 	}
+	if x.IsMethod {
+		funcDecl.Recv = *(x.Recv.Copy().(*FieldTypeExpr))
+	}
+	return funcDecl
 }
 
 func (x *ImportDecl) Copy() Node {
@@ -387,9 +381,8 @@ func (x *PackageNode) Copy() Node {
 func copyExpr(x Expr) Expr {
 	if x == nil {
 		return nil
-	} else {
-		return x.Copy().(Expr)
 	}
+	return x.Copy().(Expr)
 }
 
 func copyExprs(xs []Expr) []Expr {
@@ -419,9 +412,8 @@ func copyKVs(kvs []KeyValueExpr) []KeyValueExpr {
 func copyStmt(x Stmt) Stmt {
 	if x == nil {
 		return nil
-	} else {
-		return x.Copy().(Stmt)
 	}
+	return x.Copy().(Stmt)
 }
 
 func copyStmts(ss []Stmt) []Stmt {

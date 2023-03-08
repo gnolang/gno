@@ -2,7 +2,6 @@ package gnomod
 
 import (
 	"fmt"
-	"path/filepath"
 	"reflect"
 	"strings"
 
@@ -142,43 +141,4 @@ func (f *File) add(errs *modfile.ErrorList, block *modfile.LineBlock, line *modf
 		}
 		f.Replace = append(f.Replace, replace)
 	}
-}
-
-func parseReplace(filename string, line *modfile.Line, verb string, args []string) (*modfile.Replace, *modfile.Error) {
-	wrapError := func(err error) *modfile.Error {
-		return &modfile.Error{
-			Filename: filename,
-			Pos:      line.Start,
-			Err:      err,
-		}
-	}
-	errorf := func(format string, args ...interface{}) *modfile.Error {
-		return wrapError(fmt.Errorf(format, args...))
-	}
-
-	if len(args) != 3 || args[1] != "=>" {
-		return nil, errorf("usage: %s module/path => ../local/directory", verb)
-	}
-	s, err := parseString(&args[0])
-	if err != nil {
-		return nil, errorf("invalid quoted string: %v", err)
-	}
-
-	ns, err := parseString(&args[2])
-	if err != nil {
-		return nil, errorf("invalid quoted string: %v", err)
-	}
-
-	if !modfile.IsDirectoryPath(ns) {
-		return nil, errorf("replacement module must be directory path (rooted or starting with ./ or ../)")
-	}
-	if filepath.Separator == '/' && strings.Contains(ns, `\`) {
-		return nil, errorf("replacement directory appears to be Windows path (on a non-windows system)")
-	}
-
-	return &modfile.Replace{
-		Old:    module.Version{Path: s, Version: "v0.0.0"},
-		New:    module.Version{Path: ns},
-		Syntax: line,
-	}, nil
 }
