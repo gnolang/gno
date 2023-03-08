@@ -1,0 +1,16 @@
+# Commands
+
+User commands:
+
+* gnokey - key manipulation, also general interaction with gnoland
+* gnoland - run the blockchain node
+* gnotxport - importing/exporting transactions from local blockchain node storage
+* website - serve gno website, along with user-defined content
+* logos - intended to be used as a browser
+
+Developer commands:
+
+* gnoscan - dump imports from specified file’s AST
+* genproto - helper for generating .proto implementations
+* gnofaucet - serve GNOT faucet
+* gnodev - handy tool for developing gno packages & realms

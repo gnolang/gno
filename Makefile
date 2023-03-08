@@ -1,4 +1,16 @@
-########################################
+# ------------------------ User commands -----------------------
+# gnokey        Key manipulation, also general interaction with gnoland
+# gnoland       Run the blockchain node
+# gnotxport     Importing/exporting transactions from local blockchain node storage
+# website       Serve gno website, along with user-defined content
+# logos         Intended to be used as a browser
+#
+# ---------------------- Developer commands -------------------
+# gnoscan       Dump imports from specified file’s AST
+# genproto      Helper for generating .proto implementations
+# gnofaucet     Serve GNOT faucet
+# gnodev        Handy tool for developing gno packages & realms
+
 # Dist suite
 .PHONY: logos goscan gnoland gnokey gnofaucet logos reset gnoweb gnotxport
 all: build
@@ -14,17 +26,14 @@ reset:
 tools:
 	go build -o build/logjack ./pkgs/autofile/cmd
 
-# The main show (daemon)
 gnoland:
 	@echo "Building gnoland"
 	go build -o build/gnoland ./cmd/gnoland
 
-# The main show (client)
 gnokey:
 	@echo "Building gnokey"
 	go build -o build/gnokey ./cmd/gnokey
 
-# Development tool
 gnodev:
 	@echo "Building gnodev"
 	go build -o build/gnodev ./cmd/gnodev
@@ -37,7 +46,6 @@ install_gnodev:
 	@echo "Installing gnodev"
 	go install ./cmd/gnodev
 
-# The faucet (daemon)
 gnofaucet:
 	@echo "Building gnofaucet"
 	go build -o build/gnofaucet ./cmd/gnofaucet
@@ -56,7 +64,6 @@ gnotxport:
 	@echo "Building gnotxport"
 	go build -o build/gnotxport ./cmd/gnotxport
 
-# Logos is the interface to Gnoland
 logos:
 	@echo "building logos"
 	go build -o build/logos ./misc/logos/cmd/logos.go
