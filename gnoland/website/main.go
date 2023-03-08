@@ -59,37 +59,36 @@ func init() {
 	startedAt = time.Now()
 }
 
-func main() {
-	flag.Parse()
-
+func makeApp() gotuna.App {
 	app := gotuna.App{
 		ViewFiles: os.DirFS(flags.viewsDir),
 		Router:    gotuna.NewMuxRouter(),
 		Static:    static.EmbeddedStatic,
 		// StaticPrefix: "static/",
 	}
-
 	app.Router.Handle("/", handlerHome(app))
 	app.Router.Handle("/about", handlerAbout(app))
 	app.Router.Handle("/game-of-realms", handlerGor(app))
 	app.Router.Handle("/faucet", handlerFaucet(app))
 	app.Router.Handle("/r/demo/boards:gnolang/6", handlerRedirect(app))
 	// NOTE: see rePathPart.
-	// FIXME: use better regexp to support any depth.
-	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*/[a-z][a-z0-9_]*}", handlerRealmMain(app))
-	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*/[a-z][a-z0-9_]*}:{querystr:.*}", handlerRealmRender(app))
-	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*/[a-z][a-z0-9_]*}/{filename:.*}", handlerRealmFile(app))
+	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}/{filename:(?:.*\\.gno$)?}", handlerRealmFile(app))
+	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}", handlerRealmMain(app))
+	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}:{querystr:.*}", handlerRealmRender(app))
 	app.Router.Handle("/p/{filepath:.*}", handlerPackageFile(app))
 	app.Router.Handle("/static/{path:.+}", handlerStaticFile(app))
 	app.Router.Handle("/favicon.ico", handlerFavicon(app))
 	app.Router.Handle("/status.json", handlerStatusJSON(app))
+	return app
+}
 
+func main() {
+	flag.Parse()
 	fmt.Printf("Running on http://%s\n", flags.bindAddr)
-
 	server := &http.Server{
 		Addr:              flags.bindAddr,
 		ReadHeaderTimeout: 60 * time.Second,
-		Handler:           app.Router,
+		Handler:           makeApp().Router,
 	}
 
 	if err := server.ListenAndServe(); err != nil {
