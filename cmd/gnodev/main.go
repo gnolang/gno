@@ -33,8 +33,8 @@ func newGnodevCmd(io *commands.IO) *commands.Command {
 		newBuildCmd(io),
 		newPrecompileCmd(io),
 		newTestCmd(io),
+		newModCmd(io),
 		newReplCmd(),
-		newModCmd(),
 		// fmt -- gofmt
 		// clean
 		// graph

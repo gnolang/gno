@@ -13,7 +13,6 @@ import (
 	"golang.org/x/mod/module"
 )
 
-var remote = "test3.gno.land:36657" // "127.0.0.1:26657"
 const queryPathFile = "vm/qfile"
 
 // GetGnoModPath returns the path for gno modules
@@ -26,8 +25,8 @@ func GetGnoModPath() (string, error) {
 	return filepath.Join(goPath, "pkg", "gnomod"), nil
 }
 
-func writePackage(basePath, pkgPath string) error {
-	res, err := queryChain(queryPathFile, []byte(pkgPath))
+func writePackage(remote, basePath, pkgPath string) error {
+	res, err := queryChain(remote, queryPathFile, []byte(pkgPath))
 	if err != nil {
 		return fmt.Errorf("querychain: %w", err)
 	}
@@ -45,7 +44,7 @@ func writePackage(basePath, pkgPath string) error {
 
 		files := strings.Split(string(res.Data), "\n")
 		for _, file := range files {
-			if err := writePackage(basePath, filepath.Join(pkgPath, file)); err != nil {
+			if err := writePackage(remote, basePath, filepath.Join(pkgPath, file)); err != nil {
 				return fmt.Errorf("writepackage: %w", err)
 			}
 		}
@@ -106,12 +105,49 @@ func GnoToGoMod(f File) (*File, error) {
 		})
 	}
 
+	// By this stage every replacement should be replace by dir.
+	// If not replaced by dir, remove it.
+	//
+	// e.g:
+	//
+	// ```
+	// require (
+	// 	gno.land/p/demo/avl v1.2.3
+	// )
+	//
+	// replace (
+	// 	gno.land/p/demo/avl v1.2.3  => gno.land/p/demo/avl v3.2.1
+	// )
+	// ```
+	//
+	// In above case we will fetch `gno.land/p/demo/avl v3.2.1` and
+	// replace will look something like:
+	//
+	// ```
+	// replace (
+	//	gno.land/p/demo/avl v1.2.3  => gno.land/p/demo/avl v3.2.1
+	// 	gno.land/p/demo/avl v3.2.1  => /path/to/avl/version/v3.2.1
+	// )
+	// ```
+	//
+	// Remove `gno.land/p/demo/avl v1.2.3  => gno.land/p/demo/avl v3.2.1`.
+	repl := make([]*modfile.Replace, 0, len(f.Replace))
+	for _, r := range f.Replace {
+		if !modfile.IsDirectoryPath(r.New.Path) {
+			continue
+		}
+		repl = append(repl, r)
+	}
+	f.Replace = repl
+
 	return &f, nil
 }
 
 func isReplaced(module module.Version, repl []*modfile.Replace) (*module.Version, bool) {
 	for _, r := range repl {
-		if r.Old == module {
+		hasNoVersion := r.Old.Path == module.Path && r.Old.Version == ""
+		hasExactVersion := r.Old == module
+		if hasNoVersion || hasExactVersion {
 			return &r.New, true
 		}
 	}
