@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/gotuna/gotuna/test/assert"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/gotuna/gotuna/test/assert"
 )
 
 func TestRoutes(t *testing.T) {
