@@ -1,4 +1,4 @@
-package msha1
+package sha1
 
 import (
 	"std"
