@@ -49,13 +49,14 @@ func Sprintf(format string, args ...interface{}) string {
 				buf += "(unhandled)"
 			}
 		case 't':
-			if v, ok := arg.(bool); ok {
-				if v == true {
+			switch v := arg.(type) {
+			case bool:
+				if v {
 					buf += "true"
 				} else {
 					buf += "false"
 				}
-			} else {
+			default:
 				buf += "(unhandled)"
 			}
 		case '%':
