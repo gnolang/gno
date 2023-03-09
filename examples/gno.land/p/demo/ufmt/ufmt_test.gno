@@ -20,6 +20,7 @@ func TestSprintf(t *testing.T) {
 		{"uint64 [%d]", []interface{}{uint64(42)}, "uint64 [42]"},
 		{"bool [%t]", []interface{}{true}, "bool [true]"},
 		{"bool [%t]", []interface{}{false}, "bool [false]"},
+		{"invalid bool [%t]", []interface{}{1}, "invalid bool [(unhandled)]"},
 		{"invalid [%d]", []interface{}{"invalid"}, "invalid [(unhandled)]"},
 		{"no args", nil, "no args"},
 		{"finish with %", nil, "finish with %"},
