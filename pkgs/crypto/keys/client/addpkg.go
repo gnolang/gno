@@ -56,7 +56,7 @@ func (c *addPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
-		&c.pkgDir,
+		&c.deposit,
 		"deposit",
 		"",
 		"deposit coins",
