@@ -1,10 +1,13 @@
 package stdlibs
 
 import (
+	"bytes"
 	"math"
 	"reflect"
 	"strconv"
 	"time"
+
+	"golang.org/x/crypto/sha3"
 
 	"github.com/gnolang/gno/pkgs/bech32"
 	"github.com/gnolang/gno/pkgs/crypto"
@@ -20,6 +23,57 @@ func InjectNativeMappings(store gno.Store) {
 
 func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 	switch pn.PkgPath {
+	case "internal/crypto/sha3":
+		pn.DefineNative("Sum256",
+			gno.Flds( // params
+				"data", "[]byte",
+			),
+			gno.Flds( // results
+				"bz", "[]byte",
+			),
+			func(m *gno.Machine) {
+				arg0 := m.LastBlock().GetParams1().TV
+				bz := []byte(nil)
+				if arg0.V != nil {
+					slice := arg0.V.(*gno.SliceValue)
+					array := slice.GetBase(m.Store)
+					bz = array.GetReadonlyBytes()
+				}
+				bzNP := bytes.Trim(bz, "\x00")
+				hash := sha3.Sum256(bzNP)
+				res0 := gno.Go2GnoValue(
+					m.Alloc,
+					m.Store,
+					reflect.ValueOf(hash),
+				)
+				m.PushValue(res0)
+			},
+		)
+		pn.DefineNative("Sum512",
+			gno.Flds( // params
+				"data", "[]byte",
+			),
+			gno.Flds( // results
+				"bz", "[]byte",
+			),
+			func(m *gno.Machine) {
+				arg0 := m.LastBlock().GetParams1().TV
+				bz := []byte(nil)
+				if arg0.V != nil {
+					slice := arg0.V.(*gno.SliceValue)
+					array := slice.GetBase(m.Store)
+					bz = array.GetReadonlyBytes()
+				}
+				bzNP := bytes.Trim(bz, "\x00")
+				hash := sha3.Sum512(bzNP)
+				res0 := gno.Go2GnoValue(
+					m.Alloc,
+					m.Store,
+					reflect.ValueOf(hash),
+				)
+				m.PushValue(res0)
+			},
+		)
 	case "internal/math":
 		pn.DefineNative("Float32bits",
 			gno.Flds( // params
