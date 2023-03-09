@@ -34,7 +34,12 @@ func Sprintf(format string, args ...interface{}) string {
 
 		switch verb {
 		case 's':
-			buf += arg.(string)
+			switch v := arg.(type) {
+			case string:
+				buf += v
+			default:
+				buf += "(unhandled)"
+			}
 		case 'd':
 			switch v := arg.(type) {
 			case int:
