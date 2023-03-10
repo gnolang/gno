@@ -1626,7 +1626,19 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					n.Depth = depth
 					n.BodyIndex = index
 				case FALLTHROUGH:
-					// TODO CHALLENGE implement fallthrough
+					if swchC, ok := last.(*SwitchClauseStmt); ok {
+						// last is a switch clause, find its index in the switch and assign
+						// it to the fallthrough node BodyIndex. This will be used at
+						// runtime to determine the next switch clause to run.
+						swch := lastSwitch(ns)
+						for i, c := range swch.Clauses {
+							if &c == swchC {
+								// switch clause found
+								n.BodyIndex = i
+								break
+							}
+						}
+					}
 				default:
 					panic("should not happen")
 				}
@@ -2225,6 +2237,15 @@ func findGotoLabel(last BlockNode, label Name) (
 func lastDecl(ns []Node) Decl {
 	for i := len(ns) - 1; 0 <= i; i-- {
 		if d, ok := ns[i].(Decl); ok {
+			return d
+		}
+	}
+	return nil
+}
+
+func lastSwitch(ns []Node) *SwitchStmt {
+	for i := len(ns) - 1; 0 <= i; i-- {
+		if d, ok := ns[i].(*SwitchStmt); ok {
 			return d
 		}
 	}
