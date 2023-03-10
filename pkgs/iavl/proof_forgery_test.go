@@ -6,18 +6,18 @@ import (
 	"strings"
 	"testing"
 
-	db "github.com/cosmos/cosmos-db"
-	"github.com/cosmos/iavl"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/crypto/tmhash"
+
+	"github.com/gnolang/gno/pkgs/crypto/tmhash"
+	"github.com/gnolang/gno/pkgs/db"
+	"github.com/gnolang/gno/pkgs/iavl"
 )
 
-func TestProofFogery(t *testing.T) {
+func TestProofForgery(t *testing.T) {
 	source := rand.NewSource(0)
 	r := rand.New(source)
 	cacheSize := 0
-	tree, err := iavl.NewMutableTreeWithOpts(db.NewMemDB(), cacheSize, nil, false)
-	require.NoError(t, err)
+	tree := iavl.NewMutableTree(db.NewMemDB(), cacheSize)
 
 	// two keys only
 	keys := []byte{0x11, 0x32}
@@ -31,8 +31,7 @@ func TestProofFogery(t *testing.T) {
 	}
 
 	// get root
-	root, err := tree.WorkingHash()
-	require.NoError(t, err)
+	root := tree.WorkingHash()
 	// use the rightmost kv pair in the tree so the inner nodes will populate left
 	k := []byte{keys[1]}
 	v := values[1]
