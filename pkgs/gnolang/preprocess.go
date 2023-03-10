@@ -1631,8 +1631,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// it to the fallthrough node BodyIndex. This will be used at
 						// runtime to determine the next switch clause to run.
 						swch := lastSwitch(ns)
-						for i, c := range swch.Clauses {
-							if &c == swchC {
+						for i := range swch.Clauses {
+							if &swch.Clauses[i] == swchC {
 								// switch clause found
 								n.BodyIndex = i
 								break
