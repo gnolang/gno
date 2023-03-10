@@ -13,7 +13,7 @@ import (
 
 type Blog struct {
 	Title  string
-	Prefix string      // i.e. r/gnoland/blog:
+	Prefix string   // i.e. r/gnoland/blog:
 	Posts  avl.Tree // slug -> Post
 }
 

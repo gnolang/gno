@@ -179,11 +179,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 		}
 
 		switch stage {
-
-		//----------------------------------------
+		// ----------------------------------------
 		case TRANS_ENTER:
 			switch n := n.(type) {
-
 			// TRANS_ENTER -----------------------
 			case *AssignStmt:
 				if n.Op == DEFINE {
@@ -250,17 +248,15 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						r.Name = Name(rn)
 					}
 				}
-
 			}
 
 			// TRANS_ENTER -----------------------
 			return n, TRANS_CONTINUE
 
-		//----------------------------------------
+		// ----------------------------------------
 		case TRANS_BLOCK:
 
 			switch n := n.(type) {
-
 			// TRANS_BLOCK -----------------------
 			case *BlockStmt:
 				pushInitBlock(n, &last, &stack)
@@ -454,7 +450,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					for i, cx := range n.Cases {
 						cx = Preprocess(
 							store, last, cx).(Expr)
-						checkOrConvertType(store, last, &cx, tt, false)
+						checkOrConvertType(store, last, &cx, tt, false) // #nosec G601
 						n.Cases[i] = cx
 					}
 				}
@@ -578,7 +574,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			}
 			return n, TRANS_CONTINUE
 
-		//----------------------------------------
+		// ----------------------------------------
 		case TRANS_BLOCK2:
 
 			// The main TRANS_BLOCK2 switch.
@@ -595,21 +591,21 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			}
 			return n, TRANS_CONTINUE
 
-		//----------------------------------------
+		// ----------------------------------------
 		case TRANS_LEAVE:
 			// mark as preprocessed so that it can be used
 			// in evalStaticType(store,).
 			n.SetAttribute(ATTR_PREPROCESSED, true)
 
-			//-There is still work to be done while leaving, but
-			//once the logic of that is done, we will have to
-			//perform additionally deferred logic that is best
-			//handled with orthogonal switch conditions.
-			//-For example, while leaving nodes w/
-			//TRANS_COMPOSITE_TYPE, (regardless of whether name or
-			//literal), any elided type names are inserted. (This
-			//works because the transcriber leaves the composite
-			//type before entering the kv elements.)
+			// -There is still work to be done while leaving, but
+			// once the logic of that is done, we will have to
+			// perform additionally deferred logic that is best
+			// handled with orthogonal switch conditions.
+			// -For example, while leaving nodes w/
+			// TRANS_COMPOSITE_TYPE, (regardless of whether name or
+			// literal), any elided type names are inserted. (This
+			// works because the transcriber leaves the composite
+			// type before entering the kv elements.)
 			defer func() {
 				switch ftype {
 				// TRANS_LEAVE (deferred)---------
@@ -625,7 +621,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// The main TRANS_LEAVE switch.
 			switch n := n.(type) {
-
 			// TRANS_LEAVE -----------------------
 			case *NameExpr:
 				// Validity: check that name isn't reserved.
@@ -686,7 +681,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					io := pd.GetAttribute(ATTR_IOTA).(int)
 					cx := constUntypedBigint(n, int64(io))
 					return cx, TRANS_CONTINUE
-				case "nil":
+				case nilStr:
 					// nil will be converted to
 					// typed-nils when appropriate upon
 					// leaving the expression nodes that
@@ -999,7 +994,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// without conversion.
 				if cx, ok := n.Func.(*ConstExpr); ok {
 					fv := cx.GetFunc()
-					if fv.PkgPath == ".uverse" && fv.Name == "append" {
+					if fv.PkgPath == uversePkgPath && fv.Name == "append" {
 						if n.Varg && len(n.Args) == 2 {
 							// If the second argument is a string,
 							// convert to byteslice.
@@ -1011,7 +1006,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								n.Args[1] = args1
 							}
 						}
-					} else if fv.PkgPath == ".uverse" && fv.Name == "copy" {
+					} else if fv.PkgPath == uversePkgPath && fv.Name == "copy" {
 						if len(n.Args) == 2 {
 							// If the second argument is a string,
 							// convert to byteslice.
@@ -1178,7 +1173,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					panic(fmt.Sprintf(
 						"unexpected index base kind for type %s",
 						dt.String()))
-
 				}
 
 			// TRANS_LEAVE -----------------------
@@ -1543,7 +1537,14 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							cx.HasOK = true
 							lhs0 := n.Lhs[0].(*NameExpr).Name
 							lhs1 := n.Lhs[1].(*NameExpr).Name
-							mt := evalStaticTypeOf(store, last, cx.X).(*MapType)
+
+							var mt *MapType
+							st := evalStaticTypeOf(store, last, cx.X)
+							if dt, ok := st.(*DeclaredType); ok {
+								mt = dt.Base.(*MapType)
+							} else if mt, ok = st.(*MapType); !ok {
+								panic("should not happen")
+							}
 							// re-definitions
 							last.Define(lhs0, anyValue(mt.Value))
 							last.Define(lhs1, anyValue(BoolType))
@@ -1720,7 +1721,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							var ctstr string
 							ctype := casetype.(*constTypeExpr).Type
 							if ctype == nil {
-								ctstr = "nil"
+								ctstr = nilStr
 							} else {
 								ctstr = casetype.(*constTypeExpr).Type.String()
 							}
@@ -1885,7 +1886,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						dt2 := declareWith(lastpn.PkgPath, n.Name, tmp)
 						// if !n.IsAlias { // not sure why this was here.
 						dt2.Seal()
-						//}
+						// }
 						*dst = *dt2
 					}
 				default:
@@ -1963,7 +1964,7 @@ func evalStaticType(store Store, last BlockNode, x Expr) Type {
 	}
 	pn := packageOf(last)
 	// See comment in evalStaticTypeOfRaw.
-	if store != nil && pn.PkgPath != ".uverse" {
+	if store != nil && pn.PkgPath != uversePkgPath {
 		pv := pn.NewPackage() // temporary
 		store = store.Fork()
 		store.SetCachePackage(pv)
@@ -2035,7 +2036,7 @@ func evalStaticTypeOfRaw(store Store, last BlockNode, x Expr) (t Type) {
 		// and the preprocessor will panic when
 		// package values are already there that weren't
 		// yet predefined this time around.
-		if store != nil && pn.PkgPath != ".uverse" {
+		if store != nil && pn.PkgPath != uversePkgPath {
 			pv := pn.NewPackage() // temporary
 			store = store.Fork()
 			store.SetCachePackage(pv)
@@ -2403,6 +2404,7 @@ func checkType(xt Type, dt Type, autoNative bool) {
 	// convert to *NativeType of pointer kind.
 	if pxt, ok := xt.(*PointerType); ok {
 		// *gonative{x} is gonative{*x}
+		//nolint:misspell
 		if enxt, ok := pxt.Elt.(*NativeType); ok {
 			xt = &NativeType{
 				Type: reflect.PtrTo(enxt.Type),
@@ -3317,7 +3319,7 @@ func elideCompositeExpr(vx *Expr, vt Type) {
 // returns true of x is exactly `nil`.
 func isNilExpr(x Expr) bool {
 	if nx, ok := x.(*NameExpr); ok {
-		return nx.Name == "nil"
+		return nx.Name == nilStr
 	}
 	return false
 }
@@ -3487,7 +3489,7 @@ func findDependentNames(n Node, dst map[Name]struct{}) {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // SetNodeLocations
 
 // Iterate over all block nodes recursively and sets location information
@@ -3527,7 +3529,7 @@ func SetNodeLocations(pkgPath string, fileName string, n Node) {
 	})
 }
 
-//----------------------------------------
+// ----------------------------------------
 // SaveBlockNodes
 
 // Iterate over all block nodes recursively and saves them.

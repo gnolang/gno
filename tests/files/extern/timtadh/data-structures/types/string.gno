@@ -5,8 +5,10 @@ import (
 	"hash/fnv"
 )
 
-type String string
-type ByteSlice []byte
+type (
+	String    string
+	ByteSlice []byte
+)
 
 func (self *String) MarshalBinary() ([]byte, error) {
 	return []byte(*self), nil

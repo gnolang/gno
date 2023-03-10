@@ -15,7 +15,6 @@ import (
 	ctypes "github.com/gnolang/gno/pkgs/bft/rpc/core/types"
 	rpcclient "github.com/gnolang/gno/pkgs/bft/rpc/lib/client"
 	"github.com/gnolang/gno/pkgs/log"
-	osm "github.com/gnolang/gno/pkgs/os"
 	"github.com/gnolang/gno/pkgs/p2p"
 )
 
@@ -61,27 +60,13 @@ func makePathname() string {
 	return strings.Replace(p, sep, "_", -1)
 }
 
-func randPort() int {
-	port, err := osm.GetFreePort()
-	if err != nil {
-		panic(err)
-	}
-	return port
-}
-
-func makeAddrs() (string, string) {
-	return fmt.Sprintf("tcp://0.0.0.0:%d", randPort()),
-		fmt.Sprintf("tcp://0.0.0.0:%d", randPort())
-}
-
 func createConfig() *cfg.Config {
 	pathname := makePathname()
 	c := cfg.ResetTestRoot(pathname)
 
 	// and we use random ports to run in parallel
-	tm, rpc := makeAddrs()
-	c.P2P.ListenAddress = tm
-	c.RPC.ListenAddress = rpc
+	c.P2P.ListenAddress = "tcp://127.0.0.1:0"
+	c.RPC.ListenAddress = "tcp://127.0.0.1:0"
 	c.RPC.CORSAllowedOrigins = []string{"https://tendermint.com/"}
 	// c.TxIndex.IndexTags = "app.creator,tx.height" // see kvstore application
 	return c

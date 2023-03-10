@@ -5,7 +5,7 @@ import "github.com/gnolang/gno/pkgs/errors"
 // for convenience:
 type abciError struct{}
 
-func (_ abciError) AssertABCIError() {}
+func (abciError) AssertABCIError() {}
 
 // declare all script errors.
 // NOTE: these are meant to be used in conjunction with pkgs/errors.

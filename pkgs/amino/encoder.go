@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-//----------------------------------------
+// ----------------------------------------
 // Signed
 
 func EncodeVarint8(w io.Writer, i int8) (err error) {
@@ -58,7 +58,7 @@ func VarintSize(i int64) int {
 	return UvarintSize((uint64(i) << 1) ^ uint64(i>>63))
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Unsigned
 
 // Unlike EncodeUint8, writes a single byte.
@@ -116,7 +116,7 @@ func UvarintSize(u uint64) int {
 	return (bits.Len64(u) + 6) / 7
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Other Primitives
 
 func EncodeBool(w io.Writer, b bool) (err error) {
@@ -138,7 +138,7 @@ func EncodeFloat64(w io.Writer, f float64) (err error) {
 	return EncodeUint64(w, math.Float64bits(f))
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Time and Duration
 
 const (
@@ -157,15 +157,15 @@ const (
 	maxDurationNanos         = 999999999 // inclusive
 )
 
-type InvalidTimeErr string
+type InvalidTimeError string
 
-func (e InvalidTimeErr) Error() string {
+func (e InvalidTimeError) Error() string {
 	return "invalid time: " + string(e)
 }
 
-type InvalidDurationErr string
+type InvalidDurationError string
 
-func (e InvalidDurationErr) Error() string {
+func (e InvalidDurationError) Error() string {
 	return "invalid duration: " + string(e)
 }
 
@@ -227,13 +227,13 @@ func EncodeTime(w io.Writer, t time.Time) (err error) {
 
 func validateTimeValue(s int64, ns int32) (err error) {
 	if s < minTimeSeconds || s >= maxTimeSeconds {
-		return InvalidTimeErr(fmt.Sprintf("seconds have to be >= %d and < %d, got: %d",
+		return InvalidTimeError(fmt.Sprintf("seconds have to be >= %d and < %d, got: %d",
 			minTimeSeconds, maxTimeSeconds, s))
 	}
 	if ns < 0 || ns > maxTimeNanos {
 		// we could as well panic here:
 		// time.Time.Nanosecond() guarantees nanos to be in [0, 999,999,999]
-		return InvalidTimeErr(fmt.Sprintf("nanoseconds have to be >= 0 and <= %v, got: %d",
+		return InvalidTimeError(fmt.Sprintf("nanoseconds have to be >= 0 and <= %v, got: %d",
 			maxTimeNanos, ns))
 	}
 	return nil
@@ -302,15 +302,15 @@ func EncodeDuration(w io.Writer, d time.Duration) (err error) {
 
 func validateDurationValue(s int64, ns int32) (err error) {
 	if (s > 0 && ns < 0) || (s < 0 && ns > 0) {
-		return InvalidDurationErr(fmt.Sprintf("signs of seconds and nanos do not match: %v and %v",
+		return InvalidDurationError(fmt.Sprintf("signs of seconds and nanos do not match: %v and %v",
 			s, ns))
 	}
 	if s < minDurationSeconds || s > maxDurationSeconds {
-		return InvalidDurationErr(fmt.Sprintf("seconds have to be >= %d and < %d, got: %d",
+		return InvalidDurationError(fmt.Sprintf("seconds have to be >= %d and < %d, got: %d",
 			minDurationSeconds, maxDurationSeconds, s))
 	}
 	if ns < minDurationNanos || ns > maxDurationNanos {
-		return InvalidDurationErr(fmt.Sprintf("ns out of range [%v, %v], got: %v",
+		return InvalidDurationError(fmt.Sprintf("ns out of range [%v, %v], got: %v",
 			minDurationNanos, maxDurationNanos, ns))
 	}
 	return nil
@@ -331,18 +331,18 @@ func validateDurationValueGo(s int64, ns int32) (err error) {
 		return err
 	}
 	if s < minDurationSecondsGo || s > maxDurationSecondsGo {
-		return InvalidDurationErr(fmt.Sprintf("duration seconds exceeds bounds for Go's time.Duration type: %v",
+		return InvalidDurationError(fmt.Sprintf("duration seconds exceeds bounds for Go's time.Duration type: %v",
 			s))
 	}
 	sns := s*1e9 + int64(ns)
 	if sns > 0 && s < 0 || sns < 0 && s > 0 {
-		return InvalidDurationErr(fmt.Sprintf("duration seconds+nanoseconds exceeds bounds for Go's time.Duration type: %v and %v",
+		return InvalidDurationError(fmt.Sprintf("duration seconds+nanoseconds exceeds bounds for Go's time.Duration type: %v and %v",
 			s, ns))
 	}
 	return nil
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Byte Slices and Strings
 
 func EncodeByteSlice(w io.Writer, bz []byte) (err error) {

@@ -7,7 +7,6 @@ func main() {
 		specialBytes[b%16] |= 1 << (b / 16)
 		println(i, (1 << (b / 16)), specialBytes[b%16])
 	}
-
 }
 
 // Output:

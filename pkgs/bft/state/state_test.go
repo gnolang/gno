@@ -21,22 +21,30 @@ import (
 
 // setupTestCase does setup common to all test cases.
 func setupTestCase(t *testing.T) (func(t *testing.T), dbm.DB, sm.State) {
+	t.Helper()
+
 	config := cfg.ResetTestRoot("state_")
 	dbType := dbm.BackendType(config.DBBackend)
 	stateDB := dbm.NewDB("state", dbType, config.DBDir())
 	state, err := sm.LoadStateFromDBOrGenesisFile(stateDB, config.GenesisFile())
 	assert.NoError(t, err, "expected no error on LoadStateFromDBOrGenesisFile")
 
-	tearDown := func(t *testing.T) { os.RemoveAll(config.RootDir) }
+	tearDown := func(t *testing.T) {
+		t.Helper()
+
+		os.RemoveAll(config.RootDir)
+	}
 
 	return tearDown, stateDB, state
 }
 
 // TestStateCopy tests the correct copying behaviour of State.
 func TestStateCopy(t *testing.T) {
+	t.Helper()
+
 	tearDown, _, state := setupTestCase(t)
 	defer tearDown(t)
-	// nolint: vetshadow
+	//nolint: vetshadow
 	assert := assert.New(t)
 
 	stateCopy := state.Copy()
@@ -67,7 +75,7 @@ func TestMakeGenesisStateNilValidators(t *testing.T) {
 func TestStateSaveLoad(t *testing.T) {
 	tearDown, stateDB, state := setupTestCase(t)
 	defer tearDown(t)
-	// nolint: vetshadow
+	//nolint: vetshadow
 	assert := assert.New(t)
 
 	state.LastBlockHeight++
@@ -83,7 +91,7 @@ func TestStateSaveLoad(t *testing.T) {
 func TestABCIResponsesSaveLoad1(t *testing.T) {
 	tearDown, stateDB, state := setupTestCase(t)
 	defer tearDown(t)
-	// nolint: vetshadow
+	//nolint: vetshadow
 	assert := assert.New(t)
 
 	state.LastBlockHeight++
@@ -121,7 +129,7 @@ func TestABCIResponsesSaveLoad1(t *testing.T) {
 func TestABCIResponsesSaveLoad2(t *testing.T) {
 	tearDown, stateDB, _ := setupTestCase(t)
 	defer tearDown(t)
-	// nolint: vetshadow
+	//nolint: vetshadow
 	assert := assert.New(t)
 
 	cases := [...]struct {
@@ -215,12 +223,12 @@ func TestABCIResponsesSaveLoad2(t *testing.T) {
 func TestValidatorSimpleSaveLoad(t *testing.T) {
 	tearDown, stateDB, state := setupTestCase(t)
 	defer tearDown(t)
-	// nolint: vetshadow
+	//nolint: vetshadow
 	assert := assert.New(t)
 
 	// Can't load anything for height 0.
 	_, err := sm.LoadValidators(stateDB, 0)
-	assert.IsType(sm.ErrNoValSetForHeight{}, err, "expected err at height 0")
+	assert.IsType(sm.NoValSetForHeightError{}, err, "expected err at height 0")
 
 	// Should be able to load for height 1.
 	v, err := sm.LoadValidators(stateDB, 1)
@@ -387,6 +395,8 @@ func genValSetWithPowers(powers []int64) *types.ValidatorSet {
 
 // test a proposer appears as frequently as expected
 func testProposerFreq(t *testing.T, caseNum int, valSet *types.ValidatorSet) {
+	t.Helper()
+
 	N := valSet.Size()
 	totalPower := valSet.TotalVotingPower()
 

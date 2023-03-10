@@ -7,7 +7,7 @@ type Node struct {
 	value     interface{}
 	height    int8
 	size      int
-	leftNode *Node
+	leftNode  *Node
 	rightNode *Node
 }
 

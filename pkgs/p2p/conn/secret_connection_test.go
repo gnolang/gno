@@ -3,6 +3,7 @@ package conn
 import (
 	"bufio"
 	"encoding/hex"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -48,6 +49,8 @@ func makeKVStoreConnPair() (fooConn, barConn kvstoreConn) {
 }
 
 func makeSecretConnPair(tb testing.TB) (fooSecConn, barSecConn *SecretConnection) {
+	tb.Helper()
+
 	fooConn, barConn := makeKVStoreConnPair()
 	fooPrvKey := ed25519.GenPrivKey()
 	fooPubKey := fooPrvKey.PubKey()
@@ -194,6 +197,8 @@ func TestConcurrentRead(t *testing.T) {
 }
 
 func writeLots(t *testing.T, wg *sync.WaitGroup, conn net.Conn, txt string, n int) {
+	t.Helper()
+
 	defer wg.Done()
 	for i := 0; i < n; i++ {
 		_, err := conn.Write([]byte(txt))
@@ -205,6 +210,8 @@ func writeLots(t *testing.T, wg *sync.WaitGroup, conn net.Conn, txt string, n in
 }
 
 func readLots(t *testing.T, wg *sync.WaitGroup, conn net.Conn, n int) {
+	t.Helper()
+
 	readBuffer := make([]byte, dataMaxSize)
 	for i := 0; i < n; i++ {
 		_, err := conn.Read(readBuffer)
@@ -261,7 +268,7 @@ func TestSecretConnectionReadWrite(t *testing.T) {
 					readBuffer := make([]byte, dataMaxSize)
 					for {
 						n, err := nodeSecretConn.Read(readBuffer)
-						if err == io.EOF {
+						if errors.Is(err, io.EOF) {
 							if err := nodeConn.PipeReader.Close(); err != nil {
 								t.Error(err)
 								return nil, err, true
@@ -300,7 +307,7 @@ func TestSecretConnectionReadWrite(t *testing.T) {
 	compareWritesReads := func(writes []string, reads []string) {
 		for {
 			// Pop next write & corresponding reads
-			var read, write string = "", writes[0]
+			read, write := "", writes[0]
 			readCount := 0
 			for _, readChunk := range reads {
 				read += readChunk
@@ -337,7 +344,7 @@ func TestDeriveSecretsAndChallengeGolden(t *testing.T) {
 	goldenFilepath := filepath.Join("testdata", t.Name()+".golden")
 	if *update {
 		t.Logf("Updating golden test vector file %s", goldenFilepath)
-		data := createGoldenTestVectors(t)
+		data := createGoldenTestVectors()
 		osm.WriteFile(goldenFilepath, []byte(data), 0o644)
 	}
 	f, err := os.Open(goldenFilepath)
@@ -417,7 +424,7 @@ func TestNonEd25519Pubkey(t *testing.T) {
 // Creates the data for a test vector file.
 // The file format is:
 // Hex(diffie_hellman_secret), loc_is_least, Hex(recvSecret), Hex(sendSecret), Hex(challenge)
-func createGoldenTestVectors(t *testing.T) string {
+func createGoldenTestVectors() string {
 	data := ""
 	for i := 0; i < 32; i++ {
 		randSecretVector := random.RandBytes(32)
@@ -456,7 +463,7 @@ func BenchmarkWriteSecretConnection(b *testing.B) {
 		readBuffer := make([]byte, dataMaxSize)
 		for {
 			_, err := barSecConn.Read(readBuffer)
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				return
 			} else if err != nil {
 				b.Errorf("Failed to read from barSecConn: %v", err)
@@ -515,7 +522,7 @@ func BenchmarkReadSecretConnection(b *testing.B) {
 		readBuffer := make([]byte, dataMaxSize)
 		_, err := barSecConn.Read(readBuffer)
 
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return
 		} else if err != nil {
 			b.Fatalf("Failed to read from barSecConn: %v", err)

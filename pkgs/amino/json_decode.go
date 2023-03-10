@@ -10,7 +10,7 @@ import (
 	"github.com/gnolang/gno/pkgs/errors"
 )
 
-//----------------------------------------
+// ----------------------------------------
 // cdc.decodeReflectJSON
 
 // CONTRACT: rv.CanAddr() is true.
@@ -52,7 +52,7 @@ func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value,
 	if info.IsAminoMarshaler {
 		// First, decode repr instance from bytes.
 		rrv := reflect.New(info.ReprType.Type).Elem()
-		var rinfo *TypeInfo = info.ReprType
+		rinfo := info.ReprType
 		err = cdc.decodeReflectJSON(bz, rinfo, rrv, fopts)
 		if err != nil {
 			return
@@ -68,8 +68,7 @@ func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value,
 	}
 
 	switch ikind := info.Type.Kind(); ikind {
-
-	//----------------------------------------
+	// ----------------------------------------
 	// Complex
 
 	case reflect.Interface:
@@ -84,7 +83,7 @@ func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value,
 	case reflect.Struct:
 		err = cdc.decodeReflectJSONStruct(bz, info, rv, fopts)
 
-	//----------------------------------------
+	// ----------------------------------------
 	// Signed, Unsigned
 
 	case reflect.Int64, reflect.Int:
@@ -92,7 +91,7 @@ func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value,
 	case reflect.Uint64, reflect.Uint:
 		if bz[0] != '"' || bz[len(bz)-1] != '"' {
 			err = errors.New(
-				"invalid character -- Amino:JSON int/int64/uint/uint64 expects quoted values for javascript numeric support, got: %v", // nolint: lll
+				"invalid character -- Amino:JSON int/int64/uint/uint64 expects quoted values for javascript numeric support, got: %v", //nolint: lll
 				string(bz),
 			)
 			if err != nil {
@@ -105,7 +104,7 @@ func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value,
 		reflect.Uint32, reflect.Uint16, reflect.Uint8:
 		err = invokeStdlibJSONUnmarshal(bz, rv, fopts)
 
-	//----------------------------------------
+	// ----------------------------------------
 	// Misc
 
 	case reflect.Float32, reflect.Float64:
@@ -116,7 +115,7 @@ func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value,
 	case reflect.Bool, reflect.String:
 		err = invokeStdlibJSONUnmarshal(bz, rv, fopts)
 
-	//----------------------------------------
+	// ----------------------------------------
 	// Default
 
 	default:
@@ -230,7 +229,6 @@ func (cdc *Codec) decodeReflectJSONArray(bz []byte, info *TypeInfo, rv reflect.V
 	length := info.Type.Len()
 
 	switch ert.Kind() {
-
 	case reflect.Uint8: // Special case: byte array
 		var buf []byte
 		err = json.Unmarshal(bz, &buf)
@@ -289,7 +287,6 @@ func (cdc *Codec) decodeReflectJSONSlice(bz []byte, info *TypeInfo, rv reflect.V
 	ert := info.Type.Elem()
 
 	switch ert.Kind() {
-
 	case reflect.Uint8: // Special case: byte slice
 		err = json.Unmarshal(bz, rv.Addr().Interface())
 		if err != nil {
@@ -366,7 +363,6 @@ func (cdc *Codec) decodeReflectJSONStruct(bz []byte, info *TypeInfo, rv reflect.
 	}
 
 	for _, field := range info.Fields {
-
 		// Get field rv and info.
 		frv := rv.Field(field.Index)
 		finfo := field.TypeInfo
@@ -401,7 +397,7 @@ func (cdc *Codec) decodeReflectJSONStruct(bz []byte, info *TypeInfo, rv reflect.
 	return nil
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Misc.
 
 type anyWrapper struct {
@@ -413,7 +409,7 @@ func extractJSONTypeURL(bz []byte) (typeURL string, value json.RawMessage, err e
 	anyw := new(anyWrapper)
 	err = json.Unmarshal(bz, anyw)
 	if err != nil {
-		err = fmt.Errorf("cannot parse Any JSON wrapper: %v", err)
+		err = fmt.Errorf("cannot parse Any JSON wrapper: %w", err)
 		return
 	}
 

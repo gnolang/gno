@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-//----------------------------------------
+// ----------------------------------------
 // AST Construction (Expr)
 // These are copied over from go-amino-x, but produces Gno ASTs.
 
@@ -257,8 +257,8 @@ func X(x interface{}, args ...interface{}) Expr {
 		last := expr[len(expr)-1]
 		switch last {
 		case 'l':
-			if expr == "nil" {
-				return Nx("nil")
+			if expr == nilStr {
+				return Nx(nilStr)
 			}
 		case 'i':
 			if '0' <= expr[0] && expr[0] <= '9' {
@@ -275,7 +275,7 @@ func X(x interface{}, args ...interface{}) Expr {
 			}
 			return &BasicLitExpr{
 				Kind:  CHAR,
-				Value: string(expr[1 : len(expr)-1]),
+				Value: expr[1 : len(expr)-1],
 			}
 		case '"', '`':
 			if first != last {
@@ -283,7 +283,7 @@ func X(x interface{}, args ...interface{}) Expr {
 			}
 			return &BasicLitExpr{
 				Kind:  STRING,
-				Value: string(expr),
+				Value: expr,
 			}
 		case ')':
 			left, _, right := chopRight(expr)
@@ -394,7 +394,7 @@ func X(x interface{}, args ...interface{}) Expr {
 	if isInt {
 		return &BasicLitExpr{
 			Kind:  INT,
-			Value: string(expr),
+			Value: expr,
 		}
 	}
 	// Numeric float?  We do these before dots, because dots are legal in floats.
@@ -410,7 +410,7 @@ func X(x interface{}, args ...interface{}) Expr {
 	if isFloat {
 		return &BasicLitExpr{
 			Kind:  FLOAT,
-			Value: string(expr),
+			Value: expr,
 		}
 	}
 	// Last case, handle dots.
@@ -585,7 +585,7 @@ func Ptr(x interface{}) *StarExpr {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // AST Construction (Stmt)
 
 func If(cond Expr, b ...Stmt) *IfStmt {
@@ -791,7 +791,7 @@ func Op2Word(op string) Word {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // AST Static (compile time)
 
 func SIf(cond bool, then_, else_ Stmt) Stmt {
@@ -804,7 +804,7 @@ func SIf(cond bool, then_, else_ Stmt) Stmt {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // chop functions
 
 // ----------------------------------------

@@ -9,7 +9,7 @@ func f(p *Foo) {
 }
 
 func main() {
-	var a = Foo{3}
+	a := Foo{3}
 	f(&a)
 	println(a.val)
 }

@@ -10,7 +10,6 @@ import static org.bitcoin.NativeSecp256k1Util.*;
  * This class holds test cases defined for testing this library.
  */
 public class NativeSecp256k1Test {
-
     //TODO improve comments/add more tests
     /**
       * This tests verify() for a valid signature
@@ -89,7 +88,6 @@ public class NativeSecp256k1Test {
       * This tests sign() for a valid secretkey
       */
     public static void testSignPos() throws AssertFailException{
-
         byte[] data = BaseEncoding.base16().lowerCase().decode("CF80CD8AED482D5D1527D7DC72FCEFF84E6326592848447D2DC0B0E87DFC9A90".toLowerCase()); //sha256hash of "testing"
         byte[] sec = BaseEncoding.base16().lowerCase().decode("67E56582298859DDAE725F972992A07C6C4FB9F62A8FFF58CE3CA926A1063530".toLowerCase());
 
@@ -168,7 +166,6 @@ public class NativeSecp256k1Test {
     }
 
     public static void testCreateECDHSecret() throws AssertFailException{
-
         byte[] sec = BaseEncoding.base16().lowerCase().decode("67E56582298859DDAE725F972992A07C6C4FB9F62A8FFF58CE3CA926A1063530".toLowerCase());
         byte[] pub = BaseEncoding.base16().lowerCase().decode("040A629506E1B65CD9D2E0BA9C75DF9C4FED0DB16DC9625ED14397F0AFC836FAE595DC53F8B0EFE61E703075BD9B143BAC75EC0E19F82A2208CAEB32BE53414C40".toLowerCase());
 
@@ -178,8 +175,6 @@ public class NativeSecp256k1Test {
     }
 
     public static void main(String[] args) throws AssertFailException{
-
-
         System.out.println("\n libsecp256k1 enabled: " + Secp256k1Context.isEnabled() + "\n");
 
         assertEquals( Secp256k1Context.isEnabled(), true, "isEnabled" );

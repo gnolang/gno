@@ -1,9 +1,22 @@
-########################################
+# Short doc about the commands (please keep in sync with cmd/README for now):
+# ------------------------ User commands -----------------------
+# gnokey        Key manipulation, also general interaction with gnoland
+# gnoland       Runs the blockchain node
+# gnotxport     Importing/exporting transactions from local blockchain node storage
+# website       Serves gno website, along with user-defined content
+# logos         Intended to be used as a browser
+#
+# ---------------------- Developer commands -------------------
+# gnoscan       Dumps imports from specified file’s AST
+# genproto      Helper for generating .proto implementations
+# gnofaucet     Serves GNOT faucet
+# gnodev        Handy tool for developing gno packages & realms
+
 # Dist suite
 .PHONY: logos goscan gnoland gnokey gnofaucet logos reset gnoweb gnotxport
 all: build
 
-build: gnoland gnokey goscan logos gnoweb gnotxport gnofaucet
+build: gnoland gnokey gnodev goscan logos gnoweb gnotxport gnofaucet
 
 install: install_gnodev install_gnokey
 
@@ -14,17 +27,14 @@ reset:
 tools:
 	go build -o build/logjack ./pkgs/autofile/cmd
 
-# The main show (daemon)
 gnoland:
 	@echo "Building gnoland"
 	go build -o build/gnoland ./cmd/gnoland
 
-# The main show (client)
 gnokey:
 	@echo "Building gnokey"
 	go build -o build/gnokey ./cmd/gnokey
 
-# Development tool
 gnodev:
 	@echo "Building gnodev"
 	go build -o build/gnodev ./cmd/gnodev
@@ -37,7 +47,6 @@ install_gnodev:
 	@echo "Installing gnodev"
 	go install ./cmd/gnodev
 
-# The faucet (daemon)
 gnofaucet:
 	@echo "Building gnofaucet"
 	go build -o build/gnofaucet ./cmd/gnofaucet
@@ -56,7 +65,6 @@ gnotxport:
 	@echo "Building gnotxport"
 	go build -o build/gnotxport ./cmd/gnotxport
 
-# Logos is the interface to Gnoland
 logos:
 	@echo "building logos"
 	go build -o build/logos ./misc/logos/cmd/logos.go
@@ -65,10 +73,10 @@ clean:
 	rm -rf build
 
 examples.precompile: install_gnodev
-	go run ./cmd/gnodev precompile ./examples --verbose
+	go run ./cmd/gnodev precompile --verbose ./examples
 
 examples.build: install_gnodev examples.precompile
-	go run ./cmd/gnodev build ./examples --verbose
+	go run ./cmd/gnodev build --verbose ./examples
 
 ########################################
 # Formatting, linting.
@@ -78,13 +86,17 @@ fmt:
 	go run -modfile ./misc/devdeps/go.mod mvdan.cc/gofumpt -w .
 	go run -modfile ./misc/devdeps/go.mod mvdan.cc/gofumpt -w `find stdlibs examples -name "*.gno"`
 
+.PHONY: lint
+lint:
+	golangci-lint run --config .golangci.yaml
+
 ########################################
 # Test suite
-.PHONY: test test.go test.go1 test.go2 test.go3 test.go4 test.gno test.files1 test.files2 test.realm test.packages test.flappy test.packages0 test.packages1 test.packages2 test.docker-integration
+.PHONY: test test.go test.go1 test.go2 test.go3 test.go4 test.gno test.filesNative test.filesStdlibs test.realm test.packages test.flappy test.packages0 test.packages1 test.packages2 test.docker-integration
 test: test.gno test.go test.flappy
 	@echo "Full test suite finished."
 
-test.gno: test.files1 test.files2 test.packages test.examples
+test.gno: test.filesNative test.filesStdlibs test.packages test.examples
 	go test tests/*.go -v -run "TestFileStr"
 	go test tests/*.go -v -run "TestSelectors"
 
@@ -115,11 +127,17 @@ test.go3:
 test.go4:
 	go test ./cmd/gnodev ./cmd/gnoland -v -p 1 -timeout=30m
 
-test.files1:
-	go test tests/*.go -v -test.short -run "TestFiles1/" --timeout 30m
+test.filesNative:
+	go test tests/*.go -v -test.short -run "TestFilesNative/" --timeout 30m
 
-test.files2:
-	go test tests/*.go -v -test.short -run "TestFiles2/" --timeout 30m
+test.filesNative.sync:
+	go test tests/*.go -v -test.short -run "TestFilesNative/" --timeout 30m --update-golden-tests
+
+test.filesStdlibs:
+	go test tests/*.go -v -test.short -run 'TestFiles$$/' --timeout 30m
+
+test.filesStdlibs.sync:
+	go test tests/*.go -v -test.short -run 'TestFiles$$/' --timeout 30m --update-golden-tests
 
 test.realm:
 	go test tests/*.go -v -run "TestFiles/^zrealm" --timeout 30m
@@ -136,7 +154,10 @@ test.packages2:
 	go test tests/*.go -v -run "TestPackages/bytes" --timeout 30m
 
 test.examples:
-	go run ./cmd/gnodev test ./examples --verbose
+	go run ./cmd/gnodev test --verbose ./examples
+
+test.examples.sync:
+	go run ./cmd/gnodev test --verbose --update-golden-tests ./examples
 
 # Code gen
 stringer:

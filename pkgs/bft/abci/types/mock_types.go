@@ -14,7 +14,7 @@ type MockHeader struct {
 	TotalTxs int64     `json:"total_txs"`
 }
 
-func (_ MockHeader) AssertABCIHeader() {}
+func (MockHeader) AssertABCIHeader() {}
 
 func (mh MockHeader) GetChainID() string {
 	return mh.ChainID

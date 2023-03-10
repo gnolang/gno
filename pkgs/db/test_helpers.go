@@ -11,6 +11,7 @@ func randStr(length int) string {
 	chars := []byte{}
 MAIN_LOOP:
 	for {
+		//nolint:gosec
 		val := rand.Int63()
 		for i := 0; i < 10; i++ {
 			v := int(val & 0x3f) // rightmost 6 bits

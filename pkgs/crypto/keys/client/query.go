@@ -1,38 +1,76 @@
 package client
 
 import (
+	"context"
+	"flag"
 	"fmt"
 
 	"github.com/gnolang/gno/pkgs/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/pkgs/bft/rpc/core/types"
-	"github.com/gnolang/gno/pkgs/command"
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/errors"
 )
 
-type QueryOptions struct {
-	BaseOptions        // home,remote,...
-	Data        []byte `flag:"data" help:"query data bytes"`                        // <pkgpath>\n<expr> for queryexprs.
-	Height      int64  `flag:"height" help:"query height (not yet supported)"`      // not yet used
-	Prove       bool   `flag:"prove" help:"prove query result (not yet supported)"` // not yet used
+type queryCfg struct {
+	rootCfg *baseCfg
+
+	data   string
+	height int64
+	prove  bool
 
 	// internal
-	Path string `flag:"-"`
+	path string
 }
 
-var DefaultQueryOptions = QueryOptions{
-	BaseOptions: DefaultBaseOptions,
-}
-
-func queryApp(cmd *command.Command, args []string, iopts interface{}) error {
-	var opts QueryOptions = iopts.(QueryOptions)
-
-	if len(args) != 1 {
-		cmd.ErrPrintfln("Usage: query <path>")
-		return errors.New("invalid args")
+func newQueryCmd(rootCfg *baseCfg) *commands.Command {
+	cfg := &queryCfg{
+		rootCfg: rootCfg,
 	}
-	opts.Path = args[0]
 
-	qres, err := QueryHandler(opts)
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "query",
+			ShortUsage: "query [flags] <path>",
+			ShortHelp:  "Makes an ABCI query",
+		},
+		nil,
+		func(_ context.Context, args []string) error {
+			return execQuery(cfg, args)
+		},
+	)
+}
+
+func (c *queryCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.StringVar(
+		&c.data,
+		"data",
+		"",
+		"query data bytes",
+	)
+
+	fs.Int64Var(
+		&c.height,
+		"height",
+		0,
+		"query height (not yet supported)",
+	)
+
+	fs.BoolVar(
+		&c.prove,
+		"prove",
+		false,
+		"prove query result (not yet supported)",
+	)
+}
+
+func execQuery(cfg *queryCfg, args []string) error {
+	if len(args) != 1 {
+		return flag.ErrHelp
+	}
+
+	cfg.path = args[0]
+
+	qres, err := queryHandler(cfg)
 	if err != nil {
 		return err
 	}
@@ -52,20 +90,20 @@ func queryApp(cmd *command.Command, args []string, iopts interface{}) error {
 	return nil
 }
 
-func QueryHandler(opts QueryOptions) (*ctypes.ResultABCIQuery, error) {
-	remote := opts.Remote
+func queryHandler(cfg *queryCfg) (*ctypes.ResultABCIQuery, error) {
+	remote := cfg.rootCfg.Remote
 	if remote == "" || remote == "y" {
 		return nil, errors.New("missing remote url")
 	}
 
-	data := opts.Data
+	data := []byte(cfg.data)
 	opts2 := client.ABCIQueryOptions{
 		// Height: height, XXX
 		// Prove: false, XXX
 	}
 	cli := client.NewHTTP(remote, "/websocket")
 	qres, err := cli.ABCIQueryWithOptions(
-		opts.Path, data, opts2)
+		cfg.path, data, opts2)
 	if err != nil {
 		return nil, errors.Wrap(err, "querying")
 	}

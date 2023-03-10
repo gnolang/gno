@@ -12,7 +12,7 @@ func (s *Sample) foo(j int) {
 }
 
 var samples = []Sample{
-	Sample{"hello", []string{"world"}},
+	{"hello", []string{"world"}},
 }
 
 func main() {

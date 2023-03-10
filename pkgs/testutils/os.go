@@ -2,6 +2,7 @@ package testutils
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -10,7 +11,9 @@ import (
 func NewTestCaseDir(t *testing.T) (string, func()) {
 	t.Helper()
 
-	dir, err := os.MkdirTemp("", t.Name()+"_")
+	// Replace any restricted character with safe ones (for nested tests)
+	pattern := strings.ReplaceAll(t.Name()+"_", "/", "_")
+	dir, err := os.MkdirTemp("", pattern)
 	if err != nil {
 		t.Fatalf("unable to generate temporary directory, %v", err)
 	}
@@ -22,7 +25,9 @@ func NewTestCaseDir(t *testing.T) (string, func()) {
 func NewTestFile(t *testing.T) (*os.File, func()) {
 	t.Helper()
 
-	file, err := os.CreateTemp("", t.Name()+"-")
+	// Replace any restricted character with safe ones (for nested tests)
+	pattern := strings.ReplaceAll(t.Name()+"-", "/", "_")
+	file, err := os.CreateTemp("", pattern)
 	if err != nil {
 		t.Fatalf(
 			"unable to create a temporary output file, %v",

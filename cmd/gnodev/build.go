@@ -1,29 +1,60 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"os"
 
-	"github.com/gnolang/gno/pkgs/command"
-	"github.com/gnolang/gno/pkgs/errors"
+	"github.com/gnolang/gno/pkgs/commands"
 	gno "github.com/gnolang/gno/pkgs/gnolang"
 )
 
-type buildOptions struct {
-	Verbose  bool   `flag:"verbose" help:"verbose"`
-	GoBinary string `flag:"go-binary" help:"go binary to use for building"`
+type buildCfg struct {
+	verbose  bool
+	goBinary string
 }
 
-var defaultBuildOptions = buildOptions{
-	Verbose:  false,
-	GoBinary: "go",
+var defaultBuildOptions = &buildCfg{
+	verbose:  false,
+	goBinary: "go",
 }
 
-func buildApp(cmd *command.Command, args []string, iopts interface{}) error {
-	opts := iopts.(buildOptions)
+func newBuildCmd(io *commands.IO) *commands.Command {
+	cfg := &buildCfg{}
+
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "build",
+			ShortUsage: "build [flags] <package>",
+			ShortHelp:  "Builds the specified gno package",
+		},
+		cfg,
+		func(_ context.Context, args []string) error {
+			return execBuild(cfg, args, io)
+		},
+	)
+}
+
+func (c *buildCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.BoolVar(
+		&c.verbose,
+		"verbose",
+		defaultBuildOptions.verbose,
+		"verbose output when building",
+	)
+
+	fs.StringVar(
+		&c.goBinary,
+		"go-binary",
+		defaultBuildOptions.goBinary,
+		"go binary to use for building",
+	)
+}
+
+func execBuild(cfg *buildCfg, args []string, io *commands.IO) error {
 	if len(args) < 1 {
-		cmd.ErrPrintfln("Usage: build [build flags] [packages]")
-		return errors.New("invalid args")
+		return flag.ErrHelp
 	}
 
 	paths, err := gnoPackagesFromArgs(args)
@@ -33,13 +64,15 @@ func buildApp(cmd *command.Command, args []string, iopts interface{}) error {
 
 	errCount := 0
 	for _, pkgPath := range paths {
-		err = goBuildFileOrPkg(pkgPath, opts)
+		err = goBuildFileOrPkg(pkgPath, cfg)
 		if err != nil {
 			err = fmt.Errorf("%s: build pkg: %w", pkgPath, err)
-			cmd.ErrPrintfln("%s", err.Error())
+			io.ErrPrintfln("%s\n", err.Error())
+
 			errCount++
 		}
 	}
+
 	if errCount > 0 {
 		return fmt.Errorf("%d go build errors", errCount)
 	}
@@ -47,9 +80,9 @@ func buildApp(cmd *command.Command, args []string, iopts interface{}) error {
 	return nil
 }
 
-func goBuildFileOrPkg(fileOrPkg string, opts buildOptions) error {
-	verbose := opts.Verbose
-	goBinary := opts.GoBinary
+func goBuildFileOrPkg(fileOrPkg string, cfg *buildCfg) error {
+	verbose := cfg.verbose
+	goBinary := cfg.goBinary
 
 	if verbose {
 		fmt.Fprintf(os.Stderr, "%s\n", fileOrPkg)

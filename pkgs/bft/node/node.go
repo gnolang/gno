@@ -1,10 +1,13 @@
 package node
 
+// Ignore pprof import for gosec, as profiling
+// is enabled by the user by setting a profiling address
+
 import (
 	"fmt"
 	"net"
 	"net/http"
-	_ "net/http/pprof"
+	_ "net/http/pprof" //nolint:gosec
 	"strings"
 	"time"
 
@@ -14,7 +17,6 @@ import (
 	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
 	bc "github.com/gnolang/gno/pkgs/bft/blockchain"
 	cfg "github.com/gnolang/gno/pkgs/bft/config"
-	"github.com/gnolang/gno/pkgs/bft/consensus"
 	cs "github.com/gnolang/gno/pkgs/bft/consensus"
 	mempl "github.com/gnolang/gno/pkgs/bft/mempool"
 	"github.com/gnolang/gno/pkgs/bft/privval"
@@ -188,7 +190,7 @@ func createAndStartProxyAppConns(clientCreator proxy.ClientCreator, logger log.L
 	proxyApp := proxy.NewAppConns(clientCreator)
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
-		return nil, fmt.Errorf("error starting proxy app connections: %v", err)
+		return nil, fmt.Errorf("error starting proxy app connections: %w", err)
 	}
 	return proxyApp, nil
 }
@@ -232,7 +234,7 @@ func doHandshake(stateDB dbm.DB, state sm.State, blockStore sm.BlockStore,
 	handshaker.SetLogger(consensusLogger)
 	handshaker.SetEventSwitch(evsw)
 	if err := handshaker.Handshake(proxyApp); err != nil {
-		return fmt.Errorf("error during handshake: %v", err)
+		return fmt.Errorf("error during handshake: %w", err)
 	}
 	return nil
 }
@@ -302,7 +304,7 @@ func createConsensusReactor(config *cfg.Config,
 	fastSync bool,
 	evsw events.EventSwitch,
 	consensusLogger log.Logger,
-) (*consensus.ConsensusReactor, *consensus.ConsensusState) {
+) (*cs.ConsensusReactor, *cs.ConsensusState) {
 	consensusState := cs.NewConsensusState(
 		config.Consensus,
 		state.Copy(),
@@ -383,7 +385,7 @@ func createSwitch(config *cfg.Config,
 	peerFilters []p2p.PeerFilterFunc,
 	mempoolReactor *mempl.Reactor,
 	bcReactor p2p.Reactor,
-	consensusReactor *consensus.ConsensusReactor,
+	consensusReactor *cs.ConsensusReactor,
 	nodeInfo p2p.NodeInfo,
 	nodeKey *p2p.NodeKey,
 	p2pLogger log.Logger,
@@ -521,8 +523,13 @@ func NewNode(config *cfg.Config,
 	}
 
 	if config.ProfListenAddress != "" {
+		server := &http.Server{
+			Addr:              config.ProfListenAddress,
+			ReadHeaderTimeout: 60 * time.Second,
+		}
+
 		go func() {
-			logger.Error("Profile server", "err", http.ListenAndServe(config.ProfListenAddress, nil))
+			logger.Error("Profile server", "err", server.ListenAndServe())
 		}()
 	}
 
@@ -583,6 +590,13 @@ func (n *Node) OnStart() error {
 	}
 	if err := n.transport.Listen(*addr); err != nil {
 		return err
+	}
+	if addr.Port == 0 {
+		// if the port we have from config.P2p.ListenAdress is 0,
+		// it means the port was selected when doing net.Listen (using autoselect on the kernel).
+		// fix the config variable using the correct address
+		na := n.transport.NetAddress()
+		n.config.P2P.ListenAddress = na.DialString()
 	}
 
 	n.isListening = true
@@ -680,6 +694,7 @@ func (n *Node) startRPC() ([]net.Listener, error) {
 	}
 
 	// we may expose the rpc over both a unix and tcp socket
+	var rebuildAddresses bool
 	listeners := make([]net.Listener, len(listenAddrs))
 	for i, listenAddr := range listenAddrs {
 		mux := http.NewServeMux()
@@ -695,6 +710,9 @@ func (n *Node) startRPC() ([]net.Listener, error) {
 		wm.SetLogger(wmLogger)
 		mux.HandleFunc("/websocket", wm.WebsocketHandler)
 		rpcserver.RegisterRPCFuncs(mux, rpccore.Routes, rpcLogger)
+		if strings.HasPrefix(listenAddr, "tcp://") && strings.HasSuffix(listenAddr, ":0") {
+			rebuildAddresses = true
+		}
 		listener, err := rpcserver.Listen(
 			listenAddr,
 			config,
@@ -732,8 +750,19 @@ func (n *Node) startRPC() ([]net.Listener, error) {
 
 		listeners[i] = listener
 	}
+	if rebuildAddresses {
+		n.config.RPC.ListenAddress = joinListenerAddresses(listeners)
+	}
 
 	return listeners, nil
+}
+
+func joinListenerAddresses(ll []net.Listener) string {
+	sl := make([]string, len(ll))
+	for i, l := range ll {
+		sl[i] = l.Addr().Network() + "://" + l.Addr().String()
+	}
+	return strings.Join(sl, ",")
 }
 
 // Switch returns the Node's Switch.

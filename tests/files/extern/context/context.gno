@@ -14,8 +14,10 @@ func (*emptyCtx) Err() error {
 }
 
 // XXX dummy
-var background0 emptyCtx
-var background = &background0 // XXX replace with new(emptyCtx)
+var (
+	background0 emptyCtx
+	background  = &background0 // XXX replace with new(emptyCtx)
+)
 
 func Background() Context {
 	return background

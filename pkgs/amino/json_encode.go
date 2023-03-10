@@ -10,7 +10,7 @@ import (
 	"github.com/gnolang/gno/pkgs/errors"
 )
 
-//----------------------------------------
+// ----------------------------------------
 // cdc.encodeReflectJSON
 
 // This is the main entrypoint for encoding all types in json form.  This
@@ -69,8 +69,7 @@ func (cdc *Codec) encodeReflectJSON(w io.Writer, info *TypeInfo, rv reflect.Valu
 	}
 
 	switch info.Type.Kind() {
-
-	//----------------------------------------
+	// ----------------------------------------
 	// Complex
 
 	case reflect.Interface:
@@ -82,7 +81,7 @@ func (cdc *Codec) encodeReflectJSON(w io.Writer, info *TypeInfo, rv reflect.Valu
 	case reflect.Struct:
 		return cdc.encodeReflectJSONStruct(w, info, rv, fopts)
 
-	//----------------------------------------
+	// ----------------------------------------
 	// Signed, Unsigned
 
 	case reflect.Int64, reflect.Int:
@@ -97,7 +96,7 @@ func (cdc *Codec) encodeReflectJSON(w io.Writer, info *TypeInfo, rv reflect.Valu
 		reflect.Uint32, reflect.Uint16, reflect.Uint8:
 		return invokeStdlibJSONMarshal(w, rv.Interface())
 
-	//----------------------------------------
+	// ----------------------------------------
 	// Misc
 
 	case reflect.Float64, reflect.Float32:
@@ -108,7 +107,7 @@ func (cdc *Codec) encodeReflectJSON(w io.Writer, info *TypeInfo, rv reflect.Valu
 	case reflect.Bool, reflect.String:
 		return invokeStdlibJSONMarshal(w, rv.Interface())
 
-	//----------------------------------------
+	// ----------------------------------------
 	// Default
 
 	default:
@@ -223,7 +222,6 @@ func (cdc *Codec) encodeReflectJSONList(w io.Writer, info *TypeInfo, rv reflect.
 	length := rv.Len()
 
 	switch ert.Kind() {
-
 	case reflect.Uint8: // Special case: byte array
 		// Write bytes in base64.
 		// NOTE: Base64 encoding preserves the exact original number of bytes.
@@ -349,7 +347,7 @@ func (cdc *Codec) encodeReflectJSONStruct(w io.Writer, info *TypeInfo, rv reflec
 	return err
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Misc.
 
 func invokeStdlibJSONMarshal(w io.Writer, v interface{}) error {

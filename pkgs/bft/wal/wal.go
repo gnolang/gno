@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/base64"
 	"encoding/binary"
+	goerrors "errors"
 	"fmt"
 	"hash/crc32"
 	"io"
@@ -29,7 +30,7 @@ var (
 	base64stdnp = base64.StdEncoding.WithPadding(base64.NoPadding)
 )
 
-//--------------------------------------------------------
+// --------------------------------------------------------
 // types and functions for savings consensus messages
 
 type WALMessage interface {
@@ -52,7 +53,7 @@ type MetaMessage struct {
 	Height int64 `json:"h"`
 }
 
-//--------------------------------------------------------
+// --------------------------------------------------------
 // Simple write-ahead logger
 
 // WAL is an interface for any write-ahead logger.
@@ -293,7 +294,6 @@ func (wal *baseWAL) SearchForHeight(height int64, options *WALSearchOptions) (rd
 
 OUTER_LOOP:
 	for min <= max {
-
 		var index int
 
 		// set index depending on mode.
@@ -337,7 +337,7 @@ OUTER_LOOP:
 			msg, meta, err = dec.ReadMessage()
 			// error case
 			if err != nil {
-				if err == io.EOF {
+				if goerrors.Is(err, io.EOF) {
 					// adjust next index.
 					// @index didn't have a height declaration.
 					idxoff++
@@ -436,7 +436,7 @@ OUTER_LOOP:
 	return nil, false, nil
 }
 
-///////////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////////////////////////////////////////////////
 
 // A WALWriter writes custom-encoded WAL messages to an output stream.
 // Each binary WAL entry is length encoded, then crc encoded,
@@ -512,7 +512,7 @@ func (enc *WALWriter) WriteMeta(meta MetaMessage) error {
 	return err
 }
 
-///////////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////////////////////////////////////////////////
 
 // IsDataCorruptionError returns true if data has been corrupted inside WAL.
 func IsDataCorruptionError(err error) bool {
@@ -608,13 +608,13 @@ func (dec *WALReader) ReadMessage() (*TimedWALMessage, *MetaMessage, error) {
 	// decode base64.
 	line, err := base64stdnp.DecodeString(string(line64))
 	if err != nil {
-		return nil, nil, DataCorruptionError{fmt.Errorf("failed to decode base64: %v", err)}
+		return nil, nil, DataCorruptionError{fmt.Errorf("failed to decode base64: %w", err)}
 	}
 
 	// read crc out of bytes.
 	crcSize := int64(4)
 	if int64(len(line)) < crcSize {
-		return nil, nil, DataCorruptionError{fmt.Errorf("failed to read checksum: %v", err)}
+		return nil, nil, DataCorruptionError{fmt.Errorf("failed to read checksum: %w", err)}
 	}
 	crc, twmBytes := binary.BigEndian.Uint32(line[:crcSize]), line[crcSize:]
 	if dec.maxSize < int64(len(twmBytes)) {
@@ -623,7 +623,7 @@ func (dec *WALReader) ReadMessage() (*TimedWALMessage, *MetaMessage, error) {
 
 	// check checksum before decoding twmBytes
 	if len(twmBytes) == 0 {
-		return nil, nil, DataCorruptionError{fmt.Errorf("failed to read amino sized bytes: %v", err)}
+		return nil, nil, DataCorruptionError{fmt.Errorf("failed to read amino sized bytes: %w", err)}
 	}
 	actualCRC := crc32.Checksum(twmBytes, crc32c)
 	if actualCRC != crc {
@@ -631,10 +631,10 @@ func (dec *WALReader) ReadMessage() (*TimedWALMessage, *MetaMessage, error) {
 	}
 
 	// decode amino sized bytes.
-	res := new(TimedWALMessage) // nolint: gosimple
+	res := new(TimedWALMessage) //nolint: gosimple
 	err = amino.UnmarshalSized(twmBytes, res)
 	if err != nil {
-		return nil, nil, DataCorruptionError{fmt.Errorf("failed to decode twmBytes: %v", err)}
+		return nil, nil, DataCorruptionError{fmt.Errorf("failed to decode twmBytes: %w", err)}
 	}
 
 	return res, nil, err

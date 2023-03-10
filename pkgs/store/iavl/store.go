@@ -1,6 +1,7 @@
 package iavl
 
 import (
+	goerrors "errors"
 	"fmt"
 	"sync"
 
@@ -28,7 +29,7 @@ func StoreConstructor(db dbm.DB, opts types.StoreOptions) types.CommitStore {
 	return store
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 var (
 	_ types.Store       = (*Store)(nil)
@@ -42,7 +43,6 @@ type Store struct {
 	opts types.StoreOptions
 }
 
-// nolint: unparam
 func UnsafeNewStore(tree *iavl.MutableTree, opts types.StoreOptions) *Store {
 	st := &Store{
 		tree: tree,
@@ -90,7 +90,7 @@ func (st *Store) Commit() types.CommitID {
 		toRelease := previous - st.opts.KeepRecent
 		if st.opts.KeepEvery == 0 || toRelease%st.opts.KeepEvery != 0 {
 			err := st.tree.DeleteVersion(toRelease)
-			if errCause := errors.Cause(err); errCause != nil && errCause != iavl.ErrVersionDoesNotExist {
+			if errCause := errors.Cause(err); errCause != nil && !goerrors.Is(errCause, iavl.ErrVersionDoesNotExist) {
 				panic(err)
 			}
 		}
@@ -304,7 +304,7 @@ func (st *Store) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 	return
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 // Implements types.Iterator.
 type iavlIterator struct {
@@ -326,7 +326,7 @@ type iavlIterator struct {
 	// Close this to signal that state is initialized.
 	initCh chan struct{}
 
-	//----------------------------------------
+	// ----------------------------------------
 	// What follows are mutable state.
 	mtx sync.Mutex
 
@@ -429,7 +429,7 @@ func (iter *iavlIterator) Close() {
 	close(iter.quitCh)
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 func (iter *iavlIterator) setNext(key, value []byte) {
 	iter.assertIsValid(false)

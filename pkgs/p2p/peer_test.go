@@ -127,7 +127,7 @@ func testOutboundPeerConn(
 		if cerr := conn.Close(); cerr != nil {
 			return pc, errors.Wrap(err, cerr.Error())
 		}
-		return pc, ErrSwitchAuthenticationFailure{addr, pc.ID()}
+		return pc, SwitchAuthenticationFailureError{addr, pc.ID()}
 	}
 
 	return pc, nil

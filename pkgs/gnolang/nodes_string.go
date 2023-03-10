@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-//----------------------------------------
+// ----------------------------------------
 // Word.TokenString()
 
 var wordTokenStrings = map[Word]string{
@@ -61,313 +61,303 @@ func (w Word) TokenString() string {
 	return s
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Node.String()
 
-func (p ValuePath) String() string {
-	switch p.Type {
+func (vp ValuePath) String() string {
+	switch vp.Type {
 	case VPUverse:
-		return fmt.Sprintf("VPUverse(%d)", p.Index)
+		return fmt.Sprintf("VPUverse(%d)", vp.Index)
 	case VPBlock:
-		return fmt.Sprintf("VPBlock(%d,%d)", p.Depth, p.Index)
+		return fmt.Sprintf("VPBlock(%d,%d)", vp.Depth, vp.Index)
 	case VPField:
-		return fmt.Sprintf("VPField(%d,%d,%s)", p.Depth, p.Index, p.Name)
+		return fmt.Sprintf("VPField(%d,%d,%s)", vp.Depth, vp.Index, vp.Name)
 	case VPSubrefField:
-		return fmt.Sprintf("VPSubrefField(%d,%d,%s)", p.Depth, p.Index, p.Name)
+		return fmt.Sprintf("VPSubrefField(%d,%d,%s)", vp.Depth, vp.Index, vp.Name)
 	case VPValMethod:
-		return fmt.Sprintf("VPValMethod(%d,%s)", p.Index, p.Name)
+		return fmt.Sprintf("VPValMethod(%d,%s)", vp.Index, vp.Name)
 	case VPPtrMethod:
-		return fmt.Sprintf("VPPtrMethod(%d,%s)", p.Index, p.Name)
+		return fmt.Sprintf("VPPtrMethod(%d,%s)", vp.Index, vp.Name)
 	case VPInterface:
-		return fmt.Sprintf("VPInterface(%s)", p.Name)
+		return fmt.Sprintf("VPInterface(%s)", vp.Name)
 	case VPDerefField:
-		return fmt.Sprintf("VPDerefField(%d,%d,%s)", p.Depth, p.Index, p.Name)
+		return fmt.Sprintf("VPDerefField(%d,%d,%s)", vp.Depth, vp.Index, vp.Name)
 	case VPDerefValMethod:
-		return fmt.Sprintf("VPDerefValMethod(%d,%s)", p.Index, p.Name)
+		return fmt.Sprintf("VPDerefValMethod(%d,%s)", vp.Index, vp.Name)
 	case VPDerefPtrMethod:
-		return fmt.Sprintf("VPDerefPtrMethod(%d,%s)", p.Index, p.Name)
+		return fmt.Sprintf("VPDerefPtrMethod(%d,%s)", vp.Index, vp.Name)
 	case VPDerefInterface:
-		return fmt.Sprintf("VPDerefInterface(%s)", p.Name)
+		return fmt.Sprintf("VPDerefInterface(%s)", vp.Name)
 	case VPNative:
-		return fmt.Sprintf("VPNative(%s)", p.Name)
+		return fmt.Sprintf("VPNative(%s)", vp.Name)
 	default:
 		panic("illegal_value_type")
 	}
 }
 
-func (n NameExpr) String() string {
-	return fmt.Sprintf("%s<%s>", n.Name, n.Path.String())
+func (x NameExpr) String() string {
+	return fmt.Sprintf("%s<%s>", x.Name, x.Path.String())
 }
 
-func (n BasicLitExpr) String() string {
-	return n.Value
+func (x BasicLitExpr) String() string {
+	return x.Value
 }
 
-func (n BinaryExpr) String() string {
+func (x BinaryExpr) String() string {
 	return fmt.Sprintf("%s %s %s",
-		n.Left.String(),
-		n.Op.TokenString(),
-		n.Right.String(),
+		x.Left.String(),
+		x.Op.TokenString(),
+		x.Right.String(),
 	)
 }
 
-func (n CallExpr) String() string {
-	if n.Varg {
-		return fmt.Sprintf("%s(%s...)", n.Func, n.Args.String())
-	} else {
-		return fmt.Sprintf("%s(%s)", n.Func, n.Args.String())
+func (x CallExpr) String() string {
+	if x.Varg {
+		return fmt.Sprintf("%s(%s...)", x.Func, x.Args.String())
 	}
+	return fmt.Sprintf("%s(%s)", x.Func, x.Args.String())
 }
 
-func (n IndexExpr) String() string {
-	return fmt.Sprintf("%s[%s]", n.X, n.Index)
+func (x IndexExpr) String() string {
+	return fmt.Sprintf("%s[%s]", x.X, x.Index)
 }
 
-func (n SelectorExpr) String() string {
+func (x SelectorExpr) String() string {
 	// NOTE: for debugging selector issues:
 	// return fmt.Sprintf("%s.(%v).%s", n.X, n.Path.Type, n.Sel)
-	return fmt.Sprintf("%s.%s", n.X, n.Sel)
+	return fmt.Sprintf("%s.%s", x.X, x.Sel)
 }
 
-func (n SliceExpr) String() string {
+func (x SliceExpr) String() string {
 	ls, hs, ms := "", "", ""
-	if n.Low != nil {
-		ls = n.Low.String()
+	if x.Low != nil {
+		ls = x.Low.String()
 	}
-	if n.High != nil {
-		hs = n.High.String()
+	if x.High != nil {
+		hs = x.High.String()
 	}
-	if n.Max != nil {
-		ms = n.Max.String()
+	if x.Max != nil {
+		ms = x.Max.String()
 	}
 	if ms == "" {
-		return fmt.Sprintf("%s[%s:%s]", n.X, ls, hs)
-	} else {
-		return fmt.Sprintf("%s[%s:%s:%s]", n.X, ls, hs, ms)
+		return fmt.Sprintf("%s[%s:%s]", x.X, ls, hs)
 	}
+	return fmt.Sprintf("%s[%s:%s:%s]", x.X, ls, hs, ms)
 }
 
-func (n StarExpr) String() string {
-	return fmt.Sprintf("*(%s)", n.X)
+func (x StarExpr) String() string {
+	return fmt.Sprintf("*(%s)", x.X)
 }
 
-func (n RefExpr) String() string {
-	return fmt.Sprintf("&(%s)", n.X)
+func (x RefExpr) String() string {
+	return fmt.Sprintf("&(%s)", x.X)
 }
 
-func (n TypeAssertExpr) String() string {
-	if n.Type == nil {
-		return fmt.Sprintf("%s.(type)", n.X)
-	} else {
-		return fmt.Sprintf("%s.(%s)", n.X, n.Type)
+func (x TypeAssertExpr) String() string {
+	if x.Type == nil {
+		return fmt.Sprintf("%s.(type)", x.X)
 	}
+	return fmt.Sprintf("%s.(%s)", x.X, x.Type)
 }
 
-func (n UnaryExpr) String() string {
-	return fmt.Sprintf("%s%s", n.Op.TokenString(), n.X)
+func (x UnaryExpr) String() string {
+	return fmt.Sprintf("%s%s", x.Op.TokenString(), x.X)
 }
 
-func (n CompositeLitExpr) String() string {
-	if n.Type == nil {
-		return fmt.Sprintf("<elided>{%s}", n.Elts.String())
-	} else {
-		return fmt.Sprintf("%s{%s}", n.Type.String(), n.Elts.String())
+func (x CompositeLitExpr) String() string {
+	if x.Type == nil {
+		return fmt.Sprintf("<elided>{%s}", x.Elts.String())
 	}
+	return fmt.Sprintf("%s{%s}", x.Type.String(), x.Elts.String())
 }
 
-func (n FuncLitExpr) String() string {
-	return fmt.Sprintf("func %s{ %s }", n.Type, n.Body.String())
+func (x FuncLitExpr) String() string {
+	return fmt.Sprintf("func %s{ %s }", x.Type, x.Body.String())
 }
 
-func (n KeyValueExpr) String() string {
-	if n.Key == nil {
-		return fmt.Sprintf("%s", n.Value)
-	} else {
-		return fmt.Sprintf("%s: %s", n.Key, n.Value)
+func (x KeyValueExpr) String() string {
+	if x.Key == nil {
+		return fmt.Sprintf("%s", x.Value)
 	}
+	return fmt.Sprintf("%s: %s", x.Key, x.Value)
 }
 
-func (n FieldTypeExpr) String() string {
-	if n.Tag == nil {
-		return fmt.Sprintf("%s %s", n.Name, n.Type)
-	} else {
-		return fmt.Sprintf("%s %s %s", n.Name, n.Type, n.Tag)
+func (x FieldTypeExpr) String() string {
+	if x.Tag == nil {
+		return fmt.Sprintf("%s %s", x.Name, x.Type)
 	}
+	return fmt.Sprintf("%s %s %s", x.Name, x.Type, x.Tag)
 }
 
-func (n ArrayTypeExpr) String() string {
-	if n.Len == nil {
-		return fmt.Sprintf("[...]%s", n.Elt)
-	} else {
-		return fmt.Sprintf("[%s]%s", n.Len, n.Elt)
+func (x ArrayTypeExpr) String() string {
+	if x.Len == nil {
+		return fmt.Sprintf("[...]%s", x.Elt)
 	}
+	return fmt.Sprintf("[%s]%s", x.Len, x.Elt)
 }
 
-func (n SliceTypeExpr) String() string {
-	if n.Vrd {
-		return fmt.Sprintf("...%s", n.Elt)
-	} else {
-		return fmt.Sprintf("[]%s", n.Elt)
+func (x SliceTypeExpr) String() string {
+	if x.Vrd {
+		return fmt.Sprintf("...%s", x.Elt)
 	}
+	return fmt.Sprintf("[]%s", x.Elt)
 }
 
-func (n InterfaceTypeExpr) String() string {
-	return fmt.Sprintf("interface { %v }", n.Methods)
+func (x InterfaceTypeExpr) String() string {
+	return fmt.Sprintf("interface { %v }", x.Methods)
 }
 
-func (n ChanTypeExpr) String() string {
-	switch n.Dir {
+func (x ChanTypeExpr) String() string {
+	switch x.Dir {
 	case SEND:
-		return fmt.Sprintf("<-chan %s", n.Value)
+		return fmt.Sprintf("<-chan %s", x.Value)
 	case RECV:
-		return fmt.Sprintf("chan<- %s", n.Value)
+		return fmt.Sprintf("chan<- %s", x.Value)
 	case SEND | RECV:
-		return fmt.Sprintf("chan %s", n.Value)
+		return fmt.Sprintf("chan %s", x.Value)
 	default:
 		panic("unexpected chan dir")
 	}
 }
 
-func (n FuncTypeExpr) String() string {
+func (x FuncTypeExpr) String() string {
 	params := ""
-	if 0 < len(n.Params) {
-		params = n.Params.String()
+	if 0 < len(x.Params) {
+		params = x.Params.String()
 	}
 	results := ""
-	if 0 < len(n.Results) {
-		results = " " + n.Results.String()
+	if 0 < len(x.Results) {
+		results = " " + x.Results.String()
 	}
 	return fmt.Sprintf("func(%s)%s", params, results)
 }
 
-func (n MapTypeExpr) String() string {
-	return fmt.Sprintf("map[%s] %s", n.Key, n.Value)
+func (x MapTypeExpr) String() string {
+	return fmt.Sprintf("map[%s] %s", x.Key, x.Value)
 }
 
-func (n StructTypeExpr) String() string {
-	return fmt.Sprintf("struct { %v }", n.Fields)
+func (x StructTypeExpr) String() string {
+	return fmt.Sprintf("struct { %v }", x.Fields)
 }
 
-func (n MaybeNativeTypeExpr) String() string {
-	return fmt.Sprintf("maybenative(%s)", n.Type.String())
+func (x MaybeNativeTypeExpr) String() string {
+	return fmt.Sprintf("maybenative(%s)", x.Type.String())
 }
 
-func (n AssignStmt) String() string {
-	return fmt.Sprintf("%v %s %v", n.Lhs, n.Op.TokenString(), n.Rhs)
+func (x AssignStmt) String() string {
+	return fmt.Sprintf("%v %s %v", x.Lhs, x.Op.TokenString(), x.Rhs)
 }
 
-func (n BlockStmt) String() string {
-	return fmt.Sprintf("{ %s }", n.Body.String())
+func (x BlockStmt) String() string {
+	return fmt.Sprintf("{ %s }", x.Body.String())
 }
 
-func (n BranchStmt) String() string {
-	if n.Label == "" {
-		return n.Op.TokenString()
-	} else {
-		return fmt.Sprintf("%s %s<%d,%d>",
-			n.Op.TokenString(), string(n.Label),
-			n.Depth, n.BodyIndex)
+func (x BranchStmt) String() string {
+	if x.Label == "" {
+		return x.Op.TokenString()
 	}
+	return fmt.Sprintf("%s %s<%d,%d>",
+		x.Op.TokenString(), string(x.Label),
+		x.Depth, x.BodyIndex)
 }
 
-func (n DeclStmt) String() string {
-	return n.Body.String()
+func (x DeclStmt) String() string {
+	return x.Body.String()
 }
 
-func (n DeferStmt) String() string {
-	return "defer " + n.Call.String()
+func (x DeferStmt) String() string {
+	return "defer " + x.Call.String()
 }
 
-func (n EmptyStmt) String() string {
+func (x EmptyStmt) String() string {
 	return ""
 }
 
-func (n ExprStmt) String() string {
-	return n.X.String()
+func (x ExprStmt) String() string {
+	return x.X.String()
 }
 
-func (n ForStmt) String() string {
+func (x ForStmt) String() string {
 	init, cond, post := "", "", ""
-	if n.Init != nil {
-		init = n.Init.String()
+	if x.Init != nil {
+		init = x.Init.String()
 	}
-	if n.Cond != nil {
-		cond = n.Cond.String()
+	if x.Cond != nil {
+		cond = x.Cond.String()
 	}
-	if n.Post != nil {
-		post = n.Post.String()
+	if x.Post != nil {
+		post = x.Post.String()
 	}
 	return fmt.Sprintf("for %s; %s; %s { %s }",
-		init, cond, post, n.Body.String())
+		init, cond, post, x.Body.String())
 }
 
-func (n GoStmt) String() string {
-	return "go " + n.Call.String()
+func (x GoStmt) String() string {
+	return "go " + x.Call.String()
 }
 
-func (n IfStmt) String() string {
+func (x IfStmt) String() string {
 	init := ""
-	if n.Init != nil {
-		init = n.Init.String() + "; "
+	if x.Init != nil {
+		init = x.Init.String() + "; "
 	}
-	cond := n.Cond.String()
-	then := n.Then.String()
-	els_ := n.Else.String()
-	if n.Else.Body == nil {
+	cond := x.Cond.String()
+	then := x.Then.String()
+	els_ := x.Else.String()
+	if x.Else.Body == nil {
 		return fmt.Sprintf("if %s%s { %s }", init, cond, then)
-	} else {
-		return fmt.Sprintf("if %s%s { %s } else { %s }",
-			init, cond, then, els_)
 	}
+	return fmt.Sprintf("if %s%s { %s } else { %s }",
+		init, cond, then, els_)
 }
 
-func (n IfCaseStmt) String() string {
-	return n.Body.String()
+func (x IfCaseStmt) String() string {
+	return x.Body.String()
 }
 
-func (n IncDecStmt) String() string {
-	if n.Op == INC {
-		return n.X.String() + "++"
-	} else if n.Op == DEC {
-		return n.X.String() + "--"
-	} else {
+func (x IncDecStmt) String() string {
+	switch x.Op {
+	case INC:
+		return x.X.String() + "++"
+	case DEC:
+		return x.X.String() + "--"
+	default:
 		panic("unexpected operator")
 	}
 }
 
-func (n RangeStmt) String() string {
-	if n.Key == nil {
-		if n.Value != nil {
+func (x RangeStmt) String() string {
+	if x.Key == nil {
+		if x.Value != nil {
 			panic("unexpected value in range stmt with no key")
 		}
 		return fmt.Sprintf("for range %s { %s }",
-			n.X.String(), n.Body.String())
-	} else if n.Value == nil {
+			x.X.String(), x.Body.String())
+	} else if x.Value == nil {
 		return fmt.Sprintf("for %s %s range %s { %s }",
-			n.Key.String(), n.Op.TokenString(),
-			n.X.String(), n.Body.String())
+			x.Key.String(), x.Op.TokenString(),
+			x.X.String(), x.Body.String())
 	} else {
 		return fmt.Sprintf("for %s, %s %s range %s { %s }",
-			n.Key.String(), n.Value.String(), n.Op.TokenString(),
-			n.X.String(), n.Body.String())
+			x.Key.String(), x.Value.String(), x.Op.TokenString(),
+			x.X.String(), x.Body.String())
 	}
 }
 
-func (n ReturnStmt) String() string {
-	if len(n.Results) == 0 {
+func (x ReturnStmt) String() string {
+	if len(x.Results) == 0 {
 		return fmt.Sprintf("return")
-	} else {
-		return fmt.Sprintf("return %v", n.Results)
 	}
+	return fmt.Sprintf("return %v", x.Results)
 }
 
-func (n PanicStmt) String() string {
-	return fmt.Sprintf("panic(%s)", n.Exception.String())
+func (x PanicStmt) String() string {
+	return fmt.Sprintf("panic(%s)", x.Exception.String())
 }
 
-func (n SelectStmt) String() string {
+func (x SelectStmt) String() string {
 	cases := ""
-	for i, s := range n.Cases {
+	for i, s := range x.Cases {
 		if i == 0 {
 			cases += s.String()
 		} else {
@@ -377,25 +367,25 @@ func (n SelectStmt) String() string {
 	return fmt.Sprintf("select { %s }", cases)
 }
 
-func (n SelectCaseStmt) String() string {
-	return fmt.Sprintf("case %v: %s", n.Comm.String(), n.Body.String())
+func (x SelectCaseStmt) String() string {
+	return fmt.Sprintf("case %v: %s", x.Comm.String(), x.Body.String())
 }
 
-func (n SendStmt) String() string {
-	return fmt.Sprintf("%s <- %s", n.Chan.String(), n.Value.String())
+func (x SendStmt) String() string {
+	return fmt.Sprintf("%s <- %s", x.Chan.String(), x.Value.String())
 }
 
-func (n SwitchStmt) String() string {
+func (x SwitchStmt) String() string {
 	init := ""
-	if n.Init != nil {
-		init = n.Init.String() + "; "
+	if x.Init != nil {
+		init = x.Init.String() + "; "
 	}
 	varName := ""
-	if n.VarName != "" {
-		varName = string(n.VarName) + ":="
+	if x.VarName != "" {
+		varName = string(x.VarName) + ":="
 	}
 	cases := ""
-	for i, s := range n.Clauses {
+	for i, s := range x.Clauses {
 		if i == 0 {
 			cases += s.String()
 		} else {
@@ -403,73 +393,70 @@ func (n SwitchStmt) String() string {
 		}
 	}
 	return fmt.Sprintf("switch %s%s%s { %s }",
-		init, varName, n.X.String(), cases)
+		init, varName, x.X.String(), cases)
 }
 
-func (n SwitchClauseStmt) String() string {
-	if len(n.Cases) == 0 {
-		return fmt.Sprintf("default: %s", n.Body.String())
-	} else {
-		return fmt.Sprintf("case %v: %s", n.Cases, n.Body.String())
+func (x SwitchClauseStmt) String() string {
+	if len(x.Cases) == 0 {
+		return fmt.Sprintf("default: %s", x.Body.String())
 	}
+	return fmt.Sprintf("case %v: %s", x.Cases, x.Body.String())
 }
 
-func (n FuncDecl) String() string {
+func (x FuncDecl) String() string {
 	recv := ""
-	if n.IsMethod {
-		recv = "(" + n.Recv.String() + ") "
+	if x.IsMethod {
+		recv = "(" + x.Recv.String() + ") "
 	}
 	return fmt.Sprintf("func %s%s%s { %s }",
-		recv, n.Name, n.Type.String()[4:], n.Body.String())
+		recv, x.Name, x.Type.String()[4:], x.Body.String())
 }
 
-func (n ImportDecl) String() string {
-	if n.Name == "" {
-		return fmt.Sprintf("import %s", n.PkgPath)
-	} else {
-		return fmt.Sprintf("import %s %s", n.Name, n.PkgPath)
+func (x ImportDecl) String() string {
+	if x.Name == "" {
+		return fmt.Sprintf("import %s", x.PkgPath)
 	}
+	return fmt.Sprintf("import %s %s", x.Name, x.PkgPath)
 }
 
-func (n ValueDecl) String() string {
+func (x ValueDecl) String() string {
 	mod := "var"
-	if n.Const {
+	if x.Const {
 		mod = "const"
 	}
-	names := n.NameExprs.String()
+	names := x.NameExprs.String()
 	type_ := ""
-	if n.Type != nil {
-		type_ = " " + n.Type.String()
+	if x.Type != nil {
+		type_ = " " + x.Type.String()
 	}
 	value := ""
-	if n.Values != nil {
-		value = " = " + n.Values.String()
+	if x.Values != nil {
+		value = " = " + x.Values.String()
 	}
 	return fmt.Sprintf("%s %s%s%s", mod, names, type_, value)
 }
 
-func (n TypeDecl) String() string {
-	if n.IsAlias {
-		return fmt.Sprintf("type %s = %s", n.Name, n.Type.String())
-	} else {
-		return fmt.Sprintf("type %s %s", n.Name, n.Type.String())
+func (x TypeDecl) String() string {
+	if x.IsAlias {
+		return fmt.Sprintf("type %s = %s", x.Name, x.Type.String())
 	}
+	return fmt.Sprintf("type %s %s", x.Name, x.Type.String())
 }
 
-func (n FileNode) String() string {
+func (x FileNode) String() string {
 	// return fmt.Sprintf("file{ package %s ... }", n.PkgName) // , n.Decls.String())
-	return fmt.Sprintf("file{ package %s; %s }", n.PkgName, n.Decls.String())
+	return fmt.Sprintf("file{ package %s; %s }", x.PkgName, x.Decls.String())
 }
 
-func (n PackageNode) String() string {
-	return fmt.Sprintf("package(%s)", n.PkgName)
+func (x PackageNode) String() string {
+	return fmt.Sprintf("package(%s)", x.PkgName)
 }
 
-func (n RefNode) String() string {
-	return fmt.Sprintf("ref(%s)", n.Location.String())
+func (rn RefNode) String() string {
+	return fmt.Sprintf("ref(%s)", rn.Location.String())
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Node slice strings
 // NOTE: interface-generics or?
 
@@ -497,9 +484,9 @@ func (nxs NameExprs) String() string {
 	return str
 }
 
-func (fts FieldTypeExprs) String() string {
+func (ftxz FieldTypeExprs) String() string {
 	str := ""
-	for i, x := range fts {
+	for i, x := range ftxz {
 		if i == 0 {
 			str += x.String()
 		} else {
@@ -545,14 +532,13 @@ func (ds Decls) String() string {
 	return str
 }
 
-func (cx ConstExpr) String() string {
-	return fmt.Sprintf("(const %s)", cx.TypedValue.String())
+func (x ConstExpr) String() string {
+	return fmt.Sprintf("(const %s)", x.TypedValue.String())
 }
 
-func (ctx constTypeExpr) String() string {
-	if ctx.Type == nil { // type switch case
+func (x constTypeExpr) String() string {
+	if x.Type == nil { // type switch case
 		return fmt.Sprintf("(const-type nil)")
-	} else {
-		return fmt.Sprintf("(const-type %s)", ctx.Type.String())
 	}
+	return fmt.Sprintf("(const-type %s)", x.Type.String())
 }

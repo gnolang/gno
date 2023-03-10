@@ -1,6 +1,7 @@
 package cstypes
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"testing"
@@ -38,8 +39,8 @@ func TestPeerCatchupRounds(t *testing.T) {
 
 	vote1001_0 := makeVoteHR(t, 1, 1001, privVals, 0)
 	added, err = hvs.AddVote(vote1001_0, "peer1")
-	if err != GotVoteFromUnwantedRoundError {
-		t.Errorf("Expected GotVoteFromUnwantedRoundError, but got %v", err)
+	if !errors.Is(err, ErrGotVoteFromUnwantedRoundError) {
+		t.Errorf("Expected ErrGotVoteFromUnwantedRoundError, but got %v", err)
 	}
 	if added {
 		t.Error("Expected to *not* add vote from peer, too many catchup rounds.")
@@ -52,6 +53,8 @@ func TestPeerCatchupRounds(t *testing.T) {
 }
 
 func makeVoteHR(t *testing.T, height int64, round int, privVals []types.PrivValidator, valIndex int) *types.Vote {
+	t.Helper()
+
 	privVal := privVals[valIndex]
 	addr := privVal.GetPubKey().Address()
 	vote := &types.Vote{

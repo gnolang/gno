@@ -1,32 +1,63 @@
 package client
 
 import (
-	"github.com/gnolang/gno/pkgs/command"
+	"context"
+	"errors"
+	"flag"
+
+	"github.com/gnolang/gno/pkgs/commands"
 	"github.com/gnolang/gno/pkgs/crypto/keys"
-	"github.com/gnolang/gno/pkgs/errors"
 )
 
-type DeleteOptions struct {
-	BaseOptions
-	Yes   bool `flag:"yes" help:"skip confirmation prompt"`
-	Force bool `flag:"force" help:"remove key unconditionally"`
+type deleteCfg struct {
+	rootCfg *baseCfg
+
+	yes   bool
+	force bool
 }
 
-var DefaultDeleteOptions = DeleteOptions{
-	BaseOptions: DefaultBaseOptions,
+func newDeleteCmd(rootCfg *baseCfg) *commands.Command {
+	cfg := &deleteCfg{
+		rootCfg: rootCfg,
+	}
+
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "delete",
+			ShortUsage: "delete [flags] <key-name>",
+			ShortHelp:  "Deletes a key from the keybase",
+		},
+		cfg,
+		func(_ context.Context, args []string) error {
+			return execDelete(cfg, args, commands.NewDefaultIO())
+		},
+	)
 }
 
-func deleteApp(cmd *command.Command, args []string, iopts interface{}) error {
-	var opts DeleteOptions = iopts.(DeleteOptions)
+func (c *deleteCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.BoolVar(
+		&c.yes,
+		"yes",
+		false,
+		"skip confirmation prompt",
+	)
 
+	fs.BoolVar(
+		&c.force,
+		"force",
+		false,
+		"remove key unconditionally",
+	)
+}
+
+func execDelete(cfg *deleteCfg, args []string, io *commands.IO) error {
 	if len(args) != 1 {
-		cmd.ErrPrintfln("Usage: delete <keyname or address>")
-		return errors.New("invalid args")
+		return flag.ErrHelp
 	}
 
 	nameOrBech32 := args[0]
 
-	kb, err := keys.NewKeyBaseFromDir(opts.Home)
+	kb, err := keys.NewKeyBaseFromDir(cfg.rootCfg.Home)
 	if err != nil {
 		return err
 	}
@@ -37,24 +68,26 @@ func deleteApp(cmd *command.Command, args []string, iopts interface{}) error {
 	}
 
 	if info.GetType() == keys.TypeLedger || info.GetType() == keys.TypeOffline {
-		if !opts.Yes {
-			if err := confirmDeletion(cmd); err != nil {
+		if !cfg.yes {
+			if err := confirmDeletion(io); err != nil {
 				return err
 			}
 		}
+
 		if err := kb.Delete(nameOrBech32, "", true); err != nil {
 			return err
 		}
-		cmd.ErrPrintln("Public key reference deleted")
+		io.ErrPrintln("Public key reference deleted")
+
 		return nil
 	}
 
 	// skip passphrase check if run with --force
-	skipPass := opts.Force
+	skipPass := cfg.force
 	var oldpass string
 	if !skipPass {
 		msg := "DANGER - enter password to permanently delete key:"
-		if oldpass, err = cmd.GetPassword(msg, false); err != nil {
+		if oldpass, err = io.GetPassword(msg, cfg.rootCfg.InsecurePasswordStdin); err != nil {
 			return err
 		}
 	}
@@ -63,17 +96,21 @@ func deleteApp(cmd *command.Command, args []string, iopts interface{}) error {
 	if err != nil {
 		return err
 	}
-	cmd.ErrPrintln("Key deleted")
+	io.ErrPrintln("Key deleted")
+
 	return nil
 }
 
-func confirmDeletion(cmd *command.Command) error {
-	answer, err := cmd.GetConfirmation("Key reference will be deleted. Continue?")
+func confirmDeletion(io *commands.IO) error {
+	answer, err := io.GetConfirmation("Key reference will be deleted. Continue?")
+
 	if err != nil {
 		return err
 	}
+
 	if !answer {
 		return errors.New("aborted")
 	}
+
 	return nil
 }
