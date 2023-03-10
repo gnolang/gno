@@ -64,15 +64,12 @@ func TestProofForgery(t *testing.T) {
 	rootHashValid := proof.ComputeRootHash()
 	verifyErr := proof.Verify(rootHashValid)
 	require.NoError(t, verifyErr, "should verify")
-	// forgery gives empty root hash (previously it returned the same one!)
-	rootHashForged := proof2.ComputeRootHash()
-	require.Empty(t, rootHashForged, "roothash must be empty if both left and right are set")
-	verifyErr = proof2.Verify(rootHashForged)
-	require.Error(t, verifyErr, "should not verify")
 
-	// verify proof two fails with valid proof
-	err = proof2.Verify(rootHashValid)
-	require.Error(t, err, "should not verify different root hash")
+	// forged proofs now should make ComputeRootHash() and Verify() panic
+	var rootHashForged []byte
+	require.Panics(t, func() { rootHashForged = proof2.ComputeRootHash() }, "ComputeRootHash must panic if both left and right are set")
+	require.Panics(t, func() { proof2.Verify(rootHashForged) }, "forged proof should not verify")
+	require.Panics(t, func() { proof2.Verify(rootHashValid) }, "verify (tentatively forged) proof2 two fails with valid proof")
 
 	{
 		// legit node verifies against legit proof (expected)
