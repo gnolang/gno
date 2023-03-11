@@ -37,8 +37,9 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				if arg0.V != nil {
 					slice := arg0.V.(*gno.SliceValue)
 					array := slice.GetBase(m.Store)
-					bz = array.GetReadonlyBytes()
+					bz = array.GetReadonlyBytes()[:slice.Length]
 				}
+				// remove padding
 				bzNP := bytes.Trim(bz, "\x00")
 				hash := sha3.Sum256(bzNP)
 				res0 := gno.Go2GnoValue(
@@ -62,7 +63,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				if arg0.V != nil {
 					slice := arg0.V.(*gno.SliceValue)
 					array := slice.GetBase(m.Store)
-					bz = array.GetReadonlyBytes()
+					bz = array.GetReadonlyBytes()[:slice.Length]
 				}
 				bzNP := bytes.Trim(bz, "\x00")
 				hash := sha3.Sum512(bzNP)
