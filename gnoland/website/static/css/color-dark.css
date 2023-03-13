@@ -1,0 +1,20 @@
+/* this is the dark color stylesheet
+ * it should only contain colors.
+ */
+
+html[data-theme="dark"] body { background-color: #2e2e2e; }
+html[data-theme="dark"] body, input { color: #eee; }
+html[data-theme="dark"] a, #logo { color: #ebe6ff; }
+html[data-theme="dark"] input { background-color: #393939; border-color: #ccc; }
+html[data-theme="dark"] blockquote { background-color: #404040; }
+html[data-theme="dark"] blockquote blockquote { background-color: #555555; }
+
+html[data-theme="dark"] pre { background-color: #454545; }
+
+html[data-theme="dark"] #root { border-color: #454545; }
+html[data-theme="dark"] #header { background-color: #454545; }
+
+html[data-theme="dark"] #realm_help .func_spec { background-color: #45454545; }
+html[data-theme="dark"] #realm_help .func_spec:nth-child(odd) { background: #4545459e; }
+html[data-theme="dark"] #realm_help .func_spec .shell_command { color: #b6b6b6; }
+html[data-theme="dark"] #realm_help .func_spec > table > tbody > tr > th { color: #eee; }

@@ -1,0 +1,19 @@
+/* this is the light color stylesheet 
+ * it should only contain colors.
+ */
+
+html, body {  background-color: #eee; }
+html, body, input { color: #000; }
+a, #logo { color: #25172a; }
+input { background-color: #eee; border-color: #ccc; }
+blockquote { background-color: #ddd; }
+blockquote blockquote { background-color: #aaa4; }
+pre { background-color: #d7d9db; }
+
+#root { border-color: #d7d9db; }
+#header { background-color: #d7d9db; }
+
+#realm_help .func_spec { background-color: #d7d9db9e; }
+#realm_help .func_spec:nth-child(odd) { background: #d7d9db45; }
+#realm_help .func_spec .shell_command { color: #5d5d5d; }
+#realm_help .func_spec > table > tbody > tr > th { color: #000; }
