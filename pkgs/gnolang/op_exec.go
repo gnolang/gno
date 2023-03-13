@@ -689,13 +689,14 @@ EXEC_SWITCH:
 				// fallthrough is not the final statement
 				panic("fallthrough statement out of place")
 			}
-			clidx := ss.GetAttribute(ATTR_SWITCH_CLAUSE_IDX).(int)
-			if clidx+1 >= len(ss.Clauses) {
+			// compute next switch clause from BodyIndex (assigned in preprocess)
+			nextClause := cs.BodyIndex + 1
+			if nextClause >= len(ss.Clauses) {
 				// no more clause after the one executed, this is not allowed
 				panic("cannot fallthrough final case in switch")
 			}
 			// expand block size
-			cl := ss.Clauses[clidx+1]
+			cl := ss.Clauses[nextClause]
 			if nn := cl.GetNumNames(); int(nn) > len(b.Values) {
 				b.ExpandToSize(m.Alloc, nn)
 			}
@@ -707,8 +708,6 @@ EXEC_SWITCH:
 			}
 			m.PushOp(OpBody)
 			m.PushStmt(b.GetBodyStmt())
-			// Record new clause idx in case an other fallthrough is met.
-			ss.SetAttribute(ATTR_SWITCH_CLAUSE_IDX, clidx+1)
 		default:
 			panic("unknown branch op")
 		}
@@ -982,8 +981,6 @@ func (m *Machine) doOpSwitchClauseCase() {
 		}
 		m.PushOp(OpBody)
 		m.PushStmt(b.GetBodyStmt())
-		// Record executed clause idx in case a fallthrough is met
-		ss.SetAttribute(ATTR_SWITCH_CLAUSE_IDX, clidx)
 	} else {
 		// try next case or clause.
 		ss := m.PeekStmt1().(*SwitchStmt) // peek switch stmt
