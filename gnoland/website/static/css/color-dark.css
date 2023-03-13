@@ -3,8 +3,8 @@
  */
 
 html[data-theme="dark"] body { background-color: #2e2e2e; }
-html[data-theme="dark"] body, input { color: #eee; }
-html[data-theme="dark"] a, #logo { color: #ebe6ff; }
+html[data-theme="dark"] body, html[data-theme="dark"] input { color: #eee; }
+html[data-theme="dark"] a, html[data-theme="dark"] #logo { color: #ebe6ff; }
 html[data-theme="dark"] input { background-color: #393939; border-color: #ccc; }
 html[data-theme="dark"] blockquote { background-color: #404040; }
 html[data-theme="dark"] blockquote blockquote { background-color: #555555; }

@@ -2,18 +2,18 @@
  * it should only contain colors.
  */
 
-html, body {  background-color: #eee; }
-html, body, input { color: #000; }
-a, #logo { color: #25172a; }
-input { background-color: #eee; border-color: #ccc; }
-blockquote { background-color: #ddd; }
-blockquote blockquote { background-color: #aaa4; }
-pre { background-color: #d7d9db; }
+html[data-theme="light"] html, html[data-theme="light"] body {  background-color: #eee; }
+html[data-theme="light"] html, html[data-theme="light"] body, html[data-theme="light"] input { color: #000; }
+html[data-theme="light"] a, html[data-theme="light"] #logo { color: #25172a; }
+html[data-theme="light"] input { background-color: #eee; border-color: #ccc; }
+html[data-theme="light"] blockquote { background-color: #ddd; }
+html[data-theme="light"] blockquote blockquote { background-color: #aaa4; }
+html[data-theme="light"] pre { background-color: #d7d9db; }
 
-#root { border-color: #d7d9db; }
-#header { background-color: #d7d9db; }
+html[data-theme="light"] #root { border-color: #d7d9db; }
+html[data-theme="light"] #header { background-color: #d7d9db; }
 
-#realm_help .func_spec { background-color: #d7d9db9e; }
-#realm_help .func_spec:nth-child(odd) { background: #d7d9db45; }
-#realm_help .func_spec .shell_command { color: #5d5d5d; }
-#realm_help .func_spec > table > tbody > tr > th { color: #000; }
+html[data-theme="light"] #realm_help .func_spec { background-color: #d7d9db9e; }
+html[data-theme="light"] #realm_help .func_spec:nth-child(odd) { background: #d7d9db45; }
+html[data-theme="light"] #realm_help .func_spec .shell_command { color: #5d5d5d; }
+html[data-theme="light"] #realm_help .func_spec > table > tbody > tr > th { color: #000; }
