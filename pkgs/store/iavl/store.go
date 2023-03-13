@@ -458,7 +458,7 @@ func (iter *iavlIterator) receiveNext() {
 }
 
 // assertIsValid panics if the iterator is invalid. If unlockMutex is true,
-// it also unlocks the mutex before panicing, to prevent deadlocks in code that
+// it also unlocks the mutex before panicking, to prevent deadlocks in code that
 // recovers from panics
 func (iter *iavlIterator) assertIsValid(unlockMutex bool) {
 	if iter.invalid {

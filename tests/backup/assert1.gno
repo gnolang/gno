@@ -40,7 +40,7 @@ func main() {
 	tt = TestStruct{}
 	ss, ok := tt.(fmt.Stringer)
 	if !ok {
-		fmt.Println("TestStuct does not implement fmt.Stringer")
+		fmt.Println("TestStruct does not implement fmt.Stringer")
 		return
 	}
 	fmt.Println(ss.String())

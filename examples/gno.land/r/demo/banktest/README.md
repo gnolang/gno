@@ -44,7 +44,7 @@ the context of the realm with path "gno.land/r/banktest".
 This means that calls to functions defined within this package
 are encapsulated within this "data realm", where the data is
 mutated based on transactions that can potentially cross many
-realm and non-realm packge boundaries (in the call stack).
+realm and non-realm Package boundaries (in the call stack).
 
 ```go
 // Deposit will take the coins (to the realm's pkgaddr) or return them to user.

@@ -170,7 +170,7 @@ func WriteDirFile(pathWithName string, data []byte) error {
 // absolute to ensure consistent behavior.
 func copyDir(src, dst string) error {
 	if !filepath.IsAbs(src) || !filepath.IsAbs(dst) {
-		return fmt.Errorf("src or dst path not abosulte, src: %s dst: %s", src, dst)
+		return fmt.Errorf("src or dst path not absolute, src: %s dst: %s", src, dst)
 	}
 
 	entries, err := os.ReadDir(src)
@@ -200,7 +200,7 @@ func copyDir(src, dst string) error {
 // to be absolute to ensure consistent behavior.
 func copyFile(src, dst string) error {
 	if !filepath.IsAbs(src) || !filepath.IsAbs(dst) {
-		return fmt.Errorf("src or dst path not abosulte, src: %s dst: %s", src, dst)
+		return fmt.Errorf("src or dst path not absolute, src: %s dst: %s", src, dst)
 	}
 
 	// verify if it's regular flile
