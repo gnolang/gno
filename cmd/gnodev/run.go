@@ -10,8 +10,8 @@ import (
 )
 
 type runCfg struct {
-	verbose bool
-	rootDir string
+	verboseStruct
+	rootDirStruct
 }
 
 func newRunCmd(io *commands.IO) *commands.Command {
@@ -31,19 +31,8 @@ func newRunCmd(io *commands.IO) *commands.Command {
 }
 
 func (c *runCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.BoolVar(
-		&c.verbose,
-		"verbose",
-		false,
-		"verbose output when running",
-	)
-
-	fs.StringVar(
-		&c.rootDir,
-		"root-dir",
-		"",
-		"clone location of github.com/gnolang/gno (gnodev tries to guess it)",
-	)
+	c.verboseStruct.RegisterFlags(fs)
+	c.rootDirStruct.RegisterFlags(fs)
 }
 
 func execRun(cfg *runCfg, args []string, io *commands.IO) error {

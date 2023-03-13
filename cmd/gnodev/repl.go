@@ -16,8 +16,8 @@ import (
 )
 
 type replCfg struct {
-	verbose bool
-	rootDir string
+	verboseStruct
+	rootDirStruct
 }
 
 func newReplCmd() *commands.Command {
@@ -37,19 +37,8 @@ func newReplCmd() *commands.Command {
 }
 
 func (c *replCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.BoolVar(
-		&c.verbose,
-		"verbose",
-		false,
-		"verbose output when running",
-	)
-
-	fs.StringVar(
-		&c.rootDir,
-		"root-dir",
-		"",
-		"clone location of github.com/gnolang/gno (gnodev tries to guess it)",
-	)
+	c.verboseStruct.RegisterFlags(fs)
+	c.rootDirStruct.RegisterFlags(fs)
 }
 
 func execRepl(cfg *replCfg, args []string) error {
