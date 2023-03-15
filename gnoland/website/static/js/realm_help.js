@@ -51,16 +51,16 @@ function updateCommand(x) {
 
   // command Z: all in one.
   shell.append(u("<span>").text("### INSECURE BUT QUICK ###")).append(u("<br>"));
-  var args = ["gnokey", "maketx", "call", myAddr,
-    "--pkgpath", shq(realmPath), "--func", shq(funcName),
-    "--gas-fee", "1000000ugnot", "--gas-wanted", "2000000",
-    "--send", shq(""),
-    "--broadcast", "true", "--chainid", shq(chainid)];
+  var args = ["gnokey", "maketx", "call", 
+    "-pkgpath", shq(realmPath), "-func", shq(funcName),
+    "-gas-fee", "1000000ugnot", "-gas-wanted", "2000000",
+    "-send", shq(""),
+    "-broadcast", "-chainid", shq(chainid), myAddr];
   vals.forEach(function(arg) {
-    args.push("--args");
+    args.push("-args");
     args.push(shq(arg));
   });
-  args.push("--remote", shq(remote));
+  args.push("-remote", shq(remote));
   var command = args.join(" ");
   shell.append(u("<span>").text(command)).append(u("<br>")).append(u("<br>"));
 
@@ -68,17 +68,17 @@ function updateCommand(x) {
   shell.append(u("<span>").text("### FULL SECURITY WITH AIRGAP ###")).append(u("<br>"));
 
   // command 0: query account info.
-  var args = ["gnokey", "query", "auth/accounts/" + myAddr, "--remote", shq(remote)];
+  var args = ["gnokey", "query", "auth/accounts/" + myAddr, "-remote", shq(remote)];
   var command = args.join(" ");
   shell.append(u("<span>").text(command)).append(u("<br>"));
 
   // command 1: construct tx.
-  var args = ["gnokey", "maketx", "call", myAddr,
-    "--pkgpath", shq(realmPath), "--func", shq(funcName),
-    "--gas-fee", "1000000ugnot", "--gas-wanted", "2000000",
-    "--send", shq("")];
+  var args = ["gnokey", "maketx", "call",
+    "-pkgpath", shq(realmPath), "-func", shq(funcName),
+    "-gas-fee", "1000000ugnot", "-gas-wanted", "2000000",
+    "-send", shq(""), myAddr];
   vals.forEach(function(arg) {
-    args.push("--args");
+    args.push("-args");
     args.push(shq(arg));
   });
   var command = args.join(" ");
@@ -86,16 +86,16 @@ function updateCommand(x) {
   shell.append(u("<span>").text(command)).append(u("<br>"));
 
   // command 2: sign tx.
-  var args = ["gnokey", "sign", myAddr,
-    "--txpath", "unsigned.tx", "--chainid", shq(chainid),
-    "--number", "ACCOUNTNUMBER",
-    "--sequence", "SEQUENCENUMBER"];
+  var args = ["gnokey", "sign",
+    "-txpath", "unsigned.tx", "-chainid", shq(chainid),
+    "-number", "ACCOUNTNUMBER",
+    "-sequence", "SEQUENCENUMBER", myAddr];
   var command = args.join(" ");
   command = command + " > signed.tx";
   shell.append(u("<span>").text(command)).append(u("<br>"));
 
   // command 3: broadcast tx.
-  var args = ["gnokey", "broadcast", "signed.tx", "--remote", shq(remote)];
+  var args = ["gnokey", "broadcast", "signed.tx", "-remote", shq(remote)];
   var command = args.join(" ");
   command = command;
   shell.append(u("<span>").text(command)).append(u("<br>"));
