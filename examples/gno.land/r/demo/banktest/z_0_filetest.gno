@@ -1,6 +1,5 @@
 package main
 
-// NOTE: this doesn't do anything, as it sends to "main".
 // SEND: 100000000ugnot
 
 import (
@@ -35,9 +34,9 @@ func main() {
 }
 
 // Output:
-// main before: 200000000ugnot
+// main before: 300000000ugnot
 // Deposit(): returned!
-// main after: 300000000ugnot
+// main after: 400000000ugnot
 // ## recent activity
 //
 //  * g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4 100000000ugnot sent, 100000000ugnot returned, at 2009-02-13 11:31pm UTC
