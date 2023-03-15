@@ -1,9 +1,11 @@
-package main 
+package main
 
-import "std"
-import "gno.land/p/demo/testutils"
+import (
+	"std"
+	"gno.land/p/demo/testutils"
+)
 
-func main(){
+func main() {
 	mainAddr := std.TestDerivePkgAddr("main")
 	addr1 := testutils.TestAddress("test1")
 
