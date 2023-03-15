@@ -6,7 +6,9 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"github.com/gnolang/gno/pkgs/gnolang"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )
@@ -33,12 +35,14 @@ func (f *File) Validate() error {
 // FetchDeps fetches and writes gno.mod packages
 // in GOPATH/pkg/gnomod/
 func (f *File) FetchDeps(remote string) error {
+	var indirect string
 	gnoModPath, err := GetGnoModPath()
 	if err != nil {
 		return fmt.Errorf("get gno.mod path: %w", err)
 	}
 
 	for _, r := range f.Require {
+		indirect = ""
 		mod, replaced := isReplaced(r.Mod, f.Replace)
 		if replaced {
 			if modfile.IsDirectoryPath(mod.Path) {
@@ -46,21 +50,62 @@ func (f *File) FetchDeps(remote string) error {
 			}
 			r.Mod = *mod
 		}
-		log.Println("fetching", r.Mod.Path)
-		err := writePackage(remote, gnoModPath, r.Mod.Path)
+		if r.Indirect {
+			indirect = "// indirect"
+		}
+
+		_, err = os.Stat(filepath.Join(gnoModPath, r.Mod.Path))
+		if !os.IsNotExist(err) {
+			log.Println("cached", r.Mod.Path, indirect)
+			continue
+		}
+		log.Println("fetching", r.Mod.Path, indirect)
+		requirements, err := writePackage(remote, gnoModPath, r.Mod.Path)
 		if err != nil {
 			return fmt.Errorf("writepackage: %w", err)
 		}
 
-		f := &File{
+		modFile := &File{
 			Module: &modfile.Module{
 				Mod: module.Version{
 					Path: r.Mod.Path,
 				},
 			},
 		}
+		for _, req := range requirements {
+			path := req[1 : len(req)-1] // trim leading and trailing `"`
+			if strings.HasSuffix(path, modFile.Module.Mod.Path) {
+				continue
+			}
+			// skip if `std`, special case.
+			if path == "github.com/gnolang/gno/stdlibs/stdshim" {
+				continue
+			}
 
-		f.WriteToPath(filepath.Join(gnoModPath, r.Mod.Path))
+			if strings.HasPrefix(path, gnolang.ImportPrefix) {
+				path = strings.TrimPrefix(path, gnolang.ImportPrefix+"/examples/")
+				modFile.Require = append(modFile.Require, &modfile.Require{
+					Mod: module.Version{
+						Path:    path,
+						Version: "v0.0.0", // TODO: Use latest?
+					},
+					Indirect: true,
+				})
+			}
+		}
+
+		err = modFile.FetchDeps(remote)
+		if err != nil {
+			return err
+		}
+		goMod, err := GnoToGoMod(*modFile)
+		if err != nil {
+			return err
+		}
+		err = goMod.WriteToPath(filepath.Join(gnoModPath, r.Mod.Path))
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
