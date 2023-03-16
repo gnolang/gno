@@ -56,7 +56,7 @@ The gno repository is primarily based on Golang (Go), and Gnolang (Gno).
 
 The primary tech stack for working on the repository:
 
-- Go (version 1.18+)
+- Go (version 1.19+)
 - make (for using Makefile configurations)
 - Docker (for using the official Docker setup files)
 
@@ -147,7 +147,7 @@ If you wish to test a `.gno` Realm or Package, you can utilize the `gnodev` tool
 `gnodev test <path-to-dir> --verbose`
 
 
-To learn more about how `gnodev` can help you when developing gno code, you can look into the available 
+To learn more about how `gnodev` can help you when developing gno code, you can look into the available
 subcommands by running:
 
 `gnodev --help`
@@ -234,7 +234,7 @@ You can utilize the detailed PR template by appending the following query param 
 
 Found something funky while using gno? You can report it to the team using GitHub issues.
 
-Before opening an issue, please check for existing open and closed Issues to see if that bug/feature has already been 
+Before opening an issue, please check for existing open and closed Issues to see if that bug/feature has already been
 reported/requested. If you find a relevant topic, you can comment on that issue.
 
 In the issue, please provide as much information as possible, for example:
@@ -272,7 +272,7 @@ Commit standard, and be short and precise.
 A general rule of thumb:
 
 - Use Conventional Commits for PR titles
-- Never favor rewriting history in PRs (rebases have very few exceptions, like implementation rewrites; 
+- Never favor rewriting history in PRs (rebases have very few exceptions, like implementation rewrites;
 see [A Word on Rebasing](#a-word-on-rebasing))
 - Tend to make separate commits for logically separate changes
 
