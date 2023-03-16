@@ -34,12 +34,7 @@ func (f *File) Validate() error {
 
 // FetchDeps fetches and writes gno.mod packages
 // in GOPATH/pkg/gnomod/
-func (f *File) FetchDeps(remote string) error {
-	gnoModPath, err := GetGnoModPath()
-	if err != nil {
-		return fmt.Errorf("get gno.mod path: %w", err)
-	}
-
+func (f *File) FetchDeps(path string, remote string) error {
 	for _, r := range f.Require {
 		mod, replaced := isReplaced(r.Mod, f.Replace)
 		if replaced {
@@ -53,13 +48,13 @@ func (f *File) FetchDeps(remote string) error {
 			indirect = "// indirect"
 		}
 
-		_, err = os.Stat(filepath.Join(gnoModPath, r.Mod.Path))
+		_, err := os.Stat(filepath.Join(path, r.Mod.Path))
 		if !os.IsNotExist(err) {
 			log.Println("cached", r.Mod.Path, indirect)
 			continue
 		}
 		log.Println("fetching", r.Mod.Path, indirect)
-		requirements, err := writePackage(remote, gnoModPath, r.Mod.Path)
+		requirements, err := writePackage(remote, path, r.Mod.Path)
 		if err != nil {
 			return fmt.Errorf("writepackage: %w", err)
 		}
@@ -93,7 +88,7 @@ func (f *File) FetchDeps(remote string) error {
 			}
 		}
 
-		err = modFile.FetchDeps(remote)
+		err = modFile.FetchDeps(path, remote)
 		if err != nil {
 			return err
 		}
@@ -101,7 +96,7 @@ func (f *File) FetchDeps(remote string) error {
 		if err != nil {
 			return err
 		}
-		err = goMod.WriteToPath(filepath.Join(gnoModPath, r.Mod.Path))
+		err = goMod.WriteToPath(filepath.Join(path, r.Mod.Path))
 		if err != nil {
 			return err
 		}
