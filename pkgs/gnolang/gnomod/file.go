@@ -35,14 +35,12 @@ func (f *File) Validate() error {
 // FetchDeps fetches and writes gno.mod packages
 // in GOPATH/pkg/gnomod/
 func (f *File) FetchDeps(remote string) error {
-	var indirect string
 	gnoModPath, err := GetGnoModPath()
 	if err != nil {
 		return fmt.Errorf("get gno.mod path: %w", err)
 	}
 
 	for _, r := range f.Require {
-		indirect = ""
 		mod, replaced := isReplaced(r.Mod, f.Replace)
 		if replaced {
 			if modfile.IsDirectoryPath(mod.Path) {
@@ -50,6 +48,7 @@ func (f *File) FetchDeps(remote string) error {
 			}
 			r.Mod = *mod
 		}
+		indirect := ""
 		if r.Indirect {
 			indirect = "// indirect"
 		}
