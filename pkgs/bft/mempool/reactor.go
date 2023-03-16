@@ -44,7 +44,7 @@ type mempoolIDs struct {
 	activeIDs map[uint16]struct{} // used to check if a given peerID key is used, the value doesn't matter
 }
 
-// Reserve searches for the next unused ID and assignes it to the
+// Reserve searches for the next unused ID and assigns it to the
 // peer.
 func (ids *mempoolIDs) ReserveForPeer(peer p2p.Peer) {
 	ids.mtx.Lock()

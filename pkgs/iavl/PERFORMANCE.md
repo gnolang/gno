@@ -23,7 +23,7 @@ The rest of this document is the planned or completed actions for the above-list
 ## Cleanup
 
 Done in branch `cleanup_deps`:
-  * Fixed up dependeny management (tmlibs/db etc in glide/vendor)
+  * Fixed up dependency management (tmlibs/db etc in glide/vendor)
   * Updated Makefile (test, bench, get_deps)
   * Fixed broken code - `looper.go` and one benchmark didn't run
 

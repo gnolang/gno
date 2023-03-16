@@ -71,7 +71,7 @@ type MultiStore interface {
 }
 
 // ----------------------------------------
-// Commiter, CommitID
+// Committer, CommitID
 
 // Something that can persist to disk
 type Committer interface {
