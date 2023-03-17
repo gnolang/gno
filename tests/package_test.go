@@ -39,7 +39,6 @@ func TestPackages(t *testing.T) {
 					// already exists.
 				} else {
 					testDirs[dirPath] = filepath.Join(rootDir, dirPath)
-					pkgPaths = append(pkgPaths, dirPath)
 				}
 			}
 			return nil
