@@ -13,7 +13,11 @@ type Game struct {
 }
 
 func NewGame(player1, player2 std.Address) *Game {
-	return &Game{player1: player1, player2: player2}
+	return &Game{
+		player1:   player1,
+		player2:   player2,
+		winnerIdx: -1,
+	}
 }
 
 func (g *Game) Play(player std.Address, posX, posY int) error {
