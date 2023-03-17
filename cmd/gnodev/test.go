@@ -97,7 +97,7 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 
 	// go.mod
 	modPath := filepath.Join(tempdirRoot, "go.mod")
-	err = makeTestGoMod(modPath, gno.ImportPrefix, "1.18")
+	err = makeTestGoMod(modPath, gno.ImportPrefix, "1.19")
 	if err != nil {
 		return fmt.Errorf("write .mod file: %w", err)
 	}
