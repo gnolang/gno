@@ -161,7 +161,7 @@ func isReplaced(module module.Version, repl []*modfile.Replace) (*module.Version
 }
 
 func removeDuplicateStr(str []string) (res []string) {
-	m := make(map[string]struct{})
+	m := make(map[string]struct{}, len(str))
 	for _, s := range str {
 		if _, ok := m[s]; !ok {
 			m[s] = struct{}{}
