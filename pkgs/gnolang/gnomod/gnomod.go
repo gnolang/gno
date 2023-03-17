@@ -82,9 +82,9 @@ func GnoToGoMod(f File) (*File, error) {
 		return nil, err
 	}
 
-	if strings.HasPrefix(f.Module.Mod.Path, "gno.land/r/") ||
-		strings.HasPrefix(f.Module.Mod.Path, "gno.land/p/demo/") {
-		f.Module.Mod.Path = "github.com/gnolang/gno/examples/" + f.Module.Mod.Path
+	if strings.HasPrefix(f.Module.Mod.Path, gnolang.GnoRealmPkgsPrefixBefore) ||
+		strings.HasPrefix(f.Module.Mod.Path, gnolang.GnoPackagePrefixBefore) {
+		f.Module.Mod.Path = gnolang.ImportPrefix + "/examples/" + f.Module.Mod.Path
 	}
 
 	for i := range f.Require {
@@ -95,9 +95,9 @@ func GnoToGoMod(f File) (*File, error) {
 			}
 		}
 		path := f.Require[i].Mod.Path
-		if strings.HasPrefix(f.Require[i].Mod.Path, "gno.land/r/") ||
-			strings.HasPrefix(f.Require[i].Mod.Path, "gno.land/p/demo/") {
-			f.Require[i].Mod.Path = "github.com/gnolang/gno/examples/" + f.Require[i].Mod.Path
+		if strings.HasPrefix(f.Require[i].Mod.Path, gnolang.GnoRealmPkgsPrefixBefore) ||
+			strings.HasPrefix(f.Require[i].Mod.Path, gnolang.GnoPackagePrefixBefore) {
+			f.Require[i].Mod.Path = gnolang.ImportPrefix + "/examples/" + f.Require[i].Mod.Path
 		}
 
 		f.Replace = append(f.Replace, &modfile.Replace{

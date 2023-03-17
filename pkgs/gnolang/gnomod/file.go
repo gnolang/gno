@@ -72,7 +72,7 @@ func (f *File) FetchDeps(path string, remote string) error {
 				continue
 			}
 			// skip if `std`, special case.
-			if path == "github.com/gnolang/gno/stdlibs/stdshim" {
+			if path == gnolang.GnoStdPkgAfter {
 				continue
 			}
 
