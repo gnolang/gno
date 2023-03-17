@@ -41,6 +41,30 @@ func (g *Game) Play(player std.Address, posX, posY int) error {
 	g.board[idx] = playerVal
 
 	// check if win
+	{
+		a := g.at(posX, 0)
+		b := g.at(posX, 1)
+		c := g.at(posX, 2)
+		if a == b && b == c {
+			g.winnerIdx = g.turnIdx
+		}
+	}
+	{
+		a := g.at(0, posY)
+		b := g.at(1, posY)
+		c := g.at(2, posY)
+		if a == b && b == c {
+			g.winnerIdx = g.turnIdx
+		}
+	}
+	{
+		a := g.at(0, 0)
+		b := g.at(1, 1)
+		c := g.at(2, 2)
+		if a == b && b == c {
+			g.winnerIdx = g.turnIdx
+		}
+	}
 
 	// change turn
 	g.turnIdx = (g.turnIdx + 1) % 2
@@ -51,9 +75,10 @@ func xyToIdx(x, y int) int {
 	return x*3 + y
 }
 
-func (g *Game) Winner() std.Address { return g.playerByIndex(g.winnerIdx) }
-func (g *Game) IsOver() bool        { return g.Winner() != std.Address("") }
-func (g Game) Turn() std.Address    { return g.playerByIndex(g.turnIdx) }
+func (g Game) at(posX, posY int) rune { return g.board[xyToIdx(posX, posY)] }
+func (g Game) Winner() std.Address    { return g.playerByIndex(g.winnerIdx) }
+func (g Game) IsOver() bool           { return g.Winner() != std.Address("") }
+func (g Game) Turn() std.Address      { return g.playerByIndex(g.turnIdx) }
 
 func (g Game) Output() string {
 	panic("not implemented")
