@@ -44,14 +44,14 @@ type pkgPrinter struct {
 	err error
 }
 
-func (p *pkgPrinter) isExported(name string) bool {
+func (pkg *pkgPrinter) isExported(name string) bool {
 	// cmd/doc uses a global here, so we change this to be a method.
-	return p.opt.unexported || token.IsExported(name)
+	return pkg.opt.unexported || token.IsExported(name)
 }
 
-func (p *pkgPrinter) ToText(w io.Writer, text, prefix, codePrefix string) {
-	d := p.doc.Parser().Parse(text)
-	pr := p.doc.Printer()
+func (pkg *pkgPrinter) ToText(w io.Writer, text, prefix, codePrefix string) {
+	d := pkg.doc.Parser().Parse(text)
+	pr := pkg.doc.Printer()
 	pr.TextPrefix = prefix
 	pr.TextCodePrefix = codePrefix
 	w.Write(pr.Text(d))
@@ -301,7 +301,7 @@ func (pkg *pkgPrinter) formatTypeParams(list *ast.FieldList, depth int) string {
 	if list.NumFields() == 0 {
 		return ""
 	}
-	var tparams []string
+	tparams := make([]string, 0, len(list.List))
 	for _, field := range list.List {
 		tparams = append(tparams, pkg.oneLineField(field, depth))
 	}
@@ -310,7 +310,7 @@ func (pkg *pkgPrinter) formatTypeParams(list *ast.FieldList, depth int) string {
 
 // oneLineField returns a one-line summary of the field.
 func (pkg *pkgPrinter) oneLineField(field *ast.Field, depth int) string {
-	var names []string
+	names := make([]string, 0, len(field.Names))
 	for _, name := range field.Names {
 		names = append(names, name.Name)
 	}

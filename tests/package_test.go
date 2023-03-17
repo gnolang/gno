@@ -39,6 +39,7 @@ func TestPackages(t *testing.T) {
 					// already exists.
 				} else {
 					testDirs[dirPath] = filepath.Join(rootDir, dirPath)
+					pkgPaths = append(pkgPaths, dirPath)
 				}
 			}
 			return nil
@@ -46,7 +47,6 @@ func TestPackages(t *testing.T) {
 	}
 	// Sort pkgPaths for determinism.
 	sort.Strings(pkgPaths)
-	t.Log(pkgPaths)
 	// For each package with testfiles (in testDirs), call Machine.TestMemPackage.
 	for _, pkgPath := range pkgPaths {
 		testDir := testDirs[pkgPath]
