@@ -75,6 +75,8 @@ func makeApp() gotuna.App {
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}/{filename:(?:.*\\.(?:gno|md|txt)$)?}", handlerRealmFile(app))
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}", handlerRealmMain(app))
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}:{querystr:.*}", handlerRealmRender(app))
+	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*/[a-z][a-z0-9_]*}/{subrlmname:[a-z][a-z0-9_]*}", handlerRealmMain(app))
+	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*/[a-z][a-z0-9_]*}/{subrlmname:[a-z][a-z0-9_]*}:{querystr:[a-z][a-z0-9_]*}", handlerRealmRender(app))
 	app.Router.Handle("/p/{filepath:.*}", handlerPackageFile(app))
 	app.Router.Handle("/static/{path:.+}", handlerStaticFile(app))
 	app.Router.Handle("/favicon.ico", handlerFavicon(app))
@@ -203,7 +205,11 @@ func handlerRealmMain(app gotuna.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		rlmname := vars["rlmname"]
+		subrlmname := vars["subrlmname"]
 		rlmpath := "gno.land/r/" + rlmname
+		if subrlmname != "" {
+			rlmpath = "gno.land/r/" + rlmname + "/" + subrlmname
+		}
 		query := r.URL.Query()
 		if query.Has("help") {
 			// Render function helper.
@@ -264,7 +270,11 @@ func handlerRealmRender(app gotuna.App) http.Handler {
 func handleRealmRender(app gotuna.App, w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	rlmname := vars["rlmname"]
+	subrlmname := vars["subrlmname"]
 	rlmpath := "gno.land/r/" + rlmname
+	if subrlmname != "" {
+		rlmpath = "gno.land/r/" + rlmname + "/" + subrlmname
+	}
 	querystr := vars["querystr"]
 	if r.URL.Path == "/r/"+rlmname+":" {
 		// Redirect to /r/REALM if querypath is empty.
