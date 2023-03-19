@@ -291,7 +291,13 @@ func gnoTestPkg(
 			}
 
 			testFilePath := filepath.Join(pkgPath, testFileName)
-			err := tests.RunFileTest(rootDir, testFilePath, tests.WithSyncWanted(cfg.updateGoldenTests))
+			var fLogger func(args ...interface{}) = nil // note: tests.loggerFunc is not exported...
+			if verbose {
+				fLogger = func(args ...interface{}) {
+					io.ErrPrintfln("%v", args...)
+				}
+			}
+			err := tests.RunFileTest(rootDir, testFilePath, tests.WithSyncWanted(cfg.updateGoldenTests), tests.WithLoggerFunc(fLogger))
 			duration := time.Since(startedAt)
 			dstr := fmtDuration(duration)
 
