@@ -90,7 +90,12 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					// print stack if unexpected error.
 					pnc = r
 					if errWanted == "" {
-						rtdb.PrintStack()
+						fmt.Printf("Got panic: %s\n", r)
+						// no -verbose here, let's use f.logger()
+						// to show stack when -verbose used from cmd
+						if f.logger != nil {
+							f.logger(string(rtdb.Stack()))
+						}
 					}
 					err := strings.TrimSpace(fmt.Sprintf("%v", pnc))
 					if !strings.Contains(err, errWanted) {
