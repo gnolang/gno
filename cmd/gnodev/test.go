@@ -306,9 +306,7 @@ func gnoTestPkg(
 					fmt.Fprintln(os.Stderr, stdouterr)
 				}
 				continue
-			}
-
-			if verbose {
+			} else if verbose {
 				io.ErrPrintfln("--- PASS: %s (%s)", testName, dstr)
 			}
 		}
