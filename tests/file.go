@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gnolang/gno/pkgs/errors"
 	gno "github.com/gnolang/gno/pkgs/gnolang"
 	osm "github.com/gnolang/gno/pkgs/os"
 	"github.com/gnolang/gno/pkgs/std"
@@ -90,9 +91,9 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					// print stack if unexpected error.
 					pnc = r
 					if errWanted == "" {
-						fmt.Printf("Got panic: %s\n", r)
 						// no -verbose here, let's use f.logger()
 						// to show stack when -verbose used from cmd
+						fmt.Printf("Got panic: %v\n", r)
 						if f.logger != nil {
 							f.logger(string(rtdb.Stack()))
 						}
@@ -193,7 +194,9 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				}
 			}
 		}()
-
+		if pnc != nil {
+			return errors.New("Test failed because of panic. Use -verbose to show the call stack")
+		}
 		for _, directive := range directives {
 			switch directive {
 			case "Error":

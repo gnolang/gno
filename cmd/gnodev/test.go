@@ -18,7 +18,6 @@ import (
 	"github.com/gnolang/gno/pkgs/errors"
 	gno "github.com/gnolang/gno/pkgs/gnolang"
 	"github.com/gnolang/gno/pkgs/std"
-	"github.com/gnolang/gno/pkgs/testutils"
 	"github.com/gnolang/gno/tests"
 	"go.uber.org/multierr"
 )
@@ -285,11 +284,6 @@ func gnoTestPkg(
 				io.ErrPrintfln("=== RUN   %s", testName)
 			}
 
-			var closer func() (string, error)
-			if !verbose {
-				closer = testutils.CaptureStdoutAndStderr()
-			}
-
 			testFilePath := filepath.Join(pkgPath, testFileName)
 			err := tests.RunFileTest(rootDir, testFilePath, tests.WithSyncWanted(cfg.updateGoldenTests))
 			duration := time.Since(startedAt)
@@ -298,13 +292,6 @@ func gnoTestPkg(
 			if err != nil {
 				errs = multierr.Append(errs, err)
 				io.ErrPrintfln("--- FAIL: %s (%s)", testName, dstr)
-				if verbose {
-					stdouterr, err := closer()
-					if err != nil {
-						panic(err)
-					}
-					fmt.Fprintln(os.Stderr, stdouterr)
-				}
 				continue
 			} else if verbose {
 				io.ErrPrintfln("--- PASS: %s (%s)", testName, dstr)
