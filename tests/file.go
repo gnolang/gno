@@ -191,7 +191,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 			}
 		}()
 		if pnc != nil {
-			return errors.New("Test failed because of panic. Use -verbose to show the call stack")
+			return errors.New("Test failed because of panic.")
 		}
 		for _, directive := range directives {
 			switch directive {
