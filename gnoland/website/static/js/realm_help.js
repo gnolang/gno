@@ -55,12 +55,13 @@ function updateCommand(x) {
     "-pkgpath", shq(realmPath), "-func", shq(funcName),
     "-gas-fee", "1000000ugnot", "-gas-wanted", "2000000",
     "-send", shq(""),
-    "-broadcast", "-chainid", shq(chainid), myAddr];
+    "-broadcast", "-chainid", shq(chainid)];
   vals.forEach(function(arg) {
     args.push("-args");
     args.push(shq(arg));
   });
   args.push("-remote", shq(remote));
+  args.push(myAddr);
   var command = args.join(" ");
   shell.append(u("<span>").text(command)).append(u("<br>")).append(u("<br>"));
 
@@ -68,7 +69,7 @@ function updateCommand(x) {
   shell.append(u("<span>").text("### FULL SECURITY WITH AIRGAP ###")).append(u("<br>"));
 
   // command 0: query account info.
-  var args = ["gnokey", "query", "auth/accounts/" + myAddr, "-remote", shq(remote)];
+  var args = ["gnokey", "query", "-remote", shq(remote), "auth/accounts/" + myAddr];
   var command = args.join(" ");
   shell.append(u("<span>").text(command)).append(u("<br>"));
 
@@ -76,11 +77,12 @@ function updateCommand(x) {
   var args = ["gnokey", "maketx", "call",
     "-pkgpath", shq(realmPath), "-func", shq(funcName),
     "-gas-fee", "1000000ugnot", "-gas-wanted", "2000000",
-    "-send", shq(""), myAddr];
+    "-send", shq("")];
   vals.forEach(function(arg) {
     args.push("-args");
     args.push(shq(arg));
   });
+  args.push(myAddr)
   var command = args.join(" ");
   command = command + " > unsigned.tx";
   shell.append(u("<span>").text(command)).append(u("<br>"));
@@ -95,7 +97,7 @@ function updateCommand(x) {
   shell.append(u("<span>").text(command)).append(u("<br>"));
 
   // command 3: broadcast tx.
-  var args = ["gnokey", "broadcast", "signed.tx", "-remote", shq(remote)];
+  var args = ["gnokey", "broadcast", "-remote", shq(remote), "signed.tx"];
   var command = args.join(" ");
   command = command;
   shell.append(u("<span>").text(command)).append(u("<br>"));
