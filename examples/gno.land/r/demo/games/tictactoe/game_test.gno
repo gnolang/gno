@@ -1,6 +1,7 @@
 package tictactoe
 
 import (
+	"strings"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -36,6 +37,23 @@ func TestGame(t *testing.T) {
 	assertNoErr(t, game.Play(addr2, 1, 0)) // fifth move (win)
 	assertTrue(t, game.IsOver())
 	assertFalse(t, game.IsDraw())
+
+	expected := `
+XO-
+XO-
+-O-
+`
+	got := game.Output()
+	assertEqualString(t, expected, got)
+}
+
+func assertEqualString(t *testing.T, expected, got string) {
+	t.Helper()
+	expected = strings.TrimSpace(expected)
+	got = strings.TrimSpace(got)
+	if expected != got {
+		t.Errorf("expected %q, got %q", expected, got)
+	}
 }
 
 func assertNoErr(t *testing.T, err error) {
