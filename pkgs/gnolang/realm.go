@@ -90,7 +90,7 @@ type Realm struct {
 
 	newCreated []Object
 	newEscaped []Object
-	newDeleted []Object
+	newDeleted chan Object
 
 	created []Object // about to become real.
 	updated []Object // real objects that were modified.
@@ -167,8 +167,9 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		}
 	}
 	if xo != nil {
-		xo.DecRefCount()
-		if xo.GetRefCount() == 0 {
+		refCnt := xo.DecRefCount()
+
+		if refCnt == 0 {
 			if xo.GetIsReal() {
 				rlm.MarkNewDeleted(xo)
 			}
@@ -243,11 +244,8 @@ func (rlm *Realm) MarkNewDeleted(oo Object) {
 		return // already marked.
 	}
 	oo.SetIsNewDeleted(true)
-	// append to .newDeleted
-	if rlm.newDeleted == nil {
-		rlm.newDeleted = make([]Object, 0, 256)
-	}
-	rlm.newDeleted = append(rlm.newDeleted, oo)
+	// send to the wood chipper
+	rlm.newDeleted <- oo
 }
 
 func (rlm *Realm) MarkNewEscaped(oo Object) {
@@ -282,7 +280,6 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 		if true ||
 			len(rlm.newCreated) > 0 ||
 			len(rlm.newEscaped) > 0 ||
-			len(rlm.newDeleted) > 0 ||
 			len(rlm.created) > 0 ||
 			len(rlm.updated) > 0 ||
 			len(rlm.deleted) > 0 ||
@@ -298,7 +295,7 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 		// * updated - includes all real updated objects, and will be appended with ancestors
 		ensureUniq(rlm.newCreated)
 		ensureUniq(rlm.newEscaped)
-		ensureUniq(rlm.newDeleted)
+		//ensureUniq(rlm.newDeleted)
 		ensureUniq(rlm.updated)
 		if false ||
 			rlm.created != nil ||
@@ -313,7 +310,7 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 	// also assigns object ids for all.
 	rlm.processNewCreatedMarks(store)
 	// decrement recursively for deleted descendants.
-	rlm.processNewDeletedMarks(store)
+	go rlm.processNewDeletedMarks(store)
 	// at this point, all ref-counts are final.
 	// demote any escaped if ref-count is 1.
 	rlm.processNewEscapedMarks(store)
@@ -439,13 +436,14 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 //----------------------------------------
 // processNewDeletedMarks
 
+// this should be ran in a separate go routine
 // Crawls marked deleted children and decrements ref counts,
 // finding more newly deleted objects, recursively.
 // Recursively found deleted objects are appended
 // to rlm.deleted.
 // Must run *after* processNewCreatedMarks().
 func (rlm *Realm) processNewDeletedMarks(store Store) {
-	for _, oo := range rlm.newDeleted {
+	for oo := range rlm.newDeleted {
 		if debug {
 			if oo.GetObjectID().IsZero() {
 				panic("should not happen")
