@@ -115,7 +115,24 @@ func (g Game) IsOver() bool {
 }
 
 func (g Game) Output() string {
-	panic("not implemented")
+	output := ""
+
+	for y := 0; y < 3; y++ {
+		for x := 0; x < 3; x++ {
+			val := g.at(x, y)
+			switch val {
+			case 0:
+				output += "-"
+			case 1:
+				output += "O"
+			case 2:
+				output += "X"
+			}
+		}
+		output += "\n"
+	}
+
+	return output
 }
 
 func (g Game) playerByIndex(idx int) std.Address {
