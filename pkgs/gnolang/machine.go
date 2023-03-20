@@ -8,6 +8,7 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/gnolang/gno/pkgs/errors"
@@ -44,6 +45,8 @@ type Machine struct {
 	Context interface{}
 }
 
+// machine.Release() must be called on objects
+// created via this constructor
 // Machine with new package of given path.
 // Creates a new MemRealmer for any new realms.
 // Looks in store for package of pkgPath; if not found,
@@ -68,6 +71,19 @@ type MachineOptions struct {
 	Alloc         *Allocator // or see MaxAllocBytes.
 	MaxAllocBytes int64      // or 0 for no limit.
 	MaxCycles     int64      // or 0 for no limit.
+}
+
+// the machine constructor gets spammed
+// this causes a significant part of the runtime and memory
+// to be occupied by *Machine
+// hence, this pool
+var machinePool = sync.Pool{
+	New: func() interface{} {
+		return &Machine{
+			Ops:    make([]Op, 1024),
+			Values: make([]TypedValue, 1024),
+		}
+	},
 }
 
 func NewMachineWithOptions(opts MachineOptions) *Machine {
@@ -99,24 +115,25 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		}
 	}
 	context := opts.Context
-	mm := &Machine{
-		Ops:        make([]Op, 1024),
-		NumOps:     0,
-		Values:     make([]TypedValue, 1024),
-		NumValues:  0,
-		Package:    pv,
-		Alloc:      alloc,
-		CheckTypes: checkTypes,
-		ReadOnly:   readOnly,
-		MaxCycles:  maxCycles,
-		Output:     output,
-		Store:      store,
-		Context:    context,
-	}
+	mm := machinePool.Get().(*Machine)
+	mm.Package = pv
+	mm.Alloc = alloc
+	mm.CheckTypes = checkTypes
+	mm.ReadOnly = readOnly
+	mm.MaxCycles = maxCycles
+	mm.Output = output
+	mm.Store = store
+	mm.Context = context
+
 	if pv != nil {
 		mm.SetActivePackage(pv)
 	}
 	return mm
+}
+
+// should not be used after this call
+func (m *Machine) Release() {
+	machinePool.Put(m)
 }
 
 func (m *Machine) SetActivePackage(pv *PackageValue) {
