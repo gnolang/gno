@@ -80,8 +80,8 @@ type MachineOptions struct {
 var machinePool = sync.Pool{
 	New: func() interface{} {
 		return &Machine{
-			Ops:    make([]Op, 1024),
-			Values: make([]TypedValue, 1024),
+			Ops:    make([]Op, OpSize),
+			Values: make([]TypedValue, ValueSize),
 		}
 	},
 }
@@ -131,17 +131,25 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	return mm
 }
 
+const OpSize = 1024
+const ValueSize = 1024
+
+var opZeroed [OpSize]Op
+var valueZeroed [ValueSize]TypedValue
+
 // m should not be used after this call
 // if m is nil, this will panic
 // this is on purpose, to discourage misuse
 // and prevent objects that were not taken from
 // the pool, to call Release
 func (m *Machine) Release() {
+	//copy()
 	// here we zero in the values for the next user
 	m.NumOps = 0
 	m.NumValues = 0
-	m.Ops = m.Ops[:0]
-	m.Values = m.Values[:0]
+	// this is the fastest way to zero-in a slice in Go
+	copy(m.Ops, opZeroed[:0])
+	copy(m.Values, valueZeroed[:0])
 
 	machinePool.Put(m)
 }
