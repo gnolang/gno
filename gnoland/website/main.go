@@ -61,9 +61,10 @@ func init() {
 
 func makeApp() gotuna.App {
 	app := gotuna.App{
-		ViewFiles: os.DirFS(flags.viewsDir),
-		Router:    gotuna.NewMuxRouter(),
-		Static:    static.EmbeddedStatic,
+		ViewFiles:   os.DirFS(flags.viewsDir),
+		ViewHelpers: helpers,
+		Router:      gotuna.NewMuxRouter(),
+		Static:      static.EmbeddedStatic,
 		// StaticPrefix: "static/",
 	}
 	app.Router.Handle("/", handlerHome(app))
@@ -446,3 +447,12 @@ func pathOf(diruri string) string {
 		panic(fmt.Sprintf("invalid dir-URI %q", diruri))
 	}
 }
+
+var helpers = []gotuna.ViewHelperFunc{
+	func(w http.ResponseWriter, r *http.Request) (string, interface{}) {
+		return "needsToShowAsTextarea", func(fieldName string) bool {
+			return strings.HasPrefix(fieldName, "body")
+		}
+	},
+}
+
