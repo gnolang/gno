@@ -455,4 +455,3 @@ var helpers = []gotuna.ViewHelperFunc{
 		}
 	},
 }
-
