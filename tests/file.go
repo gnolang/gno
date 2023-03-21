@@ -19,7 +19,7 @@ import (
 	"github.com/gnolang/gno/stdlibs"
 )
 
-type loggerFunc func(args ...interface{})
+type LoggerFunc func(args ...interface{})
 
 func TestMachine(store gno.Store, stdout io.Writer, pkgPath string) *gno.Machine {
 	// default values
@@ -60,7 +60,7 @@ func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAll
 
 type runFileTestOptions struct {
 	nativeLibs bool
-	logger     loggerFunc
+	logger     LoggerFunc
 	syncWanted bool
 }
 

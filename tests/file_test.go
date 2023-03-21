@@ -90,7 +90,7 @@ func runFileTest(t *testing.T, path string, opts ...RunFileTestOption) {
 
 	opts = append([]RunFileTestOption{WithSyncWanted(*withSync)}, opts...)
 
-	var logger loggerFunc
+	var logger LoggerFunc
 	if gno.IsDebug() && testing.Verbose() {
 		logger = t.Log
 	}
