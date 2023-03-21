@@ -69,7 +69,7 @@ func Render(path string) string {
 	output += ufmt.Sprintf("Admin: %s\n\n ", gAdminAddr.String())
 	output += ufmt.Sprintf("Controllers:\n\n ")
 
-	for i := 0; i < gControllersSize; i++ {
+	for i := 0; i < gControllers.Size(); i++ {
 		_, v := gControllers.GetByIndex(i)
 		output += ufmt.Sprintf("%s  ", v.(std.Address))
 	}
