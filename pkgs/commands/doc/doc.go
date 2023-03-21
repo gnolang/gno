@@ -6,7 +6,6 @@
 package doc
 
 import (
-	"bytes"
 	"fmt"
 	"go/ast"
 	"go/doc"
@@ -50,9 +49,15 @@ func WithShort(b bool) DocumentOption {
 	return func(s *documentOptions) { s.short = b }
 }
 
+// WithWriter uses the given writer as an output.
+// By default, os.Stdout is used.
+func WithWriter(w io.Writer) DocumentOption {
+	return func(s *documentOptions) { s.w = w }
+}
+
 // Documentable is a package, symbol, or accessible which can be documented.
 type Documentable interface {
-	Document(...DocumentOption) (string, error)
+	Document(...DocumentOption) error
 }
 
 type documentable struct {
@@ -62,26 +67,28 @@ type documentable struct {
 	pkgData    *pkgData
 }
 
-func (d *documentable) Document(opts ...DocumentOption) (string, error) {
-	buf := new(bytes.Buffer)
-	o := &documentOptions{w: buf}
+func (d *documentable) Document(opts ...DocumentOption) error {
+	o := &documentOptions{w: os.Stdout}
 	for _, opt := range opts {
 		opt(o)
 	}
 
 	var err error
+	// pkgData may already be initialised if we already had to look to see
+	// if it had the symbol we wanted; otherwise initialise it now.
 	if d.pkgData == nil {
 		d.pkgData, err = newPkgData(d.Dir, o.unexported)
 		if err != nil {
-			return "", err
+			return err
 		}
 	}
 
 	astpkg, pkg, err := d.pkgData.docPackage(o)
 	if err != nil {
-		return "", err
+		return err
 	}
 
+	// copied from go source - map vars, constants and constructors to their respective types.
 	typedValue := make(map[*doc.Value]bool)
 	constructor := make(map[*doc.Func]bool)
 	for _, typ := range pkg.Types {
@@ -116,8 +123,7 @@ func (d *documentable) Document(opts ...DocumentOption) (string, error) {
 	}
 	pp.buf.pkg = pp
 
-	err = d.output(pp)
-	return buf.String(), err
+	return d.output(pp)
 }
 
 func (d *documentable) output(pp *pkgPrinter) (err error) {
