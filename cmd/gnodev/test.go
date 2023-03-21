@@ -291,7 +291,7 @@ func gnoTestPkg(
 			}
 
 			testFilePath := filepath.Join(pkgPath, testFileName)
-			var fLogger func(args ...interface{})
+			var fLogger tests.LoggerFunc
 			if verbose {
 				fLogger = func(args ...interface{}) {
 					io.ErrPrintfln("%v", args...)

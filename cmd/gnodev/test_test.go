@@ -71,9 +71,9 @@ func TestTest(t *testing.T) {
 			recoverShouldBe:     "fail on ../../tests/integ/failing2/failing_filetest.gno: got unexpected error: beep boop",
 			stderrShouldContain: "== RUN   file/failing_filetest.gno",
 		}, {
-			args:            []string{"test", "--verbose", "--precompile", "../../tests/integ/failing2"},
-			stderrShouldBe:  "=== PREC  ./../../tests/integ/failing2\n=== BUILD ./../../tests/integ/failing2\n=== RUN   file/failing_filetest.gno\n",
-			recoverShouldBe: "fail on ../../tests/integ/failing2/failing_filetest.gno: got unexpected error: beep boop",
+			args:                []string{"test", "--verbose", "--precompile", "../../tests/integ/failing2"},
+			stderrShouldContain: "=== PREC  ./../../tests/integ/failing2\n=== BUILD ./../../tests/integ/failing2\n=== RUN   file/failing_filetest.gno\n",
+			recoverShouldBe:     "fail on ../../tests/integ/failing2/failing_filetest.gno: got unexpected error: beep boop",
 		}, {
 			args:                []string{"test", "../../examples/gno.land/p/demo/ufmt"},
 			stdoutShouldContain: "RUN   TestSprintf",
