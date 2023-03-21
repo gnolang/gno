@@ -8,7 +8,7 @@ import (
 type Game struct {
 	player1, player2 std.Address
 	board            [9]rune // 0=empty, 1=player1, 2=player2
-	turnIdx          int
+	turnCtr          int
 	winnerIdx        int
 }
 
@@ -21,11 +21,24 @@ func NewGame(player1, player2 std.Address) (*Game, error) {
 		player1:   player1,
 		player2:   player2,
 		winnerIdx: -1,
+		turnCtr:   -1,
 	}
 	return &g, nil
 }
 
+// start sets turnCtr to 0.
+func (g *Game) start() {
+	if g.turnCtr != -1 {
+		panic("game already started")
+	}
+	g.turnCtr = 0
+}
+
 func (g *Game) Play(player std.Address, posX, posY int) error {
+	if !g.Started() {
+		return errors.New("game not started")
+	}
+
 	if g.Turn() != player {
 		return errors.New("invalid turn")
 	}
@@ -46,16 +59,16 @@ func (g *Game) Play(player std.Address, posX, posY int) error {
 	}
 
 	// play
-	playerVal := rune(g.turnIdx%2) + 1 // player1=1, player2=2
+	playerVal := rune(g.turnCtr%2) + 1 // player1=1, player2=2
 	g.board[idx] = playerVal
 
 	// check if win
 	if g.checkLastMoveWon(posX, posY) {
-		g.winnerIdx = g.turnIdx
+		g.winnerIdx = g.turnCtr
 	}
 
 	// change turn
-	g.turnIdx++
+	g.turnCtr++
 	return nil
 }
 
@@ -101,12 +114,13 @@ func (g Game) checkLastMoveWon(posX, posY int) bool {
 
 func (g Game) at(posX, posY int) rune { return g.board[xyToIdx(posX, posY)] }
 func (g Game) Winner() std.Address    { return g.playerByIndex(g.winnerIdx) }
-func (g Game) Turn() std.Address      { return g.playerByIndex(g.turnIdx) }
-func (g Game) IsDraw() bool           { return g.turnIdx >= 8 && g.winnerIdx == 0 }
+func (g Game) Turn() std.Address      { return g.playerByIndex(g.turnCtr) }
+func (g Game) IsDraw() bool           { return g.turnCtr >= 8 && g.winnerIdx == 0 }
+func (g Game) Started() bool          { return g.turnCtr >= 0 }
 
 func (g Game) IsOver() bool {
 	// draw
-	if g.turnIdx >= 8 {
+	if g.turnCtr >= 8 {
 		return true
 	}
 
