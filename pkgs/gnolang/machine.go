@@ -131,8 +131,18 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	return mm
 }
 
-// should not be used after this call
+// m should not be used after this call
+// if m is nil, this will panic
+// this is on purpose, to discourage misuse
+// and prevent objects that were not taken from
+// the pool, to call Release
 func (m *Machine) Release() {
+	// here we zero in the values for the next user
+	m.NumOps = 0
+	m.NumValues = 0
+	m.Ops = m.Ops[:0]
+	m.Values = m.Values[:0]
+
 	machinePool.Put(m)
 }
 
