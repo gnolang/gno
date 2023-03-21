@@ -75,7 +75,11 @@
 <tr>
   <th class="func_param_name">{{ .Name }}</th>
   <td class="func_param_value">
+    {{ if needsToShowAsTextarea .Name }}
+    <textarea name={{ .Name }}></textarea>
+    {{ else }}
     <input type="text" value="{{ .Value }}" />
+    {{ end }}
   </td>
   <td class="func_param_type">{{ .Type }}</td>
 </tr>
