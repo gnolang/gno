@@ -61,7 +61,7 @@ func execDoc(cfg *docCfg, args []string, io *commands.IO) error {
 	if cfg.rootDir == "" {
 		cfg.rootDir = guessRootDir()
 	}
-	dirs := doc.NewDirs(filepath.Join(cfg.rootDir, "stdlibs"))
+	dirs := doc.NewDirs(filepath.Join(cfg.rootDir, "stdlibs"), filepath.Join(cfg.rootDir, "examples"))
 	res, err := doc.ResolveDocumentable(dirs, args, cfg.unexported)
 	switch {
 	case res == nil:

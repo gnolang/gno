@@ -12,6 +12,8 @@ import (
 	"go/doc"
 	"go/token"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"go.uber.org/multierr"
@@ -164,10 +166,18 @@ func ResolveDocumentable(dirs *Dirs, args []string, unexported bool) (Documentab
 	// if we have a candidate package name, search dirs for a dir that matches it.
 	// prefer directories whose import path match precisely the package
 	if parsed[0].typ&argPkg > 0 {
-		if strings.Contains(parsed[0].val, ".") {
-			panic("local packages not yet supported")
+		if s, err := os.Stat(parsed[0].val); err == nil && s.IsDir() {
+			// expand to full path
+			absVal, err := filepath.Abs(parsed[0].val)
+			if err == nil {
+				candidates = dirs.findDir(absVal)
+			}
 		}
-		candidates = dirs.findPackage(parsed[0].val)
+		// first arg is either not a dir, or if it matched a local dir it was not
+		// valid (ie. not scanned by dirs). try parsing as a package
+		if len(candidates) == 0 {
+			candidates = dirs.findPackage(parsed[0].val)
+		}
 		// easy case: we wanted documentation about a package, and we found one!
 		if len(parsed) == 1 && len(candidates) > 0 {
 			return &documentable{Dir: candidates[0]}, nil
@@ -177,7 +187,7 @@ func ResolveDocumentable(dirs *Dirs, args []string, unexported bool) (Documentab
 			// if this can be something other than a package, remove argPkg as an
 			// option, otherwise return not found.
 			if parsed[0].typ == argPkg {
-				return nil, fmt.Errorf("commands/doc: package not found: %q", parsed[0].val)
+				return nil, fmt.Errorf("commands/doc: package not found: %q (note: local packages are not yet supported)", parsed[0].val)
 			}
 			parsed[0].typ &= ^argPkg
 		} else {
@@ -191,7 +201,13 @@ func ResolveDocumentable(dirs *Dirs, args []string, unexported bool) (Documentab
 	// search for the symbol through the candidates
 	if len(candidates) == 0 {
 		// no candidates means local directory here
-		panic("local packages not yet supported")
+		wd, err := os.Getwd()
+		if err == nil {
+			candidates = dirs.findDir(wd)
+		}
+		if len(candidates) == 0 {
+			return nil, fmt.Errorf("commands/doc: local packages not yet supported")
+		}
 	}
 
 	doc := &documentable{}
@@ -249,7 +265,7 @@ func ResolveDocumentable(dirs *Dirs, args []string, unexported bool) (Documentab
 		}
 	}
 	return nil, multierr.Append(
-		fmt.Errorf("commands/doc: could not resolve arguments: %v", args),
+		fmt.Errorf("commands/doc: could not resolve arguments: %v", parsed),
 		multierr.Combine(errs...),
 	)
 }
@@ -270,6 +286,32 @@ const (
 type argPart struct {
 	val string
 	typ byte
+}
+
+func (a argPart) String() string {
+	var b strings.Builder
+	if a.typ&argPkg != 0 {
+		b.WriteString("pkg")
+	}
+	if a.typ&argSym != 0 {
+		if b.Len() != 0 {
+			b.WriteByte('|')
+		}
+		b.WriteString("sym")
+	}
+	if a.typ&argAcc != 0 {
+		if b.Len() != 0 {
+			b.WriteByte('|')
+		}
+		b.WriteString("acc")
+	}
+	if b.Len() == 0 {
+		b.WriteString("inv:")
+	} else {
+		b.WriteByte(':')
+	}
+	b.WriteString(a.val)
+	return b.String()
 }
 
 func parseArgParts(args []string) []argPart {
@@ -298,15 +340,15 @@ func parseArgParts(args []string) []argPart {
 		switch strings.Count(args[0][slash+1:], ".") {
 		case 0:
 			t := argPkg | argSym | argAcc
-			if strings.IndexByte(args[0], '/') != -1 {
+			if slash != -1 {
 				t = argPkg
 			}
 			parsed = append(parsed, argPart{args[0], t})
 		case 1:
-			pos := strings.IndexByte(args[0], '.')
+			pos := strings.IndexByte(args[0][slash+1:], '.') + slash + 1
 			// pkg.sym, pkg.acc, sym.acc
 			t1, t2 := argPkg|argSym, argSym|argAcc
-			if strings.IndexByte(args[0][:pos], '/') != -1 {
+			if slash != -1 {
 				t1 = argPkg
 			} else if token.IsExported(args[0]) {
 				// See rationale here:
@@ -319,9 +361,9 @@ func parseArgParts(args []string) []argPart {
 			)
 		case 2:
 			// pkg.sym.acc
-			parts := strings.Split(args[0], ".")
+			parts := strings.Split(args[0][slash+1:], ".")
 			parsed = append(parsed,
-				argPart{parts[0], argPkg},
+				argPart{args[0][:slash+1] + parts[0], argPkg},
 				argPart{parts[1], argSym},
 				argPart{parts[2], argAcc},
 			)

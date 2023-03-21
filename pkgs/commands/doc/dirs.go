@@ -30,12 +30,12 @@ type Dirs struct {
 }
 
 // NewDirs begins scanning the given stdlibs directory.
-func NewDirs(stdlibsDir string) *Dirs {
+func NewDirs(dirs ...string) *Dirs {
 	d := &Dirs{
 		hist: make([]Dir, 0, 256),
 		scan: make(chan Dir),
 	}
-	go d.walk([]string{stdlibsDir})
+	go d.walk(dirs)
 	return d
 }
 
@@ -150,4 +150,16 @@ func (d *Dirs) findPackage(name string) []Dir {
 		return candidates[i].importPath < candidates[j].importPath
 	})
 	return candidates
+}
+
+// findDir determines if the given absdir is present in the Dirs.
+// If not, the nil slice is returned. It returns always at most one dir.
+func (d *Dirs) findDir(absdir string) []Dir {
+	d.Reset()
+	for dir, ok := d.Next(); ok; dir, ok = d.Next() {
+		if dir.dir == absdir {
+			return []Dir{dir}
+		}
+	}
+	return nil
 }
