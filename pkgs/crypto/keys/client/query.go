@@ -33,7 +33,7 @@ func newQueryCmd(rootCfg *baseCfg) *commands.Command {
 			ShortUsage: "query [flags] <path>",
 			ShortHelp:  "Makes an ABCI query",
 		},
-		nil,
+		cfg,
 		func(_ context.Context, args []string) error {
 			return execQuery(cfg, args)
 		},
