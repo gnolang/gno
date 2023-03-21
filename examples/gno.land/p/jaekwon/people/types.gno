@@ -5,7 +5,11 @@ import (
 	"gno.land/p/avl"
 )
 
-type PersonID string
+type PersonID uint64
+
+func (pid PersonID) String() string {
+	return "p:"+ObjectID(pid).String()
+}
 
 type PersonType int  // not used yet.
 

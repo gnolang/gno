@@ -2,9 +2,6 @@ package works
 
 import "std"
 
-// TODO: String ID, StringID() string is maybe inferior to
-// ensuring that ObjectiveID etc are a priori unique via hashing.
-
 //----------------------------------------
 // Objective
 
@@ -12,13 +9,13 @@ import "std"
 type ObjectiveID string 
 
 type Objective struct {
-	ObjectiveID
-	CreatedAt time.Time
-	Components avl.Tree
-	Parent *Objective
-	Description string 
-	Contracts avl.Tree // ContractID -> Contract ??? competing contracts implementing objective.
-	Related avl.Tree // string ID -> interface{} ??? all other related objects.
+	id ObjectiveID
+	createdAt time.Time
+	components avl.Tree
+	parent *Objective
+	description string 
+	contracts avl.Tree // ContractID -> Contract ??? competing contracts implementing objective.
+	related avl.Tree // string ID -> interface{} ??? all other related objects.
 }
 
 // TODO Similar to Treasury, objectives spawn new components?
@@ -26,7 +23,14 @@ type Objective struct {
 //----------------------------------------
 // Treasury
 
+type TreasuryID ObjectID
+
+type (tid TreasuryID) String() string {
+	return "t:"+ObjectID(tid).String()
+}
+
 type Treasury struct {
+	id TreasuryID
 	total std.Coins // total for all accounts including all accounts.
 	balance std.Coins // account for this treasury. 0 <= balance <= total.
 	accounts avl.Tree // initially empty.
@@ -55,15 +59,16 @@ func (tr *Treasury) VerifyTotal() error {
 // Contract
 // Represents a contract with objectives 
 
-type ContractID string
+type ContractID ObjectID
 
-type (cid ContractID) StringID() string {
-	return "contract:"+cid
+type (cid ContractID) String() string {
+	return "c:"+ObjectID(cid).String()
 }
 
 type Contract struct {
-	CreatedAt time.Time
-	Objectives []*Objective // XXX can refer to external objectives?
+	id ContractID
+	createdAt time.Time
+	objectives []*Objective // XXX can refer to external objectives?
 	// XXX
 	// signers?
 	// signed?
@@ -74,16 +79,20 @@ type Contract struct {
 //----------------------------------------
 // Workgroup
 
-type WorkgroupID string
+type WorkgroupID ObjectID
+
+type (wid WorkgroupID) String() string {
+	return "w:"+ObjectID(wid).String()
+}
 
 type Workgroup struct {
-	WorkgroupID
-	CreatedAt time.Time
-	Objectives []*Objective
-	Treasury
-	Bylaws
-	// Forums
-	// Data
+	id WorkgroupID
+	createdAt time.Time
+	objectives []*Objective
+	treasury Treasury
+	bylaws Bylaws
+	// forum Forum
+	// data Data
 }
 
 type Bylaws struct {
