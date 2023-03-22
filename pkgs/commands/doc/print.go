@@ -937,13 +937,16 @@ func (pkg *pkgPrinter) fieldDoc(symbol, field string) bool {
 	return pkg.printFieldDoc(symbol, field)
 }
 
-// match reports whether the user's symbol matches the program's.
-// A lower-case character in the user's string matches either case in the program's.
-// The program string must be exported.
 func (pkg *pkgPrinter) match(user, program string) bool {
 	if !pkg.isExported(program) {
 		return false
 	}
+	return symbolMatch(user, program)
+}
+
+// match reports whether the user's symbol matches the program's.
+// A lower-case character in the user's string matches either case in the program's.
+func symbolMatch(user, program string) bool {
 	/* TODO: might be useful to add for tooling.
 	if matchCase {
 		return user == program

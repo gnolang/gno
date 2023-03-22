@@ -1,6 +1,7 @@
 package doc
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -39,8 +40,8 @@ func TestResolveDocumentable(t *testing.T) {
 			[]string{"crypto/rand.Flag"}, false,
 			&documentable{Dir: getDir("crypto/rand"), symbol: "Flag", pkgData: pdata("crypto/rand", false)}, ""},
 		{"normalAccessible",
-			[]string{"crypto/rand.Name"}, false,
-			&documentable{Dir: getDir("crypto/rand"), symbol: "Name", pkgData: pdata("crypto/rand", false)}, ""},
+			[]string{"crypto/rand.Generate"}, false,
+			&documentable{Dir: getDir("crypto/rand"), symbol: "Generate", pkgData: pdata("crypto/rand", false)}, ""},
 		{"normalSymbolUnexp",
 			[]string{"crypto/rand.unexp"}, true,
 			&documentable{Dir: getDir("crypto/rand"), symbol: "unexp", pkgData: pdata("crypto/rand", true)}, ""},
@@ -83,7 +84,7 @@ func TestResolveDocumentable(t *testing.T) {
 				defer func() { fpAbs = filepath.Abs }()
 			}
 			result, err := ResolveDocumentable(dirs, tc.args, tc.unexp)
-			// we use stripFset because d.pkgData.fset contians sync/atomic values,
+			// we use stripFset because d.pkgData.fset contains sync/atomic values,
 			// which in turn makes reflect.DeepEqual compare the two sync.Atomic values.
 			assert.Equal(t, stripFset(tc.expect), stripFset(result), "documentables should match")
 			if tc.errContains == "" {
@@ -100,6 +101,58 @@ func stripFset(p Documentable) Documentable {
 		d.pkgData.fset = nil
 	}
 	return p
+}
+
+func TestDocument(t *testing.T) {
+	// the format itself can change if the design is to be changed,
+	// we want to make sure that given information is avaiable when calling
+	// Document.
+	abspath, err := filepath.Abs("./testdata/integ/crypto/rand")
+	require.NoError(t, err)
+	dir := Dir{
+		importPath: "crypto/rand",
+		dir:        abspath,
+	}
+
+	tt := []struct {
+		name     string
+		d        *documentable
+		opts     []DocumentOption
+		contains []string
+	}{
+		{"base", &documentable{Dir: dir}, nil, []string{"func Crypto", "!Crypto symbol", "func NewRand", "!unexp", "type Flag", "!Name"}},
+		{"func", &documentable{Dir: dir, symbol: "crypto"}, nil, []string{"Crypto symbol", "func Crypto", "!func NewRand", "!type Flag"}},
+		{"funcWriter", &documentable{Dir: dir, symbol: "NewWriter"}, nil, []string{"func NewWriter() io.Writer", "!func Crypto"}},
+		{"tp", &documentable{Dir: dir, symbol: "Rand"}, nil, []string{"type Rand", "comment1", "!func Crypto", "!unexp  ", "!comment4", "Has unexported"}},
+		{"tpField", &documentable{Dir: dir, symbol: "Rand", accessible: "Value"}, nil, []string{"type Rand", "!comment1", "comment2", "!func Crypto", "!unexp", "elided"}},
+		{"tpUnexp",
+			&documentable{Dir: dir, symbol: "Rand"}, []DocumentOption{WithUnexported(true)},
+			[]string{"type Rand", "comment1", "!func Crypto", "unexp  ", "comment4", "!Has unexported"}},
+		{"symUnexp",
+			&documentable{Dir: dir, symbol: "unexp"}, []DocumentOption{WithUnexported(true)},
+			[]string{"var unexp", "!type Rand", "!comment1", "!comment4", "!func Crypto", "!Has unexported"}},
+		{"fieldUnexp",
+			&documentable{Dir: dir, symbol: "Rand", accessible: "unexp"}, []DocumentOption{WithUnexported(true)},
+			[]string{"type Rand", "!comment1", "comment4", "!func Crypto", "elided", "!Has unexported"}},
+	}
+
+	buf := &bytes.Buffer{}
+	for _, tc := range tt {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			buf.Reset()
+			err := tc.d.Document(append(tc.opts, WithWriter(buf))...)
+			require.NoError(t, err)
+			s := buf.String()
+			for _, c := range tc.contains {
+				if c[0] == '!' {
+					assert.NotContains(t, s, c[1:])
+				} else {
+					assert.Contains(t, s, c)
+				}
+			}
+		})
+	}
 }
 
 func Test_parseArgParts(t *testing.T) {

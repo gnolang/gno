@@ -141,9 +141,6 @@ func (d *documentable) output(pp *pkgPrinter) (err error) {
 			return
 		}
 		pp.packageDoc()
-	case d.symbol == "" && d.accessible != "":
-		d.symbol, d.accessible = d.accessible, ""
-		fallthrough
 	case d.symbol != "" && d.accessible == "":
 		pp.symbolDoc(d.symbol)
 	default: // both non-empty
@@ -212,12 +209,16 @@ func resolveDocumentable(dirs *Dirs, parsed docArgs, unexported bool) (Documenta
 		accessible: parsed.acc,
 	}
 
-	var matchFunc func(s string) bool
+	var matchFunc func(s symbolData) bool
 	if parsed.acc == "" {
-		matchFunc = func(s string) bool { return s == parsed.sym || strings.HasSuffix(s, "."+parsed.sym) }
+		matchFunc = func(s symbolData) bool {
+			return (s.accessible == "" && symbolMatch(parsed.sym, s.symbol)) ||
+				(s.typ == symbolDataMethod && symbolMatch(parsed.sym, s.accessible))
+		}
 	} else {
-		full := parsed.sym + "." + parsed.acc
-		matchFunc = func(s string) bool { return s == full }
+		matchFunc = func(s symbolData) bool {
+			return symbolMatch(parsed.sym, s.symbol) && symbolMatch(parsed.acc, s.accessible)
+		}
 	}
 
 	var errs []error

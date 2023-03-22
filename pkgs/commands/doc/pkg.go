@@ -17,7 +17,22 @@ type pkgData struct {
 	fset      *token.FileSet
 	files     []*ast.File
 	testFiles []*ast.File
-	symbols   []string
+	symbols   []symbolData
+}
+
+const (
+	symbolDataValue byte = iota
+	symbolDataType
+	symbolDataFunc
+	symbolDataMethod
+	symbolDataStructField
+	symbolDataInterfaceMethod
+)
+
+type symbolData struct {
+	symbol     string
+	accessible string
+	typ        byte
 }
 
 func newPkgData(dir Dir, unexported bool) (*pkgData, error) {
@@ -84,14 +99,18 @@ func (pkg *pkgData) parseFile(fileName string, unexported bool) error {
 		switch x := decl.(type) {
 		case *ast.FuncDecl:
 			// prepend receiver if this is a method
-			var rcv string
+			sd := symbolData{
+				symbol: x.Name.Name,
+				typ:    symbolDataFunc,
+			}
 			if x.Recv != nil {
-				rcv = typeExprString(x.Recv.List[0].Type) + "."
-				if !unexported && !token.IsExported(rcv) {
+				sd.symbol, sd.accessible = typeExprString(x.Recv.List[0].Type), sd.symbol
+				if !unexported && !token.IsExported(sd.symbol) {
 					continue
 				}
+				sd.typ = symbolDataMethod
 			}
-			pkg.symbols = append(pkg.symbols, rcv+x.Name.Name)
+			pkg.symbols = append(pkg.symbols, sd)
 		case *ast.GenDecl:
 			for _, spec := range x.Specs {
 				pkg.appendSpec(spec, unexported)
@@ -107,42 +126,45 @@ func (pkg *pkgData) appendSpec(spec ast.Spec, unexported bool) {
 		if !unexported && !token.IsExported(s.Name.Name) {
 			return
 		}
-		pkg.symbols = append(pkg.symbols, s.Name.Name)
+		pkg.symbols = append(pkg.symbols, symbolData{symbol: s.Name.Name, typ: symbolDataType})
 		switch st := s.Type.(type) {
 		case *ast.StructType:
-			pkg.appendFieldList(s.Name.Name, st.Fields, unexported)
+			pkg.appendFieldList(s.Name.Name, st.Fields, unexported, symbolDataStructField)
 		case *ast.InterfaceType:
-			pkg.appendFieldList(s.Name.Name, st.Methods, unexported)
+			pkg.appendFieldList(s.Name.Name, st.Methods, unexported, symbolDataInterfaceMethod)
 		}
 	case *ast.ValueSpec:
 		for _, name := range s.Names {
 			if !unexported && !token.IsExported(name.Name) {
 				continue
 			}
-			pkg.symbols = append(pkg.symbols, name.Name)
+			pkg.symbols = append(pkg.symbols, symbolData{symbol: name.Name, typ: symbolDataValue})
 		}
 	}
 }
 
-func (pkg *pkgData) appendFieldList(tName string, fl *ast.FieldList, unexported bool) {
+func (pkg *pkgData) appendFieldList(tName string, fl *ast.FieldList, unexported bool, typ byte) {
 	if fl == nil {
 		return
 	}
 	for _, field := range fl.List {
 		if field.Names == nil {
+			if typ == symbolDataInterfaceMethod {
+				continue
+			}
 			embName := typeExprString(field.Type)
 			if !unexported && !token.IsExported(embName) {
 				continue
 			}
 			// embedded struct
-			pkg.symbols = append(pkg.symbols, tName+"."+embName)
+			pkg.symbols = append(pkg.symbols, symbolData{symbol: tName, accessible: embName, typ: typ})
 			continue
 		}
 		for _, name := range field.Names {
 			if !unexported && !token.IsExported(name.Name) {
 				continue
 			}
-			pkg.symbols = append(pkg.symbols, tName+"."+name.Name)
+			pkg.symbols = append(pkg.symbols, symbolData{symbol: tName, accessible: name.Name, typ: typ})
 		}
 	}
 }
