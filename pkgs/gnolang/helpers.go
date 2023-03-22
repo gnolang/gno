@@ -409,12 +409,12 @@ const (
 	ASCI = `(?:[eE][-+]?[0-9]+)`
 )
 
-var isIntRegex, _ = regexp.Compile(
+var isIntRegex = regexp.MustCompile(
 	`^-?(?:` +
 		DGTS + `|` +
 		HExX + `)` + PSCI + `?$`,
 )
-var isFloatRegex, _ = regexp.Compile(
+var isFloatRegex = regexp.MustCompile(
 	`^-?(?:` +
 		DGTS + `\.` + DGTS + ASCI + `?|` +
 		DGTS + NSCI + `)$`,
