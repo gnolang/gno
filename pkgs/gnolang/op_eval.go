@@ -42,6 +42,7 @@ func (m *Machine) doOpEval() {
 		m.PopExpr()
 		switch x.Kind {
 		case INT:
+			x.Value = strings.ReplaceAll(x.Value, "_", "")
 			// temporary optimization
 			bi := big.NewInt(0)
 			// TODO optimize.
