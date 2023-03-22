@@ -77,6 +77,8 @@ func (m *Machine) doOpEval() {
 				V: BigintValue{V: bi},
 			})
 		case FLOAT:
+			x.Value = strings.ReplaceAll(x.Value, "_", "")
+
 			if matched, _ := regexp.MatchString(`^[0-9\.]+([eE][\-\+]?[0-9]+)?$`, x.Value); matched {
 				value := x.Value
 				bd, c, err := apd.NewFromString(value)
