@@ -105,7 +105,7 @@ func stripFset(p Documentable) Documentable {
 
 func TestDocument(t *testing.T) {
 	// the format itself can change if the design is to be changed,
-	// we want to make sure that given information is avaiable when calling
+	// we want to make sure that given information is available when calling
 	// Document.
 	abspath, err := filepath.Abs("./testdata/integ/crypto/rand")
 	require.NoError(t, err)
