@@ -117,10 +117,7 @@ func (d *Dirs) bfsWalkRoot(root string) {
 				// It's a candidate.
 				var importPath string
 				if len(dir) > len(root) {
-					if importPath != "" {
-						importPath += "/"
-					}
-					importPath += filepath.ToSlash(dir[len(root)+1:])
+					importPath = filepath.ToSlash(dir[len(root)+1:])
 				}
 				d.scan <- Dir{importPath, dir}
 			}
@@ -136,7 +133,8 @@ func (d *Dirs) findPackage(name string) []Dir {
 	d.Reset()
 	candidates := make([]Dir, 0, 4)
 	for dir, ok := d.Next(); ok; dir, ok = d.Next() {
-		if strings.HasSuffix(dir.importPath, name) {
+		// want either exact matches or suffixes
+		if dir.importPath == name || strings.HasSuffix(dir.importPath, "/"+name) {
 			candidates = append(candidates, dir)
 		}
 	}

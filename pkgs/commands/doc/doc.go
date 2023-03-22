@@ -158,98 +158,66 @@ func (d *documentable) output(pp *pkgPrinter) (err error) {
 	return
 }
 
+// set as a variable so it can be changed by testing.
+var fpAbs = filepath.Abs
+
 // ResolveDocumentable returns a Documentable from the given arguments.
 // Refer to the documentation of gnodev doc for the formats accepted (in general
 // the same as the go doc command).
 func ResolveDocumentable(dirs *Dirs, args []string, unexported bool) (Documentable, error) {
-	parsed := parseArgParts(args)
-	if parsed == nil {
+	parsed, ok := parseArgs(args)
+	if !ok {
 		return nil, fmt.Errorf("commands/doc: invalid arguments: %v", args)
 	}
+	return resolveDocumentable(dirs, parsed, unexported)
+}
 
+func resolveDocumentable(dirs *Dirs, parsed docArgs, unexported bool) (Documentable, error) {
 	var candidates []Dir
 
 	// if we have a candidate package name, search dirs for a dir that matches it.
 	// prefer directories whose import path match precisely the package
-	if parsed[0].typ&argPkg > 0 {
-		if s, err := os.Stat(parsed[0].val); err == nil && s.IsDir() {
-			// expand to full path
-			absVal, err := filepath.Abs(parsed[0].val)
-			if err == nil {
-				candidates = dirs.findDir(absVal)
-			}
-		}
-		// first arg is either not a dir, or if it matched a local dir it was not
-		// valid (ie. not scanned by dirs). try parsing as a package
-		if len(candidates) == 0 {
-			candidates = dirs.findPackage(parsed[0].val)
-		}
-		// easy case: we wanted documentation about a package, and we found one!
-		if len(parsed) == 1 && len(candidates) > 0 {
-			return &documentable{Dir: candidates[0]}, nil
-		}
-		if len(candidates) == 0 {
-			// there are no candidates.
-			// if this can be something other than a package, remove argPkg as an
-			// option, otherwise return not found.
-			if parsed[0].typ == argPkg {
-				return nil, fmt.Errorf("commands/doc: package not found: %q (note: local packages are not yet supported)", parsed[0].val)
-			}
-			parsed[0].typ &= ^argPkg
-		} else {
-			// if there are candidates, then the first argument was definitely
-			// a package. remove it from parsed so we don't worry about it again.
-			parsed = parsed[1:]
-		}
-	}
-
-	// we also (or only) have a symbol/accessible.
-	// search for the symbol through the candidates
-	if len(candidates) == 0 {
-		// no candidates means local directory here
-		wd, err := os.Getwd()
+	if s, err := os.Stat(parsed.pkg); err == nil && s.IsDir() {
+		// expand to full path
+		absVal, err := fpAbs(parsed.pkg)
 		if err == nil {
-			candidates = dirs.findDir(wd)
-		}
-		if len(candidates) == 0 {
-			return nil, fmt.Errorf("commands/doc: local packages not yet supported")
+			candidates = dirs.findDir(absVal)
 		}
 	}
+	// arg is either not a dir, or if it matched a local dir it was not
+	// valid (ie. not scanned by dirs). try parsing as a package
+	if len(candidates) == 0 {
+		candidates = dirs.findPackage(parsed.pkg)
+	}
 
-	doc := &documentable{}
+	if len(candidates) == 0 {
+		// there are no candidates.
+		// if this is ambiguous, remove ambiguity and try parsing args using pkg as the symbol.
+		if !parsed.pkgAmbiguous {
+			return nil, fmt.Errorf("commands/doc: package not found: %q (note: local packages are not yet supported)", parsed.pkg)
+		}
+		parsed = docArgs{pkg: ".", sym: parsed.pkg, acc: parsed.sym}
+		return resolveDocumentable(dirs, parsed, unexported)
+	}
+	// we wanted documentation about a package, and we found one!
+	if parsed.sym == "" {
+		return &documentable{Dir: candidates[0]}, nil
+	}
+
+	// we also have a symbol, and maybe accessible.
+	// search for the symbol through the candidates
+
+	doc := &documentable{
+		symbol:     parsed.sym,
+		accessible: parsed.acc,
+	}
 
 	var matchFunc func(s string) bool
-	if len(parsed) == 2 {
-		// assert that we have <sym> and <acc>
-		if parsed[0].typ&argSym == 0 || parsed[1].typ&argAcc == 0 {
-			panic(fmt.Errorf("invalid remaining parsed: %+v", parsed))
-		}
-		doc.symbol = parsed[0].val
-		doc.accessible = parsed[1].val
-		matchFunc = func(s string) bool { return s == parsed[0].val+"."+parsed[1].val }
+	if parsed.acc == "" {
+		matchFunc = func(s string) bool { return s == parsed.sym || strings.HasSuffix(s, "."+parsed.sym) }
 	} else {
-		switch parsed[0].typ {
-		case argSym:
-			doc.symbol = parsed[0].val
-			matchFunc = func(s string) bool { return s == parsed[0].val }
-		case argAcc:
-			doc.accessible = parsed[0].val
-			matchFunc = func(s string) bool { return strings.HasSuffix(s, "."+parsed[0].val) }
-		case argSym | argAcc:
-			matchFunc = func(s string) bool {
-				switch {
-				case s == parsed[0].val:
-					doc.symbol = parsed[0].val
-					return true
-				case strings.HasSuffix(s, "."+parsed[0].val):
-					doc.accessible = parsed[0].val
-					return true
-				}
-				return false
-			}
-		default:
-			panic(fmt.Errorf("invalid remaining parsed: %+v", parsed))
-		}
+		full := parsed.sym + "." + parsed.acc
+		matchFunc = func(s string) bool { return s == full }
 	}
 
 	var errs []error
@@ -271,60 +239,27 @@ func ResolveDocumentable(dirs *Dirs, args []string, unexported bool) (Documentab
 		}
 	}
 	return nil, multierr.Append(
-		fmt.Errorf("commands/doc: could not resolve arguments: %v", parsed),
+		fmt.Errorf("commands/doc: could not resolve arguments: %+v", parsed),
 		multierr.Combine(errs...),
 	)
 }
 
-// these are used to specify the type of argPart.
-const (
-	// ie. "crypto/cipher".
-	argPkg byte = 1 << iota
-	// ie. "TrimSuffix", "Builder"
-	argSym
-	// ie. "WriteString". method or field of a type ("accessible", from the
-	// word "accessor")
-	argAcc
-)
+// docArgs represents the parsed args of the doc command.
+// sym could be a symbol, but the accessibles of types should also be shown if they match sym.
+type docArgs struct {
+	pkg string // always set
+	sym string
+	acc string // short for "accessible". only set if sym is also set
 
-// argPart contains the value of the argument, together with the type of value
-// it could be, through the flags argPkg, argSym and argAcc.
-type argPart struct {
-	val string
-	typ byte
+	// pkg could be a symbol in the local dir.
+	// if that is the case, and sym != "", then sym, acc = pkg, sym
+	pkgAmbiguous bool
 }
 
-func (a argPart) String() string {
-	var b strings.Builder
-	if a.typ&argPkg != 0 {
-		b.WriteString("pkg")
-	}
-	if a.typ&argSym != 0 {
-		if b.Len() != 0 {
-			b.WriteByte('|')
-		}
-		b.WriteString("sym")
-	}
-	if a.typ&argAcc != 0 {
-		if b.Len() != 0 {
-			b.WriteByte('|')
-		}
-		b.WriteString("acc")
-	}
-	if b.Len() == 0 {
-		b.WriteString("inv:")
-	} else {
-		b.WriteByte(':')
-	}
-	b.WriteString(a.val)
-	return b.String()
-}
-
-func parseArgParts(args []string) []argPart {
-	parsed := make([]argPart, 0, 3)
+func parseArgs(args []string) (docArgs, bool) {
 	switch len(args) {
 	case 0:
-		parsed = append(parsed, argPart{val: ".", typ: argPkg})
+		return docArgs{pkg: "."}, true
 	case 1:
 		// allowed syntaxes (acc is method or field, [] marks optional):
 		// <pkg>
@@ -340,59 +275,47 @@ func parseArgParts(args []string) []argPart {
 			// special handling for common ., .. and ./..
 			// these will generally work poorly if you try to use the one-argument
 			// syntax to access a symbol/accessible.
-			parsed = append(parsed, argPart{val: args[0], typ: argPkg})
-			break
+			return docArgs{pkg: args[0]}, true
 		}
 		switch strings.Count(args[0][slash+1:], ".") {
 		case 0:
-			t := argPkg | argSym | argAcc
 			if slash != -1 {
-				t = argPkg
+				return docArgs{pkg: args[0]}, true
 			}
-			parsed = append(parsed, argPart{args[0], t})
+			return docArgs{pkg: args[0], pkgAmbiguous: true}, true
 		case 1:
 			pos := strings.IndexByte(args[0][slash+1:], '.') + slash + 1
-			// pkg.sym, pkg.acc, sym.acc
-			t1, t2 := argPkg|argSym, argSym|argAcc
 			if slash != -1 {
-				t1 = argPkg
-			} else if token.IsExported(args[0]) {
+				return docArgs{pkg: args[0][:pos], sym: args[0][pos+1:]}, true
+			}
+			if token.IsExported(args[0]) {
 				// See rationale here:
 				// https://github.com/golang/go/blob/90dde5dec1126ddf2236730ec57511ced56a512d/src/cmd/doc/main.go#L265
-				t1, t2 = argSym, argAcc
+				return docArgs{pkg: ".", sym: args[0][:pos], acc: args[0][pos+1:]}, true
 			}
-			parsed = append(parsed,
-				argPart{args[0][:pos], t1},
-				argPart{args[0][pos+1:], t2},
-			)
+			return docArgs{pkg: args[0][:pos], sym: args[0][pos+1:], pkgAmbiguous: true}, true
 		case 2:
 			// pkg.sym.acc
 			parts := strings.Split(args[0][slash+1:], ".")
-			parsed = append(parsed,
-				argPart{args[0][:slash+1] + parts[0], argPkg},
-				argPart{parts[1], argSym},
-				argPart{parts[2], argAcc},
-			)
+			return docArgs{
+				pkg: args[0][:slash+1] + parts[0],
+				sym: parts[1],
+				acc: parts[2],
+			}, true
 		default:
-			return nil
+			return docArgs{}, false
 		}
 	case 2:
-		// <pkg> <sym>, <pkg <acc>, <pkg> <sym>.<acc>
-		parsed = append(parsed, argPart{args[0], argPkg})
 		switch strings.Count(args[1], ".") {
 		case 0:
-			parsed = append(parsed, argPart{args[1], argSym | argAcc})
+			return docArgs{pkg: args[0], sym: args[1]}, true
 		case 1:
 			pos := strings.IndexByte(args[1], '.')
-			parsed = append(parsed,
-				argPart{args[1][:pos], argSym},
-				argPart{args[1][pos+1:], argAcc},
-			)
+			return docArgs{pkg: args[0], sym: args[1][:pos], acc: args[1][pos+1:]}, true
 		default:
-			return nil
+			return docArgs{}, false
 		}
 	default:
-		return nil
+		return docArgs{}, false
 	}
-	return parsed
 }

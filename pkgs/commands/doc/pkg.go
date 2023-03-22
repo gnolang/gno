@@ -110,9 +110,9 @@ func (pkg *pkgData) appendSpec(spec ast.Spec, unexported bool) {
 		pkg.symbols = append(pkg.symbols, s.Name.Name)
 		switch st := s.Type.(type) {
 		case *ast.StructType:
-			pkg.appendFieldList(s.Name.Name, st.Fields)
+			pkg.appendFieldList(s.Name.Name, st.Fields, unexported)
 		case *ast.InterfaceType:
-			pkg.appendFieldList(s.Name.Name, st.Methods)
+			pkg.appendFieldList(s.Name.Name, st.Methods, unexported)
 		}
 	case *ast.ValueSpec:
 		for _, name := range s.Names {
@@ -124,17 +124,24 @@ func (pkg *pkgData) appendSpec(spec ast.Spec, unexported bool) {
 	}
 }
 
-func (pkg *pkgData) appendFieldList(tName string, fl *ast.FieldList) {
+func (pkg *pkgData) appendFieldList(tName string, fl *ast.FieldList, unexported bool) {
 	if fl == nil {
 		return
 	}
 	for _, field := range fl.List {
 		if field.Names == nil {
+			embName := typeExprString(field.Type)
+			if !unexported && !token.IsExported(embName) {
+				continue
+			}
 			// embedded struct
-			pkg.symbols = append(pkg.symbols, tName+"."+typeExprString(field.Type))
+			pkg.symbols = append(pkg.symbols, tName+"."+embName)
 			continue
 		}
 		for _, name := range field.Names {
+			if !unexported && !token.IsExported(name.Name) {
+				continue
+			}
 			pkg.symbols = append(pkg.symbols, tName+"."+name.Name)
 		}
 	}
