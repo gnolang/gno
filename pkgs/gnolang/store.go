@@ -96,8 +96,9 @@ type GetObjectID interface {
 
 func byKeys(a, b interface{}) bool {
 	id1, id2 := a.(GetObjectID).ObjectID(), b.(GetObjectID).ObjectID()
-	return id1.PkgID.String() < id2.PkgID.String() &&
-		id1.NewTime < id2.NewTime
+	l := id1.PkgID.String()
+	r := id2.PkgID.String()
+	return l < r || id1.NewTime < id2.NewTime
 }
 
 func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
@@ -140,11 +141,6 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 	}
 	// first, check cache.
 	oid := ObjectIDFromPkgPath(pkgPath)
-	ds.cacheObjects.Ascend(nil, func(item any) bool {
-		item1 := item.(*Item)
-		fmt.Printf("%+v\n", item1)
-		return true
-	})
 	oo := ds.cacheObjects.Get(oid)
 	if oo != nil {
 		item := oo.(*Item)
