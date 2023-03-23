@@ -59,7 +59,7 @@ func assertEqualString(t *testing.T, expected, got string) {
 func assertNoErr(t *testing.T, err error) {
 	t.Helper()
 	if err != nil {
-		t.Errorf("got err: %v", err)
+		t.Errorf("got err: %v", err.Error())
 	}
 }
 
