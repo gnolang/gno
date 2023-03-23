@@ -20,6 +20,7 @@ func TestGame(t *testing.T) {
 	game, err = NewGame(addr2, addr3)
 	assertNoErr(t, err)
 
+	game.start()
 	assertFalse(t, game.IsOver())
 	assertFalse(t, game.IsDraw())
 	assertErr(t, game.Play(addr3, 0, 0))   // addr2's turn
