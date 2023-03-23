@@ -237,7 +237,8 @@ func gnoTestPkg(
 
 	if !verbose {
 		// TODO: speedup by ignoring if filter is file/*?
-		stdout = commands.WriteNopCloser(nil)
+		mockOut := bytes.NewBufferString("")
+		stdout = commands.WriteNopCloser(mockOut)
 	}
 
 	// testing with *_test.gno
