@@ -44,6 +44,10 @@ type ObjectID struct {
 	NewTime uint64 // time created
 }
 
+func (i ObjectID) ObjectID() ObjectID {
+	return i
+}
+
 func (oid ObjectID) MarshalAmino() (string, error) {
 	pid := hex.EncodeToString(oid.PkgID.Hashlet[:])
 	return fmt.Sprintf("%s:%d", pid, oid.NewTime), nil
