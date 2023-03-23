@@ -537,6 +537,7 @@ func (m *Machine) RunMain() {
 // Input must not have been preprocessed, that is,
 // it should not be the child of any parent.
 func (m *Machine) Eval(x Expr) []TypedValue {
+	defer m.injectLocOnPanic()
 	if debug {
 		m.Printf("Machine.Eval(%v)\n", x)
 	}
@@ -576,6 +577,7 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 // This is primiarily used by the preprocessor to evaluate
 // static types and values.
 func (m *Machine) EvalStatic(last BlockNode, x Expr) TypedValue {
+	defer m.injectLocOnPanic()
 	if debug {
 		m.Printf("Machine.EvalStatic(%v, %v)\n", last, x)
 	}
@@ -605,6 +607,7 @@ func (m *Machine) EvalStatic(last BlockNode, x Expr) TypedValue {
 // This is primiarily used by the preprocessor to evaluate
 // static types of nodes.
 func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
+	defer m.injectLocOnPanic()
 	if debug {
 		m.Printf("Machine.EvalStaticTypeOf(%v, %v)\n", last, x)
 	}
@@ -632,6 +635,8 @@ func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 }
 
 func (m *Machine) RunStatement(s Stmt) {
+	// XXX why does this fail tests?
+	// XXX defer m.injectLocOnPanic()
 	sn := m.LastBlock().GetSource(m.Store)
 	s = Preprocess(m.Store, sn, s).(Stmt)
 	m.PushOp(OpHalt)
@@ -647,6 +652,7 @@ func (m *Machine) RunStatement(s Stmt) {
 // NOTE: to support realm persistence of types, must
 // first require the validation of blocknode locations.
 func (m *Machine) RunDeclaration(d Decl) {
+	defer m.injectLocOnPanic()
 	// Preprocess input using package block.  There should only
 	// be one block right now, and it's a *PackageNode.
 	pn := m.LastBlock().GetSource(m.Store).(*PackageNode)
