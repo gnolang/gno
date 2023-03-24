@@ -2,10 +2,11 @@ package gnolang
 
 import (
 	"fmt"
-	"github.com/tidwall/btree"
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/tidwall/btree"
 
 	"github.com/gnolang/gno/pkgs/amino"
 	"github.com/gnolang/gno/pkgs/std"
