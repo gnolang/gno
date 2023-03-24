@@ -287,34 +287,32 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				// TODO: limit usage in goroutines?
 				// TODO: build a new sub-context instead of patching the root one.
 				//       to support multiple concurrent contexts and advanced flows.
-				arg0 := m.LastBlock().GetParams1().TV
-				fn := arg0.GetFunc()
 
-				ctx := m.Context.(ExecContext)
-				ctx.OrigCaller = ctx.OrigPkgAddr
-
-				backupContext := m.Context.(ExecContext)
-
+				// Push original context first, so it will be reset after the function
+				// call.
+				m.PushOp(gno.OpSetContext)
 				m.PushValue(gno.TypedValue{
-					T: &gno.InterfaceType{},
 					V: gno.ContextValue{
-						Context: backupContext,
+						Context: m.Context,
 					},
 				})
+
+				// Push a function call, to execute the function in parameter.
+				m.PushOp(gno.OpPrecall)
+				m.PushExpr(gno.Call(gno.FuncT(nil, nil)))
+				tv := m.LastBlock().GetParams1().TV
+				m.PushValue(*tv)
+
+				// Push an alternate context with OrigCaller=OrigPkgAddr, this will
+				// affect the function call above
 				m.PushOp(gno.OpSetContext)
-
-				cx := gno.Call(gno.FuncT(nil, nil))
-				m.PushValue(gno.TypedValue{})
-				m.PushFrameCall(cx, fn, gno.TypedValue{})
-				m.PushOp(gno.OpCall)
-
+				ctx := m.Context.(ExecContext)
+				ctx.OrigCaller = ctx.OrigPkgAddr
 				m.PushValue(gno.TypedValue{
-					T: &gno.InterfaceType{},
 					V: gno.ContextValue{
 						Context: ctx,
 					},
 				})
-				m.PushOp(gno.OpSetContext)
 			},
 		)
 		pn.DefineNative("GetCallerAt",

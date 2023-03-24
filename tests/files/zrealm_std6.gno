@@ -6,12 +6,14 @@ import (
 	"std"
 )
 
+func printOrigCaller() {
+	println(std.GetOrigCaller())
+}
+
 func main() {
-	println(std.GetOrigCaller())
-	std.ExecAsPkg(func() {
-		println(std.GetOrigCaller())
-	})
-	println(std.GetOrigCaller())
+	printOrigCaller()
+	std.ExecAsPkg(printOrigCaller)
+	printOrigCaller()
 }
 
 // Output:
