@@ -289,18 +289,32 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				//       to support multiple concurrent contexts and advanced flows.
 				arg0 := m.LastBlock().GetParams1().TV
 				fn := arg0.GetFunc()
-				println("#####################", arg0, fn.GetType(m.Store).String())
-				//gno.Call(fn, "nil")
-				//m.Eval(gno.Call(fn))
-				// m.Eval(gno.Call(gno.FuncT(nil, nil), fn))
-				println("@@@@@@@@@@")
-				//println(fn)
 
-				/*
-					ctx := m.Context.(stdlibs.ExecContext)
-					ctx.OrigCaller = crypto.Bech32Address(addr)
-					m.Context = ctx
-				*/
+				ctx := m.Context.(ExecContext)
+				ctx.OrigCaller = ctx.OrigPkgAddr
+
+				backupContext := m.Context.(ExecContext)
+
+				m.PushValue(gno.TypedValue{
+					T: &gno.InterfaceType{},
+					V: gno.ContextValue{
+						Context: backupContext,
+					},
+				})
+				m.PushOp(gno.OpSetContext)
+
+				cx := gno.Call(gno.FuncT(nil, nil))
+				m.PushValue(gno.TypedValue{})
+				m.PushFrameCall(cx, fn, gno.TypedValue{})
+				m.PushOp(gno.OpCall)
+
+				m.PushValue(gno.TypedValue{
+					T: &gno.InterfaceType{},
+					V: gno.ContextValue{
+						Context: ctx,
+					},
+				})
+				m.PushOp(gno.OpSetContext)
 			},
 		)
 		pn.DefineNative("GetCallerAt",

@@ -40,6 +40,7 @@ func (*PackageValue) assertValue()     {}
 func (*NativeValue) assertValue()      {}
 func (*Block) assertValue()            {}
 func (RefValue) assertValue()          {}
+func (ContextValue) assertValue()      {}
 
 const (
 	nilStr = "nil"
@@ -62,6 +63,7 @@ var (
 	_ Value = &NativeValue{}
 	_ Value = &Block{}
 	_ Value = RefValue{}
+	_ Value = ContextValue{}
 )
 
 // ----------------------------------------
@@ -2182,6 +2184,17 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, low, high, max int) TypedValue
 		panic(fmt.Sprintf("unexpected type for GetSlice2(): %s",
 			tv.T.String()))
 	}
+}
+
+// ----------------------------------------
+// ContextValue
+
+type ContextValue struct {
+	Context interface{}
+}
+
+func (ctx ContextValue) String() string {
+	return fmt.Sprintf("%v", ctx.Context)
 }
 
 // ----------------------------------------

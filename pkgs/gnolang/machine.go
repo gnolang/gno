@@ -804,6 +804,9 @@ const (
 	OpValueDecl Op = 0x90 // var/const ...
 	OpTypeDecl  Op = 0x91 // type ...
 
+	/* Context operators */
+	OpSetContext Op = 0xA0
+
 	/* Loop (sticky) operators (>= 0xD0) */
 	OpSticky            Op = 0xD0 // not a real op.
 	OpBody              Op = 0xD1 // if/block/switch/select.
@@ -937,6 +940,9 @@ const (
 	/* Decl operators */
 	OpCPUValueDecl = 1
 	OpCPUTypeDecl  = 1
+
+	/* Context operators */
+	OpCPUContext = 1
 
 	/* Loop (sticky) operators (>= 0xD0) */
 	OpCPUSticky            = 1
@@ -1275,6 +1281,9 @@ func (m *Machine) Run() {
 		case OpReturnCallDefers:
 			m.incrCPU(OpCPUReturnCallDefers)
 			m.doOpReturnCallDefers()
+		case OpSetContext:
+			m.incrCPU(OpCPUContext)
+			m.doOpSetContext()
 		default:
 			panic(fmt.Sprintf("unexpected opcode %s", op.String()))
 		}

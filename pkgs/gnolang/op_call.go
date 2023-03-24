@@ -407,3 +407,8 @@ func (m *Machine) doOpPanic2() {
 		m.PushOp(OpReturnCallDefers) // XXX rename, not return?
 	}
 }
+
+func (m *Machine) doOpSetContext() {
+	cv := m.PopValue().V.(ContextValue)
+	m.Context = cv.Context
+}
