@@ -98,7 +98,12 @@ func byKeys(a, b interface{}) bool {
 	id1, id2 := a.(GetObjectID).ObjectID(), b.(GetObjectID).ObjectID()
 	l := id1.PkgID.String()
 	r := id2.PkgID.String()
-	return l < r || id1.NewTime < id2.NewTime
+
+	if l == r {
+		return id1.NewTime < id2.NewTime
+	}
+
+	return l < r
 }
 
 func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
@@ -278,7 +283,7 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 	// check cache.
 	oo := ds.cacheObjects.Get(oid)
 	if oo != nil {
-		return oo.(Object)
+		return oo.(*Item).Value
 	}
 	// check baseStore.
 	if ds.baseStore != nil {
