@@ -396,10 +396,7 @@ func readComments(cg *ast.CommentGroup) string {
 			// ignore no //-style comment
 			break
 		}
-		s := c.Text[2:]
-		if len(s) > 0 && s[0] == ' ' {
-			s = s[1:]
-		}
+		s := strings.TrimPrefix(c.Text[2:], " ")
 		b.WriteString(s + "\n")
 	}
 	return b.String()
