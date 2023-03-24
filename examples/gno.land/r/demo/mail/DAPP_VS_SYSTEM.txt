@@ -1,0 +1,27 @@
+This is a very specific app.
+
+But the app could also be envisionned to sit on a system instead.
+If mail is a particular type of message, and a mail dapp is a user 
+of a more universal messaging thing, then it brings some advantages.
+
+This mail app would then take just a few lines.
+And it would change the way we do things.
+
+For example, orders in p/demo/releases, DAO orders and so on could be other kind of
+messages. This way, it would be possible to search and have generic tools that
+operate on all point-to-point messages without reimplementing everything all
+the time. 
+
+You could search inside the release notes emitted by a certain user,
+during a certain year. Or searching at the orders emitted by a DAO that contain
+a certain text. You could watch for a certain filter on a certain type of
+message coming from some organization. (While this can end-up being costly, we
+can imagine ways it can be made profitable, or growth-sustainable, instead)
+
+Therefore it would be possible to realize more interoperable systems.
+
+But not all point-to-point system have the same requirements. 
+Some are producer-consumer, some are archive systems with a certain retention.
+Meaning a certain amount of configuration is required for the dapps.
+
+So it's a complex but interesting question.
