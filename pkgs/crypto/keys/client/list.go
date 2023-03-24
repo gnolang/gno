@@ -12,7 +12,7 @@ func newListCmd(rootCfg *baseCfg) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "list",
-			ShortUsage: "list [flags]",
+			ShortUsage: "list",
 			ShortHelp:  "Lists all keys in the keybase",
 		},
 		nil,
