@@ -18,17 +18,9 @@ Encryption is a huge topic for GNO and not possible at the moment.
 
 ## Various possible ideas
 
-[ ] TUI - there is nothing in a Render() now
-[ ] should be able to respond to mails.
+Things like:
 
-Mail attachment:
+TUI - there is nothing in a Render() now
+Respond to mails
+Mail attachment
 
-  * Would be nice to attach NFTs, 
-  * payment, 
-  * to be able to sign (I mean "agree contractually" here) an other mail.
-
-
-IMO The system could easily be envisionned to sit on a bigger system, persistent 
-point-to-point messaging with mails being one particular type of message.
-E.g. a very light mail dapp on top of a more universal solution, that can they be
-used for releases, DAO orders and so on.
