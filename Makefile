@@ -160,13 +160,14 @@ test.examples.sync:
 	go run ./cmd/gnodev test --verbose --update-golden-tests ./examples
 
 # Code gen
+stringer_cmd=go run golang.org/x/tools/cmd/stringer
 stringer:
-	stringer -type=Kind
-	stringer -type=Op
-	stringer -type=TransCtrl
-	stringer -type=TransField
-	stringer -type=VPType
-	stringer -type=Word
+	$(stringer_cmd) -type=Kind ./pkgs/gnolang
+	$(stringer_cmd) -type=Op ./pkgs/gnolang
+	$(stringer_cmd) -type=TransCtrl ./pkgs/gnolang
+	$(stringer_cmd) -type=TransField ./pkgs/gnolang
+	$(stringer_cmd) -type=VPType ./pkgs/gnolang
+	$(stringer_cmd) -type=Word ./pkgs/gnolang
 
 genproto:
 	rm -rf proto/*
