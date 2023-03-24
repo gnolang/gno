@@ -44,8 +44,8 @@ type ObjectID struct {
 	NewTime uint64 // time created
 }
 
-func (i ObjectID) ObjectID() ObjectID {
-	return i
+func (oid ObjectID) ObjectID() ObjectID {
+	return oid
 }
 
 func (oid ObjectID) MarshalAmino() (string, error) {
