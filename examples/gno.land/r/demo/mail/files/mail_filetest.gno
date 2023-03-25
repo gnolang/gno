@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/testutils"
+	"gno.land/r/demo/mail"
 )
 
 // Send mail, a great movie - SYNOPSIS
@@ -74,7 +76,6 @@ func main() {
 	if banker.GetCoins(sanders).AmountOf(mail.Fee.Denom) != 0 {
 		panic(".sanders still has 0gno")
 	}
-
 }
 
 // Output:

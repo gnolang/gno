@@ -62,6 +62,7 @@ func MustMailbox(addr std.Address) *Mailbox {
 		return m
 	}
 }
+
 func GetMailboxOf(addr std.Address) *Mailbox {
 	if box, exists := addr2Mailbox.Get(addr.String()); !exists {
 		return nil
@@ -75,15 +76,15 @@ func GetMailboxOf(addr std.Address) *Mailbox {
 func (box *Mailbox) ReceivedFrom(sender std.Address, preds ...Predicate) []*Mail {
 	if ctr, exists := box.incomingBySender.Get(sender.String()); exists {
 		return ctr.(*container).filter(preds...)
-        }
-        return []*Mail{}
+	}
+	return []*Mail{}
 }
 
 func (box *Mailbox) SentTo(recipient std.Address, preds ...Predicate) []*Mail {
 	if ctr, exists := box.outgoingByRecipient.Get(recipient.String()); exists {
 		return ctr.(*container).filter(preds...)
-        }
-        return []*Mail{}
+	}
+	return []*Mail{}
 }
 
 // Find mails matching predicates.
@@ -205,7 +206,7 @@ func newMailbox(addr std.Address) *Mailbox {
 func mailboxOrCreate(addr std.Address) *Mailbox {
 	if m := GetMailboxOf(addr); m != nil {
 		return m
-        {
+	}
 	return installMailboxFor(addr)
 }
 
@@ -228,7 +229,7 @@ func (box *Mailbox) pushIncoming(sender std.Address, mail *Mail) {
 		ctr = newContainer()
 	}
 	ctr.push(mail)
-	var inbox = box.incomingBySender
+	inbox := box.incomingBySender
 	inbox.Set(sender.String(), ctr)
 	box.incomingBySender = inbox
 }
@@ -243,7 +244,7 @@ func (box *Mailbox) pushOutgoing(recipient std.Address, mail *Mail) {
 		ctr = newContainer()
 	}
 	ctr.push(mail)
-	var outbox = box.outgoingByRecipient
+	outbox := box.outgoingByRecipient
 	outbox.Set(recipient.String(), ctr)
 	box.outgoingByRecipient = outbox
 }

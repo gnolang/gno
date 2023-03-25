@@ -1,10 +1,12 @@
 package mail
 
 import (
-	"time"
 	"std"
 	"strconv"
 	"strings"
+	"time"
+
+	"gno.land/p/demo/ufmt"
 )
 
 type Mail struct {
@@ -36,5 +38,5 @@ func (mail *Mail) Contains(s string) bool {
 
 // time key for avl, like 1234567890_<counter>
 func (mail *Mail) GetTimeKey() string {
-	return strconv.Itoa(time.Now().Unix()) + "_" + strconv.Itoa(counter)
+	return ufmt.Sprintf("%d_%d", time.Now().Unix(), counter)
 }
