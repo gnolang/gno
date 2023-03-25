@@ -1,10 +1,13 @@
 package mail
 
-import "gno.land/p/demo/avl"
-import "std"
-import "strconv"
-import "strings"
-import "time"
+import (
+	"std"
+	"strconv"
+	"strings"
+	"time"
+
+	"gno.land/p/demo/avl"
+)
 
 /*
 A mailbox connects you to the GNO mail system.
@@ -72,17 +75,15 @@ func GetMailboxOf(addr std.Address) *Mailbox {
 func (box *Mailbox) ReceivedFrom(sender std.Address, preds ...Predicate) []*Mail {
 	if ctr, exists := box.incomingBySender.Get(sender.String()); exists {
 		return ctr.(*container).filter(preds...)
-	} else {
-		return []*Mail{}
-	}
+        }
+        return []*Mail{}
 }
 
 func (box *Mailbox) SentTo(recipient std.Address, preds ...Predicate) []*Mail {
 	if ctr, exists := box.outgoingByRecipient.Get(recipient.String()); exists {
 		return ctr.(*container).filter(preds...)
-	} else {
-		return []*Mail{}
-	}
+        }
+        return []*Mail{}
 }
 
 // Find mails matching predicates.
@@ -183,7 +184,6 @@ func runHeuristicForFind(preds []Predicate) (
 	}
 	if !timeMax.IsZero() && !timeMin.IsZero() && !timeMax.After(timeMin) {
 		isEmpty = true
-		return
 	}
 	return
 }
@@ -205,9 +205,8 @@ func newMailbox(addr std.Address) *Mailbox {
 func mailboxOrCreate(addr std.Address) *Mailbox {
 	if m := GetMailboxOf(addr); m != nil {
 		return m
-	} else {
-		return installMailboxFor(addr)
-	}
+        {
+	return installMailboxFor(addr)
 }
 
 func installMailboxFor(addr std.Address) *Mailbox {

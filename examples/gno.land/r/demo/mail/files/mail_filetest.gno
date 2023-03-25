@@ -1,13 +1,14 @@
 // PKGPATH: gno.land/r/demo/mail_test
 package mail_test
 
-import "testing"
-import "std"
-import "gno.land/p/demo/testutils"
-import "gno.land/r/gnoland/faucet"
+import (
+	"std"
+	"strconv"
+	"strings"
+	"time"
 
-import "gno.land/r/demo/mail"
-import "strconv"
+	"gno.land/p/demo/avl"
+)
 
 // Send mail, a great movie - SYNOPSIS
 // Starring "dude" (the OrigCaller) and "sanders"
