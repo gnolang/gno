@@ -1,8 +1,11 @@
 package mail
 
-import "time"
-import "std"
-import "strings"
+import (
+	"time"
+	"std"
+	"strconv"
+	"strings"
+)
 
 type Mail struct {
 	id        int
@@ -33,5 +36,5 @@ func (mail *Mail) Contains(s string) bool {
 
 // time key for avl, like 1234567890_<counter>
 func (mail *Mail) GetTimeKey() string {
-	return string(time.Now().Unix()) + "_" + string(counter)
+	return strconv.Itoa(time.Now().Unix()) + "_" + strconv.Itoa(counter)
 }
