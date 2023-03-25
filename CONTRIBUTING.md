@@ -79,7 +79,7 @@ Add to your `.vimrc` file:
 
 ```vim
 function! GnoFmt()
-    cexpr system('gofmt -e -w ' . expand('%')) "or replace with gofumpt
+    cexpr system('gofmt -e -w ' . expand('%')) "or replace with gofumpt, see below
     edit!
 endfunction
 command! GnoFmt call GnoFmt()
@@ -89,6 +89,10 @@ augroup gno_autocmd
     autocmd BufWritePost *.gno GnoFmt
 augroup END
 ```
+
+To use *gofumpt* instead of *gofmt*, as hinted in the comment, you may substitute the cexpr line above with the following (please make sure to replace `<path/to/gno>` with the path to your local gno repository):
+
+`cexpr system('go run -modfile </path/to/gno>/misc/devdeps/go.mod mvdan.cc/gofumpt -w ' . expand('%'))`
 
 #### Emacs Support
 
