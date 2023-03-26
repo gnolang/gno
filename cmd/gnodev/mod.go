@@ -92,12 +92,8 @@ func execModDownload(cfg *modDownloadCfg, args []string, io *commands.IO) error 
 		return fmt.Errorf("validate: %w", err)
 	}
 
-	gnoModPath, err := gnomod.GetGnoModPath()
-	if err != nil {
-		return fmt.Errorf("get gno.mod path: %w", err)
-	}
 	// fetch dependencies
-	if err := gnoMod.FetchDeps(gnoModPath, cfg.remote); err != nil {
+	if err := gnoMod.FetchDeps(gnomod.GetGnoModPath(), cfg.remote); err != nil {
 		return fmt.Errorf("fetch: %w", err)
 	}
 
