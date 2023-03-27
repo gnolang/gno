@@ -414,6 +414,7 @@ var isIntRegex = regexp.MustCompile(
 		DGTS + `|` +
 		HExX + `)` + PSCI + `?$`,
 )
+
 var isFloatRegex = regexp.MustCompile(
 	`^-?(?:` +
 		DGTS + `\.` + DGTS + ASCI + `?|` +

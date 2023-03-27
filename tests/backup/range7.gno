@@ -11,7 +11,7 @@ func someChan() <-chan struct{} {
 }
 
 func main() {
-	for _ = range someChan() {
+	for range someChan() {
 		fmt.Println("success")
 		return
 	}

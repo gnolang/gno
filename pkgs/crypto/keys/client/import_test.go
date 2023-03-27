@@ -22,19 +22,17 @@ func importKey(
 	importOpts testImportKeyOpts,
 	input io.Reader,
 ) error {
-	var (
-		cfg = &importCfg{
-			rootCfg: &baseCfg{
-				BaseOptions: BaseOptions{
-					Home:                  importOpts.kbHome,
-					InsecurePasswordStdin: true,
-				},
+	cfg := &importCfg{
+		rootCfg: &baseCfg{
+			BaseOptions: BaseOptions{
+				Home:                  importOpts.kbHome,
+				InsecurePasswordStdin: true,
 			},
-			keyName:   importOpts.keyName,
-			armorPath: importOpts.armorPath,
-			unsafe:    importOpts.unsafe,
-		}
-	)
+		},
+		keyName:   importOpts.keyName,
+		armorPath: importOpts.armorPath,
+		unsafe:    importOpts.unsafe,
+	}
 
 	cmdIO := commands.NewTestIO()
 	cmdIO.SetIn(input)

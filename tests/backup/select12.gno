@@ -12,6 +12,7 @@ func (s *S) Send() {
 		println("unexpected")
 	}
 }
+
 func main() {
 	s := &S{q: make(chan struct{}, 1)}
 	s.Send()

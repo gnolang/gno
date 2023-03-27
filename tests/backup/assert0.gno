@@ -80,7 +80,6 @@ func main() {
 		fmt.Println("42 implements MyStringer")
 	}
 	_ = bar
-
 }
 
 // Output:

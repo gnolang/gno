@@ -87,7 +87,7 @@ rundep=go run -modfile ./misc/devdeps/go.mod
 fmt_cmd=$(rundep) mvdan.cc/gofumpt -w
 fmt:
 	$(fmt_cmd) .
-	$(fmt_cmd) `find stdlibs examples -name "*.gno"`
+	$(fmt_cmd) `find stdlibs examples tests/files stdlibs -name "*.gno"`
 
 .PHONY: lint
 lint:
