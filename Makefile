@@ -81,10 +81,13 @@ examples.build: install_gnodev examples.precompile
 ########################################
 # Formatting, linting.
 
+rundep=go run -modfile ./misc/devdeps/go.mod
+
 .PHONY: fmt
+fmt_cmd=$(rundep) mvdan.cc/gofumpt -w
 fmt:
-	go run -modfile ./misc/devdeps/go.mod mvdan.cc/gofumpt -w .
-	go run -modfile ./misc/devdeps/go.mod mvdan.cc/gofumpt -w `find stdlibs examples -name "*.gno"`
+	$(fmt_cmd) .
+	$(fmt_cmd) `find stdlibs examples -name "*.gno"`
 
 .PHONY: lint
 lint:
@@ -105,7 +108,7 @@ test.docker-integration:
 
 test.flappy:
 	# flappy tests should work "sometimes" (at least once)
-	TEST_STABILITY=flappy go run -modfile ./misc/devdeps/go.mod moul.io/testman test -test.v -timeout=20m -retry=10 -run ^TestFlappy \
+	TEST_STABILITY=flappy $(rundep) moul.io/testman test -test.v -timeout=20m -retry=10 -run ^TestFlappy \
 		./pkgs/bft/consensus ./pkgs/bft/blockchain ./pkgs/bft/mempool ./pkgs/p2p ./pkgs/bft/privval
 
 test.go: test.go1 test.go2 test.go3 test.go4
@@ -160,13 +163,14 @@ test.examples.sync:
 	go run ./cmd/gnodev test --verbose --update-golden-tests ./examples
 
 # Code gen
+stringer_cmd=$(rundep) golang.org/x/tools/cmd/stringer
 stringer:
-	stringer -type=Kind
-	stringer -type=Op
-	stringer -type=TransCtrl
-	stringer -type=TransField
-	stringer -type=VPType
-	stringer -type=Word
+	$(stringer_cmd) -type=Kind ./pkgs/gnolang
+	$(stringer_cmd) -type=Op ./pkgs/gnolang
+	$(stringer_cmd) -type=TransCtrl ./pkgs/gnolang
+	$(stringer_cmd) -type=TransField ./pkgs/gnolang
+	$(stringer_cmd) -type=VPType ./pkgs/gnolang
+	$(stringer_cmd) -type=Word ./pkgs/gnolang
 
 genproto:
 	rm -rf proto/*
