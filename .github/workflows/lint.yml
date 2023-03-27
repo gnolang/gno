@@ -49,7 +49,7 @@ jobs:
       - name: Check gofumpt
         run: |
           output="$(GOFMT_FLAGS=-l make -s fmt)"
-          if [ -n "$output"]; then
+          if [ ! -z "$output" ]; then
             echo "The following files are not properly formatted; run 'make fmt' to format them."
             echo "$output"
             exit 1
