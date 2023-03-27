@@ -375,22 +375,7 @@ func X(x interface{}, args ...interface{}) Expr {
 		}
 	}
 	// Numeric int?  We do these before dots, because dots are legal in numbers.
-	const (
-		DGTS = `(?:[0-9]+)`
-		HExX = `(?:0[xX][0-9a-fA-F]+)`
-		PSCI = `(?:[eE]+?[0-9]+)`
-		NSCI = `(?:[eE]-[1-9][0-9]+)`
-		ASCI = `(?:[eE][-+]?[0-9]+)`
-	)
-	isInt, err := regexp.Match(
-		`^-?(?:`+
-			DGTS+`|`+
-			HExX+`)`+PSCI+`?$`,
-		[]byte(expr),
-	)
-	if err != nil {
-		panic("should not happen")
-	}
+	isInt := isIntRegex.Match([]byte(expr))
 	if isInt {
 		return &BasicLitExpr{
 			Kind:  INT,
@@ -398,15 +383,7 @@ func X(x interface{}, args ...interface{}) Expr {
 		}
 	}
 	// Numeric float?  We do these before dots, because dots are legal in floats.
-	isFloat, err := regexp.Match(
-		`^-?(?:`+
-			DGTS+`\.`+DGTS+ASCI+`?|`+
-			DGTS+NSCI+`)$`,
-		[]byte(expr),
-	)
-	if err != nil {
-		panic("should not happen")
-	}
+	isFloat := isFloatRegex.Match([]byte(expr))
 	if isFloat {
 		return &BasicLitExpr{
 			Kind:  FLOAT,
@@ -423,6 +400,25 @@ func X(x interface{}, args ...interface{}) Expr {
 	}
 	return Nx(expr)
 }
+
+const (
+	DGTS = `(?:[0-9]+)`
+	HExX = `(?:0[xX][0-9a-fA-F]+)`
+	PSCI = `(?:[eE]+?[0-9]+)`
+	NSCI = `(?:[eE]-[1-9][0-9]+)`
+	ASCI = `(?:[eE][-+]?[0-9]+)`
+)
+
+var isIntRegex = regexp.MustCompile(
+	`^-?(?:` +
+		DGTS + `|` +
+		HExX + `)` + PSCI + `?$`,
+)
+var isFloatRegex = regexp.MustCompile(
+	`^-?(?:` +
+		DGTS + `\.` + DGTS + ASCI + `?|` +
+		DGTS + NSCI + `)$`,
+)
 
 // Returns idx=-1 if not a binary operator.
 // Precedence    Operator

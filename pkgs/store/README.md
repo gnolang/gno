@@ -25,7 +25,7 @@ type Store struct {
 
 ## CacheMulti
 
-`cachemulti.Store` is a wrapper `MultiStore` which provides buffered writing / cached reading functionalities over the underlying `MutliStore`
+`cachemulti.Store` is a wrapper `MultiStore` which provides buffered writing / cached reading functionalities over the underlying `MultiStore`
 
 ```go
 type Store struct {
