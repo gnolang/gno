@@ -13,13 +13,13 @@ type BaseOptions struct {
 }
 
 var DefaultBaseOptions = BaseOptions{
-	Home:                  homeDir(),
+	Home:                  HomeDir(),
 	Remote:                "127.0.0.1:26657",
 	Quiet:                 false,
 	InsecurePasswordStdin: false,
 }
 
-func homeDir() string {
+func HomeDir() string {
 	// if environment set, always use that.
 	hd := os.Getenv("GNO_HOME")
 	if hd != "" {

@@ -1,12 +1,12 @@
 package gnomod
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/gnolang/gno/pkgs/crypto/keys/client"
 	"github.com/gnolang/gno/pkgs/gnolang"
 	"github.com/gnolang/gno/pkgs/std"
 	"golang.org/x/mod/modfile"
@@ -16,13 +16,8 @@ import (
 const queryPathFile = "vm/qfile"
 
 // GetGnoModPath returns the path for gno modules
-func GetGnoModPath() (string, error) {
-	goPath := os.Getenv("GOPATH")
-	if goPath == "" {
-		return "", errors.New("GOPATH not found")
-	}
-
-	return filepath.Join(goPath, "pkg", "gnomod"), nil
+func GetGnoModPath() string {
+	return filepath.Join(client.HomeDir(), "pkg", "mod")
 }
 
 func writePackage(remote, basePath, pkgPath string) (requirements []string, err error) {
@@ -77,10 +72,7 @@ func writePackage(remote, basePath, pkgPath string) (requirements []string, err 
 // GnoToGoMod make necessary modifications in the gno.mod
 // and return go.mod file.
 func GnoToGoMod(f File) (*File, error) {
-	gnoModPath, err := GetGnoModPath()
-	if err != nil {
-		return nil, err
-	}
+	gnoModPath := GetGnoModPath()
 
 	if strings.HasPrefix(f.Module.Mod.Path, gnolang.GnoRealmPkgsPrefixBefore) ||
 		strings.HasPrefix(f.Module.Mod.Path, gnolang.GnoPackagePrefixBefore) {
