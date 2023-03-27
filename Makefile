@@ -84,7 +84,8 @@ examples.build: install_gnodev examples.precompile
 rundep=go run -modfile ./misc/devdeps/go.mod
 
 .PHONY: fmt
-fmt_cmd=$(rundep) mvdan.cc/gofumpt -w
+GOFMT_FLAGS ?= -w
+fmt_cmd=$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS)
 fmt:
 	$(fmt_cmd) .
 	$(fmt_cmd) `find stdlibs examples tests/files stdlibs -name "*.gno"`
