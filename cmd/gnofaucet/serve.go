@@ -284,7 +284,7 @@ func execServe(cfg *config, args []string, io *commands.IO) error {
 		r.ParseForm()
 
 		// only when command line argument 'captcha-secret' has entered > captcha are enabled.
-		// veryify captcha
+		// verify captcha
 		if cfg.CaptchaSecret != "" {
 			passedMsg := r.Form["g-recaptcha-response"]
 			if passedMsg == nil {

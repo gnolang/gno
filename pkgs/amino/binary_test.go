@@ -275,7 +275,7 @@ func TestUnmarshalMapBinary(t *testing.T) {
 	binBytes := []byte(`dontcare`)
 	assert.Panics(t, func() {
 		err := cdc.Unmarshal(binBytes, &obj)
-		assert.Fail(t, "should have paniced but got err: %v", err)
+		assert.Fail(t, "should have panicked but got err: %v", err)
 	})
 
 	assert.Panics(t, func() {
@@ -286,7 +286,7 @@ func TestUnmarshalMapBinary(t *testing.T) {
 	// ... nor encoding it.
 	assert.Panics(t, func() {
 		bz, err := cdc.Marshal(obj)
-		assert.Fail(t, "should have paniced but got bz: %X err: %v", bz, err)
+		assert.Fail(t, "should have panicked but got bz: %X err: %v", bz, err)
 	})
 }
 
@@ -311,7 +311,7 @@ func TestUnmarshalFuncBinary(t *testing.T) {
 	// ... nor encoding it.
 	assert.Panics(t, func() {
 		bz, err := cdc.MarshalSized(obj)
-		assert.Fail(t, "should have paniced but got bz: %X err: %v", bz, err)
+		assert.Fail(t, "should have panicked but got bz: %X err: %v", bz, err)
 	})
 }
 

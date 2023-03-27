@@ -35,6 +35,8 @@ func Sprintf(format string, args ...interface{}) string {
 		switch verb {
 		case 's':
 			switch v := arg.(type) {
+			case interface{ String() string }:
+				buf += v.String()
 			case string:
 				buf += v
 			default:
