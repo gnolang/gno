@@ -1,6 +1,7 @@
 package stdlibs
 
 import (
+	"crypto/sha256"
 	"math"
 	"reflect"
 	"strconv"
@@ -20,6 +21,33 @@ func InjectNativeMappings(store gno.Store) {
 
 func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 	switch pn.PkgPath {
+	case "internal/crypto/sha256":
+		pn.DefineNative("Sum256",
+			gno.Flds( // params
+				"data", "[]byte",
+			),
+			gno.Flds( // results
+				"bz", "[32]byte",
+			),
+			func(m *gno.Machine) {
+				arg0 := m.LastBlock().GetParams1().TV
+				bz := []byte(nil)
+
+				if arg0.V != nil {
+					slice := arg0.V.(*gno.SliceValue)
+					array := slice.GetBase(m.Store)
+					bz = array.GetReadonlyBytes()[:slice.Length]
+				}
+
+				hash := sha256.Sum256(bz)
+				res0 := gno.Go2GnoValue(
+					m.Alloc,
+					m.Store,
+					reflect.ValueOf(hash),
+				)
+				m.PushValue(res0)
+			},
+		)
 	case "internal/math":
 		pn.DefineNative("Float32bits",
 			gno.Flds( // params
