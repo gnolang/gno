@@ -25,10 +25,10 @@ func GetGnoModPath() (string, error) {
 	return filepath.Join(goPath, "pkg", "gnomod"), nil
 }
 
-func writePackage(remote, basePath, pkgPath string) error {
+func writePackage(remote, basePath, pkgPath string) (requirements []string, err error) {
 	res, err := queryChain(remote, queryPathFile, []byte(pkgPath))
 	if err != nil {
-		return fmt.Errorf("querychain: %w", err)
+		return nil, fmt.Errorf("querychain: %w", err)
 	}
 
 	dirPath, fileName := std.SplitFilepath(pkgPath)
@@ -36,17 +36,19 @@ func writePackage(remote, basePath, pkgPath string) error {
 		// Is Dir
 		// Create Dir if not exists
 		dirPath := filepath.Join(basePath, dirPath)
-		if _, err := os.Stat(dirPath); os.IsNotExist(err) {
-			if err := os.MkdirAll(dirPath, 0o755); err != nil {
-				return fmt.Errorf("mkdir %q: %w", dirPath, err)
+		if _, err = os.Stat(dirPath); os.IsNotExist(err) {
+			if err = os.MkdirAll(dirPath, 0o755); err != nil {
+				return nil, fmt.Errorf("mkdir %q: %w", dirPath, err)
 			}
 		}
 
 		files := strings.Split(string(res.Data), "\n")
 		for _, file := range files {
-			if err := writePackage(remote, basePath, filepath.Join(pkgPath, file)); err != nil {
-				return fmt.Errorf("writepackage: %w", err)
+			reqs, err := writePackage(remote, basePath, filepath.Join(pkgPath, file))
+			if err != nil {
+				return nil, fmt.Errorf("writepackage: %w", err)
 			}
+			requirements = append(requirements, reqs...)
 		}
 	} else {
 		// Is File
@@ -55,17 +57,21 @@ func writePackage(remote, basePath, pkgPath string) error {
 		targetFilename, _ := gnolang.GetPrecompileFilenameAndTags(filePath)
 		precompileRes, err := gnolang.Precompile(string(res.Data), "", fileName)
 		if err != nil {
-			return fmt.Errorf("precompile: %w", err)
+			return nil, fmt.Errorf("precompile: %w", err)
+		}
+
+		for _, i := range precompileRes.Imports {
+			requirements = append(requirements, i.Path.Value)
 		}
 
 		fileNameWithPath := filepath.Join(basePath, dirPath, targetFilename)
 		err = os.WriteFile(fileNameWithPath, []byte(precompileRes.Translated), 0o644)
 		if err != nil {
-			return fmt.Errorf("writefile %q: %w", fileNameWithPath, err)
+			return nil, fmt.Errorf("writefile %q: %w", fileNameWithPath, err)
 		}
 	}
 
-	return nil
+	return removeDuplicateStr(requirements), nil
 }
 
 // GnoToGoMod make necessary modifications in the gno.mod
@@ -76,9 +82,9 @@ func GnoToGoMod(f File) (*File, error) {
 		return nil, err
 	}
 
-	if strings.HasPrefix(f.Module.Mod.Path, "gno.land/r/") ||
-		strings.HasPrefix(f.Module.Mod.Path, "gno.land/p/demo/") {
-		f.Module.Mod.Path = "github.com/gnolang/gno/examples/" + f.Module.Mod.Path
+	if strings.HasPrefix(f.Module.Mod.Path, gnolang.GnoRealmPkgsPrefixBefore) ||
+		strings.HasPrefix(f.Module.Mod.Path, gnolang.GnoPackagePrefixBefore) {
+		f.Module.Mod.Path = gnolang.ImportPrefix + "/examples/" + f.Module.Mod.Path
 	}
 
 	for i := range f.Require {
@@ -89,9 +95,9 @@ func GnoToGoMod(f File) (*File, error) {
 			}
 		}
 		path := f.Require[i].Mod.Path
-		if strings.HasPrefix(f.Require[i].Mod.Path, "gno.land/r/") ||
-			strings.HasPrefix(f.Require[i].Mod.Path, "gno.land/p/demo/") {
-			f.Require[i].Mod.Path = "github.com/gnolang/gno/examples/" + f.Require[i].Mod.Path
+		if strings.HasPrefix(f.Require[i].Mod.Path, gnolang.GnoRealmPkgsPrefixBefore) ||
+			strings.HasPrefix(f.Require[i].Mod.Path, gnolang.GnoPackagePrefixBefore) {
+			f.Require[i].Mod.Path = gnolang.ImportPrefix + "/examples/" + f.Require[i].Mod.Path
 		}
 
 		f.Replace = append(f.Replace, &modfile.Replace{
@@ -152,4 +158,15 @@ func isReplaced(module module.Version, repl []*modfile.Replace) (*module.Version
 		}
 	}
 	return nil, false
+}
+
+func removeDuplicateStr(str []string) (res []string) {
+	m := make(map[string]struct{}, len(str))
+	for _, s := range str {
+		if _, ok := m[s]; !ok {
+			m[s] = struct{}{}
+			res = append(res, s)
+		}
+	}
+	return
 }
