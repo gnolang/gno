@@ -388,7 +388,7 @@ func (bA *BitArray) MarshalJSON() ([]byte, error) {
 
 var bitArrayJSONRegexp = regexp.MustCompile(`\A"([_x]*)"\z`)
 
-// UnmarshalJSON implements json.Unmarshaler interface by unmarshaling a custom
+// UnmarshalJSON implements json.Unmarshaler interface by unmarshalling a custom
 // JSON description.
 func (bA *BitArray) UnmarshalJSON(bz []byte) error {
 	b := string(bz)

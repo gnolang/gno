@@ -6,7 +6,7 @@ Below is a brief introduction to the tool.
 
 ## Installation
 
-Once this is merged into the offical repo, master, you should be able to do:
+Once this is merged into the official repo, master, you should be able to do:
 
 ```shell
 go get github.com/tendermint/classic/iavl
