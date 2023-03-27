@@ -52,11 +52,11 @@ func GetPerTransferLimit() int64 {
 	return gLimit.Amount
 }
 
-func Render(path string) string {
+func Render(_ string) string {
 	banker := std.GetBanker(std.BankerTypeRealmSend)
 	balance := banker.GetCoins(std.GetOrigPkgAddr())
 
-	output := path + gMessage
+	output := gMessage
 	if gInPause {
 		output += "Status: inactive.\n"
 	} else {

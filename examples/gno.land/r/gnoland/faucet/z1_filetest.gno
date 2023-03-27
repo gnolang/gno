@@ -10,7 +10,7 @@ func main() {
 }
 
 // Output:
-// path# Community Faucet.
+// # Community Faucet.
 //
 // Status: active.
 // Balance: 200000000ugnot.
