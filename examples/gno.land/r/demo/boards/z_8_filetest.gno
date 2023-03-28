@@ -4,10 +4,8 @@ package boards_test
 // SEND: 2000000000ugnot
 
 import (
-	"std"
 	"strconv"
 
-	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/boards"
 	"gno.land/r/demo/users"
 )
@@ -19,7 +17,6 @@ var (
 )
 
 func init() {
-	std.TestSetOrigCaller(testutils.TestAddress("test"))
 	users.Register("", "gnouser", "my profile")
 
 	bid = boards.CreateBoard("test_board")

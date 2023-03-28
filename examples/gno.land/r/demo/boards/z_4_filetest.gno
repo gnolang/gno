@@ -4,10 +4,8 @@ package boards_test
 // SEND: 200000000ugnot
 
 import (
-	"std"
 	"strconv"
 
-	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/boards"
 	"gno.land/r/demo/users"
 )
@@ -18,7 +16,6 @@ var (
 )
 
 func init() {
-	std.TestSetOrigCaller(testutils.TestAddress("test"))
 	users.Register("", "gnouser", "my profile")
 
 	bid = boards.CreateBoard("test_board")
@@ -461,7 +458,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.StringValue",
-//                 "value": "g1w3jhxazlta047h6lta047h6lta047h6lwmjv0n"
+//                 "value": "g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985"
 //             }
 //         },
 //         {
@@ -840,7 +837,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.StringValue",
-//                 "value": "g1w3jhxazlta047h6lta047h6lta047h6lwmjv0n"
+//                 "value": "g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985"
 //             }
 //         },
 //         {
@@ -850,7 +847,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.RefValue",
-//                 "Hash": "205f2a839a0ec5a5fb335cacca1cf87b1c2f5268",
+//                 "Hash": "04bcdca23188f0e1b9a57b36c4bb33ed3cd72446",
 //                 "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:82"
 //             }
 //         },
