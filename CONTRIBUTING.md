@@ -267,11 +267,35 @@ The gno project tends to use the [Conventional Commits](https://www.conventional
 commit that goes into the main code stream (currently, the `master` branch).
 
 Each PR is squashed and merged into the main code stream, which means PR _titles_ should adhere to the Conventional
-Commit standard, and be short and precise.
+Commit standard, and be short and precise. This is practically enforced using a
+[linter check](https://github.com/amannn/action-semantic-pull-request). The type
+of PRs that are allowed are the following:
+
+* **build**\
+  Changes that affect the build system or external dependencies.
+* **chore**\
+  Other changes that don't modify source or test files.
+* **ci**\
+  Changes to our CI configuration files (ie. GitHub Actions) and scripts.
+* **docs**\
+  Documentation only changes.
+* **feat**\
+  A new feature.
+* **fix**\
+  A bug fix.
+* **perf**\
+  A code change that improves performance.
+* **refactor**\
+  A code change that neither fixes a bug nor adds a feature.
+* **revert**\
+  Reverts a previous commit.
+* **style**\
+  Changes that do not affect the meaning of the code (white-space, formatting, missing semi-colons, etc).
+* **test**\
+  Adding missing tests or correcting existing tests.
 
 A general rule of thumb:
 
-- Use Conventional Commits for PR titles
 - Never favor rewriting history in PRs (rebases have very few exceptions, like implementation rewrites;
 see [A Word on Rebasing](#a-word-on-rebasing))
 - Tend to make separate commits for logically separate changes
