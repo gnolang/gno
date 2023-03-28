@@ -1,6 +1,10 @@
 package tests
 
-import "std"
+import (
+	"std"
+
+	"gno.land/r/demo/tests/subtests"
+)
 
 func CurrentRealmPath() string {
 	return std.CurrentRealmPath()
@@ -50,4 +54,28 @@ func ModTestNodes() {
 
 func PrintTestNodes() {
 	println(gTestNode2.Child.Name)
+}
+
+func GetCaller() std.Address {
+	return std.GetCaller()
+}
+
+func GetSubtestsCaller() std.Address {
+	return subtests.GetCaller()
+}
+
+func ExecFromTest() {
+	Exec(func() {
+		println("ExecFromTest", std.GetCaller())
+	})
+}
+
+func Exec(fn func()) {
+	fn()
+}
+
+func PrintCallers() {
+	println("p/TEST   : ORIGCALL:", std.GetOrigCaller())
+	println("p/TEST   : PKG ADDR:", std.GetOrigPkgAddr())
+	println("p/TEST   : CALLER  :", std.GetCaller())
 }

@@ -40,3 +40,17 @@ func ModifyTestRealmObject2b() {
 func ModifyTestRealmObject2c() {
 	SomeValue3.Field = "modified"
 }
+
+func GetCaller() std.Address {
+	return std.GetCaller()
+}
+
+func PrintCallers() {
+	println("p/TEST   : ORIGCALL:", std.GetOrigCaller())
+	println("p/TEST   : PKG ADDR:", std.GetOrigPkgAddr())
+	println("p/TEST   : CALLER  :", std.GetCaller())
+}
+
+func Exec(fn func()) {
+	fn()
+}

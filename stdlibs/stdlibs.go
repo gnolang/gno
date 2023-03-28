@@ -1,6 +1,7 @@
 package stdlibs
 
 import (
+	"fmt"
 	"math"
 	"reflect"
 	"strconv"
@@ -257,7 +258,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				m.PushValue(res0)
 			},
 		)
-		pn.DefineNative("GetOrigPkgAddr",
+		pn.DefineNative("GetCaller",
 			gno.Flds( // params
 			),
 			gno.Flds( // results
@@ -265,6 +266,38 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			),
 			func(m *gno.Machine) {
 				ctx := m.Context.(ExecContext)
+
+				lastCaller := ctx.OrigCaller
+
+				for i := m.NumFrames() - 1; i > 0; i-- {
+					frameA := m.Frames[i]
+					frameB := m.Frames[i-1]
+					if frameA.LastPackage.GetPkgAddr().String() != frameB.LastPackage.GetPkgAddr().String() {
+						lastCaller = frameB.LastPackage.GetPkgAddr().Bech32()
+						break
+					}
+				}
+
+				res0 := gno.Go2GnoValue(
+					m.Alloc,
+					m.Store,
+					reflect.ValueOf(lastCaller),
+				)
+				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
+				res0.T = addrT
+				m.PushValue(res0)
+			},
+		)
+		pn.DefineNative("GetOrigPkgAddr",
+			gno.Flds( // params
+			),
+			gno.Flds( // results
+				"", "Address",
+			),
+			func(m *gno.Machine) {
+				fmt.Printf("GetOrigPkgAddr: %#v\n", m.Package)
+				ctx := m.Context.(ExecContext)
+
 				res0 := gno.Go2GnoValue(
 					m.Alloc,
 					m.Store,
