@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	for range time.Tick(time.Millisecond) {
+	for _ = range time.Tick(time.Millisecond) {
 		fmt.Println("success")
 		return
 	}

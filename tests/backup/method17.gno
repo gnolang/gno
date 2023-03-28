@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-
 	"github.com/gnolang/gno/_test/time"
 )
 

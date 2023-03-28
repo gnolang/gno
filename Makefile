@@ -88,7 +88,7 @@ GOFMT_FLAGS ?= -w
 fmt_cmd=$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS)
 fmt:
 	$(fmt_cmd) .
-	$(fmt_cmd) `find stdlibs examples tests/files stdlibs -name "*.gno"`
+	$(fmt_cmd) `find stdlibs examples stdlibs -name "*.gno"`
 
 .PHONY: lint
 lint:

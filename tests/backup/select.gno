@@ -1,9 +1,7 @@
 package main
 
-import (
-	"time"
-	"fmt"
-)
+import "time"
+import "fmt"
 
 func main() {
 	c1 := make(chan string)
