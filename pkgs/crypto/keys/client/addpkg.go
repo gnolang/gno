@@ -56,7 +56,7 @@ func (c *addPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
-		&c.pkgDir,
+		&c.deposit,
 		"deposit",
 		"",
 		"deposit coins",
@@ -155,9 +155,9 @@ func signAndBroadcast(
 	accountAddr := info.GetAddress()
 
 	qopts := &queryCfg{
-		path: fmt.Sprintf("auth/accounts/%s", accountAddr),
+		rootCfg: baseopts,
+		path:    fmt.Sprintf("auth/accounts/%s", accountAddr),
 	}
-	qopts.rootCfg.Remote = baseopts.Remote
 	qres, err := queryHandler(qopts)
 	if err != nil {
 		return errors.Wrap(err, "query account")
@@ -172,13 +172,13 @@ func signAndBroadcast(
 	accountNumber := qret.BaseAccount.AccountNumber
 	sequence := qret.BaseAccount.Sequence
 	sopts := &signCfg{
+		rootCfg:       baseopts,
 		sequence:      sequence,
 		accountNumber: accountNumber,
 		chainID:       txopts.chainID,
 		nameOrBech32:  nameOrBech32,
 		txJSON:        amino.MustMarshalJSON(tx),
 	}
-	sopts.rootCfg.Home = baseopts.Home
 	if baseopts.Quiet {
 		sopts.pass, err = io.GetPassword("", baseopts.InsecurePasswordStdin)
 	} else {
@@ -195,9 +195,9 @@ func signAndBroadcast(
 
 	// broadcast signed tx
 	bopts := &broadcastCfg{
-		tx: signedTx,
+		rootCfg: baseopts,
+		tx:      signedTx,
 	}
-	bopts.rootCfg.Remote = baseopts.Remote
 	bres, err := broadcastHandler(bopts)
 	if err != nil {
 		return errors.Wrap(err, "broadcast tx")

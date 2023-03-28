@@ -226,6 +226,7 @@ func makeGenesisDoc(
 		"r/system/validators",
 		"r/system/names",
 		"r/system/rewards",
+		"r/demo/deep/very/deep",
 	} {
 		// open files in directory as MemPackage.
 		memPkg := gno.ReadMemPackage(filepath.Join(".", "examples", "gno.land", path), "gno.land/"+path)

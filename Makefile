@@ -1,4 +1,17 @@
-########################################
+# Short doc about the commands (please keep in sync with cmd/README for now):
+# ------------------------ User commands -----------------------
+# gnokey        Key manipulation, also general interaction with gnoland
+# gnoland       Runs the blockchain node
+# gnotxport     Importing/exporting transactions from local blockchain node storage
+# website       Serves gno website, along with user-defined content
+# logos         Intended to be used as a browser
+#
+# ---------------------- Developer commands -------------------
+# gnoscan       Dumps imports from specified file’s AST
+# genproto      Helper for generating .proto implementations
+# gnofaucet     Serves GNOT faucet
+# gnodev        Handy tool for developing gno packages & realms
+
 # Dist suite
 .PHONY: logos goscan gnoland gnokey gnofaucet logos reset gnoweb gnotxport
 all: build
@@ -14,17 +27,14 @@ reset:
 tools:
 	go build -o build/logjack ./pkgs/autofile/cmd
 
-# The main show (daemon)
 gnoland:
 	@echo "Building gnoland"
 	go build -o build/gnoland ./cmd/gnoland
 
-# The main show (client)
 gnokey:
 	@echo "Building gnokey"
 	go build -o build/gnokey ./cmd/gnokey
 
-# Development tool
 gnodev:
 	@echo "Building gnodev"
 	go build -o build/gnodev ./cmd/gnodev
@@ -37,7 +47,6 @@ install_gnodev:
 	@echo "Installing gnodev"
 	go install ./cmd/gnodev
 
-# The faucet (daemon)
 gnofaucet:
 	@echo "Building gnofaucet"
 	go build -o build/gnofaucet ./cmd/gnofaucet
@@ -56,7 +65,6 @@ gnotxport:
 	@echo "Building gnotxport"
 	go build -o build/gnotxport ./cmd/gnotxport
 
-# Logos is the interface to Gnoland
 logos:
 	@echo "building logos"
 	go build -o build/logos ./misc/logos/cmd/logos.go
@@ -73,10 +81,13 @@ examples.build: install_gnodev examples.precompile
 ########################################
 # Formatting, linting.
 
+rundep=go run -modfile ./misc/devdeps/go.mod
+
 .PHONY: fmt
+fmt_cmd=$(rundep) mvdan.cc/gofumpt -w
 fmt:
-	go run -modfile ./misc/devdeps/go.mod mvdan.cc/gofumpt -w .
-	go run -modfile ./misc/devdeps/go.mod mvdan.cc/gofumpt -w `find stdlibs examples -name "*.gno"`
+	$(fmt_cmd) .
+	$(fmt_cmd) `find stdlibs examples -name "*.gno"`
 
 .PHONY: lint
 lint:
@@ -97,7 +108,7 @@ test.docker-integration:
 
 test.flappy:
 	# flappy tests should work "sometimes" (at least once)
-	TEST_STABILITY=flappy go run -modfile ./misc/devdeps/go.mod moul.io/testman test -test.v -timeout=20m -retry=10 -run ^TestFlappy \
+	TEST_STABILITY=flappy $(rundep) moul.io/testman test -test.v -timeout=20m -retry=10 -run ^TestFlappy \
 		./pkgs/bft/consensus ./pkgs/bft/blockchain ./pkgs/bft/mempool ./pkgs/p2p ./pkgs/bft/privval
 
 test.go: test.go1 test.go2 test.go3 test.go4
@@ -152,13 +163,14 @@ test.examples.sync:
 	go run ./cmd/gnodev test --verbose --update-golden-tests ./examples
 
 # Code gen
+stringer_cmd=$(rundep) golang.org/x/tools/cmd/stringer
 stringer:
-	stringer -type=Kind
-	stringer -type=Op
-	stringer -type=TransCtrl
-	stringer -type=TransField
-	stringer -type=VPType
-	stringer -type=Word
+	$(stringer_cmd) -type=Kind ./pkgs/gnolang
+	$(stringer_cmd) -type=Op ./pkgs/gnolang
+	$(stringer_cmd) -type=TransCtrl ./pkgs/gnolang
+	$(stringer_cmd) -type=TransField ./pkgs/gnolang
+	$(stringer_cmd) -type=VPType ./pkgs/gnolang
+	$(stringer_cmd) -type=Word ./pkgs/gnolang
 
 genproto:
 	rm -rf proto/*
