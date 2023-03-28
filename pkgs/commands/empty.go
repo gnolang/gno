@@ -4,8 +4,7 @@ import "flag"
 
 // EmptyConfig is an empty command configuration
 // that should be substituted in commands that require one
-type EmptyConfig struct {
-}
+type EmptyConfig struct{}
 
 // NewEmptyConfig creates a new instance of the empty configuration
 func NewEmptyConfig() *EmptyConfig {

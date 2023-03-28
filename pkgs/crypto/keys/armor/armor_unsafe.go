@@ -8,9 +8,7 @@ import (
 	"github.com/gnolang/gno/pkgs/errors"
 )
 
-var (
-	emptyArmorHeader = map[string]string{}
-)
+var emptyArmorHeader = map[string]string{}
 
 // ArmorPrivateKey generates unencrypted armor for the
 // given private key
