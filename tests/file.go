@@ -295,7 +295,8 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						if resWanted == "" {
 							panic(fmt.Sprintf("fail on %s: got unexpected output: %s", path, res))
 						} else {
-							panic(fmt.Sprintf("fail on %s: got:\n%s\n\nwant:\n%s\n", path, res, resWanted))
+							fmt.Printf("fail on %s: got:\n%s\n\nwant:\n%s\n", path, res, resWanted)
+							os.Exit(1)
 						}
 					}
 				}
