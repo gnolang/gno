@@ -9,7 +9,7 @@ import (
 
 func main() {
 	test()
-	std.TestSetOrigCaller(testutils.TestAddress("user"))
+	std.TestClearOriginCall()
 	test()
 }
 
@@ -29,7 +29,7 @@ func test() {
 }
 
 // Output:
-// IsOriginCall: false
-// AssertOriginCall: panic: invalid non-origin call
 // IsOriginCall: true
 // AssertOriginCall: no panic
+// IsOriginCall: false
+// AssertOriginCall: panic: invalid non-origin call

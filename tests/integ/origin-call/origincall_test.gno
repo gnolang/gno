@@ -8,6 +8,12 @@ import (
 )
 
 func TestOriginCall(t *testing.T) {
+	std.AssertOriginCall()
+	if b := std.IsOriginCall(); !b {
+		t.Errorf("expect isOriginCall true, got false")
+	}
+
+	std.TestClearOriginCall()
 	requirePanic(t, func() {
 		std.AssertOriginCall()
 	}, "invalid non-origin call")
@@ -17,13 +23,6 @@ func TestOriginCall(t *testing.T) {
 	// the following test).
 	if b := std.IsOriginCall(); b {
 		t.Errorf("expect isOriginCall false, got true")
-	}
-
-	std.TestSetOrigCaller(testutils.TestAddress("user"))
-
-	std.AssertOriginCall()
-	if b := std.IsOriginCall(); !b {
-		t.Errorf("expect isOriginCall true, got false")
 	}
 }
 

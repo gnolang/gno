@@ -504,6 +504,20 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				m.PushValue(res0)
 			},
 		)
+		// TestClearOriginCall sets ctx.Msg=nil (it's non-nil by default in test
+		// setup).
+		// This ensures that AssertOriginCall panics and IsOriginCall returns false.
+		pn.DefineNative("TestClearOriginCall",
+			gno.Flds( // params
+			),
+			gno.Flds( // results
+			),
+			func(m *gno.Machine) {
+				ctx := m.Context.(stdlibs.ExecContext)
+				ctx.Msg = nil
+				m.Context = ctx
+			},
+		)
 		pn.DefineNative("TestSetOrigCaller",
 			gno.Flds( // params
 				"", "Address",
