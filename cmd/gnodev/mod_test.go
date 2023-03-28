@@ -58,8 +58,19 @@ func TestModApp(t *testing.T) {
 		},
 		{
 			args:                 []string{"mod", "download"},
-			testDir:              "../../tests/integ/replace-module",
+			testDir:              "../../tests/integ/replace-with-dir",
 			simulateExternalRepo: true,
+		},
+		{
+			args:                 []string{"mod", "download"},
+			testDir:              "../../tests/integ/replace-with-module",
+			simulateExternalRepo: true,
+		},
+		{
+			args:                 []string{"mod", "download"},
+			testDir:              "../../tests/integ/replace-with-invalid-module",
+			simulateExternalRepo: true,
+			errShouldContain:     "fetch: writepackage: querychain:",
 		},
 	}
 	testMainCaseRun(t, tc)

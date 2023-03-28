@@ -2006,14 +2006,13 @@ func (x *BasicLitExpr) GetInt() int {
 type GnoAttribute string
 
 const (
-	ATTR_PREPROCESSED      GnoAttribute = "ATTR_PREPROCESSED"
-	ATTR_PREDEFINED        GnoAttribute = "ATTR_PREDEFINED"
-	ATTR_TYPE_VALUE        GnoAttribute = "ATTR_TYPE_VALUE"
-	ATTR_TYPEOF_VALUE      GnoAttribute = "ATTR_TYPEOF_VALUE"
-	ATTR_IOTA              GnoAttribute = "ATTR_IOTA"
-	ATTR_LOCATIONED        GnoAttribute = "ATTR_LOCATIONED"
-	ATTR_INJECTED          GnoAttribute = "ATTR_INJECTED"
-	ATTR_SWITCH_CLAUSE_IDX GnoAttribute = "ATTR_CLAUSE_IDX"
+	ATTR_PREPROCESSED GnoAttribute = "ATTR_PREPROCESSED"
+	ATTR_PREDEFINED   GnoAttribute = "ATTR_PREDEFINED"
+	ATTR_TYPE_VALUE   GnoAttribute = "ATTR_TYPE_VALUE"
+	ATTR_TYPEOF_VALUE GnoAttribute = "ATTR_TYPEOF_VALUE"
+	ATTR_IOTA         GnoAttribute = "ATTR_IOTA"
+	ATTR_LOCATIONED   GnoAttribute = "ATTR_LOCATIONED"
+	ATTR_INJECTED     GnoAttribute = "ATTR_INJECTED"
 )
 
 // TODO: consider length restrictions.

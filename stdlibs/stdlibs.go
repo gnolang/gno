@@ -2,6 +2,7 @@ package stdlibs
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"math"
 	"reflect"
 	"strconv"
@@ -65,8 +66,36 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 					array := slice.GetBase(m.Store)
 					bz = array.GetReadonlyBytes()[:slice.Length]
 				}
+				// remove padding
 				bzNP := bytes.Trim(bz, "\x00")
 				hash := sha3.Sum512(bzNP)
+				res0 := gno.Go2GnoValue(
+					m.Alloc,
+					m.Store,
+					reflect.ValueOf(hash),
+				)
+				m.PushValue(res0)
+			},
+		)
+	case "internal/crypto/sha256":
+		pn.DefineNative("Sum256",
+			gno.Flds( // params
+				"data", "[]byte",
+			),
+			gno.Flds( // results
+				"bz", "[32]byte",
+			),
+			func(m *gno.Machine) {
+				arg0 := m.LastBlock().GetParams1().TV
+				bz := []byte(nil)
+
+				if arg0.V != nil {
+					slice := arg0.V.(*gno.SliceValue)
+					array := slice.GetBase(m.Store)
+					bz = array.GetReadonlyBytes()[:slice.Length]
+				}
+
+				hash := sha256.Sum256(bz)
 				res0 := gno.Go2GnoValue(
 					m.Alloc,
 					m.Store,

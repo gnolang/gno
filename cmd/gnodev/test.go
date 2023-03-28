@@ -107,7 +107,7 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 
 	// go.mod
 	modPath := filepath.Join(tempdirRoot, "go.mod")
-	err = makeTestGoMod(modPath, gno.ImportPrefix, "1.18")
+	err = makeTestGoMod(modPath, gno.ImportPrefix, "1.19")
 	if err != nil {
 		return fmt.Errorf("write .mod file: %w", err)
 	}
@@ -237,7 +237,8 @@ func gnoTestPkg(
 
 	if !verbose {
 		// TODO: speedup by ignoring if filter is file/*?
-		stdout = commands.WriteNopCloser(nil)
+		mockOut := bytes.NewBufferString("")
+		stdout = commands.WriteNopCloser(mockOut)
 	}
 
 	// testing with *_test.gno
