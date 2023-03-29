@@ -116,14 +116,20 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	}
 	context := opts.Context
 	mm := machinePool.Get().(*Machine)
-	mm.Package = pv
-	mm.Alloc = alloc
-	mm.CheckTypes = checkTypes
-	mm.ReadOnly = readOnly
-	mm.MaxCycles = maxCycles
-	mm.Output = output
-	mm.Store = store
-	mm.Context = context
+	*mm = Machine{
+		Ops:        mm.Ops,
+		NumOps:     0,
+		Values:     mm.Values,
+		NumValues:  0,
+		Package:    pv,
+		Alloc:      alloc,
+		CheckTypes: checkTypes,
+		ReadOnly:   readOnly,
+		MaxCycles:  maxCycles,
+		Output:     output,
+		Store:      store,
+		Context:    context,
+	}
 
 	if pv != nil {
 		mm.SetActivePackage(pv)
