@@ -21,17 +21,18 @@ var DefaultBaseOptions = BaseOptions{
 
 func HomeDir() string {
 	// if environment set, always use that.
-	// if not, check $XDG_CONFIG_HOME
+	// if not, check whether can get os.UserHomeDir()
 	// if not, fall back to home directory
+	var err error
 	hd := os.Getenv("GNO_HOME")
 	if hd != "" {
 		return hd
 	}
-	hd = os.Getenv("XDG_CONFIG_HOME")
-	if hd != "" {
+	hd, err = os.UserConfigDir()
+	if err == nil {
 		return fmt.Sprintf("%s/gno", hd)
 	}
-	hd, err := os.UserHomeDir()
+	hd, err = os.UserHomeDir()
 	if err != nil {
 		panic(err)
 	}
