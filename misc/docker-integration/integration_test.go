@@ -81,7 +81,8 @@ func runSuite(t *testing.T, tempdir string) {
 
 func checkDocker(t *testing.T) {
 	t.Helper()
-	// FIXME: check if `docker` is installed and compatible.
+	output, err := createCommand(t, []string{"docker", "info"}).CombinedOutput()
+	require.NoError(t, err, "docker daemon not running: %s", string(output))
 }
 
 func buildDockerImage(t *testing.T) {
