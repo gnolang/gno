@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 )
 
 type BaseOptions struct {
@@ -21,15 +22,20 @@ var DefaultBaseOptions = BaseOptions{
 
 func HomeDir() string {
 	// if environment set, always use that.
-	hd := os.Getenv("GNO_HOME")
-	if hd != "" {
-		return hd
+	// if not, check whether can get os.UserHomeDir()
+	// if not, fall back to home directory
+	var err error
+	dir := os.Getenv("GNO_HOME")
+	if dir != "" {
+		return dir
 	}
-
-	// look for dir in home directory.
-	hd, err := os.UserHomeDir()
+	dir, err = os.UserConfigDir()
+	if err == nil {
+		return filepath.Join(dir, "gno")
+	}
+	dir, err = os.UserHomeDir()
 	if err != nil {
 		panic(err)
 	}
-	return fmt.Sprintf("%s/.gno", hd)
+	return filepath.Join(dir, ".gno")
 }
