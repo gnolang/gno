@@ -1544,7 +1544,22 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 			panic("should not happen")
 		}
 	}
+	var t Type
+	if tv.IsDefined() {
+		t = tv.T
+	}
 	*tv = tv2.Copy(alloc)
+
+	if !checkSameTypes(tv.T, tv2.T) {
+		if tv.IsDefined() {
+			if dt, ok := tv.T.(*DeclaredType); ok {
+				if checkSameTypes(dt.Base, tv2.T) {
+					(*tv).T = t
+				}
+			}
+		}
+	}
+
 	if cu && isUntyped(tv.T) {
 		ConvertUntypedTo(tv, defaultTypeOf(tv.T))
 	}

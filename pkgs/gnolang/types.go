@@ -2098,6 +2098,33 @@ func assertSameTypes(lt, rt Type) {
 		)
 	}
 }
+func checkSameTypes(lt, rt Type) (r bool) {
+	r = true
+	if lt == nil && rt == nil {
+		// both are nil.
+	} else if lt == nil || rt == nil {
+		// one is nil.  see function comment.
+	} else if lt.Kind() == rt.Kind() &&
+		isUntyped(lt) || isUntyped(rt) {
+		// one is untyped of same kind.
+	} else if lt.Kind() == rt.Kind() &&
+		isDataByte(lt) {
+		// left is databyte of same kind,
+		// specifically for assignments.
+		// TODO: make another function
+		// and remove this case?
+	} else if lt.TypeID() == rt.TypeID() {
+		// non-nil types are identical.
+	} else {
+		r = false
+		debug.Errorf(
+			"incompatible operands in binary expression: %s and %s",
+			lt.String(),
+			rt.String(),
+		)
+	}
+	return
+}
 
 // Like assertSameTypes(), but more relaxed, for == and !=.
 func assertEqualityTypes(lt, rt Type) {

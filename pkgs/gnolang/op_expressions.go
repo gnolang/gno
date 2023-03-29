@@ -627,7 +627,14 @@ func (m *Machine) doOpStructLit() {
 		ftvs := m.PopValues(el)
 		for i := 0; i < el; i++ {
 			fnx := x.Elts[i].Key.(*NameExpr)
+
 			ftv := ftvs[i]
+			if dt, ok := fs[i].T.(*DeclaredType); ok {
+				if checkSameTypes(dt.Base, ftvs[i].T) {
+					ftv.T = fs[i].T // use defined type
+				}
+			}
+
 			if debug {
 				if fnx.Path.Depth != 0 {
 					panic("unexpected struct composite lit key path generation value")
