@@ -96,8 +96,6 @@ func buildDockerImage(t *testing.T) {
 	})
 	output, err := cmd.CombinedOutput()
 	require.NoError(t, err, string(output))
-	// FIXME: is this check reliable?
-	require.Contains(t, string(output), "Successfully built")
 }
 
 // dockerExec runs docker exec with cmd as argument
@@ -172,12 +170,5 @@ func waitGnoland(t *testing.T) {
 
 func cleanupGnoland(t *testing.T) {
 	t.Helper()
-
-	// FIXME: detect if container exists before killing it.
-
-	cmd := createCommand(t, []string{"docker", "kill", gnolandContainerName})
-	_, _ = cmd.Output()
-
-	cmd = createCommand(t, []string{"docker", "rm", "-f", gnolandContainerName})
-	_, _ = cmd.Output()
+	createCommand(t, []string{"docker", "rm", "-f", gnolandContainerName}).Run()
 }
