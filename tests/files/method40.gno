@@ -11,10 +11,13 @@ func (n nat3) add3() bool {
 func main() {
 	items := map[string]nat3{}
 
-	n = []Word{0}
+	n := []Word{0}
 
 	items["test"] = n
 	r := items["test"]
 
-	r.add3()
+	println(r.add3())
 }
+
+// Output:
+// true

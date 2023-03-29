@@ -1,5 +1,8 @@
 package main
 
+import (
+	"fmt"
+)
 
 type nat3 []Word
 type Word uint
@@ -12,5 +15,8 @@ func (n nat3) add3() bool {
 func main() {
 	var abs nat3
 	abs = []Word{0}
-	abs.add3()
+	println(abs.add3())
 }
+
+// Output:
+// true

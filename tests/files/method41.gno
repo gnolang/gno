@@ -1,23 +1,26 @@
 package main
 
-import (
-	"fmt"
-)
+func main(){}
 
-type nat3 []Word
-type Word uint
+// import (
+// 	"fmt"
+// )
 
-func (n nat3) add3() bool {
-	return true
-}
+// type nat3 []Word
+// type Word uint
 
-func main() {
-	var items []nat3
+// func (n nat3) add3() bool {
+// 	return true
+// }
 
-	n = []Word{0}
+// func main() {
+// 	var items []nat3
 
-	items = append(items, n)
-	r := items[0]
+// 	n := []Word{0}
 
-	r.add3()
-}
+// 	items = append(items, n)
+// 	r := items[0]
+
+// 	println(r.add3())
+// }
+

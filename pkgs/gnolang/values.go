@@ -999,6 +999,27 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	return
 }
 
+func (tv TypedValue) CopyOrConvert(alloc *Allocator, isConvert bool, t Type) (cp TypedValue) {
+	switch cv := tv.V.(type) {
+	case BigintValue:
+		cp.T = t
+		cp.V = cv.Copy(alloc)
+	case *ArrayValue:
+		cp.T = t
+		cp.V = cv.Copy(alloc)
+	case *StructValue:
+		cp.T = t
+		cp.V = cv.Copy(alloc)
+	case *NativeValue:
+		cp.T = t
+		cp.V = cv.Copy(alloc)
+	default:
+		cp.T = t
+		cp.V = tv.V
+	}
+	return
+}
+
 // Returns encoded bytes for primitive values.
 // These bytes are used for both value hashes as well
 // as hash key bytes.
@@ -1529,6 +1550,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 // cu: convert untyped after assignment. pass false
 // for const definitions, but true for all else.
 func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
+	// println("assgin")
 	if debug {
 		if tv.T == DataByteType {
 			// assignment to data byte types should only
@@ -1541,20 +1563,36 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 			panic("should not happen")
 		}
 	}
-	var t Type
-	if tv.IsDefined() {
-		t = tv.T
-	}
-	*tv = tv2.Copy(alloc)
+	// var t Type
+	// if tv.IsDefined() {
+	// 	t = tv.T
+	// 	println("tv defined, t:", t.String())
+	// 	println("tv2: ", tv2.String())
+	// }
+	// *tv = tv2.Copy(alloc)
 
+	// if tv.IsDefined() {
+	// 	println("tv is defined")
+	// 	if dt, ok := tv.T.(*DeclaredType); ok {
+	// 		println("is dt")
+	// 		if checkSameTypes(dt.Base, tv2.T) {
+	// 			println("base == tv2.T, reset type")
+	// 			(*tv).T = t
+	// 		}
+	// 	} else {
+	// 		println("not dt")
+	// 	}
+	// }
+	// println("tv:", tv.String())
+	// println("tv2:", tv2.String())
 	if !checkSameTypes(tv.T, tv2.T) {
 		if tv.IsDefined() {
-			if dt, ok := tv.T.(*DeclaredType); ok {
-				if checkSameTypes(dt.Base, tv2.T) {
-					(*tv).T = t
-				}
-			}
+			*tv = tv2.CopyOrConvert(alloc, true, tv.T)
+		} else {
+			*tv = tv2.Copy(alloc)
 		}
+	} else {
+		*tv = tv2.Copy(alloc)
 	}
 
 	if cu && isUntyped(tv.T) {
