@@ -83,19 +83,17 @@ func exportKey(
 	exportOpts testExportKeyOpts,
 	input io.Reader,
 ) error {
-	var (
-		cfg = &exportCfg{
-			rootCfg: &baseCfg{
-				BaseOptions: BaseOptions{
-					Home:                  exportOpts.kbHome,
-					InsecurePasswordStdin: true,
-				},
+	cfg := &exportCfg{
+		rootCfg: &baseCfg{
+			BaseOptions: BaseOptions{
+				Home:                  exportOpts.kbHome,
+				InsecurePasswordStdin: true,
 			},
-			nameOrBech32: exportOpts.keyName,
-			outputPath:   exportOpts.outputPath,
-			unsafe:       exportOpts.unsafe,
-		}
-	)
+		},
+		nameOrBech32: exportOpts.keyName,
+		outputPath:   exportOpts.outputPath,
+		unsafe:       exportOpts.unsafe,
+	}
 
 	cmdIO := commands.NewTestIO()
 	cmdIO.SetIn(input)

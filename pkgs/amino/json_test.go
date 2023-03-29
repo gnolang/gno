@@ -185,15 +185,15 @@ func TestUnmarshalMap(t *testing.T) {
 	cdc := amino.NewCodec()
 	assert.Panics(t, func() {
 		err := cdc.UnmarshalJSON(jsonBytes, &obj)
-		assert.Fail(t, "should have paniced but got err: %v", err)
+		assert.Fail(t, "should have panicked but got err: %v", err)
 	})
 	assert.Panics(t, func() {
 		err := cdc.UnmarshalJSON(jsonBytes, obj)
-		assert.Fail(t, "should have paniced but got err: %v", err)
+		assert.Fail(t, "should have panicked but got err: %v", err)
 	})
 	assert.Panics(t, func() {
 		bz, err := cdc.MarshalJSON(obj)
-		assert.Fail(t, "should have paniced but got bz: %X err: %v", bz, err)
+		assert.Fail(t, "should have panicked but got bz: %X err: %v", bz, err)
 	})
 }
 
@@ -203,7 +203,7 @@ func TestUnmarshalFunc(t *testing.T) {
 	cdc := amino.NewCodec()
 	assert.Panics(t, func() {
 		err := cdc.UnmarshalJSON(jsonBytes, &obj)
-		assert.Fail(t, "should have paniced but got err: %v", err)
+		assert.Fail(t, "should have panicked but got err: %v", err)
 	})
 
 	err := cdc.UnmarshalJSON(jsonBytes, obj)
@@ -213,7 +213,7 @@ func TestUnmarshalFunc(t *testing.T) {
 	// ... nor encoding it.
 	assert.Panics(t, func() {
 		bz, err := cdc.MarshalJSON(obj)
-		assert.Fail(t, "should have paniced but got bz: %X err: %v", bz, err)
+		assert.Fail(t, "should have panicked but got bz: %X err: %v", bz, err)
 	})
 }
 

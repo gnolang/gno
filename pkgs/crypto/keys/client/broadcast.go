@@ -34,7 +34,7 @@ func newBroadcastCmd(rootCfg *baseCfg) *commands.Command {
 			ShortUsage: "broadcast [flags] <file-name>",
 			ShortHelp:  "Broadcasts a signed document",
 		},
-		nil,
+		cfg,
 		func(_ context.Context, args []string) error {
 			return execBroadcast(cfg, args, commands.NewDefaultIO())
 		},

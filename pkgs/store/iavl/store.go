@@ -120,13 +120,13 @@ func (st *Store) SetStoreOptions(opts2 types.StoreOptions) {
 	st.opts = opts2
 }
 
-// Implements Commiter.
+// Implements Committer.
 func (st *Store) LoadLatestVersion() error {
 	version := st.tree.LatestVersion()
 	return st.LoadVersion(version)
 }
 
-// Implements Commiter.
+// Implements Committer.
 func (st *Store) LoadVersion(ver int64) error {
 	if st.opts.Immutable {
 		immutTree, err := st.tree.(*iavl.MutableTree).GetImmutable(ver)
@@ -458,7 +458,7 @@ func (iter *iavlIterator) receiveNext() {
 }
 
 // assertIsValid panics if the iterator is invalid. If unlockMutex is true,
-// it also unlocks the mutex before panicing, to prevent deadlocks in code that
+// it also unlocks the mutex before panicking, to prevent deadlocks in code that
 // recovers from panics
 func (iter *iavlIterator) assertIsValid(unlockMutex bool) {
 	if iter.invalid {

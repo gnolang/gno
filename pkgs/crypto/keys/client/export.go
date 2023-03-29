@@ -128,7 +128,7 @@ func execExport(cfg *exportCfg, io *commands.IO) error {
 	if err := os.WriteFile(
 		cfg.outputPath,
 		[]byte(armor),
-		0644,
+		0o644,
 	); err != nil {
 		return fmt.Errorf(
 			"unable to write encrypted armor to file, %w",

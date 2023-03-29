@@ -103,7 +103,6 @@ func execDelete(cfg *deleteCfg, args []string, io *commands.IO) error {
 
 func confirmDeletion(io *commands.IO) error {
 	answer, err := io.GetConfirmation("Key reference will be deleted. Continue?")
-
 	if err != nil {
 		return err
 	}
