@@ -1,7 +1,6 @@
 package stdlibs
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"math"
 	"reflect"
@@ -30,7 +29,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				"data", "[]byte",
 			),
 			gno.Flds( // results
-				"bz", "[]byte",
+				"bz", "[32]byte",
 			),
 			func(m *gno.Machine) {
 				arg0 := m.LastBlock().GetParams1().TV
@@ -40,9 +39,8 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 					array := slice.GetBase(m.Store)
 					bz = array.GetReadonlyBytes()[:slice.Length]
 				}
-				// remove padding
-				bzNP := bytes.Trim(bz, "\x00")
-				hash := sha3.Sum256(bzNP)
+
+				hash := sha3.Sum256(bz)
 				res0 := gno.Go2GnoValue(
 					m.Alloc,
 					m.Store,
@@ -56,7 +54,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				"data", "[]byte",
 			),
 			gno.Flds( // results
-				"bz", "[]byte",
+				"bz", "[64]byte",
 			),
 			func(m *gno.Machine) {
 				arg0 := m.LastBlock().GetParams1().TV
@@ -66,9 +64,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 					array := slice.GetBase(m.Store)
 					bz = array.GetReadonlyBytes()[:slice.Length]
 				}
-				// remove padding
-				bzNP := bytes.Trim(bz, "\x00")
-				hash := sha3.Sum512(bzNP)
+				hash := sha3.Sum512(bz)
 				res0 := gno.Go2GnoValue(
 					m.Alloc,
 					m.Store,
