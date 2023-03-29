@@ -155,10 +155,18 @@ func startGnoland(t *testing.T) {
 
 func waitGnoland(t *testing.T) {
 	t.Helper()
-
 	t.Log("waiting...")
-	// FIXME: tail logs and wait for blockchain to be ready.
-	time.Sleep(20000 * time.Millisecond)
+	for {
+		output, _ := createCommand(t,
+			[]string{"docker", "logs", gnolandContainerName},
+		).CombinedOutput()
+		if strings.Contains(string(output), "Committed state") {
+			// ok blockchain is ready
+			t.Log("gnoland ready")
+			break
+		}
+		time.Sleep(time.Second)
+	}
 }
 
 func cleanupGnoland(t *testing.T) {
