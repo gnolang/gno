@@ -1,7 +1,7 @@
 .PHONY: help
 help:
 	@echo "Available make commands:"
-	@cat Makefile | grep '^[a-z]' | grep -v '=' | cut -d: -f1 | sort | sed 's/^/  /'
+	@cat Makefile | grep '^[a-z][^:]*:' | cut -d: -f1 | sort | sed 's/^/  /'
 
 rundep=go run -modfile ../misc/devdeps/go.mod
 
@@ -36,7 +36,6 @@ lint:
 # Test suite
 .PHONY: test
 test: _test.pkg.amino _test.pkg.bft _test.pkg.others _test.flappy _test.cmds
-	@echo "Full test suite finished."
 
 _test.flappy:
 	# flappy tests should work "sometimes" (at least once)

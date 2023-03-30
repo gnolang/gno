@@ -40,7 +40,7 @@ import (
 	"unicode/utf8"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/stdlibs"
+	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
@@ -58,9 +58,9 @@ const (
 	ImportModeNativePreferred
 )
 
-// ImportModeStdlibsOnly: use pkg/stdlibs/* only (except a few exceptions). for pkg/stdlibs/* and examples/* testing.
-// ImportModeStdlibsPreferred: use pkg/stdlibs/* if present, otherwise use native. for files/tests2/*.
-// ImportModeNativePreferred: do not use pkg/stdlibs/* if native registered. for files/tests/*.
+// ImportModeStdlibsOnly: use stdlibs/* only (except a few exceptions). for stdlibs/* and examples/* testing.
+// ImportModeStdlibsPreferred: use stdlibs/* if present, otherwise use native. for files/tests2/*.
+// ImportModeNativePreferred: do not use stdlibs/* if native registered. for files/tests/*.
 // NOTE: this isn't safe, should only be used for testing.
 func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Writer, mode importMode) (store gno.Store) {
 	getPackage := func(pkgPath string) (pn *gno.PackageNode, pv *gno.PackageValue) {
@@ -94,7 +94,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 		// if stdlibs package is preferred , try to load it first.
 		if mode == ImportModeStdlibsOnly ||
 			mode == ImportModeStdlibsPreferred {
-			stdlibPath := filepath.Join(rootDir, "gnovm", "pkg", "stdlibs", pkgPath)
+			stdlibPath := filepath.Join(rootDir, "gnovm", "stdlibs", pkgPath)
 			if osm.DirExists(stdlibPath) {
 				memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
@@ -408,7 +408,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 
 		// if native package is preferred, try to load stdlibs/* as backup.
 		if mode == ImportModeNativePreferred {
-			stdlibPath := filepath.Join(rootDir, "gnovm", "pkg", "stdlibs", pkgPath)
+			stdlibPath := filepath.Join(rootDir, "gnovm", "stdlibs", pkgPath)
 			if osm.DirExists(stdlibPath) {
 				memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{

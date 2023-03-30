@@ -39,7 +39,7 @@ func setupTestEnv() testEnv {
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id"}, log.NewNopLogger())
 	acck := authm.NewAccountKeeper(iavlCapKey, std.ProtoBaseAccount)
 	bank := bankm.NewBankKeeper(acck)
-	stdlibsDir := filepath.Join("..", "..", "..", "..", "gnovm", "pkg", "stdlibs")
+	stdlibsDir := filepath.Join("..", "..", "..", "..", "gnovm", "stdlibs")
 	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, stdlibsDir)
 
 	vmk.Initialize(ms.MultiCacheWrap())

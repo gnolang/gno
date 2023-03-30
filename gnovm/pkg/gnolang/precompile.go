@@ -25,7 +25,7 @@ const (
 	GnoPackagePrefixBefore   = "gno.land/p/demo/"
 	GnoPackagePrefixAfter    = "github.com/gnolang/gno/examples/gno.land/p/demo/"
 	GnoStdPkgBefore          = "std"
-	GnoStdPkgAfter           = "github.com/gnolang/gno/gnovm/pkg/stdlibs/stdshim"
+	GnoStdPkgAfter           = "github.com/gnolang/gno/gnovm/stdlibs/stdshim"
 )
 
 var stdlibWhitelist = []string{

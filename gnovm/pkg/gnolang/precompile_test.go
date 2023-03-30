@@ -25,7 +25,7 @@ func TestPrecompile(t *testing.T) {
 		}, {
 			name:           "use-std",
 			source:         "package foo\nimport \"std\"\nfunc hello() string { _ = std.Foo\nreturn \"world\"}",
-			expectedOutput: "package foo\nimport \"github.com/gnolang/gno/gnovm/pkg/stdlibs/stdshim\"\nfunc hello() string { _ = std.Foo\nreturn \"world\"}",
+			expectedOutput: "package foo\nimport \"github.com/gnolang/gno/gnovm/stdlibs/stdshim\"\nfunc hello() string { _ = std.Foo\nreturn \"world\"}",
 		}, {
 			name:           "use-realm",
 			source:         "package foo\nimport \"gno.land/r/users\"\nfunc foo()  { _ = users.Register}",
@@ -37,7 +37,7 @@ func TestPrecompile(t *testing.T) {
 		}, {
 			name:           "use-named-std",
 			source:         "package foo\nimport bar \"std\"\nfunc hello() string { _ = bar.Foo\nreturn \"world\"}",
-			expectedOutput: "package foo\nimport bar \"github.com/gnolang/gno/gnovm/pkg/stdlibs/stdshim\"\nfunc hello() string { _ = bar.Foo\nreturn \"world\"}",
+			expectedOutput: "package foo\nimport bar \"github.com/gnolang/gno/gnovm/stdlibs/stdshim\"\nfunc hello() string { _ = bar.Foo\nreturn \"world\"}",
 		}, {
 			name:                      "blacklisted-package",
 			source:                    "package foo\nimport \"reflect\"\nfunc foo() { _ = reflect.ValueOf}",

@@ -40,7 +40,7 @@ func NewApp(rootDir string, skipFailingGenesisTxs bool, logger log.Logger) (abci
 	// Construct keepers.
 	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
 	bankKpr := bank.NewBankKeeper(acctKpr)
-	stdlibsDir := filepath.Join("..", "gnovm", "pkg", "stdlibs")
+	stdlibsDir := filepath.Join("..", "gnovm", "stdlibs")
 	vmKpr := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, stdlibsDir)
 
 	// Set InitChainer

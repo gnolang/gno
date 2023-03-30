@@ -1,7 +1,7 @@
 .PHONY: help
 help:
 	@echo "Available make commands:"
-	@cat Makefile | grep '^[a-z]' | grep -v '=' | cut -d: -f1 | sort | sed 's/^/  /'
+	@cat Makefile | grep '^[a-z][^:]*:' | cut -d: -f1 | sort | sed 's/^/  /'
 
 .PHONY: precompile
 precompile:
@@ -24,6 +24,6 @@ clean:
 	find . \( -name "*.gno.gen.go" -or -name ".*.gno.gen_test.go" \) -delete
 
 .PHONY: fmt
-fmt:
 GOFMT_FLAGS ?= -w
+fmt:
 	go run -modfile ../misc/devdeps/go.mod mvdan.cc/gofumpt $(GOFMT_FLAGS) `find . -name "*.gno"`

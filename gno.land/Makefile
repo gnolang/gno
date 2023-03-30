@@ -1,21 +1,25 @@
 .PHONY: help
 help:
 	@echo "Available make commands:"
-	@cat Makefile | grep '^[a-z]' | grep -v '=' | cut -d: -f1 | sort | sed 's/^/  /'
+	@cat Makefile | grep '^[a-z][^:]*:' | cut -d: -f1 | sort | sed 's/^/  /'
 
 rundep=go run -modfile ../misc/devdeps/go.mod
 
 .PHONY: build
-build: _build.gnoland _build.gnokey _build.gnoweb _build.gnofaucet
+build: build.gnoland build.gnokey build.gnoweb build.gnofaucet
 
-_build.gnoland:;    go build -o build/gnoland   ./cmd/gnoland
-_build.gnoweb:;     go build -o build/gnoweb    ./cmd/gnoweb
-_build.gnofaucet:;  go build -o build/gnofaucet ./cmd/gnofaucet
-_build.gnokey:;     go build -o build/gnokey    ./cmd/gnokey
+build.gnoland:;    go build -o build/gnoland   ./cmd/gnoland
+build.gnoweb:;     go build -o build/gnoweb    ./cmd/gnoweb
+build.gnofaucet:;  go build -o build/gnofaucet ./cmd/gnofaucet
+build.gnokey:;     go build -o build/gnokey    ./cmd/gnokey
 
 .PHONY: install
-install:
-	go install ./cmd/...
+install: install.gnoland install.gnoweb install.gnofaucet install.gnokey
+
+install.gnoland:;    go install ./cmd/gnoland
+install.gnoweb:;     go install ./cmd/gnoweb
+install.gnofaucet:;  go install ./cmd/gnofaucet
+install.gnokey:;     go install ./cmd/gnokey
 
 .PHONY: fclean
 fclean: clean
@@ -38,7 +42,6 @@ fmt:
 # Test suite
 .PHONY: test
 test: _test.gnoland _test.gnoweb _test.gnokey _test.pkgs
-	@echo "Full test suite finished."
 
 _test.gnoland:; go test -v ./cmd/gnoland
 _test.gnoweb:;  go test -v ./cmd/gnoweb
