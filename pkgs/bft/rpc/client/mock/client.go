@@ -111,6 +111,10 @@ func (c Client) ConsensusState() (*ctypes.ResultConsensusState, error) {
 	return core.ConsensusState(&rpctypes.Context{})
 }
 
+func (c Client) ConsensusParams(height *int64) (*ctypes.ResultConsensusParams, error) {
+	return core.ConsensusParams(&rpctypes.Context{}, height)
+}
+
 func (c Client) DumpConsensusState() (*ctypes.ResultDumpConsensusState, error) {
 	return core.DumpConsensusState(&rpctypes.Context{})
 }
