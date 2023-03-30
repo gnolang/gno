@@ -213,6 +213,14 @@ func UverseNode() *PackageNode {
 							copy(
 								list[:argsl],
 								argsb.List[argso:argso+argsl])
+							// // convert
+							if dt, ok := xt.Elem().(*DeclaredType); ok {
+								if checkSameTypes(dt.Base, argt.Elem()) {
+									for i := 0; i < argsl; i++ {
+										list[i].T = xt.Elem()
+									}
+								}
+							}
 						}
 						m.PushValue(TypedValue{
 							T: xt,

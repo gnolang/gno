@@ -1563,36 +1563,18 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 			panic("should not happen")
 		}
 	}
-	// var t Type
-	// if tv.IsDefined() {
-	// 	t = tv.T
-	// 	println("tv defined, t:", t.String())
-	// 	println("tv2: ", tv2.String())
-	// }
-	// *tv = tv2.Copy(alloc)
-
-	// if tv.IsDefined() {
-	// 	println("tv is defined")
-	// 	if dt, ok := tv.T.(*DeclaredType); ok {
-	// 		println("is dt")
-	// 		if checkSameTypes(dt.Base, tv2.T) {
-	// 			println("base == tv2.T, reset type")
-	// 			(*tv).T = t
-	// 		}
-	// 	} else {
-	// 		println("not dt")
-	// 	}
-	// }
-	// println("tv:", tv.String())
-	// println("tv2:", tv2.String())
-	if !checkSameTypes(tv.T, tv2.T) {
-		if tv.IsDefined() {
-			*tv = tv2.CopyOrConvert(alloc, true, tv.T)
-		} else {
-			*tv = tv2.Copy(alloc)
+	var t Type
+	if tv.IsDefined() {
+		t = tv.T // old type
+	}
+	*tv = tv2.Copy(alloc)
+	// check convert
+	if tv.IsDefined() {
+		if dt, ok := t.(*DeclaredType); ok {
+			if checkSameTypes(dt.Base, tv2.T) {
+				(*tv).T = t
+			}
 		}
-	} else {
-		*tv = tv2.Copy(alloc)
 	}
 
 	if cu && isUntyped(tv.T) {
