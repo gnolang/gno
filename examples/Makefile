@@ -25,4 +25,5 @@ clean:
 
 .PHONY: fmt
 fmt:
-	go run -modfile ../misc/devdeps/go.mod mvdan.cc/gofumpt -w `find . -name "*.gno"`
+GOFMT_FLAGS ?= -w
+	go run -modfile ../misc/devdeps/go.mod mvdan.cc/gofumpt $(GOFMT_FLAGS) `find . -name "*.gno"`

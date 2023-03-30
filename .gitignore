@@ -6,7 +6,7 @@ unsorted.*
 data/*
 testdir
 pkgs/sdk/vm/_testdata
-**/build/
+build
 *.tx
 *.log.*
 *.log

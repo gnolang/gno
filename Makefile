@@ -1,7 +1,7 @@
 .PHONY: help
 help:
 	@echo "Available make commands:"
-	@cat Makefile | grep '^[a-z]' | grep -v '=' | cut -d: -f1 | sort | sed 's/^/  /'
+	@cat Makefile | grep '^[a-z][^:]*:' | cut -d: -f1 | sort | sed 's/^/  /'
 
 rundep=go run -modfile ../misc/devdeps/go.mod
 

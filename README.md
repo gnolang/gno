@@ -22,7 +22,7 @@ Start your journey with Gno.land by:
 - sending transactions with [`gnokey`](./gno.land/cmd/gnokey),
 - writing smart-contracts with [`gno` (ex `gnodev`)](./gnovm/cmd/gnokey).
 
-Also, see the [quickstart guide](https://test2.gno.land/r/boards:testboard/5).
+Also, see the [quickstart guide](https://test3.gno.land/r/demo/boards:testboard/5).
 
 ## Contact
 

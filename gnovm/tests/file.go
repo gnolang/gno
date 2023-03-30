@@ -279,7 +279,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				if pnc != nil {
 					if tv, ok := pnc.(*gno.TypedValue); ok {
 						panic(fmt.Sprintf("fail on %s: got unexpected error: %s", path, tv.Sprint(m)))
-					} else { // TODO: does this happen? (manfred: yes, with 'unknown import path ...')
+					} else { // happens on 'unknown import path ...'
 						panic(fmt.Sprintf("fail on %s: got unexpected error: %v", path, pnc))
 					}
 				}
