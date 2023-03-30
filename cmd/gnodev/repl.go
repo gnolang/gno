@@ -80,6 +80,8 @@ func runRepl(rootDir string, verbose bool) error {
 		Store:   testStore,
 	})
 
+	defer m.Release()
+
 	// init termui
 	rw := struct {
 		io.Reader

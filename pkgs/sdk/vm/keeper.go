@@ -72,6 +72,7 @@ func (vm *VMKeeper) Initialize(ms store.MultiStore) {
 				Output:  os.Stdout, // XXX
 				Store:   vm.gnoStore,
 			})
+		defer m2.Release()
 		gno.DisableDebug()
 		m2.PreprocessAllFilesAndSaveBlockNodes()
 		gno.EnableDebug()
@@ -173,6 +174,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 			Context:   msgCtx,
 			MaxCycles: 10 * 1000 * 1000, // 10M cycles // XXX
 		})
+	defer m2.Release()
 	m2.RunMemPackage(memPkg, true)
 	fmt.Println("CPUCYCLES addpkg", m2.Cycles)
 	return nil
@@ -253,6 +255,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 				r, m.String())
 			return
 		}
+		m.Release()
 	}()
 	rtvs := m.Eval(xn)
 	fmt.Println("CPUCYCLES call", m.Cycles)
@@ -372,6 +375,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 				r, m.String())
 			return
 		}
+		m.Release()
 	}()
 	rtvs := m.Eval(xx)
 	res = ""
@@ -431,6 +435,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 				r, m.String())
 			return
 		}
+		m.Release()
 	}()
 	rtvs := m.Eval(xx)
 	if len(rtvs) != 1 {

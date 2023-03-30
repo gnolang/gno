@@ -1981,7 +1981,9 @@ func evalStaticType(store Store, last BlockNode, x Expr) Type {
 		store = store.Fork()
 		store.SetCachePackage(pv)
 	}
-	tv := NewMachine(pn.PkgPath, store).EvalStatic(last, x)
+	m := NewMachine(pn.PkgPath, store)
+	tv := m.EvalStatic(last, x)
+	m.Release()
 	if _, ok := tv.V.(TypeValue); !ok {
 		panic(fmt.Sprintf("%s is not a type", x.String()))
 	}
@@ -2053,7 +2055,9 @@ func evalStaticTypeOfRaw(store Store, last BlockNode, x Expr) (t Type) {
 			store = store.Fork()
 			store.SetCachePackage(pv)
 		}
-		t = NewMachine(pn.PkgPath, store).EvalStaticTypeOf(last, x)
+		m := NewMachine(pn.PkgPath, store)
+		t = m.EvalStaticTypeOf(last, x)
+		m.Release()
 		x.SetAttribute(ATTR_TYPEOF_VALUE, t)
 		return t
 	}
@@ -2147,10 +2151,12 @@ func getResultTypedValues(cx *CallExpr) []TypedValue {
 func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	// TODO: some check or verification for ensuring x
 	// is constant?  From the machine?
-	cv := NewMachine(".dontcare", store).EvalStatic(last, x)
+	cv := NewMachine(".dontcare", store)
+	tv := cv.EvalStatic(last, x)
+	cv.Release()
 	cx := &ConstExpr{
 		Source:     x,
-		TypedValue: cv,
+		TypedValue: tv,
 	}
 	cx.SetAttribute(ATTR_PREPROCESSED, true)
 	setConstAttrs(cx)

@@ -73,6 +73,8 @@ func execRun(cfg *runCfg, args []string, io *commands.IO) error {
 		Store:   testStore,
 	})
 
+	defer m.Release()
+
 	// read files
 	files := make([]*gno.FileNode, len(args))
 	for i, fname := range args {

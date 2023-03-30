@@ -31,6 +31,7 @@ func (vm *VMKeeper) initBuiltinPackagesAndTypes(store gno.Store) {
 			Output: os.Stdout,
 			Store:  store,
 		})
+		defer m2.Release()
 		return m2.RunMemPackage(memPkg, true)
 	}
 	store.SetPackageGetter(getPackage)
