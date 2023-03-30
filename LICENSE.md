@@ -58,6 +58,6 @@ This license is subject to change at any time by the Project owner.  Your
 continued access to or use of this Project or any works available through this
 Project shall be subject to the then-current version of this license.
 
-This license applies to github.com/gnolang/gno/pkgs/gnolang and all code except
-the other common libraries under github.com/gnolang/gno/pkgs/ which are
+This license applies to github.com/gnolang/gno/gnovm and all code except
+the other common libraries under github.com/gnolang/gno/tm2 which are
 published under the Apache2.0 license.
