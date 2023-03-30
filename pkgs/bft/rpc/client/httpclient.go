@@ -67,7 +67,7 @@ var (
 	_ rpcClient = (*baseRPCClient)(nil)
 )
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // HTTP
 
 // NewHTTP takes a remote endpoint in the form <protocol>://<host>:<port> and
@@ -106,7 +106,7 @@ func (c *HTTP) NewBatch() *BatchHTTP {
 	}
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // BatchHTTP
 
 // Send is a convenience function for an HTTP batch that will trigger the
@@ -128,7 +128,7 @@ func (b *BatchHTTP) Count() int {
 	return b.rpcBatch.Count()
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // baseRPCClient
 
 func (c *baseRPCClient) Status() (*ctypes.ResultStatus, error) {
@@ -232,6 +232,22 @@ func (c *baseRPCClient) ConsensusState() (*ctypes.ResultConsensusState, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "ConsensusState")
 	}
+	return result, nil
+}
+
+func (c *baseRPCClient) ConsensusParams(height *int64) (*ctypes.ResultConsensusParams, error) {
+	result := new(ctypes.ResultConsensusParams)
+
+	if _, err := c.caller.Call(
+		"consensus_params",
+		map[string]interface{}{
+			"height": height,
+		},
+		result,
+	); err != nil {
+		return nil, errors.Wrap(err, "ConsensusParams")
+	}
+
 	return result, nil
 }
 
