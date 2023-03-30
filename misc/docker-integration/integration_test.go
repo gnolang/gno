@@ -100,6 +100,8 @@ func buildDockerImage(t *testing.T) {
 
 // dockerExec runs docker exec with cmd as argument
 func dockerExec(t *testing.T, cmd string) []byte {
+	t.Helper()
+
 	cmds := append(
 		[]string{"docker", "exec", gnolandContainerName, "sh", "-c"},
 		cmd,
@@ -112,6 +114,8 @@ func dockerExec(t *testing.T, cmd string) []byte {
 // dockerExec_gnokeyQuery runs dockerExec with gnokey query prefix and parses
 // the command output to out.
 func dockerExec_gnokeyQuery(t *testing.T, cmd string, out any) {
+	t.Helper()
+
 	output := dockerExec(t, "gnokey query "+cmd)
 	// parses the output of gnokey query:
 	// height: h
