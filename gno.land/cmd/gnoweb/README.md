@@ -10,4 +10,4 @@ Install and run a local [`gnoland`](../gnoland) instance first.
 
     $> git clone git@github.com:gnolang/gno.git
     $> cd ./gno/gno.land
-    $> make install_gnoweb
+    $> make install.gnoweb
