@@ -31,7 +31,7 @@ func HomeDir() string {
 	}
 	dir, err = os.UserConfigDir()
 	if err == nil {
-		return filepath.Join(hd, "gno")
+		return filepath.Join(dir, "gno")
 	}
 	dir, err = os.UserHomeDir()
 	if err != nil {
