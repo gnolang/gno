@@ -12,6 +12,7 @@
 * `gno build` - build a gno package
 * `gno precompile` - precompile .gno to .go
 * `gno test` - test a gno package
+* `gno mod` - manages dependencies
 * `gno repl` start a GnoVM REPL
 
 ## Install
