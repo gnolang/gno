@@ -142,7 +142,7 @@ If you wish to test a `.gno` Realm or Package, you can utilize the `gno` tool.
 
 1. To install it, simply run:
 
-    cd gnovm; make install
+    make install_gno
 
 2. Now, you can point to the directory containing the `*_test.gno` files:
 
