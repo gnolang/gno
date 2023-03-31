@@ -571,6 +571,7 @@ func (m *Machine) doOpMapLit() {
 }
 
 func (m *Machine) doOpStructLit() {
+	// println("doOpStructList")
 	// assess performance TODO
 	x := m.PopExpr().(*CompositeLitExpr)
 	el := len(x.Elts) // may be incomplete
@@ -578,6 +579,8 @@ func (m *Machine) doOpStructLit() {
 	xt := m.PeekValue(1 + el).V.(TypeValue).Type
 	st := baseOf(xt).(*StructType)
 	nf := len(st.Fields)
+	// println("nf: ", nf)
+	// println("el: ", el)
 	fs := []TypedValue(nil)
 	// NOTE includes embedded fields.
 	if el == 0 {
@@ -622,6 +625,7 @@ func (m *Machine) doOpStructLit() {
 			}
 		}
 	} else {
+		// println("------------else branch of st lit---------------")
 		// field values are by name and may be out of order.
 		fs = defaultStructFields(m.Alloc, st)
 		ftvs := m.PopValues(el)
@@ -631,9 +635,26 @@ func (m *Machine) doOpStructLit() {
 			ftv := ftvs[i]
 			// convert
 			if dt, ok := fs[fnx.Path.Index].T.(*DeclaredType); ok {
-				if checkSameTypes(dt.Base, ftvs[fnx.Path.Index].T) {
+				// println("is dt, index, fs[index].T:", fnx.Path.Index, fs[fnx.Path.Index].T.String())
+				if checkSameTypes(dt.Base, ftvs[i].T) {
+					// println("same type")
+					// println("dt.Base", dt.Base.String())
+					// println("ftvs[i].T", ftvs[i].T.String())
+					// println("fs[fnx.Path.Index].T", fs[fnx.Path.Index].T.String())
+					// println("st.Fields[i].Type", st.Fields[i].Type.String())
 					ftv.T = fs[fnx.Path.Index].T // use defined type
 				}
+				// else {
+				// 	println("not same type")
+				// 	println("dt.Base", dt.Base.String())
+				// 	println("ftvs[fnx.Path.Index].T", ftvs[fnx.Path.Index].T.String())
+				// }
+				// println("convert done")
+				// println("ftv: ", ftv.String())
+			} else {
+				// println("----------------------")
+				// println("not dt, index, fs[index].T:", fnx.Path.Index, fs[fnx.Path.Index].String())
+				// println("ftv: ", ftv.String())
 			}
 
 			if debug {
@@ -644,10 +665,12 @@ func (m *Machine) doOpStructLit() {
 					panic("should not happen")
 				}
 			}
+			// println("index: ", fnx.Path.Index)
 			fs[fnx.Path.Index] = ftv
 		}
 	}
-	println("all done")
+	// println("all done")
+	// println("----------------------")
 	// construct and push value.
 	m.PopValue() // baseOf() is st
 	sv := m.Alloc.NewStruct(fs)
