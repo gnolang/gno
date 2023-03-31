@@ -2,7 +2,7 @@
 
 - [About Gno.land](/about)
 - [Blogs](/r/gnoland/blog)
-- [Install `gnokey`](https://github.com/gnolang/gno/)
+- [Install `gnokey`](https://github.com/gnolang/gno/tree/master/gno.land/cmd/gnokey)
 - [Acquire testnet tokens](/faucet)
 - [Game of Realms](/game-of-realms) - An open worldwide competition for developers to build the best Gnolang smart-contracts.
 
