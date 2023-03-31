@@ -11,7 +11,7 @@ install_gnokey:
 	@echo "gnokey installed. more info in ./gno.land/"
 install_gno:
 	go install ./gnovm/cmd/gno
-	@echo "gno installed. more info info ./gnovm/"
+	@echo "gno installed. more info in ./gnovm/"
 
 .PHONY: test
 test:
