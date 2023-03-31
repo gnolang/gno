@@ -30,7 +30,7 @@ func HomeDir() string {
 	}
 	hd, err = os.UserConfigDir()
 	if err == nil {
-		return fmt.Sprintf("%s/gno", hd)
+		return filepath.Join(hd, "gno")
 	}
 	hd, err = os.UserHomeDir()
 	if err != nil {
