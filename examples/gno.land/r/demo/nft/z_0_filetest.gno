@@ -14,6 +14,9 @@ func main() {
 	println(grc721.OwnerOf(tid))
 	println(addr1)
 }
+// Output:
+// g1v9jxgu33ta047h6lta047h6lta047h6l43dqc5
+// g1v9jxgu33ta047h6lta047h6lta047h6l43dqc5
 
 // Realm:
 // switchrealm["gno.land/r/demo/nft"]
