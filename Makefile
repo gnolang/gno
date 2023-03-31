@@ -7,11 +7,11 @@ rundep=go run -modfile ../misc/devdeps/go.mod
 
 # shortcuts to frequently used commands from sub-components.
 install_gnokey:
-	go install ./gno.land/cmd/gnokey
-	@echo "gnokey installed. more info in ./gno.land/"
+	$(MAKE) --no-print-directory -C ./gno.land	install.gnokey
+	@echo "[+] 'gnokey' is installed. more info in ./gno.land/."
 install_gno:
-	go install ./gnovm/cmd/gno
-	@echo "gno installed. more info in ./gnovm/"
+	$(MAKE) --no-print-directory -C ./gnovm	install
+	@echo "[+] 'gno' is installed. more info in ./gnovm/."
 
 .PHONY: test
 test:
@@ -19,17 +19,17 @@ test:
 
 .PHONY: test.components
 test.components:
-	$(MAKE) -C tm2      test
-	$(MAKE) -C gnovm    test
-	$(MAKE) -C gno.land test
-	$(MAKE) -C examples test
+	$(MAKE) --no-print-directory -C tm2      test
+	$(MAKE) --no-print-directory -C gnovm    test
+	$(MAKE) --no-print-directory -C gno.land test
+	$(MAKE) --no-print-directory -C examples test
 
 .PHONY: fmt
 fmt:
-	$(MAKE) -C tm2      fmt
-	$(MAKE) -C gnovm    fmt
-	$(MAKE) -C gno.land fmt
-	$(MAKE) -C examples fmt
+	$(MAKE) --no-print-directory -C tm2      fmt
+	$(MAKE) --no-print-directory -C gnovm    fmt
+	$(MAKE) --no-print-directory -C gno.land fmt
+	$(MAKE) --no-print-directory -C examples fmt
 
 .PHONY: lint
 lint:

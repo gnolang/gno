@@ -31,7 +31,7 @@ generous to yourself with --send flag. With the following, the faucet will give 
 
 Make sure you have started website
 
-    ./build/website
+    ./build/gnoweb
 
 Request testing tokens from following URL, Have fun!
 

@@ -9,5 +9,5 @@ Live demo: https://test3.gno.land/
 Install and run a local [`gnoland`](../gnoland) instance first.
 
     $> git clone git@github.com:gnolang/gno.git
-    $> cd ./gno
+    $> cd ./gno/gno.land
     $> make install_gnoweb
