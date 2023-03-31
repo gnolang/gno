@@ -2099,6 +2099,7 @@ func assertSameTypes(lt, rt Type) {
 	}
 }
 
+// TODO: to be more clear
 func checkSameTypes(lt, rt Type) (r bool) {
 	r = true
 	if lt == nil && rt == nil {

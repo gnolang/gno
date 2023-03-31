@@ -999,27 +999,6 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	return
 }
 
-func (tv TypedValue) CopyOrConvert(alloc *Allocator, isConvert bool, t Type) (cp TypedValue) {
-	switch cv := tv.V.(type) {
-	case BigintValue:
-		cp.T = t
-		cp.V = cv.Copy(alloc)
-	case *ArrayValue:
-		cp.T = t
-		cp.V = cv.Copy(alloc)
-	case *StructValue:
-		cp.T = t
-		cp.V = cv.Copy(alloc)
-	case *NativeValue:
-		cp.T = t
-		cp.V = cv.Copy(alloc)
-	default:
-		cp.T = t
-		cp.V = tv.V
-	}
-	return
-}
-
 // Returns encoded bytes for primitive values.
 // These bytes are used for both value hashes as well
 // as hash key bytes.

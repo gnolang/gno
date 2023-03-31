@@ -213,7 +213,8 @@ func UverseNode() *PackageNode {
 							copy(
 								list[:argsl],
 								argsb.List[argso:argso+argsl])
-							// // convert
+							// convert
+							// TODO: tune
 							if dt, ok := xt.Elem().(*DeclaredType); ok {
 								if checkSameTypes(dt.Base, argt.Elem()) {
 									for i := 0; i < argsl; i++ {
