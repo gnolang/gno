@@ -1400,6 +1400,29 @@ func baseOf(t Type) Type {
 	}
 }
 
+func isBaseOf(t1, t2 Type) bool {
+	println("check base of")
+	if t2 != nil {
+		println("t2: ", t2.String())
+	} else {
+		println("t2 is nil")
+	}
+	if t1 != nil {
+		println("t1: ", t1.String())
+	} else {
+		println("t1 is nil")
+	}
+	if dt, ok := t2.(*DeclaredType); ok {
+		if dt.Base != nil {
+			println("dt.Base: ", dt.Base.String())
+		} else {
+			println("dt base is nil")
+		}
+		return dt.Base.TypeID() == t1.TypeID()
+	}
+	return false
+}
+
 // NOTE: it may be faster to switch on baseOf().
 func (dt *DeclaredType) Kind() Kind {
 	return dt.Base.Kind()
@@ -2100,33 +2123,33 @@ func assertSameTypes(lt, rt Type) {
 }
 
 // TODO: to be more clear
-func checkSameTypes(lt, rt Type) (r bool) {
-	r = true
-	if lt == nil && rt == nil {
-		// both are nil.
-	} else if lt == nil || rt == nil {
-		// one is nil.  see function comment.
-	} else if lt.Kind() == rt.Kind() &&
-		isUntyped(lt) || isUntyped(rt) {
-		// one is untyped of same kind.
-	} else if lt.Kind() == rt.Kind() &&
-		isDataByte(lt) {
-		// left is databyte of same kind,
-		// specifically for assignments.
-		// TODO: make another function
-		// and remove this case?
-	} else if lt.TypeID() == rt.TypeID() {
-		// non-nil types are identical.
-	} else {
-		r = false
-		debug.Errorf(
-			"incompatible operands in binary expression: %s and %s",
-			lt.String(),
-			rt.String(),
-		)
-	}
-	return
-}
+// func checkSameTypes(lt, rt Type) (r bool) {
+// 	r = true
+// 	if lt == nil && rt == nil {
+// 		// both are nil.
+// 	} else if lt == nil || rt == nil {
+// 		// one is nil.  see function comment.
+// 	} else if lt.Kind() == rt.Kind() &&
+// 		isUntyped(lt) || isUntyped(rt) {
+// 		// one is untyped of same kind.
+// 	} else if lt.Kind() == rt.Kind() &&
+// 		isDataByte(lt) {
+// 		// left is databyte of same kind,
+// 		// specifically for assignments.
+// 		// TODO: make another function
+// 		// and remove this case?
+// 	} else if lt.TypeID() == rt.TypeID() {
+// 		// non-nil types are identical.
+// 	} else {
+// 		r = false
+// 		debug.Errorf(
+// 			"incompatible operands in binary expression: %s and %s",
+// 			lt.String(),
+// 			rt.String(),
+// 		)
+// 	}
+// 	return
+// }
 
 // Like assertSameTypes(), but more relaxed, for == and !=.
 func assertEqualityTypes(lt, rt Type) {

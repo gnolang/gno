@@ -571,6 +571,8 @@ func (m *Machine) doOpMapLit() {
 }
 
 func (m *Machine) doOpStructLit() {
+	// println("doOpStructLit")
+	// assess performance TODO
 	x := m.PopExpr().(*CompositeLitExpr)
 	el := len(x.Elts) // may be incomplete
 	// peek struct type.
@@ -621,6 +623,7 @@ func (m *Machine) doOpStructLit() {
 			}
 		}
 	} else {
+		// println("else branch")
 		// field values are by name and may be out of order.
 		fs = defaultStructFields(m.Alloc, st)
 		ftvs := m.PopValues(el)
@@ -628,12 +631,33 @@ func (m *Machine) doOpStructLit() {
 			fnx := x.Elts[i].Key.(*NameExpr)
 
 			ftv := ftvs[i]
+			// println("ftv: ", ftv.String())
 			// convert
 			if dt, ok := fs[fnx.Path.Index].T.(*DeclaredType); ok {
-				if checkSameTypes(dt.Base, ftvs[i].T) {
-					ftv.T = fs[fnx.Path.Index].T // use defined type
+				// println("is dt, index, fs[index].T:, ftv.T", fnx.Path.Index, fs[fnx.Path.Index].T.String(), ftv.T.String())
+				if ftv.IsDefined() { // is it necessary?
+					if dt.Base.TypeID() == ftv.T.TypeID() {
+						// println("same type")
+						// println("dt.Base", dt.Base.String())
+						// println("ftvs[i].T", ftvs[i].T.String())
+						// println("fs[fnx.Path.Index].T", fs[fnx.Path.Index].T.String())
+						// println("st.Fields[i].Type", st.Fields[i].Type.String())
+						ftv.T = fs[fnx.Path.Index].T // use defined type
+					}
+					// else {
+					// 	println("not same type")
+					// 	println("dt.Base", dt.Base.String())
+					// 	println("ftvs[fnx.Path.Index].T", ftvs[fnx.Path.Index].T.String())
+					// }
+					// println("convert done")
+					// println("ftv: ", ftv.String())
 				}
+			} else {
+				// println("----------------------")
+				// println("not dt, index, fs[index].T:", fnx.Path.Index, fs[fnx.Path.Index].String())
+				// println("ftv: ", ftv.String())
 			}
+
 			if debug {
 				if fnx.Path.Depth != 0 {
 					panic("unexpected struct composite lit key path generation value")
@@ -642,9 +666,12 @@ func (m *Machine) doOpStructLit() {
 					panic("should not happen")
 				}
 			}
+			// println("index: ", fnx.Path.Index)
 			fs[fnx.Path.Index] = ftv
 		}
 	}
+	// println("all done")
+	// println("----------------------")
 	// construct and push value.
 	m.PopValue() // baseOf() is st
 	sv := m.Alloc.NewStruct(fs)
