@@ -629,9 +629,10 @@ func (m *Machine) doOpStructLit() {
 			fnx := x.Elts[i].Key.(*NameExpr)
 
 			ftv := ftvs[i]
-			if dt, ok := fs[i].T.(*DeclaredType); ok {
-				if checkSameTypes(dt.Base, ftvs[i].T) {
-					ftv.T = fs[i].T // use defined type
+			// convert
+			if dt, ok := fs[fnx.Path.Index].T.(*DeclaredType); ok {
+				if checkSameTypes(dt.Base, ftvs[fnx.Path.Index].T) {
+					ftv.T = fs[fnx.Path.Index].T // use defined type
 				}
 			}
 
@@ -646,6 +647,7 @@ func (m *Machine) doOpStructLit() {
 			fs[fnx.Path.Index] = ftv
 		}
 	}
+	println("all done")
 	// construct and push value.
 	m.PopValue() // baseOf() is st
 	sv := m.Alloc.NewStruct(fs)

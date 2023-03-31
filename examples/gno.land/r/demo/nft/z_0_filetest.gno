@@ -15,10 +15,6 @@ func main() {
 	println(addr1)
 }
 
-// Output:
-// g1v9jxgu33ta047h6lta047h6lta047h6l43dqc5
-// g1v9jxgu33ta047h6lta047h6lta047h6l43dqc5
-
 // Realm:
 // switchrealm["gno.land/r/demo/nft"]
 // switchrealm["gno.land/r/demo/nft"]
@@ -52,8 +48,8 @@ func main() {
 //         },
 //         {
 //             "T": {
-//                 "@type": "/gno.RefType",
-//                 "ID": "gno.land/p/demo/grc/grc721.TokenID"
+//                 "@type": "/gno.PrimitiveType",
+//                 "value": "16"
 //             },
 //             "V": {
 //                 "@type": "/gno.StringValue",
@@ -99,7 +95,7 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.RefValue",
-//                         "Hash": "722c235362e168078d1663bd0f7427ef66771898",
+//                         "Hash": "c06f58d0ff2bc26ad3e65e953b127a0d03353e97",
 //                         "ObjectID": "67c479d3d51d4056b2f4111d5352912a00be311e:8"
 //                     }
 //                 }
@@ -165,7 +161,7 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.RefValue",
-//                         "Hash": "705fe03e9448704d024d4a95bf7d382dadf27bee",
+//                         "Hash": "45a64533aa57b49b6b4a1d3f6de79db8bea3a710",
 //                         "ObjectID": "67c479d3d51d4056b2f4111d5352912a00be311e:7"
 //                     }
 //                 }
@@ -196,7 +192,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.RefValue",
-//                 "Hash": "4d9e606d5945cb5a5cf588ce32dad052f904b495",
+//                 "Hash": "dad3106a54e1facb92bce473898b8aec0eb930ff",
 //                 "ObjectID": "67c479d3d51d4056b2f4111d5352912a00be311e:5"
 //             }
 //         },
