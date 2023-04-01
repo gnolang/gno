@@ -2,6 +2,7 @@ package stdlibs
 
 import (
 	"math"
+	"os"
 	"reflect"
 	"strconv"
 	"time"
@@ -20,6 +21,19 @@ func InjectNativeMappings(store gno.Store) {
 
 func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 	switch pn.PkgPath {
+	case "os":
+		pn.DefineNative("Exit",
+			gno.Flds( // params
+				"code", "int",
+			),
+			gno.Flds( // results
+			),
+			func(m *gno.Machine) {
+				arg0 := m.LastBlock().GetParams1().TV
+				code := arg0.GetInt()
+				os.Exit(code)
+			},
+		)
 	case "internal/math":
 		pn.DefineNative("Float32bits",
 			gno.Flds( // params
