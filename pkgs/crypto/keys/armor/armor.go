@@ -16,7 +16,7 @@ const (
 	blockTypePrivKey        = "TENDERMINT PRIVATE KEY"
 	blockTypeKeyInfo        = "TENDERMINT KEY INFO"
 	blockTypePubKey         = "TENDERMINT PUBLIC KEY"
-	bcryptSecurityParameter = 11
+	bcryptSecurityParameter = 12
 )
 
 // -----------------------------------------------------------------
