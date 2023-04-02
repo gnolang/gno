@@ -633,30 +633,33 @@ func (m *Machine) doOpStructLit() {
 			ftv := ftvs[i]
 			// println("ftv: ", ftv.String())
 			// convert
-			if dt, ok := fs[fnx.Path.Index].T.(*DeclaredType); ok {
-				// println("is dt, index, fs[index].T:, ftv.T", fnx.Path.Index, fs[fnx.Path.Index].T.String(), ftv.T.String())
-				if ftv.IsDefined() { // is it necessary?
-					if dt.Base.TypeID() == ftv.T.TypeID() {
-						// println("same type")
-						// println("dt.Base", dt.Base.String())
-						// println("ftvs[i].T", ftvs[i].T.String())
-						// println("fs[fnx.Path.Index].T", fs[fnx.Path.Index].T.String())
-						// println("st.Fields[i].Type", st.Fields[i].Type.String())
-						ftv.T = fs[fnx.Path.Index].T // use defined type
-					}
-					// else {
-					// 	println("not same type")
-					// 	println("dt.Base", dt.Base.String())
-					// 	println("ftvs[fnx.Path.Index].T", ftvs[fnx.Path.Index].T.String())
-					// }
-					// println("convert done")
-					// println("ftv: ", ftv.String())
-				}
-			} else {
-				// println("----------------------")
-				// println("not dt, index, fs[index].T:", fnx.Path.Index, fs[fnx.Path.Index].String())
-				// println("ftv: ", ftv.String())
+			if isNeedConversion(fs[fnx.Path.Index].T, ftv.T) {
+				ftv.T = fs[fnx.Path.Index].T // use defined type
 			}
+			// if dt, ok := fs[fnx.Path.Index].T.(*DeclaredType); ok {
+			// 	// println("is dt, index, fs[index].T:, ftv.T", fnx.Path.Index, fs[fnx.Path.Index].T.String(), ftv.T.String())
+			// 	if ftv.IsDefined() { // is it necessary?
+			// 		if dt.Base.TypeID() == ftv.T.TypeID() {
+			// 			// println("same type")
+			// 			// println("dt.Base", dt.Base.String())
+			// 			// println("ftvs[i].T", ftvs[i].T.String())
+			// 			// println("fs[fnx.Path.Index].T", fs[fnx.Path.Index].T.String())
+			// 			// println("st.Fields[i].Type", st.Fields[i].Type.String())
+			// 			ftv.T = fs[fnx.Path.Index].T // use defined type
+			// 		}
+			// 		// else {
+			// 		// 	println("not same type")
+			// 		// 	println("dt.Base", dt.Base.String())
+			// 		// 	println("ftvs[fnx.Path.Index].T", ftvs[fnx.Path.Index].T.String())
+			// 		// }
+			// 		// println("convert done")
+			// 		// println("ftv: ", ftv.String())
+			// 	}
+			// } else {
+			// 	// println("----------------------")
+			// 	// println("not dt, index, fs[index].T:", fnx.Path.Index, fs[fnx.Path.Index].String())
+			// 	// println("ftv: ", ftv.String())
+			// }
 
 			if debug {
 				if fnx.Path.Depth != 0 {

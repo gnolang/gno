@@ -2122,34 +2122,23 @@ func assertSameTypes(lt, rt Type) {
 	}
 }
 
-// TODO: to be more clear
-// func checkSameTypes(lt, rt Type) (r bool) {
-// 	r = true
-// 	if lt == nil && rt == nil {
-// 		// both are nil.
-// 	} else if lt == nil || rt == nil {
-// 		// one is nil.  see function comment.
-// 	} else if lt.Kind() == rt.Kind() &&
-// 		isUntyped(lt) || isUntyped(rt) {
-// 		// one is untyped of same kind.
-// 	} else if lt.Kind() == rt.Kind() &&
-// 		isDataByte(lt) {
-// 		// left is databyte of same kind,
-// 		// specifically for assignments.
-// 		// TODO: make another function
-// 		// and remove this case?
-// 	} else if lt.TypeID() == rt.TypeID() {
-// 		// non-nil types are identical.
-// 	} else {
-// 		r = false
-// 		debug.Errorf(
-// 			"incompatible operands in binary expression: %s and %s",
-// 			lt.String(),
-// 			rt.String(),
-// 		)
-// 	}
-// 	return
-// }
+// only happens in assignment while t1 is DelaredType, and it's base is equal to t2
+// e.g.
+// type nat []int
+// func (n nat)add()nat{}
+// abs := []{0}
+// through this conversion, abs will have a nat type, thus be used as a reciver of the method
+func isNeedConversion(t1, t2 Type) bool {
+	if t1 == nil || t2 == nil {
+		return false
+	}
+	if dt, ok := t1.(*DeclaredType); ok {
+		if dt.Base.TypeID() == t2.TypeID() { // compare the actual element type
+			return true
+		}
+	}
+	return false
+}
 
 // Like assertSameTypes(), but more relaxed, for == and !=.
 func assertEqualityTypes(lt, rt Type) {

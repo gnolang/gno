@@ -143,7 +143,6 @@ func UverseNode() *PackageNode {
 			"res", GenT("X", nil), // res
 		),
 		func(m *Machine) {
-			// println("append")
 			arg0, arg1 := m.LastBlock().GetParams2()
 			// As a special case, if arg1 is a string type, first convert it into
 			// a data slice type.
@@ -214,24 +213,11 @@ func UverseNode() *PackageNode {
 							copy(
 								list[:argsl],
 								argsb.List[argso:argso+argsl])
-							// convert
-							// println("going to convert, xt", xt.String())
-							// println("going to convert, xt.Elem", xt.Elem().String())
-							// println("going to convert, argt: ", argt.String())
-							// println("going to convert, argt.Elem: ", argt.Elem().String())
-							// TODO: tune
-							if dt, ok := xt.Elem().(*DeclaredType); ok {
-								// println("is dt")
-								// println("dt.Base: ", dt.Base.String())
-								// if checkSameTypes(dt.Base, argsb.List[argso].T) {
-								if dt.Base.TypeID() == argsb.List[argso].T.TypeID() {
-									// println("same type")
-									for i := 0; i < argsl; i++ {
-										list[i].T = xt.Elem()
-									}
+							if isNeedConversion(xt.Elem(), argsb.List[argso].T) {
+								for i := 0; i < argsl; i++ {
+									list[i].T = xt.Elem()
 								}
 							}
-							// println("list[0].T: ", list[0].T.String())
 						}
 						m.PushValue(TypedValue{
 							T: xt,

@@ -1529,8 +1529,6 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 // cu: convert untyped after assignment. pass false
 // for const definitions, but true for all else.
 func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
-	// println("assgin")
-	// println("assgin")
 	if debug {
 		if tv.T == DataByteType {
 			// assignment to data byte types should only
@@ -1543,24 +1541,16 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 			panic("should not happen")
 		}
 	}
-	// println("tv: ", tv.String())
-	// println("tv2: ", tv2.String())
 	var t Type
 	if tv.IsDefined() {
 		t = tv.T // old type
 	}
 	*tv = tv2.Copy(alloc)
 	// check convert
-	if tv.IsDefined() && tv2.IsDefined() { // conversion only happens when both defined, then only check TypeID
-		if dt, ok := t.(*DeclaredType); ok {
-			if dt.Base.TypeID() == tv2.T.TypeID() {
-				// if checkSameTypes(dt.Base, tv2.T) {
-				(*tv).T = t
-			}
-		}
+	if isNeedConversion(t, tv2.T) {
+		(*tv).T = t
 	}
 
-	// println("tv after assign: ", tv.String())
 	if cu && isUntyped(tv.T) {
 		ConvertUntypedTo(tv, defaultTypeOf(tv.T))
 	}
