@@ -13,7 +13,7 @@ const (
 	maxSize     = 100
 )
 
-func Millipede(size int) string {
+func Draw(size int) string {
 	if size < minSize || size > maxSize {
 		panic("invalid millipede size")
 	}
@@ -38,7 +38,7 @@ func Render(path string) string {
 		}
 	}
 
-	output := Millipede(size)
+	output := "```\n" + Draw(size) + "```\n"
 	if size > minSize {
 		output += ufmt.Sprintf("[%d](/r/art/millpede:%d)< ", size-1, size-1)
 	}

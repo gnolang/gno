@@ -12,7 +12,7 @@ func TestRender(t *testing.T) {
 	}{
 		{
 			path: "",
-			expected: `
+			expected: "```" + `
     ╚⊙ ⊙╝
   ╚═(███)═╝
  ╚═(███)═╝
@@ -34,17 +34,17 @@ func TestRender(t *testing.T) {
    ╚═(███)═╝
   ╚═(███)═╝
  ╚═(███)═╝
-[19](/r/art/millpede:19)<  >[21](/r/art/millipede:21)`[1:],
+` + "```\n[19](/r/art/millpede:19)<  >[21](/r/art/millipede:21)",
 		},
 		{
 			path: "4",
-			expected: `
+			expected: "```" + `
     ╚⊙ ⊙╝
   ╚═(███)═╝
  ╚═(███)═╝
 ╚═(███)═╝
  ╚═(███)═╝
-[3](/r/art/millpede:3)<  >[5](/r/art/millipede:5)`[1:],
+` + "```\n[3](/r/art/millpede:3)<  >[5](/r/art/millipede:5)",
 		},
 	}
 

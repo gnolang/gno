@@ -104,7 +104,8 @@ func Draw(seed int64) string {
 
 	r := rand.FromSeed(seed)
 
-	output := pick(r, hairs) + "\n" +
+	return "```\n" +
+		pick(r, hairs) + "\n" +
 		pick(r, headtop) + "\n" +
 		pick(r, headspace) + "\n" +
 		" | " + pick(r, eyebrow) + "   " + pick(r, eyebrow) + " |\n" +
@@ -114,8 +115,7 @@ func Draw(seed int64) string {
 		pick(r, headspace) + "\n" +
 		pick(r, mouth) + "\n" +
 		pick(r, headspace) + "\n" +
-		pick(r, headbottom)
-	return output
+		pick(r, headbottom) + "\n```\n"
 }
 
 func pick(r *rand.Instance, slice []string) string {
