@@ -1,0 +1,59 @@
+package millipede
+
+import (
+	"fmt"
+	"testing"
+)
+
+func TestRender(t *testing.T) {
+	cases := []struct {
+		path     string
+		expected string
+	}{
+		{
+			path: "",
+			expected: `
+    ╚⊙ ⊙╝
+  ╚═(███)═╝
+ ╚═(███)═╝
+╚═(███)═╝
+ ╚═(███)═╝
+  ╚═(███)═╝
+   ╚═(███)═╝
+    ╚═(███)═╝
+    ╚═(███)═╝
+   ╚═(███)═╝
+  ╚═(███)═╝
+ ╚═(███)═╝
+╚═(███)═╝
+ ╚═(███)═╝
+  ╚═(███)═╝
+   ╚═(███)═╝
+    ╚═(███)═╝
+    ╚═(███)═╝
+   ╚═(███)═╝
+  ╚═(███)═╝
+ ╚═(███)═╝
+[19](/r/art/millpede:19)<  >[21](/r/art/millipede:21)`[1:],
+		},
+		{
+			path: "4",
+			expected: `
+    ╚⊙ ⊙╝
+  ╚═(███)═╝
+ ╚═(███)═╝
+╚═(███)═╝
+ ╚═(███)═╝
+[3](/r/art/millpede:3)<  >[5](/r/art/millipede:5)`[1:],
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.path, func(t *testing.T) {
+			got := Render(tc.path)
+			if got != tc.expected {
+				t.Errorf("expected %s, got %s.", tc.expected, got)
+			}
+		})
+	}
+}
