@@ -67,3 +67,67 @@ o| ~   ~ |.
 		})
 	}
 }
+
+func TestRender(t *testing.T) {
+	cases := []struct {
+		path     string
+		expected string
+	}{
+		{
+			path: "42",
+			expected: `
+Gnoface #42
+  |||||||
+ ////////\
+ |       |
+ | ~   . |
+)| X   X |.
+ |       |
+ |   C   |
+ |       |
+ |  __/  |
+ |       |
+ \~~~~~~~/`[1:],
+		},
+		{
+			path: "1337",
+			expected: `
+Gnoface #1337
+     s
+ /|||||||\
+ |       |
+ | .   * |
+o| ~   ~ |.
+ |       |
+ |   O   |
+ |       |
+ |  __/  |
+ |       |
+ \_______/`[1:],
+		},
+		{
+			path: "123456789",
+			expected: `
+Gnoface #123456789
+     s
+ /~~~~~~~\
+ |       |
+ | ~   . |
+<| ~   ~ |<
+ |       |
+ |   V   |
+ |       |
+ |  \_/  |
+ |       |
+ \-------/`[1:],
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.path, func(t *testing.T) {
+			got := Render(tc.path)
+			if got != tc.expected {
+				t.Errorf("got %s, expected %s", got, tc.expected)
+			}
+		})
+	}
+}

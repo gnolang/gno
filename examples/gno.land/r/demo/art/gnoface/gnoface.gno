@@ -1,10 +1,30 @@
 package gnoface
 
 import (
+	"std"
+	"strconv"
 	"strings"
 
 	"gno.land/p/demo/rand"
+	"gno.land/p/demo/ufmt"
 )
+
+func Render(path string) string {
+	seed := std.GetHeight()
+
+	path = strings.TrimSpace(path)
+	if path != "" {
+		s, err := strconv.Atoi(path)
+		if err != nil {
+			panic(err)
+		}
+		seed = int64(s)
+	}
+
+	output := ufmt.Sprintf("Gnoface #%d\n", seed)
+	output += Draw(seed)
+	return output
+}
 
 func Draw(seed int64) string {
 	var (
