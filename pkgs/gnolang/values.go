@@ -319,6 +319,9 @@ func (av *ArrayValue) GetReadonlyBytes() []byte {
 		// because there might be references to .List[x].
 		bz := make([]byte, len(av.List))
 		for i, tv := range av.List {
+			if tv.IsUndefined() {
+				break
+			}
 			if tv.T.Kind() != Uint8Kind {
 				panic(fmt.Sprintf(
 					"expected byte kind but got %v",
