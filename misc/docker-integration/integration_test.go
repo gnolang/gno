@@ -146,6 +146,7 @@ func startGnoland(t *testing.T) {
 		"docker", "run",
 		"-d",
 		"--name", gnolandContainerName,
+		"-w", "/opt/gno/src/gno.land",
 		"gno:integration",
 		"gnoland",
 	})
