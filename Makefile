@@ -5,6 +5,9 @@ help:
 
 rundep=go run -modfile ../misc/devdeps/go.mod
 
+.PHONY: install
+install: install_gnokey install_gno
+
 # shortcuts to frequently used commands from sub-components.
 install_gnokey:
 	$(MAKE) --no-print-directory -C ./gno.land	install.gnokey
