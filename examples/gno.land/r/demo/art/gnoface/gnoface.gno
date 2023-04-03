@@ -22,7 +22,7 @@ func Render(path string) string {
 	}
 
 	output := ufmt.Sprintf("Gnoface #%d\n", seed)
-	output += Draw(seed)
+	output += "```\n" + Draw(seed) + "```\n"
 	return output
 }
 
@@ -104,8 +104,7 @@ func Draw(seed int64) string {
 
 	r := rand.FromSeed(seed)
 
-	return "```\n" +
-		pick(r, hairs) + "\n" +
+	return pick(r, hairs) + "\n" +
 		pick(r, headtop) + "\n" +
 		pick(r, headspace) + "\n" +
 		" | " + pick(r, eyebrow) + "   " + pick(r, eyebrow) + " |\n" +
@@ -115,7 +114,7 @@ func Draw(seed int64) string {
 		pick(r, headspace) + "\n" +
 		pick(r, mouth) + "\n" +
 		pick(r, headspace) + "\n" +
-		pick(r, headbottom) + "\n```\n"
+		pick(r, headbottom) + "\n"
 }
 
 func pick(r *rand.Instance, slice []string) string {

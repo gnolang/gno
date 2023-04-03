@@ -6,14 +6,14 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-func TestGnoface(t *testing.T) {
+func TestDraw(t *testing.T) {
 	cases := []struct {
 		seed     int64
 		expected string
 	}{
 		{
 			seed: 42,
-			expected: "```" + `
+			expected: `
   |||||||
  ////////\
  |       |
@@ -25,11 +25,11 @@ func TestGnoface(t *testing.T) {
  |  __/  |
  |       |
  \~~~~~~~/
-` + "```\n",
+`[1:],
 		},
 		{
 			seed: 1337,
-			expected: "```" + `
+			expected: `
      s
  /|||||||\
  |       |
@@ -41,11 +41,11 @@ o| ~   ~ |.
  |  __/  |
  |       |
  \_______/
-` + "```\n",
+`[1:],
 		},
 		{
 			seed: 123456789,
-			expected: "```" + `
+			expected: `
      s
  /~~~~~~~\
  |       |
@@ -57,7 +57,7 @@ o| ~   ~ |.
  |  \_/  |
  |       |
  \-------/
-` + "```\n",
+`[1:],
 		},
 	}
 	for _, tc := range cases {
