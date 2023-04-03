@@ -118,12 +118,16 @@ a {
   color: var(--link-color, #25172a);
 }
 
-input {
+input, textarea {
   font-family: "Roboto Mono", "Monaco", monospace;
   background-color: var(--input-background-color, #eee);
   border: 1px solid #ccc;
   color: var(--text-color, #000);
   width: 25em;
+}
+
+textarea {
+  height: 7em;
 }
 
 blockquote {
