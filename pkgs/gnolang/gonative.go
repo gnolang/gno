@@ -286,6 +286,7 @@ func (ds *defaultStore) Go2GnoType(rt reflect.Type) (t Type) {
 			fs[i] = FieldType{
 				Name: Name(sf.Name),
 				Type: go2GnoType(sf.Type),
+				Tag:  Tag(string(sf.Tag)),
 			}
 		}
 		st.PkgPath = rt.PkgPath()

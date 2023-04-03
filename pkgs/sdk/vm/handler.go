@@ -170,7 +170,7 @@ func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.
 	}
 	pkgPath := reqParts[0]
 	expr := reqParts[1]
-	result, err := vh.vm.QueryEval(ctx, pkgPath, expr)
+	result, err := vh.vm.QueryEvalJSON(ctx, pkgPath, expr)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
 		return

@@ -295,3 +295,46 @@ func GetAdmin() string {
 	assert.NoError(t, err)
 	assert.Equal(t, res, addrString)
 }
+
+func TestVMKeeperEvalJSON(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.ctx
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+
+	// Create test package
+	files := []*std.MemFile{
+		{"init.gno", `
+package test
+
+type Result struct {
+	A string
+	B int
+}
+
+func QueryStruct() (*Result) {
+	r := &Result{
+		A: "hello",
+		B: 123,
+	}
+	return r
+}
+`},
+	}
+	pkgPath := "gno.land/r/test"
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg1)
+	assert.NoError(t, err)
+
+	// Run QueryStruct()
+	res, err := env.vmk.QueryEvalJSON(ctx, pkgPath, "QueryStruct()")
+	assert.NoError(t, err)
+
+	// Check result.
+	assert.Equal(t, res, `{"A":"hello","B":123}`)
+}
