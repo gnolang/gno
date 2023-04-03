@@ -9,7 +9,7 @@ on:
       - ".github/workflows/tm2.yml"
   push:
     branches:
-      - master
+      - [ $default-branch ]
 
 jobs:
   build:
