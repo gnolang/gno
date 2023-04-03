@@ -3,6 +3,7 @@ package tests
 import (
 	"bytes"
 	"fmt"
+	"go/ast"
 	"go/parser"
 	"go/token"
 	"io"
@@ -347,7 +348,7 @@ func wantedFromComment(p string) (directives []string, pkgPath, res, err, rops s
 		return
 	}
 	for _, comments := range f.Comments {
-		text := comments.Text()
+		text := readComments(comments)
 		if strings.HasPrefix(text, "PKGPATH:") {
 			line := strings.SplitN(text, "\n", 2)[0]
 			pkgPath = strings.TrimSpace(strings.TrimPrefix(line, "PKGPATH:"))
@@ -384,6 +385,21 @@ func wantedFromComment(p string) (directives []string, pkgPath, res, err, rops s
 		}
 	}
 	return
+}
+
+// readComments returns //-style comments from cg, but without truncating empty
+// lines like cg.Text().
+func readComments(cg *ast.CommentGroup) string {
+	var b strings.Builder
+	for _, c := range cg.List {
+		if len(c.Text) < 2 || c.Text[:2] != "//" {
+			// ignore no //-style comment
+			break
+		}
+		s := strings.TrimPrefix(c.Text[2:], " ")
+		b.WriteString(s + "\n")
+	}
+	return b.String()
 }
 
 // Replace comment in file with given output given directive.
