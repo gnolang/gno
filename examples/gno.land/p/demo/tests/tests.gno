@@ -4,6 +4,7 @@ import (
 	"std"
 
 	"gno.land/r/demo/tests"
+	psubtests "gno.land/p/demo/tests/subtests"
 )
 
 // IncCounter demonstrates that it's possible to call a realm function from
@@ -50,4 +51,22 @@ func ModifyTestRealmObject2b() {
 
 func ModifyTestRealmObject2c() {
 	SomeValue3.Field = "modified"
+}
+
+func GetCaller() std.Address {
+	return std.GetCaller()
+}
+
+func GetSubtestsCaller() std.Address {
+	return psubtests.GetCaller()
+}
+
+func PrintCallers() {
+	println("p/TEST   : ORIGCALL:", std.GetOrigCaller())
+	println("p/TEST   : PKG ADDR:", std.GetOrigPkgAddr())
+	println("p/TEST   : CALLER  :", std.GetCaller())
+}
+
+func Exec(fn func()) {
+	fn()
 }

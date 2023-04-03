@@ -286,6 +286,44 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				m.PushValue(res0)
 			},
 		)
+		pn.DefineNative("GetCaller",
+			gno.Flds( // params
+			),
+			gno.Flds( // results
+				"", "Address",
+			),
+			func(m *gno.Machine) {
+				ctx := m.Context.(ExecContext)
+
+				lastCaller := ctx.OrigCaller
+
+				if m.NumFrames() <= 2 {
+					lastCaller = ctx.OrigCaller
+				} else {
+
+					for i := m.NumFrames() - 1; i > 0; i-- {
+						frameA := m.Frames[i]
+						frameB := m.Frames[i-1]
+						if !frameB.LastPackage.IsRealm() {
+							continue
+						}
+						if !frameA.LastPackage.IsRealm() && !frameB.LastPackage.IsRealm() {
+							continue
+						}
+						lastCaller = frameB.LastPackage.GetPkgAddr().Bech32()
+						break
+					}
+				}
+				res0 := gno.Go2GnoValue(
+					m.Alloc,
+					m.Store,
+					reflect.ValueOf(lastCaller),
+				)
+				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
+				res0.T = addrT
+				m.PushValue(res0)
+			},
+		)
 		pn.DefineNative("GetOrigPkgAddr",
 			gno.Flds( // params
 			),
