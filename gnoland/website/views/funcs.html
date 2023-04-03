@@ -115,17 +115,32 @@
 <script type="text/javascript" src="/static/js/marked.min.js"></script>
 <script type="text/javascript" src="/static/js/purify.min.js"></script>
 <script type="text/javascript">
-  function main() {
+  function main(options = {}) {
+    const sourceId = options.sourceId || "source";
+    const targetId = options.targetId || "home";
+    const highlight = options.highlight !== undefined ? options.highlight : true;
     marked.setOptions({ gfm: true });
-    window.contents = document.getElementById("source").innerHTML;
+    window.contents = document.getElementById(sourceId).innerHTML;
     const doc = new DOMParser().parseFromString(window.contents, "text/html");
     const contents = doc.documentElement.textContent;
     const parsed = marked.parse(contents);
-    document.getElementById("home").innerHTML = DOMPurify.sanitize(parsed, {
+    document.getElementById(targetId).innerHTML = DOMPurify.sanitize(parsed, {
       USE_PROFILES: { html: true },
     });
+    if(highlight && typeof hljs !== "undefined") {
+      hljs.highlightAll();
+    }
   }
 </script>
+{{ end }}
+{{ define "hljs" }}
+  <script type="text/javascript" src="/static/js/highlight.min.js"></script>
+  <script>
+    hljs.configure({
+        throwUnescapedHTML: true, // important to avoid inserting escaped html
+    });
+    hljs.highlightAll(); // applied to all <pre><code>...</code></pre>
+  </script>
 {{ end }}
 {{ define "subscribe" }}
 <!-- mailchimp -->

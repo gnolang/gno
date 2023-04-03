@@ -13,6 +13,8 @@ type MemFile struct {
 	Body string
 }
 
+type MemFileBodies map[string]string
+
 // NOTE: in the future, a MemPackage may represent
 // updates/additional-files for an existing package.
 type MemPackage struct {
@@ -28,6 +30,14 @@ func (mempkg *MemPackage) GetFile(name string) *MemFile {
 		}
 	}
 	return nil
+}
+
+func (mempkg *MemPackage) GetFileBodies() MemFileBodies {
+	fileBodies := MemFileBodies{}
+	for _, memFile := range mempkg.Files {
+		fileBodies[memFile.Name] = memFile.Body
+	}
+	return fileBodies
 }
 
 const (

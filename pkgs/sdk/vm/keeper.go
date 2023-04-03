@@ -467,3 +467,13 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 		return res, nil
 	}
 }
+
+func (vm *VMKeeper) QueryFiles(ctx sdk.Context, path string) (res std.MemFileBodies, err error) {
+	dirpath, _ := std.SplitFilepath(path)
+	store := vm.getGnoStore(ctx)
+	if memPkg := store.GetMemPackage(dirpath); memPkg != nil {
+		return memPkg.GetFileBodies(), nil
+	}
+
+	return std.MemFileBodies{}, nil
+}

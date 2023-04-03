@@ -23,13 +23,15 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gotuna/gotuna"
 
+	"github.com/gnolang/gno/gnoland/website/pkgs/doc"
 	"github.com/gnolang/gno/gnoland/website/static" // for static files
 	"github.com/gnolang/gno/pkgs/sdk/vm"            // for error types
 	// "github.com/gnolang/gno/pkgs/sdk"               // for baseapp (info, status)
 )
 
 const (
-	qFileStr = "vm/qfile"
+	qFileStr  = "vm/qfile"
+	qFilesStr = "vm/qfiles"
 )
 
 var flags struct {
@@ -309,7 +311,21 @@ func handlerRealmFile(app gotuna.App) http.Handler {
 		vars := mux.Vars(r)
 		diruri := "gno.land/r/" + vars["rlmname"]
 		filename := vars["filename"]
-		renderPackageFile(app, w, r, diruri, filename)
+		if filename != "" {
+			renderPackageFile(app, w, r, diruri, filename)
+			return
+		}
+		res, err := makeRequest(qFileStr, []byte(diruri))
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		files := strings.Split(string(res.Data), "\n")
+		tmpl := app.NewTemplatingEngine()
+		tmpl.Set("DirURI", diruri)
+		tmpl.Set("DirPath", pathOf(diruri))
+		tmpl.Set("Files", files)
+		tmpl.Render(w, r, "realm_dir.html", "funcs.html")
 	})
 }
 
@@ -318,50 +334,59 @@ func handlerPackageFile(app gotuna.App) http.Handler {
 		vars := mux.Vars(r)
 		pkgpath := "gno.land/p/" + vars["filepath"]
 		diruri, filename := std.SplitFilepath(pkgpath)
-		if filename == "" && diruri == pkgpath {
-			// redirect to diruri + "/"
-			http.Redirect(w, r, "/p/"+vars["filepath"]+"/", http.StatusFound)
+		if filename != "" {
+			renderPackageFile(app, w, r, diruri, filename)
 			return
 		}
-		renderPackageFile(app, w, r, diruri, filename)
+		renderPackage(app, w, r, diruri)
 	})
 }
 
-func renderPackageFile(app gotuna.App, w http.ResponseWriter, r *http.Request, diruri string, filename string) {
-	if filename == "" {
-		// Request is for a folder.
-		qpath := qFileStr
-		data := []byte(diruri)
-		res, err := makeRequest(qpath, data)
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		files := strings.Split(string(res.Data), "\n")
-		// Render template.
-		tmpl := app.NewTemplatingEngine()
-		tmpl.Set("DirURI", diruri)
-		tmpl.Set("DirPath", pathOf(diruri))
-		tmpl.Set("Files", files)
-		tmpl.Render(w, r, "package_dir.html", "funcs.html")
-	} else {
-		// Request is for a file.
-		filepath := diruri + "/" + filename
-		qpath := qFileStr
-		data := []byte(filepath)
-		res, err := makeRequest(qpath, data)
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		// Render template.
-		tmpl := app.NewTemplatingEngine()
-		tmpl.Set("DirURI", diruri)
-		tmpl.Set("DirPath", pathOf(diruri))
-		tmpl.Set("FileName", filename)
-		tmpl.Set("FileContents", string(res.Data))
-		tmpl.Render(w, r, "package_file.html", "funcs.html")
+func renderPackage(app gotuna.App, w http.ResponseWriter, r *http.Request, diruri string) {
+	res, err := makeRequest(qFilesStr, []byte(diruri))
+	if err != nil {
+		writeError(w, err)
+		return
 	}
+
+	var files std.MemFileBodies
+	if err := json.Unmarshal(res.Data, &files); err != nil {
+		writeError(w, err)
+		return
+	}
+
+	pkgdoc, err := doc.New(diruri, files)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+
+	pkgContent, err := pkgdoc.Markdown()
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+
+	tmpl := app.NewTemplatingEngine()
+	tmpl.Set("DirPath", pathOf(diruri))
+	tmpl.Set("PkgContent", string(pkgContent))
+	tmpl.Render(w, r, "package_dir.html", "funcs.html")
+}
+
+func renderPackageFile(app gotuna.App, w http.ResponseWriter, r *http.Request, diruri string, filename string) {
+	// Request is for a file.
+	res, err := makeRequest(qFileStr, []byte(diruri+"/"+filename))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	// Render template.
+	tmpl := app.NewTemplatingEngine()
+	tmpl.Set("DirURI", diruri)
+	tmpl.Set("DirPath", pathOf(diruri))
+	tmpl.Set("FileName", filename)
+	tmpl.Set("FileContents", string(res.Data))
+	tmpl.Render(w, r, "package_file.html", "funcs.html")
 }
 
 func makeRequest(qpath string, data []byte) (res *abci.ResponseQuery, err error) {

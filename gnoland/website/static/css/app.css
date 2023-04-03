@@ -355,3 +355,29 @@ code.hljs {
 #realm_help .func_name td {
   font-weight: bold;
 }
+
+/*** PKGS/DOC ***/
+
+#pkg_doc {
+  padding: 0 22px;
+}
+
+#pkg_doc h1,
+#pkg_doc h2 {
+  border-bottom: 1px solid #ccc;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+}
+
+#pkg_doc h2 {
+  margin-top: 60px;
+}
+
+#pkg_doc h3 {
+  margin-top: 40px;
+}
+
+#pkg_doc pre {
+  margin-top: 10px;
+  margin-bottom: 10px;
+}

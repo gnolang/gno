@@ -5,7 +5,7 @@
     <title>Gno.land</title>
     {{ template "html_head" }}
   </head>
-  <body onload="main({targetId: 'pkg_doc'})">
+  <body onload="main()">
     <div id="root">
       <div id="header">
         {{ template "header_logo" }}
@@ -14,14 +14,27 @@
         </span>
         {{ template "header_buttons" }}
       </div>
-      <div id="pkg_doc">
-        <div id="source">{{ .Data.PkgContent }}</div>
+
+      <div id="realm_dir">
+        {{ template "dir_contents" . }}
       </div>
 
       {{ template "footer" }}
     </div>
-    {{ template "hljs" }}
     {{ template "js" }}
   </body>
 </html>
 {{- end -}}
+
+{{ define "dir_contents" }}
+<div class="dir_contents">
+  {{ $dirPath := .Data.DirPath }}
+  <ul>
+    {{ range .Data.Files }}
+    <li class="dir_entry">
+      <a href="{{ $dirPath }}/{{ . }}">{{ . }}</a>
+    </li>
+    {{ end }}
+  </ul>
+</div>
+{{ end }}
