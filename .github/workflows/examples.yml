@@ -1,21 +1,19 @@
-name: Gno Examples
+name: examples
 
 on:
   pull_request:
     paths:
-      - "**.go"
-      - "**.gno"
-      - "go.mod"
       - "go.sum"
+      - "gnovm/**.go"
+      - "gnovm/**.gno"
+      - "gnovm/**/go.sum"
+      - "examples/**.gno"
       - ".github/workflows/examples.yml"
-      - "Makefile"
   push:
-    branches:
-      - master
+    branches: [ $default-branch ]
 
 jobs:
-  go-test:
-    name: Gno Examples
+  gno2go:
     strategy:
       fail-fast: false
       matrix:
@@ -27,9 +25,7 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
       - uses: actions/checkout@v3
-      - run: go install -v ./cmd/gnodev
-      # TODO: implement --allow-all-imports
-      #- run: gnodev precompile ./stdlibs --verbose --allow-all-imports
-      #- run: gnodev precompile ./tests --verbose --allow-all-imports
-      - run: go run ./cmd/gnodev precompile --verbose ./examples
-      - run: go run ./cmd/gnodev build --verbose ./examples
+      - run: go install -v ./gnovm/cmd/gno
+      - run: go run ./gnovm/cmd/gno precompile --verbose ./examples
+      - run: go run ./gnovm/cmd/gno build --verbose ./examples
+  # unittests: TODO: matrix with contracts
