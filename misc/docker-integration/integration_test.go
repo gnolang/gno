@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gnolang/gno/gnoland"
-	"github.com/gnolang/gno/pkgs/amino"
-	"github.com/gnolang/gno/pkgs/sdk/vm"
-	"github.com/gnolang/gno/pkgs/std"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/sdk/vm"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
