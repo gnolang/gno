@@ -55,3 +55,5 @@ EXPOSE      8888
 FROM        runtime-tls AS all
 COPY        --from=build /opt/build/build/* /opt/gno/bin/
 COPY        --from=build /opt/gno/src /opt/gno/src
+# gofmt is required by `gnokey maketx addpkg`
+COPY        --from=build /usr/local/go/bin/gofmt /usr/bin
