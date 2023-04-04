@@ -5,6 +5,12 @@ import (
 	"testing"
 )
 
+type stringer struct{}
+
+func (stringer) String() string {
+	return "I'm a stringer"
+}
+
 func TestSprintf(t *testing.T) {
 	cases := []struct {
 		format         string
@@ -25,6 +31,7 @@ func TestSprintf(t *testing.T) {
 		{"invalid string [%s]", []interface{}{1}, "invalid string [(unhandled)]"},
 		{"no args", nil, "no args"},
 		{"finish with %", nil, "finish with %"},
+		{"stringer [%s]", []interface{}{stringer{}}, "stringer [I'm a stringer]"},
 	}
 
 	for _, tc := range cases {
