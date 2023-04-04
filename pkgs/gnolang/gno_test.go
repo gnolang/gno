@@ -11,6 +11,24 @@ import (
 	"github.com/jaekwon/testify/assert"
 )
 
+// run main() with a for loop.
+func BenchmarkLoopy(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		m := NewMachine("test", nil)
+		c := `package test
+func main() {
+     var k int
+	for i:=0; i<1000; i++ {
+		k += i
+	}
+    //println(k)
+}`
+		n := MustParseFile("main.go", c)
+		m.RunFiles(n)
+		m.RunMain()
+	}
+}
+
 // run empty main().
 func TestRunEmptyMain(t *testing.T) {
 	m := NewMachine("test", nil)
