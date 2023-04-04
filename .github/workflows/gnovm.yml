@@ -11,7 +11,7 @@ on:
       - "tm2/**.go"
       - ".github/workflows/gnovm.yml"
   push:
-    branches: [ $default-branch ]
+    branches: [ "master" ]
 
 jobs:
   build:
