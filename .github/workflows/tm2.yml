@@ -8,8 +8,7 @@ on:
       - "tm2/**.go"
       - ".github/workflows/tm2.yml"
   push:
-    branches:
-      - [ $default-branch ]
+    branches: [ $default-branch ]
 
 jobs:
   build:
