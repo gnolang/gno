@@ -10,7 +10,7 @@ on:
       - "gno.land/**"
       - ".github/workflows/gnovm.yml"
   push:
-    branches: [ $default-branch ]
+    branches: [ "master" ]
 
 jobs:
   build:
