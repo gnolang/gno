@@ -10,7 +10,7 @@ on:
       - "examples/**.gno"
       - ".github/workflows/examples.yml"
   push:
-    branches: [ $default-branch ]
+    branches: [ "master" ]
 
 jobs:
   gno2go:

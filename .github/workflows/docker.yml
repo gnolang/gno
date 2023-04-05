@@ -7,7 +7,7 @@ on:
       - "!docs/**"
       - "!**.md"
   push:
-    branches: [ $default-branch ]
+    branches: [ "master" ]
 
 jobs:
   build-push:

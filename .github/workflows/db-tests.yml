@@ -7,7 +7,7 @@ on:
       - "go.sum"
       - ".github/workflows/db-tests.yml"
   push:
-    branches: [ $default-branch ]
+    branches: [ "master" ]
 
 jobs:
   test:
