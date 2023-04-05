@@ -815,17 +815,17 @@ GNO_CASE:
 		}
 	case BigdecKind:
 		switch k {
-		case BigintKind:
-			x := toBigInt(tv.GetBigDec())
+		case IntKind, Int64Kind, UintKind, Uint64Kind, BigintKind:
+			x := tv.GetBigDec()
+			ConvertUntypedBigdecTo(tv, BigdecValue{V: x}, t)
+		case StringKind:
 			tv.T = t
-			tv.V = BigintValue{V: x}
-
+			tv.V = alloc.NewString(tv.GetBigDec().String())
 		default:
 			panic(fmt.Sprintf(
 				"cannot convert %s to %s",
 				tvk.String(), k.String()))
 		}
-
 	case StringKind:
 		bt := baseOf(t)
 		switch cbt := bt.(type) {
