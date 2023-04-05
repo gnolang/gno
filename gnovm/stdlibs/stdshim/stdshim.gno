@@ -36,6 +36,12 @@ func GetOrigSend() Coins {
 	return Coins{}
 }
 
+func GetCaller() Address {
+	panic(shimWarn)
+	return Address("")
+}
+
+
 func GetOrigCaller() Address {
 	panic(shimWarn)
 	return Address("")

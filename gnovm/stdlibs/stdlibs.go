@@ -300,7 +300,6 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				if m.NumFrames() <= 2 {
 					lastCaller = ctx.OrigCaller
 				} else {
-
 					for i := m.NumFrames() - 1; i > 0; i-- {
 						frameA := m.Frames[i]
 						frameB := m.Frames[i-1]
