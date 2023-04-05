@@ -9,6 +9,9 @@ import (
 func TestAssertOriginCall(t *testing.T) {
 	// No-panic case
 	AssertOriginCall()
+	if !IsOriginCall() {
+		t.Errorf("expected IsOriginCall=true but got false")
+	}
 
 	// Panic case
 	expectedReason := "invalid non-origin call"
@@ -21,6 +24,9 @@ func TestAssertOriginCall(t *testing.T) {
 	func() {
 		// if called inside a function literal, this is no longer an origin call
 		// because there's one additional frame (the function literal).
+		if IsOriginCall() {
+			t.Errorf("expected IsOriginCall=false but got true")
+		}
 		AssertOriginCall()
 	}()
 }
