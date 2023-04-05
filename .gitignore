@@ -1,4 +1,3 @@
-misc/
 *.sw[pon]
 cmd/foo.go
 unsorted.*
