@@ -11,6 +11,7 @@ func main() {
 
 	// print main balance before.
 	mainaddr := std.TestDerivePkgAddr("main")
+	std.TestSetOrigCaller(mainaddr)
 	banker := std.GetBanker(std.BankerTypeReadonly)
 	mainbal := banker.GetCoins(mainaddr)
 	println("main before:", mainbal) // plus OrigSend equals 300.
