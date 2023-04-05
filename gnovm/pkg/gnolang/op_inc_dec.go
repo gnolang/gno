@@ -1,5 +1,7 @@
 package gnolang
 
+import "math/big"
+
 func (m *Machine) doOpInc() {
 	s := m.PopStmt().(*IncDecStmt)
 
@@ -42,8 +44,10 @@ func (m *Machine) doOpInc() {
 		lv.SetUint32(lv.GetUint32() + 1)
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() + 1)
+	case BigintType:
+		lv.GetBigInt().Add(lv.GetBigInt(), big.NewInt(1))
 	default:
-		panic("unexpected type in in operation")
+		panic("unexpected type in OpInc(++) operation")
 	}
 
 	// Mark dirty in realm.
@@ -94,8 +98,10 @@ func (m *Machine) doOpDec() {
 		lv.SetUint32(lv.GetUint32() - 1)
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() - 1)
+	case BigintType:
+		lv.GetBigInt().Sub(lv.GetBigInt(), big.NewInt(1))
 	default:
-		panic("unexpected type in in operation")
+		panic("unexpected type in OpDec(--) operation")
 	}
 
 	// Mark dirty in realm.
