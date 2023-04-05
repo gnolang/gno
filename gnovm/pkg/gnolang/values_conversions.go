@@ -678,6 +678,19 @@ GNO_CASE:
 				"cannot convert %s to %s",
 				tvk.String(), k.String()))
 		}
+	case BigintKind:
+		switch k {
+		case IntKind, Int64Kind, UintKind, Uint64Kind, BigdecKind:
+			x := tv.GetBigInt()
+			ConvertUntypedBigintTo(tv, BigintValue{V: x}, t)
+		case StringKind:
+			tv.T = t
+			tv.V = alloc.NewString(tv.GetBigInt().String())
+		default:
+			panic(fmt.Sprintf(
+				"cannot convert %s to %s",
+				tvk.String(), k.String()))
+		}
 	case Float32Kind:
 		switch k {
 		case IntKind:
