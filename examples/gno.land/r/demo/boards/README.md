@@ -29,7 +29,7 @@ NOTE: You can generate 24 words with any good bip39 generator.
 ### Create a new account using your mnemonic.
 
 ```bash
-./build/gnokey add KEYNAME --recover
+./build/gnokey add --recover KEYNAME
 ```
 
 NOTE: `KEYNAME` is your key identifier, and should be changed.

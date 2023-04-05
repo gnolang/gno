@@ -4,11 +4,9 @@ cmd/foo.go
 unsorted.*
 .DS_Store
 data/*
-proto/*
 testdir
 pkgs/sdk/vm/_testdata
-cmd/gnodev/gnodev
-build/*
+build
 *.tx
 *.log.*
 *.log
