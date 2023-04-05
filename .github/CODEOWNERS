@@ -21,12 +21,10 @@ examples/*                   @gnolang/tech-staff
 
 # Gno.land.
 gno.land/*                   @gnolang/tech-staff
-cmd/gnoland/*                @gnolang/tech-staff
 
 
 # GnoVM/Gnolang.
 gnovm/*                      @gnolang/tech-staff
-stdlibs/*                    @gnolang/tech-staff
 
 
 # Special files.
