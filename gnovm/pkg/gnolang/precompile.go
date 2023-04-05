@@ -58,7 +58,6 @@ var stdlibWhitelist = []string{
 
 	// gno
 	"std",
-	"testing",
 }
 
 var importPrefixWhitelist = []string{
