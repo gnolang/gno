@@ -141,6 +141,9 @@ GNO_CASE:
 			x := float64(tv.GetInt()) // XXX determinism?
 			tv.T = t
 			tv.SetFloat64(x)
+		case BigdecKind:
+			tv.V = BigdecValue{V: apd.New(tv.GetInt64(), 0)}
+			tv.T = t
 		case StringKind:
 			tv.V = alloc.NewString(string(rune(tv.GetInt())))
 			tv.T = t
@@ -380,6 +383,9 @@ GNO_CASE:
 			x := float64(tv.GetInt64()) // XXX determinism?
 			tv.T = t
 			tv.SetFloat64(x)
+		case BigdecKind:
+			tv.V = BigdecValue{V: apd.New(tv.GetInt64(), 0)}
+			tv.T = t
 		case StringKind:
 			tv.V = alloc.NewString(string(rune(tv.GetInt64())))
 			tv.T = t
@@ -442,6 +448,9 @@ GNO_CASE:
 			x := float64(tv.GetUint()) // XXX determinism?
 			tv.T = t
 			tv.SetFloat64(x)
+		case BigdecKind:
+			tv.V = BigdecValue{V: apd.New(tv.GetInt64(), 0)}
+			tv.T = t
 		case StringKind:
 			tv.V = alloc.NewString(string(rune(tv.GetUint())))
 			tv.T = t
@@ -681,6 +690,9 @@ GNO_CASE:
 			x := float64(tv.GetUint64()) // XXX determinism?
 			tv.T = t
 			tv.SetFloat64(x)
+		case BigdecKind:
+			tv.V = BigdecValue{V: apd.New(tv.GetInt64(), 0)}
+			tv.T = t
 		case StringKind:
 			tv.V = alloc.NewString(string(rune(tv.GetUint64())))
 			tv.T = t
@@ -859,6 +871,17 @@ GNO_CASE:
 				}
 				tv.V = BigintValue{V: bi}
 				tv.T = t
+			case BigdecKind:
+				bd := new(apd.Decimal)
+				bd, _, err := bd.SetString(tv.GetString())
+				if err != nil {
+					panic(fmt.Sprintf(
+						"cannot convert %s(%s) to %s",
+						tv.GetString(), tvk.String(), k.String()))
+				}
+				tv.V = BigdecValue{V: bd}
+				tv.T = t
+
 			default:
 				panic(fmt.Sprintf(
 					"cannot convert %s to %s",
