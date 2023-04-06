@@ -4,23 +4,23 @@ import (
 	"fmt"
 )
 
+type word uint
+type nat []word
 
-type nat3 []Word
-type Word uint
-
-type Int3 struct {
+// structLit
+type Int struct {
 	neg bool
-	abs nat3
+	abs nat
 }
 
-func (n nat3) add3() bool {
+func (n nat) add() bool {
 	return true
 }
 
 func main() {
-	z := &Int3{
+	z := &Int{
 		neg: true,
-		abs: []Word{0},
+		abs: []word{0},
 	}
-	z.abs.add3()
+	z.abs.add()
 }

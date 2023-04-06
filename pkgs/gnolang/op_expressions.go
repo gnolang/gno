@@ -437,6 +437,9 @@ func (m *Machine) doOpArrayLit() {
 					ad[k] = v.GetUint8()
 				} else {
 					al[k] = v
+					if isNeedConversion(at.Elem(), v.T) {
+						al[k].T = at.Elem()
+					}
 				}
 				idx = k + 1
 			} else {
@@ -444,6 +447,9 @@ func (m *Machine) doOpArrayLit() {
 					ad[idx] = v.GetUint8()
 				} else {
 					al[idx] = v
+					if isNeedConversion(at.Elem(), v.T) {
+						al[idx].T = at.Elem()
+					}
 				}
 				idx++
 			}
@@ -474,6 +480,9 @@ func (m *Machine) doOpSliceLit() {
 	es := make([]TypedValue, el)
 	for i := el - 1; 0 <= i; i-- {
 		es[i] = *m.PopValue()
+		if isNeedConversion(st.Elem(), es[i].T) {
+			es[i].T = st.Elem()
+		}
 	}
 	// construct and push value.
 	if debug {
@@ -506,6 +515,7 @@ func (m *Machine) doOpSliceLit2() {
 			max = idx
 		}
 	}
+	ste := st.Elem()
 	// construct element buf slice.
 	es := make([]TypedValue, max+1)
 	for i := 0; i < el; i++ {
@@ -513,9 +523,11 @@ func (m *Machine) doOpSliceLit2() {
 		vtv := tvs[i*2+1]
 		idx := itv.ConvertGetInt()
 		es[idx] = vtv
+		if isNeedConversion(ste, vtv.T) {
+			es[idx].T = ste
+		}
 	}
 	// fill in empty values.
-	ste := st.Elem()
 	for i, etv := range es {
 		if etv.IsUndefined() {
 			es[i] = defaultTypedValue(m.Alloc, ste)
@@ -553,6 +565,9 @@ func (m *Machine) doOpMapLit() {
 			vtv := kvs[i*2+1]
 			ptr := mv.GetPointerForKey(m.Alloc, m.Store, ktv)
 			*ptr.TV = vtv
+			if isNeedConversion(mt.Elem(), vtv.T) {
+				*&ptr.TV.T = mt.Elem()
+			}
 		}
 	}
 	// pop map type.
@@ -571,7 +586,6 @@ func (m *Machine) doOpMapLit() {
 }
 
 func (m *Machine) doOpStructLit() {
-	// println("doOpStructLit")
 	// assess performance TODO
 	x := m.PopExpr().(*CompositeLitExpr)
 	el := len(x.Elts) // may be incomplete
@@ -623,7 +637,6 @@ func (m *Machine) doOpStructLit() {
 			}
 		}
 	} else {
-		// println("else branch")
 		// field values are by name and may be out of order.
 		fs = defaultStructFields(m.Alloc, st)
 		ftvs := m.PopValues(el)
@@ -631,36 +644,10 @@ func (m *Machine) doOpStructLit() {
 			fnx := x.Elts[i].Key.(*NameExpr)
 
 			ftv := ftvs[i]
-			// println("ftv: ", ftv.String())
 			// convert
 			if isNeedConversion(fs[fnx.Path.Index].T, ftv.T) {
 				ftv.T = fs[fnx.Path.Index].T // use defined type
 			}
-			// if dt, ok := fs[fnx.Path.Index].T.(*DeclaredType); ok {
-			// 	// println("is dt, index, fs[index].T:, ftv.T", fnx.Path.Index, fs[fnx.Path.Index].T.String(), ftv.T.String())
-			// 	if ftv.IsDefined() { // is it necessary?
-			// 		if dt.Base.TypeID() == ftv.T.TypeID() {
-			// 			// println("same type")
-			// 			// println("dt.Base", dt.Base.String())
-			// 			// println("ftvs[i].T", ftvs[i].T.String())
-			// 			// println("fs[fnx.Path.Index].T", fs[fnx.Path.Index].T.String())
-			// 			// println("st.Fields[i].Type", st.Fields[i].Type.String())
-			// 			ftv.T = fs[fnx.Path.Index].T // use defined type
-			// 		}
-			// 		// else {
-			// 		// 	println("not same type")
-			// 		// 	println("dt.Base", dt.Base.String())
-			// 		// 	println("ftvs[fnx.Path.Index].T", ftvs[fnx.Path.Index].T.String())
-			// 		// }
-			// 		// println("convert done")
-			// 		// println("ftv: ", ftv.String())
-			// 	}
-			// } else {
-			// 	// println("----------------------")
-			// 	// println("not dt, index, fs[index].T:", fnx.Path.Index, fs[fnx.Path.Index].String())
-			// 	// println("ftv: ", ftv.String())
-			// }
-
 			if debug {
 				if fnx.Path.Depth != 0 {
 					panic("unexpected struct composite lit key path generation value")
@@ -669,12 +656,9 @@ func (m *Machine) doOpStructLit() {
 					panic("should not happen")
 				}
 			}
-			// println("index: ", fnx.Path.Index)
 			fs[fnx.Path.Index] = ftv
 		}
 	}
-	// println("all done")
-	// println("----------------------")
 	// construct and push value.
 	m.PopValue() // baseOf() is st
 	sv := m.Alloc.NewStruct(fs)

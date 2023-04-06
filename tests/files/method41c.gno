@@ -1,5 +1,11 @@
 package main
 
+// func main(){}
+
+import (
+	"fmt"
+)
+
 type word uint
 type nat []word
 
@@ -7,19 +13,16 @@ func (n nat) add() bool {
 	return true
 }
 
-// map 
+// slice append
 func main() {
-	items := map[string]nat{}
+	var items []nat
 
 	n := []word{0}
 
-	// this is assignment
-	items["test"] = n
+	items = append(items, n)
 
-	r := items["test"]
+	r := items[0]
 
 	println(r.add())
 }
 
-// Output:
-// true

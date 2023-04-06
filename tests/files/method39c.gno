@@ -4,14 +4,14 @@ import (
 	"fmt"
 )
 
-
 type word uint
 type nat []word
 
 type Int struct {
+	nat
 	neg bool
-	abs nat
 }
+
 
 func (n nat) add() bool {
 	return true
@@ -19,9 +19,9 @@ func (n nat) add() bool {
 
 func main() {
 	z := &Int{
+		nat: []word{0},
 		neg: true,
 	}
-
-	z.abs = []word{0}
-	z.abs.add()
+	z.add()
+	z.nat.add()
 }

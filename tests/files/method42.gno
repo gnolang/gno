@@ -4,19 +4,19 @@ import (
 	"fmt"
 )
 
-type nat3 []Word
-type Word uint
+type word uint
+type nat []word
 
-
-func (n nat3) add3(x, y nat3) bool {
+func (n nat) add(x, y nat) bool {
 	return true
 }
 
+// parameter
 func main() {
-	var abs nat3
-	abs = []Word{0}
-	x := []Word{1}
-	y := []Word{2}
-	abs.add3(x, y)
+	var abs nat
+	abs = []word{0}
+	x := []word{1}
+	y := []word{2}
+	abs.add(x, y)
 }
 

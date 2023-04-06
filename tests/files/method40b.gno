@@ -1,9 +1,5 @@
 package main
 
-import (
-	"fmt"
-)
-
 type word uint
 type nat []word
 
@@ -11,10 +7,17 @@ func (n nat) add() bool {
 	return true
 }
 
+// mapLit
 func main() {
-	var abs nat
-	abs = []word{0}
-	println(abs.add())
+	n := []word{0}
+
+	items := map[string]nat{
+		"test": n,
+	}
+
+	r := items["test"]
+
+	println(r.add())
 }
 
 // Output:

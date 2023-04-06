@@ -4,21 +4,19 @@ import (
 	"fmt"
 )
 
-type nat3 []Word
-type Word uint
+type word uint
+type nat []word
 
-func (n nat3) add3() bool {
+func (n nat) add() bool {
 	return true
 }
 
+// sliceLit
 func main() {
-	var items []nat3
+	items := []nat{[]word{0}, []word{1}}
 
-	n := []Word{0}
-
-	items = append(items, n)
 	r := items[0]
 
-	println(r.add3())
+	println(r.add())
 }
 

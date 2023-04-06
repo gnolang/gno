@@ -4,24 +4,21 @@ import (
 	"fmt"
 )
 
-
 type word uint
 type nat []word
-
-type Int struct {
-	neg bool
-	abs nat
-}
 
 func (n nat) add() bool {
 	return true
 }
 
+// sliceLit2
 func main() {
-	z := &Int{
-		neg: true,
-	}
+	items := []nat{1:[]word{0}, 2:[]word{1}}
 
-	z.abs = []word{0}
-	z.abs.add()
+	r := items[1]
+
+	println(r.add())
 }
+
+// Output:
+// true

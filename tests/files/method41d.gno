@@ -4,24 +4,19 @@ import (
 	"fmt"
 )
 
-
 type word uint
 type nat []word
-
-type Int struct {
-	neg bool
-	abs nat
-}
 
 func (n nat) add() bool {
 	return true
 }
 
+// ArrayLit
 func main() {
-	z := &Int{
-		neg: true,
-	}
+	items := [3]nat{[]word{0}, []word{1}}
 
-	z.abs = []word{0}
-	z.abs.add()
+	r := items[0]
+
+	println(r.add())
 }
+
