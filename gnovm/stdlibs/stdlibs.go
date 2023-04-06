@@ -152,7 +152,8 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			func(m *gno.Machine) {
 				isOrigin := len(m.Frames) == 2
 				if !isOrigin {
-					panic("invalid non-origin call")
+					m.Panic(typedString("invalid non-origin call"))
+					return
 				}
 			},
 		)
@@ -314,13 +315,15 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				arg0 := m.LastBlock().GetParams1().TV
 				n := arg0.GetInt()
 				if n <= 0 {
-					panic("GetCallerAt requires positive arg")
+					m.Panic(typedString("GetCallerAt requires positive arg"))
+					return
 				}
 				if n > m.NumFrames() {
 					// NOTE: the last frame's LastPackage
 					// is set to the original non-frame
 					// package, so need this check.
-					panic("frame not found")
+					m.Panic(typedString("frame not found"))
+					return
 				}
 				var pkgAddr string
 				if n == m.NumFrames() {
@@ -426,7 +429,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				}
 				b32, err := bech32.ConvertAndEncode(prefix, bz)
 				if err != nil {
-					panic(err)
+					panic(err) // should not happen
 				}
 				res0 := gno.Go2GnoValue(
 					m.Alloc,
