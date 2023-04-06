@@ -9,16 +9,15 @@ tasks:
       (cd misc/devdeps && make install) &&
       echo "download dependencies" &&
       go mod download &&
-      echo "prebuild gnodev" &&
-      make install_gnodev
-    command: gnodev --help
+      go install ./gnovm/cmd/gno
+    command: gno --help
 
   - name: Gnoland Website
-    init: cd gnoland/website && go install .
-    command: go run . --bind=0.0.0.0:8888
+    init: go install ./gno.land/cmd/gnoweb
+    command: gnoweb --bind=0.0.0.0:8888
 
   - name: Gnoland Node
-    init: go install ./cmd/gnoland
+    init: go install ./gno.land/cmd/gnoland
     command: gnoland
 
 ports:

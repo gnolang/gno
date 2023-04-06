@@ -6,15 +6,14 @@ services:
     build: ../../..
     environment:
       - LOG_LEVEL=4
+    working_dir: /opt/gno/src/gno.land
     command:
       - gnoland
       - --skip-failing-genesis-txs
-      - --chainid
-      - staging
-      - --genesis-remote
-      - staging.gno.land:36657
+      - --chainid=staging
+      - --genesis-remote=staging.gno.land:36657
     volumes:
-      - "./data/gnoland:/opt/gno/src/testdir"
+      - "./data/gnoland:/opt/gno/src/gno.land/testdir"
     ports:
       - 36656:36656
       - 36657:36657
@@ -30,20 +29,14 @@ services:
     build: ../../..
     command:
       - gnoweb
-      - --bind
-      - 0.0.0.0:80
-      - --remote
-      - gnoland:36657
-      - --captcha-site
-      - $RECAPTCHA_SITE_KEY
-      - --faucet-url
-      - https://faucet-staging.gno.land/
-      - --help-chainid
-      - staging
-      - --help-remote
-      - staging.gno.land:36657
-      - --home-content
-      - /overlay/HOME.md
+      - --bind=0.0.0.0:80
+      - --remote=gnoland:36657
+      - --captcha-site=$RECAPTCHA_SITE_KEY
+      - --faucet-url=https://faucet-staging.gno.land/
+      - --help-chainid=staging
+      - --help-remote=staging.gno.land:36657
+      - --pages-dir=/overlay/pages
+      - --views-dir=./gno.land/cmd/gnoweb/views
     volumes:
       - "./overlay:/overlay:ro"
     links:
@@ -66,9 +59,9 @@ services:
     command: sh -xc "
         date &&
         mkdir -p /.gno &&
-        expect -c \"set timeout -1; spawn gnokey add faucet --home /.gno/ --recover; expect \\\"Enter a passphrase\\\"; send \\\"$GNOKEY_PASS\\r\\\"; expect \\\"Repeat the passphrase\\\"; send \\\"$GNOKEY_PASS\\r\\\"; expect \\\"Enter your bip39 mnemonic\\\"; send \\\"$FAUCET_WORDS\\r\\\"; expect eof\" &&
+        expect -c \"set timeout -1; spawn gnokey add --home /.gno/ --recover faucet; expect \\\"Enter a passphrase\\\"; send \\\"$GNOKEY_PASS\\r\\\"; expect \\\"Repeat the passphrase\\\"; send \\\"$GNOKEY_PASS\\r\\\"; expect \\\"Enter your bip39 mnemonic\\\"; send \\\"$FAUCET_WORDS\\r\\\"; expect eof\" &&
         while true; do
-          expect -c \"set timeout -1; spawn gnofaucet serve faucet --send 50000000ugnot --captcha-secret \\\"$RECAPTCHA_SECRET_KEY\\\" --remote gnoland:36657 --chain-id staging --home /.gno/; expect \\\"Enter password.\\\"; send \\\"$GNOKEY_PASS\\r\\\"; expect eof\";
+          expect -c \"set timeout -1; spawn gnofaucet serve --send 50000000ugnot --captcha-secret \\\"$RECAPTCHA_SECRET_KEY\\\" --remote gnoland:36657 --chain-id staging --home /.gno/ faucet; expect \\\"Enter password\\\"; send \\\"$GNOKEY_PASS\\r\\\"; expect eof\";
           sleep 5;
         done
       "

@@ -27,6 +27,7 @@ require (
 	golang.org/x/tools v0.2.0 // indirect
 	golang.org/x/vuln v0.0.0-20221025230227-995372c58a16 // indirect
 	golang.org/x/xerrors v0.0.0-20220411194840-2f41105eb62f // indirect
+	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 	honnef.co/go/tools v0.3.3 // indirect
 	moul.io/banner v1.0.1 // indirect
