@@ -1000,8 +1000,8 @@ const (
 func (m *Machine) Run() {
 	for {
 		if m.Alloc.GetRunGC() {
-			//cleanup
-			//m.Realm.FinalizeRealmTransaction()
+			// cleanup
+			// m.Realm.FinalizeRealmTransaction()
 		}
 		op := m.PopOp()
 		// TODO: this can be optimized manually, even into tiers.
