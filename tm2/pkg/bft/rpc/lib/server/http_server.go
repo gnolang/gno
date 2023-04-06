@@ -152,16 +152,26 @@ func RecoverAndLogHandler(handler http.Handler, logger log.Logger) http.Handler 
 			// Without this, Chrome & Firefox were retrying aborted ajax requests,
 			// at least to my localhost.
 			if e := recover(); e != nil {
-				// If RPCResponse
-				if res, ok := e.(types.RPCResponse); ok {
-					WriteRPCResponseHTTP(rww, res)
-				} else {
-					// For the rest,
+				switch e := e.(type) {
+
+				case types.RPCResponse:
+					WriteRPCResponseHTTP(rww, e)
+
+				case error:
 					logger.Error(
 						"Panic in RPC HTTP handler", "err", e, "stack",
 						string(debug.Stack()),
 					)
-					WriteRPCResponseHTTPError(rww, http.StatusInternalServerError, types.RPCInternalError(types.JSONRPCStringID(""), e.(error)))
+					WriteRPCResponseHTTPError(rww, http.StatusInternalServerError,
+						types.RPCInternalError(types.JSONRPCStringID(""), e))
+
+				default: // handle string type and any other types
+					logger.Error(
+						"Panic in RPC HTTP handler", "err", e, "stack",
+						string(debug.Stack()),
+					)
+					WriteRPCResponseHTTPError(rww, http.StatusInternalServerError,
+						types.RPCInternalError(types.JSONRPCStringID(""), fmt.Errorf("%v", e)))
 				}
 			}
 
