@@ -448,6 +448,24 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			pn, pv = m2.RunMemPackage(memPkg, true)
 			return
 		}
+
+		// TODO: Commented temporarily to resolve conflict
+		//
+		// homeDir := client.HomeDir()
+		// if homeDir != "" {
+		// 	examplePath := filepath.Join(homeDir, "pkg", "mod", pkgPath)
+		// 	if osm.DirExists(examplePath) {
+		// 		memPkg := gno.ReadMemPackage(examplePath, pkgPath)
+		// 		m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+		// 			PkgPath: "test",
+		// 			Output:  stdout,
+		// 			Store:   store,
+		// 		})
+		// 		pn, pv = m2.RunMemPackage(memPkg, true)
+		// 		return
+		// 	}
+		// }
+
 		return nil, nil
 	}
 	// NOTE: store is also used in closure above.
