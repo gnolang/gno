@@ -1400,29 +1400,6 @@ func baseOf(t Type) Type {
 	}
 }
 
-func isBaseOf(t1, t2 Type) bool {
-	println("check base of")
-	if t2 != nil {
-		println("t2: ", t2.String())
-	} else {
-		println("t2 is nil")
-	}
-	if t1 != nil {
-		println("t1: ", t1.String())
-	} else {
-		println("t1 is nil")
-	}
-	if dt, ok := t2.(*DeclaredType); ok {
-		if dt.Base != nil {
-			println("dt.Base: ", dt.Base.String())
-		} else {
-			println("dt base is nil")
-		}
-		return dt.Base.TypeID() == t1.TypeID()
-	}
-	return false
-}
-
 // NOTE: it may be faster to switch on baseOf().
 func (dt *DeclaredType) Kind() Kind {
 	return dt.Base.Kind()
