@@ -22,5 +22,8 @@ func main() {
 		neg: true,
 		abs: []word{0},
 	}
-	z.abs.add()
+	println(z.abs.add())
 }
+
+// Output:
+// true

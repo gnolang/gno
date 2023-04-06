@@ -17,6 +17,10 @@ func main() {
 	abs = []word{0}
 	x := []word{1}
 	y := []word{2}
-	abs.add(x, y)
+
+	println(abs.add(x, y))
 }
+
+// Output:
+// true
 

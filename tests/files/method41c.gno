@@ -26,3 +26,5 @@ func main() {
 	println(r.add())
 }
 
+// Output:
+// true

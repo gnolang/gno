@@ -22,6 +22,10 @@ func main() {
 		nat: []word{0},
 		neg: true,
 	}
-	z.add()
-	z.nat.add()
+	println(z.add())
+	println(z.nat.add())
 }
+
+// Output:
+// true
+// true
