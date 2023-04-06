@@ -153,7 +153,6 @@ func RecoverAndLogHandler(handler http.Handler, logger log.Logger) http.Handler 
 			// at least to my localhost.
 			if e := recover(); e != nil {
 				switch e := e.(type) {
-
 				case types.RPCResponse:
 					WriteRPCResponseHTTP(rww, e)
 
