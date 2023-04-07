@@ -1,4 +1,5 @@
-#-*- mode: org -*-
+#+title: What is Gno?
+#+language: en
 #+STARTUP: overview
 
 * What is Gno?
