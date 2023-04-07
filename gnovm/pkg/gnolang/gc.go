@@ -6,7 +6,7 @@ type GC struct {
 }
 
 type GCObj struct {
-	data   Object
+	id     ObjectID
 	marked bool
 	refs   []*GCObj
 }
@@ -26,7 +26,7 @@ func (gc *GC) AddObject(obj *GCObj) {
 
 func (gc *GC) RemoveObject(id ObjectID) {
 	for i, o := range gc.objs {
-		if o.data.GetObjectID() == id {
+		if o.id == id {
 			gc.objs = append(gc.objs[:i], gc.objs[i+1:]...)
 			break
 		}
@@ -50,7 +50,7 @@ func (gc *GC) Collect() []ObjectID {
 	var deletedIDs []ObjectID
 	for _, obj := range gc.objs {
 		if !obj.marked {
-			deletedIDs = append(deletedIDs, obj.data.GetObjectID())
+			deletedIDs = append(deletedIDs, obj.id)
 			continue
 		}
 		obj.marked = false
@@ -72,7 +72,7 @@ func (gc *GC) markObject(obj *GCObj) {
 
 func (gc *GC) getObj(id ObjectID) *GCObj {
 	for _, obj := range gc.objs {
-		if obj.data.GetObjectID() == id {
+		if obj.id == id {
 			return obj
 		}
 	}

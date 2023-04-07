@@ -31,9 +31,10 @@ type Machine struct {
 	Package    *PackageValue // active package
 	Realm      *Realm        // active realm
 	Alloc      *Allocator    // memory allocations
-	Exception  *TypedValue   // if panic'd unless recovered
-	NumResults int           // number of results returned
-	Cycles     int64         // number of "cpu" cycles
+	GC         *GC
+	Exception  *TypedValue // if panic'd unless recovered
+	NumResults int         // number of results returned
+	Cycles     int64       // number of "cpu" cycles
 
 	// Configuration
 	CheckTypes bool // not yet used
@@ -1000,8 +1001,12 @@ const (
 func (m *Machine) Run() {
 	for {
 		if m.Alloc.GetRunGC() {
-			// cleanup
-			// m.Realm.FinalizeRealmTransaction()
+			removed := m.GC.Collect()
+
+			for _, obj := range removed {
+				m.Store.DelObject(m.Store.GetObject(obj))
+			}
+			m.Alloc.GCCycleFinished()
 		}
 		op := m.PopOp()
 		// TODO: this can be optimized manually, even into tiers.
