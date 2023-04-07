@@ -24,6 +24,7 @@ RUN         apt-get update && apt-get install -y expect ca-certificates && updat
 
 # slim images
 FROM        runtime-base AS gnoland-slim
+WORKDIR     /opt/gno/src/gno.land/
 COPY        --from=build /opt/build/build/gnoland /opt/gno/bin/
 ENTRYPOINT  ["gnoland"]
 EXPOSE      26657 36657
