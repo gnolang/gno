@@ -1,0 +1,55 @@
+name: Supernova
+on:
+  push:
+    branches:
+      - ci/supernova
+  schedule:
+    - cron: '0 2 * * *' # run at 2 AM UTC
+
+jobs:
+  supernova:
+    runs-on: ubuntu-latest
+
+    services:
+      gnoland:
+        image: ghcr.io/gnolang/gno:latest
+        # keep the container running
+        options: --workdir /opt/gno/src/gno.land -it --entrypoint "bash"
+        ports:
+          - 26657:26657
+          - 36657:36657
+
+    steps:
+      - name: setup and start gnoland chain
+        run: |
+          docker exec ${{ job.services.gnoland.id }} gnoland -skip-start=true
+          docker exec ${{ job.services.gnoland.id }} sed -i 's#laddr =.*:26657.*#laddr = "tcp://0.0.0.0:26657"#g' testdir/config/config.toml
+          docker exec -dit ${{ job.services.gnoland.id }} gnoland
+
+      - name: install some softwares
+        run: |
+          sudo apt-get update -y && sudo apt-get install -y wget curl unzip sudo
+
+      - uses: actions/checkout@v3.5.0
+        with:
+          fetch-depth: 0
+
+      - name: download supernova
+        run: |
+          export SUPERNOVA_VERSION=1.0.0
+          wget -c https://github.com/gnolang/supernova/releases/download/v${SUPERNOVA_VERSION}/supernova_${SUPERNOVA_VERSION}_linux_amd64.tar.gz -O - | tar -xz -C /usr/local/bin/
+          # install supernova scripts
+          wget -O /tmp/main.zip https://github.com/gnolang/supernova/archive/refs/heads/main.zip
+          unzip -d /tmp/ /tmp/main.zip
+          cp -r /tmp/supernova-main/scripts .
+
+      - name: run supernova
+        run: |
+          curl -v http://localhost:26657/status
+          supernova -sub-accounts 5 -transactions 100 -url http://localhost:26657 -mnemonic "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast" -output result.json
+
+      - name: Archive supernova result
+        uses: actions/upload-artifact@v3
+        with:
+          name: supernova-result.json
+          path: result.json
