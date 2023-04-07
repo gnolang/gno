@@ -867,7 +867,7 @@ GNO_CASE:
 				if !ok {
 					panic(fmt.Sprintf(
 						"cannot convert %s(%s) to %s",
-						tv.GetString(), tvk.String(), k.String()))
+						tvk.String(), tv.GetString(), k.String()))
 				}
 				tv.V = BigintValue{V: bi}
 				tv.T = t
@@ -877,11 +877,10 @@ GNO_CASE:
 				if err != nil {
 					panic(fmt.Sprintf(
 						"cannot convert %s(%s) to %s",
-						tv.GetString(), tvk.String(), k.String()))
+						tvk.String(), tv.GetString(), k.String()))
 				}
 				tv.V = BigdecValue{V: bd}
 				tv.T = t
-
 			default:
 				panic(fmt.Sprintf(
 					"cannot convert %s to %s",
