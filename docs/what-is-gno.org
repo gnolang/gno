@@ -1,8 +1,36 @@
 #-*- mode: org -*-
-#+STARTUP: showall
+#+STARTUP: overview
 
 * What is Gno?
 
-* What is Gno.land?
+The purpose of this document is to define Gno and its unique features.
 
-* What is GnoVM/Gnolang
+*** TODO link to technical documentation
+*** TODO link to roadmap
+
+* What is Gno.land?
+** A layer-1 blockchain.
+** Made for
+*** Humanity (non-tech, non-investors).
+*** Builders
+*** Entrepreneurs
+** Made to
+*** Bring Web2 developers to Web3.
+*** Improve Smart-Contracts for builders and users.
+**** Simple to read and write.
+**** Enforced transparency and auditability..
+****
+*** Increase Web3 and OSS fairness.
+**** Interchain licensing models.
+*** Longevity.
+*** Education.
+*** Build Social dApps.
+*** Ease audits, trust, reputations.
+*** Scale.
+***
+** Made with
+*** GnoVM
+*** Tendermint2
+*** GnoSDK
+*** Proof-of-Contributions
+*** SubDAOs
