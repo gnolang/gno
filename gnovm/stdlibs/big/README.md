@@ -1,0 +1,1 @@
+This folder contains testing file for bigint/bigdec native types in gnovm.
