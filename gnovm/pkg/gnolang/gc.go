@@ -46,8 +46,8 @@ func (gc *GC) Collect() []ObjectID {
 	}
 
 	// Sweep phase
-	var newObjs []*GCObj
-	var deletedIDs []ObjectID
+	newObjs := make([]*GCObj, 0, len(gc.objs))
+	deletedIDs := make([]ObjectID, 0, len(gc.objs)/3)
 	for _, obj := range gc.objs {
 		if !obj.marked {
 			deletedIDs = append(deletedIDs, obj.id)
