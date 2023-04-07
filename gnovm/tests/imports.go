@@ -643,27 +643,6 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				m.Context = ctx
 			},
 		)
-		pn.DefineNative("TestDerivePkgAddr",
-			gno.Flds( // params
-				"pkgPath", "string",
-			),
-			gno.Flds( // results
-				"addr", "Address",
-			),
-			func(m *gno.Machine) {
-				arg0 := m.LastBlock().GetParams1().TV
-				pkgPath := arg0.GetString()
-				pkgAddr := gno.DerivePkgAddr(pkgPath).Bech32()
-				res0 := gno.Go2GnoValue(
-					m.Alloc,
-					m.Store,
-					reflect.ValueOf(pkgAddr),
-				)
-				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
-				res0.T = addrT
-				m.PushValue(res0)
-			},
-		)
 		// TODO: move elsewhere.
 		pn.DefineNative("ClearStoreCache",
 			gno.Flds( // params
