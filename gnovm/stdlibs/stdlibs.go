@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strconv"
 	"time"
+	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/bech32"
@@ -480,6 +481,50 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				)
 				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
 				res0.T = addrT
+				m.PushValue(res0)
+			},
+		)
+
+		// CreatePackage creates a new package from an existing path.
+		// Given a package path and the new path name, with optional trailing arguments for init,
+		// it creates a new package under the prefix of the current package.
+		//
+		// Example: a "template" GRC20 package is created under the std package("std/grc20").
+		// The init() of grc20 templates takes two arguments: the name of the token and the initial supply.
+		// To create a new GRC20 package from package "tokenfactory", we can use the following code:
+		// ```gno
+		// mytokenPackage := std.CreatePackage("std/grc20", "tokens/mytoken", 10000000000000).(IGRC20);
+		// ```
+		// This will create a new package under the current package, with the path "gno.land/r/tokenfactory/tokens/mytoken/grc20".
+		// The result is an interface{}, exposing all public functions of the package.
+		// Internally, the interface maps function names to internal native call, `CallPackageFunction`.
+		pn.DefineNative("CreatePackage",
+			gno.Flds(
+				"pkgTemplatePath", "string",
+				"pkgPath", "string",
+				"arguments", "...interface{}",
+			),
+			gno.Flds(
+				"pkg", "interface{}",
+			),
+			func(m *gno.Machine) {
+				arg0, arg1, arg2 := m.LastBlock().GetParams3()
+				pkgTemplatePath := arg0.TV.GetString()
+				pkgPath := strings.Join([]string{m.Package.PkgPath, arg1.TV.GetString()}, "/")
+				initArgs := arg2.TV.V.(*gno.SliceValue)
+
+				// TODO: validate pkgPath
+				tpkg := m.Store.Fork().GetMemPackage(pkgTemplatePath)
+				tpkg.RenamePath(pkgPath)
+
+				// TODO: this might be insecure due to shared execution environment.
+				_, pkg := m.RunMemPackage(tpkg, true)
+
+				res0 := gno.Go2GnoValue(
+					m.Alloc,
+					m.Store,
+					reflect.ValueOf(pkg),
+				)
 				m.PushValue(res0)
 			},
 		)

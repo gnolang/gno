@@ -21,6 +21,10 @@ type MemPackage struct {
 	Files []*MemFile
 }
 
+func (mempkg *MemPackage) RenamePath(newPath string) {
+	mempkg.Path = newPath
+} 
+
 func (mempkg *MemPackage) GetFile(name string) *MemFile {
 	for _, memFile := range mempkg.Files {
 		if memFile.Name == name {
