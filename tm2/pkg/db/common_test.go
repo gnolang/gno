@@ -83,7 +83,10 @@ func checkValuePanics(t *testing.T, itr Iterator) {
 func newTempDB(t *testing.T, backend BackendType) (db DB) {
 	t.Helper()
 
-	return NewDB("testdb", backend, t.TempDir())
+	db, err := NewDB("testdb", backend, t.TempDir())
+	require.NoError(t, err)
+
+	return db
 }
 
 // ----------------------------------------

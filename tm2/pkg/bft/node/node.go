@@ -27,7 +27,6 @@ import (
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/txindex"
 	"github.com/gnolang/gno/tm2/pkg/events"
-
 	//"github.com/gnolang/gno/tm2/pkg/bft/state/txindex/kv"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/txindex/null"
 	"github.com/gnolang/gno/tm2/pkg/bft/store"
@@ -58,7 +57,7 @@ type DBProvider func(*DBContext) (dbm.DB, error)
 // specified in the ctx.Config.
 func DefaultDBProvider(ctx *DBContext) (dbm.DB, error) {
 	dbType := dbm.BackendType(ctx.Config.DBBackend)
-	return dbm.NewDB(ctx.ID, dbType, ctx.Config.DBDir()), nil
+	return dbm.NewDB(ctx.ID, dbType, ctx.Config.DBDir())
 }
 
 // GenesisDocProvider returns a GenesisDoc.
