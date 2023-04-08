@@ -12,9 +12,8 @@ The purpose of this document is to define Gno and its unique features.
 * What is Gno.land?
 ** A layer-1 blockchain.
 ** Made for
-*** Humanity (non-tech, non-investors).
-*** Builders
-*** Entrepreneurs
+*** Humanity
+*** Builders & entrepreneurs
 ** Made to
 *** Bring Web2 developers to Web3.
 *** Improve Smart-Contracts for builders and users.
@@ -27,7 +26,12 @@ The purpose of this document is to define Gno and its unique features.
 *** Education.
 *** Build Social dApps.
 *** Ease audits, trust, reputations.
-*** Scale.
+*** Scalability.
+*** Security.
+*** Reliability.
+*** Decentralization.
+*** Independence.
+*** Interoperability.
 ***
 ** Made with
 *** GnoVM
