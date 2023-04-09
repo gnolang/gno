@@ -350,6 +350,12 @@ func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 	return gno2GoValue(tv, rv)
 }
 
+func Gno2GoType(tv *TypedValue) (ret reflect.Type) {
+	bt := baseOf(tv.T)
+	ret = gno2GoType(bt)
+	return
+}
+
 // Default run-time representation of go-native values.  It is
 // "lazy" in the sense that unnamed complex types like arrays and
 // slices aren't translated to Gno canonical types except as

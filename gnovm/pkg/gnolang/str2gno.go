@@ -1,13 +1,9 @@
-package vm
+package gnolang
 
 import (
 	"encoding/base64"
 	"fmt"
 	"strconv"
-
-	"errors"
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/tm2/pkg/sdk"
 )
 
 // These convert string representations of public-facing arguments to GNO types.
@@ -15,12 +11,12 @@ import (
 // in FunctionSignature{}.
 // String representation of arg must be deterministic.
 // NOTE: very important that there is no malleability.
-func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
+func ConvertArgToGno(arg string, argT Type) (tv TypedValue) {
 	tv.T = argT
-	switch bt := gno.BaseOf(argT).(type) {
-	case gno.PrimitiveType:
+	switch bt := BaseOf(argT).(type) {
+	case PrimitiveType:
 		switch bt {
-		case gno.BoolType:
+		case BoolType:
 			if arg == "true" {
 				tv.SetBool(true)
 				return
@@ -32,10 +28,10 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 					"unexpected bool value %q",
 					arg))
 			}
-		case gno.StringType:
-			tv.SetString(gno.StringValue(arg))
+		case StringType:
+			tv.SetString(StringValue(arg))
 			return
-		case gno.IntType:
+		case IntType:
 			if arg[0] == '+' {
 				panic("numbers cannot start with +")
 			}
@@ -47,7 +43,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			}
 			tv.SetInt(int(i64))
 			return
-		case gno.Int8Type:
+		case Int8Type:
 			if arg[0] == '+' {
 				panic("numbers cannot start with +")
 			}
@@ -59,7 +55,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			}
 			tv.SetInt8(int8(i8))
 			return
-		case gno.Int16Type:
+		case Int16Type:
 			if arg[0] == '+' {
 				panic("numbers cannot start with +")
 			}
@@ -71,7 +67,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			}
 			tv.SetInt16(int16(i16))
 			return
-		case gno.Int32Type:
+		case Int32Type:
 			if arg[0] == '+' {
 				panic("numbers cannot start with +")
 			}
@@ -83,7 +79,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			}
 			tv.SetInt32(int32(i32))
 			return
-		case gno.Int64Type:
+		case Int64Type:
 			if arg[0] == '+' {
 				panic("numbers cannot start with +")
 			}
@@ -95,7 +91,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			}
 			tv.SetInt64(i64)
 			return
-		case gno.UintType:
+		case UintType:
 			if arg[0] == '+' {
 				panic("numbers cannot start with +")
 			}
@@ -107,7 +103,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			}
 			tv.SetUint(uint(u64))
 			return
-		case gno.Uint8Type:
+		case Uint8Type:
 			if arg[0] == '+' {
 				panic("numbers cannot start with +")
 			}
@@ -119,7 +115,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			}
 			tv.SetUint8(uint8(u8))
 			return
-		case gno.Uint16Type:
+		case Uint16Type:
 			if arg[0] == '+' {
 				panic("numbers cannot start with +")
 			}
@@ -131,7 +127,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			}
 			tv.SetUint16(uint16(u16))
 			return
-		case gno.Uint32Type:
+		case Uint32Type:
 			if arg[0] == '+' {
 				panic("numbers cannot start with +")
 			}
@@ -143,7 +139,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			}
 			tv.SetUint32(uint32(u32))
 			return
-		case gno.Uint64Type:
+		case Uint64Type:
 			if arg[0] == '+' {
 				panic("numbers cannot start with +")
 			}
@@ -153,36 +149,36 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 					"error parsing uint64 %q: %v",
 					arg, err))
 			}
-			tv.SetUint64(u64)
+			tv.SetUint64(uint64(u64))
 			return
 		default:
 			panic(fmt.Sprintf("unexpected primitive type %s", bt.String()))
 		}
-	case *gno.ArrayType:
-		if bt.Elt == gno.Uint8Type {
+	case *ArrayType:
+		if bt.Elt == Uint8Type {
 			bz, err := base64.StdEncoding.DecodeString(arg)
 			if err != nil {
 				panic(fmt.Sprintf(
 					"error parsing byte array %q: %v",
 					arg, err))
 			}
-			tv.V = &gno.ArrayValue{
+			tv.V = &ArrayValue{
 				Data: bz,
 			}
 			return
 		} else {
 			panic("unexpected array type in contract arg")
 		}
-	case *gno.SliceType:
-		if bt.Elt == gno.Uint8Type {
+	case *SliceType:
+		if bt.Elt == Uint8Type {
 			bz, err := base64.StdEncoding.DecodeString(arg)
 			if err != nil {
 				panic(fmt.Sprintf(
 					"error parsing byte array %q: %v",
 					arg, err))
 			}
-			tv.V = &gno.SliceValue{
-				Base: &gno.ArrayValue{
+			tv.V = &SliceValue{
+				Base: &ArrayValue{
 					Data: bz,
 				},
 				Offset: 0,
@@ -196,27 +192,4 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 	default:
 		panic(fmt.Sprintf("unexpected type in contract arg: %v", argT))
 	}
-}
-
-func Gno2SdkResult(r VMResult) (res sdk.Result) {
-	if r.ErrMsg != "" {
-		res.Error = sdk.ABCIError(errors.New(r.ErrMsg))
-	}
-	res.Data = r.Data
-	res.Info = r.Info
-	res.Log = r.Log
-	return
-}
-
-func prefixData(value []byte) []byte {
-	// 1 is default length for a `length` prefix
-	data := make([]byte, 0, len(value)+1)
-	data = append(data, byte(len(value)))
-	data = append(data, value...)
-	return data
-}
-
-func gnoResultFromData(data []byte) (res VMResult) {
-	res.Data = data
-	return
 }
