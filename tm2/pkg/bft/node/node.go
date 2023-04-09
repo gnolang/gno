@@ -916,12 +916,15 @@ func LoadStateFromDBOrGenesisDocProvider(stateDB dbm.DB, genesisDocProvider Gene
 
 // panics if failed to unmarshal bytes
 func loadGenesisDoc(db dbm.DB) (*types.GenesisDoc, error) {
-	b := db.Get(genesisDocKey)
+	b, err := db.Get(genesisDocKey)
+	if err != nil {
+		return nil, fmt.Errorf("error getting genesis doc: %w", err)
+	}
 	if len(b) == 0 {
 		return nil, errors.New("Genesis doc not found")
 	}
 	var genDoc *types.GenesisDoc
-	err := amino.UnmarshalJSON(b, &genDoc)
+	err = amino.UnmarshalJSON(b, &genDoc)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to load genesis doc due to unmarshaling error: %v (bytes: %X)", err, b))
 	}

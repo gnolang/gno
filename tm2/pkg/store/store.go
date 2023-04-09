@@ -4,10 +4,9 @@ import (
 	"fmt"
 
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
-	"github.com/gnolang/gno/tm2/pkg/strings"
-
 	"github.com/gnolang/gno/tm2/pkg/store/rootmulti"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
+	"github.com/gnolang/gno/tm2/pkg/strings"
 )
 
 func NewCommitMultiStore(db dbm.DB) types.CommitMultiStore {
@@ -32,7 +31,11 @@ func NewPruningOptionsFromString(strategy string) (opt PruningOptions) {
 func Print(store Store) {
 	fmt.Println("//----------------------------------------")
 	fmt.Println("// store:", store)
-	itr := store.Iterator(nil, nil)
+	itr, err := store.Iterator(nil, nil)
+	if err != nil {
+		panic(err)
+	}
+
 	defer itr.Close()
 	for ; itr.Valid(); itr.Next() {
 		key, value := itr.Key(), itr.Value()

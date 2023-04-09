@@ -12,7 +12,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/iavl"
 	"github.com/gnolang/gno/tm2/pkg/std"
-
 	"github.com/gnolang/gno/tm2/pkg/store/cache"
 	serrors "github.com/gnolang/gno/tm2/pkg/store/errors"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
@@ -163,29 +162,33 @@ func (st *Store) Write() {
 }
 
 // Implements types.Store.
-func (st *Store) Set(key, value []byte) {
+func (st *Store) Set(key, value []byte) error {
 	types.AssertValidValue(value)
 	st.tree.Set(key, value)
+
+	return nil
 }
 
 // Implements types.Store.
-func (st *Store) Get(key []byte) (value []byte) {
+func (st *Store) Get(key []byte) ([]byte, error) {
 	_, v := st.tree.Get(key)
-	return v
+	return v, nil
 }
 
 // Implements types.Store.
-func (st *Store) Has(key []byte) (exists bool) {
-	return st.tree.Has(key)
+func (st *Store) Has(key []byte) (bool, error) {
+	return st.tree.Has(key), nil
 }
 
 // Implements types.Store.
-func (st *Store) Delete(key []byte) {
+func (st *Store) Delete(key []byte) error {
 	st.tree.Remove(key)
+
+	return nil
 }
 
 // Implements types.Store.
-func (st *Store) Iterator(start, end []byte) types.Iterator {
+func (st *Store) Iterator(start, end []byte) (types.Iterator, error) {
 	var iTree *iavl.ImmutableTree
 
 	switch tree := st.tree.(type) {
@@ -195,11 +198,11 @@ func (st *Store) Iterator(start, end []byte) types.Iterator {
 		iTree = tree.ImmutableTree
 	}
 
-	return newIAVLIterator(iTree, start, end, true)
+	return newIAVLIterator(iTree, start, end, true), nil
 }
 
 // Implements types.Store.
-func (st *Store) ReverseIterator(start, end []byte) types.Iterator {
+func (st *Store) ReverseIterator(start, end []byte) (types.Iterator, error) {
 	var iTree *iavl.ImmutableTree
 
 	switch tree := st.tree.(type) {
@@ -209,7 +212,7 @@ func (st *Store) ReverseIterator(start, end []byte) types.Iterator {
 		iTree = tree.ImmutableTree
 	}
 
-	return newIAVLIterator(iTree, start, end, false)
+	return newIAVLIterator(iTree, start, end, false), nil
 }
 
 // Handle gatest the latest height, if height is 0

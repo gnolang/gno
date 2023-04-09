@@ -44,9 +44,13 @@ type nodeDB struct {
 }
 
 func newNodeDB(db dbm.DB, cacheSize int) *nodeDB {
+	b, err := db.NewBatch()
+	if err != nil {
+		panic(fmt.Errorf("error obtaining new batch from DB: %w", err))
+	}
 	ndb := &nodeDB{
 		db:             db,
-		batch:          db.NewBatch(),
+		batch:          b,
 		latestVersion:  0, // initially invalid
 		nodeCache:      make(map[string]*list.Element),
 		nodeCacheSize:  cacheSize,
@@ -73,7 +77,10 @@ func (ndb *nodeDB) GetNode(hash []byte) *Node {
 	}
 
 	// Doesn't exist, load.
-	buf := ndb.db.Get(ndb.nodeKey(hash))
+	buf, err := ndb.db.Get(ndb.nodeKey(hash))
+	if err != nil {
+		panic(err)
+	}
 	if buf == nil {
 		panic(fmt.Sprintf("Value missing for hash %x corresponding to nodeKey %s", hash, ndb.nodeKey(hash)))
 	}
@@ -125,7 +132,13 @@ func (ndb *nodeDB) Has(hash []byte) bool {
 		}
 		return exists
 	}
-	return ndb.db.Get(key) != nil
+
+	contains, err := ndb.db.Has(key)
+	if err != nil {
+		panic(err)
+	}
+
+	return contains
 }
 
 // SaveBranch saves the given node and all of its descendants.
@@ -249,10 +262,14 @@ func (ndb *nodeDB) resetLatestVersion(version int64) {
 }
 
 func (ndb *nodeDB) getPreviousVersion(version int64) int64 {
-	itr := ndb.db.ReverseIterator(
+	itr, err := ndb.db.ReverseIterator(
 		rootKeyFormat.Key(1),
 		rootKeyFormat.Key(version),
 	)
+	if err != nil {
+		panic(err)
+	}
+
 	defer itr.Close()
 
 	pversion := int64(-1)
@@ -286,7 +303,10 @@ func (ndb *nodeDB) traverseOrphansVersion(version int64, fn func(k, v []byte)) {
 
 // Traverse all keys.
 func (ndb *nodeDB) traverse(fn func(key, value []byte)) {
-	itr := ndb.db.Iterator(nil, nil)
+	itr, err := ndb.db.Iterator(nil, nil)
+	if err != nil {
+		panic(err)
+	}
 	defer itr.Close()
 
 	for ; itr.Valid(); itr.Next() {
@@ -296,7 +316,10 @@ func (ndb *nodeDB) traverse(fn func(key, value []byte)) {
 
 // Traverse all keys with a certain prefix.
 func (ndb *nodeDB) traversePrefix(prefix []byte, fn func(k, v []byte)) {
-	itr := dbm.IteratePrefix(ndb.db, prefix)
+	itr, err := dbm.IteratePrefix(ndb.db, prefix)
+	if err != nil {
+		panic(err)
+	}
 	defer itr.Close()
 
 	for ; itr.Valid(); itr.Next() {
@@ -331,11 +354,21 @@ func (ndb *nodeDB) Commit() {
 
 	ndb.batch.Write()
 	ndb.batch.Close()
-	ndb.batch = ndb.db.NewBatch()
+
+	b, err := ndb.db.NewBatch()
+	if err != nil {
+		panic(err)
+	}
+	ndb.batch = b
 }
 
 func (ndb *nodeDB) getRoot(version int64) []byte {
-	return ndb.db.Get(ndb.rootKey(version))
+	v, err := ndb.db.Get(ndb.rootKey(version))
+	if err != nil {
+		panic(err)
+	}
+
+	return v
 }
 
 func (ndb *nodeDB) getRootsCh() <-chan int64 {
@@ -477,7 +510,7 @@ func (ndb *nodeDB) String() string {
 
 	ndb.traverseNodes(func(hash []byte, node *Node) {
 		if len(hash) == 0 {
-			str += fmt.Sprintf("<nil>\n")
+			str += "<nil>\n"
 		} else if node == nil {
 			str += fmt.Sprintf("%s%40x: <nil>\n", nodeKeyFormat.Prefix(), hash)
 		} else if node.value == nil && node.height > 0 {

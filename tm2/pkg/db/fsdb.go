@@ -43,7 +43,7 @@ func NewFSDB(dir string) *FSDB {
 	return database
 }
 
-func (db *FSDB) Get(key []byte) []byte {
+func (db *FSDB) Get(key []byte) ([]byte, error) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 	key = escapeKey(key)
@@ -51,75 +51,90 @@ func (db *FSDB) Get(key []byte) []byte {
 	path := db.nameToPath(key)
 	value, err := read(path)
 	if os.IsNotExist(err) {
-		return nil
+		return nil, nil
 	} else if err != nil {
-		panic(errors.Wrap(err, "Getting key %s (0x%X)", string(key), key))
+		return nil, errors.Wrap(err, "Getting key %s (0x%X)", string(key), key)
 	}
-	return value
+	return value, nil
 }
 
-func (db *FSDB) Has(key []byte) bool {
+func (db *FSDB) Has(key []byte) (bool, error) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 	key = escapeKey(key)
 
 	path := db.nameToPath(key)
-	return FileExists(path)
+
+	_, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
-func (db *FSDB) Set(key []byte, value []byte) {
+func (db *FSDB) Set(key []byte, value []byte) error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	db.SetNoLock(key, value)
+	return db.SetNoLock(key, value)
 }
 
-func (db *FSDB) SetSync(key []byte, value []byte) {
+func (db *FSDB) SetSync(key []byte, value []byte) error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	db.SetNoLock(key, value)
+	return db.SetNoLock(key, value)
 }
 
 // NOTE: Implements atomicSetDeleter.
-func (db *FSDB) SetNoLock(key []byte, value []byte) {
+func (db *FSDB) SetNoLock(key []byte, value []byte) error {
 	key = escapeKey(key)
 	value = nonNilBytes(value)
 	path := db.nameToPath(key)
 	err := write(path, value)
 	if err != nil {
-		panic(errors.Wrap(err, "Setting key %s (0x%X)", string(key), key))
+		return fmt.Errorf("error setting key %s (0x%X): %w", string(key), key, err)
 	}
+
+	return nil
 }
 
-func (db *FSDB) Delete(key []byte) {
+func (db *FSDB) Delete(key []byte) error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	db.DeleteNoLock(key)
+	return db.DeleteNoLock(key)
 }
 
-func (db *FSDB) DeleteSync(key []byte) {
+func (db *FSDB) DeleteSync(key []byte) error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	db.DeleteNoLock(key)
+	return db.DeleteNoLock(key)
 }
 
 // NOTE: Implements atomicSetDeleter.
-func (db *FSDB) DeleteNoLock(key []byte) {
+func (db *FSDB) DeleteNoLock(key []byte) error {
 	key = escapeKey(key)
 	path := db.nameToPath(key)
 	err := remove(path)
 	if os.IsNotExist(err) {
-		return
-	} else if err != nil {
-		panic(errors.Wrap(err, "Removing key %s (0x%X)", string(key), key))
+		return nil
 	}
+	if err != nil {
+		return errors.Wrap(err, "removing key %s (0x%X)", string(key), key)
+	}
+
+	return nil
 }
 
-func (db *FSDB) Close() {
+func (db *FSDB) Close() error {
 	// Nothing to do.
+	return nil
 }
 
 func (db *FSDB) Print() {
@@ -129,14 +144,14 @@ func (db *FSDB) Print() {
 	panic("FSDB.Print not yet implemented")
 }
 
-func (db *FSDB) Stats() map[string]string {
+func (db *FSDB) Stats() (map[string]string, error) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
 	panic("FSDB.Stats not yet implemented")
 }
 
-func (db *FSDB) NewBatch() Batch {
+func (db *FSDB) NewBatch() (Batch, error) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
@@ -149,11 +164,11 @@ func (db *FSDB) Mutex() *sync.Mutex {
 	return &(db.mtx)
 }
 
-func (db *FSDB) Iterator(start, end []byte) Iterator {
+func (db *FSDB) Iterator(start, end []byte) (Iterator, error) {
 	return db.MakeIterator(start, end, false)
 }
 
-func (db *FSDB) MakeIterator(start, end []byte, isReversed bool) Iterator {
+func (db *FSDB) MakeIterator(start, end []byte, isReversed bool) (Iterator, error) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
@@ -161,17 +176,17 @@ func (db *FSDB) MakeIterator(start, end []byte, isReversed bool) Iterator {
 	// Not the best, but probably not a bottleneck depending.
 	keys, err := list(db.dir, start, end)
 	if err != nil {
-		panic(errors.Wrap(err, "Listing keys in %s", db.dir))
+		return nil, fmt.Errorf("error listing keys in %s: %w", db.dir, err)
 	}
 	if isReversed {
 		sort.Sort(sort.Reverse(sort.StringSlice(keys)))
 	} else {
 		sort.Strings(keys)
 	}
-	return newMemDBIterator(db, keys, start, end)
+	return newMemDBIterator(db, keys, start, end), nil
 }
 
-func (db *FSDB) ReverseIterator(start, end []byte) Iterator {
+func (db *FSDB) ReverseIterator(start, end []byte) (Iterator, error) {
 	return db.MakeIterator(start, end, true)
 }
 

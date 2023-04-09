@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDBIteratorSingleKey(t *testing.T) {
@@ -13,7 +14,8 @@ func TestDBIteratorSingleKey(t *testing.T) {
 			db := newTempDB(t, backend)
 
 			db.SetSync(bz("1"), bz("value_1"))
-			itr := db.Iterator(nil, nil)
+			itr, err := db.Iterator(nil, nil)
+			require.NoError(t, err)
 
 			checkValid(t, itr, true)
 			checkNext(t, itr, false)
@@ -35,7 +37,9 @@ func TestDBIteratorTwoKeys(t *testing.T) {
 			db.SetSync(bz("2"), bz("value_1"))
 
 			{ // Fail by calling Next too much
-				itr := db.Iterator(nil, nil)
+				itr, err := db.Iterator(nil, nil)
+				require.NoError(t, err)
+
 				checkValid(t, itr, true)
 
 				checkNext(t, itr, true)
@@ -68,10 +72,14 @@ func TestDBIteratorMany(t *testing.T) {
 				db.Set(k, value)
 			}
 
-			itr := db.Iterator(nil, nil)
+			itr, err := db.Iterator(nil, nil)
+			require.NoError(t, err)
+
 			defer itr.Close()
 			for ; itr.Valid(); itr.Next() {
-				assert.Equal(t, db.Get(itr.Key()), itr.Value())
+				v, err := db.Get(itr.Key())
+				require.NoError(t, err)
+				assert.Equal(t, v, itr.Value())
 			}
 		})
 	}
@@ -82,8 +90,8 @@ func TestDBIteratorEmpty(t *testing.T) {
 		t.Run(fmt.Sprintf("Backend %s", backend), func(t *testing.T) {
 			db := newTempDB(t, backend)
 
-			itr := db.Iterator(nil, nil)
-
+			itr, err := db.Iterator(nil, nil)
+			require.NoError(t, err)
 			checkInvalid(t, itr)
 		})
 	}
@@ -94,7 +102,8 @@ func TestDBIteratorEmptyBeginAfter(t *testing.T) {
 		t.Run(fmt.Sprintf("Backend %s", backend), func(t *testing.T) {
 			db := newTempDB(t, backend)
 
-			itr := db.Iterator(bz("1"), nil)
+			itr, err := db.Iterator(bz("1"), nil)
+			require.NoError(t, err)
 
 			checkInvalid(t, itr)
 		})
@@ -107,7 +116,8 @@ func TestDBIteratorNonemptyBeginAfter(t *testing.T) {
 			db := newTempDB(t, backend)
 
 			db.SetSync(bz("1"), bz("value_1"))
-			itr := db.Iterator(bz("2"), nil)
+			itr, err := db.Iterator(bz("2"), nil)
+			require.NoError(t, err)
 
 			checkInvalid(t, itr)
 		})

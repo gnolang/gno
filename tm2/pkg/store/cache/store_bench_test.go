@@ -5,8 +5,9 @@ import (
 	"sort"
 	"testing"
 
-	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/jaekwon/testify/require"
 
+	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/store/cache"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 )
@@ -32,7 +33,8 @@ func benchmarkCacheStoreIterator(b *testing.B, numKVs int) {
 	sort.Strings(keys)
 
 	for n := 0; n < b.N; n++ {
-		iter := cstore.Iterator([]byte(keys[0]), []byte(keys[numKVs-1]))
+		iter, err := cstore.Iterator([]byte(keys[0]), []byte(keys[numKVs-1]))
+		require.NoError(b, err)
 
 		for _ = iter.Key(); iter.Valid(); iter.Next() {
 		}

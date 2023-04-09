@@ -34,39 +34,43 @@ func (db *MemDB) Mutex() *sync.Mutex {
 }
 
 // Implements DB.
-func (db *MemDB) Get(key []byte) []byte {
+func (db *MemDB) Get(key []byte) ([]byte, error) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 	key = nonNilBytes(key)
 
 	value := db.db[string(key)]
-	return value
+	return value, nil
 }
 
 // Implements DB.
-func (db *MemDB) Has(key []byte) bool {
+func (db *MemDB) Has(key []byte) (bool, error) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 	key = nonNilBytes(key)
 
 	_, ok := db.db[string(key)]
-	return ok
+	return ok, nil
 }
 
 // Implements DB.
-func (db *MemDB) Set(key []byte, value []byte) {
+func (db *MemDB) Set(key []byte, value []byte) error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
 	db.SetNoLock(key, value)
+
+	return nil
 }
 
 // Implements DB.
-func (db *MemDB) SetSync(key []byte, value []byte) {
+func (db *MemDB) SetSync(key []byte, value []byte) error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
 	db.SetNoLock(key, value)
+
+	return nil
 }
 
 // Implements atomicSetDeleter.
@@ -83,19 +87,23 @@ func (db *MemDB) SetNoLockSync(key []byte, value []byte) {
 }
 
 // Implements DB.
-func (db *MemDB) Delete(key []byte) {
+func (db *MemDB) Delete(key []byte) error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
 	db.DeleteNoLock(key)
+
+	return nil
 }
 
 // Implements DB.
-func (db *MemDB) DeleteSync(key []byte) {
+func (db *MemDB) DeleteSync(key []byte) error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
 	db.DeleteNoLock(key)
+
+	return nil
 }
 
 // Implements atomicSetDeleter.
@@ -111,12 +119,13 @@ func (db *MemDB) DeleteNoLockSync(key []byte) {
 }
 
 // Implements DB.
-func (db *MemDB) Close() {
+func (db *MemDB) Close() error {
 	// Close is a noop since for an in-memory
 	// database, we don't have a destination
 	// to flush contents to nor do we want
 	// any data loss on invoking Close()
 	// See the discussion in https://github.com/tendermint/classic/libs/pull/56
+	return nil
 }
 
 // Implements DB.
@@ -141,43 +150,43 @@ func (db *MemDB) Print() {
 }
 
 // Implements DB.
-func (db *MemDB) Stats() map[string]string {
+func (db *MemDB) Stats() (map[string]string, error) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
 	stats := make(map[string]string)
 	stats["database.type"] = "memDB"
 	stats["database.size"] = fmt.Sprintf("%d", len(db.db))
-	return stats
+	return stats, nil
 }
 
 // Implements DB.
-func (db *MemDB) NewBatch() Batch {
+func (db *MemDB) NewBatch() (Batch, error) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	return &memBatch{db, nil}
+	return &memBatch{db, nil}, nil
 }
 
 // ----------------------------------------
 // Iterator
 
 // Implements DB.
-func (db *MemDB) Iterator(start, end []byte) Iterator {
+func (db *MemDB) Iterator(start, end []byte) (Iterator, error) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
 	keys := db.getSortedKeys(start, end, false)
-	return newMemDBIterator(db, keys, start, end)
+	return newMemDBIterator(db, keys, start, end), nil
 }
 
 // Implements DB.
-func (db *MemDB) ReverseIterator(start, end []byte) Iterator {
+func (db *MemDB) ReverseIterator(start, end []byte) (Iterator, error) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
 	keys := db.getSortedKeys(start, end, true)
-	return newMemDBIterator(db, keys, start, end)
+	return newMemDBIterator(db, keys, start, end), nil
 }
 
 // We need a copy of all of the keys.
@@ -229,7 +238,12 @@ func (itr *memDBIterator) Key() []byte {
 func (itr *memDBIterator) Value() []byte {
 	itr.assertIsValid()
 	key := []byte(itr.keys[itr.cur])
-	return itr.db.Get(key)
+	v, err := itr.db.Get(key)
+	if err != nil {
+		panic(err) // TODO(ajnavarro): refactor when changing Iterator interface to return errors when needed.
+	}
+
+	return v
 }
 
 // Implements Iterator.

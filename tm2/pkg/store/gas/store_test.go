@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"testing"
 
-	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/stretchr/testify/require"
 
+	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/gas"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
-
-	"github.com/stretchr/testify/require"
 )
 
 func newGasKVStore() types.Store {
@@ -28,11 +27,20 @@ func TestGasKVStoreBasic(t *testing.T) {
 	mem := dbadapter.Store{dbm.NewMemDB()}
 	meter := types.NewGasMeter(10000)
 	st := gas.New(mem, meter, types.DefaultGasConfig())
-	require.Empty(t, st.Get(keyFmt(1)), "Expected `key1` to be empty")
-	st.Set(keyFmt(1), valFmt(1))
-	require.Equal(t, valFmt(1), st.Get(keyFmt(1)))
-	st.Delete(keyFmt(1))
-	require.Empty(t, st.Get(keyFmt(1)), "Expected `key1` to be empty")
+	v, err := st.Get(keyFmt(1))
+	require.NoError(t, err)
+	require.Empty(t, v, "Expected `key1` to be empty")
+	err = st.Set(keyFmt(1), valFmt(1))
+	require.NoError(t, err)
+
+	v, err = st.Get(keyFmt(1))
+	require.NoError(t, err)
+	require.Equal(t, valFmt(1), v)
+	err = st.Delete(keyFmt(1))
+	require.NoError(t, err)
+	v, err = st.Get(keyFmt(1))
+	require.NoError(t, err)
+	require.Empty(t, v, "Expected `key1` to be empty")
 	require.Equal(t, meter.GasConsumed(), types.Gas(6429))
 }
 
@@ -40,11 +48,20 @@ func TestGasKVStoreIterator(t *testing.T) {
 	mem := dbadapter.Store{dbm.NewMemDB()}
 	meter := types.NewGasMeter(10000)
 	st := gas.New(mem, meter, types.DefaultGasConfig())
-	require.Empty(t, st.Get(keyFmt(1)), "Expected `key1` to be empty")
-	require.Empty(t, st.Get(keyFmt(2)), "Expected `key2` to be empty")
+
+	v1, err := st.Get(keyFmt(1))
+	require.NoError(t, err)
+
+	v2, err := st.Get(keyFmt(2))
+	require.NoError(t, err)
+
+	require.Empty(t, v1, "Expected `key1` to be empty")
+	require.Empty(t, v2, "Expected `key2` to be empty")
 	st.Set(keyFmt(1), valFmt(1))
 	st.Set(keyFmt(2), valFmt(2))
-	iterator := st.Iterator(nil, nil)
+	iterator, err := st.Iterator(nil, nil)
+	require.NoError(t, err)
+
 	ka := iterator.Key()
 	require.Equal(t, ka, keyFmt(1))
 	va := iterator.Value()
@@ -72,7 +89,9 @@ func TestGasKVStoreOutOfGasIterator(t *testing.T) {
 	meter := types.NewGasMeter(20000)
 	st := gas.New(mem, meter, types.DefaultGasConfig())
 	st.Set(keyFmt(1), valFmt(1))
-	iterator := st.Iterator(nil, nil)
+	iterator, err := st.Iterator(nil, nil)
+	require.NoError(t, err)
+
 	iterator.Next()
 	require.Panics(t, func() { iterator.Value() }, "Expected out-of-gas")
 }

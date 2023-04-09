@@ -10,7 +10,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/tmhash"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-
 	"github.com/gnolang/gno/tm2/pkg/store/cachemulti"
 	serrors "github.com/gnolang/gno/tm2/pkg/store/errors"
 	"github.com/gnolang/gno/tm2/pkg/store/immut"
@@ -177,7 +176,10 @@ func (ms *multiStore) Commit() types.CommitID {
 	commitInfo := commitStores(version, ms.stores)
 
 	// Need to update atomically.
-	batch := ms.db.NewBatch()
+	batch, err := ms.db.NewBatch()
+	if err != nil {
+		panic(err)
+	}
 	defer batch.Close()
 	setCommitInfo(batch, version, commitInfo)
 	setLatestVersion(batch, version)
@@ -435,12 +437,15 @@ func (si storeInfo) Hash() []byte {
 
 func getLatestVersion(db dbm.DB) int64 {
 	var latest int64
-	latestBytes := db.Get([]byte(latestVersionKey))
+	latestBytes, err := db.Get([]byte(latestVersionKey))
+	if err != nil {
+		panic(err)
+	}
 	if latestBytes == nil {
 		return 0
 	}
 
-	err := amino.UnmarshalSized(latestBytes, &latest)
+	err = amino.UnmarshalSized(latestBytes, &latest)
 	if err != nil {
 		panic(err)
 	}
@@ -490,14 +495,17 @@ func commitStores(version int64, storeMap map[types.StoreKey]types.CommitStore) 
 func getCommitInfo(db dbm.DB, ver int64) (commitInfo, error) {
 	// Get from DB.
 	cInfoKey := fmt.Sprintf(commitInfoKeyFmt, ver)
-	cInfoBytes := db.Get([]byte(cInfoKey))
+	cInfoBytes, err := db.Get([]byte(cInfoKey))
+	if err != nil {
+		return commitInfo{}, fmt.Errorf("error obtainig key %q: %w", cInfoKey, err)
+	}
 	if cInfoBytes == nil {
 		return commitInfo{}, fmt.Errorf("failed to get Store: no data")
 	}
 
 	var cInfo commitInfo
 
-	err := amino.UnmarshalSized(cInfoBytes, &cInfo)
+	err = amino.UnmarshalSized(cInfoBytes, &cInfo)
 	if err != nil {
 		return commitInfo{}, fmt.Errorf("failed to get Store: %w", err)
 	}

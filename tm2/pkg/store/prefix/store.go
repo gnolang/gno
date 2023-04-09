@@ -50,31 +50,30 @@ func (s Store) Write() {
 }
 
 // Implements Store
-func (s Store) Get(key []byte) []byte {
-	res := s.parent.Get(s.key(key))
-	return res
+func (s Store) Get(key []byte) ([]byte, error) {
+	return s.parent.Get(s.key(key))
 }
 
 // Implements Store
-func (s Store) Has(key []byte) bool {
+func (s Store) Has(key []byte) (bool, error) {
 	return s.parent.Has(s.key(key))
 }
 
 // Implements Store
-func (s Store) Set(key, value []byte) {
+func (s Store) Set(key, value []byte) error {
 	types.AssertValidKey(key)
 	types.AssertValidValue(value)
-	s.parent.Set(s.key(key), value)
+	return s.parent.Set(s.key(key), value)
 }
 
 // Implements Store
-func (s Store) Delete(key []byte) {
-	s.parent.Delete(s.key(key))
+func (s Store) Delete(key []byte) error {
+	return s.parent.Delete(s.key(key))
 }
 
 // Implements Store
 // Check https://github.com/tendermint/classic/blob/master/libs/db/prefix_db.go#L106
-func (s Store) Iterator(start, end []byte) types.Iterator {
+func (s Store) Iterator(start, end []byte) (types.Iterator, error) {
 	newstart := cloneAppend(s.prefix, start)
 
 	var newend []byte
@@ -84,14 +83,17 @@ func (s Store) Iterator(start, end []byte) types.Iterator {
 		newend = cloneAppend(s.prefix, end)
 	}
 
-	iter := s.parent.Iterator(newstart, newend)
+	iter, err := s.parent.Iterator(newstart, newend)
+	if err != nil {
+		return nil, err
+	}
 
-	return newPrefixIterator(s.prefix, start, end, iter)
+	return newPrefixIterator(s.prefix, start, end, iter), nil
 }
 
 // Implements Store
 // Check https://github.com/tendermint/classic/blob/master/libs/db/prefix_db.go#L129
-func (s Store) ReverseIterator(start, end []byte) types.Iterator {
+func (s Store) ReverseIterator(start, end []byte) (types.Iterator, error) {
 	newstart := cloneAppend(s.prefix, start)
 
 	var newend []byte
@@ -101,9 +103,12 @@ func (s Store) ReverseIterator(start, end []byte) types.Iterator {
 		newend = cloneAppend(s.prefix, end)
 	}
 
-	iter := s.parent.ReverseIterator(newstart, newend)
+	iter, err := s.parent.ReverseIterator(newstart, newend)
+	if err != nil {
+		return nil, err
+	}
 
-	return newPrefixIterator(s.prefix, start, end, iter)
+	return newPrefixIterator(s.prefix, start, end, iter), nil
 }
 
 var _ types.Iterator = (*prefixIterator)(nil)

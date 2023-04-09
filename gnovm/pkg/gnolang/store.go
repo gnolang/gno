@@ -213,7 +213,10 @@ func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
 func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 	oid := ObjectIDFromPkgPath(pkgPath)
 	key := backendRealmKey(oid)
-	bz := ds.baseStore.Get([]byte(key))
+	bz, err := ds.baseStore.Get([]byte(key))
+	if err != nil {
+		panic(err)
+	}
 	if bz == nil {
 		return nil
 	}
@@ -271,7 +274,10 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 // CONTRACT: object isn't already in the cache.
 func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 	key := backendObjectKey(oid)
-	hashbz := ds.baseStore.Get([]byte(key))
+	hashbz, err := ds.baseStore.Get([]byte(key))
+	if err != nil {
+		panic(err)
+	}
 	if hashbz != nil {
 		hash := hashbz[:HashSize]
 		bz := hashbz[HashSize:]
@@ -384,7 +390,10 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 	// check backend.
 	if ds.baseStore != nil {
 		key := backendTypeKey(tid)
-		bz := ds.baseStore.Get([]byte(key))
+		bz, err := ds.baseStore.Get([]byte(key))
+		if err != nil {
+			panic(err)
+		}
 		if bz != nil {
 			var tt Type
 			amino.MustUnmarshal(bz, &tt)
@@ -455,7 +464,10 @@ func (ds *defaultStore) GetBlockNodeSafe(loc Location) BlockNode {
 	// check backend.
 	if ds.baseStore != nil {
 		key := backendNodeKey(loc)
-		bz := ds.baseStore.Get([]byte(key))
+		bz, err := ds.baseStore.Get([]byte(key))
+		if err != nil {
+			panic(err)
+		}
 		if bz != nil {
 			var bn BlockNode
 			amino.MustUnmarshal(bz, &bn)
@@ -491,7 +503,10 @@ func (ds *defaultStore) SetBlockNode(bn BlockNode) {
 
 func (ds *defaultStore) NumMemPackages() int64 {
 	ctrkey := []byte(backendPackageIndexCtrKey())
-	ctrbz := ds.baseStore.Get(ctrkey)
+	ctrbz, err := ds.baseStore.Get(ctrkey)
+	if err != nil {
+		panic(err)
+	}
 	if ctrbz == nil {
 		return 0
 	} else {
@@ -505,7 +520,10 @@ func (ds *defaultStore) NumMemPackages() int64 {
 
 func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 	ctrkey := []byte(backendPackageIndexCtrKey())
-	ctrbz := ds.baseStore.Get(ctrkey)
+	ctrbz, err := ds.baseStore.Get(ctrkey)
+	if err != nil {
+		panic(err)
+	}
 	if ctrbz == nil {
 		nextbz := strconv.Itoa(1)
 		ds.baseStore.Set(ctrkey, []byte(nextbz))
@@ -533,7 +551,10 @@ func (ds *defaultStore) AddMemPackage(memPkg *std.MemPackage) {
 
 func (ds *defaultStore) GetMemPackage(path string) *std.MemPackage {
 	pathkey := []byte(backendPackagePathKey(path))
-	bz := ds.iavlStore.Get(pathkey)
+	bz, err := ds.iavlStore.Get(pathkey)
+	if err != nil {
+		panic(err)
+	}
 	if bz == nil {
 		panic(fmt.Sprintf(
 			"missing package at path %s", string(pathkey)))
@@ -551,7 +572,10 @@ func (ds *defaultStore) GetMemFile(path string, name string) *std.MemFile {
 
 func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 	ctrkey := []byte(backendPackageIndexCtrKey())
-	ctrbz := ds.baseStore.Get(ctrkey)
+	ctrbz, err := ds.baseStore.Get(ctrkey)
+	if err != nil {
+		panic(err)
+	}
 	if ctrbz == nil {
 		return nil
 	} else {
@@ -563,7 +587,10 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 		go func() {
 			for i := uint64(1); i <= uint64(ctr); i++ {
 				idxkey := []byte(backendPackageIndexKey(i))
-				path := ds.baseStore.Get(idxkey)
+				path, err := ds.baseStore.Get(idxkey)
+				if err != nil {
+					panic(err)
+				}
 				if path == nil {
 					panic(fmt.Sprintf(
 						"missing package index %d", i))

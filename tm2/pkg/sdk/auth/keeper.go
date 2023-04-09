@@ -56,7 +56,10 @@ func (ak AccountKeeper) NewAccountWithAddress(ctx sdk.Context, addr crypto.Addre
 // GetAccount implements AccountKeeper.
 func (ak AccountKeeper) GetAccount(ctx sdk.Context, addr crypto.Address) std.Account {
 	stor := ctx.Store(ak.key)
-	bz := stor.Get(AddressStoreKey(addr))
+	bz, err := stor.Get(AddressStoreKey(addr))
+	if err != nil {
+		panic(err)
+	}
 	if bz == nil {
 		return nil
 	}
@@ -134,7 +137,10 @@ func (ak AccountKeeper) GetSequence(ctx sdk.Context, addr crypto.Address) (uint6
 func (ak AccountKeeper) GetNextAccountNumber(ctx sdk.Context) uint64 {
 	var accNumber uint64
 	stor := ctx.Store(ak.key)
-	bz := stor.Get([]byte(GlobalAccountNumberKey))
+	bz, err := stor.Get([]byte(GlobalAccountNumberKey))
+	if err != nil {
+		panic(err)
+	}
 	if bz == nil {
 		accNumber = 0 // start with 0.
 	} else {

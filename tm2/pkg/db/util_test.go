@@ -3,6 +3,8 @@ package db
 import (
 	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // Empty iterator for empty db.
@@ -10,7 +12,8 @@ func TestPrefixIteratorNoMatchNil(t *testing.T) {
 	for backend := range backends {
 		t.Run(fmt.Sprintf("Prefix w/ backend %s", backend), func(t *testing.T) {
 			db := newTempDB(t, backend)
-			itr := IteratePrefix(db, []byte("2"))
+			itr, err := IteratePrefix(db, []byte("2"))
+			require.NoError(t, err)
 
 			checkInvalid(t, itr)
 		})
@@ -27,7 +30,9 @@ func TestPrefixIteratorNoMatch1(t *testing.T) {
 
 		t.Run(fmt.Sprintf("Prefix w/ backend %s", backend), func(t *testing.T) {
 			db := newTempDB(t, backend)
-			itr := IteratePrefix(db, []byte("2"))
+			itr, err := IteratePrefix(db, []byte("2"))
+			require.NoError(t, err)
+
 			db.SetSync(bz("1"), bz("value_1"))
 
 			checkInvalid(t, itr)
@@ -41,7 +46,8 @@ func TestPrefixIteratorNoMatch2(t *testing.T) {
 		t.Run(fmt.Sprintf("Prefix w/ backend %s", backend), func(t *testing.T) {
 			db := newTempDB(t, backend)
 			db.SetSync(bz("3"), bz("value_3"))
-			itr := IteratePrefix(db, []byte("4"))
+			itr, err := IteratePrefix(db, []byte("4"))
+			require.NoError(t, err)
 
 			checkInvalid(t, itr)
 		})
@@ -54,7 +60,8 @@ func TestPrefixIteratorMatch1(t *testing.T) {
 		t.Run(fmt.Sprintf("Prefix w/ backend %s", backend), func(t *testing.T) {
 			db := newTempDB(t, backend)
 			db.SetSync(bz("2"), bz("value_2"))
-			itr := IteratePrefix(db, bz("2"))
+			itr, err := IteratePrefix(db, bz("2"))
+			require.NoError(t, err)
 
 			checkValid(t, itr, true)
 			checkItem(t, itr, bz("2"), bz("value_2"))
@@ -81,7 +88,8 @@ func TestPrefixIteratorMatches1N(t *testing.T) {
 			db.SetSync(bz("a-3"), bz("value_3"))
 			db.SetSync(bz("a.3"), bz("value_3"))
 			db.SetSync(bz("abcdefg"), bz("value_3"))
-			itr := IteratePrefix(db, bz("a/"))
+			itr, err := IteratePrefix(db, bz("a/"))
+			require.NoError(t, err)
 
 			checkValid(t, itr, true)
 			checkItem(t, itr, bz("a/1"), bz("value_1"))

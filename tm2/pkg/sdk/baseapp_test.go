@@ -449,7 +449,11 @@ func i2b(i int64) []byte {
 }
 
 func getIntFromStore(store store.Store, key []byte) int64 {
-	bz := store.Get(key)
+	bz, err := store.Get(key)
+	if err != nil {
+		panic(err)
+	}
+
 	if len(bz) == 0 {
 		return 0
 	}
@@ -523,7 +527,10 @@ func TestCheckTx(t *testing.T) {
 	app.Commit()
 
 	checkStateStore = app.checkState.ctx.Store(mainKey)
-	storedBytes := checkStateStore.Get(counterKey)
+	storedBytes, err := checkStateStore.Get(counterKey)
+	if err != nil {
+		panic(err)
+	}
 	require.Nil(t, storedBytes)
 }
 

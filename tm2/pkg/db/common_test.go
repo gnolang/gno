@@ -18,7 +18,8 @@ import (
 func checkValue(t *testing.T, db DB, key []byte, valueWanted []byte) {
 	t.Helper()
 
-	valueGot := db.Get(key)
+	valueGot, err := db.Get(key)
+	require.NoError(t, err)
 	assert.Equal(t, valueWanted, valueGot)
 }
 
@@ -244,7 +245,8 @@ func benchmarkRandomReadsWrites(b *testing.B, db DB) {
 			idx := int64(rand.Int()) % numItems
 			valExp := internal[idx]
 			idxBytes := int642Bytes(idx)
-			valBytes := db.Get(idxBytes)
+			valBytes, err := db.Get(idxBytes)
+			require.NoError(b, err)
 			// fmt.Printf("Get %X -> %X\n", idxBytes, valBytes)
 			if valExp == 0 {
 				if !bytes.Equal(valBytes, nil) {

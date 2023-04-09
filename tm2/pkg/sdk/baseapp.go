@@ -172,7 +172,11 @@ func (app *BaseApp) initFromMainStore() error {
 	// nil, it will be saved later during InitChain.
 	//
 	// TODO: assert that InitChain hasn't yet been called.
-	consensusParamsBz := mainStore.Get(mainConsensusParamsKey)
+	consensusParamsBz, err := mainStore.Get(mainConsensusParamsKey)
+	if err != nil {
+		return fmt.Errorf("error obtaining consensus params from store: %w", err)
+	}
+
 	if consensusParamsBz != nil {
 		consensusParams := &abci.ConsensusParams{}
 		err := amino.Unmarshal(consensusParamsBz, consensusParams)
@@ -185,7 +189,10 @@ func (app *BaseApp) initFromMainStore() error {
 
 	// Load the consensus header from the main store.
 	// This is needed to setCheckState with the right chainID etc.
-	lastHeaderBz := baseStore.Get(mainLastHeaderKey)
+	lastHeaderBz, err := baseStore.Get(mainLastHeaderKey)
+	if err != nil {
+		return fmt.Errorf("error obtaining consensus headers from store: %w", err)
+	}
 	if lastHeaderBz != nil {
 		lastHeader := &bft.Header{}
 		err := amino.Unmarshal(lastHeaderBz, lastHeader)

@@ -151,7 +151,10 @@ func (kb *dbKeybase) persistDerivedKey(seed []byte, passwd, name, fullHdPath str
 // List returns the keys from storage in alphabetical order.
 func (kb dbKeybase) List() ([]Info, error) {
 	var res []Info
-	iter := kb.db.Iterator(nil, nil)
+	iter, err := kb.db.Iterator(nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error obtaining keys: %w", err)
+	}
 	defer iter.Close()
 	for ; iter.Valid(); iter.Next() {
 		key := string(iter.Key())
@@ -160,7 +163,7 @@ func (kb dbKeybase) List() ([]Info, error) {
 		if strings.HasSuffix(key, infoSuffix) {
 			info, err := readInfo(iter.Value())
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error obtaining keys: %w", err)
 			}
 			res = append(res, info)
 		}
@@ -179,7 +182,10 @@ func (kb dbKeybase) GetByNameOrAddress(nameOrBech32 string) (Info, error) {
 }
 
 func (kb dbKeybase) GetByName(name string) (Info, error) {
-	bs := kb.db.Get(infoKey(name))
+	bs, err := kb.db.Get(infoKey(name))
+	if err != nil {
+		return nil, fmt.Errorf("error getting key by name: %w", err)
+	}
 	if len(bs) == 0 {
 		return nil, keyerror.NewErrKeyNotFound(name)
 	}
@@ -187,11 +193,19 @@ func (kb dbKeybase) GetByName(name string) (Info, error) {
 }
 
 func (kb dbKeybase) GetByAddress(address crypto.Address) (Info, error) {
-	ik := kb.db.Get(addrKey(address))
+	ik, err := kb.db.Get(addrKey(address))
+	if err != nil {
+		return nil, fmt.Errorf("error getting key by address: %w", err)
+	}
 	if len(ik) == 0 {
 		return nil, fmt.Errorf("key with address %s not found", address)
 	}
-	bs := kb.db.Get(ik)
+
+	bs, err := kb.db.Get(ik)
+	if err != nil {
+		return nil, fmt.Errorf("error getting key by address: %w", err)
+	}
+
 	return readInfo(bs)
 }
 
@@ -285,9 +299,13 @@ func (kb dbKeybase) ExportPrivateKeyObject(nameOrBech32 string, passphrase strin
 func (kb dbKeybase) Export(nameOrBech32 string) (astr string, err error) {
 	info, err := kb.GetByNameOrAddress(nameOrBech32)
 	if err != nil {
-		return "", errors.Wrap(err, "getting info for name %s", nameOrBech32)
+		return "", fmt.Errorf("error getting info for name %q: %w", nameOrBech32, err)
 	}
-	bz := kb.db.Get(infoKey(info.GetName()))
+	bz, err := kb.db.Get(infoKey(info.GetName()))
+	if err != nil {
+		return "", fmt.Errorf("error exporting keys: %w", err)
+	}
+
 	if bz == nil {
 		return "", fmt.Errorf("no key to export with name %s", nameOrBech32)
 	}

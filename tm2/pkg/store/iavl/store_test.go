@@ -11,7 +11,6 @@ import (
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/iavl"
 	"github.com/gnolang/gno/tm2/pkg/random"
-
 	// "github.com/gnolang/gno/tm2/pkg/store/errors"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
@@ -63,11 +62,15 @@ func TestGetImmutable(t *testing.T) {
 
 	newStore, err := store.GetImmutable(cID.Version - 1)
 	require.NoError(t, err)
-	require.Equal(t, newStore.Get([]byte("hello")), []byte("goodbye"))
+	v, err := newStore.Get([]byte("hello"))
+	require.NoError(t, err)
+	require.Equal(t, v, []byte("goodbye"))
 
 	newStore, err = store.GetImmutable(cID.Version)
 	require.NoError(t, err)
-	require.Equal(t, newStore.Get([]byte("hello")), []byte("adios"))
+	v, err = newStore.Get([]byte("hello"))
+	require.NoError(t, err)
+	require.Equal(t, v, []byte("adios"))
 
 	res := newStore.Query(abci.RequestQuery{Data: []byte("hello"), Height: cID.Version, Path: "/key", Prove: true})
 	require.Equal(t, res.Value, []byte("adios"))
@@ -86,7 +89,9 @@ func TestTestGetImmutableIterator(t *testing.T) {
 	newStore, err := store.GetImmutable(cID.Version)
 	require.NoError(t, err)
 
-	iter := newStore.Iterator([]byte("aloha"), []byte("hellz"))
+	iter, err := newStore.Iterator([]byte("aloha"), []byte("hellz"))
+	require.NoError(t, err)
+
 	expected := []string{"aloha", "hello"}
 	var i int
 
@@ -108,21 +113,25 @@ func TestIAVLStoreGetSetHasDelete(t *testing.T) {
 
 	key := "hello"
 
-	exists := iavlStore.Has([]byte(key))
+	exists, err := iavlStore.Has([]byte(key))
+	require.NoError(t, err)
 	require.True(t, exists)
 
-	value := iavlStore.Get([]byte(key))
+	value, err := iavlStore.Get([]byte(key))
+	require.NoError(t, err)
 	require.EqualValues(t, value, treeData[key])
 
 	value2 := "notgoodbye"
 	iavlStore.Set([]byte(key), []byte(value2))
 
-	value = iavlStore.Get([]byte(key))
+	value, err = iavlStore.Get([]byte(key))
+	require.NoError(t, err)
 	require.EqualValues(t, value, value2)
 
 	iavlStore.Delete([]byte(key))
 
-	exists = iavlStore.Has([]byte(key))
+	exists, err = iavlStore.Has([]byte(key))
+	require.NoError(t, err)
 	require.False(t, exists)
 }
 
@@ -137,7 +146,8 @@ func TestIAVLIterator(t *testing.T) {
 	db := dbm.NewMemDB()
 	tree, _ := newAlohaTree(t, db)
 	iavlStore := UnsafeNewStore(tree, storeOptions(numRecent, storeEvery))
-	iter := iavlStore.Iterator([]byte("aloha"), []byte("hellz"))
+	iter, err := iavlStore.Iterator([]byte("aloha"), []byte("hellz"))
+	require.NoError(t, err)
 	expected := []string{"aloha", "hello"}
 	var i int
 
@@ -150,7 +160,8 @@ func TestIAVLIterator(t *testing.T) {
 	}
 	require.Equal(t, len(expected), i)
 
-	iter = iavlStore.Iterator([]byte("golang"), []byte("rocks"))
+	iter, err = iavlStore.Iterator([]byte("golang"), []byte("rocks"))
+	require.NoError(t, err)
 	expected = []string{"hello"}
 	for i = 0; iter.Valid(); iter.Next() {
 		expectedKey := expected[i]
@@ -161,7 +172,8 @@ func TestIAVLIterator(t *testing.T) {
 	}
 	require.Equal(t, len(expected), i)
 
-	iter = iavlStore.Iterator(nil, []byte("golang"))
+	iter, err = iavlStore.Iterator(nil, []byte("golang"))
+	require.NoError(t, err)
 	expected = []string{"aloha"}
 	for i = 0; iter.Valid(); iter.Next() {
 		expectedKey := expected[i]
@@ -172,7 +184,8 @@ func TestIAVLIterator(t *testing.T) {
 	}
 	require.Equal(t, len(expected), i)
 
-	iter = iavlStore.Iterator(nil, []byte("shalom"))
+	iter, err = iavlStore.Iterator(nil, []byte("shalom"))
+	require.NoError(t, err)
 	expected = []string{"aloha", "hello"}
 	for i = 0; iter.Valid(); iter.Next() {
 		expectedKey := expected[i]
@@ -183,7 +196,8 @@ func TestIAVLIterator(t *testing.T) {
 	}
 	require.Equal(t, len(expected), i)
 
-	iter = iavlStore.Iterator(nil, nil)
+	iter, err = iavlStore.Iterator(nil, nil)
+	require.NoError(t, err)
 	expected = []string{"aloha", "hello"}
 	for i = 0; iter.Valid(); iter.Next() {
 		expectedKey := expected[i]
@@ -194,7 +208,8 @@ func TestIAVLIterator(t *testing.T) {
 	}
 	require.Equal(t, len(expected), i)
 
-	iter = iavlStore.Iterator([]byte("golang"), nil)
+	iter, err = iavlStore.Iterator([]byte("golang"), nil)
+	require.NoError(t, err)
 	expected = []string{"hello"}
 	for i = 0; iter.Valid(); iter.Next() {
 		expectedKey := expected[i]
@@ -220,7 +235,8 @@ func TestIAVLReverseIterator(t *testing.T) {
 	testReverseIterator := func(t *testing.T, start []byte, end []byte, expected []string) {
 		t.Helper()
 
-		iter := iavlStore.ReverseIterator(start, end)
+		iter, err := iavlStore.ReverseIterator(start, end)
+		require.NoError(t, err)
 		var i int
 		for i = 0; iter.Valid(); iter.Next() {
 			expectedValue := expected[i]
@@ -576,7 +592,10 @@ func BenchmarkIAVLIteratorNext(b *testing.B) {
 	iavlStore := UnsafeNewStore(tree, storeOptions(numRecent, storeEvery))
 	iterators := make([]types.Iterator, b.N/treeSize)
 	for i := 0; i < len(iterators); i++ {
-		iterators[i] = iavlStore.Iterator([]byte{0}, []byte{255, 255, 255, 255, 255})
+		iter, err := iavlStore.Iterator([]byte{0}, []byte{255, 255, 255, 255, 255})
+		require.NoError(b, err)
+
+		iterators[i] = iter
 	}
 	b.ResetTimer()
 	for i := 0; i < len(iterators); i++ {

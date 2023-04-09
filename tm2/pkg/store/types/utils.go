@@ -6,20 +6,38 @@ import (
 
 // Iterator over all the keys with a certain prefix in ascending order
 func PrefixIterator(kvs Store, prefix []byte) Iterator {
-	return kvs.Iterator(prefix, PrefixEndBytes(prefix))
+	iter, err := kvs.Iterator(prefix, PrefixEndBytes(prefix))
+	if err != nil {
+		panic(err)
+	}
+
+	return iter
 }
 
 // Iterator over all the keys with a certain prefix in descending order.
 func ReversePrefixIterator(kvs Store, prefix []byte) Iterator {
-	return kvs.ReverseIterator(prefix, PrefixEndBytes(prefix))
+	iter, err := kvs.ReverseIterator(prefix, PrefixEndBytes(prefix))
+	if err != nil {
+		panic(err)
+	}
+
+	return iter
 }
 
 // Compare two stores, return either the first key/value pair
 // at which they differ and whether or not they are equal, skipping
 // value comparison for a set of provided prefixes
 func DiffStores(a Store, b Store, prefixesToSkip [][]byte) (kvA KVPair, kvB KVPair, count int64, equal bool) {
-	iterA := a.Iterator(nil, nil)
-	iterB := b.Iterator(nil, nil)
+	iterA, err := a.Iterator(nil, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	iterB, err := b.Iterator(nil, nil)
+	if err != nil {
+		panic(err)
+	}
+
 	count = int64(0)
 	for {
 		if !iterA.Valid() && !iterB.Valid() {

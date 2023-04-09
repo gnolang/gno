@@ -9,7 +9,6 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
-
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
@@ -64,7 +63,9 @@ func TestCacheMultiStoreWithVersion(t *testing.T) {
 	// require a valid key lookup yields the correct value
 	kvStore := cms.GetStore(ms.keysByName["store1"])
 	require.NotNil(t, kvStore)
-	require.Equal(t, kvStore.Get(k), v)
+	kv, err := kvStore.Get(k)
+	require.NoError(t, err)
+	require.Equal(t, kv, v)
 
 	// require we cannot commit (write) to a cache-versioned multi-store
 	require.Panics(t, func() {

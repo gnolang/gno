@@ -8,7 +8,6 @@ import (
 
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	tiavl "github.com/gnolang/gno/tm2/pkg/iavl"
-
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/gas"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
@@ -64,30 +63,76 @@ func testPrefixStore(t *testing.T, baseStore types.Store, prefix []byte) {
 	for i := 0; i < 20; i++ {
 		key := kvps[i].key
 		value := kvps[i].value
-		require.True(t, prefixPrefixStore.Has(key))
-		require.Equal(t, value, prefixPrefixStore.Get(key))
+
+		ppc, err := prefixPrefixStore.Has(key)
+		require.NoError(t, err)
+
+		ppv, err := prefixPrefixStore.Get(key)
+		require.NoError(t, err)
+
+		require.True(t, ppc)
+		require.Equal(t, value, ppv)
 
 		key = append([]byte("prefix"), key...)
-		require.True(t, prefixStore.Has(key))
-		require.Equal(t, value, prefixStore.Get(key))
+
+		psc, err := prefixStore.Has(key)
+		require.NoError(t, err)
+
+		psv, err := prefixStore.Get(key)
+		require.NoError(t, err)
+
+		require.True(t, psc)
+		require.Equal(t, value, psv)
+
 		key = append(prefix, key...)
-		require.True(t, baseStore.Has(key))
-		require.Equal(t, value, baseStore.Get(key))
+
+		psc, err = baseStore.Has(key)
+		require.NoError(t, err)
+
+		psv, err = baseStore.Get(key)
+		require.NoError(t, err)
+
+		require.True(t, psc)
+		require.Equal(t, value, psv)
 
 		key = kvps[i].key
 		prefixPrefixStore.Delete(key)
-		require.False(t, prefixPrefixStore.Has(key))
-		require.Nil(t, prefixPrefixStore.Get(key))
+
+		ppc, err = prefixPrefixStore.Has(key)
+		require.NoError(t, err)
+
+		ppv, err = prefixPrefixStore.Get(key)
+		require.NoError(t, err)
+
+		require.False(t, ppc)
+		require.Nil(t, ppv)
 		key = append([]byte("prefix"), key...)
-		require.False(t, prefixStore.Has(key))
-		require.Nil(t, prefixStore.Get(key))
+
+		psc, err = prefixStore.Has(key)
+		require.NoError(t, err)
+
+		psv, err = prefixStore.Get(key)
+		require.NoError(t, err)
+
+		require.False(t, psc)
+		require.Nil(t, psv)
+
 		key = append(prefix, key...)
-		require.False(t, baseStore.Has(key))
-		require.Nil(t, baseStore.Get(key))
+
+		psc, err = baseStore.Has(key)
+		require.NoError(t, err)
+
+		psv, err = baseStore.Get(key)
+		require.NoError(t, err)
+
+		require.False(t, psc)
+		require.Nil(t, psv)
 	}
 }
 
 func TestIAVLStorePrefix(t *testing.T) {
+	t.Helper()
+
 	db := dbm.NewMemDB()
 	tree := tiavl.NewMutableTree(db, cacheSize)
 	iavlStore := iavl.UnsafeNewStore(tree, types.StoreOptions{
@@ -170,7 +215,8 @@ func TestPrefixStoreIteratorEdgeCase(t *testing.T) {
 	baseStore.Set([]byte{0xAB, 0x00}, []byte{})
 	baseStore.Set([]byte{0xAB, 0x00, 0x00}, []byte{})
 
-	iter := prefixStore.Iterator(nil, nil)
+	iter, err := prefixStore.Iterator(nil, nil)
+	require.NoError(t, err)
 
 	checkDomain(t, iter, nil, nil)
 	checkItem(t, iter, []byte{}, bz(""))
@@ -200,7 +246,8 @@ func TestPrefixStoreReverseIteratorEdgeCase(t *testing.T) {
 	baseStore.Set([]byte{0xAA, 0xFF, 0xFE, 0x00}, []byte{})
 	baseStore.Set([]byte{0xAA, 0xFF, 0xFE}, []byte{})
 
-	iter := prefixStore.ReverseIterator(nil, nil)
+	iter, err := prefixStore.ReverseIterator(nil, nil)
+	require.NoError(t, err)
 
 	checkDomain(t, iter, nil, nil)
 	checkItem(t, iter, []byte{0x00}, bz(""))
@@ -227,7 +274,8 @@ func TestPrefixStoreReverseIteratorEdgeCase(t *testing.T) {
 	baseStore.Set([]byte{0xA9, 0xFF, 0xFF, 0x00}, []byte{})
 	baseStore.Set([]byte{0xA9, 0xFF, 0xFF}, []byte{})
 
-	iter = prefixStore.ReverseIterator(nil, nil)
+	iter, err = prefixStore.ReverseIterator(nil, nil)
+	require.NoError(t, err)
 
 	checkDomain(t, iter, nil, nil)
 	checkItem(t, iter, []byte{0x00}, bz(""))
@@ -261,7 +309,8 @@ func mockStoreWithStuff() types.Store {
 func checkValue(t *testing.T, store types.Store, key []byte, expected []byte) {
 	t.Helper()
 
-	bz := store.Get(key)
+	bz, err := store.Get(key)
+	require.NoError(t, err)
 	require.Equal(t, expected, bz)
 }
 
@@ -344,7 +393,9 @@ func TestPrefixDBIterator1(t *testing.T) {
 	store := mockStoreWithStuff()
 	pstore := New(store, bz("key"))
 
-	itr := pstore.Iterator(nil, nil)
+	itr, err := pstore.Iterator(nil, nil)
+	require.NoError(t, err)
+
 	checkDomain(t, itr, nil, nil)
 	checkItem(t, itr, bz(""), bz("value"))
 	checkNext(t, itr, true)
@@ -362,7 +413,9 @@ func TestPrefixDBIterator2(t *testing.T) {
 	store := mockStoreWithStuff()
 	pstore := New(store, bz("key"))
 
-	itr := pstore.Iterator(nil, bz(""))
+	itr, err := pstore.Iterator(nil, bz(""))
+	require.NoError(t, err)
+
 	checkDomain(t, itr, nil, bz(""))
 	checkInvalid(t, itr)
 	itr.Close()
@@ -372,7 +425,9 @@ func TestPrefixDBIterator3(t *testing.T) {
 	store := mockStoreWithStuff()
 	pstore := New(store, bz("key"))
 
-	itr := pstore.Iterator(bz(""), nil)
+	itr, err := pstore.Iterator(bz(""), nil)
+	require.NoError(t, err)
+
 	checkDomain(t, itr, bz(""), nil)
 	checkItem(t, itr, bz(""), bz("value"))
 	checkNext(t, itr, true)
@@ -390,7 +445,9 @@ func TestPrefixDBIterator4(t *testing.T) {
 	store := mockStoreWithStuff()
 	pstore := New(store, bz("key"))
 
-	itr := pstore.Iterator(bz(""), bz(""))
+	itr, err := pstore.Iterator(bz(""), bz(""))
+	require.NoError(t, err)
+
 	checkDomain(t, itr, bz(""), bz(""))
 	checkInvalid(t, itr)
 	itr.Close()
@@ -400,7 +457,9 @@ func TestPrefixDBReverseIterator1(t *testing.T) {
 	store := mockStoreWithStuff()
 	pstore := New(store, bz("key"))
 
-	itr := pstore.ReverseIterator(nil, nil)
+	itr, err := pstore.ReverseIterator(nil, nil)
+	require.NoError(t, err)
+
 	checkDomain(t, itr, nil, nil)
 	checkItem(t, itr, bz("3"), bz("value3"))
 	checkNext(t, itr, true)
@@ -418,7 +477,9 @@ func TestPrefixDBReverseIterator2(t *testing.T) {
 	store := mockStoreWithStuff()
 	pstore := New(store, bz("key"))
 
-	itr := pstore.ReverseIterator(bz(""), nil)
+	itr, err := pstore.ReverseIterator(bz(""), nil)
+	require.NoError(t, err)
+
 	checkDomain(t, itr, bz(""), nil)
 	checkItem(t, itr, bz("3"), bz("value3"))
 	checkNext(t, itr, true)
@@ -436,7 +497,9 @@ func TestPrefixDBReverseIterator3(t *testing.T) {
 	store := mockStoreWithStuff()
 	pstore := New(store, bz("key"))
 
-	itr := pstore.ReverseIterator(nil, bz(""))
+	itr, err := pstore.ReverseIterator(nil, bz(""))
+	require.NoError(t, err)
+
 	checkDomain(t, itr, nil, bz(""))
 	checkInvalid(t, itr)
 	itr.Close()
@@ -446,7 +509,9 @@ func TestPrefixDBReverseIterator4(t *testing.T) {
 	store := mockStoreWithStuff()
 	pstore := New(store, bz("key"))
 
-	itr := pstore.ReverseIterator(bz(""), bz(""))
+	itr, err := pstore.ReverseIterator(bz(""), bz(""))
+	require.NoError(t, err)
+
 	checkInvalid(t, itr)
 	itr.Close()
 }

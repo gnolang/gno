@@ -8,7 +8,6 @@ import (
 
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/std"
-
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
@@ -41,45 +40,53 @@ func New(parent types.Store) *cacheStore {
 }
 
 // Implements types.Store.
-func (store *cacheStore) Get(key []byte) (value []byte) {
+func (store *cacheStore) Get(key []byte) (value []byte, err error) {
 	store.mtx.Lock()
 	defer store.mtx.Unlock()
 	types.AssertValidKey(key)
 
 	cacheValue, ok := store.cache[string(key)]
 	if !ok {
-		value = store.parent.Get(key)
+		value, err = store.parent.Get(key)
+		if err != nil {
+			return nil, err
+		}
+
 		store.setCacheValue(key, value, false, false)
 	} else {
 		value = cacheValue.value
 	}
 
-	return value
+	return value, nil
 }
 
 // Implements types.Store.
-func (store *cacheStore) Set(key []byte, value []byte) {
+func (store *cacheStore) Set(key []byte, value []byte) error {
 	store.mtx.Lock()
 	defer store.mtx.Unlock()
 	types.AssertValidKey(key)
 	types.AssertValidValue(value)
 
 	store.setCacheValue(key, value, false, true)
+
+	return nil
 }
 
 // Implements types.Store.
-func (store *cacheStore) Has(key []byte) bool {
-	value := store.Get(key)
-	return value != nil
+func (store *cacheStore) Has(key []byte) (bool, error) {
+	value, err := store.Get(key)
+	return value != nil, err
 }
 
 // Implements types.Store.
-func (store *cacheStore) Delete(key []byte) {
+func (store *cacheStore) Delete(key []byte) error {
 	store.mtx.Lock()
 	defer store.mtx.Unlock()
 	types.AssertValidKey(key)
 
 	store.setCacheValue(key, nil, true, true)
+
+	return nil
 }
 
 // Implements types.Store.
@@ -129,31 +136,35 @@ func (store *cacheStore) CacheWrap() types.Store {
 // Iteration
 
 // Implements types.Store.
-func (store *cacheStore) Iterator(start, end []byte) types.Iterator {
+func (store *cacheStore) Iterator(start, end []byte) (types.Iterator, error) {
 	return store.iterator(start, end, true)
 }
 
 // Implements types.Store.
-func (store *cacheStore) ReverseIterator(start, end []byte) types.Iterator {
+func (store *cacheStore) ReverseIterator(start, end []byte) (types.Iterator, error) {
 	return store.iterator(start, end, false)
 }
 
-func (store *cacheStore) iterator(start, end []byte, ascending bool) types.Iterator {
+func (store *cacheStore) iterator(start, end []byte, ascending bool) (types.Iterator, error) {
 	store.mtx.Lock()
 	defer store.mtx.Unlock()
 
 	var parent, cache types.Iterator
-
+	var err error
 	if ascending {
-		parent = store.parent.Iterator(start, end)
+		parent, err = store.parent.Iterator(start, end)
 	} else {
-		parent = store.parent.ReverseIterator(start, end)
+		parent, err = store.parent.ReverseIterator(start, end)
+	}
+
+	if err != nil {
+		return nil, err
 	}
 
 	store.dirtyItems(start, end)
 	cache = newMemIterator(start, end, store.sortedCache, ascending)
 
-	return newCacheMergeIterator(parent, cache, ascending)
+	return newCacheMergeIterator(parent, cache, ascending), nil
 }
 
 // Constructs a slice of dirty items, to use w/ memIterator.

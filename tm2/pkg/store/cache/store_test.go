@@ -8,7 +8,6 @@ import (
 
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/random"
-
 	"github.com/gnolang/gno/tm2/pkg/store/cache"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
@@ -26,43 +25,87 @@ func TestCacheStore(t *testing.T) {
 	mem := dbadapter.Store{dbm.NewMemDB()}
 	st := cache.New(mem)
 
-	require.Empty(t, st.Get(keyFmt(1)), "Expected `key1` to be empty")
+	v, err := st.Get(keyFmt(1))
+	require.NoError(t, err)
+	require.Empty(t, v, "Expected `key1` to be empty")
 
 	// put something in mem and in cache
 	mem.Set(keyFmt(1), valFmt(1))
 	st.Set(keyFmt(1), valFmt(1))
-	require.Equal(t, valFmt(1), st.Get(keyFmt(1)))
+
+	v, err = st.Get(keyFmt(1))
+	require.NoError(t, err)
+	require.Equal(t, valFmt(1), v)
 
 	// update it in cache, shouldn't change mem
 	st.Set(keyFmt(1), valFmt(2))
-	require.Equal(t, valFmt(2), st.Get(keyFmt(1)))
-	require.Equal(t, valFmt(1), mem.Get(keyFmt(1)))
+
+	v, err = st.Get(keyFmt(1))
+	require.NoError(t, err)
+
+	vm, err := mem.Get(keyFmt(1))
+	require.NoError(t, err)
+
+	require.Equal(t, valFmt(2), v)
+	require.Equal(t, valFmt(1), vm)
 
 	// write it. should change mem
 	st.Write()
-	require.Equal(t, valFmt(2), mem.Get(keyFmt(1)))
-	require.Equal(t, valFmt(2), st.Get(keyFmt(1)))
+
+	v, err = st.Get(keyFmt(1))
+	require.NoError(t, err)
+
+	vm, err = mem.Get(keyFmt(1))
+	require.NoError(t, err)
+
+	require.Equal(t, valFmt(2), vm)
+	require.Equal(t, valFmt(2), v)
 
 	// more writes and checks
 	st.Write()
 	st.Write()
-	require.Equal(t, valFmt(2), mem.Get(keyFmt(1)))
-	require.Equal(t, valFmt(2), st.Get(keyFmt(1)))
+
+	v, err = st.Get(keyFmt(1))
+	require.NoError(t, err)
+
+	vm, err = mem.Get(keyFmt(1))
+	require.NoError(t, err)
+
+	require.Equal(t, valFmt(2), vm)
+	require.Equal(t, valFmt(2), v)
 
 	// make a new one, check it
 	st = cache.New(mem)
-	require.Equal(t, valFmt(2), st.Get(keyFmt(1)))
+
+	v, err = st.Get(keyFmt(1))
+	require.NoError(t, err)
+
+	require.Equal(t, valFmt(2), v)
 
 	// make a new one and delete - should not be removed from mem
 	st = cache.New(mem)
 	st.Delete(keyFmt(1))
-	require.Empty(t, st.Get(keyFmt(1)))
-	require.Equal(t, mem.Get(keyFmt(1)), valFmt(2))
+
+	v, err = st.Get(keyFmt(1))
+	require.NoError(t, err)
+
+	vm, err = mem.Get(keyFmt(1))
+	require.NoError(t, err)
+
+	require.Empty(t, v)
+	require.Equal(t, vm, valFmt(2))
 
 	// Write. should now be removed from both
 	st.Write()
-	require.Empty(t, st.Get(keyFmt(1)), "Expected `key1` to be empty")
-	require.Empty(t, mem.Get(keyFmt(1)), "Expected `key1` to be empty")
+
+	v, err = st.Get(keyFmt(1))
+	require.NoError(t, err)
+
+	vm, err = mem.Get(keyFmt(1))
+	require.NoError(t, err)
+
+	require.Empty(t, v, "Expected `key1` to be empty")
+	require.Empty(t, vm, "Expected `key1` to be empty")
 }
 
 func TestCacheStoreNoNilSet(t *testing.T) {
@@ -77,27 +120,59 @@ func TestCacheStoreNested(t *testing.T) {
 
 	// set. check its there on st and not on mem.
 	st.Set(keyFmt(1), valFmt(1))
-	require.Empty(t, mem.Get(keyFmt(1)))
-	require.Equal(t, valFmt(1), st.Get(keyFmt(1)))
+
+	v, err := st.Get(keyFmt(1))
+	require.NoError(t, err)
+
+	vm, err := mem.Get(keyFmt(1))
+	require.NoError(t, err)
+
+	require.Empty(t, vm)
+	require.Equal(t, valFmt(1), v)
 
 	// make a new from st and check
 	st2 := cache.New(st)
-	require.Equal(t, valFmt(1), st2.Get(keyFmt(1)))
+
+	v, err = st2.Get(keyFmt(1))
+	require.NoError(t, err)
+
+	require.Equal(t, valFmt(1), v)
 
 	// update the value on st2, check it only effects st2
 	st2.Set(keyFmt(1), valFmt(3))
-	require.Equal(t, []byte(nil), mem.Get(keyFmt(1)))
-	require.Equal(t, valFmt(1), st.Get(keyFmt(1)))
-	require.Equal(t, valFmt(3), st2.Get(keyFmt(1)))
+
+	v, err = st.Get(keyFmt(1))
+	require.NoError(t, err)
+
+	vm, err = mem.Get(keyFmt(1))
+	require.NoError(t, err)
+
+	v2, err := st2.Get(keyFmt(1))
+	require.NoError(t, err)
+
+	require.Equal(t, []byte(nil), vm)
+	require.Equal(t, valFmt(1), v)
+	require.Equal(t, valFmt(3), v2)
 
 	// st2 writes to its parent, st. doesn't effect mem
 	st2.Write()
-	require.Equal(t, []byte(nil), mem.Get(keyFmt(1)))
-	require.Equal(t, valFmt(3), st.Get(keyFmt(1)))
+
+	v, err = st.Get(keyFmt(1))
+	require.NoError(t, err)
+
+	vm, err = mem.Get(keyFmt(1))
+	require.NoError(t, err)
+
+	require.Equal(t, []byte(nil), vm)
+	require.Equal(t, valFmt(3), v)
 
 	// updates mem
 	st.Write()
-	require.Equal(t, valFmt(3), mem.Get(keyFmt(1)))
+
+	vm, err = mem.Get(keyFmt(1))
+	require.NoError(t, err)
+
+	require.Equal(t, valFmt(3), vm)
 }
 
 func TestCacheKVIteratorBounds(t *testing.T) {
@@ -110,7 +185,9 @@ func TestCacheKVIteratorBounds(t *testing.T) {
 	}
 
 	// iterate over all of them
-	itr := st.Iterator(nil, nil)
+	itr, err := st.Iterator(nil, nil)
+	require.NoError(t, err)
+
 	i := 0
 	for ; itr.Valid(); itr.Next() {
 		k, v := itr.Key(), itr.Value()
@@ -121,7 +198,8 @@ func TestCacheKVIteratorBounds(t *testing.T) {
 	require.Equal(t, nItems, i)
 
 	// iterate over none
-	itr = st.Iterator(bz("money"), nil)
+	itr, err = st.Iterator(bz("money"), nil)
+	require.NoError(t, err)
 	i = 0
 	for ; itr.Valid(); itr.Next() {
 		i++
@@ -129,7 +207,9 @@ func TestCacheKVIteratorBounds(t *testing.T) {
 	require.Equal(t, 0, i)
 
 	// iterate over lower
-	itr = st.Iterator(keyFmt(0), keyFmt(3))
+	itr, err = st.Iterator(keyFmt(0), keyFmt(3))
+	require.NoError(t, err)
+
 	i = 0
 	for ; itr.Valid(); itr.Next() {
 		k, v := itr.Key(), itr.Value()
@@ -140,7 +220,9 @@ func TestCacheKVIteratorBounds(t *testing.T) {
 	require.Equal(t, 3, i)
 
 	// iterate over upper
-	itr = st.Iterator(keyFmt(2), keyFmt(4))
+	itr, err = st.Iterator(keyFmt(2), keyFmt(4))
+	require.NoError(t, err)
+
 	i = 2
 	for ; itr.Valid(); itr.Next() {
 		k, v := itr.Key(), itr.Value()
@@ -376,7 +458,9 @@ func doRandomOp(st types.Store, truth dbm.DB, maxKey int) {
 func assertIterateDomain(t *testing.T, st types.Store, expectedN int) {
 	t.Helper()
 
-	itr := st.Iterator(nil, nil)
+	itr, err := st.Iterator(nil, nil)
+	require.NoError(t, err)
+
 	i := 0
 	for ; itr.Valid(); itr.Next() {
 		k, v := itr.Key(), itr.Value()
@@ -391,8 +475,11 @@ func assertIterateDomainCheck(t *testing.T, st types.Store, mem dbm.DB, r []keyR
 	t.Helper()
 
 	// iterate over each and check they match the other
-	itr := st.Iterator(nil, nil)
-	itr2 := mem.Iterator(nil, nil) // ground truth
+	itr, err := st.Iterator(nil, nil)
+	require.NoError(t, err)
+
+	itr2, err := mem.Iterator(nil, nil) // ground truth
+	require.NoError(t, err)
 
 	krc := newKeyRangeCounter(r)
 	i := 0
@@ -423,8 +510,11 @@ func assertIterateDomainCompare(t *testing.T, st types.Store, mem dbm.DB) {
 	t.Helper()
 
 	// iterate over each and check they match the other
-	itr := st.Iterator(nil, nil)
-	itr2 := mem.Iterator(nil, nil) // ground truth
+	itr, err := st.Iterator(nil, nil)
+	require.NoError(t, err)
+	itr2, err := mem.Iterator(nil, nil) // ground truth
+	require.NoError(t, err)
+
 	checkIterators(t, itr, itr2)
 	checkIterators(t, itr2, itr)
 }

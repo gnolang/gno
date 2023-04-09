@@ -18,32 +18,32 @@ func New(parent types.Store) immutStore {
 }
 
 // Implements Store
-func (is immutStore) Get(key []byte) []byte {
+func (is immutStore) Get(key []byte) ([]byte, error) {
 	return is.parent.Get(key)
 }
 
 // Implements Store
-func (is immutStore) Has(key []byte) bool {
+func (is immutStore) Has(key []byte) (bool, error) {
 	return is.parent.Has(key)
 }
 
 // Implements Store
-func (is immutStore) Set(key, value []byte) {
+func (is immutStore) Set(key, value []byte) error {
 	panic("unexpected .Set() on immutStore")
 }
 
 // Implements Store
-func (is immutStore) Delete(key []byte) {
+func (is immutStore) Delete(key []byte) error {
 	panic("unexpected .Delete() on immutStore")
 }
 
 // Implements Store
-func (is immutStore) Iterator(start, end []byte) types.Iterator {
+func (is immutStore) Iterator(start, end []byte) (types.Iterator, error) {
 	return is.parent.Iterator(start, end)
 }
 
 // Implements Store
-func (is immutStore) ReverseIterator(start, end []byte) types.Iterator {
+func (is immutStore) ReverseIterator(start, end []byte) (types.Iterator, error) {
 	return is.parent.ReverseIterator(start, end)
 }
 
