@@ -35,7 +35,23 @@ The purpose of this document is to define Gno and its unique features.
 ***
 ** Made with
 *** GnoVM
+**** Advantages of Golang
+***** Simplicity
+***** ...
+**** More ambitious
+***** ...
 *** Tendermint2
+**** Minimalist
+**** Stable
+**** Educational
+**** Designed for longevity
 *** GnoSDK
+**** Minimal maintenance requiring validator updates
 *** Proof-of-Contributions
-*** SubDAOs
+**** Fairness
+**** Incentivize writing good code
+**** High satoshi-score
+**** Interchain
+*** SubDAOs Framework
+**** IBC Spirit
+**** Interface
