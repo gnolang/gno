@@ -22,5 +22,5 @@ func main() {
 }
 
 // Output:
-// g1zur8hjter6pzguerw02rqqq0rgzysy2mg9eq2v
+// g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // g1v9jxgu33ta047h6lta047h6lta047h6l43dqc5

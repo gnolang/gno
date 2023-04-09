@@ -147,7 +147,7 @@ func Add8(a, b int8) (int8, bool) {
 	return c, false
 }
 
-// Add8p is the unchecked panicing version of Add8
+// Add8p is the unchecked panicking version of Add8
 func Add8p(a, b int8) int8 {
 	r, ok := Add8(a, b)
 	if !ok {
@@ -166,7 +166,7 @@ func Sub8(a, b int8) (int8, bool) {
 	return c, false
 }
 
-// Sub8p is the unchecked panicing version of Sub8
+// Sub8p is the unchecked panicking version of Sub8
 func Sub8p(a, b int8) int8 {
 	r, ok := Sub8(a, b)
 	if !ok {
@@ -190,7 +190,7 @@ func Mul8(a, b int8) (int8, bool) {
 	return c, false
 }
 
-// Mul8p is the unchecked panicing version of Mul8
+// Mul8p is the unchecked panicking version of Mul8
 func Mul8p(a, b int8) int8 {
 	r, ok := Mul8(a, b)
 	if !ok {
@@ -206,7 +206,7 @@ func Div8(a, b int8) (int8, bool) {
 	return q, ok
 }
 
-// Div8p is the unchecked panicing version of Div8
+// Div8p is the unchecked panicking version of Div8
 func Div8p(a, b int8) int8 {
 	r, ok := Div8(a, b)
 	if !ok {
@@ -237,7 +237,7 @@ func Add16(a, b int16) (int16, bool) {
 	return c, false
 }
 
-// Add16p is the unchecked panicing version of Add16
+// Add16p is the unchecked panicking version of Add16
 func Add16p(a, b int16) int16 {
 	r, ok := Add16(a, b)
 	if !ok {
@@ -256,7 +256,7 @@ func Sub16(a, b int16) (int16, bool) {
 	return c, false
 }
 
-// Sub16p is the unchecked panicing version of Sub16
+// Sub16p is the unchecked panicking version of Sub16
 func Sub16p(a, b int16) int16 {
 	r, ok := Sub16(a, b)
 	if !ok {
@@ -280,7 +280,7 @@ func Mul16(a, b int16) (int16, bool) {
 	return c, false
 }
 
-// Mul16p is the unchecked panicing version of Mul16
+// Mul16p is the unchecked panicking version of Mul16
 func Mul16p(a, b int16) int16 {
 	r, ok := Mul16(a, b)
 	if !ok {
@@ -296,7 +296,7 @@ func Div16(a, b int16) (int16, bool) {
 	return q, ok
 }
 
-// Div16p is the unchecked panicing version of Div16
+// Div16p is the unchecked panicking version of Div16
 func Div16p(a, b int16) int16 {
 	r, ok := Div16(a, b)
 	if !ok {
@@ -327,7 +327,7 @@ func Add32(a, b int32) (int32, bool) {
 	return c, false
 }
 
-// Add32p is the unchecked panicing version of Add32
+// Add32p is the unchecked panicking version of Add32
 func Add32p(a, b int32) int32 {
 	r, ok := Add32(a, b)
 	if !ok {
@@ -346,7 +346,7 @@ func Sub32(a, b int32) (int32, bool) {
 	return c, false
 }
 
-// Sub32p is the unchecked panicing version of Sub32
+// Sub32p is the unchecked panicking version of Sub32
 func Sub32p(a, b int32) int32 {
 	r, ok := Sub32(a, b)
 	if !ok {
@@ -370,7 +370,7 @@ func Mul32(a, b int32) (int32, bool) {
 	return c, false
 }
 
-// Mul32p is the unchecked panicing version of Mul32
+// Mul32p is the unchecked panicking version of Mul32
 func Mul32p(a, b int32) int32 {
 	r, ok := Mul32(a, b)
 	if !ok {
@@ -386,7 +386,7 @@ func Div32(a, b int32) (int32, bool) {
 	return q, ok
 }
 
-// Div32p is the unchecked panicing version of Div32
+// Div32p is the unchecked panicking version of Div32
 func Div32p(a, b int32) int32 {
 	r, ok := Div32(a, b)
 	if !ok {
@@ -417,7 +417,7 @@ func Add64(a, b int64) (int64, bool) {
 	return c, false
 }
 
-// Add64p is the unchecked panicing version of Add64
+// Add64p is the unchecked panicking version of Add64
 func Add64p(a, b int64) int64 {
 	r, ok := Add64(a, b)
 	if !ok {
@@ -436,7 +436,7 @@ func Sub64(a, b int64) (int64, bool) {
 	return c, false
 }
 
-// Sub64p is the unchecked panicing version of Sub64
+// Sub64p is the unchecked panicking version of Sub64
 func Sub64p(a, b int64) int64 {
 	r, ok := Sub64(a, b)
 	if !ok {
@@ -460,7 +460,7 @@ func Mul64(a, b int64) (int64, bool) {
 	return c, false
 }
 
-// Mul64p is the unchecked panicing version of Mul64
+// Mul64p is the unchecked panicking version of Mul64
 func Mul64p(a, b int64) int64 {
 	r, ok := Mul64(a, b)
 	if !ok {
@@ -476,7 +476,7 @@ func Div64(a, b int64) (int64, bool) {
 	return q, ok
 }
 
-// Div64p is the unchecked panicing version of Div64
+// Div64p is the unchecked panicking version of Div64
 func Div64p(a, b int64) int64 {
 	r, ok := Div64(a, b)
 	if !ok {

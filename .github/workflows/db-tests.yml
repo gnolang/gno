@@ -1,19 +1,16 @@
-name: DB Tests
+name: db-tests
 
 on:
   pull_request:
     paths:
-      - "pkgs/db"
-      - "go.mod"
+      - "t2/pkg/db/**.go"
       - "go.sum"
       - ".github/workflows/db-tests.yml"
   push:
-    branches:
-      - master
+    branches: [ "master" ]
 
 jobs:
-  test-databases:
-    name: basic database test
+  test:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     strategy:
@@ -27,7 +24,7 @@ jobs:
           - boltdb
     steps:
       # golang
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go-version }}
 
@@ -44,5 +41,5 @@ jobs:
 
       # test ./pkgs/db
       - uses: actions/checkout@v3
-      - name: test ./pkgs/db
-        run: go test -tags ${{ matrix.tags }} ./pkgs/db/...
+      - name: test ./tm2/pkg/db
+        run: go test -tags ${{ matrix.tags }} ./tm2/pkg/db/...
