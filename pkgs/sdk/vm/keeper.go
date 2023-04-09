@@ -3,6 +3,7 @@ package vm
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 
 	"github.com/gnolang/gno/pkgs/errors"
@@ -179,90 +180,38 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 }
 
 // Calls calls a public Gno function (for delivertx).
-func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
-	pkgPath := msg.PkgPath // to import
-	fnc := msg.Func
-	store := vm.getGnoStore(ctx)
-	// Get the package and function type.
-	pv := store.GetPackage(pkgPath, false)
-	pl := gno.PackageNodeLocation(pkgPath)
-	pn := store.GetBlockNode(pl).(*gno.PackageNode)
-	ft := pn.GetStaticTypeOf(store, gno.Name(fnc)).(*gno.FuncType)
-	// Make main Package with imports.
-	mpn := gno.NewPackageNode("main", "main", nil)
-	mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})
-	mpv := mpn.NewPackage()
-	// Parse expression.
-	argslist := ""
-	for i := range msg.Args {
-		if i > 0 {
-			argslist += ","
-		}
-		argslist += fmt.Sprintf("arg%d", i)
-	}
-	expr := fmt.Sprintf(`pkg.%s(%s)`, fnc, argslist)
-	xn := gno.MustParseExpr(expr)
+func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) sdk.Result {
+	w := NewWrapper(msg, vm.getGnoStore(ctx))
 	// Send send-coins to pkg from caller.
-	pkgAddr := gno.DerivePkgAddr(pkgPath)
-	caller := msg.Caller
-	send := msg.Send
-	err = vm.bank.SendCoins(ctx, caller, pkgAddr, send)
+	pkgAddr := gno.DerivePkgAddr(msg.PkgPath)
+
+	// Send send-coins to pkg from caller.
+	err := vm.bank.SendCoins(ctx, msg.Caller, pkgAddr, msg.Send)
 	if err != nil {
-		return "", err
-	}
-	// Convert Args to gno values.
-	cx := xn.(*gno.CallExpr)
-	if cx.Varg {
-		panic("variadic calls not yet supported")
-	}
-	for i, arg := range msg.Args {
-		argType := ft.Params[i].Type
-		atv := convertArgToGno(arg, argType)
-		cx.Args[i] = &gno.ConstExpr{
-			TypedValue: atv,
-		}
+		return abciResult(err)
 	}
 	// Make context.
 	// NOTE: if this is too expensive,
 	// could it be safely partially memoized?
-	msgCtx := stdlibs.ExecContext{
+	w.msgCtx = stdlibs.ExecContext{
 		ChainID:       ctx.ChainID(),
 		Height:        ctx.BlockHeight(),
 		Timestamp:     ctx.BlockTime().Unix(),
 		Msg:           msg,
-		OrigCaller:    caller.Bech32(),
-		OrigSend:      send,
+		OrigCaller:    msg.Caller.Bech32(),
+		OrigSend:      msg.Send,
 		OrigSendSpent: new(std.Coins),
 		OrigPkgAddr:   pkgAddr.Bech32(),
 		Banker:        NewSDKBanker(vm, ctx),
 	}
-	// Construct machine and evaluate.
-	m := gno.NewMachineWithOptions(
-		gno.MachineOptions{
-			PkgPath:   "",
-			Output:    os.Stdout, // XXX
-			Store:     store,
-			Context:   msgCtx,
-			Alloc:     store.GetAllocator(),
-			MaxCycles: 10 * 1000 * 1000, // 10M cycles // XXX
-		})
-	m.SetActivePackage(mpv)
-	defer func() {
-		if r := recover(); r != nil {
-			err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\n%s\n",
-				r, m.String())
-			return
-		}
-	}()
-	rtvs := m.Eval(xn)
-	fmt.Println("CPUCYCLES call", m.Cycles)
-	for i, rtv := range rtvs {
-		res = res + rtv.String()
-		if i < len(rtvs)-1 {
-			res += "\n"
-		}
+	r, err := w.Eval()
+	if err != nil {
+		return abciResult(err)
 	}
-	return res, nil
+
+	return Gno2SdkResult(r)
+
+	// XXX should res depend on subMsgs execution
 	// TODO pay for gas? TODO see context?
 }
 
