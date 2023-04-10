@@ -1,8 +1,10 @@
 package mail
 
-import "strings"
-import "testing"
-import "time"
+import (
+	"strings"
+	"testing"
+	"time"
+)
 
 var (
 	UTC         = time.UTC
