@@ -2,7 +2,6 @@ package mail
 
 import (
 	"std"
-	"strconv"
 	"strings"
 	"time"
 

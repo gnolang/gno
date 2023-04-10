@@ -2,8 +2,6 @@ package mail
 
 import (
 	"std"
-	"strconv"
-	"strings"
 	"time"
 
 	"gno.land/p/demo/avl"
@@ -101,14 +99,14 @@ func (box *Mailbox) Find(preds ...Predicate) []*Mail {
 	//    scan outgoingByRecipient or incomingBySender if it makes sense
 	// Otherwise
 	//    use time min and max to restrain the traversing, then filter
-	isEmpty, recipientIs, senderIs, timeMin, timeMax, remainingPreds := runHeuristicForFind(preds...)
+	isEmpty, recipientIs, senderIs, timeMin, timeMax, remainingPreds := runHeuristicForFind(preds)
 	const narrowInSeconds = 3600 * 24 * 7 // when narrow duration it is faster to scan box.mails
 	narrow := !timeMax.IsZero() && !timeMin.IsZero() && timeMax.Sub(timeMin).Seconds() < narrowInSeconds
 	if isEmpty {
 		return []*Mail{}
-	} else if !narrow && recipientIs != nil && recipientIs != box.address {
+	} else if !narrow && recipientIs != "" && recipientIs != box.address {
 		return box.SentTo(recipientIs, preds...)
-	} else if !narrow && senderIs != nil && senderIs != box.address {
+	} else if !narrow && senderIs != "" && senderIs != box.address {
 		return box.ReceivedFrom(senderIs, preds...)
 	} else {
 		var a []*Mail
@@ -122,7 +120,7 @@ func (box *Mailbox) Find(preds ...Predicate) []*Mail {
 		}
 		box.mails.Iterate(min, max, func(node *avl.Node) bool {
 			mail := node.Value().(*Mail)
-			if mail.Satisfies(remainingPreds...) {
+			if mail.Satisfies(remainingPreds) {
 				a = append(a, mail)
 			}
 			return false
@@ -144,7 +142,7 @@ func runHeuristicForFind(preds []Predicate) (
 	for _, pred := range preds {
 		switch v := pred.(type) {
 		case SenderIs:
-			if senderIs == nil {
+			if senderIs == "" {
 				senderIs = v.sender
 			} else {
 				if senderIs != v.sender {
@@ -153,7 +151,7 @@ func runHeuristicForFind(preds []Predicate) (
 				}
 			}
 		case RecipientIs:
-			if recipientIs == nil {
+			if recipientIs == "" {
 				recipientIs = v.recipient
 			} else {
 				if recipientIs != v.recipient {
@@ -223,8 +221,8 @@ func (box *Mailbox) pushIncoming(sender std.Address, mail *Mail) {
 	box.mails.Set(mail.GetTimeKey(), mail)
 	// incomingBySender (a tree<sender, *container>)
 	var ctr *container
-	if x, exists := box.incomingBySender.Get(sender.String()).(*container); exists {
-		ctr = x
+	if x, exists := box.incomingBySender.Get(sender.String()); exists {
+		ctr = x.(*container)
 	} else {
 		ctr = newContainer()
 	}
@@ -238,8 +236,8 @@ func (box *Mailbox) pushOutgoing(recipient std.Address, mail *Mail) {
 	box.mails.Set(mail.GetTimeKey(), mail)
 	// outgoingByRecipient (a tree<recipient, *container>)
 	var ctr *container
-	if x, exists := box.outgoingByRecipient.Get(recipient.String()).(*container); exists {
-		ctr = x
+	if x, exists := box.outgoingByRecipient.Get(recipient.String()); exists {
+		ctr = x.(*container)
 	} else {
 		ctr = newContainer()
 	}

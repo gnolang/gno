@@ -1,9 +1,9 @@
 package mail
 
 import (
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/releases"
 	"std"
+
+	"gno.land/p/demo/avl"
 )
 
 // realm state
