@@ -58,7 +58,7 @@ func registerDBCreator(backend BackendType, creator dbCreator, force bool) {
 func NewDB(name string, backend BackendType, dir string) (DB, error) {
 	dbCreator, ok := backends[backend]
 	if !ok {
-		keys := make([]string, len(backends))
+		var keys []string
 		for k := range backends {
 			keys = append(keys, string(k))
 		}
