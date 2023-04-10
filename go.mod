@@ -32,8 +32,8 @@ require (
 	go.uber.org/multierr v1.9.0
 	golang.org/x/crypto v0.7.0
 	golang.org/x/mod v0.9.0
-	golang.org/x/net v0.8.0
-	golang.org/x/term v0.6.0
+	golang.org/x/net v0.9.0
+	golang.org/x/term v0.7.0
 	golang.org/x/tools v0.6.0
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/yaml.v3 v3.0.1
@@ -64,8 +64,8 @@ require (
 	github.com/rivo/uniseg v0.2.0 // indirect
 	go.opencensus.io v0.22.5 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
-	golang.org/x/sys v0.6.0 // indirect
-	golang.org/x/text v0.8.0 // indirect
+	golang.org/x/sys v0.7.0 // indirect
+	golang.org/x/text v0.9.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 )
 
