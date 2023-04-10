@@ -8,9 +8,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/gnolang/gno/pkgs/crypto/tmhash"
-	"github.com/gnolang/gno/pkgs/db"
-	"github.com/gnolang/gno/pkgs/iavl"
+	"github.com/gnolang/gno/tm2/pkg/crypto/tmhash"
+	"github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/iavl"
 )
 
 func TestProofForgery(t *testing.T) {
@@ -46,7 +46,7 @@ func TestProofForgery(t *testing.T) {
 
 	// ------------------- FORGE PROOF -------------------
 
-	forgedPayloadBytes := mustDecode("0xabcd")
+	forgedPayloadBytes := decodeHex(t, "0xabcd")
 	forgedValueHash := tmhash.Sum(forgedPayloadBytes)
 	// make a forgery of the proof by adding:
 	// - a new leaf node to the right
@@ -59,7 +59,7 @@ func TestProofForgery(t *testing.T) {
 	proof2.Leaves = append(proof2.Leaves, forgedNode)
 	proof2.InnerNodes = append(proof2.InnerNodes, iavl.PathToLeaf{})
 	// figure out what hash we need via https://twitter.com/samczsun/status/1578181160345034752
-	proof2.LeftPath[0].Right = mustDecode("82C36CED85E914DAE8FDF6DD11FD5833121AA425711EB126C470CE28FF6623D5")
+	proof2.LeftPath[0].Right = decodeHex(t, "82C36CED85E914DAE8FDF6DD11FD5833121AA425711EB126C470CE28FF6623D5")
 
 	rootHashValid := proof.ComputeRootHash()
 	verifyErr := proof.Verify(rootHashValid)
@@ -90,13 +90,14 @@ func TestProofForgery(t *testing.T) {
 	}
 }
 
-func mustDecode(str string) []byte {
+func decodeHex(t *testing.T, str string) []byte {
+	t.Helper()
 	if strings.HasPrefix(str, "0x") {
 		str = str[2:]
 	}
 	b, err := hex.DecodeString(str)
 	if err != nil {
-		panic(err)
+		t.Fatalf("unable to decode string, %v", err)
 	}
 	return b
 }
