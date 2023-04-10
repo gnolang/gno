@@ -11,7 +11,6 @@ import (
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/iavl"
 	"github.com/gnolang/gno/tm2/pkg/random"
-	// "github.com/gnolang/gno/tm2/pkg/store/errors"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
