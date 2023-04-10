@@ -131,7 +131,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case BigintKind:
-			tv.V = BigintValue{V: big.NewInt(tv.GetInt64())}
+			tv.V = BigintValue{V: big.NewInt(int64(tv.GetInt()))}
 			tv.T = t
 		case Float32Kind:
 			x := float32(tv.GetInt()) // XXX determinism?
@@ -313,6 +313,9 @@ GNO_CASE:
 			x := uint64(tv.GetInt32())
 			tv.T = t
 			tv.SetUint64(x)
+		case BigintKind:
+			tv.V = BigintValue{V: big.NewInt(tv.GetInt64())}
+			tv.T = t
 		case Float32Kind:
 			x := float32(tv.GetInt32()) // XXX determinism?
 			tv.T = t
@@ -321,6 +324,9 @@ GNO_CASE:
 			x := float64(tv.GetInt32()) // XXX determinism?
 			tv.T = t
 			tv.SetFloat64(x)
+		case BigdecKind:
+			tv.V = BigdecValue{V: apd.New(tv.GetInt64(), 0)}
+			tv.T = t
 		case StringKind:
 			tv.V = alloc.NewString(string(tv.GetInt32()))
 			tv.T = t
@@ -620,6 +626,9 @@ GNO_CASE:
 			x := uint64(tv.GetUint32())
 			tv.T = t
 			tv.SetUint64(x)
+		case BigintKind:
+			tv.V = BigintValue{V: big.NewInt(tv.GetInt64())}
+			tv.T = t
 		case Float32Kind:
 			x := float32(tv.GetUint32()) // XXX determinism?
 			tv.T = t
@@ -628,6 +637,9 @@ GNO_CASE:
 			x := float64(tv.GetUint32()) // XXX determinism?
 			tv.T = t
 			tv.SetFloat64(x)
+		case BigdecKind:
+			tv.V = BigdecValue{V: apd.New(int64(tv.GetUint32()), 0)}
+			tv.T = t
 		case StringKind:
 			tv.V = alloc.NewString(string(rune(tv.GetUint32())))
 			tv.T = t
@@ -704,7 +716,7 @@ GNO_CASE:
 		}
 	case BigintKind:
 		switch k {
-		case IntKind, Int64Kind, UintKind, Uint64Kind, BigdecKind:
+		case IntKind, Int32Kind, Int64Kind, UintKind, Uint32Kind, Uint64Kind, BigdecKind:
 			x := tv.GetBigInt()
 			ConvertUntypedBigintTo(tv, BigintValue{V: x}, t)
 		case StringKind:
@@ -827,7 +839,7 @@ GNO_CASE:
 		}
 	case BigdecKind:
 		switch k {
-		case IntKind, Int64Kind, UintKind, Uint64Kind, BigintKind:
+		case IntKind, Int32Kind, Int64Kind, UintKind, Uint32Kind, Uint64Kind, BigintKind:
 			x := tv.GetBigDec()
 			ConvertUntypedBigdecTo(tv, BigdecValue{V: x}, t)
 		case StringKind:
