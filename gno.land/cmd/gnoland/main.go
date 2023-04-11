@@ -33,6 +33,7 @@ type gnolandCfg struct {
 	chainID               string
 	genesisRemote         string
 	rootDir               string
+	rpcListenAddr         string
 }
 
 func main() {
@@ -105,6 +106,13 @@ func (c *gnolandCfg) RegisterFlags(fs *flag.FlagSet) {
 		"localhost:26657",
 		"replacement for '%%REMOTE%%' in genesis",
 	)
+
+	fs.StringVar(
+		&c.rpcListenAddr,
+		"rpc.laddr",
+		"tcp://127.0.0.1:26657",
+		`RPC listen address. Port required (default "tcp://127.0.0.1:26657")`,
+	)
 }
 
 func exec(c *gnolandCfg) error {
@@ -115,6 +123,10 @@ func exec(c *gnolandCfg) error {
 		cfg.Consensus.CreateEmptyBlocks = false
 		cfg.Consensus.CreateEmptyBlocksInterval = 60 * time.Second
 	})
+
+	if c.rpcListenAddr != "tcp://127.0.0.1:26657" {
+		cfg.RPC.ListenAddress = c.rpcListenAddr
+	}
 
 	// create priv validator first.
 	// need it to generate genesis.json
