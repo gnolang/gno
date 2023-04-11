@@ -9,10 +9,14 @@ type ITask interface {
 
 	ID() string
 	Title() string
+	// Kind could be Issue, PR, Milestone, Epic, Story, Card, ...
 	Kind() stringOrEnum
 	State() Enum
 	Progress() int
 	IsBlocked() bool
+	CreatedAt() time.Time
+	UpdatedAt() time.Time
+	CompletedAt() time.Time
 
 	// relationships
 
@@ -20,7 +24,8 @@ type ITask interface {
 	Parent() IOwner
 	Assignees() []IOwner
 	Reviewers() []IOwner
-	Dependencies() ITask
+	Dependencies() []ITask
+	SubTasks() []ITask
 }
 
 // An IOwner contains ITask or other IOwner entities and can be applied to folders, repositories, teams, organizations, and users.
@@ -30,10 +35,13 @@ type IOwner interface {
 
 	ID() string
 	Title() string
+	// Kind could be User, Organization, Team, Repo, Folders, ...
 	Kind() stringOrEnum
 
 	// relationships
 
+	Parent() IOwner
+	Children() IOwner
 	Tasks() []ITask
 }
 
