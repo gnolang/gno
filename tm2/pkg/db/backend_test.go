@@ -12,7 +12,8 @@ func testBackendGetSetDelete(t *testing.T, backend BackendType) {
 	t.Helper()
 
 	// Default
-	db := NewDB("testdb", backend, t.TempDir())
+	db, err := NewDB("testdb", backend, t.TempDir())
+	require.NoError(t, err)
 
 	// A nonexistent key should return nil, even if the key is empty
 	require.Nil(t, db.Get([]byte("")))
@@ -137,7 +138,8 @@ func TestBackendsNilKeys(t *testing.T) {
 
 func TestGoLevelDBBackend(t *testing.T) {
 	name := fmt.Sprintf("test_%x", randStr(12))
-	db := NewDB(name, GoLevelDBBackend, t.TempDir())
+	db, err := NewDB(name, GoLevelDBBackend, t.TempDir())
+	require.NoError(t, err)
 
 	_, ok := db.(*GoLevelDB)
 	assert.True(t, ok)
@@ -157,7 +159,8 @@ func testDBIterator(t *testing.T, backend BackendType) {
 	t.Helper()
 
 	name := fmt.Sprintf("test_%x", randStr(12))
-	db := NewDB(name, backend, t.TempDir())
+	db, err := NewDB(name, backend, t.TempDir())
+	require.NoError(t, err)
 
 	for i := 0; i < 10; i++ {
 		if i != 6 { // but skip 6.
