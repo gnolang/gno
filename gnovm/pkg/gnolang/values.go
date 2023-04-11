@@ -2427,6 +2427,13 @@ func defaultValue(alloc *Allocator, t Type) Value {
 			)
 		}
 	default:
+		switch t.Kind() {
+		case BigintKind:
+			return BigintValue{V: big.NewInt(0)}
+		case BigdecKind:
+			return BigdecValue{V: apd.New(0, 0)}
+		}
+
 		return nil
 	}
 }

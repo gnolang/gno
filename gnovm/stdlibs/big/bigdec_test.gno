@@ -24,3 +24,8 @@ func TestToBigdec(t *testing.T) {
 	// XXX how to catch go panic in gno ??
 	// shouldPanic(t, func() {bigdec("abc")} )
 }
+
+func TestDefaultBigdec(t *testing.T) {
+	var _bd bigdec
+	shouldEqual(t, _bd, bigdec(0))
+}

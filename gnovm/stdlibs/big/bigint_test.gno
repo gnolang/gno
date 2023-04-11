@@ -34,3 +34,8 @@ func TestToBigint(t *testing.T) {
 	shouldEqual(t, bigint(mui64), mbi)
 	shouldEqual(t, bigint(mstr), mbi)
 }
+
+func TestDefaultBigint(t *testing.T) {
+	var _bi bigint
+	shouldEqual(t, _bi, bigint(0))
+}
