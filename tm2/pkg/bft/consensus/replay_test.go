@@ -1076,6 +1076,7 @@ func (bs *mockBlockStore) Height() (int64, error) { return int64(len(bs.chain)),
 func (bs *mockBlockStore) LoadBlock(height int64) (*types.Block, error) {
 	return bs.chain[height-1], nil
 }
+
 func (bs *mockBlockStore) LoadBlockMeta(height int64) (*types.BlockMeta, error) {
 	block := bs.chain[height-1]
 	return &types.BlockMeta{
@@ -1083,9 +1084,11 @@ func (bs *mockBlockStore) LoadBlockMeta(height int64) (*types.BlockMeta, error) 
 		Header:  block.Header,
 	}, nil
 }
+
 func (bs *mockBlockStore) LoadBlockPart(height int64, index int) (*types.Part, error) {
 	return nil, nil
 }
+
 func (bs *mockBlockStore) SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) error {
 	return nil
 }
