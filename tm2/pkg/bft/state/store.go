@@ -75,7 +75,7 @@ func LoadState(db dbm.DB) State {
 func loadState(db dbm.DB, key []byte) (state State) {
 	buf, err := db.Get(key)
 	if err != nil {
-		osm.Exit(fmt.Sprintf(`LoadState: Key %q cannot be obtained: %v\n`, string(key), err))
+		panic(fmt.Sprintf(`LoadState: Key %q cannot be obtained: %v\n`, string(key), err))
 	}
 
 	if len(buf) == 0 {
@@ -154,7 +154,7 @@ func (arz *ABCIResponses) ResultsHash() []byte {
 func LoadABCIResponses(db dbm.DB, height int64) (*ABCIResponses, error) {
 	buf, err := db.Get(calcABCIResponsesKey(height))
 	if err != nil {
-		osm.Exit(fmt.Sprintf(`LoadABCIResponses: Key %q cannot be obtained: %v\n`, string(calcABCIResponsesKey(height)), err))
+		panic(fmt.Sprintf(`LoadABCIResponses: Key %q cannot be obtained: %v\n`, string(calcABCIResponsesKey(height)), err))
 	}
 
 	if buf == nil {
@@ -236,7 +236,7 @@ func lastStoredHeightFor(height, lastHeightChanged int64) int64 {
 func loadValidatorsInfo(db dbm.DB, height int64) *ValidatorsInfo {
 	buf, err := db.Get(calcValidatorsKey(height))
 	if err != nil {
-		osm.Exit(fmt.Sprintf(`LoadValidators: Key %q cannot be obtained: %v\n`, string(calcValidatorsKey(height)), err))
+		panic(fmt.Sprintf(`LoadValidators: Key %q cannot be obtained: %v\n`, string(calcValidatorsKey(height)), err))
 	}
 	if len(buf) == 0 {
 		return nil
@@ -316,7 +316,7 @@ func LoadConsensusParams(db dbm.DB, height int64) (abci.ConsensusParams, error) 
 func loadConsensusParamsInfo(db dbm.DB, height int64) *ConsensusParamsInfo {
 	buf, err := db.Get(calcConsensusParamsKey(height))
 	if err != nil {
-		osm.Exit(fmt.Sprintf(`LoadConsensusParams: Key %q cannot be obtained: %v\n`, string(calcConsensusParamsKey(height)), err))
+		panic(fmt.Sprintf(`LoadConsensusParams: Key %q cannot be obtained: %v\n`, string(calcConsensusParamsKey(height)), err))
 	}
 	if len(buf) == 0 {
 		return nil
