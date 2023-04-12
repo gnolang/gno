@@ -3,7 +3,7 @@ name: db-tests
 on:
   pull_request:
     paths:
-      - "t2/pkg/db/**.go"
+      - "tm2/pkg/db/**.go"
       - "go.sum"
       - ".github/workflows/db-tests.yml"
   push:
