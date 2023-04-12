@@ -53,3 +53,11 @@ jobs:
         with:
           name: supernova-result.json
           path: result.json
+
+      - name: Send rapport to slack \#gno-core-tech
+        run: |
+          DATA=$(cat result.json | jq -r )
+          PAYLOAD="{\"payload\": '$DATA'}"
+          curl -X POST -H 'Content-type: application/json' --data "$PAYLOAD" $SLACK_WEBHOOK_URL
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
