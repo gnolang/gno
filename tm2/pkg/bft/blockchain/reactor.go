@@ -72,9 +72,13 @@ type BlockchainReactor struct {
 func NewBlockchainReactor(state sm.State, blockExec *sm.BlockExecutor, store *store.BlockStore,
 	fastSync bool,
 ) *BlockchainReactor {
-	if state.LastBlockHeight != store.Height() {
+	h, err := store.Height()
+	if err != nil {
+		panic(fmt.Errorf("error creating blockchain reactor: %w", err))
+	}
+	if state.LastBlockHeight != h {
 		panic(fmt.Sprintf("state (%v) and store (%v) height mismatch", state.LastBlockHeight,
-			store.Height()))
+			h))
 	}
 
 	requestsCh := make(chan BlockRequest, maxTotalRequesters)
@@ -83,7 +87,7 @@ func NewBlockchainReactor(state sm.State, blockExec *sm.BlockExecutor, store *st
 	errorsCh := make(chan peerError, capacity) // so we don't block in #Receive#pool.AddBlock
 
 	pool := NewBlockPool(
-		store.Height()+1,
+		h+1,
 		requestsCh,
 		errorsCh,
 	)
@@ -139,7 +143,11 @@ func (bcR *BlockchainReactor) GetChannels() []*p2p.ChannelDescriptor {
 
 // AddPeer implements Reactor by sending our state to peer.
 func (bcR *BlockchainReactor) AddPeer(peer p2p.Peer) {
-	msgBytes := amino.MustMarshalAny(&bcStatusResponseMessage{bcR.store.Height()})
+	h, err := bcR.store.Height()
+	if err != nil {
+		panic(err)
+	}
+	msgBytes := amino.MustMarshalAny(&bcStatusResponseMessage{h})
 	peer.Send(BlockchainChannel, msgBytes)
 	// it's OK if send fails. will try later in poolRoutine
 
@@ -158,17 +166,20 @@ func (bcR *BlockchainReactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 // no node should be requesting for a block that's non-existent.
 func (bcR *BlockchainReactor) respondToPeer(msg *bcBlockRequestMessage,
 	src p2p.Peer,
-) (queued bool) {
-	block := bcR.store.LoadBlock(msg.Height)
+) (bool, error) {
+	block, err := bcR.store.LoadBlock(msg.Height)
+	if err != nil {
+		return false, err
+	}
 	if block != nil {
 		msgBytes := amino.MustMarshalAny(&bcBlockResponseMessage{Block: block})
-		return src.TrySend(BlockchainChannel, msgBytes)
+		return src.TrySend(BlockchainChannel, msgBytes), nil
 	}
 
 	bcR.Logger.Info("Peer asking for a block we don't have", "src", src, "height", msg.Height)
 
 	msgBytes := amino.MustMarshalAny(&bcNoBlockResponseMessage{Height: msg.Height})
-	return src.TrySend(BlockchainChannel, msgBytes)
+	return src.TrySend(BlockchainChannel, msgBytes), nil
 }
 
 // Receive implements Reactor by handling 4 types of messages (look below).
@@ -195,7 +206,11 @@ func (bcR *BlockchainReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 		bcR.pool.AddBlock(src.ID(), msg.Block, len(msgBytes))
 	case *bcStatusRequestMessage:
 		// Send peer our state.
-		msgBytes := amino.MustMarshalAny(&bcStatusResponseMessage{bcR.store.Height()})
+		h, err := bcR.store.Height()
+		if err != nil {
+			panic(err)
+		}
+		msgBytes := amino.MustMarshalAny(&bcStatusResponseMessage{Height: h})
 		src.TrySend(BlockchainChannel, msgBytes)
 	case *bcStatusResponseMessage:
 		// Got a peer status. Unverified.
@@ -359,7 +374,11 @@ FOR_LOOP:
 
 // BroadcastStatusRequest broadcasts `BlockStore` height.
 func (bcR *BlockchainReactor) BroadcastStatusRequest() error {
-	msgBytes := amino.MustMarshalAny(&bcStatusRequestMessage{bcR.store.Height()})
+	h, err := bcR.store.Height()
+	if err != nil {
+		return err
+	}
+	msgBytes := amino.MustMarshalAny(&bcStatusRequestMessage{h})
 	bcR.Switch.Broadcast(BlockchainChannel, msgBytes)
 	return nil
 }

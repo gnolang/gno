@@ -487,10 +487,17 @@ OUTER_LOOP:
 
 			// if we never received the commit message from the peer, the block parts wont be initialized
 			if prs.ProposalBlockParts == nil {
-				blockMeta := conR.conS.blockStore.LoadBlockMeta(prs.Height)
+				blockMeta, err := conR.conS.blockStore.LoadBlockMeta(prs.Height)
+				if err != nil {
+					panic(err)
+				}
 				if blockMeta == nil {
+					h, err := conR.conS.blockStore.Height()
+					if err != nil {
+						panic(err)
+					}
 					panic(fmt.Sprintf("Failed to load block %d when blockStore is at %d",
-						prs.Height, conR.conS.blockStore.Height()))
+						prs.Height, h))
 				}
 				ps.InitProposalBlockParts(blockMeta.BlockID.PartsHeader)
 				// continue the loop since prs is a copy and not effected by this initialization
@@ -550,10 +557,18 @@ func (conR *ConsensusReactor) gossipDataForCatchup(logger log.Logger, rs *cstype
 ) {
 	if index, ok := prs.ProposalBlockParts.Not().PickRandom(); ok {
 		// Ensure that the peer's PartSetHeader is correct
-		blockMeta := conR.conS.blockStore.LoadBlockMeta(prs.Height)
+		blockMeta, err := conR.conS.blockStore.LoadBlockMeta(prs.Height)
+		if err != nil {
+			panic(err)
+		}
+
 		if blockMeta == nil {
+			h, err := conR.conS.blockStore.Height()
+			if err != nil {
+				panic(err)
+			}
 			logger.Error("Failed to load block meta",
-				"ourHeight", rs.Height, "blockstoreHeight", conR.conS.blockStore.Height())
+				"ourHeight", rs.Height, "blockstoreHeight", h)
 			time.Sleep(conR.conS.config.PeerGossipSleepDuration)
 			return
 		} else if !blockMeta.BlockID.PartsHeader.Equals(prs.ProposalBlockPartsHeader) {
@@ -563,7 +578,10 @@ func (conR *ConsensusReactor) gossipDataForCatchup(logger log.Logger, rs *cstype
 			return
 		}
 		// Load the part
-		part := conR.conS.blockStore.LoadBlockPart(prs.Height, index)
+		part, err := conR.conS.blockStore.LoadBlockPart(prs.Height, index)
+		if err != nil {
+			panic(err)
+		}
 		if part == nil {
 			logger.Error("Could not load part", "index", index,
 				"blockPartsHeader", blockMeta.BlockID.PartsHeader, "peerBlockPartsHeader", prs.ProposalBlockPartsHeader)
@@ -636,7 +654,10 @@ OUTER_LOOP:
 		if prs.Height != 0 && rs.Height >= prs.Height+2 {
 			// Load the block commit for prs.Height,
 			// which contains precommit signatures for prs.Height.
-			commit := conR.conS.blockStore.LoadBlockCommit(prs.Height)
+			commit, err := conR.conS.blockStore.LoadBlockCommit(prs.Height)
+			if err != nil {
+				panic(err)
+			}
 			if ps.PickSendVote(commit) {
 				logger.Debug("Picked Catchup commit to send", "height", prs.Height)
 				continue OUTER_LOOP
@@ -782,7 +803,11 @@ OUTER_LOOP:
 		// Maybe send Height/CatchupCommitRound/CatchupCommit.
 		{
 			prs := ps.GetRoundState()
-			if prs.CatchupCommitRound != -1 && 0 < prs.Height && prs.Height <= conR.conS.blockStore.Height() {
+			h, err := conR.conS.blockStore.Height()
+			if err != nil {
+				panic(err)
+			}
+			if prs.CatchupCommitRound != -1 && 0 < prs.Height && prs.Height <= h {
 				commit := conR.conS.LoadCommit(prs.Height)
 				peer.TrySend(StateChannel, amino.MustMarshalAny(&VoteSetMaj23Message{
 					Height:  prs.Height,

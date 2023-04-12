@@ -59,7 +59,10 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 	}
 	state.AppVersion = kvstore.AppVersion
 	sm.SaveState(stateDB, state)
-	blockStore := store.NewBlockStore(blockStoreDB)
+	blockStore, err := store.NewBlockStore(blockStoreDB)
+	if err != nil {
+		return fmt.Errorf("error creating blockstore: %w", err)
+	}
 
 	proxyApp := proxy.NewAppConns(proxy.NewLocalClientCreator(app))
 	proxyApp.SetLogger(logger.With("module", "proxy"))

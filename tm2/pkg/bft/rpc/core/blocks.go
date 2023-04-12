@@ -77,7 +77,13 @@ func BlockchainInfo(ctx *rpctypes.Context, minHeight, maxHeight int64) (*ctypes.
 	// maximum 20 block metas
 	const limit int64 = 20
 	var err error
-	minHeight, maxHeight, err = filterMinMax(blockStore.Height(), minHeight, maxHeight, limit)
+
+	h, err := blockStore.Height()
+	if err != nil {
+		return nil, err
+	}
+
+	minHeight, maxHeight, err = filterMinMax(h, minHeight, maxHeight, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -85,12 +91,21 @@ func BlockchainInfo(ctx *rpctypes.Context, minHeight, maxHeight int64) (*ctypes.
 
 	blockMetas := []*types.BlockMeta{}
 	for height := maxHeight; height >= minHeight; height-- {
-		blockMeta := blockStore.LoadBlockMeta(height)
+		blockMeta, err := blockStore.LoadBlockMeta(height)
+		if err != nil {
+			return nil, err
+		}
+
 		blockMetas = append(blockMetas, blockMeta)
 	}
 
+	h, err = blockStore.Height()
+	if err != nil {
+		return nil, err
+	}
+
 	return &ctypes.ResultBlockchainInfo{
-		LastHeight: blockStore.Height(),
+		LastHeight: h,
 		BlockMetas: blockMetas,
 	}, nil
 }
@@ -236,14 +251,25 @@ func filterMinMax(height, min, max, limit int64) (int64, int64, error) {
 //
 // ```
 func Block(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultBlock, error) {
-	storeHeight := blockStore.Height()
+	storeHeight, err := blockStore.Height()
+	if err != nil {
+		return nil, err
+	}
+
 	height, err := getHeight(storeHeight, heightPtr)
 	if err != nil {
 		return nil, err
 	}
 
-	blockMeta := blockStore.LoadBlockMeta(height)
-	block := blockStore.LoadBlock(height)
+	blockMeta, err := blockStore.LoadBlockMeta(height)
+	if err != nil {
+		return nil, err
+	}
+
+	block, err := blockStore.LoadBlock(height)
+	if err != nil {
+		return nil, err
+	}
 	return &ctypes.ResultBlock{BlockMeta: blockMeta, Block: block}, nil
 }
 
@@ -327,23 +353,40 @@ func Block(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultBlock, error)
 //
 // ```
 func Commit(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultCommit, error) {
-	storeHeight := blockStore.Height()
+	storeHeight, err := blockStore.Height()
+	if err != nil {
+		return nil, err
+	}
+
 	height, err := getHeight(storeHeight, heightPtr)
 	if err != nil {
 		return nil, err
 	}
 
-	header := blockStore.LoadBlockMeta(height).Header
+	meta, err := blockStore.LoadBlockMeta(height)
+	if err != nil {
+		return nil, err
+	}
+
+	header := meta.Header
 
 	// If the next block has not been committed yet,
 	// use a non-canonical commit
 	if height == storeHeight {
-		commit := blockStore.LoadSeenCommit(height)
+		commit, err := blockStore.LoadSeenCommit(height)
+		if err != nil {
+			return nil, err
+		}
+
 		return ctypes.NewResultCommit(&header, commit, false), nil
 	}
 
 	// Return the canonical commit (comes from the block at height+1)
-	commit := blockStore.LoadBlockCommit(height)
+	commit, err := blockStore.LoadBlockCommit(height)
+	if err != nil {
+		return nil, err
+	}
+
 	return ctypes.NewResultCommit(&header, commit, true), nil
 }
 
@@ -400,7 +443,11 @@ func Commit(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultCommit, erro
 //
 // ```
 func BlockResults(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultBlockResults, error) {
-	storeHeight := blockStore.Height()
+	storeHeight, err := blockStore.Height()
+	if err != nil {
+		return nil, err
+	}
+
 	height, err := getHeight(storeHeight, heightPtr)
 	if err != nil {
 		return nil, err

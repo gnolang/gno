@@ -273,7 +273,10 @@ func newConsensusStateWithConfig(thisConfig *cfg.Config, state sm.State, pv type
 
 func newConsensusStateWithConfigAndBlockStore(thisConfig *cfg.Config, state sm.State, pv types.PrivValidator, app abci.Application, blockDB dbm.DB) *ConsensusState {
 	// Get BlockStore
-	blockStore := store.NewBlockStore(blockDB)
+	blockStore, err := store.NewBlockStore(blockDB)
+	if err != nil {
+		panic(err)
+	}
 
 	// one for mempool, one for consensus
 	mtx := new(sync.Mutex)

@@ -498,8 +498,13 @@ func makeTestSim(t *testing.T, name string) (sim testSim) {
 	sim.Chain = make([]*types.Block, 0)
 	sim.Commits = make([]*types.Commit, 0)
 	for i := 1; i <= numBlocks; i++ {
-		sim.Chain = append(sim.Chain, css[0].blockStore.LoadBlock(int64(i)))
-		sim.Commits = append(sim.Commits, css[0].blockStore.LoadBlockCommit(int64(i)))
+		b, err := css[0].blockStore.LoadBlock(int64(i))
+		require.NoError(t, err)
+		sim.Chain = append(sim.Chain, b)
+
+		bc, err := css[0].blockStore.LoadBlockCommit(int64(i))
+		require.NoError(t, err)
+		sim.Commits = append(sim.Commits, bc)
 	}
 
 	return sim
@@ -1053,6 +1058,8 @@ func makeStateAndStore(config *cfg.Config, pubKey crypto.PubKey, appVersion stri
 // ----------------------------------
 // mock block store
 
+var _ sm.BlockStore = &mockBlockStore{}
+
 type mockBlockStore struct {
 	config  *cfg.Config
 	params  abci.ConsensusParams
@@ -1065,25 +1072,30 @@ func newMockBlockStore(config *cfg.Config, params abci.ConsensusParams) *mockBlo
 	return &mockBlockStore{config, params, nil, nil}
 }
 
-func (bs *mockBlockStore) Height() int64                       { return int64(len(bs.chain)) }
-func (bs *mockBlockStore) LoadBlock(height int64) *types.Block { return bs.chain[height-1] }
-func (bs *mockBlockStore) LoadBlockMeta(height int64) *types.BlockMeta {
+func (bs *mockBlockStore) Height() (int64, error) { return int64(len(bs.chain)), nil }
+func (bs *mockBlockStore) LoadBlock(height int64) (*types.Block, error) {
+	return bs.chain[height-1], nil
+}
+func (bs *mockBlockStore) LoadBlockMeta(height int64) (*types.BlockMeta, error) {
 	block := bs.chain[height-1]
 	return &types.BlockMeta{
 		BlockID: types.BlockID{Hash: block.Hash(), PartsHeader: block.MakePartSet(types.BlockPartSizeBytes).Header()},
 		Header:  block.Header,
-	}
+	}, nil
 }
-func (bs *mockBlockStore) LoadBlockPart(height int64, index int) *types.Part { return nil }
-func (bs *mockBlockStore) SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) {
+func (bs *mockBlockStore) LoadBlockPart(height int64, index int) (*types.Part, error) {
+	return nil, nil
+}
+func (bs *mockBlockStore) SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) error {
+	return nil
 }
 
-func (bs *mockBlockStore) LoadBlockCommit(height int64) *types.Commit {
-	return bs.commits[height-1]
+func (bs *mockBlockStore) LoadBlockCommit(height int64) (*types.Commit, error) {
+	return bs.commits[height-1], nil
 }
 
-func (bs *mockBlockStore) LoadSeenCommit(height int64) *types.Commit {
-	return bs.commits[height-1]
+func (bs *mockBlockStore) LoadSeenCommit(height int64) (*types.Commit, error) {
+	return bs.commits[height-1], nil
 }
 
 // ---------------------------------------

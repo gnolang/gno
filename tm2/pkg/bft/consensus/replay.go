@@ -283,7 +283,11 @@ func (h *Handshaker) ReplayBlocks(
 	appBlockHeight int64,
 	proxyApp proxy.AppConns,
 ) ([]byte, error) {
-	storeBlockHeight := h.store.Height()
+	storeBlockHeight, err := h.store.Height()
+	if err != nil {
+		return nil, err
+	}
+
 	stateBlockHeight := state.LastBlockHeight
 	h.logger.Info("ABCI Replay Blocks", "appHeight", appBlockHeight, "storeHeight", storeBlockHeight, "stateHeight", stateBlockHeight)
 
@@ -345,7 +349,6 @@ func (h *Handshaker) ReplayBlocks(
 		panic(fmt.Sprintf("StoreBlockHeight (%d) > StateBlockHeight + 1 (%d)", storeBlockHeight, stateBlockHeight+1))
 	}
 
-	var err error
 	// Now either store is equal to state, or one ahead.
 	// For each, consider all cases of where the app could be, given app <= store
 	if storeBlockHeight == stateBlockHeight {
@@ -413,7 +416,11 @@ func (h *Handshaker) replayBlocks(state sm.State, proxyApp proxy.AppConns, appBl
 	}
 	for i := appBlockHeight + 1; i <= finalBlock; i++ {
 		h.logger.Info("Applying block", "height", i)
-		block := h.store.LoadBlock(i)
+		block, err := h.store.LoadBlock(i)
+		if err != nil {
+			return nil, err
+		}
+
 		// Extra check to ensure the app was not changed in a way it shouldn't have.
 		if len(appHash) > 0 {
 			assertAppHashEqualsOneFromBlock(appHash, block)
@@ -442,13 +449,19 @@ func (h *Handshaker) replayBlocks(state sm.State, proxyApp proxy.AppConns, appBl
 
 // ApplyBlock on the proxyApp with the last block.
 func (h *Handshaker) replayBlock(state sm.State, height int64, proxyApp proxy.AppConnConsensus) (sm.State, error) {
-	block := h.store.LoadBlock(height)
-	meta := h.store.LoadBlockMeta(height)
+	block, err := h.store.LoadBlock(height)
+	if err != nil {
+		return sm.State{}, err
+	}
+
+	meta, err := h.store.LoadBlockMeta(height)
+	if err != nil {
+		return sm.State{}, err
+	}
 
 	blockExec := sm.NewBlockExecutor(h.stateDB, h.logger, proxyApp, mock.Mempool{})
 	blockExec.SetEventSwitch(h.evsw)
 
-	var err error
 	state, err = blockExec.ApplyBlock(state, meta.BlockID, block)
 	if err != nil {
 		return sm.State{}, err

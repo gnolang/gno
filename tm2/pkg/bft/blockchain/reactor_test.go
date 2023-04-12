@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
@@ -65,7 +66,10 @@ func newBlockchainReactor(logger log.Logger, genDoc *types.GenesisDoc, privVals 
 
 	blockDB := dbm.NewMemDB()
 	stateDB := dbm.NewMemDB()
-	blockStore := store.NewBlockStore(blockDB)
+	blockStore, err := store.NewBlockStore(blockDB)
+	if err != nil {
+		panic(errors.Wrap(err, "error obtaining blockstore"))
+	}
 
 	state, err := sm.LoadStateFromDBOrGenesisDoc(stateDB, genDoc)
 	if err != nil {
@@ -84,8 +88,15 @@ func newBlockchainReactor(logger log.Logger, genDoc *types.GenesisDoc, privVals 
 	for blockHeight := int64(1); blockHeight <= maxBlockHeight; blockHeight++ {
 		lastCommit := types.NewCommit(types.BlockID{}, nil)
 		if blockHeight > 1 {
-			lastBlockMeta := blockStore.LoadBlockMeta(blockHeight - 1)
-			lastBlock := blockStore.LoadBlock(blockHeight - 1)
+			lastBlockMeta, err := blockStore.LoadBlockMeta(blockHeight - 1)
+			if err != nil {
+				panic(err)
+			}
+
+			lastBlock, err := blockStore.LoadBlock(blockHeight - 1)
+			if err != nil {
+				panic(err)
+			}
 
 			vote, err := types.MakeVote(lastBlock.Header.Height, lastBlockMeta.BlockID, state.Validators, privVals[0], lastBlock.Header.ChainID)
 			if err != nil {
@@ -155,11 +166,13 @@ func TestNoBlockResponse(t *testing.T) {
 
 		time.Sleep(10 * time.Millisecond)
 	}
-
-	assert.Equal(t, maxBlockHeight, reactorPairs[0].reactor.store.Height())
+	h, err := reactorPairs[0].reactor.store.Height()
+	require.NoError(t, err)
+	assert.Equal(t, maxBlockHeight, h)
 
 	for _, tt := range tests {
-		block := reactorPairs[1].reactor.store.LoadBlock(tt.height)
+		block, err := reactorPairs[1].reactor.store.LoadBlock(tt.height)
+		require.NoError(t, err)
 		if tt.existent {
 			assert.True(t, block != nil)
 		} else {

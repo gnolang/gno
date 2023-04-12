@@ -54,7 +54,12 @@ func makeStateAndBlockStore(logger log.Logger) (sm.State, *BlockStore, cleanupFu
 	if err != nil {
 		panic(errors.Wrap(err, "error constructing state from genesis file"))
 	}
-	return state, NewBlockStore(blockDB), func() { os.RemoveAll(config.RootDir) }
+
+	bs, err := NewBlockStore(blockDB)
+	if err != nil {
+		panic(fmt.Errorf("error creating BlockStore: %w", err))
+	}
+	return state, bs, func() { os.RemoveAll(config.RootDir) }
 }
 
 func TestLoadBlockStoreStateJSON(t *testing.T) {
@@ -63,7 +68,8 @@ func TestLoadBlockStoreStateJSON(t *testing.T) {
 	bsj := &BlockStoreStateJSON{Height: 1000}
 	bsj.Save(db)
 
-	retrBSJ := LoadBlockStoreStateJSON(db)
+	retrBSJ, err := LoadBlockStoreStateJSON(db)
+	require.NoError(t, err)
 
 	assert.Equal(t, *bsj, retrBSJ, "expected the retrieved DBs to match")
 }
@@ -71,8 +77,11 @@ func TestLoadBlockStoreStateJSON(t *testing.T) {
 func TestNewBlockStore(t *testing.T) {
 	db := dbm.NewMemDB()
 	db.Set(blockStoreKey, []byte(`{"height": "10000"}`))
-	bs := NewBlockStore(db)
-	require.Equal(t, int64(10000), bs.Height(), "failed to properly parse blockstore")
+	bs, err := NewBlockStore(db)
+	require.NoError(t, err)
+	h, err := bs.Height()
+	require.NoError(t, err)
+	require.Equal(t, int64(10000), h, "failed to properly parse blockstore")
 
 	panicCausers := []struct {
 		data    []byte
@@ -87,7 +96,7 @@ func TestNewBlockStore(t *testing.T) {
 		// Expecting a panic here on trying to parse an invalid blockStore
 		_, _, panicErr := doFn(func() (interface{}, error) {
 			db.Set(blockStoreKey, tt.data)
-			_ = NewBlockStore(db)
+			_, _ = NewBlockStore(db)
 			return nil, nil
 		})
 		require.NotNil(t, panicErr, "#%d panicCauser: %q expected a panic", i, tt.data)
@@ -95,13 +104,20 @@ func TestNewBlockStore(t *testing.T) {
 	}
 
 	db.Set(blockStoreKey, nil)
-	bs = NewBlockStore(db)
-	assert.Equal(t, bs.Height(), int64(0), "expecting nil bytes to be unmarshalled alright")
+	bs, err = NewBlockStore(db)
+	require.NoError(t, err)
+	h, err = bs.Height()
+	require.NoError(t, err)
+	assert.Equal(t, h, int64(0), "expecting nil bytes to be unmarshalled alright")
 }
 
 func freshBlockStore() (*BlockStore, dbm.DB) {
 	db := dbm.NewMemDB()
-	return NewBlockStore(db), db
+	bs, err := NewBlockStore(db)
+	if err != nil {
+		panic(err)
+	}
+	return bs, db
 }
 
 var (
@@ -131,22 +147,26 @@ func TestMain(m *testing.M) {
 func TestBlockStoreSaveLoadBlock(t *testing.T) {
 	state, bs, cleanup := makeStateAndBlockStore(log.NewTMLogger(new(bytes.Buffer)))
 	defer cleanup()
-	require.Equal(t, bs.Height(), int64(0), "initially the height should be zero")
+	h, err := bs.Height()
+	require.NoError(t, err)
+	require.Equal(t, h, int64(0), "initially the height should be zero")
 
 	// check there are no blocks at various heights
 	noBlockHeights := []int64{0, -1, 100, 1000, 2}
 	for i, height := range noBlockHeights {
-		if g := bs.LoadBlock(height); g != nil {
+		g, err := bs.LoadBlock(height)
+		require.NoError(t, err)
+		if g != nil {
 			t.Errorf("#%d: height(%d) got a block; want nil", i, height)
 		}
 	}
 
 	// save a block
-	block := makeBlock(bs.Height()+1, state, new(types.Commit))
+	block := makeBlock(h+1, state, new(types.Commit))
 	validPartSet := block.MakePartSet(2)
 	seenCommit := makeTestCommit(10, tmtime.Now())
 	bs.SaveBlock(block, partSet, seenCommit)
-	require.Equal(t, bs.Height(), block.Header.Height, "expecting the new height to be changed")
+	require.Equal(t, h, block.Header.Height, "expecting the new height to be changed")
 
 	incompletePartSet := types.NewPartSetFromHeader(types.PartSetHeader{Total: 2})
 	uncontiguousPartSet := types.NewPartSetFromHeader(types.PartSetHeader{Total: 0})
@@ -265,8 +285,10 @@ func TestBlockStoreSaveLoadBlock(t *testing.T) {
 			if tuple.corruptBlockInDB {
 				db.Set(calcBlockMetaKey(tuple.block.Height), []byte("block-bogus"))
 			}
-			bBlock := bs.LoadBlock(tuple.block.Height)
-			bBlockMeta := bs.LoadBlockMeta(tuple.block.Height)
+			bBlock, err := bs.LoadBlock(tuple.block.Height)
+			require.NoError(t, err)
+			bBlockMeta, err := bs.LoadBlockMeta(tuple.block.Height)
+			require.NoError(t, err)
 
 			if tuple.eraseSeenCommitInDB {
 				db.Delete(calcSeenCommitKey(tuple.block.Height))
@@ -274,7 +296,8 @@ func TestBlockStoreSaveLoadBlock(t *testing.T) {
 			if tuple.corruptSeenCommitInDB {
 				db.Set(calcSeenCommitKey(tuple.block.Height), []byte("bogus-seen-commit"))
 			}
-			bSeenCommit := bs.LoadSeenCommit(tuple.block.Height)
+			bSeenCommit, err := bs.LoadSeenCommit(tuple.block.Height)
+			require.NoError(t, err)
 
 			commitHeight := tuple.block.Height - 1
 			if tuple.eraseCommitInDB {
@@ -283,7 +306,8 @@ func TestBlockStoreSaveLoadBlock(t *testing.T) {
 			if tuple.corruptCommitInDB {
 				db.Set(calcBlockCommitKey(commitHeight), []byte("foo-bogus"))
 			}
-			bCommit := bs.LoadBlockCommit(commitHeight)
+			bCommit, err := bs.LoadBlockCommit(commitHeight)
+			require.NoError(t, err)
 			return &quad{
 				block: bBlock, seenCommit: bSeenCommit, commit: bCommit,
 				meta: bBlockMeta,
@@ -328,7 +352,8 @@ func TestLoadBlockPart(t *testing.T) {
 	bs, db := freshBlockStore()
 	height, index := int64(10), 1
 	loadPart := func() (interface{}, error) {
-		part := bs.LoadBlockPart(height, index)
+		part, err := bs.LoadBlockPart(height, index)
+		require.NoError(t, err)
 		return part, nil
 	}
 
@@ -357,7 +382,8 @@ func TestLoadBlockMeta(t *testing.T) {
 	bs, db := freshBlockStore()
 	height := int64(10)
 	loadMeta := func() (interface{}, error) {
-		meta := bs.LoadBlockMeta(height)
+		meta, err := bs.LoadBlockMeta(height)
+		require.NoError(t, err)
 		return meta, nil
 	}
 
@@ -386,24 +412,31 @@ func TestLoadBlockMeta(t *testing.T) {
 func TestBlockFetchAtHeight(t *testing.T) {
 	state, bs, cleanup := makeStateAndBlockStore(log.NewTMLogger(new(bytes.Buffer)))
 	defer cleanup()
-	require.Equal(t, bs.Height(), int64(0), "initially the height should be zero")
-	block := makeBlock(bs.Height()+1, state, new(types.Commit))
+	h, err := bs.Height()
+	require.NoError(t, err)
+	require.Equal(t, h, int64(0), "initially the height should be zero")
+	block := makeBlock(h+1, state, new(types.Commit))
 
 	partSet := block.MakePartSet(2)
 	seenCommit := makeTestCommit(10, tmtime.Now())
 	bs.SaveBlock(block, partSet, seenCommit)
-	require.Equal(t, bs.Height(), block.Header.Height, "expecting the new height to be changed")
+	h, err = bs.Height()
+	require.NoError(t, err)
+	require.Equal(t, h, block.Header.Height, "expecting the new height to be changed")
 
-	blockAtHeight := bs.LoadBlock(bs.Height())
+	blockAtHeight, err := bs.LoadBlock(h)
+	require.NoError(t, err)
 	bz1 := amino.MustMarshal(block)
 	bz2 := amino.MustMarshal(blockAtHeight)
 	require.Equal(t, bz1, bz2)
 	require.Equal(t, block.Hash(), blockAtHeight.Hash(),
 		"expecting a successful load of the last saved block")
 
-	blockAtHeightPlus1 := bs.LoadBlock(bs.Height() + 1)
+	blockAtHeightPlus1, err := bs.LoadBlock(h + 1)
+	require.NoError(t, err)
 	require.Nil(t, blockAtHeightPlus1, "expecting an unsuccessful load of Height()+1")
-	blockAtHeightPlus2 := bs.LoadBlock(bs.Height() + 2)
+	blockAtHeightPlus2, err := bs.LoadBlock(h + 2)
+	require.NoError(t, err)
 	require.Nil(t, blockAtHeightPlus2, "expecting an unsuccessful load of Height()+2")
 }
 

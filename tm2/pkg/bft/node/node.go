@@ -174,12 +174,12 @@ func initDBs(config *cfg.Config, dbProvider DBProvider) (blockStore *store.Block
 	if err != nil {
 		return
 	}
-	blockStore = store.NewBlockStore(blockStoreDB)
-
-	stateDB, err = dbProvider(&DBContext{"state", config})
+	blockStore, err = store.NewBlockStore(blockStoreDB)
 	if err != nil {
 		return
 	}
+
+	stateDB, err = dbProvider(&DBContext{"state", config})
 
 	return
 }

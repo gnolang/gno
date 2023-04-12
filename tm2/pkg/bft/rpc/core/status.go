@@ -74,11 +74,17 @@ import (
 // ```
 func Status(ctx *rpctypes.Context) (*ctypes.ResultStatus, error) {
 	var latestHeight int64
+	var err error
 	if consensusReactor.FastSync() {
-		latestHeight = blockStore.Height()
+		latestHeight, err = blockStore.Height()
 	} else {
 		latestHeight = consensusState.GetLastHeight()
 	}
+
+	if err != nil {
+		return nil, err
+	}
+
 	var (
 		latestBlockMeta     *types.BlockMeta
 		latestBlockHash     []byte
@@ -86,7 +92,11 @@ func Status(ctx *rpctypes.Context) (*ctypes.ResultStatus, error) {
 		latestBlockTimeNano int64
 	)
 	if latestHeight != 0 {
-		latestBlockMeta = blockStore.LoadBlockMeta(latestHeight)
+		latestBlockMeta, err = blockStore.LoadBlockMeta(latestHeight)
+		if err != nil {
+			return nil, err
+		}
+
 		latestBlockHash = latestBlockMeta.BlockID.Hash
 		latestAppHash = latestBlockMeta.Header.AppHash
 		latestBlockTimeNano = latestBlockMeta.Header.Time.UnixNano()

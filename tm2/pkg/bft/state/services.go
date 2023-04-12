@@ -14,18 +14,18 @@ import (
 
 // BlockStoreRPC is the block store interface used by the RPC.
 type BlockStoreRPC interface {
-	Height() int64
+	Height() (int64, error)
 
-	LoadBlockMeta(height int64) *types.BlockMeta
-	LoadBlock(height int64) *types.Block
-	LoadBlockPart(height int64, index int) *types.Part
+	LoadBlockMeta(height int64) (*types.BlockMeta, error)
+	LoadBlock(height int64) (*types.Block, error)
+	LoadBlockPart(height int64, index int) (*types.Part, error)
 
-	LoadBlockCommit(height int64) *types.Commit
-	LoadSeenCommit(height int64) *types.Commit
+	LoadBlockCommit(height int64) (*types.Commit, error)
+	LoadSeenCommit(height int64) (*types.Commit, error)
 }
 
 // BlockStore defines the BlockStore interface used by the ConsensusState.
 type BlockStore interface {
 	BlockStoreRPC
-	SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit)
+	SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) error
 }

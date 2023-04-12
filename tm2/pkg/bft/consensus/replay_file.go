@@ -277,7 +277,10 @@ func newConsensusStateForReplay(config cfg.BaseConfig, csConfig *cnscfg.Consensu
 		osm.Exit(err.Error())
 	}
 
-	blockStore := store.NewBlockStore(blockStoreDB)
+	blockStore, err := store.NewBlockStore(blockStoreDB)
+	if err != nil {
+		osm.Exit(err.Error())
+	}
 
 	// Get State
 	stateDB, err := dbm.NewDB("state", dbType, config.DBDir())

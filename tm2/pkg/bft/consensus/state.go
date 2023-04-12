@@ -277,10 +277,25 @@ func (cs *ConsensusState) SetTimeoutTicker(timeoutTicker TimeoutTicker) {
 func (cs *ConsensusState) LoadCommit(height int64) *types.Commit {
 	cs.mtx.RLock()
 	defer cs.mtx.RUnlock()
-	if height == cs.blockStore.Height() {
-		return cs.blockStore.LoadSeenCommit(height)
+	h, err := cs.blockStore.Height()
+	if err != nil {
+		panic(err)
 	}
-	return cs.blockStore.LoadBlockCommit(height)
+
+	if height == h {
+		c, err := cs.blockStore.LoadSeenCommit(height)
+		if err != nil {
+			panic(err)
+		}
+		return c
+	}
+
+	bc, err := cs.blockStore.LoadBlockCommit(height)
+	if err != nil {
+		panic(err)
+	}
+
+	return bc
 }
 
 // OnStart implements service.Service.
@@ -487,7 +502,11 @@ func (cs *ConsensusState) reconstructLastCommit(state sm.State) {
 	if state.LastBlockHeight == 0 {
 		return
 	}
-	seenCommit := cs.blockStore.LoadSeenCommit(state.LastBlockHeight)
+	seenCommit, err := cs.blockStore.LoadSeenCommit(state.LastBlockHeight)
+	if err != nil {
+		panic(err)
+	}
+
 	lastPrecommits := types.CommitToVoteSet(state.ChainID, seenCommit, state.LastValidators)
 	if !lastPrecommits.HasTwoThirdsMajority() {
 		panic("Failed to reconstruct LastCommit: Does not have +2/3 maj")
@@ -855,7 +874,10 @@ func (cs *ConsensusState) needProofBlock(height int64) bool {
 		return true
 	}
 
-	lastBlockMeta := cs.blockStore.LoadBlockMeta(height - 1)
+	lastBlockMeta, err := cs.blockStore.LoadBlockMeta(height - 1)
+	if err != nil {
+		panic(err)
+	}
 	return !bytes.Equal(cs.state.AppHash, lastBlockMeta.Header.AppHash)
 }
 
@@ -1304,8 +1326,13 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 
 	fail.Fail() // XXX
 
+	h, err := cs.blockStore.Height()
+	if err != nil {
+		panic(err)
+	}
+
 	// Save to blockStore.
-	if cs.blockStore.Height() < block.Height {
+	if h < block.Height {
 		// NOTE: the seenCommit is local justification to commit this block,
 		// but may differ from the LastCommit included in the next block
 		precommits := cs.Votes.Precommits(cs.CommitRound)
@@ -1343,7 +1370,6 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 
 	// Execute and commit the block, update and save the state, and update the mempool.
 	// NOTE The block.AppHash wont reflect these txs until the next block.
-	var err error
 	stateCopy, err = cs.blockExec.ApplyBlock(stateCopy, types.BlockID{Hash: block.Hash(), PartsHeader: blockParts.Header()}, block)
 	if err != nil {
 		cs.Logger.Error("Error on ApplyBlock. Did the application crash? Please restart tendermint", "err", err)
