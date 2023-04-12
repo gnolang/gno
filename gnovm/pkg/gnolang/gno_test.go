@@ -40,14 +40,38 @@ func TestRunEmptyMain(t *testing.T) {
 // run main() with a for loop.
 func TestRunLoopyMain(t *testing.T) {
 	m := NewMachine("test", nil)
+	m.GC = NewGC()
 	c := `package test
+
+var a *int
+
 func main() {
-	for i:=0; i<1000; i++ {
-		if i == -1 {
-			return
-		}
-	}
-}`
+	foo()
+	println(*a)
+}
+
+func foo() {
+	ff := 4
+	f := &ff
+    a = f
+}
+`
+
+	//type Foo struct{
+	//	a bool
+	//}
+	//
+	//func main() {
+	//	f := NewFoo()
+	//	f.a
+	//}
+	//
+	//func NewFoo() *Foo {
+	//	return &Foo{a: true}
+	//}
+	//func UseFoo(ff *Foo) {
+	//	_asd = ff
+	//}
 	n := MustParseFile("main.go", c)
 	m.RunFiles(n)
 	m.RunMain()

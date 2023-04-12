@@ -6,7 +6,7 @@ type GC struct {
 }
 
 type GCObj struct {
-	id     ObjectID
+	key    MapKey
 	marked bool
 	refs   []*GCObj
 }
@@ -24,9 +24,9 @@ func (gc *GC) AddObject(obj *GCObj) {
 	gc.objs = append(gc.objs, obj)
 }
 
-func (gc *GC) RemoveObject(id ObjectID) {
+func (gc *GC) RemoveObject(key MapKey) {
 	for i, o := range gc.objs {
-		if o.id == id {
+		if o.key == key {
 			gc.objs = append(gc.objs[:i], gc.objs[i+1:]...)
 			break
 		}
@@ -39,7 +39,7 @@ func (gc *GC) AddRoot(root *GCObj) {
 	gc.roots = append(gc.roots, root)
 }
 
-func (gc *GC) Collect() []ObjectID {
+func (gc *GC) Collect() {
 	// Mark phase
 	for _, root := range gc.roots {
 		gc.markObject(root)
@@ -47,17 +47,14 @@ func (gc *GC) Collect() []ObjectID {
 
 	// Sweep phase
 	newObjs := make([]*GCObj, 0, len(gc.objs))
-	deletedIDs := make([]ObjectID, 0, len(gc.objs)/3)
 	for _, obj := range gc.objs {
 		if !obj.marked {
-			deletedIDs = append(deletedIDs, obj.id)
 			continue
 		}
 		obj.marked = false
 		newObjs = append(newObjs, obj)
 	}
 	gc.objs = newObjs
-	return deletedIDs
 }
 
 func (gc *GC) markObject(obj *GCObj) {
@@ -70,9 +67,9 @@ func (gc *GC) markObject(obj *GCObj) {
 	}
 }
 
-func (gc *GC) getObj(id ObjectID) *GCObj {
+func (gc *GC) getObj(id MapKey) *GCObj {
 	for _, obj := range gc.objs {
-		if obj.id == id {
+		if obj.key == id {
 			return obj
 		}
 	}

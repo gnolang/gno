@@ -910,9 +910,10 @@ func (nv *NativeValue) Copy(alloc *Allocator) *NativeValue {
 // TypedValue (is not a value, but a tuple)
 
 type TypedValue struct {
-	T Type    `json:",omitempty"` // never nil
-	V Value   `json:",omitempty"` // an untyped value
-	N [8]byte `json:",omitempty"` // numeric bytes
+	T      Type    `json:",omitempty"` // never nil
+	V      Value   `json:",omitempty"` // an untyped value
+	N      [8]byte `json:",omitempty"` // numeric bytes
+	OnHeap bool    `json:",omitempty"`
 }
 
 func (tv *TypedValue) IsDefined() bool {
@@ -993,6 +994,11 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	case *NativeValue:
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc)
+	case PointerValue:
+		if cv.TV != nil {
+			cv.TV.OnHeap = true
+		}
+		cp = tv
 	default:
 		cp = tv
 	}

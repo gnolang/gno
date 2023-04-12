@@ -1,5 +1,7 @@
 package gnolang
 
+import "fmt"
+
 func (m *Machine) doOpDefine() {
 	s := m.PopStmt().(*AssignStmt)
 	// Define each value evaluated for Lhs.
@@ -20,6 +22,7 @@ func (m *Machine) doOpDefine() {
 				}
 			}
 		}
+
 		ptr.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
 	}
 }
@@ -42,6 +45,23 @@ func (m *Machine) doOpAssign() {
 			}
 		}
 		lv.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
+
+		pv, is := lv.TV.V.(PointerValue)
+		if is && pv.TV.OnHeap {
+			key := lv.TV.ComputeMapKey(m.Store, false)
+			obj := &GCObj{
+				key:    key,
+				marked: false,
+				refs:   nil,
+			}
+			root := &GCObj{
+				key:    MapKey(fmt.Sprintf("%v-%v", lv, key)),
+				marked: false,
+				refs:   []*GCObj{obj},
+			}
+			m.GC.AddRoot(root)
+			m.GC.AddObject(obj)
+		}
 	}
 }
 

@@ -1001,11 +1001,7 @@ const (
 func (m *Machine) Run() {
 	for {
 		if m.Alloc.GetRunGC() {
-			removed := m.GC.Collect()
-
-			for _, obj := range removed {
-				m.Store.DelObject(m.Store.GetObject(obj))
-			}
+			m.GC.Collect()
 			m.Alloc.GCCycleFinished()
 		}
 		op := m.PopOp()

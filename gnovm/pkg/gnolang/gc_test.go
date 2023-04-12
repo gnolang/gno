@@ -7,9 +7,9 @@ import (
 )
 
 func TestGC_NotCollectUsedObjects(t *testing.T) {
-	obj1 := &GCObj{id: ObjectIDFromPkgPath("obj1")}
-	obj2 := &GCObj{id: ObjectIDFromPkgPath("obj2")}
-	obj3 := &GCObj{id: ObjectIDFromPkgPath("obj3")}
+	obj1 := &GCObj{key: MapKey("obj1")}
+	obj2 := &GCObj{key: MapKey("obj2")}
+	obj3 := &GCObj{key: MapKey("obj3")}
 
 	// Link objects together
 	obj1.AddRef(obj2)
@@ -27,15 +27,15 @@ func TestGC_NotCollectUsedObjects(t *testing.T) {
 
 	// Collect garbage
 	gc.Collect()
-	assert.NotNil(t, gc.getObj(obj1.id))
-	assert.NotNil(t, gc.getObj(obj2.id))
-	assert.NotNil(t, gc.getObj(obj3.id))
+	assert.NotNil(t, gc.getObj(obj1.key))
+	assert.NotNil(t, gc.getObj(obj2.key))
+	assert.NotNil(t, gc.getObj(obj3.key))
 }
 
 func TestGC_CollectUnsedObjects(t *testing.T) {
-	obj1 := &GCObj{id: ObjectIDFromPkgPath("obj1")}
-	obj2 := &GCObj{id: ObjectIDFromPkgPath("obj2")}
-	obj3 := &GCObj{id: ObjectIDFromPkgPath("obj3")}
+	obj1 := &GCObj{key: MapKey("obj1")}
+	obj2 := &GCObj{key: MapKey("obj2")}
+	obj3 := &GCObj{key: MapKey("obj3")}
 
 	// Link objects together
 	obj1.AddRef(obj2)
@@ -51,9 +51,9 @@ func TestGC_CollectUnsedObjects(t *testing.T) {
 
 	// Collect garbage
 	gc.Collect()
-	assert.Nil(t, gc.getObj(obj1.id))
-	assert.Nil(t, gc.getObj(obj2.id))
-	assert.Nil(t, gc.getObj(obj3.id))
+	assert.Nil(t, gc.getObj(obj1.key))
+	assert.Nil(t, gc.getObj(obj2.key))
+	assert.Nil(t, gc.getObj(obj3.key))
 	assert.Empty(t, gc.objs)
 	assert.Empty(t, gc.roots)
 }
