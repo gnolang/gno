@@ -287,7 +287,10 @@ func createBlockchainReactor(config *cfg.Config,
 	fastSync bool,
 	logger log.Logger,
 ) (bcReactor p2p.Reactor, err error) {
-	bcReactor = bc.NewBlockchainReactor(state.Copy(), blockExec, blockStore, fastSync)
+	bcReactor, err = bc.NewBlockchainReactor(state.Copy(), blockExec, blockStore, fastSync)
+	if err != nil {
+		return nil, err
+	}
 
 	bcReactor.SetLogger(logger.With("module", "blockchain"))
 	return bcReactor, nil

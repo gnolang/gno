@@ -71,14 +71,13 @@ type BlockchainReactor struct {
 // NewBlockchainReactor returns new reactor instance.
 func NewBlockchainReactor(state sm.State, blockExec *sm.BlockExecutor, store *store.BlockStore,
 	fastSync bool,
-) *BlockchainReactor {
+) (*BlockchainReactor, error) {
 	h, err := store.Height()
 	if err != nil {
-		panic(fmt.Errorf("error creating blockchain reactor: %w", err))
+		return nil, fmt.Errorf("error creating blockchain reactor: %w", err)
 	}
 	if state.LastBlockHeight != h {
-		panic(fmt.Sprintf("state (%v) and store (%v) height mismatch", state.LastBlockHeight,
-			h))
+		return nil, fmt.Errorf("error: state (%v) and store (%v) height mismatch", state.LastBlockHeight, h)
 	}
 
 	requestsCh := make(chan BlockRequest, maxTotalRequesters)
@@ -102,7 +101,7 @@ func NewBlockchainReactor(state sm.State, blockExec *sm.BlockExecutor, store *st
 		errorsCh:     errorsCh,
 	}
 	bcR.BaseReactor = *p2p.NewBaseReactor("BlockchainReactor", bcR)
-	return bcR
+	return bcR, nil
 }
 
 // SetLogger implements cmn.Service by setting the logger on reactor and pool.
@@ -142,10 +141,10 @@ func (bcR *BlockchainReactor) GetChannels() []*p2p.ChannelDescriptor {
 }
 
 // AddPeer implements Reactor by sending our state to peer.
-func (bcR *BlockchainReactor) AddPeer(peer p2p.Peer) {
+func (bcR *BlockchainReactor) AddPeer(peer p2p.Peer) error {
 	h, err := bcR.store.Height()
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("error adding peer: %w", err)
 	}
 	msgBytes := amino.MustMarshalAny(&bcStatusResponseMessage{h})
 	peer.Send(BlockchainChannel, msgBytes)
@@ -153,6 +152,7 @@ func (bcR *BlockchainReactor) AddPeer(peer p2p.Peer) {
 
 	// peer is added to the pool once we receive the first
 	// bcStatusResponseMessage from the peer and call pool.SetPeerHeight
+	return nil
 }
 
 // RemovePeer implements Reactor by removing peer from the pool.

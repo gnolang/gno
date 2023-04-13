@@ -73,8 +73,10 @@ import (
 //
 // ```
 func Status(ctx *rpctypes.Context) (*ctypes.ResultStatus, error) {
-	var latestHeight int64
-	var err error
+	var (
+		latestHeight int64
+		err          error
+	)
 	if consensusReactor.FastSync() {
 		latestHeight, err = blockStore.Height()
 	} else {

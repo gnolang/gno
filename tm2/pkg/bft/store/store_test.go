@@ -83,7 +83,7 @@ func TestNewBlockStore(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(10000), h, "failed to properly parse blockstore")
 
-	panicCausers := []struct {
+	errorCausers := []struct {
 		data    []byte
 		wantErr string
 	}{
@@ -91,7 +91,7 @@ func TestNewBlockStore(t *testing.T) {
 		{[]byte(" "), "could not unmarshall bytes 20: unexpected end of JSON input"},
 	}
 
-	for i, tt := range panicCausers {
+	for i, tt := range errorCausers {
 		// Expecting an error here on trying to parse an invalid blockStore
 		db.Set(blockStoreKey, tt.data)
 		_, err = NewBlockStore(db)
