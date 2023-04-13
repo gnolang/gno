@@ -49,7 +49,8 @@ func BenchmarkRandomReadsWrites2(b *testing.B) {
 			idx := (int64(rand.Int()) % numItems)
 			val := internal[idx]
 			idxBytes := int642Bytes(int64(idx))
-			valBytes := db.Get(idxBytes)
+			valBytes, err := db.Get(idxBytes)
+			require.NoError(b, err)
 			// fmt.Printf("Get %X -> %X\n", idxBytes, valBytes)
 			if val == 0 {
 				if !bytes.Equal(valBytes, nil) {
@@ -104,5 +105,7 @@ func TestCLevelDBStats(t *testing.T) {
 	db, err := NewDB(name, CLevelDBBackend, t.TempDir())
 	require.NoError(t, err)
 
-	assert.NotEmpty(t, db.Stats())
+	s, err := db.Stats()
+	require.NoError(t, err)
+	assert.NotEmpty(t, s)
 }
