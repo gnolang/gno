@@ -1098,15 +1098,7 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 	memPkg := &std.MemPackage{Path: pkgPath}
 	var pkgName Name
 	for _, file := range files {
-		if file.IsDir() {
-			continue
-		}
-		// skip files starting with a dot.
-		if strings.HasPrefix(file.Name(), ".") {
-			continue
-		}
-		// skip precompile cache.
-		if strings.HasSuffix(file.Name(), ".gno.gen.go") {
+		if file.IsDir() || strings.HasPrefix(file.Name(), ".") || !strings.HasSuffix(file.Name(), ".gno") {
 			continue
 		}
 		fpath := filepath.Join(dir, file.Name())
@@ -1114,13 +1106,11 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 		if err != nil {
 			panic(err)
 		}
-		if pkgName == "" && strings.HasSuffix(file.Name(), "_test.gno") {
+		if pkgName == "" {
 			pkgName = PackageNameFromFileBody(file.Name(), string(bz))
 			if strings.HasSuffix(string(pkgName), "_test") {
 				pkgName = pkgName[:len(pkgName)-len("_test")]
 			}
-		} else if pkgName == "" && strings.HasSuffix(file.Name(), ".gno") {
-			pkgName = PackageNameFromFileBody(file.Name(), string(bz))
 		}
 		memPkg.Files = append(memPkg.Files,
 			&std.MemFile{
