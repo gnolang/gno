@@ -63,8 +63,9 @@ func NewBoltDBWithOpts(name string, dir string, opts *bbolt.Options) (DB, error)
 	return &BoltDB{db: db}, nil
 }
 
-func (bdb *BoltDB) Get(key []byte) (value []byte) {
+func (bdb *BoltDB) Get(key []byte) ([]byte, error) {
 	key = nonEmptyKey(nonNilBytes(key))
+	var value []byte
 	err := bdb.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(bucket)
 		if v := b.Get(key); v != nil {
@@ -72,48 +73,41 @@ func (bdb *BoltDB) Get(key []byte) (value []byte) {
 		}
 		return nil
 	})
-	if err != nil {
-		panic(err)
-	}
-	return
+
+	return value, err
 }
 
-func (bdb *BoltDB) Has(key []byte) bool {
-	return bdb.Get(key) != nil
+func (bdb *BoltDB) Has(key []byte) (bool, error) {
+	v, err := bdb.Get(key)
+	return v != nil, err
 }
 
-func (bdb *BoltDB) Set(key, value []byte) {
+func (bdb *BoltDB) Set(key, value []byte) error {
 	key = nonEmptyKey(nonNilBytes(key))
 	value = nonNilBytes(value)
-	err := bdb.db.Update(func(tx *bbolt.Tx) error {
+	return bdb.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(bucket)
 		return b.Put(key, value)
 	})
-	if err != nil {
-		panic(err)
-	}
 }
 
-func (bdb *BoltDB) SetSync(key, value []byte) {
-	bdb.Set(key, value)
+func (bdb *BoltDB) SetSync(key, value []byte) error {
+	return bdb.Set(key, value)
 }
 
-func (bdb *BoltDB) Delete(key []byte) {
+func (bdb *BoltDB) Delete(key []byte) error {
 	key = nonEmptyKey(nonNilBytes(key))
-	err := bdb.db.Update(func(tx *bbolt.Tx) error {
+	return bdb.db.Update(func(tx *bbolt.Tx) error {
 		return tx.Bucket(bucket).Delete(key)
 	})
-	if err != nil {
-		panic(err)
-	}
 }
 
-func (bdb *BoltDB) DeleteSync(key []byte) {
-	bdb.Delete(key)
+func (bdb *BoltDB) DeleteSync(key []byte) error {
+	return bdb.Delete(key)
 }
 
-func (bdb *BoltDB) Close() {
-	bdb.db.Close()
+func (bdb *BoltDB) Close() error {
+	return bdb.db.Close()
 }
 
 func (bdb *BoltDB) Print() {
@@ -132,7 +126,7 @@ func (bdb *BoltDB) Print() {
 	}
 }
 
-func (bdb *BoltDB) Stats() map[string]string {
+func (bdb *BoltDB) Stats() (map[string]string, error) {
 	stats := bdb.db.Stats()
 	m := make(map[string]string)
 
@@ -146,7 +140,7 @@ func (bdb *BoltDB) Stats() map[string]string {
 	m["TxN"] = fmt.Sprintf("%v", stats.TxN)
 	m["OpenTxN"] = fmt.Sprintf("%v", stats.OpenTxN)
 
-	return m
+	return m, nil
 }
 
 // boltDBBatch stores key values in sync.Map and dumps them to the underlying
@@ -157,11 +151,11 @@ type boltDBBatch struct {
 }
 
 // NewBatch returns a new batch.
-func (bdb *BoltDB) NewBatch() Batch {
+func (bdb *BoltDB) NewBatch() (Batch, error) {
 	return &boltDBBatch{
 		ops: nil,
 		db:  bdb,
-	}
+	}, nil
 }
 
 // It is safe to modify the contents of the argument after Set returns but not
@@ -208,22 +202,22 @@ func (bdb *boltDBBatch) Close() {}
 
 // WARNING: Any concurrent writes or reads will block until the iterator is
 // closed.
-func (bdb *BoltDB) Iterator(start, end []byte) Iterator {
+func (bdb *BoltDB) Iterator(start, end []byte) (Iterator, error) {
 	tx, err := bdb.db.Begin(false)
 	if err != nil {
 		panic(err)
 	}
-	return newBoltDBIterator(tx, start, end, false)
+	return newBoltDBIterator(tx, start, end, false), nil
 }
 
 // WARNING: Any concurrent writes or reads will block until the iterator is
 // closed.
-func (bdb *BoltDB) ReverseIterator(start, end []byte) Iterator {
+func (bdb *BoltDB) ReverseIterator(start, end []byte) (Iterator, error) {
 	tx, err := bdb.db.Begin(false)
 	if err != nil {
 		panic(err)
 	}
-	return newBoltDBIterator(tx, start, end, true)
+	return newBoltDBIterator(tx, start, end, true), nil
 }
 
 // boltDBIterator allows you to iterate on range of keys/values given some
