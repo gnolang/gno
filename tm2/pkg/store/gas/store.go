@@ -86,8 +86,10 @@ func (gs *Store) Write() {
 }
 
 func (gs *Store) iterator(start, end []byte, ascending bool) (types.Iterator, error) {
-	var parent types.Iterator
-	var err error
+	var (
+		parent types.Iterator
+		err    error
+	)
 	if ascending {
 		parent, err = gs.parent.Iterator(start, end)
 	} else {

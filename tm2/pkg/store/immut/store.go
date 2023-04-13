@@ -1,6 +1,8 @@
 package immut
 
 import (
+	"errors"
+
 	"github.com/gnolang/gno/tm2/pkg/store/cache"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
@@ -29,12 +31,12 @@ func (is immutStore) Has(key []byte) (bool, error) {
 
 // Implements Store
 func (is immutStore) Set(key, value []byte) error {
-	panic("unexpected .Set() on immutStore")
+	return errors.New("unexpected .Set() on immutStore")
 }
 
 // Implements Store
 func (is immutStore) Delete(key []byte) error {
-	panic("unexpected .Delete() on immutStore")
+	return errors.New("unexpected .Delete() on immutStore")
 }
 
 // Implements Store

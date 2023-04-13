@@ -149,8 +149,10 @@ func (store *cacheStore) iterator(start, end []byte, ascending bool) (types.Iter
 	store.mtx.Lock()
 	defer store.mtx.Unlock()
 
-	var parent, cache types.Iterator
-	var err error
+	var (
+		parent, cache types.Iterator
+		err           error
+	)
 	if ascending {
 		parent, err = store.parent.Iterator(start, end)
 	} else {
