@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -108,6 +109,13 @@ const (
 )
 
 type Name string
+
+// Returns if the name is an exported identifier,
+// according to the golang's canonical exported name rule,
+// namely, starting with a capitalized alphabet.
+func (name Name) IsExportedName() bool {
+	return unicode.IsUpper([]rune(name)[0])
+}
 
 // ----------------------------------------
 // Location

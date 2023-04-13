@@ -2,11 +2,14 @@ package stdlibs
 
 import (
 	"crypto/sha256"
+	"fmt"
 	"math"
+	"os"
 	"reflect"
 	"strconv"
-	"time"
 	"strings"
+	"time"
+	"unicode"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/bech32"
@@ -483,8 +486,108 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				res0.T = addrT
 				m.PushValue(res0)
 			},
-		)
+		) /*
+			pn.DefineNative("LoadPackage",
+				gno.Flds(
+					"pkgPath", "string",
+				),
+				gno.Flds(
+					"pkg", gno.AnyT(),
+				),
+				func (m *gno.Machine) {
+					arg0 := m.LastBlock().GetParam1()
+					pkgPath := arg0.TV.GetString()
+					fdecls := m.Store.GetPackage(pkgPath).GetExportedFunctions(m.Store)
 
+					fields := []*gno.FieldType{}
+
+					for _, fdecl := range fdecls {
+						field := gno.FieldType{
+							Name: fdecl.Name,
+
+						}
+					}
+
+					res0 := gno.Go2GnoValue(
+						m.Alloc,
+						m.Store,
+						reflect.ValueOf(pkg),
+					)
+				}
+			)*/
+		pn.DefineNative("CallPackage1",
+			gno.Flds(
+				"pkgPath", "string",
+				"functionName", "string",
+				"args", &gno.SliceTypeExpr{Elt: gno.AnyT(), Vrd: true},
+			),
+			gno.Flds(
+				"returnValue1", gno.AnyT(),
+			),
+			func(m *gno.Machine) {
+				arg0, arg1, arg2 := m.LastBlock().GetParams3()
+				pkgPath := arg0.TV.GetString()
+				functionName := arg1.TV.GetString()
+				if !unicode.IsUpper([]rune(functionName)[0]) {
+					panic("functionName is not exported")
+				}
+				args := arg2.TV.V.(*gno.SliceValue).GetBase(m.Store).List
+
+				pv := m.Store.GetPackage(pkgPath, false)
+				pl := gno.PackageNodeLocation(pkgPath)
+				pn := store.GetBlockNode(pl).(*gno.PackageNode)
+				ft := pn.GetStaticTypeOf(store, gno.Name(functionName)).(*gno.FuncType)
+
+				mpn := gno.NewPackageNode("main", "main", nil)
+				mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})
+				mpv := mpn.NewPackage()
+
+				// The new environment should be able to access the provided arguments, but not any other caller realm components(variables etc.).
+				// We achieve this by:
+				// - Use a fresh gno.Machine for executing a function from dynamically imported package
+				// - Limiting the set of moveable arguments by checking arg.IsMoveableAcrossRealm(), making sure there is no inter-realm reference.
+				// - Eval() the CallExpr using the arguments above.
+
+				if len(ft.Params) != len(args) {
+					panic("Argument length does not match")
+				}
+
+				argexprs := make([]interface{}, len(args))
+				for i, arg := range args {
+					if !arg.IsMoveableAcrossRealm() {
+						panic("Argument cannot pass realm boundary")
+					}
+					argexprs[i] = &gno.ConstExpr{
+						TypedValue: arg,
+					}
+				}
+
+				mm := gno.NewMachineWithOptions(
+					gno.MachineOptions{
+						PkgPath:   pkgPath,
+						Output:    os.Stdout,
+						Store:     m.Store,
+						Context:   m.Context,
+						Alloc:     m.Alloc,
+						MaxCycles: m.MaxCycles - m.Cycles,
+					},
+				)
+				mm.SetActivePackage(mpv)
+
+				// Call the function.
+				call := gno.Call(fmt.Sprintf("pkg.%s", functionName), argexprs...)
+				tvs := mm.Eval(call)
+				if len(tvs) != 1 {
+					panic("Return argument is not length 1")
+				}
+
+				m.Cycles -= mm.Cycles
+
+				mm.Release()
+
+				m.PushValue(tvs[0])
+			},
+		)
 		// CreatePackage creates a new package from an existing path.
 		// Given a package path and the new path name, with optional trailing arguments for init,
 		// it creates a new package under the prefix of the current package.
@@ -497,7 +600,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 		// ```
 		// This will create a new package under the current package, with the path "gno.land/r/tokenfactory/tokens/mytoken/grc20".
 		// The result is an interface{}, exposing all public functions of the package.
-		// Internally, the interface maps function names to internal native call, `CallPackageFunction`.
+		// Internally, the interface maps function names to internal native call, `CallPackage`.
 		pn.DefineNative("CreatePackage",
 			gno.Flds(
 				"pkgTemplatePath", "string",
@@ -505,27 +608,44 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				"arguments", "...interface{}",
 			),
 			gno.Flds(
-				"pkg", "interface{}",
+				"pkg", "string",
 			),
 			func(m *gno.Machine) {
 				arg0, arg1, arg2 := m.LastBlock().GetParams3()
 				pkgTemplatePath := arg0.TV.GetString()
 				pkgPath := strings.Join([]string{m.Package.PkgPath, arg1.TV.GetString()}, "/")
-				initArgs := arg2.TV.V.(*gno.SliceValue)
+				initArgs := arg2.TV.V.(*gno.SliceValue).GetBase(m.Store).List
+				if len(initArgs) != 0 {
+					panic("not implemented: initArgs")
+				}
+				if pv := m.Store.GetPackage(pkgPath, false); pv != nil {
+					panic("package already exists: " + pkgPath)
+				}
 
 				// TODO: validate pkgPath
-				tpkg := m.Store.Fork().GetMemPackage(pkgTemplatePath)
+				tpkg := m.Store.GetMemPackage(pkgTemplatePath)
 				tpkg.RenamePath(pkgPath)
 
-				// TODO: this might be insecure due to shared execution environment.
-				_, pkg := m.RunMemPackage(tpkg, true)
-
-				res0 := gno.Go2GnoValue(
-					m.Alloc,
-					m.Store,
-					reflect.ValueOf(pkg),
+				mm := gno.NewMachineWithOptions(
+					gno.MachineOptions{
+						PkgPath:   "",
+						Output:    os.Stdout,
+						Store:     m.Store,
+						Alloc:     m.Alloc,
+						Context:   m.Context,
+						MaxCycles: m.MaxCycles - m.Cycles,
+					},
 				)
-				m.PushValue(res0)
+
+				mm.RunMemPackage(tpkg, true)
+
+				m.Cycles -= mm.Cycles
+
+				mm.Release()
+
+				var ret gno.TypedValue
+				ret.SetString(gno.StringValue(pkgPath))
+				m.PushValue(ret)
 			},
 		)
 	}

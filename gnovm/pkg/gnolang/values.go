@@ -891,6 +891,21 @@ func (pv *PackageValue) GetPkgAddr() crypto.Address {
 	return DerivePkgAddr(pv.PkgPath)
 }
 
+func (pv *PackageValue) GetExportedFunctions(store Store) []*FuncDecl {
+	res := []*FuncDecl{}
+	for _, file := range pv.GetPackageNode(store).FileSet.Files {
+		for _, decl := range file.Decls {
+			if fdecl, ok := decl.(*FuncDecl); ok {
+				if !fdecl.NameExpr.Name.IsExportedName() {
+					continue
+				}
+				res = append(res, fdecl)
+			}
+		}
+	}
+	return res
+}
+
 // ----------------------------------------
 // NativeValue
 
@@ -1519,6 +1534,37 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 			tv.T.String()))
 	}
 	return MapKey(bz)
+}
+
+// - PrimitiveValue is moveable across realm boundary.
+// - Array and Struct are moveable across realm only if they are composed of moveable types(recursively applied). The value will be copied to the callee realm.
+// - Slice are moveable across realm only if they are referring to moveable types(recursively applied)(not implemented yet).
+// - Any other cases require some complex inter-realm object management scheme, low priority.
+func (tv *TypedValue) IsMoveableAcrossRealm() bool {
+	switch tv.T.Kind() {
+	case
+		BoolKind, StringKind,
+		IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind,
+		UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind,
+		BigintKind, BigdecKind:
+		return true
+	case StructKind:
+		for _, field := range tv.V.(*StructValue).Fields {
+			if !field.IsMoveableAcrossRealm() {
+				return false
+			}
+		}
+		return true
+	case ArrayKind:
+		for _, field := range tv.V.(*ArrayValue).List {
+			if !field.IsMoveableAcrossRealm() {
+				return false
+			}
+		}
+		return true
+	default:
+		return false
+	}
 }
 
 // ----------------------------------------
