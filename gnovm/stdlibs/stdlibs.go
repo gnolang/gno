@@ -146,7 +146,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 		pn.DefineGoNativeValue("IntSize", strconv.IntSize)
 		pn.DefineGoNativeValue("AppendUint", strconv.AppendUint)
 	case "std":
-		// NOTE: some of these are overridden in tests/imports_test.go
+		// NOTE: some of these are overridden in tests/imports.go
 		// Also see stdlibs/InjectPackage.
 		pn.DefineNative("AssertOriginCall",
 			gno.Flds( // params

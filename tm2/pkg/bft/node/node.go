@@ -26,9 +26,6 @@ import (
 	rpcserver "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/txindex"
-	"github.com/gnolang/gno/tm2/pkg/events"
-
-	//"github.com/gnolang/gno/tm2/pkg/bft/state/txindex/kv"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/txindex/null"
 	"github.com/gnolang/gno/tm2/pkg/bft/store"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -37,6 +34,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gnolang/gno/tm2/pkg/service"
@@ -58,7 +56,7 @@ type DBProvider func(*DBContext) (dbm.DB, error)
 // specified in the ctx.Config.
 func DefaultDBProvider(ctx *DBContext) (dbm.DB, error) {
 	dbType := dbm.BackendType(ctx.Config.DBBackend)
-	return dbm.NewDB(ctx.ID, dbType, ctx.Config.DBDir()), nil
+	return dbm.NewDB(ctx.ID, dbType, ctx.Config.DBDir())
 }
 
 // GenesisDocProvider returns a GenesisDoc.
