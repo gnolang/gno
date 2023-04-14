@@ -95,10 +95,10 @@ func GetPrecompileFilenameAndTags(gnoFilePath string) (targetFilename, tags stri
 	nameNoExtension := strings.TrimSuffix(filepath.Base(gnoFilePath), ".gno")
 	switch {
 	case strings.HasSuffix(gnoFilePath, "_filetest.gno"):
-		tags = "gno,filetest"
+		tags = "gno && filetest"
 		targetFilename = "." + nameNoExtension + ".gno.gen.go"
 	case strings.HasSuffix(gnoFilePath, "_test.gno"):
-		tags = "gno,test"
+		tags = "gno && test"
 		targetFilename = "." + nameNoExtension + ".gno.gen_test.go"
 	default:
 		tags = "gno"
