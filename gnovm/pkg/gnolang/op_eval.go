@@ -18,6 +18,7 @@ func (m *Machine) doOpEval() {
 		debug.Printf("EVAL: %v\n", x)
 		// fmt.Println(m.String())
 	}
+
 	// This case moved out of switch for performance.
 	// TODO: understand this better.
 	if nx, ok := x.(*NameExpr); ok {
@@ -28,10 +29,21 @@ func (m *Machine) doOpEval() {
 			m.PushValue(gv.Deref())
 			return
 		} else {
-			// Get value from scope.
-			lb := m.LastBlock()
-			// Push value, done.
-			ptr := lb.GetPointerTo(m.Store, nx.Path)
+			var ptr PointerValue
+			var obj *GCObj
+
+			if m.GC != nil {
+				obj = m.GC.getObjByPath(nx.Path.String())
+			}
+			if obj != nil {
+				ptr = obj.value.(PointerValue)
+			} else {
+				// Get value from scope.
+				lb := m.LastBlock()
+				// Push value, done.
+				ptr = lb.GetPointerTo(m.Store, nx.Path)
+			}
+
 			m.PushValue(ptr.Deref())
 			return
 		}

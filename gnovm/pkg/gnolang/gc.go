@@ -7,8 +7,10 @@ type GC struct {
 
 type GCObj struct {
 	key    MapKey
+	value  interface{}
 	marked bool
 	refs   []*GCObj
+	path   string
 }
 
 func (o *GCObj) AddRef(obj *GCObj) {
@@ -70,6 +72,15 @@ func (gc *GC) markObject(obj *GCObj) {
 func (gc *GC) getObj(id MapKey) *GCObj {
 	for _, obj := range gc.objs {
 		if obj.key == id {
+			return obj
+		}
+	}
+	return nil
+}
+
+func (gc *GC) getObjByPath(path string) *GCObj {
+	for _, obj := range gc.objs {
+		if obj.path == path {
 			return obj
 		}
 	}

@@ -24,6 +24,14 @@ func (m *Machine) doOpDefine() {
 		}
 
 		ptr.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
+
+		pv, is := ptr.TV.V.(PointerValue)
+		if is && pv.TV.ShouldEscape {
+			m.escape2Heap(ptr, pv.TV)
+			pv.TV.OnHeap = true
+			pv.TV.ShouldEscape = false
+			rvs[i] = TypedValue{}
+		}
 	}
 }
 
@@ -47,22 +55,33 @@ func (m *Machine) doOpAssign() {
 		lv.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
 
 		pv, is := lv.TV.V.(PointerValue)
-		if is && pv.TV.OnHeap {
-			key := lv.TV.ComputeMapKey(m.Store, false)
-			obj := &GCObj{
-				key:    key,
-				marked: false,
-				refs:   nil,
-			}
-			root := &GCObj{
-				key:    MapKey(fmt.Sprintf("%v-%v", lv, key)),
-				marked: false,
-				refs:   []*GCObj{obj},
-			}
-			m.GC.AddRoot(root)
-			m.GC.AddObject(obj)
+		if is && pv.TV.ShouldEscape {
+			m.escape2Heap(lv, pv.TV)
+			pv.TV.OnHeap = true
+			pv.TV.ShouldEscape = false
+			m.NumValues--
+			rvs[i] = TypedValue{}
 		}
 	}
+}
+
+func (m *Machine) escape2Heap(pv PointerValue, tv *TypedValue) {
+	key := tv.ComputeMapKey(m.Store, false)
+	obj := &GCObj{
+		key:    key,
+		value:  tv,
+		marked: false,
+		refs:   nil,
+	}
+	root := &GCObj{
+		key: MapKey(fmt.Sprintf("%v-%v", pv, key)),
+		//path:   String,
+		value:  pv,
+		marked: false,
+		refs:   []*GCObj{obj},
+	}
+	m.GC.AddRoot(root)
+	m.GC.AddObject(obj)
 }
 
 func (m *Machine) doOpAddAssign() {

@@ -17,10 +17,11 @@ func BenchmarkLoopy(b *testing.B) {
 		m := NewMachine("test", nil)
 		c := `package test
 func main() {
-     var k int
-	for i:=0; i<1000; i++ {
-		k += i
-	}
+     println("hello world")
+    // var k int
+	//for i:=0; i<1000; i++ {
+	//	k += i
+	//}
     //println(k)
 }`
 		n := MustParseFile("main.go", c)

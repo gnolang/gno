@@ -1679,6 +1679,7 @@ func (m *Machine) PopFrameAndReturn() {
 	// shift and convert results to typed-nil if undefined and not iface
 	// kind.  and not func result type isn't interface kind.
 	resStart := m.NumValues - numRes
+	//todo here drop the root objects from the GC
 	for i := 0; i < numRes; i++ {
 		res := m.Values[resStart+i]
 		if res.IsUndefined() && rtypes[i].Type.Kind() != InterfaceKind {
