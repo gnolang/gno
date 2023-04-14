@@ -17,8 +17,7 @@ install_gno:
 	@echo "[+] 'gno' is installed. more info in ./gnovm/."
 
 .PHONY: test
-test:
-	go test -count=1 -v ./misc/docker-integration
+test: test.components test.docker
 
 .PHONY: test.components
 test.components:
@@ -26,6 +25,14 @@ test.components:
 	$(MAKE) --no-print-directory -C gnovm    test
 	$(MAKE) --no-print-directory -C gno.land test
 	$(MAKE) --no-print-directory -C examples test
+
+.PHONY: test.docker
+test.docker:
+	@if hash docker 2>/dev/null; then \
+		go test --tags=docker -count=1 -v ./misc/docker-integration; \
+	else \
+		echo "[-] 'docker' is missing, skipping ./misc/docker-integration tests."; \
+	fi
 
 .PHONY: fmt
 fmt:
