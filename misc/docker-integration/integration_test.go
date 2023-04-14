@@ -24,8 +24,9 @@ import (
 const (
 	gnolandContainerName = "int_gnoland"
 
-	test1Addr = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
-	test1Seed = "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
+	test1Addr         = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+	test1Seed         = "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
+	dockerWaitTimeout = 30
 )
 
 func TestDockerIntegration(t *testing.T) {
@@ -163,17 +164,19 @@ func startGnoland(t *testing.T) {
 func waitGnoland(t *testing.T) {
 	t.Helper()
 	t.Log("waiting...")
-	for {
+	for i := 0; i < dockerWaitTimeout; i++ {
 		output, _ := createCommand(t,
 			[]string{"docker", "logs", gnolandContainerName},
 		).CombinedOutput()
 		if strings.Contains(string(output), "Committed state") {
 			// ok blockchain is ready
 			t.Log("gnoland ready")
-			break
+			return
 		}
 		time.Sleep(time.Second)
 	}
+	// cleanupGnoland(t)
+	panic("gnoland start timeout")
 }
 
 func cleanupGnoland(t *testing.T) {
