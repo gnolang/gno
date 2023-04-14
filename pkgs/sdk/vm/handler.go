@@ -2,12 +2,17 @@ package vm
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	abci "github.com/gnolang/gno/pkgs/bft/abci/types"
 	"github.com/gnolang/gno/pkgs/sdk"
 	"github.com/gnolang/gno/pkgs/sdk/auth"
 	"github.com/gnolang/gno/pkgs/std"
+)
+
+const (
+	RatePerByte int = 1
 )
 
 type vmHandler struct {
@@ -35,7 +40,8 @@ func (vh vmHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 
 // Handle MsgAddPackage.
 func (vh vmHandler) handleMsgAddPackage(ctx sdk.Context, msg MsgAddPackage) sdk.Result {
-	amount, err := std.ParseCoins("1000000ugnot") // XXX calculate
+	totalCost := len(msg.GetSignBytes()) * RatePerByte
+	amount, err := std.ParseCoins(strconv.Itoa(totalCost) + "ugnot") // XXX calculate
 	if err != nil {
 		return abciResult(err)
 	}
@@ -52,7 +58,8 @@ func (vh vmHandler) handleMsgAddPackage(ctx sdk.Context, msg MsgAddPackage) sdk.
 
 // Handle MsgCall.
 func (vh vmHandler) handleMsgCall(ctx sdk.Context, msg MsgCall) (res sdk.Result) {
-	amount, err := std.ParseCoins("1000000ugnot") // XXX calculate
+	totalCost := len(msg.GetSignBytes()) * RatePerByte
+	amount, err := std.ParseCoins(strconv.Itoa(totalCost) + "ugnot") // XXX calculate
 	if err != nil {
 		return abciResult(err)
 	}
