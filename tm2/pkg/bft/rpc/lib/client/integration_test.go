@@ -1,5 +1,4 @@
 //go:build release
-// +build release
 
 // The code in here is comprehensive as an integration
 // test and is long, hence is only run before releases.
