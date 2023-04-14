@@ -1097,8 +1097,18 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 	}
 	memPkg := &std.MemPackage{Path: pkgPath}
 	var pkgName Name
+	allowedFiles := []string{ // make case insensitive?
+		"gno.mod",
+		"LICENSE",
+		"README.md",
+	}
+	allowedFileExtensions := []string{
+		".gno",
+	}
 	for _, file := range files {
-		if file.IsDir() || strings.HasPrefix(file.Name(), ".") || !strings.HasSuffix(file.Name(), ".gno") {
+		if file.IsDir() ||
+			strings.HasPrefix(file.Name(), ".") ||
+			(!endsWith(allowedFileExtensions, file.Name()) && !contains(allowedFiles, file.Name())) {
 			continue
 		}
 		fpath := filepath.Join(dir, file.Name())
@@ -1106,7 +1116,7 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 		if err != nil {
 			panic(err)
 		}
-		if pkgName == "" {
+		if pkgName == "" && strings.HasSuffix(file.Name(), ".gno") {
 			pkgName = PackageNameFromFileBody(file.Name(), string(bz))
 			if strings.HasSuffix(string(pkgName), "_test") {
 				pkgName = pkgName[:len(pkgName)-len("_test")]
