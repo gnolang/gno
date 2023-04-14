@@ -456,6 +456,15 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 	// Also inject stdlibs native functions.
 	stdlibs.InjectPackage(store, pn)
+	isOriginCall := func(m *gno.Machine) bool {
+		switch m.Frames[0].Func.Name {
+		case "main": // test is a _filetest
+			return len(m.Frames) == 3
+		case "runtest": // test is a _test
+			return len(m.Frames) == 7
+		}
+		panic("unable to determine if test is a _test or a _filetest")
+	}
 	// Test specific injections:
 	switch pn.PkgPath {
 	case "strconv":
@@ -474,9 +483,8 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				),
 			*/
 			func(m *gno.Machine) {
-				isOrigin := len(m.Frames) == 3
-				if !isOrigin {
-					panic("invalid non-origin call")
+				if !isOriginCall(m) {
+					m.Panic(typedString("invalid non-origin call"))
 				}
 			},
 		)
@@ -489,9 +497,8 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				),
 			*/
 			func(m *gno.Machine) {
-				isOrigin := len(m.Frames) == 3
 				res0 := gno.TypedValue{T: gno.BoolType}
-				res0.SetBool(isOrigin)
+				res0.SetBool(isOriginCall(m))
 				m.PushValue(res0)
 			},
 		)

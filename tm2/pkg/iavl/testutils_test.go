@@ -3,10 +3,11 @@ package iavl
 import (
 	"bytes"
 	"fmt"
+	mrand "math/rand"
 	"runtime"
 	"testing"
 
-	mrand "math/rand"
+	"github.com/jaekwon/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/db"
@@ -54,7 +55,11 @@ func N(l, r interface{}) *Node {
 
 // Setup a deep node
 func T(n *Node) *MutableTree {
-	d := db.NewDB("test", db.MemDBBackend, "")
+	d, err := db.NewDB("test", db.MemDBBackend, "")
+	if err != nil {
+		panic(err)
+	}
+
 	t := NewMutableTree(d, 0)
 
 	n.hashWithCount()
@@ -108,7 +113,11 @@ func expectTraverse(t *testing.T, trav traverser, start, end string, count int) 
 }
 
 func BenchmarkImmutableAvlTreeMemDB(b *testing.B) {
-	db := db.NewDB("test", db.MemDBBackend, "")
+	db, err := db.NewDB("test", db.MemDBBackend, "")
+	require.NoError(b, err)
+
+	b.ResetTimer()
+
 	benchmarkImmutableAvlTreeWithDB(b, db)
 }
 
