@@ -187,7 +187,9 @@ func TestRemove(t *testing.T) {
 	size := 10000
 	keyLen, dataLen := 16, 40
 
-	d := db.NewDB("test", "memdb", "")
+	d, err := db.NewDB("test", "memdb", "")
+	require.NoError(t, err)
+
 	defer d.Close()
 	t1 := NewMutableTree(d, size)
 
