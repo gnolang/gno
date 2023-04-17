@@ -54,7 +54,8 @@ func main() {
 func foo() {
 	ff := 4
 	f := &ff
-    a = f
+    aa := f
+	a = aa
 }
 `
 

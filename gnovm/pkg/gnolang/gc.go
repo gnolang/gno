@@ -6,15 +6,10 @@ type GC struct {
 }
 
 type GCObj struct {
-	key    MapKey
 	value  interface{}
 	marked bool
-	refs   []*GCObj
+	ref    *GCObj
 	path   string
-}
-
-func (o *GCObj) AddRef(obj *GCObj) {
-	o.refs = append(o.refs, obj)
 }
 
 func NewGC() *GC {
@@ -26,9 +21,9 @@ func (gc *GC) AddObject(obj *GCObj) {
 	gc.objs = append(gc.objs, obj)
 }
 
-func (gc *GC) RemoveObject(key MapKey) {
-	for i, o := range gc.objs {
-		if o.key == key {
+func (gc *GC) RemoveRoot(path string) {
+	for i, o := range gc.roots {
+		if o.path == path {
 			gc.objs = append(gc.objs[:i], gc.objs[i+1:]...)
 			break
 		}
@@ -64,22 +59,20 @@ func (gc *GC) markObject(obj *GCObj) {
 		return
 	}
 	obj.marked = true
-	for _, edge := range obj.refs {
-		gc.markObject(edge)
-	}
+	gc.markObject(obj.ref)
 }
 
-func (gc *GC) getObj(id MapKey) *GCObj {
+func (gc *GC) getObjByPath(path string) *GCObj {
 	for _, obj := range gc.objs {
-		if obj.key == id {
+		if obj.path == path {
 			return obj
 		}
 	}
 	return nil
 }
 
-func (gc *GC) getObjByPath(path string) *GCObj {
-	for _, obj := range gc.objs {
+func (gc *GC) getRootByPath(path string) *GCObj {
+	for _, obj := range gc.roots {
 		if obj.path == path {
 			return obj
 		}

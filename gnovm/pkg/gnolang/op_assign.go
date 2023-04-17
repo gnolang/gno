@@ -1,7 +1,5 @@
 package gnolang
 
-import "fmt"
-
 func (m *Machine) doOpDefine() {
 	s := m.PopStmt().(*AssignStmt)
 	// Define each value evaluated for Lhs.
@@ -23,14 +21,18 @@ func (m *Machine) doOpDefine() {
 			}
 		}
 
-		ptr.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
+		rtv := m.getTypeValueFromNX(nx, s.Rhs[i], rvs[i])
+		ptr.Assign2(m.Alloc, m.Store, m.Realm, rtv, true)
 
 		pv, is := ptr.TV.V.(PointerValue)
 		if is && pv.TV.ShouldEscape {
-			m.escape2Heap(ptr, pv.TV)
+			m.escape2Heap(nx, ptr, pv.TV)
 			pv.TV.OnHeap = true
 			pv.TV.ShouldEscape = false
-			rvs[i] = TypedValue{}
+		}
+
+		if is && pv.TV != nil && pv.TV.OnHeap {
+			nx.Path.IsRoot = true
 		}
 	}
 }
@@ -52,33 +54,66 @@ func (m *Machine) doOpAssign() {
 				}
 			}
 		}
-		lv.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
+
+		// Get name and value of i'th term.
+		nx := s.Lhs[i].(*NameExpr)
+		rtv := m.getTypeValueFromNX(nx, s.Rhs[i], rvs[i])
+
+		lv.Assign2(m.Alloc, m.Store, m.Realm, rtv, true)
 
 		pv, is := lv.TV.V.(PointerValue)
 		if is && pv.TV.ShouldEscape {
-			m.escape2Heap(lv, pv.TV)
+			m.escape2Heap(nx, lv, pv.TV)
 			pv.TV.OnHeap = true
 			pv.TV.ShouldEscape = false
-			m.NumValues--
-			rvs[i] = TypedValue{}
+		}
+
+		if is && pv.TV != nil && pv.TV.OnHeap {
+			nx.Path.IsRoot = true
 		}
 	}
 }
 
-func (m *Machine) escape2Heap(pv PointerValue, tv *TypedValue) {
-	key := tv.ComputeMapKey(m.Store, false)
+func (m *Machine) getTypeValueFromNX(lhs *NameExpr, rhs Expr, stackDefault TypedValue) TypedValue {
+	var obj *GCObj
+	var rname *NameExpr
+
+	switch name := rhs.(type) {
+	case *NameExpr:
+		rname = name
+	case *RefExpr:
+		rname = name.X.(*NameExpr)
+	}
+	if rname != nil && rname.Path.IsRoot {
+		root := m.GC.getRootByPath(rname.Path.String())
+		obj = root.ref
+	}
+	var rtv TypedValue
+
+	if obj != nil {
+		rptr := obj.value.(PointerValue)
+		rtv = *rptr.TV
+		m.GC.AddRoot(&GCObj{
+			path:   lhs.Path.String(),
+			marked: false,
+			ref:    obj,
+		})
+		return rtv
+	}
+	return stackDefault
+}
+
+func (m *Machine) escape2Heap(nx *NameExpr, pv PointerValue, tv *TypedValue) {
 	obj := &GCObj{
-		key:    key,
 		value:  tv,
 		marked: false,
-		refs:   nil,
+		ref:    nil,
 	}
 	root := &GCObj{
-		key: MapKey(fmt.Sprintf("%v-%v", pv, key)),
-		//path:   String,
+		path:   nx.Path.String(),
 		value:  pv,
 		marked: false,
-		refs:   []*GCObj{obj},
+		ref:    obj,
 	}
 	m.GC.AddRoot(root)
 	m.GC.AddObject(obj)

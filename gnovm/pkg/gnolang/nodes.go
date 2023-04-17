@@ -1825,10 +1825,11 @@ func (x *PackageNode) GetBody() Body {
 // such as those for *DeclaredType methods or *StructType fields,
 // see tests/selector_test.go.
 type ValuePath struct {
-	Type  VPType // see VPType* consts.
-	Depth uint8  // see doc for ValuePath.
-	Index uint16 // index of value, field, or method.
-	Name  Name   // name of value, field, or method.
+	Type   VPType // see VPType* consts.
+	Depth  uint8  // see doc for ValuePath.
+	Index  uint16 // index of value, field, or method.
+	Name   Name   // name of value, field, or method.
+	IsRoot bool
 }
 
 type VPType uint8
