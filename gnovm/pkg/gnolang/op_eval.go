@@ -32,8 +32,9 @@ func (m *Machine) doOpEval() {
 			var ptr PointerValue
 			var obj *GCObj
 
-			if m.GC != nil {
-				obj = m.GC.getObjByPath(nx.Path.String())
+			if m.GC != nil && nx.Path.IsRoot {
+				root := m.GC.getRootByPath(nx.Path.String())
+				obj = root.ref
 			}
 			if obj != nil {
 				ptr = obj.value.(PointerValue)

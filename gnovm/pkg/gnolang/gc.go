@@ -62,6 +62,10 @@ func (gc *GC) markObject(obj *GCObj) {
 	gc.markObject(obj.ref)
 }
 
+// use this only in tests
+// because if you hold on to a reference of the GC object
+// the Go GC cannot reclaim this memory
+// only get GC object references through roots
 func (gc *GC) getObjByPath(path string) *GCObj {
 	for _, obj := range gc.objs {
 		if obj.path == path {

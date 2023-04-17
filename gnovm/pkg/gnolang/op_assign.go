@@ -26,7 +26,7 @@ func (m *Machine) doOpDefine() {
 
 		pv, is := ptr.TV.V.(PointerValue)
 		if is && pv.TV.ShouldEscape {
-			m.escape2Heap(nx, ptr, pv.TV)
+			m.escape2Heap(nx, s.Rhs[i], ptr, pv.TV)
 			pv.TV.OnHeap = true
 			pv.TV.ShouldEscape = false
 		}
@@ -63,7 +63,7 @@ func (m *Machine) doOpAssign() {
 
 		pv, is := lv.TV.V.(PointerValue)
 		if is && pv.TV.ShouldEscape {
-			m.escape2Heap(nx, lv, pv.TV)
+			m.escape2Heap(nx, s.Rhs[i], lv, pv.TV)
 			pv.TV.OnHeap = true
 			pv.TV.ShouldEscape = false
 		}
@@ -103,7 +103,7 @@ func (m *Machine) getTypeValueFromNX(lhs *NameExpr, rhs Expr, stackDefault Typed
 	return stackDefault
 }
 
-func (m *Machine) escape2Heap(nx *NameExpr, pv PointerValue, tv *TypedValue) {
+func (m *Machine) escape2Heap(nx *NameExpr, rhs Expr, pv PointerValue, tv *TypedValue) {
 	obj := &GCObj{
 		value:  tv,
 		marked: false,
@@ -117,6 +117,19 @@ func (m *Machine) escape2Heap(nx *NameExpr, pv PointerValue, tv *TypedValue) {
 	}
 	m.GC.AddRoot(root)
 	m.GC.AddObject(obj)
+
+	if refExpr, ok := rhs.(*RefExpr); ok {
+		rn := refExpr.X.(*NameExpr)
+		rn.Path.IsRoot = true
+
+		rroot := &GCObj{
+			path:   rn.Path.String(),
+			value:  pv,
+			marked: false,
+			ref:    obj,
+		}
+		m.GC.AddRoot(rroot)
+	}
 }
 
 func (m *Machine) doOpAddAssign() {
