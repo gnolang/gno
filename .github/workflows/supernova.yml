@@ -48,16 +48,16 @@ jobs:
           curl -v http://localhost:26657/status
           supernova -sub-accounts 5 -transactions 100 -url http://localhost:26657 -mnemonic "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast" -output result.json
 
-      - name: Archive supernova result
+      - name: archive supernova result
         uses: actions/upload-artifact@v3
         with:
           name: supernova-result.json
           path: result.json
 
-      - name: Send rapport to slack \#gno-core-tech
+      - name: Send report to slack \#gno-core-tech
         run: |
           DATA=$(cat result.json | jq -r )
           PAYLOAD="{\"payload\": '$DATA'}"
           curl -X POST -H 'Content-type: application/json' --data "$PAYLOAD" $SLACK_WEBHOOK_URL
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_WEBHOOK_URL: ${{ secrets.CI_REPORT_SLACK_WEBHOOK }}
