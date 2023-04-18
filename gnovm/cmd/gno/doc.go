@@ -13,7 +13,7 @@ type docCfg struct {
 	all        bool
 	src        bool
 	unexported bool
-	rootDirStruct
+	rootDir    string
 }
 
 func newDocCmd(io *commands.IO) *commands.Command {
@@ -53,7 +53,12 @@ func (c *docCfg) RegisterFlags(fs *flag.FlagSet) {
 		"show unexported symbols as well as exported",
 	)
 
-	c.rootDirStruct.RegisterFlags(fs)
+	fs.StringVar(
+		&c.rootDir,
+		"root-dir",
+		"",
+		"clone location of github.com/gnolang/gno (gnodev tries to guess it)",
+	)
 }
 
 func execDoc(cfg *docCfg, args []string, io *commands.IO) error {

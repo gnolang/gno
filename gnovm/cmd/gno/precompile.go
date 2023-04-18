@@ -15,7 +15,7 @@ import (
 type importPath string
 
 type precompileCfg struct {
-	verboseStruct
+	verbose     bool
 	skipFmt     bool
 	skipImports bool
 	goBinary    string
@@ -64,7 +64,12 @@ func newPrecompileCmd(io *commands.IO) *commands.Command {
 }
 
 func (c *precompileCfg) RegisterFlags(fs *flag.FlagSet) {
-	c.verboseStruct.RegisterFlags(fs)
+	fs.BoolVar(
+		&c.verbose,
+		"verbose",
+		false,
+		"verbose output when running",
+	)
 
 	fs.BoolVar(
 		&c.skipFmt,

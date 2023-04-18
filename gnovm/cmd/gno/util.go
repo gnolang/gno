@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"go/ast"
 	"io"
@@ -15,32 +14,6 @@ import (
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
-
-type rootDirStruct struct {
-	rootDir string
-}
-
-func (c *rootDirStruct) RegisterFlags(fs *flag.FlagSet) {
-	fs.StringVar(
-		&c.rootDir,
-		"root-dir",
-		"",
-		"clone location of github.com/gnolang/gno (gnodev tries to guess it)",
-	)
-}
-
-type verboseStruct struct {
-	verbose bool
-}
-
-func (c *verboseStruct) RegisterFlags(fs *flag.FlagSet) {
-	fs.BoolVar(
-		&c.verbose,
-		"verbose",
-		false,
-		"print verbose output",
-	)
-}
 
 func isGnoFile(f fs.DirEntry) bool {
 	name := f.Name()

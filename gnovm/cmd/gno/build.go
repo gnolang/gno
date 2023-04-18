@@ -11,13 +11,13 @@ import (
 )
 
 type buildCfg struct {
-	verboseStruct
+	verbose  bool
 	goBinary string
 }
 
 var defaultBuildOptions = &buildCfg{
-	verboseStruct: verboseStruct{false},
-	goBinary:      "go",
+	verbose:  false,
+	goBinary: "go",
 }
 
 func newBuildCmd(io *commands.IO) *commands.Command {
@@ -37,7 +37,12 @@ func newBuildCmd(io *commands.IO) *commands.Command {
 }
 
 func (c *buildCfg) RegisterFlags(fs *flag.FlagSet) {
-	c.verboseStruct.RegisterFlags(fs)
+	fs.BoolVar(
+		&c.verbose,
+		"verbose",
+		defaultBuildOptions.verbose,
+		"verbose output when building",
+	)
 
 	fs.StringVar(
 		&c.goBinary,

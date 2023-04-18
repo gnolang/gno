@@ -24,8 +24,8 @@ import (
 )
 
 type testCfg struct {
-	verboseStruct
-	rootDirStruct
+	verbose           bool
+	rootDir           string
 	run               string
 	timeout           time.Duration
 	precompile        bool // TODO: precompile should be the default, but it needs to automatically precompile dependencies in memory.
@@ -49,7 +49,12 @@ func newTestCmd(io *commands.IO) *commands.Command {
 }
 
 func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
-	c.verboseStruct.RegisterFlags(fs)
+	fs.BoolVar(
+		&c.verbose,
+		"verbose",
+		false,
+		"verbose output when running",
+	)
 
 	fs.BoolVar(
 		&c.precompile,
@@ -65,7 +70,12 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		"writes actual as wanted in test comments",
 	)
 
-	c.rootDirStruct.RegisterFlags(fs)
+	fs.StringVar(
+		&c.rootDir,
+		"root-dir",
+		"",
+		"clone location of github.com/gnolang/gno (gnodev tries to guess it)",
+	)
 
 	fs.StringVar(
 		&c.run,
