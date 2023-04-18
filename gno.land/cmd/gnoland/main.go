@@ -19,6 +19,7 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	vmm "github.com/gnolang/gno/tm2/pkg/sdk/vm"
@@ -49,7 +50,13 @@ func main() {
 		},
 	)
 
-	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
+	ctx := errors.FatalContext()
+	go func() {
+		<-ctx.Done()
+		os.Exit(1)
+	}()
+
+	if err := cmd.ParseAndRun(ctx, os.Args[1:]); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "%+v", err)
 
 		os.Exit(1)
