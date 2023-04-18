@@ -116,6 +116,19 @@ func (c *Command) Parse(args []string) error {
 				return subcommand.Parse(c.args[1:])
 			}
 		}
+		// args[0] is not a sub command, so it's an command argument.
+		c.args = c.args[:1]
+		// continue flag parsing after args[0]
+		for c.FlagSet.NArg() > 1 {
+			err := ff.Parse(c.FlagSet, c.FlagSet.Args()[1:], c.Options...)
+			if err != nil {
+				return err
+			}
+			if c.FlagSet.NArg() > 0 {
+				// Arg(0) is an arg, not a flag
+				c.args = append(c.args, c.FlagSet.Arg(0))
+			}
+		}
 	}
 
 	c.selected = c

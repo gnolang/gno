@@ -55,7 +55,7 @@ func NewCommand(
 			LongHelp:   meta.LongHelp,
 			ShortUsage: meta.ShortUsage,
 			Options:    meta.Options,
-			FlagSet:    flag.NewFlagSet(meta.Name, flag.ExitOnError),
+			FlagSet:    flag.NewFlagSet(meta.Name, flag.ContinueOnError),
 			Exec:       exec,
 		},
 		cfg: config,
