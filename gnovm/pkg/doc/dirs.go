@@ -70,7 +70,7 @@ func (d *Dirs) walk(roots []string) {
 }
 
 // bfsWalkRoot walks a single directory hierarchy in breadth-first lexical order.
-// Each Go source directory it finds is delivered on d.scan.
+// Each Gno source directory it finds is delivered on d.scan.
 func (d *Dirs) bfsWalkRoot(root string) {
 	root = filepath.Clean(root)
 
