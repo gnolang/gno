@@ -1,8 +1,6 @@
 // A test program
 
 //go:build ((darwin && linux) || !arm) && (go1.12 || !go1.13)
-// +build darwin,linux !arm
-// +build go1.12 !go1.13
 
 package main
 

@@ -55,21 +55,19 @@ func registerDBCreator(backend BackendType, creator dbCreator, force bool) {
 // NOTE: function panics if:
 //   - backend is unknown (not registered)
 //   - creator function, provided during registration, returns error
-func NewDB(name string, backend BackendType, dir string) DB {
+func NewDB(name string, backend BackendType, dir string) (DB, error) {
 	dbCreator, ok := backends[backend]
 	if !ok {
-		keys := make([]string, len(backends))
-		i := 0
+		var keys []string
 		for k := range backends {
-			keys[i] = string(k)
-			i++
+			keys = append(keys, string(k))
 		}
-		panic(fmt.Sprintf("Unknown db_backend %s, expected either %s", backend, strings.Join(keys, " or ")))
+		return nil, fmt.Errorf("unknown db_backend %s. Expected either %s", backend, strings.Join(keys, " or "))
 	}
 
 	db, err := dbCreator(name, dir)
 	if err != nil {
-		panic(fmt.Sprintf("Error initializing DB: %v", err))
+		return nil, fmt.Errorf("error initializing DB: %w", err)
 	}
-	return db
+	return db, nil
 }
