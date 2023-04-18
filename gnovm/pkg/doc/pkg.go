@@ -183,7 +183,7 @@ func typeExprString(expr ast.Expr) string {
 	return ""
 }
 
-func (pkg *pkgData) docPackage(opts *documentOptions) (*ast.Package, *doc.Package, error) {
+func (pkg *pkgData) docPackage(opts *writeDocOptions) (*ast.Package, *doc.Package, error) {
 	// largely taken from go/doc.NewFromFiles source
 
 	// Collect .gno files in a map for ast.NewPackage.

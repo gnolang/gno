@@ -36,7 +36,7 @@ type pkgPrinter struct {
 	constructor map[*doc.Func]bool  // Constructors.
 	fs          *token.FileSet      // Needed for printing.
 	buf         pkgBuffer
-	opt         *documentOptions
+	opt         *writeDocOptions
 	importPath  string
 
 	// this is set when an error should be returned up the call chain;

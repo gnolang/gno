@@ -18,10 +18,10 @@ import (
 	"go.uber.org/multierr"
 )
 
-// DocumentOption is used to pass options to the [Documentable].Document.
-type DocumentOption func(s *documentOptions)
+// WriteDocumentationOption is used to pass options to the [Documentable].WriteDocumentation.
+type WriteDocumentationOption func(s *writeDocOptions)
 
-type documentOptions struct {
+type writeDocOptions struct {
 	all        bool
 	src        bool
 	unexported bool
@@ -30,35 +30,32 @@ type documentOptions struct {
 }
 
 // WithShowAll shows all symbols when displaying documentation about a package.
-func WithShowAll(b bool) DocumentOption {
-	return func(s *documentOptions) { s.all = b }
+func WithShowAll(b bool) WriteDocumentationOption {
+	return func(s *writeDocOptions) { s.all = b }
 }
 
 // WithSource shows source when documenting a symbol.
-func WithSource(b bool) DocumentOption {
-	return func(s *documentOptions) { s.src = b }
+func WithSource(b bool) WriteDocumentationOption {
+	return func(s *writeDocOptions) { s.src = b }
 }
 
 // WithUnexported shows unexported symbols as well as exported.
-func WithUnexported(b bool) DocumentOption {
-	return func(s *documentOptions) { s.unexported = b }
+func WithUnexported(b bool) WriteDocumentationOption {
+	return func(s *writeDocOptions) { s.unexported = b }
 }
 
 // WithShort shows a one-line representation for each symbol.
-func WithShort(b bool) DocumentOption {
-	return func(s *documentOptions) { s.short = b }
-}
-
-// WithWriter uses the given writer as an output.
-// By default, os.Stdout is used.
-func WithWriter(w io.Writer) DocumentOption {
-	return func(s *documentOptions) { s.w = w }
+func WithShort(b bool) WriteDocumentationOption {
+	return func(s *writeDocOptions) { s.short = b }
 }
 
 // Documentable is a package, symbol, or accessible which can be documented.
 type Documentable interface {
-	Document(...DocumentOption) error
+	WriteDocumentation(w io.Writer, opts ...WriteDocumentationOption) error
 }
+
+// static implementation check
+var _ Documentable = (*documentable)(nil)
 
 type documentable struct {
 	Dir
@@ -67,8 +64,8 @@ type documentable struct {
 	pkgData    *pkgData
 }
 
-func (d *documentable) Document(opts ...DocumentOption) error {
-	o := &documentOptions{w: os.Stdout}
+func (d *documentable) WriteDocumentation(w io.Writer, opts ...WriteDocumentationOption) error {
+	o := &writeDocOptions{w: w}
 	for _, opt := range opts {
 		opt(o)
 	}

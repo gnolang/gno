@@ -74,11 +74,11 @@ func execDoc(cfg *docCfg, args []string, io *commands.IO) error {
 	if err != nil {
 		io.Printfln("warning: error parsing some candidate packages:\n%v", err)
 	}
-	err = res.Document(
+	err = res.WriteDocumentation(
+		io.Out,
 		doc.WithShowAll(cfg.all),
 		doc.WithSource(cfg.src),
 		doc.WithUnexported(cfg.unexported),
-		doc.WithWriter(io.Out),
 	)
 	if err != nil {
 		return err
