@@ -90,9 +90,11 @@ augroup gno_autocmd
 augroup END
 ```
 
-To use *gofumpt* instead of *gofmt*, as hinted in the comment, you may substitute the cexpr line above with the following (please make sure to replace `<path/to/gno>` with the path to your local gno repository):
+To use *gofumpt* instead of *gofmt*, as hinted in the comment, you may either have `gofumpt` in your PATH or substitute the cexpr line above with the following (please make sure to replace `<path/to/gno>` with the path to your local gno repository):
 
-`cexpr system('go run -modfile </path/to/gno>/misc/devdeps/go.mod mvdan.cc/gofumpt -w ' . expand('%'))`
+```vim
+cexpr system('go run -modfile </path/to/gno>/misc/devdeps/go.mod mvdan.cc/gofumpt -w ' . expand('%'))
+```
 
 #### Emacs Support
 
