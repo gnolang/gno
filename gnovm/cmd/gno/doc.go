@@ -5,8 +5,8 @@ import (
 	"flag"
 	"path/filepath"
 
-	"github.com/gnolang/gno/pkgs/commands"
-	"github.com/gnolang/gno/pkgs/commands/doc"
+	"github.com/gnolang/gno/gnovm/pkg/doc"
+	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
 type docCfg struct {
@@ -61,7 +61,7 @@ func execDoc(cfg *docCfg, args []string, io *commands.IO) error {
 	if cfg.rootDir == "" {
 		cfg.rootDir = guessRootDir()
 	}
-	dirs := doc.NewDirs(filepath.Join(cfg.rootDir, "stdlibs"), filepath.Join(cfg.rootDir, "examples"))
+	dirs := doc.NewDirs(filepath.Join(cfg.rootDir, "gnovm/stdlibs"), filepath.Join(cfg.rootDir, "examples"))
 	res, err := doc.ResolveDocumentable(dirs, args, cfg.unexported)
 	switch {
 	case res == nil:
