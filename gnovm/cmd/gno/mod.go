@@ -13,7 +13,8 @@ import (
 )
 
 type modDownloadCfg struct {
-	remote string
+	remote  string
+	verbose bool
 }
 
 func newModCmd(io *commands.IO) *commands.Command {
@@ -57,6 +58,13 @@ func (c *modDownloadCfg) RegisterFlags(fs *flag.FlagSet) {
 		"test3.gno.land:36657",
 		"remote for fetching gno modules",
 	)
+
+	fs.BoolVar(
+		&c.verbose,
+		"verbose",
+		false,
+		"verbose output when running",
+	)
 }
 
 func execModDownload(cfg *modDownloadCfg, args []string, io *commands.IO) error {
@@ -93,7 +101,7 @@ func execModDownload(cfg *modDownloadCfg, args []string, io *commands.IO) error 
 	}
 
 	// fetch dependencies
-	if err := gnoMod.FetchDeps(gnomod.GetGnoModPath(), cfg.remote); err != nil {
+	if err := gnoMod.FetchDeps(gnomod.GetGnoModPath(), cfg.remote, cfg.verbose); err != nil {
 		return fmt.Errorf("fetch: %w", err)
 	}
 

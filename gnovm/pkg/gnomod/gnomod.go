@@ -23,7 +23,7 @@ func GetGnoModPath() string {
 func writePackage(remote, basePath, pkgPath string) (requirements []string, err error) {
 	res, err := queryChain(remote, queryPathFile, []byte(pkgPath))
 	if err != nil {
-		return nil, fmt.Errorf("querychain: %w", err)
+		return nil, fmt.Errorf("querychain (%s): %w", pkgPath, err)
 	}
 
 	dirPath, fileName := std.SplitFilepath(pkgPath)

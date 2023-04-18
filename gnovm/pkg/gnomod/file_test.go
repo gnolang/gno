@@ -89,7 +89,7 @@ func TestFetchDeps(t *testing.T) {
 			defer cleanUpFn()
 
 			// Fetching dependencies
-			tc.modFile.FetchDeps(dirPath, testRemote)
+			tc.modFile.FetchDeps(dirPath, testRemote, true)
 
 			// Read dir
 			entries, err := os.ReadDir(filepath.Join(dirPath, "gno.land", "p", "demo"))
@@ -109,7 +109,7 @@ func TestFetchDeps(t *testing.T) {
 			buf.Reset()
 
 			// Try fetching again. Should be cached
-			tc.modFile.FetchDeps(dirPath, testRemote)
+			tc.modFile.FetchDeps(dirPath, testRemote, true)
 			for _, c := range tc.cachedStdOutContains {
 				assert.Contains(t, buf.String(), c)
 			}
