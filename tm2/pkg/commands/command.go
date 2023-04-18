@@ -5,7 +5,8 @@ import (
 	"flag"
 
 	"github.com/peterbourgon/ff/v3"
-	"github.com/peterbourgon/ff/v3/ffcli"
+
+	"github.com/gnolang/gno/tm2/pkg/commands/ffcli"
 )
 
 // Config defines the command config interface
