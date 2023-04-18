@@ -32,7 +32,7 @@ func (m *Machine) doOpDefine() {
 		}
 
 		if is && pv.TV != nil && pv.TV.OnHeap {
-			nx.Path.IsRoot = true
+			nx.IsRoot = true
 		}
 	}
 }
@@ -69,13 +69,13 @@ func (m *Machine) doOpAssign() {
 		}
 
 		if is && pv.TV != nil && pv.TV.OnHeap {
-			nx.Path.IsRoot = true
+			nx.IsRoot = true
 		}
 	}
 }
 
 func (m *Machine) getTypeValueFromNX(lhs *NameExpr, rhs Expr, stackDefault TypedValue) TypedValue {
-	var obj *GCObj
+	var obj, root *GCObj
 	var rname *NameExpr
 
 	switch name := rhs.(type) {
@@ -84,15 +84,21 @@ func (m *Machine) getTypeValueFromNX(lhs *NameExpr, rhs Expr, stackDefault Typed
 	case *RefExpr:
 		rname = name.X.(*NameExpr)
 	}
-	if rname != nil && rname.Path.IsRoot {
-		root := m.GC.getRootByPath(rname.Path.String())
-		obj = root.ref
+	if rname != nil {
+		root = m.GC.getRootByPath(rname.Path.String())
 	}
 	var rtv TypedValue
 
+	if root != nil {
+		obj = root.ref
+	}
+
 	if obj != nil {
-		rptr := obj.value.(PointerValue)
-		rtv = *rptr.TV
+		if ptr, is := obj.value.(PointerValue); is {
+			rtv = *ptr.TV
+		} else if t, iss := obj.value.(*TypedValue); iss {
+			rtv = *t
+		}
 		m.GC.AddRoot(&GCObj{
 			path:   lhs.Path.String(),
 			marked: false,
@@ -120,7 +126,7 @@ func (m *Machine) escape2Heap(nx *NameExpr, rhs Expr, pv PointerValue, tv *Typed
 
 	if refExpr, ok := rhs.(*RefExpr); ok {
 		rn := refExpr.X.(*NameExpr)
-		rn.Path.IsRoot = true
+		rn.IsRoot = true
 
 		rroot := &GCObj{
 			path:   rn.Path.String(),

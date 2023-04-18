@@ -29,23 +29,32 @@ func (m *Machine) doOpEval() {
 			m.PushValue(gv.Deref())
 			return
 		} else {
-			var ptr PointerValue
-			var obj *GCObj
+			var obj, root *GCObj
 
-			if m.GC != nil && nx.Path.IsRoot {
-				root := m.GC.getRootByPath(nx.Path.String())
+			if m.GC != nil {
+				root = m.GC.getRootByPath(nx.Path.String())
+			}
+			if root != nil {
 				obj = root.ref
 			}
+
+			var tv TypedValue
+
 			if obj != nil {
-				ptr = obj.value.(PointerValue)
+				if ptr, is := obj.value.(PointerValue); is {
+					tv = ptr.Deref()
+				} else if t, iss := obj.value.(TypedValue); iss {
+					tv = t
+				}
 			} else {
 				// Get value from scope.
 				lb := m.LastBlock()
 				// Push value, done.
-				ptr = lb.GetPointerTo(m.Store, nx.Path)
+				ptr := lb.GetPointerTo(m.Store, nx.Path)
+				tv = ptr.Deref()
 			}
 
-			m.PushValue(ptr.Deref())
+			m.PushValue(tv)
 			return
 		}
 	}

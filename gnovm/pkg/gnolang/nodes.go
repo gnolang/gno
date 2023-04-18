@@ -365,7 +365,8 @@ var (
 type NameExpr struct {
 	Attributes
 	// TODO rename .Path's to .ValuePaths.
-	Path ValuePath // set by preprocessor.
+	Path   ValuePath // set by preprocessor.
+	IsRoot bool
 	Name
 }
 
@@ -1648,7 +1649,6 @@ func (sb *StaticBlock) GetStaticTypeOfAt(store Store, path ValuePath) Type {
 			path.Depth -= 1
 		}
 	}
-	panic("should not happen")
 }
 
 // Implements BlockNode.
@@ -1825,11 +1825,10 @@ func (x *PackageNode) GetBody() Body {
 // such as those for *DeclaredType methods or *StructType fields,
 // see tests/selector_test.go.
 type ValuePath struct {
-	Type   VPType // see VPType* consts.
-	Depth  uint8  // see doc for ValuePath.
-	Index  uint16 // index of value, field, or method.
-	Name   Name   // name of value, field, or method.
-	IsRoot bool
+	Type  VPType // see VPType* consts.
+	Depth uint8  // see doc for ValuePath.
+	Index uint16 // index of value, field, or method.
+	Name  Name   // name of value, field, or method.
 }
 
 type VPType uint8
