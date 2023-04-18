@@ -458,7 +458,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.StringValue",
-//                 "value": "g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985"
+//                 "value": "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"
 //             }
 //         },
 //         {
@@ -837,7 +837,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.StringValue",
-//                 "value": "g1arjyc64rpthwn8zhxtzjvearm5scy43y7vm985"
+//                 "value": "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"
 //             }
 //         },
 //         {
@@ -847,7 +847,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.RefValue",
-//                 "Hash": "04bcdca23188f0e1b9a57b36c4bb33ed3cd72446",
+//                 "Hash": "5b4b593f1d4b37cb99166247ea28174f91087fdd",
 //                 "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:82"
 //             }
 //         },

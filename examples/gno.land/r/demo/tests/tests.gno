@@ -6,6 +6,14 @@ func CurrentRealmPath() string {
 	return std.CurrentRealmPath()
 }
 
+func AssertOriginCall() {
+	std.AssertOriginCall()
+}
+
+func IsOriginCall() bool {
+	return std.IsOriginCall()
+}
+
 //----------------------------------------
 // Test structure to ensure cross-realm modification is prevented.
 

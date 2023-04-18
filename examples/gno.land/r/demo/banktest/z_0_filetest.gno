@@ -10,10 +10,12 @@ import (
 )
 
 func main() {
-	banktestAddr := std.TestDerivePkgAddr("gno.land/r/banktest")
+	banktestAddr := std.DerivePkgAddr("gno.land/r/banktest")
 
 	// print main balance before.
-	mainaddr := std.TestDerivePkgAddr("main")
+	mainaddr := std.DerivePkgAddr("main")
+	std.TestSetOrigCaller(mainaddr)
+
 	banker := std.GetBanker(std.BankerTypeReadonly)
 	mainbal := banker.GetCoins(mainaddr)
 	println("main before:", mainbal) // plus OrigSend equals 300.

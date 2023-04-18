@@ -1,0 +1,62 @@
+name: gnovm
+
+on:
+  pull_request:
+    paths:
+      - "go.sum"
+      - "gnovm/**.go"
+      - "gnovm/**.gno"
+      - "gnovm/**/go.sum"
+      - "gnovm/Makefile"
+      - "tm2/**.go"
+      - ".github/workflows/gnovm.yml"
+  push:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: [ "1.19.x", "1.20.x" ]
+        goarch: [ "amd64" ]
+        goos: [ "linux" ]
+        program: [ "gno" ]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
+      - uses: actions/checkout@v3
+      - name: go install
+        working-directory: gnovm
+        run: GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go install ./cmd/${{ matrix.program }}
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: [ "1.19.x", "1.20.x" ]
+        args:
+          - _test.cmd
+          - _test.pkg
+          - _test.gnolang.native
+          - _test.gnolang.stdlibs
+          - _test.gnolang.realm
+          - _test.gnolang.pkg0
+          - _test.gnolang.pkg1
+          - _test.gnolang.pkg2
+          - _test.gnolang.other
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
+      - uses: actions/checkout@v3
+      - name: test
+        working-directory: gnovm
+        run: |
+          export GOPATH=$HOME/go
+          make ${{ matrix.args }}
