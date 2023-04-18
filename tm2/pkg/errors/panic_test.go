@@ -1,9 +1,10 @@
-package errors
+package errors_test
 
 import (
 	"fmt"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -14,7 +15,7 @@ func TestPanic(t *testing.T) {
 				v = r.(error)
 			}
 		}()
-		Panic(fmt.Errorf("just a test: %d", 1337))
+		errors.Panic(fmt.Errorf("just a test: %d", 1337))
 		return
 	}
 
