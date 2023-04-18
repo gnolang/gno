@@ -11,8 +11,8 @@ func contains(list []string, item string) bool {
 	return false
 }
 
-func endsWith(list []string, item string) bool {
-	for _, i := range list {
+func endsWith(item string, suffixes []string) bool {
+	for _, i := range suffixes {
 		if strings.HasSuffix(item, i) {
 			return true
 		}
