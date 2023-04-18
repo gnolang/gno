@@ -63,10 +63,10 @@ func execDoc(cfg *docCfg, args []string, io *commands.IO) error {
 	}
 	dirs := doc.NewDirs(filepath.Join(cfg.rootDir, "gnovm/stdlibs"), filepath.Join(cfg.rootDir, "examples"))
 	res, err := doc.ResolveDocumentable(dirs, args, cfg.unexported)
-	switch {
-	case res == nil:
+	if res == nil {
 		return err
-	case err != nil:
+	}
+	if err != nil {
 		io.Printfln("warning: error parsing some candidate packages:\n%v", err)
 	}
 	err = res.Document(
