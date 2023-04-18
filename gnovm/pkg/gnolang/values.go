@@ -1420,6 +1420,17 @@ func (tv *TypedValue) GetFloat64() float64 {
 	return *(*float64)(unsafe.Pointer(&tv.N))
 }
 
+func (tv *TypedValue) SetBigInt(bi *big.Int) {
+	if debug {
+		if tv.T.Kind() != BigintKind || isNative(tv.T) {
+			panic(fmt.Sprintf(
+				"TypedValue.SetBigInt() on type %s",
+				tv.T.String()))
+		}
+	}
+	tv.V = BigintValue{bi}
+}
+
 func (tv *TypedValue) GetBigInt() *big.Int {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != BigintKind {
@@ -1429,6 +1440,17 @@ func (tv *TypedValue) GetBigInt() *big.Int {
 		}
 	}
 	return tv.V.(BigintValue).V
+}
+
+func (tv *TypedValue) SetBigDec(ad *apd.Decimal) {
+	if debug {
+		if tv.T.Kind() != BigdecKind || isNative(tv.T) {
+			panic(fmt.Sprintf(
+				"TypedValue.SetBigDec() on type %s",
+				tv.T.String()))
+		}
+	}
+	tv.V = BigdecValue{ad}
 }
 
 func (tv *TypedValue) GetBigDec() *apd.Decimal {

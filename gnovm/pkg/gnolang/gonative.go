@@ -2,7 +2,10 @@ package gnolang
 
 import (
 	"fmt"
+	"math/big"
 	"reflect"
+
+	"github.com/cockroachdb/apd"
 )
 
 // NOTE
@@ -508,9 +511,13 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 			tv.SetFloat64(rv.Float())
 		}
 	case BigintKind:
-		panic("not yet implemented")
+		if lvl != 0 {
+			tv.SetBigInt(rv.Interface().(*big.Int))
+		}
 	case BigdecKind:
-		panic("not yet implemented")
+		if lvl != 0 {
+			tv.SetBigDec(rv.Interface().(*apd.Decimal))
+		}
 	case ArrayKind:
 		av := tv.V.(*ArrayValue)
 		rvl := rv.Len()
@@ -828,9 +835,9 @@ func gno2GoType(t Type) reflect.Type {
 		case Float64Type:
 			return reflect.TypeOf(float64(0))
 		case BigintType, UntypedBigintType:
-			panic("not yet implemented")
+			return reflect.TypeOf(big.NewInt(0))
 		case BigdecType, UntypedBigdecType:
-			panic("not yet implemented")
+			return reflect.TypeOf(apd.New(0, 0))
 		default:
 			panic("should not happen")
 		}
@@ -1113,6 +1120,10 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 			rv.SetFloat(float64(tv.GetFloat32()))
 		case Float64Type:
 			rv.SetFloat(tv.GetFloat64())
+		case BigintType:
+			rv.Set(reflect.ValueOf(tv.GetBigInt()))
+		case BigdecType:
+			rv.Set(reflect.ValueOf(tv.GetBigDec()))
 		default:
 			panic(fmt.Sprintf(
 				"unexpected type %s",
