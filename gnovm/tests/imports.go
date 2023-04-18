@@ -485,6 +485,7 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 			func(m *gno.Machine) {
 				if !isOriginCall(m) {
 					m.Panic(typedString("invalid non-origin call"))
+					return
 				}
 			},
 		)
@@ -515,13 +516,15 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				arg0 := m.LastBlock().GetParams1().TV
 				n := arg0.GetInt()
 				if n <= 0 {
-					panic("GetCallerAt requires positive arg")
+					m.Panic(typedString("GetCallerAt requires positive arg"))
+					return
 				}
 				if n > m.NumFrames()-1 {
 					// NOTE: the last frame's LastPackage
 					// is set to the original non-frame
 					// package, so need this check.
-					panic("frame not found")
+					m.Panic(typedString("frame not found"))
+					return
 				}
 				var pkgAddr string
 				if n == m.NumFrames()-1 {

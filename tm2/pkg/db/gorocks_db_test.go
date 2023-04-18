@@ -1,5 +1,4 @@
 //go:build gorocksdb
-// +build gorocksdb
 
 package db
 
