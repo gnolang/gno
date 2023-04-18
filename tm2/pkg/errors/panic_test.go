@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestPanic(t *testing.T) {
+func TestFatal(t *testing.T) {
 	ctx := errors.FatalContext()
 	assert.Nil(t, ctx.Err())
 
