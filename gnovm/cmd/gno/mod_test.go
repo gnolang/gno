@@ -42,7 +42,7 @@ func TestModApp(t *testing.T) {
 			args:                 []string{"mod", "download"},
 			testDir:              "../../tests/integ/require-invalid-module",
 			simulateExternalRepo: true,
-			errShouldContain:     "fetch: writepackage: querychain:",
+			errShouldContain:     "fetch: writepackage: querychain",
 		},
 		{
 			args:                 []string{"mod", "download"},
@@ -70,7 +70,7 @@ func TestModApp(t *testing.T) {
 			args:                 []string{"mod", "download"},
 			testDir:              "../../tests/integ/replace-with-invalid-module",
 			simulateExternalRepo: true,
-			errShouldContain:     "fetch: writepackage: querychain:",
+			errShouldContain:     "fetch: writepackage: querychain",
 		},
 	}
 	testMainCaseRun(t, tc)
