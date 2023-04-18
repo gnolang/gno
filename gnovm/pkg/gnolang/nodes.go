@@ -1108,7 +1108,7 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 	for _, file := range files {
 		if file.IsDir() ||
 			strings.HasPrefix(file.Name(), ".") ||
-			(!endsWith(allowedFileExtensions, file.Name()) && !contains(allowedFiles, file.Name())) {
+			(!endsWith(file.Name(), allowedFileExtensions) && !contains(allowedFiles, file.Name())) {
 			continue
 		}
 		fpath := filepath.Join(dir, file.Name())
