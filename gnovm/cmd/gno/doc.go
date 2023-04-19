@@ -13,6 +13,7 @@ type docCfg struct {
 	all        bool
 	src        bool
 	unexported bool
+	short      bool
 	rootDir    string
 }
 
@@ -53,6 +54,13 @@ func (c *docCfg) RegisterFlags(fs *flag.FlagSet) {
 		"show unexported symbols as well as exported",
 	)
 
+	fs.BoolVar(
+		&c.short,
+		"short",
+		false,
+		"show a one line representation for each symbol",
+	)
+
 	fs.StringVar(
 		&c.rootDir,
 		"root-dir",
@@ -76,9 +84,12 @@ func execDoc(cfg *docCfg, args []string, io *commands.IO) error {
 	}
 	err = res.WriteDocumentation(
 		io.Out,
-		doc.WithShowAll(cfg.all),
-		doc.WithSource(cfg.src),
-		doc.WithUnexported(cfg.unexported),
+		&doc.WriteDocumentationOptions{
+			ShowAll:    cfg.all,
+			Source:     cfg.src,
+			Unexported: cfg.unexported,
+			Short:      false,
+		},
 	)
 	if err != nil {
 		return err

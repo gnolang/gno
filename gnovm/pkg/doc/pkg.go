@@ -183,7 +183,7 @@ func typeExprString(expr ast.Expr) string {
 	return ""
 }
 
-func (pkg *pkgData) docPackage(opts *writeDocOptions) (*ast.Package, *doc.Package, error) {
+func (pkg *pkgData) docPackage(opts *WriteDocumentationOptions) (*ast.Package, *doc.Package, error) {
 	// largely taken from go/doc.NewFromFiles source
 
 	// Collect .gno files in a map for ast.NewPackage.
@@ -204,7 +204,7 @@ func (pkg *pkgData) docPackage(opts *writeDocOptions) (*ast.Package, *doc.Packag
 	//	go doc time.Sunday
 	// from finding the symbol. This is why we always have AllDecls.
 	mode := doc.AllDecls
-	if opts.src {
+	if opts.Source {
 		mode |= doc.PreserveAST
 	}
 

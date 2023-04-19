@@ -18,40 +18,24 @@ import (
 	"go.uber.org/multierr"
 )
 
-// WriteDocumentationOption is used to pass options to the [Documentable].WriteDocumentation.
-type WriteDocumentationOption func(s *writeDocOptions)
+// WriteDocumentationOptions represents the possible options when requesting
+// documentation through Documentable.
+type WriteDocumentationOptions struct {
+	// ShowAll shows all symbols when displaying documentation about a package.
+	ShowAll bool
+	// Source shows the source code when documenting a symbol.
+	Source bool
+	// Unexported shows unexported symbols as well as exported.
+	Unexported bool
+	// Short shows a one-line representation for each symbol.
+	Short bool
 
-type writeDocOptions struct {
-	all        bool
-	src        bool
-	unexported bool
-	short      bool
-	w          io.Writer
-}
-
-// WithShowAll shows all symbols when displaying documentation about a package.
-func WithShowAll(b bool) WriteDocumentationOption {
-	return func(s *writeDocOptions) { s.all = b }
-}
-
-// WithSource shows source when documenting a symbol.
-func WithSource(b bool) WriteDocumentationOption {
-	return func(s *writeDocOptions) { s.src = b }
-}
-
-// WithUnexported shows unexported symbols as well as exported.
-func WithUnexported(b bool) WriteDocumentationOption {
-	return func(s *writeDocOptions) { s.unexported = b }
-}
-
-// WithShort shows a one-line representation for each symbol.
-func WithShort(b bool) WriteDocumentationOption {
-	return func(s *writeDocOptions) { s.short = b }
+	w io.Writer
 }
 
 // Documentable is a package, symbol, or accessible which can be documented.
 type Documentable interface {
-	WriteDocumentation(w io.Writer, opts ...WriteDocumentationOption) error
+	WriteDocumentation(w io.Writer, opts *WriteDocumentationOptions) error
 }
 
 // static implementation check
@@ -64,17 +48,17 @@ type documentable struct {
 	pkgData    *pkgData
 }
 
-func (d *documentable) WriteDocumentation(w io.Writer, opts ...WriteDocumentationOption) error {
-	o := &writeDocOptions{w: w}
-	for _, opt := range opts {
-		opt(o)
+func (d *documentable) WriteDocumentation(w io.Writer, o *WriteDocumentationOptions) error {
+	if o == nil {
+		o = &WriteDocumentationOptions{}
 	}
+	o.w = w
 
 	var err error
 	// pkgData may already be initialised if we already had to look to see
 	// if it had the symbol we wanted; otherwise initialise it now.
 	if d.pkgData == nil {
-		d.pkgData, err = newPkgData(d.Dir, o.unexported)
+		d.pkgData, err = newPkgData(d.Dir, o.Unexported)
 		if err != nil {
 			return err
 		}
@@ -92,7 +76,7 @@ func (d *documentable) WriteDocumentation(w io.Writer, opts ...WriteDocumentatio
 		pkg.Consts = append(pkg.Consts, typ.Consts...)
 		pkg.Vars = append(pkg.Vars, typ.Vars...)
 		pkg.Funcs = append(pkg.Funcs, typ.Funcs...)
-		if o.unexported || token.IsExported(typ.Name) {
+		if o.Unexported || token.IsExported(typ.Name) {
 			for _, value := range typ.Consts {
 				typedValue[value] = true
 			}
@@ -133,7 +117,7 @@ func (d *documentable) output(pp *pkgPrinter) (err error) {
 
 	switch {
 	case d.symbol == "" && d.accessible == "":
-		if pp.opt.all {
+		if pp.opt.ShowAll {
 			pp.allDoc()
 			return
 		}

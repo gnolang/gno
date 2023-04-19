@@ -1,4 +1,5 @@
-// Mostly copied from go source at tip, commit d922c0a.
+// Mostly copied from go source at tip, cmd/doc/dirs.go.
+// https://github.com/golang/go/blob/d922c0a8f5035b0533eb6e912ffd7b85487e3942/src/cmd/doc/dirs.go
 //
 // Copyright 2015 The Go Authors. All rights reserved.
 
@@ -32,6 +33,8 @@ type Dirs struct {
 // NewDirs begins scanning the given stdlibs directory.
 func NewDirs(dirs ...string) *Dirs {
 	d := &Dirs{
+		// prealloc to 256 -- this will generaly be a few hundred dirs
+		// so starting off like this spares us log2(128) extra allocations in the general case.
 		hist: make([]Dir, 0, 256),
 		scan: make(chan Dir),
 	}
@@ -131,6 +134,7 @@ func (d *Dirs) bfsWalkRoot(root string) {
 // exactly, it will be returned as first.
 func (d *Dirs) findPackage(name string) []Dir {
 	d.Reset()
+	// in general this will be either 0, 1 or a small number.
 	candidates := make([]Dir, 0, 4)
 	for dir, ok := d.Next(); ok; dir, ok = d.Next() {
 		// want either exact matches or suffixes

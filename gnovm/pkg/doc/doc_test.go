@@ -144,7 +144,7 @@ func TestDocument(t *testing.T) {
 	tt := []struct {
 		name     string
 		d        *documentable
-		opts     []WriteDocumentationOption
+		opts     *WriteDocumentationOptions
 		contains []string
 	}{
 		{"base", &documentable{Dir: dir}, nil, []string{"func Crypto", "!Crypto symbol", "func NewRand", "!unexp", "type Flag", "!Name"}},
@@ -155,19 +155,19 @@ func TestDocument(t *testing.T) {
 		{
 			"tpUnexp",
 			&documentable{Dir: dir, symbol: "Rand"},
-			[]WriteDocumentationOption{WithUnexported(true)},
+			&WriteDocumentationOptions{Unexported: true},
 			[]string{"type Rand", "comment1", "!func Crypto", "unexp  ", "comment4", "!Has unexported"},
 		},
 		{
 			"symUnexp",
 			&documentable{Dir: dir, symbol: "unexp"},
-			[]WriteDocumentationOption{WithUnexported(true)},
+			&WriteDocumentationOptions{Unexported: true},
 			[]string{"var unexp", "!type Rand", "!comment1", "!comment4", "!func Crypto", "!Has unexported"},
 		},
 		{
 			"fieldUnexp",
 			&documentable{Dir: dir, symbol: "Rand", accessible: "unexp"},
-			[]WriteDocumentationOption{WithUnexported(true)},
+			&WriteDocumentationOptions{Unexported: true},
 			[]string{"type Rand", "!comment1", "comment4", "!func Crypto", "elided", "!Has unexported"},
 		},
 	}
@@ -177,7 +177,7 @@ func TestDocument(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			buf.Reset()
-			err := tc.d.WriteDocumentation(buf, tc.opts...)
+			err := tc.d.WriteDocumentation(buf, tc.opts)
 			require.NoError(t, err)
 			s := buf.String()
 			for _, c := range tc.contains {

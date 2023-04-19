@@ -36,7 +36,7 @@ type pkgPrinter struct {
 	constructor map[*doc.Func]bool  // Constructors.
 	fs          *token.FileSet      // Needed for printing.
 	buf         pkgBuffer
-	opt         *writeDocOptions
+	opt         *WriteDocumentationOptions
 	importPath  string
 
 	// this is set when an error should be returned up the call chain;
@@ -46,7 +46,7 @@ type pkgPrinter struct {
 
 func (pkg *pkgPrinter) isExported(name string) bool {
 	// cmd/doc uses a global here, so we change this to be a method.
-	return pkg.opt.unexported || token.IsExported(name)
+	return pkg.opt.Unexported || token.IsExported(name)
 }
 
 func (pkg *pkgPrinter) ToText(w io.Writer, text, prefix, codePrefix string) {
@@ -106,13 +106,13 @@ func (pkg *pkgPrinter) newlines(n int) {
 	}
 }
 
-// emit prints the node. If pkg.opt.src is true, it ignores the provided comment,
+// emit prints the node. If pkg.opt.Source is true, it ignores the provided comment,
 // assuming the comment is in the node itself. Otherwise, the go/doc package
 // clears the stuff we don't want to print anyway. It's a bit of a magic trick.
 func (pkg *pkgPrinter) emit(comment string, node ast.Node) {
 	if node != nil {
 		var arg any = node
-		if pkg.opt.src {
+		if pkg.opt.Source {
 			// Need an extra little dance to get internal comments to appear.
 			arg = &printer.CommentedNode{
 				Node:     node,
@@ -123,7 +123,7 @@ func (pkg *pkgPrinter) emit(comment string, node ast.Node) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		if comment != "" && !pkg.opt.src {
+		if comment != "" && !pkg.opt.Source {
 			pkg.newlines(1)
 			pkg.ToText(&pkg.buf, comment, indent, indent+indent)
 			pkg.newlines(2) // Blank line after comment to separate from next item.
@@ -396,12 +396,12 @@ func (pkg *pkgPrinter) allDoc() {
 // packageDoc prints the docs for the package (package doc plus one-liners of the rest).
 func (pkg *pkgPrinter) packageDoc() {
 	pkg.Printf("") // Trigger the package clause; we know the package exists.
-	if !pkg.opt.short {
+	if !pkg.opt.Short {
 		pkg.ToText(&pkg.buf, pkg.doc.Doc, "", indent)
 		pkg.newlines(1)
 	}
 
-	if !pkg.opt.short {
+	if !pkg.opt.Short {
 		pkg.newlines(2) // Guarantee blank line before the components.
 	}
 
@@ -409,14 +409,14 @@ func (pkg *pkgPrinter) packageDoc() {
 	pkg.valueSummary(pkg.doc.Vars, false)
 	pkg.funcSummary(pkg.doc.Funcs, false)
 	pkg.typeSummary()
-	if !pkg.opt.short {
+	if !pkg.opt.Short {
 		pkg.bugs()
 	}
 }
 
 // packageClause prints the package clause.
 func (pkg *pkgPrinter) packageClause() {
-	if pkg.opt.short {
+	if pkg.opt.Short {
 		return
 	}
 
@@ -638,7 +638,7 @@ func (pkg *pkgPrinter) valueDoc(value *doc.Value, printed map[*ast.GenDecl]bool)
 		}
 
 		for _, ident := range vspec.Names {
-			if pkg.opt.src || pkg.isExported(ident.Name) {
+			if pkg.opt.Source || pkg.isExported(ident.Name) {
 				if vspec.Type == nil && vspec.Values == nil && typ != nil {
 					// This a standalone identifier, as in the case of iota usage.
 					// Thus, assume the type comes from the previous type.
@@ -675,7 +675,7 @@ func (pkg *pkgPrinter) typeDoc(typ *doc.Type) {
 	pkg.emit(typ.Doc, decl)
 	pkg.newlines(2)
 	// Show associated methods, constants, etc.
-	if pkg.opt.all {
+	if pkg.opt.ShowAll {
 		printed := make(map[*ast.GenDecl]bool)
 		// We can use append here to print consts, then vars. Ditto for funcs and methods.
 		values := typ.Consts
@@ -710,7 +710,7 @@ func (pkg *pkgPrinter) typeDoc(typ *doc.Type) {
 // structs and methods from interfaces (unless the unexported flag is set or we
 // are asked to show the original source).
 func (pkg *pkgPrinter) trimUnexportedElems(spec *ast.TypeSpec) {
-	if pkg.opt.unexported || pkg.opt.src {
+	if pkg.opt.Unexported || pkg.opt.Source {
 		return
 	}
 	switch typ := spec.Type.(type) {
