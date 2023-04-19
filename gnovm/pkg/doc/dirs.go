@@ -33,7 +33,7 @@ type Dirs struct {
 // NewDirs begins scanning the given stdlibs directory.
 func NewDirs(dirs ...string) *Dirs {
 	d := &Dirs{
-		// prealloc to 256 -- this will generaly be a few hundred dirs
+		// prealloc to 256 -- this will generally be a few hundred dirs
 		// so starting off like this spares us log2(128) extra allocations in the general case.
 		hist: make([]Dir, 0, 256),
 		scan: make(chan Dir),
