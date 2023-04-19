@@ -3,8 +3,6 @@ package vm
 // DONTCOVER
 
 import (
-	"path/filepath"
-
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -39,8 +37,7 @@ func setupTestEnv() testEnv {
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id"}, log.NewNopLogger())
 	acck := authm.NewAccountKeeper(iavlCapKey, std.ProtoBaseAccount)
 	bank := bankm.NewBankKeeper(acck)
-	stdlibsDir := filepath.Join("..", "..", "..", "..", "gnovm", "stdlibs")
-	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, stdlibsDir)
+	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, "../../../../gnovm/stdlibs")
 
 	vmk.Initialize(ms.MultiCacheWrap())
 

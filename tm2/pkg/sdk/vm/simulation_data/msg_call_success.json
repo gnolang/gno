@@ -1,0 +1,7 @@
+[
+    {
+        "pkg_path": "gno.land/r/demo/hello",
+        "func": "SayHello",
+        "args": []
+    }
+]

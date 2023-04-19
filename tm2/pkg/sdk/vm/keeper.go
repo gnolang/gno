@@ -1,7 +1,5 @@
 package vm
 
-// TODO: move most of the logic in ROOT/gno.land/...
-
 import (
 	"fmt"
 	"os"
@@ -37,10 +35,14 @@ type VMKeeper struct {
 	iavlKey    store.StoreKey
 	acck       auth.AccountKeeper
 	bank       bank.BankKeeper
+	dispatcher *Dispatcher
 	stdlibsDir string
 
 	// cached, the DeliverTx persistent state.
 	gnoStore gno.Store
+	ctx      sdk.Context
+	calls    []*MsgCall // call stack, free after every MsgCall
+	// map[MsgCall]Addr, maintain last call address
 }
 
 // NewVMKeeper returns a new VMKeeper.
@@ -54,17 +56,28 @@ func NewVMKeeper(baseKey store.StoreKey, iavlKey store.StoreKey, acck auth.Accou
 	}
 	return vmk
 }
+func (vmk *VMKeeper) SetDispatcher(d *Dispatcher) {
+	vmk.dispatcher = d
+}
 
-func (vm *VMKeeper) Initialize(ms store.MultiStore) {
-	if vm.gnoStore != nil {
+func (vmk *VMKeeper) PushCall(call *MsgCall) {
+	vmk.calls = append(vmk.calls, call)
+}
+
+func (vmk *VMKeeper) Release(call *MsgCall) {
+	copy(vmk.calls, vmk.calls[:0])
+}
+
+func (vmk *VMKeeper) Initialize(ms store.MultiStore) {
+	if vmk.gnoStore != nil {
 		panic("should not happen")
 	}
 	alloc := gno.NewAllocator(maxAllocTx)
-	baseSDKStore := ms.GetStore(vm.baseKey)
-	iavlSDKStore := ms.GetStore(vm.iavlKey)
-	vm.gnoStore = gno.NewStore(alloc, baseSDKStore, iavlSDKStore)
-	vm.initBuiltinPackagesAndTypes(vm.gnoStore)
-	if vm.gnoStore.NumMemPackages() > 0 {
+	baseSDKStore := ms.GetStore(vmk.baseKey)
+	iavlSDKStore := ms.GetStore(vmk.iavlKey)
+	vmk.gnoStore = gno.NewStore(alloc, baseSDKStore, iavlSDKStore)
+	vmk.initBuiltinPackagesAndTypes(vmk.gnoStore)
+	if vmk.gnoStore.NumMemPackages() > 0 {
 		// for now, all mem packages must be re-run after reboot.
 		// TODO remove this, and generally solve for in-mem garbage collection
 		// and memory management across many objects/types/nodes/packages.
@@ -72,48 +85,87 @@ func (vm *VMKeeper) Initialize(ms store.MultiStore) {
 			gno.MachineOptions{
 				PkgPath: "",
 				Output:  os.Stdout, // XXX
-				Store:   vm.gnoStore,
+				Store:   vmk.gnoStore,
 			})
-		defer m2.Release()
 		gno.DisableDebug()
 		m2.PreprocessAllFilesAndSaveBlockNodes()
 		gno.EnableDebug()
 	}
 }
 
-func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
+func (vmk *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 	// construct main gnoStore if nil.
-	if vm.gnoStore == nil {
+	if vmk.gnoStore == nil {
 		panic("VMKeeper must first be initialized")
 	}
 	switch ctx.Mode() {
 	case sdk.RunTxModeDeliver:
 		// swap sdk store of existing gnoStore.
 		// this is needed due to e.g. gas wrappers.
-		baseSDKStore := ctx.Store(vm.baseKey)
-		iavlSDKStore := ctx.Store(vm.iavlKey)
-		vm.gnoStore.SwapStores(baseSDKStore, iavlSDKStore)
+		baseSDKStore := ctx.Store(vmk.baseKey)
+		iavlSDKStore := ctx.Store(vmk.iavlKey)
+		vmk.gnoStore.SwapStores(baseSDKStore, iavlSDKStore)
 		// clear object cache for every transaction.
 		// NOTE: this is inefficient, but simple.
 		// in the future, replace with more advanced caching strategy.
-		vm.gnoStore.ClearObjectCache()
-		return vm.gnoStore
+		vmk.gnoStore.ClearObjectCache()
+		return vmk.gnoStore
 	case sdk.RunTxModeCheck:
 		// For query??? XXX Why not RunTxModeQuery?
-		simStore := vm.gnoStore.Fork()
-		baseSDKStore := ctx.Store(vm.baseKey)
-		iavlSDKStore := ctx.Store(vm.iavlKey)
+		simStore := vmk.gnoStore.Fork()
+		baseSDKStore := ctx.Store(vmk.baseKey)
+		iavlSDKStore := ctx.Store(vmk.iavlKey)
 		simStore.SwapStores(baseSDKStore, iavlSDKStore)
 		return simStore
 	case sdk.RunTxModeSimulate:
 		// always make a new store for simulate for isolation.
-		simStore := vm.gnoStore.Fork()
-		baseSDKStore := ctx.Store(vm.baseKey)
-		iavlSDKStore := ctx.Store(vm.iavlKey)
+		simStore := vmk.gnoStore.Fork()
+		baseSDKStore := ctx.Store(vmk.baseKey)
+		iavlSDKStore := ctx.Store(vmk.iavlKey)
 		simStore.SwapStores(baseSDKStore, iavlSDKStore)
 		return simStore
 	default:
 		panic("should not happen")
+	}
+}
+
+func (vmk *VMKeeper) HandleMsg() {
+	var msgCall MsgCall
+	for {
+		select {
+		case req := <-stdlibs.MsgQueue:
+			println("this is call msg, PkgPath, Fn, Args: ", req.Call.PkgPath, req.Call.Fn, req.Call.Args[0])
+			msgCall.PkgPath = req.Call.PkgPath
+			msgCall.Func = req.Call.Fn
+			msgCall.Args = req.Call.Args
+
+			// XXX determint caller here, last pkg
+			// TODO: call dispatcher
+			println("push call stack")
+			vmk.PushCall(&msgCall)
+
+			r := vmk.dispatcher.HandleInnerMsgs(vmk.ctx, req.Call.PkgPath, []MsgCall{msgCall}, sdk.RunTxModeDeliver)
+
+			println("call finished, res: ", string(r.Data))
+
+			// test timeout
+			// time.Sleep(5 * time.Second)
+
+			if req.Callback != nil {
+				// do call back here
+				println("this is callback msg, PkgPath, Fn, Args: ", req.Call.PkgPath, req.Call.Fn)
+				// println("arg: ", req.Callback.Args[0])
+				msgCall.PkgPath = req.Callback.PkgPath
+				msgCall.Func = req.Callback.Fn
+				msgCall.Args = []string{string(r.Data)}
+				r = vmk.dispatcher.HandleInnerMsgs(vmk.ctx, req.Callback.PkgPath, []MsgCall{msgCall}, sdk.RunTxModeDeliver)
+				println("callback done, res is: ", string(r.Data))
+			} else {
+				println("going to send reply through channel")
+				// send back
+				stdlibs.ResQueue <- string(r.Data)
+			}
+		}
 	}
 }
 
@@ -176,7 +228,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 			Context:   msgCtx,
 			MaxCycles: 10 * 1000 * 1000, // 10M cycles // XXX
 		})
-	defer m2.Release()
 	m2.RunMemPackage(memPkg, true)
 	fmt.Println("CPUCYCLES addpkg", m2.Cycles)
 	return nil
@@ -184,6 +235,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 
 // Calls calls a public Gno function (for delivertx).
 func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
+	vm.ctx = ctx
 	pkgPath := msg.PkgPath // to import
 	fnc := msg.Func
 	store := vm.getGnoStore(ctx)
@@ -377,7 +429,6 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 				r, m.String())
 			return
 		}
-		m.Release()
 	}()
 	rtvs := m.Eval(xx)
 	res = ""
@@ -437,7 +488,6 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 				r, m.String())
 			return
 		}
-		m.Release()
 	}()
 	rtvs := m.Eval(xx)
 	if len(rtvs) != 1 {

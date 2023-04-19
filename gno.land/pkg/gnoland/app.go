@@ -43,6 +43,10 @@ func NewApp(rootDir string, skipFailingGenesisTxs bool, logger log.Logger) (abci
 	stdlibsDir := filepath.Join("..", "gnovm", "stdlibs")
 	vmKpr := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, stdlibsDir)
 
+	dispatcher := vm.NewDispatcher(logger)
+	dispatcher.Router().AddRoute("vm", vm.NewHandler(vmKpr))
+	vmKpr.SetDispatcher(dispatcher)
+
 	// Set InitChainer
 	baseApp.SetInitChainer(InitChainer(baseApp, acctKpr, bankKpr, skipFailingGenesisTxs))
 

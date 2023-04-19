@@ -29,12 +29,9 @@ func TestVMKeeperOrigSend1(t *testing.T) {
 	files := []*std.MemFile{
 		{"init.gno", `
 package test
-
 import "std"
-
 func init() {
 }
-
 func Echo(msg string) string {
 	addr := std.GetOrigCaller()
 	pkgAddr := std.GetOrigPkgAddr()
@@ -74,15 +71,11 @@ func TestVMKeeperOrigSend2(t *testing.T) {
 	files := []*std.MemFile{
 		{"init.gno", `
 package test
-
 import "std"
-
 var admin std.Address
-
 func init() {
      admin =	std.GetOrigCaller()
 }
-
 func Echo(msg string) string {
 	addr := std.GetOrigCaller()
 	pkgAddr := std.GetOrigPkgAddr()
@@ -91,7 +84,6 @@ func Echo(msg string) string {
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }
-
 func GetAdmin() string {
 	return admin.String()
 }
@@ -128,12 +120,9 @@ func TestVMKeeperOrigSend3(t *testing.T) {
 	files := []*std.MemFile{
 		{"init.gno", `
 package test
-
 import "std"
-
 func init() {
 }
-
 func Echo(msg string) string {
 	addr := std.GetOrigCaller()
 	pkgAddr := std.GetOrigPkgAddr()
@@ -172,12 +161,9 @@ func TestVMKeeperRealmSend1(t *testing.T) {
 	files := []*std.MemFile{
 		{"init.gno", `
 package test
-
 import "std"
-
 func init() {
 }
-
 func Echo(msg string) string {
 	addr := std.GetOrigCaller()
 	pkgAddr := std.GetOrigPkgAddr()
@@ -216,12 +202,9 @@ func TestVMKeeperRealmSend2(t *testing.T) {
 	files := []*std.MemFile{
 		{"init.gno", `
 package test
-
 import "std"
-
 func init() {
 }
-
 func Echo(msg string) string {
 	addr := std.GetOrigCaller()
 	pkgAddr := std.GetOrigPkgAddr()
@@ -260,15 +243,11 @@ func TestVMKeeperOrigCallerInit(t *testing.T) {
 	files := []*std.MemFile{
 		{"init.gno", `
 package test
-
 import "std"
-
 var admin std.Address
-
 func init() {
      admin =	std.GetOrigCaller()
 }
-
 func Echo(msg string) string {
 	addr := std.GetOrigCaller()
 	pkgAddr := std.GetOrigPkgAddr()
@@ -277,11 +256,9 @@ func Echo(msg string) string {
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }
-
 func GetAdmin() string {
 	return admin.String()
 }
-
 `},
 	}
 	pkgPath := "gno.land/r/test"
