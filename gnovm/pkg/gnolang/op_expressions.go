@@ -624,6 +624,7 @@ func (m *Machine) doOpStructLit() {
 	} else {
 		// field values are by name and may be out of order.
 		fs = defaultStructFields(m.Alloc, st)
+		fsset := make([]bool, len(fs))
 		ftvs := m.PopValues(el)
 		for i := 0; i < el; i++ {
 			fnx := x.Elts[i].Key.(*NameExpr)
@@ -636,6 +637,11 @@ func (m *Machine) doOpStructLit() {
 					panic("should not happen")
 				}
 			}
+			if fsset[fnx.Path.Index] {
+				// already set
+				panic(fmt.Sprintf("duplicate field name %s in struct literal", fnx.Name))
+			}
+			fsset[fnx.Path.Index] = true
 			fs[fnx.Path.Index] = ftv
 		}
 	}
