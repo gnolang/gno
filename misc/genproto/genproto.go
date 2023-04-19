@@ -7,6 +7,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/amino/genproto"
+	"github.com/gnolang/gno/tm2/pkg/amino/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 
 	// TODO: move these out.
@@ -62,6 +63,7 @@ func execGen(_ context.Context, _ []string) error {
 		bank.Package,
 		vm.Package,
 		gno.Package,
+		tests.Package,
 	}
 
 	for _, pkg := range pkgs {
