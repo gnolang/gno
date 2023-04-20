@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	changelog = releases.NewChangelog("example-app")
+	changelog = releases.NewChangelog("example_app")
 	admin     = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @administrator
 )
 
