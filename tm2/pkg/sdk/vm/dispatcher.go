@@ -10,8 +10,9 @@ import (
 )
 
 type Dispatcher struct {
-	router sdk.Router
-	logger log.Logger
+	router  sdk.Router
+	logger  log.Logger
+	icbChan *IBC
 }
 
 func NewDispatcher(logger log.Logger) *Dispatcher {
@@ -29,6 +30,7 @@ func (d *Dispatcher) Router() sdk.Router {
 // iterates through all inner messages, route to another infra's contract or another chain's contract
 // TODO: not need sdk context here?, another method for handler
 func (d *Dispatcher) HandleInnerMsgs(ctx sdk.Context, pkgPath string, msgs []MsgCall, mode sdk.RunTxMode) (result sdk.Result) {
+	println("handle InnerMsgs")
 	msgLogs := make([]string, 0, len(msgs))
 
 	data := make([]byte, 0, len(msgs))
@@ -88,4 +90,11 @@ func (d *Dispatcher) HandleInnerMsgs(ctx sdk.Context, pkgPath string, msgs []Msg
 	result.GasUsed = ctx.GasMeter().GasConsumed()
 	result.Events = events
 	return result
+}
+
+// send IBC packet, only support gnovm type call (MsgCall) for now
+func (d *Dispatcher) HandleIBCMsgs(ctx sdk.Context, msgs []MsgCall) {
+	for _, msg := range msgs {
+		go d.icbChan.SendPacket(msg)
+	}
 }

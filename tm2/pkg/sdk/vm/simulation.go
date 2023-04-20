@@ -73,6 +73,7 @@ type Simulator struct {
 	VMKpr   *VMKeeper
 	AccK    auth.AccountKeeper
 	BanK    bank.BankKeeper
+	ibc     *IBC
 	Ctx     sdk.Context
 }
 
@@ -165,10 +166,14 @@ func NewSimulator(skipFailingGenesisTxs bool, stdLibPath string) (*Simulator, er
 	// vmKpr := NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, "./stdlibs")
 	vmKpr := NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, stdLibPath)
 
+	ibc := NewIBC()
+	ibc.VMKpr = vmKpr
+
 	dispatcher := NewDispatcher(logger)
 	dispatcher.Router().AddRoute("vm", NewHandler(vmKpr))
-	vmKpr.SetDispatcher(dispatcher)
+	dispatcher.icbChan = ibc
 
+	vmKpr.SetDispatcher(dispatcher)
 	// Set a handler Route.
 	mockApp.Router().AddRoute("auth", auth.NewHandler(acctKpr))
 	mockApp.Router().AddRoute("bank", bank.NewHandler(bankKpr))
@@ -186,6 +191,7 @@ func NewSimulator(skipFailingGenesisTxs bool, stdLibPath string) (*Simulator, er
 	s.VMKpr = vmKpr
 	s.AccK = acctKpr
 	s.BanK = bankKpr
+	s.ibc = ibc
 	// from test machine
 	s.Ctx = testCtx((s.mockApp).GetCacheMultiStore())
 

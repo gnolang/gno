@@ -18,6 +18,7 @@ func init() {
 	simuAddPkg()
 	println("pkg added")
 	go simulator.startServer()
+	go simulator.ibc.OnRecvPacket()
 }
 
 func simuAddPkg() {

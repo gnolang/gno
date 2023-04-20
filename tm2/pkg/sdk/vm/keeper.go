@@ -141,31 +141,35 @@ func (vmk *VMKeeper) HandleMsg() {
 
 			// XXX determint caller here, last pkg
 			// TODO: call dispatcher
-			println("push call stack")
-			vmk.PushCall(&msgCall)
+
+			// println("push call stack")
+			// vmk.PushCall(&msgCall)
 
 			// comment out if no plan for msg driven in-VM call
-			r := vmk.dispatcher.HandleInnerMsgs(vmk.ctx, req.Call.PkgPath, []MsgCall{msgCall}, sdk.RunTxModeDeliver)
+			// r := vmk.dispatcher.HandleInnerMsgs(vmk.ctx, req.Call.PkgPath, []MsgCall{msgCall}, sdk.RunTxModeDeliver)
 
-			println("call finished, res: ", string(r.Data))
+			// send IBC packet, waiting for OnRecv
+			vmk.dispatcher.HandleIBCMsgs(vmk.ctx, []MsgCall{msgCall})
+
+			// println("call finished, res: ", string(r.Data))
 
 			// test timeout
 			// time.Sleep(5 * time.Second)
 
-			if req.Callback != nil {
-				// do call back here
-				println("this is callback msg, PkgPath, Fn, Args: ", req.Call.PkgPath, req.Call.Fn)
-				// println("arg: ", req.Callback.Args[0])
-				msgCall.PkgPath = req.Callback.PkgPath
-				msgCall.Func = req.Callback.Fn
-				msgCall.Args = []string{string(r.Data)}
-				r = vmk.dispatcher.HandleInnerMsgs(vmk.ctx, req.Callback.PkgPath, []MsgCall{msgCall}, sdk.RunTxModeDeliver)
-				println("callback done, res is: ", string(r.Data))
-			} else {
-				println("going to send reply through channel")
-				// send back
-				stdlibs.ResQueue <- string(r.Data)
-			}
+			// if req.Callback != nil {
+			// 	// do call back here
+			// 	println("this is callback msg, PkgPath, Fn, Args: ", req.Call.PkgPath, req.Call.Fn)
+			// 	// println("arg: ", req.Callback.Args[0])
+			// 	msgCall.PkgPath = req.Callback.PkgPath
+			// 	msgCall.Func = req.Callback.Fn
+			// 	msgCall.Args = []string{string(r.Data)}
+			// 	r = vmk.dispatcher.HandleInnerMsgs(vmk.ctx, req.Callback.PkgPath, []MsgCall{msgCall}, sdk.RunTxModeDeliver)
+			// 	println("callback done, res is: ", string(r.Data))
+			// } else {
+			// 	println("going to send reply through channel")
+			// 	// send back
+			// 	stdlibs.ResQueue <- string(r.Data)
+			// }
 		}
 	}
 }
