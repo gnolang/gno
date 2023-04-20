@@ -144,6 +144,7 @@ func (vmk *VMKeeper) HandleMsg() {
 			println("push call stack")
 			vmk.PushCall(&msgCall)
 
+			// comment out if no plan for msg driven in-VM call
 			r := vmk.dispatcher.HandleInnerMsgs(vmk.ctx, req.Call.PkgPath, []MsgCall{msgCall}, sdk.RunTxModeDeliver)
 
 			println("call finished, res: ", string(r.Data))

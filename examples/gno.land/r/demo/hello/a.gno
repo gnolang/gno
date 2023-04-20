@@ -5,19 +5,11 @@ import "std"
 func SayHello() {
 	println("say hello from A, going to call B")
 
-	call := &std.CallMsg{
-	    PkgPath: "gno.land/r/demo/greet",
-	    Fn: "Greet",     
-	    Args: []string{"hey"}, 
-	}
-	call := "gno.land/r/demo/greet/Greet/hey"
+	// call := "gno.land/r/demo/greet#Greet#hey&hi&ho"
+	call := "gno.land/r/demo/greet#Greet#hey"
+	callback := "gno.land/r/demo/hello#Reply"
 
-	callback := &std.CallMsg{
-	    PkgPath: "gno.land/r/demo/hello",
-	    Fn: "Reply",     
-	}
-
-	std.AsyncCall(call, callback)
+	std.Send(call, callback)
 
 	println("this is something behind async operation")
 }

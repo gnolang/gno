@@ -5,6 +5,7 @@ import (
 	"math"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -195,6 +196,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 		// 	func(m *gno.Machine) {
 		// 		arg0 := m.LastBlock().GetParams1().TV
 		// 		in := arg0.V.(interface{})
+		// 		println("std.Marshal")
 		// 		js, err := json.Marshal(in)
 		// 		if err != nil {
 		// 			m.PushValue(typedByteSlice(m.Alloc.NewSliceFromData(js)))
@@ -205,39 +207,23 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 		// 		}
 		// 	},
 		// )
-		pn.DefineNative("AsyncCall",
+		pn.DefineNative("Send",
 			gno.Flds( // params
-				"call", gno.InterfaceT(nil),
-				"callback", gno.InterfaceT(nil),
+				"call", "string",
+				"cb", "string",
 			),
 			gno.Flds( // results
 				"r", "string",
 			),
 			func(m *gno.Machine) {
 				arg0, arg1 := m.LastBlock().GetParams2()
-				param0 := arg0.TV
-				param1 := arg1.TV
+				call := arg0.TV.GetString()
+				cb := arg1.TV.GetString()
 
-				var rt reflect.Type
-				var callMsg CallMsg
-				var callBackMsg CallMsg
+				callMsg := buildCallMsgFromString(call, true)
+				cbMsg := buildCallMsgFromString(cb, false)
 
-				if rtvp, ok := param0.V.(gno.PointerValue); ok {
-					rt = gno.Gno2GoType(rtvp.TV)
-					if rt.Kind() == reflect.Struct { // struct kind
-						rv := reflect.ValueOf(&callMsg).Elem()
-						gno.Gno2GoValue(param0.V.(gno.PointerValue).TV, rv)
-					}
-				}
-				if rtvp, ok := param1.V.(gno.PointerValue); ok {
-					rt = gno.Gno2GoType(rtvp.TV)
-					if rt.Kind() == reflect.Struct { // struct kind
-						rv := reflect.ValueOf(&callBackMsg).Elem()
-						gno.Gno2GoValue(param1.V.(gno.PointerValue).TV, rv)
-					}
-				}
-
-				SendData(&callMsg, &callBackMsg)
+				SendData(callMsg, cbMsg)
 
 				// no need actually
 				var res string
@@ -674,4 +660,18 @@ func typedByteSlice(bz *gno.SliceValue) gno.TypedValue {
 func typedNil(t gno.Type) gno.TypedValue {
 	tv := gno.TypedValue{T: t, V: nil}
 	return tv
+}
+
+func buildCallMsgFromString(call string, isWithArgs bool) (callMsg *CallMsg) {
+	callMsg = &CallMsg{}
+	cs := strings.Split(call, "#")
+	callMsg.PkgPath = cs[0]
+	callMsg.Fn = cs[1]
+	if isWithArgs {
+		as := strings.Split(cs[2], "&")
+		for _, arg := range as {
+			callMsg.Args = append(callMsg.Args, arg)
+		}
+	}
+	return callMsg
 }
