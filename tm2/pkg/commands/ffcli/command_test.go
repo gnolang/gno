@@ -19,8 +19,6 @@ import (
 )
 
 func TestCommandRun(t *testing.T) {
-	t.Parallel()
-
 	for _, testcase := range []struct {
 		name     string
 		args     []string
@@ -148,8 +146,6 @@ func TestCommandRun(t *testing.T) {
 }
 
 func TestHelpUsage(t *testing.T) {
-	t.Parallel()
-
 	for _, testcase := range []struct {
 		name      string
 		usageFunc func(*ffcli.Command) string
@@ -204,8 +200,6 @@ func TestHelpUsage(t *testing.T) {
 }
 
 func TestNestedOutput(t *testing.T) {
-	t.Parallel()
-
 	for _, testcase := range []struct {
 		name       string
 		args       []string
@@ -323,8 +317,6 @@ func TestNestedOutput(t *testing.T) {
 }
 
 func TestIssue57(t *testing.T) {
-	t.Parallel()
-
 	for _, testcase := range []struct {
 		args        []string
 		parseErrAs  any
