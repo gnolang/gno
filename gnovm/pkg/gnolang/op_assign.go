@@ -84,31 +84,37 @@ func (m *Machine) getTypeValueFromNX(lhs *NameExpr, rhs Expr, stackDefault Typed
 	case *RefExpr:
 		rname = name.X.(*NameExpr)
 	}
-	if rname != nil {
-		root = m.GC.getRootByPath(rname.Path.String())
+	if rname == nil {
+		return stackDefault
 	}
-	var rtv TypedValue
+	root = m.GC.getRootByPath(rname.Path.String())
 
-	if root != nil {
-		obj = root.ref
+	if root == nil {
+		return stackDefault
+	}
+	obj = root.ref
+
+	if obj == nil {
+		return stackDefault
 	}
 
-	if obj != nil {
-		if ptr, is := obj.value.(PointerValue); is {
-			rtv = *ptr.TV
-		}
+	if tv, is := obj.value.(TypedValue); is {
 		m.GC.AddRoot(&GCObj{
 			path:   lhs.Path.String(),
 			marked: false,
 			ref:    obj,
 		})
-		return rtv
+		return tv
 	}
 	return stackDefault
 }
 
 func (m *Machine) escape2Heap(nx *NameExpr, rhs Expr, rp PointerValue) {
-	obj := &GCObj{value: rp}
+	obj := &GCObj{value: TypedValue{
+		T:      &PointerType{Elt: rp.TV.T},
+		V:      rp,
+		OnHeap: true,
+	}}
 	root := &GCObj{
 		path: nx.Path.String(),
 		ref:  obj,

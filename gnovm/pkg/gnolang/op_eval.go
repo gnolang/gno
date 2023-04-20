@@ -41,10 +41,8 @@ func (m *Machine) doOpEval() {
 			var tv TypedValue
 
 			if obj != nil {
-				if ptr, is := obj.value.(PointerValue); is {
-					tv = ptr.Deref()
-				} else if t, iss := obj.value.(TypedValue); iss {
-					tv = t
+				if heapTV, is := obj.value.(TypedValue); is {
+					tv = heapTV
 				}
 			} else {
 				// Get value from scope.
