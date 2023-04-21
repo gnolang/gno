@@ -93,7 +93,7 @@ func (d *Dispatcher) HandleInnerMsgs(ctx sdk.Context, pkgPath string, msgs []Msg
 }
 
 // send IBC packet, only support gnovm type call (MsgCall) for now
-func (d *Dispatcher) HandleIBCMsgs(ctx sdk.Context, msgs []MsgCall) {
+func (d *Dispatcher) HandleIBCMsgs(ctx sdk.Context, msgs []MsgCall, cb MsgCall) {
 	for _, msg := range msgs {
 		go d.icbChan.SendPacket(msg)
 	}

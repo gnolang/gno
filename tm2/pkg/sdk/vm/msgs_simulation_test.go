@@ -4,10 +4,12 @@ import (
 	_ "embed"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/jaekwon/testify/assert"
+	"sync"
 	"testing"
 )
 
 var simulator *Simulator
+var wg sync.WaitGroup
 
 func init() {
 	var err error
@@ -16,9 +18,9 @@ func init() {
 		panic(err)
 	}
 	simuAddPkg()
-	println("pkg added")
-	go simulator.startServer()
-	go simulator.ibc.OnRecvPacket()
+	wg.Add(2)
+	go simulator.startServer(&wg)
+	go simulator.ibc.OnRecvPacket(&wg)
 }
 
 func simuAddPkg() {
@@ -33,9 +35,5 @@ var msgCallSuccessBz []byte
 func TestMsgSuccess(t *testing.T) {
 	res, _ := simulator.simuCall([][]*std.MemFile{}, msgCallSuccessBz)
 	assert.NoError(t, res.Error)
-
-	// l := int(res.Data[0])
-	// v := string(res.Data[1 : l+1])
-	// assert.Equal(t, v, `hello from contract master, no innerMsgs replied.`)
-	select {}
+	wg.Wait()
 }

@@ -13,25 +13,28 @@ type Request struct {
 }
 
 var MsgQueue chan *Request
-var ResQueue chan string
+
+// deprecated
+// var ResQueue chan string // receive response with timeout, used for synchronous call
 
 func init() {
 	MsgQueue = make(chan *Request)
-	ResQueue = make(chan string)
+	// ResQueue = make(chan string)
 }
 
 // this is called by stdlib function
-func SendData(call, callback *CallMsg) {
+func Send(call, callback *CallMsg, mc chan<- *Request) {
 	req := &Request{
 		Call:     call,
 		Callback: callback,
 	}
-	MsgQueue <- req
+	mc <- req
 }
 
-func SendCall(call *CallMsg) {
-	req := &Request{
-		Call: call,
-	}
-	MsgQueue <- req
-}
+// synchronous call, use ResQueue to get result
+// func SendCall(call *CallMsg) {
+// 	req := &Request{
+// 		Call: call,
+// 	}
+// 	MsgQueue <- req
+// }

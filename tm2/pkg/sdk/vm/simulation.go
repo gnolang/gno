@@ -5,12 +5,16 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
+
+	"os"
 
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
@@ -20,7 +24,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 	store "github.com/gnolang/gno/tm2/pkg/store/types"
-	"os"
 )
 
 var logger log.Logger
@@ -198,8 +201,9 @@ func NewSimulator(skipFailingGenesisTxs bool, stdLibPath string) (*Simulator, er
 	return s, nil
 }
 
-func (s *Simulator) startServer() {
-	s.VMKpr.HandleMsg()
+func (s *Simulator) startServer(wg *sync.WaitGroup) {
+	defer wg.Done()
+	s.VMKpr.HandleMsg(stdlibs.MsgQueue)
 }
 
 func (s *Simulator) addPkgFromMemfile(ctx sdk.Context, pkgPath string, memfiles []*std.MemFile) {

@@ -6,8 +6,9 @@ func SayHello() {
 	println("say hello from A, going to call B")
 
 	// call := "gno.land/r/demo/greet#Greet#hey&hi&ho"
-	call := "gno.land/r/demo/greet#Greet#hey"
-	callback := "gno.land/r/demo/hello#Reply"
+
+	call := std.EncodeMsgCall("gno.land/r/demo/greet", "Greet", []string{"hey"})
+	callback := std.EncodeMsgCall("gno.land/r/demo/hello", "Reply", []string{""})
 
 	std.Send(call, callback)
 

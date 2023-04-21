@@ -185,100 +185,78 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 		// 		// TODO: the handshake logic
 		// 	},
 		// )
-		// pn.DefineNative("Marshal",
-		// 	gno.Flds( // params
-		// 		"bz", gno.InterfaceT(nil),
-		// 	),
-		// 	gno.Flds( // results
-		// 		"js", "[]byte",
-		// 		"ok", "bool",
-		// 	),
-		// 	func(m *gno.Machine) {
-		// 		arg0 := m.LastBlock().GetParams1().TV
-		// 		in := arg0.V.(interface{})
-		// 		println("std.Marshal")
-		// 		js, err := json.Marshal(in)
-		// 		if err != nil {
-		// 			m.PushValue(typedByteSlice(m.Alloc.NewSliceFromData(js)))
-		// 			m.PushValue(typedBool(false))
-		// 		} else {
-		// 			m.PushValue(typedByteSlice(m.Alloc.NewSliceFromData(js)))
-		// 			m.PushValue(typedBool(true))
-		// 		}
-		// 	},
-		// )
+
 		pn.DefineNative("Send",
 			gno.Flds( // params
 				"call", "string",
 				"cb", "string",
 			),
 			gno.Flds( // results
-				"r", "string",
+				"ok", "bool",
 			),
 			func(m *gno.Machine) {
 				arg0, arg1 := m.LastBlock().GetParams2()
 				call := arg0.TV.GetString()
 				cb := arg1.TV.GetString()
 
-				callMsg := buildCallMsgFromString(call, true)
-				cbMsg := buildCallMsgFromString(cb, false)
+				callMsg, err := decodeCallMsg(call, true)
+				cbMsg, err := decodeCallMsg(cb, false)
 
-				SendData(callMsg, cbMsg)
+				Send(callMsg, cbMsg, MsgQueue)
 
-				// no need actually
-				var res string
-				res0 := gno.Go2GnoValue(
-					m.Alloc,
-					m.Store,
-					reflect.ValueOf(res),
-				)
-				m.PushValue(res0)
+				// TODO: return parse error
+				if err != nil {
+					m.PushValue(typedBool(false))
+				} else {
+					m.PushValue(typedBool(true))
+				}
 			},
 		)
 
-		pn.DefineNative("SyncCall",
-			gno.Flds( // params
-				"call", gno.InterfaceT(nil),
-			),
-			gno.Flds( // results
-				"r", "string",
-			),
-			func(m *gno.Machine) {
-				arg0 := m.LastBlock().GetParams1()
-				param0 := arg0.TV
+		// Synchronous call, Deprecated
+		// pn.DefineNative("Call",
+		// 	gno.Flds( // params
+		// 		"call", gno.InterfaceT(nil),
+		// 	),
+		// 	gno.Flds( // results
+		// 		"r", "string",
+		// 	),
+		// 	func(m *gno.Machine) {
+		// 		arg0 := m.LastBlock().GetParams1()
+		// 		param0 := arg0.TV
 
-				var rt reflect.Type
-				var callMsg CallMsg
+		// 		var rt reflect.Type
+		// 		var callMsg CallMsg
 
-				if rtvp, ok := param0.V.(gno.PointerValue); ok {
-					rt = gno.Gno2GoType(rtvp.TV)
-					if rt.Kind() == reflect.Struct { // struct kind
-						rv := reflect.ValueOf(&callMsg).Elem()
-						gno.Gno2GoValue(param0.V.(gno.PointerValue).TV, rv)
-					}
-				}
+		// 		if rtvp, ok := param0.V.(gno.PointerValue); ok {
+		// 			rt = gno.Gno2GoType(rtvp.TV)
+		// 			if rt.Kind() == reflect.Struct { // struct kind
+		// 				rv := reflect.ValueOf(&callMsg).Elem()
+		// 				gno.Gno2GoValue(param0.V.(gno.PointerValue).TV, rv)
+		// 			}
+		// 		}
 
-				SendCall(&callMsg)
+		// 		SendCall(&callMsg)
 
-				// XXX: time will accumulate, how to determine it
-				timeout := 3 * time.Second
+		// 		// XXX: time will accumulate, how to determine it
+		// 		timeout := 3 * time.Second
 
-				// receive
-				var res string
-				select {
-				case res = <-ResQueue:
-				case <-time.After(timeout):
-					res = "Timeout! Operation took too long."
-				}
+		// 		// receive
+		// 		var res string
+		// 		select {
+		// 		case res = <-ResQueue:
+		// 		case <-time.After(timeout):
+		// 			res = "Timeout! Operation took too long."
+		// 		}
 
-				res0 := gno.Go2GnoValue(
-					m.Alloc,
-					m.Store,
-					reflect.ValueOf(res),
-				)
-				m.PushValue(res0)
-			},
-		)
+		// 		res0 := gno.Go2GnoValue(
+		// 			m.Alloc,
+		// 			m.Store,
+		// 			reflect.ValueOf(res),
+		// 		)
+		// 		m.PushValue(res0)
+		// 	},
+		// )
 		pn.DefineNative("Hash",
 			gno.Flds( // params
 				"bz", "[]byte",
@@ -662,7 +640,8 @@ func typedNil(t gno.Type) gno.TypedValue {
 	return tv
 }
 
-func buildCallMsgFromString(call string, isWithArgs bool) (callMsg *CallMsg) {
+// TODO: a real decoder
+func decodeCallMsg(call string, isWithArgs bool) (callMsg *CallMsg, err error) {
 	callMsg = &CallMsg{}
 	cs := strings.Split(call, "#")
 	callMsg.PkgPath = cs[0]
@@ -673,5 +652,6 @@ func buildCallMsgFromString(call string, isWithArgs bool) (callMsg *CallMsg) {
 			callMsg.Args = append(callMsg.Args, arg)
 		}
 	}
-	return callMsg
+	// TODO: return parse error
+	return callMsg, nil
 }
