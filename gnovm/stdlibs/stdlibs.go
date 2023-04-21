@@ -303,7 +303,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 					for i := m.NumFrames() - 1; i > 0; i-- {
 						frameA := m.Frames[i]
 						frameB := m.Frames[i-1]
-						if !frameB.LastPackage.IsRealm() {
+						if frameB.LastPackage == nil || !frameB.LastPackage.IsRealm() {
 							continue
 						}
 						if !frameA.LastPackage.IsRealm() && !frameB.LastPackage.IsRealm() {
