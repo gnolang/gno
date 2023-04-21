@@ -6,6 +6,9 @@ func main() {
 
 func f() {
 	defer func() {
+		panic("third")
+	}()
+	defer func() {
 		panic("second")
 	}()
 	panic("first")
@@ -13,4 +16,5 @@ func f() {
 
 // Error:
 // first
-//	second
+// 	second
+// 	third

@@ -3,6 +3,7 @@ package gnolang
 import (
 	"fmt"
 	"reflect"
+	"strings"
 )
 
 func (m *Machine) doOpPrecall() {
@@ -253,7 +254,7 @@ func (m *Machine) doOpReturnCallDefers() {
 	if !ok {
 		// Done with defers.
 		m.ForcePopOp()
-		if m.Exception != nil {
+		if len(m.Exceptions) > 0 {
 			// In a state of panic (not return).
 			// Pop the containing function frame.
 			m.PopFrame()
@@ -393,7 +394,7 @@ func (m *Machine) doOpPanic1() {
 }
 
 func (m *Machine) doOpPanic2() {
-	if m.Exception == nil {
+	if len(m.Exceptions) == 0 {
 		// Recovered from panic
 		m.PushOp(OpReturnFromBlock)
 		m.PushOp(OpReturnCallDefers)
@@ -401,7 +402,12 @@ func (m *Machine) doOpPanic2() {
 		// Keep panicking
 		last := m.PopUntilLastCallFrame()
 		if last == nil {
-			panic(m.Exception)
+			// Build exception string just as go, separated by \n\t.
+			exs := make([]string, len(m.Exceptions))
+			for i, ex := range m.Exceptions {
+				exs[i] = ex.Sprint(m)
+			}
+			panic(strings.Join(exs, "\n\t"))
 		}
 		m.PushOp(OpPanic2)
 		m.PushOp(OpReturnCallDefers) // XXX rename, not return?
