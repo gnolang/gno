@@ -4,6 +4,7 @@ import (
 	"std"
 
 	"gno.land/r/demo/tests"
+	rtests "gno.land/r/demo/tests"
 	psubtests "gno.land/p/demo/tests/subtests"
 )
 
@@ -69,4 +70,8 @@ func PrintCallers() {
 
 func Exec(fn func()) {
 	fn()
+}
+
+func GetRealmGetCaller() std.Address {
+	return rtests.GetCaller()
 }

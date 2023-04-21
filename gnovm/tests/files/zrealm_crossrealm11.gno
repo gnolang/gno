@@ -4,6 +4,7 @@ package crossrealm_test
 import (
 	"std"
 
+	testfoo "gno.land/r/demo/tests_foo"
 	ptests "gno.land/p/demo/tests"
 	rtests "gno.land/r/demo/tests"
 )
@@ -30,15 +31,15 @@ func main() {
 
 	println("user1.gno -> r/crossrealm_test -> p/demo/tests -> p/demo/tests/subtests", ptests.GetSubtestsCaller())
 
+	println("user1.gno -> r/crossrealm_test -> p/demo/tests -> r/demo/tests", ptests.GetRealmGetCaller())
+	
+
 	// let's try to exploit an unsafe realm
 	rtests.Exec(func() {
 		// caller is `r/demo/tests`
 		println("user1.gno -> r/crossrealm_test -> r/demo/tests.Exec", std.GetCaller())
 
-		
-		// NOTE(WARNING): this one is a weird behaviour, because the caller returned is crossrealm_test
-		// caller is `crossrealm_test`
-		println("/!\\ user1.gno -> r/crossrealm_test -> r/demo/tests.Exec -> p/demo/tests:", ptests.GetCaller())
+		println("user1.gno -> r/crossrealm_test -> r/demo/tests.Exec -> p/demo/tests:", ptests.GetCaller())
 	})
 
 	ptests.Exec(func() {
@@ -61,12 +62,13 @@ func main() {
 // 	gno.land/r/demo/tests: g1gz4ycmx0s6ln2wdrsh4e00l9fsel2wskqa3snq
 //
 // user1.gno -> r/crossrealm_test: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-// user1.gno -> r/crossrealm_test -> p/demo/tests: g1vla5mffzum6060t99u4xhm8mnhgxr0sz4k574p
+// user1.gno -> r/crossrealm_test -> p/demo/tests: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // user1.gno -> r/crossrealm_test -> r/demo/tests: g1vla5mffzum6060t99u4xhm8mnhgxr0sz4k574p
 // user1.gno -> r/crossrealm_test -> r/demo/tests -> r/demo/tests/subtests g1gz4ycmx0s6ln2wdrsh4e00l9fsel2wskqa3snq
-// user1.gno -> r/crossrealm_test -> p/demo/tests -> p/demo/tests/subtests g1vla5mffzum6060t99u4xhm8mnhgxr0sz4k574p
+// user1.gno -> r/crossrealm_test -> p/demo/tests -> p/demo/tests/subtests g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// user1.gno -> r/crossrealm_test -> p/demo/tests -> r/demo/tests g1vla5mffzum6060t99u4xhm8mnhgxr0sz4k574p
 // user1.gno -> r/crossrealm_test -> r/demo/tests.Exec g1gz4ycmx0s6ln2wdrsh4e00l9fsel2wskqa3snq
-// /!\ user1.gno -> r/crossrealm_test -> r/demo/tests.Exec -> p/demo/tests: g1vla5mffzum6060t99u4xhm8mnhgxr0sz4k574p
+// user1.gno -> r/crossrealm_test -> r/demo/tests.Exec -> p/demo/tests: g1gz4ycmx0s6ln2wdrsh4e00l9fsel2wskqa3snq
 // user1.gno -> r/crossrealm_test -> p/demo/tests.Exec:  g1vla5mffzum6060t99u4xhm8mnhgxr0sz4k574p
 // user1.gno -> r/crossrealm_test -> p/demo/tests.Exec -> p/demo/tests: g1vla5mffzum6060t99u4xhm8mnhgxr0sz4k574p
 // xxx -> r/demo/tests -> r/demo/tests.Exec: g1gz4ycmx0s6ln2wdrsh4e00l9fsel2wskqa3snq

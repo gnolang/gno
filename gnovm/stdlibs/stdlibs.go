@@ -297,22 +297,31 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 
 				lastCaller := ctx.OrigCaller
 
-				if m.NumFrames() <= 2 {
-					lastCaller = ctx.OrigCaller
-				} else {
-					for i := m.NumFrames() - 1; i > 0; i-- {
-						frameA := m.Frames[i]
-						frameB := m.Frames[i-1]
-						if frameB.LastPackage == nil || !frameB.LastPackage.IsRealm() {
-							continue
-						}
-						if !frameA.LastPackage.IsRealm() && !frameB.LastPackage.IsRealm() {
-							continue
-						}
-						lastCaller = frameB.LastPackage.GetPkgAddr().Bech32()
+				var currentFrame *gno.Frame = nil
+
+				realms := []crypto.Bech32Address{}
+				for i := m.NumFrames() - 1; i > 0; i-- {
+					fr := m.Frames[i]
+
+					if fr.LastPackage == nil || !fr.LastPackage.IsRealm() {
+						continue
+					}
+					if currentFrame == nil {
+						currentFrame = &fr
+					}
+					realms = append(realms, fr.LastPackage.GetPkgAddr().Bech32())
+
+					if len(realms) > 3 {
 						break
 					}
 				}
+
+				if len(realms) > 1 {
+					lastCaller = realms[1]
+				} else {
+					lastCaller = ctx.OrigCaller
+				}
+
 				res0 := gno.Go2GnoValue(
 					m.Alloc,
 					m.Store,
