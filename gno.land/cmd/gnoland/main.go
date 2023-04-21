@@ -213,33 +213,20 @@ func makeGenesisDoc(
 	// Load initial packages from examples.
 	test1 := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	txs := []std.Tx{}
-	for _, path := range []string{
-		"p/demo/ufmt",
-		"p/demo/avl",
-		"p/demo/grc/exts",
-		"p/demo/grc/grc20",
-		"p/demo/grc/grc721",
-		"p/demo/grc/grc1155",
-		"p/demo/maths",
-		"p/demo/blog",
-		"r/demo/users",
-		"r/demo/foo20",
-		"r/demo/foo1155",
-		"r/demo/boards",
-		"r/demo/banktest",
-		"r/demo/types",
-		"r/demo/markdown_test",
-		"r/gnoland/blog",
-		"r/gnoland/faucet",
-		"r/system/validators",
-		"r/system/names",
-		"r/system/rewards",
-		"r/demo/deep/very/deep",
-	} {
+
+	// List initial packages to load from examples.
+	pkgs, err := listGnoPkgs(filepath.Join("..", "examples"))
+	if err != nil {
+		panic(fmt.Errorf("listing gno packages: %w", err))
+	}
+	if err := sortPkgs(pkgs); err != nil {
+		panic(fmt.Errorf("sorting packages: %w", err))
+	}
+
+	for _, pkg := range pkgs {
 		// open files in directory as MemPackage.
-		fsPath := filepath.Join("..", "examples", "gno.land", path)
-		importPath := "gno.land/" + path
-		memPkg := gno.ReadMemPackage(fsPath, importPath)
+		fmt.Println("adding package", pkg.path, pkg.name)
+		memPkg := gno.ReadMemPackage(pkg.path, pkg.name)
 		var tx std.Tx
 		tx.Msgs = []std.Msg{
 			vmm.MsgAddPackage{
