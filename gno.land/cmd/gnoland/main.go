@@ -28,6 +28,7 @@ import (
 type gnolandCfg struct {
 	skipFailingGenesisTxs bool
 	skipStart             bool
+	unsafeResetAll        bool
 	genesisBalancesFile   string
 	genesisTxsFile        string
 	chainID               string
@@ -71,6 +72,13 @@ func (c *gnolandCfg) RegisterFlags(fs *flag.FlagSet) {
 		"quit after initialization, don't start the node",
 	)
 
+	fs.BoolVar(
+		&c.unsafeResetAll,
+		"unsafe-reset-all",
+		false,
+		"fresh start node (unsafe - removes root dir)",
+	)
+
 	fs.StringVar(
 		&c.genesisBalancesFile,
 		"genesis-balances-file",
@@ -110,6 +118,13 @@ func (c *gnolandCfg) RegisterFlags(fs *flag.FlagSet) {
 func exec(c *gnolandCfg) error {
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
 	rootDir := c.rootDir
+
+	if c.unsafeResetAll {
+		err := os.RemoveAll(rootDir)
+		if err != nil {
+			return fmt.Errorf("error in removing root dir: %w", err)
+		}
+	}
 
 	cfg := config.LoadOrMakeConfigWithOptions(rootDir, func(cfg *config.Config) {
 		cfg.Consensus.CreateEmptyBlocks = false
