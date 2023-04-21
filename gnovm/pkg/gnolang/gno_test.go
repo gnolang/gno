@@ -48,8 +48,10 @@ var a *int
 
 func main() {
 	foo()
-	println(*a)
+	printit(a)
 }
+
+func printit(i *int) {}
 
 func foo() {
 	ff := 4
