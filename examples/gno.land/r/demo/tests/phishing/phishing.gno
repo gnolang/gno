@@ -1,4 +1,0 @@
-package phising
-
-func GetMillionaire() {
-}
