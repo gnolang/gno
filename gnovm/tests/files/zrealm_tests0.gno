@@ -1004,40 +1004,6 @@ func main() {
 //         {
 //             "T": {
 //                 "@type": "/gno.FuncType",
-//                 "Params": [],
-//                 "Results": []
-//             },
-//             "V": {
-//                 "@type": "/gno.FuncValue",
-//                 "Closure": {
-//                     "@type": "/gno.RefValue",
-//                     "Escaped": true,
-//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:4"
-//                 },
-//                 "FileName": "tests.gno",
-//                 "IsMethod": false,
-//                 "Name": "ExecFromTest",
-//                 "PkgPath": "gno.land/r/demo/tests",
-//                 "Source": {
-//                     "@type": "/gno.RefNode",
-//                     "BlockNode": null,
-//                     "Location": {
-//                         "File": "tests.gno",
-//                         "Line": "85",
-//                         "Nonce": "0",
-//                         "PkgPath": "gno.land/r/demo/tests"
-//                     }
-//                 },
-//                 "Type": {
-//                     "@type": "/gno.FuncType",
-//                     "Params": [],
-//                     "Results": []
-//                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.FuncType",
 //                 "Params": [
 //                     {
 //                         "Embedded": false,
@@ -1068,7 +1034,7 @@ func main() {
 //                     "BlockNode": null,
 //                     "Location": {
 //                         "File": "tests.gno",
-//                         "Line": "91",
+//                         "Line": "85",
 //                         "Nonce": "0",
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
@@ -1087,40 +1053,6 @@ func main() {
 //                             }
 //                         }
 //                     ],
-//                     "Results": []
-//                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.FuncType",
-//                 "Params": [],
-//                 "Results": []
-//             },
-//             "V": {
-//                 "@type": "/gno.FuncValue",
-//                 "Closure": {
-//                     "@type": "/gno.RefValue",
-//                     "Escaped": true,
-//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:4"
-//                 },
-//                 "FileName": "tests.gno",
-//                 "IsMethod": false,
-//                 "Name": "PrintCallers",
-//                 "PkgPath": "gno.land/r/demo/tests",
-//                 "Source": {
-//                     "@type": "/gno.RefNode",
-//                     "BlockNode": null,
-//                     "Location": {
-//                         "File": "tests.gno",
-//                         "Line": "95",
-//                         "Nonce": "0",
-//                         "PkgPath": "gno.land/r/demo/tests"
-//                     }
-//                 },
-//                 "Type": {
-//                     "@type": "/gno.FuncType",
-//                     "Params": [],
 //                     "Results": []
 //                 }
 //             }

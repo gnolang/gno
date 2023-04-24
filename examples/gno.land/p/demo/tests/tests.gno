@@ -62,12 +62,6 @@ func GetSubtestsCaller() std.Address {
 	return psubtests.GetCaller()
 }
 
-func PrintCallers() {
-	println("p/TEST   : ORIGCALL:", std.GetOrigCaller())
-	println("p/TEST   : PKG ADDR:", std.GetOrigPkgAddr())
-	println("p/TEST   : CALLER  :", std.GetCaller())
-}
-
 func Exec(fn func()) {
 	fn()
 }

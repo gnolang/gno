@@ -293,35 +293,35 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				"", "Address",
 			),
 			func(m *gno.Machine) {
-				ctx := m.Context.(ExecContext)
-
-				lastCaller := ctx.OrigCaller
-
-				var currentFrame *gno.Frame = nil
-
-				realms := []crypto.Bech32Address{}
+				var (
+					ctx = m.Context.(ExecContext)
+					// Default lastCaller is OrigCaller, the signer of the tx
+					lastCaller = ctx.OrigCaller
+					realms     = make(map[string]struct{})
+				)
+				// Loop on the stack frames to determine if there's at least 2
+				// different realms in the stack. If yes, the second realm becomes the
+				// lastCaller.
 				for i := m.NumFrames() - 1; i > 0; i-- {
 					fr := m.Frames[i]
-
 					if fr.LastPackage == nil || !fr.LastPackage.IsRealm() {
+						// Ignore non-realm frame
 						continue
 					}
-					if currentFrame == nil {
-						currentFrame = &fr
+					pkgPath := fr.LastPackage.PkgPath
+					if _, ok := realms[pkgPath]; ok {
+						// Ignore realm already added
+						continue
 					}
-					realms = append(realms, fr.LastPackage.GetPkgAddr().Bech32())
-
-					if len(realms) > 3 {
+					realms[pkgPath] = struct{}{}
+					if len(realms) > 1 {
+						// second realm met in the frames, it becomes the lastCaller
+						lastCaller = fr.LastPackage.GetPkgAddr().Bech32()
+						// we don't need to iterate further
 						break
 					}
 				}
-
-				if len(realms) > 1 {
-					lastCaller = realms[1]
-				} else {
-					lastCaller = ctx.OrigCaller
-				}
-
+				// Return the result
 				res0 := gno.Go2GnoValue(
 					m.Alloc,
 					m.Store,

@@ -4,72 +4,149 @@ package crossrealm_test
 import (
 	"std"
 
-	testfoo "gno.land/r/demo/tests_foo"
 	ptests "gno.land/p/demo/tests"
+	"gno.land/p/demo/ufmt"
 	rtests "gno.land/r/demo/tests"
+	testfoo "gno.land/r/demo/tests_foo"
 )
 
 func Exec(fn func()) {
 	fn()
-} 
+}
 
 func main() {
-	println(`[DEBUG]
-	user1.gno:             g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-	crossrealm_test:       g1vla5mffzum6060t99u4xhm8mnhgxr0sz4k574p
-	gno.land/p/demo/tests: g1lc7c8nv62nqyyhhxe88tpxx786gwq68prx3f6e
-	gno.land/r/demo/tests: g1gz4ycmx0s6ln2wdrsh4e00l9fsel2wskqa3snq
-	`)
+	// Create a map of the potential callers, this will give more understandable
+	// output than the bech32 addresses.
+	callersByAddr := make(map[std.Address]string)
+	for _, caller := range []string{
+		"user1.gno", "gno.land/r/crossrealm_test", "gno.land/r/demo/tests",
+	} {
+		addr := std.DerivePkgAddr(caller)
+		callersByAddr[addr] = caller
+	}
 
-	println("user1.gno -> r/crossrealm_test:", std.GetCaller())
+	baseCallStack := "user1.gno -> r/crossrealm_test.main()"
+	tests := []struct {
+		callStackAdd string
+		callerFn     func() std.Address
+	}{
+		{
+			callStackAdd: "",
+			callerFn:     std.GetCaller,
+		},
+		{
+			callStackAdd: " -> r/crossrealm_test.getCaller()",
+			callerFn:     getCaller,
+		},
+		{
+			callStackAdd: " -> p/demo/tests",
+			callerFn:     ptests.GetCaller,
+		},
+		{
+			callStackAdd: " -> p/demo/tests -> p/demo/tests/subtests",
+			callerFn:     ptests.GetSubtestsCaller,
+		},
+		{
+			callStackAdd: " -> r/demo/tests",
+			callerFn:     rtests.GetCaller,
+		},
+		{
+			callStackAdd: " -> r/demo/tests -> r/demo/tests/subtests",
+			callerFn:     rtests.GetSubtestsCaller,
+		},
+		{
+			callStackAdd: " -> p/demo/tests -> r/demo/tests",
+			callerFn:     ptests.GetRealmGetCaller,
+		},
+	}
+	for i, tt := range tests {
+		callStack := ufmt.Sprintf("%s%s -> std.GetCaller()", baseCallStack, tt.callStackAdd)
+		println(ufmt.Sprintf("STACK CASE %d:\n%s", i, callStack))
+		println(ufmt.Sprintf("\tcaller is %s", callersByAddr[tt.callerFn()]))
+		Exec(func() {
+			println(ufmt.Sprintf("wrapped in r/crossrealm_test.Exec:\n\tcaller is %s", callersByAddr[tt.callerFn()]))
+		})
+		rtests.Exec(func() {
+			println(ufmt.Sprintf("wrapped in r/demo/tests.Exec:\n\tcaller is %s", callersByAddr[tt.callerFn()]))
+		})
+		ptests.Exec(func() {
+			println(ufmt.Sprintf("wrapped p/demo/tests.Exec:\n\tcaller is %s", callersByAddr[tt.callerFn()]))
+		})
+		println()
+	}
+}
 
-	println("user1.gno -> r/crossrealm_test -> p/demo/tests:", ptests.GetCaller())
-
-	println("user1.gno -> r/crossrealm_test -> r/demo/tests:", rtests.GetCaller())
-
-	println("user1.gno -> r/crossrealm_test -> r/demo/tests -> r/demo/tests/subtests", rtests.GetSubtestsCaller())
-
-	println("user1.gno -> r/crossrealm_test -> p/demo/tests -> p/demo/tests/subtests", ptests.GetSubtestsCaller())
-
-	println("user1.gno -> r/crossrealm_test -> p/demo/tests -> r/demo/tests", ptests.GetRealmGetCaller())
-	
-
-	// let's try to exploit an unsafe realm
-	rtests.Exec(func() {
-		// caller is `r/demo/tests`
-		println("user1.gno -> r/crossrealm_test -> r/demo/tests.Exec", std.GetCaller())
-
-		println("user1.gno -> r/crossrealm_test -> r/demo/tests.Exec -> p/demo/tests:", ptests.GetCaller())
-	})
-
-	ptests.Exec(func() {
-		println("user1.gno -> r/crossrealm_test -> p/demo/tests.Exec: ", std.GetCaller())
-		println("user1.gno -> r/crossrealm_test -> p/demo/tests.Exec -> p/demo/tests:", ptests.GetCaller())
-	})
-
-	rtests.ExecFromTest()
-
-	Exec(func() {
-		println("user1.gno -> r/crossrealm_test.Exec:", std.GetCaller())
-	})
+func getCaller() std.Address {
+	return std.GetCaller()
 }
 
 // Output:
-// [DEBUG]
-// 	user1.gno:             g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-// 	crossrealm_test:       g1vla5mffzum6060t99u4xhm8mnhgxr0sz4k574p
-// 	gno.land/p/demo/tests: g1lc7c8nv62nqyyhhxe88tpxx786gwq68prx3f6e
-// 	gno.land/r/demo/tests: g1gz4ycmx0s6ln2wdrsh4e00l9fsel2wskqa3snq
+// STACK CASE 0:
+// user1.gno -> r/crossrealm_test.main() -> std.GetCaller()
+// 	caller is user1.gno
+// wrapped in r/crossrealm_test.Exec:
+// 	caller is user1.gno
+// wrapped in r/demo/tests.Exec:
+// 	caller is gno.land/r/demo/tests
+// wrapped p/demo/tests.Exec:
+// 	caller is user1.gno
 //
-// user1.gno -> r/crossrealm_test: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-// user1.gno -> r/crossrealm_test -> p/demo/tests: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-// user1.gno -> r/crossrealm_test -> r/demo/tests: g1vla5mffzum6060t99u4xhm8mnhgxr0sz4k574p
-// user1.gno -> r/crossrealm_test -> r/demo/tests -> r/demo/tests/subtests g1gz4ycmx0s6ln2wdrsh4e00l9fsel2wskqa3snq
-// user1.gno -> r/crossrealm_test -> p/demo/tests -> p/demo/tests/subtests g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-// user1.gno -> r/crossrealm_test -> p/demo/tests -> r/demo/tests g1vla5mffzum6060t99u4xhm8mnhgxr0sz4k574p
-// user1.gno -> r/crossrealm_test -> r/demo/tests.Exec g1gz4ycmx0s6ln2wdrsh4e00l9fsel2wskqa3snq
-// user1.gno -> r/crossrealm_test -> r/demo/tests.Exec -> p/demo/tests: g1gz4ycmx0s6ln2wdrsh4e00l9fsel2wskqa3snq
-// user1.gno -> r/crossrealm_test -> p/demo/tests.Exec:  g1vla5mffzum6060t99u4xhm8mnhgxr0sz4k574p
-// user1.gno -> r/crossrealm_test -> p/demo/tests.Exec -> p/demo/tests: g1vla5mffzum6060t99u4xhm8mnhgxr0sz4k574p
-// xxx -> r/demo/tests -> r/demo/tests.Exec: g1gz4ycmx0s6ln2wdrsh4e00l9fsel2wskqa3snq
-// user1.gno -> r/crossrealm_test.Exec: g1vla5mffzum6060t99u4xhm8mnhgxr0sz4k574p
+// STACK CASE 1:
+// user1.gno -> r/crossrealm_test.main() -> r/crossrealm_test.getCaller() -> std.GetCaller()
+// 	caller is user1.gno
+// wrapped in r/crossrealm_test.Exec:
+// 	caller is user1.gno
+// wrapped in r/demo/tests.Exec:
+// 	caller is gno.land/r/demo/tests
+// wrapped p/demo/tests.Exec:
+// 	caller is user1.gno
+//
+// STACK CASE 2:
+// user1.gno -> r/crossrealm_test.main() -> p/demo/tests -> std.GetCaller()
+// 	caller is user1.gno
+// wrapped in r/crossrealm_test.Exec:
+// 	caller is user1.gno
+// wrapped in r/demo/tests.Exec:
+// 	caller is gno.land/r/demo/tests
+// wrapped p/demo/tests.Exec:
+// 	caller is user1.gno
+//
+// STACK CASE 3:
+// user1.gno -> r/crossrealm_test.main() -> p/demo/tests -> p/demo/tests/subtests -> std.GetCaller()
+// 	caller is user1.gno
+// wrapped in r/crossrealm_test.Exec:
+// 	caller is user1.gno
+// wrapped in r/demo/tests.Exec:
+// 	caller is gno.land/r/demo/tests
+// wrapped p/demo/tests.Exec:
+// 	caller is user1.gno
+//
+// STACK CASE 4:
+// user1.gno -> r/crossrealm_test.main() -> r/demo/tests -> std.GetCaller()
+// 	caller is gno.land/r/crossrealm_test
+// wrapped in r/crossrealm_test.Exec:
+// 	caller is gno.land/r/crossrealm_test
+// wrapped in r/demo/tests.Exec:
+// 	caller is gno.land/r/crossrealm_test
+// wrapped p/demo/tests.Exec:
+// 	caller is gno.land/r/crossrealm_test
+//
+// STACK CASE 5:
+// user1.gno -> r/crossrealm_test.main() -> r/demo/tests -> r/demo/tests/subtests -> std.GetCaller()
+// 	caller is gno.land/r/demo/tests
+// wrapped in r/crossrealm_test.Exec:
+// 	caller is gno.land/r/demo/tests
+// wrapped in r/demo/tests.Exec:
+// 	caller is gno.land/r/demo/tests
+// wrapped p/demo/tests.Exec:
+// 	caller is gno.land/r/demo/tests
+//
+// STACK CASE 6:
+// user1.gno -> r/crossrealm_test.main() -> p/demo/tests -> r/demo/tests -> std.GetCaller()
+// 	caller is gno.land/r/crossrealm_test
+// wrapped in r/crossrealm_test.Exec:
+// 	caller is gno.land/r/crossrealm_test
+// wrapped in r/demo/tests.Exec:
+// 	caller is gno.land/r/crossrealm_test
+// wrapped p/demo/tests.Exec:
+// 	caller is gno.land/r/crossrealm_test
