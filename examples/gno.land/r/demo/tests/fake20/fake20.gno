@@ -24,7 +24,6 @@ func init() {
 	Init()
 }
 
-
 // method proxies as public functions.
 //
 

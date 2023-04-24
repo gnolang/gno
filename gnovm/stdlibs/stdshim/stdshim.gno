@@ -41,7 +41,6 @@ func GetCaller() Address {
 	return Address("")
 }
 
-
 func GetOrigCaller() Address {
 	panic(shimWarn)
 	return Address("")

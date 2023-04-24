@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	foo *grc20.AdminToken
+	foo   *grc20.AdminToken
 	Owner = std.Address("g1lpnflsxpr84dsqkznw85yd5wdzenkj89vsptmf")
 )
 

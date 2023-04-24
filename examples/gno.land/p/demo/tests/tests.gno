@@ -3,9 +3,9 @@ package tests
 import (
 	"std"
 
+	psubtests "gno.land/p/demo/tests/subtests"
 	"gno.land/r/demo/tests"
 	rtests "gno.land/r/demo/tests"
-	psubtests "gno.land/p/demo/tests/subtests"
 )
 
 // IncCounter demonstrates that it's possible to call a realm function from
