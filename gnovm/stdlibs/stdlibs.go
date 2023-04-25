@@ -5,14 +5,20 @@ import (
 	"math"
 	"reflect"
 	"strconv"
-	"strings"
 	"time"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/bech32"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	vmi "github.com/gnolang/gno/tm2/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
+
+var vmkeeper vmi.VMKeeperI
+
+func InjectVMKeeper(vmk vmi.VMKeeperI) {
+	vmkeeper = vmk
+}
 
 func InjectNativeMappings(store gno.Store) {
 	store.AddGo2GnoMapping(reflect.TypeOf(crypto.Bech32Address("")), "std", "Address")
@@ -192,24 +198,24 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				"cb", "string",
 			),
 			gno.Flds( // results
-				"ok", "bool",
+			// "ok", "bool",
+			// "err", "string",
 			),
 			func(m *gno.Machine) {
 				arg0, arg1 := m.LastBlock().GetParams2()
 				call := arg0.TV.GetString()
-				cb := arg1.TV.GetString()
-
-				callMsg, err := decodeCallMsg(call, true)
-				cbMsg, err := decodeCallMsg(cb, false)
-
-				Send(callMsg, cbMsg, MsgQueue)
+				callback := arg1.TV.GetString()
+				println(call, callback)
+				vmkeeper.SendMsg([]string{call, callback})
 
 				// TODO: return parse error
-				if err != nil {
-					m.PushValue(typedBool(false))
-				} else {
-					m.PushValue(typedBool(true))
-				}
+				// if err != nil {
+				// 	m.PushValue(typedBool(false))
+				// 	m.PushValue(typedString(gno.StringValue(err.Error())))
+				// } else {
+				// 	m.PushValue(typedBool(true))
+				// 	m.PushValue(typedString(""))
+				// }
 			},
 		)
 
@@ -638,20 +644,4 @@ func typedByteSlice(bz *gno.SliceValue) gno.TypedValue {
 func typedNil(t gno.Type) gno.TypedValue {
 	tv := gno.TypedValue{T: t, V: nil}
 	return tv
-}
-
-// TODO: a real decoder
-func decodeCallMsg(call string, isWithArgs bool) (callMsg *CallMsg, err error) {
-	callMsg = &CallMsg{}
-	cs := strings.Split(call, "#")
-	callMsg.PkgPath = cs[0]
-	callMsg.Fn = cs[1]
-	if isWithArgs {
-		as := strings.Split(cs[2], "&")
-		for _, arg := range as {
-			callMsg.Args = append(callMsg.Args, arg)
-		}
-	}
-	// TODO: return parse error
-	return callMsg, nil
 }

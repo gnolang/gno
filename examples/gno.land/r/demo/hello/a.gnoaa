@@ -2,12 +2,12 @@ package hello
 
 import "std"
 
-func SayHello(){
+func SayHello() {
 	println("say hello from A, going to call B")
 
-	chainID := std.GetChainID()
-	call := std.EncodeMsgCall(chainID, "gno.land/r/demo/greet", "Greet", []string{"hey"})
-	callback := std.EncodeMsgCall(chainID, "gno.land/r/demo/hello", "Reply", []string{""})
+
+	call := std.EncodeMsgCall("remote", "gno.land/r/demo/greet", "Greet", []string{"hey"})
+	callback := std.EncodeMsgCall("remote", "gno.land/r/demo/hello", "Reply", []string{""})
 
 	std.Send(call, callback)
 

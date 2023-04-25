@@ -1,15 +1,13 @@
-package vm
+package vmk
 
 import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -21,6 +19,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
+	vmi "github.com/gnolang/gno/tm2/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 	store "github.com/gnolang/gno/tm2/pkg/store/types"
@@ -73,7 +72,7 @@ var flags struct {
 type Simulator struct {
 	mockApp *sdk.MockApp
 	baseApp *sdk.BaseApp
-	VMKpr   *VMKeeper
+	VMKpr   vmi.VMKeeperI
 	AccK    auth.AccountKeeper
 	BanK    bank.BankKeeper
 	ibc     *IBC
@@ -169,18 +168,17 @@ func NewSimulator(skipFailingGenesisTxs bool, stdLibPath string) (*Simulator, er
 	// vmKpr := NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, "./stdlibs")
 	vmKpr := NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, stdLibPath)
 
-	ibc := NewIBC()
-	ibc.VMKpr = vmKpr
+	ibc := NewIBCModule()
 
 	dispatcher := NewDispatcher(logger)
-	dispatcher.Router().AddRoute("vm", NewHandler(vmKpr))
+	dispatcher.Router().AddRoute("vm", vmi.NewHandler(vmKpr))
 	dispatcher.icbChan = ibc
 
 	vmKpr.SetDispatcher(dispatcher)
 	// Set a handler Route.
 	mockApp.Router().AddRoute("auth", auth.NewHandler(acctKpr))
 	mockApp.Router().AddRoute("bank", bank.NewHandler(bankKpr))
-	mockApp.Router().AddRoute("vm", NewHandler(vmKpr))
+	mockApp.Router().AddRoute("vm", vmi.NewHandler(vmKpr))
 
 	// Load latest version.
 	if err := mockApp.LoadLatestVersion(); err != nil {
@@ -188,6 +186,7 @@ func NewSimulator(skipFailingGenesisTxs bool, stdLibPath string) (*Simulator, er
 	}
 
 	// Initialize the VMKeeper.
+	println("simulation vmKpr initialize")
 	vmKpr.Initialize(mockApp.GetCacheMultiStore())
 
 	s.mockApp = mockApp
@@ -201,9 +200,8 @@ func NewSimulator(skipFailingGenesisTxs bool, stdLibPath string) (*Simulator, er
 	return s, nil
 }
 
-func (s *Simulator) startServer(wg *sync.WaitGroup) {
-	defer wg.Done()
-	s.VMKpr.HandleMsg(stdlibs.MsgQueue)
+func (s *Simulator) startServer() {
+	s.VMKpr.ReceiveRoutine()
 }
 
 func (s *Simulator) addPkgFromMemfile(ctx sdk.Context, pkgPath string, memfiles []*std.MemFile) {
@@ -212,7 +210,7 @@ func (s *Simulator) addPkgFromMemfile(ctx sdk.Context, pkgPath string, memfiles 
 	s.AccK.SetAccount(ctx, acc)
 	s.BanK.SetCoins(ctx, creator, std.MustParseCoins("10000000ugnot"))
 
-	msgAdd := NewMsgAddPackage(creator, pkgPath, memfiles)
+	msgAdd := vmi.NewMsgAddPackage(creator, pkgPath, memfiles)
 	msgs := []sdk.Msg{msgAdd}
 
 	res := s.InjectMsgs(msgs, sdk.RunTxModeDeliver)
@@ -233,7 +231,7 @@ func (s *Simulator) addPkgFromPath(dir string, pkgpath string) {
 	s.AccK.SetAccount(s.Ctx, acc)
 	s.BanK.SetCoins(s.Ctx, creator, std.MustParseCoins("10000000ugnot"))
 
-	msgAdd := MsgAddPackage{
+	msgAdd := vmi.MsgAddPackage{
 		Creator: creator,
 		Package: memPkg,
 	}
@@ -259,7 +257,7 @@ func (s *Simulator) simuCall(mfs [][]*std.MemFile, callMsg []byte) (sdk.Result, 
 	s.AccK.SetAccount(s.Ctx, acc2)
 	s.BanK.SetCoins(s.Ctx, caller, std.MustParseCoins("20000000ugnot"))
 
-	var msgCalls []MsgCall
+	var msgCalls []vmi.MsgCall
 	err := json.Unmarshal(callMsg, &msgCalls)
 	if err != nil {
 		return sdk.Result{}, err

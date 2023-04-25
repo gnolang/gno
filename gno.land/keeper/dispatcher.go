@@ -1,10 +1,11 @@
-package vm
+package vmk
 
 import (
 	"fmt"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	vmi "github.com/gnolang/gno/tm2/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"strings"
 )
@@ -29,8 +30,8 @@ func (d *Dispatcher) Router() sdk.Router {
 
 // iterates through all inner messages, route to another infra's contract or another chain's contract
 // TODO: not need sdk context here?, another method for handler
-func (d *Dispatcher) HandleInnerMsgs(ctx sdk.Context, pkgPath string, msgs []MsgCall, mode sdk.RunTxMode) (result sdk.Result) {
-	println("handle InnerMsgs")
+func (d *Dispatcher) HandleInternalMsgs(ctx sdk.Context, msgs []vmi.MsgCall, mode sdk.RunTxMode) (result sdk.Result) {
+	println("handle internal msgs")
 	msgLogs := make([]string, 0, len(msgs))
 
 	data := make([]byte, 0, len(msgs))
@@ -39,6 +40,7 @@ func (d *Dispatcher) HandleInnerMsgs(ctx sdk.Context, pkgPath string, msgs []Msg
 
 	// NOTE: GasWanted is determined by ante handler and GasUsed by the GasMeter.
 	for i, msg := range msgs {
+		println("msg: ", msg.PkgPath)
 		// match message route
 		msgRoute := msg.Route()
 		handler := d.router.Route(msgRoute)
@@ -56,7 +58,7 @@ func (d *Dispatcher) HandleInnerMsgs(ctx sdk.Context, pkgPath string, msgs []Msg
 			msgResult = handler.Process(ctx, msg)
 		}
 
-		// println("after process:, msgResult is:", string(msgResult.Data))
+		println("after process:, msgResult is:", string(msgResult.Data))
 
 		// Each message result's Data must be length prefixed in order to separate
 		// each result.
@@ -82,8 +84,8 @@ func (d *Dispatcher) HandleInnerMsgs(ctx sdk.Context, pkgPath string, msgs []Msg
 			fmt.Sprintf("msg:%d,success:%v,log:%s,events:%v",
 				i, true, msgResult.Log, events))
 	}
-
-	// succeed iff all innermsgs succeed and callback succeed
+	println("processed, going to return, err is nil? ", err == nil)
+	// succeed iff all internal msgs succeed and callback succeed
 	result.Error = sdk.ABCIError(err)
 	result.Data = data
 	result.Log = strings.Join(msgLogs, "\n")
@@ -92,8 +94,11 @@ func (d *Dispatcher) HandleInnerMsgs(ctx sdk.Context, pkgPath string, msgs []Msg
 	return result
 }
 
-// send IBC packet, only support gnovm type call (MsgCall) for now
-func (d *Dispatcher) HandleIBCMsgs(ctx sdk.Context, msgs []MsgCall, cb MsgCall) {
+// send IBC packet, only support gnovm type call (MsgCall) for now, gnoVM <-> gnoVM
+func (d *Dispatcher) HandleIBCMsgs(ctx sdk.Context, msgs []vmi.MsgCall) {
+	// set callback map
+
+	// this simulates a IBC call, using a chan to loop back
 	for _, msg := range msgs {
 		go d.icbChan.SendPacket(msg)
 	}

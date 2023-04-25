@@ -11,13 +11,13 @@ import (
 )
 
 type vmHandler struct {
-	vm *VMKeeper
+	vmk VMKeeperI
 }
 
 // NewHandler returns a handler for "vm" type messages.
-func NewHandler(vm *VMKeeper) vmHandler {
+func NewHandler(vm VMKeeperI) vmHandler {
 	return vmHandler{
-		vm: vm,
+		vmk: vm,
 	}
 }
 
@@ -39,11 +39,12 @@ func (vh vmHandler) handleMsgAddPackage(ctx sdk.Context, msg MsgAddPackage) sdk.
 	if err != nil {
 		return abciResult(err)
 	}
-	err = vh.vm.bank.SendCoins(ctx, msg.Creator, auth.FeeCollectorAddress(), amount)
+	// err = vh.vm.bank.SendCoins(ctx, msg.Creator, auth.FeeCollectorAddress(), amount)
+	err = vh.vmk.SubmitTxFee(ctx, msg.Creator, auth.FeeCollectorAddress(), amount)
 	if err != nil {
 		return abciResult(err)
 	}
-	err = vh.vm.AddPackage(ctx, msg)
+	err = vh.vmk.AddPackage(ctx, msg)
 	if err != nil {
 		return abciResult(err)
 	}
@@ -52,6 +53,7 @@ func (vh vmHandler) handleMsgAddPackage(ctx sdk.Context, msg MsgAddPackage) sdk.
 
 // Handle MsgCall.
 func (vh vmHandler) handleMsgCall(ctx sdk.Context, msg MsgCall) (res sdk.Result) {
+	println("handle msg call")
 	// amount, err := std.ParseCoins("1000000ugnot") // XXX calculate
 	// if err != nil {
 	// 	return abciResult(err)
@@ -61,7 +63,7 @@ func (vh vmHandler) handleMsgCall(ctx sdk.Context, msg MsgCall) (res sdk.Result)
 	// 	return abciResult(err)
 	// }
 	resstr := ""
-	resstr, err := vh.vm.Call(ctx, msg)
+	resstr, err := vh.vmk.Call(ctx, msg)
 	if err != nil {
 		return abciResult(err)
 	}
@@ -135,7 +137,7 @@ func (vh vmHandler) queryRender(ctx sdk.Context, req abci.RequestQuery) (res abc
 	pkgPath := reqParts[0]
 	path := reqParts[1]
 	expr := fmt.Sprintf("Render(%q)", path)
-	result, err := vh.vm.QueryEvalString(ctx, pkgPath, expr)
+	result, err := vh.vmk.QueryEvalString(ctx, pkgPath, expr)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
 		return
@@ -152,7 +154,7 @@ func (vh vmHandler) queryFuncs(ctx sdk.Context, req abci.RequestQuery) (res abci
 		panic("expected one line in query input data")
 	}
 	pkgPath := reqParts[0]
-	fsigs, err := vh.vm.QueryFuncs(ctx, pkgPath)
+	fsigs, err := vh.vmk.QueryFuncs(ctx, pkgPath)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
 		return
@@ -170,7 +172,7 @@ func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.
 	}
 	pkgPath := reqParts[0]
 	expr := reqParts[1]
-	result, err := vh.vm.QueryEval(ctx, pkgPath, expr)
+	result, err := vh.vmk.QueryEval(ctx, pkgPath, expr)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
 		return
@@ -184,7 +186,7 @@ func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.
 // if dir, res.Value is []byte("dir").
 func (vh vmHandler) queryFile(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	filepath := string(req.Data)
-	result, err := vh.vm.QueryFile(ctx, filepath)
+	result, err := vh.vmk.QueryFile(ctx, filepath)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
 		return

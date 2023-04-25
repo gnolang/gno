@@ -1,7 +1,6 @@
 package vm
 
 import (
-	"errors"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -138,94 +137,12 @@ func (msg MsgCall) GetReceived() std.Coins {
 }
 
 // ----------------------------------------
-// Response
+// common msg, represent internal msg and cross chain msg
 
-type Address string // NOTE: bech32
-
-func (a Address) String() string {
-	return string(a)
-}
-
-func (a Address) IsZero() bool {
-	return a == Address("")
-}
-
-// TODO: more msg types, MsgAddPkg, MsgEval?
-type InnerMsg struct {
-	MsgID   int64
-	Caller  Address
+type Msg struct {
+	ChainID string
+	Caller  string
 	PkgPath string
-	Send    std.Coins
 	Func    string
 	Args    []string
-}
-
-func (msg *InnerMsg) Route() string { return RouterKey }
-
-func (msg *InnerMsg) ValidateBasic() error {
-	if msg.Caller.IsZero() {
-		return errors.New("missing caller address")
-	}
-	if msg.PkgPath == "" { // XXX
-		return errors.New("missing package path")
-	}
-	if msg.Func == "" { // XXX
-		return errors.New("missing function to call")
-	}
-	return nil
-}
-
-// std result
-type VMResult struct {
-	Response
-	// GasWanted int64
-	// GasUsed   int64
-}
-
-func GnoResult(r Response) *VMResult {
-	return &VMResult{Response: r}
-}
-
-type Event string
-
-func (e Event) AssertABCIEvent() {}
-
-type Response struct {
-	ErrMsg    string // TODO: user err_code instead, for safety
-	Data      []byte
-	Events    []Event
-	InnerMsgs []InnerMsg
-	// gas limit?
-
-	Log  string // nondeterministic
-	Info string // nondeterministic
-}
-
-func NewResponse() Response {
-	return Response{}
-}
-
-func (r Response) WithData(data []byte) Response {
-	r.Data = data
-	return r
-}
-
-func (r Response) WithEvents(events []Event) Response {
-	r.Events = events
-	return r
-}
-
-func (r Response) WithInnerMsgs(msgs []InnerMsg) Response {
-	r.InnerMsgs = msgs
-	return r
-}
-
-func (r Response) WithLog(log string) Response {
-	r.Log = log
-	return r
-}
-
-func (r Response) WithInfo(info string) Response {
-	r.Info = info
-	return r
 }

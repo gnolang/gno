@@ -58,3 +58,11 @@ const (
 	// Deliver a transaction
 	RunTxModeDeliver RunTxMode = iota
 )
+
+// type VMKeeperI interface {
+// 	AddPackage(ctx Context, msg Msg) error
+// 	Call(ctx Context, msg Msg) (res string, err error)
+// 	SendMsg([]string)
+// 	ReceiveRoutine()
+// 	// GetStack() []string
+// }

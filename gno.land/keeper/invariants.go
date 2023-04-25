@@ -1,4 +1,4 @@
-package vm
+package vmk
 
 import (
 	"github.com/gnolang/gno/tm2/pkg/sdk"

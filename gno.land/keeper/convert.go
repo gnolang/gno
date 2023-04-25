@@ -1,14 +1,11 @@
-package vm
+package vmk
 
 import (
 	"encoding/base64"
 	"fmt"
 	"strconv"
 
-	"errors"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/sdk"
 )
 
 // These convert string representations of public-facing arguments to GNO types.
@@ -199,43 +196,10 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 	}
 }
 
-func ConvertMsg(callMsg InnerMsg) MsgCall {
-	err := callMsg.ValidateBasic()
-	if err != nil {
-		println(err.Error())
-	}
-
-	msgCall := MsgCall{}
-	msgCall.PkgPath = callMsg.PkgPath
-	callerAddr, err := crypto.AddressFromString(callMsg.Caller.String()) // TODO: origin caller or sub-level caller
-	if err != nil {
-		panic(err)
-	}
-	msgCall.Caller = callerAddr
-	msgCall.Func = callMsg.Func
-	msgCall.Args = callMsg.Args
-	return msgCall
-}
-
-func Gno2SdkResult(r VMResult) (res sdk.Result) {
-	if r.ErrMsg != "" {
-		res.Error = sdk.ABCIError(errors.New(r.ErrMsg))
-	}
-	res.Data = r.Data
-	res.Info = r.Info
-	res.Log = r.Log
-	return
-}
-
 func prefixData(value []byte) []byte {
 	// 1 is default length for a `length` prefix
 	data := make([]byte, 0, len(value)+1)
 	data = append(data, byte(len(value)))
 	data = append(data, value...)
 	return data
-}
-
-func gnoResultFromData(data []byte) (res VMResult) {
-	res.Data = data
-	return
 }

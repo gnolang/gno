@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	vmk "github.com/gnolang/gno/gno.land/keeper"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -41,9 +42,9 @@ func NewApp(rootDir string, skipFailingGenesisTxs bool, logger log.Logger) (abci
 	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
 	bankKpr := bank.NewBankKeeper(acctKpr)
 	stdlibsDir := filepath.Join("..", "gnovm", "stdlibs")
-	vmKpr := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, stdlibsDir)
+	vmKpr := vmk.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, stdlibsDir)
 
-	dispatcher := vm.NewDispatcher(logger)
+	dispatcher := vmk.NewDispatcher(logger)
 	dispatcher.Router().AddRoute("vm", vm.NewHandler(vmKpr))
 	vmKpr.SetDispatcher(dispatcher)
 
