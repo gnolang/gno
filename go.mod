@@ -37,6 +37,7 @@ require (
 	golang.org/x/tools v0.6.0
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/yaml.v3 v3.0.1
+	tinygo.org/x/go-llvm v0.0.0-20221212185523-e80bc424a2b1
 )
 
 require (
