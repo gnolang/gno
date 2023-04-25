@@ -36,19 +36,21 @@ type VMKeeper struct {
 	ctx      sdk.Context
 	calls    []*vmi.MsgCall // call stack, free after every MsgCall
 	// map[MsgCall]Addr, maintain last call address
-	msgQueue   chan []string
-	origCaller crypto.Address
+	internalMsgQueue chan []string    // receive msg from contract
+	ibcMsgQueue      chan vmi.MsgCall // receive msg from ibc
+	origCaller       crypto.Address
 }
 
 // NewVMKeeper returns a new VMKeeper.
 func NewVMKeeper(baseKey store.StoreKey, iavlKey store.StoreKey, acck auth.AccountKeeper, bank bank.BankKeeper, stdlibsDir string) *VMKeeper {
 	vmk := &VMKeeper{
-		baseKey:    baseKey,
-		iavlKey:    iavlKey,
-		acck:       acck,
-		bank:       bank,
-		stdlibsDir: stdlibsDir,
-		msgQueue:   make(chan []string),
+		baseKey:          baseKey,
+		iavlKey:          iavlKey,
+		acck:             acck,
+		bank:             bank,
+		stdlibsDir:       stdlibsDir,
+		internalMsgQueue: make(chan []string),
+		ibcMsgQueue:      make(chan vmi.MsgCall),
 	}
 	return vmk
 }
@@ -132,15 +134,19 @@ func (vmk *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 	}
 }
 
-func (vmk *VMKeeper) SendMsg(msg []string) {
-	vmk.msgQueue <- msg
+func (vmk *VMKeeper) DispatchInternalMsg(msg []string) {
+	vmk.internalMsgQueue <- msg
+}
+
+func (vmk *VMKeeper) DispatchIBCMsg(msg vmi.MsgCall) {
+	vmk.ibcMsgQueue <- msg
 }
 
 func (vmk *VMKeeper) ReceiveRoutine() {
 	var msgCall vmi.MsgCall
 	for {
 		select {
-		case msg := <-vmk.msgQueue:
+		case msg := <-vmk.internalMsgQueue:
 			call, err := decodeMsg(msg[0], true)
 			if err != nil {
 				panic(err.Error())
@@ -158,7 +164,7 @@ func (vmk *VMKeeper) ReceiveRoutine() {
 				println("error parsing callback: ", err.Error())
 			}
 
-			// XXX determint caller here, last pkg
+			// XXX determine caller here, last pkg
 			// println("push call stack")
 			// vmk.PushCall(&msgCall)
 
@@ -184,12 +190,12 @@ func (vmk *VMKeeper) ReceiveRoutine() {
 				// using a map to maintain the sequence and a callback msg
 				vmk.dispatcher.HandleIBCMsgs(vmk.ctx, []vmi.MsgCall{msgCall})
 			}
-			// IBC onRecv callback here
-			// case mc := <-getIBCQueue():
-			// 	println("IBC onRecv -> call")
-			// 	println(mc.PkgPath)
-			// 	r := vmk.dispatcher.HandleInternalMsgs(vmk.ctx, mc.PkgPath, []MsgCall{mc}, sdk.RunTxModeDeliver)
-			// 	println("call finished, res: ", string(r.Data))
+		// IBC -> VM
+		case msg := <-vmk.ibcMsgQueue:
+			println("IBC onRecv -> call")
+			println(msg.PkgPath)
+			r := vmk.dispatcher.HandleInternalMsgs(vmk.ctx, []vmi.MsgCall{msg}, sdk.RunTxModeDeliver)
+			println("call finished, res: ", string(r.Data))
 
 			// TODO: callback to caller
 			// construct callback msg

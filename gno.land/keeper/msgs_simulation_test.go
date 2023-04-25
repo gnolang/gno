@@ -30,19 +30,18 @@ func simuAddPkg() {
 //go:embed simulation_data/msg_call_success.json
 var msgCallSuccessBz []byte
 
-func TestInternalCallSuccess(t *testing.T) {
-	go simulator.startServer()
-	// println("vmkeeper in simulator, chan : ", simulator.VMKpr.GetChan())
+// func TestInternalCallSuccess(t *testing.T) {
+// 	go simulator.startServer()
+// 	// println("vmkeeper in simulator, chan : ", simulator.VMKpr.GetChan())
+// 	res, _ := simulator.simuCall([][]*std.MemFile{}, msgCallSuccessBz)
+// 	assert.NoError(t, res.Error)
+// 	time.Sleep(3 * time.Second)
+// }
+
+func TestIBCCallSuccess(t *testing.T) {
+	go simulator.VMKpr.ReceiveRoutine()
+	go simulator.ibc.OnRecvPacket()
 	res, _ := simulator.simuCall([][]*std.MemFile{}, msgCallSuccessBz)
 	assert.NoError(t, res.Error)
 	time.Sleep(3 * time.Second)
 }
-
-// func TestIBCCallSuccess(t *testing.T) {
-// 	wg.Add(1)
-// 	go simulator.VMKpr.ReceiveRoutine()
-// 	go simulator.ibc.OnRecvPacket(&wg)
-// 	res, _ := simulator.simuCall([][]*std.MemFile{}, msgCallSuccessBz)
-// 	assert.NoError(t, res.Error)
-// 	wg.Wait()
-// }

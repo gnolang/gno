@@ -168,7 +168,7 @@ func NewSimulator(skipFailingGenesisTxs bool, stdLibPath string) (*Simulator, er
 	// vmKpr := NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, "./stdlibs")
 	vmKpr := NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, stdLibPath)
 
-	ibc := NewIBCModule()
+	ibc := NewIBCModule(vmKpr)
 
 	dispatcher := NewDispatcher(logger)
 	dispatcher.Router().AddRoute("vm", vmi.NewHandler(vmKpr))

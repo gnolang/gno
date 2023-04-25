@@ -2,7 +2,6 @@ package vmk
 
 import (
 	vmi "github.com/gnolang/gno/tm2/pkg/sdk/vm"
-	"sync"
 )
 
 var internelMsgQueue chan vmi.MsgCall // channel between IBC and VM
@@ -19,11 +18,13 @@ func getIBCQueue() <-chan vmi.MsgCall {
 // TODO: saticefy a real IBCModule interface
 type IBC struct {
 	IBCChan chan vmi.MsgCall // simulate call from IBC
+	vmk     vmi.VMKeeperI
 }
 
-func NewIBCModule() *IBC {
+func NewIBCModule(v vmi.VMKeeperI) *IBC {
 	return &IBC{
 		IBCChan: make(chan vmi.MsgCall),
+		vmk:     v,
 	}
 }
 
@@ -36,8 +37,7 @@ func (i *IBC) SendPacket(msgCall vmi.MsgCall) {
 
 // callback on receive packet from IBC
 // XXX: need a portID and sequence to identify the initial call?
-func (i *IBC) OnRecvPacket(wg *sync.WaitGroup) {
-	defer wg.Done()
+func (i *IBC) OnRecvPacket() {
 	println("onRecvPacket")
 	// timeout := 3 * time.Second
 	var mc vmi.MsgCall
@@ -45,7 +45,8 @@ func (i *IBC) OnRecvPacket(wg *sync.WaitGroup) {
 		select {
 		case mc = <-i.IBCChan:
 			println("mc: ", mc.PkgPath, mc.Func, mc.Args[0])
-			internelMsgQueue <- mc // redirect msg to vm keeper for further handling, need a buffer
+			i.vmk.DispatchIBCMsg(mc)
+
 			// case <-time.After(timeout):
 			// 	panic("Timeout! IBC took too long.")
 		}
