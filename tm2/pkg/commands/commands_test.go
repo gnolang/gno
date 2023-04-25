@@ -55,6 +55,18 @@ func TestCommandFlagsOrder(t *testing.T) {
 			expectedFlags: flags{b: true, s: "str"},
 		},
 		{
+			name:          "ignore all flags",
+			osArgs:        []string{"--", "-b", "-s", "str", "bar"},
+			expectedArgs:  []string{"-b", "-s", "str", "bar"},
+			expectedFlags: flags{},
+		},
+		{
+			name:          "ignore some flags",
+			osArgs:        []string{"-b", "--", "-s", "str", "bar"},
+			expectedArgs:  []string{"-s", "str", "bar"},
+			expectedFlags: flags{b: true},
+		},
+		{
 			name:          "unknow flag",
 			osArgs:        []string{"-y", "-s", "str"},
 			expectedArgs:  []string{},
@@ -85,6 +97,12 @@ func TestCommandFlagsOrder(t *testing.T) {
 			expectedFlags: flags{b: true, s: "str"},
 		},
 		{
+			name:          "args and some ignored flags",
+			osArgs:        []string{"bar", "-b", "--", "-s", "str", "baz"},
+			expectedArgs:  []string{"bar", "-s", "str", "baz"},
+			expectedFlags: flags{b: true},
+		},
+		{
 			name:          "subcommand no flags no args",
 			osArgs:        []string{"sub"},
 			expectedArgs:  []string{},
@@ -106,6 +124,24 @@ func TestCommandFlagsOrder(t *testing.T) {
 			osArgs:        []string{"-b", "sub", "-x", "-s", "str"},
 			expectedArgs:  []string{},
 			expectedFlags: flags{b: true, s: "str", x: true},
+		},
+		{
+			name:          "subcommand ignore flags -- after",
+			osArgs:        []string{"-b", "sub", "--", "-x", "-s", "str"},
+			expectedArgs:  []string{"-x", "-s", "str"},
+			expectedFlags: flags{b: true},
+		},
+		{
+			name:          "subcommand ignore some flags",
+			osArgs:        []string{"-b", "sub", "-x", "--", "-s", "str"},
+			expectedArgs:  []string{"-s", "str"},
+			expectedFlags: flags{b: true, x: true},
+		},
+		{
+			name:          "subcommand ignored",
+			osArgs:        []string{"-b", "--", "sub", "-x", "-s", "str"},
+			expectedArgs:  []string{"sub", "-x", "-s", "str"},
+			expectedFlags: flags{b: true},
 		},
 		{
 			name:          "subcommand flags before args",

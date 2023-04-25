@@ -110,6 +110,12 @@ func (c *Command) Parse(args []string) error {
 
 	c.args = c.FlagSet.Args()
 	if len(c.args) > 0 {
+		// Determine if ff.Parse has been interrupted by a --
+		for i := 0; i < len(args)-len(c.args); i++ {
+			if args[i] == "--" {
+				goto STOP_PARSE
+			}
+		}
 		for _, subcommand := range c.Subcommands {
 			if strings.EqualFold(c.args[0], subcommand.Name) {
 				c.selected = subcommand
@@ -130,6 +136,7 @@ func (c *Command) Parse(args []string) error {
 			}
 		}
 	}
+STOP_PARSE:
 
 	c.selected = c
 
