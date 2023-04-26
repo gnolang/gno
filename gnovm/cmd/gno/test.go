@@ -24,13 +24,13 @@ import (
 )
 
 type testCfg struct {
-	verbose           bool
-	rootDir           string
-	run               string
-	timeout           time.Duration
-	precompile        bool // TODO: precompile should be the default, but it needs to automatically precompile dependencies in memory.
-	updateGoldenTests bool
-	printUsageMetrics bool
+	verbose             bool
+	rootDir             string
+	run                 string
+	timeout             time.Duration
+	precompile          bool // TODO: precompile should be the default, but it needs to automatically precompile dependencies in memory.
+	updateGoldenTests   bool
+	printRuntimeMetrics bool
 }
 
 func newTestCmd(io *commands.IO) *commands.Command {
@@ -93,10 +93,10 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.BoolVar(
-		&c.printUsageMetrics,
-		"print-usage-metrics",
+		&c.printRuntimeMetrics,
+		"print-runtime-metrics",
 		false,
-		"print usage metrics (gas, memory, cpu cycles)",
+		"print runtime metrics (gas, memory, cpu cycles)",
 	)
 }
 
@@ -223,15 +223,18 @@ func gnoTestPkg(
 	cfg *testCfg,
 	io *commands.IO,
 ) error {
-	verbose := cfg.verbose
-	rootDir := cfg.rootDir
-	runFlag := cfg.run
+	var (
+		verbose             = cfg.verbose
+		rootDir             = cfg.rootDir
+		runFlag             = cfg.run
+		printRuntimeMetrics = cfg.printRuntimeMetrics
+
+		stdin  = io.In
+		stdout = io.Out
+		stderr = io.Err
+	)
+
 	filter := splitRegexp(runFlag)
-
-	stdin := io.In
-	stdout := io.Out
-	stderr := io.Err
-
 	var errs error
 
 	testStore := tests.TestStore(
@@ -260,7 +263,7 @@ func gnoTestPkg(
 		{
 			m := tests.TestMachine(testStore, stdout, "main")
 			m.RunMemPackage(memPkg, true)
-			err := runTestFiles(m, tfiles, memPkg.Name, verbose, runFlag, io)
+			err := runTestFiles(m, tfiles, memPkg.Name, verbose, printRuntimeMetrics, runFlag, io)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -272,7 +275,7 @@ func gnoTestPkg(
 			if testPkgName != "" {
 				m := tests.TestMachine(testStore, stdout, testPkgName)
 				m.RunMemPackage(memPkg, true)
-				err := runTestFiles(m, ifiles, testPkgName, verbose, runFlag, io)
+				err := runTestFiles(m, ifiles, testPkgName, verbose, printRuntimeMetrics, runFlag, io)
 				if err != nil {
 					errs = multierr.Append(errs, err)
 				}
@@ -320,6 +323,7 @@ func gnoTestPkg(
 			if verbose {
 				io.ErrPrintfln("--- PASS: %s (%s)", testName, dstr)
 			}
+			// XXX: add per-test metrics
 		}
 	}
 
@@ -331,6 +335,7 @@ func runTestFiles(
 	files *gno.FileSet,
 	pkgName string,
 	verbose bool,
+	printRuntimeMetrics bool,
 	runFlag string,
 	io *commands.IO,
 ) error {
@@ -342,6 +347,9 @@ func runTestFiles(
 		RunFlag:     runFlag,
 	}
 	loadTestFuncs(pkgName, testFuncs, files)
+
+	// before/after statistics
+	numPackagesBefore := m.Store.NumMemPackages()
 
 	testmain, err := formatTestmain(testFuncs)
 	if err != nil {
@@ -401,6 +409,18 @@ func runTestFiles(
 
 		if rep.Output != "" && (verbose || rep.Failed) {
 			io.ErrPrintfln("output: %s", rep.Output)
+		}
+
+		if printRuntimeMetrics {
+			imports := m.Store.NumMemPackages() - numPackagesBefore - 1
+			// XXX: pretty print big numbers
+			// XXX: store changes
+			// XXX: total alloc
+			// XXX: max mem consumption
+			io.ErrPrintfln("---       runtime: cycle=%dk imports=%d allocs=TODO memory=TODO store=TODO",
+				m.Cycles/1000,
+				imports,
+			)
 		}
 	}
 
