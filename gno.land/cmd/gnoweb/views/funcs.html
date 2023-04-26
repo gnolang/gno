@@ -114,17 +114,24 @@
 {{ define "js" }}
 <script type="text/javascript" src="/static/js/marked.min.js"></script>
 <script type="text/javascript" src="/static/js/purify.min.js"></script>
+<script type="text/javascript" src="/static/js/renderer.js"></script>
+
 <script type="text/javascript">
-  function main() {
-    marked.setOptions({ gfm: true });
-    window.contents = document.getElementById("source").innerHTML;
-    const doc = new DOMParser().parseFromString(window.contents, "text/html");
-    const contents = doc.documentElement.textContent;
-    const parsed = marked.parse(contents);
-    document.getElementById("home").innerHTML = DOMPurify.sanitize(parsed, {
-      USE_PROFILES: { html: true },
-    });
-  }
+    function main() {
+        const parsed = parseContent(document.getElementById("source").innerHTML)
+        const DOM = {
+            home: document.getElementById("home"),
+            realm_render: document.getElementById("realm_render")
+        }
+
+        for (const [key, el] of Object.entries(DOM)) {
+            if(el!== null) {
+                el.innerHTML = DOMPurify.sanitize(parsed, {
+                    USE_PROFILES: { html: true },
+                });
+            } 
+        }        
+    }
 </script>
 {{ end }}
 {{ define "subscribe" }}

@@ -355,3 +355,9 @@ code.hljs {
 #realm_help .func_name td {
   font-weight: bold;
 }
+
+/*** COMPONENTS ELEMENTS ***/
+.comp-jumbotron{
+    border: 1px solid #606060; 
+    padding: 3.5rem;
+}

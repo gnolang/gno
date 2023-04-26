@@ -142,6 +142,16 @@ but that looks ugly.
 
       You just need to indent an additional four spaces.
 
+Components
+=========
+
+Jumbotron
+----------
+
+:::jumbotron
+## Jumbotron title
+This is a Jumbotron component you can fill with regular markdown.
+:::
 
 Even More
 =========
@@ -165,7 +175,6 @@ Images work exactly like links, but they have exclamation points in front. They 
 ![Google Logo](https://www.google.com/images/errors/logo_sm.gif) and ![Happy].
 
 [Happy]: https://wpclipart.com/smiley/happy/simple_colors/smiley_face_simple_green_small.png ("Smiley face")
-
 
 Inline HTML
 -----------

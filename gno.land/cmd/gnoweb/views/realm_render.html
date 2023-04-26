@@ -26,24 +26,6 @@
       {{ template "footer" }}
     </div>
     {{ template "js" }}
-    <script type="text/javascript" src="/static/js/marked.min.js"></script>
-    <script type="text/javascript" src="/static/js/umbrella.min.js"></script>
-    <script type="text/javascript" src="/static/js/renderer.js"></script>
-    <script type="text/javascript">
-      function main() {
-        marked.setOptions({
-          gfm: true,
-        });
-        const source = u("#source").text();
-        const parsed = marked.parse(renderUsernames(source));
-        document.getElementById("realm_render").innerHTML = DOMPurify.sanitize(
-          parsed,
-          {
-            USE_PROFILES: { html: true },
-          }
-        );
-      }
-    </script>
   </body>
 </html>
 {{- end -}}
