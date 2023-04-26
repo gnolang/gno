@@ -6,12 +6,17 @@ import (
 	"strconv"
 	"strings"
 
+	lru "github.com/hashicorp/golang-lru/v2"
+
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 const iavlCacheSize = 1024 * 1024 // TODO increase and parameterize.
+const objectCacheSize = 100       // TODO parameterize.
+const typeCacheSize = 1000        // TODO parameterize.
+const nodeCacheSize = 10000       // TODO parameterize.
 
 // return nil if package doesn't exist.
 type PackageGetter func(pkgPath string) (*PackageNode, *PackageValue)
@@ -65,10 +70,10 @@ type Store interface {
 type defaultStore struct {
 	alloc            *Allocator    // for accounting for cached items
 	pkgGetter        PackageGetter // non-realm packages
-	cacheObjects     map[ObjectID]Object
-	cacheTypes       map[TypeID]Type
-	cacheNodes       map[Location]BlockNode
-	cacheNativeTypes map[reflect.Type]Type // go spec: reflect.Type are comparable
+	cacheObjects     *lru.Cache[ObjectID, Object]
+	cacheTypes       *lru.Cache[TypeID, Type]
+	cacheNodes       *lru.Cache[Location, BlockNode]
+	cacheNativeTypes map[reflect.Type]Type // go spec: reflect.Type are comparable // TODO: reflect.Type is not comparable until we update to Go 1.20
 	baseStore        store.Store           // for objects, types, nodes
 	iavlStore        store.Store           // for escaped object hashes
 	pkgInjector      PackageInjector       // for injecting natives
@@ -81,12 +86,24 @@ type defaultStore struct {
 }
 
 func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
+	oc, err := lru.New[ObjectID, Object](objectCacheSize)
+	if err != nil {
+		panic(err)
+	}
+	tc, err := lru.New[TypeID, Type](typeCacheSize)
+	if err != nil {
+		panic(err)
+	}
+	nc, err := lru.New[Location, BlockNode](nodeCacheSize)
+	if err != nil {
+		panic(err)
+	}
 	ds := &defaultStore{
 		alloc:            alloc,
 		pkgGetter:        nil,
-		cacheObjects:     make(map[ObjectID]Object),
-		cacheTypes:       make(map[TypeID]Type),
-		cacheNodes:       make(map[Location]BlockNode),
+		cacheObjects:     oc,
+		cacheTypes:       tc,
+		cacheNodes:       nc,
 		cacheNativeTypes: make(map[reflect.Type]Type),
 		baseStore:        baseStore,
 		iavlStore:        iavlStore,
@@ -118,13 +135,18 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 	}
 	// first, check cache.
 	oid := ObjectIDFromPkgPath(pkgPath)
-	if oo, exists := ds.cacheObjects[oid]; exists {
+
+	if oo, exists := ds.cacheObjects.Get(oid); exists {
 		pv := oo.(*PackageValue)
 		return pv
 	}
+	fmt.Println("STORAGES:::::::::", ds.baseStore, ds.pkgGetter)
+	fmt.Println("CACHE OBJECT SIZE:::::::::", ds.cacheObjects.Len())
+
 	// else, load package.
 	if ds.baseStore != nil {
 		if oo := ds.loadObjectSafe(oid); oo != nil {
+			ds.cacheObjects.Add(oo.GetObjectID(), oo)
 			pv := oo.(*PackageValue)
 			_ = pv.GetBlock(ds) // preload
 			// get package associated realm if nil.
@@ -171,7 +193,7 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 			// Realm values obtained this way
 			// will get written elsewhere
 			// later.
-			ds.cacheObjects[oid] = pv
+			ds.cacheObjects.Add(oid, pv)
 			// inject natives after init.
 			if ds.pkgInjector != nil {
 				if pn.HasAttribute(ATTR_INJECTED) {
@@ -203,10 +225,11 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 // Used to set throwaway packages.
 func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
 	oid := ObjectIDFromPkgPath(pv.PkgPath)
-	if _, exists := ds.cacheObjects[oid]; exists {
+	if ds.cacheObjects.Contains(oid) {
 		panic(fmt.Sprintf("package %s already exists in cache", pv.PkgPath))
 	}
-	ds.cacheObjects[oid] = pv
+
+	ds.cacheObjects.Add(oid, pv)
 }
 
 // Some atomic operation.
@@ -250,7 +273,7 @@ func (ds *defaultStore) GetObject(oid ObjectID) Object {
 
 func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 	// check cache.
-	if oo, exists := ds.cacheObjects[oid]; exists {
+	if oo, exists := ds.cacheObjects.Get(oid); exists {
 		return oo
 	}
 	// check baseStore.
@@ -285,7 +308,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 			}
 		}
 		oo.SetHash(ValueHash{NewHashlet(hash)})
-		ds.cacheObjects[oid] = oo
+		ds.cacheObjects.Add(oid, oo)
 		_ = fillTypesOfValue(ds, oo)
 		return oo
 	}
@@ -319,7 +342,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 		if oid.IsZero() {
 			panic("object id cannot be zero")
 		}
-		if oo2, exists := ds.cacheObjects[oid]; exists {
+		if oo2, exists := ds.cacheObjects.Get(oid); exists {
 			if oo != oo2 {
 				panic(fmt.Sprintf(
 					"duplicate object: set %s (oid: %s) but %s (oid %s) already exists",
@@ -327,7 +350,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 			}
 		}
 	}
-	ds.cacheObjects[oid] = oo
+	ds.cacheObjects.Add(oid, oo)
 	// make store op log entry
 	if ds.opslog != nil {
 		var op StoreOpType
@@ -351,7 +374,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 func (ds *defaultStore) DelObject(oo Object) {
 	oid := oo.GetObjectID()
 	// delete from cache.
-	delete(ds.cacheObjects, oid)
+	ds.cacheObjects.Remove(oid)
 	// delete from backend.
 	if ds.baseStore != nil {
 		key := backendObjectKey(oid)
@@ -378,7 +401,7 @@ func (ds *defaultStore) GetType(tid TypeID) Type {
 
 func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 	// check cache.
-	if tt, exists := ds.cacheTypes[tid]; exists {
+	if tt, exists := ds.cacheTypes.Get(tid); exists {
 		return tt
 	}
 	// check backend.
@@ -395,7 +418,7 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 				}
 			}
 			// set in cache.
-			ds.cacheTypes[tid] = tt
+			ds.cacheTypes.Add(tid, tt)
 			// after setting in cache, fill tt.
 			fillType(ds, tt)
 			return tt
@@ -405,23 +428,13 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 }
 
 func (ds *defaultStore) SetCacheType(tt Type) {
-	tid := tt.TypeID()
-	if tt2, exists := ds.cacheTypes[tid]; exists {
-		if tt != tt2 {
-			// NOTE: not sure why this would happen.
-			panic("should not happen")
-		} else {
-			// already set.
-		}
-	} else {
-		ds.cacheTypes[tid] = tt
-	}
+	ds.cacheTypes.ContainsOrAdd(tt.TypeID(), tt)
 }
 
 func (ds *defaultStore) SetType(tt Type) {
 	tid := tt.TypeID()
 	// return if tid already known.
-	if tt2, exists := ds.cacheTypes[tid]; exists {
+	if tt2, exists := ds.cacheTypes.Get(tid); exists {
 		if tt != tt2 {
 			// this can happen for a variety of reasons.
 			// TODO classify them and optimize.
@@ -436,7 +449,7 @@ func (ds *defaultStore) SetType(tt Type) {
 		ds.baseStore.Set([]byte(key), bz)
 	}
 	// save type to cache.
-	ds.cacheTypes[tid] = tt
+	ds.cacheTypes.Add(tid, tt)
 }
 
 func (ds *defaultStore) GetBlockNode(loc Location) BlockNode {
@@ -449,7 +462,7 @@ func (ds *defaultStore) GetBlockNode(loc Location) BlockNode {
 
 func (ds *defaultStore) GetBlockNodeSafe(loc Location) BlockNode {
 	// check cache.
-	if bn, exists := ds.cacheNodes[loc]; exists {
+	if bn, exists := ds.cacheNodes.Get(loc); exists {
 		return bn
 	}
 	// check backend.
@@ -465,7 +478,7 @@ func (ds *defaultStore) GetBlockNodeSafe(loc Location) BlockNode {
 						loc, bn.GetLocation()))
 				}
 			}
-			ds.cacheNodes[loc] = bn
+			ds.cacheNodes.Add(loc, bn)
 			return bn
 		}
 	}
@@ -484,7 +497,7 @@ func (ds *defaultStore) SetBlockNode(bn BlockNode) {
 		// ds.backend.Set([]byte(key), bz)
 	}
 	// save node to cache.
-	ds.cacheNodes[loc] = bn
+	ds.cacheNodes.Add(loc, bn)
 	// XXX duplicate?
 	// XXX
 }
@@ -582,8 +595,8 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 // It also sets a new allocator.
 func (ds *defaultStore) ClearObjectCache() {
 	ds.alloc.Reset()
-	ds.cacheObjects = make(map[ObjectID]Object) // new cache.
-	ds.opslog = nil                             // new ops log.
+	ds.cacheObjects.Purge()
+	ds.opslog = nil // new ops log.
 	if len(ds.current) > 0 {
 		ds.current = make(map[string]struct{})
 	}
@@ -593,10 +606,14 @@ func (ds *defaultStore) ClearObjectCache() {
 // Unstable.
 // This function is used to handle queries and checktx transactions.
 func (ds *defaultStore) Fork() Store {
+	co2, err := lru.New[ObjectID, Object](ds.cacheObjects.Len())
+	if err != nil {
+		panic(err)
+	}
 	ds2 := &defaultStore{
 		alloc:            ds.alloc.Fork().Reset(),
 		pkgGetter:        ds.pkgGetter,
-		cacheObjects:     make(map[ObjectID]Object), // new cache.
+		cacheObjects:     co2, // new cache.
 		cacheTypes:       ds.cacheTypes,
 		cacheNodes:       ds.cacheNodes,
 		cacheNativeTypes: ds.cacheNativeTypes,
@@ -695,9 +712,9 @@ func (ds *defaultStore) LogSwitchRealm(rlmpath string) {
 }
 
 func (ds *defaultStore) ClearCache() {
-	ds.cacheObjects = make(map[ObjectID]Object)
-	ds.cacheTypes = make(map[TypeID]Type)
-	ds.cacheNodes = make(map[Location]BlockNode)
+	ds.cacheObjects.Purge()
+	ds.cacheTypes.Purge()
+	ds.cacheNodes.Purge()
 	ds.cacheNativeTypes = make(map[reflect.Type]Type)
 	// restore builtin types to cache.
 	InitStoreCaches(ds)
@@ -713,13 +730,17 @@ func (ds *defaultStore) Print() {
 	store.Print(ds.iavlStore)
 	fmt.Println("//----------------------------------------")
 	fmt.Println("defaultStore:cacheTypes...")
-	for tid, typ := range ds.cacheTypes {
-		fmt.Printf("- %v: %v\n", tid, typ)
+	for _, tid := range ds.cacheTypes.Keys() {
+		if typ, ok := ds.cacheTypes.Get(tid); ok {
+			fmt.Printf("- %v: %v\n", tid, typ)
+		}
 	}
 	fmt.Println("//----------------------------------------")
 	fmt.Println("defaultStore:cacheNodes...")
-	for loc, bn := range ds.cacheNodes {
-		fmt.Printf("- %v: %v\n", loc, bn)
+	for _, loc := range ds.cacheNodes.Keys() {
+		if bn, ok := ds.cacheNodes.Get(loc); ok {
+			fmt.Printf("- %v: %v\n", loc, bn)
+		}
 	}
 }
 

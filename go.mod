@@ -18,6 +18,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/gotuna/gotuna v0.6.0
+	github.com/hashicorp/golang-lru/v2 v2.0.2
 	github.com/jaekwon/testify v1.6.1
 	github.com/jmhodges/levigo v1.0.0
 	github.com/libp2p/go-buffer-pool v0.1.0
