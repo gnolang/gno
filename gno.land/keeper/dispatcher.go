@@ -5,7 +5,7 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
-	vmi "github.com/gnolang/gno/tm2/pkg/sdk/vm"
+	vmh "github.com/gnolang/gno/tm2/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"strings"
 )
@@ -30,7 +30,7 @@ func (d *Dispatcher) Router() sdk.Router {
 
 // iterates through all inner messages, route to another infra's contract or another chain's contract
 // TODO: not need sdk context here?, another method for handler
-func (d *Dispatcher) HandleInternalMsgs(ctx sdk.Context, msgs []vmi.MsgCall, mode sdk.RunTxMode) (result sdk.Result) {
+func (d *Dispatcher) HandleInternalMsgs(ctx sdk.Context, msgs []vmh.MsgCall, mode sdk.RunTxMode) (result sdk.Result) {
 	println("handle internal msgs")
 	msgLogs := make([]string, 0, len(msgs))
 
@@ -40,7 +40,6 @@ func (d *Dispatcher) HandleInternalMsgs(ctx sdk.Context, msgs []vmi.MsgCall, mod
 
 	// NOTE: GasWanted is determined by ante handler and GasUsed by the GasMeter.
 	for i, msg := range msgs {
-		println("msg: ", msg.PkgPath)
 		// match message route
 		msgRoute := msg.Route()
 		handler := d.router.Route(msgRoute)
@@ -84,7 +83,6 @@ func (d *Dispatcher) HandleInternalMsgs(ctx sdk.Context, msgs []vmi.MsgCall, mod
 			fmt.Sprintf("msg:%d,success:%v,log:%s,events:%v",
 				i, true, msgResult.Log, events))
 	}
-	println("processed, going to return, err is nil? ", err == nil)
 	// succeed iff all internal msgs succeed and callback succeed
 	result.Error = sdk.ABCIError(err)
 	result.Data = data
@@ -95,11 +93,9 @@ func (d *Dispatcher) HandleInternalMsgs(ctx sdk.Context, msgs []vmi.MsgCall, mod
 }
 
 // send IBC packet, only support gnovm type call (MsgCall) for now, gnoVM <-> gnoVM
-func (d *Dispatcher) HandleIBCMsgs(ctx sdk.Context, msgs []vmi.MsgCall) {
+func (d *Dispatcher) HandleIBCMsgs(ctx sdk.Context, req vmh.GnoReq) {
 	// set callback map
 
 	// this simulates a IBC call, using a chan to loop back
-	for _, msg := range msgs {
-		go d.icbChan.SendPacket(msg)
-	}
+	go d.icbChan.SendPacket(req)
 }

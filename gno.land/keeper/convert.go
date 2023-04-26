@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	vmh "github.com/gnolang/gno/tm2/pkg/sdk/vm"
 )
 
 // These convert string representations of public-facing arguments to GNO types.
@@ -202,4 +203,12 @@ func prefixData(value []byte) []byte {
 	data = append(data, byte(len(value)))
 	data = append(data, value...)
 	return data
+}
+
+func convertMsg(msg vmh.GnoMsg) vmh.MsgCall {
+	var msgCall vmh.MsgCall
+	msgCall.PkgPath = msg.PkgPath
+	msgCall.Func = msg.Func
+	msgCall.Args = msg.Args
+	return msgCall
 }

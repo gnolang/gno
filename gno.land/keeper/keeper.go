@@ -12,7 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
-	vmi "github.com/gnolang/gno/tm2/pkg/sdk/vm"
+	vmh "github.com/gnolang/gno/tm2/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
@@ -32,13 +32,11 @@ type VMKeeper struct {
 	stdlibsDir string
 
 	// cached, the DeliverTx persistent state.
-	gnoStore gno.Store
-	ctx      sdk.Context
-	calls    []*vmi.MsgCall // call stack, free after every MsgCall
-	// map[MsgCall]Addr, maintain last call address
-	internalMsgQueue chan []string    // receive msg from contract
-	ibcMsgQueue      chan vmi.MsgCall // receive msg from ibc
-	origCaller       crypto.Address
+	gnoStore         gno.Store
+	ctx              sdk.Context
+	callStack        []*vmh.MsgCall // call stack, typically, call1<-callback1, call2<-callback2,... the whole call graph
+	internalMsgQueue chan []string  // receive msg from contract
+	// origCaller crypto.Address // caller of an external msg
 }
 
 // NewVMKeeper returns a new VMKeeper.
@@ -50,7 +48,6 @@ func NewVMKeeper(baseKey store.StoreKey, iavlKey store.StoreKey, acck auth.Accou
 		bank:             bank,
 		stdlibsDir:       stdlibsDir,
 		internalMsgQueue: make(chan []string),
-		ibcMsgQueue:      make(chan vmi.MsgCall),
 	}
 	return vmk
 }
@@ -64,12 +61,30 @@ func (vmk *VMKeeper) SetDispatcher(d *Dispatcher) {
 	vmk.dispatcher = d
 }
 
-func (vmk *VMKeeper) PushCall(call *vmi.MsgCall) {
-	vmk.calls = append(vmk.calls, call)
+func (vmk *VMKeeper) PushCall(call *vmh.MsgCall) {
+	vmk.callStack = append(vmk.callStack, call)
 }
 
-func (vmk *VMKeeper) Release(call *vmi.MsgCall) {
-	copy(vmk.calls, vmk.calls[:0])
+// get origCaller from callstack
+func (vmk *VMKeeper) GetOrigCaller() crypto.Address {
+	if len(vmk.callStack) == 0 {
+		panic("should not happen")
+	}
+	return vmk.callStack[0].Caller
+}
+
+func (vmk *VMKeeper) PopCall() (call *vmh.MsgCall) {
+	if len(vmk.callStack) == 0 {
+		return nil
+	}
+	lastIndex := len(vmk.callStack) - 1
+	e := vmk.callStack[lastIndex]
+	vmk.callStack = vmk.callStack[:lastIndex]
+	return e
+}
+
+func (vmk *VMKeeper) Release() {
+	copy(vmk.callStack, vmk.callStack[:0])
 }
 
 func (vmk *VMKeeper) Initialize(ms store.MultiStore) {
@@ -138,64 +153,43 @@ func (vmk *VMKeeper) DispatchInternalMsg(msg []string) {
 	vmk.internalMsgQueue <- msg
 }
 
-func (vmk *VMKeeper) DispatchIBCMsg(msg vmi.MsgCall) {
-	vmk.ibcMsgQueue <- msg
-}
+// func (vmk *VMKeeper) DispatchIBCMsg(msg vmh.MsgCall) {
+// 	vmk.ibcMsgQueue <- msg
+// }
 
 func (vmk *VMKeeper) ReceiveRoutine() {
-	var msgCall vmi.MsgCall
 	for {
 		select {
 		case msg := <-vmk.internalMsgQueue:
-			call, err := decodeMsg(msg[0], true)
+			req, isLocal, err := vmk.preprocessMessage(msg)
 			if err != nil {
 				panic(err.Error())
 			}
-			println("this is call msg, ChainID, caller, PkgPath, Fn, Args: ", call.ChainID, call.Caller, call.PkgPath, call.Func, call.Args[0])
-
-			// construct msgCall
-			msgCall.PkgPath = call.PkgPath
-			msgCall.Func = call.Func
-			msgCall.Args = call.Args
-			msgCall.Caller = vmk.origCaller
-
-			callback, err := decodeMsg(msg[1], false)
-			if err != nil { // this means no callback
-				println("error parsing callback: ", err.Error())
-			}
-
-			// XXX determine caller here, last pkg
-			// println("push call stack")
-			// vmk.PushCall(&msgCall)
+			msgCall := req.Call
+			msgCallBack := req.CallBack
 
 			// same chain call to another contract in VM
-			if call.ChainID == vmk.ctx.ChainID() {
+			if isLocal {
 				println("in VM call")
-				r := vmk.dispatcher.HandleInternalMsgs(vmk.ctx, []vmi.MsgCall{msgCall}, sdk.RunTxModeDeliver)
+				r := vmk.dispatcher.HandleInternalMsgs(vmk.ctx, []vmh.MsgCall{msgCall}, sdk.RunTxModeDeliver)
 				println("call finished, res: ", string(r.Data))
-				if callback != nil {
-					// do call back here
-					println("this is callback msg, PkgPath, Fn, Args: ", callback.PkgPath, callback.Func)
-					// println("arg: ", req.Callback.Args[0])
-					msgCall.PkgPath = callback.PkgPath
-					msgCall.Func = callback.Func
-					msgCall.Args = []string{string(r.Data)}
-					r = vmk.dispatcher.HandleInternalMsgs(vmk.ctx, []vmi.MsgCall{msgCall}, sdk.RunTxModeDeliver)
-					println("callback done, res is: ", string(r.Data))
-				}
-			} else {
+				// callback
+				msgCallBack.Args = []string{string(r.Data)}
+				r = vmk.dispatcher.HandleInternalMsgs(vmk.ctx, []vmh.MsgCall{msgCallBack}, sdk.RunTxModeDeliver)
+				println("callback done, res is: ", string(r.Data))
+			} else { // IBC calll
 				println("IBC call")
 				// send IBC packet, waiting for OnRecv
 				// should every IBC call is identified by a sequence,
 				// using a map to maintain the sequence and a callback msg
-				vmk.dispatcher.HandleIBCMsgs(vmk.ctx, []vmi.MsgCall{msgCall})
+				vmk.dispatcher.HandleIBCMsgs(vmk.ctx, req)
 			}
-		// IBC -> VM
-		case msg := <-vmk.ibcMsgQueue:
-			println("IBC onRecv -> call")
-			println(msg.PkgPath)
-			r := vmk.dispatcher.HandleInternalMsgs(vmk.ctx, []vmi.MsgCall{msg}, sdk.RunTxModeDeliver)
-			println("call finished, res: ", string(r.Data))
+			// IBC -> VM
+			// case msg := <-vmk.ibcMsgQueue:
+			// 	println("IBC onRecv -> call")
+			// 	println(msg.PkgPath)
+			// 	r := vmk.dispatcher.HandleInternalMsgs(vmk.ctx, []vmh.MsgCall{msg}, sdk.RunTxModeDeliver)
+			// 	println("call finished, res: ", string(r.Data))
 
 			// TODO: callback to caller
 			// construct callback msg
@@ -204,7 +198,7 @@ func (vmk *VMKeeper) ReceiveRoutine() {
 }
 
 // AddPackage adds a package with given fileset.
-func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg vmi.MsgAddPackage) error {
+func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg vmh.MsgAddPackage) error {
 	creator := msg.Creator
 	pkgPath := msg.Package.Path
 	memPkg := msg.Package
@@ -268,9 +262,10 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg vmi.MsgAddPackage) error {
 }
 
 // Calls calls a public Gno function (for delivertx).
-func (vm *VMKeeper) Call(ctx sdk.Context, msg vmi.MsgCall) (res string, err error) {
-	vm.origCaller = msg.Caller
+func (vm *VMKeeper) Call(ctx sdk.Context, msg vmh.MsgCall) (res string, err error) {
+	println("vmk call, msg.Caller: ", msg.Caller.String())
 	vm.ctx = ctx
+	vm.PushCall(&msg)
 
 	pkgPath := msg.PkgPath // to import
 	fnc := msg.Func
@@ -296,7 +291,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg vmi.MsgCall) (res string, err erro
 	xn := gno.MustParseExpr(expr)
 	// Send send-coins to pkg from caller.
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
-	caller := vm.origCaller
+	caller := msg.Caller
 	send := msg.Send
 	err = vm.bank.SendCoins(ctx, caller, pkgAddr, send)
 	if err != nil {
@@ -346,6 +341,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg vmi.MsgCall) (res string, err erro
 			return
 		}
 		m.Release()
+		vm.Release()
 	}()
 	rtvs := m.Eval(xn)
 	fmt.Println("CPUCYCLES call", m.Cycles)
@@ -360,7 +356,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg vmi.MsgCall) (res string, err erro
 }
 
 // QueryFuncs returns public facing function signatures.
-func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs vmi.FunctionSignatures, err error) {
+func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs vmh.FunctionSignatures, err error) {
 	store := vm.getGnoStore(ctx)
 	// Ensure pkgPath is realm.
 	if !gno.IsRealmPath(pkgPath) {
@@ -390,7 +386,7 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs vmi.Funct
 		if strings.ToUpper(first) != first {
 			continue // must be exposed
 		}
-		fsig := vmi.FunctionSignature{
+		fsig := vmh.FunctionSignature{
 			FuncName: fname,
 		}
 		ft := fv.Type.(*gno.FuncType)
@@ -401,7 +397,7 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs vmi.Funct
 			}
 			ptype := gno.BaseOf(param.Type).String()
 			fsig.Params = append(fsig.Params,
-				vmi.NamedType{Name: pname, Type: ptype},
+				vmh.NamedType{Name: pname, Type: ptype},
 			)
 		}
 		for _, result := range ft.Results {
@@ -411,7 +407,7 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs vmi.Funct
 			}
 			rtype := gno.BaseOf(result.Type).String()
 			fsig.Results = append(fsig.Results,
-				vmi.NamedType{Name: rname, Type: rtype},
+				vmh.NamedType{Name: rname, Type: rtype},
 			)
 		}
 		fsigs = append(fsigs, fsig)
@@ -556,12 +552,43 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 	}
 }
 
-// TODO: a real decoder
-func decodeMsg(msg string, isWithArgs bool) (call *vmi.Msg, err error) {
-	if msg == "" {
-		return nil, errors.New("no msg to decode")
+func (vmk *VMKeeper) preprocessMessage(msgs []string) (vmh.GnoReq, bool, error) {
+	var req vmh.GnoReq
+	var isLocal bool
+
+	// call
+	gnoMsg, err := decodeMsg(msgs[0], true)
+	if err != nil {
+		return vmh.GnoReq{}, isLocal, err
 	}
-	call = &vmi.Msg{}
+	// chainID match
+	if gnoMsg.ChainID == vmk.ctx.ChainID() {
+		isLocal = true
+	}
+
+	msgCall := convertMsg(gnoMsg)
+	msgCall.Caller = vmk.GetOrigCaller()
+
+	// callback
+	gnoMsg, err = decodeMsg(msgs[1], false)
+	if err != nil {
+		return vmh.GnoReq{}, isLocal, err
+	}
+	msgCallBack := convertMsg(gnoMsg)
+	msgCallBack.Caller = vmk.GetOrigCaller()
+
+	req.Call = msgCall
+	req.CallBack = msgCallBack
+
+	return req, isLocal, nil
+}
+
+// TODO: a real decoder
+func decodeMsg(msg string, isWithArgs bool) (call vmh.GnoMsg, err error) {
+	if msg == "" {
+		return vmh.GnoMsg{}, errors.New("msg is empty")
+	}
+	call = vmh.GnoMsg{}
 	cs := strings.Split(msg, "#")
 	call.ChainID = cs[0]
 	call.PkgPath = cs[1]
