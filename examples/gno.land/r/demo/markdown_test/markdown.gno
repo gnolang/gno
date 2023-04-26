@@ -153,6 +153,16 @@ Jumbotron
 This is a Jumbotron component you can fill with regular markdown.
 :::
 
+components in full html are also possible and allow nested components
+
+<div class="jumbotron">
+Outer Jumbotron from HTML
+<div class="jumbotron">
+Inner Jumbotron from HTML
+</div>
+</div>
+
+
 Even More
 =========
 

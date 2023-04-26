@@ -8,7 +8,7 @@ function renderUsernames(raw) {
 }
 
 const components = [
-    {name: 'jumbotron', toRender: content => `<div class="comp-jumbotron">${content}</div>`},
+    {name: 'jumbotron', toRender: content => `<div class="jumbotron">${content}</div>`},
 ]
 
 const extensionBuilder = (comp) => {

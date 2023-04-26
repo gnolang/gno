@@ -357,7 +357,7 @@ code.hljs {
 }
 
 /*** COMPONENTS ELEMENTS ***/
-.comp-jumbotron{
+.jumbotron{
     border: 1px solid #606060; 
     padding: 3.5rem;
 }
