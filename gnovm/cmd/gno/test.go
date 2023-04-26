@@ -30,6 +30,7 @@ type testCfg struct {
 	timeout           time.Duration
 	precompile        bool // TODO: precompile should be the default, but it needs to automatically precompile dependencies in memory.
 	updateGoldenTests bool
+	printUsageMetrics bool
 }
 
 func newTestCmd(io *commands.IO) *commands.Command {
@@ -89,6 +90,13 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		"timeout",
 		0,
 		"max execution time",
+	)
+
+	fs.BoolVar(
+		&c.printUsageMetrics,
+		"print-usage-metrics",
+		false,
+		"print usage metrics (gas, memory, cpu cycles)",
 	)
 }
 
