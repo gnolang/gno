@@ -918,7 +918,7 @@ func main() {
 //                 },
 //                 "FileName": "tests.gno",
 //                 "IsMethod": false,
-//                 "Name": "GetCaller",
+//                 "Name": "GetRealmCaller",
 //                 "PkgPath": "gno.land/r/demo/tests",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",
