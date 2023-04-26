@@ -74,12 +74,12 @@ func PrintTestNodes() {
 	println(gTestNode2.Child.Name)
 }
 
-func GetCaller() std.Address {
-	return std.GetCaller()
+func GetRealmCaller() std.Address {
+	return std.GetRealmCaller()
 }
 
 func GetSubtestsCaller() std.Address {
-	return subtests.GetCaller()
+	return subtests.GetRealmCaller()
 }
 
 func Exec(fn func()) {

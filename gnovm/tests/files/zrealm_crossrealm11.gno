@@ -10,6 +10,10 @@ import (
 	testfoo "gno.land/r/demo/tests_foo"
 )
 
+func getRealmCaller() std.Address {
+	return std.GetRealmCaller()
+}
+
 func Exec(fn func()) {
 	fn()
 }
@@ -32,15 +36,15 @@ func main() {
 	}{
 		{
 			callStackAdd: "",
-			callerFn:     std.GetCaller,
+			callerFn:     std.GetRealmCaller,
 		},
 		{
-			callStackAdd: " -> r/crossrealm_test.getCaller()",
-			callerFn:     getCaller,
+			callStackAdd: " -> r/crossrealm_test.getRealmCaller()",
+			callerFn:     getRealmCaller,
 		},
 		{
 			callStackAdd: " -> p/demo/tests",
-			callerFn:     ptests.GetCaller,
+			callerFn:     ptests.GetRealmCaller,
 		},
 		{
 			callStackAdd: " -> p/demo/tests -> p/demo/tests/subtests",
@@ -48,7 +52,7 @@ func main() {
 		},
 		{
 			callStackAdd: " -> r/demo/tests",
-			callerFn:     rtests.GetCaller,
+			callerFn:     rtests.GetRealmCaller,
 		},
 		{
 			callStackAdd: " -> r/demo/tests -> r/demo/tests/subtests",
@@ -56,11 +60,11 @@ func main() {
 		},
 		{
 			callStackAdd: " -> p/demo/tests -> r/demo/tests",
-			callerFn:     ptests.GetRealmGetCaller,
+			callerFn:     ptests.GetRealmCaller,
 		},
 	}
 	for i, tt := range tests {
-		callStack := ufmt.Sprintf("%s%s -> std.GetCaller()", baseCallStack, tt.callStackAdd)
+		callStack := ufmt.Sprintf("%s%s -> std.GetRealmCaller()", baseCallStack, tt.callStackAdd)
 		println(ufmt.Sprintf("STACK CASE %d:\n%s", i, callStack))
 		println(ufmt.Sprintf("\tcaller is %s", callersByAddr[tt.callerFn()]))
 		Exec(func() {
@@ -76,13 +80,9 @@ func main() {
 	}
 }
 
-func getCaller() std.Address {
-	return std.GetCaller()
-}
-
 // Output:
 // STACK CASE 0:
-// user1.gno -> r/crossrealm_test.main() -> std.GetCaller()
+// user1.gno -> r/crossrealm_test.main() -> std.GetRealmCaller()
 // 	caller is user1.gno
 // wrapped in r/crossrealm_test.Exec:
 // 	caller is user1.gno
@@ -92,7 +92,7 @@ func getCaller() std.Address {
 // 	caller is user1.gno
 //
 // STACK CASE 1:
-// user1.gno -> r/crossrealm_test.main() -> r/crossrealm_test.getCaller() -> std.GetCaller()
+// user1.gno -> r/crossrealm_test.main() -> r/crossrealm_test.getRealmCaller() -> std.GetRealmCaller()
 // 	caller is user1.gno
 // wrapped in r/crossrealm_test.Exec:
 // 	caller is user1.gno
@@ -102,7 +102,7 @@ func getCaller() std.Address {
 // 	caller is user1.gno
 //
 // STACK CASE 2:
-// user1.gno -> r/crossrealm_test.main() -> p/demo/tests -> std.GetCaller()
+// user1.gno -> r/crossrealm_test.main() -> p/demo/tests -> std.GetRealmCaller()
 // 	caller is user1.gno
 // wrapped in r/crossrealm_test.Exec:
 // 	caller is user1.gno
@@ -112,7 +112,7 @@ func getCaller() std.Address {
 // 	caller is user1.gno
 //
 // STACK CASE 3:
-// user1.gno -> r/crossrealm_test.main() -> p/demo/tests -> p/demo/tests/subtests -> std.GetCaller()
+// user1.gno -> r/crossrealm_test.main() -> p/demo/tests -> p/demo/tests/subtests -> std.GetRealmCaller()
 // 	caller is user1.gno
 // wrapped in r/crossrealm_test.Exec:
 // 	caller is user1.gno
@@ -122,7 +122,7 @@ func getCaller() std.Address {
 // 	caller is user1.gno
 //
 // STACK CASE 4:
-// user1.gno -> r/crossrealm_test.main() -> r/demo/tests -> std.GetCaller()
+// user1.gno -> r/crossrealm_test.main() -> r/demo/tests -> std.GetRealmCaller()
 // 	caller is gno.land/r/crossrealm_test
 // wrapped in r/crossrealm_test.Exec:
 // 	caller is gno.land/r/crossrealm_test
@@ -132,7 +132,7 @@ func getCaller() std.Address {
 // 	caller is gno.land/r/crossrealm_test
 //
 // STACK CASE 5:
-// user1.gno -> r/crossrealm_test.main() -> r/demo/tests -> r/demo/tests/subtests -> std.GetCaller()
+// user1.gno -> r/crossrealm_test.main() -> r/demo/tests -> r/demo/tests/subtests -> std.GetRealmCaller()
 // 	caller is gno.land/r/demo/tests
 // wrapped in r/crossrealm_test.Exec:
 // 	caller is gno.land/r/demo/tests
@@ -142,11 +142,11 @@ func getCaller() std.Address {
 // 	caller is gno.land/r/demo/tests
 //
 // STACK CASE 6:
-// user1.gno -> r/crossrealm_test.main() -> p/demo/tests -> r/demo/tests -> std.GetCaller()
-// 	caller is gno.land/r/crossrealm_test
+// user1.gno -> r/crossrealm_test.main() -> p/demo/tests -> r/demo/tests -> std.GetRealmCaller()
+// 	caller is user1.gno
 // wrapped in r/crossrealm_test.Exec:
-// 	caller is gno.land/r/crossrealm_test
+// 	caller is user1.gno
 // wrapped in r/demo/tests.Exec:
-// 	caller is gno.land/r/crossrealm_test
+// 	caller is gno.land/r/demo/tests
 // wrapped p/demo/tests.Exec:
-// 	caller is gno.land/r/crossrealm_test
+// 	caller is user1.gno

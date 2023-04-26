@@ -8,8 +8,8 @@ func CurrentRealmPath() string {
 	return std.CurrentRealmPath()
 }
 
-func GetCaller() std.Address {
-	return std.GetCaller()
+func GetRealmCaller() std.Address {
+	return std.GetRealmCaller()
 }
 
 func Exec(fn func()) {

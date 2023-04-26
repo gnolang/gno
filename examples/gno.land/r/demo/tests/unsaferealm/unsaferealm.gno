@@ -24,7 +24,7 @@ func init() {
 ** Some grc20 functions
  */
 
-func GetCaller() std.Address {
+func GetRealmCaller() std.Address {
 	return std.GetCallerAt(1)
 }
 
@@ -38,7 +38,7 @@ func BalanceOf(owner std.Address) uint64 {
 }
 
 func Transfer(to std.Address, amount uint64) {
-	caller := std.GetCaller()
+	caller := std.GetRealmCaller()
 	println("transfering", amount, "from:", caller, "to:", to)
 	foo.Transfer(caller, to, amount)
 }

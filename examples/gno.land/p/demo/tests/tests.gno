@@ -54,18 +54,18 @@ func ModifyTestRealmObject2c() {
 	SomeValue3.Field = "modified"
 }
 
-func GetCaller() std.Address {
-	return std.GetCaller()
+func GetRealmCaller() std.Address {
+	return std.GetRealmCaller()
 }
 
 func GetSubtestsCaller() std.Address {
-	return psubtests.GetCaller()
+	return psubtests.GetRealmCaller()
 }
 
 func Exec(fn func()) {
 	fn()
 }
 
-func GetRealmGetCaller() std.Address {
-	return rtests.GetCaller()
+func GetRealmGetRealmCaller() std.Address {
+	return rtests.GetRealmCaller()
 }

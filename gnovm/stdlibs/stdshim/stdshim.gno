@@ -36,7 +36,7 @@ func GetOrigSend() Coins {
 	return Coins{}
 }
 
-func GetCaller() Address {
+func GetRealmCaller() Address {
 	panic(shimWarn)
 	return Address("")
 }

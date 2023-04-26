@@ -29,7 +29,7 @@ func init() {
 
 // getters.
 
-func GetCaller() std.Address {
+func GetRealmCaller() std.Address {
 	return std.GetCallerAt(1)
 	// return std.GetOrigPkgAddr()
 }
@@ -57,18 +57,18 @@ func Allowance(owner, spender std.Address) uint64 {
 // setters.
 
 func Transfer(to std.Address, amount uint64) {
-	caller := std.GetCaller()
+	caller := std.GetRealmCaller()
 	println("transfering", amount, "from:", caller, "to:", to)
 	foo.Transfer(caller, to, amount)
 }
 
 func Approve(spender std.Address, amount uint64) {
-	caller := std.GetCaller()
+	caller := std.GetRealmCaller()
 	foo.Approve(caller, spender, amount)
 }
 
 func TransferFrom(from, to std.Address, amount uint64) {
-	caller := std.GetCaller()
+	caller := std.GetRealmCaller()
 	foo.TransferFrom(caller, from, to, amount)
 }
 
@@ -77,20 +77,20 @@ func TransferFrom(from, to std.Address, amount uint64) {
 func Faucet() {
 	// FIXME: add limits?
 	// FIXME: add payment in gnot?
-	caller := std.GetCaller()
+	caller := std.GetRealmCaller()
 	foo.Mint(caller, 1000*10000) // 1k
 }
 
 // administration.
 
 func Mint(address std.Address, amount uint64) {
-	caller := std.GetCaller()
+	caller := std.GetRealmCaller()
 	assertIsAdmin(caller)
 	foo.Mint(address, amount)
 }
 
 func Burn(address std.Address, amount uint64) {
-	caller := std.GetCaller()
+	caller := std.GetRealmCaller()
 	assertIsAdmin(caller)
 	foo.Burn(address, amount)
 }
