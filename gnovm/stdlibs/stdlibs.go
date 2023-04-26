@@ -206,7 +206,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				call := arg0.TV.GetString()
 				callback := arg1.TV.GetString()
 				println(call, callback)
-				vmkeeper.SendMsg([]string{call, callback})
+				vmkeeper.DispatchInternalMsg([]string{call, callback})
 
 				// TODO: return parse error
 				// if err != nil {

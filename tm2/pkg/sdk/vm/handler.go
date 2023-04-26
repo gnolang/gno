@@ -54,16 +54,16 @@ func (vh vmHandler) handleMsgAddPackage(ctx sdk.Context, msg MsgAddPackage) sdk.
 // Handle MsgCall.
 func (vh vmHandler) handleMsgCall(ctx sdk.Context, msg MsgCall) (res sdk.Result) {
 	println("handle msg call")
-	// amount, err := std.ParseCoins("1000000ugnot") // XXX calculate
-	// if err != nil {
-	// 	return abciResult(err)
-	// }
-	// err = vh.vm.bank.SendCoins(ctx, msg.Caller, auth.FeeCollectorAddress(), amount)
-	// if err != nil {
-	// 	return abciResult(err)
-	// }
+	amount, err := std.ParseCoins("1000000ugnot") // XXX calculate
+	if err != nil {
+		return abciResult(err)
+	}
+	err = vh.vmk.SubmitTxFee(ctx, msg.Caller, auth.FeeCollectorAddress(), amount)
+	if err != nil {
+		return abciResult(err)
+	}
 	resstr := ""
-	resstr, err := vh.vmk.Call(ctx, msg)
+	resstr, err = vh.vmk.Call(ctx, msg)
 	if err != nil {
 		return abciResult(err)
 	}

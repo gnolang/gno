@@ -153,10 +153,6 @@ func (vmk *VMKeeper) DispatchInternalMsg(msg []string) {
 	vmk.internalMsgQueue <- msg
 }
 
-// func (vmk *VMKeeper) DispatchIBCMsg(msg vmh.MsgCall) {
-// 	vmk.ibcMsgQueue <- msg
-// }
-
 func (vmk *VMKeeper) ReceiveRoutine() {
 	for {
 		select {
@@ -184,15 +180,6 @@ func (vmk *VMKeeper) ReceiveRoutine() {
 				// using a map to maintain the sequence and a callback msg
 				vmk.dispatcher.HandleIBCMsgs(vmk.ctx, req)
 			}
-			// IBC -> VM
-			// case msg := <-vmk.ibcMsgQueue:
-			// 	println("IBC onRecv -> call")
-			// 	println(msg.PkgPath)
-			// 	r := vmk.dispatcher.HandleInternalMsgs(vmk.ctx, []vmh.MsgCall{msg}, sdk.RunTxModeDeliver)
-			// 	println("call finished, res: ", string(r.Data))
-
-			// TODO: callback to caller
-			// construct callback msg
 		}
 	}
 }
@@ -291,7 +278,9 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg vmh.MsgCall) (res string, err erro
 	xn := gno.MustParseExpr(expr)
 	// Send send-coins to pkg from caller.
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
-	caller := msg.Caller
+	// caller := msg.Caller
+	caller := vm.GetOrigCaller()
+	println("caller: ", caller.String())
 	send := msg.Send
 	err = vm.bank.SendCoins(ctx, caller, pkgAddr, send)
 	if err != nil {

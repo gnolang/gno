@@ -5,9 +5,9 @@ import "std"
 func SayHello() {
 	println("say hello from A, going to call B")
 
-
-	call := std.EncodeMsgCall("remote", "gno.land/r/demo/greet", "Greet", []string{"hey"})
-	callback := std.EncodeMsgCall("remote", "gno.land/r/demo/hello", "Reply", []string{""})
+	chainID := "remote"
+	call := std.EncodeMsgCall(chainID, "gno.land/r/demo/greet", "Greet", []string{"hey"})
+	callback := std.EncodeMsgCall(chainID, "gno.land/r/demo/hello", "Reply", []string{""})
 
 	std.Send(call, callback)
 
