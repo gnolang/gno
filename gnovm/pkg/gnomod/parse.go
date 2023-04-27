@@ -99,8 +99,10 @@ func (f *File) add(errs *modfile.ErrorList, block *modfile.LineBlock, line *modf
 			errorf("repeated module statement")
 			return
 		}
+		deprecated := parseDeprecation(block, line)
 		f.Module = &modfile.Module{
-			Syntax: line,
+			Syntax:     line,
+			Deprecated: deprecated,
 		}
 		if len(args) != 1 {
 			errorf("usage: module module/path")
