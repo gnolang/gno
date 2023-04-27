@@ -28,4 +28,18 @@ jobs:
       - run: go install -v ./gnovm/cmd/gno
       - run: go run ./gnovm/cmd/gno precompile --verbose ./examples
       - run: go run ./gnovm/cmd/gno build --verbose ./examples
-  # unittests: TODO: matrix with contracts
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: [ "1.19.x", "1.20.x" ]
+        # unittests: TODO: matrix with contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
+      - uses: actions/checkout@v3
+      - run: go install -v ./gnovm/cmd/gno
+      - run: go run ./gnovm/cmd/gno test --verbose ./examples
