@@ -30,6 +30,7 @@ type testCfg struct {
 	timeout           time.Duration
 	precompile        bool // TODO: precompile should be the default, but it needs to automatically precompile dependencies in memory.
 	updateGoldenTests bool
+	useNativeFallback bool
 }
 
 func newTestCmd(io *commands.IO) *commands.Command {
@@ -89,6 +90,13 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		"timeout",
 		0,
 		"max execution time",
+	)
+
+	fs.BoolVar(
+		&c.useNativeFallback,
+		"with-native-fallback",
+		false,
+		"use stdlibs/* if present, otherwise use native (only for testing)",
 	)
 }
 
@@ -226,10 +234,14 @@ func gnoTestPkg(
 
 	var errs error
 
+	mode := tests.ImportModeStdlibsOnly
+	if cfg.useNativeFallback {
+		mode = tests.ImportModeStdlibsPreferred
+	}
 	testStore := tests.TestStore(
 		rootDir, "",
 		stdin, stdout, stderr,
-		tests.ImportModeStdlibsOnly,
+		mode,
 	)
 	if verbose {
 		testStore.SetLogStoreOps(true)
