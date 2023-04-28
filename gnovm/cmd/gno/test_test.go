@@ -157,7 +157,7 @@ func TestTest(t *testing.T) {
 		},
 		{
 			args:                []string{"test", "--verbose", "--with-native-fallback", "../../tests/integ/native-lib"},
-			stderrShouldContain: "nok      ./../../tests/integ/native-lib",
+			stderrShouldContain: "ok      ./../../tests/integ/native-lib",
 		},
 		{
 			args:                 []string{"test", "--verbose", "../../tests/integ/unknown-lib"},
