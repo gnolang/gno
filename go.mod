@@ -13,28 +13,30 @@ require (
 	github.com/gdamore/tcell/v2 v2.1.0
 	github.com/gnolang/cors v1.8.1
 	github.com/gnolang/overflow v0.0.0-20170615021017-4d914c927216
-	github.com/golang/protobuf v1.5.0
-	github.com/google/gofuzz v1.0.0
+	github.com/golang/protobuf v1.5.3
+	github.com/google/gofuzz v1.2.0
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/gotuna/gotuna v0.6.0
 	github.com/jaekwon/testify v1.6.1
 	github.com/jmhodges/levigo v1.0.0
 	github.com/libp2p/go-buffer-pool v0.1.0
-	github.com/linxGnu/grocksdb v1.7.2
+	github.com/linxGnu/grocksdb v1.7.15
 	github.com/mattn/go-runewidth v0.0.14
 	github.com/pelletier/go-toml v1.9.5
-	github.com/stretchr/testify v1.8.1
+	github.com/peterbourgon/ff/v3 v3.3.0
+	github.com/stretchr/testify v1.8.2
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c
-	go.etcd.io/bbolt v1.3.6
-	go.uber.org/multierr v1.8.0
-	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa
-	golang.org/x/mod v0.7.0
-	golang.org/x/net v0.5.0
-	golang.org/x/term v0.4.0
-	golang.org/x/tools v0.5.0
+	go.etcd.io/bbolt v1.3.7
+	go.uber.org/multierr v1.9.0
+	golang.org/x/crypto v0.7.0
+	golang.org/x/mod v0.9.0
+	golang.org/x/net v0.8.0
+	golang.org/x/term v0.6.0
+	golang.org/x/tools v0.6.0
 	google.golang.org/protobuf v1.27.1
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -62,10 +64,9 @@ require (
 	github.com/rivo/uniseg v0.2.0 // indirect
 	go.opencensus.io v0.22.5 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
-	golang.org/x/sys v0.4.0 // indirect
-	golang.org/x/text v0.6.0 // indirect
+	golang.org/x/sys v0.6.0 // indirect
+	golang.org/x/text v0.8.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 replace github.com/gdamore/tcell/v2 => github.com/gnolang/tcell/v2 v2.1.0

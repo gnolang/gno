@@ -7,7 +7,7 @@ type Node struct {
 	value     interface{}
 	height    int8
 	size      int
-	leftNode *Node
+	leftNode  *Node
 	rightNode *Node
 }
 
@@ -357,6 +357,85 @@ func (node *Node) TraverseInRange(start, end string, ascending bool, leavesOnly 
 	}
 
 	return stop
+}
+
+// TraverseByOffset traverses all nodes, including inner nodes.
+// A limit of math.MaxInt means no limit.
+func (node *Node) TraverseByOffset(offset, limit int, descending bool, leavesOnly bool, cb func(*Node) bool) bool {
+	if node == nil {
+		return false
+	}
+
+	// fast paths. these happen only if TraverseByOffset is called directly on a leaf.
+	if limit <= 0 || offset >= node.size {
+		return false
+	}
+	if node.IsLeaf() {
+		if offset > 0 {
+			return false
+		}
+		return cb(node)
+	}
+
+	// go to the actual recursive function.
+	return node.traverseByOffset(offset, limit, descending, leavesOnly, cb)
+}
+
+func (node *Node) traverseByOffset(offset, limit int, descending bool, leavesOnly bool, cb func(*Node) bool) bool {
+	// caller guarantees: offset < node.size; limit > 0.
+
+	if !leavesOnly {
+		if cb(node) {
+			return true
+		}
+	}
+	first, second := node.getLeftNode(), node.getRightNode()
+	if descending {
+		first, second = second, first
+	}
+	if first.IsLeaf() {
+		// either run or skip, based on offset
+		if offset > 0 {
+			offset--
+		} else {
+			cb(first)
+			limit--
+			if limit <= 0 {
+				return false
+			}
+		}
+	} else {
+		// possible cases:
+		// 1 the offset given skips the first node entirely
+		// 2 the offset skips none or part of the first node, but the limit requires some of the second node.
+		// 3 the offset skips none or part of the first node, and the limit stops our search on the first node.
+		if offset >= first.size {
+			offset -= first.size // 1
+		} else {
+			if first.traverseByOffset(offset, limit, descending, leavesOnly, cb) {
+				return true
+			}
+			// number of leaves which could actually be called from inside
+			delta := first.size - offset
+			offset = 0
+			if delta >= limit {
+				return true // 3
+			}
+			limit -= delta // 2
+		}
+	}
+
+	// because of the caller guarantees and the way we handle the first node,
+	// at this point we know that limit > 0 and there must be some values in
+	// this second node that we include.
+
+	// => if the second node is a leaf, it has to be included.
+	if second.IsLeaf() {
+		return cb(second)
+	}
+	// => if it is not a leaf, it will still be enough to recursively call this
+	// function with the updated offset and limit
+	return second.traverseByOffset(offset, limit, descending, leavesOnly, cb)
 }
 
 // Only used in testing...
