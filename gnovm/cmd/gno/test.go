@@ -24,13 +24,13 @@ import (
 )
 
 type testCfg struct {
-	verbose           bool
-	rootDir           string
-	run               string
-	timeout           time.Duration
-	precompile        bool // TODO: precompile should be the default, but it needs to automatically precompile dependencies in memory.
-	updateGoldenTests bool
-	useNativeFallback bool
+	verbose            bool
+	rootDir            string
+	run                string
+	timeout            time.Duration
+	precompile         bool // TODO: precompile should be the default, but it needs to automatically precompile dependencies in memory.
+	updateGoldenTests  bool
+	withNativeFallback bool
 }
 
 func newTestCmd(io *commands.IO) *commands.Command {
@@ -93,7 +93,7 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.BoolVar(
-		&c.useNativeFallback,
+		&c.withNativeFallback,
 		"with-native-fallback",
 		false,
 		"use stdlibs/* if present, otherwise use native (only for testing)",
@@ -235,7 +235,8 @@ func gnoTestPkg(
 	var errs error
 
 	mode := tests.ImportModeStdlibsOnly
-	if cfg.useNativeFallback {
+	if cfg.withNativeFallback {
+		// XXX: display a warn?
 		mode = tests.ImportModeStdlibsPreferred
 	}
 	testStore := tests.TestStore(
