@@ -34,7 +34,14 @@ func Sprintf(format string, args ...interface{}) string {
 
 		switch verb {
 		case 's':
-			buf += arg.(string)
+			switch v := arg.(type) {
+			case interface{ String() string }:
+				buf += v.String()
+			case string:
+				buf += v
+			default:
+				buf += "(unhandled)"
+			}
 		case 'd':
 			switch v := arg.(type) {
 			case int:
@@ -45,6 +52,17 @@ func Sprintf(format string, args ...interface{}) string {
 				buf += strconv.FormatUint(uint64(v), 10)
 			case uint64:
 				buf += strconv.FormatUint(v, 10)
+			default:
+				buf += "(unhandled)"
+			}
+		case 't':
+			switch v := arg.(type) {
+			case bool:
+				if v {
+					buf += "true"
+				} else {
+					buf += "false"
+				}
 			default:
 				buf += "(unhandled)"
 			}

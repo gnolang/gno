@@ -22,10 +22,10 @@ type Board struct {
 	url       string
 	name      string
 	creator   std.Address
-	threads   *avl.MutTree // Post.id -> *Post
-	postsCtr  uint64       // increments Post.id
+	threads   avl.Tree // Post.id -> *Post
+	postsCtr  uint64   // increments Post.id
 	createdAt time.Time
-	deleted   *avl.MutTree // TODO reserved for fast-delete.
+	deleted   avl.Tree // TODO reserved for fast-delete.
 }
 
 func newBoard(id BoardID, url string, name string, creator std.Address) *Board {
@@ -41,8 +41,9 @@ func newBoard(id BoardID, url string, name string, creator std.Address) *Board {
 		url:       url,
 		name:      name,
 		creator:   creator,
-		threads:   avl.NewMutTree(),
+		threads:   avl.Tree{},
 		createdAt: time.Now(),
+		deleted:   avl.Tree{},
 	}
 }
 
@@ -108,7 +109,7 @@ func (board *Board) RenderBoard() string {
 	str := ""
 	str += "\\[[post](" + board.GetPostFormURL() + ")]\n\n"
 	if board.threads.Size() > 0 {
-		board.threads.Iterate("", "", func(n *avl.Tree) bool {
+		board.threads.Iterate("", "", func(n *avl.Node) bool {
 			if str != "" {
 				str += "----------------------------------------\n"
 			}

@@ -2,15 +2,15 @@ package gnoblog
 
 import (
 	"std"
+	"strings"
 
 	"gno.land/p/demo/avl"
-	"strings"
 )
 
 var (
 	adminAddr     std.Address
-	moderatorList avl.MutTree
-	commenterList avl.MutTree
+	moderatorList avl.Tree
+	commenterList avl.Tree
 	inPause       bool
 )
 

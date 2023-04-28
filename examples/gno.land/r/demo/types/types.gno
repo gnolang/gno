@@ -16,7 +16,7 @@ var (
 	gError       error    = errors.New("an error")
 	gIntSlice    []int    = []int{-42, 0, 42}
 	gUintSlice   []uint   = []uint{0, 42, 84}
-	gTree        avl.MutTree
+	gTree        avl.Tree
 	// gInterface  = interface{}{-42, "a string", uint(42)}
 )
 
@@ -33,7 +33,7 @@ func RetUint() uint             { return gUint }
 func RetInt() int               { return gInt }
 func RetUintPointer() *uint     { return &gUint }
 func RetIntPointer() *int       { return &gInt }
-func RetTree() avl.MutTree      { return gTree }
+func RetTree() avl.Tree         { return gTree }
 func RetIntSlice() []int        { return gIntSlice }
 func RetUintSlice() []uint      { return gUintSlice }
 func RetStringSlice() []string  { return gStringSlice }

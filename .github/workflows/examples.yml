@@ -1,35 +1,45 @@
-name: Gno Examples
+name: examples
 
 on:
   pull_request:
     paths:
-      - "**.go"
-      - "**.gno"
-      - "go.mod"
       - "go.sum"
+      - "gnovm/**.go"
+      - "gnovm/**.gno"
+      - "gnovm/**/go.sum"
+      - "examples/**.gno"
       - ".github/workflows/examples.yml"
-      - "Makefile"
   push:
-    branches:
-      - master
+    branches: [ "master" ]
 
 jobs:
-  go-test:
-    name: Gno Examples
+  gno2go:
     strategy:
       fail-fast: false
       matrix:
-        goversion: ["1.18.x", "1.19.x"]
+        go-version: [ "1.19.x", "1.20.x" ]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go-version }}
       - uses: actions/checkout@v3
-      - run: go install -v ./cmd/gnodev
-      # TODO: implement --allow-all-imports
-      #- run: gnodev precompile ./stdlibs --verbose --allow-all-imports
-      #- run: gnodev precompile ./tests --verbose --allow-all-imports
-      - run: go run ./cmd/gnodev precompile ./examples --verbose
-      - run: go run ./cmd/gnodev build ./examples --verbose
+      - run: go install -v ./gnovm/cmd/gno
+      - run: go run ./gnovm/cmd/gno precompile --verbose ./examples
+      - run: go run ./gnovm/cmd/gno build --verbose ./examples
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: [ "1.19.x", "1.20.x" ]
+        # unittests: TODO: matrix with contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
+      - uses: actions/checkout@v3
+      - run: go install -v ./gnovm/cmd/gno
+      - run: go run ./gnovm/cmd/gno test --verbose ./examples
