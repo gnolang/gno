@@ -380,8 +380,7 @@ func sortPkgs(pkgs []pkg) error {
 			found := false
 			for _, p := range pkgs {
 				if p.name == req {
-					err := visit(p)
-					if err != nil {
+					if err := visit(p); err != nil {
 						return err
 					}
 					found = true
@@ -400,8 +399,7 @@ func sortPkgs(pkgs []pkg) error {
 
 	// Visit all packages
 	for _, p := range pkgs {
-		err := visit(p)
-		if err != nil {
+		if err := visit(p); err != nil {
 			return err
 		}
 	}
