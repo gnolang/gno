@@ -116,3 +116,54 @@ func TestModuleDeprecated(t *testing.T) {
 		})
 	}
 }
+
+func TestParseWip(t *testing.T) {
+	for _, tc := range []struct {
+		desc, in string
+		expected bool
+	}{
+		{
+			desc: "no_comment",
+			in:   `module m`,
+		},
+		{
+			desc: "other_comment",
+			in:   `// yo`,
+		},
+		{
+			desc:     "wip_no_space",
+			in:       `//WIP`,
+			expected: true,
+		},
+		{
+			desc:     "wip_simple",
+			in:       `// WIP`,
+			expected: true,
+		},
+		{
+			desc: "wip_lowercase",
+			in:   `// wip`,
+		},
+		{
+			desc: "wip_multiline",
+			in: `// wip
+			// yo`,
+		},
+		{
+			desc: "wip_mixed",
+			in: `// some other comment
+			// WIP`,
+		},
+		{
+			desc: "wip_not_first_line",
+			in: `
+			// WIP`,
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			f, err := Parse("in", []byte(tc.in))
+			assert.Nil(t, err)
+			assert.Equal(t, tc.expected, f.Wip)
+		})
+	}
+}
