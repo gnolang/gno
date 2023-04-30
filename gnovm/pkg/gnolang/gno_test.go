@@ -38,6 +38,23 @@ func TestRunEmptyMain(t *testing.T) {
 	m.RunMain()
 }
 
+func TestGCArgs(t *testing.T) {
+	m := NewMachine("test", nil)
+	m.GC = NewGC()
+	c := `package test
+
+func main() {
+	ff := 4
+	printit(&ff)
+}
+
+func printit(i *int) {}
+`
+	n := MustParseFile("main.go", c)
+	m.RunFiles(n)
+	m.RunMain()
+}
+
 // run main() with a for loop.
 func TestRunLoopyMain(t *testing.T) {
 	m := NewMachine("test", nil)

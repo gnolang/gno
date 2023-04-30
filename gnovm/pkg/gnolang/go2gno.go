@@ -85,7 +85,7 @@ func ParseExpr(expr string) (retx Expr, err error) {
 		}
 	}()
 	// parse with Go2Gno.
-	return Go2Gno(nil, x).(Expr), nil
+	return Go2Gno(nil, nil, x).(Expr), nil
 }
 
 func MustParseExpr(expr string) Expr {
@@ -132,7 +132,7 @@ func setLoc(fs *token.FileSet, pos token.Pos, n Node) Node {
 }
 
 // If gon is a *ast.File, the name must be filled later.
-func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
+func Go2Gno(escapedlist []string, fs *token.FileSet, gon ast.Node) (n Node) {
 	if gon == nil {
 		return nil
 	}
@@ -147,7 +147,11 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 	case *ast.ParenExpr:
 		return toExpr(fs, gon.X)
 	case *ast.Ident:
-		return Nx(toName(gon))
+		nx := Nx(toName(gon))
+		if escapedlist != nil {
+			nx.IsRoot = true
+		}
+		return nx
 	case *ast.BasicLit:
 		if gon == nil {
 			return nil
@@ -218,7 +222,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			Value: toExpr(fs, gon.Value),
 		}
 	case *ast.FuncLit:
-		type_ := Go2Gno(fs, gon.Type).(*FuncTypeExpr)
+		type_ := Go2Gno(escapedlist, fs, gon.Type).(*FuncTypeExpr)
 		return &FuncLitExpr{
 			Type: *type_,
 			Body: toBody(fs, gon.Body),
@@ -347,7 +351,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		ess := []Stmt(nil)
 		if gon.Else != nil {
 			if _, ok := gon.Else.(*ast.BlockStmt); ok {
-				ess = Go2Gno(fs, gon.Else).(*BlockStmt).Body
+				ess = Go2Gno(escapedlist, fs, gon.Else).(*BlockStmt).Body
 			} else {
 				ess = []Stmt{toStmt(fs, gon.Else)}
 			}
@@ -427,11 +431,12 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			if len(gon.Recv.List) > 1 {
 				panic("*ast.FuncDecl cannot have multiple receivers")
 			}
-			recv = *Go2Gno(fs, gon.Recv.List[0]).(*FieldTypeExpr)
+			recv = *Go2Gno(nil, fs, gon.Recv.List[0]).(*FieldTypeExpr)
 		}
 		name := toName(gon.Name)
-		type_ := Go2Gno(fs, gon.Type).(*FuncTypeExpr)
-		body := Go2Gno(fs, gon.Body).(*BlockStmt).Body
+		type_ := Go2Gno(nil, fs, gon.Type).(*FuncTypeExpr)
+		escapedNames := EscapeAnalysis(gon)
+		body := Go2Gno(escapedNames, fs, gon.Body).(*BlockStmt).Body
 		return &FuncDecl{
 			IsMethod: isMethod,
 			Recv:     recv,

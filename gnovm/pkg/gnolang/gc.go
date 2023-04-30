@@ -1,5 +1,72 @@
 package gnolang
 
+import (
+	"go/ast"
+)
+
+// EscapeAnalysis tracks whether values
+// need to be heap allocated
+// here are the 3 rules we use
+// 1. if a reference is assigned/passed as an arg
+// 2. if a reference is returned
+// 3. if a closure is using variables from the outer scope
+// the escape analysis are done on function basis to avoid
+// analysing complicated program flows
+func EscapeAnalysis(f *ast.FuncDecl) []string {
+	var heapVars []string
+	ast.Inspect(f.Body, func(n ast.Node) bool {
+		switch x := n.(type) {
+		case *ast.FuncLit:
+			for _, v := range x.Type.Params.List {
+				if isReference(v.Type) {
+					heapVars = append(heapVars, v.Names[0].Name)
+				}
+			}
+			if x.Type.Results != nil {
+				for _, v := range x.Type.Results.List {
+					if isReference(v.Type) {
+						heapVars = append(heapVars, v.Names[0].Name)
+					}
+				}
+			}
+		case *ast.AssignStmt:
+			for _, expr := range x.Rhs {
+				if isReference(expr) {
+					for _, v := range x.Lhs {
+						heapVars = append(heapVars, getVarName(v))
+					}
+				}
+			}
+		case *ast.ReturnStmt:
+			for _, result := range x.Results {
+				if isReference(result) {
+					heapVars = append(heapVars, getVarName(result))
+				}
+			}
+		}
+		return true
+	})
+	return heapVars
+}
+
+func isReference(expr ast.Expr) bool {
+	switch expr.(type) {
+	case *ast.StarExpr:
+		return true
+	}
+	return false
+}
+
+func getVarName(expr ast.Expr) string {
+	switch x := expr.(type) {
+	case *ast.Ident:
+		return x.Name
+	case *ast.StarExpr:
+		return getVarName(x.X)
+	}
+	return ""
+}
+
 type GC struct {
 	objs  []*GCObj
 	roots []*GCObj
