@@ -44,7 +44,7 @@ func AdminAddController(addr std.Address) string {
 
 	size := gControllers.Size()
 
-	if size >= gControllersSize {
+	if size >= gControllersMaxSize {
 		return "can not add more controllers than allowed"
 	}
 

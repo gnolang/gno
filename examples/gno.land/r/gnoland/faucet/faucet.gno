@@ -10,11 +10,11 @@ import (
 
 var (
 	// configurable by admin.
-	gAdminAddr       std.Address = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	gControllers                 = avl.NewTree()
-	gControllersSize             = 10 // limit it to 10
-	gInPause                     = false
-	gMessage                     = "# Community Faucet.\n\n"
+	gAdminAddr          std.Address = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	gControllers                    = avl.NewTree()
+	gControllersMaxSize             = 10 // limit it to 10
+	gInPause                        = false
+	gMessage                        = "# Community Faucet.\n\n"
 
 	// internal vars, for stats.
 	gTotalTransferred std.Coins
@@ -52,11 +52,11 @@ func GetPerTransferLimit() int64 {
 	return gLimit.Amount
 }
 
-func Render(path string) string {
+func Render(_ string) string {
 	banker := std.GetBanker(std.BankerTypeRealmSend)
 	balance := banker.GetCoins(std.GetOrigPkgAddr())
 
-	output := path + gMessage
+	output := gMessage
 	if gInPause {
 		output += "Status: inactive.\n"
 	} else {
@@ -69,7 +69,7 @@ func Render(path string) string {
 	output += ufmt.Sprintf("Admin: %s\n\n ", gAdminAddr.String())
 	output += ufmt.Sprintf("Controllers:\n\n ")
 
-	for i := 0; i < gControllersSize; i++ {
+	for i := 0; i < gControllers.Size(); i++ {
 		_, v := gControllers.GetByIndex(i)
 		output += ufmt.Sprintf("%s  ", v.(std.Address))
 	}
