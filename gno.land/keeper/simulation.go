@@ -170,11 +170,11 @@ func NewSimulator(skipFailingGenesisTxs bool, stdLibPath string) (*Simulator, er
 
 	ibc := NewIBCModule(vmKpr)
 
-	dispatcher := NewDispatcher(logger)
-	dispatcher.Router().AddRoute("vm", vmi.NewHandler(vmKpr))
-	dispatcher.icbChan = ibc
+	// dispatcher := NewDispatcher(logger)
+	// dispatcher.Router().AddRoute("vm", vmi.NewHandler(vmKpr))
+	// dispatcher.icbChan = ibc
 
-	vmKpr.SetDispatcher(dispatcher)
+	// vmKpr.SetDispatcher(dispatcher)
 	// Set a handler Route.
 	mockApp.Router().AddRoute("auth", auth.NewHandler(acctKpr))
 	mockApp.Router().AddRoute("bank", bank.NewHandler(bankKpr))
@@ -198,10 +198,6 @@ func NewSimulator(skipFailingGenesisTxs bool, stdLibPath string) (*Simulator, er
 	s.Ctx = testCtx((s.mockApp).GetCacheMultiStore())
 
 	return s, nil
-}
-
-func (s *Simulator) startServer() {
-	s.VMKpr.ReceiveRoutine()
 }
 
 func (s *Simulator) addPkgFromMemfile(ctx sdk.Context, pkgPath string, memfiles []*std.MemFile) {

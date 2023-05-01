@@ -28,10 +28,9 @@ func (d *Dispatcher) Router() sdk.Router {
 	return d.router
 }
 
-// iterates through all inner messages, route to another infra's contract or another chain's contract
-// TODO: not need sdk context here?, another method for handler
-func (d *Dispatcher) HandleInternalMsgs(ctx sdk.Context, msgs []vmh.MsgCall, mode sdk.RunTxMode) (result sdk.Result) {
-	println("handle internal msgs")
+// XXX: simplify it to be an simple call
+func (d *Dispatcher) RunMsg(ctx sdk.Context, msg vmh.MsgCall, mode sdk.RunTxMode) (result sdk.Result) {
+	println("run msg")
 	msgLogs := make([]string, 0, len(msgs))
 
 	data := make([]byte, 0, len(msgs))
@@ -93,9 +92,9 @@ func (d *Dispatcher) HandleInternalMsgs(ctx sdk.Context, msgs []vmh.MsgCall, mod
 }
 
 // send IBC packet, only support gnovm type call (MsgCall) for now, gnoVM <-> gnoVM
-func (d *Dispatcher) HandleIBCMsgs(ctx sdk.Context, req vmh.GnoReq) {
+func (d *Dispatcher) HandleIBCMsgs(ctx sdk.Context, msg vmh.MsgCall) {
 	// set callback map
 
 	// this simulates a IBC call, using a chan to loop back
-	go d.icbChan.SendPacket(req)
+	go d.icbChan.SendPacket(msg)
 }

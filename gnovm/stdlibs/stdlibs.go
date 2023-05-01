@@ -10,13 +10,13 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/bech32"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	vmi "github.com/gnolang/gno/tm2/pkg/sdk/vm"
+	vmh "github.com/gnolang/gno/tm2/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-var vmkeeper vmi.VMKeeperI
+var vmkeeper vmh.VMKeeperI
 
-func InjectVMKeeper(vmk vmi.VMKeeperI) {
+func InjectVMKeeper(vmk vmh.VMKeeperI) {
 	vmkeeper = vmk
 }
 
@@ -195,27 +195,47 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 		pn.DefineNative("Send",
 			gno.Flds( // params
 				"call", "string",
-				"cb", "string",
 			),
 			gno.Flds( // results
-			// "ok", "bool",
-			// "err", "string",
+				"bz", "string",
+				"err", "string",
 			),
 			func(m *gno.Machine) {
-				arg0, arg1 := m.LastBlock().GetParams2()
+				println("std.Send")
+				arg0 := m.LastBlock().GetParams1()
 				call := arg0.TV.GetString()
-				callback := arg1.TV.GetString()
-				println(call, callback)
-				vmkeeper.DispatchInternalMsg([]string{call, callback})
+				println("call: ", call)
 
-				// TODO: return parse error
-				// if err != nil {
-				// 	m.PushValue(typedBool(false))
-				// 	m.PushValue(typedString(gno.StringValue(err.Error())))
-				// } else {
-				// 	m.PushValue(typedBool(true))
-				// 	m.PushValue(typedString(""))
-				// }
+				gnoMsg, err := vmh.DecodeMsg(call)
+				if err != nil {
+					panic("parameter invalid")
+				}
+				resQueue := make(chan string, 1)
+				gnoMsg.Response = resQueue
+
+				// send msg
+				vmkeeper.DispatchInternalMsg(gnoMsg)
+
+				println("block, waiting for result...")
+				var result string
+				select {
+				case result = <-resQueue:
+					println("callback in recvMsg: ", result)
+				}
+
+				// TODO: return err to contract
+				var errMsg string
+				if err != nil {
+					errMsg = err.Error()
+				}
+
+				res := gno.Go2GnoValue(
+					m.Alloc,
+					m.Store,
+					reflect.ValueOf(result),
+				)
+				m.PushValue(res)
+				m.PushValue(typedString(gno.StringValue(errMsg)))
 			},
 		)
 

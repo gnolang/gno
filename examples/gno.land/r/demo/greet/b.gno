@@ -1,7 +1,16 @@
 package greet
 
+import "std"
+
 func Greet(msg string) string {
-	// println("greet from B: ", msg)
-	return "greet from b"
+
+	chainID := std.GetChainID()
+	call := std.EncodeMsgCall(chainID, "gno.land/r/demo/hola", "Sing", []string{"song"})
+
+	r, err := std.Send(call)
+	println("done ")
+	println("r is :", r)
+	println("errMsg is: ", err)
+	return "greet from b" + r
 }
 

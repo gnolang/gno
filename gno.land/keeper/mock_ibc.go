@@ -1,7 +1,6 @@
 package vmk
 
 import (
-	"github.com/gnolang/gno/tm2/pkg/sdk"
 	vmh "github.com/gnolang/gno/tm2/pkg/sdk/vm"
 	"strconv"
 )
@@ -14,7 +13,7 @@ type Packet struct {
 // Use channel to simulate IBC loop, the IBC/TAO layer
 // TODO: saticefy a real IBCModule interface
 type IBC struct {
-	sendMsgQueue chan vmh.GnoReq // simulate call from IBC
+	sendMsgQueue chan vmh.MsgCall // simulate call from IBC
 	ackMsgQueue  chan *Packet
 	vmk          *VMKeeper
 	cbm          map[int]vmh.MsgCall // sequence -> callabck
@@ -22,7 +21,7 @@ type IBC struct {
 
 func NewIBCModule(v *VMKeeper) *IBC {
 	return &IBC{
-		sendMsgQueue: make(chan vmh.GnoReq),
+		sendMsgQueue: make(chan vmh.MsgCall),
 		ackMsgQueue:  make(chan *Packet),
 		vmk:          v,
 		cbm:          make(map[int]vmh.MsgCall),
@@ -32,8 +31,8 @@ func NewIBCModule(v *VMKeeper) *IBC {
 // simulate send out packet
 // TODO: here the msgCall should be transcribed to shared types
 // a call should be assgined with a unique sequence number, or use the IBC packet sequence number
-func (i *IBC) SendPacket(req vmh.GnoReq) {
-	i.sendMsgQueue <- req
+func (i *IBC) SendPacket(msg vmh.MsgCall) {
+	i.sendMsgQueue <- msg
 	println("send packet done")
 }
 
@@ -44,18 +43,17 @@ func (i *IBC) OnRecvPacket() {
 	// timeout := 3 * time.Second
 	for {
 		select {
-		case req := <-i.sendMsgQueue:
-			// track
-			i.cbm[1] = req.CallBack
+		// case msgCall := <-i.sendMsgQueue:
 
-			println("msgCall: ", req.Call.PkgPath, req.Call.Func, req.Call.Args[0])
-			r := i.vmk.dispatcher.HandleInternalMsgs(i.vmk.ctx, []vmh.MsgCall{req.Call}, sdk.RunTxModeDeliver)
-			println("r.Data :", string(r.Data))
+		// r := i.vmk.dispatcher.HandleInternalMsgs(i.vmk.ctx, []vmh.MsgCall{msgCall}, sdk.RunTxModeDeliver)
+		// println("r.Data :", string(r.Data))
 
-			// ack, handled by OnAck on the counterpart chain
-			i.ackMsgQueue <- &Packet{sequence: 1, data: r.Data}
-			// case <-time.After(timeout):
-			// 	panic("Timeout! IBC took too long.")
+		// ack, handled by OnAck on the counterpart chain
+
+		// i.ackMsgQueue <- &Packet{sequence: 1, data: r.Data}
+
+		// case <-time.After(timeout):
+		// 	panic("Timeout! IBC took too long.")
 		}
 	}
 }
@@ -69,12 +67,8 @@ func (i *IBC) OnAcknowledgementPacket() {
 		select {
 		case ack := <-i.ackMsgQueue:
 			println("ack, sequence, data ", strconv.Itoa(ack.sequence), string(ack.data))
-			callback := i.cbm[ack.sequence]
-			callback.Args = []string{string(ack.data)}
-			println("callback, pkgpath, func : ", callback.PkgPath, callback.Func)
-
-			r := i.vmk.dispatcher.HandleInternalMsgs(i.vmk.ctx, []vmh.MsgCall{callback}, sdk.RunTxModeDeliver)
-			println("callback result: ", string(r.Data))
+			// bridge ack to vmKeeper
+			i.vmk.ibcResponseQueue <- ack.data
 		}
 	}
 }

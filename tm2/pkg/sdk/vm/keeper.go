@@ -1,6 +1,8 @@
 package vm
 
 import (
+	"sync"
+
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -12,8 +14,8 @@ import (
 type VMKeeperI interface {
 	AddPackage(ctx sdk.Context, msg MsgAddPackage) error
 	Call(ctx sdk.Context, msg MsgCall) (res string, err error)
-	DispatchInternalMsg([]string)
-	ReceiveRoutine()
+	DispatchInternalMsg(GnoMsg)
+	HandleMsg(*sync.WaitGroup)
 	SubmitTxFee(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error
 	QueryEvalString(ctx sdk.Context, pkgPath string, expr string) (res string, err error)
 	QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionSignatures, err error)

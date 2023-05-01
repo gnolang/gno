@@ -2,19 +2,20 @@ package hello
 
 import "std"
 
-func SayHello(){
-	println("say hello from A, going to call B")
+func SayHello() string {
+	// println("say hello from A, going to call B")
 
 	chainID := std.GetChainID()
 	call := std.EncodeMsgCall(chainID, "gno.land/r/demo/greet", "Greet", []string{"hey"})
-	callback := std.EncodeMsgCall(chainID, "gno.land/r/demo/hello", "Reply", []string{""})
 
-	std.Send(call, callback)
-
-	println("this is something behind async operation")
+	r, err := std.Send(call)
+	println("done ")
+	println("r is :", r)
+	println("errMsg is: ", err)
+	return "say hello from A, going to call B" + r
 }
 
-func Reply(r string) bool {
-	println("receive callback: ", r)
-	return true
-}
+// func Reply(r string) bool {
+// 	println("receive callback: ", r)
+// 	return true
+// }

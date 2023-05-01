@@ -25,13 +25,18 @@ func init() {
 func simuAddPkg() {
 	simulator.addPkgFromPath("../../examples/gno.land/r/demo/hello/", "gno.land/r/demo/hello")
 	simulator.addPkgFromPath("../../examples/gno.land/r/demo/greet/", "gno.land/r/demo/greet")
+	simulator.addPkgFromPath("../../examples/gno.land/r/demo/hola/", "gno.land/r/demo/hola")
 }
 
 //go:embed simulation_data/msg_call_success.json
 var msgCallSuccessBz []byte
 
 func TestInternalCallSuccess(t *testing.T) {
-	go simulator.startServer()
+	// bootstrap handleMsg routine
+	wg := &sync.WaitGroup{}
+	go simulator.VMKpr.HandleMsg(wg)
+	wg.Wait()
+
 	res, _ := simulator.simuCall([][]*std.MemFile{}, msgCallSuccessBz)
 	assert.NoError(t, res.Error)
 	time.Sleep(1 * time.Second)

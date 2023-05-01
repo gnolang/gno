@@ -2,9 +2,11 @@ package vmk
 
 import (
 	"fmt"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"os"
 	"strings"
+	"sync"
+
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
@@ -24,30 +26,36 @@ const (
 
 // VMKeeper holds all package code and store state.
 type VMKeeper struct {
-	baseKey    store.StoreKey
-	iavlKey    store.StoreKey
-	acck       auth.AccountKeeper
-	bank       bank.BankKeeper
-	dispatcher *Dispatcher
+	baseKey store.StoreKey
+	iavlKey store.StoreKey
+	acck    auth.AccountKeeper
+	bank    bank.BankKeeper
+	// dispatcher *Dispatcher
 	stdlibsDir string
 
 	// cached, the DeliverTx persistent state.
-	gnoStore         gno.Store
-	ctx              sdk.Context
-	callStack        []*vmh.MsgCall // call stack, typically, call1<-callback1, call2<-callback2,... the whole call graph
-	internalMsgQueue chan []string  // receive msg from contract
+	gnoStore              gno.Store
+	ctx                   sdk.Context
+	callStack             []*vmh.MsgCall  // call stack, typically, call1<-callback1, call2<-callback2,... the whole call graph
+	internalMsgQueue      chan vmh.GnoMsg // receive msg from contract
+	internalResponseQueue chan []byte     // consume by stdlib
+	ibcMsgQueue           chan string
+	ibcResponseQueue      chan []byte // consume by stdlib
 	// origCaller crypto.Address // caller of an external msg
 }
 
 // NewVMKeeper returns a new VMKeeper.
 func NewVMKeeper(baseKey store.StoreKey, iavlKey store.StoreKey, acck auth.AccountKeeper, bank bank.BankKeeper, stdlibsDir string) *VMKeeper {
 	vmk := &VMKeeper{
-		baseKey:          baseKey,
-		iavlKey:          iavlKey,
-		acck:             acck,
-		bank:             bank,
-		stdlibsDir:       stdlibsDir,
-		internalMsgQueue: make(chan []string),
+		baseKey:               baseKey,
+		iavlKey:               iavlKey,
+		acck:                  acck,
+		bank:                  bank,
+		stdlibsDir:            stdlibsDir,
+		internalMsgQueue:      make(chan vmh.GnoMsg),
+		internalResponseQueue: make(chan []byte),
+		ibcMsgQueue:           make(chan string),
+		ibcResponseQueue:      make(chan []byte),
 	}
 	return vmk
 }
@@ -57,12 +65,18 @@ func (vmk *VMKeeper) SubmitTxFee(ctx sdk.Context, fromAddr crypto.Address, toAdd
 	return err
 }
 
-func (vmk *VMKeeper) SetDispatcher(d *Dispatcher) {
-	vmk.dispatcher = d
-}
+// func (vmk *VMKeeper) SetDispatcher(d *Dispatcher) {
+// 	vmk.dispatcher = d
+// }
 
 func (vmk *VMKeeper) PushCall(call *vmh.MsgCall) {
 	vmk.callStack = append(vmk.callStack, call)
+}
+
+func (vmk *VMKeeper) printCallStack() {
+	for _, m := range vmk.callStack {
+		println("msgCall: Caller, PkgPath, Func", m.Caller.String(), m.PkgPath, m.Func)
+	}
 }
 
 // get origCaller from callstack
@@ -84,7 +98,8 @@ func (vmk *VMKeeper) PopCall() (call *vmh.MsgCall) {
 }
 
 func (vmk *VMKeeper) Release() {
-	copy(vmk.callStack, vmk.callStack[:0])
+	vmk.callStack = vmk.callStack[:0]
+	// copy(vmk.callStack, vmk.callStack[:0])
 }
 
 func (vmk *VMKeeper) Initialize(ms store.MultiStore) {
@@ -149,37 +164,58 @@ func (vmk *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 	}
 }
 
-func (vmk *VMKeeper) DispatchInternalMsg(msg []string) {
+// input
+func (vmk *VMKeeper) DispatchInternalMsg(msg vmh.GnoMsg) {
 	vmk.internalMsgQueue <- msg
+	println("msg dispatched")
 }
 
-func (vmk *VMKeeper) ReceiveRoutine() {
-	for {
-		select {
-		case msg := <-vmk.internalMsgQueue:
-			req, isLocal, err := vmk.preprocessMessage(msg)
-			if err != nil {
-				panic(err.Error())
-			}
-			msgCall := req.Call
-			msgCallBack := req.CallBack
+// output
+// func (vmk *VMKeeper) GetInternalResult(d time.Duration) ([]byte, error) {
+// 	select {
+// 	case r := <-vmk.internalResponseQueue:
+// 		println("get result, r: ", string(r))
+// 		return r, nil
+// 	case <-time.After(d):
+// 		return nil, errors.New("time out")
+// 	}
+// }
 
-			// same chain call to another contract in VM
-			if isLocal {
-				println("in VM call")
-				r := vmk.dispatcher.HandleInternalMsgs(vmk.ctx, []vmh.MsgCall{msgCall}, sdk.RunTxModeDeliver)
-				println("call finished, res: ", string(r.Data))
-				// callback
-				msgCallBack.Args = []string{string(r.Data)}
-				r = vmk.dispatcher.HandleInternalMsgs(vmk.ctx, []vmh.MsgCall{msgCallBack}, sdk.RunTxModeDeliver)
-				println("callback done, res is: ", string(r.Data))
-			} else { // IBC calll
-				println("IBC call")
-				// send IBC packet, waiting for OnRecv
-				// should every IBC call is identified by a sequence,
-				// using a map to maintain the sequence and a callback msg
-				vmk.dispatcher.HandleIBCMsgs(vmk.ctx, req)
+// initially called somewhere, call? which act like a main routine
+func (vmk *VMKeeper) HandleMsg(wg *sync.WaitGroup) {
+	defer wg.Done()
+	println("------HandleMsg routine spawned ------")
+	select {
+	case msg := <-vmk.internalMsgQueue:
+		println("-----receive msg, wg add, and spawn new routine------")
+		wg.Add(1)
+		go vmk.HandleMsg(wg)
+
+		// prepare call
+		msgCall, isLocal, response, err := vmk.preprocessMessage(msg)
+		if err != nil {
+			panic(err.Error())
+		}
+		// do the call
+		// same chain call to another contract in VM
+		if isLocal {
+			println("in VM call")
+			println("msgCall: ", msgCall.Caller.String(), msgCall.PkgPath, msgCall.Func, msgCall.Args[0])
+
+			// every execution happens in here, routine will be blocked an callback
+			// r := vmk.dispatcher.RunMsg(vmk.ctx, []vmh.MsgCall{msgCall}, sdk.RunTxModeDeliver)
+			r, err := vmk.Call(vmk.ctx, msgCall)
+			println("call finished, res: ", r)
+			// have an return
+			if err == nil {
+				response <- r
 			}
+		} else { // IBC calll
+			println("IBC call")
+			// send IBC packet, waiting for OnRecv
+			// should every IBC call is identified by a sequence,
+			// using a map to maintain the sequence and a callback msg
+			// vmk.dispatcher.HandleIBCMsgs(vmk.ctx, req)
 		}
 	}
 }
@@ -330,7 +366,8 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg vmh.MsgCall) (res string, err erro
 			return
 		}
 		m.Release()
-		vm.Release()
+		// vm.Release()
+		// vm.PopCall()
 	}()
 	rtvs := m.Eval(xn)
 	fmt.Println("CPUCYCLES call", m.Cycles)
@@ -541,53 +578,15 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 	}
 }
 
-func (vmk *VMKeeper) preprocessMessage(msgs []string) (vmh.GnoReq, bool, error) {
-	var req vmh.GnoReq
+func (vmk *VMKeeper) preprocessMessage(gnoMsg vmh.GnoMsg) (vmh.MsgCall, bool, chan string, error) {
 	var isLocal bool
-
-	// call
-	gnoMsg, err := decodeMsg(msgs[0], true)
-	if err != nil {
-		return vmh.GnoReq{}, isLocal, err
-	}
-	// chainID match
 	if gnoMsg.ChainID == vmk.ctx.ChainID() {
 		isLocal = true
 	}
 
 	msgCall := convertMsg(gnoMsg)
+	// using the origCaller
 	msgCall.Caller = vmk.GetOrigCaller()
 
-	// callback
-	gnoMsg, err = decodeMsg(msgs[1], false)
-	if err != nil {
-		return vmh.GnoReq{}, isLocal, err
-	}
-	msgCallBack := convertMsg(gnoMsg)
-	msgCallBack.Caller = vmk.GetOrigCaller()
-
-	req.Call = msgCall
-	req.CallBack = msgCallBack
-
-	return req, isLocal, nil
-}
-
-// TODO: a real decoder
-func decodeMsg(msg string, isWithArgs bool) (call vmh.GnoMsg, err error) {
-	if msg == "" {
-		return vmh.GnoMsg{}, errors.New("msg is empty")
-	}
-	call = vmh.GnoMsg{}
-	cs := strings.Split(msg, "#")
-	call.ChainID = cs[0]
-	call.PkgPath = cs[1]
-	call.Func = cs[2]
-	if isWithArgs {
-		as := strings.Split(cs[3], "&")
-		for _, arg := range as {
-			call.Args = append(call.Args, arg)
-		}
-	}
-	// TODO: return parse error
-	return call, nil
+	return msgCall, isLocal, gnoMsg.Response, nil
 }
