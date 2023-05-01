@@ -120,7 +120,7 @@ func ParseFile(filename string, body string) (fn *FileNode, err error) {
 		}
 	}()
 	// parse with Go2Gno.
-	fn = Go2Gno(fs, f).(*FileNode)
+	fn = Go2Gno(nil, fs, f).(*FileNode)
 	fn.Name = Name(filename)
 	return fn, nil
 }
@@ -149,7 +149,9 @@ func Go2Gno(escapedlist []string, fs *token.FileSet, gon ast.Node) (n Node) {
 	case *ast.Ident:
 		nx := Nx(toName(gon))
 		if escapedlist != nil {
-			nx.IsRoot = true
+			if checkEscaped(gon.String(), escapedlist) {
+				nx.IsRoot = true
+			}
 		}
 		return nx
 	case *ast.BasicLit:
@@ -552,7 +554,7 @@ func toWord(tok token.Token) Word {
 
 func toExpr(fs *token.FileSet, gox ast.Expr) Expr {
 	// TODO: could the language handle this?
-	gnox := Go2Gno(fs, gox)
+	gnox := Go2Gno(nil, fs, gox)
 	if gnox == nil {
 		return nil
 	} else {
@@ -572,7 +574,7 @@ func toExprs(fs *token.FileSet, goxs []ast.Expr) (gnoxs Exprs) {
 }
 
 func toStmt(fs *token.FileSet, gos ast.Stmt) Stmt {
-	gnos := Go2Gno(fs, gos)
+	gnos := Go2Gno(nil, fs, gos)
 	if gnos == nil {
 		return nil
 	} else {
@@ -596,7 +598,7 @@ func toBody(fs *token.FileSet, body *ast.BlockStmt) Body {
 }
 
 func toSimp(fs *token.FileSet, gos ast.Stmt) Stmt {
-	gnos := Go2Gno(fs, gos)
+	gnos := Go2Gno(nil, fs, gos)
 	if gnos == nil {
 		return nil
 	} else {
@@ -605,7 +607,7 @@ func toSimp(fs *token.FileSet, gos ast.Stmt) Stmt {
 }
 
 func toDecl(fs *token.FileSet, god ast.Decl) Decl {
-	gnod := Go2Gno(fs, god)
+	gnod := Go2Gno(nil, fs, god)
 	if gnod == nil {
 		return nil
 	} else {
@@ -749,7 +751,7 @@ func toKeyValueExprs(fs *token.FileSet, elts []ast.Expr) (kvxs KeyValueExprs) {
 	kvxs = make([]KeyValueExpr, len(elts))
 	for i, x := range elts {
 		if kvx, ok := x.(*ast.KeyValueExpr); ok {
-			kvxs[i] = *Go2Gno(fs, kvx).(*KeyValueExpr)
+			kvxs[i] = *Go2Gno(nil, fs, kvx).(*KeyValueExpr)
 		} else {
 			kvxs[i] = KeyValueExpr{
 				Key:   nil,

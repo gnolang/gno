@@ -67,6 +67,15 @@ func getVarName(expr ast.Expr) string {
 	return ""
 }
 
+func checkEscaped(ident string, escapedList []string) bool {
+	for _, s := range escapedList {
+		if s == ident {
+			return true
+		}
+	}
+	return false
+}
+
 type GC struct {
 	objs  []*GCObj
 	roots []*GCObj
