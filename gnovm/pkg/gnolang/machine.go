@@ -3,6 +3,7 @@ package gnolang
 // XXX rename file to machine.go.
 
 import (
+	gerrors "errors"
 	"fmt"
 	"io"
 	"os"
@@ -994,12 +995,52 @@ const (
 	OpCPUReturnCallDefers  = 1
 )
 
+type Executable interface {
+	Exec(m *Machine, o Op) (int64, error)
+}
+
 //----------------------------------------
 // main run loop.
+
+func (m *Machine) doExec(op Op) bool {
+	if len(m.Stmts) == 0 {
+		return false
+	}
+
+	s := m.PopStmt()
+	if s == nil {
+		return false
+	}
+
+	e, ok := s.(Executable)
+	if !ok {
+		m.PushStmt(s)
+		return false
+	}
+
+	cycles, err := e.Exec(m, op)
+	if gerrors.Is(err, ErrOpNotSupported) {
+		m.PushStmt(s)
+		return false
+	}
+
+	if err != nil {
+		panic(err)
+	}
+
+	m.incrCPU(cycles)
+
+	return true
+}
 
 func (m *Machine) Run() {
 	for {
 		op := m.PopOp()
+
+		if m.doExec(op) {
+			continue
+		}
+
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {
 		/* Control operators */
@@ -1246,45 +1287,6 @@ func (m *Machine) Run() {
 			m.incrCPU(OpCPUMaybeNativeType)
 			m.doOpMaybeNativeType()
 		/* Statement operators */
-		case OpAssign:
-			m.incrCPU(OpCPUAssign)
-			m.doOpAssign()
-		case OpAddAssign:
-			m.incrCPU(OpCPUAddAssign)
-			m.doOpAddAssign()
-		case OpSubAssign:
-			m.incrCPU(OpCPUSubAssign)
-			m.doOpSubAssign()
-		case OpMulAssign:
-			m.incrCPU(OpCPUMulAssign)
-			m.doOpMulAssign()
-		case OpQuoAssign:
-			m.incrCPU(OpCPUQuoAssign)
-			m.doOpQuoAssign()
-		case OpRemAssign:
-			m.incrCPU(OpCPURemAssign)
-			m.doOpRemAssign()
-		case OpBandAssign:
-			m.incrCPU(OpCPUBandAssign)
-			m.doOpBandAssign()
-		case OpBandnAssign:
-			m.incrCPU(OpCPUBandnAssign)
-			m.doOpBandnAssign()
-		case OpBorAssign:
-			m.incrCPU(OpCPUBorAssign)
-			m.doOpBorAssign()
-		case OpXorAssign:
-			m.incrCPU(OpCPUXorAssign)
-			m.doOpXorAssign()
-		case OpShlAssign:
-			m.incrCPU(OpCPUShlAssign)
-			m.doOpShlAssign()
-		case OpShrAssign:
-			m.incrCPU(OpCPUShrAssign)
-			m.doOpShrAssign()
-		case OpDefine:
-			m.incrCPU(OpCPUDefine)
-			m.doOpDefine()
 		case OpInc:
 			m.incrCPU(OpCPUInc)
 			m.doOpInc()
