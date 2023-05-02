@@ -50,13 +50,14 @@ func SortPkgs(pkgs []pkg) error {
 		for _, req := range pkg.requires {
 			found := false
 			for _, p := range pkgs {
-				if p.name == req {
-					if err := visit(p); err != nil {
-						return err
-					}
-					found = true
-					break
+				if p.name != req {
+					continue
 				}
+				if err := visit(p); err != nil {
+					return err
+				}
+				found = true
+				break
 			}
 			if !found {
 				return fmt.Errorf("missing dependency '%s' for package '%s'", req, pkg.name)
@@ -87,37 +88,38 @@ func ListPkgs(root string) ([]pkg, error) {
 		if err != nil {
 			return err
 		}
-
-		if d.IsDir() {
-			goModPath := filepath.Join(path, "gno.mod")
-			data, err := os.ReadFile(goModPath)
-			if err == nil {
-				gnoMod, err := Parse(goModPath, data)
-				if err != nil {
-					return fmt.Errorf("parse: %w", err)
-				}
-				gnoMod.Sanitize()
-				if err := gnoMod.Validate(); err != nil {
-					return fmt.Errorf("validate: %w", err)
-				}
-				pkgs = append(pkgs, pkg{
-					name: gnoMod.Module.Mod.Path,
-					path: path,
-					requires: func() []string {
-						var reqs []string
-						for _, req := range gnoMod.Require {
-							reqs = append(reqs, req.Mod.Path)
-						}
-						return reqs
-					}(),
-				})
-				return fs.SkipDir
-			} else if !os.IsNotExist(err) {
-				return err
-			}
+		if !d.IsDir() {
+			return nil
+		}
+		goModPath := filepath.Join(path, "gno.mod")
+		data, err := os.ReadFile(goModPath)
+		if os.IsNotExist(err) {
+			return nil
+		}
+		if err != nil {
+			return err
 		}
 
-		return nil
+		gnoMod, err := Parse(goModPath, data)
+		if err != nil {
+			return fmt.Errorf("parse: %w", err)
+		}
+		gnoMod.Sanitize()
+		if err := gnoMod.Validate(); err != nil {
+			return fmt.Errorf("validate: %w", err)
+		}
+		pkgs = append(pkgs, pkg{
+			name: gnoMod.Module.Mod.Path,
+			path: path,
+			requires: func() []string {
+				var reqs []string
+				for _, req := range gnoMod.Require {
+					reqs = append(reqs, req.Mod.Path)
+				}
+				return reqs
+			}(),
+		})
+		return fs.SkipDir
 	})
 	if err != nil {
 		return nil, err
