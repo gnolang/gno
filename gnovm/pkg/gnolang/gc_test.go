@@ -1,6 +1,9 @@
 package gnolang
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -48,4 +51,23 @@ func TestGC_CollectUnsedObjects(t *testing.T) {
 	assert.Nil(t, gc.getObjByPath(obj3.path))
 	assert.Empty(t, gc.objs)
 	assert.Empty(t, gc.roots)
+}
+
+func TestEscapeAnalysis(t *testing.T) {
+	f, err := parser.ParseFile(token.NewFileSet(), "",
+		`
+			package p
+			func foo() {
+				a := 5
+				b := &a
+				c := b
+			}`, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fn := f.Decls[0].(*ast.FuncDecl)
+	escapedVars := EscapeAnalysis(fn)
+
+	assert.ElementsMatch(t, escapedVars, []string{"a", "b", "c"})
 }

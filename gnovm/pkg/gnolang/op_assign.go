@@ -73,7 +73,6 @@ func (m *Machine) doOpAssign() {
 		if is && pv.TV.ShouldEscape {
 			m.escape2Heap(nx, s.Rhs[i], pv)
 			pv.TV.OnHeap = true
-			pv.TV.ShouldEscape = false
 		}
 	}
 }
