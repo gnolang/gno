@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"go/ast"
+	"go/token"
 )
 
 // EscapeAnalysis tracks whether values
@@ -30,10 +31,27 @@ func EscapeAnalysis(f *ast.FuncDecl) []string {
 				}
 			}
 		case *ast.AssignStmt:
+			//todo iterate over lhs and rhs and
+			// add to lhs to heap vars if rhs is &T or T that is root
 			for _, expr := range x.Rhs {
 				if isReference(expr) {
 					for _, v := range x.Lhs {
 						heapVars = append(heapVars, getVarName(v))
+					}
+				}
+			}
+			for _, rhsExpr := range x.Rhs {
+				if isReference(rhsExpr) {
+					for _, lhsExpr := range x.Lhs {
+						heapVars = append(heapVars, getVarName(lhsExpr))
+						// If the LHS expression is a variable that holds a copy of the value
+						// of another variable that references a heap-allocated value,
+						// add the original variable to the heapVars slice as well.
+						if ident, ok := lhsExpr.(*ast.Ident); ok && ident.Obj != nil && ident.Obj.Kind == ast.Var {
+							if isReference(ident.Obj.Decl.(*ast.AssignStmt).Rhs[0]) {
+								heapVars = append(heapVars, ident.Name)
+							}
+						}
 					}
 				}
 			}
@@ -50,9 +68,16 @@ func EscapeAnalysis(f *ast.FuncDecl) []string {
 }
 
 func isReference(expr ast.Expr) bool {
-	switch expr.(type) {
+	switch ex := expr.(type) {
 	case *ast.StarExpr:
 		return true
+	case *ast.UnaryExpr:
+		if ex.Op == token.AND {
+			//if ident, ok := ex.X.(*ast.Ident); ok {
+			//	heapvars = append(heapvars, ident.String())
+			//}
+			return true
+		}
 	}
 	return false
 }

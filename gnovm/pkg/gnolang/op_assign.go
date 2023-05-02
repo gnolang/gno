@@ -5,7 +5,7 @@ func (m *Machine) doOpDefine() {
 	// Define each value evaluated for Lhs.
 	// NOTE: PopValues() returns a slice in
 	// forward order, not the usual reverse.
-	rvs := m.PopValues(len(s.Lhs))
+
 	lb := m.LastBlock()
 	for i := 0; i < len(s.Lhs); i++ {
 		// Get name and value of i'th term.
@@ -21,18 +21,21 @@ func (m *Machine) doOpDefine() {
 			}
 		}
 
-		rtv := m.getTypeValueFromNX(nx, s.Rhs[i], rvs[i])
-		ptr.Assign2(m.Alloc, m.Store, m.Realm, rtv, true)
+		var val TypedValue
+		heapVal := m.getTypeValueFromNX(nx, s.Rhs[i])
+		if heapVal != nil {
+			val = *heapVal
+		} else {
+			val = *m.PopValue()
+		}
+
+		ptr.Assign2(m.Alloc, m.Store, m.Realm, val, true)
 
 		pv, is := ptr.TV.V.(PointerValue)
-		if is && pv.TV.ShouldEscape {
+		if is && !pv.TV.OnHeap {
 			m.escape2Heap(nx, s.Rhs[i], pv)
 			pv.TV.OnHeap = true
 			pv.TV.ShouldEscape = false
-		}
-
-		if is && pv.TV != nil && pv.TV.OnHeap {
-			nx.IsRoot = true
 		}
 	}
 }
@@ -42,7 +45,6 @@ func (m *Machine) doOpAssign() {
 	// Assign each value evaluated for Lhs.
 	// NOTE: PopValues() returns a slice in
 	// forward order, not the usual reverse.
-	rvs := m.PopValues(len(s.Lhs))
 	for i := len(s.Lhs) - 1; 0 <= i; i-- {
 		// Pop lhs value and desired type.
 		lv := m.PopAsPointer(s.Lhs[i])
@@ -57,9 +59,15 @@ func (m *Machine) doOpAssign() {
 
 		// Get name and value of i'th term.
 		nx := s.Lhs[i].(*NameExpr)
-		rtv := m.getTypeValueFromNX(nx, s.Rhs[i], rvs[i])
+		var val TypedValue
+		heapVal := m.getTypeValueFromNX(nx, s.Rhs[i])
+		if heapVal != nil {
+			val = *heapVal
+		} else {
+			val = *m.PopValue()
+		}
 
-		lv.Assign2(m.Alloc, m.Store, m.Realm, rtv, true)
+		lv.Assign2(m.Alloc, m.Store, m.Realm, val, true)
 
 		pv, is := lv.TV.V.(PointerValue)
 		if is && pv.TV.ShouldEscape {
@@ -67,46 +75,54 @@ func (m *Machine) doOpAssign() {
 			pv.TV.OnHeap = true
 			pv.TV.ShouldEscape = false
 		}
-
-		if is && pv.TV != nil && pv.TV.OnHeap {
-			nx.IsRoot = true
-		}
 	}
 }
 
-func (m *Machine) getTypeValueFromNX(lhs *NameExpr, rhs Expr, stackDefault TypedValue) TypedValue {
+func (m *Machine) getTypeValueFromNX(nx *NameExpr, rhs Expr) *TypedValue {
 	var obj, root *GCObj
 	var rname *NameExpr
+	var shouldCopy bool
 
 	switch name := rhs.(type) {
 	case *NameExpr:
 		rname = name
+		shouldCopy = true
 	case *RefExpr:
 		rname = name.X.(*NameExpr)
 	}
 	if rname == nil {
-		return stackDefault
+		return nil
 	}
+
+	if !rname.IsRoot {
+		return nil
+	}
+
 	root = m.GC.getRootByPath(rname.Path.String())
 
 	if root == nil {
-		return stackDefault
+		return nil
 	}
 	obj = root.ref
 
 	if obj == nil {
-		return stackDefault
+		return nil
+	}
+
+	if shouldCopy {
+		newCopy := *obj
+		m.GC.AddRoot(&GCObj{
+			ref:  &newCopy,
+			path: nx.Path.String(),
+		})
+		m.GC.AddObject(&newCopy)
+		obj = &newCopy
 	}
 
 	if tv, is := obj.value.(TypedValue); is {
-		m.GC.AddRoot(&GCObj{
-			path:   lhs.Path.String(),
-			marked: false,
-			ref:    obj,
-		})
-		return tv
+		return &tv
 	}
-	return stackDefault
+	return nil
 }
 
 func (m *Machine) escape2Heap(nx *NameExpr, rhs Expr, rp PointerValue) {
