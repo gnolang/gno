@@ -130,10 +130,13 @@ func (gc *GC) AddObject(obj *GCObj) {
 
 func (gc *GC) RemoveRoot(path string) {
 	for i, o := range gc.roots {
-		if o.path == path {
-			gc.objs = append(gc.objs[:i], gc.objs[i+1:]...)
-			break
+		if o.path != path {
+			continue
 		}
+
+		gc.roots = append(gc.roots[:i], gc.roots[i+1:]...)
+
+		break
 	}
 }
 
@@ -165,7 +168,12 @@ func (gc *GC) markObject(obj *GCObj) {
 	if obj.marked {
 		return
 	}
+
 	obj.marked = true
+
+	if obj.ref == nil {
+		return
+	}
 	gc.markObject(obj.ref)
 }
 
