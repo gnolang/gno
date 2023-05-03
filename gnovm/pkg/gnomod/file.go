@@ -15,7 +15,7 @@ import (
 
 // Parsed gno.mod file.
 type File struct {
-	Wip     bool
+	Draft   bool
 	Module  *modfile.Module
 	Go      *modfile.Go
 	Require []*modfile.Require

@@ -51,7 +51,7 @@ func Parse(file string, data []byte) (*File, error) {
 			}
 		case *modfile.CommentBlock:
 			if x.Start.Line == 1 {
-				f.Wip = parseWip(x)
+				f.Draft = parseDraft(x)
 			}
 		}
 	}

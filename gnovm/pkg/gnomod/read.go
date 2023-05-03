@@ -834,13 +834,13 @@ func parseDirectiveComment(block *modfile.LineBlock, line *modfile.Line) string 
 	return strings.Join(lines, "\n")
 }
 
-// parseWip returns whether the module is marked as a work in progress.
-func parseWip(block *modfile.CommentBlock) bool {
+// parseDraft returns whether the module is marked as draft.
+func parseDraft(block *modfile.CommentBlock) bool {
 	if len(block.Before) != 1 {
 		return false
 	}
 	comment := block.Before[0]
-	if strings.TrimSpace(strings.TrimPrefix(comment.Token, "//")) != "WIP" {
+	if strings.TrimSpace(strings.TrimPrefix(comment.Token, "//")) != "Draft" {
 		return false
 	}
 	return true

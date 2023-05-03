@@ -117,7 +117,7 @@ func TestModuleDeprecated(t *testing.T) {
 	}
 }
 
-func TestParseWip(t *testing.T) {
+func TestParseDraft(t *testing.T) {
 	for _, tc := range []struct {
 		desc, in string
 		expected bool
@@ -131,39 +131,39 @@ func TestParseWip(t *testing.T) {
 			in:   `// yo`,
 		},
 		{
-			desc:     "wip_no_space",
-			in:       `//WIP`,
+			desc:     "draft_no_space",
+			in:       `//Draft`,
 			expected: true,
 		},
 		{
-			desc:     "wip_simple",
-			in:       `// WIP`,
+			desc:     "draft_simple",
+			in:       `// Draft`,
 			expected: true,
 		},
 		{
-			desc: "wip_lowercase",
-			in:   `// wip`,
+			desc: "draft_lowercase",
+			in:   `// draft`,
 		},
 		{
-			desc: "wip_multiline",
-			in: `// wip
+			desc: "draft_multiline",
+			in: `// Draft
 			// yo`,
 		},
 		{
-			desc: "wip_mixed",
+			desc: "draft_mixed",
 			in: `// some other comment
-			// WIP`,
+			// Draft`,
 		},
 		{
-			desc: "wip_not_first_line",
+			desc: "draft_not_first_line",
 			in: `
-			// WIP`,
+			// Draft`,
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			f, err := Parse("in", []byte(tc.in))
 			assert.Nil(t, err)
-			assert.Equal(t, tc.expected, f.Wip)
+			assert.Equal(t, tc.expected, f.Draft)
 		})
 	}
 }
