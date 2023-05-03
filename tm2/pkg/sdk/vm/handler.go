@@ -53,6 +53,7 @@ func (vh vmHandler) handleMsgAddPackage(ctx sdk.Context, msg MsgAddPackage) sdk.
 
 // Handle MsgCall.
 func (vh vmHandler) handleMsgCall(ctx sdk.Context, msg MsgCall) (res sdk.Result) {
+	// TODO: initiate handleMsg routine here
 	println("handle msg call")
 	amount, err := std.ParseCoins("1000000ugnot") // XXX calculate
 	if err != nil {

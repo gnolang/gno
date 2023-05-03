@@ -34,28 +34,27 @@ type VMKeeper struct {
 	stdlibsDir string
 
 	// cached, the DeliverTx persistent state.
-	gnoStore              gno.Store
-	ctx                   sdk.Context
-	callStack             []*vmh.MsgCall  // call stack, typically, call1<-callback1, call2<-callback2,... the whole call graph
-	internalMsgQueue      chan vmh.GnoMsg // receive msg from contract
-	internalResponseQueue chan []byte     // consume by stdlib
-	ibcMsgQueue           chan string
-	ibcResponseQueue      chan []byte // consume by stdlib
+	gnoStore         gno.Store
+	ctx              sdk.Context
+	callStack        []*vmh.MsgCall  // call stack, typically, call1<-callback1, call2<-callback2,... the whole call graph
+	internalMsgQueue chan vmh.GnoMsg // receive msg from contract
+	ibcMsgQueue      chan string
+	ibcResponseQueue chan string // consume by stdlib
+	ibcM             *IBC
 	// origCaller crypto.Address // caller of an external msg
 }
 
 // NewVMKeeper returns a new VMKeeper.
 func NewVMKeeper(baseKey store.StoreKey, iavlKey store.StoreKey, acck auth.AccountKeeper, bank bank.BankKeeper, stdlibsDir string) *VMKeeper {
 	vmk := &VMKeeper{
-		baseKey:               baseKey,
-		iavlKey:               iavlKey,
-		acck:                  acck,
-		bank:                  bank,
-		stdlibsDir:            stdlibsDir,
-		internalMsgQueue:      make(chan vmh.GnoMsg),
-		internalResponseQueue: make(chan []byte),
-		ibcMsgQueue:           make(chan string),
-		ibcResponseQueue:      make(chan []byte),
+		baseKey:          baseKey,
+		iavlKey:          iavlKey,
+		acck:             acck,
+		bank:             bank,
+		stdlibsDir:       stdlibsDir,
+		internalMsgQueue: make(chan vmh.GnoMsg),
+		ibcMsgQueue:      make(chan string),
+		ibcResponseQueue: make(chan string),
 	}
 	return vmk
 }
@@ -215,7 +214,8 @@ func (vmk *VMKeeper) HandleMsg(wg *sync.WaitGroup) {
 			// send IBC packet, waiting for OnRecv
 			// should every IBC call is identified by a sequence,
 			// using a map to maintain the sequence and a callback msg
-			// vmk.dispatcher.HandleIBCMsgs(vmk.ctx, req)
+			vmk.ibcResponseQueue = response
+			vmk.SendIBCMsg(vmk.ctx, msgCall)
 		}
 	}
 }
@@ -589,4 +589,12 @@ func (vmk *VMKeeper) preprocessMessage(gnoMsg vmh.GnoMsg) (vmh.MsgCall, bool, ch
 	msgCall.Caller = vmk.GetOrigCaller()
 
 	return msgCall, isLocal, gnoMsg.Response, nil
+}
+
+// send IBC packet, only support gnovm type call (MsgCall) for now, gnoVM <-> gnoVM
+func (vmk *VMKeeper) SendIBCMsg(ctx sdk.Context, msg vmh.MsgCall) {
+	// set callback map
+
+	// this simulates a IBC call, using a chan to loop back
+	go vmk.ibcM.SendPacket(msg)
 }

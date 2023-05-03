@@ -32,6 +32,7 @@ func NewIBCModule(v *VMKeeper) *IBC {
 // TODO: here the msgCall should be transcribed to shared types
 // a call should be assgined with a unique sequence number, or use the IBC packet sequence number
 func (i *IBC) SendPacket(msg vmh.MsgCall) {
+	println("send packet")
 	i.sendMsgQueue <- msg
 	println("send packet done")
 }
@@ -43,17 +44,19 @@ func (i *IBC) OnRecvPacket() {
 	// timeout := 3 * time.Second
 	for {
 		select {
-		// case msgCall := <-i.sendMsgQueue:
+		case msgCall := <-i.sendMsgQueue:
+			r, err := i.vmk.Call(i.vmk.ctx, msgCall)
+			if err != nil {
+				panic(err.Error())
+			}
+			println("result :", string(r))
 
-		// r := i.vmk.dispatcher.HandleInternalMsgs(i.vmk.ctx, []vmh.MsgCall{msgCall}, sdk.RunTxModeDeliver)
-		// println("r.Data :", string(r.Data))
+			// ack, handled by OnAck on the counterpart chain
 
-		// ack, handled by OnAck on the counterpart chain
+			i.ackMsgQueue <- &Packet{sequence: 1, data: []byte(r)}
 
-		// i.ackMsgQueue <- &Packet{sequence: 1, data: r.Data}
-
-		// case <-time.After(timeout):
-		// 	panic("Timeout! IBC took too long.")
+			// case <-time.After(timeout):
+			// 	panic("Timeout! IBC took too long.")
 		}
 	}
 }
@@ -66,9 +69,9 @@ func (i *IBC) OnAcknowledgementPacket() {
 	for {
 		select {
 		case ack := <-i.ackMsgQueue:
-			println("ack, sequence, data ", strconv.Itoa(ack.sequence), string(ack.data))
+			println("ack, sequence, data: ", strconv.Itoa(ack.sequence), string(ack.data))
 			// bridge ack to vmKeeper
-			i.vmk.ibcResponseQueue <- ack.data
+			i.vmk.ibcResponseQueue <- string(ack.data)
 		}
 	}
 }

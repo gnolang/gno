@@ -31,22 +31,27 @@ func simuAddPkg() {
 //go:embed simulation_data/msg_call_success.json
 var msgCallSuccessBz []byte
 
-func TestInternalCallSuccess(t *testing.T) {
-	// bootstrap handleMsg routine
-	wg := &sync.WaitGroup{}
-	go simulator.VMKpr.HandleMsg(wg)
-	wg.Wait()
+// func TestInternalCallSuccess(t *testing.T) {
+// 	// bootstrap handleMsg routine
+// 	wg := &sync.WaitGroup{}
+// 	go simulator.VMKpr.HandleMsg(wg)
+// 	wg.Wait()
 
-	res, _ := simulator.simuCall([][]*std.MemFile{}, msgCallSuccessBz)
-	assert.NoError(t, res.Error)
-	time.Sleep(1 * time.Second)
-}
-
-// func TestIBCCallSuccess(t *testing.T) {
-// 	go simulator.VMKpr.ReceiveRoutine()
-// 	go simulator.ibc.OnRecvPacket()
-// 	go simulator.ibc.OnAcknowledgementPacket()
 // 	res, _ := simulator.simuCall([][]*std.MemFile{}, msgCallSuccessBz)
 // 	assert.NoError(t, res.Error)
 // 	time.Sleep(1 * time.Second)
 // }
+
+func TestIBCCallSuccess(t *testing.T) {
+	// bootstrap handleMsg routine
+	wg := &sync.WaitGroup{}
+	go simulator.VMKpr.HandleMsg(wg)
+
+	go simulator.ibc.OnRecvPacket()
+	go simulator.ibc.OnAcknowledgementPacket()
+	res, _ := simulator.simuCall([][]*std.MemFile{}, msgCallSuccessBz)
+
+	wg.Wait()
+	assert.NoError(t, res.Error)
+	time.Sleep(1 * time.Second)
+}
