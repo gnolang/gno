@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -94,4 +95,41 @@ func TestEscapeAnalysisClosure(t *testing.T) {
 	escapedVars := EscapeAnalysis(fn)
 
 	assert.ElementsMatch(t, escapedVars, []string{"a", "b"})
+}
+
+func TestEscapeAnalysisWithGoroutine(t *testing.T) {
+	src := `
+package main
+
+func f() {
+    i := 1
+    go func() {
+        _ = i
+    }()
+}
+`
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, "", src, parser.AllErrors)
+	if err != nil {
+		t.Errorf("Failed to parse source code: %v", err)
+	}
+
+	// Find the function declaration
+	var f *ast.FuncDecl
+	for _, decl := range node.Decls {
+		if fn, ok := decl.(*ast.FuncDecl); ok && fn.Name.Name == "f" {
+			f = fn
+			break
+		}
+	}
+	if f == nil {
+		t.Error("Failed to find function declaration")
+	}
+
+	// Test the function
+	heapVars := EscapeAnalysis(f)
+	expected := []string{"i"}
+	if !reflect.DeepEqual(heapVars, expected) {
+		t.Errorf("Expected heapVars to be %v, but got %v", expected, heapVars)
+	}
 }

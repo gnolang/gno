@@ -17,6 +17,12 @@ func EscapeAnalysis(f *ast.FuncDecl) []string {
 	var heapVars, vars []string
 	ast.Inspect(f.Body, func(n ast.Node) bool {
 		switch x := n.(type) {
+		case *ast.GoStmt:
+			for _, arg := range x.Call.Args {
+				if checkEscaped(getVarName(arg), heapVars) || checkEscaped(getVarName(arg), vars) {
+					heapVars = append(heapVars, getVarName(arg))
+				}
+			}
 		case *ast.Ident:
 			vars = append(vars, x.String())
 		case *ast.FuncLit:
@@ -48,9 +54,11 @@ func EscapeAnalysis(f *ast.FuncDecl) []string {
 				rn := getVarName(expr)
 
 				if isReference(expr) {
-					heapVars = append(heapVars, ln)
+					if ln != "" && ln != "_" {
+						heapVars = append(heapVars, ln)
+					}
 					heapVars = append(heapVars, rn)
-				} else if checkEscaped(rn, heapVars) {
+				} else if checkEscaped(rn, heapVars) && ln != "" && ln != "_" {
 					heapVars = append(heapVars, ln)
 				}
 			}
