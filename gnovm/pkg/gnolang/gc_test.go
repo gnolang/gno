@@ -59,8 +59,9 @@ func TestEscapeAnalysis(t *testing.T) {
 			package p
 			func foo() {
 				a := 5
-				b := &a
-				c := b
+				b := &a // both should escape
+				c := b // should escape
+				e := 5 // should not escape
 			}`, 0)
 	if err != nil {
 		t.Fatal(err)
@@ -70,4 +71,27 @@ func TestEscapeAnalysis(t *testing.T) {
 	escapedVars := EscapeAnalysis(fn)
 
 	assert.ElementsMatch(t, escapedVars, []string{"a", "b", "c"})
+}
+
+func TestEscapeAnalysisClosure(t *testing.T) {
+	f, err := parser.ParseFile(token.NewFileSet(), "",
+		`
+			package p
+			func foo() {
+				a := 5
+				
+				func() {
+					b := a // both should escape
+				}
+
+				e := 5 // should not escape
+			}`, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fn := f.Decls[0].(*ast.FuncDecl)
+	escapedVars := EscapeAnalysis(fn)
+
+	assert.ElementsMatch(t, escapedVars, []string{"a", "b"})
 }

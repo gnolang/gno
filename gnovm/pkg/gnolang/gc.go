@@ -14,10 +14,22 @@ import (
 // the escape analysis are done on function basis to avoid
 // analysing complicated program flows
 func EscapeAnalysis(f *ast.FuncDecl) []string {
-	var heapVars []string
+	var heapVars, vars []string
 	ast.Inspect(f.Body, func(n ast.Node) bool {
 		switch x := n.(type) {
+		case *ast.Ident:
+			vars = append(vars, x.String())
 		case *ast.FuncLit:
+			//todo skip walking the body in the outer scope
+			ast.Inspect(x.Body, func(n ast.Node) bool {
+				if v, ok := n.(*ast.Ident); ok {
+					if checkEscaped(v.String(), heapVars) || checkEscaped(v.String(), vars) {
+						heapVars = append(heapVars, v.String())
+					}
+				}
+				return true
+			})
+
 			for _, v := range x.Type.Params.List {
 				if isReference(v.Type) {
 					heapVars = append(heapVars, v.Names[0].Name)
@@ -31,8 +43,6 @@ func EscapeAnalysis(f *ast.FuncDecl) []string {
 				}
 			}
 		case *ast.AssignStmt:
-			//todo iterate over lhs and rhs and
-			// add to lhs to heap vars if rhs is &T or T that is root
 			for i, expr := range x.Rhs {
 				ln := getVarName(x.Lhs[i])
 				rn := getVarName(expr)
@@ -44,21 +54,6 @@ func EscapeAnalysis(f *ast.FuncDecl) []string {
 					heapVars = append(heapVars, ln)
 				}
 			}
-			//for _, rhsExpr := range x.Rhs {
-			//	if isReference(rhsExpr) {
-			//		for _, lhsExpr := range x.Lhs {
-			//			heapVars = append(heapVars, getVarName(lhsExpr))
-			//			// If the LHS expression is a variable that holds a copy of the value
-			//			// of another variable that references a heap-allocated value,
-			//			// add the original variable to the heapVars slice as well.
-			//			if ident, ok := lhsExpr.(*ast.Ident); ok && ident.Obj != nil && ident.Obj.Kind == ast.Var {
-			//				if isReference(ident.Obj.Decl.(*ast.AssignStmt).Rhs[0]) {
-			//					heapVars = append(heapVars, ident.Name)
-			//				}
-			//			}
-			//		}
-			//	}
-			//}
 		case *ast.ReturnStmt:
 			for _, result := range x.Results {
 				if isReference(result) {
