@@ -4,11 +4,58 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func BenchmarkEscapeAnalysis(b *testing.B) {
+	f, err := parser.ParseFile(token.NewFileSet(), "",
+		`
+		package p
+		func foo() {
+			a := 5
+			b := &a // both should escape
+			c := b // should escape
+			e := 5 // should not escape
+			aa := c
+			bb := aa
+			cc := bb
+			dd := cc
+			ee := dd
+			ff := ee
+			gg := ff
+			hh := gg
+			ii := hh
+			jj := ii
+			kk := jj
+			ll := kk
+			mm := ll
+			nn := mm
+			oo := nn
+			pp := oo
+			qq := pp
+			rr := qq
+			ss := rr
+			tt := ss
+
+		}`, 0)
+	require.NoError(b, err)
+
+	fn := f.Decls[0].(*ast.FuncDecl)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		escapedVars := EscapeAnalysis(fn)
+
+		b.StopTimer()
+		require.Len(b, escapedVars, 23)
+		b.StartTimer()
+	}
+
+}
 
 func TestGC_NotCollectUsedObjects(t *testing.T) {
 	obj3 := &GCObj{path: "obj3"}
@@ -93,9 +140,7 @@ func TestEscapeAnalysis(t *testing.T) {
 				c := b // should escape
 				e := 5 // should not escape
 			}`, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	fn := f.Decls[0].(*ast.FuncDecl)
 	escapedVars := EscapeAnalysis(fn)
@@ -110,15 +155,15 @@ func TestEscapeAnalysisClosure(t *testing.T) {
 			func foo() {
 				a := 5
 				
-				func() {
+				func(c int)  int {
 					b := a // both should escape
+
+					return c
 				}
 
 				e := 5 // should not escape
 			}`, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	fn := f.Decls[0].(*ast.FuncDecl)
 	escapedVars := EscapeAnalysis(fn)
@@ -139,9 +184,7 @@ func f() {
 `
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, "", src, parser.AllErrors)
-	if err != nil {
-		t.Errorf("Failed to parse source code: %v", err)
-	}
+	require.NoError(t, err, "Failed to parse source code")
 
 	// Find the function declaration
 	var f *ast.FuncDecl
@@ -151,14 +194,11 @@ func f() {
 			break
 		}
 	}
-	if f == nil {
-		t.Error("Failed to find function declaration")
-	}
+	require.NotNil(t, f, "failed to find function declaration")
 
 	// Test the function
 	heapVars := EscapeAnalysis(f)
 	expected := []string{"i"}
-	if !reflect.DeepEqual(heapVars, expected) {
-		t.Errorf("Expected heapVars to be %v, but got %v", expected, heapVars)
-	}
+
+	require.Equal(t, heapVars, expected)
 }

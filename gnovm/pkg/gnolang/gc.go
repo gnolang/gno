@@ -19,33 +19,43 @@ func EscapeAnalysis(f *ast.FuncDecl) []string {
 		switch x := n.(type) {
 		case *ast.GoStmt:
 			for _, arg := range x.Call.Args {
-				if checkEscaped(getVarName(arg), heapVars) || checkEscaped(getVarName(arg), vars) {
-					heapVars = append(heapVars, getVarName(arg))
+				if !checkEscaped(getVarName(arg), heapVars) {
+					continue
 				}
+				if !checkEscaped(getVarName(arg), vars) {
+					continue
+				}
+
+				heapVars = append(heapVars, getVarName(arg))
 			}
 		case *ast.Ident:
 			vars = append(vars, x.String())
 		case *ast.FuncLit:
-			//todo skip walking the body in the outer scope
+			// TODO: skip walking the body in the outer scope
 			ast.Inspect(x.Body, func(n ast.Node) bool {
 				if v, ok := n.(*ast.Ident); ok {
 					if checkEscaped(v.String(), heapVars) || checkEscaped(v.String(), vars) {
 						heapVars = append(heapVars, v.String())
 					}
 				}
+
 				return true
 			})
 
 			for _, v := range x.Type.Params.List {
-				if isReference(v.Type) {
-					heapVars = append(heapVars, v.Names[0].Name)
+				if !isReference(v.Type) {
+					continue
 				}
+
+				heapVars = append(heapVars, v.Names[0].Name)
 			}
 			if x.Type.Results != nil {
 				for _, v := range x.Type.Results.List {
-					if isReference(v.Type) {
-						heapVars = append(heapVars, v.Names[0].Name)
+					if !isReference(v.Type) {
+						continue
 					}
+
+					heapVars = append(heapVars, v.Names[0].Name)
 				}
 			}
 		case *ast.AssignStmt:
@@ -64,9 +74,11 @@ func EscapeAnalysis(f *ast.FuncDecl) []string {
 			}
 		case *ast.ReturnStmt:
 			for _, result := range x.Results {
-				if isReference(result) {
-					heapVars = append(heapVars, getVarName(result))
+				if !isReference(result) {
+					continue
 				}
+
+				heapVars = append(heapVars, getVarName(result))
 			}
 		}
 		return true
