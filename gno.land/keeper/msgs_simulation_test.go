@@ -47,8 +47,8 @@ func TestIBCCallSuccess(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	go simulator.VMKpr.HandleMsg(wg)
 
-	go simulator.ibc.OnRecvPacket()
-	go simulator.ibc.OnAcknowledgementPacket()
+	go simulator.ibcChannelKeeper.OnRecvPacket()
+	go simulator.ibcChannelKeeper.OnAcknowledgementPacket()
 	res, _ := simulator.simuCall([][]*std.MemFile{}, msgCallSuccessBz)
 
 	wg.Wait()

@@ -5,9 +5,9 @@ import "std"
 func Greet(msg string) string {
 
 	chainID := std.GetChainID()
-	call := std.EncodeMsgCall(chainID, "gno.land/r/demo/hola", "Sing", []string{"song"})
+	call := std.EncodeMsgCall(chainID, "gno.land/r/demo/hola", "Hola", []string{"hola"})
 
-	r, err := std.Send(call)
+	r, err := std.Await(call)
 	println("done ")
 	println("r is :", r)
 	println("errMsg is: ", err)

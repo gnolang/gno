@@ -70,13 +70,13 @@ var flags struct {
 }
 
 type Simulator struct {
-	mockApp *sdk.MockApp
-	baseApp *sdk.BaseApp
-	VMKpr   vmi.VMKeeperI
-	AccK    auth.AccountKeeper
-	BanK    bank.BankKeeper
-	ibc     *IBC
-	Ctx     sdk.Context
+	mockApp          *sdk.MockApp
+	baseApp          *sdk.BaseApp
+	VMKpr            vmi.VMKeeperI
+	AccK             auth.AccountKeeper
+	BanK             bank.BankKeeper
+	ibcChannelKeeper *IBCChannelKeeper
+	Ctx              sdk.Context
 }
 
 type GnoAccount struct {
@@ -168,8 +168,8 @@ func NewSimulator(skipFailingGenesisTxs bool, stdLibPath string) (*Simulator, er
 	// vmKpr := NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, "./stdlibs")
 	vmKpr := NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, stdLibPath)
 
-	ibc := NewIBCModule(vmKpr)
-	vmKpr.ibcM = ibc
+	ibcChannelKeeper := NewIBCChannelKeeper(vmKpr)
+	vmKpr.IBCChannelKeeper = ibcChannelKeeper
 
 	// dispatcher := NewDispatcher(logger)
 	// dispatcher.Router().AddRoute("vm", vmi.NewHandler(vmKpr))
@@ -194,7 +194,7 @@ func NewSimulator(skipFailingGenesisTxs bool, stdLibPath string) (*Simulator, er
 	s.VMKpr = vmKpr
 	s.AccK = acctKpr
 	s.BanK = bankKpr
-	s.ibc = ibc
+	s.ibcChannelKeeper = ibcChannelKeeper
 	// from test machine
 	s.Ctx = testCtx((s.mockApp).GetCacheMultiStore())
 

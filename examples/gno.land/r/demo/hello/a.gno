@@ -7,7 +7,7 @@ func SayHello() string {
 	chainID := "remote"
 	call := std.EncodeMsgCall(chainID, "gno.land/r/demo/greet", "Greet", []string{"hey"})
 
-	r, err := std.Send(call)
+	r, err := std.Await(call)
 	println("done ")
 	println("r is :", r)
 	println("errMsg is: ", err)

@@ -176,23 +176,8 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				m.PushValue(res0)
 			},
 		)
-		// TODO: IBC handshake process
-		// this is called mannuly, maybe should have some modifier for the contract,like `IBC`,
-		// so the IBC channel is initialized during deploying, and can be used more efficiently
 
-		// pn.DefineNative("OpenIBC",
-		// 	gno.Flds( // params
-		// 		"", "string",
-		// 	),
-		// 	gno.Flds( // results
-		// 		"", "string",
-		// 	),
-		// 	func(m *gno.Machine) {
-		// 		// TODO: the handshake logic
-		// 	},
-		// )
-
-		pn.DefineNative("Send",
+		pn.DefineNative("Await",
 			gno.Flds( // params
 				"call", "string",
 			),
@@ -201,10 +186,10 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				"err", "string",
 			),
 			func(m *gno.Machine) {
-				println("std.Send")
+				// println("std.Send")
 				arg0 := m.LastBlock().GetParams1()
 				call := arg0.TV.GetString()
-				println("call: ", call)
+				// println("call: ", call)
 
 				gnoMsg, err := vmh.DecodeMsg(call)
 				if err != nil {

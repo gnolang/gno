@@ -1,6 +1,6 @@
 package hola
 
-func Sing(msg string) string {
+func Hola(msg string) string {
 	return "hola from c"
 }
 

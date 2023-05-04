@@ -35,13 +35,12 @@ type VMKeeper struct {
 
 	// cached, the DeliverTx persistent state.
 	gnoStore         gno.Store
-	ctx              sdk.Context
+	ctx              sdk.Context     // share in a chained call
 	callStack        []*vmh.MsgCall  // call stack, typically, call1<-callback1, call2<-callback2,... the whole call graph
 	internalMsgQueue chan vmh.GnoMsg // receive msg from contract
 	ibcMsgQueue      chan string
-	ibcResponseQueue chan string // consume by stdlib
-	ibcM             *IBC
-	// origCaller crypto.Address // caller of an external msg
+	ibcResponseQueue chan string
+	IBCChannelKeeper *IBCChannelKeeper // mock
 }
 
 // NewVMKeeper returns a new VMKeeper.
@@ -63,10 +62,6 @@ func (vmk *VMKeeper) SubmitTxFee(ctx sdk.Context, fromAddr crypto.Address, toAdd
 	err := vmk.bank.SendCoins(ctx, fromAddr, toAddr, amt)
 	return err
 }
-
-// func (vmk *VMKeeper) SetDispatcher(d *Dispatcher) {
-// 	vmk.dispatcher = d
-// }
 
 func (vmk *VMKeeper) PushCall(call *vmh.MsgCall) {
 	vmk.callStack = append(vmk.callStack, call)
@@ -166,24 +161,13 @@ func (vmk *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 // input
 func (vmk *VMKeeper) DispatchInternalMsg(msg vmh.GnoMsg) {
 	vmk.internalMsgQueue <- msg
-	println("msg dispatched")
+	// println("msg dispatched")
 }
-
-// output
-// func (vmk *VMKeeper) GetInternalResult(d time.Duration) ([]byte, error) {
-// 	select {
-// 	case r := <-vmk.internalResponseQueue:
-// 		println("get result, r: ", string(r))
-// 		return r, nil
-// 	case <-time.After(d):
-// 		return nil, errors.New("time out")
-// 	}
-// }
 
 // initially called somewhere, call? which act like a main routine
 func (vmk *VMKeeper) HandleMsg(wg *sync.WaitGroup) {
 	defer wg.Done()
-	println("------HandleMsg routine spawned ------")
+	println("------HandleMsg, routine spawned ------")
 	select {
 	case msg := <-vmk.internalMsgQueue:
 		println("-----receive msg, wg add, and spawn new routine------")
@@ -196,24 +180,19 @@ func (vmk *VMKeeper) HandleMsg(wg *sync.WaitGroup) {
 			panic(err.Error())
 		}
 		// do the call
-		// same chain call to another contract in VM
 		if isLocal {
 			println("in VM call")
 			println("msgCall: ", msgCall.Caller.String(), msgCall.PkgPath, msgCall.Func, msgCall.Args[0])
 
-			// every execution happens in here, routine will be blocked an callback
-			// r := vmk.dispatcher.RunMsg(vmk.ctx, []vmh.MsgCall{msgCall}, sdk.RunTxModeDeliver)
 			r, err := vmk.Call(vmk.ctx, msgCall)
 			println("call finished, res: ", r)
 			// have an return
 			if err == nil {
 				response <- r
 			}
-		} else { // IBC calll
+		} else { // IBC call
 			println("IBC call")
 			// send IBC packet, waiting for OnRecv
-			// should every IBC call is identified by a sequence,
-			// using a map to maintain the sequence and a callback msg
 			vmk.ibcResponseQueue = response
 			vmk.SendIBCMsg(vmk.ctx, msgCall)
 		}
@@ -286,7 +265,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg vmh.MsgAddPackage) error {
 
 // Calls calls a public Gno function (for delivertx).
 func (vm *VMKeeper) Call(ctx sdk.Context, msg vmh.MsgCall) (res string, err error) {
-	println("vmk call, msg.Caller: ", msg.Caller.String())
+	// println("vmk call, msg.Caller: ", msg.Caller.String())
 	vm.ctx = ctx
 	vm.PushCall(&msg)
 
@@ -594,7 +573,6 @@ func (vmk *VMKeeper) preprocessMessage(gnoMsg vmh.GnoMsg) (vmh.MsgCall, bool, ch
 // send IBC packet, only support gnovm type call (MsgCall) for now, gnoVM <-> gnoVM
 func (vmk *VMKeeper) SendIBCMsg(ctx sdk.Context, msg vmh.MsgCall) {
 	// set callback map
-
 	// this simulates a IBC call, using a chan to loop back
-	go vmk.ibcM.SendPacket(msg)
+	go vmk.IBCChannelKeeper.SendPacket(msg)
 }
