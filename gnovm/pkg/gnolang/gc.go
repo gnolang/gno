@@ -28,6 +28,16 @@ func EscapeAnalysis(f *ast.FuncDecl) []string {
 
 				heapVars = append(heapVars, getVarName(arg))
 			}
+		case *ast.CallExpr:
+			for _, arg := range x.Args {
+				if !checkEscaped(getVarName(arg), heapVars) &&
+					!checkEscaped(getVarName(arg), vars) &&
+					!isReference(arg) {
+					continue
+				}
+
+				heapVars = append(heapVars, getVarName(arg))
+			}
 		case *ast.Ident:
 			vars = append(vars, x.String())
 		case *ast.FuncLit:

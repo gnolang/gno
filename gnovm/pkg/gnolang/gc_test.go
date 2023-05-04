@@ -180,6 +180,8 @@ func f() {
     go func() {
         _ = i
     }()
+	b := 4
+	foo(&b)
 }
 `
 	fset := token.NewFileSet()
@@ -198,7 +200,7 @@ func f() {
 
 	// Test the function
 	heapVars := EscapeAnalysis(f)
-	expected := []string{"i"}
+	expected := []string{"i", "b"}
 
-	require.Equal(t, heapVars, expected)
+	require.Equal(t, expected, heapVars)
 }
