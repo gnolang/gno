@@ -171,6 +171,19 @@ var escapeTests = []escapeTest{
 		expectedVars: []string{"a", "b"},
 	},
 	{
+		testName: "special built-in types",
+		code: `
+		package p
+		func foo() {
+			func(a, d string, b map[string]bool, c []string, e int) {
+			}
+		}`,
+		declaration: func(f *ast.File) *ast.FuncDecl {
+			return f.Decls[0].(*ast.FuncDecl)
+		},
+		expectedVars: []string{"a", "b", "c", "d"},
+	},
+	{
 		testName: "goroutines",
 		code: `
 		package main

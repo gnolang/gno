@@ -90,10 +90,35 @@ func EscapeAnalysis(f *ast.FuncDecl) []string {
 
 				heapVars = append(heapVars, getVarName(result))
 			}
+		case *ast.FieldList:
+			for _, f := range x.List {
+				if !isSpecialType(f.Type) {
+					continue
+				}
+
+				for _, m := range f.Names {
+					heapVars = append(heapVars, m.Name)
+				}
+			}
 		}
 		return true
 	})
 	return heapVars
+}
+
+func isSpecialType(expr ast.Expr) bool {
+	switch ex := expr.(type) {
+	case *ast.ArrayType:
+		return true
+	case *ast.MapType:
+		return true
+	case *ast.Ident:
+		if ex.Name == "string" {
+			return true
+		}
+	}
+
+	return false
 }
 
 func isReference(expr ast.Expr) bool {
