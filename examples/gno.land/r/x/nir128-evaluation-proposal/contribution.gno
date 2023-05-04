@@ -5,16 +5,15 @@ import "std"
 type Contribution struct {
 	id          int
 	contributor std.Address
-	points      Points
 	status      string           // approved, proposed, negotiation, discussion, evaluation, etc.
 	criteria    map[string]int32 // {"simplicity": 10pt, "usefullnes": 20pt, "quality": 50pt}
 }
 
-func NewContribution(id int, contributor std.Address, points Points) *Contribution {
+func NewContribution(id int, contributor std.Address, criteria map[string]int32) *Contribution {
 	c := &Contribution{
 		id:          id,
 		contributor: contributor,
-		points:      points,
+		criteria:    criteria,
 		status:      "Proposed",
 	}
 	return c
@@ -28,7 +27,7 @@ func (c Contribution) Status() string {
 	return c.status
 }
 
-func (c Contribution) UpdateStatus(status string) {
+func (c *Contribution) UpdateStatus(status string) {
 	c.status = status
 }
 
