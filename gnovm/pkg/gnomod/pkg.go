@@ -34,49 +34,49 @@ func SortPkgs(pkgs []pkg) error {
 	onStack := make(map[string]bool)
 	sortedPkgs := make([]pkg, 0, len(pkgs))
 
-	var visit func(pkg pkg) error
-	visit = func(pkg pkg) error {
-		if onStack[pkg.name] {
-			return fmt.Errorf("cycle detected: %s", pkg.name)
-		}
-		if visited[pkg.name] {
-			return nil
-		}
-
-		visited[pkg.name] = true
-		onStack[pkg.name] = true
-
-		// Visit package's dependencies
-		for _, req := range pkg.requires {
-			found := false
-			for _, p := range pkgs {
-				if p.name != req {
-					continue
-				}
-				if err := visit(p); err != nil {
-					return err
-				}
-				found = true
-				break
-			}
-			if !found {
-				return fmt.Errorf("missing dependency '%s' for package '%s'", req, pkg.name)
-			}
-		}
-
-		onStack[pkg.name] = false
-		sortedPkgs = append(sortedPkgs, pkg)
-		return nil
-	}
-
 	// Visit all packages
 	for _, p := range pkgs {
-		if err := visit(p); err != nil {
+		if err := visitPackage(p, pkgs, visited, onStack, &sortedPkgs); err != nil {
 			return err
 		}
 	}
 
 	copy(pkgs, sortedPkgs)
+	return nil
+}
+
+// visitNode visits a package's and its dependencies dependencies and adds them to the sorted list.
+func visitPackage(pkg pkg, pkgs []pkg, visited, onStack map[string]bool, sortedPkgs *[]pkg) error {
+	if onStack[pkg.name] {
+		return fmt.Errorf("cycle detected: %s", pkg.name)
+	}
+	if visited[pkg.name] {
+		return nil
+	}
+
+	visited[pkg.name] = true
+	onStack[pkg.name] = true
+
+	// Visit package's dependencies
+	for _, req := range pkg.requires {
+		found := false
+		for _, p := range pkgs {
+			if p.name != req {
+				continue
+			}
+			if err := visitPackage(p, pkgs, visited, onStack, sortedPkgs); err != nil {
+				return err
+			}
+			found = true
+			break
+		}
+		if !found {
+			return fmt.Errorf("missing dependency '%s' for package '%s'", req, pkg.name)
+		}
+	}
+
+	onStack[pkg.name] = false
+	*sortedPkgs = append(*sortedPkgs, pkg)
 	return nil
 }
 
