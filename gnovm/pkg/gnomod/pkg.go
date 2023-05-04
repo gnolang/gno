@@ -83,6 +83,7 @@ func visitPackage(pkg pkg, pkgs []pkg, visited, onStack map[string]bool, sortedP
 // ListPkgs lists all gno packages in the given root directory.
 func ListPkgs(root string) ([]pkg, error) {
 	var pkgs []pkg
+	draft := make(map[string]bool)
 
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -108,6 +109,18 @@ func ListPkgs(root string) ([]pkg, error) {
 		if err := gnoMod.Validate(); err != nil {
 			return fmt.Errorf("validate: %w", err)
 		}
+
+		// Ignore if draft or depends on draft
+		if gnoMod.Draft {
+			draft[gnoMod.Module.Mod.Path] = true
+			return fs.SkipDir
+		}
+		for _, req := range gnoMod.Require {
+			if draft[req.Mod.Path] {
+				return fs.SkipDir
+			}
+		}
+
 		pkgs = append(pkgs, pkg{
 			name: gnoMod.Module.Mod.Path,
 			path: path,
