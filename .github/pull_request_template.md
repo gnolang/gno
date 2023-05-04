@@ -1,10 +1,18 @@
-<!--- Provide a general summary of your changes in the Title above -->
-<!--- If you need to use a more detailed template, append the query param template=detailed_pr_template.md to the URL -->
+<!--- Please provide a brief summary of your changes in the Title above -->
 
 # Description
 
-Please provide a detailed description of what was done in this PR
+Please provide a detailed description of the changes made in this pull request.
 
-# How has this been tested?
+# Contributors Checklist
 
-Please complete this section if you ran tests for this functionality, otherwise delete it
+- [ ] Added new tests
+- [ ] Provided an example (e.g. screenshot) to aid review or the PR is self-explanatory
+- [ ] Updated the official documentation if required
+- [ ] No breaking changes were made, or a `BREAKING-CHANGE: xxx` message was included in the description
+
+# Maintainers Checklist
+
+- [ ] Checked that the author followed the guidelines in `CONTRIBUTING.md`
+- [ ] Checked the conventional-commit (especially PR title and verb, presence of `BREAKING CHANGE:` in the body)
+- [ ] Ensured that this PR is not a significant change or confirmed that the review/consideration process was appropriate for the change
