@@ -37,6 +37,13 @@ func f() {
 	foo(&b)
 }
 
+func ff() {
+    i := 1
+	b := 4
+	c := 5
+	foo(&b)
+}
+
 func main() {
 	f()
 }
@@ -53,6 +60,14 @@ func main() {
 			c := fn.Body[3].(*AssignStmt).Lhs[0].(*NameExpr)
 
 			assert.True(t, i.IsRoot)
+			assert.True(t, b.IsRoot)
+			assert.False(t, c.IsRoot)
+		} else if fn.Name == "ff" {
+			i := fn.Body[0].(*AssignStmt).Lhs[0].(*NameExpr)
+			b := fn.Body[1].(*AssignStmt).Lhs[0].(*NameExpr)
+			c := fn.Body[2].(*AssignStmt).Lhs[0].(*NameExpr)
+
+			assert.False(t, i.IsRoot)
 			assert.True(t, b.IsRoot)
 			assert.False(t, c.IsRoot)
 		}
