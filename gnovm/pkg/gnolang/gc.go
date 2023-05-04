@@ -53,12 +53,13 @@ func EscapeAnalysis(f *ast.FuncDecl) []string {
 			})
 
 			for _, v := range x.Type.Params.List {
-				if !isReference(v.Type) {
-					continue
+				if isReference(v.Type) || isSpecialType(v.Type) {
+					for _, m := range v.Names {
+						heapVars = append(heapVars, m.Name)
+					}
 				}
-
-				heapVars = append(heapVars, v.Names[0].Name)
 			}
+
 			if x.Type.Results != nil {
 				for _, v := range x.Type.Results.List {
 					if !isReference(v.Type) {
@@ -89,16 +90,6 @@ func EscapeAnalysis(f *ast.FuncDecl) []string {
 				}
 
 				heapVars = append(heapVars, getVarName(result))
-			}
-		case *ast.FieldList:
-			for _, f := range x.List {
-				if !isSpecialType(f.Type) {
-					continue
-				}
-
-				for _, m := range f.Names {
-					heapVars = append(heapVars, m.Name)
-				}
 			}
 		}
 		return true
