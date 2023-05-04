@@ -145,11 +145,11 @@ func Go2Gno(escapedlist []string, fs *token.FileSet, gon ast.Node) (n Node) {
 	}
 	switch gon := gon.(type) {
 	case *ast.ParenExpr:
-		return toExpr(fs, gon.X)
+		return toExpr(escapedlist, fs, gon.X)
 	case *ast.Ident:
 		nx := Nx(toName(gon))
 		if escapedlist != nil {
-			if checkEscaped(gon.String(), escapedlist) {
+			if checkEscaped(string(nx.Name), escapedlist) {
 				nx.IsRoot = true
 			}
 		}
@@ -164,50 +164,50 @@ func Go2Gno(escapedlist []string, fs *token.FileSet, gon ast.Node) (n Node) {
 		}
 	case *ast.BinaryExpr:
 		return &BinaryExpr{
-			Left:  toExpr(fs, gon.X),
+			Left:  toExpr(escapedlist, fs, gon.X),
 			Op:    toWord(gon.Op),
-			Right: toExpr(fs, gon.Y),
+			Right: toExpr(escapedlist, fs, gon.Y),
 		}
 	case *ast.CallExpr:
 		return &CallExpr{
-			Func: toExpr(fs, gon.Fun),
-			Args: toExprs(fs, gon.Args),
+			Func: toExpr(escapedlist, fs, gon.Fun),
+			Args: toExprs(escapedlist, fs, gon.Args),
 			Varg: gon.Ellipsis.IsValid(),
 		}
 	case *ast.IndexExpr:
 		return &IndexExpr{
-			X:     toExpr(fs, gon.X),
-			Index: toExpr(fs, gon.Index),
+			X:     toExpr(escapedlist, fs, gon.X),
+			Index: toExpr(escapedlist, fs, gon.Index),
 		}
 	case *ast.SelectorExpr:
 		return &SelectorExpr{
-			X:   toExpr(fs, gon.X),
+			X:   toExpr(escapedlist, fs, gon.X),
 			Sel: toName(gon.Sel),
 		}
 	case *ast.SliceExpr:
 		return &SliceExpr{
-			X:    toExpr(fs, gon.X),
-			Low:  toExpr(fs, gon.Low),
-			High: toExpr(fs, gon.High),
-			Max:  toExpr(fs, gon.Max),
+			X:    toExpr(escapedlist, fs, gon.X),
+			Low:  toExpr(escapedlist, fs, gon.Low),
+			High: toExpr(escapedlist, fs, gon.High),
+			Max:  toExpr(escapedlist, fs, gon.Max),
 		}
 	case *ast.StarExpr:
 		return &StarExpr{
-			X: toExpr(fs, gon.X),
+			X: toExpr(escapedlist, fs, gon.X),
 		}
 	case *ast.TypeAssertExpr:
 		return &TypeAssertExpr{
-			X:    toExpr(fs, gon.X),
-			Type: toExpr(fs, gon.Type),
+			X:    toExpr(escapedlist, fs, gon.X),
+			Type: toExpr(escapedlist, fs, gon.Type),
 		}
 	case *ast.UnaryExpr:
 		if gon.Op == token.AND {
 			return &RefExpr{
-				X: toExpr(fs, gon.X),
+				X: toExpr(escapedlist, fs, gon.X),
 			}
 		} else {
 			return &UnaryExpr{
-				X:  toExpr(fs, gon.X),
+				X:  toExpr(escapedlist, fs, gon.X),
 				Op: toWord(gon.Op),
 			}
 		}
@@ -215,13 +215,13 @@ func Go2Gno(escapedlist []string, fs *token.FileSet, gon ast.Node) (n Node) {
 		// If ArrayType with ellipsis for length,
 		// just figure out the length here.
 		return &CompositeLitExpr{
-			Type: toExpr(fs, gon.Type),
+			Type: toExpr(escapedlist, fs, gon.Type),
 			Elts: toKeyValueExprs(fs, gon.Elts),
 		}
 	case *ast.KeyValueExpr:
 		return &KeyValueExpr{
-			Key:   toExpr(fs, gon.Key),
-			Value: toExpr(fs, gon.Value),
+			Key:   toExpr(escapedlist, fs, gon.Key),
+			Value: toExpr(escapedlist, fs, gon.Value),
 		}
 	case *ast.FuncLit:
 		type_ := Go2Gno(escapedlist, fs, gon.Type).(*FuncTypeExpr)
@@ -233,14 +233,14 @@ func Go2Gno(escapedlist []string, fs *token.FileSet, gon ast.Node) (n Node) {
 		if len(gon.Names) == 0 {
 			return &FieldTypeExpr{
 				Name: "",
-				Type: toExpr(fs, gon.Type),
-				Tag:  toExpr(fs, gon.Tag),
+				Type: toExpr(escapedlist, fs, gon.Type),
+				Tag:  toExpr(escapedlist, fs, gon.Tag),
 			}
 		} else if len(gon.Names) == 1 {
 			return &FieldTypeExpr{
 				Name: toName(gon.Names[0]),
-				Type: toExpr(fs, gon.Type),
-				Tag:  toExpr(fs, gon.Tag),
+				Type: toExpr(escapedlist, fs, gon.Type),
+				Tag:  toExpr(escapedlist, fs, gon.Tag),
 			}
 		} else {
 			panic(fmt.Sprintf(
@@ -252,22 +252,22 @@ func Go2Gno(escapedlist []string, fs *token.FileSet, gon ast.Node) (n Node) {
 		if _, ok := gon.Len.(*ast.Ellipsis); ok {
 			return &ArrayTypeExpr{
 				Len: nil,
-				Elt: toExpr(fs, gon.Elt),
+				Elt: toExpr(escapedlist, fs, gon.Elt),
 			}
 		} else if gon.Len == nil {
 			return &SliceTypeExpr{
-				Elt: toExpr(fs, gon.Elt),
+				Elt: toExpr(escapedlist, fs, gon.Elt),
 				Vrd: false,
 			}
 		} else {
 			return &ArrayTypeExpr{
-				Len: toExpr(fs, gon.Len),
-				Elt: toExpr(fs, gon.Elt),
+				Len: toExpr(escapedlist, fs, gon.Len),
+				Elt: toExpr(escapedlist, fs, gon.Elt),
 			}
 		}
 	case *ast.Ellipsis:
 		return &SliceTypeExpr{
-			Elt: toExpr(fs, gon.Elt),
+			Elt: toExpr(escapedlist, fs, gon.Elt),
 			Vrd: true,
 		}
 	case *ast.InterfaceType:
@@ -284,7 +284,7 @@ func Go2Gno(escapedlist []string, fs *token.FileSet, gon ast.Node) (n Node) {
 		}
 		return &ChanTypeExpr{
 			Dir:   dir,
-			Value: toExpr(fs, gon.Value),
+			Value: toExpr(escapedlist, fs, gon.Value),
 		}
 	case *ast.FuncType:
 		return &FuncTypeExpr{
@@ -293,8 +293,8 @@ func Go2Gno(escapedlist []string, fs *token.FileSet, gon ast.Node) (n Node) {
 		}
 	case *ast.MapType:
 		return &MapTypeExpr{
-			Key:   toExpr(fs, gon.Key),
-			Value: toExpr(fs, gon.Value),
+			Key:   toExpr(escapedlist, fs, gon.Key),
+			Value: toExpr(escapedlist, fs, gon.Value),
 		}
 	case *ast.StructType:
 		return &StructTypeExpr{
@@ -302,13 +302,13 @@ func Go2Gno(escapedlist []string, fs *token.FileSet, gon ast.Node) (n Node) {
 		}
 	case *ast.AssignStmt:
 		return &AssignStmt{
-			Lhs: toExprs(fs, gon.Lhs),
+			Lhs: toExprs(escapedlist, fs, gon.Lhs),
 			Op:  toWord(gon.Tok),
-			Rhs: toExprs(fs, gon.Rhs),
+			Rhs: toExprs(escapedlist, fs, gon.Rhs),
 		}
 	case *ast.BlockStmt:
 		return &BlockStmt{
-			Body: toStmts(fs, gon.List),
+			Body: toStmts(escapedlist, fs, gon.List),
 		}
 	case *ast.BranchStmt:
 		return &BranchStmt{
@@ -320,7 +320,7 @@ func Go2Gno(escapedlist []string, fs *token.FileSet, gon ast.Node) (n Node) {
 			Body: toSimpleDeclStmts(fs, gon.Decl.(*ast.GenDecl)),
 		}
 	case *ast.DeferStmt:
-		cx := toExpr(fs, gon.Call).(*CallExpr)
+		cx := toExpr(escapedlist, fs, gon.Call).(*CallExpr)
 		return &DeferStmt{
 			Call: *cx,
 		}
@@ -331,23 +331,23 @@ func Go2Gno(escapedlist []string, fs *token.FileSet, gon ast.Node) (n Node) {
 					panic("expected panic statement to have single exception value")
 				}
 				return &PanicStmt{
-					Exception: toExpr(fs, cx.Args[0]),
+					Exception: toExpr(escapedlist, fs, cx.Args[0]),
 				}
 			}
 		}
 		return &ExprStmt{
-			X: toExpr(fs, gon.X),
+			X: toExpr(escapedlist, fs, gon.X),
 		}
 	case *ast.ForStmt:
 		return &ForStmt{
 			Init: toSimp(fs, gon.Init),
-			Cond: toExpr(fs, gon.Cond),
+			Cond: toExpr(escapedlist, fs, gon.Cond),
 			Post: toSimp(fs, gon.Post),
-			Body: toStmts(fs, gon.Body.List),
+			Body: toStmts(nil, fs, gon.Body.List),
 		}
 	case *ast.IfStmt:
 		thenStmt := IfCaseStmt{
-			Body: toStmts(fs, gon.Body.List),
+			Body: toStmts(nil, fs, gon.Body.List),
 		}
 		setLoc(fs, gon.Body.Pos(), &thenStmt)
 		ess := []Stmt(nil)
@@ -355,7 +355,7 @@ func Go2Gno(escapedlist []string, fs *token.FileSet, gon ast.Node) (n Node) {
 			if _, ok := gon.Else.(*ast.BlockStmt); ok {
 				ess = Go2Gno(escapedlist, fs, gon.Else).(*BlockStmt).Body
 			} else {
-				ess = []Stmt{toStmt(fs, gon.Else)}
+				ess = []Stmt{toStmt(nil, fs, gon.Else)}
 			}
 		}
 		elseStmt := IfCaseStmt{
@@ -366,45 +366,45 @@ func Go2Gno(escapedlist []string, fs *token.FileSet, gon ast.Node) (n Node) {
 		}
 		return &IfStmt{
 			Init: toSimp(fs, gon.Init),
-			Cond: toExpr(fs, gon.Cond),
+			Cond: toExpr(escapedlist, fs, gon.Cond),
 			Then: thenStmt,
 			Else: elseStmt,
 		}
 	case *ast.IncDecStmt:
 		return &IncDecStmt{
-			X:  toExpr(fs, gon.X),
+			X:  toExpr(escapedlist, fs, gon.X),
 			Op: toWord(gon.Tok),
 		}
 	case *ast.LabeledStmt:
-		stmt := toStmt(fs, gon.Stmt)
+		stmt := toStmt(nil, fs, gon.Stmt)
 		stmt.SetLabel(toName(gon.Label))
 		return stmt
 	case *ast.RangeStmt:
 		return &RangeStmt{
-			X:     toExpr(fs, gon.X),
-			Key:   toExpr(fs, gon.Key),
-			Value: toExpr(fs, gon.Value),
+			X:     toExpr(escapedlist, fs, gon.X),
+			Key:   toExpr(escapedlist, fs, gon.Key),
+			Value: toExpr(escapedlist, fs, gon.Value),
 			Op:    toWord(gon.Tok),
 			Body:  toBody(fs, gon.Body),
 		}
 	case *ast.ReturnStmt:
 		return &ReturnStmt{
-			Results: toExprs(fs, gon.Results),
+			Results: toExprs(escapedlist, fs, gon.Results),
 		}
 	case *ast.TypeSwitchStmt:
 		switch as := gon.Assign.(type) {
 		case *ast.AssignStmt:
 			return &SwitchStmt{
-				Init:         toStmt(fs, gon.Init),
-				X:            toExpr(fs, as.Rhs[0].(*ast.TypeAssertExpr).X),
+				Init:         toStmt(nil, fs, gon.Init),
+				X:            toExpr(escapedlist, fs, as.Rhs[0].(*ast.TypeAssertExpr).X),
 				IsTypeSwitch: true,
 				Clauses:      toClauses(fs, gon.Body.List),
 				VarName:      toName(as.Lhs[0].(*ast.Ident)),
 			}
 		case *ast.ExprStmt:
 			return &SwitchStmt{
-				Init:         toStmt(fs, gon.Init),
-				X:            toExpr(fs, as.X.(*ast.TypeAssertExpr).X),
+				Init:         toStmt(nil, fs, gon.Init),
+				X:            toExpr(escapedlist, fs, as.X.(*ast.TypeAssertExpr).X),
 				IsTypeSwitch: true,
 				Clauses:      toClauses(fs, gon.Body.List),
 				VarName:      "",
@@ -415,13 +415,13 @@ func Go2Gno(escapedlist []string, fs *token.FileSet, gon ast.Node) (n Node) {
 				reflect.TypeOf(gon.Assign).String()))
 		}
 	case *ast.SwitchStmt:
-		x := toExpr(fs, gon.Tag)
+		x := toExpr(escapedlist, fs, gon.Tag)
 		if x == nil {
 			// if tag is nil, default to "true"
 			x = Nx(Name("true"))
 		}
 		return &SwitchStmt{
-			Init:         toStmt(fs, gon.Init),
+			Init:         toStmt(nil, fs, gon.Init),
 			X:            x,
 			IsTypeSwitch: false,
 			Clauses:      toClauses(fs, gon.Body.List),
@@ -552,9 +552,9 @@ func toWord(tok token.Token) Word {
 	return token2word[tok]
 }
 
-func toExpr(fs *token.FileSet, gox ast.Expr) Expr {
+func toExpr(escapedList []string, fs *token.FileSet, gox ast.Expr) Expr {
 	// TODO: could the language handle this?
-	gnox := Go2Gno(nil, fs, gox)
+	gnox := Go2Gno(escapedList, fs, gox)
 	if gnox == nil {
 		return nil
 	} else {
@@ -562,19 +562,19 @@ func toExpr(fs *token.FileSet, gox ast.Expr) Expr {
 	}
 }
 
-func toExprs(fs *token.FileSet, goxs []ast.Expr) (gnoxs Exprs) {
+func toExprs(escapedList []string, fs *token.FileSet, goxs []ast.Expr) (gnoxs Exprs) {
 	if len(goxs) == 0 {
 		return nil
 	}
 	gnoxs = make([]Expr, len(goxs))
 	for i, x := range goxs {
-		gnoxs[i] = toExpr(fs, x)
+		gnoxs[i] = toExpr(escapedList, fs, x)
 	}
 	return
 }
 
-func toStmt(fs *token.FileSet, gos ast.Stmt) Stmt {
-	gnos := Go2Gno(nil, fs, gos)
+func toStmt(escapedlist []string, fs *token.FileSet, gos ast.Stmt) Stmt {
+	gnos := Go2Gno(escapedlist, fs, gos)
 	if gnos == nil {
 		return nil
 	} else {
@@ -582,10 +582,10 @@ func toStmt(fs *token.FileSet, gos ast.Stmt) Stmt {
 	}
 }
 
-func toStmts(fs *token.FileSet, goss []ast.Stmt) (gnoss Body) {
+func toStmts(escapedlist []string, fs *token.FileSet, goss []ast.Stmt) (gnoss Body) {
 	gnoss = make([]Stmt, len(goss))
 	for i, x := range goss {
-		gnoss[i] = toStmt(fs, x)
+		gnoss[i] = toStmt(escapedlist, fs, x)
 	}
 	return
 }
@@ -594,7 +594,7 @@ func toBody(fs *token.FileSet, body *ast.BlockStmt) Body {
 	if body == nil {
 		return nil
 	}
-	return toStmts(fs, body.List)
+	return toStmts(nil, fs, body.List)
 }
 
 func toSimp(fs *token.FileSet, gos ast.Stmt) Stmt {
@@ -630,7 +630,7 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 		switch s := s.(type) {
 		case *ast.TypeSpec:
 			name := toName(s.Name)
-			tipe := toExpr(fs, s.Type)
+			tipe := toExpr(nil, fs, s.Type)
 			alias := s.Assign != 0
 			ds = append(ds, &TypeDecl{
 				NameExpr: NameExpr{Name: name},
@@ -648,13 +648,13 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 				if s.Type == nil {
 					tipe = lastType
 				} else {
-					tipe = toExpr(fs, s.Type)
+					tipe = toExpr(nil, fs, s.Type)
 					lastType = tipe
 				}
 				if s.Values == nil {
 					values = copyExprs(lastValues)
 				} else {
-					values = toExprs(fs, s.Values)
+					values = toExprs(nil, fs, s.Values)
 					lastValues = values
 				}
 				cd := &ValueDecl{
@@ -672,9 +672,9 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 				for _, id := range s.Names {
 					names = append(names, *Nx(toName(id)))
 				}
-				tipe = toExpr(fs, s.Type)
+				tipe = toExpr(nil, fs, s.Type)
 				if s.Values != nil {
-					values = toExprs(fs, s.Values)
+					values = toExprs(nil, fs, s.Values)
 				}
 				vd := &ValueDecl{
 					NameExprs: names,
@@ -730,16 +730,16 @@ func toFields(fs *token.FileSet, fields ...*ast.Field) (ftxs []FieldTypeExpr) {
 			// a single unnamed field w/ type
 			ftxs = append(ftxs, FieldTypeExpr{
 				Name: "",
-				Type: toExpr(fs, f.Type),
-				Tag:  toExpr(fs, f.Tag),
+				Type: toExpr(nil, fs, f.Type),
+				Tag:  toExpr(nil, fs, f.Tag),
 			})
 		} else {
 			// one or more named fields
 			for _, n := range f.Names {
 				ftxs = append(ftxs, FieldTypeExpr{
 					Name: toName(n),
-					Type: toExpr(fs, f.Type),
-					Tag:  toExpr(fs, f.Tag),
+					Type: toExpr(nil, fs, f.Type),
+					Tag:  toExpr(nil, fs, f.Tag),
 				})
 			}
 		}
@@ -755,7 +755,7 @@ func toKeyValueExprs(fs *token.FileSet, elts []ast.Expr) (kvxs KeyValueExprs) {
 		} else {
 			kvxs[i] = KeyValueExpr{
 				Key:   nil,
-				Value: toExpr(fs, x),
+				Value: toExpr(nil, fs, x),
 			}
 		}
 	}
@@ -788,7 +788,7 @@ func toClauses(fs *token.FileSet, csz []ast.Stmt) []SwitchClauseStmt {
 
 func toSwitchClauseStmt(fs *token.FileSet, cc *ast.CaseClause) SwitchClauseStmt {
 	return SwitchClauseStmt{
-		Cases: toExprs(fs, cc.List),
-		Body:  toStmts(fs, cc.Body),
+		Cases: toExprs(nil, fs, cc.List),
+		Body:  toStmts(nil, fs, cc.Body),
 	}
 }
