@@ -130,77 +130,83 @@ func TestGC_CollectUnsedObjects(t *testing.T) {
 	assert.Empty(t, gc.roots)
 }
 
-func TestEscapeAnalysis(t *testing.T) {
-	f, err := parser.ParseFile(token.NewFileSet(), "",
-		`
-			package p
-			func foo() {
-				a := 5
-				b := &a // both should escape
-				c := b // should escape
-				e := 5 // should not escape
-			}`, 0)
-	require.NoError(t, err)
-
-	fn := f.Decls[0].(*ast.FuncDecl)
-	escapedVars := EscapeAnalysis(fn)
-
-	assert.ElementsMatch(t, escapedVars, []string{"a", "b", "c"})
+type escapeTest struct {
+	testName     string
+	code         string
+	declaration  func(*ast.File) *ast.FuncDecl
+	expectedVars []string
 }
 
-func TestEscapeAnalysisClosure(t *testing.T) {
-	f, err := parser.ParseFile(token.NewFileSet(), "",
-		`
-			package p
-			func foo() {
-				a := 5
-				
-				func(c int)  int {
-					b := a // both should escape
-
-					return c
-				}
-
-				e := 5 // should not escape
-			}`, 0)
-	require.NoError(t, err)
-
-	fn := f.Decls[0].(*ast.FuncDecl)
-	escapedVars := EscapeAnalysis(fn)
-
-	assert.ElementsMatch(t, escapedVars, []string{"a", "b"})
-}
-
-func TestEscapeAnalysisWithGoroutine(t *testing.T) {
-	src := `
-package main
-
-func f() {
-    i := 1
-    go func() {
-        _ = i
-    }()
-	b := 4
-	foo(&b)
-}
-`
-	fset := token.NewFileSet()
-	node, err := parser.ParseFile(fset, "", src, parser.AllErrors)
-	require.NoError(t, err, "Failed to parse source code")
-
-	// Find the function declaration
-	var f *ast.FuncDecl
-	for _, decl := range node.Decls {
-		if fn, ok := decl.(*ast.FuncDecl); ok && fn.Name.Name == "f" {
-			f = fn
-			break
+var escapeTests = []escapeTest{
+	{
+		testName: "variables simple",
+		code: `
+		package p
+		func foo() {
+			a := 5
+			b := &a // both should escape
+			c := b // should escape
+			e := 5 // should not escape
+		}`,
+		declaration: func(f *ast.File) *ast.FuncDecl {
+			return f.Decls[0].(*ast.FuncDecl)
+		},
+		expectedVars: []string{"a", "b", "c"},
+	},
+	{
+		testName: "closures",
+		code: `
+		package p
+		func foo() {
+			a := 5
+			func(c int)  int {
+				b := a // both should escape
+				return c
+			}
+			e := 5 // should not escape
+		}`,
+		declaration: func(f *ast.File) *ast.FuncDecl {
+			return f.Decls[0].(*ast.FuncDecl)
+		},
+		expectedVars: []string{"a", "b"},
+	},
+	{
+		testName: "goroutines",
+		code: `
+		package main
+		
+		func f() {
+			i := 1
+			go func() {
+				_ = i
+			}()
+			b := 4
+			foo(&b)
 		}
+		`,
+		declaration: func(f *ast.File) *ast.FuncDecl {
+			var out *ast.FuncDecl
+			for _, decl := range f.Decls {
+				if fn, ok := decl.(*ast.FuncDecl); ok && fn.Name.Name == "f" {
+					out = fn
+					break
+				}
+			}
+
+			return out
+		},
+		expectedVars: []string{"i", "b"},
+	},
+}
+
+func TestEscapeAnalysis(t *testing.T) {
+	for _, et := range escapeTests {
+		t.Run(et.testName, func(t *testing.T) {
+			f, err := parser.ParseFile(token.NewFileSet(), "", et.code, 0)
+			require.NoError(t, err)
+			fn := et.declaration(f)
+			ev := EscapeAnalysis(fn)
+			assert.ElementsMatch(t, ev, et.expectedVars)
+		})
 	}
-	require.NotNil(t, f, "failed to find function declaration")
-
-	// Test the function
-	heapVars := EscapeAnalysis(f)
-	expected := []string{"i", "b"}
-
-	require.Equal(t, expected, heapVars)
 }
