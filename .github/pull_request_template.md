@@ -6,9 +6,9 @@ Please provide a detailed description of the changes made in this pull request.
 
 # Contributors Checklist
 
-- [ ] Added new tests
+- [ ] Added new tests, or marked as not needed, or not feasible
 - [ ] Provided an example (e.g. screenshot) to aid review or the PR is self-explanatory
-- [ ] Updated the official documentation if required
+- [ ] Updated the official documentation or not needed
 - [ ] No breaking changes were made, or a `BREAKING-CHANGE: xxx` message was included in the description
 
 # Maintainers Checklist
