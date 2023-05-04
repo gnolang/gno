@@ -141,7 +141,7 @@ func (s *Simulator) InjectMsgs(msgs []sdk.Msg, mode sdk.RunTxMode) (result sdk.R
 	return result
 }
 
-func NewSimulator(name string, dir string, skipFailingGenesisTxs bool, stdLibPath string) (*Simulator, error) {
+func NewSimulator(name string, skipFailingGenesisTxs bool, stdLibPath string) (*Simulator, error) {
 	rootDir := "testdir"
 	logger = log.NewTMLogger(log.NewSyncWriter(os.Stdout)).With("simulator")
 	s := &Simulator{}

@@ -1,6 +1,6 @@
 package hola
 
 func Hola(msg string) string {
-	return "hola from c"
+	return "hola"
 }
 

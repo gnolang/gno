@@ -1,7 +1,7 @@
 [
     {
         "pkg_path": "gno.land/r/demo/x/calls/await/hello_vm",
-        "func": "SayHello",
+        "func": "Hello",
         "args": []
     }
 ]

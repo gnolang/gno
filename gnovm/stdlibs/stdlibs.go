@@ -201,11 +201,16 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				// send msg
 				vmkeeper.DispatchInternalMsg(gnoMsg)
 
+				// XXX: how this determined, since calls will accumulate
+				// should have an estimation like gas estimation?
+				timeout := 3 * time.Second
 				println("block, waiting for result...")
 				var result string
 				select {
 				case result = <-resQueue:
 					println("callback in recvMsg: ", result)
+				case <-time.After(timeout):
+					panic("time out")
 				}
 
 				// TODO: return err to contract

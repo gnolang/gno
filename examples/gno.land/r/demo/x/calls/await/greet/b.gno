@@ -11,6 +11,6 @@ func Greet(msg string) string {
 	println("done ")
 	println("r is :", r)
 	println("errMsg is: ", err)
-	return "greet from b" + r
+	return "greet" + r
 }
 

@@ -2,7 +2,7 @@ package hello
 
 import "std"
 
-func SayHello() string {
+func Hello() string {
 
 	chainID := std.GetChainID()
 	call := std.EncodeMsgCall(chainID, "gno.land/r/demo/x/calls/await/greet", "Greet", []string{"hey"})
@@ -12,5 +12,5 @@ func SayHello() string {
 	println("r is :", r)
 	println("errMsg is: ", err)
 
-	return "say hello from A, going to call B" + r
+	return "hello" + r
 }

@@ -11,9 +11,9 @@ import (
 
 var wg sync.WaitGroup
 
-func setupSimulator(name string, dir string) *Simulator {
+func setupSimulator(name string) *Simulator {
 	var err error
-	simulator, err := NewSimulator(name, dir, true, "../../gnovm/stdlibs")
+	simulator, err := NewSimulator(name, true, "../../gnovm/stdlibs")
 	if err != nil {
 		panic(err)
 	}
@@ -35,18 +35,20 @@ var msgCallIBCBz []byte
 var msgCallVMBz []byte
 
 func TestInternalCallSuccess(t *testing.T) {
-	simulator := setupSimulator("first", "d1")
+	simulator := setupSimulator("first")
 	// bootstrap handleMsg routine
 	wg := &sync.WaitGroup{}
 	go simulator.VMKpr.HandleMsg(wg)
 
 	res, _ := simulator.simuCall([][]*std.MemFile{}, msgCallVMBz)
 	wg.Wait()
+	t.Log("res is: ", string(res.Data))
 	assert.NoError(t, res.Error)
+	assert.Equal(t, string(res.Data), `("hello(\"greet(\\\"hola\\\" string)\" string)" string)`)
 }
 
 func TestIBCCallSuccess(t *testing.T) {
-	simulator := setupSimulator("second", "d2")
+	simulator := setupSimulator("second")
 	// bootstrap handleMsg routine
 	wg := &sync.WaitGroup{}
 	go simulator.VMKpr.HandleMsg(wg)
@@ -57,4 +59,5 @@ func TestIBCCallSuccess(t *testing.T) {
 
 	wg.Wait()
 	assert.NoError(t, res.Error)
+	assert.Equal(t, string(res.Data), `("hello(\"greet(\\\"hola\\\" string)\" string)" string)`)
 }
