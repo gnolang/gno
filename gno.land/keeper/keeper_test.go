@@ -10,8 +10,15 @@ import (
 	"github.com/jaekwon/testify/assert"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	vmh "github.com/gnolang/gno/tm2/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
+
+var env testEnv
+
+// func init() {
+// 	env = setupTestEnv()
+// }
 
 // Sending total send amount succeeds.
 func TestVMKeeperOrigSend1(t *testing.T) {
@@ -42,13 +49,13 @@ func Echo(msg string) string {
 }`},
 	}
 	pkgPath := "gno.land/r/test"
-	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	msg1 := vmh.NewMsgAddPackage(addr, pkgPath, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
 
 	// Run Echo function.
 	coins := std.MustParseCoins("10000000ugnot")
-	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
+	msg2 := vmh.NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.NoError(t, err)
 	assert.Equal(t, res, `("echo:hello world" string)`)
@@ -90,13 +97,13 @@ func GetAdmin() string {
 `},
 	}
 	pkgPath := "gno.land/r/test"
-	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	msg1 := vmh.NewMsgAddPackage(addr, pkgPath, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
 
 	// Run Echo function.
 	coins := std.MustParseCoins("11000000ugnot")
-	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
+	msg2 := vmh.NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.Error(t, err)
 	assert.Equal(t, res, "")
@@ -133,13 +140,13 @@ func Echo(msg string) string {
 }`},
 	}
 	pkgPath := "gno.land/r/test"
-	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	msg1 := vmh.NewMsgAddPackage(addr, pkgPath, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
 
 	// Run Echo function.
 	coins := std.MustParseCoins("9000000ugnot")
-	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
+	msg2 := vmh.NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	// XXX change this into an error and make sure error message is descriptive.
 	_, err = env.vmk.Call(ctx, msg2)
 	assert.Error(t, err)
@@ -174,13 +181,13 @@ func Echo(msg string) string {
 }`},
 	}
 	pkgPath := "gno.land/r/test"
-	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	msg1 := vmh.NewMsgAddPackage(addr, pkgPath, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
 
 	// Run Echo function.
 	coins := std.MustParseCoins("10000000ugnot")
-	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
+	msg2 := vmh.NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.NoError(t, err)
 	assert.Equal(t, res, `("echo:hello world" string)`)
@@ -215,13 +222,13 @@ func Echo(msg string) string {
 }`},
 	}
 	pkgPath := "gno.land/r/test"
-	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	msg1 := vmh.NewMsgAddPackage(addr, pkgPath, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
 
 	// Run Echo function.
 	coins := std.MustParseCoins("9000000ugnot")
-	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
+	msg2 := vmh.NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	// XXX change this into an error and make sure error message is descriptive.
 	_, err = env.vmk.Call(ctx, msg2)
 	assert.Error(t, err)
@@ -262,13 +269,13 @@ func GetAdmin() string {
 `},
 	}
 	pkgPath := "gno.land/r/test"
-	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	msg1 := vmh.NewMsgAddPackage(addr, pkgPath, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
 
 	// Run GetAdmin()
 	coins := std.MustParseCoins("")
-	msg2 := NewMsgCall(addr, coins, pkgPath, "GetAdmin", []string{})
+	msg2 := vmh.NewMsgCall(addr, coins, pkgPath, "GetAdmin", []string{})
 	res, err := env.vmk.Call(ctx, msg2)
 	addrString := fmt.Sprintf("(\"%s\" string)", addr.String())
 	assert.NoError(t, err)

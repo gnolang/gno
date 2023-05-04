@@ -4,54 +4,57 @@ import (
 	_ "embed"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/jaekwon/testify/assert"
 )
 
-var simulator *Simulator
 var wg sync.WaitGroup
 
-func init() {
+func setupSimulator(name string, dir string) *Simulator {
 	var err error
-	simulator, err = NewSimulator(true, "../../gnovm/stdlibs")
+	simulator, err := NewSimulator(name, dir, true, "../../gnovm/stdlibs")
 	if err != nil {
 		panic(err)
 	}
-	simuAddPkg()
+	simulator.simuAddPkg()
+	return simulator
 }
 
-func simuAddPkg() {
-	simulator.addPkgFromPath("../../examples/gno.land/r/demo/hello/", "gno.land/r/demo/hello")
-	simulator.addPkgFromPath("../../examples/gno.land/r/demo/greet/", "gno.land/r/demo/greet")
-	simulator.addPkgFromPath("../../examples/gno.land/r/demo/hola/", "gno.land/r/demo/hola")
+func (s *Simulator) simuAddPkg() {
+	s.addPkgFromPath("../../examples/gno.land/r/demo/x/calls/await/hello_ibc/", "gno.land/r/demo/x/calls/await/hello_ibc")
+	s.addPkgFromPath("../../examples/gno.land/r/demo/x/calls/await/hello_vm/", "gno.land/r/demo/x/calls/await/hello_vm")
+	s.addPkgFromPath("../../examples/gno.land/r/demo/x/calls/await/greet/", "gno.land/r/demo/x/calls/await/greet")
+	s.addPkgFromPath("../../examples/gno.land/r/demo/x/calls/await/hola/", "gno.land/r/demo/x/calls/await/hola")
 }
 
-//go:embed simulation_data/msg_call_success.json
-var msgCallSuccessBz []byte
+//go:embed simulation_data/msg_call_ibc.json
+var msgCallIBCBz []byte
 
-// func TestInternalCallSuccess(t *testing.T) {
-// 	// bootstrap handleMsg routine
-// 	wg := &sync.WaitGroup{}
-// 	go simulator.VMKpr.HandleMsg(wg)
-// 	wg.Wait()
+//go:embed simulation_data/msg_call_vm.json
+var msgCallVMBz []byte
 
-// 	res, _ := simulator.simuCall([][]*std.MemFile{}, msgCallSuccessBz)
-// 	assert.NoError(t, res.Error)
-// 	time.Sleep(1 * time.Second)
-// }
+func TestInternalCallSuccess(t *testing.T) {
+	simulator := setupSimulator("first", "d1")
+	// bootstrap handleMsg routine
+	wg := &sync.WaitGroup{}
+	go simulator.VMKpr.HandleMsg(wg)
+
+	res, _ := simulator.simuCall([][]*std.MemFile{}, msgCallVMBz)
+	wg.Wait()
+	assert.NoError(t, res.Error)
+}
 
 func TestIBCCallSuccess(t *testing.T) {
+	simulator := setupSimulator("second", "d2")
 	// bootstrap handleMsg routine
 	wg := &sync.WaitGroup{}
 	go simulator.VMKpr.HandleMsg(wg)
 
 	go simulator.ibcChannelKeeper.OnRecvPacket()
 	go simulator.ibcChannelKeeper.OnAcknowledgementPacket()
-	res, _ := simulator.simuCall([][]*std.MemFile{}, msgCallSuccessBz)
+	res, _ := simulator.simuCall([][]*std.MemFile{}, msgCallIBCBz)
 
 	wg.Wait()
 	assert.NoError(t, res.Error)
-	time.Sleep(1 * time.Second)
 }

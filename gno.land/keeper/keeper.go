@@ -119,7 +119,6 @@ func (vmk *VMKeeper) Initialize(ms store.MultiStore) {
 		m2.PreprocessAllFilesAndSaveBlockNodes()
 		gno.EnableDebug()
 	}
-	// TODO: start Recv routine
 }
 
 func (vmk *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {

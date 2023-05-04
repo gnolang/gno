@@ -141,20 +141,20 @@ func (s *Simulator) InjectMsgs(msgs []sdk.Msg, mode sdk.RunTxMode) (result sdk.R
 	return result
 }
 
-func NewSimulator(skipFailingGenesisTxs bool, stdLibPath string) (*Simulator, error) {
+func NewSimulator(name string, dir string, skipFailingGenesisTxs bool, stdLibPath string) (*Simulator, error) {
 	rootDir := "testdir"
 	logger = log.NewTMLogger(log.NewSyncWriter(os.Stdout)).With("simulator")
 	s := &Simulator{}
 
 	// Get main DB.
-	db := dbm.NewDB("gnoland", dbm.GoLevelDBBackend, filepath.Join(rootDir, "data"))
+	db := dbm.NewDB(name, dbm.GoLevelDBBackend, filepath.Join(rootDir, "data"))
 
 	// Capabilities keys.
 	mainKey := store.NewStoreKey("main")
 	baseKey := store.NewStoreKey("base")
 
 	// Create BaseApp.
-	mockApp := sdk.NewMockApp("gnoland", nil, db, baseKey, mainKey)
+	mockApp := sdk.NewMockApp(name, nil, db, baseKey, mainKey)
 
 	// Set mounts for BaseApp's MultiStore.
 	mockApp.MountStoreWithDB(mainKey, iavl.StoreConstructor, db)
@@ -171,11 +171,6 @@ func NewSimulator(skipFailingGenesisTxs bool, stdLibPath string) (*Simulator, er
 	ibcChannelKeeper := NewIBCChannelKeeper(vmKpr)
 	vmKpr.IBCChannelKeeper = ibcChannelKeeper
 
-	// dispatcher := NewDispatcher(logger)
-	// dispatcher.Router().AddRoute("vm", vmi.NewHandler(vmKpr))
-	// dispatcher.icbChan = ibc
-
-	// vmKpr.SetDispatcher(dispatcher)
 	// Set a handler Route.
 	mockApp.Router().AddRoute("auth", auth.NewHandler(acctKpr))
 	mockApp.Router().AddRoute("bank", bank.NewHandler(bankKpr))
