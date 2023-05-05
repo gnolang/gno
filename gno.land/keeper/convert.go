@@ -197,14 +197,6 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 	}
 }
 
-func prefixData(value []byte) []byte {
-	// 1 is default length for a `length` prefix
-	data := make([]byte, 0, len(value)+1)
-	data = append(data, byte(len(value)))
-	data = append(data, value...)
-	return data
-}
-
 func convertMsg(msg vmh.GnoMsg) vmh.MsgCall {
 	var msgCall vmh.MsgCall
 	msgCall.PkgPath = msg.PkgPath
