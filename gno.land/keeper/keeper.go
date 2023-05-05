@@ -160,10 +160,9 @@ func (vmk *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 // input
 func (vmk *VMKeeper) DispatchInternalMsg(msg vmh.GnoMsg) {
 	vmk.internalMsgQueue <- msg
-	// println("msg dispatched")
 }
 
-func (vmk *VMKeeper) EventLoop(wg *sync.WaitGroup) {
+func (vmk *VMKeeper) StartEventLoop(wg *sync.WaitGroup) {
 	for {
 		select {
 		case msg := <-vmk.internalMsgQueue:

@@ -72,7 +72,7 @@ var flags struct {
 type Simulator struct {
 	mockApp          *sdk.MockApp
 	baseApp          *sdk.BaseApp
-	VMKpr            vmi.VMKeeperI
+	VMKpr            *VMKeeper
 	AccK             auth.AccountKeeper
 	BanK             bank.BankKeeper
 	ibcChannelKeeper *IBCChannelKeeper
@@ -165,7 +165,6 @@ func NewSimulator(name string, skipFailingGenesisTxs bool, stdLibPath string) (*
 
 	bankKpr := bank.NewBankKeeper(acctKpr)
 
-	// vmKpr := NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, "./stdlibs")
 	vmKpr := NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, stdLibPath)
 
 	ibcChannelKeeper := NewIBCChannelKeeper(vmKpr)
