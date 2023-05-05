@@ -277,7 +277,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg vmh.MsgAddPackage) error {
 func (vm *VMKeeper) Call(ctx sdk.Context, msg vmh.MsgCall) (res string, err error) {
 	// println("vmk call, msg.Caller: ", msg.Caller.String())
 	vm.ctx = ctx
-	// TODO: give proper realm caller to every internal call
 	vm.PushCall(&msg)
 
 	pkgPath := msg.PkgPath // to import
@@ -576,7 +575,8 @@ func (vmk *VMKeeper) preprocessMessage(gnoMsg vmh.GnoMsg) (vmh.MsgCall, bool, ch
 
 	msgCall := convertMsg(gnoMsg)
 	// using the origCaller
-	msgCall.Caller = vmk.GetOrigCaller()
+	// msgCall.Caller = vmk.GetOrigCaller()
+	msgCall.Caller = gno.DerivePkgAddr(msgCall.PkgPath)
 
 	return msgCall, isLocal, gnoMsg.Response, nil
 }
