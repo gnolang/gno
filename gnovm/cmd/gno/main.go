@@ -34,6 +34,7 @@ func newGnodevCmd(io *commands.IO) *commands.Command {
 		newPrecompileCmd(io),
 		newTestCmd(io),
 		newModCmd(io),
+		newCleanCmd(io),
 		newReplCmd(),
 		// fmt -- gofmt
 		// clean

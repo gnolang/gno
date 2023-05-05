@@ -1,0 +1,116 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"flag"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
+)
+
+type cleanCfg struct {
+	dontRun  bool // clean -n flag
+	verbose  bool // clean -x flag
+	modCache bool // clean -modcache flag
+}
+
+func newCleanCmd(io *commands.IO) *commands.Command {
+	cfg := &cleanCfg{}
+
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "clean",
+			ShortUsage: "clean [flags]",
+			ShortHelp:  "Removes generated files and cached data",
+		},
+		cfg,
+		func(ctx context.Context, args []string) error {
+			return execClean(cfg, args, io)
+		},
+	)
+}
+
+func (c *cleanCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.BoolVar(
+		&c.dontRun,
+		"n",
+		false,
+		"print remove commands it would execute, but not run them",
+	)
+
+	fs.BoolVar(
+		&c.verbose,
+		"x",
+		false,
+		"print remove commands as it executes them",
+	)
+
+	fs.BoolVar(
+		&c.modCache,
+		"modcache",
+		false,
+		"remove the entire module download cache",
+	)
+}
+
+func execClean(cfg *cleanCfg, args []string, io *commands.IO) error {
+	if len(args) > 0 {
+		return flag.ErrHelp
+	}
+
+	path, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	modDir, err := gnomod.GuessGnoModDir(path)
+	if err != nil {
+		return errors.New("not a gno module")
+	}
+
+	if path != modDir && (cfg.dontRun || cfg.verbose) {
+		io.Println("cd", modDir)
+	}
+	err = filepath.WalkDir(modDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if !strings.HasSuffix(path, ".gno.gen.go") && !strings.HasSuffix(path, ".gno.gen_test.go") {
+			return nil
+		}
+		if !cfg.dontRun {
+			if err := os.Remove(path); err != nil {
+				return err
+			}
+		}
+		if cfg.dontRun || cfg.verbose {
+			io.Println("rm", strings.TrimPrefix(path, modDir+"/"))
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	if cfg.modCache {
+		modCacheDir := filepath.Join(client.HomeDir(), "pkg", "mod")
+		if !cfg.dontRun {
+			if err := os.RemoveAll(modCacheDir); err != nil {
+				return err
+			}
+		}
+		if cfg.dontRun || cfg.verbose {
+			io.Println("rm -rf", modCacheDir)
+		}
+	}
+	return nil
+}
