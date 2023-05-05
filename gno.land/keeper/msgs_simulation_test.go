@@ -38,7 +38,7 @@ func TestInternalCallSuccess(t *testing.T) {
 	simulator := setupSimulator("first")
 	// bootstrap handleMsg routine
 	wg := &sync.WaitGroup{}
-	go simulator.VMKpr.HandleMsg(wg)
+	go simulator.VMKpr.EventLoop(wg)
 
 	res, _ := simulator.simuCall([][]*std.MemFile{}, msgCallVMBz)
 	wg.Wait()
@@ -51,7 +51,7 @@ func TestIBCCallSuccess(t *testing.T) {
 	simulator := setupSimulator("second")
 	// bootstrap handleMsg routine
 	wg := &sync.WaitGroup{}
-	go simulator.VMKpr.HandleMsg(wg)
+	go simulator.VMKpr.EventLoop(wg)
 
 	go simulator.ibcChannelKeeper.OnRecvPacket()
 	go simulator.ibcChannelKeeper.OnAcknowledgementPacket()

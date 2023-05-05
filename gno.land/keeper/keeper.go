@@ -163,38 +163,41 @@ func (vmk *VMKeeper) DispatchInternalMsg(msg vmh.GnoMsg) {
 	// println("msg dispatched")
 }
 
+func (vmk *VMKeeper) EventLoop(wg *sync.WaitGroup) {
+	for {
+		select {
+		case msg := <-vmk.internalMsgQueue:
+			wg.Add(1)
+			go vmk.HandleMsg(wg, msg)
+		}
+	}
+}
+
 // initially called somewhere, call? which act like a main routine
-func (vmk *VMKeeper) HandleMsg(wg *sync.WaitGroup) {
+func (vmk *VMKeeper) HandleMsg(wg *sync.WaitGroup, msg vmh.GnoMsg) {
 	defer wg.Done()
 	println("------HandleMsg, routine spawned ------")
-	select {
-	case msg := <-vmk.internalMsgQueue:
-		println("-----receive msg, wg add, and spawn new routine------")
-		wg.Add(1)
-		go vmk.HandleMsg(wg)
+	// prepare call
+	msgCall, isLocal, response, err := vmk.preprocessMessage(msg)
+	if err != nil {
+		panic(err.Error())
+	}
+	// do the call
+	if isLocal {
+		println("in VM call")
+		println("msgCall: ", msgCall.Caller.String(), msgCall.PkgPath, msgCall.Func, msgCall.Args[0])
 
-		// prepare call
-		msgCall, isLocal, response, err := vmk.preprocessMessage(msg)
-		if err != nil {
-			panic(err.Error())
+		r, err := vmk.Call(vmk.ctx, msgCall)
+		println("call finished, res: ", r)
+		// have an return
+		if err == nil {
+			response <- r
 		}
-		// do the call
-		if isLocal {
-			println("in VM call")
-			println("msgCall: ", msgCall.Caller.String(), msgCall.PkgPath, msgCall.Func, msgCall.Args[0])
-
-			r, err := vmk.Call(vmk.ctx, msgCall)
-			println("call finished, res: ", r)
-			// have an return
-			if err == nil {
-				response <- r
-			}
-		} else { // IBC call
-			println("IBC call")
-			// send IBC packet, waiting for OnRecv
-			vmk.ibcResponseQueue = response
-			vmk.SendIBCMsg(vmk.ctx, msgCall)
-		}
+	} else { // IBC call
+		println("IBC call")
+		// send IBC packet, waiting for OnRecv
+		vmk.ibcResponseQueue = response
+		vmk.SendIBCMsg(vmk.ctx, msgCall)
 	}
 }
 
