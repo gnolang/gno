@@ -74,25 +74,35 @@ func (vmk *VMKeeper) printCallStack() {
 
 // get origCaller from callstack
 func (vmk *VMKeeper) GetOrigCaller() crypto.Address {
+	// println("---getOrigCaller---")
+	// println("len of stack is: ", len(vmk.callStack))
 	if len(vmk.callStack) == 0 {
 		panic("should not happen")
 	}
+	// for i, c := range vmk.callStack {
+	// 	println("caller i is: ", i, c.Caller.String())
+	// }
 	return vmk.callStack[0].Caller
 }
 
 func (vmk *VMKeeper) PopCall() (call *vmh.MsgCall) {
+	// println("---pop call---")
+	// println("len of call stack before pop is: ", len(vmk.callStack))
 	if len(vmk.callStack) == 0 {
 		return nil
 	}
 	lastIndex := len(vmk.callStack) - 1
 	e := vmk.callStack[lastIndex]
 	vmk.callStack = vmk.callStack[:lastIndex]
+	// println("len of call stack after pop is: ", len(vmk.callStack))
+	// for i, c := range vmk.callStack {
+	// 	println("caller i is: ", i, c.Caller.String())
+	// }
 	return e
 }
 
 func (vmk *VMKeeper) Release() {
 	vmk.callStack = vmk.callStack[:0]
-	// copy(vmk.callStack, vmk.callStack[:0])
 }
 
 func (vmk *VMKeeper) Initialize(ms store.MultiStore) {
@@ -118,6 +128,8 @@ func (vmk *VMKeeper) Initialize(ms store.MultiStore) {
 		m2.PreprocessAllFilesAndSaveBlockNodes()
 		gno.EnableDebug()
 	}
+	// start eventLoop
+	go vmk.startEventLoop()
 }
 
 func (vmk *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
@@ -161,7 +173,7 @@ func (vmk *VMKeeper) DispatchInternalMsg(msg vmh.GnoMsg) {
 	vmk.internalMsgQueue <- msg
 }
 
-func (vmk *VMKeeper) StartEventLoop() {
+func (vmk *VMKeeper) startEventLoop() {
 	for {
 		select {
 		case msg := <-vmk.internalMsgQueue:
@@ -265,6 +277,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg vmh.MsgAddPackage) error {
 func (vm *VMKeeper) Call(ctx sdk.Context, msg vmh.MsgCall) (res string, err error) {
 	// println("vmk call, msg.Caller: ", msg.Caller.String())
 	vm.ctx = ctx
+	// TODO: give proper realm caller to every internal call
 	vm.PushCall(&msg)
 
 	pkgPath := msg.PkgPath // to import
@@ -292,8 +305,9 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg vmh.MsgCall) (res string, err erro
 	// Send send-coins to pkg from caller.
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
 	// caller := msg.Caller
+	// EOA caller, spend gas, send coins
 	caller := vm.GetOrigCaller()
-	println("caller: ", caller.String())
+	// println("caller: ", caller.String())
 	send := msg.Send
 	err = vm.bank.SendCoins(ctx, caller, pkgAddr, send)
 	if err != nil {
@@ -343,8 +357,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg vmh.MsgCall) (res string, err erro
 			return
 		}
 		m.Release()
-		// vm.Release()
-		// vm.PopCall()
+		vm.PopCall()
 	}()
 	rtvs := m.Eval(xn)
 	fmt.Println("CPUCYCLES call", m.Cycles)

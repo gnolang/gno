@@ -72,7 +72,7 @@ var flags struct {
 type Simulator struct {
 	mockApp          *sdk.MockApp
 	baseApp          *sdk.BaseApp
-	VMKpr            *VMKeeper
+	VMKpr            vmi.VMKeeperI
 	AccK             auth.AccountKeeper
 	BanK             bank.BankKeeper
 	ibcChannelKeeper *IBCChannelKeeper

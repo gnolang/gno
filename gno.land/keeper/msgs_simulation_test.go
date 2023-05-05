@@ -2,14 +2,11 @@ package vmk
 
 import (
 	_ "embed"
-	"sync"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/jaekwon/testify/assert"
 )
-
-var wg sync.WaitGroup
 
 func setupSimulator(name string) *Simulator {
 	var err error
@@ -38,7 +35,6 @@ func TestInternalCallSuccess(t *testing.T) {
 	simulator := setupSimulator("first")
 
 	res, _ := simulator.simuCall([][]*std.MemFile{}, msgCallVMBz)
-	wg.Wait()
 	t.Log("res is: ", string(res.Data))
 	assert.NoError(t, res.Error)
 	assert.Equal(t, string(res.Data), `("hello(\"greet(\\\"hola\\\" string)\" string)" string)`)
@@ -51,7 +47,6 @@ func TestIBCCallSuccess(t *testing.T) {
 	go simulator.ibcChannelKeeper.OnAcknowledgementPacket()
 	res, _ := simulator.simuCall([][]*std.MemFile{}, msgCallIBCBz)
 
-	wg.Wait()
 	assert.NoError(t, res.Error)
 	assert.Equal(t, string(res.Data), `("hello(\"greet(\\\"hola\\\" string)\" string)" string)`)
 }

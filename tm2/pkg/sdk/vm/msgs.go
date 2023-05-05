@@ -138,8 +138,7 @@ func (msg MsgCall) GetReceived() std.Coins {
 }
 
 // ----------------------------------------
-// common msg, represent internal msg and cross chain msg
-
+// represent internal msg and cross chain msg
 type GnoMsg struct {
 	ChainID  string
 	Caller   string

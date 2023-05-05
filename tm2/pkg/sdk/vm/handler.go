@@ -34,6 +34,7 @@ func (vh vmHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 }
 
 // Handle MsgAddPackage.
+// XXX, move this to VMKeeper?
 func (vh vmHandler) handleMsgAddPackage(ctx sdk.Context, msg MsgAddPackage) sdk.Result {
 	amount, err := std.ParseCoins("1000000ugnot") // XXX calculate
 	if err != nil {
@@ -52,11 +53,8 @@ func (vh vmHandler) handleMsgAddPackage(ctx sdk.Context, msg MsgAddPackage) sdk.
 }
 
 // Handle MsgCall.
+// XXX, move this to VMKeeper?
 func (vh vmHandler) handleMsgCall(ctx sdk.Context, msg MsgCall) (res sdk.Result) {
-	println("handle msg call")
-	// start eventLoop
-	go vh.vmk.StartEventLoop()
-
 	amount, err := std.ParseCoins("1000000ugnot") // XXX calculate
 	if err != nil {
 		return abciResult(err)

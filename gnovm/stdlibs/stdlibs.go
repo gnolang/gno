@@ -205,12 +205,15 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				// should have an estimation like gas estimation?
 				timeout := 3 * time.Second
 				println("block, waiting for result...")
+
+				// TODO: err handling
 				var result string
 				select {
 				case result = <-resQueue:
 					println("callback in recvMsg: ", result)
 				case <-time.After(timeout):
 					panic("time out")
+					// case err = <- errQueue:
 				}
 
 				// TODO: return err to contract
@@ -229,50 +232,6 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			},
 		)
 
-		// Synchronous call, Deprecated
-		// pn.DefineNative("Call",
-		// 	gno.Flds( // params
-		// 		"call", gno.InterfaceT(nil),
-		// 	),
-		// 	gno.Flds( // results
-		// 		"r", "string",
-		// 	),
-		// 	func(m *gno.Machine) {
-		// 		arg0 := m.LastBlock().GetParams1()
-		// 		param0 := arg0.TV
-
-		// 		var rt reflect.Type
-		// 		var callMsg CallMsg
-
-		// 		if rtvp, ok := param0.V.(gno.PointerValue); ok {
-		// 			rt = gno.Gno2GoType(rtvp.TV)
-		// 			if rt.Kind() == reflect.Struct { // struct kind
-		// 				rv := reflect.ValueOf(&callMsg).Elem()
-		// 				gno.Gno2GoValue(param0.V.(gno.PointerValue).TV, rv)
-		// 			}
-		// 		}
-
-		// 		SendCall(&callMsg)
-
-		// 		// XXX: time will accumulate, how to determine it
-		// 		timeout := 3 * time.Second
-
-		// 		// receive
-		// 		var res string
-		// 		select {
-		// 		case res = <-ResQueue:
-		// 		case <-time.After(timeout):
-		// 			res = "Timeout! Operation took too long."
-		// 		}
-
-		// 		res0 := gno.Go2GnoValue(
-		// 			m.Alloc,
-		// 			m.Store,
-		// 			reflect.ValueOf(res),
-		// 		)
-		// 		m.PushValue(res0)
-		// 	},
-		// )
 		pn.DefineNative("Hash",
 			gno.Flds( // params
 				"bz", "[]byte",
