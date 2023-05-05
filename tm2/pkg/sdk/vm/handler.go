@@ -3,7 +3,6 @@ package vm
 import (
 	"fmt"
 	"strings"
-	"sync"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -55,9 +54,8 @@ func (vh vmHandler) handleMsgAddPackage(ctx sdk.Context, msg MsgAddPackage) sdk.
 // Handle MsgCall.
 func (vh vmHandler) handleMsgCall(ctx sdk.Context, msg MsgCall) (res sdk.Result) {
 	println("handle msg call")
-	// TODO: initiate eventLoop here
-	wg := &sync.WaitGroup{}
-	go vh.vmk.StartEventLoop(wg)
+	// start eventLoop
+	go vh.vmk.StartEventLoop()
 
 	amount, err := std.ParseCoins("1000000ugnot") // XXX calculate
 	if err != nil {

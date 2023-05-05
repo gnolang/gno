@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 
@@ -162,19 +161,17 @@ func (vmk *VMKeeper) DispatchInternalMsg(msg vmh.GnoMsg) {
 	vmk.internalMsgQueue <- msg
 }
 
-func (vmk *VMKeeper) StartEventLoop(wg *sync.WaitGroup) {
+func (vmk *VMKeeper) StartEventLoop() {
 	for {
 		select {
 		case msg := <-vmk.internalMsgQueue:
-			wg.Add(1)
-			go vmk.HandleMsg(wg, msg)
+			go vmk.HandleMsg(msg)
 		}
 	}
 }
 
 // initially called somewhere, call? which act like a main routine
-func (vmk *VMKeeper) HandleMsg(wg *sync.WaitGroup, msg vmh.GnoMsg) {
-	defer wg.Done()
+func (vmk *VMKeeper) HandleMsg(msg vmh.GnoMsg) {
 	println("------HandleMsg, routine spawned ------")
 	// prepare call
 	msgCall, isLocal, response, err := vmk.preprocessMessage(msg)
