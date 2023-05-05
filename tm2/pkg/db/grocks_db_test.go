@@ -1,5 +1,4 @@
 //go:build grocksdb
-// +build grocksdb
 
 package db
 

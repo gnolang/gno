@@ -1,12 +1,14 @@
 package rpcserver
 
 import (
+	"bytes"
 	"crypto/tls"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -15,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	"github.com/gnolang/gno/tm2/pkg/log"
 )
 
@@ -91,4 +94,89 @@ func TestStartHTTPAndTLSServer(t *testing.T) {
 	body, err := ioutil.ReadAll(res.Body)
 	require.NoError(t, err)
 	assert.Equal(t, []byte("some body"), body)
+}
+
+func TestRecoverAndLogHandler(t *testing.T) {
+	tests := []struct {
+		name             string
+		panicArg         any
+		expectedResponse string
+	}{
+		{
+			name:     "panic with types.RPCResponse",
+			panicArg: types.NewRPCErrorResponse(types.JSONRPCStringID("id"), 42, "msg", "data"),
+			expectedResponse: `{
+  "jsonrpc": "2.0",
+  "id": "id",
+  "error": {
+    "code": 42,
+    "message": "msg",
+    "data": "data"
+  }
+}`,
+		},
+		{
+			name:     "panic with error",
+			panicArg: fmt.Errorf("I'm an error"),
+			expectedResponse: `{
+  "jsonrpc": "2.0",
+  "id": "",
+  "error": {
+    "code": -32603,
+    "message": "Internal error",
+    "data": "I'm an error"
+  }
+}`,
+		},
+		{
+			name:     "panic with string",
+			panicArg: "I'm an string",
+			expectedResponse: `{
+  "jsonrpc": "2.0",
+  "id": "",
+  "error": {
+    "code": -32603,
+    "message": "Internal error",
+    "data": "I'm an string"
+  }
+}`,
+		},
+		{
+			name: "panic with random struct",
+			panicArg: struct {
+				f int
+			}{f: 1},
+			expectedResponse: `{
+  "jsonrpc": "2.0",
+  "id": "",
+  "error": {
+    "code": -32603,
+    "message": "Internal error",
+    "data": "{1}"
+  }
+}`,
+		},
+		{
+			name:             "panic with nil",
+			panicArg:         nil,
+			expectedResponse: ``,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var (
+				req, _ = http.NewRequest(http.MethodGet, "", nil)
+				resp   = httptest.NewRecorder()
+				logger = log.NewTMLogger(&bytes.Buffer{})
+				// Create a handler that will always panic with argument tt.panicArg
+				handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					panic(tt.panicArg)
+				})
+			)
+
+			RecoverAndLogHandler(handler, logger).ServeHTTP(resp, req)
+
+			require.Equal(t, tt.expectedResponse, resp.Body.String())
+		})
+	}
 }

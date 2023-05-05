@@ -6,6 +6,7 @@ on:
       - "go.sum"
       - "gnovm/**.go"
       - "gnovm/**.gno"
+      - "examples/**.gno"
       - "gnovm/**/go.sum"
       - "gnovm/Makefile"
       - "tm2/**.go"

@@ -1,5 +1,4 @@
 //go:build cleveldb
-// +build cleveldb
 
 package db
 
@@ -10,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func BenchmarkRandomReadsWrites2(b *testing.B) {
@@ -91,7 +91,8 @@ func TestCLevelDBBackend(t *testing.T) {
 	name := fmt.Sprintf("test_%x", randStr(12))
 	// Can't use "" (current directory) or "./" here because levigo.Open returns:
 	// "Error initializing DB: IO error: test_XXX.db: Invalid argument"
-	db := NewDB(name, CLevelDBBackend, t.TempDir())
+	db, err := NewDB(name, CLevelDBBackend, t.TempDir())
+	require.NoError(t, err)
 
 	_, ok := db.(*CLevelDB)
 	assert.True(t, ok)
@@ -99,7 +100,8 @@ func TestCLevelDBBackend(t *testing.T) {
 
 func TestCLevelDBStats(t *testing.T) {
 	name := fmt.Sprintf("test_%x", randStr(12))
-	db := NewDB(name, CLevelDBBackend, t.TempDir())
+	db, err := NewDB(name, CLevelDBBackend, t.TempDir())
+	require.NoError(t, err)
 
 	assert.NotEmpty(t, db.Stats())
 }

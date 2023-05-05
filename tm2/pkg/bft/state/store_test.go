@@ -60,11 +60,11 @@ func BenchmarkLoadValidators(b *testing.B) {
 	config := cfg.ResetTestRoot("state_")
 	defer os.RemoveAll(config.RootDir)
 	dbType := dbm.BackendType(config.DBBackend)
-	stateDB := dbm.NewDB("state", dbType, config.DBDir())
+	stateDB, err := dbm.NewDB("state", dbType, config.DBDir())
+	require.NoError(b, err)
+
 	state, err := sm.LoadStateFromDBOrGenesisFile(stateDB, config.GenesisFile())
-	if err != nil {
-		b.Fatal(err)
-	}
+	require.NoError(b, err)
 	state.Validators = genValSet(valSetSize)
 	state.NextValidators = state.Validators.CopyIncrementProposerPriority(1)
 	sm.SaveState(stateDB, state)

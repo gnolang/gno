@@ -1,6 +1,17 @@
 package tests
 
-import "std"
+import (
+	"std"
+
+	"gno.land/r/demo/tests"
+)
+
+// IncCounter demonstrates that it's possible to call a realm function from
+// a package. So a package can potentially write into the store, by calling
+// an other realm.
+func IncCounter() {
+	tests.IncCounter()
+}
 
 func CurrentRealmPath() string {
 	return std.CurrentRealmPath()

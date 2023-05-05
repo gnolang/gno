@@ -2,8 +2,26 @@ package tests
 
 import "std"
 
+var counter int
+
+func IncCounter() {
+	counter++
+}
+
+func Counter() int {
+	return counter
+}
+
 func CurrentRealmPath() string {
 	return std.CurrentRealmPath()
+}
+
+func AssertOriginCall() {
+	std.AssertOriginCall()
+}
+
+func IsOriginCall() bool {
+	return std.IsOriginCall()
 }
 
 //----------------------------------------
