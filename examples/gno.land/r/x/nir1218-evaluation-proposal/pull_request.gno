@@ -1,6 +1,6 @@
 package evaluation
 
-var statuses map[string]struct{}
+var pullRequestStatus map[string]struct{}
 
 type PullRequest struct {
 	id          int
@@ -11,11 +11,11 @@ type PullRequest struct {
 }
 
 func init() {
-	statuses = make(map[string]struct{})
-	statuses["Draft"] = struct{}{}
-	statuses["Approved"] = struct{}{}
-	statuses["Changes requested"] = struct{}{}
-	statuses["Review required"] = struct{}{}
+	pullRequestStatus = make(map[string]struct{})
+	pullRequestStatus["Draft"] = struct{}{}
+	pullRequestStatus["Approved"] = struct{}{}
+	pullRequestStatus["Changes requested"] = struct{}{}
+	pullRequestStatus["Review required"] = struct{}{}
 }
 
 func NewPullRequest(id int, name string, description string, status string, category string) *PullRequest {
@@ -54,6 +54,6 @@ func (pr *PullRequest) UpdateStatus(status string) bool {
 }
 
 func validateStatus(status string) bool {
-	_, ok := statuses[status]
+	_, ok := pullRequestStatus[status]
 	return ok
 }

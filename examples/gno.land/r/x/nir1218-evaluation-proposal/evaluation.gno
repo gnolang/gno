@@ -36,19 +36,18 @@ func (e *Evaluation) UpdateContribution(id int, status string) bool {
 	c, found := e.contributions.Get(ufmt.Sprintf("%d", id))
 	if found == true {
 		contribtution := c.(*Contribution)
-		contribtution.UpdateStatus(status)
-		return true
+		return contribtution.UpdateStatus(status)
 	}
 	return false
 }
 
-func (e Evaluation) EvaluateContribution(id int) (int64, bool) {
+func (e *Evaluation) EvaluateContribution(id int) (int64, bool) {
 	c, found := e.contributions.Get(ufmt.Sprintf("%d", id))
-	var total int64
 	if found == true {
 		contribtution := c.(*Contribution)
-		total = int64(contribtution.Evaluate())
-		return total, found
+		points := contribtution.Evaluate()
+		e.UpdateContribution(id, "Evaluated")
+		return points.total, found
 	}
 	return int64(0), false
 }

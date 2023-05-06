@@ -16,19 +16,19 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-var e = NewEvalutaion()
+var (
+	e = NewEvalutaion()
+
+	id          = 792
+	name        = "Evaluation DAO Kick Off"
+	description = "The PR is to initiate a discussion regarding the evaluation DAO"
+	status      = "Draft"
+	category    = "feat"
+	criteria    = map[string]int32{"simplicity": 1, "usefullnes": 1, "quality": 1}
+	address     = testutils.TestAddress("contributor")
+)
 
 func TestEvaluationAddContribution(t *testing.T) {
-	var (
-		id          = 792
-		name        = "Evaluation DAO Kick Off"
-		description = "The PR is to initiate a discussion regarding the evaluation DAO"
-		status      = "Draft"
-		category    = "feat"
-		criteria    = map[string]int32{"simplicity": 1, "usefullnes": 1, "quality": 1}
-		address     = testutils.TestAddress("contributor")
-	)
-
 	pr := NewPullRequest(id, name, description, status, category)
 	contributionId, ok := e.AddContribution(pr, address, criteria)
 
@@ -55,24 +55,45 @@ func TestEvaluationAddContribution(t *testing.T) {
 	})
 }
 
-// func (e *Evaluation) UpdateContribution(id int, status string) bool {
-// 	c, found := e.contributions.Get(ufmt.Sprintf("%d", id))
-// 	if found == true {
-// 		contribtution := c.(*Contribution)
-// 		contribtution.UpdateStatus(status)
-// 		return true
-// 	}
-// 	return false
-// }
+func TestEvaluationUpdateContribution(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		status := "Negotiated"
+		ok := e.UpdateContribution(id, status)
+		if !ok {
+			t.Error("Expected evaluation to update contribution's status successfully but failed")
+		}
+	})
+
+	t.Run("Contribution doesn't exist", func(t *testing.T) {
+		id := 1
+		status := "Negotiated"
+		ok := e.UpdateContribution(id, status)
+		if ok {
+			t.Error("Expected evaluation to fail but pass")
+		}
+	})
+}
 
 // Current assumption is that the evaluation criteria is set when the contribution is added
-// func (e Evaluation) EvaluateContribution(id int) (int64, bool) {
-// 	c, found := e.contributions.Get(ufmt.Sprintf("%d", id))
-// 	var total int64
-// 	if found == true {
-// 		contribtution := c.(*Contribution)
-// 		total = int64(contribtution.Evaluate())
-// 		return total, found
-// 	}
-// 	return int64(0), false
-// }
+func TestEvaluationEvaluateContribution(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		_, ok := e.EvaluateContribution(id)
+		if !ok {
+			t.Error("Expected evaluate to succeed but failed")
+		} else {
+			c, found := e.contributions.Get(ufmt.Sprintf("%d", id))
+			contribtution := c.(*Contribution)
+			if contribtution.Status() != "Evaluated" {
+				t.Errorf("Expected contribution status %s got %s", "Evaluated", contribtution.Status())
+			}
+		}
+	})
+
+	t.Run("Contribution doesn't exist", func(t *testing.T) {
+		invalidId := 1
+		_, ok := e.EvaluateContribution(invalidId)
+		if ok {
+			t.Error("Expected evaluate to fail but succeeded")
+		}
+	})
+}
