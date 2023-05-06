@@ -24,7 +24,7 @@ func NewEvalutaion() *Evaluation {
 	return e
 }
 
-func (e *Evaluation) AddContribution(pr PullRequest, address std.Address, criteria map[string]int32) (int, bool) {
+func (e *Evaluation) AddContribution(pr *PullRequest, address std.Address, criteria map[string]int32) (contributionId int, ok bool) {
 	id := pr.Id()
 	e.pullrequests.Set(ufmt.Sprintf("%d", id), pr)
 	c := NewContribution(id, address, criteria)

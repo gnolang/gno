@@ -2,7 +2,7 @@ package evaluation
 
 import "testing"
 
-func TestUpdateStatus(t *testing.T) {
+func TestPullRequestUpdateStatus(t *testing.T) {
 	var (
 		id          = 792
 		name        = "Evaluation DAO Kick Off"
