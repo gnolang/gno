@@ -68,7 +68,7 @@ func execClean(cfg *cleanCfg, args []string, io *commands.IO) error {
 	if err != nil {
 		return err
 	}
-	modDir, err := gnomod.GuessGnoModDir(path)
+	modDir, err := gnomod.FindRootDir(path)
 	if err != nil {
 		return errors.New("not a gno module")
 	}

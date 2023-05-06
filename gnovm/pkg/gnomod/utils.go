@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 )
 
-func GuessGnoModDir(absPath string) (string, error) {
+func FindRootDir(absPath string) (string, error) {
 	if !filepath.IsAbs(absPath) {
 		return "", errors.New("requires absolute path")
 	}
