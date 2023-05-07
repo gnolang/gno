@@ -2,8 +2,6 @@ package groups
 
 import (
 	"strings"
-
-	"gno.land/p/demo/avl"
 )
 
 //----------------------------------------

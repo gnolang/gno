@@ -3,8 +3,6 @@ package boards
 import (
 	"strconv"
 	"strings"
-
-	"gno.land/p/demo/avl"
 )
 
 //----------------------------------------
