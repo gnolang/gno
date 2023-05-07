@@ -6,10 +6,10 @@ help:
 rundep=go run -modfile ../misc/devdeps/go.mod
 
 .PHONY: build
-build: _build.t2txsync
+build: _build.tm2txsync
 _build.tools: _build.aminoscan _build.goscan _build.logjack _build.iaviewer
 
-_build.t2txsync:;   go build -o build/t2txsync   ./cmd/t2txsync
+_build.tm2txsync:;  go build -o build/tm2txsync  ./cmd/tm2txsync
 _build.aminoscan:;  go build -o build/aminoscan  ./pkg/amino/cmd/aminoscan
 _build.goscan:;     go build -o build/goscan     ./pkg/amino/cmd/goscan
 _build.logjack:;    go build -o build/logjack    ./pkg/autofile/cmd

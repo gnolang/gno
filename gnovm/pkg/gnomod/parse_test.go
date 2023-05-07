@@ -116,3 +116,54 @@ func TestModuleDeprecated(t *testing.T) {
 		})
 	}
 }
+
+func TestParseDraft(t *testing.T) {
+	for _, tc := range []struct {
+		desc, in string
+		expected bool
+	}{
+		{
+			desc: "no_comment",
+			in:   `module m`,
+		},
+		{
+			desc: "other_comment",
+			in:   `// yo`,
+		},
+		{
+			desc:     "draft_no_space",
+			in:       `//Draft`,
+			expected: true,
+		},
+		{
+			desc:     "draft_simple",
+			in:       `// Draft`,
+			expected: true,
+		},
+		{
+			desc: "draft_lowercase",
+			in:   `// draft`,
+		},
+		{
+			desc: "draft_multiline",
+			in: `// Draft
+			// yo`,
+		},
+		{
+			desc: "draft_mixed",
+			in: `// some other comment
+			// Draft`,
+		},
+		{
+			desc: "draft_not_first_line",
+			in: `
+			// Draft`,
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			f, err := Parse("in", []byte(tc.in))
+			assert.Nil(t, err)
+			assert.Equal(t, tc.expected, f.Draft)
+		})
+	}
+}
