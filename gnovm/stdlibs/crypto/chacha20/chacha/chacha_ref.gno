@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 //go:build (!amd64 && !386) || gccgo || appengine || nacl
-// +build !amd64,!386 gccgo appengine nacl
 
 package chacha
 

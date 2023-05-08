@@ -1538,13 +1538,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							lhs0 := n.Lhs[0].(*NameExpr).Name
 							lhs1 := n.Lhs[1].(*NameExpr).Name
 
-							var mt *MapType
-							st := evalStaticTypeOf(store, last, cx.X)
-							if dt, ok := st.(*DeclaredType); ok {
-								mt = dt.Base.(*MapType)
-							} else if mt, ok = st.(*MapType); !ok {
-								panic("should not happen")
-							}
+							dt := evalStaticTypeOf(store, last, cx.X)
+							mt := baseOf(dt).(*MapType)
 							// re-definitions
 							last.Define(lhs0, anyValue(mt.Value))
 							last.Define(lhs1, anyValue(BoolType))
