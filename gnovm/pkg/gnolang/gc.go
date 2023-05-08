@@ -96,6 +96,17 @@ func EscapeAnalysis(f *ast.FuncDecl) []string {
 		}
 		return true
 	})
+
+	for _, v := range f.Type.Params.List {
+		if !isSpecialType(v.Type) {
+			continue
+		}
+
+		for _, m := range v.Names {
+			heapVars = append(heapVars, m.Name)
+		}
+	}
+
 	return heapVars
 }
 
