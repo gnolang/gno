@@ -39,7 +39,7 @@ func EscapeAnalysis(f *ast.FuncDecl) []string {
 				heapVars = append(heapVars, getVarName(arg))
 			}
 		case *ast.Ident:
-			vars = append(vars, x.String())
+			vars = append(vars, x.Name)
 		case *ast.FuncLit:
 			// TODO: skip walking the body in the outer scope
 			ast.Inspect(x.Body, func(n ast.Node) bool {
@@ -93,7 +93,16 @@ func EscapeAnalysis(f *ast.FuncDecl) []string {
 
 				heapVars = append(heapVars, getVarName(result))
 			}
+		case *ast.ValueSpec:
+			if !isSpecialType(x.Type) {
+				return true
+			}
+
+			for _, n := range x.Names {
+				heapVars = append(heapVars, getVarName(n))
+			}
 		}
+
 		return true
 	})
 

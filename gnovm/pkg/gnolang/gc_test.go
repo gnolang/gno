@@ -175,19 +175,21 @@ var escapeTests = []escapeTest{
 		code: `
 		package p
 		func foo(x string) {
+			var y string
+			var z,zz map[int]int
 			func(a, d string, b map[string]bool, c []string, e int) {
 			}
 		}`,
 		declaration: func(f *ast.File) *ast.FuncDecl {
 			return f.Decls[0].(*ast.FuncDecl)
 		},
-		expectedVars: []string{"a", "b", "c", "d", "x"},
+		expectedVars: []string{"a", "b", "c", "d", "x", "y", "z", "zz"},
 	},
 	{
 		testName: "goroutines",
 		code: `
 		package main
-		
+
 		func f() {
 			i := 1
 			go func() {
