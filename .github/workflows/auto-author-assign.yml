@@ -1,4 +1,4 @@
-name: Auto Author Assign
+name: auto-author-assign
 
 on:
   pull_request_target:
