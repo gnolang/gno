@@ -3,6 +3,7 @@ package gnolang
 import (
 	"bytes"
 	"fmt"
+	"github.com/dolthub/swiss"
 	"reflect"
 	"testing"
 	"unsafe"
@@ -17,6 +18,34 @@ func TestRunEmptyMain(t *testing.T) {
 	main := FuncD("main", nil, nil, nil)
 	m.RunDeclaration(main)
 	m.RunMain()
+}
+
+func BenchmarkSwissMap(b *testing.B) {
+	m := swiss.NewMap[string, string](10000)
+	for i := 0; i < 100000; i++ {
+		str := fmt.Sprintf("%v", i)
+		m.Put(str, str)
+	}
+
+	for i := 0; i < b.N; i++ {
+		ind := i % 100000
+		str := fmt.Sprintf("%v", ind)
+		m.Get(str)
+	}
+}
+
+func BenchmarkMap(b *testing.B) {
+	m := map[string]string{}
+	for i := 0; i < 100000; i++ {
+		str := fmt.Sprintf("%v", i)
+		m[str] = str
+	}
+
+	for i := 0; i < b.N; i++ {
+		ind := i % 100000
+		str := fmt.Sprintf("%v", ind)
+		_ = m[str]
+	}
 }
 
 // run main() with a for loop.
