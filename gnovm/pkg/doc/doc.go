@@ -76,18 +76,19 @@ func (d *documentable) WriteDocumentation(w io.Writer, o *WriteDocumentationOpti
 		pkg.Consts = append(pkg.Consts, typ.Consts...)
 		pkg.Vars = append(pkg.Vars, typ.Vars...)
 		pkg.Funcs = append(pkg.Funcs, typ.Funcs...)
-		if o.Unexported || token.IsExported(typ.Name) {
-			for _, value := range typ.Consts {
-				typedValue[value] = true
-			}
-			for _, value := range typ.Vars {
-				typedValue[value] = true
-			}
-			for _, fun := range typ.Funcs {
-				// We don't count it as a constructor bound to the type
-				// if the type itself is not exported.
-				constructor[fun] = true
-			}
+		if !o.Unexported && !token.IsExported(typ.Name) {
+			continue
+		}
+		for _, value := range typ.Consts {
+			typedValue[value] = true
+		}
+		for _, value := range typ.Vars {
+			typedValue[value] = true
+		}
+		for _, fun := range typ.Funcs {
+			// We don't count it as a constructor bound to the type
+			// if the type itself is not exported.
+			constructor[fun] = true
 		}
 	}
 
@@ -142,6 +143,7 @@ var fpAbs = filepath.Abs
 // ResolveDocumentable returns a Documentable from the given arguments.
 // Refer to the documentation of gnodev doc for the formats accepted (in general
 // the same as the go doc command).
+// An warning error may be returned even if documentation was resolved.
 func ResolveDocumentable(dirs *Dirs, args []string, unexported bool) (Documentable, error) {
 	parsed, ok := parseArgs(args)
 	if !ok {
@@ -212,12 +214,13 @@ func resolveDocumentable(dirs *Dirs, parsed docArgs, unexported bool) (Documenta
 			continue
 		}
 		for _, sym := range pd.symbols {
-			if matchFunc(sym) {
-				doc.Dir = candidate
-				doc.pkgData = pd
-				// match found. return this as documentable.
-				return doc, multierr.Combine(errs...)
+			if !matchFunc(sym) {
+				continue
 			}
+			doc.Dir = candidate
+			doc.pkgData = pd
+			// match found. return this as documentable.
+			return doc, multierr.Combine(errs...)
 		}
 	}
 	return nil, multierr.Append(
