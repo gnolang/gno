@@ -14,10 +14,15 @@ func FindRootDir(absPath string) (string, error) {
 	root := filepath.VolumeName(absPath) + string(filepath.Separator)
 	for absPath != root {
 		modPath := filepath.Join(absPath, "gno.mod")
-		if _, err := os.Stat(modPath); err == nil {
-			return absPath, nil
+		_, err := os.Stat(modPath)
+		if errors.Is(err, os.ErrNotExist) {
+			absPath = filepath.Dir(absPath)
+			continue
 		}
-		absPath = filepath.Dir(absPath)
+		if err != nil {
+			return "", err
+		}
+		return absPath, nil
 	}
 
 	return "", errors.New("gno.mod file not found in current directory or any parent directory")
