@@ -314,12 +314,14 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 						continue
 					}
 					realms[pkgPath] = struct{}{}
-					if len(realms) > 1 {
-						// second realm met in the frames, it becomes the lastCaller
-						lastCaller = fr.LastPackage.GetPkgAddr().Bech32()
-						// we don't need to iterate further
-						break
+					if len(realms) <= 1 {
+						continue
 					}
+		
+					// second realm met in the frames, it becomes the lastCaller
+					lastCaller = fr.LastPackage.GetPkgAddr().Bech32()
+					// we don't need to iterate further
+					break
 				}
 				// Return the result
 				res0 := gno.Go2GnoValue(
