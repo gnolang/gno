@@ -468,11 +468,24 @@ EXEC_SWITCH:
 		}
 		// For each Rhs, push eval operation.
 		for i := len(cs.Rhs) - 1; 0 <= i; i-- {
+			var isRoot bool
+			if ne, is := cs.Lhs[i].(*NameExpr); is {
+				if ne.IsRoot {
+					isRoot = true
+				}
+			}
 			rx := cs.Rhs[i]
+
+			if cs.Op == DEFINE && isRoot {
+				if ce, is := rx.(*ConstExpr); is {
+					ce.ShouldEscape = true
+				}
+			}
 			// evaluate Rhs
 			m.PushExpr(rx)
 			m.PushOp(OpEval)
 		}
+
 		if cs.Op != DEFINE {
 			// For each Lhs, push eval operation if needed.
 			for i := len(cs.Lhs) - 1; 0 <= i; i-- {
