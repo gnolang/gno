@@ -9,33 +9,33 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newDirs(t *testing.T) (string, *Dirs) {
+func tNewDirs(t *testing.T) (string, *bfsDirs) {
 	t.Helper()
 	p, err := filepath.Abs("./testdata/dirs")
 	require.NoError(t, err)
-	return p, NewDirs(p)
+	return p, newDirs(p)
 }
 
 func TestDirs_findPackage(t *testing.T) {
-	abs, d := newDirs(t)
+	abs, d := tNewDirs(t)
 	tt := []struct {
 		name string
-		res  []Dir
+		res  []bfsDir
 	}{
-		{"rand", []Dir{
+		{"rand", []bfsDir{
 			{importPath: "rand", dir: filepath.Join(abs, "rand")},
 			{importPath: "crypto/rand", dir: filepath.Join(abs, "crypto/rand")},
 			{importPath: "math/rand", dir: filepath.Join(abs, "math/rand")},
 		}},
-		{"crypto/rand", []Dir{
+		{"crypto/rand", []bfsDir{
 			{importPath: "crypto/rand", dir: filepath.Join(abs, "crypto/rand")},
 		}},
-		{"math", []Dir{
+		{"math", []bfsDir{
 			{importPath: "math", dir: filepath.Join(abs, "math")},
 		}},
-		{"ath", []Dir{}},
-		{"/math", []Dir{}},
-		{"", []Dir{}},
+		{"ath", []bfsDir{}},
+		{"/math", []bfsDir{}},
+		{"", []bfsDir{}},
 	}
 	for _, tc := range tt {
 		tc := tc
@@ -47,16 +47,16 @@ func TestDirs_findPackage(t *testing.T) {
 }
 
 func TestDirs_findDir(t *testing.T) {
-	abs, d := newDirs(t)
+	abs, d := tNewDirs(t)
 	tt := []struct {
 		name string
 		in   string
-		res  []Dir
+		res  []bfsDir
 	}{
-		{"rand", filepath.Join(abs, "rand"), []Dir{
+		{"rand", filepath.Join(abs, "rand"), []bfsDir{
 			{importPath: "rand", dir: filepath.Join(abs, "rand")},
 		}},
-		{"crypto/rand", filepath.Join(abs, "crypto/rand"), []Dir{
+		{"crypto/rand", filepath.Join(abs, "crypto/rand"), []bfsDir{
 			{importPath: "crypto/rand", dir: filepath.Join(abs, "crypto/rand")},
 		}},
 		// ignored (dir name testdata), so should not return anything.

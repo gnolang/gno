@@ -74,7 +74,7 @@ func execDoc(cfg *docCfg, args []string, io *commands.IO) error {
 	if cfg.rootDir == "" {
 		cfg.rootDir = guessRootDir()
 	}
-	dirs := doc.NewDirs(filepath.Join(cfg.rootDir, "gnovm/stdlibs"), filepath.Join(cfg.rootDir, "examples"))
+	dirs := []string{filepath.Join(cfg.rootDir, "gnovm/stdlibs"), filepath.Join(cfg.rootDir, "examples")}
 	res, err := doc.ResolveDocumentable(dirs, args, cfg.unexported)
 	if res == nil {
 		return err

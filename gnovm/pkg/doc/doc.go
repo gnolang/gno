@@ -42,7 +42,7 @@ type Documentable interface {
 var _ Documentable = (*documentable)(nil)
 
 type documentable struct {
-	Dir
+	bfsDir
 	symbol     string
 	accessible string
 	pkgData    *pkgData
@@ -58,7 +58,7 @@ func (d *documentable) WriteDocumentation(w io.Writer, o *WriteDocumentationOpti
 	// pkgData may already be initialised if we already had to look to see
 	// if it had the symbol we wanted; otherwise initialise it now.
 	if d.pkgData == nil {
-		d.pkgData, err = newPkgData(d.Dir, o.Unexported)
+		d.pkgData, err = newPkgData(d.bfsDir, o.Unexported)
 		if err != nil {
 			return err
 		}
@@ -144,16 +144,18 @@ var fpAbs = filepath.Abs
 // Refer to the documentation of gnodev doc for the formats accepted (in general
 // the same as the go doc command).
 // An warning error may be returned even if documentation was resolved.
-func ResolveDocumentable(dirs *Dirs, args []string, unexported bool) (Documentable, error) {
+func ResolveDocumentable(dirs []string, args []string, unexported bool) (Documentable, error) {
+	d := newDirs(dirs...)
+
 	parsed, ok := parseArgs(args)
 	if !ok {
 		return nil, fmt.Errorf("commands/doc: invalid arguments: %v", args)
 	}
-	return resolveDocumentable(dirs, parsed, unexported)
+	return resolveDocumentable(d, parsed, unexported)
 }
 
-func resolveDocumentable(dirs *Dirs, parsed docArgs, unexported bool) (Documentable, error) {
-	var candidates []Dir
+func resolveDocumentable(dirs *bfsDirs, parsed docArgs, unexported bool) (Documentable, error) {
+	var candidates []bfsDir
 
 	// if we have a candidate package name, search dirs for a dir that matches it.
 	// prefer directories whose import path match precisely the package
@@ -179,9 +181,9 @@ func resolveDocumentable(dirs *Dirs, parsed docArgs, unexported bool) (Documenta
 		parsed = docArgs{pkg: ".", sym: parsed.pkg, acc: parsed.sym}
 		return resolveDocumentable(dirs, parsed, unexported)
 	}
-	// we wanted documentation about a package, and we found one!
+	// we wanted documentabfsDirn about a package, and we found one!
 	if parsed.sym == "" {
-		return &documentable{Dir: candidates[0]}, nil
+		return &documentable{bfsDir: candidates[0]}, nil
 	}
 
 	// we also have a symbol, and maybe accessible.
@@ -217,7 +219,7 @@ func resolveDocumentable(dirs *Dirs, parsed docArgs, unexported bool) (Documenta
 			if !matchFunc(sym) {
 				continue
 			}
-			doc.Dir = candidate
+			doc.bfsDir = candidate
 			doc.pkgData = pd
 			// match found. return this as documentable.
 			return doc, multierr.Combine(errs...)

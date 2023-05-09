@@ -13,7 +13,7 @@ import (
 
 type pkgData struct {
 	name      string
-	dir       Dir
+	dir       bfsDir
 	fset      *token.FileSet
 	files     []*ast.File
 	testFiles []*ast.File
@@ -35,7 +35,7 @@ type symbolData struct {
 	typ        byte
 }
 
-func newPkgData(dir Dir, unexported bool) (*pkgData, error) {
+func newPkgData(dir bfsDir, unexported bool) (*pkgData, error) {
 	files, err := os.ReadDir(dir.dir)
 	if err != nil {
 		return nil, fmt.Errorf("commands/doc: open %q: %w", dir.dir, err)
