@@ -25,7 +25,7 @@ func TestCleanApp(t *testing.T) {
 			args:                 []string{"clean"},
 			testDir:              "../../tests/integ/empty-dir",
 			simulateExternalRepo: true,
-			errShouldBe:          "not a gno module",
+			errShouldBe:          "not a gno module: gno.mod file not found in current directory or any parent directory",
 		},
 		{
 			args:                 []string{"clean"},
