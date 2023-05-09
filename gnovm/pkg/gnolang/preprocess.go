@@ -1119,12 +1119,12 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					for i, tv := range argTVs {
 						if hasVarg {
 							if (len(spts) - 1) <= i {
-								checkType(tv.T, spts[len(spts)-1].Type.Elem(), true)
+								checkType(tv.T, spts[len(spts)-1].Type.Elem(), true, nil)
 							} else {
-								checkType(tv.T, spts[i].Type, true)
+								checkType(tv.T, spts[i].Type, true, nil)
 							}
 						} else {
-							checkType(tv.T, spts[i].Type, true)
+							checkType(tv.T, spts[i].Type, true, nil)
 						}
 					}
 				} else {
@@ -2309,9 +2309,12 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 		checkOrConvertType(store, last, &bx.Left, t, autoNative)
 	} else if *x != nil { // XXX if x != nil && t != nil {
 		xt := evalStaticTypeOf(store, last, *x)
+		var isNeedConversion bool
 		if t != nil {
-			checkType(xt, t, autoNative)
+			// TODO: shall convert here?
+			checkType(xt, t, autoNative, &isNeedConversion)
 		}
+
 		if isUntyped(xt) {
 			if t == nil {
 				t = defaultTypeOf(xt)
@@ -2336,6 +2339,14 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 			cx := Expr(Call(constType(nil, t), *x))
 			cx = Preprocess(store, last, cx).(Expr)
 			*x = cx
+		}
+		// cover all declared type case
+		if isNeedConversion {
+			cmx := Expr(Call(constType(nil, t), *x))
+			// println("cx before preprocess: ", cx.String(), cx.GetLine(), cx.GetLabel())
+			cmx = Preprocess(store, last, cmx).(Expr)
+			// println("cx after preprocess: ", cx.String(), cx.GetLine(), cx.GetLabel())
+			*x = cmx
 		}
 	}
 }
@@ -2364,7 +2375,7 @@ func convertConst(store Store, last BlockNode, cx *ConstExpr, t Type) {
 // Assert that xt can be assigned as dt (dest type).
 // If autoNative is true, a broad range of xt can match against
 // a target native dt type, if and only if dt is a native type.
-func checkType(xt Type, dt Type, autoNative bool) {
+func checkType(xt Type, dt Type, autoNative bool, isNeedConversion *bool) {
 	// Special case if dt is interface kind:
 	if dt.Kind() == InterfaceKind {
 		if idt, ok := baseOf(dt).(*InterfaceType); ok {
@@ -2446,16 +2457,20 @@ func checkType(xt Type, dt Type, autoNative bool) {
 	// TODO simplify with .IsNamedType().
 	if dxt, ok := xt.(*DeclaredType); ok {
 		if ddt, ok := dt.(*DeclaredType); ok {
-			// types must match exactly.
+			// XXX what unseal mean?
 			if !dxt.sealed && !ddt.sealed &&
 				dxt.PkgPath == ddt.PkgPath &&
 				dxt.Name == ddt.Name { // not yet sealed
 				return // ok
 			} else if dxt.TypeID() == ddt.TypeID() {
 				return // ok
+			} else if ddt.Base.TypeID() == dxt.TypeID() {
+				if isNeedConversion != nil {
+					*isNeedConversion = true
+				}
 			} else {
 				panic(fmt.Sprintf(
-					"cannot use %s as %s without explicit conversion",
+					"cannot use %s as %s with implicit/explicit conversion",
 					dxt.String(),
 					ddt.String()))
 			}
@@ -2473,6 +2488,11 @@ func checkType(xt Type, dt Type, autoNative bool) {
 			}
 		}
 	} else if ddt, ok := dt.(*DeclaredType); ok {
+		if ddt.Base.TypeID() == xt.TypeID() {
+			if isNeedConversion != nil {
+				*isNeedConversion = true
+			}
+		}
 		// special case if implicitly named primitive type.
 		// TODO simplify with .IsNamedType().
 		if _, ok := xt.(PrimitiveType); ok {
@@ -2527,23 +2547,23 @@ func checkType(xt Type, dt Type, autoNative bool) {
 		}
 	case *PointerType:
 		if pt, ok := xt.(*PointerType); ok {
-			checkType(pt.Elt, cdt.Elt, false)
+			checkType(pt.Elt, cdt.Elt, false, isNeedConversion)
 			return // ok
 		}
 	case *ArrayType:
 		if at, ok := xt.(*ArrayType); ok {
-			checkType(at.Elt, cdt.Elt, false)
+			checkType(at.Elt, cdt.Elt, false, isNeedConversion)
 			return // ok
 		}
 	case *SliceType:
 		if st, ok := xt.(*SliceType); ok {
-			checkType(st.Elt, cdt.Elt, false)
+			checkType(st.Elt, cdt.Elt, false, isNeedConversion)
 			return // ok
 		}
 	case *MapType:
 		if mt, ok := xt.(*MapType); ok {
-			checkType(mt.Key, cdt.Key, false)
-			checkType(mt.Value, cdt.Value, false)
+			checkType(mt.Key, cdt.Key, false, isNeedConversion)
+			checkType(mt.Value, cdt.Value, false, isNeedConversion)
 			return // ok
 		}
 	case *FuncType:

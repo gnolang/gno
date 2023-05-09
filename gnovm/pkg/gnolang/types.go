@@ -2363,7 +2363,7 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 				generic := ct.Generic[:len(ct.Generic)-len(".Elem()")]
 				match, ok := lookup[generic]
 				if ok {
-					checkType(spec, match.Elem(), false)
+					checkType(spec, match.Elem(), false, nil)
 					return // ok
 				} else {
 					// Panic here, because we don't know whether T
@@ -2377,7 +2377,7 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 			} else {
 				match, ok := lookup[ct.Generic]
 				if ok {
-					checkType(spec, match, false)
+					checkType(spec, match, false, nil)
 					return // ok
 				} else {
 					if isUntyped(spec) {
