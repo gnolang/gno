@@ -6,6 +6,8 @@
 
 # Tendermint2 (Gno version).
 tm2/*                        @gnolang/tech-staff
+tm2/pkg                      @jaekwon @moul
+# TODO: add per package exceptions
 
 
 # Docs & Content.
@@ -25,6 +27,8 @@ gno.land/*                   @gnolang/tech-staff
 
 # GnoVM/Gnolang.
 gnovm/*                      @gnolang/tech-staff
+gnovm/stdlibs                @jaekwon @moul
+gnovm/pkg/gnolang            @jaekwon @moul
 
 
 # Special files.
