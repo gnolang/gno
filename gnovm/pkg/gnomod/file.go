@@ -15,6 +15,7 @@ import (
 
 // Parsed gno.mod file.
 type File struct {
+	Draft   bool
 	Module  *modfile.Module
 	Go      *modfile.Go
 	Require []*modfile.Require
@@ -34,7 +35,7 @@ func (f *File) Validate() error {
 
 // FetchDeps fetches and writes gno.mod packages
 // in GOPATH/pkg/gnomod/
-func (f *File) FetchDeps(path string, remote string) error {
+func (f *File) FetchDeps(path string, remote string, verbose bool) error {
 	for _, r := range f.Require {
 		mod, replaced := isReplaced(r.Mod, f.Replace)
 		if replaced {
@@ -50,10 +51,14 @@ func (f *File) FetchDeps(path string, remote string) error {
 
 		_, err := os.Stat(filepath.Join(path, r.Mod.Path))
 		if !os.IsNotExist(err) {
-			log.Println("cached", r.Mod.Path, indirect)
+			if verbose {
+				log.Println("cached", r.Mod.Path, indirect)
+			}
 			continue
 		}
-		log.Println("fetching", r.Mod.Path, indirect)
+		if verbose {
+			log.Println("fetching", r.Mod.Path, indirect)
+		}
 		requirements, err := writePackage(remote, path, r.Mod.Path)
 		if err != nil {
 			return fmt.Errorf("writepackage: %w", err)
@@ -88,7 +93,7 @@ func (f *File) FetchDeps(path string, remote string) error {
 			}
 		}
 
-		err = modFile.FetchDeps(path, remote)
+		err = modFile.FetchDeps(path, remote, verbose)
 		if err != nil {
 			return err
 		}

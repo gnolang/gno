@@ -58,3 +58,14 @@ jobs:
         run: |
           export GOPATH=$HOME/go
           make ${{ matrix.args }}
+
+  docker-integration:
+    strategy:
+      fail-fast: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v3
+      # TODO: setup docker caching
+      - run: make test.docker
+      - run: docker logs int_gnoland || true

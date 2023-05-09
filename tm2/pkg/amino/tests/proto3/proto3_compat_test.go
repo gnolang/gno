@@ -1,5 +1,4 @@
 //go:build extensive_tests
-// +build extensive_tests
 
 // only built if manually enforced (via the build tag above)
 package proto3
