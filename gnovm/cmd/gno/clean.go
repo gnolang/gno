@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -70,7 +70,7 @@ func execClean(cfg *cleanCfg, args []string, io *commands.IO) error {
 	}
 	modDir, err := gnomod.FindRootDir(path)
 	if err != nil {
-		return errors.New("not a gno module")
+		return fmt.Errorf("not a gno module: %w", err)
 	}
 
 	if path != modDir && (cfg.dryRun || cfg.verbose) {

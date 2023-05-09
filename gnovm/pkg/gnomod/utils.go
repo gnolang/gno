@@ -20,5 +20,5 @@ func FindRootDir(absPath string) (string, error) {
 		absPath = filepath.Dir(absPath)
 	}
 
-	return "", errors.New("cannot guess gno.mod dir")
+	return "", errors.New("gno.mod file not found in current directory or any parent directory")
 }
