@@ -457,11 +457,18 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 	// Also inject stdlibs native functions.
 	stdlibs.InjectPackage(store, pn)
 	isOriginCall := func(m *gno.Machine) bool {
-		switch m.Frames[0].Func.Name {
+		tname := m.Frames[0].Func.Name
+		switch tname {
 		case "main": // test is a _filetest
 			return len(m.Frames) == 3
 		case "runtest": // test is a _test
 			return len(m.Frames) == 7
+		}
+		// support init() in _filetest
+		// XXX do we need to distinguish from 'runtest'/_test?
+		// XXX pretty hacky even if not.
+		if strings.HasPrefix(string(tname), "init.") {
+			return len(m.Frames) == 3
 		}
 		panic("unable to determine if test is a _test or a _filetest")
 	}
