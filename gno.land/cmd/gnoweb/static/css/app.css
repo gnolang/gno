@@ -204,6 +204,10 @@ li {
   margin-bottom: 0.4rem;
 }
 
+li > * {
+  vertical-align: middle;
+}
+
 input {
   font-family: "Roboto Mono", "Monaco", monospace;
   background-color: var(--input-background-color, #eee);
@@ -226,11 +230,21 @@ pre {
   margin: 0;
 }
 
+label {
+  margin-block-end: 0.8rem;
+  display: block;
+}
+
+label > img {
+  margin-inline-end: 0.8rem;
+}
+
 /*** COMPOSITION ***/
 .container {
   width: 100%;
   max-width: 63.75rem;
   margin: auto;
+  padding: 1.25rem;
 }
 
 .inline-list {
@@ -479,13 +493,6 @@ code.hljs {
 /* enabled conditionally with <noscript> */
 #source {
   display: none;
-}
-
-/*** HOMEPAGE ***/
-
-#home,
-#subscribe {
-  padding: 0 22px;
 }
 
 /*** REALM HELP ***/

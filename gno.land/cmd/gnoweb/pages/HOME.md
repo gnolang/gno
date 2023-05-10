@@ -28,6 +28,7 @@ If you want to stack real ATOM rewards and play a key role in the success of Gno
 <div class="stack">
 
 [Join Game Of Realms](/game-of-realms)
+
 </div>
 </div>
 
@@ -74,7 +75,7 @@ If you want to stack real ATOM rewards and play a key role in the success of Gno
 
 ### Socials
 
-- [Discord](https://discord.gg/S8nKUqwkPn)
-- [Twitter](https://twitter.com/_gnoland)
-- [Youtube](https://www.youtube.com/@_gnoland)
-- [Telegram](https://t.me/gnoland) 
+- ![Discord](static/img/ico-discord.svg) [Discord](https://discord.gg/S8nKUqwkPn)
+- ![Twitter](static/img/ico-twitter.svg) [Twitter](https://twitter.com/_gnoland)
+- ![Youtube](static/img/ico-youtube.svg) [Youtube](https://www.youtube.com/@_gnoland)
+- ![Telegram](static/img/ico-telegram.svg) [Telegram](https://t.me/gnoland)
