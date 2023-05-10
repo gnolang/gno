@@ -7,17 +7,11 @@
   </head>
   <body onload="main()">
     <div id="root">
-      <div id="header">
-        {{ template "header_logo" }}
-        {{ template "header_buttons" }}
-      </div>
-
-      <div id="home">
+      <div id="header">{{ template "header_logo" }} {{ template "header_buttons" }}</div>
+      <div id="home" class="container">
         <pre id="source">{{ .Data.HomeContent }}</pre>
       </div>
-      <div id="subscribe">
-        {{ template "subscribe" }}
-      </div>
+      <div id="subscribe">{{ template "subscribe" }}</div>
       {{ template "footer" }}
     </div>
     {{ template "js" }}

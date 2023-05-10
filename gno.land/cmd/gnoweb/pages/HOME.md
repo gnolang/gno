@@ -1,50 +1,80 @@
-# Welcome to **Gno.land**
+# Welcome to Gno.land
 
-- [About Gno.land](/about)
+---
+
+## An interpretation of the Golang (Go) programming language for advanced developers and intrepid pioneers to build succinct, composable smart contracts for social coordination.
+
+If you’re concerned about information censorship and want to contribute to the #GnoWorldOrder, follow our socials to find out how
+
+Gno.land is in building mode. If you want to help lay the foundations of a fairer and freer world through innovative ideas and exceptional code, join us today.
+
+<div class="stack">
+
+[About Gno.land](/about)
+[Explore Github repo](https://github.com/gnolang)
+
+</div>
+
+<div class="jumbotron">
+
+### Game of Realms
+
+The worldwide competition to find the best contributors to Gno.land is currently in phase one – for advanced developers only.
+
+Once the necessary tools to start phase two are ready, we’ll open up the competition to newer devs and non-technical contributors.
+
+If you want to stack real ATOM rewards and play a key role in the success of Gno.land and web3, read more about Game of Realms or open a PR today.
+
+<div class="stack">
+
+[Join Game Of Realms](/game-of-realms)
+</div>
+</div>
+
+<div class="columns-3">
+<div>
+
+### Learn about Gno.land
+
+- [About](/about)
+- [Subscribe](/)
+- [Tokenomics (soon)](#)
 - [Blogs](/r/gnoland/blog)
-- [Install `gnokey`](https://github.com/gnolang/gno/tree/master/gno.land/cmd/gnokey)
-- [Acquire testnet tokens](/faucet)
-- [Game of Realms](/game-of-realms) - An open worldwide competition for developers to build the best Gnolang smart-contracts.
+- [Events](/events)
+- [Partners (soon)](#)
 
-# Explore new packages.
+</div>
 
-- r/gnoland
-  - [/r/gnoland/blog](/r/gnoland/blog)
-  - [/r/gnoland/faucet](/r/gnoland/faucet)
-- r/system
-  - [/r/system/names](/r/system/names)
-  - [/r/system/rewards](/r/system/rewards)
-  - [/r/system/validators](/r/system/validators)
-- r/demo
-  - [/r/demo/banktest](/r/demo/banktest)
-  - [/r/demo/boards](/r/demo/boards)
-  - [/r/demo/foo20](/r/demo/foo20)
-  - [/r/demo/nft](/r/demo/nft)
-  - [/r/demo/types](/r/demo/types)
-  - [/r/demo/users](/r/demo/users)
-  - [/r/demo/groups](/r/demo/groups)
-- p/demo
-  - [/p/demo/avl](/p/demo/avl)
-  - [/p/demo/blog](/p/demo/blog)
-  - [/p/demo/flow](/p/demo/flow)
-  - [/p/demo/gnode](/p/demo/gnode)
-  - [/p/demo/grc/exts](/p/demo/grc/exts)
-  - [/p/demo/grc/grc20](/p/demo/grc/grc20)
-  - [/p/demo/grc/grc721](/p/demo/grc/grc721)
+<div>
 
-# Other Testnets
+### Build with Gnolang
 
-- **[staging.gno.land](https://staging.gno.land) (wiped every commit to master)**
-- _[test3.gno.land](https://test3.gno.land) (latest)_
-- _[test2.gno.land](https://test2.gno.land) (archive)_
-- _[test1.gno.land](https://test1.gno.land) (archive)_
+- [Gno dev with CLI](/)
+- [Gno IDE (soon)](#)
+- [Test in the browser (soon)](#)
+- [Docs/ Tutorials](https://github.com/gnolang)
+- [Workshops/ Events/ Office hours](/events)
+- [Getting started video (soon)](#)
 
-**This is a testnet.**
-Package names are not guaranteed to be available for production.
+</div>
+<div>
 
-# Social
+### Explore the universe
 
-Check out our [community projects](https://github.com/gnolang/awesome-gno).
+- [Discover demo packages](/)
+- [Install Gno Key instructions](/)
+- [Other Testnets](https://staging.gno.land)
+- [Explorer links(soon)](#)
+- [Testnet Tokens (faucet)](/faucet)
 
-Official channel: [Discord](https://discord.gg/S8nKUqwkPn)<br />
-Other channels: [Telegram](https://t.me/gnoland) [Twitter](https://twitter.com/_gnoland) [Youtube](https://www.youtube.com/@_gnoland)
+</div>
+</div>
+
+---
+
+### Socials
+
+- [Discord](https://discord.gg/S8nKUqwkPn)
+- [Twitter](https://twitter.com/_gnoland)
+- [Youtube](https://www.youtube.com/@_gnoland)
+- [Telegram](https://t.me/gnoland) 

@@ -67,6 +67,7 @@ func makeApp() gotuna.App {
 	app.Router.Handle("/", handlerHome(app))
 	app.Router.Handle("/about", handlerAbout(app))
 	app.Router.Handle("/game-of-realms", handlerGor(app))
+	app.Router.Handle("/events", handlerEvents(app))
 	app.Router.Handle("/faucet", handlerFaucet(app))
 	app.Router.Handle("/r/demo/boards:gnolang/6", handlerRedirect(app))
 	// NOTE: see rePathPart.
@@ -125,6 +126,18 @@ func handlerGor(app gotuna.App) http.Handler {
 		app.NewTemplatingEngine().
 			Set("MainContent", string(mainContent)).
 			Set("Title", "About").
+			Render(w, r, "gor.html", "funcs.html")
+	})
+}
+
+func handlerEvents(app gotuna.App) http.Handler {
+	md := filepath.Join(flags.pagesDir, "EVENTS.md")
+	mainContent := osm.MustReadFile(md)
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		app.NewTemplatingEngine().
+			Set("MainContent", string(mainContent)).
+			Set("Title", "Events").
 			Render(w, r, "generic.html", "funcs.html")
 	})
 }

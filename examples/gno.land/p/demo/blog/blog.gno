@@ -27,6 +27,7 @@ func (b Blog) Render(path string) string {
 	switch {
 	case isHome:
 		output := breadcrumb([]string{b.Title})
+        output += "<div class='columns-3'>"
 
 		if b.Posts.Size() == 0 {
 			output += "No posts."
@@ -38,6 +39,9 @@ func (b Blog) Render(path string) string {
 			output += post.RenderListItem()
 			return false
 		})
+
+        output += "</div>"
+
 
 		// FIXME: tag list/cloud.
 		return output
@@ -209,12 +213,14 @@ func (p *Post) RenderListItem() string {
 	if p == nil {
 		return "error: no such post\n"
 	}
-	output := ""
-	output += ufmt.Sprintf("## [&#9656; %s](%s)\n", p.Title, p.URL())
+	output := "<div>\n\n"
+	output += ufmt.Sprintf("## [%s](%s)\n", p.Title, p.URL())
+	output += ufmt.Sprintf("**[%s](%s)**\n", "Learn More", p.URL())
 	// output += p.Summary() + "\n\n"
 	// output += p.RenderTagList() + "\n\n"
 	// output += formatAuthorAndDate(p.Author, p.CreatedAt) + "\n"
 	output += "\n"
+    output += "</div>"
 	return output
 }
 

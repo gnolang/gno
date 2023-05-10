@@ -6,7 +6,7 @@ Start building the foundation for tomorrow through key smart contracts and other
 
 You can start participating in the co-creation of the Game of Realms now by adding your contributions on the dedicated [GitHub page](https://github.com/gnolang/gno/issues/357) to help us formulate the challenges. We want to release the final challenges from your contributions.
 
-## Register  Now
+## Register Now
 
 <!-- mailchimp -->
 <div id="mc_embed_signup">
