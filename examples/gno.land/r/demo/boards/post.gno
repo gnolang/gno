@@ -199,9 +199,9 @@ func (post *Post) RenderPost(indent string, levels int) string {
 	str += " \\[[x](" + post.GetDeleteFormURL() + ")]\n"
 	if levels > 0 {
 		if post.replies.Size() > 0 {
-			post.replies.Iterate("", "", func(n *avl.Node) bool {
+			post.replies.Iterate("", "", func(key string, value interface{}) bool {
 				str += indent + "\n"
-				str += n.Value().(*Post).RenderPost(indent+"> ", levels-1)
+				str += value.(*Post).RenderPost(indent+"> ", levels-1)
 				return false
 			})
 		}
