@@ -11,6 +11,7 @@ import (
 	"go/doc"
 	"go/token"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -143,7 +144,8 @@ var fpAbs = filepath.Abs
 // ResolveDocumentable returns a Documentable from the given arguments.
 // Refer to the documentation of gnodev doc for the formats accepted (in general
 // the same as the go doc command).
-// An warning error may be returned even if documentation was resolved.
+// An error may be returned even if documentation was resolved in case some
+// packages in dirs could not be parsed correctly.
 func ResolveDocumentable(dirs []string, args []string, unexported bool) (Documentable, error) {
 	d := newDirs(dirs...)
 
@@ -160,11 +162,17 @@ func resolveDocumentable(dirs *bfsDirs, parsed docArgs, unexported bool) (Docume
 	// if we have a candidate package name, search dirs for a dir that matches it.
 	// prefer directories whose import path match precisely the package
 	if s, err := os.Stat(parsed.pkg); err == nil && s.IsDir() {
-		// expand to full path
+		// expand to full path - fpAbs is filepath.Abs except in test
 		absVal, err := fpAbs(parsed.pkg)
 		if err == nil {
 			candidates = dirs.findDir(absVal)
+		} else {
+			// this is very rare - generally syscall failure or os.Getwd failing
+			log.Printf("warning: could not determine abs path: %v", err)
 		}
+	} else if err != nil && !os.IsNotExist(err) {
+		// also quite rare, generally will be permission errors (in reading cwd)
+		log.Printf("warning: tried showing documentation for directory %q, error: %v", parsed.pkg, err)
 	}
 	// arg is either not a dir, or if it matched a local dir it was not
 	// valid (ie. not scanned by dirs). try parsing as a package
@@ -210,8 +218,8 @@ func resolveDocumentable(dirs *bfsDirs, parsed docArgs, unexported bool) (Docume
 	for _, candidate := range candidates {
 		pd, err := newPkgData(candidate, unexported)
 		if err != nil {
-			// silently ignore errors -
-			// likely invalid AST in a file.
+			// report errors as warning, but don't fail because of them
+			// likely ast/parsing errors.
 			errs = append(errs, err)
 			continue
 		}
@@ -259,7 +267,7 @@ func parseArgs(args []string) (docArgs, bool) {
 		slash := strings.LastIndexByte(args[0], '/')
 		if args[0] == "." || args[0] == ".." ||
 			(slash != -1 && args[0][slash+1:] == "..") {
-			// special handling for common ., .. and ./..
+			// special handling for common ., .. and <dir>/..
 			// these will generally work poorly if you try to use the one-argument
 			// syntax to access a symbol/accessible.
 			return docArgs{pkg: args[0]}, true
