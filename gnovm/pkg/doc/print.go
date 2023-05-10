@@ -9,6 +9,7 @@ package doc
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/doc"
@@ -39,8 +40,9 @@ type pkgPrinter struct {
 	opt         *WriteDocumentationOptions
 	importPath  string
 
-	// this is set when an error should be returned up the call chain;
-	// ie. it is set in the places where the cmd/go code would panic.
+	// this is set when an error should be returned up the call chain.
+	// it is set together with a panic(errFatal), so it can be checked easily
+	// when calling recover.
 	err error
 }
 
@@ -77,24 +79,28 @@ func (pb *pkgBuffer) packageClause() {
 	}
 }
 
+var errFatal = errors.New("pkg/doc: pkgPrinter.Fatalf called")
+
 // in cmd/go, pkg.Fatalf is like log.Fatalf, but panics so it can be recovered in the
 // main do function, so it doesn't cause an exit. Allows testing to work
 // without running a subprocess.
 // For our purposes, we store the error in .err - the caller knows about this and will check it.
 func (pkg *pkgPrinter) Fatalf(format string, args ...any) {
 	pkg.err = fmt.Errorf(format, args...)
+	panic(errFatal)
 }
 
 func (pkg *pkgPrinter) Printf(format string, args ...any) {
 	fmt.Fprintf(&pkg.buf, format, args...)
 }
 
-func (pkg *pkgPrinter) flush() {
+func (pkg *pkgPrinter) flush() error {
 	_, err := pkg.opt.w.Write(pkg.buf.Bytes())
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	pkg.buf.Reset() // Not needed, but it's a flush.
+	return nil
 }
 
 var newlineBytes = []byte("\n\n") // We never ask for more than 2.
@@ -121,7 +127,7 @@ func (pkg *pkgPrinter) emit(comment string, node ast.Node) {
 		}
 		err := format.Node(&pkg.buf, pkg.fs, arg)
 		if err != nil {
-			log.Fatal(err)
+			pkg.Fatalf("%v", err)
 		}
 		if comment != "" && !pkg.opt.Source {
 			pkg.newlines(1)
@@ -764,7 +770,7 @@ func (pkg *pkgPrinter) trimUnexportedFields(fields *ast.FieldList, isInterface b
 			}
 			if names == nil && !constraint {
 				// Can only happen if AST is incorrect. Safe to continue with a nil list.
-				log.Print("invalid program: unexpected type for embedded field")
+				log.Print("warning: invalid program: unexpected type for embedded field")
 			}
 		}
 		// Trims if any is unexported. Good enough in practice.
@@ -857,7 +863,7 @@ func (pkg *pkgPrinter) printMethodDoc(symbol, method string) bool {
 			inter.Methods.List, methods = methods, inter.Methods.List
 			err := format.Node(&pkg.buf, pkg.fs, inter)
 			if err != nil {
-				log.Fatal(err)
+				pkg.Fatalf("%v", err)
 			}
 			pkg.newlines(1)
 			// Restore the original methods.
