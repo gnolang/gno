@@ -69,8 +69,8 @@ func (group *Group) RenderGroup() string {
 		"Group Last MemberID: " + memberIDKey(group.lastMemberID) + "\n\n"
 
 	str += "Group Members: \n\n"
-	group.members.Iterate("", "", func(n *avl.Node) bool {
-		member := n.Value().(*Member)
+	group.members.Iterate("", "", func(key string, value interface{}) bool {
+		member := value.(*Member)
 		str += member.getMemberStr()
 		return false
 	})

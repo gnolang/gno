@@ -833,3 +833,15 @@ func parseDirectiveComment(block *modfile.LineBlock, line *modfile.Line) string 
 	}
 	return strings.Join(lines, "\n")
 }
+
+// parseDraft returns whether the module is marked as draft.
+func parseDraft(block *modfile.CommentBlock) bool {
+	if len(block.Before) != 1 {
+		return false
+	}
+	comment := block.Before[0]
+	if strings.TrimSpace(strings.TrimPrefix(comment.Token, "//")) != "Draft" {
+		return false
+	}
+	return true
+}
