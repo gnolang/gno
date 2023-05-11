@@ -104,39 +104,55 @@ func (c *Command) Parse(args []string) error {
 		fmt.Fprintln(c.FlagSet.Output(), c.UsageFunc(c))
 	}
 
-	if err := ff.Parse(c.FlagSet, args, c.Options...); err != nil {
-		return err
+	c.args = []string{}
+	// Parse args to indentify what is a flag, a subcommand or an argument.
+	// Use a loop to support flag declaration after arguments and subcommands.
+	// At each iteration:
+	// - c.args the first argument found
+	// - args is truncated by anything that has been parsed
+	for {
+		// ff.Parse iterates over args, feeding FlagSet with the flags encountered.
+		// It stops when:
+		// 1) there's nothing more to parse. In that case, FlagSet.Args() is empty.
+		// 2) it encounters a double delimiter "--". In that case FlagSet.Args()
+		// contains everything that follows the double delimiter.
+		// 3) it encounters an item that is not a flag. In that case FlagSet.Args()
+		// contains that last item and everything that follows it. The item can be
+		// an argument or a subcommand.
+		if err := ff.Parse(c.FlagSet, args, c.Options...); err != nil {
+			return err
+		}
+		if c.FlagSet.NArg() == 0 {
+			// 1) Nothing more to parse
+			break
+		}
+		// Determine if ff.Parse() has been interrupted by a double delimiter.
+		// This is case if the last parsed arg is a "--"
+		parsedArgs := args[:len(args)-c.FlagSet.NArg()]
+		if n := len(parsedArgs); n > 0 && parsedArgs[n-1] == "--" {
+			// 2) Double delimiter has been met, everything that follow it can be
+			// considered as arguments.
+			c.args = append(c.args, c.FlagSet.Args()...)
+			break
+		}
+		// 3) c.FlagSet.Arg(0) is not a flag, determine if it's an argument or a
+		// subcommand.
+		// NOTE: it can be a subcommand if and only if the argument list is empty.
+		// In other words, a command can't have both arguments and subcommands.
+		if len(c.args) == 0 {
+			for _, subcommand := range c.Subcommands {
+				if strings.EqualFold(c.FlagSet.Arg(0), subcommand.Name) {
+					// c.FlagSet.Arg(0) is a subcommand
+					c.selected = subcommand
+					return subcommand.Parse(c.FlagSet.Args()[1:])
+				}
+			}
+		}
+		// Append argument found
+		c.args = append(c.args, c.FlagSet.Arg(0))
+		// Truncate args and continue
+		args = c.FlagSet.Args()[1:]
 	}
-
-	c.args = c.FlagSet.Args()
-	if len(c.args) > 0 {
-		// Determine if ff.Parse has been interrupted by a --
-		for i := 0; i < len(args)-len(c.args); i++ {
-			if args[i] == "--" {
-				goto STOP_PARSE
-			}
-		}
-		for _, subcommand := range c.Subcommands {
-			if strings.EqualFold(c.args[0], subcommand.Name) {
-				c.selected = subcommand
-				return subcommand.Parse(c.args[1:])
-			}
-		}
-		// args[0] is not a sub command, so it's an command argument.
-		c.args = c.args[:1]
-		// continue flag parsing after args[0]
-		for c.FlagSet.NArg() > 1 {
-			err := ff.Parse(c.FlagSet, c.FlagSet.Args()[1:], c.Options...)
-			if err != nil {
-				return err
-			}
-			if c.FlagSet.NArg() > 0 {
-				// Arg(0) is an arg, not a flag
-				c.args = append(c.args, c.FlagSet.Arg(0))
-			}
-		}
-	}
-STOP_PARSE:
 
 	c.selected = c
 

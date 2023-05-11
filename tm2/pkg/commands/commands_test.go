@@ -5,8 +5,8 @@ import (
 	"flag"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/commands/ffcli"
 )
@@ -32,147 +32,192 @@ func TestCommandFlagsOrder(t *testing.T) {
 	tests := []struct {
 		name          string
 		osArgs        []string
+		expectedCmd   string
 		expectedArgs  []string
 		expectedFlags flags
 		expectedError string
 	}{
 		{
 			name:          "no args no flags",
+			expectedCmd:   "main",
 			osArgs:        []string{},
 			expectedArgs:  []string{},
 			expectedFlags: flags{},
 		},
 		{
 			name:          "only args",
+			expectedCmd:   "main",
 			osArgs:        []string{"bar", "baz"},
 			expectedArgs:  []string{"bar", "baz"},
 			expectedFlags: flags{},
 		},
 		{
 			name:          "only flags",
+			expectedCmd:   "main",
 			osArgs:        []string{"-b", "-s", "str"},
 			expectedArgs:  []string{},
 			expectedFlags: flags{b: true, s: "str"},
 		},
 		{
 			name:          "ignore all flags",
+			expectedCmd:   "main",
 			osArgs:        []string{"--", "-b", "-s", "str", "bar"},
 			expectedArgs:  []string{"-b", "-s", "str", "bar"},
 			expectedFlags: flags{},
 		},
 		{
 			name:          "ignore some flags",
-			osArgs:        []string{"-b", "--", "-s", "str", "bar"},
-			expectedArgs:  []string{"-s", "str", "bar"},
+			expectedCmd:   "main",
+			osArgs:        []string{"-b", "--", "-s", "--", "str", "bar"},
+			expectedArgs:  []string{"-s", "--", "str", "bar"},
 			expectedFlags: flags{b: true},
 		},
 		{
 			name:          "unknow flag",
+			expectedCmd:   "main",
 			osArgs:        []string{"-y", "-s", "str"},
 			expectedArgs:  []string{},
 			expectedError: "error parsing commandline arguments: flag provided but not defined: -y",
 		},
 		{
 			name:          "flags before args",
+			expectedCmd:   "main",
 			osArgs:        []string{"-b", "-s", "str", "bar", "baz"},
 			expectedArgs:  []string{"bar", "baz"},
 			expectedFlags: flags{b: true, s: "str"},
 		},
 		{
 			name:          "flags after args",
+			expectedCmd:   "main",
 			osArgs:        []string{"bar", "baz", "-b", "-s", "str"},
 			expectedArgs:  []string{"bar", "baz"},
 			expectedFlags: flags{b: true, s: "str"},
 		},
 		{
 			name:          "flags around args",
+			expectedCmd:   "main",
 			osArgs:        []string{"-b", "bar", "baz", "-s", "str"},
 			expectedArgs:  []string{"bar", "baz"},
 			expectedFlags: flags{b: true, s: "str"},
 		},
 		{
 			name:          "flags between args",
+			expectedCmd:   "main",
 			osArgs:        []string{"bar", "-b", "-s", "str", "baz"},
 			expectedArgs:  []string{"bar", "baz"},
 			expectedFlags: flags{b: true, s: "str"},
 		},
 		{
+			name:          "ignore ending --",
+			expectedCmd:   "main",
+			osArgs:        []string{"bar", "-b", "-s", "str", "--"},
+			expectedArgs:  []string{"bar"},
+			expectedFlags: flags{b: true, s: "str"},
+		},
+		{
 			name:          "args and some ignored flags",
-			osArgs:        []string{"bar", "-b", "--", "-s", "str", "baz"},
-			expectedArgs:  []string{"bar", "-s", "str", "baz"},
+			expectedCmd:   "main",
+			osArgs:        []string{"bar", "-b", "--", "-s", "--", "str", "baz"},
+			expectedArgs:  []string{"bar", "-s", "--", "str", "baz"},
 			expectedFlags: flags{b: true},
 		},
 		{
 			name:          "subcommand no flags no args",
+			expectedCmd:   "sub",
 			osArgs:        []string{"sub"},
 			expectedArgs:  []string{},
 			expectedFlags: flags{},
 		},
 		{
 			name:          "subcommand only args",
+			expectedCmd:   "sub",
 			osArgs:        []string{"sub", "bar", "baz"},
 			expectedArgs:  []string{"bar", "baz"},
 			expectedFlags: flags{},
 		},
 		{
 			name:          "subcommand flag before subcommand",
+			expectedCmd:   "sub",
 			osArgs:        []string{"-x", "sub"},
 			expectedError: "error parsing commandline arguments: flag provided but not defined: -x",
 		},
 		{
 			name:          "subcommand only flags",
+			expectedCmd:   "sub",
 			osArgs:        []string{"-b", "sub", "-x", "-s", "str"},
 			expectedArgs:  []string{},
 			expectedFlags: flags{b: true, s: "str", x: true},
 		},
 		{
-			name:          "subcommand ignore flags -- after",
+			name:          "subcommand ignore all flags after --",
+			expectedCmd:   "sub",
 			osArgs:        []string{"-b", "sub", "--", "-x", "-s", "str"},
 			expectedArgs:  []string{"-x", "-s", "str"},
 			expectedFlags: flags{b: true},
 		},
 		{
-			name:          "subcommand ignore some flags",
+			name:          "subcommand ignore some flags after --",
+			expectedCmd:   "sub",
 			osArgs:        []string{"-b", "sub", "-x", "--", "-s", "str"},
 			expectedArgs:  []string{"-s", "str"},
 			expectedFlags: flags{b: true, x: true},
 		},
 		{
-			name:          "subcommand ignored",
+			name:          "subcommand ignored by --",
+			expectedCmd:   "main",
 			osArgs:        []string{"-b", "--", "sub", "-x", "-s", "str"},
 			expectedArgs:  []string{"sub", "-x", "-s", "str"},
 			expectedFlags: flags{b: true},
 		},
 		{
+			name:          "subcommand ignored by preceding arg",
+			expectedCmd:   "main",
+			osArgs:        []string{"-b", "bar", "sub", "-s", "str"},
+			expectedArgs:  []string{"bar", "sub"},
+			expectedFlags: flags{b: true, s: "str"},
+		},
+		{
 			name:          "subcommand flags before args",
+			expectedCmd:   "sub",
 			osArgs:        []string{"-b", "sub", "-x", "-s", "str", "bar", "baz"},
 			expectedArgs:  []string{"bar", "baz"},
 			expectedFlags: flags{b: true, s: "str", x: true},
 		},
 		{
 			name:          "subcommand flags after args",
+			expectedCmd:   "sub",
 			osArgs:        []string{"-b", "sub", "bar", "baz", "-x", "-s", "str"},
 			expectedArgs:  []string{"bar", "baz"},
 			expectedFlags: flags{b: true, s: "str", x: true},
 		},
 		{
 			name:          "subcommand flags around args",
+			expectedCmd:   "sub",
 			osArgs:        []string{"-b", "sub", "-x", "bar", "baz", "-s", "str"},
 			expectedArgs:  []string{"bar", "baz"},
 			expectedFlags: flags{b: true, s: "str", x: true},
 		},
 		{
 			name:          "subcommand flags between args",
+			expectedCmd:   "sub",
 			osArgs:        []string{"-b", "sub", "bar", "-x", "baz", "-s", "str"},
 			expectedArgs:  []string{"bar", "baz"},
 			expectedFlags: flags{b: true, s: "str", x: true},
+		},
+		{
+			name:          "subsubcommand with parent flags",
+			expectedCmd:   "subsub",
+			osArgs:        []string{"-b", "sub", "-x", "subsub", "bar"},
+			expectedArgs:  []string{"bar"},
+			expectedFlags: flags{b: true, x: true},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var (
-				args  []string
-				flags flags
+				invokedCmd string
+				args       []string
+				flags      flags
 			)
 			// Create a cmd main that takes 2 flags -b and -s
 			cmd := NewCommand(
@@ -184,20 +229,35 @@ func TestCommandFlagsOrder(t *testing.T) {
 					},
 				},
 				func(_ context.Context, a []string) error {
+					invokedCmd = "main"
 					args = a
 					return nil
 				},
 			)
 			// Add a sub command to cmd with a single flag -x
-			cmd.AddSubCommands(
+			subcmd := NewCommand(
+				Metadata{Name: "sub"},
+				&mockConfig{
+					configFn: func(fs *flag.FlagSet) {
+						fs.BoolVar(&flags.x, "x", false, "a boolan")
+					},
+				},
+				func(_ context.Context, a []string) error {
+					invokedCmd = "sub"
+					args = a
+					return nil
+				},
+			)
+			cmd.AddSubCommands(subcmd)
+			// Add a sub command to sub cmd
+			subcmd.AddSubCommands(
 				NewCommand(
-					Metadata{Name: "sub"},
+					Metadata{Name: "subsub"},
 					&mockConfig{
-						configFn: func(fs *flag.FlagSet) {
-							fs.BoolVar(&flags.x, "x", false, "a boolan")
-						},
+						configFn: func(fs *flag.FlagSet) {},
 					},
 					func(_ context.Context, a []string) error {
+						invokedCmd = "subsub"
 						args = a
 						return nil
 					},
@@ -211,8 +271,9 @@ func TestCommandFlagsOrder(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			require.Equal(t, args, tt.expectedArgs, "wrong args")
-			require.Equal(t, flags, tt.expectedFlags, "wrong flags")
+			require.Equal(t, tt.expectedCmd, invokedCmd, "wrong cmd")
+			require.Equal(t, tt.expectedArgs, args, "wrong args")
+			require.Equal(t, tt.expectedFlags, flags, "wrong flags")
 		})
 	}
 }
