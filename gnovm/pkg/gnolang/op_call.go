@@ -270,7 +270,8 @@ func (m *Machine) doOpReturnCallDefers() {
 		pts := ft.Params
 		numParams := len(ft.Params)
 		// Create new block scope for defer.
-		b := m.Alloc.NewBlock(fv.GetSource(m.Store), dfr.Parent)
+		clo := dfr.Func.GetClosure(m.Store)
+		b := m.Alloc.NewBlock(fv.GetSource(m.Store), clo)
 		m.PushBlock(b)
 		if fv.nativeBody == nil {
 			fbody := fv.GetBodyFromSource(m.Store)
