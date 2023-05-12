@@ -183,7 +183,7 @@ func (c *Command) Parse(args []string) error {
 				}
 			}
 		}
-		// Append argument found
+		// c.FlagSet.Arg(0) is an argument, append it to the argument list
 		c.args = append(c.args, c.flagSet.Arg(0))
 		// Truncate args and continue
 		args = c.flagSet.Args()[1:]
