@@ -146,7 +146,7 @@ func (err *cmnError) Format(s fmt.State, verb rune) {
 			s.Write([]byte(fmt.Sprintf(" %4d  %s\n", i, msgtrace.String())))
 		}
 		s.Write([]byte("--= /Error =--\n"))
-	case s.Flag('#'):
+	case verb == 'v' && s.Flag('#'):
 		s.Write([]byte("--= Error =--\n"))
 		// Write data.
 		s.Write([]byte(fmt.Sprintf("Data: %#v\n", err.data)))
