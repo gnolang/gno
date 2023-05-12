@@ -60,6 +60,16 @@ func TestErrorNew(t *testing.T) {
 	assert.NotContains(t, fmt.Sprintf("%#v", err), "Stack Trace")
 }
 
+func TestErrorNewWithDetails(t *testing.T) {
+	err := New("formatter%v%v", 0, 1)
+	err.Trace(0, "trace %v", 1)
+	err.Trace(0, "trace %v", 2)
+	err.Trace(0, "trace %v", 3)
+	fmt.Printf("AAA\n\n%v\n\nBBB\n", err)
+	fmt.Printf("CCC\n\n%+v\n\nDDD\n", err)
+	fmt.Printf("EEE\n\n%#v\n\nFFF\n", err)
+}
+
 func TestErrorNewWithStacktrace(t *testing.T) {
 	err := New("formatter%v%v", 0, 1).Stacktrace()
 
