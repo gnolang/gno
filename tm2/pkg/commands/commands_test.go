@@ -414,6 +414,7 @@ func TestCommand_AddSubCommands(t *testing.T) {
 	}
 }
 
+// Forked from peterbourgon/ff/ffcli
 func TestHelpUsage(t *testing.T) {
 	fs, _ := fftest.Pair()
 	var buf bytes.Buffer
@@ -446,6 +447,7 @@ FLAGS
 	assert.Equal(t, expectedOutput, buf.String())
 }
 
+// Forked from peterbourgon/ff/ffcli
 func TestNestedOutput(t *testing.T) {
 	var (
 		rootHelpOutput = "USAGE\n  \n\nSUBCOMMANDS\n  foo\n\n"

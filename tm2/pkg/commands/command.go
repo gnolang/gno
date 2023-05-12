@@ -101,6 +101,8 @@ func (c *Command) AddSubCommands(cmds ...*Command) {
 // ParseAndRun is a helper function that calls Parse and then Run in a single
 // invocation. It's useful for simple command trees that don't need two-phase
 // setup.
+//
+// Forked from peterbourgon/ff/ffcli
 func (c *Command) ParseAndRun(ctx context.Context, args []string) error {
 	if err := c.Parse(args); err != nil {
 		return err
@@ -120,6 +122,8 @@ func (c *Command) ParseAndRun(ctx context.Context, args []string) error {
 //
 // If the terminal command identified by Parse doesn't define an Exec function,
 // then Parse will return NoExecError.
+//
+// Forked from peterbourgon/ff/ffcli
 func (c *Command) Parse(args []string) error {
 	if c.selected != nil {
 		return nil
@@ -200,6 +204,8 @@ func (c *Command) Parse(args []string) error {
 //
 // If the terminal command previously identified by Parse doesn't define an Exec
 // function, then Run will return an error.
+//
+// Forked from peterbourgon/ff/ffcli
 func (c *Command) Run(ctx context.Context) (err error) {
 	var (
 		unparsed = c.selected == nil
@@ -225,6 +231,7 @@ func (c *Command) Run(ctx context.Context) (err error) {
 	}
 }
 
+// Forked from peterbourgon/ff/ffcli
 func usage(c *Command) string {
 	var b strings.Builder
 
@@ -273,11 +280,13 @@ func usage(c *Command) string {
 	return strings.TrimSpace(b.String()) + "\n"
 }
 
+// Forked from peterbourgon/ff/ffcli
 func countFlags(fs *flag.FlagSet) (n int) {
 	fs.VisitAll(func(*flag.Flag) { n++ })
 	return n
 }
 
+// Forked from peterbourgon/ff/ffcli
 func isBoolFlag(f *flag.Flag) bool {
 	b, ok := f.Value.(interface {
 		IsBoolFlag() bool
