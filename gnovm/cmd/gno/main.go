@@ -35,6 +35,7 @@ func newGnodevCmd(io *commands.IO) *commands.Command {
 		newTestCmd(io),
 		newModCmd(io),
 		newReplCmd(),
+		newDocCmd(io),
 		// fmt -- gofmt
 		// clean
 		// graph
@@ -43,7 +44,6 @@ func newGnodevCmd(io *commands.IO) *commands.Command {
 		// render -- call render()?
 		// publish/release
 		// generate
-		// doc -- godoc
 		// "vm" -- starts an in-memory chain that can be interacted with?
 		// bug -- start a bug report
 		// version -- show gnodev, golang versions
