@@ -1,14 +1,16 @@
 package commands
 
 import (
+	"bytes"
 	"context"
 	"flag"
+	"fmt"
+	"strings"
 	"testing"
 
+	"github.com/peterbourgon/ff/v3/fftest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/gnolang/gno/tm2/pkg/commands/ffcli"
 )
 
 type configDelegate func(*flag.FlagSet)
@@ -23,7 +25,7 @@ func (c *mockConfig) RegisterFlags(fs *flag.FlagSet) {
 	}
 }
 
-func TestCommandFlagsOrder(t *testing.T) {
+func TestCommandParseAndRun(t *testing.T) {
 	type flags struct {
 		b bool
 		s string
@@ -382,12 +384,12 @@ func TestCommand_AddSubCommands(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			var validateSubcommandTree func(flag string, root *ffcli.Command)
+			var validateSubcommandTree func(flag string, root *Command)
 
-			validateSubcommandTree = func(flag string, root *ffcli.Command) {
-				assert.NotNil(t, root.FlagSet.Lookup(flag))
+			validateSubcommandTree = func(flag string, root *Command) {
+				assert.NotNil(t, root.flagSet.Lookup(flag))
 
-				for _, subcommand := range root.Subcommands {
+				for _, subcommand := range root.subcommands {
 					validateSubcommandTree(flag, subcommand)
 				}
 			}
@@ -401,13 +403,161 @@ func TestCommand_AddSubCommands(t *testing.T) {
 				currCmd.cmd.AddSubCommands(getSubcommands(currCmd)...)
 
 				// Validate that the entire subcommand tree has root command flags
-				for _, subCmd := range currCmd.cmd.Subcommands {
+				for _, subCmd := range currCmd.cmd.subcommands {
 					// For each root command flag, validate
-					currCmd.cmd.FlagSet.VisitAll(func(f *flag.Flag) {
+					currCmd.cmd.flagSet.VisitAll(func(f *flag.Flag) {
 						validateSubcommandTree(f.Name, subCmd)
 					})
 				}
 			}
+		})
+	}
+}
+
+func TestHelpUsage(t *testing.T) {
+	fs, _ := fftest.Pair()
+	var buf bytes.Buffer
+	fs.SetOutput(&buf)
+
+	command := &Command{
+		name:       "TestHelpUsage",
+		shortUsage: "TestHelpUsage [flags] <args>",
+		shortHelp:  "Some short help.",
+		longHelp:   "Some long help.",
+		flagSet:    fs,
+	}
+
+	err := command.ParseAndRun(context.Background(), []string{"-h"})
+	assert.ErrorIs(t, err, flag.ErrHelp)
+	expectedOutput := strings.TrimSpace(`
+USAGE
+  TestHelpUsage [flags] <args>
+
+Some long help.
+
+FLAGS
+  -b=false  bool
+  -d 0s     time.Duration
+  -f 0      float64
+  -i 0      int
+  -s ...    string
+  -x ...    collection of strings (repeatable)
+`) + "\n\n"
+	assert.Equal(t, expectedOutput, buf.String())
+}
+
+func TestNestedOutput(t *testing.T) {
+	var (
+		rootHelpOutput = "USAGE\n  \n\nSUBCOMMANDS\n  foo\n\n"
+		fooHelpOutput  = "USAGE\n  foo\n\nSUBCOMMANDS\n  bar\n\n"
+		barHelpOutout  = "USAGE\n  bar\n\n"
+	)
+	for _, testcase := range []struct {
+		name       string
+		args       []string
+		wantErr    error
+		wantOutput string
+	}{
+		{
+			name:       "root without args",
+			args:       []string{},
+			wantErr:    flag.ErrHelp,
+			wantOutput: rootHelpOutput,
+		},
+		{
+			name:       "root with args",
+			args:       []string{"abc", "def ghi"},
+			wantErr:    flag.ErrHelp,
+			wantOutput: rootHelpOutput,
+		},
+		{
+			name:       "root help",
+			args:       []string{"-h"},
+			wantErr:    flag.ErrHelp,
+			wantOutput: rootHelpOutput,
+		},
+		{
+			name:       "foo without args",
+			args:       []string{"foo"},
+			wantOutput: "foo: ''\n",
+		},
+		{
+			name:       "foo with args",
+			args:       []string{"foo", "alpha", "beta"},
+			wantOutput: "foo: 'alpha beta'\n",
+		},
+		{
+			name:       "foo help",
+			args:       []string{"foo", "-h"},
+			wantErr:    flag.ErrHelp,
+			wantOutput: fooHelpOutput, // only one instance of usage string
+		},
+		{
+			name:       "foo bar without args",
+			args:       []string{"foo", "bar"},
+			wantErr:    flag.ErrHelp,
+			wantOutput: barHelpOutout,
+		},
+		{
+			name:       "foo bar with args",
+			args:       []string{"foo", "bar", "--", "baz quux"},
+			wantErr:    flag.ErrHelp,
+			wantOutput: barHelpOutout,
+		},
+		{
+			name:       "foo bar help",
+			args:       []string{"foo", "bar", "--help"},
+			wantErr:    flag.ErrHelp,
+			wantOutput: barHelpOutout,
+		},
+	} {
+		t.Run(testcase.name, func(t *testing.T) {
+			var (
+				rootfs = flag.NewFlagSet("root", flag.ContinueOnError)
+				foofs  = flag.NewFlagSet("foo", flag.ContinueOnError)
+				barfs  = flag.NewFlagSet("bar", flag.ContinueOnError)
+				buf    bytes.Buffer
+			)
+			rootfs.SetOutput(&buf)
+			foofs.SetOutput(&buf)
+			barfs.SetOutput(&buf)
+
+			barExec := func(_ context.Context, args []string) error {
+				return flag.ErrHelp
+			}
+
+			bar := &Command{
+				name:    "bar",
+				flagSet: barfs,
+				exec:    barExec,
+			}
+
+			fooExec := func(_ context.Context, args []string) error {
+				fmt.Fprintf(&buf, "foo: '%s'\n", strings.Join(args, " "))
+				return nil
+			}
+
+			foo := &Command{
+				name:        "foo",
+				flagSet:     foofs,
+				subcommands: []*Command{bar},
+				exec:        fooExec,
+			}
+
+			rootExec := func(_ context.Context, args []string) error {
+				return flag.ErrHelp
+			}
+
+			root := &Command{
+				flagSet:     rootfs,
+				subcommands: []*Command{foo},
+				exec:        rootExec,
+			}
+
+			err := root.ParseAndRun(context.Background(), testcase.args)
+
+			assert.ErrorIs(t, err, testcase.wantErr)
+			assert.Equal(t, testcase.wantOutput, buf.String())
 		})
 	}
 }
