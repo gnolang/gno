@@ -1,5 +1,6 @@
 package avl
 
+//----------------------------------------
 // Node
 
 type Node struct {
@@ -295,7 +296,7 @@ func (node *Node) Iterate(start, end string, cb func(*Node) bool) bool {
 }
 
 // Shortcut for TraverseInRange.
-func (node *Node) IterateReverse(start, end string, cb func(*Node) bool) bool {
+func (node *Node) ReverseIterate(start, end string, cb func(*Node) bool) bool {
 	return node.TraverseInRange(start, end, false, true, cb)
 }
 
