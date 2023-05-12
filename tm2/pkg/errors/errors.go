@@ -136,7 +136,7 @@ func (err *cmnError) Format(s fmt.State, verb rune) {
 	switch {
 	case verb == 'p':
 		s.Write([]byte(fmt.Sprintf("%p", &err)))
-	case s.Flag('+'):
+	case verb == 'v' && s.Flag('+'):
 		s.Write([]byte("--= Error =--\n"))
 		// Write data.
 		s.Write([]byte(fmt.Sprintf("Data: %+v\n", err.data)))
