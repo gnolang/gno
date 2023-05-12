@@ -137,7 +137,15 @@ func (err *cmnError) Format(s fmt.State, verb rune) {
 	case verb == 'p':
 		s.Write([]byte(fmt.Sprintf("%p", &err)))
 	case s.Flag('+'):
-		s.Write([]byte(fmt.Sprintf("%v", err.data)))
+		s.Write([]byte("--= Error =--\n"))
+		// Write data.
+		s.Write([]byte(fmt.Sprintf("Data: %+v\n", err.data)))
+		// Write msg trace items.
+		s.Write([]byte(fmt.Sprintf("Msg Traces:\n")))
+		for i, msgtrace := range err.msgtraces {
+			s.Write([]byte(fmt.Sprintf(" %4d  %s\n", i, msgtrace.String())))
+		}
+		s.Write([]byte("--= /Error =--\n"))
 	case s.Flag('#'):
 		s.Write([]byte("--= Error =--\n"))
 		// Write data.

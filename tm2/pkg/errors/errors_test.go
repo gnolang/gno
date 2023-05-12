@@ -65,9 +65,8 @@ func TestErrorNewWithDetails(t *testing.T) {
 	err.Trace(0, "trace %v", 1)
 	err.Trace(0, "trace %v", 2)
 	err.Trace(0, "trace %v", 3)
-	fmt.Printf("AAA\n\n%v\n\nBBB\n", err)
-	fmt.Printf("CCC\n\n%+v\n\nDDD\n", err)
-	fmt.Printf("EEE\n\n%#v\n\nFFF\n", err)
+	assert.Contains(t, fmt.Sprintf("%+v", err), `Data: formatter01`)
+	assert.Contains(t, fmt.Sprintf("%+v", err), "Msg Traces:\n    0")
 }
 
 func TestErrorNewWithStacktrace(t *testing.T) {
