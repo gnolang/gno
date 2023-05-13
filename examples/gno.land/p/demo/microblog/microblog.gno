@@ -42,6 +42,26 @@ func (m *Microblog) GetPages() []*Page {
 	return pages
 }
 
+func (m *Microblog) RenderHome() string {
+	output := ufmt.Sprintf("# %s\n\n", m.Title)
+	output += "# pages\n\n"
+
+	for _, page := range m.GetPages() {
+		output += ufmt.Sprintf("- [%s](%s%s)\n", page.Author.String(), m.Prefix, page.Author.String())
+	}
+
+	return output
+}
+
+func (m *Microblog) RenderUser(user string) string {
+	silo, found := m.Pages.Get(user)
+	if !found {
+		return "404"
+	}
+
+	return (silo.(*Page)).String()
+}
+
 func (m *Microblog) Render(path string) string {
 	parts := strings.Split(path, "/")
 
@@ -50,24 +70,10 @@ func (m *Microblog) Render(path string) string {
 
 	switch {
 	case isHome:
-		output := ufmt.Sprintf("# %s\n\n", m.Title)
-		output += "# pages\n\n"
-
-		for _, page := range m.GetPages() {
-			output += ufmt.Sprintf("- [%s](%s%s)\n", page.Author.String(), m.Prefix, page.Author.String())
-		}
-
-		return output
+		return m.RenderHome()
 
 	case isUser:
-		user := parts[0]
-
-		silo, found := m.Pages.Get(user)
-		if !found {
-			return "404"
-		}
-
-		return (silo.(*Page)).String()
+		return m.RenderUser(parts[0])
 	}
 
 	return "404"
