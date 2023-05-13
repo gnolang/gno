@@ -60,5 +60,6 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           name: tm2
           flags: tm2,tm2-${{matrix.args}},go-${{ matrix.go-version }}
+          files: ./tm2/coverage.out
           #fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
           fail_ci_if_error: false # temporarily
