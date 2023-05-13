@@ -15,3 +15,11 @@ flags:
     paths:
       - tm2
     after_n_builds: 4
+  gnovm:
+    paths:
+      - gnovm
+    after_n_builds: 9
+  gno.land:
+    paths:
+      - gno.land
+    after_n_builds: 3
