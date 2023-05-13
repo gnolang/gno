@@ -81,7 +81,7 @@ func (m *Microblog) Render(path string) string {
 	return "404"
 }
 
-func (m *Microblog) NewPage() error {
+func (m *Microblog) newPage() error {
 	author := std.GetOrigCaller()
 	_, found := m.Pages.Get(author.String())
 	if found {
@@ -100,7 +100,7 @@ func (m *Microblog) NewPost(text string) error {
 	_, found := m.Pages.Get(author.String())
 	if !found {
 		// make a new page for the new author
-		if err := m.NewPage(); err != nil {
+		if err := m.newPage(); err != nil {
 			return err
 		}
 	}

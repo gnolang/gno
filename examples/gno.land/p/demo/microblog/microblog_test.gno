@@ -26,17 +26,14 @@ func TestMicroblog(t *testing.T) {
 	if d.Render("") == "404" {
 		t.Fatalf("rendering / should not give 404")
 	}
-	if err := d.NewPage(); err != nil {
-		t.Fatalf("%+v", err)
+	if err := d.NewPost("goodbyte, web2"); err != nil {
+		t.Fatalf("could not create post")
 	}
 	if _, err := d.GetPage(author1.String()); err != nil {
 		t.Fatalf("silo should exist")
 	}
 	if _, err := d.GetPage("no such author"); err == nil {
 		t.Fatalf("silo should not exist")
-	}
-	if err := d.NewPost("goodbyte, web2"); err != nil {
-		t.Fatalf("could not create post")
 	}
 
 	std.TestSetOrigCaller(author2)
