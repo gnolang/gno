@@ -1,5 +1,5 @@
 // microblog is a website with shortform posts from users.
-// the API is exteremly simple - "AddPost" takes markdown and
+// the API is simple - "AddPost" takes markdown and
 // adds it to the users site. The user is determined by
 // the address and your microblog lives at
 // /r/demo/microblog:<YOUR-ADDRESS>
