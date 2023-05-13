@@ -11,7 +11,10 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-var ErrNotFound error = errors.New("not found")
+var (
+	ErrNotFound    error  = errors.New("not found")
+	StatusNotFound string = "404"
+)
 
 type Microblog struct {
 	Title  string
@@ -58,7 +61,7 @@ func (m *Microblog) RenderHome() string {
 func (m *Microblog) RenderUser(user string) string {
 	silo, found := m.Pages.Get(user)
 	if !found {
-		return "404"
+		return StatusNotFound
 	}
 
 	return (silo.(*Page)).String()
@@ -78,7 +81,7 @@ func (m *Microblog) Render(path string) string {
 		return m.RenderUser(parts[0])
 	}
 
-	return "404"
+	return StatusNotFound
 }
 
 func (m *Microblog) newPage() error {
