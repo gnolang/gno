@@ -29,10 +29,10 @@ func TestMicroblog(t *testing.T) {
 	if err := d.NewPage(); err != nil {
 		t.Fatalf("%+v", err)
 	}
-	if err := d.GetPage(author1.String()); err == nil {
+	if _, err := d.GetPage(author1.String()); err != nil {
 		t.Fatalf("silo should exist")
 	}
-	if err := d.GetPage("no such author"); err != nil {
+	if _, err := d.GetPage("no such author"); err == nil {
 		t.Fatalf("silo should not exist")
 	}
 	if err := d.NewPost("goodbyte, web2"); err != nil {

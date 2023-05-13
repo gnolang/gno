@@ -11,6 +11,8 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
+var ErrNotFound error = errors.New("not found")
+
 type Microblog struct {
 	Title  string
 	Prefix string   // i.e. r/gnoland/blog:
@@ -103,15 +105,19 @@ func (m *Microblog) NewPost(text string) error {
 		}
 	}
 
-	return m.GetPage(author.String()).NewPost(text)
+	page, err := m.GetPage(author.String())
+	if err != nil {
+		return err
+	}
+	return page.NewPost(text)
 }
 
-func (m *Microblog) GetPage(author string) *Page {
+func (m *Microblog) GetPage(author string) (*Page, error) {
 	silo, found := m.Pages.Get(author)
 	if !found {
-		return nil
+		return nil, ErrNotFound
 	}
-	return silo.(*Page)
+	return silo.(*Page), nil
 }
 
 type Page struct {
