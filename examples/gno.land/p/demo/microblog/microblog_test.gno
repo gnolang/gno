@@ -51,10 +51,10 @@ func TestMicroblog(t *testing.T) {
 		t.Fatalf("could not create post")
 	}
 
-	println("--- MICROBLOG ---\n\n")
-	println(d.Render(""))
-	println("\n\n--- AUTHOR PAGE ---\n\n")
-	println(d.Render(author1.String()))
-	println("\n\n--- AUTHOR PAGE ---\n\n")
-	println(d.Render(author2.String()))
+	// println("--- MICROBLOG ---\n\n")
+	// println(d.Render(""))
+	// println("\n\n--- AUTHOR PAGE ---\n\n")
+	// println(d.Render(author1.String()))
+	// println("\n\n--- AUTHOR PAGE ---\n\n")
+	// println(d.Render(author2.String()))
 }

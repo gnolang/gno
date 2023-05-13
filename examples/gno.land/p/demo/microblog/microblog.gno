@@ -2,6 +2,7 @@ package microblog
 
 import (
 	"errors"
+	"sort"
 	"std"
 	"strings"
 	"time"
@@ -36,7 +37,7 @@ func (m *Microblog) GetPages() []*Page {
 		return false
 	})
 
-	// TODO: sort by last updated
+	sort.Sort(ByLastPosted(pages))
 
 	return pages
 }
@@ -114,6 +115,14 @@ type Page struct {
 	LastPosted time.Time
 	Posts      avl.Tree // time -> Post
 }
+
+// ByLastPosted implements sort.Interface for []Page based on
+// the LastPosted field.
+type ByLastPosted []*Page
+
+func (a ByLastPosted) Len() int           { return len(a) }
+func (a ByLastPosted) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByLastPosted) Less(i, j int) bool { return a[i].LastPosted.After(a[j].LastPosted) }
 
 func (p *Page) String() string {
 	o := ufmt.Sprintf("# %s\n\n", p.Author)
