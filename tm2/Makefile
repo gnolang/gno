@@ -45,7 +45,7 @@ _test.flappy:
 		./pkg/bft/consensus ./pkg/bft/blockchain ./pkg/bft/mempool ./pkg/p2p ./pkg/bft/privval
 
 GOTEST_FLAGS ?= -v -p 1 -timeout=30m
-_test.pkg.others:;	go test `go list ./pkg/... | grep -v pkg/amino/ | grep -v pkg/bft/` $(GOTEST_FLAGS)
-_test.pkg.amino:;		go test ./pkg/amino/... $(GOTEST_FLAGS)
-_test.pkg.bft:;			go test ./pkg/bft/... $(GOTEST_FLAGS)
-_test.cmds:;        go test ./cmd/... $(GOTEST_FLAGS)
+_test.pkg.others:;  go test $(GOTEST_FLAGS) `go list ./pkg/... | grep -v pkg/amino/ | grep -v pkg/bft/`
+_test.pkg.amino:;   go test $(GOTEST_FLAGS) ./pkg/amino/...
+_test.pkg.bft:;	    go test $(GOTEST_FLAGS) ./pkg/bft/...
+_test.cmds:;        go test $(GOTEST_FLAGS) ./cmd/...
