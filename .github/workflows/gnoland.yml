@@ -1,4 +1,4 @@
-vmname: gno.land
+name: gno.land
 
 on:
   pull_request:
