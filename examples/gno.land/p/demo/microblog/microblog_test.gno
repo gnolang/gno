@@ -48,10 +48,42 @@ func TestMicroblog(t *testing.T) {
 		t.Fatalf("could not create post")
 	}
 
-	// println("--- MICROBLOG ---\n\n")
-	// println(d.Render(""))
-	// println("\n\n--- AUTHOR PAGE ---\n\n")
-	// println(d.Render(author1.String()))
-	// println("\n\n--- AUTHOR PAGE ---\n\n")
-	// println(d.Render(author2.String()))
+	println("--- MICROBLOG ---\n\n")
+	if rendering := d.Render(""); rendering != `# test microblog
+
+# pages
+
+- [g1v96hg6r0wgc47h6lta047h6lta047h6lm33tq6](/r/testg1v96hg6r0wgc47h6lta047h6lta047h6lm33tq6)
+- [g1v96hg6r0wge97h6lta047h6lta047h6lyz7c00](/r/testg1v96hg6r0wge97h6lta047h6lta047h6lyz7c00)
+` {
+		t.Fatalf("incorrect rendering /: '%s'", rendering)
+	}
+
+	if rendering := d.Render(author1.String()); rendering != `# g1v96hg6r0wgc47h6lta047h6lta047h6lm33tq6
+
+joined 2009-13-02, last updated 2009-13-02
+
+## posts
+
+> goodbyte, web2 *- 13 Feb 09 23:31 UTC*
+
+` {
+		t.Fatalf("incorrect rendering /: '%s'", rendering)
+	}
+
+	if rendering := d.Render(author2.String()); rendering != `# g1v96hg6r0wge97h6lta047h6lta047h6lyz7c00
+
+joined 2009-13-02, last updated 2009-13-02
+
+## posts
+
+> hi again, web4? *- 13 Feb 09 23:31 UTC*
+
+> hello again, web3 *- 13 Feb 09 23:31 UTC*
+
+> hello, web3 *- 13 Feb 09 23:31 UTC*
+
+` {
+		t.Fatalf("incorrect rendering /: '%s'", rendering)
+	}
 }
