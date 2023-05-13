@@ -7,8 +7,8 @@ var contributionStatus = map[string]string{}
 type Contribution struct {
 	id          int
 	contributor std.Address
-	status      string           // approved, proposed, negotiation, discussion, evaluation, etc.
-	criteria    map[string]int32 // {"simplicity": 10pt, "usefullnes": 20pt, "quality": 50pt}
+	status      string // approved, proposed, negotiation, discussion, evaluation, etc.
+	approvers   []std.Address
 }
 
 func init() {
@@ -19,12 +19,12 @@ func init() {
 	contributionStatus["Negotiated"] = "Negotiated"
 }
 
-func NewContribution(id int, contributor std.Address, criteria map[string]int32) *Contribution {
+func NewContribution(id int, contributor std.Address) *Contribution {
 	c := &Contribution{
 		id:          id,
 		contributor: contributor,
-		criteria:    criteria,
 		status:      contributionStatus["Proposed"],
+		approvers:   []std.Address{},
 	}
 	return c
 }
@@ -45,10 +45,8 @@ func (c *Contribution) UpdateStatus(status string) bool {
 	return true
 }
 
-func (c Contribution) Evaluate() Points {
-	total := int64(0)
-	for _, v := range c.criteria {
-		total += int64(v)
-	}
-	return NewPoints(total, c.criteria)
+func (c *Contribution) AddApproval(approver std.Address) bool {
+	// TODO error handling
+	c.approvers = append(c.approvers, approver)
+	return true
 }

@@ -24,10 +24,10 @@ func NewEvalutaion() *Evaluation {
 	return e
 }
 
-func (e *Evaluation) AddContribution(pr *PullRequest, address std.Address, criteria map[string]int32) (contributionId int, ok bool) {
+func (e *Evaluation) AddContribution(pr *PullRequest, contributor std.Address) (contributionId int, ok bool) {
 	id := pr.Id()
 	e.pullrequests.Set(ufmt.Sprintf("%d", id), pr)
-	c := NewContribution(id, address, criteria)
+	c := NewContribution(id, contributor)
 	e.contributions.Set(ufmt.Sprintf("%d", id), c)
 	return id, true
 }
@@ -41,13 +41,4 @@ func (e *Evaluation) UpdateContribution(id int, status string) bool {
 	return false
 }
 
-func (e *Evaluation) EvaluateContribution(id int) (int64, bool) {
-	c, found := e.contributions.Get(ufmt.Sprintf("%d", id))
-	if found == true {
-		contribtution := c.(*Contribution)
-		points := contribtution.Evaluate()
-		e.UpdateContribution(id, "Evaluated")
-		return points.total, found
-	}
-	return int64(0), false
-}
+// TODO
