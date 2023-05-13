@@ -40,5 +40,3 @@ func (e *Evaluation) UpdateContribution(id int, status string) bool {
 	}
 	return false
 }
-
-// TODO

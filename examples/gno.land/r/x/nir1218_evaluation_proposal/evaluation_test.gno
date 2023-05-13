@@ -73,27 +73,3 @@ func TestEvaluationUpdateContribution(t *testing.T) {
 		}
 	})
 }
-
-// Current assumption is that the evaluation criteria is set when the contribution is added
-func TestApproveContribution(t *testing.T) {
-	// t.Run("", func(t *testing.T) {
-	// 	_, ok := e.EvaluateContribution(id)
-	// 	if !ok {
-	// 		t.Error("Expected evaluate to succeed but failed")
-	// 	} else {
-	// 		c, found := e.contributions.Get(ufmt.Sprintf("%d", id))
-	// 		contribtution := c.(*Contribution)
-	// 		if contribtution.Status() != "Evaluated" {
-	// 			t.Errorf("Expected contribution status %s got %s", "Evaluated", contribtution.Status())
-	// 		}
-	// 	}
-	// })
-
-	// t.Run("Contribution doesn't exist", func(t *testing.T) {
-	// 	invalidId := 1
-	// 	_, ok := e.EvaluateContribution(invalidId)
-	// 	if ok {
-	// 		t.Error("Expected evaluate to fail but succeeded")
-	// 	}
-	// })
-}
