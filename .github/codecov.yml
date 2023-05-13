@@ -8,8 +8,10 @@ ignore:
 
 comment: false # will use it later.
 
-flag_management:
+flags:
   default_rules:
     carryforward: true
   tm2:
+    paths:
+      - tm2
     after_n_builds: 4
