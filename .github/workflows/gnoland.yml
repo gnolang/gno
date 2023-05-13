@@ -1,4 +1,4 @@
-name: gno.land
+vmname: gno.land
 
 on:
   pull_request:
@@ -57,7 +57,17 @@ jobs:
         working-directory: gno.land
         run: |
           export GOPATH=$HOME/go
+          GOTEST_FLAGS="-v -p 1 -timeout=30m -coverprofile=coverage.out -covermode=atomic"
           make ${{ matrix.args }}
+      - if: runner.os == 'Linux'
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          name: gno.land
+          flags: gno.land,gno.land-${{matrix.args}},go-${{ matrix.go-version }}
+          files: ./gno.land/coverage.out
+          #fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
+          fail_ci_if_error: false # temporarily
 
   docker-integration:
     strategy:

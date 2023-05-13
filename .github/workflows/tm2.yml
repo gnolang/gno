@@ -52,9 +52,9 @@ jobs:
         working-directory: tm2
         run: |
           export GOPATH=$HOME/go
-          make ${{ matrix.args }} GOTEST_FLAGS="-v -p 1 -timeout=30m -coverprofile=coverage.out -covermode=atomic"
-      - name: Upload coverage reports to Codecov
-        if: runner.os == 'Linux'
+          export GOTEST_FLAGS="-v -p 1 -timeout=30m -coverprofile=coverage.out -covermode=atomic"
+          make ${{ matrix.args }}
+      - if: runner.os == 'Linux'
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
