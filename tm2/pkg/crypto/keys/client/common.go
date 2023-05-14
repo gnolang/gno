@@ -1,6 +1,7 @@
 package client
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -20,21 +21,19 @@ var DefaultBaseOptions = BaseOptions{
 }
 
 func HomeDir() string {
-	// if environment set, always use that.
-	// if not, check whether can get os.UserHomeDir()
-	// if not, fall back to home directory
+	// if environment variable is set, always use that.
+	// otherwise, use config dir (varies depending on OS) + "gno"
 	var err error
 	dir := os.Getenv("GNO_HOME")
 	if dir != "" {
 		return dir
 	}
 	dir, err = os.UserConfigDir()
-	if err == nil {
-		return filepath.Join(dir, "gno")
-	}
-	dir, err = os.UserHomeDir()
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("couldn't get user config dir: %w", err))
 	}
-	return filepath.Join(dir, ".gno")
+	gnoHome := filepath.Join(dir, "gno")
+	// XXX: added april 2023 as a transitory measure - remove after test4
+	fixOldDefaultGnoHome(gnoHome)
+	return gnoHome
 }
