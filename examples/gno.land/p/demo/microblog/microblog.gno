@@ -36,8 +36,8 @@ func (m *Microblog) GetPages() []*Page {
 		index = 0
 	)
 
-	m.Pages.Iterate("", "", func(page *avl.Node) bool {
-		pages[index] = page.Value().(*Page)
+	m.Pages.Iterate("", "", func(key string, value interface{}) bool {
+		pages[index] = value.(*Page)
 		index++
 		return false
 	})
@@ -163,8 +163,8 @@ func (p *Page) NewPost(text string) error {
 func (p *Page) GetPosts() []*Post {
 	posts := make([]*Post, p.Posts.Size())
 
-	p.Posts.Iterate("", "", func(post *avl.Node) bool {
-		postParsed := post.Value().(*Post)
+	p.Posts.Iterate("", "", func(key string, value interface{}) bool {
+		postParsed := value.(*Post)
 		posts[postParsed.ID] = postParsed
 		return false
 	})
