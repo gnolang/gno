@@ -206,6 +206,17 @@ func (gc *GC) AddRoot(root *GCObj) {
 	gc.roots = append(gc.roots, root)
 }
 
+// when evaluating values that need to escape to the heap
+// the VM needs to create a root that hasn't been assigned
+// to an identifier yet. so the root it creates has empty path
+// this function is to be used at the following operation,
+// when evaluating the identifier and setting that path
+// to the previously created root with no path
+func (gc *GC) setEmptyRootPath(path string) {
+	root := gc.getRootByPath("")
+	root.path = path
+}
+
 func (gc *GC) Collect() {
 	// Mark phase
 	for _, root := range gc.roots {

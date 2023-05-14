@@ -136,6 +136,8 @@ func (m *Machine) doOpCall() {
 	pvs := m.PopValues(numParams - isMethod)
 	for i := isMethod; i < numParams; i++ {
 		pv := pvs[i-isMethod]
+		//todo check if every argument should escape and push to the heap
+		// check if it escaped here or anywhere else and add a root obj
 		if debug {
 			// This is how run-time untyped const
 			// conversions would work, but we
@@ -148,6 +150,8 @@ func (m *Machine) doOpCall() {
 				}
 			*/
 			if isUntyped(pv.T) {
+				//todo this is kind of misleading message
+				// this code is not for assignments
 				panic("unexpected untyped const type for assign during runtime")
 			}
 		}

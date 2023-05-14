@@ -21,22 +21,16 @@ func (m *Machine) doOpDefine() {
 			}
 		}
 
-		var val TypedValue
-		heapVal := m.getTypeValueFromNX(nx, s.Rhs[i])
-		if heapVal != nil {
-			val = *heapVal
-		} else {
-			val = *m.PopValue()
-		}
+		val := *m.PopValue()
 
 		ptr.Assign2(m.Alloc, m.Store, m.Realm, val, true)
 
-		pv, is := ptr.TV.V.(PointerValue)
-		if is && !pv.TV.OnHeap {
-			m.escape2Heap(nx, s.Rhs[i], pv)
-			pv.TV.OnHeap = true
-			pv.TV.ShouldEscape = false
-		}
+		//pv, is := ptr.TV.V.(PointerValue)
+		//if is && !pv.TV.OnHeap {
+		//	m.escape2Heap(nx, s.Rhs[i], pv)
+		//	pv.TV.OnHeap = true
+		//	pv.TV.ShouldEscape = false
+		//}
 	}
 }
 
@@ -58,22 +52,16 @@ func (m *Machine) doOpAssign() {
 		}
 
 		// Get name and value of i'th term.
-		nx := s.Lhs[i].(*NameExpr)
-		var val TypedValue
-		heapVal := m.getTypeValueFromNX(nx, s.Rhs[i])
-		if heapVal != nil {
-			val = *heapVal
-		} else {
-			val = *m.PopValue()
-		}
+		//nx := s.Lhs[i].(*NameExpr)
+		val := *m.PopValue()
 
 		lv.Assign2(m.Alloc, m.Store, m.Realm, val, true)
 
-		pv, is := lv.TV.V.(PointerValue)
-		if is && pv.TV.ShouldEscape {
-			m.escape2Heap(nx, s.Rhs[i], pv)
-			pv.TV.OnHeap = true
-		}
+		//pv, is := lv.TV.V.(PointerValue)
+		//if is && pv.TV.ShouldEscape {
+		//	m.escape2Heap(nx, s.Rhs[i], pv)
+		//	pv.TV.OnHeap = true
+		//}
 	}
 }
 

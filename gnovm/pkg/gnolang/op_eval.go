@@ -333,10 +333,6 @@ func (m *Machine) doOpEval() {
 		m.PopExpr()
 		tv := x.TypedValue
 
-		// todo here we are adding an object that still doesn't have a root
-		// this means that if the GC happens to run on the next RUN
-		// before we added the root, this will be deleted
-		// we should have a way to tell the GC to not delete it
 		if x.ShouldEscape {
 			tv = TypedValue{
 				T:      &PointerType{Elt: x.TypedValue.T},
@@ -345,6 +341,14 @@ func (m *Machine) doOpEval() {
 			}
 			obj := &GCObj{value: tv}
 			m.GC.AddObject(obj)
+			x.OnHeap = true
+			x.ShouldEscape = false
+
+			// no information about the identifier
+			// this will be linked with
+			// create it with no path and fix later
+			root := &GCObj{ref: obj}
+			m.GC.AddRoot(root)
 		}
 		// push preprocessed value
 		m.PushValue(tv)

@@ -995,6 +995,9 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	case *NativeValue:
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc)
+	case *PointerValue:
+		cp = tv
+		cp.OnHeap = true
 	default:
 		cp = tv
 	}
