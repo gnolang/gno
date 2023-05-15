@@ -42,7 +42,7 @@ func main() {
 // ========================================
 // ## user gnouser
 //
-//  * address = g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4
+//  * address = g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //  * 9 invites
 //
 // my profile
@@ -52,7 +52,7 @@ func main() {
 //
 //  * address = g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7
 //  * 0 invites
-//  * invited by g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4
+//  * invited by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 // my other profile
 //

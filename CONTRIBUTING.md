@@ -56,7 +56,7 @@ The gno repository is primarily based on Golang (Go), and Gnolang (Gno).
 
 The primary tech stack for working on the repository:
 
-- Go (version 1.18+)
+- Go (version 1.19+)
 - make (for using Makefile configurations)
 - Docker (for using the official Docker setup files)
 
@@ -64,8 +64,8 @@ It is recommended to work on a Unix environment, as most of the tooling is built
 for Windows / Linux / macOS).
 
 For Gno, there is no specific tooling that needs to be installed, that’s not already provided with the repo itself.
-You can utilize the `gnodev` command to facilitate Gnolang support when writing Smart Contracts in Gno, by installing it
-with `make install gnodev`.
+You can utilize the `gno` command to facilitate Gnolang support when writing Smart Contracts in Gno, by installing it
+with `make install_gno`.
 
 Additionally, you can also configure your editor to recognize `.gno` files as `.go` files, to get the benefit of syntax
 highlighting.
@@ -79,15 +79,21 @@ Add to your `.vimrc` file:
 
 ```vim
 function! GnoFmt()
-	cexpr system('gofmt -e -w ' . expand('%')) "or replace with gofumpt
-	edit!
+    cexpr system('gofmt -e -w ' . expand('%')) "or replace with gofumpt, see below
+    edit!
 endfunction
 command! GnoFmt call GnoFmt()
 augroup gno_autocmd
-	autocmd!
-	autocmd BufNewFile,BufRead *.gno set filetype=go
-	autocmd BufWritePost *.gno GnoFmt
+    autocmd!
+    autocmd BufNewFile,BufRead *.gno set filetype=go
+    autocmd BufWritePost *.gno GnoFmt
 augroup END
+```
+
+To use *gofumpt* instead of *gofmt*, as hinted in the comment, you may either have `gofumpt` in your PATH or substitute the cexpr line above with the following (please make sure to replace `<path/to/gno>` with the path to your local gno repository):
+
+```vim
+cexpr system('go run -modfile </path/to/gno>/misc/devdeps/go.mod mvdan.cc/gofumpt -w ' . expand('%'))
 ```
 
 #### Emacs Support
@@ -121,7 +127,8 @@ There are essentially 2 ways to execute the entire test suite:
 #### Running locally
 
 To run the entire test suite locally, run the following command:
-`make test`
+
+    make test
 
 This will execute the full test suite, that includes tests for `.gno` files, as well as project `.go` tests.
 
@@ -132,25 +139,26 @@ using Docker. The workflow configurations contain different `go` versions, so it
 worried about compatibility.
 
 To run the entire test suite through workflow files, run the following command:
-`act -v -j go-test`
+
+    act -v -j go-test
 
 #### Testing GNO code
 
-If you wish to test a `.gno` Realm or Package, you can utilize the `gnodev` tool.
+If you wish to test a `.gno` Realm or Package, you can utilize the `gno` tool.
 
 1. To install it, simply run:
 
-`make install gnodev`
+    make install_gno
 
 2. Now, you can point to the directory containing the `*_test.gno` files:
 
-`gnodev test <path-to-dir> --verbose`
+    gno test <path-to-dir> --verbose
 
 
-To learn more about how `gnodev` can help you when developing gno code, you can look into the available 
+To learn more about how `gno` can help you when developing gno code, you can look into the available
 subcommands by running:
 
-`gnodev --help`
+    gno --help
 
 ### Repository Structure
 
@@ -182,8 +190,8 @@ get feedback from the community on their work.
 The key to successfully submitting upstream changes is providing the adequate context, with the correct implementation,
 of course.
 
-To let the core team know about _what_ your PR does, and _why_ it does it, you should take a second to fill out one of
-two PR templates provided on the repo.
+To let the maintainers know about _what_ your PR does, and _why_ it does it, you should take a second to fill out the PR
+template provided on the repo.
 
 Once someone leaves a PR review (with open comments / discussions), it is on the PR _creator_ to do their best in trying
 to resolve all comments.
@@ -210,31 +218,18 @@ a reviewer might lose track in your recent changes and will have to start review
 
 Don't worry about adding too many commits. The commits are squashed into a single commit while merging (if needed).
 
-#### Base PR template
+#### PR template
 
-The [base PR template](https://github.com/gnolang/gno/blob/master/.github/pull_request_template.md) is by default a
-simple template meant to illustrate quickly what’s the context of the PR. Here, you should describe your PR in detail,
-and leave a remark as to how your changes have been tested.
+The [PR template](https://github.com/gnolang/gno/blob/master/.github/pull_request_template.md) is by default a
+simple template meant to illustrate quickly what’s the context of the PR.
 
 If you've run a manual test, please provide the exact steps taken.
-
-#### Detailed PR template
-
-The [detailed PR template](https://github.com/gnolang/gno/blob/master/.github/PULL_REQUEST_TEMPLATE/detailed_pr_template.md)
-is used when you want to convey a bit more detail and context for your PRs. In contrast to the default PR template, it
-follows a checklist approach that is meant to be filled out by the PR creator, with as much information as possible.
-These detailed PR descriptions serve an important purpose down the line in the future, when it’s important to understand
-the context under which a PR has been created, and for what reason.
-
-You can utilize the detailed PR template by appending the following query param to the URL on the new PR page:
-
-`template=detailed_pr_template.md`
 
 ### How do I report a bug?
 
 Found something funky while using gno? You can report it to the team using GitHub issues.
 
-Before opening an issue, please check for existing open and closed Issues to see if that bug/feature has already been 
+Before opening an issue, please check for existing open and closed Issues to see if that bug/feature has already been
 reported/requested. If you find a relevant topic, you can comment on that issue.
 
 In the issue, please provide as much information as possible, for example:
@@ -267,12 +262,36 @@ The gno project tends to use the [Conventional Commits](https://www.conventional
 commit that goes into the main code stream (currently, the `master` branch).
 
 Each PR is squashed and merged into the main code stream, which means PR _titles_ should adhere to the Conventional
-Commit standard, and be short and precise.
+Commit standard, and be short and precise. This is practically enforced using a
+[linter check](https://github.com/amannn/action-semantic-pull-request). The type
+of PRs that are allowed are the following:
+
+* **build**\
+  Changes that affect the build system or external dependencies.
+* **chore**\
+  Other changes that don't modify source or test files.
+* **ci**\
+  Changes to our CI configuration files (ie. GitHub Actions) and scripts.
+* **docs**\
+  Documentation only changes.
+* **feat**\
+  A new feature.
+* **fix**\
+  A bug fix.
+* **perf**\
+  A code change that improves performance.
+* **refactor**\
+  A code change that neither fixes a bug nor adds a feature.
+* **revert**\
+  Reverts a previous commit.
+* **style**\
+  Changes that do not affect the meaning of the code (white-space, formatting, missing semi-colons, etc).
+* **test**\
+  Adding missing tests or correcting existing tests.
 
 A general rule of thumb:
 
-- Use Conventional Commits for PR titles
-- Never favor rewriting history in PRs (rebases have very few exceptions, like implementation rewrites; 
+- Never favor rewriting history in PRs (rebases have very few exceptions, like implementation rewrites;
 see [A Word on Rebasing](#a-word-on-rebasing))
 - Tend to make separate commits for logically separate changes
 
@@ -334,15 +353,3 @@ automatic label management.
 | info needed      | Issue is lacking information needed for resolving |
 | investigating    | Issue is still being investigated by the team     |
 | question         | Issue starts a discussion or raises a question    |
-
-### Notable Contributions
-
-Notable contributions of fixes/features/refactors:
-
-- [#208](https://github.com/gnolang/gno/pull/208) - @anarcher, gnodev test with testing.T
-- [#167](https://github.com/gnolang/gno/pull/167) - @loicttn, website: Add syntax highlighting + security practices
-- [#136](https://github.com/gnolang/gno/pull/136) - @moul, foo20, a grc20 example smart contract
-- [#126](https://github.com/gnolang/gno/pull/126) - @moul, feat: use the new Precompile in gnodev and in the addpkg/execution flow (2/2)
-- [#119](https://github.com/gnolang/gno/pull/119) - @moul, add a Gno2Go precompiler (1/2)
-- [#112](https://github.com/gnolang/gno/pull/112) - @moul, feat: add 'gnokey maketx --broadcast' option
-- [#110](https://github.com/gnolang/gno/pull/110), [#109](https://github.com/gnolang/gno/pull/109), [#108](https://github.com/gnolang/gno/pull/108), [#106](https://github.com/gnolang/gno/pull/106), [#103](https://github.com/gnolang/gno/pull/103), [#102](https://github.com/gnolang/gno/pull/102), [#101](https://github.com/gnolang/gno/pull/101) - @moul, various chores.
