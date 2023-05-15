@@ -89,7 +89,6 @@ func TestTxIndexer_Index(t *testing.T) {
 			Path: headFile.Name(),
 		},
 	})
-
 	if err != nil {
 		t.Fatalf("unable to create tx indexer, %v", err)
 	}

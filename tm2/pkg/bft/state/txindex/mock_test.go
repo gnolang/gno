@@ -8,10 +8,12 @@ import (
 
 // TxIndexer //
 
-type startDelegate func() error
-type stopDelegate func() error
-type getTypeDelegate func() string
-type indexDelegate func(types.TxResult) error
+type (
+	startDelegate   func() error
+	stopDelegate    func() error
+	getTypeDelegate func() string
+	indexDelegate   func(types.TxResult) error
+)
 
 type mockIndexer struct {
 	startFn   startDelegate
@@ -54,9 +56,11 @@ func (m mockIndexer) Index(result types.TxResult) error {
 
 // EventSwitch //
 
-type fireEventDelegate func(events.Event)
-type addListenerDelegate func(string, events.EventCallback)
-type removeListenerDelegate func(string)
+type (
+	fireEventDelegate      func(events.Event)
+	addListenerDelegate    func(string, events.EventCallback)
+	removeListenerDelegate func(string)
+)
 
 type mockEventSwitch struct {
 	service.BaseService
