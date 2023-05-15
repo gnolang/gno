@@ -36,7 +36,7 @@ func TestCleanApp(t *testing.T) {
 	testMainCaseRun(t, tc)
 
 	workingDir, err := os.Getwd()
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	// Test clean command
 	for _, tc := range []struct {
@@ -81,7 +81,7 @@ func TestCleanApp(t *testing.T) {
 			// create files
 			for _, file := range tc.files {
 				err = os.WriteFile(file, []byte("test"), 0o644)
-				require.Nil(t, err)
+				require.NoError(t, err)
 			}
 
 			// set up io
@@ -91,7 +91,7 @@ func TestCleanApp(t *testing.T) {
 
 			// dry run clean
 			err = newGnodevCmd(io).ParseAndRun(context.Background(), []string{"clean", "-n"})
-			require.Nil(t, err)
+			require.NoError(t, err)
 			// check output
 			if tc.stdOut != "" {
 				assert.Equal(t, tc.stdOut, mockOut.String())
@@ -99,16 +99,16 @@ func TestCleanApp(t *testing.T) {
 			// check files
 			for _, file := range tc.files {
 				_, err = os.Stat(file)
-				require.Nil(t, err)
+				require.NoError(t, err)
 			}
 
 			// run clean
 			err = newGnodevCmd(io).ParseAndRun(context.Background(), []string{"clean"})
-			require.Nil(t, err)
+			require.NoError(t, err)
 			// check files
 			for _, file := range tc.filesRemoved {
 				_, err = os.Stat(file)
-				assert.NotNil(t, err)
+				assert.True(t, os.IsNotExist(err), "expected: ErrNotExist, got: %v", err)
 			}
 		})
 	}
