@@ -50,7 +50,7 @@ func NewTree(data []Hashable) *Tree {
 	tree.layers = []nodes{nodes(leaves)}
 
 	for len(leaves) > 1 {
-		var level []Node
+		level := make([]Node, 0, len(leaves)/2+1)
 		for i := 0; i < len(leaves); i += 2 {
 			var buff bytes.Buffer
 
@@ -87,7 +87,7 @@ func (t *Tree) Proof(data Hashable) ([]Node, error) {
 		return nil, errors.New("target not found")
 	}
 
-	var proofs []Node
+	proofs := make([]Node, 0, len(t.layers))
 
 	for _, layer := range t.layers {
 		var pairIndex int
@@ -103,7 +103,7 @@ func (t *Tree) Proof(data Hashable) ([]Node, error) {
 				position: uint8(targetIndex) % 2,
 			})
 		}
-		targetIndex = int(math.Floor(float64(targetIndex) / 2))
+		targetIndex /= 2
 	}
 	return proofs, nil
 }
