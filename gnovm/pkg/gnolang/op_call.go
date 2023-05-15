@@ -134,10 +134,35 @@ func (m *Machine) doOpCall() {
 	}
 	// Assign non-receiver parameters in forward order.
 	pvs := m.PopValues(numParams - isMethod)
+	n := 0
 	for i := isMethod; i < numParams; i++ {
 		pv := pvs[i-isMethod]
-		//todo check if every argument should escape and push to the heap
-		// check if it escaped here or anywhere else and add a root obj
+
+		if pv.ShouldEscape {
+			pv = TypedValue{
+				T:      &PointerType{Elt: pv.T},
+				V:      &PointerValue{TV: &pv},
+				OnHeap: true,
+			}
+			obj := &GCObj{value: pv}
+			m.GC.AddObject(obj)
+			pv.OnHeap = true
+			pv.ShouldEscape = false
+
+			root := &GCObj{ref: obj, path: pts[n].String()}
+			m.GC.AddRoot(root)
+			pv = pv
+		} else if pv.OnHeap {
+			root := m.GC.getRootByPath("")
+			if root == nil {
+				panic(fmt.Sprintf("invalid GC state: missing root for pv: %+v\n", pv))
+			}
+
+			newroot := &GCObj{ref: root.ref, path: pts[n].String()}
+			m.GC.AddRoot(newroot)
+			pv = root.ref.value.(TypedValue)
+		}
+
 		if debug {
 			// This is how run-time untyped const
 			// conversions would work, but we
@@ -158,6 +183,7 @@ func (m *Machine) doOpCall() {
 		// TODO: some more pt <> pv.Type
 		// reconciliations/conversions necessary.
 		b.Values[i] = pv
+		n += 1
 	}
 }
 

@@ -6,7 +6,7 @@ type GC struct {
 }
 
 type GCObj struct {
-	value  interface{}
+	value  interface{} //todo this should probably be a Pointer struct
 	marked bool
 	ref    *GCObj
 	path   string
