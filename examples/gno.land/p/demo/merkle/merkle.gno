@@ -42,16 +42,12 @@ func NewTree(data []Hashable) *Tree {
 
 	leaves := make([]Node, len(data))
 
-	tree.layers = make([]nodes, 1)
 	for i, d := range data {
 		hash := sha256.Sum256(d.Bytes())
-
-		tree.layers[0] = append(tree.layers[0], Node{
-			hash: hash[:],
-		})
-
 		leaves[i] = Node{hash: hash[:]}
 	}
+
+	tree.layers = []nodes{nodes(leaves)}
 
 	for len(leaves) > 1 {
 		var level []Node
