@@ -117,7 +117,16 @@ func (c *gnolandCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.txIndexerType,
 		"tx-indexer-type",
 		null.IndexerType,
-		fmt.Sprintf("type of transaction indexer [%s, %s]", null.IndexerType, file.IndexerType),
+		fmt.Sprintf(
+			"type of transaction indexer [%s]",
+			strings.Join(
+				[]string{
+					null.IndexerType,
+					file.IndexerType,
+				},
+				", ",
+			),
+		),
 	)
 
 	fs.StringVar(
