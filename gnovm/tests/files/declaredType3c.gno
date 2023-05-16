@@ -1,11 +1,5 @@
 package main
 
- // func main(){}
-
- import (
- 	"fmt"
- )
-
  type word uint
  type nat []word
 

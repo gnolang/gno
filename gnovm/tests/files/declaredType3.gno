@@ -1,9 +1,5 @@
 package main
 
- import (
- 	"fmt"
- )
-
  type word uint
  type nat []word
 
@@ -11,8 +7,14 @@ package main
  	return true
  }
 
+ // sliceLit
  func main() {
- 	var abs nat
- 	abs = []word{0}
- 	println(abs.add())
+ 	items := []nat{[]word{0}, []word{1}}
+
+ 	r := items[0]
+
+ 	println(r.add())
  }
+
+ // Output:
+ // true

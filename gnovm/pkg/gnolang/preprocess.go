@@ -1008,6 +1008,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "copy" {
 						if len(n.Args) == 2 {
+							if evalStaticTypeOf(store, last, n.Args[0]).Elem().TypeID() != evalStaticTypeOf(store, last, n.Args[1]).Elem().TypeID() {
+								panic(fmt.Sprintf(
+									"arguments to copy have different element types"))
+							}
 							// If the second argument is a string,
 							// convert to byteslice.
 							args1 := n.Args[1]
@@ -2464,13 +2468,9 @@ func checkType(xt Type, dt Type, autoNative bool, isNeedConversion *bool) {
 				return // ok
 			} else if dxt.TypeID() == ddt.TypeID() {
 				return // ok
-			} else if ddt.Base.TypeID() == dxt.TypeID() {
-				if isNeedConversion != nil {
-					*isNeedConversion = true
-				}
 			} else {
 				panic(fmt.Sprintf(
-					"cannot use %s as %s with implicit/explicit conversion",
+					"cannot use %s as %s with implicit conversion",
 					dxt.String(),
 					ddt.String()))
 			}
@@ -2488,11 +2488,6 @@ func checkType(xt Type, dt Type, autoNative bool, isNeedConversion *bool) {
 			}
 		}
 	} else if ddt, ok := dt.(*DeclaredType); ok {
-		if ddt.Base.TypeID() == xt.TypeID() {
-			if isNeedConversion != nil {
-				*isNeedConversion = true
-			}
-		}
 		// special case if implicitly named primitive type.
 		// TODO simplify with .IsNamedType().
 		if _, ok := xt.(PrimitiveType); ok {
@@ -2503,6 +2498,9 @@ func checkType(xt Type, dt Type, autoNative bool, isNeedConversion *bool) {
 		} else {
 			// carry on with baseOf(ddt)
 			dt = ddt.Base
+			if isNeedConversion != nil {
+				*isNeedConversion = true
+			}
 		}
 	}
 	// General cases.

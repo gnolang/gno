@@ -1,9 +1,5 @@
 package main
 
- import (
- 	"fmt"
- )
-
  type word uint
  type nat []word
 
@@ -11,11 +7,11 @@ package main
  	return true
  }
 
- // ArrayLit
+ // sliceLit2
  func main() {
- 	items := [3]nat{[]word{0}, []word{1}}
+ 	items := []nat{1:[]word{0}, 2:[]word{1}}
 
- 	r := items[0]
+ 	r := items[1]
 
  	println(r.add())
  }

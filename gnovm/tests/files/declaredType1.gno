@@ -1,13 +1,9 @@
 package main
 
- import (
- 	"fmt"
- )
-
-
  type word uint
  type nat []word
 
+ // structLit
  type Int struct {
  	neg bool
  	abs nat
@@ -20,9 +16,8 @@ package main
  func main() {
  	z := &Int{
  		neg: true,
+ 		abs: []word{0},
  	}
-
- 	z.abs = []word{0}
  	println(z.abs.add())
  }
 
