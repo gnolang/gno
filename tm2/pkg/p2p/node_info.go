@@ -12,6 +12,11 @@ const (
 	maxNumChannels  = 16    // plenty of room for upgrades, for now
 )
 
+const (
+	IndexerStatusOn  = "on"
+	IndexerStatusOff = "off"
+)
+
 // Max size of the NodeInfo struct
 func MaxNodeInfoSize() int {
 	return maxNodeInfoSize
@@ -100,7 +105,7 @@ func (info NodeInfo) Validate() error {
 	other := info.Other
 	txIndex := other.TxIndex
 	switch txIndex {
-	case "", "on", "off":
+	case "", IndexerStatusOn, IndexerStatusOff:
 	default:
 		return fmt.Errorf("info.Other.TxIndex should be either 'on', 'off', or empty string, got '%v'", txIndex)
 	}

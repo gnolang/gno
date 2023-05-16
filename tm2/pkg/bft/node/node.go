@@ -844,9 +844,9 @@ func makeNodeInfo(
 	genDoc *types.GenesisDoc,
 	state sm.State,
 ) (p2p.NodeInfo, error) {
-	txIndexerStatus := "off"
+	txIndexerStatus := p2p.IndexerStatusOff
 	if txIndexer.GetType() != null.IndexerType {
-		txIndexerStatus = "on"
+		txIndexerStatus = p2p.IndexerStatusOn
 	}
 
 	bcChannel := bc.BlockchainChannel
