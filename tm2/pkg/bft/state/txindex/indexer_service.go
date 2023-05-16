@@ -77,9 +77,7 @@ func (is *IndexerService) monitorTxEvents(ctx context.Context) {
 
 			// Alert the actual indexer
 			if err := is.indexer.Index(ev.Result); err != nil {
-				is.Logger.Error(
-					fmt.Sprintf("unable to index transaction, %v", err),
-				)
+				is.Logger.Error("unable to index transaction", "err", err)
 			}
 		}
 	}
