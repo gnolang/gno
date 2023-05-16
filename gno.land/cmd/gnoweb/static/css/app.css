@@ -284,6 +284,12 @@ label > img {
   }
 }
 
+/*** UTILITIES ***/
+
+.is-hidden {
+  display: none;
+}
+
 /*** BLOCKS ***/
 .jumbotron {
   border: 1px solid #606060;
@@ -303,7 +309,7 @@ label > img {
   }
 }
 
-/*** MODIFIERS ***/
+/*** EXCEPTIONS ***/
 .stack--center {
   justify-content: center;
 }

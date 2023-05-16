@@ -82,7 +82,7 @@ Free and open to anyone globally, our core team hosts frequent interactive onlin
 
 <div>
 
-## Developer Call 
+## Developer Call
 
 [Learn more](/)
 

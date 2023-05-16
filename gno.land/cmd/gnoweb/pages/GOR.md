@@ -6,6 +6,48 @@ Start building the foundation for tomorrow through key smart contracts and other
 
 You can start participating in the co-creation of the Game of Realms now by adding your contributions on the dedicated [GitHub page](https://github.com/gnolang/gno/issues/357) to help us formulate the challenges. We want to release the final challenges from your contributions.
 
+<div>
+
+<div role="tablist" aria-labelledby="tablist-1" class="tabs">
+
+<button id="tab-1" type="button" role="tab" aria-selected="true" aria-controls="tabpanel-1">Evaluation DAO (20%)</button>
+<button id="tab-2" type="button" role="tab" aria-selected="false" aria-controls="tabpanel-2" tabindex="-1">Tutorials (0%)</button>
+<button id="tab-3" type="button" role="tab" aria-selected="false" aria-controls="tabpanel-3" tabindex="-1">Governance Module (30%)</button>
+
+</div>
+
+<div id="tabpanel-1" role="tabpanel" tabindex="0" aria-labelledby="tab-1" class="">
+
+<div class="accordion">
+
+<button type="button" aria-expanded="true" class="accordion-trigger" aria-controls="acc-1" id="accpanel-1">Clarifying this issue — [100% completed]</button>
+
+<div id="acc-1" role="region" aria-labelledby="accpanel-1" class="accordion-panel">
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus commodo euismod nibh. Pellentesque maximus gravida est, ut lacinia quam mattis et. Etiam arcu arcu, dignissim porta varius ac, venenatis vitae mauris. Proin eget fringilla nulla. Vivamus blandit. Nulla volutpat leo felis, porttitor ultrices mi scelerisque et. Nullam non pharetra diam, id iaculis sem. Mauris sollicitudin in sem eget dictum. Lorem ipsum dolor sit ame elit. Phasellus commodo euismod nibh
+</div>
+
+<button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-2" id="accpanel-2">Retrospectives & investigations — [100% completed]</button>
+
+<div id="acc-2" role="region" aria-labelledby="accpanel-2" class="accordion-panel is-hidden">
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus commodo euismod nibh. Pellentesque maximus gravida est, ut lacinia quam mattis et. Etiam arcu arcu, dignissim porta varius ac, venenatis vitae mauris. Proin eget fringilla nulla. Vivamus blandit. Nulla volutpat leo felis, porttitor ultrices mi scelerisque et. Nullam non pharetra diam, id iaculis sem. Mauris sollicitudin in sem eget dictum. Lorem ipsum dolor sit ame elit. Phasellus commodo euismod nibh
+</div>
+
+</div>
+</div>
+
+<div id="tabpanel-2" role="tabpanel" tabindex="0" aria-labelledby="tab-2" class="">
+
+2 Maria Theresia Ahlefeldt (16 January 1755 – 20 December 1810) was a Danish, (originally German), composer. She is known as the first female composer in Denmark.Maria Theresia composed music for several ballets, operas, and plays of the royal theatre.She was given good critic as a composer and described as a.
+
+</div>
+
+<div id="tabpanel-3" role="tabpanel" tabindex="0" aria-labelledby="tab-3" class="">
+
+3 Maria Theresia Ahlefeldt (16 January 1755 – 20 December 1810) was a Danish, (originally German), composer. She is known as the first female composer in Denmark.Maria Theresia composed music for several ballets, operas, and plays of the royal theatre.She was given good critic as a composer and described as a.
+
+</div>
+</div>
+
 ## Register Now
 
 <!-- mailchimp -->
