@@ -2313,10 +2313,10 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 		checkOrConvertType(store, last, &bx.Left, t, autoNative)
 	} else if *x != nil { // XXX if x != nil && t != nil {
 		xt := evalStaticTypeOf(store, last, *x)
-		var isNeedConversion bool
+		var conversionNeeded bool
 		if t != nil {
 			// TODO: shall convert here?
-			checkType(xt, t, autoNative, &isNeedConversion)
+			checkType(xt, t, autoNative, &conversionNeeded)
 		}
 
 		if isUntyped(xt) {
@@ -2345,7 +2345,7 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 			*x = cx
 		}
 		// cover all declared type case
-		if isNeedConversion {
+		if conversionNeeded {
 			cmx := Expr(Call(constType(nil, t), *x))
 			// println("cx before preprocess: ", cx.String(), cx.GetLine(), cx.GetLabel())
 			cmx = Preprocess(store, last, cmx).(Expr)
@@ -2379,7 +2379,7 @@ func convertConst(store Store, last BlockNode, cx *ConstExpr, t Type) {
 // Assert that xt can be assigned as dt (dest type).
 // If autoNative is true, a broad range of xt can match against
 // a target native dt type, if and only if dt is a native type.
-func checkType(xt Type, dt Type, autoNative bool, isNeedConversion *bool) {
+func checkType(xt Type, dt Type, autoNative bool, conversionNeeded *bool) {
 	// Special case if dt is interface kind:
 	if dt.Kind() == InterfaceKind {
 		if idt, ok := baseOf(dt).(*InterfaceType); ok {
@@ -2498,8 +2498,8 @@ func checkType(xt Type, dt Type, autoNative bool, isNeedConversion *bool) {
 		} else {
 			// carry on with baseOf(ddt)
 			dt = ddt.Base
-			if isNeedConversion != nil {
-				*isNeedConversion = true
+			if conversionNeeded != nil {
+				*conversionNeeded = true
 			}
 		}
 	}
@@ -2545,23 +2545,23 @@ func checkType(xt Type, dt Type, autoNative bool, isNeedConversion *bool) {
 		}
 	case *PointerType:
 		if pt, ok := xt.(*PointerType); ok {
-			checkType(pt.Elt, cdt.Elt, false, isNeedConversion)
+			checkType(pt.Elt, cdt.Elt, false, conversionNeeded)
 			return // ok
 		}
 	case *ArrayType:
 		if at, ok := xt.(*ArrayType); ok {
-			checkType(at.Elt, cdt.Elt, false, isNeedConversion)
+			checkType(at.Elt, cdt.Elt, false, conversionNeeded)
 			return // ok
 		}
 	case *SliceType:
 		if st, ok := xt.(*SliceType); ok {
-			checkType(st.Elt, cdt.Elt, false, isNeedConversion)
+			checkType(st.Elt, cdt.Elt, false, conversionNeeded)
 			return // ok
 		}
 	case *MapType:
 		if mt, ok := xt.(*MapType); ok {
-			checkType(mt.Key, cdt.Key, false, isNeedConversion)
-			checkType(mt.Value, cdt.Value, false, isNeedConversion)
+			checkType(mt.Key, cdt.Key, false, conversionNeeded)
+			checkType(mt.Value, cdt.Value, false, conversionNeeded)
 			return // ok
 		}
 	case *FuncType:
