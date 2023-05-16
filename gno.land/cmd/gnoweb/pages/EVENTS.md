@@ -87,6 +87,6 @@ Free and open to anyone globally, our core team hosts frequent interactive onlin
 [Learn more](/)
 
 </div>
-</div
+</div>
 
 </div>
