@@ -6,12 +6,13 @@ help:
 rundep=go run -modfile ../misc/devdeps/go.mod
 
 .PHONY: build
-build: build.gnoland build.gnokey build.gnoweb build.gnofaucet
+build: build.gnoland build.gnokey build.gnoweb build.gnofaucet _build.tm2txsync
 
 build.gnoland:;    go build -o build/gnoland   ./cmd/gnoland
 build.gnoweb:;     go build -o build/gnoweb    ./cmd/gnoweb
 build.gnofaucet:;  go build -o build/gnofaucet ./cmd/gnofaucet
 build.gnokey:;     go build -o build/gnokey    ./cmd/gnokey
+_build.tm2txsync:;  go build -o build/tm2txsync  ./cmd/tm2txsync
 
 .PHONY: install
 install: install.gnoland install.gnoweb install.gnofaucet install.gnokey

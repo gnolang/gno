@@ -25,7 +25,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
-	"github.com/gnolang/gno/tm2/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 

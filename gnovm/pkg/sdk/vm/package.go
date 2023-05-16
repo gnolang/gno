@@ -6,7 +6,7 @@ import (
 )
 
 var Package = amino.RegisterPackage(amino.NewPackage(
-	"github.com/gnolang/gno/tm2/pkg/sdk/vm",
+	"github.com/gnolang/gno/gnovm/pkg/sdk/vm",
 	"vm",
 	amino.GetCallersDirname(),
 ).WithDependencies(
