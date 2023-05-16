@@ -9,7 +9,7 @@ import (
 	cns "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	mem "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
 	rpc "github.com/gnolang/gno/tm2/pkg/bft/rpc/config"
-	"github.com/gnolang/gno/tm2/pkg/bft/state/txindex/config"
+	txindex "github.com/gnolang/gno/tm2/pkg/bft/state/txindex/config"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	p2p "github.com/gnolang/gno/tm2/pkg/p2p/config"
@@ -25,7 +25,7 @@ type Config struct {
 	P2P       *p2p.P2PConfig       `toml:"p2p"`
 	Mempool   *mem.MempoolConfig   `toml:"mempool"`
 	Consensus *cns.ConsensusConfig `toml:"consensus"`
-	Indexer   *config.Config       `toml:"indexer"`
+	Indexer   *txindex.Config      `toml:"indexer"`
 }
 
 // DefaultConfig returns a default configuration for a Tendermint node
@@ -36,7 +36,7 @@ func DefaultConfig() *Config {
 		P2P:        p2p.DefaultP2PConfig(),
 		Mempool:    mem.DefaultMempoolConfig(),
 		Consensus:  cns.DefaultConsensusConfig(),
-		Indexer:    config.DefaultIndexerConfig(),
+		Indexer:    txindex.DefaultIndexerConfig(),
 	}
 }
 
@@ -76,7 +76,7 @@ func TestConfig() *Config {
 		P2P:        p2p.TestP2PConfig(),
 		Mempool:    mem.TestMempoolConfig(),
 		Consensus:  cns.TestConsensusConfig(),
-		Indexer:    config.DefaultIndexerConfig(),
+		Indexer:    txindex.DefaultIndexerConfig(),
 	}
 }
 
