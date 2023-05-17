@@ -125,8 +125,8 @@ func handlerGor(app gotuna.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		app.NewTemplatingEngine().
 			Set("MainContent", string(mainContent)).
-			Set("Title", "About").
-			Render(w, r, "gor.html", "funcs.html")
+			Set("Title", "Game of Realms").
+			Render(w, r, "generic.html", "funcs.html")
 	})
 }
 
