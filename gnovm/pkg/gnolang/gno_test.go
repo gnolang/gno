@@ -48,7 +48,9 @@ func main() {
 	printit(&ff)
 }
 
-func printit(i *int) {}
+func printit(i *int) {
+	_ = i
+}
 `
 	n := MustParseFile("main.go", c)
 	m.RunFiles(n)

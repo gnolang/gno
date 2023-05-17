@@ -170,10 +170,11 @@ func (dbv DataByteValue) SetByte(b byte) {
 // allocated, *Allocator.AllocatePointer() is called separately,
 // as in OpRef.
 type PointerValue struct {
-	TV    *TypedValue // escape val if pointer to var.
-	Base  Value       // array/struct/block.
-	Index int         // list/fields/values index, or -1 or -2 (see below).
-	Key   *TypedValue `json:",omitempty"` // for maps.
+	GCParent *GCObj
+	TV       *TypedValue // escape val if pointer to var.
+	Base     Value       // array/struct/block.
+	Index    int         // list/fields/values index, or -1 or -2 (see below).
+	Key      *TypedValue `json:",omitempty"` // for maps.
 }
 
 const (
@@ -2288,10 +2289,15 @@ func (b *Block) GetParent(store Store) *Block {
 
 func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 	vv := fillValueTV(store, &b.Values[index])
+	var gcParent *GCObj
+	if pp, is := vv.V.(PointerValue); is {
+		gcParent = pp.GCParent
+	}
 	return PointerValue{
-		TV:    vv,
-		Base:  b,
-		Index: index,
+		TV:       vv,
+		Base:     b,
+		Index:    index,
+		GCParent: gcParent,
 	}
 }
 

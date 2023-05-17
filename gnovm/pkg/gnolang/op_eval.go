@@ -41,9 +41,7 @@ func (m *Machine) doOpEval() {
 			var tv TypedValue
 
 			if obj != nil {
-				if heapTV, is := obj.value.(TypedValue); is {
-					tv = heapTV
-				}
+				tv = obj.value
 			} else {
 				// Get value from scope.
 				lb := m.LastBlock()
@@ -334,12 +332,15 @@ func (m *Machine) doOpEval() {
 		tv := x.TypedValue
 
 		if x.ShouldEscape {
+			obj := &GCObj{}
 			tv = TypedValue{
 				T:      &PointerType{Elt: x.TypedValue.T},
-				V:      &PointerValue{TV: &x.TypedValue},
+				V:      PointerValue{TV: &x.TypedValue, GCParent: obj},
 				OnHeap: true,
 			}
-			obj := &GCObj{value: tv}
+
+			obj.value = tv
+
 			m.GC.AddObject(obj)
 			x.OnHeap = true
 			x.ShouldEscape = false

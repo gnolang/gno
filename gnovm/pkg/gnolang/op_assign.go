@@ -25,12 +25,9 @@ func (m *Machine) doOpDefine() {
 
 		ptr.Assign2(m.Alloc, m.Store, m.Realm, val, true)
 
-		//pv, is := ptr.TV.V.(PointerValue)
-		//if is && !pv.TV.OnHeap {
-		//	m.escape2Heap(nx, s.Rhs[i], pv)
-		//	pv.TV.OnHeap = true
-		//	pv.TV.ShouldEscape = false
-		//}
+		if ptr.TV.OnHeap {
+			m.GC.setEmptyRootPath(nx.String())
+		}
 	}
 }
 
@@ -56,12 +53,6 @@ func (m *Machine) doOpAssign() {
 		val := *m.PopValue()
 
 		lv.Assign2(m.Alloc, m.Store, m.Realm, val, true)
-
-		//pv, is := lv.TV.V.(PointerValue)
-		//if is && pv.TV.ShouldEscape {
-		//	m.escape2Heap(nx, s.Rhs[i], pv)
-		//	pv.TV.OnHeap = true
-		//}
 	}
 }
 
@@ -106,10 +97,7 @@ func (m *Machine) getTypeValueFromNX(nx *NameExpr, rhs Expr) *TypedValue {
 		obj = &newCopy
 	}
 
-	if tv, is := obj.value.(TypedValue); is {
-		return &tv
-	}
-	return nil
+	return &obj.value
 }
 
 func (m *Machine) escape2Heap(nx *NameExpr, rhs Expr, rp PointerValue) {
@@ -118,6 +106,7 @@ func (m *Machine) escape2Heap(nx *NameExpr, rhs Expr, rp PointerValue) {
 		V:      rp,
 		OnHeap: true,
 	}}
+
 	root := &GCObj{
 		path: nx.Path.String(),
 		ref:  obj,
