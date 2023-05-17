@@ -48,10 +48,11 @@ func NewTree(data []Hashable) *Tree {
 
 	tree.layers = []nodes{nodes(leaves)}
 
+	var buff bytes.Buffer
 	for len(leaves) > 1 {
 		level := make([]Node, 0, len(leaves)/2+1)
 		for i := 0; i < len(leaves); i += 2 {
-			var buff bytes.Buffer
+			buff.Reset()
 
 			if i < len(leaves)-1 {
 				buff.Write(leaves[i].hash)
