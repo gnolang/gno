@@ -28,12 +28,7 @@ No posts.
 		ModAddPost("slug2", "title2", "body2", "tag1,tag3")
 		got := Render("")
 		expected := `
-# Gnoland's Blog
-
-## [&#9656; title1](/r/gnoland/blog:p/slug1)
-
-## [&#9656; title2](/r/gnoland/blog:p/slug2)
-`
+# Gnoland's Blog\n\n<div class='columns-3'><div>\n\n## [title1](/r/gnoland/blog:p/slug1)\n**[Learn More](/r/gnoland/blog:p/slug1)**\n\n</div><div>\n\n## [title2](/r/gnoland/blog:p/slug2)\n**[Learn More](/r/gnoland/blog:p/slug2)**\n\n</div></div>`
 		assertMDEquals(t, got, expected)
 	}
 

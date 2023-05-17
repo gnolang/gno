@@ -27,7 +27,7 @@ func (b Blog) Render(path string) string {
 	switch {
 	case isHome:
 		output := breadcrumb([]string{b.Title})
-        output += "<div class='columns-3'>"
+		output += "<div class='columns-3'>"
 
 		if b.Posts.Size() == 0 {
 			output += "No posts."
@@ -40,8 +40,7 @@ func (b Blog) Render(path string) string {
 			return false
 		})
 
-        output += "</div>"
-
+		output += "</div>"
 
 		// FIXME: tag list/cloud.
 		return output
@@ -220,7 +219,7 @@ func (p *Post) RenderListItem() string {
 	// output += p.RenderTagList() + "\n\n"
 	// output += formatAuthorAndDate(p.Author, p.CreatedAt) + "\n"
 	output += "\n"
-    output += "</div>"
+	output += "</div>"
 	return output
 }
 
