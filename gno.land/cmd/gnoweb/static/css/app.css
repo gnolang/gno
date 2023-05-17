@@ -39,7 +39,7 @@ html[data-theme="light"] {
 }
 
 html[data-theme="dark"] {
-  --background-color: #2e2e2e;
+  --background-color: #1e1e1e;
   --input-background-color: #393939;
   --text-color: #c7c7c7;
   --link-color: #c7c7c7;
