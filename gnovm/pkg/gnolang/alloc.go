@@ -7,8 +7,12 @@ import "reflect"
 // (optionally?) condensed (objects to be GC'd will be discarded),
 // but for now, allocations strictly increment across the whole tx.
 type Allocator struct {
-	maxBytes int64
-	bytes    int64
+	maxBytes       int64
+	bytes          int64
+	GoGC           float64
+	LastGcRunBytes int64
+	MinGC          int64
+	runGC          bool
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -70,7 +74,30 @@ func NewAllocator(maxBytes int64) *Allocator {
 	}
 	return &Allocator{
 		maxBytes: maxBytes,
+		MinGC:    1024 * 1024,
 	}
+}
+
+func (alloc *Allocator) GetRunGC() bool {
+	if alloc == nil {
+		return false
+	}
+	return alloc.runGC
+}
+
+func (alloc *Allocator) GCCycleFinished() {
+	if alloc == nil {
+		return
+	}
+	alloc.runGC = false
+	alloc.LastGcRunBytes = alloc.bytes
+}
+
+func (alloc *Allocator) calcShouldRunGC() bool {
+	percent := (alloc.GoGC * float64(alloc.LastGcRunBytes)) / 100.0
+	target := int64(percent) + alloc.LastGcRunBytes
+
+	return alloc.MinGC < target && alloc.bytes >= target
 }
 
 func (alloc *Allocator) Status() (maxBytes int64, bytes int64) {
@@ -103,6 +130,14 @@ func (alloc *Allocator) Allocate(size int64) {
 	alloc.bytes += size
 	if alloc.bytes > alloc.maxBytes {
 		panic("allocation limit exceeded")
+	}
+	// this is faster, instead of
+	// assigning the result of the function
+	// to alloc.runGC, because we will be writing
+	// into cold memory
+	// so we should do it only when we have to
+	if alloc.calcShouldRunGC() {
+		alloc.runGC = true
 	}
 }
 

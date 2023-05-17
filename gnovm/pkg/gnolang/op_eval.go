@@ -18,6 +18,7 @@ func (m *Machine) doOpEval() {
 		debug.Printf("EVAL: %v\n", x)
 		// fmt.Println(m.String())
 	}
+
 	// This case moved out of switch for performance.
 	// TODO: understand this better.
 	if nx, ok := x.(*NameExpr); ok {
@@ -28,11 +29,28 @@ func (m *Machine) doOpEval() {
 			m.PushValue(gv.Deref())
 			return
 		} else {
-			// Get value from scope.
-			lb := m.LastBlock()
-			// Push value, done.
-			ptr := lb.GetPointerTo(m.Store, nx.Path)
-			m.PushValue(ptr.Deref())
+			var obj, root *GCObj
+
+			if m.GC != nil {
+				root = m.GC.getRootByPath(nx.Path.String())
+			}
+			if root != nil {
+				obj = root.ref
+			}
+
+			var tv TypedValue
+
+			if obj != nil {
+				tv = obj.value
+			} else {
+				// Get value from scope.
+				lb := m.LastBlock()
+				// Push value, done.
+				ptr := lb.GetPointerTo(m.Store, nx.Path)
+				tv = ptr.Deref()
+			}
+
+			m.PushValue(tv)
 			return
 		}
 	}
@@ -311,8 +329,30 @@ func (m *Machine) doOpEval() {
 		m.PushOp(OpEval)
 	case *ConstExpr:
 		m.PopExpr()
+		tv := x.TypedValue
+
+		if x.ShouldEscape {
+			obj := &GCObj{}
+			tv = TypedValue{
+				T:      &PointerType{Elt: x.TypedValue.T},
+				V:      PointerValue{TV: &x.TypedValue, GCParent: obj},
+				OnHeap: true,
+			}
+
+			obj.value = tv
+
+			m.GC.AddObject(obj)
+			x.OnHeap = true
+			x.ShouldEscape = false
+
+			// no information about the identifier
+			// this will be linked with
+			// create it with no path and fix later
+			root := &GCObj{ref: obj}
+			m.GC.AddRoot(root)
+		}
 		// push preprocessed value
-		m.PushValue(x.TypedValue)
+		m.PushValue(tv)
 	case *constTypeExpr:
 		m.PopExpr()
 		// push preprocessed type as value

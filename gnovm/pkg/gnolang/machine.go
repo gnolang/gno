@@ -31,9 +31,10 @@ type Machine struct {
 	Package    *PackageValue // active package
 	Realm      *Realm        // active realm
 	Alloc      *Allocator    // memory allocations
-	Exception  *TypedValue   // if panic'd unless recovered
-	NumResults int           // number of results returned
-	Cycles     int64         // number of "cpu" cycles
+	GC         *GC
+	Exception  *TypedValue // if panic'd unless recovered
+	NumResults int         // number of results returned
+	Cycles     int64       // number of "cpu" cycles
 
 	// Configuration
 	CheckTypes bool // not yet used
@@ -999,6 +1000,10 @@ const (
 
 func (m *Machine) Run() {
 	for {
+		if m.Alloc.GetRunGC() {
+			m.GC.Collect()
+			m.Alloc.GCCycleFinished()
+		}
 		op := m.PopOp()
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {
@@ -1674,6 +1679,7 @@ func (m *Machine) PopFrameAndReturn() {
 	// shift and convert results to typed-nil if undefined and not iface
 	// kind.  and not func result type isn't interface kind.
 	resStart := m.NumValues - numRes
+	//todo here drop the root objects from the GC
 	for i := 0; i < numRes; i++ {
 		res := m.Values[resStart+i]
 		if res.IsUndefined() && rtypes[i].Type.Kind() != InterfaceKind {

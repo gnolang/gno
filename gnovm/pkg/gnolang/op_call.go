@@ -134,8 +134,41 @@ func (m *Machine) doOpCall() {
 	}
 	// Assign non-receiver parameters in forward order.
 	pvs := m.PopValues(numParams - isMethod)
+	n := 0
 	for i := isMethod; i < numParams; i++ {
 		pv := pvs[i-isMethod]
+
+		if pv.ShouldEscape {
+			obj := &GCObj{}
+			pv = TypedValue{
+				T:      &PointerType{Elt: pv.T},
+				V:      PointerValue{TV: &pv, GCParent: obj},
+				OnHeap: true,
+			}
+
+			obj.value = pv
+
+			m.GC.AddObject(obj)
+			pv.OnHeap = true
+			pv.ShouldEscape = false
+
+			//todo think about a consistent path value
+			root := &GCObj{ref: obj, path: pts[n].String()}
+			m.GC.AddRoot(root)
+		} else if pv.OnHeap {
+			root := m.GC.getRootByPath("")
+			if root == nil {
+				panic(fmt.Sprintf("invalid GC state: missing root for pv: %+v\n", pv))
+			}
+
+			if root.ref == nil {
+				panic(fmt.Sprintf("invalid GC state: root with no ref: %+v\n", root))
+			}
+
+			//todo make consistent path
+			root.path = pts[n].String()
+		}
+
 		if debug {
 			// This is how run-time untyped const
 			// conversions would work, but we
@@ -148,12 +181,15 @@ func (m *Machine) doOpCall() {
 				}
 			*/
 			if isUntyped(pv.T) {
+				//todo this is kind of misleading message
+				// this code is not for assignments
 				panic("unexpected untyped const type for assign during runtime")
 			}
 		}
 		// TODO: some more pt <> pv.Type
 		// reconciliations/conversions necessary.
 		b.Values[i] = pv
+		n += 1
 	}
 }
 

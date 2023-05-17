@@ -190,9 +190,17 @@ func (m *Machine) doOpRef() {
 			nv.Value = rv2
 		}
 	}
+
+	//add a root without a path
+	// the next op needs to add a path
+	root := &GCObj{ref: xv.GCParent}
+	m.GC.AddRoot(root)
+
 	m.PushValue(TypedValue{
-		T: m.Alloc.NewType(&PointerType{Elt: xv.TV.T}),
-		V: xv,
+		T:            m.Alloc.NewType(&PointerType{Elt: xv.TV.T}),
+		V:            xv,
+		OnHeap:       true,
+		ShouldEscape: false,
 	})
 }
 

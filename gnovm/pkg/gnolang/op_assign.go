@@ -5,7 +5,7 @@ func (m *Machine) doOpDefine() {
 	// Define each value evaluated for Lhs.
 	// NOTE: PopValues() returns a slice in
 	// forward order, not the usual reverse.
-	rvs := m.PopValues(len(s.Lhs))
+
 	lb := m.LastBlock()
 	for i := 0; i < len(s.Lhs); i++ {
 		// Get name and value of i'th term.
@@ -20,7 +20,14 @@ func (m *Machine) doOpDefine() {
 				}
 			}
 		}
-		ptr.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
+
+		val := *m.PopValue()
+
+		ptr.Assign2(m.Alloc, m.Store, m.Realm, val, true)
+
+		if ptr.TV.OnHeap {
+			m.GC.setEmptyRootPath(nx.String())
+		}
 	}
 }
 
@@ -29,7 +36,6 @@ func (m *Machine) doOpAssign() {
 	// Assign each value evaluated for Lhs.
 	// NOTE: PopValues() returns a slice in
 	// forward order, not the usual reverse.
-	rvs := m.PopValues(len(s.Lhs))
 	for i := len(s.Lhs) - 1; 0 <= i; i-- {
 		// Pop lhs value and desired type.
 		lv := m.PopAsPointer(s.Lhs[i])
@@ -41,7 +47,82 @@ func (m *Machine) doOpAssign() {
 				}
 			}
 		}
-		lv.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
+
+		// Get name and value of i'th term.
+		//nx := s.Lhs[i].(*NameExpr)
+		val := *m.PopValue()
+
+		lv.Assign2(m.Alloc, m.Store, m.Realm, val, true)
+	}
+}
+
+func (m *Machine) getTypeValueFromNX(nx *NameExpr, rhs Expr) *TypedValue {
+	var obj, root *GCObj
+	var rname *NameExpr
+	var shouldCopy bool
+
+	switch name := rhs.(type) {
+	case *NameExpr:
+		rname = name
+		shouldCopy = true
+	case *RefExpr:
+		rname = name.X.(*NameExpr)
+	}
+	if rname == nil {
+		return nil
+	}
+
+	if !rname.IsRoot {
+		return nil
+	}
+
+	root = m.GC.getRootByPath(rname.Path.String())
+
+	if root == nil {
+		return nil
+	}
+	obj = root.ref
+
+	if obj == nil {
+		return nil
+	}
+
+	if shouldCopy {
+		newCopy := *obj
+		m.GC.AddRoot(&GCObj{
+			ref:  &newCopy,
+			path: nx.Path.String(),
+		})
+		m.GC.AddObject(&newCopy)
+		obj = &newCopy
+	}
+
+	return &obj.value
+}
+
+func (m *Machine) escape2Heap(nx *NameExpr, rhs Expr, rp PointerValue) {
+	obj := &GCObj{value: TypedValue{
+		T:      &PointerType{Elt: rp.TV.T},
+		V:      rp,
+		OnHeap: true,
+	}}
+
+	root := &GCObj{
+		path: nx.Path.String(),
+		ref:  obj,
+	}
+	m.GC.AddRoot(root)
+	m.GC.AddObject(obj)
+
+	if refExpr, ok := rhs.(*RefExpr); ok {
+		rn := refExpr.X.(*NameExpr)
+		rn.IsRoot = true
+
+		rroot := &GCObj{
+			path: rn.Path.String(),
+			ref:  obj,
+		}
+		m.GC.AddRoot(rroot)
 	}
 }
 

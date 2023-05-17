@@ -11,6 +11,25 @@ import (
 	"github.com/jaekwon/testify/assert"
 )
 
+// run main() with a for loop.
+func BenchmarkLoopy(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		m := NewMachine("test", nil)
+		c := `package test
+func main() {
+     println("hello world")
+    // var k int
+	//for i:=0; i<1000; i++ {
+	//	k += i
+	//}
+    //println(k)
+}`
+		n := MustParseFile("main.go", c)
+		m.RunFiles(n)
+		m.RunMain()
+	}
+}
+
 // run empty main().
 func TestRunEmptyMain(t *testing.T) {
 	m := NewMachine("test", nil)
@@ -19,17 +38,63 @@ func TestRunEmptyMain(t *testing.T) {
 	m.RunMain()
 }
 
+func TestGCArgs(t *testing.T) {
+	m := NewMachine("test", nil)
+	m.GC = NewGC()
+	c := `package test
+
+func main() {
+	ff := 4
+	printit(&ff)
+}
+
+func printit(i *int) {
+	_ = i
+}
+`
+	n := MustParseFile("main.go", c)
+	m.RunFiles(n)
+	m.RunMain()
+}
+
 // run main() with a for loop.
 func TestRunLoopyMain(t *testing.T) {
 	m := NewMachine("test", nil)
+	m.GC = NewGC()
 	c := `package test
+
+var a *int
+
 func main() {
-	for i:=0; i<1000; i++ {
-		if i == -1 {
-			return
-		}
-	}
-}`
+	foo()
+	printit(a)
+}
+
+func printit(i *int) {}
+
+func foo() {
+	ff := 4
+	f := &ff
+    aa := f
+	a = aa
+}
+`
+
+	//type Foo struct{
+	//	a bool
+	//}
+	//
+	//func main() {
+	//	f := NewFoo()
+	//	f.a
+	//}
+	//
+	//func NewFoo() *Foo {
+	//	return &Foo{a: true}
+	//}
+	//func UseFoo(ff *Foo) {
+	//	_asd = ff
+	//}
 	n := MustParseFile("main.go", c)
 	m.RunFiles(n)
 	m.RunMain()

@@ -365,7 +365,8 @@ var (
 type NameExpr struct {
 	Attributes
 	// TODO rename .Path's to .ValuePaths.
-	Path ValuePath // set by preprocessor.
+	Path   ValuePath // set by preprocessor.
+	IsRoot bool
 	Name
 }
 
@@ -1648,7 +1649,6 @@ func (sb *StaticBlock) GetStaticTypeOfAt(store Store, path ValuePath) Type {
 			path.Depth -= 1
 		}
 	}
-	panic("should not happen")
 }
 
 // Implements BlockNode.
