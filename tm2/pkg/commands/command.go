@@ -135,5 +135,4 @@ func registerOptionsWithSubcommands(root *ffcli.Command) {
 			subcommands = append(subcommands, subcommand)
 		}
 	}
-
 }
