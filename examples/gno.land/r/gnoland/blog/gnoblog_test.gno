@@ -17,7 +17,7 @@ func TestPackage(t *testing.T) {
 		expected := `
 # Gnoland's Blog
 
-No posts.
+<div class='columns-3'>No posts.
 `
 		assertMDEquals(t, got, expected)
 	}
@@ -28,7 +28,20 @@ No posts.
 		ModAddPost("slug2", "title2", "body2", "tag1,tag3")
 		got := Render("")
 		expected := `
-# Gnoland's Blog\n\n<div class='columns-3'><div>\n\n## [title1](/r/gnoland/blog:p/slug1)\n**[Learn More](/r/gnoland/blog:p/slug1)**\n\n</div><div>\n\n## [title2](/r/gnoland/blog:p/slug2)\n**[Learn More](/r/gnoland/blog:p/slug2)**\n\n</div></div>`
+# Gnoland's Blog
+
+<div class='columns-3'><div>
+
+## [title1](/r/gnoland/blog:p/slug1)
+**[Learn More](/r/gnoland/blog:p/slug1)**
+
+</div><div>
+
+## [title2](/r/gnoland/blog:p/slug2)
+**[Learn More](/r/gnoland/blog:p/slug2)**
+
+</div></div>
+`
 		assertMDEquals(t, got, expected)
 	}
 
@@ -57,7 +70,12 @@ by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
 		expected = `
 # [Gnoland's Blog](/r/gnoland/blog:) / t / tag2
 
-## [&#9656; title1](/r/gnoland/blog:p/slug1)
+<div>
+
+## [title1](/r/gnoland/blog:p/slug1)
+**[Learn More](/r/gnoland/blog:p/slug1)**
+
+</div>
 `
 		assertMDEquals(t, got, expected)
 	}
