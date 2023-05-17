@@ -34,8 +34,8 @@ func (b Blog) Render(path string) string {
 			return output
 		}
 
-		b.Posts.Iterate("", "", func(n *avl.Node) bool {
-			post := n.Value().(*Post)
+		b.Posts.Iterate("", "", func(key string, value interface{}) bool {
+			post := value.(*Post)
 			output += post.RenderListItem()
 			return false
 		})
@@ -67,8 +67,8 @@ func (b Blog) Render(path string) string {
 		output += "\n"
 
 		// comments
-		p.Comments.IterateReverse("", "", func(n *avl.Node) bool {
-			comment := n.Value().(*Comment)
+		p.Comments.ReverseIterate("", "", func(key string, value interface{}) bool {
+			comment := value.(*Comment)
 			output += comment.RenderListItem()
 			return false
 		})
@@ -85,8 +85,8 @@ func (b Blog) Render(path string) string {
 		})
 
 		nb := 0
-		b.Posts.Iterate("", "", func(n *avl.Node) bool {
-			post := n.Value().(*Post)
+		b.Posts.Iterate("", "", func(key string, value interface{}) bool {
+			post := value.(*Post)
 			if !post.HasTag(tagSlug) {
 				return false
 			}

@@ -49,6 +49,10 @@ func Parse(file string, data []byte) (*File, error) {
 					f.add(&errs, x, l, x.Token[0], l.Token)
 				}
 			}
+		case *modfile.CommentBlock:
+			if x.Start.Line == 1 {
+				f.Draft = parseDraft(x)
+			}
 		}
 	}
 

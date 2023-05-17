@@ -79,7 +79,7 @@ Add to your `.vimrc` file:
 
 ```vim
 function! GnoFmt()
-    cexpr system('gofmt -e -w ' . expand('%')) "or replace with gofumpt
+    cexpr system('gofmt -e -w ' . expand('%')) "or replace with gofumpt, see below
     edit!
 endfunction
 command! GnoFmt call GnoFmt()
@@ -88,6 +88,12 @@ augroup gno_autocmd
     autocmd BufNewFile,BufRead *.gno set filetype=go
     autocmd BufWritePost *.gno GnoFmt
 augroup END
+```
+
+To use *gofumpt* instead of *gofmt*, as hinted in the comment, you may either have `gofumpt` in your PATH or substitute the cexpr line above with the following (please make sure to replace `<path/to/gno>` with the path to your local gno repository):
+
+```vim
+cexpr system('go run -modfile </path/to/gno>/misc/devdeps/go.mod mvdan.cc/gofumpt -w ' . expand('%'))
 ```
 
 #### Emacs Support
@@ -184,8 +190,8 @@ get feedback from the community on their work.
 The key to successfully submitting upstream changes is providing the adequate context, with the correct implementation,
 of course.
 
-To let the core team know about _what_ your PR does, and _why_ it does it, you should take a second to fill out one of
-two PR templates provided on the repo.
+To let the maintainers know about _what_ your PR does, and _why_ it does it, you should take a second to fill out the PR
+template provided on the repo.
 
 Once someone leaves a PR review (with open comments / discussions), it is on the PR _creator_ to do their best in trying
 to resolve all comments.
@@ -212,25 +218,12 @@ a reviewer might lose track in your recent changes and will have to start review
 
 Don't worry about adding too many commits. The commits are squashed into a single commit while merging (if needed).
 
-#### Base PR template
+#### PR template
 
-The [base PR template](https://github.com/gnolang/gno/blob/master/.github/pull_request_template.md) is by default a
-simple template meant to illustrate quickly what’s the context of the PR. Here, you should describe your PR in detail,
-and leave a remark as to how your changes have been tested.
+The [PR template](https://github.com/gnolang/gno/blob/master/.github/pull_request_template.md) is by default a
+simple template meant to illustrate quickly what’s the context of the PR.
 
 If you've run a manual test, please provide the exact steps taken.
-
-#### Detailed PR template
-
-The [detailed PR template](https://github.com/gnolang/gno/blob/master/.github/PULL_REQUEST_TEMPLATE/detailed_pr_template.md)
-is used when you want to convey a bit more detail and context for your PRs. In contrast to the default PR template, it
-follows a checklist approach that is meant to be filled out by the PR creator, with as much information as possible.
-These detailed PR descriptions serve an important purpose down the line in the future, when it’s important to understand
-the context under which a PR has been created, and for what reason.
-
-You can utilize the detailed PR template by appending the following query param to the URL on the new PR page:
-
-`template=detailed_pr_template.md`
 
 ### How do I report a bug?
 
