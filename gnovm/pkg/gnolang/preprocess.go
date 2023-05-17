@@ -2348,11 +2348,9 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 		}
 		// cover all declared type case
 		if conversionNeeded {
-			cmx := Expr(Call(constType(nil, t), *x))
-			// println("cx before preprocess: ", cx.String(), cx.GetLine(), cx.GetLabel())
-			cmx = Preprocess(store, last, cmx).(Expr)
-			// println("cx after preprocess: ", cx.String(), cx.GetLine(), cx.GetLabel())
-			*x = cmx
+			cx := Expr(Call(constType(nil, t), *x))
+			cx = Preprocess(store, last, cx).(Expr)
+			*x = cx
 		}
 	}
 }
