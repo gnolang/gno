@@ -41,13 +41,15 @@ html[data-theme="light"] {
 html[data-theme="dark"] {
   --background-color: #2e2e2e;
   --input-background-color: #393939;
-  --text-color: #eee;
-  --link-color: #ebe6ff;
+  --text-color: #c7c7c7;
+  --link-color: #c7c7c7;
+  --muted-color: #737373;
+  --border-color: #606060;
 
   --quote-background: #404040;
   --quote-2-background: #555555;
-  --code-background: #454545;
-  --header-background: #454545;
+  --code-background: #606060;
+  --header-background: #606060;
 
   --realm-help-background-color: #45454545;
   --realm-help-odd-background-color: #4545459e;
@@ -176,6 +178,10 @@ hr {
 
 nav {
   font-weight: 400;
+}
+
+button {
+  color: var(--text-color, #000);
 }
 
 body {
@@ -310,6 +316,8 @@ label > img {
   cursor: pointer;
   text-decoration: underline;
   padding: 0;
+  background: none;
+  color: var(--text-color, #000);
 }
 
 .tabs button[aria-selected="true"] {
@@ -324,7 +332,7 @@ label > img {
   margin-bottom: 2.5rem;
 }
 
-.accordion .accordion-trigger {
+.accordion-trigger {
   display: block;
   border: none;
   cursor: pointer;
@@ -332,9 +340,10 @@ label > img {
   font-size: 1.125rem;
   font-weight: 700;
   text-align: left;
+  background: none;
 }
 
-.accordion .accordion-trigger ~ div {
+.accordion-trigger ~ div {
   padding: 0.875rem 0 2.2rem;
 }
 /** 51.2rem **/
