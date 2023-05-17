@@ -83,6 +83,13 @@ func (c *Command) AddSubCommands(cmds ...*Command) {
 			// subcommands of the child as well
 			// (ex. grandparent flags are available in child commands)
 			registerFlagsWithSubcommands(c.cfg, &cmd.Command)
+
+			// Register the parent options with the child.
+			cmd.Options = append(cmd.Options, c.Options...)
+
+			// Register the parent options with all the
+			// subcommands of the child as well
+			registerOptionsWithSubcommands(&cmd.Command)
 		}
 
 		// Append the subcommand to the parent
@@ -109,4 +116,24 @@ func registerFlagsWithSubcommands(cfg Config, root *ffcli.Command) {
 			subcommands = append(subcommands, subcommand)
 		}
 	}
+}
+
+// registerOptionsWithSubcommands recursively registers the passed in
+// options with the subcommand tree. At the point of calling
+func registerOptionsWithSubcommands(root *ffcli.Command) {
+	subcommands := []*ffcli.Command{root}
+
+	// Traverse the direct subcommand tree,
+	// and register the top-level flagset with each
+	// direct line subcommand
+	for len(subcommands) > 0 {
+		current := subcommands[0]
+		subcommands = subcommands[1:]
+
+		for _, subcommand := range current.Subcommands {
+			subcommand.Options = append(subcommand.Options, root.Options...)
+			subcommands = append(subcommands, subcommand)
+		}
+	}
+
 }
