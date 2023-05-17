@@ -27,6 +27,7 @@ type Tree struct {
 	layers []nodes
 }
 
+// Root return the merkle root of the tree
 func (t *Tree) Root() string {
 	for _, l := range t.layers {
 		if len(l) == 1 {
@@ -36,6 +37,7 @@ func (t *Tree) Root() string {
 	return ""
 }
 
+// NewTree create a new Merkle Tree
 func NewTree(data []Hashable) *Tree {
 	tree := &Tree{}
 
