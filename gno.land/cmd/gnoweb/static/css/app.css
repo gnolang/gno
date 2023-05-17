@@ -328,13 +328,20 @@ label > img {
   display: block;
   border: none;
   cursor: pointer;
-  padding: 0;
+  padding: 0.4rem 0;
   font-size: 1.125rem;
   font-weight: 700;
+  text-align: left;
 }
 
 .accordion .accordion-trigger ~ div {
-  padding: 0.875rem 0 2.2rem 2rem;
+  padding: 0.875rem 0 2.2rem;
+}
+/** 51.2rem **/
+@media screen and (min-width: 68.75rem) {
+  .accordion .accordion-trigger ~ div {
+    padding: 0.875rem 0 2.2rem 2rem;
+  }
 }
 
 .gor-accordion button::first-letter {

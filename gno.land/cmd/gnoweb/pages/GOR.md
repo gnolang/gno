@@ -34,31 +34,31 @@ You can start participating in the co-creation of the Game of Realms now by addi
 ## Evaluation DAO
 
 <div class="accordion gor-accordion">
-<button type="button" aria-expanded="false" class="accordion-trigger is-muted" aria-controls="acc-1" id="accpanel-1"> &#9745; <span class="is-finished">Clarifying this issue</span> — [100% completed] </button>
+<button type="button" aria-expanded="false" class="accordion-trigger is-muted" aria-controls="acc-1" id="accpanel-1"> &#9745; <span class="is-finished">Clarifying this issue</span> — [100%&nbsp;completed] </button>
 <div id="acc-1" role="region" aria-labelledby="accpanel-1" class="accordion-panel is-hidden">
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus commodo euismod nibh. Pellentesque maximus gravida est, ut lacinia quam mattis et. Etiam arcu arcu, dignissim porta varius ac, venenatis vitae mauris. Proin eget fringilla nulla. Vivamus blandit. Nulla volutpat leo felis, porttitor ultrices mi scelerisque et. Nullam non pharetra diam, id iaculis sem. Mauris sollicitudin in sem eget dictum. Lorem ipsum dolor sit ame elit. Phasellus commodo euismod nibh
 </div>
-<button type="button" aria-expanded="true" class="accordion-trigger" aria-controls="acc-2" id="accpanel-2"> &#9744; <span class="is-underline">Retrospectives & investigations</span> — [20% completed]</button>
+<button type="button" aria-expanded="true" class="accordion-trigger" aria-controls="acc-2" id="accpanel-2"> &#9744; <span class="is-underline">Retrospectives & investigations</span> — [20%&nbsp;completed]</button>
 <div id="acc-2" role="region" aria-labelledby="accpanel-2" class="accordion-panel">
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus commodo euismod nibh. Pellentesque maximus gravida est, ut lacinia quam mattis et. Etiam arcu arcu, dignissim porta varius ac, venenatis vitae mauris. Proin eget fringilla nulla. Vivamus blandit. Nulla volutpat leo felis, porttitor ultrices mi scelerisque et. Nullam non pharetra diam, id iaculis sem. Mauris sollicitudi s sem eget dictum. Lorem ipsum dolor sit ame elit. Phasellus commodo euismod nibh
 </div>
-<button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-3" id="accpanel-3"> &#9744; <span class="is-underline">Human specs — definitions, rules, examples</span> — [20% completed]</button>
+<button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-3" id="accpanel-3"> &#9744; <span class="is-underline">Human specs — definitions, rules, examples</span> — [20%&nbsp;completed]</button>
 <div id="acc-3" role="region" aria-labelledby="accpanel-3" class="accordion-panel is-hidden">
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus commodo euismod nibh. Pellentesque maximus gravida est, ut lacinia quam mattis et. Etiam arcu arcu, dignissim porta varius ac, venenatis vitae mauris. Proin eget fringilla nulla. Vivamus blandit. Nulla volutpat leo felis, porttitor ultrices mi scelerisque et. Nullam non pharetra diam, id iaculis sem. Mauris sollicitudi s sem eget dictum. Lorem ipsum dolor sit ame elit. Phasellus commodo euismod nibh
 </div>
-<button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-4" id="accpanel-4"> &#9744; <span class="is-underline">Technical specs and interfaces</span> — [20% completed]</button>
+<button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-4" id="accpanel-4"> &#9744; <span class="is-underline">Technical specs and interfaces</span> — [20%&nbsp;completed]</button>
 <div id="acc-4" role="region" aria-labelledby="accpanel-4" class="accordion-panel is-hidden">
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus commodo euismod nibh. Pellentesque maximus gravida est, ut lacinia quam mattis et. Etiam arcu arcu, dignissim porta varius ac, venenatis vitae mauris. Proin eget fringilla nulla. Vivamus blandit. Nulla volutpat leo felis, porttitor ultrices mi scelerisque et. Nullam non pharetra diam, id iaculis sem. Mauris sollicitudi s sem eget dictum. Lorem ipsum dolor sit ame elit. Phasellus commodo euismod nibh
 </div>
-<button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-5" id="accpanel-5"> &#9744; <span class="is-underline">Implementation</span> — [20% completed]</button>
+<button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-5" id="accpanel-5"> &#9744; <span class="is-underline">Implementation</span> — [20%&nbsp;completed]</button>
 <div id="acc-5" role="region" aria-labelledby="accpanel-5" class="accordion-panel is-hidden">
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus commodo euismod nibh. Pellentesque maximus gravida est, ut lacinia quam mattis et. Etiam arcu arcu, dignissim porta varius ac, venenatis vitae mauris. Proin eget fringilla nulla. Vivamus blandit. Nulla volutpat leo felis, porttitor ultrices mi scelerisque et. Nullam non pharetra diam, id iaculis sem. Mauris sollicitudi s sem eget dictum. Lorem ipsum dolor sit ame elit. Phasellus commodo euismod nibh
 </div>
-<button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-6" id="accpanel-6"> &#9744; <span class="is-underline">Documentation</span> — [20% completed]</button>
+<button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-6" id="accpanel-6"> &#9744; <span class="is-underline">Documentation</span> — [20%&nbsp;completed]</button>
 <div id="acc-6" role="region" aria-labelledby="accpanel-6" class="accordion-panel is-hidden">
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus commodo euismod nibh. Pellentesque maximus gravida est, ut lacinia quam mattis et. Etiam arcu arcu, dignissim porta varius ac, venenatis vitae mauris. Proin eget fringilla nulla. Vivamus blandit. Nulla volutpat leo felis, porttitor ultrices mi scelerisque et. Nullam non pharetra diam, id iaculis sem. Mauris sollicitudi s sem eget dictum. Lorem ipsum dolor sit ame elit. Phasellus commodo euismod nibh
 </div>
-<button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-7" id="accpanel-7"> &#9744; <span class="is-underline">Bootstrapping plan</span> — [20% completed]</button>
+<button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-7" id="accpanel-7"> &#9744; <span class="is-underline">Bootstrapping plan</span> — [20%&nbsp;completed]</button>
 <div id="acc-7" role="region" aria-labelledby="accpanel-7" class="accordion-panel is-hidden">
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus commodo euismod nibh. Pellentesque maximus gravida est, ut lacinia quam mattis et. Etiam arcu arcu, dignissim porta varius ac, venenatis vitae mauris. Proin eget fringilla nulla. Vivamus blandit. Nulla volutpat leo felis, porttitor ultrices mi scelerisque et. Nullam non pharetra diam, id iaculis sem. Mauris sollicitudi s sem eget dictum. Lorem ipsum dolor sit ame elit. Phasellus commodo euismod nibh
 </div>
