@@ -52,4 +52,14 @@ jobs:
         working-directory: tm2
         run: |
           export GOPATH=$HOME/go
+          export GOTEST_FLAGS="-v -p 1 -timeout=30m -coverprofile=coverage.out -covermode=atomic"
           make ${{ matrix.args }}
+      - if: runner.os == 'Linux'
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          name: tm2
+          flags: tm2,tm2-${{matrix.args}},go-${{ matrix.go-version }}
+          files: ./tm2/coverage.out
+          #fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
+          fail_ci_if_error: false # temporarily
