@@ -142,11 +142,6 @@ func (d *bfsDirs) walk(roots []bfsDir) {
 	close(d.scan)
 }
 
-type bfsRootDir struct {
-	root      string
-	pkgPrefix string
-}
-
 // bfsWalkRoot walks a single directory hierarchy in breadth-first lexical order.
 // Each Go source directory it finds is delivered on d.scan.
 func (d *bfsDirs) bfsWalkRoot(root bfsDir) {
