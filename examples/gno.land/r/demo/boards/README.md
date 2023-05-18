@@ -50,7 +50,7 @@ NOTE: you can retrieve your `ACCOUNT_ADDR` with `gnokey list`.
 
 ### Acquire testnet tokens using the official faucet
 
-Go to <https://gno.land/faucet>
+Go to [test3.gno.land/faucet](https://test3.gno.land/faucet)
 
 ### Create a board with a smart contract call
 
