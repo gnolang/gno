@@ -43,7 +43,7 @@ gnokey list
 ### Get your current balance, account number, and sequence number
 
 ```bash
-gnokey query auth/accounts/ACCOUNT_ADDR --remote gno.land:36657
+gnokey --remote gno.land:36657 query auth/accounts/ACCOUNT_ADDR
 ```
 
 NOTE: you can retrieve your `ACCOUNT_ADDR` with `gnokey list`.
