@@ -11,7 +11,7 @@ with `--remote localhost:26657` for local testnets.
 ### Build `gnokey`
 
 ```bash
-git clone git@github.com:gnolang/gno.git
+git clone https://github.com/gnolang/gno.git
 cd ./gno
 make
 ```
