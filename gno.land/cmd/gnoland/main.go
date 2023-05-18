@@ -33,6 +33,7 @@ type gnolandCfg struct {
 	chainID               string
 	genesisRemote         string
 	rootDir               string
+	maxCycles             int64
 }
 
 func main() {
@@ -105,6 +106,13 @@ func (c *gnolandCfg) RegisterFlags(fs *flag.FlagSet) {
 		"localhost:26657",
 		"replacement for '%%REMOTE%%' in genesis",
 	)
+
+	fs.Int64Var(
+		&c.maxCycles,
+		"max-vm-cycles",
+		10*1000*1000,
+		"set maximum allowed vm cycles per operation. Zero means no limit.",
+	)
 }
 
 func exec(c *gnolandCfg) error {
@@ -135,7 +143,7 @@ func exec(c *gnolandCfg) error {
 	}
 
 	// create application and node.
-	gnoApp, err := gnoland.NewApp(rootDir, c.skipFailingGenesisTxs, logger)
+	gnoApp, err := gnoland.NewApp(rootDir, c.skipFailingGenesisTxs, logger, c.maxCycles)
 	if err != nil {
 		return fmt.Errorf("error in creating new app: %w", err)
 	}
