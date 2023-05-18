@@ -13,7 +13,7 @@ with `--remote localhost:26657` for local testnets.
 ```bash
 git clone https://github.com/gnolang/gno.git
 cd ./gno
-make
+make install_gnokey
 ```
 
 ### Generate a seed/mnemonic code
