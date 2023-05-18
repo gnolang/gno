@@ -5,7 +5,9 @@ import (
 	"flag"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
+
 	"github.com/peterbourgon/ff/v3"
+	"github.com/peterbourgon/ff/v3/fftoml"
 )
 
 const (
@@ -25,7 +27,7 @@ func NewRootCmd() *commands.Command {
 			LongHelp:   "Manages private keys for the node",
 			Options: []ff.Option{
 				ff.WithConfigFileFlag("config"),
-				ff.WithConfigFileParser(ff.PlainParser),
+				ff.WithConfigFileParser(fftoml.Parser),
 			},
 		},
 		cfg,
