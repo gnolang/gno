@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pmezard/go-difflib/difflib"
+
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -297,7 +299,16 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						if resWanted == "" {
 							panic(fmt.Sprintf("fail on %s: got unexpected output: %s", path, res))
 						} else {
-							panic(fmt.Sprintf("fail on %s: got:\n%s\n\nwant:\n%s\n", path, res, resWanted))
+							diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
+								A:        difflib.SplitLines(resWanted),
+								B:        difflib.SplitLines(res),
+								FromFile: "Expected",
+								FromDate: "",
+								ToFile:   "Actual",
+								ToDate:   "",
+								Context:  1,
+							})
+							panic(fmt.Sprintf("fail on %s: diff:\n%s\n", path, diff))
 						}
 					}
 				}
@@ -318,7 +329,16 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 							// write output to file.
 							replaceWantedInPlace(path, "Realm", rops2)
 						} else {
-							panic(fmt.Sprintf("fail on %s: got:\n%s\n\nwant:\n%s\n", path, rops2, rops))
+							diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
+								A:        difflib.SplitLines(rops),
+								B:        difflib.SplitLines(rops2),
+								FromFile: "Expected",
+								FromDate: "",
+								ToFile:   "Actual",
+								ToDate:   "",
+								Context:  1,
+							})
+							panic(fmt.Sprintf("fail on %s: diff:\n%s\n", path, diff))
 						}
 					}
 				}
