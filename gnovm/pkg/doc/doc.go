@@ -159,8 +159,12 @@ var fpAbs = filepath.Abs
 // the same as the go doc command).
 // An error may be returned even if documentation was resolved in case some
 // packages in dirs could not be parsed correctly.
-func ResolveDocumentable(dirs []string, args []string, unexported bool) (Documentable, error) {
-	d := newDirs(dirs...)
+//
+// dirs specifies the gno system directories to scan which specify full import paths
+// in their directories, such as @/examples and @/gnovm/stdlibs; modDirs specifies
+// directories which contain a gno.mod file.
+func ResolveDocumentable(dirs, modDirs, args []string, unexported bool) (Documentable, error) {
+	d := newDirs(dirs, modDirs)
 
 	parsed, ok := parseArgs(args)
 	if !ok {
@@ -197,7 +201,7 @@ func resolveDocumentable(dirs *bfsDirs, parsed docArgs, unexported bool) (Docume
 		// there are no candidates.
 		// if this is ambiguous, remove ambiguity and try parsing args using pkg as the symbol.
 		if !parsed.pkgAmbiguous {
-			return nil, fmt.Errorf("commands/doc: package not found: %q (note: local packages are not yet supported)", parsed.pkg)
+			return nil, fmt.Errorf("commands/doc: package not found: %q", parsed.pkg)
 		}
 		parsed = docArgs{pkg: ".", sym: parsed.pkg, acc: parsed.sym}
 		return resolveDocumentable(dirs, parsed, unexported)

@@ -7,9 +7,12 @@ package doc
 import (
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 )
 
 // A bfsDir describes a directory holding code by specifying
@@ -30,13 +33,83 @@ type bfsDirs struct {
 }
 
 // newDirs begins scanning the given stdlibs directory.
-func newDirs(dirs ...string) *bfsDirs {
+// dirs are "gopath-like" directories, such as @/gnovm/stdlibs and @/examples.
+// modDirs are user directories, expected to have gno.mod files
+func newDirs(dirs []string, modDirs []string) *bfsDirs {
 	d := &bfsDirs{
 		hist: make([]bfsDir, 0, 256),
 		scan: make(chan bfsDir),
 	}
-	go d.walk(dirs)
+
+	roots := make([]bfsDir, 0, len(dirs)+len(modDirs))
+	for _, dir := range dirs {
+		roots = append(roots, bfsDir{
+			dir:        dir,
+			importPath: "",
+		})
+	}
+
+	for _, mdir := range modDirs {
+		gm, exists := tryParseGnoMod(filepath.Join(mdir, "gno.mod"))
+		if gm == nil && exists {
+			// gno.mod could not be parsed but exists.
+			// as this would lead us to not having correct import paths (as we can't
+			// parse the module name from gno.mod), skip this directory; the user has
+			// received a console warning regardless from tryParseGnoMod.
+			continue
+		}
+		roots = append(roots, bfsDir{
+			dir:        mdir,
+			importPath: gm.Module.Mod.Path,
+		})
+		roots = append(roots, getGnoModDirs(gm)...)
+	}
+
+	go d.walk(roots)
 	return d
+}
+
+// tries to parse gno mod file.
+// second return parameter is whether gno.mod exists.
+func tryParseGnoMod(fname string) (*gnomod.File, bool) {
+	file, err := os.Stat(fname)
+	// early exit for errors and non-file fname
+	if err != nil || file.IsDir() {
+		if err != nil && !os.IsNotExist(err) {
+			log.Printf("could not read go.mod file at %q: %v", fname, err)
+		}
+		return nil, !os.IsNotExist(err)
+	}
+
+	b, err := os.ReadFile(fname)
+	if err != nil {
+		log.Printf("could not read go.mod file at %q: %v", fname, err)
+		return nil, true
+	}
+	gm, err := gnomod.Parse(fname, b)
+	if err == nil {
+		err = gm.Validate()
+	}
+	if err != nil {
+		log.Printf("could not parse go.mod file at %q: %v", fname, err)
+	}
+	return gm, true
+}
+
+func getGnoModDirs(gm *gnomod.File) []bfsDir {
+	// cmd/go makes use of the go list command, we don't have that here.
+
+	dirs := make([]bfsDir, 0, len(gm.Require))
+	for _, r := range gm.Require {
+		mv := gm.Resolve(r)
+		path := gnomod.PackageDir("", mv)
+		dirs = append(dirs, bfsDir{
+			importPath: mv.Path,
+			dir:        path,
+		})
+	}
+
+	return dirs
 }
 
 // Reset puts the scan back at the beginning.
@@ -62,37 +135,50 @@ func (d *bfsDirs) Next() (bfsDir, bool) {
 }
 
 // walk walks the trees in the given roots.
-func (d *bfsDirs) walk(roots []string) {
+func (d *bfsDirs) walk(roots []bfsDir) {
 	for _, root := range roots {
 		d.bfsWalkRoot(root)
 	}
 	close(d.scan)
 }
 
+type bfsRootDir struct {
+	root      string
+	pkgPrefix string
+}
+
 // bfsWalkRoot walks a single directory hierarchy in breadth-first lexical order.
 // Each Go source directory it finds is delivered on d.scan.
-func (d *bfsDirs) bfsWalkRoot(root string) {
-	root = filepath.Clean(root)
+func (d *bfsDirs) bfsWalkRoot(root bfsDir) {
+	root.dir = filepath.Clean(root.dir)
 
 	// this is the queue of directories to examine in this pass.
-	this := []string{}
+	this := []bfsDir{}
 	// next is the queue of directories to examine in the next pass.
-	next := []string{root}
+	next := []bfsDir{root}
 
 	for len(next) > 0 {
 		this, next = next, this[:0]
 		for _, dir := range this {
-			fd, err := os.Open(dir)
+			fd, err := os.Open(dir.dir)
 			if err != nil {
 				log.Print(err)
 				continue
 			}
-			entries, err := fd.Readdir(0)
+
+			// read dir entries.
+			entries, err := fd.ReadDir(0)
 			fd.Close()
 			if err != nil {
 				log.Print(err)
 				continue
 			}
+
+			// stop at module boundaries
+			if dir.dir != root.dir && containsGnoMod(entries) {
+				continue
+			}
+
 			hasGnoFiles := false
 			for _, entry := range entries {
 				name := entry.Name()
@@ -111,18 +197,26 @@ func (d *bfsDirs) bfsWalkRoot(root string) {
 					continue
 				}
 				// Remember this (fully qualified) directory for the next pass.
-				next = append(next, filepath.Join(dir, name))
+				next = append(next, bfsDir{
+					dir:        filepath.Join(dir.dir, name),
+					importPath: path.Join(dir.importPath, name),
+				})
 			}
 			if hasGnoFiles {
 				// It's a candidate.
-				var importPath string
-				if len(dir) > len(root) {
-					importPath = filepath.ToSlash(dir[len(root)+1:])
-				}
-				d.scan <- bfsDir{importPath, dir}
+				d.scan <- dir
 			}
 		}
 	}
+}
+
+func containsGnoMod(entries []os.DirEntry) bool {
+	for _, entry := range entries {
+		if entry.Name() == "gno.mod" && !entry.IsDir() {
+			return true
+		}
+	}
+	return false
 }
 
 // findPackage finds a package iterating over d where the import path has
@@ -139,12 +233,14 @@ func (d *bfsDirs) findPackage(name string) []bfsDir {
 		}
 	}
 	sort.Slice(candidates, func(i, j int) bool {
-		// prefer exact matches with name
-		if candidates[i].importPath == name {
-			return true
-		} else if candidates[j].importPath == name {
-			return false
+		// prefer shorter paths -- if we have an exact match it will be of the
+		// shortest possible pkg path.
+		ci := strings.Count(candidates[i].importPath, "/")
+		cj := strings.Count(candidates[j].importPath, "/")
+		if ci != cj {
+			return ci < cj
 		}
+		// use alphabetical ordering otherwise.
 		return candidates[i].importPath < candidates[j].importPath
 	})
 	return candidates

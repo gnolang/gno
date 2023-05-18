@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
+	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/gnolang/gno/gnovm/pkg/doc"
@@ -74,8 +77,24 @@ func execDoc(cfg *docCfg, args []string, io *commands.IO) error {
 	if cfg.rootDir == "" {
 		cfg.rootDir = guessRootDir()
 	}
+
+	wd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("could not determine working directory: %w", err)
+	}
+
+	rd, err := findRootDir(wd)
+	if err != nil && !errors.Is(err, errGnoModNotFound) {
+		return fmt.Errorf("error determining root gno.mod file: %w", err)
+	}
+	var modDirs []string
+	if rd != "" {
+		modDirs = append(modDirs, rd)
+	}
+
+	// select dirs from which to gather directories
 	dirs := []string{filepath.Join(cfg.rootDir, "gnovm/stdlibs"), filepath.Join(cfg.rootDir, "examples")}
-	res, err := doc.ResolveDocumentable(dirs, args, cfg.unexported)
+	res, err := doc.ResolveDocumentable(dirs, modDirs, args, cfg.unexported)
 	if res == nil {
 		return err
 	}
@@ -91,4 +110,29 @@ func execDoc(cfg *docCfg, args []string, io *commands.IO) error {
 			Short:      false,
 		},
 	)
+}
+
+var errGnoModNotFound = errors.New("gno.mod file not found in current or any parent directory")
+
+// XXX: implemented by harry in #799, which at time of writing isn't merged yet.
+func findRootDir(absPath string) (string, error) {
+	if !filepath.IsAbs(absPath) {
+		return "", errors.New("requires absolute path")
+	}
+
+	root := filepath.VolumeName(absPath) + string(filepath.Separator)
+	for absPath != root {
+		modPath := filepath.Join(absPath, "gno.mod")
+		_, err := os.Stat(modPath)
+		if errors.Is(err, os.ErrNotExist) {
+			absPath = filepath.Dir(absPath)
+			continue
+		}
+		if err != nil {
+			return "", err
+		}
+		return absPath, nil
+	}
+
+	return "", errGnoModNotFound
 }
