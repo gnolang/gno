@@ -15,7 +15,7 @@ func TestResolveDocumentable(t *testing.T) {
 	p, err := os.Getwd()
 	require.NoError(t, err)
 	path := func(s string) string { return filepath.Join(p, "testdata/integ", s) }
-	dirs := newDirs(path(""))
+	dirs := newDirs([]string{path("")}, nil)
 	getDir := func(p string) bfsDir { return dirs.findDir(path(p))[0] }
 	pdata := func(p string, unexp bool) *pkgData {
 		pd, err := newPkgData(getDir(p), unexp)
@@ -93,8 +93,8 @@ func TestResolveDocumentable(t *testing.T) {
 
 		{"errInvalidArgs", []string{"1", "2", "3"}, false, nil, "invalid arguments: [1 2 3]"},
 		{"errNoCandidates", []string{"math", "Big"}, false, nil, `package not found: "math"`},
-		{"errNoCandidates2", []string{"LocalSymbol"}, false, nil, `local packages are not yet supported`},
-		{"errNoCandidates3", []string{"Symbol.Accessible"}, false, nil, `local packages are not yet supported`},
+		{"errNoCandidates2", []string{"LocalSymbol"}, false, nil, `package not found`},
+		{"errNoCandidates3", []string{"Symbol.Accessible"}, false, nil, `package not found`},
 		{"errNonExisting", []string{"rand.NotExisting"}, false, nil, `could not resolve arguments`},
 		{"errUnexp", []string{"crypto/rand.unexp"}, false, nil, "could not resolve arguments"},
 		{"errDirNotapkg", []string{"./test_notapkg"}, false, nil, `package not found: "./test_notapkg"`},
@@ -110,7 +110,7 @@ func TestResolveDocumentable(t *testing.T) {
 				fpAbs = func(s string) (string, error) { return filepath.Clean(filepath.Join(path("wd"), s)), nil }
 				defer func() { fpAbs = filepath.Abs }()
 			}
-			result, err := ResolveDocumentable([]string{path("")}, tc.args, tc.unexp)
+			result, err := ResolveDocumentable([]string{path("")}, nil, tc.args, tc.unexp)
 			// we use stripFset because d.pkgData.fset contains sync/atomic values,
 			// which in turn makes reflect.DeepEqual compare the two sync.Atomic values.
 			assert.Equal(t, stripFset(tc.expect), stripFset(result), "documentables should match")

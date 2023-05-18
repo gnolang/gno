@@ -13,7 +13,7 @@ func tNewDirs(t *testing.T) (string, *bfsDirs) {
 	t.Helper()
 	p, err := filepath.Abs("./testdata/dirs")
 	require.NoError(t, err)
-	return p, newDirs(p)
+	return p, newDirs([]string{p}, nil)
 }
 
 func TestDirs_findPackage(t *testing.T) {
