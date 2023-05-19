@@ -6,6 +6,13 @@ import (
 	"path/filepath"
 )
 
+// ErrGnoModNotFound is returned by [FindRootDir] when, even after traversing
+// up to the root directory, a gno.mod file could not be found.
+var ErrGnoModNotFound = errors.New("gno.mod file not found in current or any parent directory")
+
+// FindRootDir determines the root directory of the project which contains the
+// gno.mod file. If no gno.mod file is found, [ErrGnoModNotFound] is returned.
+// The given path must be absolute.
 func FindRootDir(absPath string) (string, error) {
 	if !filepath.IsAbs(absPath) {
 		return "", errors.New("requires absolute path")
@@ -25,5 +32,5 @@ func FindRootDir(absPath string) (string, error) {
 		return absPath, nil
 	}
 
-	return "", errors.New("gno.mod file not found in current or any parent directory")
+	return "", ErrGnoModNotFound
 }
