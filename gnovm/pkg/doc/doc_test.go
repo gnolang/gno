@@ -15,7 +15,7 @@ func TestResolveDocumentable(t *testing.T) {
 	p, err := os.Getwd()
 	require.NoError(t, err)
 	path := func(s string) string { return filepath.Join(p, "testdata/integ", s) }
-	dirs := newDirs([]string{path("")}, nil)
+	dirs := newDirs([]string{path("")}, []string{path("mod")})
 	getDir := func(p string) bfsDir { return dirs.findDir(path(p))[0] }
 	pdata := func(p string, unexp bool) *pkgData {
 		pd, err := newPkgData(getDir(p), unexp)
@@ -31,7 +31,9 @@ func TestResolveDocumentable(t *testing.T) {
 		errContains string
 	}{
 		{"package", []string{"crypto/rand"}, false, &documentable{bfsDir: getDir("crypto/rand")}, ""},
+		{"packageMod", []string{"gno.land/mod"}, false, &documentable{bfsDir: getDir("mod")}, ""},
 		{"dir", []string{"./testdata/integ/crypto/rand"}, false, &documentable{bfsDir: getDir("crypto/rand")}, ""},
+		{"dirMod", []string{"./testdata/integ/mod"}, false, &documentable{bfsDir: getDir("mod")}, ""},
 		{"dirAbs", []string{path("crypto/rand")}, false, &documentable{bfsDir: getDir("crypto/rand")}, ""},
 		// test_notapkg exists in local dir and also path("test_notapkg").
 		// ResolveDocumentable should first try local dir, and seeing as it is not a valid dir, try searching it as a package.
@@ -96,6 +98,8 @@ func TestResolveDocumentable(t *testing.T) {
 		{"errNoCandidates2", []string{"LocalSymbol"}, false, nil, `package not found`},
 		{"errNoCandidates3", []string{"Symbol.Accessible"}, false, nil, `package not found`},
 		{"errNonExisting", []string{"rand.NotExisting"}, false, nil, `could not resolve arguments`},
+		{"errIgnoredMod", []string{"modignored"}, false, nil, `package not found`},
+		{"errIgnoredMod2", []string{"./testdata/integ/modignored"}, false, nil, `package not found`},
 		{"errUnexp", []string{"crypto/rand.unexp"}, false, nil, "could not resolve arguments"},
 		{"errDirNotapkg", []string{"./test_notapkg"}, false, nil, `package not found: "./test_notapkg"`},
 	}
@@ -110,7 +114,10 @@ func TestResolveDocumentable(t *testing.T) {
 				fpAbs = func(s string) (string, error) { return filepath.Clean(filepath.Join(path("wd"), s)), nil }
 				defer func() { fpAbs = filepath.Abs }()
 			}
-			result, err := ResolveDocumentable([]string{path("")}, nil, tc.args, tc.unexp)
+			result, err := ResolveDocumentable(
+				[]string{path("")}, []string{path("mod")},
+				tc.args, tc.unexp,
+			)
 			// we use stripFset because d.pkgData.fset contains sync/atomic values,
 			// which in turn makes reflect.DeepEqual compare the two sync.Atomic values.
 			assert.Equal(t, stripFset(tc.expect), stripFset(result), "documentables should match")

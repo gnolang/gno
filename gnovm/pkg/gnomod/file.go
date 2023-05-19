@@ -40,7 +40,7 @@ func (f *File) Resolve(r *modfile.Require) module.Version {
 	if replaced {
 		return mod
 	}
-	return f.Module.Mod
+	return r.Mod
 }
 
 // FetchDeps fetches and writes gno.mod packages
