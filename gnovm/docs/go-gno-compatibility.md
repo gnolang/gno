@@ -34,6 +34,32 @@ Legend: full, partial, missing, TBD.
 | type        | TBD    |
 | var         | TBD    |
 
+## Native types
+
+| type                                          | usage | persistency                     | comment                                   |
+|-----------------------------------------------|-------|---------------------------------|-------------------------------------------|
+| `bool`                                        | full  | full                            |                                           |
+| `byte`                                        | full  | full                            |                                           |
+| `float32`, `float64`                          | full  | full                            | need review of determinism across systems |
+| `int`, `int8`, `int16`, `int32`, `int64`      | full  | full                            | potential support of 128, 256 later       |
+| `uint`, `uint8`, `uint16`, `uint32`, `uint64` | full  | full                            | potential support of 128, 256 later       |
+| `string`                                      | full  | full                            |                                           |
+| `rune`                                        | full  | full                            |                                           |
+| `interface{}`                                 | full  | full                            |                                           |
+| `[]T` (slices)                                | full  | depends on T                    |                                           |
+| `map[T1]T2`                                   | full  | in progress, will be for launch |                                           |
+| `func (T1...) T2...`                          | full  | full (to confirm)               |                                           |
+| `*T` (pointers)                               | full  | depends on T                    |                                           |
+| `chan T` (channels)                           | n/a   | n/a                             | After launch                              |
+
+Additional native types:
+
+| type     | comment                                                                                    |
+|----------|--------------------------------------------------------------------------------------------|
+| `bigint` | Based on `math/big.Int`                                                                    |
+| `bigdec` | Based on https://github.com/cockroachdb/apd, (see https://github.com/gnolang/gno/pull/306) |
+
+
 ## Stdlibs
 
 <!-- generated with: find . -name "*.go" | grep -v _test.go | grep -v internal/ | grep -v vendor/ | xargs dirname | sort | uniq -->
