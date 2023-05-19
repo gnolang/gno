@@ -262,6 +262,13 @@ func gnoTestPkg(
 		// run test files in pkg
 		{
 			m := tests.TestMachine(testStore, stdout, "main")
+			if printRuntimeMetrics {
+				// from tm2/pkg/sdk/vm/keeper.go
+				// XXX: make maxAllocTx configurable.
+				maxAllocTx := int64(500 * 1000 * 1000)
+
+				m.Alloc = gno.NewAllocator(maxAllocTx)
+			}
 			m.RunMemPackage(memPkg, true)
 			err := runTestFiles(m, tfiles, memPkg.Name, verbose, printRuntimeMetrics, runFlag, io)
 			if err != nil {
@@ -417,9 +424,18 @@ func runTestFiles(
 			// XXX: store changes
 			// XXX: total alloc
 			// XXX: max mem consumption
-			io.ErrPrintfln("---       runtime: cycle=%dk imports=%d allocs=TODO memory=TODO store=TODO",
+			allocsVal := "n/a"
+			if m.Alloc != nil {
+				maxAllocs, allocs := m.Alloc.Status()
+				allocsVal = fmt.Sprintf("%dk(%.2f%%)",
+					allocs/1000,
+					float64(allocs)/float64(maxAllocs)*100,
+				)
+			}
+			io.ErrPrintfln("---       runtime: cycle=%dk imports=%d allocs=%s memory=TODO store=TODO",
 				m.Cycles/1000,
 				imports,
+				allocsVal,
 			)
 		}
 	}
