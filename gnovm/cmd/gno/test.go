@@ -420,20 +420,18 @@ func runTestFiles(
 
 		if printRuntimeMetrics {
 			imports := m.Store.NumMemPackages() - numPackagesBefore - 1
-			// XXX: pretty print big numbers
 			// XXX: store changes
-			// XXX: total alloc
 			// XXX: max mem consumption
 			allocsVal := "n/a"
 			if m.Alloc != nil {
 				maxAllocs, allocs := m.Alloc.Status()
-				allocsVal = fmt.Sprintf("%dk(%.2f%%)",
-					allocs/1000,
+				allocsVal = fmt.Sprintf("%s(%.2f%%)",
+					prettySize(allocs),
 					float64(allocs)/float64(maxAllocs)*100,
 				)
 			}
-			io.ErrPrintfln("---       runtime: cycle=%dk imports=%d allocs=%s memory=TODO store=TODO",
-				m.Cycles/1000,
+			io.ErrPrintfln("---       runtime: cycle=%s imports=%d allocs=%s",
+				prettySize(m.Cycles),
 				imports,
 				allocsVal,
 			)
