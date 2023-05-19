@@ -76,28 +76,7 @@ func execClean(cfg *cleanCfg, args []string, io *commands.IO) error {
 	if path != modDir && (cfg.dryRun || cfg.verbose) {
 		io.Println("cd", modDir)
 	}
-	err = filepath.WalkDir(modDir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			return nil
-		}
-		// Ignore if not a generated file
-		if !strings.HasSuffix(path, ".gno.gen.go") && !strings.HasSuffix(path, ".gno.gen_test.go") {
-			return nil
-		}
-		if !cfg.dryRun {
-			if err := os.Remove(path); err != nil {
-				return err
-			}
-		}
-		if cfg.dryRun || cfg.verbose {
-			io.Println("rm", strings.TrimPrefix(path, modDir+"/"))
-		}
-
-		return nil
-	})
+	err = clean(modDir, cfg, io)
 	if err != nil {
 		return err
 	}
@@ -114,4 +93,30 @@ func execClean(cfg *cleanCfg, args []string, io *commands.IO) error {
 		}
 	}
 	return nil
+}
+
+// clean removes generated files from a directory.
+func clean(dir string, cfg *cleanCfg, io *commands.IO) error {
+	return filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		// Ignore if not a generated file
+		if !strings.HasSuffix(path, ".gno.gen.go") && !strings.HasSuffix(path, ".gno.gen_test.go") {
+			return nil
+		}
+		if !cfg.dryRun {
+			if err := os.Remove(path); err != nil {
+				return err
+			}
+		}
+		if cfg.dryRun || cfg.verbose {
+			io.Println("rm", strings.TrimPrefix(path, dir+"/"))
+		}
+
+		return nil
+	})
 }
