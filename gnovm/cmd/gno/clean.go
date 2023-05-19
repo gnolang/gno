@@ -83,6 +83,7 @@ func execClean(cfg *cleanCfg, args []string, io *commands.IO) error {
 		if d.IsDir() {
 			return nil
 		}
+		// Ignore if not a generated file
 		if !strings.HasSuffix(path, ".gno.gen.go") && !strings.HasSuffix(path, ".gno.gen_test.go") {
 			return nil
 		}
