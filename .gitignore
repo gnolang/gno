@@ -11,7 +11,8 @@ build
 *.log
 *.gno.gen.go
 *.gno.gen_test.go
-.vscode
+.vscode/**/*
+!.vscode/settings.json
 .idea
 *.pb.go
 pbbindings.go
