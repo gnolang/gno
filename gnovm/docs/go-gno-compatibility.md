@@ -323,7 +323,7 @@ Legend: full, partial, missing, TBD.
 |-------------------|------------------|-----------------------------------------------------------------------|
 | go bug            |                  | see https://github.com/gnolang/gno/issues/733                         |
 | go build          | gno build        | same intention, limited compatibility                                 |
-| go clean          |                  |                                                                       |
+| go clean          | gno clean        | same intention, limited compatibility                                 |
 | go doc            | gno doc          | limited compatibility; see https://github.com/gnolang/gno/issues/522  |
 | go env            |                  |                                                                       |
 | go fix            |                  |                                                                       |
