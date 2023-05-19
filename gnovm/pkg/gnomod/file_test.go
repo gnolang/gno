@@ -7,11 +7,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
+
+	"github.com/gnolang/gno/tm2/pkg/testutils"
 )
 
 const testRemote string = "test3.gno.land:36657"
@@ -24,6 +25,28 @@ func TestFetchDeps(t *testing.T) {
 		stdOutContains       []string
 		cachedStdOutContains []string
 	}{
+		{
+			desc: "package that does not exists",
+			modFile: File{
+				Module: &modfile.Module{
+					Mod: module.Version{
+						Path: "testFetchDeps",
+					},
+				},
+				Require: []*modfile.Require{
+					{
+						Mod: module.Version{
+							Path:    "gno.land/p/demo/avl",
+							Version: "v0.0.0",
+						},
+					},
+				},
+			},
+			requirements: []string{"does_not_exists"},
+			stdOutContains: []string{
+				"fetching gno.land/p/demo/does_not_exists",
+			},
+		},
 		{
 			desc: "fetch_gno.land/p/demo/avl",
 			modFile: File{
