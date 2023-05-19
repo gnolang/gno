@@ -8,6 +8,11 @@ ignore:
 
 comment: false # will use it later.
 
+coverage:
+  status:
+    project: off
+    patch: off
+
 flags:
   default_rules:
     carryforward: true
