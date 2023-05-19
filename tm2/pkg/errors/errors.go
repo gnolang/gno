@@ -133,33 +133,41 @@ func (err *cmnError) doTrace(msg string, n int) Error {
 }
 
 func (err *cmnError) Format(s fmt.State, verb rune) {
-	switch verb {
-	case 'p':
+	switch {
+	case verb == 'p':
 		s.Write([]byte(fmt.Sprintf("%p", &err)))
-	default:
-		if s.Flag('#') {
-			s.Write([]byte("--= Error =--\n"))
-			// Write data.
-			s.Write([]byte(fmt.Sprintf("Data: %#v\n", err.data)))
-			// Write msg trace items.
-			s.Write([]byte(fmt.Sprintf("Msg Traces:\n")))
-			for i, msgtrace := range err.msgtraces {
-				s.Write([]byte(fmt.Sprintf(" %4d  %s\n", i, msgtrace.String())))
-			}
-			// Write stack trace.
-			if err.stacktrace != nil {
-				s.Write([]byte(fmt.Sprintf("Stack Trace:\n")))
-				for i, pc := range err.stacktrace {
-					fnc := runtime.FuncForPC(pc)
-					file, line := fnc.FileLine(pc)
-					s.Write([]byte(fmt.Sprintf(" %4d  %s:%d\n", i, file, line)))
-				}
-			}
-			s.Write([]byte("--= /Error =--\n"))
-		} else {
-			// Write msg.
-			s.Write([]byte(fmt.Sprintf("%v", err.data)))
+	case verb == 'v' && s.Flag('+'):
+		s.Write([]byte("--= Error =--\n"))
+		// Write data.
+		fmt.Fprintf(s, "Data: %+v\n", err.data)
+		// Write msg trace items.
+		s.Write([]byte("Msg Traces:\n"))
+		for i, msgtrace := range err.msgtraces {
+			fmt.Fprintf(s, " %4d  %s\n", i, msgtrace.String())
 		}
+		s.Write([]byte("--= /Error =--\n"))
+	case verb == 'v' && s.Flag('#'):
+		s.Write([]byte("--= Error =--\n"))
+		// Write data.
+		fmt.Fprintf(s, "Data: %#v\n", err.data)
+		// Write msg trace items.
+		s.Write([]byte("Msg Traces:\n"))
+		for i, msgtrace := range err.msgtraces {
+			fmt.Fprintf(s, " %4d  %s\n", i, msgtrace.String())
+		}
+		// Write stack trace.
+		if err.stacktrace != nil {
+			s.Write([]byte("Stack Trace:\n"))
+			for i, pc := range err.stacktrace {
+				fnc := runtime.FuncForPC(pc)
+				file, line := fnc.FileLine(pc)
+				fmt.Fprintf(s, " %4d  %s:%d\n", i, file, line)
+			}
+		}
+		s.Write([]byte("--= /Error =--\n"))
+	default:
+		// Write msg.
+		fmt.Fprintf(s, "%v", err.data)
 	}
 }
 

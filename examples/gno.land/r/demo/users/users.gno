@@ -296,8 +296,8 @@ func Render(path string) string {
 
 func renderHome() string {
 	doc := ""
-	name2User.Iterate("", "", func(t *avl.Node) bool {
-		user := t.Value().(*User)
+	name2User.Iterate("", "", func(key string, value interface{}) bool {
+		user := value.(*User)
 		doc += " * [" + user.name + "](/r/demo/users:" + user.name + ")\n"
 		return false
 	})
