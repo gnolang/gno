@@ -8,7 +8,8 @@ type Contribution struct {
 	id          int
 	contributor std.Address
 	status      string // approved, proposed, negotiation, discussion, evaluation, etc.
-	approvers   []std.Address
+	votes       []Vote
+	tallyResult TallyResult
 }
 
 func init() {
@@ -24,7 +25,8 @@ func NewContribution(id int, contributor std.Address) *Contribution {
 		id:          id,
 		contributor: contributor,
 		status:      contributionStatus["Proposed"],
-		approvers:   []std.Address{},
+		votes:       []Vote{},
+		tallyResult: TallyResult{},
 	}
 	return c
 }
@@ -45,8 +47,19 @@ func (c *Contribution) UpdateStatus(status string) bool {
 	return true
 }
 
-func (c *Contribution) AddApproval(approver std.Address) bool {
+func (c *Contribution) Approve() {
 	// TODO error handling
-	c.approvers = append(c.approvers, approver)
-	return true
+	c.status = "Approved"
+}
+
+func (c *Contribution) Tally() {
+	for _, v := range c.votes {
+		if c.tallyResult.results.Has(v.option) {
+			value, ok := c.tallyResult.results.Get(v.option)
+			count := value.(int)
+			c.tallyResult.results.Set(v.option, count)
+		} else {
+			c.tallyResult.results.Set(v.option, 0)
+		}
+	}
 }

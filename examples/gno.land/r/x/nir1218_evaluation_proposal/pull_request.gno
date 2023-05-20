@@ -7,7 +7,7 @@ type PullRequest struct {
 	name        string
 	description string
 	status      string // Draft, Review required, Changes requested, Approved
-	category    string // bounty, chore, defect, etc.
+	category    string // bounty, chore, defect, document etc.
 }
 
 func init() {

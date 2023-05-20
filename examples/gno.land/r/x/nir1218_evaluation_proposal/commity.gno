@@ -7,28 +7,13 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-/*
- Contributors DAO will designate its memebers to an Evaluation Commity, in the begining, the evaluation commity members could be the core development team members or any other trusted entity.
- Commity is a list of addresses of its memebers
- Commity sets categories for pull requests/contribtions
- A member can add a contribution for evaluation
- All members need to approve a contribution for a contribution be considered approved
-
- TODO
- Commity sets evalution criteria per pull request type and scope
- Commity members need to approve a contribution based on the evaluation criteria
- Commity negotiates contributions
-
- TBD
- Commity sets the minium number of approvals required as a percentage of all commity members
- Commity sets evalution criteria scoring range (1-10), scoring a contribution is essential when there are competing contributions (Game of Realm). Otherwise, the evaluaiton is a binary decision.
-*/
-
 type Commity struct {
 	members    []std.Address // TODO - use avl tree (had an issue using a tree of addresses)
-	categories avl.Tree
+	categories avl.Tree      // A catagory is mapped to a list of evaluation criteria
 	evaluation *Evaluation
 }
+
+const ApprovedStatus = "Approved"
 
 func NewCommity() *Commity {
 	c := &Commity{
@@ -48,27 +33,49 @@ func (c *Commity) DismissMembers(members []std.Address) []std.Address {
 	// TODO
 }
 
-func (c *Commity) AddCategories(categories []string) []string {
-	var (
-		updatedCategories = make([]string, len(categories))
-		index             = 0
-	)
-
-	for _, category := range categories {
-		c.categories.Set(category, category)
-	}
-
-	c.categories.Iterate("", "", func(key string, value interface{}) bool {
-		updatedCategories[index] = value.(string)
-		index++
+func (c *Commity) AddCategory(name string, criteria []string) bool {
+	// TODO error handling
+	if !c.isMember(std.GetOrigCaller()) {
 		return false
-	})
-
-	return updatedCategories
+	}
+	category := NewCategory(name, criteria)
+	c.categories.Set(name, category)
+	return true
 }
 
-func (c *Commity) RemoveCategories(categories []string) []string {
-	// TODO
+func (c *Commity) ApproveCategory(name string, option string) bool {
+	if !c.isMember(std.GetOrigCaller()) {
+		return false
+	}
+
+	if !c.categories.Has(name) {
+		return false
+	}
+
+	value, _ := c.categories.Get(name)
+
+	category := value.(*Category)
+
+	if category.Status() == ApprovedStatus {
+		return false
+	}
+
+	vote := NewVote(std.GetOrigCaller(), option)
+	category.votes = append(category.votes, vote)
+	category.Tally()
+
+	// TODO Add threshold factor for a category approval
+	// TODO Add quorum factor for a category approval
+	// Current assumption is all members voted YES so category is approved
+
+	result, ok := category.tallyResult.results.Get("YES")
+
+	if result.(int) == len(c.members) {
+		category.Approve()
+		return true
+	}
+
+	return false
 }
 
 // TODO error handling
@@ -77,6 +84,7 @@ func (c *Commity) AddContribution(pr *PullRequest, contributor std.Address) (con
 		return -1, false
 	}
 	// Check the category of the PR matches a catagory this commity evaluates
+	// TODO check the category is an approved category
 	if c.categories.Has(pr.category) {
 		return c.evaluation.AddContribution(pr, contributor)
 	}
@@ -85,9 +93,7 @@ func (c *Commity) AddContribution(pr *PullRequest, contributor std.Address) (con
 }
 
 // TODO error handling
-func (c *Commity) ApproveContribution(id int, approved bool) bool {
-	approvedStatus := "Approved"
-
+func (c *Commity) ApproveContribution(id int, option string) bool {
 	if !c.isMember(std.GetOrigCaller()) {
 		return false
 	}
@@ -98,17 +104,27 @@ func (c *Commity) ApproveContribution(id int, approved bool) bool {
 
 	value, ok := c.evaluation.contributions.Get(ufmt.Sprintf("%d", id))
 	contribution := value.(*Contribution)
-	// TODO Check if already in approved status
-	if contribution.status == approvedStatus {
+
+	// Already approved
+	if contribution.status == ApprovedStatus {
 		return false
 	}
 
-	contribution.AddApproval(std.GetOrigCaller())
-	//  If all members approved the contribution, the status of the contribution should change to approved.
-	if contribution.approvers == c.members {
-		contribution.UpdateStatus(approvedStatus)
+	vote := NewVote(std.GetOrigCaller(), option)
+	contribution.votes = append(contribution.votes, vote)
+	contribution.Tally()
+
+	// TODO Add threshold factor for a contribution approval
+	// TODO Add quorum factor for a contribution approval
+	// Current assumption is all members voted YES so contribution is approved
+
+	result, ok := contribution.tallyResult.results.Get("YES")
+
+	if result.(int) == len(c.members) {
+		contribution.Approve()
 		return true
 	}
+
 	return false
 }
 

@@ -23,19 +23,32 @@ func TestCommityMembers(t *testing.T) {
 	})
 }
 
-func TestCommityCategories(t *testing.T) {
-	categories := []string{"bounty", "chore", "defct", "document", "feat", "tutorial"}
+func TestCategoryEvaluationCriteria(t *testing.T) {
+	category := "document"
+	criteria := []string{"clarity", "usage"}
+	category2 := "bounty"
+	criteria2 := []string{"complexity"}
+	// expectedCategories := []string{category}
+	// expectedCategories2 := []string{category2, category}
+
 	c := NewCommity()
 
-	t.Run("Add Commity Categories", func(t *testing.T) {
-		updatedCategories := c.AddCategories(categories)
-		if !isEqualStringSlice(updatedCategories, categories) {
-			t.Errorf("Commity categoriess got %v expcted %v", updatedCategories, categories)
-		}
+	t.Run("Add First Commity Category and Evaluation Criteria", func(t *testing.T) {
+		c.AddCategory(category, criteria)
+		// if !isEqualStringSlice(gotCategories, expectedCategories) {
+		// 	t.Errorf("Commity categoriess got %v expcted %v", gotCategories, expectedCategories)
+		// }
 	})
 
-	t.Run("Add Commity Categories", func(t *testing.T) {
-		c.RemoveCategories(categories)
+	t.Run("Add Second Commity Category and Evaluation Criteria", func(t *testing.T) {
+		c.AddCategory(category2, criteria2)
+		// if !isEqualStringSlice(gotCategories2, expectedCategories2) {
+		// 	t.Errorf("Commity categoriess got %v expcted %v", gotCategories2, expectedCategories2)
+		// }
+	})
+
+	t.Run("Approve Category", func(t *testing.T) {
+		c.ApproveCategory(category2, "YES")
 	})
 }
 
