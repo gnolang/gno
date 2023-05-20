@@ -16,6 +16,8 @@ This documnet describes general ideas regarding contributions evaluation, the pr
 
 - [Future Improvements](#future-improvements)
 
+- [Implementation](#implementation)
+
 ## Concepts
 
 ### General Ideas
@@ -39,11 +41,12 @@ A logical entity to group a certain types of contributions.
 
 #### Category
 
-A group of contributions that should be evaluated based on the same priciples and guide lines
+A group of contributions that should be evaluated based on the same priciples and guide lines.
 
 ### Contribution
 
-A contribution is associated with a pull request
+A contribution is associated with a pull request.
+A contribution is an evaluation life cycle.
 
 #### Submission
 
@@ -51,9 +54,11 @@ Any commity member can submit contributions.
 
 #### Approval
 
+A contribution is approved once it reaches a certain treshold.
+
 ### Pull Request
 
-A pull request includes
+A pull request from source control tool namely GitHub.
 
 ### Vote
 
@@ -86,3 +91,7 @@ Future improvements listed below will be decided based on future discussions and
 - A commity may set a threshold required for a catgory or a contribution to be approved, otherwise; the Contributors DAO may set a global threshold and quorum.
 - A commity sets evalution criteria scoring range (1-10), scoring a contribution is essential when there are competing contributions (Game of Realm). Otherwise, the evaluaiton is a binary decision.
 - Commity members asses contributions based on the evaluation criteria and vote accordingly
+
+## Implementation
+
+The implementation written is to express the ideas described above using code.
