@@ -91,6 +91,13 @@ func (c *Command) AddSubCommands(cmds ...*Command) {
 			// subcommands of the child as well
 			// (ex. grandparent flags are available in child commands)
 			registerFlagsWithSubcommands(c.cfg, cmd)
+
+			// Register the parent options with the child.
+			cmd.options = append(cmd.options, c.options...)
+
+			// Register the parent options with all the
+			// subcommands of the child as well
+			registerOptionsWithSubcommands(cmd)
 		}
 
 		// Append the subcommand to the parent
@@ -310,6 +317,25 @@ func registerFlagsWithSubcommands(cfg Config, root *Command) {
 
 		for _, subcommand := range current.subcommands {
 			cfg.RegisterFlags(subcommand.flagSet)
+			subcommands = append(subcommands, subcommand)
+		}
+	}
+}
+
+// registerOptionsWithSubcommands recursively registers the passed in
+// options with the subcommand tree. At the point of calling
+func registerOptionsWithSubcommands(root *Command) {
+	subcommands := []*Command{root}
+
+	// Traverse the direct subcommand tree,
+	// and register the top-level flagset with each
+	// direct line subcommand
+	for len(subcommands) > 0 {
+		current := subcommands[0]
+		subcommands = subcommands[1:]
+
+		for _, subcommand := range current.subcommands {
+			subcommand.options = append(subcommand.options, root.options...)
 			subcommands = append(subcommands, subcommand)
 		}
 	}
