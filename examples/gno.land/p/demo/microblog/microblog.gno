@@ -139,41 +139,25 @@ func (p *Page) String() string {
 func (p *Page) NewPost(text string) error {
 	now := time.Now()
 	p.LastPosted = now
-	p.Posts.Set(ufmt.Sprintf("%s%d", now, p.Posts.Size()), &Post{
+	p.Posts.Set(ufmt.Sprintf("%s%d", now.Format(time.RFC3339), p.Posts.Size()), &Post{
 		ID:        p.Posts.Size(),
 		Text:      text,
-		CreatedAt: now.Format(time.RFC3339),
+		CreatedAt: now,
 	})
 	return nil
 }
 
 func (p *Page) GetPosts() []*Post {
 	posts := make([]*Post, p.Posts.Size())
-
-	p.Posts.Iterate("", "", func(key string, value interface{}) bool {
+	p.Posts.ReverseIterate("", "", func(key string, value interface{}) bool {
 		postParsed := value.(*Post)
 		posts[postParsed.ID] = postParsed
 		return false
 	})
-
-	return reverse(posts)
-}
-
-func reverse(input []*Post) []*Post {
-	inputLen := len(input)
-	output := make([]*Post, inputLen)
-
-	for i, n := range input {
-		j := inputLen - i - 1
-
-		output[j] = n
-	}
-
-	return output
+	return posts
 }
 
 // Post lists the specific update
-
 type Post struct {
 	ID        int
 	CreatedAt time.Time

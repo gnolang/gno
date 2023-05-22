@@ -77,11 +77,11 @@ joined 2009-13-02, last updated 2009-13-02
 
 ## posts
 
-> hi again, web4? *- 13 Feb 09 23:31 UTC*
+> hello, web3 *- 13 Feb 09 23:31 UTC*
 
 > hello again, web3 *- 13 Feb 09 23:31 UTC*
 
-> hello, web3 *- 13 Feb 09 23:31 UTC*
+> hi again, web4? *- 13 Feb 09 23:31 UTC*
 
 ` {
 		t.Fatalf("incorrect rendering /: '%s'", rendering)
