@@ -959,14 +959,14 @@ func UverseNode() *PackageNode {
 			"exception", AnyT(),
 		),
 		func(m *Machine) {
-			if m.Exception == nil {
+			if len(m.Exceptions) == 0 {
 				m.PushValue(TypedValue{})
 				return
-			} else {
-				m.PushValue(*m.Exception)
-				m.Exception = nil
-				return
 			}
+			// Just like in go, only the last exception is returned to recover.
+			m.PushValue(*m.Exceptions[len(m.Exceptions)-1])
+			// The remaining exceptions are removed
+			m.Exceptions = nil
 		},
 	)
 	return uverseNode
