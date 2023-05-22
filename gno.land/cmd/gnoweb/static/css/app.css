@@ -365,6 +365,16 @@ label > img {
   text-align: left;
 }
 
+.jumbotron > *:first-child,
+.jumbotron > * > *:first-child {
+  margin-block-start: 0;
+}
+
+.jumbotron > *:last-child,
+.jumbotron > * > *:last-child {
+  margin-block-end: 0;
+}
+
 /** 68.75rem**/
 @media screen and (min-width: 68.75rem) {
   .jumbotron {
