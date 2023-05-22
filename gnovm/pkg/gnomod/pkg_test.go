@@ -1,7 +1,6 @@
 package gnomod
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -158,10 +157,6 @@ func TestListPkgs(t *testing.T) {
 			// List packages
 			pkgs, err := ListPkgs(dirPath)
 			require.NoError(t, err)
-
-			for _, p := range pkgs {
-				fmt.Println(p.name)
-			}
 
 			// Check output
 			assert.Equal(t, len(tc.expected), len(pkgs))
