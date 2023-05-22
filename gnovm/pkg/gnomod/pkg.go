@@ -81,6 +81,7 @@ func visitPackage(pkg pkg, pkgs []pkg, visited, onStack map[string]bool, sortedP
 }
 
 // ListPkgs lists all gno packages in the given root directory.
+// Ignore packages that are draft or depend on draft packages.
 func ListPkgs(root string) ([]pkg, error) {
 	var pkgs []pkg
 	draft := make(map[string]bool)
@@ -92,8 +93,8 @@ func ListPkgs(root string) ([]pkg, error) {
 		if !d.IsDir() {
 			return nil
 		}
-		goModPath := filepath.Join(path, "gno.mod")
-		data, err := os.ReadFile(goModPath)
+		gnoModPath := filepath.Join(path, "gno.mod")
+		data, err := os.ReadFile(gnoModPath)
 		if os.IsNotExist(err) {
 			return nil
 		}
@@ -101,7 +102,7 @@ func ListPkgs(root string) ([]pkg, error) {
 			return err
 		}
 
-		gnoMod, err := Parse(goModPath, data)
+		gnoMod, err := Parse(gnoModPath, data)
 		if err != nil {
 			return fmt.Errorf("parse: %w", err)
 		}
@@ -110,15 +111,10 @@ func ListPkgs(root string) ([]pkg, error) {
 			return fmt.Errorf("validate: %w", err)
 		}
 
-		// Ignore if draft or depends on draft
+		// Ignore if draft
 		if gnoMod.Draft {
 			draft[gnoMod.Module.Mod.Path] = true
 			return fs.SkipDir
-		}
-		for _, req := range gnoMod.Require {
-			if draft[req.Mod.Path] {
-				return fs.SkipDir
-			}
 		}
 
 		pkgs = append(pkgs, pkg{
@@ -138,5 +134,23 @@ func ListPkgs(root string) ([]pkg, error) {
 		return nil, err
 	}
 
-	return pkgs, nil
+	return pkgsNotDependsOnDraft(pkgs, draft), nil
+}
+
+func pkgsNotDependsOnDraft(pkgs []pkg, draft map[string]bool) []pkg {
+	res := make([]pkg, 0, len(pkgs))
+	for _, pkg := range pkgs {
+		dependsOnDraft := false
+		for _, req := range pkg.requires {
+			if draft[req] {
+				dependsOnDraft = true
+				draft[pkg.name] = true
+				break
+			}
+		}
+		if !dependsOnDraft {
+			res = append(res, pkg)
+		}
+	}
+	return res
 }
