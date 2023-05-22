@@ -18,7 +18,7 @@ jobs:
         go-version: [ "1.19.x", "1.20.x" ]
         goarch: [ "amd64" ]
         goos: [ "linux" ]
-        program: [ "./cmd/tm2txsync", "./pkg/amino/cmd/aminoscan", "./pkg/amino/cmd/goscan", "./pkg/autofile/cmd", "./pkg/iavl/cmd/iaviewer" ]
+        program: [ "./pkg/amino/cmd/aminoscan", "./pkg/amino/cmd/goscan", "./pkg/autofile/cmd", "./pkg/iavl/cmd/iaviewer" ]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
