@@ -84,28 +84,15 @@ func (m *Microblog) Render(path string) string {
 	return StatusNotFound
 }
 
-func (m *Microblog) newPage() error {
-	author := std.GetOrigCaller()
-	_, found := m.Pages.Get(author.String())
-	if found {
-		return errors.New("author already exists")
-	}
-
-	m.Pages.Set(author.String(), &Page{
-		Author:    author,
-		CreatedAt: time.Now(),
-	})
-	return nil
-}
-
 func (m *Microblog) NewPost(text string) error {
 	author := std.GetOrigCaller()
 	_, found := m.Pages.Get(author.String())
 	if !found {
 		// make a new page for the new author
-		if err := m.newPage(); err != nil {
-			return err
-		}
+		m.Pages.Set(author.String(), &Page{
+			Author:    author,
+			CreatedAt: time.Now(),
+		})
 	}
 
 	page, err := m.GetPage(author.String())
