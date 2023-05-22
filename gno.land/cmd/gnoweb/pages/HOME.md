@@ -19,11 +19,7 @@ Gno.land is in building mode. If you want to help lay the foundations of a faire
 
 ### Game of Realms
 
-The worldwide competition to find the best contributors to Gno.land is currently in phase one – for advanced developers only.
-
-Once the necessary tools to start phase two are ready, we’ll open up the competition to newer devs and non-technical contributors.
-
-If you want to stack real ATOM rewards and play a key role in the success of Gno.land and web3, read more about Game of Realms or open a PR today.
+The first high-stakes contest will see participants compete for tiered membership to co-own the Gno.land blockchain. A series of complex technical and non-technical tasks will challenge contributors to create innovative patterns that push the chain to new limits. Start building the foundation for tomorrow through key smart contracts and other contributions that change our understanding of the world.
 
 <div class="stack">
 
@@ -62,9 +58,9 @@ If you want to stack real ATOM rewards and play a key role in the success of Gno
 
 ### Explore the universe
 
-- [Discover demo packages](/)
-- [Install Gno Key instructions](/)
-- [Other Testnets](https://staging.gno.land)
+- [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
+- [Install Gno Key instructions](/r/demo/boards:testboard/5)
+- [Other Testnets](https://test2.gno.land/)
 - [Explorer links(soon)](#)
 - [Testnet Tokens (faucet)](/faucet)
 

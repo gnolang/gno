@@ -1,10 +1,10 @@
 # Game of Realms
 
-The first high-stakes contest will see participants compete for the tiered membership to co-own the Gno.land blockchain.
-A series of complex technical and non-technical tasks will challenge contributors to create innovative patterns that push the chain to new limits.
-Start building the foundation for tomorrow through key smart contracts and other contributions that change our understanding of the world.
+The worldwide competition to find the best contributors to Gno.land is currently in phase one – for advanced developers only.
 
-You can start participating in the co-creation of the Game of Realms now by adding your contributions on the dedicated [GitHub page](https://github.com/gnolang/gno/issues/357) to help us formulate the challenges. We want to release the final challenges from your contributions.
+Once the necessary tools to start phase two are ready, we’ll open up the competition to newer devs and non-technical contributors.
+
+If you want to stack ATOM rewards and play a key role in the success of Gno.land and web3, read more about Game of Realms or open a [PR](https://github.com/gnolang/gno/) today.
 
 <div>
 
