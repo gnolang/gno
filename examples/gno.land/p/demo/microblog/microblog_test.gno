@@ -3,6 +3,7 @@ package microblog
 import (
 	"log"
 	"std"
+	"strings"
 	"testing"
 
 	"gno.land/p/demo/avl"
@@ -44,7 +45,7 @@ func TestMicroblog(t *testing.T) {
 	if err := d.NewPost("hello again, web3"); err != nil {
 		t.Fatalf("could not create post")
 	}
-	if err := d.NewPost("hi again, web4?"); err != nil {
+	if err := d.NewPost("hi again,\n web4?"); err != nil {
 		t.Fatalf("could not create post")
 	}
 
@@ -59,31 +60,37 @@ func TestMicroblog(t *testing.T) {
 		t.Fatalf("incorrect rendering /: '%s'", rendering)
 	}
 
-	if rendering := d.Render(author1.String()); rendering != `# g1v96hg6r0wgc47h6lta047h6lta047h6lm33tq6
+	if rendering := strings.TrimSpace(d.Render(author1.String())); rendering != `# g1v96hg6r0wgc47h6lta047h6lta047h6lm33tq6
 
 joined 2009-13-02, last updated 2009-13-02
 
 ## posts
 
-> goodbyte, web2 *- 13 Feb 09 23:31 UTC*
-
-` {
+> goodbyte, web2
+>
+> *Fri, 13 Feb 2009 23:31:30 UTC*` {
 		t.Fatalf("incorrect rendering /: '%s'", rendering)
 	}
 
-	if rendering := d.Render(author2.String()); rendering != `# g1v96hg6r0wge97h6lta047h6lta047h6lyz7c00
+	if rendering := strings.TrimSpace(d.Render(author2.String())); rendering != `# g1v96hg6r0wge97h6lta047h6lta047h6lyz7c00
 
 joined 2009-13-02, last updated 2009-13-02
 
 ## posts
 
-> hello, web3 *- 13 Feb 09 23:31 UTC*
+> hi again,
+>
+> web4?
+>
+> *Fri, 13 Feb 2009 23:31:30 UTC*
 
-> hello again, web3 *- 13 Feb 09 23:31 UTC*
+> hello again, web3
+>
+> *Fri, 13 Feb 2009 23:31:30 UTC*
 
-> hi again, web4? *- 13 Feb 09 23:31 UTC*
-
-` {
+> hello, web3
+>
+> *Fri, 13 Feb 2009 23:31:30 UTC*` {
 		t.Fatalf("incorrect rendering /: '%s'", rendering)
 	}
 }

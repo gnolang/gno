@@ -149,9 +149,11 @@ func (p *Page) NewPost(text string) error {
 
 func (p *Page) GetPosts() []*Post {
 	posts := make([]*Post, p.Posts.Size())
+	i := 0
 	p.Posts.ReverseIterate("", "", func(key string, value interface{}) bool {
 		postParsed := value.(*Post)
-		posts[postParsed.ID] = postParsed
+		posts[i] = postParsed
+		i++
 		return false
 	})
 	return posts
@@ -165,5 +167,5 @@ type Post struct {
 }
 
 func (p *Post) String() string {
-	return "> " + p.Text + " *- " + p.CreatedAt.Format(time.RFC822) + "*"
+	return "> " + strings.ReplaceAll(p.Text, "\n", "\n>\n>") + "\n>\n> *" + p.CreatedAt.Format(time.RFC1123) + "*"
 }
