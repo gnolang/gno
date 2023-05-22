@@ -244,6 +244,9 @@ label > img {
   margin-inline-end: 0.8rem;
 }
 
+code {
+  white-space: pre-wrap;
+}
 /*** COMPOSITION ***/
 .container {
   width: 100%;
