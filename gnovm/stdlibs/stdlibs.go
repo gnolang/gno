@@ -10,8 +10,15 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/bech32"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	vmh "github.com/gnolang/gno/tm2/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
+
+var vmkeeper vmh.VMKeeperI
+
+func InjectVMKeeper(vmk vmh.VMKeeperI) {
+	vmkeeper = vmk
+}
 
 func InjectNativeMappings(store gno.Store) {
 	store.AddGo2GnoMapping(reflect.TypeOf(crypto.Bech32Address("")), "std", "Address")
@@ -170,6 +177,62 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				m.PushValue(res0)
 			},
 		)
+
+		pn.DefineNative("Await",
+			gno.Flds( // params
+				"call", "string",
+			),
+			gno.Flds( // results
+				"bz", "string",
+				"err", "string",
+			),
+			func(m *gno.Machine) {
+				// println("std.Send")
+				arg0 := m.LastBlock().GetParams1()
+				call := arg0.TV.GetString()
+				// println("call: ", call)
+
+				gnoMsg, err := vmh.DecodeMsg(call)
+				if err != nil {
+					panic("parameter invalid")
+				}
+				resQueue := make(chan string, 1)
+				gnoMsg.Response = resQueue
+
+				// send msg
+				vmkeeper.DispatchInternalMsg(gnoMsg)
+
+				// XXX: how this determined, since calls will accumulate
+				// should have an estimation like gas estimation?
+				timeout := 3 * time.Second
+				println("block, waiting for result...")
+
+				// TODO: err handling
+				var result string
+				select {
+				case result = <-resQueue:
+					println("callback in recvMsg: ", result)
+				case <-time.After(timeout):
+					panic("time out")
+					// case err = <- errQueue:
+				}
+
+				// TODO: return err to contract
+				var errMsg string
+				if err != nil {
+					errMsg = err.Error()
+				}
+
+				res := gno.Go2GnoValue(
+					m.Alloc,
+					m.Store,
+					reflect.ValueOf(result),
+				)
+				m.PushValue(res)
+				m.PushValue(typedString(gno.StringValue(errMsg)))
+			},
+		)
+
 		pn.DefineNative("Hash",
 			gno.Flds( // params
 				"bz", "[]byte",

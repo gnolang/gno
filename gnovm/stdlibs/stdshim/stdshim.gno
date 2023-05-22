@@ -11,6 +11,11 @@ func IsOriginCall() (isOrigin bool) {
 	return false
 }
 
+func Call(pkgpath, fnc, arg string) (r string) {
+	panic(shimWarn)
+	return ""
+}
+
 func Hash(bz []byte) (hash [20]byte) {
 	panic(shimWarn)
 	return

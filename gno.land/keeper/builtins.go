@@ -1,4 +1,4 @@
-package vm
+package vmk
 
 import (
 	"os"
@@ -37,6 +37,7 @@ func (vm *VMKeeper) initBuiltinPackagesAndTypes(store gno.Store) {
 	store.SetPackageGetter(getPackage)
 	store.SetPackageInjector(vm.packageInjector)
 	stdlibs.InjectNativeMappings(store)
+	stdlibs.InjectVMKeeper(vm)
 }
 
 func (vm *VMKeeper) packageInjector(store gno.Store, pn *gno.PackageNode) {

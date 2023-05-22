@@ -1,4 +1,4 @@
-package vm
+package vmk
 
 import (
 	"encoding/base64"
@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	vmh "github.com/gnolang/gno/tm2/pkg/sdk/vm"
 )
 
 // These convert string representations of public-facing arguments to GNO types.
@@ -194,4 +195,12 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 	default:
 		panic(fmt.Sprintf("unexpected type in contract arg: %v", argT))
 	}
+}
+
+func convertMsg(msg vmh.GnoMsg) vmh.MsgCall {
+	var msgCall vmh.MsgCall
+	msgCall.PkgPath = msg.PkgPath
+	msgCall.Func = msg.Func
+	msgCall.Args = msg.Args
+	return msgCall
 }

@@ -1,4 +1,4 @@
-package vm
+package vmk
 
 // TODO: move most of the logic in ROOT/gno.land/...
 
@@ -10,8 +10,15 @@ import (
 	"github.com/jaekwon/testify/assert"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	vmh "github.com/gnolang/gno/tm2/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
+
+var env testEnv
+
+// func init() {
+// 	env = setupTestEnv()
+// }
 
 // Sending total send amount succeeds.
 func TestVMKeeperOrigSend1(t *testing.T) {
@@ -29,12 +36,9 @@ func TestVMKeeperOrigSend1(t *testing.T) {
 	files := []*std.MemFile{
 		{"init.gno", `
 package test
-
 import "std"
-
 func init() {
 }
-
 func Echo(msg string) string {
 	addr := std.GetOrigCaller()
 	pkgAddr := std.GetOrigPkgAddr()
@@ -45,13 +49,13 @@ func Echo(msg string) string {
 }`},
 	}
 	pkgPath := "gno.land/r/test"
-	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	msg1 := vmh.NewMsgAddPackage(addr, pkgPath, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
 
 	// Run Echo function.
 	coins := std.MustParseCoins("10000000ugnot")
-	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
+	msg2 := vmh.NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.NoError(t, err)
 	assert.Equal(t, res, `("echo:hello world" string)`)
@@ -74,15 +78,11 @@ func TestVMKeeperOrigSend2(t *testing.T) {
 	files := []*std.MemFile{
 		{"init.gno", `
 package test
-
 import "std"
-
 var admin std.Address
-
 func init() {
      admin =	std.GetOrigCaller()
 }
-
 func Echo(msg string) string {
 	addr := std.GetOrigCaller()
 	pkgAddr := std.GetOrigPkgAddr()
@@ -91,20 +91,19 @@ func Echo(msg string) string {
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }
-
 func GetAdmin() string {
 	return admin.String()
 }
 `},
 	}
 	pkgPath := "gno.land/r/test"
-	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	msg1 := vmh.NewMsgAddPackage(addr, pkgPath, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
 
 	// Run Echo function.
 	coins := std.MustParseCoins("11000000ugnot")
-	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
+	msg2 := vmh.NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.Error(t, err)
 	assert.Equal(t, res, "")
@@ -128,12 +127,9 @@ func TestVMKeeperOrigSend3(t *testing.T) {
 	files := []*std.MemFile{
 		{"init.gno", `
 package test
-
 import "std"
-
 func init() {
 }
-
 func Echo(msg string) string {
 	addr := std.GetOrigCaller()
 	pkgAddr := std.GetOrigPkgAddr()
@@ -144,13 +140,13 @@ func Echo(msg string) string {
 }`},
 	}
 	pkgPath := "gno.land/r/test"
-	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	msg1 := vmh.NewMsgAddPackage(addr, pkgPath, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
 
 	// Run Echo function.
 	coins := std.MustParseCoins("9000000ugnot")
-	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
+	msg2 := vmh.NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	// XXX change this into an error and make sure error message is descriptive.
 	_, err = env.vmk.Call(ctx, msg2)
 	assert.Error(t, err)
@@ -172,12 +168,9 @@ func TestVMKeeperRealmSend1(t *testing.T) {
 	files := []*std.MemFile{
 		{"init.gno", `
 package test
-
 import "std"
-
 func init() {
 }
-
 func Echo(msg string) string {
 	addr := std.GetOrigCaller()
 	pkgAddr := std.GetOrigPkgAddr()
@@ -188,13 +181,13 @@ func Echo(msg string) string {
 }`},
 	}
 	pkgPath := "gno.land/r/test"
-	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	msg1 := vmh.NewMsgAddPackage(addr, pkgPath, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
 
 	// Run Echo function.
 	coins := std.MustParseCoins("10000000ugnot")
-	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
+	msg2 := vmh.NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.NoError(t, err)
 	assert.Equal(t, res, `("echo:hello world" string)`)
@@ -216,12 +209,9 @@ func TestVMKeeperRealmSend2(t *testing.T) {
 	files := []*std.MemFile{
 		{"init.gno", `
 package test
-
 import "std"
-
 func init() {
 }
-
 func Echo(msg string) string {
 	addr := std.GetOrigCaller()
 	pkgAddr := std.GetOrigPkgAddr()
@@ -232,13 +222,13 @@ func Echo(msg string) string {
 }`},
 	}
 	pkgPath := "gno.land/r/test"
-	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	msg1 := vmh.NewMsgAddPackage(addr, pkgPath, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
 
 	// Run Echo function.
 	coins := std.MustParseCoins("9000000ugnot")
-	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
+	msg2 := vmh.NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	// XXX change this into an error and make sure error message is descriptive.
 	_, err = env.vmk.Call(ctx, msg2)
 	assert.Error(t, err)
@@ -260,15 +250,11 @@ func TestVMKeeperOrigCallerInit(t *testing.T) {
 	files := []*std.MemFile{
 		{"init.gno", `
 package test
-
 import "std"
-
 var admin std.Address
-
 func init() {
      admin =	std.GetOrigCaller()
 }
-
 func Echo(msg string) string {
 	addr := std.GetOrigCaller()
 	pkgAddr := std.GetOrigPkgAddr()
@@ -277,21 +263,19 @@ func Echo(msg string) string {
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }
-
 func GetAdmin() string {
 	return admin.String()
 }
-
 `},
 	}
 	pkgPath := "gno.land/r/test"
-	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	msg1 := vmh.NewMsgAddPackage(addr, pkgPath, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
 
 	// Run GetAdmin()
 	coins := std.MustParseCoins("")
-	msg2 := NewMsgCall(addr, coins, pkgPath, "GetAdmin", []string{})
+	msg2 := vmh.NewMsgCall(addr, coins, pkgPath, "GetAdmin", []string{})
 	res, err := env.vmk.Call(ctx, msg2)
 	addrString := fmt.Sprintf("(\"%s\" string)", addr.String())
 	assert.NoError(t, err)

@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"errors"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -134,4 +135,33 @@ func (msg MsgCall) GetSigners() []crypto.Address {
 // Implements ReceiveMsg.
 func (msg MsgCall) GetReceived() std.Coins {
 	return msg.Send
+}
+
+// ----------------------------------------
+// represent internal msg and cross chain msg
+type GnoMsg struct {
+	ChainID  string
+	Caller   string
+	PkgPath  string
+	Func     string
+	Args     []string
+	Response chan string
+}
+
+// TODO: a real decoder
+func DecodeMsg(msg string) (call GnoMsg, err error) {
+	if msg == "" {
+		return GnoMsg{}, errors.New("msg is empty")
+	}
+	call = GnoMsg{}
+	cs := strings.Split(msg, "#")
+	call.ChainID = cs[0]
+	call.PkgPath = cs[1]
+	call.Func = cs[2]
+
+	as := strings.Split(cs[3], "&")
+	call.Args = as
+
+	// TODO: return parse error
+	return call, nil
 }
