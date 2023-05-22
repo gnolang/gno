@@ -233,7 +233,7 @@ Legend: full, partial, missing, TBD.
 | log/slog/internal                           | TBD      |
 | log/syslog                                  | TBD      |
 | maps                                        | TBD      |
-| math                                        | TBD      |
+| math                                        | partial      |
 | math/big                                    | TBD      |
 | math/bits                                   | TBD      |
 | math/cmplx                                  | TBD      |
