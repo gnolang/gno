@@ -167,7 +167,7 @@ Legend: full, partial, missing, TBD.
 | encoding/asn1                               | TBD      |
 | encoding/base32                             | TBD      |
 | encoding/base64                             | TBD      |
-| encoding/binary                             | TBD      |
+| encoding/binary                             | partial  |
 | encoding/csv                                | TBD      |
 | encoding/gob                                | TBD      |
 | encoding/hex                                | TBD      |
