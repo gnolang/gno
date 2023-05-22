@@ -142,7 +142,7 @@ func (p *Page) NewPost(text string) error {
 	p.Posts.Set(ufmt.Sprintf("%s%d", now, p.Posts.Size()), &Post{
 		ID:        p.Posts.Size(),
 		Text:      text,
-		CreatedAt: now,
+		CreatedAt: now.Format(time.RFC3339),
 	})
 	return nil
 }
