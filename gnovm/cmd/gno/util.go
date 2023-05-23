@@ -234,3 +234,17 @@ func copyFile(src, dst string) error {
 
 	return nil
 }
+
+// Adapted from https://yourbasic.org/golang/formatting-byte-size-to-human-readable-format/
+func prettySize(nb int64) string {
+	const unit = 1000
+	if nb < unit {
+		return fmt.Sprintf("%d", nb)
+	}
+	div, exp := int64(unit), 0
+	for n := nb / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f%c", float64(nb)/float64(div), "kMGTPE"[exp])
+}
