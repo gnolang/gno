@@ -12,7 +12,7 @@ func main() {
 	cmd := newGnocliCmd(commands.NewDefaultIO())
 
 	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "%+v", err)
+		_, _ = fmt.Fprintf(os.Stderr, "%+v\n", err)
 
 		os.Exit(1)
 	}
@@ -38,7 +38,6 @@ func newGnocliCmd(io *commands.IO) *commands.Command {
 		newReplCmd(),
 		newDocCmd(io),
 		// fmt -- gofmt
-		// clean
 		// graph
 		// vendor -- download deps from the chain in vendor/
 		// list -- list packages
