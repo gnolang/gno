@@ -49,7 +49,7 @@ func main() {
 }
 
 func printit(i *int) {
-	_ = i
+	println(i)
 }
 `
 	n := MustParseFile("main.go", c)

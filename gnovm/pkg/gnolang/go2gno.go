@@ -439,12 +439,15 @@ func Go2Gno(escapedlist []string, fs *token.FileSet, gon ast.Node) (n Node) {
 		type_ := Go2Gno(nil, fs, gon.Type).(*FuncTypeExpr)
 		escapedNames := EscapeAnalysis(gon)
 		body := Go2Gno(escapedNames, fs, gon.Body).(*BlockStmt).Body
+		roots := Roots(gon)
+
 		return &FuncDecl{
 			IsMethod: isMethod,
 			Recv:     recv,
 			NameExpr: NameExpr{Name: name},
 			Type:     *type_,
 			Body:     body,
+			Roots:    roots,
 		}
 	case *ast.GenDecl:
 		panic("unexpected *ast.GenDecl; use toDecls(fs,) instead")

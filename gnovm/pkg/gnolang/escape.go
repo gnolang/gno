@@ -5,6 +5,26 @@ import (
 	"go/token"
 )
 
+func Roots(f *ast.FuncDecl) []*ast.Ident {
+	roots := make([]*ast.Ident, 0)
+	ast.Inspect(f.Body, func(n ast.Node) bool {
+		switch x := n.(type) {
+		case *ast.AssignStmt:
+			idents := make([]*ast.Ident, len(x.Lhs))
+
+			for i, lsh := range x.Lhs {
+				idents[i] = getIdent(lsh)
+			}
+
+			roots = append(roots, idents...)
+		}
+
+		return true
+	})
+
+	return roots
+}
+
 // EscapeAnalysis tracks whether values
 // need to be heap allocated
 // here are the 3 rules we use
@@ -180,6 +200,18 @@ func getVarName(expr ast.Expr) string {
 		return getVarName(x.X)
 	}
 	return ""
+}
+
+func getIdent(expr ast.Expr) *ast.Ident {
+	switch x := expr.(type) {
+	case *ast.Ident:
+		return x
+		//case *ast.StarExpr:
+		//	return getIdent(x.X)
+		//case *ast.UnaryExpr:
+		//	return getIdent(x.X)
+	}
+	return nil
 }
 
 func checkEscaped(ident string, escapedList []string) bool {
