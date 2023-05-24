@@ -24,8 +24,6 @@ func main() {
 	// simulate a Deposit call.
 	std.TestSetOrigPkgAddr(banktestAddr)
 	testutils.TestOrigSend(banktestAddr, std.Coins{{"ugnot", 100000000}}, nil)
-	// std.TestIssueCoins(banktestAddr, std.Coins{{"ugnot", 100000000}})
-	// std.TestSetOrigSend(std.Coins{{"ugnot", 100000000}}, nil)
 	res := banktest.Deposit("ugnot", 100000000)
 	println("Deposit():", res)
 
