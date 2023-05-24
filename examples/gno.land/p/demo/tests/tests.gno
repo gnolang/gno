@@ -58,14 +58,15 @@ func GetRealmCaller() std.Address {
 	return std.GetRealmCaller()
 }
 
-func GetSubtestsCaller() std.Address {
+func GetPSubtestsCaller() std.Address {
 	return psubtests.GetRealmCaller()
 }
 
-func Exec(fn func()) {
-	fn()
+func GetRTestsGetRealmCaller() std.Address {
+	return rtests.GetRealmCaller()
 }
 
-func GetRealmGetRealmCaller() std.Address {
-	return rtests.GetRealmCaller()
+// Warning: unsafe pattern.
+func Exec(fn func()) {
+	fn()
 }

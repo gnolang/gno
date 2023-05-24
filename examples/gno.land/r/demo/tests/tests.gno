@@ -78,7 +78,7 @@ func GetRealmCaller() std.Address {
 	return std.GetRealmCaller()
 }
 
-func GetSubtestsCaller() std.Address {
+func GetPSubtestsCaller() std.Address {
 	return subtests.GetRealmCaller()
 }
 

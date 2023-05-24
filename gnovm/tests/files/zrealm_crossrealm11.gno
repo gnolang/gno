@@ -48,7 +48,7 @@ func main() {
 		},
 		{
 			callStackAdd: " -> p/demo/tests -> p/demo/tests/subtests",
-			callerFn:     ptests.GetSubtestsCaller,
+			callerFn:     ptests.GetPSubtestsCaller,
 		},
 		{
 			callStackAdd: " -> r/demo/tests",
@@ -56,7 +56,7 @@ func main() {
 		},
 		{
 			callStackAdd: " -> r/demo/tests -> r/demo/tests/subtests",
-			callerFn:     rtests.GetSubtestsCaller,
+			callerFn:     rtests.GetPSubtestsCaller,
 		},
 		{
 			callStackAdd: " -> p/demo/tests -> r/demo/tests",
@@ -83,70 +83,70 @@ func main() {
 // Output:
 // STACK CASE 0:
 // user1.gno -> r/crossrealm_test.main() -> std.GetRealmCaller()
-// 	caller is user1.gno
+//	caller is user1.gno
 // wrapped in r/crossrealm_test.Exec:
-// 	caller is user1.gno
+//	caller is user1.gno
 // wrapped in r/demo/tests.Exec:
-// 	caller is gno.land/r/demo/tests
+//	caller is gno.land/r/demo/tests
 // wrapped p/demo/tests.Exec:
-// 	caller is user1.gno
+//	caller is user1.gno
 //
 // STACK CASE 1:
 // user1.gno -> r/crossrealm_test.main() -> r/crossrealm_test.getRealmCaller() -> std.GetRealmCaller()
-// 	caller is user1.gno
+//	caller is user1.gno
 // wrapped in r/crossrealm_test.Exec:
-// 	caller is user1.gno
+//	caller is user1.gno
 // wrapped in r/demo/tests.Exec:
-// 	caller is gno.land/r/demo/tests
+//	caller is gno.land/r/demo/tests
 // wrapped p/demo/tests.Exec:
-// 	caller is user1.gno
+//	caller is user1.gno
 //
 // STACK CASE 2:
 // user1.gno -> r/crossrealm_test.main() -> p/demo/tests -> std.GetRealmCaller()
-// 	caller is user1.gno
+//	caller is user1.gno
 // wrapped in r/crossrealm_test.Exec:
-// 	caller is user1.gno
+//	caller is user1.gno
 // wrapped in r/demo/tests.Exec:
-// 	caller is gno.land/r/demo/tests
+//	caller is gno.land/r/demo/tests
 // wrapped p/demo/tests.Exec:
-// 	caller is user1.gno
+//	caller is user1.gno
 //
 // STACK CASE 3:
 // user1.gno -> r/crossrealm_test.main() -> p/demo/tests -> p/demo/tests/subtests -> std.GetRealmCaller()
-// 	caller is user1.gno
+//	caller is user1.gno
 // wrapped in r/crossrealm_test.Exec:
-// 	caller is user1.gno
+//	caller is user1.gno
 // wrapped in r/demo/tests.Exec:
-// 	caller is gno.land/r/demo/tests
+//	caller is gno.land/r/demo/tests
 // wrapped p/demo/tests.Exec:
-// 	caller is user1.gno
+//	caller is user1.gno
 //
 // STACK CASE 4:
 // user1.gno -> r/crossrealm_test.main() -> r/demo/tests -> std.GetRealmCaller()
-// 	caller is gno.land/r/crossrealm_test
+//	caller is gno.land/r/crossrealm_test
 // wrapped in r/crossrealm_test.Exec:
-// 	caller is gno.land/r/crossrealm_test
+//	caller is gno.land/r/crossrealm_test
 // wrapped in r/demo/tests.Exec:
-// 	caller is gno.land/r/crossrealm_test
+//	caller is gno.land/r/crossrealm_test
 // wrapped p/demo/tests.Exec:
-// 	caller is gno.land/r/crossrealm_test
+//	caller is gno.land/r/crossrealm_test
 //
 // STACK CASE 5:
 // user1.gno -> r/crossrealm_test.main() -> r/demo/tests -> r/demo/tests/subtests -> std.GetRealmCaller()
-// 	caller is gno.land/r/demo/tests
+//	caller is gno.land/r/demo/tests
 // wrapped in r/crossrealm_test.Exec:
-// 	caller is gno.land/r/demo/tests
+//	caller is gno.land/r/demo/tests
 // wrapped in r/demo/tests.Exec:
-// 	caller is gno.land/r/demo/tests
+//	caller is gno.land/r/demo/tests
 // wrapped p/demo/tests.Exec:
-// 	caller is gno.land/r/demo/tests
+//	caller is gno.land/r/demo/tests
 //
 // STACK CASE 6:
 // user1.gno -> r/crossrealm_test.main() -> p/demo/tests -> r/demo/tests -> std.GetRealmCaller()
-// 	caller is user1.gno
+//	caller is user1.gno
 // wrapped in r/crossrealm_test.Exec:
-// 	caller is user1.gno
+//	caller is user1.gno
 // wrapped in r/demo/tests.Exec:
-// 	caller is gno.land/r/demo/tests
+//	caller is gno.land/r/demo/tests
 // wrapped p/demo/tests.Exec:
-// 	caller is user1.gno
+//	caller is user1.gno
