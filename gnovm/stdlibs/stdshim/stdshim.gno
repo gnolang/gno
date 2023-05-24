@@ -51,7 +51,7 @@ func GetCallerAt(n int) Address {
 	return Address("")
 }
 
-func GetBanker(bankerType BankerType) Banker {
+func Banker(bankerType BankerType) Banker {
 	panic(shimWarn)
 	return nil
 }

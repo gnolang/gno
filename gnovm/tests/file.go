@@ -499,7 +499,7 @@ func newTestBanker(args ...interface{}) *testBanker {
 	}
 }
 
-func (tb *testBanker) GetCoins(addr crypto.Bech32Address) (dst std.Coins) {
+func (tb *testBanker) Coins(addr crypto.Bech32Address) (dst std.Coins) {
 	return tb.coinTable[addr]
 }
 

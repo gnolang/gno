@@ -42,7 +42,7 @@ func Transfer(to std.Address, send int64) string {
 	gTotalTransferred = gTotalTransferred.Add(sendCoins)
 	gTotalTransfers++
 
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker := std.Banker(std.BankerTypeRealmSend)
 	pkgaddr := std.GetOrigPkgAddr()
 	banker.SendCoins(pkgaddr, to, sendCoins)
 	return ""
@@ -53,8 +53,8 @@ func GetPerTransferLimit() int64 {
 }
 
 func Render(_ string) string {
-	banker := std.GetBanker(std.BankerTypeRealmSend)
-	balance := banker.GetCoins(std.GetOrigPkgAddr())
+	banker := std.Banker(std.BankerTypeRealmSend)
+	balance := banker.Coins(std.GetOrigPkgAddr())
 
 	output := gMessage
 	if gInPause {

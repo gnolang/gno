@@ -13,14 +13,14 @@ import (
 // becomes available in Gno that implements
 // stdlibs/std.Banker.
 type Banker interface {
-	GetCoins(addr crypto.Bech32Address) (dst std.Coins)
+	Coins(addr crypto.Bech32Address) (dst std.Coins)
 	SendCoins(from, to crypto.Bech32Address, amt std.Coins)
 	TotalCoin(denom string) int64
 	IssueCoin(addr crypto.Bech32Address, denom string, amount int64)
 	RemoveCoin(addr crypto.Bech32Address, denom string, amount int64)
 }
 
-// Used in std.GetBanker(options).
+// Used in std.Banker(options).
 // Also available as Gno in stdlibs/std/banker.go
 type BankerType uint8
 
@@ -47,8 +47,8 @@ func NewReadonlyBanker(banker Banker) ReadonlyBanker {
 	return ReadonlyBanker{banker}
 }
 
-func (rb ReadonlyBanker) GetCoins(addr crypto.Bech32Address) (dst std.Coins) {
-	return rb.banker.GetCoins(addr)
+func (rb ReadonlyBanker) Coins(addr crypto.Bech32Address) (dst std.Coins) {
+	return rb.banker.Coins(addr)
 }
 
 func (rb ReadonlyBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins) {
@@ -89,8 +89,8 @@ func NewOrigSendBanker(banker Banker, pkgAddr crypto.Bech32Address, origSend std
 	}
 }
 
-func (osb OrigSendBanker) GetCoins(addr crypto.Bech32Address) (dst std.Coins) {
-	return osb.banker.GetCoins(addr)
+func (osb OrigSendBanker) Coins(addr crypto.Bech32Address) (dst std.Coins) {
+	return osb.banker.Coins(addr)
 }
 
 func (osb OrigSendBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins) {
@@ -136,8 +136,8 @@ func NewRealmSendBanker(banker Banker, pkgAddr crypto.Bech32Address) RealmSendBa
 	}
 }
 
-func (rsb RealmSendBanker) GetCoins(addr crypto.Bech32Address) (dst std.Coins) {
-	return rsb.banker.GetCoins(addr)
+func (rsb RealmSendBanker) Coins(addr crypto.Bech32Address) (dst std.Coins) {
+	return rsb.banker.Coins(addr)
 }
 
 func (rsb RealmSendBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins) {

@@ -26,7 +26,7 @@ type Account interface {
 	GetSequence() uint64
 	SetSequence(uint64) error
 
-	GetCoins() Coins
+	Coins() Coins
 	SetCoins(Coins) error
 
 	// Ensure that account implements stringer
@@ -114,8 +114,8 @@ func (acc *BaseAccount) SetPubKey(pubKey crypto.PubKey) error {
 	return nil
 }
 
-// GetCoins - Implements Account.
-func (acc *BaseAccount) GetCoins() Coins {
+// Coins - Implements Account.
+func (acc *BaseAccount) Coins() Coins {
 	return acc.Coins
 }
 

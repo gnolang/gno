@@ -346,7 +346,7 @@ func consumeMultisignatureVerificationGas(meter store.GasMeter,
 // NOTE: We could use the CoinKeeper (in addition to the AccountKeeper, because
 // the CoinKeeper doesn't give us accounts), but it seems easier to do this.
 func DeductFees(bank BankKeeperI, ctx sdk.Context, acc std.Account, fees std.Coins) sdk.Result {
-	coins := acc.GetCoins()
+	coins := acc.Coins()
 
 	if !fees.IsValid() {
 		return abciResult(std.ErrInsufficientFee(fmt.Sprintf("invalid fee amount: %s", fees)))

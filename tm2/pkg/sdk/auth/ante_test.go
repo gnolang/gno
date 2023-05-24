@@ -329,14 +329,14 @@ func TestAnteHandlerFees(t *testing.T) {
 
 	collector := env.bank.(DummyBankKeeper).acck.GetAccount(ctx, FeeCollectorAddress())
 	require.Nil(t, collector)
-	require.Equal(t, env.acck.GetAccount(ctx, addr1).GetCoins().AmountOf("atom"), int64(149))
+	require.Equal(t, env.acck.GetAccount(ctx, addr1).Coins().AmountOf("atom"), int64(149))
 
 	acc1.SetCoins(std.NewCoins(std.NewCoin("atom", 150)))
 	env.acck.SetAccount(ctx, acc1)
 	checkValidTx(t, anteHandler, ctx, tx, false)
 
-	require.Equal(t, env.bank.(DummyBankKeeper).acck.GetAccount(ctx, FeeCollectorAddress()).GetCoins().AmountOf("atom"), int64(150))
-	require.Equal(t, env.acck.GetAccount(ctx, addr1).GetCoins().AmountOf("atom"), int64(0))
+	require.Equal(t, env.bank.(DummyBankKeeper).acck.GetAccount(ctx, FeeCollectorAddress()).Coins().AmountOf("atom"), int64(150))
+	require.Equal(t, env.acck.GetAccount(ctx, addr1).Coins().AmountOf("atom"), int64(0))
 }
 
 // Test logic around memo gas consumption.

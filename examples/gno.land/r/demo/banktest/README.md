@@ -84,7 +84,7 @@ Updating the "latest" array for viewing at gno.land/r/banktest: (w/ trailing col
 If the user requested the return of coins...
 
 ```go
-        banker := std.GetBanker(std.BankerTypeOrigSend)
+        banker := std.Banker(std.BankerTypeOrigSend)
 ```
 
 use a std.Banker instance to return any deposited coins to the original sender.
@@ -104,8 +104,8 @@ Finally, the results are rendered via an ABCI query call when you visit [/r/bank
 ```go
 func Render(path string) string {
     // get realm coins.
-    banker := std.GetBanker(std.BankerTypeReadonly)
-    coins := banker.GetCoins(std.GetOrigPkgAddr())
+    banker := std.Banker(std.BankerTypeReadonly)
+    coins := banker.Coins(std.GetOrigPkgAddr())
 
     // render
     res := ""

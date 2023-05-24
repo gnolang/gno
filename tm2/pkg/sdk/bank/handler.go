@@ -124,7 +124,7 @@ func (bh bankHandler) queryBalance(ctx sdk.Context, req abci.RequestQuery) (res 
 	}
 
 	// get coins from addr.
-	bz, err := amino.MarshalJSONIndent(bh.bank.GetCoins(ctx, addr), "", "  ")
+	bz, err := amino.MarshalJSONIndent(bh.bank.Coins(ctx, addr), "", "  ")
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(
 			std.ErrInternal(fmt.Sprintf("could not marshal result to JSON: %s", err.Error())))
