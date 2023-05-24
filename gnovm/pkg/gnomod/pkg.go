@@ -14,8 +14,10 @@ type Pkg struct {
 	requires []string
 }
 
-type PkgList []Pkg
-type SortedPkgList []Pkg
+type (
+	PkgList       []Pkg
+	SortedPkgList []Pkg
+)
 
 // Name returns the name of the package.
 func (p Pkg) Name() string {
