@@ -213,7 +213,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				m.PushValue(res0)
 			},
 		)
-		pn.DefineNative("GetChainID",
+		pn.DefineNative("ChainID",
 			gno.Flds( // params
 			),
 			gno.Flds( // results
@@ -229,7 +229,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				m.PushValue(res0)
 			},
 		)
-		pn.DefineNative("GetHeight",
+		pn.DefineNative("Height",
 			gno.Flds( // params
 			),
 			gno.Flds( // results
@@ -245,7 +245,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				m.PushValue(res0)
 			},
 		)
-		pn.DefineNative("GetOrigSend",
+		pn.DefineNative("OrigSend",
 			gno.Flds( // params
 			),
 			gno.Flds( // results
@@ -268,7 +268,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				m.PushValue(res0)
 			},
 		)
-		pn.DefineNative("GetOrigCaller",
+		pn.DefineNative("OrigCaller",
 			gno.Flds( // params
 			),
 			gno.Flds( // results
@@ -286,7 +286,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				m.PushValue(res0)
 			},
 		)
-		pn.DefineNative("GetOrigPkgAddr",
+		pn.DefineNative("OrigPkgAddr",
 			gno.Flds( // params
 			),
 			gno.Flds( // results
@@ -304,7 +304,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				m.PushValue(res0)
 			},
 		)
-		pn.DefineNative("GetCallerAt",
+		pn.DefineNative("CallerAt",
 			gno.Flds( // params
 				"n", "int",
 			),
@@ -315,7 +315,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				arg0 := m.LastBlock().GetParams1().TV
 				n := arg0.GetInt()
 				if n <= 0 {
-					m.Panic(typedString("GetCallerAt requires positive arg"))
+					m.Panic(typedString("CallerAt requires positive arg"))
 					return
 				}
 				if n > m.NumFrames() {
@@ -343,7 +343,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				m.PushValue(res0)
 			},
 		)
-		pn.DefineNative("GetBanker",
+		pn.DefineNative("Banker",
 			gno.Flds( // params
 				"bankerType", "BankerType",
 			),
@@ -380,7 +380,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			},
 		)
 		// XXX DEPRECATED, use stdlibs/time instead
-		pn.DefineNative("GetTimestamp",
+		pn.DefineNative("Timestamp",
 			gno.Flds( // params
 			),
 			gno.Flds( // results
