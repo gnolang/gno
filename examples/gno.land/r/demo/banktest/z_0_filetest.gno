@@ -6,8 +6,8 @@ package main
 import (
 	"std"
 
-	"gno.land/r/demo/banktest"
 	"gno.land/p/demo/testutils"
+	"gno.land/r/demo/banktest"
 )
 
 func main() {

@@ -1,37 +1,38 @@
 package main
 
- import (
- 	"std"
- 	"gno.land/p/demo/testutils"
- )
+import (
+	"std"
 
- func main() {
- 	mainAddr := std.DerivePkgAddr("main")
- 	addr1 := testutils.TestAddress("test1")
+	"gno.land/p/demo/testutils"
+)
 
- 	banker := std.GetBanker(std.BankerTypeReadonly)
+func main() {
+	mainAddr := std.DerivePkgAddr("main")
+	addr1 := testutils.TestAddress("test1")
 
- 	balance := banker.GetCoins(mainAddr)
- 	println("balance of main: ", balance) // issued initially
+	banker := std.GetBanker(std.BankerTypeReadonly)
 
- 	balance = banker.GetCoins(addr1)
- 	println("balance of test1 before send: ", balance)
+	balance := banker.GetCoins(mainAddr)
+	println("balance of main: ", balance) // issued initially
 
- 	sent := std.GetOrigSend() // read from context
- 	println("OrigSend (read from ctx) before send is: ", sent)
+	balance = banker.GetCoins(addr1)
+	println("balance of test1 before send: ", balance)
 
- 	testutils.TestOrigSend(addr1, std.Coins{{"ugnot", 8}}, nil)
+	sent := std.GetOrigSend() // read from context
+	println("OrigSend (read from ctx) before send is: ", sent)
 
- 	balance = banker.GetCoins(addr1)
- 	println("balance of test1 after send: ", balance)
+	testutils.TestOrigSend(addr1, std.Coins{{"ugnot", 8}}, nil)
 
- 	sent = std.GetOrigSend() // read from context
- 	println("OrigSend (read from ctx) after send is: ", sent)
- }
+	balance = banker.GetCoins(addr1)
+	println("balance of test1 after send: ", balance)
 
- // Output:
- // balance of main:  200000000ugnot
- // balance of test1 before send:
- // OrigSend (read from ctx) before send is:
- // balance of test1 after send:  8ugnot
- // OrigSend (read from ctx) after send is:  8ugnot
+	sent = std.GetOrigSend() // read from context
+	println("OrigSend (read from ctx) after send is: ", sent)
+}
+
+// Output:
+// balance of main:  200000000ugnot
+// balance of test1 before send:
+// OrigSend (read from ctx) before send is:
+// balance of test1 after send:  8ugnot
+// OrigSend (read from ctx) after send is:  8ugnot

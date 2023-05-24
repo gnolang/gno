@@ -1,10 +1,10 @@
 package testutils
 
- import "std"
+import "std"
 
- func TestOrigSend(to std.Address, coins std.Coins, spent std.Coins) {
- 	// issue coins
- 	std.TestIssueCoins(to, coins)
- 	// set context variable
- 	std.TestSetOrigSend(coins, spent)
- }
+func TestOrigSend(to std.Address, coins std.Coins, spent std.Coins) {
+	// issue coins
+	std.TestIssueCoins(to, coins)
+	// set context variable
+	std.TestSetOrigSend(coins, spent)
+}
