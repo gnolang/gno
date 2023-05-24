@@ -141,7 +141,7 @@ func TestSetApprovalForAll(t *testing.T) {
 		t.Errorf("should not be nil")
 	}
 
-	caller := std.GetOrigCaller()
+	caller := std.OrigCaller()
 	addr := users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm").Resolve()
 
 	isApprovedForAll := dummy.IsApprovedForAll(caller, addr)
@@ -176,7 +176,7 @@ func TestSafeTransferFrom(t *testing.T) {
 		t.Errorf("should not be nil")
 	}
 
-	caller := std.GetOrigCaller()
+	caller := std.OrigCaller()
 	addr := users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm").Resolve()
 
 	tid := TokenID("1")
@@ -223,7 +223,7 @@ func TestSafeBatchTransferFrom(t *testing.T) {
 		t.Errorf("should not be nil")
 	}
 
-	caller := std.GetOrigCaller()
+	caller := std.OrigCaller()
 	addr := users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm").Resolve()
 
 	tid1 := TokenID("1")

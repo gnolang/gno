@@ -21,32 +21,32 @@ func CurrentRealmPath() string {
 	return ""
 }
 
-func GetChainID() string {
+func ChainID() string {
 	panic(shimWarn)
 	return ""
 }
 
-func GetHeight() int64 {
+func Height() int64 {
 	panic(shimWarn)
 	return -1
 }
 
-func GetOrigSend() Coins {
+func OrigSend() Coins {
 	panic(shimWarn)
 	return Coins{}
 }
 
-func GetOrigCaller() Address {
+func OrigCaller() Address {
 	panic(shimWarn)
 	return Address("")
 }
 
-func GetOrigPkgAddr() Address {
+func OrigPkgAddr() Address {
 	panic(shimWarn)
 	return Address("")
 }
 
-func GetCallerAt(n int) Address {
+func CallerAt(n int) Address {
 	panic(shimWarn)
 	return Address("")
 }
@@ -56,7 +56,7 @@ func Banker(bankerType BankerType) Banker {
 	return nil
 }
 
-func GetTimestamp() Time {
+func Timestamp() Time {
 	panic(shimWarn)
 	return 0
 }

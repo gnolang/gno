@@ -39,8 +39,8 @@ type userVault struct {
 }
 
 func (v *impl) Deposit(amount uint, recover std.Address, lockDuration uint) error {
-	caller := std.GetOrigCaller()
-	pkgAddr := std.GetOrigPkgAddr()
+	caller := std.OrigCaller()
+	pkgAddr := std.OrigPkgAddr()
 
 	uv := userVault{
 		lockDuration:    lockDuration,
@@ -60,7 +60,7 @@ func (v *impl) Deposit(amount uint, recover std.Address, lockDuration uint) erro
 }
 
 func (v *impl) Unvault(amount uint) error {
-	caller := std.GetOrigCaller()
+	caller := std.OrigCaller()
 	uv, err := v.getUserVault(caller)
 	if err != nil {
 		return err
@@ -74,24 +74,24 @@ func (v *impl) Unvault(amount uint) error {
 		return grc20.ErrInsufficientBalance
 	}
 
-	println("AAA1", std.GetHeight(), uv.redeemMinHeight, uv.lockDuration)
-	uv.redeemMinHeight = std.GetHeight() + int64(uv.lockDuration)
+	println("AAA1", std.Height(), uv.redeemMinHeight, uv.lockDuration)
+	uv.redeemMinHeight = std.Height() + int64(uv.lockDuration)
 	uv.unvaultedAmount += amount
 	v.users.Set(caller.String(), uv)
-	println("AAA2", std.GetHeight(), uv.redeemMinHeight, uv.lockDuration)
+	println("AAA2", std.Height(), uv.redeemMinHeight, uv.lockDuration)
 	return nil
 }
 
 func (v *impl) Redeem() error {
-	pkgAddr := std.GetOrigPkgAddr()
-	caller := std.GetOrigCaller()
+	pkgAddr := std.OrigPkgAddr()
+	caller := std.OrigCaller()
 	uv, err := v.getUserVault(caller)
 	if err != nil {
 		return err
 	}
 
-	println("AAA3", std.GetHeight(), uv.redeemMinHeight, uv.lockDuration)
-	if std.GetHeight() < uv.redeemMinHeight {
+	println("AAA3", std.Height(), uv.redeemMinHeight, uv.lockDuration)
+	if std.Height() < uv.redeemMinHeight {
 		return ErrTooEarlyToRedeem
 	}
 	// TODO: check balance. (should be optional, but let's be sure).

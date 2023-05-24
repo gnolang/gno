@@ -26,7 +26,7 @@ type peerState struct {
 	height int64
 }
 
-func (ps peerState) GetHeight() int64 {
+func (ps peerState) Height() int64 {
 	return ps.height
 }
 

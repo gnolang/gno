@@ -74,7 +74,7 @@ func (grc *token) SafeTransferFrom(from, to std.Address, tid grc721.TokenID) {
 }
 
 func (grc *token) TransferFrom(from, to std.Address, tid grc721.TokenID) {
-	caller := std.GetCallerAt(2)
+	caller := std.CallerAt(2)
 	token, ok := grc.getToken(tid)
 	// Throws if `_tokenId` is not a valid NFT.
 	if !ok {
@@ -101,7 +101,7 @@ func (grc *token) TransferFrom(from, to std.Address, tid grc721.TokenID) {
 }
 
 func (grc *token) Approve(approved std.Address, tid grc721.TokenID) {
-	caller := std.GetCallerAt(2)
+	caller := std.CallerAt(2)
 	token, ok := grc.getToken(tid)
 	// Throws if `_tokenId` is not a valid NFT.
 	if !ok {
@@ -121,7 +121,7 @@ func (grc *token) Approve(approved std.Address, tid grc721.TokenID) {
 
 // XXX make it work for set of operators.
 func (grc *token) SetApprovalForAll(operator std.Address, approved bool) {
-	caller := std.GetCallerAt(2)
+	caller := std.CallerAt(2)
 	grc.operators.Set(caller.String(), operator)
 }
 

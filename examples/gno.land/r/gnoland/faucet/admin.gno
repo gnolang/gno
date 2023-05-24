@@ -79,7 +79,7 @@ func AdminRemoveController(addr std.Address) string {
 }
 
 func assertIsAdmin() error {
-	caller := std.GetOrigCaller()
+	caller := std.OrigCaller()
 	if caller != gAdminAddr {
 		return errors.New("restricted for admin")
 	}

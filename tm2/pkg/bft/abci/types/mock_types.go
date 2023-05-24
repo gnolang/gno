@@ -16,11 +16,11 @@ type MockHeader struct {
 
 func (MockHeader) AssertABCIHeader() {}
 
-func (mh MockHeader) GetChainID() string {
+func (mh MockHeader) ChainID() string {
 	return mh.ChainID
 }
 
-func (mh MockHeader) GetHeight() int64 {
+func (mh MockHeader) Height() int64 {
 	return mh.Height
 }
 

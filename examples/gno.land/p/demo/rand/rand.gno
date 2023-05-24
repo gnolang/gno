@@ -55,15 +55,15 @@ func (i *Instance) addEntropy() {
 
 	// handle callers
 	{
-		caller1 := std.GetCallerAt(1).String()
+		caller1 := std.CallerAt(1).String()
 		i.djb2String(caller1)
-		caller2 := std.GetCallerAt(2).String()
+		caller2 := std.CallerAt(2).String()
 		i.djb2String(caller2)
 	}
 
 	// height
 	{
-		height := std.GetHeight()
+		height := std.Height()
 		i.djb2Int64(height)
 	}
 

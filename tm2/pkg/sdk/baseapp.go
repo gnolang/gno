@@ -498,13 +498,13 @@ func handleQueryCustom(app *BaseApp, path []string, req abci.RequestQuery) (res 
 }
 
 func (app *BaseApp) validateHeight(req abci.RequestBeginBlock) error {
-	if req.Header.GetHeight() < 1 {
-		return fmt.Errorf("invalid height: %d", req.Header.GetHeight())
+	if req.Header.Height() < 1 {
+		return fmt.Errorf("invalid height: %d", req.Header.Height())
 	}
 
 	prevHeight := app.LastBlockHeight()
-	if req.Header.GetHeight() != prevHeight+1 {
-		return fmt.Errorf("invalid height: %d; expected: %d", req.Header.GetHeight(), prevHeight+1)
+	if req.Header.Height() != prevHeight+1 {
+		return fmt.Errorf("invalid height: %d; expected: %d", req.Header.Height(), prevHeight+1)
 	}
 
 	return nil
@@ -858,7 +858,7 @@ func (app *BaseApp) Commit() (res abci.ResponseCommit) {
 	var halt bool
 
 	switch {
-	case app.haltHeight > 0 && uint64(header.GetHeight()) >= app.haltHeight:
+	case app.haltHeight > 0 && uint64(header.Height()) >= app.haltHeight:
 		halt = true
 
 	case app.haltTime > 0 && header.GetTime().Unix() >= int64(app.haltTime):

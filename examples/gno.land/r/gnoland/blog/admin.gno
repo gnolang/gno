@@ -15,7 +15,7 @@ var (
 )
 
 func init() {
-	// adminAddr = std.GetOrigCaller() // FIXME: find a way to use this from the main's genesis.
+	// adminAddr = std.OrigCaller() // FIXME: find a way to use this from the main's genesis.
 	adminAddr = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"
 }
 
@@ -41,7 +41,7 @@ func AdminRemoveModerator(addr std.Address) {
 func ModAddPost(slug, title, body, tags string) {
 	assertIsModerator()
 
-	caller := std.GetOrigCaller()
+	caller := std.OrigCaller()
 	tagList := strings.Split(tags, ",")
 	err := b.NewPost(caller, slug, title, body, tagList)
 	checkErr(err)
@@ -87,14 +87,14 @@ func isCommenter(addr std.Address) bool {
 }
 
 func assertIsAdmin() {
-	caller := std.GetOrigCaller()
+	caller := std.OrigCaller()
 	if !isAdmin(caller) {
 		panic("access restricted.")
 	}
 }
 
 func assertIsModerator() {
-	caller := std.GetOrigCaller()
+	caller := std.OrigCaller()
 	if isAdmin(caller) || isModerator(caller) {
 		return
 	}
@@ -102,7 +102,7 @@ func assertIsModerator() {
 }
 
 func assertIsCommenter() {
-	caller := std.GetOrigCaller()
+	caller := std.OrigCaller()
 	if isAdmin(caller) || isModerator(caller) || isCommenter(caller) {
 		return
 	}

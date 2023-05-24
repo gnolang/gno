@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	realmAddr std.Address = std.GetOrigPkgAddr()
+	realmAddr std.Address = std.OrigPkgAddr()
 )
 
 func main() {

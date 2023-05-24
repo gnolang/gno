@@ -327,7 +327,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				}
 				var pkgAddr string
 				if n == m.NumFrames() {
-					// This makes it consistent with GetOrigCaller.
+					// This makes it consistent with OrigCaller.
 					ctx := m.Context.(ExecContext)
 					pkgAddr = string(ctx.OrigCaller)
 				} else {

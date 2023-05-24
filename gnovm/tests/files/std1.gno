@@ -3,7 +3,7 @@ package main
 import "std"
 
 func main() {
-	timestamp := std.GetTimestamp()
+	timestamp := std.Timestamp()
 	result := std.FormatTimestamp(timestamp, "Jan 2, 2006 at 3:04pm (MST)")
 	println(result)
 }
