@@ -42,8 +42,8 @@ func Transfer(to std.Address, send int64) string {
 	gTotalTransferred = gTotalTransferred.Add(sendCoins)
 	gTotalTransfers++
 
-	banker := std.GetBanker(std.BankerTypeRealmSend)
-	pkgaddr := std.GetOrigPkgAddr()
+	banker := std.Banker(std.BankerTypeRealmSend)
+	pkgaddr := std.OrigPkgAddr()
 	banker.SendCoins(pkgaddr, to, sendCoins)
 	return ""
 }
@@ -53,8 +53,8 @@ func GetPerTransferLimit() int64 {
 }
 
 func Render(_ string) string {
-	banker := std.GetBanker(std.BankerTypeRealmSend)
-	balance := banker.GetCoins(std.GetOrigPkgAddr())
+	banker := std.Banker(std.BankerTypeRealmSend)
+	balance := banker.Coins(std.OrigPkgAddr())
 
 	output := gMessage
 	if gInPause {
@@ -65,7 +65,7 @@ func Render(_ string) string {
 	output += ufmt.Sprintf("Balance: %s.\n", balance.String())
 	output += ufmt.Sprintf("Total transfers: %s (in %d times).\n\n", gTotalTransferred.String(), gTotalTransfers)
 
-	output += "Package address: " + std.GetOrigPkgAddr().String() + "\n\n"
+	output += "Package address: " + std.OrigPkgAddr().String() + "\n\n"
 	output += ufmt.Sprintf("Admin: %s\n\n ", gAdminAddr.String())
 	output += ufmt.Sprintf("Controllers:\n\n ")
 
@@ -81,7 +81,7 @@ func Render(_ string) string {
 }
 
 func assertIsController() error {
-	caller := std.GetOrigCaller()
+	caller := std.OrigCaller()
 
 	ok := gControllers.Has(caller.String())
 	if !ok {

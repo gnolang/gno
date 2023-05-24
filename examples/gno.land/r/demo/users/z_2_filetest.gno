@@ -12,7 +12,7 @@ import (
 const admin = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 func main() {
-	caller := std.GetOrigCaller() // main
+	caller := std.OrigCaller() // main
 	users.Register("", "gnouser", "my profile")
 	// as admin, grant invites to gnouser
 	std.TestSetOrigCaller(admin)

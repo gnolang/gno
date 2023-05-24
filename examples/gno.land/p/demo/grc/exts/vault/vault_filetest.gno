@@ -14,7 +14,7 @@ func main() {
 	alice := testutils.TestAddress("alice")
 	bob := testutils.TestAddress("bob")       // recovery request address (cold wallet).
 	charly := testutils.TestAddress("charly") // recovery dest.
-	pkgaddr := std.GetOrigPkgAddr()
+	pkgaddr := std.OrigPkgAddr()
 
 	// create a fooAdminToken + fooToken (GRC20) pair.
 	fooAdminToken := grc20.NewAdminToken("Foo", "FOO", 4)
@@ -28,7 +28,7 @@ func main() {
 		pkgBalance, _ := fooToken.BalanceOf(pkgaddr)
 		println(ufmt.Sprintf(
 			"balances: alice=%d, bob=%d, charly=%d, pkg=%d, height=%d",
-			aliceBalance, bobBalance, charlyBalance, pkgBalance, std.GetHeight(),
+			aliceBalance, bobBalance, charlyBalance, pkgBalance, std.Height(),
 		))
 	}
 

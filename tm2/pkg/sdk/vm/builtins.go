@@ -91,9 +91,9 @@ func NewSDKBanker(vmk *VMKeeper, ctx sdk.Context) *SDKBanker {
 	}
 }
 
-func (bnk *SDKBanker) GetCoins(b32addr crypto.Bech32Address) (dst std.Coins) {
+func (bnk *SDKBanker) Coins(b32addr crypto.Bech32Address) (dst std.Coins) {
 	addr := crypto.MustAddressFromString(string(b32addr))
-	coins := bnk.vmk.bank.GetCoins(bnk.ctx, addr)
+	coins := bnk.vmk.bank.Coins(bnk.ctx, addr)
 	return coins
 }
 

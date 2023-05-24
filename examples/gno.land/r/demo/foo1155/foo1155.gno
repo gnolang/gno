@@ -80,7 +80,7 @@ func BatchTransferFrom(from, to users.AddressOrName, batch []grc1155.TokenID, am
 // Admin
 
 func Mint(to users.AddressOrName, tid grc1155.TokenID, amount uint64) {
-	caller := std.GetOrigCaller()
+	caller := std.OrigCaller()
 	assertIsAdmin(caller)
 	err := foo.SafeMint(to.Resolve(), tid, amount)
 	if err != nil {
@@ -89,7 +89,7 @@ func Mint(to users.AddressOrName, tid grc1155.TokenID, amount uint64) {
 }
 
 func MintBatch(to users.AddressOrName, batch []grc1155.TokenID, amounts []uint64) {
-	caller := std.GetOrigCaller()
+	caller := std.OrigCaller()
 	assertIsAdmin(caller)
 	err := foo.SafeBatchMint(to.Resolve(), batch, amounts)
 	if err != nil {
@@ -98,7 +98,7 @@ func MintBatch(to users.AddressOrName, batch []grc1155.TokenID, amounts []uint64
 }
 
 func Burn(from users.AddressOrName, tid grc1155.TokenID, amount uint64) {
-	caller := std.GetOrigCaller()
+	caller := std.OrigCaller()
 	assertIsAdmin(caller)
 	err := foo.Burn(from.Resolve(), tid, amount)
 	if err != nil {
@@ -107,7 +107,7 @@ func Burn(from users.AddressOrName, tid grc1155.TokenID, amount uint64) {
 }
 
 func BurnBatch(from users.AddressOrName, batch []grc1155.TokenID, amounts []uint64) {
-	caller := std.GetOrigCaller()
+	caller := std.OrigCaller()
 	assertIsAdmin(caller)
 	err := foo.BatchBurn(from.Resolve(), batch, amounts)
 	if err != nil {

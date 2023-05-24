@@ -95,11 +95,11 @@ func (bank DummyBankKeeper) SendCoins(ctx sdk.Context, fromAddr crypto.Address, 
 		toAcc = bank.acck.NewAccountWithAddress(ctx, toAddr)
 	}
 
-	newFromCoins := fromAcc.GetCoins().SubUnsafe(amt)
+	newFromCoins := fromAcc.Coins().SubUnsafe(amt)
 	if !newFromCoins.IsValid() {
-		return std.ErrInsufficientCoins(fromAcc.GetCoins().String())
+		return std.ErrInsufficientCoins(fromAcc.Coins().String())
 	}
-	newToCoins := toAcc.GetCoins().Add(amt)
+	newToCoins := toAcc.Coins().Add(amt)
 	if err := fromAcc.SetCoins(newFromCoins); err != nil {
 		return std.ErrInternal(err.Error())
 	}

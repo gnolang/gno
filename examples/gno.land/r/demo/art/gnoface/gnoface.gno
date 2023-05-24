@@ -10,7 +10,7 @@ import (
 )
 
 func Render(path string) string {
-	seed := std.GetHeight()
+	seed := std.Height()
 
 	path = strings.TrimSpace(path)
 	if path != "" {

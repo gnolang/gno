@@ -1,6 +1,6 @@
 package std
 
-// Realm functions can call std.GetBanker(options) to get
+// Realm functions can call std.Banker(options) to get
 // a banker instance. Banker objects cannot be persisted,
 // but can be passed onto other functions to be transacted
 // on. A banker instance can be passed onto other realm
@@ -15,7 +15,7 @@ package std
 // type, and those can't return non-primitive objects
 // (without confusion).
 type Banker interface {
-	GetCoins(addr Address) (dst Coins)
+	Coins(addr Address) (dst Coins)
 	SendCoins(from, to Address, amt Coins)
 	TotalCoin(denom string) int64
 	IssueCoin(addr Address, denom string, amount int64)
@@ -44,9 +44,9 @@ type bankAdapter struct {
 	nativeBanker Banker
 }
 
-func (ba bankAdapter) GetCoins(addr Address) (dst Coins) {
+func (ba bankAdapter) Coins(addr Address) (dst Coins) {
 	// convert native -> gno
-	coins := ba.nativeBanker.GetCoins(addr)
+	coins := ba.nativeBanker.Coins(addr)
 	for _, coin := range coins {
 		dst = append(dst, (Coin)(coin))
 	}

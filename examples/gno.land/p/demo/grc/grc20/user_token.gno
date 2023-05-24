@@ -27,7 +27,7 @@ func (t *userToken) BalanceOf(owner std.Address) (uint64, error) {
 }
 
 func (t *userToken) Transfer(to std.Address, amount uint64) error {
-	owner := std.GetOrigCaller()
+	owner := std.OrigCaller()
 	return t.admin.transfer(owner, to, amount)
 }
 
@@ -36,12 +36,12 @@ func (t *userToken) Allowance(owner, spender std.Address) (uint64, error) {
 }
 
 func (t *userToken) Approve(spender std.Address, amount uint64) error {
-	owner := std.GetOrigCaller()
+	owner := std.OrigCaller()
 	return t.admin.approve(owner, spender, amount)
 }
 
 func (t *userToken) TransferFrom(from, to std.Address, amount uint64) error {
-	spender := std.GetOrigCaller()
+	spender := std.OrigCaller()
 	if err := t.admin.spendAllowance(from, spender, amount); err != nil {
 		return err
 	}

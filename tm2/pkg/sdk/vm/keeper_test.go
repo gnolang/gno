@@ -23,7 +23,7 @@ func TestVMKeeperOrigSend1(t *testing.T) {
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
 	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
-	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+	assert.True(t, env.bank.Coins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 	// Create test package.
 	files := []*std.MemFile{
@@ -36,10 +36,10 @@ func init() {
 }
 
 func Echo(msg string) string {
-	addr := std.GetOrigCaller()
-	pkgAddr := std.GetOrigPkgAddr()
-	send := std.GetOrigSend()
-	banker := std.GetBanker(std.BankerTypeOrigSend)
+	addr := std.OrigCaller()
+	pkgAddr := std.OrigPkgAddr()
+	send := std.OrigSend()
+	banker := std.Banker(std.BankerTypeOrigSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }`},
@@ -68,7 +68,7 @@ func TestVMKeeperOrigSend2(t *testing.T) {
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
 	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
-	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+	assert.True(t, env.bank.Coins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 	// Create test package.
 	files := []*std.MemFile{
@@ -80,14 +80,14 @@ import "std"
 var admin std.Address
 
 func init() {
-     admin =	std.GetOrigCaller()
+     admin =	std.OrigCaller()
 }
 
 func Echo(msg string) string {
-	addr := std.GetOrigCaller()
-	pkgAddr := std.GetOrigPkgAddr()
-	send := std.GetOrigSend()
-	banker := std.GetBanker(std.BankerTypeOrigSend)
+	addr := std.OrigCaller()
+	pkgAddr := std.OrigPkgAddr()
+	send := std.OrigSend()
+	banker := std.Banker(std.BankerTypeOrigSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }
@@ -122,7 +122,7 @@ func TestVMKeeperOrigSend3(t *testing.T) {
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
 	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
-	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+	assert.True(t, env.bank.Coins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 	// Create test package.
 	files := []*std.MemFile{
@@ -135,10 +135,10 @@ func init() {
 }
 
 func Echo(msg string) string {
-	addr := std.GetOrigCaller()
-	pkgAddr := std.GetOrigPkgAddr()
+	addr := std.OrigCaller()
+	pkgAddr := std.OrigPkgAddr()
 	send := std.Coins{{"ugnot", 10000000}}
-	banker := std.GetBanker(std.BankerTypeOrigSend)
+	banker := std.Banker(std.BankerTypeOrigSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }`},
@@ -166,7 +166,7 @@ func TestVMKeeperRealmSend1(t *testing.T) {
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
 	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
-	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+	assert.True(t, env.bank.Coins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 	// Create test package.
 	files := []*std.MemFile{
@@ -179,10 +179,10 @@ func init() {
 }
 
 func Echo(msg string) string {
-	addr := std.GetOrigCaller()
-	pkgAddr := std.GetOrigPkgAddr()
+	addr := std.OrigCaller()
+	pkgAddr := std.OrigPkgAddr()
 	send := std.Coins{{"ugnot", 10000000}}
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker := std.Banker(std.BankerTypeRealmSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }`},
@@ -210,7 +210,7 @@ func TestVMKeeperRealmSend2(t *testing.T) {
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
 	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
-	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+	assert.True(t, env.bank.Coins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 	// Create test package.
 	files := []*std.MemFile{
@@ -223,10 +223,10 @@ func init() {
 }
 
 func Echo(msg string) string {
-	addr := std.GetOrigCaller()
-	pkgAddr := std.GetOrigPkgAddr()
+	addr := std.OrigCaller()
+	pkgAddr := std.OrigPkgAddr()
 	send := std.Coins{{"ugnot", 10000000}}
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker := std.Banker(std.BankerTypeRealmSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }`},
@@ -254,7 +254,7 @@ func TestVMKeeperOrigCallerInit(t *testing.T) {
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
 	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
-	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+	assert.True(t, env.bank.Coins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 	// Create test package.
 	files := []*std.MemFile{
@@ -266,14 +266,14 @@ import "std"
 var admin std.Address
 
 func init() {
-     admin =	std.GetOrigCaller()
+     admin =	std.OrigCaller()
 }
 
 func Echo(msg string) string {
-	addr := std.GetOrigCaller()
-	pkgAddr := std.GetOrigPkgAddr()
-	send := std.GetOrigSend()
-	banker := std.GetBanker(std.BankerTypeOrigSend)
+	addr := std.OrigCaller()
+	pkgAddr := std.OrigPkgAddr()
+	send := std.OrigSend()
+	banker := std.Banker(std.BankerTypeOrigSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }

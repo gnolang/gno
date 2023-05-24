@@ -21,7 +21,7 @@ func NonnegativeBalanceInvariant(acck auth.AccountKeeper) sdk.Invariant {
 
 		accts := acck.GetAllAccounts(ctx)
 		for _, acc := range accts {
-			coins := acc.GetCoins()
+			coins := acc.Coins()
 			if coins.IsAnyNegative() {
 				count++
 				msg += fmt.Sprintf("\t%s has a negative denomination of %s\n",

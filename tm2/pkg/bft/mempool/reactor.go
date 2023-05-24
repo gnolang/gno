@@ -175,7 +175,7 @@ func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 
 // PeerState describes the state of a peer.
 type PeerState interface {
-	GetHeight() int64
+	Height() int64
 }
 
 // Send new mempool txs to peer.
@@ -220,7 +220,7 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 			time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
 			continue
 		}
-		if peerState.GetHeight() < memTx.Height()-1 { // Allow for a lag of 1 block
+		if peerState.Height() < memTx.Height()-1 { // Allow for a lag of 1 block
 			time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
 			continue
 		}

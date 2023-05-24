@@ -108,8 +108,8 @@ func assertNoErr(t *testing.T, err string) {
 
 func assertBalance(t *testing.T, addr std.Address, expectedBal int64) {
 	t.Helper()
-	banker := std.GetBanker(std.BankerTypeReadonly)
-	coins := banker.GetCoins(addr)
+	banker := std.Banker(std.BankerTypeReadonly)
+	coins := banker.Coins(addr)
 	got := coins.AmountOf("ugnot")
 
 	if expectedBal != got {

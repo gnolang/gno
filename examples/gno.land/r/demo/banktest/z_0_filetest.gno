@@ -16,8 +16,8 @@ func main() {
 	mainaddr := std.DerivePkgAddr("main")
 	std.TestSetOrigCaller(mainaddr)
 
-	banker := std.GetBanker(std.BankerTypeReadonly)
-	mainbal := banker.GetCoins(mainaddr)
+	banker := std.Banker(std.BankerTypeReadonly)
+	mainbal := banker.Coins(mainaddr)
 	println("main before:", mainbal) // plus OrigSend equals 300.
 
 	// simulate a Deposit call.
@@ -28,7 +28,7 @@ func main() {
 	println("Deposit():", res)
 
 	// print main balance after.
-	mainbal = banker.GetCoins(mainaddr)
+	mainbal = banker.Coins(mainaddr)
 	println("main after:", mainbal) // still 300.
 
 	// simulate a Render().

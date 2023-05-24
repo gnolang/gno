@@ -5,7 +5,7 @@ import (
 )
 
 func main() {
-	caller1 := std.GetCallerAt(1)
+	caller1 := std.CallerAt(1)
 	println(caller1)
 }
 

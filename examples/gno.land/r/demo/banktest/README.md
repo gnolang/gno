@@ -50,7 +50,7 @@ realm and non-realm package boundaries (in the call stack).
 // Deposit will take the coins (to the realm's pkgaddr) or return them to user.
 func Deposit(returnDenom string, returnAmount int64) string {
     std.AssertOriginCall()
-    caller := std.GetOrigCaller()
+    caller := std.OrigCaller()
     send := std.Coins{{returnDenom, returnAmount}}
 ```
 
@@ -64,7 +64,7 @@ message.
     // record activity
     act := &activity{
         caller:   caller,
-        sent:     std.GetOrigSend(),
+        sent:     std.OrigSend(),
         returned: send,
         time:     time.Now(),
     }
@@ -84,13 +84,13 @@ Updating the "latest" array for viewing at gno.land/r/banktest: (w/ trailing col
 If the user requested the return of coins...
 
 ```go
-        banker := std.GetBanker(std.BankerTypeOrigSend)
+        banker := std.Banker(std.BankerTypeOrigSend)
 ```
 
 use a std.Banker instance to return any deposited coins to the original sender.
 
 ```go
-        pkgaddr := std.GetOrigPkgAddr()
+        pkgaddr := std.OrigPkgAddr()
         // TODO: use std.Coins constructors, this isn't generally safe.
         banker.SendCoins(pkgaddr, caller, send)
         return "returned!"
@@ -104,8 +104,8 @@ Finally, the results are rendered via an ABCI query call when you visit [/r/bank
 ```go
 func Render(path string) string {
     // get realm coins.
-    banker := std.GetBanker(std.BankerTypeReadonly)
-    coins := banker.GetCoins(std.GetOrigPkgAddr())
+    banker := std.Banker(std.BankerTypeReadonly)
+    coins := banker.Coins(std.OrigPkgAddr())
 
     // render
     res := ""

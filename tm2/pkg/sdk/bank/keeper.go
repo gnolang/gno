@@ -124,7 +124,7 @@ func (bank BankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt s
 	oldCoins := std.NewCoins()
 	acc := bank.acck.GetAccount(ctx, addr)
 	if acc != nil {
-		oldCoins = acc.GetCoins()
+		oldCoins = acc.Coins()
 	}
 
 	newCoins := oldCoins.SubUnsafe(amt)
@@ -145,7 +145,7 @@ func (bank BankKeeper) AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Co
 		return nil, std.ErrInvalidCoins(amt.String())
 	}
 
-	oldCoins := bank.GetCoins(ctx, addr)
+	oldCoins := bank.Coins(ctx, addr)
 	newCoins := oldCoins.Add(amt)
 
 	if !newCoins.IsValid() {
@@ -184,7 +184,7 @@ func (bank BankKeeper) SetCoins(ctx sdk.Context, addr crypto.Address, amt std.Co
 // ViewKeeperI defines a module interface that facilitates read only access to
 // account balances.
 type ViewKeeperI interface {
-	GetCoins(ctx sdk.Context, addr crypto.Address) std.Coins
+	Coins(ctx sdk.Context, addr crypto.Address) std.Coins
 	HasCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) bool
 }
 
@@ -205,16 +205,16 @@ func (view ViewKeeper) Logger(ctx sdk.Context) log.Logger {
 	return ctx.Logger().With("module", fmt.Sprintf("x/%s", ModuleName))
 }
 
-// GetCoins returns the coins at the addr.
-func (view ViewKeeper) GetCoins(ctx sdk.Context, addr crypto.Address) std.Coins {
+// Coins returns the coins at the addr.
+func (view ViewKeeper) Coins(ctx sdk.Context, addr crypto.Address) std.Coins {
 	acc := view.acck.GetAccount(ctx, addr)
 	if acc == nil {
 		return std.NewCoins()
 	}
-	return acc.GetCoins()
+	return acc.Coins()
 }
 
 // HasCoins returns whether or not an account has at least amt coins.
 func (view ViewKeeper) HasCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) bool {
-	return view.GetCoins(ctx, addr).IsAllGTE(amt)
+	return view.Coins(ctx, addr).IsAllGTE(amt)
 }

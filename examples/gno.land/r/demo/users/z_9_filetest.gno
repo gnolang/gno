@@ -10,7 +10,7 @@ import (
 const admin = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 func main() {
-	caller := std.GetOrigCaller() // main
+	caller := std.OrigCaller() // main
 	test2 := testutils.TestAddress("test2")
 	// as admin, invite gnouser and test2
 	std.TestSetOrigCaller(admin)

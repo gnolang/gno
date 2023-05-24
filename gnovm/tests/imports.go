@@ -510,7 +510,7 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				m.PushValue(res0)
 			},
 		)
-		pn.DefineNativeOverride("GetCallerAt",
+		pn.DefineNativeOverride("CallerAt",
 			/*
 				gno.Flds( // params
 					"n", "int",
@@ -523,7 +523,7 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				arg0 := m.LastBlock().GetParams1().TV
 				n := arg0.GetInt()
 				if n <= 0 {
-					m.Panic(typedString("GetCallerAt requires positive arg"))
+					m.Panic(typedString("CallerAt requires positive arg"))
 					return
 				}
 				if n > m.NumFrames()-1 {
@@ -535,7 +535,7 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				}
 				var pkgAddr string
 				if n == m.NumFrames()-1 {
-					// This makes it consistent with GetOrigCaller and TestSetOrigCaller.
+					// This makes it consistent with OrigCaller and TestSetOrigCaller.
 					ctx := m.Context.(stdlibs.ExecContext)
 					pkgAddr = string(ctx.OrigCaller)
 				} else {
