@@ -96,7 +96,7 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.withNativeFallback,
 		"with-native-fallback",
 		false,
-		"use stdlibs/* if present, otherwise use native (only for testing)",
+		"use stdlibs/* if present, otherwise use supported native Go packages",
 	)
 }
 
