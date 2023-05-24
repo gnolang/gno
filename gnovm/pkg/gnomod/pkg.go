@@ -14,6 +14,9 @@ type Pkg struct {
 	requires []string
 }
 
+type PkgList []Pkg
+type SortedPkgList []Pkg
+
 // Name returns the name of the package.
 func (p Pkg) Name() string {
 	return p.name
@@ -35,20 +38,19 @@ func (p Pkg) Requires() []string {
 }
 
 // sortPkgs sorts the given packages by their dependencies.
-func SortPkgs(pkgs []Pkg) error {
+func (pl PkgList) Sort() (SortedPkgList, error) {
 	visited := make(map[string]bool)
 	onStack := make(map[string]bool)
-	sortedPkgs := make([]Pkg, 0, len(pkgs))
+	sortedPkgs := make([]Pkg, 0, len(pl))
 
 	// Visit all packages
-	for _, p := range pkgs {
-		if err := visitPackage(p, pkgs, visited, onStack, &sortedPkgs); err != nil {
-			return err
+	for _, p := range pl {
+		if err := visitPackage(p, pl, visited, onStack, &sortedPkgs); err != nil {
+			return nil, err
 		}
 	}
 
-	copy(pkgs, sortedPkgs)
-	return nil
+	return sortedPkgs, nil
 }
 
 // visitNode visits a package's and its dependencies dependencies and adds them to the sorted list.
@@ -87,9 +89,8 @@ func visitPackage(pkg Pkg, pkgs []Pkg, visited, onStack map[string]bool, sortedP
 }
 
 // ListPkgs lists all gno packages in the given root directory.
-func ListPkgs(root string) ([]Pkg, error) {
+func ListPkgs(root string) (PkgList, error) {
 	var pkgs []Pkg
-	draft := make(map[string]bool)
 
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -116,12 +117,6 @@ func ListPkgs(root string) ([]Pkg, error) {
 			return fmt.Errorf("validate: %w", err)
 		}
 
-		// Ignore if draft
-		if gnoMod.Draft {
-			draft[gnoMod.Module.Mod.Path] = true
-			return fs.SkipDir
-		}
-
 		pkgs = append(pkgs, Pkg{
 			name:  gnoMod.Module.Mod.Path,
 			path:  path,
@@ -140,12 +135,20 @@ func ListPkgs(root string) ([]Pkg, error) {
 		return nil, err
 	}
 
-	return pkgsNotDependsOnDraft(pkgs, draft), nil
+	return pkgs, nil
 }
 
-func pkgsNotDependsOnDraft(pkgs []Pkg, draft map[string]bool) []Pkg {
-	res := make([]Pkg, 0, len(pkgs))
-	for _, pkg := range pkgs {
+// GetNonDraftPkgs returns packages that are not draft
+// and have no direct or indirect draft dependencies.
+func (sp SortedPkgList) GetNonDraftPkgs() SortedPkgList {
+	res := make([]Pkg, 0, len(sp))
+	draft := make(map[string]bool)
+
+	for _, pkg := range sp {
+		if pkg.draft {
+			draft[pkg.name] = true
+			continue
+		}
 		dependsOnDraft := false
 		for _, req := range pkg.requires {
 			if draft[req] {

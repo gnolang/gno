@@ -212,11 +212,17 @@ func makeGenesisDoc(
 	if err != nil {
 		panic(fmt.Errorf("listing gno packages: %w", err))
 	}
-	if err := gnomod.SortPkgs(pkgs); err != nil {
+
+	// Sort packages by dependencies.
+	sortedPkgs, err := pkgs.Sort()
+	if err != nil {
 		panic(fmt.Errorf("sorting packages: %w", err))
 	}
 
-	for _, pkg := range pkgs {
+	// Filter out draft packages.
+	nonDraftPkgs := sortedPkgs.GetNonDraftPkgs()
+
+	for _, pkg := range nonDraftPkgs {
 		// open files in directory as MemPackage.
 		memPkg := gno.ReadMemPackage(pkg.Path(), pkg.Name())
 		var tx std.Tx

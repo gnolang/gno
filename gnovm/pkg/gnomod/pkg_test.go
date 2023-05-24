@@ -10,18 +10,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestListPkgs(t *testing.T) {
+func TestListAndNonDraftPkgs(t *testing.T) {
 	for _, tc := range []struct {
-		desc     string
-		pkg      []struct{ name, modfile string }
-		expected []string
+		desc string
+		in   []struct{ name, modfile string }
+
+		outListPkgs     []string
+		outNonDraftPkgs []string
 	}{
 		{
 			desc: "no packages",
 		},
 		{
 			desc: "no package depends on another package",
-			pkg: []struct{ name, modfile string }{
+			in: []struct{ name, modfile string }{
 				{
 					"foo",
 					`module foo`,
@@ -35,11 +37,12 @@ func TestListPkgs(t *testing.T) {
 					`module baz`,
 				},
 			},
-			expected: []string{"foo", "bar", "baz"},
+			outListPkgs:     []string{"foo", "bar", "baz"},
+			outNonDraftPkgs: []string{"foo", "bar", "baz"},
 		},
 		{
 			desc: "no package depends on draft package",
-			pkg: []struct{ name, modfile string }{
+			in: []struct{ name, modfile string }{
 				{
 					"foo",
 					`module foo`,
@@ -61,11 +64,12 @@ func TestListPkgs(t *testing.T) {
 					module qux`,
 				},
 			},
-			expected: []string{"foo", "bar", "baz"},
+			outListPkgs:     []string{"foo", "bar", "baz", "qux"},
+			outNonDraftPkgs: []string{"foo", "bar", "baz"},
 		},
 		{
 			desc: "package directly depends on draft package",
-			pkg: []struct{ name, modfile string }{
+			in: []struct{ name, modfile string }{
 				{
 					"foo",
 					`// Draft
@@ -82,11 +86,12 @@ func TestListPkgs(t *testing.T) {
 					`module baz`,
 				},
 			},
-			expected: []string{"baz"},
+			outListPkgs:     []string{"foo", "bar", "baz"},
+			outNonDraftPkgs: []string{"baz"},
 		},
 		{
 			desc: "package indirectly depends on draft package",
-			pkg: []struct{ name, modfile string }{
+			in: []struct{ name, modfile string }{
 				{
 					"foo",
 					`// Draft
@@ -110,11 +115,12 @@ func TestListPkgs(t *testing.T) {
 					`module qux`,
 				},
 			},
-			expected: []string{"qux"},
+			outListPkgs:     []string{"foo", "bar", "baz", "qux"},
+			outNonDraftPkgs: []string{"qux"},
 		},
 		{
-			desc: "package indirectly depends on draft package (multiple levels)",
-			pkg: []struct{ name, modfile string }{
+			desc: "package indirectly depends on draft package (multiple levels - 1)",
+			in: []struct{ name, modfile string }{
 				{
 					"foo",
 					`// Draft
@@ -136,11 +142,43 @@ func TestListPkgs(t *testing.T) {
 				{
 					"qux",
 					`module qux
-					
+
 					require baz v0.0.0`,
 				},
 			},
-			expected: []string{},
+			outListPkgs:     []string{"foo", "bar", "baz", "qux"},
+			outNonDraftPkgs: []string{},
+		},
+		{
+			desc: "package indirectly depends on draft package (multiple levels - 2)",
+			in: []struct{ name, modfile string }{
+				{
+					"foo",
+					`// Draft
+
+					module foo`,
+				},
+				{
+					"bar",
+					`module bar
+
+					require qux v0.0.0`,
+				},
+				{
+					"baz",
+					`module baz
+
+					require foo v0.0.0`,
+				},
+				{
+					"qux",
+					`module qux
+
+					require baz v0.0.0`,
+				},
+			},
+			outListPkgs:     []string{"foo", "bar", "baz", "qux"},
+			outNonDraftPkgs: []string{},
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -150,18 +188,27 @@ func TestListPkgs(t *testing.T) {
 			defer cleanUpFn()
 
 			// Create packages
-			for _, p := range tc.pkg {
+			for _, p := range tc.in {
 				createGnoModPkg(t, dirPath, p.name, p.modfile)
 			}
 
 			// List packages
 			pkgs, err := ListPkgs(dirPath)
 			require.NoError(t, err)
-
-			// Check output
-			assert.Equal(t, len(tc.expected), len(pkgs))
+			assert.Equal(t, len(tc.outListPkgs), len(pkgs))
 			for _, p := range pkgs {
-				assert.Contains(t, tc.expected, p.name)
+				assert.Contains(t, tc.outListPkgs, p.name)
+			}
+
+			// Sort packages
+			sorted, err := pkgs.Sort()
+			require.NoError(t, err)
+
+			// Non draft packages
+			nonDraft := sorted.GetNonDraftPkgs()
+			assert.Equal(t, len(tc.outNonDraftPkgs), len(nonDraft))
+			for _, p := range nonDraft {
+				assert.Contains(t, tc.outNonDraftPkgs, p.name)
 			}
 		})
 	}
@@ -182,7 +229,7 @@ func createGnoModPkg(t *testing.T, dirPath, pkgName, modData string) {
 func TestSortPkgs(t *testing.T) {
 	for _, tc := range []struct {
 		desc      string
-		in        []Pkg
+		in        PkgList
 		expected  []string
 		shouldErr bool
 	}{
@@ -222,13 +269,13 @@ func TestSortPkgs(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			err := SortPkgs(tc.in)
+			sorted, err := tc.in.Sort()
 			if tc.shouldErr {
 				assert.Error(t, err)
 			} else {
 				require.NoError(t, err)
 				for i := range tc.expected {
-					assert.Equal(t, tc.expected[i], tc.in[i].name)
+					assert.Equal(t, tc.expected[i], sorted[i].name)
 				}
 			}
 		})
