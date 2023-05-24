@@ -6,6 +6,14 @@ func AssertOriginCall() {
 	panic(shimWarn)
 }
 
+func TestIssueCoins(Address, Coins) {
+	panic(shimWarn)
+}
+
+func TestSetOrigSend(Coins, Coins) {
+	panic(shimWarn)
+}
+
 func IsOriginCall() (isOrigin bool) {
 	panic(shimWarn)
 	return false
