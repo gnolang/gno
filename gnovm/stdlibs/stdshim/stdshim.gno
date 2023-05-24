@@ -6,14 +6,6 @@ func AssertOriginCall() {
 	panic(shimWarn)
 }
 
-func TestIssueCoins(Address, Coins) {
-	panic(shimWarn)
-}
-
-func TestSetOrigSend(Coins, Coins) {
-	panic(shimWarn)
-}
-
 func IsOriginCall() (isOrigin bool) {
 	panic(shimWarn)
 	return false
@@ -84,5 +76,13 @@ func DecodeBech32(addr Address) (prefix string, bytes [20]byte, ok bool) {
 }
 
 func DerivePkgAddr(pkgPath string) (addr Address) {
+	panic(shimWarn)
+}
+
+func TestIssueCoins(Address, Coins) {
+	panic(shimWarn)
+}
+
+func TestSetOrigSend(Coins, Coins) {
 	panic(shimWarn)
 }
