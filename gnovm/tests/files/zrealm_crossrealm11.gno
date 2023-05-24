@@ -3,6 +3,7 @@ package crossrealm_test
 
 import (
 	"std"
+	"strings"
 
 	ptests "gno.land/p/demo/tests"
 	"gno.land/p/demo/ufmt"
@@ -29,7 +30,6 @@ func main() {
 		callersByAddr[addr] = caller
 	}
 
-	baseCallStack := "user1.gno -> r/crossrealm_test.main()"
 	tests := []struct {
 		callStackAdd string
 		callerFn     func() std.Address
@@ -39,7 +39,7 @@ func main() {
 			callerFn:     std.GetRealmCaller,
 		},
 		{
-			callStackAdd: " -> r/crossrealm_test.getRealmCaller()",
+			callStackAdd: " -> r/crossrealm_test.getRealmCaller",
 			callerFn:     getRealmCaller,
 		},
 		{
@@ -63,90 +63,72 @@ func main() {
 			callerFn:     ptests.GetRealmCaller,
 		},
 	}
+
+	println("---") // needed to have space prefixes
+	printColumns("STACK", "std.GetRealmCaller")
+	printColumns("-----", "------------------")
+
+	baseCallStack := "user1.gno -> r/crossrealm_test.main"
 	for i, tt := range tests {
-		callStack := ufmt.Sprintf("%s%s -> std.GetRealmCaller()", baseCallStack, tt.callStackAdd)
-		println(ufmt.Sprintf("STACK CASE %d:\n%s", i, callStack))
-		println(ufmt.Sprintf("\tcaller is %s", callersByAddr[tt.callerFn()]))
+		printColumns(baseCallStack+tt.callStackAdd, callersByAddr[tt.callerFn()])
 		Exec(func() {
-			println(ufmt.Sprintf("wrapped in r/crossrealm_test.Exec:\n\tcaller is %s", callersByAddr[tt.callerFn()]))
+			printColumns(baseCallStack+" -> r/crossrealm_test.Exec"+tt.callStackAdd, callersByAddr[tt.callerFn()])
 		})
 		rtests.Exec(func() {
-			println(ufmt.Sprintf("wrapped in r/demo/tests.Exec:\n\tcaller is %s", callersByAddr[tt.callerFn()]))
+			printColumns(baseCallStack+" -> r/demo/tests.Exec"+tt.callStackAdd, callersByAddr[tt.callerFn()])
 		})
 		ptests.Exec(func() {
-			println(ufmt.Sprintf("wrapped p/demo/tests.Exec:\n\tcaller is %s", callersByAddr[tt.callerFn()]))
+			printColumns(baseCallStack+" -> p/demo/tests.Exec"+tt.callStackAdd, callersByAddr[tt.callerFn()])
 		})
-		println()
 	}
 }
 
+func printColumns(left, right string) {
+	const w = 105
+
+	output := ""
+	padding := w - len(left)
+
+	// strings.Repeat is not always available when using various imports modes.
+	for i := 0; i < padding; i++ {
+		output += " "
+	}
+
+	output += left
+	output += " = "
+	output += right
+	println(output)
+}
+
 // Output:
-// STACK CASE 0:
-// user1.gno -> r/crossrealm_test.main() -> std.GetRealmCaller()
-//	caller is user1.gno
-// wrapped in r/crossrealm_test.Exec:
-//	caller is user1.gno
-// wrapped in r/demo/tests.Exec:
-//	caller is gno.land/r/demo/tests
-// wrapped p/demo/tests.Exec:
-//	caller is user1.gno
-//
-// STACK CASE 1:
-// user1.gno -> r/crossrealm_test.main() -> r/crossrealm_test.getRealmCaller() -> std.GetRealmCaller()
-//	caller is user1.gno
-// wrapped in r/crossrealm_test.Exec:
-//	caller is user1.gno
-// wrapped in r/demo/tests.Exec:
-//	caller is gno.land/r/demo/tests
-// wrapped p/demo/tests.Exec:
-//	caller is user1.gno
-//
-// STACK CASE 2:
-// user1.gno -> r/crossrealm_test.main() -> p/demo/tests -> std.GetRealmCaller()
-//	caller is user1.gno
-// wrapped in r/crossrealm_test.Exec:
-//	caller is user1.gno
-// wrapped in r/demo/tests.Exec:
-//	caller is gno.land/r/demo/tests
-// wrapped p/demo/tests.Exec:
-//	caller is user1.gno
-//
-// STACK CASE 3:
-// user1.gno -> r/crossrealm_test.main() -> p/demo/tests -> p/demo/tests/subtests -> std.GetRealmCaller()
-//	caller is user1.gno
-// wrapped in r/crossrealm_test.Exec:
-//	caller is user1.gno
-// wrapped in r/demo/tests.Exec:
-//	caller is gno.land/r/demo/tests
-// wrapped p/demo/tests.Exec:
-//	caller is user1.gno
-//
-// STACK CASE 4:
-// user1.gno -> r/crossrealm_test.main() -> r/demo/tests -> std.GetRealmCaller()
-//	caller is gno.land/r/crossrealm_test
-// wrapped in r/crossrealm_test.Exec:
-//	caller is gno.land/r/crossrealm_test
-// wrapped in r/demo/tests.Exec:
-//	caller is gno.land/r/crossrealm_test
-// wrapped p/demo/tests.Exec:
-//	caller is gno.land/r/crossrealm_test
-//
-// STACK CASE 5:
-// user1.gno -> r/crossrealm_test.main() -> r/demo/tests -> r/demo/tests/subtests -> std.GetRealmCaller()
-//	caller is gno.land/r/demo/tests
-// wrapped in r/crossrealm_test.Exec:
-//	caller is gno.land/r/demo/tests
-// wrapped in r/demo/tests.Exec:
-//	caller is gno.land/r/demo/tests
-// wrapped p/demo/tests.Exec:
-//	caller is gno.land/r/demo/tests
-//
-// STACK CASE 6:
-// user1.gno -> r/crossrealm_test.main() -> p/demo/tests -> r/demo/tests -> std.GetRealmCaller()
-//	caller is user1.gno
-// wrapped in r/crossrealm_test.Exec:
-//	caller is user1.gno
-// wrapped in r/demo/tests.Exec:
-//	caller is gno.land/r/demo/tests
-// wrapped p/demo/tests.Exec:
-//	caller is user1.gno
+// ---
+//                                                                                                     STACK = std.GetRealmCaller
+//                                                                                                     ----- = ------------------
+//                                                                       user1.gno -> r/crossrealm_test.main = user1.gno
+//                                             user1.gno -> r/crossrealm_test.main -> r/crossrealm_test.Exec = user1.gno
+//                                                  user1.gno -> r/crossrealm_test.main -> r/demo/tests.Exec = gno.land/r/demo/tests
+//                                                  user1.gno -> r/crossrealm_test.main -> p/demo/tests.Exec = user1.gno
+//                                   user1.gno -> r/crossrealm_test.main -> r/crossrealm_test.getRealmCaller = user1.gno
+//         user1.gno -> r/crossrealm_test.main -> r/crossrealm_test.Exec -> r/crossrealm_test.getRealmCaller = user1.gno
+//              user1.gno -> r/crossrealm_test.main -> r/demo/tests.Exec -> r/crossrealm_test.getRealmCaller = gno.land/r/demo/tests
+//              user1.gno -> r/crossrealm_test.main -> p/demo/tests.Exec -> r/crossrealm_test.getRealmCaller = user1.gno
+//                                                       user1.gno -> r/crossrealm_test.main -> p/demo/tests = user1.gno
+//                             user1.gno -> r/crossrealm_test.main -> r/crossrealm_test.Exec -> p/demo/tests = user1.gno
+//                                  user1.gno -> r/crossrealm_test.main -> r/demo/tests.Exec -> p/demo/tests = gno.land/r/demo/tests
+//                                  user1.gno -> r/crossrealm_test.main -> p/demo/tests.Exec -> p/demo/tests = user1.gno
+//                              user1.gno -> r/crossrealm_test.main -> p/demo/tests -> p/demo/tests/subtests = user1.gno
+//    user1.gno -> r/crossrealm_test.main -> r/crossrealm_test.Exec -> p/demo/tests -> p/demo/tests/subtests = user1.gno
+//         user1.gno -> r/crossrealm_test.main -> r/demo/tests.Exec -> p/demo/tests -> p/demo/tests/subtests = gno.land/r/demo/tests
+//         user1.gno -> r/crossrealm_test.main -> p/demo/tests.Exec -> p/demo/tests -> p/demo/tests/subtests = user1.gno
+//                                                       user1.gno -> r/crossrealm_test.main -> r/demo/tests = gno.land/r/crossrealm_test
+//                             user1.gno -> r/crossrealm_test.main -> r/crossrealm_test.Exec -> r/demo/tests = gno.land/r/crossrealm_test
+//                                  user1.gno -> r/crossrealm_test.main -> r/demo/tests.Exec -> r/demo/tests = gno.land/r/crossrealm_test
+//                                  user1.gno -> r/crossrealm_test.main -> p/demo/tests.Exec -> r/demo/tests = gno.land/r/crossrealm_test
+//                              user1.gno -> r/crossrealm_test.main -> r/demo/tests -> r/demo/tests/subtests = gno.land/r/demo/tests
+//    user1.gno -> r/crossrealm_test.main -> r/crossrealm_test.Exec -> r/demo/tests -> r/demo/tests/subtests = gno.land/r/demo/tests
+//         user1.gno -> r/crossrealm_test.main -> r/demo/tests.Exec -> r/demo/tests -> r/demo/tests/subtests = gno.land/r/demo/tests
+//         user1.gno -> r/crossrealm_test.main -> p/demo/tests.Exec -> r/demo/tests -> r/demo/tests/subtests = gno.land/r/demo/tests
+//                                       user1.gno -> r/crossrealm_test.main -> p/demo/tests -> r/demo/tests = user1.gno
+//             user1.gno -> r/crossrealm_test.main -> r/crossrealm_test.Exec -> p/demo/tests -> r/demo/tests = user1.gno
+//                  user1.gno -> r/crossrealm_test.main -> r/demo/tests.Exec -> p/demo/tests -> r/demo/tests = gno.land/r/demo/tests
+//                  user1.gno -> r/crossrealm_test.main -> p/demo/tests.Exec -> p/demo/tests -> r/demo/tests = user1.gno
