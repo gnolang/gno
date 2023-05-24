@@ -4,6 +4,7 @@ import (
 	"std"
 
 	"gno.land/r/demo/banktest"
+	"gno.land/p/demo/testutils"
 )
 
 func main() {
@@ -19,8 +20,7 @@ func main() {
 
 	// simulate a Deposit call.
 	std.TestSetOrigPkgAddr(banktestAddr)
-	std.TestIssueCoins(banktestAddr, std.Coins{{"ugnot", 100000000}})
-	std.TestSetOrigSend(std.Coins{{"ugnot", 100000000}}, nil)
+	testutils.TestOrigSend(banktestAddr, std.Coins{{"ugnot", 100000000}}, nil)
 	res := banktest.Deposit("ugnot", 55000000)
 	println("Deposit():", res)
 
