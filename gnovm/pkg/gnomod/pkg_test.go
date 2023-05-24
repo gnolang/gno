@@ -182,17 +182,17 @@ func createGnoModPkg(t *testing.T, dirPath, pkgName, modData string) {
 func TestSortPkgs(t *testing.T) {
 	for _, tc := range []struct {
 		desc      string
-		in        []pkg
+		in        []Pkg
 		expected  []string
 		shouldErr bool
 	}{
 		{
 			desc:     "empty_input",
-			in:       []pkg{},
+			in:       []Pkg{},
 			expected: make([]string, 0),
 		}, {
 			desc: "no_dependencies",
-			in: []pkg{
+			in: []Pkg{
 				{name: "pkg1", path: "/path/to/pkg1", requires: []string{}},
 				{name: "pkg2", path: "/path/to/pkg2", requires: []string{}},
 				{name: "pkg3", path: "/path/to/pkg3", requires: []string{}},
@@ -200,20 +200,20 @@ func TestSortPkgs(t *testing.T) {
 			expected: []string{"pkg1", "pkg2", "pkg3"},
 		}, {
 			desc: "circular_dependencies",
-			in: []pkg{
+			in: []Pkg{
 				{name: "pkg1", path: "/path/to/pkg1", requires: []string{"pkg2"}},
 				{name: "pkg2", path: "/path/to/pkg2", requires: []string{"pkg1"}},
 			},
 			shouldErr: true,
 		}, {
 			desc: "missing_dependencies",
-			in: []pkg{
+			in: []Pkg{
 				{name: "pkg1", path: "/path/to/pkg1", requires: []string{"pkg2"}},
 			},
 			shouldErr: true,
 		}, {
 			desc: "valid_dependencies",
-			in: []pkg{
+			in: []Pkg{
 				{name: "pkg1", path: "/path/to/pkg1", requires: []string{"pkg2"}},
 				{name: "pkg2", path: "/path/to/pkg2", requires: []string{"pkg3"}},
 				{name: "pkg3", path: "/path/to/pkg3", requires: []string{}},

@@ -7,32 +7,38 @@ import (
 	"path/filepath"
 )
 
-type pkg struct {
+type Pkg struct {
 	name     string
 	path     string
+	draft    bool
 	requires []string
 }
 
 // Name returns the name of the package.
-func (p pkg) Name() string {
+func (p Pkg) Name() string {
 	return p.name
 }
 
 // Path returns the path of the package.
-func (p pkg) Path() string {
+func (p Pkg) Path() string {
 	return p.path
 }
 
+// Draft returns whether the package is a draft.
+func (p Pkg) Draft() bool {
+	return p.draft
+}
+
 // Requires returns the required packages of the package.
-func (p pkg) Requires() []string {
+func (p Pkg) Requires() []string {
 	return p.requires
 }
 
 // sortPkgs sorts the given packages by their dependencies.
-func SortPkgs(pkgs []pkg) error {
+func SortPkgs(pkgs []Pkg) error {
 	visited := make(map[string]bool)
 	onStack := make(map[string]bool)
-	sortedPkgs := make([]pkg, 0, len(pkgs))
+	sortedPkgs := make([]Pkg, 0, len(pkgs))
 
 	// Visit all packages
 	for _, p := range pkgs {
@@ -46,7 +52,7 @@ func SortPkgs(pkgs []pkg) error {
 }
 
 // visitNode visits a package's and its dependencies dependencies and adds them to the sorted list.
-func visitPackage(pkg pkg, pkgs []pkg, visited, onStack map[string]bool, sortedPkgs *[]pkg) error {
+func visitPackage(pkg Pkg, pkgs []Pkg, visited, onStack map[string]bool, sortedPkgs *[]Pkg) error {
 	if onStack[pkg.name] {
 		return fmt.Errorf("cycle detected: %s", pkg.name)
 	}
@@ -81,9 +87,8 @@ func visitPackage(pkg pkg, pkgs []pkg, visited, onStack map[string]bool, sortedP
 }
 
 // ListPkgs lists all gno packages in the given root directory.
-// Ignore packages that are draft or depend on draft packages.
-func ListPkgs(root string) ([]pkg, error) {
-	var pkgs []pkg
+func ListPkgs(root string) ([]Pkg, error) {
+	var pkgs []Pkg
 	draft := make(map[string]bool)
 
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
@@ -117,9 +122,10 @@ func ListPkgs(root string) ([]pkg, error) {
 			return fs.SkipDir
 		}
 
-		pkgs = append(pkgs, pkg{
-			name: gnoMod.Module.Mod.Path,
-			path: path,
+		pkgs = append(pkgs, Pkg{
+			name:  gnoMod.Module.Mod.Path,
+			path:  path,
+			draft: gnoMod.Draft,
 			requires: func() []string {
 				var reqs []string
 				for _, req := range gnoMod.Require {
@@ -137,8 +143,8 @@ func ListPkgs(root string) ([]pkg, error) {
 	return pkgsNotDependsOnDraft(pkgs, draft), nil
 }
 
-func pkgsNotDependsOnDraft(pkgs []pkg, draft map[string]bool) []pkg {
-	res := make([]pkg, 0, len(pkgs))
+func pkgsNotDependsOnDraft(pkgs []Pkg, draft map[string]bool) []Pkg {
+	res := make([]Pkg, 0, len(pkgs))
 	for _, pkg := range pkgs {
 		dependsOnDraft := false
 		for _, req := range pkg.requires {
