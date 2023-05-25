@@ -1,8 +1,8 @@
 // PKGPATH: gno.land/r/demo/tests_test
 package tests_test
 
-var amap         map[string]string = map[string]string{"a": "1"}
-	
+var amap map[string]string = map[string]string{"a": "1"}
+
 func init() {
 	println("preinit", amap)
 	amap["b"] = "2"
@@ -14,7 +14,5 @@ func main() {
 	amap["b"] = "2"
 	println("postmain", amap)
 }
-
-
 
 // Current behavior: panics
