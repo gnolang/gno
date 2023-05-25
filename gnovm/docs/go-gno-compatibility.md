@@ -11,7 +11,7 @@ Legend: full, partial, missing, TBD.
 | break       | full                   |
 | case        | full                   |
 | const       | full                   |
-| continue    | full                    |
+| continue    | full                   |
 | default     | full                   |
 | defer       | full                   |
 | else        | full                   |
@@ -22,11 +22,11 @@ Legend: full, partial, missing, TBD.
 | goto        | full                   |
 | if          | full                   |
 | import      | full                   |
-| interface   | full                    |
+| interface   | full                   |
 | package     | full                   |
-| range       | full                    |
+| range       | full                   |
 | return      | full                   |
-| select      | TBD                    |
+| select      | missing (after launch) |
 | struct      | full                   |
 | switch      | full                   |
 | type        | full                   |
@@ -34,21 +34,23 @@ Legend: full, partial, missing, TBD.
 
 ## Native types
 
-| type                                          | usage                  | persistency                               | comment                                   |
-|-----------------------------------------------|------------------------|-------------------------------------------|-------------------------------------------|
-| `bool`                                        | full                   | full                                      |                                           |
-| `byte`                                        | full                   | full                                      |                                           |
-| `float32`, `float64`                          | full                   | full                                      | need review of determinism across systems |
-| `int`, `int8`, `int16`, `int32`, `int64`      | full                   | full                                      | potential support of 128, 256 later       |
-| `uint`, `uint8`, `uint16`, `uint32`, `uint64` | full                   | full                                      | potential support of 128, 256 later       |
-| `string`                                      | full                   | full                                      |                                           |
-| `rune`                                        | full                   | full                                      |                                           |
-| `interface{}`                                 | full                   | full                                      |                                           |
-| `[]T` (slices)                                | full                   | partial (depends on T)                    |                                           |
-| `map[T1]T2`                                   | full                   | missing (in progress, will be for launch) |                                           |
-| `func (T1...) T2...`                          | full                   | full (to confirm)                         |                                           |
-| `*T` (pointers)                               | full                   | partial (depends on T)                    |                                           |
-| `chan T` (channels)                           | missing (after launch) | missing (after launch)                    |                                           |
+| type                                          | usage                  | persistency                                                |
+|-----------------------------------------------|------------------------|------------------------------------------------------------|
+| `bool`                                        | full                   | full                                                       |
+| `byte`                                        | full                   | full                                                       |
+| `float32`, `float64`                          | full                   | full (determinism to confirm across various architectures) |
+| `int`, `int8`, `int16`, `int32`, `int64`      | full                   | full                                                       |
+| `uint`, `uint8`, `uint16`, `uint32`, `uint64` | full                   | full                                                       |
+| `string`                                      | full                   | full                                                       |
+| `rune`                                        | full                   | full                                                       |
+| `interface{}`                                 | full                   | full                                                       |
+| `[]T` (slices)                                | full                   | full*                                                      |
+| `map[T1]T2`                                   | full                   | missing (in progress, will be for launch)                  |
+| `func (T1...) T2...`                          | full                   | full (needs more tests)                                    |
+| `*T` (pointers)                               | full                   | full*                                                      |
+| `chan T` (channels)                           | missing (after launch) | missing (after launch)                                     |
+
+_`*`: Depends on `T`s_
 
 Additional native types:
 
