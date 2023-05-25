@@ -50,7 +50,7 @@ Legend: full, partial, missing, TBD.
 | `*T` (pointers)                               | full                   | full*                                                      |
 | `chan T` (channels)                           | missing (after launch) | missing (after launch)                                     |
 
-_`*`: Depends on `T`s_
+**\*:** depends on `T`
 
 Additional native types:
 
