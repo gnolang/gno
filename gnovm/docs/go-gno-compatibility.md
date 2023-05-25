@@ -349,7 +349,7 @@ Additional native types:
 |-------------------|------------------|-----------------------------------------------|
 | go bug            |                  | see https://github.com/gnolang/gno/issues/733 |
 | go build          | gno build        | same intention, limited compatibility         |
-| go clean          |                  |                                               |
+| go clean          | gno clean        | same intention, limited compatibility         |
 | go doc            |                  | see https://github.com/gnolang/gno/pull/610   |
 | go env            |                  |                                               |
 | go fix            |                  |                                               |

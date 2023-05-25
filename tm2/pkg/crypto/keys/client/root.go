@@ -5,6 +5,9 @@ import (
 	"flag"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
+
+	"github.com/peterbourgon/ff/v3"
+	"github.com/peterbourgon/ff/v3/fftoml"
 )
 
 const (
@@ -22,6 +25,10 @@ func NewRootCmd() *commands.Command {
 		commands.Metadata{
 			ShortUsage: "<subcommand> [flags] [<arg>...]",
 			LongHelp:   "Manages private keys for the node",
+			Options: []ff.Option{
+				ff.WithConfigFileFlag("config"),
+				ff.WithConfigFileParser(fftoml.Parser),
+			},
 		},
 		cfg,
 		commands.HelpExec,
@@ -72,5 +79,12 @@ func (c *baseCfg) RegisterFlags(fs *flag.FlagSet) {
 		"insecure-password-stdin",
 		DefaultBaseOptions.Quiet,
 		"WARNING! take password from stdin",
+	)
+
+	fs.StringVar(
+		&c.Config,
+		"config",
+		DefaultBaseOptions.Config,
+		"config file (optional)",
 	)
 }
