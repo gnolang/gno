@@ -2,6 +2,7 @@ package groups
 
 import (
 	"std"
+	"time"
 
 	"gno.land/p/demo/maths"
 )
@@ -94,8 +95,8 @@ type VoteSession struct {
 	Name      string
 	Creator   std.Address
 	Body      string
-	Start     std.Time
-	Deadline  std.Time
+	Start     time.Time
+	Deadline  time.Time
 	Status    SessionStatus
 	Committee *Committee
 	Votes     VoteSet
