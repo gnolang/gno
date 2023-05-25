@@ -2,8 +2,8 @@
 package tests_test
 
 var (
-	ss1 []string      = []string{"A1"}
-	ss2 []string      = []string{"A2"}
+	ss1 []string = []string{"A1"}
+	ss2 []string = []string{"A2"}
 )
 
 // this bug seems to be limited to slices and potentially only when using `println`.
@@ -11,11 +11,11 @@ var (
 func main() {
 	println("ss1", ss1) // unexpected print
 	println("ss1", ss1) // unexpected print
-	 _ = ss1
-	println("ss1", ss1)// expected print
+	_ = ss1
+	println("ss1", ss1) // expected print
 
 	println("ss2", ss2, ss2[0]) // expected print
-	}
+}
 
 // Output:
 // ss1 slice[ref(0e4830f6b0cb49c615cab8df855d8dd0f7ebc58c:4)]
