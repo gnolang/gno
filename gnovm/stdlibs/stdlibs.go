@@ -17,6 +17,7 @@ func InjectNativeMappings(store gno.Store) {
 	store.AddGo2GnoMapping(reflect.TypeOf(crypto.Bech32Address("")), "std", "Address")
 	store.AddGo2GnoMapping(reflect.TypeOf(std.Coins{}), "std", "Coins")
 	store.AddGo2GnoMapping(reflect.TypeOf(std.Coin{}), "std", "Coin")
+	store.AddGo2GnoMapping(reflect.TypeOf(Realm{}), "std", "Realm")
 }
 
 func InjectPackage(store gno.Store, pn *gno.PackageNode) {
@@ -286,11 +287,11 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				m.PushValue(res0)
 			},
 		)
-		pn.DefineNative("GetRealmCaller",
+		pn.DefineNative("PrevRealm",
 			gno.Flds( // params
 			),
 			gno.Flds( // results
-				"", "Address",
+				"", "Realm",
 			),
 			func(m *gno.Machine) {
 				var (
@@ -315,6 +316,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 
 					// second realm met in the frames, it becomes the lastCaller
 					lastCaller = fr.LastPackage.GetPkgAddr().Bech32()
+					lastPkgPath = pkgPath
 					// we don't need to iterate further
 					break
 				}
@@ -323,10 +325,14 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				res0 := gno.Go2GnoValue(
 					m.Alloc,
 					m.Store,
-					reflect.ValueOf(lastCaller),
+					reflect.ValueOf(Realm{
+						lastCaller,
+						lastPkgPath,
+					}),
 				)
-				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
-				res0.T = addrT
+
+				realmT := store.GetType(gno.DeclaredTypeID("std", "Realm"))
+				res0.T = realmT
 				m.PushValue(res0)
 			},
 		)

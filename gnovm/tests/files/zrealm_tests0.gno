@@ -904,7 +904,7 @@ func main() {
 //                         "Tag": "",
 //                         "Type": {
 //                             "@type": "/gno.RefType",
-//                             "ID": "std.Address"
+//                             "ID": "std.Realm"
 //                         }
 //                     }
 //                 ]
@@ -918,7 +918,7 @@ func main() {
 //                 },
 //                 "FileName": "tests.gno",
 //                 "IsMethod": false,
-//                 "Name": "GetRealmCaller",
+//                 "Name": "GetPrevRealm",
 //                 "PkgPath": "gno.land/r/demo/tests",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",
@@ -940,7 +940,7 @@ func main() {
 //                             "Tag": "",
 //                             "Type": {
 //                                 "@type": "/gno.RefType",
-//                                 "ID": "std.Address"
+//                                 "ID": "std.Realm"
 //                             }
 //                         }
 //                     ]
@@ -958,7 +958,7 @@ func main() {
 //                         "Tag": "",
 //                         "Type": {
 //                             "@type": "/gno.RefType",
-//                             "ID": "std.Address"
+//                             "ID": "std.Realm"
 //                         }
 //                     }
 //                 ]
@@ -972,7 +972,7 @@ func main() {
 //                 },
 //                 "FileName": "tests.gno",
 //                 "IsMethod": false,
-//                 "Name": "GetPSubtestsCaller",
+//                 "Name": "GetPSubtestsPrevRealm",
 //                 "PkgPath": "gno.land/r/demo/tests",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",
@@ -994,7 +994,7 @@ func main() {
 //                             "Tag": "",
 //                             "Type": {
 //                                 "@type": "/gno.RefType",
-//                                 "ID": "std.Address"
+//                                 "ID": "std.Realm"
 //                             }
 //                         }
 //                     ]

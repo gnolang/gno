@@ -4,6 +4,7 @@ package crossrealm_test
 import (
 	"std"
 	"strings"
+	"fmt"
 
 	ptests "gno.land/p/demo/tests"
 	"gno.land/p/demo/ufmt"
@@ -11,8 +12,8 @@ import (
 	testfoo "gno.land/r/demo/tests_foo"
 )
 
-func getRealmCaller() std.Address {
-	return std.GetRealmCaller()
+func getPrevRealm() std.Realm {
+	return std.PrevRealm()
 }
 
 func Exec(fn func()) {
@@ -32,53 +33,53 @@ func main() {
 
 	tests := []struct {
 		callStackAdd string
-		callerFn     func() std.Address
+		callerFn     func() std.Realm
 	}{
 		{
 			callStackAdd: "",
-			callerFn:     std.GetRealmCaller,
+			callerFn:     std.PrevRealm,
 		},
 		{
-			callStackAdd: " -> r/crossrealm_test.getRealmCaller",
-			callerFn:     getRealmCaller,
+			callStackAdd: " -> r/crossrealm_test.getPrevRealm",
+			callerFn:     getPrevRealm,
 		},
 		{
 			callStackAdd: " -> p/demo/tests",
-			callerFn:     ptests.GetRealmCaller,
+			callerFn:     ptests.GetPrevRealm,
 		},
 		{
 			callStackAdd: " -> p/demo/tests -> p/demo/tests/subtests",
-			callerFn:     ptests.GetPSubtestsCaller,
+			callerFn:     ptests.GetPSubtestsPrevRealm,
 		},
 		{
 			callStackAdd: " -> r/demo/tests",
-			callerFn:     rtests.GetRealmCaller,
+			callerFn:     rtests.GetPrevRealm,
 		},
 		{
 			callStackAdd: " -> r/demo/tests -> r/demo/tests/subtests",
-			callerFn:     rtests.GetPSubtestsCaller,
+			callerFn:     rtests.GetPSubtestsPrevRealm,
 		},
 		{
 			callStackAdd: " -> p/demo/tests -> r/demo/tests",
-			callerFn:     ptests.GetRTestsGetRealmCaller,
+			callerFn:     ptests.GetRTestsGetPrevRealm,
 		},
 	}
 
 	println("---") // needed to have space prefixes
-	printColumns("STACK", "std.GetRealmCaller")
+	printColumns("STACK", "std.PrevRealm")
 	printColumns("-----", "------------------")
 
 	baseCallStack := "user1.gno -> r/crossrealm_test.main"
 	for i, tt := range tests {
-		printColumns(baseCallStack+tt.callStackAdd, callersByAddr[tt.callerFn()])
+		printColumns(baseCallStack+tt.callStackAdd, callersByAddr[tt.callerFn().Addr])
 		Exec(func() {
-			printColumns(baseCallStack+" -> r/crossrealm_test.Exec"+tt.callStackAdd, callersByAddr[tt.callerFn()])
+			printColumns(baseCallStack+" -> r/crossrealm_test.Exec"+tt.callStackAdd, callersByAddr[tt.callerFn().Addr])
 		})
 		rtests.Exec(func() {
-			printColumns(baseCallStack+" -> r/demo/tests.Exec"+tt.callStackAdd, callersByAddr[tt.callerFn()])
+			printColumns(baseCallStack+" -> r/demo/tests.Exec"+tt.callStackAdd, callersByAddr[tt.callerFn().Addr])
 		})
 		ptests.Exec(func() {
-			printColumns(baseCallStack+" -> p/demo/tests.Exec"+tt.callStackAdd, callersByAddr[tt.callerFn()])
+			printColumns(baseCallStack+" -> p/demo/tests.Exec"+tt.callStackAdd, callersByAddr[tt.callerFn().Addr])
 		})
 	}
 }
@@ -102,16 +103,16 @@ func printColumns(left, right string) {
 
 // Output:
 // ---
-//                                                                                                     STACK = std.GetRealmCaller
+//                                                                                                     STACK = std.PrevRealm
 //                                                                                                     ----- = ------------------
 //                                                                       user1.gno -> r/crossrealm_test.main = user1.gno
 //                                             user1.gno -> r/crossrealm_test.main -> r/crossrealm_test.Exec = user1.gno
 //                                                  user1.gno -> r/crossrealm_test.main -> r/demo/tests.Exec = gno.land/r/demo/tests
 //                                                  user1.gno -> r/crossrealm_test.main -> p/demo/tests.Exec = user1.gno
-//                                   user1.gno -> r/crossrealm_test.main -> r/crossrealm_test.getRealmCaller = user1.gno
-//         user1.gno -> r/crossrealm_test.main -> r/crossrealm_test.Exec -> r/crossrealm_test.getRealmCaller = user1.gno
-//              user1.gno -> r/crossrealm_test.main -> r/demo/tests.Exec -> r/crossrealm_test.getRealmCaller = gno.land/r/demo/tests
-//              user1.gno -> r/crossrealm_test.main -> p/demo/tests.Exec -> r/crossrealm_test.getRealmCaller = user1.gno
+//                                     user1.gno -> r/crossrealm_test.main -> r/crossrealm_test.getPrevRealm = user1.gno
+//           user1.gno -> r/crossrealm_test.main -> r/crossrealm_test.Exec -> r/crossrealm_test.getPrevRealm = user1.gno
+//                user1.gno -> r/crossrealm_test.main -> r/demo/tests.Exec -> r/crossrealm_test.getPrevRealm = gno.land/r/demo/tests
+//                user1.gno -> r/crossrealm_test.main -> p/demo/tests.Exec -> r/crossrealm_test.getPrevRealm = user1.gno
 //                                                       user1.gno -> r/crossrealm_test.main -> p/demo/tests = user1.gno
 //                             user1.gno -> r/crossrealm_test.main -> r/crossrealm_test.Exec -> p/demo/tests = user1.gno
 //                                  user1.gno -> r/crossrealm_test.main -> r/demo/tests.Exec -> p/demo/tests = gno.land/r/demo/tests
