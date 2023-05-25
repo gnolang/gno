@@ -296,12 +296,10 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				var (
 					ctx = m.Context.(ExecContext)
 					// Default lastCaller is OrigCaller, the signer of the tx
-					lastCaller = ctx.OrigCaller
-					realms     = make(map[string]struct{})
+					lastCaller  = ctx.OrigCaller
+					lastPkgPath = ""
 				)
-				// Loop on the stack frames to determine if there's at least 2
-				// different realms in the stack. If yes, the second realm becomes the
-				// lastCaller.
+
 				for i := m.NumFrames() - 1; i > 0; i-- {
 					fr := m.Frames[i]
 					if fr.LastPackage == nil || !fr.LastPackage.IsRealm() {
@@ -309,12 +307,9 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 						continue
 					}
 					pkgPath := fr.LastPackage.PkgPath
-					if _, ok := realms[pkgPath]; ok {
-						// Ignore realm already added
-						continue
-					}
-					realms[pkgPath] = struct{}{}
-					if len(realms) <= 1 {
+					if lastPkgPath == "" || lastPkgPath == pkgPath {
+						// Ignore first realm met
+						lastPkgPath = pkgPath
 						continue
 					}
 
@@ -323,6 +318,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 					// we don't need to iterate further
 					break
 				}
+
 				// Return the result
 				res0 := gno.Go2GnoValue(
 					m.Alloc,
