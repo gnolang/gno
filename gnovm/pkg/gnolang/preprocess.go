@@ -3134,6 +3134,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 					PkgPath:    pkg.PkgPath,
 					body:       d.Body,
 					nativeBody: nil,
+					roots:      d.Roots,
 				},
 			})
 			if d.Name == "init" {

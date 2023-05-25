@@ -22,6 +22,16 @@ func Roots(f *ast.FuncDecl) []*ast.Ident {
 		return true
 	})
 
+	for _, v := range f.Type.Params.List {
+		if !isSpecialType(v.Type) && !isReference(v.Type) {
+			continue
+		}
+
+		for _, m := range v.Names {
+			roots = append(roots, m)
+		}
+	}
+
 	return roots
 }
 
