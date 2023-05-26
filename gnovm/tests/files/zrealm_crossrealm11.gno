@@ -4,7 +4,6 @@ package crossrealm_test
 import (
 	"std"
 	"strings"
-	"fmt"
 
 	ptests "gno.land/p/demo/tests"
 	"gno.land/p/demo/ufmt"
@@ -29,6 +28,15 @@ func main() {
 	} {
 		addr := std.DerivePkgAddr(caller)
 		callersByAddr[addr] = caller
+	}
+
+	assertRealm := func(r std.Realm) {
+		pkgPath := callersByAddr[r.Addr]
+		if r.IsUser() && pkgPath != "user1.gno" {
+			panic(ufmt.Sprintf("ERROR: expected: 'user1.gno', got:'%s'", pkgPath))
+		} else if !r.IsUser() && pkgPath != r.PkgPath {
+			panic(ufmt.Sprintf("ERROR: expected: '%s', got: '%s'", pkgPath, r.PkgPath))
+		}
 	}
 
 	tests := []struct {
@@ -73,12 +81,18 @@ func main() {
 	for i, tt := range tests {
 		printColumns(baseCallStack+tt.callStackAdd, callersByAddr[tt.callerFn().Addr])
 		Exec(func() {
-			printColumns(baseCallStack+" -> r/crossrealm_test.Exec"+tt.callStackAdd, callersByAddr[tt.callerFn().Addr])
+			r := tt.callerFn()
+			assertRealm(r)
+			printColumns(baseCallStack+" -> r/crossrealm_test.Exec"+tt.callStackAdd, callersByAddr[r.Addr])
 		})
 		rtests.Exec(func() {
+			r := tt.callerFn()
+			assertRealm(r)
 			printColumns(baseCallStack+" -> r/demo/tests.Exec"+tt.callStackAdd, callersByAddr[tt.callerFn().Addr])
 		})
 		ptests.Exec(func() {
+			r := tt.callerFn()
+			assertRealm(r)
 			printColumns(baseCallStack+" -> p/demo/tests.Exec"+tt.callStackAdd, callersByAddr[tt.callerFn().Addr])
 		})
 	}

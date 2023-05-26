@@ -5,6 +5,6 @@ type Realm struct {
 	PkgPath string
 }
 
-// func (r Realm) IsUser() bool {
-// 	return r.Addr == GetOrigCaller()
-// }
+func (r Realm) IsUser() bool {
+	return r.PkgPath == ""
+}
