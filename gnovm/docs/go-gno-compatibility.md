@@ -38,7 +38,7 @@ Legend: full, partial, missing, TBD.
 |-----------------------------------------------|------------------------|------------------------------------------------------------|
 | `bool`                                        | full                   | full                                                       |
 | `byte`                                        | full                   | full                                                       |
-| `float32`, `float64`                          | full                   | full (determinism to confirm across various architectures) |
+| `float32`, `float64`                          | full                   | full                                                       |
 | `int`, `int8`, `int16`, `int32`, `int64`      | full                   | full                                                       |
 | `uint`, `uint8`, `uint16`, `uint32`, `uint64` | full                   | full                                                       |
 | `string`                                      | full                   | full                                                       |
