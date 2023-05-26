@@ -6,3 +6,7 @@ type Realm struct {
 	Addr    crypto.Bech32Address
 	PkgPath string
 }
+
+func (r Realm) IsUser() bool {
+	return r.PkgPath == ""
+}
