@@ -2,8 +2,8 @@
 package tests_test
 
 var (
-	ss1 []string = []string{"A1"}
-	ss2 []string = []string{"A2"}
+	ss1 = []string{"A1"}
+	ss2 = []string{"A2"}
 )
 
 // this bug seems to be limited to slices and potentially only when using `println`.
