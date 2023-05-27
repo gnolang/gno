@@ -2,6 +2,7 @@ package stdlibs
 
 import (
 	"crypto/sha256"
+	"fmt"
 	"math"
 	"reflect"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/bech32"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -523,6 +525,25 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				m.PushValue(res0)
 			},
 		)
+		pn.DefineNative("EmitEvent",
+			gno.Flds( // params
+				"event", "Event",
+			),
+			gno.Flds( // results
+			),
+			func(m *gno.Machine) {
+				arg0 := m.LastBlock().GetParams1()
+				event := arg0.TV.V.(*gno.NativeValue).Value.Interface().(sdk.AttributedEvent)
+
+				ctx := m.Context.(ExecContext)
+				// TODO: need this prefix?
+				event.Type = fmt.Sprintf("gno-%s", event.Type) // prefix with gno-
+				ctx.EventLogger.EmitEvent(event)
+			},
+		)
+		pn.DefineGoNativeValue("NewEvent", sdk.NewEvent)
+		pn.DefineGoNativeValue("NewEventAttribute", sdk.NewEventAttribute)
+
 	}
 }
 

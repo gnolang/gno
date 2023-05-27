@@ -13,3 +13,14 @@ message Result {
 	sint64 GasWanted = 2;
 	sint64 GasUsed = 3;
 }
+
+message EventAttribute {
+  string key = 1;
+  string value = 2;
+}
+
+message AttributedEvent {
+  string type = 1;
+  repeated EventAttribute attributes = 2;
+}
+

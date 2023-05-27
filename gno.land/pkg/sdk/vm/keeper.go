@@ -249,6 +249,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		OrigSendSpent: new(std.Coins),
 		OrigPkgAddr:   pkgAddr.Bech32(),
 		Banker:        NewSDKBanker(vm, ctx),
+		EventLogger:   ctx.EventLogger(),
 	}
 	// Construct machine and evaluate.
 	m := gno.NewMachineWithOptions(
@@ -277,6 +278,13 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			res += "\n"
 		}
 	}
+
+	/*
+		// TODO:
+		ctx.EventLogger().EmitEvent(
+			sdk.NewEvent("CALL",
+				sdk.NewEventAttribute("result", "true")))
+	*/
 	return res, nil
 	// TODO pay for gas? TODO see context?
 }
