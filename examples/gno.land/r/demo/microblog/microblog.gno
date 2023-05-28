@@ -6,7 +6,10 @@
 package microblog
 
 import (
+	"std"
+
 	"gno.land/p/demo/microblog"
+	"gno.land/r/demo/users"
 )
 
 var (
@@ -31,4 +34,10 @@ func NewPost(text string) string {
 		return "unable to add new post"
 	}
 	return "added new post"
+}
+
+func Register(name, profile string) string {
+	caller := std.GetOrigCaller() // main
+	users.Register(caller, name, profile)
+	return "OK"
 }

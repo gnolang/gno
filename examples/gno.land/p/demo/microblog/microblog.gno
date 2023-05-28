@@ -9,6 +9,7 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
+	"gno.land/r/demo/users"
 )
 
 var (
@@ -52,7 +53,11 @@ func (m *Microblog) RenderHome() string {
 	output += "# pages\n\n"
 
 	for _, page := range m.GetPages() {
-		output += ufmt.Sprintf("- [%s](%s%s)\n", page.Author.String(), m.Prefix, page.Author.String())
+		if u := users.GetUserByAddress(page.Author); u != nil {
+			output += ufmt.Sprintf("- [%s (%s)](%s%s)\n", u.Name(), page.Author.String(), m.Prefix, page.Author.String())
+		} else {
+			output += ufmt.Sprintf("- [%s](%s%s)\n", page.Author.String(), m.Prefix, page.Author.String())
+		}
 	}
 
 	return output
@@ -127,9 +132,15 @@ func (a byLastPosted) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a byLastPosted) Less(i, j int) bool { return a[i].LastPosted.After(a[j].LastPosted) }
 
 func (p *Page) String() string {
-	o := ufmt.Sprintf("# %s\n\n", p.Author)
+	o := ""
+	if u := users.GetUserByAddress(p.Author); u != nil {
+		o += ufmt.Sprintf("# [%s](/r/demo/users:%s)\n\n", u.Name(), u.Name())
+		o += ufmt.Sprintf("%s\n\n", u.Profile())
+	}
+	o += ufmt.Sprintf("## [%s](/r/demo/microblog:%s)\n\n", p.Author, p.Author)
+
 	o += ufmt.Sprintf("joined %s, last updated %s\n\n", p.CreatedAt.Format("2006-02-01"), p.LastPosted.Format("2006-02-01"))
-	o += "## posts\n\n"
+	o += "## feed\n\n"
 	for _, u := range p.GetPosts() {
 		o += u.String() + "\n\n"
 	}

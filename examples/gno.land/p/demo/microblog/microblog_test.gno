@@ -60,11 +60,11 @@ func TestMicroblog(t *testing.T) {
 		t.Fatalf("incorrect rendering /: '%s'", rendering)
 	}
 
-	if rendering := strings.TrimSpace(d.Render(author1.String())); rendering != `# g1v96hg6r0wgc47h6lta047h6lta047h6lm33tq6
+	if rendering := strings.TrimSpace(d.Render(author1.String())); rendering != `## [g1v96hg6r0wgc47h6lta047h6lta047h6lm33tq6](/r/demo/microblog:g1v96hg6r0wgc47h6lta047h6lta047h6lm33tq6)
 
 joined 2009-13-02, last updated 2009-13-02
 
-## posts
+## feed
 
 > goodbyte, web2
 >
@@ -72,11 +72,11 @@ joined 2009-13-02, last updated 2009-13-02
 		t.Fatalf("incorrect rendering /: '%s'", rendering)
 	}
 
-	if rendering := strings.TrimSpace(d.Render(author2.String())); rendering != `# g1v96hg6r0wge97h6lta047h6lta047h6lyz7c00
+	if rendering := strings.TrimSpace(d.Render(author2.String())); rendering != `## [g1v96hg6r0wge97h6lta047h6lta047h6lyz7c00](/r/demo/microblog:g1v96hg6r0wge97h6lta047h6lta047h6lyz7c00)
 
 joined 2009-13-02, last updated 2009-13-02
 
-## posts
+## feed
 
 > hi again,
 >
