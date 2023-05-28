@@ -31,7 +31,7 @@ type testCfg struct {
 	precompile          bool // TODO: precompile should be the default, but it needs to automatically precompile dependencies in memory.
 	updateGoldenTests   bool
 	printRuntimeMetrics bool
-	withNativeFallback bool
+	withNativeFallback  bool
 }
 
 func newTestCmd(io *commands.IO) *commands.Command {
@@ -98,9 +98,9 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		"with-native-fallback",
 		false,
 		"use stdlibs/* if present, otherwise use supported native Go packages",
-  )
+	)
 
-  fs.BoolVar(
+	fs.BoolVar(
 		&c.printRuntimeMetrics,
 		"print-runtime-metrics",
 		false,
