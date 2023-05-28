@@ -3120,6 +3120,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 				dname := Name(fmt.Sprintf("init.%d", idx))
 				d.Name = dname
 			}
+
 			// define a FuncValue w/ above type as d.Name.
 			// fill in later during *FuncDecl:BLOCK.
 			pkg.Define(d.Name, TypedValue{
