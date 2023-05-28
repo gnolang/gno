@@ -57,7 +57,7 @@ jobs:
         working-directory: gno.land
         run: |
           export GOPATH=$HOME/go
-          GOTEST_FLAGS="-v -p 1 -timeout=30m -coverprofile=coverage.out -covermode=atomic"
+          export GOTEST_FLAGS="-v -p 1 -timeout=30m -coverprofile=coverage.out -covermode=atomic"
           make ${{ matrix.args }}
       - if: runner.os == 'Linux'
         uses: codecov/codecov-action@v3
