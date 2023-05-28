@@ -166,6 +166,11 @@ func TestTest(t *testing.T) {
 		{
 			args:                 []string{"test", "--verbose", "--with-native-fallback", "../../tests/integ/unknown-lib"},
 			recoverShouldContain: "./../../tests/integ/unknown-lib/contract.gno:1: unknown import path foobarbaz",
+    },
+    {
+			args:                []string{"test", "--verbose", "--print-runtime-metrics", "../../../examples/gno.land/p/demo/ufmt"},
+			stdoutShouldContain: "RUN   TestSprintf",
+			stderrShouldContain: "cycle=",
 		},
 
 		// TODO: when 'gnodev test' will by default imply running precompile, we should use the following tests.

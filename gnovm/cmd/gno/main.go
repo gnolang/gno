@@ -9,16 +9,16 @@ import (
 )
 
 func main() {
-	cmd := newGnodevCmd(commands.NewDefaultIO())
+	cmd := newGnocliCmd(commands.NewDefaultIO())
 
 	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "%+v", err)
+		_, _ = fmt.Fprintf(os.Stderr, "%+v\n", err)
 
 		os.Exit(1)
 	}
 }
 
-func newGnodevCmd(io *commands.IO) *commands.Command {
+func newGnocliCmd(io *commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			ShortUsage: "<subcommand> [flags] [<arg>...]",
@@ -34,10 +34,10 @@ func newGnodevCmd(io *commands.IO) *commands.Command {
 		newPrecompileCmd(io),
 		newTestCmd(io),
 		newModCmd(io),
+		newCleanCmd(io),
 		newReplCmd(),
 		newDocCmd(io),
 		// fmt -- gofmt
-		// clean
 		// graph
 		// vendor -- download deps from the chain in vendor/
 		// list -- list packages
