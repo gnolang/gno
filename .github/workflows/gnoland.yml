@@ -25,7 +25,7 @@ jobs:
           - gnokey
           - gnoweb
           - gnofaucet
-          - tm2txsync 
+          - gnotxsync 
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

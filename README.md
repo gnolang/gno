@@ -43,7 +43,7 @@ Also, see the [quickstart guide](https://test3.gno.land/r/demo/boards:testboard/
   Developer commands:
 
   * [gno](./gnovm/cmd/gno) - handy tool for developing gno packages & realms
-  * [tm2txsync](./tm2/cmd/tm2txsync) - importing/exporting transactions from local blockchain node storage
+  * [gnotxsync](./tm2/cmd/gnotxsync) - importing/exporting transactions from local blockchain node storage
   * [goscan](./misc/goscan) - dumps imports from specified file’s AST
   * [genproto](./misc/genproto) - helper for generating .proto implementations
   * [gnofaucet](./gno.land/cmd/gnofaucet) - serves GNOT faucet
