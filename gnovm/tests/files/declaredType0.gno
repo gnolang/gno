@@ -9,6 +9,6 @@ package main
 
  func main() {
  	var abs nat
- 	abs = []word{0}
+ 	abs = []word{0} // unname-Composit to named DeclaredTypes
  	println(abs.add())
  }

@@ -13,7 +13,6 @@ package main
 
  	n := []word{0}
 
- 	// this is assignment
  	items["test"] = n
 
  	r := items["test"]
