@@ -112,9 +112,9 @@ func ParseFile(filename string, body string) (fn *FileNode, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if rerr, ok := r.(error); ok {
-				err = rerr
+				err = errors.Wrap(rerr, "parsing file")
 			} else {
-				err = errors.New(fmt.Sprintf("%v", r))
+				err = errors.New(fmt.Sprintf("%v", r)).Stacktrace()
 			}
 			return
 		}
@@ -431,7 +431,16 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		}
 		name := toName(gon.Name)
 		type_ := Go2Gno(fs, gon.Type).(*FuncTypeExpr)
-		body := Go2Gno(fs, gon.Body).(*BlockStmt).Body
+		var body []Stmt
+		if gon.Body != nil {
+			body = Go2Gno(fs, gon.Body).(*BlockStmt).Body
+		} else {
+			/*bd, err := ParseExpr(`panic("call to bodyless/external function is invalid outside of standard library")`)
+			if err != nil {
+				panic(err)
+			}
+			body = []Stmt{&ExprStmt{X: bd}}*/
+		}
 		return &FuncDecl{
 			IsMethod: isMethod,
 			Recv:     recv,

@@ -1,8 +1,8 @@
 package stdlibs
 
+//go:generate go run ./internal/stdgen
+
 import (
-	"crypto/sha256"
-	"math"
 	"reflect"
 	"strconv"
 	"time"
@@ -19,88 +19,22 @@ func InjectNativeMappings(store gno.Store) {
 	store.AddGo2GnoMapping(reflect.TypeOf(std.Coin{}), "std", "Coin")
 }
 
+type nativeFunc struct {
+	gnoPkg  string
+	gnoFunc gno.Name
+	params  []gno.FieldTypeExpr
+	results []gno.FieldTypeExpr
+	f       func(m *gno.Machine)
+}
+
 func InjectPackage(store gno.Store, pn *gno.PackageNode) {
+	for _, nf := range nativeFuncs {
+		if nf.gnoPkg == pn.PkgPath {
+			pn.DefineNative(nf.gnoFunc, nf.params, nf.results, nf.f)
+		}
+	}
+
 	switch pn.PkgPath {
-	case "internal/crypto/sha256":
-		pn.DefineNative("Sum256",
-			gno.Flds( // params
-				"data", "[]byte",
-			),
-			gno.Flds( // results
-				"bz", "[32]byte",
-			),
-			func(m *gno.Machine) {
-				arg0 := m.LastBlock().GetParams1().TV
-				bz := []byte(nil)
-
-				if arg0.V != nil {
-					slice := arg0.V.(*gno.SliceValue)
-					array := slice.GetBase(m.Store)
-					bz = array.GetReadonlyBytes()[:slice.Length]
-				}
-
-				hash := sha256.Sum256(bz)
-				res0 := gno.Go2GnoValue(
-					m.Alloc,
-					m.Store,
-					reflect.ValueOf(hash),
-				)
-				m.PushValue(res0)
-			},
-		)
-	case "internal/math":
-		pn.DefineNative("Float32bits",
-			gno.Flds( // params
-				"f", "float32",
-			),
-			gno.Flds( // results
-				"b", "uint32",
-			),
-			func(m *gno.Machine) {
-				arg0 := m.LastBlock().GetParams1().TV
-				res0 := typedUint32(math.Float32bits(arg0.GetFloat32()))
-				m.PushValue(res0)
-			},
-		)
-		pn.DefineNative("Float32frombits",
-			gno.Flds( // params
-				"b", "uint32",
-			),
-			gno.Flds( // results
-				"f", "float32",
-			),
-			func(m *gno.Machine) {
-				arg0 := m.LastBlock().GetParams1().TV
-				res0 := typedFloat32(math.Float32frombits(arg0.GetUint32()))
-				m.PushValue(res0)
-			},
-		)
-		pn.DefineNative("Float64bits",
-			gno.Flds( // params
-				"f", "float64",
-			),
-			gno.Flds( // results
-				"b", "uint64",
-			),
-			func(m *gno.Machine) {
-				arg0 := m.LastBlock().GetParams1().TV
-				res0 := typedUint64(math.Float64bits(arg0.GetFloat64()))
-				m.PushValue(res0)
-			},
-		)
-		pn.DefineNative("Float64frombits",
-			gno.Flds( // params
-				"b", "uint64",
-			),
-			gno.Flds( // results
-				"f", "float64",
-			),
-			func(m *gno.Machine) {
-				arg0 := m.LastBlock().GetParams1().TV
-				res0 := typedFloat64(math.Float64frombits(arg0.GetUint64()))
-				m.PushValue(res0)
-			},
-		)
 	case "internal/os":
 		pn.DefineNative("Now",
 			gno.Flds( // params

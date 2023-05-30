@@ -4,13 +4,9 @@
 
 package math
 
-import (
-	imath "internal/math"
-)
-
 // Copysign returns a value with the magnitude of f
 // and the sign of sign.
 func Copysign(f, sign float64) float64 {
 	const signBit = 1 << 63
-	return imath.Float64frombits(imath.Float64bits(f)&^signBit | imath.Float64bits(sign)&signBit)
+	return Float64frombits(Float64bits(f)&^signBit | Float64bits(sign)&signBit)
 }

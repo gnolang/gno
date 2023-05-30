@@ -1369,6 +1369,14 @@ func (x *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*M
 	if native == nil {
 		panic("DefineNative expects a function, but got nil")
 	}
+
+	if idx, exists := x.GetLocalIndex(n); exists {
+		// XXX(morgan): trick to look as a new definition to Define2;
+		// if we try to redefine an old value it looks like precompile
+		// is not cooperating well with us...
+		x.Names[idx] = "#uncallable_" + x.Names[idx]
+	}
+
 	fd := FuncD(n, ps, rs, nil)
 	fd = Preprocess(nil, x, fd).(*FuncDecl)
 	ft := evalStaticType(nil, x, &fd.Type).(*FuncType)
@@ -1648,7 +1656,6 @@ func (sb *StaticBlock) GetStaticTypeOfAt(store Store, path ValuePath) Type {
 			path.Depth -= 1
 		}
 	}
-	panic("should not happen")
 }
 
 // Implements BlockNode.

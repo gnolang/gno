@@ -18,3 +18,6 @@ type ExecContext struct {
 	OrigSendSpent *std.Coins // mutable
 	Banker        Banker
 }
+
+func (e ExecContext) GetTimestamp() int64     { return e.Timestamp }
+func (e ExecContext) GetTimestampNano() int64 { return e.TimestampNano }

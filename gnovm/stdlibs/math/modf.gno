@@ -4,10 +4,6 @@
 
 package math
 
-import (
-	imath "internal/math"
-)
-
 // Modf returns integer and fractional floating-point numbers
 // that sum to f. Both values have the same sign as f.
 //
@@ -36,14 +32,14 @@ func modf(f float64) (int float64, frac float64) {
 		return 0, f
 	}
 
-	x := imath.Float64bits(f)
+	x := Float64bits(f)
 	e := uint(x>>shift)&mask - bias
 
 	// Keep the top 12+e bits, the integer part; clear the rest.
 	if e < 64-12 {
 		x &^= 1<<(64-12-e) - 1
 	}
-	int = imath.Float64frombits(x)
+	int = Float64frombits(x)
 	frac = f - int
 	return
 }
