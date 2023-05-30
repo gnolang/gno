@@ -17,4 +17,4 @@ func main() {
 }
 
 // Error:
-// main/files/declaredType6.gno:14: cannot use main.c as main.word with implicit conversion
+// main/files/declaredType6.gno:14: cannot use main.c as main.word without explicit conversion

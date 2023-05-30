@@ -2461,7 +2461,7 @@ func checkType(xt Type, dt Type, autoNative bool, conversionNeeded *bool) {
 	// TODO simplify with .IsNamedType().
 	if dxt, ok := xt.(*DeclaredType); ok {
 		if ddt, ok := dt.(*DeclaredType); ok {
-			// XXX what unseal mean?
+			// types must match exactly.
 			if !dxt.sealed && !ddt.sealed &&
 				dxt.PkgPath == ddt.PkgPath &&
 				dxt.Name == ddt.Name { // not yet sealed
@@ -2495,7 +2495,7 @@ func checkType(xt Type, dt Type, autoNative bool, conversionNeeded *bool) {
 				"cannot use %s as %s without explicit conversion",
 				xt.String(),
 				ddt.String()))
-		} else {
+		} else { // implies unnamed composit
 			// carry on with baseOf(ddt)
 			dt = ddt.Base
 			if conversionNeeded != nil {
