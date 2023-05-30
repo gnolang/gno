@@ -2470,7 +2470,7 @@ func checkType(xt Type, dt Type, autoNative bool, conversionNeeded *bool) {
 				return // ok
 			} else {
 				panic(fmt.Sprintf(
-					"cannot use %s as %s with implicit conversion",
+					"cannot use %s as %s without explicit conversion",
 					dxt.String(),
 					ddt.String()))
 			}
