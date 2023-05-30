@@ -2495,7 +2495,7 @@ func checkType(xt Type, dt Type, autoNative bool, conversionNeeded *bool) {
 				"cannot use %s as %s without explicit conversion",
 				xt.String(),
 				ddt.String()))
-		} else { // implies unnamed composit
+		} else { // implies unnamed composite
 			// carry on with baseOf(ddt)
 			dt = ddt.Base
 			if conversionNeeded != nil {
