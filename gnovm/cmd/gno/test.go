@@ -31,6 +31,7 @@ type testCfg struct {
 	precompile          bool // TODO: precompile should be the default, but it needs to automatically precompile dependencies in memory.
 	updateGoldenTests   bool
 	printRuntimeMetrics bool
+	withNativeFallback  bool
 }
 
 func newTestCmd(io *commands.IO) *commands.Command {
@@ -90,6 +91,13 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		"timeout",
 		0,
 		"max execution time",
+	)
+
+	fs.BoolVar(
+		&c.withNativeFallback,
+		"with-native-fallback",
+		false,
+		"use stdlibs/* if present, otherwise use supported native Go packages",
 	)
 
 	fs.BoolVar(
@@ -237,10 +245,15 @@ func gnoTestPkg(
 	filter := splitRegexp(runFlag)
 	var errs error
 
+	mode := tests.ImportModeStdlibsOnly
+	if cfg.withNativeFallback {
+		// XXX: display a warn?
+		mode = tests.ImportModeStdlibsPreferred
+	}
 	testStore := tests.TestStore(
 		rootDir, "",
 		stdin, stdout, stderr,
-		tests.ImportModeStdlibsOnly,
+		mode,
 	)
 	if verbose {
 		testStore.SetLogStoreOps(true)

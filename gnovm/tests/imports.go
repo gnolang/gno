@@ -169,6 +169,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg := gno.NewPackageNode("binary", pkgPath, nil)
 				pkg.DefineGoNativeValue("LittleEndian", binary.LittleEndian)
 				pkg.DefineGoNativeValue("BigEndian", binary.BigEndian)
+				pkg.DefineGoNativeValue("Write", binary.BigEndian) // warn: use reflection
 				return pkg, pkg.NewPackage()
 			case "encoding/json":
 				pkg := gno.NewPackageNode("json", pkgPath, nil)
@@ -382,25 +383,25 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg := gno.NewPackageNode("fnv", pkgPath, nil)
 				pkg.DefineGoNativeValue("New32a", fnv.New32a)
 				return pkg, pkg.NewPackage()
-			/* XXX support somehow for speed. for now, generic implemented in stdlibs.
-			case "internal/bytealg":
-				pkg := gno.NewPackageNode("bytealg", pkgPath, nil)
-				pkg.DefineGoNativeValue("Compare", bytealg.Compare)
-				pkg.DefineGoNativeValue("CountString", bytealg.CountString)
-				pkg.DefineGoNativeValue("Cutover", bytealg.Cutover)
-				pkg.DefineGoNativeValue("Equal", bytealg.Equal)
-				pkg.DefineGoNativeValue("HashStr", bytealg.HashStr)
-				pkg.DefineGoNativeValue("HashStrBytes", bytealg.HashStrBytes)
-				pkg.DefineGoNativeValue("HashStrRev", bytealg.HashStrRev)
-				pkg.DefineGoNativeValue("HashStrRevBytes", bytealg.HashStrRevBytes)
-				pkg.DefineGoNativeValue("Index", bytealg.Index)
-				pkg.DefineGoNativeValue("IndexByte", bytealg.IndexByte)
-				pkg.DefineGoNativeValue("IndexByteString", bytealg.IndexByteString)
-				pkg.DefineGoNativeValue("IndexRabinKarp", bytealg.IndexRabinKarp)
-				pkg.DefineGoNativeValue("IndexRabinKarpBytes", bytealg.IndexRabinKarpBytes)
-				pkg.DefineGoNativeValue("IndexString", bytealg.IndexString)
-				return pkg, pkg.NewPackage()
-			*/
+				/* XXX support somehow for speed. for now, generic implemented in stdlibs.
+				case "internal/bytealg":
+					pkg := gno.NewPackageNode("bytealg", pkgPath, nil)
+					pkg.DefineGoNativeValue("Compare", bytealg.Compare)
+					pkg.DefineGoNativeValue("CountString", bytealg.CountString)
+					pkg.DefineGoNativeValue("Cutover", bytealg.Cutover)
+					pkg.DefineGoNativeValue("Equal", bytealg.Equal)
+					pkg.DefineGoNativeValue("HashStr", bytealg.HashStr)
+					pkg.DefineGoNativeValue("HashStrBytes", bytealg.HashStrBytes)
+					pkg.DefineGoNativeValue("HashStrRev", bytealg.HashStrRev)
+					pkg.DefineGoNativeValue("HashStrRevBytes", bytealg.HashStrRevBytes)
+					pkg.DefineGoNativeValue("Index", bytealg.Index)
+					pkg.DefineGoNativeValue("IndexByte", bytealg.IndexByte)
+					pkg.DefineGoNativeValue("IndexByteString", bytealg.IndexByteString)
+					pkg.DefineGoNativeValue("IndexRabinKarp", bytealg.IndexRabinKarp)
+					pkg.DefineGoNativeValue("IndexRabinKarpBytes", bytealg.IndexRabinKarpBytes)
+					pkg.DefineGoNativeValue("IndexString", bytealg.IndexString)
+					return pkg, pkg.NewPackage()
+				*/
 			default:
 				// continue on...
 			}
