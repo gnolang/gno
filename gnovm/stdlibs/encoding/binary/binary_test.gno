@@ -3,7 +3,6 @@ package binary
 import (
 	"bytes"
 	"encoding/binary"
-
 	"testing"
 )
 
