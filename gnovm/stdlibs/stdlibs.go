@@ -171,30 +171,6 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				m.PushValue(res0)
 			},
 		)
-		pn.DefineNative("Hash",
-			gno.Flds( // params
-				"bz", "[]byte",
-			),
-			gno.Flds( // results
-				"hash", "[20]byte",
-			),
-			func(m *gno.Machine) {
-				arg0 := m.LastBlock().GetParams1().TV
-				bz := []byte(nil)
-				if arg0.V != nil {
-					slice := arg0.V.(*gno.SliceValue)
-					array := slice.GetBase(m.Store)
-					bz = array.GetReadonlyBytes()
-				}
-				hash := gno.HashBytes(bz)
-				res0 := gno.Go2GnoValue(
-					m.Alloc,
-					m.Store,
-					reflect.ValueOf([20]byte(hash)),
-				)
-				m.PushValue(res0)
-			},
-		)
 		pn.DefineNative("CurrentRealmPath",
 			gno.Flds( // params
 			),
@@ -430,39 +406,6 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				bsv := m.Alloc.NewStructWithFields(btv)
 				bankAdapterType := store.GetType(gno.DeclaredTypeID("std", "bankAdapter"))
 				res0 := gno.TypedValue{T: bankAdapterType, V: bsv}
-				m.PushValue(res0)
-			},
-		)
-		// XXX DEPRECATED, use stdlibs/time instead
-		pn.DefineNative("GetTimestamp",
-			gno.Flds( // params
-			),
-			gno.Flds( // results
-				"", "Time",
-			),
-			func(m *gno.Machine) {
-				ctx := m.Context.(ExecContext)
-				res0 := typedInt64(ctx.Timestamp)
-				timeT := store.GetType(gno.DeclaredTypeID("std", "Time"))
-				res0.T = timeT
-				m.PushValue(res0)
-			},
-		)
-		pn.DefineNative("FormatTimestamp",
-			gno.Flds( // params
-				"timestamp", "Time",
-				"format", "string",
-			),
-			gno.Flds( // results
-				"", "string",
-			),
-			func(m *gno.Machine) {
-				arg0, arg1 := m.LastBlock().GetParams2()
-				timestamp := arg0.TV.GetInt64()
-				format := arg1.TV.GetString()
-				t := time.Unix(timestamp, 0).Round(0).UTC()
-				result := t.Format(format)
-				res0 := typedString(m.Alloc.NewString(result))
 				m.PushValue(res0)
 			},
 		)

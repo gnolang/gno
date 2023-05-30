@@ -64,16 +64,6 @@ func GetBanker(bankerType BankerType) Banker {
 	return nil
 }
 
-func GetTimestamp() Time {
-	panic(shimWarn)
-	return 0
-}
-
-func FormatTimestamp(timestamp Time, format string) string {
-	panic(shimWarn)
-	return ""
-}
-
 func EncodeBech32(prefix string, bytes [20]byte) (addr Address) {
 	panic(shimWarn)
 	return ""
