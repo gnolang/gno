@@ -1012,7 +1012,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							args1T := evalStaticTypeOf(store, last, n.Args[1])
 							if args0T.Elem().TypeID() != args1T.Elem().TypeID() {
 								panic(fmt.Sprintf(
-									"arguments to copy have different element types"))
+									"arguments to copy have different element types, want %s, got %s", args0T.Elem().TypeID(), args1T.Elem().TypeID()))
 							}
 							// If the second argument is a string,
 							// convert to byteslice.

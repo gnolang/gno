@@ -18,4 +18,4 @@ package main
  }
 
 // Error:
-// main/files/declaredType7.gno:17: arguments to copy have different element types
+// main/files/declaredType7.gno:17: arguments to copy have different element types, want main.nat, got []main.word
