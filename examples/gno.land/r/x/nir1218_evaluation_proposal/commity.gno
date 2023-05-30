@@ -8,7 +8,7 @@ import (
 )
 
 type Commity struct {
-	members    []std.Address // TODO - use avl tree (had an issue using a tree of addresses)
+	members    []std.Address // TODO - use avl tree or address set?
 	categories avl.Tree      // A catagory is mapped to a list of evaluation criteria
 	evaluation *Evaluation
 }
@@ -31,6 +31,7 @@ func (c *Commity) DesignateMembers(members []std.Address) []std.Address {
 
 func (c *Commity) DismissMembers(members []std.Address) []std.Address {
 	// TODO
+	return []std.Address{}
 }
 
 func (c *Commity) AddCategory(name string, criteria []string) bool {
@@ -48,27 +49,27 @@ func (c *Commity) ApproveCategory(name string, option string) bool {
 		return false
 	}
 
-	if !c.categories.Has(name) {
+	value, exists := c.categories.Get(name)
+	if !exists {
 		return false
 	}
-
-	value, _ := c.categories.Get(name)
-
 	category := value.(*Category)
-
 	if category.Status() == ApprovedStatus {
 		return false
 	}
 
 	vote := NewVote(std.GetOrigCaller(), option)
-	category.votes = append(category.votes, vote)
+	category.votes.Set(std.GetOrigCaller().String(), vote)
 	category.Tally()
 
 	// TODO Add threshold factor for a category approval
 	// TODO Add quorum factor for a category approval
 	// Current assumption is all members voted YES so category is approved
 
-	result, ok := category.tallyResult.results.Get("YES")
+	result, exists := category.tallyResult.results.Get(VOTE_YES)
+	if !exists {
+		return false
+	}
 
 	if result.(int) == len(c.members) {
 		category.Approve()
@@ -98,13 +99,11 @@ func (c *Commity) ApproveContribution(id int, option string) bool {
 		return false
 	}
 
-	if !c.evaluation.contributions.Has(ufmt.Sprintf("%d", id)) {
+	value, exists := c.evaluation.contributions.Get(ufmt.Sprintf("%d", id))
+	if !exists {
 		return false
 	}
-
-	value, ok := c.evaluation.contributions.Get(ufmt.Sprintf("%d", id))
 	contribution := value.(*Contribution)
-
 	// Already approved
 	if contribution.status == ApprovedStatus {
 		return false
@@ -118,7 +117,10 @@ func (c *Commity) ApproveContribution(id int, option string) bool {
 	// TODO Add quorum factor for a contribution approval
 	// Current assumption is all members voted YES so contribution is approved
 
-	result, ok := contribution.tallyResult.results.Get("YES")
+	result, exists := contribution.tallyResult.results.Get(VOTE_YES)
+	if !exists {
+		return false
+	}
 
 	if result.(int) == len(c.members) {
 		contribution.Approve()

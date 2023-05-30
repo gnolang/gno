@@ -24,31 +24,51 @@ func TestCommityMembers(t *testing.T) {
 }
 
 func TestCategoryEvaluationCriteria(t *testing.T) {
+	member := testutils.TestAddress("member")
 	category := "document"
 	criteria := []string{"clarity", "usage"}
 	category2 := "bounty"
 	criteria2 := []string{"complexity"}
-	// expectedCategories := []string{category}
-	// expectedCategories2 := []string{category2, category}
+	expectedGategory := NewCategory(category, criteria)
+	expectedGategory2 := NewCategory(category2, criteria2)
 
 	c := NewCommity()
+	c.DesignateMembers([]std.Address{member})
 
 	t.Run("Add First Commity Category and Evaluation Criteria", func(t *testing.T) {
+		std.TestSetOrigCaller(member)
 		c.AddCategory(category, criteria)
-		// if !isEqualStringSlice(gotCategories, expectedCategories) {
-		// 	t.Errorf("Commity categoriess got %v expcted %v", gotCategories, expectedCategories)
-		// }
+		value, exists := c.categories.Get(category)
+		if !exists {
+			t.Errorf("Add first category %s failed", category)
+		}
+		gotCategory := value.(*Category)
+		if gotCategory.name != expectedGategory.name {
+			t.Errorf("First Commity category got %s expected %s", gotCategory.name, expectedGategory.name)
+		}
 	})
 
 	t.Run("Add Second Commity Category and Evaluation Criteria", func(t *testing.T) {
+		std.TestSetOrigCaller(member)
 		c.AddCategory(category2, criteria2)
-		// if !isEqualStringSlice(gotCategories2, expectedCategories2) {
-		// 	t.Errorf("Commity categoriess got %v expcted %v", gotCategories2, expectedCategories2)
-		// }
+		value2, exists2 := c.categories.Get(category2)
+		if !exists2 {
+			t.Errorf("Add second category %s failed", category2)
+		}
+		gotCategory2 := value2.(*Category)
+		if gotCategory2.name != expectedGategory2.name {
+			t.Errorf("Second Commity category got %s expected %s", gotCategory2.name, expectedGategory2.name)
+		}
 	})
 
-	t.Run("Approve Category", func(t *testing.T) {
-		c.ApproveCategory(category2, "YES")
+	t.Run("Approve First Commity Category", func(t *testing.T) {
+		std.TestSetOrigCaller(member)
+		approved := c.ApproveCategory(category, VOTE_YES)
+		if !approved {
+			value, exists := c.categories.Get(category)
+			gotCategory := value.(*Category)
+			t.Errorf("Approved First Commity category got %s expected %s", gotCategory.status, "Approved")
+		}
 	})
 }
 

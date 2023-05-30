@@ -24,7 +24,7 @@ func NewEvalutaion() *Evaluation {
 	return e
 }
 
-func (e *Evaluation) AddContribution(pr *PullRequest, contributor std.Address) (contributionId int, ok bool) {
+func (e *Evaluation) AddContribution(pr *PullRequest, contributor std.Address) (int, bool) {
 	id := pr.Id()
 	e.pullrequests.Set(ufmt.Sprintf("%d", id), pr)
 	c := NewContribution(id, contributor)
@@ -33,8 +33,8 @@ func (e *Evaluation) AddContribution(pr *PullRequest, contributor std.Address) (
 }
 
 func (e *Evaluation) UpdateContribution(id int, status string) bool {
-	c, found := e.contributions.Get(ufmt.Sprintf("%d", id))
-	if found == true {
+	c, exists := e.contributions.Get(ufmt.Sprintf("%d", id))
+	if exists {
 		contribtution := c.(*Contribution)
 		return contribtution.UpdateStatus(status)
 	}

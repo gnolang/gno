@@ -1,27 +1,28 @@
 package evaluation
 
 import (
-	"std"
-
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/ufmt"
 )
 
 type Category struct {
 	name        string
 	criteria    []string
 	status      string
-	votes       []Vote // TODO - use avl tree (had an issue using a tree of addresses)
+	votes       avl.Tree
 	tallyResult TallyResult
 }
 
 func NewCategory(name string, criteria []string) *Category {
+	tallyResult := TallyResult{}
+	tallyResult.results.Set(VOTE_YES, 0)
+	tallyResult.results.Set(VOTE_NO, 0)
+
 	c := &Category{
 		name:        name,
 		criteria:    criteria,
 		status:      "Proposed",
-		votes:       []Vote{},
-		tallyResult: TallyResult{},
+		votes:       avl.Tree{},
+		tallyResult: tallyResult,
 	}
 	return c
 }
@@ -36,13 +37,15 @@ func (c Category) Status() string {
 }
 
 func (c *Category) Tally() {
-	for _, v := range c.votes {
-		if c.tallyResult.results.Has(v.option) {
-			value, ok := c.tallyResult.results.Get(v.option)
-			count := value.(int)
-			c.tallyResult.results.Set(v.option, count)
-		} else {
-			c.tallyResult.results.Set(v.option, 0)
+	// TODO error handling
+	c.votes.Iterate("", "", func(address string, vote interface{}) bool {
+		v := vote.(Vote)
+		value, exists := c.tallyResult.results.Get(v.option)
+		if !exists {
+			return false
 		}
-	}
+		count := value.(int)
+		c.tallyResult.results.Set(v.option, count+1)
+		return true
+	})
 }

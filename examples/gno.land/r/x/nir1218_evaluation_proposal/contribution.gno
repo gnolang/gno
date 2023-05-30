@@ -1,15 +1,21 @@
 package evaluation
 
-import "std"
+import (
+	"std"
+	"time"
+)
 
 var contributionStatus = map[string]string{}
 
 type Contribution struct {
-	id          int
-	contributor std.Address
-	status      string // approved, proposed, negotiation, discussion, evaluation, etc.
-	votes       []Vote
-	tallyResult TallyResult
+	id               int
+	contributor      std.Address
+	status           string // approved, proposed, negotiation, discussion, evaluation, etc.
+	votes            []Vote
+	tallyResult      TallyResult
+	submitTime       time.Time
+	lastEvaluateTime time.Time
+	approveTime      time.Time
 }
 
 func init() {
@@ -53,13 +59,12 @@ func (c *Contribution) Approve() {
 }
 
 func (c *Contribution) Tally() {
+	// TODO error handling
 	for _, v := range c.votes {
 		if c.tallyResult.results.Has(v.option) {
-			value, ok := c.tallyResult.results.Get(v.option)
+			value, _ := c.tallyResult.results.Get(v.option)
 			count := value.(int)
-			c.tallyResult.results.Set(v.option, count)
-		} else {
-			c.tallyResult.results.Set(v.option, 0)
+			c.tallyResult.results.Set(v.option, count+1)
 		}
 	}
 }

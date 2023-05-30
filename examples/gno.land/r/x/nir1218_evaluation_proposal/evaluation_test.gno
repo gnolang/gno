@@ -39,7 +39,7 @@ func TestEvaluationAddContribution(t *testing.T) {
 	})
 
 	t.Run("Contribution added using the pull request id", func(t *testing.T) {
-		c, found := e.contributions.Get(ufmt.Sprintf("%d", id))
+		c, _ := e.contributions.Get(ufmt.Sprintf("%d", id))
 		contribtution := c.(*Contribution)
 		if contribtution.Id() != id {
 			t.Errorf("Got Contribution Id %d expected %d", contribtution.Id(), id)
@@ -47,7 +47,7 @@ func TestEvaluationAddContribution(t *testing.T) {
 	})
 
 	t.Run("Pull Request added using the pull request id", func(t *testing.T) {
-		pr, found := e.pullrequests.Get(ufmt.Sprintf("%d", id))
+		pr, _ := e.pullrequests.Get(ufmt.Sprintf("%d", id))
 		pullrequest := pr.(*PullRequest)
 		if pullrequest.Id() != id {
 			t.Errorf("Got Pull Request Id %d expected %d", pullrequest.Id(), id)
