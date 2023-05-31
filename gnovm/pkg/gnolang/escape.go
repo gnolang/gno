@@ -5,36 +5,6 @@ import (
 	"go/token"
 )
 
-func Roots(f *ast.FuncDecl) []*ast.Ident {
-	roots := make([]*ast.Ident, 0)
-	ast.Inspect(f.Body, func(n ast.Node) bool {
-		switch x := n.(type) {
-		case *ast.AssignStmt:
-			idents := make([]*ast.Ident, len(x.Lhs))
-
-			for i, lsh := range x.Lhs {
-				idents[i] = getIdent(lsh)
-			}
-
-			roots = append(roots, idents...)
-		}
-
-		return true
-	})
-
-	for _, v := range f.Type.Params.List {
-		if !isSpecialType(v.Type) && !isReference(v.Type) {
-			continue
-		}
-
-		for _, m := range v.Names {
-			roots = append(roots, m)
-		}
-	}
-
-	return roots
-}
-
 // EscapeAnalysis tracks whether values
 // need to be heap allocated
 // here are the 3 rules we use

@@ -3,7 +3,6 @@ package gnolang
 import (
 	"encoding/binary"
 	"fmt"
-	"go/ast"
 	"math"
 	"math/big"
 	"reflect"
@@ -529,7 +528,7 @@ type FuncValue struct {
 
 	body       []Stmt         // function body
 	nativeBody func(*Machine) // alternative to Body
-	roots      []*ast.Ident
+	roots      []*NameExpr
 }
 
 func (fv *FuncValue) Copy(alloc *Allocator) *FuncValue {

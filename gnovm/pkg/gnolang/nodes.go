@@ -2,7 +2,6 @@ package gnolang
 
 import (
 	"fmt"
-	"go/ast"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -980,7 +979,7 @@ type FuncDecl struct {
 	Recv     FieldTypeExpr // receiver (if method); or empty (if function)
 	Type     FuncTypeExpr  // function signature: parameters and results
 	Body                   // function body; or empty for external (non-Go) function
-	Roots    []*ast.Ident
+	Roots    []*NameExpr
 }
 
 func (x *FuncDecl) GetDeclNames() []Name {

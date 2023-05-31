@@ -465,6 +465,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// type set @ predefineNow().
 				}
 
+				//todo here
+
 				// push func body block.
 				pushInitBlock(n, &last, &stack)
 				// define receiver in new block, if method.
@@ -3095,6 +3097,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			return
 		}
 	case *FuncDecl:
+		//todo here
 		un = findUndefined(store, last, &d.Type)
 		if un != "" {
 			return
