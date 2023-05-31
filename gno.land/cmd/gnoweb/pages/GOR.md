@@ -33,34 +33,49 @@ If you want to stack ATOM rewards and play a key role in the success of Gno.land
 
 ## Evaluation DAO
 
+This complex challenge seeks your skills in DAO development and implementation and is one of the most important challenges of phase one. The Evaluation DAO will ensure that contributions in Game of Realms and the Gno.land platform are fairly rewarded.
+
 <div class="accordion gor-accordion">
+
 <button type="button" aria-expanded="false" class="accordion-trigger is-muted" aria-controls="acc-1" id="accpanel-1"> &#9745; <span class="is-finished">Clarifying this issue</span> — [100%&nbsp;completed] </button>
+
 <div id="acc-1" role="region" aria-labelledby="accpanel-1" class="accordion-panel is-hidden">
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus commodo euismod nibh. Pellentesque maximus gravida est, ut lacinia quam mattis et. Etiam arcu arcu, dignissim porta varius ac, venenatis vitae mauris. Proin eget fringilla nulla. Vivamus blandit. Nulla volutpat leo felis, porttitor ultrices mi scelerisque et. Nullam non pharetra diam, id iaculis sem. Mauris sollicitudin in sem eget dictum. Lorem ipsum dolor sit ame elit. Phasellus commodo euismod nibh
 </div>
-<button type="button" aria-expanded="true" class="accordion-trigger" aria-controls="acc-2" id="accpanel-2"> &#9744; <span class="is-underline">Retrospectives & investigations</span> — [20%&nbsp;completed]</button>
+
+<button type="button" aria-expanded="true" class="accordion-trigger" aria-controls="acc-2" id="accpanel-2"> &#9744; <span class="is-underline">Retrospectives & investigations</span> — [20%&nbsp;In progress]</button>
+
 <div id="acc-2" role="region" aria-labelledby="accpanel-2" class="accordion-panel">
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus commodo euismod nibh. Pellentesque maximus gravida est, ut lacinia quam mattis et. Etiam arcu arcu, dignissim porta varius ac, venenatis vitae mauris. Proin eget fringilla nulla. Vivamus blandit. Nulla volutpat leo felis, porttitor ultrices mi scelerisque et. Nullam non pharetra diam, id iaculis sem. Mauris sollicitudi s sem eget dictum. Lorem ipsum dolor sit ame elit. Phasellus commodo euismod nibh
+
+Game of Realms participants and core contributors are still in discussions, proposing additional ideas, and seeing how the proposal for the Evaluation DAO evolves over time.
+
 </div>
-<button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-3" id="accpanel-3"> &#9744; <span class="is-underline">Human specs — definitions, rules, examples</span> — [20%&nbsp;completed]</button>
-<div id="acc-3" role="region" aria-labelledby="accpanel-3" class="accordion-panel is-hidden">
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus commodo euismod nibh. Pellentesque maximus gravida est, ut lacinia quam mattis et. Etiam arcu arcu, dignissim porta varius ac, venenatis vitae mauris. Proin eget fringilla nulla. Vivamus blandit. Nulla volutpat leo felis, porttitor ultrices mi scelerisque et. Nullam non pharetra diam, id iaculis sem. Mauris sollicitudi s sem eget dictum. Lorem ipsum dolor sit ame elit. Phasellus commodo euismod nibh
+
+<button type="button" aria-expanded="true" class="accordion-trigger" aria-controls="acc-3" id="accpanel-3"> &#9744; <span class="is-underline">Human specs — definitions, rules, examples</span> — [20%&nbsp;In progress]</button>
+
+<div id="acc-3" role="region" aria-labelledby="accpanel-3" class="accordion-panel">
+
+See [GitHub issue 519](https://github.com/gnolang/gno/issues/519) for the most up-to-date discussion so far on how voting should work for the DAO, what the responsibilities are, how to join, etc.
+
 </div>
-<button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-4" id="accpanel-4"> &#9744; <span class="is-underline">Technical specs and interfaces</span> — [20%&nbsp;completed]</button>
+
+<button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-4" id="accpanel-4"> &#9744; <span class="is-underline">Technical specs and interfaces</span> — [0%&nbsp;Stand-by]</button>
+
 <div id="acc-4" role="region" aria-labelledby="accpanel-4" class="accordion-panel is-hidden">
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus commodo euismod nibh. Pellentesque maximus gravida est, ut lacinia quam mattis et. Etiam arcu arcu, dignissim porta varius ac, venenatis vitae mauris. Proin eget fringilla nulla. Vivamus blandit. Nulla volutpat leo felis, porttitor ultrices mi scelerisque et. Nullam non pharetra diam, id iaculis sem. Mauris sollicitudi s sem eget dictum. Lorem ipsum dolor sit ame elit. Phasellus commodo euismod nibh
 </div>
-<button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-5" id="accpanel-5"> &#9744; <span class="is-underline">Implementation</span> — [20%&nbsp;completed]</button>
+
+<button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-5" id="accpanel-5"> &#9744; <span class="is-underline">Implementation</span> — [0%&nbsp;Stand-by]</button>
+
 <div id="acc-5" role="region" aria-labelledby="accpanel-5" class="accordion-panel is-hidden">
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus commodo euismod nibh. Pellentesque maximus gravida est, ut lacinia quam mattis et. Etiam arcu arcu, dignissim porta varius ac, venenatis vitae mauris. Proin eget fringilla nulla. Vivamus blandit. Nulla volutpat leo felis, porttitor ultrices mi scelerisque et. Nullam non pharetra diam, id iaculis sem. Mauris sollicitudi s sem eget dictum. Lorem ipsum dolor sit ame elit. Phasellus commodo euismod nibh
 </div>
-<button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-6" id="accpanel-6"> &#9744; <span class="is-underline">Documentation</span> — [20%&nbsp;completed]</button>
+
+<button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-6" id="accpanel-6"> &#9744; <span class="is-underline">Documentation</span> — [0%&nbsp;Stand-by]</button>
+
 <div id="acc-6" role="region" aria-labelledby="accpanel-6" class="accordion-panel is-hidden">
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus commodo euismod nibh. Pellentesque maximus gravida est, ut lacinia quam mattis et. Etiam arcu arcu, dignissim porta varius ac, venenatis vitae mauris. Proin eget fringilla nulla. Vivamus blandit. Nulla volutpat leo felis, porttitor ultrices mi scelerisque et. Nullam non pharetra diam, id iaculis sem. Mauris sollicitudi s sem eget dictum. Lorem ipsum dolor sit ame elit. Phasellus commodo euismod nibh
 </div>
-<button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-7" id="accpanel-7"> &#9744; <span class="is-underline">Bootstrapping plan</span> — [20%&nbsp;completed]</button>
+
+<button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-7" id="accpanel-7"> &#9744; <span class="is-underline">Bootstrapping plan</span> — [0%&nbsp;Stand-by]</button>
+
 <div id="acc-7" role="region" aria-labelledby="accpanel-7" class="accordion-panel is-hidden">
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus commodo euismod nibh. Pellentesque maximus gravida est, ut lacinia quam mattis et. Etiam arcu arcu, dignissim porta varius ac, venenatis vitae mauris. Proin eget fringilla nulla. Vivamus blandit. Nulla volutpat leo felis, porttitor ultrices mi scelerisque et. Nullam non pharetra diam, id iaculis sem. Mauris sollicitudi s sem eget dictum. Lorem ipsum dolor sit ame elit. Phasellus commodo euismod nibh
 </div>
 
 </div>
@@ -70,15 +85,95 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus commodo euism
 
 ## Tutorials
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus commodo euismod nibh. Pellentesque maximus gravida est, ut lacinia quam mattis et. Etiam arcu arcu, dignissim porta varius ac, venenatis vitae mauris. Proin eget fringilla nulla. Vivamus blandit. Nulla volutpat leo felis, porttitor ultrices mi scelerisque et. Nullam non pharetra diam, id iaculis sem. Mauris sollicitudi s sem eget dictum. Lorem ipsum dolor sit ame elit. Phasellus commodo euismod nibh
+To progress to phase two of the competition, we need high-quality tutorials, guides, and documentation from phase one participants. Help to create materials that will onboard more contributors to Gno.land.
 
+<div class="accordion gor-accordion">
+
+<button type="button" aria-expanded="false" class="accordion-trigger is-muted" aria-controls="acc-8" id="accpanel-8"> &#9745; <span class="is-finished">Clarifying this issue</span> — [100%&nbsp;completed] </button>
+
+<div id="acc-8" role="region" aria-labelledby="accpanel-8" class="accordion-panel is-hidden">
+</div>
+
+<button type="button" aria-expanded="false" class="accordion-trigger is-muted" aria-controls="acc-9" id="accpanel-9"> &#9745; <span class="is-finished">Retrospectives & investigations</span> — [100%&nbsp;completed]</button>
+
+<div id="acc-9" role="region" aria-labelledby="accpanel-9" class="accordion-panel is-muted is-hidden">
+
+How to create, present, and house the tutorials has been established with productive discussions between core contributors and external participants.
+
+</div>
+
+<button type="button" aria-expanded="false" class="accordion-trigger is-muted" aria-controls="acc-10" id="accpanel-10"> &#9745; <span class="is-finished">Human specs — definitions, rules, examples</span> — [100%&nbsp;completed]</button>
+
+<div id="acc-10" role="region" aria-labelledby="accpanel-10" class="accordion-panel is-muted is-hidden">
+
+We followed a collaborative approach to defining the scope of the work and creating a series of tutorials and videos, Gno by Example, to explain core concepts and show newcomers how to write in the Gno programming language. Gno docs and tutorials will be community-run so that anyone can contribute. Onbloc’s [developer portal](https://docs.onbloc.xyz/) is an excellent onramp to Gno.land currently. We will soon be releasing a documentation instance to house all tutorials.
+
+</div>
+
+<button type="button" aria-expanded="false" class="accordion-trigger is-muted" aria-controls="acc-11" id="accpanel-11"> &#9744; <span class="is-finished">Technical specs and interfaces</span> — [100%&nbsp;completed]</button>
+
+<div id="acc-11" role="region" aria-labelledby="accpanel-11" class="accordion-panel is-hidden">
+</div>
+
+<button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-12" id="accpanel-12"> &#9744; <span class="is-underline">Implementation</span> — [80%&nbsp;In progress]</button>
+
+<div id="acc-12" role="region" aria-labelledby="accpanel-12" class="accordion-panel is-hidden">
+</div>
+
+<button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-13" id="accpanel-13"> &#9744; <span class="is-underline">Bootstrapping plan</span> — [0%&nbsp;Stand-by]</button>
+
+<div id="acc-13" role="region" aria-labelledby="accpanel-13" class="accordion-panel is-hidden">
+</div>
+
+</div>
 </div>
 
 <div id="tabpanel-3" role="tabpanel" tabindex="0" aria-labelledby="tab-3" class="">
 
 ## Governance Module
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus commodo euismod nibh. Pellentesque maximus gravida est, ut lacinia quam mattis et. Etiam arcu arcu, dignissim porta varius ac, venenatis vitae mauris. Proin eget fringilla nulla. Vivamus blandit. Nulla volutpat leo felis, porttitor ultrices mi scelerisque et. Nullam non pharetra diam, id iaculis sem. Mauris sollicitudi s sem eget dictum. Lorem ipsum dolor sit ame elit. Phasellus commodo euismod nibh
+Can you define and implement a governance contract suite that rivals existing ones, such as the Cosmos Hub? Show us how! We’re looking for the fairest and most efficient governance solution possible.
+
+<div class="accordion gor-accordion">
+
+<button type="button" aria-expanded="false" class="accordion-trigger is-muted" aria-controls="acc-14" id="accpanel-14"> &#9745; <span class="is-finished">Clarifying this issue</span> — [100%&nbsp;completed] </button>
+
+<div id="acc-14" role="region" aria-labelledby="accpanel-14" class="accordion-panel is-hidden">
+</div>
+
+<button type="button" aria-expanded="true" class="accordion-trigger" aria-controls="acc-15" id="accpanel-15"> &#9744; <span class="is-underline">Retrospectives & investigations</span> — [60%&nbsp;In progress]</button>
+
+<div id="acc-15" role="region" aria-labelledby="accpanel-15" class="accordion-panel">
+
+Game of Realms participants and core contributors have made significant progress teaming up to complete this challenge but discussions and additional ideas are still ongoing.
+
+</div>
+
+<button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-16" id="accpanel-16"> &#9744; <span class="is-underline">Human specs — definitions, rules, examples</span> — [20%&nbsp;In progress]</button>
+
+<div id="acc-16" role="region" aria-labelledby="accpanel-16" class="accordion-panel is-muted is-hidden">
+</div>
+
+<button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-17" id="accpanel-17"> &#9744; <span class="is-underline">Technical specs and interfaces</span> — [0%&nbsp;Stand-by]</button>
+
+<div id="acc-17" role="region" aria-labelledby="accpanel-17" class="accordion-panel is-hidden">
+</div>
+
+<button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-18" id="accpanel-18"> &#9744; <span class="is-underline">Implementation</span> — [0%&nbsp;Stand-by]</button>
+
+<div id="acc-18" role="region" aria-labelledby="accpanel-18" class="accordion-panel is-hidden">
+</div>
+
+<button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-19" id="accpanel-19"> &#9744; <span class="is-underline">Documentation</span> — [0%&nbsp;Stand-by]</button>
+
+<div id="acc-19" role="region" aria-labelledby="accpanel-19" class="accordion-panel is-hidden">
+
+<button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-20" id="accpanel-20"> &#9744; <span class="is-underline">Bootstrapping plan</span> — [0%&nbsp;Stand-by]</button>
+
+<div id="acc-20" role="region" aria-labelledby="accpanel-20" class="accordion-panel is-hidden">
+</div>
+
+</div>
 
 </div>
 

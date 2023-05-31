@@ -26,9 +26,7 @@ function parseContent(source) {
 class Accordion {
   constructor(domNode) {
     this.buttonEl = domNode;
-
-    const controlsId = this.buttonEl.getAttribute("aria-controls");
-    this.contentEl = document.getElementById(controlsId);
+    this.contentEl = this.buttonEl.nextElementSibling ?? this.buttonEl.parentElement.nextElementSibling;
     this.open = this.buttonEl.getAttribute("aria-expanded") === "true";
 
     this.buttonEl.addEventListener("click", this.onButtonClick.bind(this));
