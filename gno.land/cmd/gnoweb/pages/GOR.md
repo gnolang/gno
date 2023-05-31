@@ -15,8 +15,8 @@ If you want to stack ATOM rewards and play a key role in the success of Gno.land
 ## Phase I. (ongoing)
 
 - <button id="tab-1" type="button" role="tab" aria-selected="true" aria-controls="tabpanel-1">Evaluation DAO (20%)</button>
-- <button id="tab-2" type="button" role="tab" aria-selected="false" aria-controls="tabpanel-2" tabindex="-1">Tutorials (0%)</button>
-- <button id="tab-3" type="button" role="tab" aria-selected="false" aria-controls="tabpanel-3" tabindex="-1">Governance Module (30%)</button>
+- <button id="tab-2" type="button" role="tab" aria-selected="false" aria-controls="tabpanel-2" tabindex="-1">Tutorials (80%)</button>
+- <button id="tab-3" type="button" role="tab" aria-selected="false" aria-controls="tabpanel-3" tabindex="-1">Governance Module (25%)</button>
 
 </div>
 <div>
