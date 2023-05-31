@@ -221,12 +221,24 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 		}
 		return tv.V.(PointerValue).String()
 	case *ArrayType:
+		if tv.V == nil {
+			return "nil array"
+		}
 		return tv.V.(*ArrayValue).String()
 	case *SliceType:
+		if tv.V == nil {
+			return "nil slice"
+		}
 		return tv.V.(*SliceValue).String()
 	case *StructType:
+		if tv.V == nil {
+			return "nil struct"
+		}
 		return tv.V.(*StructValue).String()
 	case *MapType:
+		if tv.V == nil {
+			return "nil map"
+		}
 		return tv.V.(*MapValue).String()
 	case *FuncType:
 		switch fv := tv.V.(type) {
