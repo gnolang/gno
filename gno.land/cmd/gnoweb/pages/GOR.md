@@ -166,7 +166,7 @@ Game of Realms participants and core contributors have made significant progress
 
 <button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-19" id="accpanel-19"> &#9744; <span class="is-underline">Documentation</span> — [0%&nbsp;Stand-by]</button>
 
-<div id="acc-19" role="region" aria-labelledby="accpanel-19" class="accordion-panel is-hidden">
+<div id="acc-19" role="region" aria-labelledby="accpanel-19" class="accordion-panel is-hidden"></div>
 
 <button type="button" aria-expanded="false" class="accordion-trigger" aria-controls="acc-20" id="accpanel-20"> &#9744; <span class="is-underline">Bootstrapping plan</span> — [0%&nbsp;Stand-by]</button>
 

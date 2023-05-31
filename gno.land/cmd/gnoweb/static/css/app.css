@@ -346,6 +346,10 @@ code {
 .accordion-trigger ~ div {
   padding: 0.875rem 0 2.2rem;
 }
+
+.accordion > p {
+  margin-block: 0;
+}
 /** 51.2rem **/
 @media screen and (min-width: 68.75rem) {
   .accordion .accordion-trigger ~ div {
