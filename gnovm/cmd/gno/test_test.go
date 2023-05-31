@@ -151,6 +151,27 @@ func TestTest(t *testing.T) {
 			stdoutShouldContain: "RUN   TestSprintf",
 			stderrShouldContain: "ok      ./../../../examples/gno.land/p/demo/ufmt",
 		},
+		{
+			args:                 []string{"test", "--verbose", "../../tests/integ/native-lib"},
+			recoverShouldContain: "./../../tests/integ/native-lib/contract.gno:1: unknown import path net",
+		},
+		{
+			args:                []string{"test", "--verbose", "--with-native-fallback", "../../tests/integ/native-lib"},
+			stderrShouldContain: "ok      ./../../tests/integ/native-lib",
+		},
+		{
+			args:                 []string{"test", "--verbose", "../../tests/integ/unknown-lib"},
+			recoverShouldContain: "./../../tests/integ/unknown-lib/contract.gno:1: unknown import path foobarbaz",
+		},
+		{
+			args:                 []string{"test", "--verbose", "--with-native-fallback", "../../tests/integ/unknown-lib"},
+			recoverShouldContain: "./../../tests/integ/unknown-lib/contract.gno:1: unknown import path foobarbaz",
+		},
+		{
+			args:                []string{"test", "--verbose", "--print-runtime-metrics", "../../../examples/gno.land/p/demo/ufmt"},
+			stdoutShouldContain: "RUN   TestSprintf",
+			stderrShouldContain: "cycle=",
+		},
 
 		// TODO: when 'gnodev test' will by default imply running precompile, we should use the following tests.
 		// {args: []string{"test", "../../tests/integ/empty-gno1", "--no-precompile"}, stderrShouldBe: "?       ./../../tests/integ/empty-gno1 \t[no test files]\n"},
