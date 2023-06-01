@@ -115,8 +115,7 @@ func UnarmorDecryptPrivKey(armorStr string, passphrase string) (crypto.PrivKey, 
 	}
 	saltBytes, err := hex.DecodeString(header["salt"])
 	if err != nil {
-		//nolint:errorlint
-		return privKey, fmt.Errorf("error decoding salt: %v", err.Error())
+		return privKey, fmt.Errorf("error decoding salt: %w", err)
 	}
 	privKey, err = decryptPrivKey(saltBytes, encBytes, passphrase)
 	return privKey, err

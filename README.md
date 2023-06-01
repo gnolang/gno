@@ -20,7 +20,7 @@ simulated by the Gnomes of the Greater Resistance.
 Start your journey with Gno.land by:
 - using the [`gnoweb`](./gno.land/cmd/gnoweb) interface on the [latest testnet (test3.gno.land)](https://test3.gno.land/),
 - sending transactions with [`gnokey`](./gno.land/cmd/gnokey),
-- writing smart-contracts with [`gno` (ex `gnodev`)](./gnovm/cmd/gnokey).
+- writing smart-contracts with [`gno` (ex `gnodev`)](./gnovm/cmd/gno).
 
 Also, see the [quickstart guide](https://test3.gno.land/r/demo/boards:testboard/5).
 

@@ -23,7 +23,7 @@ func GetGnoModPath() string {
 func writePackage(remote, basePath, pkgPath string) (requirements []string, err error) {
 	res, err := queryChain(remote, queryPathFile, []byte(pkgPath))
 	if err != nil {
-		return nil, fmt.Errorf("querychain: %w", err)
+		return nil, fmt.Errorf("querychain (%s): %w", pkgPath, err)
 	}
 
 	dirPath, fileName := std.SplitFilepath(pkgPath)
@@ -47,20 +47,29 @@ func writePackage(remote, basePath, pkgPath string) (requirements []string, err 
 		}
 	} else {
 		// Is File
-		// Precompile
-		filePath := filepath.Join(basePath, pkgPath)
-		targetFilename, _ := gnolang.GetPrecompileFilenameAndTags(filePath)
-		precompileRes, err := gnolang.Precompile(string(res.Data), "", fileName)
-		if err != nil {
-			return nil, fmt.Errorf("precompile: %w", err)
+		// Precompile and write generated go file
+		if strings.HasSuffix(fileName, ".gno") {
+			filePath := filepath.Join(basePath, pkgPath)
+			targetFilename, _ := gnolang.GetPrecompileFilenameAndTags(filePath)
+			precompileRes, err := gnolang.Precompile(string(res.Data), "", fileName)
+			if err != nil {
+				return nil, fmt.Errorf("precompile: %w", err)
+			}
+
+			for _, i := range precompileRes.Imports {
+				requirements = append(requirements, i.Path.Value)
+			}
+
+			targetFileNameWithPath := filepath.Join(basePath, dirPath, targetFilename)
+			err = os.WriteFile(targetFileNameWithPath, []byte(precompileRes.Translated), 0o644)
+			if err != nil {
+				return nil, fmt.Errorf("writefile %q: %w", targetFileNameWithPath, err)
+			}
 		}
 
-		for _, i := range precompileRes.Imports {
-			requirements = append(requirements, i.Path.Value)
-		}
-
-		fileNameWithPath := filepath.Join(basePath, dirPath, targetFilename)
-		err = os.WriteFile(fileNameWithPath, []byte(precompileRes.Translated), 0o644)
+		// Write file
+		fileNameWithPath := filepath.Join(basePath, dirPath, fileName)
+		err = os.WriteFile(fileNameWithPath, res.Data, 0o644)
 		if err != nil {
 			return nil, fmt.Errorf("writefile %q: %w", fileNameWithPath, err)
 		}

@@ -6,6 +6,7 @@ on:
       - "go.sum"
       - "gnovm/**.go"
       - "gnovm/**.gno"
+      - "examples/**.gno"
       - "gnovm/**/go.sum"
       - "gnovm/Makefile"
       - "tm2/**.go"
@@ -59,4 +60,14 @@ jobs:
         working-directory: gnovm
         run: |
           export GOPATH=$HOME/go
+          export GOTEST_FLAGS="-v -p 1 -timeout=30m -coverprofile=coverage.out -covermode=atomic"
           make ${{ matrix.args }}
+      - if: runner.os == 'Linux'
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          name: gnovm
+          flags: gnovm,gnovm-${{matrix.args}},go-${{ matrix.go-version }}
+          files: ./gnovm/coverage.out
+          #fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
+          fail_ci_if_error: false # temporarily

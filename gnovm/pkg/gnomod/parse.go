@@ -49,6 +49,10 @@ func Parse(file string, data []byte) (*File, error) {
 					f.add(&errs, x, l, x.Token[0], l.Token)
 				}
 			}
+		case *modfile.CommentBlock:
+			if x.Start.Line == 1 {
+				f.Draft = parseDraft(x)
+			}
 		}
 	}
 
@@ -99,8 +103,10 @@ func (f *File) add(errs *modfile.ErrorList, block *modfile.LineBlock, line *modf
 			errorf("repeated module statement")
 			return
 		}
+		deprecated := parseDeprecation(block, line)
 		f.Module = &modfile.Module{
-			Syntax: line,
+			Syntax:     line,
+			Deprecated: deprecated,
 		}
 		if len(args) != 1 {
 			errorf("usage: module module/path")

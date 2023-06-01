@@ -57,4 +57,25 @@ jobs:
         working-directory: gno.land
         run: |
           export GOPATH=$HOME/go
+          export GOTEST_FLAGS="-v -p 1 -timeout=30m -coverprofile=coverage.out -covermode=atomic"
           make ${{ matrix.args }}
+      - if: runner.os == 'Linux'
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          name: gno.land
+          flags: gno.land,gno.land-${{matrix.args}},go-${{ matrix.go-version }}
+          files: ./gno.land/coverage.out
+          #fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
+          fail_ci_if_error: false # temporarily
+
+  docker-integration:
+    strategy:
+      fail-fast: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v3
+      # TODO: setup docker caching
+      - run: make test.docker
+      - run: docker logs int_gnoland || true

@@ -142,7 +142,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 		pn.DefineGoNativeValue("IntSize", strconv.IntSize)
 		pn.DefineGoNativeValue("AppendUint", strconv.AppendUint)
 	case "std":
-		// NOTE: some of these are overridden in tests/imports_test.go
+		// NOTE: some of these are overridden in tests/imports.go
 		// Also see stdlibs/InjectPackage.
 		pn.DefineNative("AssertOriginCall",
 			gno.Flds( // params
@@ -152,7 +152,8 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			func(m *gno.Machine) {
 				isOrigin := len(m.Frames) == 2
 				if !isOrigin {
-					panic("invalid non-origin call")
+					m.Panic(typedString("invalid non-origin call"))
+					return
 				}
 			},
 		)
@@ -166,30 +167,6 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				isOrigin := len(m.Frames) == 2
 				res0 := gno.TypedValue{T: gno.BoolType}
 				res0.SetBool(isOrigin)
-				m.PushValue(res0)
-			},
-		)
-		pn.DefineNative("Hash",
-			gno.Flds( // params
-				"bz", "[]byte",
-			),
-			gno.Flds( // results
-				"hash", "[20]byte",
-			),
-			func(m *gno.Machine) {
-				arg0 := m.LastBlock().GetParams1().TV
-				bz := []byte(nil)
-				if arg0.V != nil {
-					slice := arg0.V.(*gno.SliceValue)
-					array := slice.GetBase(m.Store)
-					bz = array.GetReadonlyBytes()
-				}
-				hash := gno.HashBytes(bz)
-				res0 := gno.Go2GnoValue(
-					m.Alloc,
-					m.Store,
-					reflect.ValueOf([20]byte(hash)),
-				)
 				m.PushValue(res0)
 			},
 		)
@@ -314,13 +291,15 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				arg0 := m.LastBlock().GetParams1().TV
 				n := arg0.GetInt()
 				if n <= 0 {
-					panic("GetCallerAt requires positive arg")
+					m.Panic(typedString("GetCallerAt requires positive arg"))
+					return
 				}
 				if n > m.NumFrames() {
 					// NOTE: the last frame's LastPackage
 					// is set to the original non-frame
 					// package, so need this check.
-					panic("frame not found")
+					m.Panic(typedString("frame not found"))
+					return
 				}
 				var pkgAddr string
 				if n == m.NumFrames() {
@@ -376,39 +355,6 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				m.PushValue(res0)
 			},
 		)
-		// XXX DEPRECATED, use stdlibs/time instead
-		pn.DefineNative("GetTimestamp",
-			gno.Flds( // params
-			),
-			gno.Flds( // results
-				"", "Time",
-			),
-			func(m *gno.Machine) {
-				ctx := m.Context.(ExecContext)
-				res0 := typedInt64(ctx.Timestamp)
-				timeT := store.GetType(gno.DeclaredTypeID("std", "Time"))
-				res0.T = timeT
-				m.PushValue(res0)
-			},
-		)
-		pn.DefineNative("FormatTimestamp",
-			gno.Flds( // params
-				"timestamp", "Time",
-				"format", "string",
-			),
-			gno.Flds( // results
-				"", "string",
-			),
-			func(m *gno.Machine) {
-				arg0, arg1 := m.LastBlock().GetParams2()
-				timestamp := arg0.TV.GetInt64()
-				format := arg1.TV.GetString()
-				t := time.Unix(timestamp, 0).Round(0).UTC()
-				result := t.Format(format)
-				res0 := typedString(m.Alloc.NewString(result))
-				m.PushValue(res0)
-			},
-		)
 		pn.DefineNative("EncodeBech32",
 			gno.Flds( // params
 				"prefix", "string",
@@ -426,7 +372,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				}
 				b32, err := bech32.ConvertAndEncode(prefix, bz)
 				if err != nil {
-					panic(err)
+					panic(err) // should not happen
 				}
 				res0 := gno.Go2GnoValue(
 					m.Alloc,

@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
@@ -792,4 +793,55 @@ func parseReplace(filename string, line *modfile.Line, verb string, args []strin
 		New:    module.Version{Path: ns, Version: nv},
 		Syntax: line,
 	}, nil
+}
+
+// parseDeprecation extracts the text of comments on a "module" directive and
+// extracts a deprecation message from that.
+//
+// A deprecation message is contained in a paragraph within a block of comments
+// that starts with "Deprecated:" (case sensitive). The message runs until the
+// end of the paragraph and does not include the "Deprecated:" prefix. If the
+// comment block has multiple paragraphs that start with "Deprecated:",
+// parseDeprecation returns the message from the first.
+func parseDeprecation(block *modfile.LineBlock, line *modfile.Line) string {
+	text := parseDirectiveComment(block, line)
+	rx := regexp.MustCompile(`(?s)(?:^|\n\n)Deprecated: *(.*?)(?:$|\n\n)`)
+	m := rx.FindStringSubmatch(text)
+	if m == nil {
+		return ""
+	}
+	return m[1]
+}
+
+// parseDirectiveComment extracts the text of comments on a directive.
+// If the directive's lien does not have comments and is part of a block that
+// does have comments, the block's comments are used.
+func parseDirectiveComment(block *modfile.LineBlock, line *modfile.Line) string {
+	comments := line.Comment()
+	if block != nil && len(comments.Before) == 0 && len(comments.Suffix) == 0 {
+		comments = block.Comment()
+	}
+	groups := [][]modfile.Comment{comments.Before, comments.Suffix}
+	var lines []string
+	for _, g := range groups {
+		for _, c := range g {
+			if !strings.HasPrefix(c.Token, "//") {
+				continue // blank line
+			}
+			lines = append(lines, strings.TrimSpace(strings.TrimPrefix(c.Token, "//")))
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+// parseDraft returns whether the module is marked as draft.
+func parseDraft(block *modfile.CommentBlock) bool {
+	if len(block.Before) != 1 {
+		return false
+	}
+	comment := block.Before[0]
+	if strings.TrimSpace(strings.TrimPrefix(comment.Token, "//")) != "Draft" {
+		return false
+	}
+	return true
 }

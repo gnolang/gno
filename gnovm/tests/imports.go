@@ -169,6 +169,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg := gno.NewPackageNode("binary", pkgPath, nil)
 				pkg.DefineGoNativeValue("LittleEndian", binary.LittleEndian)
 				pkg.DefineGoNativeValue("BigEndian", binary.BigEndian)
+				pkg.DefineGoNativeValue("Write", binary.BigEndian) // warn: use reflection
 				return pkg, pkg.NewPackage()
 			case "encoding/json":
 				pkg := gno.NewPackageNode("json", pkgPath, nil)
@@ -382,25 +383,25 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg := gno.NewPackageNode("fnv", pkgPath, nil)
 				pkg.DefineGoNativeValue("New32a", fnv.New32a)
 				return pkg, pkg.NewPackage()
-			/* XXX support somehow for speed. for now, generic implemented in stdlibs.
-			case "internal/bytealg":
-				pkg := gno.NewPackageNode("bytealg", pkgPath, nil)
-				pkg.DefineGoNativeValue("Compare", bytealg.Compare)
-				pkg.DefineGoNativeValue("CountString", bytealg.CountString)
-				pkg.DefineGoNativeValue("Cutover", bytealg.Cutover)
-				pkg.DefineGoNativeValue("Equal", bytealg.Equal)
-				pkg.DefineGoNativeValue("HashStr", bytealg.HashStr)
-				pkg.DefineGoNativeValue("HashStrBytes", bytealg.HashStrBytes)
-				pkg.DefineGoNativeValue("HashStrRev", bytealg.HashStrRev)
-				pkg.DefineGoNativeValue("HashStrRevBytes", bytealg.HashStrRevBytes)
-				pkg.DefineGoNativeValue("Index", bytealg.Index)
-				pkg.DefineGoNativeValue("IndexByte", bytealg.IndexByte)
-				pkg.DefineGoNativeValue("IndexByteString", bytealg.IndexByteString)
-				pkg.DefineGoNativeValue("IndexRabinKarp", bytealg.IndexRabinKarp)
-				pkg.DefineGoNativeValue("IndexRabinKarpBytes", bytealg.IndexRabinKarpBytes)
-				pkg.DefineGoNativeValue("IndexString", bytealg.IndexString)
-				return pkg, pkg.NewPackage()
-			*/
+				/* XXX support somehow for speed. for now, generic implemented in stdlibs.
+				case "internal/bytealg":
+					pkg := gno.NewPackageNode("bytealg", pkgPath, nil)
+					pkg.DefineGoNativeValue("Compare", bytealg.Compare)
+					pkg.DefineGoNativeValue("CountString", bytealg.CountString)
+					pkg.DefineGoNativeValue("Cutover", bytealg.Cutover)
+					pkg.DefineGoNativeValue("Equal", bytealg.Equal)
+					pkg.DefineGoNativeValue("HashStr", bytealg.HashStr)
+					pkg.DefineGoNativeValue("HashStrBytes", bytealg.HashStrBytes)
+					pkg.DefineGoNativeValue("HashStrRev", bytealg.HashStrRev)
+					pkg.DefineGoNativeValue("HashStrRevBytes", bytealg.HashStrRevBytes)
+					pkg.DefineGoNativeValue("Index", bytealg.Index)
+					pkg.DefineGoNativeValue("IndexByte", bytealg.IndexByte)
+					pkg.DefineGoNativeValue("IndexByteString", bytealg.IndexByteString)
+					pkg.DefineGoNativeValue("IndexRabinKarp", bytealg.IndexRabinKarp)
+					pkg.DefineGoNativeValue("IndexRabinKarpBytes", bytealg.IndexRabinKarpBytes)
+					pkg.DefineGoNativeValue("IndexString", bytealg.IndexString)
+					return pkg, pkg.NewPackage()
+				*/
 			default:
 				// continue on...
 			}
@@ -456,6 +457,22 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 	// Also inject stdlibs native functions.
 	stdlibs.InjectPackage(store, pn)
+	isOriginCall := func(m *gno.Machine) bool {
+		tname := m.Frames[0].Func.Name
+		switch tname {
+		case "main": // test is a _filetest
+			return len(m.Frames) == 3
+		case "runtest": // test is a _test
+			return len(m.Frames) == 7
+		}
+		// support init() in _filetest
+		// XXX do we need to distinguish from 'runtest'/_test?
+		// XXX pretty hacky even if not.
+		if strings.HasPrefix(string(tname), "init.") {
+			return len(m.Frames) == 3
+		}
+		panic("unable to determine if test is a _test or a _filetest")
+	}
 	// Test specific injections:
 	switch pn.PkgPath {
 	case "strconv":
@@ -474,9 +491,9 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				),
 			*/
 			func(m *gno.Machine) {
-				isOrigin := len(m.Frames) == 3
-				if !isOrigin {
-					panic("invalid non-origin call")
+				if !isOriginCall(m) {
+					m.Panic(typedString("invalid non-origin call"))
+					return
 				}
 			},
 		)
@@ -489,9 +506,8 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				),
 			*/
 			func(m *gno.Machine) {
-				isOrigin := len(m.Frames) == 3
 				res0 := gno.TypedValue{T: gno.BoolType}
-				res0.SetBool(isOrigin)
+				res0.SetBool(isOriginCall(m))
 				m.PushValue(res0)
 			},
 		)
@@ -508,13 +524,15 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				arg0 := m.LastBlock().GetParams1().TV
 				n := arg0.GetInt()
 				if n <= 0 {
-					panic("GetCallerAt requires positive arg")
+					m.Panic(typedString("GetCallerAt requires positive arg"))
+					return
 				}
 				if n > m.NumFrames()-1 {
 					// NOTE: the last frame's LastPackage
 					// is set to the original non-frame
 					// package, so need this check.
-					panic("frame not found")
+					m.Panic(typedString("frame not found"))
+					return
 				}
 				var pkgAddr string
 				if n == m.NumFrames()-1 {
