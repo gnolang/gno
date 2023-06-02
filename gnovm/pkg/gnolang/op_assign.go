@@ -26,7 +26,7 @@ func (m *Machine) doOpDefine() {
 		ptr.Assign2(m.Alloc, m.Store, m.Realm, val, true)
 
 		if ptr.TV.OnHeap {
-			m.GC.setEmptyRootPath(nx.String())
+			m.GC.setEmptyRootPath(&nx.Path)
 		}
 	}
 }
@@ -76,7 +76,7 @@ func (m *Machine) getTypeValueFromNX(nx *NameExpr, rhs Expr) *TypedValue {
 		return nil
 	}
 
-	root = m.GC.getRootByPath(rname.Path.String())
+	root = m.GC.getRootByPath(&rname.Path)
 
 	if root == nil {
 		return nil
@@ -91,7 +91,7 @@ func (m *Machine) getTypeValueFromNX(nx *NameExpr, rhs Expr) *TypedValue {
 		newCopy := *obj
 		m.GC.AddRoot(&GCObj{
 			ref:  &newCopy,
-			path: nx.Path.String(),
+			path: &nx.Path,
 		})
 		m.GC.AddObject(&newCopy)
 		obj = &newCopy
@@ -108,7 +108,7 @@ func (m *Machine) escape2Heap(nx *NameExpr, rhs Expr, rp PointerValue) {
 	}}
 
 	root := &GCObj{
-		path: nx.Path.String(),
+		path: &nx.Path,
 		ref:  obj,
 	}
 	m.GC.AddRoot(root)
@@ -119,7 +119,7 @@ func (m *Machine) escape2Heap(nx *NameExpr, rhs Expr, rp PointerValue) {
 		rn.IsRoot = true
 
 		rroot := &GCObj{
-			path: rn.Path.String(),
+			path: &rn.Path,
 			ref:  obj,
 		}
 		m.GC.AddRoot(rroot)

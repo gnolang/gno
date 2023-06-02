@@ -9,7 +9,7 @@ type GCObj struct {
 	value  TypedValue
 	marked bool
 	ref    *GCObj
-	path   string
+	path   *ValuePath
 }
 
 func NewGC() *GC {
@@ -21,7 +21,7 @@ func (gc *GC) AddObject(obj *GCObj) {
 	gc.objs = append(gc.objs, obj)
 }
 
-func (gc *GC) RemoveRoot(path string) {
+func (gc *GC) RemoveRoot(path *ValuePath) {
 	for i, o := range gc.roots {
 		if o.path != path {
 			continue
@@ -45,8 +45,8 @@ func (gc *GC) AddRoot(root *GCObj) {
 // this function is to be used at the following operation,
 // when evaluating the identifier and setting that path
 // to the previously created root with no path
-func (gc *GC) setEmptyRootPath(path string) {
-	root := gc.getRootByPath("")
+func (gc *GC) setEmptyRootPath(path *ValuePath) {
+	root := gc.getRootByPath(nil)
 	root.path = path
 }
 
@@ -85,18 +85,18 @@ func (gc *GC) markObject(obj *GCObj) {
 // because if you hold on to a reference of the GC object
 // the Go GC cannot reclaim this memory
 // only get GC object references through roots
-func (gc *GC) getObjByPath(path string) *GCObj {
+func (gc *GC) getObjByPath(path *ValuePath) *GCObj {
 	for _, obj := range gc.objs {
-		if obj.path == path {
+		if obj.path.String() == path.String() {
 			return obj
 		}
 	}
 	return nil
 }
 
-func (gc *GC) getRootByPath(path string) *GCObj {
+func (gc *GC) getRootByPath(path *ValuePath) *GCObj {
 	for _, obj := range gc.roots {
-		if obj.path == path {
+		if obj.path.String() == path.String() {
 			return obj
 		}
 	}

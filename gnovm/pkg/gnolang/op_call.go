@@ -153,10 +153,10 @@ func (m *Machine) doOpCall() {
 			pv.ShouldEscape = false
 
 			//todo think about a consistent path value
-			root := &GCObj{ref: obj, path: pts[n].String()}
+			root := &GCObj{ref: obj, path: pts[n]}
 			m.GC.AddRoot(root)
 		} else if pv.OnHeap {
-			root := m.GC.getRootByPath("")
+			root := m.GC.getRootByPath(nil)
 			if root == nil {
 				panic(fmt.Sprintf("invalid GC state: missing root for pv: %+v\n", pv))
 			}
@@ -166,7 +166,7 @@ func (m *Machine) doOpCall() {
 			}
 
 			//todo make consistent path
-			root.path = pts[n].String()
+			root.path = pts[n]
 		}
 
 		if debug {

@@ -1682,7 +1682,7 @@ func (m *Machine) PopFrameAndReturn() {
 
 	//GC: drop root objects pointing to heap allocations
 	for _, root := range fr.Func.roots {
-		m.GC.RemoveRoot(root.String())
+		m.GC.RemoveRoot(&root.Path)
 	}
 
 	for i := 0; i < numRes; i++ {

@@ -132,7 +132,7 @@ func setLoc(fs *token.FileSet, pos token.Pos, n Node) Node {
 }
 
 // If gon is a *ast.File, the name must be filled later.
-func Go2Gno(roots []*NameExpr, escapedlist []string, fs *token.FileSet, gon ast.Node) (n Node) {
+func Go2Gno(roots *[]*NameExpr, escapedlist []string, fs *token.FileSet, gon ast.Node) (n Node) {
 	if gon == nil {
 		return nil
 	}
@@ -148,7 +148,10 @@ func Go2Gno(roots []*NameExpr, escapedlist []string, fs *token.FileSet, gon ast.
 		return toExpr(roots, escapedlist, fs, gon.X)
 	case *ast.Ident:
 		nx := Nx(toName(gon))
-		roots = append(roots, nx)
+		println(nx.Name)
+		if roots != nil {
+			*roots = append(*roots, nx)
+		}
 		if escapedlist != nil {
 			if checkEscaped(string(nx.Name), escapedlist) {
 				nx.IsRoot = true
@@ -441,9 +444,26 @@ func Go2Gno(roots []*NameExpr, escapedlist []string, fs *token.FileSet, gon ast.
 			recv = *Go2Gno(nil, nil, fs, gon.Recv.List[0]).(*FieldTypeExpr)
 		}
 		name := toName(gon.Name)
-		type_ := Go2Gno(nil, nil, fs, gon.Type).(*FuncTypeExpr)
+		type_ := Go2Gno(roots, nil, fs, gon.Type).(*FuncTypeExpr)
 		escapedNames := EscapeAnalysis(gon)
+		nroots := make([]*NameExpr, 0)
+		roots = &nroots
 		body := Go2Gno(roots, escapedNames, fs, gon.Body).(*BlockStmt).Body
+
+		// add arguments to roots
+		// this allows us to drop GC roots later
+		for i, param := range type_.Params {
+			nexpr := &NameExpr{
+				Attributes: param.Attributes,
+				Path:       NewValuePathField(1, uint16(i), param.Name),
+				IsRoot:     false,
+				Name:       param.Name,
+			}
+			*roots = append(*roots, nexpr)
+		}
+
+		fmt.Printf("go2gno func: %+v\n", name)
+		fmt.Printf("roots: %+v\n", *roots)
 
 		return &FuncDecl{
 			IsMethod: isMethod,
@@ -451,7 +471,7 @@ func Go2Gno(roots []*NameExpr, escapedlist []string, fs *token.FileSet, gon ast.
 			NameExpr: NameExpr{Name: name},
 			Type:     *type_,
 			Body:     body,
-			Roots:    roots,
+			Roots:    *roots,
 		}
 	case *ast.GenDecl:
 		panic("unexpected *ast.GenDecl; use toDecls(fs,) instead")
@@ -559,7 +579,7 @@ func toWord(tok token.Token) Word {
 	return token2word[tok]
 }
 
-func toExpr(roots []*NameExpr, escapedList []string, fs *token.FileSet, gox ast.Expr) Expr {
+func toExpr(roots *[]*NameExpr, escapedList []string, fs *token.FileSet, gox ast.Expr) Expr {
 	// TODO: could the language handle this?
 	gnox := Go2Gno(roots, escapedList, fs, gox)
 	if gnox == nil {
@@ -569,7 +589,7 @@ func toExpr(roots []*NameExpr, escapedList []string, fs *token.FileSet, gox ast.
 	}
 }
 
-func toExprs(roots []*NameExpr, escapedList []string, fs *token.FileSet, goxs []ast.Expr) (gnoxs Exprs) {
+func toExprs(roots *[]*NameExpr, escapedList []string, fs *token.FileSet, goxs []ast.Expr) (gnoxs Exprs) {
 	if len(goxs) == 0 {
 		return nil
 	}
@@ -580,7 +600,7 @@ func toExprs(roots []*NameExpr, escapedList []string, fs *token.FileSet, goxs []
 	return
 }
 
-func toStmt(roots []*NameExpr, escapedlist []string, fs *token.FileSet, gos ast.Stmt) Stmt {
+func toStmt(roots *[]*NameExpr, escapedlist []string, fs *token.FileSet, gos ast.Stmt) Stmt {
 	gnos := Go2Gno(roots, escapedlist, fs, gos)
 	if gnos == nil {
 		return nil
@@ -589,7 +609,7 @@ func toStmt(roots []*NameExpr, escapedlist []string, fs *token.FileSet, gos ast.
 	}
 }
 
-func toStmts(roots []*NameExpr, escapedlist []string, fs *token.FileSet, goss []ast.Stmt) (gnoss Body) {
+func toStmts(roots *[]*NameExpr, escapedlist []string, fs *token.FileSet, goss []ast.Stmt) (gnoss Body) {
 	gnoss = make([]Stmt, len(goss))
 	for i, x := range goss {
 		gnoss[i] = toStmt(roots, escapedlist, fs, x)
