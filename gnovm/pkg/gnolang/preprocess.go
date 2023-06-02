@@ -2484,6 +2484,7 @@ func checkType(xt Type, dt Type, autoNative bool) (conversionNeeded bool) {
 			} else {
 				// carry on with baseOf(dxt)
 				xt = dxt.Base
+				conversionNeeded = true
 			}
 		}
 	} else if ddt, ok := dt.(*DeclaredType); ok {
