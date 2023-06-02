@@ -58,9 +58,13 @@ func BenchmarkEscapeAnalysis(b *testing.B) {
 }
 
 func TestGC_NotCollectUsedObjects(t *testing.T) {
-	obj3 := &GCObj{path: "obj3"}
-	obj2 := &GCObj{path: "obj2", ref: obj3}
-	obj1 := &GCObj{path: "obj1", ref: obj2}
+	vp3 := NewValuePathField(0, 0, "obj3")
+	vp2 := NewValuePathField(0, 0, "obj2")
+	vp1 := NewValuePathField(0, 0, "obj1")
+
+	obj3 := &GCObj{path: &vp3}
+	obj2 := &GCObj{path: &vp2, ref: obj3}
+	obj1 := &GCObj{path: &vp1, ref: obj2}
 
 	// Create garbage collector
 	gc := NewGC()
@@ -80,9 +84,13 @@ func TestGC_NotCollectUsedObjects(t *testing.T) {
 }
 
 func TestGC_RemoveRoot(t *testing.T) {
-	obj3 := &GCObj{path: "obj3"}
-	obj2 := &GCObj{path: "obj2", ref: obj3}
-	obj1 := &GCObj{path: "obj1", ref: obj2}
+	vp3 := NewValuePathField(0, 0, "obj3")
+	vp2 := NewValuePathField(0, 0, "obj2")
+	vp1 := NewValuePathField(0, 0, "obj1")
+
+	obj3 := &GCObj{path: &vp3}
+	obj2 := &GCObj{path: &vp2, ref: obj3}
+	obj1 := &GCObj{path: &vp1, ref: obj2}
 
 	// Create garbage collector
 	gc := NewGC()
@@ -109,9 +117,13 @@ func TestGC_RemoveRoot(t *testing.T) {
 }
 
 func TestGC_CollectUnsedObjects(t *testing.T) {
-	obj3 := &GCObj{path: "obj3"}
-	obj2 := &GCObj{path: "obj2", ref: obj3}
-	obj1 := &GCObj{path: "obj1", ref: obj2}
+	vp3 := NewValuePathField(0, 0, "obj3")
+	vp2 := NewValuePathField(0, 0, "obj2")
+	vp1 := NewValuePathField(0, 0, "obj1")
+
+	obj3 := &GCObj{path: &vp3}
+	obj2 := &GCObj{path: &vp2, ref: obj3}
+	obj1 := &GCObj{path: &vp1, ref: obj2}
 
 	// Create garbage collector
 	gc := NewGC()
