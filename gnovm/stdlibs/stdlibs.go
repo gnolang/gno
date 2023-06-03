@@ -287,13 +287,15 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 					// The first realm we encounter will be the one calling
 					// this function; to get the calling realm determine the first frame
 					// where fr.LastPackage changes.
-					if lastPkgPath != "" && lastPkgPath != pkgPath {
+					if lastPkgPath == "" {
+						lastPkgPath = pkgPath
+					} else if lastPkgPath == pkgPath {
+						continue
+					} else {
 						lastCaller = fr.LastPackage.GetPkgAddr().Bech32()
 						lastPkgPath = pkgPath
 						break
 					}
-
-					lastPkgPath = pkgPath
 				}
 
 				// Empty the pkgPath if we return a user
