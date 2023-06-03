@@ -1008,10 +1008,16 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "copy" {
 						if len(n.Args) == 2 {
+							args0T := evalStaticTypeOf(store, last, n.Args[0])
+							args1T := evalStaticTypeOf(store, last, n.Args[1])
+							if args0T.Elem().TypeID() != args1T.Elem().TypeID() {
+								panic(fmt.Sprintf(
+									"arguments to copy have different element types, want %s, got %s", args0T.Elem().TypeID(), args1T.Elem().TypeID()))
+							}
 							// If the second argument is a string,
 							// convert to byteslice.
 							args1 := n.Args[1]
-							if evalStaticTypeOf(store, last, args1).Kind() == StringKind {
+							if args1T.Kind() == StringKind {
 								bsx := constType(nil, gByteSliceType)
 								args1 = Call(bsx, args1)
 								args1 = Preprocess(nil, last, args1).(Expr)
