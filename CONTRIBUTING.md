@@ -96,6 +96,11 @@ To use *gofumpt* instead of *gofmt*, as hinted in the comment, you may either ha
 cexpr system('go run -modfile </path/to/gno>/misc/devdeps/go.mod mvdan.cc/gofumpt -w ' . expand('%'))
 ```
 
+If you are using vim-go, you may need to disable gopls for autocompletion.
+```vim
+let g:go_gopls_enabled = 0
+```
+
 #### Emacs Support
 
 1. Install [go-mode.el](https://github.com/dominikh/go-mode.el).
