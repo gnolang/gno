@@ -1,5 +1,7 @@
 package std
 
-type Event interface{}
+type Event interface {
+	AddAttribute(key, value string)
+}
 
 type EventAttribute interface{}

@@ -48,8 +48,8 @@ type AttributedEvent struct {
 	Attributes []EventAttribute
 }
 
-func NewEvent(ty string, attrs ...EventAttribute) Event {
-	return AttributedEvent{Type: ty, Attributes: attrs}
+func NewEvent(ty string, attrs ...EventAttribute) *AttributedEvent {
+	return &AttributedEvent{Type: ty, Attributes: attrs}
 }
 
 func NewEventAttribute(key, value string) EventAttribute {
@@ -57,6 +57,10 @@ func NewEventAttribute(key, value string) EventAttribute {
 }
 
 func (e AttributedEvent) AssertABCIEvent() {}
+
+func (e *AttributedEvent) AddAttribute(key, value string) {
+	e.Attributes = append(e.Attributes, EventAttribute{Key: key, Value: value})
+}
 
 func (e AttributedEvent) String() string {
 	return fmt.Sprintf("type: %s, attributes: %v", e.Type, e.Attributes)

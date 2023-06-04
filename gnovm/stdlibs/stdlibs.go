@@ -533,7 +533,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			),
 			func(m *gno.Machine) {
 				arg0 := m.LastBlock().GetParams1()
-				event := arg0.TV.V.(*gno.NativeValue).Value.Interface().(sdk.AttributedEvent)
+				event := arg0.TV.V.(*gno.NativeValue).Value.Interface().(*sdk.AttributedEvent)
 
 				ctx := m.Context.(ExecContext)
 				// TODO: need this prefix?
