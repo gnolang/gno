@@ -7,7 +7,7 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-type Commity struct {
+type Committee struct {
 	members    []std.Address // TODO - use avl tree or address set?
 	categories avl.Tree      // A catagory is mapped to a list of evaluation criteria
 	evaluation *Evaluation
@@ -15,8 +15,8 @@ type Commity struct {
 
 const ApprovedStatus = "Approved"
 
-func NewCommity() *Commity {
-	c := &Commity{
+func NewCommittee() *Committee {
+	c := &Committee{
 		members:    []std.Address{},
 		categories: avl.Tree{},
 		evaluation: NewEvalutaion(),
@@ -24,17 +24,17 @@ func NewCommity() *Commity {
 	return c
 }
 
-func (c *Commity) DesignateMembers(members []std.Address) []std.Address {
+func (c *Committee) DesignateMembers(members []std.Address) []std.Address {
 	c.members = append(c.members, members...)
 	return c.members
 }
 
-func (c *Commity) DismissMembers(members []std.Address) []std.Address {
+func (c *Committee) DismissMembers(members []std.Address) []std.Address {
 	// TODO
 	return []std.Address{}
 }
 
-func (c *Commity) AddCategory(name string, criteria []string) bool {
+func (c *Committee) AddCategory(name string, criteria []string) bool {
 	// TODO error handling
 	if !c.isMember(std.GetOrigCaller()) {
 		return false
@@ -44,7 +44,7 @@ func (c *Commity) AddCategory(name string, criteria []string) bool {
 	return true
 }
 
-func (c *Commity) ApproveCategory(name string, option string) bool {
+func (c *Committee) ApproveCategory(name string, option string) bool {
 	if !c.isMember(std.GetOrigCaller()) {
 		return false
 	}
@@ -80,11 +80,11 @@ func (c *Commity) ApproveCategory(name string, option string) bool {
 }
 
 // TODO error handling
-func (c *Commity) AddContribution(pr *PullRequest, contributor std.Address) (contributionId int, ok bool) {
+func (c *Committee) AddContribution(pr *PullRequest, contributor std.Address) (contributionId int, ok bool) {
 	if !c.isMember(std.GetOrigCaller()) {
 		return -1, false
 	}
-	// Check the category of the PR matches a catagory this commity evaluates
+	// Check the category of the PR matches a catagory this committee evaluates
 	// TODO check the category is an approved category
 	if c.categories.Has(pr.category) {
 		return c.evaluation.AddContribution(pr, contributor)
@@ -94,7 +94,7 @@ func (c *Commity) AddContribution(pr *PullRequest, contributor std.Address) (con
 }
 
 // TODO error handling
-func (c *Commity) ApproveContribution(id int, option string) bool {
+func (c *Committee) ApproveContribution(id int, option string) bool {
 	if !c.isMember(std.GetOrigCaller()) {
 		return false
 	}
@@ -130,7 +130,7 @@ func (c *Commity) ApproveContribution(id int, option string) bool {
 	return false
 }
 
-func (c *Commity) isMember(m std.Address) bool {
+func (c *Committee) isMember(m std.Address) bool {
 	for _, member := range c.members {
 		if m == member {
 			return true
