@@ -48,8 +48,18 @@ type AttributedEvent struct {
 	Attributes []EventAttribute
 }
 
-func NewEvent(ty string, attrs ...EventAttribute) *AttributedEvent {
-	return &AttributedEvent{Type: ty, Attributes: attrs}
+func NewEvent(ty string, attrs ...string) *AttributedEvent {
+	if len(attrs)%2 == 1 {
+		attrs = append(attrs, "")
+	}
+
+	eventAttrs := make([]EventAttribute, 0, len(attrs)/2)
+	for i := 0; i < len(attrs); i += 2 {
+		attr := EventAttribute{Key: attrs[i], Value: attrs[i+1]}
+		eventAttrs = append(eventAttrs, attr)
+	}
+
+	return &AttributedEvent{Type: ty, Attributes: eventAttrs}
 }
 
 func NewEventAttribute(key, value string) EventAttribute {

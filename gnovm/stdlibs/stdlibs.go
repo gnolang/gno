@@ -542,7 +542,6 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			},
 		)
 		pn.DefineGoNativeValue("NewEvent", sdk.NewEvent)
-		pn.DefineGoNativeValue("NewEventAttribute", sdk.NewEventAttribute)
 	}
 }
 
