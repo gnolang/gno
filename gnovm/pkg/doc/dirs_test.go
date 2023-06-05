@@ -13,12 +13,14 @@ import (
 )
 
 func getwd(t *testing.T) string {
+	t.Helper()
 	wd, err := os.Getwd()
 	require.NoError(t, err)
 	return wd
 }
 
 func wdJoin(t *testing.T, arg string) string {
+	t.Helper()
 	return filepath.Join(getwd(t), arg)
 }
 
