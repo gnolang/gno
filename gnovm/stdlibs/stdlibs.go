@@ -527,21 +527,40 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 		)
 		pn.DefineNative("EmitEvent",
 			gno.Flds( // params
-				"event", "Event",
+				"typ", "string",
+				"attrs", "...string",
 			),
 			gno.Flds( // results
 			),
 			func(m *gno.Machine) {
-				arg0 := m.LastBlock().GetParams1()
-				event := arg0.TV.V.(*gno.NativeValue).Value.Interface().(*sdk.AttributedEvent)
+				arg0, arg1 := m.LastBlock().GetParams2()
 
-				ctx := m.Context.(ExecContext)
+				var attrs []string
+				_attrs := arg1.TV.V.(*gno.SliceValue).GetBase(m.Store)
+				for _, v := range _attrs.List {
+					attrs = append(attrs, v.GetString())
+				}
+
+				if len(attrs)%2 == 1 {
+					attrs = append(attrs, "")
+				}
+
+				eventAttrs := make([]sdk.EventAttribute, 0, len(attrs)/2)
+				for i := 0; i < len(attrs); i += 2 {
+					eventAttr := sdk.EventAttribute{Key: attrs[i], Value: attrs[i+1]}
+					eventAttrs = append(eventAttrs, eventAttr)
+				}
+
+				eventType := arg0.TV.GetString()
 				// TODO: need this prefix?
-				event.Type = fmt.Sprintf("gno-%s", event.Type) // prefix with gno-
+				eventType = fmt.Sprintf("gno-%s", eventType) // prefix with gno-
+
+				event := sdk.NewEvent(eventType, eventAttrs...)
+				ctx := m.Context.(ExecContext)
 				ctx.EventLogger.EmitEvent(event)
 			},
 		)
-		pn.DefineGoNativeValue("NewEvent", sdk.NewEvent)
+
 	}
 }
 
