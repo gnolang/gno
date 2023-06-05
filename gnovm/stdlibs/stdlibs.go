@@ -560,7 +560,6 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				ctx.EventLogger.EmitEvent(event)
 			},
 		)
-
 	}
 }
 
