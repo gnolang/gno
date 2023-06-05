@@ -4,7 +4,7 @@
 
 ## An interpretation of the Golang (Go) programming language for advanced developers and intrepid pioneers to build succinct, composable smart contracts for social coordination.
 
-If you’re concerned about information censorship and want to contribute to the #GnoWorldOrder, follow our socials to find out how
+If you’re concerned about information censorship and want to contribute to the #GnoWorldOrder, follow our socials to find out how.
 
 Gno.land is in building mode. If you want to help lay the foundations of a fairer and freer world through innovative ideas and exceptional code, join us today.
 
