@@ -34,7 +34,7 @@ The first high-stakes contest will see participants compete for tiered membershi
 ### Learn about Gno.land
 
 - [About](/about)
-- [Subscribe](/)
+- [Subscribe](#subscribe)
 - [Tokenomics (soon)](#)
 - [Blogs](/r/gnoland/blog)
 - [Events](/events)
@@ -46,7 +46,7 @@ The first high-stakes contest will see participants compete for tiered membershi
 
 ### Build with Gnolang
 
-- [Gno dev with CLI](/)
+- [Gno dev with CLI (soon)](#)
 - [Gno IDE (soon)](#)
 - [Test in the browser (soon)](#)
 - [Docs/ Tutorials](https://github.com/gnolang)

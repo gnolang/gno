@@ -174,9 +174,7 @@ Game of Realms participants and core contributors have made significant progress
 </div>
 
 </div>
-
 </div>
-
 </div>
 </div>
 
