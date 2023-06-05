@@ -54,6 +54,7 @@ func NewVMKeeper(
 	stdlibsDir string,
 	maxCycles int64,
 ) *VMKeeper {
+	// TODO: create an Options struct to avoid too many constructor parameters
 	vmk := &VMKeeper{
 		baseKey:    baseKey,
 		iavlKey:    iavlKey,
