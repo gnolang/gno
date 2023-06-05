@@ -6,33 +6,59 @@
 
 Legend: full, partial, missing, TBD.
 
-| keyword     | status |
-|-------------|--------|
-| break       | TBD    |
-| case        | TBD    |
-| chan        | TBD    |
-| const       | TBD    |
-| continue    | TBD    |
-| default     | TBD    |
-| defer       | TBD    |
-| else        | TBD    |
-| fallthrough | TBD    |
-| for         | TBD    |
-| func        | TBD    |
-| go          | TBD    |
-| goto        | TBD    |
-| if          | TBD    |
-| import      | TBD    |
-| interface   | TBD    |
-| map         | TBD    |
-| package     | TBD    |
-| range       | TBD    |
-| return      | TBD    |
-| select      | TBD    |
-| struct      | TBD    |
-| switch      | TBD    |
-| type        | TBD    |
-| var         | TBD    |
+| keyword     | support                |
+|-------------|------------------------|
+| break       | full                   |
+| case        | full                   |
+| const       | full                   |
+| continue    | full                   |
+| default     | full                   |
+| defer       | full                   |
+| else        | full                   |
+| fallthrough | full                   |
+| for         | full                   |
+| func        | full                   |
+| go          | missing (after launch) |
+| goto        | full                   |
+| if          | full                   |
+| import      | full                   |
+| interface   | full                   |
+| package     | full                   |
+| range       | full                   |
+| return      | full                   |
+| select      | missing (after launch) |
+| struct      | full                   |
+| switch      | full                   |
+| type        | full                   |
+| var         | full                   |
+
+## Native types
+
+| type                                          | usage                  | persistency                                                |
+|-----------------------------------------------|------------------------|------------------------------------------------------------|
+| `bool`                                        | full                   | full                                                       |
+| `byte`                                        | full                   | full                                                       |
+| `float32`, `float64`                          | full                   | full                                                       |
+| `int`, `int8`, `int16`, `int32`, `int64`      | full                   | full                                                       |
+| `uint`, `uint8`, `uint16`, `uint32`, `uint64` | full                   | full                                                       |
+| `string`                                      | full                   | full                                                       |
+| `rune`                                        | full                   | full                                                       |
+| `interface{}`                                 | full                   | full                                                       |
+| `[]T` (slices)                                | full                   | full*                                                      |
+| `map[T1]T2`                                   | full                   | missing (in progress, will be for launch)                  |
+| `func (T1...) T2...`                          | full                   | full (needs more tests)                                    |
+| `*T` (pointers)                               | full                   | full*                                                      |
+| `chan T` (channels)                           | missing (after launch) | missing (after launch)                                     |
+
+**\*:** depends on `T`
+
+Additional native types:
+
+| type     | comment                                                                                    |
+|----------|--------------------------------------------------------------------------------------------|
+| `bigint` | Based on `math/big.Int`                                                                    |
+| `bigdec` | Based on https://github.com/cockroachdb/apd, (see https://github.com/gnolang/gno/pull/306) |
+
 
 ## Stdlibs
 

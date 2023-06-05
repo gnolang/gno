@@ -2,10 +2,13 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"flag"
+	"fmt"
+	"strings"
+	"text/tabwriter"
 
 	"github.com/peterbourgon/ff/v3"
-	"github.com/peterbourgon/ff/v3/ffcli"
 )
 
 // Config defines the command config interface
@@ -34,12 +37,19 @@ type Metadata struct {
 	Options    []ff.Option
 }
 
-// Command is a simple wrapper for gnoland
-// commands that utilizes ffcli
+// Command is a simple wrapper for gnoland commands.
 type Command struct {
-	ffcli.Command
-
-	cfg Config
+	name        string
+	shortUsage  string
+	shortHelp   string
+	longHelp    string
+	options     []ff.Option
+	cfg         Config
+	flagSet     *flag.FlagSet
+	subcommands []*Command
+	exec        ExecMethod
+	selected    *Command
+	args        []string
 }
 
 func NewCommand(
@@ -48,21 +58,19 @@ func NewCommand(
 	exec ExecMethod,
 ) *Command {
 	command := &Command{
-		Command: ffcli.Command{
-			Name:       meta.Name,
-			ShortHelp:  meta.ShortHelp,
-			LongHelp:   meta.LongHelp,
-			ShortUsage: meta.ShortUsage,
-			Options:    meta.Options,
-			FlagSet:    flag.NewFlagSet(meta.Name, flag.ExitOnError),
-			Exec:       exec,
-		},
-		cfg: config,
+		name:       meta.Name,
+		shortUsage: meta.ShortUsage,
+		shortHelp:  meta.ShortHelp,
+		longHelp:   meta.LongHelp,
+		options:    meta.Options,
+		flagSet:    flag.NewFlagSet(meta.Name, flag.ContinueOnError),
+		exec:       exec,
+		cfg:        config,
 	}
 
 	if config != nil {
 		// Register the base command flags
-		config.RegisterFlags(command.FlagSet)
+		config.RegisterFlags(command.flagSet)
 	}
 
 	return command
@@ -77,32 +85,228 @@ func (c *Command) AddSubCommands(cmds ...*Command) {
 			// The syntax is not intuitive, but the flagset being
 			// modified is the subcommand's, using the flags defined
 			// in the parent command
-			c.cfg.RegisterFlags(cmd.FlagSet)
+			c.cfg.RegisterFlags(cmd.flagSet)
 
 			// Register the parent flagset with all the
 			// subcommands of the child as well
 			// (ex. grandparent flags are available in child commands)
-			registerFlagsWithSubcommands(c.cfg, &cmd.Command)
+			registerFlagsWithSubcommands(c.cfg, cmd)
 
 			// Register the parent options with the child.
-			cmd.Options = append(cmd.Options, c.Options...)
+			cmd.options = append(cmd.options, c.options...)
 
 			// Register the parent options with all the
 			// subcommands of the child as well
-			registerOptionsWithSubcommands(&cmd.Command)
+			registerOptionsWithSubcommands(cmd)
 		}
 
 		// Append the subcommand to the parent
-		c.Subcommands = append(c.Subcommands, &cmd.Command)
+		c.subcommands = append(c.subcommands, cmd)
 	}
+}
+
+// ParseAndRun is a helper function that calls Parse and then Run in a single
+// invocation. It's useful for simple command trees that don't need two-phase
+// setup.
+//
+// Forked from peterbourgon/ff/ffcli
+func (c *Command) ParseAndRun(ctx context.Context, args []string) error {
+	if err := c.Parse(args); err != nil {
+		return err
+	}
+
+	if err := c.Run(ctx); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Parse the commandline arguments for this command and all sub-commands
+// recursively, defining flags along the way. If Parse returns without an error,
+// the terminal command has been successfully identified, and may be invoked by
+// calling Run.
+//
+// If the terminal command identified by Parse doesn't define an Exec function,
+// then Parse will return NoExecError.
+//
+// Forked from peterbourgon/ff/ffcli
+func (c *Command) Parse(args []string) error {
+	if c.selected != nil {
+		return nil
+	}
+
+	if c.flagSet == nil {
+		c.flagSet = flag.NewFlagSet(c.name, flag.ExitOnError)
+	}
+
+	c.flagSet.Usage = func() {
+		fmt.Fprintln(c.flagSet.Output(), usage(c))
+	}
+
+	c.args = []string{}
+	// Use a loop to support flag declaration after arguments and subcommands.
+	// At the end of each iteration:
+	// - c.args receives the first argument found
+	// - args is truncated by anything that has been parsed
+	// The loop ends whether if:
+	// - no more arguments to parse
+	// - a double delimiter "--" is met
+	for {
+		// ff.Parse iterates over args, feeding FlagSet with the flags encountered.
+		// It stops when:
+		// 1) there's nothing more to parse. In that case, FlagSet.Args() is empty.
+		// 2) it encounters a double delimiter "--". In that case FlagSet.Args()
+		// contains everything that follows the double delimiter.
+		// 3) it encounters an item that is not a flag. In that case FlagSet.Args()
+		// contains that last item and everything that follows it. The item can be
+		// an argument or a subcommand.
+		if err := ff.Parse(c.flagSet, args, c.options...); err != nil {
+			return err
+		}
+		if c.flagSet.NArg() == 0 {
+			// 1) Nothing more to parse
+			break
+		}
+		// Determine if ff.Parse() has been interrupted by a double delimiter.
+		// This is case if the last parsed arg is a "--"
+		parsedArgs := args[:len(args)-c.flagSet.NArg()]
+		if n := len(parsedArgs); n > 0 && parsedArgs[n-1] == "--" {
+			// 2) Double delimiter has been met, everything that follow it can be
+			// considered as arguments.
+			c.args = append(c.args, c.flagSet.Args()...)
+			break
+		}
+		// 3) c.FlagSet.Arg(0) is not a flag, determine if it's an argument or a
+		// subcommand.
+		// NOTE: it can be a subcommand if and only if the argument list is empty.
+		// In other words, a command can't have both arguments and subcommands.
+		if len(c.args) == 0 {
+			for _, subcommand := range c.subcommands {
+				if strings.EqualFold(c.flagSet.Arg(0), subcommand.name) {
+					// c.FlagSet.Arg(0) is a subcommand
+					c.selected = subcommand
+					return subcommand.Parse(c.flagSet.Args()[1:])
+				}
+			}
+		}
+		// c.FlagSet.Arg(0) is an argument, append it to the argument list
+		c.args = append(c.args, c.flagSet.Arg(0))
+		// Truncate args and continue
+		args = c.flagSet.Args()[1:]
+	}
+
+	c.selected = c
+
+	if c.exec == nil {
+		return fmt.Errorf("command %s not executable", c.name)
+	}
+
+	return nil
+}
+
+// Run selects the terminal command in a command tree previously identified by a
+// successful call to Parse, and calls that command's Exec function with the
+// appropriate subset of commandline args.
+//
+// If the terminal command previously identified by Parse doesn't define an Exec
+// function, then Run will return an error.
+//
+// Forked from peterbourgon/ff/ffcli
+func (c *Command) Run(ctx context.Context) (err error) {
+	var (
+		unparsed = c.selected == nil
+		terminal = c.selected == c && c.exec != nil
+		noop     = c.selected == c && c.exec == nil
+	)
+
+	defer func() {
+		if terminal && errors.Is(err, flag.ErrHelp) {
+			c.flagSet.Usage()
+		}
+	}()
+
+	switch {
+	case unparsed:
+		return fmt.Errorf("command %s not parsed", c.name)
+	case terminal:
+		return c.exec(ctx, c.args)
+	case noop:
+		return fmt.Errorf("command %s not executable", c.name)
+	default:
+		return c.selected.Run(ctx)
+	}
+}
+
+// Forked from peterbourgon/ff/ffcli
+func usage(c *Command) string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "USAGE\n")
+	if c.shortUsage != "" {
+		fmt.Fprintf(&b, "  %s\n", c.shortUsage)
+	} else {
+		fmt.Fprintf(&b, "  %s\n", c.name)
+	}
+	fmt.Fprintf(&b, "\n")
+
+	if c.longHelp != "" {
+		fmt.Fprintf(&b, "%s\n\n", c.longHelp)
+	}
+
+	if len(c.subcommands) > 0 {
+		fmt.Fprintf(&b, "SUBCOMMANDS\n")
+		tw := tabwriter.NewWriter(&b, 0, 2, 2, ' ', 0)
+		for _, subcommand := range c.subcommands {
+			fmt.Fprintf(tw, "  %s\t%s\n", subcommand.name, subcommand.shortHelp)
+		}
+		tw.Flush()
+		fmt.Fprintf(&b, "\n")
+	}
+
+	if countFlags(c.flagSet) > 0 {
+		fmt.Fprintf(&b, "FLAGS\n")
+		tw := tabwriter.NewWriter(&b, 0, 2, 2, ' ', 0)
+		c.flagSet.VisitAll(func(f *flag.Flag) {
+			space := " "
+			if isBoolFlag(f) {
+				space = "="
+			}
+
+			def := f.DefValue
+			if def == "" {
+				def = "..."
+			}
+
+			fmt.Fprintf(tw, "  -%s%s%s\t%s\n", f.Name, space, def, f.Usage)
+		})
+		tw.Flush()
+		fmt.Fprintf(&b, "\n")
+	}
+
+	return strings.TrimSpace(b.String()) + "\n"
+}
+
+// Forked from peterbourgon/ff/ffcli
+func countFlags(fs *flag.FlagSet) (n int) {
+	fs.VisitAll(func(*flag.Flag) { n++ })
+	return n
+}
+
+// Forked from peterbourgon/ff/ffcli
+func isBoolFlag(f *flag.Flag) bool {
+	b, ok := f.Value.(interface {
+		IsBoolFlag() bool
+	})
+	return ok && b.IsBoolFlag()
 }
 
 // registerFlagsWithSubcommands recursively registers the passed in
 // configuration's flagset with the subcommand tree. At the point of calling
 // this method, the child subcommand tree should already be present, due to the
 // way subcommands are built (LIFO)
-func registerFlagsWithSubcommands(cfg Config, root *ffcli.Command) {
-	subcommands := []*ffcli.Command{root}
+func registerFlagsWithSubcommands(cfg Config, root *Command) {
+	subcommands := []*Command{root}
 
 	// Traverse the direct subcommand tree,
 	// and register the top-level flagset with each
@@ -111,8 +315,8 @@ func registerFlagsWithSubcommands(cfg Config, root *ffcli.Command) {
 		current := subcommands[0]
 		subcommands = subcommands[1:]
 
-		for _, subcommand := range current.Subcommands {
-			cfg.RegisterFlags(subcommand.FlagSet)
+		for _, subcommand := range current.subcommands {
+			cfg.RegisterFlags(subcommand.flagSet)
 			subcommands = append(subcommands, subcommand)
 		}
 	}
@@ -120,8 +324,8 @@ func registerFlagsWithSubcommands(cfg Config, root *ffcli.Command) {
 
 // registerOptionsWithSubcommands recursively registers the passed in
 // options with the subcommand tree. At the point of calling
-func registerOptionsWithSubcommands(root *ffcli.Command) {
-	subcommands := []*ffcli.Command{root}
+func registerOptionsWithSubcommands(root *Command) {
+	subcommands := []*Command{root}
 
 	// Traverse the direct subcommand tree,
 	// and register the top-level flagset with each
@@ -130,8 +334,8 @@ func registerOptionsWithSubcommands(root *ffcli.Command) {
 		current := subcommands[0]
 		subcommands = subcommands[1:]
 
-		for _, subcommand := range current.Subcommands {
-			subcommand.Options = append(subcommand.Options, root.Options...)
+		for _, subcommand := range current.subcommands {
+			subcommand.options = append(subcommand.options, root.options...)
 			subcommands = append(subcommands, subcommand)
 		}
 	}

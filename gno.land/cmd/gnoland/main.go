@@ -9,6 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/peterbourgon/ff/v3"
+	"github.com/peterbourgon/ff/v3/fftoml"
+
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -33,6 +36,8 @@ type gnolandCfg struct {
 	chainID               string
 	genesisRemote         string
 	rootDir               string
+	genesisMaxVMCycles    int64
+	config                string
 }
 
 func main() {
@@ -42,6 +47,10 @@ func main() {
 		commands.Metadata{
 			ShortUsage: "[flags] [<arg>...]",
 			LongHelp:   "Starts the gnoland blockchain node",
+			Options: []ff.Option{
+				ff.WithConfigFileFlag("config"),
+				ff.WithConfigFileParser(fftoml.Parser),
+			},
 		},
 		cfg,
 		func(_ context.Context, _ []string) error {
@@ -50,7 +59,7 @@ func main() {
 	)
 
 	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "%+v", err)
+		_, _ = fmt.Fprintf(os.Stderr, "%+v\n", err)
 
 		os.Exit(1)
 	}
@@ -105,6 +114,20 @@ func (c *gnolandCfg) RegisterFlags(fs *flag.FlagSet) {
 		"localhost:26657",
 		"replacement for '%%REMOTE%%' in genesis",
 	)
+
+	fs.Int64Var(
+		&c.genesisMaxVMCycles,
+		"genesis-max-vm-cycles",
+		10_000_000,
+		"set maximum allowed vm cycles per operation. Zero means no limit.",
+	)
+
+	fs.StringVar(
+		&c.config,
+		"config",
+		"",
+		"config file (optional)",
+	)
 }
 
 func exec(c *gnolandCfg) error {
@@ -135,7 +158,7 @@ func exec(c *gnolandCfg) error {
 	}
 
 	// create application and node.
-	gnoApp, err := gnoland.NewApp(rootDir, c.skipFailingGenesisTxs, logger)
+	gnoApp, err := gnoland.NewApp(rootDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
 	if err != nil {
 		return fmt.Errorf("error in creating new app: %w", err)
 	}
