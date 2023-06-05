@@ -214,7 +214,7 @@ func (p *Post) RenderListItem() string {
 	}
 	output := "<div>\n\n"
 	output += ufmt.Sprintf("## [%s](%s)\n", p.Title, p.URL())
-	output += ufmt.Sprintf("**[%s](%s)**\n", "Learn More", p.URL())
+	output += ufmt.Sprintf("**[Learn More](%s)**\n", p.URL())
 	// output += p.Summary() + "\n\n"
 	// output += p.RenderTagList() + "\n\n"
 	// output += formatAuthorAndDate(p.Author, p.CreatedAt) + "\n"
