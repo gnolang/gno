@@ -30,7 +30,11 @@ func TestNewDirs_nonExisting(t *testing.T) {
 	log.Default().SetOutput(&buf)
 	defer func() { log.Default().SetOutput(old) }() // in case of panic
 
-	d := newDirs([]string{wdJoin(t, "non/existing/dir"), wdJoin(t, "testdata/dirsempty")}, []string{wdJoin(t, "and/this/one/neither")})
+	// git doesn't track empty directories; so need to create this one on our own.
+	de := wdJoin(t, "testdata/dirsempty")
+	require.NoError(t, os.MkdirAll(de, 0o755))
+
+	d := newDirs([]string{wdJoin(t, "non/existing/dir"), de}, []string{wdJoin(t, "and/this/one/neither")})
 	for _, ok := d.Next(); ok; _, ok = d.Next() { //nolint:revive
 	}
 	log.Default().SetOutput(old)
