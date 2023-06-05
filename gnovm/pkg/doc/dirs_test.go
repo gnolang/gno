@@ -1,6 +1,8 @@
 package doc
 
 import (
+	"bytes"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,16 +12,55 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func tNewDirs(t *testing.T) (string, *bfsDirs) {
-	t.Helper()
-
+func getwd(t *testing.T) string {
 	wd, err := os.Getwd()
 	require.NoError(t, err)
+	return wd
+}
+
+func wdJoin(t *testing.T, arg string) string {
+	return filepath.Join(getwd(t), arg)
+}
+
+func TestNewDirs_nonExisting(t *testing.T) {
+	old := log.Default().Writer()
+	var buf bytes.Buffer
+	log.Default().SetOutput(&buf)
+	defer func() { log.Default().SetOutput(old) }() // in case of panic
+
+	d := newDirs([]string{wdJoin(t, "non/existing/dir"), wdJoin(t, "testdata/dirsempty")}, []string{wdJoin(t, "and/this/one/neither")})
+	for _, ok := d.Next(); ok; _, ok = d.Next() { //nolint:revive
+	}
+	log.Default().SetOutput(old)
+	assert.Empty(t, d.hist, "hist should be empty")
+	assert.Equal(t, strings.Count(buf.String(), "\n"), 2, "output should contain 2 lines")
+	assert.Contains(t, buf.String(), "non/existing/dir: no such file or directory")
+	assert.Contains(t, buf.String(), "this/one/neither/gno.mod: no such file or directory")
+	assert.NotContains(t, buf.String(), "dirsempty: no such file or directory")
+}
+
+func TestNewDirs_invalidModDir(t *testing.T) {
+	old := log.Default().Writer()
+	var buf bytes.Buffer
+	log.Default().SetOutput(&buf)
+	defer func() { log.Default().SetOutput(old) }() // in case of panic
+
+	d := newDirs(nil, []string{wdJoin(t, "testdata/dirs")})
+	for _, ok := d.Next(); ok; _, ok = d.Next() { //nolint:revive
+	}
+	log.Default().SetOutput(old)
+	assert.Empty(t, d.hist, "hist should be len 0 (testdata/dirs is not a valid mod dir)")
+	assert.Equal(t, strings.Count(buf.String(), "\n"), 1, "output should contain 1 line")
+	assert.Contains(t, buf.String(), "gno.mod: no such file or directory")
+}
+
+func tNewDirs(t *testing.T) (string, *bfsDirs) {
+	t.Helper()
 
 	// modify GNO_HOME to testdata/dirsdep -- this allows us to test
 	// dependency lookup by dirs.
 	old, ex := os.LookupEnv("GNO_HOME")
-	os.Setenv("GNO_HOME", filepath.Join(wd, "testdata/dirsdep"))
+	os.Setenv("GNO_HOME", wdJoin(t, "testdata/dirsdep"))
 	t.Cleanup(func() {
 		if ex {
 			os.Setenv("GNO_HOME", old)
@@ -28,8 +69,8 @@ func tNewDirs(t *testing.T) (string, *bfsDirs) {
 		}
 	})
 
-	return filepath.Join(wd, "testdata"),
-		newDirs([]string{filepath.Join(wd, "testdata/dirs")}, []string{filepath.Join(wd, "testdata/dirsmod")})
+	return wdJoin(t, "testdata"),
+		newDirs([]string{wdJoin(t, "testdata/dirs")}, []string{wdJoin(t, "testdata/dirsmod")})
 }
 
 func TestDirs_findPackage(t *testing.T) {
@@ -87,6 +128,7 @@ func TestDirs_findDir(t *testing.T) {
 		{"crypto/testdata/rand", filepath.Join(td, "dirs/crypto/testdata/rand"), nil},
 		{"xx", filepath.Join(td, "dirs/xx"), nil},
 		{"xx2", "/xx2", nil},
+		{"2xx", "/2xx", nil},
 	}
 	for _, tc := range tt {
 		tc := tc

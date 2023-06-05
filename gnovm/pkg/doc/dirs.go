@@ -5,6 +5,7 @@
 package doc
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path"
@@ -50,12 +51,9 @@ func newDirs(dirs []string, modDirs []string) *bfsDirs {
 	}
 
 	for _, mdir := range modDirs {
-		gm, exists := tryParseGnoMod(filepath.Join(mdir, "gno.mod"))
-		if gm == nil && exists {
-			// gno.mod could not be parsed but exists.
-			// as this would lead us to not having correct import paths (as we can't
-			// parse the module name from gno.mod), skip this directory; the user has
-			// received a console warning regardless from tryParseGnoMod.
+		gm, err := tryParseGnoMod(filepath.Join(mdir, "gno.mod"))
+		if err != nil {
+			log.Printf("%v", err)
 			continue
 		}
 		roots = append(roots, bfsDir{
@@ -71,29 +69,29 @@ func newDirs(dirs []string, modDirs []string) *bfsDirs {
 
 // tries to parse gno mod file.
 // second return parameter is whether gno.mod exists.
-func tryParseGnoMod(fname string) (*gnomod.File, bool) {
+func tryParseGnoMod(fname string) (*gnomod.File, error) {
 	file, err := os.Stat(fname)
 	// early exit for errors and non-file fname
 	if err != nil || file.IsDir() {
-		if err != nil && !os.IsNotExist(err) {
-			log.Printf("could not read go.mod file at %q: %v", fname, err)
+		if err == nil {
+			return nil, fmt.Errorf("invalid gno.mod at %q: is a directory", fname)
 		}
-		return nil, !os.IsNotExist(err)
+		// no need for filename, os errors contain that already
+		return nil, fmt.Errorf("could not read go.mod file: %w", err)
 	}
 
 	b, err := os.ReadFile(fname)
 	if err != nil {
-		log.Printf("could not read go.mod file at %q: %v", fname, err)
-		return nil, true
+		return nil, fmt.Errorf("could not read go.mod file: %w", err)
 	}
 	gm, err := gnomod.Parse(fname, b)
 	if err == nil {
 		err = gm.Validate()
 	}
 	if err != nil {
-		log.Printf("could not parse go.mod file at %q: %v", fname, err)
+		return nil, fmt.Errorf("error parsing/validating go.mod file at %q: %w", fname, err)
 	}
-	return gm, true
+	return gm, nil
 }
 
 func getGnoModDirs(gm *gnomod.File) []bfsDir {
