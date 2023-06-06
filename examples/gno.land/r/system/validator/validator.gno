@@ -3,6 +3,7 @@ package validator
 
 var (
 	idx int = 0 // just a counter, not related to power
+	adminAddr std.Address
 	set Set
 )
 
@@ -20,7 +21,7 @@ type Node struct {
 }
 
 type Set struct {
-	ActiveNodes []Node
+	Nodes []Node
 	// room for additional set configuration
 }
 
@@ -29,8 +30,16 @@ func ListActive() Set {
 }
 
 func Register(nodeAddr std.Address) (validatorID int) {
-	// assertPaidFees (for spam prevention)
-	panic("not implemented")
+	// TODO: assertPaidFees (for spam prevention)
+	n := Node{
+		Name: name,
+		OwnerAddr: std.OrigAddr(),
+		NodeAddr: nodeAddr,
+		IsActive: false,
+		ID: idx,
+	}
+	set = append(set, n)
+	idx++
 }
 
 func UpdateName(validatorID, name string) {
@@ -48,5 +57,10 @@ func AdminSetActive(validatorID int, status bool) {
 	// assertIsAdmin
 	panic("not implemented")
 }
+
+func UpdateAdminAddr(newAddr std.Address) {
+	panic("not implemented")
+}
+
 
 // for later, maybe: slash, migrate, etc
