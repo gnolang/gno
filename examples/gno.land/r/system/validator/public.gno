@@ -6,7 +6,7 @@ var (
 	adminAddr std.Address
 )
 
-func ListActiveNodes() []Node {
+func ListActive() []Node {
 	panic("not implemented")
 }
 

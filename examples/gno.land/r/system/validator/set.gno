@@ -1,6 +1,7 @@
 package validator
 
 type Set struct {
-	ActiveNodes avl.Tree // owner -> Node
-	// InactiveNodes avl.Tree // owner -> Node
+	activeByOwner avl.Tree // ownerAddr -> *Node
+        activeByAddr avl.Tree // nodeAddr -> *Node
+	// keep track of inactive?
 }
