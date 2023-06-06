@@ -271,6 +271,8 @@ func makeGenesisDoc(
 	// load genesis txs from file.
 	txs = append(txs, genesisTxs...)
 
+	// TODO: call r/system/validator.Register(self)
+
 	// construct genesis AppState.
 	gen.AppState = gnoland.GnoGenesisState{
 		Balances: balances,

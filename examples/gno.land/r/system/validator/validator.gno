@@ -1,5 +1,4 @@
 // This package is used to manage the validator set.
-// TODO: automatically register currentValidator() when starting a new chain.
 package validator
 
 var (
