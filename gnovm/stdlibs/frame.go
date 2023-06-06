@@ -3,10 +3,18 @@ package stdlibs
 import "github.com/gnolang/gno/tm2/pkg/crypto"
 
 type Realm struct {
-	Addr    crypto.Bech32Address
-	PkgPath string
+	addr    crypto.Bech32Address
+	pkgPath string
+}
+
+func (r Realm) Addr() crypto.Bech32Address {
+	return r.addr
+}
+
+func (r Realm) PkgPath() string {
+	return r.pkgPath
 }
 
 func (r Realm) IsUser() bool {
-	return r.PkgPath == ""
+	return r.pkgPath == ""
 }

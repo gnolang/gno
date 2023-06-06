@@ -308,8 +308,8 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 					m.Alloc,
 					m.Store,
 					reflect.ValueOf(Realm{
-						lastCaller,
-						lastPkgPath,
+						addr:    lastCaller,
+						pkgPath: lastPkgPath,
 					}),
 				)
 
