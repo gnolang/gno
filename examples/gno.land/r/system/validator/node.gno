@@ -1,7 +1,7 @@
 package validator
 
 type Node struct {
-	NodeAddr std.Address
+	NodeAddr  std.Address
 	OwnerAddr std.Address
 	// Statistics
 }
