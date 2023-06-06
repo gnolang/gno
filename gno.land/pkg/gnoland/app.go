@@ -85,6 +85,8 @@ func NewApp(rootDir string, skipFailingGenesisTxs bool, logger log.Logger, maxCy
 	// Initialize the VMKeeper.
 	vmKpr.Initialize(baseApp.GetCacheMultiStore())
 
+	// TODO: configure tm2/bft/consensus to react on r/system/validator for active set changes.
+
 	return baseApp, nil
 }
 
