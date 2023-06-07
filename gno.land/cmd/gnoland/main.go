@@ -244,6 +244,7 @@ func makeGenesisDoc(
 		"r/demo/banktest",
 		"r/demo/types",
 		"r/demo/markdown_test",
+		"r/gnoland/pages",
 		"r/gnoland/blog",
 		"r/gnoland/faucet",
 		"r/system/validators",
