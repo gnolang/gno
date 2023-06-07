@@ -11,7 +11,7 @@ var b = &blog.Blog{
 	Prefix: "/r/gnoland/pages:",
 }
 
-func init(){
+func init() {
 	_ = b.NewPost("", "gor", "Game of Realms", "Lorem Ipsum", nil)
 	_ = b.NewPost("", "events", "Events", "Lorem Ipsum", nil)
 }
