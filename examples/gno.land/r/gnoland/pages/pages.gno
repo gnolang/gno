@@ -1,8 +1,6 @@
 package gnopages
 
 import (
-	"std"
-
 	"gno.land/p/demo/blog"
 )
 
