@@ -64,7 +64,7 @@ func SetInPause(namespace string, state bool) {
 // The vm keeper will use this function to check to add package
 func HasPerm(namespace string) bool {
 	// if enabled is false, it always returns true for dev and testing.
-	if enabled == false {
+	if !enabled {
 		return true
 	}
 	caller := std.GetOrigCaller()
