@@ -16,16 +16,15 @@ import (
 type signCfg struct {
 	rootCfg *baseCfg
 
-	txPath        string
 	chainID       string
+	key           string
 	accountNumber uint64
 	sequence      uint64
 	showSignBytes bool
 
 	// internal flags, when called programmatically
-	nameOrBech32 string
-	txJSON       []byte
-	pass         string
+	txJSON []byte
+	pass   string
 }
 
 func newSignCmd(rootCfg *baseCfg) *commands.Command {
@@ -36,8 +35,8 @@ func newSignCmd(rootCfg *baseCfg) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "sign",
-			ShortUsage: "sign [flags] <key-name or address>",
-			ShortHelp:  "Signs the document",
+			ShortUsage: "sign [flags] <file>",
+			ShortHelp:  "Signs transaction(s)",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -48,17 +47,17 @@ func newSignCmd(rootCfg *baseCfg) *commands.Command {
 
 func (c *signCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
-		&c.txPath,
-		"txpath",
-		"-",
-		"path to file of tx to sign",
-	)
-
-	fs.StringVar(
 		&c.chainID,
 		"chainid",
 		"dev",
 		"chainid to sign for",
+	)
+
+	fs.StringVar(
+		&c.key,
+		"key",
+		"",
+		"key-name or address to sign with (required)",
 	)
 
 	fs.Uint64Var(
@@ -86,15 +85,12 @@ func (c *signCfg) RegisterFlags(fs *flag.FlagSet) {
 func execSign(cfg *signCfg, args []string, io *commands.IO) error {
 	var err error
 
-	if len(args) != 1 {
+	if cfg.key == "" {
 		return flag.ErrHelp
 	}
 
-	cfg.nameOrBech32 = args[0]
-
-	// read tx to sign
-	txpath := cfg.txPath
-	if txpath == "-" { // from stdin.
+	// read tx from file or stdin to sign.
+	if len(args) == 0 { // from stdin
 		txjsonstr, err := io.GetString(
 			"Enter tx to sign, terminated by a newline.",
 		)
@@ -102,24 +98,21 @@ func execSign(cfg *signCfg, args []string, io *commands.IO) error {
 			return err
 		}
 		cfg.txJSON = []byte(txjsonstr)
-	} else { // from file
-		cfg.txJSON, err = os.ReadFile(txpath)
+	} else if len(args) == 1 { // from file
+		cfg.txJSON, err = os.ReadFile(args[0])
 		if err != nil {
 			return err
 		}
+	} else {
+		return flag.ErrHelp
 	}
 
-	if cfg.rootCfg.Quiet {
-		cfg.pass, err = io.GetPassword(
-			"",
-			cfg.rootCfg.InsecurePasswordStdin,
-		)
-	} else {
-		cfg.pass, err = io.GetPassword(
-			"Enter password.",
-			cfg.rootCfg.InsecurePasswordStdin,
-		)
+	askPasswordMsg := ""
+	if !cfg.rootCfg.Quiet {
+		askPasswordMsg = "Enter password:"
 	}
+
+	cfg.pass, err = io.GetPassword(askPasswordMsg, cfg.rootCfg.InsecurePasswordStdin)
 	if err != nil {
 		return err
 	}
@@ -183,7 +176,7 @@ func SignHandler(cfg *signCfg) (*std.Tx, error) {
 		return nil, nil
 	}
 
-	sig, pub, err := kb.Sign(cfg.nameOrBech32, cfg.pass, signbz)
+	sig, pub, err := kb.Sign(cfg.key, cfg.pass, signbz)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +194,7 @@ func SignHandler(cfg *signCfg) (*std.Tx, error) {
 	}
 	if !found {
 		return nil, errors.New(
-			fmt.Sprintf("addr %v (%s) not in signer set", addr, cfg.nameOrBech32),
+			fmt.Sprintf("addr %v (%s) not in signer set", addr, cfg.key),
 		)
 	}
 

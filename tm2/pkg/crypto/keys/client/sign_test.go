@@ -22,6 +22,11 @@ func Test_execSign(t *testing.T) {
 	assert.NotNil(t, kbHome)
 	defer kbCleanUp()
 
+	fakeKeyName1 := "signApp_Key1"
+	fakeKeyName2 := "signApp_Key2"
+	encPassword := "12345678"
+	args := []string{}
+
 	// initialize test options
 	cfg := &signCfg{
 		rootCfg: &baseCfg{
@@ -30,15 +35,11 @@ func Test_execSign(t *testing.T) {
 				InsecurePasswordStdin: true,
 			},
 		},
-		txPath:        "-", // stdin
+		key:           fakeKeyName1,
 		chainID:       "dev",
 		accountNumber: 0,
 		sequence:      0,
 	}
-
-	fakeKeyName1 := "signApp_Key1"
-	fakeKeyName2 := "signApp_Key2"
-	encPassword := "12345678"
 
 	io := commands.NewTestIO()
 
@@ -55,17 +56,15 @@ func Test_execSign(t *testing.T) {
 	tx := std.NewTx([]std.Msg{msg}, fee, nil, "")
 	txjson := string(amino.MustMarshalJSON(tx))
 
-	args := []string{fakeKeyName1}
 	io.SetIn(strings.NewReader(txjson))
 	err = execSign(cfg, args, io)
 	assert.Error(t, err)
 
-	args = []string{fakeKeyName1}
 	io.SetIn(strings.NewReader(txjson + "\n"))
 	err = execSign(cfg, args, io)
 	assert.Error(t, err)
 
-	args = []string{fakeKeyName2}
+	cfg.key = fakeKeyName2
 	io.SetIn(strings.NewReader(
 		fmt.Sprintf("%s\n%s\n",
 			txjson,
@@ -75,7 +74,7 @@ func Test_execSign(t *testing.T) {
 	err = execSign(cfg, args, io)
 	assert.Error(t, err)
 
-	args = []string{fakeKeyName1}
+	cfg.key = fakeKeyName1
 	io.SetIn(strings.NewReader(
 		fmt.Sprintf("%s\n%s\n",
 			txjson,

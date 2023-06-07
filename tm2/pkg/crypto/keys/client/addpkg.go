@@ -178,7 +178,7 @@ func signAndBroadcast(
 		sequence:      sequence,
 		accountNumber: accountNumber,
 		chainID:       txopts.chainID,
-		nameOrBech32:  nameOrBech32,
+		key:           nameOrBech32,
 		txJSON:        amino.MustMarshalJSON(tx),
 	}
 	if baseopts.Quiet {
