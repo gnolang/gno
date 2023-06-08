@@ -1,7 +1,6 @@
 package mux
 
 type HandlerFunc func(*ResponseWriter, *Request)
-
-// TODO: ErrHandlerFunc...
+// TODO: type ErrHandlerFunc func(*ResponseWriter, *Request) error
 // TODO: NotFoundHandler
 // TODO: AutomaticIndex

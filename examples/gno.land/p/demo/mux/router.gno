@@ -23,6 +23,7 @@ func (r *Router) Render(path string) string {
 		if ok {
 			req := &Request{
 				Path: path,
+				HandlerPath: parts[0],
 			}
 			res := &ResponseWriter{}
 			handler(res, req)

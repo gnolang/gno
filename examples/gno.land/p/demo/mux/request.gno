@@ -5,25 +5,28 @@ import "strings"
 // Request represents an incoming request.
 type Request struct {
 	Path string
+	HandlerPath string
 }
 
 // GetVar retrieves a variable from the path based on routing rules.
 func (r *Request) GetVar(key string) string {
-	parts := strings.Split(r.Path, "/")
+	var (
+	handlerParts =strings.Split(r.HandlerPath, "/") 
+	reqParts = strings.Split(r.Path, "/")
+	)
 
-	// Iterate through the parts of the path
-	for i := 0; i < len(parts); i++ {
-		part := parts[i]
+	for i := 0; i < len(handlerParts); i++ {
+		handlerPart := handlerParts[i]
 
 		// Check if the part starts with a parameter indicator
-		if strings.HasPrefix(part, "{") && strings.HasSuffix(part, "}") {
+		if strings.HasPrefix(handlerPart, "{") && strings.HasSuffix(handlerPart, "}") {
 			// Extract the parameter name by removing the surrounding braces
-			parameter := strings.TrimSuffix(strings.TrimPrefix(part, "{"), "}")
+			parameter := strings.TrimSuffix(strings.TrimPrefix(handlerPart, "{"), "}")
 
 			// Check if the parameter matches the requested key
 			if parameter == key {
 				// Return the value of the parameter
-				return parts[i+1]
+				return reqParts[i]
 			}
 		}
 	}
