@@ -3,7 +3,6 @@ package names
 import (
 	"std"
 
-	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
 )
 
@@ -107,9 +106,8 @@ func renderNamespace(namespace string) string {
 
 func renderIndex() string {
 	output := "## Namespaces \n"
-	namespaces.Iterate("", "", func(n *avl.Node) bool {
-		namespace := n.Key()
-		space := n.Value().(*Space)
+	namespaces.Iterate("", "", func(namespace string, value interface{}) bool {
+		space := value.(*Space)
 		output += ufmt.Sprintf("* [%s](/r/system/names:n/%s) -	admins: %d editors: %d inPause: %s \n",
 			namespace, namespace, len(space.Admins), len(space.Editors), formatBool(space.InPause))
 		return false
