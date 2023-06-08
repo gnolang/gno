@@ -150,7 +150,7 @@ func (vm *VMKeeper) checkNamespacePerm(ctx sdk.Context, creator crypto.Address, 
 	if err != nil {
 		return err
 	}
-	//TODO: needs fixed representation of bool
+	// TODO: needs fixed representation of bool
 	if res != "(true bool)" {
 		return fmt.Errorf("namespace %q not allowed", namespace)
 	}

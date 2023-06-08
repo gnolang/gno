@@ -59,7 +59,6 @@ func TestSpaceMethods(t *testing.T) {
 
 	s.addAdmin(test1)
 	assertTrue(t, s.removeAdmin(test1) == nil)
-
 }
 
 func assertTrue(t *testing.T, b bool) {

@@ -101,7 +101,6 @@ func renderNamespace(namespace string) string {
 
 `, namespace, renderAddresses(space.Admins), renderAddresses(space.Editors), formatBool(space.InPause))
 	return output
-
 }
 
 func renderIndex() string {
