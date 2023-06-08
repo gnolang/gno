@@ -6,7 +6,7 @@ type UnprivilegedSet struct {
 	Set
 }
 
-// Unprivileged returns an unprivileged structure that can be exposed safely.
+// Unprivileged returns an unprivileged structure that can be securely exposed as object.
 func (s Set) Unprivileged() UnprivilegedSet {
 	return UnprivilegedSet{Set: s}
 }

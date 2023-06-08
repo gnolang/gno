@@ -20,24 +20,29 @@ func init() {
 	admins.Add("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq") // @manfred
 }
 
-func AdminSetAdminAddr(addr std.Address) {
-	assertIsAdmin()
-	adminAddr = addr
-}
-
 func AdminSetInPause(state bool) {
 	assertIsAdmin()
 	inPause = state
 }
 
-func AdminAddModerator(addr std.Address) {
+func AdminAddAdmin(addr std.Address) {
 	assertIsAdmin()
-	moderatorList.Set(addr.String(), true)
+	admins.Add(addr)
 }
 
-func AdminRemoveModerator(addr std.Address) {
+func AdminDelAdmin(addr std.Address) {
 	assertIsAdmin()
-	moderatorList.Set(addr.String(), false) // FIXME: delete instead?
+	admins.Del(addr)
+}
+
+func AdminAddModerator(addr std.Address) {
+	assertIsAdmin()
+	moderators.Add(addr)
+}
+
+func AdminDelModerator(addr std.Address) {
+	assertIsAdmin()
+	moderators.Del(addr)
 }
 
 func ModAddPost(slug, title, body, tags string) {
@@ -59,12 +64,12 @@ func ModEditPost(slug, title, body, tags string) {
 
 func ModAddCommenter(addr std.Address) {
 	assertIsModerator()
-	commenterList.Set(addr.String(), true)
+	commenters.Add(addr)
 }
 
 func ModDelCommenter(addr std.Address) {
 	assertIsModerator()
-	commenterList.Set(addr.String(), false) // FIXME: delete instead?
+	commenters.Del(addr)
 }
 
 func ModDelComment(slug string, index int) {
@@ -75,18 +80,18 @@ func ModDelComment(slug string, index int) {
 }
 
 func assertIsAdmin() {
-	admins.AssertHasAccess()
+	admins.AssertCurrentHasAccess()
 }
 
 func assertIsModerator() {
-	if admins.HasAccess() || moderators.HasAccess() {
+	if admins.CurrentHasAccess() || moderators.CurrentHasAccess() {
 		return
 	}
 	panic("access restricted")
 }
 
 func assertIsCommenter() {
-	if admins.HasAccess() || moderators.HasAccess() || commenters.HasAccess() {
+	if admins.CurrentHasAccess() || moderators.CurrentHasAccess() || commenters.CurrentHasAccess() {
 		return
 	}
 	panic("access restricted")
