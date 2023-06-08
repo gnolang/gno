@@ -18,3 +18,5 @@ func (rw *ResponseWriter) Write(data string) {
 func (rw *ResponseWriter) Output() string {
 	return rw.output.String()
 }
+
+// TODO: func (rw *ResponseWriter) Header()...
