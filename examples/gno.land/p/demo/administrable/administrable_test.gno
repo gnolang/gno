@@ -77,7 +77,6 @@ func TestSet_IsAdmin(t *testing.T) {
 }
 
 func TestSet_AddAndRemoveAdmin_Panic(t *testing.T) {
-
 	// Add an admin
 	admin := testutils.TestAddress("test6")
 	std.TestSetOrigCaller(admin)
@@ -106,7 +105,7 @@ func TestSet_AddAndRemoveAdmin_Panic(t *testing.T) {
 
 func ExamplePackageLevel() {
 	// set this globally or during init()
-	var acl = New()
+	acl := New()
 
 	// in functions
 	acl.AssertIsAdmin()
@@ -114,7 +113,7 @@ func ExamplePackageLevel() {
 
 func ExampleEmbedding() {
 	// declare a new struct, and embed administrable.Set.
-	type MyObject struct{
+	type MyObject struct {
 		myField int
 		Set
 	}
@@ -122,7 +121,7 @@ func ExampleEmbedding() {
 	// initialize the object, it now has its own admin set.
 	myObject := MyObject{
 		myField: 42,
-		Set: New(),
+		Set:     New(),
 	}
 
 	// check from the context of the object.
