@@ -1,34 +1,37 @@
 package mux
 
 import "testing"
+import "fmt"
 
 func TestRequest_GetVar(t *testing.T) {
-	req := &Request{Path: "users/{id}"}
+     cases := []struct{
+	     handlerPath string
+	     reqPath string
+	     getVarKey string
+	     expectedOutput string
+     }{
+	     {"users/{id}", "users/123", "id", "123"},
+	     {"users/123", "users/123", "id", ""},
+	     {"users/{id}", "users/123", "nonexistent", ""},
+	     {"a/{b}/c/{d}", "a/42/c/1337", "b", "42"},
+	     {"a/{b}/c/{d}", "a/42/c/1337", "d", "1337"},
+	     {"{a}", "foo", "a", "foo"},
+	     // TODO: wildcards: a/*/c
+	     // TODO: multiple patterns per slashes: a/{b}-{c}/d
+     }
 
-	// Test a valid variable
-	id := req.GetVar("id")
-	expectedID := "123"
-	if id != expectedID {
-		t.Errorf("Expected ID '%s', but got '%s'", expectedID, id)
-	}
+	for _, tt := range cases {
+		name := fmt.Sprintf("%s-%s", tt.handlerPath, tt.reqPath)
+		t.Run(name, func(t *testing.T){
+			req := &Request{
+				HandlerPath: tt.handlerPath,
+				Path: tt.reqPath,
+			}
 
-	// Test a non-existent variable
-	nonExistent := req.GetVar("nonexistent")
-	if nonExistent != "" {
-		t.Errorf("Expected non-existent variable to be empty, but got '%s'", nonExistent)
-	}
-
-	// Test multiple variables
-	req.Path = "users/{id}/posts/{postID}"
-	id = req.GetVar("id")
-	expectedID = "456"
-	if id != expectedID {
-		t.Errorf("Expected ID '%s', but got '%s'", expectedID, id)
-	}
-
-	postID := req.GetVar("postID")
-	expectedPostID := "789"
-	if postID != expectedPostID {
-		t.Errorf("Expected PostID '%s', but got '%s'", expectedPostID, postID)
+			output:= req.GetVar(tt.getVarKey)
+			if output != tt.expectedOutput{
+				t.Errorf("Expected '%q, but got %q", tt.expectedOutput, output)
+			}
+		})
 	}
 }

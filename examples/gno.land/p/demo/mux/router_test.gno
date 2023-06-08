@@ -8,7 +8,7 @@ import (
 func TestRouter_Render(t *testing.T) {
 	// Define handlers and route configuration
 	router := NewRouter()
-	router.Handle("hello/{name}", func(res *ResponseWriter, req *Request) {
+	router.HandleFunc("hello/{name}", func(res *ResponseWriter, req *Request) {
 		name := req.GetVar("name")
 		if name != "" {
 			res.Write("Hello, " + name + "!")
@@ -16,7 +16,7 @@ func TestRouter_Render(t *testing.T) {
 			res.Write("Hello, world!")
 		}
 	})
-	router.Handle("hi", func(res *ResponseWriter, req *Request) {
+	router.HandleFunc("hi", func(res *ResponseWriter, req *Request) {
 		res.Write("Hi, earth!")
 	})
 

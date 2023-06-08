@@ -17,17 +17,17 @@ func (r *Request) GetVar(key string) string {
 
 	for i := 0; i < len(handlerParts); i++ {
 		handlerPart := handlerParts[i]
-
-		// Check if the part starts with a parameter indicator
-		if strings.HasPrefix(handlerPart, "{") && strings.HasSuffix(handlerPart, "}") {
-			// Extract the parameter name by removing the surrounding braces
-			parameter := strings.TrimSuffix(strings.TrimPrefix(handlerPart, "{"), "}")
-
-			// Check if the parameter matches the requested key
+		switch {
+		case handlerPart == "*":
+			// XXX: implement a/b/*/d/e
+			panic("not implemented")
+		case strings.HasPrefix(handlerPart, "{") && strings.HasSuffix(handlerPart, "}"):
+			parameter := handlerPart[1:len(handlerPart)-1]
 			if parameter == key {
-				// Return the value of the parameter
 				return reqParts[i]
 			}
+		default:
+			// continue
 		}
 	}
 
