@@ -7,28 +7,28 @@ import (
 	"gno.land/p/demo/testutils"
 )
 
-func TestSet_AddAndRemoveAdmin(t *testing.T) {
-	set := New()
+func TestUnprivilegedSet_AddAndRemoveAdmin(t *testing.T) {
+	set := New().Unprivileged()
 
 	// Add an admin
 	admin1 := testutils.TestAddress("test1")
 	set.Add(admin1)
-	if !set.Has(admin1) {
+	if !set.HasAccess(admin1) {
 		t.Errorf("Expected admin1 to be added, but it was not")
 	}
 
 	// Remove the admin
 	set.Del(admin1)
-	if set.Has(admin1) {
+	if set.HasAccess(admin1) {
 		t.Errorf("Expected admin1 to be removed, but it was still present")
 	}
 }
 
-func TestSet_ListAdmins(t *testing.T) {
+func TestUnprivilegedSet_ListAdmins(t *testing.T) {
 	// Add multiple admins
 	admin1 := testutils.TestAddress("test2")
 	admin2 := testutils.TestAddress("test3")
-	set := NewWithAddress(admin1)
+	set := NewWithAddress(admin1).Unprivileged()
 	std.TestSetOrigCaller(admin1)
 	set.Add(admin2)
 
@@ -57,30 +57,30 @@ func TestSet_ListAdmins(t *testing.T) {
 	}
 }
 
-func TestSet_IsAdmin(t *testing.T) {
+func TestUnprivilegedSet_CurrentHasAccess(t *testing.T) {
 	// Set the original caller as admin
 	admin := testutils.TestAddress("test4")
 	std.TestSetOrigCaller(admin)
-	set := New()
+	set := New().Unprivileged()
 
-	// Verify IsAdmin returns true for the admin
-	if !set.IsAdmin() {
-		t.Errorf("Expected IsAdmin to return true for the admin, but it returned false")
+	// Verify CurrentHasAccess returns true for the admin
+	if !set.CurrentHasAccess() {
+		t.Errorf("Expected CurrentHasAccess to return true for the admin, but it returned false")
 	}
 
-	// Verify IsAdmin returns false for a non-admin
+	// Verify CurrentHasAccess returns false for a non-admin
 	nonAdmin := testutils.TestAddress("test5")
 	std.TestSetOrigCaller(nonAdmin)
-	if set.IsAdmin() {
-		t.Errorf("Expected IsAdmin to return false for a non-admin, but it returned true")
+	if set.CurrentHasAccess() {
+		t.Errorf("Expected CurrentHasAccess to return false for a non-admin, but it returned true")
 	}
 }
 
-func TestSet_AddAndRemoveAdmin_Panic(t *testing.T) {
+func TestUnprivilegedSet_AddAndRemoveAdmin_Panic(t *testing.T) {
 	// Add an admin
 	admin := testutils.TestAddress("test6")
 	std.TestSetOrigCaller(admin)
-	set := New()
+	set := New().Unprivileged()
 
 	// Set a non-admin caller
 	nonAdmin := testutils.TestAddress("test7")
@@ -101,29 +101,4 @@ func TestSet_AddAndRemoveAdmin_Panic(t *testing.T) {
 		}
 	}()
 	set.Del(admin)
-}
-
-func ExamplePackageLevel() {
-	// set this globally or during init()
-	acl := New()
-
-	// in functions
-	acl.AssertIsAdmin()
-}
-
-func ExampleEmbedding() {
-	// declare a new struct, and embed administrable.Set.
-	type MyObject struct {
-		myField int
-		Set
-	}
-
-	// initialize the object, it now has its own admin set.
-	myObject := MyObject{
-		myField: 42,
-		Set:     New(),
-	}
-
-	// check from the context of the object.
-	myObject.Set.AssertIsAdmin()
 }

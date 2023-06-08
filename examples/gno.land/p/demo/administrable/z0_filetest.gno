@@ -23,14 +23,14 @@ func main() {
 	println(admins.List())
 	admins.Add(test1)
 	println(admins.List())
-	println(admins.IsAdmin())
+	println(admins.CurrentHasAccess())
 	admins.Del(initialCaller)
 	println(admins.List())
-	println(admins.IsAdmin())
+	println(admins.CurrentHasAccess())
 	std.TestSetOrigCaller(test2)
-	println(admins.IsAdmin())
+	println(admins.CurrentHasAccess())
 	std.TestSetOrigCaller(test1)
-	println(admins.IsAdmin())
+	println(admins.CurrentHasAccess())
 }
 
 // Output:

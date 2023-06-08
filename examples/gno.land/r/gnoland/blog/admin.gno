@@ -4,19 +4,20 @@ import (
 	"std"
 	"strings"
 
+	"gno.land/p/demo/administrable"
 	"gno.land/p/demo/avl"
 )
 
 var (
-	adminAddr     std.Address
-	moderatorList avl.Tree
-	commenterList avl.Tree
-	inPause       bool
+	admins     administrable.Set
+	moderators administrable.Set
+	commenters administrable.Set
+	inPause    bool
 )
 
 func init() {
-	// adminAddr = std.GetOrigCaller() // FIXME: find a way to use this from the main's genesis.
-	adminAddr = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"
+	admins = administrable.New()
+	admins.Add("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq") // @manfred
 }
 
 func AdminSetAdminAddr(addr std.Address) {
@@ -25,6 +26,7 @@ func AdminSetAdminAddr(addr std.Address) {
 }
 
 func AdminSetInPause(state bool) {
+	assertIsAdmin()
 	inPause = state
 }
 
@@ -72,38 +74,19 @@ func ModDelComment(slug string, index int) {
 	checkErr(err)
 }
 
-func isAdmin(addr std.Address) bool {
-	return addr == adminAddr
-}
-
-func isModerator(addr std.Address) bool {
-	_, found := moderatorList.Get(addr.String())
-	return found
-}
-
-func isCommenter(addr std.Address) bool {
-	_, found := commenterList.Get(addr.String())
-	return found
-}
-
 func assertIsAdmin() {
-	caller := std.GetOrigCaller()
-	if !isAdmin(caller) {
-		panic("access restricted.")
-	}
+	admins.AssertHasAccess()
 }
 
 func assertIsModerator() {
-	caller := std.GetOrigCaller()
-	if isAdmin(caller) || isModerator(caller) {
+	if admins.HasAccess() || moderators.HasAccess() {
 		return
 	}
 	panic("access restricted")
 }
 
 func assertIsCommenter() {
-	caller := std.GetOrigCaller()
-	if isAdmin(caller) || isModerator(caller) || isCommenter(caller) {
+	if admins.HasAccess() || moderators.HasAccess() || commenters.HasAccess() {
 		return
 	}
 	panic("access restricted")

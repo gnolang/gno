@@ -9,20 +9,22 @@ import (
 // It is recommended to use this function in the `init()` function of the calling realm.
 func New() Set {
 	addr := std.GetOrigCaller()
-	return NewWithAddress(addr)
-}
-
-// NewWithAddress returns s Set object initialized with the provided address as the admin.
-func NewWithAddress(addr std.Address) Set {
 	return Set{
 		addrs: []std.Address{addr},
 	}
 }
 
+// NewWithAddress returns s Set object initialized with the provided address as the admin.
+func NewWithAddress(addr std.Address) Set {
+	s := New()
+	s.ReplaceAll(addr)
+	return s
+}
+
 // Set is an object containing the configuration and allowing to apply filters.
 // It's suited to be used as a contract-side global variable or can be embedded in another go object.
 type Set struct {
-	// XXX: replace with map[std.Address]struct{}
+	// XXX: replace with map[std.Address]struct{}?
 	addrs []std.Address
 }
 
@@ -32,7 +34,7 @@ func (s *Set) List() []std.Address {
 }
 
 // Has checks if an address is in the list of administrators.
-func (s *Set) Has(addr std.Address) bool {
+func (s *Set) HasAccess(addr std.Address) bool {
 	for _, entry := range s.addrs {
 		if entry == addr {
 			return true
@@ -41,9 +43,9 @@ func (s *Set) Has(addr std.Address) bool {
 	return false
 }
 
-// IsAdmin checks if the caller or prevRealm is an administrator.
-func (s *Set) IsAdmin() bool {
-	if s.Has(std.GetOrigCaller()) {
+// CurrentHasAccess checks if the caller or prevRealm is an administrator.
+func (s *Set) CurrentHasAccess() bool {
+	if s.HasAccess(std.GetOrigCaller()) {
 		return true
 	}
 
@@ -52,10 +54,10 @@ func (s *Set) IsAdmin() bool {
 	return false
 }
 
-// AssertIsAdmin checks whether the std.GetOrigCaller or std.PrevRealm is whitelisted as an admin.
+// AssertCurrentHasAccess checks whether the std.GetOrigCaller or std.PrevRealm is whitelisted as an admin.
 // If not, it panics indicating restricted access.
-func (s *Set) AssertIsAdmin() {
-	if !s.IsAdmin() {
+func (s *Set) AssertCurrentHasAccess() {
+	if !s.CurrentHasAccess() {
 		panic("restricted ares.")
 	}
 }
@@ -63,8 +65,7 @@ func (s *Set) AssertIsAdmin() {
 // Add adds an address to the list of administrators.
 // It requires the caller or prevRealm to be an admin, otherwise, it panics.
 func (s *Set) Add(addr std.Address) {
-	s.AssertIsAdmin()
-	if s.Has(addr) {
+	if s.HasAccess(addr) {
 		// XXX: panic?
 		return
 	}
@@ -74,8 +75,6 @@ func (s *Set) Add(addr std.Address) {
 // Del removes an address from the list of administrators.
 // It requires the caller or prevRealm to be an admin, otherwise, it panics.
 func (s *Set) Del(addr std.Address) (success bool) {
-	s.AssertIsAdmin()
-
 	// XXX: should we prevent deleting self?
 
 	// prevent deleting the last admin.
@@ -95,6 +94,5 @@ func (s *Set) Del(addr std.Address) (success bool) {
 // ReplaceAll removes all existing admins and replaces them with a new one.
 // It requires the caller or prevRealm to be an admin, otherwise, it panics.
 func (s *Set) ReplaceAll(addr std.Address) {
-	s.AssertIsAdmin()
 	s.addrs = []std.Address{addr}
 }
