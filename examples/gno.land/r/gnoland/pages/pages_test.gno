@@ -20,6 +20,10 @@ func TestPackage(t *testing.T) {
 ## [&#9656; Events](/r/gnoland/pages:p/events)
 
 ## [&#9656; Game of Realms](/r/gnoland/pages:p/gor)
+
+## [&#9656; Getting Started](/r/gnoland/pages:p/start)
+
+## [&#9656; Tokenomics](/r/gnoland/pages:p/tokenomics)
 `
 		assertMDEquals(t, got, expected)
 	}
