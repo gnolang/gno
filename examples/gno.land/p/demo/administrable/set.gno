@@ -5,7 +5,7 @@ import (
 	"std"
 )
 
-// New returns s Set object initialized with the caller as the unique authorized address.
+// New returns a Set object initialized with the caller as the unique authorized address.
 // It is recommended to use this function in the `init()` function of the calling realm.
 func New() Set {
 	addr := std.GetOrigCaller()
@@ -14,17 +14,16 @@ func New() Set {
 	}
 }
 
-// NewWithAddress returns s Set object initialized with the provided address as authorized.
+// NewWithAddress returns a Set object initialized with the provided address as authorized.
 func NewWithAddress(addr std.Address) Set {
 	s := New()
 	s.ReplaceAll(addr)
 	return s
 }
 
-// Set is an object containing the configuration and allowing to apply filters.
-// It's suited to be used as a contract-side global variable or can be embedded in another go object.
+// Set is an object containing the configuration and allowing the application of filters.
+// It is suited to be used as a contract-side global variable or can be embedded in another Go object.
 type Set struct {
-	// XXX: replace with map[std.Address]struct{}?
 	addrs []std.Address
 }
 
@@ -43,7 +42,7 @@ func (s *Set) HasAccess(addr std.Address) bool {
 	return false
 }
 
-// CurrentHasAccess checks if the caller or prevRealm is an administrator.
+// CurrentHasAccess checks if the caller or prevRealm is authorized.
 func (s *Set) CurrentHasAccess() bool {
 	if s.HasAccess(std.GetOrigCaller()) {
 		return true
@@ -54,34 +53,28 @@ func (s *Set) CurrentHasAccess() bool {
 	return false
 }
 
-// AssertCurrentHasAccess checks whether the std.GetOrigCaller or std.PrevRealm is whitelisted as an admin.
+// AssertCurrentHasAccess checks whether the std.GetOrigCaller or std.PrevRealm is whitelisted as authorized.
 // If not, it panics indicating restricted access.
 func (s *Set) AssertCurrentHasAccess() {
 	if !s.CurrentHasAccess() {
-		panic("restricted ares.")
+		panic("restricted access.")
 	}
 }
 
-// Add adds an address to the list of administrators.
-// It requires the caller or prevRealm to be an admin, otherwise, it panics.
+// Add adds an address to the list of authorized addresses.
+// It requires the caller or prevRealm to be authorized, otherwise, it panics.
 func (s *Set) Add(addr std.Address) {
 	if s.HasAccess(addr) {
-		// XXX: panic?
+		// XXX: Consider panicking or handling duplicate addition differently.
 		return
 	}
 	s.addrs = append(s.addrs, addr)
 }
 
-// Del removes an address from the list of administrators.
-// It requires the caller or prevRealm to be an admin, otherwise, it panics.
-func (s *Set) Del(addr std.Address) (success bool) {
-	// XXX: should we prevent deleting self?
-
-	// prevent deleting the last admin.
-	if len(s.addrs) == 1 {
-		panic("cannot have no admin.")
-	}
-
+// ForceDel removes an address from the list of authorized addresses.
+// It won't panic if there is only one address.
+// It requires the caller or prevRealm to be authorized, otherwise, it panics.
+func (s *Set) ForceDel(addr std.Address) (success bool) {
 	for i, entry := range s.addrs {
 		if entry == addr {
 			s.addrs = append(s.addrs[:i], s.addrs[i+1:]...)
@@ -91,8 +84,20 @@ func (s *Set) Del(addr std.Address) (success bool) {
 	return false
 }
 
-// ReplaceAll removes all existing admins and replaces them with a new one.
-// It requires the caller or prevRealm to be an admin, otherwise, it panics.
+// Del removes an address from the list of authorized addresses.
+// It requires the caller or prevRealm to be authorized, otherwise, it panics.
+func (s *Set) Del(addr std.Address) (success bool) {
+	// XXX: should we prevent deleting self?
+
+	// Prevent deleting the last authorized address.
+	if len(s.addrs) == 1 {
+		panic("cannot have no authorized address.")
+	}
+	return s.ForceDel(addr)
+}
+
+// ReplaceAll removes all existing authorized addresses and replaces them with a new one.
+// It requires the caller or prevRealm to be authorized, otherwise, it panics.
 func (s *Set) ReplaceAll(addr std.Address) {
 	s.addrs = []std.Address{addr}
 }
