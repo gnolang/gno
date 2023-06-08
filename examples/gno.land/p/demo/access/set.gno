@@ -1,9 +1,6 @@
 package access
 
-import (
-	"fmt"
-	"std"
-)
+import "std"
 
 // New returns a Set object initialized with the caller as the unique authorized address.
 // It is recommended to use this function in the `init()` function of the calling realm.
@@ -65,7 +62,7 @@ func (s *Set) AssertCurrentHasAccess() {
 // It requires the caller or prevRealm to be authorized, otherwise, it panics.
 func (s *Set) Add(addr std.Address) {
 	if s.addrs == nil {
-		s.addrs = make([]std.Address)
+		s.addrs = make([]std.Address, 0)
 	}
 	if s.HasAccess(addr) {
 		// XXX: Consider panicking or handling duplicate addition differently.

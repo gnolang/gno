@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"gno.land/p/demo/access"
-	"gno.land/p/demo/avl"
 )
 
 var (
