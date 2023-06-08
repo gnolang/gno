@@ -22,7 +22,7 @@ func (r *Request) GetVar(key string) string {
 			// XXX: implement a/b/*/d/e
 			panic("not implemented")
 		case strings.HasPrefix(handlerPart, "{") && strings.HasSuffix(handlerPart, "}"):
-			parameter := handlerPart[1:len(handlerPart)-1]
+			parameter := handlerPart[1 : len(handlerPart)-1]
 			if parameter == key {
 				return reqParts[i]
 			}
