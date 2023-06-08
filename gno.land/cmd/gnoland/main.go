@@ -231,6 +231,7 @@ func makeGenesisDoc(
 	for _, path := range []string{
 		"p/demo/ufmt",
 		"p/demo/avl",
+		"p/demo/access",
 		"p/demo/grc/exts",
 		"p/demo/grc/grc20",
 		"p/demo/grc/grc721",
