@@ -1293,6 +1293,10 @@ func TestLoadVersionForOverwriting(t *testing.T) {
 //////////////////////////// BENCHMARKS ///////////////////////////////////////
 
 func BenchmarkTreeLoadAndDelete(b *testing.B) {
+	if testing.Short() {
+		b.Skip("skipping testing in short mode")
+	}
+
 	numVersions := 5000
 	numKeysPerVersion := 10
 

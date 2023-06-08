@@ -1,0 +1,19 @@
+title: Gno Benchmarks
+description: Benchmarks for github.com/gnolang/gno repository
+repository: https://github.com/bobheadxi/gobenchdata
+benchmarksFile: benchmarks.json
+chartGroups:
+  - name: VM Benchmarks
+    description: |
+      Benchmarks testing Gno VM
+    charts:
+      - name: Type assertion benchmarks
+        benchmarks: [ 'TypeAssertion.' ]
+      - name: Reflect benchmarks
+        benchmarks: [ 'Reflect.' ]
+      - name: Equality benchmarks
+        benchmarks: [ '.Equality' ]
+      - name: LoopyMain benchmarks
+        benchmarks: [ '.LoopyMain' ]
+      - name: All benchmarks from gnolang package
+        package: github.com\/gnolang\/gno\/gnovm\/pkg\/gnolang

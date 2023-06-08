@@ -1,0 +1,25 @@
+checks:
+    - name: VM checks
+      description: |-
+        It checks performance regressions on VM package.
+      package: "gnovm"
+      benchmarks: []
+      diff: (current.NsPerOp - base.NsPerOp) / base.NsPerOp * 100
+      thresholds:
+        max: 10
+    - name: tm2 checks
+      description: |-
+        It checks performance regressions on tm2 package.
+      package: "tm2"
+      benchmarks: []
+      diff: (current.NsPerOp - base.NsPerOp) / base.NsPerOp * 100
+      thresholds:
+        max: 10
+    - name: gno.land checks
+      description: |-
+        It checks performance regressions on gno.land package.
+      package: "gno.land"
+      benchmarks: []
+      diff: (current.NsPerOp - base.NsPerOp) / base.NsPerOp * 100
+      thresholds:
+        max: 10
