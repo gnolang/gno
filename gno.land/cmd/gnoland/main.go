@@ -236,6 +236,7 @@ func makeGenesisDoc(
 		"p/demo/grc/grc721",
 		"p/demo/grc/grc1155",
 		"p/demo/maths",
+		"p/demo/mux",
 		"p/demo/blog",
 		"r/demo/users",
 		"r/demo/foo20",
