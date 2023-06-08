@@ -18,7 +18,7 @@
 //	router := mux.NewRouter()
 //
 //	// Define a route with a variable and associated handler function
-//	router.Handle("hello/{name}", func(res *mux.ResponseWriter, req *mux.Request) {
+//	router.HandleFunc("hello/{name}", func(res *mux.ResponseWriter, req *mux.Request) {
 //		name := req.GetVar("name")
 //		if name != "" {
 //			res.Write("Hello, " + name + "!")

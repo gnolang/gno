@@ -4,13 +4,15 @@ import "strings"
 
 // Router handles the routing and rendering logic.
 type Router struct {
-	routes []Handler
+	routes          []Handler
+	NotFoundHandler HandlerFunc
 }
 
 // NewRouter creates a new Router instance.
 func NewRouter() *Router {
 	return &Router{
-		routes: make([]Handler, 0),
+		routes:          make([]Handler, 0),
+		NotFoundHandler: defaultNotFoundHandler,
 	}
 }
 
@@ -51,7 +53,12 @@ func (r *Router) Render(reqPath string) string {
 			return res.Output()
 		}
 	}
-	return ""
+
+	// not found
+	req := &Request{Path: reqPath}
+	res := &ResponseWriter{}
+	r.NotFoundHandler(res, req)
+	return res.Output()
 }
 
 // Handle registers a route and its handler function.
