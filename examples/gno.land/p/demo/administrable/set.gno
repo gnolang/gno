@@ -5,7 +5,7 @@ import (
 	"std"
 )
 
-// New returns s Set object initialized with the caller as the unique admin.
+// New returns s Set object initialized with the caller as the unique authorized address.
 // It is recommended to use this function in the `init()` function of the calling realm.
 func New() Set {
 	addr := std.GetOrigCaller()
@@ -14,7 +14,7 @@ func New() Set {
 	}
 }
 
-// NewWithAddress returns s Set object initialized with the provided address as the admin.
+// NewWithAddress returns s Set object initialized with the provided address as authorized.
 func NewWithAddress(addr std.Address) Set {
 	s := New()
 	s.ReplaceAll(addr)
@@ -28,12 +28,12 @@ type Set struct {
 	addrs []std.Address
 }
 
-// List returns a slice containing the addresses of all administrators.
+// List returns a slice containing all the authorized addresses.
 func (s *Set) List() []std.Address {
 	return s.addrs
 }
 
-// Has checks if an address is in the list of administrators.
+// HasAccess checks if the provided address is in the list of authorized ones.
 func (s *Set) HasAccess(addr std.Address) bool {
 	for _, entry := range s.addrs {
 		if entry == addr {

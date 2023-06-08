@@ -7,11 +7,6 @@ import (
 	"gno.land/p/demo/testutils"
 )
 
-func Test(t *testing.T) {
-	println("TYOOOFSOIJFf")
-}
-
-/*
 func TestSet_AddAndRemoveAdmin(t *testing.T) {
 	set := New()
 
@@ -91,10 +86,9 @@ func TestSet_AddAndRemoveAdmin_WontPanic(t *testing.T) {
 	nonAdmin := testutils.TestAddress("test7")
 	std.TestSetOrigCaller(nonAdmin)
 
-  // Verify Add won't panic in Privileged mode
- 	set.Add(nonAdmin)
+	// Verify Add won't panic in Privileged mode
+	set.Add(nonAdmin)
 
-  // Verify Del won't panic in Privileged mode
+	// Verify Del won't panic in Privileged mode
 	set.Del(nonAdmin)
 }
-*/

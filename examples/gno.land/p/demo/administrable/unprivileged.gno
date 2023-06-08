@@ -7,8 +7,8 @@ type UnprivilegedSet struct {
 }
 
 // Unprivileged returns an unprivileged structure that can be exposed safely.
-func (s *Set) Unprivileged() UnprivilegedSet {
-	return UnprivilegedSet{Set: *s}
+func (s Set) Unprivileged() UnprivilegedSet {
+	return UnprivilegedSet{Set: s}
 }
 
 func (u *UnprivilegedSet) Add(addr std.Address) {
