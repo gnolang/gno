@@ -4,15 +4,15 @@ import "strings"
 
 // Request represents an incoming request.
 type Request struct {
-	Path string
+	Path        string
 	HandlerPath string
 }
 
 // GetVar retrieves a variable from the path based on routing rules.
 func (r *Request) GetVar(key string) string {
 	var (
-	handlerParts =strings.Split(r.HandlerPath, "/") 
-	reqParts = strings.Split(r.Path, "/")
+		handlerParts = strings.Split(r.HandlerPath, "/")
+		reqParts     = strings.Split(r.Path, "/")
 	)
 
 	for i := 0; i < len(handlerParts); i++ {

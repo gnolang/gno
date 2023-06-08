@@ -1,8 +1,8 @@
 package mux
 
 import (
-	"testing"
 	"strings"
+	"testing"
 )
 
 func TestRouter_Render(t *testing.T) {
@@ -39,4 +39,3 @@ func TestRouter_Render(t *testing.T) {
 		})
 	}
 }
-

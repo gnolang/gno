@@ -14,6 +14,7 @@
 // method allows you to extract the value of a specific variable from the path based on routing rules.
 //
 // Example:
+//
 //	router := mux.NewRouter()
 //
 //	// Define a route with a variable and associated handler function
