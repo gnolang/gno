@@ -1,4 +1,4 @@
-package administrable
+package access
 
 func ExamplePackageLevel() {
 	// set this globally or during init()
@@ -9,7 +9,7 @@ func ExamplePackageLevel() {
 }
 
 func ExampleEmbedding() {
-	// declare a new struct, and embed administrable.Set.
+	// declare a new struct, and embed access.Set.
 	type MyObject struct {
 		myField int
 		Set

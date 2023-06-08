@@ -1,4 +1,4 @@
-package administrable
+package access
 
 import "std"
 

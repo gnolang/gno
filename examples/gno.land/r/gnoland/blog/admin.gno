@@ -4,19 +4,19 @@ import (
 	"std"
 	"strings"
 
-	"gno.land/p/demo/administrable"
+	"gno.land/p/demo/access"
 	"gno.land/p/demo/avl"
 )
 
 var (
-	admins     administrable.Set
-	moderators administrable.Set
-	commenters administrable.Set
+	admins     access.Set
+	moderators access.Set
+	commenters access.Set
 	inPause    bool
 )
 
 func init() {
-	admins = administrable.New()
+	admins = access.New()
 	admins.Add("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq") // @manfred
 }
 

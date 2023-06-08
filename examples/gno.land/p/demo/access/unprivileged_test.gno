@@ -1,4 +1,4 @@
-package administrable
+package access
 
 import (
 	"std"
@@ -7,8 +7,8 @@ import (
 	"gno.land/p/demo/testutils"
 )
 
-func TestSet_AddAndRemoveAdmin(t *testing.T) {
-	set := New()
+func TestUnprivilegedSet_AddAndRemoveAdmin(t *testing.T) {
+	set := New().Unprivileged()
 
 	// Add an admin
 	admin1 := testutils.TestAddress("test1")
@@ -24,11 +24,11 @@ func TestSet_AddAndRemoveAdmin(t *testing.T) {
 	}
 }
 
-func TestSet_ListAdmins(t *testing.T) {
+func TestUnprivilegedSet_ListAdmins(t *testing.T) {
 	// Add multiple admins
 	admin1 := testutils.TestAddress("test2")
 	admin2 := testutils.TestAddress("test3")
-	set := NewWithAddress(admin1)
+	set := NewWithAddress(admin1).Unprivileged()
 	std.TestSetOrigCaller(admin1)
 	set.Add(admin2)
 
@@ -57,11 +57,11 @@ func TestSet_ListAdmins(t *testing.T) {
 	}
 }
 
-func TestSet_CurrentHasAccess(t *testing.T) {
+func TestUnprivilegedSet_CurrentHasAccess(t *testing.T) {
 	// Set the original caller as admin
 	admin := testutils.TestAddress("test4")
 	std.TestSetOrigCaller(admin)
-	set := New()
+	set := New().Unprivileged()
 
 	// Verify CurrentHasAccess returns true for the admin
 	if !set.CurrentHasAccess() {
@@ -76,19 +76,29 @@ func TestSet_CurrentHasAccess(t *testing.T) {
 	}
 }
 
-func TestSet_AddAndRemoveAdmin_WontPanic(t *testing.T) {
+func TestUnprivilegedSet_AddAndRemoveAdmin_Panic(t *testing.T) {
 	// Add an admin
 	admin := testutils.TestAddress("test6")
 	std.TestSetOrigCaller(admin)
-	set := New()
+	set := New().Unprivileged()
 
 	// Set a non-admin caller
 	nonAdmin := testutils.TestAddress("test7")
 	std.TestSetOrigCaller(nonAdmin)
 
-	// Verify Add won't panic in Privileged mode
-	set.Add(nonAdmin)
+	// Verify Add panics when called by a non-admin
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Expected Add to panic when called by a non-admin, but it did not panic")
+		}
+	}()
+	set.Add(admin)
 
-	// Verify Del won't panic in Privileged mode
-	set.Del(nonAdmin)
+	// Verify Del panics when called by a non-admin
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Expected Del to panic when called by a non-admin, but it did not panic")
+		}
+	}()
+	set.Del(admin)
 }
