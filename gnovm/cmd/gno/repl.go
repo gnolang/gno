@@ -99,9 +99,11 @@ func execRepl(cfg *replCfg, args []string) error {
 }
 
 type state struct {
-	imports []string
-	funcs   []string
-	// TODO: vars
+	imports   []string
+	funcs     []string
+	lastInput string
+	// TODO: support setting global vars
+	// TODO: switch to state machine, and support rollback of anything
 }
 
 func runRepl(cfg *replCfg) error {
@@ -130,8 +132,9 @@ func runRepl(cfg *replCfg) error {
 	t := term.NewTerminal(rw, "")
 
 	state := state{
-		imports: make([]string, 0),
-		funcs:   make([]string, 0),
+		imports:   make([]string, 0),
+		funcs:     make([]string, 0),
+		lastInput: "INPUT", // initial value, to make it easier to identify with '/src'
 	}
 
 	for _, initialImport := range strings.Split(cfg.initialCommand, ",") {
@@ -177,20 +180,27 @@ func runRepl(cfg *replCfg) error {
 		switch command {
 		case "/import":
 			state.imports = append(state.imports, input[1:])
+			// TODO: check if valid, else rollback
 			continue
 		case "/func":
 			state.funcs = append(state.funcs, input[1:])
+			// TODO: check if valid, else rollback
 			continue
 		case "/src":
+			// TODO: use go/format for pretty print
+			src = strings.Replace(src, "INPUT", state.lastInput, 0)
 			println(src)
 		case "/exit":
 			break
 		}
 
+		state.lastInput = input
 		src = strings.Replace(src, "INPUT", input, 0)
 		n := gno.MustParseFile(funcName+".gno", src)
 		m.RunFiles(n)
+		// TODO: smart recover system
 		m.RunStatement(gno.S(gno.Call(gno.X(funcName))))
+		// TODO: if output is empty, consider that it's a persisted variable?
 	}
 
 	return nil
