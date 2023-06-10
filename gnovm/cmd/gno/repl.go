@@ -134,11 +134,14 @@ func runRepl(cfg *replCfg) error {
 	state := state{
 		imports:   make([]string, 0),
 		funcs:     make([]string, 0),
-		lastInput: "INPUT", // initial value, to make it easier to identify with '/src'
+		lastInput: "// your code will be here", // initial value, to make it easier to identify with '/src'
 	}
 
-	for _, initialImport := range strings.Split(cfg.initialCommand, ",") {
-		state.imports = append(state.imports, `import "`+initialImport+`"`)
+	for _, imp := range strings.Split(cfg.initialImports, ",") {
+		if strings.TrimSpace(imp) == "" {
+			continue
+		}
+		state.imports = append(state.imports, `import "`+imp+`"`)
 	}
 
 	if cfg.initialCommand != "" {
@@ -176,25 +179,32 @@ func runRepl(cfg *replCfg) error {
 
 		fields := strings.Fields(input)
 		command := fields[0]
-		switch command {
-		case "/import":
-			state.imports = append(state.imports, input[1:])
+		switch {
+		case command == "/import":
+			imp := fields[1]
+			state.imports = append(state.imports, `import "`+imp+`"`)
 			// TODO: check if valid, else rollback
 			continue
-		case "/func":
+		case command == "/func":
 			state.funcs = append(state.funcs, input[1:])
 			// TODO: check if valid, else rollback
 			continue
-		case "/src":
+		case command == "/src":
 			// TODO: use go/format for pretty print
-			src = strings.Replace(src, "INPUT", state.lastInput, 0)
+			src = strings.ReplaceAll(src, "INPUT", state.lastInput)
 			println(src)
-		case "/exit":
+			continue
+		case command == "/exit":
 			break
+		case strings.HasPrefix(command, "/"):
+			println("unsupported command")
+			continue
+		default:
+			// not a command, probably code to run
 		}
 
 		state.lastInput = input
-		src = strings.Replace(src, "INPUT", input, 0)
+		src = strings.ReplaceAll(src, "INPUT", input)
 		n := gno.MustParseFile(funcName+".gno", src)
 		// TODO: run fmt check + linter
 		m.RunFiles(n)
