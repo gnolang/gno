@@ -134,8 +134,17 @@ func runRepl(cfg *replCfg) error {
 		funcs:   make([]string, 0),
 	}
 
+	for _, initialImport := range strings.Split(cfg.initialCommand, ",") {
+		state.imports = append(state.imports, `import "`+initialImport+`"`)
+	}
+
+	if cfg.initialCommand != "" {
+		// TODO: implement
+		panic("not implemented")
+	}
+
 	// main loop
-	for i := 1; ; /* continue until break */ i++ {
+	for i := 1; ; /* mainloop */ i++ {
 		// parse line and execute
 		t.SetPrompt(fmt.Sprintf("gno:%d> ", i))
 		oldState, err := term.MakeRaw(0)
@@ -164,16 +173,17 @@ func runRepl(cfg *replCfg) error {
 		src := "package test\n" + imports + "\n" + funcs + "\nfunc " + funcName + "() {\nINPUT\n}"
 
 		fields := strings.Fields(input)
-		switch {
-		case fields[0] == "/import":
+		command := fields[0]
+		switch command {
+		case "/import":
 			state.imports = append(state.imports, input[1:])
 			continue
-		case fields[0] == "/func":
+		case "/func":
 			state.funcs = append(state.funcs, input[1:])
 			continue
-		case fields[0] == "/src":
+		case "/src":
 			println(src)
-		case fields[0] == "/exit":
+		case "/exit":
 			break
 		}
 
@@ -181,7 +191,6 @@ func runRepl(cfg *replCfg) error {
 		n := gno.MustParseFile(funcName+".gno", src)
 		m.RunFiles(n)
 		m.RunStatement(gno.S(gno.Call(gno.X(funcName))))
-
 	}
 
 	return nil
