@@ -147,7 +147,7 @@ func runRepl(cfg *replCfg) error {
 	}
 
 	// main loop
-	for i := 1; ; /* mainloop */ i++ {
+	for i := 1; ; i++ {
 		// parse line and execute
 		t.SetPrompt(fmt.Sprintf("gno:%d> ", i))
 		oldState, err := term.MakeRaw(0)
@@ -168,7 +168,6 @@ func runRepl(cfg *replCfg) error {
 
 		funcName := fmt.Sprintf("repl_%d", i)
 		// FIXME: support ";" as line separator?
-		// FIXME: gofmt as linter + formatter
 		// FIXME: support multiline when unclosed parenthesis, etc
 
 		imports := strings.Join(state.imports, "\n")
@@ -197,6 +196,7 @@ func runRepl(cfg *replCfg) error {
 		state.lastInput = input
 		src = strings.Replace(src, "INPUT", input, 0)
 		n := gno.MustParseFile(funcName+".gno", src)
+		// TODO: run fmt check + linter
 		m.RunFiles(n)
 		// TODO: smart recover system
 		m.RunStatement(gno.S(gno.Call(gno.X(funcName))))
