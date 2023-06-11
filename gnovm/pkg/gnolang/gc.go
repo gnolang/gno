@@ -96,7 +96,7 @@ func (gc *GC) getObjByPath(path *ValuePath) *GCObj {
 
 func (gc *GC) getRootByPath(path *ValuePath) *GCObj {
 	for _, obj := range gc.roots {
-		if obj.path.String() == path.String() {
+		if (path == nil && obj.path == nil) || (obj.path.String() == path.String()) {
 			return obj
 		}
 	}

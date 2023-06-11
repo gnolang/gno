@@ -32,7 +32,7 @@ func (m *Machine) doOpEval() {
 			var obj, root *GCObj
 
 			if m.GC != nil {
-				root = m.GC.getRootByPath(nx.Path.String())
+				root = m.GC.getRootByPath(&nx.Path)
 			}
 			if root != nil {
 				obj = root.ref
