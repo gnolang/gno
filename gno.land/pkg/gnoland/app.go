@@ -1,6 +1,8 @@
 package gnoland
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -9,6 +11,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -143,6 +146,56 @@ func parseBalance(bal string) (crypto.Address, std.Coins) {
 // XXX not used yet.
 func EndBlocker(vmk vm.VMKeeperI) func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 	return func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
-		return abci.ResponseEndBlock{}
+		return abci.ResponseEndBlock{
+			ValidatorUpdates: loadValidatorsFromVM(ctx, vmk),
+		}
 	}
+}
+
+type gnoValidator struct {
+	Address string `json:"address"`
+	Pubkey  string `json:"pubkey"`
+	Power   int64  `json:"power"`
+}
+
+func loadValidatorsFromVM(ctx sdk.Context, vmk vm.VMKeeperI) []abci.ValidatorUpdate {
+	res, err := vmk.Call(ctx, vm.MsgCall{
+		Caller:  crypto.Address{},
+		Send:    std.Coins{},
+		PkgPath: "gno.land/r/system/validators",
+		Func:    "ValidatorSet",
+		Args:    []string{},
+	})
+	if err != nil {
+		panic(fmt.Errorf("load validators from vm: %w", err))
+	}
+	//TODO: res is string, we need to typed value for it.
+
+	fmt.Printf("res: %v\n", res)
+	jsonStr := strings.TrimRight(strings.TrimLeft(res, `("`), `" string)`)
+	jsonStr = strings.ReplaceAll(jsonStr, `\`, "")
+
+	var gnoValidators []gnoValidator
+	if err := json.Unmarshal([]byte(jsonStr), &gnoValidators); err != nil {
+		panic(fmt.Errorf("unmarshaling validators: %w", err))
+	}
+
+	var updates []abci.ValidatorUpdate
+	for _, v := range gnoValidators {
+		pubBytes, err := base64.StdEncoding.DecodeString(v.Pubkey)
+		if err != nil {
+			panic(err)
+		}
+		var pubkeyBytes [ed25519.PubKeyEd25519Size]byte
+		copy(pubkeyBytes[:], pubBytes[:32])
+
+		pubkey := ed25519.PubKeyEd25519(pubkeyBytes)
+		val := abci.ValidatorUpdate{
+			Address: pubkey.Address(),
+			PubKey:  pubkey,
+			Power:   v.Power,
+		}
+		updates = append(updates, val)
+	}
+	return updates
 }
