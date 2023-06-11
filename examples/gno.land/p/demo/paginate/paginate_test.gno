@@ -36,13 +36,38 @@ func init() {
 }
 
 func TestPaginate(t *testing.T) {
-	const testString = `[1](://here%20is%20the%20url/1) *2* [3](://here%20is%20the%20url/3) ... [6](://here%20is%20the%20url/6) [7](://here%20is%20the%20url/7) [8](://here%20is%20the%20url/8) 
+	const testString = `[1](%3A//here%20is%20the%20url/1) *2* [3](%3A//here%20is%20the%20url/3) ... [6](%3A//here%20is%20the%20url/6) [7](%3A//here%20is%20the%20url/7) [8](%3A//here%20is%20the%20url/8) 
 
 CONTENT OF TESTITEM: { content 2 }
 
-[1](://here%20is%20the%20url/1) *2* [3](://here%20is%20the%20url/3) ... [6](://here%20is%20the%20url/6) [7](://here%20is%20the%20url/7) [8](://here%20is%20the%20url/8) 
+[1](%3A//here%20is%20the%20url/1) *2* [3](%3A//here%20is%20the%20url/3) ... [6](%3A//here%20is%20the%20url/6) [7](%3A//here%20is%20the%20url/7) [8](%3A//here%20is%20the%20url/8) 
 `
 	res := RenderTreeByPage(mock, paginTest, 2, 1, true)
+	if res != testString {
+		t.Errorf("Expected %s, got %s", testString, res)
+	}
+}
+
+func TestPaginateNoReverse(t *testing.T) {
+	const testString = `[1](%3A//here%20is%20the%20url/8) *2* [3](%3A//here%20is%20the%20url/6) ... [6](%3A//here%20is%20the%20url/3) [7](%3A//here%20is%20the%20url/2) [8](%3A//here%20is%20the%20url/1) 
+
+CONTENT OF TESTITEM: { content 7 }
+
+[1](%3A//here%20is%20the%20url/8) *2* [3](%3A//here%20is%20the%20url/6) ... [6](%3A//here%20is%20the%20url/3) [7](%3A//here%20is%20the%20url/2) [8](%3A//here%20is%20the%20url/1) 
+`
+	res := RenderTreeByPage(mock, paginTest, 2, 1, false)
+	if res != testString {
+		t.Errorf("Expected %s, got %s", testString, res)
+	}
+}
+
+func TestPaginateNil(t *testing.T) {
+	const testString = `
+CONTENT OF TESTITEM: { content 2 }
+
+`
+
+	res := RenderTreeByPage(mock, nil, 2, 1, true)
 	if res != testString {
 		t.Errorf("Expected %s, got %s", testString, res)
 	}

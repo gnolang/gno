@@ -2,12 +2,12 @@ package paginate
 
 import (
 	"strconv"
-	"strings"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/md"
 )
 
-const PAGINATE_GAP = 3
+const PaginateGap = 3
 
 type pageFn func(page int, size int, reverse bool) string
 
@@ -16,59 +16,19 @@ type renderer interface {
 	Render() string
 }
 
-// TODO this function belongs somewhere convenient.
-// escape a URL for markdown.
-func escMDURL(s string) string {
-	schars := map[string]string{
-		"%":  "%25",
-		" ":  "%20",
-		"!":  "%21",
-		"\"": "%22",
-		"$":  "%24",
-		"&":  "%26",
-		"'":  "%27",
-		"(":  "%28",
-		")":  "%29",
-		"*":  "%2A",
-		"+":  "%2B",
-		",":  "%2C",
-		";":  "%3B",
-		"<":  "%3C",
-		">":  "%3E",
-		"?":  "%3F",
-		"@":  "%40",
-		"[":  "%5B",
-		"\\": "%5C",
-		"]":  "%5D",
-		"^":  "%5E",
-		"_":  "%5F",
-		"`":  "%60",
-		"{":  "%7B",
-		"|":  "%7C",
-		"}":  "%7D",
-		"~":  "%7E",
-		"\n": "%0A",
-	}
-	for k, v := range schars {
-		s = strings.Replace(s, k, v, -1)
-	}
-	return s
-}
-
 func navigation(numPages int, current int, reverse bool, pageFn pageFn) string {
 	str := ""
 
 	i := 1
-	for ; i <= PAGINATE_GAP && i < current; i++ {
+	// upperLimit := min(PaginateGap+1, current)
+	for ; i <= PaginateGap && i < current; i++ {
 		pageurl := pageFn(i, numPages, reverse)
-		str += "[" + strconv.Itoa(i) + "](" +
-			escMDURL(pageurl) + ") "
+		str += md.Link(strconv.Itoa(i), pageurl) + " "
 	}
-	if i-1 == PAGINATE_GAP && i != current {
-		if i == current-PAGINATE_GAP/2 {
+	if i-1 == PaginateGap && i != current {
+		if i == current-PaginateGap/2 {
 			pageurl := pageFn(i, numPages, reverse)
-			str += "[" + strconv.Itoa(i) + "](" +
-				escMDURL(pageurl) + ") "
+			str += md.Link(strconv.Itoa(i), pageurl) + " "
 			i += 1
 		} else {
 			str += "... "
@@ -77,40 +37,36 @@ func navigation(numPages int, current int, reverse bool, pageFn pageFn) string {
 
 	// sanity check
 	if current > numPages {
-		for i = numPages - PAGINATE_GAP + 1; i <= numPages; i++ {
+		for i = numPages - PaginateGap + 1; i <= numPages; i++ {
 			pageurl := pageFn(i, numPages, reverse)
-			str += "[" + strconv.Itoa(i) + "](" +
-				escMDURL(pageurl) + ") "
+			str += md.Link(strconv.Itoa(i), pageurl) + " "
 		}
 		return str
 	}
 
-	if i < current-PAGINATE_GAP/2 {
-		i = current - PAGINATE_GAP/2
+	if i < current-PaginateGap/2 {
+		i = current - PaginateGap/2
 	}
-	for ; i <= current+PAGINATE_GAP/2 && i < numPages; i++ {
+	for ; i <= current+PaginateGap/2 && i < numPages; i++ {
 		if i == current {
 			str += "*" + strconv.Itoa(i) + "* "
 			continue
 		}
 		pageurl := pageFn(i, numPages, reverse)
-		str += "[" + strconv.Itoa(i) + "](" +
-			escMDURL(pageurl) + ") "
+		str += md.Link(strconv.Itoa(i), pageurl) + " "
 	}
-	if i < numPages-PAGINATE_GAP+1 {
-		if i == numPages-PAGINATE_GAP {
+	if i < numPages-PaginateGap+1 {
+		if i == numPages-PaginateGap {
 			pageurl := pageFn(i, numPages, reverse)
-			str += "[" + strconv.Itoa(i) + "](" +
-				escMDURL(pageurl) + ") "
+			str += md.Link(strconv.Itoa(i), pageurl) + " "
 		} else {
 			str += "... "
 		}
-		i = numPages - PAGINATE_GAP + 1
+		i = numPages - PaginateGap + 1
 	}
 	for ; i <= numPages; i++ {
 		pageurl := pageFn(i, numPages, reverse)
-		str += "[" + strconv.Itoa(i) + "](" +
-			escMDURL(pageurl) + ") "
+		str += md.Link(strconv.Itoa(i), pageurl) + " "
 	}
 	return str
 }
@@ -140,7 +96,7 @@ func RenderTreeByPage(
 	str := ""
 	numPages := (t.Size() / size)
 	if numPages < 1 {
-		panic("invalid tree size to RenderTreeByPage")
+		return ""
 	}
 
 	// render pagination
@@ -159,6 +115,8 @@ func RenderTreeByPage(
 				str += r.Render()
 				str += "\n"
 				str += "\n"
+
+				return true
 			},
 		)
 		return str
@@ -190,6 +148,8 @@ func RenderTreeByPage(
 				str += r.Render()
 				str += "\n"
 				str += "\n"
+
+				return true
 			},
 		)
 	}
