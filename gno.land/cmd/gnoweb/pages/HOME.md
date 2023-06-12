@@ -13,7 +13,7 @@ Gno.land is in building mode. If you want to help lay the foundations of a faire
 [About Gno.land](/about)
 [Explore Github repo](https://github.com/gnolang)
 
-</div>
+</div><!-- end stack-->
 
 <div class="jumbotron">
 
@@ -25,11 +25,11 @@ The first high-stakes contest will see participants compete for tiered membershi
 
 [Join Game Of Realms](/game-of-realms)
 
-</div>
-</div>
+</div><!-- end stack-->
+</div><!-- end jumbotron-->
 
 <div class="columns-3">
-<div>
+<div class="column">
 
 ### Learn about Gno.land
 
@@ -40,9 +40,9 @@ The first high-stakes contest will see participants compete for tiered membershi
 - [Events (soon)](#)
 - [Partners (soon)](#)
 
-</div>
+</div><!-- end column-->
 
-<div>
+<div class="column">
 
 ### Build with Gnolang
 
@@ -53,8 +53,8 @@ The first high-stakes contest will see participants compete for tiered membershi
 - [Workshops/ Events/ Office hours (soon)](#)
 - [Getting started video (soon)](#)
 
-</div>
-<div>
+</div><!-- end column-->
+<div class="column">
 
 ### Explore the universe
 
@@ -64,8 +64,8 @@ The first high-stakes contest will see participants compete for tiered membershi
 - [Explorer links(soon)](#)
 - [Testnet Tokens (faucet)](/faucet)
 
-</div>
-</div>
+</div><!-- end column-->
+</div><!-- end column-3-->
 
 ---
 
