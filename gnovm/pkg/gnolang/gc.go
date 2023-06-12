@@ -1,8 +1,11 @@
 package gnolang
 
+import "fmt"
+
 type GC struct {
 	objs  []*GCObj
 	roots []*GCObj
+	debug bool
 }
 
 type GCObj struct {
@@ -12,12 +15,15 @@ type GCObj struct {
 	path   *ValuePath
 }
 
-func NewGC() *GC {
-	return &GC{}
+func NewGC(debug bool) *GC {
+	return &GC{debug: debug}
 }
 
 // AddObject use for escaped objects
 func (gc *GC) AddObject(obj *GCObj) {
+	if gc.debug {
+		fmt.Printf("GC: added object: %+v\n", obj)
+	}
 	gc.objs = append(gc.objs, obj)
 }
 
@@ -27,6 +33,9 @@ func (gc *GC) RemoveRoot(path *ValuePath) {
 			continue
 		}
 
+		if gc.debug {
+			fmt.Printf("GC: removing root: %+v\n", gc.roots[i])
+		}
 		gc.roots = append(gc.roots[:i], gc.roots[i+1:]...)
 
 		break
@@ -36,6 +45,9 @@ func (gc *GC) RemoveRoot(path *ValuePath) {
 // AddRoot adds roots that won't be cleaned up by the GC
 // use for stack variables/globals
 func (gc *GC) AddRoot(root *GCObj) {
+	if gc.debug {
+		fmt.Printf("GC: add root: %+v\n", root)
+	}
 	gc.roots = append(gc.roots, root)
 }
 
@@ -48,6 +60,9 @@ func (gc *GC) AddRoot(root *GCObj) {
 func (gc *GC) setEmptyRootPath(path *ValuePath) {
 	root := gc.getRootByPath(nil)
 	root.path = path
+	if gc.debug {
+		fmt.Printf("GC: set root path: %+v\n", root)
+	}
 }
 
 func (gc *GC) Collect() {

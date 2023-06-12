@@ -40,7 +40,7 @@ func TestRunEmptyMain(t *testing.T) {
 
 func TestGCArgs(t *testing.T) {
 	m := NewMachine("test", nil)
-	m.GC = NewGC()
+	m.GC = NewGC(true)
 	c := `package test
 
 func main() {
@@ -60,7 +60,7 @@ func printit(i *int) {
 // run main() with a for loop.
 func TestRunLoopyMain(t *testing.T) {
 	m := NewMachine("test", nil)
-	m.GC = NewGC()
+	m.GC = NewGC(true)
 	c := `package test
 
 var a *int

@@ -67,7 +67,7 @@ func TestGC_NotCollectUsedObjects(t *testing.T) {
 	obj1 := &GCObj{path: &vp1, ref: obj2}
 
 	// Create garbage collector
-	gc := NewGC()
+	gc := NewGC(true)
 
 	// Add objects to garbage collector
 	gc.AddObject(obj1)
@@ -93,7 +93,7 @@ func TestGC_RemoveRoot(t *testing.T) {
 	obj1 := &GCObj{path: &vp1, ref: obj2}
 
 	// Create garbage collector
-	gc := NewGC()
+	gc := NewGC(true)
 
 	// Add objects to garbage collector
 	gc.AddObject(obj1)
@@ -126,7 +126,7 @@ func TestGC_CollectUnsedObjects(t *testing.T) {
 	obj1 := &GCObj{path: &vp1, ref: obj2}
 
 	// Create garbage collector
-	gc := NewGC()
+	gc := NewGC(true)
 
 	// Add objects to garbage collector
 	gc.AddObject(obj1)
