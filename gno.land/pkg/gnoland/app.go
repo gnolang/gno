@@ -171,7 +171,6 @@ func loadValidatorsFromVM(ctx sdk.Context, vmk vm.VMKeeperI) []abci.ValidatorUpd
 	}
 	//TODO: res is string, we need to typed value for it.
 
-	fmt.Printf("res: %v\n", res)
 	jsonStr := strings.TrimRight(strings.TrimLeft(res, `("`), `" string)`)
 	jsonStr = strings.ReplaceAll(jsonStr, `\`, "")
 
