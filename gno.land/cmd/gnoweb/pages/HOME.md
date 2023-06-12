@@ -37,7 +37,7 @@ The first high-stakes contest will see participants compete for tiered membershi
 - [Subscribe](#subscribe)
 - [Tokenomics (soon)](#)
 - [Blogs](/r/gnoland/blog)
-- [Events](/events)
+- [Events (soon)](#)
 - [Partners (soon)](#)
 
 </div>
@@ -50,7 +50,7 @@ The first high-stakes contest will see participants compete for tiered membershi
 - [Gno IDE (soon)](#)
 - [Test in the browser (soon)](#)
 - [Docs/ Tutorials](https://github.com/gnolang)
-- [Workshops/ Events/ Office hours](/events)
+- [Workshops/ Events/ Office hours (soon)](#)
 - [Getting started video (soon)](#)
 
 </div>
