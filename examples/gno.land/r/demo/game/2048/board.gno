@@ -67,7 +67,7 @@ func (b *Board) MoveLeft() {
 		return
 	}
 
-	AddRandomTile()
+	b.AddRandomTile()
 }
 
 func (b *Board) MoveRight() {
@@ -103,7 +103,7 @@ func (b *Board) MoveRight() {
 		return
 	}
 
-	AddRandomTile()
+	b.AddRandomTile()
 }
 
 func (b *Board) MoveUp() {
@@ -139,7 +139,7 @@ func (b *Board) MoveUp() {
 		return
 	}
 
-	AddRandomTile()
+	b.AddRandomTile()
 }
 
 func (b *Board) MoveDown() {
@@ -175,7 +175,7 @@ func (b *Board) MoveDown() {
 		return
 	}
 
-	AddRandomTile()
+	b.AddRandomTile()
 }
 
 // SetIfGameOver checks if it is a game over and sets the board
