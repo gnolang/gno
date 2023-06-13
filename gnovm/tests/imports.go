@@ -567,6 +567,58 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				m.Context = ctx
 			},
 		)
+		pn.DefineNative("TestSetPrevRealm",
+			gno.Flds( // params
+				"", gno.AnyT(),
+			),
+			gno.Flds( // results
+			),
+			func(m *gno.Machine) {
+				arg0 := m.LastBlock().GetParams1().TV
+
+				switch arg0.T.String() {
+				case "std.Address":
+					// Set PrevRealm as an user
+					addr := arg0.GetString()
+					ctx := m.Context.(stdlibs.ExecContext)
+					ctx.OrigCaller = crypto.Bech32Address(addr)
+					m.Context = ctx
+
+				case "string":
+					// Set PrevRealm as a realm
+					realm := arg0.GetString()
+
+					// overwrite orig caller
+					ctx := m.Context.(stdlibs.ExecContext)
+					ctx.OrigCaller = crypto.Bech32Address(realm)
+
+					// Set PkgPath
+					for i := m.NumFrames() - 1; i > 0; i-- {
+						fr := m.Frames[i]
+						if fr.LastPackage == nil || !fr.LastPackage.IsRealm() {
+							if i != 1 {
+								fr.LastPackage = &gno.PackageValue{
+									PkgPath: "gno.land/r/dummy",
+								}
+
+								m.Frames[i] = fr
+							} else {
+								fr.LastPackage = &gno.PackageValue{
+									PkgPath: realm,
+								}
+
+								m.Frames[i] = fr
+							}
+
+						}
+					}
+				default:
+					panic(
+						fmt.Sprintf("TestSetPrevRealm: invlaid type %v", arg0.T),
+					)
+				}
+			},
+		)
 		pn.DefineNative("TestSetOrigPkgAddr",
 			gno.Flds( // params
 				"", "Address",
