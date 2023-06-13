@@ -14,6 +14,6 @@ func newPlayer(id std.Address) *Player {
 	return &Player{
 		Id:    id,
 		Score: 0,
-		Board: NewBoard(board),
+		Board: newBoard(),
 	}
 }
