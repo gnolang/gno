@@ -2,18 +2,20 @@ package game2048
 
 import (
 	"std"
+
+	"gno.land/r/demo/users"
 )
 
 func Play() {
 	caller := std.GetOrigCaller()
 
-	player, found := players.Get(caller)
+	player, found := players.Get(caller.String())
 	if found {
 		return
 	}
 
 	player = newPlayer(caller)
-	if !players.Set(caller, player) {
+	if !players.Set(caller.String(), player) {
 		panic("cannot set player")
 	}
 }
@@ -21,7 +23,7 @@ func Play() {
 func Move(move string) {
 	caller := std.GetOrigCaller()
 
-	player, found := players.Get(caller)
+	player, found := players.Get(caller.String())
 	if !found {
 		panic("player not found")
 	}
@@ -48,7 +50,7 @@ func Move(move string) {
 func Reset() {
 	caller := std.GetOrigCaller()
 
-	player, found := players.Get(caller)
+	player, found := players.Get(caller.String())
 	if !found {
 		panic("player not found")
 	}
@@ -56,10 +58,8 @@ func Reset() {
 	player.Board.Reset()
 }
 
-func GetScore() int {
-	caller := std.GetOrigCaller()
-
-	player, found := players.Get(caller)
+func GetScore(user users.AddressOrName) int {
+	player, found := players.Get(user.Resolve().String())
 	if !found {
 		panic("player not found")
 	}
