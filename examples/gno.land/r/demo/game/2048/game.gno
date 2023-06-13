@@ -66,17 +66,3 @@ func GetScore(user users.AddressOrName) int {
 
 	return player.Score
 }
-
-func getPlayer(addr std.Address) *Player {
-	player, found := players.Get(addr.String())
-	if !found {
-		return nil
-	}
-
-	return player.(*Player)
-}
-
-func leaderboard() []*Player {
-	// TODO: implement
-	return nil
-}
