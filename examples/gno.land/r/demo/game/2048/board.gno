@@ -276,7 +276,7 @@ func (b *Board) GetEmptyTiles() []Position {
 	pos := make([]Position, 0)
 	for i := 0; i < BoardSize; i++ {
 		for j := 0; j < BoardSize; j++ {
-			if b.Gridp[i][j] == 0 {
+			if b.Grid[i][j] == 0 {
 				pos = append(pos, Position{i, j})
 			}
 		}
