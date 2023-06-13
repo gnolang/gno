@@ -12,7 +12,12 @@ func Play() Player {
 		return player
 	}
 
-	return newPlayer(caller)
+	player = newPlayer(caller)
+	if !players.Set(caller, player) {
+		panic("cannot set player")
+	}
+
+	return player
 }
 
 func Move(move string) {
