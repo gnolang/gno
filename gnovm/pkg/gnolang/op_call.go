@@ -141,7 +141,7 @@ func (m *Machine) doOpCall() {
 			//todo this needs to be done in condition
 			// if a ref literal was passed it needs to be handled differently
 			obj := pv.V.(PointerValue).GCParent
-			root := &GCObj{ref: obj, path: obj.path}
+			root := &GCObj{ref: obj, paths: obj.paths}
 			m.GC.AddRoot(root)
 		}
 

@@ -12,7 +12,7 @@ type GCObj struct {
 	value  TypedValue
 	marked bool
 	ref    *GCObj
-	path   *ValuePath
+	paths  []*ValuePath
 }
 
 func NewGC(debug bool) *GC {
@@ -28,18 +28,26 @@ func (gc *GC) AddObject(obj *GCObj) {
 }
 
 func (gc *GC) RemoveRoot(path *ValuePath) {
-	for i, o := range gc.roots {
-		if o.path != path {
+	roots := make([]*GCObj, 0)
+	for _, o := range gc.roots {
+		var hasPath bool
+		for _, valuePath := range o.paths {
+			if valuePath == path {
+				hasPath = true
+				break
+			}
+		}
+
+		if !hasPath {
+			roots = append(roots, o)
 			continue
 		}
-
 		if gc.debug {
-			fmt.Printf("GC: removing root: %+v\n", gc.roots[i])
+			fmt.Printf("GC: removing root: %+v\n", o)
 		}
-		gc.roots = append(gc.roots[:i], gc.roots[i+1:]...)
-
-		break
 	}
+
+	gc.roots = roots
 }
 
 // AddRoot adds roots that won't be cleaned up by the GC
@@ -59,7 +67,8 @@ func (gc *GC) AddRoot(root *GCObj) {
 // to the previously created root with no path
 func (gc *GC) setEmptyRootPath(path *ValuePath) {
 	root := gc.getRootByPath(nil)
-	root.path = path
+	root.paths = []*ValuePath{path}
+	root.ref.paths = []*ValuePath{path}
 	if gc.debug {
 		fmt.Printf("GC: set root path: %+v\n", root)
 	}
@@ -102,8 +111,10 @@ func (gc *GC) markObject(obj *GCObj) {
 // only get GC object references through roots
 func (gc *GC) getObjByPath(path *ValuePath) *GCObj {
 	for _, obj := range gc.objs {
-		if obj.path.String() == path.String() {
-			return obj
+		for _, valuePath := range obj.paths {
+			if valuePath.String() == path.String() {
+				return obj
+			}
 		}
 	}
 	return nil
@@ -111,8 +122,10 @@ func (gc *GC) getObjByPath(path *ValuePath) *GCObj {
 
 func (gc *GC) getRootByPath(path *ValuePath) *GCObj {
 	for _, obj := range gc.roots {
-		if (path == nil && obj.path == nil) || (obj.path.String() == path.String()) {
-			return obj
+		for _, valuePath := range obj.paths {
+			if (path == nil && valuePath == nil) || (valuePath.String() == path.String()) {
+				return obj
+			}
 		}
 	}
 	return nil
