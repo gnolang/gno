@@ -57,3 +57,14 @@ func Reset() {
 
 	player.Board.Reset()
 }
+
+func GetScore() int {
+	caller := std.GetOrigCaller()
+
+	player, found := players.Get(caller)
+	if !found {
+		panic("player not found")
+	}
+
+	return player.Score
+}
