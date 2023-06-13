@@ -4,20 +4,18 @@ import (
 	"std"
 )
 
-func Play() Player {
+func Play() {
 	caller := std.GetOrigCaller()
 
 	player, found := players.Get(caller)
 	if found {
-		return player
+		return
 	}
 
 	player = newPlayer(caller)
 	if !players.Set(caller, player) {
 		panic("cannot set player")
 	}
-
-	return player
 }
 
 func Move(move string) {
