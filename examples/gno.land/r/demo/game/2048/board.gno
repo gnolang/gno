@@ -60,8 +60,10 @@ func (b *Board) MoveLeft() {
 		}
 	}
 
-	if b.IsWin() {
-		b.Status = BoardStatusWin
+	if b.SetIfWin() {
+		return
+	}
+	if b.SetIfGameOver() {
 		return
 	}
 
@@ -94,8 +96,10 @@ func (b *Board) MoveRight() {
 		}
 	}
 
-	if b.IsWin() {
-		b.Status = BoardStatusWin
+	if b.SetIfWin() {
+		return
+	}
+	if b.SetIfGameOver() {
 		return
 	}
 
@@ -128,8 +132,10 @@ func (b *Board) MoveUp() {
 		}
 	}
 
-	if b.IsWin() {
-		b.Status = BoardStatusWin
+	if b.SetIfWin() {
+		return
+	}
+	if b.SetIfGameOver() {
 		return
 	}
 
@@ -162,16 +168,48 @@ func (b *Board) MoveDown() {
 		}
 	}
 
-	if b.IsWin() {
-		b.Status = BoardStatusWin
+	if b.SetIfWin() {
+		return
+	}
+	if b.SetIfGameOver() {
 		return
 	}
 
 	AddRandomTile()
 }
 
-func (b *Board) IsGameOver() bool {
-	return b.Status == BoardStatusGameOver
+// SetIfGameOver checks if it is a game over and sets the board
+// status to game over
+func (b *Board) SetIfGameOver() bool {
+	// Check empty tiles
+	for i := 0; i < BoardSize; i++ {
+		for j := 0; j < BoardSize; j++ {
+			if b.Grid[i][j] == 0 {
+				return false
+			}
+		}
+	}
+
+	// Check merging adjacent tiles horizontally
+	for i := 0; i < BoardSize; i++ {
+		for j := 0; j < BoardSize-1; j++ {
+			if b.Grid[i][j] == b.Grid[i][j+1] {
+				return false
+			}
+		}
+	}
+
+	// Check merging adjacent tiles vertically
+	for i := 0; i < BoardSize-1; i++ {
+		for j := 0; j < BoardSize; j++ {
+			if b.Grid[i][j] == b.Grid[i+1][j] {
+				return false
+			}
+		}
+	}
+
+	b.Status = BoardStatusGameOver
+	return true
 }
 
 func (b *Board) IsPlaying() bool {
@@ -179,9 +217,19 @@ func (b *Board) IsPlaying() bool {
 }
 
 func (b *Board) IsWin() bool {
+	return b.Status == BoardStatusWin
+}
+
+func (b *Board) IsGameOver() bool {
+	return b.Status == BoardStatusGameOver
+}
+
+// SetIfWin checks if it is a win and sets the board status to win
+func (b *Board) SetIfWin() bool {
 	for i := 0; i < BoardSize; i++ {
 		for j := 0; j < BoardSize; j++ {
 			if b.Grid[i][j] == 2048 {
+				b.Status = BoardStatusWin
 				return true
 			}
 		}

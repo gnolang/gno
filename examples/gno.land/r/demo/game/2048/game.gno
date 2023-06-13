@@ -41,7 +41,7 @@ func Move(move string) {
 		panic("invalid move")
 	}
 
-	// Calculate score
+	// Calculate score if game is over or win
 	if player.Board.IsGameOver() || player.Board.IsWin() {
 		player.Score += player.Board.CalculateScore()
 	}
