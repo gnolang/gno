@@ -256,7 +256,7 @@ func (b *Board) AddRandomTile() {
 
 	emptyTiles := b.GetEmptyTiles()
 	if len(emptyTiles) == 0 {
-		b.Status = BoardStatusOver
+		b.Status = BoardStatusGameOver
 	}
 
 	r := rand.FromSeed(seed)
