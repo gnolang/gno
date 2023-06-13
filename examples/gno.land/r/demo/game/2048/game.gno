@@ -9,8 +9,8 @@ import (
 func Play() {
 	caller := std.GetOrigCaller()
 
-	player, found := players.Get(caller.String())
-	if found {
+	player := getPlayer(caller)
+	if player != nil {
 		return
 	}
 
@@ -23,9 +23,9 @@ func Play() {
 func Move(move string) {
 	caller := std.GetOrigCaller()
 
-	player, found := players.Get(caller.String())
-	if !found {
-		panic("player not found")
+	player := getPlayer(caller)
+	if player == nil {
+		panic("player does not exist")
 	}
 
 	switch move {
@@ -50,19 +50,33 @@ func Move(move string) {
 func Reset() {
 	caller := std.GetOrigCaller()
 
-	player, found := players.Get(caller.String())
-	if !found {
-		panic("player not found")
+	player := getPlayer(caller)
+	if player == nil {
+		panic("player does not exist")
 	}
 
 	player.Board.Reset()
 }
 
 func GetScore(user users.AddressOrName) int {
-	player, found := players.Get(user.Resolve().String())
-	if !found {
-		panic("player not found")
+	player := getPlayer(user.Resolve())
+	if player == nil {
+		panic("player does not exist")
 	}
 
 	return player.Score
+}
+
+func getPlayer(addr std.Address) *Player {
+	player, found := players.Get(addr.String())
+	if !found {
+		return nil
+	}
+
+	return player.(*Player)
+}
+
+func leaderboard() []*Player {
+	// TODO: implement
+	return nil
 }
