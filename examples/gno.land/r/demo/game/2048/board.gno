@@ -1,5 +1,11 @@
 package game2048
 
+import (
+	"std"
+
+	"gno.land/p/demo/rand"
+)
+
 type BoardStatus int
 
 const (
