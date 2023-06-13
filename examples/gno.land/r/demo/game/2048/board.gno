@@ -4,6 +4,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/rand"
+	"gno.land/p/demo/ufmt"
 )
 
 type BoardStatus int
@@ -313,4 +314,21 @@ func (b *Board) CalculateScore() int {
 	}
 
 	return score
+}
+
+func (b *Board) Display() string {
+	str := "-----------------------------"
+	for i := 0; i < BoardSize; i++ {
+		for j := 0; j < BoardSize; j++ {
+			str += "\n|"
+			if b.Grid[i][j] == 0 {
+				str += "    "
+			} else {
+				str += ufmt.Sprintf("%4d", b.Grid[i][j])
+			}
+		}
+		str += "|\n-----------------------------"
+	}
+
+	return str
 }

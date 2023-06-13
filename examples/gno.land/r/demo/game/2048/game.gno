@@ -66,3 +66,12 @@ func GetScore(user users.AddressOrName) int {
 
 	return player.Score
 }
+
+func DisplayBoard(user users.AddressOrName) string {
+	player := getPlayer(user.Resolve())
+	if player == nil {
+		panic("player does not exist")
+	}
+
+	return player.Board.Display()
+}
