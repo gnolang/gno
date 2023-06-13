@@ -1,6 +1,8 @@
 package game2048
 
 import (
+	"std"
+
 	"gno.land/p/demo/avl"
 )
 
@@ -15,7 +17,15 @@ func getPlayer(addr std.Address) *Player {
 	return player.(*Player)
 }
 
+// Returns the top 10 players
 func leaderboard() []*Player {
-	// TODO: implement
-	return nil
+	res := make([]*Player, 0, 10)
+
+	players.Iterate("", "", func(key string, value interface{}) bool {
+		// TODO: sort by score and add only top 10
+		res = append(res, value.(*Player))
+		return false
+	})
+
+	return res
 }
