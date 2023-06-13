@@ -1,23 +1,12 @@
-name: benchmarks publish
+name: run benchmarks on main branch every day
+
 on:
-  push:
-    branches: [ "master" ]
+  schedule:
+    - cron:  '0 0 * * *' # run on master every day
 jobs:
   publish:
-    runs-on: ubuntu-latest
-    steps:
-    - name: checkout
-      uses: actions/checkout@v2
-    - uses: actions/setup-go@v2
-      with: { go-version: "1.20" }
-    - name: gobenchdata publish
-      run: go run go.bobheadxi.dev/gobenchdata@v1 action
-      env:
-        GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-        INPUT_PRUNE_COUNT: 30
-        INPUT_GO_TEST_FLAGS: -short -run=^$ # TODO: remove -short flag
-        INPUT_PUBLISH: true
-        INPUT_PUBLISH_REPO: github.com/gnolang/benchmarks
-        INPUT_PUBLISH_BRANCH: gh-pages
-        INPUT_BENCHMARKS_OUT: .benchmarks/benchmarks.json
-        INPUT_GIT_COMMIT_MESSAGE: "add new benchmark run from benchmarks publish job"
+    uses: ./.github/workflows/benchmark.yml
+    secrets: inherit
+    with:
+      publish: true
+      test-flags: "-short -run=^$" # TODO: remove short flag

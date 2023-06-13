@@ -12,6 +12,7 @@ Please provide a detailed description of the changes made in this pull request.
 - [ ] No breaking changes were made, or a `BREAKING CHANGE: xxx` message was included in the description
 - [ ] Added references to related issues and PRs
 - [ ] Provided any useful hints for running manual tests
+- [ ] Add new benchmarks to [generated graphs](https://gnoland.github.io/benchmarks), if any. More info [here](../.benchmarks/README.md).
 
 ## Maintainers Checklist
 

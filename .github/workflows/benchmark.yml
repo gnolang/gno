@@ -1,0 +1,30 @@
+name: run benchmarks
+on:
+  workflow_call:
+    inputs:
+      publish:
+        required: true
+        type: boolean
+      test-flags:
+        required: true
+        type: string
+jobs:
+  benchmarks:
+    runs-on: ubuntu-latest # TODO: move to a self-hosted runner
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+    - uses: actions/setup-go@v2
+      with: 
+        go-version: ${{ matrix.go-version }}
+    - name: gobenchdata publish
+      run: go run go.bobheadxi.dev/gobenchdata@v1 action
+      env:
+        GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+        INPUT_PRUNE_COUNT: 30
+        INPUT_GO_TEST_FLAGS: ${{ inputs.test-flags }}
+        INPUT_PUBLISH: ${{ inputs.publish }}
+        INPUT_PUBLISH_REPO: gnolang/benchmarks
+        INPUT_PUBLISH_BRANCH: gh-pages
+        INPUT_BENCHMARKS_OUT: .benchmarks/benchmarks.json
+        INPUT_GIT_COMMIT_MESSAGE: "add new benchmark run"

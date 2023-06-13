@@ -1,7 +1,7 @@
 checks:
     - name: VM checks
       description: |-
-        It checks performance regressions on VM package.
+        It checks performance regressions on VM full test suite.
       package: "gnovm"
       benchmarks: []
       diff: (current.NsPerOp - base.NsPerOp) / base.NsPerOp * 100
