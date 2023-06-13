@@ -3,9 +3,9 @@ name: run benchmarks on every PR
 on:
   pull_request:
 jobs:
-  publish:
+  check:
     uses: ./.github/workflows/benchmark.yml
     secrets: inherit
     with:
-      publish: true
+      publish: false
       test-flags: "-short -run=^$"

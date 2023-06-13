@@ -7,39 +7,43 @@ chartGroups:
     description: |
       Benchmarks testing Gno VM
     charts:
-      - name: Type assertion benchmarks (gnovm)
+      - name: Type assertion benchmarks
         benchmarks: [ 'TypeAssertion.' ]
         package: github.com\/gnolang\/gno\/gnovm\/pkg\/gnolang
-      - name: Reflect benchmarks (gnovm)
+      - name: Reflect benchmarks
         benchmarks: [ 'Reflect.' ]
         package: github.com\/gnolang\/gno\/gnovm\/pkg\/gnolang
-      - name: Equality benchmarks (gnovm)
+      - name: Equality benchmarks
         benchmarks: [ '.Equality' ]
         package: github.com\/gnolang\/gno\/gnovm\/pkg\/gnolang
-      - name: LoopyMain benchmarks (gnovm)
+      - name: LoopyMain benchmarks
         benchmarks: [ '.LoopyMain' ]
         package: github.com\/gnolang\/gno\/gnovm\/pkg\/gnolang
-      - name: Mempool (tm2)
+  - name: Tendermint V2
+    description: |
+      Tendermint V2 Benchmarks
+    charts:
+      - name: Mempool
         package: ^github.com/gnolang/gno/tm2/pkg/bft/mempool$
-      - name: State (tm2)
+      - name: State
         package: ^github.com/gnolang/gno/tm2/pkg/bft/state$
-      - name: Types (tm2)
+      - name: Types
         package: ^github.com/gnolang/gno/tm2/pkg/bft/types$
-      - name: WAL (tm2)
+      - name: WAL
         package: ^github.com/gnolang/gno/tm2/pkg/bft/wal$
-      - name: Bcrypt (tm2)
+      - name: Bcrypt
         package: ^github.com/gnolang/gno/tm2/pkg/crypto/bcrypt$
-      - name: ed25519 (tm2)
+      - name: ed25519
         package: ^github.com/gnolang/gno/tm2/pkg/crypto/ed25519$
-      - name: Merkle (tm2)
+      - name: Merkle
         package: ^github.com/gnolang/gno/tm2/pkg/crypto/merkle$
-      - name: secp256k1 (tm2)
+      - name: secp256k1
         package: ^github.com/gnolang/gno/tm2/pkg/crypto/secp256k1$
-      - name: iavl (tm2)
+      - name: iavl
         package: ^github.com/gnolang/gno/tm2/pkg/iavl.
-      - name: random (tm2)
+      - name: random
         package: ^github.com/gnolang/gno/tm2/pkg/random$
-      - name: auth (tm2)
+      - name: auth
         package: ^github.com/gnolang/gno/tm2/pkg/sdk/auth$
-      - name: cache (tm2)
+      - name: cache
         package: ^github.com/gnolang/gno/tm2/pkg/store/cache$
