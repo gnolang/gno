@@ -2,6 +2,8 @@ package validators
 
 import (
 	"std"
+
+	"gno.land/p/demo/ufmt"
 )
 
 func CreateValidator(name, pubkey string) {
@@ -50,11 +52,11 @@ func ValidatorSet() string {
 	colon := ""
 	validators.Iterate("", "", func(key string, value interface{}) bool {
 		validator := value.(*Validator)
-		output = output + colon + validator.JSON()
+		output = output + colon + ufmt.Sprintf("%s:%d", validator.pubkey, validator.power)
 		colon = ","
 		return false
 
 	})
 
-	return "[" + output + "]"
+	return output
 }
