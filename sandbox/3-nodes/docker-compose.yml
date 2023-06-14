@@ -1,0 +1,55 @@
+version: "2"
+services:
+  gno1:
+    image: ghcr.io/gnolang/gno
+    entrypoint: /scripts/start.sh
+    # entrypoint: /bin/bash
+    tty: true
+    working_dir: /opt/gno/src/gno.land
+    environment:
+      MONIKER: "gno1"
+      PERSISTENT_PEERS: "tcp://g1aalul0zv4gt2p585ydu8dfywzwqak2cnwhtph6@gno2:26656,tcp://g1kzm355gr64rv07n0san8lvrmucnx60yy56ald2@gno3:26656"
+    volumes:
+      - ../scripts:/scripts
+      - ./genesis.json:/opt/gno/src/gno.land/testdir/config/genesis.json
+      - ./gno1/config/node_key.json:/opt/gno/src/gno.land/testdir/config/node_key.json
+      - ./gno1/config/priv_validator_key.json:/opt/gno/src/gno.land/testdir/config/priv_validator_key.json
+    ports:
+      - 16656:26656
+      - 16657:26657
+
+  gno2:
+    image: ghcr.io/gnolang/gno
+    entrypoint: /scripts/start.sh
+    # entrypoint: /bin/bash
+    tty: true
+    working_dir: /opt/gno/src/gno.land
+    environment:
+      MONIKER: "gno2"
+      PERSISTENT_PEERS: "tcp://g16znxxzgrh0aykcvsrm5vjr43grfacsl2jgac3l@gno1:26656,tcp://g1kzm355gr64rv07n0san8lvrmucnx60yy56ald2@gno3:26656"
+    volumes:
+      - ../scripts:/scripts
+      - ./genesis.json:/opt/gno/src/gno.land/testdir/config/genesis.json
+      - ./gno2/config/node_key.json:/opt/gno/src/gno.land/testdir/config/node_key.json
+      - ./gno2/config/priv_validator_key.json:/opt/gno/src/gno.land/testdir/config/priv_validator_key.json
+    ports:
+      - 26656:26656
+      - 26657:26657
+
+  gno3:
+    image: ghcr.io/gnolang/gno
+    entrypoint: /scripts/start.sh
+    # entrypoint: /bin/bash
+    tty: true
+    working_dir: /opt/gno/src/gno.land
+    environment:
+      MONIKER: "gno3"
+      PERSISTENT_PEERS: "tcp://g16znxxzgrh0aykcvsrm5vjr43grfacsl2jgac3l@gno1:26656,tcp://g1aalul0zv4gt2p585ydu8dfywzwqak2cnwhtph6@gno2:26656"
+    volumes:
+      - ../scripts:/scripts
+      - ./genesis.json:/opt/gno/src/gno.land/testdir/config/genesis.json
+      - ./gno3/config/node_key.json:/opt/gno/src/gno.land/testdir/config/node_key.json
+      - ./gno3/config/priv_validator_key.json:/opt/gno/src/gno.land/testdir/config/priv_validator_key.json
+    ports:
+      - 36656:26656
+      - 36657:26657

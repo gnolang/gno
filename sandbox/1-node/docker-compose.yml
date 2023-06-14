@@ -1,0 +1,12 @@
+version: "2"
+services:
+  gno1:
+    image: ghcr.io/gnolang/gno
+    entrypoint: /scripts/start.sh
+    # tty: true
+    working_dir: /opt/gno/src/gno.land
+    volumes:
+      - ../scripts:/scripts
+    ports:
+      - 26656:26656
+      - 26657:26657
