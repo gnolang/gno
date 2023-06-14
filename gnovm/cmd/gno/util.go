@@ -55,7 +55,7 @@ func gnoFilesFromArgs(args []string) ([]string, error) {
 	return paths, nil
 }
 
-func gnoPackagesFromArgs(args []string) ([]string, error) {
+func gnoPackagePathsFromArgs(args []string) ([]string, error) {
 	paths := []string{}
 	for _, arg := range args {
 		info, err := os.Stat(arg)
