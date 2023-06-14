@@ -34,7 +34,7 @@ fmt:
 .PHONY: test
 test: _test.cmd _test.pkg _test.gnolang
 
-GOTEST_FLAGS=-v -p 1 -timeout=30m
+GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 
 .PHONY: _test.cmd
 _test.cmd:

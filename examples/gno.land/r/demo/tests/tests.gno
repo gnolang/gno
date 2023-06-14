@@ -1,6 +1,10 @@
 package tests
 
-import "std"
+import (
+	"std"
+
+	"gno.land/r/demo/tests/subtests"
+)
 
 var counter int
 
@@ -68,4 +72,16 @@ func ModTestNodes() {
 
 func PrintTestNodes() {
 	println(gTestNode2.Child.Name)
+}
+
+func GetPrevRealm() std.Realm {
+	return std.PrevRealm()
+}
+
+func GetPSubtestsPrevRealm() std.Realm {
+	return subtests.GetPrevRealm()
+}
+
+func Exec(fn func()) {
+	fn()
 }

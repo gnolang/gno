@@ -57,6 +57,17 @@ func runSuite(t *testing.T, tempdir string) {
 	require.True(t, acc.Coins.IsAllGTE(minCoins),
 		"test1 account coins expected at least %s, got %s", minCoins, acc.Coins)
 
+	// add gno.land/r/demo/tests/subtests package
+	dockerExec(t,
+		`echo 'pass' | gnokey maketx addpkg -insecure-password-stdin \
+			-gas-fee 1000000ugnot -gas-wanted 2000000 \
+			-broadcast -chainid dev \
+			-pkgdir /opt/gno/src/examples/gno.land/r/demo/tests/subtests \
+			-pkgpath gno.land/r/demo/tests/subtests \
+			-deposit 100000000ugnot \
+			test1`,
+	)
+
 	// add gno.land/r/demo/tests_copy package
 	dockerExec(t,
 		`echo 'pass' | gnokey maketx addpkg -insecure-password-stdin \
