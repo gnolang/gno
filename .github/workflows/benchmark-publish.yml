@@ -2,7 +2,7 @@ name: run benchmarks on main branch every day
 
 on:
   schedule:
-    - cron:  '0 0 * * *' # run on master every day
+    - cron:  '0 0 * * *' # run on default branch every day
 jobs:
   publish:
     uses: ./.github/workflows/benchmark.yml
