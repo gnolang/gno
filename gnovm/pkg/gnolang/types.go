@@ -333,6 +333,7 @@ type FieldType struct {
 	Type     Type
 	Embedded bool
 	Tag      Tag
+	root     *NameExpr
 }
 
 func (ft FieldType) Kind() Kind {

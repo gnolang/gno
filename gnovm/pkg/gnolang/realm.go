@@ -955,6 +955,7 @@ func copyFieldsWithRefs(fields []FieldType) []FieldType {
 			Type:     refOrCopyType(field.Type),
 			Embedded: field.Embedded,
 			Tag:      field.Tag,
+			root:     field.root,
 		}
 	}
 	return fieldsCpy

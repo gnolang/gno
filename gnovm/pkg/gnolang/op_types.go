@@ -17,6 +17,7 @@ func (m *Machine) doOpFieldType() {
 		Name: n,
 		Type: t,
 		Tag:  tag,
+		root: x.root,
 	}
 	m.PushValue(TypedValue{
 		T: gTypeType,

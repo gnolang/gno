@@ -567,7 +567,8 @@ type FieldTypeExpr struct {
 
 	// Currently only BasicLitExpr allowed.
 	// NOTE: In Go, only struct fields can have tags.
-	Tag Expr
+	Tag  Expr
+	root *NameExpr
 }
 
 type FieldTypeExprs []FieldTypeExpr

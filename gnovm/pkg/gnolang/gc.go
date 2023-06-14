@@ -122,6 +122,9 @@ func (gc *GC) getObjByPath(path *ValuePath) *GCObj {
 
 func (gc *GC) getRootByPath(path *ValuePath) *GCObj {
 	for _, obj := range gc.roots {
+		if obj.paths == nil && path == nil {
+			return obj
+		}
 		for _, valuePath := range obj.paths {
 			if (path == nil && valuePath == nil) || (valuePath.String() == path.String()) {
 				return obj

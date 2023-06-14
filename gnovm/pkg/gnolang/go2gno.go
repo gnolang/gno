@@ -460,6 +460,7 @@ func Go2Gno(roots *[]*NameExpr, escapedlist []string, fs *token.FileSet, gon ast
 				Name:       param.Name,
 			}
 			*roots = append(*roots, nexpr)
+			type_.Params[i].root = nexpr
 		}
 
 		fmt.Printf("go2gno func: %+v\n", name)
