@@ -90,8 +90,8 @@ func (m *Machine) getTypeValueFromNX(nx *NameExpr, rhs Expr) *TypedValue {
 	if shouldCopy {
 		newCopy := *obj
 		m.GC.AddRoot(&GCObj{
-			ref:   &newCopy,
-			paths: []*ValuePath{&nx.Path},
+			ref:  &newCopy,
+			path: &nx.Path,
 		})
 		m.GC.AddObject(&newCopy)
 		obj = &newCopy
@@ -105,11 +105,11 @@ func (m *Machine) escape2Heap(nx *NameExpr, rhs Expr, rp PointerValue) {
 		T:      &PointerType{Elt: rp.TV.T},
 		V:      rp,
 		OnHeap: true,
-	}, paths: []*ValuePath{&nx.Path}}
+	}, path: &nx.Path}
 
 	root := &GCObj{
-		paths: []*ValuePath{&nx.Path},
-		ref:   obj,
+		path: &nx.Path,
+		ref:  obj,
 	}
 	m.GC.AddRoot(root)
 	m.GC.AddObject(obj)
@@ -119,8 +119,8 @@ func (m *Machine) escape2Heap(nx *NameExpr, rhs Expr, rp PointerValue) {
 		rn.IsRoot = true
 
 		rroot := &GCObj{
-			paths: []*ValuePath{&rn.Path},
-			ref:   obj,
+			path: &rn.Path,
+			ref:  obj,
 		}
 		m.GC.AddRoot(rroot)
 	}

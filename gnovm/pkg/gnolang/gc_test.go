@@ -62,9 +62,9 @@ func TestGC_NotCollectUsedObjects(t *testing.T) {
 	vp2 := NewValuePathField(0, 0, "obj2")
 	vp1 := NewValuePathField(0, 0, "obj1")
 
-	obj3 := &GCObj{paths: []*ValuePath{&vp3}}
-	obj2 := &GCObj{paths: []*ValuePath{&vp2}, ref: obj3}
-	obj1 := &GCObj{paths: []*ValuePath{&vp1}, ref: obj2}
+	obj3 := &GCObj{path: &vp3}
+	obj2 := &GCObj{path: &vp2, ref: obj3}
+	obj1 := &GCObj{path: &vp1, ref: obj2}
 
 	// Create garbage collector
 	gc := NewGC(true)
@@ -78,9 +78,9 @@ func TestGC_NotCollectUsedObjects(t *testing.T) {
 
 	// Collect garbage
 	gc.Collect()
-	assert.NotNil(t, gc.getObjByPath(obj1.paths[0]))
-	assert.NotNil(t, gc.getObjByPath(obj2.paths[0]))
-	assert.NotNil(t, gc.getObjByPath(obj3.paths[0]))
+	assert.NotNil(t, gc.getObjByPath(obj1.path))
+	assert.NotNil(t, gc.getObjByPath(obj2.path))
+	assert.NotNil(t, gc.getObjByPath(obj3.path))
 }
 
 func TestGC_RemoveRoot(t *testing.T) {
@@ -88,9 +88,9 @@ func TestGC_RemoveRoot(t *testing.T) {
 	vp2 := NewValuePathField(0, 0, "obj2")
 	vp1 := NewValuePathField(0, 0, "obj1")
 
-	obj3 := &GCObj{paths: []*ValuePath{&vp3}}
-	obj2 := &GCObj{paths: []*ValuePath{&vp2}, ref: obj3}
-	obj1 := &GCObj{paths: []*ValuePath{&vp1}, ref: obj2}
+	obj3 := &GCObj{path: &vp3}
+	obj2 := &GCObj{path: &vp2, ref: obj3}
+	obj1 := &GCObj{path: &vp1, ref: obj2}
 
 	// Create garbage collector
 	gc := NewGC(true)
@@ -104,16 +104,16 @@ func TestGC_RemoveRoot(t *testing.T) {
 
 	// Collect garbage
 	gc.Collect()
-	assert.NotNil(t, gc.getObjByPath(obj1.paths[0]))
-	assert.NotNil(t, gc.getObjByPath(obj2.paths[0]))
-	assert.NotNil(t, gc.getObjByPath(obj3.paths[0]))
+	assert.NotNil(t, gc.getObjByPath(obj1.path))
+	assert.NotNil(t, gc.getObjByPath(obj2.path))
+	assert.NotNil(t, gc.getObjByPath(obj3.path))
 
-	gc.RemoveRoot(obj1.paths[0])
+	gc.RemoveRoot(obj1.path)
 	gc.Collect()
 
-	assert.Nil(t, gc.getObjByPath(obj1.paths[0]))
-	assert.Nil(t, gc.getObjByPath(obj2.paths[0]))
-	assert.Nil(t, gc.getObjByPath(obj3.paths[0]))
+	assert.Nil(t, gc.getObjByPath(obj1.path))
+	assert.Nil(t, gc.getObjByPath(obj2.path))
+	assert.Nil(t, gc.getObjByPath(obj3.path))
 }
 
 func TestGC_CollectUnsedObjects(t *testing.T) {
@@ -121,9 +121,9 @@ func TestGC_CollectUnsedObjects(t *testing.T) {
 	vp2 := NewValuePathField(0, 0, "obj2")
 	vp1 := NewValuePathField(0, 0, "obj1")
 
-	obj3 := &GCObj{paths: []*ValuePath{&vp3}}
-	obj2 := &GCObj{paths: []*ValuePath{&vp2}, ref: obj3}
-	obj1 := &GCObj{paths: []*ValuePath{&vp1}, ref: obj2}
+	obj3 := &GCObj{path: &vp3}
+	obj2 := &GCObj{path: &vp2, ref: obj3}
+	obj1 := &GCObj{path: &vp1, ref: obj2}
 
 	// Create garbage collector
 	gc := NewGC(true)
@@ -135,9 +135,9 @@ func TestGC_CollectUnsedObjects(t *testing.T) {
 
 	// Collect garbage
 	gc.Collect()
-	assert.Nil(t, gc.getObjByPath(obj1.paths[0]))
-	assert.Nil(t, gc.getObjByPath(obj2.paths[0]))
-	assert.Nil(t, gc.getObjByPath(obj3.paths[0]))
+	assert.Nil(t, gc.getObjByPath(obj1.path))
+	assert.Nil(t, gc.getObjByPath(obj2.path))
+	assert.Nil(t, gc.getObjByPath(obj3.path))
 	assert.Empty(t, gc.objs)
 	assert.Empty(t, gc.roots)
 }
