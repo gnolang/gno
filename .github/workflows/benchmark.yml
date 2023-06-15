@@ -24,7 +24,7 @@ jobs:
         INPUT_PRUNE_COUNT: 30
         INPUT_GO_TEST_FLAGS: ${{ inputs.test-flags }}
         INPUT_PUBLISH: ${{ inputs.publish }}
-        INPUT_PUBLISH_REPO: gnolang/benchmarks
+        INPUT_PUBLISH_REPO: ajnavarro/gno-benchmarks #TODO: change to gnolang when ready
         INPUT_PUBLISH_BRANCH: gh-pages
         INPUT_BENCHMARKS_OUT: benchmarks.json
         INPUT_GIT_COMMIT_MESSAGE: "add new benchmark run"
