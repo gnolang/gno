@@ -16,12 +16,19 @@ type renderer interface {
 	Render() string
 }
 
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 func navigation(numPages int, current int, reverse bool, pageFn pageFn) string {
 	str := ""
 
 	i := 1
-	// upperLimit := min(PaginateGap+1, current)
-	for ; i <= PaginateGap && i < current; i++ {
+	upperLimit := min(PaginateGap+1, current)
+	for ; i < upperLimit; i++ {
 		pageurl := pageFn(i, numPages, reverse)
 		str += md.Link(strconv.Itoa(i), pageurl) + " "
 	}
@@ -47,7 +54,9 @@ func navigation(numPages int, current int, reverse bool, pageFn pageFn) string {
 	if i < current-PaginateGap/2 {
 		i = current - PaginateGap/2
 	}
-	for ; i <= current+PaginateGap/2 && i < numPages; i++ {
+
+	upperLimit = min(current+PaginateGap/2+1, numPages)
+	for ; i < upperLimit; i++ {
 		if i == current {
 			str += "*" + strconv.Itoa(i) + "* "
 			continue
