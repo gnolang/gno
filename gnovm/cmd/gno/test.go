@@ -480,7 +480,6 @@ var tests = []testing.InternalTest{
 }
 
 func runtest(name string) (report string) {
-
 	for _, test := range tests {
 		if test.Name == name {
 			return testing.RunTest({{printf "%q" .RunFlag}}, {{.Verbose}}, test)
