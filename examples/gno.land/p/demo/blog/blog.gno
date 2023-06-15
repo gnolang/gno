@@ -33,8 +33,8 @@ func (b Blog) Render(path string) string {
 			return output
 		}
 
-        output += "<div class='columns-3'>"
-        
+		output += "<div class='columns-3'>"
+
 		b.Posts.Iterate("", "", func(key string, value interface{}) bool {
 			post := value.(*Post)
 			output += post.RenderListItem()
