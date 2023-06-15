@@ -20,7 +20,7 @@ jobs:
     - name: "gobenchdata publish: ${{ inputs.publish }}"
       run: go run go.bobheadxi.dev/gobenchdata@v1 action
       env:
-        GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.WRITE_TOKEN }}
         INPUT_PRUNE_COUNT: 30
         INPUT_GO_TEST_FLAGS: ${{ inputs.test-flags }}
         INPUT_PUBLISH: ${{ inputs.publish }}
