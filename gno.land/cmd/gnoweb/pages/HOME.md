@@ -28,6 +28,16 @@ The first high-stakes contest will see participants compete for tiered membershi
 </div><!-- end stack-->
 </div><!-- end jumbotron-->
 
+### Fund and Grants Program
+
+Are you a builder, tinkerer, or researcher? If you’re looking to create awesome dApps, tooling, infrastructure, or smart contract libraries on Gno.land, you can apply for a grant. The Gno.land Ecosystem Fund and Grants program provides financial contributions for individuals and teams to innovate on the platform.
+
+<div class="stack">
+
+[More information here](https://github.com/gnolang/ecosystem-fund-grants)
+
+</div><!-- end stack-->
+
 <div class="columns-3">
 <div class="column">
 
@@ -47,7 +57,7 @@ The first high-stakes contest will see participants compete for tiered membershi
 ### Build with Gnolang
 
 - [Gno dev with CLI (soon)](#)
-- [Gno IDE (soon)](#)
+- [Gno IDE](/ide)
 - [Test in the browser (soon)](#)
 - [Docs/ Tutorials](https://github.com/gnolang)
 - [Workshops/ Events/ Office hours (soon)](#)
