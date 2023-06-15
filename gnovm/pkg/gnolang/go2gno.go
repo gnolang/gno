@@ -455,7 +455,7 @@ func Go2Gno(roots *[]*NameExpr, escapedlist []string, fs *token.FileSet, gon ast
 		for i, param := range type_.Params {
 			nexpr := &NameExpr{
 				Attributes: param.Attributes,
-				Path:       NewValuePathField(1, uint16(i), param.Name),
+				Path:       NewValuePathBlock(1, uint16(i), param.Name),
 				IsRoot:     false,
 				Name:       param.Name,
 			}

@@ -1681,7 +1681,7 @@ func (m *Machine) PopFrameAndReturn() {
 	resStart := m.NumValues - numRes
 
 	//GC: drop root objects pointing to heap allocations
-	for _, root := range fr.Func.roots {
+	for _, root := range fr.Func.roots { //todo should not do on uverse functions
 		m.GC.RemoveRoot(&root.Path)
 	}
 

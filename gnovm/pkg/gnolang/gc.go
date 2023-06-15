@@ -22,7 +22,7 @@ func NewGC(debug bool) *GC {
 // AddObject use for escaped objects
 func (gc *GC) AddObject(obj *GCObj) {
 	if gc.debug {
-		fmt.Printf("GC: added object: %+v\n", obj.value)
+		fmt.Printf("GC: added object: %p => %+v\n", obj, obj.value)
 	}
 	gc.objs = append(gc.objs, obj)
 }
@@ -38,7 +38,7 @@ func (gc *GC) RemoveRoot(path *ValuePath) {
 		gc.roots[i] = gc.roots[len(gc.roots)-1]
 		gc.roots = gc.roots[:len(gc.roots)-1]
 		if gc.debug {
-			fmt.Printf("GC: removing root: %+v => obj: %p\n", o.path, o.ref)
+			fmt.Printf("GC: removing root: VPBlock(%+v,%+v,%+v) => obj: %p\n", o.path.Depth, o.path.Index, o.path.Name, o.ref)
 		}
 		return
 	}
