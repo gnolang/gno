@@ -27,8 +27,8 @@ func TestPrevRealm(t *testing.T) {
 				Frames:  []gno.Frame{},
 			},
 			expectedRealm: Realm{
-				addr:    user,
-				pkgPath: "",
+				addr: user,
+				path: "",
 			},
 		},
 		{
@@ -40,8 +40,8 @@ func TestPrevRealm(t *testing.T) {
 				},
 			},
 			expectedRealm: Realm{
-				addr:    user,
-				pkgPath: "",
+				addr: user,
+				path: "",
 			},
 		},
 		{
@@ -53,8 +53,8 @@ func TestPrevRealm(t *testing.T) {
 				},
 			},
 			expectedRealm: Realm{
-				addr:    user,
-				pkgPath: "",
+				addr: user,
+				path: "",
 			},
 		},
 		{
@@ -66,8 +66,8 @@ func TestPrevRealm(t *testing.T) {
 				},
 			},
 			expectedRealm: Realm{
-				addr:    user,
-				pkgPath: "",
+				addr: user,
+				path: "",
 			},
 		},
 		{
@@ -81,8 +81,8 @@ func TestPrevRealm(t *testing.T) {
 				},
 			},
 			expectedRealm: Realm{
-				addr:    user,
-				pkgPath: "",
+				addr: user,
+				path: "",
 			},
 		},
 		{
@@ -99,8 +99,8 @@ func TestPrevRealm(t *testing.T) {
 				},
 			},
 			expectedRealm: Realm{
-				addr:    gno.DerivePkgAddr("gno.land/r/yyy").Bech32(),
-				pkgPath: "gno.land/r/yyy",
+				addr: gno.DerivePkgAddr("gno.land/r/yyy").Bech32(),
+				path: "gno.land/r/yyy",
 			},
 		},
 	}
