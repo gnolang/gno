@@ -308,16 +308,13 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				"", "Realm",
 			),
 			func(m *gno.Machine) {
-				lastCaller, lastPkgPath := prevRealm(m)
+				realm := prevRealm(m)
 
 				// Return the result
 				res0 := gno.Go2GnoValue(
 					m.Alloc,
 					m.Store,
-					reflect.ValueOf(Realm{
-						addr:    lastCaller,
-						pkgPath: lastPkgPath,
-					}),
+					reflect.ValueOf(realm),
 				)
 
 				realmT := store.GetType(gno.DeclaredTypeID("std", "Realm"))

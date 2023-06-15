@@ -22,12 +22,13 @@ func (r Realm) IsUser() bool {
 	return r.pkgPath == ""
 }
 
-func prevRealm(m *gno.Machine) (crypto.Bech32Address, string) {
+func prevRealm(m *gno.Machine) Realm {
 	var (
 		ctx = m.Context.(ExecContext)
-		// Default lastCaller is OrigCaller, the signer of the tx
-		lastCaller  = ctx.OrigCaller
-		lastPkgPath = ""
+		r   = Realm{
+			// Default previous realm is OrigCaller, the signer of the tx
+			addr: ctx.OrigCaller,
+		}
 	)
 
 	for i := m.NumFrames() - 1; i > 0; i-- {
@@ -40,20 +41,20 @@ func prevRealm(m *gno.Machine) (crypto.Bech32Address, string) {
 		// The first realm we encounter will be the one calling
 		// this function; to get the calling realm determine the first frame
 		// where fr.LastPackage changes.
-		if lastPkgPath == "" {
-			lastPkgPath = pkgPath
-		} else if lastPkgPath == pkgPath {
+		if r.pkgPath == "" {
+			r.pkgPath = pkgPath
+		} else if r.pkgPath == pkgPath {
 			continue
 		} else {
-			lastCaller = fr.LastPackage.GetPkgAddr().Bech32()
-			lastPkgPath = pkgPath
+			r.addr = fr.LastPackage.GetPkgAddr().Bech32()
+			r.pkgPath = pkgPath
 			break
 		}
 	}
 
 	// Empty the pkgPath if we return a user
-	if ctx.OrigCaller == lastCaller {
-		lastPkgPath = ""
+	if ctx.OrigCaller == r.addr {
+		r.pkgPath = ""
 	}
-	return lastCaller, lastPkgPath
+	return r
 }

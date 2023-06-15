@@ -6,7 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
 func TestPrevRealm(t *testing.T) {
@@ -17,10 +16,9 @@ func TestPrevRealm(t *testing.T) {
 		}
 	)
 	tests := []struct {
-		name                 string
-		machine              *gno.Machine
-		expectedLastCaller   crypto.Bech32Address
-		expecteedLastPkgPath string
+		name          string
+		machine       *gno.Machine
+		expectedRealm Realm
 	}{
 		{
 			name: "no frames",
@@ -28,8 +26,10 @@ func TestPrevRealm(t *testing.T) {
 				Context: ctx,
 				Frames:  []gno.Frame{},
 			},
-			expectedLastCaller:   user,
-			expecteedLastPkgPath: "",
+			expectedRealm: Realm{
+				addr:    user,
+				pkgPath: "",
+			},
 		},
 		{
 			name: "one frame w/o LastPackage",
@@ -39,8 +39,10 @@ func TestPrevRealm(t *testing.T) {
 					{LastPackage: nil},
 				},
 			},
-			expectedLastCaller:   user,
-			expecteedLastPkgPath: "",
+			expectedRealm: Realm{
+				addr:    user,
+				pkgPath: "",
+			},
 		},
 		{
 			name: "one non-realm frame",
@@ -50,8 +52,10 @@ func TestPrevRealm(t *testing.T) {
 					{LastPackage: &gno.PackageValue{PkgPath: "gno.land/p/xxx"}},
 				},
 			},
-			expectedLastCaller:   user,
-			expecteedLastPkgPath: "",
+			expectedRealm: Realm{
+				addr:    user,
+				pkgPath: "",
+			},
 		},
 		{
 			name: "one realm frame",
@@ -61,8 +65,10 @@ func TestPrevRealm(t *testing.T) {
 					{LastPackage: &gno.PackageValue{PkgPath: "gno.land/r/xxx"}},
 				},
 			},
-			expectedLastCaller:   user,
-			expecteedLastPkgPath: "",
+			expectedRealm: Realm{
+				addr:    user,
+				pkgPath: "",
+			},
 		},
 		{
 			name: "multiple frames with one realm",
@@ -74,8 +80,10 @@ func TestPrevRealm(t *testing.T) {
 					{LastPackage: &gno.PackageValue{PkgPath: "gno.land/r/xxx"}},
 				},
 			},
-			expectedLastCaller:   user,
-			expecteedLastPkgPath: "",
+			expectedRealm: Realm{
+				addr:    user,
+				pkgPath: "",
+			},
 		},
 		{
 			name: "multiple frames with multiple realms",
@@ -90,18 +98,17 @@ func TestPrevRealm(t *testing.T) {
 					{LastPackage: &gno.PackageValue{PkgPath: "gno.land/r/xxx"}},
 				},
 			},
-			expectedLastCaller:   gno.DerivePkgAddr("gno.land/r/yyy").Bech32(),
-			expecteedLastPkgPath: "gno.land/r/yyy",
+			expectedRealm: Realm{
+				addr:    gno.DerivePkgAddr("gno.land/r/yyy").Bech32(),
+				pkgPath: "gno.land/r/yyy",
+			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert := assert.New(t)
+			realm := prevRealm(tt.machine)
 
-			lastCaller, lastPkgPath := prevRealm(tt.machine)
-
-			assert.Equal(tt.expectedLastCaller, lastCaller)
-			assert.Equal(tt.expecteedLastPkgPath, lastPkgPath)
+			assert.Equal(t, tt.expectedRealm, realm)
 		})
 	}
 }
