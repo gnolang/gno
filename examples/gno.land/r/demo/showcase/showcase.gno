@@ -1,8 +1,9 @@
 package showcase
 
 import (
-	"gno.land/p/demo/ui"
 	"strings"
+
+	"gno.land/p/demo/ui"
 )
 
 type command struct {
@@ -33,11 +34,17 @@ func Render(path string) string {
 		)
 
 		output := ""
-		list := ui.BulletList()
+		links := []ui.Link{}
 		for _, module := range modules {
-			list.Append(ui.Link(module.name, module.name))
+			links = append(links, ui.Link{Text: module.name, Path: module.name})
 		}
+		list := ui.BulletList(links...)
 		dom.Body.Append(list)
+	default:
+		dom.Title = "404"
+		dom.Body.Append(
+			ui.Paragraph("page not found"),
+		)
 	}
 
 	return dom.String()
