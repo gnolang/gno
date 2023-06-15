@@ -27,6 +27,5 @@ jobs:
         INPUT_PUBLISH_REPO: ajnavarro/gno-benchmarks #TODO: change to gnolang when ready
         INPUT_PUBLISH_BRANCH: gh-pages
         INPUT_BENCHMARKS_OUT: benchmarks.json
-        INPUT_GIT_COMMIT_MESSAGE: "add new benchmark run"
         INPUT_CHECKS: ${{ !inputs.publish }}
         INPUT_CHECKS_CONFIG: .benchmarks/gobenchdata-checks.yml

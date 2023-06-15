@@ -10,7 +10,7 @@ Now let's see how to add your tests to the generated benchmark graphs and also a
 
 ## Add new benchmarks to generated graphs.
 
-All benchmarks can be added to these graphs to keep track of the performance evolution on different parts of the code. This is done adding new lines on [gobenchdata-web.yml](./gobenchdata-web.yml)
+All benchmarks can be added to these graphs to keep track of the performance evolution on different parts of the code. This is done adding new lines on [gobenchdata-web.yml](https://github.com/gnolang/benchmarks/blob/gh-pages/gobenchdata-web.yml)
 
 Things to take into account:
 
