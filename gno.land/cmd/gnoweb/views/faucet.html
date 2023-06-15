@@ -5,7 +5,7 @@
     <title>Gno.land</title>
     {{ template "html_head" }}
   </head>
-  <body onload="main()">
+  <body>
     <div id="root">
       <div id="header">{{ template "header_logo" }} {{ template "header_buttons" }}</div>
       <div id="home" class="container">
@@ -13,11 +13,7 @@
         <script src="https://www.google.com/recaptcha/api.js" async defer></script>
         {{ end }}
         <script type="text/javascript">
-          function main() {
-              // XXX
-          };
-
-          {{ if .Data.captchaSite }}
+           {{ if .Data.captchaSite }}
           function recaptchaCallback() {
               document.getElementById("submitBtn").disabled = false;
           };

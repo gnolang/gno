@@ -73,9 +73,8 @@ class Tabs {
     this.tabs = Array.from(this.tablistNode.querySelectorAll("[role=tab]"));
     this.tabpanels = [];
 
-    for (var i = 0; i < this.tabs.length; i += 1) {
-      var tab = this.tabs[i];
-      var tabpanel = document.getElementById(tab.getAttribute("aria-controls"));
+    for (let tab of this.tabs) {
+      const tabpanel = document.getElementById(tab.getAttribute("aria-controls"));
 
       tab.tabIndex = -1;
       tab.setAttribute("aria-selected", "false");
@@ -97,8 +96,7 @@ class Tabs {
     if (typeof setFocus !== "boolean") {
       setFocus = true;
     }
-    for (var i = 0; i < this.tabs.length; i += 1) {
-      var tab = this.tabs[i];
+    for (let tab of this.tabs) {
       if (currentTab === tab) {
         tab.setAttribute("aria-selected", "true");
         tab.removeAttribute("tabindex");
@@ -115,7 +113,7 @@ class Tabs {
   }
 
   setSelectedToPreviousTab(currentTab) {
-    var index;
+    let index;
 
     if (currentTab === this.firstTab) {
       this.setSelectedTab(this.lastTab);
@@ -139,7 +137,7 @@ class Tabs {
   /* EVENT HANDLERS */
 
   onKeydown(event) {
-    var tgt = event.currentTarget,
+    const tgt = event.currentTarget,
       flag = false;
 
     switch (event.key) {
@@ -183,13 +181,13 @@ class Tabs {
  */
 
 window.addEventListener("load", function () {
-  const accordions = document.querySelectorAll(".accordion-trigger");
-  for (var i = 0; i < accordions.length; i++) {
-    new Accordion(accordions[i]);
+  const accordions = Array.from(document.querySelectorAll(".accordion-trigger"));
+  for (let accordion of accordions) {
+    new Accordion(accordion);
   }
 
-  const tablists = document.querySelectorAll("[role=tablist].tabs");
-  for (var i = 0; i < tablists.length; i++) {
-    new Tabs(tablists[i]);
+  const tablists = Array.from(document.querySelectorAll("[role=tablist].tabs"));
+  for (let tab of tablists) {
+    new Tabs(tab);
   }
 });
