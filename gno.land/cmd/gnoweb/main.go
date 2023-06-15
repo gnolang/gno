@@ -66,6 +66,8 @@ func makeApp() gotuna.App {
 	}
 	app.Router.Handle("/", handlerHome(app))
 	app.Router.Handle("/about", handlerAbout(app))
+	app.Router.Handle("/gno-language", handlerLanguage(app))
+	app.Router.Handle("/ide", handlerIde(app))
 	app.Router.Handle("/game-of-realms", handlerGor(app))
 	app.Router.Handle("/faucet", handlerFaucet(app))
 	app.Router.Handle("/r/demo/boards:gnolang/6", handlerRedirect(app))
@@ -107,6 +109,30 @@ func handlerHome(app gotuna.App) http.Handler {
 
 func handlerAbout(app gotuna.App) http.Handler {
 	md := filepath.Join(flags.pagesDir, "ABOUT.md")
+	mainContent := osm.MustReadFile(md)
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		app.NewTemplatingEngine().
+			Set("Title", "About").
+			Set("MainContent", string(mainContent)).
+			Render(w, r, "generic.html", "funcs.html")
+	})
+}
+
+func handlerLanguage(app gotuna.App) http.Handler {
+	md := filepath.Join(flags.pagesDir, "LANGUAGE.md")
+	mainContent := osm.MustReadFile(md)
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		app.NewTemplatingEngine().
+			Set("Title", "About").
+			Set("MainContent", string(mainContent)).
+			Render(w, r, "generic.html", "funcs.html")
+	})
+}
+
+func handlerIde(app gotuna.App) http.Handler {
+	md := filepath.Join(flags.pagesDir, "IDE.md")
 	mainContent := osm.MustReadFile(md)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
