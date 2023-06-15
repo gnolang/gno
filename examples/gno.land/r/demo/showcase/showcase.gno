@@ -19,7 +19,7 @@ type module struct {
 var modules []module
 
 func Render(path string) string {
-	var dom ui.DOM
+	dom := ui.DOM{Prefix: "/r/demo/showcase:"}
 
 	// FIXME: replace with p/demo/mux (depends on #882)
 	path = strings.TrimSpace(path)
@@ -42,6 +42,7 @@ func Render(path string) string {
 		dom.Body.Append(list)
 	default:
 		dom.Title = "404"
+		dom.Header.Append(ui.Breadcrumb(ui.Link{Text: "Showcase", Path: ""}))
 		dom.Body.Append(
 			ui.Paragraph("page not found"),
 		)
