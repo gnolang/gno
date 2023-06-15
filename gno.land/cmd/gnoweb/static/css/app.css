@@ -10,6 +10,7 @@ html[data-theme="light"] {
   --link-color: #25172a;
   --muted-color: #757575;
   --border-color: #d7d9db;
+  --icon-color: #000;
 
   --quote-background: #ddd;
   --quote-2-background: #aaa4;
@@ -45,6 +46,7 @@ html[data-theme="dark"] {
   --link-color: #c7c7c7;
   --muted-color: #737373;
   --border-color: #606060;
+  --icon-color: #dddddd;
 
   --quote-background: #404040;
   --quote-2-background: #555555;
@@ -219,6 +221,7 @@ input {
   border: 1px solid var(--border-color);
   color: var(--text-color, #000);
   width: 25em;
+  padding: 0.4rem 0.5rem;
 }
 
 blockquote {
@@ -233,6 +236,7 @@ blockquote blockquote {
 pre {
   background-color: var(--code-background, #d7d9db);
   margin: 0;
+  padding: 0.5rem;
 }
 
 label {
@@ -571,6 +575,21 @@ code {
 #menu-toggle .buttons {
   position: absolute;
   left: 1.467rem;
+  display: flex;
+  color: var(--icon-color, #000);
+}
+
+#menu-toggle .buttons > *:not(:last-child) {
+  margin-right: 0.6rem;
+}
+
+#menu-toggle .buttons button {
+  background-color: transparent;
+  border: none;
+}
+
+#menu-toggle .buttons a {
+  text-decoration: none;
 }
 
 #menu-toggle > .navigation > ul {
