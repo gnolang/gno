@@ -308,38 +308,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				"", "Realm",
 			),
 			func(m *gno.Machine) {
-				var (
-					ctx = m.Context.(ExecContext)
-					// Default lastCaller is OrigCaller, the signer of the tx
-					lastCaller  = ctx.OrigCaller
-					lastPkgPath = ""
-				)
-
-				for i := m.NumFrames() - 1; i > 0; i-- {
-					fr := m.Frames[i]
-					if fr.LastPackage == nil || !fr.LastPackage.IsRealm() {
-						// Ignore non-realm frame
-						continue
-					}
-					pkgPath := fr.LastPackage.PkgPath
-					// The first realm we encounter will be the one calling
-					// this function; to get the calling realm determine the first frame
-					// where fr.LastPackage changes.
-					if lastPkgPath == "" {
-						lastPkgPath = pkgPath
-					} else if lastPkgPath == pkgPath {
-						continue
-					} else {
-						lastCaller = fr.LastPackage.GetPkgAddr().Bech32()
-						lastPkgPath = pkgPath
-						break
-					}
-				}
-
-				// Empty the pkgPath if we return a user
-				if ctx.OrigCaller == lastCaller {
-					lastPkgPath = ""
-				}
+				lastCaller, lastPkgPath := prevRealm(m)
 
 				// Return the result
 				res0 := gno.Go2GnoValue(
