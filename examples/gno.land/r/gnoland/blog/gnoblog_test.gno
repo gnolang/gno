@@ -17,7 +17,7 @@ func TestPackage(t *testing.T) {
 		expected := `
 # Gnoland's Blog
 
-<div class='columns-3'>No posts.
+No posts.
 `
 		assertMDEquals(t, got, expected)
 	}
