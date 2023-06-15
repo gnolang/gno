@@ -379,7 +379,7 @@ func runTestFiles(
 	}
 
 	m.RunFiles(files.Files...)
-	n := gno.MustParseFile("testmain.go", testmain)
+	n := gno.MustParseFile("main_test.gno", testmain)
 	m.RunFiles(n)
 
 	for _, test := range testFuncs.Tests {
@@ -473,12 +473,13 @@ import (
 	"testing"
 )
 
+var tests = []testing.InternalTest{
+{{range .Tests}}
+    {"{{.Name}}", {{.Name}}},
+{{end}}
+}
+
 func runtest(name string) (report string) {
-	var tests = []testing.InternalTest{
-	{{range .Tests}}
-	    {"{{.Name}}", {{.Name}}},
-	{{end}}
-	}
 
 	for _, test := range tests {
 		if test.Name == name {

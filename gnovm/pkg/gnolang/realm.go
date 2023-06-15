@@ -1121,6 +1121,10 @@ func copyValueWithRefs(parent Object, val Value) Value {
 		}
 	case *FuncValue:
 		source := toRefNode(cv.Source)
+		if strings.HasSuffix(source.Location.File, "_test.gno") {
+			// Ignore _test files
+			return nil
+		}
 		var closure Value
 		if cv.Closure != nil {
 			closure = toRefValue(parent, cv.Closure)
