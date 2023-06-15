@@ -27,13 +27,14 @@ func (b Blog) Render(path string) string {
 	switch {
 	case isHome:
 		output := breadcrumb([]string{b.Title})
-		output += "<div class='columns-3'>"
 
 		if b.Posts.Size() == 0 {
 			output += "No posts."
 			return output
 		}
 
+        output += "<div class='columns-3'>"
+        
 		b.Posts.Iterate("", "", func(key string, value interface{}) bool {
 			post := value.(*Post)
 			output += post.RenderListItem()
