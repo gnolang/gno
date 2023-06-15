@@ -151,8 +151,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			gno.Flds( // results
 			),
 			func(m *gno.Machine) {
-				isOrigin := len(m.Frames) == 2
-				if !isOrigin {
+				if !isOriginCall(m) {
 					m.Panic(typedString("invalid non-origin call"))
 					return
 				}
@@ -165,7 +164,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				"isOrigin", "bool",
 			),
 			func(m *gno.Machine) {
-				isOrigin := len(m.Frames) == 2
+				isOrigin := isOriginCall(m)
 				res0 := gno.TypedValue{T: gno.BoolType}
 				res0.SetBool(isOrigin)
 				m.PushValue(res0)
