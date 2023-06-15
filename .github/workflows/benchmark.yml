@@ -10,7 +10,7 @@ on:
         type: string
 jobs:
   benchmarks:
-    runs-on: ubuntu-latest # TODO: move to a self-hosted runner
+    runs-on: self-hosted
     steps:
     - name: checkout
       uses: actions/checkout@v2
