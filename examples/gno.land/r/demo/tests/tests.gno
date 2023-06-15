@@ -28,6 +28,14 @@ func IsOriginCall() bool {
 	return std.IsOriginCall()
 }
 
+func RSubtestsAssertOriginCall() {
+	subtests.AssertOriginCall()
+}
+
+func RSubtestsIsOriginCall() bool {
+	return subtests.IsOriginCall()
+}
+
 //----------------------------------------
 // Test structure to ensure cross-realm modification is prevented.
 

@@ -8,7 +8,7 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
-func TestPrevRealm(t *testing.T) {
+func TestPrevRealmIsOrigin(t *testing.T) {
 	var (
 		user = gno.DerivePkgAddr("user1.gno").Bech32()
 		ctx  = ExecContext{
@@ -16,9 +16,10 @@ func TestPrevRealm(t *testing.T) {
 		}
 	)
 	tests := []struct {
-		name          string
-		machine       *gno.Machine
-		expectedRealm Realm
+		name                 string
+		machine              *gno.Machine
+		expectedRealm        Realm
+		expectedIsOriginCall bool
 	}{
 		{
 			name: "no frames",
@@ -30,6 +31,7 @@ func TestPrevRealm(t *testing.T) {
 				addr: user,
 				path: "",
 			},
+			expectedIsOriginCall: true,
 		},
 		{
 			name: "one frame w/o LastPackage",
@@ -43,6 +45,7 @@ func TestPrevRealm(t *testing.T) {
 				addr: user,
 				path: "",
 			},
+			expectedIsOriginCall: true,
 		},
 		{
 			name: "one non-realm frame",
@@ -56,6 +59,7 @@ func TestPrevRealm(t *testing.T) {
 				addr: user,
 				path: "",
 			},
+			expectedIsOriginCall: true,
 		},
 		{
 			name: "one realm frame",
@@ -69,6 +73,7 @@ func TestPrevRealm(t *testing.T) {
 				addr: user,
 				path: "",
 			},
+			expectedIsOriginCall: true,
 		},
 		{
 			name: "multiple frames with one realm",
@@ -84,6 +89,7 @@ func TestPrevRealm(t *testing.T) {
 				addr: user,
 				path: "",
 			},
+			expectedIsOriginCall: true,
 		},
 		{
 			name: "multiple frames with multiple realms",
@@ -102,13 +108,18 @@ func TestPrevRealm(t *testing.T) {
 				addr: gno.DerivePkgAddr("gno.land/r/yyy").Bech32(),
 				path: "gno.land/r/yyy",
 			},
+			expectedIsOriginCall: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			realm := prevRealm(tt.machine)
+			assert := assert.New(t)
 
-			assert.Equal(t, tt.expectedRealm, realm)
+			realm := prevRealm(tt.machine)
+			isOrigin := isOriginCall(tt.machine)
+
+			assert.Equal(tt.expectedRealm, realm)
+			assert.Equal(tt.expectedIsOriginCall, isOrigin)
 		})
 	}
 }
