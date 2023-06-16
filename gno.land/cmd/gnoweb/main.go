@@ -143,7 +143,6 @@ func handlerEcosystem(app gotuna.App) http.Handler {
 		app.NewTemplatingEngine().
 			Set("Title", "Gno Ecosystem").
 			Set("Description", "Gno Ecosystem").
-
 			Set("MainContent", string(mainContent)).
 			Render(w, r, "generic.html", "funcs.html")
 	})
