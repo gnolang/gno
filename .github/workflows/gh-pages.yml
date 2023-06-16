@@ -3,7 +3,7 @@ name: gh-pages
 
 on:
   push:
-    branches: [$default-branch]
+    branches: [ "master" ]
   workflow_dispatch:
 
 permissions:
