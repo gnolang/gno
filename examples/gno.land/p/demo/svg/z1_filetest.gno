@@ -12,7 +12,7 @@ func main() {
 			svg.Text{100, 100, "hello world!", "magenta"},
 		},
 	}
-	println(canvas.String())
+	println(canvas)
 }
 
 // Output:

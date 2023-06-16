@@ -8,7 +8,7 @@ func main() {
 	canvas.DrawRectangle(50, 50, 100, 100, "red")
 	canvas.DrawCircle(100, 100, 50, "blue")
 	canvas.DrawText(100, 100, "hello world!", "magenta")
-	println(canvas.String())
+	println(canvas)
 }
 
 // Output:
