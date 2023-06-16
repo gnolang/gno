@@ -166,11 +166,19 @@ func isSpace(r rune) bool {
 	return false
 }
 
+var (
+	matchPat string
+	matchRe  *regexp.Regexp
+)
+
 // based on testing/internal/testdeps.TestDeps.MatchString.
 func matchString(pat, str string) (result bool, err error) {
-	matchRe, err := regexp.Compile(pat)
-	if err != nil {
-		return
+	if matchRe == nil || matchPat != pat {
+		matchPat = pat
+		matchRe, err = regexp.Compile(matchPat)
+		if err != nil {
+			return
+		}
 	}
 	return matchRe.MatchString(str), nil
 }

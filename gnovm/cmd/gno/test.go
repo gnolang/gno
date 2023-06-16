@@ -379,8 +379,12 @@ func runTestFiles(
 	}
 
 	m.RunFiles(files.Files...)
-	n := gno.MustParseFile("main_test.gno", testmain)
+	n := gno.MustParseFile("testmain.gno", testmain)
 	m.RunFiles(n)
+	// XXX Affect an ID to testmain so it doesn't trigger a panic when
+	// realm.FinalizeRealmTransaction() is invoked
+	oo := m.Package.FBlocks[len(m.Package.FBlocks)-1]
+	m.Realm.AssignNewObjectID(oo.(*gno.Block))
 
 	for _, test := range testFuncs.Tests {
 		if verbose {

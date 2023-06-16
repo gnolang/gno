@@ -388,7 +388,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	if !oo.GetObjectID().IsZero() {
 		return
 	}
-	rlm.assignNewObjectID(oo)
+	rlm.AssignNewObjectID(oo)
 	rlm.created = append(rlm.created, oo)
 	// RECURSE GUARD END
 
@@ -1121,10 +1121,6 @@ func copyValueWithRefs(parent Object, val Value) Value {
 		}
 	case *FuncValue:
 		source := toRefNode(cv.Source)
-		if strings.HasSuffix(source.Location.File, "_test.gno") {
-			// Ignore _test files
-			return nil
-		}
 		var closure Value
 		if cv.Closure != nil {
 			closure = toRefValue(parent, cv.Closure)
@@ -1394,7 +1390,7 @@ func (rlm *Realm) nextObjectID() ObjectID {
 
 // Object gets its id set (panics if already set), and becomes
 // marked as new and real.
-func (rlm *Realm) assignNewObjectID(oo Object) ObjectID {
+func (rlm *Realm) AssignNewObjectID(oo Object) ObjectID {
 	oid := oo.GetObjectID()
 	if !oid.IsZero() {
 		panic("unexpected non-zero object id")
