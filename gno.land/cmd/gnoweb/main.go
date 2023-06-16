@@ -102,6 +102,8 @@ func handlerHome(app gotuna.App) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		app.NewTemplatingEngine().
+			Set("Title", "Gno.land Smart Contract Platform Using Gnolang (Gno)").
+			Set("Description", "Gno.land is the only smart contract platform using the Gnolang (Gno) programming language, an interpretation of the widely-used Golang (Go).").
 			Set("HomeContent", string(homeContent)).
 			Render(w, r, "home.html", "funcs.html")
 	})
@@ -113,7 +115,8 @@ func handlerAbout(app gotuna.App) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		app.NewTemplatingEngine().
-			Set("Title", "About").
+			Set("Title", "Gno.land Is A Platform To Write Smart Contracts In Gnolang (Gno)").
+			Set("Description", "On Gno.land, developers write smart contracts and other blockchain apps using Gnolang (Gno) without learning a language that’s exclusive to a single ecosystem.").
 			Set("MainContent", string(mainContent)).
 			Render(w, r, "generic.html", "funcs.html")
 	})
@@ -125,7 +128,8 @@ func handlerLanguage(app gotuna.App) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		app.NewTemplatingEngine().
-			Set("Title", "About").
+			Set("Title", "Gno language").
+			Set("Description", "Gno language").
 			Set("MainContent", string(mainContent)).
 			Render(w, r, "generic.html", "funcs.html")
 	})
@@ -137,7 +141,9 @@ func handlerEcosystem(app gotuna.App) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		app.NewTemplatingEngine().
-			Set("Title", "About").
+			Set("Title", "Gno Ecosystem").
+			Set("Description", "Gno Ecosystem").
+
 			Set("MainContent", string(mainContent)).
 			Render(w, r, "generic.html", "funcs.html")
 	})
@@ -150,7 +156,8 @@ func handlerGor(app gotuna.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		app.NewTemplatingEngine().
 			Set("MainContent", string(mainContent)).
-			Set("Title", "Game of Realms").
+			Set("Title", "Game of Realms Content For The Best Contributors ").
+			Set("Description", "Game of Realms is the first high-stakes competition held in two phases to find the best contributors to the Gno.land platform with a 133,700 ATOM prize pool.").
 			Render(w, r, "generic.html", "funcs.html")
 	})
 }

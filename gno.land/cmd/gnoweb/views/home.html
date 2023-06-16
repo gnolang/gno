@@ -2,7 +2,8 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Gno.land</title>
+    <title>Gno.land - {{ .Data.Title }}</title>
+    <meta name="description" content="{{ .Data.Description }}" />
     {{ template "html_head" }}
   </head>
   <body onload="main()">
