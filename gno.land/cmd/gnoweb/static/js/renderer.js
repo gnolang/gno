@@ -96,7 +96,8 @@ class Tabs {
     if (typeof setFocus !== "boolean") {
       setFocus = true;
     }
-    for (let tab of this.tabs) {
+    for (let i = 0; i < this.tabs.length; i += 1) {
+      var tab = this.tabs[i];
       if (currentTab === tab) {
         tab.setAttribute("aria-selected", "true");
         tab.removeAttribute("tabindex");
