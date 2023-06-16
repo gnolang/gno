@@ -8,4 +8,4 @@ jobs:
     secrets: inherit
     with:
       publish: false
-      test-flags: "-short -run=^$"
+      test-flags: "-short"

@@ -10,4 +10,4 @@ jobs:
     secrets: inherit
     with:
       publish: true
-      test-flags: "-short -run=^$" # TODO: remove short flag
+      test-flags: "-timeout 50m"

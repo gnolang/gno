@@ -24,9 +24,9 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.WRITE_TOKEN }}
         INPUT_PRUNE_COUNT: 30
-        INPUT_GO_TEST_FLAGS: ${{ inputs.test-flags }}
+        INPUT_GO_TEST_FLAGS: "${{ inputs.test-flags }} -run=^$ -cpu 1,2" # executing only using one and two CPUs to not be dependant on the machine cores.
         INPUT_PUBLISH: ${{ inputs.publish }}
-        INPUT_PUBLISH_REPO: ajnavarro/gno-benchmarks #TODO: change to gnolang when ready
+        INPUT_PUBLISH_REPO: gnolang/benchmarks
         INPUT_PUBLISH_BRANCH: gh-pages
         INPUT_BENCHMARKS_OUT: benchmarks.json
         INPUT_CHECKS: ${{ !inputs.publish }}

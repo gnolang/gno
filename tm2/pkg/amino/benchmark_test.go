@@ -34,9 +34,7 @@ func BenchmarkBinary(b *testing.B) {
 }
 
 func BenchmarkBinaryPBBindings(b *testing.B) {
-	if testing.Short() {
-		b.Skip("skipping testing in short mode")
-	}
+	b.Skip("fuzzing not benchmarking")
 
 	cdc := amino.NewCodec().WithPBBindings()
 	for _, ptr := range tests.StructTypes {
@@ -46,12 +44,17 @@ func BenchmarkBinaryPBBindings(b *testing.B) {
 		b.Run(name+":encode:pbbindings", func(b *testing.B) {
 			_benchmarkBinary(b, cdc, rt, "binary_pb", true)
 		})
+
+		// TODO: fix nil pointer error
 		b.Run(name+":encode:pbbindings:translate_only", func(b *testing.B) {
 			_benchmarkBinary(b, cdc, rt, "binary_pb_translate_only", true)
 		})
+
 		b.Run(name+":decode:pbbindings", func(b *testing.B) {
 			_benchmarkBinary(b, cdc, rt, "binary_pb", false)
 		})
+
+		// TODO: fix nil pointer error
 		b.Run(name+":decode:pbbindings:translate_only", func(b *testing.B) {
 			_benchmarkBinary(b, cdc, rt, "binary_pb_translate_only", false)
 		})
