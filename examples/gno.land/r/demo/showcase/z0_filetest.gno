@@ -15,3 +15,6 @@ func main() {
 //
 //
 // The primary goal is to facilitate easy demonstration and exploration of small features. Modules self-register, expose commands, and demonstrate different aspects. This framework encourages experimentation and creativity, allowing developers to easily add new modules while keeping the main files untouched.
+//
+// - [p/avl](/r/demo/showcase:p/avl)
+// - [p/avl.Example](/r/demo/showcase:p/avl.Example)

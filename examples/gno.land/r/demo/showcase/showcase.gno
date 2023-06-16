@@ -7,8 +7,8 @@ import (
 )
 
 type command struct {
-	name string
-	args []string
+	name     string
+	callback func(path string) string
 }
 
 type module struct {
@@ -33,13 +33,15 @@ func Render(path string) string {
 			ui.Paragraph("The primary goal is to facilitate easy demonstration and exploration of small features. Modules self-register, expose commands, and demonstrate different aspects. This framework encourages experimentation and creativity, allowing developers to easily add new modules while keeping the main files untouched."),
 		)
 
-		output := ""
-		links := []ui.Link{}
+		ul := ui.BulletList{}
 		for _, module := range modules {
-			links = append(links, ui.Link{Text: module.name, Path: module.name})
+			ul = append(ul, ui.Link{Text: module.name, Path: module.name})
+			for _, command := range module.commands {
+				fullPath := module.name + "." + command.name
+				ul = append(ul, ui.Link{Text: fullPath, Path: fullPath})
+			}
 		}
-		list := ui.BulletList(links...)
-		dom.Body.Append(list)
+		dom.Body.Append(ul)
 	default:
 		dom.Title = "404"
 		dom.Header.Append(ui.Breadcrumb{ui.Link{Text: "Showcase", Path: ""}})
