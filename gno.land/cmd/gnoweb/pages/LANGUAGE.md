@@ -1,6 +1,4 @@
-# Gno.land Website Content - Gnolang Language
-
-## About the Gnolang (Gno) Language
+# About the Gnolang (Gno) Language
 
 [Gnolang](https://github.com/gnolang/gno/blob/master/LICENSE.md) (Gno) is an interpretation of the widely-used Golang (Go) programming language for blockchain created by Cosmos co-founder Jae Kwon in 2022. Gno is ~99% identical to Go, so Go programmers can start coding in Gno right away, with a minimal learning curve. For example, Gno comes with blockchain-specific standard libraries, but any code that doesn’t use blockchain-specific logic can run in Go with minimal processing. Libraries that don’t make sense in the blockchain context, such as network or operating-system access, are not available in Gno. Otherwise, Gno loads and uses many standard libraries that power Go, so most of the parsing of the source code is the same.
 
@@ -8,7 +6,11 @@ Under the hood, the Gno code is parsed into an abstract syntax tree (AST) and th
 
 ## How Gno Differs from Go
 
+![Gno and Go differences](static/img/gno-language/go-and-gno.jpg)
+
 The composable nature of Go/Gno allows for type-checked interactions between contracts, making Gno.land safer and more powerful, as well as operationally cheaper and faster. Smart contracts on Gno.land are light, simple, more focused, and easily interoperable—a network of interconnected contracts rather than siloed monoliths that limit interactions with other contracts.
+
+![Example of Gno code](static/img/gno-language/code-example.jpg)
 
 ## Gno Inherits Go’s Built-in Security Features
 

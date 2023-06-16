@@ -67,7 +67,7 @@ func makeApp() gotuna.App {
 	app.Router.Handle("/", handlerHome(app))
 	app.Router.Handle("/about", handlerAbout(app))
 	app.Router.Handle("/gno-language", handlerLanguage(app))
-	app.Router.Handle("/ide", handlerIde(app))
+	app.Router.Handle("/ecosystem", handlerEcosystem(app))
 	app.Router.Handle("/game-of-realms", handlerGor(app))
 	app.Router.Handle("/faucet", handlerFaucet(app))
 	app.Router.Handle("/r/demo/boards:gnolang/6", handlerRedirect(app))
@@ -131,8 +131,8 @@ func handlerLanguage(app gotuna.App) http.Handler {
 	})
 }
 
-func handlerIde(app gotuna.App) http.Handler {
-	md := filepath.Join(flags.pagesDir, "IDE.md")
+func handlerEcosystem(app gotuna.App) http.Handler {
+	md := filepath.Join(flags.pagesDir, "ECOSYSTEM.md")
 	mainContent := osm.MustReadFile(md)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

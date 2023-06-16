@@ -159,12 +159,15 @@ h3 {
 
 p {
   font-size: 1rem;
-  margin-block: 1.5rem;
+  margin-block: 1.2rem;
   line-height: 1.4;
 }
 
-p:has(a:only-child) {
-  margin-top: 0.8rem;
+p:last-child:has(a:only-child) {
+  margin-block-start: 0.8rem;
+}
+.stack > p:last-child:has(a:only-child) {
+  margin-block-start: 0;
 }
 
 hr {
@@ -257,6 +260,10 @@ code {
   max-width: 63.75rem;
   margin: auto;
   padding: 1.25rem;
+}
+
+.container p > img:only-child {
+  max-width: 100%;
 }
 
 .inline-list {

@@ -57,10 +57,11 @@ Are you a builder, tinkerer, or researcher? If you’re looking to create awesom
 ### Build with Gnolang
 
 - [Gno dev with CLI (soon)](#)
-- [Gno IDE](/ide)
+- [Gno ecosystem](/ecosystem)
 - [Test in the browser (soon)](#)
+- [About the Gnolang Language](/gno-language)
 - [Docs/ Tutorials](https://github.com/gnolang)
-- [Workshops/ Events/ Office hours (soon)](#)
+- [Gno by example](https://gno-by-example.com/)
 - [Getting started video (soon)](#)
 
 </div><!-- end column-->
