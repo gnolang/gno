@@ -42,7 +42,7 @@ func Render(path string) string {
 		dom.Body.Append(list)
 	default:
 		dom.Title = "404"
-		dom.Header.Append(ui.Breadcrumb(ui.Link{Text: "Showcase", Path: ""}))
+		dom.Header.Append(ui.Breadcrumb{ui.Link{Text: "Showcase", Path: ""}})
 		dom.Body.Append(
 			ui.Paragraph("page not found"),
 		)
