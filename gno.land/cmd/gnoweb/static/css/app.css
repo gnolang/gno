@@ -75,7 +75,8 @@ html[data-theme="dark"] {
   --highlight-addition: #76c490;
 }
 
-html[data-theme="dark"] #header img {
+html[data-theme="dark"] #header img,
+html[data-theme="dark"] .footer img {
   filter: invert(1);
 }
 
@@ -291,6 +292,16 @@ code {
   grid-template-columns: repeat(1, 1fr);
   grid-gap: 3.75rem;
   margin: 3.75rem auto;
+}
+
+.footer {
+  margin-block-start: 2rem;
+  background-color: var(--header-background, #d7d9db);
+  border-top: 1px solid var(--border-color);
+}
+.footer > img {
+  display: block;
+  margin: 1rem auto;
 }
 
 /** 51.2rem **/
