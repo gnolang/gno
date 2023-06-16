@@ -1000,10 +1000,6 @@ const (
 
 func (m *Machine) Run() {
 	for {
-		if m.Alloc.GetRunGC() {
-			m.GC.Collect()
-			m.Alloc.GCCycleFinished()
-		}
 		op := m.PopOp()
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {
@@ -1327,6 +1323,10 @@ func (m *Machine) Run() {
 			m.doOpReturnCallDefers()
 		default:
 			panic(fmt.Sprintf("unexpected opcode %s", op.String()))
+		}
+		if m.Alloc.GetRunGC() {
+			m.GC.Collect()
+			m.Alloc.GCCycleFinished()
 		}
 	}
 }

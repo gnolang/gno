@@ -41,6 +41,10 @@ func TestRunEmptyMain(t *testing.T) {
 func TestGCArgs(t *testing.T) {
 	m := NewMachine("test", nil)
 	m.GC = NewGC(true)
+	m.Alloc = NewAllocator(100000000)
+	m.Alloc.MinGC = 1
+	m.Alloc.GoGC = 10
+
 	c := `package test
 
 func main() {

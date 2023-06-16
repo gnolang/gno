@@ -83,12 +83,19 @@ func (gc *GC) Collect() {
 	newObjs := make([]*GCObj, 0, len(gc.objs))
 	for _, obj := range gc.objs {
 		if !obj.marked {
+			if gc.debug {
+				fmt.Printf("GC: deleting obj: %p\n", obj)
+			}
 			continue
 		}
 		obj.marked = false
 		newObjs = append(newObjs, obj)
 	}
 	gc.objs = newObjs
+
+	for i := range gc.roots {
+		gc.roots[i].marked = false
+	}
 }
 
 func (gc *GC) markObject(obj *GCObj) {

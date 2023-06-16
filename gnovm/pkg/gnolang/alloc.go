@@ -75,6 +75,7 @@ func NewAllocator(maxBytes int64) *Allocator {
 	return &Allocator{
 		maxBytes: maxBytes,
 		MinGC:    1024 * 1024,
+		GoGC:     100.0,
 	}
 }
 
@@ -93,6 +94,7 @@ func (alloc *Allocator) GCCycleFinished() {
 	alloc.LastGcRunBytes = alloc.bytes
 }
 
+// Target heap memory = Live heap + (Live heap + GC roots) * GOGC / 100
 func (alloc *Allocator) calcShouldRunGC() bool {
 	percent := (alloc.GoGC * float64(alloc.LastGcRunBytes)) / 100.0
 	target := int64(percent) + alloc.LastGcRunBytes
