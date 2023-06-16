@@ -612,6 +612,7 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 	m.PushOp(OpHalt)
 	m.PushExpr(x)
 	m.PushOp(OpEval)
+	defer m.injectLocOnPanic()
 	m.Run()
 	res := m.ReapValues(start)
 	return res
