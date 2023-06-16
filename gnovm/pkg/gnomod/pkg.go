@@ -131,7 +131,7 @@ func ListPkgs(root string) (PkgList, error) {
 				return reqs
 			}(),
 		})
-		return fs.SkipDir
+		return nil
 	})
 	if err != nil {
 		return nil, err
