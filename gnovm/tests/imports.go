@@ -169,7 +169,11 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg := gno.NewPackageNode("binary", pkgPath, nil)
 				pkg.DefineGoNativeValue("LittleEndian", binary.LittleEndian)
 				pkg.DefineGoNativeValue("BigEndian", binary.BigEndian)
-				pkg.DefineGoNativeValue("Write", binary.BigEndian) // warn: use reflection
+				// pkg.DefineGoNativeValue("Write", binary.Write) // warn: use reflection
+
+				pkg.DefineGoNativeValue("Write", func(w io.Writer, order binary.ByteOrder, data interface{}) error {
+					return binary.Write(w, order, data)
+				})
 				return pkg, pkg.NewPackage()
 			case "encoding/json":
 				pkg := gno.NewPackageNode("json", pkgPath, nil)
