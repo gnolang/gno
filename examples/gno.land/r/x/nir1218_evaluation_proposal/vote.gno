@@ -5,8 +5,8 @@ import (
 )
 
 const (
-	VOTE_YES = "YES"
-	VOTE_NO  = "NO"
+	VoteYes = "YES"
+	VoteNo  = "NO"
 )
 
 type Vote struct {

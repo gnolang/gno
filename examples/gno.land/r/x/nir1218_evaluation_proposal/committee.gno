@@ -66,7 +66,7 @@ func (c *Committee) ApproveCategory(name string, option string) bool {
 	// TODO Add quorum factor for a category approval
 	// Current assumption is all members voted YES so category is approved
 
-	result, exists := category.tallyResult.results.Get(VOTE_YES)
+	result, exists := category.tallyResult.results.Get(VoteYes)
 	if !exists {
 		return false
 	}
@@ -117,7 +117,7 @@ func (c *Committee) ApproveContribution(id int, option string) bool {
 	// TODO Add quorum factor for a contribution approval
 	// Current assumption is all members voted YES so contribution is approved
 
-	result, exists := contribution.tallyResult.results.Get(VOTE_YES)
+	result, exists := contribution.tallyResult.results.Get(VoteYes)
 	if !exists {
 		return false
 	}

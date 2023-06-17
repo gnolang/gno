@@ -14,8 +14,8 @@ type Category struct {
 
 func NewCategory(name string, criteria []string) *Category {
 	tallyResult := TallyResult{}
-	tallyResult.results.Set(VOTE_YES, 0)
-	tallyResult.results.Set(VOTE_NO, 0)
+	tallyResult.results.Set(VoteYes, 0)
+	tallyResult.results.Set(VoteNo, 0)
 
 	c := &Category{
 		name:        name,

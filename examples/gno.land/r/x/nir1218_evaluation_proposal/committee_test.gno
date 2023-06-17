@@ -63,7 +63,7 @@ func TestCategoryEvaluationCriteria(t *testing.T) {
 
 	t.Run("Approve First Committee Category", func(t *testing.T) {
 		std.TestSetOrigCaller(member)
-		approved := c.ApproveCategory(category, VOTE_YES)
+		approved := c.ApproveCategory(category, VoteYes)
 		if !approved {
 			value, exists := c.categories.Get(category)
 			gotCategory := value.(*Category)
