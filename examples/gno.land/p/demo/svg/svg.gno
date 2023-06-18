@@ -25,8 +25,10 @@ func (c *Canvas) Append(elem Elem) {
 }
 
 type Circle struct {
-	CX, CY, R int
-	Fill      string
+	CX   int // center X
+	CY   int // center Y
+	R    int // radius
+	Fill string
 }
 
 func (c Circle) String() string {
