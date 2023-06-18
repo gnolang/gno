@@ -57,9 +57,9 @@ func (dom DOM) String() string {
 }
 
 // XXX: rename Element to Div?
-type Element []domStringer
+type Element []DomStringer
 
-func (e *Element) Append(elems ...domStringer) {
+func (e *Element) Append(elems ...DomStringer) {
 	*e = append(*e, elems...)
 }
 
@@ -71,9 +71,9 @@ func (e *Element) String(dom DOM) string {
 	return output
 }
 
-type Breadcrumb []domStringer
+type Breadcrumb []DomStringer
 
-func (b *Breadcrumb) Append(elems ...domStringer) {
+func (b *Breadcrumb) Append(elems ...DomStringer) {
 	*b = append(*b, elems...)
 }
 
@@ -112,7 +112,7 @@ func (l Link) String(dom DOM) string {
 	return "[" + l.Text + "](" + url + ")"
 }
 
-type BulletList []domStringer
+type BulletList []DomStringer
 
 func (bl BulletList) String(dom DOM) string {
 	output := ""
@@ -124,11 +124,11 @@ func (bl BulletList) String(dom DOM) string {
 	return output
 }
 
-func Text(s string) domStringer {
+func Text(s string) DomStringer {
 	return Raw{Content: s}
 }
 
-type domStringer interface {
+type DomStringer interface {
 	String(dom DOM) string
 }
 
