@@ -138,7 +138,7 @@ func (r *repl) handleInput(input string) error {
 		}
 		imp = strings.TrimSpace(imp)
 		if imp == "" {
-			fmt.Fprintln(r.stdout, "invalid import: %q", imp)
+			fmt.Fprintf(r.stdout, "invalid import: %q\n", imp)
 			return nil
 		}
 		r.imports = append(r.imports, `import "`+imp+`"`)
