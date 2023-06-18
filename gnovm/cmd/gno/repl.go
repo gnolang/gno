@@ -180,6 +180,7 @@ func runRepl(cfg *replCfg) error {
 
 	// init repl state
 	r := repl{
+		i:         1,
 		stdout:    stdout,
 		stderr:    stderr,
 		imports:   make([]string, 0),
@@ -192,10 +193,6 @@ func runRepl(cfg *replCfg) error {
 		}
 		r.imports = append(r.imports, `import "`+imp+`"`)
 	}
-	if cfg.initialCommand != "" {
-		// TODO: implement
-		panic("not implemented")
-	}
 	testStore := tests.TestStore(cfg.rootDir, "", stdin, stdout, stderr, tests.ImportModeStdlibsOnly)
 	if cfg.verbose {
 		testStore.SetLogStoreOps(true)
@@ -207,6 +204,10 @@ func runRepl(cfg *replCfg) error {
 	})
 	defer r.machine.Release()
 
+	if cfg.initialCommand != "" {
+		r.handleInput(cfg.initialCommand)
+	}
+
 	// main loop
 	isTerm := term.IsTerminal(int(stdin.Fd()))
 
@@ -216,9 +217,9 @@ func runRepl(cfg *replCfg) error {
 			io.Writer
 		}{os.Stdin, os.Stderr}
 		t := term.NewTerminal(rw, "")
-		for i := 1; ; i++ {
+		for {
 			// prompt and parse
-			t.SetPrompt(fmt.Sprintf("gno:%d> ", i))
+			t.SetPrompt(fmt.Sprintf("gno:%d> ", r.i))
 			oldState, err := term.MakeRaw(0)
 			if err != nil {
 				return fmt.Errorf("make term raw: %w", err)
