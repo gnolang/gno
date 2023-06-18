@@ -1,8 +1,9 @@
 package main
 
 import (
+	"bufio"
 	"context"
-	goerrors "errors"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -98,12 +99,67 @@ func execRepl(cfg *replCfg, args []string) error {
 	return runRepl(cfg)
 }
 
-type state struct {
+type repl struct {
+	// repl state
 	imports   []string
 	funcs     []string
 	lastInput string
+	i         int
 	// TODO: support setting global vars
 	// TODO: switch to state machine, and support rollback of anything
+
+	machine *gno.Machine
+}
+
+func (r *repl) handleInput(input string) error {
+	if strings.TrimSpace(input) == "" {
+		return nil
+	}
+
+	r.i++
+	funcName := fmt.Sprintf("repl_%d", r.i)
+	// FIXME: support ";" as line separator?
+	// FIXME: support multiline when unclosed parenthesis, etc
+
+	imports := strings.Join(r.imports, "\n")
+	funcs := strings.Join(r.funcs, "\n")
+	src := "package test\n" + imports + "\n" + funcs + "\nfunc " + funcName + "() {\nINPUT\n}"
+
+	fields := strings.Fields(input)
+	command := fields[0]
+	switch {
+	case command == "/import":
+		imp := fields[1]
+		r.imports = append(r.imports, `import "`+imp+`"`)
+		// TODO: check if valid, else rollback
+		return nil
+	case command == "/func":
+		r.funcs = append(r.funcs, input[1:])
+		// TODO: check if valid, else rollback
+		return nil
+	case command == "/src":
+		// TODO: use go/format for pretty print
+		src = strings.ReplaceAll(src, "INPUT", r.lastInput)
+		println(src)
+		return nil
+	case command == "/exit":
+		os.Exit(0) // return special err?
+	case strings.HasPrefix(command, "/"):
+		println("unsupported command")
+		return nil
+	default:
+		// not a command, probably code to run
+	}
+
+	r.lastInput = input
+	src = strings.ReplaceAll(src, "INPUT", input)
+	n := gno.MustParseFile(funcName+".gno", src)
+	// TODO: run fmt check + linter
+	r.machine.RunFiles(n)
+	// TODO: smart recover system
+	r.machine.RunStatement(gno.S(gno.Call(gno.X(funcName))))
+	// TODO: if output is empty, consider that it's a persisted variable?
+	return nil
 }
 
 func runRepl(cfg *replCfg) error {
@@ -111,107 +167,77 @@ func runRepl(cfg *replCfg) error {
 	stdout := os.Stdout
 	stderr := os.Stderr
 
-	// init store and machine
-	testStore := tests.TestStore(cfg.rootDir, "", stdin, stdout, stderr, tests.ImportModeStdlibsOnly)
-	if cfg.verbose {
-		testStore.SetLogStoreOps(true)
-	}
-	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		PkgPath: "test",
-		Output:  stdout,
-		Store:   testStore,
-	})
-
-	defer m.Release()
-
-	// init termui
-	rw := struct {
-		io.Reader
-		io.Writer
-	}{os.Stdin, os.Stderr}
-	t := term.NewTerminal(rw, "")
-
-	state := state{
+	// init repl state
+	r := repl{
 		imports:   make([]string, 0),
 		funcs:     make([]string, 0),
 		lastInput: "// your code will be here", // initial value, to make it easier to identify with '/src'
 	}
-
 	for _, imp := range strings.Split(cfg.initialImports, ",") {
 		if strings.TrimSpace(imp) == "" {
 			continue
 		}
-		state.imports = append(state.imports, `import "`+imp+`"`)
+		r.imports = append(r.imports, `import "`+imp+`"`)
 	}
-
 	if cfg.initialCommand != "" {
 		// TODO: implement
 		panic("not implemented")
 	}
+	testStore := tests.TestStore(cfg.rootDir, "", stdin, stdout, stderr, tests.ImportModeStdlibsOnly)
+	if cfg.verbose {
+		testStore.SetLogStoreOps(true)
+	}
+	r.machine = gno.NewMachineWithOptions(gno.MachineOptions{
+		PkgPath: "test",
+		Output:  stdout,
+		Store:   testStore,
+	})
+	defer r.machine.Release()
 
 	// main loop
-	for i := 1; ; i++ {
-		// parse line and execute
-		t.SetPrompt(fmt.Sprintf("gno:%d> ", i))
-		oldState, err := term.MakeRaw(0)
-		input, err := t.ReadLine()
-		if err != nil {
-			term.Restore(0, oldState)
-			if goerrors.Is(err, io.EOF) {
-				return nil
+	isTerm := term.IsTerminal(int(stdin.Fd()))
+
+	if isTerm {
+		rw := struct {
+			io.Reader
+			io.Writer
+		}{os.Stdin, os.Stderr}
+		t := term.NewTerminal(rw, "")
+		for i := 1; ; i++ {
+			// prompt and parse
+			t.SetPrompt(fmt.Sprintf("gno:%d> ", i))
+			oldState, err := term.MakeRaw(0)
+			if err != nil {
+				return fmt.Errorf("make term raw: %w", err)
 			}
-			return fmt.Errorf("term error: %w", err)
+			input, err := t.ReadLine()
+			if err != nil {
+				term.Restore(0, oldState)
+				if errors.Is(err, io.EOF) {
+					return nil
+				}
+				return fmt.Errorf("term error: %w", err)
+			}
+			term.Restore(0, oldState)
+
+			err = r.handleInput(input)
+			if err != nil {
+				return fmt.Errorf("handle repl input: %w", err)
+			}
 		}
-		term.Restore(0, oldState)
-
-		if strings.TrimSpace(input) == "" {
-			i--
-			continue
+	} else { // !isTerm
+		scanner := bufio.NewScanner(stdin)
+		for scanner.Scan() {
+			input := scanner.Text()
+			err := r.handleInput(input)
+			if err != nil {
+				return fmt.Errorf("handle repl input: %w", err)
+			}
 		}
-
-		funcName := fmt.Sprintf("repl_%d", i)
-		// FIXME: support ";" as line separator?
-		// FIXME: support multiline when unclosed parenthesis, etc
-
-		imports := strings.Join(state.imports, "\n")
-		funcs := strings.Join(state.funcs, "\n")
-		src := "package test\n" + imports + "\n" + funcs + "\nfunc " + funcName + "() {\nINPUT\n}"
-
-		fields := strings.Fields(input)
-		command := fields[0]
-		switch {
-		case command == "/import":
-			imp := fields[1]
-			state.imports = append(state.imports, `import "`+imp+`"`)
-			// TODO: check if valid, else rollback
-			continue
-		case command == "/func":
-			state.funcs = append(state.funcs, input[1:])
-			// TODO: check if valid, else rollback
-			continue
-		case command == "/src":
-			// TODO: use go/format for pretty print
-			src = strings.ReplaceAll(src, "INPUT", state.lastInput)
-			println(src)
-			continue
-		case command == "/exit":
-			break
-		case strings.HasPrefix(command, "/"):
-			println("unsupported command")
-			continue
-		default:
-			// not a command, probably code to run
+		err := scanner.Err()
+		if err != nil {
+			return fmt.Errorf("read stdin: %w", err)
 		}
-
-		state.lastInput = input
-		src = strings.ReplaceAll(src, "INPUT", input)
-		n := gno.MustParseFile(funcName+".gno", src)
-		// TODO: run fmt check + linter
-		m.RunFiles(n)
-		// TODO: smart recover system
-		m.RunStatement(gno.S(gno.Call(gno.X(funcName))))
-		// TODO: if output is empty, consider that it's a persisted variable?
 	}
-
 	return nil
 }
