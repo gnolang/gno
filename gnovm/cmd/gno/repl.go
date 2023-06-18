@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -132,6 +133,14 @@ func (r *repl) handleInput(input string) error {
 	switch {
 	case command == "/import":
 		imp := fields[1]
+		if strings.HasPrefix(imp, `"`) {
+			imp, _ = strconv.Unquote(imp) // support with or without quotes
+		}
+		imp = strings.TrimSpace(imp)
+		if imp == "" {
+			fmt.Fprintln(r.stdout, "invalid import: %q", imp)
+			return nil
+		}
 		r.imports = append(r.imports, `import "`+imp+`"`)
 		// TODO: check if valid, else rollback
 		return nil
