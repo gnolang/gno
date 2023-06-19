@@ -17,4 +17,7 @@ import (
 
 	// protoc, genproto
 	_ "google.golang.org/protobuf/cmd/protoc-gen-go"
+
+	// gen docs
+	_ "golang.org/x/tools/cmd/godoc"
 )

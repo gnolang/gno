@@ -193,7 +193,7 @@ Additional native types:
 | encoding/asn1                               | TBD      |
 | encoding/base32                             | TBD      |
 | encoding/base64                             | TBD      |
-| encoding/binary                             | TBD      |
+| encoding/binary                             | partial  |
 | encoding/csv                                | TBD      |
 | encoding/gob                                | TBD      |
 | encoding/hex                                | TBD      |
@@ -259,7 +259,7 @@ Additional native types:
 | log/slog/internal                           | TBD      |
 | log/syslog                                  | TBD      |
 | maps                                        | TBD      |
-| math                                        | TBD      |
+| math                                        | partial      |
 | math/big                                    | TBD      |
 | math/bits                                   | TBD      |
 | math/cmplx                                  | TBD      |
@@ -345,27 +345,27 @@ Additional native types:
 
 ## Tooling (`gno` binary)
 
-| go command        | gno command      | comment                                       |
-|-------------------|------------------|-----------------------------------------------|
-| go bug            |                  | see https://github.com/gnolang/gno/issues/733 |
-| go build          | gno build        | same intention, limited compatibility         |
-| go clean          | gno clean        | same intention, limited compatibility         |
-| go doc            |                  | see https://github.com/gnolang/gno/pull/610   |
-| go env            |                  |                                               |
-| go fix            |                  |                                               |
-| go fmt            |                  |                                               |
-| go generate       |                  |                                               |
-| go get            |                  |                                               |
-| go help           |                  |                                               |
-| go install        |                  |                                               |
-| go list           |                  |                                               |
-| go mod            |                  |                                               |
-| + go mod download | gno mod download | same behavior                                 |
-|                   | gno precompile   |                                               |
-| go work           |                  |                                               |
-|                   | gno repl         |                                               |
-| go run            | gno run          |                                               |
-| go test           | gno test         | limited compatibility                         |
-| go tool           |                  |                                               |
-| go version        |                  |                                               |
-| go vet            |                  |                                               |
+| go command        | gno command      | comment                                                               |
+|-------------------|------------------|-----------------------------------------------------------------------|
+| go bug            |                  | see https://github.com/gnolang/gno/issues/733                         |
+| go build          | gno build        | same intention, limited compatibility                                 |
+| go clean          | gno clean        | same intention, limited compatibility                                 |
+| go doc            | gno doc          | limited compatibility; see https://github.com/gnolang/gno/issues/522  |
+| go env            |                  |                                                                       |
+| go fix            |                  |                                                                       |
+| go fmt            |                  |                                                                       |
+| go generate       |                  |                                                                       |
+| go get            |                  |                                                                       |
+| go help           |                  |                                                                       |
+| go install        |                  |                                                                       |
+| go list           |                  |                                                                       |
+| go mod            |                  |                                                                       |
+| + go mod download | gno mod download | same behavior                                                         |
+|                   | gno precompile   |                                                                       |
+| go work           |                  |                                                                       |
+|                   | gno repl         |                                                                       |
+| go run            | gno run          |                                                                       |
+| go test           | gno test         | limited compatibility                                                 |
+| go tool           |                  |                                                                       |
+| go version        |                  |                                                                       |
+| go vet            |                  |                                                                       |

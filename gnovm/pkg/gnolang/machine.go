@@ -158,8 +158,8 @@ func (m *Machine) Release() {
 	m.NumOps = 0
 	m.NumValues = 0
 	// this is the fastest way to zero-in a slice in Go
-	copy(m.Ops, opZeroed[:0])
-	copy(m.Values, valueZeroed[:0])
+	copy(m.Ops, opZeroed[:])
+	copy(m.Values, valueZeroed[:])
 
 	machinePool.Put(m)
 }
