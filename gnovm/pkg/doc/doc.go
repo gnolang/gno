@@ -206,7 +206,7 @@ func resolveDocumentable(dirs *bfsDirs, parsed docArgs, unexported bool) (Docume
 		parsed = docArgs{pkg: ".", sym: parsed.pkg, acc: parsed.sym}
 		return resolveDocumentable(dirs, parsed, unexported)
 	}
-	// we wanted documentabfsDirn about a package, and we found one!
+	// we wanted documentation about a package, and we found one!
 	if parsed.sym == "" {
 		return &documentable{bfsDir: candidates[0]}, nil
 	}
