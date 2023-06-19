@@ -34,7 +34,8 @@ type bfsDirs struct {
 }
 
 // newDirs begins scanning the given stdlibs directory.
-// dirs are "gopath-like" directories, such as @/gnovm/stdlibs and @/examples.
+// dirs are "gopath-like" directories, such as @/gnovm/stdlibs, whose path
+// relative to the root specify the import path.
 // modDirs are user directories, expected to have gno.mod files
 func newDirs(dirs []string, modDirs []string) *bfsDirs {
 	d := &bfsDirs{
@@ -99,6 +100,14 @@ func getGnoModDirs(gm *gnomod.File) []bfsDir {
 	for _, r := range gm.Require {
 		mv := gm.Resolve(r)
 		path := gnomod.PackageDir("", mv)
+		if _, err := os.Stat(path); err != nil {
+			// only give directories which actually exist and don't give
+			// an error when accessing
+			if !os.IsNotExist(err) {
+				log.Println("open source directories from gno.mod:", err)
+			}
+			continue
+		}
 		dirs = append(dirs, bfsDir{
 			importPath: mv.Path,
 			dir:        path,
