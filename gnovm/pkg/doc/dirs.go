@@ -51,7 +51,7 @@ func newDirs(dirs []string, modDirs []string) *bfsDirs {
 	}
 
 	for _, mdir := range modDirs {
-		gm, err := tryParseGnoMod(filepath.Join(mdir, "gno.mod"))
+		gm, err := parseGnoMod(filepath.Join(mdir, "gno.mod"))
 		if err != nil {
 			log.Printf("%v", err)
 			continue
@@ -67,9 +67,9 @@ func newDirs(dirs []string, modDirs []string) *bfsDirs {
 	return d
 }
 
-// tries to parse gno mod file.
-// second return parameter is whether gno.mod exists.
-func tryParseGnoMod(fname string) (*gnomod.File, error) {
+// tries to parse gno mod file given the filename, using Parse and Validate from
+// the gnomod package
+func parseGnoMod(fname string) (*gnomod.File, error) {
 	file, err := os.Stat(fname)
 	if err != nil {
 		return nil, fmt.Errorf("could not read gno.mod file: %w", err)
