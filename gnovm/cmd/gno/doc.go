@@ -88,10 +88,7 @@ func execDoc(cfg *docCfg, args []string, io *commands.IO) error {
 	if err != nil && !errors.Is(err, gnomod.ErrGnoModNotFound) {
 		return fmt.Errorf("error determining root gno.mod file: %w", err)
 	}
-	var modDirs []string
-	if rd != "" {
-		modDirs = append(modDirs, rd)
-	}
+	modDirs := []string{rd}
 
 	// select dirs from which to gather directories
 	dirs := []string{filepath.Join(cfg.rootDir, "gnovm/stdlibs"), filepath.Join(cfg.rootDir, "examples")}

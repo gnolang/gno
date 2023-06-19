@@ -71,25 +71,23 @@ func newDirs(dirs []string, modDirs []string) *bfsDirs {
 // second return parameter is whether gno.mod exists.
 func tryParseGnoMod(fname string) (*gnomod.File, error) {
 	file, err := os.Stat(fname)
-	// early exit for errors and non-file fname
-	if err != nil || file.IsDir() {
-		if err == nil {
-			return nil, fmt.Errorf("invalid gno.mod at %q: is a directory", fname)
-		}
-		// no need for filename, os errors contain that already
-		return nil, fmt.Errorf("could not read go.mod file: %w", err)
+	if err != nil {
+		return nil, fmt.Errorf("could not read gno.mod file: %w", err)
+	}
+	if file.IsDir() {
+		return nil, fmt.Errorf("invalid gno.mod at %q: is a directory", fname)
 	}
 
 	b, err := os.ReadFile(fname)
 	if err != nil {
-		return nil, fmt.Errorf("could not read go.mod file: %w", err)
+		return nil, fmt.Errorf("could not read gno.mod file: %w", err)
 	}
 	gm, err := gnomod.Parse(fname, b)
-	if err == nil {
-		err = gm.Validate()
-	}
 	if err != nil {
-		return nil, fmt.Errorf("error parsing/validating go.mod file at %q: %w", fname, err)
+		return nil, fmt.Errorf("error parsing gno.mod file at %q: %w", fname, err)
+	}
+	if err := gm.Validate(); err != nil {
+		return nil, fmt.Errorf("error validating gno.mod file at %q: %w", fname, err)
 	}
 	return gm, nil
 }

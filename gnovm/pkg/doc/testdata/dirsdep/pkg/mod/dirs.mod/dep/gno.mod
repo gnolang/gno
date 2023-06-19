@@ -1,1 +1,1 @@
-package dirs.mod/dep
+module dirs.mod/dep
