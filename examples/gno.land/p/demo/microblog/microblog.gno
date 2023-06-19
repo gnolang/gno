@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	ErrNotFound    error  = errors.New("not found")
-	StatusNotFound string = "404"
+	ErrNotFound    = errors.New("not found")
+	StatusNotFound = "404"
 )
 
 type Microblog struct {
