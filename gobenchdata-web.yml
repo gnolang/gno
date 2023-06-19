@@ -1,0 +1,49 @@
+title: Gno Benchmarks
+description: Benchmarks for github.com/gnolang/gno repository
+repository: https://github.com/bobheadxi/gobenchdata
+benchmarksFile: benchmarks.json
+chartGroups:
+  - name: VM Benchmarks
+    description: |
+      Benchmarks testing Gno VM
+    charts:
+      - name: Type assertion benchmarks
+        benchmarks: [ 'TypeAssertion.' ]
+        package: github.com\/gnolang\/gno\/gnovm\/pkg\/gnolang
+      - name: Reflect benchmarks
+        benchmarks: [ 'Reflect.' ]
+        package: github.com\/gnolang\/gno\/gnovm\/pkg\/gnolang
+      - name: Equality benchmarks
+        benchmarks: [ '.Equality' ]
+        package: github.com\/gnolang\/gno\/gnovm\/pkg\/gnolang
+      - name: LoopyMain benchmarks
+        benchmarks: [ '.LoopyMain' ]
+        package: github.com\/gnolang\/gno\/gnovm\/pkg\/gnolang
+  - name: Tendermint V2
+    description: |
+      Tendermint V2 Benchmarks
+    charts:
+      - name: Mempool
+        package: ^github.com/gnolang/gno/tm2/pkg/bft/mempool$
+      - name: State
+        package: ^github.com/gnolang/gno/tm2/pkg/bft/state$
+      - name: Types
+        package: ^github.com/gnolang/gno/tm2/pkg/bft/types$
+      - name: WAL
+        package: ^github.com/gnolang/gno/tm2/pkg/bft/wal$
+      - name: Bcrypt
+        package: ^github.com/gnolang/gno/tm2/pkg/crypto/bcrypt$
+      - name: ed25519
+        package: ^github.com/gnolang/gno/tm2/pkg/crypto/ed25519$
+      - name: Merkle
+        package: ^github.com/gnolang/gno/tm2/pkg/crypto/merkle$
+      - name: secp256k1
+        package: ^github.com/gnolang/gno/tm2/pkg/crypto/secp256k1$
+      - name: iavl
+        package: ^github.com/gnolang/gno/tm2/pkg/iavl.
+      - name: random
+        package: ^github.com/gnolang/gno/tm2/pkg/random$
+      - name: auth
+        package: ^github.com/gnolang/gno/tm2/pkg/sdk/auth$
+      - name: cache
+        package: ^github.com/gnolang/gno/tm2/pkg/store/cache$
