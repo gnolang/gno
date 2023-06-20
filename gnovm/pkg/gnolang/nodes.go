@@ -1382,6 +1382,7 @@ func (x *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*M
 		if !ok {
 			panic("cannot redefine non-function as native function")
 		}
+		fmt.Printf("REDEFINE %s %p\n", n, fv)
 		// XXX: type-check
 		fv.body = nil
 		fv.nativeBody = native
