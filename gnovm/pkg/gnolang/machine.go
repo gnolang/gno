@@ -503,6 +503,11 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 		}
 	}
 
+	// Inject native functions
+	if m.Injector != nil {
+		m.Injector(m.Store, pn)
+	}
+
 	// Declarations (and variable initializations).  This must happen
 	// after all files are preprocessed, because value decl may be out of
 	// order and depend on other files.
