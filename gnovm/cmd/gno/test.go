@@ -157,9 +157,12 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
-	// guess opts.RootDir
+	// Guess GNOROOT, if [rootDir] not set
 	if cfg.rootDir == "" {
 		cfg.rootDir = gnoenv.RootDir()
+		if cfg.rootDir == "" {
+			return errors.New("GNOROOT not set")
+		}
 	}
 
 	paths, err := targetsFromPatterns(args)
