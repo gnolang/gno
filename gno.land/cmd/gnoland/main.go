@@ -14,6 +14,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
@@ -228,34 +229,25 @@ func makeGenesisDoc(
 	// Load initial packages from examples.
 	test1 := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	txs := []std.Tx{}
-	for _, path := range []string{
-		"p/demo/ufmt",
-		"p/demo/avl",
-		"p/demo/grc/exts",
-		"p/demo/grc/grc20",
-		"p/demo/grc/grc721",
-		"p/demo/grc/grc1155",
-		"p/demo/maths",
-		"p/demo/mux",
-		"p/demo/blog",
-		"r/demo/users",
-		"r/demo/foo20",
-		"r/demo/foo1155",
-		"r/demo/boards",
-		"r/demo/banktest",
-		"r/demo/types",
-		"r/demo/markdown_test",
-		"r/gnoland/blog",
-		"r/gnoland/faucet",
-		"r/system/validators",
-		"r/system/names",
-		"r/system/rewards",
-		"r/demo/deep/very/deep",
-	} {
+
+	// List initial packages to load from examples.
+	pkgs, err := gnomod.ListPkgs(filepath.Join("..", "examples"))
+	if err != nil {
+		panic(fmt.Errorf("listing gno packages: %w", err))
+	}
+
+	// Sort packages by dependencies.
+	sortedPkgs, err := pkgs.Sort()
+	if err != nil {
+		panic(fmt.Errorf("sorting packages: %w", err))
+	}
+
+	// Filter out draft packages.
+	nonDraftPkgs := sortedPkgs.GetNonDraftPkgs()
+
+	for _, pkg := range nonDraftPkgs {
 		// open files in directory as MemPackage.
-		fsPath := filepath.Join("..", "examples", "gno.land", path)
-		importPath := "gno.land/" + path
-		memPkg := gno.ReadMemPackage(fsPath, importPath)
+		memPkg := gno.ReadMemPackage(pkg.Path(), pkg.Name())
 		var tx std.Tx
 		tx.Msgs = []std.Msg{
 			vmm.MsgAddPackage{
