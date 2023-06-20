@@ -57,38 +57,27 @@ func runSuite(t *testing.T, tempdir string) {
 	require.True(t, acc.Coins.IsAllGTE(minCoins),
 		"test1 account coins expected at least %s, got %s", minCoins, acc.Coins)
 
-	// add gno.land/r/demo/tests/subtests package
-	dockerExec(t,
-		`echo 'pass' | gnokey maketx addpkg -insecure-password-stdin \
-			-gas-fee 1000000ugnot -gas-wanted 2000000 \
-			-broadcast -chainid dev \
-			-pkgdir /opt/gno/src/examples/gno.land/r/demo/tests/subtests \
-			-pkgpath gno.land/r/demo/tests/subtests \
-			-deposit 100000000ugnot \
-			test1`,
-	)
-
-	// add gno.land/r/demo/tests package
+	// add gno.land/r/demo/tests package as tests_copy
 	dockerExec(t,
 		`echo 'pass' | gnokey maketx addpkg -insecure-password-stdin \
 			-gas-fee 1000000ugnot -gas-wanted 2000000 \
 			-broadcast -chainid dev \
 			-pkgdir /opt/gno/src/examples/gno.land/r/demo/tests/ \
-			-pkgpath gno.land/r/demo/tests \
+			-pkgpath gno.land/r/demo/tests_copy \
 			-deposit 100000000ugnot \
 			test1`,
 	)
-	// assert gno.land/r/demo/tests has been added
+	// assert gno.land/r/demo/tests_copy has been added
 	var qfuncs vm.FunctionSignatures
-	dockerExec_gnokeyQuery(t, `-data "gno.land/r/demo/tests" vm/qfuncs`, &qfuncs)
-	require.True(t, len(qfuncs) > 0, "gno.land/r/demo/tests not added")
+	dockerExec_gnokeyQuery(t, `-data "gno.land/r/demo/tests_copy" vm/qfuncs`, &qfuncs)
+	require.True(t, len(qfuncs) > 0, "gno.land/r/demo/tests_copy not added")
 
 	// broadcast a package TX
 	dockerExec(t,
 		`echo 'pass' | gnokey maketx call -insecure-password-stdin \
 			-gas-fee 1000000ugnot -gas-wanted 2000000 \
 			-broadcast -chainid dev \
-			-pkgpath "gno.land/r/demo/tests" -func "InitTestNodes" \
+			-pkgpath "gno.land/r/demo/tests_copy" -func "InitTestNodes" \
 			test1`,
 	)
 }
