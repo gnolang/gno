@@ -1,6 +1,9 @@
 package doc
 
 import (
+	"bytes"
+	"log"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -9,29 +12,97 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func getwd(t *testing.T) string {
+	t.Helper()
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	return wd
+}
+
+func wdJoin(t *testing.T, arg string) string {
+	t.Helper()
+	return filepath.Join(getwd(t), arg)
+}
+
+func TestNewDirs_nonExisting(t *testing.T) {
+	old := log.Default().Writer()
+	var buf bytes.Buffer
+	log.Default().SetOutput(&buf)
+	defer func() { log.Default().SetOutput(old) }() // in case of panic
+
+	// git doesn't track empty directories; so need to create this one on our own.
+	de := wdJoin(t, "testdata/dirsempty")
+	require.NoError(t, os.MkdirAll(de, 0o755))
+
+	d := newDirs([]string{wdJoin(t, "non/existing/dir"), de}, []string{wdJoin(t, "and/this/one/neither")})
+	for _, ok := d.Next(); ok; _, ok = d.Next() { //nolint:revive
+	}
+	log.Default().SetOutput(old)
+	assert.Empty(t, d.hist, "hist should be empty")
+	assert.Equal(t, strings.Count(buf.String(), "\n"), 2, "output should contain 2 lines")
+	assert.Contains(t, buf.String(), "non/existing/dir: no such file or directory")
+	assert.Contains(t, buf.String(), "this/one/neither/gno.mod: no such file or directory")
+	assert.NotContains(t, buf.String(), "dirsempty: no such file or directory")
+}
+
+func TestNewDirs_invalidModDir(t *testing.T) {
+	old := log.Default().Writer()
+	var buf bytes.Buffer
+	log.Default().SetOutput(&buf)
+	defer func() { log.Default().SetOutput(old) }() // in case of panic
+
+	d := newDirs(nil, []string{wdJoin(t, "testdata/dirs")})
+	for _, ok := d.Next(); ok; _, ok = d.Next() { //nolint:revive
+	}
+	log.Default().SetOutput(old)
+	assert.Empty(t, d.hist, "hist should be len 0 (testdata/dirs is not a valid mod dir)")
+	assert.Equal(t, strings.Count(buf.String(), "\n"), 1, "output should contain 1 line")
+	assert.Contains(t, buf.String(), "gno.mod: no such file or directory")
+}
+
 func tNewDirs(t *testing.T) (string, *bfsDirs) {
 	t.Helper()
-	p, err := filepath.Abs("./testdata/dirs")
-	require.NoError(t, err)
-	return p, newDirs(p)
+
+	// modify GNO_HOME to testdata/dirsdep -- this allows us to test
+	// dependency lookup by dirs.
+	old, ex := os.LookupEnv("GNO_HOME")
+	os.Setenv("GNO_HOME", wdJoin(t, "testdata/dirsdep"))
+	t.Cleanup(func() {
+		if ex {
+			os.Setenv("GNO_HOME", old)
+		} else {
+			os.Unsetenv("GNO_HOME")
+		}
+	})
+
+	return wdJoin(t, "testdata"),
+		newDirs([]string{wdJoin(t, "testdata/dirs")}, []string{wdJoin(t, "testdata/dirsmod")})
 }
 
 func TestDirs_findPackage(t *testing.T) {
-	abs, d := tNewDirs(t)
+	td, d := tNewDirs(t)
 	tt := []struct {
 		name string
 		res  []bfsDir
 	}{
 		{"rand", []bfsDir{
-			{importPath: "rand", dir: filepath.Join(abs, "rand")},
-			{importPath: "crypto/rand", dir: filepath.Join(abs, "crypto/rand")},
-			{importPath: "math/rand", dir: filepath.Join(abs, "math/rand")},
+			{importPath: "rand", dir: filepath.Join(td, "dirs/rand")},
+			{importPath: "crypto/rand", dir: filepath.Join(td, "dirs/crypto/rand")},
+			{importPath: "math/rand", dir: filepath.Join(td, "dirs/math/rand")},
+			{importPath: "dirs.mod/prefix/math/rand", dir: filepath.Join(td, "dirsmod/math/rand")},
 		}},
 		{"crypto/rand", []bfsDir{
-			{importPath: "crypto/rand", dir: filepath.Join(abs, "crypto/rand")},
+			{importPath: "crypto/rand", dir: filepath.Join(td, "dirs/crypto/rand")},
+		}},
+		{"dep", []bfsDir{
+			{importPath: "dirs.mod/dep", dir: filepath.Join(td, "dirsdep/pkg/mod/dirs.mod/dep")},
+		}},
+		{"alpha", []bfsDir{
+			{importPath: "dirs.mod/dep/alpha", dir: filepath.Join(td, "dirsdep/pkg/mod/dirs.mod/dep/alpha")},
+			// no testdir/module/alpha as it is inside a module
 		}},
 		{"math", []bfsDir{
-			{importPath: "math", dir: filepath.Join(abs, "math")},
+			{importPath: "math", dir: filepath.Join(td, "dirs/math")},
 		}},
 		{"ath", []bfsDir{}},
 		{"/math", []bfsDir{}},
@@ -47,22 +118,23 @@ func TestDirs_findPackage(t *testing.T) {
 }
 
 func TestDirs_findDir(t *testing.T) {
-	abs, d := tNewDirs(t)
+	td, d := tNewDirs(t)
 	tt := []struct {
 		name string
 		in   string
 		res  []bfsDir
 	}{
-		{"rand", filepath.Join(abs, "rand"), []bfsDir{
-			{importPath: "rand", dir: filepath.Join(abs, "rand")},
+		{"rand", filepath.Join(td, "dirs/rand"), []bfsDir{
+			{importPath: "rand", dir: filepath.Join(td, "dirs/rand")},
 		}},
-		{"crypto/rand", filepath.Join(abs, "crypto/rand"), []bfsDir{
-			{importPath: "crypto/rand", dir: filepath.Join(abs, "crypto/rand")},
+		{"crypto/rand", filepath.Join(td, "dirs/crypto/rand"), []bfsDir{
+			{importPath: "crypto/rand", dir: filepath.Join(td, "dirs/crypto/rand")},
 		}},
 		// ignored (dir name testdata), so should not return anything.
-		{"crypto/testdata/rand", filepath.Join(abs, "crypto/testdata/rand"), nil},
-		{"xx", filepath.Join(abs, "xx"), nil},
+		{"crypto/testdata/rand", filepath.Join(td, "dirs/crypto/testdata/rand"), nil},
+		{"xx", filepath.Join(td, "dirs/xx"), nil},
 		{"xx2", "/xx2", nil},
+		{"2xx", "/2xx", nil},
 	}
 	for _, tc := range tt {
 		tc := tc

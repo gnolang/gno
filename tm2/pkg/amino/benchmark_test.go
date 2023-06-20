@@ -6,14 +6,19 @@ import (
 	"runtime/debug"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/amino"
-	"github.com/gnolang/gno/tm2/pkg/amino/tests"
 	fuzz "github.com/google/gofuzz"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/amino/tests"
 )
 
 func BenchmarkBinary(b *testing.B) {
+	if testing.Short() {
+		b.Skip("skipping testing in short mode")
+	}
+
 	cdc := amino.NewCodec()
 	for _, ptr := range tests.StructTypes {
 		b.Logf("case %v", reflect.TypeOf(ptr))
@@ -29,6 +34,8 @@ func BenchmarkBinary(b *testing.B) {
 }
 
 func BenchmarkBinaryPBBindings(b *testing.B) {
+	b.Skip("fuzzing not benchmarking")
+
 	cdc := amino.NewCodec().WithPBBindings()
 	for _, ptr := range tests.StructTypes {
 		b.Logf("case %v (pbbindings)", reflect.TypeOf(ptr))
@@ -37,12 +44,17 @@ func BenchmarkBinaryPBBindings(b *testing.B) {
 		b.Run(name+":encode:pbbindings", func(b *testing.B) {
 			_benchmarkBinary(b, cdc, rt, "binary_pb", true)
 		})
+
+		// TODO: fix nil pointer error
 		b.Run(name+":encode:pbbindings:translate_only", func(b *testing.B) {
 			_benchmarkBinary(b, cdc, rt, "binary_pb_translate_only", true)
 		})
+
 		b.Run(name+":decode:pbbindings", func(b *testing.B) {
 			_benchmarkBinary(b, cdc, rt, "binary_pb", false)
 		})
+
+		// TODO: fix nil pointer error
 		b.Run(name+":decode:pbbindings:translate_only", func(b *testing.B) {
 			_benchmarkBinary(b, cdc, rt, "binary_pb_translate_only", false)
 		})

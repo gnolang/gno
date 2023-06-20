@@ -7,7 +7,7 @@ Main repository can't reference separate code, causing potential development iss
 
 ## Usage
 
-Our recommendation is to use the [gno](../gnolang/cmd/gno) utility to develop contracts locally before publishing them on-chain.
+Our recommendation is to use the [gno](../gnovm/cmd/gno) utility to develop contracts locally before publishing them on-chain.
 This approach offers a faster and streamlined workflow, along with additional debugging features.
 Simply fork or create new contracts and refer to the Makefile.
 Once everything looks good locally, you can then publish it on a localnet or testnet.
