@@ -10,6 +10,8 @@ on:
         type: string
 jobs:
   benchmarks:
+    # Deactivate temporally this workflow until we have a self hosted runner.
+    if: ${{ false }} 
     runs-on: ubuntu-latest
     steps:
     - name: checkout
