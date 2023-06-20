@@ -170,16 +170,12 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 	}
 	defer os.RemoveAll(tempdirRoot)
 
-	// go.mod
-	modPath := filepath.Join(tempdirRoot, "go.mod")
-	err = makeTestGoMod(modPath, gno.ImportPrefix, "1.20")
-	if err != nil {
-		return fmt.Errorf("write .mod file: %w", err)
-	}
-
 	// guess opts.RootDir
 	if cfg.rootDir == "" {
-		cfg.rootDir = guessRootDir()
+		cfg.rootDir = os.Getenv("GNO_ROOT")
+		if cfg.rootDir == "" {
+			return errors.New("GNO_ROOT not set")
+		}
 	}
 
 	paths, err := gnoPackagesFromArgs(args)
@@ -203,15 +199,57 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 		return fmt.Errorf("list sub packages: %w", err)
 	}
 
+	workingDir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
 	buildErrCount := 0
 	testErrCount := 0
 	for _, pkg := range subPkgs {
+		absPkgPath, err := filepath.Abs(pkg.Dir)
+		if err != nil {
+			return err
+		}
+
+		gnoModDir, err := gnomod.FindRootDir(absPkgPath)
+		if err != nil {
+			io.ErrPrintln("FAIL")
+			io.ErrPrintfln("FAIL    %s: gno.mod not found", pkg.Dir)
+			io.ErrPrintln("FAIL")
+
+			continue
+		}
+		modPath := filepath.Join(gnoModDir, "gno.mod")
+		// read gno.mod
+		data, err := os.ReadFile(modPath)
+		if err != nil {
+			return fmt.Errorf("readfile %q: %w", modPath, err)
+		}
+		// parse gno.mod
+		gnoMod, err := gnomod.Parse(modPath, data)
+		if err != nil {
+			return fmt.Errorf("parse: %w", err)
+		}
+		// sanitize gno.mod
+		gnoMod.Sanitize()
+		// validate gno.mod
+		if err := gnoMod.Validate(); err != nil {
+			return fmt.Errorf("validate: %w", err)
+		}
+		// fetch dependencies
+		// TODO: remote should be configurable
+		if err := gnoMod.FetchDeps(gnomod.GetGnoModPath(), "staging.gno.land:36657", false); err != nil {
+			return fmt.Errorf("fetch: %w", err)
+		}
+
 		if cfg.precompile {
 			if verbose {
 				io.ErrPrintfln("=== PREC  %s", pkg.Dir)
 			}
 			precompileOpts := newPrecompileOptions(&precompileCfg{
-				output: tempdirRoot,
+				output:      tempdirRoot,
+				skipImports: true,
 			})
 			err := precompilePkg(importPath(pkg.Dir), precompileOpts)
 			if err != nil {
@@ -231,6 +269,19 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 			if err != nil {
 				return errors.New("cannot resolve build dir")
 			}
+
+			os.Chdir(tempDir)
+
+			gomod, err := gnomod.GnoToGoMod(*gnoMod)
+			if err != nil {
+				return fmt.Errorf("sanitize: %w", err)
+			}
+			// write go.mod file
+			err = gomod.WriteToPath(tempDir)
+			if err != nil {
+				return fmt.Errorf("write go.mod file: %w", err)
+			}
+
 			err = goBuildFileOrPkg(tempDir, defaultBuildOptions)
 			if err != nil {
 				io.ErrPrintln(err)
@@ -239,8 +290,11 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 				io.ErrPrintln("FAIL")
 
 				buildErrCount++
+				os.Chdir(workingDir)
 				continue
 			}
+
+			os.Chdir(workingDir)
 		}
 
 		if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {

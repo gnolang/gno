@@ -13,6 +13,7 @@ import (
 	"time"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	gnomod "github.com/gnolang/gno/gnovm/pkg/gnomod"
 )
 
 func isGnoFile(f fs.DirEntry) bool {
@@ -148,7 +149,7 @@ func getPathsFromImportSpec(importSpec []*ast.ImportSpec) (importPaths []importP
 // e.g
 // Output Dir: Temp/gno-precompile
 // Pkg Path: ../example/gno.land/p/pkg
-// Returns -> Temp/gno-precompile/example/gno.land/p/pkg
+// Returns -> Temp/gno-precompile/pkg
 func ResolvePath(output string, path importPath) (string, error) {
 	absOutput, err := filepath.Abs(output)
 	if err != nil {
@@ -158,9 +159,13 @@ func ResolvePath(output string, path importPath) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	pkgPath := strings.TrimPrefix(absPkgPath, guessRootDir())
+	pkgRootPath, err := gnomod.FindRootDir(absPkgPath)
+	if err != nil {
+		return "", err
+	}
+	stagingPath := strings.TrimPrefix(absPkgPath, filepath.Dir(pkgRootPath))
 
-	return filepath.Join(absOutput, pkgPath), nil
+	return filepath.Join(absOutput, stagingPath), nil
 }
 
 // WriteDirFile write file to the path and also create
