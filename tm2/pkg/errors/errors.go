@@ -94,6 +94,18 @@ func (err *cmnError) Error() string {
 	return fmt.Sprintf("%v", err)
 }
 
+// Implements Unwrap method for compat with stdlib errors.Is()/As().
+func (err *cmnError) Unwrap() error {
+	if err.data == nil {
+		return nil
+	}
+	werr, ok := err.data.(error)
+	if !ok {
+		return nil
+	}
+	return werr
+}
+
 // Captures a stacktrace if one was not already captured.
 func (err *cmnError) Stacktrace() Error {
 	if err.stacktrace == nil {
