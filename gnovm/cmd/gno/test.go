@@ -20,6 +20,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/random"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -164,11 +165,12 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 
 	verbose := cfg.verbose
 
-	tempdirRoot, err := os.MkdirTemp("", "gno-precompile")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.RemoveAll(tempdirRoot)
+	tempdirRoot := "/Users/harry/Desktop/work/gno/temp"
+	// tempdirRoot, err := os.MkdirTemp("", "gno-precompile")
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// defer os.RemoveAll(tempdirRoot)
 
 	// guess opts.RootDir
 	if cfg.rootDir == "" {
@@ -239,8 +241,13 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 		}
 		// fetch dependencies
 		// TODO: remote should be configurable
-		if err := gnoMod.FetchDeps(gnomod.GetGnoModPath(), "staging.gno.land:36657", false); err != nil {
+		if err := gnoMod.FetchDeps(gnomod.GetGnoModPath(), "localhost:26657", verbose); err != nil {
 			return fmt.Errorf("fetch: %w", err)
+		}
+
+		err = copyDir(gnoModDir, filepath.Join(client.HomeDir(), "pkg", "mod", gnoMod.Module.Mod.Path))
+		if err != nil {
+			return fmt.Errorf("copy: %w", err)
 		}
 
 		if cfg.precompile {
