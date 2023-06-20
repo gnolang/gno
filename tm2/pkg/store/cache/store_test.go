@@ -8,7 +8,6 @@ import (
 
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/random"
-
 	"github.com/gnolang/gno/tm2/pkg/store/cache"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
@@ -524,6 +523,10 @@ func BenchmarkCacheStoreGetNoKeyFound(b *testing.B) {
 }
 
 func BenchmarkCacheStoreGetKeyFound(b *testing.B) {
+	if testing.Short() {
+		b.Skip("skipping testing in short mode")
+	}
+
 	st := newCacheStore()
 	for i := 0; i < b.N; i++ {
 		arr := []byte{byte((i & 0xFF0000) >> 16), byte((i & 0xFF00) >> 8), byte(i & 0xFF)}
