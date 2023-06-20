@@ -228,7 +228,7 @@ timeout_commit = "1s"
 skip_timeout_commit = false
 
 # EmptyBlocks mode and possible interval between empty blocks
-create_empty_blocks = false
+create_empty_blocks = true
 create_empty_blocks_interval = "1m0s"
 
 # Reactor sleep duration parameters

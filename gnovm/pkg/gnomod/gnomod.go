@@ -20,6 +20,19 @@ func GetGnoModPath() string {
 	return filepath.Join(client.HomeDir(), "pkg", "mod")
 }
 
+// PackageDir resolves a given module.Version to the path on the filesystem.
+// If root is dir, it is defaulted to the value of [GetGnoModPath].
+func PackageDir(root string, v module.Version) string {
+	// This is also used internally exactly like filepath.Join; but we'll keep
+	// the calls centralized to make sure we can change the path centrally should
+	// we start including the module version in the path.
+
+	if root == "" {
+		root = GetGnoModPath()
+	}
+	return filepath.Join(root, v.Path)
+}
+
 func writePackage(remote, basePath, pkgPath string) (requirements []string, err error) {
 	res, err := queryChain(remote, queryPathFile, []byte(pkgPath))
 	if err != nil {
@@ -150,15 +163,15 @@ func GnoToGoMod(f File) (*File, error) {
 	return &f, nil
 }
 
-func isReplaced(module module.Version, repl []*modfile.Replace) (*module.Version, bool) {
+func isReplaced(mod module.Version, repl []*modfile.Replace) (module.Version, bool) {
 	for _, r := range repl {
-		hasNoVersion := r.Old.Path == module.Path && r.Old.Version == ""
-		hasExactVersion := r.Old == module
+		hasNoVersion := r.Old.Path == mod.Path && r.Old.Version == ""
+		hasExactVersion := r.Old == mod
 		if hasNoVersion || hasExactVersion {
-			return &r.New, true
+			return r.New, true
 		}
 	}
-	return nil, false
+	return module.Version{}, false
 }
 
 func removeDuplicateStr(str []string) (res []string) {

@@ -18,6 +18,10 @@ func TestBoltDBNewBoltDB(t *testing.T) {
 }
 
 func BenchmarkBoltDBRandomReadsWrites(b *testing.B) {
+	if testing.Short() {
+		b.Skip("skipping testing in short mode")
+	}
+
 	name := fmt.Sprintf("test_%x", randStr(12))
 	db, err := NewBoltDB(name, b.TempDir())
 	if err != nil {
