@@ -34,6 +34,7 @@ type Machine struct {
 	Exceptions []*TypedValue // if panic'd unless recovered
 	NumResults int           // number of results returned
 	Cycles     int64         // number of "cpu" cycles
+	Injector   func(store Store, pn *PackageNode)
 
 	// Configuration
 	CheckTypes bool // not yet used
@@ -45,14 +46,15 @@ type Machine struct {
 	Context interface{}
 }
 
-// machine.Release() must be called on objects
-// created via this constructor
-// Machine with new package of given path.
-// Creates a new MemRealmer for any new realms.
-// Looks in store for package of pkgPath; if not found,
-// creates new instances as necessary.
-// If pkgPath is zero, the machine has no active package
-// and one must be set prior to usage.
+// NewMachine initializes a new gno virtual machine, acting as a shorthand
+// for [NewMachineWithOptions], setting the given options PkgPath and Store.
+//
+// The machine will run on the package at the given path, which will be
+// retrieved through the given store. If it is not set, the machine has no
+// active package, and one must be set prior to usage.
+//
+// Like for [NewMachineWithOptions], Machines initialized through this
+// constructor must be finalized with [Machine.Release].
 func NewMachine(pkgPath string, store Store) *Machine {
 	return NewMachineWithOptions(
 		MachineOptions{
@@ -61,16 +63,19 @@ func NewMachine(pkgPath string, store Store) *Machine {
 		})
 }
 
+// MachineOptions is used to pass options to [NewMachineWithOptions].
 type MachineOptions struct {
+	// Active package of the given machine; must be set before execution.
 	PkgPath       string
 	CheckTypes    bool // not yet used
 	ReadOnly      bool
-	Output        io.Writer
-	Store         Store
+	Output        io.Writer // default os.Stdout
+	Store         Store     // default NewStore(Alloc, nil, nil)
 	Context       interface{}
 	Alloc         *Allocator // or see MaxAllocBytes.
 	MaxAllocBytes int64      // or 0 for no limit.
 	MaxCycles     int64      // or 0 for no limit.
+	Injector      func(store Store, pn *PackageNode)
 }
 
 // the machine constructor gets spammed
@@ -86,6 +91,11 @@ var machinePool = sync.Pool{
 	},
 }
 
+// NewMachineWithOptions initializes a new gno virtual machine with the given
+// options.
+//
+// Machines initialized through this constructor must be finalized with
+// [Machine.Release].
 func NewMachineWithOptions(opts MachineOptions) *Machine {
 	checkTypes := opts.CheckTypes
 	readOnly := opts.ReadOnly
@@ -129,6 +139,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		Output:     output,
 		Store:      store,
 		Context:    context,
+		Injector:   opts.Injector,
 	}
 
 	if pv != nil {
@@ -147,13 +158,11 @@ var (
 	valueZeroed [ValueSize]TypedValue
 )
 
-// m should not be used after this call
-// if m is nil, this will panic
-// this is on purpose, to discourage misuse
-// and prevent objects that were not taken from
-// the pool, to call Release
+// Release resets some of the values of *Machine and puts back m into the
+// machine pool; for this reason, Release() should be called as a finalizer,
+// and m should not be used after this call. Only Machines initialized with this
+// package's constructors should be released.
 func (m *Machine) Release() {
-	// copy()
 	// here we zero in the values for the next user
 	m.NumOps = 0
 	m.NumValues = 0

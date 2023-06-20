@@ -1089,14 +1089,22 @@ func PackageNameFromFileBody(name string, body string) Name {
 	return n.PkgName
 }
 
-// NOTE: panics if package name is invalid.
+// ReadMemPackage initializes a new MemPackage by reading the OS directory
+// at dir, and saving it with the given pkgPath (import path).
+// The resulting MemPackage will contain the names and content of all *.gno files,
+// and additionally README.md, LICENSE, and gno.mod.
+//
+// ReadMemPackage does not perform validation aside from the package's name;
+// the files are not parsed but their contents are merely stored inside a MemFile.
+//
+// NOTE: panics if package name is invalid (characters must be alphanumeric or _,
+// lowercase, and must start with a letter).
 func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
 		panic(err)
 	}
 	memPkg := &std.MemPackage{Path: pkgPath}
-	var pkgName Name
 	allowedFiles := []string{ // make case insensitive?
 		"gno.mod",
 		"LICENSE",
@@ -1105,6 +1113,7 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 	allowedFileExtensions := []string{
 		".gno",
 	}
+	var pkgName Name
 	for _, file := range files {
 		if file.IsDir() ||
 			strings.HasPrefix(file.Name(), ".") ||
@@ -1116,6 +1125,7 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 		if err != nil {
 			panic(err)
 		}
+		// XXX: should check that all pkg names are the same (else package is invalid)
 		if pkgName == "" && strings.HasSuffix(file.Name(), ".gno") {
 			pkgName = PackageNameFromFileBody(file.Name(), string(bz))
 			if strings.HasSuffix(string(pkgName), "_test") {
@@ -1133,33 +1143,29 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 	return memPkg
 }
 
-func PrecompileMemPackage(memPkg *std.MemPackage) error {
-	return nil
-}
-
-// Returns the code fileset minus any spurious or test files.
+// ParseMemPackage executes [ParseFile] on each file of the memPkg, excluding
+// test and spurious (non-gno) files. The resulting *FileSet is returned.
+//
+// If one of the files has a different package name than memPkg.Name,
+// or [ParseFile] returns an error, ParseMemPackage panics.
 func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 	fset = &FileSet{}
 	for _, mfile := range memPkg.Files {
-		if !strings.HasSuffix(mfile.Name, ".gno") {
-			continue // skip spurious file.
+		if !strings.HasSuffix(mfile.Name, ".gno") ||
+			endsWith(mfile.Name, []string{"_test.gno", "_filetest.gno"}) {
+			continue // skip spurious or test file.
 		}
 		n, err := ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
 			panic(errors.Wrap(err, "parsing file "+mfile.Name))
 		}
-		if strings.HasSuffix(mfile.Name, "_test.gno") {
-			// skip test file.
-		} else if strings.HasSuffix(mfile.Name, "_filetest.gno") {
-			// skip test file.
-		} else if memPkg.Name == string(n.PkgName) {
-			// add package file.
-			fset.AddFiles(n)
-		} else {
+		if memPkg.Name != string(n.PkgName) {
 			panic(fmt.Sprintf(
-				"expected package name [%s] or [%s_test] but got [%s]",
-				memPkg.Name, memPkg.Name, n.PkgName))
+				"expected package name [%s] but got [%s]",
+				memPkg.Name, n.PkgName))
 		}
+		// add package file.
+		fset.AddFiles(n)
 	}
 	return fset
 }
@@ -1370,11 +1376,16 @@ func (x *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*M
 		panic("DefineNative expects a function, but got nil")
 	}
 
-	if idx, exists := x.GetLocalIndex(n); exists {
-		// XXX(morgan): trick to look as a new definition to Define2;
-		// if we try to redefine an old value it looks like precompile
-		// is not cooperating well with us...
-		x.Names[idx] = "#uncallable_" + x.Names[idx]
+	if v := x.GetValueRef(nil, n); v != nil {
+		// redefinition
+		fv, ok := v.V.(*FuncValue)
+		if !ok {
+			panic("cannot redefine non-function as native function")
+		}
+		// XXX: type-check
+		fv.body = nil
+		fv.nativeBody = native
+		return
 	}
 
 	fd := FuncD(n, ps, rs, nil)
@@ -2023,6 +2034,7 @@ const (
 )
 
 // TODO: consider length restrictions.
+// If this function is changed, ReadMemPackage's documentation should be updated accordingly.
 func validatePkgName(name string) {
 	if nameOK, _ := regexp.MatchString(
 		`^[a-z][a-z0-9_]+$`, name); !nameOK {

@@ -35,45 +35,8 @@ func (vm *VMKeeper) initBuiltinPackagesAndTypes(store gno.Store) {
 		return m2.RunMemPackage(memPkg, true)
 	}
 	store.SetPackageGetter(getPackage)
-	store.SetPackageInjector(vm.packageInjector)
+	store.SetPackageInjector(stdlibs.InjectPackage)
 	stdlibs.InjectNativeMappings(store)
-}
-
-func (vm *VMKeeper) packageInjector(store gno.Store, pn *gno.PackageNode) {
-	// Also inject stdlibs native functions.
-	stdlibs.InjectPackage(store, pn)
-	// vm (this package) specific injections:
-	switch pn.PkgPath {
-	case "std":
-		/* XXX deleteme
-		// Also see stdlibs/InjectPackage.
-		pn.DefineNative("AssertOriginCall",
-			gno.Flds( // params
-			),
-			gno.Flds( // results
-			),
-			func(m *gno.Machine) {
-				isOrigin := len(m.Frames) == 2
-				if !isOrigin {
-					panic("invalid non-origin call")
-				}
-			},
-		)
-		pn.DefineNative("IsOriginCall",
-			gno.Flds( // params
-			),
-			gno.Flds( // results
-				"isOrigin", "bool",
-			),
-			func(m *gno.Machine) {
-				isOrigin := len(m.Frames) == 2
-				res0 := gno.TypedValue{T: gno.BoolType}
-				res0.SetBool(isOrigin)
-				m.PushValue(res0)
-			},
-		)
-		*/
-	}
 }
 
 // ----------------------------------------

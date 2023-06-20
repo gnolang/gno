@@ -58,6 +58,9 @@ func (m *Machine) doOpCall() {
 	clo := fr.Func.GetClosure(m.Store)
 	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)
 	m.PushBlock(b)
+	if fv.Name == "now" {
+		fmt.Printf("CALL NOW %#v\n", fv)
+	}
 	if fv.nativeBody == nil {
 		fbody := fv.GetBodyFromSource(m.Store)
 		if len(ft.Results) == 0 {

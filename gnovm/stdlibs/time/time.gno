@@ -80,8 +80,6 @@ package time
 
 import (
 	"errors"
-
-	ios "internal/os" // XXX to access time.
 	// XXX _ "unsafe" // for go:linkname
 )
 
@@ -1071,17 +1069,14 @@ func daysSinceEpoch(year int) uint64 {
 	return d
 }
 
-/* XXX replaced with ios.Now()
-// Provided by package runtime.
 func now() (sec int64, nsec int32, mono int64)
-*/
 
 // XXX SHIM
 // runtimeNano returns the current value of the runtime clock in nanoseconds.
 //
 //go:linkname runtimeNano runtime.nanotime
 func runtimeNano() int64 {
-	_, _, mono := ios.Now() // XXX now()
+	_, _, mono := now()
 	return mono
 }
 
@@ -1095,7 +1090,7 @@ var startNano int64 = runtimeNano() - 1
 
 // Now returns the current local time.
 func Now() Time {
-	sec, nsec, mono := ios.Now() // XXX now()
+	sec, nsec, mono := now()
 	mono -= startNano
 	sec += unixToInternal - minWall
 	if uint64(sec)>>33 != 0 {

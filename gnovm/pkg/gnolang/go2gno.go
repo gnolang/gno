@@ -96,9 +96,11 @@ func MustParseExpr(expr string) Expr {
 	return x
 }
 
-// filename must not include the path.
+// ParseFile uses the Go parser to parse body. It then runs [Go2Gno] on the
+// resulting AST -- the resulting FileNode is returned, together with any other
+// error (including panics, which are recovered) from [Go2Gno].
 func ParseFile(filename string, body string) (fn *FileNode, err error) {
-	// Parse src but stop after processing the imports.
+	// Use go parser to parse the body.
 	fs := token.NewFileSet()
 	f, err := parser.ParseFile(fs, filename, body, parser.ParseComments|parser.DeclarationErrors)
 	if err != nil {
@@ -435,11 +437,11 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		if gon.Body != nil {
 			body = Go2Gno(fs, gon.Body).(*BlockStmt).Body
 		} else {
-			/*bd, err := ParseExpr(`panic("call to bodyless/external function is invalid outside of standard library")`)
+			bd, err := ParseExpr(`panic("call to bodyless/external function is invalid outside of standard library")`)
 			if err != nil {
 				panic(err)
 			}
-			body = []Stmt{&ExprStmt{X: bd}}*/
+			body = []Stmt{&ExprStmt{X: bd}}
 		}
 		return &FuncDecl{
 			IsMethod: isMethod,

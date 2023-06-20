@@ -10,6 +10,7 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	lib0 "github.com/gnolang/gno/gnovm/stdlibs/crypto/sha256"
 	lib1 "github.com/gnolang/gno/gnovm/stdlibs/math"
+	lib2 "github.com/gnolang/gno/gnovm/stdlibs/time"
 )
 
 var nativeFuncs = [...]nativeFunc{
@@ -150,6 +151,38 @@ var nativeFuncs = [...]nativeFunc{
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(r0),
+			))
+		},
+	},
+	{
+		"time",
+		"now",
+
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("int64")},
+			{Name: gno.N("r1"), Type: gno.X("int32")},
+			{Name: gno.N("r2"), Type: gno.X("int64")},
+		},
+		func(m *gno.Machine) {
+			r0, r1, r2 := lib2.X_now(
+				m,
+			)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(r0),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(r1),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(r2),
 			))
 		},
 	},

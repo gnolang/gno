@@ -99,10 +99,12 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 					// NOTE: see also pkgs/sdk/vm/builtins.go
-					// XXX: why does this fail when just pkgPath?
-					PkgPath: "gno.land/r/stdlibs/" + pkgPath,
-					Output:  stdout,
-					Store:   store,
+					// Needs PkgPath != its name because, seeing as we are passing ourselves
+					// as a store, it would recusively call this function on the same package
+					PkgPath:  "stdlibload",
+					Output:   stdout,
+					Store:    store,
+					Injector: testPackageInjector,
 				})
 				return m2.RunMemPackage(memPkg, true)
 			}
@@ -413,9 +415,10 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			if osm.DirExists(stdlibPath) {
 				memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-					PkgPath: "test",
-					Output:  stdout,
-					Store:   store,
+					PkgPath:  "test",
+					Output:   stdout,
+					Store:    store,
+					Injector: testPackageInjector,
 				})
 				pn, pv = m2.RunMemPackage(memPkg, true)
 				return
@@ -442,7 +445,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 	iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
 	store = gno.NewStore(nil, baseStore, iavlStore)
 	store.SetPackageGetter(getPackage)
-	store.SetPackageInjector(testPackageInjector)
+	// store.SetPackageInjector(testPackageInjector)
 	store.SetStrictGo2GnoMapping(false)
 	// native mappings
 	stdlibs.InjectNativeMappings(store)
