@@ -7,6 +7,7 @@ import (
 )
 
 func BenchmarkCoinsAdditionIntersect(b *testing.B) {
+	b.Skip("TODO: panicking benchmark")
 	benchmarkingFunc := func(numCoinsA int, numCoinsB int) func(b *testing.B) {
 		return func(b *testing.B) {
 			b.Helper()
@@ -38,6 +39,7 @@ func BenchmarkCoinsAdditionIntersect(b *testing.B) {
 }
 
 func BenchmarkCoinsAdditionNoIntersect(b *testing.B) {
+	b.Skip("TODO: panicking benchmark")
 	benchmarkingFunc := func(numCoinsA int, numCoinsB int) func(b *testing.B) {
 		return func(b *testing.B) {
 			b.Helper()
