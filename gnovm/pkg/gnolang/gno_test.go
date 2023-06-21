@@ -47,12 +47,16 @@ func TestGCArgs(t *testing.T) {
 
 	c := `package test
 
-func main() {
-	ff := 4
-	printit(&ff)
+type Foo struct {
+  bar int
 }
 
-func printit(i *int) {
+func main() {
+	ff := &Foo{bar: 1}
+	printit(ff)
+}
+
+func printit(i *Foo) {
 	println(i)
 }
 `

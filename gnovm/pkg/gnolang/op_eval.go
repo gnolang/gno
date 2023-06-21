@@ -258,6 +258,12 @@ func (m *Machine) doOpEval() {
 		// Eval args.
 		args := x.Args
 		for i := len(args) - 1; 0 <= i; i-- {
+			if name, ok := args[i].(*NameExpr); ok {
+				if name.IsRoot {
+					root := m.GC.getRootByPath(&name.Path)
+					m.GC.AddRoot(&GCObj{ref: root.ref})
+				}
+			}
 			m.PushExpr(args[i])
 			m.PushOp(OpEval)
 		}

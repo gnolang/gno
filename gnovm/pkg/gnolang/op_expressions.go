@@ -191,6 +191,18 @@ func (m *Machine) doOpRef() {
 		}
 	}
 
+	if _, ok := xv.TV.V.(*StructValue); ok {
+		xv.TV.OnHeap = true
+		xv.TV.ShouldEscape = false
+		gcparent := &GCObj{
+			value: *xv.TV,
+			ref:   nil,
+		}
+		xv.GCParent = gcparent
+
+		m.GC.AddObject(gcparent)
+	}
+
 	//add a root without a path
 	// the next op needs to add a path
 	root := &GCObj{ref: xv.GCParent}

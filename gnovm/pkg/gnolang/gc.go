@@ -130,7 +130,7 @@ func (gc *GC) getRootByPath(path *ValuePath) *GCObj {
 			if obj.path == nil {
 				return obj
 			}
-		} else if obj.path.String() == path.String() {
+		} else if obj.path != nil && obj.path.String() == path.String() {
 			return obj
 		}
 	}
