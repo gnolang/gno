@@ -158,10 +158,13 @@ func (err *cmnError) Format(s fmt.State, verb rune) {
 		// Write stack trace.
 		if err.stacktrace != nil {
 			s.Write([]byte("Stack Trace:\n"))
-			for i, pc := range err.stacktrace {
-				fnc := runtime.FuncForPC(pc)
-				file, line := fnc.FileLine(pc)
-				fmt.Fprintf(s, " %4d  %s:%d\n", i, file, line)
+			frames := runtime.CallersFrames(err.stacktrace)
+			for i := 0; ; i++ {
+				frame, more := frames.Next()
+				fmt.Fprintf(s, " %4d  %s:%d\n", i, frame.File, frame.Line)
+				if !more {
+					break
+				}
 			}
 		}
 		s.Write([]byte("--= /Error =--\n"))
