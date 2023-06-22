@@ -1,5 +1,12 @@
 package utestify
 
+import "testing"
+
 func TestPackage(t *testing.T) {
-	SameStrings(t, "a", "a")
+	if !ShouldEqualStrings(t, "a", "a") {
+		t.Errorf("ShouldSameStrings failed for same string")
+	}
+	if ShouldEqualStrings(t, "a", "b") {
+		t.Errorf("ShouldSameStrings failed for different string")
+	}
 }
