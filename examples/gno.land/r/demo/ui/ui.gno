@@ -14,18 +14,20 @@ func Render(path string) string {
 	// TODO: forms
 	// TODO: comments
 
-	var dom ui.DOM
+	dom := ui.DOM{
+		Prefix: "r/demo/ui:",
+	}
 
 	dom.Title = "UI Demo"
 
-	dom.Header.Append(ui.Breadcrumb(
+	dom.Header.Append(ui.Breadcrumb{
 		ui.Link{Text: "foo", Path: "foo"},
 		ui.Link{Text: "bar", Path: "foo/bar"},
-	))
+	})
 
 	dom.Body.Append(
 		ui.Paragraph("Simple UI demonstration."),
-		ui.BulletList(
+		ui.BulletList{
 			ui.Text("a text"),
 			ui.Link{Text: "a relative link", Path: "foobar"},
 			ui.Text("another text"),
@@ -35,12 +37,12 @@ func Render(path string) string {
 			ui.Text("raw markdown with **bold** text in the middle."),
 			ui.Code("some inline code"),
 			ui.Link{Text: "a remote link", URL: "https://gno.land"},
-		),
+		},
 	)
 
 	dom.Footer.Append(ui.Text("I'm the footer."))
 	dom.Body.Append(ui.Text("another string."))
-	dom.Body.Append(ui.Paragraph("a paragraph."), ui.HR())
+	dom.Body.Append(ui.Paragraph("a paragraph."), ui.HR{})
 
 	return dom.String()
 }

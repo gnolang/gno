@@ -1,9 +1,12 @@
 package ui
 
+import "strings"
+
 type DOM struct {
 	// metadata
-	Prefix string
-	Title  string
+	Prefix       string
+	Title        string
+	WithComments bool
 
 	// elements
 	Header Element
@@ -15,19 +18,37 @@ func (dom DOM) String() string {
 	output := ""
 
 	if dom.Title != "" {
-		output += H1(dom.Title).String() + "\n"
+		output += H1(dom.Title).String(dom) + "\n"
 	}
 
-	if !dom.Header.Empty() {
-		output += dom.Header.Content + "\n"
+	if header := dom.Header.String(dom); header != "" {
+		if dom.WithComments {
+			output += "<!-- header -->"
+		}
+		output += header + "\n"
+		if dom.WithComments {
+			output += "<!-- /header -->"
+		}
 	}
 
-	if !dom.Body.Empty() {
-		output += dom.Body.Content + "\n"
+	if body := dom.Body.String(dom); body != "" {
+		if dom.WithComments {
+			output += "<!-- body -->"
+		}
+		output += body + "\n"
+		if dom.WithComments {
+			output += "<!-- /body -->"
+		}
 	}
 
-	if !dom.Footer.Empty() {
-		output += dom.Footer.Content + "\n"
+	if footer := dom.Footer.String(dom); footer != "" {
+		if dom.WithComments {
+			output += "<!-- footer -->"
+		}
+		output += footer + "\n"
+		if dom.WithComments {
+			output += "<!-- /footer -->"
+		}
 	}
 
 	// TODO: cleanup double new-lines.
@@ -35,29 +56,36 @@ func (dom DOM) String() string {
 	return output
 }
 
-type Element struct {
-	Content string
+// XXX: rename Element to Div?
+type Element []DomStringer
+
+func (e *Element) Append(elems ...DomStringer) {
+	*e = append(*e, elems...)
 }
 
-func (e Element) Empty() bool {
-	return e.Content == ""
-}
-
-func (e *Element) Append(elems ...stringer) {
-	for _, elem := range elems {
-		e.Content += elem.String() + "\n"
-	}
-}
-
-func Breadcrumb(entries ...stringer) stringer {
+func (e *Element) String(dom DOM) string {
 	output := ""
-	for idx, entry := range entries {
+	for _, elem := range *e {
+		output += elem.String(dom) + "\n"
+	}
+	return output
+}
+
+type Breadcrumb []DomStringer
+
+func (b *Breadcrumb) Append(elems ...DomStringer) {
+	*b = append(*b, elems...)
+}
+
+func (b Breadcrumb) String(dom DOM) string {
+	output := ""
+	for idx, entry := range b {
 		if idx > 0 {
 			output += " / "
 		}
-		output += entry.String()
+		output += entry.String(dom)
 	}
-	return Raw{Content: output}
+	return output
 }
 
 type Link struct {
@@ -70,56 +98,79 @@ type Link struct {
 
 // TODO: pager
 
-func (l Link) String() string {
-	// TODO: additional arguments.
-	if l.Path != "" && l.URL != "" {
-		panic("a link should have a path OR a URL.")
+func (l Link) String(dom DOM) string {
+	url := ""
+	switch {
+	case l.Path != "" && l.URL != "":
+		panic("a link should have a path or a URL, not both.")
+	case l.Path != "":
+		url = dom.Prefix + l.Path
+	case l.URL != "":
+		url = l.URL
 	}
 
-	if l.Path != "" {
-		// TODO: prefix
-		l.URL = "prefix" + l.Path
-	}
-	return "[" + l.Text + "](" + l.URL + ")"
+	return "[" + l.Text + "](" + url + ")"
 }
 
-func Paragraph(s string) stringer {
-	return Raw{Content: "\n" + s + "\n"}
-}
+type BulletList []DomStringer
 
-func BulletList(entries ...stringer) stringer {
+func (bl BulletList) String(dom DOM) string {
 	output := ""
 
-	for _, entry := range entries {
-		output += "- " + entry.String() + "\n"
+	for _, entry := range bl {
+		output += "- " + entry.String(dom) + "\n"
 	}
 
-	return Raw{Content: output}
+	return output
 }
 
-func Text(s string) stringer {
+func Text(s string) DomStringer {
 	return Raw{Content: s}
 }
 
-type stringer interface {
-	String() string
+type DomStringer interface {
+	String(dom DOM) string
 }
 
 type Raw struct {
 	Content string
 }
 
-func (r Raw) String() string {
+func (r Raw) String(_ DOM) string {
 	return r.Content
 }
 
-func H1(text string) stringer     { return Raw{Content: "# " + text + "\n"} }
-func H2(text string) stringer     { return Raw{Content: "## " + text + "\n"} }
-func H3(text string) stringer     { return Raw{Content: "### " + text + "\n"} }
-func H4(text string) stringer     { return Raw{Content: "#### " + text + "\n"} }
-func H5(text string) stringer     { return Raw{Content: "##### " + text + "\n"} }
-func H6(text string) stringer     { return Raw{Content: "###### " + text + "\n"} }
-func Bold(text string) stringer   { return Raw{Content: "**" + text + "**"} }
-func Italic(text string) stringer { return Raw{Content: "_" + text + "_"} }
-func Code(text string) stringer   { return Raw{Content: "`" + text + "`"} }
-func HR() stringer                { return Raw{Content: "\n---\n"} }
+type (
+	H1        string
+	H2        string
+	H3        string
+	H4        string
+	H5        string
+	H6        string
+	Bold      string
+	Italic    string
+	Code      string
+	Paragraph string
+	HR        struct{}
+)
+
+func (text H1) String(_ DOM) string        { return "# " + string(text) + "\n" }
+func (text H2) String(_ DOM) string        { return "## " + string(text) + "\n" }
+func (text H3) String(_ DOM) string        { return "### " + string(text) + "\n" }
+func (text H4) String(_ DOM) string        { return "#### " + string(text) + "\n" }
+func (text H5) String(_ DOM) string        { return "##### " + string(text) + "\n" }
+func (text H6) String(_ DOM) string        { return "###### " + string(text) + "\n" }
+func (text Bold) String(_ DOM) string      { return "**" + string(text) + "**" }
+func (text Italic) String(_ DOM) string    { return "_" + string(text) + "_" }
+func (text Paragraph) String(_ DOM) string { return "\n" + string(text) + "\n" }
+func (_ HR) String(_ DOM) string           { return "\n---\n" }
+
+func (text Code) String(_ DOM) string {
+	// multiline
+	if strings.Contains(string(text), "\n") {
+		return "\n```\n" + string(text) + "\n```\n"
+	}
+
+	// single line
+	return "`" + string(text) + "`"
+}
