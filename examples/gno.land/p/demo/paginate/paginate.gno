@@ -5,6 +5,7 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/md"
+	"gno.land/p/demo/ui"
 )
 
 const PaginateGap = 3
@@ -30,12 +31,20 @@ func navigation(numPages int, current int, reverse bool, pageFn pageFn) string {
 	upperLimit := min(PaginateGap+1, current)
 	for ; i < upperLimit; i++ {
 		pageurl := pageFn(i, numPages, reverse)
-		str += md.Link(strconv.Itoa(i), pageurl) + " "
+		link := ui.Link{
+			Text: strconv.Itoa(i),
+			URL:  md.EscMDURL(pageurl),
+		}
+		str += link.String() + " "
 	}
 	if i-1 == PaginateGap && i != current {
 		if i == current-PaginateGap/2 {
 			pageurl := pageFn(i, numPages, reverse)
-			str += md.Link(strconv.Itoa(i), pageurl) + " "
+			link := ui.Link{
+				Text: strconv.Itoa(i),
+				URL:  md.EscMDURL(pageurl),
+			}
+			str += link.String() + " "
 			i += 1
 		} else {
 			str += "... "
@@ -46,7 +55,11 @@ func navigation(numPages int, current int, reverse bool, pageFn pageFn) string {
 	if current > numPages {
 		for i = numPages - PaginateGap + 1; i <= numPages; i++ {
 			pageurl := pageFn(i, numPages, reverse)
-			str += md.Link(strconv.Itoa(i), pageurl) + " "
+			link := ui.Link{
+				Text: strconv.Itoa(i),
+				URL:  md.EscMDURL(pageurl),
+			}
+			str += link.String() + " "
 		}
 		return str
 	}
@@ -62,12 +75,20 @@ func navigation(numPages int, current int, reverse bool, pageFn pageFn) string {
 			continue
 		}
 		pageurl := pageFn(i, numPages, reverse)
-		str += md.Link(strconv.Itoa(i), pageurl) + " "
+		link := ui.Link{
+			Text: strconv.Itoa(i),
+			URL:  md.EscMDURL(pageurl),
+		}
+		str += link.String() + " "
 	}
 	if i < numPages-PaginateGap+1 {
 		if i == numPages-PaginateGap {
 			pageurl := pageFn(i, numPages, reverse)
-			str += md.Link(strconv.Itoa(i), pageurl) + " "
+			link := ui.Link{
+				Text: strconv.Itoa(i),
+				URL:  md.EscMDURL(pageurl),
+			}
+			str += link.String() + " "
 		} else {
 			str += "... "
 		}
@@ -75,7 +96,11 @@ func navigation(numPages int, current int, reverse bool, pageFn pageFn) string {
 	}
 	for ; i <= numPages; i++ {
 		pageurl := pageFn(i, numPages, reverse)
-		str += md.Link(strconv.Itoa(i), pageurl) + " "
+		link := ui.Link{
+			Text: strconv.Itoa(i),
+			URL:  md.EscMDURL(pageurl),
+		}
+		str += link.String() + " "
 	}
 	return str
 }
@@ -103,6 +128,8 @@ func RenderTreeByPage(
 	}
 
 	str := ""
+	nav := ""
+
 	numPages := (t.Size() / size)
 	if numPages < 1 {
 		return ""
@@ -133,14 +160,16 @@ func RenderTreeByPage(
 		// page out of bounds.
 		// [1](...) [2](...) ... [101](...) [102)(...)
 		// where ... is result of pageFn().
-		str += navigation(numPages, page, reverse, pageFn)
+		nav = navigation(numPages, page, reverse, pageFn)
+		str += nav
 		str += "\n"
 		str += "page " + strconv.Itoa(page) + " out of bounds\n"
 		return str
 	} else {
 		// [1](...) *2* [3](...) [4](...) ... [101](...) [102)(...)
 		// where ... is result of pageFn().
-		str += navigation(numPages, page, reverse, pageFn)
+		nav = navigation(numPages, page, reverse, pageFn)
+		str += nav
 		str += "\n"
 
 		// render tree items
@@ -164,7 +193,8 @@ func RenderTreeByPage(
 	}
 
 	// render pagination again if there are pages.
-	str += navigation(numPages, page, reverse, pageFn)
+	nav = navigation(numPages, page, reverse, pageFn)
+	str += nav
 	str += "\n"
 
 	return str
