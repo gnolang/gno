@@ -36,6 +36,22 @@ func GetOrigSend() Coins {
 	return Coins{}
 }
 
+func CurrentRealm() Realm {
+	panic(shimWarn)
+	return Realm{
+		addr:    Address(""),
+		pkgPath: "",
+	}
+}
+
+func PrevRealm() Realm {
+	panic(shimWarn)
+	return Realm{
+		addr:    Address(""),
+		pkgPath: "",
+	}
+}
+
 func GetOrigCaller() Address {
 	panic(shimWarn)
 	return Address("")

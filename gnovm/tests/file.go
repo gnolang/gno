@@ -13,13 +13,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pmezard/go-difflib/difflib"
-
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/pmezard/go-difflib/difflib"
 )
 
 type loggerFunc func(args ...interface{})

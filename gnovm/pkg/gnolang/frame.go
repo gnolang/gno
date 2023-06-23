@@ -1,6 +1,8 @@
 package gnolang
 
-import "fmt"
+import (
+	"fmt"
+)
 
 //----------------------------------------
 // (runtime) Frame
