@@ -1,4 +1,4 @@
-package utestify
+package uassert
 
 import "testing"
 
