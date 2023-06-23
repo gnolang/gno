@@ -139,7 +139,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		Output:     output,
 		Store:      store,
 		Context:    context,
-		Injector:   opts.Injector,
+		// Injector:   opts.Injector,
 	}
 
 	if pv != nil {

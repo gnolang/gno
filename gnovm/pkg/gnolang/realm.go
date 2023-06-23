@@ -1125,18 +1125,19 @@ func copyValueWithRefs(parent Object, val Value) Value {
 		if cv.Closure != nil {
 			closure = toRefValue(parent, cv.Closure)
 		}
-		if cv.nativeBody != nil {
+		/*if cv.nativeBody != nil {
 			panic("should not happen")
-		}
+		}*/
 		ft := copyTypeWithRefs(cv.Type)
 		return &FuncValue{
-			Type:     ft,
-			IsMethod: cv.IsMethod,
-			Source:   source,
-			Name:     cv.Name,
-			Closure:  closure,
-			FileName: cv.FileName,
-			PkgPath:  cv.PkgPath,
+			Type:       ft,
+			IsMethod:   cv.IsMethod,
+			Source:     source,
+			Name:       cv.Name,
+			Closure:    closure,
+			FileName:   cv.FileName,
+			PkgPath:    cv.PkgPath,
+			nativeBody: cv.nativeBody,
 		}
 	case *BoundMethodValue:
 		fnc := copyValueWithRefs(cv, cv.Func).(*FuncValue)

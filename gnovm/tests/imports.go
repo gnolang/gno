@@ -445,7 +445,8 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 	iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
 	store = gno.NewStore(nil, baseStore, iavlStore)
 	store.SetPackageGetter(getPackage)
-	// store.SetPackageInjector(testPackageInjector)
+	store.SetNativeStore(stdlibs.NativeStore)
+	store.SetPackageInjector(testPackageInjector)
 	store.SetStrictGo2GnoMapping(false)
 	// native mappings
 	stdlibs.InjectNativeMappings(store)

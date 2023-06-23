@@ -21,3 +21,5 @@ type ExecContext struct {
 
 func (e ExecContext) GetTimestamp() int64     { return e.Timestamp }
 func (e ExecContext) GetTimestampNano() int64 { return e.TimestampNano }
+func (e ExecContext) GetChainID() string      { return e.ChainID }
+func (e ExecContext) GetHeight() int64        { return e.Height }

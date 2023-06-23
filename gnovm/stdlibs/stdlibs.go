@@ -4,8 +4,6 @@ package stdlibs
 
 import (
 	"reflect"
-	"strconv"
-	"time"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/bech32"
@@ -27,134 +25,19 @@ type nativeFunc struct {
 	f       func(m *gno.Machine)
 }
 
-func InjectPackage(store gno.Store, pn *gno.PackageNode) {
+func NativeStore(pkgPath string, name gno.Name) func(*gno.Machine) {
 	for _, nf := range nativeFuncs {
-		if nf.gnoPkg == pn.PkgPath {
-			pn.DefineNative(nf.gnoFunc, nf.params, nf.results, nf.f)
+		if nf.gnoPkg == pkgPath && name == nf.gnoFunc {
+			return nf.f
 		}
 	}
+	return nil
+}
 
+func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 	switch pn.PkgPath {
-	case "internal/os":
-		pn.DefineNative("Now",
-			gno.Flds( // params
-			),
-			gno.Flds( // results
-				"sec", "int64",
-				"nsec", "int32",
-				"mono", "int64",
-			),
-			func(m *gno.Machine) {
-				if m.Context == nil {
-					res0 := typedInt64(0)
-					res1 := typedInt32(0)
-					res2 := typedInt64(0)
-					m.PushValue(res0)
-					m.PushValue(res1)
-					m.PushValue(res2)
-				} else {
-					ctx := m.Context.(ExecContext)
-					res0 := typedInt64(ctx.Timestamp)
-					res1 := typedInt32(int32(ctx.TimestampNano))
-					res2 := typedInt64(ctx.Timestamp*int64(time.Second) + ctx.TimestampNano)
-					m.PushValue(res0)
-					m.PushValue(res1)
-					m.PushValue(res2)
-				}
-			},
-		)
-	// case "internal/os_test":
-	// XXX defined in tests/imports.go
-	case "strconv":
-		pn.DefineGoNativeValue("Itoa", strconv.Itoa)
-		pn.DefineGoNativeValue("Atoi", strconv.Atoi)
-		pn.DefineGoNativeValue("FormatInt", strconv.FormatInt)
-		pn.DefineGoNativeValue("FormatUint", strconv.FormatUint)
-		pn.DefineGoNativeValue("Quote", strconv.Quote)
-		pn.DefineGoNativeValue("QuoteToASCII", strconv.QuoteToASCII)
-		pn.DefineGoNativeValue("CanBackquote", strconv.CanBackquote)
-		pn.DefineGoNativeValue("IntSize", strconv.IntSize)
-		pn.DefineGoNativeValue("AppendUint", strconv.AppendUint)
 	case "std":
 		// NOTE: some of these are overridden in tests/imports.go
-		// Also see stdlibs/InjectPackage.
-		pn.DefineNative("AssertOriginCall",
-			gno.Flds( // params
-			),
-			gno.Flds( // results
-			),
-			func(m *gno.Machine) {
-				isOrigin := len(m.Frames) == 2
-				if !isOrigin {
-					m.Panic(typedString("invalid non-origin call"))
-					return
-				}
-			},
-		)
-		pn.DefineNative("IsOriginCall",
-			gno.Flds( // params
-			),
-			gno.Flds( // results
-				"isOrigin", "bool",
-			),
-			func(m *gno.Machine) {
-				isOrigin := len(m.Frames) == 2
-				res0 := gno.TypedValue{T: gno.BoolType}
-				res0.SetBool(isOrigin)
-				m.PushValue(res0)
-			},
-		)
-		pn.DefineNative("CurrentRealmPath",
-			gno.Flds( // params
-			),
-			gno.Flds( // results
-				"", "string",
-			),
-			func(m *gno.Machine) {
-				realmPath := ""
-				if m.Realm != nil {
-					realmPath = m.Realm.Path
-				}
-				res0 := gno.Go2GnoValue(
-					m.Alloc,
-					m.Store,
-					reflect.ValueOf(realmPath),
-				)
-				m.PushValue(res0)
-			},
-		)
-		pn.DefineNative("GetChainID",
-			gno.Flds( // params
-			),
-			gno.Flds( // results
-				"", "string",
-			),
-			func(m *gno.Machine) {
-				ctx := m.Context.(ExecContext)
-				res0 := gno.Go2GnoValue(
-					m.Alloc,
-					m.Store,
-					reflect.ValueOf(ctx.ChainID),
-				)
-				m.PushValue(res0)
-			},
-		)
-		pn.DefineNative("GetHeight",
-			gno.Flds( // params
-			),
-			gno.Flds( // results
-				"", "int64",
-			),
-			func(m *gno.Machine) {
-				ctx := m.Context.(ExecContext)
-				res0 := gno.Go2GnoValue(
-					m.Alloc,
-					m.Store,
-					reflect.ValueOf(ctx.Height),
-				)
-				m.PushValue(res0)
-			},
-		)
 		pn.DefineNative("GetOrigSend",
 			gno.Flds( // params
 			),

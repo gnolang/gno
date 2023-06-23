@@ -348,6 +348,9 @@ func exprToString(e ast.Expr) string {
 }
 
 func fieldListToTypes(fl *ast.FieldList) []string {
+	if fl == nil {
+		return nil
+	}
 	r := make([]string, 0, len(fl.List))
 	for _, f := range fl.List {
 		ts := exprToString(f.Type)

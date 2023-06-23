@@ -436,12 +436,6 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		var body []Stmt
 		if gon.Body != nil {
 			body = Go2Gno(fs, gon.Body).(*BlockStmt).Body
-		} else {
-			bd, err := ParseExpr(`panic("call to bodyless/external function is invalid outside of standard library")`)
-			if err != nil {
-				panic(err)
-			}
-			body = []Stmt{&ExprStmt{X: bd}}
 		}
 		return &FuncDecl{
 			IsMethod: isMethod,

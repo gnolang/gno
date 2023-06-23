@@ -3122,19 +3122,28 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			}
 			// define a FuncValue w/ above type as d.Name.
 			// fill in later during *FuncDecl:BLOCK.
+			fv := &FuncValue{
+				Type:       ft,
+				IsMethod:   false,
+				Source:     d,
+				Name:       d.Name,
+				Closure:    nil, // set lazily.
+				FileName:   fileNameOf(last),
+				PkgPath:    pkg.PkgPath,
+				body:       d.Body,
+				nativeBody: nil,
+			}
+			// NOTE: fv.body == nil means no body (ie. not even curly braces)
+			// len(fv.body) == 0 could mean also {} (ie. no statements inside)
+			if fv.body == nil && store != nil {
+				fv.nativeBody = store.GetNative(pkg.PkgPath, d.Name)
+				if fv.nativeBody == nil {
+					panic(fmt.Sprintf("function %s does not have a body but is not natively defined", d.Name))
+				}
+			}
 			pkg.Define(d.Name, TypedValue{
 				T: ft,
-				V: &FuncValue{
-					Type:       ft,
-					IsMethod:   false,
-					Source:     d,
-					Name:       d.Name,
-					Closure:    nil, // set lazily.
-					FileName:   fileNameOf(last),
-					PkgPath:    pkg.PkgPath,
-					body:       d.Body,
-					nativeBody: nil,
-				},
+				V: fv,
 			})
 			if d.Name == "init" {
 				// init functions can't be referenced.
