@@ -241,10 +241,8 @@ func gnoTestPkg(
 		stdin  = io.In
 		stdout = io.Out
 		stderr = io.Err
+		errs   error
 	)
-
-	filter := splitRegexp(runFlag)
-	var errs error
 
 	mode := tests.ImportModeStdlibsOnly
 	if cfg.withNativeFallback {
@@ -310,6 +308,7 @@ func gnoTestPkg(
 		for _, testFile := range filetestFiles {
 			testFileName := filepath.Base(testFile)
 			testName := "file/" + testFileName
+			filter := splitRegexp(runFlag)
 			if !shouldRun(filter, testName) {
 				continue
 			}
