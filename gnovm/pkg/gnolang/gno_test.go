@@ -48,11 +48,12 @@ func TestGCArgs(t *testing.T) {
 	c := `package test
 
 type Foo struct {
-  bar int
+  left *Foo
+  right *Foo 	
 }
 
 func main() {
-	ff := &Foo{bar: 1}
+	ff := &Foo{left: &Foo{}, right: &Foo{}}
 	printit(ff)
 }
 

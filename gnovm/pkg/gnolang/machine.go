@@ -44,6 +44,8 @@ type Machine struct {
 	Output  io.Writer
 	Store   Store
 	Context interface{}
+
+	Roots []*NameExpr
 }
 
 // machine.Release() must be called on objects
@@ -147,6 +149,22 @@ var (
 	opZeroed    [OpSize]Op
 	valueZeroed [ValueSize]TypedValue
 )
+
+func (m *Machine) PushRoot(root *NameExpr) {
+	m.Roots = append(m.Roots, root)
+}
+
+func (m *Machine) PopRoot() *NameExpr {
+	if m.Roots == nil || len(m.Roots) == 0 {
+		return nil
+	}
+
+	index := len(m.Roots) - 1
+	element := m.Roots[index]
+	m.Roots = m.Roots[:index]
+
+	return element
+}
 
 // m should not be used after this call
 // if m is nil, this will panic
@@ -1682,6 +1700,13 @@ func (m *Machine) PopFrameAndReturn() {
 
 	//GC: drop root objects pointing to heap allocations
 	for _, root := range fr.Func.roots { //todo should not do on uverse functions
+		r := m.GC.getRootByPath(&root.Path)
+		if str, is := r.ref.value.V.(*StructValue); is {
+			for _, fieldRoot := range str.FieldRoots {
+				m.GC.RemoveRoot(&fieldRoot.Path)
+			}
+		}
+
 		m.GC.RemoveRoot(&root.Path)
 	}
 

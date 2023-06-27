@@ -191,6 +191,7 @@ func (m *Machine) doOpRef() {
 		}
 	}
 
+	var vp *ValuePath
 	if _, ok := xv.TV.V.(*StructValue); ok {
 		xv.TV.OnHeap = true
 		xv.TV.ShouldEscape = false
@@ -201,11 +202,16 @@ func (m *Machine) doOpRef() {
 		xv.GCParent = gcparent
 
 		m.GC.AddObject(gcparent)
+		rootNE := m.PopRoot()
+
+		if rootNE != nil {
+			vp = &rootNE.Path
+		}
 	}
 
 	//add a root without a path
 	// the next op needs to add a path
-	root := &GCObj{ref: xv.GCParent}
+	root := &GCObj{ref: xv.GCParent, path: vp}
 	m.GC.AddRoot(root)
 
 	m.PushValue(TypedValue{
@@ -400,8 +406,13 @@ func (m *Machine) doOpCompositeLit() {
 		m.PushOp(OpStructLit)
 		// evaluate field values
 		for i := len(x.Elts) - 1; 0 <= i; i-- {
+			m.PushRoot(x.Elts[i].Key.(*NameExpr))
 			m.PushExpr(x.Elts[i].Value)
 			m.PushOp(OpEval)
+		}
+
+		if len(x.Elts) > 0 {
+			m.PushRoot(nil)
 		}
 	case *NativeType:
 		switch bt.Type.Kind() {
@@ -599,6 +610,8 @@ func (m *Machine) doOpStructLit() {
 	st := baseOf(xt).(*StructType)
 	nf := len(st.Fields)
 	fs := []TypedValue(nil)
+	fieldRoots := make([]*NameExpr, 0)
+
 	// NOTE includes embedded fields.
 	if el == 0 {
 		// zero struct with no fields set.
@@ -648,6 +661,9 @@ func (m *Machine) doOpStructLit() {
 		ftvs := m.PopValues(el)
 		for i := 0; i < el; i++ {
 			fnx := x.Elts[i].Key.(*NameExpr)
+			fieldRoots = append(fieldRoots, fnx)
+			//todo here fetch the roots with the field nameexpr
+			// and attach them somehow to the struct path
 			ftv := ftvs[i]
 			if debug {
 				if fnx.Path.Depth != 0 {
@@ -668,6 +684,7 @@ func (m *Machine) doOpStructLit() {
 	// construct and push value.
 	m.PopValue() // baseOf() is st
 	sv := m.Alloc.NewStruct(fs)
+	sv.FieldRoots = fieldRoots
 	m.PushValue(TypedValue{
 		T: xt,
 		V: sv,

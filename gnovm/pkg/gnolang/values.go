@@ -443,7 +443,8 @@ func (sv *SliceValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 
 type StructValue struct {
 	ObjectInfo
-	Fields []TypedValue
+	Fields     []TypedValue
+	FieldRoots []*NameExpr
 }
 
 // TODO handle unexported fields in debug, and also ensure in the preprocessor.
