@@ -2,13 +2,13 @@
 package foo20_lp_test
 
 import (
-	"std"
 	"fmt"
+	"std"
 
-	"gno.land/r/demo/foo20_lp"
-	"gno.land/r/demo/foo20"
-	"gno.land/r/demo/users"
 	"gno.land/p/demo/testutils"
+	"gno.land/r/demo/foo20"
+	"gno.land/r/demo/foo20_lp"
+	"gno.land/r/demo/users"
 )
 
 var (
@@ -18,7 +18,23 @@ var (
 	addrc = std.DerivePkgAddr("gno.land/r/demo/foo20_lp")
 )
 
+func init() {
+	// issue ugnots
+	std.TestIssueCoins(addr1, std.Coins{{"ugnot", 100000000}})
+	std.TestIssueCoins(addr2, std.Coins{{"ugnot", 100000000}})
+	std.TestIssueCoins(addr3, std.Coins{{"ugnot", 100000000}})
+
+	// issue foo20
+	foo20Admin := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+	std.TestSetOrigCaller(foo20Admin)
+	foo20.Transfer(users.AddressOrName(addr1), 10000)
+	foo20.Transfer(users.AddressOrName(addr2), 10000)
+	foo20.Transfer(users.AddressOrName(addr3), 10000)
+}
+
 func main() {
+	std.TestSetOrigCaller(addr1)
+
 	printBalances()
 	println("A -", foo20_lp.Render(""))
 	println(foo20_lp.Render("queues"))
@@ -49,9 +65,26 @@ func printBalances() {
 	printSingleBalance := func(name string, addr std.Address) {
 		foo20Bal := foo20.BalanceOf(users.AddressOrName(addr))
 		ugnotBal := 0
-		banker := std.GetBanker(std.BankerTypeRealmSend)
-		coins := banker.GetCoins(addr)
-		println(coins)
+		{
+			banker := std.GetBanker(std.BankerTypeOrigSend)
+			coins := banker.GetCoins(addr)
+			println(coins)
+		}
+		{
+			banker := std.GetBanker(std.BankerTypeRealmIssue)
+			coins := banker.GetCoins(addr)
+			println(coins)
+		}
+		{
+			banker := std.GetBanker(std.BankerTypeRealmSend)
+			coins := banker.GetCoins(addr)
+			println(coins)
+		}
+		{
+			banker := std.GetBanker(std.BankerTypeReadonly)
+			coins := banker.GetCoins(addr)
+			println(coins)
+		}
 		fmt.Printf("%s=%s foo20=%d ugnot=%d\n", name, addr, foo20Bal, ugnotBal)
 	}
 	printSingleBalance("contract", addrc)
@@ -62,23 +95,32 @@ func printBalances() {
 
 // Output:
 // contract=g12ddhtqgr5qsgy2keefnehrlwtwj09nner5jt3u foo20=0 ugnot=0
-//
-//    addr1=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 foo20=0 ugnot=0
-//
-//    addr2=g1w3jhxapjta047h6lta047h6lta047h6laqcyu4 foo20=0 ugnot=0
-//
-//    addr3=g1w3jhxapnta047h6lta047h6lta047h6lzfhfxt foo20=0 ugnot=0
+// 100000000ugnot
+// 100000000ugnot
+// 100000000ugnot
+// 100000000ugnot
+//    addr1=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 foo20=10000 ugnot=0
+// 100000000ugnot
+// 100000000ugnot
+// 100000000ugnot
+// 100000000ugnot
+//    addr2=g1w3jhxapjta047h6lta047h6lta047h6laqcyu4 foo20=10000 ugnot=0
+// 100000000ugnot
+// 100000000ugnot
+// 100000000ugnot
+// 100000000ugnot
+//    addr3=g1w3jhxapnta047h6lta047h6lta047h6lzfhfxt foo20=10000 ugnot=0
 // A - LP is empty.
 // ## Queues are empty
 // B - LP has a total of 10000 foo20 in 1 orders for a capacity of 1000000 ugnot.
 // C - LP has a total of 20000 foo20 in 2 orders for a capacity of 2000000 ugnot.
 // ## foo20Queue (total=60000, orders=6)
-// - addr=g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm amount=10000 (cum=10000)
-// - addr=g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm amount=10000 (cum=20000)
-// - addr=g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm amount=10000 (cum=30000)
-// - addr=g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm amount=10000 (cum=40000)
-// - addr=g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm amount=10000 (cum=50000)
-// - addr=g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm amount=10000 (cum=60000)
+// - addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 amount=10000 (cum=10000)
+// - addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 amount=10000 (cum=20000)
+// - addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 amount=10000 (cum=30000)
+// - addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 amount=10000 (cum=40000)
+// - addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 amount=10000 (cum=50000)
+// - addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 amount=10000 (cum=60000)
 //
 // D - LP has a total of 60000 foo20 in 6 orders for a capacity of 6000000 ugnot.
 // not implemented: C
@@ -90,18 +132,30 @@ func printBalances() {
 // not implemented: E
 // H - LP has a total of 60000 foo20 in 6 orders for a capacity of 6000000 ugnot.
 // ## foo20Queue (total=60000, orders=6)
-// - addr=g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm amount=10000 (cum=10000)
-// - addr=g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm amount=10000 (cum=20000)
-// - addr=g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm amount=10000 (cum=30000)
-// - addr=g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm amount=10000 (cum=40000)
-// - addr=g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm amount=10000 (cum=50000)
-// - addr=g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm amount=10000 (cum=60000)
+// - addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 amount=10000 (cum=10000)
+// - addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 amount=10000 (cum=20000)
+// - addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 amount=10000 (cum=30000)
+// - addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 amount=10000 (cum=40000)
+// - addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 amount=10000 (cum=50000)
+// - addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 amount=10000 (cum=60000)
+//
+//
+//
 //
 //
 // contract=g12ddhtqgr5qsgy2keefnehrlwtwj09nner5jt3u foo20=0 ugnot=0
-//
-//    addr1=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 foo20=0 ugnot=0
-//
-//    addr2=g1w3jhxapjta047h6lta047h6lta047h6laqcyu4 foo20=0 ugnot=0
-//
-//    addr3=g1w3jhxapnta047h6lta047h6lta047h6lzfhfxt foo20=0 ugnot=0
+// 100000000ugnot
+// 100000000ugnot
+// 100000000ugnot
+// 100000000ugnot
+//    addr1=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 foo20=10000 ugnot=0
+// 100000000ugnot
+// 100000000ugnot
+// 100000000ugnot
+// 100000000ugnot
+//    addr2=g1w3jhxapjta047h6lta047h6lta047h6laqcyu4 foo20=10000 ugnot=0
+// 100000000ugnot
+// 100000000ugnot
+// 100000000ugnot
+// 100000000ugnot
+//    addr3=g1w3jhxapnta047h6lta047h6lta047h6lzfhfxt foo20=10000 ugnot=0

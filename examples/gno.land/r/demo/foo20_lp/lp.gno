@@ -73,7 +73,7 @@ func DepositUgnot() {
 	if amount < ugnotMinDeposit {
 		panic(ufmt.Sprintf("min deposit: %d ugnot.", ugnotMinDeposit))
 	}
-	if amount % foo20PriceInUgnot != 0 {
+	if amount%foo20PriceInUgnot != 0 {
 		panic(ufmt.Sprintf("ugnot deposit should be a multiple of %d, was %d.", foo20PriceInUgnot, amount))
 	}
 	println("not implemented: C")
