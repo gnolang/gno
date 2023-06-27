@@ -45,12 +45,12 @@ Legend: full, partial, missing, TBD.
 | `rune`                                        | full                   | full                                                       |
 | `interface{}`                                 | full                   | full                                                       |
 | `[]T` (slices)                                | full                   | full*                                                      |
-| `map[T1]T2`                                   | full                   | missing (in progress, will be for launch)                  |
+| `map[T1]T2`                                   | full                   | full*                                                      |
 | `func (T1...) T2...`                          | full                   | full (needs more tests)                                    |
 | `*T` (pointers)                               | full                   | full*                                                      |
 | `chan T` (channels)                           | missing (after launch) | missing (after launch)                                     |
 
-**\*:** depends on `T`
+**\*:** depends on `T`/`T1`/`T2`
 
 Additional native types:
 
