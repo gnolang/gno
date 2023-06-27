@@ -9,11 +9,12 @@ import (
 // TODO: replace int64 with bigint
 // TODO: is it a good contract to show how a contract can take some usage fees? probably.
 // TODO: extract the generic & pure part of this contract to a p/ package.
+// TODO: add stats?
 
 const (
-	foo20MinDeposit   int64 = 10
-	ugnotMinDeposit   int64 = 100_000
 	foo20PriceInUgnot int64 = 100 // ugnot has 6 digits, foo20 has 4 digits
+	foo20MinDeposit   int64 = 2   // min 1
+	ugnotMinDeposit   int64 = 300 // min foo20PriceInUgnot
 )
 
 var (
@@ -23,8 +24,9 @@ var (
 
 func DepositFoo20(amount int64) {
 	if amount < foo20MinDeposit {
-		panic(ufmt.Sprintf("min deposit: %d $FOO20", foo20MinDeposit))
+		panic(ufmt.Sprintf("min deposit: %d foo20.", foo20MinDeposit))
 	}
+	// XXX: if foo20PriceInUgnot was < 1, we should check for `amount % ugnotPriceInFoo20 == 0`.
 
 	caller := std.GetOrigCaller()
 
@@ -38,7 +40,7 @@ func DepositFoo20(amount int64) {
 
 		// full swap
 		if rest > entry.Amount {
-			println("not implemented")
+			println("not implemented: A")
 			// TODO: send foo20 to entry.Addr
 			// TODO: send ugnot to caller
 			// TODO: delete entry from queue
@@ -48,7 +50,7 @@ func DepositFoo20(amount int64) {
 
 		// partial swap
 		{
-			println("not implemented")
+			println("not implemented: B")
 			// partial swap
 			// TODO: send `rest` foo20 to entry.Addr
 			// TODO: send `rest` ugnot to caller
@@ -65,39 +67,71 @@ func DepositFoo20(amount int64) {
 }
 
 func DepositUgnot() {
+	caller := std.GetOrigCaller()
 	sent := std.GetOrigSend()
 	amount := sent.AmountOf("ugnot")
 	if amount < ugnotMinDeposit {
-		panic(ufmt.Sprintf("min deposit: %d $UGNOT", ugnotMinDeposit))
+		panic(ufmt.Sprintf("min deposit: %d ugnot.", ugnotMinDeposit))
 	}
-	println("not implemented")
+	if amount % foo20PriceInUgnot != 0 {
+		panic(ufmt.Sprintf("ugnot deposit should be a multiple of %d, was %d.", foo20PriceInUgnot, amount))
+	}
+	println("not implemented: C")
 }
 
 func WithdrawFoo20(amount int64) {
-	println("not implemented")
+	println("not implemented: D")
 }
 
 func WithdrawUgnot(amount int64) {
-	println("not implemented")
+	println("not implemented: E")
 }
 
 func Render(path string) string {
-	var (
-		ugnotEntries = ugnotQueue.Size()
-		ugnotTotal   = ugnotQueue.TotalAmount()
-		foo20Entries = foo20Queue.Size()
-		foo20Total   = foo20Queue.TotalAmount()
-	)
-	switch {
-	case ugnotEntries == 0 && foo20Entries == 0:
-		return "LP is empty."
-	case ugnotEntries > 0:
-		foo20Capa := ugnotTotal * foo20PriceInUgnot
-		return ufmt.Sprintf("LP has a total of %d ugnot in %d orders for a capacity of %d foo20.", ugnotTotal, ugnotEntries, foo20Capa)
-	case foo20Entries > 0:
-		ugnotCapa := foo20Total / foo20PriceInUgnot
-		return ufmt.Sprintf("LP has a total of %d foo20 in %d orders for a capacity of %d ugnot.", foo20Total, foo20Entries, ugnotCapa)
+	switch path {
+	case "": // home
+		var (
+			ugnotEntries = ugnotQueue.Size()
+			ugnotTotal   = ugnotQueue.TotalAmount()
+			foo20Entries = foo20Queue.Size()
+			foo20Total   = foo20Queue.TotalAmount()
+		)
+		switch {
+		case ugnotEntries == 0 && foo20Entries == 0:
+			return "LP is empty."
+		case ugnotEntries > 0:
+			foo20Capa := ugnotTotal / foo20PriceInUgnot
+			return ufmt.Sprintf("LP has a total of %d ugnot in %d orders for a capacity of %d foo20.", ugnotTotal, ugnotEntries, foo20Capa)
+		case foo20Entries > 0:
+			ugnotCapa := foo20Total * foo20PriceInUgnot
+			return ufmt.Sprintf("LP has a total of %d foo20 in %d orders for a capacity of %d ugnot.", foo20Total, foo20Entries, ugnotCapa)
+		default:
+			panic("should not happen")
+		}
+	case "queues":
+		if foo20Queue.Empty() && ugnotQueue.Empty() {
+			return "## Queues are empty"
+		}
+
+		output := ""
+		if !foo20Queue.Empty() {
+			output += ufmt.Sprintf("## foo20Queue (total=%d, orders=%d)\n", foo20Queue.TotalAmount(), foo20Queue.Size())
+			var cumulated int64
+			for _, entry := range foo20Queue {
+				cumulated += entry.Amount
+				output += ufmt.Sprintf("- addr=%s amount=%dfoo20 (cum=%dfoo20)\n", entry.Addr, entry.Amount, cumulated)
+			}
+		}
+		if !ugnotQueue.Empty() {
+			output += ufmt.Sprintf("## ugnotQueue (total=%d, orders=%d)\n", ugnotQueue.TotalAmount(), ugnotQueue.Size())
+			var cumulated int64
+			for _, entry := range ugnotQueue {
+				cumulated += entry.Amount
+				output += ufmt.Sprintf("- addr=%s amount=%dugnot (cum=%dugnot)\n", entry.Addr, entry.Amount, cumulated)
+			}
+		}
+		return output
 	default:
-		panic("should not happen")
+		return "404"
 	}
 }
