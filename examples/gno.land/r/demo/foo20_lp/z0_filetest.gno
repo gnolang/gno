@@ -20,16 +20,16 @@ var (
 
 func init() {
 	// issue ugnots
-	std.TestIssueCoins(addr1, std.Coins{{"ugnot", 100000000}})
-	std.TestIssueCoins(addr2, std.Coins{{"ugnot", 100000000}})
-	std.TestIssueCoins(addr3, std.Coins{{"ugnot", 100000000}})
+	std.TestIssueCoins(addr1, std.Coins{{"ugnot", 100000001}})
+	std.TestIssueCoins(addr2, std.Coins{{"ugnot", 100000002}})
+	std.TestIssueCoins(addr3, std.Coins{{"ugnot", 100000003}})
 
 	// issue foo20
 	foo20Admin := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 	std.TestSetOrigCaller(foo20Admin)
-	foo20.Transfer(users.AddressOrName(addr1), 10000)
-	foo20.Transfer(users.AddressOrName(addr2), 10000)
-	foo20.Transfer(users.AddressOrName(addr3), 10000)
+	foo20.Transfer(users.AddressOrName(addr1), 10001)
+	foo20.Transfer(users.AddressOrName(addr2), 10002)
+	foo20.Transfer(users.AddressOrName(addr3), 10003)
 }
 
 func main() {
@@ -48,7 +48,7 @@ func main() {
 	foo20_lp.DepositFoo20(10_000)
 	println(foo20_lp.Render("queues"))
 	println("D -", foo20_lp.Render(""))
-	std.TestSetOrigSend(std.Coins{{"ugnot", 100_000_000}}, nil)
+	std.TestSetOrigSend(std.Coins{{"ugnot", 123_400}}, nil)
 	foo20_lp.DepositUgnot()
 	println("E -", foo20_lp.Render(""))
 	foo20_lp.WithdrawFoo20(100)
@@ -58,6 +58,7 @@ func main() {
 	foo20_lp.WithdrawUgnot(100)
 	println("H -", foo20_lp.Render(""))
 	println(foo20_lp.Render("queues"))
+	println("--------------------------")
 	printBalances()
 }
 
@@ -65,6 +66,7 @@ func printBalances() {
 	printSingleBalance := func(name string, addr std.Address) {
 		foo20Bal := foo20.BalanceOf(users.AddressOrName(addr))
 		ugnotBal := 0
+		fmt.Printf("%s=%s foo20=%d ugnot=%d\n", name, addr, foo20Bal, ugnotBal)
 		{
 			banker := std.GetBanker(std.BankerTypeOrigSend)
 			coins := banker.GetCoins(addr)
@@ -85,7 +87,6 @@ func printBalances() {
 			coins := banker.GetCoins(addr)
 			println(coins)
 		}
-		fmt.Printf("%s=%s foo20=%d ugnot=%d\n", name, addr, foo20Bal, ugnotBal)
 	}
 	printSingleBalance("contract", addrc)
 	printSingleBalance("   addr1", addr1)
@@ -95,21 +96,25 @@ func printBalances() {
 
 // Output:
 // contract=g12ddhtqgr5qsgy2keefnehrlwtwj09nner5jt3u foo20=0 ugnot=0
-// 100000000ugnot
-// 100000000ugnot
-// 100000000ugnot
-// 100000000ugnot
-//    addr1=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 foo20=10000 ugnot=0
-// 100000000ugnot
-// 100000000ugnot
-// 100000000ugnot
-// 100000000ugnot
-//    addr2=g1w3jhxapjta047h6lta047h6lta047h6laqcyu4 foo20=10000 ugnot=0
-// 100000000ugnot
-// 100000000ugnot
-// 100000000ugnot
-// 100000000ugnot
-//    addr3=g1w3jhxapnta047h6lta047h6lta047h6lzfhfxt foo20=10000 ugnot=0
+//
+//
+//
+//
+//    addr1=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 foo20=10001 ugnot=0
+// 100000001ugnot
+// 100000001ugnot
+// 100000001ugnot
+// 100000001ugnot
+//    addr2=g1w3jhxapjta047h6lta047h6lta047h6laqcyu4 foo20=10002 ugnot=0
+// 100000002ugnot
+// 100000002ugnot
+// 100000002ugnot
+// 100000002ugnot
+//    addr3=g1w3jhxapnta047h6lta047h6lta047h6lzfhfxt foo20=10003 ugnot=0
+// 100000003ugnot
+// 100000003ugnot
+// 100000003ugnot
+// 100000003ugnot
 // A - LP is empty.
 // ## Queues are empty
 // B - LP has a total of 10000 foo20 in 1 orders for a capacity of 1000000 ugnot.
@@ -139,23 +144,24 @@ func printBalances() {
 // - addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 amount=10000 (cum=50000)
 // - addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 amount=10000 (cum=60000)
 //
-//
-//
-//
-//
+// --------------------------
 // contract=g12ddhtqgr5qsgy2keefnehrlwtwj09nner5jt3u foo20=0 ugnot=0
-// 100000000ugnot
-// 100000000ugnot
-// 100000000ugnot
-// 100000000ugnot
-//    addr1=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 foo20=10000 ugnot=0
-// 100000000ugnot
-// 100000000ugnot
-// 100000000ugnot
-// 100000000ugnot
-//    addr2=g1w3jhxapjta047h6lta047h6lta047h6laqcyu4 foo20=10000 ugnot=0
-// 100000000ugnot
-// 100000000ugnot
-// 100000000ugnot
-// 100000000ugnot
-//    addr3=g1w3jhxapnta047h6lta047h6lta047h6lzfhfxt foo20=10000 ugnot=0
+//
+//
+//
+//
+//    addr1=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 foo20=10001 ugnot=0
+// 100000001ugnot
+// 100000001ugnot
+// 100000001ugnot
+// 100000001ugnot
+//    addr2=g1w3jhxapjta047h6lta047h6lta047h6laqcyu4 foo20=10002 ugnot=0
+// 100000002ugnot
+// 100000002ugnot
+// 100000002ugnot
+// 100000002ugnot
+//    addr3=g1w3jhxapnta047h6lta047h6lta047h6lzfhfxt foo20=10003 ugnot=0
+// 100000003ugnot
+// 100000003ugnot
+// 100000003ugnot
+// 100000003ugnot
