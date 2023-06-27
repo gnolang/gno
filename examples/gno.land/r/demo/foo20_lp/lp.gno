@@ -13,7 +13,7 @@ import (
 const (
 	foo20MinDeposit   int64 = 10
 	ugnotMinDeposit   int64 = 100_000
-	foo20PriceInUgnot int64 = 10_000
+	foo20PriceInUgnot int64 = 100 // ugnot has 6 digits, foo20 has 4 digits
 )
 
 var (
@@ -82,5 +82,22 @@ func WithdrawUgnot(amount int64) {
 }
 
 func Render(path string) string {
-	return "Queues: ..."
+	var (
+		ugnotEntries = ugnotQueue.Size()
+		ugnotTotal   = ugnotQueue.TotalAmount()
+		foo20Entries = foo20Queue.Size()
+		foo20Total   = foo20Queue.TotalAmount()
+	)
+	switch {
+	case ugnotEntries == 0 && foo20Entries == 0:
+		return "LP is empty."
+	case ugnotEntries > 0:
+		foo20Capa := ugnotTotal * foo20PriceInUgnot
+		return ufmt.Sprintf("LP has a total of %d ugnot in %d orders for a capacity of %d foo20.", ugnotTotal, ugnotEntries, foo20Capa)
+	case foo20Entries > 0:
+		ugnotCapa := foo20Total / foo20PriceInUgnot
+		return ufmt.Sprintf("LP has a total of %d foo20 in %d orders for a capacity of %d ugnot.", foo20Total, foo20Entries, ugnotCapa)
+	default:
+		panic("should not happen")
+	}
 }

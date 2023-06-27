@@ -16,3 +16,15 @@ func (f Fifo) AddrHasEntries(addr std.Address) bool {
 func (f Fifo) Empty() bool {
 	return len(f) == 0
 }
+
+func (f Fifo) Size() int {
+	return len(f)
+}
+
+func (f Fifo) TotalAmount() int64 {
+	var total int64
+	for _, entry := range f {
+		total += entry.Amount
+	}
+	return total
+}
