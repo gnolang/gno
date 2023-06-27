@@ -9,11 +9,10 @@ func (abciError) AssertABCIError() {}
 
 // declare all script errors.
 // NOTE: these are meant to be used in conjunction with pkgs/errors.
-type InvalidPkgPathError struct{ abciError }
-
 type (
-	InvalidStmtError struct{ abciError }
-	InvalidExprError struct{ abciError }
+	InvalidPkgPathError struct{ abciError }
+	InvalidStmtError    struct{ abciError }
+	InvalidExprError    struct{ abciError }
 )
 
 func (e InvalidPkgPathError) Error() string { return "invalid package path" }
