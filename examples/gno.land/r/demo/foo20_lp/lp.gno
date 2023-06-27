@@ -119,7 +119,7 @@ func Render(path string) string {
 			var cumulated int64
 			for _, entry := range foo20Queue {
 				cumulated += entry.Amount
-				output += ufmt.Sprintf("- addr=%s amount=%dfoo20 (cum=%dfoo20)\n", entry.Addr, entry.Amount, cumulated)
+				output += ufmt.Sprintf("- addr=%s amount=%d (cum=%d)\n", entry.Addr, entry.Amount, cumulated)
 			}
 		}
 		if !ugnotQueue.Empty() {
@@ -127,7 +127,7 @@ func Render(path string) string {
 			var cumulated int64
 			for _, entry := range ugnotQueue {
 				cumulated += entry.Amount
-				output += ufmt.Sprintf("- addr=%s amount=%dugnot (cum=%dugnot)\n", entry.Addr, entry.Amount, cumulated)
+				output += ufmt.Sprintf("- addr=%s amount=%d (cum=%d)\n", entry.Addr, entry.Amount, cumulated)
 			}
 		}
 		return output
