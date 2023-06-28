@@ -16,9 +16,13 @@ var (
 	addr2 = testutils.TestAddress("test2")
 	addr3 = testutils.TestAddress("test3")
 	addrc = std.DerivePkgAddr("gno.land/r/demo/foo20_lp")
+	addrt = std.DerivePkgAddr("gno.land/r/demo/foo20_lp_test")
 )
 
-func init() {
+func main() {
+	std.TestSetOrigPkgAddr(addrc)
+	std.TestIssueCoins(addrc, std.Coins{{"ugnot", 100001337}}) // TODO: remove this
+
 	// issue ugnots
 	std.TestIssueCoins(addr1, std.Coins{{"ugnot", 100000001}})
 	std.TestIssueCoins(addr2, std.Coins{{"ugnot", 100000002}})
@@ -30,32 +34,43 @@ func init() {
 	foo20.Transfer(users.AddressOrName(addr1), 10001)
 	foo20.Transfer(users.AddressOrName(addr2), 10002)
 	foo20.Transfer(users.AddressOrName(addr3), 10003)
-}
 
-func main() {
+	// print initial state
+	// printBalances()
+	// println(foo20_lp.Render("queues"))
+	// println("A -", foo20_lp.Render(""))
+
+	// addr1 deposits ugnots
 	std.TestSetOrigCaller(addr1)
-
-	printBalances()
-	println("A -", foo20_lp.Render(""))
-	println(foo20_lp.Render("queues"))
-	foo20_lp.DepositFoo20(10_000)
-	println("B -", foo20_lp.Render(""))
-	foo20_lp.DepositFoo20(10_000)
-	println("C -", foo20_lp.Render(""))
-	foo20_lp.DepositFoo20(10_000)
-	foo20_lp.DepositFoo20(10_000)
-	foo20_lp.DepositFoo20(10_000)
-	foo20_lp.DepositFoo20(10_000)
-	println(foo20_lp.Render("queues"))
-	println("D -", foo20_lp.Render(""))
 	std.TestSetOrigSend(std.Coins{{"ugnot", 123_400}}, nil)
 	foo20_lp.DepositUgnot()
+	println("B -", foo20_lp.Render(""))
+
+	// addr1 deposits ugnots again
+	std.TestSetOrigCaller(addr1)
+	std.TestSetOrigSend(std.Coins{{"ugnot", 567_800}}, nil)
+	foo20_lp.DepositUgnot()
+	println("C -", foo20_lp.Render(""))
+
+	println(foo20_lp.Render("queues"))
+	printBalances()
+	return
+
+	foo20_lp.DepositFoo20(10_001)
+	foo20_lp.DepositFoo20(10_002)
+	println("C -", foo20_lp.Render(""))
+	foo20_lp.DepositFoo20(10_003)
+	foo20_lp.DepositFoo20(10_004)
+	foo20_lp.DepositFoo20(10_005)
+	foo20_lp.DepositFoo20(10_006)
+	println(foo20_lp.Render("queues"))
+	println("D -", foo20_lp.Render(""))
 	println("E -", foo20_lp.Render(""))
-	foo20_lp.WithdrawFoo20(100)
+	foo20_lp.WithdrawFoo20(101)
 	println("F -", foo20_lp.Render(""))
-	foo20_lp.WithdrawFoo20(100)
+	foo20_lp.WithdrawFoo20(102)
 	println("G -", foo20_lp.Render(""))
-	foo20_lp.WithdrawUgnot(100)
+	foo20_lp.WithdrawUgnot(103)
 	println("H -", foo20_lp.Render(""))
 	println(foo20_lp.Render("queues"))
 	println("--------------------------")
@@ -65,104 +80,38 @@ func main() {
 func printBalances() {
 	printSingleBalance := func(name string, addr std.Address) {
 		foo20Bal := foo20.BalanceOf(users.AddressOrName(addr))
-		ugnotBal := 0
-		fmt.Printf("%s=%s foo20=%d ugnot=%d\n", name, addr, foo20Bal, ugnotBal)
-		{
-			banker := std.GetBanker(std.BankerTypeOrigSend)
-			coins := banker.GetCoins(addr)
-			println(coins)
-		}
-		{
-			banker := std.GetBanker(std.BankerTypeRealmIssue)
-			coins := banker.GetCoins(addr)
-			println(coins)
-		}
-		{
-			banker := std.GetBanker(std.BankerTypeRealmSend)
-			coins := banker.GetCoins(addr)
-			println(coins)
-		}
-		{
-			banker := std.GetBanker(std.BankerTypeReadonly)
-			coins := banker.GetCoins(addr)
-			println(coins)
-		}
+		std.TestSetOrigCaller(addr)
+		abanker := std.GetBanker(std.BankerTypeOrigSend)
+		acoins := abanker.GetCoins(addr).AmountOf("ugnot")
+		bbanker := std.GetBanker(std.BankerTypeRealmIssue)
+		bcoins := bbanker.GetCoins(addr).AmountOf("ugnot")
+		cbanker := std.GetBanker(std.BankerTypeRealmSend)
+		ccoins := cbanker.GetCoins(addr).AmountOf("ugnot")
+		dbanker := std.GetBanker(std.BankerTypeReadonly)
+		dcoins := dbanker.GetCoins(addr).AmountOf("ugnot")
+		fmt.Printf("| %-13s | addr=%s | foo20=%-5d | ugnot=%-9d %-9d %-9d %-9d |\n", name, addr, foo20Bal, acoins, bcoins, ccoins, dcoins)
 	}
-	printSingleBalance("contract", addrc)
-	printSingleBalance("   addr1", addr1)
-	printSingleBalance("   addr2", addr2)
-	printSingleBalance("   addr3", addr3)
+	println("-----------")
+	printSingleBalance("foo20_lp_test", addrt)
+	printSingleBalance("foo20_lp", addrc)
+	printSingleBalance("addr1", addr1)
+	printSingleBalance("addr2", addr2)
+	printSingleBalance("addr3", addr3)
+	println("-----------")
 }
 
 // Output:
-// contract=g12ddhtqgr5qsgy2keefnehrlwtwj09nner5jt3u foo20=0 ugnot=0
-//
-//
-//
-//
-//    addr1=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 foo20=10001 ugnot=0
-// 100000001ugnot
-// 100000001ugnot
-// 100000001ugnot
-// 100000001ugnot
-//    addr2=g1w3jhxapjta047h6lta047h6lta047h6laqcyu4 foo20=10002 ugnot=0
-// 100000002ugnot
-// 100000002ugnot
-// 100000002ugnot
-// 100000002ugnot
-//    addr3=g1w3jhxapnta047h6lta047h6lta047h6lzfhfxt foo20=10003 ugnot=0
-// 100000003ugnot
-// 100000003ugnot
-// 100000003ugnot
-// 100000003ugnot
-// A - LP is empty.
-// ## Queues are empty
-// B - LP has a total of 10000 foo20 in 1 orders for a capacity of 1000000 ugnot.
-// C - LP has a total of 20000 foo20 in 2 orders for a capacity of 2000000 ugnot.
-// ## foo20Queue (total=60000, orders=6)
-// - addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 amount=10000 (cum=10000)
-// - addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 amount=10000 (cum=20000)
-// - addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 amount=10000 (cum=30000)
-// - addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 amount=10000 (cum=40000)
-// - addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 amount=10000 (cum=50000)
-// - addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 amount=10000 (cum=60000)
-//
-// D - LP has a total of 60000 foo20 in 6 orders for a capacity of 6000000 ugnot.
-// hey morgan
+// @@@@@@@@@@@@@ g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 g12ddhtqgr5qsgy2keefnehrlwtwj09nner5jt3u 123400ugnot 123400
 // not implemented: C
-// E - LP has a total of 60000 foo20 in 6 orders for a capacity of 6000000 ugnot.
-// not implemented: D
-// F - LP has a total of 60000 foo20 in 6 orders for a capacity of 6000000 ugnot.
-// not implemented: D
-// G - LP has a total of 60000 foo20 in 6 orders for a capacity of 6000000 ugnot.
-// not implemented: E
-// H - LP has a total of 60000 foo20 in 6 orders for a capacity of 6000000 ugnot.
-// ## foo20Queue (total=60000, orders=6)
-// - addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 amount=10000 (cum=10000)
-// - addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 amount=10000 (cum=20000)
-// - addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 amount=10000 (cum=30000)
-// - addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 amount=10000 (cum=40000)
-// - addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 amount=10000 (cum=50000)
-// - addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 amount=10000 (cum=60000)
-//
-// --------------------------
-// contract=g12ddhtqgr5qsgy2keefnehrlwtwj09nner5jt3u foo20=0 ugnot=0
-//
-//
-//
-//
-//    addr1=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 foo20=10001 ugnot=0
-// 100000001ugnot
-// 100000001ugnot
-// 100000001ugnot
-// 100000001ugnot
-//    addr2=g1w3jhxapjta047h6lta047h6lta047h6laqcyu4 foo20=10002 ugnot=0
-// 100000002ugnot
-// 100000002ugnot
-// 100000002ugnot
-// 100000002ugnot
-//    addr3=g1w3jhxapnta047h6lta047h6lta047h6lzfhfxt foo20=10003 ugnot=0
-// 100000003ugnot
-// 100000003ugnot
-// 100000003ugnot
-// 100000003ugnot
+// B - LP is empty.
+// @@@@@@@@@@@@@ g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 g12ddhtqgr5qsgy2keefnehrlwtwj09nner5jt3u 567800ugnot 567800
+// not implemented: C
+// C - LP is empty.
+// ## Queues are empty
+// -----------
+// | foo20_lp_test | addr=g1erg29nwj2yu4ahl585369p2pxrfgdjjtha8zwm | foo20=0     | ugnot=200000000 200000000 200000000 200000000 |
+// | foo20_lp      | addr=g12ddhtqgr5qsgy2keefnehrlwtwj09nner5jt3u | foo20=0     | ugnot=100001337 100001337 100001337 100001337 |
+// | addr1         | addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 | foo20=10001 | ugnot=100000001 100000001 100000001 100000001 |
+// | addr2         | addr=g1w3jhxapjta047h6lta047h6lta047h6laqcyu4 | foo20=10002 | ugnot=100000002 100000002 100000002 100000002 |
+// | addr3         | addr=g1w3jhxapnta047h6lta047h6lta047h6lzfhfxt | foo20=10003 | ugnot=100000003 100000003 100000003 100000003 |
+// -----------

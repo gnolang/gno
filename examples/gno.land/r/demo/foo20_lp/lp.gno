@@ -29,6 +29,7 @@ func DepositFoo20(amount int64) {
 	// XXX: if foo20PriceInUgnot was < 1, we should check for `amount % ugnotPriceInFoo20 == 0`.
 
 	caller := std.GetOrigCaller()
+	pkgaddr := std.GetOrigPkgAddr()
 
 	// TODO: store amounts on contracts' address or work with approve maybe?
 
@@ -42,7 +43,6 @@ func DepositFoo20(amount int64) {
 		if rest > entry.Amount {
 			println("not implemented: A")
 			// TODO: send foo20 to entry.Addr
-			// TODO: send ugnot to caller
 			// TODO: delete entry from queue
 			rest -= entry.Amount // update rest counter
 			continue
@@ -59,6 +59,13 @@ func DepositFoo20(amount int64) {
 		}
 	}
 
+	// send swapped ugnots to caller
+	banker := std.GetBanker(std.BankerTypeOrigSend)
+	swappedFoo20 := amount - rest
+	returnedUgnot := swappedFoo20 * foo20PriceInUgnot
+	send := std.Coins{{"ugnot", returnedUgnot}}
+	banker.SendCoins(caller, pkgaddr, send)
+
 	// if we have rest, add a new entry in the queue
 	if rest > 0 {
 		entry := Entry{Addr: caller, Amount: rest}
@@ -71,16 +78,15 @@ func DepositUgnot() {
 	pkgaddr := std.GetOrigPkgAddr()
 	sent := std.GetOrigSend()
 	amount := sent.AmountOf("ugnot")
+
+	println("@@@@@@@@@@@@@", caller, pkgaddr, sent, amount)
+
 	if amount < ugnotMinDeposit {
 		panic(ufmt.Sprintf("jmin deposit: %d ugnot.", ugnotMinDeposit))
 	}
 	if amount%foo20PriceInUgnot != 0 {
 		panic(ufmt.Sprintf("ugnot deposit should be a multiple of %d, was %d.", foo20PriceInUgnot, amount))
 	}
-	banker := std.GetBanker(std.BankerTypeOrigSend)
-	send := std.Coins{{"ugnot", 1}}
-	println("hey morgan")
-	// banker.SendCoins(caller, pkgaddr, send)
 	println("not implemented: C")
 }
 
