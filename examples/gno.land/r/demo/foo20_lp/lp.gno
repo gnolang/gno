@@ -68,14 +68,19 @@ func DepositFoo20(amount int64) {
 
 func DepositUgnot() {
 	caller := std.GetOrigCaller()
+	pkgaddr := std.GetOrigPkgAddr()
 	sent := std.GetOrigSend()
 	amount := sent.AmountOf("ugnot")
 	if amount < ugnotMinDeposit {
-		panic(ufmt.Sprintf("min deposit: %d ugnot.", ugnotMinDeposit))
+		panic(ufmt.Sprintf("jmin deposit: %d ugnot.", ugnotMinDeposit))
 	}
 	if amount%foo20PriceInUgnot != 0 {
 		panic(ufmt.Sprintf("ugnot deposit should be a multiple of %d, was %d.", foo20PriceInUgnot, amount))
 	}
+	banker := std.GetBanker(std.BankerTypeOrigSend)
+	send := std.Coins{{"ugnot", 1}}
+	println("hey morgan")
+	// banker.SendCoins(caller, pkgaddr, send)
 	println("not implemented: C")
 }
 

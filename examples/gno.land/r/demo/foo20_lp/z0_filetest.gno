@@ -128,6 +128,7 @@ func printBalances() {
 // - addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 amount=10000 (cum=60000)
 //
 // D - LP has a total of 60000 foo20 in 6 orders for a capacity of 6000000 ugnot.
+// hey morgan
 // not implemented: C
 // E - LP has a total of 60000 foo20 in 6 orders for a capacity of 6000000 ugnot.
 // not implemented: D
