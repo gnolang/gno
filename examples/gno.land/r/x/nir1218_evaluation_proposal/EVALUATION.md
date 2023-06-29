@@ -2,7 +2,7 @@
 
 ## Abstract
 
-This document describes general ideas regarding contributions evaluation, the principles laid out are intendant to be part of the Evaluation DAO.
+This document describes general ideas regarding contributions evaluation. The principles laid out are intended to be part of the Evaluation DAO.
 
 ## Contents
 
@@ -22,7 +22,7 @@ This document describes general ideas regarding contributions evaluation, the pr
 
 ### General Ideas
 
-Contributors DAO will designate members of a committee, in the beginning, the evaluation committee members will be the core development team members or any other trusted entity.
+Contributors DAO will designate members of a committee. In the beginning, the evaluation committee members will be the core development team members or any other trusted entity.
 A committee will be given the mandate to evaluate a certain set of contributions.
 For example, the first committee will evaluate code contributions inside Gno central repository.
 A contribution will be associated with a pull request managed in Git.
@@ -70,7 +70,7 @@ A contribution is approved once it reaches a certain threshold.
 
 ### Pull Request
 
-A pull request from a source control tool namely GitHub.
+A pull request from a source control tool, namely GitHub.
 
 ### Vote
 
@@ -103,10 +103,11 @@ The current documentation describes the basic ideas as expressed in the code.
 Future improvements listed below will be decided based on future discussions and peer reviews.
 
 - Committee negotiates contributions
+FIXME Next line is unfinished:
 - A committee may set voting options for its categories and evaluated contributions, otherwise; the Contributors DAO may set a global
 - A committee may set a threshold required for a category or a contribution to be approved, otherwise; the Contributors DAO may set a global threshold and quorum.
 - A committee sets evaluation criteria scoring range (1-10), scoring a contribution is essential when there are competing contributions (Game of Realm). Otherwise, the evaluation is a binary decision. Moreover, scoring should be translated to rewards of any sort, or become discussion points durning negotiation about the viability of a contribution.
-- Committee members asses contributions based on the evaluation criteria and vote accordingly
+- Committee members assess contributions based on the evaluation criteria and vote accordingly.
 
 ## Implementation
 
