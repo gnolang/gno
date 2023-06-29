@@ -148,8 +148,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 		return ErrInvalidPkgPath(err.Error())
 	}
 	if pv := store.GetPackage(pkgPath, false); pv != nil {
-		// TODO: return error instead of panicking?
-		panic("package already exists: " + pkgPath)
+		return ErrInvalidPkgPath("package already exists: " + pkgPath)
 	}
 	// Pay deposit from creator.
 	pkgAddr := gno.DerivePkgAddr(pkgPath)

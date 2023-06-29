@@ -263,6 +263,44 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				m.PushValue(res0)
 			},
 		)
+		pn.DefineNative("CurrentRealm",
+			gno.Flds( // params
+			),
+			gno.Flds( // results
+				"", "Realm",
+			),
+			func(m *gno.Machine) {
+				var (
+					ctx = m.Context.(ExecContext)
+					// Default lastCaller is OrigCaller, the signer of the tx
+					lastCaller  = ctx.OrigCaller
+					lastPkgPath = ""
+				)
+
+				for i := m.NumFrames() - 1; i > 0; i-- {
+					fr := m.Frames[i]
+					if fr.LastPackage != nil && fr.LastPackage.IsRealm() {
+						lastCaller = fr.LastPackage.GetPkgAddr().Bech32()
+						lastPkgPath = fr.LastPackage.PkgPath
+						break
+					}
+				}
+
+				// Return the result
+				res0 := gno.Go2GnoValue(
+					m.Alloc,
+					m.Store,
+					reflect.ValueOf(Realm{
+						addr:    lastCaller,
+						pkgPath: lastPkgPath,
+					}),
+				)
+
+				realmT := store.GetType(gno.DeclaredTypeID("std", "Realm"))
+				res0.T = realmT
+				m.PushValue(res0)
+			},
+		)
 		pn.DefineNative("PrevRealm",
 			gno.Flds( // params
 			),

@@ -1,6 +1,7 @@
 package errors
 
 import (
+	"errors"
 	fmt "fmt"
 	"testing"
 
@@ -102,4 +103,10 @@ func TestWrapError(t *testing.T) {
 	var err1 error = New("my message")
 	var err2 error = Wrap(err1, "another message")
 	assert.Equal(t, err1, err2)
+	assert.True(t, errors.Is(err2, err1))
+
+	err1 = fmt.Errorf("my message")
+	err2 = Wrap(err1, "another message")
+	assert.NotEqual(t, err1, err2)
+	assert.True(t, errors.Is(err2, err1))
 }
