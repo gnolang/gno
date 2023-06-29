@@ -12,7 +12,15 @@ import (
 
 func main() {
 	io := commands.NewDefaultIO()
+	cmd := newRootCmd(io)
 
+	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "%+v\n", err)
+		os.Exit(1)
+	}
+}
+
+func newRootCmd(io *commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			ShortUsage: "<subcommand> [flags] [<arg>...]",
@@ -23,7 +31,6 @@ func main() {
 			},
 		},
 		commands.NewEmptyConfig(),
-
 		commands.HelpExec,
 	)
 
@@ -31,9 +38,5 @@ func main() {
 		newServerCmd(io),
 	)
 
-	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "%+v\n", err)
-
-		os.Exit(1)
-	}
+	return cmd
 }

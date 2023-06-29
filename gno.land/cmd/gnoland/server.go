@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -162,7 +161,7 @@ func execServer(c *serverCfg, args []string, io *commands.IO) error {
 	fmt.Fprintln(io.Err, "Node created.")
 
 	if c.skipStart {
-		fmt.Fprintln(os.Stderr, "'--skip-start' is set. Exiting.")
+		fmt.Fprintln(io.Err, "'--skip-start' is set. Exiting.")
 
 		return nil
 	}

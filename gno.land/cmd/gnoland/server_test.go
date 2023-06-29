@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,7 +16,7 @@ func TestServerInitialize(t *testing.T) {
 	cases := []struct {
 		args []string
 	}{
-		{[]string{"--skip-start", "--skip-failing-genesis-txs"}},
+		{[]string{"server", "--skip-start", "--skip-failing-genesis-txs"}},
 		// {[]string{"--skip-start"}},
 		// FIXME: test seems flappy as soon as we have multiple cases.
 	}
@@ -31,29 +30,19 @@ func TestServerInitialize(t *testing.T) {
 			io := commands.NewTestIO()
 			io.SetOut(commands.WriteNopCloser(mockOut))
 			io.SetErr(commands.WriteNopCloser(mockErr))
-
-			closer := testutils.CaptureStdoutAndStderr()
-
-			cfg := &serverCfg{}
-			cmd := commands.NewCommand(
-				commands.Metadata{},
-				cfg,
-				func(_ context.Context, args []string) error {
-					return execServer(cfg, args, io)
-				},
-			)
+			cmd := newRootCmd(io)
 
 			t.Logf(`Running "gnoland %s"`, strings.Join(tc.args, " "))
 			err := cmd.ParseAndRun(context.Background(), tc.args)
 			require.NoError(t, err)
 
-			stdouterr, bufErr := closer()
-			require.NoError(t, bufErr)
-			require.NoError(t, err)
+			println("TEST")
+			stdout := mockOut.String()
+			stderr := mockErr.String()
 
-			require.Contains(t, stdouterr, "Node created.", "failed to create node")
-			require.Contains(t, stdouterr, "'--skip-start' is set. Exiting.", "not exited with skip-start")
-			require.NotContains(t, stdouterr, "panic:")
+			require.Contains(t, stderr, "Node created.", "failed to create node")
+			require.Contains(t, stderr, "'--skip-start' is set. Exiting.", "not exited with skip-start")
+			require.NotContains(t, stdout, "panic:")
 		})
 	}
 }
