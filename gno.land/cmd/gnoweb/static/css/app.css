@@ -1,4 +1,37 @@
-@import url("../font/font.css");
+/**** ROBOTO ****/
+
+@font-face {
+    font-family: "Roboto Mono";
+    font-style: normal;
+    font-weight: normal;
+    font-display: swap;
+    src: local("Roboto Mono Regular"), url("/static/font/roboto/RobotoMono-Regular.woff") format("woff");
+  }
+  
+  @font-face {
+    font-family: "Roboto Mono";
+    font-style: italic;
+    font-weight: normal;
+    font-display: swap;
+    src: local("Roboto Mono Italic"), url("/static/font/roboto/RobotoMono-Italic.woff") format("woff");
+  }
+  
+  @font-face {
+    font-family: "Roboto Mono Bold";
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: local("Roboto Mono Bold"), url("/static/font/roboto/RobotoMono-Bold.woff") format("woff");
+  }
+  
+  @font-face {
+    font-family: "Roboto Mono";
+    font-style: italic;
+    font-weight: 700;
+    font-display: swap;
+    src: local("Roboto Mono Bold Italic"), url("/static/font/roboto/RobotoMono-BoldItalic.woff") format("woff");
+  }
+  
 
 /*** DARK/LIGHT THEME COLORS ***/
 
@@ -81,9 +114,8 @@ html[data-theme="dark"] .footer img {
 }
 
 #theme-toggle {
-  height: 2rem;
-  width: 2rem;
   display: inline-block;
+  padding: 0;
 }
 
 html[data-theme="dark"] #theme-toggle-moon,
@@ -127,14 +159,10 @@ h2,
 h3,
 h4,
 nav {
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
     "Segoe UI Symbol", "Noto Color Emoji";
   font-weight: 600;
   letter-spacing: 0.08rem;
-  @supports (font-variation-settings: normal) {
-    font-family: "Inter var", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
-      "Segoe UI Symbol", "Noto Color Emoji";
-  }
 }
 
 :is(h1, h2, h3, h4) a {
@@ -144,18 +172,18 @@ nav {
 h1 {
   text-align: center;
   font-size: 2rem;
-  margin-block: 3.2rem 2rem;
+  margin-block: 4.2rem 2rem;
 }
 
 h2 {
-  font-size: 1.467rem;
-  margin-block: 2.4rem 1.2rem;
+  font-size: 1.625rem;
+  margin-block: 3.4rem 1.2rem;
   line-height: 1.4;
 }
 
 h3 {
   font-size: 1.467rem;
-  margin-block: 2.2rem 1rem;
+  margin-block: 2.6rem 1rem;
 }
 
 p {
@@ -226,6 +254,7 @@ input {
   color: var(--text-color, #000);
   width: 25em;
   padding: 0.4rem 0.5rem;
+  max-width: 100%;x
 }
 
 blockquote {
@@ -273,17 +302,30 @@ code {
   justify-content: space-between;
 }
 
-.stack {
-  display: flex;
-  margin: 2rem 0;
-}
 
-.stack *:not(:first-child) {
-  margin-left: 3.75rem;
+
+.stack,
+.stack > p {
+    display: flex;
+    flex-direction: column;
 }
 
 .stack > p {
   margin: 0;
+}
+
+.stack > a,
+.stack > p > a{
+    margin-block-end: 0.4rem;
+}
+
+.column > h1,
+.column > h2,
+.column > h3,
+.column > h4,
+.column > h5,
+.column > h6 {
+    margin-block-start: 0;
 }
 
 .columns-2,
@@ -306,6 +348,17 @@ code {
 
 /** 51.2rem **/
 @media screen and (min-width: 68.75rem) {
+  .stack,
+  .stack > p {
+    flex-direction:  row;
+  }
+  .stack *:not(:first-child) {
+    margin-left: 3.75rem;
+  }
+  .stack > a,
+  .stack > p > a{
+    margin-block-end: 0;
+  }
   .columns-2 {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -474,7 +527,7 @@ code {
 
 /* enabled conditionally with <noscript> */
 #source {
-  display: none;
+  opacity: 0;
 }
 
 /*** REALM HELP ***/
@@ -581,7 +634,7 @@ code {
   width: calc(100vw - 2.6rem);
   right: -1.467rem;
   top: -1.467rem;
-  padding: 7.333rem 1.467rem 3.333rem;
+  padding: 7.333rem 1.467rem 4.333rem;
   background: var(--header-background, #d7d9db);
   list-style-type: none;
   -webkit-font-smoothing: antialiased;
@@ -594,6 +647,8 @@ code {
   position: absolute;
   left: 1.467rem;
   display: flex;
+  align-items: center;
+  margin-block-start: .7em;
   color: var(--icon-color, #000);
 }
 

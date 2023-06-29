@@ -66,8 +66,6 @@ func makeApp() gotuna.App {
 	}
 	app.Router.Handle("/", handlerHome(app))
 	app.Router.Handle("/about", handlerAbout(app))
-	app.Router.Handle("/gno-language", handlerLanguage(app))
-	app.Router.Handle("/ecosystem", handlerEcosystem(app))
 	app.Router.Handle("/game-of-realms", handlerGor(app))
 	app.Router.Handle("/faucet", handlerFaucet(app))
 	app.Router.Handle("/r/demo/boards:gnolang/6", handlerRedirect(app))
@@ -117,32 +115,6 @@ func handlerAbout(app gotuna.App) http.Handler {
 		app.NewTemplatingEngine().
 			Set("Title", "Gno.land Is A Platform To Write Smart Contracts In Gnolang (Gno)").
 			Set("Description", "On Gno.land, developers write smart contracts and other blockchain apps using Gnolang (Gno) without learning a language that’s exclusive to a single ecosystem.").
-			Set("MainContent", string(mainContent)).
-			Render(w, r, "generic.html", "funcs.html")
-	})
-}
-
-func handlerLanguage(app gotuna.App) http.Handler {
-	md := filepath.Join(flags.pagesDir, "LANGUAGE.md")
-	mainContent := osm.MustReadFile(md)
-
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		app.NewTemplatingEngine().
-			Set("Title", "Gno language").
-			Set("Description", "Gno language").
-			Set("MainContent", string(mainContent)).
-			Render(w, r, "generic.html", "funcs.html")
-	})
-}
-
-func handlerEcosystem(app gotuna.App) http.Handler {
-	md := filepath.Join(flags.pagesDir, "ECOSYSTEM.md")
-	mainContent := osm.MustReadFile(md)
-
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		app.NewTemplatingEngine().
-			Set("Title", "Gno Ecosystem").
-			Set("Description", "Gno Ecosystem").
 			Set("MainContent", string(mainContent)).
 			Render(w, r, "generic.html", "funcs.html")
 	})
