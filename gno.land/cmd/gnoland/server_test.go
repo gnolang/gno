@@ -36,7 +36,6 @@ func TestServerInitialize(t *testing.T) {
 			err := cmd.ParseAndRun(context.Background(), tc.args)
 			require.NoError(t, err)
 
-			println("TEST")
 			stdout := mockOut.String()
 			stderr := mockErr.String()
 
