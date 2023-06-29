@@ -89,7 +89,8 @@ func printBalances() {
 		ccoins := cbanker.GetCoins(addr).AmountOf("ugnot")
 		dbanker := std.GetBanker(std.BankerTypeReadonly)
 		dcoins := dbanker.GetCoins(addr).AmountOf("ugnot")
-		fmt.Printf("| %-13s | addr=%s | foo20=%-5d | ugnot=%-9d %-9d %-9d %-9d |\n", name, addr, foo20Bal, acoins, bcoins, ccoins, dcoins)
+		fmt.Printf("| %-13s | addr=%s | foo20=%-5d | ugnot=%-9d %-9d %-9d %-9d |\n",
+			name, addr, foo20Bal, acoins, bcoins, ccoins, dcoins)
 	}
 	println("-----------")
 	printSingleBalance("foo20_lp_test", addrt)
