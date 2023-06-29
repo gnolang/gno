@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -12,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestInitialize(t *testing.T) {
+func TestServerInitialize(t *testing.T) {
 	cases := []struct {
 		args []string
 	}{
@@ -25,14 +26,20 @@ func TestInitialize(t *testing.T) {
 	for _, tc := range cases {
 		name := strings.Join(tc.args, " ")
 		t.Run(name, func(t *testing.T) {
+			mockOut := bytes.NewBufferString("")
+			mockErr := bytes.NewBufferString("")
+			io := commands.NewTestIO()
+			io.SetOut(commands.WriteNopCloser(mockOut))
+			io.SetErr(commands.WriteNopCloser(mockErr))
+
 			closer := testutils.CaptureStdoutAndStderr()
 
-			cfg := &gnolandCfg{}
+			cfg := &serverCfg{}
 			cmd := commands.NewCommand(
 				commands.Metadata{},
 				cfg,
-				func(_ context.Context, _ []string) error {
-					return exec(cfg)
+				func(_ context.Context, args []string) error {
+					return execServer(cfg, args, io)
 				},
 			)
 
