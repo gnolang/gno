@@ -152,6 +152,7 @@ func startGnoland(t *testing.T) {
 		"-w", "/opt/gno/src/gno.land",
 		"gno:integration",
 		"gnoland",
+		"server",
 	})
 	output, err := cmd.CombinedOutput()
 	require.NoError(t, err)
