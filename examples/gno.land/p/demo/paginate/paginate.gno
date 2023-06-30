@@ -105,8 +105,28 @@ func navigation(numPages int, current int, reverse bool, pageFn pageFn) string {
 	return str
 }
 
-// This syntax actually doesn't work with Gno language
-// var itoa = strconv.Itoa
+func renderTreeItem(t avl.Tree, numPages, page, size int, reverse bool) string {
+	str := ""
+	offset := 0
+
+	if reverse {
+		offset = (numPages - page) * size
+	} else {
+		offset = (page - 1) * size
+	}
+	t.IterateByOffset(offset, size,
+		func(key string, value interface{}) bool {
+			r := value.(renderer)
+			str += "\n"
+			str += r.Render()
+			str += "\n"
+			str += "\n"
+
+			return true
+		},
+	)
+	return str
+}
 
 // pageFn: path function to render paginattion links. if nil, no links are
 // rendered. result must start with ':'.
@@ -132,29 +152,12 @@ func RenderTreeByPage(
 
 	numPages := (t.Size() / size)
 	if numPages < 1 {
-		return ""
+		panic("invalid tree size to RenderTreeByPage")
 	}
 
 	// render pagination
 	if pageFn == nil {
-		// render tree items
-		var offset int
-		if reverse {
-			offset = (numPages - page) * size
-		} else {
-			offset = (page - 1) * size
-		}
-		t.IterateByOffset(offset, size,
-			func(key string, value interface{}) bool {
-				r := value.(renderer)
-				str += "\n"
-				str += r.Render()
-				str += "\n"
-				str += "\n"
-
-				return true
-			},
-		)
+		str += renderTreeItem(t, numPages, page, size, reverse)
 		return str
 	} else if page > numPages {
 		// page out of bounds.
@@ -171,25 +174,7 @@ func RenderTreeByPage(
 		nav = navigation(numPages, page, reverse, pageFn)
 		str += nav
 		str += "\n"
-
-		// render tree items
-		var offset int
-		if reverse {
-			offset = (numPages - page) * size
-		} else {
-			offset = (page - 1) * size
-		}
-		t.IterateByOffset(offset, size,
-			func(key string, value interface{}) bool {
-				r := value.(renderer)
-				str += "\n"
-				str += r.Render()
-				str += "\n"
-				str += "\n"
-
-				return true
-			},
-		)
+		str += renderTreeItem(t, numPages, page, size, reverse)
 	}
 
 	// render pagination again if there are pages.
