@@ -9,6 +9,7 @@ services:
     working_dir: /opt/gno/src/gno.land
     command:
       - gnoland
+      - server
       - --skip-failing-genesis-txs
       - --chainid=staging
       - --genesis-remote=staging.gno.land:36657

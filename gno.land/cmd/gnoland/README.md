@@ -6,4 +6,8 @@
     $> cd ./gno/gno.land
     $> make install.gnoland
 
+## Run `gnoland`
+
+    $> gnoland server
+
 Afterward, you can interact with [`gnokey`](../gnokey) or launch a [`gnoweb`](../gnoweb) interface.

@@ -11,6 +11,7 @@ services:
       - LETSENCRYPT_HOST=rpc.test2.gno.land
     command:
       - gnoland
+      - server
       - --skip-failing-genesis-txs
       - --chainid
       - test2
