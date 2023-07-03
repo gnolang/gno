@@ -8,36 +8,16 @@ import (
 )
 
 type Pkg struct {
-	name     string
-	path     string
-	draft    bool
-	requires []string
+	Dir      string   // absolute path to package dir
+	Name     string   // package name
+	Requires []string // dependencies
+	Draft    bool     // whether the package is a draft
 }
 
 type (
 	PkgList       []Pkg
 	SortedPkgList []Pkg
 )
-
-// Name returns the name of the package.
-func (p Pkg) Name() string {
-	return p.name
-}
-
-// Path returns the path of the package.
-func (p Pkg) Path() string {
-	return p.path
-}
-
-// Draft returns whether the package is a draft.
-func (p Pkg) Draft() bool {
-	return p.draft
-}
-
-// Requires returns the required packages of the package.
-func (p Pkg) Requires() []string {
-	return p.requires
-}
 
 // sortPkgs sorts the given packages by their dependencies.
 func (pl PkgList) Sort() (SortedPkgList, error) {
@@ -57,21 +37,21 @@ func (pl PkgList) Sort() (SortedPkgList, error) {
 
 // visitNode visits a package's and its dependencies dependencies and adds them to the sorted list.
 func visitPackage(pkg Pkg, pkgs []Pkg, visited, onStack map[string]bool, sortedPkgs *[]Pkg) error {
-	if onStack[pkg.name] {
-		return fmt.Errorf("cycle detected: %s", pkg.name)
+	if onStack[pkg.Name] {
+		return fmt.Errorf("cycle detected: %s", pkg.Name)
 	}
-	if visited[pkg.name] {
+	if visited[pkg.Name] {
 		return nil
 	}
 
-	visited[pkg.name] = true
-	onStack[pkg.name] = true
+	visited[pkg.Name] = true
+	onStack[pkg.Name] = true
 
 	// Visit package's dependencies
-	for _, req := range pkg.requires {
+	for _, req := range pkg.Requires {
 		found := false
 		for _, p := range pkgs {
-			if p.name != req {
+			if p.Name != req {
 				continue
 			}
 			if err := visitPackage(p, pkgs, visited, onStack, sortedPkgs); err != nil {
@@ -81,11 +61,11 @@ func visitPackage(pkg Pkg, pkgs []Pkg, visited, onStack map[string]bool, sortedP
 			break
 		}
 		if !found {
-			return fmt.Errorf("missing dependency '%s' for package '%s'", req, pkg.name)
+			return fmt.Errorf("missing dependency '%s' for package '%s'", req, pkg.Name)
 		}
 	}
 
-	onStack[pkg.name] = false
+	onStack[pkg.Name] = false
 	*sortedPkgs = append(*sortedPkgs, pkg)
 	return nil
 }
@@ -120,10 +100,10 @@ func ListPkgs(root string) (PkgList, error) {
 		}
 
 		pkgs = append(pkgs, Pkg{
-			name:  gnoMod.Module.Mod.Path,
-			path:  path,
-			draft: gnoMod.Draft,
-			requires: func() []string {
+			Dir:   path,
+			Name:  gnoMod.Module.Mod.Path,
+			Draft: gnoMod.Draft,
+			Requires: func() []string {
 				var reqs []string
 				for _, req := range gnoMod.Require {
 					reqs = append(reqs, req.Mod.Path)
@@ -147,15 +127,15 @@ func (sp SortedPkgList) GetNonDraftPkgs() SortedPkgList {
 	draft := make(map[string]bool)
 
 	for _, pkg := range sp {
-		if pkg.draft {
-			draft[pkg.name] = true
+		if pkg.Draft {
+			draft[pkg.Name] = true
 			continue
 		}
 		dependsOnDraft := false
-		for _, req := range pkg.requires {
+		for _, req := range pkg.Requires {
 			if draft[req] {
 				dependsOnDraft = true
-				draft[pkg.name] = true
+				draft[pkg.Name] = true
 				break
 			}
 		}
