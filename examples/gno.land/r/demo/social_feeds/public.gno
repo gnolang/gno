@@ -10,7 +10,7 @@ func CreateFeed(name string) FeedID {
 	fid := incGetFeedID()
 	caller := std.PrevRealm().Addr()
 	if usernameOf(caller) == "" {
-		panic("unauthorized")
+		panic("only registered user can create feed")
 	}
 	url := "/r/demo/feeds:" + name
 	feed := newFeed(fid, url, name, caller)
@@ -26,11 +26,9 @@ func CreatePost(fid FeedID, parentID PostID, catetory uint64, metadata string) P
 	std.AssertOriginCall()
 	caller := std.PrevRealm().Addr()
 
-	// if usernameOf(caller) == "" {
-	// 	if !checkAnonFee() {
-	// 		panic("please register, otherwise minimum fee " + strconv.Itoa(gDefaultAnonFee) + " is required if anonymous")
-	// 	}
-	// }
+	if usernameOf(caller) == "" {
+		panic("please register user")
+	}
 	feed := mustGetFeed(fid)
 	post := feed.AddPost(caller, parentID, catetory, metadata)
 	return post.id
