@@ -189,13 +189,13 @@ func SubPkgsFromPaths(paths []string) ([]*SubPkg, error) {
 		return []*SubPkg{subPkg}, nil
 	}
 
-	var subPkgs []*SubPkg
+	subPkgs := make([]*SubPkg, 0, len(paths))
 	for _, path := range paths {
 		subPkg := newEmptySubPkg()
 
 		matches, err := filepath.Glob(filepath.Join(path, "*.gno"))
 		if err != nil {
-			return nil, fmt.Errorf("failed to match pattern: %s", err)
+			return nil, fmt.Errorf("failed to match pattern: %w", err)
 		}
 
 		for _, match := range matches {

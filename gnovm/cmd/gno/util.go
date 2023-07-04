@@ -157,7 +157,6 @@ func gnoPackagePathsFromPattern(patterns []string) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-
 	}
 	return paths, nil
 }
