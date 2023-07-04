@@ -41,6 +41,7 @@ require (
 )
 
 require (
+	github.com/awalterschulze/gographviz v2.0.3+incompatible // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/dgraph-io/ristretto v0.1.1 // indirect
@@ -48,6 +49,7 @@ require (
 	github.com/facebookgo/ensure v0.0.0-20200202191622-63f1cf65ac4c // indirect
 	github.com/facebookgo/stack v0.0.0-20160209184415-751773369052 // indirect
 	github.com/facebookgo/subset v0.0.0-20200203212716-c811ad88dec4 // indirect
+	github.com/fatih/color v1.15.0 // indirect
 	github.com/gdamore/encoding v1.0.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
@@ -56,12 +58,16 @@ require (
 	github.com/google/flatbuffers v1.12.1 // indirect
 	github.com/gorilla/securecookie v1.1.1 // indirect
 	github.com/gorilla/sessions v1.2.1 // indirect
+	github.com/jessevdk/go-flags v1.4.0 // indirect
 	github.com/klauspost/compress v1.12.3 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lib/pq v1.10.7 // indirect
 	github.com/lucasb-eyer/go-colorful v1.0.3 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.17 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
+	github.com/uber/go-torch v0.0.0-20181107071353-86f327cc820e // indirect
 	go.opencensus.io v0.22.5 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	golang.org/x/sys v0.8.0 // indirect
