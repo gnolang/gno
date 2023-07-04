@@ -26,13 +26,13 @@ func (b Blog) RenderHome(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-  res.Write("<div class='columns-3'>")
+  	res.Write("<div class='columns-3'>")
 	b.Posts.Iterate("", "", func(key string, value interface{}) bool {
 		post := value.(*Post)
 		res.Write(post.RenderListItem())
 		return false
 	})
-  res.Write("</div>")
+  	res.Write("</div>")
 
 	// FIXME: tag list/cloud.
 }
