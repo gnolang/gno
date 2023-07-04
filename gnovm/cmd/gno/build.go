@@ -57,7 +57,7 @@ func execBuild(cfg *buildCfg, args []string, io *commands.IO) error {
 		return flag.ErrHelp
 	}
 
-	paths, err := gnoPackagePathsFromArgs(args)
+	paths, err := gnoPackagesFromArgs(args)
 	if err != nil {
 		return fmt.Errorf("list packages: %w", err)
 	}

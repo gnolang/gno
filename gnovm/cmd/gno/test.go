@@ -134,7 +134,7 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 		cfg.rootDir = guessRootDir()
 	}
 
-	pkgPaths, err := gnoPackagePathsFromArgs(args)
+	pkgPaths, err := gnoPackagesFromArgs(args)
 	if err != nil {
 		return fmt.Errorf("list packages from args: %w", err)
 	}
@@ -266,16 +266,16 @@ func gnoTestPkg(
 
 	// testing with *_test.gno
 	if len(unittestFiles) > 0 {
-		// TODO not pkgName, bc it's usually the last part of the pkgPath
-		pkgName := strings.TrimPrefix(pkgPath, "./examples/")
-		memPkg := gno.ReadMemPackage(pkgPath, pkgName)
+		// FIXME: read gnoPkgPath from gno.mod when ready
+		gnoPkgPath := strings.TrimPrefix(pkgPath, "./examples/")
+		memPkg := gno.ReadMemPackage(pkgPath, gnoPkgPath)
 
 		// tfiles, ifiles := gno.ParseMemPackageTests(memPkg)
 		tfiles, ifiles := parseMemPackageTests(memPkg)
 
 		// run test files in pkg
 		{
-			m := tests.TestMachine(testStore, stdout, pkgName)
+			m := tests.TestMachine(testStore, stdout, gnoPkgPath)
 			if printRuntimeMetrics {
 				// from tm2/pkg/sdk/vm/keeper.go
 				// XXX: make maxAllocTx configurable.
