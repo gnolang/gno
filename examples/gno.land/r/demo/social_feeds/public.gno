@@ -3,6 +3,9 @@ package social_feeds
 import (
 	"std"
 	"strconv"
+	"strings"
+
+	"gno.land/p/demo/ufmt"
 )
 
 func CreateFeed(name string) FeedID {
@@ -70,6 +73,30 @@ func ReactPost(fid FeedID, pid PostID, icon string, up bool) {
 	post := feed.MustGetPost(pid)
 
 	post.React(icon, up)
+}
+
+// Get Posts list
+type PostItem struct {
+	ID       PostID
+	Category uint64
+	Metadata string
+	Creator  std.Address
+}
+
+func GetPosts(fid FeedID) string {
+	std.AssertOriginCall()
+	caller := std.PrevRealm().Addr()
+	feed := mustGetFeed(fid)
+
+	var postList []string
+	feed.posts.Iterate("", "", func(key string, value interface{}) bool {
+		post := value.(*Post)
+		postList = append(postList, ufmt.Sprintf("%d,%d,%s,%s", uint64(post.id), post.category, post.metadata, post.creator))
+		return false
+	})
+
+	res := strings.Join(postList, "|")
+	return res
 }
 
 func checkAnonFee() bool {

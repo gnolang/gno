@@ -86,4 +86,11 @@ func Test(t *testing.T) {
 	if createdSubPost.parentID != parentID {
 		t.Fatalf("expected parentID: %q, got %q.", parentID, createdPost.parentID)
 	}
+
+	// Get Post list
+	posts := GetPosts(feedID)
+	panic(posts)
+	// if len(posts) != 2 {
+	// 	t.Fatalf("expected total posts: 2, got %q.", len(posts))
+	// }
 }
