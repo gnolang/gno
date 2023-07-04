@@ -148,7 +148,6 @@ func Go2Gno(roots *[]*NameExpr, escapedlist []string, fs *token.FileSet, gon ast
 		return toExpr(roots, escapedlist, fs, gon.X)
 	case *ast.Ident:
 		nx := Nx(toName(gon))
-		println(nx.Name)
 		if roots != nil {
 			*roots = append(*roots, nx)
 		}

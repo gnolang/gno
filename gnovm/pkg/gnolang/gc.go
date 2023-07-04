@@ -9,10 +9,12 @@ type GC struct {
 }
 
 type GCObj struct {
-	value  TypedValue
-	marked bool
-	ref    *GCObj
-	path   *ValuePath
+	value     TypedValue
+	marked    bool
+	ref       *GCObj
+	path      *ValuePath
+	composite bool
+	parent    *ValuePath
 }
 
 func NewGC(debug bool) *GC {

@@ -192,19 +192,23 @@ func (m *Machine) doOpRef() {
 	}
 
 	var vp *ValuePath
+	tv := TypedValue{
+		T:            m.Alloc.NewType(&PointerType{Elt: xv.TV.T}),
+		V:            xv,
+		OnHeap:       true,
+		ShouldEscape: false,
+	}
 	if _, ok := xv.TV.V.(*StructValue); ok {
 		xv.TV.OnHeap = true
 		xv.TV.ShouldEscape = false
-		gcparent := &GCObj{
-			value: *xv.TV,
-			ref:   nil,
-		}
+		gcparent := &GCObj{value: tv}
 		xv.GCParent = gcparent
 
 		m.GC.AddObject(gcparent)
 		rootNE := m.PopRoot()
 
 		if rootNE != nil {
+			gcparent.composite = true
 			vp = &rootNE.Path
 		}
 	}
@@ -214,12 +218,7 @@ func (m *Machine) doOpRef() {
 	root := &GCObj{ref: xv.GCParent, path: vp}
 	m.GC.AddRoot(root)
 
-	m.PushValue(TypedValue{
-		T:            m.Alloc.NewType(&PointerType{Elt: xv.TV.T}),
-		V:            xv,
-		OnHeap:       true,
-		ShouldEscape: false,
-	})
+	m.PushValue(tv)
 }
 
 // NOTE: keep in sync with doOpTypeAssert2.
@@ -405,13 +404,19 @@ func (m *Machine) doOpCompositeLit() {
 	case *StructType:
 		m.PushOp(OpStructLit)
 		// evaluate field values
+		var numRef int
 		for i := len(x.Elts) - 1; 0 <= i; i-- {
-			m.PushRoot(x.Elts[i].Key.(*NameExpr))
+			ne := x.Elts[i].Key.(*NameExpr)
+
+			if ne.IsRoot {
+				m.PushRoot(x.Elts[i].Key.(*NameExpr))
+				numRef += 1
+			}
 			m.PushExpr(x.Elts[i].Value)
 			m.PushOp(OpEval)
 		}
 
-		if len(x.Elts) > 0 {
+		if numRef > 0 {
 			m.PushRoot(nil)
 		}
 	case *NativeType:

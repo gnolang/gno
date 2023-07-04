@@ -1701,6 +1701,9 @@ func (m *Machine) PopFrameAndReturn() {
 	//GC: drop root objects pointing to heap allocations
 	for _, root := range fr.Func.roots { //todo should not do on uverse functions
 		r := m.GC.getRootByPath(&root.Path)
+		if r == nil {
+			continue
+		}
 		if str, is := r.ref.value.V.(*StructValue); is {
 			for _, fieldRoot := range str.FieldRoots {
 				m.GC.RemoveRoot(&fieldRoot.Path)

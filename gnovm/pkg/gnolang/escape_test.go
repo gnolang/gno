@@ -19,6 +19,24 @@ type escapeTest struct {
 
 var escapeTests = []escapeTest{
 	{
+		testName: "struct with refs",
+		code: `
+		package p
+
+		type Foo struct {
+		  bar *Foo
+		}
+		
+		func main() {
+			ff := &Foo{bar: &Foo{}}
+
+		}`,
+		declaration: func(f *ast.File) *ast.FuncDecl {
+			return f.Decls[1].(*ast.FuncDecl)
+		},
+		expectedVars: []string{"ff", "bar"},
+	},
+	{
 		testName: "struct simple",
 		code: `
 		package p

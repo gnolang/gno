@@ -49,11 +49,27 @@ func TestGCArgs(t *testing.T) {
 
 type Foo struct {
   left *Foo
-  right *Foo 	
+  right *Foo
+  n int
 }
 
 func main() {
-	ff := &Foo{left: &Foo{}, right: &Foo{}}
+    a := 5 // value path (10, 1)
+    b := &a 
+    
+    {
+		a := 123
+	}
+	
+	ff := &Foo{
+		left: &Foo{n: 1},
+		right: &Foo{n: 2},
+		n: 0,
+	}
+	// ff, left, right
+
+	//a := ff.left
+	println(ff)
 	printit(ff)
 }
 
