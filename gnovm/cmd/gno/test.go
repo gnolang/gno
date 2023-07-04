@@ -266,6 +266,7 @@ func gnoTestPkg(
 
 	// testing with *_test.gno
 	if len(unittestFiles) > 0 {
+		// TODO not pkgName, bc it's usually the last part of the pkgPath
 		pkgName := strings.TrimPrefix(pkgPath, "./examples/")
 		memPkg := gno.ReadMemPackage(pkgPath, pkgName)
 
