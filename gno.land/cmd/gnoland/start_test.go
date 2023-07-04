@@ -12,11 +12,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestServerInitialize(t *testing.T) {
+func TestStartInitialize(t *testing.T) {
 	cases := []struct {
 		args []string
 	}{
-		{[]string{"server", "--skip-start", "--skip-failing-genesis-txs"}},
+		{[]string{"start", "--skip-start", "--skip-failing-genesis-txs"}},
 		// {[]string{"--skip-start"}},
 		// FIXME: test seems flappy as soon as we have multiple cases.
 	}

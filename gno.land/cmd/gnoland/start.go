@@ -25,7 +25,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-type serverCfg struct {
+type startCfg struct {
 	skipFailingGenesisTxs bool
 	skipStart             bool
 	genesisBalancesFile   string
@@ -37,23 +37,23 @@ type serverCfg struct {
 	config                string
 }
 
-func newServerCmd(io *commands.IO) *commands.Command {
-	cfg := &serverCfg{}
+func newStartCmd(io *commands.IO) *commands.Command {
+	cfg := &startCfg{}
 
 	return commands.NewCommand(
 		commands.Metadata{
-			Name:       "server",
-			ShortUsage: "server [flags]",
-			ShortHelp:  "start a node server",
+			Name:       "start",
+			ShortUsage: "start [flags]",
+			ShortHelp:  "run the full node",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execServer(cfg, args, io)
+			return execStart(cfg, args, io)
 		},
 	)
 }
 
-func (c *serverCfg) RegisterFlags(fs *flag.FlagSet) {
+func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
 		&c.skipFailingGenesisTxs,
 		"skip-failing-genesis-txs",
@@ -118,7 +118,7 @@ func (c *serverCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execServer(c *serverCfg, args []string, io *commands.IO) error {
+func execStart(c *startCfg, args []string, io *commands.IO) error {
 	logger := log.NewTMLogger(log.NewSyncWriter(io.Out))
 	rootDir := c.rootDir
 
