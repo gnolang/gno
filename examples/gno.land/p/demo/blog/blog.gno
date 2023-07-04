@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
 )
 
@@ -17,91 +18,91 @@ type Blog struct {
 	Posts  avl.Tree // slug -> Post
 }
 
-func (b Blog) Render(path string) string {
-	parts := strings.Split(path, "/")
+func (b Blog) RenderHome(res *mux.ResponseWriter, req *mux.Request) {
+	res.Write(breadcrumb([]string{b.Title}))
 
-	isHome := path == ""
-	isViewPost := len(parts) == 2 && parts[0] == "p" && len(parts[1]) > 0
-	isViewTag := len(parts) == 2 && parts[0] == "t" && len(parts[1]) > 0
-
-	switch {
-	case isHome:
-		output := breadcrumb([]string{b.Title})
-
-		if b.Posts.Size() == 0 {
-			output += "No posts."
-			return output
-		}
-
-		output += "<div class='columns-3'>"
-
-		b.Posts.Iterate("", "", func(key string, value interface{}) bool {
-			post := value.(*Post)
-			output += post.RenderListItem()
-			return false
-		})
-
-		output += "</div>"
-
-		// FIXME: tag list/cloud.
-		return output
-
-	case isViewPost:
-		slug := parts[1]
-
-		post, found := b.Posts.Get(slug)
-		if !found {
-			return "404"
-		}
-		p := post.(*Post)
-
-		output := breadcrumb([]string{
-			ufmt.Sprintf("[%s](%s)", b.Title, b.Prefix),
-			"p",
-			p.Title,
-		})
-
-		// output += ufmt.Sprintf("## [%s](%s)\n", p.Title, p.URL())
-		output += p.Body + "\n\n"
-		output += p.RenderTagList() + "\n\n"
-		output += formatAuthorAndDate(p.Author, p.CreatedAt) + "\n"
-		output += "\n"
-
-		// comments
-		p.Comments.ReverseIterate("", "", func(key string, value interface{}) bool {
-			comment := value.(*Comment)
-			output += comment.RenderListItem()
-			return false
-		})
-
-		return output
-
-	case isViewTag:
-		tagSlug := parts[1]
-
-		output := breadcrumb([]string{
-			ufmt.Sprintf("[%s](%s)", b.Title, b.Prefix),
-			"t",
-			tagSlug,
-		})
-
-		nb := 0
-		b.Posts.Iterate("", "", func(key string, value interface{}) bool {
-			post := value.(*Post)
-			if !post.HasTag(tagSlug) {
-				return false
-			}
-			output += post.RenderListItem()
-			nb++
-			return false
-		})
-		if nb == 0 {
-			output += "No posts."
-		}
-		return output
+	if b.Posts.Size() == 0 {
+		res.Write("No posts.")
+		return
 	}
 
-	return "404"
+  res.Write("<div class='columns-3'>")
+	b.Posts.Iterate("", "", func(key string, value interface{}) bool {
+		post := value.(*Post)
+		res.Write(post.RenderListItem())
+		return false
+	})
+  res.Write("</div>")
+
+	// FIXME: tag list/cloud.
+}
+
+func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
+	slug := req.GetVar("slug")
+
+	post, found := b.Posts.Get(slug)
+	if !found {
+		res.Write("404")
+		return
+	}
+	p := post.(*Post)
+
+	breadStr := breadcrumb([]string{
+		ufmt.Sprintf("[%s](%s)", b.Title, b.Prefix),
+		"p",
+		p.Title,
+	})
+	res.Write(breadStr)
+
+	// output += ufmt.Sprintf("## [%s](%s)\n", p.Title, p.URL())
+	res.Write(p.Body + "\n\n")
+	res.Write(p.RenderTagList() + "\n\n")
+	res.Write(formatAuthorAndDate(p.Author, p.CreatedAt) + "\n\n")
+
+	// comments
+	p.Comments.ReverseIterate("", "", func(key string, value interface{}) bool {
+		comment := value.(*Comment)
+		res.Write(comment.RenderListItem())
+		return false
+	})
+}
+
+func (b Blog) RenderTag(res *mux.ResponseWriter, req *mux.Request) {
+	slug := req.GetVar("slug")
+
+	if slug == "" {
+		res.Write("404")
+		return
+	}
+
+	breadStr := breadcrumb([]string{
+		ufmt.Sprintf("[%s](%s)", b.Title, b.Prefix),
+		"t",
+		slug,
+	})
+	res.Write(breadStr)
+
+	nb := 0
+	b.Posts.Iterate("", "", func(key string, value interface{}) bool {
+		post := value.(*Post)
+		if !post.HasTag(slug) {
+			return false
+		}
+		res.Write(post.RenderListItem())
+		nb++
+		return false
+	})
+	if nb == 0 {
+		res.Write("No posts.")
+	}
+}
+
+func (b Blog) Render(path string) string {
+	router := mux.NewRouter()
+	router.HandleFunc("", b.RenderHome)
+	router.HandleFunc("p/{slug}", b.RenderPost)
+	router.HandleFunc("t/{slug}", b.RenderTag)
+	return router.Render(path)
 }
 
 func (b *Blog) NewPost(author std.Address, slug, title, body string, tags []string) error {

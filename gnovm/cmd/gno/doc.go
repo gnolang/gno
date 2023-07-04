@@ -2,10 +2,15 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
+	"fmt"
+	"io/fs"
+	"os"
 	"path/filepath"
 
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
@@ -74,8 +79,32 @@ func execDoc(cfg *docCfg, args []string, io *commands.IO) error {
 	if cfg.rootDir == "" {
 		cfg.rootDir = guessRootDir()
 	}
-	dirs := []string{filepath.Join(cfg.rootDir, "gnovm/stdlibs"), filepath.Join(cfg.rootDir, "examples")}
-	res, err := doc.ResolveDocumentable(dirs, args, cfg.unexported)
+
+	wd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("could not determine working directory: %w", err)
+	}
+
+	var modDirs []string
+
+	rd, err := gnomod.FindRootDir(wd)
+	if err != nil && !errors.Is(err, gnomod.ErrGnoModNotFound) {
+		return fmt.Errorf("error determining root gno.mod file: %w", err)
+	}
+	if !errors.Is(err, gnomod.ErrGnoModNotFound) {
+		modDirs = append(modDirs, rd)
+	}
+
+	examplesModules, err := findGnomodExamples(filepath.Join(cfg.rootDir, "examples"))
+	if err != nil {
+		io.Printfln("warning: error scanning examples directory for modules: %v", err)
+	} else {
+		modDirs = append(modDirs, examplesModules...)
+	}
+
+	// select dirs from which to gather directories
+	dirs := []string{filepath.Join(cfg.rootDir, "gnovm/stdlibs")}
+	res, err := doc.ResolveDocumentable(dirs, modDirs, args, cfg.unexported)
 	if res == nil {
 		return err
 	}
@@ -91,4 +120,18 @@ func execDoc(cfg *docCfg, args []string, io *commands.IO) error {
 			Short:      false,
 		},
 	)
+}
+
+func findGnomodExamples(dir string) ([]string, error) {
+	dirs := make([]string, 0, 64) // "hint" about the size
+	err := filepath.WalkDir(dir, func(path string, e fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !e.IsDir() && e.Name() == "gno.mod" {
+			dirs = append(dirs, filepath.Dir(path))
+		}
+		return nil
+	})
+	return dirs, err
 }

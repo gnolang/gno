@@ -3,6 +3,7 @@ package vm
 // TODO: move most of the logic in ROOT/gno.land/...
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -12,6 +13,45 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
+
+func TestVMKeeperAddPackage(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.ctx
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+
+	// Create test package.
+	files := []*std.MemFile{
+		{
+			Name: "test.gno",
+			Body: `package test
+
+import "std"
+
+func Echo() string {
+	return "hello world"
+}`,
+		},
+	}
+	pkgPath := "gno.land/r/test"
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	assert.Nil(t, env.vmk.gnoStore.GetPackage(pkgPath, false))
+
+	err := env.vmk.AddPackage(ctx, msg1)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, env.vmk.gnoStore.GetPackage(pkgPath, false))
+
+	err = env.vmk.AddPackage(ctx, msg1)
+
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, InvalidPkgPathError{}))
+}
 
 // Sending total send amount succeeds.
 func TestVMKeeperOrigSend1(t *testing.T) {
