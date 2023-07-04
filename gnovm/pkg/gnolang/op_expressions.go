@@ -428,11 +428,17 @@ func (m *Machine) doOpArrayLit() {
 	if 0 < ne {
 		al, ad := av.List, av.Data
 		vs := m.PopValues(ne)
+		set := make([]bool, bt.Len)
 		idx := 0
 		for i, v := range vs {
 			if kx := x.Elts[i].Key; kx != nil {
 				// XXX why convert?
 				k := kx.(*ConstExpr).ConvertGetInt()
+				if set[k] {
+					// array index has already been assigned
+					panic(fmt.Sprintf("duplicate index %d in array or slice literal", k))
+				}
+				set[k] = true
 				if al == nil {
 					ad[k] = v.GetUint8()
 				} else {
@@ -440,6 +446,11 @@ func (m *Machine) doOpArrayLit() {
 				}
 				idx = k + 1
 			} else {
+				if set[idx] {
+					// array index has already been assigned
+					panic(fmt.Sprintf("duplicate index %d in array or slice literal", idx))
+				}
+				set[idx] = true
 				if al == nil {
 					ad[idx] = v.GetUint8()
 				} else {
@@ -512,6 +523,10 @@ func (m *Machine) doOpSliceLit2() {
 		itv := tvs[i*2+0]
 		vtv := tvs[i*2+1]
 		idx := itv.ConvertGetInt()
+		if es[idx].IsDefined() {
+			// slice index has already been assigned
+			panic(fmt.Sprintf("duplicate index %d in array or slice literal", idx))
+		}
 		es[idx] = vtv
 	}
 	// fill in empty values.
@@ -552,6 +567,10 @@ func (m *Machine) doOpMapLit() {
 			ktv := &kvs[i*2]
 			vtv := kvs[i*2+1]
 			ptr := mv.GetPointerForKey(m.Alloc, m.Store, ktv)
+			if ptr.TV.IsDefined() {
+				// map key has already been assigned
+				panic(fmt.Sprintf("duplicate key %s in map literal", ktv.V))
+			}
 			*ptr.TV = vtv
 		}
 	}

@@ -41,16 +41,27 @@ type VMKeeper struct {
 
 	// cached, the DeliverTx persistent state.
 	gnoStore gno.Store
+
+	maxCycles int64 // max allowed cylces on VM executions
 }
 
 // NewVMKeeper returns a new VMKeeper.
-func NewVMKeeper(baseKey store.StoreKey, iavlKey store.StoreKey, acck auth.AccountKeeper, bank bank.BankKeeper, stdlibsDir string) *VMKeeper {
+func NewVMKeeper(
+	baseKey store.StoreKey,
+	iavlKey store.StoreKey,
+	acck auth.AccountKeeper,
+	bank bank.BankKeeper,
+	stdlibsDir string,
+	maxCycles int64,
+) *VMKeeper {
+	// TODO: create an Options struct to avoid too many constructor parameters
 	vmk := &VMKeeper{
 		baseKey:    baseKey,
 		iavlKey:    iavlKey,
 		acck:       acck,
 		bank:       bank,
 		stdlibsDir: stdlibsDir,
+		maxCycles:  maxCycles,
 	}
 	return vmk
 }
@@ -137,8 +148,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 		return ErrInvalidPkgPath(err.Error())
 	}
 	if pv := store.GetPackage(pkgPath, false); pv != nil {
-		// TODO: return error instead of panicking?
-		panic("package already exists: " + pkgPath)
+		return ErrInvalidPkgPath("package already exists: " + pkgPath)
 	}
 	// Pay deposit from creator.
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
@@ -174,7 +184,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 			Store:     store,
 			Alloc:     store.GetAllocator(),
 			Context:   msgCtx,
-			MaxCycles: 10 * 1000 * 1000, // 10M cycles // XXX
+			MaxCycles: vm.maxCycles,
 		})
 	defer m2.Release()
 	m2.RunMemPackage(memPkg, true)
@@ -248,7 +258,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			Store:     store,
 			Context:   msgCtx,
 			Alloc:     store.GetAllocator(),
-			MaxCycles: 10 * 1000 * 1000, // 10M cycles // XXX
+			MaxCycles: vm.maxCycles,
 		})
 	m.SetActivePackage(mpv)
 	defer func() {
@@ -369,7 +379,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 			Store:     store,
 			Context:   msgCtx,
 			Alloc:     alloc,
-			MaxCycles: 10 * 1000 * 1000, // 10M cycles // XXX
+			MaxCycles: vm.maxCycles,
 		})
 	defer func() {
 		if r := recover(); r != nil {
@@ -429,7 +439,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 			Store:     store,
 			Context:   msgCtx,
 			Alloc:     alloc,
-			MaxCycles: 10 * 1000 * 1000, // 10M cycles // XXX
+			MaxCycles: vm.maxCycles,
 		})
 	defer func() {
 		if r := recover(); r != nil {

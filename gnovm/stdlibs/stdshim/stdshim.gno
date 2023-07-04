@@ -36,6 +36,22 @@ func GetOrigSend() Coins {
 	return Coins{}
 }
 
+func CurrentRealm() Realm {
+	panic(shimWarn)
+	return Realm{
+		addr:    Address(""),
+		pkgPath: "",
+	}
+}
+
+func PrevRealm() Realm {
+	panic(shimWarn)
+	return Realm{
+		addr:    Address(""),
+		pkgPath: "",
+	}
+}
+
 func GetOrigCaller() Address {
 	panic(shimWarn)
 	return Address("")
@@ -54,16 +70,6 @@ func GetCallerAt(n int) Address {
 func GetBanker(bankerType BankerType) Banker {
 	panic(shimWarn)
 	return nil
-}
-
-func GetTimestamp() Time {
-	panic(shimWarn)
-	return 0
-}
-
-func FormatTimestamp(timestamp Time, format string) string {
-	panic(shimWarn)
-	return ""
 }
 
 func EncodeBech32(prefix string, bytes [20]byte) (addr Address) {

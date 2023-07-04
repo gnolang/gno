@@ -122,7 +122,7 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 			io.SetOut(commands.WriteNopCloser(mockOut))
 			io.SetErr(commands.WriteNopCloser(mockErr))
 
-			err := newGnodevCmd(io).ParseAndRun(context.Background(), test.args)
+			err := newGnocliCmd(io).ParseAndRun(context.Background(), test.args)
 
 			if errShouldBeEmpty {
 				require.Nil(t, err, "err should be nil")

@@ -17,6 +17,7 @@ func InjectNativeMappings(store gno.Store) {
 	store.AddGo2GnoMapping(reflect.TypeOf(crypto.Bech32Address("")), "std", "Address")
 	store.AddGo2GnoMapping(reflect.TypeOf(std.Coins{}), "std", "Coins")
 	store.AddGo2GnoMapping(reflect.TypeOf(std.Coin{}), "std", "Coin")
+	store.AddGo2GnoMapping(reflect.TypeOf(Realm{}), "std", "Realm")
 }
 
 func InjectPackage(store gno.Store, pn *gno.PackageNode) {
@@ -170,30 +171,6 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				m.PushValue(res0)
 			},
 		)
-		pn.DefineNative("Hash",
-			gno.Flds( // params
-				"bz", "[]byte",
-			),
-			gno.Flds( // results
-				"hash", "[20]byte",
-			),
-			func(m *gno.Machine) {
-				arg0 := m.LastBlock().GetParams1().TV
-				bz := []byte(nil)
-				if arg0.V != nil {
-					slice := arg0.V.(*gno.SliceValue)
-					array := slice.GetBase(m.Store)
-					bz = array.GetReadonlyBytes()
-				}
-				hash := gno.HashBytes(bz)
-				res0 := gno.Go2GnoValue(
-					m.Alloc,
-					m.Store,
-					reflect.ValueOf([20]byte(hash)),
-				)
-				m.PushValue(res0)
-			},
-		)
 		pn.DefineNative("CurrentRealmPath",
 			gno.Flds( // params
 			),
@@ -283,6 +260,99 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				)
 				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
 				res0.T = addrT
+				m.PushValue(res0)
+			},
+		)
+		pn.DefineNative("CurrentRealm",
+			gno.Flds( // params
+			),
+			gno.Flds( // results
+				"", "Realm",
+			),
+			func(m *gno.Machine) {
+				var (
+					ctx = m.Context.(ExecContext)
+					// Default lastCaller is OrigCaller, the signer of the tx
+					lastCaller  = ctx.OrigCaller
+					lastPkgPath = ""
+				)
+
+				for i := m.NumFrames() - 1; i > 0; i-- {
+					fr := m.Frames[i]
+					if fr.LastPackage != nil && fr.LastPackage.IsRealm() {
+						lastCaller = fr.LastPackage.GetPkgAddr().Bech32()
+						lastPkgPath = fr.LastPackage.PkgPath
+						break
+					}
+				}
+
+				// Return the result
+				res0 := gno.Go2GnoValue(
+					m.Alloc,
+					m.Store,
+					reflect.ValueOf(Realm{
+						addr:    lastCaller,
+						pkgPath: lastPkgPath,
+					}),
+				)
+
+				realmT := store.GetType(gno.DeclaredTypeID("std", "Realm"))
+				res0.T = realmT
+				m.PushValue(res0)
+			},
+		)
+		pn.DefineNative("PrevRealm",
+			gno.Flds( // params
+			),
+			gno.Flds( // results
+				"", "Realm",
+			),
+			func(m *gno.Machine) {
+				var (
+					ctx = m.Context.(ExecContext)
+					// Default lastCaller is OrigCaller, the signer of the tx
+					lastCaller  = ctx.OrigCaller
+					lastPkgPath = ""
+				)
+
+				for i := m.NumFrames() - 1; i > 0; i-- {
+					fr := m.Frames[i]
+					if fr.LastPackage == nil || !fr.LastPackage.IsRealm() {
+						// Ignore non-realm frame
+						continue
+					}
+					pkgPath := fr.LastPackage.PkgPath
+					// The first realm we encounter will be the one calling
+					// this function; to get the calling realm determine the first frame
+					// where fr.LastPackage changes.
+					if lastPkgPath == "" {
+						lastPkgPath = pkgPath
+					} else if lastPkgPath == pkgPath {
+						continue
+					} else {
+						lastCaller = fr.LastPackage.GetPkgAddr().Bech32()
+						lastPkgPath = pkgPath
+						break
+					}
+				}
+
+				// Empty the pkgPath if we return a user
+				if ctx.OrigCaller == lastCaller {
+					lastPkgPath = ""
+				}
+
+				// Return the result
+				res0 := gno.Go2GnoValue(
+					m.Alloc,
+					m.Store,
+					reflect.ValueOf(Realm{
+						addr:    lastCaller,
+						pkgPath: lastPkgPath,
+					}),
+				)
+
+				realmT := store.GetType(gno.DeclaredTypeID("std", "Realm"))
+				res0.T = realmT
 				m.PushValue(res0)
 			},
 		)
@@ -376,39 +446,6 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				bsv := m.Alloc.NewStructWithFields(btv)
 				bankAdapterType := store.GetType(gno.DeclaredTypeID("std", "bankAdapter"))
 				res0 := gno.TypedValue{T: bankAdapterType, V: bsv}
-				m.PushValue(res0)
-			},
-		)
-		// XXX DEPRECATED, use stdlibs/time instead
-		pn.DefineNative("GetTimestamp",
-			gno.Flds( // params
-			),
-			gno.Flds( // results
-				"", "Time",
-			),
-			func(m *gno.Machine) {
-				ctx := m.Context.(ExecContext)
-				res0 := typedInt64(ctx.Timestamp)
-				timeT := store.GetType(gno.DeclaredTypeID("std", "Time"))
-				res0.T = timeT
-				m.PushValue(res0)
-			},
-		)
-		pn.DefineNative("FormatTimestamp",
-			gno.Flds( // params
-				"timestamp", "Time",
-				"format", "string",
-			),
-			gno.Flds( // results
-				"", "string",
-			),
-			func(m *gno.Machine) {
-				arg0, arg1 := m.LastBlock().GetParams2()
-				timestamp := arg0.TV.GetInt64()
-				format := arg1.TV.GetString()
-				t := time.Unix(timestamp, 0).Round(0).UTC()
-				result := t.Format(format)
-				res0 := typedString(m.Alloc.NewString(result))
 				m.PushValue(res0)
 			},
 		)
