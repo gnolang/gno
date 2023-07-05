@@ -42,5 +42,5 @@ jobs:
           go-version: ${{ matrix.go-version }}
       - uses: actions/checkout@v3
       - run: go install -v ./gnovm/cmd/gno
-      - run: go run ./gnovm/cmd/gno test --verbose ./examples
+      - run: go run ./gnovm/cmd/gno test --verbose ./examples/...
     # TODO: track coverage

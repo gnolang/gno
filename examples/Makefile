@@ -13,11 +13,11 @@ build: precompile
 
 .PHONY: test
 test:
-	go run ../gnovm/cmd/gno test --verbose .
+	go run ../gnovm/cmd/gno test --verbose ./...
 
 .PHONY: test.sync
 test.sync:
-	go run ../gnovm/cmd/gno test --verbose --update-golden-tests .
+	go run ../gnovm/cmd/gno test --verbose --update-golden-tests ./...
 
 .PHONY: clean
 clean:
