@@ -15,13 +15,15 @@ func (gid GroupID) String() string {
 }
 
 type Group struct {
-	id           GroupID
-	url          string
-	name         string
-	lastMemberID MemberID
-	members      avl.Tree
-	creator      std.Address
-	createdAt    time.Time
+	id               GroupID
+	url              string
+	name             string
+	lastMemberID     MemberID
+	members          avl.Tree
+	membersByAddress avl.Tree
+	creator          std.Address
+	createdAt        time.Time
+	totalWeight      int
 }
 
 func newGroup(url string, name string, creator std.Address) *Group {
@@ -45,6 +47,9 @@ func (group *Group) newMember(id MemberID, address std.Address, weight int, meta
 	if group.members.Has(address.String()) {
 		panic("this member for this group already exists")
 	}
+	if group.membersByAddress.Has(address.String()) {
+		panic("this address is already in this group")
+	}
 	return &Member{
 		id:        id,
 		address:   address,
@@ -64,9 +69,10 @@ func (group *Group) HasPermission(addr std.Address, perm Permission) bool {
 func (group *Group) RenderGroup() string {
 	str := "Group ID: " + groupIDKey(group.id) + "\n\n" +
 		"Group Name: " + group.name + "\n\n" +
-		"Group Creator: " + usernameOf(group.creator) + "\n\n" +
+		"Group Creator: " + string(group.creator) + "\n\n" +
 		"Group createdAt: " + group.createdAt.String() + "\n\n" +
-		"Group Last MemberID: " + memberIDKey(group.lastMemberID) + "\n\n"
+		"Group Last MemberID: " + memberIDKey(group.lastMemberID) + "\n\n" +
+		"Total Weight: " + strconv.Itoa(group.totalWeight) + "\n\n"
 
 	str += "Group Members: \n\n"
 	group.members.Iterate("", "", func(key string, value interface{}) bool {
@@ -75,6 +81,10 @@ func (group *Group) RenderGroup() string {
 		return false
 	})
 	return str
+}
+
+func (group *Group) GetMembers() *avl.Tree {
+	return &group.members
 }
 
 func (group *Group) deleteGroup() {
@@ -94,5 +104,12 @@ func (group *Group) deleteMember(mid MemberID) {
 
 	g := getGroup(group.id)
 	midkey := memberIDKey(mid)
+	imember, ok := g.members.Get(midkey)
+	if !ok {
+		return
+	}
+	member := imember.(*Member)
 	g.members.Remove(midkey)
+	g.membersByAddress.Remove(member.address.String())
+	group.totalWeight -= member.weight
 }
