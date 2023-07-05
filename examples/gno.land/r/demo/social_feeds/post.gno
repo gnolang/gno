@@ -1,11 +1,13 @@
 package social_feeds
 
 import (
+	"encoding/binary"
 	"std"
 	"strconv"
 	"time"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/binutils"
 )
 
 type PostID uint64
@@ -51,6 +53,18 @@ func newPost(feed *Feed, id PostID, creator std.Address, parentID PostID, catego
 		creator:   creator,
 		createdAt: time.Now(),
 	}
+}
+
+func (post *Post) ToBytes() []byte {
+	b := []byte{}
+	b = binary.BigEndian.AppendUint64(b, uint64(post.id))
+	b = binary.BigEndian.AppendUint64(b, uint64(post.parentID))
+	b = binary.BigEndian.AppendUint64(b, uint64(post.feedID))
+	b = binary.BigEndian.AppendUint64(b, post.category)
+	b = append(b, binutils.EncodeLengthPrefixedStringUint32BE(post.metadata)...)
+	b = append(b, binutils.EncodeLengthPrefixedStringUint16BE(post.creator.String())...)
+	b = binary.BigEndian.AppendUint32(b, uint32(post.createdAt.Unix()))
+	return b
 }
 
 func (post *Post) Update(category uint64, metadata string) {

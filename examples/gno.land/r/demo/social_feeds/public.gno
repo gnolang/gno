@@ -1,6 +1,7 @@
 package social_feeds
 
 import (
+	"encoding/base64"
 	"std"
 	"strconv"
 	"strings"
@@ -76,13 +77,6 @@ func ReactPost(fid FeedID, pid PostID, icon string, up bool) {
 }
 
 // Get Posts list
-type PostItem struct {
-	ID       PostID
-	Category uint64
-	Metadata string
-	Creator  std.Address
-}
-
 func GetPosts(fid FeedID) string {
 	std.AssertOriginCall()
 	caller := std.PrevRealm().Addr()
@@ -91,11 +85,12 @@ func GetPosts(fid FeedID) string {
 	var postList []string
 	feed.posts.Iterate("", "", func(key string, value interface{}) bool {
 		post := value.(*Post)
-		postList = append(postList, ufmt.Sprintf("%d,%d,%s,%s", uint64(post.id), post.category, post.metadata, post.creator))
+		postList = append(postList, base64.RawURLEncoding.EncodeToString(post.ToBytes()))
 		return false
 	})
 
-	res := strings.Join(postList, "|")
+	SEPARATOR := "|"
+	res := strings.Join(postList, SEPARATOR)
 	return res
 }
 
