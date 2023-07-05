@@ -52,9 +52,9 @@ func Walk(v Visitor, node Node) {
 
 	// todo we don't use comments in Gno, at the moment
 	// Comments and fields
-	//case *Comment:
+	// case *Comment:
 	// nothing to do
-	//case *CommentGroup:
+	// case *CommentGroup:
 	//	for _, c := range n.List {
 	//		Walk(v, c)
 	//	}
@@ -74,7 +74,7 @@ func Walk(v Visitor, node Node) {
 		//	Walk(v, n.Comment)
 		//}
 
-	//case *FieldList:
+	// case *FieldList:
 	//	for _, f := range n.List {
 	//		Walk(v, f)
 	//	}
@@ -115,7 +115,7 @@ func Walk(v Visitor, node Node) {
 		Walk(v, n.X)
 		Walk(v, n.Index)
 
-	//case *IndexListExpr:
+	// case *IndexListExpr:
 	//	Walk(v, n.X)
 	//	for _, index := range n.Indices {
 	//		Walk(v, index)
@@ -265,14 +265,14 @@ func Walk(v Visitor, node Node) {
 		}
 		walkStmtList(v, n.bodyStmt.Body)
 
-	//case *TypeSwitchStmt:
+	// case *TypeSwitchStmt:
 	//	if n.Init != nil {
 	//		Walk(v, n.Init)
 	//	}
 	//	Walk(v, n.Assign)
 	//	Walk(v, n.Body)
 
-	//case *CommClause:
+	// case *CommClause:
 	//	if n.Comm != nil {
 	//		Walk(v, n.Comm)
 	//	}
@@ -377,7 +377,7 @@ func Walk(v Visitor, node Node) {
 		// visited already through the individual
 		// nodes
 
-	//case *Package:
+	// case *Package:
 	//	for _, f := range n.Files {
 	//		Walk(v, f)
 	//	}
