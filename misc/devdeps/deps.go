@@ -20,4 +20,7 @@ import (
 
 	// gen docs
 	_ "golang.org/x/tools/cmd/godoc"
+
+	// golangci-lint
+	_ "github.com/golangci/golangci-lint/cmd/golangci-lint"
 )
