@@ -91,12 +91,11 @@ func GetPosts(fid FeedID) string {
 	var postList []string
 	feed.posts.Iterate("", "", func(key string, value interface{}) bool {
 		post := value.(*Post)
-		postList = append(postList, ufmt.Sprintf("%d,%d,%s,%s", uint64(post.id), post.category, post.metadata, post.creator))
+		postList = append(postList, ufmt.Sprintf("%s\t%s\t%s\t%s", postIDKey(post.id), padZero(post.category, 10), post.creator, post.metadata))
 		return false
 	})
 
-	res := strings.Join(postList, "|")
-	return res
+	return ufmt.Sprintf("[%s]", strings.Join(postList, "\n"))
 }
 
 func checkAnonFee() bool {

@@ -18,7 +18,7 @@ type Reaction struct {
 var Categories []string = []string{
 	"Reaction",
 	"Comment",
-	"Norman",
+	"Normal",
 	"Article",
 	"Picture",
 	"Audio",
