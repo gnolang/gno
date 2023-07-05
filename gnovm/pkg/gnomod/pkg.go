@@ -198,6 +198,7 @@ func SubPkgsFromPaths(paths []string) ([]*SubPkg, error) {
 			return nil, fmt.Errorf("failed to match pattern: %w", err)
 		}
 
+		subPkg.Dir = path
 		for _, match := range matches {
 			if strings.HasSuffix(match, "_test.gno") {
 				subPkg.TestGnoFiles = append(subPkg.TestGnoFiles, match)
