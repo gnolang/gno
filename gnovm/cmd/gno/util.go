@@ -148,10 +148,7 @@ func gnoPackagePathsFromPattern(patterns []string) ([]string, error) {
 			}
 			visited[parentDir] = true
 
-			// cannot use path.Join or filepath.Join, because we need
-			// to ensure that ./ is the prefix to pass to go build.
-			pkg := "./" + parentDir
-			paths = append(paths, pkg)
+			paths = append(paths, parentDir)
 			return nil
 		})
 		if err != nil {
