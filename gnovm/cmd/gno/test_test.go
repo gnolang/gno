@@ -10,19 +10,20 @@ func TestTest(t *testing.T) {
 		},
 		{
 			args:                []string{"test", "../../../examples/gno.land/p/demo/rand"},
-			stderrShouldContain: "ok      ./../../../examples/gno.land/p/demo/rand \t",
+			stderrShouldContain: "ok      ../../../examples/gno.land/p/demo/rand \t",
 		},
 		{
 			args:             []string{"test", "../../tests/integ/no-such-dir"},
 			errShouldContain: "no such file or directory",
 		},
 		{
-			args: []string{"test", "../../tests/integ/empty-dir"},
+			args:                []string{"test", "../../tests/integ/empty-dir"},
+			stderrShouldContain: "?       ../../tests/integ/empty-dir \t[no test files]",
 		},
 		{
 			// FIXME: should have an output
 			args:           []string{"test", "../../tests/integ/minimalist-gno1"},
-			stderrShouldBe: "?       ./../../tests/integ/minimalist-gno1 \t[no test files]\n",
+			stderrShouldBe: "?       ../../tests/integ/minimalist-gno1 \t[no test files]\n",
 		},
 		{
 			args:                []string{"test", "../../tests/integ/minimalist-gno2"},
@@ -46,7 +47,7 @@ func TestTest(t *testing.T) {
 		},
 		{
 			args:           []string{"test", "../../tests/integ/empty-gno1"},
-			stderrShouldBe: "?       ./../../tests/integ/empty-gno1 \t[no test files]\n",
+			stderrShouldBe: "?       ../../tests/integ/empty-gno1 \t[no test files]\n",
 		},
 		{
 			args:                []string{"test", "--precompile", "../../tests/integ/empty-gno1"},
@@ -90,82 +91,82 @@ func TestTest(t *testing.T) {
 		},
 		{
 			args:            []string{"test", "--verbose", "--precompile", "../../tests/integ/failing2"},
-			stderrShouldBe:  "=== PREC  ./../../tests/integ/failing2\n=== BUILD ./../../tests/integ/failing2\n=== RUN   file/failing_filetest.gno\n",
+			stderrShouldBe:  "=== PREC  ../../tests/integ/failing2\n=== BUILD ../../tests/integ/failing2\n=== RUN   file/failing_filetest.gno\n",
 			recoverShouldBe: "fail on ../../tests/integ/failing2/failing_filetest.gno: got unexpected error: beep boop",
 		},
 		{
 			args:                []string{"test", "../../../examples/gno.land/p/demo/ufmt"},
 			stdoutShouldContain: "RUN   TestSprintf",
-			stderrShouldContain: "ok      ./../../../examples/gno.land/p/demo/ufmt",
+			stderrShouldContain: "ok      ../../../examples/gno.land/p/demo/ufmt",
 		},
 		{
 			args:                []string{"test", "--verbose", "../../../examples/gno.land/p/demo/ufmt"},
 			stdoutShouldContain: "RUN   TestSprintf",
-			stderrShouldContain: "ok      ./../../../examples/gno.land/p/demo/ufmt",
+			stderrShouldContain: "ok      ../../../examples/gno.land/p/demo/ufmt",
 		},
 		{
 			args:                []string{"test", "--verbose", "--run", ".*", "../../../examples/gno.land/p/demo/ufmt"},
 			stdoutShouldContain: "RUN   TestSprintf",
-			stderrShouldContain: "ok      ./../../../examples/gno.land/p/demo/ufmt",
+			stderrShouldContain: "ok      ../../../examples/gno.land/p/demo/ufmt",
 		},
 		{
 			args:                []string{"test", "--verbose", "--run", "NoExists", "../../../examples/gno.land/p/demo/ufmt"},
-			stderrShouldContain: "ok      ./../../../examples/gno.land/p/demo/ufmt",
+			stderrShouldContain: "ok      ../../../examples/gno.land/p/demo/ufmt",
 		},
 		{
 			args:                []string{"test", "--verbose", "--run", ".*/hello", "../../../examples/gno.land/p/demo/ufmt"},
 			stdoutShouldContain: "RUN   TestSprintf",
-			stderrShouldContain: "ok      ./../../../examples/gno.land/p/demo/ufmt",
+			stderrShouldContain: "ok      ../../../examples/gno.land/p/demo/ufmt",
 		},
 		{
 			args:                []string{"test", "--verbose", "--run", ".*/hi", "../../../examples/gno.land/p/demo/ufmt"},
 			stdoutShouldContain: "RUN   TestSprintf",
-			stderrShouldContain: "ok      ./../../../examples/gno.land/p/demo/ufmt",
+			stderrShouldContain: "ok      ../../../examples/gno.land/p/demo/ufmt",
 		},
 		{
 			args:                []string{"test", "--verbose", "--run", ".*/NoExists", "../../../examples/gno.land/p/demo/ufmt"},
-			stderrShouldContain: "ok      ./../../../examples/gno.land/p/demo/ufmt",
+			stderrShouldContain: "ok      ../../../examples/gno.land/p/demo/ufmt",
 		},
 		{
 			args:                []string{"test", "--verbose", "--run", ".*/hello/NoExists", "../../../examples/gno.land/p/demo/ufmt"},
 			stdoutShouldContain: "RUN   TestSprintf",
-			stderrShouldContain: "ok      ./../../../examples/gno.land/p/demo/ufmt",
+			stderrShouldContain: "ok      ../../../examples/gno.land/p/demo/ufmt",
 		},
 		{
 			args:                []string{"test", "--verbose", "--run", "Sprintf/", "../../../examples/gno.land/p/demo/ufmt"},
 			stdoutShouldContain: "RUN   TestSprintf",
-			stderrShouldContain: "ok      ./../../../examples/gno.land/p/demo/ufmt",
+			stderrShouldContain: "ok      ../../../examples/gno.land/p/demo/ufmt",
 		},
 		{
 			args:                []string{"test", "--verbose", "--run", "Sprintf/.*", "../../../examples/gno.land/p/demo/ufmt"},
 			stdoutShouldContain: "RUN   TestSprintf",
-			stderrShouldContain: "ok      ./../../../examples/gno.land/p/demo/ufmt",
+			stderrShouldContain: "ok      ../../../examples/gno.land/p/demo/ufmt",
 		},
 		{
 			args:                []string{"test", "--verbose", "--run", "Sprintf/hello", "../../../examples/gno.land/p/demo/ufmt"},
 			stdoutShouldContain: "RUN   TestSprintf",
-			stderrShouldContain: "ok      ./../../../examples/gno.land/p/demo/ufmt",
+			stderrShouldContain: "ok      ../../../examples/gno.land/p/demo/ufmt",
 		},
 		{
 			args:                []string{"test", "--verbose", "--timeout", "1000000s", "../../../examples/gno.land/p/demo/ufmt"},
 			stdoutShouldContain: "RUN   TestSprintf",
-			stderrShouldContain: "ok      ./../../../examples/gno.land/p/demo/ufmt",
+			stderrShouldContain: "ok      ../../../examples/gno.land/p/demo/ufmt",
 		},
 		{
 			args:                 []string{"test", "--verbose", "../../tests/integ/native-lib"},
-			recoverShouldContain: "./../../tests/integ/native-lib/contract.gno:1: unknown import path net",
+			recoverShouldContain: "../../tests/integ/native-lib/contract.gno:1: unknown import path net",
 		},
 		{
 			args:                []string{"test", "--verbose", "--with-native-fallback", "../../tests/integ/native-lib"},
-			stderrShouldContain: "ok      ./../../tests/integ/native-lib",
+			stderrShouldContain: "ok      ../../tests/integ/native-lib",
 		},
 		{
 			args:                 []string{"test", "--verbose", "../../tests/integ/unknown-lib"},
-			recoverShouldContain: "./../../tests/integ/unknown-lib/contract.gno:1: unknown import path foobarbaz",
+			recoverShouldContain: "../../tests/integ/unknown-lib/contract.gno:1: unknown import path foobarbaz",
 		},
 		{
 			args:                 []string{"test", "--verbose", "--with-native-fallback", "../../tests/integ/unknown-lib"},
-			recoverShouldContain: "./../../tests/integ/unknown-lib/contract.gno:1: unknown import path foobarbaz",
+			recoverShouldContain: "../../tests/integ/unknown-lib/contract.gno:1: unknown import path foobarbaz",
 		},
 		{
 			args:                []string{"test", "--verbose", "--print-runtime-metrics", "../../../examples/gno.land/p/demo/ufmt"},
