@@ -175,14 +175,14 @@ func Walk(in Visitor, out Visitor, node Node) {
 			}
 		}
 		if n.Results != nil {
-			for _, res := range n.Results {
-				Walk(in, out, &res)
+			for i := range n.Results {
+				Walk(in, out, &n.Results[i])
 			}
 		}
 
 	case *InterfaceTypeExpr:
-		for _, res := range n.Methods {
-			Walk(in, out, &res)
+		for i := range n.Methods {
+			Walk(in, out, &n.Methods[i])
 		}
 
 	case *MapTypeExpr:
