@@ -4,10 +4,12 @@ import (
 	"strings"
 )
 
+const maxlen = 30000
+
 func Execute(code string) string {
 	var (
-		memory  = make([]byte, 30000) // memory tape
-		pointer = 0                   // initial memory pointer
+		memory  = make([]byte, maxlen) // memory tape
+		pointer = 0                    // initial memory pointer
 		buf     strings.Builder
 	)
 
@@ -17,9 +19,15 @@ func Execute(code string) string {
 		case '>':
 			// Increment memory pointer
 			pointer++
+			if pointer >= maxlen {
+				pointer = 0
+			}
 		case '<':
 			// Decrement memory pointer
 			pointer--
+			if pointer < 0 {
+				pointer = maxlen - 1
+			}
 		case '+':
 			// Increment the byte at the memory pointer
 			memory[pointer]++
