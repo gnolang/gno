@@ -1,13 +1,16 @@
 package social_feeds
 
 import (
+	"encoding/base64"
 	"encoding/binary"
 	"std"
 	"strconv"
+	"strings"
 	"time"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/binutils"
+	"gno.land/p/demo/ufmt"
 )
 
 type PostID uint64
@@ -33,7 +36,7 @@ type Post struct {
 	feedID    FeedID
 	category  uint64
 	metadata  string
-	reactions avl.Tree
+	reactions avl.Tree // <icon: string> -> <count: int>
 	creator   std.Address
 	deleted   bool
 
@@ -55,7 +58,7 @@ func newPost(feed *Feed, id PostID, creator std.Address, parentID PostID, catego
 	}
 }
 
-func (post *Post) ToBytes() []byte {
+func (post *Post) Bytes() []byte {
 	b := []byte{}
 	b = binary.BigEndian.AppendUint64(b, uint64(post.id))
 	b = binary.BigEndian.AppendUint64(b, uint64(post.parentID))
@@ -64,7 +67,27 @@ func (post *Post) ToBytes() []byte {
 	b = append(b, binutils.EncodeLengthPrefixedStringUint32BE(post.metadata)...)
 	b = append(b, binutils.EncodeLengthPrefixedStringUint16BE(post.creator.String())...)
 	b = binary.BigEndian.AppendUint32(b, uint32(post.createdAt.Unix()))
+
+	// Encode reactions
+	var reactionsArr []string
+
+	post.reactions.Iterate("", "", func(key string, value interface{}) bool {
+		icon := key
+		count := value.(int)
+
+		reactionsArr = append(reactionsArr, ufmt.Sprintf("%s:%d", icon, count))
+		return false
+	})
+
+	SEPARATOR := ","
+	reactionsStr := strings.Join(reactionsArr, SEPARATOR)
+	b = append(b, binutils.EncodeLengthPrefixedStringUint32BE(reactionsStr)...)
+
 	return b
+}
+
+func (post *Post) String() string {
+	return bytesToString(post.Bytes())
 }
 
 func (post *Post) Update(category uint64, metadata string) {

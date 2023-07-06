@@ -85,11 +85,11 @@ func GetPosts(fid FeedID) string {
 	var postList []string
 	feed.posts.Iterate("", "", func(key string, value interface{}) bool {
 		post := value.(*Post)
-		postList = append(postList, base64.RawURLEncoding.EncodeToString(post.ToBytes()))
+		postList = append(postList, post.String())
 		return false
 	})
 
-	SEPARATOR := "|"
+	SEPARATOR := ","
 	res := strings.Join(postList, SEPARATOR)
 	return res
 }

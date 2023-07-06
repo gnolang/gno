@@ -3,11 +3,13 @@ package social_feeds
 // SEND: 200000000ugnot
 
 import (
+	"encoding/base64"
 	"fmt"
 	"std"
 	"strconv"
 	"testing"
 
+	"gno.land/p/demo/binutils"
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/boards"
 	"gno.land/r/demo/users"
@@ -87,9 +89,19 @@ func Test(t *testing.T) {
 		t.Fatalf("expected parentID: %q, got %q.", parentID, createdPost.parentID)
 	}
 
+	// Re-add reaction to test post list
+	ReactPost(feedID, postID, "🥰", true)
+	ReactPost(feedID, postID, "😇", true)
+
 	// Get Post list
-	posts := GetPosts(feedID)
-	panic(posts)
+	postsStr := GetPosts(feedID)
+	postsBytes, err := base64.RawURLEncoding.DecodeString(postsStr)
+	if err != nil {
+		panic("uanble to decode post list", err)
+	}
+
+	panic(postsBytes)
+
 	// if len(posts) != 2 {
 	// 	t.Fatalf("expected total posts: 2, got %q.", len(posts))
 	// }
