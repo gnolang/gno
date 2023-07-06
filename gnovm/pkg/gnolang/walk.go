@@ -41,8 +41,10 @@ func walkDeclList(in Visitor, out Visitor, list []Decl) {
 // w for each of the non-nil children of node, followed by a call of
 // w.Visit(nil).
 func Walk(in Visitor, out Visitor, node Node) {
-	if in = in.Visit(node); in == nil {
-		return
+	if in != nil {
+		if in = in.Visit(node); in == nil && out == nil {
+			return
+		}
 	}
 
 	// walk children
@@ -368,6 +370,8 @@ func Walk(in Visitor, out Visitor, node Node) {
 		if n.Body != nil {
 			walkStmtList(in, out, n.Body)
 		}
+	case *RefExpr:
+		Walk(in, out, n.X)
 
 	// Files and packages
 	case *FileNode:
@@ -389,8 +393,15 @@ func Walk(in Visitor, out Visitor, node Node) {
 		panic(fmt.Sprintf("ast.Walk: unexpected node type %T", n))
 	}
 
-	out.Visit(nil)
-	in.Visit(nil)
+	if out != nil {
+		if out = out.Visit(node); out == nil {
+			return
+		}
+		out.Visit(nil)
+	}
+	if in != nil {
+		in.Visit(nil)
+	}
 }
 
 type inspector func(Node) bool
