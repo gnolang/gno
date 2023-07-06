@@ -11,27 +11,27 @@ type Visitor interface {
 
 // Helper functions for common node lists. They may be empty.
 
-func walkIdentList(v Visitor, list []*NameExpr) {
+func walkIdentList(in Visitor, out Visitor, list []*NameExpr) {
 	for _, x := range list {
-		Walk(v, x)
+		Walk(in, out, x)
 	}
 }
 
-func walkExprList(v Visitor, list []Expr) {
+func walkExprList(in Visitor, out Visitor, list []Expr) {
 	for _, x := range list {
-		Walk(v, x)
+		Walk(in, out, x)
 	}
 }
 
-func walkStmtList(v Visitor, list []Stmt) {
+func walkStmtList(in Visitor, out Visitor, list []Stmt) {
 	for _, x := range list {
-		Walk(v, x)
+		Walk(in, out, x)
 	}
 }
 
-func walkDeclList(v Visitor, list []Decl) {
+func walkDeclList(in Visitor, out Visitor, list []Decl) {
 	for _, x := range list {
-		Walk(v, x)
+		Walk(in, out, x)
 	}
 }
 
@@ -40,8 +40,8 @@ func walkDeclList(v Visitor, list []Decl) {
 // v.Visit(node) is not nil, Walk is invoked recursively with visitor
 // w for each of the non-nil children of node, followed by a call of
 // w.Visit(nil).
-func Walk(v Visitor, node Node) {
-	if v = v.Visit(node); v == nil {
+func Walk(in Visitor, out Visitor, node Node) {
+	if in = in.Visit(node); in == nil {
 		return
 	}
 
@@ -49,34 +49,33 @@ func Walk(v Visitor, node Node) {
 	// (the order of the cases matches the order
 	// of the corresponding node types in ast.go)
 	switch n := node.(type) {
-
 	// todo we don't use comments in Gno, at the moment
 	// Comments and fields
 	// case *Comment:
 	// nothing to do
 	// case *CommentGroup:
 	//	for _, c := range n.List {
-	//		Walk(v, c)
+	//		Walk(in, c)
 	//	}
 
 	case *FieldTypeExpr:
 		//if n.Doc != nil {
-		//	Walk(v, n.Doc)
+		//	Walk(in, n.Doc)
 		//}
-		walkIdentList(v, []*NameExpr{Nx(n.Name)})
+		walkIdentList(in, out, []*NameExpr{Nx(n.Name)})
 		if n.Type != nil {
-			Walk(v, n.Type)
+			Walk(in, out, n.Type)
 		}
 		if n.Tag != nil {
-			Walk(v, n.Tag)
+			Walk(in, out, n.Tag)
 		}
 		//if n.Comment != nil {
-		//	Walk(v, n.Comment)
+		//	Walk(in, n.Comment)
 		//}
 
 	// case *FieldList:
 	//	for _, f := range n.List {
-	//		Walk(v, f)
+	//		Walk(in, f)
 	//	}
 
 	// Expressions
@@ -85,114 +84,114 @@ func Walk(v Visitor, node Node) {
 
 	case *SliceTypeExpr:
 		if n.Elt != nil {
-			Walk(v, n.Elt)
+			Walk(in, out, n.Elt)
 		}
 
 	case *FuncLitExpr:
-		Walk(v, &n.Type)
+		Walk(in, out, &n.Type)
 
 		for _, stmt := range n.Body {
-			Walk(v, stmt)
+			Walk(in, out, stmt)
 		}
 
 	case *CompositeLitExpr:
 		if n.Type != nil {
-			Walk(v, n.Type)
+			Walk(in, out, n.Type)
 		}
 
-		for _, elt := range n.Elts {
-			Walk(v, &elt)
+		for i := range n.Elts {
+			Walk(in, out, &n.Elts[i])
 		}
 
 	//case *ParenExpr:
-	//	Walk(v, n.X)
+	//	Walk(in, n.X)
 	//
 	case *SelectorExpr:
-		Walk(v, n.X)
-		Walk(v, Nx(&n.Sel))
+		Walk(in, out, n.X)
+		Walk(in, out, Nx(&n.Sel))
 
 	case *IndexExpr:
-		Walk(v, n.X)
-		Walk(v, n.Index)
+		Walk(in, out, n.X)
+		Walk(in, out, n.Index)
 
 	// case *IndexListExpr:
-	//	Walk(v, n.X)
+	//	Walk(in, n.X)
 	//	for _, index := range n.Indices {
-	//		Walk(v, index)
+	//		Walk(in, index)
 	//	}
 
 	case *SliceExpr:
-		Walk(v, n.X)
+		Walk(in, out, n.X)
 		if n.Low != nil {
-			Walk(v, n.Low)
+			Walk(in, out, n.Low)
 		}
 		if n.High != nil {
-			Walk(v, n.High)
+			Walk(in, out, n.High)
 		}
 		if n.Max != nil {
-			Walk(v, n.Max)
+			Walk(in, out, n.Max)
 		}
 
 	case *TypeAssertExpr:
-		Walk(v, n.X)
+		Walk(in, out, n.X)
 		if n.Type != nil {
-			Walk(v, n.Type)
+			Walk(in, out, n.Type)
 		}
 
 	case *CallExpr:
-		Walk(v, n.Func)
-		walkExprList(v, n.Args)
+		Walk(in, out, n.Func)
+		walkExprList(in, out, n.Args)
 
 	case *StarExpr:
-		Walk(v, n.X)
+		Walk(in, out, n.X)
 
 	case *UnaryExpr:
-		Walk(v, n.X)
+		Walk(in, out, n.X)
 
 	case *BinaryExpr:
-		Walk(v, n.Left)
-		Walk(v, n.Right)
+		Walk(in, out, n.Left)
+		Walk(in, out, n.Right)
 
 	case *KeyValueExpr:
-		Walk(v, n.Key)
-		Walk(v, n.Value)
+		Walk(in, out, n.Key)
+		Walk(in, out, n.Value)
 
 	// Types
 	case *ArrayTypeExpr:
 		if n.Len != nil {
-			Walk(v, n.Len)
+			Walk(in, out, n.Len)
 		}
-		Walk(v, n.Elt)
+		Walk(in, out, n.Elt)
 
 	case *StructTypeExpr:
-		for _, field := range n.Fields {
-			Walk(v, &field)
+		for i := range n.Fields {
+			Walk(in, out, &n.Fields[i])
 		}
 
 	case *FuncTypeExpr:
 		if n.Params != nil {
-			for _, param := range n.Params {
-				Walk(v, &param)
+			for i := range n.Params {
+				Walk(in, out, &n.Params[i])
 			}
 		}
 		if n.Results != nil {
 			for _, res := range n.Results {
-				Walk(v, &res)
+				Walk(in, out, &res)
 			}
 		}
 
 	case *InterfaceTypeExpr:
 		for _, res := range n.Methods {
-			Walk(v, &res)
+			Walk(in, out, &res)
 		}
 
 	case *MapTypeExpr:
-		Walk(v, n.Key)
-		Walk(v, n.Value)
+		Walk(in, out, n.Key)
+		Walk(in, out, n.Value)
 
 	// we do not support this
 	//case *ChanType:
-	//	Walk(v, n.Value)
+	//	Walk(in, n.Value)
 	//
 
 	// Statements
@@ -201,145 +200,149 @@ func Walk(v Visitor, node Node) {
 	//
 	case *DeclStmt:
 		for _, stmt := range n.Body {
-			Walk(v, stmt)
+			Walk(in, out, stmt)
 		}
 
 	//case *EmptyStmt:
 	//	// nothing to do
 	//
 	//case *LabeledStmt:
-	//	Walk(v, n.Label)
-	//	Walk(v, n.Stmt)
+	//	Walk(in, n.Label)
+	//	Walk(in, n.Stmt)
 
 	case *ExprStmt:
-		Walk(v, n.X)
+		Walk(in, out, n.X)
 
 	case *SendStmt:
-		Walk(v, n.Chan)
-		Walk(v, n.Value)
+		Walk(in, out, n.Chan)
+		Walk(in, out, n.Value)
 
 	case *IncDecStmt:
-		Walk(v, n.X)
+		Walk(in, out, n.X)
 
 	case *AssignStmt:
-		walkExprList(v, n.Lhs)
-		walkExprList(v, n.Rhs)
+		walkExprList(in, out, n.Lhs)
+		walkExprList(in, out, n.Rhs)
 
 	case *GoStmt:
-		Walk(v, &n.Call)
+		Walk(in, out, &n.Call)
 
 	case *DeferStmt:
-		Walk(v, &n.Call)
+		Walk(in, out, &n.Call)
 
 	case *ReturnStmt:
-		walkExprList(v, n.Results)
+		walkExprList(in, out, n.Results)
 
 	case *BranchStmt:
 		if n.Label != "" {
-			Walk(v, Nx(n.Label))
+			Walk(in, out, Nx(n.Label))
 		}
 
 	case *BlockStmt:
-		walkStmtList(v, n.Body)
+		walkStmtList(in, out, n.Body)
 
 	case *IfStmt:
 		if n.Init != nil {
-			Walk(v, n.Init)
+			Walk(in, out, n.Init)
 		}
-		Walk(v, n.Cond)
-		Walk(v, n.Source)
+		Walk(in, out, n.Cond)
+		Walk(in, out, n.Source)
 		for _, stmt := range n.Else.Body {
-			Walk(v, stmt)
+			Walk(in, out, stmt)
 		}
 
 	case *SwitchClauseStmt:
-		walkExprList(v, n.Cases)
-		walkStmtList(v, n.Body)
+		walkExprList(in, out, n.Cases)
+		walkStmtList(in, out, n.Body)
 
 	case *SwitchStmt:
 		if n.Init != nil {
-			Walk(v, n.Init)
+			Walk(in, out, n.Init)
 		}
 		if n.X != nil {
-			Walk(v, n.X)
+			Walk(in, out, n.X)
 		}
-		walkStmtList(v, n.bodyStmt.Body)
+		walkStmtList(in, out, n.bodyStmt.Body)
 
 	// case *TypeSwitchStmt:
 	//	if n.Init != nil {
-	//		Walk(v, n.Init)
+	//		Walk(in, n.Init)
 	//	}
-	//	Walk(v, n.Assign)
-	//	Walk(v, n.Body)
+	//	Walk(in, n.Assign)
+	//	Walk(in, n.Body)
 
 	// case *CommClause:
 	//	if n.Comm != nil {
-	//		Walk(v, n.Comm)
+	//		Walk(in, n.Comm)
 	//	}
-	//	walkStmtList(v, n.Body)
+	//	walkStmtList(in, n.Body)
 
 	//case *SelectStmt:
-	//	Walk(v, n.Body)
+	//	Walk(in, n.Body)
 	//
 	case *ForStmt:
 		if n.Init != nil {
-			Walk(v, n.Init)
+			Walk(in, out, n.Init)
 		}
 		if n.Cond != nil {
-			Walk(v, n.Cond)
+			Walk(in, out, n.Cond)
 		}
 		if n.Post != nil {
-			Walk(v, n.Post)
+			Walk(in, out, n.Post)
 		}
-		walkStmtList(v, n.Body)
+		walkStmtList(in, out, n.Body)
 
 	case *RangeStmt:
 		if n.Key != nil {
-			Walk(v, n.Key)
+			Walk(in, out, n.Key)
 		}
 		if n.Value != nil {
-			Walk(v, n.Value)
+			Walk(in, out, n.Value)
 		}
-		Walk(v, n.X)
-		walkStmtList(v, n.Body)
+		Walk(in, out, n.X)
+		walkStmtList(in, out, n.Body)
 
 	// Declarations
 	case *ImportDecl:
 		if n.Label != "" {
-			Walk(v, Nx(n.Label))
+			Walk(in, out, Nx(n.Label))
 		}
 		if n.Name != "" {
-			Walk(v, &n.NameExpr)
+			Walk(in, out, &n.NameExpr)
 		}
-		//Walk(v, n.Path)
+		//Walk(in, n.Path)
 		//if n.Comment != nil {
-		//	Walk(v, n.Comment)
+		//	Walk(in, n.Comment)
 		//}
 
 	case *ValueDecl:
 		//if n.Doc != nil {
-		//	Walk(v, n.Doc)
+		//	Walk(in, n.Doc)
 		//}
-		//walkIdentList(v, n.Names)
-		if n.Type != nil {
-			Walk(v, n.Type)
+
+		for i := range n.NameExprs {
+			Walk(in, out, &n.NameExprs[i])
 		}
-		walkExprList(v, n.Values)
+
+		if n.Type != nil {
+			Walk(in, out, n.Type)
+		}
+		walkExprList(in, out, n.Values)
 		//if n.Comment != nil {
-		//	Walk(v, n.Comment)
+		//	Walk(in, n.Comment)
 		//}
 
 	case *TypeDecl:
 		//if n.Doc != nil {
-		//	Walk(v, n.Doc)
+		//	Walk(in, n.Doc)
 		//}
-		Walk(v, &n.NameExpr)
+		Walk(in, out, &n.NameExpr)
 		//if n.TypeParams != nil {
-		//	Walk(v, n.TypeParams)
+		//	Walk(in, n.TypeParams)
 		//}
-		Walk(v, n.Type)
+		Walk(in, out, n.Type)
 		//if n.Comment != nil {
-		//	Walk(v, n.Comment)
+		//	Walk(in, n.Comment)
 		//}
 
 	//case *BadDecl:
@@ -347,52 +350,53 @@ func Walk(v Visitor, node Node) {
 	//
 	//case *GenDecl:
 	//	if n.Doc != nil {
-	//		Walk(v, n.Doc)
+	//		Walk(in, n.Doc)
 	//	}
 	//	for _, s := range n.Specs {
-	//		Walk(v, s)
+	//		Walk(in, s)
 	//	}
 	//
 	case *FuncDecl:
 		//if n.Doc != nil {
-		//	Walk(v, n.Doc)
+		//	Walk(in, n.Doc)
 		//}
 		if n.Recv.Name != "" {
-			Walk(v, &n.Recv)
+			Walk(in, out, &n.Recv)
 		}
-		Walk(v, &n.NameExpr)
-		Walk(v, &n.Type)
+		Walk(in, out, &n.NameExpr)
+		Walk(in, out, &n.Type)
 		if n.Body != nil {
-			walkStmtList(v, n.Body)
+			walkStmtList(in, out, n.Body)
 		}
 
 	// Files and packages
 	case *FileNode:
 		//if n.Doc != nil {
-		//	Walk(v, n.Doc)
+		//	Walk(in, n.Doc)
 		//}
-		Walk(v, Nx(n.Name))
-		walkDeclList(v, n.Decls)
+		Walk(in, out, Nx(n.Name))
+		walkDeclList(in, out, n.Decls)
 		// don't walk n.Comments - they have been
 		// visited already through the individual
 		// nodes
 
 	// case *Package:
 	//	for _, f := range n.Files {
-	//		Walk(v, f)
+	//		Walk(in, f)
 	//	}
 
 	default:
 		panic(fmt.Sprintf("ast.Walk: unexpected node type %T", n))
 	}
 
-	v.Visit(nil)
+	out.Visit(nil)
+	in.Visit(nil)
 }
 
 type inspector func(Node) bool
 
 func (f inspector) Visit(node Node) Visitor {
-	if f(node) {
+	if f != nil && f(node) {
 		return f
 	}
 	return nil
@@ -402,6 +406,6 @@ func (f inspector) Visit(node Node) Visitor {
 // f(node); node must not be nil. If f returns true, Inspect invokes f
 // recursively for each of the non-nil children of node, followed by a
 // call of f(nil).
-func Inspect(node Node, f func(Node) bool) {
-	Walk(inspector(f), node)
+func Inspect(node Node, in, out func(Node) bool) {
+	Walk(inspector(in), inspector(out), node)
 }

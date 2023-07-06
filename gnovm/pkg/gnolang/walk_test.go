@@ -31,20 +31,22 @@ var X = f(3.14)*2 + c
 			s = x.Value
 		case *NameExpr:
 			s = string(x.Name)
+		case *FileNode:
+			s = string(x.PkgName)
 		}
 		if s != "" {
 			fmt.Printf("%v:\t%s\n", n.GetLine(), s)
 		}
 		return true
-	})
+	}, nil)
 
 	// Output:
-	// src.go:2:9:	p
-	// src.go:3:7:	c
-	// src.go:3:11:	1.0
-	// src.go:4:5:	X
-	// src.go:4:9:	f
-	// src.go:4:11:	3.14
-	// src.go:4:17:	2
-	// src.go:4:21:	c
+	//2:	p
+	//0:	c
+	//3:	1.0
+	//0:	X
+	//4:	f
+	//4:	3.14
+	//4:	2
+	//4:	c
 }
