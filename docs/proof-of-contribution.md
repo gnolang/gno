@@ -2,6 +2,8 @@
 
 The consensus algorithm used to secure and distribute the gno.land chain.
 
+Meta issue: [#918](https://github.com/gnolang/gno/issues/918).
+
 ## Main Concepts
 
 - Validator set determined by `worxDAO`, a DAO serving as the authority.
@@ -74,3 +76,17 @@ A governance-backed smart contract that allows for chain configuration through
 governance.
 
 It helps prevent unnecessary upgrade campaigns for minor updates.
+
+### Evaluation DAO
+
+The system employed by the `worxDAO` to incentivize contributions with `^worx` tokens.
+
+            +---------------1. propose a contribution-------------+
+            |                                                     v
+    +--------------+                                     +----------------+
+    |              |--------3. improve, negotiate------->|                |
+    | contributor  |                                     | Evaluation DAO |
+    |              |<-------4. distribute ^worx----------|                |
+    +--------------+                                     +----------------+
+            ^                                                     |
+            +---------------2. review, challenge------------------+
