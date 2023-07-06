@@ -62,6 +62,8 @@ contracts with the `GnoVM` and can self-configure from contracts using the
 The governance entity consisting of contributors, responsible for governing the
 `r/system` realms, including `valset` and `chaincfg`.
 
+Meta issue: [#872](https://github.com/gnolang/gno/issues/872).
+
 ### `r/system/valset`
 
 A realm (smart contract) that enables the `worxDAO` to update the validator set.
