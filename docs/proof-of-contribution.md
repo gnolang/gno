@@ -2,6 +2,25 @@
 
 The consensus algorithm used to secure and distribute the gno.land chain.
 
+## Main Concepts
+
+- Many details are yet to be defined, but here are the main ideas:
+- The validator set is determined by a DAO acting as an authority, similar to a
+  Proof-of-Authority (PoA) system. However, in this case, the authority is a DAO
+  called `worxDAO`.
+- The `worxDAO` utilizes the evaluation DAO to distribute `^worx` tokens, elect
+  new members, and assign membership levels.
+- The entire DAO and governance functionalities are managed through smart
+  contracts.
+- The chain monitors contract changes, such as the `valset`, to configure
+  `Tendermint2` accordingly.
+- There is no staking mechanism involved in the consensus process.
+- Similar to Proof-of-Stake (PoS), chain fees are intended to be distributed.
+  However, instead of going to stakers, they will be distributed among
+  contributors and validators.
+- To ensure efficient distribution, the chain will accumulate all the chain fees
+  in a contract-managed bucket.
+
 ## High-level schema
 
             ____                   ____         ____                    __       _ __          __  _
