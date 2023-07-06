@@ -94,6 +94,21 @@ func GetPosts(fid FeedID) string {
 	return res
 }
 
+// Get Post
+func GetPost(fid FeedID, pid PostID) string {
+	std.AssertOriginCall()
+	caller := std.PrevRealm().Addr()
+	feed := mustGetFeed(fid)
+
+	data, ok := feed.posts.Get(postIDKey(pid))
+	if !ok {
+		panic("Unable to get post")
+	}
+
+	post := data.(*Post)
+	return post.String()
+}
+
 func checkAnonFee() bool {
 	sent := std.GetOrigSend()
 	anonFeeCoin := std.Coin{"ugnot", int64(gDefaultAnonFee)}

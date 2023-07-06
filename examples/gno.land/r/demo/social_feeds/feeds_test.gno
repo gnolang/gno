@@ -94,15 +94,14 @@ func Test(t *testing.T) {
 	ReactPost(feedID, postID, "😇", true)
 
 	// Get Post list
-	postsStr := GetPosts(feedID)
-	postsBytes, err := base64.RawURLEncoding.DecodeString(postsStr)
-	if err != nil {
-		panic("uanble to decode post list", err)
-	}
-
-	panic(postsBytes)
-
-	// if len(posts) != 2 {
-	// 	t.Fatalf("expected total posts: 2, got %q.", len(posts))
+	// postsStr := GetPosts(feedID)
+	// postsBytes, err := base64.RawURLEncoding.DecodeString(postsStr)
+	// if err != nil {
+	// 	panic("uanble to decode post list")
 	// }
+
+	// Get Post
+	postStr := GetPost(feedID, postID)
+
+	panic(postStr)
 }
