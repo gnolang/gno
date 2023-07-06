@@ -6,33 +6,59 @@
 
 Legend: full, partial, missing, TBD.
 
-| keyword     | status |
-|-------------|--------|
-| break       | TBD    |
-| case        | TBD    |
-| chan        | TBD    |
-| const       | TBD    |
-| continue    | TBD    |
-| default     | TBD    |
-| defer       | TBD    |
-| else        | TBD    |
-| fallthrough | TBD    |
-| for         | TBD    |
-| func        | TBD    |
-| go          | TBD    |
-| goto        | TBD    |
-| if          | TBD    |
-| import      | TBD    |
-| interface   | TBD    |
-| map         | TBD    |
-| package     | TBD    |
-| range       | TBD    |
-| return      | TBD    |
-| select      | TBD    |
-| struct      | TBD    |
-| switch      | TBD    |
-| type        | TBD    |
-| var         | TBD    |
+| keyword     | support                |
+|-------------|------------------------|
+| break       | full                   |
+| case        | full                   |
+| const       | full                   |
+| continue    | full                   |
+| default     | full                   |
+| defer       | full                   |
+| else        | full                   |
+| fallthrough | full                   |
+| for         | full                   |
+| func        | full                   |
+| go          | missing (after launch) |
+| goto        | full                   |
+| if          | full                   |
+| import      | full                   |
+| interface   | full                   |
+| package     | full                   |
+| range       | full                   |
+| return      | full                   |
+| select      | missing (after launch) |
+| struct      | full                   |
+| switch      | full                   |
+| type        | full                   |
+| var         | full                   |
+
+## Native types
+
+| type                                          | usage                  | persistency                                                |
+|-----------------------------------------------|------------------------|------------------------------------------------------------|
+| `bool`                                        | full                   | full                                                       |
+| `byte`                                        | full                   | full                                                       |
+| `float32`, `float64`                          | full                   | full                                                       |
+| `int`, `int8`, `int16`, `int32`, `int64`      | full                   | full                                                       |
+| `uint`, `uint8`, `uint16`, `uint32`, `uint64` | full                   | full                                                       |
+| `string`                                      | full                   | full                                                       |
+| `rune`                                        | full                   | full                                                       |
+| `interface{}`                                 | full                   | full                                                       |
+| `[]T` (slices)                                | full                   | full*                                                      |
+| `map[T1]T2`                                   | full                   | full*                                                      |
+| `func (T1...) T2...`                          | full                   | full (needs more tests)                                    |
+| `*T` (pointers)                               | full                   | full*                                                      |
+| `chan T` (channels)                           | missing (after launch) | missing (after launch)                                     |
+
+**\*:** depends on `T`/`T1`/`T2`
+
+Additional native types:
+
+| type     | comment                                                                                    |
+|----------|--------------------------------------------------------------------------------------------|
+| `bigint` | Based on `math/big.Int`                                                                    |
+| `bigdec` | Based on https://github.com/cockroachdb/apd, (see https://github.com/gnolang/gno/pull/306) |
+
 
 ## Stdlibs
 
@@ -167,7 +193,7 @@ Legend: full, partial, missing, TBD.
 | encoding/asn1                               | TBD      |
 | encoding/base32                             | TBD      |
 | encoding/base64                             | TBD      |
-| encoding/binary                             | TBD      |
+| encoding/binary                             | partial  |
 | encoding/csv                                | TBD      |
 | encoding/gob                                | TBD      |
 | encoding/hex                                | TBD      |
@@ -233,7 +259,7 @@ Legend: full, partial, missing, TBD.
 | log/slog/internal                           | TBD      |
 | log/syslog                                  | TBD      |
 | maps                                        | TBD      |
-| math                                        | TBD      |
+| math                                        | partial      |
 | math/big                                    | TBD      |
 | math/bits                                   | TBD      |
 | math/cmplx                                  | TBD      |
@@ -319,27 +345,27 @@ Legend: full, partial, missing, TBD.
 
 ## Tooling (`gno` binary)
 
-| go command        | gno command      | comment                                       |
-|-------------------|------------------|-----------------------------------------------|
-| go bug            |                  | see https://github.com/gnolang/gno/issues/733 |
-| go build          | gno build        | same intention, limited compatibility         |
-| go clean          | gno clean        | same intention, limited compatibility         |
-| go doc            |                  | see https://github.com/gnolang/gno/pull/610   |
-| go env            |                  |                                               |
-| go fix            |                  |                                               |
-| go fmt            |                  |                                               |
-| go generate       |                  |                                               |
-| go get            |                  |                                               |
-| go help           |                  |                                               |
-| go install        |                  |                                               |
-| go list           |                  |                                               |
-| go mod            |                  |                                               |
-| + go mod download | gno mod download | same behavior                                 |
-|                   | gno precompile   |                                               |
-| go work           |                  |                                               |
-|                   | gno repl         |                                               |
-| go run            | gno run          |                                               |
-| go test           | gno test         | limited compatibility                         |
-| go tool           |                  |                                               |
-| go version        |                  |                                               |
-| go vet            |                  |                                               |
+| go command        | gno command      | comment                                                               |
+|-------------------|------------------|-----------------------------------------------------------------------|
+| go bug            |                  | see https://github.com/gnolang/gno/issues/733                         |
+| go build          | gno build        | same intention, limited compatibility                                 |
+| go clean          | gno clean        | same intention, limited compatibility                                 |
+| go doc            | gno doc          | limited compatibility; see https://github.com/gnolang/gno/issues/522  |
+| go env            |                  |                                                                       |
+| go fix            |                  |                                                                       |
+| go fmt            |                  |                                                                       |
+| go generate       |                  |                                                                       |
+| go get            |                  |                                                                       |
+| go help           |                  |                                                                       |
+| go install        |                  |                                                                       |
+| go list           |                  |                                                                       |
+| go mod            |                  |                                                                       |
+| + go mod download | gno mod download | same behavior                                                         |
+|                   | gno precompile   |                                                                       |
+| go work           |                  |                                                                       |
+|                   | gno repl         |                                                                       |
+| go run            | gno run          |                                                                       |
+| go test           | gno test         | limited compatibility                                                 |
+| go tool           |                  |                                                                       |
+| go version        |                  |                                                                       |
+| go vet            |                  |                                                                       |

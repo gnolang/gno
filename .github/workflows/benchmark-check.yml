@@ -1,0 +1,11 @@
+name: run benchmarks on every PR
+
+on:
+  pull_request:
+jobs:
+  check:
+    uses: ./.github/workflows/benchmark.yml
+    secrets: inherit
+    with:
+      publish: false
+      test-flags: "-short"

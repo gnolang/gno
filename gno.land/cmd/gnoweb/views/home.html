@@ -2,22 +2,17 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Gno.land</title>
+    <title>Gno.land - {{ .Data.Title }}</title>
+    <meta name="description" content="{{ .Data.Description }}" />
     {{ template "html_head" }}
   </head>
   <body onload="main()">
     <div id="root">
-      <div id="header">
-        {{ template "header_logo" }}
-        {{ template "header_buttons" }}
-      </div>
-
-      <div id="home">
+      <div id="header">{{ template "header_logo" }} {{ template "header_buttons" }}</div>
+      <div id="home" class="container">
         <pre id="source">{{ .Data.HomeContent }}</pre>
       </div>
-      <div id="subscribe">
-        {{ template "subscribe" }}
-      </div>
+      <div id="subscribe">{{ template "subscribe" }}</div>
       {{ template "footer" }}
     </div>
     {{ template "js" }}

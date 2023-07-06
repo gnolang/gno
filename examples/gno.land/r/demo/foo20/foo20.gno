@@ -48,17 +48,17 @@ func Allowance(owner, spender users.AddressOrName) uint64 {
 // setters.
 
 func Transfer(to users.AddressOrName, amount uint64) {
-	caller := std.GetOrigCaller()
+	caller := std.PrevRealm().Addr()
 	foo.Transfer(caller, to.Resolve(), amount)
 }
 
 func Approve(spender users.AddressOrName, amount uint64) {
-	caller := std.GetOrigCaller()
+	caller := std.PrevRealm().Addr()
 	foo.Approve(caller, spender.Resolve(), amount)
 }
 
 func TransferFrom(from, to users.AddressOrName, amount uint64) {
-	caller := std.GetOrigCaller()
+	caller := std.PrevRealm().Addr()
 	foo.TransferFrom(caller, from.Resolve(), to.Resolve(), amount)
 }
 
@@ -67,20 +67,20 @@ func TransferFrom(from, to users.AddressOrName, amount uint64) {
 func Faucet() {
 	// FIXME: add limits?
 	// FIXME: add payment in gnot?
-	caller := std.GetOrigCaller()
+	caller := std.PrevRealm().Addr()
 	foo.Mint(caller, 1000*10000) // 1k
 }
 
 // administration.
 
 func Mint(address users.AddressOrName, amount uint64) {
-	caller := std.GetOrigCaller()
+	caller := std.PrevRealm().Addr()
 	assertIsAdmin(caller)
 	foo.Mint(address.Resolve(), amount)
 }
 
 func Burn(address users.AddressOrName, amount uint64) {
-	caller := std.GetOrigCaller()
+	caller := std.PrevRealm().Addr()
 	assertIsAdmin(caller)
 	foo.Burn(address.Resolve(), amount)
 }

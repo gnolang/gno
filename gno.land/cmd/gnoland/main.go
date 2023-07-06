@@ -9,8 +9,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/peterbourgon/ff/v3"
+	"github.com/peterbourgon/ff/v3/fftoml"
+
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
@@ -33,6 +37,8 @@ type gnolandCfg struct {
 	chainID               string
 	genesisRemote         string
 	rootDir               string
+	genesisMaxVMCycles    int64
+	config                string
 }
 
 func main() {
@@ -42,6 +48,10 @@ func main() {
 		commands.Metadata{
 			ShortUsage: "[flags] [<arg>...]",
 			LongHelp:   "Starts the gnoland blockchain node",
+			Options: []ff.Option{
+				ff.WithConfigFileFlag("config"),
+				ff.WithConfigFileParser(fftoml.Parser),
+			},
 		},
 		cfg,
 		func(_ context.Context, _ []string) error {
@@ -50,7 +60,7 @@ func main() {
 	)
 
 	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "%+v", err)
+		_, _ = fmt.Fprintf(os.Stderr, "%+v\n", err)
 
 		os.Exit(1)
 	}
@@ -105,6 +115,20 @@ func (c *gnolandCfg) RegisterFlags(fs *flag.FlagSet) {
 		"localhost:26657",
 		"replacement for '%%REMOTE%%' in genesis",
 	)
+
+	fs.Int64Var(
+		&c.genesisMaxVMCycles,
+		"genesis-max-vm-cycles",
+		10_000_000,
+		"set maximum allowed vm cycles per operation. Zero means no limit.",
+	)
+
+	fs.StringVar(
+		&c.config,
+		"config",
+		"",
+		"config file (optional)",
+	)
 }
 
 func exec(c *gnolandCfg) error {
@@ -135,7 +159,7 @@ func exec(c *gnolandCfg) error {
 	}
 
 	// create application and node.
-	gnoApp, err := gnoland.NewApp(rootDir, c.skipFailingGenesisTxs, logger)
+	gnoApp, err := gnoland.NewApp(rootDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
 	if err != nil {
 		return fmt.Errorf("error in creating new app: %w", err)
 	}
@@ -205,33 +229,25 @@ func makeGenesisDoc(
 	// Load initial packages from examples.
 	test1 := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	txs := []std.Tx{}
-	for _, path := range []string{
-		"p/demo/ufmt",
-		"p/demo/avl",
-		"p/demo/grc/exts",
-		"p/demo/grc/grc20",
-		"p/demo/grc/grc721",
-		"p/demo/grc/grc1155",
-		"p/demo/maths",
-		"p/demo/blog",
-		"r/demo/users",
-		"r/demo/foo20",
-		"r/demo/foo1155",
-		"r/demo/boards",
-		"r/demo/banktest",
-		"r/demo/types",
-		"r/demo/markdown_test",
-		"r/gnoland/blog",
-		"r/gnoland/faucet",
-		"r/system/validators",
-		"r/system/names",
-		"r/system/rewards",
-		"r/demo/deep/very/deep",
-	} {
+
+	// List initial packages to load from examples.
+	pkgs, err := gnomod.ListPkgs(filepath.Join("..", "examples"))
+	if err != nil {
+		panic(fmt.Errorf("listing gno packages: %w", err))
+	}
+
+	// Sort packages by dependencies.
+	sortedPkgs, err := pkgs.Sort()
+	if err != nil {
+		panic(fmt.Errorf("sorting packages: %w", err))
+	}
+
+	// Filter out draft packages.
+	nonDraftPkgs := sortedPkgs.GetNonDraftPkgs()
+
+	for _, pkg := range nonDraftPkgs {
 		// open files in directory as MemPackage.
-		fsPath := filepath.Join("..", "examples", "gno.land", path)
-		importPath := "gno.land/" + path
-		memPkg := gno.ReadMemPackage(fsPath, importPath)
+		memPkg := gno.ReadMemPackage(pkg.Path(), pkg.Name())
 		var tx std.Tx
 		tx.Msgs = []std.Msg{
 			vmm.MsgAddPackage{

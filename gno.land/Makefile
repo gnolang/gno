@@ -31,7 +31,7 @@ clean:
 
 .PHONY: lint
 lint:
-	golangci-lint run --config ../.github/golangci.yml ./...
+	$(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint run --config ../.github/golangci.yml ./...
 
 .PHONY: fmt
 GOFMT_FLAGS ?= -w
@@ -43,7 +43,7 @@ fmt:
 .PHONY: test
 test: _test.gnoland _test.gnoweb _test.gnokey _test.pkgs
 
-GOTEST_FLAGS=-v -p 1 -timeout=30m
+GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 
 _test.gnoland:; go test $(GOTEST_FLAGS) ./cmd/gnoland
 _test.gnoweb:;  go test $(GOTEST_FLAGS) ./cmd/gnoweb
