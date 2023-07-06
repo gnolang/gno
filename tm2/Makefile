@@ -31,7 +31,7 @@ fmt:
 
 .PHONY: lint
 lint:
-	golangci-lint run --config ../.github/golangci.yml ./...
+	$(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint run --config ../.github/golangci.yml ./...
 
 ########################################
 # Test suite

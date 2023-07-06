@@ -3,7 +3,7 @@ help:
 	@echo "Available make commands:"
 	@cat Makefile | grep '^[a-z][^:]*:' | cut -d: -f1 | sort | sed 's/^/  /'
 
-rundep=go run -modfile ../misc/devdeps/go.mod
+rundep=go run -modfile misc/devdeps/go.mod
 
 .PHONY: install
 install: install_gnokey install_gno
@@ -43,4 +43,4 @@ fmt:
 
 .PHONY: lint
 lint:
-	golangci-lint run --config .github/golangci.yml
+	$(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint run --config .github/golangci.yml
