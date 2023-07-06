@@ -4,6 +4,8 @@ The consensus algorithm used to secure and distribute the gno.land chain.
 
 Meta issue: [#918](https://github.com/gnolang/gno/issues/918).
 
+Presentation: https://github.com/gnolang/workshops/tree/main/presentations/2023-06-06--buidl-asia--manfred.
+
 ## Main Concepts
 
 - Validator set determined by `worxDAO`, a DAO serving as the authority.
