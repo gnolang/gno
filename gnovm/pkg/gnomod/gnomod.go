@@ -163,6 +163,11 @@ func GnoToGoMod(f File) (*File, error) {
 	return &f, nil
 }
 
+func CreateGnoModFile(absDir, modPath string) error {
+	// TODO: implement
+	return nil
+}
+
 func isReplaced(mod module.Version, repl []*modfile.Replace) (module.Version, bool) {
 	for _, r := range repl {
 		hasNoVersion := r.Old.Path == mod.Path && r.Old.Version == ""
