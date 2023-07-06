@@ -20,7 +20,8 @@ jobs:
       - name: Lint
         uses: golangci/golangci-lint-action@v3
         with:
-          version: v1.51
+          # sync with misc/devdeps/go.mod
+          version: v1.53
           args:
             --config=./.github/golangci.yml
   fmt:
