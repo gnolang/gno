@@ -5,32 +5,32 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/autofile"
-	"github.com/gnolang/gno/tm2/pkg/bft/state/txindex/config"
+	storetypes "github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
 const (
-	IndexerType = "file"
-	Path        = "path"
+	EventStoreType = "file"
+	Path           = "path"
 )
 
 var (
 	errMissingPath = errors.New("missing path param")
-	errInvalidType = errors.New("invalid config for file indexer specified")
+	errInvalidType = errors.New("invalid config for file event store specified")
 )
 
-// TxIndexer is the implementation of a transaction indexer
+// TxEventStore is the implementation of a transaction event store
 // that outputs to the local filesystem
-type TxIndexer struct {
+type TxEventStore struct {
 	headPath string
 	group    *autofile.Group
 }
 
-// NewTxIndexer creates a new file-based tx indexer
-func NewTxIndexer(cfg *config.Config) (*TxIndexer, error) {
+// NewTxEventStore creates a new file-based tx event store
+func NewTxEventStore(cfg *storetypes.Config) (*TxEventStore, error) {
 	// Parse config params
-	if IndexerType != cfg.IndexerType {
+	if EventStoreType != cfg.EventStoreType {
 		return nil, errInvalidType
 	}
 
@@ -39,13 +39,13 @@ func NewTxIndexer(cfg *config.Config) (*TxIndexer, error) {
 		return nil, errMissingPath
 	}
 
-	return &TxIndexer{
+	return &TxEventStore{
 		headPath: headPath,
 	}, nil
 }
 
-// Start starts the file transaction indexer, by opening the autofile group
-func (t *TxIndexer) Start() error {
+// Start starts the file transaction event store, by opening the autofile group
+func (t *TxEventStore) Start() error {
 	// Open the group
 	group, err := autofile.OpenGroup(t.headPath)
 	if err != nil {
@@ -57,21 +57,21 @@ func (t *TxIndexer) Start() error {
 	return nil
 }
 
-// Stop stops the file transaction indexer, by closing the autofile group
-func (t *TxIndexer) Stop() error {
+// Stop stops the file transaction event store, by closing the autofile group
+func (t *TxEventStore) Stop() error {
 	// Close off the group
 	t.group.Close()
 
 	return nil
 }
 
-// GetType returns the file transaction indexer type
-func (t *TxIndexer) GetType() string {
-	return IndexerType
+// GetType returns the file transaction event store type
+func (t *TxEventStore) GetType() string {
+	return EventStoreType
 }
 
 // Index marshals the transaction using amino, and writes it to the disk
-func (t *TxIndexer) Index(tx types.TxResult) error {
+func (t *TxEventStore) Index(tx types.TxResult) error {
 	// Serialize the transaction using amino
 	txRaw, err := amino.MarshalJSON(tx)
 	if err != nil {
@@ -80,12 +80,12 @@ func (t *TxIndexer) Index(tx types.TxResult) error {
 
 	// Write the serialized transaction info to the file group
 	if err = t.group.WriteLine(string(txRaw)); err != nil {
-		return fmt.Errorf("unable to save transaction index, %w", err)
+		return fmt.Errorf("unable to save transaction event, %w", err)
 	}
 
 	// Flush output to storage
 	if err := t.group.FlushAndSync(); err != nil {
-		return fmt.Errorf("unable to flush and sync transaction index, %w", err)
+		return fmt.Errorf("unable to flush and sync transaction event, %w", err)
 	}
 
 	return nil

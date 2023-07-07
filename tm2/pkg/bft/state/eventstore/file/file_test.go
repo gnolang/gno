@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	"github.com/gnolang/gno/tm2/pkg/bft/state/txindex/config"
+	storetypes "github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
@@ -22,17 +22,17 @@ func generateTestTransactions(count int) []types.TxResult {
 	return txs
 }
 
-func TestTxIndexer_New(t *testing.T) {
+func TestTxEventStore_New(t *testing.T) {
 	t.Parallel()
 
 	t.Run("invalid file path specified", func(t *testing.T) {
 		t.Parallel()
 
-		cfg := &config.Config{
-			IndexerType: "invalid",
+		cfg := &storetypes.Config{
+			EventStoreType: "invalid",
 		}
 
-		i, err := NewTxIndexer(cfg)
+		i, err := NewTxEventStore(cfg)
 
 		assert.Nil(t, i)
 		assert.ErrorIs(t, err, errInvalidType)
@@ -41,12 +41,12 @@ func TestTxIndexer_New(t *testing.T) {
 	t.Run("invalid file path specified", func(t *testing.T) {
 		t.Parallel()
 
-		cfg := &config.Config{
-			IndexerType: IndexerType,
-			Params:      nil,
+		cfg := &storetypes.Config{
+			EventStoreType: EventStoreType,
+			Params:         nil,
 		}
 
-		i, err := NewTxIndexer(cfg)
+		i, err := NewTxEventStore(cfg)
 
 		assert.Nil(t, i)
 		assert.ErrorIs(t, err, errMissingPath)
@@ -57,25 +57,25 @@ func TestTxIndexer_New(t *testing.T) {
 
 		headPath := "."
 
-		cfg := &config.Config{
-			IndexerType: IndexerType,
+		cfg := &storetypes.Config{
+			EventStoreType: EventStoreType,
 			Params: map[string]any{
 				Path: headPath,
 			},
 		}
 
-		i, err := NewTxIndexer(cfg)
+		i, err := NewTxEventStore(cfg)
 		if i == nil {
-			t.Fatalf("unable to create indexer")
+			t.Fatalf("unable to create event store")
 		}
 
 		assert.NoError(t, err)
 		assert.Equal(t, headPath, i.headPath)
-		assert.Equal(t, IndexerType, i.GetType())
+		assert.Equal(t, EventStoreType, i.GetType())
 	})
 }
 
-func TestTxIndexer_Index(t *testing.T) {
+func TestTxEventStore_Index(t *testing.T) {
 	t.Parallel()
 
 	headFile, cleanup := testutils.NewTestFile(t)
@@ -83,25 +83,25 @@ func TestTxIndexer_Index(t *testing.T) {
 		cleanup()
 	})
 
-	indexer, err := NewTxIndexer(&config.Config{
-		IndexerType: IndexerType,
+	eventStore, err := NewTxEventStore(&storetypes.Config{
+		EventStoreType: EventStoreType,
 		Params: map[string]any{
 			Path: headFile.Name(),
 		},
 	})
 	if err != nil {
-		t.Fatalf("unable to create tx indexer, %v", err)
+		t.Fatalf("unable to create tx event store, %v", err)
 	}
 
-	// Start the indexer
-	if err = indexer.Start(); err != nil {
-		t.Fatalf("unable to start indexer, %v", err)
+	// Start the event store
+	if err = eventStore.Start(); err != nil {
+		t.Fatalf("unable to start event store, %v", err)
 	}
 
 	t.Cleanup(func() {
-		// Stop the indexer
-		if err = indexer.Stop(); err != nil {
-			t.Fatalf("unable to stop indexer gracefully, %v", err)
+		// Stop the event store
+		if err = eventStore.Stop(); err != nil {
+			t.Fatalf("unable to stop event store gracefully, %v", err)
 		}
 	})
 
@@ -109,13 +109,13 @@ func TestTxIndexer_Index(t *testing.T) {
 	txs := generateTestTransactions(numTxs)
 
 	for _, tx := range txs {
-		if err = indexer.Index(tx); err != nil {
-			t.Fatalf("unable to index transaction, %v", err)
+		if err = eventStore.Index(tx); err != nil {
+			t.Fatalf("unable to store transaction, %v", err)
 		}
 	}
 
 	// Make sure the file group's size is valid
-	if indexer.group.ReadGroupInfo().TotalSize == 0 {
+	if eventStore.group.ReadGroupInfo().TotalSize == 0 {
 		t.Fatalf("invalid group size")
 	}
 
@@ -128,7 +128,7 @@ func TestTxIndexer_Index(t *testing.T) {
 
 		var txRes types.TxResult
 		if err = amino.UnmarshalJSON(line, &txRes); err != nil {
-			t.Fatalf("unable to read indexer line")
+			t.Fatalf("unable to read store line")
 		}
 
 		assert.Equal(t, txs[linesRead], txRes)

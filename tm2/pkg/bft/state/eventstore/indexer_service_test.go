@@ -1,4 +1,4 @@
-package txindex
+package eventstore
 
 import (
 	"sync"
@@ -24,7 +24,7 @@ func generateTxEvents(count int) []types.EventTx {
 	return txEvents
 }
 
-func TestIndexerService_Monitor(t *testing.T) {
+func TestEventStoreService_Monitor(t *testing.T) {
 	t.Parallel()
 
 	const defaultTimeout = 5 * time.Second
@@ -38,7 +38,7 @@ func TestIndexerService_Monitor(t *testing.T) {
 		cb    events.EventCallback
 		cbSet atomic.Bool
 
-		mockIndexer = &mockIndexer{
+		mockEventStore = &mockEventStore{
 			startFn: func() error {
 				startCalled = true
 
@@ -73,28 +73,27 @@ func TestIndexerService_Monitor(t *testing.T) {
 		}
 	)
 
-	// Create a new indexer instance
-	i := NewIndexerService(mockIndexer, mockEventSwitch)
+	// Create a new event store instance
+	i := NewEventStoreService(mockEventStore, mockEventSwitch)
 	if i == nil {
-		t.Fatal("unable to create indexer service")
+		t.Fatal("unable to create event store service")
 	}
 
-	// Start the indexer
+	// Start the event store
 	if err := i.OnStart(); err != nil {
-		t.Fatalf("unable to start indexer, %v", err)
+		t.Fatalf("unable to start event store, %v", err)
 	}
 
 	assert.True(t, startCalled)
 
 	t.Cleanup(func() {
-		// Stop the indexer
+		// Stop the event store
 		i.OnStop()
 
 		assert.True(t, stopCalled)
 	})
 
-	// Fire off the events so the indexer can catch them
-
+	// Fire off the events so the event store can catch them
 	numEvents := 1000
 	txEvents := generateTxEvents(numEvents)
 

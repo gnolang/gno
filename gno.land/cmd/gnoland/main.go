@@ -21,9 +21,9 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
-	indexercfg "github.com/gnolang/gno/tm2/pkg/bft/state/txindex/config"
-	"github.com/gnolang/gno/tm2/pkg/bft/state/txindex/file"
-	"github.com/gnolang/gno/tm2/pkg/bft/state/txindex/null"
+	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
+	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/null"
+	eventstorecfg "github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -44,8 +44,8 @@ type gnolandCfg struct {
 	genesisMaxVMCycles    int64
 	config                string
 
-	txIndexerType string
-	txIndexerPath string
+	txEventStoreType string
+	txEventStorePath string
 }
 
 func main() {
@@ -138,15 +138,15 @@ func (c *gnolandCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
-		&c.txIndexerType,
-		"tx-indexer-type",
-		null.IndexerType,
+		&c.txEventStoreType,
+		"tx-event-store-type",
+		null.EventStoreType,
 		fmt.Sprintf(
-			"type of transaction indexer [%s]",
+			"type of transaction event store [%s]",
 			strings.Join(
 				[]string{
-					null.IndexerType,
-					file.IndexerType,
+					null.EventStoreType,
+					file.EventStoreType,
 				},
 				", ",
 			),
@@ -154,10 +154,10 @@ func (c *gnolandCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
-		&c.txIndexerPath,
-		"tx-indexer-path",
+		&c.txEventStorePath,
+		"tx-event-store-path",
 		"",
-		fmt.Sprintf("path for the file tx-indexer (required if indexer if '%s')", file.IndexerType),
+		fmt.Sprintf("path for the file tx event store (required if event store if '%s')", file.EventStoreType),
 	)
 }
 
@@ -189,12 +189,12 @@ func exec(c *gnolandCfg) error {
 	}
 
 	// Initialize the indexer config
-	indexerCfg, err := getIndexerConfig(c)
+	txEventStoreCfg, err := getTxEventStoreConfig(c)
 	if err != nil {
 		return fmt.Errorf("unable to parse indexer config, %w", err)
 	}
 
-	cfg.Indexer = indexerCfg
+	cfg.TxEventStore = txEventStoreCfg
 
 	// create application and node.
 	gnoApp, err := gnoland.NewApp(rootDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
@@ -231,25 +231,25 @@ func exec(c *gnolandCfg) error {
 	select {} // run forever
 }
 
-// getIndexerConfig constructs an indexer config from provided user options
-func getIndexerConfig(c *gnolandCfg) (*indexercfg.Config, error) {
-	var cfg *indexercfg.Config
+// getTxEventStoreConfig constructs an event store config from provided user options
+func getTxEventStoreConfig(c *gnolandCfg) (*eventstorecfg.Config, error) {
+	var cfg *eventstorecfg.Config
 
-	switch c.txIndexerType {
-	case file.IndexerType:
-		if c.txIndexerPath == "" {
+	switch c.txEventStoreType {
+	case file.EventStoreType:
+		if c.txEventStorePath == "" {
 			return nil, errors.New("unspecified file transaction indexer path")
 		}
 
 		// Fill out the configuration
-		cfg = &indexercfg.Config{
-			IndexerType: file.IndexerType,
+		cfg = &eventstorecfg.Config{
+			EventStoreType: file.EventStoreType,
 			Params: map[string]any{
-				file.Path: c.txIndexerPath,
+				file.Path: c.txEventStorePath,
 			},
 		}
 	default:
-		cfg = indexercfg.DefaultIndexerConfig()
+		cfg = eventstorecfg.DefaultEventStoreConfig()
 	}
 
 	return cfg, nil

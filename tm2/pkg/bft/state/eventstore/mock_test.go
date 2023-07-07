@@ -1,4 +1,4 @@
-package txindex
+package eventstore
 
 import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -6,7 +6,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/service"
 )
 
-// TxIndexer //
+// TxEventStore //
 
 type (
 	startDelegate   func() error
@@ -15,14 +15,14 @@ type (
 	indexDelegate   func(types.TxResult) error
 )
 
-type mockIndexer struct {
+type mockEventStore struct {
 	startFn   startDelegate
 	stopFn    stopDelegate
 	getTypeFn getTypeDelegate
 	indexFn   indexDelegate
 }
 
-func (m mockIndexer) Start() error {
+func (m mockEventStore) Start() error {
 	if m.startFn != nil {
 		return m.startFn()
 	}
@@ -30,7 +30,7 @@ func (m mockIndexer) Start() error {
 	return nil
 }
 
-func (m mockIndexer) Stop() error {
+func (m mockEventStore) Stop() error {
 	if m.stopFn != nil {
 		return m.stopFn()
 	}
@@ -38,7 +38,7 @@ func (m mockIndexer) Stop() error {
 	return nil
 }
 
-func (m mockIndexer) GetType() string {
+func (m mockEventStore) GetType() string {
 	if m.getTypeFn != nil {
 		return m.getTypeFn()
 	}
@@ -46,7 +46,7 @@ func (m mockIndexer) GetType() string {
 	return ""
 }
 
-func (m mockIndexer) Index(result types.TxResult) error {
+func (m mockEventStore) Index(result types.TxResult) error {
 	if m.indexFn != nil {
 		return m.indexFn(result)
 	}

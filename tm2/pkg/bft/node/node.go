@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/gnolang/cors"
-	"github.com/gnolang/gno/tm2/pkg/bft/state/txindex/file"
+	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -26,8 +26,8 @@ import (
 	_ "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	rpcserver "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
-	"github.com/gnolang/gno/tm2/pkg/bft/state/txindex"
-	"github.com/gnolang/gno/tm2/pkg/bft/state/txindex/null"
+	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore"
+	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/null"
 	"github.com/gnolang/gno/tm2/pkg/bft/store"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	tmtime "github.com/gnolang/gno/tm2/pkg/bft/types/time"
@@ -155,18 +155,18 @@ type Node struct {
 	isListening bool
 
 	// services
-	evsw             events.EventSwitch
-	stateDB          dbm.DB
-	blockStore       *store.BlockStore // store the blockchain to disk
-	bcReactor        p2p.Reactor       // for fast-syncing
-	mempoolReactor   *mempl.Reactor    // for gossipping transactions
-	mempool          mempl.Mempool
-	consensusState   *cs.ConsensusState   // latest consensus state
-	consensusReactor *cs.ConsensusReactor // for participating in the consensus
-	proxyApp         proxy.AppConns       // connection to the application
-	rpcListeners     []net.Listener       // rpc servers
-	txIndexer        txindex.TxIndexer
-	indexerService   *txindex.IndexerService
+	evsw              events.EventSwitch
+	stateDB           dbm.DB
+	blockStore        *store.BlockStore // store the blockchain to disk
+	bcReactor         p2p.Reactor       // for fast-syncing
+	mempoolReactor    *mempl.Reactor    // for gossipping transactions
+	mempool           mempl.Mempool
+	consensusState    *cs.ConsensusState   // latest consensus state
+	consensusReactor  *cs.ConsensusReactor // for participating in the consensus
+	proxyApp          proxy.AppConns       // connection to the application
+	rpcListeners      []net.Listener       // rpc servers
+	txEventStore      eventstore.TxEventStore
+	eventStoreService *eventstore.Service
 }
 
 func initDBs(config *cfg.Config, dbProvider DBProvider) (blockStore *store.BlockStore, stateDB dbm.DB, err error) {
@@ -194,36 +194,36 @@ func createAndStartProxyAppConns(clientCreator proxy.ClientCreator, logger log.L
 	return proxyApp, nil
 }
 
-func createAndStartIndexerService(
+func createAndStartEventStoreService(
 	cfg *cfg.Config,
 	evSwitch events.EventSwitch,
 	logger log.Logger,
-) (*txindex.IndexerService, txindex.TxIndexer, error) {
+) (*eventstore.Service, eventstore.TxEventStore, error) {
 	var (
-		err       error
-		txIndexer txindex.TxIndexer
+		err          error
+		txEventStore eventstore.TxEventStore
 	)
 
-	// Instantiate the indexer based on the configuration
-	switch cfg.Indexer.IndexerType {
-	case file.IndexerType:
-		// Transaction indexes should be logged to files
-		txIndexer, err = file.NewTxIndexer(cfg.Indexer)
+	// Instantiate the event store based on the configuration
+	switch cfg.TxEventStore.EventStoreType {
+	case file.EventStoreType:
+		// Transaction events should be logged to files
+		txEventStore, err = file.NewTxEventStore(cfg.TxEventStore)
 		if err != nil {
-			return nil, nil, fmt.Errorf("unable to create file tx indexer, %w", err)
+			return nil, nil, fmt.Errorf("unable to create file tx event store, %w", err)
 		}
 	default:
-		// Transaction indexing should be omitted
-		txIndexer = null.NewNullIndexer()
+		// Transaction event storing should be omitted
+		txEventStore = null.NewNullEventStore()
 	}
 
-	indexerService := txindex.NewIndexerService(txIndexer, evSwitch)
-	indexerService.SetLogger(logger.With("module", "txindex"))
+	indexerService := eventstore.NewEventStoreService(txEventStore, evSwitch)
+	indexerService.SetLogger(logger.With("module", "eventstore"))
 	if err = indexerService.Start(); err != nil {
 		return nil, nil, err
 	}
 
-	return indexerService, txIndexer, nil
+	return indexerService, txEventStore, nil
 }
 
 func doHandshake(stateDB dbm.DB, state sm.State, blockStore sm.BlockStore,
@@ -432,14 +432,14 @@ func NewNode(config *cfg.Config,
 		return nil, err
 	}
 
-	// EventSwitch and IndexerService must be started before the handshake because
-	// we might need to index the txs of the replayed block as this might not have happened
+	// EventSwitch and EventStoreService must be started before the handshake because
+	// we might need to store the txs of the replayed block as this might not have happened
 	// when the node stopped last time (i.e. the node stopped after it saved the block
 	// but before it indexed the txs, or, endblocker panicked)
 	evsw := events.NewEventSwitch()
 
-	// Transaction indexing
-	indexerService, txIndexer, err := createAndStartIndexerService(config, evsw, logger)
+	// Transaction event storing
+	eventStoreService, txEventStore, err := createAndStartEventStoreService(config, evsw, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -501,7 +501,7 @@ func NewNode(config *cfg.Config,
 		privValidator, fastSync, evsw, consensusLogger,
 	)
 
-	nodeInfo, err := makeNodeInfo(config, nodeKey, txIndexer, genDoc, state)
+	nodeInfo, err := makeNodeInfo(config, nodeKey, txEventStore, genDoc, state)
 	if err != nil {
 		return nil, errors.Wrap(err, "error making NodeInfo")
 	}
@@ -542,17 +542,17 @@ func NewNode(config *cfg.Config,
 		nodeInfo:  nodeInfo,
 		nodeKey:   nodeKey,
 
-		evsw:             evsw,
-		stateDB:          stateDB,
-		blockStore:       blockStore,
-		bcReactor:        bcReactor,
-		mempoolReactor:   mempoolReactor,
-		mempool:          mempool,
-		consensusState:   consensusState,
-		consensusReactor: consensusReactor,
-		proxyApp:         proxyApp,
-		txIndexer:        txIndexer,
-		indexerService:   indexerService,
+		evsw:              evsw,
+		stateDB:           stateDB,
+		blockStore:        blockStore,
+		bcReactor:         bcReactor,
+		mempoolReactor:    mempoolReactor,
+		mempool:           mempool,
+		consensusState:    consensusState,
+		consensusReactor:  consensusReactor,
+		proxyApp:          proxyApp,
+		txEventStore:      txEventStore,
+		eventStoreService: eventStoreService,
 	}
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
@@ -627,7 +627,7 @@ func (n *Node) OnStop() {
 
 	// first stop the non-reactor services
 	n.evsw.Stop()
-	n.indexerService.Stop()
+	n.eventStoreService.Stop()
 
 	// now stop the reactors
 	n.sw.Stop()
@@ -665,7 +665,7 @@ func (n *Node) ConfigureRPC() {
 	rpccore.SetPubKey(pubKey)
 	rpccore.SetGenesisDoc(n.genesisDoc)
 	rpccore.SetProxyAppQuery(n.proxyApp.Query())
-	rpccore.SetTxIndexer(n.txIndexer)
+	rpccore.SetTxEventStore(n.txEventStore)
 	rpccore.SetConsensusReactor(n.consensusReactor)
 	rpccore.SetLogger(n.Logger.With("module", "rpc"))
 	rpccore.SetEventSwitch(n.evsw)
@@ -840,12 +840,12 @@ func (n *Node) NodeInfo() p2p.NodeInfo {
 func makeNodeInfo(
 	config *cfg.Config,
 	nodeKey *p2p.NodeKey,
-	txIndexer txindex.TxIndexer,
+	txEventStore eventstore.TxEventStore,
 	genDoc *types.GenesisDoc,
 	state sm.State,
 ) (p2p.NodeInfo, error) {
 	txIndexerStatus := p2p.IndexerStatusOff
-	if txIndexer.GetType() != null.IndexerType {
+	if txEventStore.GetType() != null.EventStoreType {
 		txIndexerStatus = p2p.IndexerStatusOn
 	}
 
