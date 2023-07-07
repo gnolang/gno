@@ -49,7 +49,7 @@ func TestEventStoreService_Monitor(t *testing.T) {
 
 				return nil
 			},
-			indexFn: func(result types.TxResult) error {
+			appendFn: func(result types.TxResult) error {
 				receivedResults = append(receivedResults, result)
 
 				// Atomic because we are accessing this size from a routine

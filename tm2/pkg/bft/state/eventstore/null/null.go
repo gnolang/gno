@@ -26,7 +26,7 @@ func (t TxEventStore) Stop() error {
 	return nil
 }
 
-func (t TxEventStore) Index(_ types.TxResult) error {
+func (t TxEventStore) Append(_ types.TxResult) error {
 	return nil
 }
 

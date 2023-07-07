@@ -75,7 +75,7 @@ func TestTxEventStore_New(t *testing.T) {
 	})
 }
 
-func TestTxEventStore_Index(t *testing.T) {
+func TestTxEventStore_Append(t *testing.T) {
 	t.Parallel()
 
 	headFile, cleanup := testutils.NewTestFile(t)
@@ -109,7 +109,7 @@ func TestTxEventStore_Index(t *testing.T) {
 	txs := generateTestTransactions(numTxs)
 
 	for _, tx := range txs {
-		if err = eventStore.Index(tx); err != nil {
+		if err = eventStore.Append(tx); err != nil {
 			t.Fatalf("unable to store transaction, %v", err)
 		}
 	}

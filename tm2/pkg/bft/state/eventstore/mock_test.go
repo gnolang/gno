@@ -12,14 +12,14 @@ type (
 	startDelegate   func() error
 	stopDelegate    func() error
 	getTypeDelegate func() string
-	indexDelegate   func(types.TxResult) error
+	appendDelegate  func(types.TxResult) error
 )
 
 type mockEventStore struct {
 	startFn   startDelegate
 	stopFn    stopDelegate
 	getTypeFn getTypeDelegate
-	indexFn   indexDelegate
+	appendFn  appendDelegate
 }
 
 func (m mockEventStore) Start() error {
@@ -46,9 +46,9 @@ func (m mockEventStore) GetType() string {
 	return ""
 }
 
-func (m mockEventStore) Index(result types.TxResult) error {
-	if m.indexFn != nil {
-		return m.indexFn(result)
+func (m mockEventStore) Append(result types.TxResult) error {
+	if m.appendFn != nil {
+		return m.appendFn(result)
 	}
 
 	return nil

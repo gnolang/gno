@@ -76,7 +76,7 @@ func (is *Service) monitorTxEvents(ctx context.Context) {
 			}
 
 			// Alert the actual tx event store
-			if err := is.txEventStore.Index(ev.Result); err != nil {
+			if err := is.txEventStore.Append(ev.Result); err != nil {
 				is.Logger.Error("unable to store transaction", "err", err)
 			}
 		}

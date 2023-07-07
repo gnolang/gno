@@ -70,8 +70,8 @@ func (t *TxEventStore) GetType() string {
 	return EventStoreType
 }
 
-// Index marshals the transaction using amino, and writes it to the disk
-func (t *TxEventStore) Index(tx types.TxResult) error {
+// Append marshals the transaction using amino, and writes it to the disk
+func (t *TxEventStore) Append(tx types.TxResult) error {
 	// Serialize the transaction using amino
 	txRaw, err := amino.MarshalJSON(tx)
 	if err != nil {

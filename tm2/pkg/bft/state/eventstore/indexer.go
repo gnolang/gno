@@ -18,6 +18,7 @@ type TxEventStore interface {
 	// GetType returns the event store type
 	GetType() string
 
-	// Index analyzes, indexes and stores a single transaction
-	Index(result types.TxResult) error
+	// Append analyzes and appends a single transaction
+	// to the event store
+	Append(result types.TxResult) error
 }
