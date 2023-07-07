@@ -117,13 +117,11 @@ func gnoPackagePathsFromPattern(patterns []string) ([]string, error) {
 			return nil, fmt.Errorf("invalid file or package path: %w", err)
 		}
 
-		// if the passed arg is a file, then we'll just add it to the list
-		if !info.IsDir() {
-			paths = append(paths, p)
-			continue
-		}
-		// if the passed arg is just dir not followed by /...
-		if !recursiveLookup {
+		// if the pattern is:
+		//     - a file
+		//     - a dir not followed by /...
+		// then we'll just add it to the list
+		if !info.IsDir() || !recursiveLookup {
 			paths = append(paths, p)
 			continue
 		}
