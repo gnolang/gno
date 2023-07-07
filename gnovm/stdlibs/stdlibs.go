@@ -1,6 +1,6 @@
 package stdlibs
 
-//go:generate go run ./internal/stdgen
+//go:generate go run github.com/gnolang/gno/misc/genstd
 
 import (
 	"reflect"

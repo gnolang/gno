@@ -1,4 +1,4 @@
-// Command stdgen provides static code generation for standard library native
+// Command genstd provides static code generation for standard library native
 // bindings.
 package main
 
@@ -15,10 +15,16 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
+
+	_ "embed"
 )
 
 func main() {
-	if err := _main("."); err != nil {
+	path := "."
+	if len(os.Args) > 1 {
+		path = os.Args[1]
+	}
+	if err := _main(path); err != nil {
 		fmt.Fprintf(os.Stderr, "%+v\n", err)
 		os.Exit(1)
 	}
@@ -371,7 +377,10 @@ type tplData struct {
 	LibNums  []string
 }
 
-var tpl = template.Must(template.ParseFiles("./internal/stdgen/template.tmpl"))
+//go:embed template.tmpl
+var templateText string
+
+var tpl = template.Must(template.New("").Parse(templateText))
 
 func (t tplData) FindLibNum(s string) (int, error) {
 	for i, v := range t.LibNums {
