@@ -17,12 +17,12 @@ type Service struct {
 	cancelFn context.CancelFunc
 
 	txEventStore TxEventStore
-	evSwitch     events.EventSwitch
+	evsw         events.EventSwitch
 }
 
 // NewEventStoreService returns a new service instance
-func NewEventStoreService(idr TxEventStore, evSwitch events.EventSwitch) *Service {
-	is := &Service{txEventStore: idr, evSwitch: evSwitch}
+func NewEventStoreService(idr TxEventStore, evsw events.EventSwitch) *Service {
+	is := &Service{txEventStore: idr, evsw: evsw}
 	is.BaseService = *service.NewBaseService(nil, "EventStoreService", is)
 
 	return is
@@ -60,7 +60,7 @@ func (is *Service) OnStop() {
 // event store. It relays transaction events that come from the event stream
 func (is *Service) monitorTxEvents(ctx context.Context) {
 	// Create a subscription for transaction events
-	subCh := events.SubscribeToEvent(is.evSwitch, "tx-event-store", types.EventTx{})
+	subCh := events.SubscribeToEvent(is.evsw, "tx-event-store", types.EventTx{})
 
 	for {
 		select {

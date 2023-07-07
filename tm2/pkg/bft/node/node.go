@@ -196,7 +196,7 @@ func createAndStartProxyAppConns(clientCreator proxy.ClientCreator, logger log.L
 
 func createAndStartEventStoreService(
 	cfg *cfg.Config,
-	evSwitch events.EventSwitch,
+	evsw events.EventSwitch,
 	logger log.Logger,
 ) (*eventstore.Service, eventstore.TxEventStore, error) {
 	var (
@@ -217,7 +217,7 @@ func createAndStartEventStoreService(
 		txEventStore = null.NewNullEventStore()
 	}
 
-	indexerService := eventstore.NewEventStoreService(txEventStore, evSwitch)
+	indexerService := eventstore.NewEventStoreService(txEventStore, evsw)
 	indexerService.SetLogger(logger.With("module", "eventstore"))
 	if err = indexerService.Start(); err != nil {
 		return nil, nil, err
