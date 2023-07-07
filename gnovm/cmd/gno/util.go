@@ -102,8 +102,9 @@ func gnoPackagesFromArgs(args []string) ([]string, error) {
 
 func gnoPackagePathsFromPattern(patterns []string) ([]string, error) {
 	paths := []string{}
-	recursiveLookup := false
 	for _, p := range patterns {
+		recursiveLookup := false
+
 		// TODO:
 		//     - Support more patterns
 		//     - Move this logic to separate helper function?
