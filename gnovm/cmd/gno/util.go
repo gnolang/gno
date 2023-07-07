@@ -133,10 +133,7 @@ func gnoPackagePathsFromPattern(patterns []string) ([]string, error) {
 			if err != nil {
 				return fmt.Errorf("%s: walk dir: %w", p, err)
 			}
-			if f.IsDir() {
-				return nil // skip
-			}
-			if !isGnoFile(f) {
+			if f.IsDir() || !isGnoFile(f) {
 				return nil // skip
 			}
 
