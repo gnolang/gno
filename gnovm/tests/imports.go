@@ -453,10 +453,9 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 	return
 }
 
-//----------------------------------------
-// testInjectNatives
-// analogous to stdlibs.InjectNatives, but with
-// native methods suitable for the testing environment.
+func testNativeStore(pkgPath string, name gno.Name) func(*gno.Machine) {
+	return stdlibs.NativeStore(pkgPath, name)
+}
 
 func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 	// Also inject stdlibs native functions.

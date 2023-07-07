@@ -16,3 +16,9 @@ func (r Realm) PkgPath() string {
 func (r Realm) IsUser() bool {
 	return r.pkgPath == ""
 }
+
+func AssertOriginCall() {
+	if !IsOriginCall() {
+		panic("invalid non-origin call")
+	}
+}

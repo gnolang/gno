@@ -1,19 +1,8 @@
 package std
 
 import (
-	"fmt"
-
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
-
-func AssertOriginCall(m *gno.Machine) {
-	fmt.Println("AssertOriginCall -- ", len(m.Frames))
-	isOrigin := len(m.Frames) == 2
-	if !isOrigin {
-		m.Panic(typedString("invalid non-origin call"))
-		return
-	}
-}
 
 func IsOriginCall(m *gno.Machine) bool {
 	return len(m.Frames) == 2
