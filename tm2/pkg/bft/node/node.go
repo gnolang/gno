@@ -219,7 +219,7 @@ func createAndStartEventStoreService(
 
 	indexerService := eventstore.NewEventStoreService(txEventStore, evsw)
 	indexerService.SetLogger(logger.With("module", "eventstore"))
-	if err = indexerService.Start(); err != nil {
+	if err := indexerService.Start(); err != nil {
 		return nil, nil, err
 	}
 
