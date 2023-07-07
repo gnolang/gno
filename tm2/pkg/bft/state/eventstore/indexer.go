@@ -2,6 +2,11 @@ package eventstore
 
 import "github.com/gnolang/gno/tm2/pkg/bft/types"
 
+const (
+	StatusOn  = "on"
+	StatusOff = "off"
+)
+
 // TxEventStore stores transaction events for later processing
 type TxEventStore interface {
 	// Start starts the transaction event store
