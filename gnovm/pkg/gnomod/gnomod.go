@@ -1,7 +1,9 @@
 package gnomod
 
 import (
+	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -163,8 +165,59 @@ func GnoToGoMod(f File) (*File, error) {
 	return &f, nil
 }
 
-func CreateGnoModFile(absDir, modPath string) error {
-	// TODO: implement
+func CreateGnoModFile(rootDir, modPath string) error {
+	if !filepath.IsAbs(rootDir) {
+		return fmt.Errorf("dir %q is not absolute", rootDir)
+	}
+
+	modFilePath := filepath.Join(rootDir, "gno.mod")
+	if _, err := os.Stat(modFilePath); err == nil {
+		return errors.New("gno.mod file already exists")
+	}
+
+	if modPath == "" {
+		// Check .gno files for package name
+		// and use it as modPath
+		files, err := ioutil.ReadDir(rootDir)
+		if err != nil {
+			fmt.Errorf("read dir %q: %w", rootDir, err)
+		}
+
+		var pkgName gnolang.Name
+		for _, file := range files {
+			if file.IsDir() || !strings.HasSuffix(file.Name(), ".gno") || strings.HasSuffix(file.Name(), "_filetest.gno") {
+				continue
+			}
+
+			fpath := filepath.Join(rootDir, file.Name())
+			bz, err := os.ReadFile(fpath)
+			if err != nil {
+				return fmt.Errorf("read file %q: %w", fpath, err)
+			}
+
+			pn := gnolang.PackageNameFromFileBody(file.Name(), string(bz))
+			if strings.HasSuffix(string(pkgName), "_test") {
+				pkgName = pkgName[:len(pkgName)-len("_test")]
+			}
+			if pkgName == "" {
+				pkgName = pn
+			}
+			if pkgName != pn {
+				return fmt.Errorf("package name mismatch: [%q] and [%q]", pkgName, pn)
+			}
+		}
+		modPath = string(pkgName)
+	}
+
+	modFile := &File{
+		Module: &modfile.Module{
+			Mod: module.Version{
+				Path: modPath,
+			},
+		},
+	}
+	modFile.WriteToPath(filepath.Join(rootDir, "gno.mod"))
+
 	return nil
 }
 
