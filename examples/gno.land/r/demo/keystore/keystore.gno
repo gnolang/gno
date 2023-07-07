@@ -88,7 +88,14 @@ func remove(owner, k string) string {
 
 // Get returns a value for a key
 // read-only
-func Get(owner, k string) string {
+func Get(k string) string {
+	origOwner := std.GetOrigCaller()
+	return remove(origOwner.String(), k)
+}
+
+// get (private) returns a value for a key
+// read-only
+func get(owner, k string) string {
 	keystoreInterface, exists := data.Get(owner)
 	if !exists {
 		return StatusNoUser
@@ -163,7 +170,7 @@ func Render(p string) string {
 		cmd := args[1]
 		key := args[2]
 		if cmd == "get" {
-			return Get(owner, key)
+			return get(owner, key)
 		} else if cmd == "remove" {
 			// remove will only work if caller is owner
 			return remove(owner, key)
