@@ -44,7 +44,7 @@ func newStartCmd(io *commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "start",
 			ShortUsage: "start [flags]",
-			ShortHelp:  "run the full node",
+			ShortHelp:  "Run the full node",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
