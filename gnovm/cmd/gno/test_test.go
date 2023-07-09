@@ -186,7 +186,5 @@ func TestTest(t *testing.T) {
 		// {args: []string{"test", "../../tests/integ/failing2", "--verbose"}, stderrShouldBe: "=== PREC  ./../../tests/integ/failing2\n=== BUILD ./../../tests/integ/failing2\n=== RUN   file/failing_filetest.gno\n", recoverShouldBe: "fail on ../../tests/integ/failing2/failing_filetest.gno: got unexpected error: beep boop"},
 		// {args: []string{"test", "../../../examples/gno.land/p/demo/ufmt", "--verbose", "--timeout", "10000" /* 10µs */}, recoverShouldContain: "test timed out after"}, // FIXME: should be testable
 	}
-	for i := 0; i < 100; i++ {
-		testMainCaseRun(t, tc)
-	}
+	testMainCaseRun(t, tc)
 }
