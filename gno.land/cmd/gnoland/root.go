@@ -24,7 +24,7 @@ func newRootCmd(io *commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			ShortUsage: "<subcommand> [flags] [<arg>...]",
-			LongHelp:   "Starts the gnoland blockchain node",
+			ShortHelp:  "Starts the gnoland blockchain node",
 			Options: []ff.Option{
 				ff.WithConfigFileFlag("config"),
 				ff.WithConfigFileParser(fftoml.Parser),
