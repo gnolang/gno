@@ -1,8 +1,6 @@
-// Microblog is a website with shortform posts from users.
-// The API is simple - "AddPost" takes markdown and
-// adds it to the users site.
-// The microblog location is determined by the user address
-// /r/demo/microblog:<YOUR-ADDRESS>
+// eval realm is capable of evaluating 32-bit integer 
+// expressions as they would appear in Go. For example:
+// /r/demo/eval:(4+12)/2-1+11*15
 package eval
 
 import (
