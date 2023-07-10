@@ -3,7 +3,6 @@ module github.com/gnolang/gno
 go 1.19
 
 require (
-	github.com/awalterschulze/gographviz v2.0.3+incompatible // indirect
 	github.com/btcsuite/btcd v0.22.0-beta.0.20220111032746-97732e52810c
 	github.com/btcsuite/btcd/btcutil v1.1.1
 	github.com/btcsuite/btcutil v1.0.2
