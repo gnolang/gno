@@ -118,7 +118,7 @@ Use this mneonic:
 ### Start `gnoland` node.
 
 ```bash
-./build/gnoland
+./build/gnoland start
 ```
 
 NOTE: This can be reset with `make reset`
