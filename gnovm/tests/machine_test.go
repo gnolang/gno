@@ -38,7 +38,7 @@ func TestMachineTestMemPackage(t *testing.T) {
 			ok := testing.RunTests(matchFunc, []testing.InternalTest{
 				{
 					Name: tt.name,
-					F: func(t *testing.T) {
+					F: func(t *testing.T) { //nolint:thelper
 						rootDir := filepath.Join("..", "..")
 						store := TestStore(rootDir, "test", os.Stdin, os.Stdout, os.Stderr, ImportModeStdlibsOnly)
 						store.SetLogStoreOps(true)
