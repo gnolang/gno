@@ -1,5 +1,5 @@
 ---
-state: improvements-needed # The final PoC is working well, but it must evolve performance-wise.
+state: design # Nothing implemented yet, figuring out the best way to do it.
 ---
 
 # IBC Protocol

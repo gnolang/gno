@@ -8,5 +8,5 @@ Gnodes are interconnected [DAOs](./daos.md) for scaling and specialized communit
 
 Layers and overlays for different perspectives:
 - first layer: entities, people, and connections to projects and teams.
-- second layer: relationships between entities, burn rate, payments (the "basic income" layer)
-- third layer: conflicts of interest, ownership stakes (privacy-preserving)
+- second layer: relationships between entities, burn rate, and payments (the "basic income" layer).
+- third layer: conflicts of interest, ownership stakes (privacy-preserving).
