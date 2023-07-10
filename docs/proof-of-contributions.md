@@ -1,6 +1,7 @@
 # Proof of Contributions
 
-The consensus algorithm used to secure and distribute the gno.land chain.
+The gno.land chain utilizes a reputation-based consensus mechanism instead of proof-of-stake.
+This mechanism emphasizes values and expertise to carry out important tasks like choosing validators and allocating rewards.
 
 Meta issue: [#918](https://github.com/gnolang/gno/issues/918).
 
