@@ -97,7 +97,7 @@ func Test(t *testing.T) {
 	}
 
 	// Get comments
-	comments := GetComments(feedID, postID, 1, 5)
+	comments := GetComments(feedID, postID)
 	commentsSplitted := strings.Split(comments, ",")
 
 	if len(commentsSplitted) != 2 {
@@ -106,7 +106,7 @@ func Test(t *testing.T) {
 
 	// Delete 1 comment
 	DeletePost(1, subPostID2)
-	comments = GetComments(feedID, postID, 1, 5)
+	comments = GetComments(feedID, postID)
 	commentsSplitted = strings.Split(comments, ",")
 	if len(commentsSplitted) != 1 {
 		t.Fatalf("expected encoded comments: 1, got %q.", commentsSplitted)
@@ -121,19 +121,19 @@ func Test(t *testing.T) {
 	var postsStr string
 	var postsCount int
 
-	postsStr = GetPosts(1, uint64(0), PostID(1), 1)
+	postsStr = GetPosts(1, uint64(0), 0, 1)
 	postsCount = len(strings.Split(postsStr, ","))
 	if postsCount != 1 {
 		t.Fatalf("expected posts count: 1, got %q.", postsCount)
 	}
 
-	postsStr = GetPosts(1, uint64(0), PostID(1), 2)
+	postsStr = GetPosts(1, uint64(0), 0, 2)
 	postsCount = len(strings.Split(postsStr, ","))
 	if postsCount != 2 {
 		t.Fatalf("expected posts count: 2, got %q.", postsCount)
 	}
 
-	postsStr = GetPosts(1, uint64(0), PostID(1), 3)
+	postsStr = GetPosts(1, uint64(0), 0, 3)
 	postsCount = len(strings.Split(postsStr, ","))
 	if postsCount != 2 {
 		t.Fatalf("expected posts count: 2, got %q.", postsCount)

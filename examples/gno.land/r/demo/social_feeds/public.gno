@@ -77,16 +77,24 @@ func ReactPost(fid FeedID, pid PostID, icon string, up bool) {
 }
 
 // Get Posts list
-func GetPosts(fid FeedID, category uint64, start PostID, limit uint8) string {
+func GetPosts(fid FeedID, category uint64, offset uint64, limit uint8) string {
 	std.AssertOriginCall()
 	caller := std.PrevRealm().Addr()
 	feed := mustGetFeed(fid)
 
 	var postList []string
-	feed.posts.Iterate(postIDKey(start), "", func(key string, value interface{}) bool {
+	var skipped uint64
+
+	feed.posts.Iterate("", "", func(key string, value interface{}) bool {
 		post := value.(*Post)
 
+		// NOTE: this search mechanism is not efficient, only for demo purpose
 		if post.parentID == uint64(0) && post.category == category && post.deleted == false {
+			if skipped < offset {
+				skipped++
+				return false
+			}
+
 			postList = append(postList, post.String())
 		}
 
@@ -103,22 +111,19 @@ func GetPosts(fid FeedID, category uint64, start PostID, limit uint8) string {
 }
 
 // Get comments list
-func GetComments(fid FeedID, pid PostID, start PostID, limit uint8) string {
+// NOTE: Does not support limit/offset for now, just return all the comments
+func GetComments(fid FeedID, pid PostID) string {
 	std.AssertOriginCall()
 	caller := std.PrevRealm().Addr()
 	feed := mustGetFeed(fid)
 	post := feed.MustGetPost(pid)
 
 	var subpostList []string
-	post.comments.Iterate(postIDKey(start), "", func(key string, value interface{}) bool {
+	post.comments.Iterate("", "", func(key string, value interface{}) bool {
 		subpost := value.(*Post)
 
 		if subpost.parentID == pid && subpost.deleted == false {
 			subpostList = append(subpostList, subpost.String())
-		}
-
-		if len(subpostList) == limit {
-			return true
 		}
 
 		return false
