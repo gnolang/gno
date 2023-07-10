@@ -79,3 +79,5 @@ jobs:
       # TODO: setup docker caching
       - run: make test.docker
       - run: docker logs int_gnoland || true
+
+  # TODO: docker-less integration test?
