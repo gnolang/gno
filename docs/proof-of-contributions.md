@@ -1,4 +1,4 @@
-# Proof of Contribution
+# Proof of Contributions
 
 The consensus algorithm used to secure and distribute the gno.land chain.
 
