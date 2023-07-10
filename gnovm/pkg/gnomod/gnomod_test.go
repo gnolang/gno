@@ -115,7 +115,7 @@ func TestCreateGnoModFile(t *testing.T) {
 
 			// Create files
 			for _, f := range tc.in {
-				err := os.WriteFile(filepath.Join(dirPath, f.filename), []byte(f.content), 0644)
+				err := os.WriteFile(filepath.Join(dirPath, f.filename), []byte(f.content), 0o644)
 				require.NoError(t, err)
 			}
 
