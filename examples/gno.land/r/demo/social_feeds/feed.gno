@@ -72,6 +72,13 @@ func (feed *Feed) AddPost(creator std.Address, parentID PostID, category uint64,
 	pidkey := postIDKey(pid)
 
 	post := newPost(feed, pid, creator, parentID, category, metadata)
-	feed.posts.Set(pidkey, post)
+	
+	if parentID != 0 {
+		parent := feed.MustGetPost(parentID)
+		parent.subposts.Set(pidkey, post)
+	} else {
+		feed.posts.Set(pidkey, post)
+	}
+
 	return post
 }

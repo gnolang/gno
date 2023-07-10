@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"std"
 	"strconv"
+	"strings"
 	"testing"
 
 	"gno.land/p/demo/binutils"
@@ -79,6 +80,7 @@ func Test(t *testing.T) {
 	catID = uint64(1)
 	metadata = `empty_meta_data`
 	subPostID := CreatePost(feedID, parentID, catID, metadata)
+	subPostI2 := CreatePost(feedID, parentID, catID, metadata)
 	createdSubPost := createdFeed.MustGetPost(subPostID)
 
 	if createdSubPost.id != 2 {
@@ -87,6 +89,19 @@ func Test(t *testing.T) {
 
 	if createdSubPost.parentID != parentID {
 		t.Fatalf("expected parentID: %q, got %q.", parentID, createdPost.parentID)
+	}
+
+	// Check subposts size
+	if createdPost.subposts.Size() != 2 {
+		t.Fatalf("expected subposts count: 1, got %q.", createdPost.subposts.Size())
+	}
+
+	// Get subposts
+	subposts := GetSubposts(feedID, postID)
+	subpostsSplitted := strings.Split(subposts, ",")
+
+	if len(subpostsSplitted) != 2 {
+		t.Fatalf("expected encoded subposts: 2, got %q.", subpostsSplitted)
 	}
 
 	// Re-add reaction to test post list

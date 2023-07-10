@@ -36,7 +36,8 @@ type Post struct {
 	feedID    FeedID
 	category  uint64
 	metadata  string
-	reactions avl.Tree // <icon: string> -> <count: int>
+	reactions avl.Tree // icon -> count
+	subposts  avl.Tree // Post.id -> *Post
 	creator   std.Address
 	deleted   bool
 
@@ -70,7 +71,6 @@ func (post *Post) Bytes() []byte {
 
 	// Encode reactions
 	var reactionsArr []string
-
 	post.reactions.Iterate("", "", func(key string, value interface{}) bool {
 		icon := key
 		count := value.(int)
@@ -82,6 +82,22 @@ func (post *Post) Bytes() []byte {
 	SEPARATOR := ","
 	reactionsStr := strings.Join(reactionsArr, SEPARATOR)
 	b = append(b, binutils.EncodeLengthPrefixedStringUint32BE(reactionsStr)...)
+
+	// Encode subposts ids
+	var subpostIDArr []string
+	post.subposts.Iterate("", "", func(key string, value interface{}) bool {
+		subpostID := key.(string)
+		subpost := value.(*Post)
+
+		if subpost.parentID == post.id {
+			subpostIDArr = append(subpostIDArr, ufmt.Sprintf("%d", uint64(subpost.id)))
+		}
+
+		return false
+	})
+
+	subpostIDsStr := strings.Join(subpostIDArr, SEPARATOR)
+	b = append(b, binutils.EncodeLengthPrefixedStringUint32BE(subpostIDsStr)...)
 
 	return b
 }

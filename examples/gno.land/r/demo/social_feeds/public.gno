@@ -94,6 +94,25 @@ func GetPosts(fid FeedID) string {
 	return res
 }
 
+// Get Subposts list
+func GetSubposts(fid FeedID, pid PostID) string {
+	std.AssertOriginCall()
+	caller := std.PrevRealm().Addr()
+	feed := mustGetFeed(fid)
+	post := feed.MustGetPost(pid)
+
+	var subpostList []string
+	post.subposts.Iterate("", "", func(key string, value interface{}) bool {
+		subpost := value.(*Post)
+		subpostList = append(subpostList, subpost.String())
+		return false
+	})
+
+	SEPARATOR := ","
+	res := strings.Join(subpostList, SEPARATOR)
+	return res
+}
+
 // Get Post
 func GetPost(fid FeedID, pid PostID) string {
 	std.AssertOriginCall()
