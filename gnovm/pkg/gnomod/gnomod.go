@@ -206,6 +206,9 @@ func CreateGnoModFile(rootDir, modPath string) error {
 				return fmt.Errorf("package name mismatch: [%q] and [%q]", pkgName, pn)
 			}
 		}
+		if pkgName == "" {
+			return errors.New("cannot determine package name")
+		}
 		modPath = string(pkgName)
 	}
 
