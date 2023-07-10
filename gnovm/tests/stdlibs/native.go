@@ -88,7 +88,9 @@ var nativeFuncs = [...]nativeFunc{
 
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
-			lib0.TestSkipHeights(p0)
+			lib0.TestSkipHeights(
+				m,
+				p0)
 		},
 	},
 	{

@@ -41,13 +41,11 @@ func TestCurrentRealm(m *gno.Machine) string {
 	return m.Realm.Path
 }
 
-func TestSkipHeights(count int64) {
-	panic("not implemented")
-	/*
-		ctx := m.Context.(stdlibs.ExecContext)
-		ctx.Height += count
-		m.Context = ctx
-	*/
+func TestSkipHeights(m *gno.Machine, count int64) {
+	ctx := m.Context.(interface {
+		SkipHeights(i int64) any
+	})
+	m.Context = ctx.SkipHeights(count)
 }
 
 func ClearStoreCache(m *gno.Machine) {

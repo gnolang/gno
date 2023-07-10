@@ -19,7 +19,17 @@ type ExecContext struct {
 	Banker        Banker
 }
 
+// XXX: migration from InjectStdlibs to NativeStore meant that stdlibs can
+// no longer directly access ExecContext, as it would create a circular
+// dependency; hence the helper functions, so access can still be done through
+// interface type assertions.
+// These probably need to have a better place.
+
 func (e ExecContext) GetTimestamp() int64     { return e.Timestamp }
 func (e ExecContext) GetTimestampNano() int64 { return e.TimestampNano }
 func (e ExecContext) GetChainID() string      { return e.ChainID }
 func (e ExecContext) GetHeight() int64        { return e.Height }
+func (e ExecContext) SkipHeights(i int64) any {
+	e.Height += i
+	return e
+}
