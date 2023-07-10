@@ -110,7 +110,9 @@ func (f *File) FetchDeps(path string, remote string, verbose bool) error {
 		if err != nil {
 			return err
 		}
-		err = goMod.WriteToPath(filepath.Join(PackageDir(path, mod), "go.mod"))
+		pkgPath := PackageDir(path, mod)
+		goModFilePath := filepath.Join(pkgPath, "go.mod")
+		err = goMod.WriteToPath(goModFilePath)
 		if err != nil {
 			return err
 		}
