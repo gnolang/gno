@@ -74,5 +74,6 @@ jobs:
           echo "$sums" | sha256sum -c
           if [ $? -ne 0 ]; do
             echo "Outdated go.mods (see output for where to fix). Please run go mod tidy"
+            exit 1
           fi
 
