@@ -77,15 +77,23 @@ func ReactPost(fid FeedID, pid PostID, icon string, up bool) {
 }
 
 // Get Posts list
-func GetPosts(fid FeedID) string {
+func GetPosts(fid FeedID, category uint64, start PostID, limit uint8) string {
 	std.AssertOriginCall()
 	caller := std.PrevRealm().Addr()
 	feed := mustGetFeed(fid)
 
 	var postList []string
-	feed.posts.Iterate("", "", func(key string, value interface{}) bool {
+	feed.posts.Iterate(postIDKey(start), "", func(key string, value interface{}) bool {
 		post := value.(*Post)
-		postList = append(postList, post.String())
+
+		if post.parentID == uint64(0) && post.category == category && post.deleted == false {
+			postList = append(postList, post.String())
+		}
+
+		if len(postList) == limit {
+			return true
+		}
+
 		return false
 	})
 
@@ -94,17 +102,25 @@ func GetPosts(fid FeedID) string {
 	return res
 }
 
-// Get Subposts list
-func GetSubposts(fid FeedID, pid PostID) string {
+// Get comments list
+func GetComments(fid FeedID, pid PostID, start PostID, limit uint8) string {
 	std.AssertOriginCall()
 	caller := std.PrevRealm().Addr()
 	feed := mustGetFeed(fid)
 	post := feed.MustGetPost(pid)
 
 	var subpostList []string
-	post.subposts.Iterate("", "", func(key string, value interface{}) bool {
+	post.comments.Iterate(postIDKey(start), "", func(key string, value interface{}) bool {
 		subpost := value.(*Post)
-		subpostList = append(subpostList, subpost.String())
+
+		if subpost.parentID == pid && subpost.deleted == false {
+			subpostList = append(subpostList, subpost.String())
+		}
+
+		if len(subpostList) == limit {
+			return true
+		}
+
 		return false
 	})
 

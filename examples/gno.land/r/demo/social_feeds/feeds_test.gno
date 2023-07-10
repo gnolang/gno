@@ -80,7 +80,7 @@ func Test(t *testing.T) {
 	catID = uint64(1)
 	metadata = `empty_meta_data`
 	subPostID := CreatePost(feedID, parentID, catID, metadata)
-	subPostI2 := CreatePost(feedID, parentID, catID, metadata)
+	subPostID2 := CreatePost(feedID, parentID, catID, metadata)
 	createdSubPost := createdFeed.MustGetPost(subPostID)
 
 	if createdSubPost.id != 2 {
@@ -91,32 +91,68 @@ func Test(t *testing.T) {
 		t.Fatalf("expected parentID: %q, got %q.", parentID, createdPost.parentID)
 	}
 
-	// Check subposts size
-	if createdPost.subposts.Size() != 2 {
-		t.Fatalf("expected subposts count: 1, got %q.", createdPost.subposts.Size())
+	// Check comments size
+	if createdPost.comments.Size() != 2 {
+		t.Fatalf("expected comments count: 1, got %q.", createdPost.comments.Size())
 	}
 
-	// Get subposts
-	subposts := GetSubposts(feedID, postID)
-	subpostsSplitted := strings.Split(subposts, ",")
+	// Get comments
+	comments := GetComments(feedID, postID, 1, 5)
+	commentsSplitted := strings.Split(comments, ",")
 
-	if len(subpostsSplitted) != 2 {
-		t.Fatalf("expected encoded subposts: 2, got %q.", subpostsSplitted)
+	if len(commentsSplitted) != 2 {
+		t.Fatalf("expected encoded comments: 2, got %q.", commentsSplitted)
+	}
+
+	// Delete 1 comment
+	DeletePost(1, subPostID2)
+	comments = GetComments(feedID, postID, 1, 5)
+	commentsSplitted = strings.Split(comments, ",")
+	if len(commentsSplitted) != 1 {
+		t.Fatalf("expected encoded comments: 1, got %q.", commentsSplitted)
 	}
 
 	// Re-add reaction to test post list
-	ReactPost(feedID, postID, "🥰", true)
-	ReactPost(feedID, postID, "😇", true)
+	ReactPost(1, postID, "🥰", true)
+	ReactPost(1, postID, "😇", true)
 
+	// Get Post: 2 post, 2 subposts
+	newPostID := CreatePost(1, PostID(0), uint64(0), "metadata")
+	var postsStr string
+	var postsCount int
+
+	postsStr = GetPosts(1, uint64(0), PostID(1), 1)
+	postsCount = len(strings.Split(postsStr, ","))
+	if postsCount != 1 {
+		t.Fatalf("expected posts count: 1, got %q.", postsCount)
+	}
+
+	postsStr = GetPosts(1, uint64(0), PostID(1), 2)
+	postsCount = len(strings.Split(postsStr, ","))
+	if postsCount != 2 {
+		t.Fatalf("expected posts count: 2, got %q.", postsCount)
+	}
+
+	postsStr = GetPosts(1, uint64(0), PostID(1), 3)
+	postsCount = len(strings.Split(postsStr, ","))
+	if postsCount != 2 {
+		t.Fatalf("expected posts count: 2, got %q.", postsCount)
+	}
+
+	// Delete one
+	DeletePost(1, newPostID)
+
+	postsStr = GetPosts(1, uint64(0), PostID(1), 4)
+	postsCount = len(strings.Split(postsStr, ","))
+	if postsCount != 1 {
+		t.Fatalf("expected posts count: 1, got %q.", postsCount)
+	}
+
+	// Test tree
 	// Get Post list
 	// postsStr := GetPosts(feedID)
 	// postsBytes, err := base64.RawURLEncoding.DecodeString(postsStr)
 	// if err != nil {
 	// 	panic("uanble to decode post list")
 	// }
-
-	// Get Post
-	postStr := GetPost(feedID, postID)
-
-	panic(postStr)
 }

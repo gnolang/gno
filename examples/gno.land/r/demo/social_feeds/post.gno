@@ -37,7 +37,7 @@ type Post struct {
 	category  uint64
 	metadata  string
 	reactions avl.Tree // icon -> count
-	subposts  avl.Tree // Post.id -> *Post
+	comments  avl.Tree // Post.id -> *Post
 	creator   std.Address
 	deleted   bool
 
@@ -83,10 +83,10 @@ func (post *Post) Bytes() []byte {
 	reactionsStr := strings.Join(reactionsArr, SEPARATOR)
 	b = append(b, binutils.EncodeLengthPrefixedStringUint32BE(reactionsStr)...)
 
-	// Encode subposts ids
+	// Encode comments ids
 	var subpostIDArr []string
-	post.subposts.Iterate("", "", func(key string, value interface{}) bool {
-		subpostID := key.(string)
+	post.comments.Iterate("", "", func(key string, value interface{}) bool {
+		subpostID := key
 		subpost := value.(*Post)
 
 		if subpost.parentID == post.id {
