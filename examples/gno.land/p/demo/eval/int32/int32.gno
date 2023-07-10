@@ -243,8 +243,6 @@ func (a *ast) getTokPrecedence() int {
 		return 70
 	case "&":
 		return 60
-	case "&":
-		return 60
 	case "^":
 		return 50
 	case "|":
