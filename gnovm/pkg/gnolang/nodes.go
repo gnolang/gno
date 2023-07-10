@@ -1099,12 +1099,11 @@ func PackageNameFromFileBody(name string, body string) Name {
 //
 // NOTE: panics if package name is invalid (characters must be alphanumeric or _,
 // lowercase, and must start with a letter).
-func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
+func ReadMemPackage(dir, pkgPath string) *std.MemPackage {
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
 		panic(err)
 	}
-	memPkg := &std.MemPackage{Path: pkgPath}
 	allowedFiles := []string{ // make case insensitive?
 		"gno.mod",
 		"LICENSE",
@@ -1113,28 +1112,43 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 	allowedFileExtensions := []string{
 		".gno",
 	}
-	var pkgName Name
+	list := make([]string, 0, len(files))
 	for _, file := range files {
 		if file.IsDir() ||
 			strings.HasPrefix(file.Name(), ".") ||
 			(!endsWith(file.Name(), allowedFileExtensions) && !contains(allowedFiles, file.Name())) {
 			continue
 		}
-		fpath := filepath.Join(dir, file.Name())
+		list = append(list, filepath.Join(dir, file.Name()))
+	}
+	return ReadMemPackageFromList(list, pkgPath)
+}
+
+// ReadMemPackageFromList creates a new [std.MemPackage] with the specified pkgPath,
+// containing the contents of all the files provided in the list slice.
+// No parsing or validation is done on the filenames.
+//
+// NOTE: panics if package name is invalid (characters must be alphanumeric or _,
+// lowercase, and must start with a letter).
+func ReadMemPackageFromList(list []string, pkgPath string) *std.MemPackage {
+	memPkg := &std.MemPackage{Path: pkgPath}
+	var pkgName Name
+	for _, fpath := range list {
+		fname := filepath.Base(fpath)
 		bz, err := os.ReadFile(fpath)
 		if err != nil {
 			panic(err)
 		}
 		// XXX: should check that all pkg names are the same (else package is invalid)
-		if pkgName == "" && strings.HasSuffix(file.Name(), ".gno") {
-			pkgName = PackageNameFromFileBody(file.Name(), string(bz))
+		if pkgName == "" && strings.HasSuffix(fname, ".gno") {
+			pkgName = PackageNameFromFileBody(fname, string(bz))
 			if strings.HasSuffix(string(pkgName), "_test") {
 				pkgName = pkgName[:len(pkgName)-len("_test")]
 			}
 		}
 		memPkg.Files = append(memPkg.Files,
 			&std.MemFile{
-				Name: file.Name(),
+				Name: fname,
 				Body: string(bz),
 			})
 	}
@@ -1382,7 +1396,6 @@ func (x *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*M
 		if !ok {
 			panic("cannot redefine non-function as native function")
 		}
-		fmt.Printf("REDEFINE %s %p\n", n, fv)
 		// XXX: type-check
 		fv.body = nil
 		fv.nativeBody = native

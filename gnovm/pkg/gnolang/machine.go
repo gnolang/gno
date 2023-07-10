@@ -189,10 +189,19 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 
 // Upon restart, preprocess all MemPackage and save blocknodes.
 // This is a temporary measure until we optimize/make-lazy.
+//
+// NOTE: package paths not beginning with gno.land will be allowed to override,
+// to support cases of stdlibs processed through [RunMemPackagesWithOverrides].
 func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	ch := m.Store.IterMemPackage()
 	for memPkg := range ch {
 		fset := ParseMemPackage(memPkg)
+		// Implicitly do filterDuplicates for stdlibs.
+		// This is done as this function is at the time of writing only used
+		// in tests, ie. where we use the "override" feature for stdlibs.
+		if !strings.HasPrefix(memPkg.Path, "gno.land/") {
+			filterDuplicates(fset)
+		}
 		pn := NewPackageNode(Name(memPkg.Name), memPkg.Path, fset)
 		m.Store.SetBlockNode(pn)
 		PredefineFileSet(m.Store, pn, fset)
@@ -223,8 +232,23 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // and corresponding package node, package value, and types to store. Save
 // is set to false for tests where package values may be native.
 func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
+	return m.runMemPackage(memPkg, save, false)
+}
+
+// RunMemPackageWithOverrides works as [RunMemPackage], however after parsing,
+// declarations are filtered removing duplicate declarations.
+// To control which declaration overrides which, use [ReadMemPackageFromList],
+// putting the overrides at the top of the list.
+func (m *Machine) RunMemPackageWithOverrides(memPkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
+	return m.runMemPackage(memPkg, save, true)
+}
+
+func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
 	// parse files.
 	files := ParseMemPackage(memPkg)
+	if overrides {
+		filterDuplicates(files)
+	}
 	// make and set package if doesn't exist.
 	pn := (*PackageNode)(nil)
 	pv := (*PackageValue)(nil)
@@ -249,6 +273,47 @@ func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode
 		m.Store.AddMemPackage(memPkg)
 	}
 	return pn, pv
+}
+
+func filterDuplicates(fset *FileSet) {
+	defined := make(map[Name]struct{}, 128)
+	for _, f := range fset.Files {
+		for i := 0; i < len(f.Decls); i++ {
+			d := f.Decls[i]
+			var name Name
+			switch d := d.(type) {
+			case *FuncDecl:
+				name = d.Name
+				if d.IsMethod {
+					name = Name(derefStar(d.Recv.Type).String()) + "." + name
+				}
+			case *TypeDecl:
+				name = d.Name
+			case *ValueDecl:
+				if len(d.NameExprs) == 1 {
+					name = d.NameExprs[0].Name
+				} else {
+					// TODO: support multiple names
+					continue
+				}
+			default:
+				continue
+			}
+			if _, ok := defined[name]; ok {
+				f.Decls = append(f.Decls[:i], f.Decls[i+1:]...)
+				i--
+			} else {
+				defined[name] = struct{}{}
+			}
+		}
+	}
+}
+
+func derefStar(x Expr) Expr {
+	if x, ok := x.(*StarExpr); ok {
+		return x.X
+	}
+	return x
 }
 
 // Tests all test files in a mempackage.

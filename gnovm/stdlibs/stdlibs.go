@@ -18,14 +18,6 @@ func InjectNativeMappings(store gno.Store) {
 	store.AddGo2GnoMapping(reflect.TypeOf(Realm{}), "std", "Realm")
 }
 
-type nativeFunc struct {
-	gnoPkg  string
-	gnoFunc gno.Name
-	params  []gno.FieldTypeExpr
-	results []gno.FieldTypeExpr
-	f       func(m *gno.Machine)
-}
-
 func NativeStore(pkgPath string, name gno.Name) func(*gno.Machine) {
 	for _, nf := range nativeFuncs {
 		if nf.gnoPkg == pkgPath && name == nf.gnoFunc {

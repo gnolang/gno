@@ -12,6 +12,14 @@ import (
 {{- end }}
 )
 
+type nativeFunc struct {
+        gnoPkg  string
+        gnoFunc gno.Name
+        params  []gno.FieldTypeExpr
+        results []gno.FieldTypeExpr
+        f       func(m *gno.Machine)
+}
+
 var nativeFuncs = [...]nativeFunc{
 {{- range $i, $m := .Mappings }}
 	{

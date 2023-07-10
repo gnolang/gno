@@ -27,6 +27,7 @@ import (
 	"math/rand"
 	"net"
 	"net/url"
+	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -34,13 +35,13 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"testing"
 	"text/template"
 	"time"
 	"unicode/utf8"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
+	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
@@ -52,15 +53,16 @@ import (
 
 type importMode uint64
 
+// Import modes to control the import behaviour of TestStore.
 const (
+	// use stdlibs/* only (except a few exceptions). for stdlibs/* and examples/* testing.
 	ImportModeStdlibsOnly importMode = iota
+	// use stdlibs/* if present, otherwise use native. used in files/tests, excluded for *_native.go
 	ImportModeStdlibsPreferred
+	// do not use stdlibs/* if native registered. used in files/tests, excluded for *_stdlibs.go
 	ImportModeNativePreferred
 )
 
-// ImportModeStdlibsOnly: use stdlibs/* only (except a few exceptions). for stdlibs/* and examples/* testing.
-// ImportModeStdlibsPreferred: use stdlibs/* if present, otherwise use native. for files/tests2/*.
-// ImportModeNativePreferred: do not use stdlibs/* if native registered. for files/tests/*.
 // NOTE: this isn't safe, should only be used for testing.
 func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Writer, mode importMode) (store gno.Store) {
 	getPackage := func(pkgPath string) (pn *gno.PackageNode, pv *gno.PackageValue) {
@@ -94,19 +96,9 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 		// if stdlibs package is preferred , try to load it first.
 		if mode == ImportModeStdlibsOnly ||
 			mode == ImportModeStdlibsPreferred {
-			stdlibPath := filepath.Join(rootDir, "gnovm", "stdlibs", pkgPath)
-			if osm.DirExists(stdlibPath) {
-				memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
-				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-					// NOTE: see also pkgs/sdk/vm/builtins.go
-					// Needs PkgPath != its name because, seeing as we are passing ourselves
-					// as a store, it would recusively call this function on the same package
-					PkgPath:  "stdlibload",
-					Output:   stdout,
-					Store:    store,
-					Injector: testPackageInjector,
-				})
-				return m2.RunMemPackage(memPkg, true)
+			pn, pv = loadStdlib(rootDir, pkgPath, store, stdout)
+			if pn != nil {
+				return
 			}
 		}
 
@@ -212,17 +204,6 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeType(reflect.TypeOf(net.TCPAddr{}))
 				pkg.DefineGoNativeValue("IPv4", net.IPv4)
 				return pkg, pkg.NewPackage()
-			case "net/http":
-				// XXX UNSAFE
-				// There's no reason why we can't replace these with safer alternatives.
-				panic("just say gno")
-				/*
-					pkg := gno.NewPackageNode("http", pkgPath, nil)
-					pkg.DefineGoNativeType(reflect.TypeOf(http.Request{}))
-					pkg.DefineGoNativeValue("DefaultClient", http.DefaultClient)
-					pkg.DefineGoNativeType(reflect.TypeOf(http.Client{}))
-					return pkg, pkg.NewPackage()
-				*/
 			case "net/url":
 				pkg := gno.NewPackageNode("url", pkgPath, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf(url.Values{}))
@@ -385,25 +366,6 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg := gno.NewPackageNode("fnv", pkgPath, nil)
 				pkg.DefineGoNativeValue("New32a", fnv.New32a)
 				return pkg, pkg.NewPackage()
-				/* XXX support somehow for speed. for now, generic implemented in stdlibs.
-				case "internal/bytealg":
-					pkg := gno.NewPackageNode("bytealg", pkgPath, nil)
-					pkg.DefineGoNativeValue("Compare", bytealg.Compare)
-					pkg.DefineGoNativeValue("CountString", bytealg.CountString)
-					pkg.DefineGoNativeValue("Cutover", bytealg.Cutover)
-					pkg.DefineGoNativeValue("Equal", bytealg.Equal)
-					pkg.DefineGoNativeValue("HashStr", bytealg.HashStr)
-					pkg.DefineGoNativeValue("HashStrBytes", bytealg.HashStrBytes)
-					pkg.DefineGoNativeValue("HashStrRev", bytealg.HashStrRev)
-					pkg.DefineGoNativeValue("HashStrRevBytes", bytealg.HashStrRevBytes)
-					pkg.DefineGoNativeValue("Index", bytealg.Index)
-					pkg.DefineGoNativeValue("IndexByte", bytealg.IndexByte)
-					pkg.DefineGoNativeValue("IndexByteString", bytealg.IndexByteString)
-					pkg.DefineGoNativeValue("IndexRabinKarp", bytealg.IndexRabinKarp)
-					pkg.DefineGoNativeValue("IndexRabinKarpBytes", bytealg.IndexRabinKarpBytes)
-					pkg.DefineGoNativeValue("IndexString", bytealg.IndexString)
-					return pkg, pkg.NewPackage()
-				*/
 			default:
 				// continue on...
 			}
@@ -411,16 +373,8 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 
 		// if native package is preferred, try to load stdlibs/* as backup.
 		if mode == ImportModeNativePreferred {
-			stdlibPath := filepath.Join(rootDir, "gnovm", "stdlibs", pkgPath)
-			if osm.DirExists(stdlibPath) {
-				memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
-				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-					PkgPath:  "test",
-					Output:   stdout,
-					Store:    store,
-					Injector: testPackageInjector,
-				})
-				pn, pv = m2.RunMemPackage(memPkg, true)
+			pn, pv = loadStdlib(rootDir, pkgPath, store, stdout)
+			if pn != nil {
 				return
 			}
 		}
@@ -445,7 +399,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 	iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
 	store = gno.NewStore(nil, baseStore, iavlStore)
 	store.SetPackageGetter(getPackage)
-	store.SetNativeStore(stdlibs.NativeStore)
+	store.SetNativeStore(teststdlibs.NativeStore)
 	store.SetPackageInjector(testPackageInjector)
 	store.SetStrictGo2GnoMapping(false)
 	// native mappings
@@ -453,29 +407,46 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 	return
 }
 
-func testNativeStore(pkgPath string, name gno.Name) func(*gno.Machine) {
-	return stdlibs.NativeStore(pkgPath, name)
+func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer) (*gno.PackageNode, *gno.PackageValue) {
+	dirs := [...]string{
+		// override path. definitions here should take precedence.
+		filepath.Join(rootDir, "gnovm", "tests", "stdlibs", pkgPath),
+		// normal stdlib path.
+		filepath.Join(rootDir, "gnovm", "stdlibs", pkgPath),
+	}
+	files := make([]string, 0, 32) // pre-alloc 32 as a likely high number of files
+	for _, path := range dirs {
+		if dl, err := os.ReadDir(path); err == nil {
+			for _, f := range dl {
+				// NOTE: RunMemPackage has other rules; those should be mostly useful
+				// for on-chain packages (ie. include README and gno.mod).
+				if !f.IsDir() && strings.HasSuffix(f.Name(), ".gno") {
+					files = append(files, filepath.Join(path, f.Name()))
+				}
+			}
+		} else if !os.IsNotExist(err) {
+			panic(fmt.Errorf("could not access dir %q: %w", path, err))
+		}
+	}
+	if len(files) == 0 {
+		return nil, nil
+	}
+	memPkg := gno.ReadMemPackageFromList(files, pkgPath)
+	m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+		// NOTE: see also pkgs/sdk/vm/builtins.go
+		// Needs PkgPath != its name because TestStore.getPackage is the package
+		// getter for the store, which calls loadStdlib, so it would be recursively called.
+		PkgPath:  "stdlibload",
+		Output:   stdout,
+		Store:    store,
+		Injector: testPackageInjector,
+	})
+	return m2.RunMemPackageWithOverrides(memPkg, true)
 }
 
 func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 	// Also inject stdlibs native functions.
 	stdlibs.InjectPackage(store, pn)
-	isOriginCall := func(m *gno.Machine) bool {
-		tname := m.Frames[0].Func.Name
-		switch tname {
-		case "main": // test is a _filetest
-			return len(m.Frames) == 3
-		case "runtest": // test is a _test
-			return len(m.Frames) == 7
-		}
-		// support init() in _filetest
-		// XXX do we need to distinguish from 'runtest'/_test?
-		// XXX pretty hacky even if not.
-		if strings.HasPrefix(string(tname), "init.") {
-			return len(m.Frames) == 3
-		}
-		panic("unable to determine if test is a _test or a _filetest")
-	}
 	// Test specific injections:
 	switch pn.PkgPath {
 	case "strconv":
@@ -486,34 +457,6 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 	case "std":
 		// NOTE: some of these are overrides.
 		// Also see stdlibs/InjectPackage.
-		pn.DefineNativeOverride("AssertOriginCall",
-			/*
-				gno.Flds( // params
-				),
-				gno.Flds( // results
-				),
-			*/
-			func(m *gno.Machine) {
-				if !isOriginCall(m) {
-					m.Panic(typedString("invalid non-origin call"))
-					return
-				}
-			},
-		)
-		pn.DefineNativeOverride("IsOriginCall",
-			/*
-				gno.Flds( // params
-				),
-				gno.Flds( // results
-					"isOrigin", "bool",
-				),
-			*/
-			func(m *gno.Machine) {
-				res0 := gno.TypedValue{T: gno.BoolType}
-				res0.SetBool(isOriginCall(m))
-				m.PushValue(res0)
-			},
-		)
 		pn.DefineNativeOverride("GetCallerAt",
 			/*
 				gno.Flds( // params
@@ -628,55 +571,6 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				banker := ctx.Banker
 				for _, coin := range coins {
 					banker.IssueCoin(addr, coin.Denom, coin.Amount)
-				}
-			},
-		)
-		pn.DefineNative("TestCurrentRealm",
-			gno.Flds( // params
-			),
-			gno.Flds( // results
-				"realm", "string",
-			),
-			func(m *gno.Machine) {
-				rlmpath := m.Realm.Path
-				m.PushValue(typedString(rlmpath))
-			},
-		)
-		pn.DefineNative("TestSkipHeights",
-			gno.Flds( // params
-				"count", "int64",
-			),
-			gno.Flds( // results
-			),
-			func(m *gno.Machine) {
-				arg0 := m.LastBlock().GetParams1().TV
-				count := arg0.GetInt64()
-
-				ctx := m.Context.(stdlibs.ExecContext)
-				ctx.Height += count
-				m.Context = ctx
-			},
-		)
-		// TODO: move elsewhere.
-		pn.DefineNative("ClearStoreCache",
-			gno.Flds( // params
-			),
-			gno.Flds( // results
-			),
-			func(m *gno.Machine) {
-				if gno.IsDebug() && testing.Verbose() {
-					store.Print()
-					fmt.Println("========================================")
-					fmt.Println("CLEAR CACHE (RUNTIME)")
-					fmt.Println("========================================")
-				}
-				m.Store.ClearCache()
-				m.PreprocessAllFilesAndSaveBlockNodes()
-				if gno.IsDebug() && testing.Verbose() {
-					store.Print()
-					fmt.Println("========================================")
-					fmt.Println("CLEAR CACHE DONE")
-					fmt.Println("========================================")
 				}
 			},
 		)

@@ -3,6 +3,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -14,6 +15,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 
 	_ "embed"
@@ -73,16 +75,7 @@ func _main(stdlibsPath string) error {
 		return err
 	}
 
-	cmd := exec.Command(
-		"go", "run", "-modfile", "../../misc/devdeps/go.mod",
-		"mvdan.cc/gofumpt", "-w", "native.go",
-	)
-	_, err = cmd.Output()
-	if err != nil {
-		return fmt.Errorf("error executing gofumpt: %w", err)
-	}
-
-	return nil
+	return runGofumpt()
 }
 
 type pkgData struct {
@@ -237,7 +230,7 @@ func linkFunctions(pkgs []*pkgData) []mapping {
 			mp := mapping{
 				GnoImportPath: pkg.importPath,
 				GnoMethod:     gb.Name.Name,
-				GoImportPath:  "github.com/gnolang/gno/gnovm/stdlibs/" + pkg.importPath,
+				GoImportPath:  "github.com/gnolang/gno/" + relPath() + "/" + pkg.importPath,
 				GoFunc:        fn.Name.Name,
 			}
 			if !mp.loadSignaturesMatch(gb, fn) {
@@ -398,5 +391,72 @@ func (t *tplData) generateLibnums() {
 			t.LibNums = append(t.LibNums, m.GoImportPath)
 			last = m.GoImportPath
 		}
+	}
+}
+
+func runGofumpt() error {
+	gr := gitRoot()
+
+	cmd := exec.Command(
+		"go", "run", "-modfile", filepath.Join(gr, "misc/devdeps/go.mod"),
+		"mvdan.cc/gofumpt", "-w", "native.go",
+	)
+	_, err := cmd.Output()
+	if err != nil {
+		if err, ok := err.(*exec.ExitError); ok {
+			return fmt.Errorf("error executing gofumpt: %w; output: %v", err, string(err.Stderr))
+		}
+		return fmt.Errorf("error executing gofumpt: %w", err)
+	}
+	return nil
+}
+
+var (
+	memoGitRoot string
+	memoRelPath string
+
+	dirsOnce sync.Once
+)
+
+func gitRoot() string {
+	dirsOnceDo()
+	return memoGitRoot
+}
+
+func relPath() string {
+	dirsOnceDo()
+	return memoRelPath
+}
+
+func dirsOnceDo() {
+	dirsOnce.Do(func() {
+		var err error
+		memoGitRoot, memoRelPath, err = findDirs()
+		if err != nil {
+			panic(fmt.Errorf("could not determine git root: %w", err))
+		}
+	})
+}
+
+func findDirs() (gitRoot string, relPath string, err error) {
+	abs, err := filepath.Abs(".")
+	if err != nil {
+		return
+	}
+	p := abs
+	for {
+		if s, e := os.Stat(filepath.Join(p, ".git")); e == nil && s.IsDir() {
+			// make relPath relative to the git root
+			rp := strings.TrimPrefix(abs, p+string(filepath.Separator))
+			// normalize separator to /
+			rp = strings.ReplaceAll(rp, string(filepath.Separator), "/")
+			return p, rp, nil
+		}
+
+		if strings.HasSuffix(p, string(filepath.Separator)) {
+			return "", "", errors.New("root git not found")
+		}
+
+		p = filepath.Dir(p)
 	}
 }

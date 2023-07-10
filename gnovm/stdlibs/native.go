@@ -14,6 +14,14 @@ import (
 	lib4 "github.com/gnolang/gno/gnovm/stdlibs/time"
 )
 
+type nativeFunc struct {
+	gnoPkg  string
+	gnoFunc gno.Name
+	params  []gno.FieldTypeExpr
+	results []gno.FieldTypeExpr
+	f       func(m *gno.Machine)
+}
+
 var nativeFuncs = [...]nativeFunc{
 	{
 		"crypto/sha256",
@@ -153,6 +161,18 @@ var nativeFuncs = [...]nativeFunc{
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
 			))
+		},
+	},
+	{
+		"std",
+		"AssertOriginCall",
+
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{},
+		func(m *gno.Machine) {
+			lib2.AssertOriginCall(
+				m,
+			)
 		},
 	},
 	{

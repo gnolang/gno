@@ -4,6 +4,12 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
+func AssertOriginCall(m *gno.Machine) {
+	if !IsOriginCall(m) {
+		m.Panic(typedString("invalid non-origin call"))
+	}
+}
+
 func IsOriginCall(m *gno.Machine) bool {
 	return len(m.Frames) == 2
 }
