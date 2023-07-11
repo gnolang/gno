@@ -1,4 +1,4 @@
-# Proof of Contributions
+# Proof of Contribution
 
 The gno.land chain utilizes a reputation-based consensus mechanism instead of proof-of-stake.
 This mechanism emphasizes values and expertise to carry out important tasks like choosing validators and allocating rewards.
