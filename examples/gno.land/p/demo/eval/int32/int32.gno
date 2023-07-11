@@ -124,14 +124,10 @@ func Eval(expr expression, variables map[string]int) (res int, err error) {
 			res = l / r
 		case "%":
 			if r == 0 {
-				err = errors.New(
-					ufmt.Sprintf("violation of arithmetic specification: a division by zero in Eval: [%d/%d]",
-						l,
-						r))
-				return
-
+				res = 0
+			} else {
+				res = l % r
 			}
-			res = l % r
 		case "^":
 			res = l ^ r
 		case ">>":
@@ -152,6 +148,8 @@ func Eval(expr expression, variables map[string]int) (res int, err error) {
 			}
 		case "&":
 			res = l & r
+		case "|":
+			res = l | r
 		default:
 
 		}
