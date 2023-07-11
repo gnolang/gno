@@ -35,7 +35,7 @@ func TestMachineTestMemPackage(t *testing.T) {
 			// returns true if a gno test is failing, and because we don't want this
 			// to affect the current testing.T, we are creating an other one thanks
 			// to testing.RunTests() function.
-			ok := testing.RunTests(matchFunc, []testing.InternalTest{
+			testing.RunTests(matchFunc, []testing.InternalTest{
 				{
 					Name: tt.name,
 					F: func(t *testing.T) { //nolint:thelper
@@ -49,15 +49,17 @@ func TestMachineTestMemPackage(t *testing.T) {
 							Context: nil,
 						})
 						memPkg := gno.ReadMemPackage(tt.path, "test")
+
 						m.TestMemPackage(t, memPkg)
+
+						if tt.shouldSucceed {
+							assert.False(t, t.Failed(), "test %q should have succeed", tt.name)
+						} else {
+							assert.True(t, t.Failed(), "test %q should have failed", tt.name)
+						}
 					},
 				},
 			})
-			if tt.shouldSucceed {
-				assert.True(t, ok, "test %q should have succeed", tt.name)
-			} else {
-				assert.False(t, ok, "test %q should have failed", tt.name)
-			}
 		})
 	}
 }
