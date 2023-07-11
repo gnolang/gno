@@ -565,7 +565,7 @@ func (m *Machine) RunFunc(fn Name) {
 	m.RunStatement(S(Call(Nx(fn))))
 }
 
-func (m *Machine) RunMain() {
+func (m *Machine) RunMain(args ...string) {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Printf("Machine.RunMain() panic: %v\n%s\n",

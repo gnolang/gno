@@ -67,7 +67,7 @@ func TestVMKeeperOrigSend1(t *testing.T) {
 
 	// Create test package.
 	files := []*std.MemFile{
-		{"init.gno", `
+		{Name: "init.gno", Body: `
 package test
 
 import "std"
@@ -112,7 +112,7 @@ func TestVMKeeperOrigSend2(t *testing.T) {
 
 	// Create test package.
 	files := []*std.MemFile{
-		{"init.gno", `
+		{Name: "init.gno", Body: `
 package test
 
 import "std"
@@ -166,7 +166,7 @@ func TestVMKeeperOrigSend3(t *testing.T) {
 
 	// Create test package.
 	files := []*std.MemFile{
-		{"init.gno", `
+		{Name: "init.gno", Body: `
 package test
 
 import "std"
@@ -210,7 +210,7 @@ func TestVMKeeperRealmSend1(t *testing.T) {
 
 	// Create test package.
 	files := []*std.MemFile{
-		{"init.gno", `
+		{Name: "init.gno", Body: `
 package test
 
 import "std"
@@ -254,7 +254,7 @@ func TestVMKeeperRealmSend2(t *testing.T) {
 
 	// Create test package.
 	files := []*std.MemFile{
-		{"init.gno", `
+		{Name: "init.gno", Body: `
 package test
 
 import "std"
@@ -298,7 +298,7 @@ func TestVMKeeperOrigCallerInit(t *testing.T) {
 
 	// Create test package.
 	files := []*std.MemFile{
-		{"init.gno", `
+		{Name: "init.gno", Body: `
 package test
 
 import "std"
@@ -336,4 +336,18 @@ func GetAdmin() string {
 	addrString := fmt.Sprintf("(\"%s\" string)", addr.String())
 	assert.NoError(t, err)
 	assert.Equal(t, res, addrString)
+}
+
+func TestVMKeeperMainWithArgs(t *testing.T) {
+	m := NewMachine("test", nil)
+	c := `package test
+	import "fmt"
+	import "os"
+func main() {
+	args := os.Args
+	fmt.Println(args)
+}`
+	n := MustParseFile("main.go", c)
+	m.RunFiles(n)
+	m.RunMain()
 }
