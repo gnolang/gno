@@ -13,9 +13,10 @@ func TestByteBeat(tt *testing.T) {
 		tt.Fatalf("%s", data)
 	}
 
-	// TRY AT HOME: write bytes to base64
-	// println(base64.StdEncoding.EncodeToString(b.Bytes()))
-	// save to bytes.base64
-	// using sox:
-	// base64 -d bytes.base64 | play
+	// TRY AT HOME:
+	// uncomment this line:
+	// println(data)
+
+	// then run:
+	// gno test --verbose examples/gno.land/p/demo/audio/bytebeat > b64 && base64 -d b64 > out.wav && play out.wav
 }

@@ -29,7 +29,7 @@ func ByteBeat(seconds uint32, sampleRate uint32, bytebeat_func func(t int) int) 
 	maxValue := 0
 	lastValue := 0
 	for i := int(0); i < int(numSamples); i++ {
-		lastValue = bytebeat_func(i)
+		lastValue = bytebeat_func(i) % 255
 		samples[i].Values[0] = lastValue
 		if samples[i].Values[0] > maxValue {
 			maxValue = samples[i].Values[0]
@@ -45,11 +45,11 @@ func ByteBeat(seconds uint32, sampleRate uint32, bytebeat_func func(t int) int) 
 	for i := uint32(0); i < numSamples; i++ {
 		samples[i].Values[0] = int(math.Round(hpf.Update(float64(samples[i].Values[0]))))
 	}
-	// lowpass
-	lpf := biquad.New(float64(sampleRate)*0.25, float64(sampleRate), 0.707, 0, "lowpass")
-	for i := uint32(0); i < numSamples; i++ {
-		samples[i].Values[0] = int(math.Round(lpf.Update(float64(samples[i].Values[0]))))
-	}
+	// // lowpass
+	// lpf := biquad.New(float64(sampleRate)*0.25, float64(sampleRate), 0.707, 0, "lowpass")
+	// for i := uint32(0); i < numSamples; i++ {
+	// 	samples[i].Values[0] = int(math.Round(lpf.Update(float64(samples[i].Values[0]))))
+	// }
 
 	err = writer.WriteSamples(samples)
 	if err != nil {
