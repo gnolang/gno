@@ -14,7 +14,7 @@ import (
 // run empty main().
 func TestRunEmptyMain(t *testing.T) {
 	m := NewMachine("test", nil)
-	main := FuncD("main", nil, nil, nil)
+	main := FuncD("main", nil, nil, []Stmt{})
 	m.RunDeclaration(main)
 	m.RunMain()
 }
