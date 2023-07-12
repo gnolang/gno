@@ -239,6 +239,8 @@ func main() {
 //                                 "FileName": "tests.gno",
 //                                 "IsMethod": true,
 //                                 "Name": "Modify",
+//                                 "NativeName": "",
+//                                 "NativePkg": "",
 //                                 "PkgPath": "gno.land/r/demo/tests",
 //                                 "Source": {
 //                                     "@type": "/gno.RefNode",
@@ -295,6 +297,8 @@ func main() {
 //                                 "FileName": "tests.gno",
 //                                 "IsMethod": true,
 //                                 "Name": "Modify",
+//                                 "NativeName": "",
+//                                 "NativePkg": "",
 //                                 "PkgPath": "gno.land/r/demo/tests",
 //                                 "Source": {
 //                                     "@type": "/gno.RefNode",
@@ -399,6 +403,8 @@ func main() {
 //                 "FileName": "interfaces.gno",
 //                 "IsMethod": false,
 //                 "Name": "AddStringer",
+//                 "NativeName": "",
+//                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/demo/tests",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",
@@ -463,6 +469,8 @@ func main() {
 //                 "FileName": "interfaces.gno",
 //                 "IsMethod": false,
 //                 "Name": "Render",
+//                 "NativeName": "",
+//                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/demo/tests",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",
@@ -517,6 +525,8 @@ func main() {
 //                 "FileName": "tests.gno",
 //                 "IsMethod": false,
 //                 "Name": "IncCounter",
+//                 "NativeName": "",
+//                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/demo/tests",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",
@@ -561,6 +571,8 @@ func main() {
 //                 "FileName": "tests.gno",
 //                 "IsMethod": false,
 //                 "Name": "Counter",
+//                 "NativeName": "",
+//                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/demo/tests",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",
@@ -615,6 +627,8 @@ func main() {
 //                 "FileName": "tests.gno",
 //                 "IsMethod": false,
 //                 "Name": "CurrentRealmPath",
+//                 "NativeName": "",
+//                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/demo/tests",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",
@@ -659,6 +673,8 @@ func main() {
 //                 "FileName": "tests.gno",
 //                 "IsMethod": false,
 //                 "Name": "AssertOriginCall",
+//                 "NativeName": "",
+//                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/demo/tests",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",
@@ -703,6 +719,8 @@ func main() {
 //                 "FileName": "tests.gno",
 //                 "IsMethod": false,
 //                 "Name": "IsOriginCall",
+//                 "NativeName": "",
+//                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/demo/tests",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",
@@ -760,6 +778,8 @@ func main() {
 //                 "FileName": "tests.gno",
 //                 "IsMethod": false,
 //                 "Name": "ModifyTestRealmObject",
+//                 "NativeName": "",
+//                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/demo/tests",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",
@@ -807,6 +827,8 @@ func main() {
 //                 "FileName": "tests.gno",
 //                 "IsMethod": false,
 //                 "Name": "InitTestNodes",
+//                 "NativeName": "",
+//                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/demo/tests",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",
@@ -841,6 +863,8 @@ func main() {
 //                 "FileName": "tests.gno",
 //                 "IsMethod": false,
 //                 "Name": "ModTestNodes",
+//                 "NativeName": "",
+//                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/demo/tests",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",
@@ -875,6 +899,8 @@ func main() {
 //                 "FileName": "tests.gno",
 //                 "IsMethod": false,
 //                 "Name": "PrintTestNodes",
+//                 "NativeName": "",
+//                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/demo/tests",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",
@@ -919,6 +945,8 @@ func main() {
 //                 "FileName": "tests.gno",
 //                 "IsMethod": false,
 //                 "Name": "GetPrevRealm",
+//                 "NativeName": "",
+//                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/demo/tests",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",
@@ -973,6 +1001,8 @@ func main() {
 //                 "FileName": "tests.gno",
 //                 "IsMethod": false,
 //                 "Name": "GetPSubtestsPrevRealm",
+//                 "NativeName": "",
+//                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/demo/tests",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",
@@ -1028,6 +1058,8 @@ func main() {
 //                 "FileName": "tests.gno",
 //                 "IsMethod": false,
 //                 "Name": "Exec",
+//                 "NativeName": "",
+//                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/demo/tests",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",

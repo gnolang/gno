@@ -3140,6 +3140,8 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 				if fv.nativeBody == nil {
 					panic(fmt.Sprintf("function %s does not have a body but is not natively defined", d.Name))
 				}
+				fv.NativePkg = pkg.PkgPath
+				fv.NativeName = d.Name
 			}
 			pkg.Define(d.Name, TypedValue{
 				T: ft,

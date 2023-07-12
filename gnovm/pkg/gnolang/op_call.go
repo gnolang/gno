@@ -58,6 +58,10 @@ func (m *Machine) doOpCall() {
 	clo := fr.Func.GetClosure(m.Store)
 	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)
 	m.PushBlock(b)
+	if fv.nativeBody == nil && fv.NativePkg != "" {
+		// native function, unmarshaled so doesn't have nativeBody yet
+		fv.nativeBody = m.Store.GetNative(fv.NativePkg, fv.NativeName)
+	}
 	if fv.nativeBody == nil {
 		fbody := fv.GetBodyFromSource(m.Store)
 		if len(ft.Results) == 0 {

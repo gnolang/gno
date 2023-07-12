@@ -109,12 +109,10 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			pkgPath == "crypto/rand" ||
 			pkgPath == "crypto/md5" ||
 			pkgPath == "crypto/sha1" ||
-			pkgPath == "encoding/base64" ||
 			pkgPath == "encoding/binary" ||
 			pkgPath == "encoding/json" ||
 			pkgPath == "encoding/xml" ||
 			pkgPath == "internal/os_test" ||
-			pkgPath == "math" ||
 			pkgPath == "math/big" ||
 			pkgPath == "math/rand" ||
 			mode == ImportModeStdlibsPreferred ||
@@ -254,6 +252,8 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg := gno.NewPackageNode("math", pkgPath, nil)
 				pkg.DefineGoNativeValue("Abs", math.Abs)
 				pkg.DefineGoNativeValue("Cos", math.Cos)
+				pkg.DefineGoNativeValue("Pi", math.Pi)
+				pkg.DefineGoNativeValue("Float64bits", math.Float64bits)
 				pkg.DefineGoNativeValue("Pi", math.Pi)
 				pkg.DefineGoNativeValue("MaxFloat32", math.MaxFloat32)
 				pkg.DefineGoNativeValue("MaxFloat64", math.MaxFloat64)

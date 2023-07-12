@@ -517,13 +517,15 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 // makes construction TypedValue{T:*FuncType{},V:*FuncValue{}}
 // faster.
 type FuncValue struct {
-	Type     Type      // includes unbound receiver(s)
-	IsMethod bool      // is an (unbound) method
-	Source   BlockNode // for block mem allocation
-	Name     Name      // name of function/method
-	Closure  Value     // *Block or RefValue to closure (may be nil for file blocks; lazy)
-	FileName Name      // file name where declared
-	PkgPath  string
+	Type       Type      // includes unbound receiver(s)
+	IsMethod   bool      // is an (unbound) method
+	Source     BlockNode // for block mem allocation
+	Name       Name      // name of function/method
+	Closure    Value     // *Block or RefValue to closure (may be nil for file blocks; lazy)
+	FileName   Name      // file name where declared
+	PkgPath    string
+	NativePkg  string // for native bindings through NativeStore
+	NativeName Name   // not redundant with Name; this cannot be changed in userspace
 
 	body       []Stmt         // function body
 	nativeBody func(*Machine) // alternative to Body
@@ -539,6 +541,8 @@ func (fv *FuncValue) Copy(alloc *Allocator) *FuncValue {
 		Closure:    fv.Closure,
 		FileName:   fv.FileName,
 		PkgPath:    fv.PkgPath,
+		NativePkg:  fv.NativePkg,
+		NativeName: fv.NativeName,
 		body:       fv.body,
 		nativeBody: fv.nativeBody,
 	}
@@ -2309,12 +2313,8 @@ func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 	// the generation for uverse is 0.  If path.Depth is
 	// 0, it implies that b == uverse, and the condition
 	// would fail as if it were 1.
-	i := uint8(1)
-LOOP:
-	if i < path.Depth {
+	for i := uint8(1); i < path.Depth; i++ {
 		b = b.GetParent(store)
-		i++
-		goto LOOP
 	}
 	return b.GetPointerToInt(store, int(path.Index))
 }
