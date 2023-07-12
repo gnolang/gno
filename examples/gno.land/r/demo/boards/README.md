@@ -52,7 +52,7 @@ NOTE: you can retrieve your `ACCOUNT_ADDR` with `./build/gnokey list`.
 
 ### Acquire testnet tokens using the official faucet.
 
-Go to https://gno.land/faucet
+Go to https://test3.gno.land/faucet
 
 ### Create a board with a smart contract call.
 
@@ -118,7 +118,7 @@ Use this mneonic:
 ### Start `gnoland` node.
 
 ```bash
-./build/gnoland
+./build/gnoland start
 ```
 
 NOTE: This can be reset with `make reset`
