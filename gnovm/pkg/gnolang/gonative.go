@@ -676,6 +676,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 	return
 }
 
+// used for direct comparison to error types
 var tError = reflect.TypeOf(new(error)).Elem()
 
 // If recursive is false, this function is like go2GnoValue() but less lazy
@@ -759,6 +760,8 @@ func go2GnoValue2(alloc *Allocator, store Store, rv reflect.Value, recursive boo
 		// regardless.
 		tv.V = alloc.NewNative(rv)
 	case reflect.Interface:
+		// special case for errors, which are very often used esepcially in
+		// native bindings
 		if rv.Type() == tError {
 			tv.T = gErrorType
 			if !rv.IsNil() {

@@ -14,6 +14,8 @@ import (
 // run empty main().
 func TestRunEmptyMain(t *testing.T) {
 	m := NewMachine("test", nil)
+	// []Stmt{} != nil, as nil means that in the source code not even the
+	// brackets are present and is reserved for external (ie. native) functions.
 	main := FuncD("main", nil, nil, []Stmt{})
 	m.RunDeclaration(main)
 	m.RunMain()

@@ -1390,18 +1390,6 @@ func (x *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*M
 		panic("DefineNative expects a function, but got nil")
 	}
 
-	if v := x.GetValueRef(nil, n); v != nil {
-		// redefinition
-		fv, ok := v.V.(*FuncValue)
-		if !ok {
-			panic("cannot redefine non-function as native function")
-		}
-		// XXX: type-check
-		fv.body = nil
-		fv.nativeBody = native
-		return
-	}
-
 	fd := FuncD(n, ps, rs, nil)
 	fd = Preprocess(nil, x, fd).(*FuncDecl)
 	ft := evalStaticType(nil, x, &fd.Type).(*FuncType)

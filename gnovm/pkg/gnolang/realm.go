@@ -1125,6 +1125,12 @@ func copyValueWithRefs(parent Object, val Value) Value {
 		if cv.Closure != nil {
 			closure = toRefValue(parent, cv.Closure)
 		}
+		// nativeBody funcs which don't come from NativeStore (and thus don't
+		// have NativePkg/Name) can't be persisted, and should not be able
+		// to get here anyway.
+		if cv.nativeBody != nil && cv.NativePkg == "" {
+			panic("should not happen")
+		}
 		ft := copyTypeWithRefs(cv.Type)
 		return &FuncValue{
 			Type:       ft,

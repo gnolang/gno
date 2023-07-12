@@ -436,10 +436,9 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer) (*gn
 		// NOTE: see also pkgs/sdk/vm/builtins.go
 		// Needs PkgPath != its name because TestStore.getPackage is the package
 		// getter for the store, which calls loadStdlib, so it would be recursively called.
-		PkgPath:  "stdlibload",
-		Output:   stdout,
-		Store:    store,
-		Injector: testPackageInjector,
+		PkgPath: "stdlibload",
+		Output:  stdout,
+		Store:   store,
 	})
 	return m2.RunMemPackageWithOverrides(memPkg, true)
 }

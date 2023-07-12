@@ -34,7 +34,6 @@ type Machine struct {
 	Exceptions []*TypedValue // if panic'd unless recovered
 	NumResults int           // number of results returned
 	Cycles     int64         // number of "cpu" cycles
-	Injector   func(store Store, pn *PackageNode)
 
 	// Configuration
 	CheckTypes bool // not yet used
@@ -75,7 +74,6 @@ type MachineOptions struct {
 	Alloc         *Allocator // or see MaxAllocBytes.
 	MaxAllocBytes int64      // or 0 for no limit.
 	MaxCycles     int64      // or 0 for no limit.
-	Injector      func(store Store, pn *PackageNode)
 }
 
 // the machine constructor gets spammed
@@ -139,7 +137,6 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		Output:     output,
 		Store:      store,
 		Context:    context,
-		// Injector:   opts.Injector,
 	}
 
 	if pv != nil {
@@ -566,11 +563,6 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 		for _, n := range decl.GetDeclNames() {
 			fdeclared[n] = struct{}{}
 		}
-	}
-
-	// Inject native functions
-	if m.Injector != nil {
-		m.Injector(m.Store, pn)
 	}
 
 	// Declarations (and variable initializations).  This must happen
