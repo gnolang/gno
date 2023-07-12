@@ -271,6 +271,9 @@ func (m *mapping) loadSignaturesMatch(gnof, gof *ast.FuncDecl) bool {
 	return reflect.DeepEqual(gnop, gop) && reflect.DeepEqual(gnor, gor)
 }
 
+// TODO: this is created based on the uverse definitions. This should be
+// centralized, or at least have a CI/make check to make sure this stays the
+// same
 var builtinTypes = [...]string{
 	"bool",
 	"string",
