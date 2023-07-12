@@ -10,10 +10,10 @@ import (
 // privateInstanceOfFoo20.Transfer(to, 4242)
 //--------------------
 
-type relativeBank struct{}
+/*type relativeBank struct{}
 func relativeBank.Transfer() {
 
-}
+}*/
 
 // userToken implements the IGRC20 interface.
 //
