@@ -26,16 +26,6 @@ type SubPkg struct {
 	FiletestGnoFiles []string // _filetest.gno source files
 }
 
-// newEmptySubPkg returns a new empty SubPkg.
-func newEmptySubPkg() *SubPkg {
-	return &SubPkg{
-		Imports:          make([]string, 0),
-		GnoFiles:         make([]string, 0),
-		TestGnoFiles:     make([]string, 0),
-		FiletestGnoFiles: make([]string, 0),
-	}
-}
-
 type (
 	PkgList       []Pkg
 	SortedPkgList []Pkg
@@ -191,7 +181,7 @@ func SubPkgsFromPaths(paths []string) ([]*SubPkg, error) {
 
 	subPkgs := make([]*SubPkg, 0, len(paths))
 	for _, path := range paths {
-		subPkg := newEmptySubPkg()
+		subPkg := SubPkg{}
 
 		matches, err := filepath.Glob(filepath.Join(path, "*.gno"))
 		if err != nil {
@@ -212,7 +202,7 @@ func SubPkgsFromPaths(paths []string) ([]*SubPkg, error) {
 			subPkg.GnoFiles = append(subPkg.GnoFiles, match)
 		}
 
-		subPkgs = append(subPkgs, subPkg)
+		subPkgs = append(subPkgs, &subPkg)
 	}
 
 	return subPkgs, nil
@@ -220,7 +210,7 @@ func SubPkgsFromPaths(paths []string) ([]*SubPkg, error) {
 
 // GnoFileSubPkg returns a subpackage from the given .gno files.
 func GnoFileSubPkg(files []string) (*SubPkg, error) {
-	subPkg := newEmptySubPkg()
+	subPkg := SubPkg{}
 	firstDir := ""
 	for _, file := range files {
 		if filepath.Ext(file) != ".gno" {
@@ -256,5 +246,5 @@ func GnoFileSubPkg(files []string) (*SubPkg, error) {
 	}
 	subPkg.Dir = firstDir
 
-	return subPkg, nil
+	return &subPkg, nil
 }
