@@ -100,60 +100,6 @@ func gnoPackagesFromArgs(args []string) ([]string, error) {
 	return paths, nil
 }
 
-func gnoPackagePathsFromPattern(patterns []string) ([]string, error) {
-	paths := []string{}
-	for _, p := range patterns {
-		recursiveLookup := false
-
-		// TODO:
-		//     - Support more patterns
-		//     - Move this logic to separate helper function?
-		if strings.HasSuffix(p, "/...") {
-			recursiveLookup = true
-			p = strings.TrimSuffix(p, "/...")
-		}
-
-		info, err := os.Stat(p)
-		if err != nil {
-			return nil, fmt.Errorf("invalid file or package path: %w", err)
-		}
-
-		// if the pattern is:
-		//     - a file
-		//     - a dir not followed by /...
-		// then we'll just add it to the list
-		if !info.IsDir() || !recursiveLookup {
-			paths = append(paths, p)
-			continue
-		}
-
-		// the passed arg is a dir folllowed by /... then we'll walk the dir recursively
-		// and look for directories containing at least one .gno file.
-		visited := map[string]bool{} // used to run the builder only once per folder.
-		err = filepath.WalkDir(p, func(curpath string, f fs.DirEntry, err error) error {
-			if err != nil {
-				return fmt.Errorf("%s: walk dir: %w", p, err)
-			}
-			if f.IsDir() || !isGnoFile(f) {
-				return nil // skip
-			}
-
-			parentDir := filepath.Dir(curpath)
-			if _, found := visited[parentDir]; found {
-				return nil
-			}
-			visited[parentDir] = true
-
-			paths = append(paths, parentDir)
-			return nil
-		})
-		if err != nil {
-			return nil, err
-		}
-	}
-	return paths, nil
-}
-
 func fmtDuration(d time.Duration) string {
 	return fmt.Sprintf("%.2fs", d.Seconds())
 }

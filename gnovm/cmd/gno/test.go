@@ -134,7 +134,7 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 		cfg.rootDir = guessRootDir()
 	}
 
-	paths, err := gnoPackagePathsFromPattern(args)
+	paths, err := gnoPackagesFromArgs(args)
 	if err != nil {
 		return fmt.Errorf("list package paths from args: %w", err)
 	}
