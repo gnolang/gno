@@ -100,6 +100,11 @@ func TestTest(t *testing.T) {
 			stderrShouldContain: "ok      ./../../../examples/gno.land/p/demo/ufmt",
 		},
 		{
+			args:                []string{"test", "../../../examples/gno.land/p/demo/ufmt/ufmt_test.gno"},
+			stdoutShouldContain: "RUN   TestSprintf",
+			stderrShouldContain: "ok      ../../../examples/gno.land/p/demo/ufmt",
+		},
+		{
 			args:                []string{"test", "--verbose", "../../../examples/gno.land/p/demo/ufmt"},
 			stdoutShouldContain: "RUN   TestSprintf",
 			stderrShouldContain: "ok      ./../../../examples/gno.land/p/demo/ufmt",
