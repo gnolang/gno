@@ -219,7 +219,7 @@ func execStart(c *startCfg, args []string, io *commands.IO) error {
 }
 
 // getTxEventStoreConfig constructs an event store config from provided user options
-func getTxEventStoreConfig(c *gnolandCfg) (*eventstorecfg.Config, error) {
+func getTxEventStoreConfig(c *startCfg) (*eventstorecfg.Config, error) {
 	var cfg *eventstorecfg.Config
 
 	switch c.txEventStoreType {
