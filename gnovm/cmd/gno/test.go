@@ -138,6 +138,10 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 	if err != nil {
 		return fmt.Errorf("list package paths from args: %w", err)
 	}
+	if len(paths) == 0 {
+		io.ErrPrintln("no packages to test")
+		return nil
+	}
 
 	if cfg.timeout > 0 {
 		go func() {
