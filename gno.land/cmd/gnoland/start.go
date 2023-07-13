@@ -123,8 +123,8 @@ func execStart(c *startCfg, args []string, io *commands.IO) error {
 	rootDir := c.rootDir
 
 	cfg := config.LoadOrMakeConfigWithOptions(rootDir, func(cfg *config.Config) {
-		cfg.Consensus.CreateEmptyBlocks = false
-		cfg.Consensus.CreateEmptyBlocksInterval = 60 * time.Second
+		cfg.Consensus.CreateEmptyBlocks = true
+		cfg.Consensus.CreateEmptyBlocksInterval = 0 * time.Second
 	})
 
 	// create priv validator first.
