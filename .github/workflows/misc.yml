@@ -5,6 +5,10 @@ on:
     branches: [ "master" ]
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -20,7 +24,8 @@ jobs:
       - name: Lint
         uses: golangci/golangci-lint-action@v3
         with:
-          version: v1.51
+          # sync with misc/devdeps/go.mod
+          version: v1.53
           args:
             --config=./.github/golangci.yml
   fmt:
@@ -53,3 +58,21 @@ jobs:
           else
             echo 'Succeeded.'
           fi
+  modtidy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.20.x
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Check go.mods
+        run: |
+          sums="$(sha256sum go.mod misc/devdeps/go.mod)"
+          for path in . ./misc/devdeps; do
+            env -C $path go mod tidy -v || exit 1
+          done
+          echo "$sums" | sha256sum -c
