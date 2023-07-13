@@ -69,8 +69,16 @@ func (pid PkgID) Bytes() []byte {
 	return pid.Hashlet[:]
 }
 
+var pathsFromIds = make(map[string]string)
+
 func PkgIDFromPkgPath(path string) PkgID {
-	return PkgID{HashBytes([]byte(path))}
+	id := PkgID{HashBytes([]byte(path))}
+	pathsFromIds[id.String()] = path
+	return id
+}
+
+func PkgPathFromPkgID(id PkgID) string {
+	return pathsFromIds[id.String()]
 }
 
 func ObjectIDFromPkgPath(path string) ObjectID {
@@ -145,7 +153,12 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		return // do nothing.
 	}
 	if po.GetObjectID().PkgID != rlm.ID {
-		panic("cannot modify external-realm or non-realm object")
+		opid := po.GetObjectID().PkgID
+		prettyName := PkgPathFromPkgID(opid)
+		if prettyName == "" {
+			prettyName = opid.String()
+		}
+		panic(fmt.Sprintf("cannot modify external-realm or non-realm object: object pkg path: %s, realm: %s", prettyName, rlm.Path))
 	}
 	// From here on, po is real (not new-real).
 	// Updates to .newCreated/.newEscaped /.newDeleted made here. (first gen)
