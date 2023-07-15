@@ -19,6 +19,24 @@ fork of AGPL3.0) and the GNO General Public License 3.0 (a fork of GPL3.0).
 
 ----------------------------------------
 
+Additional Terms
+
+Strong Attribution:
+
+All key user interfaces such as websites or mobile applications that
+offer users the ability to upload their own smart contracts that leverage
+any covered works (especially the GNO virtual machine) to run those smart
+contracts, or offer users the ability to select from a list of smart
+contracts or applications that run smart contracts that leverage any
+covered works to run those smart contracts or applications must
+prominently link to gno.land or the URL of the choosing of NewTendermint
+LLC, on the header or footer of those key user interfaces, such that
+all users may learn of gno.land or the URL of the choosing of
+NewTendermint LLC.
+
+
+----------------------------------------
+
                    GNO NETWORK GENERAL PUBLIC LICENSE
                        Version 3, 22 November 2022
 
@@ -392,7 +410,12 @@ that material) supplement the terms of this License with terms:
     material by anyone who conveys the material (or modified versions of
     it) with contractual assumptions of liability to the recipient, for
     any liability that these contractual assumptions directly impose on
-    those licensors and authors.
+    those licensors and authors; or
+
+    g) Requiring strong attribution such as notices on any user interfaces
+    that run or convey any covered work, such as a prominent link to a URL
+    on the header of a website, such that all users of the covered work may
+    become aware of the the notice, for a period no longer than 20 years;
 
   All other non-permissive additional terms are considered "further
 restrictions" within the meaning of section 10.  If the Program as you
