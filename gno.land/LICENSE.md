@@ -34,6 +34,8 @@ LLC, on the header or footer of those key user interfaces, such that
 all users may learn of gno.land or the URL of the choosing of
 NewTendermint LLC.
 
+This additional term shall stay in effect for 20 years.
+
 
 ----------------------------------------
 
