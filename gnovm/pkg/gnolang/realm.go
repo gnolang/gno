@@ -121,57 +121,58 @@ func (rlm *Realm) String() string {
 //----------------------------------------
 // ownership hooks
 
-// po's old elem value is xo, will become co.
-// po, xo, and co may each be nil.
-// if rlm or po is nil, do nothing.
-// xo or co is nil if the element value is undefined or has no
+// base's old elem value is oldValue, will become newValue.
+// base, oldValue, and newValue may each be nil.
+// if rlm or base is nil, do nothing.
+// oldValue or newValue is nil if the element value is undefined or has no
 // associated object.
-func (rlm *Realm) DidUpdate(po, xo, co Object) {
+func (rlm *Realm) DidUpdate(base, oldValue, newValue Object) {
 	if rlm == nil {
 		return
 	}
 	if debug {
-		if co != nil && co.GetIsDeleted() {
+		if newValue != nil && newValue.GetIsDeleted() {
 			panic("cannot attach a deleted object")
 		}
-		if po != nil && po.GetIsTransient() {
+		if base != nil && base.GetIsTransient() {
 			panic("should not happen")
 		}
-		if po != nil && po.GetIsDeleted() {
+		if base != nil && base.GetIsDeleted() {
 			panic("cannot attach to a deleted object")
 		}
 	}
-	if po == nil || !po.GetIsReal() {
+	if base == nil || !base.GetIsReal() {
 		return // do nothing.
 	}
-	if po.GetObjectID().PkgID != rlm.ID {
+	if base.GetObjectID().PkgID != rlm.ID {
 		panic("cannot modify external-realm or non-realm object")
 	}
-	// From here on, po is real (not new-real).
+	// From here on, base is real (not new-real).
 	// Updates to .newCreated/.newEscaped /.newDeleted made here. (first gen)
 	// More appends happen during FinalizeRealmTransactions(). (second+ gen)
-	rlm.MarkDirty(po)
-	if co != nil {
-		co.IncRefCount()
-		if co.GetRefCount() > 1 {
-			if co.GetIsEscaped() {
-				// already escaped
-			} else {
-				rlm.MarkNewEscaped(co)
-			}
-		} else if co.GetIsReal() {
-			rlm.MarkDirty(co)
+	rlm.MarkDirty(base)
+
+	updateRefs := oldValue != newValue
+
+	if newValue != nil {
+		if updateRefs {
+			newValue.IncRefCount()
+		}
+		if newValue.GetRefCount() > 1 && !newValue.GetIsEscaped() {
+			rlm.MarkNewEscaped(newValue)
+		} else if newValue.GetIsReal() {
+			rlm.MarkDirty(newValue)
 		} else {
-			co.SetOwner(po)
-			rlm.MarkNewReal(co)
+			newValue.SetOwner(base)
+			rlm.MarkNewReal(newValue)
 		}
 	}
-	if xo != nil {
-		xo.DecRefCount()
-		if xo.GetRefCount() == 0 {
-			if xo.GetIsReal() {
-				rlm.MarkNewDeleted(xo)
-			}
+	if oldValue != nil {
+		if updateRefs {
+			oldValue.DecRefCount()
+		}
+		if oldValue.GetRefCount() == 0 && oldValue.GetIsReal() {
+			rlm.MarkNewDeleted(oldValue)
 		}
 	}
 }
