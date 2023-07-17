@@ -156,6 +156,7 @@ func runRepl(cfg *replCfg) error {
 			if err != nil {
 				return fmt.Errorf("make term raw: %w", err)
 			}
+
 			input, err := t.ReadLine()
 			if err != nil {
 				term.Restore(0, oldState)

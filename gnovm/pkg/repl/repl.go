@@ -40,13 +40,13 @@ type tempModel struct {
 }
 
 type state struct {
-	// b is the buffer where the VM is writting. It is used to get the output when a expression is executed
+	// b is the buffer where the VM is writing. It is used to get the output when a expression is executed
 	b bytes.Buffer
 
 	// imports contains all the imports added. they will be added to the following generated source code
 	imports map[string]string
 
-	// files are all generated files. This is used when soruce code is requested
+	// files are all generated files. This is used when source code is requested
 	files map[string]string
 
 	// id is the actual execution number. Used to avoid duplicated functions and file names.
