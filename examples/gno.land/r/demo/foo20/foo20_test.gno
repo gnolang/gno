@@ -54,3 +54,43 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 		}
 	}
 }
+
+func TestErrConditions(t *testing.T) {
+	admin := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+	empty := std.Address("")
+
+	type test struct {
+		name string
+		msg  string
+		fn   func()
+	}
+
+	std.TestSetOrigCaller(admin)
+	{
+		tests := []test{
+			{"Transfer(admin, 1)", "cannot send transfer to self", func() { Transfer(a2u(admin), 1) }},
+			{"Approve(empty, 1))", "invalid address", func() { Approve(a2u(empty), 1) }},
+		}
+		for _, tc := range tests {
+			shouldPanicWithMsg(t, tc.fn, tc.msg)
+		}
+	}
+}
+
+func a2u(addr std.Address) users.AddressOrName {
+	return users.AddressOrName(addr)
+}
+
+func shouldPanicWithMsg(t *testing.T, f func(), msg string) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("The code did not panic")
+		} else {
+			errMsg := error(r).Error()
+			if errMsg != msg {
+				t.Errorf("excepted panic(%v), got(%v)", msg, errMsg)
+			}
+		}
+	}()
+	f()
+}
