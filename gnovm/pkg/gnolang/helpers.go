@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	j "github.com/grepsuzette/joeson"
 )
 
 // ----------------------------------------
@@ -194,7 +196,7 @@ func S(args ...interface{}) Stmt {
 //
 // If the first argument is an expression, returns it.
 // TODO replace this with rewrite of Joeson parser.
-func X(x interface{}, args ...interface{}) Expr {
+func Xold(x interface{}, args ...interface{}) Expr {
 	switch cx := x.(type) {
 	case Expr:
 		return cx
@@ -211,7 +213,8 @@ func X(x interface{}, args ...interface{}) Expr {
 		}
 		x = string(cx)
 	default:
-		panic("unexpected input type for X()")
+		panic(fmt.Sprintf("unexpected input type for Xold(): %T", x))
+		// panic("unexpected input type for X()")
 	}
 	expr := x.(string)
 	expr = fmt.Sprintf(expr, args...)
@@ -511,11 +514,13 @@ func Not(x Expr) *UnaryExpr {
 // Binary expression.  x, y can be Expr or string.
 func Bx(lx interface{}, op string, rx interface{}) Expr {
 	return &BinaryExpr{
-		Left:  X(lx),
+		Left:  Xold(lx),
 		Op:    Op2Word(op),
-		Right: X(rx),
+		Right: Xold(rx),
 	}
 }
+
+func newBx(l Expr, op Word, r Expr) Expr { return &BinaryExpr{Left: l, Op: op, Right: r} }
 
 func Call(fn interface{}, args ...interface{}) *CallExpr {
 	argz := make([]Expr, len(args))
@@ -885,3 +890,226 @@ func chopRight(in string) (left string, tok rune, right string) {
 		return
 	}
 }
+
+// Rewrite of X() with Joeson
+func X(x interface{}, args ...interface{}) Expr {
+	fmt.Printf("| Initially, X(x=%s)\n", x)
+	switch cx := x.(type) {
+	case Expr:
+		return cx
+	case int, int8, int16, int32, int64,
+		uint, uint8, uint16, uint32, uint64:
+		return Xold(fmt.Sprintf("%v", x))
+	case string:
+		if cx == "" {
+			panic("input cannot be blank for X()")
+		}
+	case Name:
+		if cx == "" {
+			panic("input cannot be blank for X()")
+		}
+		x = string(cx)
+	default:
+		panic(fmt.Sprintf("unexpected input type for X(): %T", x))
+	}
+	expr := x.(string)
+	fmt.Printf("| x.(string)=%s\n", expr)
+	expr = fmt.Sprintf(expr, args...)
+	fmt.Printf("| fmt.Sprintf(expr, args...)=%s\n", expr)
+	expr = strings.TrimSpace(expr)
+	// first := expr[0]
+
+	// return Xold(x, args...)
+	//
+	ast := grammar.ParseString(expr)
+	if j.IsParseError(ast) {
+		panic(ast.ContentString())
+	} else {
+		switch v := ast.(type) {
+		case w:
+			// just unwrap ast
+			// fmt.Println(ast.ContentString())
+			return v.expr
+
+		default:
+			panic(fmt.Sprintf("From X(): X() can not extract an expr from %T. \nContentString(): %s.", ast, ast.ContentString()))
+		}
+	}
+}
+
+// TODO find where to initialize it
+func initGrammar() {
+	grammar = j.GrammarFromLines(gnoRules, "GNO-grammar")
+}
+
+// wrap an Expr inside a joeson.Ast.
+// to be Expr, one needs to be Node and have:
+// - assertExpr()
+// - assertNode()
+// - String() string
+// - Copy() Node
+// - GetLine() int
+// - SetLine(int)
+// - GetLabel() Name
+// - SetLabel(Name)
+// - {Has/Get/Set}Attribute
+// Here choose to just wrap it.
+func expr2Ast(expr Expr) j.Ast {
+	return w{expr}
+}
+
+type w struct {
+	expr Expr
+}
+
+func (ww w) ContentString() string { return ww.expr.String() }
+
+// rules and grammar for GNO
+
+func i(a ...any) j.ILine                       { return j.I(a...) }
+func o(a ...any) j.OLine                       { return j.O(a...) }
+func rules(a ...j.Line) []j.Line               { return a }
+func named(name string, thing any) j.NamedRule { return j.Named(name, thing) }
+
+// let's have Expr satisfy joeson.Ast
+// func (e *Expr) ContentString() string { return "TODO switch and show, BinaryExpr etc. See nodes.go" }
+
+/*
+Primary expressions
+
+Primary expressions are the operands for unary and binary expressions.
+
+PrimaryExpr =
+        Operand |			// see spec/Operand.txt or https://go.dev/ref/spec#Operand
+        Conversion |
+        MethodExpr |
+        PrimaryExpr Selector |
+        PrimaryExpr Index |
+        PrimaryExpr Slice |
+        PrimaryExpr TypeAssertion |
+        PrimaryExpr Arguments .
+
+Selector       = "." identifier .
+Index          = "[" Expression [ "," ] "]" .
+Slice          = "[" [ Expression ] ":" [ Expression ] "]" |
+                 "[" [ Expression ] ":" Expression ":" Expression "]" .
+TypeAssertion  = "." "(" Type ")" .
+Arguments      = "(" [ ( ExpressionList | Type [ "," ExpressionList ] ) [ "..." ] [ "," ] ] ")" .
+*/
+
+var (
+	grammar  *j.Grammar
+	gnoRules = rules(
+		o(named("Input", "Expression")),
+		o(named("Expression", "bx:(Expression _ binary_op _ Expression) | UnaryExpr"), fExpression),
+		o(named("UnaryExpr", "PrimaryExpr | unary_op _ UnaryExpr")),
+		o(named("unary_op", revQuote("+ - ! ^ * & <-"))),
+		o(named("binary_op", "mul_op | add_op | rel_op | '&&' | '||'")),
+		o(named("mul_op", revQuote("* / % << >> & &^"))),
+		o(named("add_op", revQuote("+ - | ^"))),
+		o(named("rel_op", revQuote("== != < <= > >="))),
+		// o(named("PrimaryExpr", "Operand | Conversion | MethodExpr | PrimaryExpr _ ( Selector | Index | Slice | TypeAssertion | Arguments )")),
+		o(named("PrimaryExpr", "Operand | PrimaryExpr _ ( Selector | Index | Slice | TypeAssertion | Arguments )")),
+
+		o(named("Operand", rules(
+			// o("'(' _ Expression _ ')' | OperandName TypeArgs? | Literal"), // TODO this is the original
+			o("Literal | '(' _ Expression _ ')'"),
+			// o(named("Literal", "BasicLit | CompositeLit | FunctionLit")),
+			o(named("Literal", "BasicLit")),
+			// TODO add float_lit and imaginary_lit
+			// o(named("BasicLit", "int_lit | rune_lit | string_lit")),
+			o(named("BasicLit", "decimal_lit")),                   // NOTE it is escamoted, normally there is int_lit layer
+			i(named("decimal_lit", "/^0|[1-9](_?[0-9])*/"), fInt), // x("decimal_lit")),
+			// o(named("OperandName", "QualifiedIdent | identifier")),
+			// i(named("QualifiedIdent", "PackageName '.' identifier"), x("QualifiedIdent")), // https://go.dev/ref/spec#QualifiedIdent
+			// i(named("PackageName", "identifier")),                                         // https://go.dev/ref/spec#PackageName
+			// o(named("Block", "'{' Statement*';' '}'")),
+		))),
+
+		// o(named("Expr", "BinaryExpr | aadigits")),
+		// o(named("BinaryExpr", "l:aadigits _ op:Word _ r:Expr"), fBinaryExpr),
+		// o(named("Word", "'"+strings.Join(strings.Fields("+ - * / % & | ^ << >> &^ && || ++ -- == < > ! != <= >= = := += -= *= /= %= &= |= ^= <<= >>= &^="), "'|'")+"'")),
+		// i(named("aadigits", "/^-?[0-9]+/"), fInt),
+
+		// "White space, formed from spaces (U+0020), horizontal tabs (U+0009),
+		// carriage returns (U+000D), and newlines (U+000A), is ignored except as
+		// it separates tokens that would otherwise combine into a single token."
+		i(named("_", "/[ \t\n\r]*/")),
+		i(named("__", "/[ \t\n\r]+/")),
+	)
+)
+
+// Facilitates writing rules for PEG grammars.
+// It splits upon space, reverse order, adds single quotes, and joins upon '|'
+// For example:
+//
+// "* / %"      becomes      "'%'|'/'|'*'".
+func revQuote(spaceSeparatedElements string) string {
+	a := strings.Fields(spaceSeparatedElements)
+	s := ""
+	for i := len(a) - 1; i >= 0; i-- {
+		s += "'" + a[i] + "'|"
+	}
+	return s[:len(s)-1]
+}
+
+// builder function
+
+func fInt(it j.Ast) j.Ast { return expr2Ast(Num(it.(j.NativeString).Str)) }
+
+// func fBinaryExpr(it j.Ast) j.Ast {
+// 	m := it.(j.NativeMap)
+// 	lhs, b1 := m.GetExists("l")
+// 	op_, b2 := m.GetStringExists("op")
+// 	rhs, b3 := m.GetExists("r")
+// 	if b1 && b2 && b3 {
+// 		return expr2Ast(newBx(lhs.(w).expr, op_, rhs.(w).expr))
+// 	} else {
+// 		panic("assert")
+// 	}
+// }
+
+func fExpression(it j.Ast) j.Ast {
+	if m, ok := it.(j.NativeMap); ok {
+		a := m.GetOrPanic("bx").(*j.NativeArray).Array
+		return expr2Ast(newBx(a[0].(w).expr, Op2Word(a[1].(j.NativeString).Str), a[2].(w).expr))
+	} else {
+		return it // Unary
+	}
+}
+
+// function x() helps to quickly write a grammar.
+// Calling x("foo") returns a callback `func(τ Ast) Ast`.
+// Calling cb.ContentString() gives "<foo:" + τ.ContentString() + ">"
+//
+// For example:
+//
+// var rules_tokens = rules(
+//
+//	o(named("token", "( keyword | identifier | operator | punctuation | literal )"), x("token")),
+//	i(named("keyword", "( 'break' | 'default' | 'func' | 'interface' | 'select' | 'case' | 'defer' | 'go' | 'map' | 'struct' | 'chan' | 'else' | 'goto' | 'package' | 'switch' | 'const' | 'fallthrough' | 'if' | 'range' | 'type' | 'continue' | 'for' | 'import' | 'return' | 'var' )"), x("keyword")),
+//	i(named("identifier", "[a-zA-Z_][a-zA-Z0-9_]*"), x("identifier")), // letter { letter | unicode_digit } .   We rewrite it so to accelerate parsing
+//	i(named("operator", "( '+' | '&' | '+=' | '&=' | '&&' | '==' | '!=' | '(' | ')' | '-' | '|' | '-=' | '|=' | '||' | '<' | '<=' | '[' |  ']' | '*' | '^' | '*=' | '^=' | '<-' | '>' | '>=' | '{' | '}' | '/' | '<<' | '/=' | '<<=' | '++' | '=' | ':=' | '%' | '>>' | '%=' | '>>=' | '--' | '!' | '...' | '&^' | '&^=' | '~' )"), x("operator")),
+//
+// ...
+// )
+//
+// Here, whichever of keyword, identifier etc gets built,
+// its ContentString() will be like "<token:keyword>", "<token:identifier>" etc.
+func x(typename string) func(j.Ast) j.Ast {
+	return func(ast j.Ast) j.Ast {
+		return dumb{typename, ast}
+	}
+}
+
+// type dumb is used by x(). As the name hints, it's nothing too exciting
+type dumb struct {
+	typename string
+	ast      j.Ast
+}
+
+func (dumb dumb) ContentString() string {
+	return "<" + dumb.typename + ":" + dumb.ast.ContentString() + ">"
+}
+
+// ∎
