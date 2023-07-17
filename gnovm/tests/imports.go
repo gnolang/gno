@@ -471,6 +471,12 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 		if strings.HasPrefix(string(tname), "init.") {
 			return len(m.Frames) == 3
 		}
+
+		// support multi-transaction tests
+		if strings.HasPrefix(string(tname), "main") {
+			return len(m.Frames) == 3
+		}
+
 		panic("unable to determine if test is a _test or a _filetest")
 	}
 	// Test specific injections:
