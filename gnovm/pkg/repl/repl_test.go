@@ -71,7 +71,6 @@ func TestRepl(t *testing.T) {
 
 				require.Equal(t, out, cs.Result)
 			}
-
 		})
 	}
 }
