@@ -138,8 +138,6 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeType(reflect.TypeOf((*fmt.Stringer)(nil)).Elem())
 				pkg.DefineGoNativeType(reflect.TypeOf((*fmt.Formatter)(nil)).Elem())
 				pkg.DefineGoNativeValue("Println", func(a ...interface{}) (n int, err error) {
-					// NOTE: uncomment to debug long running tests
-					fmt.Println(a...)
 					res := fmt.Sprintln(a...)
 					return stdout.Write([]byte(res))
 				})
