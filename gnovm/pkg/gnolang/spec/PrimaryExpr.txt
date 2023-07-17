@@ -1,0 +1,22 @@
+https://go.dev/ref/spec#PrimaryExpr
+
+Primary expressions
+
+Primary expressions are the operands for unary and binary expressions.
+
+PrimaryExpr =
+        Operand |			// see spec/selector.txt or https://go.dev/ref/spec#Operand
+        Conversion |
+        MethodExpr |
+        PrimaryExpr Selector |
+        PrimaryExpr Index |
+        PrimaryExpr Slice |
+        PrimaryExpr TypeAssertion |
+        PrimaryExpr Arguments .
+
+Selector       = "." identifier .
+Index          = "[" Expression [ "," ] "]" .
+Slice          = "[" [ Expression ] ":" [ Expression ] "]" |
+                 "[" [ Expression ] ":" Expression ":" Expression "]" .
+TypeAssertion  = "." "(" Type ")" .
+Arguments      = "(" [ ( ExpressionList | Type [ "," ExpressionList ] ) [ "..." ] [ "," ] ] ")" .

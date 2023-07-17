@@ -1,0 +1,8 @@
+https://go.dev/ref/spec#Types
+
+Type      = TypeName [ TypeArgs ] | TypeLit | "(" Type ")" .
+TypeName  = identifier | QualifiedIdent .
+TypeArgs  = "[" TypeList [ "," ] "]" .
+TypeList  = Type { "," Type } .
+TypeLit   = ArrayType | StructType | PointerType | FunctionType | InterfaceType |
+            SliceType | MapType | ChannelType .
