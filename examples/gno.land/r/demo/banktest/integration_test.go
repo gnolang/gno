@@ -102,7 +102,7 @@ func TestSimpleFlow(t *testing.T) {
 			}
 		}()
 		m.RunStatement(gnolang.S(gnolang.Call(gnolang.X("main2"))))
-		// TODO: m.CheckEmpty()
+		m.CheckEmpty()
 	}
 	println("end")
 
@@ -111,17 +111,31 @@ func TestSimpleFlow(t *testing.T) {
 const main1 = `package main
 
 import "gno.land/r/demo/banktest"
+import "std"
 
 func main1() {
         banktest.Deposit("ugnot", 0)
         /* std.TestSetCaller */
-        println("HELLO WORLD!")
+        printStats("main1")
+}
+
+func printStats(name string) {
+        println("stats", name, std.GetHeight(), std.GetOrigCaller())
 }
 `
 
 const main2 = `package main
 
+import "gno.land/r/demo/banktest"
+import "std"
+
 func main2() {
+        banktest.Deposit("ugnot", 0)
         /* std.TestSetCaller... */
-        println("hello world 2")
-}`
+        printStats2("main2")
+}
+
+func printStats2(name string) {
+        println("stats", name, std.GetHeight(), std.GetOrigCaller())
+}
+`
