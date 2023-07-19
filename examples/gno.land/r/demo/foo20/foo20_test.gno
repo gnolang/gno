@@ -68,17 +68,13 @@ func TestErrConditions(t *testing.T) {
 	std.TestSetOrigCaller(admin)
 	{
 		tests := []test{
-			{"Transfer(admin, 1)", "cannot send transfer to self", func() { Transfer(a2u(admin), 1) }},
-			{"Approve(empty, 1))", "invalid address", func() { Approve(a2u(empty), 1) }},
+			{"Transfer(admin, 1)", "cannot send transfer to self", func() { Transfer(users.AddressOrName(admin), 1) }},
+			{"Approve(empty, 1))", "invalid address", func() { Approve(users.AddressOrName(empty), 1) }},
 		}
 		for _, tc := range tests {
 			shouldPanicWithMsg(t, tc.fn, tc.msg)
 		}
 	}
-}
-
-func a2u(addr std.Address) users.AddressOrName {
-	return users.AddressOrName(addr)
 }
 
 func shouldPanicWithMsg(t *testing.T, f func(), msg string) {
