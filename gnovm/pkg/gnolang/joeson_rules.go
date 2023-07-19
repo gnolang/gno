@@ -52,12 +52,19 @@ var (
 			o(named("Literal", "BasicLit")),
 			// TODO add float_lit and imaginary_lit
 			// o(named("BasicLit", "int_lit | rune_lit | string_lit")),
-			o(named("BasicLit", "int_lit")),
-			o(named("int_lit", "hex_lit | octal_lit | binary_lit | decimal_lit")),
-			i(named("decimal_lit", "/^0|[1-9][_0-9]*[0-9]?/"), fInt), // x("decimal_lit")),
-			i(named("binary_lit", "/^0[bB]_?([01_])*[01]/"), fInt),
-			i(named("octal_lit", "/^0[oO]_?([01234567_])*[01234567]/"), fInt),
-			i(named("hex_lit", "/^0[xX]_?([0123456789a-fA-F_])*[0123456789a-fA-F]/"), fInt),
+			o(named("BasicLit", "float_lit | int_lit")),
+			o(named("int_lit", "hex_lit | octal_lit | binary_lit | decimal_lit"), fInt),
+			i(named("decimal_lit", "/^0|[1-9][_0-9]*[0-9]?/")), // x("decimal_lit")),
+			i(named("binary_lit", "/^0[bB]_?([01_])*[01]/")),
+			i(named("octal_lit", "/^0[oO]_?([01234567_])*[01234567]/")),
+			i(named("hex_lit", "/^0[xX]_?([0123456789a-fA-F_])*[0123456789a-fA-F]/")),
+			// float_lit
+			o(named("float_lit", "decimal_float_lit"), fFloat), // TODO | hex_float_lit")),
+			o(named("decimal_float_lit", "decimal_digits '.' decimal_digits? decimal_exponent?"+
+				"| decimal_digits decimal_exponent"+
+				"| '.' decimal_digits decimal_exponent?",
+			)),
+			o(named("decimal_exponent", "/[eE][+-]?/ decimal_digits")),
 			// o(named("OperandName", "QualifiedIdent | identifier")),
 			// i(named("QualifiedIdent", "PackageName '.' identifier"), x("QualifiedIdent")), // https://go.dev/ref/spec#QualifiedIdent
 			// i(named("PackageName", "identifier")),                                         // https://go.dev/ref/spec#PackageName
@@ -107,6 +114,7 @@ var (
 		i(named("comma", "',' | _")),
 		i(named("_", "/[ \t\n\r]*/")),
 		i(named("__", "/[ \t\n\r]+/")),
+		i(named("decimal_digits", "/[0-9](_?[0-9])*/")),
 	)
 )
 

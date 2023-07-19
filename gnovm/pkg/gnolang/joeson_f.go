@@ -1,24 +1,30 @@
 package gnolang
 
 import (
-	// "strconv"
-	"strings"
-
 	j "github.com/grepsuzette/joeson"
 )
 
 func fInt(it j.Ast, ctx *j.ParseContext) j.Ast {
-	s := it.(j.NativeString).Str
-	if strings.Contains(s, "__") {
-		return j.NewParseError(ctx, "invalid: only one _ at a time")
-	} else if strings.HasSuffix(s, "_") {
-		return j.NewParseError(ctx, "invalid: _ must separate successive digits")
-	} else {
-		return wrap(&BasicLitExpr{
-			Kind:  INT,
-			Value: s,
-		}, it)
+	return wrap(&BasicLitExpr{
+		Kind:  INT,
+		Value: it.(j.NativeString).Str,
+	}, it)
+}
+
+func fFloat(it j.Ast, ctx *j.ParseContext) j.Ast {
+	s := ""
+	switch v := it.(type) {
+	case j.NativeString:
+		s = v.Str
+	case *j.NativeArray:
+		s = v.Concat()
 	}
+	ns := j.NewNativeString(s)
+	ns.SetLocation(it.GetLocation())
+	return wrap(&BasicLitExpr{
+		Kind:  FLOAT,
+		Value: s,
+	}, ns)
 }
 
 // func fBinaryExpr(it j.Ast) j.Ast {

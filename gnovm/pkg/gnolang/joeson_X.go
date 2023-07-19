@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	j "github.com/grepsuzette/joeson"
@@ -18,6 +19,9 @@ func named(name string, thing any) j.NamedRule { return j.Named(name, thing) }
 // func (e *Expr) ContentString() string { return "TODO switch and show, BinaryExpr etc. See nodes.go" }
 
 // Rewrite of X() with Joeson
+// Since those Expr are now normally parsed using Joeson,
+// the joeson.Ast node is accessible with expr.(wrapped).ast
+// (but why not use GetAttribute("joeson")? the problem is parsers return j.Ast)
 func X(x interface{}, args ...interface{}) Expr {
 	switch cx := x.(type) {
 	case Expr:
@@ -48,11 +52,24 @@ func X(x interface{}, args ...interface{}) Expr {
 	if j.IsParseError(ast) {
 		panic(ast.String())
 	} else {
-		return ast.(wrapped).expr
+		switch v := ast.(type) {
+		case wrapped:
+			// when unwrapping, save joeson node in attributes
+			r := v.expr
+			r.SetAttribute("joeson", v.ast)
+			return r
+		default:
+			// non wrapped are problematic...
+			panic("X() is supposed to return Expr, but we have a " + reflect.TypeOf(ast).String() + " of String " + ast.String())
+		}
 	}
 }
 
 // TODO find where to initialize it
 func initGrammar() {
-	grammar = j.GrammarFromLines(gnoRules, "GNO-grammar", j.GrammarOptions{TraceOptions: j.Mute()})
+	grammar = j.GrammarFromLines(
+		gnoRules,
+		"GNO-grammar",
+		// j.GrammarOptions{TraceOptions: j.Mute()},
+	)
 }

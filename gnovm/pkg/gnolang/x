@@ -1,2 +1,2 @@
 # running go test . 
-TRACE=stack go test . --run TestJoeson -v
+TRACE=stack go test . --run ^TestJoeson -v
