@@ -1,6 +1,8 @@
 package gnolang
 
 import (
+	"fmt"
+
 	j "github.com/grepsuzette/joeson"
 )
 
@@ -47,9 +49,20 @@ func fExpression(it j.Ast) j.Ast {
 		} else if j.IsParseError(a[1]) {
 			return a[1]
 		} else {
-			lh := a[0].(wrapped).expr
+			var lh Expr
+			var rh Expr
+			switch v := a[0].(type) {
+			case wrapped:
+				lh = a[0].(wrapped).expr
+			case j.NativeString:
+				panic(v.String())
+				fmt.Println("few")
+			default:
+				panic("Aa")
+			}
+			lh = a[0].(wrapped).expr
 			op := Op2Word(a[1].(j.NativeString).Str)
-			rh := a[2].(wrapped).expr
+			rh = a[2].(wrapped).expr
 			return wrap(newBx(lh, op, rh), it)
 		}
 	} else {

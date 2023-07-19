@@ -53,23 +53,49 @@ var (
 			// TODO add float_lit and imaginary_lit
 			// o(named("BasicLit", "int_lit | rune_lit | string_lit")),
 			o(named("BasicLit", "float_lit | int_lit")),
-			o(named("int_lit", "hex_lit | octal_lit | binary_lit | decimal_lit"), fInt),
-			i(named("decimal_lit", "/^0|[1-9][_0-9]*[0-9]?/")), // x("decimal_lit")),
-			i(named("binary_lit", "/^0[bB]_?([01_])*[01]/")),
-			i(named("octal_lit", "/^0[oO]_?([01234567_])*[01234567]/")),
-			i(named("hex_lit", "/^0[xX]_?([0123456789a-fA-F_])*[0123456789a-fA-F]/")),
+			o(named("int_lit", rules(
+				o("hex_lit | octal_lit | binary_lit | decimal_lit", fInt),
+				i(named("decimal_lit", "/^0|[1-9][_0-9]*[0-9]?/")), // x("decimal_lit")),
+				i(named("binary_lit", "/^0[bB]_?([01_])*[01]/")),
+				i(named("octal_lit", "/^0[oO]_?([01234567_])*[01234567]/")),
+				i(named("hex_lit", "/^0[xX]_?([0123456789a-fA-F_])*[0123456789a-fA-F]/")),
+			))),
 			// float_lit
-			o(named("float_lit", "decimal_float_lit"), fFloat), // TODO | hex_float_lit")),
-			o(named("decimal_float_lit", "decimal_digits '.' decimal_digits? decimal_exponent?"+
-				"| decimal_digits decimal_exponent"+
-				"| '.' decimal_digits decimal_exponent?",
+			o(named("float_lit", "decimal_float_lit | hex_float_lit"), fFloat),
+			o(named("decimal_float_lit",
+				"dot decimal_digits decimal_exponent?"+
+					"| decimal_digits dot decimal_digits? decimal_exponent?"+
+					"| decimal_digits decimal_exponent",
 			)),
 			o(named("decimal_exponent", "/[eE][+-]?/ decimal_digits")),
+			o(named("hex_float_lit", "/0[xX]/ hex_mantissa hex_exponent | error_hexadecimal_literal_has_no_digits")),
+			o(named("error_hexadecimal_literal_has_no_digits", "/0[xX][0-9a-fA-F]*\\.[0-9a-fA-F]*/ hex_exponent"), func(it j.Ast) j.Ast { panic("hexadecimal literal has no digits") }),
+			o(named("hex_mantissa", "'_'? hex_digits dot hex_digits? |"+
+				"'_'? hex_digits |"+
+				"dot hex_digits",
+			)),
+			o(named("hex_exponent", "/[pP][+-]?/ decimal_digits")),
+			/*
+				o(named("float_lit", rules(
+					o("decimal_float_lit | hex_float_lit", fFloat),
+					o(named("decimal_float_lit",
+						"dot decimal_digits decimal_exponent?"+
+							"| decimal_digits dot decimal_digits? decimal_exponent?"+
+							"| decimal_digits decimal_exponent",
+					)),
+					o(named("decimal_exponent", "/[eE][+-]?/ decimal_digits")),
+					o(named("hex_float_lit", "/0[xX]/ hex_mantissa hex_exponent")),
+					o(named("hex_mantissa", "'_'? hex_digits dot hex_digits? |"+
+						"'_'? hex_digits |"+
+						"dot hex_digits",
+					)),
+					o(named("hex_exponent", "/[pP][+-]?/ decimal_digits")),
+				))),
+			*/
 			// o(named("OperandName", "QualifiedIdent | identifier")),
 			// i(named("QualifiedIdent", "PackageName '.' identifier"), x("QualifiedIdent")), // https://go.dev/ref/spec#QualifiedIdent
 			// i(named("PackageName", "identifier")),                                         // https://go.dev/ref/spec#PackageName
 			// o(named("Block", "'{' Statement*';' '}'")),
-
 			/*
 				o(named("FunctionLit", "'func' _ Signature _ FunctionBody")),
 				o(named("Signature", "Parameters _ Result?")),
@@ -112,9 +138,11 @@ var (
 		// carriage returns (U+000D), and newlines (U+000A), is ignored except as
 		// it separates tokens that would otherwise combine into a single token."
 		i(named("comma", "',' | _")),
+		i(named("dot", "'.'")), // when it needs to get captured (by default '.' in a sequence is not captured)
 		i(named("_", "/[ \t\n\r]*/")),
 		i(named("__", "/[ \t\n\r]+/")),
 		i(named("decimal_digits", "/[0-9](_?[0-9])*/")),
+		i(named("hex_digits", "/[0-9a-fA-F](_?[0-9a-fA-F])*/")),
 	)
 )
 

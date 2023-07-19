@@ -87,10 +87,33 @@ func TestJoesonUnaryExpr(t *testing.T) {
 		{"0xBadFace", "hex_lit"},
 		{"0xBad_Face", "hex_lit"},
 		{"0x_67_7a_2f_cc_40_c6", "hex_lit"},
-		{"1e043", "float_lit"},
-		{"1.e+3", "float_lit"},
-		{".4e+33493", "float_lit"},
-		{".4e-33493", "float_lit"},
+		{"0.", "float_lit"}, // spec/FloatingPointsLiterals.txt
+		{"72.40", "float_lit"},
+		{"072.40", "float_lit"}, // == 72.40
+		{"2.71828", "float_lit"},
+		{"1.e+0", "float_lit"},
+		{"6.67428e-11", "float_lit"},
+		{"1E6", "float_lit"},
+		{".25", "float_lit"},
+		{".12345E+5", "float_lit"},
+		{"1_5.", "float_lit"},                         // == 15.0
+		{"0.15e+0_2", "float_lit", "0.15e+0_2"},       // == 15.0
+		{"0x1p-2", "float_lit", "hex_float_lit"},      // == 0.25
+		{"0x2.p10", "float_lit", "hex_float_lit"},     // == 2048.0
+		{"0x1.Fp+0", "float_lit", "hex_float_lit"},    // == 1.9375
+		{"0X.8p-0", "float_lit", "hex_float_lit"},     // == 0.5
+		{"0X_1FFFP-16", "float_lit", "hex_float_lit"}, // == 0.1249847412109375
+		{"0x15e-2", "hex_lit", "decimal_lit"},         // == 0x15e - 2 (integer subtraction)
+
+		{"0x.p1", "ERROR hexadecimal literal has no digits"},
+		// 1p-2         // invalid: p exponent requires hexadecimal mantissa
+		// 0x1.5e-2     // invalid: hexadecimal mantissa requires p exponent
+		// 1_.5         // invalid: _ must separate successive digits
+		// 1._5         // invalid: _ must separate successive digits
+		// 1.5_e1       // invalid: _ must separate successive digits
+		// 1.5e_1       // invalid: _ must separate successive digits
+		// 1.5e1_       // invalid: _ must separate successive digits
+
 		// "func(a, b int, z float64) bool { return a*b < int(z) }": "func(a, b int, z float64) bool { return a*b < int(z) }", // FunctionLit
 	}
 	// sort.Strings(tests)
