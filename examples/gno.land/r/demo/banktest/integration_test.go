@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -48,6 +49,9 @@ func TestSimpleFlow(t *testing.T) {
 
 	// main1
 	if true {
+		ctx := m.Context.(stdlibs.ExecContext)
+		ctx.OrigSend = std.MustParseCoins("1234500000ugnot")
+		m.Context = ctx
 		println("main1")
 		memPkg := &std.MemPackage{
 			Name: pkgName,
@@ -77,6 +81,12 @@ func TestSimpleFlow(t *testing.T) {
 	}
 	// main2
 	if true {
+		ctx := m.Context.(stdlibs.ExecContext)
+		ctx.OrigSend = std.MustParseCoins("12345ugnot")
+		ctx.Height++
+		ctx.Timestamp++
+		m.Context = ctx
+
 		println("main2")
 		memPkg := &std.MemPackage{
 			Name: pkgName,
@@ -115,6 +125,7 @@ import "std"
 
 func main1() {
         banktest.Deposit("ugnot", 0)
+        println(banktest.Render(""))
         /* std.TestSetCaller */
         printStats("main1")
 }
@@ -132,6 +143,7 @@ import "std"
 func main2() {
         banktest.Deposit("ugnot", 0)
         /* std.TestSetCaller... */
+        println(banktest.Render(""))
         printStats2("main2")
 }
 
