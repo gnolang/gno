@@ -2,15 +2,12 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
-	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"strings"
-
-	"golang.org/x/term"
 
 	"github.com/gnolang/gno/gnovm/pkg/repl"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -88,103 +85,86 @@ func execRepl(cfg *replCfg, args []string) error {
 
 	if !cfg.skipUsage {
 		fmt.Fprint(os.Stderr, `// Usage:
-//   gno:1> import "gno.land/p/demo/avl"     // import the p/demo/avl package
-//   gno:2> func a() string { return "a" }   // declare a new function named a
-//   gno:3> /src                             // print current generated source
-//   gno:3> /reset                           // remove all previously inserted code
-//   gno:4> println(a())                     // print the result of calling a()
-//   gno:5> /exit
+//   gno> import "gno.land/p/demo/avl"     // import the p/demo/avl package
+//   gno> func a() string { return "a" }   // declare a new function named a
+//   gno> /src                             // print current generated source
+//   gno> /editor                          // enter in editor mode to add several lines
+//   gno> /reset                           // remove all previously inserted code
+//   gno> println(a())                     // print the result of calling a()
+//   gno> /exit
 `)
 	}
 
 	return runRepl(cfg)
 }
 
-type replCmd struct {
-	stdout io.Writer
+func runRepl(cfg *replCfg) error {
+	// init repl state
+	r := repl.NewRepl()
 
-	repl *repl.Repl
-}
+	if cfg.initialCommand != "" {
+		handleInput(r, cfg.initialCommand)
+	}
 
-func (r *replCmd) handleInput(input string) error {
-	switch strings.TrimSpace(input) {
-	case "/reset":
-		r.repl.Reset()
-	case "/src":
-		fmt.Fprintln(r.stdout, r.repl.Src())
-	case "/exit":
-		os.Exit(0) // return special err?
-	default:
-		out, err := r.repl.Process(input)
+	var multiline bool
+	for {
+		fmt.Fprint(os.Stdout, "gno> ")
+
+		input, err := getInput(multiline)
 		if err != nil {
 			return err
 		}
-		fmt.Fprintln(r.stdout, out)
-	}
 
-	return nil
+		multiline = handleInput(r, input)
+	}
 }
 
-func runRepl(cfg *replCfg) error {
-	stdout := os.Stdout
-
-	// init repl state
-	r := replCmd{
-		repl:   repl.NewRepl(),
-		stdout: stdout,
-	}
-
-	if cfg.initialCommand != "" {
-		r.handleInput(cfg.initialCommand)
-	}
-
-	stdin := os.Stdin
-
-	// main loop
-	isTerm := term.IsTerminal(int(stdin.Fd()))
-
-	if isTerm {
-		rw := struct {
-			io.Reader
-			io.Writer
-		}{os.Stdin, os.Stderr}
-		t := term.NewTerminal(rw, "")
-		for {
-			// prompt and parse
-			t.SetPrompt("gno:> ")
-			oldState, err := term.MakeRaw(0)
-			if err != nil {
-				return fmt.Errorf("make term raw: %w", err)
-			}
-
-			input, err := t.ReadLine()
-			if err != nil {
-				term.Restore(0, oldState)
-				if errors.Is(err, io.EOF) {
-					return nil
-				}
-				return fmt.Errorf("term error: %w", err)
-			}
-			term.Restore(0, oldState)
-
-			err = r.handleInput(input)
-			if err != nil {
-				return fmt.Errorf("handle repl input: %w", err)
-			}
-		}
-	} else { // !isTerm
-		scanner := bufio.NewScanner(stdin)
-		for scanner.Scan() {
-			input := scanner.Text()
-			err := r.handleInput(input)
-			if err != nil {
-				return fmt.Errorf("handle repl input: %w", err)
-			}
-		}
-		err := scanner.Err()
+func handleInput(r *repl.Repl, input string) bool {
+	switch strings.TrimSpace(input) {
+	case "/reset":
+		r.Reset()
+	case "/src":
+		fmt.Fprintln(os.Stdout, r.Src())
+	case "/exit":
+		os.Exit(0)
+	case "/editor":
+		fmt.Fprintln(os.Stdout, "// Entering editor mode (^D to finish)")
+		return true
+	case "":
+		// avoid to increase the repl execution counter if sending empty content
+		return false
+	default:
+		out, err := r.Process(input)
 		if err != nil {
-			return fmt.Errorf("read stdin: %w", err)
+			fmt.Fprintln(os.Stderr, err)
+
 		}
+		fmt.Fprintln(os.Stdout, out)
 	}
-	return nil
+
+	return false
+}
+
+func getInput(ml bool) (string, error) {
+	s := bufio.NewScanner(os.Stdin)
+	var mlOut bytes.Buffer
+	for s.Scan() {
+		line := s.Text()
+		if !ml {
+			return line, nil
+		}
+
+		if line == "^D" {
+			break
+		}
+
+		mlOut.WriteString(line)
+		mlOut.WriteString("\n")
+	}
+
+	if err := s.Err(); err != nil {
+		return "", err
+	}
+
+	return mlOut.String(), nil
 }

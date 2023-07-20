@@ -26,6 +26,19 @@ var fixtures = []struct {
 		},
 	},
 	{
+		Name: "Add wrong code",
+		CodeSteps: []step{
+			{
+				Line:  "importasdasd",
+				Error: "recovered from panic: test/test1.gno:7: name importasdasd not declared",
+			},
+			{
+				Line:  "var a := 1",
+				Error: "error parsing code as expression (error: error formatting code: 9:8: expected type, found ':=') and as declarations (error: error formatting code: 6:7: expected type, found ':=')",
+			},
+		},
+	},
+	{
 		Name: "Add function and use it",
 		CodeSteps: []step{
 			{
@@ -55,6 +68,26 @@ var fixtures = []struct {
 			},
 		},
 	},
+	{
+		Name: "Fibonacci",
+		CodeSteps: []step{
+			{
+				Line: `
+				func fib(n int)int {
+					if n < 2 {
+						return n
+					}
+					return fib(n-2) + fib(n-1)
+				}
+				`,
+				Result: "func fib(n int) int {\n\tif n < 2 {\n\t\treturn n\n\t}\n\treturn fib(n-2) + fib(n-1)\n}\n",
+			},
+			{
+				Line:   "println(fib(24))",
+				Result: "46368\n",
+			},
+		},
+	},
 }
 
 func TestRepl(t *testing.T) {
@@ -66,7 +99,7 @@ func TestRepl(t *testing.T) {
 				if cs.Error == "" {
 					require.NoError(t, err)
 				} else {
-					require.Error(t, err)
+					require.EqualError(t, err, cs.Error)
 				}
 
 				require.Equal(t, out, cs.Result)

@@ -84,6 +84,7 @@ func newMachine(b *bytes.Buffer) *gno.Machine {
 	})
 }
 
+// NewRepl creates a Repl struct. It is able to process input source code and eventually run it.
 func NewRepl() *Repl {
 	t, err := template.New("tmpl").Parse(fileTemplate)
 	if err != nil {
@@ -96,6 +97,10 @@ func NewRepl() *Repl {
 	}
 }
 
+// Process will accept any valid code and execute it if it is an expression,
+// or store it for later use if they are declarations.
+// If the provided input is not valid source code, an error is returned.
+// If the execution on the VM is not successful, the panic is recovered and returned as an error.
 func (r *Repl) Process(input string) (out string, err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -236,10 +241,11 @@ func (r *Repl) executeAndParse(m *tempModel) (*ast.File, error) {
 		return nil, fmt.Errorf("error formatting code: %w", err)
 	}
 
-	name := fmt.Sprintf("test%d.gno", r.state.id)
+	name := r.filename()
 	return parser.ParseFile(r.state.fileset, name, formatted, parser.AllErrors|parser.ParseComments)
 }
 
+// Reset will reset the actual repl state, restarting the internal VM
 func (r *Repl) Reset() {
 	r.state.machine.Release()
 	r.state = newState()
@@ -247,6 +253,7 @@ func (r *Repl) Reset() {
 
 const separator = "//----------------------------------//\n"
 
+// Src will print all the valid code introduced on this Repl session.
 func (r *Repl) Src() string {
 	var b bytes.Buffer
 
