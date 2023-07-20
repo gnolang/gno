@@ -1,10 +1,10 @@
 // eval realm is capable of evaluating 32-bit integer
 // expressions as they would appear in Go. For example:
-// /r/demo/eval:(4+12)/2-1+11*15
+// /r/demo/math_eval:(4+12)/2-1+11*15
 package eval
 
 import (
-	evalint32 "gno.land/p/demo/eval/int32"
+	evalint32 "gno.land/p/demo/math_eval_int32"
 	"gno.land/p/demo/ufmt"
 )
 
@@ -13,7 +13,7 @@ func Render(p string) string {
 		return `
 evaluates 32-bit integer expressions. for example:
 		
-[(4+12)/2-1+11*15](/r/demo/eval:(4+12)/2-1+11*15)
+[(4+12)/2-1+11*15](/r/demo/math_eval:(4+12)/2-1+11*15)
 
 `
 	}
