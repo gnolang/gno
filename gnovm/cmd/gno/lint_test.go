@@ -7,31 +7,25 @@ func TestLintApp(t *testing.T) {
 		{
 			args:        []string{"lint"},
 			errShouldBe: "flag: help requested",
+		}, {
+			args:                []string{"lint", "--set_exit_status=0", "../../tests/integ/run-main/"},
+			stderrShouldContain: "./../../tests/integ/run-main: missing 'gno.mod' file (code=1).",
+		}, {
+			args:                []string{"lint", "--set_exit_status=0", "../../tests/integ/run-main/"},
+			stderrShouldContain: "./../../tests/integ/run-main: missing 'gno.mod' file (code=1).",
+		}, {
+			args: []string{"lint", "--set_exit_status=0", "../../tests/integ/minimalist-gnomod/"},
+			// TODO: raise an error because there is a gno.mod, but no .gno files
+		}, {
+			args: []string{"lint", "--set_exit_status=0", "../../tests/integ/invalid-module-name/"},
+			// TODO: raise an error because gno.mod is invalid
 		},
-		{
-			args:                []string{"lint", "../../tests/integ/lint-main/main.gno"},
-			stdoutShouldContain: "hello world!",
-		},
-		{
-			args:                 []string{"lint", "../../tests/integ/lint-main/"},
-			recoverShouldContain: "read ../../tests/integ/lint-main/: is a directory", // FIXME: should work
-		},
-		{
-			args:                 []string{"lint", "../../tests/integ/does-not-exist"},
-			recoverShouldContain: "open ../../tests/integ/does-not-exist: no such file or directory",
-		},
-		{
-			args:                 []string{"lint", "../../tests/integ/lint-namedpkg/main.gno"},
-			recoverShouldContain: "expected package name [main] but got [namedpkg]", // FIXME: should work
-		},
-		// TODO: multiple files
-		// TODO: a test file
-		// TODO: a file without main
-		// TODO: args
-		// TODO: nativeLibs VS stdlibs
-		// TODO: with gas meter
-		// TODO: verbose
-		// TODO: logging
+		// TODO: 'gno mod' is valid?
+		// TODO: is gno source valid?
+		// TODO: are dependencies valid?
+		// TODO: is gno source using unsafe/discouraged features?
+		// TODO: consider making `gno precompile; go lint *gen.go`
+		// TODO: check for imports of native libs from non _test.gno files
 	}
-	testMainCaseLint(t, tc)
+	testMainCaseRun(t, tc)
 }

@@ -81,14 +81,10 @@ func execLint(cfg *lintCfg, args []string, io *commands.IO) error {
 			})
 		}
 
-		// TODO: 'gno mod' is valid?
-		// TODO: is gno source valid?
-		// TODO: are dependencies valid?
-		// TODO: is gno source using unsafe/discouraged features?
-		// TODO: consider making `gno precompile; go lint *gen.go`
+		// TODO: add more checkers
 	}
 
-	if hasError {
+	if hasError && cfg.setExitStatus != 0 {
 		os.Exit(cfg.setExitStatus)
 	}
 	return nil
