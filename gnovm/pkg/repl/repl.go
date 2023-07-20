@@ -118,7 +118,7 @@ func (r *Repl) Process(input string) (out string, err error) {
 		return r.handleDeclarations(decl)
 	}
 
-	return "", fmt.Errorf("error parsing code as expression (error: %w) and as declarations (error: %w)", expErr, declErr)
+	return "", fmt.Errorf("error parsing code:\n\t- as expression (error: %q)\n\t- as declarations (error: %q)", expErr.Error(), declErr.Error())
 }
 
 func (r *Repl) handleExpression(e *ast.File) (string, error) {

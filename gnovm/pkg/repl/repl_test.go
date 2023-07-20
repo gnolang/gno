@@ -34,7 +34,7 @@ var fixtures = []struct {
 			},
 			{
 				Line:  "var a := 1",
-				Error: "error parsing code as expression (error: error formatting code: 9:8: expected type, found ':=') and as declarations (error: error formatting code: 6:7: expected type, found ':=')",
+				Error: "error parsing code:\n\t- as expression (error: \"error formatting code: 9:8: expected type, found ':='\")\n\t- as declarations (error: \"error formatting code: 6:7: expected type, found ':='\")",
 			},
 		},
 	},
