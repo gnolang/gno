@@ -4,7 +4,7 @@
 package eval
 
 import (
-	evalint32 "gno.land/p/demo/math_eval_int32"
+	evalint32 "gno.land/p/demo/math_eval/int32"
 	"gno.land/p/demo/ufmt"
 )
 
