@@ -33,8 +33,9 @@ var fixtures = []struct {
 				Error: "recovered from panic: test/test1.gno:7: name importasdasd not declared",
 			},
 			{
-				Line:  "var a := 1",
-				Error: "error parsing code:\n\t- as expression (error: \"error formatting code: 9:8: expected type, found ':='\")\n\t- as declarations (error: \"error formatting code: 6:7: expected type, found ':='\")",
+				Line: "var a := 1",
+				// we cannot check the entire error because it is different depending on the used Go version.
+				Error: "error parsing code:",
 			},
 		},
 	},
@@ -99,7 +100,7 @@ func TestRepl(t *testing.T) {
 				if cs.Error == "" {
 					require.NoError(t, err)
 				} else {
-					require.EqualError(t, err, cs.Error)
+					require.Contains(t, err.Error(), cs.Error)
 				}
 
 				require.Equal(t, out, cs.Result)
