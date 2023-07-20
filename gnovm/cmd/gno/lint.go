@@ -4,20 +4,18 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
 type lintCfg struct {
-	verbose bool
-	rootDir string
-	// dry-run
-	// auto-fix
+	verbose       bool
+	rootDir       string
+	setExitStatus int
+	// min_confidence: minimum confidence of a problem to pirnt it (default 0.8)
+	// auto-fix: apply suggested fixes automatically.
 }
-
-// – setup in ci
-// – add comment about what to do with syntax, also
-// – gno.mod
 
 func newLintCmd(io *commands.IO) *commands.Command {
 	cfg := &lintCfg{}
@@ -36,19 +34,9 @@ func newLintCmd(io *commands.IO) *commands.Command {
 }
 
 func (c *lintCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.BoolVar(
-		&c.verbose,
-		"verbose",
-		false,
-		"verbose output when lintning",
-	)
-
-	fs.StringVar(
-		&c.rootDir,
-		"root-dir",
-		"",
-		"clone location of github.com/gnolang/gno (gnodev tries to guess it)",
-	)
+	fs.BoolVar(&c.verbose, "verbose", false, "verbose output when lintning")
+	fs.StringVar(&c.rootDir, "root-dir", "", "clone location of github.com/gnolang/gno (gnodev tries to guess it)")
+	fs.IntVar(&c.setExitStatus, "set_exit_status", 1, "set exit status to 1 if any issues are found")
 }
 
 func execLint(cfg *lintCfg, args []string, io *commands.IO) error {
@@ -57,11 +45,8 @@ func execLint(cfg *lintCfg, args []string, io *commands.IO) error {
 	}
 
 	var (
-		// verbose = cfg.verbose
+		verbose = cfg.verbose
 		rootDir = cfg.rootDir
-		// stdin   = io.In
-		// stdout  = io.Out
-		// stderr  = io.Err
 	)
 	if rootDir == "" {
 		rootDir = guessRootDir()
@@ -72,11 +57,24 @@ func execLint(cfg *lintCfg, args []string, io *commands.IO) error {
 		return fmt.Errorf("list packages from args: %w", err)
 	}
 
+	hasError := false
 	for _, pkgPath := range pkgPaths {
-		println(pkgPath)
+		if verbose {
+			fmt.Fprintf(io.Err, "Linting %q...\n", pkgPath)
+		}
+		// – setup in ci
+		// – add comment about what to do with syntax, also
+		// – gno.mod
+		// - update docs/
+		// - clear comments with fix suggestion
+
 		// 1. lint the package (gno.mod, etc)
 		// 2. lint the files individually
 		// 3. TODO: consider making `gno precompile; go lint *gen.go`
+	}
+
+	if hasError {
+		os.Exit(cfg.setExitStatus)
 	}
 	return nil
 }
