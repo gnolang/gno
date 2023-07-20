@@ -137,7 +137,6 @@ func handleInput(r *repl.Repl, input string) bool {
 		out, err := r.Process(input)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
-
 		}
 		fmt.Fprintln(os.Stdout, out)
 	}
