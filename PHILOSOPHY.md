@@ -2,11 +2,12 @@
 
  * Simplicity of design.
  * The code is the spec.
- * Minimal dependencies - all dependencies must get audited.
- * Completeness - software projects that don't become
-   complete are projects that are forever vulnerable.  One of
-the primary goals of the Gno language and related works is to
-become finished within a reasonable timeframe.
+ * Minimal code - keep total footprint small.
+ * Minimal dependencies - all dependencies must get audited, and become part of the repo.
+ * Modular dependencies - whereever reasonable, make components modular.
+ * Finished - software projects that don't become finished are projects that
+   are forever vulnerable. One of the primary goals of the Gno language and
+   related works is to become finished within a reasonable timeframe.
 
 ## Gno Philosophy
 

@@ -49,17 +49,26 @@ func Allowance(owner, spender users.AddressOrName) uint64 {
 
 func Transfer(to users.AddressOrName, amount uint64) {
 	caller := std.PrevRealm().Addr()
-	foo.Transfer(caller, to.Resolve(), amount)
+	err := foo.Transfer(caller, to.Resolve(), amount)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func Approve(spender users.AddressOrName, amount uint64) {
 	caller := std.PrevRealm().Addr()
-	foo.Approve(caller, spender.Resolve(), amount)
+	err := foo.Approve(caller, spender.Resolve(), amount)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func TransferFrom(from, to users.AddressOrName, amount uint64) {
 	caller := std.PrevRealm().Addr()
-	foo.TransferFrom(caller, from.Resolve(), to.Resolve(), amount)
+	err := foo.TransferFrom(caller, from.Resolve(), to.Resolve(), amount)
+	if err != nil {
+		panic(err)
+	}
 }
 
 // faucet.
@@ -68,7 +77,10 @@ func Faucet() {
 	// FIXME: add limits?
 	// FIXME: add payment in gnot?
 	caller := std.PrevRealm().Addr()
-	foo.Mint(caller, 1000*10000) // 1k
+	err := foo.Mint(caller, 1000*10000) // 1k
+	if err != nil {
+		panic(err)
+	}
 }
 
 // administration.
@@ -76,13 +88,19 @@ func Faucet() {
 func Mint(address users.AddressOrName, amount uint64) {
 	caller := std.PrevRealm().Addr()
 	assertIsAdmin(caller)
-	foo.Mint(address.Resolve(), amount)
+	err := foo.Mint(address.Resolve(), amount)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func Burn(address users.AddressOrName, amount uint64) {
 	caller := std.PrevRealm().Addr()
 	assertIsAdmin(caller)
-	foo.Burn(address.Resolve(), amount)
+	err := foo.Burn(address.Resolve(), amount)
+	if err != nil {
+		panic(err)
+	}
 }
 
 // render.
