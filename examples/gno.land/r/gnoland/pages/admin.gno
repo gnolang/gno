@@ -35,7 +35,7 @@ func AdminAddModerator(addr std.Address) {
 
 func AdminRemoveModerator(addr std.Address) {
 	assertIsAdmin()
-	moderatorList.Set(addr.String(), false) // FIXME: delete instead?
+	moderatorList.Set(addr.String(), false) // XXX: delete instead?
 }
 
 func ModAddPost(slug, title, body, tags string) {
