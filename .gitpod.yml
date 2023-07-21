@@ -4,12 +4,16 @@ tasks:
   - name: Gno Shell
     before: cd ./examples/
     init: |
-      cd ..
-      echo "install developer tools"
-      (cd misc/devdeps && make install)
-      echo "download dependencies"
-      go mod download
-      go install ./gnovm/cmd/gno
+      (
+        set -xe
+        cd ..
+        echo "install developer tools"
+        (cd misc/devdeps && make install)
+        echo "download dependencies"
+        go mod download
+        go install ./gnovm/cmd/gno
+        echo "Deps installed."
+      )
     command: gno --help
 
   - name: Gnoland Node
