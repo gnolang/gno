@@ -11,13 +11,13 @@ tm2/pkg                      @jaekwon @moul
 
 
 # Docs & Content.
-docs/                        @gnolang/tech-staff
-*.md                         @gnolang/tech-staff
+docs/                        @gnolang/tech-staff @gnolang/devrels
+*.md                         @gnolang/tech-staff @gnolang/devrels
 # TODO: add non-tech people here.
 
 
 # Gno examples and default contracts.
-examples/*                   @gnolang/tech-staff
+examples/*                   @gnolang/tech-staff @gnolang/devrels
 # TODO: add people from the community here.
 
 
