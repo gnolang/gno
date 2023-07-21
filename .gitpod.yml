@@ -30,20 +30,18 @@ ports:
     description: "the Gno.land web server"
     port: 8888
     onOpen: open-preview
-    #public: true
 
   - name: "gnoland RPC"
     description: "the RPC server, managed by tendermint2"
     port: 36657
     onOpen: notify
-    #public: true
 
 github:
   prebuilds:
     master: true
-    branches: true
-    pullRequests: true
-    pullRequestsFromForks: true
+    branches: false
+    pullRequests: false
+    pullRequestsFromForks: false
     addCheck: false
     addComment: false
     addBadge: false
