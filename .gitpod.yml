@@ -2,7 +2,9 @@
 
 tasks:
   - name: Gno Shell
+    before: cd ./examples/
     init: |
+      cd ..
       echo "install developer tools"
       (cd misc/devdeps && make install)
       echo "download dependencies"
@@ -11,12 +13,12 @@ tasks:
     command: gno --help
 
   - name: Gnoland Node
-    before: cd ./gno.land
+    before: cd ./gno.land/
     init: go install ./cmd/gnoland
     command: gnoland start
 
   - name: Gnoland Website
-    before: cd ./gno.land
+    before: cd ./gno.land/
     init: go install ./cmd/gnoweb
     command: gnoweb --bind=0.0.0.0:8888
 
