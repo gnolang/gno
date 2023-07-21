@@ -1,24 +1,27 @@
 # http://gitpod.io/#github.com/gnolang/gno
 
 tasks:
-  - name: Dev Shell
-    init: >
-      echo "install developer tools" &&
-      (cd misc/devdeps && make install) &&
-      echo "download dependencies" &&
-      go mod download &&
+  - name: Gno Shell
+    init: |
+      echo "install developer tools"
+      (cd misc/devdeps && make install)
+      echo "download dependencies"
+      go mod download
       go install ./gnovm/cmd/gno
     command: gno --help
 
   - name: Gnoland Node
-    init: go install ./gno.land/cmd/gnoland
-    command: >
-      cd ./gno.land &&
-      gnoland start
+    before: cd ./gno.land
+    init: go install ./cmd/gnoland
+    command: gnoland start
 
   - name: Gnoland Website
-    init: go install ./gno.land/cmd/gnoweb
+    before: cd ./gno.land
+    init: go install ./cmd/gnoweb
     command: gnoweb --bind=0.0.0.0:8888
+
+  #- name: faucet
+  #  ...
 
 ports:
   - name: gnoweb
@@ -32,3 +35,13 @@ ports:
     port: 36657
     onOpen: notify
     public: true
+
+github:
+  prebuilds:
+    master: true
+    branches: true
+    pullRequests: true
+    pullRequestsFromForks: true
+    addCheck: false
+    addComment: false
+    addBadge: false
