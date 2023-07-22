@@ -1,3 +1,3 @@
 // Draft
 
-module gno.land/r/demo/x/upgrade
+module gno.land/r/x/manfred_upgrade_patterns
