@@ -17,9 +17,10 @@ const components = [
   { name: "columns-2", toRender: (content) => `<div class="columns-2">${content}</div>` },
   { name: "columns-3", toRender: (content) => `<div class="columns-3">${content}</div>` },
   { name: "column", toRender: (content) => `<div>${content}</div>` },
+  { name: "alert", toRender: (content, type) => `<div class="alert alert-${type}" role="alert">${content}</div>` },
   {
     name: "accordion",
-    toRender: (content, attr) => `<button type="button" aria-expanded="true" class="accordion-trigger">${attr}</button><div role="region" class="accordion-panel">${content}</div>`,
+    toRender: (content, label) => `<button type="button" aria-expanded="true" class="accordion-trigger">${label}</button><div role="region" class="accordion-panel">${content}</div>`,
   },
 ];
 

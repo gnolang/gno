@@ -63,6 +63,22 @@ Content 3
 Accordion content
 :::accordion/
 
+:::alert (warning)
+Warning content
+:::alert/
+
+:::alert (info)
+Info content
+:::alert/
+
+:::alert (danger)
+Danger content
+:::alert/
+
+:::alert (success)
+Success content
+:::alert/
+
 # Explore new packages.
 
 - r/gnoland
