@@ -2,6 +2,7 @@ package stdlibs
 
 import (
 	"crypto/sha256"
+	"fmt"
 	"math"
 	"reflect"
 	"strconv"
@@ -314,6 +315,23 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 					lastCaller  = ctx.OrigCaller
 					lastPkgPath = ""
 				)
+
+				for i := m.NumFrames() - 1; i > 0; i-- {
+					fr := m.Frames[i]
+					fmt.Printf("Frame[%d] ", i)
+					// if fr.LastPackage != nil && fr.LastPackage.IsRealm() {
+					if fr.LastPackage != nil {
+						lastCaller = fr.LastPackage.GetPkgAddr().Bech32()
+						lastPkgPath = fr.LastPackage.PkgPath
+
+						fmt.Printf("lastCaller: %v, ", lastCaller)
+						fmt.Printf("lastPkgPath: %v", lastPkgPath)
+					}
+					fmt.Printf("\n")
+				}
+
+				lastCaller = ctx.OrigCaller
+				lastPkgPath = ""
 
 				for i := m.NumFrames() - 1; i > 0; i-- {
 					fr := m.Frames[i]
