@@ -12,6 +12,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	joeson "github.com/grepsuzette/joeson"
 )
 
 // ----------------------------------------
@@ -152,17 +153,17 @@ func (loc Location) IsZero() bool {
 // for preprocessing) are stored in .data.
 
 type Attributes struct {
-	Line  int
-	Label Name
-	data  map[interface{}]interface{} // not persisted
+	Label  Name
+	Origin joeson.Origin
+	data   map[interface{}]interface{} // not persisted
 }
 
 func (attr *Attributes) GetLine() int {
-	return attr.Line
+	return attr.Origin.Line
 }
 
 func (attr *Attributes) SetLine(line int) {
-	attr.Line = line
+	attr.Origin.Line = line
 }
 
 func (attr *Attributes) GetLabel() Name {
@@ -189,6 +190,14 @@ func (attr *Attributes) SetAttribute(key interface{}, value interface{}) {
 	attr.data[key] = value
 }
 
+func (attr *Attributes) GetOrigin() joeson.Origin {
+	return attr.Origin
+}
+
+func (attr *Attributes) SetOrigin(origin joeson.Origin) {
+	attr.Origin = origin
+}
+
 // ----------------------------------------
 // Node
 
@@ -203,6 +212,8 @@ type Node interface {
 	HasAttribute(key interface{}) bool
 	GetAttribute(key interface{}) interface{}
 	SetAttribute(key interface{}, value interface{})
+	GetOrigin() joeson.Origin
+	SetOrigin(o joeson.Origin)
 }
 
 // non-pointer receiver to help make immutable.
