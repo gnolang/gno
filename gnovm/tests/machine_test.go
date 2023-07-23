@@ -38,7 +38,7 @@ func TestMachineTestMemPackage(t *testing.T) {
 			testing.RunTests(matchFunc, []testing.InternalTest{
 				{
 					Name: tt.name,
-					F: func(t *testing.T) { //nolint:thelper
+					F: func(t2 *testing.T) { //nolint:thelper
 						rootDir := filepath.Join("..", "..")
 						store := TestStore(rootDir, "test", os.Stdin, os.Stdout, os.Stderr, ImportModeStdlibsOnly)
 						store.SetLogStoreOps(true)
@@ -50,12 +50,12 @@ func TestMachineTestMemPackage(t *testing.T) {
 						})
 						memPkg := gno.ReadMemPackage(tt.path, "test")
 
-						m.TestMemPackage(t, memPkg)
+						m.TestMemPackage(t2, memPkg)
 
 						if tt.shouldSucceed {
-							assert.False(t, t.Failed(), "test %q should have succeed", tt.name)
+							assert.False(t, t2.Failed(), "test %q should have succeed", tt.name)
 						} else {
-							assert.True(t, t.Failed(), "test %q should have failed", tt.name)
+							assert.True(t, t2.Failed(), "test %q should have failed", tt.name)
 						}
 					},
 				},
