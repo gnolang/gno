@@ -19,7 +19,7 @@ import "strconv"
 //	%d: formats an integer value using package "strconv".
 //	    Currently supports only uint, uint64, int, int64.
 //	%t: formats a boolean value to "true" or "false".
-//	%%: outputs a literal %. Does not consume a verb.
+//	%%: outputs a literal %. Does not consume an argument.
 func Sprintf(format string, args ...interface{}) string {
 	end := len(format)
 	argNum := 0
