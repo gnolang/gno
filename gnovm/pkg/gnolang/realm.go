@@ -1341,7 +1341,7 @@ func fillTypesOfValue(store Store, val Value) Value {
 		fillTypesTV(store, &cv.Receiver)
 		return cv
 	case *MapValue:
-		cv.MakeMap(cv.List.Size) // TODO move out.
+		cv.vmap = make(map[MapKey]*MapListItem, cv.List.Size)
 		for cur := cv.List.Head; cur != nil; cur = cur.Next {
 			fillTypesTV(store, &cur.Key)
 			fillTypesTV(store, &cur.Value)

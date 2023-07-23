@@ -74,7 +74,7 @@ func BenchmarkSliceIterate10(b *testing.B) {
 			}
 		}
 	}
-	fmt.Println(fs)
+	b.Log(fs)
 }
 
 type SomeStruct struct {
@@ -93,7 +93,7 @@ func BenchmarkStructStack(b *testing.B) {
 		s := SomeStruct{Field1: int32(i) % 20, Field2: 1}
 		x = s.it()
 	}
-	fmt.Println(x)
+	b.Log(x)
 }
 
 // this doesn't work
@@ -104,7 +104,7 @@ func BenchmarkStructGC(b *testing.B) {
 		s := gen(i)
 		x = s.Field1
 	}
-	fmt.Println(x)
+	b.Log(x)
 }
 
 type TestField struct {
@@ -239,7 +239,7 @@ func BenchmarkTypeSwitchOrCreate(b *testing.B) {
 				}
 			}
 		}
-		fmt.Println(c)
+		b.Log(c)
 	})
 	b.Run("super-struct", func(b *testing.B) {
 		for j := 0; j < b.N; j++ {
@@ -252,7 +252,7 @@ func BenchmarkTypeSwitchOrCreate(b *testing.B) {
 				}
 			}
 		}
-		fmt.Println(c)
+		b.Log(c)
 	})
 }
 
@@ -270,7 +270,7 @@ func BenchmarkReflectValueOf(b *testing.B) {
 			}
 		})
 	}
-	fmt.Println(rv)
+	b.Log(rv)
 }
 
 func BenchmarkReflectAddInt64(b *testing.B) {
@@ -279,7 +279,7 @@ func BenchmarkReflectAddInt64(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		x += rv.Int()
 	}
-	fmt.Println(x)
+	b.Log(x)
 }
 
 func BenchmarkNativeAddInt64(b *testing.B) {
@@ -287,7 +287,7 @@ func BenchmarkNativeAddInt64(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		x += 1
 	}
-	fmt.Println(x)
+	b.Log(x)
 }
 
 func BenchmarkReflectTypeOf(b *testing.B) {
@@ -296,7 +296,7 @@ func BenchmarkReflectTypeOf(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		rt = reflect.TypeOf(x)
 	}
-	fmt.Println(x, rt)
+	b.Log(x, rt)
 }
 
 func BenchmarkInterfaceEquality(b *testing.B) {
@@ -308,7 +308,7 @@ func BenchmarkInterfaceEquality(b *testing.B) {
 			ctr++
 		}
 	}
-	fmt.Println(ctr)
+	b.Log(ctr)
 }
 
 func BenchmarkPointerEquality(b *testing.B) {
@@ -322,7 +322,7 @@ func BenchmarkPointerEquality(b *testing.B) {
 			ctr++
 		}
 	}
-	fmt.Println(ctr)
+	b.Log(ctr)
 }
 
 func BenchmarkPointerDerefEquality(b *testing.B) {
@@ -336,7 +336,7 @@ func BenchmarkPointerDerefEquality(b *testing.B) {
 			ctr++
 		}
 	}
-	fmt.Println(ctr)
+	b.Log(ctr)
 }
 
 func BenchmarkArrayEquality(b *testing.B) {
@@ -349,7 +349,7 @@ func BenchmarkArrayEquality(b *testing.B) {
 				ctr++
 			}
 		}
-		fmt.Println(ctr)
+		b.Log(ctr)
 	})
 	b.Run("ArrayEquality[8]", func(b *testing.B) {
 		ctr := 0
@@ -360,7 +360,7 @@ func BenchmarkArrayEquality(b *testing.B) {
 				ctr++
 			}
 		}
-		fmt.Println(ctr)
+		b.Log(ctr)
 	})
 	b.Run("ArrayEquality[16]", func(b *testing.B) {
 		ctr := 0
@@ -371,7 +371,7 @@ func BenchmarkArrayEquality(b *testing.B) {
 				ctr++
 			}
 		}
-		fmt.Println(ctr)
+		b.Log(ctr)
 	})
 	b.Run("ArrayEquality[20]", func(b *testing.B) {
 		ctr := 0
@@ -382,7 +382,7 @@ func BenchmarkArrayEquality(b *testing.B) {
 				ctr++
 			}
 		}
-		fmt.Println(ctr)
+		b.Log(ctr)
 	})
 	b.Run("ArrayEquality[32]", func(b *testing.B) {
 		ctr := 0
@@ -393,7 +393,7 @@ func BenchmarkArrayEquality(b *testing.B) {
 				ctr++
 			}
 		}
-		fmt.Println(ctr)
+		b.Log(ctr)
 	})
 	b.Run("ArrayEquality[64]", func(b *testing.B) {
 		ctr := 0
@@ -404,7 +404,7 @@ func BenchmarkArrayEquality(b *testing.B) {
 				ctr++
 			}
 		}
-		fmt.Println(ctr)
+		b.Log(ctr)
 	})
 	b.Run("ArrayEquality[256]", func(b *testing.B) {
 		ctr := 0
@@ -415,6 +415,6 @@ func BenchmarkArrayEquality(b *testing.B) {
 				ctr++
 			}
 		}
-		fmt.Println(ctr)
+		b.Log(ctr)
 	})
 }

@@ -1,6 +1,7 @@
 package errors
 
 import (
+	"errors"
 	fmt "fmt"
 	"testing"
 
@@ -60,6 +61,15 @@ func TestErrorNew(t *testing.T) {
 	assert.NotContains(t, fmt.Sprintf("%#v", err), "Stack Trace")
 }
 
+func TestErrorNewWithDetails(t *testing.T) {
+	err := New("formatter%v%v", 0, 1)
+	err.Trace(0, "trace %v", 1)
+	err.Trace(0, "trace %v", 2)
+	err.Trace(0, "trace %v", 3)
+	assert.Contains(t, fmt.Sprintf("%+v", err), `Data: formatter01`)
+	assert.Contains(t, fmt.Sprintf("%+v", err), "Msg Traces:\n    0")
+}
+
 func TestErrorNewWithStacktrace(t *testing.T) {
 	err := New("formatter%v%v", 0, 1).Stacktrace()
 
@@ -93,4 +103,10 @@ func TestWrapError(t *testing.T) {
 	var err1 error = New("my message")
 	var err2 error = Wrap(err1, "another message")
 	assert.Equal(t, err1, err2)
+	assert.True(t, errors.Is(err2, err1))
+
+	err1 = fmt.Errorf("my message")
+	err2 = Wrap(err1, "another message")
+	assert.NotEqual(t, err1, err2)
+	assert.True(t, errors.Is(err2, err1))
 }

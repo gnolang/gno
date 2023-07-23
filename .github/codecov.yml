@@ -1,0 +1,30 @@
+codecov:
+  require_ci_to_pass: no
+  notify:
+    wait_for_ci: no
+
+ignore:
+  - misc
+
+comment: false # will use it later.
+
+coverage:
+  status:
+    project: off
+    patch: off
+
+flags:
+  default_rules:
+    carryforward: true
+  tm2:
+    paths:
+      - tm2
+    after_n_builds: 4
+  gnovm:
+    paths:
+      - gnovm
+    after_n_builds: 9
+  gno.land:
+    paths:
+      - gno.land
+    after_n_builds: 3

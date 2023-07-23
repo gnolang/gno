@@ -6,6 +6,63 @@
 - [Acquire testnet tokens](/faucet)
 - [Game of Realms](/game-of-realms) - An open worldwide competition for developers to build the best Gnolang smart-contracts.
 
+:::jumbotron
+
+## Jumbotron title
+
+This is a Jumbotron component you can fill with regular markdown.
+
+:::stack
+[Stack link 1](/about)
+[Stack link 1](https://github.com/gnolang)
+:::stack/
+:::jumbotron/
+
+:::columns-2
+:::column
+
+### Column 1 title
+
+Content 1
+
+:::column/
+:::column
+
+### Column 2 title
+
+Content 2
+
+:::column/
+:::columns-2/
+
+:::columns-3
+:::column
+
+### Column 1 title
+
+Content 1
+
+:::column/
+:::column
+
+### Column 2 title
+
+Content 2
+
+:::column/
+:::column
+
+### Column 3 title
+
+Content 3
+
+:::column/
+:::columns-3/
+
+:::accordion (Accordion button)
+Accordion content
+:::accordion/
+
 # Explore new packages.
 
 - r/gnoland

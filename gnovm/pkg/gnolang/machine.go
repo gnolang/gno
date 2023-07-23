@@ -31,7 +31,7 @@ type Machine struct {
 	Package    *PackageValue // active package
 	Realm      *Realm        // active realm
 	Alloc      *Allocator    // memory allocations
-	Exception  *TypedValue   // if panic'd unless recovered
+	Exceptions []*TypedValue // if panic'd unless recovered
 	NumResults int           // number of results returned
 	Cycles     int64         // number of "cpu" cycles
 
@@ -158,8 +158,8 @@ func (m *Machine) Release() {
 	m.NumOps = 0
 	m.NumValues = 0
 	// this is the fastest way to zero-in a slice in Go
-	copy(m.Ops, opZeroed[:0])
-	copy(m.Values, valueZeroed[:0])
+	copy(m.Ops, opZeroed[:])
+	copy(m.Values, valueZeroed[:])
 
 	machinePool.Put(m)
 }
@@ -1840,8 +1840,7 @@ func (m *Machine) CheckEmpty() error {
 }
 
 func (m *Machine) Panic(ex TypedValue) {
-	// TODO: chain exceptions if preexisting unrecovered exception.
-	m.Exception = &ex
+	m.Exceptions = append(m.Exceptions, &ex)
 	m.PopUntilLastCallFrame()
 	m.PushOp(OpPanic2)
 	m.PushOp(OpReturnCallDefers)
@@ -1943,6 +1942,10 @@ func (m *Machine) String() string {
 	if m.Realm != nil {
 		rlmpath = m.Realm.Path
 	}
+	exceptions := make([]string, len(m.Exceptions))
+	for i, ex := range m.Exceptions {
+		exceptions[i] = ex.Sprint(m)
+	}
 	return fmt.Sprintf(`Machine:
     CheckTypes: %v
 	Op: %v
@@ -1960,7 +1963,7 @@ func (m *Machine) String() string {
 %s
 	Realm:
 	  %s
-	Exception:
+	Exceptions:
 	  %s
 	  %s`,
 		m.CheckTypes,
@@ -1973,8 +1976,8 @@ func (m *Machine) String() string {
 		strings.Join(obs, "\n"),
 		strings.Join(fs, "\n"),
 		rlmpath,
-		m.Exception,
-		m.Exception.Sprint(m),
+		m.Exceptions,
+		strings.Join(exceptions, "\n"),
 	)
 }
 

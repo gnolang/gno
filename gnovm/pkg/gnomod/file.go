@@ -15,6 +15,7 @@ import (
 
 // Parsed gno.mod file.
 type File struct {
+	Draft   bool
 	Module  *modfile.Module
 	Go      *modfile.Go
 	Require []*modfile.Require
@@ -32,33 +33,42 @@ func (f *File) Validate() error {
 	return nil
 }
 
+// Resolve takes a Require directive from File and returns any adequate replacement
+// following the Replace directives.
+func (f *File) Resolve(r *modfile.Require) module.Version {
+	mod, replaced := isReplaced(r.Mod, f.Replace)
+	if replaced {
+		return mod
+	}
+	return r.Mod
+}
+
 // FetchDeps fetches and writes gno.mod packages
 // in GOPATH/pkg/gnomod/
 func (f *File) FetchDeps(path string, remote string, verbose bool) error {
 	for _, r := range f.Require {
-		mod, replaced := isReplaced(r.Mod, f.Replace)
-		if replaced {
+		mod := f.Resolve(r)
+		if r.Mod.Path != mod.Path {
 			if modfile.IsDirectoryPath(mod.Path) {
 				continue
 			}
-			r.Mod = *mod
 		}
 		indirect := ""
 		if r.Indirect {
 			indirect = "// indirect"
 		}
 
-		_, err := os.Stat(filepath.Join(path, r.Mod.Path))
+		_, err := os.Stat(PackageDir(path, mod))
 		if !os.IsNotExist(err) {
 			if verbose {
-				log.Println("cached", r.Mod.Path, indirect)
+				log.Println("cached", mod.Path, indirect)
 			}
 			continue
 		}
 		if verbose {
-			log.Println("fetching", r.Mod.Path, indirect)
+			log.Println("fetching", mod.Path, indirect)
 		}
-		requirements, err := writePackage(remote, path, r.Mod.Path)
+		requirements, err := writePackage(remote, path, mod.Path)
 		if err != nil {
 			return fmt.Errorf("writepackage: %w", err)
 		}
@@ -66,7 +76,7 @@ func (f *File) FetchDeps(path string, remote string, verbose bool) error {
 		modFile := &File{
 			Module: &modfile.Module{
 				Mod: module.Version{
-					Path: r.Mod.Path,
+					Path: mod.Path,
 				},
 			},
 		}
@@ -100,7 +110,7 @@ func (f *File) FetchDeps(path string, remote string, verbose bool) error {
 		if err != nil {
 			return err
 		}
-		err = goMod.WriteToPath(filepath.Join(path, r.Mod.Path))
+		err = goMod.WriteToPath(PackageDir(path, mod))
 		if err != nil {
 			return err
 		}

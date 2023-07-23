@@ -95,23 +95,23 @@ func UverseNode() *PackageNode {
 	def("._", undefined)   // special, path is zero.
 	def("iota", undefined) // special
 	def("nil", undefined)
+	def("bigint", asValue(BigintType))
 	def("bool", asValue(BoolType))
-	def("string", asValue(StringType))
+	def("byte", asValue(Uint8Type))
+	def("float32", asValue(Float32Type))
+	def("float64", asValue(Float64Type))
 	def("int", asValue(IntType))
 	def("int8", asValue(Int8Type))
 	def("int16", asValue(Int16Type))
-	def("rune", asValue(Int32Type))
 	def("int32", asValue(Int32Type))
 	def("int64", asValue(Int64Type))
+	def("rune", asValue(Int32Type))
+	def("string", asValue(StringType))
 	def("uint", asValue(UintType))
-	def("byte", asValue(Uint8Type))
 	def("uint8", asValue(Uint8Type))
 	def("uint16", asValue(Uint16Type))
 	def("uint32", asValue(Uint32Type))
 	def("uint64", asValue(Uint64Type))
-	def("bigint", asValue(BigintType))
-	def("float32", asValue(Float32Type))
-	def("float64", asValue(Float64Type))
 	// NOTE on 'typeval': We can't call the type of a TypeValue a
 	// "type", even though we want to, because it conflicts with
 	// the pre-existing syntax for type-switching, `switch
@@ -959,14 +959,14 @@ func UverseNode() *PackageNode {
 			"exception", AnyT(),
 		),
 		func(m *Machine) {
-			if m.Exception == nil {
+			if len(m.Exceptions) == 0 {
 				m.PushValue(TypedValue{})
 				return
-			} else {
-				m.PushValue(*m.Exception)
-				m.Exception = nil
-				return
 			}
+			// Just like in go, only the last exception is returned to recover.
+			m.PushValue(*m.Exceptions[len(m.Exceptions)-1])
+			// The remaining exceptions are removed
+			m.Exceptions = nil
 		},
 	)
 	return uverseNode

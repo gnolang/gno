@@ -94,6 +94,18 @@ func (err *cmnError) Error() string {
 	return fmt.Sprintf("%v", err)
 }
 
+// Implements Unwrap method for compat with stdlib errors.Is()/As().
+func (err *cmnError) Unwrap() error {
+	if err.data == nil {
+		return nil
+	}
+	werr, ok := err.data.(error)
+	if !ok {
+		return nil
+	}
+	return werr
+}
+
 // Captures a stacktrace if one was not already captured.
 func (err *cmnError) Stacktrace() Error {
 	if err.stacktrace == nil {
@@ -133,33 +145,44 @@ func (err *cmnError) doTrace(msg string, n int) Error {
 }
 
 func (err *cmnError) Format(s fmt.State, verb rune) {
-	switch verb {
-	case 'p':
+	switch {
+	case verb == 'p':
 		s.Write([]byte(fmt.Sprintf("%p", &err)))
-	default:
-		if s.Flag('#') {
-			s.Write([]byte("--= Error =--\n"))
-			// Write data.
-			s.Write([]byte(fmt.Sprintf("Data: %#v\n", err.data)))
-			// Write msg trace items.
-			s.Write([]byte(fmt.Sprintf("Msg Traces:\n")))
-			for i, msgtrace := range err.msgtraces {
-				s.Write([]byte(fmt.Sprintf(" %4d  %s\n", i, msgtrace.String())))
-			}
-			// Write stack trace.
-			if err.stacktrace != nil {
-				s.Write([]byte(fmt.Sprintf("Stack Trace:\n")))
-				for i, pc := range err.stacktrace {
-					fnc := runtime.FuncForPC(pc)
-					file, line := fnc.FileLine(pc)
-					s.Write([]byte(fmt.Sprintf(" %4d  %s:%d\n", i, file, line)))
+	case verb == 'v' && s.Flag('+'):
+		s.Write([]byte("--= Error =--\n"))
+		// Write data.
+		fmt.Fprintf(s, "Data: %+v\n", err.data)
+		// Write msg trace items.
+		s.Write([]byte("Msg Traces:\n"))
+		for i, msgtrace := range err.msgtraces {
+			fmt.Fprintf(s, " %4d  %s\n", i, msgtrace.String())
+		}
+		s.Write([]byte("--= /Error =--\n"))
+	case verb == 'v' && s.Flag('#'):
+		s.Write([]byte("--= Error =--\n"))
+		// Write data.
+		fmt.Fprintf(s, "Data: %#v\n", err.data)
+		// Write msg trace items.
+		s.Write([]byte("Msg Traces:\n"))
+		for i, msgtrace := range err.msgtraces {
+			fmt.Fprintf(s, " %4d  %s\n", i, msgtrace.String())
+		}
+		// Write stack trace.
+		if err.stacktrace != nil {
+			s.Write([]byte("Stack Trace:\n"))
+			frames := runtime.CallersFrames(err.stacktrace)
+			for i := 0; ; i++ {
+				frame, more := frames.Next()
+				fmt.Fprintf(s, " %4d  %s:%d\n", i, frame.File, frame.Line)
+				if !more {
+					break
 				}
 			}
-			s.Write([]byte("--= /Error =--\n"))
-		} else {
-			// Write msg.
-			s.Write([]byte(fmt.Sprintf("%v", err.data)))
 		}
+		s.Write([]byte("--= /Error =--\n"))
+	default:
+		// Write msg.
+		fmt.Fprintf(s, "%v", err.data)
 	}
 }
 

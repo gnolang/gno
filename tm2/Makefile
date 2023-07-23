@@ -1,3 +1,4 @@
+
 .PHONY: help
 help:
 	@echo "Available make commands:"
@@ -6,10 +7,10 @@ help:
 rundep=go run -modfile ../misc/devdeps/go.mod
 
 .PHONY: build
-build: _build.t2txsync
+build: _build.tm2txsync
 _build.tools: _build.aminoscan _build.goscan _build.logjack _build.iaviewer
 
-_build.t2txsync:;   go build -o build/t2txsync   ./cmd/t2txsync
+_build.tm2txsync:;  go build -o build/tm2txsync  ./cmd/tm2txsync
 _build.aminoscan:;  go build -o build/aminoscan  ./pkg/amino/cmd/aminoscan
 _build.goscan:;     go build -o build/goscan     ./pkg/amino/cmd/goscan
 _build.logjack:;    go build -o build/logjack    ./pkg/autofile/cmd
@@ -30,7 +31,7 @@ fmt:
 
 .PHONY: lint
 lint:
-	golangci-lint run --config ../.github/golangci.yml ./...
+	$(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint run --config ../.github/golangci.yml ./...
 
 ########################################
 # Test suite
@@ -38,11 +39,13 @@ lint:
 test: _test.pkg.amino _test.pkg.bft _test.pkg.others _test.flappy _test.cmds
 
 _test.flappy:
-	# flappy tests should work "sometimes" (at least once)
+	# flappy tests should work "sometimes" (at least once).
+	# TODO: support coverage for flappy tests.
 	TEST_STABILITY=flappy $(rundep) moul.io/testman test -test.v -timeout=20m -retry=10 -run ^TestFlappy \
 		./pkg/bft/consensus ./pkg/bft/blockchain ./pkg/bft/mempool ./pkg/p2p ./pkg/bft/privval
 
-_test.pkg.others:;	go test `go list ./pkg/... | grep -v pkg/amino/ | grep -v pkg/bft/` -v -p 1 -timeout=30m
-_test.pkg.amino:;		go test ./pkg/amino/... -v -p 1 -timeout=30m
-_test.pkg.bft:;			go test ./pkg/bft/... -v -p 1 -timeout=30m
-_test.cmds:;        go test ./cmd/... -v -p 1 -timeout=30m
+GOTEST_FLAGS ?= -v -p 1 -timeout=30m
+_test.pkg.others:;  go test $(GOTEST_FLAGS) `go list ./pkg/... | grep -v pkg/amino/ | grep -v pkg/bft/`
+_test.pkg.amino:;   go test $(GOTEST_FLAGS) ./pkg/amino/...
+_test.pkg.bft:;	    go test $(GOTEST_FLAGS) ./pkg/bft/...
+_test.cmds:;        go test $(GOTEST_FLAGS) ./cmd/...
