@@ -11,10 +11,4 @@ Please provide a detailed description of the changes made in this pull request.
 - [ ] Added references to related issues and PRs
 - [ ] Provided any useful hints for running manual tests
 - [ ] Added new benchmarks to [generated graphs](https://gnoland.github.io/benchmarks), if any. More info [here](../.benchmarks/README.md).
-
-## Maintainers Checklist
-
-- [ ] Checked that the author followed the guidelines in `CONTRIBUTING.md`
-- [ ] Checked the conventional-commit (especially PR title and verb, presence of `BREAKING CHANGE:` in the body)
-- [ ] Ensured that this PR is not a significant change or confirmed that the review/consideration process was appropriate for the change
 </details>
