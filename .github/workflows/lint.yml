@@ -1,4 +1,4 @@
-name: misc
+name: lint
 
 on:
   push:
@@ -89,7 +89,7 @@ jobs:
 
       - name: Check generated files are up to date
         run: |
-          go generate -v ./...
+          go generate -x ./...
           if [ "$(git status -s)" != "" ]; then
             echo "command 'go generate' creates file that differ from git tree, please run 'go generate' and commit:"
             git status -s

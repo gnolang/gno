@@ -58,6 +58,11 @@ _test.gnolang.stdlibs.sync:; go test $(GOTEST_FLAGS) tests/*.go -test.short -run
 
 ########################################
 # Code gen
+# TODO: move _dev.stringer to go:generate instructions, simplify generate
+#       to just go generate.
+.PHONY: generate
+generate: _dev.stringer _dev.generate
+
 stringer_cmd=$(rundep) golang.org/x/tools/cmd/stringer
 .PHONY: _dev.stringer
 _dev.stringer:
@@ -67,6 +72,10 @@ _dev.stringer:
 	$(stringer_cmd) -type=TransField ./pkg/gnolang
 	$(stringer_cmd) -type=VPType     ./pkg/gnolang
 	$(stringer_cmd) -type=Word       ./pkg/gnolang
+
+.PHONY: _dev.generate
+_dev.generate:
+	go generate -x ./...
 
 # genproto:
 # see top-level Makefile.
