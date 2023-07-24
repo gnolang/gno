@@ -1,4 +1,4 @@
-The syntax is specified using a variant of Extended Backus-Naur Form (EBNF):
+EBNF. The syntax is specified using a variant of Extended Backus-Naur Form:
 
 Syntax      = { Production } .
 Production  = production_name "=" [ Expression ] "." .

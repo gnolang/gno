@@ -194,7 +194,7 @@ func S(args ...interface{}) Stmt {
 //
 // If the first argument is an expression, returns it.
 // TODO replace this with rewrite of Joeson parser.
-func Xold(x interface{}, args ...interface{}) Expr {
+func X(x interface{}, args ...interface{}) Expr {
 	switch cx := x.(type) {
 	case Expr:
 		return cx
@@ -512,9 +512,9 @@ func Not(x Expr) *UnaryExpr {
 // Binary expression.  x, y can be Expr or string.
 func Bx(lx interface{}, op string, rx interface{}) Expr {
 	return &BinaryExpr{
-		Left:  Xold(lx),
+		Left:  X(lx),
 		Op:    Op2Word(op),
-		Right: Xold(rx),
+		Right: X(rx),
 	}
 }
 

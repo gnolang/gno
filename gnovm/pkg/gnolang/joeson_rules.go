@@ -6,37 +6,18 @@ import (
 	j "github.com/grepsuzette/joeson"
 )
 
-/*
-Primary expressions
-
-Primary expressions are the operands for unary and binary expressions.
-
-PrimaryExpr =
-        Operand |			// see spec/Operand.txt or https://go.dev/ref/spec#Operand
-        Conversion |
-        MethodExpr |
-        PrimaryExpr Selector |
-        PrimaryExpr Index |
-        PrimaryExpr Slice |
-        PrimaryExpr TypeAssertion |
-        PrimaryExpr Arguments .
-
-Selector       = "." identifier .
-Index          = "[" Expression [ "," ] "]" .
-Slice          = "[" [ Expression ] ":" [ Expression ] "]" |
-                 "[" [ Expression ] ":" Expression ":" Expression "]" .
-TypeAssertion  = "." "(" Type ")" .
-Arguments      = "(" [ ( ExpressionList | Type [ "," ExpressionList ] ) [ "..." ] [ "," ] ] ")" .
-*/
+// rule names prefixed by a _ (e.g. _BinaryExpr)
+// do not appear in spec/spec.html, and have been thus distinguished for
+// clarity.
 
 // rules are named after https://go.dev/ref/spec
 // labels (such as "bx:") are used by rules callbacks.
 var (
-	grammar  *j.Grammar
+	gm       *j.Grammar
 	gnoRules = rules(
 		o(named("Input", "Expression")),
 		o(named("Expression", "bx:(Expression _ binary_op _ Expression) | UnaryExpr"), fExpression),
-		o(named("UnaryExpr", "PrimaryExpr | ux:(unary_op _ UnaryExpr)"), fUnaryExpr),
+		o(named("UnaryExpr", "PrimaryExpr | ux:(unary_op _ UnaryExpr)"), fUnary),
 		o(named("unary_op", revQuote("+ - ! ^ * & <-"))),
 		o(named("binary_op", "mul_op | add_op | rel_op | '&&' | '||'")),
 		o(named("mul_op", revQuote("* / % << >> & &^"))),
@@ -47,51 +28,45 @@ var (
 
 		o(named("Operand", rules(
 			// o("'(' _ Expression _ ')' | OperandName TypeArgs? | Literal"), // TODO this is the original
-			o("lit:Literal | '(' _ expr:Expression _ ')'", func(it j.Ast) j.Ast { return it.(j.NativeMap).GetWhicheverOrPanic([]string{"lit", "expr"}) }),
+			o("Literal | '(' _ Expression _ ')'"), // 𝘧, func(it j.Ast) j.Ast { return it.(j.NativeMap).GetWhicheverOrPanic([]string{"lit", "expr"}) }),
 			// o(named("Literal", "BasicLit | CompositeLit | FunctionLit")),
-			o(named("Literal", "BasicLit")),
-			// TODO add float_lit and imaginary_lit
-			// o(named("BasicLit", "int_lit | rune_lit | string_lit")),
-			o(named("BasicLit", "float_lit | int_lit")),
-			o(named("int_lit", rules(
-				o("hex_lit | octal_lit | binary_lit | decimal_lit", fInt),
-				i(named("decimal_lit", "/^0|[1-9][_0-9]*[0-9]?/")), // x("decimal_lit")),
-				i(named("binary_lit", "/^0[bB]_?([01_])*[01]/")),
-				i(named("octal_lit", "/^0[oO]_?([01234567_])*[01234567]/")),
-				i(named("hex_lit", "/^0[xX]_?([0123456789a-fA-F_])*[0123456789a-fA-F]/")),
-			))),
-			// float_lit
-			o(named("float_lit", "decimal_float_lit | hex_float_lit"), fFloat),
-			o(named("decimal_float_lit",
-				"dot decimal_digits decimal_exponent?"+
-					"| decimal_digits dot decimal_digits? decimal_exponent?"+
-					"| decimal_digits decimal_exponent",
-			)),
-			o(named("decimal_exponent", "/[eE][+-]?/ decimal_digits")),
-			o(named("hex_float_lit", "/0[xX]/ hex_mantissa hex_exponent | error_hexadecimal_literal_has_no_digits")),
-			o(named("error_hexadecimal_literal_has_no_digits", "/0[xX][0-9a-fA-F]*\\.[0-9a-fA-F]*/ hex_exponent"), func(it j.Ast) j.Ast { panic("hexadecimal literal has no digits") }),
-			o(named("hex_mantissa", "'_'? hex_digits dot hex_digits? |"+
-				"'_'? hex_digits |"+
-				"dot hex_digits",
-			)),
-			o(named("hex_exponent", "/[pP][+-]?/ decimal_digits")),
-			/*
-				o(named("float_lit", rules(
-					o("decimal_float_lit | hex_float_lit", fFloat),
-					o(named("decimal_float_lit",
-						"dot decimal_digits decimal_exponent?"+
-							"| decimal_digits dot decimal_digits? decimal_exponent?"+
-							"| decimal_digits decimal_exponent",
-					)),
-					o(named("decimal_exponent", "/[eE][+-]?/ decimal_digits")),
-					o(named("hex_float_lit", "/0[xX]/ hex_mantissa hex_exponent")),
-					o(named("hex_mantissa", "'_'? hex_digits dot hex_digits? |"+
-						"'_'? hex_digits |"+
-						"dot hex_digits",
-					)),
-					o(named("hex_exponent", "/[pP][+-]?/ decimal_digits")),
+			i(named("Literal", "BasicLit")),
+			i(named("BasicLit", rules(
+				o("imaginary_lit | float_lit | int_lit "), //| rune_lit | string_lit")),
+				i(named("int_lit", rules(
+					// the order is critical for PEG grammars
+					o(named("binary_lit", "('0b'|'0B') '_'? binary_digits"), ffInt(2)),
+					o(named("hex_lit", "('0x'|'0X') '_'? hex_digits"), ffInt(16)),
+					o(named("octal_lit", "[0] [oO]? '_'? octal_digit octal_digits?"), ffInt(8)),
+					o(named("decimal_lit", "[0] | [1-9] ( '_'? decimal_digits)?"), ffInt(10)),
 				))),
-			*/
+				i(named("float_lit", rules(
+					o("decimal_float_lit | hex_float_lit"),
+					i(named("decimal_float_lit",
+						"DOT decimal_digits decimal_exponent? | "+
+							"decimal_digits DOT decimal_digits? decimal_exponent? | "+
+							"decimal_digits decimal_exponent"), ffFloatFormat("%g")),
+					i(named("hex_float_lit", "[0] [xX] hex_mantissa hex_exponent"), ffFloatFormat("%x")),
+					i(named("decimal_exponent", "[eE] [+-]? decimal_digits")),
+					i(named("hex_mantissa", "'_'? hex_digits DOT hex_digits? |"+
+						"'_'? hex_digits | DOT hex_digits",
+					)),
+					i(named("hex_exponent", "[pP] [+-]? decimal_digits")),
+				))),
+				i(named("imaginary_lit", "(float_lit | int_lit | decimal_digits ) [i]"), fImaginary),
+				// avoid regexes with PEG in general, regexes are greedy and this can
+				// create ambiguity and buggy grammars. As a special case, character classes are OK.
+				// Regexes can be used to optimize but again avoid them unless
+				// you know what you're doing.
+				i(named("decimal_digits", "decimal_digit ( '_'? decimal_digit )*")),
+				i(named("binary_digits", "binary_digit ( '_'? binary_digit )*")),
+				i(named("octal_digits", "octal_digit ( '_'? octal_digit )*")),
+				i(named("hex_digits", "hex_digit ( '_'? hex_digit )*")),
+				i(named("decimal_digit", "[0-9]")),
+				i(named("binary_digit", "[01]")),
+				i(named("octal_digit", "[0-7]")),
+				i(named("hex_digit", "[0-9a-fA-F]")),
+			))),
 			// o(named("OperandName", "QualifiedIdent | identifier")),
 			// i(named("QualifiedIdent", "PackageName '.' identifier"), x("QualifiedIdent")), // https://go.dev/ref/spec#QualifiedIdent
 			// i(named("PackageName", "identifier")),                                         // https://go.dev/ref/spec#PackageName
@@ -138,11 +113,9 @@ var (
 		// carriage returns (U+000D), and newlines (U+000A), is ignored except as
 		// it separates tokens that would otherwise combine into a single token."
 		i(named("comma", "',' | _")),
-		i(named("dot", "'.'")), // when it needs to get captured (by default '.' in a sequence is not captured)
-		i(named("_", "/[ \t\n\r]*/")),
-		i(named("__", "/[ \t\n\r]+/")),
-		i(named("decimal_digits", "/[0-9](_?[0-9])*/")),
-		i(named("hex_digits", "/[0-9a-fA-F](_?[0-9a-fA-F])*/")),
+		i(named("DOT", "'.'")), // when it needs to get captured (by default '.' in a sequence is not captured)
+		i(named("_", "[ \t\n\r]*")),
+		i(named("__", "[ \t\n\r]+")),
 	)
 )
 

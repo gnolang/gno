@@ -1,111 +1,244 @@
 package gnolang
 
 import (
+	"errors"
 	"fmt"
-	// "reflect"
+	"os"
+	"reflect"
 	"strings"
 	"testing"
 
 	// "sort"
 	j "github.com/grepsuzette/joeson"
-	"github.com/grepsuzette/joeson/helpers"
 	// "github.com/jaekwon/testify/assert"
 )
 
-// Using X(s), asserts `s` gives an an ast type beginning with strings in `expects`.
-// All values in `expects` must be contained in rendered parsed expression.
-// In the rest of this comment we will use `expect` to designate iterated values.
-// Two special cases:
-//
-//  1. When `expect` starts with "ERROR", it means a parse error is expected.
-//     You can specify the exact error like so: "ERROR illegal: octal value over 255".
-//
-// 2. When `expect` is "", the test passes as long as parsing did not fail.
-func test(t *testing.T, s string, expects ...string) {
+func testExpectation(t *testing.T, expectation expectation) {
 	t.Helper()
-	expr := X(s)
-	// TODO figure out what to do. X() currently panics if there was a ParseError.
-	// (  Maybe we can use Attributes ? )
-	// if j.IsParseError(ast) {
-	// 	if strings.HasPrefix(expect, "ERROR") {
-	// 		fmt.Printf("[32m%s[0m gave an error as expected [32m✓[0m\n", s)
-	// 	} else {
-	// 		t.Fatalf("Error parsing %s. Expected ast.ContentString() to contain '%s', got '%s'", s, expect, ast.ContentString())
-	// 	}
-	// } else {
-	resultString := ""
-	if w, isWrapped := expr.(wrapped); isWrapped {
-		resultString = w.String() // + " [wrapped]"
-	} else if expr.HasAttribute("joeson") {
-		ast := expr.GetAttribute("joeson")
-		resultString = StringWithRulenames(ast.(j.Ast)) // + " [wraPPed]"
-	} else {
-		resultString = expr.String()
-	}
+	ast := parseX(expectation.unparsedString)
 	allOk := true
-	for _, expect := range expects {
-		if !strings.Contains(resultString, expect) {
-			t.Fatalf(
-				"Error, %s "+j.BoldRed("parsed as")+" %s "+j.BoldRed("but expected ")+"%s",
-				j.Bold(`"`+s+`"`),
-				resultString,
-				j.Magenta(expect),
-			)
+	for _, predicate := range expectation.predicates {
+		if err := predicate.lies(ast, expectation); err != nil {
 			allOk = false
-			break
+			t.Fatalf(
+				"%s parsed as %s "+j.BoldRed("ERR")+" %s\n",
+				expectation.unparsedString,
+				j.Red(ast.String()),
+				err.Error(),
+			)
 		}
 	}
 	if allOk {
+		var b strings.Builder
+		first := true
+		for _, v := range expectation.predicates {
+			if !first {
+				b.WriteString(", ")
+			}
+			b.WriteString(j.Magenta(strings.TrimPrefix(fmt.Sprintf("%#v", v), "gnolang.")))
+			first = false
+		}
 		fmt.Printf(
 			"%s parsed as %s "+j.Green("✓")+" %s\n",
-			j.Green(s),
-			j.Yellow(resultString),
-			strings.Join(helpers.AMap(expects, func(s string) string { return j.Magenta(s) }), ", "),
+			j.Green(expectation.unparsedString),
+			j.Yellow(ast.String()),
+			"", // b.String(),
 		)
 	}
 }
 
-func init() { initGrammar() }
+func doesntMatchError(expect, got string) bool {
+	return !strings.HasPrefix(got, expect[len("ERROR"):])
+}
 
-func TestJoesonUnaryExpr(t *testing.T) {
-	tests := [][]string{
-		{"992 + 293", "Expression", "bx"},
-		{"-1234", "UnaryExpr", "decimal_lit"},
-		{"- 1234", "UnaryExpr", "decimal_lit"},
-		{"+ 1234", "UnaryExpr", "decimal_lit"},
-		{"!0", "UnaryExpr"},
-		{"^0", "UnaryExpr"},
-		{"-7 -2", "Expression", "UnaryExpr", "decimal_lit"},
-		{"2398", "decimal_lit"},
-		{"0", "decimal_lit", "0"},
-		{"0b0", "binary_lit"},
-		{"0B1", "binary_lit"},
-		{"0B_1", "binary_lit"},
-		{"0B_10", "binary_lit"},
-		{"0O777", "octal_lit"},
-		{"0o1", "octal_lit"},
-		{"0xBadFace", "hex_lit"},
-		{"0xBad_Face", "hex_lit"},
-		{"0x_67_7a_2f_cc_40_c6", "hex_lit"},
-		{"0.", "float_lit"}, // spec/FloatingPointsLiterals.txt
-		{"72.40", "float_lit"},
-		{"072.40", "float_lit"}, // == 72.40
-		{"2.71828", "float_lit"},
-		{"1.e+0", "float_lit"},
-		{"6.67428e-11", "float_lit"},
-		{"1E6", "float_lit"},
-		{".25", "float_lit"},
-		{".12345E+5", "float_lit"},
-		{"1_5.", "float_lit"},                         // == 15.0
-		{"0.15e+0_2", "float_lit", "0.15e+0_2"},       // == 15.0
-		{"0x1p-2", "float_lit", "hex_float_lit"},      // == 0.25
-		{"0x2.p10", "float_lit", "hex_float_lit"},     // == 2048.0
-		{"0x1.Fp+0", "float_lit", "hex_float_lit"},    // == 1.9375
-		{"0X.8p-0", "float_lit", "hex_float_lit"},     // == 0.5
-		{"0X_1FFFP-16", "float_lit", "hex_float_lit"}, // == 0.1249847412109375
-		{"0x15e-2", "hex_lit", "decimal_lit"},         // == 0x15e - 2 (integer subtraction)
+type (
+	predicate interface {
+		lies(j.Ast, expectation) error
+	}
+	expectation struct {
+		unparsedString string
+		predicates     []predicate
+	}
+	parsesAs      struct{ string } // strict string equality
+	isBasicLit    struct{ kind Word }
+	errorIs       struct{ string }
+	errorContains struct{ string }
+	noError       struct{}
+	isType        struct{ string }
+	doom          struct{}
+)
 
-		{"0x.p1", "ERROR hexadecimal literal has no digits"},
+var (
+	_ predicate = parsesAs{}
+	_ predicate = isBasicLit{}
+	_ predicate = errorIs{}
+	_ predicate = errorContains{}
+	_ predicate = noError{}
+	_ predicate = isType{}
+	_ predicate = doom{} // exit (useful to stop from the middle of the list of tests to inspect one in particular)
+)
+
+// expect() is for non-error expectations (a noError{} predicate gets inserted). See expectError()
+func expect(unparsedString string, preds ...predicate) expectation {
+	// insert noError{} at the beginning
+	a := make([]predicate, len(preds)+1)
+	copy(a[1:], preds)
+	a[0] = noError{}
+	return expectation{unparsedString, a}
+}
+
+func expectError(unparsedString string, expectedError string) expectation {
+	return expectation{unparsedString, []predicate{errorIs{expectedError}}}
+}
+
+func expectErrorContains(unparsedString string, expectedError string) expectation {
+	return expectation{unparsedString, []predicate{errorContains{expectedError}}}
+}
+
+// this is just a way to stop the program at a certain place
+// from the array of tests
+func expectDoom() expectation {
+	return expectation{"", []predicate{doom{}}}
+}
+
+func (expectation expectation) brief() string {
+	for _, pred := range expectation.predicates {
+		switch v := pred.(type) {
+		case parsesAs:
+			// the best brief description there is
+			return `"` + v.string + `"`
+		default:
+		}
+	}
+	return "it's a bit complicated"
+}
+
+func (v parsesAs) lies(ast j.Ast, expectation expectation) error {
+	if ast.String() != v.string {
+		return errors.New(fmt.Sprintf("was expecting \"%s\", got \"%s\"", v.string, ast.String()))
+	}
+	return nil
+}
+
+func (v isBasicLit) lies(ast j.Ast, expectation expectation) error {
+	if expr, ok := ast.(*BasicLitExpr); ok {
+		if expr.Kind != v.kind {
+			return errors.New(fmt.Sprintf(
+				"was expecting Kind=%s for &BasicLitExpr, got %s", v.kind, expr.Kind,
+			))
+		}
+	} else {
+		return errors.New(fmt.Sprintf(
+			"was expecting &BasicLitExpr (%v), got %s", v.kind, reflect.TypeOf(ast).String(),
+		))
+	}
+	return nil
+}
+
+func (v errorIs) lies(ast j.Ast, expectation expectation) error {
+	if !j.IsParseError(ast) {
+		return errors.New(fmt.Sprintf("was expecting an error, but got \"%s\"", ast.String()))
+	}
+	if ast.String() != v.string {
+		return errors.New(fmt.Sprintf("although we got a parse error as expected, were expecting \"%s\", got \"%s\"", v.string, ast.String()))
+	}
+	return nil
+}
+
+func (v errorContains) lies(ast j.Ast, expectation expectation) error {
+	if !j.IsParseError(ast) {
+		return errors.New(fmt.Sprintf("was expecting an error, but got \"%s\"", ast.String()))
+	}
+	if !strings.Contains(ast.String(), v.string) {
+		return errors.New(fmt.Sprintf("parse error as expected, but expecting error to contain \"%s\", got \"%s\" instead", v.string, ast.String()))
+	}
+	return nil
+}
+
+func (noError) lies(ast j.Ast, expectation expectation) error {
+	if j.IsParseError(ast) {
+		return errors.New(fmt.Sprintf("unexpected ParseError, was expecting %s", expectation.brief()))
+	}
+	return nil
+}
+
+func (t isType) lies(ast j.Ast, expectation expectation) error {
+	theType := fmt.Sprintf("%T", ast)
+	if !strings.HasSuffix(theType, t.string) {
+		return errors.New(fmt.Sprintf("type should have been %s, not %s", t.string, theType))
+	}
+	return nil
+}
+
+func (doom) lies(ast j.Ast, expectation expectation) error {
+	fmt.Println("doom{} called")
+	os.Exit(1)
+	return nil
+}
+
+func TestJoeson(t *testing.T) {
+	os.Setenv("TRACE", "grammar,stack")
+	tests := []expectation{
+		expect("2398", parsesAs{"2398"}, isBasicLit{INT}),
+		expect("0", parsesAs{"0"}, isBasicLit{INT}),
+		expect("0b0", parsesAs{"0b0"}, isBasicLit{INT}),
+		expect("0B1", parsesAs{"0b1"}, isBasicLit{INT}),
+		expect("0B_1", parsesAs{"0b1"}, isBasicLit{INT}),
+		expect("0B_10", parsesAs{"0b10"}, isBasicLit{INT}),
+		expect("0O777", parsesAs{"0o777"}, isBasicLit{INT}),
+		expect("0o1", parsesAs{"0o1"}, isBasicLit{INT}),
+		expect("0xBadFace", parsesAs{"0xbadface"}, isBasicLit{INT}),
+		expect("0xBadAce", parsesAs{"0xbadace"}, isBasicLit{INT}),
+		expect("0xdE_A_d_faC_e", parsesAs{"0xdeadface"}, isBasicLit{INT}),
+		expect("0x_67_7a_2f_cc_40_c6", parsesAs{"0x677a2fcc40c6"}, isBasicLit{INT}),
+		expectErrorContains("170141183460469231731687303715884105727", "value out of range"),
+		expectErrorContains("170_141183_460469_231731_687303_715884_105727", "value out of range"),
+		// _42         // an identifier, not an integer literal
+		// 42_         // invalid: _ must separate successive digits
+		// 4__2        // invalid: only one _ at a time
+		// 0_xBadFace  // invalid: _ must separate successive digits
+
+		expect("0.", parsesAs{"0"}, isBasicLit{FLOAT}), // spec/FloatingPointsLiterals.txt
+		expect("72.40", parsesAs{"72.4"}, isBasicLit{FLOAT}),
+		expect("072.40", parsesAs{"72.4"}, isBasicLit{FLOAT}), // == 72.40
+		expect("2.71828", parsesAs{"2.71828"}, isBasicLit{FLOAT}),
+		expect("1.e+0", parsesAs{"1"}, isBasicLit{FLOAT}),
+		expect("6.67428e-11", parsesAs{"6.67428e-11"}, isBasicLit{FLOAT}),
+		expect("1E6", parsesAs{"1e+06"}, isBasicLit{FLOAT}),
+		expect(".25", parsesAs{"0.25"}, isBasicLit{FLOAT}),
+		expect(".12345E+5", parsesAs{"12345"}, isBasicLit{FLOAT}),
+		expect("1_5.", parsesAs{"15"}, isBasicLit{FLOAT}),                 // == 15.0
+		expect("0.15e+0_2", parsesAs{"15"}, isBasicLit{FLOAT}),            // == 15.0
+		expect("0x1p-2", parsesAs{"0x1p-02"}, isBasicLit{FLOAT}),          // == 0.25
+		expect("0x2.p10", parsesAs{"0x1p+11"}, isBasicLit{FLOAT}),         // == 2048.0
+		expect("0x1.Fp+0", parsesAs{"0x1.fp+00"}, isBasicLit{FLOAT}),      // == 1.9375
+		expect("0X.8p-0", parsesAs{"0x1p-01"}, isBasicLit{FLOAT}),         // == 0.5
+		expect("0X_1FFFP-16", parsesAs{"0x1.fffp-04"}, isBasicLit{FLOAT}), // == 0.1249847412109375
+
+		expect("0i", parsesAs{"0i"}, isBasicLit{IMAG}),
+		expect("0123i", parsesAs{"0o123i"}, isBasicLit{IMAG}), // == 123i for backward-compatibility
+		expect("0.i", parsesAs{"0i"}, isBasicLit{IMAG}),
+		expect("0o123i", parsesAs{"0o123i"}, isBasicLit{IMAG}), // == 0o123 * 1i == 83i
+		expect("0xabci", parsesAs{"0xabci"}, isBasicLit{IMAG}), // == 0xabc * 1i == 2748i
+		expect("2.71828i", parsesAs{"2.71828i"}, isBasicLit{IMAG}),
+		expect("1.e+0i", parsesAs{"1i"}, isBasicLit{IMAG}), // == (0+1i)
+		expect("6.67428e-11i", parsesAs{"6.67428e-11i"}, isBasicLit{IMAG}),
+		expect("1E6i", parsesAs{"1e+06i"}, isBasicLit{IMAG}), // == (0+1e+06i)
+		expect(".25i", parsesAs{"0.25i"}, isBasicLit{IMAG}),
+		expect(".12345E+5i", parsesAs{"12345i"}, isBasicLit{IMAG}),
+		expect("0x1p-2i", parsesAs{"0x1p-02i"}, isBasicLit{IMAG}), // == 0x1p-2 * 1i == (0+0.25i)
+
+		expect("0x15e-2", parsesAs{"0x15e - 2"}, isType{"BinaryExpr"}), // == 0x15e - 2 (integer subtraction)
+		expect("123 + 345", parsesAs{"123 + 345"}, isType{"BinaryExpr"}),
+		expect("-1234", parsesAs{"-1234"}, isType{"UnaryExpr"}),
+		expect("- 1234", parsesAs{"-1234"}, isType{"UnaryExpr"}),
+		expect("+ 1234", parsesAs{"+1234"}, isType{"UnaryExpr"}),
+		expect("!0", parsesAs{"!0"}, isType{"UnaryExpr"}),
+		expect("^0", parsesAs{"^0"}, isType{"UnaryExpr"}),
+		expect("-7 -2", parsesAs{"-7 - 2"}, isType{"BinaryExpr"}),
+
+		// {"0x.p1", "ERROR hexadecimal literal has no digits"},
+		// expectError("0x.p1", "hexadecimal literal has no digits"),
 		// 1p-2         // invalid: p exponent requires hexadecimal mantissa
 		// 0x1.5e-2     // invalid: hexadecimal mantissa requires p exponent
 		// 1_.5         // invalid: _ must separate successive digits
@@ -116,8 +249,7 @@ func TestJoesonUnaryExpr(t *testing.T) {
 
 		// "func(a, b int, z float64) bool { return a*b < int(z) }": "func(a, b int, z float64) bool { return a*b < int(z) }", // FunctionLit
 	}
-	// sort.Strings(tests)
-	for _, a := range tests {
-		test(t, a[0], a[1:]...)
+	for _, expectation := range tests {
+		testExpectation(t, expectation)
 	}
 }
