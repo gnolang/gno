@@ -18,46 +18,54 @@ This is a Jumbotron component you can fill with regular markdown.
 :::stack/
 :::jumbotron/
 
-:::columns-2
-:::column
+:::columns (2)
+:::container
 
 ### Column 1 title
 
 Content 1
 
-:::column/
-:::column
+:::container/
+:::container
 
 ### Column 2 title
 
 Content 2
 
-:::column/
-:::columns-2/
+:::container/
+:::columns/
 
-:::columns-3
-:::column
+:::columns (3)
+:::container
 
 ### Column 1 title
 
 Content 1
 
-:::column/
-:::column
+:::container/
+:::container
 
 ### Column 2 title
 
 Content 2
 
-:::column/
-:::column
+:::container/
+:::container
 
 ### Column 3 title
 
 Content 3
 
-:::column/
-:::columns-3/
+:::container/
+:::columns/
+
+:::button (https://gno.land)
+Link button
+:::button/
+
+:::button
+State button
+:::button/
 
 :::accordion (Accordion button)
 Accordion content
@@ -78,6 +86,80 @@ Danger content
 :::alert (success)
 Success content
 :::alert/
+
+:::breadcrumb
+
+1. [Home](https://gno.land)
+2. [Foo](https://gno.land)
+3. [Bar](https://gno.land)
+
+:::breadcrumb/
+
+:::dropdown (Dropdown - click here)
+
+1. [Home](https://gno.land)
+2. [Foo](https://gno.land)
+3. [Bar](https://gno.land)
+
+:::dropdown/
+
+:::pagination (Article pages)
+
+1. [1](https://gno.land)
+2. [2](https://gno.land)
+3. [3](https://gno.land)
+
+:::pagination/
+
+:::form (/)
+
+:::form-input (text)
+Placeholder
+:::form-input/
+:::form-input (date)/
+:::form-input (number)
+Number
+:::form-input/
+:::form-input (password)
+Password
+:::form-input/
+
+:::form-button (reset)
+Reset
+:::form-button/
+:::form-button (submit)
+Submit
+:::form-button/
+
+:::form-textarea
+Placeholder
+:::form-textarea/
+
+:::form-check (radio)
+
+- Radio 1
+- Radio 2
+- Radio 3
+
+:::form-check/
+
+:::form-check (checkbox)
+
+- Checkbox 1
+- Checkbox 2
+- Checkbox 3
+
+:::form-check/
+
+:::form-select
+
+- Select 1
+- Select 2
+- Select 3
+
+:::form-select/
+
+:::form/
 
 # Explore new packages.
 

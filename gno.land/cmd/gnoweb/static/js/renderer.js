@@ -4,7 +4,7 @@
  * @returns string rendered text
  */
 function renderUsernames(raw) {
-  return raw.replace(/( |\n)@([_a-z0-9]{5,16})/, "$1[@$2](/r/demo/users:$2)");
+  return raw?.replace(/( |\n)@([_a-z0-9]{5,16})/, "$1[@$2](/r/demo/users:$2)");
 }
 
 /*
@@ -14,20 +14,66 @@ function renderUsernames(raw) {
 const components = [
   { name: "jumbotron", toRender: (content) => `<div class="jumbotron">${content}</div>` },
   { name: "stack", toRender: (content) => `<div class="stack">${content}</div>` },
-  { name: "columns-2", toRender: (content) => `<div class="columns-2">${content}</div>` },
-  { name: "columns-3", toRender: (content) => `<div class="columns-3">${content}</div>` },
-  { name: "column", toRender: (content) => `<div>${content}</div>` },
+  { name: "columns", toRender: (content, type) => `<div class="columns-${type}">${content}</div>` },
+  { name: "container", toRender: (content) => `<div>${content}</div>` },
   { name: "alert", toRender: (content, type) => `<div class="alert alert-${type}" role="alert">${content}</div>` },
+  { name: "form", toRender: (content, action) => `<form action="${action}">${content}</form>` },
+  { name: "form-input", isPlain: true, toRender: (content, type) => `<input data-gno="input" type="${type}" placeholder="${content ?? ""}">` },
+  { name: "form-button", isPlain: true, toRender: (content, type) => `<input data-gno="input" type="${type}" value="${content ?? ""}">` },
+  { name: "form-textarea", isPlain: true, toRender: (content) => `<textarea>${content}</textarea>` },
+  {
+    name: "form-check",
+    isPlain: true,
+    toRender: (content, type) => {
+      const idfyer = (txt) => txt.replace(/\s+/g, "-");
+      const els = content
+        .map((item) => `<div><input type="${type}" value="${item.text}" id="${idfyer(item.text)}"><label for="${idfyer(item.text)}">${item.text}</label></div>`)
+        .reduce((a, b) => a + b, "");
+      return `<div data-gno="selectors" class="checkboxes"> ${els}</div>`;
+    },
+  },
+  {
+    name: "form-select",
+    isPlain: true,
+    toRender: (content) => {
+      const els = content.map((item) => `<option value="${item.text}">${item.text}</option>`).reduce((a, b) => a + b, "");
+      return `<select data-gno="selectors" class="select"> ${els}</select>`;
+    },
+  },
+  {
+    name: "pagination",
+    toRender: (content) => `<nav aria-label="Navigation" data-gno="pagination" class="pagination">${content}</nav>`,
+  },
+  {
+    name: "breadcrumb",
+    toRender: (content) => `<nav aria-label="breadcrumb" data-gno="breadcrumb" class="breadcrumb">${content}</nav>`,
+  },
   {
     name: "accordion",
-    toRender: (content, label) => `<button type="button" aria-expanded="true" class="accordion-trigger">${label}</button><div role="region" class="accordion-panel">${content}</div>`,
+    toRender: (content, label) =>
+      `<button type="button" aria-expanded="true" data-gno="accordion" class="accordion-trigger">${label}</button><div role="region" class="accordion-panel">${content}</div>`,
+  },
+  {
+    name: "dropdown",
+    toRender: (content, label) => `
+    <div data-gno="dropdown" class="dropdown">
+        <button type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            ${label}
+        </button>
+        ${content}
+    </div>`,
+  },
+  {
+    name: "button",
+    isPlain: true,
+    toRender: (content, url) => (url ? `<a class="button" role="button" href="${url}" data-gno="button">${content}</a>` : `<button class="button" data-gno="button">${content}</button>`),
   },
 ];
 
 const extensionBuilder = (comp) => {
-  const { name, toRender } = comp;
+  const { name, toRender, isPlain } = comp;
   const startReg = RegExp(`:::${name}`);
-  const tokenizerReg = RegExp(`^:::${name}(\\s\\([^\r\n]*?\\))?\n([\\s\\S]*?)\n:::${name}\/`);
+  const tokenizerReg = RegExp(`^:::${name}(\\s\\([^\r\n]*?\\))?(\n([\\s\\S]*?)\n?:::${name})?\/`);
   return {
     name: name,
     level: "block",
@@ -40,18 +86,16 @@ const extensionBuilder = (comp) => {
         const token = {
           type: name,
           raw: match[0],
-          text: match[2].trim(),
+          text: match[3]?.trim(),
           attr: match[1]?.trim().slice(1, -1),
           tokens: [],
         };
-        console.log(match);
-        this.lexer.blockTokens(token.text, token.tokens);
+        this.lexer.blockTokens(token.text ?? "", token.tokens);
         return token;
       }
     },
     renderer(token) {
-      console.log(token);
-      return toRender(this.parser.parse(token.tokens), token.attr);
+      return toRender(isPlain ? token.tokens[0]?.items || token.text : this.parser.parse(token.tokens), token.attr);
     },
   };
 };
@@ -63,6 +107,10 @@ function parseContent(source) {
   const contents = doc.documentElement.textContent;
   return marked.parse(contents);
 }
+
+/*
+ *   COMPONENTS CONTROLERS
+ */
 
 /*
  *   ### ACCORDIONS ###
@@ -99,6 +147,87 @@ class Accordion {
     } else {
       this.contentEl.classList.add("is-hidden");
     }
+  }
+}
+
+/*
+ *   ### BREADCRUMBS ###
+ *
+ *   Desc: Breadcrumb ARIA attributes
+ */
+
+class Breadcrumb {
+  constructor(crumbsNode) {
+    this.currentLink = crumbsNode.querySelector("ul, ol").lastElementChild;
+    this.currentLink.setAttribute("aria-current", "page");
+  }
+}
+
+class Button {
+  constructor(buttonNode, i) {
+    this.DOM = {
+      button: buttonNode,
+    };
+    this.DOM.button.id = `button-${i}`;
+  }
+}
+
+/*
+ *   ### FORMS ###
+ *
+ *   Desc: Dropdown open/close and ARIA attributes
+ */
+
+class FormInput {
+  constructor(inputNode, i) {
+    this.DOM = {
+      input: inputNode,
+    };
+    this.DOM.input.setAttribute("name", `gno-form-input-${i}`);
+  }
+}
+
+class FormSelector {
+  constructor(checkNode, i) {
+    this.DOM = {
+      checkContainer: checkNode,
+      checkboxes: [...checkNode.querySelectorAll("input")],
+    };
+    this.DOM.checkboxes.forEach((checkbox) => checkbox.setAttribute("name", `gno-form-input-${i}`));
+  }
+}
+
+/*
+ *   ### DROPDOWN ###
+ *
+ *   Desc: Dropdown open/close and ARIA attributes
+ */
+
+class Dropdown {
+  constructor(dropdownNode, i) {
+    this.DOM = {
+      dropdown: dropdownNode,
+      dropdownBtn: dropdownNode.querySelector("button"),
+      dropdownList: dropdownNode.querySelector("ul, ol"),
+    };
+
+    this.isOpen = false;
+
+    this.DOM.dropdownBtn.id = `dropdownMenuButton-${i}`;
+    this.DOM.dropdownList.setAttribute("aria-labelledby", `dropdownMenuButton-${i}`);
+    this.DOM.dropdownList.classList.add("is-hidden");
+
+    document.body.addEventListener("click", (e) => {
+      const DropdownBtnNode = e.target.closest("button");
+      const DropdownContentNode = e.target.closest("li");
+
+      if (!this.isOpen && !this.DOM.dropdown.contains(DropdownBtnNode)) return;
+      if (!this.DOM.dropdown.contains(DropdownContentNode)) {
+        this.isOpen = !this.isOpen;
+      }
+      this.DOM.dropdownBtn.setAttribute("aria-expanded", this.isOpen);
+      this.DOM.dropdownList.classList[this.isOpen ? "remove" : "add"]("is-hidden");
+    });
   }
 }
 
@@ -232,13 +361,37 @@ class Tabs {
  */
 
 window.addEventListener("load", function () {
-  const accordions = Array.from(document.querySelectorAll(".accordion-trigger"));
-  for (let accordion of accordions) {
+  const accordions = Array.from(document.querySelectorAll('[data-gno="accordion"]'));
+  for (const accordion of accordions) {
     new Accordion(accordion);
   }
 
+  const breadcrumbs = Array.from(document.querySelectorAll('[data-gno="breadcrumb"]'));
+  for (const breadcrumb of breadcrumbs) {
+    new Breadcrumb(breadcrumb);
+  }
+
   const tablists = Array.from(document.querySelectorAll("[role=tablist].tabs"));
-  for (let tab of tablists) {
+  for (const tab of tablists) {
     new Tabs(tab);
+  }
+
+  const dropdowns = Array.from(document.querySelectorAll('[data-gno="dropdown"]'));
+  for (const [i, dropdown] of dropdowns.entries()) {
+    new Dropdown(dropdown, i);
+  }
+
+  const inputs = Array.from(document.querySelectorAll('[data-gno="input"]'));
+  for (const [i, input] of inputs.entries()) {
+    new FormInput(input, i);
+  }
+
+  const selectors = Array.from(document.querySelectorAll('[data-gno="selectors"]'));
+  for (const [i, input] of selectors.entries()) {
+    new FormSelector(input, i);
+  }
+  const buttons = Array.from(document.querySelectorAll('[data-gno="button"]'));
+  for (const [i, button] of buttons.entries()) {
+    new Button(button, i);
   }
 });
