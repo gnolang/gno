@@ -6,9 +6,11 @@
 - [Acquire testnet tokens](/faucet)
 - [Game of Realms](/game-of-realms) - An open worldwide competition for developers to build the best Gnolang smart-contracts.
 
+## Jumbotron component
+
 :::jumbotron
 
-## Jumbotron title
+### Jumbotron Title
 
 This is a Jumbotron component you can fill with regular markdown.
 
@@ -18,17 +20,43 @@ This is a Jumbotron component you can fill with regular markdown.
 :::stack/
 :::jumbotron/
 
+```markdown
+:::jumbotron
+
+### Title
+
+Content
+
+:::jumbotron/
+```
+
+## Stack component
+
+:::stack
+[Stack link 1](/about)
+[Stack link 1](https://github.com/gnolang)
+:::stack/
+
+```markdown
+:::stack
+[Stack link 1](/about)
+[Stack link 1](https://github.com/gnolang)
+:::stack/
+```
+
+## columns component
+
 :::columns (2)
 :::container
 
-### Column 1 title
+### Col 1
 
 Content 1
 
 :::container/
 :::container
 
-### Column 2 title
+### Col 2
 
 Content 2
 
@@ -38,26 +66,159 @@ Content 2
 :::columns (3)
 :::container
 
-### Column 1 title
+### Col 1
 
 Content 1
 
 :::container/
 :::container
 
-### Column 2 title
+### Col 2
 
 Content 2
 
 :::container/
 :::container
 
-### Column 3 title
+### Col 3
 
 Content 3
 
 :::container/
 :::columns/
+
+:::columns (4)
+:::container
+
+### Col 1
+
+Content 1
+
+:::container/
+:::container
+
+### Col 2
+
+Content 2
+
+:::container/
+:::container
+
+### Col 3
+
+Content 3
+
+:::container/
+:::container
+
+### Col 4
+
+Content 4
+
+:::container/
+:::columns/
+
+:::columns (5)
+:::container
+
+### Col 1
+
+Content 1
+
+:::container/
+:::container
+
+### Col 2
+
+Content 2
+
+:::container/
+:::container
+
+### Col 3
+
+Content 3
+
+:::container/
+:::container
+
+### Col 4
+
+Content 4
+
+:::container/
+:::container
+
+### Col 5
+
+Content 5
+
+:::container/
+:::columns/
+
+:::columns (6)
+:::container
+
+### Col 1
+
+Content 1
+
+:::container/
+:::container
+
+### Col 2
+
+Content 2
+
+:::container/
+:::container
+
+### Col 3
+
+Content 3
+
+:::container/
+:::container
+
+### Col 4
+
+Content 4
+
+:::container/
+:::container
+
+### Col 5
+
+Content 5
+
+:::container/
+:::container
+
+### Col 6
+
+Content 6
+
+:::container/
+:::columns/
+
+```markdown
+:::columns (2)
+:::container
+
+First column content
+
+:::container/
+:::container
+
+First column content
+
+:::container/
+:::columns/
+
+From 1 to 6 column grouped by container component
+```
+
+## Button component
 
 :::button (https://gno.land)
 Link button
@@ -67,9 +228,31 @@ Link button
 State button
 :::button/
 
+```markdown
+:::button (https://gno.land)
+Link button
+:::button/
+
+or without link to create a button element instead of a link one
+
+:::button
+State button
+:::button/
+```
+
+## Alert component
+
 :::accordion (Accordion button)
 Accordion content
 :::accordion/
+
+```markdown
+:::accordion (Accordion button content)
+Accordion content
+:::accordion/
+```
+
+## Alert component
 
 :::alert (warning)
 Warning content
@@ -87,6 +270,14 @@ Danger content
 Success content
 :::alert/
 
+```markdown
+:::alert (success | danger | info | warning)
+Alert content
+:::alert/
+```
+
+## Breadcrumb component
+
 :::breadcrumb
 
 1. [Home](https://gno.land)
@@ -94,6 +285,18 @@ Success content
 3. [Bar](https://gno.land)
 
 :::breadcrumb/
+
+```markdown
+:::breadcrumb
+
+1. [Home](https://gno.land)
+2. [Foo](https://gno.land)
+3. [Bar](https://gno.land)
+
+:::breadcrumb/
+```
+
+## Dropdown component
 
 :::dropdown (Dropdown - click here)
 
@@ -103,6 +306,18 @@ Success content
 
 :::dropdown/
 
+```markdown
+:::dropdown (Dropdown - click here)
+
+1. [Home](https://gno.land)
+2. [Foo](https://gno.land)
+3. [Bar](https://gno.land)
+
+:::dropdown/
+```
+
+## Pagination component
+
 :::pagination (Article pages)
 
 1. [1](https://gno.land)
@@ -111,7 +326,29 @@ Success content
 
 :::pagination/
 
-:::form (/)
+```markdown
+:::pagination
+
+1. [1](https://gno.land/1)
+2. [2](https://gno.land/2)
+3. [3](https://gno.land/3)
+
+:::pagination/
+```
+
+## Form component
+
+```markdown
+:::form (https://gno.land) (post)
+Form content & components such as input (see below)
+:::form/
+
+First argument is action and second one is method
+```
+
+:::form (/)(post)
+
+### Form inputs components
 
 :::form-input (text)
 Placeholder
@@ -124,16 +361,31 @@ Number
 Password
 :::form-input/
 
-:::form-button (reset)
-Reset
-:::form-button/
-:::form-button (submit)
-Submit
-:::form-button/
+```markdown
+With placeholder content
+
+:::form-input (text | number | password)
+Password
+:::form-input/
+
+Without placeholder content
+
+:::form-input (date)/
+```
+
+### Form textarea component
 
 :::form-textarea
 Placeholder
 :::form-textarea/
+
+```markdown
+:::form-textarea
+Placeholder
+:::form-textarea/
+```
+
+### Form check components
 
 :::form-check (radio)
 
@@ -151,6 +403,18 @@ Placeholder
 
 :::form-check/
 
+```markdown
+:::form-check (checkbox | radio)
+
+- Checkbox 1
+- Checkbox 2
+- Checkbox 3
+
+:::form-check/
+```
+
+### Form select component
+
 :::form-select
 
 - Select 1
@@ -158,6 +422,31 @@ Placeholder
 - Select 3
 
 :::form-select/
+
+```markdown
+:::form-select
+
+- Select 1
+- Select 2
+- Select 3
+
+:::form-select/
+```
+
+### Form buttons component
+
+:::form-button (reset)
+Reset
+:::form-button/
+:::form-button (submit)
+Submit
+:::form-button/
+
+```markdown
+:::form-button (submit | reset ...)
+Submit
+:::form-button/
+```
 
 :::form/
 

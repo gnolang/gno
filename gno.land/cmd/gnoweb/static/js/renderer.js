@@ -14,20 +14,20 @@ function renderUsernames(raw) {
 const components = [
   { name: "jumbotron", toRender: (content) => `<div class="jumbotron">${content}</div>` },
   { name: "stack", toRender: (content) => `<div class="stack">${content}</div>` },
-  { name: "columns", toRender: (content, type) => `<div class="columns-${type}">${content}</div>` },
+  { name: "columns", toRender: (content, attrs) => `<div class="columns-${attrs[0]}">${content}</div>` },
   { name: "container", toRender: (content) => `<div>${content}</div>` },
-  { name: "alert", toRender: (content, type) => `<div class="alert alert-${type}" role="alert">${content}</div>` },
-  { name: "form", toRender: (content, action) => `<form action="${action}">${content}</form>` },
-  { name: "form-input", isPlain: true, toRender: (content, type) => `<input data-gno="input" type="${type}" placeholder="${content ?? ""}">` },
-  { name: "form-button", isPlain: true, toRender: (content, type) => `<input data-gno="input" type="${type}" value="${content ?? ""}">` },
+  { name: "alert", toRender: (content, attrs) => `<div class="alert alert-${attrs[0]}" role="alert">${content}</div>` },
+  { name: "form", toRender: (content, attrs) => `<form action="${attrs[0]}" method="${attrs[1] ?? "get"}">${content}</form>` },
+  { name: "form-input", isPlain: true, toRender: (content, attrs) => `<input data-gno="input" type="${attrs[0]}" placeholder="${content ?? ""}">` },
+  { name: "form-button", isPlain: true, toRender: (content, attrs) => `<input data-gno="input" type="${attrs[0]}" value="${content ?? ""}">` },
   { name: "form-textarea", isPlain: true, toRender: (content) => `<textarea>${content}</textarea>` },
   {
     name: "form-check",
     isPlain: true,
-    toRender: (content, type) => {
+    toRender: (content, attrs) => {
       const idfyer = (txt) => txt.replace(/\s+/g, "-");
       const els = content
-        .map((item) => `<div><input type="${type}" value="${item.text}" id="${idfyer(item.text)}"><label for="${idfyer(item.text)}">${item.text}</label></div>`)
+        .map((item) => `<div><input type="${attrs[0]}" value="${item.text}" id="${idfyer(item.text)}"><label for="${idfyer(item.text)}">${item.text}</label></div>`)
         .reduce((a, b) => a + b, "");
       return `<div data-gno="selectors" class="checkboxes"> ${els}</div>`;
     },
@@ -50,15 +50,15 @@ const components = [
   },
   {
     name: "accordion",
-    toRender: (content, label) =>
-      `<button type="button" aria-expanded="true" data-gno="accordion" class="accordion-trigger">${label}</button><div role="region" class="accordion-panel">${content}</div>`,
+    toRender: (content, attrs) =>
+      `<button type="button" aria-expanded="true" data-gno="accordion" class="accordion-trigger">${attrs[0]}</button><div role="region" class="accordion-panel">${content}</div>`,
   },
   {
     name: "dropdown",
-    toRender: (content, label) => `
+    toRender: (content, attrs) => `
     <div data-gno="dropdown" class="dropdown">
         <button type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-            ${label}
+            ${attrs[0]}
         </button>
         ${content}
     </div>`,
@@ -66,7 +66,7 @@ const components = [
   {
     name: "button",
     isPlain: true,
-    toRender: (content, url) => (url ? `<a class="button" role="button" href="${url}" data-gno="button">${content}</a>` : `<button class="button" data-gno="button">${content}</button>`),
+    toRender: (content, attrs) => (attrs[0] ? `<a class="button" role="button" href="${attrs[0]}" data-gno="button">${content}</a>` : `<button class="button" data-gno="button">${content}</button>`),
   },
 ];
 
@@ -74,6 +74,7 @@ const extensionBuilder = (comp) => {
   const { name, toRender, isPlain } = comp;
   const startReg = RegExp(`:::${name}`);
   const tokenizerReg = RegExp(`^:::${name}(\\s\\([^\r\n]*?\\))?(\n([\\s\\S]*?)\n?:::${name})?\/`);
+  const variablesReg = /\(([^()]+)\)/g;
   return {
     name: name,
     level: "block",
@@ -87,7 +88,7 @@ const extensionBuilder = (comp) => {
           type: name,
           raw: match[0],
           text: match[3]?.trim(),
-          attr: match[1]?.trim().slice(1, -1),
+          attrs: match[1]?.match(variablesReg)?.map((attr) => attr.substring(1, attr.length - 1)) ?? [],
           tokens: [],
         };
         this.lexer.blockTokens(token.text ?? "", token.tokens);
@@ -95,7 +96,7 @@ const extensionBuilder = (comp) => {
       }
     },
     renderer(token) {
-      return toRender(isPlain ? token.tokens[0]?.items || token.text : this.parser.parse(token.tokens), token.attr);
+      return toRender(isPlain ? token.tokens[0]?.items || token.text : this.parser.parse(token.tokens), token.attrs);
     },
   };
 };
