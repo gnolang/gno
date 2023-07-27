@@ -64,11 +64,9 @@ func ffInt(base int) func(j.Ast, *j.ParseContext) j.Ast {
 		var prefix string
 		switch base {
 		case 2:
-			// i, e = strconv.ParseInt(s[2:], 2, 64)
 			i, e = strconv.ParseInt(s, 2, 64)
 			prefix = "0b"
 		case 8:
-			// i, e = strconv.ParseInt(s, 8, 64)
 			if strings.HasPrefix(s, "0o") || strings.HasPrefix(s, "0O") {
 				i, e = strconv.ParseInt(s[2:], 8, 64)
 			} else if strings.HasPrefix(s, "0") {
@@ -76,20 +74,16 @@ func ffInt(base int) func(j.Ast, *j.ParseContext) j.Ast {
 			}
 			prefix = "0o"
 		case 10:
-			// i, e = strconv.ParseInt(s, 10, 64)
 			i, e = strconv.ParseInt(s, 10, 64)
 			prefix = ""
 		case 16:
-			// i, e = strconv.ParseInt(s[2:], 16, 64)
 			i, e = strconv.ParseInt(s, 16, 64)
 			prefix = "0x"
 		default:
 			panic("impossible base, expecting 2,8,10,16")
 		}
 		if e != nil {
-			// it may have overflowed
-			// or faulty grammar.
-			fmt.Println(e.Error())
+			// it may have overflowed or faulty grammar.
 			return ctx.Error(e.Error())
 		}
 		return &BasicLitExpr{
@@ -136,17 +130,18 @@ func fImaginary(it j.Ast, ctx *j.ParseContext) j.Ast {
 }
 
 func f_rune_lit(it j.Ast, ctx *j.ParseContext) j.Ast {
-	if j.IsParseError(it) {
-		return it
-	}
-	if s, e := stringIt(it); e == nil {
-		return &BasicLitExpr{
-			Kind:  CHAR,
-			Value: s,
-		}
-	} else {
-		return ctx.Error(e.Error())
-	}
+	return ffBasicLit(CHAR)(it, ctx)
+	// if j.IsParseError(it) {
+	// 	return it
+	// }
+	// if s, e := stringIt(it); e == nil {
+	// 	return &BasicLitExpr{
+	// 		Kind:  CHAR,
+	// 		Value: s,
+	// 	}
+	// } else {
+	// 	return ctx.Error(e.Error())
+	// }
 }
 
 func ff_u_value(rule string, hexDigits int) func(j.Ast, *j.ParseContext) j.Ast {
@@ -156,6 +151,65 @@ func ff_u_value(rule string, hexDigits int) func(j.Ast, *j.ParseContext) j.Ast {
 			return ctx.Error(fmt.Sprintf("%s requires %d hex", rule, hexDigits))
 		} else {
 			return it
+		}
+	}
+}
+
+func f_raw_string_lit(it j.Ast, ctx *j.ParseContext) j.Ast {
+	return ffBasicLit(STRING)(it, ctx)
+	// if j.IsParseError(it) {
+	// 	return it
+	// }
+	// if s, e := stringIt(it); e == nil {
+	// 	return &BasicLitExpr{
+	// 		Kind:  STRING,
+	// 		Value: s,
+	// 	}
+	// } else {
+	// 	return ctx.Error(e.Error())
+	// }
+}
+
+func finterpreted_string_lit(it j.Ast, ctx *j.ParseContext) j.Ast {
+	if j.IsParseError(it) {
+		return it
+	}
+	if s, e := stringIt(it); e == nil {
+		return &BasicLitExpr{
+			Kind:  STRING,
+			Value: `"` + s + `"`,
+		}
+	} else {
+		return ctx.Error(e.Error())
+	}
+}
+
+func fraw_string_lit(it j.Ast, ctx *j.ParseContext) j.Ast {
+	if j.IsParseError(it) {
+		return it
+	}
+	if s, e := stringIt(it); e == nil {
+		return &BasicLitExpr{
+			Kind:  STRING,
+			Value: "`" + s + "`",
+		}
+	} else {
+		return ctx.Error(e.Error())
+	}
+}
+
+func ffBasicLit(kind Word) func(j.Ast, *j.ParseContext) j.Ast {
+	return func(it j.Ast, ctx *j.ParseContext) j.Ast {
+		if j.IsParseError(it) {
+			return it
+		}
+		if s, e := stringIt(it); e == nil {
+			return &BasicLitExpr{
+				Kind:  kind,
+				Value: s,
+			}
+		} else {
+			return ctx.Error(e.Error())
 		}
 	}
 }

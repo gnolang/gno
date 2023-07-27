@@ -118,6 +118,36 @@ func (expectation expectation) brief() string {
 }
 
 func (v parsesAs) lies(ast j.Ast, expectation expectation) error {
+	if basicLit, ok := ast.(*BasicLitExpr); ok {
+		switch basicLit.Kind {
+		case INT, FLOAT, IMAG:
+		case STRING:
+			// when it's a string,
+			// we will need strconv.Unquote for things like `"\u65e5本\U00008a9e"`
+			// to be comparable to "日本語". We wouldn't in fact
+			// necessarily need this, conversion to be made,
+			// but it helps make the tests more clear. Also
+			// it is necessary for `parsesAsChar`, so we will
+			// have it here also.
+			// ss, err := strconv.Quote(basicLit.Value)
+			// if err != nil {
+			// 	return errors.New(fmt.Sprintf("%s did not successfully went thought strconv.QuotedPrefix: %s", basicLit.Value, err.Error()))
+			// }
+			// if s, err := strconv.Unquote(ss); err == nil {
+			if s, err := strconv.Unquote(basicLit.Value); err == nil {
+				if v.string == s {
+					return nil // it's cool
+				} else {
+					return errors.New(fmt.Sprintf("was expecting \"%s\", got \"%s\"", v.string, s))
+				}
+			} else {
+				return errors.New(fmt.Sprintf("%s did not successfully went thought strconv.Unquote: %s", basicLit.Value, err.Error()))
+			}
+		default:
+			return errors.New(fmt.Sprintf("expecting BasicLitExpr with Kind STRING, got %s", basicLit.Kind))
+		}
+	}
+	// general case (binary expr etc)
 	if ast.String() != v.string {
 		return errors.New(fmt.Sprintf("was expecting \"%s\", got \"%s\"", v.string, ast.String()))
 	}
@@ -129,22 +159,14 @@ func (v parsesAsChar) lies(ast j.Ast, expectation expectation) error {
 		if basicLit.Kind != CHAR {
 			return errors.New(fmt.Sprintf("expecting BasicLitExpr with Kind CHAR, got %s", basicLit.Kind))
 		}
-		if v.rune == '\n' && ast.(*BasicLitExpr).Value == "\n" ||
-			v.rune == '\'' && ast.(*BasicLitExpr).Value == "'" {
-			// test below fails with \n for some reason,
-			// so manually approve it
-			return nil
-		}
-		s1 := string(v.rune)                                                // v.rune is the 'U' in parsesAsChar{'U'}
-		if s2, e := strconv.Unquote("'" + basicLit.Value + "'"); e != nil { // basicLit.Value is `'\125` in expect(`'\125'`, parsesAsChar{'U})
-			return errors.New(fmt.Sprintf("parsesAsChar, failed calling strconv.Unquote(basicLit.Value=%s) (%s)", basicLit.Value, e.Error()))
-		} else {
-			// if basicLit.GetString() == unquoted {
-			if s1 == s2 {
+		if char, _, _, err := strconv.UnquoteChar(basicLit.Value, 0); err == nil {
+			if v.rune == char {
 				return nil // it's cool
 			} else {
-				return errors.New(fmt.Sprintf("was expecting rune of hex \"%x\", got hex \"%x\"", s1, s2))
+				return errors.New(fmt.Sprintf("was expecting rune of hex \"%x\", got hex \"%x\"", v.rune, char))
 			}
+		} else {
+			return errors.New(fmt.Sprintf("%s did not successfully went through strconv.UnquoteChar: %s", basicLit.Value, err.Error()))
 		}
 	} else {
 		return errors.New("expecting BasicLitExpr")
@@ -210,63 +232,63 @@ func (doom) lies(ast j.Ast, expectation expectation) error {
 func TestJoeson(t *testing.T) {
 	os.Setenv("TRACE", "grammar,stack")
 	tests := []expectation{
-		expect("2398", parsesAs{"2398"}, isBasicLit{INT}),
-		expect("0", parsesAs{"0"}, isBasicLit{INT}),
-		expect("0b0", parsesAs{"0b0"}, isBasicLit{INT}),
-		expect("0B1", parsesAs{"0b1"}, isBasicLit{INT}),
-		expect("0B_1", parsesAs{"0b1"}, isBasicLit{INT}),
-		expect("0B_10", parsesAs{"0b10"}, isBasicLit{INT}),
-		expect("0O777", parsesAs{"0o777"}, isBasicLit{INT}),
-		expect("0o1", parsesAs{"0o1"}, isBasicLit{INT}),
-		expect("0xBadFace", parsesAs{"0xbadface"}, isBasicLit{INT}),
-		expect("0xBadAce", parsesAs{"0xbadace"}, isBasicLit{INT}),
-		expect("0xdE_A_d_faC_e", parsesAs{"0xdeadface"}, isBasicLit{INT}),
-		expect("0x_67_7a_2f_cc_40_c6", parsesAs{"0x677a2fcc40c6"}, isBasicLit{INT}),
-		expectErrorContains("170141183460469231731687303715884105727", "value out of range"),
-		expectErrorContains("170_141183_460469_231731_687303_715884_105727", "value out of range"),
+		expect(`2398`, parsesAs{"2398"}, isBasicLit{INT}),
+		expect(`0`, parsesAs{"0"}, isBasicLit{INT}),
+		expect(`0b0`, parsesAs{"0b0"}, isBasicLit{INT}),
+		expect(`0B1`, parsesAs{"0b1"}, isBasicLit{INT}),
+		expect(`0B_1`, parsesAs{"0b1"}, isBasicLit{INT}),
+		expect(`0B_10`, parsesAs{"0b10"}, isBasicLit{INT}),
+		expect(`0O777`, parsesAs{"0o777"}, isBasicLit{INT}),
+		expect(`0o1`, parsesAs{"0o1"}, isBasicLit{INT}),
+		expect(`0xBadFace`, parsesAs{"0xbadface"}, isBasicLit{INT}),
+		expect(`0xBadAce`, parsesAs{"0xbadace"}, isBasicLit{INT}),
+		expect(`0xdE_A_d_faC_e`, parsesAs{"0xdeadface"}, isBasicLit{INT}),
+		expect(`0x_67_7a_2f_cc_40_c6`, parsesAs{"0x677a2fcc40c6"}, isBasicLit{INT}),
+		expectErrorContains(`170141183460469231731687303715884105727`, "value out of range"),
+		expectErrorContains(`170_141183_460469_231731_687303_715884_105727`, "value out of range"),
 		// _42         // an identifier, not an integer literal
 		// 42_         // invalid: _ must separate successive digits
 		// 4__2        // invalid: only one _ at a time
 		// 0_xBadFace  // invalid: _ must separate successive digits
 
-		expect("0.", parsesAs{"0"}, isBasicLit{FLOAT}), // spec/FloatingPointsLiterals.txt
-		expect("72.40", parsesAs{"72.4"}, isBasicLit{FLOAT}),
-		expect("072.40", parsesAs{"72.4"}, isBasicLit{FLOAT}), // == 72.40
-		expect("2.71828", parsesAs{"2.71828"}, isBasicLit{FLOAT}),
-		expect("1.e+0", parsesAs{"1"}, isBasicLit{FLOAT}),
-		expect("6.67428e-11", parsesAs{"6.67428e-11"}, isBasicLit{FLOAT}),
-		expect("1E6", parsesAs{"1e+06"}, isBasicLit{FLOAT}),
-		expect(".25", parsesAs{"0.25"}, isBasicLit{FLOAT}),
-		expect(".12345E+5", parsesAs{"12345"}, isBasicLit{FLOAT}),
-		expect("1_5.", parsesAs{"15"}, isBasicLit{FLOAT}),                 // == 15.0
-		expect("0.15e+0_2", parsesAs{"15"}, isBasicLit{FLOAT}),            // == 15.0
-		expect("0x1p-2", parsesAs{"0x1p-02"}, isBasicLit{FLOAT}),          // == 0.25
-		expect("0x2.p10", parsesAs{"0x1p+11"}, isBasicLit{FLOAT}),         // == 2048.0
-		expect("0x1.Fp+0", parsesAs{"0x1.fp+00"}, isBasicLit{FLOAT}),      // == 1.9375
-		expect("0X.8p-0", parsesAs{"0x1p-01"}, isBasicLit{FLOAT}),         // == 0.5
-		expect("0X_1FFFP-16", parsesAs{"0x1.fffp-04"}, isBasicLit{FLOAT}), // == 0.1249847412109375
+		expect(`0.`, parsesAs{"0"}, isBasicLit{FLOAT}), // spec/FloatingPointsLiterals.txt
+		expect(`72.40`, parsesAs{"72.4"}, isBasicLit{FLOAT}),
+		expect(`072.40`, parsesAs{"72.4"}, isBasicLit{FLOAT}), // == 72.40
+		expect(`2.71828`, parsesAs{"2.71828"}, isBasicLit{FLOAT}),
+		expect(`1.e+0`, parsesAs{"1"}, isBasicLit{FLOAT}),
+		expect(`6.67428e-11`, parsesAs{"6.67428e-11"}, isBasicLit{FLOAT}),
+		expect(`1E6`, parsesAs{"1e+06"}, isBasicLit{FLOAT}),
+		expect(`.25`, parsesAs{"0.25"}, isBasicLit{FLOAT}),
+		expect(`.12345E+5`, parsesAs{"12345"}, isBasicLit{FLOAT}),
+		expect(`1_5.`, parsesAs{"15"}, isBasicLit{FLOAT}),                 // == 15.0
+		expect(`0.15e+0_2`, parsesAs{"15"}, isBasicLit{FLOAT}),            // == 15.0
+		expect(`0x1p-2`, parsesAs{"0x1p-02"}, isBasicLit{FLOAT}),          // == 0.25
+		expect(`0x2.p10`, parsesAs{"0x1p+11"}, isBasicLit{FLOAT}),         // == 2048.0
+		expect(`0x1.Fp+0`, parsesAs{"0x1.fp+00"}, isBasicLit{FLOAT}),      // == 1.9375
+		expect(`0X.8p-0`, parsesAs{"0x1p-01"}, isBasicLit{FLOAT}),         // == 0.5
+		expect(`0X_1FFFP-16`, parsesAs{"0x1.fffp-04"}, isBasicLit{FLOAT}), // == 0.1249847412109375
 
-		expect("0i", parsesAs{"0i"}, isBasicLit{IMAG}),
-		expect("0123i", parsesAs{"0o123i"}, isBasicLit{IMAG}), // == 123i for backward-compatibility
-		expect("0.i", parsesAs{"0i"}, isBasicLit{IMAG}),
-		expect("0o123i", parsesAs{"0o123i"}, isBasicLit{IMAG}), // == 0o123 * 1i == 83i
-		expect("0xabci", parsesAs{"0xabci"}, isBasicLit{IMAG}), // == 0xabc * 1i == 2748i
-		expect("2.71828i", parsesAs{"2.71828i"}, isBasicLit{IMAG}),
-		expect("1.e+0i", parsesAs{"1i"}, isBasicLit{IMAG}), // == (0+1i)
-		expect("6.67428e-11i", parsesAs{"6.67428e-11i"}, isBasicLit{IMAG}),
-		expect("1E6i", parsesAs{"1e+06i"}, isBasicLit{IMAG}), // == (0+1e+06i)
-		expect(".25i", parsesAs{"0.25i"}, isBasicLit{IMAG}),
-		expect(".12345E+5i", parsesAs{"12345i"}, isBasicLit{IMAG}),
-		expect("0x1p-2i", parsesAs{"0x1p-02i"}, isBasicLit{IMAG}), // == 0x1p-2 * 1i == (0+0.25i)
+		expect(`0i`, parsesAs{"0i"}, isBasicLit{IMAG}),
+		expect(`0123i`, parsesAs{"0o123i"}, isBasicLit{IMAG}), // == 123i for backward-compatibility
+		expect(`0.i`, parsesAs{"0i"}, isBasicLit{IMAG}),
+		expect(`0o123i`, parsesAs{"0o123i"}, isBasicLit{IMAG}), // == 0o123 * 1i == 83i
+		expect(`0xabci`, parsesAs{"0xabci"}, isBasicLit{IMAG}), // == 0xabc * 1i == 2748i
+		expect(`2.71828i`, parsesAs{"2.71828i"}, isBasicLit{IMAG}),
+		expect(`1.e+0i`, parsesAs{"1i"}, isBasicLit{IMAG}), // == (0+1i)
+		expect(`6.67428e-11i`, parsesAs{"6.67428e-11i"}, isBasicLit{IMAG}),
+		expect(`1E6i`, parsesAs{"1e+06i"}, isBasicLit{IMAG}), // == (0+1e+06i)
+		expect(`.25i`, parsesAs{"0.25i"}, isBasicLit{IMAG}),
+		expect(`.12345E+5i`, parsesAs{"12345i"}, isBasicLit{IMAG}),
+		expect(`0x1p-2i`, parsesAs{"0x1p-02i"}, isBasicLit{IMAG}), // == 0x1p-2 * 1i == (0+0.25i)
 
-		expect("0x15e-2", parsesAs{"0x15e - 2"}, isType{"BinaryExpr"}), // == 0x15e - 2 (integer subtraction)
-		expect("123 + 345", parsesAs{"123 + 345"}, isType{"BinaryExpr"}),
-		expect("-1234", parsesAs{"-1234"}, isType{"UnaryExpr"}),
-		expect("- 1234", parsesAs{"-1234"}, isType{"UnaryExpr"}),
-		expect("+ 1234", parsesAs{"+1234"}, isType{"UnaryExpr"}),
-		expect("!0", parsesAs{"!0"}, isType{"UnaryExpr"}),
-		expect("^0", parsesAs{"^0"}, isType{"UnaryExpr"}),
-		expect("-7 -2", parsesAs{"-7 - 2"}, isType{"BinaryExpr"}),
+		expect(`0x15e-2`, parsesAs{"0x15e - 2"}, isType{"BinaryExpr"}), // == 0x15e - 2 (integer subtraction)
+		expect(`123 + 345`, parsesAs{"123 + 345"}, isType{"BinaryExpr"}),
+		expect(`-1234`, parsesAs{"-1234"}, isType{"UnaryExpr"}),
+		expect(`- 1234`, parsesAs{"-1234"}, isType{"UnaryExpr"}),
+		expect(`+ 1234`, parsesAs{"+1234"}, isType{"UnaryExpr"}),
+		expect(`!0`, parsesAs{"!0"}, isType{"UnaryExpr"}),
+		expect(`^0`, parsesAs{"^0"}, isType{"UnaryExpr"}),
+		expect(`-7 -2`, parsesAs{"-7 - 2"}, isType{"BinaryExpr"}),
 
 		// {"0x.p1", "ERROR hexadecimal literal has no digits"},
 		// expectError("0x.p1", "hexadecimal literal has no digits"),
@@ -281,7 +303,7 @@ func TestJoeson(t *testing.T) {
 		expect(`'\125'`, parsesAsChar{'U'}, isBasicLit{CHAR}),
 		expect(`'\x3d'`, parsesAsChar{'='}, isBasicLit{CHAR}),
 		expect(`'\x3D'`, parsesAsChar{'='}, isBasicLit{CHAR}),
-		expect("'\a'", parsesAsChar{'\a'}, isBasicLit{CHAR}),
+		expect(`'`+"\a"+`'`, parsesAsChar{'\a'}, isBasicLit{CHAR}), // should really be written like that, but for the rest of them we will use double quotes
 		expect("'\f'", parsesAsChar{'\f'}, isBasicLit{CHAR}),
 		expect("'\r'", parsesAsChar{'\r'}, isBasicLit{CHAR}),
 		expect("'\t'", parsesAsChar{'\t'}, isBasicLit{CHAR}),
@@ -306,11 +328,18 @@ func TestJoeson(t *testing.T) {
 		// "'\\uDFFF'": "ERROR illegal: surrogate half", // TODO
 		// "'\\U00110000'": "ERROR illegal: invalid Unicode code point", // TODO
 
-		// -- string_lit -- tests adapted from https://go.dev/ref/spec#String_literals
-		// expect("`abc`",                          "raw_string_lit",
-		// expect("`\\n`",                          "raw_string_lit",         // original example is `\n<Actual CR>\n` // same as "\\n\n\\n". But's a bit hard to reproduce...
-		// "\"i like guitar\"",              "interpreted_string_lit", // this is an added example
-		// "\"i like \\\"bass\\\" guitar\"", "interpreted_string_lit", // this is an added example
+		// tests from https://go.dev/ref/spec#String_literals
+		expect("`abc`", parsesAs{"abc"}, isBasicLit{STRING}),
+		expect("`"+`\n`+"`", parsesAs{"\\n"}, isBasicLit{STRING}), // original example is `\n<Actual CR>\n` // same as "\\n\n\\n". But's a bit hard to reproduce...
+		expect(`"abc"`, parsesAs{"abc"}, isBasicLit{STRING}),
+		expect(`"\\\""`, parsesAs{`"`}, isBasicLit{STRING}), // same as `"`
+		expect(`"Hello, world!\\n"`, parsesAs{"Hello, world!\n"}, isBasicLit{STRING}),
+		expect(`"\\xff\\u00FF"`, isBasicLit{STRING}),
+		// these 4 examples all represent the same string ("japanese language" written in japanese)
+		expect(`"日本語"`, parsesAs{"日本語"}, isBasicLit{STRING}),
+		expect(`"\\u65e5本\\U00008a9e"`, parsesAs{"日本語"}, isBasicLit{STRING}),
+		expect(`"\\U000065e5\\U0000672c\\U00008a9e"`, parsesAs{"日本語"}, isBasicLit{STRING}),             // the explicit Unicode code points
+		expect(`"\\xe6\\x97\\xa5\\xe6\\x9c\\xac\\xe8\\xaa\\x9e"`, parsesAs{"日本語"}, isBasicLit{STRING}), // the explicit UTF-8 bytes
 
 		// "func(a, b int, z float64) bool { return a*b < int(z) }": "func(a, b int, z float64) bool { return a*b < int(z) }", // FunctionLit
 	}

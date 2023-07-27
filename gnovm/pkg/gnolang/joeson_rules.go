@@ -32,22 +32,15 @@ var (
 			// o(named("Literal", "BasicLit | CompositeLit | FunctionLit")),
 			i(named("Literal", "BasicLit")),
 			i(named("BasicLit", rules(
-				o("rune_lit | imaginary_lit | float_lit | int_lit"), //| string_lit")),
+				o("rune_lit | string_lit | imaginary_lit | float_lit | int_lit"),
 				i(named("rune_lit", rules(
 					o("'\\'' ( byte_value | unicode_value ) '\\'' | '\\'' [^\n] '\\''"),
-					i(named("byte_value", rules(
-						o("octal_byte_value | hex_byte_value"),
-						i(named("octal_byte_value", `a:'\\' b:octal_digit{3,3}`)),
-						i(named("hex_byte_value", `a:'\\x' b:hex_digit{2,2}`)),
-					))),
-					i(named("unicode_value", rules(
-						o("escaped_char | little_u_value | big_u_value | unicode_char | _error_unicode_char_toomany"),
-						i(named("escaped_char", `[\a\f\n\r\t\v]`)),                                          // TODO NOTE: we skipped \b as for some reason it doesn't work in the regex.
-						i(named("little_u_value", `a:'\\u' b:hex_digit*`), ff_u_value("little_u_value", 4)), // 4 hex_digit or error
-						i(named("big_u_value", `a:'\\U' b:hex_digit*`), ff_u_value("big_u_value", 8)),       // 8 hex digit or error
-						i(named("_error_unicode_char_toomany", "[^\\x{0a}]{2,}"), func(it j.Ast, ctx *j.ParseContext) j.Ast { return ctx.Error("too many characters") }),
-					))),
 				)), f_rune_lit),
+				i(named("string_lit", rules(
+					// TODO fraw_string_lit
+					o(named("raw_string_lit", "'`' [^`]* '`'"), fraw_string_lit), // ffBasicLit(STRING)),
+					o(named("interpreted_string_lit", `'"' (!'\"' ('\\' [\s\S] | unicode_value | byte_value))* '"'`), finterpreted_string_lit),
+				)) /*, ffBasicLit(STRING)*/),
 				i(named("int_lit", rules(
 					// the order is critical for PEG grammars
 					o(named("binary_lit", "('0b'|'0B') '_'? binary_digits"), ffInt(2)),
@@ -81,6 +74,18 @@ var (
 				i(named("binary_digit", "[01]")),
 				i(named("octal_digit", "[0-7]")),
 				i(named("hex_digit", "[0-9a-fA-F]")),
+				i(named("byte_value", rules(
+					o("octal_byte_value | hex_byte_value"),
+					i(named("octal_byte_value", `a:'\\' b:octal_digit{3,3}`)),
+					i(named("hex_byte_value", `a:'\\x' b:hex_digit{2,2}`)),
+				))),
+				i(named("unicode_value", rules(
+					o("escaped_char | little_u_value | big_u_value | unicode_char | _error_unicode_char_toomany"),
+					i(named("escaped_char", `[\a\f\n\r\t\v]`)),                                          // TODO NOTE: we skipped \b as for some reason it doesn't work in the regex.
+					i(named("little_u_value", `a:'\\u' b:hex_digit*`), ff_u_value("little_u_value", 4)), // 4 hex_digit or error
+					i(named("big_u_value", `a:'\\U' b:hex_digit*`), ff_u_value("big_u_value", 8)),       // 8 hex digit or error
+					i(named("_error_unicode_char_toomany", "[^\\x{0a}]{2,}"), func(it j.Ast, ctx *j.ParseContext) j.Ast { return ctx.Error("too many characters") }),
+				))),
 			))),
 			// o(named("OperandName", "QualifiedIdent | identifier")),
 			// i(named("QualifiedIdent", "PackageName '.' identifier"), x("QualifiedIdent")), // https://go.dev/ref/spec#QualifiedIdent
