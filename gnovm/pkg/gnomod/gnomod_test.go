@@ -130,7 +130,7 @@ func TestCreateGnoModFile(t *testing.T) {
 			// Verify gno.mod file
 			bz, err := os.ReadFile(filepath.Join(dirPath, "gno.mod"))
 			assert.NoError(t, err)
-			assert.Equal(t, string(bz), tc.out)
+			assert.Equal(t, tc.out, string(bz))
 		})
 	}
 }
