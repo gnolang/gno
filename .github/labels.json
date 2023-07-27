@@ -88,5 +88,11 @@
     "name": "review/NeedsInvestigation",
     "color": "fbca04",
     "description": "Someone must examine and confirm this is a valid issue and not a duplicate of an existing one."
+  },
+  {
+    "name": "🐿️ gopher hole",
+    "color": "fbca04",
+    "description": "For the deep-diving, complex issues and PRs that might lead us down the proverbial rabbit hole. Get ready to explore and conquer the unknown!"
   }
+
 ]
