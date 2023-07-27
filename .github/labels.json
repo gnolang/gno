@@ -68,5 +68,25 @@
     "name": "investigating",
     "color": "8c008c",
     "description": "This behavior is still being tested out"
+  },
+  {
+    "name": "review/WaitingForInfo",
+    "color": "fbca04",
+    "description": "Issue is not actionable because of missing required information, which needs to be provided."
+  },
+  {
+    "name": "review/NeedsDecision",
+    "color": "fbca04",
+    "description": "Feedback is required from experts, contributors, and/or the community before a change can be made."
+  },
+  {
+    "name": "review/NeedsFix",
+    "color": "fbca04",
+    "description": "The path to resolution is known, but the work has not been done."
+  },
+  {
+    "name": "review/NeedsInvestigation",
+    "color": "fbca04",
+    "description": "Someone must examine and confirm this is a valid issue and not a duplicate of an existing one."
   }
 ]
