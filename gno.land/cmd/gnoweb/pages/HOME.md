@@ -322,7 +322,7 @@ Alert content
 
 1. [1](https://gno.land)
 2. [2](https://gno.land)
-3. [3](https://gno.land)
+3. [3](http://127.0.0.1:8888/)
 
 :::pagination/
 

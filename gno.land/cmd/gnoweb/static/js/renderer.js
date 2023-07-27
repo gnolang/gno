@@ -20,7 +20,7 @@ const components = [
   { name: "alert", controller: "uiElement", toRender: (content, attrs) => `<div class="alert alert-${attrs[0]}" role="alert" data-gno="element">${content}</div>` },
   { name: "form", controller: "uiElement", toRender: (content, attrs) => `<form action="${attrs[0]}" method="${attrs[1] ?? "get"}" data-gno="element">${content}</form>` },
   { name: "form-input", controller: "input", isPlain: true, toRender: (content, attrs) => `<input data-gno="input" type="${attrs[0]}" placeholder="${content ?? ""}" autocomplete="on">` },
-  { name: "form-button", controller: "input", isPlain: true, toRender: (content, attrs) => `<input data-gno="input" type="${attrs[0]}" value="${content ?? ""}">` },
+  { name: "form-button", controller: "input", isPlain: true, toRender: (content, attrs) => `<input data-gno="input" class="btn" type="${attrs[0]}" value="${content ?? ""}">` },
   { name: "form-textarea", controller: "input", isPlain: true, toRender: (content) => `<textarea data-gno="input">${content}</textarea>` },
   {
     name: "form-check",
@@ -57,14 +57,14 @@ const components = [
     name: "accordion",
     controller: "accordion",
     toRender: (content, attrs) =>
-      `<button type="button" aria-expanded="true" data-gno="accordion" class="accordion-trigger">${attrs[0]}</button><div role="region" class="accordion-panel">${content}</div>`,
+      `<button type="button" aria-expanded="true" data-gno="accordion" class="btn accordion-trigger">${attrs[0]}</button><div role="region" class="accordion-panel">${content}</div>`,
   },
   {
     name: "dropdown",
     controller: "dropdown",
     toRender: (content, attrs) => `
     <div data-gno="dropdown" class="dropdown">
-        <button type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <button type="button" class="btn" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
             ${attrs[0]}
         </button>
         ${content}
@@ -74,8 +74,7 @@ const components = [
     name: "button",
     controller: "uiElement",
     isPlain: true,
-    toRender: (content, attrs) =>
-      attrs[0] ? `<a class="button" role="button" href="${attrs[0]}" data-gno="uiElement">${content}</a>` : `<button class="button" data-gno="uiElement">${content}</button>`,
+    toRender: (content, attrs) => (attrs[0] ? `<a class="btn" role="button" href="${attrs[0]}" data-gno="uiElement">${content}</a>` : `<button class="btn" data-gno="uiElement">${content}</button>`),
   },
 ];
 
@@ -109,7 +108,7 @@ class GnoAccordion extends GnoUiElement {
   }
   init() {
     this.name = "accordion";
-    this.contentEl = this.DOM.el.nextElementSibling ?? this.DOM.el.parentElement.nextElementSibling;
+    this.DOM.contentEl = this.DOM.el.nextElementSibling ?? this.DOM.el.parentElement.nextElementSibling;
     this.open = this.DOM.el.getAttribute("aria-expanded") === "true";
 
     this.DOM.el.addEventListener("click", this.onButtonClick.bind(this));
@@ -128,9 +127,9 @@ class GnoAccordion extends GnoUiElement {
 
     this.DOM.el.setAttribute("aria-expanded", `${open}`);
     if (open) {
-      this.DOM.el.classList.remove("is-hidden");
+      this.DOM.contentEl.classList.remove("is-hidden");
     } else {
-      this.DOM.el.classList.add("is-hidden");
+      this.DOM.contentEl.classList.add("is-hidden");
     }
   }
 }
@@ -141,8 +140,8 @@ class GnoBreadcrumb extends GnoUiElement {
   }
   init() {
     this.name = "breadcrumb";
-    this.currentLink = this.DOM.el.querySelector("ul, ol").lastElementChild;
-    this.currentLink.setAttribute("aria-current", "page");
+    this.DOM.currentLink = this.DOM.el.querySelector("ul, ol").lastElementChild;
+    this.DOM.currentLink.setAttribute("aria-current", "page");
   }
 }
 
