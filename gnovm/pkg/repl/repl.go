@@ -143,8 +143,11 @@ func (r *Repl) handleExpression(e *ast.File) (string, error) {
 }
 
 func (r *Repl) handleDeclarations(fn *ast.File) (string, error) {
-	var b bytes.Buffer
-	var nonImportsCount int
+	var (
+		b               bytes.Buffer
+		nonImportsCount int
+	)
+
 	ast.Inspect(fn, func(n ast.Node) bool {
 		var writeNode bool
 		var ns string

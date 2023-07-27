@@ -92,6 +92,7 @@ var fixtures = []struct {
 }
 
 func TestRepl(t *testing.T) {
+	t.Parallel()
 	for _, fix := range fixtures {
 		t.Run(fix.Name, func(t *testing.T) {
 			r := NewRepl()

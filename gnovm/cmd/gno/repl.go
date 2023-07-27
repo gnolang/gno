@@ -119,6 +119,9 @@ func runRepl(cfg *replCfg) error {
 	}
 }
 
+// handleInput will read the input string and parse it depending if it
+// is a specific command, or source code. It returns true if the following
+// input is expected to be on more than one line.
 func handleInput(r *repl.Repl, input string) bool {
 	switch strings.TrimSpace(input) {
 	case "/reset":
@@ -144,6 +147,11 @@ func handleInput(r *repl.Repl, input string) bool {
 	return false
 }
 
+const (
+	inputBreaker = "^D"
+	nl           = "\n"
+)
+
 func getInput(ml bool) (string, error) {
 	s := bufio.NewScanner(os.Stdin)
 	var mlOut bytes.Buffer
@@ -153,12 +161,12 @@ func getInput(ml bool) (string, error) {
 			return line, nil
 		}
 
-		if line == "^D" {
+		if line == inputBreaker {
 			break
 		}
 
 		mlOut.WriteString(line)
-		mlOut.WriteString("\n")
+		mlOut.WriteString(nl)
 	}
 
 	if err := s.Err(); err != nil {
