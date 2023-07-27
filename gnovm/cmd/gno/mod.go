@@ -59,7 +59,7 @@ func newModInitCmd() *commands.Command {
 			ShortUsage: "init [module-path]",
 			ShortHelp:  "Initialize gno.mod file in current directory",
 		},
-		nil,
+		commands.NewEmptyConfig(),
 		func(_ context.Context, args []string) error {
 			return execModInit(args)
 		},
