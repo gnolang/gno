@@ -32,7 +32,22 @@ var (
 			// o(named("Literal", "BasicLit | CompositeLit | FunctionLit")),
 			i(named("Literal", "BasicLit")),
 			i(named("BasicLit", rules(
-				o("imaginary_lit | float_lit | int_lit "), //| rune_lit | string_lit")),
+				o("rune_lit | imaginary_lit | float_lit | int_lit"), //| string_lit")),
+				i(named("rune_lit", rules(
+					o("'\\'' ( byte_value | unicode_value ) '\\'' | '\\'' [^\n] '\\''"),
+					i(named("byte_value", rules(
+						o("octal_byte_value | hex_byte_value"),
+						i(named("octal_byte_value", `a:'\\' b:octal_digit{3,3}`)),
+						i(named("hex_byte_value", `a:'\\x' b:hex_digit{2,2}`)),
+					))),
+					i(named("unicode_value", rules(
+						o("escaped_char | little_u_value | big_u_value | unicode_char | _error_unicode_char_toomany"),
+						i(named("escaped_char", `[\a\f\n\r\t\v]`)),                                          // TODO NOTE: we skipped \b as for some reason it doesn't work in the regex.
+						i(named("little_u_value", `a:'\\u' b:hex_digit*`), ff_u_value("little_u_value", 4)), // 4 hex_digit or error
+						i(named("big_u_value", `a:'\\U' b:hex_digit*`), ff_u_value("big_u_value", 8)),       // 8 hex digit or error
+						i(named("_error_unicode_char_toomany", "[^\\x{0a}]{2,}"), func(it j.Ast, ctx *j.ParseContext) j.Ast { return ctx.Error("too many characters") }),
+					))),
+				)), f_rune_lit),
 				i(named("int_lit", rules(
 					// the order is critical for PEG grammars
 					o(named("binary_lit", "('0b'|'0B') '_'? binary_digits"), ffInt(2)),
@@ -109,6 +124,16 @@ var (
 				i(named("TypeList", "Type*','")),
 			*/
 		))),
+		i(named("characters", "(newline | unicode_char | unicode_letter | unicode_digit)")),
+		i(named("newline", "[\\x{0a}]")),
+		i(named("unicode_char", "[^\\x{0a}]")), // "an arbitrary Unicode code point except newline"
+		i(named("unicode_letter", "[a-zA-Z]")), // "a Unicode code point categorized as "Letter" TODO it misses all non ASCII
+		i(named("unicode_digit", "[0-9]")),     // "a Unicode code point categorized as "Number, decimal digit" TODO it misses all non ASCII
+		//                         ^^^
+		// For now we'll stick to ANSI for letters and digits. It can later be improved
+		// We looked into unicode specs for them but there are not defined
+		// in https://www.unicode.org/versions/Unicode8.0.0/ch04.pdf Section 4.5
+
 		// "White space, formed from spaces (U+0020), horizontal tabs (U+0009),
 		// carriage returns (U+000D), and newlines (U+000A), is ignored except as
 		// it separates tokens that would otherwise combine into a single token."
@@ -132,3 +157,5 @@ func revQuote(spaceSeparatedElements string) string {
 	}
 	return s[:len(s)-1]
 }
+
+// vim: fdm=indent

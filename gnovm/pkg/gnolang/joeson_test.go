@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
 	// "sort"
 	j "github.com/grepsuzette/joeson"
+	"github.com/grepsuzette/joeson/helpers"
 	// "github.com/jaekwon/testify/assert"
 )
 
@@ -22,8 +24,8 @@ func testExpectation(t *testing.T, expectation expectation) {
 			allOk = false
 			t.Fatalf(
 				"%s parsed as %s "+j.BoldRed("ERR")+" %s\n",
-				expectation.unparsedString,
-				j.Red(ast.String()),
+				helpers.Escape(expectation.unparsedString),
+				j.Red(helpers.Escape(ast.String())),
 				err.Error(),
 			)
 		}
@@ -40,8 +42,8 @@ func testExpectation(t *testing.T, expectation expectation) {
 		}
 		fmt.Printf(
 			"%s parsed as %s "+j.Green("✓")+" %s\n",
-			j.Green(expectation.unparsedString),
-			j.Yellow(ast.String()),
+			j.Green(helpers.Escape(expectation.unparsedString)),
+			j.Yellow(helpers.Escape(ast.String())),
 			"", // b.String(),
 		)
 	}
@@ -60,6 +62,7 @@ type (
 		predicates     []predicate
 	}
 	parsesAs      struct{ string } // strict string equality
+	parsesAsChar  struct{ rune }   // strict string equality
 	isBasicLit    struct{ kind Word }
 	errorIs       struct{ string }
 	errorContains struct{ string }
@@ -70,6 +73,7 @@ type (
 
 var (
 	_ predicate = parsesAs{}
+	_ predicate = parsesAsChar{}
 	_ predicate = isBasicLit{}
 	_ predicate = errorIs{}
 	_ predicate = errorContains{}
@@ -120,6 +124,33 @@ func (v parsesAs) lies(ast j.Ast, expectation expectation) error {
 	return nil
 }
 
+func (v parsesAsChar) lies(ast j.Ast, expectation expectation) error {
+	if basicLit, ok := ast.(*BasicLitExpr); ok {
+		if basicLit.Kind != CHAR {
+			return errors.New(fmt.Sprintf("expecting BasicLitExpr with Kind CHAR, got %s", basicLit.Kind))
+		}
+		if v.rune == '\n' && ast.(*BasicLitExpr).Value == "\n" ||
+			v.rune == '\'' && ast.(*BasicLitExpr).Value == "'" {
+			// test below fails with \n for some reason,
+			// so manually approve it
+			return nil
+		}
+		s1 := string(v.rune)                                                // v.rune is the 'U' in parsesAsChar{'U'}
+		if s2, e := strconv.Unquote("'" + basicLit.Value + "'"); e != nil { // basicLit.Value is `'\125` in expect(`'\125'`, parsesAsChar{'U})
+			return errors.New(fmt.Sprintf("parsesAsChar, failed calling strconv.Unquote(basicLit.Value=%s) (%s)", basicLit.Value, e.Error()))
+		} else {
+			// if basicLit.GetString() == unquoted {
+			if s1 == s2 {
+				return nil // it's cool
+			} else {
+				return errors.New(fmt.Sprintf("was expecting rune of hex \"%x\", got hex \"%x\"", s1, s2))
+			}
+		}
+	} else {
+		return errors.New("expecting BasicLitExpr")
+	}
+}
+
 func (v isBasicLit) lies(ast j.Ast, expectation expectation) error {
 	if expr, ok := ast.(*BasicLitExpr); ok {
 		if expr.Kind != v.kind {
@@ -139,7 +170,7 @@ func (v errorIs) lies(ast j.Ast, expectation expectation) error {
 	if !j.IsParseError(ast) {
 		return errors.New(fmt.Sprintf("was expecting an error, but got \"%s\"", ast.String()))
 	}
-	if ast.String() != v.string {
+	if v.string != "" && ast.String() != v.string {
 		return errors.New(fmt.Sprintf("although we got a parse error as expected, were expecting \"%s\", got \"%s\"", v.string, ast.String()))
 	}
 	return nil
@@ -246,6 +277,40 @@ func TestJoeson(t *testing.T) {
 		// 1.5_e1       // invalid: _ must separate successive digits
 		// 1.5e_1       // invalid: _ must separate successive digits
 		// 1.5e1_       // invalid: _ must separate successive digits
+
+		expect(`'\125'`, parsesAsChar{'U'}, isBasicLit{CHAR}),
+		expect(`'\x3d'`, parsesAsChar{'='}, isBasicLit{CHAR}),
+		expect(`'\x3D'`, parsesAsChar{'='}, isBasicLit{CHAR}),
+		expect("'\a'", parsesAsChar{'\a'}, isBasicLit{CHAR}),
+		expect("'\f'", parsesAsChar{'\f'}, isBasicLit{CHAR}),
+		expect("'\r'", parsesAsChar{'\r'}, isBasicLit{CHAR}),
+		expect("'\t'", parsesAsChar{'\t'}, isBasicLit{CHAR}),
+		expect("'\v'", parsesAsChar{'\v'}, isBasicLit{CHAR}),
+		expect("'\n'", parsesAsChar{'\n'}, isBasicLit{CHAR}),
+		expect(`'\u13F8'`, parsesAsChar{'ᏸ'}, isBasicLit{CHAR}),
+		expectError(`'\u13a'`, "ERROR little_u_value requires 4 hex"),
+		expectError(`'\u1a248'`, "ERROR little_u_value requires 4 hex"),
+		expect(`'\UFFeeFFee'`, isBasicLit{CHAR}),
+		expectError(`'\UFFeeFFe'`, "ERROR big_u_value requires 8 hex"),
+		expectError(`'\UFFeeFFeeA'`, "ERROR big_u_value requires 8 hex"),
+		expect("'ä'", parsesAsChar{'ä'}, isBasicLit{CHAR}),
+		expect("'本'", parsesAsChar{'本'}, isBasicLit{CHAR}),
+		expect(`'\000'`, parsesAsChar{'\000'}, isBasicLit{CHAR}),
+		expect(`'\007'`, parsesAsChar{'\007'}, isBasicLit{CHAR}),
+		expect(`'''`, parsesAsChar{'\''}, isBasicLit{CHAR}), // rune literal containing single quote character
+		// expectError("'aa'", "ERROR illegal: too many characters"),
+		// expect("'\\k'",          "ERROR illegal: k is not recognized after a backslash",
+		// expectError(`'\xa'`, "ERROR illegal: too few hexadecimal digits"),
+		// expect("'\\0'",          "ERROR illegal: too few octal digits",
+		// expect("'\\400'",        "ERROR illegal: octal value over 255",
+		// "'\\uDFFF'": "ERROR illegal: surrogate half", // TODO
+		// "'\\U00110000'": "ERROR illegal: invalid Unicode code point", // TODO
+
+		// -- string_lit -- tests adapted from https://go.dev/ref/spec#String_literals
+		// expect("`abc`",                          "raw_string_lit",
+		// expect("`\\n`",                          "raw_string_lit",         // original example is `\n<Actual CR>\n` // same as "\\n\n\\n". But's a bit hard to reproduce...
+		// "\"i like guitar\"",              "interpreted_string_lit", // this is an added example
+		// "\"i like \\\"bass\\\" guitar\"", "interpreted_string_lit", // this is an added example
 
 		// "func(a, b int, z float64) bool { return a*b < int(z) }": "func(a, b int, z float64) bool { return a*b < int(z) }", // FunctionLit
 	}

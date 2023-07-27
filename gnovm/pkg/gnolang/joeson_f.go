@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -9,10 +10,23 @@ import (
 	j "github.com/grepsuzette/joeson"
 )
 
+func stringIt(it j.Ast) (string, error) {
+	switch v := it.(type) {
+	case *j.NativeArray:
+		return v.Concat(), nil
+	case *j.NativeMap:
+		return v.Concat(), nil
+	case j.NativeString:
+		return v.Str, nil
+	default:
+		return "", errors.New(fmt.Sprintf("Unexpected type in stringIt: %s", reflect.TypeOf(it).String()))
+	}
+}
+
 func fExpression(it j.Ast) j.Ast {
 	// bx:(Expression _ binary_op _ Expression) | UnaryExpr
 	//                                             ^-- done in mtUnaryExpr
-	if m, ok := it.(j.NativeMap); ok {
+	if m, ok := it.(*j.NativeMap); ok {
 		// bx: create a BinaryExpr with Bx
 		a := m.GetOrPanic("bx").(*j.NativeArray).Array
 		return &BinaryExpr{
@@ -26,7 +40,7 @@ func fExpression(it j.Ast) j.Ast {
 }
 
 func fUnary(it j.Ast) j.Ast {
-	if m, ok := it.(j.NativeMap); ok {
+	if m, ok := it.(*j.NativeMap); ok {
 		// ux:(unary_op _ UnaryExpr)
 		a := m.GetOrPanic("ux").(*j.NativeArray).Array
 		return &UnaryExpr{
@@ -40,16 +54,12 @@ func fUnary(it j.Ast) j.Ast {
 
 func ffInt(base int) func(j.Ast, *j.ParseContext) j.Ast {
 	return func(it j.Ast, ctx *j.ParseContext) j.Ast {
-		s := ""
-		switch v := it.(type) {
-		case *j.NativeArray:
-			s = v.Concat()
-		case j.NativeString:
-			s = v.Str
-		default:
-			panic(fmt.Sprintf("Unexpected type in fInt %s", reflect.TypeOf(it).String()))
-		}
 		var e error
+		var s string
+		s, e = stringIt(it)
+		if e != nil {
+			return ctx.Error(e.Error())
+		}
 		var i int64
 		var prefix string
 		switch base {
@@ -122,5 +132,30 @@ func fImaginary(it j.Ast, ctx *j.ParseContext) j.Ast {
 	return &BasicLitExpr{
 		Kind:  IMAG,
 		Value: s,
+	}
+}
+
+func f_rune_lit(it j.Ast, ctx *j.ParseContext) j.Ast {
+	if j.IsParseError(it) {
+		return it
+	}
+	if s, e := stringIt(it); e == nil {
+		return &BasicLitExpr{
+			Kind:  CHAR,
+			Value: s,
+		}
+	} else {
+		return ctx.Error(e.Error())
+	}
+}
+
+func ff_u_value(rule string, hexDigits int) func(j.Ast, *j.ParseContext) j.Ast {
+	return func(it j.Ast, ctx *j.ParseContext) j.Ast {
+		h := it.(*j.NativeMap)
+		if h.GetOrPanic("b").(*j.NativeArray).Length() != hexDigits {
+			return ctx.Error(fmt.Sprintf("%s requires %d hex", rule, hexDigits))
+		} else {
+			return it
+		}
 	}
 }
