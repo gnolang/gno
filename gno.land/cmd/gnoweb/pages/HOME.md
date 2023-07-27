@@ -240,7 +240,7 @@ State button
 :::button/
 ```
 
-## Alert component
+## Accordion component
 
 :::accordion (Accordion button)
 Accordion content
