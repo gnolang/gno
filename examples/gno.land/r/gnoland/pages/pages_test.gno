@@ -17,13 +17,27 @@ func TestPackage(t *testing.T) {
 		expected := `
 # Gnoland's Pages
 
-## [&#9656; Events](/r/gnoland/pages:p/events)
+<div class='columns-3'><div>
 
-## [&#9656; Game of Realms](/r/gnoland/pages:p/gor)
+## [Events](/r/gnoland/pages:p/events)
+**[Learn More](/r/gnoland/pages:p/events)**
 
-## [&#9656; Getting Started](/r/gnoland/pages:p/start)
+</div><div>
 
-## [&#9656; Tokenomics](/r/gnoland/pages:p/tokenomics)
+## [Game of Realms](/r/gnoland/pages:p/gor)
+**[Learn More](/r/gnoland/pages:p/gor)**
+
+</div><div>
+
+## [Getting Started](/r/gnoland/pages:p/start)
+**[Learn More](/r/gnoland/pages:p/start)**
+
+</div><div>
+
+## [Tokenomics](/r/gnoland/pages:p/tokenomics)
+**[Learn More](/r/gnoland/pages:p/tokenomics)**
+
+</div></div>
 `
 		assertMDEquals(t, got, expected)
 	}
