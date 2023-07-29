@@ -135,3 +135,55 @@ func (msg MsgCall) GetSigners() []crypto.Address {
 func (msg MsgCall) GetReceived() std.Coins {
 	return msg.Send
 }
+
+//----------------------------------------
+// MsgExec
+
+// MsgExec - executes arbitrary Gno code.
+type MsgExec struct {
+	Caller crypto.Address `json:"caller" yaml:"caller"`
+	Send   std.Coins      `json:"send" yaml:"send"`
+	Source string         `json:"source" yaml:"source"`
+}
+
+var _ std.Msg = MsgExec{}
+
+func NewMsgExec(caller crypto.Address, send std.Coins, source string) MsgExec {
+	return MsgExec{
+		Caller: caller,
+		Send:   send,
+		Source: source,
+	}
+}
+
+// Implements Msg.
+func (msg MsgExec) Route() string { return RouterKey }
+
+// Implements Msg.
+func (msg MsgExec) Type() string { return "exec" }
+
+// Implements Msg.
+func (msg MsgExec) ValidateBasic() error {
+	if msg.Caller.IsZero() {
+		return std.ErrInvalidAddress("missing caller address")
+	}
+	if msg.Source == "" { // XXX
+		return ErrInvalidExpr("missing source to exec")
+	}
+	return nil
+}
+
+// Implements Msg.
+func (msg MsgExec) GetSignBytes() []byte {
+	return std.MustSortJSON(amino.MustMarshalJSON(msg))
+}
+
+// Implements Msg.
+func (msg MsgExec) GetSigners() []crypto.Address {
+	return []crypto.Address{msg.Caller}
+}
+
+// Implements ReceiveMsg.
+func (msg MsgExec) GetReceived() std.Coins {
+	return msg.Send
+}
