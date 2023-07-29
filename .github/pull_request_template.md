@@ -1,8 +1,6 @@
-Please provide a detailed description of the changes made in this pull request.
+<!-- please provide a detailed description of the changes made in this pull request. -->
 
-<details><summary>Checklists...</summary>
-
-## Contributors Checklist
+<details><summary>Contributors' checklist...</summary>
 
 - [ ] Added new tests, or not needed, or not feasible
 - [ ] Provided an example (e.g. screenshot) to aid review or the PR is self-explanatory
