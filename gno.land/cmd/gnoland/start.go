@@ -4,13 +4,9 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/peterbourgon/ff/v3"
-	"github.com/peterbourgon/ff/v3/fftoml"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -29,7 +25,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-type gnolandCfg struct {
+type startCfg struct {
 	skipFailingGenesisTxs bool
 	skipStart             bool
 	genesisBalancesFile   string
@@ -41,32 +37,23 @@ type gnolandCfg struct {
 	config                string
 }
 
-func main() {
-	cfg := &gnolandCfg{}
+func newStartCmd(io *commands.IO) *commands.Command {
+	cfg := &startCfg{}
 
-	cmd := commands.NewCommand(
+	return commands.NewCommand(
 		commands.Metadata{
-			ShortUsage: "[flags] [<arg>...]",
-			LongHelp:   "Starts the gnoland blockchain node",
-			Options: []ff.Option{
-				ff.WithConfigFileFlag("config"),
-				ff.WithConfigFileParser(fftoml.Parser),
-			},
+			Name:       "start",
+			ShortUsage: "start [flags]",
+			ShortHelp:  "Run the full node",
 		},
 		cfg,
-		func(_ context.Context, _ []string) error {
-			return exec(cfg)
+		func(_ context.Context, args []string) error {
+			return execStart(cfg, args, io)
 		},
 	)
-
-	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "%+v\n", err)
-
-		os.Exit(1)
-	}
 }
 
-func (c *gnolandCfg) RegisterFlags(fs *flag.FlagSet) {
+func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
 		&c.skipFailingGenesisTxs,
 		"skip-failing-genesis-txs",
@@ -131,13 +118,13 @@ func (c *gnolandCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func exec(c *gnolandCfg) error {
-	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
+func execStart(c *startCfg, args []string, io *commands.IO) error {
+	logger := log.NewTMLogger(log.NewSyncWriter(io.Out))
 	rootDir := c.rootDir
 
 	cfg := config.LoadOrMakeConfigWithOptions(rootDir, func(cfg *config.Config) {
-		cfg.Consensus.CreateEmptyBlocks = false
-		cfg.Consensus.CreateEmptyBlocksInterval = 60 * time.Second
+		cfg.Consensus.CreateEmptyBlocks = true
+		cfg.Consensus.CreateEmptyBlocksInterval = 0 * time.Second
 	})
 
 	// create priv validator first.
@@ -171,10 +158,10 @@ func exec(c *gnolandCfg) error {
 		return fmt.Errorf("error in creating node: %w", err)
 	}
 
-	fmt.Fprintln(os.Stderr, "Node created.")
+	fmt.Fprintln(io.Err, "Node created.")
 
 	if c.skipStart {
-		fmt.Fprintln(os.Stderr, "'--skip-start' is set. Exiting.")
+		fmt.Fprintln(io.Err, "'--skip-start' is set. Exiting.")
 
 		return nil
 	}

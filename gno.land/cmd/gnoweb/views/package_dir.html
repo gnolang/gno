@@ -7,26 +7,18 @@
   </head>
   <body onload="main()">
     <div id="root">
-      <div id="header">
-        {{ template "header_logo" }}
-        <span id="logo_path">
-          <a href="{{ .Data.DirPath }}">{{ .Data.DirPath }}</a>/*
-        </span>
-        {{ template "header_buttons" }}
+      <div id="header">{{ template "header_logo" }} {{ template "header_buttons" }}</div>
+      <div class="inline-list">
+        <span id="logo_path"> <a href="{{ .Data.DirPath }}">{{ .Data.DirPath }}</a>/* </span>
       </div>
-
-      <div id="packge_dir">
-        {{ template "dir_contents" . }}
-      </div>
+      <div id="packge_dir" class="container">{{ template "dir_contents" . }}</div>
 
       {{ template "footer" }}
     </div>
     {{ template "js" }}
   </body>
 </html>
-{{- end -}}
-
-{{ define "dir_contents" }}
+{{- end -}} {{ define "dir_contents" }}
 <div class="dir_contents">
   {{ $dirPath := .Data.DirPath }}
   <ul>

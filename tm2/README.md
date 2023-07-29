@@ -1,75 +1,85 @@
 # Tendermint2
 
-**Disclaimer: Tendermint2 is currently part of the Gno monorepo for streamlined development. Once Gno.land is on the mainnet, Tendermint2 will operate independently, including for governance, on https://github.com/tendermint/tendermint2.**
+**Disclaimer: Tendermint2 is currently part of the Gno monorepo for streamlined development.**
+
+**Once Gno.land is on the mainnet, Tendermint2 will operate independently, including for governance, on https://github.com/tendermint/tendermint2.**
 
 ## Mission
 
- * make awesome software with modular components.
- * crypto p2p swiss armyknife for human liberation.
+* Make awesome software with modular components.
+* Crypto P2P Swiss armyknife for human liberation.
 
 ## Problems
 
- * Open source is open for subversion.
- * Incentives and mission are misaligned.
- * Need directory & forum for Tendermint/SDK forks.
+* Open source is open for subversion.
+* Incentives and mission are misaligned.
+* Need directory & forum for Tendermint/SDK forks.
 
 ## Partial Solution: adopt principles
 
- * Simplicity of design.
- * The code is the spec.
- * Minimal code - keep total footprint small.
- * Minimal dependencies - all dependencies must get audited, and become part of
-   the repo.
- * Modular dependencies - whereever reasonable, make components modular.
- * Completeness - software projects that don't become finished are projects
-   that are forever vulnerable. One of the primary goals of the Gno language
-   and related works is to become finished within a reasonable timeframe.
+* Simplicity of design.
+* The code is the spec.
+* Minimal code - keep total footprint small.
+* Minimal dependencies - all dependencies must get audited, and become part of
+  the repo.
+* Modular dependencies - whereever reasonable, make components modular.
+* Completeness - software projects that don't become finished are projects
+  that are forever vulnerable. One of the primary goals of the Gno language
+  and related works is to become finished within a reasonable timeframe.
 
 ## What is already proposed for Tendermint2:
 
 * Complete Amino. -> multiplier of productivity for SDK development, to not
   have to think about protobuf at all. Use "genproto" to even auto-generate
-  proto3 for encoding/decoding optimization through protoc. // MISSION: be the
-  basis for improving the encoding standard from proto3, because proto3
-  length-prefixing is slow, and we need "proto4" or "amino2". // LOOK at the
-  auto-generated proto files!
-  https://github.com/gnolang/gno/blob/master/pkgs/bft/consensus/types/cstypes.proto
-  for example. // There was work to remove this from the CosmosSDK because
-  Amino wasn't ready, but now that it is, it makes sense to incorporate it into
-  Tendermint2.
+  proto3 for encoding/decoding optimization through protoc.
+    - MISSION: be the basis for improving the encoding standard from proto3, because
+      proto3 length-prefixing is slow, and we need "proto4" or "amino2".
+    - LOOK at the auto-generated proto files!
+      https://github.com/gnolang/gno/blob/master/pkgs/bft/consensus/types/cstypes.proto
+      for example.
+    - There was work to remove this from the CosmosSDK because
+      Amino wasn't ready, but now that it is, it makes sense to incorporate it into
+      Tendermint2.
 
-* Remove EvidenceReactor, Evidence, Violation -> we need to make it easy to
-  create alt mempool reactors. We "kill two birds with one stone" by
-  implementing evidence as a first-class mempool lane. The authors of "ABCI++"
-  have a different set of problems to solve, so we should do both! Tendermint++
+
+* Remove EvidenceReactor, Evidence, Violation:
+  
+    We need to make it easy to create alt mempool reactors.
+
+  We "kill two birds with one stone" by implementing evidence as a first-class mempool lane.
+
+  The authors of "ABCI++" have a different set of problems to solve, so we should do both! Tendermint++
   and Tendermint2.
 
-* Fix address size to 20 bytes -> 160 is sufficient, and fixing it brings
-  optimizations.
+
+* Fix address size to 20 bytes -> 160 is sufficient, and fixing it brings optimizations.
+
 
 * General versionset system for handshake negotiation. -> So Tendermint2 can be
-  used as basis for other p2p applications.
+  used as basis for other P2P applications.
 
-* EventBus -> EventSwitch. -> For indexing, use an external system. This keeps
-  Tendermint2 minimal, allowing integration with plugin modules, without having
-  any internal implementation at all. EventSwitch is also simpler, and
-  synchronous, and this keeps the Tendermint tests deterministic. There is no
-  performance need to do anything else than keep the Tendermint protocol
-  synchronous. (If there is, because of massive validator numbers for whatever
-  reason, then it should be a fork of Tendermint with a unique & distinct name,
-  and would be under the same taxonomy of Tendermint).
+
+* EventBus -> EventSwitch. -> For indexing, use an external system.
+
+    To ensure Tendermint2 remains minimal and easily integrated with plugin modules, there is no internal implementation.
+
+  The use of an EventSwitch makes the process simpler and synchronous, which maintains the determinism of Tendermint tests.
+
+  Keeping the Tendermint protocol synchronous is sufficient for optimal performance.
+
+  However, if there is a need for asynchronous processing due to an exceptionally large number of validators, it should be a separate fork with a unique name under the same taxonomy as Tendermint.
+
 
 * Fix nondeterminism in consensus tests -> in relation to the above.
 
-* Add "MaxDataBytes" for total tx data size limitation. -> The previous way of
-  limiting the total block size may result in unexpected behavior with changes
-  in validator size. We should err to allocate room for each module seperately,
-  to ensure availability.
+* Add "MaxDataBytes" for total tx data size limitation.
 
-* Remove external dependencies like prometheus. -> Any metrics and events
-  should be plugged in through the implementation of interfaces. This may
-  involve picking out the client logic from prometheus, but even if so it would
-  be forked into Tendermint2 and be audited like anything else.
+  To avoid unexpected behavior caused by changes in validator size, it's best to allocate room for each module separately instead of limiting the total block size as we did before. 
+
+This way, we can ensure that there's enough space for all modules.
+
+* Remove external dependencies like prometheus
+  To ensure accuracy, all metrics and events should be integrated through interfaces. This may require extracting client logic from Prometheus, but it will be incorporated into Tendermint2 and undergo the same auditing process as everything else.
 
 * General consensus/WAL -> a WAL is useful enough to warrant being a re-usable
   module.
