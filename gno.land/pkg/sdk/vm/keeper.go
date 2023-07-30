@@ -27,6 +27,7 @@ const (
 type VMKeeperI interface {
 	AddPackage(ctx sdk.Context, msg MsgAddPackage) error
 	Call(ctx sdk.Context, msg MsgCall) (res string, err error)
+	Exec(ctx sdk.Context, msg MsgExec) (res string, err error)
 }
 
 var _ VMKeeperI = &VMKeeper{}
@@ -280,6 +281,11 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	}
 	return res, nil
 	// TODO pay for gas? TODO see context?
+}
+
+// Exec executes Gno code.
+func (vm *VMKeeper) Exec(ctx sdk.Context, msg MsgExec) (res string, err error) {
+	panic("NOT IMPLEMENTED")
 }
 
 // QueryFuncs returns public facing function signatures.
