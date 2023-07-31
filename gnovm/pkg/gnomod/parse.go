@@ -2,12 +2,46 @@ package gnomod
 
 import (
 	"fmt"
+	"os"
+	"path"
+	"path/filepath"
 	"reflect"
 	"strings"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )
+
+// ParseAt parses, validates and returns a gno.mod file located at dir or at
+// dir's parents.
+func ParseAt(dir string) (*File, error) {
+	ferr := func(err error) (*File, error) {
+		return nil, fmt.Errorf("parsing gno.mod at %s: %w", dir, err)
+	}
+
+	// FindRootDir requires absolute path, make sure its the case
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return ferr(err)
+	}
+	rd, err := FindRootDir(absDir)
+	if err != nil {
+		return ferr(err)
+	}
+	fname := path.Join(rd, "gno.mod")
+	b, err := os.ReadFile(fname)
+	if err != nil {
+		return ferr(err)
+	}
+	gm, err := Parse(fname, b)
+	if err != nil {
+		return ferr(err)
+	}
+	if err := gm.Validate(); err != nil {
+		return ferr(err)
+	}
+	return gm, nil
+}
 
 // Parse parses and returns a gno.mod file.
 //

@@ -17,9 +17,11 @@ import (
 	"go.uber.org/multierr"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/random"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 )
@@ -266,8 +268,15 @@ func gnoTestPkg(
 
 	// testing with *_test.gno
 	if len(unittestFiles) > 0 {
-		// FIXME: read gnoPkgPath from gno.mod when ready
-		gnoPkgPath := strings.TrimPrefix(pkgPath, "./examples/")
+		// Determine gnoPkgPath by reading gno.mod
+		var gnoPkgPath string
+		modfile, err := gnomod.ParseAt(pkgPath)
+		if err == nil {
+			gnoPkgPath = modfile.Module.Mod.Path
+		} else {
+			// unable to read pkgPath from gno.mod, generate a random realm path
+			gnoPkgPath = gno.GnoRealmPkgsPrefixBefore + random.RandStr(8)
+		}
 		memPkg := gno.ReadMemPackage(pkgPath, gnoPkgPath)
 
 		// tfiles, ifiles := gno.ParseMemPackageTests(memPkg)
