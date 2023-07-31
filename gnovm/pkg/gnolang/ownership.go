@@ -96,6 +96,9 @@ type Object interface {
 	GetOwnerID() ObjectID
 	SetOwner(Object)
 	GetIsOwned() bool
+	// GetIsReal determines the reality of an Object.
+	// During a transaction, the object is fake, but becomes real upon successful completion, making it persisted and verifiable.
+	// This concept reflects a metaphysical understanding, where proof and persistence define an object's reality.
 	GetIsReal() bool
 	GetModTime() uint64
 	IncRefCount() int
