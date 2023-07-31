@@ -58,7 +58,7 @@ func ByteBeat(seconds uint32, sampleRate uint32, bytebeat_func func(t int) int) 
 	samples := make([]wav.Sample, numSamples)
 	maxValue := 0
 	lastValue := 0
-	for i := int(0); i < int(numSamples); i++ {
+	for i := 0; i < int(numSamples); i++ {
 		lastValue = bytebeat_func(i) % 255
 		samples[i].Values[0] = lastValue
 		if samples[i].Values[0] > maxValue {
