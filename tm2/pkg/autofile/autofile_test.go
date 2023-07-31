@@ -12,7 +12,7 @@ import (
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
 
-func TestSIGHUP(t *testing.T) {
+func TestSIGTERM(t *testing.T) {
 	// First, create an AutoFile writing to a tempfile dir
 	file, err := ioutil.TempFile("", "sighup_test")
 	require.NoError(t, err)
@@ -34,8 +34,8 @@ func TestSIGHUP(t *testing.T) {
 	err = os.Rename(name, name+"_old")
 	require.NoError(t, err)
 
-	// Send SIGHUP to self.
-	syscall.Kill(syscall.Getpid(), syscall.SIGHUP)
+	// Send SIGTERM to self.
+	syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
 
 	// Wait a bit... signals are not handled synchronously.
 	time.Sleep(time.Millisecond * 10)

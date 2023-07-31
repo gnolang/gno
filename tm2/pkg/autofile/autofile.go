@@ -38,7 +38,7 @@ const (
 )
 
 // AutoFile automatically closes and re-opens file for writing. The file is
-// automatically setup to close itself every 1s and upon receiving SIGHUP.
+// automatically setup to close itself every 1s and upon receiving SIGTERM.
 //
 // This is useful for using a log file with the logrotate tool.
 type AutoFile struct {
@@ -68,9 +68,9 @@ func OpenAutoFile(path string) (*AutoFile, error) {
 		return nil, err
 	}
 
-	// Close file on SIGHUP.
+	// Close file on SIGTERM.
 	af.hupc = make(chan os.Signal, 1)
-	signal.Notify(af.hupc, syscall.SIGHUP)
+	signal.Notify(af.hupc, syscall.SIGTERM)
 	go func() {
 		for range af.hupc {
 			af.closeFile()
@@ -82,7 +82,7 @@ func OpenAutoFile(path string) (*AutoFile, error) {
 	return af, nil
 }
 
-// Close shuts down the closing goroutine, SIGHUP handler and closes the
+// Close shuts down the closing goroutine, SIGTERM handler and closes the
 // AutoFile.
 func (af *AutoFile) Close() error {
 	af.closeTicker.Stop()
