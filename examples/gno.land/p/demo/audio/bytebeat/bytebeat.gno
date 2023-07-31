@@ -46,8 +46,8 @@ func ByteBeat(seconds uint32, sampleRate uint32, bytebeat_func func(t int) int) 
 	w := bufio.NewWriter(b)
 
 	numSamples := sampleRate * seconds / 2
-	var numChannels uint16 = 1
-	var bitsPerSample uint16 = 16
+	numChannels := uint16(1)
+	bitsPerSample := uint16(16)
 
 	writer, err := wav.NewWriter(w, numSamples*2, numChannels, sampleRate, bitsPerSample)
 	if err != nil {
