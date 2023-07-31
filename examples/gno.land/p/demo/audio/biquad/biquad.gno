@@ -1,3 +1,7 @@
+// biquad implements a standard digital biquad filter,
+// see https://en.wikipedia.org/wiki/Digital_biquad_filter
+// Currently it is implemented with only a highpass and a lowpass
+// filter but it is straightforward to add others if nessecary.
 package biquad
 
 import "math"
