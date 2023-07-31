@@ -15,7 +15,7 @@ type lintCfg struct {
 	verbose       bool
 	rootDir       string
 	setExitStatus int
-	// min_confidence: minimum confidence of a problem to pirnt it (default 0.8)
+	// min_confidence: minimum confidence of a problem to print it (default 0.8)
 	// auto-fix: apply suggested fixes automatically.
 }
 
