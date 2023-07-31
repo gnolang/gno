@@ -28,4 +28,4 @@ cat ~/password | gnokey maketx addpkg --pkgpath "gno.land/r/demo/bytebeat" --pkg
 
 ```
 
-Note that adding the `gno.land/p/demo/audio/bytebeat` requires adding more to `--gas-wanted` (at least 8000000).
+Note that adding the `gno.land/p/demo/audio/bytebeat` package requires adding more to `--gas-wanted` (at least 8000000).
