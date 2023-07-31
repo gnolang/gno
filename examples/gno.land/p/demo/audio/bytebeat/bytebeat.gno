@@ -40,16 +40,15 @@ func ByteBeat(seconds uint32, sampleRate uint32, bytebeat_func func(t int) int) 
 	for i := uint32(0); i < numSamples; i++ {
 		samples[i].Values[0] = (samples[i].Values[0] * 28000 / maxValue)
 	}
-	// highpass filter
+	// highpass filter around 10 hz.
+	// this is used to remove the DC bias inherit in the gneeration of the
+	// bytebeats because speakers like values in the range [-1,1]
+	// rather than in the range [0,2]
+	// More information is available here: https://en.wikipedia.org/wiki/DC_bias
 	hpf := biquad.New(10, float64(sampleRate), 0.707, 0, "highpass")
 	for i := uint32(0); i < numSamples; i++ {
 		samples[i].Values[0] = int(math.Round(hpf.Update(float64(samples[i].Values[0]))))
 	}
-	// // lowpass
-	// lpf := biquad.New(float64(sampleRate)*0.25, float64(sampleRate), 0.707, 0, "lowpass")
-	// for i := uint32(0); i < numSamples; i++ {
-	// 	samples[i].Values[0] = int(math.Round(lpf.Update(float64(samples[i].Values[0]))))
-	// }
 
 	err = writer.WriteSamples(samples)
 	if err != nil {
