@@ -1,6 +1,6 @@
 // biquad implements a standard digital biquad filter which is a
 // set of equations that can be used to filter signals. More information
-// at https://en.wikipedia.org/wiki/Digital_biquad_filter
+// at https://en.wikipedia.org/wiki/Digital_biquadilter
 // Currently it is implemented with only a highpass and a lowpass
 // filter but it is straightforward to add others if nessecary.
 package biquad
@@ -8,8 +8,8 @@ package biquad
 import "math"
 
 type Filter struct {
-	a1, a2, b0, b1, b2     float64
-	x1_f, x2_f, y1_f, y2_f float64
+	a1, a2, b0, b1, b2 float64
+	x1, x2, y1, y2     float64
 }
 
 // New provides a new biquad according to the equation for a first-order
@@ -60,10 +60,10 @@ func New(fc float64, fs float64, q float64, db float64, filterType string) *Filt
 }
 
 func (f *Filter) Update(x float64) (y float64) {
-	y = f.b0*x + f.b1*f.x1_f + f.b2*f.x2_f - f.a1*f.y1_f - f.a2*f.y2_f
-	f.x2_f = f.x1_f
-	f.x1_f = x
-	f.y2_f = f.y1_f
-	f.y1_f = y
+	y = f.b0*x + f.b1*f.x1 + f.b2*f.x2 - f.a1*f.y1 - f.a2*f.y2
+	f.x2 = f.x1
+	f.x1 = x
+	f.y2 = f.y1
+	f.y1 = y
 	return
 }
