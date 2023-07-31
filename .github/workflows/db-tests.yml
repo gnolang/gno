@@ -26,6 +26,7 @@ jobs:
           - memdb
           - fsdb
           - boltdb
+          - grocksdb
     steps:
       # golang
       - uses: actions/setup-go@v4
