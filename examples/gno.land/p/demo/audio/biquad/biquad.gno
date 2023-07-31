@@ -24,13 +24,7 @@ func New(fc float64, fs float64, q float64, db float64, filterType string) *Filt
 	w0 := 2 * math.Pi * (fc / fs)
 	cosW := math.Cos(w0)
 	sinW := math.Sin(w0)
-	A := 1.0 // db = 0
-	_ = A
-	// A := math.Pow(10, (db / 40))
 	alpha := sinW / (2 * q)
-	beta := 1 // db = 0
-	// beta := A ^ 0.5/q
-	_ = beta
 	b0 := (1 - cosW) / 2
 	b1 := 1 - cosW
 	b2 := (1 - cosW) / 2
