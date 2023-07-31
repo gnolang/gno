@@ -315,10 +315,10 @@ func gnoTestPkg(
 
 	// testing with *_filetest.gno
 	{
+		filter := splitRegexp(runFlag)
 		for _, testFile := range filetestFiles {
 			testFileName := filepath.Base(testFile)
 			testName := "file/" + testFileName
-			filter := splitRegexp(runFlag)
 			if !shouldRun(filter, testName) {
 				continue
 			}
