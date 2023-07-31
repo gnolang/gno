@@ -12,7 +12,15 @@ type Filter struct {
 	x1_f, x2_f, y1_f, y2_f float64
 }
 
-func New(fc float64, fs float64, q float64, db float64, filter_type string) (f *Filter) {
+// New provides a new biquad
+// Inputs:
+// fc: filter cutoff
+// fs: sample rate
+// q: resonance coefficient
+// db: shelf decibels (strength)
+// filterType: string that specifies the type of filter (currently only 'highpass' or 'lowpass')
+// Outputs: a filter object
+func New(fc float64, fs float64, q float64, db float64, filterType string) *Filter {
 	w0 := 2 * 3.1415926535897932384626 * (fc / fs)
 	cosW := math.Cos(w0)
 	sinW := math.Sin(w0)
