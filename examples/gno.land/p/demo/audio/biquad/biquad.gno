@@ -21,7 +21,7 @@ type Filter struct {
 // filterType: string that specifies the type of filter (currently only 'highpass' or 'lowpass')
 // Outputs: a filter object
 func New(fc float64, fs float64, q float64, db float64, filterType string) *Filter {
-	w0 := 2 * 3.1415926535897932384626 * (fc / fs)
+	w0 := 2 * math.Pi * (fc / fs)
 	cosW := math.Cos(w0)
 	sinW := math.Sin(w0)
 	A := 1.0 // db = 0
@@ -37,11 +37,11 @@ func New(fc float64, fs float64, q float64, db float64, filterType string) *Filt
 	a0 := 1 + alpha
 	a1 := -2 * cosW
 	a2 := 1 - alpha
-	if filter_type == "highpass" {
+	if filterType == "highpass" {
 		b0 = (1 + cosW) / 2
 		b1 = -(1 + cosW)
 		b2 = (1 + cosW) / 2
-	} else if filter_type == "lowpass" {
+	} else if filterType == "lowpass" {
 		// do nothing, default
 	}
 
