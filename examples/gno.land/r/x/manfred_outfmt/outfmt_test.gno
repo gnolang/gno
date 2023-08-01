@@ -3,16 +3,16 @@ package outfmt
 import (
 	"testing"
 
-	"gno.land/r/demo/x/outfmt"
+	"gno.land/r/x/manfred_outfmt"
 )
 
 func TestRender(t *testing.T) {
 	// home
 	{
 		got := outfmt.Render("")
-		expected := `* [?fmt=stringer](/r/x/outfmt:?fmt=stringer)
-* [?fmt=json](/r/x/outfmt:?fmt=json)
-* [?fmt=jsonp](/r/x/outfmt:?fmt=jsonp)
+		expected := `* [?fmt=stringer](/r/x/manfred_outfmt:?fmt=stringer)
+* [?fmt=json](/r/x/manfred_outfmt:?fmt=json)
+* [?fmt=jsonp](/r/x/manfred_outfmt:?fmt=jsonp)
 `
 		if got != expected {
 			t.Fatalf("expected %q, got %q.", expected, got)
