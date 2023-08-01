@@ -131,17 +131,6 @@ func fImaginary(it j.Ast, ctx *j.ParseContext) j.Ast {
 
 func f_rune_lit(it j.Ast, ctx *j.ParseContext) j.Ast {
 	return ffBasicLit(CHAR)(it, ctx)
-	// if j.IsParseError(it) {
-	// 	return it
-	// }
-	// if s, e := stringIt(it); e == nil {
-	// 	return &BasicLitExpr{
-	// 		Kind:  CHAR,
-	// 		Value: s,
-	// 	}
-	// } else {
-	// 	return ctx.Error(e.Error())
-	// }
 }
 
 func ff_u_value(rule string, hexDigits int) func(j.Ast, *j.ParseContext) j.Ast {
@@ -157,17 +146,6 @@ func ff_u_value(rule string, hexDigits int) func(j.Ast, *j.ParseContext) j.Ast {
 
 func f_raw_string_lit(it j.Ast, ctx *j.ParseContext) j.Ast {
 	return ffBasicLit(STRING)(it, ctx)
-	// if j.IsParseError(it) {
-	// 	return it
-	// }
-	// if s, e := stringIt(it); e == nil {
-	// 	return &BasicLitExpr{
-	// 		Kind:  STRING,
-	// 		Value: s,
-	// 	}
-	// } else {
-	// 	return ctx.Error(e.Error())
-	// }
 }
 
 func finterpreted_string_lit(it j.Ast, ctx *j.ParseContext) j.Ast {

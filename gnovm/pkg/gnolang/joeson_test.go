@@ -1,4 +1,4 @@
-package gnolang
+package gnolang // {{{1
 
 import (
 	"errors"
@@ -20,7 +20,7 @@ func testExpectation(t *testing.T, expectation expectation) {
 	ast := parseX(expectation.unparsedString)
 	allOk := true
 	for _, predicate := range expectation.predicates {
-		if err := predicate.lies(ast, expectation); err != nil {
+		if err := predicate.satisfies(ast, expectation); err != nil {
 			allOk = false
 			t.Fatalf(
 				"%s parsed as %s "+j.BoldRed("ERR")+" %s\n",
@@ -37,7 +37,10 @@ func testExpectation(t *testing.T, expectation expectation) {
 			if !first {
 				b.WriteString(", ")
 			}
-			b.WriteString(j.Magenta(strings.TrimPrefix(fmt.Sprintf("%#v", v), "gnolang.")))
+			b.WriteString(j.Magenta(strings.TrimPrefix(
+				fmt.Sprintf("%#v", v),
+				"gnolang.",
+			)))
 			first = false
 		}
 		fmt.Printf(
@@ -55,7 +58,7 @@ func doesntMatchError(expect, got string) bool {
 
 type (
 	predicate interface {
-		lies(j.Ast, expectation) error
+		satisfies(j.Ast, expectation) error
 	}
 	expectation struct {
 		unparsedString string
@@ -79,10 +82,14 @@ var (
 	_ predicate = errorContains{}
 	_ predicate = noError{}
 	_ predicate = isType{}
-	_ predicate = doom{} // exit (useful to stop from the middle of the list of tests to inspect one in particular)
+
+	// doom = stop tests (useful to stop from the middle of the list of
+	// tests to inspect one in particular)
+	_ predicate = doom{}
 )
 
-// expect() is for non-error expectations (a noError{} predicate gets inserted). See expectError()
+// expect() is for non-error expectations (a noError{} predicate gets inserted)
+// See expectError()
 func expect(unparsedString string, preds ...predicate) expectation {
 	// insert noError{} at the beginning
 	a := make([]predicate, len(preds)+1)
@@ -95,8 +102,13 @@ func expectError(unparsedString string, expectedError string) expectation {
 	return expectation{unparsedString, []predicate{errorIs{expectedError}}}
 }
 
-func expectErrorContains(unparsedString string, expectedError string) expectation {
-	return expectation{unparsedString, []predicate{errorContains{expectedError}}}
+func expectErrorContains(unparsedString string,
+	expectedError string,
+) expectation {
+	return expectation{
+		unparsedString,
+		[]predicate{errorContains{expectedError}},
+	}
 }
 
 // this is just a way to stop the program at a certain place
@@ -117,117 +129,138 @@ func (expectation expectation) brief() string {
 	return "it's a bit complicated"
 }
 
-func (v parsesAs) lies(ast j.Ast, expectation expectation) error {
+func (v parsesAs) satisfies(ast j.Ast, expectation expectation) error {
 	if basicLit, ok := ast.(*BasicLitExpr); ok {
 		switch basicLit.Kind {
 		case INT, FLOAT, IMAG:
 		case STRING:
 			// when it's a string,
-			// we will need strconv.Unquote for things like `"\u65e5本\U00008a9e"`
+			// we will need strconv.Unquote for things like
+			// `"\u65e5本\U00008a9e"`
 			// to be comparable to "日本語". We wouldn't in fact
-			// necessarily need this, conversion to be made,
-			// but it helps make the tests more clear. Also
-			// it is necessary for `parsesAsChar`, so we will
-			// have it here also.
-			// ss, err := strconv.Quote(basicLit.Value)
-			// if err != nil {
-			// 	return errors.New(fmt.Sprintf("%s did not successfully went thought strconv.QuotedPrefix: %s", basicLit.Value, err.Error()))
-			// }
-			// if s, err := strconv.Unquote(ss); err == nil {
+			// necessarily need this conversion to be made,
+			// but it helps make the tests more clear.
+			// Also necessary for `parsesAsChar`.
 			if s, err := strconv.Unquote(basicLit.Value); err == nil {
 				if v.string == s {
 					return nil // it's cool
 				} else {
-					return errors.New(fmt.Sprintf("was expecting \"%s\", got \"%s\"", v.string, s))
+					return errors.New(fmt.Sprintf(
+						"was expecting \"%s\", got \"%s\"", v.string, s))
 				}
 			} else {
-				return errors.New(fmt.Sprintf("%s did not successfully went thought strconv.Unquote: %s", basicLit.Value, err.Error()))
+				return errors.New(fmt.Sprintf(
+					"%s did not successfully went thought strconv.Unquote: %s",
+					basicLit.Value, err.Error()))
 			}
 		default:
-			return errors.New(fmt.Sprintf("expecting BasicLitExpr with Kind STRING, got %s", basicLit.Kind))
+			return errors.New(fmt.Sprintf(
+				"expecting BasicLitExpr with Kind STRING, got %s",
+				basicLit.Kind))
 		}
 	}
 	// general case (binary expr etc)
 	if ast.String() != v.string {
-		return errors.New(fmt.Sprintf("was expecting \"%s\", got \"%s\"", v.string, ast.String()))
+		return errors.New(fmt.Sprintf(
+			"was expecting \"%s\", got \"%s\"", v.string, ast.String()))
 	}
 	return nil
 }
 
-func (v parsesAsChar) lies(ast j.Ast, expectation expectation) error {
+func (v parsesAsChar) satisfies(ast j.Ast, expectation expectation) error {
 	if basicLit, ok := ast.(*BasicLitExpr); ok {
 		if basicLit.Kind != CHAR {
-			return errors.New(fmt.Sprintf("expecting BasicLitExpr with Kind CHAR, got %s", basicLit.Kind))
+			return errors.New(fmt.Sprintf(
+				"expecting BasicLitExpr with Kind CHAR, got %s",
+				basicLit.Kind))
 		}
-		if char, _, _, err := strconv.UnquoteChar(basicLit.Value, 0); err == nil {
-			if v.rune == char {
+		if c, _, _, err := strconv.UnquoteChar(basicLit.Value, 0); err == nil {
+			if v.rune == c {
 				return nil // it's cool
 			} else {
-				return errors.New(fmt.Sprintf("was expecting rune of hex \"%x\", got hex \"%x\"", v.rune, char))
+				return errors.New(fmt.Sprintf(
+					"was expecting rune of hex \"%x\", got hex \"%x\"",
+					v.rune, c))
 			}
 		} else {
-			return errors.New(fmt.Sprintf("%s did not successfully went through strconv.UnquoteChar: %s", basicLit.Value, err.Error()))
+			return errors.New(fmt.Sprintf(
+				"%s did not successfully went through strconv.UnquoteChar: %s",
+				basicLit.Value, err.Error()))
 		}
 	} else {
 		return errors.New("expecting BasicLitExpr")
 	}
 }
 
-func (v isBasicLit) lies(ast j.Ast, expectation expectation) error {
+func (v isBasicLit) satisfies(ast j.Ast, expectation expectation) error {
 	if expr, ok := ast.(*BasicLitExpr); ok {
 		if expr.Kind != v.kind {
 			return errors.New(fmt.Sprintf(
-				"was expecting Kind=%s for &BasicLitExpr, got %s", v.kind, expr.Kind,
+				"was expecting Kind=%s for &BasicLitExpr, got %s",
+				v.kind,
+				expr.Kind,
 			))
 		}
 	} else {
 		return errors.New(fmt.Sprintf(
-			"was expecting &BasicLitExpr (%v), got %s", v.kind, reflect.TypeOf(ast).String(),
+			"was expecting &BasicLitExpr (%v), got %s",
+			v.kind,
+			reflect.TypeOf(ast).String(),
 		))
 	}
 	return nil
 }
 
-func (v errorIs) lies(ast j.Ast, expectation expectation) error {
+func (v errorIs) satisfies(ast j.Ast, expectation expectation) error {
 	if !j.IsParseError(ast) {
-		return errors.New(fmt.Sprintf("was expecting an error, but got \"%s\"", ast.String()))
+		return errors.New(fmt.Sprintf(
+			"was expecting an error, but got \"%s\"", ast.String()))
 	}
 	if v.string != "" && ast.String() != v.string {
-		return errors.New(fmt.Sprintf("although we got a parse error as expected, were expecting \"%s\", got \"%s\"", v.string, ast.String()))
+		return errors.New(fmt.Sprintf(
+			"although we got a parse error as expected, were expecting \"%s\""+
+				", got \"%s\"", v.string, ast.String()))
 	}
 	return nil
 }
 
-func (v errorContains) lies(ast j.Ast, expectation expectation) error {
+func (v errorContains) satisfies(ast j.Ast, expectation expectation) error {
 	if !j.IsParseError(ast) {
-		return errors.New(fmt.Sprintf("was expecting an error, but got \"%s\"", ast.String()))
+		return errors.New(fmt.Sprintf(
+			"was expecting an error, but got \"%s\"", ast.String()))
 	}
 	if !strings.Contains(ast.String(), v.string) {
-		return errors.New(fmt.Sprintf("parse error as expected, but expecting error to contain \"%s\", got \"%s\" instead", v.string, ast.String()))
+		return errors.New(fmt.Sprintf(
+			"parse error as expected, but expecting error to contain \"%s\", "+
+				"got \"%s\" instead", v.string, ast.String()))
 	}
 	return nil
 }
 
-func (noError) lies(ast j.Ast, expectation expectation) error {
+func (noError) satisfies(ast j.Ast, expectation expectation) error {
 	if j.IsParseError(ast) {
-		return errors.New(fmt.Sprintf("unexpected ParseError, was expecting %s", expectation.brief()))
+		return errors.New(fmt.Sprintf(
+			"unexpected ParseError, was expecting %s", expectation.brief()))
 	}
 	return nil
 }
 
-func (t isType) lies(ast j.Ast, expectation expectation) error {
+func (t isType) satisfies(ast j.Ast, expectation expectation) error {
 	theType := fmt.Sprintf("%T", ast)
 	if !strings.HasSuffix(theType, t.string) {
-		return errors.New(fmt.Sprintf("type should have been %s, not %s", t.string, theType))
+		return errors.New(fmt.Sprintf("type should have been %s, not %s",
+			t.string, theType))
 	}
 	return nil
 }
 
-func (doom) lies(ast j.Ast, expectation expectation) error {
+func (doom) satisfies(ast j.Ast, expectation expectation) error {
 	fmt.Println("doom{} called")
 	os.Exit(1)
 	return nil
 }
+
+// }}}1
 
 func TestJoeson(t *testing.T) {
 	os.Setenv("TRACE", "grammar,stack")
@@ -341,9 +374,31 @@ func TestJoeson(t *testing.T) {
 		expect(`"\\U000065e5\\U0000672c\\U00008a9e"`, parsesAs{"日本語"}, isBasicLit{STRING}),             // the explicit Unicode code points
 		expect(`"\\xe6\\x97\\xa5\\xe6\\x9c\\xac\\xe8\\xaa\\x9e"`, parsesAs{"日本語"}, isBasicLit{STRING}), // the explicit UTF-8 bytes
 
+		// structs
+		expect(`struct {}`), // An empty struct
+		expect(`struct {
+field;
+}`),
+		expect(`struct {
+field;
+field  ;
+field ;		
+	field	;
+field	;		
+}`),
+		// expect(`struct {
+		// 		x, y int
+		// 		u float32
+		// 		_ float32
+		// 		A *[]int
+		// 		F func()
+		// }`),
+		// A struct with 6 fields.
 		// "func(a, b int, z float64) bool { return a*b < int(z) }": "func(a, b int, z float64) bool { return a*b < int(z) }", // FunctionLit
 	}
 	for _, expectation := range tests {
 		testExpectation(t, expectation)
 	}
 }
+
+// vim: fdm=marker fdl=0

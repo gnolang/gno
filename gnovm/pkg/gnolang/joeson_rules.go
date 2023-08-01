@@ -30,17 +30,14 @@ var (
 			// o("'(' _ Expression _ ')' | OperandName TypeArgs? | Literal"), // TODO this is the original
 			o("Literal | '(' _ Expression _ ')'"), // 𝘧, func(it j.Ast) j.Ast { return it.(j.NativeMap).GetWhicheverOrPanic([]string{"lit", "expr"}) }),
 			// o(named("Literal", "BasicLit | CompositeLit | FunctionLit")),
-			i(named("Literal", "BasicLit")),
+			i(named("Literal", "BasicLit | FunctionLit | CompositeLit")),
 			i(named("BasicLit", rules(
 				o("rune_lit | string_lit | imaginary_lit | float_lit | int_lit"),
-				i(named("rune_lit", rules(
-					o("'\\'' ( byte_value | unicode_value ) '\\'' | '\\'' [^\n] '\\''"),
-				)), f_rune_lit),
+				i(named("rune_lit", rules(o("'\\'' ( byte_value | unicode_value ) '\\'' | '\\'' [^\n] '\\''"))), f_rune_lit),
 				i(named("string_lit", rules(
-					// TODO fraw_string_lit
 					o(named("raw_string_lit", "'`' [^`]* '`'"), fraw_string_lit), // ffBasicLit(STRING)),
 					o(named("interpreted_string_lit", `'"' (!'\"' ('\\' [\s\S] | unicode_value | byte_value))* '"'`), finterpreted_string_lit),
-				)) /*, ffBasicLit(STRING)*/),
+				))),
 				i(named("int_lit", rules(
 					// the order is critical for PEG grammars
 					o(named("binary_lit", "('0b'|'0B') '_'? binary_digits"), ffInt(2)),
@@ -81,54 +78,40 @@ var (
 				))),
 				i(named("unicode_value", rules(
 					o("escaped_char | little_u_value | big_u_value | unicode_char | _error_unicode_char_toomany"),
-					i(named("escaped_char", `[\a\f\n\r\t\v]`)),                                          // TODO NOTE: we skipped \b as for some reason it doesn't work in the regex.
+					i(named("escaped_char", `[\a\f\n\r\t\v]`)),                                          // TODO: we skipped \b as for some reason it doesn't work in the regex.
 					i(named("little_u_value", `a:'\\u' b:hex_digit*`), ff_u_value("little_u_value", 4)), // 4 hex_digit or error
 					i(named("big_u_value", `a:'\\U' b:hex_digit*`), ff_u_value("big_u_value", 8)),       // 8 hex digit or error
 					i(named("_error_unicode_char_toomany", "[^\\x{0a}]{2,}"), func(it j.Ast, ctx *j.ParseContext) j.Ast { return ctx.Error("too many characters") }),
 				))),
 			))),
-			// o(named("OperandName", "QualifiedIdent | identifier")),
-			// i(named("QualifiedIdent", "PackageName '.' identifier"), x("QualifiedIdent")), // https://go.dev/ref/spec#QualifiedIdent
-			// i(named("PackageName", "identifier")),                                         // https://go.dev/ref/spec#PackageName
-			// o(named("Block", "'{' Statement*';' '}'")),
-			/*
-				o(named("FunctionLit", "'func' _ Signature _ FunctionBody")),
-				o(named("Signature", "Parameters _ Result?")),
-				o(named("Result", "Parameters | Type")),
-				o(named("Parameters", "'(' _ ParameterList*comma _ ')'")),
-				o(named("ParameterList", "ParameterDecl _ (',' _ ParameterDecl)*")),
-				o(named("ParameterDecl", "IdentifierList? _ '...'? _ Type")),
+			i(named("FunctionLit", "'todoTODOtodo'")),
+			i(named("CompositeLit", rules(
+				o("StructType"), // fake one TODO replace it, but it will help at first
+				// o("LiteralType LiteralValue"),
+				// i(named("LiteralType", "StructType")), // TODO | ArrayType | '[' _ '...' _ ']' _ ElementType | SliceType | MapType | TypeName _ (TypeArgs)?")),
+				// i(named("LiteralValue", "'{' KeyedElement*comma comma? '}'")),
+				// i(named("KeyedElement", "( _ Key _ ':' )? _ Element")),
+				// i(named("Key", "FieldName | Expression | LiteralValue")),
+				// i(named("FieldName", "identifier")),
+				// i(named("Element", "Expression | LiteralValue")),
+			))),
 
-				o(named("IdentifierList", "identifier _ comma*identifier")),
-				o(named("ExpressionList", "Expression _ comma*Expression")),
-				// o(named("identifier", "letter (letter | unicode_digit)*")),
-				i(named("identifier", "[a-zA-Z_][a-zA-Z0-9_]*")), //, x("identifier")), // letter { letter | unicode_digit } . FIXME We rewrite it for now to accelerate parsing
-			*/
+			i(named("StructType", rules(
+				// o("'struct' _ '{' _ 'field'*_semicolon [^}]* '}'"),
+				o("'struct' _ '{' _ 'field'*_semicolon '}'"),
 
-			/*
-				// spec/Type.txt
-				o("TypeName TypeArgs? | TypeLit | '(' Type ')'"),
-				o(named("TypeLit", rules(
-					// "The length is part of the array's type; it must evaluate to
-					// a non-negative constant representable by a value of type int.
-					// The length of array a can be discovered using the built-in
-					// function len. The elements can be addressed by integer indices
-					// 0 through len(a)-1. Array types are always one-dimensional but
-					// may be composed to form multi-dimensional types."
-					o(named("ArrayType", "'[' length:Expression ']' elementType:Type")), //, x("ArrayType")),
-				// o("StructType"),
-				// o("PointerType"),
-				// o("FunctionType"),
-				// o("InterfaceType"),
-				// o("SliceType"),
-				// o("MapType"),
-				// o("ChannelType"),
-				))),
-				i(named("TypeName", "QualifiedIdent | identifier")),
-				i(named("TypeArgs", "'[' TypeList ','? ']'")),
-				i(named("TypeList", "Type*','")),
-			*/
+				// o("'struct' _ '{' FieldDecl* _ '}'"),
+				// i(named("FieldDecl", "_ 'field' _semicolon? ")), // TODO
+
+				// i(named("FieldDecl", "_ (IdentifierList _ Type | EmbeddedField ) _ Tag?")),
+				// i(named("EmbeddedField", "'*'? _ TypeName _ TypeArgs?")),
+				// i(named("IdentifierList", "")),
+				// i(named("Tag", "string_lit")),
+			))),
+			i(named("_semicolon", "_ ';'")),
 		))),
+		i(named("identifier", "[a-zA-Z_][a-zA-Z0-9_]*")), // letter { letter | unicode_digit } . FIXME We rewrite it for now to accelerate parsing
+		i(named("IdentifierList", "identifier*( _  ',' _ )")),
 		i(named("characters", "(newline | unicode_char | unicode_letter | unicode_digit)")),
 		i(named("newline", "[\\x{0a}]")),
 		i(named("unicode_char", "[^\\x{0a}]")), // "an arbitrary Unicode code point except newline"
@@ -144,7 +127,8 @@ var (
 		// it separates tokens that would otherwise combine into a single token."
 		i(named("comma", "',' | _")),
 		i(named("DOT", "'.'")), // when it needs to get captured (by default '.' in a sequence is not captured)
-		i(named("_", "[ \t\n\r]*")),
+		// i(named("_", "[ \t\n\r]*")),
+		i(named("_", "( ' ' | '\t' | '\n' | '\r' )*")),
 		i(named("__", "[ \t\n\r]+")),
 	)
 )
