@@ -86,7 +86,7 @@ List of available instructions that can be used in "*_filetest.gno" files:
 	function.
 
 (*) The 'update-golden-test' flag can be set to fill out the content of the
-instruction with the actual content of the test.
+instruction with the actual content of the test instead of failing.
 `,
 		},
 		cfg,
