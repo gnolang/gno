@@ -16,7 +16,7 @@ moniker = "45-79-178-97"
 fast_sync = true
 
 # Database backend: goleveldb | cleveldb | boltdb
-# * goleveldb (github.com/gnolang/goleveldb - most popular implementation)
+# * goleveldb (github.com/gnolang/goleveldb, fork of github.com/syndtr/goleveldb) - most popular implementation)
 #   - pure go
 #   - stable
 # * cleveldb (uses levigo wrapper)
