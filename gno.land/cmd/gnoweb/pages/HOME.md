@@ -369,7 +369,7 @@ Alert content
 ## Form component
 
 ```markdown
-:::form (https://gno.land) (post)
+:::form (https://gno.land) (post | get | ...)
 Form content & components such as input (see below)
 :::form/
 
@@ -394,13 +394,13 @@ Password
 ```markdown
 With placeholder content
 
-:::form-input (text | number | password ...)(Label input)
+:::form-input (text | number | password | ...)(Label?)
 Password
 :::form-input/
 
 Without placeholder content
 
-:::form-input (date)(Label input)/
+:::form-input (date)(Label?)/
 
 Without label
 
@@ -416,7 +416,7 @@ Placeholder
 :::form-textarea/
 
 ```markdown
-:::form-textarea (? Label)
+:::form-textarea (Label?)
 Placeholder
 :::form-textarea/
 
@@ -442,7 +442,7 @@ Label param is optional
 :::form-check/
 
 ```markdown
-:::form-check (checkbox | radio)(? Label)
+:::form-check (checkbox | radio)(Label?)
 
 - Checkbox 1
 - Checkbox 2
@@ -464,7 +464,7 @@ Label param is optional
 :::form-select/
 
 ```markdown
-:::form-select (? Label)
+:::form-select (Label?)
 
 - Select 1
 - Select 2
@@ -485,7 +485,7 @@ Submit
 :::form-button/
 
 ```markdown
-:::form-button (submit | reset ...)
+:::form-button (submit | reset | ...)
 Submit
 :::form-button/
 ```
