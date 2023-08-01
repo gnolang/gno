@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/syndtr/goleveldb/leveldb/opt"
+	"github.com/gnolang/goleveldb/leveldb/opt"
 )
 
 func TestGoLevelDBNewGoLevelDB(t *testing.T) {

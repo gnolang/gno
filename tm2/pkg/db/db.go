@@ -9,7 +9,7 @@ type BackendType string
 
 // These are valid backend types.
 const (
-	// GoLevelDBBackend represents goleveldb (github.com/syndtr/goleveldb - most
+	// GoLevelDBBackend represents goleveldb (github.com/gnolang/goleveldb - most
 	// popular implementation)
 	//   - stable
 	GoLevelDBBackend BackendType = "goleveldb"
