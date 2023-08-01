@@ -28,7 +28,7 @@ jobs:
           - "1.20.x"
         goenv: # TODO: replace with pairs, so it's easier to read in the GH interface.
           - "GOARCH=amd64 GOOS=linux"
-          - "GOARCH=js GOOS=wasm"
+          - "GOARCH=wasm GOOS=js"
         program:
           - "gno"
     runs-on: ubuntu-latest
