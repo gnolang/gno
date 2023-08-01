@@ -1,3 +1,7 @@
+// integration_test.go - Not Gno, and ignored onchain
+// This file is for advanced contract testing not managed purely with .gno files.
+// It enables multi-transaction integration tests and features currently unsupported by Gno.
+// We may replace or deprecate it in the future as Gno evolves. Testing purposes only.
 package banktest
 
 import (
@@ -124,14 +128,14 @@ import "gno.land/r/demo/banktest"
 import "std"
 
 func main1() {
-        banktest.Deposit("ugnot", 0)
-        println(banktest.Render(""))
-        /* std.TestSetCaller */
-        printStats("main1")
+	banktest.Deposit("ugnot", 0)
+	println(banktest.Render(""))
+	/* std.TestSetCaller */
+	printStats("main1")
 }
 
 func printStats(name string) {
-        println("stats", name, std.GetHeight(), std.GetOrigCaller())
+	println("stats", name, std.GetHeight(), std.GetOrigCaller())
 }
 `
 
@@ -141,13 +145,13 @@ import "gno.land/r/demo/banktest"
 import "std"
 
 func main2() {
-        banktest.Deposit("ugnot", 0)
-        /* std.TestSetCaller... */
-        println(banktest.Render(""))
-        printStats2("main2")
+	banktest.Deposit("ugnot", 0)
+	/* std.TestSetCaller... */
+	println(banktest.Render(""))
+	printStats2("main2")
 }
 
 func printStats2(name string) {
-        println("stats", name, std.GetHeight(), std.GetOrigCaller())
+	println("stats", name, std.GetHeight(), std.GetOrigCaller())
 }
 `
