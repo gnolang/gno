@@ -1,5 +1,5 @@
-//go:build wasm && js
-// +build wasm,js
+//go:build js && wasm
+// +build js,wasm
 
 package kvstore
 
