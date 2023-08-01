@@ -28,6 +28,16 @@ func TestCreateGnoModFile(t *testing.T) {
 			errShouldContain: "cannot determine package name",
 		},
 		{
+			desc:             "invalid modPath 1",
+			inModPath:        " ",
+			errShouldContain: "malformed import path",
+		},
+		{
+			desc:             "invalid modPath 2",
+			inModPath:        "\"",
+			errShouldContain: "malformed import path",
+		},
+		{
 			desc: "valid package",
 			in: []struct{ filename, content string }{
 				{
