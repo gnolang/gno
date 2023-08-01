@@ -71,6 +71,16 @@ const components = [
       `<button type="button" aria-expanded="true" data-gno="accordion" class="gno-btn gno-accordion-trigger">${attrs[0]}</button><div role="region" class="gno-accordion-panel">${content}</div>`,
   },
   {
+    name: "tabs",
+    controller: "tabs",
+    toRender: (content, attrs) => {
+      const tabsButtons = attrs
+        .map((item, i) => `<li><button role="tab" aria-selected="${i === 0 ? "true" : "false"}" aria-controls="${i}" id="${i}">${item}</button></li>`)
+        .reduce((a, b) => a + b, "");
+      return `<div data-gno="tabs" role="tablist" aria-labelledby="tablist-1" class="gno-tabs"><nav><ul>${tabsButtons}</ul></nav><div class="gno-jumbotron js-panel">${content}</div></div>`;
+    },
+  },
+  {
     name: "dropdown",
     controller: "dropdown",
     toRender: (content, attrs) => `
@@ -235,43 +245,40 @@ class GnoDropdown extends GnoUi {
   }
 }
 
-/*
- *   ### TABS ###
- *
- *   This content is licensed according to the W3C Software License at
- *   https://www.w3.org/Consortium/Legal/2015/copyright-software-and-document
- *
- *   Desc: Tablist widget that implements ARIA Authoring Practices
- */
-
-class GnoTabs {
-  constructor(groupNode) {
-    this.tablistNode = groupNode;
-
-    this.tabs = [];
+class GnoTabs extends GnoUi {
+  constructor(name, el) {
+    super(name, el);
+    this._setDom();
 
     this.firstTab = null;
     this.lastTab = null;
+  }
 
-    this.tabs = Array.from(this.tablistNode.querySelectorAll("[role=tab]"));
-    this.tabpanels = [];
+  _setDom() {
+    this.DOM.tabs = Array.from(this.DOM.el.querySelectorAll("[role=tab]"));
+    this.DOM.tabpanels = Array.from(this.DOM.el.querySelectorAll(".js-panel > *"));
+  }
 
-    for (let tab of this.tabs) {
-      const tabpanel = document.getElementById(tab.getAttribute("aria-controls"));
+  _setEvents(tab) {
+    tab.addEventListener("keydown", this.onKeydown.bind(this));
+    tab.addEventListener("click", this.onClick.bind(this));
+  }
 
+  mount() {
+    for (let [i, tab] of this.DOM.tabs.entries()) {
       tab.tabIndex = -1;
       tab.setAttribute("aria-selected", "false");
-      this.tabpanels.push(tabpanel);
+      tab.setAttribute("aria-controls", `gno-${this.compName}-${this.counter}-${tab.getAttribute("aria-controls")}`);
+      tab.id = `${this.compName}-${this.counter}-${tab.id}`;
 
-      tab.addEventListener("keydown", this.onKeydown.bind(this));
-      tab.addEventListener("click", this.onClick.bind(this));
+      this.DOM.tabpanels[i].setAttribute("aria-labelledby", tab.id);
 
       if (!this.firstTab) {
         this.firstTab = tab;
       }
       this.lastTab = tab;
+      this._setEvents(tab);
     }
-
     this.setSelectedTab(this.firstTab, false);
   }
 
@@ -279,19 +286,21 @@ class GnoTabs {
     if (typeof setFocus !== "boolean") {
       setFocus = true;
     }
-    for (let i = 0; i < this.tabs.length; i += 1) {
-      var tab = this.tabs[i];
+
+    for (let i = 0; i < this.DOM.tabs.length; i += 1) {
+      var tab = this.DOM.tabs[i];
       if (currentTab === tab) {
         tab.setAttribute("aria-selected", "true");
         tab.removeAttribute("tabindex");
-        this.tabpanels[i].classList.remove("is-hidden");
+
+        this.DOM.tabpanels[i].classList.remove("is-hidden");
         if (setFocus) {
           tab.focus();
         }
       } else {
         tab.setAttribute("aria-selected", "false");
         tab.tabIndex = -1;
-        this.tabpanels[i].classList.add("is-hidden");
+        this.DOM.tabpanels[i].classList.add("is-hidden");
       }
     }
   }
@@ -302,8 +311,8 @@ class GnoTabs {
     if (currentTab === this.firstTab) {
       this.setSelectedTab(this.lastTab);
     } else {
-      index = this.tabs.indexOf(currentTab);
-      this.setSelectedTab(this.tabs[index - 1]);
+      index = this.DOM.tabs.indexOf(currentTab);
+      this.setSelectedTab(this.DOM.tabs[index - 1]);
     }
   }
 
@@ -313,8 +322,8 @@ class GnoTabs {
     if (currentTab === this.lastTab) {
       this.setSelectedTab(this.firstTab);
     } else {
-      index = this.tabs.indexOf(currentTab);
-      this.setSelectedTab(this.tabs[index + 1]);
+      index = this.DOM.tabs.indexOf(currentTab);
+      this.setSelectedTab(this.DOM.tabs[index + 1]);
     }
   }
 
@@ -412,6 +421,7 @@ let classesMap = {
   GnoUi,
   GnoTabs,
   GnoAccordion,
+  GnoTabs,
   GnoBreadcrumb,
   GnoInput,
   GnoSelector,
@@ -429,10 +439,5 @@ window.addEventListener("load", function () {
       const El = new classesMap[ClassName](comp, el, i);
       El.mount(el);
     }
-  }
-
-  const tablists = Array.from(document.querySelectorAll("[role=tablist].tabs"));
-  for (const tab of tablists) {
-    new Tabs(tab);
   }
 });

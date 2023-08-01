@@ -252,6 +252,36 @@ Accordion content
 :::accordion/
 ```
 
+## Tabs component
+
+:::tabs (1st tab button text)(2nd tab button text)
+:::box
+
+## 1st Tab Title
+
+1st tab Content
+:::box/
+
+:::box
+
+## 2nd Tab Title
+
+2nd tab Content
+:::box/
+:::tabs/
+
+```markdown
+:::tabs (Tab button text 1)(Tab button text 1)
+:::box
+Tab Content 1
+:::box/
+
+:::box
+Tab Content 2
+:::box/
+:::tabs/
+```
+
 ## Alert component
 
 :::alert (warning)

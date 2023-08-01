@@ -857,6 +857,10 @@ code.hljs {
     margin: 3.75rem -3.5rem;
     padding: 3.5rem;
   }
+  .gno-tabs > .gno-jumbotron {
+    margin: 1.5rem -3.5rem 3.75rem;
+    padding: 3.5rem;
+  }
 }
 
 /** Breadcrumb **/
@@ -1088,7 +1092,7 @@ code.hljs {
 }
 
 /** Tabs **/
-.tabs button {
+.gno-tabs button {
   border: none;
   cursor: pointer;
   text-decoration: underline;
@@ -1097,14 +1101,11 @@ code.hljs {
   color: var(--text-color, #000);
 }
 
-.tabs button[aria-selected="true"] {
+.gno-tabs button[aria-selected="true"] {
   font-weight: 700;
 }
 
-.tabs + .jumbotron {
-  margin-top: 2.5rem;
-}
-.tabs > div[class^="columns-"] {
+.gno-tabs > div[class^="columns-"] {
   margin-bottom: 2.5rem;
 }
 
