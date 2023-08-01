@@ -1,6 +1,7 @@
 package repl
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"go/ast"
@@ -8,6 +9,7 @@ import (
 	"go/parser"
 	"go/printer"
 	"go/token"
+	"io"
 	"text/template"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -42,9 +44,6 @@ type tempModel struct {
 }
 
 type state struct {
-	// b is the buffer where the VM is writing. It is used to get the output when a expression is executed
-	b bytes.Buffer
-
 	// imports contains all the imports added. they will be added to the following generated source code
 	imports map[string]string
 
@@ -58,43 +57,86 @@ type state struct {
 	machine *gno.Machine
 }
 
-type Repl struct {
-	state *state
-	tmpl  *template.Template
-}
-
-func newState() *state {
+func newState(stdout io.Writer, sf func() gno.Store) *state {
 	s := &state{
 		imports: make(map[string]string),
 		files:   make(map[string]string),
 		fileset: token.NewFileSet(),
 	}
 
-	s.machine = newMachine(&s.b)
+	s.machine = gno.NewMachineWithOptions(gno.MachineOptions{
+		PkgPath: "test",
+		Output:  stdout,
+		Store:   sf(),
+	})
 
 	return s
 }
 
-func newMachine(b *bytes.Buffer) *gno.Machine {
-	testStore := tests.TestStore("teststore", "", b, b, b, tests.ImportModeStdlibsOnly)
-	return gno.NewMachineWithOptions(gno.MachineOptions{
-		PkgPath: "test",
-		Output:  b,
-		Store:   testStore,
-	})
+type ReplOption func(*Repl)
+
+// WithStore allows to modify the default Store implementation used by the VM.
+// If nil is provided, the VM will use a default implementation.
+func WithStore(s gno.Store) ReplOption {
+	return func(r *Repl) {
+		r.storeFunc = func() gno.Store {
+			return s
+		}
+	}
+}
+
+// WithStd changes std's reader and writers implementations. An internal bytes.Buffer is used by default.
+func WithStd(stdin io.Reader, stdout, stderr io.Writer) ReplOption {
+	return func(r *Repl) {
+		r.stdin = stdin
+		r.stdout = stdout
+		r.stderr = stderr
+	}
+}
+
+type Repl struct {
+	state *state
+	tmpl  *template.Template
+
+	// mr joins stdout and stderr to give an unified output
+	rw bufio.ReadWriter
+
+	// Repl options:
+
+	storeFunc func() gno.Store
+	stdout    io.Writer
+	stderr    io.Writer
+	stdin     io.Reader
 }
 
 // NewRepl creates a Repl struct. It is able to process input source code and eventually run it.
-func NewRepl() *Repl {
-	t, err := template.New("tmpl").Parse(fileTemplate)
-	if err != nil {
-		panic(fmt.Errorf("error parsing template: %w", err))
+func NewRepl(opts ...ReplOption) *Repl {
+	t := template.Must(template.New("tmpl").Parse(fileTemplate))
+
+	r := &Repl{
+		tmpl: t,
 	}
 
-	return &Repl{
-		tmpl:  t,
-		state: newState(),
+	var b bytes.Buffer
+	r.stdin = &b
+	r.stdout = &b
+	r.stderr = &b
+
+	for _, o := range opts {
+		o(r)
 	}
+
+	r.storeFunc = func() gno.Store {
+		return tests.TestStore("teststore", "", r.stdin, r.stdout, r.stderr, tests.ImportModeStdlibsOnly)
+	}
+
+	r.state = newState(r.stdout, r.storeFunc)
+
+	br := bufio.NewReader(r.stdin)
+	bw := bufio.NewWriter(io.MultiWriter(r.stderr, r.stdout))
+	r.rw = *bufio.NewReadWriter(br, bw)
+
+	return r
 }
 
 // Process will accept any valid code and execute it if it is an expression,
@@ -122,11 +164,6 @@ func (r *Repl) Process(input string) (out string, err error) {
 }
 
 func (r *Repl) handleExpression(e *ast.File) (string, error) {
-	var b bytes.Buffer
-	if err := printer.Fprint(&b, r.state.fileset, e); err != nil {
-		return "", fmt.Errorf("error handling expression: %w", err)
-	}
-
 	fn := r.filename()
 	src := r.nodeToString(e)
 
@@ -136,10 +173,13 @@ func (r *Repl) handleExpression(e *ast.File) (string, error) {
 	r.state.machine.RunStatement(gno.S(gno.Call(gno.X(fmt.Sprintf("%s%d", executedFunc, r.state.id)))))
 
 	// read the result from the output buffer after calling main function
-	out := r.state.b.String()
-	r.state.b.Reset()
 
-	return out, nil
+	b, err := io.ReadAll(r.rw)
+	if err != nil {
+		return "", fmt.Errorf("error reading output buffer: %w", err)
+	}
+
+	return string(b), nil
 }
 
 func (r *Repl) handleDeclarations(fn *ast.File) (string, error) {
@@ -251,7 +291,7 @@ func (r *Repl) executeAndParse(m *tempModel) (*ast.File, error) {
 // Reset will reset the actual repl state, restarting the internal VM
 func (r *Repl) Reset() {
 	r.state.machine.Release()
-	r.state = newState()
+	r.state = newState(r.stdout, r.storeFunc)
 }
 
 const separator = "//----------------------------------//\n"
