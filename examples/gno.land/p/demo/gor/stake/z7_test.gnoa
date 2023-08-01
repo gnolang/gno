@@ -1,0 +1,18 @@
+package stake
+
+import (
+	"std"
+	"testing"
+)
+
+func TestBanker(t *testing.T) {
+	mainAddr := std.TestDerivePkgAddr("main")
+	println("mainAddr: ", mainAddr)
+
+	std.TestSetOrigCaller(mainAddr)
+
+	Echo("hey")
+}
+
+
+

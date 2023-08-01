@@ -34,7 +34,7 @@ type TransferProposal struct {
 	to        std.Address
 	amount    uint
 	approvals map[std.Address]bool
-	count     uinty
+	count     uint
 }
 
 type flag uint8
@@ -46,7 +46,7 @@ const (
 )
 
 // all trustees
-var trustees map[std.Address]flag
+var trustees *avl.Tree // address -> flag
 var trusteeCount uint
 
 func SetMembers(...std.Address) {

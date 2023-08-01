@@ -1,4 +1,4 @@
-package main
+package treasury
 
 // NOTE: this doesn't do anything, as it sends to "main".
 // SEND: 100000000ugnot
@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	treasuryAddr := std.DerivePkgAddr("gno.land/p/demo/treasury")
+	treasuryAddr := std.DerivePkgAddr("gno.land/p/demo/gor")
 
 	// print main balance before.
 	mainaddr := std.DerivePkgAddr("main")

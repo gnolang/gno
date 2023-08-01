@@ -1,0 +1,43 @@
+package stake 
+
+import (
+	"std"
+	"testing"
+	stake "gno.land/p/demo/governance/stake"
+)
+
+func TestBank(t *testing.T){
+	caller := std.GetOrigCaller()
+	println("caller: ", caller)
+
+	poolAddr := std.TestDerivePkgAddr("gno.land/p/demo/governance/stake").String()
+	delegator := std.TestDerivePkgAddr("main").String()
+	println("delegator: ", delegator)
+	println("poolAddr: ", poolAddr)
+
+	// the origCaller and orig
+	banker := std.GetBanker(std.BankerTypeRealmSend)
+
+	balanceDelegator := banker.GetCoins(std.Address(delegator))
+	println("balance of delegator before send is: ", balanceDelegator)
+
+	amount := std.Coins{{"ugnot", 15}}
+	banker.SendCoins(caller, std.Address(poolAddr), amount)
+
+	balancePool := banker.GetCoins(std.Address(poolAddr))
+	println("balance of pool is: ", balancePool)
+
+	balanceDelegator = banker.GetCoins(std.Address(delegator))
+	println("balance of delegator after send is: ", balanceDelegator)
+
+	s := stake.NewStake()
+	// banker wrapper
+	ncw := stake.NewNativeCoinWrapper()
+	s.GovToken = ncw
+
+	std.TestSetOrigPkgAddr(std.Address(poolAddr))
+	s.Refund()
+
+	balanceDelegator = banker.GetCoins(std.Address(delegator))
+	println("balance of delegator after refund is: ", balanceDelegator)
+}
