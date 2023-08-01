@@ -34,7 +34,7 @@ type PersistentKVStoreApplication struct {
 
 func NewPersistentKVStoreApplication(dbDir string) *PersistentKVStoreApplication {
 	name := "kvstore"
-	db, err := db.NewDB(name, db.CLevelDBBackend, dbDir)
+	db, err := db.NewDB(name, dbBackend, dbDir)
 	if err != nil {
 		panic(err)
 	}

@@ -26,7 +26,7 @@ func NewLazyDBKeybase(name, dir string) Keybase {
 }
 
 func (lkb lazyKeybase) List() ([]Info, error) {
-	db, err := db.NewDB(lkb.name, db.CLevelDBBackend, lkb.dir)
+	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +36,7 @@ func (lkb lazyKeybase) List() ([]Info, error) {
 }
 
 func (lkb lazyKeybase) GetByNameOrAddress(nameOrBech32 string) (Info, error) {
-	db, err := db.NewDB(lkb.name, db.CLevelDBBackend, lkb.dir)
+	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func (lkb lazyKeybase) GetByNameOrAddress(nameOrBech32 string) (Info, error) {
 }
 
 func (lkb lazyKeybase) GetByName(name string) (Info, error) {
-	db, err := db.NewDB(lkb.name, db.CLevelDBBackend, lkb.dir)
+	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +56,7 @@ func (lkb lazyKeybase) GetByName(name string) (Info, error) {
 }
 
 func (lkb lazyKeybase) GetByAddress(address crypto.Address) (Info, error) {
-	db, err := db.NewDB(lkb.name, db.CLevelDBBackend, lkb.dir)
+	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +66,7 @@ func (lkb lazyKeybase) GetByAddress(address crypto.Address) (Info, error) {
 }
 
 func (lkb lazyKeybase) Delete(name, passphrase string, skipPass bool) error {
-	db, err := db.NewDB(lkb.name, db.CLevelDBBackend, lkb.dir)
+	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
 	if err != nil {
 		return err
 	}
@@ -76,7 +76,7 @@ func (lkb lazyKeybase) Delete(name, passphrase string, skipPass bool) error {
 }
 
 func (lkb lazyKeybase) Sign(name, passphrase string, msg []byte) ([]byte, crypto.PubKey, error) {
-	db, err := db.NewDB(lkb.name, db.CLevelDBBackend, lkb.dir)
+	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -86,7 +86,7 @@ func (lkb lazyKeybase) Sign(name, passphrase string, msg []byte) ([]byte, crypto
 }
 
 func (lkb lazyKeybase) Verify(name string, msg, sig []byte) error {
-	db, err := db.NewDB(lkb.name, db.CLevelDBBackend, lkb.dir)
+	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
 	if err != nil {
 		return err
 	}
@@ -96,7 +96,7 @@ func (lkb lazyKeybase) Verify(name string, msg, sig []byte) error {
 }
 
 func (lkb lazyKeybase) CreateAccount(name, mnemonic, bip39Passwd, encryptPasswd string, account uint32, index uint32) (Info, error) {
-	db, err := db.NewDB(lkb.name, db.CLevelDBBackend, lkb.dir)
+	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +106,7 @@ func (lkb lazyKeybase) CreateAccount(name, mnemonic, bip39Passwd, encryptPasswd 
 }
 
 func (lkb lazyKeybase) CreateAccountBip44(name, mnemonic, bip39Passwd, encryptPasswd string, params hd.BIP44Params) (Info, error) {
-	db, err := db.NewDB(lkb.name, db.CLevelDBBackend, lkb.dir)
+	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func (lkb lazyKeybase) CreateAccountBip44(name, mnemonic, bip39Passwd, encryptPa
 }
 
 func (lkb lazyKeybase) CreateLedger(name string, algo SigningAlgo, hrp string, account, index uint32) (info Info, err error) {
-	db, err := db.NewDB(lkb.name, db.CLevelDBBackend, lkb.dir)
+	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +126,7 @@ func (lkb lazyKeybase) CreateLedger(name string, algo SigningAlgo, hrp string, a
 }
 
 func (lkb lazyKeybase) CreateOffline(name string, pubkey crypto.PubKey) (info Info, err error) {
-	db, err := db.NewDB(lkb.name, db.CLevelDBBackend, lkb.dir)
+	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +136,7 @@ func (lkb lazyKeybase) CreateOffline(name string, pubkey crypto.PubKey) (info In
 }
 
 func (lkb lazyKeybase) CreateMulti(name string, pubkey crypto.PubKey) (info Info, err error) {
-	db, err := db.NewDB(lkb.name, db.CLevelDBBackend, lkb.dir)
+	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +146,7 @@ func (lkb lazyKeybase) CreateMulti(name string, pubkey crypto.PubKey) (info Info
 }
 
 func (lkb lazyKeybase) Update(name, oldpass string, getNewpass func() (string, error)) error {
-	db, err := db.NewDB(lkb.name, db.CLevelDBBackend, lkb.dir)
+	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
 	if err != nil {
 		return err
 	}
@@ -156,7 +156,7 @@ func (lkb lazyKeybase) Update(name, oldpass string, getNewpass func() (string, e
 }
 
 func (lkb lazyKeybase) Import(name string, armor string) (err error) {
-	db, err := db.NewDB(lkb.name, db.CLevelDBBackend, lkb.dir)
+	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
 	if err != nil {
 		return err
 	}
@@ -171,7 +171,7 @@ func (lkb lazyKeybase) ImportPrivKey(
 	decryptPassphrase,
 	encryptPassphrase string,
 ) error {
-	db, err := db.NewDB(lkb.name, db.CLevelDBBackend, lkb.dir)
+	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
 	if err != nil {
 		return err
 	}
@@ -185,7 +185,7 @@ func (lkb lazyKeybase) ImportPrivKeyUnsafe(
 	armor string,
 	encryptPassphrase string,
 ) error {
-	db, err := db.NewDB(lkb.name, db.CLevelDBBackend, lkb.dir)
+	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
 	if err != nil {
 		return err
 	}
@@ -195,7 +195,7 @@ func (lkb lazyKeybase) ImportPrivKeyUnsafe(
 }
 
 func (lkb lazyKeybase) ImportPubKey(name string, armor string) (err error) {
-	db, err := db.NewDB(lkb.name, db.CLevelDBBackend, lkb.dir)
+	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
 	if err != nil {
 		return err
 	}
@@ -205,7 +205,7 @@ func (lkb lazyKeybase) ImportPubKey(name string, armor string) (err error) {
 }
 
 func (lkb lazyKeybase) Export(name string) (armor string, err error) {
-	db, err := db.NewDB(lkb.name, db.CLevelDBBackend, lkb.dir)
+	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
 	if err != nil {
 		return "", err
 	}
@@ -215,7 +215,7 @@ func (lkb lazyKeybase) Export(name string) (armor string, err error) {
 }
 
 func (lkb lazyKeybase) ExportPubKey(name string) (armor string, err error) {
-	db, err := db.NewDB(lkb.name, db.CLevelDBBackend, lkb.dir)
+	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
 	if err != nil {
 		return "", err
 	}
@@ -225,7 +225,7 @@ func (lkb lazyKeybase) ExportPubKey(name string) (armor string, err error) {
 }
 
 func (lkb lazyKeybase) ExportPrivateKeyObject(name string, passphrase string) (crypto.PrivKey, error) {
-	db, err := db.NewDB(lkb.name, db.CLevelDBBackend, lkb.dir)
+	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
 	if err != nil {
 		return nil, err
 	}
@@ -237,7 +237,7 @@ func (lkb lazyKeybase) ExportPrivateKeyObject(name string, passphrase string) (c
 func (lkb lazyKeybase) ExportPrivKey(name string, decryptPassphrase string,
 	encryptPassphrase string,
 ) (armor string, err error) {
-	db, err := db.NewDB(lkb.name, db.CLevelDBBackend, lkb.dir)
+	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
 	if err != nil {
 		return "", err
 	}
@@ -247,7 +247,7 @@ func (lkb lazyKeybase) ExportPrivKey(name string, decryptPassphrase string,
 }
 
 func (lkb lazyKeybase) ExportPrivKeyUnsafe(name string, decryptPassphrase string) (string, error) {
-	db, err := db.NewDB(lkb.name, db.CLevelDBBackend, lkb.dir)
+	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
 	if err != nil {
 		return "", err
 	}
