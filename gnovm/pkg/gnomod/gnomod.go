@@ -211,6 +211,9 @@ func CreateGnoModFile(rootDir, modPath string) error {
 		}
 		modPath = string(pkgName)
 	}
+	if err := module.CheckPath(modPath); err != nil {
+		return err
+	}
 
 	modFile := &File{
 		Module: &modfile.Module{
