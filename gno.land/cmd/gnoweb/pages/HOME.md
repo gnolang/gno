@@ -47,175 +47,175 @@ Content
 ## columns component
 
 :::columns (2)
-:::container
+:::box
 
 ### Col 1
 
 Content 1
 
-:::container/
-:::container
+:::box/
+:::box
 
 ### Col 2
 
 Content 2
 
-:::container/
+:::box/
 :::columns/
 
 :::columns (3)
-:::container
+:::box
 
 ### Col 1
 
 Content 1
 
-:::container/
-:::container
+:::box/
+:::box
 
 ### Col 2
 
 Content 2
 
-:::container/
-:::container
+:::box/
+:::box
 
 ### Col 3
 
 Content 3
 
-:::container/
+:::box/
 :::columns/
 
 :::columns (4)
-:::container
+:::box
 
 ### Col 1
 
 Content 1
 
-:::container/
-:::container
+:::box/
+:::box
 
 ### Col 2
 
 Content 2
 
-:::container/
-:::container
+:::box/
+:::box
 
 ### Col 3
 
 Content 3
 
-:::container/
-:::container
+:::box/
+:::box
 
 ### Col 4
 
 Content 4
 
-:::container/
+:::box/
 :::columns/
 
 :::columns (5)
-:::container
+:::box
 
 ### Col 1
 
 Content 1
 
-:::container/
-:::container
+:::box/
+:::box
 
 ### Col 2
 
 Content 2
 
-:::container/
-:::container
+:::box/
+:::box
 
 ### Col 3
 
 Content 3
 
-:::container/
-:::container
+:::box/
+:::box
 
 ### Col 4
 
 Content 4
 
-:::container/
-:::container
+:::box/
+:::box
 
 ### Col 5
 
 Content 5
 
-:::container/
+:::box/
 :::columns/
 
 :::columns (6)
-:::container
+:::box
 
 ### Col 1
 
 Content 1
 
-:::container/
-:::container
+:::box/
+:::box
 
 ### Col 2
 
 Content 2
 
-:::container/
-:::container
+:::box/
+:::box
 
 ### Col 3
 
 Content 3
 
-:::container/
-:::container
+:::box/
+:::box
 
 ### Col 4
 
 Content 4
 
-:::container/
-:::container
+:::box/
+:::box
 
 ### Col 5
 
 Content 5
 
-:::container/
-:::container
+:::box/
+:::box
 
 ### Col 6
 
 Content 6
 
-:::container/
+:::box/
 :::columns/
 
 ```markdown
 :::columns (2)
-:::container
+:::box
 
 First column content
 
-:::container/
-:::container
+:::box/
+:::box
 
 First column content
 
-:::container/
+:::box/
 :::columns/
 
-From 1 to 6 column grouped by container component
+From 1 to 6 column grouped by box component
 ```
 
 ## Button component
@@ -346,14 +346,14 @@ Form content & components such as input (see below)
 First argument is action and second one is method
 ```
 
-:::form (/)(post)
+:::form (/)(get)
 
 ### Form inputs components
 
-:::form-input (text)
+:::form-input (text)(Input Label)
 Placeholder
 :::form-input/
-:::form-input (date)/
+:::form-input (date)(Input Label)/
 :::form-input (number)
 Number
 :::form-input/
@@ -364,30 +364,38 @@ Password
 ```markdown
 With placeholder content
 
-:::form-input (text | number | password)
+:::form-input (text | number | password ...)(Label input)
 Password
 :::form-input/
 
 Without placeholder content
 
-:::form-input (date)/
+:::form-input (date)(Label input)/
+
+Without label
+
+:::form-input (number)
+Number
+:::form-input/
 ```
 
 ### Form textarea component
 
-:::form-textarea
+:::form-textarea (Label)
 Placeholder
 :::form-textarea/
 
 ```markdown
-:::form-textarea
+:::form-textarea (? Label)
 Placeholder
 :::form-textarea/
+
+Label param is optional
 ```
 
 ### Form check components
 
-:::form-check (radio)
+:::form-check (radio)(Radio Label)
 
 - Radio 1
 - Radio 2
@@ -404,18 +412,20 @@ Placeholder
 :::form-check/
 
 ```markdown
-:::form-check (checkbox | radio)
+:::form-check (checkbox | radio)(? Label)
 
 - Checkbox 1
 - Checkbox 2
 - Checkbox 3
 
 :::form-check/
+
+Label param is optional
 ```
 
 ### Form select component
 
-:::form-select
+:::form-select (Select Label)
 
 - Select 1
 - Select 2
@@ -424,13 +434,15 @@ Placeholder
 :::form-select/
 
 ```markdown
-:::form-select
+:::form-select (? Label)
 
 - Select 1
 - Select 2
 - Select 3
 
 :::form-select/
+
+Label is optional
 ```
 
 ### Form buttons component

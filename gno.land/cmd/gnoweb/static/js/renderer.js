@@ -13,15 +13,26 @@ function renderUsernames(raw) {
  */
 
 const components = [
-  { name: "jumbotron", controller: "uiElement", toRender: (content) => `<div class="jumbotron" data-gno="uiElement">${content}</div>` },
-  { name: "stack", controller: "uiElement", toRender: (content) => `<div class="stack" data-gno="uiElement">${content}</div>` },
-  { name: "columns", controller: "uiElement", toRender: (content, attrs) => `<div class="columns-${attrs[0]}" data-gno="uiElement">${content}</div>` },
-  { name: "container", controller: "uiElement", toRender: (content) => `<div data-gno="uiElement">${content}</div>` },
-  { name: "alert", controller: "uiElement", toRender: (content, attrs) => `<div class="alert alert-${attrs[0]}" role="alert" data-gno="element">${content}</div>` },
-  { name: "form", controller: "uiElement", toRender: (content, attrs) => `<form action="${attrs[0]}" method="${attrs[1] ?? "get"}" data-gno="element">${content}</form>` },
-  { name: "form-input", controller: "input", isPlain: true, toRender: (content, attrs) => `<input data-gno="input" type="${attrs[0]}" placeholder="${content ?? ""}" autocomplete="on">` },
-  { name: "form-button", controller: "input", isPlain: true, toRender: (content, attrs) => `<input data-gno="input" class="btn" type="${attrs[0]}" value="${content ?? ""}">` },
-  { name: "form-textarea", controller: "input", isPlain: true, toRender: (content) => `<textarea data-gno="input">${content}</textarea>` },
+  { name: "jumbotron", controller: "ui", toRender: (content) => `<div class="gno-jumbotron" data-gno="ui">${content}</div>` },
+  { name: "stack", controller: "ui", toRender: (content) => `<div class="gno-stack" data-gno="ui">${content}</div>` },
+  { name: "columns", controller: "ui", toRender: (content, attrs) => `<div class="gno-columns gno-columns-${attrs[0]}" data-gno="ui">${content}</div>` },
+  { name: "box", controller: "ui", toRender: (content) => `<div data-gno="ui" class="gno-box">${content}</div>` },
+  { name: "alert", controller: "ui", toRender: (content, attrs) => `<div class="gno-alert gno-alert-${attrs[0]}" role="alert" data-gno="element">${content}</div>` },
+  { name: "form", controller: "ui", toRender: (content, attrs) => `<form action="${attrs[0]}" method="${attrs[1] ?? "get"}" data-gno="element">${content}</form>` },
+  { name: "form-button", controller: "input", isPlain: true, toRender: (content, attrs) => `<input data-gno="input" class="gno-btn" type="${attrs[0]}" value="${content ?? ""}">` },
+  {
+    name: "form-input",
+    controller: "input",
+    isPlain: true,
+    toRender: (content, attrs) =>
+      `<div class="gno-input">${attrs[1] ? "<label>" + attrs[1] + "</label>" : ""}<input data-gno="input" type="${attrs[0]}" placeholder="${content ?? ""}" autocomplete="on"></div>`,
+  },
+  {
+    name: "form-textarea",
+    controller: "input",
+    isPlain: true,
+    toRender: (content, attrs) => `<div class="gno-input">${attrs[0] ? "<label>" + attrs[0] + "</label>" : ""}<textarea data-gno="input">${content}</textarea></div>`,
+  },
   {
     name: "form-check",
     controller: "selector",
@@ -31,40 +42,40 @@ const components = [
       const els = content
         .map((item) => `<div><input type="${attrs[0]}" value="${item.text}" id="${idfyer(item.text)}"><label for="${idfyer(item.text)}">${item.text}</label></div>`)
         .reduce((a, b) => a + b, "");
-      return `<div data-gno="selector" class="checkboxes"> ${els}</div>`;
+      return `<div data-gno="selector" class="gno-checkboxes gno-input">${attrs[1] ? "<label>" + attrs[1] + "</label>" : ""} ${els}</div>`;
     },
   },
   {
     name: "form-select",
     controller: "selector",
     isPlain: true,
-    toRender: (content) => {
+    toRender: (content, attrs) => {
       const els = content.map((item) => `<option value="${item.text}">${item.text}</option>`).reduce((a, b) => a + b, "");
-      return `<select data-gno="selector" class="select"> ${els}</select>`;
+      return `<div class="gno-input">${attrs[0] ? "<label>" + attrs[0] + "</label>" : ""}<select data-gno="selector" class="gno-select"> ${els}</select></div>`;
     },
   },
   {
     name: "pagination",
-    controller: "uiElement",
-    toRender: (content) => `<nav aria-label="Navigation" class="pagination" data-gno="uiElement">${content}</nav>`,
+    controller: "ui",
+    toRender: (content) => `<nav aria-label="Navigation" class="gno-pagination" data-gno="ui">${content}</nav>`,
   },
   {
     name: "breadcrumb",
     controller: "breadcrumb",
-    toRender: (content) => `<nav aria-label="breadcrumb" data-gno="breadcrumb" class="breadcrumb">${content}</nav>`,
+    toRender: (content) => `<nav aria-label="breadcrumb" data-gno="breadcrumb" class="gno-breadcrumb">${content}</nav>`,
   },
   {
     name: "accordion",
     controller: "accordion",
     toRender: (content, attrs) =>
-      `<button type="button" aria-expanded="true" data-gno="accordion" class="btn accordion-trigger">${attrs[0]}</button><div role="region" class="accordion-panel">${content}</div>`,
+      `<button type="button" aria-expanded="true" data-gno="accordion" class="gno-btn gno-accordion-trigger">${attrs[0]}</button><div role="region" class="gno-accordion-panel">${content}</div>`,
   },
   {
     name: "dropdown",
     controller: "dropdown",
     toRender: (content, attrs) => `
-    <div data-gno="dropdown" class="dropdown">
-        <button type="button" class="btn" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+    <div data-gno="dropdown" class="gno-dropdown">
+        <button type="button" class="gno-btn" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
             ${attrs[0]}
         </button>
         ${content}
@@ -72,9 +83,9 @@ const components = [
   },
   {
     name: "button",
-    controller: "uiElement",
+    controller: "ui",
     isPlain: true,
-    toRender: (content, attrs) => (attrs[0] ? `<a class="btn" role="button" href="${attrs[0]}" data-gno="uiElement">${content}</a>` : `<button class="btn" data-gno="uiElement">${content}</button>`),
+    toRender: (content, attrs) => (attrs[0] ? `<a class="gno-btn" role="button" href="${attrs[0]}" data-gno="ui">${content}</a>` : `<button class="gno-btn" data-gno="ui">${content}</button>`),
   },
 ];
 
@@ -83,34 +94,37 @@ const components = [
  *   Controller classes list
  */
 
-class GnoUiElement {
-  constructor(el, i) {
-    this.DOM = {
-      el,
-    };
-    this.counter = i;
+class GnoUi {
+  static instanceCounter = 0;
 
-    this.init();
-    this.setId();
+  constructor(name, el) {
+    this.DOM = { el };
+    this.compName = name;
+    this.counter = GnoUi.instanceCounter++;
   }
 
-  init() {
-    this.name = "el";
+  mount() {
+    this._setId();
   }
-  setId() {
-    this.DOM.el.id = `gno-${this.name}-${this.counter}`;
+
+  _setId() {
+    this.DOM.el.id = `gno-${this.compName}-${this.counter}`;
   }
 }
 
-class GnoAccordion extends GnoUiElement {
-  constructor(el, i) {
-    super(el, i);
+class GnoAccordion extends GnoUi {
+  constructor(name, el) {
+    super(name, el);
+    this._setDom();
+    this._setEvents();
   }
-  init() {
-    this.name = "accordion";
-    this.DOM.contentEl = this.DOM.el.nextElementSibling ?? this.DOM.el.parentElement.nextElementSibling;
-    this.open = this.DOM.el.getAttribute("aria-expanded") === "true";
 
+  _setDom() {
+    this.DOM.contentEl = this.DOM.el.nextElementSibling ?? this.DOM.el.parentElement.nextElementSibling;
+  }
+
+  _setEvents() {
+    this.open = this.DOM.el.getAttribute("aria-expanded") === "true";
     this.DOM.el.addEventListener("click", this.onButtonClick.bind(this));
   }
 
@@ -134,51 +148,75 @@ class GnoAccordion extends GnoUiElement {
   }
 }
 
-class GnoBreadcrumb extends GnoUiElement {
-  constructor(el, i) {
-    super(el, i);
+class GnoBreadcrumb extends GnoUi {
+  constructor(name, el) {
+    super(name, el);
+    this._setDom();
+    this._setAttrs();
   }
-  init() {
-    this.name = "breadcrumb";
+
+  _setDom() {
     this.DOM.currentLink = this.DOM.el.querySelector("ul, ol").lastElementChild;
+  }
+
+  _setAttrs() {
     this.DOM.currentLink.setAttribute("aria-current", "page");
   }
 }
 
-class GnoInput extends GnoUiElement {
-  constructor(el, i) {
-    super(el, i);
+class GnoFormElement extends GnoUi {
+  constructor(name, el, i) {
+    super(name, el);
+    this.innerCounter = i;
   }
-  init() {
-    this.DOM.el.setAttribute("name", `gno-form-input-${this.counter}`);
+
+  mount() {
+    this._setId();
+    this._setNameAttr();
+  }
+
+  _setNameAttr() {
+    this.DOM.el.setAttribute("name", `gno-form-${this.compName}-${this.innerCounter}`);
   }
 }
 
-class GnoSelector extends GnoUiElement {
-  constructor(el, i) {
-    super(el, i);
+class GnoInput extends GnoFormElement {
+  constructor(name, el, i) {
+    super(name, el, i);
   }
-  init() {
-    this.name = "selector";
+}
+
+class GnoSelector extends GnoFormElement {
+  constructor(name, el, i) {
+    super(name, el, i);
+    this._setDom();
+  }
+  _setDom() {
     this.DOM.checkboxes = [...this.DOM.el.querySelectorAll("input")];
-    this.DOM.checkboxes.forEach((checkbox) => checkbox.setAttribute("name", `gno-form-input-${this.counter}`));
+  }
+  _setNameAttr() {
+    this.DOM.checkboxes.forEach((checkbox) => checkbox.setAttribute("name", `gno-form-${this.compName}-${this.innerCounter}`));
   }
 }
 
-class GnoDropdown extends GnoUiElement {
-  constructor(el, i) {
-    super(el, i);
-  }
-  setId() {
-    this.DOM.dropdownBtn.id = `dropdownMenuButton-${this.counter}`;
-    this.DOM.dropdownList.setAttribute("aria-labelledby", `dropdownMenuButton-${this.counter}`);
+class GnoDropdown extends GnoUi {
+  constructor(name, el) {
+    super(name, el);
+    this._setDom();
+    this._setEvent();
   }
 
-  init() {
-    this.name = "dropdown";
+  _setDom() {
     this.DOM.dropdownBtn = this.DOM.el.querySelector("button");
     this.DOM.dropdownList = this.DOM.el.querySelector("ul, ol");
+  }
 
+  _setId() {
+    this.DOM.dropdownBtn.id = `gno-${this.compName}-${this.counter}`;
+    this.DOM.dropdownList.setAttribute("aria-labelledby", `gno-${this.compName}-${this.counter}`);
+  }
+
+  _setEvent() {
     this.isOpen = false;
 
     this.DOM.dropdownList.classList.add("is-hidden");
@@ -371,7 +409,7 @@ function parseContent(source) {
  */
 
 let classesMap = {
-  GnoUiElement,
+  GnoUi,
   GnoTabs,
   GnoAccordion,
   GnoBreadcrumb,
@@ -388,7 +426,8 @@ window.addEventListener("load", function () {
     const ClassName = `Gno${comp.charAt(0).toUpperCase() + comp.slice(1)}`;
 
     for (const [i, el] of els.entries()) {
-      new classesMap[ClassName](el, i);
+      const El = new classesMap[ClassName](comp, el, i);
+      El.mount(el);
     }
   }
 
