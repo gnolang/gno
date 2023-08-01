@@ -10,7 +10,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/errors"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/log"
 )
 
@@ -34,7 +34,7 @@ type PersistentKVStoreApplication struct {
 
 func NewPersistentKVStoreApplication(dbDir string) *PersistentKVStoreApplication {
 	name := "kvstore"
-	db, err := dbm.NewGoLevelDB(name, dbDir)
+	db, err := db.NewDB(name, db.CLevelDBBackend, dbDir)
 	if err != nil {
 		panic(err)
 	}
