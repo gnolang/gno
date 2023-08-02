@@ -369,3 +369,4 @@ Additional native types:
 | go tool           |                  |                                                                       |
 | go version        |                  |                                                                       |
 | go vet            |                  |                                                                       |
+| golint            | gno lint         | same intention                                                        |
