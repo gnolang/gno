@@ -456,7 +456,6 @@ code {
   width: 100%;
   height: 3rem;
   float: right;
-  padding-left: 22px;
   margin-left: auto;
 }
 
@@ -464,10 +463,9 @@ code {
   display: flex;
   align-items: center;
   color: var(--link-color, #25172a);
-  position: relative;
+  position: absolute;
   height: 3rem;
   z-index: 2;
-  top: 4px;
   padding-right: 22px;
 }
 
