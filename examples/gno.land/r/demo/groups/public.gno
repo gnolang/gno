@@ -17,6 +17,17 @@ func GetGroupIDFromName(name string) (GroupID, bool) {
 	return groupI.(*Group).id, true
 }
 
+func NewGroup(name string) (*Group, GroupID) {
+	caller := std.GetOrigCaller()
+	usernameOf(caller)
+	url := "/r/demo/groups:" + name
+	group := newGroup(url, name, caller)
+	gidkey := groupIDKey(group.id)
+	gGroups.Set(gidkey, group)
+	gGroupsByName.Set(name, group)
+	return group, group.id
+}
+
 func CreateGroup(name string) GroupID {
 	std.AssertOriginCall()
 	caller := std.GetOrigCaller()
@@ -62,6 +73,15 @@ func DeleteGroup(gid GroupID) {
 
 func DeleteMember(gid GroupID, mid MemberID) {
 	std.AssertOriginCall()
+	caller := std.GetOrigCaller()
+	group := getGroup(gid)
+	if !group.HasPermission(caller, DeletePermission) {
+		panic("unauthorized to delete member")
+	}
+	group.deleteMember(mid)
+}
+
+func GetMember(gid GroupID, mid MemberID) {
 	caller := std.GetOrigCaller()
 	group := getGroup(gid)
 	if !group.HasPermission(caller, DeletePermission) {

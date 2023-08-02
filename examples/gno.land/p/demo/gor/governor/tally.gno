@@ -1,6 +1,9 @@
 package governor
 
-import "std"
+import (
+	"gno.land/p/demo/avl"
+	"std"
+)
 
 type Tally interface {
 	Tally(proposalId string) (*TallyResult, error)
@@ -18,7 +21,7 @@ func NewTallyResult() *TallyResult {
 }
 
 func (trt *TallyResult) GetVotesByType(vt VoteType) uint64 {
-	count, ok := trt.tr.Get(vt)
+	count, ok := trt.tr.Get(vt.String())
 	if ok {
 		return count.(uint64)
 	}

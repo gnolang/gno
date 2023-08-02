@@ -8,17 +8,17 @@ import (
 
 // ---------------------------------------------------
 type Votes struct {
-	votes *avl.Tree
+	vs *avl.Tree
 }
 
 func NewVotes() *Votes {
 	return &Votes{
-		votes: avl.NewTree(),
+		vs: avl.NewTree(),
 	}
 }
 
 func (vs *Votes) setVote(account std.Address, vt VoteType) {
-	vs.votes.Set(account.String(), vt)
+	vs.vs.Set(account.String(), vt)
 }
 
 type ProposalVotes struct {
@@ -38,9 +38,9 @@ func (pv *ProposalVotes) hasVoted(proposalId string, account std.Address) bool {
 	if !ok {
 		panic("GCS: proposal not exist")
 	}
-	voteSet := vsI.(*VoteSet)
+	votes := vsI.(*Votes)
 
-	_, ok = voteSet.Get(account.String())
+	_, ok = votes.vs.Get(account.String())
 	if !ok {
 		return false
 	}
@@ -57,8 +57,8 @@ func (pv *ProposalVotes) CastVote(proposalId string, account std.Address, vt Vot
 		votes = NewVotes()
 		votes.setVote(account, vt)
 	} else { // has vote set for this proposal
-		votes = vsI.(*Votes)
-		_, ok = votes.Get(account.String())
+		votes := vsI.(*Votes)
+		_, ok = votes.vs.Get(account.String())
 		// only vote when not voted before
 		if !ok {
 			// set vote state
@@ -87,10 +87,10 @@ func (pv *ProposalVotes) Tally(proposalId string) (*TallyResult, error) {
 		return new(TallyResult), errors.New("no votes for proposal")
 	}
 	// addr => voteType: for, against...
-	vs := vsI.(*Votes)
+	votes := vsI.(*Votes)
 
 	// iterate vote map, key is account, value is voteType
-	vs.votes.Iterate("", "", func(key string, value interface{}) bool {
+	votes.vs.Iterate("", "", func(key string, value interface{}) bool {
 		// TODO: voting power is determined by different criteria, such like 1:1, staking based, etc
 		//vp := governor.GetVotingPowerByAccount(key)
 		votingPower += 1 // 1 is the default voting power
@@ -98,12 +98,12 @@ func (pv *ProposalVotes) Tally(proposalId string) (*TallyResult, error) {
 		vt := value.(VoteType)
 		//result.tr[vt] += 1 // accumulate by vote type
 		var count uint64
-		icount, ok := result.tr.Get(vt)
+		icount, ok := result.tr.Get(vt.String())
 		if ok {
 			count = icount.(uint64) // else 0
 		}
 		count += 1
-		result.tr.Set(vt, count) // update
+		result.tr.Set(vt.String(), count) // update
 
 		return false
 	})

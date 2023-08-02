@@ -1,8 +1,12 @@
 package governor
 
-import "gno.land/p/demo/gor/timers"
-import std "std"
-import "gno.land/p/demo/ufmt"
+import (
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/gor/timers"
+	"gno.land/p/demo/ufmt"
+	"std"
+	"time"
+)
 
 type ProposalState int
 
@@ -77,6 +81,8 @@ type Proposal struct {
 	// callable /r/demo/xxx
 	deposits    *avl.Tree // proposalId <=> Amount, total amount
 	depositList *avl.Tree // proposalId <=> (caller <=> amount)
+	proposer    std.Address
+	createAt    time.Time
 }
 
 // generate proposalId
@@ -85,16 +91,14 @@ func hashProposal(prop *Proposal) string {
 	return "test" + prop.Meta.Title
 }
 
-
-func (gvr *Governor) getProposal(proposalId string) (*Proposal, error){
+func (gvr *Governor) getProposal(proposalId string) (*Proposal, error) {
 	propI, ok := gvr.proposals.Get(proposalId)
-	if !ok{
+	if !ok {
 		return nil, ErrProposalNotExist
 	}
 	proposal := propI.(*Proposal)
 	return proposal, nil
 }
-
 
 func (gvr *Governor) proposalSnapshot(proposalId string) int64 {
 	proposalI, ok := gvr.proposals.Get(proposalId)
@@ -119,8 +123,7 @@ func (gvr *Governor) Propose(prop *Proposal) string {
 
 	proposalId := hashProposal(prop) // only hash meta
 
-	_, ok := gvr.getProposal.Get(proposalId)
-	if ok{
+	if gvr.proposals.Has(proposalId) {
 		panic("proposal already exist")
 	}
 
@@ -136,10 +139,10 @@ func (gvr *Governor) Propose(prop *Proposal) string {
 }
 
 func (gvr *Governor) Execute(proposalId string) {
-	proposal, err := gvr.getProposal(proposalId)
-	if err != nil{
-		panic(err.Error())
+	if !gvr.proposals.Has(proposalId) {
+		panic(("proposal not exist"))
 	}
+	proposal, _ := gvr.getProposal(proposalId)
 
 	// check state
 	status := gvr.state(proposalId)
@@ -161,13 +164,13 @@ func (gvr *Governor) cancel(proposal *Proposal) string {
 	// TODO: descriptionHash?
 	proposalId := hashProposal(proposal)
 	proposal, err := gvr.getProposal(proposalId)
-	if err != nil{
+	if err != nil {
 		panic(err.Error())
 	}
 
 	status := gvr.state(proposalId)
 
-	if status == Canceled || status == Expired || status == Executed) {
+	if status == Canceled || status == Expired || status == Executed {
 		panic("Governor: proposal not active")
 	}
 
@@ -179,37 +182,35 @@ func (gvr *Governor) cancel(proposal *Proposal) string {
 }
 
 func (gvr *Governor) state(proposalId string) ProposalState {
-	proposal, err := gvr.getProposal(proposalId)
-	if err != nil{
-		panic(err.Error())
+	if !gvr.proposals.Has(proposalId) {
+		panic(("proposal not exist"))
 	}
+	proposal, _ := gvr.getProposal(proposalId)
 
 	if proposal.Core.state == Executed {
 		return Executed
 	}
 
 	if proposal.Core.state == Canceled {
-		return  Canceled
+		return Canceled
 	}
 
 	start := gvr.proposalSnapshot(proposalId)
 	deadline := gvr.proposalDeadline(proposalId)
 
-
 	height := std.GetHeight()
 
 	if height <= start {
-		return  Pending
+		return Pending
 	}
 
-
 	if height <= deadline {
-		return  Active
+		return Active
 	}
 
 	// other than executed, canceled, pending, active
 	// check voting status
-	if gvr.quorumReached(gvr.govToken.TotalSupply()) {
+	if gvr.quorumReached(gvr.votingPower.Total()) {
 		tallyRes, err := gvr.tally.Tally(proposalId)
 		if err != nil {
 			panic(err)
@@ -217,8 +218,8 @@ func (gvr *Governor) state(proposalId string) ProposalState {
 		if gvr.vetoReached(tallyRes) {
 			return Vetoed
 			println("vetoed--------")
-		} else if !gvr.voteSucceeded(tallyRes){
-			return  Defeated
+		} else if !gvr.voteSucceeded(tallyRes) {
+			return Defeated
 			println("fail--------")
 		}
 	} else {

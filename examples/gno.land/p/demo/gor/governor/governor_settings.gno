@@ -3,24 +3,24 @@ package governor
 import std "std"
 
 type GovernorSettings struct {
-	votingDelay       int64
-	votingPeriod      int64
-	minDeposit        std.Coin // minimal deposit to propose
-	proposalThreshold int64    // minimal voting power required to propose
+	votingDelay  int64
+	votingPeriod int64
+	//minDeposit        std.Coin // minimal deposit to propose
+	proposalThreshold int64 // minimal voting power required to propose
 	quorumNumerator   uint64
 	succeedNumerator  uint64
 	vetoNumerator     uint64
 }
 
-func NewGovernorSettings(votingDelay int64, votingPeriod int64, minDeposit std.Coin, proposalThreshold int64, qn, sn, vn uint64) *GovernorSettings {
+func NewGovernorSettings(votingDelay int64, votingPeriod int64, proposalThreshold int64, qn, sn, vn uint64) *GovernorSettings {
 	return &GovernorSettings{
 		votingDelay:       votingDelay,
 		votingPeriod:      votingPeriod,
 		proposalThreshold: proposalThreshold,
-		minDeposit:        minDeposit,
-		quorumNumerator:   qn,
-		succeedNumerator:  sn,
-		vetoNumerator:     vn,
+		//minDeposit:        minDeposit,
+		quorumNumerator:  qn,
+		succeedNumerator: sn,
+		vetoNumerator:    vn,
 	}
 }
 

@@ -27,23 +27,23 @@ func (vt VoteType) String() string {
 // ---------------------------------------------
 // check if quorum reached
 func (gvr *Governor) quorumReached(totalVotingPower uint64) bool {
-	return gvr.gs.quorum(gvr.govToken.TotalSupply()) <= totalVotingPower
+	return gvr.gs.quorum(gvr.votingPower.Total()) <= totalVotingPower
 }
 
 // veto reached, 33.4
 func (gvr *Governor) vetoReached(result *TallyResult) bool {
 	// all voting power
-	votes := result.GetVotes(For) + result.GetVotes(Abstain) + result.GetVotes(Against) + result.GetVotes(NoWithVeto)
+	votes := result.GetVotesByType(For) + result.GetVotesByType(Abstain) + result.GetVotesByType(Against) + result.GetVotesByType(NoWithVeto)
 	vetoThreshold := votes * gvr.gs.getVetoNumerator() / gvr.gs.getVetoDenominator()
-	return result.GetVotes(NoWithVeto) >= vetoThreshold
+	return result.GetVotesByType(NoWithVeto) >= vetoThreshold
 }
 
 // TODO: super majority required
 func (gvr *Governor) voteSucceeded(result *TallyResult) bool {
 	// get all votes count
-	votes := result.GetVotes(For) + result.GetVotes(Abstain) + result.GetVotes(Against) + result.GetVotes(NoWithVeto)
+	votes := result.GetVotesByType(For) + result.GetVotesByType(Abstain) + result.GetVotesByType(Against) + result.GetVotesByType(NoWithVeto)
 	succeedThreshold := votes * gvr.gs.getSucceedNumerator() / gvr.gs.getSucceedDenominator()
-	return result.GetVotes(For) >= succeedThreshold
+	return result.GetVotesByType(For) >= succeedThreshold
 }
 
 // TODO: undetermined rules

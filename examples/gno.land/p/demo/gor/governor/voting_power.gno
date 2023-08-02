@@ -1,32 +1,43 @@
 package governor
 
 import (
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/grc/grc20"
+	"gno.land/r/demo/groups"
 	"std"
 )
-import "gno.land/p/demo/grc/grc20"
-import "gno.land/r/demo/groups"
 
 // The interface supports various types of tokens that can be utilized for governance purposes, including GRC20, GRC721, and others.
 // Tokens are converted into voting power through a conversion factor that takes into account the number
 // of shares per token, while delegates are responsible for casting votes on behalf of token holders.
 
 // The governance system can be seamlessly integrated with various underlying systems, such as PoS, PoC, and others,
-// while maintaining transparency throughout the process
-// TODO: move these to distribution package?
-
+// while maintaining transparency throughout the process.
 type VotingPower interface {
-	VP(std.Address) uint64
+	Total() uint64
+	GetVotingPower(std.Address) uint64
 }
 
 type NoCoinAdapter struct {
-	denom string // determines kind of token being used
-	//committee   // interface get members, get size of committee, etc
-	group groups.Group
+	group  *groups.Group
+	member *avl.Tree
+}
+
+func NewNoCoinAdapter(group *groups.Group) *NoCoinAdapter {
+	return &NoCoinAdapter{
+		group:  group,
+		member: avl.NewTree(),
+	}
 }
 
 var _ VotingPower = (*NoCoinAdapter)(nil)
 
-func (nca *NoCoinAdapter) VP(account std.Address) uint64 {
+func (nca *NoCoinAdapter) Total() uint64 {
+	//return nca.group.GetNum()
+	return 0
+}
+
+func (nca *NoCoinAdapter) GetVotingPower(account std.Address) uint64 {
 	// TODO: return certain number from committee
 	// GetWeight from r/demo/group
 	return 100
@@ -34,6 +45,7 @@ func (nca *NoCoinAdapter) VP(account std.Address) uint64 {
 
 var _ VotingPower = (*NativeCoinAdapter)(nil)
 
+// -----------------------------------------------------
 type NativeCoinAdapter struct {
 	denom  string // determines kind of token being used
 	banker std.Banker
@@ -46,7 +58,11 @@ func NewNativeCoinAdapter(denom string) *NativeCoinAdapter {
 	}
 }
 
-func (nca *NativeCoinAdapter) VP(account std.Address) uint64 {
+func (nca *NativeCoinAdapter) Total() uint64 {
+	return uint64(nca.banker.TotalCoin(nca.denom))
+}
+
+func (nca *NativeCoinAdapter) GetVotingPower(account std.Address) uint64 {
 	return nca.balance(account)
 }
 
@@ -65,7 +81,7 @@ type Grc20Adapter struct {
 	adminToken *grc20.AdminToken
 }
 
-func NewGrc20Adapter(name string, symbol string, decimals uint64) *GrcTokenAdapter {
+func NewGrc20Adapter(name string, symbol string, decimals uint64) *Grc20Adapter {
 	return &Grc20Adapter{
 		adminToken: grc20.NewAdminToken(name, symbol, 4),
 	}
@@ -73,7 +89,11 @@ func NewGrc20Adapter(name string, symbol string, decimals uint64) *GrcTokenAdapt
 
 var _ VotingPower = (*Grc20Adapter)(nil)
 
-func (ga *Grc20Adapter) VP(account std.Address) uint64 {
+func (nca *Grc20Adapter) Total() uint64 {
+	return nca.adminToken.TotalSupply()
+}
+
+func (ga *Grc20Adapter) GetVotingPower(account std.Address) uint64 {
 	return ga.balance(account)
 }
 

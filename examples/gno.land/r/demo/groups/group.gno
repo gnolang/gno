@@ -54,6 +54,17 @@ func (group *Group) newMember(id MemberID, address std.Address, weight int, meta
 	}
 }
 
+func (group *Group) getMemberWeight(address std.Address) int {
+	var member *Member
+	m, ok := group.members.Get(address.String())
+	if !ok {
+		panic("this member for this group not exists")
+	}
+	member = m.(*Member)
+
+	return member.weight
+}
+
 func (group *Group) HasPermission(addr std.Address, perm Permission) bool {
 	if group.creator != addr {
 		return false
