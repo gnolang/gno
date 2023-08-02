@@ -19,6 +19,8 @@ const (
 	ValidatorKeyPrefix    string = "/val/"
 )
 
+const dbBackend = db.GoLevelDBBackend
+
 // -----------------------------------------
 
 var _ abci.Application = (*PersistentKVStoreApplication)(nil)
