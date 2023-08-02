@@ -117,7 +117,10 @@ func TestCreateGnoModFile(t *testing.T) {
 			errShouldContain: "gno.mod file already exists",
 		},
 	} {
+		tc := tc
 		t.Run(tc.desc, func(t *testing.T) {
+			t.Parallel()
+
 			// Create test dir
 			dirPath, cleanUpFn := testutils.NewTestCaseDir(t)
 			require.NotNil(t, dirPath)
