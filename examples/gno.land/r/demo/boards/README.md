@@ -7,7 +7,7 @@ name ["gno.land/r/boards"](https://gno.land/r/boards/)
 
 ## Build `gnokey`, create your account, and interact with Gno.
 
-NOTE: Where you see `--remote gno.land:36657` here, that flag can be replaced
+NOTE: Where you see `--remote test3.gno.land:36657` here, that flag can be replaced
 with `--remote localhost:26657` for local testnets.
 
 ### Build `gnokey`.
@@ -45,7 +45,7 @@ NOTE: `KEYNAME` is your key identifier, and should be changed.
 ### Get your current balance, account number, and sequence number.
 
 ```bash
-./build/gnokey query auth/accounts/ACCOUNT_ADDR --remote gno.land:36657
+./build/gnokey query auth/accounts/ACCOUNT_ADDR --remote test3.gno.land:36657
 ```
 
 NOTE: you can retrieve your `ACCOUNT_ADDR` with `./build/gnokey list`.
@@ -59,7 +59,7 @@ Go to https://test3.gno.land/faucet
 NOTE: `BOARDNAME` will be the slug of the board, and should be changed.
 
 ```bash
-./build/gnokey maketx call -pkgpath "gno.land/r/boards" -func "CreateBoard" -args "BOARDNAME" -gas-fee "1000000ugnot" -gas-wanted "2000000" -broadcast -chainid testchain -remote gno.land:36657 KEYNAME
+./build/gnokey maketx call -pkgpath "gno.land/r/boards" -func "CreateBoard" -args "BOARDNAME" -gas-fee "1000000ugnot" -gas-wanted "2000000" -broadcast -chainid testchain -remote test3.gno.land:36657 KEYNAME
 ```
 
 Interactive documentation: https://gno.land/r/boards?help&__func=CreateBoard
@@ -68,7 +68,7 @@ Next, query for the permanent board ID by querying (you need this to create a ne
 
 ```bash
 ./build/gnokey query "vm/qeval" -data "gno.land/r/boards
-GetBoardIDFromName(\"BOARDNAME\")" -remote gno.land:36657
+GetBoardIDFromName(\"BOARDNAME\")" -remote test3.gno.land:36657
 ```
 
 ### Create a post of a board with a smart contract call.
@@ -76,7 +76,7 @@ GetBoardIDFromName(\"BOARDNAME\")" -remote gno.land:36657
 NOTE: If a board was created successfully, your SEQUENCE_NUMBER would have increased.
 
 ```bash
-./build/gnokey maketx call -pkgpath "gno.land/r/boards" -func "CreateThread" -args BOARD_ID -args "Hello gno.land" -args\#file "./examples/gno.land/r/boards/example_post.md" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid testchain -remote gno.land:36657 KEYNAME
+./build/gnokey maketx call -pkgpath "gno.land/r/boards" -func "CreateThread" -args BOARD_ID -args "Hello gno.land" -args\#file "./examples/gno.land/r/boards/example_post.md" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid testchain -remote test3.gno.land:36657 KEYNAME
 ```
 
 Interactive documentation: https://gno.land/r/boards?help&__func=CreateThread
@@ -84,14 +84,14 @@ Interactive documentation: https://gno.land/r/boards?help&__func=CreateThread
 ### Create a comment to a post.
 
 ```bash
-./build/gnokey maketx call -pkgpath "gno.land/r/boards" -func "CreateReply" -args "BOARD_ID" -args "1" -args "1" -args "Nice to meet you too." -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid testchain -remote gno.land:36657 KEYNAME
+./build/gnokey maketx call -pkgpath "gno.land/r/boards" -func "CreateReply" -args "BOARD_ID" -args "1" -args "1" -args "Nice to meet you too." -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid testchain -remote test3.gno.land:36657 KEYNAME
 ```
 
 Interactive documentation: https://gno.land/r/boards?help&__func=CreateReply
 
 ```bash
 ./build/gnokey query "vm/qrender" -data "gno.land/r/boards
-BOARDNAME/1" -remote gno.land:36657
+BOARDNAME/1" -remote test3.gno.land:36657
 ```
 
 ### Render page with optional path expression.
