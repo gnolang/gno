@@ -11,6 +11,8 @@ import (
 )
 
 func TestCreateGnoModFile(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range []struct {
 		desc             string
 		in               []struct{ filename, content string }
