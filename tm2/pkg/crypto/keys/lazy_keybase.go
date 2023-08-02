@@ -9,6 +9,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/os"
 )
 
+const dbBackend = db.GoLevelDBBackend
+
 var _ Keybase = lazyKeybase{}
 
 type lazyKeybase struct {

@@ -12,7 +12,7 @@ require (
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/gdamore/tcell/v2 v2.1.0
 	github.com/gnolang/cors v1.8.1
-	github.com/gnolang/goleveldb v0.0.0-20230801134443-a29c535aa920
+	github.com/gnolang/goleveldb v0.1.0
 	github.com/gnolang/overflow v0.0.0-20170615021017-4d914c927216
 	github.com/golang/protobuf v1.5.3
 	github.com/google/gofuzz v1.2.0
