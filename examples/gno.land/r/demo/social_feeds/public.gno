@@ -10,7 +10,6 @@ import (
 )
 
 func CreateFeed(name string) FeedID {
-	std.AssertOriginCall()
 	fid := incGetFeedID()
 	caller := std.PrevRealm().Addr()
 	if usernameOf(caller) == "" {
@@ -27,7 +26,6 @@ func CreateFeed(name string) FeedID {
 // Anyone can create a post in a existing feed
 // Anonymous user has to pay a configurable minimum fee
 func CreatePost(fid FeedID, parentID PostID, catetory uint64, metadata string) PostID {
-	std.AssertOriginCall()
 	caller := std.PrevRealm().Addr()
 
 	if usernameOf(caller) == "" {
@@ -40,7 +38,6 @@ func CreatePost(fid FeedID, parentID PostID, catetory uint64, metadata string) P
 
 // Only post's owner can edit post
 func EditPost(fid FeedID, pid PostID, category uint64, metadata string) {
-	std.AssertOriginCall()
 	caller := std.PrevRealm().Addr()
 	feed := mustGetFeed(fid)
 	post := feed.MustGetPost(pid)
@@ -54,7 +51,6 @@ func EditPost(fid FeedID, pid PostID, category uint64, metadata string) {
 
 // Only owner can delete the post
 func DeletePost(fid FeedID, pid PostID) {
-	std.AssertOriginCall()
 	caller := std.PrevRealm().Addr()
 	feed := mustGetFeed(fid)
 	post := feed.MustGetPost(pid)
@@ -68,7 +64,6 @@ func DeletePost(fid FeedID, pid PostID) {
 
 // Any one can react post
 func ReactPost(fid FeedID, pid PostID, icon string, up bool) {
-	std.AssertOriginCall()
 	caller := std.PrevRealm().Addr()
 	feed := mustGetFeed(fid)
 	post := feed.MustGetPost(pid)
@@ -78,7 +73,6 @@ func ReactPost(fid FeedID, pid PostID, icon string, up bool) {
 
 // Get Posts list
 func GetPosts(fid FeedID, category uint64, offset uint64, limit uint8) string {
-	std.AssertOriginCall()
 	caller := std.PrevRealm().Addr()
 	feed := mustGetFeed(fid)
 
@@ -113,7 +107,6 @@ func GetPosts(fid FeedID, category uint64, offset uint64, limit uint8) string {
 // Get comments list
 // NOTE: Does not support limit/offset for now, just return all the comments
 func GetComments(fid FeedID, pid PostID) string {
-	std.AssertOriginCall()
 	caller := std.PrevRealm().Addr()
 	feed := mustGetFeed(fid)
 	post := feed.MustGetPost(pid)
@@ -136,7 +129,6 @@ func GetComments(fid FeedID, pid PostID) string {
 
 // Get Post
 func GetPost(fid FeedID, pid PostID) string {
-	std.AssertOriginCall()
 	caller := std.PrevRealm().Addr()
 	feed := mustGetFeed(fid)
 
