@@ -1,0 +1,11 @@
+":receipt:  package/realm":
+- examples/**/*
+
+":package: :robot: gnovm":
+- gnovm/**/*
+
+":package: :globe_with_meridians:  tendermint v2":
+- tm2/**/*
+
+":package: :mountain:  gno.land":
+- "gno.land/**/*"

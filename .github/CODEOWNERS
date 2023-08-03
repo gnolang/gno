@@ -1,0 +1,39 @@
+# CODEOWNERS: https://help.github.com/articles/about-codeowners/
+
+# Primary repo maintainers.
+*                            @gnolang/tech-staff
+
+
+# Tendermint2 (Gno version).
+tm2/*                        @gnolang/tech-staff
+tm2/pkg                      @jaekwon @moul
+# TODO: add per package exceptions
+
+
+# Docs & Content.
+docs/                        @gnolang/tech-staff
+*.md                         @gnolang/tech-staff
+# TODO: add non-tech people here.
+
+
+# Gno examples and default contracts.
+examples/*                   @gnolang/tech-staff
+# TODO: add people from the community here.
+
+
+# Gno.land.
+gno.land/*                   @gnolang/tech-staff
+
+
+# GnoVM/Gnolang.
+gnovm/*                      @gnolang/tech-staff
+gnovm/stdlibs                @jaekwon @moul
+gnovm/pkg/gnolang            @jaekwon @moul
+
+
+# Special files.
+PLAN.md                      @jaekwon @moul
+PHILOSOPHY.md                @jaekwon @moul
+CONTRIBUTING.md              @jaekwon @moul
+LICENSE.md                   @jaekwon @moul
+.github/CODEOWNERS           @jaekwon @moul
