@@ -8,8 +8,16 @@ import (
 
 func Example() {
 	opts := gnoverse.SandboxOpts{}
-	opts.WithDiskStore("")
+	// opts.WithDiskStore("")
 	sandbox, _ := gnoverse.NewSandbox(opts)
+	_ = sandbox
+	fmt.Println("Done.")
+	// Output:
+	// Done.
+}
+
+func ExempleNewTestingSandbox() {
+	sandbox := gnoverse.NewTestingSandbox()
 	_ = sandbox
 	fmt.Println("Done.")
 	// Output:

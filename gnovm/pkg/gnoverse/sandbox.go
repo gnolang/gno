@@ -25,7 +25,7 @@ func (opts SandboxOpts) Validate() error {
 
 func NewSandbox(opts SandboxOpts) (Sandbox, error) {
 	if err := opts.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid opts: %w", err)
+		return Sandbox{}, fmt.Errorf("invalid opts: %w", err)
 	}
 	// TODO: consider using a realm VMKeeper here, so we can use the existing handlers
 	box := Sandbox{
