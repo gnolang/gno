@@ -12,6 +12,10 @@ on:
   push:
     branches: [ "master" ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   build:
     strategy:
@@ -79,3 +83,5 @@ jobs:
       # TODO: setup docker caching
       - run: make test.docker
       - run: docker logs int_gnoland || true
+
+  # TODO: docker-less integration test?

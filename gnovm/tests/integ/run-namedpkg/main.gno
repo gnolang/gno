@@ -1,5 +1,5 @@
 package namedpkg
 
 func main() {
-	println("hello world!")
+	println("hello, other world!")
 }
