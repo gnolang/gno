@@ -29,11 +29,12 @@ func newGnocliCmd(io *commands.IO) *commands.Command {
 	)
 
 	cmd.AddSubCommands(
+		newModCmd(io),
+		newTestCmd(io),
+		newLintCmd(io),
 		newRunCmd(io),
 		newBuildCmd(io),
 		newPrecompileCmd(io),
-		newTestCmd(io),
-		newModCmd(io),
 		newCleanCmd(io),
 		newReplCmd(),
 		newDocCmd(io),
