@@ -113,6 +113,11 @@ func TestReplOpts(t *testing.T) {
 	require := require.New(t)
 
 	r := NewRepl(WithStd(nil, nil, nil), WithStore(nil))
+	require.Nil(r.storeFunc())
+	require.Nil(r.stderr)
+	require.Nil(r.stdin)
+	require.Nil(r.stdout)
+
 	_, err := r.Process("import \"fmt\"")
 	require.NoError(err)
 }
