@@ -6,8 +6,8 @@ import (
 )
 
 type Tally interface {
-	Tally(proposalId string) (*TallyResult, error)
-	CastVote(proposalId string, account std.Address, vp VoteType) error
+	Tally(propID string) (*TallyResult, error)
+	CastVote(propID string, account std.Address, vp VoteType) error
 }
 
 type TallyResult struct {

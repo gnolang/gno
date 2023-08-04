@@ -1,20 +1,35 @@
 package evaldao
 
 import (
-	"gno.land/p/demo/gor/governor"
+	"gno.land/p/demo/gor/counters"
+	governor "gno.land/p/demo/gor/governor"
 	"gno.land/r/demo/groups"
 	"std"
+	"strconv"
 )
 
 var (
 	evalDAO *groups.Group
 	groupID groups.GroupID
 	gvr     *governor.Governor
+	counter *counters.Counter
 )
 
 func init() {
-	evalDAO, groupID = groups.NewGroup("EvalDAO")
+	counter = counters.NewCounter()
+}
+
+// generate proposalId
+func ProposalID() string {
+	propID := counter.Current()
+	counter.Increment()
+	return strconv.FormatUint(propID, 10)
+}
+
+func CreateDAO() {
+	evalDAO, groupID = groups.NewGroup("eval_dao")
 	println("group created: ", groupID)
+
 	votingPower := governor.NewNoCoinAdapter(evalDAO)
 	tally := governor.NewProposalVotes()
 	gs := governor.NewGovernorSettings(0, 5, 0, 40, 67, 34)
@@ -25,6 +40,7 @@ func init() {
 	// render proposal
 }
 
+// DAO miscs
 func AddMember(addr std.Address) {
 	groups.AddMember(2, "g1vahx7atnv4erxh6lta047h6lta047h6ll85gpy", 55, "metadata3")
 }
@@ -35,11 +51,25 @@ func TotalVotingPower() uint64 {
 }
 
 func GetVotingPowerByAddr(member std.Address) uint64 {
-	return uint64(evalDAO.getMemberWeight(member))
+	//return uint64(evalDAO.getMemberWeight(member))
+	return 0
 }
 
 // TODO:
 // render EvalDAO, groupID, num members, member, voting power
 // remove member
 
+// governor miscs
 // propose -> vote -> tally -> render
+func RenderGvr() string {
+	return gvr.RenderHome()
+}
+
+func RenderProposal(propID string) string {
+	return gvr.RenderProposal(propID)
+}
+
+func Propose(propID string, title, detail, summary, url string, payee std.Address, propType string) string {
+	proposalID := gvr.Propose(propID, title, detail, summary, url, payee, propType)
+	return proposalID
+}

@@ -4,6 +4,10 @@ type Counter struct {
 	value uint64
 }
 
+func NewCounter() *Counter {
+	return &Counter{}
+}
+
 func (counter *Counter) Current() uint64 {
 	return counter.value
 }

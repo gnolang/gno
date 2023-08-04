@@ -49,10 +49,10 @@ func (pv *ProposalVotes) hasVoted(proposalId string, account std.Address) bool {
 
 // this method counts who votes, in a map vote => voteType
 // 1:1, voting power will be calculated in Tally process
-func (pv *ProposalVotes) CastVote(proposalId string, account std.Address, vt VoteType) error {
+func (pv *ProposalVotes) CastVote(propID string, account std.Address, vt VoteType) error {
 	var votes *Votes
 
-	vsI, ok := pv.propVotes.Get(proposalId)
+	vsI, ok := pv.propVotes.Get(propID)
 	if !ok { // if vote not exist, means no one vote yet
 		votes = NewVotes()
 		votes.setVote(account, vt)
@@ -68,11 +68,11 @@ func (pv *ProposalVotes) CastVote(proposalId string, account std.Address, vt Vot
 		}
 	}
 	// update
-	pv.propVotes.Set(proposalId, votes)
+	pv.propVotes.Set(propID, votes)
 	return nil
 }
 
-func (pv *ProposalVotes) Tally(proposalId string) (*TallyResult, error) {
+func (pv *ProposalVotes) Tally(propID string) (*TallyResult, error) {
 	// TODO: or get from args?
 	//denom := gcs.stake.GetDenom()
 	//snapshot := std.GetHeight()
@@ -82,7 +82,7 @@ func (pv *ProposalVotes) Tally(proposalId string) (*TallyResult, error) {
 	var result = NewTallyResult()
 
 	// get all votes, and iterate to tally
-	vsI, ok := pv.propVotes.Get(proposalId)
+	vsI, ok := pv.propVotes.Get(propID)
 	if !ok {
 		return new(TallyResult), errors.New("no votes for proposal")
 	}
