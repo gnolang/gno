@@ -28,7 +28,7 @@ func ParseAt(dir string) (*File, error) {
 	if err != nil {
 		return ferr(err)
 	}
-	fname := path.Join(rd, "gno.mod")
+	fname := filepath.Join(rd, "gno.mod")
 	b, err := os.ReadFile(fname)
 	if err != nil {
 		return ferr(err)
