@@ -3,7 +3,6 @@ package gnomod
 import (
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"reflect"
 	"strings"
