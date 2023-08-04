@@ -420,17 +420,21 @@ func TestHelpUsage(t *testing.T) {
 	var buf bytes.Buffer
 	fs.SetOutput(&buf)
 
-	command := &Command{
-		name:       "TestHelpUsage",
-		shortUsage: "TestHelpUsage [flags] <args>",
-		shortHelp:  "Some short help.",
-		longHelp:   "Some long help.",
-		flagSet:    fs,
-	}
-
-	err := command.ParseAndRun(context.Background(), []string{"-h"})
-	assert.ErrorIs(t, err, flag.ErrHelp)
-	expectedOutput := strings.TrimSpace(`
+	tests := []struct {
+		name           string
+		command        *Command
+		expectedOutput string
+	}{
+		{
+			name: "normal case",
+			command: &Command{
+				name:       "TestHelpUsage",
+				shortUsage: "TestHelpUsage [flags] <args>",
+				shortHelp:  "Some short help",
+				longHelp:   "Some long help.",
+				flagSet:    fs,
+			},
+			expectedOutput: strings.TrimSpace(`
 USAGE
   TestHelpUsage [flags] <args>
 
@@ -443,8 +447,62 @@ FLAGS
   -i 0      int
   -s ...    string
   -x ...    collection of strings (repeatable)
-`) + "\n\n"
-	assert.Equal(t, expectedOutput, buf.String())
+`) + "\n\n",
+		},
+		{
+			name: "no long help",
+			command: &Command{
+				name:       "TestHelpUsage",
+				shortUsage: "TestHelpUsage [flags] <args>",
+				shortHelp:  "Some short help",
+				flagSet:    fs,
+			},
+			expectedOutput: strings.TrimSpace(`
+USAGE
+  TestHelpUsage [flags] <args>
+
+Some short help.
+
+FLAGS
+  -b=false  bool
+  -d 0s     time.Duration
+  -f 0      float64
+  -i 0      int
+  -s ...    string
+  -x ...    collection of strings (repeatable)
+`) + "\n\n",
+		},
+		{
+			name: "no short and no long help",
+			command: &Command{
+				name:       "TestHelpUsage",
+				shortUsage: "TestHelpUsage [flags] <args>",
+				flagSet:    fs,
+			},
+			expectedOutput: strings.TrimSpace(`
+USAGE
+  TestHelpUsage [flags] <args>
+
+FLAGS
+  -b=false  bool
+  -d 0s     time.Duration
+  -f 0      float64
+  -i 0      int
+  -s ...    string
+  -x ...    collection of strings (repeatable)
+`) + "\n\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf.Reset()
+
+			err := tt.command.ParseAndRun(context.Background(), []string{"-h"})
+
+			assert.ErrorIs(t, err, flag.ErrHelp)
+			assert.Equal(t, tt.expectedOutput, buf.String())
+		})
+	}
 }
 
 // Forked from peterbourgon/ff/ffcli
