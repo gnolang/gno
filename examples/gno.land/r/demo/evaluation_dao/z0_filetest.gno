@@ -11,38 +11,47 @@ import (
 
 func main() {
 	// test1 -> test2
-	test1 := testutils.TestAddress("test1")
-	println("test1:", test1)
-	test2 := testutils.TestAddress("test2")
-	println("test2:", test2)
+	member1 := testutils.TestAddress("member1")
+	println("member1:", member1)
+	member2 := testutils.TestAddress("member2")
+	println("member2:", member2)
+	member3 := testutils.TestAddress("member3")
+	println("member3:", member3)
 	payee := testutils.TestAddress("payee")
 	println("payee:", payee)
 
-	std.TestSetOrigCaller(test1)
+	std.TestSetOrigCaller(member1)
 
 	users.Register("", "gnouser", "my profile")
 	evaldao.CreateDAO()
 
-	println(evaldao.RenderGvr())
-
 	propID := evaldao.Propose(evaldao.ProposalID(), "this is title", "this is detail", "this is summary", "this is url", payee, "send_proposal")
 	println("proposed, ID is: ", propID)
 
-	println(evaldao.RenderProposal(propID))
+	println(evaldao.RenderGvr(propID))
+
+	// TODO: vote, render proposal
+	std.TestSkipHeights(1) //skip current block, to vote
+
+	err := evaldao.CastVote(propID, "for")
+	if err != nil {
+		println(err.Error())
+	}
+	println(evaldao.RenderGvr(propID))
+
+	// same account vote again
+	err = evaldao.CastVote(propID, "against")
+	if err != nil {
+		println(err.Error())
+	}
+	println(evaldao.RenderGvr(propID))
+
+	std.TestSetOrigCaller(member2)
+	err = evaldao.CastVote(propID, "against")
+	if err != nil {
+		println(err.Error())
+	}
+	println(evaldao.RenderGvr(propID))
 }
 
 // Output:
-// test1: g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7
-// test2: g1w3jhxapjta047h6lta047h6lta047h6laqcyu4
-// payee: g1wpshjet9ta047h6lta047h6lta047h6l0kw6lc
-// group created:  1
-//
-// ***gvr name***: eval_governor
-// ***gvr version***: 1
-//
-// proposed, ID is:  0
-//
-// * **Proposal state is***: Pending
-// * **Proposal snapShot is***: 123
-// * **Proposal deadLine is***: 128
-// * **Current height is***: 123

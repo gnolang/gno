@@ -269,32 +269,5 @@ func (gvr *Governor) state(propID string) ProposalState {
 }
 
 func (gvr *Governor) RenderProposal(propID string) string {
-	state := gvr.state(propID)
-	snapShot := gvr.proposalSnapshot(propID)
-	deadLine := gvr.proposalDeadline(propID)
-	//totalDeposit := std.Coin{Amount: 0, Denom: "ugnot"}
-	//totalI, ok := gvr.deposits.Get(proposalId)
-	//if ok {
-	//	totalDeposit = totalI.(std.Coin)
-	//}
 
-	//tallyRes, err := gvr.tally.Tally(propID)
-	//if err != nil {
-	//	panic(err)
-	//}
-
-	str := "\n"
-	str += ufmt.Sprintf("* **Proposal state is***: %s\n", state.String())
-	str += ufmt.Sprintf("* **Proposal snapShot is***: %d\n", snapShot)
-	str += ufmt.Sprintf("* **Proposal deadLine is***: %d\n", deadLine)
-	str += ufmt.Sprintf("* **Current height is***: %d\n", std.GetHeight())
-	//str += ufmt.Sprintf("* **Proposal deposit is***: %s\n", totalDeposit.String())
-	//str += ufmt.Sprintf("* **isBurnDeposit :***: %t\n", isBurnDeposit)
-
-	//tallyRes.tr.Iterate("", "", func(key string, value interface{}) bool {
-	//	str += ufmt.Sprintf("* **Proposal vote %s is***: %d\n", key, value.(uint64))
-	//	return false
-	//})
-
-	return str
 }

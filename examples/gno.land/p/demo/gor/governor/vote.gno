@@ -24,6 +24,21 @@ func (vt VoteType) String() string {
 	}
 }
 
+func str2VoteType(str string) VoteType {
+	switch str {
+	case "for":
+		return For
+	case "against":
+		return Against
+	case "abstain":
+		return Abstain
+	case "veto":
+		return NoWithVeto
+	default:
+		panic("no such vote type")
+	}
+}
+
 // ---------------------------------------------
 // check if quorum reached
 func (gvr *Governor) quorumReached(totalVotingPower uint64) bool {

@@ -50,6 +50,11 @@ func (pv *ProposalVotes) hasVoted(proposalId string, account std.Address) bool {
 // this method counts who votes, in a map vote => voteType
 // 1:1, voting power will be calculated in Tally process
 func (pv *ProposalVotes) CastVote(propID string, account std.Address, vt VoteType) error {
+	//println("ballots cast vote")
+	//println("propID: ", propID)
+	//println("voter: ", account.String())
+	//println("vote type: ", vt.String())
+
 	var votes *Votes
 
 	vsI, ok := pv.propVotes.Get(propID)
@@ -57,14 +62,14 @@ func (pv *ProposalVotes) CastVote(propID string, account std.Address, vt VoteTyp
 		votes = NewVotes()
 		votes.setVote(account, vt)
 	} else { // has vote set for this proposal
-		votes := vsI.(*Votes)
+		votes = vsI.(*Votes)
 		_, ok = votes.vs.Get(account.String())
 		// only vote when not voted before
 		if !ok {
 			// set vote state
 			votes.setVote(account, vt)
 		} else {
-			return errors.New("GCS: You have voted for this before")
+			return errors.New("You have voted for this before")
 		}
 	}
 	// update

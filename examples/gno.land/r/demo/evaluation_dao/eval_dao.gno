@@ -27,6 +27,7 @@ func ProposalID() string {
 }
 
 func CreateDAO() {
+	std.AssertOriginCall()
 	evalDAO, groupID = groups.NewGroup("eval_dao")
 	println("group created: ", groupID)
 
@@ -61,15 +62,20 @@ func GetVotingPowerByAddr(member std.Address) uint64 {
 
 // governor miscs
 // propose -> vote -> tally -> render
-func RenderGvr() string {
-	return gvr.RenderHome()
-}
-
-func RenderProposal(propID string) string {
-	return gvr.RenderProposal(propID)
+func RenderGvr(propID string) string {
+	return gvr.RenderHome(propID)
 }
 
 func Propose(propID string, title, detail, summary, url string, payee std.Address, propType string) string {
+	std.AssertOriginCall()
 	proposalID := gvr.Propose(propID, title, detail, summary, url, payee, propType)
 	return proposalID
+}
+
+func CastVote(propID string, vt string) error {
+	std.AssertOriginCall()
+	if err := gvr.CastVote(propID, vt); err != nil {
+		return err
+	}
+	return nil
 }
