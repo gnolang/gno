@@ -38,10 +38,21 @@ GOFMT_FLAGS ?= -w
 fmt:
 	go run -modfile ../misc/devdeps/go.mod mvdan.cc/gofumpt $(GOFMT_FLAGS) `find . -name "*.gno"`
 
+.PHONY: create.pkg
+create.pkg:
+	gnokey maketx addpkg \
+		-deposit="1ugnot" \
+		-gas-fee="1ugnot" \
+		-gas-wanted="5000000" \
+		-broadcast="true"  \
+		-pkgdir="." \
+		-pkgpath="gno.land/r/demo/social_feeds_v3" \
+		test1
+
 .PHONY: create.feed
 create.feed:
 	gnokey maketx call \
-		-pkgpath "gno.land/r/demo/social_feeds" \
+		-pkgpath "gno.land/r/demo/social_feeds_v3" \
 		-func "CreateFeed" \
 		-gas-fee 1000000ugnot \
 		-gas-wanted 2000000 \
@@ -53,7 +64,7 @@ create.feed:
 .PHONE: create.post
 create.post:
 	gnokey maketx call \
-		-pkgpath "gno.land/r/demo/social_feeds" \
+		-pkgpath "gno.land/r/demo/social_feeds_v3" \
 		-func "CreatePost" \
 		-gas-fee 1000000ugnot \
 		-gas-wanted 2000000 \

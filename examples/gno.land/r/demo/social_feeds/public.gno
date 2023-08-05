@@ -14,12 +14,7 @@ import (
 func CreateFeed(name string) FeedID {
 	fid := incGetFeedID()
 	caller := std.PrevRealm().Addr()
-
-	// if usernameOf(caller) == "" {
-	// 	panic("only registered user can create feed")
-	// }
-
-	url := "/r/demo/social_feeds:" + name
+	url := "/r/demo/social_feeds_v3:" + name
 	feed := newFeed(fid, url, name, caller)
 	fidkey := feedIDKey(fid)
 	gFeeds.Set(fidkey, feed)

@@ -6,7 +6,7 @@ import (
 )
 
 func renderFeed(parts []string) string {
-	// /r/demo/social_feeds:FEED_NAME
+	// /r/demo/social_feeds_v3:FEED_NAME
 	name := parts[0]
 	feedI, exists := gFeedsByName.Get(name)
 	if !exists {
@@ -49,10 +49,10 @@ func Render(path string) string {
 	parts := strings.Split(path, "/")
 
 	if len(parts) == 1 {
-		// /r/demo/social_feeds:FEED_NAME
+		// /r/demo/social_feeds_v3:FEED_NAME
 		return renderFeed(parts)
 	} else if len(parts) == 2 {
-		// /r/demo/boards:FEED_NAME/POST_ID
+		// /r/demo/social_feeds_v3:FEED_NAME/POST_ID
 		return renderPost(parts)
 	}
 	// } else if len(parts) == 3 {

@@ -86,12 +86,6 @@ func (feed *Feed) AddPost(creator std.Address, parentID PostID, category uint64,
 	return post
 }
 
-func (feed *Feed) GetPostFormURL() string {
-	return "/r/demo/social_feeds?help&__func=CreatePost" +
-		"&fid=" + feed.id.String() +
-		"&body.type=textarea"
-}
-
 func (feed *Feed) Render() string {
 	str := ""
 	str += "There are " + intToString(feed.posts.Size()) + " post(s) \n\n"

@@ -2,7 +2,6 @@ package social_feeds
 
 import (
 	"encoding/binary"
-	"errors"
 )
 
 func EncodeLengthPrefixedStringUint32BE(s string) []byte {
