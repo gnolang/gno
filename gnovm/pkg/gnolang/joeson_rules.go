@@ -6,17 +6,20 @@ import (
 	j "github.com/grepsuzette/joeson"
 )
 
-// rule names prefixed by a _ (e.g. _BinaryExpr)
-// do not appear in spec/spec.html, and have been thus distinguished for
-// clarity.
-
-// rules are named after https://go.dev/ref/spec
-// labels (such as "bx:") are used by rules callbacks.
+// A Golang PEG grammar.
+//   - This grammar is written against the *formal go syntax* with semicolons ";"
+//     as terminators, as is produced for example by "go/scanner".
+//   - The following rules are named after https://go.dev/ref/spec labels (such
+//     as "bx:") are used by rules callbacks.
+//   - Rules that don't have a name immediately listed in spec/spec.html should
+//     be prefixed by an underscore `_` (e.g. _T, the ";" terminator). Note
+//     those underlined rules aren't captured (see joeson/parser_ref.go).
 var (
 	gm       *j.Grammar
 	gnoRules = rules(
-		o(named("Input", "Expression")),
-		o(named("Expression", "bx:(Expression _ binary_op _ Expression) | UnaryExpr"), fExpression),
+		o(named("Input", "Expression _semicolon?")),
+		o(named("Block", "'{' Statement*_term '}'")),
+		o(named("Expression", "bx:(Expression _ binary_op _ Expression) | ux:UnaryExpr "), fExpression),
 		o(named("UnaryExpr", "PrimaryExpr | ux:(unary_op _ UnaryExpr)"), fUnary),
 		o(named("unary_op", revQuote("+ - ! ^ * & <-"))),
 		o(named("binary_op", "mul_op | add_op | rel_op | '&&' | '||'")),
@@ -33,9 +36,9 @@ var (
 			i(named("Literal", "BasicLit | FunctionLit | CompositeLit")),
 			i(named("BasicLit", rules(
 				o("rune_lit | string_lit | imaginary_lit | float_lit | int_lit"),
-				i(named("rune_lit", rules(o("'\\'' ( byte_value | unicode_value ) '\\'' | '\\'' [^\n] '\\''"))), f_rune_lit),
+				i(named("rune_lit", rules(o(`'\'' ( byte_value | unicode_value ) '\'' | '\'' [^\n] '\''`))), f_rune_lit),
 				i(named("string_lit", rules(
-					o(named("raw_string_lit", "'`' [^`]* '`'"), fraw_string_lit), // ffBasicLit(STRING)),
+					o(named("raw_string_lit", "'`' [^`]* '`'"), fraw_string_lit),
 					o(named("interpreted_string_lit", `'"' (!'\"' ('\\' [\s\S] | unicode_value | byte_value))* '"'`), finterpreted_string_lit),
 				))),
 				i(named("int_lit", rules(
@@ -108,7 +111,7 @@ var (
 				// i(named("IdentifierList", "")),
 				// i(named("Tag", "string_lit")),
 			))),
-			i(named("_semicolon", "_ ';'")),
+			// i(named("_semicolon", "_ ';'")),
 		))),
 		i(named("identifier", "[a-zA-Z_][a-zA-Z0-9_]*")), // letter { letter | unicode_digit } . FIXME We rewrite it for now to accelerate parsing
 		i(named("IdentifierList", "identifier*( _  ',' _ )")),
@@ -130,6 +133,8 @@ var (
 		// i(named("_", "[ \t\n\r]*")),
 		i(named("_", "( ' ' | '\t' | '\n' | '\r' )*")),
 		i(named("__", "[ \t\n\r]+")),
+		// i(named("_T", "';' '\n'?")),
+		i(named("_semicolon", "';' '\n'?")),
 	)
 )
 

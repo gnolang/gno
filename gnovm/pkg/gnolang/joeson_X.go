@@ -10,8 +10,8 @@ import (
 func grammar() *j.Grammar {
 	if gm == nil {
 		gm = j.GrammarFromLines(
-			gnoRules,
 			"GNO-grammar",
+			gnoRules,
 			// j.GrammarOptions{TraceOptions: j.Mute()},
 		)
 	}
@@ -57,11 +57,10 @@ func Xnew(x interface{}, args ...interface{}) Expr {
 
 // Producing joeson.Ast, joeson.ParseError or gnolang.Node
 func parseX(s string) j.Ast {
-	// return grammar().ParseString(s)
-	if tokenstream, e := tokenize(s); e != nil {
+	if tokens, e := j.TokenStreamFromGoCode(s); e != nil {
 		return j.NewParseError(nil, e.Error())
 	} else {
-		return grammar().ParseTokens(tokenstream)
+		return grammar().ParseTokens(tokens)
 	}
 }
 

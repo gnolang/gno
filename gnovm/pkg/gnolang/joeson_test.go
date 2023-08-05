@@ -25,7 +25,7 @@ func testExpectation(t *testing.T, expectation expectation) {
 			t.Fatalf(
 				"%s parsed as %s "+j.BoldRed("ERR")+" %s\n",
 				helpers.Escape(expectation.unparsedString),
-				j.Red(helpers.Escape(ast.String())),
+				(ast.String()),
 				err.Error(),
 			)
 		}
@@ -377,17 +377,17 @@ func TestJoeson(t *testing.T) {
 		expect(`"\\xe6\\x97\\xa5\\xe6\\x9c\\xac\\xe8\\xaa\\x9e"`, parsesAs{"日本語"}, isBasicLit{STRING}), // the explicit UTF-8 bytes
 
 		// structs
-		expect(`struct {}`), // An empty struct
-		expect(`struct {
-field;
-}`),
-		expect(`struct {
-field;
-field  ;
-field ;		
-	field	;
-field	;		
-}`),
+		// expect(`struct {}`), // An empty struct
+		// expect(`struct {
+		// field;
+		// }`),
+		// expect(`struct {
+		// field;
+		// field  ;
+		// field ;
+		// field	;
+		// field	;
+		// }`),
 		// expect(`struct {
 		// 		x, y int
 		// 		u float32

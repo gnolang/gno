@@ -23,18 +23,26 @@ func stringIt(it j.Ast) (string, error) {
 	}
 }
 
-func fExpression(it j.Ast) j.Ast {
-	// bx:(Expression _ binary_op _ Expression) | UnaryExpr
-	//                                             ^-- done in mtUnaryExpr
+func fExpression(it j.Ast, ctx *j.ParseContext, org j.Ast) j.Ast {
+	// bx:(Expression _ binary_op _ Expression) _T? | UnaryExpr _T?
+	//                                                  ^-- done in mtUnaryExpr
 	if m, ok := it.(*j.NativeMap); ok {
-		// bx: create a BinaryExpr with Bx
-		a := m.GetOrPanic("bx").(*j.NativeArray).Array
-		return &BinaryExpr{
-			Left:  a[0].(Expr),
-			Op:    Op2Word(a[1].(j.NativeString).Str),
-			Right: a[2].(Expr),
+		if m.Exists("ux") {
+			return m.GetOrPanic("ux")
+		} else if m.Exists("bx") {
+			// bx: create a BinaryExpr with Bx
+			a := m.GetOrPanic("bx").(*j.NativeArray).Array
+			return &BinaryExpr{
+				Left:  a[0].(Expr),
+				Op:    Op2Word(a[1].(j.NativeString).Str),
+				Right: a[2].(Expr),
+			}
+		} else {
+			panic("assert")
 		}
 	} else {
+		// panic(reflect.TypeOf(it).String())
+		// panic(it.String())
 		return it
 	}
 }
