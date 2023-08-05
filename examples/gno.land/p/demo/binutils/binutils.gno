@@ -14,13 +14,6 @@ func EncodeLengthPrefixedStringUint16BE(s string) []byte {
 	return b
 }
 
-func EncodeLengthPrefixedStringUint32BE(s string) []byte {
-	b := make([]byte, 4+len(s))
-	binary.BigEndian.PutUint32(b, uint32(len(s)))
-	copy(b[4:], s)
-	return b
-}
-
 func DecodeLengthPrefixedStringUint16BE(b []byte) (string, []byte, error) {
 	if len(b) < 2 {
 		return "", nil, ErrInvalidLengthPrefixedString

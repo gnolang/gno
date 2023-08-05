@@ -69,7 +69,7 @@ func (post *Post) Bytes() []byte {
 	b = binary.BigEndian.AppendUint64(b, uint64(post.parentID))
 	b = binary.BigEndian.AppendUint64(b, uint64(post.feedID))
 	b = binary.BigEndian.AppendUint64(b, post.category)
-	b = append(b, binutils.EncodeLengthPrefixedStringUint32BE(post.metadata)...)
+	b = append(b, EncodeLengthPrefixedStringUint32BE(post.metadata)...)
 	b = append(b, binutils.EncodeLengthPrefixedStringUint16BE(post.creator.String())...)
 	b = binary.BigEndian.AppendUint32(b, uint32(post.createdAt.Unix()))
 
@@ -85,7 +85,7 @@ func (post *Post) Bytes() []byte {
 
 	SEPARATOR := ","
 	reactionsStr := strings.Join(reactionsArr, SEPARATOR)
-	b = append(b, binutils.EncodeLengthPrefixedStringUint32BE(reactionsStr)...)
+	b = append(b, EncodeLengthPrefixedStringUint32BE(reactionsStr)...)
 
 	// Encode comments ids
 	var subpostIDArr []string
@@ -101,7 +101,7 @@ func (post *Post) Bytes() []byte {
 	})
 
 	subpostIDsStr := strings.Join(subpostIDArr, SEPARATOR)
-	b = append(b, binutils.EncodeLengthPrefixedStringUint32BE(subpostIDsStr)...)
+	b = append(b, EncodeLengthPrefixedStringUint32BE(subpostIDsStr)...)
 
 	return b
 }
