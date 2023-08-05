@@ -78,7 +78,7 @@ var (
 				))),
 				i(named("unicode_value", rules(
 					o("escaped_char | little_u_value | big_u_value | unicode_char | _error_unicode_char_toomany"),
-					i(named("escaped_char", `[\a\f\n\r\t\v]`)),                                          // TODO: we skipped \b as for some reason it doesn't work in the regex.
+					i(named("escaped_char", `'\\a' | '\\b' | '\\f' | '\\n' | '\\r' | '\\t' | '\\v'`)),
 					i(named("little_u_value", `a:'\\u' b:hex_digit*`), ff_u_value("little_u_value", 4)), // 4 hex_digit or error
 					i(named("big_u_value", `a:'\\U' b:hex_digit*`), ff_u_value("big_u_value", 8)),       // 8 hex digit or error
 					i(named("_error_unicode_char_toomany", "[^\\x{0a}]{2,}"), func(it j.Ast, ctx *j.ParseContext) j.Ast { return ctx.Error("too many characters") }),
