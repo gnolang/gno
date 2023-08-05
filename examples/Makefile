@@ -37,3 +37,30 @@ clean:
 GOFMT_FLAGS ?= -w
 fmt:
 	go run -modfile ../misc/devdeps/go.mod mvdan.cc/gofumpt $(GOFMT_FLAGS) `find . -name "*.gno"`
+
+.PHONY: create.feed
+create.feed:
+	gnokey maketx call \
+		-pkgpath "gno.land/r/demo/social_feeds" \
+		-func "CreateFeed" \
+		-gas-fee 1000000ugnot \
+		-gas-wanted 2000000 \
+		-send "" \
+		-broadcast \
+		-args "teritori" \
+		test1
+
+.PHONE: create.post
+create.post:
+	gnokey maketx call \
+		-pkgpath "gno.land/r/demo/social_feeds" \
+		-func "CreatePost" \
+		-gas-fee 1000000ugnot \
+		-gas-wanted 2000000 \
+		-send "" \
+		-broadcast \
+		-args "1" \
+		-args "0" \
+		-args "2" \
+		-args '{"gifs": [], "files": [], "title": "", "message": "Hello world !", "hashtags": [], "mentions": [], "createdAt": "2023-08-03T01:39:45.522Z", "updatedAt": "2023-08-03T01:39:45.522Z"}' \
+		test1

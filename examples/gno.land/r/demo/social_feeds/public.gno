@@ -9,13 +9,17 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
+// Only registered user can create a new feed
+// For the flexibility when testing, allow all user to create feed
 func CreateFeed(name string) FeedID {
 	fid := incGetFeedID()
 	caller := std.PrevRealm().Addr()
-	if usernameOf(caller) == "" {
-		panic("only registered user can create feed")
-	}
-	url := "/r/demo/feeds:" + name
+
+	// if usernameOf(caller) == "" {
+	// 	panic("only registered user can create feed")
+	// }
+
+	url := "/r/demo/social_feeds:" + name
 	feed := newFeed(fid, url, name, caller)
 	fidkey := feedIDKey(fid)
 	gFeeds.Set(fidkey, feed)
@@ -23,14 +27,10 @@ func CreateFeed(name string) FeedID {
 	return feed.id
 }
 
-// Anyone can create a post in a existing feed
-// Anonymous user has to pay a configurable minimum fee
+// Anyone can create a post in a existing feed, allow un-registered users also
 func CreatePost(fid FeedID, parentID PostID, catetory uint64, metadata string) PostID {
 	caller := std.PrevRealm().Addr()
 
-	if usernameOf(caller) == "" {
-		panic("please register user")
-	}
 	feed := mustGetFeed(fid)
 	post := feed.AddPost(caller, parentID, catetory, metadata)
 	return post.id
@@ -139,13 +139,4 @@ func GetPost(fid FeedID, pid PostID) string {
 
 	post := data.(*Post)
 	return post.String()
-}
-
-func checkAnonFee() bool {
-	sent := std.GetOrigSend()
-	anonFeeCoin := std.Coin{"ugnot", int64(gDefaultAnonFee)}
-	if len(sent) == 1 && sent[0].IsGTE(anonFeeCoin) {
-		return true
-	}
-	return false
 }

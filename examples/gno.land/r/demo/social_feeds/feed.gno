@@ -2,12 +2,17 @@ package social_feeds
 
 import (
 	"std"
+	"strconv"
 	"time"
 
 	"gno.land/p/demo/avl"
 )
 
 type FeedID uint64
+
+func (fid FeedID) String() string {
+	return strconv.Itoa(int(fid))
+}
 
 type Feed struct {
 	id        FeedID
@@ -79,4 +84,32 @@ func (feed *Feed) AddPost(creator std.Address, parentID PostID, category uint64,
 		parent.comments.Set(pidkey, post)
 	}
 	return post
+}
+
+func (feed *Feed) GetPostFormURL() string {
+	return "/r/demo/social_feeds?help&__func=CreatePost" +
+		"&fid=" + feed.id.String() +
+		"&body.type=textarea"
+}
+
+func (feed *Feed) Render() string {
+	str := ""
+	str += "There are " + intToString(feed.posts.Size()) + " post(s) \n\n"
+
+	if feed.posts.Size() > 0 {
+		feed.posts.Iterate("", "", func(key string, value interface{}) bool {
+			if str != "" {
+				str += "----------------------------------------\n"
+			}
+
+			post := value.(*Post)
+			postUrl := "/r/demo/social_feeds:" + feed.name + "/" + post.id.String()
+
+			str += " * [PostID: " + post.id.String() +
+				" - " + intToString(post.reactions.Size()) + " reactions " +
+				" - " + intToString(post.comments.Size()) + " comments](" + postUrl + ")"
+			return false
+		})
+	}
+	return str
 }

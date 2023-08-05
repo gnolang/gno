@@ -69,3 +69,7 @@ func padZero(u64 uint64, length int) string {
 func bytesToString(b []byte) string {
 	return base64.RawURLEncoding.EncodeToString(b)
 }
+
+func intToString(val int) string {
+	return strconv.Itoa(val)
+}

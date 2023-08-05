@@ -15,6 +15,10 @@ import (
 
 type PostID uint64
 
+func (pid PostID) String() string {
+	return strconv.Itoa(int(pid))
+}
+
 type Reaction struct {
 	icon  string
 	count uint64
@@ -137,4 +141,8 @@ func (post *Post) React(icon string, up bool) {
 	} else {
 		post.reactions.Set(icon, count)
 	}
+}
+
+func (post *Post) Render() string {
+	return post.metadata
 }
