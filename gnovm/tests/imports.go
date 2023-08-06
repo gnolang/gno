@@ -104,7 +104,8 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 					Output:  stdout,
 					Store:   store,
 				})
-				return m2.RunMemPackage(memPkg, true)
+				save := pkgPath != "testing" // never save the "testing" package
+				return m2.RunMemPackage(memPkg, save)
 			}
 		}
 
