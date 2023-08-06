@@ -56,12 +56,24 @@ func Xnew(x interface{}, args ...interface{}) Expr {
 }
 
 // Producing joeson.Ast, joeson.ParseError or gnolang.Node
-func parseX(s string) j.Ast {
+// When a ParseError panic happens, it just returns that ParseError,
+// allowing it to short-circuit the grammar.
+func parseX(s string) (result j.Ast) {
+	defer func() {
+		if e := recover(); e != nil {
+			if pe, ok := e.(j.ParseError); ok {
+				result = pe
+			} else {
+				panic(e)
+			}
+		}
+	}()
 	if tokens, e := j.TokenStreamFromGoCode(s); e != nil {
-		return j.NewParseError(nil, e.Error())
+		result = j.NewParseError(nil, e.Error())
 	} else {
-		return grammar().ParseTokens(tokens)
+		result = grammar().ParseTokens(tokens)
 	}
+	return
 }
 
 func StringWithRulenames(ast j.Ast) string {

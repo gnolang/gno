@@ -156,6 +156,17 @@ func f_raw_string_lit(it j.Ast, ctx *j.ParseContext) j.Ast {
 	return ffBasicLit(STRING)(it, ctx)
 }
 
+func foctal_byte_value(it j.Ast, ctx *j.ParseContext) j.Ast {
+	if n, ok := it.(*j.NativeMap).GetIntExists("b"); ok {
+		if n < 0 || n > 255 {
+			return ffPanic("illegal: octal value over 255")(it, ctx)
+		} else {
+			return it
+		}
+	}
+	panic(fmt.Sprintf("unexpected type %s", reflect.TypeOf(it).String()))
+}
+
 func finterpreted_string_lit(it j.Ast, ctx *j.ParseContext) j.Ast {
 	if j.IsParseError(it) {
 		return it
@@ -197,5 +208,35 @@ func ffBasicLit(kind Word) func(j.Ast, *j.ParseContext) j.Ast {
 		} else {
 			return ctx.Error(e.Error())
 		}
+	}
+}
+
+func ffErr(msg string) func(j.Ast, *j.ParseContext) j.Ast {
+	return func(it j.Ast, ctx *j.ParseContext) j.Ast {
+		return ctx.Error(msg)
+	}
+}
+
+// same as ffErr but with postpended colon and near context
+func ffErrNearContext(msg string) func(j.Ast, *j.ParseContext) j.Ast {
+	return func(it j.Ast, ctx *j.ParseContext) j.Ast {
+		return ctx.Error(msg + ": " + ctx.Code.PeekLines(-1, 1))
+	}
+}
+
+// Panic with a ParseError made from msg string.
+// ParseErrors panics are recovered higher up, in parseX()
+func ffPanic(msg string) func(j.Ast, *j.ParseContext) j.Ast {
+	return func(it j.Ast, ctx *j.ParseContext) j.Ast {
+		panic(ctx.Error(msg))
+	}
+}
+
+// Like ffPanic, but the text of the current line from the parse context is
+// postpended to `msg`. This panics with a ParseError that should be
+// recovered in parseX()
+func ffPanicNearContext(msg string) func(j.Ast, *j.ParseContext) j.Ast {
+	return func(it j.Ast, ctx *j.ParseContext) j.Ast {
+		panic(ctx.Error(msg + ": " + ctx.Code.PeekLines(-1, 1)))
 	}
 }

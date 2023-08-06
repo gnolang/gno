@@ -19,7 +19,7 @@ var (
 	gnoRules = rules(
 		o(named("Input", "Expression _semicolon?")),
 		o(named("Block", "'{' Statement*_term '}'")),
-		o(named("Expression", "bx:(Expression _ binary_op _ Expression) | ux:UnaryExpr "), fExpression),
+		o(named("Expression", "bx:(Expression _ binary_op _ Expression) | ux:UnaryExpr"), fExpression),
 		o(named("UnaryExpr", "PrimaryExpr | ux:(unary_op _ UnaryExpr)"), fUnary),
 		o(named("unary_op", revQuote("+ - ! ^ * & <-"))),
 		o(named("binary_op", "mul_op | add_op | rel_op | '&&' | '||'")),
@@ -75,9 +75,12 @@ var (
 				i(named("octal_digit", "[0-7]")),
 				i(named("hex_digit", "[0-9a-fA-F]")),
 				i(named("byte_value", rules(
-					o("octal_byte_value | hex_byte_value"),
-					i(named("octal_byte_value", `a:'\\' b:octal_digit{3,3}`)),
-					i(named("hex_byte_value", `a:'\\x' b:hex_digit{2,2}`)),
+					o(named("octal_byte_value_err1", `a:'\\' (?octal_digit{4,})`), ffPanic("illegal: too many octal digits")),
+					o(named("octal_byte_value", `a:'\\' b:octal_digit{3,3}`), foctal_byte_value), // passthru unless "illegal: octal value over 255"
+					o(named("octal_byte_value_err2", `a:'\\' (?octal_digit{1,})`), ffPanic("illegal: too few octal digits")),
+					o(named("hex_byte_value_err1", `a:'\\x' b:hex_digit{3,}`), ffPanic("illegal: too many hexadecimal digits")),
+					o(named("hex_byte_value", `a:'\\x' b:hex_digit{2,2}`)),
+					o(named("hex_byte_value_err2", `a:'\\x' b:hex_digit{1,}`), ffPanic("illegal: too few hexadecimal digits")),
 				))),
 				i(named("unicode_value", rules(
 					o("escaped_char | little_u_value | big_u_value | unicode_char | _error_unicode_char_toomany"),

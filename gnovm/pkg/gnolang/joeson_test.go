@@ -25,7 +25,7 @@ func testExpectation(t *testing.T, expectation expectation) {
 			t.Fatalf(
 				"%s parsed as %s "+j.BoldRed("ERR")+" %s\n",
 				helpers.Escape(expectation.unparsedString),
-				(ast.String()),
+				ast.String(),
 				err.Error(),
 			)
 		}
@@ -214,12 +214,12 @@ func (v isBasicLit) satisfies(ast j.Ast, expectation expectation) error {
 func (v errorIs) satisfies(ast j.Ast, expectation expectation) error {
 	if !j.IsParseError(ast) {
 		return errors.New(fmt.Sprintf(
-			"was expecting an error, but got \"%s\"", ast.String()))
+			"was expecting error %q, got result %q", v.string, ast.String()))
 	}
-	if v.string != "" && ast.String() != v.string {
+	if v.string != "" && strings.TrimPrefix(ast.String(), "ERROR ") != v.string {
 		return errors.New(fmt.Sprintf(
-			"although we got a parse error as expected, were expecting \"%s\""+
-				", got \"%s\"", v.string, ast.String()))
+			"although we got a parse error as expected, were expecting %q"+
+				", got %q", v.string, ast.String()))
 	}
 	return nil
 }
@@ -227,7 +227,7 @@ func (v errorIs) satisfies(ast j.Ast, expectation expectation) error {
 func (v errorContains) satisfies(ast j.Ast, expectation expectation) error {
 	if !j.IsParseError(ast) {
 		return errors.New(fmt.Sprintf(
-			"was expecting an error, but got \"%s\"", ast.String()))
+			"was expecting error %q, got %q", v.string, ast.String()))
 	}
 	if !strings.Contains(ast.String(), v.string) {
 		return errors.New(fmt.Sprintf(
@@ -334,9 +334,12 @@ func TestJoeson(t *testing.T) {
 		// 1.5e1_       // invalid: _ must separate successive digits
 
 		expect(`'\125'`, parsesAsChar{'U'}, isBasicLit{CHAR}),
+		expectError(`'\0'`, "illegal: too few octal digits"),
+		expectError(`'\12'`, "illegal: too few octal digits"),
+		expectError(`'\400'`, "illegal: octal value over 255"),
+		expectError(`'\1234'`, "illegal: too many octal digits"),
 		expect(`'\x3d'`, parsesAsChar{'='}, isBasicLit{CHAR}),
 		expect(`'\x3D'`, parsesAsChar{'='}, isBasicLit{CHAR}),
-		expect(`'`+"\a"+`'`, parsesAsChar{'\a'}, isBasicLit{CHAR}), // should really be written like that, but for the rest of them we will use double quotes
 		expect(`'\a'`, parsesAsChar{'\a'}, isBasicLit{CHAR}),
 		expect(`'\b'`, parsesAsChar{'\b'}, isBasicLit{CHAR}),
 		expect(`'\f'`, parsesAsChar{'\f'}, isBasicLit{CHAR}),
@@ -345,11 +348,11 @@ func TestJoeson(t *testing.T) {
 		expect(`'\t'`, parsesAsChar{'\t'}, isBasicLit{CHAR}),
 		expect(`'\v'`, parsesAsChar{'\v'}, isBasicLit{CHAR}),
 		expect(`'\u13F8'`, parsesAsChar{'ᏸ'}, isBasicLit{CHAR}),
-		expectError(`'\u13a'`, "ERROR little_u_value requires 4 hex"),
-		expectError(`'\u1a248'`, "ERROR little_u_value requires 4 hex"),
+		expectError(`'\u13a'`, "little_u_value requires 4 hex"),
+		expectError(`'\u1a248'`, "little_u_value requires 4 hex"),
 		expect(`'\UFFeeFFee'`, isBasicLit{CHAR}),
-		expectError(`'\UFFeeFFe'`, "ERROR big_u_value requires 8 hex"),
-		expectError(`'\UFFeeFFeeA'`, "ERROR big_u_value requires 8 hex"),
+		expectError(`'\UFFeeFFe'`, "big_u_value requires 8 hex"),
+		expectError(`'\UFFeeFFeeA'`, "big_u_value requires 8 hex"),
 		expect("'ä'", parsesAsChar{'ä'}, isBasicLit{CHAR}),
 		expect("'本'", parsesAsChar{'本'}, isBasicLit{CHAR}),
 		expect(`'\000'`, parsesAsChar{'\000'}, isBasicLit{CHAR}),
@@ -357,9 +360,7 @@ func TestJoeson(t *testing.T) {
 		expect(`'''`, parsesAsChar{'\''}, isBasicLit{CHAR}), // rune literal containing single quote character
 		// expectError("'aa'", "ERROR illegal: too many characters"),
 		// expect("'\\k'",          "ERROR illegal: k is not recognized after a backslash",
-		// expectError(`'\xa'`, "ERROR illegal: too few hexadecimal digits"),
-		// expect("'\\0'",          "ERROR illegal: too few octal digits",
-		// expect("'\\400'",        "ERROR illegal: octal value over 255",
+		expectError(`'\xa'`, "illegal: too few hexadecimal digits"),
 		// "'\\uDFFF'": "ERROR illegal: surrogate half", // TODO
 		// "'\\U00110000'": "ERROR illegal: invalid Unicode code point", // TODO
 

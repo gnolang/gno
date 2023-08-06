@@ -1,3 +1,6 @@
 # running go test . 
 go test . --run ^TestJoeson -v
 
+# go test . --run ^TestTokenize1 -v
+# go test . --run ^TestTokenize2 -v
+
