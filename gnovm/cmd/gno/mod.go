@@ -31,6 +31,7 @@ func newModCmd(io *commands.IO) *commands.Command {
 	cmd.AddSubCommands(
 		newModDownloadCmd(io),
 		newModInitCmd(),
+		newModTidy(io),
 	)
 
 	return cmd
@@ -62,6 +63,20 @@ func newModInitCmd() *commands.Command {
 		commands.NewEmptyConfig(),
 		func(_ context.Context, args []string) error {
 			return execModInit(args)
+		},
+	)
+}
+
+func newModTidy(io *commands.IO) *commands.Command {
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "tidy",
+			ShortUsage: "tidy",
+			ShortHelp:  "Add missing and remove unused modules",
+		},
+		commands.NewEmptyConfig(),
+		func(_ context.Context, args []string) error {
+			return execModTidy(args, io)
 		},
 	)
 }
@@ -149,6 +164,16 @@ func execModInit(args []string) error {
 	if err := gnomod.CreateGnoModFile(dir, modPath); err != nil {
 		return fmt.Errorf("create gno.mod file: %w", err)
 	}
+
+	return nil
+}
+
+func execModTidy(args []string, io *commands.IO) error {
+	if len(args) > 0 {
+		return flag.ErrHelp
+	}
+
+	// TODO: Implementation
 
 	return nil
 }
