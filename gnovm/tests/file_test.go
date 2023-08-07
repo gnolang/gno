@@ -112,7 +112,7 @@ func TestRunFileTest(t *testing.T) {
 	rootDir := path.Dir(string(goModPath))
 	// Build a fresh gno binary in a temp directory
 	gnoBin := path.Join(t.TempDir(), "gno")
-	err = exec.Command("go", "build", "-o", gnoBin, path.Join(rootDir, "gnovm", "cmd", "gno")).Run()
+	err = exec.Command("go", "build", "-o", gnoBin, filepath.Join(rootDir, "gnovm", "cmd", "gno")).Run()
 	require.NoError(t, err)
 	// Define script params
 	params := testscript.Params{

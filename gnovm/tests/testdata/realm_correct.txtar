@@ -2,7 +2,7 @@
 
 exec $GNO test -verbose -root-dir=$ROOTDIR .
 
-! stdout .+
+! stdout .+ # stdout should be empty
 stderr '=== RUN   file/x_filetest.gno'
 stderr '--- PASS: file/x_filetest.gno \(\d\.\d\ds\)'
 stderr 'ok      \./\. 	\d\.\d\ds'

@@ -2,7 +2,7 @@
 
 ! exec $GNO test -verbose -root-dir=$ROOTDIR .
 
-! stdout .+
+! stdout .+ # stdout should be empty
 stderr '=== RUN   file/x_filetest.gno'
 stderr 'panic: fail on x_filetest.gno: diff:'
 stderr '--- Expected'
