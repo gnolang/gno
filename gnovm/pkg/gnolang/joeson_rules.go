@@ -17,15 +17,15 @@ import (
 var (
 	gm       *j.Grammar
 	gnoRules = rules(
-		o(named("Input", "Expression _semicolon?")),
+		o(named("implicitFileBlock", "Expression _semicolon?")),
 		o(named("Block", rules(
 			o("'{' Statement*_semicolon '}'"),
 			i(named("Statement", "SimpleStmt")),
 			i(named("SimpleStmt", "ExpressionStmt")),
 			i(named("ExpressionStmt", "Expression")),
 			i(named("Expression", rules(
-				o("bx:(Expression _ binary_op _ Expression) | ux:UnaryExpr"),
-				o(named("UnaryExpr", "PrimaryExpr | ux:(unary_op _ UnaryExpr)"), fUnary),
+				o("bx:(Expression binary_op Expression) | ux:UnaryExpr"),
+				o(named("UnaryExpr", "PrimaryExpr | ux:(unary_op UnaryExpr)"), fUnary),
 				o(named("unary_op", revQuote("+ - ! ^ * & <-"))),
 				o(named("binary_op", "mul_op | add_op | rel_op | '&&' | '||'")),
 				o(named("mul_op", revQuote("* / % << >> & &^"))),
@@ -36,7 +36,7 @@ var (
 
 				o(named("Operand", rules(
 					// o("'(' _ Expression _ ')' | OperandName TypeArgs? | Literal"), // TODO this is the original
-					o("Literal | '(' _ Expression _ ')'"), // 𝘧, func(it j.Ast) j.Ast { return it.(j.NativeMap).GetWhicheverOrPanic([]string{"lit", "expr"}) }),
+					o("Literal | '(' Expression ')'"), // 𝘧, func(it j.Ast) j.Ast { return it.(j.NativeMap).GetWhicheverOrPanic([]string{"lit", "expr"}) }),
 					// o(named("Literal", "BasicLit | CompositeLit | FunctionLit")),
 					i(named("Literal", "BasicLit | FunctionLit | CompositeLit")),
 					i(named("BasicLit", rules(
@@ -108,18 +108,17 @@ var (
 					))),
 
 					i(named("StructType", rules(
-						// o("'struct' _ '{' _ 'field'*_semicolon [^}]* '}'"),
-						o("'struct' _ '{' _ 'field'*_semicolon '}'"),
+						// o("'struct' '{' 'field'*_semicolon [^}]* '}'"),
+						o("'struct' '{' 'field'*_semicolon '}'"),
 
-						// o("'struct' _ '{' FieldDecl* _ '}'"),
-						// i(named("FieldDecl", "_ 'field' _semicolon? ")), // TODO
+						// o("'struct' '{' FieldDecl* _ '}'"),
+						// i(named("FieldDecl", "'field' _semicolon? ")), // TODO
 
-						// i(named("FieldDecl", "_ (IdentifierList _ Type | EmbeddedField ) _ Tag?")),
-						// i(named("EmbeddedField", "'*'? _ TypeName _ TypeArgs?")),
+						// i(named("FieldDecl", "(IdentifierList Type | EmbeddedField ) Tag?")),
+						// i(named("EmbeddedField", "'*'? TypeName TypeArgs?")),
 						// i(named("IdentifierList", "")),
 						// i(named("Tag", "string_lit")),
 					))),
-					// i(named("_semicolon", "_ ';'")),
 				))),
 			)), fExpression),
 		))),
@@ -138,12 +137,11 @@ var (
 		// "White space, formed from spaces (U+0020), horizontal tabs (U+0009),
 		// carriage returns (U+000D), and newlines (U+000A), is ignored except as
 		// it separates tokens that would otherwise combine into a single token."
+		// i(named("_", "( ' ' | '\t' | '\n' | '\r' )*")),
+		// i(named("__", "[ \t\n\r]+")),
+		// i(named("_T", "';' '\n'?")),
 		i(named("comma", "',' | _")),
 		i(named("DOT", "'.'")), // when it needs to get captured (by default '.' in a sequence is not captured)
-		// i(named("_", "[ \t\n\r]*")),
-		i(named("_", "( ' ' | '\t' | '\n' | '\r' )*")),
-		i(named("__", "[ \t\n\r]+")),
-		// i(named("_T", "';' '\n'?")),
 		i(named("_semicolon", "';' '\n'?")),
 	)
 )
