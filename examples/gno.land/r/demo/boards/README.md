@@ -14,8 +14,8 @@ with `--remote localhost:26657` for local testnets.
 
 ```bash
 git clone git@github.com:gnolang/gno.git
-cd ./gno
-make
+cd ./gno/gno.land
+make build
 ```
 
 ### Generate a seed/mnemonic code.
