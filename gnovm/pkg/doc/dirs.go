@@ -70,6 +70,9 @@ func newDirs(dirs []string, modDirs []string) *bfsDirs {
 
 // tries to parse gno mod file given the filename, using Parse and Validate from
 // the gnomod package
+//
+// TODO(tb): replace by `gnomod.ParseAt` ? The key difference is the latter
+// looks for gno.mod in parent directories, while this function doesn't.
 func parseGnoMod(fname string) (*gnomod.File, error) {
 	file, err := os.Stat(fname)
 	if err != nil {
