@@ -68,6 +68,10 @@ func ffInt(base int) func(j.Ast, *j.ParseContext) j.Ast {
 		if e != nil {
 			return ctx.Error(e.Error())
 		}
+		if strings.HasSuffix(s, "_") {
+			panic(ctx.Error("invalid: _ must separate successive digits"))
+		}
+		s = strings.ReplaceAll(s, "_", "")
 		var i int64
 		var prefix string
 		switch base {
@@ -238,5 +242,30 @@ func ffPanic(msg string) func(j.Ast, *j.ParseContext) j.Ast {
 func ffPanicNearContext(msg string) func(j.Ast, *j.ParseContext) j.Ast {
 	return func(it j.Ast, ctx *j.ParseContext) j.Ast {
 		panic(ctx.Error(msg + ": " + ctx.Code.PeekLines(-1, 1)))
+	}
+}
+
+func fSimpleStmt(it j.Ast) j.Ast {
+	// TODO "The following built-in functions are not permitted in statement context:
+	// append cap complex imag len make new real
+	// unsafe.Add unsafe.Alignof unsafe.Offsetof unsafe.Sizeof unsafe.Slice"
+	return it
+}
+
+// when PackageName is the blank identifier panic with a ParseError
+func fPackageName(it j.Ast, ctx *j.ParseContext) j.Ast {
+	if it.String() == "" {
+		panic(ctx.Error("PackageName must not be the blank identifier"))
+	}
+	return Nx(it.(*j.NativeArray).Concat())
+}
+
+func fQualifiedIdent(it j.Ast, ctx *j.ParseContext) j.Ast {
+	m := it.(*j.NativeMap)
+	packageName := m.GetOrPanic("p")
+	identifier := m.GetOrPanic("i")
+	return &SelectorExpr{
+		X:   packageName.(*NameExpr),
+		Sel: N(identifier.(*j.NativeArray).Concat()),
 	}
 }

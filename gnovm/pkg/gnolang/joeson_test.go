@@ -64,20 +64,22 @@ type (
 		unparsedString string
 		predicates     []predicate
 	}
-	parsesAs      struct{ string } // strict string equality
-	parsesAsChar  struct{ rune }   // strict string equality
-	isBasicLit    struct{ kind Word }
-	errorIs       struct{ string }
-	errorContains struct{ string }
-	noError       struct{}
-	isType        struct{ string }
-	doom          struct{}
+	parsesAs       struct{ string } // strict string equality
+	parsesAsChar   struct{ rune }   // strict string equality
+	isBasicLit     struct{ kind Word }
+	isSelectorExpr struct{}
+	errorIs        struct{ string }
+	errorContains  struct{ string }
+	noError        struct{}
+	isType         struct{ string }
+	doom           struct{}
 )
 
 var (
 	_ predicate = parsesAs{}
 	_ predicate = parsesAsChar{}
 	_ predicate = isBasicLit{}
+	_ predicate = isSelectorExpr{}
 	_ predicate = errorIs{}
 	_ predicate = errorContains{}
 	_ predicate = noError{}
@@ -211,6 +213,16 @@ func (v isBasicLit) satisfies(ast j.Ast, expectation expectation) error {
 	return nil
 }
 
+func (v isSelectorExpr) satisfies(ast j.Ast, expectation expectation) error {
+	if _, ok := ast.(*SelectorExpr); !ok {
+		return errors.New(fmt.Sprintf(
+			"was expecting &SelectorExpr, got %s",
+			reflect.TypeOf(ast).String(),
+		))
+	}
+	return nil
+}
+
 func (v errorIs) satisfies(ast j.Ast, expectation expectation) error {
 	if !j.IsParseError(ast) {
 		return errors.New(fmt.Sprintf(
@@ -263,7 +275,7 @@ func (doom) satisfies(ast j.Ast, expectation expectation) error {
 // }}}1
 
 func TestJoeson(t *testing.T) {
-	os.Setenv("TRACE", "grammar,stack")
+	os.Setenv("TRACE", "stack")
 	tests := []expectation{
 		expect(`2398`, parsesAs{"2398"}, isBasicLit{INT}),
 		expect(`0`, parsesAs{"0"}, isBasicLit{INT}),
@@ -279,8 +291,8 @@ func TestJoeson(t *testing.T) {
 		expect(`0x_67_7a_2f_cc_40_c6`, parsesAs{"0x677a2fcc40c6"}, isBasicLit{INT}),
 		expectErrorContains(`170141183460469231731687303715884105727`, "value out of range"),
 		expectErrorContains(`170_141183_460469_231731_687303_715884_105727`, "value out of range"),
-		// _42         // an identifier, not an integer literal
-		// 42_         // invalid: _ must separate successive digits
+		// _42         // TODO an identifier, not an integer literal
+		// expectError(`42_`, "invalid: _ must separate successive digits"),
 		// 4__2        // invalid: only one _ at a time
 		// 0_xBadFace  // invalid: _ must separate successive digits
 
@@ -377,27 +389,14 @@ func TestJoeson(t *testing.T) {
 		expect(`"\\U000065e5\\U0000672c\\U00008a9e"`, parsesAs{"日本語"}, isBasicLit{STRING}),             // the explicit Unicode code points
 		expect(`"\\xe6\\x97\\xa5\\xe6\\x9c\\xac\\xe8\\xaa\\x9e"`, parsesAs{"日本語"}, isBasicLit{STRING}), // the explicit UTF-8 bytes
 
-		// structs
-		// expect(`struct {}`), // An empty struct
-		// expect(`struct {
-		// field;
-		// }`),
-		// expect(`struct {
-		// field;
-		// field  ;
-		// field ;
-		// field	;
-		// field	;
-		// }`),
-		// expect(`struct {
-		// 		x, y int
-		// 		u float32
-		// 		_ float32
-		// 		A *[]int
-		// 		F func()
-		// }`),
-		// A struct with 6 fields.
-		// "func(a, b int, z float64) bool { return a*b < int(z) }": "func(a, b int, z float64) bool { return a*b < int(z) }", // FunctionLit
+		// expect(`package math`, parsesAs{"package math"}), // unsupported by X()
+		expect(`math.Sin`, parsesAs{"math<VPUverse(0)>.Sin"}, isSelectorExpr{}), // denotes the Sin function in package math
+
+		// expect(`h(x+y)`, parsesAs{"h( x + y )"}), //
+		// expect(`f.Close()`, parsesAs{"h( x + y )"}),
+		// expect(`<-ch`, parsesAs{"h( x + y )"}),
+		// expect(`(<-ch)`, parsesAs{"h( x + y )"}),
+		// expect(`len("foo")`, parsesAs{"h( x + y )"}), // illegal if len is the built-in function
 	}
 	for _, expectation := range tests {
 		testExpectation(t, expectation)
