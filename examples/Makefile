@@ -47,6 +47,8 @@ create.pkg:
 		-broadcast="true"  \
 		-pkgdir="." \
 		-pkgpath="gno.land/r/demo/social_feeds_v3" \
+		-chainid "teritori-1" \
+		-remote "https://testnet.gno.teritori.com:26657" \
 		test1
 
 .PHONY: create.feed
@@ -55,10 +57,12 @@ create.feed:
 		-pkgpath "gno.land/r/demo/social_feeds_v3" \
 		-func "CreateFeed" \
 		-gas-fee 1000000ugnot \
-		-gas-wanted 2000000 \
+		-gas-wanted 3000000 \
 		-send "" \
 		-broadcast \
 		-args "teritori" \
+		-chainid "teritori-1" \
+		-remote "https://testnet.gno.teritori.com:26657" \
 		test1
 
 .PHONE: create.post

@@ -97,7 +97,7 @@ func (feed *Feed) Render() string {
 			}
 
 			post := value.(*Post)
-			postUrl := "/r/demo/social_feeds_v3:" + feed.name + "/" + post.id.String()
+			postUrl := "/r/demo/social_feeds_v4:" + feed.name + "/" + post.id.String()
 
 			str += " * [PostID: " + post.id.String() +
 				" - " + intToString(post.reactions.Size()) + " reactions " +

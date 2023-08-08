@@ -15,7 +15,7 @@ import (
 func CreateFeed(name string) FeedID {
 	fid := incGetFeedID()
 	caller := std.PrevRealm().Addr()
-	url := "/r/demo/social_feeds_v3:" + name
+	url := "/r/demo/social_feeds_v4:" + name
 	feed := newFeed(fid, url, name, caller)
 	fidkey := feedIDKey(fid)
 	gFeeds.Set(fidkey, feed)
