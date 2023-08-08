@@ -121,19 +121,19 @@ func Test(t *testing.T) {
 	var postsStr string
 	var postsCount int
 
-	postsStr = GetPosts(1, uint64(0), 0, 1)
+	postsStr = GetPosts(1, []uint64{0}, 0, 1)
 	postsCount = len(strings.Split(postsStr, ","))
 	if postsCount != 1 {
 		t.Fatalf("expected posts count: 1, got %q.", postsCount)
 	}
 
-	postsStr = GetPosts(1, uint64(0), 0, 2)
+	postsStr = GetPosts(1, []uint64{0}, 0, 2)
 	postsCount = len(strings.Split(postsStr, ","))
 	if postsCount != 2 {
 		t.Fatalf("expected posts count: 2, got %q.", postsCount)
 	}
 
-	postsStr = GetPosts(1, uint64(0), 0, 3)
+	postsStr = GetPosts(1, []uint64{0}, 0, 3)
 	postsCount = len(strings.Split(postsStr, ","))
 	if postsCount != 2 {
 		t.Fatalf("expected posts count: 2, got %q.", postsCount)
@@ -142,17 +142,62 @@ func Test(t *testing.T) {
 	// Delete one
 	DeletePost(1, newPostID)
 
-	postsStr = GetPosts(1, uint64(0), PostID(1), 4)
+	postsStr = GetPosts(1, []uint64{0}, PostID(1), 4)
 	postsCount = len(strings.Split(postsStr, ","))
 	if postsCount != 1 {
 		t.Fatalf("expected posts count: 1, got %q.", postsCount)
 	}
 
-	// Test tree
-	// Get Post list
-	// postsStr := GetPosts(feedID)
-	// postsBytes, err := base64.RawURLEncoding.DecodeString(postsStr)
-	// if err != nil {
-	// 	panic("uanble to decode post list")
-	// }
+	// Create Post in another category
+	otherFeedId := CreateFeed("other_feed")
+
+	otherCatId := uint64(2)
+	rootParentID := PostID(0)
+	otherPostID := CreatePost(otherFeedId, rootParentID, otherCatId, metadata)
+	otherPostsStr := GetPosts(1, []uint64{7}, 0, 4)
+
+	otherPost := createdFeed.MustGetPost(PostID(otherPostID))
+
+	otherPostsCount := 0
+	if otherPostsStr != "" {
+		otherPostsCount := len(strings.Split(otherPostsStr, ","))
+	}
+
+	if otherPostsCount != 0 {
+		t.Fatalf("expected total posts with category 7: 0, got %q.", postID)
+	}
+
+	// Query with exact category should return result
+	otherPostsStr = GetPosts(otherFeedId, []uint64{2}, 0, 4)
+	otherPostsCount = 0
+	if otherPostsStr != "" {
+		otherPostsCount = len(strings.Split(otherPostsStr, ","))
+	}
+
+	if otherPostsCount != 1 {
+		t.Fatalf("expected total posts with category 2: 1, got %q.", otherPostsCount)
+	}
+
+	// Query multi categories should return result
+	CreatePost(otherFeedId, rootParentID, uint64(8), metadata)
+	otherPostsStr = GetPosts(otherFeedId, []uint64{2, 7, 8}, 0, 4)
+	otherPostsCount = 0
+	if otherPostsStr != "" {
+		otherPostsCount = len(strings.Split(otherPostsStr, ","))
+	}
+
+	if otherPostsCount != 2 {
+		t.Fatalf("expected total posts with category 2, 8: 2, got %q.", otherPostsCount)
+	}
+
+	// Empty requested cateogries should return all
+	otherPostsStr = GetPosts(otherFeedId, []uint64{}, 0, 4)
+	otherPostsCount = 0
+	if otherPostsStr != "" {
+		otherPostsCount = len(strings.Split(otherPostsStr, ","))
+	}
+
+	if otherPostsCount != 2 {
+		t.Fatalf("expected total posts with all categories: 2, got %q.", otherPostsCount)
+	}
 }

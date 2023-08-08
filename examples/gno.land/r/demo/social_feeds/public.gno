@@ -2,11 +2,12 @@ package social_feeds
 
 import (
 	"encoding/base64"
+	"fmt"
 	"std"
 	"strconv"
 	"strings"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/demo/avl"
 )
 
 // Only registered user can create a new feed
@@ -67,18 +68,27 @@ func ReactPost(fid FeedID, pid PostID, icon string, up bool) {
 }
 
 // Get Posts list
-func GetPosts(fid FeedID, category uint64, offset uint64, limit uint8) string {
+func GetPosts(fid FeedID, categories []uint64, offset uint64, limit uint8) string {
 	caller := std.PrevRealm().Addr()
 	feed := mustGetFeed(fid)
 
 	var postList []string
 	var skipped uint64
 
+	// Create an avlTree for optimizing the check
+	requestedCategories := avl.NewTree()
+	for _, category := range categories {
+		catStr := strconv.FormatUint(category, 10)
+		requestedCategories.Set(catStr, true)
+	}
+
 	feed.posts.Iterate("", "", func(key string, value interface{}) bool {
 		post := value.(*Post)
 
+		postCatStr := strconv.FormatUint(post.category, 10)
+
 		// NOTE: this search mechanism is not efficient, only for demo purpose
-		if post.parentID == uint64(0) && post.category == category && post.deleted == false {
+		if post.parentID == uint64(0) && (requestedCategories.Size() == 0 || requestedCategories.Has(postCatStr)) && post.deleted == false {
 			if skipped < offset {
 				skipped++
 				return false
