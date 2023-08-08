@@ -1,26 +1,27 @@
 package governor
 
-import std "std"
+import "std"
+import "gno.land/p/demo/maths"
 
 type GovernorSettings struct {
 	votingDelay  int64
 	votingPeriod int64
 	//minDeposit        std.Coin // minimal deposit to propose
-	proposalThreshold int64 // minimal voting power required to propose
-	quorumNumerator   uint64
-	succeedNumerator  uint64
-	vetoNumerator     uint64
+	proposalThreshold maths.Rat // minimal voting power required to propose
+	quorum            maths.Rat
+	succeedThreshold  maths.Rat
+	vetoThreshold     maths.Rat
 }
 
-func NewGovernorSettings(votingDelay int64, votingPeriod int64, proposalThreshold int64, qn, sn, vn uint64) *GovernorSettings {
+func NewGovernorSettings(votingDelay int64, votingPeriod int64, proposalThreshold maths.Rat, qum, st, vt maths.Rat) *GovernorSettings {
 	return &GovernorSettings{
 		votingDelay:       votingDelay,
 		votingPeriod:      votingPeriod,
 		proposalThreshold: proposalThreshold,
 		//minDeposit:        minDeposit,
-		quorumNumerator:  qn,
-		succeedNumerator: sn,
-		vetoNumerator:    vn,
+		quorum:           qum,
+		succeedThreshold: st,
+		vetoThreshold:    vt,
 	}
 }
 
@@ -35,8 +36,7 @@ type VotingPeriodSetEvent struct {
 }
 
 type ProposalThresholdSetEvent struct {
-	oldProposalThreshold int64
-	newProposalThreshold int64
+	proposalThreshold maths.Rat
 }
 
 func (gs *GovernorSettings) getVotingDelay() int64 {
@@ -47,7 +47,7 @@ func (gs *GovernorSettings) getVotingPeriod() int64 {
 	return gs.votingPeriod
 }
 
-func (gs *GovernorSettings) getProposalThreshold() int64 {
+func (gs *GovernorSettings) getProposalThreshold() maths.Rat {
 	return gs.proposalThreshold
 }
 
@@ -75,7 +75,7 @@ func (gs *GovernorSettings) setVotingPeriod(newVotingPeriod int64) {
 }
 
 // Update the proposal threshold. This operation can only be performed through a governance proposal.
-func (gs *GovernorSettings) setProposalThreshold(newProposalThreshold int64) {
+func (gs *GovernorSettings) setProposalThreshold(newProposalThreshold maths.Rat) {
 	caller := std.GetOrigCaller()
 	if caller != admin {
 		panic("only governance")
@@ -85,85 +85,32 @@ func (gs *GovernorSettings) setProposalThreshold(newProposalThreshold int64) {
 }
 
 // -------------------------------------------
-type QuorumNumeratorUpdatedEvent struct {
-	oldQuorumNumerator uint64
-	newQuorumNumerator uint64
+type QuorumUpdatedEvent struct {
+	quorum maths.Rat
 }
 
 // Returns the quorum for a block number, in terms of number of votes: `supply * numerator / denominator`.
-func (gs *GovernorSettings) quorum(totalSupply uint64) uint64 {
-	return (totalSupply * gs.getQuorumNumerator()) / gs.getQuorumDenominator()
-}
-
-// Returns the current quorum numerator
-func (gs *GovernorSettings) getQuorumNumerator() uint64 {
-	return gs.quorumNumerator
-}
-
-// Returns the quorum denominator. Defaults to 100.
-func (gs *GovernorSettings) getQuorumDenominator() uint64 {
-	return 100
-}
-
-// Requirements:
-// - Must be called through a governance proposal.
-// - New numerator must be smaller or equal to the denominator.
-func (gs *GovernorSettings) updateQuorumNumerator(newQuorumNumerator uint64) {
-	if newQuorumNumerator > gs.getQuorumDenominator() {
-		panic("GovernorVotesQuorumFraction: quorumNumerator over quorumDenominator")
-	}
-	// oldQuorumNumerator := gvqf.quorumNumerator
-	gs.quorumNumerator = newQuorumNumerator
-	// emit QuorumNumeratorUpdated(oldQuorumNumerator, newQuorumNumerator);
+func (gs *GovernorSettings) getQuorum() maths.Rat {
+	return gs.quorum
 }
 
 // -----------------------------------------------
 
-type SucceedNumeratorUpdatedEvent struct {
-	oldSucceedNumerator uint64
-	newSucceedNumerator uint64
+type SucceedThresholdUpdatedEvent struct {
+	succeedThreshold maths.Rat
 }
 
 // Returns the current quorum numerator
-func (gs *GovernorSettings) getSucceedNumerator() uint64 {
-	return gs.succeedNumerator
-}
-
-// Returns the quorum denominator. Defaults to 100.
-func (gs *GovernorSettings) getSucceedDenominator() uint64 {
-	return 3
-}
-
-func (gs *GovernorSettings) updateSucceedNumerator(newSucceedNumerator uint64) {
-	if newSucceedNumerator > gs.getSucceedDenominator() {
-		panic("GovernorVotesQuorumFraction: quorumNumerator over quorumDenominator")
-	}
-	// oldQuorumNumerator := gvqf.quorumNumerator
-	gs.succeedNumerator = newSucceedNumerator
-	// emit QuorumNumeratorUpdated(oldQuorumNumerator, newQuorumNumerator);
+func (gs *GovernorSettings) getSucceedThreshold() maths.Rat {
+	return gs.succeedThreshold
 }
 
 // ----------------------------------------------------
-type VetoNumeratorUpdatedEvent struct {
-	oldVetoNumerator uint64
-	newVetoNumerator uint64
+type VetoThresholdUpdatedEvent struct {
+	vetoThreshold maths.Rat
 }
 
 // Returns the current quorum numerator
-func (gs *GovernorSettings) getVetoNumerator() uint64 {
-	return gs.vetoNumerator
-}
-
-// Returns the quorum denominator. Defaults to 100.
-func (gs *GovernorSettings) getVetoDenominator() uint64 {
-	return 3
-}
-
-func (gs *GovernorSettings) updateVetoNumerator(newVetoNumerator uint64) {
-	if newVetoNumerator > gs.getVetoDenominator() {
-		panic("GovernorVotesQuorumFraction: quorumNumerator over quorumDenominator")
-	}
-	// oldQuorumNumerator := gvqf.quorumNumerator
-	gs.vetoNumerator = newVetoNumerator
-	// emit QuorumNumeratorUpdated(oldQuorumNumerator, newQuorumNumerator);
+func (gs *GovernorSettings) getVetoThreshold() maths.Rat {
+	return gs.vetoThreshold
 }

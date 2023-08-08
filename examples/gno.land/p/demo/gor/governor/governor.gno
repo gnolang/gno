@@ -35,16 +35,6 @@ func (gvr *Governor) GetVersion() string {
 	return "1"
 }
 
-//func (gvr *Governor) Tally(proposalId string) (ProposalState, *TallyResult, error) {
-//	println("tally------")
-//	state := gvr.state(proposalId)
-//	tallyRes, err := gvr.tally.Tally(proposalId)
-//	if err != nil {
-//		return Pending, nil, err
-//	}
-//	return state, tallyRes, nil
-//}
-
 // TODO: other settings
 // update all configs
 func (gvr *Governor) SetVotingDelay(vd int64) {
@@ -93,10 +83,9 @@ func (gvr *Governor) RenderHome(propID string) string {
 	str := "\n"
 	str += ufmt.Sprintf("***gvr name***: %s\n", gvr.GetName())
 	str += ufmt.Sprintf("***gvr version***: %s\n", gvr.GetVersion())
-	str += ufmt.Sprintf("***Proposal state is***: %s\n", state.String())
+	str += ufmt.Sprintf("***Current height is***: %d\n", std.GetHeight())
 	str += ufmt.Sprintf("***Proposal snapShot is***: %d\n", snapShot)
 	str += ufmt.Sprintf("***Proposal deadLine is***: %d\n", deadLine)
-	str += ufmt.Sprintf("***Current height is***: %d\n", std.GetHeight())
 	//str += ufmt.Sprintf("* **Proposal deposit is***: %s\n", totalDeposit.String())
 	//str += ufmt.Sprintf("* **isBurnDeposit :***: %t\n", isBurnDeposit)
 
@@ -105,10 +94,12 @@ func (gvr *Governor) RenderHome(propID string) string {
 		println(err.Error())
 	} else {
 		tallyRes.tr.Iterate("", "", func(key string, value interface{}) bool {
-			str += ufmt.Sprintf("***Proposal vote %s is***: %d\n", key, value.(uint64))
+			str += ufmt.Sprintf("***Proposal vote %s is***: %d\n", key, int64(value.(int32)))
 			return false
 		})
 	}
+
+	str += ufmt.Sprintf("***Proposal state is***: %s\n", state.String())
 
 	return str
 }

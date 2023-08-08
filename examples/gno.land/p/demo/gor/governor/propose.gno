@@ -257,10 +257,8 @@ func (gvr *Governor) state(propID string) ProposalState {
 		}
 		if gvr.vetoReached(tallyRes) {
 			return Vetoed
-			println("vetoed--------")
 		} else if !gvr.voteSucceeded(tallyRes) {
 			return Defeated
-			println("fail--------")
 		}
 	} else {
 		return QuorumNotReach
@@ -268,6 +266,6 @@ func (gvr *Governor) state(propID string) ProposalState {
 	return Succeeded
 }
 
-func (gvr *Governor) RenderProposal(propID string) string {
-
-}
+//func (gvr *Governor) RenderProposal(propID string) string {
+//
+//}

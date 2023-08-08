@@ -1,5 +1,7 @@
 package governor
 
+import "gno.land/p/demo/maths"
+
 type VoteType int
 
 const (
@@ -41,24 +43,41 @@ func str2VoteType(str string) VoteType {
 
 // ---------------------------------------------
 // check if quorum reached
-func (gvr *Governor) quorumReached(totalVotingPower uint64) bool {
-	return gvr.gs.quorum(gvr.votingPower.Total()) <= totalVotingPower
+func (gvr *Governor) quorumReached(totalVotingPower int32) bool {
+	left := maths.NewRat(totalVotingPower, gvr.votingPower.Total())
+	right := gvr.gs.getQuorum()
+	r := left.Cmp(right)
+	if r == -1 {
+		return false
+	}
+	return true
 }
 
 // veto reached, 33.4
 func (gvr *Governor) vetoReached(result *TallyResult) bool {
-	// all voting power
+	// all votes
 	votes := result.GetVotesByType(For) + result.GetVotesByType(Abstain) + result.GetVotesByType(Against) + result.GetVotesByType(NoWithVeto)
-	vetoThreshold := votes * gvr.gs.getVetoNumerator() / gvr.gs.getVetoDenominator()
-	return result.GetVotesByType(NoWithVeto) >= vetoThreshold
+	left := maths.NewRat(result.GetVotesByType(NoWithVeto), votes)
+	right := gvr.gs.getVetoThreshold()
+	r := left.Cmp(right)
+	if r == -1 {
+		return false
+	}
+	return true
 }
 
 // TODO: super majority required
 func (gvr *Governor) voteSucceeded(result *TallyResult) bool {
 	// get all votes count
 	votes := result.GetVotesByType(For) + result.GetVotesByType(Abstain) + result.GetVotesByType(Against) + result.GetVotesByType(NoWithVeto)
-	succeedThreshold := votes * gvr.gs.getSucceedNumerator() / gvr.gs.getSucceedDenominator()
-	return result.GetVotesByType(For) >= succeedThreshold
+	left := maths.NewRat(result.GetVotesByType(For), votes)
+	right := gvr.gs.getSucceedThreshold()
+
+	r := left.Cmp(right)
+	if r == -1 {
+		return false
+	}
+	return true
 }
 
 // TODO: undetermined rules

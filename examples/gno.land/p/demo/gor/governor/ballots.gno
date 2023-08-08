@@ -83,7 +83,7 @@ func (pv *ProposalVotes) Tally(propID string) (*TallyResult, error) {
 	//snapshot := std.GetHeight()
 
 	// init voting power, to check quorum and veto
-	var votingPower uint64 // total voting power, to determine if quorum or veto reached
+	var votingPower int32 // total voting power, to determine if quorum or veto reached
 	var result = NewTallyResult()
 
 	// get all votes, and iterate to tally
@@ -102,10 +102,10 @@ func (pv *ProposalVotes) Tally(propID string) (*TallyResult, error) {
 		// TODO: get voting power by setting, 1 member 1 vote, or calculated by different criterion
 		vt := value.(VoteType)
 		//result.tr[vt] += 1 // accumulate by vote type
-		var count uint64
+		var count int32
 		icount, ok := result.tr.Get(vt.String())
 		if ok {
-			count = icount.(uint64) // else 0
+			count = icount.(int32) // else 0
 		}
 		count += 1
 		result.tr.Set(vt.String(), count) // update

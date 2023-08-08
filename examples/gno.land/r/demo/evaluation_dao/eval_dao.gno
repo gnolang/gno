@@ -3,6 +3,7 @@ package evaldao
 import (
 	"gno.land/p/demo/gor/counters"
 	governor "gno.land/p/demo/gor/governor"
+	"gno.land/p/demo/maths"
 	"gno.land/r/demo/groups"
 	"std"
 	"strconv"
@@ -33,7 +34,13 @@ func CreateDAO() {
 
 	votingPower := governor.NewNoCoinAdapter(evalDAO)
 	tally := governor.NewProposalVotes()
-	gs := governor.NewGovernorSettings(0, 5, 0, 40, 67, 34)
+
+	proposalThreshold := maths.NewRat(0, 1)
+	quorum := maths.NewRat(1, 3)
+	succeedThreshold := maths.NewRat(2, 3)
+	vetoThreshold := maths.NewRat(1, 3)
+
+	gs := governor.NewGovernorSettings(0, 5, proposalThreshold, quorum, succeedThreshold, vetoThreshold)
 	gvr = governor.NewGovernor("eval_governor", votingPower, tally, gs)
 
 	// TODO:

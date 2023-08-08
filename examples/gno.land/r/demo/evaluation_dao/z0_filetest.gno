@@ -52,6 +52,15 @@ func main() {
 		println(err.Error())
 	}
 	println(evaldao.RenderGvr(propID))
+
+	std.TestSetOrigCaller(member3)
+	err = evaldao.CastVote(propID, "for")
+	if err != nil {
+		println(err.Error())
+	}
+
+	std.TestSkipHeights(5) // skip voting period
+	println(evaldao.RenderGvr(propID))
 }
 
 // Output:
