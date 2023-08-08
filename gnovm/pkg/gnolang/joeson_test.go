@@ -68,6 +68,7 @@ type (
 	parsesAsChar   struct{ rune }   // strict string equality
 	isBasicLit     struct{ kind Word }
 	isSelectorExpr struct{}
+	isNameExpr     struct{}
 	errorIs        struct{ string }
 	errorContains  struct{ string }
 	noError        struct{}
@@ -80,6 +81,7 @@ var (
 	_ predicate = parsesAsChar{}
 	_ predicate = isBasicLit{}
 	_ predicate = isSelectorExpr{}
+	_ predicate = isNameExpr{}
 	_ predicate = errorIs{}
 	_ predicate = errorContains{}
 	_ predicate = noError{}
@@ -217,6 +219,16 @@ func (v isSelectorExpr) satisfies(ast j.Ast, expectation expectation) error {
 	if _, ok := ast.(*SelectorExpr); !ok {
 		return errors.New(fmt.Sprintf(
 			"was expecting &SelectorExpr, got %s",
+			reflect.TypeOf(ast).String(),
+		))
+	}
+	return nil
+}
+
+func (v isNameExpr) satisfies(ast j.Ast, expectation expectation) error {
+	if _, ok := ast.(*NameExpr); !ok {
+		return errors.New(fmt.Sprintf(
+			"was expecting &NameExpr, got %s",
 			reflect.TypeOf(ast).String(),
 		))
 	}
@@ -389,8 +401,37 @@ func TestJoeson(t *testing.T) {
 		expect(`"\\U000065e5\\U0000672c\\U00008a9e"`, parsesAs{"日本語"}, isBasicLit{STRING}),             // the explicit Unicode code points
 		expect(`"\\xe6\\x97\\xa5\\xe6\\x9c\\xac\\xe8\\xaa\\x9e"`, parsesAs{"日本語"}, isBasicLit{STRING}), // the explicit UTF-8 bytes
 
-		// expect(`package math`, parsesAs{"package math"}), // unsupported by X()
+		// Identifiers
+		expect(`a`, parsesAs{"a<VPUverse(0)>"}, isNameExpr{}),
+		expect(`_x9`, parsesAs{"_x9<VPUverse(0)>"}, isNameExpr{}),
+		expect(`ThisVariableIsExported`, parsesAs{"ThisVariableIsExported<VPUverse(0)>"}, isNameExpr{}),
+		expect(`αβ`, parsesAs{"αβ<VPUverse(0)>"}, isNameExpr{}),
+
+		/*
+			* https://dev.to/flopp/golang-identifiers-vs-unicode-1fe7
+				Valid identifiers:
+
+				    abc_123
+				    _myidentifier
+				    Σ (U+03A3 GREEK CAPITAL LETTER SIGMA)
+				    㭪 (some CJK character from the Lo category)
+				    x٣३߃૩୩3 (x + decimal digits 3 from various scripts)
+
+				Invalid identifiers:
+
+				    42 (does not start with a letter)
+				    😀 (not a letter, but So / Symbol, other)
+				    ⽔ (not a letter, but So / Symbol, other)
+				    x🌞 (starts with a letter, but contains non-letter/digit characters)
+		*/
+
+		// expect(`package math`, parsesAs{"package math"}), // unsupported by X() AFAIK
 		expect(`math.Sin`, parsesAs{"math<VPUverse(0)>.Sin"}, isSelectorExpr{}), // denotes the Sin function in package math
+
+		// Calls
+		expect(`math.Atan2(x, y)`, parsesAs{"math.Atan2(x, y)"}), // function call
+		// expect(`var pt *Point`, parsesAs{"var pt *Point"}),       // function call
+		// expect(`pt.Scale(3.5)`, parsesAs{"pt.Scale(3.5)"}),       // method call with receiver pt
 
 		// expect(`h(x+y)`, parsesAs{"h( x + y )"}), //
 		// expect(`f.Close()`, parsesAs{"h( x + y )"}),
