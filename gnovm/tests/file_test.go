@@ -109,7 +109,7 @@ func TestRunFileTest(t *testing.T) {
 	// Get root location of github.com/gnolang/gno
 	goModPath, err := exec.Command("go", "env", "GOMOD").CombinedOutput()
 	require.NoError(t, err)
-	rootDir := path.Dir(string(goModPath))
+	rootDir := filepath.Dir(string(goModPath))
 	// Build a fresh gno binary in a temp directory
 	gnoBin := path.Join(t.TempDir(), "gno")
 	err = exec.Command("go", "build", "-o", gnoBin, filepath.Join(rootDir, "gnovm", "cmd", "gno")).Run()
