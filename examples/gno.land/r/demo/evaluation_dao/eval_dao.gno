@@ -9,6 +9,7 @@ import (
 	"strconv"
 )
 
+// TODO: need a keeper for DAO, DAO=groups+governor
 var (
 	evalDAO *groups.Group
 	groupID groups.GroupID
@@ -35,22 +36,23 @@ func CreateDAO() {
 	votingPower := governor.NewNoCoinAdapter(evalDAO)
 	tally := governor.NewProposalVotes()
 
+	// settings
 	proposalThreshold := maths.NewRat(0, 1)
 	quorum := maths.NewRat(1, 3)
 	succeedThreshold := maths.NewRat(2, 3)
 	vetoThreshold := maths.NewRat(1, 3)
-
 	gs := governor.NewGovernorSettings(0, 5, proposalThreshold, quorum, succeedThreshold, vetoThreshold)
-	gvr = governor.NewGovernor("eval_governor", votingPower, tally, gs)
 
-	// TODO:
-	// render governor
-	// render proposal
+	gvr = governor.NewGovernor("eval_governor", votingPower, tally, gs)
 }
 
 // DAO miscs
-func AddMember(addr std.Address) {
-	groups.AddMember(2, "g1vahx7atnv4erxh6lta047h6lta047h6ll85gpy", 55, "metadata3")
+func AddMember(addr std.Address, weight int, meta string) {
+	groups.AddMember(groupID, addr.String(), weight, meta)
+}
+
+func RenderGroup() string {
+	return groups.RenderGroup(groupID)
 }
 
 func TotalVotingPower() uint64 {

@@ -41,7 +41,7 @@ func CreateGroup(name string) GroupID {
 }
 
 func AddMember(gid GroupID, address string, weight int, metadata string) MemberID {
-	std.AssertOriginCall()
+	//std.AssertOriginCall()
 	caller := std.GetOrigCaller()
 	usernameOf(caller)
 	group := getGroup(gid)

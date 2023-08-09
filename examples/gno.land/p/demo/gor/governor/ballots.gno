@@ -6,6 +6,12 @@ import (
 	std "std"
 )
 
+// TODO: weight vote
+//type weightVote struct {
+//	voter std.Address
+//	vt    VoteType
+//}
+
 // ---------------------------------------------------
 type Votes struct {
 	vs *avl.Tree
@@ -50,13 +56,7 @@ func (pv *ProposalVotes) hasVoted(proposalId string, account std.Address) bool {
 // this method counts who votes, in a map vote => voteType
 // 1:1, voting power will be calculated in Tally process
 func (pv *ProposalVotes) CastVote(propID string, account std.Address, vt VoteType) error {
-	//println("ballots cast vote")
-	//println("propID: ", propID)
-	//println("voter: ", account.String())
-	//println("vote type: ", vt.String())
-
 	var votes *Votes
-
 	vsI, ok := pv.propVotes.Get(propID)
 	if !ok { // if vote not exist, means no one vote yet
 		votes = NewVotes()

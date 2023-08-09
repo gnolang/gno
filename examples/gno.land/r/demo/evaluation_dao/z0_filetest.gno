@@ -43,9 +43,20 @@ func main() {
 	println("payee3:", payee3)
 
 	// start building Dao
+	std.TestSetOrigCaller(member3)
+	users.Register("", "member3", "my profile")
+	std.TestSetOrigCaller(member2)
+	users.Register("", "member2", "my profile")
 	std.TestSetOrigCaller(member1)
-	users.Register("", "gnouser", "my profile")
+	users.Register("", "member1", "my profile")
+
+	// create DAO
 	evaldao.CreateDAO()
+	// add member
+	evaldao.AddMember(member1, 1, "this is member1")
+	evaldao.AddMember(member2, 1, "this is member2")
+	evaldao.AddMember(member3, 1, "this is member3")
+	println(evaldao.RenderGroup())
 
 	// propose
 	amount := std.Coins{{"ugnot", 200000000}}
