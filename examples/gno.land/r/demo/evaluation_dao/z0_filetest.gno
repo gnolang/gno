@@ -10,11 +10,12 @@ import (
 )
 
 func main() {
+	// simulate treasury
 	treasuryAddr := std.DerivePkgAddr("gno.land/p/demo/gor")
 	println("treasury addr: ", treasuryAddr)
 	std.TestSetOrigPkgAddr(treasuryAddr)
-	std.TestIssueCoins(treasuryAddr, std.Coins{{"ugnot", 200000000}})
-	std.TestSetOrigSend(std.Coins{{"ugnot", 200000000}}, nil)
+	std.TestIssueCoins(treasuryAddr, std.Coins{{"ugnot", 1000000000}})
+	std.TestSetOrigSend(std.Coins{{"ugnot", 1000000000}}, nil)
 
 	banker := std.GetBanker(std.BankerTypeReadonly)
 	treasuryBalance := banker.GetCoins(treasuryAddr)
@@ -47,7 +48,8 @@ func main() {
 	evaldao.CreateDAO()
 
 	// propose
-	propID := evaldao.Propose(evaldao.ProposalID(), "this is title", "this is detail", "this is summary", "this is url", payee1, "send_proposal")
+	amount := std.Coins{{"ugnot", 200000000}}
+	propID := evaldao.Propose(evaldao.ProposalID(), "this is title", "this is detail", "this is summary", "this is url", payee1, amount, "send_proposal")
 	println("proposed, ID is: ", propID)
 	println(evaldao.RenderGvr(propID))
 
@@ -89,6 +91,8 @@ func main() {
 
 	payee1Balance = banker.GetCoins(payee1)
 	println("payee1 balance after send is: ", payee1Balance)
+
+	// propose all over again
 
 	// calculate tier membership, propose, vote, execute, etc
 }

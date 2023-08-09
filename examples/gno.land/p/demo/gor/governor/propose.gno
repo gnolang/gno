@@ -47,7 +47,7 @@ func (ps ProposalState) String() string {
 }
 
 // state of proposal
-type ProposalCore struct {
+type proposalStatus struct {
 	voteStart *timers.BlockNumber
 	voteEnd   *timers.BlockNumber
 	//executed  bool
@@ -55,14 +55,14 @@ type ProposalCore struct {
 	state ProposalState
 }
 
-func NewProposalCore() *ProposalCore {
-	return &ProposalCore{
+func NewProposalCore() *proposalStatus {
+	return &proposalStatus{
 		voteStart: &timers.BlockNumber{},
 		voteEnd:   &timers.BlockNumber{},
 	}
 }
 
-type ProposalMeta struct {
+type proposalMeta struct {
 	title   string
 	author  std.Address
 	detail  string
@@ -109,12 +109,13 @@ func str2ProposalKind(str string) ProposalKind {
 	}
 }
 
-type Proposal struct {
+type proposal struct {
 	proposalID  string
 	propKind    ProposalKind
 	payee       std.Address
-	meta        *ProposalMeta
-	core        *ProposalCore
+	amount      std.Coins
+	meta        *proposalMeta
+	core        *proposalStatus
 	deposits    *avl.Tree // proposalId <=> Amount, total amount
 	depositList *avl.Tree // proposalId <=> (caller <=> amount)
 	proposer    std.Address
@@ -123,12 +124,12 @@ type Proposal struct {
 	// callable /r/demo/xxx
 }
 
-func (gvr *Governor) getProposal(propID string) (*Proposal, error) {
+func (gvr *Governor) getProposal(propID string) (*proposal, error) {
 	propI, ok := gvr.proposals.Get(propID)
 	if !ok {
 		return nil, ErrProposalNotExist
 	}
-	proposal := propI.(*Proposal)
+	proposal := propI.(*proposal)
 	return proposal, nil
 }
 
@@ -137,7 +138,7 @@ func (gvr *Governor) proposalSnapshot(propID string) int64 {
 	if !ok {
 		panic("Governor: proposal not exist")
 	}
-	proposal := proposalI.(*Proposal)
+	proposal := proposalI.(*proposal)
 	return proposal.core.voteStart.GetDeadline()
 }
 
@@ -146,19 +147,20 @@ func (gvr *Governor) proposalDeadline(propID string) int64 {
 	if !found {
 		panic("Governor: proposal not exist")
 	}
-	proposal := proposalI.(*Proposal)
+	proposal := proposalI.(*proposal)
 	return proposal.core.voteEnd.GetDeadline()
 }
 
-func (gvr *Governor) Propose(propID string, title, detail, summary, url string, payee std.Address, propKind string) string {
-	prop := &Proposal{
+func (gvr *Governor) Propose(propID string, title, detail, summary, url string, payee std.Address, amount std.Coins, propKind string) string {
+	prop := &proposal{
 		proposalID: propID,
 		propKind:   str2ProposalKind(propKind),
 		proposer:   std.GetOrigCaller(), // EOA account
 		payee:      payee,
+		amount:     amount,
 		core:       NewProposalCore(),
 	}
-	meta := &ProposalMeta{
+	meta := &proposalMeta{
 		title:   title,
 		detail:  detail,
 		summary: summary,
@@ -201,7 +203,7 @@ func (gvr *Governor) Execute(propID string) {
 		banker := std.GetBanker(std.BankerTypeOrigSend)
 		pkgaddr := std.GetOrigPkgAddr()
 		// TODO: use std.Coins constructors, this isn't generally safe.
-		banker.SendCoins(pkgaddr, proposal.payee, std.Coins{{"ugnot", 200000000}})
+		banker.SendCoins(pkgaddr, proposal.payee, proposal.amount)
 	}
 
 	// TODO: do the transfer to payees

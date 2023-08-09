@@ -73,9 +73,9 @@ func RenderGvr(propID string) string {
 	return gvr.RenderHome(propID)
 }
 
-func Propose(propID string, title, detail, summary, url string, payee std.Address, propType string) string {
+func Propose(propID string, title, detail, summary, url string, payee std.Address, amount std.Coins, propType string) string {
 	std.AssertOriginCall()
-	proposalID := gvr.Propose(propID, title, detail, summary, url, payee, propType)
+	proposalID := gvr.Propose(propID, title, detail, summary, url, payee, amount, propType)
 	return proposalID
 }
 
