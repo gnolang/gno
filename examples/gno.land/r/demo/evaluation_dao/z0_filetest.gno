@@ -10,42 +10,63 @@ import (
 )
 
 func main() {
-	// test1 -> test2
+	treasuryAddr := std.DerivePkgAddr("gno.land/p/demo/gor")
+	println("treasury addr: ", treasuryAddr)
+	std.TestSetOrigPkgAddr(treasuryAddr)
+	std.TestIssueCoins(treasuryAddr, std.Coins{{"ugnot", 200000000}})
+	std.TestSetOrigSend(std.Coins{{"ugnot", 200000000}}, nil)
+
+	banker := std.GetBanker(std.BankerTypeReadonly)
+	treasuryBalance := banker.GetCoins(treasuryAddr)
+	println("treasury after issue: ", treasuryBalance)
+
+	// members in evaluation DAO
 	member1 := testutils.TestAddress("member1")
 	println("member1:", member1)
 	member2 := testutils.TestAddress("member2")
 	println("member2:", member2)
 	member3 := testutils.TestAddress("member3")
 	println("member3:", member3)
-	payee := testutils.TestAddress("payee")
-	println("payee:", payee)
 
+	// members in another DAO
+	payee1 := testutils.TestAddress("payee1")
+	println("payee1:", payee1)
+
+	payee1Balance := banker.GetCoins(payee1)
+	println("payee1 balance before send is: ", payee1Balance)
+
+	payee2 := testutils.TestAddress("payee2")
+	println("payee2:", payee2)
+
+	payee3 := testutils.TestAddress("payee3")
+	println("payee3:", payee3)
+
+	// start building Dao
 	std.TestSetOrigCaller(member1)
-
 	users.Register("", "gnouser", "my profile")
 	evaldao.CreateDAO()
 
-	propID := evaldao.Propose(evaldao.ProposalID(), "this is title", "this is detail", "this is summary", "this is url", payee, "send_proposal")
+	// propose
+	propID := evaldao.Propose(evaldao.ProposalID(), "this is title", "this is detail", "this is summary", "this is url", payee1, "send_proposal")
 	println("proposed, ID is: ", propID)
-
 	println(evaldao.RenderGvr(propID))
 
-	// TODO: vote, render proposal
-	std.TestSkipHeights(1) //skip current block, to vote
-
+	std.TestSkipHeights(1) //skip current block, into voting period
+	// vote
 	err := evaldao.CastVote(propID, "for")
 	if err != nil {
 		println(err.Error())
 	}
 	println(evaldao.RenderGvr(propID))
 
-	// same account vote again
+	// same account vote again, this is forbidden
 	err = evaldao.CastVote(propID, "against")
 	if err != nil {
 		println(err.Error())
 	}
 	println(evaldao.RenderGvr(propID))
 
+	// switch user and vote
 	std.TestSetOrigCaller(member2)
 	err = evaldao.CastVote(propID, "against")
 	if err != nil {
@@ -53,6 +74,7 @@ func main() {
 	}
 	println(evaldao.RenderGvr(propID))
 
+	// switch user and vote
 	std.TestSetOrigCaller(member3)
 	err = evaldao.CastVote(propID, "for")
 	if err != nil {
@@ -61,6 +83,14 @@ func main() {
 
 	std.TestSkipHeights(5) // skip voting period
 	println(evaldao.RenderGvr(propID))
+
+	// execute
+	evaldao.Execute(propID)
+
+	payee1Balance = banker.GetCoins(payee1)
+	println("payee1 balance after send is: ", payee1Balance)
+
+	// calculate tier membership, propose, vote, execute, etc
 }
 
 // Output:

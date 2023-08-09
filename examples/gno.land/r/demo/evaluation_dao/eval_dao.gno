@@ -86,3 +86,8 @@ func CastVote(propID string, vt string) error {
 	}
 	return nil
 }
+
+func Execute(propID string) {
+	std.AssertOriginCall()
+	gvr.Execute(propID)
+}

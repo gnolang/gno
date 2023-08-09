@@ -155,6 +155,7 @@ func (gvr *Governor) Propose(propID string, title, detail, summary, url string, 
 		proposalID: propID,
 		propKind:   str2ProposalKind(propKind),
 		proposer:   std.GetOrigCaller(), // EOA account
+		payee:      payee,
 		core:       NewProposalCore(),
 	}
 	meta := &ProposalMeta{
@@ -193,6 +194,16 @@ func (gvr *Governor) Execute(propID string) {
 	}
 
 	// TODO: call callable
+
+	if proposal.propKind == SendProposal {
+		// get banker
+		// send coin to payee
+		banker := std.GetBanker(std.BankerTypeOrigSend)
+		pkgaddr := std.GetOrigPkgAddr()
+		// TODO: use std.Coins constructors, this isn't generally safe.
+		banker.SendCoins(pkgaddr, proposal.payee, std.Coins{{"ugnot", 200000000}})
+	}
+
 	// TODO: do the transfer to payees
 
 	proposal.core.state = Executed
