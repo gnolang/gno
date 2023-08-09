@@ -6,10 +6,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
+
+var reParseRecover = regexp.MustCompile(`^(.+):(\d+): ?(.*)$`)
 
 type lintCfg struct {
 	verbose       bool
@@ -41,7 +47,7 @@ func (c *lintCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.IntVar(&c.setExitStatus, "set_exit_status", 1, "set exit status to 1 if any issues are found")
 }
 
-func execLint(cfg *lintCfg, args []string, io *commands.IO) error {
+func execLint(cfg *lintCfg, args []string, cio *commands.IO) error {
 	if len(args) < 1 {
 		return flag.ErrHelp
 	}
@@ -62,23 +68,100 @@ func execLint(cfg *lintCfg, args []string, io *commands.IO) error {
 	hasError := false
 	addIssue := func(issue lintIssue) {
 		hasError = true
-		fmt.Fprint(io.Err, issue.String()+"\n")
+		fmt.Fprint(cio.Err, issue.String()+"\n")
 	}
 
 	for _, pkgPath := range pkgPaths {
 		if verbose {
-			fmt.Fprintf(io.Err, "Linting %q...\n", pkgPath)
+			fmt.Fprintf(cio.Err, "Linting %q...\n", pkgPath)
 		}
 
 		// 'gno.mod' exists?
-		gnoModPath := filepath.Join(pkgPath, "gno.mod")
-		if !osm.FileExists(gnoModPath) {
-			addIssue(lintIssue{
-				Code:       lintNoGnoMod,
-				Confidence: 1,
-				Location:   pkgPath,
-				Msg:        "missing 'gno.mod' file",
-			})
+		{
+			gnoModPath := filepath.Join(pkgPath, "gno.mod")
+			if !osm.FileExists(gnoModPath) {
+				addIssue(lintIssue{
+					Code:       lintNoGnoMod,
+					Confidence: 1,
+					Location:   pkgPath,
+					Msg:        "missing 'gno.mod' file",
+				})
+			}
+		}
+
+		// run gno machine to detect basic package errors
+		{
+			var (
+				stdout = cio.Out
+				stdin  = cio.In
+				stderr = cio.Err
+
+				testStore = tests.TestStore(
+					rootDir, "",
+					stdin, stdout, stderr,
+					tests.ImportModeStdlibsOnly,
+				)
+			)
+
+			// reuse test run files
+			func() {
+				// Save the original stdout.
+				originalStdout := os.Stdout
+
+				defer func() {
+					r := recover()
+					os.Stdout = originalStdout
+					if r != nil {
+						if err, ok := r.(error); ok {
+							loc := strings.TrimSpace(err.Error())
+							// @FIXME: this should not happen, loc should not contain package path
+							loc = strings.TrimPrefix(loc, pkgPath+"/")
+							subm := reParseRecover.FindStringSubmatch(loc)
+							if len(subm) > 0 {
+								// subm[1]: file
+								// subm[2]: line
+								// subm[3]: error
+								addIssue(lintIssue{
+									Code:       lintGnoError,
+									Confidence: 1,
+									Location:   fmt.Sprintf("%s:%s", subm[1], subm[2]),
+									Msg:        strings.TrimSpace(subm[3]),
+								})
+							}
+						}
+					}
+				}()
+				os.Stdout, _ = os.Open(os.DevNull)
+
+				memPkg := gno.ReadMemPackage(filepath.Dir(pkgPath), pkgPath)
+				m := tests.TestMachine(testStore, stdout, memPkg.Name)
+
+				// check package
+				m.RunMemPackage(memPkg, true)
+
+				// check test files
+				{
+					testfiles := &gno.FileSet{}
+					for _, mfile := range memPkg.Files {
+						if !strings.HasSuffix(mfile.Name, ".gno") {
+							continue // skip this file.
+						}
+
+						n, _ := gno.ParseFile(mfile.Name, mfile.Body)
+						if n == nil {
+							continue
+						}
+
+						if strings.HasSuffix(mfile.Name, "_test.gno") {
+							testfiles.AddFiles(n)
+						}
+					}
+
+					m.RunFiles(testfiles.Files...)
+				}
+				// Reset os.Stdout to its original value.
+				os.Stdout = originalStdout
+			}()
 		}
 
 		// TODO: add more checkers
@@ -95,6 +178,8 @@ type lintCode int
 const (
 	lintUnknown  lintCode = 0
 	lintNoGnoMod lintCode = iota
+	lintGnoError
+
 	// TODO: add new linter codes here.
 )
 
