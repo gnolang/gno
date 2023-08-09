@@ -1,0 +1,7 @@
+---
+id: installation
+---
+
+# Installation
+
+TODO
