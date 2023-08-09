@@ -51,6 +51,14 @@ func AddMember(addr std.Address, weight int, meta string) {
 	groups.AddMember(groupID, addr.String(), weight, meta)
 }
 
+func GetMemberWeight(mid groups.MemberID) int {
+	return groups.GetMemberWeight(groupID, mid)
+}
+
+func GetMemberCount() int {
+	return groups.GetMemberCount(groupID)
+}
+
 func RenderGroup() string {
 	return groups.RenderGroup(groupID)
 }

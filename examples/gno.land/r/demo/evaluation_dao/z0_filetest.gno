@@ -58,6 +58,13 @@ func main() {
 	evaldao.AddMember(member3, 1, "this is member3")
 	println(evaldao.RenderGroup())
 
+	println("weight of member1 is: ", evaldao.GetMemberWeight(0))
+	println("weight of member2 is: ", evaldao.GetMemberWeight(1))
+	println("weight of member2 is: ", evaldao.GetMemberWeight(2))
+
+	// member count
+	println("member count is: ", evaldao.GetMemberCount())
+
 	// propose
 	amount := std.Coins{{"ugnot", 200000000}}
 	propID := evaldao.Propose(evaldao.ProposalID(), "this is title", "this is detail", "this is summary", "this is url", payee1, amount, "send_proposal")

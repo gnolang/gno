@@ -1,7 +1,6 @@
 package governor
 
 import (
-	"gno.land/p/demo/avl"
 	"gno.land/r/demo/groups"
 	"std"
 )
@@ -18,27 +17,25 @@ type VotingPower interface {
 }
 
 type NoCoinAdapter struct {
-	group  *groups.Group
-	member *avl.Tree
+	groupID *groups.GroupID // where voting power comes from
 }
 
-func NewNoCoinAdapter(group *groups.Group) *NoCoinAdapter {
+func NewNoCoinAdapter(gid *groups.GroupID) *NoCoinAdapter {
 	return &NoCoinAdapter{
-		group:  group,
-		member: avl.NewTree(),
+		groupID: gid,
 	}
 }
 
 var _ VotingPower = (*NoCoinAdapter)(nil)
 
 func (nca *NoCoinAdapter) Total() int32 {
-	//return nca.group.GetNum()
-	return 3
+	return groups.GetMemberCount(nca.groupID)
 }
 
 func (nca *NoCoinAdapter) GetVotingPower(account std.Address) int32 {
 	// TODO: return certain number from committee
-	// GetWeight from r/demo/group
+	// GetMemberWeight from r/demo/group
+	// TODO: mid and addr to be consistent
 	return 100
 }
 

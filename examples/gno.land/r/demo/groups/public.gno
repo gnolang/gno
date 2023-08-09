@@ -81,11 +81,12 @@ func DeleteMember(gid GroupID, mid MemberID) {
 	group.deleteMember(mid)
 }
 
-func GetMember(gid GroupID, mid MemberID) {
-	caller := std.GetOrigCaller()
+func GetMemberWeight(gid GroupID, mid MemberID) int {
 	group := getGroup(gid)
-	if !group.HasPermission(caller, DeletePermission) {
-		panic("unauthorized to delete member")
-	}
-	group.deleteMember(mid)
+	return group.getMemberWeight(mid)
+}
+
+func GetMemberCount(gid GroupID) int {
+	group := getGroup(gid)
+	return group.getMemberCount()
 }
