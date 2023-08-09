@@ -361,6 +361,7 @@ Additional native types:
 | go list           |                  |                                                                       |
 | go mod            |                  |                                                                       |
 | + go mod download | gno mod download | same behavior                                                         |
+| + go mod init     | gno mod init     | same behavior                                                         |
 |                   | gno precompile   |                                                                       |
 | go work           |                  |                                                                       |
 |                   | gno repl         |                                                                       |
