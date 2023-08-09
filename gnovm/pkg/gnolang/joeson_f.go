@@ -269,28 +269,35 @@ func fPackageName(it j.Ast, ctx *j.ParseContext) j.Ast {
 
 func fQualifiedIdent(it j.Ast, ctx *j.ParseContext) j.Ast {
 	m := it.(*j.NativeMap)
+	// p:PackageName DOT i:identifier
 	packageName := m.GetOrPanic("p")
-	identifier := m.GetOrPanic("i")
+	identifier := m.GetOrPanic("i").(*NameExpr)
 	return &SelectorExpr{
 		X:   packageName.(*NameExpr),
-		Sel: N(identifier.(*j.NativeArray).Concat()),
+		Sel: identifier.Name,
 	}
 }
 
-// what to return?
-// We can just return a NativeMap here:
-// It would resemble a CallExpr without Func.
+// return a NativeMap,
+// It resembles a CallExpr without Func:
 // "Args"    Exprs        function arguments, if any.
 // "Varg"	 NativeString if "1", final arg is variadic.
 // "NumArgs" NativeInt    len(Args) or len(Args[0].Results)
 func fArguments(it j.Ast, ctx *j.ParseContext) j.Ast {
-	panic(it.String())
-	return it
-	// m := it.(*j.NativeMap)
-	// args := m.GetOrPanic("Args")
-	// varg := m.GetOrPanic("Varg")
-	// m.Set("NumArgs", NewNativeInt(args.Length()))
-	// return m // this will be used in fPrimaryExprArguments()
+	switch m := it.(type) {
+	case j.NativeUndefined:
+		return j.NewNativeMap(map[string]j.Ast{
+			"Args":    j.NewNativeArray([]j.Ast{}),
+			"NumArgs": j.NewNativeInt(0),
+			"Varg":    j.NewNativeString("0"),
+		})
+	case *j.NativeMap:
+		args := m.GetOrPanic("Args").(*j.NativeArray)
+		m.Set("NumArgs", j.NewNativeInt(args.Length()))
+		return m // this will be used in e.g. fPrimaryExprArguments()
+	default:
+		panic("assert")
+	}
 }
 
 // This returns a &CallExpr
@@ -302,27 +309,34 @@ func fPrimaryExprArguments(it j.Ast, ctx *j.ParseContext) j.Ast {
 	for _, v := range arguments.GetOrPanic("Args").(*j.NativeArray).Array {
 		exprs = append(exprs, v.(Expr))
 	}
-	var lastIsVariadic string = arguments.GetOrPanic("Varg").(j.NativeString).Str
-	return &CallExpr{
-		Func:    primaryExpr.(Expr),    // Expr   function expression
-		Args:    exprs,                 // Exprs  function arguments, if any.
-		Varg:    lastIsVariadic == "1", // if true, final arg is variadic.
-		NumArgs: len(exprs),            // len(Args) or len(Args[0].Results)
+	lastIsVariadic := false
+	varg := arguments.GetOrPanic("Varg")
+	if !j.IsUndefined(varg) {
+		lastIsVariadic = varg.(j.NativeString).Str == "1"
 	}
+	return &CallExpr{
+		Func:    primaryExpr.(Expr), // Expr   function expression
+		Args:    exprs,              // Exprs  function arguments, if any.
+		Varg:    lastIsVariadic,     // if true, final arg is variadic.
+		NumArgs: len(exprs),         // len(Args) or len(Args[0].Results)
+	}
+}
+
+func isUnderscore(c rune) bool { return c == '_' }
+
+func fIdentifier(it j.Ast) j.Ast {
+	return Nx(it.(*j.NativeArray).Concat())
 }
 
 // a Parser, this parser must check whether unicode.IsLetter(rune)
 // letter = unicode_letter | '_' .
-func fUnicodeLetter(_ j.Ast, ctx *j.ParseContext) j.Ast {
-	// TODO a func for that in codestream.
+func fLetter(_ j.Ast, ctx *j.ParseContext) j.Ast {
 	// OPTIM NativeString probably not good idea anymore
-	for _, c := range ctx.Code.PeekRunes(1) {
-		fmt.Printf("AAAH: %q\n", c)
-		if c == '_' || unicode.IsLetter(c) {
-			ctx.Code.SetPos(ctx.Code.Pos() + 1)
-			return j.NewNativeString(string(c))
-		}
-		break
+	if isLetter, rune := ctx.Code.MatchRune(unicode.IsLetter); isLetter {
+		return j.NewNativeString(string(rune))
+	} else if is, _ := ctx.Code.MatchRune(isUnderscore); is {
+		return j.NewNativeString(string('_'))
+	} else {
+		return nil
 	}
-	return nil
 }

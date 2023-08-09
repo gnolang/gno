@@ -69,6 +69,7 @@ type (
 	isBasicLit     struct{ kind Word }
 	isSelectorExpr struct{}
 	isNameExpr     struct{}
+	isCallExpr     struct{}
 	errorIs        struct{ string }
 	errorContains  struct{ string }
 	noError        struct{}
@@ -82,6 +83,7 @@ var (
 	_ predicate = isBasicLit{}
 	_ predicate = isSelectorExpr{}
 	_ predicate = isNameExpr{}
+	_ predicate = isCallExpr{}
 	_ predicate = errorIs{}
 	_ predicate = errorContains{}
 	_ predicate = noError{}
@@ -229,6 +231,16 @@ func (v isNameExpr) satisfies(ast j.Ast, expectation expectation) error {
 	if _, ok := ast.(*NameExpr); !ok {
 		return errors.New(fmt.Sprintf(
 			"was expecting &NameExpr, got %s",
+			reflect.TypeOf(ast).String(),
+		))
+	}
+	return nil
+}
+
+func (v isCallExpr) satisfies(ast j.Ast, expectation expectation) error {
+	if _, ok := ast.(*CallExpr); !ok {
+		return errors.New(fmt.Sprintf(
+			"was expecting &CallExpr, got %s",
 			reflect.TypeOf(ast).String(),
 		))
 	}
@@ -395,8 +407,7 @@ func TestJoeson(t *testing.T) {
 		expect(`"\\\""`, parsesAs{`"`}, isBasicLit{STRING}), // same as `"`
 		expect(`"Hello, world!\\n"`, parsesAs{"Hello, world!\n"}, isBasicLit{STRING}),
 		expect(`"\\xff\\u00FF"`, isBasicLit{STRING}),
-		// these 4 examples all represent the same string ("japanese language" written in japanese)
-		expect(`"日本語"`, parsesAs{"日本語"}, isBasicLit{STRING}),
+		expect(`"日本語"`, parsesAs{"日本語"}, isBasicLit{STRING}), // this and the 3 next lines all represent the same string ("japanese")
 		expect(`"\\u65e5本\\U00008a9e"`, parsesAs{"日本語"}, isBasicLit{STRING}),
 		expect(`"\\U000065e5\\U0000672c\\U00008a9e"`, parsesAs{"日本語"}, isBasicLit{STRING}),             // the explicit Unicode code points
 		expect(`"\\xe6\\x97\\xa5\\xe6\\x9c\\xac\\xe8\\xaa\\x9e"`, parsesAs{"日本語"}, isBasicLit{STRING}), // the explicit UTF-8 bytes
@@ -429,12 +440,12 @@ func TestJoeson(t *testing.T) {
 		expect(`math.Sin`, parsesAs{"math<VPUverse(0)>.Sin"}, isSelectorExpr{}), // denotes the Sin function in package math
 
 		// Calls
-		expect(`math.Atan2(x, y)`, parsesAs{"math.Atan2(x, y)"}), // function call
+		expect(`math.Atan2(x, y)`, parsesAs{"math<VPUverse(0)>.Atan2(x<VPUverse(0)>, y<VPUverse(0)>)"}, isCallExpr{}), // function call
 		// expect(`var pt *Point`, parsesAs{"var pt *Point"}),       // function call
 		// expect(`pt.Scale(3.5)`, parsesAs{"pt.Scale(3.5)"}),       // method call with receiver pt
 
-		// expect(`h(x+y)`, parsesAs{"h( x + y )"}), //
-		// expect(`f.Close()`, parsesAs{"h( x + y )"}),
+		expect(`h(x+y)`, parsesAs{"h<VPUverse(0)>(x<VPUverse(0)> + y<VPUverse(0)>)"}, isCallExpr{}),
+		expect(`f.Close()`, parsesAs{"f<VPUverse(0)>.Close()"}, isCallExpr{}),
 		// expect(`<-ch`, parsesAs{"h( x + y )"}),
 		// expect(`(<-ch)`, parsesAs{"h( x + y )"}),
 		// expect(`len("foo")`, parsesAs{"h( x + y )"}), // illegal if len is the built-in function

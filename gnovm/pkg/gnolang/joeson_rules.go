@@ -118,25 +118,19 @@ var (
 		i(named("PackageClause", "'package' PackageName")),
 		i(named("PackageName", "identifier"), fPackageName),
 		// i(named("identifier", "[a-zA-Z_] ([a-zA-Z0-9_])*"), func(it j.Ast) j.Ast { return Nx(it.(*j.NativeArray).Concat()) }),
-		i(named("identifier", "letter (letter | unicode_digit)*"), func(it j.Ast) j.Ast { return Nx(it.(*j.NativeArray).Concat()) }),
+		i(named("identifier", "letter (letter | unicode_digit)*"), fIdentifier),
 		i(named("IdentifierList", "identifier+','")),
 		i(named("characters", "(newline | unicode_char | unicode_letter | unicode_digit)")),
 		i(named("newline", "[\\x{0a}]")),
-		i(named("letter", `(?[^0-9 \t\n\r+(){}[\]<>-])`), fUnicodeLetter), // lookahead next rune, does it look like possible letter? if yes, call fUnicodeLetter and use unicode.IsLetter. gospec = "unicode_letter | '_'"
-		i(named("unicode_char", "[^\\x{0a}]")),                            // "an arbitrary Unicode code point except newline"
-		i(named("unicode_letter", "[a-zA-Z]")),                            // "a Unicode code point categorized as "Letter" TODO it misses all non ASCII
-		i(named("unicode_digit", "[0-9]")),                                // "a Unicode code point categorized as "Number, decimal digit" TODO it misses all non ASCII
+		i(named("letter", `(?[^0-9 \t\n\r+(){}[\]<>-])`), fLetter), // lookahead next rune, not impossible letter? then try parse with fLetter. gospec = "unicode_letter | '_'"
+		i(named("unicode_char", "[^\\x{0a}]")),                     // "an arbitrary Unicode code point except newline"
+		i(named("unicode_letter", "[a-zA-Z]")),                     // "a Unicode code point categorized as "Letter" TODO it misses all non ASCII
+		i(named("unicode_digit", "[0-9]")),                         // "a Unicode code point categorized as "Number, decimal digit" TODO it misses all non ASCII
 		//                         ^^^
 		// For now we'll stick to ANSI for letters and digits. It can later be improved
 		// We looked into unicode specs for them but there are not defined
 		// in https://www.unicode.org/versions/Unicode8.0.0/ch04.pdf Section 4.5
 
-		// "White space, formed from spaces (U+0020), horizontal tabs (U+0009),
-		// carriage returns (U+000D), and newlines (U+000A), is ignored except as
-		// it separates tokens that would otherwise combine into a single token."
-		// i(named("_", "[ \t\n\r]*")),
-		// i(named("__", "[ \t\n\r]+")),
-		// i(named("_T", "';' '\n'?")),
 		i(named("_COMMA", "_ ','")),
 		i(named("_", "( ' ' | '\t' | '\n' | '\r' )*")),
 		i(named("DOT", "'.'")), // when it needs to get captured (by default '.' in a sequence is not captured)
