@@ -4,8 +4,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -173,7 +177,69 @@ func execModTidy(args []string, io *commands.IO) error {
 		return flag.ErrHelp
 	}
 
-	// TODO: Implementation
+	wd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	// TODO: allow from sub dir?
+	modPath := filepath.Join(wd, "gno.mod")
+	if !isFileExist(modPath) {
+		return errors.New("gno.mod not found")
+	}
+
+	imports, err := getGnoImports(wd)
+	if err != nil {
+		return err
+	}
+
+	// Print imports
+	// TODO: remove
+	for i := range imports {
+		fmt.Println(imports[i])
+	}
+
+	// TODO: Add imports to gno.mod file
 
 	return nil
+}
+
+// getGnoImports returns the list of gno imports from a given path recursively.
+// TODO: move this to better location.
+func getGnoImports(path string) ([]string, error) {
+	paths, err := gnoFilesFromArgs([]string{path})
+	if err != nil {
+		return nil, err
+	}
+
+	allImports := make([]string, 0)
+	seen := make(map[string]struct{})
+	for _, path := range paths {
+		filename := filepath.Base(path)
+		if strings.HasSuffix(filename, "_filetest.gno") {
+			continue
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, err
+		}
+		fs := token.NewFileSet()
+		f, err := parser.ParseFile(fs, filename, data, parser.ImportsOnly)
+		if err != nil {
+			return nil, err
+		}
+		for _, imp := range f.Imports {
+			importPath := strings.TrimPrefix(strings.TrimSuffix(imp.Path.Value, `"`), `"`)
+			if !strings.HasPrefix(importPath, "gno.land/") {
+				continue
+			}
+			if _, ok := seen[importPath]; ok {
+				continue
+			}
+			allImports = append(allImports, importPath)
+			seen[importPath] = struct{}{}
+		}
+	}
+	sort.Strings(allImports)
+
+	return allImports, nil
 }
