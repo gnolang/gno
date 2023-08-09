@@ -9,7 +9,7 @@ func TestModApp(t *testing.T) {
 			errShouldBe: "flag: help requested",
 		},
 
-		// test gno.mod
+		// test gno.mod download
 		{
 			args:                 []string{"mod", "download"},
 			testDir:              "../../tests/integ/empty-dir",
@@ -71,6 +71,71 @@ func TestModApp(t *testing.T) {
 			testDir:              "../../tests/integ/replace-with-invalid-module",
 			simulateExternalRepo: true,
 			errShouldContain:     "fetch: writepackage: querychain",
+		},
+
+		// test gno.mod init with no module name
+		{
+			args:                 []string{"mod", "init"},
+			testDir:              "../../tests/integ/valid1",
+			simulateExternalRepo: true,
+		},
+		{
+			args:                 []string{"mod", "init"},
+			testDir:              "../../tests/integ/empty-dir",
+			simulateExternalRepo: true,
+			errShouldBe:          "create gno.mod file: cannot determine package name",
+		},
+		{
+			args:                 []string{"mod", "init"},
+			testDir:              "../../tests/integ/empty-gno1",
+			simulateExternalRepo: true,
+			recoverShouldContain: "expected 'package', found 'EOF'",
+		},
+		{
+			args:                 []string{"mod", "init"},
+			testDir:              "../../tests/integ/empty-gno2",
+			simulateExternalRepo: true,
+			recoverShouldContain: "expected 'package', found 'EOF'",
+		},
+		{
+			args:                 []string{"mod", "init"},
+			testDir:              "../../tests/integ/empty-gno3",
+			simulateExternalRepo: true,
+			recoverShouldContain: "expected 'package', found 'EOF'",
+		},
+		{
+			args:                 []string{"mod", "init"},
+			testDir:              "../../tests/integ/empty-gnomod",
+			simulateExternalRepo: true,
+			errShouldBe:          "create gno.mod file: gno.mod file already exists",
+		},
+
+		// test gno.mod init with module name
+		{
+			args:                 []string{"mod", "init", "gno.land/p/demo/foo"},
+			testDir:              "../../tests/integ/empty-dir",
+			simulateExternalRepo: true,
+		},
+		{
+			args:                 []string{"mod", "init", "gno.land/p/demo/foo"},
+			testDir:              "../../tests/integ/empty-gno1",
+			simulateExternalRepo: true,
+		},
+		{
+			args:                 []string{"mod", "init", "gno.land/p/demo/foo"},
+			testDir:              "../../tests/integ/empty-gno2",
+			simulateExternalRepo: true,
+		},
+		{
+			args:                 []string{"mod", "init", "gno.land/p/demo/foo"},
+			testDir:              "../../tests/integ/empty-gno3",
+			simulateExternalRepo: true,
+		},
+		{
+			args:                 []string{"mod", "init", "gno.land/p/demo/foo"},
+			testDir:              "../../tests/integ/empty-gnomod",
+			simulateExternalRepo: true,
+			errShouldBe:          "create gno.mod file: gno.mod file already exists",
 		},
 	}
 	testMainCaseRun(t, tc)
