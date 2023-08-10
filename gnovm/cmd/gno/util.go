@@ -105,10 +105,16 @@ func fmtDuration(d time.Duration) string {
 }
 
 func guessRootDir() string {
+	// try to get the root directory from the GNOROOT environment variable.
+	if rootdir := os.Getenv("GNOROOT"); rootdir != "" {
+		return filepath.Clean(rootdir)
+	}
+
+	// if GNOROOT is not set, try to guess the root directory using the `go list` command.
 	cmd := exec.Command("go", "list", "-m", "-mod=mod", "-f", "{{.Dir}}", "github.com/gnolang/gno")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Fatal("can't guess --root-dir, please fill it manually.")
+		log.Fatal("can't guess --root-dir, please fill it manually or define the GNOROOT environment variable globally.")
 	}
 	rootDir := strings.TrimSpace(string(out))
 	return rootDir

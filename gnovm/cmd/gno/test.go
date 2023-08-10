@@ -14,13 +14,16 @@ import (
 	"text/template"
 	"time"
 
+	"go.uber.org/multierr"
+
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/random"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
-	"go.uber.org/multierr"
 )
 
 type testCfg struct {
@@ -240,10 +243,8 @@ func gnoTestPkg(
 		stdin  = io.In
 		stdout = io.Out
 		stderr = io.Err
+		errs   error
 	)
-
-	filter := splitRegexp(runFlag)
-	var errs error
 
 	mode := tests.ImportModeStdlibsOnly
 	if cfg.withNativeFallback {
@@ -267,14 +268,23 @@ func gnoTestPkg(
 
 	// testing with *_test.gno
 	if len(unittestFiles) > 0 {
-		memPkg := gno.ReadMemPackage(pkgPath, pkgPath)
+		// Determine gnoPkgPath by reading gno.mod
+		var gnoPkgPath string
+		modfile, err := gnomod.ParseAt(pkgPath)
+		if err == nil {
+			gnoPkgPath = modfile.Module.Mod.Path
+		} else {
+			// unable to read pkgPath from gno.mod, generate a random realm path
+			gnoPkgPath = gno.GnoRealmPkgsPrefixBefore + random.RandStr(8)
+		}
+		memPkg := gno.ReadMemPackage(pkgPath, gnoPkgPath)
 
 		// tfiles, ifiles := gno.ParseMemPackageTests(memPkg)
 		tfiles, ifiles := parseMemPackageTests(memPkg)
 
 		// run test files in pkg
 		{
-			m := tests.TestMachine(testStore, stdout, "main")
+			m := tests.TestMachine(testStore, stdout, gnoPkgPath)
 			if printRuntimeMetrics {
 				// from tm2/pkg/sdk/vm/keeper.go
 				// XXX: make maxAllocTx configurable.
@@ -305,6 +315,7 @@ func gnoTestPkg(
 
 	// testing with *_filetest.gno
 	{
+		filter := splitRegexp(runFlag)
 		for _, testFile := range filetestFiles {
 			testFileName := filepath.Base(testFile)
 			testName := "file/" + testFileName
@@ -377,7 +388,7 @@ func runTestFiles(
 	}
 
 	m.RunFiles(files.Files...)
-	n := gno.MustParseFile("testmain.go", testmain)
+	n := gno.MustParseFile("main_test.gno", testmain)
 	m.RunFiles(n)
 
 	for _, test := range testFuncs.Tests {
