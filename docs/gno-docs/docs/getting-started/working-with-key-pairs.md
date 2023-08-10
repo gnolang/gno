@@ -1,8 +1,8 @@
 ---
-id: creating-a-key-pair
+id: working-with-key-pairs
 ---
 
-# Creating a Key Pair
+# Working with Key Pairs
 
 ## Overview
 
@@ -139,12 +139,52 @@ the key to the keystore.
 
 ## Deleting a private key
 
-TODO
+To delete a private key from the `gnokey` keystore, we need to know the name or address of the key to remove.
+After we have this information, we can run the following command:
+
+```bash
+gnokey delete MyKey
+```
+
+After entering the key decryption password, the key will be deleted from the keystore.
+
+:::caution Recovering a private key
+In case you delete or lose access to your private key in the `gnokey` keystore, you
+can recover it using the key's mnemonic, or by importing it if it was exported at a previous point in time.
+:::
 
 ## Exporting a private key
 
-TODO
+Private keys stored in the `gnokey` keystore can be exported to a desired place
+on the user's filesystem.
+
+Keys are exported in their original armor, encrypted or unencrypted.
+
+To export a key from the keystore, you can run:
+
+```bash
+gnokey export -key MyKey -output-path ~/Work/gno-key.asc
+```
+
+Follow the prompts presented in the terminal. Namely, you will be asked to decrypt the key in the keystore,
+and later to encrypt the armor file on disk. It is worth noting that you can also export unencrypted key armor, using
+the `--unsafe` flag.
+
+![gnokey export](../../static/img/getting-started/creating-a-key-pair/gnokey-export.gif)
 
 ## Importing a private key
 
-TODO
+If you have an exported private key file, you can import it into `gnokey` fairly easily.
+
+For example, if the key is exported at `~/Work/gno-key.asc`, you can run the following command:
+
+```bash
+gnokey import -armor-path ~/Work/gno-key.asc -name ImportedKey
+```
+
+You will be asked to decrypt the encrypted private key armor on disk (if it is encrypted, if not, use the `--unsafe`
+flag), and then to provide an encryption password for storing the key in the keystore.
+
+After executing the previous command, the `gnokey` keystore will have imported `ImportedKey`.
+
+![gnokey import](../../static/img/getting-started/creating-a-key-pair/gnokey-import.gif)
