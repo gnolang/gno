@@ -1,6 +1,9 @@
 package mux
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
 // Router handles the routing and rendering logic.
 type Router struct {
@@ -16,33 +19,48 @@ func NewRouter() *Router {
 	}
 }
 
+func routingMatch(path, patterns []string) bool {
+	switch {
+	case len(patterns) == 0 && len(path) == 0: // good match
+		return true
+	case len(patterns) == 0, len(path) == 0: // bad match
+		return false
+	}
+
+	part := path[0]
+	pattern := patterns[0]
+
+	if pattern == "*" {
+		// Try future pattern to see if we have a match first
+		future := routingMatch(path[1:], patterns[1:])
+		if !future && len(path) > len(patterns) {
+			// Continue comparing the next element with a wildcard
+			return routingMatch(path[1:], patterns)
+		}
+		return future
+	}
+
+	if strings.HasPrefix(pattern, "{") && strings.HasSuffix(pattern, "}") {
+		// Continue matching if pattern is a placeholder (enclosed with {})
+		return routingMatch(path[1:], patterns[1:])
+	}
+
+	if part != pattern {
+		return false // Parts don't match, so the whole path doesn't match
+	}
+
+	// Continue matching the rest of the path and patterns
+	return routingMatch(path[1:], patterns[1:])
+}
+
 // Render renders the output for the given path using the registered route handler.
 func (r *Router) Render(reqPath string) string {
 	reqParts := strings.Split(reqPath, "/")
 
 	for _, route := range r.routes {
 		patParts := strings.Split(route.Pattern, "/")
+		match := routingMatch(reqParts, patParts)
 
-		if len(patParts) != len(reqParts) {
-			continue
-		}
-
-		match := true
-		for i := 0; i < len(patParts); i++ {
-			patPart := patParts[i]
-			reqPart := reqParts[i]
-
-			if patPart == "*" {
-				continue
-			}
-			if strings.HasPrefix(patPart, "{") && strings.HasSuffix(patPart, "}") {
-				continue
-			}
-			if patPart != reqPart {
-				match = false
-				break
-			}
-		}
 		if match {
 			req := &Request{
 				Path:        reqPath,
