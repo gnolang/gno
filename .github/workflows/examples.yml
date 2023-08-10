@@ -47,4 +47,23 @@ jobs:
       - uses: actions/checkout@v3
       - run: go install -v ./gnovm/cmd/gno
       - run: go run ./gnovm/cmd/gno test --verbose ./examples
+  lint:
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: [ "1.19.x", "1.20.x" ]
+        # unittests: TODO: matrix with contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
+      - uses: actions/checkout@v3
+      - run: go install -v ./gnovm/cmd/gno
+      # testing official directories, basically examples/ minus examples/.../x/.
+      - run: go run ./gnovm/cmd/gno lint --verbose ./examples/gno.land/p
+      - run: go run ./gnovm/cmd/gno lint --verbose ./examples/gno.land/r/demo
+      - run: go run ./gnovm/cmd/gno lint --verbose ./examples/gno.land/r/gnoland
+      - run: go run ./gnovm/cmd/gno lint --verbose ./examples/gno.land/r/system
     # TODO: track coverage

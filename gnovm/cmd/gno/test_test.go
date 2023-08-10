@@ -159,7 +159,7 @@ func TestTest(t *testing.T) {
 		},
 		{
 			args:                 []string{"test", "--verbose", "../../tests/integ/native-lib"},
-			recoverShouldContain: "./../../tests/integ/native-lib/contract.gno:1: unknown import path net",
+			recoverShouldContain: "gno.land/r/\\w{8}/contract.gno:1: unknown import path net",
 		},
 		{
 			args:                []string{"test", "--verbose", "--with-native-fallback", "../../tests/integ/native-lib"},
@@ -167,11 +167,11 @@ func TestTest(t *testing.T) {
 		},
 		{
 			args:                 []string{"test", "--verbose", "../../tests/integ/unknown-lib"},
-			recoverShouldContain: "./../../tests/integ/unknown-lib/contract.gno:1: unknown import path foobarbaz",
+			recoverShouldContain: "gno.land/r/\\w{8}/contract.gno:1: unknown import path foobarbaz",
 		},
 		{
 			args:                 []string{"test", "--verbose", "--with-native-fallback", "../../tests/integ/unknown-lib"},
-			recoverShouldContain: "./../../tests/integ/unknown-lib/contract.gno:1: unknown import path foobarbaz",
+			recoverShouldContain: "gno.land/r/\\w{8}/contract.gno:1: unknown import path foobarbaz",
 		},
 		{
 			args:                []string{"test", "--verbose", "--print-runtime-metrics", "../../../examples/gno.land/p/demo/ufmt"},

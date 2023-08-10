@@ -51,9 +51,9 @@ func genResult() Result {
 func Render(path string) string {
 	if path == "" {
 		output := ""
-		output += "* [?fmt=stringer](/r/x/outfmt:?fmt=stringer)\n"
-		output += "* [?fmt=json](/r/x/outfmt:?fmt=json)\n"
-		output += "* [?fmt=jsonp](/r/x/outfmt:?fmt=jsonp)\n"
+		output += "* [?fmt=stringer](/r/x/manfred_outfmt:?fmt=stringer)\n"
+		output += "* [?fmt=json](/r/x/manfred_outfmt:?fmt=json)\n"
+		output += "* [?fmt=jsonp](/r/x/manfred_outfmt:?fmt=jsonp)\n"
 		return output
 	}
 

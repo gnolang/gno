@@ -3,7 +3,7 @@ package upgradea
 import (
 	"strconv"
 
-	v1 "gno.land/r/demo/x/upgrade/upgrade-a/v1"
+	v1 "gno.land/r/x/manfred_upgrade_patterns/upgrade-a/v1"
 )
 
 var counter int
