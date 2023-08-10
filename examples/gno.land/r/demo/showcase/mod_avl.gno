@@ -1,9 +1,5 @@
 package showcase
 
-import (
-	"gno.land/p/demo/avl"
-)
-
 func init() {
 	registerModule(&module{
 		name:        "p/avl",

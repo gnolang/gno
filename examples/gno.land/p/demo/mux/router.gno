@@ -1,9 +1,6 @@
 package mux
 
-import (
-	"strconv"
-	"strings"
-)
+import "strings"
 
 // Router handles the routing and rendering logic.
 type Router struct {

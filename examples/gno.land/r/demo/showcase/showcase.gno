@@ -76,6 +76,7 @@ func RenderCommand(res *mux.ResponseWriter, req *mux.Request) {
 	dom.Footer.Append(ui.HR{}, ui.Link{Text: "[Back]", URL: realmPath + module.path()})
 
 	res.Write(dom.String())
+	return
 }
 
 func RenderModule(res *mux.ResponseWriter, req *mux.Request) {
@@ -109,6 +110,7 @@ func RenderModule(res *mux.ResponseWriter, req *mux.Request) {
 
 	// write to response
 	res.Write(dom.String())
+	return
 }
 
 func RenderHome(res *mux.ResponseWriter, req *mux.Request) {
@@ -135,12 +137,14 @@ This framework encourages experimentation and creativity, allowing developers to
 			subitems = append(subitems, ui.Link{Text: command.name, Path: fullPath})
 		}
 		items = append(items, subitems)
+		return false
 	})
 
 	dom.Body.Append(items)
 
 	// write to response
 	res.Write(dom.String())
+	return
 }
 
 func Render(path string) string {
