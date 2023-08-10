@@ -1,5 +1,4 @@
-// PKGPATH: gno.land/r/boards_test
-package boards_test
+package main
 
 // SEND: 200000000ugnot
 
