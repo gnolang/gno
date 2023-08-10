@@ -475,8 +475,7 @@ func TestJoeson(t *testing.T) {
 		expect(`s[1:]`, parsesAs{`s<VPUverse(0)>[1:]`}, isType{"SliceExpr"}),
 		expect(`s[: i : (314*10)-6]`, parsesAs{`s<VPUverse(0)>[:i<VPUverse(0)>:314 * 10 - 6]`}, isType{"SliceExpr"}),
 		// obj.color
-		// f.p[i].x()
-
+		expect(`f.p[i].x()`, parsesAs{`f<VPUverse(0)>.p[i<VPUverse(0)>].x()`}, isCallExpr{}),
 	}
 	for _, expectation := range tests {
 		testExpectation(t, expectation)

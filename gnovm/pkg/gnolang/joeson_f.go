@@ -260,6 +260,10 @@ func fPackageName(it j.Ast, ctx *j.ParseContext) j.Ast {
 	if it.(*NameExpr).String() == "_" {
 		panic(ctx.Error("PackageName must not be the blank identifier"))
 	} else {
+		// experiment, trying to differentiate `identifier` from package name
+		// here, as they are both NameExpr. Until a better idea.
+		// See fPrimaryExprSelector()
+		it.(*NameExpr).SetAttribute("i_m_a_package_name", "1")
 		return it
 	}
 }
@@ -300,7 +304,7 @@ func fArguments(it j.Ast, ctx *j.ParseContext) j.Ast {
 // This returns a &CallExpr
 func fPrimaryExprArguments(it j.Ast, ctx *j.ParseContext) j.Ast {
 	m := it.(*j.NativeMap)
-	primaryExpr := m.GetOrPanic("p")
+	primaryExpr := m.GetOrPanic("p").(Expr)
 	arguments := m.GetOrPanic("a").(*j.NativeMap)
 	var exprs []Expr
 	for _, v := range arguments.GetOrPanic("Args").(*j.NativeArray).Array {
@@ -312,20 +316,20 @@ func fPrimaryExprArguments(it j.Ast, ctx *j.ParseContext) j.Ast {
 		lastIsVariadic = varg.(j.NativeString).Str == "1"
 	}
 	return &CallExpr{
-		Func:    primaryExpr.(Expr), // Expr   function expression
-		Args:    exprs,              // Exprs  function arguments, if any.
-		Varg:    lastIsVariadic,     // if true, final arg is variadic.
-		NumArgs: len(exprs),         // len(Args) or len(Args[0].Results)
+		Func:    primaryExpr,    // Expr   function expression
+		Args:    exprs,          // Exprs  function arguments, if any.
+		Varg:    lastIsVariadic, // if true, final arg is variadic.
+		NumArgs: len(exprs),     // len(Args) or len(Args[0].Results)
 	}
 }
 
 // This returns a &IndexExpr
 func fPrimaryExprIndex(it j.Ast, ctx *j.ParseContext) j.Ast {
 	m := it.(*j.NativeMap)
-	primaryExpr := m.GetOrPanic("p")
-	index := m.GetOrPanic("i") //.(*j.NativeMap)
+	primaryExpr := m.GetOrPanic("p").(Expr)
+	index := m.GetOrPanic("i")
 	return &IndexExpr{
-		X:     primaryExpr.(Expr),
+		X:     primaryExpr,
 		Index: index.(Expr),
 		HasOK: false, // TODO if true, is form: `value, ok := <X>[<Key>]
 	}
@@ -337,7 +341,7 @@ func fPrimaryExprIndex(it j.Ast, ctx *j.ParseContext) j.Ast {
 // - '[' [Expression] ':'  Expression ':' Expression ']'
 func fPrimaryExprSlice(it j.Ast, ctx *j.ParseContext) j.Ast {
 	m := it.(*j.NativeMap)
-	primaryExpr := m.GetOrPanic("p")
+	primaryExpr := m.GetOrPanic("p").(Expr)
 	aSlice := m.GetOrPanic("s").(*j.NativeArray).Array
 	var low, high, max Expr
 	if len(aSlice) < 2 || len(aSlice) > 3 {
@@ -359,10 +363,28 @@ func fPrimaryExprSlice(it j.Ast, ctx *j.ParseContext) j.Ast {
 		high = aSlice[1].(Expr)
 	}
 	return &SliceExpr{
-		X:    primaryExpr.(Expr),
+		X:    primaryExpr,
 		Low:  low,
 		High: high,
 		Max:  max,
+	}
+}
+
+// This returns a &SelectorExpr
+// this builds selector for expr like `x.f` where x
+// is a primary expression that is not a package name
+func fPrimaryExprSelector(it j.Ast, ctx *j.ParseContext) j.Ast {
+	m := it.(*j.NativeMap)
+	primaryExpr := m.GetOrPanic("p").(Expr)
+	if v, is := primaryExpr.(*NameExpr); is {
+		if v.HasAttribute("i_m_a_package_name") {
+			panic(ctx.Error("selector operate on primary expression that is NOT a package name"))
+		}
+	}
+	selector := m.GetOrPanic("s").(*NameExpr)
+	return &SelectorExpr{
+		X:   primaryExpr,
+		Sel: selector.Name,
 	}
 }
 

@@ -38,6 +38,7 @@ var (
 					o("p:PrimaryExpr a:Arguments", fPrimaryExprArguments), // e.g. `math.Atan2(x, y)`
 					o("p:PrimaryExpr i:Index", fPrimaryExprIndex),         // e.g. `something[1]`
 					o("p:PrimaryExpr s:Slice", fPrimaryExprSlice),         // e.g. `a[23 : 87]`
+					o("p:PrimaryExpr s:Selector", fPrimaryExprSelector),   // e.g. `x.f` for a PrimaryExpr x that is not a package name
 					o("Operand"),
 					i(named("Operand", rules(
 						// o("'(' Expression ')' | OperandName TypeArgs? | Literal"), // TODO this is the original
@@ -117,6 +118,7 @@ var (
 					i(named("Arguments", "'(' (Args:(ExpressionList) Varg:THREEDOTS? ','? )? ')'"), fArguments),
 					i(named("Index", `'[' Expression ','? ']'`)),
 					i(named("Slice", `'[' (Expression?)*':'{2,3} ']'`)),
+					i(named("Selector", `'.' identifier`)),
 				))),
 			)), fExpression),
 			i(named("ExpressionList", "Expression+_COMMA")),
