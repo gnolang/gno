@@ -4,4 +4,147 @@ id: creating-a-key-pair
 
 # Creating a Key Pair
 
+## Overview
+
+In this tutorial, you will learn how to manage private user keys, which are required for interacting with the Gno.land
+blockchain. You will understand what mnemonics are, how they are used, and how you can make interaction seamless with
+Gno.
+
+## Prerequisites
+
+- **`gnokey` set up. Reference the [Installation](installation.md#3-installing-other-gno-tools) guide for steps**
+
+## Listing available keys
+
+`gnokey` works by creating a local directory in the filesystem for storing (encrypted!) user private keys.
+
+You can find this repository by checking the value of the `--home` flag when running the following command:
+
+```bash
+gnokey --help
+```
+
+Example output:
+
+```bash
+USAGE
+  <subcommand> [flags] [<arg>...]
+
+Manages private keys for the node
+
+SUBCOMMANDS
+  add        Adds key to the keybase
+  delete     Deletes a key from the keybase
+  generate   Generates a bip39 mnemonic
+  export     Exports private key armor
+  import     Imports encrypted private key armor
+  list       Lists all keys in the keybase
+  sign       Signs the document
+  verify     Verifies the document signature
+  query      Makes an ABCI query
+  broadcast  Broadcasts a signed document
+  maketx     Composes a tx document to sign
+
+FLAGS
+  -config ...                                          config file (optional)
+  -home /Users/zmilos/Library/Application Support/gno  home directory
+  -insecure-password-stdin=false                       WARNING! take password from stdin
+  -quiet=false                                         suppress output during execution
+  -remote 127.0.0.1:26657                              remote node URL
+
+error parsing commandline arguments: flag: help requested
+```
+
+In this example, the directory where `gnokey` will store working data
+is `/Users/zmilos/Library/Application Support/gno`.
+
+Keep note of this directory, in case you need to reset the keystore, or migrate it for some reason.
+
+To list keys currently present in the keystore, we can run:
+
+```bash
+gnokey list
+```
+
+In case there are no keys present in the keystore, the command will simply return an empty response.
+Otherwise, it will return the list of keys and their accompanying metadata as a list, for example:
+
+```bash
+0. Manfred (local) - addr: g15uk9d6feap7z078ttcnwc94k60ullrvhmynxjt pub: gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqvn87u43scec4zfgn4la3nt237nehzydzayqxe43fx63lq6rty9c5almet4, path: <nil>
+1. Milos (local) - addr: g15lppu0tuxets0c0t80tncs4enqzgxt7v4eftcj pub: gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqw2kkzujprgrfg7vumg85mccsf790n5ep6htpygkuwedwuumf2g7ydm4vqf, path: <nil>
+```
+
+The key response consists of a few pieces of information:
+
+- The name of the private key
+- The derived address (`addr`)
+- The public key (`pub`)
+
+Using these pieces of information, we can interact with Gno.land tools and write blockchain applications.
+
+## Generating a BIP39 mnemonic
+
+Using `gnokey`, we can generate a [mnemonic phrase](https://en.bitcoin.it/wiki/Seed_phrase) based on
+the [BIP39 standard](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki).
+
+To generate the mnemonic phrase in the console, you can run:
+
+```bash
+gnokey generate
+```
+
+![gnokey generate](../../static/img/getting-started/creating-a-key-pair/gnokey-generate.gif)
+
+## Adding a random private key
+
+If we wanted to add a new private key to the keystore, we can run the following command:
+
+```bash
+gnokey add MyKey
+```
+
+Of course, you can replace `MyKey` with whatever name you want for your key.
+
+The `gnokey` tool will prompt you to enter a password to encrypt the key on disk (don't forget this!).
+After you enter the password, the `gnokey` tool will add the key to the keystore, and return the accompanying [mnemonic
+phrase](https://en.bitcoin.it/wiki/Seed_phrase), which you should remember somewhere if you want to recover the key at a
+future point in time.
+
+![gnokey add random](../../static/img/getting-started/creating-a-key-pair/gnokey-add-random.gif)
+
+You can check that the key was indeed added to the keystore, by listing available keys:
+
+```bash
+gnokey list
+```
+
+![gnokey list](../../static/img/getting-started/creating-a-key-pair/gnokey-list.gif)
+
+## Adding a private key using a mnemonic
+
+To add a private key to the `gnokey` keystore [using an existing mnemonic](#generating-a-bip39-mnemonic), we can run the
+following command with the
+`--recover` flag:
+
+```bash
+gnokey add --recover MyKey
+```
+
+Of course, you can replace `MyKey` with whatever name you want for your key.
+
+By following the prompts to encrypt the key on disk, and providing a BIP39 mnemonic, we can successfully add
+the key to the keystore.
+
+![gnokey add mnemonic](../../static/img/getting-started/creating-a-key-pair/gnokey-add-mnemonic.gif)
+
+## Deleting a private key
+
+TODO
+
+## Exporting a private key
+
+TODO
+
+## Importing a private key
+
 TODO
