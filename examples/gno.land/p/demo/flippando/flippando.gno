@@ -31,9 +31,63 @@ type inTransit struct {
 
 // tokenId - int, inTransit, bool
 
-func flipTiles(gameId string, positions positions) {
+func flipTiles(board []int, solvedBoard []int, gameTiles []int, positions positions) {
 	//   - returns the tiles at the positions[] in the board array
 	//   - updates the game[gameId].board with the indices at positions
+
+	// optimize for one call, and use the tuple?
+	randomNumber1 := generateRandomNumbers(1, 1, len(board))
+	randomNumber2 := generateRandomNumbers(1, 1, len(board))
+
+	if board[positions[0]] == 0 {
+		board[positions[0]] = gameTiles[randomNumber1]
+	}
+
+	if board[positions[1]] == 0 {
+		board[positions[1]] = gameTiles[randomNumber2]
+	}
+
+	if board[positions[0]] == board[positions[1]] {
+		solvedBoard[positions[0]] = board[positions[0]]
+		solvedBoard[positions[1]] = board[positions[1]]
+	}
+
+	// enforce solvability
+	quantumThreshold := int(math.Sqrt(float64(len(board))))
+	unsolvedTiles := 0
+
+	for j := 0; j < len(board); j++ {
+		if solvedBoard[j] == 0 {
+			unsolvedTiles++
+		}
+	}
+
+	if unsolvedTiles <= quantumThreshold {
+		// replace the board with solvedBoard and redeploy
+		if board[positions[0]] != board[positions[1]] {
+			board[positions[0]] = board[positions[1]]
+			solvedBoard[positions[0]] = board[positions[0]]
+			solvedBoard[positions[1]] = board[positions[0]]
+		}
+	}
+
+	return board, solvedBoard
+
+	// check for game solved
+	// todo: promote this check to the realm? that's where we send user events
+	/*
+	   unsolvedTiles = 0
+
+	   for j := 0; j < len(board); j++ {
+	       if(solvedBoard[j] == 0){
+	           unsolvedTiles = unsolvedTiles + 1
+	       }
+	   }
+	   if(unsolvedTiles == 0){
+	       // call flippandoGameMaster finishGame
+	       flippandoGameMaster.finishGame(id, games[id].player);
+	       emit GameSolved(id, games[id])
+	   }*/
 }
 
 func createNFT(gameId string) {
