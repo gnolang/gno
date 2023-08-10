@@ -22,12 +22,10 @@ func TestAssertOriginCall(t *testing.T) {
 			t.Errorf("expected panic with '%v', got '%v'", expectedReason, r)
 		}
 	}()
-	func() {
-		if RSubtestsIsOriginCall() {
-			t.Errorf("expected RSubtestsIsOriginCall=false but got true")
-		}
-		RSubtestsAssertOriginCall()
-	}()
+	if RSubtestsIsOriginCall() {
+		t.Errorf("expected RSubtestsIsOriginCall=false but got true")
+	}
+	RSubtestsAssertOriginCall()
 }
 
 func TestPrevRealm(t *testing.T) {
