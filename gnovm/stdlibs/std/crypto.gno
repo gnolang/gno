@@ -6,6 +6,6 @@ func (a Address) String() string {
 	return string(a)
 }
 
-const RawAddressSize = int(20)
+const RawAddressSize = 20
 
 type RawAddress [RawAddressSize]byte
