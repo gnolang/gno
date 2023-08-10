@@ -39,8 +39,7 @@ var (
 					o("p:PrimaryExpr i:Index", fPrimaryExprIndex),         // e.g. `something[1]`
 					o("p:PrimaryExpr s:Slice", fPrimaryExprSlice),         // e.g. `a[23 : 87]`
 					o("p:PrimaryExpr s:Selector", fPrimaryExprSelector),   // e.g. `x.f` for a PrimaryExpr x that is not a package name
-					o("Operand"),
-					i(named("Operand", rules(
+					o(named("Operand", rules(
 						// o("'(' Expression ')' | OperandName TypeArgs? | Literal"), // TODO this is the original
 						o("Literal | OperandName | '(' Expression ')'"),
 						i(named("Literal", rules(
