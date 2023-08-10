@@ -29,11 +29,11 @@ func IsOriginCall() bool {
 }
 
 func RSubtestsAssertOriginCall() {
-	subtests.AssertOriginCall()
+	rsubtests.AssertOriginCall()
 }
 
 func RSubtestsIsOriginCall() bool {
-	return subtests.IsOriginCall()
+	return rsubtests.IsOriginCall()
 }
 
 //----------------------------------------
