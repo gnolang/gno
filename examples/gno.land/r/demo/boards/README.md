@@ -78,7 +78,7 @@ Leave this running in the terminal. In a new terminal, cd to the same folder `gn
 
 ### Register a board username with a smart contract call.
 
-The `USERNAME` for posting can different than your `KEYNAME`. It is internally linked to your `ACCOUNT_ADDR`. It must be at least 6 characters.
+The `USERNAME` for posting can different than your `KEYNAME`. It is internally linked to your `ACCOUNT_ADDR`. It must be at least 6 characters, lowercase alphanumeric with underscore.
 
 ```bash
 ./build/gnokey maketx call -pkgpath "gno.land/r/demo/users" -func "Register" -args "" -args "USERNAME" -args "Profile description" -gas-fee "10000000ugnot" -gas-wanted "2000000" -send "200000000ugnot" -broadcast -chainid dev -remote 127.0.0.1:26657 KEYNAME
