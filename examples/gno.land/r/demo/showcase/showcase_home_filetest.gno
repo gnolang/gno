@@ -1,7 +1,8 @@
-// PKGPATH: gno.land/r/demo/showcase_test
-package showcase_test
+package main
 
-import "gno.land/r/demo/showcase"
+import (
+	"gno.land/r/demo/showcase"
+)
 
 func main() {
 	println(showcase.Render(""))
