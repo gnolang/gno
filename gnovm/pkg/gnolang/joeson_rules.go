@@ -14,6 +14,8 @@ import (
 //   - Rules that don't have a name immediately listed in spec/spec.html should
 //     be prefixed by an underscore `_` (e.g. _T, the ";" terminator). Note
 //     those underlined rules aren't captured (see joeson/parser_ref.go).
+//
+// note (?...) are lookaheads, they can optimize away certain branches but consume nothing
 var (
 	gm       *j.Grammar
 	gnoRules = rules(
@@ -34,6 +36,8 @@ var (
 				// o(named("PrimaryExpr", "Operand | Conversion | MethodExpr | PrimaryExpr ( Selector | Index | Slice | TypeAssertion | Arguments )")),
 				o(named("PrimaryExpr", rules(
 					o("p:PrimaryExpr a:Arguments", fPrimaryExprArguments), // e.g. `math.Atan2(x, y)`
+					o("p:PrimaryExpr i:Index", fPrimaryExprIndex),         // e.g. `something[1]`
+					o("p:PrimaryExpr s:Slice", fPrimaryExprSlice),         // e.g. `a[23 : 87]`
 					o("Operand"),
 					i(named("Operand", rules(
 						// o("'(' Expression ')' | OperandName TypeArgs? | Literal"), // TODO this is the original
@@ -41,10 +45,8 @@ var (
 						i(named("Literal", rules(
 							o("BasicLit | FunctionLit | CompositeLit"),
 							i(named("BasicLit", rules(
-								// note these literal rules often begin with (?[class])
-								// this is an easy rule optimization using lookahead
-								o("rune_lit | (?[\"`]) string_lit | (?[0-9.]) imaginary_lit | (?[0-9.]) float_lit | (?[0-9]) int_lit"), // (?xx) is lookahead, quickly pruning away
-								i(named("rune_lit", `(?'\'') '\'' ( byte_value | unicode_value ) '\'' | '\'' [^\n] '\''`), f_rune_lit),
+								o("(?'\\'') rune_lit | (?[\"`]) string_lit | (?[0-9.]) imaginary_lit | (?[0-9.]) float_lit | (?[0-9]) int_lit"), // (?xx) is lookahead, quickly pruning away
+								i(named("rune_lit", `'\'' ( byte_value | unicode_value | [^\n] ) '\''`), f_rune_lit),
 								i(named("string_lit", rules(
 									o(named("raw_string_lit", "'`' [^`]* '`'"), fraw_string_lit),
 									o(named("interpreted_string_lit", `'"' (!'\"' ('\\' [\s\S] | unicode_value | byte_value))* '"'`), finterpreted_string_lit),
@@ -82,16 +84,18 @@ var (
 								i(named("octal_digit", "[0-7]")),
 								i(named("hex_digit", "[0-9a-fA-F]")),
 								i(named("byte_value", rules(
-									o(named("octal_byte_value_err1", `a:'\\' (?octal_digit{4,})`), ffPanic("illegal: too many octal digits")),
-									o(named("octal_byte_value", `a:'\\' b:octal_digit{3,3}`), foctal_byte_value), // passthru unless "illegal: octal value over 255"
-									o(named("octal_byte_value_err2", `a:'\\' (?octal_digit{1,})`), ffPanic("illegal: too few octal digits")),
-									o(named("hex_byte_value_err1", `a:'\\x' b:hex_digit{3,}`), ffPanic("illegal: too many hexadecimal digits")),
-									o(named("hex_byte_value", `a:'\\x' b:hex_digit{2,2}`)),
-									o(named("hex_byte_value_err2", `a:'\\x' b:hex_digit{1,}`), ffPanic("illegal: too few hexadecimal digits")),
+									o(`  (?'\\' octal_digit) (octal_byte_value_err1 | octal_byte_value | octal_byte_value_err2) |`+
+										`(?'\\x'           ) (hex_byte_value_err1 | hex_byte_value | hex_byte_value_err2)`),
+									i(named("octal_byte_value_err1", `a:'\\' (?octal_digit{4,})`), ffPanic("illegal: too many octal digits")),
+									i(named("octal_byte_value", `a:'\\' b:octal_digit{3,3}`), foctal_byte_value), // passthru unless "illegal: octal value over 255"
+									i(named("octal_byte_value_err2", `a:'\\' (?octal_digit{1,})`), ffPanic("illegal: too few octal digits")),
+									i(named("hex_byte_value_err1", `a:'\\x' b:hex_digit{3,}`), ffPanic("illegal: too many hexadecimal digits")),
+									i(named("hex_byte_value", `a:'\\x' b:hex_digit{2,2}`)),
+									i(named("hex_byte_value_err2", `a:'\\x' b:hex_digit{0,1}`), ffPanic("illegal: too few hexadecimal digits")),
 								))),
 								i(named("unicode_value", rules(
 									o("escaped_char | little_u_value | big_u_value | unicode_char | _error_unicode_char_toomany"),
-									i(named("escaped_char", `'\\a' | '\\b' | '\\f' | '\\n' | '\\r' | '\\t' | '\\v'`)),
+									i(named("escaped_char", `esc:'\\' char:[abfnrtv\\\'"]`)),
 									i(named("little_u_value", `a:'\\u' b:hex_digit*`), ff_u_value("little_u_value", 4)), // 4 hex_digit or error
 									i(named("big_u_value", `a:'\\U' b:hex_digit*`), ff_u_value("big_u_value", 8)),       // 8 hex digit or error
 									i(named("_error_unicode_char_toomany", "[^\\x{0a}]{2,}"), func(it j.Ast, ctx *j.ParseContext) j.Ast { return ctx.Error("too many characters") }),
@@ -111,6 +115,8 @@ var (
 					))),
 					// TODO add to below alternation: Type [ "," ExpressionList ]
 					i(named("Arguments", "'(' (Args:(ExpressionList) Varg:THREEDOTS? ','? )? ')'"), fArguments),
+					i(named("Index", `'[' Expression ','? ']'`)),
+					i(named("Slice", `'[' (Expression?)*':'{2,3} ']'`)),
 				))),
 			)), fExpression),
 			i(named("ExpressionList", "Expression+_COMMA")),
@@ -121,7 +127,7 @@ var (
 		i(named("identifier", "letter (letter | unicode_digit)*"), fIdentifier),
 		i(named("IdentifierList", "identifier+','")),
 		i(named("characters", "(newline | unicode_char | unicode_letter | unicode_digit)")),
-		i(named("newline", "[\\x{0a}]")),
+		i(named("newline", `[\x{0a}]`)),
 		i(named("letter", `(?[^0-9 \t\n\r+(){}[\]<>-])`), fLetter), // lookahead next rune, not impossible letter? then try parse with fLetter. gospec = "unicode_letter | '_'"
 		i(named("unicode_char", "[^\\x{0a}]")),                     // "an arbitrary Unicode code point except newline"
 		i(named("unicode_letter", "[a-zA-Z]")),                     // "a Unicode code point categorized as "Letter" TODO it misses all non ASCII

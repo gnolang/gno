@@ -30,8 +30,7 @@ func stringIt(it j.Ast) (string, error) {
 }
 
 func fExpression(it j.Ast, ctx *j.ParseContext, org j.Ast) j.Ast {
-	// bx:(Expression _ binary_op _ Expression) _T? | UnaryExpr _T?
-	//                                                  ^-- done in mtUnaryExpr
+	// bx:(Expression binary_op Expression) | ux:UnaryExpr
 	if m, ok := it.(*j.NativeMap); ok {
 		if m.Exists("ux") {
 			return m.GetOrPanic("ux")
@@ -47,8 +46,6 @@ func fExpression(it j.Ast, ctx *j.ParseContext, org j.Ast) j.Ast {
 			panic("assert")
 		}
 	} else {
-		// panic(reflect.TypeOf(it).String())
-		// panic(it.String())
 		return it
 	}
 }
@@ -139,7 +136,7 @@ func fImaginary(it j.Ast, ctx *j.ParseContext) j.Ast {
 	a := it.(*j.NativeArray)
 	s := a.Concat()
 	if s[len(s)-1:] != "i" {
-		panic("assert: imaginary_lit ends with 'i'")
+		panic("assert") // imaginary_lit ends with 'i' by rule
 	}
 	return &BasicLitExpr{
 		Kind:  IMAG,
@@ -319,6 +316,53 @@ func fPrimaryExprArguments(it j.Ast, ctx *j.ParseContext) j.Ast {
 		Args:    exprs,              // Exprs  function arguments, if any.
 		Varg:    lastIsVariadic,     // if true, final arg is variadic.
 		NumArgs: len(exprs),         // len(Args) or len(Args[0].Results)
+	}
+}
+
+// This returns a &IndexExpr
+func fPrimaryExprIndex(it j.Ast, ctx *j.ParseContext) j.Ast {
+	m := it.(*j.NativeMap)
+	primaryExpr := m.GetOrPanic("p")
+	index := m.GetOrPanic("i") //.(*j.NativeMap)
+	return &IndexExpr{
+		X:     primaryExpr.(Expr),
+		Index: index.(Expr),
+		HasOK: false, // TODO if true, is form: `value, ok := <X>[<Key>]
+	}
+}
+
+// This returns a &SliceExpr if it's valid
+// 2 cases are allowed by go/spec (square brackets denote optionality):
+// - '[' [Expression] ':' [Expression]               ']'
+// - '[' [Expression] ':'  Expression ':' Expression ']'
+func fPrimaryExprSlice(it j.Ast, ctx *j.ParseContext) j.Ast {
+	m := it.(*j.NativeMap)
+	primaryExpr := m.GetOrPanic("p")
+	aSlice := m.GetOrPanic("s").(*j.NativeArray).Array
+	var low, high, max Expr
+	if len(aSlice) < 2 || len(aSlice) > 3 {
+		panic("assert") // impossible, by rule
+	}
+	if len(aSlice) == 3 {
+		if j.IsUndefined(aSlice[2]) {
+			panic(ctx.Error("3rd argument 'max' is mandatory in full slice expressions foo[low:high:max]"))
+		}
+		if j.IsUndefined(aSlice[1]) {
+			panic(ctx.Error("2nd argument 'high' is mandatory in full slice expressions foo[low:high:max]"))
+		}
+		max = aSlice[2].(Expr)
+	}
+	if !j.IsUndefined(aSlice[0]) {
+		low = aSlice[0].(Expr)
+	}
+	if !j.IsUndefined(aSlice[1]) {
+		high = aSlice[1].(Expr)
+	}
+	return &SliceExpr{
+		X:    primaryExpr.(Expr),
+		Low:  low,
+		High: high,
+		Max:  max,
 	}
 }
 

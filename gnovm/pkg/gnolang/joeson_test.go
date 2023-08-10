@@ -301,6 +301,7 @@ func (doom) satisfies(ast j.Ast, expectation expectation) error {
 func TestJoeson(t *testing.T) {
 	os.Setenv("TRACE", "stack")
 	tests := []expectation{
+		// https://golang.google.com/ref/spec#Integer_literals
 		expect(`2398`, parsesAs{"2398"}, isBasicLit{INT}),
 		expect(`0`, parsesAs{"0"}, isBasicLit{INT}),
 		expect(`0b0`, parsesAs{"0b0"}, isBasicLit{INT}),
@@ -315,11 +316,12 @@ func TestJoeson(t *testing.T) {
 		expect(`0x_67_7a_2f_cc_40_c6`, parsesAs{"0x677a2fcc40c6"}, isBasicLit{INT}),
 		expectErrorContains(`170141183460469231731687303715884105727`, "value out of range"),
 		expectErrorContains(`170_141183_460469_231731_687303_715884_105727`, "value out of range"),
-		// _42         // TODO an identifier, not an integer literal
+		expect(`_42`, parsesAs{"_42<VPUverse(0)>"}, isNameExpr{}), // an identifier, not an integer literal
 		// expectError(`42_`, "invalid: _ must separate successive digits"),
 		// 4__2        // invalid: only one _ at a time
 		// 0_xBadFace  // invalid: _ must separate successive digits
 
+		// https://golang.google.com/ref/spec#Floating-point_literals
 		expect(`0.`, parsesAs{"0"}, isBasicLit{FLOAT}), // spec/FloatingPointsLiterals.txt
 		expect(`72.40`, parsesAs{"72.4"}, isBasicLit{FLOAT}),
 		expect(`072.40`, parsesAs{"72.4"}, isBasicLit{FLOAT}), // == 72.40
@@ -337,6 +339,7 @@ func TestJoeson(t *testing.T) {
 		expect(`0X.8p-0`, parsesAs{"0x1p-01"}, isBasicLit{FLOAT}),         // == 0.5
 		expect(`0X_1FFFP-16`, parsesAs{"0x1.fffp-04"}, isBasicLit{FLOAT}), // == 0.1249847412109375
 
+		// https://golang.google.com/ref/spec#Imaginary_literals
 		expect(`0i`, parsesAs{"0i"}, isBasicLit{IMAG}),
 		expect(`0123i`, parsesAs{"0o123i"}, isBasicLit{IMAG}), // == 123i for backward-compatibility
 		expect(`0.i`, parsesAs{"0i"}, isBasicLit{IMAG}),
@@ -369,6 +372,7 @@ func TestJoeson(t *testing.T) {
 		// 1.5e_1       // invalid: _ must separate successive digits
 		// 1.5e1_       // invalid: _ must separate successive digits
 
+		// https://golang.google.com/ref/spec#Rune_literals
 		expect(`'\125'`, parsesAsChar{'U'}, isBasicLit{CHAR}),
 		expectError(`'\0'`, "illegal: too few octal digits"),
 		expectError(`'\12'`, "illegal: too few octal digits"),
@@ -376,13 +380,26 @@ func TestJoeson(t *testing.T) {
 		expectError(`'\1234'`, "illegal: too many octal digits"),
 		expect(`'\x3d'`, parsesAsChar{'='}, isBasicLit{CHAR}),
 		expect(`'\x3D'`, parsesAsChar{'='}, isBasicLit{CHAR}),
-		expect(`'\a'`, parsesAsChar{'\a'}, isBasicLit{CHAR}),
-		expect(`'\b'`, parsesAsChar{'\b'}, isBasicLit{CHAR}),
-		expect(`'\f'`, parsesAsChar{'\f'}, isBasicLit{CHAR}),
-		expect(`'\n'`, parsesAsChar{'\n'}, isBasicLit{CHAR}),
-		expect(`'\r'`, parsesAsChar{'\r'}, isBasicLit{CHAR}),
-		expect(`'\t'`, parsesAsChar{'\t'}, isBasicLit{CHAR}),
-		expect(`'\v'`, parsesAsChar{'\v'}, isBasicLit{CHAR}),
+		expect(`'\a'`, parsesAsChar{'\a'}, isBasicLit{CHAR}), // alert or bell
+		expect(`'\b'`, parsesAsChar{'\b'}, isBasicLit{CHAR}), // backspace
+		expect(`'\f'`, parsesAsChar{'\f'}, isBasicLit{CHAR}), // form feed
+		expect(`'\n'`, parsesAsChar{'\n'}, isBasicLit{CHAR}), // line feed or newline
+		expect(`'\r'`, parsesAsChar{'\r'}, isBasicLit{CHAR}), // carriage return
+		expect(`'\t'`, parsesAsChar{'\t'}, isBasicLit{CHAR}), // horizontal tab
+		expect(`'\v'`, parsesAsChar{'\v'}, isBasicLit{CHAR}), // vertical tab
+		expect(`'\\'`, parsesAsChar{'\\'}, isBasicLit{CHAR}), // backslash
+		// expect(`'\''`, parsesAsChar{'\''}, isBasicLit{CHAR}),  // is this notation possible, HOW? See \u0027 below. single quote  (valid escape only within rune literals)
+		expect(`'"'`, parsesAsChar{'"'}, isBasicLit{CHAR}),       // double quote  (valid escape only within string literals)
+		expect(`'\u0007'`, parsesAsChar{'\a'}, isBasicLit{CHAR}), // alert or bell
+		expect(`'\u0008'`, parsesAsChar{'\b'}, isBasicLit{CHAR}), // backspace
+		expect(`'\u000C'`, parsesAsChar{'\f'}, isBasicLit{CHAR}), // form feed
+		expect(`'\u000a'`, parsesAsChar{'\n'}, isBasicLit{CHAR}), // line feed or newline
+		expect(`'\u000D'`, parsesAsChar{'\r'}, isBasicLit{CHAR}), // carriage return
+		expect(`'\u0009'`, parsesAsChar{'\t'}, isBasicLit{CHAR}), // horizontal tab
+		expect(`'\u000b'`, parsesAsChar{'\v'}, isBasicLit{CHAR}), // vertical tab
+		expect(`'\u005c'`, parsesAsChar{'\\'}, isBasicLit{CHAR}), // backslash
+		expect(`'\u0027'`, parsesAsChar{'\''}, isBasicLit{CHAR}), // single quote  (valid escape only within rune literals)
+		expect(`'\u0022'`, parsesAsChar{'"'}, isBasicLit{CHAR}),  // double quote  (valid escape only within string literals)
 		expect(`'\u13F8'`, parsesAsChar{'ᏸ'}, isBasicLit{CHAR}),
 		expectError(`'\u13a'`, "little_u_value requires 4 hex"),
 		expectError(`'\u1a248'`, "little_u_value requires 4 hex"),
@@ -412,29 +429,21 @@ func TestJoeson(t *testing.T) {
 		expect(`"\\U000065e5\\U0000672c\\U00008a9e"`, parsesAs{"日本語"}, isBasicLit{STRING}),             // the explicit Unicode code points
 		expect(`"\\xe6\\x97\\xa5\\xe6\\x9c\\xac\\xe8\\xaa\\x9e"`, parsesAs{"日本語"}, isBasicLit{STRING}), // the explicit UTF-8 bytes
 
-		// Identifiers
+		// tests from https://golang.google.com/ref/spec#Identifiers
 		expect(`a`, parsesAs{"a<VPUverse(0)>"}, isNameExpr{}),
 		expect(`_x9`, parsesAs{"_x9<VPUverse(0)>"}, isNameExpr{}),
 		expect(`ThisVariableIsExported`, parsesAs{"ThisVariableIsExported<VPUverse(0)>"}, isNameExpr{}),
 		expect(`αβ`, parsesAs{"αβ<VPUverse(0)>"}, isNameExpr{}),
 
-		/*
-			* https://dev.to/flopp/golang-identifiers-vs-unicode-1fe7
-				Valid identifiers:
-
-				    abc_123
-				    _myidentifier
-				    Σ (U+03A3 GREEK CAPITAL LETTER SIGMA)
-				    㭪 (some CJK character from the Lo category)
-				    x٣३߃૩୩3 (x + decimal digits 3 from various scripts)
-
-				Invalid identifiers:
-
-				    42 (does not start with a letter)
-				    😀 (not a letter, but So / Symbol, other)
-				    ⽔ (not a letter, but So / Symbol, other)
-				    x🌞 (starts with a letter, but contains non-letter/digit characters)
-		*/
+		// tests from https://dev.to/flopp/golang-identifiers-vs-unicode-1fe7
+		expect(`abc_123`, parsesAs{"abc_123<VPUverse(0)>"}, isNameExpr{}),
+		expect(`_myidentifier`, parsesAs{"_myidentifier<VPUverse(0)>"}, isNameExpr{}),
+		expect(`Σ`, parsesAs{"Σ<VPUverse(0)>"}, isNameExpr{}), // (U+03A3 GREEK CAPITAL LETTER SIGMA),
+		expect(`㭪`, parsesAs{"㭪<VPUverse(0)>"}, isNameExpr{}), // (some CJK character from the Lo category),
+		// expect(`x٣३߃૩୩3`, parsesAs{"x٣३߃૩୩3<VPUverse(0)>"}, isNameExpr{}), // FIXME doesn't parse, needs unicode_digit first  // (x + decimal digits 3 from various scripts),
+		expectError(`😀`, ""),  // (not a letter, but So / Symbol, other)
+		expectError(`⽔`, ""),  // (not a letter, but So / Symbol, other)
+		expectError(`x🌞`, ""), // (starts with a letter, but contains non-letter/digit characters)
 
 		// expect(`package math`, parsesAs{"package math"}), // unsupported by X() AFAIK
 		expect(`math.Sin`, parsesAs{"math<VPUverse(0)>.Sin"}, isSelectorExpr{}), // denotes the Sin function in package math
@@ -448,7 +457,26 @@ func TestJoeson(t *testing.T) {
 		expect(`f.Close()`, parsesAs{"f<VPUverse(0)>.Close()"}, isCallExpr{}),
 		// expect(`<-ch`, parsesAs{"h( x + y )"}),
 		// expect(`(<-ch)`, parsesAs{"h( x + y )"}),
-		// expect(`len("foo")`, parsesAs{"h( x + y )"}), // illegal if len is the built-in function
+		expect(`len("foo")`, parsesAs{`len<VPUverse(0)>("foo")`}, isCallExpr{}), // marked "illegal if len is the built-in function" in gospec, I don't get why?
+
+		// https://golang.google.com/ref/spec#Primary_expressions
+		expect(`x`, parsesAs{"x<VPUverse(0)>"}, isNameExpr{}),
+		expect(`2`, parsesAs{"2"}, isBasicLit{INT}),
+		expect(`s + ".txt"`, parsesAs{`s<VPUverse(0)> + ".txt"`}, isType{"BinaryExpr"}),
+		expect(`f(3.1415, true)`, parsesAs{`f<VPUverse(0)>(3.1415, true<VPUverse(0)>)`}, isCallExpr{}),
+		// Point{1, 2}
+		expect(`m["foo"]`, parsesAs{`m<VPUverse(0)>["foo"]`}, isType{"IndexExpr"}),
+		expect(`m[361]`, parsesAs{`m<VPUverse(0)>[361]`}, isType{"IndexExpr"}),
+		expect(`s[i : j + 1]`, parsesAs{`s<VPUverse(0)>[i<VPUverse(0)>:j<VPUverse(0)> + 1]`}, isType{"SliceExpr"}),
+		expect(`s[1:2:3]`, parsesAs{`s<VPUverse(0)>[1:2:3]`}, isType{"SliceExpr"}),
+		expect(`s[:2:3]`, parsesAs{`s<VPUverse(0)>[:2:3]`}, isType{"SliceExpr"}),
+		expect(`s[1:2]`, parsesAs{`s<VPUverse(0)>[1:2]`}, isType{"SliceExpr"}),
+		expect(`s[:2]`, parsesAs{`s<VPUverse(0)>[:2]`}, isType{"SliceExpr"}),
+		expect(`s[1:]`, parsesAs{`s<VPUverse(0)>[1:]`}, isType{"SliceExpr"}),
+		expect(`s[: i : (314*10)-6]`, parsesAs{`s<VPUverse(0)>[:i<VPUverse(0)>:314 * 10 - 6]`}, isType{"SliceExpr"}),
+		// obj.color
+		// f.p[i].x()
+
 	}
 	for _, expectation := range tests {
 		testExpectation(t, expectation)
