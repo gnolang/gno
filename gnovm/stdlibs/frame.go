@@ -6,20 +6,20 @@ import (
 )
 
 type Realm struct {
-	addr crypto.Bech32Address
-	path string
+	addr    crypto.Bech32Address
+	pkgPath string
 }
 
 func (r Realm) Addr() crypto.Bech32Address {
 	return r.addr
 }
 
-func (r Realm) Path() string {
-	return r.path
+func (r Realm) PkgPath() string {
+	return r.pkgPath
 }
 
 func (r Realm) IsUser() bool {
-	return r.path == ""
+	return r.pkgPath == ""
 }
 
 // isOriginCall returns true if the
@@ -46,14 +46,14 @@ func prevRealm(m *gno.Machine) Realm {
 		if lastRealmPath != realmPath {
 			// Second realm detected, return it.
 			return Realm{
-				addr: fr.LastPackage.GetPkgAddr().Bech32(),
-				path: realmPath,
+				addr:    fr.LastPackage.GetPkgAddr().Bech32(),
+				pkgPath: realmPath,
 			}
 		}
 	}
 	// No second realm found, return the tx signer.
 	return Realm{
-		addr: m.Context.(ExecContext).OrigCaller,
-		path: "", // empty for users
+		addr:    m.Context.(ExecContext).OrigCaller,
+		pkgPath: "", // empty for users
 	}
 }
