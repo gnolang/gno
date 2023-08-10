@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/gnolang/goleveldb/leveldb/opt"
 	"github.com/stretchr/testify/require"
-	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
 func TestGoLevelDBNewGoLevelDB(t *testing.T) {
