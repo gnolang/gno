@@ -114,14 +114,25 @@ func (l Link) String(dom DOM) string {
 
 type BulletList []DomStringer
 
-func (bl BulletList) String(dom DOM) string {
+func (bl BulletList) stringIndent(dom DOM, depth int) string {
 	output := ""
 
+	// indent by 2 spaces * depth
+	indent := strings.Repeat("  ", depth)
 	for _, entry := range bl {
-		output += "- " + entry.String(dom) + "\n"
+		switch e := entry.(type) {
+		case BulletList:
+			output += e.stringIndent(dom, depth+1)
+		default:
+			output += indent + "- " + e.String(dom) + "\n"
+		}
 	}
 
 	return output
+}
+
+func (bl BulletList) String(dom DOM) string {
+	return bl.stringIndent(dom, 0)
 }
 
 func Text(s string) DomStringer {
