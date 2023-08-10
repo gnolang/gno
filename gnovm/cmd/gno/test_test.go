@@ -17,7 +17,8 @@ func TestTest(t *testing.T) {
 			errShouldContain: "no such file or directory",
 		},
 		{
-			args: []string{"test", "../../tests/integ/empty-dir"},
+			args:                []string{"test", "../../tests/integ/empty-dir"},
+			stderrShouldContain: "no packages to test",
 		},
 		{
 			// FIXME: should have an output
@@ -97,6 +98,11 @@ func TestTest(t *testing.T) {
 			args:                []string{"test", "../../../examples/gno.land/p/demo/ufmt"},
 			stdoutShouldContain: "RUN   TestSprintf",
 			stderrShouldContain: "ok      ./../../../examples/gno.land/p/demo/ufmt",
+		},
+		{
+			args:                []string{"test", "../../../examples/gno.land/p/demo/ufmt/ufmt_test.gno"},
+			stdoutShouldContain: "RUN   TestSprintf",
+			stderrShouldContain: "ok      ../../../examples/gno.land/p/demo/ufmt",
 		},
 		{
 			args:                []string{"test", "--verbose", "../../../examples/gno.land/p/demo/ufmt"},
