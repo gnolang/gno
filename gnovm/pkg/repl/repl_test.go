@@ -93,6 +93,7 @@ var fixtures = []struct {
 
 func TestRepl(t *testing.T) {
 	for _, fix := range fixtures {
+		fix := fix
 		t.Run(fix.Name, func(t *testing.T) {
 			r := NewRepl()
 			for _, cs := range fix.CodeSteps {

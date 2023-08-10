@@ -119,7 +119,7 @@ func runRepl(cfg *replCfg) error {
 	}
 }
 
-// handleInput will read the input string and parse it depending if it
+// handleInput reads the input string and parses it depending if it
 // is a specific command, or source code. It returns true if the following
 // input is expected to be on more than one line.
 func handleInput(r *repl.Repl, input string) bool {
@@ -135,6 +135,7 @@ func handleInput(r *repl.Repl, input string) bool {
 		return true
 	case "":
 		// avoid to increase the repl execution counter if sending empty content
+		fmt.Fprintln(os.Stdout, "")
 		return false
 	default:
 		out, err := r.Process(input)

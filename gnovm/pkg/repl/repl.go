@@ -44,10 +44,10 @@ type tempModel struct {
 }
 
 type state struct {
-	// imports contains all the imports added. they will be added to the following generated source code
+	// imports contains all the imports added. they will be added to the following generated source code.
 	imports map[string]string
 
-	// files are all generated files. This is used when source code is requested
+	// files are all generated files. This is used when source code is requested.
 	files map[string]string
 
 	// id is the actual execution number. Used to avoid duplicated functions and file names.
@@ -98,11 +98,10 @@ type Repl struct {
 	state *state
 	tmpl  *template.Template
 
-	// mr joins stdout and stderr to give an unified output
+	// rw joins stdout and stderr to give an unified output and group with stdin.
 	rw bufio.ReadWriter
 
 	// Repl options:
-
 	storeFunc func() gno.Store
 	stdout    io.Writer
 	stderr    io.Writer
@@ -139,10 +138,11 @@ func NewRepl(opts ...ReplOption) *Repl {
 	return r
 }
 
-// Process will accept any valid code and execute it if it is an expression,
-// or store it for later use if they are declarations.
-// If the provided input is not valid source code, an error is returned.
-// If the execution on the VM is not successful, the panic is recovered and returned as an error.
+// Process accepts any valid Gno source code and executes it if it
+// is an expression, or stores it for later use if they are declarations.
+// If the provided input is not valid Gno source code, an error is returned.
+// If the execution on the VM is not successful, the panic is recovered and
+// returned as an error.
 func (r *Repl) Process(input string) (out string, err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -172,7 +172,7 @@ func (r *Repl) handleExpression(e *ast.File) (string, error) {
 	r.state.machine.RunFiles(n)
 	r.state.machine.RunStatement(gno.S(gno.Call(gno.X(fmt.Sprintf("%s%d", executedFunc, r.state.id)))))
 
-	// read the result from the output buffer after calling main function
+	// Read the result from the output buffer after calling main function.
 
 	b, err := io.ReadAll(r.rw)
 	if err != nil {
@@ -225,7 +225,7 @@ func (r *Repl) handleDeclarations(fn *ast.File) (string, error) {
 		return false
 	})
 
-	// Avoid adding files with only imports on it
+	// Avoid adding files with only imports on it.
 	if nonImportsCount != 0 {
 		name := r.filename()
 		src := r.nodeToString(fn)
@@ -265,10 +265,10 @@ func (r *Repl) parseDeclaration(input string) (*ast.File, error) {
 func (r *Repl) executeAndParse(m *tempModel) (*ast.File, error) {
 	var b bytes.Buffer
 
-	// set the id to the template
+	// Set the id to the template.
 	m.ID = r.state.id
 
-	// add all the imports to all the files, they will be removed after formatting
+	// Add all the imports to all the files, they will be removed after formatting.
 	for _, e := range r.state.imports {
 		m.Imports = append(m.Imports, e)
 	}
@@ -278,7 +278,7 @@ func (r *Repl) executeAndParse(m *tempModel) (*ast.File, error) {
 		return nil, fmt.Errorf("error executing the template: %w", err)
 	}
 
-	// format the source code to remove unused imports and improve code readability
+	// Format the source code to remove unused imports and improve code readability.
 	formatted, err := format.Source(b.Bytes())
 	if err != nil {
 		return nil, fmt.Errorf("error formatting code: %w", err)
@@ -288,7 +288,7 @@ func (r *Repl) executeAndParse(m *tempModel) (*ast.File, error) {
 	return parser.ParseFile(r.state.fileset, name, formatted, parser.AllErrors|parser.ParseComments)
 }
 
-// Reset will reset the actual repl state, restarting the internal VM
+// Reset will reset the actual repl state, restarting the internal VM.
 func (r *Repl) Reset() {
 	r.state.machine.Release()
 	r.state = newState(r.stdout, r.storeFunc)
