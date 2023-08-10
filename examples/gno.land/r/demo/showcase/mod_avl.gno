@@ -1,10 +1,15 @@
 package showcase
 
+import (
+	"gno.land/p/demo/avl"
+)
+
 func init() {
-	modules = append(modules, module{
-		name: "p/avl",
+	registerModule(&module{
+		name:        "p/avl",
+		description: "Helper to store data in an avl.Tree",
 		commands: []command{
-			{name: "Example", callback: avlExample},
+			{name: "Store Example", callback: avlExample},
 		},
 	})
 }
