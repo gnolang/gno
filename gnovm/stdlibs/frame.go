@@ -22,13 +22,13 @@ func (r Realm) IsUser() bool {
 	return r.pkgPath == ""
 }
 
-// isOriginCall returns true if the
+// isOriginCall returns true if the std.OrigCaller == std.PrevRealm
 func isOriginCall(m *gno.Machine) bool {
 	return prevRealm(m).addr == m.Context.(ExecContext).OrigCaller
 }
 
 // prevRealm loops on frames and returns the second realm found in the calling
-// order. If no such realm was found, returns the tx signer.
+// order. If no such realm was found, returns the tx signer (aka OrigCaller).
 func prevRealm(m *gno.Machine) Realm {
 	var lastRealmPath string
 	for i := m.NumFrames() - 1; i > 0; i-- {
