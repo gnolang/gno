@@ -5,6 +5,9 @@
 
 ! gno test -verbose .
 
+stdout 'Machine\.RunMain\(\) panic: oups'
+stderr '=== RUN   file/x_filetest.gno'
+
 cmp x_filetest.gno x_filetest.gno.golden
 
 -- x_filetest.gno --
