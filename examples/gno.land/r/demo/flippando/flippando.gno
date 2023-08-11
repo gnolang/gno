@@ -2,7 +2,7 @@ package flippando
 
 import (
 	"fmt"
-	"math/rand"
+	"math"
 )
 
 type game struct {
@@ -32,10 +32,29 @@ type inTransit struct {
 // tokenId - int, inTransit, bool
 
 // creates game object and initializes board
-func startGame(owner string, gameId string, tileType int, boardSize int) string {
+func startGame(owner string, gameId string, tileType string, boardSize int) *game {
+	// Initialize the board and gameTiles slices based on boardSize
+	board := make([]int, boardSize)
+
+	// Initialize the gameTiles slice with a length that is the square root of boardSize
+	gameTilesLength := int(math.Sqrt(float64(boardSize)))
+	gameTiles := make([]int, gameTilesLength)
+
+	// Create a new game instance
+	newGame := &game{
+		owner:     owner,
+		gameId:    gameId,
+		board:     board,
+		tileType:  tileType,
+		gameTiles: gameTiles,
+		boardSize: boardSize,
+		status:    "initiated",
+	}
+
+	return newGame
 }
 
-func flipTiles(gameId string, positions positions) {
+func flipTiles(gameId string, board []int, solvedBoard []int, gameTiles []int, positions positions) {
 	//   - returns the tiles at the positions[] in the board array
 	//   - updates the game[gameId].board with the indices at positions
 }
