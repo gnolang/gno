@@ -59,6 +59,7 @@ In this example, the directory where `gnokey` will store working data
 is `/Users/zmilos/Library/Application Support/gno`.
 
 Keep note of this directory, in case you need to reset the keystore, or migrate it for some reason.
+You can provide a specific `gnokey` working directory using the `--home` flag.
 
 To list keys currently present in the keystore, we can run:
 
