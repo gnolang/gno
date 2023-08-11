@@ -145,7 +145,7 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 	}
 }
 
-func SetupTestScript(t *testing.T, txtarDir string) testscript.Params {
+func setupTestScript(t *testing.T, txtarDir string) testscript.Params {
 	// Get root location of github.com/gnolang/gno
 	goModPath, err := exec.Command("go", "env", "GOMOD").CombinedOutput()
 	require.NoError(t, err)
@@ -164,7 +164,7 @@ func SetupTestScript(t *testing.T, txtarDir string) testscript.Params {
 		},
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
 			// add a custom "gno" command so txtar files can easily execute "gno"
-			// without knowing where is the binary or how it is executed
+			// without knowing where is the binary or how it is executed.
 			"gno": func(ts *testscript.TestScript, neg bool, args []string) {
 				err := ts.Exec(gnoBin, args...)
 				if err != nil {

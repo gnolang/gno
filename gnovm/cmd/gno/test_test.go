@@ -7,7 +7,7 @@ import (
 )
 
 func TestTest(t *testing.T) {
-	testscript.Run(t, SetupTestScript(t, "testdata/gno_test"))
+	testscript.Run(t, setupTestScript(t, "testdata/gno_test"))
 }
 
 func xTestTest(t *testing.T) {
