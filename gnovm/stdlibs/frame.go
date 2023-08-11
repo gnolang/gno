@@ -39,7 +39,7 @@ func prevRealm(m *gno.Machine) Realm {
 		}
 		realmPath := fr.LastPackage.PkgPath
 		if lastRealmPath == "" {
-			// Record the path of the first ecountered realm and continue
+			// Record the path of the first encountered realm and continue
 			lastRealmPath = realmPath
 			continue
 		}
