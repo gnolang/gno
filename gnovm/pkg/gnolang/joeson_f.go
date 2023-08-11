@@ -53,10 +53,14 @@ func fExpression(it j.Ast, ctx *j.ParseContext, org j.Ast) j.Ast {
 func fUnary(it j.Ast) j.Ast {
 	// PrimaryExpr | ux:(unary_op _ UnaryExpr)
 	if m, ok := it.(*j.NativeMap); ok {
-		a := m.GetOrPanic("ux").(*j.NativeArray).Array
-		return &UnaryExpr{
-			Op: Op2Word(a[0].(j.NativeString).Str),
-			X:  a[1].(Expr),
+		if ux, ok := m.GetExists("ux"); !ok {
+			panic(fmt.Sprintf("key ux not found in %s", m.String()))
+		} else {
+			a := ux.(*j.NativeArray).Array
+			return &UnaryExpr{
+				Op: Op2Word(a[0].(j.NativeString).Str),
+				X:  a[1].(Expr),
+			}
 		}
 	} else {
 		return it
@@ -385,6 +389,101 @@ func fPrimaryExprSelector(it j.Ast, ctx *j.ParseContext) j.Ast {
 	return &SelectorExpr{
 		X:   primaryExpr,
 		Sel: selector.Name,
+	}
+}
+
+// This returns a gnolang.Type (a constTypeExpr)
+func fTypeName(it j.Ast, ctx *j.ParseContext) j.Ast {
+	tname := it.(*j.NativeArray).Get(0).(*NameExpr)
+	var pt PrimitiveType
+	switch tname.Name {
+	case "bool":
+		pt = BoolType
+	case "string":
+		pt = StringType
+	case "int":
+		pt = IntType
+	case "int8":
+		pt = Int8Type
+	case "int16":
+		pt = Int16Type
+	case "int32":
+		pt = Int32Type
+	case "int64":
+		pt = Int64Type
+	case "uint":
+		pt = UintType
+	case "uint8":
+		pt = Uint8Type
+	case "uint16":
+		pt = Uint16Type
+	case "uint32":
+		pt = Uint32Type
+	case "uint64":
+		pt = Uint64Type
+	case "float32":
+		pt = Float32Type
+	case "float64":
+		pt = Float64Type
+	default:
+		// omitted are {Untyped*|DataByte|Bigint|Bigdec}Type
+		panic(fmt.Sprintf("unsupported %q", tname.Name))
+	}
+	return &constTypeExpr{
+		Source: tname,
+		// Type is a gnolang.Type, an interface which
+		// boasts a TypeID(). See the top of types.go
+		Type: pt,
+	}
+}
+
+// This returns an &ArrayTypeExpr
+func fArrayType(it j.Ast, ctx *j.ParseContext) j.Ast {
+	a := it.(*j.NativeArray).Array
+	return &ArrayTypeExpr{
+		Len: a[0].(Expr),
+		Elt: a[1].(Expr),
+	}
+}
+
+// This returns &MapTypeExpr
+func fMapType(it j.Ast, ctx *j.ParseContext) j.Ast {
+	a := it.(*j.NativeArray).Array
+	return &MapTypeExpr{
+		Key:   a[0].(Expr),
+		Value: a[1].(Expr),
+	}
+}
+
+// This returns &ChanTypeExpr
+func fChannelType(it j.Ast, ctx *j.ParseContext) j.Ast {
+	m := it.(*j.NativeMap)
+	var dir ChanDir
+	switch strings.TrimSuffix(m.GetOrPanic("chanDir").(j.NativeString).Str, " ") {
+	case "chan":
+		dir = BOTH
+	case "chan<-":
+		dir = SEND
+	case "<-chan":
+		dir = RECV
+	}
+	return &ChanTypeExpr{
+		Dir:   dir,
+		Value: m.GetOrPanic("type").(Expr),
+	}
+}
+
+// This returns a &TypeAssertExpr
+func fPrimaryExprTypeAssert(it j.Ast, ctx *j.ParseContext) j.Ast {
+	// note: type args appear unsupported in X(), so we ignore typeargs in
+	// o("typename:TypeName typeargs:TypeArgs?"),
+	m := it.(*j.NativeMap)
+	primaryExpr := m.GetOrPanic("primaryExpr").(Expr)
+	typeAssertion := m.GetOrPanic("typeAssertion")
+	return &TypeAssertExpr{
+		X:     primaryExpr,
+		Type:  typeAssertion.(Expr),
+		HasOK: false, // TODO if true, is form: `_, ok := <X>(<Type>)
 	}
 }
 

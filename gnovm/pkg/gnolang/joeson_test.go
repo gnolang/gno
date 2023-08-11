@@ -476,6 +476,20 @@ func TestJoeson(t *testing.T) {
 		expect(`s[: i : (314*10)-6]`, parsesAs{`s<VPUverse(0)>[:i<VPUverse(0)>:314 * 10 - 6]`}, isType{"SliceExpr"}),
 		// obj.color
 		expect(`f.p[i].x()`, parsesAs{`f<VPUverse(0)>.p[i<VPUverse(0)>].x()`}, isCallExpr{}),
+
+		// TypeAssertion using various types notation
+		expect(`x.(int)`, parsesAs{`x<VPUverse(0)>.((const-type int))`}, isType{"TypeAssertExpr"}),
+		// TODO support non primitive types as below
+		// expect(`x.(*T)`, parsesAs{`x<VPUverse(0)>.([3](const-type int))`}, isType{"TypeAssertExpr"}),
+		expect(`x.([]int)`, parsesAs{`x<VPUverse(0)>.([](const-type int))`}, isType{"TypeAssertExpr"}),
+		expect(`x.([3]int)`, parsesAs{`x<VPUverse(0)>.([3](const-type int))`}, isType{"TypeAssertExpr"}),
+		expect(`x.(*int)`, parsesAs{`x<VPUverse(0)>.(*((const-type int)))`}, isType{"TypeAssertExpr"}),
+		expect(`x.(map[string]bool)`, parsesAs{`x<VPUverse(0)>.(map[(const-type string)] (const-type bool))`}, isType{"TypeAssertExpr"}),
+		expect(`x.(chan int)`, parsesAs{`x<VPUverse(0)>.(chan (const-type int))`}, isType{"TypeAssertExpr"}),
+		expect(`x.(chan<- float64)`, parsesAs{`x<VPUverse(0)>.(<-chan (const-type float64))`}, isType{"TypeAssertExpr"}),
+		expect(`x.(<-chan string)`, parsesAs{`x<VPUverse(0)>.(chan<- (const-type string))`}, isType{"TypeAssertExpr"}),
+		expect(`x.(<-chan []int)`, parsesAs{`x<VPUverse(0)>.(chan<- [](const-type int))`}, isType{"TypeAssertExpr"}),
+		expect(`x.(<-chan chan<- chan []<-chan int)`, parsesAs{`x<VPUverse(0)>.(chan<- <-chan chan []chan<- (const-type int))`}, isType{"TypeAssertExpr"}),
 	}
 	for _, expectation := range tests {
 		testExpectation(t, expectation)

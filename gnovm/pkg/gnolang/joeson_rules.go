@@ -9,13 +9,9 @@ import (
 // A Golang PEG grammar.
 //   - This grammar is written against the *formal go syntax* with semicolons ";"
 //     as terminators, as is produced for example by "go/scanner".
-//   - The following rules are named after https://go.dev/ref/spec labels (such
-//     as "bx:") are used by rules callbacks.
-//   - Rules that don't have a name immediately listed in spec/spec.html should
-//     be prefixed by an underscore `_` (e.g. _T, the ";" terminator). Note
-//     those underlined rules aren't captured (see joeson/parser_ref.go).
+//   - The following rules are named after https://go.dev/ref/spec
 //
-// note (?...) are lookaheads, they can optimize away certain branches but consume nothing
+// (?...) are lookaheads, they can optimize away certain branches but consume nothing
 var (
 	gm       *j.Grammar
 	gnoRules = rules(
@@ -26,24 +22,25 @@ var (
 			i(named("SimpleStmt", "ExpressionStmt"), fSimpleStmt),
 			i(named("ExpressionStmt", "Expression")),
 			i(named("Expression", rules(
-				o("bx:(Expression binary_op Expression) | ux:UnaryExpr"),
-				o(named("UnaryExpr", "PrimaryExpr | ux:(unary_op UnaryExpr)"), fUnary),
+				o(`bx:(Expression binary_op Expression) | ux:UnaryExpr`),
+				o(named("UnaryExpr", `PrimaryExpr | ux:(unary_op UnaryExpr)`), fUnary),
 				o(named("unary_op", revQuote("+ - ! ^ * & <-"))),
-				o(named("binary_op", "mul_op | add_op | rel_op | '&&' | '||'")),
+				o(named("binary_op", `mul_op | add_op | rel_op | '&&' | '||'`)),
 				o(named("mul_op", revQuote("* / % << >> & &^"))),
 				o(named("add_op", revQuote("+ - | ^"))),
 				o(named("rel_op", revQuote("== != < <= > >="))),
-				// o(named("PrimaryExpr", "Operand | Conversion | MethodExpr | PrimaryExpr ( Selector | Index | Slice | TypeAssertion | Arguments )")),
 				o(named("PrimaryExpr", rules(
-					o("p:PrimaryExpr a:Arguments", fPrimaryExprArguments), // e.g. `math.Atan2(x, y)`
-					o("p:PrimaryExpr i:Index", fPrimaryExprIndex),         // e.g. `something[1]`
-					o("p:PrimaryExpr s:Slice", fPrimaryExprSlice),         // e.g. `a[23 : 87]`
-					o("p:PrimaryExpr s:Selector", fPrimaryExprSelector),   // e.g. `x.f` for a PrimaryExpr x that is not a package name
+					o(`p:PrimaryExpr a:Arguments`, fPrimaryExprArguments),                            // e.g. `math.Atan2(x, y)`
+					o(`p:PrimaryExpr i:Index`, fPrimaryExprIndex),                                    // e.g. `something[1]`
+					o(`p:PrimaryExpr s:Slice`, fPrimaryExprSlice),                                    // e.g. `a[23 : 87]`
+					o(`p:PrimaryExpr s:Selector`, fPrimaryExprSelector),                              // e.g. `x.f` for a PrimaryExpr x that is not a package name
+					o(`primaryExpr:PrimaryExpr typeAssertion:TypeAssertion`, fPrimaryExprTypeAssert), // e.g. `x.(T)`
+					// o(named("Conversion", rules( o(`Type '(' Expression ','? ')'`),))), // NOT Conversion: are not in helpers.go X() and would create ambiguity
 					o(named("Operand", rules(
 						// o("'(' Expression ')' | OperandName TypeArgs? | Literal"), // TODO this is the original
-						o("Literal | OperandName | '(' Expression ')'"),
+						o(`Literal | OperandName | '(' Expression ')'`),
 						i(named("Literal", rules(
-							o("BasicLit | FunctionLit | CompositeLit"),
+							o(`BasicLit | FunctionLit | CompositeLit`),
 							i(named("BasicLit", rules(
 								o("(?'\\'') rune_lit | (?[\"`]) string_lit | (?[0-9.]) imaginary_lit | (?[0-9.]) float_lit | (?[0-9]) int_lit"), // (?xx) is lookahead, quickly pruning away
 								i(named("rune_lit", `'\'' ( byte_value | unicode_value | [^\n] ) '\''`), f_rune_lit),
@@ -114,10 +111,32 @@ var (
 						))),
 					))),
 					// TODO add to below alternation: Type [ "," ExpressionList ]
-					i(named("Arguments", "'(' (Args:(ExpressionList) Varg:THREEDOTS? ','? )? ')'"), fArguments),
+					i(named("Arguments", `'(' (Args:(ExpressionList) Varg:THREEDOTS? ','? )? ')'`), fArguments),
 					i(named("Index", `'[' Expression ','? ']'`)),
 					i(named("Slice", `'[' (Expression?)*':'{2,3} ']'`)),
 					i(named("Selector", `'.' identifier`)),
+					i(named("TypeAssertion", `'.' '(' Type ')'`)),
+					i(named("Type", rules(
+						o(named("TypeLit", rules(
+							o(named("MapType", `'map[' Type ']' Type`), fMapType),
+							o(named("SliceType", `'[]' Type`), func(it j.Ast) j.Ast { return &SliceTypeExpr{Elt: it.(Expr), Vrd: false} }),
+							o(named("ArrayType", `'[' Expression ']' Type`), fArrayType),
+							o(named("ChannelType", `chanDir:('chan<-' | '<-chan' | 'chan') _:' '? type:Type`), fChannelType),
+							o(named("PointerType", `'*' Type`), func(it j.Ast) j.Ast { return &StarExpr{X: it.(Expr)} }),
+						// o(named("StructType", rules(
+						// 	o("'struct' '{' FieldDecl*';' '}'")),
+						// 	i(named("FieldDecl", "( identifier*',' Type | EmbeddedField) Tag?")),
+						// 	i(named("EmbeddedField", "star:'*'? typename:TypeName typeargs:TypeArgs?")),
+						// 	i(named("Tag", "string_lit")),
+						// )),
+						// o(named("FunctionType", "")),
+						// o(named("InterfaceType", "")),
+						))),
+						o("TypeName TypeArgs?", fTypeName),
+						o("'(' Type ')'"),
+						i(named("TypeName", "identifier | QualifiedIdent")),
+						i(named("TypeArgs", "'[' Type*',' ','? ']'")), // note: TypeArgs seems not supported by X() ATM
+					))),
 				))),
 			)), fExpression),
 			i(named("ExpressionList", "Expression+_COMMA")),
@@ -129,7 +148,7 @@ var (
 		i(named("IdentifierList", "identifier+','")),
 		i(named("characters", "(newline | unicode_char | unicode_letter | unicode_digit)")),
 		i(named("newline", `[\x{0a}]`)),
-		i(named("letter", `(?[^0-9 \t\n\r+(){}[\]<>-])`), fLetter), // lookahead next rune, not impossible letter? then try parse with fLetter. gospec = "unicode_letter | '_'"
+		i(named("letter", `(?[^0-9 \t\n\r+(){}[\]<>-])`), fLetter), // lookahead next rune, if possibly a letter try to parse with fLetter. gospec = "unicode_letter | '_'"
 		i(named("unicode_char", "[^\\x{0a}]")),                     // "an arbitrary Unicode code point except newline"
 		i(named("unicode_letter", "[a-zA-Z]")),                     // "a Unicode code point categorized as "Letter" TODO it misses all non ASCII
 		i(named("unicode_digit", "[0-9]")),                         // "a Unicode code point categorized as "Number, decimal digit" TODO it misses all non ASCII
@@ -160,4 +179,6 @@ func revQuote(spaceSeparatedElements string) string {
 	return s[:len(s)-1]
 }
 
+// tip: with vim, fold open and close the rules with 'zo' and 'zc', by
+// indentation level
 // vim: fdm=indent
