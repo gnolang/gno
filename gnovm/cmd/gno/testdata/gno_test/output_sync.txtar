@@ -1,6 +1,6 @@
 # Test Output instruction updated
 
-exec $GNO test -verbose -root-dir=$ROOTDIR . -update-golden-tests
+gno test -verbose . -update-golden-tests
 
 cmp x_filetest.gno x_filetest.gno.golden
 

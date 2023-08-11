@@ -4,14 +4,10 @@ import (
 	"flag"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/rogpeppe/go-internal/testscript"
-	"github.com/stretchr/testify/require"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
@@ -103,30 +99,4 @@ func runFileTest(t *testing.T, path string, opts ...RunFileTestOption) {
 	if err != nil {
 		t.Fatalf("got error: %v", err)
 	}
-}
-
-func TestRunFileTest(t *testing.T) {
-	// Get root location of github.com/gnolang/gno
-	goModPath, err := exec.Command("go", "env", "GOMOD").CombinedOutput()
-	require.NoError(t, err)
-	rootDir := filepath.Dir(string(goModPath))
-	// Build a fresh gno binary in a temp directory
-	gnoBin := filepath.Join(t.TempDir(), "gno")
-	err = exec.Command("go", "build", "-o", gnoBin, filepath.Join(rootDir, "gnovm", "cmd", "gno")).Run()
-	require.NoError(t, err)
-	// Define script params
-	params := testscript.Params{
-		Setup: func(env *testscript.Env) error {
-			// Envs to have access to gno binary and path in test scripts
-			env.Vars = append(env.Vars,
-				"ROOTDIR="+rootDir,
-				"GNO="+gnoBin,
-			)
-			return nil
-		},
-		// Location of test scripts
-		Dir: "testdata",
-	}
-	// Run test scripts
-	testscript.Run(t, params)
 }

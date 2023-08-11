@@ -1,8 +1,8 @@
-# Test Error instruction correct
+# Test Output instruction correct
 
-exec $GNO test -verbose -root-dir=$ROOTDIR .
+gno test -verbose .
 
-stdout 'Machine\.RunMain\(\) panic: oups'
+! stdout .+ # stdout should be empty
 stderr '=== RUN   file/x_filetest.gno'
 stderr '--- PASS: file/x_filetest.gno \(\d\.\d\ds\)'
 stderr 'ok      \./\. 	\d\.\d\ds'
@@ -11,8 +11,10 @@ stderr 'ok      \./\. 	\d\.\d\ds'
 package main
 
 func main() {
-	panic("oups")
+	println("hey")
+	println("hru?")
 }
 
-// Error:
-// oups
+// Output:
+// hey
+// hru?

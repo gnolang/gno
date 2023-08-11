@@ -1,6 +1,6 @@
 # Test Realm instruction incorrect
 
-! exec $GNO test -verbose -root-dir=$ROOTDIR .
+! gno test -verbose .
 
 ! stdout .+ # stdout should be empty
 stderr '=== RUN   file/x_filetest.gno'

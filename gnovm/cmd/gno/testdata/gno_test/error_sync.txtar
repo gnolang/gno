@@ -3,7 +3,7 @@
 # by the '-update-golden-tests' flag. The Error is only updated when it is
 # empty.
 
-! exec $GNO test -verbose -root-dir=$ROOTDIR .
+! gno test -verbose .
 
 cmp x_filetest.gno x_filetest.gno.golden
 

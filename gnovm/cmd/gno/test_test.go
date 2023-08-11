@@ -1,8 +1,16 @@
 package main
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/rogpeppe/go-internal/testscript"
+)
 
 func TestTest(t *testing.T) {
+	testscript.Run(t, SetupTestScript(t, "testdata/gno_test"))
+}
+
+func xTestTest(t *testing.T) {
 	tc := []testMainCase{
 		{
 			args:        []string{"test"},

@@ -5,12 +5,15 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/rogpeppe/go-internal/testscript"
 	"github.com/stretchr/testify/require"
+
+	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
 func TestMain_Gnodev(t *testing.T) {
@@ -139,5 +142,43 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 
 			checkOutputs(t)
 		})
+	}
+}
+
+func SetupTestScript(t *testing.T, txtarDir string) testscript.Params {
+	// Get root location of github.com/gnolang/gno
+	goModPath, err := exec.Command("go", "env", "GOMOD").CombinedOutput()
+	require.NoError(t, err)
+	rootDir := filepath.Dir(string(goModPath))
+	// Build a fresh gno binary in a temp directory
+	gnoBin := filepath.Join(t.TempDir(), "gno")
+	err = exec.Command("go", "build", "-o", gnoBin, filepath.Join(rootDir, "gnovm", "cmd", "gno")).Run()
+	require.NoError(t, err)
+	// Define script params
+	return testscript.Params{
+		Setup: func(env *testscript.Env) error {
+			env.Vars = append(env.Vars,
+				"GNOROOT="+rootDir, // thx PR 1014 :)
+			)
+			return nil
+		},
+		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
+			// add a custom "gno" command so txtar files can easily execute "gno"
+			// without knowing where is the binary or how it is executed
+			"gno": func(ts *testscript.TestScript, neg bool, args []string) {
+				err := ts.Exec(gnoBin, args...)
+				if err != nil {
+					ts.Logf("[%v]\n", err)
+					if !neg {
+						ts.Fatalf("unexpected gno command failure")
+					}
+				} else {
+					if neg {
+						ts.Fatalf("unexpected gno command success")
+					}
+				}
+			},
+		},
+		Dir: txtarDir,
 	}
 }

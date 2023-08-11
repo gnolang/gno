@@ -1,23 +1,13 @@
-# Test Realm instruction updated
+# Test Realm instruction correct
 
-exec $GNO test -verbose -root-dir=$ROOTDIR . -update-golden-tests
+gno test -verbose .
 
-cmp x_filetest.gno x_filetest.gno.golden
+! stdout .+ # stdout should be empty
+stderr '=== RUN   file/x_filetest.gno'
+stderr '--- PASS: file/x_filetest.gno \(\d\.\d\ds\)'
+stderr 'ok      \./\. 	\d\.\d\ds'
 
 -- x_filetest.gno --
-// PKGPATH: gno.land/r/x
-package x
-
-var x int
-
-func main() {
-	x = 1
-}
-
-// Realm:
-// xxx
-
--- x_filetest.gno.golden --
 // PKGPATH: gno.land/r/x
 package x
 
