@@ -146,6 +146,7 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 }
 
 func setupTestScript(t *testing.T, txtarDir string) testscript.Params {
+	t.Helper()
 	// Get root location of github.com/gnolang/gno
 	goModPath, err := exec.Command("go", "env", "GOMOD").CombinedOutput()
 	require.NoError(t, err)
