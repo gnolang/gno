@@ -159,6 +159,9 @@ func setupTestScript(t *testing.T, txtarDir string) testscript.Params {
 		Setup: func(env *testscript.Env) error {
 			env.Vars = append(env.Vars,
 				"GNOROOT="+rootDir, // thx PR 1014 :)
+				// by default, $HOME=/no-home, but we need an existing $HOME directory
+				// because some commands needs to access $HOME/.cache/go-build
+				"HOME="+t.TempDir(),
 			)
 			return nil
 		},
