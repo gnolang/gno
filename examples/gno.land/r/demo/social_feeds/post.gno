@@ -43,6 +43,7 @@ type Post struct {
 	reactions avl.Tree // icon -> count
 	comments  avl.Tree // Post.id -> *Post
 	creator   std.Address
+	tipAmount int64
 	deleted   bool
 
 	createdAt time.Time
@@ -119,6 +120,17 @@ func (post *Post) Update(category uint64, metadata string) {
 func (post *Post) Delete() {
 	post.deleted = true
 	post.deletedAt = time.Now()
+}
+
+func (post *Post) Tip(from std.Address, to std.Address, amount int64) {
+	banker := std.GetBanker(std.BankerTypeOrigSend)
+	// banker := std.GetBanker(std.BankerTypeRealmSend)
+
+	coinsToSend := std.Coins{std.Coin{Denom: "ugnot", Amount: amount}}
+	banker.SendCoins(from, to, coinsToSend)
+
+	// Update tip amount
+	post.tipAmount += amount
 }
 
 // Always remove reaction if count = 0

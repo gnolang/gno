@@ -66,6 +66,14 @@ func ReactPost(fid FeedID, pid PostID, icon string, up bool) {
 	post.React(icon, up)
 }
 
+func TipPost(fid FeedID, pid PostID, amount int64) {
+	caller := std.PrevRealm().Addr()
+	feed := mustGetFeed(fid)
+	post := feed.MustGetPost(pid)
+
+	post.Tip(caller, post.creator, amount)
+}
+
 // Get Posts list
 func GetPosts(fid FeedID, categories []uint64, offset uint64, limit uint8) string {
 	caller := std.PrevRealm().Addr()

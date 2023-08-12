@@ -21,6 +21,7 @@ var (
 	feedID1    = FeedID(1)
 	cat1       = uint64(1)
 	cat2       = uint64(2)
+	user       = testutils.TestAddress("user")
 )
 
 func getFeed1() *Feed {
@@ -214,14 +215,73 @@ func testFilterByCategories(t *testing.T) {
 	}
 }
 
+func testTipPost(t *testing.T) {
+	creator := testutils.TestAddress("creator")
+	std.TestIssueCoins(creator, std.Coins{{"ugnot", 100_000_000}})
+
+	// NOTE: Dont know why the address should be this to be able to call banker (= std.GetCallerAt(1))
+	tipper := std.Address("g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4")
+
+	banker := std.GetBanker(std.BankerTypeReadonly)
+
+	// Check Original coins of creator/tipper
+	if coins := banker.GetCoins(creator); coins[0].Amount != 100_000_000 {
+		t.Fatalf("expected creator coin count: 100_000_000, got %d.", coins[0].Amount)
+	}
+
+	if coins := banker.GetCoins(tipper); coins[0].Amount != 200_000_000 {
+		t.Fatalf("expected tipper coin count: 200_000_000, got %d.", coins[0].Amount)
+	}
+
+	// Creator creates feed, post
+	std.TestSetOrigCaller(creator)
+
+	feedID3 := CreateFeed("teritori3")
+	feed3 := mustGetFeed(feedID3)
+
+	postID1 := CreatePost(feed3.id, rootPostID, cat1, "metadata")
+	post1 := feed3.MustGetPost(postID1)
+
+	// Tiper tips the ppst
+	std.TestSetOrigCaller(tipper)
+
+	coins := banker.GetCoins(tipper)
+
+	tipperCoins := banker.GetCoins(tipper)
+
+	TipPost(feed3.id, post1.id, 1_000_000)
+
+	// Coin must be deducted from tipper
+	if coins := banker.GetCoins(tipper); coins[0].Amount != 199_000_000 {
+		t.Fatalf("expected tipper coin after tipping: 199_000_000, got %d.", coins[0].Amount)
+	}
+
+	// Coin must be increased for creator
+	if coins := banker.GetCoins(creator); coins[0].Amount != 101_000_000 {
+		t.Fatalf("expected creator coin after beging tipped: 101_000_000, got %d.", coins[0].Amount)
+	}
+
+	// Total tip amount should increased
+	if post1.tipAmount != 1_000_000 {
+		t.Fatalf("expected total tipAmount: 1_000_000, got %d.", post1.tipAmount)
+	}
+
+	// Add more tip should update this total
+	TipPost(feed3.id, post1.id, 2_000_000)
+
+	if post1.tipAmount != 3_000_000 {
+		t.Fatalf("expected total tipAmount: 3_000_000, got %d.", post1.tipAmount)
+	}
+}
+
 func Test(t *testing.T) {
 	// Setup ================================================================
 	// NOTE: Dont know why std.GetOrigCaller in users.Register is always = std.GetCallerAt(1) here
 	admin := std.GetCallerAt(1)
-	user := testutils.TestAddress("user")
 
 	std.TestSetOrigCaller(admin)
-	std.TestSetOrigSend(std.Coins{{"ugnot", 200000000}}, nil)
+	std.TestSetOrigSend(std.Coins{{"ugnot", 200_000_000}}, nil)
+
 	users.Register("", "social_feeds_admin", "")
 
 	testCreateFeed(t)
@@ -233,4 +293,6 @@ func Test(t *testing.T) {
 	testCreateAndDeleteComment(t)
 
 	testFilterByCategories(t)
+
+	testTipPost(t)
 }
