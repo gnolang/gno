@@ -4,7 +4,6 @@ package social_feeds
 
 import (
 	"encoding/base64"
-	"fmt"
 	"std"
 	"strconv"
 	"strings"
@@ -16,49 +15,61 @@ import (
 	"gno.land/r/demo/users"
 )
 
-func Test(t *testing.T) {
-	// NOTE: Dont know why std.GetOrigCaller in users.Register is always = std.GetCallerAt(1) here
-	admin := std.GetCallerAt(1)
-	user := testutils.TestAddress("user")
+var (
+	rootPostID = PostID(0)
+	postID1    = PostID(1)
+	feedID1    = FeedID(1)
+	cat1       = uint64(1)
+	cat2       = uint64(2)
+)
 
-	std.TestSetOrigCaller(admin)
-	std.TestSetOrigSend(std.Coins{{"ugnot", 200000000}}, nil)
-	users.Register("", "social_feeds_admin", "")
+func getFeed1() *Feed {
+	return mustGetFeed(feedID1)
+}
 
-	// Create feed with registered user =====================================
-	feedName := "teritori"
-	feedID := CreateFeed(feedName)
-	createdFeed := mustGetFeed(feedID)
+func getPost1() *Post {
+	feed1 := getFeed1()
+	post1 := feed1.MustGetPost(postID1)
+	return post1
+}
+
+func testCreateFeed(t *testing.T) {
+	feedID := CreateFeed("teritori")
+	feed := mustGetFeed(feedID)
 
 	if feedID != 1 {
 		t.Fatalf("expected feedID: 1, got %q.", feedID)
 	}
 
-	if createdFeed.name != feedName {
-		t.Fatalf("expected feedName: %q, got %q.", feedName, createdFeed.name)
+	if feed.name != "teritori" {
+		t.Fatalf("expected feedName: teritori, got %q.", feed.name)
 	}
+}
 
-	// Create Post ==========================================================
-	parentID := PostID(0)
-	catID := uint64(0)
+func testCreatePost(t *testing.T) {
 	metadata := `{"gifs": [], "files": [], "title": "", "message": "testouille", "hashtags": [], "mentions": [], "createdAt": "2023-03-29T12:19:04.858Z", "updatedAt": "2023-03-29T12:19:04.858Z"}`
-	postID := CreatePost(feedID, parentID, catID, metadata)
-	createdPost := createdFeed.MustGetPost(postID)
+	postID := CreatePost(feedID1, rootPostID, cat1, metadata)
+	feed := mustGetFeed(feedID1)
+	post := feed.MustGetPost(postID)
 
 	if postID != 1 {
 		t.Fatalf("expected postID: 1, got %q.", postID)
 	}
 
-	if createdPost.category != catID {
-		t.Fatalf("expected categoryID: %q, got %q.", catID, createdPost.category)
+	if post.category != cat1 {
+		t.Fatalf("expected categoryID: %q, got %q.", cat1, post.category)
 	}
+}
 
-	// React Post ==========================================================
+func testReactPost(t *testing.T) {
+	feed := getFeed1()
+	post := getPost1()
+
 	icon := "🥰"
-	ReactPost(feedID, postID, icon, true)
+	ReactPost(feed.id, post.id, icon, true)
 
 	// Set reaction
-	reactionCount_, ok := createdPost.reactions.Get("🥰")
+	reactionCount_, ok := post.reactions.Get("🥰")
 	if !ok {
 		t.Fatalf("expected 🥰 exists")
 	}
@@ -69,35 +80,38 @@ func Test(t *testing.T) {
 	}
 
 	// Unset reaction
-	ReactPost(feedID, postID, icon, false)
-	_, exist := createdPost.reactions.Get("🥰")
+	ReactPost(feed.id, post.id, icon, false)
+	_, exist := post.reactions.Get("🥰")
 	if exist {
 		t.Fatalf("expected 🥰 not exist")
 	}
+}
 
-	// Create SubPost ==========================================================
-	parentID = createdPost.id
-	catID = uint64(1)
-	metadata = `empty_meta_data`
-	subPostID := CreatePost(feedID, parentID, catID, metadata)
-	subPostID2 := CreatePost(feedID, parentID, catID, metadata)
-	createdSubPost := createdFeed.MustGetPost(subPostID)
+func testCreateAndDeleteComment(t *testing.T) {
+	feed1 := getFeed1()
+	post1 := getPost1()
 
-	if createdSubPost.id != 2 {
-		t.Fatalf("expected postID: 2, got %q.", subPostID)
+	metadata := `empty_meta_data`
+
+	commentID1 := CreatePost(feed1.id, post1.id, cat1, metadata)
+	commentID2 := CreatePost(feed1.id, post1.id, cat1, metadata)
+	comment2 := feed1.MustGetPost(commentID2)
+
+	if comment2.id != 3 { // 1 post + 2 comments = 3
+		t.Fatalf("expected comment postID: 3, got %q.", comment2.id)
 	}
 
-	if createdSubPost.parentID != parentID {
-		t.Fatalf("expected parentID: %q, got %q.", parentID, createdPost.parentID)
+	if comment2.parentID != post1.id {
+		t.Fatalf("expected comment parentID: %q, got %q.", post1.id, comment2.parentID)
 	}
 
 	// Check comments size
-	if createdPost.comments.Size() != 2 {
-		t.Fatalf("expected comments count: 1, got %q.", createdPost.comments.Size())
+	if post1.comments.Size() != 2 {
+		t.Fatalf("expected comments count: 2, got %q.", post1.comments.Size())
 	}
 
 	// Get comments
-	comments := GetComments(feedID, postID)
+	comments := GetComments(feed1.id, post1.id)
 	commentsSplitted := strings.Split(comments, ",")
 
 	if len(commentsSplitted) != 2 {
@@ -105,99 +119,118 @@ func Test(t *testing.T) {
 	}
 
 	// Delete 1 comment
-	DeletePost(1, subPostID2)
-	comments = GetComments(feedID, postID)
+	DeletePost(feed1.id, comment2.id)
+	comments = GetComments(feed1.id, post1.id)
 	commentsSplitted = strings.Split(comments, ",")
 	if len(commentsSplitted) != 1 {
 		t.Fatalf("expected encoded comments: 1, got %q.", commentsSplitted)
 	}
+}
 
-	// Re-add reaction to test post list
-	ReactPost(1, postID, "🥰", true)
-	ReactPost(1, postID, "😇", true)
+func countPosts(feedID FeedID, categories []uint64, limit uint8) int {
+	offset := uint64(0)
 
-	// Get Post: 2 post, 2 subposts
-	newPostID := CreatePost(1, PostID(0), uint64(0), "metadata")
-	var postsStr string
-	var postsCount int
-
-	postsStr = GetPosts(1, []uint64{0}, 0, 1)
-	postsCount = len(strings.Split(postsStr, ","))
-	if postsCount != 1 {
-		t.Fatalf("expected posts count: 1, got %q.", postsCount)
+	postsStr := GetPosts(feedID, categories, offset, limit)
+	if postsStr == "" {
+		return 0
 	}
 
-	postsStr = GetPosts(1, []uint64{0}, 0, 2)
-	postsCount = len(strings.Split(postsStr, ","))
-	if postsCount != 2 {
-		t.Fatalf("expected posts count: 2, got %q.", postsCount)
+	postsCount := len(strings.Split(postsStr, ","))
+	return postsCount
+}
+
+func testFilterByCategories(t *testing.T) {
+	// // Re-add reaction to test post list
+	// ReactPost(1, postID, "🥰", true)
+	// ReactPost(1, postID, "😇", true)
+
+	filter_cat1 := []uint64{1}
+	filter_cat1_2 := []uint64{1, 2}
+	filter_cat9 := []uint64{9}
+	filter_cat1_2_9 := []uint64{1, 2, 9}
+	filter_all := []uint64{}
+
+	feedID2 := CreateFeed("teritori2")
+	feed2 := mustGetFeed(feedID2)
+
+	// Create 2 posts on root with cat1
+	postID1 := CreatePost(feed2.id, rootPostID, cat1, "metadata")
+	postID2 := CreatePost(feed2.id, rootPostID, cat1, "metadata")
+
+	// Create 1 posts on root with cat2
+	postID3 := CreatePost(feed2.id, rootPostID, cat2, "metadata")
+
+	// Create comments on post 1
+	commentPostID1 := CreatePost(feed2.id, postID1, cat1, "metadata")
+
+	// cat1: Should return max = limit
+	if count := countPosts(feed2.id, filter_cat1, 1); count != 1 {
+		t.Fatalf("expected posts count: 1, got %q.", count)
 	}
 
-	postsStr = GetPosts(1, []uint64{0}, 0, 3)
-	postsCount = len(strings.Split(postsStr, ","))
-	if postsCount != 2 {
-		t.Fatalf("expected posts count: 2, got %q.", postsCount)
+	// cat1: Should return max = total
+	if count := countPosts(feed2.id, filter_cat1, 10); count != 2 {
+		t.Fatalf("expected posts count: 2, got %q.", count)
 	}
 
-	// Delete one
-	DeletePost(1, newPostID)
-
-	postsStr = GetPosts(1, []uint64{0}, PostID(1), 4)
-	postsCount = len(strings.Split(postsStr, ","))
-	if postsCount != 1 {
-		t.Fatalf("expected posts count: 1, got %q.", postsCount)
+	// cat 1 + 2: Should return max = limit
+	if count := countPosts(feed2.id, filter_cat1_2, 2); count != 2 {
+		t.Fatalf("expected posts count: 2, got %q.", count)
 	}
 
-	// Create Post in another category
-	otherFeedId := CreateFeed("other_feed")
-
-	otherCatId := uint64(2)
-	rootParentID := PostID(0)
-	otherPostID := CreatePost(otherFeedId, rootParentID, otherCatId, metadata)
-	otherPostsStr := GetPosts(1, []uint64{7}, 0, 4)
-
-	otherPost := createdFeed.MustGetPost(PostID(otherPostID))
-
-	otherPostsCount := 0
-	if otherPostsStr != "" {
-		otherPostsCount := len(strings.Split(otherPostsStr, ","))
+	// cat 1 + 2: Should return max = total on both
+	if count := countPosts(feed2.id, filter_cat1_2, 10); count != 3 {
+		t.Fatalf("expected posts count: 3, got %q.", count)
 	}
 
-	if otherPostsCount != 0 {
-		t.Fatalf("expected total posts with category 7: 0, got %q.", postID)
+	// cat 1, 2, 9: Should return total of 1, 2
+	if count := countPosts(feed2.id, filter_cat1_2_9, 10); count != 3 {
+		t.Fatalf("expected posts count: 3, got %q.", count)
 	}
 
-	// Query with exact category should return result
-	otherPostsStr = GetPosts(otherFeedId, []uint64{2}, 0, 4)
-	otherPostsCount = 0
-	if otherPostsStr != "" {
-		otherPostsCount = len(strings.Split(otherPostsStr, ","))
+	// cat 9: Should return 0
+	if count := countPosts(feed2.id, filter_cat9, 10); count != 0 {
+		t.Fatalf("expected posts count: 0, got %q.", count)
 	}
 
-	if otherPostsCount != 1 {
-		t.Fatalf("expected total posts with category 2: 1, got %q.", otherPostsCount)
+	// cat all: should return all
+	if count := countPosts(feed2.id, filter_all, 10); count != 3 {
+		t.Fatalf("expected posts count: 3, got %q.", count)
 	}
 
-	// Query multi categories should return result
-	CreatePost(otherFeedId, rootParentID, uint64(8), metadata)
-	otherPostsStr = GetPosts(otherFeedId, []uint64{2, 7, 8}, 0, 4)
-	otherPostsCount = 0
-	if otherPostsStr != "" {
-		otherPostsCount = len(strings.Split(otherPostsStr, ","))
+	// add comments should not impact the results
+	CreatePost(feed2.id, postID1, cat1, "metadata")
+	CreatePost(feed2.id, postID2, cat1, "metadata")
+
+	if count := countPosts(feed2.id, filter_all, 10); count != 3 {
+		t.Fatalf("expected posts count: 3, got %q.", count)
 	}
 
-	if otherPostsCount != 2 {
-		t.Fatalf("expected total posts with category 2, 8: 2, got %q.", otherPostsCount)
-	}
+	// delete a post should affect the result
+	DeletePost(feed2.id, postID1)
 
-	// Empty requested cateogries should return all
-	otherPostsStr = GetPosts(otherFeedId, []uint64{}, 0, 4)
-	otherPostsCount = 0
-	if otherPostsStr != "" {
-		otherPostsCount = len(strings.Split(otherPostsStr, ","))
+	if count := countPosts(feed2.id, filter_all, 10); count != 2 {
+		t.Fatalf("expected posts count: 2, got %q.", count)
 	}
+}
 
-	if otherPostsCount != 2 {
-		t.Fatalf("expected total posts with all categories: 2, got %q.", otherPostsCount)
-	}
+func Test(t *testing.T) {
+	// Setup ================================================================
+	// NOTE: Dont know why std.GetOrigCaller in users.Register is always = std.GetCallerAt(1) here
+	admin := std.GetCallerAt(1)
+	user := testutils.TestAddress("user")
+
+	std.TestSetOrigCaller(admin)
+	std.TestSetOrigSend(std.Coins{{"ugnot", 200000000}}, nil)
+	users.Register("", "social_feeds_admin", "")
+
+	testCreateFeed(t)
+
+	testCreatePost(t)
+
+	testReactPost(t)
+
+	testCreateAndDeleteComment(t)
+
+	testFilterByCategories(t)
 }

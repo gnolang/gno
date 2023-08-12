@@ -54,7 +54,7 @@ create.pkg:
 .PHONY: create.feed
 create.feed:
 	gnokey maketx call \
-		-pkgpath "gno.land/r/demo/social_feeds_v3" \
+		-pkgpath "gno.land/r/demo/social_feeds_v4" \
 		-func "CreateFeed" \
 		-gas-fee 1000000ugnot \
 		-gas-wanted 3000000 \

@@ -2,7 +2,6 @@ package social_feeds
 
 import (
 	"encoding/base64"
-	"fmt"
 	"std"
 	"strconv"
 	"strings"
