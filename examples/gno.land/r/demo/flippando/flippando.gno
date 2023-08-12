@@ -2,7 +2,6 @@ package flippando
 
 import (
 	"fmt"
-	"math"
 )
 
 type game struct {
@@ -37,7 +36,7 @@ func startGame(owner string, gameId string, tileType string, boardSize int) *gam
 	board := make([]int, boardSize)
 
 	// Initialize the gameTiles slice with a length that is the square root of boardSize
-	gameTilesLength := int(math.Sqrt(float64(boardSize)))
+	gameTilesLength := int(sqrt(float64(boardSize)))
 	gameTiles := make([]int, gameTilesLength)
 
 	// Create a new game instance
@@ -87,4 +86,33 @@ func isValidGameLevel(boardSize int) {
 
 func isValidGameType(tileType string) {
 	//   - utility function, checks valid tile types
+}
+
+// utils, to move into a separate package?
+
+func sqrt(x float64) float64 {
+	if x == 0 || x == 1 {
+		return x
+	}
+
+	// Start with an initial guess
+	guess := x / 2.0
+	prevGuess := 0.0
+
+	// Use a small threshold to determine when to stop the approximation
+	const threshold = 0.00001
+
+	for abs(guess-prevGuess) > threshold {
+		prevGuess = guess
+		guess = 0.5 * (guess + x/guess)
+	}
+
+	return guess
+}
+
+func abs(x float64) float64 {
+	if x < 0 {
+		return -x
+	}
+	return x
 }
