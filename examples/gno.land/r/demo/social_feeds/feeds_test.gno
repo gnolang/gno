@@ -131,7 +131,20 @@ func testCreateAndDeleteComment(t *testing.T) {
 func countPosts(feedID FeedID, categories []uint64, limit uint8) int {
 	offset := uint64(0)
 
-	postsStr := GetPosts(feedID, categories, offset, limit)
+	postsStr := GetPosts(feedID, "", categories, offset, limit)
+	if postsStr == "" {
+		return 0
+	}
+
+	postsCount := len(strings.Split(postsStr, ","))
+	return postsCount
+}
+
+func countPostsByUser(feedID FeedID, user string) int {
+	offset := uint64(0)
+	limit := uint8(10)
+
+	postsStr := GetPosts(feedID, user, []uint64{}, offset, limit)
 	if postsStr == "" {
 		return 0
 	}
@@ -274,6 +287,36 @@ func testTipPost(t *testing.T) {
 	}
 }
 
+func testFilterUser(t *testing.T) {
+	user1 := testutils.TestAddress("user1")
+	user2 := testutils.TestAddress("user2")
+
+	// User1 create 2 posts
+	std.TestSetOrigCaller(user1)
+
+	feedID4 := CreateFeed("teritori4")
+	feed4 := mustGetFeed(feedID4)
+
+	CreatePost(feed4.id, rootPostID, cat1, "metadata1")
+	CreatePost(feed4.id, rootPostID, cat1, "metadata2")
+
+	// User2 create 1 post
+	std.TestSetOrigCaller(user2)
+	CreatePost(feed4.id, rootPostID, cat1, "metadata3")
+
+	if count := countPostsByUser(feed4.id, user1.String()); count != 2 {
+		t.Fatalf("expected total posts by user1: 2, got %d.", count)
+	}
+
+	if count := countPostsByUser(feed4.id, user2.String()); count != 1 {
+		t.Fatalf("expected total posts by user2: 1, got %d.", count)
+	}
+
+	if count := countPostsByUser(feed4.id, ""); count != 3 {
+		t.Fatalf("expected total posts: 3, got %d.", count)
+	}
+}
+
 func Test(t *testing.T) {
 	// Setup ================================================================
 	// NOTE: Dont know why std.GetOrigCaller in users.Register is always = std.GetCallerAt(1) here
@@ -295,4 +338,6 @@ func Test(t *testing.T) {
 	testFilterByCategories(t)
 
 	testTipPost(t)
+
+	testFilterUser(t)
 }

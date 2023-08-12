@@ -75,7 +75,7 @@ func TipPost(fid FeedID, pid PostID, amount int64) {
 }
 
 // Get Posts list
-func GetPosts(fid FeedID, categories []uint64, offset uint64, limit uint8) string {
+func GetPosts(fid FeedID, user string, categories []uint64, offset uint64, limit uint8) string {
 	caller := std.PrevRealm().Addr()
 	feed := mustGetFeed(fid)
 
@@ -95,7 +95,15 @@ func GetPosts(fid FeedID, categories []uint64, offset uint64, limit uint8) strin
 		postCatStr := strconv.FormatUint(post.category, 10)
 
 		// NOTE: this search mechanism is not efficient, only for demo purpose
-		if post.parentID == uint64(0) && (requestedCategories.Size() == 0 || requestedCategories.Has(postCatStr)) && post.deleted == false {
+		if post.parentID == uint64(0) && post.deleted == false {
+			if requestedCategories.Size() > 0 && !requestedCategories.Has(postCatStr) {
+				return false
+			}
+
+			if user != "" && std.Address(user) != post.creator {
+				return false
+			}
+
 			if skipped < offset {
 				skipped++
 				return false
