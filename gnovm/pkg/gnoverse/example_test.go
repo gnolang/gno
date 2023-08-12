@@ -22,10 +22,11 @@ func Example() {
 
 	// print state
 	fmt.Println(s)
-	fmt.Println("Done.")
 
 	// Output:
-	// Done.
+	// - bank
+	// - account
+	// - gnovm
 }
 
 func ExempleNewTestingSandbox() {

@@ -3,6 +3,7 @@ package gnoverse
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
@@ -76,6 +77,19 @@ func (s *Sandbox) Init() error {
 	s.State.Bank = bankKpr
 	s.State.VM = vm
 	return nil
+}
+
+func (s Sandbox) String() string {
+	var w strings.Builder
+
+	// bank keeper
+	fmt.Fprintf(&w, "- bank\n")
+	// account keeper
+	fmt.Fprintf(&w, "- account\n")
+	// vm keeper
+	fmt.Fprintf(&w, "- gnovm\n")
+
+	return w.String()
 }
 
 // TODO: func (s *Sandbox) HandleTx()
