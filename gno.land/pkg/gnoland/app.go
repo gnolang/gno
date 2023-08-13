@@ -21,13 +21,7 @@ import (
 )
 
 // NewApp creates the GnoLand application.
-func NewApp(rootDir string, skipFailingGenesisTxs bool, logger log.Logger, maxCycles int64) (abci.Application, error) {
-	// Get main DB.
-	db, err := dbm.NewDB("gnolang", dbm.GoLevelDBBackend, filepath.Join(rootDir, "data"))
-	if err != nil {
-		return nil, fmt.Errorf("error initializing database %q using path %q: %w", dbm.GoLevelDBBackend, rootDir, err)
-	}
-
+func NewApp(db dbm.DB, skipFailingGenesisTxs bool, logger log.Logger, maxCycles int64) (abci.Application, error) {
 	// Capabilities keys.
 	mainKey := store.NewStoreKey("main")
 	baseKey := store.NewStoreKey("base")

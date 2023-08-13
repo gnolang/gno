@@ -145,8 +145,14 @@ func execStart(c *startCfg, args []string, io *commands.IO) error {
 		writeGenesisFile(genDoc, genesisFilePath)
 	}
 
+	// Get main DB.
+	db, err := dbm.NewDB("gnolang", dbm.GoLevelDBBackend, filepath.Join(rootDir, "data"))
+	if err != nil {
+		return nil, fmt.Errorf("error initializing database %q using path %q: %w", dbm.GoLevelDBBackend, rootDir, err)
+	}
+
 	// create application and node.
-	gnoApp, err := gnoland.NewApp(rootDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
+	gnoApp, err := gnoland.NewApp(db, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
 	if err != nil {
 		return fmt.Errorf("error in creating new app: %w", err)
 	}
@@ -278,7 +284,7 @@ func loadGenesisTxs(
 		if txLine == "" {
 			continue // skip empty line
 		}
-
+?
 		// patch the TX
 		txLine = strings.ReplaceAll(txLine, "%%CHAINID%%", chainID)
 		txLine = strings.ReplaceAll(txLine, "%%REMOTE%%", genesisRemote)
