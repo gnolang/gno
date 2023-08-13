@@ -14,18 +14,52 @@ import (
 func TestNewTestingApp(t *testing.T) {
 	app := gnoland.NewTestingApp()
 	require.NotNil(t, app)
-	println(app)
+	defer app.Close()
+
+	var _ abci.Application = app
+
+	require.Equal(t, app.AppVersion(), "dev")
+	require.Equal(t, app.LastBlockHeight(), int64(0))
+	require.Equal(t, app.Name(), "gnoland")
+}
+
+func TestParallelApps(t *testing.T) {
+	app1 := gnoland.NewTestingApp()
+	require.NotNil(t, app1)
+	defer app1.Close()
+
+	app2 := gnoland.NewTestingApp()
+	require.NotNil(t, app2)
+	defer app2.Close()
+
+	// XXX: more advanced testing
+}
+
+func TestAppClose(t *testing.T) {
+	app := gnoland.NewTestingApp()
+	app.Close()
+	t.Skip("not implemented")
+}
+
+func TestBasicFlow(t *testing.T) {
+	app := gnoland.NewTestingApp()
+	defer app.Close()
+	require.NotNil(t, app)
+	// XXX: continue
 }
 
 func ExampleNewTestingApp() {
-	_, _, addr := tu.KeyTestPubAddr()
 	app := gnoland.NewTestingApp()
-	fmt.Println("app", app)
+	defer app.Close()
+
+	_, _, addr := tu.KeyTestPubAddr()
 	resp := app.Query(abci.RequestQuery{
 		Path: fmt.Sprintf("bank/%s/%s", bank.QueryBalance, addr.String()),
 		Data: []byte{},
 	})
-	fmt.Println("resp", resp)
+	_ = resp
+
+	// XXX: continue
+
 	// Output:
-	// ...
 }

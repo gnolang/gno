@@ -1,12 +1,14 @@
 package gnoland
 
 import (
-	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
 )
 
-func NewTestingApp() abci.Application {
+// NewTestingApp returns an in-memory initialized gno.land app.
+// It returns a *std.BaseApp which implements abci.Application.
+func NewTestingApp() *sdk.BaseApp {
 	var (
 		db                    = db.NewMemDB()
 		skipFailingGenesisTxs = false
@@ -17,5 +19,5 @@ func NewTestingApp() abci.Application {
 	if err != nil {
 		panic(err)
 	}
-	return app
+	return app.(*sdk.BaseApp)
 }
