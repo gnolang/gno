@@ -65,6 +65,12 @@ func LoadOrMakeConfigWithOptions(root string, options ConfigOptions) (cfg *Confi
 	return cfg
 }
 
+// Exists checks if a configuration exists in the specified root dir.
+func Exists(root string) bool {
+	configPath := join(root, defaultConfigFilePath)
+	return osm.FileExists(configPath)
+}
+
 // TestConfig returns a configuration that can be used for testing
 func TestConfig() *Config {
 	return &Config{
@@ -240,6 +246,7 @@ func DefaultBaseConfig() BaseConfig {
 		FilterPeers:        false,
 		DBBackend:          "goleveldb",
 		DBPath:             "data",
+		// LocalApp: abci.Application,
 	}
 }
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+
 	"fmt"
 	"os"
 
@@ -24,7 +25,7 @@ func newRootCmd(io *commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			ShortUsage: "<subcommand> [flags] [<arg>...]",
-			ShortHelp:  "Starts the gnoland blockchain node",
+			ShortHelp:  "Manages the gnoland blockchain node",
 			Options: []ff.Option{
 				ff.WithConfigFileFlag("config"),
 				ff.WithConfigFileParser(fftoml.Parser),
@@ -35,6 +36,7 @@ func newRootCmd(io *commands.IO) *commands.Command {
 	)
 
 	cmd.AddSubCommands(
+		newInitCmd(io),
 		newStartCmd(io),
 	)
 
