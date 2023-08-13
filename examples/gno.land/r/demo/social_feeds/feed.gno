@@ -93,7 +93,7 @@ func (feed *Feed) Render() string {
 	if feed.posts.Size() > 0 {
 		feed.posts.Iterate("", "", func(key string, value interface{}) bool {
 			if str != "" {
-				str += "----------------------------------------\n"
+				str += "\n"
 			}
 
 			post := value.(*Post)
@@ -101,9 +101,37 @@ func (feed *Feed) Render() string {
 
 			str += " * [PostID: " + post.id.String() +
 				" - " + intToString(post.reactions.Size()) + " reactions " +
-				" - " + intToString(post.comments.Size()) + " comments](" + postUrl + ")"
+				" - " + intToString(post.comments.Size()) + " comments](" + postUrl + ")" +
+				"\n"
 			return false
 		})
 	}
 	return str
+}
+
+func (feed *Feed) MigrateFrom(srcFeed *Feed) {
+	if feed.id == FeedID(0) {
+		feed.id = srcFeed.id
+	}
+	feed.url = srcFeed.url
+	feed.name = srcFeed.name
+	feed.creator = srcFeed.creator
+	feed.owner = srcFeed.owner
+	feed.createdAt = srcFeed.createdAt
+
+	srcFeed.posts.Iterate("", "", func(postKey string, value interface{}) bool {
+		post := value.(*Post)
+		targetPost := &Post{}
+		targetPost.MigrateFrom(post)
+
+		feed.posts.Set(postKey, targetPost)
+		return false
+	})
+
+	gFeedsCtr += 1
+	fidkey := feedIDKey(feed.id)
+	gFeeds.Set(fidkey, feed)
+	gFeedsByName.Set(feed.name, feed)
+
+	feed.postsCtr = srcFeed.postsCtr
 }

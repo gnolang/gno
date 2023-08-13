@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"gno.land/p/demo/avl"
+	"gno.land/r/demo/social_feeds"
+	// Import realm to migrate data
 )
 
 // Only registered user can create a new feed
@@ -159,4 +161,17 @@ func GetPost(fid FeedID, pid PostID) string {
 
 	post := data.(*Post)
 	return post.String()
+}
+
+// TODO: allow only creator to call
+func GetFeedByID(fid FeedID) *Feed {
+	return mustGetFeed(fid)
+}
+
+func MigrateFromPreviousFeed() {
+	feed := &Feed{}
+
+	fid := social_feeds.FeedID(1)
+	srcFeed := social_feeds.GetFeedByID(fid)
+	feed.MigrateFrom(srcFeed.(*Feed))
 }

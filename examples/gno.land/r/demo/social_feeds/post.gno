@@ -158,3 +158,36 @@ func (post *Post) React(icon string, up bool) {
 func (post *Post) Render() string {
 	return post.metadata
 }
+
+func (post *Post) MigrateFrom(srcPost *Post) {
+	// Copy post to new target
+	post.feedID = srcPost.feedID
+	post.id = srcPost.id
+	post.parentID = srcPost.parentID
+	post.category = srcPost.category
+	post.metadata = srcPost.metadata
+	post.creator = srcPost.creator
+	post.tipAmount = srcPost.tipAmount
+	post.deleted = srcPost.deleted
+	post.createdAt = srcPost.createdAt
+	post.updatedAt = srcPost.updatedAt
+	post.deletedAt = srcPost.deletedAt
+
+	// Copy reactions
+	srcPost.reactions.Iterate("", "", func(icon string, value interface{}) bool {
+		count := value.(int)
+		post.reactions.Set(icon, count)
+		return false
+	})
+
+	// Copy comments
+	srcPost.comments.Iterate("", "", func(pkey string, value interface{}) bool {
+		srcComment := value.(*Post)
+
+		targetComment := &Post{}
+		targetComment.MigrateFrom(srcComment)
+
+		post.comments.Set(pkey, targetComment)
+		return false
+	})
+}

@@ -4,11 +4,13 @@ package social_feeds
 
 import (
 	"encoding/base64"
+	"fmt"
 	"std"
 	"strconv"
 	"strings"
 	"testing"
 
+	"gno.land/p/demo/avl"
 	"gno.land/p/demo/binutils"
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/boards"
@@ -317,6 +319,70 @@ func testFilterUser(t *testing.T) {
 	}
 }
 
+func testMigrate(t *testing.T) {
+	feedID7 := CreateFeed("teritori7")
+	feed7 := mustGetFeed(feedID7)
+
+	// Create Posts
+	CreatePost(feed7.id, rootPostID, cat1, "metadata1")
+	postID := CreatePost(feed7.id, rootPostID, cat1, "metadata2")
+	postFrom7 := feed7.MustGetPost(postID)
+
+	// Creat Comments
+	CreatePost(feed7.id, postID, cat1, "metadata3")
+	CreatePost(feed7.id, postID, cat1, "metadata4")
+	CreatePost(feed7.id, postID, cat1, "metadata4")
+
+	// React Posts
+	ReactPost(feed7.id, postID, "🥰", true)
+
+	// Tip Posts
+	// NOTE: Dont know why the address should be this to be able to call banker (= std.GetCallerAt(1))
+	tipper := std.Address("g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4")
+	std.TestSetOrigCaller(tipper)
+	TipPost(feed7.id, postID, 1_000_000)
+
+	// Clone to Feed2
+	feed8 := &Feed{id: 8}
+	feed8.MigrateFrom(feed7)
+	feed8.name = "NewFeed"
+
+	// Total posts
+	if feed8.posts.Size() != 5 {
+		t.Fatalf("total posts must be 5")
+	}
+
+	// Total posts from root
+	if count := countPosts(feed8.id, []uint64{}, 10); count != 2 {
+		t.Fatalf("total root posts must be 2")
+	}
+
+	post := feed8.MustGetPost(postID)
+	if post.tipAmount != 1_000_000 {
+		t.Fatalf("tip must be 1_000_000")
+	}
+
+	if post.comments.Size() != 3 {
+		t.Fatalf("total comments must be 3")
+	}
+
+	if post.reactions.Size() != 1 {
+		t.Fatalf("total reactions must be 1")
+	}
+
+	if postFrom7.createdAt != post.createdAt {
+		t.Fatalf("createdAt should be the same")
+	}
+
+	if postFrom7.creator != post.creator {
+		t.Fatalf("creator should be the same")
+	}
+
+	if feed8.postsCtr != 5 {
+		t.Fatalf("postsCtr must be 5, get %d", feed8.postsCtr)
+	}
+}
+
 func Test(t *testing.T) {
 	// Setup ================================================================
 	// NOTE: Dont know why std.GetOrigCaller in users.Register is always = std.GetCallerAt(1) here
@@ -340,4 +406,6 @@ func Test(t *testing.T) {
 	testTipPost(t)
 
 	testFilterUser(t)
+
+	testMigrate(t)
 }
