@@ -46,6 +46,14 @@ func TestBasicFlow(t *testing.T) {
 	defer app.Close()
 	require.NotNil(t, app)
 	// XXX: continue
+
+	_ /* priv */, _ /* pub */, addr := tu.KeyTestPubAddr()
+	require.NotEmpty(t, addr)
+	resp := app.Query(abci.RequestQuery{
+		Path: fmt.Sprintf("bank/%s/%s", bank.QueryBalance, addr.String()),
+		Data: []byte{},
+	})
+	require.Equal(t, resp, 42)
 }
 
 func ExampleNewTestingApp() {
