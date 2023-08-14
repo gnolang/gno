@@ -490,6 +490,20 @@ func TestJoeson(t *testing.T) {
 		expect(`x.(<-chan string)`, parsesAs{`x<VPUverse(0)>.(chan<- (const-type string))`}, isType{"TypeAssertExpr"}),
 		expect(`x.(<-chan []int)`, parsesAs{`x<VPUverse(0)>.(chan<- [](const-type int))`}, isType{"TypeAssertExpr"}),
 		expect(`x.(<-chan chan<- chan []<-chan int)`, parsesAs{`x<VPUverse(0)>.(chan<- <-chan chan []chan<- (const-type int))`}, isType{"TypeAssertExpr"}),
+		expect(`f.(func(a int))`, parsesAs{`f<VPUverse(0)>.(func(a (const-type int)))`}, isType{"TypeAssertExpr"}),
+		expect(`f.(func(a int, b int))`, parsesAs{`f<VPUverse(0)>.(func(a (const-type int), b (const-type int)))`}, isType{"TypeAssertExpr"}),
+		expect(`f.(func(a int, b int) int)`, parsesAs{`f<VPUverse(0)>.(func(a (const-type int), b (const-type int))  (const-type int))`}, isType{"TypeAssertExpr"}),
+		expect(`f.(func(a int, b int) (ok bool, sum int))`, parsesAs{`f<VPUverse(0)>.(func(a (const-type int), b (const-type int)) ok (const-type bool), sum (const-type int))`}, isType{"TypeAssertExpr"}),
+		expectError(`f.(func(a int, b int) (ok ...bool)`, "function results can not be variadic"),
+		expectError(`f.(func(a int, b int) (ok bool, sum ...int))`, "function results can not be variadic"),
+		expect(`f.(func(a, b int))`, parsesAs{`f<VPUverse(0)>.(func(a (const-type int), b (const-type int)))`}, isType{"TypeAssertExpr"}),
+		expect(`f.(func(a int, b ...int))`, parsesAs{`f<VPUverse(0)>.(func(a (const-type int), b ...(const-type int)))`}, isType{"TypeAssertExpr"}),
+		expect(`f.(func(a, b int, c ...int))`, parsesAs{`f<VPUverse(0)>.(func(a (const-type int), b (const-type int), c ...(const-type int)))`}, isType{"TypeAssertExpr"}),
+		expect(`f.(func(a func(s string) bool))`, parsesAs{`f<VPUverse(0)>.(func(a func(s (const-type string))  (const-type bool)))`}, isType{"TypeAssertExpr"}),
+		expect(`f.(func(a func(s ...string) bool))`, parsesAs{`f<VPUverse(0)>.(func(a func(s ...(const-type string))  (const-type bool)))`}, isType{"TypeAssertExpr"}),
+		expect(`f.(func(a func(s ...string) (a int, s string)))`, parsesAs{`f<VPUverse(0)>.(func(a func(s ...(const-type string)) a (const-type int), s (const-type string)))`}, isType{"TypeAssertExpr"}),
+		expect(`f.(func(a func(s ...string) (a int, o <-chan int)))`, parsesAs{`f<VPUverse(0)>.(func(a func(s ...(const-type string)) a (const-type int), o chan<- (const-type int)))`}, isType{"TypeAssertExpr"}),
+		expect(`f.(func(a func(s ...string) (a int, o <-chan func(s string) bool)))`, parsesAs{`f<VPUverse(0)>.(func(a func(s ...(const-type string)) a (const-type int), o chan<- func(s (const-type string))  (const-type bool)))`}, isType{"TypeAssertExpr"}),
 	}
 	for _, expectation := range tests {
 		testExpectation(t, expectation)

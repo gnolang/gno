@@ -19,11 +19,28 @@ func grammar() *j.Grammar {
 }
 
 // rules and grammar for GNO
+// This is not the place to explain it in detail, but
+// we will integrate some short explaination anyway.
 
-func i(a ...any) j.ILine                       { return j.I(a...) }
-func o(a ...any) j.OLine                       { return j.O(a...) }
-func rules(a ...j.Line) []j.Line               { return a }
-func named(name string, thing any) j.NamedRule { return j.Named(name, thing) }
+// A convenient way to make list of subrules.
+// rules() is similar to []j.Line{a,b,c,...}.
+func rules(a ...j.Line) []j.Line { return a }
+
+// "Inline" line of rule AKA ILine. Inline rules are always named().
+// An inline rule can be referenced by its name, but when it isn't
+// it is totally passive.
+func i(a ...any) j.ILine { return j.I(a...) }
+
+// "OR" rule. Inside a rank, "OR" rules (AKA OLine) are parsed one after the
+// other until one returns something other than nil. Some of them are named,
+// but they usually aren't, as it's more the point of an ILine to be
+// referenced. If and when OLine are named it is just to clarify or put a name
+// on what they are supposed to parse.
+func o(a ...any) j.OLine { return j.O(a...) }
+
+// A Key-value pair, where Key is the name.
+// This is exclusively used with joeson ILine and OLine to name things.
+func named(name string, thing interface{}) j.NamedRule { return j.Named(name, thing) }
 
 // Rewrite of X() with Joeson
 func Xnew(x interface{}, args ...interface{}) Expr {

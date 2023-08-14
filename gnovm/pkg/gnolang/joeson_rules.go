@@ -15,20 +15,20 @@ import (
 var (
 	gm       *j.Grammar
 	gnoRules = rules(
-		o(named("Input", "SimpleStmt _semicolon?")),
+		o(named("Input", "SimpleStmt _SEMICOLON?")),
 		o(named("Block", rules(
-			o("'{' Statement*_semicolon '}'"),
+			o("'{' Statement*_SEMICOLON '}'"),
 			i(named("Statement", "SimpleStmt")),
 			i(named("SimpleStmt", "ExpressionStmt"), fSimpleStmt),
 			i(named("ExpressionStmt", "Expression")),
 			i(named("Expression", rules(
 				o(`bx:(Expression binary_op Expression) | ux:UnaryExpr`),
 				o(named("UnaryExpr", `PrimaryExpr | ux:(unary_op UnaryExpr)`), fUnary),
-				o(named("unary_op", revQuote("+ - ! ^ * & <-"))),
+				o(named("unary_op", qmot("<- & * ^ ! - +"))),
 				o(named("binary_op", `mul_op | add_op | rel_op | '&&' | '||'`)),
-				o(named("mul_op", revQuote("* / % << >> & &^"))),
-				o(named("add_op", revQuote("+ - | ^"))),
-				o(named("rel_op", revQuote("== != < <= > >="))),
+				o(named("mul_op", qmot("* / % << >> & &^"))),
+				o(named("add_op", qmot("+ - | ^"))),
+				o(named("rel_op", qmot("== != < <= > >="))),
 				o(named("PrimaryExpr", rules(
 					o(`p:PrimaryExpr a:Arguments`, fPrimaryExprArguments),                            // e.g. `math.Atan2(x, y)`
 					o(`p:PrimaryExpr i:Index`, fPrimaryExprIndex),                                    // e.g. `something[1]`
@@ -111,25 +111,31 @@ var (
 						))),
 					))),
 					// TODO add to below alternation: Type [ "," ExpressionList ]
-					i(named("Arguments", `'(' (Args:(ExpressionList) Varg:THREEDOTS? ','? )? ')'`), fArguments),
+					i(named("Arguments", `'(' (Args:(ExpressionList) Varg:MaybeVariadic ','? )? ')'`), fArguments),
 					i(named("Index", `'[' Expression ','? ']'`)),
 					i(named("Slice", `'[' (Expression?)*':'{2,3} ']'`)),
 					i(named("Selector", `'.' identifier`)),
 					i(named("TypeAssertion", `'.' '(' Type ')'`)),
 					i(named("Type", rules(
-						o(named("TypeLit", rules(
+						o(named("TypeLit", rules( // "A type may also be specified using a type literal, which composes a type from existing types."
 							o(named("MapType", `'map[' Type ']' Type`), fMapType),
 							o(named("SliceType", `'[]' Type`), func(it j.Ast) j.Ast { return &SliceTypeExpr{Elt: it.(Expr), Vrd: false} }),
 							o(named("ArrayType", `'[' Expression ']' Type`), fArrayType),
 							o(named("ChannelType", `chanDir:('chan<-' | '<-chan' | 'chan') _:' '? type:Type`), fChannelType),
-							o(named("PointerType", `'*' Type`), func(it j.Ast) j.Ast { return &StarExpr{X: it.(Expr)} }),
-						// o(named("StructType", rules(
-						// 	o("'struct' '{' FieldDecl*';' '}'")),
-						// 	i(named("FieldDecl", "( identifier*',' Type | EmbeddedField) Tag?")),
-						// 	i(named("EmbeddedField", "star:'*'? typename:TypeName typeargs:TypeArgs?")),
-						// 	i(named("Tag", "string_lit")),
-						// )),
-						// o(named("FunctionType", "")),
+							o(named("PointerType", `'*' Type`), func(it j.Ast) j.Ast { return &StarExpr{X: it.(Expr)} }), // TODO think this is wrong. PointerType?
+							o(named("FunctionType", rules(
+								o("'func' &:Signature"),
+								i(named("Signature", "params:Parameters result:Result?"), fSignature),
+								i(named("Parameters", "'(' ParameterDecl*_COMMA _COMMA? ')'"), fParameters),       // "Within a list of parameters or results, the names must be all present or all absent"
+								i(named("ParameterDecl", "IdentifierList? _ MaybeVariadic Type"), fParameterDecl), // -> NativeArray of FieldTypeExpr
+								i(named("Result", "Parameters | Type"), fResult),
+							))),
+							o(named("StructType", rules(
+								o("'struct' '{' FieldDecl*_SEMICOLON '}'"),
+								i(named("FieldDecl", "( IdentifierList Type | EmbeddedField) Tag?")),
+								i(named("EmbeddedField", "star:MaybeStar typename:TypeName typeargs:TypeArgs?")),
+								i(named("Tag", "string_lit")),
+							))),
 						// o(named("InterfaceType", "")),
 						))),
 						o("TypeName TypeArgs?", fTypeName),
@@ -143,9 +149,8 @@ var (
 		))),
 		i(named("PackageClause", "'package' PackageName")),
 		i(named("PackageName", "identifier"), fPackageName),
-		// i(named("identifier", "[a-zA-Z_] ([a-zA-Z0-9_])*"), func(it j.Ast) j.Ast { return Nx(it.(*j.NativeArray).Concat()) }),
 		i(named("identifier", "letter (letter | unicode_digit)*"), fIdentifier),
-		i(named("IdentifierList", "identifier+','")),
+		i(named("IdentifierList", "identifier+_COMMA")),
 		i(named("characters", "(newline | unicode_char | unicode_letter | unicode_digit)")),
 		i(named("newline", `[\x{0a}]`)),
 		i(named("letter", `(?[^0-9 \t\n\r+(){}[\]<>-])`), fLetter), // lookahead next rune, if possibly a letter try to parse with fLetter. gospec = "unicode_letter | '_'"
@@ -157,23 +162,22 @@ var (
 		// We looked into unicode specs for them but there are not defined
 		// in https://www.unicode.org/versions/Unicode8.0.0/ch04.pdf Section 4.5
 
+		i(named("MaybeVariadic", "'...'?"), func(it j.Ast) j.Ast { return j.NewNativeIntFromBool(!j.IsUndefined(it)) }), // NativeInt 0 or 1
+		i(named("MaybeStar", "'*'?"), func(it j.Ast) j.Ast { return j.NewNativeIntFromBool(!j.IsUndefined(it)) }),       // NativeInt 0 or 1
 		i(named("_COMMA", "_ ','")),
 		i(named("_", "( ' ' | '\t' | '\n' | '\r' )*")),
-		i(named("DOT", "'.'")), // when it needs to get captured (by default '.' in a sequence is not captured)
-		i(named("THREEDOTS", "'...'")),
-		i(named("_semicolon", "';' '\n'?")),
+		i(named("DOT", "'.'")), // using an inline ref such as DOT will capture '.', as opposed to writing '.' which would not.
+		i(named("_SEMICOLON", "';' '\n'?")),
 	)
 )
 
-// helps writing rules for PEG grammars.
-// It splits upon space, reverse order, adds single quotes, and joins upon '|'
-// For example:
-//
-// "* / %"      becomes      "'%'|'/'|'*'".
-func revQuote(spaceSeparatedElements string) string {
+// "quote me on this" helps writing rules for PEG grammars.
+// Split upon space, add single quotes and join upon '|'.
+// E.g. qmot("* / %") -> "'*'|'/'|'%'".
+func qmot(spaceSeparatedElements string) string {
 	a := strings.Fields(spaceSeparatedElements)
 	s := ""
-	for i := len(a) - 1; i >= 0; i-- {
+	for i := 0; i < len(a); i++ {
 		s += "'" + a[i] + "'|"
 	}
 	return s[:len(s)-1]

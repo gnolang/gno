@@ -286,7 +286,7 @@ func fQualifiedIdent(it j.Ast, ctx *j.ParseContext) j.Ast {
 // return a NativeMap,
 // It resembles a CallExpr without Func:
 // "Args"    Exprs        function arguments, if any.
-// "Varg"	 NativeString if "1", final arg is variadic.
+// "Varg"	 NativeInt    if 1, final arg is variadic.
 // "NumArgs" NativeInt    len(Args) or len(Args[0].Results)
 func fArguments(it j.Ast, ctx *j.ParseContext) j.Ast {
 	switch m := it.(type) {
@@ -294,7 +294,7 @@ func fArguments(it j.Ast, ctx *j.ParseContext) j.Ast {
 		return j.NewNativeMap(map[string]j.Ast{
 			"Args":    j.NewNativeArray([]j.Ast{}),
 			"NumArgs": j.NewNativeInt(0),
-			"Varg":    j.NewNativeString("0"),
+			"Varg":    j.NewNativeInt(0),
 		})
 	case *j.NativeMap:
 		args := m.GetOrPanic("Args").(*j.NativeArray)
@@ -317,7 +317,7 @@ func fPrimaryExprArguments(it j.Ast, ctx *j.ParseContext) j.Ast {
 	lastIsVariadic := false
 	varg := arguments.GetOrPanic("Varg")
 	if !j.IsUndefined(varg) {
-		lastIsVariadic = varg.(j.NativeString).Str == "1"
+		lastIsVariadic = varg.(j.NativeInt).Int() == 1
 	}
 	return &CallExpr{
 		Func:    primaryExpr,    // Expr   function expression
@@ -426,6 +426,15 @@ func fTypeName(it j.Ast, ctx *j.ParseContext) j.Ast {
 	case "float64":
 		pt = Float64Type
 	default:
+		// NativeType { Type reflect.Type /*go*/; typeid TypeID; gnoType Type // /*gno*/ }
+		// DeclaredType { Name; Base Type; Methods[]TypedValue; typeid TypeID }
+		// blockType {}
+		// tupleType {}
+		// RefType {}
+		// MaybeNativeType { Type }
+		// FuncType { Params []FieldType; Results []FieldType; typeid TypeID; bound *FuncType }
+		//  func declareWith(pkgPath string, Name, b Type) // not for aliases
+		//  func (ft *FuncType) Specify(store Store, argTVs []TypedValue, isVarg bool) *FuncType {
 		// omitted are {Untyped*|DataByte|Bigint|Bigdec}Type
 		panic(fmt.Sprintf("unsupported %q", tname.Name))
 	}
@@ -504,4 +513,157 @@ func fLetter(_ j.Ast, ctx *j.ParseContext) j.Ast {
 	} else {
 		return nil
 	}
+}
+
+// return &FuncTypeExpr
+// input: NativeMap with keys:
+//   - "params": NativeArray<FieldTypeExpr>
+//   - "results": NativeArray<FieldTypeExpr> or NativeUndefined
+//
+// The validity of variadic arguments is checked here
+func fSignature(it j.Ast, ctx *j.ParseContext) j.Ast {
+	m := it.(*j.NativeMap)
+	// for params, only allow variadic for the last argument
+	params := []FieldTypeExpr{}
+	a := m.GetOrPanic("params").(*j.NativeArray).Array
+	for i, p := range a {
+		// variadic args are represented as SliceTypeExpr with true Vrd
+		if slice, is := p.(*FieldTypeExpr).Type.(*SliceTypeExpr); is && i < len(a)-1 && slice.Vrd {
+			panic(ctx.Error(fmt.Sprintf("only the final parameter can be variadic. %d", i)))
+		}
+		params = append(params, *p.(*FieldTypeExpr))
+	}
+	// don't allow variadic in results
+	results := []FieldTypeExpr{}
+	if b, exists := m.GetExists("result"); exists && !j.IsUndefined(b) {
+		for _, p := range b.(*j.NativeArray).Array {
+			if slice, is := p.(*FieldTypeExpr).Type.(*SliceTypeExpr); is && slice.Vrd {
+				panic(ctx.Error("function results can not be variadic"))
+			}
+			results = append(results, *p.(*FieldTypeExpr))
+		}
+	}
+	return &FuncTypeExpr{
+		Params:  params,
+		Results: results,
+	}
+}
+
+// returns NativeArray<FieldTypeExpr>.
+// Main task therefore is to linearize as in [[a,b], [c]] -> [a,b,c].
+//
+// Input:
+// `(a, b int, s string, d ...float)` would be
+// [[const-type int, const-type int], [const-type string], [... const-type float]].
+func fParameters(it j.Ast, ctx *j.ParseContext) j.Ast {
+	ret := j.NewEmptyNativeArray()
+	groups := it.(*j.NativeArray).Array
+	if len(groups) == 0 {
+		return j.NewNativeArray([]j.Ast{})
+	}
+	if groups[0].(*j.NativeArray).Length() == 0 {
+		panic("assert")
+	}
+	// check Namedness: "Within a list of parameters or results,
+	// the names must either all be present or all be absent",
+	// i.e. (first.Name != "") == (el.Name != "") ∀ el
+	firstIsSet := false
+	firstIsNamed := false
+	for _, group := range groups {
+		for _, t := range group.(*j.NativeArray).Array {
+			el := t.(*FieldTypeExpr)
+			if !firstIsSet {
+				firstIsNamed = el.Name != ""
+				firstIsSet = true
+			} else {
+				if firstIsNamed != (el.Name != "") {
+					panic(ctx.Error(
+						// note: could have used nodes.go (ftxz FieldTypeExprs)
+						// IsNamed(), which panics when inconsistent namedness.
+						// panic with a ParseError and custom message instead.
+						fmt.Sprintf(
+							"within a list of parameters the names must either"+
+								" all be present or all be absent: %v", it.String(),
+						)))
+				}
+			}
+		}
+	}
+	// "all non-blank names in the signature must be unique."
+	names := map[Name]bool{} // bool doesn't matter, it's a "set"
+	for _, group := range groups {
+		for _, t := range group.(*j.NativeArray).Array {
+			el := t.(*FieldTypeExpr)
+			if el.Name != "" && el.Name != "_" {
+				if _, already := names[el.Name]; already {
+					panic(ctx.Error(
+						fmt.Sprintf(
+							"all non-blank names in the signature must be unique: %v",
+							it.String(),
+						)))
+				} else {
+					names[el.Name] = true
+					ret.Append(el)
+				}
+			}
+		}
+	}
+	// variadic will be checked in fSignature,
+	// as in this function, we still lack the knowledge
+	// of whether the array of args is for `params` or `results`.
+	return ret
+}
+
+// This returns a NativeArray<*FieldTypeExpr>
+func fParameterDecl(it j.Ast, ctx *j.ParseContext) j.Ast {
+	a := it.(*j.NativeArray).Array
+	r := []j.Ast{}
+	for _, identifier := range a[0].(*j.NativeArray).Array {
+		// we substitute variadic here by SliceTypeExpr with Vrd set to true
+		// namedness is checked in fParameters
+		// variadicity validity is checked in fSignature
+		var fte *FieldTypeExpr
+		isVariadic := a[1].(j.NativeInt).Bool()
+		if !isVariadic {
+			fte = &FieldTypeExpr{
+				Name: identifier.(*NameExpr).Name,
+				Type: a[2].(Expr),
+			}
+		} else {
+			fte = &FieldTypeExpr{
+				Name: identifier.(*NameExpr).Name,
+				Type: &SliceTypeExpr{
+					Elt: a[2].(Expr),
+					Vrd: true,
+				},
+			}
+		}
+		r = append(r, fte)
+	}
+	return j.NewNativeArray(r)
+}
+
+// This returns a NativeArray<*FieldTypeExpr>
+// and expects either (because of `Parameters | Type`):
+// - a NativeArray<FieldTypeExpr> (when `Parameters`)
+// - a TypeExpr such as *FieldTypeExpr (when `Type`)
+func fResult(it j.Ast, ctx *j.ParseContext) j.Ast {
+	r := []j.Ast{}
+	switch v := it.(type) {
+	case TypeExpr:
+		// a single type
+		r = append(r, &FieldTypeExpr{
+			Name: "",
+			Type: v,
+		})
+	case *j.NativeArray:
+		for _, field := range v.Array {
+			r = append(r, field.(*FieldTypeExpr))
+		}
+	default:
+		panic(fmt.Sprintf("unhandled %s", v.String()))
+	}
+	// - namedness is checked in fParameters
+	// - variadicity validity is checked in fSignature
+	return j.NewNativeArray(r)
 }
