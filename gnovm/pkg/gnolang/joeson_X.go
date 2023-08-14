@@ -23,12 +23,12 @@ func grammar() *j.Grammar {
 // we will integrate some short explaination anyway.
 
 // A convenient way to make list of subrules.
-// rules() is similar to []j.Line{a,b,c,...}.
+// rules(a,b,c) is similar to []j.Line{a,b,c}.
 func rules(a ...j.Line) []j.Line { return a }
 
 // "Inline" line of rule AKA ILine. Inline rules are always named().
-// An inline rule can be referenced by its name, but when it isn't
-// it is totally passive.
+// An inline rule can be referenced by its name. When it isn't
+// it is totally inert and inactive.
 func i(a ...any) j.ILine { return j.I(a...) }
 
 // "OR" rule. Inside a rank, "OR" rules (AKA OLine) are parsed one after the

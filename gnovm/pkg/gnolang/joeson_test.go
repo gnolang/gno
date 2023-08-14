@@ -479,6 +479,7 @@ func TestJoeson(t *testing.T) {
 
 		// TypeAssertion using various types notation
 		expect(`x.(int)`, parsesAs{`x<VPUverse(0)>.((const-type int))`}, isType{"TypeAssertExpr"}),
+		expect(`x.(float32)`, parsesAs{`x<VPUverse(0)>.((const-type float32))`}, isType{"TypeAssertExpr"}),
 		// TODO support non primitive types as below
 		// expect(`x.(*T)`, parsesAs{`x<VPUverse(0)>.([3](const-type int))`}, isType{"TypeAssertExpr"}),
 		expect(`x.([]int)`, parsesAs{`x<VPUverse(0)>.([](const-type int))`}, isType{"TypeAssertExpr"}),
@@ -504,6 +505,7 @@ func TestJoeson(t *testing.T) {
 		expect(`f.(func(a func(s ...string) (a int, s string)))`, parsesAs{`f<VPUverse(0)>.(func(a func(s ...(const-type string)) a (const-type int), s (const-type string)))`}, isType{"TypeAssertExpr"}),
 		expect(`f.(func(a func(s ...string) (a int, o <-chan int)))`, parsesAs{`f<VPUverse(0)>.(func(a func(s ...(const-type string)) a (const-type int), o chan<- (const-type int)))`}, isType{"TypeAssertExpr"}),
 		expect(`f.(func(a func(s ...string) (a int, o <-chan func(s string) bool)))`, parsesAs{`f<VPUverse(0)>.(func(a func(s ...(const-type string)) a (const-type int), o chan<- func(s (const-type string))  (const-type bool)))`}, isType{"TypeAssertExpr"}),
+		expect(`x.(struct { x, y float32 })`, parsesAs{`x<VPUverse(0)>.(struct { x (const-type float32) <nil>, y (const-type float32) <nil> })`}, isType{"TypeAssertExpr"}), // legit (albeit useless, at least I can not think of any application) type assertion e.g. when `var x interface{}`.
 	}
 	for _, expectation := range tests {
 		testExpectation(t, expectation)

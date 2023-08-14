@@ -122,7 +122,7 @@ var (
 							o(named("SliceType", `'[]' Type`), func(it j.Ast) j.Ast { return &SliceTypeExpr{Elt: it.(Expr), Vrd: false} }),
 							o(named("ArrayType", `'[' Expression ']' Type`), fArrayType),
 							o(named("ChannelType", `chanDir:('chan<-' | '<-chan' | 'chan') _:' '? type:Type`), fChannelType),
-							o(named("PointerType", `'*' Type`), func(it j.Ast) j.Ast { return &StarExpr{X: it.(Expr)} }), // TODO think this is wrong. PointerType?
+							o(named("PointerType", `'*' Type`), func(it j.Ast) j.Ast { return &StarExpr{X: it.(Expr)} }), // nodes.go reads StarExpr "semantically (...) could be unary * expression, or a pointer type."
 							o(named("FunctionType", rules(
 								o("'func' &:Signature"),
 								i(named("Signature", "params:Parameters result:Result?"), fSignature),
@@ -131,10 +131,13 @@ var (
 								i(named("Result", "Parameters | Type"), fResult),
 							))),
 							o(named("StructType", rules(
-								o("'struct' '{' FieldDecl*_SEMICOLON '}'"),
-								i(named("FieldDecl", "( IdentifierList Type | EmbeddedField) Tag?")),
-								i(named("EmbeddedField", "star:MaybeStar typename:TypeName typeargs:TypeArgs?")),
-								i(named("Tag", "string_lit")),
+								o("'struct' '{' FieldDecl*_SEMICOLON '}'", fStructType),
+								i(named("FieldDecl", rules(
+									o("IdentifierList _ Type Tag?", fFieldDecl1),
+									o("EmbeddedField Tag?", fFieldDecl2),
+									i(named("EmbeddedField", "star:MaybeStar typename:TypeName typeargs:TypeArgs?"), fEmbeddedField), // "A field declared with a type but no explicit field name is called an embedded field." E.g. in `struct { Name; age int }`, Name is an embedded field.
+									i(named("Tag", "string_lit")),
+								))),
 							))),
 						// o(named("InterfaceType", "")),
 						))),

@@ -667,3 +667,85 @@ func fResult(it j.Ast, ctx *j.ParseContext) j.Ast {
 	// - variadicity validity is checked in fSignature
 	return j.NewNativeArray(r)
 }
+
+// This returns a &FieldTypeExpr
+// "A field declared with a type but no explicit field
+// name is called an embedded field." (e.g. Attr, Name)
+func fEmbeddedField(it j.Ast, ctx *j.ParseContext) j.Ast {
+	m := it.(*j.NativeMap)
+	isStar := m.GetOrPanic("star").(j.NativeInt).Bool()
+	typeName := m.GetOrPanic("typename").(Expr)
+	// TODO when we support TypeArgs
+	// typeArgs := m.GetOrPanic("typeargs").(Expr)
+	if isStar {
+		typeName = &StarExpr{X: typeName}
+	}
+	// "An embedded field must be specified as a type name T or as a pointer to
+	// a non-interface type name *T, and T itself may not be a pointer type."
+	return &FieldTypeExpr{
+		Name: Name(""),
+		Type: typeName.(Expr),
+		Tag:  nil, // Tag overwritten in fFieldDecl
+	}
+}
+
+// This returns a NativeArray<*FieldTypeExpr>
+// from a list of fields sharing the same type to which we add a Tag.
+func fFieldDecl1(it j.Ast, ctx *j.ParseContext) j.Ast {
+	a := it.(*j.NativeArray).Array
+	ret := j.NewEmptyNativeArray()
+	identifiers := a[0].(*j.NativeArray).Array
+	theType := a[1].(TypeExpr)
+	var tag *BasicLitExpr = nil
+	if !j.IsUndefined(a[2]) {
+		tag = &BasicLitExpr{
+			Kind:  STRING,
+			Value: a[2].(j.NativeString).Str,
+		}
+	}
+	for _, identifier := range identifiers {
+		// identifier begin by a letter, by rule.
+		ret.Append(&FieldTypeExpr{
+			Name: identifier.(*NameExpr).Name,
+			Type: theType.(TypeExpr),
+			Tag:  tag,
+		})
+	}
+	return ret
+}
+
+// This returns a NativeArray<*FieldTypeExpr>
+// from a *FieldTypeExpr to which we merely add a Tag.
+func fFieldDecl2(it j.Ast, ctx *j.ParseContext) j.Ast {
+	a := it.(*j.NativeArray).Array
+	ret := j.NewEmptyNativeArray()
+	fte := a[0].(*FieldTypeExpr)
+	var tag *BasicLitExpr = nil
+	if !j.IsUndefined(a[1]) {
+		tag = &BasicLitExpr{
+			Kind:  STRING,
+			Value: a[1].(j.NativeString).Str,
+		}
+	}
+	// almost ready from fEmbeddedField was still waiting tag.
+	fte.Tag = tag
+	ret.Append(fte)
+	return ret
+}
+
+// This returns a &StructTypeExpr
+// from a NativeArray<NativeArray<*FieldTypeExpr>>
+// yes there are two levels, because `a,b,c int` returns 3 fields.
+// This is where it get linearized
+//
+// TODO struct require some work to check conditions
+// defined in https://go.dev/ref/spec#StructType
+func fStructType(it j.Ast) j.Ast {
+	fields := FieldTypeExprs{}
+	for _, aa := range it.(*j.NativeArray).Array {
+		for _, field := range aa.(*j.NativeArray).Array {
+			fields = append(fields, *field.(*FieldTypeExpr))
+		}
+	}
+	return &StructTypeExpr{Fields: fields}
+}
