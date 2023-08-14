@@ -393,6 +393,9 @@ func Test(t *testing.T) {
 
 	users.Register("", "social_feeds_admin", "")
 
+	path := std.CurrentRealm()
+	panic(path.PkgPath())
+
 	testCreateFeed(t)
 
 	testCreatePost(t)

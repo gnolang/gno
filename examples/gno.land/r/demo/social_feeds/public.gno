@@ -7,8 +7,7 @@ import (
 	"strings"
 
 	"gno.land/p/demo/avl"
-	"gno.land/r/demo/social_feeds"
-	// Import realm to migrate data
+	"gno.land/p/demo/ufmt"
 )
 
 // Only registered user can create a new feed
@@ -163,6 +162,31 @@ func GetPost(fid FeedID, pid PostID) string {
 	return post.String()
 }
 
+func FlagPost(fid FeedID, pid PostID) {
+	caller := std.PrevRealm().Addr()
+	feed := mustGetFeed(fid)
+
+	feed.FlagPost(caller, pid)
+}
+
+func GetFlags(fid FeedID, limit uint64, offset uint64) string {
+	feed := mustGetFeed(fid)
+
+	type FlagCount struct {
+		FlagID FlagID
+		Count  uint64
+	}
+
+	flags := feed.flags.GetFlags(limit, offset)
+
+	var res []string
+	for _, flag := range flags {
+		res = append(res, ufmt.Sprintf("%s:%d", flag.FlagID, flag.Count))
+	}
+
+	return res.Join("|")
+}
+
 // TODO: allow only creator to call
 func GetFeedByID(fid FeedID) *Feed {
 	return mustGetFeed(fid)
@@ -171,7 +195,7 @@ func GetFeedByID(fid FeedID) *Feed {
 func MigrateFromPreviousFeed() {
 	feed := &Feed{}
 
-	fid := social_feeds.FeedID(1)
-	srcFeed := social_feeds.GetFeedByID(fid)
-	feed.MigrateFrom(srcFeed.(*Feed))
+	// fid := social_feeds.FeedID(1)
+	// srcFeed := social_feeds.GetFeedByID(fid)
+	// feed.MigrateFrom(srcFeed.(*Feed))
 }
