@@ -156,14 +156,10 @@ var (
 		i(named("IdentifierList", "identifier+_COMMA")),
 		i(named("characters", "(newline | unicode_char | unicode_letter | unicode_digit)")),
 		i(named("newline", `[\x{0a}]`)),
-		i(named("letter", `(?[^0-9 \t\n\r+(){}[\]<>-])`), fLetter), // lookahead next rune, if possibly a letter try to parse with fLetter. gospec = "unicode_letter | '_'"
-		i(named("unicode_char", "[^\\x{0a}]")),                     // "an arbitrary Unicode code point except newline"
-		i(named("unicode_letter", "[a-zA-Z]")),                     // "a Unicode code point categorized as "Letter" TODO it misses all non ASCII
-		i(named("unicode_digit", "[0-9]")),                         // "a Unicode code point categorized as "Number, decimal digit" TODO it misses all non ASCII
-		//                         ^^^
-		// For now we'll stick to ANSI for letters and digits. It can later be improved
-		// We looked into unicode specs for them but there are not defined
-		// in https://www.unicode.org/versions/Unicode8.0.0/ch04.pdf Section 4.5
+		i(named("letter", `(?[^0-9 \t\n\r+(){}[\]<>-])`), fLetter),                 // lookahead next rune, if not impossibly a letter try to parse with fLetter using unicode.IsLetter(). gospec = "unicode_letter | '_'"
+		i(named("unicode_char", "[^\\x{0a}]")),                                     // "an arbitrary Unicode code point except newline"
+		i(named("unicode_letter", `(?[^0-9 \t\n\r+(){}[\]<>-])`), funicode_letter), // lookahead next rune, if not impossibly a letter try etc. "a Unicode code point categorized as "Letter" TODO it misses all non ASCII
+		i(named("unicode_digit", `(?[^a-zA-Z \t\n\r-])`), funicode_digit),          // lookahead next rune, if not impossibly a digit, try to unicode.IsDigit(). "a Unicode code point categorized as "Number, decimal digit" TODO it misses all non ASCII
 
 		i(named("MaybeVariadic", "'...'?"), func(it j.Ast) j.Ast { return j.NewNativeIntFromBool(!j.IsUndefined(it)) }), // NativeInt 0 or 1
 		i(named("MaybeStar", "'*'?"), func(it j.Ast) j.Ast { return j.NewNativeIntFromBool(!j.IsUndefined(it)) }),       // NativeInt 0 or 1

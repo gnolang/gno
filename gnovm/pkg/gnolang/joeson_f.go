@@ -502,7 +502,7 @@ func fIdentifier(it j.Ast) j.Ast {
 	return Nx(it.(*j.NativeArray).Concat())
 }
 
-// a Parser, this parser must check whether unicode.IsLetter(rune)
+// rune parser against unicode.IsLetter(rune), also '_'
 // letter = unicode_letter | '_' .
 func fLetter(_ j.Ast, ctx *j.ParseContext) j.Ast {
 	// OPTIM NativeString probably not good idea anymore
@@ -513,6 +513,21 @@ func fLetter(_ j.Ast, ctx *j.ParseContext) j.Ast {
 	} else {
 		return nil
 	}
+}
+
+func funicode_letter(_ j.Ast, ctx *j.ParseContext) j.Ast {
+	if is, rune := ctx.Code.MatchRune(unicode.IsLetter); is {
+		return j.NewNativeString(string(rune))
+	}
+	return nil
+}
+
+// rune parser against unicode.IsDigit(rune)
+func funicode_digit(_ j.Ast, ctx *j.ParseContext) j.Ast {
+	if is, rune := ctx.Code.MatchRune(unicode.IsDigit); is {
+		return j.NewNativeString(string(rune))
+	}
+	return nil
 }
 
 // return &FuncTypeExpr
