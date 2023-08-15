@@ -43,7 +43,7 @@ type Post struct {
 	reactions avl.Tree // icon -> count
 	comments  avl.Tree // Post.id -> *Post
 	creator   std.Address
-	tipAmount int64
+	tipAmount uint64
 	deleted   bool
 
 	createdAt time.Time
@@ -104,6 +104,9 @@ func (post *Post) Bytes() []byte {
 	subpostIDsStr := strings.Join(subpostIDArr, SEPARATOR)
 	b = append(b, EncodeLengthPrefixedStringUint32BE(subpostIDsStr)...)
 
+	// Add tipAmount
+	b = binary.BigEndian.AppendUint64(b, post.tipAmount)
+
 	return b
 }
 
@@ -123,14 +126,18 @@ func (post *Post) Delete() {
 }
 
 func (post *Post) Tip(from std.Address, to std.Address, amount int64) {
-	banker := std.GetBanker(std.BankerTypeOrigSend)
-	// banker := std.GetBanker(std.BankerTypeRealmSend)
+	if amount <= 0 {
+		panic("amount is not valid")
+	}
+
+	// banker := std.GetBanker(std.BankerTypeOrigSend)
+	banker := std.GetBanker(std.BankerTypeRealmSend)
 
 	coinsToSend := std.Coins{std.Coin{Denom: "ugnot", Amount: amount}}
 	banker.SendCoins(from, to, coinsToSend)
 
 	// Update tip amount
-	post.tipAmount += amount
+	post.tipAmount += uint64(amount)
 }
 
 // Always remove reaction if count = 0

@@ -26,5 +26,5 @@ func parseFlagID(flagID flags_index.FlagID) (FeedID, PostID) {
 	if err != nil || pid == 0 {
 		panic("invalid post ID in flag ID '" + parts[1] + "'")
 	}
-	return PostID(fid), PostID(pid)
+	return FeedID(fid), PostID(pid)
 }

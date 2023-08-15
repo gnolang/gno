@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/flags_index"
 	"gno.land/p/demo/ufmt"
 )
 
@@ -173,7 +174,7 @@ func GetFlags(fid FeedID, limit uint64, offset uint64) string {
 	feed := mustGetFeed(fid)
 
 	type FlagCount struct {
-		FlagID FlagID
+		FlagID flags_index.FlagID
 		Count  uint64
 	}
 
@@ -184,7 +185,7 @@ func GetFlags(fid FeedID, limit uint64, offset uint64) string {
 		res = append(res, ufmt.Sprintf("%s:%d", flag.FlagID, flag.Count))
 	}
 
-	return res.Join("|")
+	return strings.Join(res, "|")
 }
 
 // TODO: allow only creator to call

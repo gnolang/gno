@@ -7,6 +7,7 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/flags_index"
+	"gno.land/p/demo/ufmt"
 )
 
 type FeedID uint64
@@ -108,9 +109,13 @@ func (feed *Feed) Render() string {
 			post := value.(*Post)
 			postUrl := "/r/demo/social_feeds_v4:" + feed.name + "/" + post.id.String()
 
-			str += " * [PostID: " + post.id.String() +
+			str += " * [" +
+				"PostID: " + post.id.String() +
 				" - " + intToString(post.reactions.Size()) + " reactions " +
-				" - " + intToString(post.comments.Size()) + " comments](" + postUrl + ")" +
+				" - " + intToString(post.comments.Size()) + " comments" +
+				" - " + ufmt.Sprintf("%d", post.tipAmount) + " tip amount" +
+				"]" +
+				"(" + postUrl + ")" +
 				"\n"
 			return false
 		})
