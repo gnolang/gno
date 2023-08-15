@@ -14,6 +14,8 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
 )
 
 type modDownloadCfg struct {
@@ -181,10 +183,10 @@ func execModTidy(args []string, io *commands.IO) error {
 	if err != nil {
 		return err
 	}
-	// TODO: allow from sub dir?
-	modPath := filepath.Join(wd, "gno.mod")
-	if !isFileExist(modPath) {
-		return errors.New("gno.mod not found")
+
+	gm, err := gnomod.ParseAt(wd)
+	if err != nil {
+		return err
 	}
 
 	imports, err := getGnoImports(wd)
@@ -192,13 +194,19 @@ func execModTidy(args []string, io *commands.IO) error {
 		return err
 	}
 
-	// Print imports
-	// TODO: remove
-	for i := range imports {
-		fmt.Println(imports[i])
+	// TODO: handle edge cases
+	var requires []*modfile.Require
+	for _, im := range imports {
+		requires = append(requires, &modfile.Require{
+			Mod: module.Version{
+				Path:    im,
+				Version: "v0.0.0-latest",
+			},
+		})
 	}
-
-	// TODO: Add imports to gno.mod file
+	gm.Require = requires
+	// TODO: Fix: gno.mod can be in any parent dir of `wd`
+	gm.WriteToPath(filepath.Join(wd, "gno.mod"))
 
 	return nil
 }
