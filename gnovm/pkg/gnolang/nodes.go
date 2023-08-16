@@ -1161,8 +1161,8 @@ func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 			fset.AddFiles(n)
 		} else {
 			panic(fmt.Sprintf(
-				"expected package name [%s] or [%s_test] but got [%s]",
-				memPkg.Name, memPkg.Name, n.PkgName))
+				"expected package name [%s] but got [%s]",
+				memPkg.Name, n.PkgName))
 		}
 	}
 	return fset
