@@ -132,10 +132,8 @@ func (post *Post) Tip(from std.Address, to std.Address, amount int64) {
 
 	// banker := std.GetBanker(std.BankerTypeOrigSend)
 	banker := std.GetBanker(std.BankerTypeRealmSend)
-
 	coinsToSend := std.Coins{std.Coin{Denom: "ugnot", Amount: amount}}
 
-	banker := std.GetBanker(std.BankerTypeRealmSend)
 	pkgaddr := std.GetOrigPkgAddr()
 	banker.SendCoins(pkgaddr, to, coinsToSend)
 
