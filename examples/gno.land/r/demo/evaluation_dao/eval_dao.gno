@@ -1,7 +1,7 @@
 package evaldao
 
 import (
-	governor "gno.land/p/demo/gor/governor"
+	"gno.land/p/demo/gor/governor"
 	"gno.land/p/demo/maths"
 	"gno.land/r/demo/groups"
 	"std"
@@ -9,14 +9,12 @@ import (
 
 // TODO: need a keeper for DAO, DAO=groups+governor
 var (
-	groupID groups.GroupID
-	gvr     *governor.Governor
-	counter *counters.Counter
+	gvr *governor.Governor
 )
 
 func CreateDAO() {
 	std.AssertOriginCall()
-	evalDAO, groupID = groups.NewGroup("eval_dao")
+	_, groupID := groups.NewGroup("eval_dao")
 	println("group created: ", groupID)
 
 	membership := governor.NewNoCoinAdapter(groupID)
@@ -38,24 +36,20 @@ func CreateDAO() {
 func AddMember(addr std.Address, weight int, meta string) {
 	// TODO: calculate weight based on tokens (say)
 	// need an update mechanism also
-	gvr.AddMember(addr.String(), weight, meta)
+	gvr.Ms.AddMember(addr.String(), weight, meta)
 }
 
 // TODO: this should in gvr render, no need for here
-func GetMemberVotingPower(mid groups.MemberID) int {
-	return gvr.GetVotingPowerFromMember(mid)
+func GetMemberVotingPower(mid uint64) int32 {
+	return gvr.Ms.GetVotingPowerFromMember(mid)
 }
 
-func UpdateMemberWeight(mid groups.MemberID, weight int) {
-	gvr.UpdateMemberWeight(groupID, mid, weight)
+func UpdateMemberWeight(mid uint64, weight int) {
+	gvr.Ms.UpdateMemberWeight(mid, weight)
 }
 
 func GetTotalVotingPower() int32 {
-	return gvr.TotalVotingPower()
-}
-
-func RenderGroup() string {
-	return groups.RenderGroup(groupID)
+	return gvr.Ms.TotalVotingPower()
 }
 
 // TODO:
@@ -68,9 +62,9 @@ func RenderGvr(propID string) string {
 	return gvr.RenderHome(propID)
 }
 
-func Propose(propID string, title, detail, summary, url string, payee std.Address, amount std.Coins, propType string) string {
+func Propose(title, detail, summary, url string, payee std.Address, amount std.Coins, propType string) string {
 	std.AssertOriginCall()
-	proposalID := gvr.Propose(propID, title, detail, summary, url, payee, amount, propType)
+	proposalID := gvr.Propose(title, detail, summary, url, payee, amount, propType)
 	return proposalID
 }
 

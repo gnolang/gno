@@ -46,10 +46,10 @@ func str2VoteType(str string) VoteType {
 	}
 }
 
-//type Ballots interface {
-//	Tally(propID string) (*TallyResult, error)
-//	CastVote(propID string, account std.Address, vp VoteType) error
-//}
+type Ballots interface {
+	Tally(propID string) (*TallyResult, error)
+	CastVote(propID string, account std.Address, vp VoteType) error
+}
 
 type TallyResult struct {
 	tr *avl.Tree // account -> voteType
@@ -188,7 +188,7 @@ func (pv *ballots) Tally(propID string) (*TallyResult, error) {
 // check if quorum reached
 // TODO: should voting power obtained at height?
 func (gvr *Governor) quorumReached(totalVotingPower int32) bool {
-	left := maths.NewRat(totalVotingPower, gvr.votingPower.Total())
+	left := maths.NewRat(totalVotingPower, gvr.Ms.TotalVotingPower())
 	right := gvr.gs.getQuorum()
 	r := left.Cmp(right)
 	if r == -1 {

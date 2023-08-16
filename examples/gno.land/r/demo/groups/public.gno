@@ -81,14 +81,14 @@ func DeleteMember(gid GroupID, mid MemberID) {
 	group.deleteMember(mid)
 }
 
-func GetMemberWeight(gid GroupID, mid MemberID) int {
+func GetMemberWeight(gid GroupID, mid uint64) int {
 	group := getGroup(gid)
-	return group.getMemberWeight(mid)
+	return group.getMemberWeight(MemberID(mid))
 }
 
-func UpdateMemberWeight(gid GroupID, mid MemberID, weight int) {
+func UpdateMemberWeight(gid GroupID, mid uint64, weight int) {
 	group := getGroup(gid)
-	group.setMemberWeight(mid, weight)
+	group.setMemberWeight(MemberID(mid), weight)
 }
 
 func GetMemberCount(gid GroupID) int {

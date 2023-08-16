@@ -6,7 +6,7 @@ import (
 
 type Membership interface {
 	AddMember(addr string, weight int, meta string)
-	UpdateMemberWeight(addr string, weight int)
+	UpdateMemberWeight(mid uint64, weight int)
 	TotalVotingPower() int32 // use int32 corresponding to maths.Rat for now
 	GetVotingPowerFromMember(mid uint64) int32
 	RenderMembership() string
@@ -26,8 +26,8 @@ func (nca *NoCoinAdapter) AddMember(addr string, weight int, meta string) {
 	groups.AddMember(nca.groupID, addr, weight, meta)
 }
 
-func (nca *NoCoinAdapter) UpdateMemberWeight(addr string, weight int) {
-	groups.UpdateMemberWeight(nca.groupID, addr, weight)
+func (nca *NoCoinAdapter) UpdateMemberWeight(mid uint64, weight int) {
+	groups.UpdateMemberWeight(nca.groupID, mid, weight)
 }
 
 func (nca *NoCoinAdapter) TotalVotingPower() int32 {

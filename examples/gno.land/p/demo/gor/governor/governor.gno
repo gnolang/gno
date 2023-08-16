@@ -14,20 +14,20 @@ type Gvr interface {
 
 // governor keeper
 type Governor struct {
-	name       string
-	membership Membership
-	proposals  *avl.Tree // ProposalId => Votes
-	ballots    *ballots
-	gs         *GovernorSettings
+	name      string
+	Ms        Membership
+	proposals *avl.Tree // ProposalId => Votes
+	ballots   *ballots
+	gs        *GovernorSettings
 }
 
 func NewGovernor(name string, ms Membership, gs *GovernorSettings) *Governor {
 	return &Governor{
-		name:       name,
-		proposals:  avl.NewTree(),
-		ballots:    NewBallots(),
-		gs:         gs,
-		membership: ms,
+		name:      name,
+		proposals: avl.NewTree(),
+		ballots:   NewBallots(),
+		gs:        gs,
+		Ms:        ms,
 	}
 }
 
@@ -75,6 +75,14 @@ func (gvr *Governor) castVote(propID string, account std.Address, vt VoteType) e
 }
 
 func (gvr *Governor) RenderHome(propID string) string {
+	str := "\n"
+	str += ufmt.Sprintf("***gvr name***: %s\n", gvr.GetName())
+	str += ufmt.Sprintf("***gvr version***: %s\n", gvr.GetVersion())
+
+	// render Ms
+	ms_str := gvr.Ms.RenderMembership()
+	str += ufmt.Sprintf("***Ms***: %s\n", ms_str)
+
 	state := gvr.state(propID)
 	snapShot := gvr.proposalSnapshot(propID)
 	deadLine := gvr.proposalDeadline(propID)
@@ -84,9 +92,6 @@ func (gvr *Governor) RenderHome(propID string) string {
 	//	totalDeposit = totalI.(std.Coin)
 	//}
 
-	str := "\n"
-	str += ufmt.Sprintf("***gvr name***: %s\n", gvr.GetName())
-	str += ufmt.Sprintf("***gvr version***: %s\n", gvr.GetVersion())
 	str += ufmt.Sprintf("***Current height is***: %d\n", std.GetHeight())
 	str += ufmt.Sprintf("***Proposal snapShot is***: %d\n", snapShot)
 	str += ufmt.Sprintf("***Proposal deadLine is***: %d\n", deadLine)
@@ -106,8 +111,4 @@ func (gvr *Governor) RenderHome(propID string) string {
 	str += ufmt.Sprintf("***Proposal state is***: %s\n", state.String())
 
 	return str
-}
-
-func (gvr *Governor) AddMember(addr string, weight int, meta string) {
-	gvr.membership.AddMember()
 }

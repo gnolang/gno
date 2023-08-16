@@ -2,23 +2,11 @@ package governor
 
 import (
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/gor/counters"
 	"gno.land/p/demo/gor/timers"
 	"gno.land/p/demo/ufmt"
 	"std"
 	"time"
 )
-
-func init() {
-	counter = counters.NewCounter()
-}
-
-// generate proposalId
-func proposalID() string {
-	propID := counter.Current()
-	counter.Increment()
-	return strconv.FormatUint(propID, 10)
-}
 
 type ProposalState int
 
@@ -164,8 +152,7 @@ func (gvr *Governor) proposalDeadline(propID string) int64 {
 }
 
 func (gvr *Governor) Propose(title, detail, summary, url string, payee std.Address, amount std.Coins, propKind string) string {
-	propID := proposalID()
-
+	propID := "test"
 	prop := &proposal{
 		proposalID: propID,
 		propKind:   str2ProposalKind(propKind),
@@ -279,7 +266,7 @@ func (gvr *Governor) state(propID string) ProposalState {
 
 	// other than executed, canceled, pending, active
 	// check voting status
-	if gvr.quorumReached(gvr.votingPower.Total()) {
+	if gvr.quorumReached(gvr.Ms.TotalVotingPower()) {
 		tallyRes, err := gvr.ballots.Tally(propID)
 		if err != nil {
 			panic(err)

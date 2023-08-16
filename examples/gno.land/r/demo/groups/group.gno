@@ -86,7 +86,7 @@ func (group *Group) setMemberWeight(mid MemberID, weight int) {
 
 	member.weight = weight
 
-	group.members.Set(mid, member)
+	group.members.Set(midkey, member)
 }
 
 func (group *Group) HasPermission(addr std.Address, perm Permission) bool {
