@@ -826,6 +826,16 @@ code.hljs {
   font-weight: bold;
 }
 
+#realm_render li,
+#realm_help li {
+  list-style: disc;
+}
+#realm_render ul > li > ul,
+#realm_help ul > li > ul {
+  padding-left: 1rem;
+  list-style: circle inside;
+}
+
 /*** COMPONENTS ELEMENTS ***/
 
 /** Jumbotron **/
