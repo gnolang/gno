@@ -2,11 +2,23 @@ package governor
 
 import (
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/gor/counters"
 	"gno.land/p/demo/gor/timers"
 	"gno.land/p/demo/ufmt"
 	"std"
 	"time"
 )
+
+func init() {
+	counter = counters.NewCounter()
+}
+
+// generate proposalId
+func proposalID() string {
+	propID := counter.Current()
+	counter.Increment()
+	return strconv.FormatUint(propID, 10)
+}
 
 type ProposalState int
 
@@ -151,7 +163,9 @@ func (gvr *Governor) proposalDeadline(propID string) int64 {
 	return proposal.core.voteEnd.GetDeadline()
 }
 
-func (gvr *Governor) Propose(propID string, title, detail, summary, url string, payee std.Address, amount std.Coins, propKind string) string {
+func (gvr *Governor) Propose(title, detail, summary, url string, payee std.Address, amount std.Coins, propKind string) string {
+	propID := proposalID()
+
 	prop := &proposal{
 		proposalID: propID,
 		propKind:   str2ProposalKind(propKind),
@@ -183,6 +197,8 @@ func (gvr *Governor) Propose(propID string, title, detail, summary, url string, 
 	return propID
 }
 
+// TODO: add hook for before execute and after execute
+// TODO: trigger update weight function in group
 func (gvr *Governor) Execute(propID string) {
 	if !gvr.proposals.Has(propID) {
 		panic(("proposal not exist"))
@@ -215,7 +231,7 @@ func (gvr *Governor) Execute(propID string) {
 
 // Internal cancel mechanism: locks up the proposal timer, preventing it from being re-submitted. Marks it as
 // canceled to allow distinguishing it from executed proposals.
-func (gvr *Governor) cancel(propID string) string {
+func (gvr *Governor) Cancel(propID string) string {
 	proposal, err := gvr.getProposal(propID)
 	if err != nil {
 		panic(err.Error())
@@ -264,7 +280,7 @@ func (gvr *Governor) state(propID string) ProposalState {
 	// other than executed, canceled, pending, active
 	// check voting status
 	if gvr.quorumReached(gvr.votingPower.Total()) {
-		tallyRes, err := gvr.tally.Tally(propID)
+		tallyRes, err := gvr.ballots.Tally(propID)
 		if err != nil {
 			panic(err)
 		}

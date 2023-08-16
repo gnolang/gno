@@ -8,22 +8,26 @@ import (
 
 var admin std.Address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // TODO: helper to change admin
 
-// governor keeper
-type Governor struct {
-	name        string
-	proposals   *avl.Tree // ProposalId => Votes
-	votingPower VotingPower
-	tally       Tally
-	gs          *GovernorSettings
+type Gvr interface {
+	Membership
 }
 
-func NewGovernor(name string, vp VotingPower, tally Tally, gs *GovernorSettings) *Governor {
+// governor keeper
+type Governor struct {
+	name       string
+	membership Membership
+	proposals  *avl.Tree // ProposalId => Votes
+	ballots    *ballots
+	gs         *GovernorSettings
+}
+
+func NewGovernor(name string, ms Membership, gs *GovernorSettings) *Governor {
 	return &Governor{
-		name:        name,
-		proposals:   avl.NewTree(),
-		tally:       tally,
-		gs:          gs,
-		votingPower: vp,
+		name:       name,
+		proposals:  avl.NewTree(),
+		ballots:    NewBallots(),
+		gs:         gs,
+		membership: ms,
 	}
 }
 
@@ -65,7 +69,7 @@ func (gvr *Governor) castVote(propID string, account std.Address, vt VoteType) e
 		panic("Governor: vote not currently active")
 	}
 
-	err := gvr.tally.CastVote(propID, account, vt)
+	err := gvr.ballots.CastVote(propID, account, vt)
 
 	return err
 }
@@ -89,7 +93,7 @@ func (gvr *Governor) RenderHome(propID string) string {
 	//str += ufmt.Sprintf("* **Proposal deposit is***: %s\n", totalDeposit.String())
 	//str += ufmt.Sprintf("* **isBurnDeposit :***: %t\n", isBurnDeposit)
 
-	tallyRes, err := gvr.tally.Tally(propID)
+	tallyRes, err := gvr.ballots.Tally(propID)
 	if err != nil {
 		println(err.Error())
 	} else {
@@ -102,4 +106,8 @@ func (gvr *Governor) RenderHome(propID string) string {
 	str += ufmt.Sprintf("***Proposal state is***: %s\n", state.String())
 
 	return str
+}
+
+func (gvr *Governor) AddMember(addr string, weight int, meta string) {
+	gvr.membership.AddMember()
 }

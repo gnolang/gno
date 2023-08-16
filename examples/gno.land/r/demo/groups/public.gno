@@ -86,6 +86,11 @@ func GetMemberWeight(gid GroupID, mid MemberID) int {
 	return group.getMemberWeight(mid)
 }
 
+func UpdateMemberWeight(gid GroupID, mid MemberID, weight int) {
+	group := getGroup(gid)
+	group.setMemberWeight(mid, weight)
+}
+
 func GetMemberCount(gid GroupID) int {
 	group := getGroup(gid)
 	return group.getMemberCount()

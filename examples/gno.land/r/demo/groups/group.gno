@@ -75,6 +75,20 @@ func (group *Group) getMemberWeight(mid MemberID) int {
 	return member.weight
 }
 
+func (group *Group) setMemberWeight(mid MemberID, weight int) {
+	var member *Member
+	midkey := memberIDKey(mid)
+	m, ok := group.members.Get(midkey)
+	if !ok {
+		panic("this member for this group not exists")
+	}
+	member = m.(*Member)
+
+	member.weight = weight
+
+	group.members.Set(mid, member)
+}
+
 func (group *Group) HasPermission(addr std.Address, perm Permission) bool {
 	if group.creator != addr {
 		return false
