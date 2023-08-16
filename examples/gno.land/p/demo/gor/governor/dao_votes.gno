@@ -188,7 +188,7 @@ func (pv *ballots) Tally(propID string) (*TallyResult, error) {
 // check if quorum reached
 // TODO: should voting power obtained at height?
 func (gvr *Governor) quorumReached(totalVotingPower int32) bool {
-	left := maths.NewRat(totalVotingPower, gvr.Ms.TotalVotingPower())
+	left := maths.NewRat(totalVotingPower, gvr.TotalVotingPower())
 	right := gvr.gs.getQuorum()
 	r := left.Cmp(right)
 	if r == -1 {

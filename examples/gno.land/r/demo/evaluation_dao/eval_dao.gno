@@ -36,20 +36,20 @@ func CreateDAO() {
 func AddMember(addr std.Address, weight int, meta string) {
 	// TODO: calculate weight based on tokens (say)
 	// need an update mechanism also
-	gvr.Ms.AddMember(addr.String(), weight, meta)
+	gvr.AddMember(addr.String(), weight, meta)
 }
 
 // TODO: this should in gvr render, no need for here
 func GetMemberVotingPower(mid uint64) int32 {
-	return gvr.Ms.GetVotingPowerFromMember(mid)
+	return gvr.GetVotingPowerFromMember(mid)
 }
 
 func UpdateMemberWeight(mid uint64, weight int) {
-	gvr.Ms.UpdateMemberWeight(mid, weight)
+	gvr.UpdateMemberWeight(mid, weight)
 }
 
 func GetTotalVotingPower() int32 {
-	return gvr.Ms.TotalVotingPower()
+	return gvr.TotalVotingPower()
 }
 
 // TODO:

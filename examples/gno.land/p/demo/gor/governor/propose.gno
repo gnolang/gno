@@ -266,7 +266,7 @@ func (gvr *Governor) state(propID string) ProposalState {
 
 	// other than executed, canceled, pending, active
 	// check voting status
-	if gvr.quorumReached(gvr.Ms.TotalVotingPower()) {
+	if gvr.quorumReached(gvr.TotalVotingPower()) {
 		tallyRes, err := gvr.ballots.Tally(propID)
 		if err != nil {
 			panic(err)

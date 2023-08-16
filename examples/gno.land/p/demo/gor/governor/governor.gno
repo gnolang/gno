@@ -14,8 +14,8 @@ type Gvr interface {
 
 // governor keeper
 type Governor struct {
-	name      string
-	Ms        Membership
+	name string
+	Membership
 	proposals *avl.Tree // ProposalId => Votes
 	ballots   *ballots
 	gs        *GovernorSettings
@@ -23,11 +23,11 @@ type Governor struct {
 
 func NewGovernor(name string, ms Membership, gs *GovernorSettings) *Governor {
 	return &Governor{
-		name:      name,
-		proposals: avl.NewTree(),
-		ballots:   NewBallots(),
-		gs:        gs,
-		Ms:        ms,
+		name:       name,
+		proposals:  avl.NewTree(),
+		ballots:    NewBallots(),
+		gs:         gs,
+		Membership: ms,
 	}
 }
 
@@ -80,7 +80,7 @@ func (gvr *Governor) RenderHome(propID string) string {
 	str += ufmt.Sprintf("***gvr version***: %s\n", gvr.GetVersion())
 
 	// render Ms
-	ms_str := gvr.Ms.RenderMembership()
+	ms_str := gvr.RenderMembership()
 	str += ufmt.Sprintf("***Ms***: %s\n", ms_str)
 
 	state := gvr.state(propID)
