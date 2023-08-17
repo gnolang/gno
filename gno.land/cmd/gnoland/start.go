@@ -144,7 +144,7 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.txEventStorePath,
 		"tx-event-store-path",
 		"",
-		fmt.Sprintf("path for the file tx event store (required if event store if '%s')", file.EventStoreType),
+		fmt.Sprintf("path for the file tx event store (required if event store is '%s')", file.EventStoreType),
 	)
 }
 
