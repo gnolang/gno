@@ -5,6 +5,7 @@ import (
 	"gno.land/p/demo/gor/timers"
 	"gno.land/p/demo/ufmt"
 	"std"
+	"strconv"
 	"time"
 )
 
@@ -151,8 +152,15 @@ func (gvr *Governor) proposalDeadline(propID string) int64 {
 	return proposal.core.voteEnd.GetDeadline()
 }
 
+func propID(index uint64) string {
+	return strconv.FormatUint(index, 10)
+}
+
 func (gvr *Governor) Propose(title, detail, summary, url string, payee std.Address, amount std.Coins, propKind string) string {
-	propID := "test"
+	lastPropCount := gvr.lastPropCount
+	currentPropCount := lastPropCount + 1
+	propID := propID(currentPropCount)
+
 	prop := &proposal{
 		proposalID: propID,
 		propKind:   str2ProposalKind(propKind),
@@ -180,6 +188,9 @@ func (gvr *Governor) Propose(title, detail, summary, url string, payee std.Addre
 	prop.core.voteEnd.SetDeadline(deadline)
 
 	gvr.proposals.Set(propID, prop)
+
+	// update index
+	gvr.lastPropCount = currentPropCount
 	// TODO: emit ProposalCreatedEvent
 	return propID
 }
@@ -200,6 +211,11 @@ func (gvr *Governor) Execute(propID string) {
 
 	// TODO: call callable
 
+	// before execute
+	if gvr.beforeExecute != nil {
+		gvr.beforeExecute()
+	}
+
 	if proposal.propKind == SendProposal {
 		// get banker
 		// send coin to payee
@@ -213,6 +229,11 @@ func (gvr *Governor) Execute(propID string) {
 
 	proposal.core.state = Executed
 	gvr.proposals.Set(propID, proposal) // update state
+
+	// after execute
+	if gvr.afterExecute != nil {
+		gvr.afterExecute()
+	}
 	// TODO: emit ProposalExecuted(proposalId);
 }
 

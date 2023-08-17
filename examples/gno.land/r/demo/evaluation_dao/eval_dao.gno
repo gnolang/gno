@@ -7,7 +7,7 @@ import (
 	"std"
 )
 
-// TODO: need a keeper for DAO, DAO=groups+governor
+// gvr is p package for build DAO, Gvr <-> DAO
 var (
 	gvr *governor.Governor
 )
@@ -28,40 +28,50 @@ func CreateDAO() {
 
 	gvr = governor.NewGovernor("eval_governor", membership, gs)
 	// until now, we have a gvr, consists of membership, and propose, vote abilities
-	// gvr is p package for build DAO, Gvr <-> DAO
+
+	beforeExecute := func() error {
+		println("before execute hook...")
+		return nil
+	}
+	gvr.SetBeforeExecute(beforeExecute)
+
+	afterExecute := governor.ExecuteHook(func() error {
+		println("after execute hook...")
+		println("here, after execution, tokens are transferred, need to update weight of members")
+		return nil
+	})
+	gvr.SetAfterExecute(afterExecute)
+}
+
+// render
+func RenderGvr(propID string) string {
+	return gvr.RenderHome(propID)
 }
 
 // membership miscs
-// should all assertOrigin
+// TODO: calculate weight based on tokens (say)
 func AddMember(addr std.Address, weight int, meta string) {
-	// TODO: calculate weight based on tokens (say)
-	// need an update mechanism also
+	std.AssertOriginCall()
 	gvr.AddMember(addr.String(), weight, meta)
 }
 
-// TODO: this should in gvr render, no need for here
+// // TODO: this should in gvr render, no need for here
 func GetMemberVotingPower(mid uint64) int32 {
+	std.AssertOriginCall()
 	return gvr.GetVotingPowerFromMember(mid)
+}
+
+func GetTotalVotingPower() int32 {
+	std.AssertOriginCall()
+	return gvr.TotalVotingPower()
 }
 
 func UpdateMemberWeight(mid uint64, weight int) {
 	gvr.UpdateMemberWeight(mid, weight)
 }
 
-func GetTotalVotingPower() int32 {
-	return gvr.TotalVotingPower()
-}
-
-// TODO:
-// render EvalDAO, groupID, num members, member, voting power
-// remove member
-
 // governor miscs
-// propose -> vote -> tally -> render
-func RenderGvr(propID string) string {
-	return gvr.RenderHome(propID)
-}
-
+// propose -> vote -> tally -> execute -> render
 func Propose(title, detail, summary, url string, payee std.Address, amount std.Coins, propType string) string {
 	std.AssertOriginCall()
 	proposalID := gvr.Propose(title, detail, summary, url, payee, amount, propType)

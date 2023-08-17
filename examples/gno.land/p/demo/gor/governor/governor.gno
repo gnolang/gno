@@ -8,17 +8,18 @@ import (
 
 var admin std.Address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // TODO: helper to change admin
 
-type Gvr interface {
-	Membership
-}
+type ExecuteHook func() error
 
 // governor keeper
 type Governor struct {
 	name string
 	Membership
-	proposals *avl.Tree // ProposalId => Votes
-	ballots   *ballots
-	gs        *GovernorSettings
+	proposals     *avl.Tree // ProposalId => Votes
+	lastPropCount uint64
+	ballots       *ballots
+	gs            *GovernorSettings
+	beforeExecute ExecuteHook
+	afterExecute  ExecuteHook
 }
 
 func NewGovernor(name string, ms Membership, gs *GovernorSettings) *Governor {
@@ -37,6 +38,14 @@ func (gvr *Governor) GetName() string {
 
 func (gvr *Governor) GetVersion() string {
 	return "1"
+}
+
+func (gvr *Governor) SetBeforeExecute(eh ExecuteHook) {
+	gvr.beforeExecute = eh
+}
+
+func (gvr *Governor) SetAfterExecute(eh ExecuteHook) {
+	gvr.afterExecute = eh
 }
 
 // TODO: other settings
