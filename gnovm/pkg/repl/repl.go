@@ -150,14 +150,15 @@ func (r *Repl) Process(input string) (out string, err error) {
 		}
 	}()
 	r.state.id++
-	exp, expErr := r.parseExpression(input)
-	if expErr == nil {
-		return r.handleExpression(exp)
-	}
 
 	decl, declErr := r.parseDeclaration(input)
 	if declErr == nil {
 		return r.handleDeclarations(decl)
+	}
+
+	exp, expErr := r.parseExpression(input)
+	if expErr == nil {
+		return r.handleExpression(exp)
 	}
 
 	return "", fmt.Errorf("error parsing code:\n\t- as expression (error: %q)\n\t- as declarations (error: %q)", expErr.Error(), declErr.Error())
@@ -173,7 +174,6 @@ func (r *Repl) handleExpression(e *ast.File) (string, error) {
 	r.state.machine.RunStatement(gno.S(gno.Call(gno.X(fmt.Sprintf("%s%d", executedFunc, r.state.id)))))
 
 	// Read the result from the output buffer after calling main function.
-
 	b, err := io.ReadAll(r.rw)
 	if err != nil {
 		return "", fmt.Errorf("error reading output buffer: %w", err)
@@ -187,27 +187,36 @@ func (r *Repl) handleDeclarations(fn *ast.File) (string, error) {
 		b               bytes.Buffer
 		nonImportsCount int
 	)
-
 	ast.Inspect(fn, func(n ast.Node) bool {
-		var writeNode bool
-		var ns string
+		var (
+			writeNode bool
+			ns        string
+		)
+
 		switch t := n.(type) {
-		// TODO:
-		//	token.CONST   *ValueSpec
-		//	token.TYPE    *TypeSpec
-		//	token.VAR     *ValueSpec
 		case *ast.GenDecl:
-			if t.Tok != token.IMPORT {
+			tok := t.Tok
+
+			if tok != token.IMPORT &&
+				tok != token.TYPE &&
+				tok != token.CONST &&
+				tok != token.VAR {
 				break
 			}
+
 			writeNode = true
+			ns = r.nodeToString(n)
+
+			if tok != token.IMPORT {
+				nonImportsCount++
+				break
+			}
 
 			i, ok := t.Specs[0].(*ast.ImportSpec)
 			if !ok {
 				break
 			}
 
-			ns = r.nodeToString(n)
 			r.state.imports[i.Path.Value] = ns
 		case *ast.FuncDecl:
 			writeNode = true

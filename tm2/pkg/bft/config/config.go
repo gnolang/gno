@@ -178,7 +178,7 @@ type BaseConfig struct {
 	FastSyncMode bool `toml:"fast_sync"`
 
 	// Database backend: goleveldb | cleveldb | boltdb
-	// * goleveldb (github.com/syndtr/goleveldb - most popular implementation)
+	// * goleveldb (github.com/gnolang/goleveldb - most popular implementation)
 	//   - pure go
 	//   - stable
 	// * cleveldb (uses levigo wrapper)
