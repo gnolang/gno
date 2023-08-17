@@ -449,18 +449,15 @@ func TestJoeson(t *testing.T) {
 		expectError(`⽔`, ""),  // (not a letter, but So / Symbol, other)
 		expectError(`x🌞`, ""), // (starts with a letter, but contains non-letter/digit characters)
 
-		// expect(`package math`, parsesAs{"package math"}), // unsupported by X() AFAIK
+		// expect(`package math`, parsesAs{"package math"}), // unsupported by X() AFAIK -> don't bother Stmt and scopes for now
 		expect(`math.Sin`, parsesAs{"math<VPUverse(0)>.Sin"}, isSelectorExpr{}), // denotes the Sin function in package math
 
-		// Calls
 		expect(`math.Atan2(x, y)`, parsesAs{"math<VPUverse(0)>.Atan2(x<VPUverse(0)>, y<VPUverse(0)>)"}, isCallExpr{}), // function call
-		// expect(`var pt *Point`, parsesAs{"var pt *Point"}),       // function call
-		// expect(`pt.Scale(3.5)`, parsesAs{"pt.Scale(3.5)"}),       // method call with receiver pt
 
 		expect(`h(x+y)`, parsesAs{"h<VPUverse(0)>(x<VPUverse(0)> + y<VPUverse(0)>)"}, isCallExpr{}),
 		expect(`f.Close()`, parsesAs{"f<VPUverse(0)>.Close()"}, isCallExpr{}),
-		// expect(`<-ch`, parsesAs{"h( x + y )"}),
-		// expect(`(<-ch)`, parsesAs{"h( x + y )"}),
+		expect(`<-ch`, parsesAs{"<-ch<VPUverse(0)>"}),
+		expect(`(<-ch)`, parsesAs{"<-ch<VPUverse(0)>"}),
 		expect(`len("foo")`, parsesAs{`len<VPUverse(0)>("foo")`}, isCallExpr{}), // marked "illegal if len is the built-in function" in gospec, I don't get why?
 
 		// https://golang.google.com/ref/spec#Primary_expressions
@@ -468,7 +465,7 @@ func TestJoeson(t *testing.T) {
 		expect(`2`, parsesAs{"2"}, isBasicLit{INT}),
 		expect(`s + ".txt"`, parsesAs{`s<VPUverse(0)> + ".txt"`}, isType{"BinaryExpr"}),
 		expect(`f(3.1415, true)`, parsesAs{`f<VPUverse(0)>(3.1415, true<VPUverse(0)>)`}, isCallExpr{}),
-		// Point{1, 2}
+		// expect(`Point{1, 2}`), not supported yet
 		expect(`m["foo"]`, parsesAs{`m<VPUverse(0)>["foo"]`}, isType{"IndexExpr"}),
 		expect(`m[361]`, parsesAs{`m<VPUverse(0)>[361]`}, isType{"IndexExpr"}),
 		expect(`s[i : j + 1]`, parsesAs{`s<VPUverse(0)>[i<VPUverse(0)>:j<VPUverse(0)> + 1]`}, isType{"SliceExpr"}),
@@ -478,7 +475,7 @@ func TestJoeson(t *testing.T) {
 		expect(`s[:2]`, parsesAs{`s<VPUverse(0)>[:2]`}, isType{"SliceExpr"}),
 		expect(`s[1:]`, parsesAs{`s<VPUverse(0)>[1:]`}, isType{"SliceExpr"}),
 		expect(`s[: i : (314*10)-6]`, parsesAs{`s<VPUverse(0)>[:i<VPUverse(0)>:314 * 10 - 6]`}, isType{"SliceExpr"}),
-		// obj.color
+		expect(`obj.color`, parsesAs{`obj<VPUverse(0)>.color`}, isType{"SelectorExpr"}),
 		expect(`f.p[i].x()`, parsesAs{`f<VPUverse(0)>.p[i<VPUverse(0)>].x()`}, isCallExpr{}),
 
 		// TypeAssertion using various types notation
