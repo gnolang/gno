@@ -442,9 +442,9 @@ func TestJoeson(t *testing.T) {
 		// tests from https://dev.to/flopp/golang-identifiers-vs-unicode-1fe7
 		expect(`abc_123`, parsesAs{"abc_123<VPUverse(0)>"}, isNameExpr{}),
 		expect(`_myidentifier`, parsesAs{"_myidentifier<VPUverse(0)>"}, isNameExpr{}),
-		expect(`Σ`, parsesAs{"Σ<VPUverse(0)>"}, isNameExpr{}), // (U+03A3 GREEK CAPITAL LETTER SIGMA),
-		expect(`㭪`, parsesAs{"㭪<VPUverse(0)>"}, isNameExpr{}), // (some CJK character from the Lo category),
-		// expect(`x٣३߃૩୩3`, parsesAs{"x٣३߃૩୩3<VPUverse(0)>"}, isNameExpr{}), // FIXME doesn't parse, needs unicode_digit first  // (x + decimal digits 3 from various scripts),
+		expect(`Σ`, parsesAs{"Σ<VPUverse(0)>"}, isNameExpr{}),             // (U+03A3 GREEK CAPITAL LETTER SIGMA),
+		expect(`㭪`, parsesAs{"㭪<VPUverse(0)>"}, isNameExpr{}),             // (some CJK character from the Lo category),
+		expect(`x٣३߃૩୩3`, parsesAs{"x٣३߃૩୩3<VPUverse(0)>"}, isNameExpr{}), // (x + decimal digits 3 from various scripts),
 		expectError(`😀`, ""),  // (not a letter, but So / Symbol, other)
 		expectError(`⽔`, ""),  // (not a letter, but So / Symbol, other)
 		expectError(`x🌞`, ""), // (starts with a letter, but contains non-letter/digit characters)
@@ -509,7 +509,7 @@ func TestJoeson(t *testing.T) {
 		expect(`f.(func(a func(s ...string) (a int, s string)))`, parsesAs{`f<VPUverse(0)>.(func(a func(s ...(const-type string)) a (const-type int), s (const-type string)))`}, isType{"TypeAssertExpr"}),
 		expect(`f.(func(a func(s ...string) (a int, o <-chan int)))`, parsesAs{`f<VPUverse(0)>.(func(a func(s ...(const-type string)) a (const-type int), o chan<- (const-type int)))`}, isType{"TypeAssertExpr"}),
 		expect(`f.(func(a func(s ...string) (a int, o <-chan func(s string) bool)))`, parsesAs{`f<VPUverse(0)>.(func(a func(s ...(const-type string)) a (const-type int), o chan<- func(s (const-type string))  (const-type bool)))`}, isType{"TypeAssertExpr"}),
-		expect(`x.(struct { x, y float32 })`, parsesAs{`x<VPUverse(0)>.(struct { x (const-type float32) <nil>, y (const-type float32) <nil> })`}, isType{"TypeAssertExpr"}), // legit (albeit useless, at least I can not think of any application) type assertion e.g. when `var x interface{}`.
+		expect(`x.(struct { x, y float32 })`, parsesAs{`x<VPUverse(0)>.(struct { x (const-type float32) <nil>, y (const-type float32) <nil> })`}, isType{"TypeAssertExpr"}), // legit (albeit useless? can not think of any application) type assertion e.g. when `var x interface{}`.
 	}
 	for _, expectation := range tests {
 		testExpectation(t, expectation)
