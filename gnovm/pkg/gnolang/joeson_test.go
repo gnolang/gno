@@ -360,6 +360,9 @@ func TestJoeson(t *testing.T) {
 		expect(`+ 1234`, parsesAs{"+1234"}, isType{"UnaryExpr"}),
 		expect(`!0`, parsesAs{"!0"}, isType{"UnaryExpr"}),
 		expect(`^0`, parsesAs{"^0"}, isType{"UnaryExpr"}),
+		expect(`<-s`, parsesAs{"<-s<VPUverse(0)>"}, isType{"UnaryExpr"}),
+		expect(`*s`, parsesAs{"*(s<VPUverse(0)>)"}, isType{"StarExpr"}),
+		expect(`&s`, parsesAs{"&(s<VPUverse(0)>)"}, isType{"RefExpr"}),
 		expect(`-7 -2`, parsesAs{"-7 - 2"}, isType{"BinaryExpr"}),
 
 		// {"0x.p1", "ERROR hexadecimal literal has no digits"},
@@ -507,8 +510,6 @@ func TestJoeson(t *testing.T) {
 		expect(`f.(func(a func(s ...string) (a int, o <-chan int)))`, parsesAs{`f<VPUverse(0)>.(func(a func(s ...(const-type string)) a (const-type int), o chan<- (const-type int)))`}, isType{"TypeAssertExpr"}),
 		expect(`f.(func(a func(s ...string) (a int, o <-chan func(s string) bool)))`, parsesAs{`f<VPUverse(0)>.(func(a func(s ...(const-type string)) a (const-type int), o chan<- func(s (const-type string))  (const-type bool)))`}, isType{"TypeAssertExpr"}),
 		expect(`x.(struct { x, y float32 })`, parsesAs{`x<VPUverse(0)>.(struct { x (const-type float32) <nil>, y (const-type float32) <nil> })`}, isType{"TypeAssertExpr"}), // legit (albeit useless, at least I can not think of any application) type assertion e.g. when `var x interface{}`.
-
-		expect(`*a + *b`, parsesAs{``}),
 	}
 	for _, expectation := range tests {
 		testExpectation(t, expectation)

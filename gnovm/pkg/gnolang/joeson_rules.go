@@ -23,7 +23,7 @@ var (
 			i(named("ExpressionStmt", `Expression`)),
 			i(named("Expression", rules(
 				o(`bx:(Expression binary_op Expression) | ux:UnaryExpr`),
-				o(named("UnaryExpr", `PrimaryExpr | ux:(unary_op UnaryExpr)`), fUnary),
+				o(named("UnaryExpr", `PrimaryExpr | ux:(unary_op UnaryExpr)`), fUnaryExpr),
 				o(named("unary_op", qmot("<- & * ^ ! - +"))),
 				o(named("binary_op", `mul_op | add_op | rel_op | '&&' | '||'`)),
 				o(named("mul_op", qmot("* / % << >> & &^"))),

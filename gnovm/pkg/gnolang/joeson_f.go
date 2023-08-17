@@ -50,16 +50,30 @@ func fExpression(it j.Ast, ctx *j.ParseContext, org j.Ast) j.Ast {
 	}
 }
 
-func fUnary(it j.Ast) j.Ast {
+func fUnaryExpr(it j.Ast) j.Ast {
 	// PrimaryExpr | ux:(unary_op _ UnaryExpr)
 	if m, ok := it.(*j.NativeMap); ok {
 		if ux, ok := m.GetExists("ux"); !ok {
 			panic(fmt.Sprintf("key ux not found in %s", m.String()))
 		} else {
 			a := ux.(*j.NativeArray).Array()
-			return &UnaryExpr{
-				Op: Op2Word(a[0].(j.NativeString).String()),
-				X:  a[1].(Expr),
+			op := a[0].(j.NativeString).String()
+			switch op {
+			case "*":
+				return &StarExpr{
+					X: a[1].(Expr),
+				}
+			case "&":
+				return &RefExpr{
+					X: a[1].(Expr),
+				}
+			case "+", "-", "!", "^", "<-":
+				return &UnaryExpr{
+					Op: Op2Word(op),
+					X:  a[1].(Expr),
+				}
+			default:
+				panic("assert")
 			}
 		}
 	} else {
