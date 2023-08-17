@@ -92,9 +92,6 @@ func (gvr *Governor) RenderHome(propID string) string {
 	ms_str := gvr.RenderMembership()
 	str += ufmt.Sprintf("***Ms***: %s\n", ms_str)
 
-	state := gvr.state(propID)
-	snapShot := gvr.proposalSnapshot(propID)
-	deadLine := gvr.proposalDeadline(propID)
 	//totalDeposit := std.Coin{Amount: 0, Denom: "ugnot"}
 	//totalI, ok := gvr.deposits.Get(proposalId)
 	//if ok {
@@ -102,8 +99,16 @@ func (gvr *Governor) RenderHome(propID string) string {
 	//}
 
 	str += ufmt.Sprintf("***Current height is***: %d\n", std.GetHeight())
-	str += ufmt.Sprintf("***Proposal snapShot is***: %d\n", snapShot)
-	str += ufmt.Sprintf("***Proposal deadLine is***: %d\n", deadLine)
+
+	var state ProposalState
+	if propID != "" {
+		state = gvr.state(propID)
+		snapShot := gvr.proposalSnapshot(propID)
+		deadLine := gvr.proposalDeadline(propID)
+		str += ufmt.Sprintf("***Proposal snapShot is***: %d\n", snapShot)
+		str += ufmt.Sprintf("***Proposal deadLine is***: %d\n", deadLine)
+	}
+
 	//str += ufmt.Sprintf("* **Proposal deposit is***: %s\n", totalDeposit.String())
 	//str += ufmt.Sprintf("* **isBurnDeposit :***: %t\n", isBurnDeposit)
 

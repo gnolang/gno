@@ -1,4 +1,4 @@
-package evaldao
+package main
 
 import (
 	"gno.land/p/demo/gor/governor"
@@ -14,7 +14,7 @@ var (
 
 func CreateDAO() {
 	std.AssertOriginCall()
-	_, groupID := groups.NewGroup("eval_dao")
+	_, groupID := groups.NewGroup("contrib_dao")
 	println("group created: ", groupID)
 
 	membership := governor.NewNoCoinAdapter(groupID)
@@ -26,7 +26,7 @@ func CreateDAO() {
 	vetoThreshold := maths.NewRat(1, 3)
 	gs := governor.NewGovernorSettings(0, 5, proposalThreshold, quorum, succeedThreshold, vetoThreshold)
 
-	gvr = governor.NewGovernor("eval_governor", membership, gs)
+	gvr = governor.NewGovernor("contrib_governor", membership, gs)
 	// until now, we have a gvr, consists of membership, and propose, vote abilities
 
 	beforeExecute := func() error {
@@ -38,12 +38,13 @@ func CreateDAO() {
 	afterExecute := governor.ExecuteHook(func() error {
 		println("after execute hook...")
 		println("here, after execution, tokens are transferred, need to update weight of members")
+		// we need to get balance of member, and calculate a proper weight for them
 		return nil
 	})
 	gvr.SetAfterExecute(afterExecute)
 }
 
-// render
+// Render
 func RenderGvr(propID string) string {
 	return gvr.RenderHome(propID)
 }

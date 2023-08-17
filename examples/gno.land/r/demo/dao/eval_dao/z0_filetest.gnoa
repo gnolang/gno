@@ -4,7 +4,7 @@ package main
 
 import (
 	"gno.land/p/demo/testutils"
-	evaldao "gno.land/r/demo/evaluation_dao"
+	evaldao "gno.land/r/demo/dao"
 	"gno.land/r/demo/users"
 	"std"
 )
@@ -109,6 +109,8 @@ func main() {
 
 	payee1Balance = banker.GetCoins(payee1)
 	println("payee1 balance after send is: ", payee1Balance)
+
+	// render after execution, would see weight change
 
 	// propose all over again
 

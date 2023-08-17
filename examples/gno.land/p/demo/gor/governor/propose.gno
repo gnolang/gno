@@ -213,6 +213,7 @@ func (gvr *Governor) Execute(propID string) {
 
 	// before execute
 	if gvr.beforeExecute != nil {
+		// TODO: return error
 		gvr.beforeExecute()
 	}
 
@@ -232,6 +233,7 @@ func (gvr *Governor) Execute(propID string) {
 
 	// after execute
 	if gvr.afterExecute != nil {
+		// TODO: return error, how to keep consistency?
 		gvr.afterExecute()
 	}
 	// TODO: emit ProposalExecuted(proposalId);
