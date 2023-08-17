@@ -144,3 +144,33 @@ func TestSignbit(t *testing.T) {
 		}
 	}
 }
+
+func TestSqrt(t *testing.T) {
+	tests := []struct {
+		input      float64
+		threshold  float64
+		expected   float64
+		shouldFail bool
+	}{
+		{input: 25, threshold: 0.00001, expected: 5, shouldFail: false},
+		{input: 0, threshold: 0.00001, expected: 0, shouldFail: false},
+		{input: 1, threshold: 0.00001, expected: 1, shouldFail: false},
+		{input: -1, threshold: 0.00001, expected: 0, shouldFail: true},
+	}
+
+	for _, test := range tests {
+		result, err := Sqrt(test.input, test.threshold)
+		if test.shouldFail {
+			if err == nil {
+				t.Errorf("Expected error for input %v, got nil", test.input)
+			}
+		} else {
+			if err != nil {
+				t.Errorf("Unexpected error for input %v: %v", test.input, err)
+			}
+			if result != test.expected {
+				t.Errorf("Expected %v for input %v, got %v", test.expected, test.input, result)
+			}
+		}
+	}
+}

@@ -2,6 +2,8 @@ package flippando
 
 import (
 	"fmt"
+
+	"gno.land/p/demo/flippando/flippando"
 )
 
 type game struct {
@@ -56,6 +58,7 @@ func startGame(owner string, gameId string, tileType string, boardSize int) *gam
 func flipTiles(gameId string, board []int, solvedBoard []int, gameTiles []int, positions positions) {
 	//   - returns the tiles at the positions[] in the board array
 	//   - updates the game[gameId].board with the indices at positions
+	flippando.flipTiles(gameId, board, solvedBoard, gameTiles)
 }
 
 func createNFT(gameId string) {
@@ -77,8 +80,6 @@ func resetGame(gameId string) {
 func boardHasZeroValues(gameId string) {
 	// - utility function, checks for existing zeros in the board (game is ongoing) // do we still need this?
 }
-
-// func generateRandomNumbers(num, start, end int) []int -> moved to package
 
 func isValidGameLevel(boardSize int) {
 	// - utility function, checks valid game levels
