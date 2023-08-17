@@ -98,16 +98,27 @@ var (
 									i(named("_error_unicode_char_toomany", "[^\\x{0a}]{2,}"), func(it j.Ast, ctx *j.ParseContext) j.Ast { return ctx.Error("too many characters") }),
 								))),
 							))),
-							i(named("FunctionLit", rules(
-								o("'func' Signature FunctionBody"),
+							i(named("FunctionLit", rules( // TODO "A function literal represents an anonymous function"
+								o(`'func' Signature FunctionBody`),
 								// i(named("Signature", "TODO")),
 								// i(named("FunctionBody", "TODO")),
 							))),
-							i(named("CompositeLit", rules())),
+							i(named("CompositeLit", rules(
+								o(`LiteralType LiteralValue`, fCompositeLit),
+								i(named("LiteralType", `StructType | ArrayType | AutoLengthElementType | SliceType | MapType | TypeName `)), // TODO add TypeArgs?  OPTIM consider `[]int{1,2,3}`, there could be an EmptyArrayType to accelerate parsing.
+								i(named("AutoLengthElementType", `'[' '...' ']' ElementType`)),
+								i(named("ElementType", `Element`)),
+								i(named("LiteralValue", `'{' ElementList*_COMMA '}'`), peel),
+								i(named("ElementList", `KeyedElement*_COMMA`)),
+								i(named("KeyedElement", `(Key ':')? Element`), fKeyedElement), // OPTIM could benefit from lookahead (Key is quite broad)
+								i(named("Key", `FieldName | Expression | LiteralValue`)),
+								i(named("FieldName", `identifier`)),
+								i(named("Element", `Expression | LiteralValue`)),
+							))),
 						))),
 						i(named("OperandName", rules(
-							o("QualifiedIdent | identifier"),
-							i(named("QualifiedIdent", "p:PackageName DOT i:identifier"), fQualifiedIdent),
+							o(`QualifiedIdent | identifier`),
+							i(named("QualifiedIdent", `p:PackageName DOT i:identifier`), fQualifiedIdent),
 						))),
 					))),
 					// TODO add to below alternation: Type [ "," ExpressionList ]
@@ -124,31 +135,31 @@ var (
 							o(named("ChannelType", `chanDir:('chan<-' | '<-chan' | 'chan') _:' '? type:Type`), fChannelType),
 							o(named("PointerType", `'*' Type`), func(it j.Ast) j.Ast { return &StarExpr{X: it.(Expr)} }), // nodes.go reads StarExpr "semantically (...) could be unary * expression, or a pointer type."
 							o(named("FunctionType", rules(
-								o("'func' &:Signature"),
-								i(named("Signature", "params:Parameters result:Result?"), fSignature),
-								i(named("Parameters", "'(' ParameterDecl*_COMMA _COMMA? ')'"), fParameters),       // "Within a list of parameters or results, the names must be all present or all absent"
-								i(named("ParameterDecl", "IdentifierList? _ MaybeVariadic Type"), fParameterDecl), // -> NativeArray of FieldTypeExpr
-								i(named("Result", "Parameters | Type"), fResult),
+								o(`'func' &:Signature`),
+								i(named("Signature", `params:Parameters result:Result?`), fSignature),
+								i(named("Parameters", `'(' ParameterDecl*_COMMA _COMMA? ')'`), fParameters),       // "Within a list of parameters or results, the names must be all present or all absent"
+								i(named("ParameterDecl", `IdentifierList? _ MaybeVariadic Type`), fParameterDecl), // -> NativeArray of FieldTypeExpr
+								i(named("Result", `Parameters | Type`), fResult),
 							))),
 							o(named("StructType", rules(
-								o("'struct' '{' FieldDecl*_SEMICOLON '}'", fStructType),
+								o(`'struct' '{' FieldDecl*_SEMICOLON '}'`, fStructType),
 								i(named("FieldDecl", rules(
-									o("IdentifierList _ Type Tag?", fFieldDecl1),
-									o("EmbeddedField Tag?", fFieldDecl2),
-									i(named("EmbeddedField", "star:MaybeStar typename:TypeName typeargs:TypeArgs?"), fEmbeddedField), // "A field declared with a type but no explicit field name is called an embedded field." E.g. in `struct { Name; age int }`, Name is an embedded field.
-									i(named("Tag", "string_lit")),
+									o(`IdentifierList _ Type Tag?`, fFieldDecl1),
+									o(`EmbeddedField Tag?`, fFieldDecl2),
+									i(named("EmbeddedField", `star:MaybeStar typename:TypeName typeargs:TypeArgs?`), fEmbeddedField), // "A field declared with a type but no explicit field name is called an embedded field." E.g. in `struct { Name; age int }`, Name is an embedded field.
+									i(named("Tag", `string_lit`)),
 								))),
 							))),
 						// o(named("InterfaceType", "")),
 						))),
-						o("TypeName TypeArgs?", fTypeName),
-						o("'(' Type ')'"),
-						i(named("TypeName", "identifier | QualifiedIdent")),
-						i(named("TypeArgs", "'[' Type*',' ','? ']'")), // note: TypeArgs seems not supported by X() ATM
+						o(`TypeName TypeArgs?`, fTypeName),
+						o(`'(' Type ')'`),
+						i(named("TypeName", `identifier | QualifiedIdent`)),
+						i(named("TypeArgs", `'[' Type*',' ','? ']'`)), // note: TypeArgs seems not supported by X() ATM
 					))),
 				))),
 			)), fExpression),
-			i(named("ExpressionList", "Expression+_COMMA")),
+			i(named("ExpressionList", `Expression+_COMMA`)),
 		))),
 		i(named("PackageClause", `'package' PackageName`)),
 		i(named("PackageName", `identifier`), fPackageName),

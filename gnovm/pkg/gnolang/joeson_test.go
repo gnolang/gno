@@ -507,6 +507,19 @@ func TestJoeson(t *testing.T) {
 		expect(`f.(func(a func(s ...string) (a int, o <-chan int)))`, parsesAs{`f<VPUverse(0)>.(func(a func(s ...(const-type string)) a (const-type int), o chan<- (const-type int)))`}, isType{"TypeAssertExpr"}),
 		expect(`f.(func(a func(s ...string) (a int, o <-chan func(s string) bool)))`, parsesAs{`f<VPUverse(0)>.(func(a func(s ...(const-type string)) a (const-type int), o chan<- func(s (const-type string))  (const-type bool)))`}, isType{"TypeAssertExpr"}),
 		expect(`x.(struct { x, y float32 })`, parsesAs{`x<VPUverse(0)>.(struct { x (const-type float32) <nil>, y (const-type float32) <nil> })`}, isType{"TypeAssertExpr"}), // legit (albeit useless? can not think of any application) type assertion e.g. when `var x interface{}`.
+
+		// https://go.dev/ref/spec#CompositeLit
+		expect(`[]int{2,  3,5,7, 9, 2147483647}`, parsesAs{`[](const-type int){2, 3, 5, 7, 9, 2147483647}`}, isType{"CompositeLitExpr"}),
+		expect(`[128]bool{'a': true, 'e': true, 'i': true, 'o': true, 'u': true, 'y': true}`,
+			parsesAs{`[128](const-type bool){a: true<VPUverse(0)>, e: true<VPUverse(0)>, i: true<VPUverse(0)>, o: true<VPUverse(0)>, u: true<VPUverse(0)>, y: true<VPUverse(0)>}`}, isType{"CompositeLitExpr"}),
+		expect(`[10]float32{-1, 0, 0, 0, -0.1, -0.1, 0, 0, 0, -1}`,
+			parsesAs{`[10](const-type float32){-1, 0, 0, 0, -0.1, -0.1, 0, 0, 0, -1}`}, isType{"CompositeLitExpr"}),
+		expect(`[10]float32{-1, 4: -0.1, -0.1, 9: -1}`, parsesAs{`[10](const-type float32){-1, 4: -0.1, -0.1, 9: -1}`}, isType{"CompositeLitExpr"}),
+		expect(`map[string]float32{"C0": 16.35, "D0": 18.35, "E0": 20.60, "F0": 21.83, "G0": 24.50, "A0": 27.50, "B0": 30.87, }`,
+			parsesAs{`map[(const-type string)] (const-type float32){"C0": 16.35, "D0": 18.35, "E0": 20.6, "F0": 21.83, "G0": 24.5, "A0": 27.5, "B0": 30.87}`}, isType{"CompositeLitExpr"}),
+
+		// what about empty expr?
+		// expect(``)
 	}
 	for _, expectation := range tests {
 		testExpectation(t, expectation)

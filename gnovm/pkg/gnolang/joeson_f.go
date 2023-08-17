@@ -29,6 +29,15 @@ func stringIt(it j.Ast) (string, error) {
 	}
 }
 
+// peel([[a,b,...]]) -> [a,b,...]
+// Asserts `it` is NativeArray
+// Useful when rules would create two or more levels of NativeArray.
+func peel(it j.Ast, ctx *j.ParseContext) j.Ast {
+	// (don't assert size of exactly 1, for we want
+	// cases like [[a,b,..], NativeUndefined{}]) to be seamless)
+	return it.(*j.NativeArray).Get(0)
+}
+
 func fExpression(it j.Ast, ctx *j.ParseContext, org j.Ast) j.Ast {
 	// bx:(Expression binary_op Expression) | ux:UnaryExpr
 	if m, ok := it.(*j.NativeMap); ok {
@@ -286,6 +295,35 @@ func fPackageName(it j.Ast, ctx *j.ParseContext) j.Ast {
 	}
 }
 
+// returns a &CompositeLitExpr from NativeArray<*KeyValueExpr>
+func fCompositeLit(it j.Ast) j.Ast {
+	a := it.(*j.NativeArray).Array()
+	var elts []KeyValueExpr
+	for _, elt := range a[1].(*j.NativeArray).Array() {
+		elts = append(elts, *elt.(*KeyValueExpr))
+	}
+	return &CompositeLitExpr{
+		Type: a[0].(TypeExpr),
+		Elts: elts,
+	}
+}
+
+// returns a &KeyValueExpr, with possibly nil Key when just a Value is available.
+func fKeyedElement(it j.Ast, ctx *j.ParseContext) j.Ast {
+	a := it.(*j.NativeArray).Array()
+	var k Expr
+	if len(a) != 2 {
+		panic("assert")
+	}
+	if !j.IsUndefined(a[0]) {
+		k = a[0].(Expr)
+	}
+	return &KeyValueExpr{
+		Key:   k,
+		Value: a[1].(Expr),
+	}
+}
+
 func fQualifiedIdent(it j.Ast, ctx *j.ParseContext) j.Ast {
 	m := it.(*j.NativeMap)
 	// p:PackageName DOT i:identifier
@@ -297,7 +335,7 @@ func fQualifiedIdent(it j.Ast, ctx *j.ParseContext) j.Ast {
 	}
 }
 
-// return a NativeMap,
+// returns a NativeMap,
 // It resembles a CallExpr without Func:
 // "Args"    Exprs        function arguments, if any.
 // "Varg"	 NativeInt    if 1, final arg is variadic.
