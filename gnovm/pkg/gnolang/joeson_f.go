@@ -23,7 +23,7 @@ func stringIt(it j.Ast) (string, error) {
 	case *j.NativeMap:
 		return v.Concat(), nil
 	case j.NativeString:
-		return v.Str, nil
+		return string(v), nil
 	default:
 		return "", errors.New(fmt.Sprintf("Unexpected type in stringIt: %s", reflect.TypeOf(it).String()))
 	}
@@ -36,10 +36,10 @@ func fExpression(it j.Ast, ctx *j.ParseContext, org j.Ast) j.Ast {
 			return m.GetOrPanic("ux")
 		} else if m.Exists("bx") {
 			// bx: create a BinaryExpr with Bx
-			a := m.GetOrPanic("bx").(*j.NativeArray).Array
+			a := m.GetOrPanic("bx").(*j.NativeArray).Array()
 			return &BinaryExpr{
 				Left:  a[0].(Expr),
-				Op:    Op2Word(a[1].(j.NativeString).Str),
+				Op:    Op2Word(a[1].(j.NativeString).String()),
 				Right: a[2].(Expr),
 			}
 		} else {
@@ -56,9 +56,9 @@ func fUnary(it j.Ast) j.Ast {
 		if ux, ok := m.GetExists("ux"); !ok {
 			panic(fmt.Sprintf("key ux not found in %s", m.String()))
 		} else {
-			a := ux.(*j.NativeArray).Array
+			a := ux.(*j.NativeArray).Array()
 			return &UnaryExpr{
-				Op: Op2Word(a[0].(j.NativeString).Str),
+				Op: Op2Word(a[0].(j.NativeString).String()),
 				X:  a[1].(Expr),
 			}
 		}
@@ -311,7 +311,7 @@ func fPrimaryExprArguments(it j.Ast, ctx *j.ParseContext) j.Ast {
 	primaryExpr := m.GetOrPanic("p").(Expr)
 	arguments := m.GetOrPanic("a").(*j.NativeMap)
 	var exprs []Expr
-	for _, v := range arguments.GetOrPanic("Args").(*j.NativeArray).Array {
+	for _, v := range arguments.GetOrPanic("Args").(*j.NativeArray).Array() {
 		exprs = append(exprs, v.(Expr))
 	}
 	lastIsVariadic := false
@@ -346,7 +346,7 @@ func fPrimaryExprIndex(it j.Ast, ctx *j.ParseContext) j.Ast {
 func fPrimaryExprSlice(it j.Ast, ctx *j.ParseContext) j.Ast {
 	m := it.(*j.NativeMap)
 	primaryExpr := m.GetOrPanic("p").(Expr)
-	aSlice := m.GetOrPanic("s").(*j.NativeArray).Array
+	aSlice := m.GetOrPanic("s").(*j.NativeArray).Array()
 	var low, high, max Expr
 	if len(aSlice) < 2 || len(aSlice) > 3 {
 		panic("assert") // impossible, by rule
@@ -448,7 +448,7 @@ func fTypeName(it j.Ast, ctx *j.ParseContext) j.Ast {
 
 // This returns an &ArrayTypeExpr
 func fArrayType(it j.Ast, ctx *j.ParseContext) j.Ast {
-	a := it.(*j.NativeArray).Array
+	a := it.(*j.NativeArray).Array()
 	return &ArrayTypeExpr{
 		Len: a[0].(Expr),
 		Elt: a[1].(Expr),
@@ -457,7 +457,7 @@ func fArrayType(it j.Ast, ctx *j.ParseContext) j.Ast {
 
 // This returns &MapTypeExpr
 func fMapType(it j.Ast, ctx *j.ParseContext) j.Ast {
-	a := it.(*j.NativeArray).Array
+	a := it.(*j.NativeArray).Array()
 	return &MapTypeExpr{
 		Key:   a[0].(Expr),
 		Value: a[1].(Expr),
@@ -468,7 +468,7 @@ func fMapType(it j.Ast, ctx *j.ParseContext) j.Ast {
 func fChannelType(it j.Ast, ctx *j.ParseContext) j.Ast {
 	m := it.(*j.NativeMap)
 	var dir ChanDir
-	switch strings.TrimSuffix(m.GetOrPanic("chanDir").(j.NativeString).Str, " ") {
+	switch strings.TrimSuffix(m.GetOrPanic("chanDir").(j.NativeString).String(), " ") {
 	case "chan":
 		dir = BOTH
 	case "chan<-":
@@ -540,7 +540,7 @@ func fSignature(it j.Ast, ctx *j.ParseContext) j.Ast {
 	m := it.(*j.NativeMap)
 	// for params, only allow variadic for the last argument
 	params := []FieldTypeExpr{}
-	a := m.GetOrPanic("params").(*j.NativeArray).Array
+	a := m.GetOrPanic("params").(*j.NativeArray).Array()
 	for i, p := range a {
 		// variadic args are represented as SliceTypeExpr with true Vrd
 		if slice, is := p.(*FieldTypeExpr).Type.(*SliceTypeExpr); is && i < len(a)-1 && slice.Vrd {
@@ -551,7 +551,7 @@ func fSignature(it j.Ast, ctx *j.ParseContext) j.Ast {
 	// don't allow variadic in results
 	results := []FieldTypeExpr{}
 	if b, exists := m.GetExists("result"); exists && !j.IsUndefined(b) {
-		for _, p := range b.(*j.NativeArray).Array {
+		for _, p := range b.(*j.NativeArray).Array() {
 			if slice, is := p.(*FieldTypeExpr).Type.(*SliceTypeExpr); is && slice.Vrd {
 				panic(ctx.Error("function results can not be variadic"))
 			}
@@ -572,7 +572,7 @@ func fSignature(it j.Ast, ctx *j.ParseContext) j.Ast {
 // [[const-type int, const-type int], [const-type string], [... const-type float]].
 func fParameters(it j.Ast, ctx *j.ParseContext) j.Ast {
 	ret := j.NewEmptyNativeArray()
-	groups := it.(*j.NativeArray).Array
+	groups := it.(*j.NativeArray).Array()
 	if len(groups) == 0 {
 		return j.NewNativeArray([]j.Ast{})
 	}
@@ -585,7 +585,7 @@ func fParameters(it j.Ast, ctx *j.ParseContext) j.Ast {
 	firstIsSet := false
 	firstIsNamed := false
 	for _, group := range groups {
-		for _, t := range group.(*j.NativeArray).Array {
+		for _, t := range group.(*j.NativeArray).Array() {
 			el := t.(*FieldTypeExpr)
 			if !firstIsSet {
 				firstIsNamed = el.Name != ""
@@ -607,7 +607,7 @@ func fParameters(it j.Ast, ctx *j.ParseContext) j.Ast {
 	// "all non-blank names in the signature must be unique."
 	names := map[Name]bool{} // bool doesn't matter, it's a "set"
 	for _, group := range groups {
-		for _, t := range group.(*j.NativeArray).Array {
+		for _, t := range group.(*j.NativeArray).Array() {
 			el := t.(*FieldTypeExpr)
 			if el.Name != "" && el.Name != "_" {
 				if _, already := names[el.Name]; already {
@@ -631,9 +631,9 @@ func fParameters(it j.Ast, ctx *j.ParseContext) j.Ast {
 
 // This returns a NativeArray<*FieldTypeExpr>
 func fParameterDecl(it j.Ast, ctx *j.ParseContext) j.Ast {
-	a := it.(*j.NativeArray).Array
+	a := it.(*j.NativeArray).Array()
 	r := []j.Ast{}
-	for _, identifier := range a[0].(*j.NativeArray).Array {
+	for _, identifier := range a[0].(*j.NativeArray).Array() {
 		// we substitute variadic here by SliceTypeExpr with Vrd set to true
 		// namedness is checked in fParameters
 		// variadicity validity is checked in fSignature
@@ -672,7 +672,7 @@ func fResult(it j.Ast, ctx *j.ParseContext) j.Ast {
 			Type: v,
 		})
 	case *j.NativeArray:
-		for _, field := range v.Array {
+		for _, field := range v.Array() {
 			r = append(r, field.(*FieldTypeExpr))
 		}
 	default:
@@ -707,15 +707,15 @@ func fEmbeddedField(it j.Ast, ctx *j.ParseContext) j.Ast {
 // This returns a NativeArray<*FieldTypeExpr>
 // from a list of fields sharing the same type to which we add a Tag.
 func fFieldDecl1(it j.Ast, ctx *j.ParseContext) j.Ast {
-	a := it.(*j.NativeArray).Array
+	a := it.(*j.NativeArray).Array()
 	ret := j.NewEmptyNativeArray()
-	identifiers := a[0].(*j.NativeArray).Array
+	identifiers := a[0].(*j.NativeArray).Array()
 	theType := a[1].(TypeExpr)
 	var tag *BasicLitExpr = nil
 	if !j.IsUndefined(a[2]) {
 		tag = &BasicLitExpr{
 			Kind:  STRING,
-			Value: a[2].(j.NativeString).Str,
+			Value: a[2].(j.NativeString).String(),
 		}
 	}
 	for _, identifier := range identifiers {
@@ -732,14 +732,14 @@ func fFieldDecl1(it j.Ast, ctx *j.ParseContext) j.Ast {
 // This returns a NativeArray<*FieldTypeExpr>
 // from a *FieldTypeExpr to which we merely add a Tag.
 func fFieldDecl2(it j.Ast, ctx *j.ParseContext) j.Ast {
-	a := it.(*j.NativeArray).Array
+	a := it.(*j.NativeArray).Array()
 	ret := j.NewEmptyNativeArray()
 	fte := a[0].(*FieldTypeExpr)
 	var tag *BasicLitExpr = nil
 	if !j.IsUndefined(a[1]) {
 		tag = &BasicLitExpr{
 			Kind:  STRING,
-			Value: a[1].(j.NativeString).Str,
+			Value: a[1].(j.NativeString).String(),
 		}
 	}
 	// almost ready from fEmbeddedField was still waiting tag.
@@ -754,11 +754,12 @@ func fFieldDecl2(it j.Ast, ctx *j.ParseContext) j.Ast {
 // This is where it get linearized
 //
 // TODO struct require some work to check conditions
-// defined in https://go.dev/ref/spec#StructType
+// defined in https://go.dev/ref/spec#StructType (e.g. uniqueness of field
+// names)
 func fStructType(it j.Ast) j.Ast {
 	fields := FieldTypeExprs{}
-	for _, aa := range it.(*j.NativeArray).Array {
-		for _, field := range aa.(*j.NativeArray).Array {
+	for _, aa := range it.(*j.NativeArray).Array() {
+		for _, field := range aa.(*j.NativeArray).Array() {
 			fields = append(fields, *field.(*FieldTypeExpr))
 		}
 	}

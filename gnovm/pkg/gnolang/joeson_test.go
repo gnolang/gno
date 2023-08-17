@@ -434,6 +434,7 @@ func TestJoeson(t *testing.T) {
 		expect(`_x9`, parsesAs{"_x9<VPUverse(0)>"}, isNameExpr{}),
 		expect(`ThisVariableIsExported`, parsesAs{"ThisVariableIsExported<VPUverse(0)>"}, isNameExpr{}),
 		expect(`αβ`, parsesAs{"αβ<VPUverse(0)>"}, isNameExpr{}),
+		expect(`nil`, parsesAs{"nil<VPUverse(0)>"}, isNameExpr{}),
 
 		// tests from https://dev.to/flopp/golang-identifiers-vs-unicode-1fe7
 		expect(`abc_123`, parsesAs{"abc_123<VPUverse(0)>"}, isNameExpr{}),
@@ -506,6 +507,8 @@ func TestJoeson(t *testing.T) {
 		expect(`f.(func(a func(s ...string) (a int, o <-chan int)))`, parsesAs{`f<VPUverse(0)>.(func(a func(s ...(const-type string)) a (const-type int), o chan<- (const-type int)))`}, isType{"TypeAssertExpr"}),
 		expect(`f.(func(a func(s ...string) (a int, o <-chan func(s string) bool)))`, parsesAs{`f<VPUverse(0)>.(func(a func(s ...(const-type string)) a (const-type int), o chan<- func(s (const-type string))  (const-type bool)))`}, isType{"TypeAssertExpr"}),
 		expect(`x.(struct { x, y float32 })`, parsesAs{`x<VPUverse(0)>.(struct { x (const-type float32) <nil>, y (const-type float32) <nil> })`}, isType{"TypeAssertExpr"}), // legit (albeit useless, at least I can not think of any application) type assertion e.g. when `var x interface{}`.
+
+		expect(`*a + *b`, parsesAs{``}),
 	}
 	for _, expectation := range tests {
 		testExpectation(t, expectation)

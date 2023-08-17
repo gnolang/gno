@@ -15,12 +15,12 @@ import (
 var (
 	gm       *j.Grammar
 	gnoRules = rules(
-		o(named("Input", "SimpleStmt _SEMICOLON?")),
+		o(named("Input", `SimpleStmt _SEMICOLON?`)),
 		o(named("Block", rules(
-			o("'{' Statement*_SEMICOLON '}'"),
-			i(named("Statement", "SimpleStmt")),
-			i(named("SimpleStmt", "ExpressionStmt"), fSimpleStmt),
-			i(named("ExpressionStmt", "Expression")),
+			o(`'{' Statement*_SEMICOLON '}'`),
+			i(named("Statement", `SimpleStmt`)),
+			i(named("SimpleStmt", `ExpressionStmt`), fSimpleStmt),
+			i(named("ExpressionStmt", `Expression`)),
 			i(named("Expression", rules(
 				o(`bx:(Expression binary_op Expression) | ux:UnaryExpr`),
 				o(named("UnaryExpr", `PrimaryExpr | ux:(unary_op UnaryExpr)`), fUnary),
@@ -150,22 +150,22 @@ var (
 			)), fExpression),
 			i(named("ExpressionList", "Expression+_COMMA")),
 		))),
-		i(named("PackageClause", "'package' PackageName")),
-		i(named("PackageName", "identifier"), fPackageName),
-		i(named("identifier", "letter (letter | unicode_digit)*"), fIdentifier),
-		i(named("IdentifierList", "identifier+_COMMA")),
-		i(named("characters", "(newline | unicode_char | unicode_letter | unicode_digit)")),
+		i(named("PackageClause", `'package' PackageName`)),
+		i(named("PackageName", `identifier`), fPackageName),
+		i(named("identifier", `letter (letter | unicode_digit)*`), fIdentifier),
+		i(named("IdentifierList", `identifier+_COMMA`)),
+		i(named("characters", `(newline | unicode_char | unicode_letter | unicode_digit)`)),
 		i(named("newline", `[\x{0a}]`)),
 		i(named("letter", `(?[^0-9 \t\n\r+(){}[\]<>-])`), fLetter),                 // lookahead next rune, if not impossibly a letter try to parse with fLetter using unicode.IsLetter(). gospec = "unicode_letter | '_'"
-		i(named("unicode_char", "[^\\x{0a}]")),                                     // "an arbitrary Unicode code point except newline"
+		i(named("unicode_char", `[^\x{0a}]`)),                                      // "an arbitrary Unicode code point except newline"
 		i(named("unicode_letter", `(?[^0-9 \t\n\r+(){}[\]<>-])`), funicode_letter), // lookahead next rune, if not impossibly a letter try etc. "a Unicode code point categorized as "Letter" TODO it misses all non ASCII
 		i(named("unicode_digit", `(?[^a-zA-Z \t\n\r-])`), funicode_digit),          // lookahead next rune, if not impossibly a digit, try to unicode.IsDigit(). "a Unicode code point categorized as "Number, decimal digit" TODO it misses all non ASCII
 
-		i(named("MaybeVariadic", "'...'?"), func(it j.Ast) j.Ast { return j.NewNativeIntFromBool(!j.IsUndefined(it)) }), // NativeInt 0 or 1
-		i(named("MaybeStar", "'*'?"), func(it j.Ast) j.Ast { return j.NewNativeIntFromBool(!j.IsUndefined(it)) }),       // NativeInt 0 or 1
-		i(named("_COMMA", "_ ','")),
+		i(named("MaybeVariadic", `'...'?`), func(it j.Ast) j.Ast { return j.NewNativeIntFromBool(!j.IsUndefined(it)) }), // NativeInt 0 or 1
+		i(named("MaybeStar", `'*'?`), func(it j.Ast) j.Ast { return j.NewNativeIntFromBool(!j.IsUndefined(it)) }),       // NativeInt 0 or 1
+		i(named("_COMMA", `_ ','`)),
 		i(named("_", "( ' ' | '\t' | '\n' | '\r' )*")),
-		i(named("DOT", "'.'")), // using an inline ref such as DOT will capture '.', as opposed to writing '.' which would not.
+		i(named("DOT", `'.'`)), // using an inline ref such as DOT will capture '.', as opposed to writing '.' which would not.
 		i(named("_SEMICOLON", "';' '\n'?")),
 	)
 )
