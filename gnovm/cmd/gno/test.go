@@ -47,7 +47,7 @@ func newTestCmd(io *commands.IO) *commands.Command {
 			ShortHelp:  "Runs the tests for the specified packages",
 			LongHelp: `Runs the tests for the specified packages.
 
-'Gno test' recompiles each package along with any files with names matching the
+'gno test' recompiles each package along with any files with names matching the
 file pattern "*_test.gno" or "*_filetest.gno".
 
 The only <package> supported for now is a directory (relative or absolute).
@@ -88,7 +88,7 @@ List of available instructions that can be used in "*_filetest.gno" files:
 	what has been recorded in the store following the execution of the 'main'
 	function.
 
-(*) The 'update-golden-test' flag can be set to fill out the content of the
+(*) The 'update-golden-tests' flag can be set to fill out the content of the
 instruction with the actual content of the test instead of failing.
 `,
 		},
