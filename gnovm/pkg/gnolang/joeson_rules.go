@@ -12,6 +12,7 @@ import (
 //   - The following rules are named after https://go.dev/ref/spec
 //
 // (?...) are lookaheads, they can optimize away certain branches but consume nothing
+// Unsourced quotes come from gospec.html.
 var (
 	gm       *j.Grammar
 	gnoRules = rules(
@@ -98,10 +99,9 @@ var (
 									i(named("_error_unicode_char_toomany", "[^\\x{0a}]{2,}"), func(it j.Ast, ctx *j.ParseContext) j.Ast { return ctx.Error("too many characters") }),
 								))),
 							))),
-							i(named("FunctionLit", rules( // TODO "A function literal represents an anonymous function"
+							i(named("FunctionLit", rules( // "A function literal represents an anonymous function"
 								o(`'func' Signature FunctionBody`),
-								// i(named("Signature", "TODO")),
-								// i(named("FunctionBody", "TODO")),
+								i(named("FunctionBody", `Block`)), // TODO Block only allows SimpleStmt for now
 							))),
 							i(named("CompositeLit", rules(
 								o(`LiteralType LiteralValue`, fCompositeLit),
@@ -175,7 +175,7 @@ var (
 		i(named("MaybeVariadic", `'...'?`), func(it j.Ast) j.Ast { return j.NewNativeIntFromBool(!j.IsUndefined(it)) }), // NativeInt 0 or 1
 		i(named("MaybeStar", `'*'?`), func(it j.Ast) j.Ast { return j.NewNativeIntFromBool(!j.IsUndefined(it)) }),       // NativeInt 0 or 1
 		i(named("_COMMA", `_ ','`)),
-		i(named("_", "( ' ' | '\t' | '\n' | '\r' )*")),
+		i(named("_", `( ' ' | '\t' | '\n' | '\r' )*`)),
 		i(named("DOT", `'.'`)), // using an inline ref such as DOT will capture '.', as opposed to writing '.' which would not.
 		i(named("_SEMICOLON", "';' '\n'?")),
 	)

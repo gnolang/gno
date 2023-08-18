@@ -295,6 +295,18 @@ func fPackageName(it j.Ast, ctx *j.ParseContext) j.Ast {
 	}
 }
 
+// returns a &FuncLitExpr
+// "A function literal represents an anonymous function"
+// TODO we have to stop here and come back after we write rules for Blocks and Stmt
+// func fFunctionLit(it j.Ast) j.Ast {
+// 	a := it.(*j.NativeArray)
+// 	return &FuncLitExpr{
+// 		// StaticBlock
+// 		Type: a.Get(0).(*FuncTypeExpr), // function type
+// 		Body: a.Get(1).)             // function body
+// 	}
+// }
+
 // returns a &CompositeLitExpr from NativeArray<*KeyValueExpr>
 func fCompositeLit(it j.Ast) j.Ast {
 	a := it.(*j.NativeArray).Array()
