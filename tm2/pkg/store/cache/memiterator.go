@@ -14,7 +14,7 @@ type memIterator struct {
 	start, end []byte
 	items      []*std.KVPair
 	ascending  bool
-	pos        int
+	cur        int
 }
 
 func newMemIterator(start, end []byte, items *list.List, ascending bool) *memIterator {
@@ -32,9 +32,9 @@ func newMemIterator(start, end []byte, items *list.List, ascending bool) *memIte
 		entered = true
 	}
 
-	pos := 0
+	cur := 0
 	if !ascending {
-		pos = len(itemsInDomain) - 1
+		cur = len(itemsInDomain) - 1
 	}
 
 	return &memIterator{
@@ -42,7 +42,7 @@ func newMemIterator(start, end []byte, items *list.List, ascending bool) *memIte
 		end:       end,
 		items:     itemsInDomain,
 		ascending: ascending,
-		pos:       pos,
+		cur:       cur,
 	}
 }
 
@@ -51,7 +51,7 @@ func (mi *memIterator) Domain() ([]byte, []byte) {
 }
 
 func (mi *memIterator) Valid() bool {
-	if mi.pos < 0 || len(mi.items) <= mi.pos {
+	if mi.cur < 0 || len(mi.items) <= mi.cur {
 		return false
 	}
 	return true
@@ -66,20 +66,20 @@ func (mi *memIterator) assertValid() {
 func (mi *memIterator) Next() {
 	mi.assertValid()
 	if mi.ascending {
-		mi.pos++
+		mi.cur++
 	} else {
-		mi.pos--
+		mi.cur--
 	}
 }
 
 func (mi *memIterator) Key() []byte {
 	mi.assertValid()
-	return mi.items[mi.pos].Key
+	return mi.items[mi.cur].Key
 }
 
 func (mi *memIterator) Value() []byte {
 	mi.assertValid()
-	return mi.items[mi.pos].Value
+	return mi.items[mi.cur].Value
 }
 
 func (mi *memIterator) Close() {
