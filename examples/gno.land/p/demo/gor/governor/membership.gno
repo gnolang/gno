@@ -3,6 +3,7 @@ package governor
 import (
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/r/demo/groups"
+	"std"
 )
 
 type Membership interface {
@@ -10,7 +11,6 @@ type Membership interface {
 	UpdateMemberWeight(mid uint64, weight int)
 	TotalVotingPower() int32                   // use int32 corresponding to maths.Rat for now
 	GetVotingPowerFromMember(mid uint64) int32 // this get weight, not direct tokens held
-	Transfer(from std.Address, to std.Address, amount uint64) error
 	RenderMembership() string
 }
 
@@ -45,11 +45,6 @@ func (nca *NoCoinAdapter) RenderMembership() string {
 	return groups.RenderGroup(nca.groupID)
 }
 
-// no tokens and voting units to transfer
-func (nca *NoCoinAdapter) Transfer(from std.Address, to std.Address, amount uint64) error {
-	return nil
-}
-
 var _ Membership = (*NoCoinAdapter)(nil)
 
 // ----------------------------------------------------------------
@@ -69,14 +64,12 @@ func NewNativeCoinAdapter(denom string) *NativeCoinAdapter {
 }
 
 // TODO: also transfer voting uints, hook
-func (nca *NativeCoinAdapter) Transfer(from std.Address, to std.Address, amount uint64) error {
-	coins := std.Coins{std.Coin{Denom: nca.denom, Amount: int64(amount)}}
-	nca.banker.SendCoins(from, to, coins)
-
-	//
-
-	return nil
-}
+//func (nca *NativeCoinAdapter) Transfer(from std.Address, to std.Address, amount uint64) error {
+//	coins := std.Coins{std.Coin{Denom: nca.denom, Amount: int64(amount)}}
+//	nca.banker.SendCoins(from, to, coins)
+//	//
+//	return nil
+//}
 
 func (nca *NativeCoinAdapter) TotalVotingPower() uint64 {
 	return uint64(nca.banker.TotalCoin(nca.denom))
@@ -103,7 +96,7 @@ type Grc20Adapter struct {
 	adminToken *grc20.AdminToken
 }
 
-func NewGrc20Adapter(name string, symbol string, decimals uint64) *GrcTokenAdapter {
+func NewGrc20Adapter(name string, symbol string, decimals uint64) *Grc20Adapter {
 	return &Grc20Adapter{
 		adminToken: grc20.NewAdminToken(name, symbol, 4),
 	}
@@ -113,11 +106,11 @@ func (ga *Grc20Adapter) Mint(to std.Address, amount uint64) error {
 	return ga.adminToken.Mint(to, amount)
 }
 
-func (ga *Grc20Adapter) Transfer(from std.Address, to std.Address, amount uint64) error {
-	return ga.adminToken.Transfer(from, to, amount)
-}
+//	func (ga *Grc20Adapter) Transfer(from std.Address, to std.Address, amount uint64) error {
+//		return ga.adminToken.Transfer(from, to, amount)
+//	}
 
-func (ga *Grc20Adapter) TotalSupply() uint64 {
+func (ga *Grc20Adapter) TotalVotingPower() uint64 {
 	return ga.adminToken.TotalSupply()
 }
 

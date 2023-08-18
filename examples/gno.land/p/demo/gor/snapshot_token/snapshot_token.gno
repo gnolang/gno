@@ -1,70 +1,69 @@
-package gvotes
+package snapshot_token
 
 import (
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/governance/checkpoints"
-	"gno.land/p/demo/governance/counters"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/demo/gor/checkpoints"
+	"gno.land/p/demo/gor/counters"
 	"std"
 )
 
 const zeroAddress = std.Address("")
 
 // this represents snapshot tokens of account, 1:1
-type snapshotVotingPower struct {
-	votingPowerCheckpoints *avl.MutTree // address => checkpoints.History
-	totalCheckpoints       *checkpoints.History
-	nonces                 *avl.MutTree // address => counters.Counter
+type SnapshotToken struct {
+	accountCheckpoints *avl.Tree // address => checkpoints.History
+	totalCheckpoints   *checkpoints.History
+	nonces             *avl.Tree // address => counters.Counter
 }
 
-func NewSnapShotVotingPower() *snapshotVotingPower {
-	return &snapshotVotingPower{
-		delegateCheckpoints: avl.NewMutTree(),
-		totalCheckpoints:    &checkpoints.History{},
-		nonces:              avl.NewMutTree(),
+func NewSnapShotToken() *SnapshotToken {
+	return &SnapshotToken{
+		accountCheckpoints: avl.NewTree(),
+		totalCheckpoints:   &checkpoints.History{},
+		nonces:             avl.NewTree(),
 	}
 }
 
 // Returns the current amount of voting power that `account` has.
-func (v *snapshotVotingPower) GetVotingPower(account std.Address) uint64 {
-	res, found := v.votingPowerCheckpoints.Get(account.String())
+func (v *SnapshotToken) GetToken(account std.Address) uint64 {
+	res, found := v.accountCheckpoints.Get(account.String())
 	if !found {
-		panic("snapshotVotingPower: " + account.String() + " not exist!")
+		panic("SnapshotToken: " + account.String() + " not exist!")
 	}
 	history := res.(*checkpoints.History)
-	return history.Latest()
+	return history.LatestValue()
 }
 
 // get voting power at specific height
-func (v *snapshotVotingPower) GetPastVotingPower(account std.Address, blockNumber int64) uint64 {
-	history, found := v.delegateCheckpoints.Get(account.String())
+func (v *SnapshotToken) GetPastToken(account std.Address, blockNumber int64) uint64 {
+	history, found := v.accountCheckpoints.Get(account.String())
 	if !found {
-		panic("snapshotVotingPower: " + account.String() + " not exsit!")
+		panic("SnapshotToken: " + account.String() + " not exsit!")
 	}
 	return history.(*checkpoints.History).GetAtBlock(blockNumber)
 }
 
-func (v *snapshotVotingPower) GetPastTotalSupply(blockNumber int64) uint64 {
+func (v *SnapshotToken) GetPastTotalSupply(blockNumber int64) uint64 {
 	height := std.GetHeight()
 	if blockNumber >= height {
-		panic("snapshotVotingPower: block not yet mined")
+		panic("SnapshotToken: block not yet mined")
 	}
 	return v.totalCheckpoints.GetAtBlock(blockNumber)
 }
 
-func (v *snapshotVotingPower) getTotalSupply() uint64 {
-	return v.totalCheckpoints.Latest()
+func (v *SnapshotToken) GetTotalSupply() uint64 {
+	return v.totalCheckpoints.LatestValue()
 }
 
 // Transfers, mints, or burns voting units. To register a mint, `from` should be zero. To register a burn, `to`
 // should be zero. Total supply of voting units will be adjusted with mints and burns.
-func (v *snapshotVotingPower) TransferVotingUnits(from std.Address, to std.Address, amount uint64) error {
+func (v *SnapshotToken) TransferVotingUnits(from std.Address, to std.Address, amount uint64) error {
 	if from == to {
 		return ErrCannotTransferToSelf
 	}
 	if from != zeroAddress { // not mint
 		// check from votes power
-		fromVotes := v.GetVotes(from)
+		fromVotes := v.GetToken(from)
 		if fromVotes < amount {
 			return ErrInsufficientVotes
 		}
@@ -74,12 +73,12 @@ func (v *snapshotVotingPower) TransferVotingUnits(from std.Address, to std.Addre
 	if to == zeroAddress {
 		v.totalCheckpoints.PushWithOp(subtract, amount)
 	}
-	v.moveDelegateVotes(v.delegates(from), v.delegates(to), amount)
+	v.moveDelegateVotes(from, to, amount)
 	return nil
 }
 
 // Moves delegated votes from one delegatee to another.
-func (v *snapshotVotingPower) moveDelegateVotes(from std.Address, to std.Address, amount uint64) {
+func (v *SnapshotToken) moveDelegateVotes(from std.Address, to std.Address, amount uint64) {
 	if from != to && amount > 0 {
 		// NOTE: could delegate from zero address while minting
 		// TODO: should not delegate to zero address? maybe we can burn it
@@ -88,30 +87,30 @@ func (v *snapshotVotingPower) moveDelegateVotes(from std.Address, to std.Address
 		// subtract
 		if from != zeroAddress {
 			var oldValue, newValue uint64
-			res, exists := v.delegateCheckpoints.Get(from.String())
+			res, exists := v.accountCheckpoints.Get(from.String())
 			if !exists {
 				history := &checkpoints.History{}
 				oldValue, newValue = history.PushWithOp(subtract, amount)
-				v.delegateCheckpoints.Set(from.String(), history)
+				v.accountCheckpoints.Set(from.String(), history)
 			} else {
 				history := res.(*checkpoints.History)
 				oldValue, newValue = history.PushWithOp(subtract, amount)
-				v.delegateCheckpoints.Set(from.String(), history)
+				v.accountCheckpoints.Set(from.String(), history)
 			}
 			emit(&DelegateVotesChangedEvent{from, oldValue, newValue})
 		}
 		// add
 		if to != zeroAddress {
 			var oldValue, newValue uint64
-			res, exists := v.delegateCheckpoints.Get(to.String())
+			res, exists := v.accountCheckpoints.Get(to.String())
 			if !exists {
 				history := &checkpoints.History{}
 				oldValue, newValue = history.PushWithOp(add, amount)
-				v.delegateCheckpoints.Set(to.String(), history)
+				v.accountCheckpoints.Set(to.String(), history)
 			} else {
 				history := res.(*checkpoints.History)
 				oldValue, newValue = history.PushWithOp(add, amount)
-				v.delegateCheckpoints.Set(to.String(), history)
+				v.accountCheckpoints.Set(to.String(), history)
 			}
 			emit(&DelegateVotesChangedEvent{to, oldValue, newValue})
 		}
@@ -128,7 +127,7 @@ func subtract(a uint64, b uint64) uint64 {
 
 // Consumes a nonce.
 // Returns the current value and increments nonce.
-func (v *snapshotVotingPower) useNonce(owner std.Address) uint64 {
+func (v *SnapshotToken) useNonce(owner std.Address) uint64 {
 	res, found := v.nonces.Get(owner.String())
 	if !found {
 		return 0 // default 0
@@ -141,7 +140,7 @@ func (v *snapshotVotingPower) useNonce(owner std.Address) uint64 {
 }
 
 // Returns an address nonce.
-func (v *snapshotVotingPower) getNonce(owner std.Address) uint64 {
+func (v *SnapshotToken) getNonce(owner std.Address) uint64 {
 	res, found := v.nonces.Get(owner.String())
 	if !found {
 		return 0 // default 0
@@ -162,18 +161,22 @@ func checkIsValidAddress(addr std.Address) {
 	return
 }
 
-func (v *snapshotVotingPower) RenderHome(account std.Address) string {
-	totalSupply := v.getTotalSupply()
-	votes := v.GetVotes(account)
-	delegatee := v.delegates(account)
-	str := ""
-	str += ufmt.Sprintf("**Total supply**: %d\n", totalSupply)
-	str += ufmt.Sprintf("**votes of %s is**: %d\n", account.String(), votes)
-	str += ufmt.Sprintf("**delegatee of %s is**: %s\n", account.String(), delegatee.String())
-	return str
-}
+//func (v *SnapshotToken) RenderHome(account std.Address) string {
+//	totalSupply := v.getTotalSupply()
+//	votes := v.GetVotes(account)
+//	delegatee := v.delegates(account)
+//	str := ""
+//	str += ufmt.Sprintf("**Total supply**: %d\n", totalSupply)
+//	str += ufmt.Sprintf("**votes of %s is**: %d\n", account.String(), votes)
+//	str += ufmt.Sprintf("**delegatee of %s is**: %s\n", account.String(), delegatee.String())
+//	return str
+//}
 
 func emit(event interface{}) {
 	// TODO: should we do something there?
 	// noop
+}
+
+func (v *SnapshotToken) Echo() string {
+	return "hey"
 }

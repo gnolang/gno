@@ -1,4 +1,4 @@
-package gvotes
+package snapshot_token
 
 import "errors"
 

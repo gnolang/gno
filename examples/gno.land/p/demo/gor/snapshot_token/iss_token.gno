@@ -1,4 +1,6 @@
-package gvotes
+package snapshot_token
+
+import "std"
 
 type IVotes interface {
 	// Returns the current amount of votes that `account` has.
@@ -9,7 +11,7 @@ type IVotes interface {
 
 	// Returns the total supply of votes available at the end of a past block (`blockNumber`).
 	// NOTE: This value is the sum of all available votes, which is not necessarily the sum of all delegated votes.
-	// snapshotVotingPower that have not been delegated are still part of total supply, even though they would not participate in a
+	// SnapshotToken that have not been delegated are still part of total supply, even though they would not participate in a
 	// vote.
 	getPastTotalSupply(blockNumber int64) uint64
 

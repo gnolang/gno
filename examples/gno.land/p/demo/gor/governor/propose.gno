@@ -211,6 +211,7 @@ func (gvr *Governor) Execute(propID string) {
 
 	// TODO: call callable
 
+	// TODO: register all kinds of hook
 	// before execute
 	if gvr.beforeExecute != nil {
 		// TODO: return error

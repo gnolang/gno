@@ -52,6 +52,8 @@ func main() {
 	std.TestSetOrigCaller(member1)
 	users.Register("", "member1", "my profile")
 
+	println("token of member1 is: ", evaldao.GetToken(member1))
+
 	// create DAO
 	evaldao.CreateDAO()
 	// add member

@@ -3,6 +3,7 @@ package main
 import (
 	"gno.land/p/demo/gor/governor"
 	"gno.land/p/demo/maths"
+	"gno.land/r/demo/dao/gov_token"
 	"gno.land/r/demo/groups"
 	"std"
 )
@@ -38,10 +39,13 @@ func CreateDAO() {
 	afterExecute := governor.ExecuteHook(func() error {
 		println("after execute hook...")
 		println("here, after execution, tokens are transferred, need to update weight of members")
-		// we need to get balance of member, and calculate a proper weight for them
+		// Transfer voting power
+		// update weight rather than lazy read
 		return nil
 	})
 	gvr.SetAfterExecute(afterExecute)
+
+	println(gov_token.GovToken.GetTotalSupply())
 }
 
 // Render
@@ -69,6 +73,10 @@ func GetTotalVotingPower() int32 {
 
 func UpdateMemberWeight(mid uint64, weight int) {
 	gvr.UpdateMemberWeight(mid, weight)
+}
+
+func GetToken(acc std.Address) uint64 {
+	return gov_token.GetToken(acc)
 }
 
 // governor miscs

@@ -40,6 +40,8 @@ func (gvr *Governor) GetVersion() string {
 	return "1"
 }
 
+// TODO: change to registerHook()
+// for sendHook, etc
 func (gvr *Governor) SetBeforeExecute(eh ExecuteHook) {
 	gvr.beforeExecute = eh
 }
