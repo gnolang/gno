@@ -18,6 +18,10 @@ import (
 func testExpectation(t *testing.T, expectation expectation) {
 	t.Helper()
 	ast := parseX(expectation.unparsedString)
+	sAst := "nil"
+	if ast != nil {
+		sAst = ast.String()
+	}
 	allOk := true
 	for _, predicate := range expectation.predicates {
 		if err := predicate.satisfies(ast, expectation); err != nil {
@@ -25,7 +29,7 @@ func testExpectation(t *testing.T, expectation expectation) {
 			t.Fatalf(
 				"%s parsed as %s "+j.BoldRed("ERR")+" %s\n",
 				helpers.Escape(expectation.unparsedString),
-				ast.String(),
+				sAst,
 				err.Error(),
 			)
 		}
@@ -46,7 +50,7 @@ func testExpectation(t *testing.T, expectation expectation) {
 		fmt.Printf(
 			"%s parsed as %s "+j.Green("✓")+" %s\n",
 			j.Green(helpers.Escape(expectation.unparsedString)),
-			j.Yellow(helpers.Escape(ast.String())),
+			j.Yellow(helpers.Escape(sAst)),
 			"", // b.String(),
 		)
 	}
@@ -66,6 +70,7 @@ type (
 	}
 	parsesAs       struct{ string } // strict string equality
 	parsesAsChar   struct{ rune }   // strict string equality
+	parsesAsNil    struct{}
 	isBasicLit     struct{ kind Word }
 	isSelectorExpr struct{}
 	isNameExpr     struct{}
@@ -80,6 +85,7 @@ type (
 var (
 	_ predicate = parsesAs{}
 	_ predicate = parsesAsChar{}
+	_ predicate = parsesAsNil{}
 	_ predicate = isBasicLit{}
 	_ predicate = isSelectorExpr{}
 	_ predicate = isNameExpr{}
@@ -166,7 +172,10 @@ func (v parsesAs) satisfies(ast j.Ast, expectation expectation) error {
 		}
 	}
 	// general case (binary expr etc)
-	if ast.String() != v.string {
+	if ast == nil {
+		return errors.New(fmt.Sprintf(
+			"was expecting \"%s\", got %q", v.string, ast))
+	} else if ast.String() != v.string {
 		return errors.New(fmt.Sprintf(
 			"was expecting \"%s\", got \"%s\"", v.string, ast.String()))
 	}
@@ -196,6 +205,13 @@ func (v parsesAsChar) satisfies(ast j.Ast, expectation expectation) error {
 	} else {
 		return errors.New("expecting BasicLitExpr")
 	}
+}
+
+func (v parsesAsNil) satisfies(ast j.Ast, expectation expectation) error {
+	if ast != nil {
+		return errors.New(fmt.Sprintf("was expecting nil, got %q", ast.String()))
+	}
+	return nil
 }
 
 func (v isBasicLit) satisfies(ast j.Ast, expectation expectation) error {
@@ -301,6 +317,7 @@ func (doom) satisfies(ast j.Ast, expectation expectation) error {
 func TestJoeson(t *testing.T) {
 	os.Setenv("TRACE", "stack")
 	tests := []expectation{
+		expect(``, parsesAsNil{}),
 		// https://golang.google.com/ref/spec#Integer_literals
 		expect(`2398`, parsesAs{"2398"}, isBasicLit{INT}),
 		expect(`0`, parsesAs{"0"}, isBasicLit{INT}),
@@ -518,8 +535,8 @@ func TestJoeson(t *testing.T) {
 		expect(`map[string]float32{"C0": 16.35, "D0": 18.35, "E0": 20.60, "F0": 21.83, "G0": 24.50, "A0": 27.50, "B0": 30.87, }`,
 			parsesAs{`map[(const-type string)] (const-type float32){"C0": 16.35, "D0": 18.35, "E0": 20.6, "F0": 21.83, "G0": 24.5, "A0": 27.5, "B0": 30.87}`}, isType{"CompositeLitExpr"}),
 
-		// what about empty expr?
-		// expect(``)
+		// no func until we parse statements
+		// expect(`func(x, y int) int { x + y }`, parsesAs{`[]`}, isType{"FunctionLit"}), // FIXME using FunctionLit and SimpleStmt we can't express anything interesting yet
 	}
 	for _, expectation := range tests {
 		testExpectation(t, expectation)
