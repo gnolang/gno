@@ -68,18 +68,20 @@ type (
 		unparsedString string
 		predicates     []predicate
 	}
-	parsesAs       struct{ string } // strict string equality
-	parsesAsChar   struct{ rune }   // strict string equality
-	parsesAsNil    struct{}
-	isBasicLit     struct{ kind Word }
-	isSelectorExpr struct{}
-	isNameExpr     struct{}
-	isCallExpr     struct{}
-	errorIs        struct{ string }
-	errorContains  struct{ string }
-	noError        struct{}
-	isType         struct{ string }
-	doom           struct{}
+	parsesAs                  struct{ string } // strict string equality
+	parsesAsChar              struct{ rune }   // strict string equality
+	parsesAsNil               struct{}
+	isBasicLit                struct{ kind Word }
+	isSelectorExpr            struct{}
+	isNameExpr                struct{}
+	isCallExpr                struct{}
+	errorIs                   struct{ string }
+	errorContains             struct{ string }
+	noError                   struct{}
+	isType                    struct{ string }
+	binaryExprEvaluatesAsInt  struct{ int }
+	binaryExprEvaluatesAsBool struct{ bool }
+	doom                      struct{}
 )
 
 var (
@@ -94,6 +96,8 @@ var (
 	_ predicate = errorContains{}
 	_ predicate = noError{}
 	_ predicate = isType{}
+	_ predicate = binaryExprEvaluatesAsInt{}
+	_ predicate = binaryExprEvaluatesAsBool{}
 
 	// doom = stop tests (useful to stop from the middle of the list of
 	// tests to inspect one in particular)
@@ -304,6 +308,137 @@ func (t isType) satisfies(ast j.Ast, expectation expectation) error {
 			t.string, theType))
 	}
 	return nil
+}
+
+// extract or eval left and right sides of BinaryExpr as int
+// supposes limitations explained in evaluateBinaryExpr,
+// and that BasicLitExpr of Kind INT be used as operands.
+func vint(bx *BinaryExpr) (left int, right int) {
+	if lx, ok := bx.Left.(*BinaryExpr); ok {
+		left = evaluateBinaryExpr(lx).(int)
+	} else {
+		ble := bx.Left.(*BasicLitExpr)
+		if ble.Kind != INT {
+			panic("assert")
+		}
+		left, _ = strconv.Atoi(ble.Value)
+	}
+	if rx, ok := bx.Right.(*BinaryExpr); ok {
+		right = evaluateBinaryExpr(rx).(int)
+	} else {
+		ble := bx.Right.(*BasicLitExpr)
+		if ble.Kind != INT {
+			panic("assert")
+		}
+		right, _ = strconv.Atoi(ble.Value)
+	}
+	return
+}
+
+// eval left and right sides of BinaryExpr as bool
+// as in a && b and a || b. No extraction is done as in vint.
+// This is not to be used outside of evaluateBinaryExpr.
+func vbool(bx *BinaryExpr) (left bool, right bool) {
+	if lx, ok := bx.Left.(*BinaryExpr); ok {
+		left = evaluateBinaryExpr(lx).(bool)
+	} else {
+		panic("assert")
+	}
+	if rx, ok := bx.Right.(*BinaryExpr); ok {
+		right = evaluateBinaryExpr(rx).(bool)
+	} else {
+		panic("assert")
+	}
+	return
+}
+
+// Used by binaryExprEvaluatesAsInt to write precedence tests.
+// return: bool or int
+// Severely limited binary expr evaluator!
+//   - it can evaluate only * + - == != < <= > >= && ||
+//   - only supports bool and int
+//   - Left and Right MUST be either another limited BinaryExpr
+//     or int or bool.
+//   - There's no point at all using this other than from
+//     very basic tests.
+func evaluateBinaryExpr(bx *BinaryExpr) interface{} {
+	switch bx.Op {
+	case MUL:
+		l, r := vint(bx)
+		return l * r
+	case ADD:
+		l, r := vint(bx)
+		return l + r
+	case SUB:
+		l, r := vint(bx)
+		return l - r
+	case EQL:
+		l, r := vint(bx)
+		return l == r
+	case NEQ:
+		l, r := vint(bx)
+		return l != r
+	case LSS:
+		l, r := vint(bx)
+		return l < r
+	case LEQ:
+		l, r := vint(bx)
+		return l <= r
+	case GEQ:
+		l, r := vint(bx)
+		return l >= r
+	case GTR:
+		l, r := vint(bx)
+		return l > r
+	case LAND:
+		l, r := vbool(bx)
+		return l && r
+	case LOR:
+		l, r := vbool(bx)
+		return l || r
+	default:
+		panic(fmt.Sprintf("unsupported op in evaluateBinaryExpr: %d\n", bx.Op))
+	}
+}
+
+func (e binaryExprEvaluatesAsInt) satisfies(ast j.Ast, expectation expectation) error {
+	if x, ok := evaluateBinaryExpr(ast.(*BinaryExpr)).(int); !ok {
+		return errors.New(fmt.Sprintf("was expecting binaryExpr %q to evaluate as int(%d), result is not int: %v",
+			expectation.unparsedString,
+			e.int,
+			ok,
+		))
+	} else {
+		if x == e.int {
+			return nil
+		} else {
+			return errors.New(fmt.Sprintf("was expecting binaryExpr %q to evaluate as int(%d), got %d",
+				expectation.unparsedString,
+				e.int,
+				x,
+			))
+		}
+	}
+}
+
+func (e binaryExprEvaluatesAsBool) satisfies(ast j.Ast, expectation expectation) error {
+	if x, ok := evaluateBinaryExpr(ast.(*BinaryExpr)).(bool); !ok {
+		return errors.New(fmt.Sprintf("was expecting binaryExpr %q to evaluate as bool(%v), result is not bool: %v",
+			expectation.unparsedString,
+			e.bool,
+			ok,
+		))
+	} else {
+		if x == e.bool {
+			return nil
+		} else {
+			return errors.New(fmt.Sprintf("was expecting binaryExpr %q to evaluate as bool(%v), got %v",
+				expectation.unparsedString,
+				e.bool,
+				x,
+			))
+		}
+	}
 }
 
 func (doom) satisfies(ast j.Ast, expectation expectation) error {
@@ -537,6 +672,20 @@ func TestJoeson(t *testing.T) {
 
 		// no func until we parse statements
 		// expect(`func(x, y int) int { x + y }`, parsesAs{`[]`}, isType{"FunctionLit"}), // FIXME using FunctionLit and SimpleStmt we can't express anything interesting yet
+
+		// test precedence (from X())
+		//	5             *  /  %  <<  >>  &  &^
+		//	4             +  -  |  ^
+		//	3             ==  !=  <  <=  >  >=
+		//	2             &&
+		//	1             ||
+		expect(`a == d`, parsesAs{`a<VPUverse(0)> == d<VPUverse(0)>`}, isType{"BinaryExpr"}),
+		expect(`1 + 7*2`, isType{"BinaryExpr"}, binaryExprEvaluatesAsInt{15}),
+		// expect(`7*2 + 1`, isType{"BinaryExpr"}, binaryExprEvaluatesAsInt{15}),
+		// expect(`7 + 1*2 == 7 + 1*2`, isType{"BinaryExpr"}, binaryExprEvaluatesAsBool{true}),
+		// expect(`a * b + c == d - e / f && 4 >= 1+1 || 7/1 == 7`, parsesAs{`x`}),
+
+		// "Binary operators of the same precedence associate from left to right."
 	}
 	for _, expectation := range tests {
 		testExpectation(t, expectation)

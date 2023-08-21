@@ -33,8 +33,8 @@ func stringIt(it j.Ast) (string, error) {
 // Asserts `it` is NativeArray
 // Useful when rules would create two or more levels of NativeArray.
 func peel(it j.Ast, ctx *j.ParseContext) j.Ast {
-	// (don't assert size of exactly 1, for we want
-	// cases like [[a,b,..], NativeUndefined{}]) to be seamless)
+	// (don't assert size of exactly 1, we want
+	// cases like [[a,b,..], NativeUndefined{}]) to also work)
 	return it.(*j.NativeArray).Get(0)
 }
 
@@ -177,8 +177,7 @@ func f_rune_lit(it j.Ast, ctx *j.ParseContext) j.Ast {
 
 func ff_u_value(rule string, hexDigits int) func(j.Ast, *j.ParseContext) j.Ast {
 	return func(it j.Ast, ctx *j.ParseContext) j.Ast {
-		h := it.(*j.NativeMap)
-		if h.GetOrPanic("b").(*j.NativeArray).Length() != hexDigits {
+		if it.(*j.NativeMap).GetOrPanic("b").(*j.NativeArray).Length() != hexDigits {
 			return ctx.Error(fmt.Sprintf("%s requires %d hex", rule, hexDigits))
 		} else {
 			return it

@@ -25,11 +25,14 @@ var (
 			i(named("Expression", rules(
 				o(`bx:(Expression binary_op Expression) | ux:UnaryExpr`),
 				o(named("UnaryExpr", `PrimaryExpr | ux:(unary_op UnaryExpr)`), fUnaryExpr),
-				o(named("unary_op", qmot("<- & * ^ ! - +"))),
-				o(named("binary_op", `mul_op | add_op | rel_op | '&&' | '||'`)),
+				o(named("unary_op", qmot("+ - ! ^ * & <-"))),
+				// o(named("unary_op", qmot("<- & * ^ ! - +"))),
+				// o(named("binary_op", `mul_op | add_op | rel_op | '&&' | '||'`)),
+				o(named("binary_op", `'||' | '&&' | rel_op | add_op | mul_op`)),
 				o(named("mul_op", qmot("* / % << >> & &^"))),
 				o(named("add_op", qmot("+ - | ^"))),
-				o(named("rel_op", qmot("== != < <= > >="))),
+				// o(named("rel_op", `('==' _ | '!=' _ | '<' _ | '<=' _ | '>' _ | '>=' _)`)),
+				o(named("rel_op", `op:('==' | '!=' | '<' | '<=' | '>' | '>=') _:_`), func(it j.Ast) j.Ast { return it.(*j.NativeMap).GetOrPanic("op") }),
 				o(named("PrimaryExpr", rules(
 					o(`p:PrimaryExpr a:Arguments`, fPrimaryExprArguments),                            // e.g. `math.Atan2(x, y)`
 					o(`p:PrimaryExpr i:Index`, fPrimaryExprIndex),                                    // e.g. `something[1]`
@@ -43,7 +46,7 @@ var (
 						i(named("Literal", rules(
 							o(`BasicLit | FunctionLit | CompositeLit`),
 							i(named("BasicLit", rules(
-								o("(?'\\'') rune_lit | (?[\"`]) string_lit | (?[0-9.]) imaginary_lit | (?[0-9.]) float_lit | (?[0-9]) int_lit"), // (?xx) is lookahead, quickly pruning away
+								o("(?'\\'') rune_lit | (?[\"`]) string_lit | (?[0-9.]) imaginary_lit | (?[0-9.]) float_lit | (?[0-9]) int_lit"), // (?xx) is lookahead, quickly ruling out rules away
 								i(named("rune_lit", `'\'' ( byte_value | unicode_value | [^\n] ) '\''`), f_rune_lit),
 								i(named("string_lit", rules(
 									o(named("raw_string_lit", "'`' [^`]* '`'"), fraw_string_lit),
@@ -133,12 +136,12 @@ var (
 							o(named("SliceType", `'[]' Type`), func(it j.Ast) j.Ast { return &SliceTypeExpr{Elt: it.(Expr), Vrd: false} }),
 							o(named("ArrayType", `'[' Expression ']' Type`), fArrayType),
 							o(named("ChannelType", `chanDir:('chan<-' | '<-chan' | 'chan') _:' '? type:Type`), fChannelType),
-							o(named("PointerType", `'*' Type`), func(it j.Ast) j.Ast { return &StarExpr{X: it.(Expr)} }), // nodes.go reads StarExpr "semantically (...) could be unary * expression, or a pointer type."
+							o(named("PointerType", `'*' Type`), func(it j.Ast) j.Ast { return &StarExpr{X: it.(Expr)} }), // nodes.go: "[StarExpr] semantically (...) could be unary * expression, or a pointer type."
 							o(named("FunctionType", rules(
 								o(`'func' &:Signature`),
 								i(named("Signature", `params:Parameters result:Result?`), fSignature),
-								i(named("Parameters", `'(' ParameterDecl*_COMMA _COMMA? ')'`), fParameters),       // "Within a list of parameters or results, the names must be all present or all absent"
-								i(named("ParameterDecl", `IdentifierList? _ MaybeVariadic Type`), fParameterDecl), // -> NativeArray of FieldTypeExpr
+								i(named("Parameters", `'(' ParameterDecl*_COMMA _COMMA? ')'`), fParameters), // "Within a list of parameters or results, the names must be all present or all absent"
+								i(named("ParameterDecl", `IdentifierList? _ MaybeVariadic Type`), fParameterDecl),
 								i(named("Result", `Parameters | Type`), fResult),
 							))),
 							o(named("StructType", rules(
@@ -146,7 +149,7 @@ var (
 								i(named("FieldDecl", rules(
 									o(`IdentifierList _ Type Tag?`, fFieldDecl1),
 									o(`EmbeddedField Tag?`, fFieldDecl2),
-									i(named("EmbeddedField", `star:MaybeStar typename:TypeName typeargs:TypeArgs?`), fEmbeddedField), // "A field declared with a type but no explicit field name is called an embedded field." E.g. in `struct { Name; age int }`, Name is an embedded field.
+									i(named("EmbeddedField", `star:MaybeStar typename:TypeName typeargs:TypeArgs?`), fEmbeddedField),
 									i(named("Tag", `string_lit`)),
 								))),
 							))),

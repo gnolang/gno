@@ -34,8 +34,7 @@ func i(a ...any) j.ILine { return j.I(a...) }
 // "OR" rule. Inside a rank, "OR" rules (AKA OLine) are parsed one after the
 // other until one returns something other than nil. Some of them are named,
 // but they usually aren't, as it's more the point of an ILine to be
-// referenced. If and when OLine are named it is just to clarify or put a name
-// on what they are supposed to parse.
+// referenced.
 func o(a ...any) j.OLine { return j.O(a...) }
 
 // A Key-value pair, where Key is the name.
