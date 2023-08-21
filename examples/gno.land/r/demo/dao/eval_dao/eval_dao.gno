@@ -1,24 +1,27 @@
-package main
+package eval_dao
 
 import (
 	"gno.land/p/demo/gor/governor"
 	"gno.land/p/demo/maths"
+	"gno.land/r/demo/dao/contrib_dao"
 	"gno.land/r/demo/dao/gov_token"
 	"gno.land/r/demo/groups"
 	"std"
 )
+
+const zeroAddress = std.Address("")
 
 // gvr is p package for build DAO, Gvr <-> DAO
 var (
 	gvr *governor.Governor
 )
 
-func CreateDAO() {
+func CreateDAO(name string) {
 	std.AssertOriginCall()
-	_, groupID := groups.NewGroup("eval_dao")
+	_, groupID := groups.NewGroup(name)
 	println("group created: ", groupID)
 
-	membership := governor.NewNoCoinAdapter(groupID)
+	membership := governor.NewGroupAdapter(groupID)
 
 	// settings
 	proposalThreshold := maths.NewRat(0, 1)
@@ -27,25 +30,16 @@ func CreateDAO() {
 	vetoThreshold := maths.NewRat(1, 3)
 	gs := governor.NewGovernorSettings(0, 5, proposalThreshold, quorum, succeedThreshold, vetoThreshold)
 
-	gvr = governor.NewGovernor("eval_governor", membership, gs)
+	gvr = governor.NewGovernor(name+"_governor", membership, gs)
 	// until now, we have a gvr, consists of membership, and propose, vote abilities
 
-	beforeExecute := func() error {
-		println("before execute hook...")
-		return nil
-	}
-	gvr.SetBeforeExecute(beforeExecute)
+	//beforeExecute := func() error {
+	//	println("before execute hook...")
+	//	return nil
+	//}
+	//gvr.SetBeforeExecute(beforeExecute)
 
-	afterExecute := governor.ExecuteHook(func() error {
-		println("after execute hook...")
-		println("here, after execution, tokens are transferred, need to update weight of members")
-		// Transfer voting power
-		// update weight rather than lazy read
-		return nil
-	})
-	gvr.SetAfterExecute(afterExecute)
-
-	println(gov_token.GetTotalSupply())
+	println("total supply of eval_dao: ", gov_token.GetTotalSupply())
 }
 
 // Render
@@ -75,8 +69,8 @@ func UpdateMemberWeight(mid uint64, weight int) {
 	gvr.UpdateMemberWeight(mid, weight)
 }
 
-func GetToken(acc std.Address) uint64 {
-	return gov_token.GetToken(acc)
+func GetAmount(acc std.Address) uint64 {
+	return gov_token.GetAmount(acc)
 }
 
 // governor miscs
@@ -84,6 +78,21 @@ func GetToken(acc std.Address) uint64 {
 func Propose(title, detail, summary, url string, payee std.Address, amount std.Coins, propType string) string {
 	std.AssertOriginCall()
 	proposalID := gvr.Propose(title, detail, summary, url, payee, amount, propType)
+	// set hook
+	afterExecute := governor.ExecuteHook(func() error {
+		println("after execution hook, tokens are transferred, need to update weight of members")
+		// Transfer voting power
+		gov_token.TransferVotingPower(zeroAddress, payee, 200000000) // TODO: for all coins, get amount
+		// update weight rather than lazy read
+		if gov_token.GetAmount(payee) > 1000 {
+			// update weight
+			println("update weight of 0 to 2")
+			contrib_dao.UpdateMemberWeight(0, 2)
+		}
+		return nil
+	})
+	gvr.SetAfterExecute(afterExecute)
+
 	return proposalID
 }
 

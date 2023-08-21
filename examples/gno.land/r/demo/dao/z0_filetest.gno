@@ -52,15 +52,28 @@ func main() {
 	std.TestSetOrigCaller(member1)
 	users.Register("", "member1", "my profile")
 
-	println("token of member1 is: ", evaldao.GetToken(member1))
-
-	// create DAO
-	evaldao.CreateDAO()
+	// create eval DAO
+	evaldao.CreateDAO("eval_dao")
 	// add member
 	evaldao.AddMember(member1, 1, "this is member1")
 	evaldao.AddMember(member2, 1, "this is member2")
 	evaldao.AddMember(member3, 1, "this is member3")
 	//println(evaldao.RenderGroup())
+
+	// create contrib DAO
+	// register user first
+	std.TestSetOrigCaller(payee3)
+	users.Register("", "payee3", "my profile")
+	std.TestSetOrigCaller(payee2)
+	users.Register("", "payee2", "my profile")
+	std.TestSetOrigCaller(payee1)
+	users.Register("", "payee1", "my profile")
+
+	contribdao.CreateDAO("contrib_dao")
+	// add member, initially set to 1
+	contribdao.AddMember(payee1, 1, "this is payee1")
+	contribdao.AddMember(payee2, 1, "this is payee2")
+	contribdao.AddMember(payee3, 1, "this is payee3")
 
 	println("weight of member1 is: ", evaldao.GetMemberVotingPower(0))
 	println("weight of member2 is: ", evaldao.GetMemberVotingPower(1))
@@ -118,26 +131,10 @@ func main() {
 	payee1Balance = banker.GetCoins(payee1)
 	println("payee1 balance after send is: ", payee1Balance)
 
+	println("executing done----------------------------------")
 	// ---------------------------------------------------------------------
 	// ---------------------------------------------------------------------
 	// ---------------------------------------------------------------------
-
-	// create contrib DAO
-	// register user
-	std.TestSetOrigCaller(payee3)
-	users.Register("", "payee3", "my profile")
-	std.TestSetOrigCaller(payee2)
-	users.Register("", "payee2", "my profile")
-	std.TestSetOrigCaller(payee1)
-	users.Register("", "payee1", "my profile")
-
-	// create DAO
-	contribdao.CreateDAO()
-	// add member
-	contribdao.AddMember(payee1, 1, "this is payee1")
-	contribdao.AddMember(payee2, 1, "this is payee2")
-	contribdao.AddMember(payee3, 1, "this is payee3")
-	//println(evaldao.RenderGroup())
 
 	println("weight of payee1 is: ", contribdao.GetMemberVotingPower(0))
 	println("weight of payee2 is: ", contribdao.GetMemberVotingPower(1))

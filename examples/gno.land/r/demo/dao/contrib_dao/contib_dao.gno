@@ -1,8 +1,9 @@
-package main
+package contrib_dao
 
 import (
 	"gno.land/p/demo/gor/governor"
 	"gno.land/p/demo/maths"
+	"gno.land/r/demo/dao/gov_token"
 	"gno.land/r/demo/groups"
 	"std"
 )
@@ -12,12 +13,12 @@ var (
 	gvr *governor.Governor
 )
 
-func CreateDAO() {
+func CreateDAO(name string) {
 	std.AssertOriginCall()
-	_, groupID := groups.NewGroup("contrib_dao")
+	_, groupID := groups.NewGroup(name)
 	println("group created: ", groupID)
 
-	membership := governor.NewNoCoinAdapter(groupID)
+	membership := governor.NewGroupAdapter(groupID)
 
 	// settings
 	proposalThreshold := maths.NewRat(0, 1)
@@ -26,22 +27,11 @@ func CreateDAO() {
 	vetoThreshold := maths.NewRat(1, 3)
 	gs := governor.NewGovernorSettings(0, 5, proposalThreshold, quorum, succeedThreshold, vetoThreshold)
 
-	gvr = governor.NewGovernor("contrib_governor", membership, gs)
+	gvr = governor.NewGovernor(name+"_governor", membership, gs)
 	// until now, we have a gvr, consists of membership, and propose, vote abilities
 
-	beforeExecute := func() error {
-		println("before execute hook...")
-		return nil
-	}
-	gvr.SetBeforeExecute(beforeExecute)
+	println("total supply of contrib_dao: ", gov_token.GetTotalSupply())
 
-	afterExecute := governor.ExecuteHook(func() error {
-		println("after execute hook...")
-		println("here, after execution, tokens are transferred, need to update weight of members")
-		// we need to get balance of member, and calculate a proper weight for them
-		return nil
-	})
-	gvr.SetAfterExecute(afterExecute)
 }
 
 // Render
@@ -67,6 +57,7 @@ func GetTotalVotingPower() int32 {
 	return gvr.TotalVotingPower()
 }
 
+// TODO: permission check, whitelist for eval_dao
 func UpdateMemberWeight(mid uint64, weight int) {
 	gvr.UpdateMemberWeight(mid, weight)
 }

@@ -54,13 +54,14 @@ func (group *Group) newMember(id MemberID, address std.Address, weight int, meta
 	}
 }
 
-func (group *Group) getMemberCount() int {
-	var count int
+func (group *Group) getTotalWeight() int32 {
+	var weight int32
 	group.members.Iterate("", "", func(key string, value interface{}) bool {
-		count++
+		member := value.(*Member)
+		weight += int32(member.weight)
 		return false
 	})
-	return count
+	return weight
 }
 
 func (group *Group) getMemberWeight(mid MemberID) int {
@@ -71,7 +72,6 @@ func (group *Group) getMemberWeight(mid MemberID) int {
 		panic("this member for this group not exists")
 	}
 	member = m.(*Member)
-
 	return member.weight
 }
 

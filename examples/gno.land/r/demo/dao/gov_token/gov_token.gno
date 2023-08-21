@@ -11,9 +11,16 @@ var GovToken *snapshot_token.SnapshotToken
 
 func init() {
 	GovToken = snapshot_token.NewSnapShotToken()
-	println(GovToken.Echo())
 }
 
-func GetToken(acc std.Address) uint64 {
-	return GovToken.GetToken(acc)
+func GetAmount(acc std.Address) uint64 {
+	return GovToken.GetAmount(acc)
+}
+
+func GetTotalSupply() uint64 {
+	return GovToken.GetTotalSupply()
+}
+
+func TransferVotingPower(from, to std.Address, amount uint64) {
+	GovToken.TransferVotingUnits(from, to, amount)
 }
