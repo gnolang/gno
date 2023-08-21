@@ -4,6 +4,7 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/gor/checkpoints"
 	"gno.land/p/demo/gor/counters"
+	"gno.land/p/demo/ufmt"
 	"std"
 )
 
@@ -25,7 +26,7 @@ func NewSnapShotToken() *SnapshotToken {
 }
 
 // Returns the current amount of voting power that `account` has.
-func (v *SnapshotToken) GetToken(account std.Address) uint64 {
+func (v *SnapshotToken) GetAmount(account std.Address) uint64 {
 	res, found := v.accountCheckpoints.Get(account.String())
 	if !found {
 		panic("SnapshotToken: " + account.String() + " not exist!")
@@ -35,7 +36,7 @@ func (v *SnapshotToken) GetToken(account std.Address) uint64 {
 }
 
 // get voting power at specific height
-func (v *SnapshotToken) GetPastToken(account std.Address, blockNumber int64) uint64 {
+func (v *SnapshotToken) GetPastAmount(account std.Address, blockNumber int64) uint64 {
 	history, found := v.accountCheckpoints.Get(account.String())
 	if !found {
 		panic("SnapshotToken: " + account.String() + " not exsit!")
@@ -63,7 +64,7 @@ func (v *SnapshotToken) TransferVotingUnits(from std.Address, to std.Address, am
 	}
 	if from != zeroAddress { // not mint
 		// check from votes power
-		fromVotes := v.GetToken(from)
+		fromVotes := v.GetAmount(from)
 		if fromVotes < amount {
 			return ErrInsufficientVotes
 		}
@@ -161,22 +162,16 @@ func checkIsValidAddress(addr std.Address) {
 	return
 }
 
-//func (v *SnapshotToken) RenderHome(account std.Address) string {
-//	totalSupply := v.getTotalSupply()
-//	votes := v.GetVotes(account)
-//	delegatee := v.delegates(account)
-//	str := ""
-//	str += ufmt.Sprintf("**Total supply**: %d\n", totalSupply)
-//	str += ufmt.Sprintf("**votes of %s is**: %d\n", account.String(), votes)
-//	str += ufmt.Sprintf("**delegatee of %s is**: %s\n", account.String(), delegatee.String())
-//	return str
-//}
+func (v *SnapshotToken) RenderHome(account std.Address) string {
+	totalSupply := v.GetTotalSupply()
+	amount := v.GetAmount(account)
+	str := ""
+	str += ufmt.Sprintf("**Total supply**: %d\n", totalSupply)
+	str += ufmt.Sprintf("**amount of %s is**: %d\n", account.String(), amount)
+	return str
+}
 
 func emit(event interface{}) {
 	// TODO: should we do something there?
 	// noop
-}
-
-func (v *SnapshotToken) Echo() string {
-	return "hey"
 }

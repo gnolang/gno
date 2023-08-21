@@ -45,7 +45,7 @@ func CreateDAO() {
 	})
 	gvr.SetAfterExecute(afterExecute)
 
-	println(gov_token.GovToken.GetTotalSupply())
+	println(gov_token.GetTotalSupply())
 }
 
 // Render
