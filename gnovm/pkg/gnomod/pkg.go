@@ -168,6 +168,7 @@ func SubPkgsFromPaths(paths []string) ([]*SubPkg, error) {
 		if fi.IsDir() {
 			continue
 		}
+
 		if filepath.Ext(path) != ".gno" {
 			return nil, fmt.Errorf("files must be .gno files: %s", path)
 		}
@@ -176,33 +177,25 @@ func SubPkgsFromPaths(paths []string) ([]*SubPkg, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		return []*SubPkg{subPkg}, nil
 	}
 
+	// We should only have directory paths left here.
+
 	subPkgs := make([]*SubPkg, 0, len(paths))
 	for _, path := range paths {
-		subPkg := SubPkg{}
-
 		matches, err := filepath.Glob(filepath.Join(path, "*.gno"))
 		if err != nil {
 			return nil, fmt.Errorf("failed to match pattern: %w", err)
 		}
 
-		subPkg.Dir = path
-		for _, match := range matches {
-			if strings.HasSuffix(match, "_test.gno") {
-				subPkg.TestGnoFiles = append(subPkg.TestGnoFiles, match)
-				continue
-			}
-
-			if strings.HasSuffix(match, "_filetest.gno") {
-				subPkg.FiletestGnoFiles = append(subPkg.FiletestGnoFiles, match)
-				continue
-			}
-			subPkg.GnoFiles = append(subPkg.GnoFiles, match)
+		subPkg, err := GnoFileSubPkg(matches)
+		if err != nil {
+			return nil, fmt.Errorf("failed to match pattern: %w", err)
 		}
 
-		subPkgs = append(subPkgs, &subPkg)
+		subPkgs = append(subPkgs, subPkg)
 	}
 
 	return subPkgs, nil
@@ -211,7 +204,9 @@ func SubPkgsFromPaths(paths []string) ([]*SubPkg, error) {
 // GnoFileSubPkg returns a subpackage from the given .gno files.
 func GnoFileSubPkg(files []string) (*SubPkg, error) {
 	subPkg := SubPkg{}
+
 	firstDir := ""
+	isFiletestsPackage := false
 	for _, file := range files {
 		if filepath.Ext(file) != ".gno" {
 			return nil, fmt.Errorf("files must be .gno files: %s", file)
@@ -221,14 +216,17 @@ func GnoFileSubPkg(files []string) (*SubPkg, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		if fi.IsDir() {
 			return nil, fmt.Errorf("%s is a directory, should be a Gno file", file)
 		}
 
 		dir := filepath.Dir(file)
 		if firstDir == "" {
+			isFiletestsPackage = isFiletestsDirectory(dir)
 			firstDir = dir
 		}
+
 		if dir != firstDir {
 			return nil, fmt.Errorf("all files must be in one directory; have %s and %s", firstDir, dir)
 		}
@@ -238,13 +236,35 @@ func GnoFileSubPkg(files []string) (*SubPkg, error) {
 			continue
 		}
 
+		// XXX(deprecated): remove this block
 		if strings.HasSuffix(file, "_filetest.gno") {
+			fmt.Fprintf(os.Stderr, "warning - %s: `_filetest.gno` is deprecated, use 'filetests' folder instead\n", file)
 			subPkg.FiletestGnoFiles = append(subPkg.FiletestGnoFiles, file)
 			continue
 		}
+
+		if isFiletestsPackage {
+			subPkg.FiletestGnoFiles = append(subPkg.FiletestGnoFiles, file)
+		}
+
 		subPkg.GnoFiles = append(subPkg.GnoFiles, file)
 	}
 	subPkg.Dir = firstDir
 
 	return &subPkg, nil
+}
+
+func isFiletestsDirectory(dir string) bool {
+	const filetests = "filetests"
+
+	abspath, err := filepath.Abs(dir)
+	if err == nil && filepath.Base(abspath) == filetests {
+		return true
+	}
+
+	if filepath.Base(filepath.Dir(abspath)) == filetests {
+		return true
+	}
+
+	return false
 }
