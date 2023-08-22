@@ -12,7 +12,6 @@ type MemberID uint64
 type Member struct {
 	id                MemberID
 	address           std.Address
-	weight            int
 	weightCheckPoints *checkpoints.History // maintain snapshot weight instead of snapshot tokens
 	metadata          string
 	createdAt         time.Time

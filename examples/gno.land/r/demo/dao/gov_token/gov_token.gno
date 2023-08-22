@@ -6,6 +6,7 @@ import (
 )
 
 // realm keep snapshot tokens as a gov token, (snapshot) native coin, grc series coin, etc
+// TODO: might not need all these intermediate representation, since weight of member has been snapshotted
 
 var GovToken *snapshot_token.SnapshotToken
 

@@ -8,6 +8,7 @@ import (
 	"std"
 )
 
+// TODO: might not need all these intermediate representation, since weight of member has been snapshotted
 const zeroAddress = std.Address("")
 
 // this represents snapshot tokens of account, 1:1

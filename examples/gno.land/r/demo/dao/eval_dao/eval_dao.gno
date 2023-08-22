@@ -31,14 +31,6 @@ func CreateDAO(name string) {
 	gs := governor.NewGovernorSettings(0, 5, proposalThreshold, quorum, succeedThreshold, vetoThreshold)
 
 	gvr = governor.NewGovernor(name+"_governor", membership, gs)
-	// until now, we have a gvr, consists of membership, and propose, vote abilities
-
-	//beforeExecute := func() error {
-	//	println("before execute hook...")
-	//	return nil
-	//}
-	//gvr.SetBeforeExecute(beforeExecute)
-
 	println("total supply of eval_dao: ", gov_token.GetTotalSupply())
 }
 
@@ -65,25 +57,11 @@ func GetTotalVotingPower() int32 {
 	return gvr.TotalVotingPower()
 }
 
-func UpdateMemberWeight(mid uint64, weight int) {
-	gvr.UpdateMemberWeight(mid, weight)
-}
-
 func GetAmount(acc std.Address) uint64 {
 	return gov_token.GetAmount(acc)
 }
 
-func calcWeightByTokenAmount(amount int32, numTiers int32) int32 {
-	// get totalSupply
-	totalSupply := gvr.TotalVotingPower()
-	rangeSize := totalSupply / numTiers
-
-	tier := (amount-1)/rangeSize + 1
-	return tier
-}
-
 // governor miscs
-// propose -> vote -> tally -> execute -> render
 func Propose(title, detail, summary, url string, payee std.Address, amount std.Coins, propType string) string {
 	std.AssertOriginCall()
 	proposalID := gvr.Propose(title, detail, summary, url, payee, amount, propType)

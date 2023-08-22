@@ -58,10 +58,6 @@ func GetTotalVotingPower() int32 {
 }
 
 // TODO: permission check, whitelist for eval_dao
-func UpdateMemberWeight(mid uint64, weight int) {
-	gvr.UpdateMemberWeight(mid, weight)
-}
-
 func UpdateWeightCheckPoints(mid uint64, amount int32, numTiers int32) {
 	gvr.UpdateWeightCheckPoints(mid, amount, numTiers)
 }

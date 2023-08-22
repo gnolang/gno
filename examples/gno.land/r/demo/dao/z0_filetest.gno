@@ -80,7 +80,7 @@ func main() {
 	println("weight of member2 is: ", evaldao.GetMemberVotingPower(2))
 
 	// member count
-	println("member count is: ", evaldao.GetTotalVotingPower())
+	//println("member count is: ", evaldao.GetTotalVotingPower())
 
 	// -----------------------------------------------
 	// -----------------------------------------------
@@ -136,12 +136,8 @@ func main() {
 	// ---------------------------------------------------------------------
 	// ---------------------------------------------------------------------
 
-	println("weight of payee1 is: ", contribdao.GetMemberVotingPower(0))
-	println("weight of payee2 is: ", contribdao.GetMemberVotingPower(1))
-	println("weight of payee3 is: ", contribdao.GetMemberVotingPower(2))
-
 	// member count
-	println("member count is: ", contribdao.GetTotalVotingPower())
+	//println("member count is: ", contribdao.GetTotalVotingPower())
 	println(contribdao.RenderGvr(""))
 
 	// propose all over again
