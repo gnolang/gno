@@ -62,6 +62,10 @@ func UpdateMemberWeight(mid uint64, weight int) {
 	gvr.UpdateMemberWeight(mid, weight)
 }
 
+func UpdateWeightCheckPoints(mid uint64, amount int32, numTiers int32) {
+	gvr.UpdateWeightCheckPoints(mid, amount, numTiers)
+}
+
 // governor miscs
 // propose -> vote -> tally -> execute -> render
 func Propose(title, detail, summary, url string, payee std.Address, amount std.Coins, propType string) string {

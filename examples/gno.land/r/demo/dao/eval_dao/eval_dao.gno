@@ -73,6 +73,15 @@ func GetAmount(acc std.Address) uint64 {
 	return gov_token.GetAmount(acc)
 }
 
+func calcWeightByTokenAmount(amount int32, numTiers int32) int32 {
+	// get totalSupply
+	totalSupply := gvr.TotalVotingPower()
+	rangeSize := totalSupply / numTiers
+
+	tier := (amount-1)/rangeSize + 1
+	return tier
+}
+
 // governor miscs
 // propose -> vote -> tally -> execute -> render
 func Propose(title, detail, summary, url string, payee std.Address, amount std.Coins, propType string) string {
@@ -83,12 +92,9 @@ func Propose(title, detail, summary, url string, payee std.Address, amount std.C
 		println("after execution hook, tokens are transferred, need to update weight of members")
 		// Transfer voting power
 		gov_token.TransferVotingPower(zeroAddress, payee, 200000000) // TODO: for all coins, get amount
-		// update weight rather than lazy read
-		if gov_token.GetAmount(payee) > 1000 {
-			// update weight
-			println("update weight of 0 to 2")
-			contrib_dao.UpdateMemberWeight(0, 2)
-		}
+		// get amount of payee, and use this to update weights
+		amount := gov_token.GetAmount(payee)
+		contrib_dao.UpdateWeightCheckPoints(0, int32(amount), 7) // TODO: consistency of all int32, uint64 for all tokens
 		return nil
 	})
 	gvr.SetAfterExecute(afterExecute)

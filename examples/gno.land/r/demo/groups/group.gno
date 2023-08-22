@@ -1,11 +1,11 @@
 package groups
 
 import (
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/gor/checkpoints"
 	"std"
 	"strconv"
 	"time"
-
-	"gno.land/p/demo/avl"
 )
 
 type GroupID uint64
@@ -20,6 +20,7 @@ type Group struct {
 	name         string
 	lastMemberID MemberID
 	members      avl.Tree
+	upperAmount  int32 // upper amount of tokens a member hold, used to calculate tiers
 	creator      std.Address
 	createdAt    time.Time
 }
@@ -46,11 +47,12 @@ func (group *Group) newMember(id MemberID, address std.Address, weight int, meta
 		panic("this member for this group already exists")
 	}
 	return &Member{
-		id:        id,
-		address:   address,
-		weight:    weight,
-		metadata:  metadata,
-		createdAt: time.Now(),
+		id:                id,
+		address:           address,
+		weight:            weight,
+		weightCheckPoints: checkpoints.NewHistory(),
+		metadata:          metadata,
+		createdAt:         time.Now(),
 	}
 }
 
@@ -64,6 +66,7 @@ func (group *Group) getTotalWeight() int32 {
 	return weight
 }
 
+// TODO: weight should be snapshot
 func (group *Group) getMemberWeight(mid MemberID) int {
 	var member *Member
 	midkey := memberIDKey(mid)
@@ -87,6 +90,56 @@ func (group *Group) setMemberWeight(mid MemberID, weight int) {
 	member.weight = weight
 
 	group.members.Set(midkey, member)
+}
+
+// default at current height
+func (group *Group) updateWeightSnapshot(midkey string, weight uint64) {
+	println("update weight snapshot: ", midkey, weight)
+	var member *Member
+	m, ok := group.members.Get(midkey)
+	if !ok {
+		panic("this member for this group not exists")
+	}
+	member = m.(*Member)
+
+	member.weightCheckPoints.Push(weight)
+	group.members.Set(midkey, member)
+}
+
+func calcWeightByTokenAmount(upperLimit, amount int32, numTiers int32) int32 {
+	println("calc weight, upperLimit, amount ,numTiers: ", upperLimit, amount, numTiers)
+	rangeSize := upperLimit / numTiers
+	println("rangeSize is: ", rangeSize)
+	tier := (amount-1)/rangeSize + 1
+	return tier
+}
+
+// this set the weight by tier, which is calculated by tokens on hold, and a tier mechanism
+func (group *Group) updateWeightSnapshotByTier(mid MemberID, amount int32, numTiers int32) {
+	println("update weight by tier: ", mid.String(), amount)
+	// upperLimit change, update all tiers
+	if amount > group.upperAmount {
+		group.upperAmount = amount
+		var newWeight int32
+		group.members.Iterate("", "", func(key string, value interface{}) bool {
+			member := value.(*Member)
+			if key == memberIDKey(mid) { // current payee
+				newWeight = int32(calcWeightByTokenAmount(group.upperAmount, amount, numTiers))
+				println("new weight is: ", newWeight)
+				group.updateWeightSnapshot(key, uint64(newWeight))
+			} else {
+				latest := member.weightCheckPoints.LatestValue()
+				println("member: ", key)
+				println("latest is: ", latest)
+				// reCalculate tier
+				newWeight = int32(calcWeightByTokenAmount(group.upperAmount, int32(latest), numTiers))
+				println("new weight is: ", newWeight)
+				group.updateWeightSnapshot(key, uint64(newWeight))
+			}
+			return false
+		})
+	}
+	return
 }
 
 func (group *Group) HasPermission(addr std.Address, perm Permission) bool {

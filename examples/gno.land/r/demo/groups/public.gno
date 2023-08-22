@@ -91,6 +91,11 @@ func UpdateMemberWeight(gid GroupID, mid uint64, weight int) {
 	group.setMemberWeight(MemberID(mid), weight)
 }
 
+func UpdateWeightCheckPoints(gid GroupID, mid uint64, amount int32, numTiers int32) {
+	group := getGroup(gid)
+	group.updateWeightSnapshotByTier(MemberID(mid), amount, numTiers)
+}
+
 func GetTotalWeight(gid GroupID) int32 {
 	group := getGroup(gid)
 	return group.getTotalWeight()
