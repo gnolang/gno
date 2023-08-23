@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"path"
@@ -116,19 +117,59 @@ func (m *mapping) loadParamsResults(gnof, gof funcDecl) {
 }
 
 func (m *mapping) _loadParamsResults(dst *[]mappingType, gnol, gol []*ast.Field) {
-	// we know at this point in code that the signatures match;
-	// however, we still need to guard against cases like this one:
-	// func(n, n1 int) and func(n int, n1 int).
-	// these generate two different param lists, so we need to keep track of
-	// where we are in each of the two lists separately.
-	var goIdx, goNameIdx int
-	goAdvance := func() {
-		goNameIdx++
-		if goNameIdx >= len(gol[goIdx].Names) {
-			goIdx++
-			goNameIdx = 0
+	iterFields(gnol, gol, func(gnoe, goe ast.Expr) error {
+		if m.isTypedValue(goe) {
+			*dst = append(*dst, mappingType{Type: gnoe, IsTypedValue: true})
+		} else {
+			merged := m.mergeTypes(gnoe, goe)
+			*dst = append(*dst, mappingType{Type: merged})
 		}
+		return nil
+	})
+}
+
+// isGnoMachine checks whether field is of type *gno.Machine,
+// and it has at most 1 name.
+func (m *mapping) isGnoMachine(field *ast.Field) bool {
+	if len(field.Names) > 1 {
+		return false
 	}
+
+	return m.isGnoType(field.Type, true, "Machine")
+}
+
+// isTypedValue checks whether e is type gno.TypedValue.
+func (m *mapping) isTypedValue(e ast.Expr) bool {
+	return m.isGnoType(e, false, "TypedValue")
+}
+
+func (m *mapping) isGnoType(e ast.Expr, star bool, typeName string) bool {
+	if star {
+		px, ok := e.(*ast.StarExpr)
+		if !ok {
+			return false
+		}
+		e = px.X
+	}
+
+	sx, ok := e.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+
+	imp := resolveSelectorImport(m.goImports, sx)
+	return imp == gnoPackagePath && sx.Sel.Name == typeName
+}
+
+// iterFields iterates over gnol and gol, calling callback for each matching
+// paramter. iterFields assumes the caller already checked for the "true" number
+// of parameters in the two arrays to be equal (can be checked using
+// (*ast.FieldList).NumFields()).
+//
+// If callback returns an error, iterFields returns that error immediately.
+// No errors are otherwise generated.
+func iterFields(gnol, gol []*ast.Field, callback func(gnoType, goType ast.Expr) error) error {
+	var goIdx, goNameIdx int
 
 	for _, l := range gnol {
 		n := len(l.Names)
@@ -138,16 +179,19 @@ func (m *mapping) _loadParamsResults(dst *[]mappingType, gnol, gol []*ast.Field)
 		gnoe := l.Type
 		for i := 0; i < n; i++ {
 			goe := gol[goIdx].Type
-			if m.isTypedValue(goe) {
-				*dst = append(*dst, mappingType{Type: gnoe, IsTypedValue: true})
-			} else {
-				merged := m.mergeTypes(gnoe, goe)
-				*dst = append(*dst, mappingType{Type: merged})
+
+			if err := callback(gnoe, goe); err != nil {
+				return err
 			}
 
-			goAdvance()
+			goNameIdx++
+			if goNameIdx >= len(gol[goIdx].Names) {
+				goIdx++
+				goNameIdx = 0
+			}
 		}
 	}
+	return nil
 }
 
 // mergeTypes merges gnoe and goe into a single ast.Expr.
@@ -319,7 +363,7 @@ func (m *mapping) signaturesMatch(gnof, gof funcDecl) bool {
 
 	// if first param of go function is *gno.Machine, remove it
 	gofp := gof.Type.Params
-	if len(gofp.List) > 0 && m.isGnoMachine(gofp.List[0]) {
+	if gofp != nil && len(gofp.List) > 0 && m.isGnoMachine(gofp.List[0]) {
 		// avoid touching original struct
 		n := *gofp
 		n.List = n.List[1:]
@@ -332,72 +376,26 @@ func (m *mapping) signaturesMatch(gnof, gof funcDecl) bool {
 		m.fieldListsMatch(gnof.Type.Results, gof.Type.Results)
 }
 
-// isGnoMachine checks whether field is of type *gno.Machine,
-// and it has at most 1 name.
-func (m *mapping) isGnoMachine(field *ast.Field) bool {
-	if len(field.Names) > 1 {
-		return false
-	}
-
-	return m.isGnoType(field.Type, true, "Machine")
-}
-
-// isTypedValue checks whether e is type gno.TypedValue.
-func (m *mapping) isTypedValue(e ast.Expr) bool {
-	return m.isGnoType(e, false, "TypedValue")
-}
-
-func (m *mapping) isGnoType(e ast.Expr, star bool, typeName string) bool {
-	if star {
-		px, ok := e.(*ast.StarExpr)
-		if !ok {
-			return false
-		}
-		e = px.X
-	}
-
-	sx, ok := e.(*ast.SelectorExpr)
-	if !ok {
-		return false
-	}
-
-	imp := resolveSelectorImport(m.goImports, sx)
-	return imp == gnoPackagePath && sx.Sel.Name == typeName
-}
+var errNoMatch = errors.New("no match")
 
 func (m *mapping) fieldListsMatch(gnofl, gofl *ast.FieldList) bool {
 	if gnofl == nil || gofl == nil {
 		return gnofl == nil && gofl == nil
 	}
-	gnots, gots := fieldListToTypes(gnofl), fieldListToTypes(gofl)
-	if len(gnots) != len(gots) {
+	if gnofl.NumFields() != gofl.NumFields() {
 		return false
 	}
-	for idx, gnot := range gnots {
+	err := iterFields(gnofl.List, gofl.List, func(gnoe, goe ast.Expr) error {
 		// if the go type is gno.TypedValue, we just don't perform reflect-based conversion.
-		if m.isTypedValue(gots[idx]) {
-			continue
+		if m.isTypedValue(goe) {
+			return nil
 		}
-		if m.mergeTypes(gnot, gots[idx]) == nil {
-			return false
+		if m.mergeTypes(gnoe, goe) == nil {
+			return errNoMatch
 		}
-	}
-	return true
-}
-
-func fieldListToTypes(fl *ast.FieldList) []ast.Expr {
-	e := make([]ast.Expr, 0, len(fl.List))
-	for _, f := range fl.List {
-		nnames := len(f.Names)
-		if nnames < 1 {
-			// case of unnamed param (ie. `func X(int) {}`)
-			nnames = 1
-		}
-		for i := 0; i < nnames; i++ {
-			e = append(e, f.Type)
-		}
-	}
-	return e
+		return nil
+	})
+	return err == nil
 }
 
 // TODO: this is created based on the uverse definitions. This should be
