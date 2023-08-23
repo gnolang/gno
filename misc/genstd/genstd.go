@@ -28,14 +28,6 @@ func main() {
 	}
 }
 
-// for now a simple call to fmt.Fprintf, but could be improved
-func logWarning(format string, v ...any) {
-	// TODO: add these at the top of the generated file as a comment
-	// so that if there are exceptions to make these are made
-	// consciously in code review.
-	fmt.Fprintf(os.Stderr, "warn: "+format+"\n", v...)
-}
-
 func _main(stdlibsPath string) error {
 	stdlibsPath = filepath.Clean(stdlibsPath)
 	if s, err := os.Stat(stdlibsPath); err != nil {

@@ -54,9 +54,10 @@ func linkFunctions(pkgs []*pkgData) []mapping {
 			}
 			fn := findFuncByName(pkg.goExported, nameWant)
 			if fn.FuncDecl == nil {
-				logWarning("package %q: no matching go function declaration (%q) exists for function %q",
-					pkg.importPath, nameWant, gb.Name.Name)
-				continue
+				panic(
+					fmt.Errorf("package %q: no matching go function declaration (%q) exists for function %q",
+						pkg.importPath, nameWant, gb.Name.Name),
+				)
 			}
 			mp := mapping{
 				GnoImportPath: pkg.importPath,
@@ -68,9 +69,10 @@ func linkFunctions(pkgs []*pkgData) []mapping {
 				goImports:  fn.imports,
 			}
 			if !mp.signaturesMatch(gb, fn) {
-				logWarning("package %q: signature of gno function %s doesn't match signature of go function %s",
-					pkg.importPath, gb.Name.Name, fn.Name.Name)
-				continue
+				panic(
+					fmt.Errorf("package %q: signature of gno function %s doesn't match signature of go function %s",
+						pkg.importPath, gb.Name.Name, fn.Name.Name),
+				)
 			}
 			mp.loadParamsResults(gb, fn)
 			mappings = append(mappings, mp)
