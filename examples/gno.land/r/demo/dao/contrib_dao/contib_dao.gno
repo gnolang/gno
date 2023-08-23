@@ -35,7 +35,7 @@ func CreateDAO(name string) {
 }
 
 // Render
-func RenderGvr(propID string) string {
+func Render(propID string) string {
 	return gvr.RenderHome(propID)
 }
 

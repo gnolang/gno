@@ -23,6 +23,7 @@ func CreateDAO(name string) {
 
 	membership := governor.NewGroupAdapter(groupID)
 
+	// TODO: construct from parameters
 	// settings
 	proposalThreshold := maths.NewRat(0, 1)
 	quorum := maths.NewRat(1, 3)
@@ -35,18 +36,16 @@ func CreateDAO(name string) {
 }
 
 // Render
-func RenderGvr(propID string) string {
+func Render(propID string) string {
 	return gvr.RenderHome(propID)
 }
 
 // membership miscs
-// TODO: calculate weight based on tokens (say)
 func AddMember(addr std.Address, weight int, meta string) {
 	std.AssertOriginCall()
 	gvr.AddMember(addr.String(), weight, meta)
 }
 
-// // TODO: this should in gvr render, no need for here
 func GetMemberVotingPower(mid uint64) int32 {
 	std.AssertOriginCall()
 	return gvr.GetVotingPowerFromMember(mid)
@@ -69,7 +68,8 @@ func Propose(title, detail, summary, url string, payee std.Address, amount std.C
 	afterExecute := governor.ExecuteHook(func() error {
 		println("after execution hook, tokens are transferred, need to update weight of members")
 		// Transfer voting power
-		gov_token.TransferVotingPower(zeroAddress, payee, 200000000) // TODO: for all coins, get amount
+		amt := []std.Coin(amount)[0].Amount
+		gov_token.TransferVotingPower(zeroAddress, payee, uint64(amt)) // TODO: for all coins, get amount
 		// get amount of payee, and use this to update weights
 		amount := gov_token.GetAmount(payee)
 		contrib_dao.UpdateWeightCheckPoints(0, int32(amount), 7) // TODO: consistency of all int32, uint64 for all tokens

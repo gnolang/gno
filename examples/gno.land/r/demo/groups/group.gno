@@ -106,11 +106,45 @@ func (group *Group) setWeightSnapshot(midkey string, weight uint64) {
 	group.members.Set(midkey, member)
 }
 
-func calcWeightByTokenAmount(upperLimit, amount int32, numTiers int32) int32 {
-	println("calc weight, upperLimit, amount ,numTiers: ", upperLimit, amount, numTiers)
-	rangeSize := upperLimit / numTiers
-	println("rangeSize is: ", rangeSize)
-	tier := (amount-1)/rangeSize + 1
+func segmentSearch(arr []int32, target int32) int {
+	left, right := 0, len(arr)-1
+	if target <= 0 || target > arr[right] {
+		panic("should not happen")
+	}
+
+	for left <= right {
+		mid := left + (right-left)/2
+		if target > arr[mid] {
+			if target <= arr[mid+1] {
+				return mid + 2 // 1 for next range, 1 for 1 offset(start from 1), so plus 2
+			}
+			left = mid + 1 // shift
+		} else {
+			if mid == 0 {
+				return 1
+			}
+			if target > arr[mid-1] {
+				return mid + 1
+			}
+			right = mid - 1 // shift
+		}
+	}
+	return -1
+}
+
+func tierCalculate(tierNum int32, upper int32, target int32) int {
+	// TODO: some cache mechanism, so we don't need segememt calculating everytime
+	// TODO: maybe some segmemt tree?
+	var segments []int32
+	var i int32
+	for i = 0; i < tierNum; i++ {
+		segments = append(segments, (i+1)*upper)
+	}
+
+	expansiveTarget := target * tierNum
+
+	tier := segmentSearch(segments, expansiveTarget)
+
 	return tier
 }
 
@@ -123,12 +157,13 @@ func (group *Group) updateWeightSnapshotByTier(mid MemberID, amount int32, numTi
 		group.members.Iterate("", "", func(key string, value interface{}) bool {
 			member := value.(*Member)
 			if key == memberIDKey(mid) { // current payee
-				newWeight = int32(calcWeightByTokenAmount(group.upperAmount, amount, numTiers))
+				newWeight = int32(tierCalculate(numTiers, group.upperAmount, amount))
 				group.setWeightSnapshot(key, uint64(newWeight))
 			} else {
 				latest := member.weightCheckPoints.LatestValue()
 				// reCalculate tier
-				newWeight = int32(calcWeightByTokenAmount(group.upperAmount, int32(latest), numTiers))
+				//newWeight = int32(calcWeightByTokenAmount(group.upperAmount, int32(latest), numTiers))
+				newWeight = int32(tierCalculate(numTiers, group.upperAmount, int32(latest)))
 				group.setWeightSnapshot(key, uint64(newWeight))
 			}
 			return false
@@ -169,6 +204,7 @@ func (group *Group) deleteGroup() {
 	gGroupsByName.Remove(group.name)
 }
 
+// TODO: remove voting power
 func (group *Group) deleteMember(mid MemberID) {
 	gidkey := groupIDKey(group.id)
 	if !gGroups.Has(gidkey) {

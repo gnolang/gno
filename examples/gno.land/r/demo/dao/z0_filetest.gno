@@ -4,8 +4,8 @@ package main
 
 import (
 	"gno.land/p/demo/testutils"
-	contribdao "gno.land/r/demo/dao/contrib_dao"
-	evaldao "gno.land/r/demo/dao/eval_dao"
+	"gno.land/r/demo/dao/contrib_dao"
+	"gno.land/r/demo/dao/eval_dao"
 	"gno.land/r/demo/users"
 	"std"
 )
@@ -53,12 +53,12 @@ func main() {
 	users.Register("", "member1", "my profile")
 
 	// create eval DAO
-	evaldao.CreateDAO("eval_dao")
+	eval_dao.CreateDAO("eval_dao")
 	// add member
-	evaldao.AddMember(member1, 1, "this is member1")
-	evaldao.AddMember(member2, 1, "this is member2")
-	evaldao.AddMember(member3, 1, "this is member3")
-	//println(evaldao.RenderGroup())
+	eval_dao.AddMember(member1, 1, "this is member1")
+	eval_dao.AddMember(member2, 1, "this is member2")
+	eval_dao.AddMember(member3, 1, "this is member3")
+	//println(eval_dao.RenderGroup())
 
 	// create contrib DAO
 	// register user first
@@ -69,18 +69,18 @@ func main() {
 	std.TestSetOrigCaller(payee1)
 	users.Register("", "payee1", "my profile")
 
-	contribdao.CreateDAO("contrib_dao")
+	contrib_dao.CreateDAO("contrib_dao")
 	// add member, initially set to 1
-	contribdao.AddMember(payee1, 1, "this is payee1")
-	contribdao.AddMember(payee2, 1, "this is payee2")
-	contribdao.AddMember(payee3, 1, "this is payee3")
+	contrib_dao.AddMember(payee1, 1, "this is payee1")
+	contrib_dao.AddMember(payee2, 1, "this is payee2")
+	contrib_dao.AddMember(payee3, 1, "this is payee3")
 
-	println("weight of member1 is: ", evaldao.GetMemberVotingPower(0))
-	println("weight of member2 is: ", evaldao.GetMemberVotingPower(1))
-	println("weight of member2 is: ", evaldao.GetMemberVotingPower(2))
+	println("weight of member1 is: ", eval_dao.GetMemberVotingPower(0))
+	println("weight of member2 is: ", eval_dao.GetMemberVotingPower(1))
+	println("weight of member2 is: ", eval_dao.GetMemberVotingPower(2))
 
 	// member count
-	//println("member count is: ", evaldao.GetTotalVotingPower())
+	println("member count is: ", eval_dao.GetTotalVotingPower())
 
 	// -----------------------------------------------
 	// -----------------------------------------------
@@ -88,45 +88,45 @@ func main() {
 
 	// propose
 	amount := std.Coins{{"ugnot", 200000000}}
-	propID := evaldao.Propose("this is title", "this is detail", "this is summary", "this is url", payee1, amount, "send_proposal")
+	propID := eval_dao.Propose("this is title", "this is detail", "this is summary", "this is url", payee1, amount, "send_proposal")
 	println("proposed, ID is: ", propID)
-	println(evaldao.RenderGvr(propID))
+	println(eval_dao.Render(propID))
 
 	std.TestSkipHeights(1) //skip current block, into voting period
 	// vote
-	err := evaldao.CastVote(propID, "for")
+	err := eval_dao.CastVote(propID, "for")
 	if err != nil {
 		println(err.Error())
 	}
-	println(evaldao.RenderGvr(propID))
+	println(eval_dao.Render(propID))
 
 	// same account vote again, this is forbidden
-	err = evaldao.CastVote(propID, "against")
+	err = eval_dao.CastVote(propID, "against")
 	if err != nil {
 		println(err.Error())
 	}
-	println(evaldao.RenderGvr(propID))
+	println(eval_dao.Render(propID))
 
 	// switch user and vote
 	std.TestSetOrigCaller(member2)
-	err = evaldao.CastVote(propID, "against")
+	err = eval_dao.CastVote(propID, "against")
 	if err != nil {
 		println(err.Error())
 	}
-	println(evaldao.RenderGvr(propID))
+	println(eval_dao.Render(propID))
 
 	// switch user and vote
 	std.TestSetOrigCaller(member3)
-	err = evaldao.CastVote(propID, "for")
+	err = eval_dao.CastVote(propID, "for")
 	if err != nil {
 		println(err.Error())
 	}
 
 	std.TestSkipHeights(5) // skip voting period
-	println(evaldao.RenderGvr(propID))
+	println(eval_dao.Render(propID))
 
 	// execute
-	evaldao.Execute(propID)
+	eval_dao.Execute(propID)
 
 	payee1Balance = banker.GetCoins(payee1)
 	println("payee1 balance after send is: ", payee1Balance)
@@ -137,8 +137,8 @@ func main() {
 	// ---------------------------------------------------------------------
 
 	// member count
-	//println("member count is: ", contribdao.GetTotalVotingPower())
-	println(contribdao.RenderGvr(""))
+	println("total voting power of contrib_dao: ", contrib_dao.GetTotalVotingPower())
+	println(contrib_dao.Render(""))
 
 	// propose all over again
 
