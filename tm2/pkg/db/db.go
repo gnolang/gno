@@ -9,9 +9,8 @@ type BackendType string
 
 // These are valid backend types.
 const (
-	// GoLevelDBBackend represents goleveldb (github.com/syndtr/goleveldb - most
+	// GoLevelDBBackend represents goleveldb (github.com/gnolang/goleveldb - most
 	// popular implementation)
-	//   - pure go
 	//   - stable
 	GoLevelDBBackend BackendType = "goleveldb"
 	// CLevelDBBackend represents cleveldb (uses levigo wrapper)
@@ -19,11 +18,11 @@ const (
 	//   - requires gcc
 	//   - use cleveldb build tag (go build -tags cleveldb)
 	CLevelDBBackend BackendType = "cleveldb"
-	// MemDBBackend represents in-memoty key value store, which is mostly used
+	// MemDBBackend represents in-memory key value store, which is mostly used
 	// for testing.
 	MemDBBackend BackendType = "memdb"
 	// FSDBBackend represents filesystem database
-	//	 - EXPERIMENTAL
+	//   - EXPERIMENTAL
 	//   - slow
 	FSDBBackend BackendType = "fsdb"
 	// BoltDBBackend represents bolt (uses etcd's fork of bolt -

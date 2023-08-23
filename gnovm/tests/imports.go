@@ -128,7 +128,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeType(reflect.TypeOf((*fmt.Formatter)(nil)).Elem())
 				pkg.DefineGoNativeValue("Println", func(a ...interface{}) (n int, err error) {
 					// NOTE: uncomment to debug long running tests
-					fmt.Println(a...)
+					// fmt.Println(a...)
 					res := fmt.Sprintln(a...)
 					return stdout.Write([]byte(res))
 				})
@@ -438,7 +438,8 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer) (*gn
 		Output:  stdout,
 		Store:   store,
 	})
-	return m2.RunMemPackageWithOverrides(memPkg, true)
+	save := pkgPath != "testing" // never save the "testing" package
+	return m2.RunMemPackageWithOverrides(memPkg, save)
 }
 
 func testPackageInjector(store gno.Store, pn *gno.PackageNode) {

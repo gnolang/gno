@@ -2,6 +2,8 @@ package gnolang
 
 import (
 	"fmt"
+	"go/parser"
+	"go/token"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -1079,14 +1081,16 @@ type FileSet struct {
 	Files []*FileNode
 }
 
-// TODO replace with some more efficient method
-// that doesn't involve parsing the whole file.
-//
-// name could be anything,
-// it's only used to generate better error traces.
-func PackageNameFromFileBody(name string, body string) Name {
-	n := MustParseFile(name, body)
-	return n.PkgName
+// PackageNameFromFileBody extracts the package name from the given Gno code body.
+// The 'name' parameter is used for better error traces, and 'body' contains the Gno code.
+func PackageNameFromFileBody(name, body string) Name {
+	fset := token.NewFileSet()
+	astFile, err := parser.ParseFile(fset, name, body, parser.PackageClauseOnly)
+	if err != nil {
+		panic(err)
+	}
+
+	return Name(astFile.Name.Name)
 }
 
 // ReadMemPackage initializes a new MemPackage by reading the OS directory

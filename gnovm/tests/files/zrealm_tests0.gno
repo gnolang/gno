@@ -1000,7 +1000,7 @@ func main() {
 //                 },
 //                 "FileName": "tests.gno",
 //                 "IsMethod": false,
-//                 "Name": "GetPSubtestsPrevRealm",
+//                 "Name": "GetRSubtestsPrevRealm",
 //                 "NativeName": "",
 //                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/demo/tests",
