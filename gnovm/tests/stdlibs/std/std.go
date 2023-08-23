@@ -90,7 +90,7 @@ func GetCallerAt(m *gno.Machine, n int) crypto.Bech32Address {
 
 func TestSetOrigCaller(m *gno.Machine, addr crypto.Bech32Address) {
 	ctx := m.Context.(std.ExecContext)
-	ctx.OrigCaller = crypto.Bech32Address(addr)
+	ctx.OrigCaller = addr
 	m.Context = ctx
 }
 

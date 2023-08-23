@@ -1069,7 +1069,7 @@ func daysSinceEpoch(year int) uint64 {
 	return d
 }
 
-func now() (sec int64, nsec int32, mono int64)
+func now() (sec int64, nsec int32, mono int64) // injected
 
 // runtimeNano returns the current value of the runtime clock in nanoseconds.
 //
