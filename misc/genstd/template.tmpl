@@ -40,14 +40,20 @@ var nativeFuncs = [...]nativeFunc{
 			{{ if $m.Params -}}
 				b := m.LastBlock()
 				var (
-				{{- range $pn, $pv := $m.Params }}
-					p{{ $pn }} {{ $pv.GoQualifiedName }}
-					rp{{ $pn }} = reflect.ValueOf(&p{{ $pn }}).Elem()
+				{{- range $pn, $pv := $m.Params -}}
+					{{- if $pv.IsTypedValue }}
+						p{{ $pn }} = gno.NewValuePathBlock(1, {{ $pn }}, "")).TV
+					{{- else }}
+						p{{ $pn }} {{ $pv.GoQualifiedName }}
+						rp{{ $pn }} = reflect.ValueOf(&p{{ $pn }}).Elem()
+					{{- end }}
 				{{- end }}
 				)
 
 				{{ range $pn, $pv := $m.Params -}}
-				gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, {{ $pn }}, "")).TV, rp{{ $pn }})
+					{{- if not $pv.IsTypedValue }}
+						gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, {{ $pn }}, "")).TV, rp{{ $pn }})
+					{{- end -}}
 				{{ end }}
 			{{- end }}
 
@@ -66,12 +72,16 @@ var nativeFuncs = [...]nativeFunc{
 			)
 
 			{{ range $rn, $rv := $m.Results -}}
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r{{ $rn }}).Elem(), {{- /* necessary to support interfaces (ie. error) */}}
-			))
-			{{ end }}
+				{{- if $rv.IsTypedValue }}
+					m.PushValue(r{{ $rn }})
+				{{- else }}
+					m.PushValue(gno.Go2GnoValue(
+						m.Alloc,
+						m.Store,
+						reflect.ValueOf(&r{{ $rn }}).Elem(), {{- /* necessary to support interfaces (ie. error) */}}
+					))
+				{{- end }}
+			{{- end }}
 		},
 	},
 {{- end }}

@@ -392,11 +392,7 @@ var nativeFuncs = [...]nativeFunc{
 				m,
 				p0)
 
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
+			m.PushValue(r0)
 		},
 	},
 	{

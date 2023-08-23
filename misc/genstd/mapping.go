@@ -7,6 +7,8 @@ import (
 	"strconv"
 )
 
+const gnoPackagePath = "github.com/gnolang/gno/gnovm/pkg/gnolang"
+
 type mapping struct {
 	GnoImportPath string // time
 	GnoFunc       string // now
@@ -24,6 +26,11 @@ type mappingType struct {
 	// type of ast.Expr is from the normal ast.Expr types
 	// + *linkedIdent.
 	Type ast.Expr
+
+	// IsTypedValue is set to true if the parameter or result in go is of type
+	// gno.TypedValue. This prevents the generated code from performing
+	// Go2Gno/Gno2Go reflection-based conversion.
+	IsTypedValue bool
 }
 
 func (mt mappingType) GoQualifiedName() string {
@@ -131,8 +138,12 @@ func (m *mapping) _loadParamsResults(dst *[]mappingType, gnol, gol []*ast.Field)
 		gnoe := l.Type
 		for i := 0; i < n; i++ {
 			goe := gol[goIdx].Type
-			merged := m.mergeTypes(gnoe, goe)
-			*dst = append(*dst, mappingType{Type: merged})
+			if m.isTypedValue(goe) {
+				*dst = append(*dst, mappingType{Type: gnoe, IsTypedValue: true})
+			} else {
+				merged := m.mergeTypes(gnoe, goe)
+				*dst = append(*dst, mappingType{Type: merged})
+			}
 
 			goAdvance()
 		}
@@ -321,23 +332,37 @@ func (m *mapping) signaturesMatch(gnof, gof funcDecl) bool {
 		m.fieldListsMatch(gnof.Type.Results, gof.Type.Results)
 }
 
+// isGnoMachine checks whether field is of type *gno.Machine,
+// and it has at most 1 name.
 func (m *mapping) isGnoMachine(field *ast.Field) bool {
 	if len(field.Names) > 1 {
 		return false
 	}
 
-	px, ok := field.Type.(*ast.StarExpr)
-	if !ok {
-		return false
+	return m.isGnoType(field.Type, true, "Machine")
+}
+
+// isTypedValue checks whether e is type gno.TypedValue.
+func (m *mapping) isTypedValue(e ast.Expr) bool {
+	return m.isGnoType(e, false, "TypedValue")
+}
+
+func (m *mapping) isGnoType(e ast.Expr, star bool, typeName string) bool {
+	if star {
+		px, ok := e.(*ast.StarExpr)
+		if !ok {
+			return false
+		}
+		e = px.X
 	}
 
-	sx, ok := px.X.(*ast.SelectorExpr)
+	sx, ok := e.(*ast.SelectorExpr)
 	if !ok {
 		return false
 	}
 
 	imp := resolveSelectorImport(m.goImports, sx)
-	return imp == "github.com/gnolang/gno/gnovm/pkg/gnolang" && sx.Sel.Name == "Machine"
+	return imp == gnoPackagePath && sx.Sel.Name == typeName
 }
 
 func (m *mapping) fieldListsMatch(gnofl, gofl *ast.FieldList) bool {
@@ -349,6 +374,10 @@ func (m *mapping) fieldListsMatch(gnofl, gofl *ast.FieldList) bool {
 		return false
 	}
 	for idx, gnot := range gnots {
+		// if the go type is gno.TypedValue, we just don't perform reflect-based conversion.
+		if m.isTypedValue(gots[idx]) {
+			continue
+		}
 		if m.mergeTypes(gnot, gots[idx]) == nil {
 			return false
 		}

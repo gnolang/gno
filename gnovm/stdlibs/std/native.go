@@ -1,6 +1,8 @@
 package std
 
 import (
+	"reflect"
+
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/bech32"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -127,7 +129,7 @@ func GetCallerAt(m *gno.Machine, n int) crypto.Bech32Address {
 	return m.LastCallFrame(n).LastPackage.GetPkgAddr().Bech32()
 }
 
-func GetBanker(m *gno.Machine, bankerType BankerType) Banker {
+func GetBanker(m *gno.Machine, bankerType BankerType) gno.TypedValue {
 	ctx := m.Context.(ExecContext)
 	banker := ctx.Banker
 	switch bankerType {
@@ -145,7 +147,13 @@ func GetBanker(m *gno.Machine, bankerType BankerType) Banker {
 	m.Alloc.AllocateStruct()         // defensive; native space not allocated.
 	m.Alloc.AllocateStructFields(10) // defensive 10; native space not allocated.
 
-	return banker
+	// make gno bankAdapter{rv}
+	btv := gno.Go2GnoNativeValue(m.Alloc, reflect.ValueOf(banker))
+	bsv := m.Alloc.NewStructWithFields(btv)
+	bankAdapterType := m.Store.GetType(gno.DeclaredTypeID("std", "bankAdapter"))
+	res0 := gno.TypedValue{T: bankAdapterType, V: bsv}
+
+	return res0
 }
 
 func EncodeBech32(prefix string, bytes [20]byte) crypto.Bech32Address {
