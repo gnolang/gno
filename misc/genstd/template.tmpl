@@ -7,8 +7,8 @@ import (
 	"reflect"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-{{- range $i, $m := .LibNums }}
-	lib{{ $i }} {{ printf "%q" $m }}
+{{- range .Imports }}
+	{{ .Name }} {{ printf "%q" .Path }}
 {{- end }}
 )
 
@@ -24,48 +24,48 @@ var nativeFuncs = [...]nativeFunc{
 {{- range $i, $m := .Mappings }}
 	{
 		{{ printf "%q" $m.GnoImportPath }},
-		{{ printf "%q" $m.GnoMethod }},
-		{{/*- TODO set nil if empty -*/}}
+		{{ printf "%q" $m.GnoFunc }},
+		{{- /* TODO: set nil if empty */}}
 		[]gno.FieldTypeExpr{
-		{{- range $i, $p := $m.GnoParamTypes }}
-			{Name: gno.N("p{{ $i }}"), Type: gno.X({{ printf "%q" $p }})},
+		{{- range $i, $p := $m.Params }}
+			{Name: gno.N("p{{ $i }}"), Type: gno.X({{ printf "%q" $p.GnoType }})},
 		{{- end }}
 		},
 		[]gno.FieldTypeExpr{
-		{{- range $i, $r := $m.GnoResultTypes }}
-			{Name: gno.N("r{{ $i }}"), Type: gno.X({{ printf "%q" $r }})},
+		{{- range $i, $r := $m.Results }}
+			{Name: gno.N("r{{ $i }}"), Type: gno.X({{ printf "%q" $r.GnoType }})},
 		{{- end }}
 		},
 		func(m *gno.Machine) {
-			{{ if $m.GnoParamTypes -}}
+			{{ if $m.Params -}}
 				b := m.LastBlock()
 				var (
-				{{- range $pn, $pv := $m.GnoParamTypes }}
-					p{{ $pn }} {{ $pv }}
+				{{- range $pn, $pv := $m.Params }}
+					p{{ $pn }} {{ $pv.GoQualifiedName }}
 					rp{{ $pn }} = reflect.ValueOf(&p{{ $pn }}).Elem()
 				{{- end }}
 				)
 
-				{{ range $pn, $pv := $m.GnoParamTypes -}}
+				{{ range $pn, $pv := $m.Params -}}
 				gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, {{ $pn }}, "")).TV, rp{{ $pn }})
 				{{ end }}
 			{{- end }}
 
-			{{ range $rn, $rv := $m.GnoResultTypes -}}
+			{{ range $rn, $rv := $m.Results -}}
 				{{- if gt $rn 0 -}}, {{ end -}}
 				r{{ $rn }}
 			{{- end -}}
-			{{- if gt (len $m.GnoResultTypes) 0 }} := {{ end -}}
-			lib{{ $.FindLibNum $m.GoImportPath }}.{{ $m.GoFunc }}(
+			{{- if $m.Results }} := {{ end -}}
+			{{ $.PkgName $m.GoImportPath }}.{{ $m.GoFunc }}(
 				{{- if $m.MachineParam }}
 					m,
 				{{ end -}}
-				{{- range $pn, $pv := $m.GnoParamTypes -}}
+				{{- range $pn, $pv := $m.Params -}}
 					p{{ $pn }},
 				{{- end -}}
 			)
 
-			{{ range $rn, $rv := $m.GnoResultTypes -}}
+			{{ range $rn, $rv := $m.Results -}}
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
 				m.Store,

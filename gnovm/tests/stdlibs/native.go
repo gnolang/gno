@@ -7,7 +7,9 @@ import (
 	"reflect"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	lib0 "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
+	testlibs_std "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
+	tm2_crypto "github.com/gnolang/gno/tm2/pkg/crypto"
+	tm2_std "github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type nativeFunc struct {
@@ -22,11 +24,10 @@ var nativeFuncs = [...]nativeFunc{
 	{
 		"std",
 		"AssertOriginCall",
-
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{},
 		func(m *gno.Machine) {
-			lib0.AssertOriginCall(
+			testlibs_std.AssertOriginCall(
 				m,
 			)
 		},
@@ -34,13 +35,12 @@ var nativeFuncs = [...]nativeFunc{
 	{
 		"std",
 		"IsOriginCall",
-
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("bool")},
 		},
 		func(m *gno.Machine) {
-			r0 := lib0.IsOriginCall(
+			r0 := testlibs_std.IsOriginCall(
 				m,
 			)
 
@@ -54,13 +54,12 @@ var nativeFuncs = [...]nativeFunc{
 	{
 		"std",
 		"TestCurrentRealm",
-
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("string")},
 		},
 		func(m *gno.Machine) {
-			r0 := lib0.TestCurrentRealm(
+			r0 := testlibs_std.TestCurrentRealm(
 				m,
 			)
 
@@ -74,7 +73,6 @@ var nativeFuncs = [...]nativeFunc{
 	{
 		"std",
 		"TestSkipHeights",
-
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("int64")},
 		},
@@ -88,7 +86,7 @@ var nativeFuncs = [...]nativeFunc{
 
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
-			lib0.TestSkipHeights(
+			testlibs_std.TestSkipHeights(
 				m,
 				p0)
 		},
@@ -96,13 +94,133 @@ var nativeFuncs = [...]nativeFunc{
 	{
 		"std",
 		"ClearStoreCache",
-
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{},
 		func(m *gno.Machine) {
-			lib0.ClearStoreCache(
+			testlibs_std.ClearStoreCache(
 				m,
 			)
+		},
+	},
+	{
+		"std",
+		"GetCallerAt",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("int")},
+		},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("Address")},
+		},
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  int
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+
+			r0 := testlibs_std.GetCallerAt(
+				m,
+				p0)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"std",
+		"TestSetOrigCaller",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("Address")},
+		},
+		[]gno.FieldTypeExpr{},
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  tm2_crypto.Bech32Address
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+
+			testlibs_std.TestSetOrigCaller(
+				m,
+				p0)
+		},
+	},
+	{
+		"std",
+		"TestSetOrigPkgAddr",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("Address")},
+		},
+		[]gno.FieldTypeExpr{},
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  tm2_crypto.Bech32Address
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+
+			testlibs_std.TestSetOrigPkgAddr(
+				m,
+				p0)
+		},
+	},
+	{
+		"std",
+		"TestSetOrigSend",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("Coins")},
+			{Name: gno.N("p1"), Type: gno.X("Coins")},
+		},
+		[]gno.FieldTypeExpr{},
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  tm2_std.Coins
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  tm2_std.Coins
+				rp1 = reflect.ValueOf(&p1).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+
+			testlibs_std.TestSetOrigSend(
+				m,
+				p0, p1)
+		},
+	},
+	{
+		"std",
+		"TestIssueCoins",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("Address")},
+			{Name: gno.N("p1"), Type: gno.X("Coins")},
+		},
+		[]gno.FieldTypeExpr{},
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  tm2_crypto.Bech32Address
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  tm2_std.Coins
+				rp1 = reflect.ValueOf(&p1).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+
+			testlibs_std.TestIssueCoins(
+				m,
+				p0, p1)
 		},
 	},
 }

@@ -35,7 +35,6 @@ func (vm *VMKeeper) initBuiltinPackagesAndTypes(store gno.Store) {
 		return m2.RunMemPackage(memPkg, true)
 	}
 	store.SetPackageGetter(getPackage)
-	store.SetPackageInjector(stdlibs.InjectPackage)
 	store.SetNativeStore(stdlibs.NativeStore)
 	stdlibs.InjectNativeMappings(store)
 }

@@ -7,11 +7,12 @@ import (
 	"reflect"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	lib0 "github.com/gnolang/gno/gnovm/stdlibs/crypto/sha256"
-	lib1 "github.com/gnolang/gno/gnovm/stdlibs/math"
-	lib2 "github.com/gnolang/gno/gnovm/stdlibs/std"
-	lib3 "github.com/gnolang/gno/gnovm/stdlibs/strconv"
-	lib4 "github.com/gnolang/gno/gnovm/stdlibs/time"
+	libs_crypto_sha256 "github.com/gnolang/gno/gnovm/stdlibs/crypto/sha256"
+	libs_math "github.com/gnolang/gno/gnovm/stdlibs/math"
+	libs_std "github.com/gnolang/gno/gnovm/stdlibs/std"
+	libs_strconv "github.com/gnolang/gno/gnovm/stdlibs/strconv"
+	libs_time "github.com/gnolang/gno/gnovm/stdlibs/time"
+	tm2_crypto "github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
 type nativeFunc struct {
@@ -25,13 +26,12 @@ type nativeFunc struct {
 var nativeFuncs = [...]nativeFunc{
 	{
 		"crypto/sha256",
-		"Sum256",
-
+		"sum256",
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("[]byte")},
 		},
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("[]byte")},
+			{Name: gno.N("r0"), Type: gno.X("[32]byte")},
 		},
 		func(m *gno.Machine) {
 			b := m.LastBlock()
@@ -42,7 +42,7 @@ var nativeFuncs = [...]nativeFunc{
 
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
-			r0 := lib0.Sum256(p0)
+			r0 := libs_crypto_sha256.X_sum256(p0)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
@@ -54,7 +54,6 @@ var nativeFuncs = [...]nativeFunc{
 	{
 		"math",
 		"Float32bits",
-
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("float32")},
 		},
@@ -70,7 +69,7 @@ var nativeFuncs = [...]nativeFunc{
 
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
-			r0 := lib1.Float32bits(p0)
+			r0 := libs_math.Float32bits(p0)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
@@ -82,7 +81,6 @@ var nativeFuncs = [...]nativeFunc{
 	{
 		"math",
 		"Float32frombits",
-
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("uint32")},
 		},
@@ -98,7 +96,7 @@ var nativeFuncs = [...]nativeFunc{
 
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
-			r0 := lib1.Float32frombits(p0)
+			r0 := libs_math.Float32frombits(p0)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
@@ -110,7 +108,6 @@ var nativeFuncs = [...]nativeFunc{
 	{
 		"math",
 		"Float64bits",
-
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("float64")},
 		},
@@ -126,7 +123,7 @@ var nativeFuncs = [...]nativeFunc{
 
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
-			r0 := lib1.Float64bits(p0)
+			r0 := libs_math.Float64bits(p0)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
@@ -138,7 +135,6 @@ var nativeFuncs = [...]nativeFunc{
 	{
 		"math",
 		"Float64frombits",
-
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("uint64")},
 		},
@@ -154,7 +150,7 @@ var nativeFuncs = [...]nativeFunc{
 
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
-			r0 := lib1.Float64frombits(p0)
+			r0 := libs_math.Float64frombits(p0)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
@@ -166,11 +162,10 @@ var nativeFuncs = [...]nativeFunc{
 	{
 		"std",
 		"AssertOriginCall",
-
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{},
 		func(m *gno.Machine) {
-			lib2.AssertOriginCall(
+			libs_std.AssertOriginCall(
 				m,
 			)
 		},
@@ -178,13 +173,12 @@ var nativeFuncs = [...]nativeFunc{
 	{
 		"std",
 		"IsOriginCall",
-
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("bool")},
 		},
 		func(m *gno.Machine) {
-			r0 := lib2.IsOriginCall(
+			r0 := libs_std.IsOriginCall(
 				m,
 			)
 
@@ -198,13 +192,12 @@ var nativeFuncs = [...]nativeFunc{
 	{
 		"std",
 		"CurrentRealmPath",
-
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("string")},
 		},
 		func(m *gno.Machine) {
-			r0 := lib2.CurrentRealmPath(
+			r0 := libs_std.CurrentRealmPath(
 				m,
 			)
 
@@ -218,13 +211,12 @@ var nativeFuncs = [...]nativeFunc{
 	{
 		"std",
 		"GetChainID",
-
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("string")},
 		},
 		func(m *gno.Machine) {
-			r0 := lib2.GetChainID(
+			r0 := libs_std.GetChainID(
 				m,
 			)
 
@@ -238,13 +230,12 @@ var nativeFuncs = [...]nativeFunc{
 	{
 		"std",
 		"GetHeight",
-
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("int64")},
 		},
 		func(m *gno.Machine) {
-			r0 := lib2.GetHeight(
+			r0 := libs_std.GetHeight(
 				m,
 			)
 
@@ -256,9 +247,258 @@ var nativeFuncs = [...]nativeFunc{
 		},
 	},
 	{
+		"std",
+		"GetOrigSend",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("Coins")},
+		},
+		func(m *gno.Machine) {
+			r0 := libs_std.GetOrigSend(
+				m,
+			)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"std",
+		"GetOrigCaller",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("Address")},
+		},
+		func(m *gno.Machine) {
+			r0 := libs_std.GetOrigCaller(
+				m,
+			)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"std",
+		"CurrentRealm",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("Realm")},
+		},
+		func(m *gno.Machine) {
+			r0 := libs_std.CurrentRealm(
+				m,
+			)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"std",
+		"PrevRealm",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("Realm")},
+		},
+		func(m *gno.Machine) {
+			r0 := libs_std.PrevRealm(
+				m,
+			)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"std",
+		"GetOrigPkgAddr",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("Address")},
+		},
+		func(m *gno.Machine) {
+			r0 := libs_std.GetOrigPkgAddr(
+				m,
+			)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"std",
+		"GetCallerAt",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("int")},
+		},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("Address")},
+		},
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  int
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+
+			r0 := libs_std.GetCallerAt(
+				m,
+				p0)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"std",
+		"GetBanker",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("BankerType")},
+		},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("Banker")},
+		},
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  libs_std.BankerType
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+
+			r0 := libs_std.GetBanker(
+				m,
+				p0)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"std",
+		"DerivePkgAddr",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("string")},
+		},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("Address")},
+		},
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+
+			r0 := libs_std.DerivePkgAddr(p0)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"std",
+		"EncodeBech32",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("string")},
+			{Name: gno.N("p1"), Type: gno.X("[20]byte")},
+		},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("Address")},
+		},
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  [20]byte
+				rp1 = reflect.ValueOf(&p1).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+
+			r0 := libs_std.EncodeBech32(p0, p1)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"std",
+		"DecodeBech32",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("Address")},
+		},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("string")},
+			{Name: gno.N("r1"), Type: gno.X("[20]byte")},
+			{Name: gno.N("r2"), Type: gno.X("bool")},
+		},
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  tm2_crypto.Bech32Address
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+
+			r0, r1, r2 := libs_std.DecodeBech32(p0)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r2).Elem(),
+			))
+		},
+	},
+	{
 		"strconv",
 		"Itoa",
-
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("int")},
 		},
@@ -274,7 +514,7 @@ var nativeFuncs = [...]nativeFunc{
 
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
-			r0 := lib3.Itoa(p0)
+			r0 := libs_strconv.Itoa(p0)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
@@ -286,7 +526,6 @@ var nativeFuncs = [...]nativeFunc{
 	{
 		"strconv",
 		"AppendUint",
-
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("[]byte")},
 			{Name: gno.N("p1"), Type: gno.X("uint64")},
@@ -310,7 +549,7 @@ var nativeFuncs = [...]nativeFunc{
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV, rp2)
 
-			r0 := lib3.AppendUint(p0, p1, p2)
+			r0 := libs_strconv.AppendUint(p0, p1, p2)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
@@ -322,7 +561,6 @@ var nativeFuncs = [...]nativeFunc{
 	{
 		"strconv",
 		"Atoi",
-
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("string")},
 		},
@@ -339,7 +577,7 @@ var nativeFuncs = [...]nativeFunc{
 
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
-			r0, r1 := lib3.Atoi(p0)
+			r0, r1 := libs_strconv.Atoi(p0)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
@@ -356,7 +594,6 @@ var nativeFuncs = [...]nativeFunc{
 	{
 		"strconv",
 		"CanBackquote",
-
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("string")},
 		},
@@ -372,7 +609,7 @@ var nativeFuncs = [...]nativeFunc{
 
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
-			r0 := lib3.CanBackquote(p0)
+			r0 := libs_strconv.CanBackquote(p0)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
@@ -384,7 +621,6 @@ var nativeFuncs = [...]nativeFunc{
 	{
 		"strconv",
 		"FormatInt",
-
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("int64")},
 			{Name: gno.N("p1"), Type: gno.X("int")},
@@ -404,7 +640,7 @@ var nativeFuncs = [...]nativeFunc{
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
 
-			r0 := lib3.FormatInt(p0, p1)
+			r0 := libs_strconv.FormatInt(p0, p1)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
@@ -416,7 +652,6 @@ var nativeFuncs = [...]nativeFunc{
 	{
 		"strconv",
 		"FormatUint",
-
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("uint64")},
 			{Name: gno.N("p1"), Type: gno.X("int")},
@@ -436,7 +671,7 @@ var nativeFuncs = [...]nativeFunc{
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
 
-			r0 := lib3.FormatUint(p0, p1)
+			r0 := libs_strconv.FormatUint(p0, p1)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
@@ -448,7 +683,6 @@ var nativeFuncs = [...]nativeFunc{
 	{
 		"strconv",
 		"Quote",
-
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("string")},
 		},
@@ -464,7 +698,7 @@ var nativeFuncs = [...]nativeFunc{
 
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
-			r0 := lib3.Quote(p0)
+			r0 := libs_strconv.Quote(p0)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
@@ -476,7 +710,6 @@ var nativeFuncs = [...]nativeFunc{
 	{
 		"strconv",
 		"QuoteToASCII",
-
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("string")},
 		},
@@ -492,7 +725,7 @@ var nativeFuncs = [...]nativeFunc{
 
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
-			r0 := lib3.QuoteToASCII(p0)
+			r0 := libs_strconv.QuoteToASCII(p0)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
@@ -504,7 +737,6 @@ var nativeFuncs = [...]nativeFunc{
 	{
 		"time",
 		"now",
-
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("int64")},
@@ -512,7 +744,7 @@ var nativeFuncs = [...]nativeFunc{
 			{Name: gno.N("r2"), Type: gno.X("int64")},
 		},
 		func(m *gno.Machine) {
-			r0, r1, r2 := lib4.X_now(
+			r0, r1, r2 := libs_time.X_now(
 				m,
 			)
 

@@ -3,19 +3,15 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"reflect"
 	"strconv"
 	"strings"
-	"sync"
 	"text/template"
 
 	_ "embed"
@@ -48,26 +44,27 @@ func _main(stdlibsPath string) error {
 		return fmt.Errorf("not a directory: %q", stdlibsPath)
 	}
 
+	// Gather data about each package, getting functions of interest
+	// (gno bodyless + go exported).
 	pkgs, err := walkStdlibs(stdlibsPath)
 	if err != nil {
 		return err
 	}
 
-	// Create mappings.
+	// Link up each Gno function with its matching Go function.
 	mappings := linkFunctions(pkgs)
 
-	// Create file.
+	// Create generated file.
 	f, err := os.Create("native.go")
 	if err != nil {
 		return fmt.Errorf("create native.go: %w", err)
 	}
 	defer f.Close()
 
-	// Execute template
+	// Execute template.
 	td := &tplData{
 		Mappings: mappings,
 	}
-	td.generateLibnums()
 	if err := tpl.Execute(f, td); err != nil {
 		return fmt.Errorf("execute template: %w", err)
 	}
@@ -75,16 +72,37 @@ func _main(stdlibsPath string) error {
 		return err
 	}
 
-	return runGofumpt()
+	// gofumpt doesn't do "import fixing" like goimports:
+	// https://github.com/mvdan/gofumpt#frequently-asked-questions
+	if err := runTool("golang.org/x/tools/cmd/goimports"); err != nil {
+		return err
+	}
+	return runTool("mvdan.cc/gofumpt")
 }
 
 type pkgData struct {
 	importPath  string
 	fsDir       string
-	gnoBodyless []*ast.FuncDecl
-	goExported  []*ast.FuncDecl
+	gnoBodyless []funcDecl
+	goExported  []funcDecl
 }
 
+type funcDecl struct {
+	*ast.FuncDecl
+	imports []*ast.ImportSpec
+}
+
+func addImports(fds []*ast.FuncDecl, imports []*ast.ImportSpec) []funcDecl {
+	r := make([]funcDecl, len(fds))
+	for i, fd := range fds {
+		r[i] = funcDecl{fd, imports}
+	}
+	return r
+}
+
+// walkStdlibs does a BFS walk through the given directory, expected to be a
+// "stdlib" directory, parsing and keeping track of Go and Gno functions of
+// interest.
 func walkStdlibs(stdlibsPath string) ([]*pkgData, error) {
 	pkgs := make([]*pkgData, 0, 64)
 	err := filepath.WalkDir(stdlibsPath, func(fpath string, d fs.DirEntry, err error) error {
@@ -93,9 +111,10 @@ func walkStdlibs(stdlibsPath string) ([]*pkgData, error) {
 			return nil
 		}
 
-		// skip non-source files.
+		// skip non-source and test files.
 		ext := filepath.Ext(fpath)
-		if ext != ".go" && ext != ".gno" {
+		noExt := fpath[:len(fpath)-len(ext)]
+		if (ext != ".go" && ext != ".gno") || strings.HasSuffix(noExt, "_test") {
 			return nil
 		}
 
@@ -120,19 +139,20 @@ func walkStdlibs(stdlibsPath string) ([]*pkgData, error) {
 		if ext == ".go" {
 			// keep track of exported function declarations.
 			// warn about all exported type, const and var declarations.
-			exp := resolveGnoMachine(f, filterExported(f))
-			if len(exp) > 0 {
-				pkg.goExported = append(pkg.goExported, exp...)
+			if exp := filterExported(f); len(exp) > 0 {
+				pkg.goExported = append(pkg.goExported, addImports(exp, f.Imports)...)
 			}
 		} else if bd := filterBodylessFuncDecls(f); len(bd) > 0 {
 			// gno file -- keep track of function declarations without body.
-			pkg.gnoBodyless = append(pkg.gnoBodyless, bd...)
+			pkg.gnoBodyless = append(pkg.gnoBodyless, addImports(bd, f.Imports)...)
 		}
 		return nil
 	})
 	return pkgs, err
 }
 
+// filterBodylessFuncDecls returns the function declarations in the given file
+// which don't contain a body.
 func filterBodylessFuncDecls(f *ast.File) (bodyless []*ast.FuncDecl) {
 	for _, decl := range f.Decls {
 		fd, ok := decl.(*ast.FuncDecl)
@@ -144,6 +164,7 @@ func filterBodylessFuncDecls(f *ast.File) (bodyless []*ast.FuncDecl) {
 	return
 }
 
+// filterExported returns the exported function declarations of the given file.
 func filterExported(f *ast.File) (exported []*ast.FuncDecl) {
 	for _, decl := range f.Decls {
 		switch d := decl.(type) {
@@ -159,307 +180,39 @@ func filterExported(f *ast.File) (exported []*ast.FuncDecl) {
 	return
 }
 
-func resolveGnoMachine(f *ast.File, fns []*ast.FuncDecl) []*ast.FuncDecl {
-	iname := gnolangImportName(f)
-	if iname == "" {
-		return fns
-	}
-	for _, fn := range fns {
-		if len(fn.Type.Params.List) == 0 {
-			continue
-		}
-		first := fn.Type.Params.List[0]
-		if len(first.Names) > 1 {
-			continue
-		}
-		ind, ok := first.Type.(*ast.StarExpr)
-		if !ok {
-			continue
-		}
-		res, ok := ind.X.(*ast.SelectorExpr)
-		if !ok {
-			continue
-		}
-		if id, ok := res.X.(*ast.Ident); ok && id.Name == iname && res.Sel.Name == "Machine" {
-			id.Name = "#gnomachine"
-		}
-	}
-	return fns
-}
-
-func gnolangImportName(f *ast.File) string {
-	for _, i := range f.Imports {
-		ipath, err := strconv.Unquote(i.Path.Value)
-		if err != nil {
-			continue
-		}
-		if ipath == "github.com/gnolang/gno/gnovm/pkg/gnolang" {
-			if i.Name == nil {
-				return "gnolang"
-			}
-			return i.Name.Name
-		}
-	}
-	return ""
-}
-
-type mapping struct {
-	GnoImportPath  string
-	GnoMethod      string
-	GnoParamTypes  []string
-	GnoResultTypes []string
-	GoImportPath   string
-	GoFunc         string
-	MachineParam   bool
-}
-
-func linkFunctions(pkgs []*pkgData) []mapping {
-	var mappings []mapping
-	for _, pkg := range pkgs {
-		for _, gb := range pkg.gnoBodyless {
-			nameWant := gb.Name.Name
-			if !gb.Name.IsExported() {
-				nameWant = "X_" + nameWant
-			}
-			fn := findFuncByName(pkg.goExported, nameWant)
-			if fn == nil {
-				logWarning("package %q: no matching go function declaration (%q) exists for function %q",
-					pkg.importPath, nameWant, gb.Name.Name)
-				continue
-			}
-			mp := mapping{
-				GnoImportPath: pkg.importPath,
-				GnoMethod:     gb.Name.Name,
-				GoImportPath:  "github.com/gnolang/gno/" + relPath() + "/" + pkg.importPath,
-				GoFunc:        fn.Name.Name,
-			}
-			if !mp.loadSignaturesMatch(gb, fn) {
-				logWarning("package %q: signature of gno function %s doesn't match signature of go function %s",
-					pkg.importPath, gb.Name.Name, fn.Name.Name)
-				continue
-			}
-			mappings = append(mappings, mp)
-		}
-	}
-	return mappings
-}
-
-func findFuncByName(fns []*ast.FuncDecl, name string) *ast.FuncDecl {
-	for _, fn := range fns {
-		if fn.Name.Name == name {
-			return fn
-		}
-	}
-	return nil
-}
-
-func (m *mapping) loadSignaturesMatch(gnof, gof *ast.FuncDecl) bool {
-	if gnof.Type.TypeParams != nil || gof.Type.TypeParams != nil {
-		panic("type parameters not supported")
-	}
-	// Ideally, signatures match when they accept the same types,
-	// or aliases.
-	gnop, gnor := fieldListToTypes(gnof.Type.Params), fieldListToTypes(gnof.Type.Results)
-	// store gno params and results in mapping
-	m.GnoParamTypes = gnop
-	m.GnoResultTypes = gnor
-	gop, gor := fieldListToTypes(gof.Type.Params), fieldListToTypes(gof.Type.Results)
-	if len(gop) > 0 && gop[0] == "*gno.Machine" {
-		m.MachineParam = true
-		gop = gop[1:]
-	}
-	return reflect.DeepEqual(gnop, gop) && reflect.DeepEqual(gnor, gor)
-}
-
-// TODO: this is created based on the uverse definitions. This should be
-// centralized, or at least have a CI/make check to make sure this stays the
-// same
-var builtinTypes = [...]string{
-	"bool",
-	"string",
-	"int",
-	"int8",
-	"int16",
-	"rune",
-	"int32",
-	"int64",
-	"uint",
-	"byte",
-	"uint8",
-	"uint16",
-	"uint32",
-	"uint64",
-	"bigint",
-	"float32",
-	"float64",
-	"error",
-	"any",
-}
-
-func validIdent(name string) bool {
-	for _, t := range builtinTypes {
-		if name == t {
-			return true
-		}
-	}
-	return false
-}
-
-func exprToString(e ast.Expr) string {
-	switch e := e.(type) {
-	case *ast.Ident:
-		if !validIdent(e.Name) {
-			panic(fmt.Sprintf("ident is not builtin: %q", e.Name))
-		}
-		return e.Name
-	case *ast.Ellipsis:
-		return "..." + exprToString(e.Elt)
-	case *ast.SelectorExpr:
-		if x, ok := e.X.(*ast.Ident); ok && x.Name == "#gnomachine" {
-			return "gno.Machine"
-		}
-		panic("SelectorExpr not supported")
-	case *ast.StarExpr:
-		return "*" + exprToString(e.X)
-	case *ast.ArrayType:
-		var ls string
-		if e.Len != nil {
-			switch e.Len.(type) {
-			case *ast.Ellipsis:
-				ls = "..."
-			}
-		}
-		return "[" + ls + "]" + exprToString(e.Elt)
-	case *ast.StructType:
-		if len(e.Fields.List) > 0 {
-			panic("structs with values not supported yet")
-		}
-		return "struct{}"
-	case *ast.FuncType:
-		return "func(" + strings.Join(fieldListToTypes(e.Params), ", ") + ")" + strings.Join(fieldListToTypes(e.Results), ", ")
-	case *ast.InterfaceType:
-		if len(e.Methods.List) > 0 {
-			panic("interfaces with methods not supported yet")
-		}
-		return "interface{}"
-	case *ast.MapType:
-		return "map[" + exprToString(e.Key) + "]" + exprToString(e.Value)
-	default:
-		panic(fmt.Sprintf("invalid expression as func param/return type: %T", e))
-	}
-}
-
-func fieldListToTypes(fl *ast.FieldList) []string {
-	if fl == nil {
-		return nil
-	}
-	r := make([]string, 0, len(fl.List))
-	for _, f := range fl.List {
-		ts := exprToString(f.Type)
-		times := len(f.Names)
-		if times == 0 {
-			// case of unnamed params; such as return values (often)
-			times = 1
-		}
-		for i := 0; i < times; i++ {
-			r = append(r, ts)
-		}
-	}
-	return r
-}
-
-type tplData struct {
-	Mappings []mapping
-	LibNums  []string
-}
-
 //go:embed template.tmpl
 var templateText string
 
 var tpl = template.Must(template.New("").Parse(templateText))
 
-func (t tplData) FindLibNum(s string) (int, error) {
-	for i, v := range t.LibNums {
-		if v == s {
-			return i, nil
-		}
-	}
-	return -1, fmt.Errorf("could not find lib: %q", s)
+// tplData is the data passed to the template.
+type tplData struct {
+	Mappings []mapping
 }
 
-func (t *tplData) generateLibnums() {
-	var last string
+type tplImport struct{ Name, Path string }
+
+func (t tplData) Imports() (res []tplImport) {
+	add := func(path string) {
+		for _, v := range res {
+			if v.Path == path {
+				return
+			}
+		}
+		res = append(res, tplImport{Name: pkgNameFromPath(path), Path: path})
+	}
 	for _, m := range t.Mappings {
-		if m.GoImportPath != last {
-			t.LibNums = append(t.LibNums, m.GoImportPath)
-			last = m.GoImportPath
+		add(m.GoImportPath)
+		// There might be a bit more than we need - but we run goimports to fix that.
+		for _, v := range m.goImports {
+			s, err := strconv.Unquote(v.Path.Value)
+			if err != nil {
+				panic(fmt.Errorf("could not unquote go import string literal: %s", v.Path.Value))
+			}
+			add(s)
 		}
 	}
+	return
 }
 
-func runGofumpt() error {
-	gr := gitRoot()
-
-	cmd := exec.Command(
-		"go", "run", "-modfile", filepath.Join(gr, "misc/devdeps/go.mod"),
-		"mvdan.cc/gofumpt", "-w", "native.go",
-	)
-	_, err := cmd.Output()
-	if err != nil {
-		if err, ok := err.(*exec.ExitError); ok {
-			return fmt.Errorf("error executing gofumpt: %w; output: %v", err, string(err.Stderr))
-		}
-		return fmt.Errorf("error executing gofumpt: %w", err)
-	}
-	return nil
-}
-
-var (
-	memoGitRoot string
-	memoRelPath string
-
-	dirsOnce sync.Once
-)
-
-func gitRoot() string {
-	dirsOnceDo()
-	return memoGitRoot
-}
-
-func relPath() string {
-	dirsOnceDo()
-	return memoRelPath
-}
-
-func dirsOnceDo() {
-	dirsOnce.Do(func() {
-		var err error
-		memoGitRoot, memoRelPath, err = findDirs()
-		if err != nil {
-			panic(fmt.Errorf("could not determine git root: %w", err))
-		}
-	})
-}
-
-func findDirs() (gitRoot string, relPath string, err error) {
-	abs, err := filepath.Abs(".")
-	if err != nil {
-		return
-	}
-	p := abs
-	for {
-		if s, e := os.Stat(filepath.Join(p, ".git")); e == nil && s.IsDir() {
-			// make relPath relative to the git root
-			rp := strings.TrimPrefix(abs, p+string(filepath.Separator))
-			// normalize separator to /
-			rp = strings.ReplaceAll(rp, string(filepath.Separator), "/")
-			return p, rp, nil
-		}
-
-		if strings.HasSuffix(p, string(filepath.Separator)) {
-			return "", "", errors.New("root git not found")
-		}
-
-		p = filepath.Dir(p)
-	}
-}
+func (tplData) PkgName(path string) string { return pkgNameFromPath(path) }

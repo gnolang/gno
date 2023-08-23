@@ -42,10 +42,8 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 	stypes "github.com/gnolang/gno/tm2/pkg/store/types"
@@ -444,8 +442,6 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer) (*gn
 }
 
 func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
-	// Also inject stdlibs native functions.
-	stdlibs.InjectPackage(store, pn)
 	// Test specific injections:
 	switch pn.PkgPath {
 	case "strconv":
@@ -453,126 +449,6 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 		// from stdlibs.InjectNatives.
 		pn.DefineGoNativeType(reflect.TypeOf(strconv.NumError{}))
 		pn.DefineGoNativeValue("ParseInt", strconv.ParseInt)
-	case "std":
-		// NOTE: some of these are overrides.
-		// Also see stdlibs/InjectPackage.
-		pn.DefineNativeOverride("GetCallerAt",
-			/*
-				gno.Flds( // params
-					"n", "int",
-				),
-				gno.Flds( // results
-					"", "Address",
-				),
-			*/
-			func(m *gno.Machine) {
-				arg0 := m.LastBlock().GetParams1().TV
-				n := arg0.GetInt()
-				if n <= 0 {
-					m.Panic(typedString("GetCallerAt requires positive arg"))
-					return
-				}
-				if n > m.NumFrames()-1 {
-					// NOTE: the last frame's LastPackage
-					// is set to the original non-frame
-					// package, so need this check.
-					m.Panic(typedString("frame not found"))
-					return
-				}
-				var pkgAddr string
-				if n == m.NumFrames()-1 {
-					// This makes it consistent with GetOrigCaller and TestSetOrigCaller.
-					ctx := m.Context.(stdlibs.ExecContext)
-					pkgAddr = string(ctx.OrigCaller)
-				} else {
-					pkgAddr = string(m.LastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
-				}
-				res0 := gno.Go2GnoValue(
-					m.Alloc,
-					m.Store,
-					reflect.ValueOf(pkgAddr),
-				)
-				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
-				res0.T = addrT
-				m.PushValue(res0)
-			},
-		)
-		pn.DefineNative("TestSetOrigCaller",
-			gno.Flds( // params
-				"", "Address",
-			),
-			gno.Flds( // results
-			),
-			func(m *gno.Machine) {
-				arg0 := m.LastBlock().GetParams1().TV
-				addr := arg0.GetString()
-				// overwrite context
-				ctx := m.Context.(stdlibs.ExecContext)
-				ctx.OrigCaller = crypto.Bech32Address(addr)
-				m.Context = ctx
-			},
-		)
-		pn.DefineNative("TestSetOrigPkgAddr",
-			gno.Flds( // params
-				"", "Address",
-			),
-			gno.Flds( // results
-			),
-			func(m *gno.Machine) {
-				arg0 := m.LastBlock().GetParams1().TV
-				addr := crypto.Bech32Address(arg0.GetString())
-				// overwrite context
-				ctx := m.Context.(stdlibs.ExecContext)
-				ctx.OrigPkgAddr = addr
-				m.Context = ctx
-			},
-		)
-		pn.DefineNative("TestSetOrigSend",
-			gno.Flds( // params
-				"sent", "Coins",
-				"spent", "Coins",
-			),
-			gno.Flds( // results
-			),
-			func(m *gno.Machine) {
-				arg0, arg1 := m.LastBlock().GetParams2()
-				var sent std.Coins
-				rvSent := reflect.ValueOf(&sent).Elem()
-				gno.Gno2GoValue(arg0.TV, rvSent)
-				sent = rvSent.Interface().(std.Coins) // needed?
-				var spent std.Coins
-				rvSpent := reflect.ValueOf(&spent).Elem()
-				gno.Gno2GoValue(arg1.TV, rvSpent)
-				spent = rvSpent.Interface().(std.Coins) // needed?
-				// overwrite context.
-				ctx := m.Context.(stdlibs.ExecContext)
-				ctx.OrigSend = sent
-				ctx.OrigSendSpent = &spent
-				m.Context = ctx
-			},
-		)
-		pn.DefineNative("TestIssueCoins",
-			gno.Flds( // params
-				"addr", "Address",
-				"coins", "Coins",
-			),
-			gno.Flds( // results
-			),
-			func(m *gno.Machine) {
-				arg0, arg1 := m.LastBlock().GetParams2()
-				addr := crypto.Bech32Address(arg0.TV.GetString())
-				var coins std.Coins
-				rvCoins := reflect.ValueOf(&coins).Elem()
-				gno.Gno2GoValue(arg1.TV, rvCoins)
-				coins = rvCoins.Interface().(std.Coins) // needed?
-				// overwrite context.
-				ctx := m.Context.(stdlibs.ExecContext)
-				banker := ctx.Banker
-				for _, coin := range coins {
-					banker.IssueCoin(addr, coin.Denom, coin.Amount)
-				}
-			},
-		)
 	}
 }
 

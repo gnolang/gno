@@ -1,4 +1,4 @@
-package stdlibs
+package std
 
 import (
 	"fmt"
@@ -21,10 +21,10 @@ type Banker interface {
 }
 
 // Used in std.GetBanker(options).
-// Also available as Gno in stdlibs/std/banker.go
+// Also available as Gno in stdlibs/std/banker.gno
 type BankerType uint8
 
-// Also available as Gno in stdlibs/std/banker.go
+// Also available as Gno in stdlibs/std/banker.gno
 const (
 	// Can only read state.
 	BankerTypeReadonly BankerType = iota
