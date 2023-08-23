@@ -162,7 +162,7 @@ func (m *mapping) isGnoType(e ast.Expr, star bool, typeName string) bool {
 }
 
 // iterFields iterates over gnol and gol, calling callback for each matching
-// paramter. iterFields assumes the caller already checked for the "true" number
+// parameter. iterFields assumes the caller already checked for the "true" number
 // of parameters in the two arrays to be equal (can be checked using
 // (*ast.FieldList).NumFields()).
 //
