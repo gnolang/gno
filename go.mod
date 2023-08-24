@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/btcsuite/btcd v0.22.0-beta.0.20220111032746-97732e52810c
-	github.com/btcsuite/btcd/btcutil v1.1.1
+	github.com/btcsuite/btcd/btcutil v1.0.0
 	github.com/btcsuite/btcutil v1.0.2
 	github.com/cockroachdb/apd v1.1.0
 	github.com/davecgh/go-spew v1.1.1
@@ -61,6 +61,7 @@ require (
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lib/pq v1.10.7 // indirect
 	github.com/lucasb-eyer/go-colorful v1.0.3 // indirect
+	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	go.opencensus.io v0.22.5 // indirect
