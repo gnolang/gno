@@ -3,7 +3,6 @@ package contrib_dao
 import (
 	"gno.land/p/demo/gor/governor"
 	"gno.land/p/demo/maths"
-	"gno.land/r/demo/dao/gov_token"
 	"gno.land/r/demo/groups"
 	"std"
 )
@@ -28,10 +27,6 @@ func CreateDAO(name string) {
 	gs := governor.NewGovernorSettings(0, 5, proposalThreshold, quorum, succeedThreshold, vetoThreshold)
 
 	gvr = governor.NewGovernor(name+"_governor", membership, gs)
-	// until now, we have a gvr, consists of membership, and propose, vote abilities
-
-	println("total supply of contrib_dao: ", gov_token.GetTotalSupply())
-
 }
 
 // Render
@@ -47,9 +42,9 @@ func AddMember(addr std.Address, weight int, meta string) {
 }
 
 // // TODO: this should in gvr render, no need for here
-func GetMemberVotingPower(mid uint64) int32 {
+func GetMemberVotingPower(addr std.Address) int32 {
 	std.AssertOriginCall()
-	return gvr.VotingPowerFromMember(mid)
+	return gvr.VotingPowerFromMember(addr)
 }
 
 func GetTotalVotingPower() int32 {
@@ -58,8 +53,8 @@ func GetTotalVotingPower() int32 {
 }
 
 // TODO: permission check, whitelist for eval_dao
-func UpdateWeightCheckPoints(mid uint64, amount int32, numTiers int32) {
-	gvr.UpdateWeightCheckPoints(mid, amount, numTiers)
+func UpdateWeightCheckPoints(addr std.Address, amount int32, numTiers int32) {
+	gvr.UpdateWeightCheckPoints(addr, amount, numTiers)
 }
 
 // governor miscs

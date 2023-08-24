@@ -1,6 +1,6 @@
 package main
 
-// SEND: 200000000ugnot
+// /SEND: 200000000ugnot
 
 import (
 	"gno.land/p/demo/testutils"
@@ -31,17 +31,17 @@ func main() {
 	println("member3:", member3)
 
 	// members in contrib DAO
-	payee1 := testutils.TestAddress("payee1")
-	println("payee1:", payee1)
+	worker1 := testutils.TestAddress("worker1")
+	println("worker1:", worker1)
 
-	payee1Balance := banker.GetCoins(payee1)
-	println("payee1 balance before send is: ", payee1Balance)
+	worker1Balance := banker.GetCoins(worker1)
+	println("worker1 balance before send is: ", worker1Balance)
 
-	payee2 := testutils.TestAddress("payee2")
-	println("payee2:", payee2)
+	worker2 := testutils.TestAddress("worker2")
+	println("worker2:", worker2)
 
-	payee3 := testutils.TestAddress("payee3")
-	println("payee3:", payee3)
+	worker3 := testutils.TestAddress("worker3")
+	println("worker3:", worker3)
 
 	// start building Dao
 	// register user
@@ -62,37 +62,43 @@ func main() {
 
 	// create contrib DAO
 	// register user first
-	std.TestSetOrigCaller(payee3)
-	users.Register("", "payee3", "my profile")
-	std.TestSetOrigCaller(payee2)
-	users.Register("", "payee2", "my profile")
-	std.TestSetOrigCaller(payee1)
-	users.Register("", "payee1", "my profile")
+	std.TestSetOrigCaller(worker3)
+	users.Register("", "worker3", "my profile")
+	std.TestSetOrigCaller(worker2)
+	users.Register("", "worker2", "my profile")
+	std.TestSetOrigCaller(worker1)
+	users.Register("", "worker1", "my profile")
 
 	contrib_dao.CreateDAO("contrib_dao")
 	// add member, initially set to 1
-	contrib_dao.AddMember(payee1, 0, "this is payee1")
-	contrib_dao.AddMember(payee2, 0, "this is payee2")
-	contrib_dao.AddMember(payee3, 0, "this is payee3")
+	contrib_dao.AddMember(worker1, 0, "this is worker1")
+	contrib_dao.AddMember(worker2, 0, "this is worker2")
+	contrib_dao.AddMember(worker3, 0, "this is worker3")
 
-	println("weight of member1 is: ", eval_dao.GetMemberVotingPower(0))
-	println("weight of member2 is: ", eval_dao.GetMemberVotingPower(1))
-	println("weight of member2 is: ", eval_dao.GetMemberVotingPower(2))
+	println("weight of member1 is: ", eval_dao.GetMemberVotingPower(member1))
+	println("weight of member2 is: ", eval_dao.GetMemberVotingPower(member2))
+	println("weight of member2 is: ", eval_dao.GetMemberVotingPower(member3))
 
+	println("weight of worker1 is: ", contrib_dao.GetMemberVotingPower(worker1))
+	println("weight of worker2 is: ", contrib_dao.GetMemberVotingPower(worker2))
+	println("weight of worker3 is: ", contrib_dao.GetMemberVotingPower(worker3))
 	// member count
-	println("member count is: ", eval_dao.GetTotalVotingPower())
+	println("eval_dao total weight is: ", eval_dao.GetTotalVotingPower())
+	println("contrib_dao total weight is: ", contrib_dao.GetTotalVotingPower())
 
 	// -----------------------------------------------
 	// -----------------------------------------------
 	// -----------------------------------------------
+	println("-----------------------------------------------")
 
 	// propose
 	amount := std.Coins{{"ugnot", 200000000}}
-	propID := eval_dao.Propose("this is title", "this is detail", "this is summary", "this is url", payee1, amount, "send_proposal")
+	propID := eval_dao.Propose("this is title", "this is detail", "this is summary", "this is url", worker1, amount, "send_proposal")
 	println("proposed, ID is: ", propID)
 	println(eval_dao.Render(propID))
 
-	std.TestSkipHeights(1) //skip current block, into voting period
+	//skip current block, into voting period
+	std.TestSkipHeights(1)
 	// vote
 	err := eval_dao.CastVote(propID, "for")
 	if err != nil {
@@ -128,8 +134,8 @@ func main() {
 	// execute
 	eval_dao.Execute(propID)
 
-	payee1Balance = banker.GetCoins(payee1)
-	println("payee1 balance after send is: ", payee1Balance)
+	worker1Balance = banker.GetCoins(worker1)
+	println("worker1 balance after send is: ", worker1Balance)
 
 	println("executing done----------------------------------")
 	// ---------------------------------------------------------------------

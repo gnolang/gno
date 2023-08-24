@@ -16,14 +16,13 @@ func (gid GroupID) String() string {
 }
 
 type Group struct {
-	id           GroupID
-	url          string
-	name         string
-	lastMemberID MemberID
-	members      avl.Tree
-	upperAmount  int32 // upper amount of tokens a member hold, used to calculate tiers
-	creator      std.Address
-	createdAt    time.Time
+	id          GroupID
+	url         string
+	name        string
+	members     avl.Tree
+	upperAmount int32 // upper amount of tokens a member hold, used to calculate tiers
+	creator     std.Address
+	createdAt   time.Time
 }
 
 func newGroup(url string, name string, creator std.Address) *Group {
@@ -43,12 +42,11 @@ func newGroup(url string, name string, creator std.Address) *Group {
 	}
 }
 
-func (group *Group) newMember(id MemberID, address std.Address, weight int, metadata string) *Member {
+func (group *Group) newMember(address std.Address, weight int, metadata string) *Member {
 	if group.members.Has(address.String()) {
 		panic("this member for this group already exists")
 	}
 	member := &Member{
-		id:                id,
 		address:           address,
 		weightCheckPoints: checkpoints.NewHistory(),
 		metadata:          metadata,
@@ -63,18 +61,16 @@ func (group *Group) getTotalWeight() int32 {
 	group.members.Iterate("", "", func(key string, value interface{}) bool {
 		member := value.(*Member)
 		weight += int32(member.weightCheckPoints.LatestValue())
-		println("weight accumulated to : ", weight)
-		//weight += int32(member.weight)
+		//println("weight accumulated to : ", weight)
 		return false
 	})
 	return weight
 }
 
 // TODO: weight should be snapshot
-func (group *Group) getMemberWeight(mid MemberID) int32 {
+func (group *Group) getMemberWeight(addr std.Address) int32 {
 	var member *Member
-	midkey := memberIDKey(mid)
-	m, ok := group.members.Get(midkey)
+	m, ok := group.members.Get(addr.String())
 	if !ok {
 		panic("this member for this group not exists")
 	}
@@ -82,10 +78,9 @@ func (group *Group) getMemberWeight(mid MemberID) int32 {
 	return int32(member.weightCheckPoints.LatestValue())
 }
 
-func (group *Group) getMemberWeightAt(mid MemberID, blockNum int64) int32 {
+func (group *Group) getMemberWeightAt(addr std.Address, blockNum int64) int32 {
 	var member *Member
-	midkey := memberIDKey(mid)
-	m, ok := group.members.Get(midkey)
+	m, ok := group.members.Get(addr.String())
 	if !ok {
 		panic("this member for this group not exists")
 	}
@@ -94,17 +89,17 @@ func (group *Group) getMemberWeightAt(mid MemberID, blockNum int64) int32 {
 }
 
 // default at current height
-func (group *Group) setWeightSnapshot(midkey string, weight uint64) {
-	println("update weight snapshot: ", midkey, weight)
+func (group *Group) setWeightSnapshot(addr string, weight uint64) {
+	println("update weight snapshot: ", addr, weight)
 	var member *Member
-	m, ok := group.members.Get(midkey)
+	m, ok := group.members.Get(addr)
 	if !ok {
 		panic("this member for this group not exists")
 	}
 	member = m.(*Member)
 
 	member.weightCheckPoints.Push(weight)
-	group.members.Set(midkey, member)
+	group.members.Set(addr, member)
 }
 
 func segmentSearch(arr []int32, target int32) int {
@@ -149,14 +144,14 @@ func tierCalculate(tierNum int32, upper int32, target int32) int {
 }
 
 // this set the weight by tier, which is calculated by tokens on hold, and a tier mechanism
-func (group *Group) updateWeightSnapshotByTier(mid MemberID, amount int32, numTiers int32) {
+func (group *Group) updateWeightSnapshotByTier(addr std.Address, amount int32, numTiers int32) {
 	// upperLimit change, update all tiers
 	if amount > group.upperAmount {
 		group.upperAmount = amount
 		var newWeight int32
 		group.members.Iterate("", "", func(key string, value interface{}) bool {
 			member := value.(*Member)
-			if key == memberIDKey(mid) { // current payee
+			if key == addr.String() { // current payee
 				newWeight = int32(tierCalculate(numTiers, group.upperAmount, amount))
 				group.setWeightSnapshot(key, uint64(newWeight))
 			} else {
@@ -182,8 +177,7 @@ func (group *Group) RenderGroup() string {
 	str := "Group ID: " + groupIDKey(group.id) + "\n\n" +
 		"Group Name: " + group.name + "\n\n" +
 		"Group Creator: " + usernameOf(group.creator) + "\n\n" +
-		"Group createdAt: " + group.createdAt.String() + "\n\n" +
-		"Group Last MemberID: " + memberIDKey(group.lastMemberID) + "\n\n"
+		"Group createdAt: " + group.createdAt.String() + "\n\n"
 
 	str += "Group Members: \n\n"
 	group.members.Iterate("", "", func(key string, value interface{}) bool {
@@ -204,13 +198,12 @@ func (group *Group) deleteGroup() {
 }
 
 // TODO: remove voting power
-func (group *Group) deleteMember(mid MemberID) {
+func (group *Group) deleteMember(addr std.Address) {
 	gidkey := groupIDKey(group.id)
 	if !gGroups.Has(gidkey) {
 		panic("group does not exist with id " + group.id.String())
 	}
 
 	g := getGroup(group.id)
-	midkey := memberIDKey(mid)
-	g.members.Remove(midkey)
+	g.members.Remove(addr.String())
 }

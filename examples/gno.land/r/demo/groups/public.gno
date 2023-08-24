@@ -40,7 +40,7 @@ func CreateGroup(name string) GroupID {
 	return group.id
 }
 
-func AddMember(gid GroupID, address string, weight int, metadata string) MemberID {
+func AddMember(gid GroupID, address string, weight int, metadata string) {
 	//std.AssertOriginCall()
 	caller := std.GetOrigCaller()
 	usernameOf(caller)
@@ -52,13 +52,8 @@ func AddMember(gid GroupID, address string, weight int, metadata string) MemberI
 	if user == nil {
 		panic("unknown address " + address)
 	}
-	mid := group.lastMemberID
-	member := group.newMember(mid, std.Address(address), weight, metadata)
-	midkey := memberIDKey(mid)
-	group.members.Set(midkey, member)
-	mid++
-	group.lastMemberID = mid
-	return member.id
+	member := group.newMember(std.Address(address), weight, metadata)
+	group.members.Set(address, member)
 }
 
 func DeleteGroup(gid GroupID) {
@@ -71,29 +66,29 @@ func DeleteGroup(gid GroupID) {
 	group.deleteGroup()
 }
 
-func DeleteMember(gid GroupID, mid MemberID) {
+func DeleteMember(gid GroupID, addr std.Address) {
 	std.AssertOriginCall()
 	caller := std.GetOrigCaller()
 	group := getGroup(gid)
 	if !group.HasPermission(caller, DeletePermission) {
 		panic("unauthorized to delete member")
 	}
-	group.deleteMember(mid)
+	group.deleteMember(addr)
 }
 
-func GetMemberWeight(gid GroupID, mid uint64) int32 {
+func GetMemberWeight(gid GroupID, addr std.Address) int32 {
 	group := getGroup(gid)
-	return group.getMemberWeight(MemberID(mid))
+	return group.getMemberWeight(addr)
 }
 
-func GetMemberWeightAt(gid GroupID, mid uint64, blockNum int64) int32 {
+func GetMemberWeightAt(gid GroupID, addr std.Address, blockNum int64) int32 {
 	group := getGroup(gid)
-	return group.getMemberWeightAt(MemberID(mid), blockNum)
+	return group.getMemberWeightAt(addr, blockNum)
 }
 
-func UpdateWeightCheckPoints(gid GroupID, mid uint64, amount int32, numTiers int32) {
+func UpdateWeightCheckPoints(gid GroupID, addr std.Address, amount int32, numTiers int32) {
 	group := getGroup(gid)
-	group.updateWeightSnapshotByTier(MemberID(mid), amount, numTiers)
+	group.updateWeightSnapshotByTier(addr, amount, numTiers)
 }
 
 func GetTotalWeight(gid GroupID) int32 {

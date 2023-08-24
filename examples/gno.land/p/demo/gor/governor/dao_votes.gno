@@ -4,7 +4,7 @@ import (
 	"errors"
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/maths"
-	std "std"
+	"std"
 )
 
 type VoteType int
@@ -178,7 +178,7 @@ func (pv *ballots) Tally(propID string) (*TallyResult, error) {
 	})
 
 	// now we have a voting power, and results
-	println("accumulated voting power of all : ", votingPower)
+	//println("accumulated voting power of all : ", votingPower)
 
 	// pass when super majority achieved
 	return result, nil

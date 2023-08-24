@@ -80,6 +80,8 @@ func (gvr *Governor) castVote(propID string, account std.Address, vt VoteType) e
 		panic("Governor: vote not currently active")
 	}
 
+	// TODO: get weight, cast weighted vote
+	//
 	err := gvr.ballots.CastVote(propID, account, vt)
 
 	return err
@@ -87,18 +89,21 @@ func (gvr *Governor) castVote(propID string, account std.Address, vt VoteType) e
 
 func (gvr *Governor) RenderHome(propID string) string {
 	str := "\n"
+	str += ufmt.Sprintf("***************************Render Governor*************************** \n")
 	str += ufmt.Sprintf("***gvr name***: %s\n", gvr.GetName())
 	str += ufmt.Sprintf("***gvr version***: %s\n", gvr.GetVersion())
 
 	// render Ms
 	ms_str := gvr.RenderMembership()
-	str += ufmt.Sprintf("***Ms***: %s\n", ms_str)
+	str += ufmt.Sprintf("***Membership***: %s\n", ms_str)
 
 	//totalDeposit := std.Coin{Amount: 0, Denom: "ugnot"}
 	//totalI, ok := gvr.deposits.Get(proposalId)
 	//if ok {
 	//	totalDeposit = totalI.(std.Coin)
 	//}
+
+	str += ufmt.Sprintf("*********************Proposal********************* \n")
 
 	str += ufmt.Sprintf("***Current height is***: %d\n", std.GetHeight())
 
@@ -107,6 +112,7 @@ func (gvr *Governor) RenderHome(propID string) string {
 		state = gvr.state(propID)
 		snapShot := gvr.proposalSnapshot(propID)
 		deadLine := gvr.proposalDeadline(propID)
+		str += ufmt.Sprintf("***Proposal ID is***: %s\n", propID)
 		str += ufmt.Sprintf("***Proposal snapShot is***: %d\n", snapShot)
 		str += ufmt.Sprintf("***Proposal deadLine is***: %d\n", deadLine)
 	}
@@ -125,6 +131,8 @@ func (gvr *Governor) RenderHome(propID string) string {
 	}
 
 	str += ufmt.Sprintf("***Proposal state is***: %s\n", state.String())
+
+	str += ufmt.Sprintf("***************************End*************************** \n")
 
 	return str
 }

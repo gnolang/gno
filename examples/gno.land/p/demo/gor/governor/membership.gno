@@ -2,13 +2,14 @@ package governor
 
 import (
 	"gno.land/r/demo/groups"
+	"std"
 )
 
 type Membership interface {
 	AddMember(addr string, weight int, meta string)
-	UpdateWeightCheckPoints(mid uint64, amount int32, numTiers int32)
-	TotalVotingPower() int32                // use int32 corresponding to maths.Rat for now
-	VotingPowerFromMember(mid uint64) int32 // this get weight, not direct tokens held
+	UpdateWeightCheckPoints(addr std.Address, amount int32, numTiers int32)
+	TotalVotingPower() int32                      // use int32 corresponding to maths.Rat for now
+	VotingPowerFromMember(addr std.Address) int32 // this get weight, not direct tokens held
 	RenderMembership() string
 }
 
@@ -33,8 +34,8 @@ func (nca *GroupAdapter) AddMember(addr string, weight int, meta string) {
 	groups.AddMember(nca.groupID, addr, weight, meta)
 }
 
-func (nca *GroupAdapter) UpdateWeightCheckPoints(mid uint64, amount int32, numTiers int32) {
-	groups.UpdateWeightCheckPoints(nca.groupID, mid, amount, numTiers)
+func (nca *GroupAdapter) UpdateWeightCheckPoints(addr std.Address, amount int32, numTiers int32) {
+	groups.UpdateWeightCheckPoints(nca.groupID, addr, amount, numTiers)
 }
 
 func (nca *GroupAdapter) TotalVotingPower() int32 {
@@ -42,8 +43,8 @@ func (nca *GroupAdapter) TotalVotingPower() int32 {
 	return int32(groups.GetTotalWeight(nca.groupID))
 }
 
-func (nca *GroupAdapter) VotingPowerFromMember(mid uint64) int32 {
-	return int32(groups.GetMemberWeight(nca.groupID, mid))
+func (nca *GroupAdapter) VotingPowerFromMember(addr std.Address) int32 {
+	return int32(groups.GetMemberWeight(nca.groupID, addr))
 }
 
 func (nca *GroupAdapter) RenderMembership() string {
