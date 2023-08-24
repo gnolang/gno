@@ -30,7 +30,8 @@ func NewSnapShotToken() *SnapshotToken {
 func (v *SnapshotToken) GetAmount(account std.Address) uint64 {
 	res, found := v.accountCheckpoints.Get(account.String())
 	if !found {
-		panic("SnapshotToken: " + account.String() + " not exist!")
+		//panic("SnapshotToken: " + account.String() + " not exist!")
+		return 0
 	}
 	history := res.(*checkpoints.History)
 	return history.LatestValue()

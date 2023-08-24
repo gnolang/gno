@@ -49,7 +49,7 @@ func AddMember(addr std.Address, weight int, meta string) {
 // // TODO: this should in gvr render, no need for here
 func GetMemberVotingPower(mid uint64) int32 {
 	std.AssertOriginCall()
-	return gvr.GetVotingPowerFromMember(mid)
+	return gvr.VotingPowerFromMember(mid)
 }
 
 func GetTotalVotingPower() int32 {

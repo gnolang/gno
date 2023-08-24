@@ -3,6 +3,7 @@ package groups
 import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/gor/checkpoints"
+	"gno.land/r/demo/dao/gov_token"
 	"std"
 	"strconv"
 	"time"
@@ -108,10 +109,9 @@ func (group *Group) setWeightSnapshot(midkey string, weight uint64) {
 
 func segmentSearch(arr []int32, target int32) int {
 	left, right := 0, len(arr)-1
-	if target <= 0 || target > arr[right] {
+	if target < 0 || target > arr[right] {
 		panic("should not happen")
 	}
-
 	for left <= right {
 		mid := left + (right-left)/2
 		if target > arr[mid] {
@@ -160,9 +160,8 @@ func (group *Group) updateWeightSnapshotByTier(mid MemberID, amount int32, numTi
 				newWeight = int32(tierCalculate(numTiers, group.upperAmount, amount))
 				group.setWeightSnapshot(key, uint64(newWeight))
 			} else {
-				latest := member.weightCheckPoints.LatestValue()
+				latest := gov_token.GovToken.GetAmount(member.address)
 				// reCalculate tier
-				//newWeight = int32(calcWeightByTokenAmount(group.upperAmount, int32(latest), numTiers))
 				newWeight = int32(tierCalculate(numTiers, group.upperAmount, int32(latest)))
 				group.setWeightSnapshot(key, uint64(newWeight))
 			}

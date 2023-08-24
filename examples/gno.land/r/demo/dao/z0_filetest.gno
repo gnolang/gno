@@ -71,9 +71,9 @@ func main() {
 
 	contrib_dao.CreateDAO("contrib_dao")
 	// add member, initially set to 1
-	contrib_dao.AddMember(payee1, 1, "this is payee1")
-	contrib_dao.AddMember(payee2, 1, "this is payee2")
-	contrib_dao.AddMember(payee3, 1, "this is payee3")
+	contrib_dao.AddMember(payee1, 0, "this is payee1")
+	contrib_dao.AddMember(payee2, 0, "this is payee2")
+	contrib_dao.AddMember(payee3, 0, "this is payee3")
 
 	println("weight of member1 is: ", eval_dao.GetMemberVotingPower(0))
 	println("weight of member2 is: ", eval_dao.GetMemberVotingPower(1))
