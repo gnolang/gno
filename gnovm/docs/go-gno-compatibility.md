@@ -337,7 +337,7 @@ Additional native types:
 | time                                        | TBD      |
 | time/tzdata                                 | TBD      |
 | unicode                                     | TBD      |
-| unicode/utf16                               | TBD      |
+| unicode/utf16                               | full     |
 | unicode/utf8                                | TBD      |
 | unsafe                                      | TBD      |
 
