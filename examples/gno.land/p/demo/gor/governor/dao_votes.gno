@@ -52,7 +52,8 @@ type Ballots interface {
 }
 
 type TallyResult struct {
-	tr *avl.Tree // account -> voteType
+	tr          *avl.Tree // account -> voteType
+	votingPower int32
 }
 
 func NewTallyResult() *TallyResult {
@@ -152,6 +153,7 @@ func (pv *ballots) CastVote(propID string, voter std.Address, vt VoteType, weigh
 }
 
 func (pv *ballots) Tally(propID string) (*TallyResult, error) {
+	println("tally at height of: ", std.GetHeight())
 	// TODO: or get from args?
 	//denom := gcs.stake.GetDenom()
 	//snapshot := std.GetHeight()
@@ -189,6 +191,7 @@ func (pv *ballots) Tally(propID string) (*TallyResult, error) {
 		}
 		count += vote.weight
 		result.tr.Set(vt.String(), count) // update
+		result.votingPower = votingPower
 
 		return false
 	})
@@ -203,7 +206,8 @@ func (pv *ballots) Tally(propID string) (*TallyResult, error) {
 // ---------------------------------------------------------------
 // check if quorum reached
 // TODO: should voting power obtained at height?
-func (gvr *Governor) quorumReached(totalVotingPower int32) bool {
+func (gvr *Governor) quorumReached(totalVotingPower int32, height int64) bool {
+	println("quorum reached check, ", totalVotingPower, gvr.TotalVotingPowerAt(height))
 	left := maths.NewRat(totalVotingPower, gvr.TotalVotingPower())
 	right := gvr.gs.getQuorum()
 	r := left.Cmp(right)

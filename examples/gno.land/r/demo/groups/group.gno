@@ -67,6 +67,16 @@ func (group *Group) getTotalWeight() int32 {
 	return weight
 }
 
+func (group *Group) getTotalWeightAt(height int64) int32 {
+	var weight int32
+	group.members.Iterate("", "", func(key string, value interface{}) bool {
+		member := value.(*Member)
+		weight += int32(member.weightCheckPoints.GetAtBlock(height))
+		return false
+	})
+	return weight
+}
+
 // TODO: weight should be snapshot
 func (group *Group) getMemberWeight(addr std.Address) int32 {
 	var member *Member

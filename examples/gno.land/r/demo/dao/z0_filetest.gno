@@ -106,6 +106,7 @@ func main() {
 	// set caller to member1, voter
 	std.TestSetOrigCaller(member1)
 	// vote
+	// TODO: should set height back to 129 to get right snapshot
 	err := eval_dao.CastVoteWithMemo(propID, "for", "good point")
 	if err != nil {
 		println(err.Error())

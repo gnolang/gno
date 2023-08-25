@@ -95,3 +95,8 @@ func GetTotalWeight(gid GroupID) int32 {
 	group := getGroup(gid)
 	return group.getTotalWeight()
 }
+
+func GetTotalWeightAt(gid GroupID, height int64) int32 {
+	group := getGroup(gid)
+	return group.getTotalWeightAt(height)
+}
