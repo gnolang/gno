@@ -65,9 +65,9 @@ func Propose(title, detail, summary, url string, payee std.Address, amount std.C
 	return proposalID
 }
 
-func CastVote(propID string, vt string) error {
+func CastVoteWithMemo(propID string, vt string, memo string) error {
 	std.AssertOriginCall()
-	if err := gvr.CastVote(propID, vt); err != nil {
+	if err := gvr.CastVoteWithMemo(propID, vt, memo); err != nil {
 		return err
 	}
 	return nil

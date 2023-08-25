@@ -8,8 +8,9 @@ import (
 type Membership interface {
 	AddMember(addr string, weight int, meta string)
 	UpdateWeightCheckPoints(addr std.Address, amount int32, numTiers int32)
-	TotalVotingPower() int32                      // use int32 corresponding to maths.Rat for now
-	VotingPowerFromMember(addr std.Address) int32 // this get weight, not direct tokens held
+	TotalVotingPower() int32                                     // use int32 corresponding to maths.Rat for now
+	VotingPowerFromMember(addr std.Address) int32                // this get weight, not direct tokens held
+	VotingPowerFromMemberAt(addr std.Address, block int64) int32 // this get weight, not direct tokens held
 	RenderMembership() string
 }
 
@@ -45,6 +46,10 @@ func (nca *GroupAdapter) TotalVotingPower() int32 {
 
 func (nca *GroupAdapter) VotingPowerFromMember(addr std.Address) int32 {
 	return int32(groups.GetMemberWeight(nca.groupID, addr))
+}
+
+func (nca *GroupAdapter) VotingPowerFromMemberAt(addr std.Address, block int64) int32 {
+	return int32(groups.GetMemberWeightAt(nca.groupID, addr, block))
 }
 
 func (nca *GroupAdapter) RenderMembership() string {

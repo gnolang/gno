@@ -48,7 +48,7 @@ func str2VoteType(str string) VoteType {
 
 type Ballots interface {
 	Tally(propID string) (*TallyResult, error)
-	CastVote(propID string, account std.Address, vp VoteType) error
+	CastVote(propID string, account std.Address, vp VoteType, weight int32, memo string) error
 }
 
 type TallyResult struct {
@@ -69,12 +69,21 @@ func (trt *TallyResult) GetVotesByType(vt VoteType) int32 {
 	return 0
 }
 
-// TODO: weight vote
-// TODO: THINK weight checkpoint
-//type weightVote struct {
-//	voter std.Address
-//	vt    VoteType
-//}
+type Vote struct {
+	voter  std.Address
+	vt     VoteType
+	weight int32
+	memo   string
+}
+
+func NewVote(voter std.Address, vt VoteType, weight int32, memo string) *Vote {
+	return &Vote{
+		voter:  voter,
+		vt:     vt,
+		weight: weight,
+		memo:   memo,
+	}
+}
 
 // ---------------------------------------------------
 type Votes struct {
@@ -87,8 +96,8 @@ func NewVotes() *Votes {
 	}
 }
 
-func (vs *Votes) setVote(account std.Address, vt VoteType) {
-	vs.vs.Set(account.String(), vt)
+func (vs *Votes) setVote(account std.Address, vote *Vote) {
+	vs.vs.Set(account.String(), vote)
 }
 
 type ballots struct {
@@ -119,19 +128,20 @@ func (pv *ballots) hasVoted(proposalId string, account std.Address) bool {
 
 // this method counts who votes, in a map vote => voteType
 // 1:1, voting power will be calculated in Ballots process
-func (pv *ballots) CastVote(propID string, account std.Address, vt VoteType) error {
+func (pv *ballots) CastVote(propID string, voter std.Address, vt VoteType, weight int32, memo string) error {
+	vote := NewVote(voter, vt, weight, memo)
 	var votes *Votes
 	vsI, ok := pv.propVotes.Get(propID)
 	if !ok { // if vote not exist, means no one vote yet
 		votes = NewVotes()
-		votes.setVote(account, vt)
+		votes.setVote(voter, vote)
 	} else { // has vote set for this proposal
 		votes = vsI.(*Votes)
-		_, ok = votes.vs.Get(account.String())
+		_, ok = votes.vs.Get(voter.String())
 		// only vote when not voted before
 		if !ok {
 			// set vote state
-			votes.setVote(account, vt)
+			votes.setVote(voter, vote)
 		} else {
 			return errors.New("You have voted for this before")
 		}
@@ -162,23 +172,29 @@ func (pv *ballots) Tally(propID string) (*TallyResult, error) {
 	votes.vs.Iterate("", "", func(key string, value interface{}) bool {
 		// TODO: voting power is determined by different criteria, such like 1:1, staking based, etc
 		//vp := governor.GetVotingPowerByAccount(key)
-		votingPower += 1 // 1 is the default voting power
+
+		vote, ok := value.(*Vote)
+		if !ok {
+			panic("should not happen")
+		}
+
+		votingPower += vote.weight // 1 is the default voting power
 		// TODO: get voting power by setting, 1 member 1 vote, or calculated by different criterion
-		vt := value.(VoteType)
-		//result.tr[vt] += 1 // accumulate by vote type
+		// set result by vote type
+		vt := vote.vt
 		var count int32
 		icount, ok := result.tr.Get(vt.String())
 		if ok {
 			count = icount.(int32) // else 0
 		}
-		count += 1
+		count += vote.weight
 		result.tr.Set(vt.String(), count) // update
 
 		return false
 	})
 
 	// now we have a voting power, and results
-	//println("accumulated voting power of all : ", votingPower)
+	println("accumulated voting power of all : ", votingPower)
 
 	// pass when super majority achieved
 	return result, nil

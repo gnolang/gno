@@ -63,15 +63,14 @@ func (gvr *Governor) executor() std.Address {
 	return ""
 }
 
-func (gvr *Governor) CastVote(propID string, vt string) error {
+func (gvr *Governor) CastVoteWithMemo(propID string, vt string, memo string) error {
 	voter := std.GetOrigCaller()
 	voteType := str2VoteType(vt)
-	return gvr.castVote(propID, voter, voteType)
+	return gvr.castVote(propID, voter, voteType, memo)
 }
 
-func (gvr *Governor) castVote(propID string, account std.Address, vt VoteType) error {
-	_, ok := gvr.proposals.Get(propID)
-	if !ok {
+func (gvr *Governor) castVote(propID string, voter std.Address, vt VoteType, memo string) error {
+	if !gvr.proposals.Has(propID) {
 		panic("Governor: proposal not exist")
 	}
 
@@ -81,8 +80,13 @@ func (gvr *Governor) castVote(propID string, account std.Address, vt VoteType) e
 	}
 
 	// TODO: get weight, cast weighted vote
-	//
-	err := gvr.ballots.CastVote(propID, account, vt)
+	// xxx: how to choose the height? start? or arbitrary between the voting period.
+	weight := gvr.VotingPowerFromMemberAt(voter, gvr.proposalSnapshot(propID))
+
+	println("gvr cast vote, voter:", voter.String())
+	println("gvr cast vote, weight:", weight)
+
+	err := gvr.ballots.CastVote(propID, voter, vt, weight, memo)
 
 	return err
 }

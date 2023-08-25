@@ -99,15 +99,18 @@ func main() {
 
 	//skip current block, into voting period
 	std.TestSkipHeights(1)
+
+	// set caller to member1, voter
+	std.TestSetOrigCaller(member1)
 	// vote
-	err := eval_dao.CastVote(propID, "for")
+	err := eval_dao.CastVoteWithMemo(propID, "for", "good point")
 	if err != nil {
 		println(err.Error())
 	}
 	println(eval_dao.Render(propID))
 
 	// same account vote again, this is forbidden
-	err = eval_dao.CastVote(propID, "against")
+	err = eval_dao.CastVoteWithMemo(propID, "against", "strongly against")
 	if err != nil {
 		println(err.Error())
 	}
@@ -115,7 +118,7 @@ func main() {
 
 	// switch user and vote
 	std.TestSetOrigCaller(member2)
-	err = eval_dao.CastVote(propID, "against")
+	err = eval_dao.CastVoteWithMemo(propID, "against", "strongly against")
 	if err != nil {
 		println(err.Error())
 	}
@@ -123,7 +126,7 @@ func main() {
 
 	// switch user and vote
 	std.TestSetOrigCaller(member3)
-	err = eval_dao.CastVote(propID, "for")
+	err = eval_dao.CastVoteWithMemo(propID, "for", "yep")
 	if err != nil {
 		println(err.Error())
 	}

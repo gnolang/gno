@@ -138,6 +138,7 @@ func tierCalculate(tierNum int32, upper int32, target int32) int {
 
 	expansiveTarget := target * tierNum
 
+	// tier1 get weight of 1, etc
 	tier := segmentSearch(segments, expansiveTarget)
 
 	return tier
