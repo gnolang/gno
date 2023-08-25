@@ -24,11 +24,16 @@ func (kvs KVPairs) Len() int {
 
 // Less reports whether kvs[i] should be ordered before kvs[j].
 func (kvs KVPairs) Less(i, j int) bool {
-	c := bytes.Compare(kvs[i].Key, kvs[j].Key)
-	if c == 0 {
+	switch bytes.Compare(kvs[i].Key, kvs[j].Key) {
+	case -1:
+		return true
+	case 0:
 		return bytes.Compare(kvs[i].Value, kvs[j].Value) < 0
+	case 1:
+		return false
+	default:
+		panic("invalid comparison result")
 	}
-	return c < 0
 }
 
 // Swap swaps the elements with indexes, i and j.
@@ -58,11 +63,16 @@ func (kvs KI64Pairs) Len() int { return len(kvs) }
 
 // Less reports whether kvs[i] should be ordered before kvs[j].
 func (kvs KI64Pairs) Less(i, j int) bool {
-	c := bytes.Compare(kvs[i].Key, kvs[j].Key)
-	if c == 0 {
+	switch bytes.Compare(kvs[i].Key, kvs[j].Key) {
+	case -1:
+		return true
+	case 0:
 		return kvs[i].Value < kvs[j].Value
+	case 1:
+		return false
+	default:
+		panic("invalid comparison result")
 	}
-	return c < 0
 }
 
 // Swap swaps the elements with indexes, i and j.
