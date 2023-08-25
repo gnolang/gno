@@ -305,7 +305,3 @@ func (gvr *Governor) state(propID string) ProposalState {
 	}
 	return Succeeded
 }
-
-//func (gvr *Governor) RenderProposal(propID string) string {
-//
-//}

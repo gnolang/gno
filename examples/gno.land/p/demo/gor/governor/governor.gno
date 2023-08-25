@@ -134,7 +134,9 @@ func (gvr *Governor) RenderHome(propID string) string {
 		})
 	}
 
-	str += ufmt.Sprintf("***Proposal state is***: %s\n", state.String())
+	if propID != "" {
+		str += ufmt.Sprintf("***Proposal state is***: %s\n", state.String())
+	}
 
 	str += ufmt.Sprintf("***************************End*************************** \n")
 

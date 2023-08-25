@@ -89,12 +89,15 @@ func main() {
 	// -----------------------------------------------
 	// -----------------------------------------------
 	// -----------------------------------------------
-	println("-----------------------------------------------")
+	println("-------------------------------------------------------------------")
+	println("eval_dao, propose->vote->execute...")
 
 	// propose
 	amount := std.Coins{{"ugnot", 200000000}}
 	propID := eval_dao.Propose("this is title", "this is detail", "this is summary", "this is url", worker1, amount, "send_proposal")
-	println("proposed, ID is: ", propID)
+	//println("proposed, ID is: ", propID)
+
+	println("gvr render after propose, before entering voting period")
 	println(eval_dao.Render(propID))
 
 	//skip current block, into voting period
@@ -107,6 +110,7 @@ func main() {
 	if err != nil {
 		println(err.Error())
 	}
+	println("gvr render after vote yes")
 	println(eval_dao.Render(propID))
 
 	// same account vote again, this is forbidden
@@ -114,6 +118,7 @@ func main() {
 	if err != nil {
 		println(err.Error())
 	}
+	println("gvr render after double vote")
 	println(eval_dao.Render(propID))
 
 	// switch user and vote
@@ -122,6 +127,7 @@ func main() {
 	if err != nil {
 		println(err.Error())
 	}
+	println("gvr render after vote against")
 	println(eval_dao.Render(propID))
 
 	// switch user and vote
@@ -132,6 +138,7 @@ func main() {
 	}
 
 	std.TestSkipHeights(5) // skip voting period
+	println("gvr render after vote yes, and voting period expired")
 	println(eval_dao.Render(propID))
 
 	// execute
@@ -150,6 +157,57 @@ func main() {
 	println(contrib_dao.Render(""))
 
 	// propose all over again
+	println("-------------------------------------------------------------------")
+	println("contrib_dao, propose->vote->execute...")
+
+	// propose
+	amount = std.Coins{{"ugnot", 0}}
+	propID = contrib_dao.Propose("this is title", "this is detail", "this is summary", "this is url", std.Address(""), amount, "text_proposal")
+	//println("proposed, ID is: ", propID)
+
+	println("gvr render after propose, before entering voting period")
+	println(contrib_dao.Render(propID))
+
+	//skip current block, into voting period
+	std.TestSkipHeights(1)
+
+	// set caller to member1, voter
+	std.TestSetOrigCaller(worker1)
+	// vote
+	err = contrib_dao.CastVoteWithMemo(propID, "for", "good point")
+	if err != nil {
+		println(err.Error())
+	}
+	println("gvr render after vote yes")
+	println(contrib_dao.Render(propID))
+
+	// same account vote again, this is forbidden
+	err = contrib_dao.CastVoteWithMemo(propID, "against", "strongly against")
+	if err != nil {
+		println(err.Error())
+	}
+	println("gvr render after double vote")
+	println(contrib_dao.Render(propID))
+
+	// switch user and vote
+	std.TestSetOrigCaller(worker2)
+	err = contrib_dao.CastVoteWithMemo(propID, "against", "strongly against")
+	if err != nil {
+		println(err.Error())
+	}
+	println("gvr render after vote against")
+	println(contrib_dao.Render(propID))
+
+	// switch user and vote
+	std.TestSetOrigCaller(worker3)
+	err = contrib_dao.CastVoteWithMemo(propID, "for", "yep")
+	if err != nil {
+		println(err.Error())
+	}
+
+	std.TestSkipHeights(5) // skip voting period
+	println("gvr render after vote yes, and voting period expired")
+	println(contrib_dao.Render(propID))
 
 	// calculate tier membership, propose, vote, execute, etc
 }
