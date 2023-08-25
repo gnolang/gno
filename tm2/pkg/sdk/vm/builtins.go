@@ -25,6 +25,11 @@ func (vm *VMKeeper) initBuiltinPackagesAndTypes(store gno.Store) {
 			return nil, nil
 		}
 		memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
+		if len(memPkg.Files) == 0 {
+			// no gno files are present, skip this package
+			return nil, nil
+		}
+
 		m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 			PkgPath: "gno.land/r/stdlibs/" + pkgPath,
 			// PkgPath: pkgPath,

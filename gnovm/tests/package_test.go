@@ -60,6 +60,9 @@ func runPackageTest(t *testing.T, dir string, path string) {
 	t.Helper()
 
 	memPkg := gno.ReadMemPackage(dir, path)
+	if len(memPkg.Files) == 0 {
+		panic(fmt.Sprintf("found an empty package `%s`", path))
+	}
 
 	stdin := new(bytes.Buffer)
 	// stdout := new(bytes.Buffer)
