@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	defaultBytesPerSync = 1024 * 512       // 512KB
-	defaultCacheSize    = 1024 * 1024 * 16 // 16MB
+	defaultBytesPerSync = 0 // use the distribution default, 512KB
+	defaultCacheSize    = 0 // use the distribution default, 8MB
 )
 
 func init() {
@@ -29,11 +29,14 @@ type PebbleDB struct {
 }
 
 func NewPebbleDB(name string, dir string) (*PebbleDB, error) {
-	cache := pebble.NewCache(defaultCacheSize)
-	defer cache.Unref()
-	opts := &pebble.Options{
-		BytesPerSync: defaultBytesPerSync,
-		Cache:        cache,
+	opts := &pebble.Options{}
+	if defaultBytesPerSync > 0 {
+		opts.BytesPerSync = defaultBytesPerSync
+	}
+	if defaultCacheSize > 0 {
+		cache := pebble.NewCache(defaultCacheSize)
+		defer cache.Unref()
+		opts.Cache = cache
 	}
 	return NewPebbleDBWithOpts(name, dir, opts)
 }
