@@ -36,6 +36,10 @@ const (
 	//   - requires gcc
 	//   - use rocksdb build tag (go build -tags rocksdb)
 	RocksDBBackend BackendType = "rocksdb"
+	// PebbleDBBackend represents pebble (uses github.com/cockroachdb/pebble)
+	//   - EXPERIMENTAL
+	//   - use pebbledb build tag (go build -tags pebbledb)
+	PebbleDBBackend BackendType = "pebbledb"
 )
 
 type dbCreator func(name string, dir string) (DB, error)
