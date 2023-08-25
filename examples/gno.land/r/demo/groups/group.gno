@@ -144,6 +144,7 @@ func tierCalculate(tierNum int32, upper int32, target int32) int {
 	return tier
 }
 
+// TODO: move these tier logic to eval_dao
 // this set the weight by tier, which is calculated by tokens on hold, and a tier mechanism
 func (group *Group) updateWeightSnapshotByTier(addr std.Address, amount int32, numTiers int32) {
 	// upperLimit change, update all tiers
