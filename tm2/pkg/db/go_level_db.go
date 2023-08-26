@@ -205,26 +205,26 @@ func (db *GoLevelDB) ReverseIterator(start, end []byte) Iterator {
 }
 
 type goLevelDBIterator struct {
-	source    iterator.Iterator
-	start     []byte
-	end       []byte
-	isReverse bool
+	source  iterator.Iterator
+	start   []byte
+	end     []byte
+	reverse bool
 }
 
 var _ Iterator = (*goLevelDBIterator)(nil)
 
-func (db *GoLevelDB) newGoLevelDBIterator(start, end []byte, isReverse bool) *goLevelDBIterator {
+func (db *GoLevelDB) newGoLevelDBIterator(start, end []byte, reverse bool) *goLevelDBIterator {
 	source := db.db.NewIterator(&util.Range{Start: start, Limit: end}, nil)
-	if isReverse {
+	if reverse {
 		source.Last()
 	} else {
 		source.First()
 	}
 	return &goLevelDBIterator{
-		source:    source,
-		start:     start,
-		end:       end,
-		isReverse: isReverse,
+		source:  source,
+		start:   start,
+		end:     end,
+		reverse: reverse,
 	}
 }
 
@@ -264,7 +264,7 @@ func (itr *goLevelDBIterator) Value() []byte {
 // Implements Iterator.
 func (itr *goLevelDBIterator) Next() {
 	itr.assertIsValid()
-	if itr.isReverse {
+	if itr.reverse {
 		itr.source.Prev()
 	} else {
 		itr.source.Next()
