@@ -42,21 +42,19 @@ func NewPebbleDB(name string, dir string) (*PebbleDB, error) {
 }
 
 func NewPebbleDBWithOpts(name string, dir string, opts *pebble.Options) (*PebbleDB, error) {
-	dbPath := filepath.Join(dir, name+".db")
-	db, err := pebble.Open(dbPath, opts)
+	db, err := pebble.Open(filepath.Join(dir, name+".db"), opts)
 	if err != nil {
 		return nil, err
 	}
-	database := &PebbleDB{
+	pebbleDB := &PebbleDB{
 		db: db,
 	}
-	return database, nil
+	return pebbleDB, nil
 }
 
 // Implements DB.
 func (db *PebbleDB) Get(key []byte) []byte {
-	key = nonNilBytes(key)
-	value, closer, err := db.db.Get(key)
+	value, closer, err := db.db.Get(nonNilBytes(key))
 	if err != nil {
 		if errors.Is(err, pebble.ErrNotFound) {
 			return nil
@@ -69,39 +67,41 @@ func (db *PebbleDB) Get(key []byte) []byte {
 
 // Implements DB.
 func (db *PebbleDB) Has(key []byte) bool {
-	return db.Get(key) != nil
+	_, closer, err := db.db.Get(nonNilBytes(key))
+	if err != nil {
+		if errors.Is(err, pebble.ErrNotFound) {
+			return false
+		}
+		panic(err)
+	}
+	closer.Close()
+	return true
 }
 
 // Implements DB.
 func (db *PebbleDB) Set(key []byte, value []byte) {
-	key = nonNilBytes(key)
-	value = nonNilBytes(value)
-	if err := db.db.Set(key, value, pebble.NoSync); err != nil {
+	if err := db.db.Set(nonNilBytes(key), nonNilBytes(value), pebble.NoSync); err != nil {
 		panic(err)
 	}
 }
 
 // Implements DB.
 func (db *PebbleDB) SetSync(key []byte, value []byte) {
-	key = nonNilBytes(key)
-	value = nonNilBytes(value)
-	if err := db.db.Set(key, value, pebble.Sync); err != nil {
+	if err := db.db.Set(nonNilBytes(key), nonNilBytes(value), pebble.Sync); err != nil {
 		panic(err)
 	}
 }
 
 // Implements DB.
 func (db *PebbleDB) Delete(key []byte) {
-	key = nonNilBytes(key)
-	if err := db.db.Delete(key, pebble.NoSync); err != nil {
+	if err := db.db.Delete(nonNilBytes(key), pebble.NoSync); err != nil {
 		panic(err)
 	}
 }
 
 // Implements DB.
 func (db *PebbleDB) DeleteSync(key []byte) {
-	key = nonNilBytes(key)
-	if err := db.db.Delete(key, pebble.Sync); err != nil {
+	if err := db.db.Delete(nonNilBytes(key), pebble.Sync); err != nil {
 		panic(err)
 	}
 }
@@ -119,11 +119,11 @@ func (db *PebbleDB) Close() {
 
 // Implements DB.
 func (db *PebbleDB) Print() {
-	itr := db.db.NewIter(nil)
-	for itr.First(); itr.Valid(); itr.Next() {
-		fmt.Printf("[%X]:\t[%X]\n", itr.Key(), itr.Value())
+	it := db.db.NewIter(nil)
+	for it.First(); it.Valid(); it.Next() {
+		fmt.Printf("[%X]:\t[%X]\n", it.Key(), it.Value())
 	}
-	itr.Close()
+	it.Close()
 }
 
 // Implements DB.
@@ -148,32 +148,32 @@ type pebbleDBBatch struct {
 }
 
 // Implements Batch.
-func (mBatch *pebbleDBBatch) Set(key, value []byte) {
-	mBatch.batch.Set(key, value, nil)
+func (ba *pebbleDBBatch) Set(key, value []byte) {
+	ba.batch.Set(nonNilBytes(key), nonNilBytes(value), nil)
 }
 
 // Implements Batch.
-func (mBatch *pebbleDBBatch) Delete(key []byte) {
-	mBatch.batch.Delete(key, nil)
+func (ba *pebbleDBBatch) Delete(key []byte) {
+	ba.batch.Delete(nonNilBytes(key), nil)
 }
 
 // Implements Batch.
-func (mBatch *pebbleDBBatch) Write() {
-	if err := mBatch.db.db.Apply(mBatch.batch, pebble.NoSync); err != nil {
+func (ba *pebbleDBBatch) Write() {
+	if err := ba.db.db.Apply(ba.batch, pebble.NoSync); err != nil {
 		panic(err)
 	}
 }
 
 // Implements Batch.
-func (mBatch *pebbleDBBatch) WriteSync() {
-	if err := mBatch.db.db.Apply(mBatch.batch, pebble.Sync); err != nil {
+func (ba *pebbleDBBatch) WriteSync() {
+	if err := ba.db.db.Apply(ba.batch, pebble.Sync); err != nil {
 		panic(err)
 	}
 }
 
 // Implements Batch.
-func (mBatch *pebbleDBBatch) Close() {
-	if err := mBatch.batch.Close(); err != nil {
+func (ba *pebbleDBBatch) Close() {
+	if err := ba.batch.Close(); err != nil {
 		panic(err)
 	}
 }
@@ -192,7 +192,7 @@ func (db *PebbleDB) ReverseIterator(start, end []byte) Iterator {
 }
 
 type pebbleDBIterator struct {
-	source  *pebble.Iterator
+	iter    *pebble.Iterator
 	start   []byte
 	end     []byte
 	reverse bool
@@ -201,17 +201,17 @@ type pebbleDBIterator struct {
 var _ Iterator = (*pebbleDBIterator)(nil)
 
 func (db *PebbleDB) newPebbleDBIterator(start, end []byte, reverse bool) *pebbleDBIterator {
-	source := db.db.NewIter(&pebble.IterOptions{
+	iter := db.db.NewIter(&pebble.IterOptions{
 		LowerBound: start,
 		UpperBound: end,
 	})
 	if reverse {
-		source.Last()
+		iter.Last()
 	} else {
-		source.First()
+		iter.First()
 	}
 	return &pebbleDBIterator{
-		source:  source,
+		iter:    iter,
 		start:   start,
 		end:     end,
 		reverse: reverse,
@@ -219,53 +219,49 @@ func (db *PebbleDB) newPebbleDBIterator(start, end []byte, reverse bool) *pebble
 }
 
 // Implements Iterator.
-func (itr *pebbleDBIterator) Domain() ([]byte, []byte) {
-	return itr.start, itr.end
+func (it *pebbleDBIterator) Domain() ([]byte, []byte) {
+	return it.start, it.end
 }
 
 // Implements Iterator.
-func (itr *pebbleDBIterator) Valid() bool {
-	itr.assertNoError()
-	return itr.source.Valid()
+func (it *pebbleDBIterator) Valid() bool {
+	if err := it.iter.Error(); err != nil {
+		panic(err)
+	}
+	return it.iter.Valid()
 }
 
 // Implements Iterator.
-func (itr *pebbleDBIterator) Key() []byte {
-	itr.assertIsValid()
-	return cp(itr.source.Key())
+func (it *pebbleDBIterator) Key() []byte {
+	it.assertValid()
+	return cp(it.iter.Key())
 }
 
 // Implements Iterator.
-func (itr *pebbleDBIterator) Value() []byte {
-	itr.assertIsValid()
-	return cp(itr.source.Value())
+func (it *pebbleDBIterator) Value() []byte {
+	it.assertValid()
+	return cp(it.iter.Value())
 }
 
 // Implements Iterator.
-func (itr *pebbleDBIterator) Next() {
-	itr.assertIsValid()
-	if itr.reverse {
-		itr.source.Prev()
+func (it *pebbleDBIterator) Next() {
+	it.assertValid()
+	if it.reverse {
+		it.iter.Prev()
 	} else {
-		itr.source.Next()
+		it.iter.Next()
 	}
 }
 
 // Implements Iterator.
-func (itr *pebbleDBIterator) Close() {
-	if err := itr.source.Close(); err != nil {
+func (it *pebbleDBIterator) Close() {
+	if err := it.iter.Close(); err != nil {
 		panic(err)
 	}
 }
 
-func (itr *pebbleDBIterator) assertNoError() {
-	if err := itr.source.Error(); err != nil {
-		panic(err)
-	}
-}
-
-func (itr pebbleDBIterator) assertIsValid() {
-	if !itr.Valid() {
+func (it pebbleDBIterator) assertValid() {
+	if !it.Valid() {
 		panic("pebbleDBIterator is invalid")
 	}
 }
