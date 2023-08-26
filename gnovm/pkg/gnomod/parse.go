@@ -42,6 +42,34 @@ func ParseAt(dir string) (*File, error) {
 	return gm, nil
 }
 
+// tries to parse gno mod file given the filename, using Parse and Validate from
+// the gnomod package
+//
+// TODO(tb): replace by `gnomod.ParseAt` ? The key difference is the latter
+// looks for gno.mod in parent directories, while this function doesn't.
+func ParseGnoMod(fname string) (*File, error) {
+	file, err := os.Stat(fname)
+	if err != nil {
+		return nil, fmt.Errorf("could not read gno.mod file: %w", err)
+	}
+	if file.IsDir() {
+		return nil, fmt.Errorf("invalid gno.mod at %q: is a directory", fname)
+	}
+
+	b, err := os.ReadFile(fname)
+	if err != nil {
+		return nil, fmt.Errorf("could not read gno.mod file: %w", err)
+	}
+	gm, err := Parse(fname, b)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing gno.mod file at %q: %w", fname, err)
+	}
+	if err := gm.Validate(); err != nil {
+		return nil, fmt.Errorf("error validating gno.mod file at %q: %w", fname, err)
+	}
+	return gm, nil
+}
+
 // Parse parses and returns a gno.mod file.
 //
 // - file is the name of the file, used in positions and errors.

@@ -183,13 +183,18 @@ func execModTidy(args []string, io *commands.IO) error {
 	if err != nil {
 		return err
 	}
+	rd, err := gnomod.FindRootDir(wd)
+	if err != nil {
+		return err
+	}
+	fname := filepath.Join(rd, "gno.mod")
 
-	gm, err := gnomod.ParseAt(wd)
+	gm, err := gnomod.ParseGnoMod(fname)
 	if err != nil {
 		return err
 	}
 
-	imports, err := getGnoImports(wd)
+	imports, err := getGnoImports(rd)
 	if err != nil {
 		return err
 	}
@@ -204,9 +209,8 @@ func execModTidy(args []string, io *commands.IO) error {
 		})
 	}
 	gm.Require = requires
-	// TODO: Fix: gno.mod can be in any parent dir of `wd`
-	gm.WriteToPath(filepath.Join(wd, "gno.mod"))
 
+	gm.WriteToPath(fname)
 	return nil
 }
 
