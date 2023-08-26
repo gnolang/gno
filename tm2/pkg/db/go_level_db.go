@@ -248,7 +248,6 @@ func (itr *goLevelDBIterator) Valid() bool {
 func (itr *goLevelDBIterator) Key() []byte {
 	// Key returns a copy of the current key.
 	// See https://github.com/gnolang/goleveldb/blob/52c212e6c196a1404ea59592d3f1c227c9f034b2/leveldb/iterator/iter.go#L88
-	itr.assertNoError()
 	itr.assertIsValid()
 	return cp(itr.source.Key())
 }
@@ -257,14 +256,12 @@ func (itr *goLevelDBIterator) Key() []byte {
 func (itr *goLevelDBIterator) Value() []byte {
 	// Value returns a copy of the current value.
 	// See https://github.com/gnolang/goleveldb/blob/52c212e6c196a1404ea59592d3f1c227c9f034b2/leveldb/iterator/iter.go#L88
-	itr.assertNoError()
 	itr.assertIsValid()
 	return cp(itr.source.Value())
 }
 
 // Implements Iterator.
 func (itr *goLevelDBIterator) Next() {
-	itr.assertNoError()
 	itr.assertIsValid()
 	if itr.isReverse {
 		itr.source.Prev()
