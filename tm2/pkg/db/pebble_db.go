@@ -192,29 +192,29 @@ func (db *PebbleDB) ReverseIterator(start, end []byte) Iterator {
 }
 
 type pebbleDBIterator struct {
-	source    *pebble.Iterator
-	start     []byte
-	end       []byte
-	isReverse bool
+	source  *pebble.Iterator
+	start   []byte
+	end     []byte
+	reverse bool
 }
 
 var _ Iterator = (*pebbleDBIterator)(nil)
 
-func (db *PebbleDB) newPebbleDBIterator(start, end []byte, isReverse bool) *pebbleDBIterator {
+func (db *PebbleDB) newPebbleDBIterator(start, end []byte, reverse bool) *pebbleDBIterator {
 	source := db.db.NewIter(&pebble.IterOptions{
 		LowerBound: start,
 		UpperBound: end,
 	})
-	if isReverse {
+	if reverse {
 		source.Last()
 	} else {
 		source.First()
 	}
 	return &pebbleDBIterator{
-		source:    source,
-		start:     start,
-		end:       end,
-		isReverse: isReverse,
+		source:  source,
+		start:   start,
+		end:     end,
+		reverse: reverse,
 	}
 }
 
@@ -244,7 +244,7 @@ func (itr *pebbleDBIterator) Value() []byte {
 // Implements Iterator.
 func (itr *pebbleDBIterator) Next() {
 	itr.assertIsValid()
-	if itr.isReverse {
+	if itr.reverse {
 		itr.source.Prev()
 	} else {
 		itr.source.Next()
