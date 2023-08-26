@@ -29,12 +29,34 @@ func TestGoLevelDBNewGoLevelDB(t *testing.T) {
 }
 
 func BenchmarkGoLevelDBRandomReadsWrites(b *testing.B) {
+	db := newDBb(b)
+	defer db.Close()
+	benchmarkRandomReadsWrites(b, db)
+}
+
+func BenchmarkGoLevelDBIterator(b *testing.B) {
+	db := newDBb(b)
+	defer db.Close()
+	benchmarkIterator(b, db, false, false)
+}
+
+func BenchmarkGoLevelDBReverseIterator(b *testing.B) {
+	db := newDBb(b)
+	defer db.Close()
+	benchmarkIterator(b, db, true, false)
+}
+
+func BenchmarkGoLevelDBIteratorSubset(b *testing.B) {
+	db := newDBb(b)
+	defer db.Close()
+	benchmarkIterator(b, db, false, true)
+}
+
+func newDBb(b *testing.B) DB {
 	name := fmt.Sprintf("test_%x", randStr(12))
 	db, err := NewGoLevelDB(name, b.TempDir())
 	if err != nil {
 		b.Fatal(err)
 	}
-	defer db.Close()
-
-	benchmarkRandomReadsWrites(b, db)
+	return db
 }
