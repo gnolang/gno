@@ -298,10 +298,9 @@ func benchmarkIterator(b *testing.B, db DB, reverse bool, subset bool) {
 			_, _ = iter.Key(), iter.Value()
 			n++
 		}
-		//fmt.Println(n)
 		iter.Close()
 		if n != maxIteration {
-			b.Errorf("Expected %d iterations, got %d, start=%s, end=%s", maxIteration, n, start, end)
+			b.Errorf("Expected %d iterations, got %d (start=%v, end=%v)", maxIteration, n, start, end)
 		}
 	}
 }
