@@ -227,3 +227,11 @@ func (f *File) Write(fname string) error {
 func (f *File) Sanitize() {
 	removeDups(f.Syntax, &f.Require, &f.Replace)
 }
+
+func requireToString(req modfile.Require) string {
+	return fmt.Sprintf("%s %s", modfile.AutoQuote(req.Mod.Path), req.Mod.Version)
+}
+
+func replaceToString(rep modfile.Replace) string {
+	return fmt.Sprintf("%s %s => %s", modfile.AutoQuote(rep.Old.Path), rep.Old.Version, modfile.AutoQuote(rep.New.Path))
+}

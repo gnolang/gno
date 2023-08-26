@@ -194,7 +194,6 @@ func execModTidy(args []string, io *commands.IO) error {
 		return err
 	}
 
-	// TODO: handle edge cases
 	var requires []*modfile.Require
 	for _, im := range imports {
 		requires = append(requires, &modfile.Require{
