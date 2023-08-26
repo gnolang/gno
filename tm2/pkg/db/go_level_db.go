@@ -125,6 +125,8 @@ func (db *GoLevelDB) Stats() map[string]string {
 	keys := []string{
 		"leveldb.num-files-at-level{n}",
 		"leveldb.stats",
+		"leveldb.iostats",
+		"leveldb.writedelay",
 		"leveldb.sstables",
 		"leveldb.blockpool",
 		"leveldb.cachedblock",
@@ -234,7 +236,7 @@ func (itr *goLevelDBIterator) Domain() ([]byte, []byte) {
 
 // Implements Iterator.
 func (itr *goLevelDBIterator) Valid() bool {
-	// Panic on DB error.  No way to recover.
+	// Panic on DB error. No way to recover.
 	itr.assertNoError()
 
 	// If source is invalid, invalid.
