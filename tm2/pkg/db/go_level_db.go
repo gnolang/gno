@@ -161,12 +161,12 @@ type goLevelDBBatch struct {
 
 // Implements Batch.
 func (mBatch *goLevelDBBatch) Set(key, value []byte) {
-	mBatch.batch.Put(key, value)
+	mBatch.batch.Put(nonNilBytes(key), nonNilBytes(value))
 }
 
 // Implements Batch.
 func (mBatch *goLevelDBBatch) Delete(key []byte) {
-	mBatch.batch.Delete(key)
+	mBatch.batch.Delete(nonNilBytes(key))
 }
 
 // Implements Batch.
