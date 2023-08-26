@@ -46,10 +46,9 @@ func NewPebbleDBWithOpts(name string, dir string, opts *pebble.Options) (*Pebble
 	if err != nil {
 		return nil, err
 	}
-	pebbleDB := &PebbleDB{
+	return &PebbleDB{
 		db: db,
-	}
-	return pebbleDB, nil
+	}, nil
 }
 
 // Implements DB.
