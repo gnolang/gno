@@ -209,7 +209,6 @@ type goLevelDBIterator struct {
 	start     []byte
 	end       []byte
 	isReverse bool
-	isInvalid bool
 }
 
 var _ Iterator = (*goLevelDBIterator)(nil)
