@@ -266,6 +266,46 @@ func benchmarkRandomReadsWrites(b *testing.B, db DB) {
 	}
 }
 
+// benchmarkIterator measures the iteration time of 100 keys in a db with 1 million keys.
+func benchmarkIterator(b *testing.B, db DB, reverse bool, subset bool) {
+	b.Helper()
+	b.StopTimer()
+
+	// create dummy data
+	const numItems = int64(1000000)
+	const maxIteration = 100
+	for i := 0; i < int(numItems); i++ {
+		key := int642Bytes(int64(i))
+		db.Set(key, key)
+	}
+	start, end := []byte(nil), []byte(nil)
+
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		if subset {
+			offset := i % int(numItems-maxIteration)
+			start = int642Bytes(int64(offset))
+			end = int642Bytes(int64(offset + maxIteration))
+		}
+		var iter Iterator
+		if reverse {
+			iter = db.ReverseIterator(start, end)
+		} else {
+			iter = db.Iterator(start, end)
+		}
+		n := 0
+		for ; n < maxIteration && iter.Valid(); iter.Next() {
+			_, _ = iter.Key(), iter.Value()
+			n++
+		}
+		//fmt.Println(n)
+		iter.Close()
+		if n != maxIteration {
+			b.Errorf("Expected %d iterations, got %d, start=%s, end=%s", maxIteration, n, start, end)
+		}
+	}
+}
+
 func int642Bytes(i int64) []byte {
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, uint64(i))
