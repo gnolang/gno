@@ -16,7 +16,7 @@ func TestPebbleDB(t *testing.T) {
 	db.Close()
 }
 
-func BenchmarkPebbleRandomReadsWrites(b *testing.B) {
+func BenchmarkPebbleDBRandomReadsWrites(b *testing.B) {
 	name := fmt.Sprintf("test_%x", randStr(12))
 	db, err := NewPebbleDB(name, b.TempDir())
 	if err != nil {
