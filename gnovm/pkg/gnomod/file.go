@@ -217,7 +217,7 @@ func (f *File) FetchDeps(path string, remote string, verbose bool) error {
 func (f *File) Write(fname string) error {
 	f.Syntax.Cleanup()
 	data := modfile.Format(f.Syntax)
-	err := os.WriteFile(fname, []byte(data), 0o644)
+	err := os.WriteFile(fname, data, 0o644)
 	if err != nil {
 		return fmt.Errorf("writefile %q: %w", fname, err)
 	}

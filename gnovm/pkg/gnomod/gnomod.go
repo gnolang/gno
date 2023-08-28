@@ -123,7 +123,7 @@ func GnoToGoMod(f File) (*File, error) {
 
 	// Remove replacements that are not replaced by directories.
 	//
-	// Explaination:
+	// Explanation:
 	// By this stage every replacement should be replace by dir.
 	// If not replaced by dir, remove it.
 	//

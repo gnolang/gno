@@ -950,15 +950,15 @@ func addLine(x *modfile.FileSyntax, hint modfile.Expr, tokens ...string) *modfil
 	}
 
 	newLineAfter := func(i int) *modfile.Line {
-		new := &modfile.Line{Token: tokens}
+		newl := &modfile.Line{Token: tokens}
 		if i == len(x.Stmt) {
-			x.Stmt = append(x.Stmt, new)
+			x.Stmt = append(x.Stmt, newl)
 		} else {
 			x.Stmt = append(x.Stmt, nil)
 			copy(x.Stmt[i+2:], x.Stmt[i+1:])
-			x.Stmt[i+1] = new
+			x.Stmt[i+1] = newl
 		}
-		return new
+		return newl
 	}
 
 	if hint != nil {
@@ -975,9 +975,9 @@ func addLine(x *modfile.FileSyntax, hint modfile.Expr, tokens ...string) *modfil
 					block := &modfile.LineBlock{Token: stmt.Token[:1], Line: []*modfile.Line{stmt}}
 					stmt.Token = stmt.Token[1:]
 					x.Stmt[i] = block
-					new := &modfile.Line{Token: tokens[1:], InBlock: true}
-					block.Line = append(block.Line, new)
-					return new
+					newl := &modfile.Line{Token: tokens[1:], InBlock: true}
+					block.Line = append(block.Line, newl)
+					return newl
 				}
 
 			case *modfile.LineBlock:
@@ -986,9 +986,9 @@ func addLine(x *modfile.FileSyntax, hint modfile.Expr, tokens ...string) *modfil
 						return newLineAfter(i)
 					}
 
-					new := &modfile.Line{Token: tokens[1:], InBlock: true}
-					stmt.Line = append(stmt.Line, new)
-					return new
+					newl := &modfile.Line{Token: tokens[1:], InBlock: true}
+					stmt.Line = append(stmt.Line, newl)
+					return newl
 				}
 
 				for j, line := range stmt.Line {
@@ -1000,24 +1000,24 @@ func addLine(x *modfile.FileSyntax, hint modfile.Expr, tokens ...string) *modfil
 						// Add new line after hint within the block.
 						stmt.Line = append(stmt.Line, nil)
 						copy(stmt.Line[j+2:], stmt.Line[j+1:])
-						new := &modfile.Line{Token: tokens[1:], InBlock: true}
-						stmt.Line[j+1] = new
-						return new
+						newl := &modfile.Line{Token: tokens[1:], InBlock: true}
+						stmt.Line[j+1] = newl
+						return newl
 					}
 				}
 			}
 		}
 	}
 
-	new := &modfile.Line{Token: tokens}
-	x.Stmt = append(x.Stmt, new)
-	return new
+	newl := &modfile.Line{Token: tokens}
+	x.Stmt = append(x.Stmt, newl)
+	return newl
 }
 
 func addReplace(syntax *modfile.FileSyntax, replace *[]*modfile.Replace, oldPath, oldVers, newPath, newVers string) error {
 	need := true
-	old := module.Version{Path: oldPath, Version: oldVers}
-	new := module.Version{Path: newPath, Version: newVers}
+	oldv := module.Version{Path: oldPath, Version: oldVers}
+	newv := module.Version{Path: newPath, Version: newVers}
 	tokens := []string{"replace", modfile.AutoQuote(oldPath)}
 	if oldVers != "" {
 		tokens = append(tokens, oldVers)
@@ -1032,7 +1032,7 @@ func addReplace(syntax *modfile.FileSyntax, replace *[]*modfile.Replace, oldPath
 		if r.Old.Path == oldPath && (oldVers == "" || r.Old.Version == oldVers) {
 			if need {
 				// Found replacement for old; update to use new.
-				r.New = new
+				r.New = newv
 				updateLine(r.Syntax, tokens...)
 				need = false
 				continue
@@ -1046,7 +1046,7 @@ func addReplace(syntax *modfile.FileSyntax, replace *[]*modfile.Replace, oldPath
 		}
 	}
 	if need {
-		*replace = append(*replace, &modfile.Replace{Old: old, New: new, Syntax: addLine(syntax, hint, tokens...)})
+		*replace = append(*replace, &modfile.Replace{Old: oldv, New: newv, Syntax: addLine(syntax, hint, tokens...)})
 	}
 	return nil
 }
