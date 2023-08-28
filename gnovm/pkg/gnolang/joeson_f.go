@@ -38,25 +38,61 @@ func peel(it j.Ast, ctx *j.ParseContext) j.Ast {
 	return it.(*j.NativeArray).Get(0)
 }
 
-func fExpression(it j.Ast, ctx *j.ParseContext, org j.Ast) j.Ast {
-	// bx:(Expression binary_op Expression) | ux:UnaryExpr
-	if m, ok := it.(*j.NativeMap); ok {
-		if m.Exists("ux") {
-			return m.GetOrPanic("ux")
-		} else if m.Exists("bx") {
-			// bx: create a BinaryExpr with Bx
-			a := m.GetOrPanic("bx").(*j.NativeArray).Array()
-			return &BinaryExpr{
-				Left:  a[0].(Expr),
-				Op:    Op2Word(a[1].(j.NativeString).String()),
-				Right: a[2].(Expr),
-			}
-		} else {
-			panic("assert")
-		}
-	} else {
-		return it
+// this comes from study in joeson/examples/precedence
+// see growMoss function
+func fBinaryExpr(it j.Ast) j.Ast {
+	// a := it.(*j.NativeArray).Array()
+	// return &BinaryExpr{
+	// 	Left:  a[0].(Expr),
+	// 	Op:    Op2Word(a[1].(j.NativeString).String()),
+	// 	Right: a[2].(Expr),
+	// }
+
+	// extract `first` and `operations` from `it`
+	a := it.(*j.NativeArray).Array()
+	// first := it.(*j.NativeArray).Get(0).(Expr)
+	first := a[0].(Expr)
+	operations := []*BinaryExpr{} // we want to store [[+2], [-5], etc], just use BinaryExpr with nil left expr for now
+	// if _, ok := it.(*j.NativeArray).Get(1).(*j.NativeArray); !ok {
+	// 	panic(fmt.Sprintf("Not okay, why: %s, it[0]: %s\nit[1]:%s it[2]:%s", it.String(), it.(*j.NativeArray).Get(0), it.(*j.NativeArray).Get(1), it.(*j.NativeArray).Get(2)))
+	// }
+	// for _, v := range it.(*j.NativeArray).Get(1).(*j.NativeArray).Array() {
+	if (len(a)-1)%2 != 0 {
+		panic("Invalid len")
 	}
+	for i := 1; i < len(a); i += 2 {
+		operations = append(operations, &BinaryExpr{
+			Left:  nil,
+			Op:    Op2Word(a[i].(j.NativeString).String()),
+			Right: a[i+1].(Expr),
+		})
+	}
+	// for _, v := range it.(*j.NativeArray).Array()[1:] {
+	// a := v.(*j.NativeArray).Array()
+	// operations = append(operations, &BinaryExpr{
+	// 	Left:  nil,
+	// 	Op:    Op2Word(a[0].(j.NativeString).String()),
+	// 	Right: a[1].(Expr),
+	// })
+	// }
+	// no operations means result simply is `first`
+	if len(operations) == 0 {
+		return first
+	}
+	// The moss grows laterally:
+	//
+	//           [op1 first e1]
+	//      [op2 [op1 first e1] e2]
+	// [op3 [op2 [op1 first e1] e2] e3]       etc.
+	moss := first
+	for _, operation := range operations {
+		moss = &BinaryExpr{
+			Left:  moss,
+			Op:    operation.Op,
+			Right: operation.Right,
+		}
+	}
+	return moss
 }
 
 func fUnaryExpr(it j.Ast) j.Ast {

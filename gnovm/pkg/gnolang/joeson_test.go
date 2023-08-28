@@ -81,6 +81,7 @@ type (
 	isType                    struct{ string }
 	binaryExprEvaluatesAsInt  struct{ int }
 	binaryExprEvaluatesAsBool struct{ bool }
+	bxPolishNotationIs        struct{ string }
 	doom                      struct{}
 )
 
@@ -98,6 +99,7 @@ var (
 	_ predicate = isType{}
 	_ predicate = binaryExprEvaluatesAsInt{}
 	_ predicate = binaryExprEvaluatesAsBool{}
+	_ predicate = bxPolishNotationIs{}
 
 	// doom = stop tests (useful to stop from the middle of the list of
 	// tests to inspect one in particular)
@@ -441,6 +443,30 @@ func (e binaryExprEvaluatesAsBool) satisfies(ast j.Ast, expectation expectation)
 	}
 }
 
+// Check `polishNotationOf(ast.(*BinaryExpr)) == bxPolishNotationIs.string`.
+// An example of what is called polish notation is `[- [+ a b] c]`.
+func (e bxPolishNotationIs) satisfies(ast j.Ast, expectation expectation) error {
+	pn := polishNotationOf(ast.(*BinaryExpr))
+	if pn != e.string {
+		return errors.New(fmt.Sprintf("was expecting parsed binaryExpr %q polish notation to be %q, got %q",
+			expectation.unparsedString,
+			e.string,
+			pn,
+		))
+	}
+	return nil
+}
+
+// from recursive BinaryExpr produce a string such as `[+ [- a b ] c]`
+// when ast is Not a BinaryExpr, return ast.String()
+func polishNotationOf(ast j.Ast) string {
+	if bx, ok := ast.(*BinaryExpr); !ok {
+		return ast.String()
+	} else {
+		return "[" + bx.Op.TokenString() + " " + polishNotationOf(bx.Left) + " " + polishNotationOf(bx.Right) + "]"
+	}
+}
+
 func (doom) satisfies(ast j.Ast, expectation expectation) error {
 	fmt.Println("doom{} called")
 	os.Exit(1)
@@ -680,7 +706,8 @@ func TestJoeson(t *testing.T) {
 		//	2             &&
 		//	1             ||
 		expect(`a == d`, parsesAs{`a<VPUverse(0)> == d<VPUverse(0)>`}, isType{"BinaryExpr"}),
-		expect(`1 + 7*2`, isType{"BinaryExpr"}, binaryExprEvaluatesAsInt{15}),
+		expect(`3-2-1`, isType{"BinaryExpr"}, bxPolishNotationIs{"[- [- 3 2] 1]"}),
+		// expect(`1 + 7*2`, isType{"BinaryExpr"}, binaryExprEvaluatesAsInt{15}),
 		// expect(`7*2 + 1`, isType{"BinaryExpr"}, binaryExprEvaluatesAsInt{15}),
 		// expect(`7 + 1*2 == 7 + 1*2`, isType{"BinaryExpr"}, binaryExprEvaluatesAsBool{true}),
 		// expect(`a * b + c == d - e / f && 4 >= 1+1 || 7/1 == 7`, parsesAs{`x`}),

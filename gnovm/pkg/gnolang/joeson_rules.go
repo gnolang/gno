@@ -23,17 +23,21 @@ var (
 			i(named("SimpleStmt", `ExpressionStmt`), fSimpleStmt),
 			i(named("ExpressionStmt", `Expression`)),
 			i(named("Expression", rules(
-				o(`bx:(Expression binary_op Expression) | ux:UnaryExpr`),
+				// (see study in joeson/examples/precedence)
+				// "Expression" is normally `Expression binary_op Expression | UnaryExpr`
+				// because right recursion would affect precedence
+				// as explained by http://tratt.net/laurie/research/publications/html/tratt__direct_left_recursive_parsing_expression_grammars/
+				// we simply express is as in the two lines below instead:
+				o(`Expression binary_op UnaryExpr`, fBinaryExpr),
 				o(named("UnaryExpr", `PrimaryExpr | ux:(unary_op UnaryExpr)`), fUnaryExpr),
-				o(named("unary_op", qmot("+ - ! ^ * & <-"))),
-				// o(named("unary_op", qmot("<- & * ^ ! - +"))),
-				// o(named("binary_op", `mul_op | add_op | rel_op | '&&' | '||'`)),
-				o(named("binary_op", `'||' | '&&' | rel_op | add_op | mul_op`)),
-				o(named("mul_op", qmot("* / % << >> & &^"))),
-				o(named("add_op", qmot("+ - | ^"))),
-				// o(named("rel_op", `('==' _ | '!=' _ | '<' _ | '<=' _ | '>' _ | '>=' _)`)),
-				o(named("rel_op", `op:('==' | '!=' | '<' | '<=' | '>' | '>=') _:_`), func(it j.Ast) j.Ast { return it.(*j.NativeMap).GetOrPanic("op") }),
-				o(named("PrimaryExpr", rules(
+				i(named("unary_op", qmot("+ - ! ^ * & <-"))),
+				i(named("binary_op", rules(
+					o(`'||' | '&&' | rel_op | add_op | mul_op`),
+					i(named("mul_op", qmot("* / % << >> & &^"))),
+					i(named("add_op", qmot("+ - | ^"))),
+					i(named("rel_op", `op:('==' | '!=' | '<' | '<=' | '>' | '>=') _:_`), func(it j.Ast) j.Ast { return it.(*j.NativeMap).GetOrPanic("op") }),
+				))),
+				i(named("PrimaryExpr", rules(
 					o(`p:PrimaryExpr a:Arguments`, fPrimaryExprArguments),                            // e.g. `math.Atan2(x, y)`
 					o(`p:PrimaryExpr i:Index`, fPrimaryExprIndex),                                    // e.g. `something[1]`
 					o(`p:PrimaryExpr s:Slice`, fPrimaryExprSlice),                                    // e.g. `a[23 : 87]`
@@ -161,7 +165,7 @@ var (
 						i(named("TypeArgs", `'[' Type*',' ','? ']'`)), // note: TypeArgs seems not supported by X() ATM
 					))),
 				))),
-			)), fExpression),
+			)) /*, fExpression*/),
 			i(named("ExpressionList", `Expression+_COMMA`)),
 		))),
 		i(named("PackageClause", `'package' PackageName`)),
