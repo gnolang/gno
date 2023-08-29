@@ -1,32 +1,25 @@
 package flippando
 
 import (
-	"math/rand"
 	"std"
 	"testing"
 
+	"gno.land/p/demo/rand"
 	"gno.land/p/demo/testutils"
 )
 
 func TestGenerateRandomNumbers(t *testing.T) {
-	// Create a seed value for the random number generator to ensure deterministic testing.
-	// The seed can be any arbitrary value.
-	seed := 123
-
-	// Override the random number generator with a deterministic one for testing.
-	randIntn = func(n int) int {
-		seed = (seed*1103515245 + 12345) & 0x7FFFFFFF
-		return seed % n
-	}
+	// Create an instance of your custom deterministic random number generator.
+	randInstance := rand.New() // Use your custom Instance type here
 
 	// Test case 1: Positive test case
 	randomValues := generateRandomNumbers(4, 1, 4)
-	expectedValues := []int{1, 2, 3, 4} // Since we override the random number generator, we know the output.
+	expectedValues := []int{2, 3, 1, 4}
 	if !sliceEqual(randomValues, expectedValues) {
 		t.Fatalf("Expected %v, but got %v", expectedValues, randomValues)
 	}
 
-	// Test case 3: Edge case with num exceeding the range size
+	// Test case 2: Edge case with num exceeding the range size
 	randomValues = generateRandomNumbers(10, 1, 4)
 	if randomValues != nil {
 		t.Fatalf("Expected nil for num exceeding range size, but got %v", randomValues)
