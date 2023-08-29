@@ -182,9 +182,9 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 		cfg.rootDir = guessRootDir()
 	}
 
-	paths, err := gnoPackagesFromArgs(args)
+	paths, err := targetFromPatterns(args)
 	if err != nil {
-		return fmt.Errorf("list package paths from args: %w", err)
+		return fmt.Errorf("list targets from patterns: %w", err)
 	}
 	if len(paths) == 0 {
 		io.ErrPrintln("no packages to test")
