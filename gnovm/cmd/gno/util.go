@@ -117,7 +117,7 @@ func targetFromPatterns(patterns []string) ([]string, error) {
 		patternLookup := false
 		dirToSearch := p
 
-		// Check if the pattern includes `/...``
+		// Check if the pattern includes `/...`
 		if strings.Contains(p, "/...") {
 			index := strings.Index(p, "/...")
 			if index != -1 {
@@ -133,7 +133,7 @@ func targetFromPatterns(patterns []string) ([]string, error) {
 		}
 
 		// If the pattern is a file or a directory
-		// without `/...``, add it to the list.
+		// without `/...`, add it to the list.
 		if !info.IsDir() || !patternLookup {
 			paths = append(paths, p)
 			continue
