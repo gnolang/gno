@@ -707,6 +707,7 @@ func TestJoeson(t *testing.T) {
 		//	1             ||
 		expect(`a == d`, parsesAs{`a<VPUverse(0)> == d<VPUverse(0)>`}, isType{"BinaryExpr"}),
 		expect(`3-2-1`, isType{"BinaryExpr"}, bxPolishNotationIs{"[- [- 3 2] 1]"}),
+		expect(`1 + 7*2`, isType{"BinaryExpr"}, bxPolishNotationIs{"[+ 1 [* 7 2]]"}),
 		// expect(`1 + 7*2`, isType{"BinaryExpr"}, binaryExprEvaluatesAsInt{15}),
 		// expect(`7*2 + 1`, isType{"BinaryExpr"}, binaryExprEvaluatesAsInt{15}),
 		// expect(`7 + 1*2 == 7 + 1*2`, isType{"BinaryExpr"}, binaryExprEvaluatesAsBool{true}),
