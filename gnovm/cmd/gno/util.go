@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -105,51 +106,61 @@ func gnoPackagesFromArgs(args []string) ([]string, error) {
 	return paths, nil
 }
 
+// targetFromPatterns returns a list of target paths that match the patterns.
+// Each pattern can represent a file or a directory, and if the pattern
+// includes `/...“, it signifies a directory search.
+// Intended to be used by gno commands such as `gno test`.
 func targetFromPatterns(patterns []string) ([]string, error) {
 	paths := []string{}
 	for _, p := range patterns {
-		recursiveLookup := false
+		var match func(string) bool
+		patternLookup := false
+		dirToSearch := p
 
-		// TODO:
-		//     - Support more patterns
-		//     - Move this logic to separate helper function?
-		if strings.HasSuffix(p, "/...") {
-			recursiveLookup = true
-			p = strings.TrimSuffix(p, "/...")
+		// Check if the pattern includes `/...``
+		if strings.Contains(p, "/...") {
+			index := strings.Index(p, "/...")
+			if index != -1 {
+				dirToSearch = p[:index] // Extract the directory path to search
+			}
+			match = matchPattern(strings.TrimPrefix(p, "./"))
+			patternLookup = true
 		}
 
-		info, err := os.Stat(p)
+		info, err := os.Stat(dirToSearch)
 		if err != nil {
 			return nil, fmt.Errorf("invalid file or package path: %w", err)
 		}
 
-		// if the pattern is:
-		//     - a file
-		//     - a dir not followed by /...
-		// then we'll just add it to the list
-		if !info.IsDir() || !recursiveLookup {
+		// If the pattern is a file or a directory
+		// without `/...``, add it to the list.
+		if !info.IsDir() || !patternLookup {
 			paths = append(paths, p)
 			continue
 		}
 
-		// the passed arg is a dir folllowed by /... then we'll walk the dir recursively
-		// and look for directories containing at least one .gno file.
+		// the pattern is a dir containing `/...`, walk the dir recursively and
+		// look for directories containing at least one .gno file and match pattern.
 		visited := map[string]bool{} // used to run the builder only once per folder.
-		err = filepath.WalkDir(p, func(curpath string, f fs.DirEntry, err error) error {
+		err = filepath.WalkDir(dirToSearch, func(curpath string, f fs.DirEntry, err error) error {
 			if err != nil {
-				return fmt.Errorf("%s: walk dir: %w", p, err)
+				return fmt.Errorf("%s: walk dir: %w", dirToSearch, err)
 			}
+			// Skip directories and non ".gno" files.
 			if f.IsDir() || !isGnoFile(f) {
-				return nil // skip
+				return nil
 			}
 
 			parentDir := filepath.Dir(curpath)
 			if _, found := visited[parentDir]; found {
 				return nil
 			}
-			visited[parentDir] = true
 
-			paths = append(paths, parentDir)
+			visited[parentDir] = true
+			if match(parentDir) {
+				paths = append(paths, parentDir)
+			}
+
 			return nil
 		})
 		if err != nil {
@@ -157,6 +168,25 @@ func targetFromPatterns(patterns []string) ([]string, error) {
 		}
 	}
 	return paths, nil
+}
+
+// matchPattern(pattern)(name) reports whether
+// name matches pattern.  Pattern is a limited glob
+// pattern in which '...' means 'any string' and there
+// is no other special syntax.
+// Stolen from the go tool
+// Taken from: https://github.com/rogpeppe/showdeps/blob/master/showdeps.go
+func matchPattern(pattern string) func(name string) bool {
+	re := regexp.QuoteMeta(pattern)
+	re = strings.Replace(re, `\.\.\.`, `.*`, -1)
+	// Special case: foo/... matches foo too.
+	if strings.HasSuffix(re, `/.*`) {
+		re = re[:len(re)-len(`/.*`)] + `(/.*)?`
+	}
+	reg := regexp.MustCompile(`^` + re + `$`)
+	return func(name string) bool {
+		return reg.MatchString(name)
+	}
 }
 
 func fmtDuration(d time.Duration) string {
