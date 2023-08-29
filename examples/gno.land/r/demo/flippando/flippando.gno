@@ -89,6 +89,10 @@ func isValidGameType(tileType string) {
 	//   - utility function, checks valid tile types
 }
 
+func RenderHome() string {
+	return "render path"
+}
+
 // utils, to move into a separate package?
 
 func sqrt(x float64) float64 {
