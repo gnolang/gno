@@ -24,7 +24,7 @@ import (
 	"github.com/gotuna/gotuna"
 
 	"github.com/gnolang/gno/gno.land/cmd/gnoweb/static" // for static files
-	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"             // for error types
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"        // for error types
 	// "github.com/gnolang/gno/tm2/pkg/sdk"               // for baseapp (info, status)
 )
 

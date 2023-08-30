@@ -14,9 +14,9 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
 
+	_ "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	_ "github.com/gnolang/gno/tm2/pkg/sdk/auth" // XXX better way?
 	_ "github.com/gnolang/gno/tm2/pkg/sdk/bank"
-	_ "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 )
 
 type importCfg struct {
