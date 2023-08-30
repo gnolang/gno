@@ -38,7 +38,7 @@ GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 
 .PHONY: _test.cmd
 _test.cmd:
-	go test ./cmd/... $(GOTEST_FLAGS)
+	go test ./cmd/gno/... $(GOTEST_FLAGS)
 
 .PHONY: _test.pkg
 _test.pkg:
