@@ -50,7 +50,7 @@ func newTestCmd(io *commands.IO) *commands.Command {
 'gno test' recompiles each package along with any files with names matching the
 file pattern "*_test.gno" or "*_filetest.gno".
 
-The only <package> supported for now is a directory (relative or absolute).
+The <package> can be directory or file path (relative or absolute).
 
 - "*_test.gno" files work like "*_test.go" files, but they contain only test
 functions. Benchmark and fuzz functions aren't supported yet. Similarly, only
