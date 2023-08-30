@@ -2,8 +2,8 @@ package commands
 
 import (
 	"errors"
+	"os"
 	"strings"
-	"syscall"
 
 	"golang.org/x/term"
 )
@@ -39,7 +39,7 @@ func (io *IO) readLine() (string, error) {
 // readPassword reads the password from a terminal
 // without local echo
 func readPassword() (string, error) {
-	fd := syscall.Stdin
+	fd := int(os.Stdin.Fd())
 
 	inputPass, err := term.ReadPassword(fd)
 	if err != nil {
