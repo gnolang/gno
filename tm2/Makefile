@@ -16,7 +16,7 @@ _build.iaviewer:;   go build -o build/iaviewer   ./pkg/iavl/cmd/iaviewer
 
 .PHONY: install
 install:
-	go install ./cmd/...
+#	go install ./cmd/...
 
 .PHONY: clean
 clean:
