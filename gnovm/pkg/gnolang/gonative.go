@@ -760,7 +760,7 @@ func go2GnoValue2(alloc *Allocator, store Store, rv reflect.Value, recursive boo
 		// regardless.
 		tv.V = alloc.NewNative(rv)
 	case reflect.Interface:
-		// special case for errors, which are very often used esepcially in
+		// special case for errors, which are very often used especially in
 		// native bindings
 		if rv.Type() == tError {
 			tv.T = gErrorType
