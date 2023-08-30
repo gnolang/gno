@@ -2,6 +2,8 @@
 package names
 
 import (
+	"errors"
+	"regexp"
 	"std"
 
 	"gno.land/p/demo/avl"
@@ -12,49 +14,71 @@ import (
 // determine if an address can publish a package or not.
 var namespaces avl.Tree // name(string) -> Space
 
+// TODO: more accurate.
+var reNamespace = regexp.MustCompile(`^[a-z][a-z0-9_]{2,30}$`)
+
 type Space struct {
 	Admins  []std.Address
 	Editors []std.Address
 	InPause bool
 }
 
-func Register(namespace string) {
-	// TODO: input sanitization:
-	// - already exists / reserved.
-	// - min/max length, format.
-	// - fees (dynamic, based on length).
-	panic("not implemented")
+func (s *Space) isAdmin(addr std.Address) bool {
+	return containsAddress(s.Admins, addr)
 }
 
-func AddAdmin(namespace string, newAdmin std.Address) {
-	// TODO: assertIsAdmin()
-	panic("not implemented")
+func (s *Space) addAdmin(newAdmin std.Address) {
+	if !containsAddress(s.Admins, newAdmin) {
+		s.Admins = append(s.Admins, newAdmin)
+	}
 }
 
-func RemoveAdmin(namespace string, newAdmin std.Address) {
-	// TODO: assertIsAdmin()
-	// TODO: check if self.
-	panic("not implemented")
+func (s *Space) removeAdmin(admin std.Address) error {
+	if len(s.Admins) == 1 {
+		return errors.New("namespace at least needs one admin")
+	}
+	if isCallerAddress(admin) {
+		return errors.New("cannot remove self")
+	}
+	admins := removeAddress(s.Admins, admin)
+	s.Admins = admins
+	return nil
 }
 
-func AddEditor(namespace string, newAdmin std.Address) {
-	// TODO: assertIsAdmin()
-	panic("not implemented")
+func (s *Space) addEditor(newEditor std.Address) {
+	if !containsAddress(s.Editors, newEditor) {
+		s.Editors = append(s.Editors, newEditor)
+	}
 }
 
-func RemoveEditor(namespace string, newAdmin std.Address) {
-	// TODO: assertIsAdmin()
-	// TODO: check if self.
-	panic("not implemented")
+func (s *Space) removeEditor(editor std.Address) error {
+	if isCallerAddress(editor) {
+		return errors.New("cannot remove self")
+	}
+	editors := removeAddress(s.Editors, editor)
+	s.Editors = editors
+	return nil
 }
 
-func SetInPause(namespace string, state bool) {
-	// TODO: assertIsAdmin()
-	panic("not implemented")
+func (s *Space) hasPerm(caller std.Address) bool {
+	if s.InPause {
+		return false
+	}
+
+	if containsAddress(s.Admins, caller) {
+		return true
+	}
+
+	if containsAddress(s.Editors, caller) {
+		return true
+	}
+
+	return false
 }
 
-func Render(path string) string {
-	// TODO: by namespace.
-	// TODO: by address.
-	return "not implemented"
+func validateNamespace(namespace string) error {
+	if !reNamespace.MatchString(namespace) {
+		return errors.New("invalid namespace")
+	}
+	return nil
 }
