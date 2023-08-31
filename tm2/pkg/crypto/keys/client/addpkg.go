@@ -98,7 +98,7 @@ func execAddPkg(cfg *addPkgCfg, args []string, io *commands.IO) error {
 
 	// open files in directory as MemPackage.
 	memPkg := gno.ReadMemPackage(cfg.pkgDir, cfg.pkgPath)
-	if len(memPkg.Files) == 0 {
+	if memPkg.IsEmpty() {
 		panic(fmt.Sprintf("found an empty package %q", cfg.pkgPath))
 	}
 

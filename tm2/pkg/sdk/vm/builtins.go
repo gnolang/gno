@@ -25,7 +25,7 @@ func (vm *VMKeeper) initBuiltinPackagesAndTypes(store gno.Store) {
 			return nil, nil
 		}
 		memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
-		if len(memPkg.Files) == 0 {
+		if memPkg.IsEmpty() {
 			// no gno files are present, skip this package
 			return nil, nil
 		}

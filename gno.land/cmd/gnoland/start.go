@@ -235,7 +235,7 @@ func makeGenesisDoc(
 	for _, pkg := range nonDraftPkgs {
 		// open files in directory as MemPackage.
 		memPkg := gno.ReadMemPackage(pkg.Dir, pkg.Name)
-		if len(memPkg.Files) == 0 { // skip empty package
+		if memPkg.IsEmpty() { // skip empty package
 			continue
 		}
 

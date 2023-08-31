@@ -97,7 +97,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			stdlibPath := filepath.Join(rootDir, "gnovm", "stdlibs", pkgPath)
 			if osm.DirExists(stdlibPath) {
 				memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
-				if len(memPkg.Files) > 0 {
+				if !memPkg.IsEmpty() {
 					m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 						// NOTE: see also pkgs/sdk/vm/builtins.go
 						// XXX: why does this fail when just pkgPath?
@@ -418,7 +418,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			stdlibPath := filepath.Join(rootDir, "gnovm", "stdlibs", pkgPath)
 			if osm.DirExists(stdlibPath) {
 				memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
-				if len(memPkg.Files) == 0 {
+				if memPkg.IsEmpty() {
 					panic(fmt.Sprintf("found an empty package %q", pkgPath))
 				}
 
@@ -436,7 +436,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 		examplePath := filepath.Join(rootDir, "examples", pkgPath)
 		if osm.DirExists(examplePath) {
 			memPkg := gno.ReadMemPackage(examplePath, pkgPath)
-			if len(memPkg.Files) == 0 {
+			if memPkg.IsEmpty() {
 				panic(fmt.Sprintf("found an empty package %q", pkgPath))
 			}
 
