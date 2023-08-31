@@ -254,16 +254,6 @@ func (m *mapping) mergeTypes(gnoe, goe ast.Expr) ast.Expr {
 		return &linkedIdent{lt: lt}
 
 	// easier cases -- check for equality of structure and underlying types
-	case *ast.Ellipsis:
-		goe, ok := goe.(*ast.Ellipsis)
-		if !ok {
-			return nil
-		}
-		elt := m.mergeTypes(gnoe.Elt, goe.Elt)
-		if elt == nil {
-			return nil
-		}
-		return &ast.Ellipsis{Elt: elt}
 	case *ast.StarExpr:
 		goe, ok := goe.(*ast.StarExpr)
 		if !ok {
@@ -283,11 +273,17 @@ func (m *mapping) mergeTypes(gnoe, goe ast.Expr) ast.Expr {
 		if elt == nil {
 			return nil
 		}
-		return &ast.ArrayType{Len: gnoe.Len, Elt: elt}
+		var l ast.Expr
+		if gnoe.Len != nil {
+			l = &ast.BasicLit{Value: gnoe.Len.(*ast.BasicLit).Value}
+		}
+		return &ast.ArrayType{Len: l, Elt: elt}
+
 	case *ast.StructType,
 		*ast.FuncType,
 		*ast.InterfaceType,
-		*ast.MapType:
+		*ast.MapType,
+		*ast.Ellipsis:
 		// TODO
 		panic("not implemented")
 	default:

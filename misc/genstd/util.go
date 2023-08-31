@@ -57,15 +57,15 @@ func dirsOnceDo() {
 }
 
 func findDirs() (gitRoot string, relPath string, err error) {
-	abs, err := filepath.Abs(".")
+	wd, err := os.Getwd()
 	if err != nil {
 		return
 	}
-	p := abs
+	p := wd
 	for {
 		if s, e := os.Stat(filepath.Join(p, ".git")); e == nil && s.IsDir() {
 			// make relPath relative to the git root
-			rp := strings.TrimPrefix(abs, p+string(filepath.Separator))
+			rp := strings.TrimPrefix(wd, p+string(filepath.Separator))
 			// normalize separator to /
 			rp = strings.ReplaceAll(rp, string(filepath.Separator), "/")
 			return p, rp, nil
