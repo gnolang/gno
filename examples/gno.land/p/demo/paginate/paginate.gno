@@ -35,7 +35,7 @@ func navigation(numPages int, current int, reverse bool, pageFn pageFn) string {
 			Text: strconv.Itoa(i),
 			URL:  md.EscMDURL(pageurl),
 		}
-		str += link.String() + " "
+		str += link.String(nil) + " "
 	}
 	if i-1 == PaginateGap && i != current {
 		if i == current-PaginateGap/2 {
@@ -44,7 +44,7 @@ func navigation(numPages int, current int, reverse bool, pageFn pageFn) string {
 				Text: strconv.Itoa(i),
 				URL:  md.EscMDURL(pageurl),
 			}
-			str += link.String() + " "
+			str += link.String(nil) + " "
 			i += 1
 		} else {
 			str += "... "
@@ -59,7 +59,7 @@ func navigation(numPages int, current int, reverse bool, pageFn pageFn) string {
 				Text: strconv.Itoa(i),
 				URL:  md.EscMDURL(pageurl),
 			}
-			str += link.String() + " "
+			str += link.String(nil) + " "
 		}
 		return str
 	}
@@ -79,7 +79,7 @@ func navigation(numPages int, current int, reverse bool, pageFn pageFn) string {
 			Text: strconv.Itoa(i),
 			URL:  md.EscMDURL(pageurl),
 		}
-		str += link.String() + " "
+		str += link.String(nil) + " "
 	}
 	if i < numPages-PaginateGap+1 {
 		if i == numPages-PaginateGap {
@@ -88,43 +88,58 @@ func navigation(numPages int, current int, reverse bool, pageFn pageFn) string {
 				Text: strconv.Itoa(i),
 				URL:  md.EscMDURL(pageurl),
 			}
-			str += link.String() + " "
+			str += link.String(nil) + " "
 		} else {
 			str += "... "
 		}
 		i = numPages - PaginateGap + 1
 	}
 	for ; i <= numPages; i++ {
+		if i == current {
+			str += "*" + strconv.Itoa(i) + "* "
+			continue
+		}
+
 		pageurl := pageFn(i, numPages, reverse)
 		link := ui.Link{
 			Text: strconv.Itoa(i),
 			URL:  md.EscMDURL(pageurl),
 		}
-		str += link.String() + " "
+		str += link.String(nil) + " "
 	}
 	return str
 }
 
 func renderTreeItem(t avl.Tree, numPages, page, size int, reverse bool) string {
 	str := ""
-	offset := 0
+	offset := (page - 1) * size
 
 	if reverse {
-		offset = (numPages - page) * size
-	} else {
-		offset = (page - 1) * size
-	}
-	t.IterateByOffset(offset, size,
-		func(key string, value interface{}) bool {
-			r := value.(renderer)
-			str += "\n"
-			str += r.Render()
-			str += "\n"
-			str += "\n"
+		t.ReverseIterateByOffset((page-1)*size, size,
+			func(key string, value interface{}) bool {
+				r := value.(renderer)
+				str += "\n"
+				str += r.Render()
+				str += "\n"
+				str += "\n"
 
-			return true
-		},
-	)
+				return true
+			},
+		)
+	} else {
+		t.IterateByOffset(offset, size,
+			func(key string, value interface{}) bool {
+				r := value.(renderer)
+				str += "\n"
+				str += r.Render()
+				str += "\n"
+				str += "\n"
+
+				return true
+			},
+		)
+	}
+
 	return str
 }
 

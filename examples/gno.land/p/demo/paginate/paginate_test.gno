@@ -73,6 +73,38 @@ CONTENT OF TESTITEM: { content 2 }
 	}
 }
 
+func TestPaginateSize(t *testing.T) {
+	const testString = `*1* [2](%3A//here%20is%20the%20url/3) [3](%3A//here%20is%20the%20url/2) [4](%3A//here%20is%20the%20url/1) 
+
+CONTENT OF TESTITEM: { content 8 }
+
+
+CONTENT OF TESTITEM: { content 7 }
+
+*1* [2](%3A//here%20is%20the%20url/3) [3](%3A//here%20is%20the%20url/2) [4](%3A//here%20is%20the%20url/1) 
+`
+	res := RenderTreeByPage(mock, paginTest, 1, 2, false)
+	if res != testString {
+		t.Errorf("Expected %s got %s", testString, res)
+	}
+}
+
+func TestPaginateSizeReverse(t *testing.T) {
+	const testString = `*1* [2](%3A//here%20is%20the%20url/2) [3](%3A//here%20is%20the%20url/3) [4](%3A//here%20is%20the%20url/4) 
+
+CONTENT OF TESTITEM: { content 1 }
+
+
+CONTENT OF TESTITEM: { content 2 }
+
+*1* [2](%3A//here%20is%20the%20url/2) [3](%3A//here%20is%20the%20url/3) [4](%3A//here%20is%20the%20url/4) 
+`
+	res := RenderTreeByPage(mock, paginTest, 1, 2, true)
+	if res != testString {
+		t.Errorf("Expected %s got %s", testString, res)
+	}
+}
+
 func TestNavigation(t *testing.T) {
 	tests := []struct {
 		current  int
@@ -103,6 +135,21 @@ func TestNavigation(t *testing.T) {
 			current:  18,
 			numPages: 12,
 			expected: "[1](x) [2](x) [3](x) ... [10](x) [11](x) [12](x) ",
+		},
+		{
+			current:  1,
+			numPages: 12,
+			expected: "*1* [2](x) ... [10](x) [11](x) [12](x) ",
+		},
+		{
+			current:  11,
+			numPages: 12,
+			expected: "[1](x) [2](x) [3](x) ... [10](x) *11* [12](x) ",
+		},
+		{
+			current:  12,
+			numPages: 12,
+			expected: "[1](x) [2](x) [3](x) ... [11](x) *12* ",
 		},
 	}
 
