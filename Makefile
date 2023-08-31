@@ -25,6 +25,7 @@ test.components:
 	$(MAKE) --no-print-directory -C gnovm    test
 	$(MAKE) --no-print-directory -C gno.land test
 	$(MAKE) --no-print-directory -C examples test
+	$(MAKE) --no-print-directory -C misc     test
 
 .PHONY: test.docker
 test.docker:

@@ -1,0 +1,66 @@
+# tests the "misc" directory & tools
+# (not meant for miscellaneous workflows)
+name: misc
+
+on:
+  pull_request:
+    paths:
+      - "misc/genstd/**.go"
+      - "misc/Makefile"
+      - ".github/workflows/misc.yml"
+  push:
+    branches: [ "master" ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: # two latest versions
+          - "1.19.x"
+          - "1.20.x"
+        program:
+          - "genstd"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
+      - uses: actions/checkout@v3
+      - name: go install
+        working-directory: misc
+        run: go install ./${{ matrix.program }}
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: [ "1.19.x", "1.20.x" ]
+        args:
+          - _test.genstd
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
+      - uses: actions/checkout@v3
+      - name: test
+        working-directory: misc
+        run: |
+          export GOPATH=$HOME/go
+          export GOTEST_FLAGS="-v -p 1 -timeout=30m -coverprofile=coverage.out -covermode=atomic"
+          make ${{ matrix.args }}
+      - if: runner.os == 'Linux'
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          name: misc
+          flags: misc,misc-${{matrix.args}},go-${{ matrix.go-version }}
+          files: ./misc/coverage.out
+          fail_ci_if_error: false # temporarily
