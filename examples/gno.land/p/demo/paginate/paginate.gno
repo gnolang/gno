@@ -1,0 +1,201 @@
+package paginate
+
+import (
+	"strconv"
+
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/md"
+	"gno.land/p/demo/ui"
+)
+
+const PaginateGap = 3
+
+type pageFn func(page int, size int, reverse bool) string
+
+// TODO maybe put somewhere else.
+type renderer interface {
+	Render() string
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func navigation(numPages int, current int, reverse bool, pageFn pageFn) string {
+	str := ""
+
+	i := 1
+	upperLimit := min(PaginateGap+1, current)
+	for ; i < upperLimit; i++ {
+		pageurl := pageFn(i, numPages, reverse)
+		link := ui.Link{
+			Text: strconv.Itoa(i),
+			URL:  md.EscMDURL(pageurl),
+		}
+		str += link.String(nil) + " "
+	}
+	if i-1 == PaginateGap && i != current {
+		if i == current-PaginateGap/2 {
+			pageurl := pageFn(i, numPages, reverse)
+			link := ui.Link{
+				Text: strconv.Itoa(i),
+				URL:  md.EscMDURL(pageurl),
+			}
+			str += link.String(nil) + " "
+			i += 1
+		} else {
+			str += "... "
+		}
+	}
+
+	// sanity check
+	if current > numPages {
+		for i = numPages - PaginateGap + 1; i <= numPages; i++ {
+			pageurl := pageFn(i, numPages, reverse)
+			link := ui.Link{
+				Text: strconv.Itoa(i),
+				URL:  md.EscMDURL(pageurl),
+			}
+			str += link.String(nil) + " "
+		}
+		return str
+	}
+
+	if i < current-PaginateGap/2 {
+		i = current - PaginateGap/2
+	}
+
+	upperLimit = min(current+PaginateGap/2+1, numPages)
+	for ; i < upperLimit; i++ {
+		if i == current {
+			str += "*" + strconv.Itoa(i) + "* "
+			continue
+		}
+		pageurl := pageFn(i, numPages, reverse)
+		link := ui.Link{
+			Text: strconv.Itoa(i),
+			URL:  md.EscMDURL(pageurl),
+		}
+		str += link.String(nil) + " "
+	}
+	if i < numPages-PaginateGap+1 {
+		if i == numPages-PaginateGap {
+			pageurl := pageFn(i, numPages, reverse)
+			link := ui.Link{
+				Text: strconv.Itoa(i),
+				URL:  md.EscMDURL(pageurl),
+			}
+			str += link.String(nil) + " "
+		} else {
+			str += "... "
+		}
+		i = numPages - PaginateGap + 1
+	}
+	for ; i <= numPages; i++ {
+		if i == current {
+			str += "*" + strconv.Itoa(i) + "* "
+			continue
+		}
+
+		pageurl := pageFn(i, numPages, reverse)
+		link := ui.Link{
+			Text: strconv.Itoa(i),
+			URL:  md.EscMDURL(pageurl),
+		}
+		str += link.String(nil) + " "
+	}
+	return str
+}
+
+func renderTreeItem(t avl.Tree, numPages, page, size int, reverse bool) string {
+	str := ""
+	offset := (page - 1) * size
+
+	if reverse {
+		t.ReverseIterateByOffset((page-1)*size, size,
+			func(key string, value interface{}) bool {
+				r := value.(renderer)
+				str += "\n"
+				str += r.Render()
+				str += "\n"
+				str += "\n"
+
+				return true
+			},
+		)
+	} else {
+		t.IterateByOffset(offset, size,
+			func(key string, value interface{}) bool {
+				r := value.(renderer)
+				str += "\n"
+				str += r.Render()
+				str += "\n"
+				str += "\n"
+
+				return true
+			},
+		)
+	}
+
+	return str
+}
+
+// pageFn: path function to render paginattion links. if nil, no links are
+// rendered. result must start with ':'.
+// t: the tree with elements. each value must implement Render() string.
+// page: page number starting from 1.
+// size: page size.
+// reverse: reverse order.
+func RenderTreeByPage(
+	t avl.Tree,
+	pageFn pageFn,
+	page int, size int, reverse bool,
+) string {
+	// sanity checks
+	if page < 0 {
+		panic("invalid negative page to RenderTreeByPage")
+	}
+	if size <= 0 {
+		panic("invalid nonpositive size to RenderTreeByPage")
+	}
+
+	str := ""
+	nav := ""
+
+	numPages := (t.Size() / size)
+	if numPages < 1 {
+		panic("invalid tree size to RenderTreeByPage")
+	}
+
+	// render pagination
+	if pageFn == nil {
+		str += renderTreeItem(t, numPages, page, size, reverse)
+		return str
+	} else if page > numPages {
+		// page out of bounds.
+		// [1](...) [2](...) ... [101](...) [102)(...)
+		// where ... is result of pageFn().
+		nav = navigation(numPages, page, reverse, pageFn)
+		str += nav
+		str += "\n"
+		str += "page " + strconv.Itoa(page) + " out of bounds\n"
+		return str
+	} else {
+		// [1](...) *2* [3](...) [4](...) ... [101](...) [102)(...)
+		// where ... is result of pageFn().
+		nav = navigation(numPages, page, reverse, pageFn)
+		str += nav
+		str += "\n"
+		str += renderTreeItem(t, numPages, page, size, reverse)
+	}
+
+	// render pagination again if there are pages.
+	nav = navigation(numPages, page, reverse, pageFn)
+	str += nav
+	str += "\n"
+
+	return str
+}
