@@ -28,3 +28,7 @@ flags:
     paths:
       - gno.land
     after_n_builds: 3
+  misc:
+    paths:
+      - misc
+    after_n_builds: 1
