@@ -419,7 +419,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			if osm.DirExists(stdlibPath) {
 				memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
 				if len(memPkg.Files) == 0 {
-					panic(fmt.Sprintf("found an empty package `%s`", pkgPath))
+					panic(fmt.Sprintf("found an empty package %q", pkgPath))
 				}
 
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
@@ -437,7 +437,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 		if osm.DirExists(examplePath) {
 			memPkg := gno.ReadMemPackage(examplePath, pkgPath)
 			if len(memPkg.Files) == 0 {
-				panic(fmt.Sprintf("found an empty package `%s`", pkgPath))
+				panic(fmt.Sprintf("found an empty package %q", pkgPath))
 			}
 
 			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
