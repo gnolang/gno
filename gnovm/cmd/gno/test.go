@@ -182,7 +182,7 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 		cfg.rootDir = guessRootDir()
 	}
 
-	paths, err := targetFromPatterns(args)
+	paths, err := targetsFromPatterns(args)
 	if err != nil {
 		return fmt.Errorf("list targets from patterns: %w", err)
 	}

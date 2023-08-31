@@ -106,11 +106,11 @@ func gnoPackagesFromArgs(args []string) ([]string, error) {
 	return paths, nil
 }
 
-// targetFromPatterns returns a list of target paths that match the patterns.
+// targetsFromPatterns returns a list of target paths that match the patterns.
 // Each pattern can represent a file or a directory, and if the pattern
-// includes `/...“, it signifies a directory search.
+// includes "/...", the "..." is treated as a wildcard, matching any string.
 // Intended to be used by gno commands such as `gno test`.
-func targetFromPatterns(patterns []string) ([]string, error) {
+func targetsFromPatterns(patterns []string) ([]string, error) {
 	paths := []string{}
 	for _, p := range patterns {
 		var match func(string) bool
@@ -174,8 +174,8 @@ func targetFromPatterns(patterns []string) ([]string, error) {
 // name matches pattern.  Pattern is a limited glob
 // pattern in which '...' means 'any string' and there
 // is no other special syntax.
-// Stolen from the go tool
-// Taken from: https://github.com/rogpeppe/showdeps/blob/master/showdeps.go
+// Simplified version of go source's matchPatternInternal
+// (see $GOROOT/src/cmd/internal/pkgpattern)
 func matchPattern(pattern string) func(name string) bool {
 	re := regexp.QuoteMeta(pattern)
 	re = strings.Replace(re, `\.\.\.`, `.*`, -1)
