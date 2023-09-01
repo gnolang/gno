@@ -70,8 +70,12 @@ func (history *History) IterateHistory(height int64, cb func(ck Checkpoint)) {
 	}
 }
 
-// Returns the value at a given block number. If a checkpoint is not available at that block, the closest one
-// before it is returned, or zero otherwise.
+// Returns the value at a given block number.
+// If a checkpoint is not available at that block, the closest one before it is returned, or zero otherwise.
+
+// xxx: snapshot happens when token transferred. if(say), voter doesn't send or receive token at height 100, then there would
+// not be any record in the checkpoint at height 100, but it doesn't mean the voter is not qualified, he may have a snapshot
+// at 99, 98 or any height <100, which means the nearest snapshot is also counted.
 func (history *History) GetAtBlock(blockNumber int64) uint64 {
 	height := std.GetHeight()
 	if blockNumber >= height { // only mined blocks

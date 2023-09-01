@@ -79,8 +79,15 @@ func (gvr *Governor) castVote(propID string, voter std.Address, vt VoteType, mem
 		panic("Governor: vote not currently active")
 	}
 
-	// TODO: get weight, cast weighted vote
-	// xxx: how to choose the height? start? or arbitrary between the voting period.
+	// xxx: how to choose the height? start? or arbitrary between the voting period?
+	// snapshot mechanism is introduced to fix flash loan issues, that means the voting power of current
+	// height is not qualified to vote, since it would mutate(flash) to make double vote.
+	// so voting power of an account in `history` is required.
+	// we can require voter has a voting power at proposal's starting height, since when the proposal is submitted is not 100%
+	// predictable, so a deliberate `preparation` is impossible.
+	// e.g. say a proposal voting period is from 100 ~ 110, we can use the snapshot at 100, that is the start of voting period.
+
+	// Usually, we need to get voting power at or near a specific height.
 	weight := gvr.VotingPowerFromMemberAt(voter, gvr.proposalSnapshot(propID))
 
 	println("gvr cast vote, voter:", voter.String())
