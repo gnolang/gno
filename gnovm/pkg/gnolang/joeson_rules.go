@@ -35,21 +35,23 @@ var (
 				o(named("BinaryExpr", rules(
 					// o(`bxTerm (add_op bxTerm)*`, growMoss),
 
-					o(`bxLOr ('||' bxLOr)*`, growMoss),
+					o(`bxLOr (opLOR bxLOr)*`, growMoss),
 
-					i(named("bxLOr", `bxLAnd ('&&' bxLAnd)*`), growMoss),
+					i(named("bxLOr", `bxLAnd (opLAND bxLAnd)*`), growMoss),
 					i(named("bxLAnd", `bxRel (rel_op bxRel)*`), growMoss),
 					i(named("bxRel", `bxTerm (add_op bxTerm)*`), growMoss),
 
 					i(named("bxTerm", `bxFactor (mul_op bxFactor)*`), growMoss),
 					i(named("bxFactor", `'(' Expression ')' | UnaryExpr`)),
+					i(named("opLOR", `'||'`)),
+					i(named("opLAND", `'&&'`)),
 				))),
 				o(named("UnaryExpr", `PrimaryExpr | ux:(unary_op UnaryExpr)`), fUnaryExpr),
-				i(named("unary_op", qmot("+ - ! ^ * & <-"))),
+				i(named("unary_op", `'+' | '-' | '!' | '^' | '*' | ([&] !'&') | '<-'`)),
 				i(named("binary_op", rules(
 					o(`'||' | '&&' | rel_op | add_op | mul_op`),
-					i(named("mul_op", qmot("* / % << >> & &^"))),
-					i(named("add_op", qmot("+ - | ^"))),
+					i(named("mul_op", `'*' | '/' | '%' | '<<' | '>>' | ([&] !'&') | '&^'`)),
+					i(named("add_op", `'+' | '-' | ([|] !'|') | '^'`)),
 					i(named("rel_op", `op:('==' | '!=' | '<' | '<=' | '>' | '>=') _:_`), func(it j.Ast) j.Ast { return it.(*j.NativeMap).GetOrPanic("op") }),
 				))),
 				i(named("PrimaryExpr", rules(

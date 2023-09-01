@@ -68,21 +68,21 @@ type (
 		unparsedString string
 		predicates     []predicate
 	}
-	parsesAs                  struct{ string } // strict string equality
-	parsesAsChar              struct{ rune }   // strict string equality
-	parsesAsNil               struct{}
-	isBasicLit                struct{ kind Word }
-	isSelectorExpr            struct{}
-	isNameExpr                struct{}
-	isCallExpr                struct{}
-	errorIs                   struct{ string }
-	errorContains             struct{ string }
-	noError                   struct{}
-	isType                    struct{ string }
-	binaryExprEvaluatesAsInt  struct{ int }
-	binaryExprEvaluatesAsBool struct{ bool }
-	bxPolishNotationIs        struct{ string }
-	doom                      struct{}
+	parsesAs           struct{ string } // strict string equality
+	parsesAsChar       struct{ rune }   // strict string equality
+	parsesAsNil        struct{}
+	isBasicLit         struct{ kind Word }
+	isSelectorExpr     struct{}
+	isNameExpr         struct{}
+	isCallExpr         struct{}
+	errorIs            struct{ string }
+	errorContains      struct{ string }
+	noError            struct{}
+	isType             struct{ string }
+	bxEvaluatesAsInt   struct{ int }
+	bxEvaluatesAsBool  struct{ bool }
+	bxPolishNotationIs struct{ string }
+	doom               struct{}
 )
 
 var (
@@ -97,8 +97,8 @@ var (
 	_ predicate = errorContains{}
 	_ predicate = noError{}
 	_ predicate = isType{}
-	_ predicate = binaryExprEvaluatesAsInt{}
-	_ predicate = binaryExprEvaluatesAsBool{}
+	_ predicate = bxEvaluatesAsInt{}
+	_ predicate = bxEvaluatesAsBool{}
 	_ predicate = bxPolishNotationIs{}
 
 	// doom = stop tests (useful to stop from the middle of the list of
@@ -354,15 +354,16 @@ func vbool(bx *BinaryExpr) (left bool, right bool) {
 	return
 }
 
-// Used by binaryExprEvaluatesAsInt to write precedence tests.
-// return: bool or int
+// [deprecated] Used by binaryExprEvaluatesAsInt to write precedence tests.
+// return: bool (for rel_op, || and && ) or int (all other binary operators)
 // Severely limited binary expr evaluator!
 //   - it can evaluate only * + - == != < <= > >= && ||
 //   - only supports bool and int
 //   - Left and Right MUST be either another limited BinaryExpr
 //     or int or bool.
-//   - There's no point at all using this other than from
-//     very basic tests.
+//   - There's no point at all using this other than from very basic tests.
+//   - Probably better to use bxPolishNotationIs{} (no real need to eval
+//     anymore)
 func evaluateBinaryExpr(bx *BinaryExpr) interface{} {
 	switch bx.Op {
 	case MUL:
@@ -403,7 +404,10 @@ func evaluateBinaryExpr(bx *BinaryExpr) interface{} {
 	}
 }
 
-func (e binaryExprEvaluatesAsInt) satisfies(ast j.Ast, expectation expectation) error {
+func (e bxEvaluatesAsInt) satisfies(ast j.Ast, expectation expectation) error {
+	if e := (isType{"BinaryExpr"}).satisfies(ast, expectation); e != nil {
+		return e
+	}
 	if x, ok := evaluateBinaryExpr(ast.(*BinaryExpr)).(int); !ok {
 		return errors.New(fmt.Sprintf("was expecting binaryExpr %q to evaluate as int(%d), result is not int: %v",
 			expectation.unparsedString,
@@ -423,7 +427,10 @@ func (e binaryExprEvaluatesAsInt) satisfies(ast j.Ast, expectation expectation) 
 	}
 }
 
-func (e binaryExprEvaluatesAsBool) satisfies(ast j.Ast, expectation expectation) error {
+func (e bxEvaluatesAsBool) satisfies(ast j.Ast, expectation expectation) error {
+	if e := (isType{"BinaryExpr"}).satisfies(ast, expectation); e != nil {
+		return e
+	}
 	if x, ok := evaluateBinaryExpr(ast.(*BinaryExpr)).(bool); !ok {
 		return errors.New(fmt.Sprintf("was expecting binaryExpr %q to evaluate as bool(%v), result is not bool: %v",
 			expectation.unparsedString,
@@ -446,6 +453,9 @@ func (e binaryExprEvaluatesAsBool) satisfies(ast j.Ast, expectation expectation)
 // Check `polishNotationOf(ast.(*BinaryExpr)) == bxPolishNotationIs.string`.
 // An example of what is called polish notation is `[- [+ a b] c]`.
 func (e bxPolishNotationIs) satisfies(ast j.Ast, expectation expectation) error {
+	if e := (isType{"BinaryExpr"}).satisfies(ast, expectation); e != nil {
+		return e
+	}
 	pn := polishNotationOf(ast.(*BinaryExpr))
 	if pn != e.string {
 		return errors.New(fmt.Sprintf("was expecting parsed binaryExpr %q polish notation to be %q, got %q",
@@ -477,6 +487,7 @@ func (doom) satisfies(ast j.Ast, expectation expectation) error {
 
 func TestJoeson(t *testing.T) {
 	os.Setenv("TRACE", "stack")
+	trueFalseReplacer := strings.NewReplacer("T", "(1==1)", "F", "(0==1)")
 	tests := []expectation{
 		expect(``, parsesAsNil{}),
 		// https://golang.google.com/ref/spec#Integer_literals
@@ -699,21 +710,30 @@ func TestJoeson(t *testing.T) {
 		// no func until we parse statements
 		// expect(`func(x, y int) int { x + y }`, parsesAs{`[]`}, isType{"FunctionLit"}), // FIXME using FunctionLit and SimpleStmt we can't express anything interesting yet
 
-		// test precedence (from X())
+		// binary expressions and precedence tests
 		//	5             *  /  %  <<  >>  &  &^
 		//	4             +  -  |  ^
 		//	3             ==  !=  <  <=  >  >=
 		//	2             &&
 		//	1             ||
-		expect(`a == d`, parsesAs{`a<VPUverse(0)> == d<VPUverse(0)>`}, isType{"BinaryExpr"}),
-		expect(`3-2-1`, isType{"BinaryExpr"}, bxPolishNotationIs{"[- [- 3 2] 1]"}),
-		expect(`1 + 7*2`, isType{"BinaryExpr"}, bxPolishNotationIs{"[+ 1 [* 7 2]]"}),
-		// expect(`1 + 7*2`, isType{"BinaryExpr"}, binaryExprEvaluatesAsInt{15}),
-		// expect(`7*2 + 1`, isType{"BinaryExpr"}, binaryExprEvaluatesAsInt{15}),
-		// expect(`7 + 1*2 == 7 + 1*2`, isType{"BinaryExpr"}, binaryExprEvaluatesAsBool{true}),
+		// note: all bx...{} expectations have an implied `isType{"BinaryExpr"}` expectation
+		expect(`a == d`, parsesAs{`a<VPUverse(0)> == d<VPUverse(0)>`}, bxPolishNotationIs{"[== a<VPUverse(0)> d<VPUverse(0)>]"}),
+		expect(`3-2-1`, bxPolishNotationIs{"[- [- 3 2] 1]"}),
+		expect(`1 + 7*2`, bxPolishNotationIs{"[+ 1 [* 7 2]]"}, bxEvaluatesAsInt{15}),
+		expect(`7*2 + 1`, bxEvaluatesAsInt{15}),
+		expect(`7 + 1*2 == 7 + 1*2`, bxEvaluatesAsBool{true}),
+		expect(`7 + 1*2 == 7 + 1*3`, bxEvaluatesAsBool{false}),
+		// expect(`1+(-2+3)*-4`, isType{"UnaryExpr"}, bxEvaluatesAsInt{-3}),
+		// oeson_test.go:718: 1+(-2+3)*-4 parsed as 1 + -2 + 3 * -4 ERR type should have been UnaryExpr, not *gnolang.BinaryExp
 		// expect(`a * b + c == d - e / f && 4 >= 1+1 || 7/1 == 7`, parsesAs{`x`}),
 
-		// "Binary operators of the same precedence associate from left to right."
+		expect(`false || true`, bxPolishNotationIs{"[|| false<VPUverse(0)> true<VPUverse(0)>]"}),
+		expect(`false && true`, bxPolishNotationIs{"[&& false<VPUverse(0)> true<VPUverse(0)>]"}),
+		expect(`false && false || true && false`, isType{"BinaryExpr"}),
+		expect(trueFalseReplacer.Replace(`F && F || T && F`), bxEvaluatesAsBool{false}),
+		expect(trueFalseReplacer.Replace(`F && F || T && T`), bxEvaluatesAsBool{true}),
+		expect(trueFalseReplacer.Replace(`F && (F || T) && T`), bxEvaluatesAsBool{false}),
+		expect(trueFalseReplacer.Replace(`F && F || F || T`), bxEvaluatesAsBool{true}),
 	}
 	for _, expectation := range tests {
 		testExpectation(t, expectation)

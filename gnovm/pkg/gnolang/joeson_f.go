@@ -95,21 +95,29 @@ func fBinaryExpr(it j.Ast) j.Ast {
 	return moss
 }
 
-// this is in devpt and is supposed to replace fBinaryExpr
+// this is in devpt, should replace fBinaryExpr soon
 func growMoss(it j.Ast) j.Ast {
 	switch v := it.(type) {
 	case j.NativeString:
 		return v
 	}
 	first := it.(*j.NativeArray).Get(0)
+	rest := it.(*j.NativeArray).Get(1)
 	operations := []*BinaryExpr{}
-	for _, v := range it.(*j.NativeArray).Get(1).(*j.NativeArray).Array() {
-		a := v.(*j.NativeArray).Array()
-		operations = append(operations, &BinaryExpr{
-			Left:  nil,
-			Op:    Op2Word(a[0].String()),
-			Right: a[1].(Expr),
-		})
+	for _, v := range rest.(*j.NativeArray).Array() {
+		switch w := v.(type) {
+		case *j.NativeArray:
+			a := w.Array()
+			operations = append(operations, &BinaryExpr{
+				Left:  nil,
+				Op:    Op2Word(a[0].String()),
+				Right: a[1].(Expr),
+			})
+		case *BinaryExpr:
+			return w
+		default:
+			panic("assert type=" + reflect.TypeOf(w).String() + " String()=" + w.String())
+		}
 	}
 	// no operations means result simply is `first`
 	if len(operations) == 0 {
