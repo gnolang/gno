@@ -736,10 +736,11 @@ func TestJoeson(t *testing.T) {
 		expect(`7 + 1*2 == 7 + 1*2`, bxEvaluatesAsBool{true}),
 		expect(`7 + 1*2 == 7 + 1*3`, bxEvaluatesAsBool{false}),
 		expect(`7 + -1`, bxEvaluatesAsInt{6}, bxPolishNotationIs{"[+ 7 -1]"}),
-		// expect(`1+(-2+3)*-4`, isType{"UnaryExpr"}, bxEvaluatesAsInt{-3}),
-		// oeson_test.go:718: 1+(-2+3)*-4 parsed as 1 + -2 + 3 * -4 ERR type should have been UnaryExpr, not *gnolang.BinaryExp
-		// expect(`a * b + c == d - e / f && 4 >= 1+1 || 7/1 == 7`, parsesAs{`x`}),
-
+		expect(`1+(-2+3)*-4`, bxEvaluatesAsInt{-3}),
+		expect(
+			`a * b + c == d - e / f && 4 >= 1+1 || 7/1 == 7`,
+			bxPolishNotationIs{`[|| [&& [== [+ [* a<VPUverse(0)> b<VPUverse(0)>] c<VPUverse(0)>] [- d<VPUverse(0)> [/ e<VPUverse(0)> f<VPUverse(0)>]]] [>= 4 [+ 1 1]]] [== [/ 7 1] 7]]`},
+		),
 		expect(`false || true`, bxPolishNotationIs{"[|| false<VPUverse(0)> true<VPUverse(0)>]"}),
 		expect(`false && true`, bxPolishNotationIs{"[&& false<VPUverse(0)> true<VPUverse(0)>]"}),
 		expect(`false && false || true && false`, isType{"BinaryExpr"}),

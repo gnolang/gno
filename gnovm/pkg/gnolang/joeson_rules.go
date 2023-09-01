@@ -52,7 +52,7 @@ var (
 					o(`'||' | '&&' | rel_op | add_op | mul_op`),
 					i(named("mul_op", `'*' | '/' | '%' | '<<' | '>>' | ([&] !'&') | '&^'`)),
 					i(named("add_op", `'+' | '-' | ([|] !'|') | '^'`)),
-					i(named("rel_op", `op:('==' | '!=' | '<' | '<=' | '>' | '>=') _:_`), func(it j.Ast) j.Ast { return it.(*j.NativeMap).GetOrPanic("op") }),
+					i(named("rel_op", `op:('==' | '!=' | '<=' | '>=' | '<' | '>') _:_`), func(it j.Ast) j.Ast { return it.(*j.NativeMap).GetOrPanic("op") }),
 				))),
 				i(named("PrimaryExpr", rules(
 					o(`p:PrimaryExpr a:Arguments`, fPrimaryExprArguments),                            // e.g. `math.Atan2(x, y)`
