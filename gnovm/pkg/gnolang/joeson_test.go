@@ -312,31 +312,43 @@ func (t isType) satisfies(ast j.Ast, expectation expectation) error {
 	return nil
 }
 
+// [deprecated] Pseudo evaluation of expressions to test parsing
+// is now deprecated in favor of usage of bxPolishNotationIs{}.
+//
 // extract or eval left and right sides of BinaryExpr as int
 // supposes limitations explained in evaluateBinaryExpr,
-// and that BasicLitExpr of Kind INT be used as operands.
+// and that:
+// - BasicLitExpr of Kind INT be used as operands,
+// - or (for things like `a + -b`) UnaryExpr{-, BasicLitExpr}
 func vint(bx *BinaryExpr) (left int, right int) {
-	if lx, ok := bx.Left.(*BinaryExpr); ok {
-		left = evaluateBinaryExpr(lx).(int)
-	} else {
-		ble := bx.Left.(*BasicLitExpr)
-		if ble.Kind != INT {
-			panic("assert")
-		}
-		left, _ = strconv.Atoi(ble.Value)
-	}
-	if rx, ok := bx.Right.(*BinaryExpr); ok {
-		right = evaluateBinaryExpr(rx).(int)
-	} else {
-		ble := bx.Right.(*BasicLitExpr)
-		if ble.Kind != INT {
-			panic("assert")
-		}
-		right, _ = strconv.Atoi(ble.Value)
-	}
-	return
+	return evalInt(bx.Left), evalInt(bx.Right)
 }
 
+// [deprecated]. used by vint which is also deprecated.
+func evalInt(x Expr) int {
+	switch v := x.(type) {
+	case *BinaryExpr:
+		return evaluateBinaryExpr(v).(int)
+	case *UnaryExpr:
+		if v.Op == SUB {
+			return -evalInt(v.X)
+		} else {
+			panic("only UnaryExpr allowed in vint is `-`")
+		}
+	case *BasicLitExpr:
+		if v.Kind != INT {
+			panic("assert")
+		}
+		r, _ := strconv.Atoi(v.Value)
+		return r
+	default:
+		panic("assert")
+	}
+}
+
+// [deprecated] Pseudo evaluation of expressions to test parsing
+// is now deprecated in favor of usage of bxPolishNotationIs{}.
+//
 // eval left and right sides of BinaryExpr as bool
 // as in a && b and a || b. No extraction is done as in vint.
 // This is not to be used outside of evaluateBinaryExpr.
@@ -723,6 +735,7 @@ func TestJoeson(t *testing.T) {
 		expect(`7*2 + 1`, bxEvaluatesAsInt{15}),
 		expect(`7 + 1*2 == 7 + 1*2`, bxEvaluatesAsBool{true}),
 		expect(`7 + 1*2 == 7 + 1*3`, bxEvaluatesAsBool{false}),
+		expect(`7 + -1`, bxEvaluatesAsInt{6}, bxPolishNotationIs{"[+ 7 -1]"}),
 		// expect(`1+(-2+3)*-4`, isType{"UnaryExpr"}, bxEvaluatesAsInt{-3}),
 		// oeson_test.go:718: 1+(-2+3)*-4 parsed as 1 + -2 + 3 * -4 ERR type should have been UnaryExpr, not *gnolang.BinaryExp
 		// expect(`a * b + c == d - e / f && 4 >= 1+1 || 7/1 == 7`, parsesAs{`x`}),
