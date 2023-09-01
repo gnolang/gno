@@ -75,6 +75,11 @@ func Propose(title, detail, summary, url string, payee std.Address, amount std.C
 		gov_token.TransferVotingPower(zeroAddress, payee, uint64(amt))
 		// get amount of payee, and use this to update weights
 		amount := gov_token.GetAmount(payee)
+
+		// TODO: move customizable equation helper here.
+		// calculate tiers and voting powers based on tokens, time gated, etc.
+		// give proper weight as a final voting power
+
 		contrib_dao.UpdateWeightCheckPoints(payee, int32(amount), 7) // TODO: consistency of all int32, uint64 for all tokens
 		return nil
 	})

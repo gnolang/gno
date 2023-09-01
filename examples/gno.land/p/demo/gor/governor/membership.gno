@@ -17,13 +17,18 @@ type Membership interface {
 
 type VotingPowerType int
 
-//const (
-//	VP_Fixed_1 VotingPowerType = iota // voting power set to 1 per member
-//	VP_ByToken                        // voting power determined by tokens one hold in specific snapshot
-//)
+const (
+	VP_Fixed_1 VotingPowerType = iota // voting power set to fixed value per member
+	VP_Grc20                          // voting power determined by grc20 token
+	VP_Grc721                         // voting power determined by grc721 token
+	VP_Native                         // voting power determined by native token, worx?
+)
 
 type GroupAdapter struct {
 	groupID groups.GroupID // where voting power comes from
+	// grc* token, native token, etc. determines voting power as a factor, one per dao
+	// xxx: voting power is determined by several gates, like tokens, time gate, etc.
+	votingPowerType VotingPowerType
 }
 
 func NewGroupAdapter(gid groups.GroupID) *GroupAdapter {
