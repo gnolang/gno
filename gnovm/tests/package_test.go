@@ -14,6 +14,7 @@ import (
 	// "go/build"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/jaekwon/testify/require"
 )
 
 func TestPackages(t *testing.T) {
@@ -60,9 +61,7 @@ func runPackageTest(t *testing.T, dir string, path string) {
 	t.Helper()
 
 	memPkg := gno.ReadMemPackage(dir, path)
-	if memPkg.IsEmpty() {
-		panic(fmt.Sprintf("found an empty package %q", path))
-	}
+	require.False(t, memPkg.IsEmpty())
 
 	stdin := new(bytes.Buffer)
 	// stdout := new(bytes.Buffer)
