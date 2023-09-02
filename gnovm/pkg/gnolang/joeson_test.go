@@ -650,9 +650,8 @@ func TestJoeson(t *testing.T) {
 		expectError(`⽔`, ""),  // (not a letter, but So / Symbol, other)
 		expectError(`x🌞`, ""), // (starts with a letter, but contains non-letter/digit characters)
 
-		// expect(`package math`, parsesAs{"package math"}), // unsupported by X() AFAIK -> don't bother Stmt and scopes for now
-		expect(`math.Sin`, parsesAs{"math<VPUverse(0)>.Sin"}, isSelectorExpr{}), // denotes the Sin function in package math
-
+		// expect(`package math`, parsesAs{"package math"}), // unsupported by X() AFAIK -> don't deal with Stmt and scopes for now
+		expect(`math.Sin`, parsesAs{"math<VPUverse(0)>.Sin"}, isSelectorExpr{}),                                       // denotes the Sin function in package math
 		expect(`math.Atan2(x, y)`, parsesAs{"math<VPUverse(0)>.Atan2(x<VPUverse(0)>, y<VPUverse(0)>)"}, isCallExpr{}), // function call
 
 		expect(`h(x+y)`, parsesAs{"h<VPUverse(0)>(x<VPUverse(0)> + y<VPUverse(0)>)"}, isCallExpr{}),
@@ -723,12 +722,31 @@ func TestJoeson(t *testing.T) {
 		// expect(`func(x, y int) int { x + y }`, parsesAs{`[]`}, isType{"FunctionLit"}), // FIXME using FunctionLit and SimpleStmt we can't express anything interesting yet
 
 		// binary expressions and precedence tests
+		// note: all bx...{} expectations have an implied `isType{"BinaryExpr"}` expectation
 		//	5             *  /  %  <<  >>  &  &^
 		//	4             +  -  |  ^
 		//	3             ==  !=  <  <=  >  >=
 		//	2             &&
 		//	1             ||
-		// note: all bx...{} expectations have an implied `isType{"BinaryExpr"}` expectation
+		expect(`5 * 3`, bxPolishNotationIs{"[* 5 3]"}),
+		expect(`5 / 3`, bxPolishNotationIs{"[/ 5 3]"}),
+		expect(`5 % 3`, bxPolishNotationIs{"[% 5 3]"}),
+		expect(`5 << 3`, bxPolishNotationIs{"[<< 5 3]"}),
+		expect(`5 >> 3`, bxPolishNotationIs{"[>> 5 3]"}),
+		expect(`5 & 3`, bxPolishNotationIs{"[& 5 3]"}),
+		expect(`5 &^ 3`, bxPolishNotationIs{"[&^ 5 3]"}),
+		expect(`4 + 4`, bxPolishNotationIs{"[+ 4 4]"}),
+		expect(`4 - 4`, bxPolishNotationIs{"[- 4 4]"}),
+		expect(`4 | 4`, bxPolishNotationIs{"[| 4 4]"}),
+		expect(`4 ^ 4`, bxPolishNotationIs{"[^ 4 4]"}),
+		expect(`3 == 4`, bxPolishNotationIs{"[== 3 4]"}),
+		expect(`3 != 4`, bxPolishNotationIs{"[!= 3 4]"}),
+		expect(`3 < 4`, bxPolishNotationIs{"[< 3 4]"}),
+		expect(`3 <= 4`, bxPolishNotationIs{"[<= 3 4]"}),
+		expect(`3 > 4`, bxPolishNotationIs{"[> 3 4]"}),
+		expect(`3 >= 4`, bxPolishNotationIs{"[>= 3 4]"}),
+		expect(`a && b`, bxPolishNotationIs{"[&& a<VPUverse(0)> b<VPUverse(0)>]"}),
+		expect(`a || b`, bxPolishNotationIs{"[|| a<VPUverse(0)> b<VPUverse(0)>]"}),
 		expect(`a == d`, parsesAs{`a<VPUverse(0)> == d<VPUverse(0)>`}, bxPolishNotationIs{"[== a<VPUverse(0)> d<VPUverse(0)>]"}),
 		expect(`3-2-1`, bxPolishNotationIs{"[- [- 3 2] 1]"}),
 		expect(`1 + 7*2`, bxPolishNotationIs{"[+ 1 [* 7 2]]"}, bxEvaluatesAsInt{15}),

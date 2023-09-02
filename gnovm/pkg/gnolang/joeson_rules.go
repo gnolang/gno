@@ -50,7 +50,7 @@ var (
 				i(named("unary_op", `'+' | '-' | '!' | '^' | '*' | ([&] !'&') | '<-'`)),
 				i(named("binary_op", rules(
 					o(`'||' | '&&' | rel_op | add_op | mul_op`),
-					i(named("mul_op", `'*' | '/' | '%' | '<<' | '>>' | ([&] !'&') | '&^'`)),
+					i(named("mul_op", `'*' | '/' | '%' | '<<' | '>>' | '&^' | ([&] !'&')`)),
 					i(named("add_op", `'+' | '-' | ([|] !'|') | '^'`)),
 					i(named("rel_op", `op:('==' | '!=' | '<=' | '>=' | '<' | '>') _:_`), func(it j.Ast) j.Ast { return it.(*j.NativeMap).GetOrPanic("op") }),
 				))),
