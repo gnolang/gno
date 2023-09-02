@@ -53,6 +53,7 @@ func BenchmarkGoLevelDBIteratorSubset(b *testing.B) {
 }
 
 func newDBb(b *testing.B) DB {
+	b.Helper()
 	name := fmt.Sprintf("test_%x", randStr(12))
 	db, err := NewGoLevelDB(name, b.TempDir())
 	if err != nil {
