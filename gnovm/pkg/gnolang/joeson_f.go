@@ -1,7 +1,6 @@
 package gnolang
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -11,9 +10,54 @@ import (
 	j "github.com/grepsuzette/joeson"
 )
 
+// Parser functions (rule callbacks)
+// Naming convention:
+// - fXxx(it Ast[, *ParseContext]) Ast // for a rule named "Xxx".
+// - fxxx(it Ast[, *ParseContext]) Ast // for a rule named "xxx".
+// - ffXxx(someArg) func(it Ast, *ParseContext) Ast // this returns a function
+
+// About panics and heart attacks:
+//
+// - panic("assert") denotes an unreachable code (i.e. it's useless to elaborate).
+//
+// - panic(msg) is an unexpected error but will panic with a message to help
+//  the rule implementors. One day, those may as well become panic("assert"),
+//  they must not happen and will indeed panic.
+//
+// - panic(ctx.Error(msg)) is for ParseError, and will not panic (recovered). It
+// will however stop parsing rules for the current expression and return
+// for an Ast the ParseError built from `msg`. A rule callback may simply
+// employ ffPanic below that uses this way but inline:
+// ```
+// i(named(
+//	"octal_byte_value_err1", `a:'\\' (?octal_digit{4,})`),
+//	ffPanic("illegal: too many octal digits"),
+// ),
+// ```
+//
+// A last word about panics.
+//
+// Rules written with joeson can produce NativeString, *NativeMap, *NativeArray
+// and NativeInt depending on the rule itself. For instance there
+// is a rule like this:
+// o(`p:PrimaryExpr a:Arguments`, fPrimaryExprArguments)
+//
+// The fPrimaryExprArguments parser function will receive a NativeMap
+// with keys "p" and "a". It is customary to access them in a forceful way
+// like this: `primary := it.(*j.NativeMap).GetOrPanic("p")`.
+//
+// This is because both rules and parser functions are supposed to
+// go hand in hand and hard assumptions are therefore perfectly normal
+// (a parser function receiving an unexpected input is facing a broken grammar,
+// and there is no way to recover from this, at least from the rules + parser
+// functions themselves).
+// ∎
+
 // Panic with a ParseError made from msg string.
 // ParseErrors panics are recovered higher up, in parseX().
-// This is the correct way to give a custom, fine error.
+// This is a way to give a custom, fine error inline from
+// a rule, or you may choose to panic(ctx.Error(msg)) if
+// within a parser function.
 func ffPanic(msg string) func(j.Ast, *j.ParseContext) j.Ast {
 	return func(it j.Ast, ctx *j.ParseContext) j.Ast {
 		panic(ctx.Error(msg))
@@ -28,24 +72,7 @@ func ffPanicNearContext(msg string) func(j.Ast, *j.ParseContext) j.Ast {
 	}
 }
 
-// parse functions
-// Naming convention:
-// - fXxx(it Ast, *ParseContext) Ast
-// - ffXxx(someArg) func(it Ast, *ParseContext) Ast
-
-func stringIt(it j.Ast) (string, error) {
-	switch v := it.(type) {
-	case *j.NativeArray:
-		return v.Concat(), nil
-	case *j.NativeMap:
-		return v.Concat(), nil
-	case j.NativeString:
-		return string(v), nil
-	default:
-		return "", errors.New(fmt.Sprintf("Unexpected type in stringIt: %s", reflect.TypeOf(it).String()))
-	}
-}
-
+// Helper
 // peel([ [ a,b,... ] ]) -> [a,b,...]
 // Assert `it` is NativeArray.
 // Useful when rules would create two or more levels of NativeArray.
@@ -127,44 +154,23 @@ func growMoss(it j.Ast) j.Ast {
 	return moss
 }
 
-func fUnaryExpr(it j.Ast) j.Ast {
-	// PrimaryExpr | ux:(unary_op _ UnaryExpr)
-	if m, ok := it.(*j.NativeMap); ok {
-		if ux, ok := m.GetExists("ux"); !ok {
-			panic(fmt.Sprintf("key ux not found in %s", m.String()))
-		} else {
-			a := ux.(*j.NativeArray).Array()
-			op := a[0].(j.NativeString).String()
-			switch op {
-			case "*":
-				return &StarExpr{
-					X: a[1].(Expr),
-				}
-			case "&":
-				return &RefExpr{
-					X: a[1].(Expr),
-				}
-			case "+", "-", "!", "^", "<-":
-				return &UnaryExpr{
-					Op: Op2Word(op),
-					X:  a[1].(Expr),
-				}
-			default:
-				panic("assert")
-			}
-		}
-	} else {
-		return it
-	}
-}
+// parser functions (rule callbacks) ------------------
+// these allow to map the Ast produced automatically
+// by the joeson rules into something else (usually,
+// something like a gnolang.Expr, that implements both
+// joeson.Ast and gnolang.Node).
 
 func ffInt(base int) func(j.Ast, *j.ParseContext) j.Ast {
 	return func(it j.Ast, ctx *j.ParseContext) j.Ast {
-		var e error
 		var s string
-		s, e = stringIt(it)
-		if e != nil {
-			return ctx.Error(e.Error())
+		var e error
+		switch v := it.(type) {
+		case j.NativeString:
+			s = v.String()
+		case *j.NativeArray:
+			s = v.Concat()
+		default:
+			panic("unsupported type " + reflect.TypeOf(it).String() + " in ffInt")
 		}
 		if strings.HasSuffix(s, "_") {
 			panic(ctx.Error("invalid: _ must separate successive digits"))
@@ -262,31 +268,19 @@ func foctal_byte_value(it j.Ast, ctx *j.ParseContext) j.Ast {
 	panic(fmt.Sprintf("unexpected type %s", reflect.TypeOf(it).String()))
 }
 
+// Returns &BasicLitExpr
 func finterpreted_string_lit(it j.Ast, ctx *j.ParseContext) j.Ast {
-	if j.IsParseError(it) {
-		return it
-	}
-	if s, e := stringIt(it); e == nil {
-		return &BasicLitExpr{
-			Kind:  STRING,
-			Value: `"` + s + `"`,
-		}
-	} else {
-		return ctx.Error(e.Error())
+	return &BasicLitExpr{
+		Kind:  STRING,
+		Value: `"` + it.(*j.NativeArray).Concat() + `"`,
 	}
 }
 
+// Returns &BasicLitExpr
 func fraw_string_lit(it j.Ast, ctx *j.ParseContext) j.Ast {
-	if j.IsParseError(it) {
-		return it
-	}
-	if s, e := stringIt(it); e == nil {
-		return &BasicLitExpr{
-			Kind:  STRING,
-			Value: "`" + s + "`",
-		}
-	} else {
-		return ctx.Error(e.Error())
+	return &BasicLitExpr{
+		Kind:  STRING,
+		Value: "`" + it.(*j.NativeArray).Concat() + "`",
 	}
 }
 
@@ -295,13 +289,20 @@ func ffBasicLit(kind Word) func(j.Ast, *j.ParseContext) j.Ast {
 		if j.IsParseError(it) {
 			return it
 		}
-		if s, e := stringIt(it); e == nil {
-			return &BasicLitExpr{
-				Kind:  kind,
-				Value: s,
-			}
-		} else {
-			return ctx.Error(e.Error())
+		s := ""
+		switch v := it.(type) {
+		case *j.NativeArray:
+			s = v.Concat()
+		case *j.NativeMap:
+			s = v.Concat()
+		case j.NativeString:
+			s = string(v)
+		default:
+			panic(fmt.Sprintf("Unexpected type in ffBasicLit: %s", reflect.TypeOf(it).String()))
+		}
+		return &BasicLitExpr{
+			Kind:  kind,
+			Value: s,
 		}
 	}
 }
@@ -313,14 +314,15 @@ func fSimpleStmt(it j.Ast) j.Ast {
 	return it
 }
 
-// same as identifier (*NameExpr), but when Name is the blank identifier panic with a ParseError
+// same as identifier (*NameExpr), but when Name
+// is the blank identifier panic with a ParseError
 func fPackageName(it j.Ast, ctx *j.ParseContext) j.Ast {
 	if it.(*NameExpr).String() == "_" {
 		panic(ctx.Error("PackageName must not be the blank identifier"))
 	} else {
-		// experiment, trying to differentiate `identifier` from package name
-		// here, as they are both NameExpr. Until a better idea.
-		// See fPrimaryExprSelector()
+		// So we can check the "selector operate on primary expression
+		// that is not a package name" spec from golang.
+		// See fPrimaryExprSelector() or "i_m_a_package_name" in this file
 		it.(*NameExpr).SetAttribute("i_m_a_package_name", "1")
 		return it
 	}
@@ -351,7 +353,8 @@ func fCompositeLit(it j.Ast) j.Ast {
 	}
 }
 
-// returns a &KeyValueExpr, with possibly nil Key when just a Value is available.
+// returns a &KeyValueExpr.
+// The Key can be nil if it has just a Value.
 func fKeyedElement(it j.Ast, ctx *j.ParseContext) j.Ast {
 	a := it.(*j.NativeArray).Array()
 	var k Expr
@@ -378,7 +381,7 @@ func fQualifiedIdent(it j.Ast, ctx *j.ParseContext) j.Ast {
 	}
 }
 
-// returns a NativeMap,
+// Prepare information for fPrimaryExprArguments. Returns a NativeMap.
 // It resembles a CallExpr without Func:
 // "Args"    Exprs        function arguments, if any.
 // "Varg"	 NativeInt    if 1, final arg is variadic.
@@ -386,21 +389,57 @@ func fQualifiedIdent(it j.Ast, ctx *j.ParseContext) j.Ast {
 func fArguments(it j.Ast, ctx *j.ParseContext) j.Ast {
 	switch m := it.(type) {
 	case j.NativeUndefined:
+		// empty arguments, okay
 		return j.NewNativeMap(map[string]j.Ast{
 			"Args":    j.NewNativeArray([]j.Ast{}),
 			"NumArgs": j.NewNativeInt(0),
 			"Varg":    j.NewNativeInt(0),
 		})
 	case *j.NativeMap:
+		// actual arguments.
+		// Prepare information for fPrimaryExprArguments
 		args := m.GetOrPanic("Args").(*j.NativeArray)
 		m.Set("NumArgs", j.NewNativeInt(args.Length()))
-		return m // this will be used in e.g. fPrimaryExprArguments()
+		return m
 	default:
 		panic("assert")
 	}
 }
 
-// This returns a &CallExpr
+func fUnaryExpr(it j.Ast) j.Ast {
+	// Rule: `PrimaryExpr | ux:(unary_op _ UnaryExpr)`
+	if m, ok := it.(*j.NativeMap); ok {
+		if ux, ok := m.GetExists("ux"); !ok {
+			panic(fmt.Sprintf("key ux not found in %s", m.String()))
+		} else {
+			a := ux.(*j.NativeArray).Array()
+			op := a[0].(j.NativeString).String()
+			switch op {
+			case "*":
+				return &StarExpr{
+					X: a[1].(Expr),
+				}
+			case "&":
+				return &RefExpr{
+					X: a[1].(Expr),
+				}
+			case "+", "-", "!", "^", "<-":
+				return &UnaryExpr{
+					Op: Op2Word(op),
+					X:  a[1].(Expr),
+				}
+			default:
+				panic("assert")
+			}
+		}
+	} else {
+		return it
+	}
+}
+
+// Returns a &CallExpr
+// Information ("a:Arguments") as been prepared by fArguments,
+// including variadicity
 func fPrimaryExprArguments(it j.Ast, ctx *j.ParseContext) j.Ast {
 	m := it.(*j.NativeMap)
 	primaryExpr := m.GetOrPanic("p").(Expr)
@@ -422,7 +461,7 @@ func fPrimaryExprArguments(it j.Ast, ctx *j.ParseContext) j.Ast {
 	}
 }
 
-// This returns a &IndexExpr
+// Returns &IndexExpr
 func fPrimaryExprIndex(it j.Ast, ctx *j.ParseContext) j.Ast {
 	m := it.(*j.NativeMap)
 	primaryExpr := m.GetOrPanic("p").(Expr)
@@ -434,10 +473,11 @@ func fPrimaryExprIndex(it j.Ast, ctx *j.ParseContext) j.Ast {
 	}
 }
 
-// This returns a &SliceExpr if it's valid
+// This returns a &SliceExpr
 // 2 cases are allowed by go/spec (square brackets denote optionality):
 // - '[' [Expression] ':' [Expression]               ']'
 // - '[' [Expression] ':'  Expression ':' Expression ']'
+// It can panic with custom ParseError.
 func fPrimaryExprSlice(it j.Ast, ctx *j.ParseContext) j.Ast {
 	m := it.(*j.NativeMap)
 	primaryExpr := m.GetOrPanic("p").(Expr)
@@ -469,9 +509,10 @@ func fPrimaryExprSlice(it j.Ast, ctx *j.ParseContext) j.Ast {
 	}
 }
 
-// This returns a &SelectorExpr
-// this builds selector for expr like `x.f` where x
-// is a primary expression that is not a package name
+// This returns a &SelectorExpr.
+// Selectors are expr like `x.f`,
+// Where `x`, according to go/spec
+// is a primary expression that MUST NOT be a package name
 func fPrimaryExprSelector(it j.Ast, ctx *j.ParseContext) j.Ast {
 	m := it.(*j.NativeMap)
 	primaryExpr := m.GetOrPanic("p").(Expr)
@@ -535,13 +576,13 @@ func fTypeName(it j.Ast, ctx *j.ParseContext) j.Ast {
 	}
 	return &constTypeExpr{
 		Source: tname,
-		// Type is a gnolang.Type, an interface which
-		// boasts a TypeID(). See the top of types.go
+		// Type is a gnolang.Type, an interface with TypeID().
+		// See types.go
 		Type: pt,
 	}
 }
 
-// This returns an &ArrayTypeExpr
+// Returns &ArrayTypeExpr
 func fArrayType(it j.Ast, ctx *j.ParseContext) j.Ast {
 	a := it.(*j.NativeArray).Array()
 	return &ArrayTypeExpr{
@@ -550,7 +591,7 @@ func fArrayType(it j.Ast, ctx *j.ParseContext) j.Ast {
 	}
 }
 
-// This returns &MapTypeExpr
+// Returns &MapTypeExpr
 func fMapType(it j.Ast, ctx *j.ParseContext) j.Ast {
 	a := it.(*j.NativeArray).Array()
 	return &MapTypeExpr{
@@ -559,7 +600,7 @@ func fMapType(it j.Ast, ctx *j.ParseContext) j.Ast {
 	}
 }
 
-// This returns &ChanTypeExpr
+// Returns &ChanTypeExpr
 func fChannelType(it j.Ast, ctx *j.ParseContext) j.Ast {
 	m := it.(*j.NativeMap)
 	var dir ChanDir
@@ -577,7 +618,7 @@ func fChannelType(it j.Ast, ctx *j.ParseContext) j.Ast {
 	}
 }
 
-// This returns a &TypeAssertExpr
+// Returns &TypeAssertExpr
 func fPrimaryExprTypeAssert(it j.Ast, ctx *j.ParseContext) j.Ast {
 	// note: type args appear unsupported in X(), so we ignore typeargs in
 	// o("typename:TypeName typeargs:TypeArgs?"),
@@ -597,10 +638,10 @@ func fIdentifier(it j.Ast) j.Ast {
 	return Nx(it.(*j.NativeArray).Concat())
 }
 
-// rune parser against unicode.IsLetter(rune), also '_'
-// letter = unicode_letter | '_' .
+// rune parser against unicode.IsLetter(rune),
+// also allowing '_'. Rule being `letter = unicode_letter | '_' .`
 func fLetter(_ j.Ast, ctx *j.ParseContext) j.Ast {
-	// OPTIM NativeString probably not good idea anymore
+	// OPTIM NativeString being a buffer?
 	if isLetter, rune := ctx.Code.MatchRune(unicode.IsLetter); isLetter {
 		return j.NewNativeString(string(rune))
 	} else if is, _ := ctx.Code.MatchRune(isUnderscore); is {
@@ -610,6 +651,7 @@ func fLetter(_ j.Ast, ctx *j.ParseContext) j.Ast {
 	}
 }
 
+// rune parser against unicode.IsLetter(rune)
 func funicode_letter(_ j.Ast, ctx *j.ParseContext) j.Ast {
 	if is, rune := ctx.Code.MatchRune(unicode.IsLetter); is {
 		return j.NewNativeString(string(rune))
@@ -663,7 +705,7 @@ func fSignature(it j.Ast, ctx *j.ParseContext) j.Ast {
 // Main task therefore is to linearize as in [[a,b], [c]] -> [a,b,c].
 //
 // Input:
-// `(a, b int, s string, d ...float)` would be
+// `(a, b int, s string, d ...float)` would develop as
 // [[const-type int, const-type int], [const-type string], [... const-type float]].
 func fParameters(it j.Ast, ctx *j.ParseContext) j.Ast {
 	ret := j.NewEmptyNativeArray()
@@ -724,7 +766,7 @@ func fParameters(it j.Ast, ctx *j.ParseContext) j.Ast {
 	return ret
 }
 
-// This returns a NativeArray<*FieldTypeExpr>
+// Returns NativeArray<*FieldTypeExpr>
 func fParameterDecl(it j.Ast, ctx *j.ParseContext) j.Ast {
 	a := it.(*j.NativeArray).Array()
 	r := []j.Ast{}
@@ -778,9 +820,11 @@ func fResult(it j.Ast, ctx *j.ParseContext) j.Ast {
 	return j.NewNativeArray(r)
 }
 
-// This returns a &FieldTypeExpr
+// Returns &FieldTypeExpr
 // "A field declared with a type but no explicit field
-// name is called an embedded field." (e.g. Attr, Name)
+// name is called an embedded field."
+// (i.e. the `Name` field is called "embedded" in the following snippet:
+// `type Foo struct { Name; age int }`)
 func fEmbeddedField(it j.Ast, ctx *j.ParseContext) j.Ast {
 	m := it.(*j.NativeMap)
 	isStar := m.GetOrPanic("star").(j.NativeInt).Bool()
@@ -800,7 +844,13 @@ func fEmbeddedField(it j.Ast, ctx *j.ParseContext) j.Ast {
 }
 
 // This returns a NativeArray<*FieldTypeExpr>
-// from a list of fields sharing the same type to which we add a Tag.
+// The rule calling this is the first of those:
+// : o(`IdentifierList _ Type Tag?`, fFieldDecl1),
+// : o(`EmbeddedField Tag?`, fFieldDecl2),
+//
+// In other words, this is a list of fields
+// that all have the same Type, as in `a, b, c int`.
+// To which a Tag (that can be nil) is added.
 func fFieldDecl1(it j.Ast, ctx *j.ParseContext) j.Ast {
 	a := it.(*j.NativeArray).Array()
 	ret := j.NewEmptyNativeArray()
@@ -825,7 +875,12 @@ func fFieldDecl1(it j.Ast, ctx *j.ParseContext) j.Ast {
 }
 
 // This returns a NativeArray<*FieldTypeExpr>
-// from a *FieldTypeExpr to which we merely add a Tag.
+// The rule calling this is the second of those:
+// : o(`IdentifierList _ Type Tag?`, fFieldDecl1),
+// : o(`EmbeddedField Tag?`, fFieldDecl2),
+//
+// In other words, the input is a *FieldTypeExpr
+// (prepared from fEmbeddedField) to which optional Tag is added.
 func fFieldDecl2(it j.Ast, ctx *j.ParseContext) j.Ast {
 	a := it.(*j.NativeArray).Array()
 	ret := j.NewEmptyNativeArray()
@@ -837,7 +892,8 @@ func fFieldDecl2(it j.Ast, ctx *j.ParseContext) j.Ast {
 			Value: a[1].(j.NativeString).String(),
 		}
 	}
-	// almost ready from fEmbeddedField was still waiting tag.
+	// `fte` was almost fully prepared by fEmbeddedField.
+	// Just add the Tag now, or nil.
 	fte.Tag = tag
 	ret.Append(fte)
 	return ret
@@ -845,7 +901,7 @@ func fFieldDecl2(it j.Ast, ctx *j.ParseContext) j.Ast {
 
 // This returns a &StructTypeExpr
 // from a NativeArray<NativeArray<*FieldTypeExpr>>
-// yes there are two levels, because `a,b,c int` returns 3 fields.
+// There are two levels, because `a,b,c int` returns 3 fields.
 // This is where it get linearized
 //
 // TODO struct require some work to check conditions
