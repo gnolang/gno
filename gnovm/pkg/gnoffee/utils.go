@@ -14,7 +14,7 @@ func normalizeGoCode(code string) string {
 	const defaultMax = 1337 // Initialize max with an arbitrary value
 
 	// Determine the minimum leading whitespace across all lines
-	var minLeadingSpaces = defaultMax
+	minLeadingSpaces := defaultMax
 	for _, line := range lines {
 		// skip empty lines
 		if len(strings.TrimSpace(line)) == 0 {

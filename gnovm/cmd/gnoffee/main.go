@@ -71,8 +71,8 @@ func doMain(arg string) error {
 }
 
 func processPackageOrFileOrStdin(arg string) (*token.FileSet, map[string]*ast.File, error) {
-	var fset = token.NewFileSet()
-	var pkg = map[string]*ast.File{}
+	fset := token.NewFileSet()
+	pkg := map[string]*ast.File{}
 
 	processFile := func(data []byte, filename string) error {
 		source := string(data)
