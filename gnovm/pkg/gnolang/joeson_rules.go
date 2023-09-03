@@ -29,22 +29,17 @@ var (
 				// as explained by Laurence Tratt in http://tratt.net/laurie/research/publications/html/tratt__direct_left_recursive_parsing_expression_grammars/
 				// we simply express like this instead: `Expression binary_op UnaryExpr`
 				// In practice, we must also deal with precedence,
-				// each precedence level is a moss familie growing laterally,
+				// each precedence level is a moss family growing laterally,
 				// the moss families don't intermix.
-				// So it ends up being like this:
 				o(named("BinaryExpr", rules(
-					// o(`bxTerm (add_op bxTerm)*`, growMoss),
-
-					o(`bxLOr (opLOR bxLOr)*`, growMoss),
-
-					i(named("bxLOr", `bxLAnd (opLAND bxLAnd)*`), growMoss),
+					o(`bxLOr (opLOr bxLOr)*`, growMoss),
+					i(named("bxLOr", `bxLAnd (opLAnd bxLAnd)*`), growMoss),
 					i(named("bxLAnd", `bxRel (rel_op bxRel)*`), growMoss),
 					i(named("bxRel", `bxTerm (add_op bxTerm)*`), growMoss),
-
 					i(named("bxTerm", `bxFactor (mul_op bxFactor)*`), growMoss),
 					i(named("bxFactor", `'(' Expression ')' | UnaryExpr`)),
-					i(named("opLOR", `'||'`)),
-					i(named("opLAND", `'&&'`)),
+					i(named("opLOr", `'||'`)),
+					i(named("opLAnd", `'&&'`)),
 				))),
 				o(named("UnaryExpr", `PrimaryExpr | ux:(unary_op UnaryExpr)`), fUnaryExpr),
 				i(named("unary_op", `'+' | '-' | '!' | '^' | '*' | ([&] !'&') | '<-'`)),

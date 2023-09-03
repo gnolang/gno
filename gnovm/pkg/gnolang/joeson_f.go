@@ -29,73 +29,45 @@ func stringIt(it j.Ast) (string, error) {
 	}
 }
 
-// peel([[a,b,...]]) -> [a,b,...]
-// Asserts `it` is NativeArray
+// peel([ [ a,b,... ] ]) -> [a,b,...]
+// Assert `it` is NativeArray.
 // Useful when rules would create two or more levels of NativeArray.
 func peel(it j.Ast, ctx *j.ParseContext) j.Ast {
-	// (don't assert size of exactly 1, we want
-	// cases like [[a,b,..], NativeUndefined{}]) to also work)
+	// (don't assert size of exactly 1,
+	// case like [[a,b,..], NativeUndefined{}]) must also work)
 	return it.(*j.NativeArray).Get(0)
 }
 
-// this comes from study in joeson/examples/precedence
-// see growMoss function
-func fBinaryExpr(it j.Ast) j.Ast {
-	// a := it.(*j.NativeArray).Array()
-	// return &BinaryExpr{
-	// 	Left:  a[0].(Expr),
-	// 	Op:    Op2Word(a[1].(j.NativeString).String()),
-	// 	Right: a[2].(Expr),
-	// }
-
-	// extract `first` and `operations` from `it`
-	a := it.(*j.NativeArray).Array()
-	// first := it.(*j.NativeArray).Get(0).(Expr)
-	first := a[0].(Expr)
-	operations := []*BinaryExpr{} // we want to store [[+2], [-5], etc], just use BinaryExpr with nil left expr for now
-	// if _, ok := it.(*j.NativeArray).Get(1).(*j.NativeArray); !ok {
-	// 	panic(fmt.Sprintf("Not okay, why: %s, it[0]: %s\nit[1]:%s it[2]:%s", it.String(), it.(*j.NativeArray).Get(0), it.(*j.NativeArray).Get(1), it.(*j.NativeArray).Get(2)))
-	// }
-	// for _, v := range it.(*j.NativeArray).Get(1).(*j.NativeArray).Array() {
-	if (len(a)-1)%2 != 0 {
-		panic("Invalid len")
-	}
-	for i := 1; i < len(a); i += 2 {
-		operations = append(operations, &BinaryExpr{
-			Left:  nil,
-			Op:    Op2Word(a[i].(j.NativeString).String()),
-			Right: a[i+1].(Expr),
-		})
-	}
-	// for _, v := range it.(*j.NativeArray).Array()[1:] {
-	// a := v.(*j.NativeArray).Array()
-	// operations = append(operations, &BinaryExpr{
-	// 	Left:  nil,
-	// 	Op:    Op2Word(a[0].(j.NativeString).String()),
-	// 	Right: a[1].(Expr),
-	// })
-	// }
-	// no operations means result simply is `first`
-	if len(operations) == 0 {
-		return first
-	}
-	// The moss grows laterally:
-	//
-	//           [op1 first e1]
-	//      [op2 [op1 first e1] e2]
-	// [op3 [op2 [op1 first e1] e2] e3]       etc.
-	moss := first
-	for _, operation := range operations {
-		moss = &BinaryExpr{
-			Left:  moss,
-			Op:    operation.Op,
-			Right: operation.Right,
-		}
-	}
-	return moss
-}
-
-// this is in devpt, should replace fBinaryExpr soon
+// grow the moss. Different levels of precedence
+// must call this function separately (if you
+// have 5 levels of binary operator precedence
+// then you must have 5 different rules calling
+// growMoss).  In go that number is 5 indeed:
+//
+// Precedence    Operator
+//
+//	5             *  /  %  <<  >>  &  &^
+//	4             +  -  |  ^
+//	3             ==  !=  <  <=  >  >=
+//	2             &&
+//	1             ||
+//
+// The moss grows laterally.
+// The moss families don't intermix.
+//
+// Given `(first op1 e1 op2 e2 op3 e3 ...)`
+// Where first, e1, e2, e3, ... ∈ Expr
+// Where op1, op2, op3, ... are binary operators of the SAME precedence
+// This creates the following recursive BinaryExpr
+//
+// :	       [op1 first e1]
+// :	  [op2 [op1 first e1] e2]
+// : [op3 [op2 [op1 first e1] e2] e3]       etc.
+//
+// `[op a b]` here is not a array but
+// a short way for `BinaryExpr{Left:a, Op:op, Right:b}`.
+// See study in joeson/examples/precedence
+// See joeson_rules.go
 func growMoss(it j.Ast) j.Ast {
 	switch v := it.(type) {
 	case j.NativeString:
@@ -119,7 +91,6 @@ func growMoss(it j.Ast) j.Ast {
 			panic("assert type=" + reflect.TypeOf(w).String() + " String()=" + w.String())
 		}
 	}
-	// no operations means result simply is `first`
 	if len(operations) == 0 {
 		return first
 	}
@@ -132,62 +103,6 @@ func growMoss(it j.Ast) j.Ast {
 	for _, operation := range operations {
 		moss = &BinaryExpr{
 			Left:  moss.(Expr),
-			Op:    operation.Op,
-			Right: operation.Right,
-		}
-	}
-	return moss
-}
-
-// this is in devpt and is supposed to replace fBinaryExpr
-func growMossPanicInvalidLen(it j.Ast) j.Ast {
-	// a := it.(*j.NativeArray).Array()
-	// return &BinaryExpr{
-	// 	Left:  a[0].(Expr),
-	// 	Op:    Op2Word(a[1].(j.NativeString).String()),
-	// 	Right: a[2].(Expr),
-	// }
-
-	// extract `first` and `operations` from `it`
-	a := it.(*j.NativeArray).Array()
-	// first := it.(*j.NativeArray).Get(0).(Expr)
-	first := a[0].(Expr)
-	operations := []*BinaryExpr{} // we want to store [[+2], [-5], etc], just use BinaryExpr with nil left expr for now
-	// if _, ok := it.(*j.NativeArray).Get(1).(*j.NativeArray); !ok {
-	// 	panic(fmt.Sprintf("Not okay, why: %s, it[0]: %s\nit[1]:%s it[2]:%s", it.String(), it.(*j.NativeArray).Get(0), it.(*j.NativeArray).Get(1), it.(*j.NativeArray).Get(2)))
-	// }
-	// for _, v := range it.(*j.NativeArray).Get(1).(*j.NativeArray).Array() {
-	if (len(a)-1)%2 != 0 {
-		panic("Invalid len")
-	}
-	for i := 1; i < len(a); i += 2 {
-		operations = append(operations, &BinaryExpr{
-			Left:  nil,
-			Op:    Op2Word(a[i].(j.NativeString).String()),
-			Right: a[i+1].(Expr),
-		})
-	}
-	// for _, v := range it.(*j.NativeArray).Array()[1:] {
-	// a := v.(*j.NativeArray).Array()
-	// operations = append(operations, &BinaryExpr{
-	// 	Left:  nil,
-	// 	Op:    Op2Word(a[0].(j.NativeString).String()),
-	// 	Right: a[1].(Expr),
-	// })
-	// }
-	// no operations means result simply is `first`
-	if len(operations) == 0 {
-		return first
-	}
-	// The moss grows laterally:
-	//
-	//           [op1 first e1]
-	//      [op2 [op1 first e1] e2]
-	// [op3 [op2 [op1 first e1] e2] e3]       etc.
-	moss := first
-	for _, operation := range operations {
-		moss = &BinaryExpr{
-			Left:  moss,
 			Op:    operation.Op,
 			Right: operation.Right,
 		}
@@ -294,7 +209,6 @@ func ffFloatFormat(format string) func(j.Ast, *j.ParseContext) j.Ast {
 	}
 }
 
-// Loosely based on "the imagination song", by South Park
 func fImaginary(it j.Ast, ctx *j.ParseContext) j.Ast {
 	a := it.(*j.NativeArray)
 	s := a.Concat()

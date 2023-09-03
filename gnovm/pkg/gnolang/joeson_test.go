@@ -615,6 +615,7 @@ func TestJoeson(t *testing.T) {
 		expect(`'\000'`, parsesAsChar{'\000'}, isBasicLit{CHAR}),
 		expect(`'\007'`, parsesAsChar{'\007'}, isBasicLit{CHAR}),
 		expect(`'''`, parsesAsChar{'\''}, isBasicLit{CHAR}), // rune literal containing single quote character
+		// TODO implement following errors
 		// expectError("'aa'", "ERROR illegal: too many characters"),
 		// expect("'\\k'",          "ERROR illegal: k is not recognized after a backslash",
 		expectError(`'\xa'`, "illegal: too few hexadecimal digits"),
@@ -665,7 +666,7 @@ func TestJoeson(t *testing.T) {
 		expect(`2`, parsesAs{"2"}, isBasicLit{INT}),
 		expect(`s + ".txt"`, parsesAs{`s<VPUverse(0)> + ".txt"`}, isType{"BinaryExpr"}),
 		expect(`f(3.1415, true)`, parsesAs{`f<VPUverse(0)>(3.1415, true<VPUverse(0)>)`}, isCallExpr{}),
-		// expect(`Point{1, 2}`), not supported yet
+		// expect(`Point{1, 2}`, parsesAs{``}), // not supported yet
 		expect(`m["foo"]`, parsesAs{`m<VPUverse(0)>["foo"]`}, isType{"IndexExpr"}),
 		expect(`m[361]`, parsesAs{`m<VPUverse(0)>[361]`}, isType{"IndexExpr"}),
 		expect(`s[i : j + 1]`, parsesAs{`s<VPUverse(0)>[i<VPUverse(0)>:j<VPUverse(0)> + 1]`}, isType{"SliceExpr"}),
