@@ -80,7 +80,7 @@ func processPackageOrFileOrStdin(arg string) (*token.FileSet, map[string]*ast.Fi
 
 		parsedFile, err := parser.ParseFile(fset, filename, source, parser.ParseComments)
 		if err != nil {
-			return fmt.Errorf("parsing file %q: %v", filename, err)
+			return fmt.Errorf("parsing file %q: %w", filename, err)
 		}
 		pkg[filename] = parsedFile
 		return nil
@@ -108,7 +108,7 @@ func processPackageOrFileOrStdin(arg string) (*token.FileSet, map[string]*ast.Fi
 				if ext == ".gnoffee" {
 					data, err := ioutil.ReadFile(path)
 					if err != nil {
-						return fmt.Errorf("reading file %q: %v", path, err)
+						return fmt.Errorf("reading file %q: %w", path, err)
 					}
 					if err := processFile(data, path); err != nil {
 						return err

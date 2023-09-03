@@ -55,7 +55,6 @@ func generateFile(pkg map[string]*ast.File) (*ast.File, error) {
 	for k, v := range exportMapping {
 		for _, f := range pkg {
 			for _, decl := range f.Decls {
-
 				genDecl, ok := decl.(*ast.GenDecl)
 				if !ok {
 					continue
