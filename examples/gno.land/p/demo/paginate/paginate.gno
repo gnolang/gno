@@ -4,7 +4,6 @@ import (
 	"strconv"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/md"
 	"gno.land/p/demo/ui"
 )
 
@@ -33,7 +32,7 @@ func navigation(numPages int, current int, reverse bool, pageFn pageFn) string {
 		pageurl := pageFn(i, numPages, reverse)
 		link := ui.Link{
 			Text: strconv.Itoa(i),
-			URL:  md.EscMDURL(pageurl),
+			URL:  pageurl,
 		}
 		str += link.String(nil) + " "
 	}
@@ -42,7 +41,7 @@ func navigation(numPages int, current int, reverse bool, pageFn pageFn) string {
 			pageurl := pageFn(i, numPages, reverse)
 			link := ui.Link{
 				Text: strconv.Itoa(i),
-				URL:  md.EscMDURL(pageurl),
+				URL:  pageurl,
 			}
 			str += link.String(nil) + " "
 			i += 1
@@ -57,7 +56,7 @@ func navigation(numPages int, current int, reverse bool, pageFn pageFn) string {
 			pageurl := pageFn(i, numPages, reverse)
 			link := ui.Link{
 				Text: strconv.Itoa(i),
-				URL:  md.EscMDURL(pageurl),
+				URL:  pageurl,
 			}
 			str += link.String(nil) + " "
 		}
@@ -77,7 +76,7 @@ func navigation(numPages int, current int, reverse bool, pageFn pageFn) string {
 		pageurl := pageFn(i, numPages, reverse)
 		link := ui.Link{
 			Text: strconv.Itoa(i),
-			URL:  md.EscMDURL(pageurl),
+			URL:  pageurl,
 		}
 		str += link.String(nil) + " "
 	}
@@ -86,7 +85,7 @@ func navigation(numPages int, current int, reverse bool, pageFn pageFn) string {
 			pageurl := pageFn(i, numPages, reverse)
 			link := ui.Link{
 				Text: strconv.Itoa(i),
-				URL:  md.EscMDURL(pageurl),
+				URL:  pageurl,
 			}
 			str += link.String(nil) + " "
 		} else {
@@ -103,7 +102,7 @@ func navigation(numPages int, current int, reverse bool, pageFn pageFn) string {
 		pageurl := pageFn(i, numPages, reverse)
 		link := ui.Link{
 			Text: strconv.Itoa(i),
-			URL:  md.EscMDURL(pageurl),
+			URL:  pageurl,
 		}
 		str += link.String(nil) + " "
 	}
