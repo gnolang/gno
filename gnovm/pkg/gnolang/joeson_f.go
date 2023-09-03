@@ -11,6 +11,23 @@ import (
 	j "github.com/grepsuzette/joeson"
 )
 
+// Panic with a ParseError made from msg string.
+// ParseErrors panics are recovered higher up, in parseX().
+// This is the correct way to give a custom, fine error.
+func ffPanic(msg string) func(j.Ast, *j.ParseContext) j.Ast {
+	return func(it j.Ast, ctx *j.ParseContext) j.Ast {
+		panic(ctx.Error(msg))
+	}
+}
+
+// Like ffPanic, but the text of the current line
+// from the parse context is postpended to `msg`.
+func ffPanicNearContext(msg string) func(j.Ast, *j.ParseContext) j.Ast {
+	return func(it j.Ast, ctx *j.ParseContext) j.Ast {
+		panic(ctx.Error(msg + ": " + ctx.Code.PeekLines(-1, 1)))
+	}
+}
+
 // parse functions
 // Naming convention:
 // - fXxx(it Ast, *ParseContext) Ast
@@ -286,23 +303,6 @@ func ffBasicLit(kind Word) func(j.Ast, *j.ParseContext) j.Ast {
 		} else {
 			return ctx.Error(e.Error())
 		}
-	}
-}
-
-// Panic with a ParseError made from msg string.
-// ParseErrors panics are recovered higher up, in parseX().
-// This is the correct way to give a custom, fine error.
-func ffPanic(msg string) func(j.Ast, *j.ParseContext) j.Ast {
-	return func(it j.Ast, ctx *j.ParseContext) j.Ast {
-		panic(ctx.Error(msg))
-	}
-}
-
-// Like ffPanic, but the text of the current line
-// from the parse context is postpended to `msg`.
-func ffPanicNearContext(msg string) func(j.Ast, *j.ParseContext) j.Ast {
-	return func(it j.Ast, ctx *j.ParseContext) j.Ast {
-		panic(ctx.Error(msg + ": " + ctx.Code.PeekLines(-1, 1)))
 	}
 }
 
