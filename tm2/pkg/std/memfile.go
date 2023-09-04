@@ -35,24 +35,19 @@ func (mempkg *MemPackage) IsEmpty() bool {
 }
 
 const (
-	reDomainPart     = `gno\.land`
-	rePathPart       = `[a-zA-Z0-9_]+`
-	rePkgName        = `^[a-z][a-z0-9_]*$`
-	reStdlibsPkgPath = `[a-z][a-z0-9_]*(/[a-z0-9_]+)*`
-	rePkgPath        = reDomainPart + `/p/` + rePathPart + `(/` + rePathPart + `)*`
-	reRlmPath        = reDomainPart + `/r/` + rePathPart + `(/` + rePathPart + `)*`
-	rePkgOrRlmPath   = `^(` + rePkgPath + `|` + reRlmPath + `|` + reStdlibsPkgPath + `)$`
-	reFileName       = `^[a-zA-Z0-9_]*\.[a-z0-9_\.]*$`
+	reDomainPart   = `gno\.land`
+	rePathPart     = `[a-z][a-z0-9_]*`
+	rePkgName      = `^[a-z][a-z0-9_]*$`
+	rePkgPath      = reDomainPart + `/p/` + rePathPart + `(/` + rePathPart + `)*`
+	reRlmPath      = reDomainPart + `/r/` + rePathPart + `(/` + rePathPart + `)*`
+	rePkgOrRlmPath = `^(` + rePkgPath + `|` + reRlmPath + `)$`
+	reFileName     = `^[a-zA-Z0-9_]*\.[a-z0-9_\.]*$`
 )
 
 // path must not contain any dots after the first domain component.
 // file names must contain dots.
 // NOTE: this is to prevent conflicts with nested paths.
 func (mempkg *MemPackage) Validate() error {
-	if mempkg.IsEmpty() {
-		// package is empty, nothing to validate
-		return nil
-	}
 	ok, _ := regexp.MatchString(rePkgName, mempkg.Name)
 	if !ok {
 		return errors.New(fmt.Sprintf("invalid package name %q", mempkg.Name))
