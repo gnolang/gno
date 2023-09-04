@@ -39,7 +39,9 @@ func generateFile(pkg map[string]*ast.File) (*ast.File, error) {
 					case "//gnoffee:invar":
 						return nil, errors.New("unimplemented: invar keyword")
 					default:
-						return nil, fmt.Errorf("unknown gnoffee keyword: %s", parts[0])
+						if strings.HasPrefix(parts[0], "//gnoffee:") {
+							return nil, fmt.Errorf("unknown gnoffee keyword: %s", parts[0])
+						}
 					}
 				}
 			}
