@@ -54,6 +54,7 @@ Alternatively, if we were writing a [Gno Package](../explanation/packages.md), w
 as `p` (for `package`). You can learn more about Packages in our [Package development guide](simple-library.md).
 
 Additionally, we will create another sub-folder that will house our Realm code, named `counter`:
+
 ```bash
 cd r
 mkdir counter
@@ -114,6 +115,28 @@ There are a few things happening here, so let's dissect them:
 - `Increment` and `Decrement` directly modify the `count` value by making it go up or down (change state).
 - Calling the `Render` method would return the `count` value as a formatted string. Learn more about the `Render`
   method and how it's used [here](../explanation/realms.md).
+
+:::info A note on constructors
+Gno Realms support a concept taken from other programming languages - _constructors_.
+
+For example, to initialize the `count` variable with custom logic, we can specify that
+logic within an `init` method, that is run **only once** on Realm deployment:
+
+```go
+package counter
+
+var count int
+
+// ...
+
+func init() {
+	count = 2 * 10 // arbitrary value
+}
+
+// ...
+```
+
+:::
 
 ## Conclusion
 
