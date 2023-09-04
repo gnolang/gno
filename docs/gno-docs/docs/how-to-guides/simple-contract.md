@@ -2,6 +2,116 @@
 id: simple-contract
 ---
 
-# How to write a simple Gno Contract
+# How to write a simple Gno Smart Contract (Realm)
 
-TODO
+## Overview
+
+This guide shows you how to write a simple _Counter_ Smart Contract, or rather a [Realm](../explanation/realms.md),
+in [Gnolang (Gno)](../explanation/gno-language.md). For actually deploying the Realm, please see
+the [deployment](deploy.md) guide.
+
+Our _Counter_ Realm will have the following functionality:
+
+- Keeping track of the current count.
+- Incrementing / decrementing the count.
+- Fetching the current count value.
+
+## Prerequisites
+
+- **Text editor**
+
+:::info Editor support
+The Gno language is based on Golang, but it does not have all the bells and whistles in major text editors like Go.
+Advanced language features like IntelliSense are still in the works.
+
+Currently, we officially have language support
+for [ViM](https://github.com/gnolang/gno/blob/master/CONTRIBUTING.md#vim-support),
+[Emacs](https://github.com/gnolang/gno/blob/master/CONTRIBUTING.md#emacs-support)
+and [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=harry-hov.gno).
+:::
+
+## 1. Setting up the work directory
+
+Gno Realms can be typically written anywhere, under any structure, just like regular Go code.
+However, Gno developers have adopted a standard of organizing Gno logic under a specific directory hierarchy, which we
+will explore here.
+
+Create the main working directory for our Realm:
+
+```bash
+mkdir counter-app
+```
+
+Since we are building a simple _Counter_ Realm, inside our created `counter-app` directory, we can create another
+directory named `r`, which stands for `realm`:
+
+```bash
+cd counter-app
+mkdir r
+```
+
+Alternatively, if we were writing a [Gno Package](../explanation/packages.md), we would denote this directory name
+as `p` (for `package`). You can learn more about Packages in our [Package development guide](simple-library.md).
+
+After setting up our work directory structure, we should have something like this:
+
+```text
+counter-app/
+├─ r/
+│  ├─ // source code here
+```
+
+## 2. Create `counter.gno`
+
+Now that the work directory structure is set up, we can go into the `r` sub-folder, and actually create
+our _Counter_ Smart Contract:
+
+```bash
+cd r
+touch counter.gno
+```
+
+:::info Gno file extension
+All Gnolang (Gno) source code has the file extension `.gno`.
+
+This file extension is required for existing gno tools and processes to work.
+:::
+
+We can finally write out the logic of the _Counter_ Smart Contract in `counter.gno`:
+
+```go
+package counter
+
+import "fmt"
+
+var count int
+
+func Increment() {
+	count++
+}
+
+func Decrement() {
+	count--
+}
+
+func Render(_ string) string {
+	return fmt.Sprintf("Count: %d", count)
+}
+```
+
+There are a few things happening here, so let's dissect them:
+
+- We defined the logic of our Realm into a package called `counter`.
+- The package-level `count` variable stores the active count for the Realm (it is stateful).
+- `Increment` and `Decrement` are public Realm (Smart Contract) methods, and as such are callable by users.
+- `Increment` and `Decrement` directly modify the `count` value by making it go up or down (change state).
+- Calling the `Render` method would return the `count` value as a formatted string. Learn more about the `Render`
+  method and how it's used [here](../explanation/realms.md).
+
+## Conclusion
+
+That's it 🎉
+
+You have successfully built a simple _Counter_ Realm that is ready to be deployed on the Gno chain and called by users.
+In the upcoming guides, we will see how we can develop more complex Realm logic and have them interact
+with outside tools like a wallet application.
