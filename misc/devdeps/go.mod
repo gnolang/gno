@@ -1,6 +1,6 @@
 module github.com/gnolang/gno/misc/devdeps
 
-go 1.18
+go 1.20
 
 require (
 	github.com/golangci/golangci-lint v1.53.3 // sync with github action
