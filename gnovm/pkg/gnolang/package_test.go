@@ -13,7 +13,7 @@ import (
 // Tries to reproduce the bug #1036 on all registered types
 func TestAminoJSONRegisteredTypes(t *testing.T) {
 	for _, typ := range Package.Types {
-		// Instanciate registered type
+		// Instantiate registered type
 		x := reflect.New(typ.Type).Interface()
 
 		// Call MarshalAmino directly on 'x'
