@@ -21,7 +21,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [ "1.19.x", "1.20.x" ]
+        go-version:
+          - "1.20.x"
+          - "1.21.x"
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -36,7 +38,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [ "1.19.x", "1.20.x" ]
+        go-version:
+          - "1.20.x"
+          - "1.21.x"
         # unittests: TODO: matrix with contracts
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -51,7 +55,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [ "1.19.x", "1.20.x" ]
+        go-version:
+          - "1.20.x"
+          - "1.21.x"
         # unittests: TODO: matrix with contracts
     runs-on: ubuntu-latest
     timeout-minutes: 10
