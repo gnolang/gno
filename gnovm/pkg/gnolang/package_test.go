@@ -26,7 +26,6 @@ func TestAminoJSONRegisteredTypes(t *testing.T) {
 		}{X: x}
 		_, err = amino.MarshalJSON(xx)
 		require.NoError(t, err, "marshal type %s from struct", typ.Type.Name())
-
 	}
 
 	// Check unmarshaling (can't reuse package.Types because some internal values
