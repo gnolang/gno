@@ -22,7 +22,7 @@ require (
 	github.com/jaekwon/testify v1.6.1
 	github.com/jmhodges/levigo v1.0.0
 	github.com/libp2p/go-buffer-pool v0.1.0
-	github.com/linxGnu/grocksdb v1.7.15
+	github.com/linxGnu/grocksdb v1.8.4
 	github.com/mattn/go-runewidth v0.0.15
 	github.com/pelletier/go-toml v1.9.5
 	github.com/peterbourgon/ff/v3 v3.4.0
