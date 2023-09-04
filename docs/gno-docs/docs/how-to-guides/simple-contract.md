@@ -53,21 +53,28 @@ mkdir r
 Alternatively, if we were writing a [Gno Package](../explanation/packages.md), we would denote this directory name
 as `p` (for `package`). You can learn more about Packages in our [Package development guide](simple-library.md).
 
+Additionally, we will create another sub-folder that will house our Realm code, named `counter`:
+```bash
+cd r
+mkdir counter
+```
+
 After setting up our work directory structure, we should have something like this:
 
 ```text
 counter-app/
 ├─ r/
-│  ├─ // source code here
+│  ├─ counter/
+│  │  ├─ // source code here
 ```
 
 ## 2. Create `counter.gno`
 
-Now that the work directory structure is set up, we can go into the `r` sub-folder, and actually create
+Now that the work directory structure is set up, we can go into the `counter` sub-folder, and actually create
 our _Counter_ Smart Contract:
 
 ```bash
-cd r
+cd counter
 touch counter.gno
 ```
 
