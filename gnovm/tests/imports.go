@@ -97,20 +97,15 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			stdlibPath := filepath.Join(rootDir, "gnovm", "stdlibs", pkgPath)
 			if osm.DirExists(stdlibPath) {
 				memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
-				if len(memPkg.Files) > 0 {
-					m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-						// NOTE: see also pkgs/sdk/vm/builtins.go
-						// XXX: why does this fail when just pkgPath?
-						PkgPath: "gno.land/r/stdlibs/" + pkgPath,
-						Output:  stdout,
-						Store:   store,
-					})
-					save := pkgPath != "testing" // never save the "testing" package
-					return m2.RunMemPackage(memPkg, save)
-				}
-
-				// There is no package there, but maybe we have a
-				// native counterpart below.
+				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+					// NOTE: see also pkgs/sdk/vm/builtins.go
+					// XXX: why does this fail when just pkgPath?
+					PkgPath: "gno.land/r/stdlibs/" + pkgPath,
+					Output:  stdout,
+					Store:   store,
+				})
+				save := pkgPath != "testing" // never save the "testing" package
+				return m2.RunMemPackage(memPkg, save)
 			}
 		}
 
@@ -418,10 +413,6 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			stdlibPath := filepath.Join(rootDir, "gnovm", "stdlibs", pkgPath)
 			if osm.DirExists(stdlibPath) {
 				memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
-				if len(memPkg.Files) == 0 {
-					panic(fmt.Sprintf("found an empty package `%s`", pkgPath))
-				}
-
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 					PkgPath: "test",
 					Output:  stdout,
@@ -436,10 +427,6 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 		examplePath := filepath.Join(rootDir, "examples", pkgPath)
 		if osm.DirExists(examplePath) {
 			memPkg := gno.ReadMemPackage(examplePath, pkgPath)
-			if len(memPkg.Files) == 0 {
-				panic(fmt.Sprintf("found an empty package `%s`", pkgPath))
-			}
-
 			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 				PkgPath: "test",
 				Output:  stdout,
