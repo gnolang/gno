@@ -19,7 +19,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [ "1.19.x", "1.20.x" ]
+        go-version:
+          - "1.20.x"
+          - "1.21.x"
         goarch: [ "amd64" ]
         goos: [ "linux" ]
         program: [ "./pkg/amino/cmd/aminoscan", "./pkg/amino/cmd/goscan", "./pkg/autofile/cmd", "./pkg/iavl/cmd/iaviewer" ]
@@ -38,7 +40,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [ "1.19.x", "1.20.x" ]
+        go-version:
+          - "1.20.x"
+          - "1.21.x"
         args:
           - _test.flappy
           - _test.pkg.amino
