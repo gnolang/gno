@@ -235,6 +235,7 @@ func makeGenesisDoc(
 	for _, pkg := range nonDraftPkgs {
 		// open files in directory as MemPackage.
 		memPkg := gno.ReadMemPackage(pkg.Dir, pkg.Name)
+
 		var tx std.Tx
 		tx.Msgs = []std.Msg{
 			vmm.MsgAddPackage{
