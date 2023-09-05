@@ -259,7 +259,7 @@ Additional native types:
 | log/slog/internal                           | TBD      |
 | log/syslog                                  | TBD      |
 | maps                                        | TBD      |
-| math                                        | partial      |
+| math                                        | partial  |
 | math/big                                    | TBD      |
 | math/bits                                   | TBD      |
 | math/cmplx                                  | TBD      |
@@ -288,7 +288,7 @@ Additional native types:
 | os/exec                                     | TBD      |
 | os/signal                                   | TBD      |
 | os/user                                     | TBD      |
-| path                                        | TBD      |
+| path                                        | full     |
 | path/filepath                               | TBD      |
 | plugin                                      | TBD      |
 | reflect                                     | TBD      |

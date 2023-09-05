@@ -19,10 +19,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [ "1.19.x", "1.20.x" ]
+        go-version:
+          - "1.20.x"
+          - "1.21.x"
         goarch: [ "amd64" ]
         goos: [ "linux" ]
-        program: [ "./cmd/tm2txsync", "./pkg/amino/cmd/aminoscan", "./pkg/amino/cmd/goscan", "./pkg/autofile/cmd", "./pkg/iavl/cmd/iaviewer" ]
+        program: [ "./pkg/amino/cmd/aminoscan", "./pkg/amino/cmd/goscan", "./pkg/autofile/cmd", "./pkg/iavl/cmd/iaviewer" ]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -38,13 +40,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [ "1.19.x", "1.20.x" ]
+        go-version:
+          - "1.20.x"
+          - "1.21.x"
         args:
           - _test.flappy
           - _test.pkg.amino
           - _test.pkg.bft
           - _test.pkg.others
-          - _test.cmds
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
