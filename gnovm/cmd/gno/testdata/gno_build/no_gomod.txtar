@@ -1,0 +1,16 @@
+# Run gno build on a dir without go.mod
+
+! gno build .
+
+! stdout .+
+stderr -count=2 'go: go.mod file not found in current directory or any parent directory'
+stderr './.: build pkg: std go compiler: exit status 1'
+stderr './sub: build pkg: std go compiler: exit status 1'
+
+-- main.gno --
+package main
+
+func main() {}
+
+-- sub/sub.gno --
+package sub
