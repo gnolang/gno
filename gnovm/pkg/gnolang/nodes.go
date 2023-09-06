@@ -1156,8 +1156,13 @@ func ReadMemPackageFromList(list []string, pkgPath string) *std.MemPackage {
 				Body: string(bz),
 			})
 	}
-	validatePkgName(string(pkgName))
-	memPkg.Name = string(pkgName)
+
+	// If no .gno files are present, package simply does not exist.
+	if !memPkg.IsEmpty() {
+		validatePkgName(string(pkgName))
+		memPkg.Name = string(pkgName)
+	}
+
 	return memPkg
 }
 

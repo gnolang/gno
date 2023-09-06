@@ -372,15 +372,20 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 		// if native package is preferred, try to load stdlibs/* as backup.
 		if mode == ImportModeNativePreferred {
 			pn, pv = loadStdlib(rootDir, pkgPath, store, stdout)
-			if pn != nil {
-				return
+			if pn == nil {
+				panic(fmt.Sprintf("found an empty package %q", pkgPath))
 			}
+			return
 		}
 
 		// if examples package...
 		examplePath := filepath.Join(rootDir, "examples", pkgPath)
 		if osm.DirExists(examplePath) {
 			memPkg := gno.ReadMemPackage(examplePath, pkgPath)
+			if memPkg.IsEmpty() {
+				panic(fmt.Sprintf("found an empty package %q", pkgPath))
+			}
+
 			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 				PkgPath: "test",
 				Output:  stdout,
@@ -414,21 +419,26 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer) (*gn
 	}
 	files := make([]string, 0, 32) // pre-alloc 32 as a likely high number of files
 	for _, path := range dirs {
-		if dl, err := os.ReadDir(path); err == nil {
-			for _, f := range dl {
-				// NOTE: RunMemPackage has other rules; those should be mostly useful
-				// for on-chain packages (ie. include README and gno.mod).
-				if !f.IsDir() && strings.HasSuffix(f.Name(), ".gno") {
-					files = append(files, filepath.Join(path, f.Name()))
-				}
+		dl, err := os.ReadDir(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
 			}
-		} else if !os.IsNotExist(err) {
 			panic(fmt.Errorf("could not access dir %q: %w", path, err))
+		}
+
+		for _, f := range dl {
+			// NOTE: RunMemPackage has other rules; those should be mostly useful
+			// for on-chain packages (ie. include README and gno.mod).
+			if !f.IsDir() && strings.HasSuffix(f.Name(), ".gno") {
+				files = append(files, filepath.Join(path, f.Name()))
+			}
 		}
 	}
 	if len(files) == 0 {
 		return nil, nil
 	}
+
 	memPkg := gno.ReadMemPackageFromList(files, pkgPath)
 	m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 		// NOTE: see also pkgs/sdk/vm/builtins.go

@@ -21,8 +21,8 @@ jobs:
       fail-fast: false
       matrix:
         go-version: # two latest versions
-          - "1.19.x"
           - "1.20.x"
+          - "1.21.x"
         program:
           - "genstd"
     runs-on: ubuntu-latest
@@ -40,7 +40,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [ "1.19.x", "1.20.x" ]
+        go-version:
+          - "1.20.x"
+          - "1.21.x"
         args:
           - _test.genstd
     runs-on: ubuntu-latest

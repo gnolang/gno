@@ -34,6 +34,10 @@ func (mempkg *MemPackage) GetFile(name string) *MemFile {
 	return nil
 }
 
+func (mempkg *MemPackage) IsEmpty() bool {
+	return len(mempkg.Files) == 0
+}
+
 const (
 	reDomainPart   = `gno\.land`
 	rePathPart     = `[a-z][a-z0-9_]*`
