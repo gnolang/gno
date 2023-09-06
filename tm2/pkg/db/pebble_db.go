@@ -118,7 +118,10 @@ func (db *PebbleDB) Close() {
 
 // Implements DB.
 func (db *PebbleDB) Print() {
-	it := db.db.NewIter(nil)
+	it, err := db.db.NewIter(nil)
+	if err != nil {
+		panic(err)
+	}
 	for it.First(); it.Valid(); it.Next() {
 		fmt.Printf("[%X]:\t[%X]\n", it.Key(), it.Value())
 	}
@@ -148,12 +151,16 @@ type pebbleDBBatch struct {
 
 // Implements Batch.
 func (ba *pebbleDBBatch) Set(key, value []byte) {
-	ba.batch.Set(nonNilBytes(key), nonNilBytes(value), nil)
+	if err := ba.batch.Set(nonNilBytes(key), nonNilBytes(value), nil); err != nil {
+		panic(err)
+	}
 }
 
 // Implements Batch.
 func (ba *pebbleDBBatch) Delete(key []byte) {
-	ba.batch.Delete(nonNilBytes(key), nil)
+	if err := ba.batch.Delete(nonNilBytes(key), nil); err != nil {
+		panic(err)
+	}
 }
 
 // Implements Batch.
@@ -200,10 +207,13 @@ type pebbleDBIterator struct {
 var _ Iterator = (*pebbleDBIterator)(nil)
 
 func (db *PebbleDB) newPebbleDBIterator(start, end []byte, reverse bool) *pebbleDBIterator {
-	iter := db.db.NewIter(&pebble.IterOptions{
+	iter, err := db.db.NewIter(&pebble.IterOptions{
 		LowerBound: start,
 		UpperBound: end,
 	})
+	if err != nil {
+		panic(err)
+	}
 	if reverse {
 		iter.Last()
 	} else {
