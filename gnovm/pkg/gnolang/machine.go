@@ -276,6 +276,14 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 func filterDuplicates(fset *FileSet) {
 	defined := make(map[Name]struct{}, 128)
 	for _, f := range fset.Files {
+		// returns true if name already defined
+		addName := func(n Name) bool {
+			if _, ok := defined[n]; ok {
+				return true // i--
+			}
+			defined[n] = struct{}{}
+			return false
+		}
 		for i := 0; i < len(f.Decls); i++ {
 			d := f.Decls[i]
 			var name Name
@@ -288,20 +296,34 @@ func filterDuplicates(fset *FileSet) {
 			case *TypeDecl:
 				name = d.Name
 			case *ValueDecl:
+				// simpler, most common case
 				if len(d.NameExprs) == 1 {
 					name = d.NameExprs[0].Name
-				} else {
-					// TODO: support multiple names
+					break
+				}
+
+				// more complex: filter out the NameExprs which are not
+				// redeclarations, and set them in d.NameExprs
+				newNames := make([]NameExpr, 0, len(d.NameExprs))
+				for _, nx := range d.NameExprs {
+					if !addName(nx.Name) {
+						newNames = append(newNames, nx)
+					}
+				}
+				// all new names are re-declarations, remove
+				if len(newNames) == 0 {
+					f.Decls = append(f.Decls[:i], f.Decls[i+1:]...)
+					i--
 					continue
 				}
+				d.NameExprs = newNames
+				continue
 			default:
 				continue
 			}
-			if _, ok := defined[name]; ok {
+			if addName(name) {
 				f.Decls = append(f.Decls[:i], f.Decls[i+1:]...)
 				i--
-			} else {
-				defined[name] = struct{}{}
 			}
 		}
 	}
