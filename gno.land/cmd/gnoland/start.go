@@ -210,6 +210,7 @@ func makeGenesisDoc(
 	}
 
 	// Load distribution.
+	fmt.Println("genesisBalancesFile:", genesisBalancesFile)
 	balances := loadGenesisBalances(genesisBalancesFile)
 	// debug: for _, balance := range balances { fmt.Println(balance) }
 
@@ -219,6 +220,7 @@ func makeGenesisDoc(
 
 	// List initial packages to load from examples.
 	pkgs, err := gnomod.ListPkgs(filepath.Join("..", "examples"))
+	// pkgs, err := gnomod.ListPkgs(filepath.Join("examples"))
 	if err != nil {
 		panic(fmt.Errorf("listing gno packages: %w", err))
 	}
@@ -272,7 +274,12 @@ func loadGenesisTxs(
 	genesisRemote string,
 ) []std.Tx {
 	txs := []std.Tx{}
-	txsBz := osm.MustReadFile(path)
+	// txsBz := osm.MustReadFile(path)
+	txsBz, err := osm.ReadFile(path)
+	if err != nil {
+		fmt.Println("error loadGenesisTxs: ", err, "failed to open", path)
+		return txs
+	}
 	txsLines := strings.Split(string(txsBz), "\n")
 	for _, txLine := range txsLines {
 		if txLine == "" {
@@ -294,7 +301,12 @@ func loadGenesisTxs(
 func loadGenesisBalances(path string) []string {
 	// each balance is in the form: g1xxxxxxxxxxxxxxxx=100000ugnot
 	balances := []string{}
-	content := osm.MustReadFile(path)
+	// content := osm.MustReadFile(path)
+	content, err := osm.ReadFile(path)
+	if err != nil {
+		fmt.Println("error: LoadGenesisBalance", err, "failed to open", path)
+		return balances
+	}
 	lines := strings.Split(string(content), "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)

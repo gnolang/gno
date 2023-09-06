@@ -36,6 +36,9 @@ func newRootCmd(io *commands.IO) *commands.Command {
 
 	cmd.AddSubCommands(
 		newStartCmd(io),
+		newInitCmd(io),
+		newAddGenesisAccountCmd(io),
+		newAddGnoGenesisMessageCmd(io),
 	)
 
 	return cmd
