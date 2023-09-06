@@ -372,10 +372,9 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 		// if native package is preferred, try to load stdlibs/* as backup.
 		if mode == ImportModeNativePreferred {
 			pn, pv = loadStdlib(rootDir, pkgPath, store, stdout)
-			if pn == nil {
-				panic(fmt.Sprintf("found an empty package %q", pkgPath))
+			if pn != nil {
+				return
 			}
-			return
 		}
 
 		// if examples package...
