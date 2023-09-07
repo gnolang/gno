@@ -26,6 +26,45 @@ var fixtures = []struct {
 		},
 	},
 	{
+		Name: "Add new constant",
+		CodeSteps: []step{
+			{
+				Line:   "const test2, test3 = \"test_string2\", \"test_string3\"",
+				Result: "const test2, test3 = \"test_string2\", \"test_string3\"\n",
+			},
+			{
+				Line:   "const test = \"test_string\"",
+				Result: "const test = \"test_string\"\n",
+			},
+		},
+	},
+	{
+		Name: "Add struct and functions",
+		CodeSteps: []step{
+			{
+				Line:   "type MyStruct struct { count int}",
+				Result: "type MyStruct struct{ count int }\n",
+			},
+			{
+				Line:   "func (s *MyStruct) Add(){s.count++}",
+				Result: "func (s *MyStruct) Add()\t{ s.count++ }\n",
+			},
+		},
+	},
+	{
+		Name: "Add new var",
+		CodeSteps: []step{
+			{
+				Line:   "var test2, test3 string = \"test_string2\", \"test_string3\"",
+				Result: "var test2, test3 string = \"test_string2\", \"test_string3\"\n",
+			},
+			{
+				Line:   "var test int = 42",
+				Result: "var test int = 42\n",
+			},
+		},
+	},
+	{
 		Name: "Add wrong code",
 		CodeSteps: []step{
 			{
@@ -89,6 +128,54 @@ var fixtures = []struct {
 			},
 		},
 	},
+	{
+		Name: "Meaning of life",
+		CodeSteps: []step{
+			{
+				Line: `
+				const (
+					oneConst   = 1
+					tenConst   = 10
+					magicConst = 19
+				)
+				`,
+				Result: "const (\n\toneConst\t= 1\n\ttenConst\t= 10\n\tmagicConst\t= 19\n)\n",
+			},
+			{
+				Line:   "var outVar int",
+				Result: "var outVar int\n",
+			},
+			{
+				Line: `
+				type MyStruct struct {
+					counter int
+				}
+				
+				func (s *MyStruct) Add() {
+					s.counter++
+				}
+				
+				func (s *MyStruct) Get() int {
+					return s.counter
+				}
+				`,
+				Result: "type MyStruct struct {\n\tcounter int\n}\nfunc (s *MyStruct) Add() {\n\ts.counter++\n}\nfunc (s *MyStruct) Get() int {\n\treturn s.counter\n}\n",
+			},
+			{
+				Line: `
+				ms := &MyStruct{counter: 10}
+
+				ms.Add()
+				ms.Add()
+
+				outVar = ms.Get() + oneConst + tenConst + magicConst
+
+				println(outVar)
+				`,
+				Result: "42\n",
+			},
+		},
+	},
 }
 
 func TestRepl(t *testing.T) {
@@ -101,6 +188,7 @@ func TestRepl(t *testing.T) {
 				if cs.Error == "" {
 					require.NoError(t, err)
 				} else {
+					require.Error(t, err)
 					require.Contains(t, err.Error(), cs.Error)
 				}
 

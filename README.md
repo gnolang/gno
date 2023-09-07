@@ -22,7 +22,7 @@ Start your journey with Gno.land by:
 - sending transactions with [`gnokey`](./gno.land/cmd/gnokey),
 - writing smart-contracts with [`gno` (ex `gnodev`)](./gnovm/cmd/gno).
 
-Also, see the [quickstart guide](https://test3.gno.land/r/demo/boards:testboard/5).
+Also, see the [quickstart guide](https://github.com/gnolang/gno/blob/master/examples/gno.land/r/demo/boards/README.md).
 
 ## Contact
 
@@ -43,7 +43,7 @@ Also, see the [quickstart guide](https://test3.gno.land/r/demo/boards:testboard/
   Developer commands:
 
   * [gno](./gnovm/cmd/gno) - handy tool for developing gno packages & realms
-  * [tm2txsync](./tm2/cmd/tm2txsync) - importing/exporting transactions from local blockchain node storage
+  * [gnotxsync](./gno.land/cmd/gnotxsync) - importing/exporting transactions from local blockchain node storage
   * [goscan](./misc/goscan) - dumps imports from specified file’s AST
   * [genproto](./misc/genproto) - helper for generating .proto implementations
   * [gnofaucet](./gno.land/cmd/gnofaucet) - serves GNOT faucet

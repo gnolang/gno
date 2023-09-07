@@ -49,7 +49,7 @@ func (c *replCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.rootDir,
 		"root-dir",
 		"",
-		"clone location of github.com/gnolang/gno (gnodev tries to guess it)",
+		"clone location of github.com/gnolang/gno (gno tries to guess it)",
 	)
 
 	fs.StringVar(

@@ -45,6 +45,52 @@ func newTestCmd(io *commands.IO) *commands.Command {
 			Name:       "test",
 			ShortUsage: "test [flags] <package> [<package>...]",
 			ShortHelp:  "Runs the tests for the specified packages",
+			LongHelp: `Runs the tests for the specified packages.
+
+'gno test' recompiles each package along with any files with names matching the
+file pattern "*_test.gno" or "*_filetest.gno".
+
+The only <package> supported for now is a directory (relative or absolute).
+
+- "*_test.gno" files work like "*_test.go" files, but they contain only test
+functions. Benchmark and fuzz functions aren't supported yet. Similarly, only
+tests that belong to the same package are supported for now (no "xxx_test").
+
+The package path used to execute the "*_test.gno" file is fetched from the
+module name found in 'gno.mod', or else it is randomly generated like
+"gno.land/r/XXXXXXXX".
+
+- "*_filetest.gno" files on the other hand are kind of unique. They exist to
+provide a way to interact and assert a gno contract, thanks to a set of
+specific instructions that can be added using code comments.
+
+"*_filetest.gno" must be declared in the 'main' package and so must have a
+'main' function, that will be executed to test the target contract.
+
+List of available instructions that can be used in "*_filetest.gno" files:
+	- "PKGPATH:" is a single line instruction that can be used to define the
+	package used to interact with the tested package. If not specified, "main" is
+	used.
+	- "MAXALLOC:" is a signle line instruction that can be used to define a limit
+	to the VM allocator. If this limit is exceeded, the VM will panic. Default to
+	0, no limit.
+	- "SEND:" is a single line instruction that can be used to send an amount of
+	token along with the transaction. The format is for example "1000000ugnot".
+	Default is empty.
+	- "Output:\n" (*) is a multiple lines instruction that can be used to assert
+	the output of the "*_filetest.gno" file. Any prints executed inside the
+	'main' function must match the lines that follows the "Output:\n"
+	instruction, or else the test fails.
+	- "Error:\n" works similarly to "Output:\n", except that it asserts the
+	stderr of the program, which in that case, comes from the VM because of a
+	panic, rather than the 'main' function.
+	- "Realm:\n" (*) is a multiple lines instruction that can be used to assert
+	what has been recorded in the store following the execution of the 'main'
+	function.
+
+(*) The 'update-golden-tests' flag can be set to fill out the content of the
+instruction with the actual content of the test instead of failing.
+`,
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -72,14 +118,14 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.updateGoldenTests,
 		"update-golden-tests",
 		false,
-		"writes actual as wanted in test comments",
+		`writes actual as wanted for "Output:" and "Realm:" instructions`,
 	)
 
 	fs.StringVar(
 		&c.rootDir,
 		"root-dir",
 		"",
-		"clone location of github.com/gnolang/gno (gnodev tries to guess it)",
+		"clone location of github.com/gnolang/gno (gno tries to guess it)",
 	)
 
 	fs.StringVar(
@@ -126,7 +172,7 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 
 	// go.mod
 	modPath := filepath.Join(tempdirRoot, "go.mod")
-	err = makeTestGoMod(modPath, gno.ImportPrefix, "1.19")
+	err = makeTestGoMod(modPath, gno.ImportPrefix, "1.20")
 	if err != nil {
 		return fmt.Errorf("write .mod file: %w", err)
 	}
