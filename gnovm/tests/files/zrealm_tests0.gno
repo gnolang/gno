@@ -245,7 +245,7 @@ func main() {
 //                                     "BlockNode": null,
 //                                     "Location": {
 //                                         "File": "tests.gno",
-//                                         "Line": "42",
+//                                         "Line": "50",
 //                                         "Nonce": "0",
 //                                         "PkgPath": "gno.land/r/demo/tests"
 //                                     }
@@ -301,7 +301,7 @@ func main() {
 //                                     "BlockNode": null,
 //                                     "Location": {
 //                                         "File": "tests.gno",
-//                                         "Line": "42",
+//                                         "Line": "50",
 //                                         "Nonce": "0",
 //                                         "PkgPath": "gno.land/r/demo/tests"
 //                                     }
@@ -734,6 +734,94 @@ func main() {
 //         {
 //             "T": {
 //                 "@type": "/gno.FuncType",
+//                 "Params": [],
+//                 "Results": []
+//             },
+//             "V": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:4"
+//                 },
+//                 "FileName": "tests.gno",
+//                 "IsMethod": false,
+//                 "Name": "RSubtestsAssertOriginCall",
+//                 "PkgPath": "gno.land/r/demo/tests",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "File": "tests.gno",
+//                         "Line": "31",
+//                         "Nonce": "0",
+//                         "PkgPath": "gno.land/r/demo/tests"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [],
+//                     "Results": []
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.FuncType",
+//                 "Params": [],
+//                 "Results": [
+//                     {
+//                         "Embedded": false,
+//                         "Name": "",
+//                         "Tag": "",
+//                         "Type": {
+//                             "@type": "/gno.PrimitiveType",
+//                             "value": "4"
+//                         }
+//                     }
+//                 ]
+//             },
+//             "V": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:4"
+//                 },
+//                 "FileName": "tests.gno",
+//                 "IsMethod": false,
+//                 "Name": "RSubtestsIsOriginCall",
+//                 "PkgPath": "gno.land/r/demo/tests",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "File": "tests.gno",
+//                         "Line": "35",
+//                         "Nonce": "0",
+//                         "PkgPath": "gno.land/r/demo/tests"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [],
+//                     "Results": [
+//                         {
+//                             "Embedded": false,
+//                             "Name": "",
+//                             "Tag": "",
+//                             "Type": {
+//                                 "@type": "/gno.PrimitiveType",
+//                                 "value": "4"
+//                             }
+//                         }
+//                     ]
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.FuncType",
 //                 "Params": [
 //                     {
 //                         "Embedded": false,
@@ -766,7 +854,7 @@ func main() {
 //                     "BlockNode": null,
 //                     "Location": {
 //                         "File": "tests.gno",
-//                         "Line": "38",
+//                         "Line": "46",
 //                         "Nonce": "0",
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
@@ -813,7 +901,7 @@ func main() {
 //                     "BlockNode": null,
 //                     "Location": {
 //                         "File": "tests.gno",
-//                         "Line": "60",
+//                         "Line": "68",
 //                         "Nonce": "0",
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
@@ -847,7 +935,7 @@ func main() {
 //                     "BlockNode": null,
 //                     "Location": {
 //                         "File": "tests.gno",
-//                         "Line": "65",
+//                         "Line": "73",
 //                         "Nonce": "0",
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
@@ -881,7 +969,7 @@ func main() {
 //                     "BlockNode": null,
 //                     "Location": {
 //                         "File": "tests.gno",
-//                         "Line": "73",
+//                         "Line": "81",
 //                         "Nonce": "0",
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
@@ -925,7 +1013,7 @@ func main() {
 //                     "BlockNode": null,
 //                     "Location": {
 //                         "File": "tests.gno",
-//                         "Line": "77",
+//                         "Line": "85",
 //                         "Nonce": "0",
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
@@ -979,7 +1067,7 @@ func main() {
 //                     "BlockNode": null,
 //                     "Location": {
 //                         "File": "tests.gno",
-//                         "Line": "81",
+//                         "Line": "89",
 //                         "Nonce": "0",
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
@@ -1034,7 +1122,7 @@ func main() {
 //                     "BlockNode": null,
 //                     "Location": {
 //                         "File": "tests.gno",
-//                         "Line": "85",
+//                         "Line": "93",
 //                         "Nonce": "0",
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
