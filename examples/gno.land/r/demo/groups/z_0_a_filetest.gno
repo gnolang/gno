@@ -1,5 +1,4 @@
-// PKGPATH: gno.land/r/groups_test
-package groups_test
+package main
 
 import (
 	"gno.land/r/demo/groups"

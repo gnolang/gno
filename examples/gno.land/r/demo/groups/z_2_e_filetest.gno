@@ -1,5 +1,4 @@
-// PKGPATH: gno.land/r/groups_test
-package groups_test
+package main
 
 // SEND: 200000000ugnot
 
