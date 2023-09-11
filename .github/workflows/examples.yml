@@ -73,3 +73,22 @@ jobs:
       - run: go run ./gnovm/cmd/gno lint --verbose ./examples/gno.land/r/gnoland
       - run: go run ./gnovm/cmd/gno lint --verbose ./examples/gno.land/r/system
     # TODO: track coverage
+  mod-tidy:
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: [ "1.19.x", "1.20.x" ]
+        # unittests: TODO: matrix with contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
+      - uses: actions/checkout@v3
+      - run: |
+          GNO_CMD="$(pwd)/gnovm/cmd/gno"
+          # Find all directories containing gno.mod file
+          find ./examples -name "gno.mod" -execdir go run "$GNO_CMD" mod tidy \;
+          # Check if there are changes after running gno mod tidy
+          git diff --exit-code || (echo "Some gno.mod files are not tidy, please run 'gno mod tidy'." && exit 1)
