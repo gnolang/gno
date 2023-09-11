@@ -8,12 +8,12 @@ import (
 )
 
 func Example_withDisk() {
-	home := "/path/to/dir"
-	account := "mykey"
-	passwd := "secure"
-
-	kb, _ := keys.NewKeyBaseFromDir(home)
-	signer := gnoclient.Signer(kb, account, passwd)
+	kb, _ := keys.NewKeyBaseFromDir("/path/to/dir")
+	signer := gnoclient.SignerFromKeybase{
+		Keybase:  kb,
+		Account:  "mykey",
+		Password: "secure",
+	}
 	client := gnoclient.Client{
 		Signer: signer,
 	}
@@ -26,9 +26,9 @@ func Example_withInMemCrypto() {
 	bip39Passphrase := ""
 	account := uint32(0)
 	index := uint32(0)
-	kb, _ := gnoclient.InmemKeybaseFromBip39(mnemo, bip39Passphrase, account, index)
+	signer, _ := gnoclient.SignerFromBip39(mnemo, bip39Passphrase, account, index)
 	client := gnoclient.Client{
-		Keybase: kb,
+		Signer: signer,
 	}
 	_ = client
 	fmt.Println("Hello")

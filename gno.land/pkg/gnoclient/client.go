@@ -2,18 +2,16 @@ package gnoclient
 
 import (
 	"errors"
-
-	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 )
 
 type Client struct {
-	Keybase    keys.Keybase
+	Signer     Signer
 	Networking Networking
 }
 
 func (c Client) validateSigner() error {
-	if c.Keybase == nil {
-		return errors.New("missing c.Keybase")
+	if c.Signer == nil {
+		return errors.New("missing c.Signer")
 	}
 	return nil
 }

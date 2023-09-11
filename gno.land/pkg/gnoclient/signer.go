@@ -13,17 +13,15 @@ type SignerFromKeybase struct {
 	Password string // encryption password
 }
 
+func (s SignerFromKeybase) Sign() { panic("not implemneted") }
+
 var _ Signer = (*SignerFromKeybase)(nil)
 
-func SignerFromKeybase(kb keys.Keybase, nameOrBech32 string, passwd string) Signer {
-
-}
-
-// InmemSignerFromBip39 creates an inmemory keybase which loads a single "default" account.
+// SignerFromBip39 creates an inmemory keybase which loads a single "default" account.
 // It is intended to be used in systems that cannot rely on filesystem to store the private keys.
 //
 // Warning: It's recommended to use keys.NewKeyBaseFromDir when possible.
-func InmemSignerFromBip39(mnemo string, passphrase string, account uint32, index uint32) (keys.Keybase, error) {
+func SignerFromBip39(mnemo string, passphrase string, account uint32, index uint32) (Signer, error) {
 	kb := keys.NewInMemory()
 	name := "default"
 	passwd := "" // not needed in memory
@@ -31,5 +29,11 @@ func InmemSignerFromBip39(mnemo string, passphrase string, account uint32, index
 	if err != nil {
 		return nil, err
 	}
-	return kb, nil
+
+	signer := SignerFromKeybase{
+		Keybase:  kb,
+		Account:  name,
+		Password: passwd,
+	}
+	return &signer, nil
 }
