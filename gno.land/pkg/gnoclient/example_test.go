@@ -7,6 +7,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 )
 
+// Example_withDisk demonstrates how to initialize a gnoclient with a keybase sourced from a directory.
 func Example_withDisk() {
 	kb, _ := keys.NewKeyBaseFromDir("/path/to/dir")
 	signer := gnoclient.SignerFromKeybase{
@@ -20,8 +21,8 @@ func Example_withDisk() {
 	_ = client
 }
 
+// Example_withInMemCrypto demonstrates how to initialize a gnoclient with an in-memory keybase using BIP39 mnemonics.
 func Example_withInMemCrypto() {
-	// create inmem keybase from bip39
 	mnemo := "index brass unknown lecture autumn provide royal shrimp elegant wink now zebra discover swarm act ill you bullet entire outdoor tilt usage gap multiply"
 	bip39Passphrase := ""
 	account := uint32(0)
@@ -36,8 +37,8 @@ func Example_withInMemCrypto() {
 	// Hello
 }
 
+// Example_readOnly demonstrates how to initialize a read-only gnoclient, which can only query.
 func Example_readOnly() {
-	// read-only client, can only query.
 	client := gnoclient.Client{}
 	_ = client
 	fmt.Println("Hello")

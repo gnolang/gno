@@ -1,21 +1,22 @@
 # Gno.land Go Client
 
-This is a Go client library for interacting with the Gno.land RPC API.
-The library provides a convenient way to make requests to the Gno.land API endpoints and process the responses.
+The Gno.land Go client is a dedicated library for interacting seamlessly with the Gno.land RPC API.
+This library simplifies the process of querying or sending transactions to the Gno.land RPC API and interpreting the responses.
 
 ## Installation
 
-To use this library, you can add it to your Go project using `go get`:
+Integrate this library into your Go project with the following command:
 
     go get github.com/gnolang/gno/gno.land/pkg/gnoclient
 
-## Plan
+## Development Plan
 
-TODO: improve
-* bootstrap the effort here for gno.land, then move the generic functions to tm2/gnovm/gnosdk later.
-* start using this library in `gno.land/cmd/*` and external clients such as `gnoblog-client` or the discord community faucet bot.
-* as soon as we've a strong generic client, let's try to use codegen to ease creating typesafe contract-specific clients.
+The roadmap for the Gno.land Go client includes:
+
+- **Initial Development:** Kickstart the development specifically for Gno.land. Subsequently, transition the generic functionalities to other modules like `tm2`, `gnovm`, `gnosdk`.
+- **Integration:** Begin incorporating this library within various components such as `gno.land/cmd/*` and other external clients, including `gnoblog-client`, the Discord community faucet bot, and [GnoMobile](https://github.com/gnolang/gnomobile).
+- **Enhancements:** Once the generic client establishes a robust foundation, we aim to utilize code generation for contracts. This will streamline the creation of type-safe, contract-specific clients.
 
 ## Usage
 
-TODO
+TODO: Documentation for usage is currently in development and will be available soon.

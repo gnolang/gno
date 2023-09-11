@@ -2,29 +2,35 @@ package gnoclient
 
 import "github.com/gnolang/gno/tm2/pkg/crypto/keys"
 
-// Signer ...
+// Signer provides an interface for signing.
 type Signer interface {
 	Sign()
 }
 
+// SignerFromKeybase represents a signer created from a Keybase.
 type SignerFromKeybase struct {
-	Keybase  keys.Keybase
-	Account  string // name or bech32
-	Password string // encryption password
+	Keybase  keys.Keybase // Holds keys in memory or on disk
+	Account  string       // Could be name or bech32 format
+	Password string       // Password for encryption
 }
 
-func (s SignerFromKeybase) Sign() { panic("not implemneted") }
+// Sign implements the Signer interface for SignerFromKeybase.
+func (s SignerFromKeybase) Sign() {
+	panic("not implemented")
+}
 
+// Ensure SignerFromKeybase implements Signer interface.
 var _ Signer = (*SignerFromKeybase)(nil)
 
-// SignerFromBip39 creates an inmemory keybase which loads a single "default" account.
-// It is intended to be used in systems that cannot rely on filesystem to store the private keys.
+// SignerFromBip39 creates an in-memory keybase with a single default account.
+// This can be useful in scenarios where storing private keys in the filesystem isn't feasible.
 //
-// Warning: It's recommended to use keys.NewKeyBaseFromDir when possible.
+// Warning: Using keys.NewKeyBaseFromDir is recommended where possible, as it is more secure.
 func SignerFromBip39(mnemo string, passphrase string, account uint32, index uint32) (Signer, error) {
 	kb := keys.NewInMemory()
 	name := "default"
-	passwd := "" // not needed in memory
+	passwd := "" // Password isn't needed for in-memory storage
+
 	_, err := kb.CreateAccount(name, mnemo, passphrase, passwd, account, index)
 	if err != nil {
 		return nil, err
@@ -35,5 +41,6 @@ func SignerFromBip39(mnemo string, passphrase string, account uint32, index uint
 		Account:  name,
 		Password: passwd,
 	}
+
 	return &signer, nil
 }
