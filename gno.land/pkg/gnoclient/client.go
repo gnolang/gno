@@ -1,9 +1,28 @@
 package gnoclient
 
-// Client represents the Gno.land RPC API client.
+import (
+	"errors"
+
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+)
+
 type Client struct {
-	Remote  string
-	ChainID string
+	Keybase    keys.Keybase
+	Networking Networking
+}
+
+func (c Client) validateSigner() error {
+	if c.Keybase == nil {
+		return errors.New("missing c.Keybase")
+	}
+	return nil
+}
+
+func (c Client) validateRPCClient() error {
+	if c.Networking == nil {
+		return errors.New("missing c.Networking")
+	}
+	return nil
 }
 
 // TODO: port existing code, i.e. faucet?
@@ -20,17 +39,3 @@ type Client struct {
 // TODO: Mock
 // TODO: alternative configuration (pass existing websocket?)
 // TODO: minimal go.mod to make it light to import
-
-func (c *Client) ApplyDefaults() {
-	if c.Remote == "" {
-		c.Remote = "127.0.0.1:26657"
-	}
-	if c.ChainID == "" {
-		c.ChainID = "devnet"
-	}
-}
-
-// Request performs an API request and returns the response body.
-func (c *Client) Request(method, endpoint string, params map[string]interface{}) ([]byte, error) {
-	panic("not implemented")
-}
