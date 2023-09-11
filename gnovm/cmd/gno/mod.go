@@ -199,6 +199,8 @@ func execModTidy(args []string, io *commands.IO) error {
 		return err
 	}
 
+	// TODO: Use gm.AddRequire()
+	// Blocked by PR#1077
 	var requires []*modfile.Require
 	for _, im := range imports {
 		requires = append(requires, &modfile.Require{
