@@ -175,14 +175,7 @@ func (ast *JSONASTNode) ParseObject(kv []*ParseKV) {
 }
 
 func ParseSlice(s string) []*JSONASTNode {
-	tokens := tokenize(s)
-	if len(tokens) == 0 {
-		panic("empty json")
-	}
-	remainingTokens, ast := parseAST(tokens)
-	if len(remainingTokens) > 0 {
-		panic("invalid json")
-	}
+	ast := TokenizeAndParse(s)
 	return ast.ParseSlice()
 }
 
