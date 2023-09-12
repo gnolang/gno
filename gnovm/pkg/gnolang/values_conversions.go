@@ -138,6 +138,9 @@ GNO_CASE:
 			x := float64(tv.GetInt()) // XXX determinism?
 			tv.T = t
 			tv.SetFloat64(x)
+		case BigintKind:
+			tv.V = BigintValue{V: big.NewInt(tv.GetInt64())}
+			tv.T = t
 		case StringKind:
 			tv.V = alloc.NewString(string(rune(tv.GetInt())))
 			tv.T = t
@@ -315,6 +318,9 @@ GNO_CASE:
 			x := float64(tv.GetInt32()) // XXX determinism?
 			tv.T = t
 			tv.SetFloat64(x)
+		case BigintKind:
+			tv.V = BigintValue{V: big.NewInt(tv.GetInt64())}
+			tv.T = t
 		case StringKind:
 			tv.V = alloc.NewString(string(tv.GetInt32()))
 			tv.T = t
@@ -374,6 +380,9 @@ GNO_CASE:
 			x := float64(tv.GetInt64()) // XXX determinism?
 			tv.T = t
 			tv.SetFloat64(x)
+		case BigintKind:
+			tv.V = BigintValue{V: big.NewInt(tv.GetInt64())}
+			tv.T = t
 		case StringKind:
 			tv.V = alloc.NewString(string(rune(tv.GetInt64())))
 			tv.T = t
@@ -433,6 +442,9 @@ GNO_CASE:
 			x := float64(tv.GetUint()) // XXX determinism?
 			tv.T = t
 			tv.SetFloat64(x)
+		case BigintKind:
+			tv.V = BigintValue{V: big.NewInt(tv.GetInt64())}
+			tv.T = t
 		case StringKind:
 			tv.V = alloc.NewString(string(rune(tv.GetUint())))
 			tv.T = t
@@ -669,6 +681,9 @@ GNO_CASE:
 			x := float64(tv.GetUint64()) // XXX determinism?
 			tv.T = t
 			tv.SetFloat64(x)
+		case BigintKind:
+			tv.V = BigintValue{V: big.NewInt(tv.GetInt64())}
+			tv.T = t
 		case StringKind:
 			tv.V = alloc.NewString(string(rune(tv.GetUint64())))
 			tv.T = t
@@ -788,6 +803,40 @@ GNO_CASE:
 				"cannot convert %s to %s",
 				tvk.String(), k.String()))
 		}
+	case BigintKind:
+		switch k {
+		case IntKind, Int8Kind, Int16Kind, Int32Kind, UintKind, Uint8Kind, Uint16Kind, Uint32Kind:
+			panic(fmt.Sprintf(
+				"cannot convert %s to %s",
+				tvk.String(), k.String()))
+		case Int64Kind:
+			x := tv.GetBigInt()
+			if x.IsInt64() {
+				tv.T = t
+				tv.SetInt64(x.Int64())
+			} else {
+				panic(fmt.Sprintf(
+					"cannot convert %s to %s",
+					tvk.String(), k.String()))
+			}
+		case Uint64Kind:
+			x := tv.GetBigInt()
+			if x.IsUint64() {
+				tv.T = t
+				tv.SetUint64(x.Uint64())
+			} else {
+				panic(fmt.Sprintf(
+					"cannot convert %s to %s",
+					tvk.String(), k.String()))
+			}
+		case StringKind:
+			tv.T = t
+			tv.SetString(StringValue(tv.GetBigInt().String()))
+		default:
+			panic(fmt.Sprintf(
+				"cannot convert %s to %s",
+				tvk.String(), k.String()))
+		}
 	case StringKind:
 		bt := baseOf(t)
 		switch cbt := bt.(type) {
@@ -808,6 +857,20 @@ GNO_CASE:
 				panic(fmt.Sprintf(
 					"cannot convert %s to %s",
 					tvk.String(), t.String()))
+			}
+		case PrimitiveType:
+			switch k {
+			case BigintKind:
+				bi := new(big.Int)
+				bi, ok := bi.SetString(tv.GetString(), 10)
+				if !ok {
+					panic(fmt.Sprintf(
+						"cannot convert %s to %s",
+						tvk.String(), k.String(),
+					))
+				}
+				tv.V = BigintValue{V: bi}
+				tv.T = t
 			}
 		default:
 			panic(fmt.Sprintf(

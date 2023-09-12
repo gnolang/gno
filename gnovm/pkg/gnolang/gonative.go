@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"math/big"
 	"reflect"
 )
 
@@ -508,7 +509,9 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 			tv.SetFloat64(rv.Float())
 		}
 	case BigintKind:
-		panic("not yet implemented")
+		if lvl != 0 {
+			tv.SetBigInt(rv.Interface().(*big.Int))
+		}
 	case BigdecKind:
 		panic("not yet implemented")
 	case ArrayKind:
@@ -828,7 +831,7 @@ func gno2GoType(t Type) reflect.Type {
 		case Float64Type:
 			return reflect.TypeOf(float64(0))
 		case BigintType, UntypedBigintType:
-			panic("not yet implemented")
+			return reflect.TypeOf(big.NewInt(0))
 		case BigdecType, UntypedBigdecType:
 			panic("not yet implemented")
 		default:
@@ -1113,6 +1116,8 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 			rv.SetFloat(float64(tv.GetFloat32()))
 		case Float64Type:
 			rv.SetFloat(tv.GetFloat64())
+		case BigintType, UntypedBigintType:
+			rv.Set(reflect.ValueOf(tv.GetBigInt()))
 		default:
 			panic(fmt.Sprintf(
 				"unexpected type %s",
