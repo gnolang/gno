@@ -412,10 +412,16 @@ func parseStringToken(s string) (string, *JSONToken) {
 	if (len(s) < 2) || (s[0] != '"') {
 		panic("invalid string")
 	}
+	quote := false
 	for i := 1; i < len(s); i++ {
-		if s[i] == '"' {
+		if !quote && s[i] == '\\' {
+			quote = true
+			continue
+		}
+		if !quote && s[i] == '"' {
 			return s[i+1:], &JSONToken{Kind: JSONTokenKindString, Raw: s[:i+1]}
 		}
+		quote = false
 	}
 	panic("invalid string")
 }

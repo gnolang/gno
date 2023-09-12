@@ -159,3 +159,13 @@ func TestString(t *testing.T) {
 		t.Errorf("Expected output to be `%s`, got `%s`", expected, output)
 	}
 }
+
+func TestUnquoting(t *testing.T) {
+	const input = `"{\"a\": \"\\\"}"`
+	ast := TokenizeAndParse(input)
+	var s string
+	ast.ParseAny(&s)
+	if s != `{"a": "\"}` {
+		t.Errorf("Expected metadata to be `{\"a\": 1}`, got `%s`", s)
+	}
+}
