@@ -79,7 +79,7 @@ Add to your `.vimrc` file:
 
 ```vim
 function! GnoFmt()
-	cexpr system('gofmt -e -w ' . expand('%')) " or replace with gofumpt
+	cexpr system('gofmt -e -w ' . expand('%')) " or replace with gofumpt, see below
 	edit!
 	set syntax=go
 endfunction
