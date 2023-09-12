@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"flag"
-	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -22,7 +21,7 @@ type queryCfg struct {
 	path string
 }
 
-func newQueryCmd(rootCfg *baseCfg) *commands.Command {
+func newQueryCmd(rootCfg *baseCfg, io *commands.IO) *commands.Command {
 	cfg := &queryCfg{
 		rootCfg: rootCfg,
 	}
@@ -35,7 +34,7 @@ func newQueryCmd(rootCfg *baseCfg) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execQuery(cfg, args)
+			return execQuery(cfg, args, io)
 		},
 	)
 }
@@ -63,7 +62,7 @@ func (c *queryCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execQuery(cfg *queryCfg, args []string) error {
+func execQuery(cfg *queryCfg, args []string, io *commands.IO) error {
 	if len(args) != 1 {
 		return flag.ErrHelp
 	}
@@ -76,15 +75,16 @@ func execQuery(cfg *queryCfg, args []string) error {
 	}
 
 	if qres.Response.Error != nil {
-		fmt.Printf("Log: %s\n",
-			qres.Response.Log)
+		io.Printf("Log: %+v\n",
+			qres.Response)
 		return qres.Response.Error
 	}
+
 	resdata := qres.Response.Data
 	// XXX in general, how do we know what to show?
 	// proof := qres.Response.Proof
 	height := qres.Response.Height
-	fmt.Printf("height: %d\ndata: %s\n",
+	io.Printf("height: %d\ndata: %s\n",
 		height,
 		string(resdata))
 	return nil
