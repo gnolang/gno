@@ -1,0 +1,22 @@
+# test basic gnoland integrations commands
+
+## no arguments should fail
+! gnoland
+
+## should be able to start 
+gnoland start
+
+## should not be able to start a node twice
+! gnoland start
+
+## test1 account should be available on default
+gnokey query auth/accounts/${USER_ADDR_test1}
+
+## invalid gnokey command should raise an error
+! gnokey query foo/bar
+
+## should be able to stop default
+gnoland stop
+
+## should not be able to stop a node twice
+! gnoland stop

@@ -46,7 +46,7 @@ func Test_execGenerateUser(t *testing.T) {
 	err = execGenerate(cfg, []string{}, io)
 	require.NoError(t, err)
 
-	// Now provide "good" entropy but no answer
+	// Now provide "io.good" entropy but no answer
 	fakeEntropy = strings.Repeat(":)", 40) + "\n" // entropy + accept count
 	io.SetIn(strings.NewReader(fakeEntropy))
 	err = execGenerate(cfg, []string{}, io)
