@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 )
 
@@ -15,8 +16,13 @@ func Example_withDisk() {
 		Account:  "mykey",
 		Password: "secure",
 	}
+
+	remote := "127.0.0.1:26657"
+	rpcClient := client.NewHTTP(remote, "/websocket")
+
 	client := gnoclient.Client{
-		Signer: signer,
+		Signer:    signer,
+		RPCClient: rpcClient,
 	}
 	_ = client
 }
@@ -28,8 +34,13 @@ func Example_withInMemCrypto() {
 	account := uint32(0)
 	index := uint32(0)
 	signer, _ := gnoclient.SignerFromBip39(mnemo, bip39Passphrase, account, index)
+
+	remote := "127.0.0.1:26657"
+	rpcClient := client.NewHTTP(remote, "/websocket")
+
 	client := gnoclient.Client{
-		Signer: signer,
+		Signer:    signer,
+		RPCClient: rpcClient,
 	}
 	_ = client
 	fmt.Println("Hello")
@@ -39,7 +50,12 @@ func Example_withInMemCrypto() {
 
 // Example_readOnly demonstrates how to initialize a read-only gnoclient, which can only query.
 func Example_readOnly() {
-	client := gnoclient.Client{}
+	remote := "127.0.0.1:26657"
+	rpcClient := client.NewHTTP(remote, "/websocket")
+
+	client := gnoclient.Client{
+		RPCClient: rpcClient,
+	}
 	_ = client
 	fmt.Println("Hello")
 	// Output:
