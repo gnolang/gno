@@ -81,8 +81,8 @@ type MachineOptions struct {
 var machinePool = sync.Pool{
 	New: func() interface{} {
 		return &Machine{
-			Ops:    make([]Op, OpSize),
-			Values: make([]TypedValue, ValueSize),
+			Ops:    make([]Op, VMSliceSize),
+			Values: make([]TypedValue, VMSliceSize),
 		}
 	},
 }
@@ -139,13 +139,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 }
 
 const (
-	OpSize    = 1024
-	ValueSize = 1024
-)
-
-var (
-	opZeroed    [OpSize]Op
-	valueZeroed [ValueSize]TypedValue
+	VMSliceSize = 1024
 )
 
 // m should not be used after this call
@@ -158,12 +152,12 @@ func (m *Machine) Release() {
 	m.NumOps = 0
 	m.NumValues = 0
 
-	m.Ops = make([]Op, 1024)
-	m.Values = make([]TypedValue, 1024)
-	m.Exprs = make([]Expr, 1024)
-	m.Stmts = make([]Stmt, 1024)
-	m.Blocks = make([]*Block, 1024)
-	m.Frames = make([]Frame, 1024)
+	m.Ops = make([]Op, VMSliceSize)
+	m.Values = make([]TypedValue, VMSliceSize)
+	m.Exprs = nil
+	m.Stmts = nil
+	m.Blocks = nil
+	m.Frames = nil
 
 	machinePool.Put(m)
 }
