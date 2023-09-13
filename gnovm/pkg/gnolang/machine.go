@@ -154,13 +154,16 @@ var (
 // and prevent objects that were not taken from
 // the pool, to call Release
 func (m *Machine) Release() {
-	// copy()
 	// here we zero in the values for the next user
 	m.NumOps = 0
 	m.NumValues = 0
-	// this is the fastest way to zero-in a slice in Go
-	copy(m.Ops, opZeroed[:])
-	copy(m.Values, valueZeroed[:])
+
+	m.Ops = make([]Op, 1024)
+	m.Values = make([]TypedValue, 1024)
+	m.Exprs = make([]Expr, 1024)
+	m.Stmts = make([]Stmt, 1024)
+	m.Blocks = make([]*Block, 1024)
+	m.Frames = make([]Frame, 1024)
 
 	machinePool.Put(m)
 }
