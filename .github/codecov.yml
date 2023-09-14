@@ -1,17 +1,29 @@
 codecov:
-  require_ci_to_pass: no
+  require_ci_to_pass: false
+  require_changes: true
   notify:
-    wait_for_ci: no
+    wait_for_ci: false
 
 ignore:
   - misc
 
-comment: false # will use it later.
+comment:
+  require_changes: true
 
 coverage:
+  #range: 50..100
+  round: down
+  precision: 2
   status:
-    project: off
-    patch: off
+    project:
+      default:
+        target: auto
+        threshold: 0.5%
+        #informational: true
+    patch:
+      default:
+        target: auto
+    changes:
 
 flags:
   default_rules:
