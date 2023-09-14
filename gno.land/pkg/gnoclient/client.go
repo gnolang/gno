@@ -1,10 +1,15 @@
 package gnoclient
 
 import (
+	"fmt"
+
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type Client struct {
@@ -34,6 +39,7 @@ type QueryCfg struct {
 	client.ABCIQueryOptions
 }
 
+// XXX: not sure if we should keep this helper or encourage people to use ABCIQueryWithOptions directly.
 func (c Client) Query(cfg QueryCfg) (*ctypes.ResultABCIQuery, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return nil, err
@@ -41,99 +47,127 @@ func (c Client) Query(cfg QueryCfg) (*ctypes.ResultABCIQuery, error) {
 	return c.RPCClient.ABCIQueryWithOptions(cfg.Path, cfg.Data, cfg.ABCIQueryOptions)
 }
 
-/*
-func (c *Client) Call(
-	pkgPath string,
-	fnc string,
-	args []string,
-	gasFee string,
-	gasWanted int64,
-	send string,
-) error {
-	if err := c.validateSigner(); err != nil {
-		return err
+func (c Client) QueryAccount(addr string) (*std.BaseAccount, *ctypes.ResultABCIQuery, error) {
+	if err := c.validateRPCClient(); err != nil {
+		return nil, nil, err
 	}
 
-	caller := c.Signer.Info().GetAddress()
+	path := fmt.Sprintf("auth/accounts/%s", addr)
+	data := []byte{}
+
+	qres, err := c.RPCClient.ABCIQuery(path, data)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "query account")
+	}
+
+	var qret struct{ BaseAccount std.BaseAccount }
+	err = amino.UnmarshalJSON(qres.Response.Data, &qret)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &qret.BaseAccount, qres, nil
+}
+
+type CallCfg struct {
+	PkgPath  string
+	FuncName string
+	Args     []string
+
+	GasFee    string
+	GasWanted int64
+	Send      string
+
+	AccountNumber  uint64
+	SequenceNumber uint64
+}
+
+func (c *Client) Call(cfg CallCfg) error {
+	// validate config.
+	if cfg.PkgPath == "" {
+		return errors.New("missing PkgPath")
+	}
+	if cfg.FuncName == "" {
+		return errors.New("missing FuncName")
+	}
 
 	// Parse send amount.
-	sendCoins, err := std.ParseCoins(send)
+	sendCoins, err := std.ParseCoins(cfg.Send)
 	if err != nil {
 		return errors.Wrap(err, "parsing send coins")
 	}
 
 	// parse gas wanted & fee.
-	gasFeeCoins, err := std.ParseCoin(gasFee)
+	gasFeeCoins, err := std.ParseCoin(cfg.GasFee)
 	if err != nil {
 		return errors.Wrap(err, "parsing gas fee coin")
 	}
+
+	// validate required client fields.
+	if err := c.validateSigner(); err != nil {
+		return err
+	}
+	if err := c.validateRPCClient(); err != nil {
+		return err
+	}
+
+	caller := c.Signer.Info().GetAddress()
 
 	// construct msg & tx and marshal.
 	msg := vm.MsgCall{
 		Caller:  caller,
 		Send:    sendCoins,
-		PkgPath: pkgPath,
-		Func:    fnc,
-		Args:    args,
+		PkgPath: cfg.PkgPath,
+		Func:    cfg.FuncName,
+		Args:    cfg.Args,
 	}
 	tx := std.Tx{
 		Msgs:       []std.Msg{msg},
-		Fee:        std.NewFee(gasWanted, gasFeeCoins),
+		Fee:        std.NewFee(cfg.GasWanted, gasFeeCoins),
 		Signatures: nil,
 		Memo:       "",
 	}
 
-	qopts := &queryCfg{
-		remote: c.remote,
-		path:   fmt.Sprintf("auth/accounts/%s", caller),
-	}
-	qres, err := queryHandler(qopts)
-	if err != nil {
-		return errors.Wrap(err, "query account")
-	}
-	var qret struct{ BaseAccount std.BaseAccount }
-	err = amino.UnmarshalJSON(qres.Response.Data, &qret)
-	if err != nil {
-		return err
+	if cfg.SequenceNumber == 0 || cfg.AccountNumber == 0 {
+		account, _, err := c.QueryAccount(caller.String())
+		if err != nil {
+			return errors.Wrap(err, "query account")
+		}
+		cfg.AccountNumber = account.AccountNumber
+		cfg.SequenceNumber = account.Sequence
 	}
 
-	// sign tx
-	accountNumber := qret.BaseAccount.AccountNumber
-	sequence := qret.BaseAccount.Sequence
-	sopts := &signCfg{
-		kb:            c.keybase,
-		sequence:      sequence,
-		accountNumber: accountNumber,
-		chainID:       c.chainID,
-		nameOrBech32:  nameOrBech32,
-		txJSON:        amino.MustMarshalJSON(tx),
-		pass:          password,
+	signCfg := SignCfg{
+		UnsignedTX:     tx,
+		SequenceNumber: cfg.SequenceNumber,
+		AccountNumber:  cfg.AccountNumber,
+	}
+	signedTx, err := c.Signer.Sign(signCfg)
+	if err != nil {
+		return errors.Wrap(err, "sign")
 	}
 
-	signedTx, err := SignHandler(sopts)
-	if err != nil {
-		return errors.Wrap(err, "sign tx")
-	}
-
-	// broadcast signed tx
-	bopts := &broadcastCfg{
-		remote: c.remote,
-		tx:     signedTx,
-	}
-	bres, err := broadcastHandler(bopts)
-	if err != nil {
-		return errors.Wrap(err, "broadcast tx")
-	}
-	if bres.CheckTx.IsErr() {
-		return errors.Wrap(bres.CheckTx.Error, "check transaction failed: log:%s", bres.CheckTx.Log)
-	}
-	if bres.DeliverTx.IsErr() {
-		return errors.Wrap(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
-	}
+	_ = signedTx
+	/*
+		// broadcast signed tx
+		bopts := &broadcastCfg{
+			remote: c.remote,
+			tx:     signedTx,
+		}
+		bres, err := broadcastHandler(bopts)
+		if err != nil {
+			return errors.Wrap(err, "broadcast tx")
+		}
+		if bres.CheckTx.IsErr() {
+			return errors.Wrap(bres.CheckTx.Error, "check transaction failed: log:%s", bres.CheckTx.Log)
+		}
+		if bres.DeliverTx.IsErr() {
+			return errors.Wrap(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
+		}
+	*/
 
 	return nil
 }
-*/
 
 // TODO: port existing code, i.e. faucet?
 // TODO: create right now a tm2 generic go client and a gnovm generic go client?
