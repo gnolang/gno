@@ -5,7 +5,6 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -36,9 +35,9 @@ func (c Client) validateRPCClient() error {
 
 // QueryCfg contains configuration options for performing queries.
 type QueryCfg struct {
-	Path                    string // Query path
-	Data                    []byte // Query data
-	client.ABCIQueryOptions        // ABCI query options
+	Path                       string // Query path
+	Data                       []byte // Query data
+	rpcclient.ABCIQueryOptions        // ABCI query options
 }
 
 // Query performs a generic query on the blockchain.
