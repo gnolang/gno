@@ -56,3 +56,20 @@ func (c Client) QueryAccount(addr string) (*std.BaseAccount, *ctypes.ResultABCIQ
 
 	return &qret.BaseAccount, qres, nil
 }
+
+func (c Client) QueryAppVersion() (string, *ctypes.ResultABCIQuery, error) {
+	if err := c.validateRPCClient(); err != nil {
+		return "", nil, err
+	}
+
+	path := ".app/version"
+	data := []byte{}
+
+	qres, err := c.RPCClient.ABCIQuery(path, data)
+	if err != nil {
+		return "", nil, errors.Wrap(err, "query account")
+	}
+
+	version := string(qres.Response.Value)
+	return version, qres, nil
+}
