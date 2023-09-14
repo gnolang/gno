@@ -1,6 +1,6 @@
 # Philosophy
 
- * Simplicity of design - there should be one obvious way to do it.
+ * Simplicity of design.
  * The code is the spec.
  * Readability is paramount - beautiful is better than fast.
  * Minimal code - keep total footprint small.
