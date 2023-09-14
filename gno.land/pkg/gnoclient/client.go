@@ -45,7 +45,16 @@ func (c Client) Query(cfg QueryCfg) (*ctypes.ResultABCIQuery, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return nil, err
 	}
-	return c.RPCClient.ABCIQueryWithOptions(cfg.Path, cfg.Data, cfg.ABCIQueryOptions)
+	qres, err := c.RPCClient.ABCIQueryWithOptions(cfg.Path, cfg.Data, cfg.ABCIQueryOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "query error")
+	}
+
+	if qres.Response.Error != nil {
+		return qres, errors.Wrap(qres.Response.Error, "deliver transaction failed: log:%s", qres.Response.Log)
+	}
+
+	return qres, nil
 }
 
 // QueryAccount retrieves account information for a given address.
@@ -178,10 +187,10 @@ func (c Client) signAndBroadcastTxCommit(tx std.Tx, accountNumber, sequenceNumbe
 	}
 
 	if bres.CheckTx.IsErr() {
-		return nil, errors.Wrap(bres.CheckTx.Error, "check transaction failed: log:%s", bres.CheckTx.Log)
+		return bres, errors.Wrap(bres.CheckTx.Error, "check transaction failed: log:%s", bres.CheckTx.Log)
 	}
 	if bres.DeliverTx.IsErr() {
-		return nil, errors.Wrap(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
+		return bres, errors.Wrap(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
 	}
 
 	return bres, nil
