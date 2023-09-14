@@ -1,6 +1,6 @@
 ### - test package
 
-    ./build/gnodev test examples/gno.land/r/demo/groups/
+    ./build/gno test examples/gno.land/r/demo/groups/
 
 ### - add pkg
 

@@ -2,6 +2,8 @@ package gnolang
 
 import (
 	"fmt"
+	"go/parser"
+	"go/token"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -1079,14 +1081,16 @@ type FileSet struct {
 	Files []*FileNode
 }
 
-// TODO replace with some more efficient method
-// that doesn't involve parsing the whole file.
-//
-// name could be anything,
-// it's only used to generate better error traces.
-func PackageNameFromFileBody(name string, body string) Name {
-	n := MustParseFile(name, body)
-	return n.PkgName
+// PackageNameFromFileBody extracts the package name from the given Gno code body.
+// The 'name' parameter is used for better error traces, and 'body' contains the Gno code.
+func PackageNameFromFileBody(name, body string) Name {
+	fset := token.NewFileSet()
+	astFile, err := parser.ParseFile(fset, name, body, parser.PackageClauseOnly)
+	if err != nil {
+		panic(err)
+	}
+
+	return Name(astFile.Name.Name)
 }
 
 // NOTE: panics if package name is invalid.
@@ -1096,7 +1100,6 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 		panic(err)
 	}
 	memPkg := &std.MemPackage{Path: pkgPath}
-	var pkgName Name
 	allowedFiles := []string{ // make case insensitive?
 		"gno.mod",
 		"LICENSE",
@@ -1105,6 +1108,7 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 	allowedFileExtensions := []string{
 		".gno",
 	}
+	var pkgName Name
 	for _, file := range files {
 		if file.IsDir() ||
 			strings.HasPrefix(file.Name(), ".") ||
@@ -1128,8 +1132,13 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 				Body: string(bz),
 			})
 	}
-	validatePkgName(string(pkgName))
-	memPkg.Name = string(pkgName)
+
+	// If no .gno files are present, package simply does not exist.
+	if !memPkg.IsEmpty() {
+		validatePkgName(string(pkgName))
+		memPkg.Name = string(pkgName)
+	}
+
 	return memPkg
 }
 
@@ -1157,8 +1166,8 @@ func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 			fset.AddFiles(n)
 		} else {
 			panic(fmt.Sprintf(
-				"expected package name [%s] or [%s_test] but got [%s]",
-				memPkg.Name, memPkg.Name, n.PkgName))
+				"expected package name [%s] but got [%s]",
+				memPkg.Name, n.PkgName))
 		}
 	}
 	return fset

@@ -197,7 +197,7 @@ func TestListAndNonDraftPkgs(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, len(tc.outListPkgs), len(pkgs))
 			for _, p := range pkgs {
-				assert.Contains(t, tc.outListPkgs, p.name)
+				assert.Contains(t, tc.outListPkgs, p.Name)
 			}
 
 			// Sort packages
@@ -208,7 +208,7 @@ func TestListAndNonDraftPkgs(t *testing.T) {
 			nonDraft := sorted.GetNonDraftPkgs()
 			assert.Equal(t, len(tc.outNonDraftPkgs), len(nonDraft))
 			for _, p := range nonDraft {
-				assert.Contains(t, tc.outNonDraftPkgs, p.name)
+				assert.Contains(t, tc.outNonDraftPkgs, p.Name)
 			}
 		})
 	}
@@ -240,30 +240,30 @@ func TestSortPkgs(t *testing.T) {
 		}, {
 			desc: "no_dependencies",
 			in: []Pkg{
-				{name: "pkg1", path: "/path/to/pkg1", requires: []string{}},
-				{name: "pkg2", path: "/path/to/pkg2", requires: []string{}},
-				{name: "pkg3", path: "/path/to/pkg3", requires: []string{}},
+				{Name: "pkg1", Dir: "/path/to/pkg1", Requires: []string{}},
+				{Name: "pkg2", Dir: "/path/to/pkg2", Requires: []string{}},
+				{Name: "pkg3", Dir: "/path/to/pkg3", Requires: []string{}},
 			},
 			expected: []string{"pkg1", "pkg2", "pkg3"},
 		}, {
 			desc: "circular_dependencies",
 			in: []Pkg{
-				{name: "pkg1", path: "/path/to/pkg1", requires: []string{"pkg2"}},
-				{name: "pkg2", path: "/path/to/pkg2", requires: []string{"pkg1"}},
+				{Name: "pkg1", Dir: "/path/to/pkg1", Requires: []string{"pkg2"}},
+				{Name: "pkg2", Dir: "/path/to/pkg2", Requires: []string{"pkg1"}},
 			},
 			shouldErr: true,
 		}, {
 			desc: "missing_dependencies",
 			in: []Pkg{
-				{name: "pkg1", path: "/path/to/pkg1", requires: []string{"pkg2"}},
+				{Name: "pkg1", Dir: "/path/to/pkg1", Requires: []string{"pkg2"}},
 			},
 			shouldErr: true,
 		}, {
 			desc: "valid_dependencies",
 			in: []Pkg{
-				{name: "pkg1", path: "/path/to/pkg1", requires: []string{"pkg2"}},
-				{name: "pkg2", path: "/path/to/pkg2", requires: []string{"pkg3"}},
-				{name: "pkg3", path: "/path/to/pkg3", requires: []string{}},
+				{Name: "pkg1", Dir: "/path/to/pkg1", Requires: []string{"pkg2"}},
+				{Name: "pkg2", Dir: "/path/to/pkg2", Requires: []string{"pkg3"}},
+				{Name: "pkg3", Dir: "/path/to/pkg3", Requires: []string{}},
 			},
 			expected: []string{"pkg3", "pkg2", "pkg1"},
 		},
@@ -275,7 +275,7 @@ func TestSortPkgs(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 				for i := range tc.expected {
-					assert.Equal(t, tc.expected[i], sorted[i].name)
+					assert.Equal(t, tc.expected[i], sorted[i].Name)
 				}
 			}
 		})

@@ -86,9 +86,14 @@ func gnoPackagesFromArgs(args []string) ([]string, error) {
 				}
 				visited[parentDir] = true
 
-				// cannot use path.Join or filepath.Join, because we need
-				// to ensure that ./ is the prefix to pass to go build.
-				pkg := "./" + parentDir
+				pkg := parentDir
+				if !filepath.IsAbs(parentDir) {
+					// cannot use path.Join or filepath.Join, because we need
+					// to ensure that ./ is the prefix to pass to go build.
+					// if not absolute.
+					pkg = "./" + parentDir
+				}
+
 				paths = append(paths, pkg)
 				return nil
 			})

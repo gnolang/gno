@@ -37,7 +37,7 @@ func newLintCmd(io *commands.IO) *commands.Command {
 
 func (c *lintCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(&c.verbose, "verbose", false, "verbose output when lintning")
-	fs.StringVar(&c.rootDir, "root-dir", "", "clone location of github.com/gnolang/gno (gnodev tries to guess it)")
+	fs.StringVar(&c.rootDir, "root-dir", "", "clone location of github.com/gnolang/gno (gno tries to guess it)")
 	fs.IntVar(&c.setExitStatus, "set_exit_status", 1, "set exit status to 1 if any issues are found")
 }
 

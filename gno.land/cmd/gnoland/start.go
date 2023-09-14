@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -21,7 +22,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
-	vmm "github.com/gnolang/gno/tm2/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -234,7 +234,8 @@ func makeGenesisDoc(
 
 	for _, pkg := range nonDraftPkgs {
 		// open files in directory as MemPackage.
-		memPkg := gno.ReadMemPackage(pkg.Path(), pkg.Name())
+		memPkg := gno.ReadMemPackage(pkg.Dir, pkg.Name)
+
 		var tx std.Tx
 		tx.Msgs = []std.Msg{
 			vmm.MsgAddPackage{

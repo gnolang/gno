@@ -172,6 +172,7 @@ func (store *cacheStore) dirtyItems(start, end []byte) {
 		return bytes.Compare(unsorted[i].Key, unsorted[j].Key) < 0
 	})
 
+	// #nosec G602
 	for e := store.sortedCache.Front(); e != nil && len(unsorted) != 0; {
 		uitem := unsorted[0]
 		sitem := e.Value.(*std.KVPair)
