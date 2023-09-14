@@ -10,7 +10,7 @@ import (
 
 var data avl.Tree
 
-var (
+const (
 	BaseURL               = "/r/demo/keystore"
 	StatusOK              = "ok"
 	StatusNoUser          = "user not found"
