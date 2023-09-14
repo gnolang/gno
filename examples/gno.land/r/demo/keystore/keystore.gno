@@ -139,6 +139,10 @@ func Render(p string) string {
 	args := strings.Split(p, ":")
 	numArgs := len(args)
 	if p == "" {
+		numArgs = 0
+	}
+	switch numArgs {
+	case 0:
 		if data.Size() == 0 {
 			return StatusNoDatabases
 		}
@@ -147,7 +151,7 @@ func Render(p string) string {
 			response += ufmt.Sprintf("- [%s](%s:%s) (%d keys)\n", ks.Owner, BaseURL, ks.Owner, ks.Data.Size())
 			return false
 		})
-	} else if numArgs == 1 {
+	case 1:
 		owner := args[0]
 		keystoreInterface, exists := data.Get(owner)
 		if !exists {
@@ -161,13 +165,13 @@ func Render(p string) string {
 			i++
 			return false
 		})
-	} else if numArgs == 2 {
+	case 2:
 		owner := args[0]
 		cmd := args[1]
 		if cmd == "size" {
 			return size(owner)
 		}
-	} else if numArgs == 3 {
+	case 3:
 		owner := args[0]
 		cmd := args[1]
 		key := args[2]
@@ -175,5 +179,6 @@ func Render(p string) string {
 			return get(owner, key)
 		}
 	}
+
 	return response
 }
