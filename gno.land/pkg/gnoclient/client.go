@@ -82,7 +82,15 @@ type CallCfg struct {
 	Memo           string
 }
 
-func (c *Client) CallCommit(cfg CallCfg) (*ctypes.ResultBroadcastTxCommit, error) {
+func (c *Client) Call(cfg CallCfg) (*ctypes.ResultBroadcastTxCommit, error) {
+	// validate required client fields.
+	if err := c.validateSigner(); err != nil {
+		return nil, errors.Wrap(err, "validate signer")
+	}
+	if err := c.validateRPCClient(); err != nil {
+		return nil, errors.Wrap(err, "validate RPC client")
+	}
+
 	pkgPath := cfg.PkgPath
 	funcName := cfg.FuncName
 	args := cfg.Args
@@ -111,14 +119,6 @@ func (c *Client) CallCommit(cfg CallCfg) (*ctypes.ResultBroadcastTxCommit, error
 	gasFeeCoins, err := std.ParseCoin(gasFee)
 	if err != nil {
 		return nil, errors.Wrap(err, "parsing gas fee coin")
-	}
-
-	// validate required client fields.
-	if err := c.validateSigner(); err != nil {
-		return nil, errors.Wrap(err, "validate signer")
-	}
-	if err := c.validateRPCClient(); err != nil {
-		return nil, errors.Wrap(err, "validate RPC client")
 	}
 
 	caller := c.Signer.Info().GetAddress()
