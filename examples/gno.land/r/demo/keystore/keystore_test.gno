@@ -42,8 +42,6 @@ func TestRender(t *testing.T) {
 		{author1, author2, []string{"get", "hello"}, "universe"},
 		// either author can get the other info
 		{author2, author1, []string{"get", "hello"}, "world"},
-		// cannot perform write operations is owner (author2) is not caller (author1)
-		{author1, author2, []string{"set", "hello", "should not work"}, StatusNoWriteAccess},
 		{author1, author2, []string{"get", "hello"}, "universe"},
 		// anyone can view the databases
 		{author1, author2, []string{}, `- [g1v96hg6r0wgc47h6lta047h6lta047h6lm33tq6](/r/demo/keystore:g1v96hg6r0wgc47h6lta047h6lta047h6lm33tq6) (2 keys)
@@ -64,7 +62,14 @@ func TestRender(t *testing.T) {
 		p = strings.TrimSuffix(p, ":")
 		t.Run(p, func(t *testing.T) {
 			std.TestSetOrigCaller(tc.caller)
-			act := strings.TrimSpace(Render(p))
+			var act string
+			if len(tc.ps) > 0 && tc.ps[0] == "set" {
+				act = strings.TrimSpace(Set(tc.ps[1], tc.ps[2]))
+			} else if len(tc.ps) > 0 && tc.ps[0] == "remove" {
+				act = strings.TrimSpace(Remove(tc.ps[1]))
+			} else {
+				act = strings.TrimSpace(Render(p))
+			}
 			if act != tc.exp {
 				t.Errorf("%v -> '%s', got '%s', wanted '%s'", tc.ps, p, act, tc.exp)
 			}

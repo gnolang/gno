@@ -128,13 +128,11 @@ func size(owner string) string {
 	return ufmt.Sprintf("%d", keystore.Data.Size())
 }
 
-// Render provides url access to the functions of the keystore
+// Render provides read-only url access to the functions of the keystore
 // "" -> show all keystores listed by owner
 // "owner" -> show all keys for that owner's keystore
 // "owner:size" -> returns size of owner's keystore
 // "owner:get:key" -> show value for that key in owner's keystore
-// "owner:set:key:value" -> sets a key-value pair for owner's keystore (owner must be caller)
-// "owner:remove:key" -> removes key from owner keystore (owner must be caller)
 func Render(p string) string {
 	var response string
 	args := strings.Split(p, ":")
@@ -175,18 +173,6 @@ func Render(p string) string {
 		key := args[2]
 		if cmd == "get" {
 			return get(owner, key)
-		} else if cmd == "remove" {
-			// remove will only work if caller is owner
-			return remove(owner, key)
-		}
-	} else if numArgs == 4 {
-		owner := args[0]
-		cmd := args[1]
-		key := args[2]
-		val := args[3]
-		if cmd == "set" {
-			// set only works if caller is owner
-			return set(owner, key, val)
 		}
 	}
 	return response
