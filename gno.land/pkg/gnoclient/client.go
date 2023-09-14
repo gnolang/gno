@@ -74,41 +74,51 @@ type CallCfg struct {
 	FuncName string
 	Args     []string
 
-	GasFee    string
-	GasWanted int64
-	Send      string
-
+	GasFee         string
+	GasWanted      int64
+	Send           string
 	AccountNumber  uint64
 	SequenceNumber uint64
+	Memo           string
 }
 
-func (c *Client) Call(cfg CallCfg) error {
+func (c *Client) CallCommit(cfg CallCfg) (*ctypes.ResultBroadcastTxCommit, error) {
+	pkgPath := cfg.PkgPath
+	funcName := cfg.FuncName
+	args := cfg.Args
+	gasWanted := cfg.GasWanted
+	gasFee := cfg.GasFee
+	send := cfg.Send
+	sequenceNumber := cfg.SequenceNumber
+	accountNumber := cfg.AccountNumber
+	memo := cfg.Memo
+
 	// validate config.
-	if cfg.PkgPath == "" {
-		return errors.New("missing PkgPath")
+	if pkgPath == "" {
+		return nil, errors.New("missing PkgPath")
 	}
-	if cfg.FuncName == "" {
-		return errors.New("missing FuncName")
+	if funcName == "" {
+		return nil, errors.New("missing FuncName")
 	}
 
 	// Parse send amount.
-	sendCoins, err := std.ParseCoins(cfg.Send)
+	sendCoins, err := std.ParseCoins(send)
 	if err != nil {
-		return errors.Wrap(err, "parsing send coins")
+		return nil, errors.Wrap(err, "parsing send coins")
 	}
 
 	// parse gas wanted & fee.
-	gasFeeCoins, err := std.ParseCoin(cfg.GasFee)
+	gasFeeCoins, err := std.ParseCoin(gasFee)
 	if err != nil {
-		return errors.Wrap(err, "parsing gas fee coin")
+		return nil, errors.Wrap(err, "parsing gas fee coin")
 	}
 
 	// validate required client fields.
 	if err := c.validateSigner(); err != nil {
-		return err
+		return nil, errors.Wrap(err, "validate signer")
 	}
 	if err := c.validateRPCClient(); err != nil {
-		return err
+		return nil, errors.Wrap(err, "validate RPC client")
 	}
 
 	caller := c.Signer.Info().GetAddress()
@@ -117,56 +127,60 @@ func (c *Client) Call(cfg CallCfg) error {
 	msg := vm.MsgCall{
 		Caller:  caller,
 		Send:    sendCoins,
-		PkgPath: cfg.PkgPath,
-		Func:    cfg.FuncName,
-		Args:    cfg.Args,
+		PkgPath: pkgPath,
+		Func:    funcName,
+		Args:    args,
 	}
 	tx := std.Tx{
 		Msgs:       []std.Msg{msg},
-		Fee:        std.NewFee(cfg.GasWanted, gasFeeCoins),
+		Fee:        std.NewFee(gasWanted, gasFeeCoins),
 		Signatures: nil,
-		Memo:       "",
+		Memo:       memo,
 	}
 
-	if cfg.SequenceNumber == 0 || cfg.AccountNumber == 0 {
+	return c.signAndBroadcastTxCommit(tx, accountNumber, sequenceNumber)
+}
+
+func (c Client) signAndBroadcastTxCommit(tx std.Tx, accountNumber, sequenceNumber uint64) (*ctypes.ResultBroadcastTxCommit, error) {
+	caller := c.Signer.Info().GetAddress()
+
+	if sequenceNumber == 0 || accountNumber == 0 {
 		account, _, err := c.QueryAccount(caller.String())
 		if err != nil {
-			return errors.Wrap(err, "query account")
+			return nil, errors.Wrap(err, "query account")
 		}
-		cfg.AccountNumber = account.AccountNumber
-		cfg.SequenceNumber = account.Sequence
+		accountNumber = account.AccountNumber
+		sequenceNumber = account.Sequence
 	}
 
 	signCfg := SignCfg{
 		UnsignedTX:     tx,
-		SequenceNumber: cfg.SequenceNumber,
-		AccountNumber:  cfg.AccountNumber,
+		SequenceNumber: sequenceNumber,
+		AccountNumber:  accountNumber,
 	}
 	signedTx, err := c.Signer.Sign(signCfg)
 	if err != nil {
-		return errors.Wrap(err, "sign")
+		return nil, errors.Wrap(err, "sign")
 	}
 
-	_ = signedTx
-	/*
-		// broadcast signed tx
-		bopts := &broadcastCfg{
-			remote: c.remote,
-			tx:     signedTx,
-		}
-		bres, err := broadcastHandler(bopts)
-		if err != nil {
-			return errors.Wrap(err, "broadcast tx")
-		}
-		if bres.CheckTx.IsErr() {
-			return errors.Wrap(bres.CheckTx.Error, "check transaction failed: log:%s", bres.CheckTx.Log)
-		}
-		if bres.DeliverTx.IsErr() {
-			return errors.Wrap(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
-		}
-	*/
+	bz, err := amino.Marshal(signedTx)
+	if err != nil {
+		return nil, errors.Wrap(err, "remarshaling tx binary bytes")
+	}
 
-	return nil
+	bres, err := c.RPCClient.BroadcastTxCommit(bz)
+	if err != nil {
+		return nil, errors.Wrap(err, "broadcasting bytes")
+	}
+
+	if bres.CheckTx.IsErr() {
+		return nil, errors.Wrap(bres.CheckTx.Error, "check transaction failed: log:%s", bres.CheckTx.Log)
+	}
+	if bres.DeliverTx.IsErr() {
+		return nil, errors.Wrap(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
+	}
+
+	return bres, nil
 }
 
 // TODO: port existing code, i.e. faucet?
