@@ -9,6 +9,10 @@ on:
   push:
     branches: [ "master" ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -16,7 +20,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [ "1.19.x", "1.20.x" ]
+        go-version:
+          - "1.20.x"
+          - "1.21.x"
         tags:
           - cleveldb
           - memdb
@@ -40,6 +46,6 @@ jobs:
           sudo dpkg -i *.deb
 
       # test ./pkgs/db
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: test ./tm2/pkg/db
         run: go test -tags ${{ matrix.tags }} ./tm2/pkg/db/...

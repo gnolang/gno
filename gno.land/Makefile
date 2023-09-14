@@ -6,20 +6,22 @@ help:
 rundep=go run -modfile ../misc/devdeps/go.mod
 
 .PHONY: build
-build: build.gnoland build.gnokey build.gnoweb build.gnofaucet
+build: build.gnoland build.gnokey build.gnoweb build.gnofaucet build.gnotxsync
 
 build.gnoland:;    go build -o build/gnoland   ./cmd/gnoland
 build.gnoweb:;     go build -o build/gnoweb    ./cmd/gnoweb
 build.gnofaucet:;  go build -o build/gnofaucet ./cmd/gnofaucet
 build.gnokey:;     go build -o build/gnokey    ./cmd/gnokey
+build.gnotxsync:;  go build -o build/gnotxsync  ./cmd/gnotxsync
 
 .PHONY: install
-install: install.gnoland install.gnoweb install.gnofaucet install.gnokey
+install: install.gnoland install.gnoweb install.gnofaucet install.gnokey install.gnotxsync
 
 install.gnoland:;    go install ./cmd/gnoland
 install.gnoweb:;     go install ./cmd/gnoweb
 install.gnofaucet:;  go install ./cmd/gnofaucet
 install.gnokey:;     go install ./cmd/gnokey
+install.gnotxsync:;  go install ./cmd/gnotxsync
 
 .PHONY: fclean
 fclean: clean
