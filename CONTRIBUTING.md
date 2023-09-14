@@ -56,7 +56,7 @@ The gno repository is primarily based on Golang (Go), and Gnolang (Gno).
 
 The primary tech stack for working on the repository:
 
-- Go (version 1.19+)
+- Go (version 1.20+)
 - make (for using Makefile configurations)
 - Docker (for using the official Docker setup files)
 

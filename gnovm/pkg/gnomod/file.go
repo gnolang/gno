@@ -110,7 +110,9 @@ func (f *File) FetchDeps(path string, remote string, verbose bool) error {
 		if err != nil {
 			return err
 		}
-		err = goMod.WriteToPath(PackageDir(path, mod))
+		pkgPath := PackageDir(path, mod)
+		goModFilePath := filepath.Join(pkgPath, "go.mod")
+		err = goMod.WriteToPath(goModFilePath)
 		if err != nil {
 			return err
 		}
@@ -119,10 +121,10 @@ func (f *File) FetchDeps(path string, remote string, verbose bool) error {
 	return nil
 }
 
-// WriteToPath writes go.mod file in the given absolute path
+// WriteToPath writes file to the given absolute file path
 // TODO: Find better way to do this. Try to use `modfile`
 // package to manage this.
-func (f *File) WriteToPath(absPath string) error {
+func (f *File) WriteToPath(absFilePath string) error {
 	if f.Module == nil {
 		return errors.New("writing go.mod: module not found")
 	}
@@ -150,10 +152,9 @@ func (f *File) WriteToPath(absPath string) error {
 		data += ")\n"
 	}
 
-	modPath := filepath.Join(absPath, "go.mod")
-	err := os.WriteFile(modPath, []byte(data), 0o644)
+	err := os.WriteFile(absFilePath, []byte(data), 0o644)
 	if err != nil {
-		return fmt.Errorf("writefile %q: %w", modPath, err)
+		return fmt.Errorf("writefile %q: %w", absFilePath, err)
 	}
 
 	return nil

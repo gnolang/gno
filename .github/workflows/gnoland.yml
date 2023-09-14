@@ -12,12 +12,18 @@ on:
   push:
     branches: [ "master" ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [ "1.19.x", "1.20.x" ]
+        go-version:
+          - "1.20.x"
+          - "1.21.x"
         goarch: [ "amd64" ]
         goos: [ "linux" ]
         program:
@@ -25,13 +31,14 @@ jobs:
           - gnokey
           - gnoweb
           - gnofaucet
+          - gnotxsync
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: go install
         working-directory: gno.land
         run: GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go install ./cmd/${{ matrix.program }}
@@ -40,7 +47,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [ "1.19.x", "1.20.x" ]
+        go-version:
+          - "1.20.x"
+          - "1.21.x"
         args:
           - _test.gnoland
           - _test.gnokey
@@ -52,7 +61,7 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: test
         working-directory: gno.land
         run: |
@@ -75,7 +84,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       # TODO: setup docker caching
       - run: make test.docker
       - run: docker logs int_gnoland || true
