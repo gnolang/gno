@@ -1,6 +1,6 @@
 # Philosophy
 
- * Simplicity of design.
+ * Simplicity of design - there should be one obvious way to do it.
  * The code is the spec.
  * Readability is paramount - beautiful is better than fast.
  * Minimal code - keep total footprint small.
@@ -9,7 +9,7 @@
  * Finished - software projects that don't become finished are projects that
    are forever vulnerable. One of the primary goals of the Gno language and
    related works is to become finished within a reasonable timeframe.
- * Evolvable, debuggable, and future-proof codebase.
+ * Maintainable, debuggable, and future-proof codebase.
 
 ## Gno Philosophy
 
