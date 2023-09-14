@@ -8,19 +8,19 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-// Signer provides an interface for signing.
+// Signer provides an interface for signing transactions.
 type Signer interface {
-	Sign(SignCfg) (*std.Tx, error) // returns a signed tx, ready to be broadcasted.
-	Info() keys.Info               // returns keys info, containing the address.
-	Validate() error               // checks wether the signer is well configured.
+	Sign(SignCfg) (*std.Tx, error) // Signs a transaction and returns a signed tx ready for broadcasting.
+	Info() keys.Info               // Returns key information, including the address.
+	Validate() error               // Checks whether the signer is properly configured.
 }
 
 // SignerFromKeybase represents a signer created from a Keybase.
 type SignerFromKeybase struct {
-	Keybase  keys.Keybase // Holds keys in memory or on disk
-	Account  string       // Could be name or bech32 format
+	Keybase  keys.Keybase // Stores keys in memory or on disk
+	Account  string       // Account name or bech32 format
 	Password string       // Password for encryption
-	ChainID  string
+	ChainID  string       // Chain ID for transaction signing
 }
 
 func (s SignerFromKeybase) Validate() error {
@@ -33,7 +33,7 @@ func (s SignerFromKeybase) Validate() error {
 		return err
 	}
 
-	// TODO: also verify if the password unlocks the account.
+	// TODO: Also verify if the password unlocks the account.
 	return nil
 }
 
@@ -60,24 +60,24 @@ func (s SignerFromKeybase) Sign(cfg SignCfg) (*std.Tx, error) {
 	account := s.Account
 	password := s.Password
 
-	// fill tx signatures.
+	// Initialize tx signatures.
 	signers := tx.GetSigners()
 	if tx.Signatures == nil {
 		for range signers {
 			tx.Signatures = append(tx.Signatures, std.Signature{
-				PubKey:    nil, // zero signature
-				Signature: nil, // zero signature
+				PubKey:    nil, // Zero signature
+				Signature: nil, // Zero signature
 			})
 		}
 	}
 
-	// validate document to sign.
+	// Validate the transaction to sign.
 	err := tx.ValidateBasic()
 	if err != nil {
 		return nil, err
 	}
 
-	// derive sign doc bytes.
+	// Derive sign doc bytes.
 	signbz := tx.GetSignBytes(chainID, accountNumber, sequenceNumber)
 
 	sig, pub, err := s.Keybase.Sign(account, password, signbz)
@@ -97,25 +97,25 @@ func (s SignerFromKeybase) Sign(cfg SignCfg) (*std.Tx, error) {
 	}
 
 	if !found {
-		return nil, fmt.Errorf("addr %v (%s) not in signer set", addr, account)
+		return nil, fmt.Errorf("address %v (%s) not in signer set", addr, account)
 	}
 
 	return &tx, nil
 }
 
-// Ensure SignerFromKeybase implements Signer interface.
+// Ensure SignerFromKeybase implements the Signer interface.
 var _ Signer = (*SignerFromKeybase)(nil)
 
 // SignerFromBip39 creates an in-memory keybase with a single default account.
 // This can be useful in scenarios where storing private keys in the filesystem isn't feasible.
 //
 // Warning: Using keys.NewKeyBaseFromDir is recommended where possible, as it is more secure.
-func SignerFromBip39(mnemo string, passphrase string, account uint32, index uint32) (Signer, error) {
+func SignerFromBip39(mnemonic string, passphrase string, account uint32, index uint32) (Signer, error) {
 	kb := keys.NewInMemory()
 	name := "default"
-	passwd := "" // Password isn't needed for in-memory storage
+	password := "" // Password isn't needed for in-memory storage
 
-	_, err := kb.CreateAccount(name, mnemo, passphrase, passwd, account, index)
+	_, err := kb.CreateAccount(name, mnemonic, passphrase, password, account, index)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func SignerFromBip39(mnemo string, passphrase string, account uint32, index uint
 	signer := SignerFromKeybase{
 		Keybase:  kb,
 		Account:  name,
-		Password: passwd,
+		Password: password,
 	}
 
 	return &signer, nil

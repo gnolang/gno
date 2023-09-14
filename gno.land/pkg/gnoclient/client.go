@@ -12,15 +12,16 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
+// Client provides an interface for interacting with the blockchain.
 type Client struct {
-	Signer    Signer
-	RPCClient rpcclient.Client
+	Signer    Signer         // Signer for transaction authentication
+	RPCClient rpcclient.Client // RPC client for blockchain communication
 }
 
 // validateSigner checks that the signer is correctly configured.
 func (c Client) validateSigner() error {
 	if c.Signer == nil {
-		return errors.New("missing c.Signer")
+		return errors.New("missing Signer")
 	}
 	return nil
 }
@@ -28,18 +29,19 @@ func (c Client) validateSigner() error {
 // validateRPCClient checks that the RPCClient is correctly configured.
 func (c Client) validateRPCClient() error {
 	if c.RPCClient == nil {
-		return errors.New("missing c.RPCClient")
+		return errors.New("missing RPCClient")
 	}
 	return nil
 }
 
+// QueryCfg contains configuration options for performing queries.
 type QueryCfg struct {
-	Path string
-	Data []byte
-	client.ABCIQueryOptions
+	Path string                   // Query path
+	Data []byte                   // Query data
+	client.ABCIQueryOptions      // ABCI query options
 }
 
-// XXX: not sure if we should keep this helper or encourage people to use ABCIQueryWithOptions directly.
+// Query performs a generic query on the blockchain.
 func (c Client) Query(cfg QueryCfg) (*ctypes.ResultABCIQuery, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return nil, err
@@ -47,6 +49,7 @@ func (c Client) Query(cfg QueryCfg) (*ctypes.ResultABCIQuery, error) {
 	return c.RPCClient.ABCIQueryWithOptions(cfg.Path, cfg.Data, cfg.ABCIQueryOptions)
 }
 
+// QueryAccount retrieves account information for a given address.
 func (c Client) QueryAccount(addr string) (*std.BaseAccount, *ctypes.ResultABCIQuery, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return nil, nil, err
@@ -69,21 +72,22 @@ func (c Client) QueryAccount(addr string) (*std.BaseAccount, *ctypes.ResultABCIQ
 	return &qret.BaseAccount, qres, nil
 }
 
+// CallCfg contains configuration options for executing a contract call.
 type CallCfg struct {
-	PkgPath  string
-	FuncName string
-	Args     []string
-
-	GasFee         string
-	GasWanted      int64
-	Send           string
-	AccountNumber  uint64
-	SequenceNumber uint64
-	Memo           string
+	PkgPath        string   // Package path
+	FuncName       string   // Function name
+	Args           []string // Function arguments
+	GasFee         string   // Gas fee
+	GasWanted      int64    // Gas wanted
+	Send           string   // Send amount
+	AccountNumber  uint64   // Account number
+	SequenceNumber uint64   // Sequence number
+	Memo           string   // Memo
 }
 
+// Call executes a contract call on the blockchain.
 func (c *Client) Call(cfg CallCfg) (*ctypes.ResultBroadcastTxCommit, error) {
-	// validate required client fields.
+	// Validate required client fields.
 	if err := c.validateSigner(); err != nil {
 		return nil, errors.Wrap(err, "validate signer")
 	}
@@ -101,7 +105,7 @@ func (c *Client) Call(cfg CallCfg) (*ctypes.ResultBroadcastTxCommit, error) {
 	accountNumber := cfg.AccountNumber
 	memo := cfg.Memo
 
-	// validate config.
+	// Validate config.
 	if pkgPath == "" {
 		return nil, errors.New("missing PkgPath")
 	}
@@ -115,7 +119,7 @@ func (c *Client) Call(cfg CallCfg) (*ctypes.ResultBroadcastTxCommit, error) {
 		return nil, errors.Wrap(err, "parsing send coins")
 	}
 
-	// parse gas wanted & fee.
+	// Parse gas wanted & fee.
 	gasFeeCoins, err := std.ParseCoin(gasFee)
 	if err != nil {
 		return nil, errors.Wrap(err, "parsing gas fee coin")
@@ -123,7 +127,7 @@ func (c *Client) Call(cfg CallCfg) (*ctypes.ResultBroadcastTxCommit, error) {
 
 	caller := c.Signer.Info().GetAddress()
 
-	// construct msg & tx and marshal.
+	// Construct message & transaction and marshal.
 	msg := vm.MsgCall{
 		Caller:  caller,
 		Send:    sendCoins,
@@ -141,6 +145,7 @@ func (c *Client) Call(cfg CallCfg) (*ctypes.ResultBroadcastTxCommit, error) {
 	return c.signAndBroadcastTxCommit(tx, accountNumber, sequenceNumber)
 }
 
+// signAndBroadcastTxCommit signs a transaction and broadcasts it, returning the result.
 func (c Client) signAndBroadcastTxCommit(tx std.Tx, accountNumber, sequenceNumber uint64) (*ctypes.ResultBroadcastTxCommit, error) {
 	caller := c.Signer.Info().GetAddress()
 
@@ -165,7 +170,7 @@ func (c Client) signAndBroadcastTxCommit(tx std.Tx, accountNumber, sequenceNumbe
 
 	bz, err := amino.Marshal(signedTx)
 	if err != nil {
-		return nil, errors.Wrap(err, "remarshaling tx binary bytes")
+		return nil, errors.Wrap(err, "marshaling tx binary bytes")
 	}
 
 	bres, err := c.RPCClient.BroadcastTxCommit(bz)
@@ -183,17 +188,4 @@ func (c Client) signAndBroadcastTxCommit(tx std.Tx, accountNumber, sequenceNumbe
 	return bres, nil
 }
 
-// TODO: port existing code, i.e. faucet?
-// TODO: create right now a tm2 generic go client and a gnovm generic go client?
-// TODO: Command: Call
-// TODO: Command: Send
-// TODO: Command: AddPkg
-// TODO: Command: Query
-// TODO: Command: Eval
-// TODO: Command: Exec
-// TODO: Command: Package
-// TODO: Command: QFile
-// TODO: examples and unit tests
-// TODO: Mock
-// TODO: alternative configuration (pass existing websocket?)
-// TODO: minimal go.mod to make it light to import
+// TODO: Add more functionality, examples, and unit tests.
