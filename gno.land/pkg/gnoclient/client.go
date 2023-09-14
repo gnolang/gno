@@ -14,7 +14,7 @@ import (
 
 // Client provides an interface for interacting with the blockchain.
 type Client struct {
-	Signer    Signer         // Signer for transaction authentication
+	Signer    Signer           // Signer for transaction authentication
 	RPCClient rpcclient.Client // RPC client for blockchain communication
 }
 
@@ -36,9 +36,9 @@ func (c Client) validateRPCClient() error {
 
 // QueryCfg contains configuration options for performing queries.
 type QueryCfg struct {
-	Path string                   // Query path
-	Data []byte                   // Query data
-	client.ABCIQueryOptions      // ABCI query options
+	Path                    string // Query path
+	Data                    []byte // Query data
+	client.ABCIQueryOptions        // ABCI query options
 }
 
 // Query performs a generic query on the blockchain.
