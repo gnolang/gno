@@ -43,15 +43,17 @@ func set(owner, k, v string) string {
 	if origOwner.String() != owner {
 		return StatusNoWriteAccess
 	}
+	var keystore *KeyStore
 	keystoreInterface, exists := data.Get(owner)
 	if !exists {
-		data.Set(owner, &KeyStore{
+		keystore = &KeyStore{
 			Owner: origOwner,
 			Data:  avl.Tree{},
-		})
-		keystoreInterface, _ = data.Get(owner)
+		}
+		data.Set(owner, keystore)
+	} else {
+		keystore = keystoreInterface.(*KeyStore)
 	}
-	keystore := keystoreInterface.(*KeyStore)
 	keystore.Data.Set(k, v)
 	return StatusOK
 }
@@ -70,15 +72,17 @@ func remove(owner, k string) string {
 	if origOwner.String() != owner {
 		return StatusNoWriteAccess
 	}
+	var keystore *KeyStore
 	keystoreInterface, exists := data.Get(owner)
 	if !exists {
-		data.Set(owner, &KeyStore{
+		keystore = &KeyStore{
 			Owner: origOwner,
 			Data:  avl.Tree{},
-		})
-		keystoreInterface, _ = data.Get(owner)
+		}
+		data.Set(owner, keystore)
+	} else {
+		keystore = keystoreInterface.(*KeyStore)
 	}
-	keystore := keystoreInterface.(*KeyStore)
 	_, removed := keystore.Data.Remove(k)
 	if !removed {
 		return StatusCouldNotExecute
