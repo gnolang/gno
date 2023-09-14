@@ -4,7 +4,7 @@ The contract integrates a 240 kB wordlist into the contract that is used to chec
 
 Add this realm to gno.land:
 
-    gnokey maketx addpkg --pkgpath "gno.land/r/demo/art/haiku" --pkgdir "examples/gno.land/r/demo/art/haiku" --deposit 100000000ugnot --gas-fee 2000000000ugnot --gas-wanted 10000000000 --broadcast --chainid dev --remote localhost:26657 <YOURKEY>
+    gnokey maketx addpkg --pkgpath "gno.land/r/demo/art/haikus" --pkgdir "examples/gno.land/r/demo/art/haiku" --deposit 1000000ugnot --gas-fee 20000000ugnot --gas-wanted 10000000 --broadcast --chainid dev --remote localhost:26657 <YOURKEY>
 
 Note: because of the word-list (240 kb) this realm takes a much higher gas than other realms. The gnovm actually had to be edited to be able to do this kind of transaction because it also takes some time and will timeout with the current defaults. Specifically, I had to increase the following parameters:
 
@@ -17,7 +17,7 @@ Note: because of the word-list (240 kb) this realm takes a much higher gas than 
 
 Mint a haiku:
 
-     gnokey maketx call --pkgpath "gno.land/r/demo/art/haiku" --func "Mint" --args "Knock over a plant,\ncat's innocent eyes proclaim,\n'Nature needed that!'" --gas-fee "1000000ugnot" --gas-wanted "8000000" --broadcast --chainid dev --remote localhost:26657  <YOURKEY>
+     gnokey maketx call --pkgpath "gno.land/r/demo/art/haikus" --func "Mint" --args "Knock over a plant,\ncat's innocent eyes proclaim,\n'Nature needed that!'" --gas-fee "1000000ugnot" --gas-wanted "8000000" --broadcast --chainid dev --remote localhost:26657  <YOURKEY>
 
 Transfer a haiku:
 

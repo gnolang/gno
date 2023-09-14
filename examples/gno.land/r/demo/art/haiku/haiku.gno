@@ -45,13 +45,6 @@ var (
 func init() {
 	nfts = grc721.NewBasicNFT(nftName, nftSymbol)
 	nftDB = avl.Tree{}
-	// load dicitionary of words
-	wordsWithSyllables = avl.Tree{}
-	for _, line := range strings.Split(rawwordlist, "\n") {
-		line = strings.TrimSpace(line)
-		word := strings.Replace(line, ";", "", -1)
-		wordsWithSyllables.Set(word, strings.Count(line, ";")+1)
-	}
 }
 
 // sanitizeString will remove puncuation and extra spaces that might
@@ -73,13 +66,13 @@ func sanitizeString(unclean string) string {
 // and return an error if a non-english word is detected
 func countSyllables(line string) (numSyllables int, err error) {
 	for _, word := range strings.Fields(line) {
-		v, ok := wordsWithSyllables.Get(word)
+		v, ok := syllablesInWord(word)
 		if !ok {
-			v, ok = wordsWithSyllables.Get(word + "s")
+			v, ok = syllablesInWord(word + "s")
 			if !ok {
-				v, ok = wordsWithSyllables.Get(strings.TrimSuffix(word, "s"))
+				v, ok = syllablesInWord(strings.TrimSuffix(word, "s"))
 				if !ok {
-					v, ok = wordsWithSyllables.Get(strings.TrimSuffix(word, "ed"))
+					v, ok = syllablesInWord(strings.TrimSuffix(word, "ed"))
 					if !ok {
 						err = errors.New(ufmt.Sprintf("'%s' is not an english word", word))
 						return
