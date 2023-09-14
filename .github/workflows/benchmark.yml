@@ -13,7 +13,7 @@ jobs:
     runs-on: [self-hosted, Linux, X64, benchmark-v1]
     steps:
     - name: checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         fetch-depth: 1
     - uses: actions/setup-go@v4

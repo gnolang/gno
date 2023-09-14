@@ -11,7 +11,6 @@ require (
 	github.com/dgraph-io/badger/v3 v3.2103.4
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/gdamore/tcell/v2 v2.1.0
-	github.com/gnolang/cors v1.8.1
 	github.com/gnolang/goleveldb v0.0.9
 	github.com/gnolang/overflow v0.0.0-20170615021017-4d914c927216
 	github.com/golang/protobuf v1.5.3
@@ -28,6 +27,7 @@ require (
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/rogpeppe/go-internal v1.11.0
+	github.com/rs/cors v1.10.0
 	github.com/stretchr/testify v1.8.4
 	github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c
 	go.etcd.io/bbolt v1.3.7

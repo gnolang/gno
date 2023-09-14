@@ -37,7 +37,7 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: go install
         working-directory: gnovm
         run: ${{ matrix.goenv }} go install ./cmd/${{ matrix.program }}
@@ -65,7 +65,7 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: test
         working-directory: gnovm
         run: |
