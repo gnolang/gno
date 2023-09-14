@@ -17,6 +17,7 @@ const (
 	StatusNotFound        = "key not found"
 	StatusNoWriteAccess   = "no write access"
 	StatusCouldNotExecute = "could not execute"
+	StatusNoDatabases     = "no databases"
 )
 
 func init() {
@@ -138,15 +139,14 @@ func Render(p string) string {
 	args := strings.Split(p, ":")
 	numArgs := len(args)
 	if p == "" {
-		if data.Size() > 0 {
-			data.Iterate("", "", func(key string, value interface{}) bool {
-				ks := value.(*KeyStore)
-				response += ufmt.Sprintf("- [%s](%s:%s) (%d keys)\n", ks.Owner, BaseURL, ks.Owner, ks.Data.Size())
-				return false
-			})
-		} else {
-			response = "no databases"
+		if data.Size() == 0 {
+			return StatusNoDatabases
 		}
+		data.Iterate("", "", func(key string, value interface{}) bool {
+			ks := value.(*KeyStore)
+			response += ufmt.Sprintf("- [%s](%s:%s) (%d keys)\n", ks.Owner, BaseURL, ks.Owner, ks.Data.Size())
+			return false
+		})
 	} else if numArgs == 1 {
 		owner := args[0]
 		keystoreInterface, exists := data.Get(owner)
