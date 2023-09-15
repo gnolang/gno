@@ -1,10 +1,10 @@
 package flippando
 
 import (
-	"fmt"
-	"math"
+	"math/rand"
+	"std"
+	"time"
 
-	"gno.land/p/demo/rand"
 	"gno.land/p/demo/ufmt"
 )
 
@@ -128,12 +128,11 @@ func generateRandomNumbers(num, start, end int) []int {
 	}
 
 	// Seed the random number generator with the current time
-	r := rand.New()
-
+	rand.Seed(time.Now().UnixNano())
 	// Generate num unique random values within the range
 	result := make([]int, 0, num)
 	for len(result) < num {
-		randomValue := r.Intn(end-start+1) + start
+		randomValue := rand.Intn(end-start+1) + start
 
 		// Check if the value already exists in the result slice
 		// If not, append it to the result slice

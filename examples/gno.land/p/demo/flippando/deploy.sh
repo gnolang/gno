@@ -6,6 +6,6 @@ gnokey maketx addpkg  \
 -broadcast="true" \
 -remote="localhost:26657" \
 -chainid="dev" \
--pkgdir="." \
+-pkgdir="examples/gno.land/p/demo/flippando" \
 -pkgpath="gno.land/p/demo/flippando" \
 test
