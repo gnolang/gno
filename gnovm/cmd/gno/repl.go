@@ -120,7 +120,7 @@ func runRepl(cfg *replCfg) error {
 		if err := handleInput(r, line); err != nil {
 			var goScanError scanner.ErrorList
 			if errors.As(err, &goScanError) {
-				// We assune that a Go scanner error indicates an incomplete Go statement.
+				// We assume that a Go scanner error indicates an incomplete Go statement.
 				// Append next line and retry.
 				prevline = line
 			} else {
