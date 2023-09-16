@@ -23,36 +23,6 @@ type nativeFunc struct {
 var nativeFuncs = [...]nativeFunc{
 	{
 		"std",
-		"AssertOriginCall",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{},
-		func(m *gno.Machine) {
-			testlibs_std.AssertOriginCall(
-				m,
-			)
-		},
-	},
-	{
-		"std",
-		"IsOriginCall",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("bool")},
-		},
-		func(m *gno.Machine) {
-			r0 := testlibs_std.IsOriginCall(
-				m,
-			)
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
-		},
-	},
-	{
-		"std",
 		"TestCurrentRealm",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
