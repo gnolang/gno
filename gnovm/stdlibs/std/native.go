@@ -16,7 +16,7 @@ func AssertOriginCall(m *gno.Machine) {
 }
 
 func IsOriginCall(m *gno.Machine) bool {
-	return len(m.Frames) == 2
+	return PrevRealm(m).addr == m.Context.(ExecContext).OrigCaller
 }
 
 func CurrentRealmPath(m *gno.Machine) string {
@@ -65,43 +65,34 @@ func CurrentRealm(m *gno.Machine) Realm {
 	}
 }
 
+// PrevRealm loops on frames and returns the second realm found in the calling
+// order. If no such realm was found, returns the tx signer (aka OrigCaller).
 func PrevRealm(m *gno.Machine) Realm {
-	var (
-		ctx = m.Context.(ExecContext)
-		// Default lastCaller is OrigCaller, the signer of the tx
-		lastCaller  = ctx.OrigCaller
-		lastPkgPath = ""
-	)
-
+	var lastRealmPath string
 	for i := m.NumFrames() - 1; i > 0; i-- {
 		fr := m.Frames[i]
 		if fr.LastPackage == nil || !fr.LastPackage.IsRealm() {
 			// Ignore non-realm frame
 			continue
 		}
-		pkgPath := fr.LastPackage.PkgPath
-		// The first realm we encounter will be the one calling
-		// this function; to get the calling realm determine the first frame
-		// where fr.LastPackage changes.
-		if lastPkgPath == "" {
-			lastPkgPath = pkgPath
-		} else if lastPkgPath == pkgPath {
+		realmPath := fr.LastPackage.PkgPath
+		if lastRealmPath == "" {
+			// Record the path of the first encountered realm and continue
+			lastRealmPath = realmPath
 			continue
-		} else {
-			lastCaller = fr.LastPackage.GetPkgAddr().Bech32()
-			lastPkgPath = pkgPath
-			break
+		}
+		if lastRealmPath != realmPath {
+			// Second realm detected, return it.
+			return Realm{
+				addr:    fr.LastPackage.GetPkgAddr().Bech32(),
+				pkgPath: realmPath,
+			}
 		}
 	}
-
-	// Empty the pkgPath if we return a user
-	if ctx.OrigCaller == lastCaller {
-		lastPkgPath = ""
-	}
-
+	// No second realm found, return the tx signer.
 	return Realm{
-		addr:    lastCaller,
-		pkgPath: lastPkgPath,
+		addr:    m.Context.(ExecContext).OrigCaller,
+		pkgPath: "", // empty for users
 	}
 }
 

@@ -22,14 +22,10 @@ func TestAssertOriginCall(t *testing.T) {
 			t.Errorf("expected panic with '%v', got '%v'", expectedReason, r)
 		}
 	}()
-	func() {
-		// if called inside a function literal, this is no longer an origin call
-		// because there's one additional frame (the function literal).
-		if IsOriginCall() {
-			t.Errorf("expected IsOriginCall=false but got true")
-		}
-		AssertOriginCall()
-	}()
+	if RSubtestsIsOriginCall() {
+		t.Errorf("expected RSubtestsIsOriginCall=false but got true")
+	}
+	RSubtestsAssertOriginCall()
 }
 
 func TestPrevRealm(t *testing.T) {
