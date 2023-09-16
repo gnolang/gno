@@ -1,6 +1,5 @@
 codecov:
   require_ci_to_pass: false
-  require_changes: true
   notify:
     wait_for_ci: false
 
@@ -23,7 +22,6 @@ coverage:
     patch:
       default:
         target: auto
-    changes:
 
 flags:
   default_rules:
