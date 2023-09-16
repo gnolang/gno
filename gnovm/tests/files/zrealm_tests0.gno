@@ -765,6 +765,8 @@ func main() {
 //                 "FileName": "tests.gno",
 //                 "IsMethod": false,
 //                 "Name": "RSubtestsAssertOriginCall",
+//                 "NativeName": "",
+//                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/demo/tests",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",
@@ -809,6 +811,8 @@ func main() {
 //                 "FileName": "tests.gno",
 //                 "IsMethod": false,
 //                 "Name": "RSubtestsIsOriginCall",
+//                 "NativeName": "",
+//                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/demo/tests",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",
