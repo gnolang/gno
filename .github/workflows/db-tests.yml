@@ -46,6 +46,6 @@ jobs:
           sudo dpkg -i *.deb
 
       # test ./pkgs/db
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: test ./tm2/pkg/db
         run: go test -tags ${{ matrix.tags }} ./tm2/pkg/db/...

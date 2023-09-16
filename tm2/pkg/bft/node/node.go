@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gnolang/cors"
+	"github.com/rs/cors"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -41,7 +41,7 @@ import (
 	verset "github.com/gnolang/gno/tm2/pkg/versionset"
 )
 
-//------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 
 // DBContext specifies config information for loading a new DB.
 type DBContext struct {
@@ -134,7 +134,7 @@ func CustomReactors(reactors map[string]p2p.Reactor) Option {
 	}
 }
 
-//------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 
 // Node is the highest level interface to a full Tendermint node.
 // It includes all configuration information and running services.
@@ -819,7 +819,7 @@ func (n *Node) Config() *cfg.Config {
 	return n.config
 }
 
-//------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 
 func (n *Node) Listeners() []string {
 	return []string{
@@ -887,7 +887,7 @@ func makeNodeInfo(
 	return nodeInfo, err
 }
 
-//------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 
 var genesisDocKey = []byte("genesisDoc")
 

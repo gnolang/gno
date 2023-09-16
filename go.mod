@@ -11,7 +11,6 @@ require (
 	github.com/dgraph-io/badger/v3 v3.2103.4
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/gdamore/tcell/v2 v2.1.0
-	github.com/gnolang/cors v1.8.1
 	github.com/gnolang/goleveldb v0.0.9
 	github.com/gnolang/overflow v0.0.0-20170615021017-4d914c927216
 	github.com/golang/protobuf v1.5.3
@@ -28,13 +27,14 @@ require (
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/rogpeppe/go-internal v1.11.0
+	github.com/rs/cors v1.10.0
 	github.com/stretchr/testify v1.8.4
 	github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c
 	go.etcd.io/bbolt v1.3.7
 	go.uber.org/multierr v1.9.0
-	golang.org/x/crypto v0.12.0
+	golang.org/x/crypto v0.13.0
 	golang.org/x/mod v0.12.0
-	golang.org/x/net v0.14.0
+	golang.org/x/net v0.15.0
 	golang.org/x/term v0.12.0
 	golang.org/x/tools v0.6.0
 	google.golang.org/protobuf v1.31.0
@@ -67,6 +67,6 @@ require (
 	go.opencensus.io v0.22.5 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	golang.org/x/sys v0.12.0 // indirect
-	golang.org/x/text v0.12.0 // indirect
+	golang.org/x/text v0.13.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 )
