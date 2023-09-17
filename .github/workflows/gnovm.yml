@@ -77,7 +77,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           name: gnovm
-          flags: gnovm,gnovm-${{matrix.args}},go-${{ matrix.go-version }}
+          flags: gnovm-${{matrix.args}}
           files: ./gnovm/coverage.out
           #fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
           fail_ci_if_error: false # temporarily
