@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -12,9 +13,13 @@ import (
 	"github.com/cockroachdb/apd"
 )
 
+var printEval = os.Getenv("DEBUG_PRINT_EVAL") == "1"
+
 func (m *Machine) doOpEval() {
 	x := m.PeekExpr(1)
-	if debug {
+	if printEval {
+		fmt.Fprintf(os.Stderr, "EVAL: (%T) %v\n", x, x)
+	} else if debug {
 		debug.Printf("EVAL: (%T) %v\n", x, x)
 		// fmt.Println(m.String())
 	}
