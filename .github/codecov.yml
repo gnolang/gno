@@ -7,34 +7,28 @@ ignore:
   - misc
 
 comment:
-  layout: "header, diff, flags, components"
-  require_changes: true
+  require_changes: false
 
 coverage:
-  #range: 50..100
   round: down
   precision: 2
-  status:
-    project:
-      default:
+
+flag_management:
+  default_rules:
+    carryforward: true
+    statuses:
+      - type: project
         target: auto
         threshold: 0.5%
-        #informational: true
-    patch:
-      default:
+      - type: patch
         target: auto
-
-component_management:
-  individual_components:
-    - component_id: tm2
-      name: tm2
+  individual_flags:
+    - name: tm2
       paths:
-        - tm2
-    - component_id: gnovm
-      name: gnovm
+      - tm2
+    - name: gnovm
       paths:
-        - gnovm
-    - component_id: gno.land
-      name: gno.land
+      - gnovm
+    - name: gno.land
       paths:
-        - gno.land
+      - gno.land
