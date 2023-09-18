@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/demo/daodao/interfaces_v6"
-	"gno.land/p/demo/jsonutil_v4"
+	"gno.land/p/demo/daodao/interfaces"
+	"gno.land/p/demo/ujson"
 )
 
 var PKG_PATH = "gno.land/r/demo/social_feeds"
@@ -130,9 +130,9 @@ func (h *BanPostHandler) FromBinary(b []byte) dao_interfaces.ExecutableMessage {
 	return ExecutableMessageBanPostFromBinary(b)
 }
 
-func (h *BanPostHandler) FromJSON(ast *jsonutil.JSONASTNode) dao_interfaces.ExecutableMessage {
+func (h *BanPostHandler) MessageFromJSON(ast *ujson.JSONASTNode) dao_interfaces.ExecutableMessage {
 	msg := &ExecutableMessageBanPost{}
-	jsonutil.ParseObjectAST(ast, []*jsonutil.ParseKV{
+	ast.ParseObject([]*ujson.ParseKV{
 		{Key: "feedId", Value: &msg.FeedID},
 		{Key: "postId", Value: &msg.PostID},
 		{Key: "reason", Value: &msg.Reason},

@@ -1,1 +1,0 @@
-module gno.land/r/demo/dao_registry_v5

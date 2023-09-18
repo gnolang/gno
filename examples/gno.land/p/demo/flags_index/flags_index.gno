@@ -93,7 +93,8 @@ func (fi *FlagsIndex) Flag(flagID FlagID, flaggerID string) {
 func (fi *FlagsIndex) ClearFlagCount(flagID FlagID) {
 	// find flagCount in byID
 	if !fi.flagsCountsByID.Has(string(flagID)) {
-		panic("flag ID not found")
+		// panic("flag ID not found") // why did you need this?
+		return
 	}
 
 	// remove from byID

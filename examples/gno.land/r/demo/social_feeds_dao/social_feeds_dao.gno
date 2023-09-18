@@ -7,13 +7,13 @@ import (
 	"time"
 
 	dao_core "gno.land/p/demo/daodao/core_v6"
-	dao_interfaces "gno.land/p/demo/daodao/interfaces_v6"
+	dao_interfaces "gno.land/p/demo/daodao/interfaces"
 	"gno.land/p/demo/daodao/proposal_single_v7"
 	"gno.land/p/demo/daodao/voting_group_v8"
-	"gno.land/p/demo/jsonutil_v4"
+	"gno.land/p/demo/ujson"
 	"gno.land/r/demo/dao_registry_v5"
 	"gno.land/r/demo/groups_v9"
-	social_feeds "gno.land/r/demo/social_feeds_v9"
+	social_feeds "gno.land/r/demo/social_feeds"
 )
 
 var (
@@ -96,7 +96,7 @@ func GetBinaryMembers() string {
 }
 
 func GetProposalsJSON(moduleIndex int) string {
-	return jsonutil.FormatSlice(dao_core.GetProposalModule(daoCore, moduleIndex).Proposals())
+	return ujson.FormatSlice(dao_core.GetProposalModule(daoCore, moduleIndex).Proposals())
 }
 
 func GetGroupID() uint64 {

@@ -133,7 +133,7 @@ upgrade_pkg:
         -remote="https://testnet.gno.teritori.com:26657" \
         -broadcast="true" \
         -pkgdir="." \
-        -pkgpath="gno.land/p/demo/jsonutil_v4" \
+        -pkgpath="gno.land/p/demo/ujson" \
         test1
 
     gnokey maketx addpkg \

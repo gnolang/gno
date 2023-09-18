@@ -9,7 +9,7 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/flags_index"
 	"gno.land/p/demo/ufmt"
-	ujson "gno.land/p/demo/ujson_v2"
+	ujson "gno.land/p/demo/ujson"
 )
 
 // Only registered user can create a new feed

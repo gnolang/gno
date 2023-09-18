@@ -10,10 +10,10 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/testutils"
-	ujson "gno.land/p/demo/ujson_v2"
+	ujson "gno.land/p/demo/ujson"
 	"gno.land/r/demo/boards"
 	// Fake previous version for testing
-	feedsV7 "gno.land/r/demo/social_feeds_v9"
+	feedsV7 "gno.land/r/demo/social_feeds"
 	"gno.land/r/demo/users"
 )
 
