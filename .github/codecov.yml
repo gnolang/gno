@@ -7,6 +7,7 @@ ignore:
   - misc
 
 comment:
+  layout: "header, diff, flags, components"
   require_changes: true
 
 coverage:
@@ -23,18 +24,17 @@ coverage:
       default:
         target: auto
 
-flags:
-  default_rules:
-    carryforward: true
-  tm2:
-    paths:
-      - tm2
-    after_n_builds: 4
-  gnovm:
-    paths:
-      - gnovm
-    after_n_builds: 9
-  gno.land:
-    paths:
-      - gno.land
-    after_n_builds: 3
+component_management:
+  individual_components:
+    - component_id: tm2
+      name: tm2
+      paths:
+        - tm2
+    - component_id: gnovm
+      name: gnovm
+      paths:
+        - gnovm
+    - component_id: gno.land
+      name: gno.land
+      paths:
+        - gno.land
