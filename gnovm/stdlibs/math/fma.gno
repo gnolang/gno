@@ -6,8 +6,6 @@ package math
 
 import (
 	"math/bits"
-
-	imath "internal/math"
 )
 
 func zero(x uint64) uint64 {
@@ -97,7 +95,7 @@ func split(b uint64) (sign uint32, exp int32, mantissa uint64) {
 // FMA returns x * y + z, computed with only one rounding.
 // (That is, FMA returns the fused multiply-add of x, y, and z.)
 func FMA(x, y, z float64) float64 {
-	bx, by, bz := imath.Float64bits(x), imath.Float64bits(y), imath.Float64bits(z)
+	bx, by, bz := Float64bits(x), Float64bits(y), Float64bits(z)
 
 	// Inf or NaN or zero involved. At most one rounding will occur.
 	if x == 0.0 || y == 0.0 || z == 0.0 || bx&uvinf == uvinf || by&uvinf == uvinf {
@@ -161,7 +159,7 @@ func FMA(x, y, z float64) float64 {
 	// Round and break ties to even
 	if pe > 1022+bias || pe == 1022+bias && (m+1<<9)>>63 == 1 {
 		// rounded value overflows exponent range
-		return imath.Float64frombits(uint64(ps)<<63 | uvinf)
+		return Float64frombits(uint64(ps)<<63 | uvinf)
 	}
 	if pe < 0 {
 		n := uint(-pe)
@@ -170,5 +168,5 @@ func FMA(x, y, z float64) float64 {
 	}
 	m = ((m + 1<<9) >> 10) & ^zero((m&(1<<10-1))^1<<9)
 	pe &= -int32(nonzero(m))
-	return imath.Float64frombits(uint64(ps)<<63 + uint64(pe)<<52 + m)
+	return Float64frombits(uint64(ps)<<63 + uint64(pe)<<52 + m)
 }

@@ -5,10 +5,6 @@
 
 package math
 
-import (
-	imath "internal/math"
-)
-
 // The original C code and the long comment below are
 // from FreeBSD's /usr/src/lib/msun/src/e_sqrt.c and
 // came with this notice. The go code is a simplified
@@ -110,7 +106,7 @@ func sqrt(x float64) float64 {
 	case x < 0:
 		return NaN()
 	}
-	ix := imath.Float64bits(x)
+	ix := Float64bits(x)
 	// normalize x
 	exp := int((ix >> shift) & mask)
 	if exp == 0 { // subnormal x
@@ -146,5 +142,5 @@ func sqrt(x float64) float64 {
 		q += q & 1 // round according to extra bit
 	}
 	ix = q>>1 + uint64(exp-1+bias)<<shift // significand + biased exponent
-	return imath.Float64frombits(ix)
+	return Float64frombits(ix)
 }

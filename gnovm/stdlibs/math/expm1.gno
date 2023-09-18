@@ -4,8 +4,6 @@
 
 package math
 
-import imath "internal/math"
-
 // The original C code, the long comment, and the constants
 // below are from FreeBSD's /usr/src/lib/msun/src/s_expm1.c
 // and came with this notice. The go code is a simplified
@@ -226,18 +224,18 @@ func expm1(x float64) float64 {
 		return 1 + 2*(x-e)
 	case k <= -2 || k > 56: // suffice to return exp(x)-1
 		y := 1 - (e - x)
-		y = imath.Float64frombits(imath.Float64bits(y) + uint64(k)<<52) // add k to y's exponent
+		y = Float64frombits(Float64bits(y) + uint64(k)<<52) // add k to y's exponent
 		return y - 1
 	}
 	if k < 20 {
-		t := imath.Float64frombits(0x3ff0000000000000 - (0x20000000000000 >> uint(k))) // t=1-2**-k
+		t := Float64frombits(0x3ff0000000000000 - (0x20000000000000 >> uint(k))) // t=1-2**-k
 		y := t - (e - x)
-		y = imath.Float64frombits(imath.Float64bits(y) + uint64(k)<<52) // add k to y's exponent
+		y = Float64frombits(Float64bits(y) + uint64(k)<<52) // add k to y's exponent
 		return y
 	}
-	t = imath.Float64frombits(uint64(0x3ff-k) << 52) // 2**-k
+	t = Float64frombits(uint64(0x3ff-k) << 52) // 2**-k
 	y := x - (e + t)
 	y += 1
-	y = imath.Float64frombits(imath.Float64bits(y) + uint64(k)<<52) // add k to y's exponent
+	y = Float64frombits(Float64bits(y) + uint64(k)<<52) // add k to y's exponent
 	return y
 }
