@@ -68,11 +68,13 @@ func main() {
 //
 // Group Name: test_group
 //
-// Group Creator: gnouser0
+// Group Creator: g18mmku32qwlqu3z60vgh6g9nnqcpgkuzs2r0dla
 //
 // Group createdAt: 2009-02-13 23:31:30 +0000 UTC m=+1234567890.000000001
 //
 // Group Last MemberID: 0000000001
+//
+// Total Weight: 32
 //
 // Group Members:
 //

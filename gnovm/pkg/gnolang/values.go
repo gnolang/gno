@@ -1815,7 +1815,7 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 		}
 	case VPInterface:
 		if dtv.IsUndefined() {
-			panic("interface method call on undefined value")
+			panic(fmt.Sprintf("interface method %s call on undefined value", path.Name))
 		}
 		callerPath := dtv.T.GetPkgPath()
 		tr, _, _, _, _ := findEmbeddedFieldType(callerPath, dtv.T, path.Name, nil)

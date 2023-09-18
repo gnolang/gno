@@ -28,5 +28,6 @@ func main() {
 	println(groups.Render(""))
 }
 
-// Error:
-// unauthorized to delete group
+// Output:
+// 1
+// List of all Groups:

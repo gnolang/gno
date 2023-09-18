@@ -20,3 +20,4 @@ pbbindings.go
 *#
 cover.out
 coverage.out
+/.deploy/

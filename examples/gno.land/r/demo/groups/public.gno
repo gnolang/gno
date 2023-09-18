@@ -3,11 +3,20 @@ package groups
 import (
 	"std"
 
+	"gno.land/p/demo/ujson"
 	"gno.land/r/demo/users"
 )
 
 //----------------------------------------
 // Public facing functions
+
+func GetGroupNameFromID(gid GroupID) (string, bool) {
+	groupI, exists := gGroups.Get(groupIDKey(gid))
+	if !exists {
+		return "", false
+	}
+	return groupI.(*Group).name, true
+}
 
 func GetGroupIDFromName(name string) (GroupID, bool) {
 	groupI, exists := gGroupsByName.Get(name)
@@ -18,9 +27,9 @@ func GetGroupIDFromName(name string) (GroupID, bool) {
 }
 
 func CreateGroup(name string) GroupID {
-	std.AssertOriginCall()
-	caller := std.GetOrigCaller()
-	usernameOf(caller)
+	// std.AssertOriginCall()
+	caller := std.PrevRealm().Addr()
+	// usernameOf(caller)
 	url := "/r/demo/groups:" + name
 	group := newGroup(url, name, caller)
 	gidkey := groupIDKey(group.id)
@@ -30,29 +39,33 @@ func CreateGroup(name string) GroupID {
 }
 
 func AddMember(gid GroupID, address string, weight int, metadata string) MemberID {
-	std.AssertOriginCall()
-	caller := std.GetOrigCaller()
-	usernameOf(caller)
+	// std.AssertOriginCall()
+	caller := std.PrevRealm().Addr()
+	// usernameOf(caller)
 	group := getGroup(gid)
 	if !group.HasPermission(caller, EditPermission) {
-		panic("unauthorized to edit group")
+		panic(caller.String() + " aka " + std.PrevRealm().PkgPath() + " unauthorized to edit group, expected: " + group.creator.String())
 	}
-	user := users.GetUserByAddress(std.Address(address))
-	if user == nil {
-		panic("unknown address " + address)
-	}
+	/*
+		user := users.GetUserByAddress(std.Address(address))
+		if user == nil {
+			panic("unknown address " + address)
+		}
+	*/
 	mid := group.lastMemberID
 	member := group.newMember(mid, std.Address(address), weight, metadata)
 	midkey := memberIDKey(mid)
 	group.members.Set(midkey, member)
+	group.membersByAddress.Set(address, member)
+	group.addToTotalWeight(weight)
 	mid++
 	group.lastMemberID = mid
 	return member.id
 }
 
 func DeleteGroup(gid GroupID) {
-	std.AssertOriginCall()
-	caller := std.GetOrigCaller()
+	// std.AssertOriginCall()
+	caller := std.PrevRealm().Addr()
 	group := getGroup(gid)
 	if !group.HasPermission(caller, DeletePermission) {
 		panic("unauthorized to delete group")
@@ -61,11 +74,48 @@ func DeleteGroup(gid GroupID) {
 }
 
 func DeleteMember(gid GroupID, mid MemberID) {
-	std.AssertOriginCall()
-	caller := std.GetOrigCaller()
+	// std.AssertOriginCall()
+	caller := std.PrevRealm().Addr()
 	group := getGroup(gid)
 	if !group.HasPermission(caller, DeletePermission) {
 		panic("unauthorized to delete member")
 	}
 	group.deleteMember(mid)
+}
+
+func GetMemberWeightByAddress(gid GroupID, addr std.Address, height int64) int {
+	group := getGroup(gid)
+	if group == nil {
+		return 0
+	}
+	member, ok := group.membersByAddress.Get(string(addr), height)
+	if !ok {
+		return 0
+	}
+	return member.(*Member).weight
+}
+
+func GetGroupTotalWeight(gid GroupID, height int64) int {
+	group := getGroup(gid)
+	if group == nil {
+		return 0
+	}
+	return group.getTotalWeight(height)
+}
+
+func GetMembers(gid GroupID) []Member {
+	group := getGroup(gid)
+	if group == nil {
+		return nil
+	}
+	members := []Member{}
+	group.members.Iterate("", "", 0, func(key string, value interface{}) bool {
+		members = append(members, *(value.(*Member)))
+		return false
+	})
+	return members
+}
+
+func GetMembersJSON(gid GroupID) string {
+	return ujson.FormatSlice(GetMembers(gid))
 }

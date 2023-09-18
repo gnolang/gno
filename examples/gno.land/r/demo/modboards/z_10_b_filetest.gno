@@ -1,0 +1,34 @@
+// PKGPATH: gno.land/r/boards_test
+package boards_test
+
+// SEND: 2000000000ugnot
+
+import (
+	"strconv"
+
+	"gno.land/r/demo/modboards"
+	"gno.land/r/demo/users"
+)
+
+var (
+	bid boards.BoardID
+	pid boards.PostID
+)
+
+func init() {
+	users.Register("", "gnouser", "my profile")
+
+	bid = boards.CreateBoard("test_board")
+	pid = boards.CreateThread(bid, "First Post in (title)", "Body of the first post. (body)")
+}
+
+func main() {
+	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
+	// pid of 2 not exist
+	boards.DeletePost(bid, 2, 2, "")
+	println("----------------------------------------------------")
+	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
+}
+
+// Error:
+// thread not exist

@@ -13,5 +13,8 @@ func main() {
 	println(groups.Render(""))
 }
 
-// Error:
-// user not found
+// Output:
+// 1
+// List of all Groups:
+//
+//  * [test_group](/r/demo/groups:test_group)
