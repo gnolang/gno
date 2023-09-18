@@ -18,6 +18,18 @@ func (fid FeedID) String() string {
 	return strconv.Itoa(int(fid))
 }
 
+func (fid *FeedID) FromJSON(ast *ujson.JSONASTNode) {
+	val, err := strconv.Atoi(ast.Value)
+	if err != nil {
+		panic(err)
+	}
+	*fid = FeedID(val)
+}
+
+func (fid FeedID) ToJSON() string {
+	return strconv.Itoa(int(fid))
+}
+
 type Feed struct {
 	id        FeedID
 	url       string

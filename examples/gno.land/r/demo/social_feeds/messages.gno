@@ -22,7 +22,15 @@ type ExecutableMessageBanPost struct {
 }
 
 func (msg *ExecutableMessageBanPost) Type() string {
-	return "BanPost"
+	return "gno.land/r/demo/social_feeds.BanPost"
+}
+
+func (msg *ExecutableMessageBanPost) ToJSON() string {
+	return ujson.FormatObject([]ujson.FormatKV{
+		{Key: "feedId", Value: msg.FeedID},
+		{Key: "postId", Value: msg.PostID},
+		{Key: "reason", Value: msg.Reason},
+	})
 }
 
 func (msg *ExecutableMessageBanPost) String() string {

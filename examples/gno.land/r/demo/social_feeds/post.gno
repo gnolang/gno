@@ -19,6 +19,18 @@ func (pid PostID) String() string {
 	return strconv.Itoa(int(pid))
 }
 
+func (pid *PostID) FromJSON(ast *ujson.JSONASTNode) {
+	val, err := strconv.Atoi(ast.Value)
+	if err != nil {
+		panic(err)
+	}
+	*pid = PostID(val)
+}
+
+func (pid PostID) ToJSON() string {
+	return strconv.Itoa(int(pid))
+}
+
 type Reaction struct {
 	icon  string
 	count uint64
