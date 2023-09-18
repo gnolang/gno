@@ -12,11 +12,6 @@ package math
 //	Floor(±Inf) = ±Inf
 //	Floor(NaN) = NaN
 func Floor(x float64) float64 {
-	/* XXX
-	if haveArchFloor {
-		return archFloor(x)
-	}
-	*/
 	return floor(x)
 }
 
@@ -43,11 +38,6 @@ func floor(x float64) float64 {
 //	Ceil(±Inf) = ±Inf
 //	Ceil(NaN) = NaN
 func Ceil(x float64) float64 {
-	/* XXX
-	if haveArchCeil {
-		return archCeil(x)
-	}
-	*/
 	return ceil(x)
 }
 
@@ -63,11 +53,6 @@ func ceil(x float64) float64 {
 //	Trunc(±Inf) = ±Inf
 //	Trunc(NaN) = NaN
 func Trunc(x float64) float64 {
-	/* XXX
-	if haveArchTrunc {
-		return archTrunc(x)
-	}
-	*/
 	return trunc(x)
 }
 

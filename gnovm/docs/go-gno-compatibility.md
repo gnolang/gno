@@ -259,9 +259,9 @@ Additional native types:
 | log/slog/internal                           | TBD      |
 | log/syslog                                  | TBD      |
 | maps                                        | TBD      |
-| math                                        | partial  |
+| math                                        | complete |
 | math/big                                    | TBD      |
-| math/bits                                   | TBD      |
+| math/bits                                   | complete |
 | math/cmplx                                  | TBD      |
 | math/rand                                   | TBD      |
 | mime                                        | TBD      |

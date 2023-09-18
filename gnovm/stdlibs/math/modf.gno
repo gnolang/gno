@@ -12,11 +12,6 @@ package math
 //	Modf(±Inf) = ±Inf, NaN
 //	Modf(NaN) = NaN, NaN
 func Modf(f float64) (int float64, frac float64) {
-	/* XXX
-	if haveArchModf {
-		return archModf(f)
-	}
-	*/
 	return modf(f)
 }
 
