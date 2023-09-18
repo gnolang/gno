@@ -176,10 +176,10 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "Error")))
 		return res[0].GetString()
 	}
-	// print declared type 
+	// print declared type
 	if _, ok := tv.T.(*DeclaredType); ok {
-	   return tv.String()
-  }
+		return tv.String()
+	}
 	// otherwise, default behavior.
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
