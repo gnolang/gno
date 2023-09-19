@@ -8,16 +8,23 @@ import (
 	"time"
 )
 
-var caller std.Address = "g1rel7980x4y257yh30umy3jx223efwakvnabcde"
-var caller1 std.Address = "g1rel7980x4y257yh30umy3jx223efwakvnaaaaa"
-var caller2 std.Address = "g1rel7980x4y257yh30umy3jx223efwakvnbbbbb"
-var daoMembers = []string{
-	"g1rel7980x4y257yh30umy3jx223efwakvnaaaaa",
-	"g1rel7980x4y257yh30umy3jx223efwakvnbbbbb",
-	"g1rel7980x4y257yh30umy3jx223efwakvnccccc",
-}
-var daoMembersPacked = strings.Join(daoMembers, ",")
-var votingPowersPacked = "1,2,3"
+// This test file is disabled until we port this code to new avl
+
+var (
+	caller     std.Address = "g1rel7980x4y257yh30umy3jx223efwakvnabcde"
+	caller1    std.Address = "g1rel7980x4y257yh30umy3jx223efwakvnaaaaa"
+	caller2    std.Address = "g1rel7980x4y257yh30umy3jx223efwakvnbbbbb"
+	daoMembers             = []string{
+		"g1rel7980x4y257yh30umy3jx223efwakvnaaaaa",
+		"g1rel7980x4y257yh30umy3jx223efwakvnbbbbb",
+		"g1rel7980x4y257yh30umy3jx223efwakvnccccc",
+	}
+)
+
+var (
+	daoMembersPacked   = strings.Join(daoMembers, ",")
+	votingPowersPacked = "1,2,3"
+)
 
 func assertPanic(t *testing.T, f func()) {
 	defer func() {
