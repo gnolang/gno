@@ -10,7 +10,7 @@ import (
 	"gno.land/p/demo/teritori/ujson"
 )
 
-var PKG_PATH = "gno.land/r/demo/social_feeds"
+var PKG_PATH = "gno.land/r/demo/teritori/social_feeds"
 
 // Ban a post
 type ExecutableMessageBanPost struct {
@@ -22,7 +22,7 @@ type ExecutableMessageBanPost struct {
 }
 
 func (msg *ExecutableMessageBanPost) Type() string {
-	return "gno.land/r/demo/social_feeds.BanPost"
+	return "gno.land/r/demo/teritori/social_feeds.BanPost"
 }
 
 func (msg *ExecutableMessageBanPost) ToJSON() string {
