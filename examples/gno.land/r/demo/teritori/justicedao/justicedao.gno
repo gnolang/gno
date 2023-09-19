@@ -4,7 +4,7 @@ import (
 	"gno.land/p/demo/avl"
 	fmt "gno.land/p/demo/ufmt"
 	escrow "gno.land/r/demo/escrow_05"
-	vrf "gno.land/r/demo/vrf_08"
+	vrf "gno.land/r/demo/teritori/vrf_08"
 	"std"
 	"strconv"
 	"strings"
