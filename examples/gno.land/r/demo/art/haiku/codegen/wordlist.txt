@@ -106,7 +106,6 @@ ya
 ye
 yo
 za
-a;a
 a;back
 a;ban;don
 a;ban;don;ment
@@ -232,7 +231,6 @@ a;head
 a;hem
 a;hold
 a;hoy
-a;i
 a;is
 a;kin
 a;la
@@ -345,7 +343,6 @@ a;quar;i;ums
 a;quat;ic
 a;quat;ics
 a;que;ous
-a;r
 a;re;na
 a;ri;a
 a;ris;en
@@ -1236,7 +1233,6 @@ an;y;ways
 an;y;where
 anal
 anat
-is
 i
 and
 ane

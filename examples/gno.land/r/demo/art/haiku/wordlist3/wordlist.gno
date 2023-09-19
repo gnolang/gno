@@ -2,8 +2,6 @@ package wordlist3
 
 func SyllablesInWord(s string) (int, bool) {
 	switch s {
-	case "retransmitted":
-		return 4, true
 	case "retreat":
 		return 2, true
 	case "retrieval":

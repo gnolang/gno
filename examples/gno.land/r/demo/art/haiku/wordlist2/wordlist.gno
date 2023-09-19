@@ -2,10 +2,6 @@ package wordlist2
 
 func SyllablesInWord(s string) (int, bool) {
 	switch s {
-	case "kabuki":
-		return 3, true
-	case "kahuna":
-		return 3, true
 	case "kaleidoscope":
 		return 4, true
 	case "kami":
@@ -12264,6 +12260,8 @@ func SyllablesInWord(s string) (int, bool) {
 		return 4, true
 	case "retransmit":
 		return 3, true
+	case "retransmitted":
+		return 4, true
 
 	}
 	return 0, false

@@ -218,8 +218,6 @@ func SyllablesInWord(s string) (int, bool) {
 		return 1, true
 	case "za":
 		return 1, true
-	case "aa":
-		return 2, true
 	case "aback":
 		return 2, true
 	case "abandon":
@@ -470,8 +468,6 @@ func SyllablesInWord(s string) (int, bool) {
 		return 2, true
 	case "ahoy":
 		return 2, true
-	case "ai":
-		return 2, true
 	case "ais":
 		return 2, true
 	case "akin":
@@ -696,8 +692,6 @@ func SyllablesInWord(s string) (int, bool) {
 		return 3, true
 	case "aqueous":
 		return 3, true
-	case "ar":
-		return 2, true
 	case "arena":
 		return 3, true
 	case "aria":
@@ -2477,8 +2471,6 @@ func SyllablesInWord(s string) (int, bool) {
 	case "anal":
 		return 1, true
 	case "anat":
-		return 1, true
-	case "is":
 		return 1, true
 	case "i":
 		return 1, true
@@ -12263,6 +12255,12 @@ func SyllablesInWord(s string) (int, bool) {
 	case "def":
 		return 1, true
 	case "defamation":
+		return 4, true
+	case "deference":
+		return 3, true
+	case "deficit":
+		return 3, true
+	case "definition":
 		return 4, true
 
 	}
