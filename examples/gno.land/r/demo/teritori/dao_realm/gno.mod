@@ -1,4 +1,4 @@
-module gno.land/r/demo/dao_realm
+module gno.land/r/demo/teritori/dao_realm
 
 require (
     "gno.land/p/demo/teritori/daodao/core" v0.0.0-latest
