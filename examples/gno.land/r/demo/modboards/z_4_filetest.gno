@@ -885,7 +885,7 @@ func main() {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/demo/flags_index.FlagsIndex"
+//                     "ID": "gno.land/p/demo/teritori/flags_index.FlagsIndex"
 //                 }
 //             },
 //             "V": {
@@ -895,7 +895,7 @@ func main() {
 //                 "TV": {
 //                     "T": {
 //                         "@type": "/gno.RefType",
-//                         "ID": "gno.land/p/demo/flags_index.FlagsIndex"
+//                         "ID": "gno.land/p/demo/teritori/flags_index.FlagsIndex"
 //                     },
 //                     "V": {
 //                         "@type": "/gno.RefValue",

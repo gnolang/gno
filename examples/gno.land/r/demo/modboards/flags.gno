@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/demo/flags_index"
+	"gno.land/p/demo/teritori/flags_index"
 )
 
 func getFlagID(threadID PostID, postID PostID) flags_index.FlagID {

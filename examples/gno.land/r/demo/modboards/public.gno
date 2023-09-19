@@ -4,7 +4,7 @@ import (
 	"std"
 	"strconv"
 
-	"gno.land/p/demo/flags_index"
+	"gno.land/p/demo/teritori/flags_index"
 )
 
 //----------------------------------------
