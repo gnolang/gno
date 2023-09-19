@@ -77,16 +77,16 @@ func countSyllables(line string) (numSyllables int, err error) {
 						err = errors.New(ufmt.Sprintf("'%s' is not an english word", word))
 						return
 					} else {
-						numSyllables += v.(int)
+						numSyllables += v
 					}
 				} else {
-					numSyllables += v.(int)
+					numSyllables += v
 				}
 			} else {
-				numSyllables += v.(int)
+				numSyllables += v
 			}
 		} else {
-			numSyllables += v.(int)
+			numSyllables += v
 		}
 	}
 	return
